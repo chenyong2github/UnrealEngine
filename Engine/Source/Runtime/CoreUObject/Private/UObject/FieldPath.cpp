@@ -8,10 +8,68 @@
 #include "UObject/UnrealType.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectArray.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/LinkerLoad.h"
+#include "UObject/UObjectThreadContext.h"
+#include "UObject/PropertyHelper.h"
+#include "Algo/Reverse.h"
+
+/** Helper function used for logging the path to property */
+static FString PathToString(const TArray<FName>& InPath)
+{
+	// See FFieldPath::Generate for formatting specifics
+	// Generate path from the outermost (last item) to the property (first item)
+
+	// Initilize with the number of delimiters we're going to add
+	int32 PathLength = InPath.Num() ? (InPath.Num() - 1) : 0; 
+	for (FName PathSegment : InPath)
+	{
+		PathLength += PathSegment.GetStringLength();
+	}
+	FString Result;
+	if (PathLength)
+	{
+		// Allocate once and construct the path string
+		Result.Reserve(PathLength);
+
+		// Handle nativized blueprint oddities 
+		FString ObjName = InPath.Last().ToString();
+		if (ObjName.StartsWith(UDynamicClass::GetTempPackagePrefix(), ESearchCase::IgnoreCase))
+		{
+			ObjName.RemoveFromStart(UDynamicClass::GetTempPackagePrefix(), ESearchCase::IgnoreCase);
+		}
+		Result += ObjName;
+
+		if (InPath.Num() > 1)
+		{
+			// Path may be either a full path from the package to the property or just from the outer property to the inner property
+			// If it's a full path, the delimiter char for the next object (owner struct) will be a '.' otherwise we assume it's all subobjects
+			if (Result.Len() && Result[0] == '/')
+			{
+				Result += '.';
+			}
+			else
+			{
+				Result += SUBOBJECT_DELIMITER_CHAR;
+			}
+
+			// Add the remainder of the path (it's all subobjects from this point)
+			for (int32 PathIndex = InPath.Num() - 2; PathIndex >= 0; --PathIndex)
+			{
+				Result += InPath[PathIndex].ToString();
+				if (PathIndex > 0)
+				{
+					Result += SUBOBJECT_DELIMITER_CHAR;
+				}
+			}
+		}
+	}
+
+	return Result;
+}
 
 #if WITH_EDITORONLY_DATA
 FFieldPath::FFieldPath(UField* InField, const FName& InPropertyTypeName)
-	: InitialFieldClass(nullptr)
 {
 	if (InField)
 	{
@@ -24,25 +82,30 @@ FFieldPath::FFieldPath(UField* InField, const FName& InPropertyTypeName)
 
 void FFieldPath::Generate(FField* InField)
 {
-	Path.Empty();
-
+	Reset();
 	if (InField)
 	{
-		// Add names from the innermost to the outermost
+		// Add field names from the innermost to the outermost, stop at the owner struct
+		UStruct* Owner = InField->GetOwnerStruct();
+		check(Owner); //  A field that has no owner is not allowed in FFieldPath
 		for (FFieldVariant Iter(InField); Iter.IsValid(); Iter = Iter.GetOwnerVariant())
 		{
-			Path.Add(Iter.GetFName());
+			UStruct* MaybeOwner = Iter.Get<UStruct>();
+			if (MaybeOwner == Owner)
+			{
+				break;
+			}
+			else
+			{
+				Path.Add(Iter.GetFName());
+			}
 		}
-		UStruct* OwnerStruct = CastChecked<UStruct>(InField->GetOwnerUObject());
-		ResolvedOwner = OwnerStruct;
+		ResolvedOwner = Owner;
+		ResolvedField = InField;
 #if WITH_EDITORONLY_DATA
-		FieldPathSerialNumber = OwnerStruct->FieldPathSerialNumber;
+		FieldPathSerialNumber = Owner->FieldPathSerialNumber;
 		InitialFieldClass = InField->GetClass();
 #endif // WITH_EDITORONLY_DATA
-	}
-	else
-	{
-		ClearCachedField();
 	}
 }
 
@@ -50,9 +113,11 @@ void FFieldPath::Generate(const TCHAR* InFieldPathString)
 {
 	// Expected format is: FullPackageName.Subobject[:Subobject:...]:FieldName
 	check(InFieldPathString);
-	
-	Path.Empty();
+	Reset();
+
+	TArray<FName> Result;
 	{
+		
 		TCHAR NameBuffer[NAME_SIZE];
 		int32 NameIndex = 0;
 
@@ -64,7 +129,7 @@ void FFieldPath::Generate(const TCHAR* InFieldPathString)
 				NameBuffer[NameIndex] = '\0';
 				if (NameIndex > 0)
 				{
-					Path.Add(NameBuffer);
+					Result.Add(NameBuffer);
 					NameIndex = 0;
 				}
 				if (*InFieldPathString == '\0')
@@ -80,25 +145,88 @@ void FFieldPath::Generate(const TCHAR* InFieldPathString)
 		}
 	}
 
-	if (Path.Num() > 1)
+	if (Result.Num() > 1)
 	{
-		// Reverse the order
-		for (int32 NameIndex = 0; NameIndex < (Path.Num() / 2); ++NameIndex)
-		{
-			Swap<FName>(Path[NameIndex], Path[Path.Num() - NameIndex - 1]);
-		}
+		// Reverse the order so that it's innermost to outermost
+		Algo::Reverse(Result);
 	}
+	else if (Result.Num() == 1 && Result[0] == NAME_None)
+	{
+		Result.Empty();
+	}
+
+	Path = MoveTemp(Result);
+	ResolveField();
 }
 
-FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, UStruct** OutOwner, FFieldPath::EPathResolveType InResolveType /*= FFieldPath::UseStructIfOuterNotFound*/) const
+UStruct* FFieldPath::ConvertFromFullPath(FLinkerLoad* InLinker)
 {
-	FField* Result = nullptr;
+	// First try the StaticFindObject approach
+	UStruct* Owner = TryToResolveOwnerFromStruct();
+	if (!Owner)
+	{
+		// UClass::Serialize() unhashes the class currently being serialized so SFO will not work on it
+		// If possible try to find the owner through the current serialize context
+		if (InLinker)
+		{
+			Owner = TryToResolveOwnerFromLinker(InLinker);
+		}
+	}
+	// It's possible the full path points to a renamed asset
+	UE_CLOG(!Owner && Path.Num(), LogProperty, Verbose, TEXT("Failed resolve owner when converting from full property path \"%s\""), *PathToString(Path));
+	return Owner;
+}
 
+/** Helper function that checks if two paths have identical trailing sequences */
+static bool HasCommonTrailingSequence(const TArray<FName>& PathA, const TArray<FName>& PathB)
+{
+	bool bTrailingSeuenceIdentical = true;
+	const int32 MaxNumToCheck = FMath::Min(PathA.Num(), PathB.Num());
+	for (int32 PathIndex = 0; PathIndex < MaxNumToCheck; ++PathIndex)
+	{
+		if (PathA[PathA.Num() - PathIndex - 1] != PathB[PathB.Num() - PathIndex - 1])
+		{
+			bTrailingSeuenceIdentical = false;
+			break;
+		}
+	}
+	return bTrailingSeuenceIdentical;
+}
+
+UStruct* FFieldPath::TryToResolveOwnerFromLinker(FLinkerLoad* InLinker) const
+{
+	UStruct* OwnerStruct = nullptr;
+	check(InLinker);
+	FUObjectSerializeContext* Context = InLinker->GetSerializeContext();
+	if (Context && Context->SerializedObject && Context->SerializedObject->IsA<UStruct>())
+	{
+		TArray<FName> StructPath;
+		for (UObject* Obj = Context->SerializedObject; Obj; Obj = Obj->GetOuter())
+		{
+			StructPath.Add(Obj->GetFName());
+		}
+		// Check if our Path contains StructToPath (the assumption is that Path has more elements than struct path) otherwise we know the struct can't hold our property
+		if (StructPath.Num() < Path.Num() && HasCommonTrailingSequence(StructPath, Path))
+		{
+			int32 OwnerPathIndex = Path.Num() - StructPath.Num();
+			OwnerStruct = CastChecked<UStruct>(Context->SerializedObject);
+			ResolvedOwner = OwnerStruct;
+
+			// Remove portion of the path responsible for storing the owner path
+			FFieldPath* MutableThis = const_cast<FFieldPath*>(this);
+			MutableThis->Path.RemoveAt(OwnerPathIndex, Path.Num() - OwnerPathIndex);
+		}
+	}
+	return OwnerStruct;
+}
+
+UStruct* FFieldPath::TryToResolveOwnerFromStruct(UStruct* InCurrentStruct /*= nullptr*/, EPathResolveType InResolveType /*= FFieldPath::UseStructIfOuterNotFound*/) const
+{
 	// Resolve from the outermost to the innermost UObject
 	UObject* LastOuter = nullptr;
-	int32 PathIndex = Path.Num() - 1;
-	for (; PathIndex > 0; --PathIndex)
-	{				
+	int32 LastOuterIndex = -1;
+	for (int32 PathIndex = Path.Num() - 1; PathIndex > 0; --PathIndex)
+	{
 		UObject* Outer = StaticFindObjectFast(UObject::StaticClass(), LastOuter, Path[PathIndex]);
 
 		if (InCurrentStruct && PathIndex == (Path.Num() - 1))
@@ -106,23 +234,44 @@ FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, UStruct** OutOwne
 			UObject* CurrentOutermost = InCurrentStruct->GetOutermost();
 
 			if ((InResolveType == FFieldPath::UseStructIfOuterNotFound && !Outer) || // Outer is not found so try to use the provided struct Outer
-			    (InResolveType == FFieldPath::UseStructAlways && CurrentOutermost != Outer) // Prioritize the provided struct Outer over the resolved one
-			   )
+				(InResolveType == FFieldPath::UseStructAlways && CurrentOutermost != Outer) // Prioritize the provided struct Outer over the resolved one
+				)
 			{
 				Outer = CurrentOutermost;
-				// If we don't update the path then after a GC when this needs resolving we would resolve back to the unrenamed class package
-				FFieldPath* MutableThis = const_cast<FFieldPath*>(this);
-				MutableThis->Path[PathIndex] = Outer->GetFName();
 			}
 		}
 		if (!Outer)
 		{
 			break;
 		}
-		LastOuter = Outer;				
+		LastOuterIndex = PathIndex;
+		LastOuter = Outer;
 	}
-	if (UStruct* Owner = Cast<UStruct>(LastOuter))
+	UStruct* Owner = Cast<UStruct>(LastOuter);
+	if (Owner)
 	{
+		ResolvedOwner = Owner;
+
+		// Remove portion of the path responsible for storing the owner path
+		FFieldPath* MutableThis = const_cast<FFieldPath*>(this);
+		MutableThis->Path.RemoveAt(LastOuterIndex, MutableThis->Path.Num() - LastOuterIndex);
+	}
+	return Owner;
+}
+
+FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, FFieldPath::EPathResolveType InResolveType /*= FFieldPath::UseStructIfOuterNotFound*/) const
+{	
+	FField* Result = nullptr;
+	UStruct* Owner = ResolvedOwner.Get();
+	if (!Owner)
+	{
+		// We're probably dealing with an old path format where the Path array contained the full path to the field
+		Owner = TryToResolveOwnerFromStruct(InCurrentStruct, InResolveType);
+	}
+	// At this point the owner should've been fully resolved
+	if (Owner && Path.Num())
+	{
+		int32 PathIndex = Path.Num() - 1;
 		check(PathIndex <= 1);
 		Result = FindFProperty<FField>(Owner, Path[PathIndex]);
 		if (Result)
@@ -132,55 +281,123 @@ FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, UStruct** OutOwne
 				// Nested property
 				Result = Result->GetInnerFieldByName(Path[0]);
 			}
-			if (OutOwner)
-			{
-				*OutOwner = Owner;
-			}
 		}
 	}
-
 	return Result;
 }
 
 FString FFieldPath::ToString() const
 {
 	FString Result;
-	// See FFieldPath::Generate for formatting specifics
-	// Generate path from the outermost (last item) to the property (first item)
-	for (int32 PathIndex = Path.Num() - 1; PathIndex >= 0; --PathIndex)
+	if (UStruct* Owner = ResolvedOwner.Get())
 	{
-		// @todo: this should be handled by some kind of a flag passed to this function
-		FString ObjName = Path[PathIndex].ToString();
-		if (PathIndex == (Path.Num() - 1) && ObjName.StartsWith(UDynamicClass::GetTempPackagePrefix(), ESearchCase::IgnoreCase))
+		if (ResolvedField)
 		{
-			ObjName.RemoveFromStart(UDynamicClass::GetTempPackagePrefix(), ESearchCase::IgnoreCase);
+			Result = ResolvedField->GetPathName();
 		}
-		Result += ObjName;
-		if (PathIndex > 0)
+		else
 		{
-			// Separator between the package name (last item) and the class (asset object - the second to last item is a '.', oterwise use SUBOBJECT_DELIMITER_CHAR)
-			if (PathIndex == (Path.Num() - 1))
-			{
-				Result += '.';
-			}
-			else
-			{
-				Result += SUBOBJECT_DELIMITER_CHAR;
-			}
+			Result = Owner->GetPathName();
+			Result += SUBOBJECT_DELIMITER_CHAR;
+			Result += PathToString(Path);
 		}
 	}
+	else
+	{
+		// Revert back to old path format where the package and UStruct owner were also specified
+		Result = PathToString(Path);
+	}
 	return Result;
+}
+
+FArchive& operator<<(FArchive& Ar, FFieldPath& InOutPropertyPath)
+{
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	if (Ar.IsSaving())
+	{		
+		UStruct* Owner = InOutPropertyPath.ResolvedOwner.Get();
+		if (!Owner)
+		{
+			// If there's no owner, make sure we don't serialize potentially unresolved path from the actual field
+			// because if we don't save the owner, we won't be able to resolve it anyway.
+			// Possible scenario: the owner was GC'd and the path is no longer valid
+			TArray<FName> EmptyPath;
+			Ar << EmptyPath;
+			UE_CLOG(InOutPropertyPath.Path.Num(), LogProperty, Verbose, TEXT("Null owner but property path is not empty when saving \"%s\""), *PathToString(InOutPropertyPath.Path));
+		}
+		else
+		{
+			Ar << InOutPropertyPath.Path;
+		}
+		Ar << Owner;
+		checkf(Owner == InOutPropertyPath.ResolvedOwner.Get(), TEXT("FFieldPath owner has changed when saving, this is not allowed (Path: \"%s\", new owner: \"%s\")"),
+			*InOutPropertyPath.ToString(), *GetPathNameSafe(Owner));
+	}
+	else
+	{		
+		Ar << InOutPropertyPath.Path;
+		// The old serialization format could save 'None' paths, they should be just empty
+		if (InOutPropertyPath.Path.Num() == 1 && InOutPropertyPath.Path[0] == NAME_None)
+		{
+			InOutPropertyPath.Path.Empty();
+		}
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::FFieldPathOwnerSerialization)
+		{
+			UStruct* SerializedOwner = InOutPropertyPath.ResolvedOwner.Get();
+			Ar << SerializedOwner;
+			InOutPropertyPath.ResolvedOwner = SerializedOwner;
+			if (!SerializedOwner)
+			{
+				UE_CLOG(InOutPropertyPath.Path.Num(), LogProperty, Verbose, TEXT("Serialized null owner for property \"%s\""), *PathToString(InOutPropertyPath.Path));
+				// At this point it makes no sense to keep the remainder of the path around as it will produce unnecessary warnings
+				// Possible scenario: owning struct was not cooked or deleted and the asset was not loaded
+				InOutPropertyPath.Path.Empty();
+			}
+		}
+		else if (InOutPropertyPath.Path.Num())
+		{
+			// Convert from the old format: resolve the owner now and remove its path from the field path
+			FLinkerLoad* Linker = Cast<FLinkerLoad>(Ar.GetLinker());
+			UStruct* Owner = InOutPropertyPath.ConvertFromFullPath(Linker);
+
+			InOutPropertyPath.ResolvedOwner = Owner;
+
+			// This usually happens when the old path format serialized a path and then the owner struct's package got renamed or moved
+			// There's code to handle that in bot UClass and UAnimBlueprintGeneratedClass
+			UE_CLOG(!Owner, LogProperty, Verbose, TEXT("Failed to resolve property owner from Path \"%s\""), *PathToString(InOutPropertyPath.Path));
+		}
+		else
+		{
+			InOutPropertyPath.ResolvedOwner = nullptr;
+		}
+
+		if (!Ar.IsObjectReferenceCollector())
+		{
+			InOutPropertyPath.ClearCachedField();
+		}
+	}
+
+	return Ar;
 }
 
 #if WITH_EDITORONLY_DATA
 void FFieldPath::GenerateFromUField(UField* InField)
 {
-	Path.Empty();
-	ClearCachedField();
+	Reset();
 	for (UObject* Obj = InField; Obj; Obj = Obj->GetOuter())
 	{
-		Path.Add(Obj->GetFName());
-	}	
+		UStruct* MaybeOwner = Cast<UStruct>(Obj);
+		if (MaybeOwner)
+		{
+			ResolvedOwner = MaybeOwner;
+			break;
+		}
+		else
+		{
+			Path.Add(Obj->GetFName());
+		}
+	}
 }
 
 bool FFieldPath::IsFieldPathSerialNumberIdentical(UStruct* InStruct) const
