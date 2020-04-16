@@ -5,6 +5,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Modules/ModuleManager.h"
 
 
 
@@ -167,6 +168,31 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	DDPIGetBool(IniFile, TEXT("Freezing_bWithRayTracing"), Info.Freezing_bWithRayTracing);
 
 	// NOTE: add more settings here!
+
+
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+	// now look in the PlatformInfo objects in the file for TP and UBT names
+
+	FName TargetPlatformKey("TargetPlatformName");
+	FName UBTNameKey("UBTTargetID");
+	for (auto& Pair : IniFile)
+	{
+		if (Pair.Key.StartsWith(TEXT("PlatformInfo")))
+		{
+			const FConfigValue* PlatformName = Pair.Value.Find(TargetPlatformKey);
+			if (PlatformName)
+			{
+				Info.AllTargetPlatformNames.AddUnique(PlatformName->GetValue());
+			}
+			
+			PlatformName = Pair.Value.Find(UBTNameKey);
+			if (PlatformName)
+			{
+				Info.AllUBTPlatformNames.AddUnique(PlatformName->GetValue());
+			}
+		}
+	}
+#endif
 }
 
 
@@ -222,6 +248,41 @@ const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& FDataDriven
 	return DataDrivenPlatforms;
 }
 
+const TArray<FString>& FDataDrivenPlatformInfoRegistry::GetValidPlatformDirectoryNames()
+{
+	static bool bHasSearchedForPlatforms = false;
+	static TArray<FString> ValidPlatformDirectories;
+
+	if (bHasSearchedForPlatforms == false)
+	{
+		bHasSearchedForPlatforms = true;
+
+		// look for possible platforms
+		const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& Infos = GetAllPlatformInfos();
+		for (auto Pair : Infos)
+		{
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+			// if the editor hasn't compiled in support for the platform, it's not "valid"
+			if (!HasCompiledSupportForPlatform(Pair.Key, EPlatformNameType::Ini))
+			{
+				continue;
+			}
+#endif
+
+			// add ourself as valid
+			ValidPlatformDirectories.AddUnique(Pair.Key);
+
+			// now add additional directories
+			for (FString& AdditionalDir : Pair.Value.AdditionalRestrictedFolders)
+			{
+				ValidPlatformDirectories.AddUnique(AdditionalDir);
+			}
+		}
+	}
+
+	return ValidPlatformDirectories;
+}
+
 
 const FDataDrivenPlatformInfoRegistry::FPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(const FString& PlatformName)
 {
@@ -253,3 +314,50 @@ const TArray<FString>& FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms
 	// return whatever we have already found
 	return FoundPlatforms;
 }
+
+
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+bool FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(const FString& PlatformName, EPlatformNameType PlatformNameType)
+{
+	if (PlatformNameType == EPlatformNameType::Ini)
+	{
+		// get the DDPI info object
+		const FPlatformInfo& Info = GetPlatformInfo(PlatformName);
+
+		// look to see if any of the TPs in the Info are valid - if at least one is, we are good
+		for (const FString& TPName : Info.AllTargetPlatformNames)
+		{
+			if (HasCompiledSupportForPlatform(TPName, EPlatformNameType::TargetPlatform))
+			{
+				return true;
+			}
+		}
+		return false;
+
+	}
+	else if (PlatformNameType == EPlatformNameType::UBT)
+	{
+		FName PlatformFName(*PlatformName);
+
+		// find all the DataDrivenPlatformInfo objects and find a matching the UBT name
+		for (auto& Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+		{
+			// if this platform contains the UBT platform name, then check the info for it's TPs
+			// (we could be tricky and match UBT platforms with TPs just for thse UBT platforms, but that complexity does not seem needed)
+			if (Pair.Value.AllUBTPlatformNames.Contains(PlatformName))
+			{
+				return HasCompiledSupportForPlatform(Pair.Key, EPlatformNameType::Ini);
+			}
+		}
+
+		return false;
+	}
+	else if (PlatformNameType == EPlatformNameType::TargetPlatform)
+	{
+		// was this TP compiled?
+		return FModuleManager::Get().ModuleExists(*FString::Printf(TEXT("%sTargetPlatform"), *PlatformName));
+	}
+
+	return false;
+}
+#endif
