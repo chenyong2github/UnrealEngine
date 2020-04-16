@@ -98,7 +98,7 @@ void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 		.WholeRowContent()
 		[ 	
 			SAssignNew(QualityLevelWidgetBox, SWrapBox)
-			.UseAllottedWidth(true)
+			.UseAllottedSize(true)
 		];
 
 	GenerateQualityLevelSelectionWidgets();
