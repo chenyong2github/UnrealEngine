@@ -189,6 +189,7 @@ void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, FColor Color)
 	NewAnimNodePoseWatch.NodeID = NodeID;
 	NewAnimNodePoseWatch.PoseDrawColour = Color;
 	NewAnimNodePoseWatch.PoseInfo = MakeShareable(new FCompactHeapPose());
+	NewAnimNodePoseWatch.Object = nullptr;
 }
 
 void FAnimBlueprintDebugData::RemovePoseWatch(int32 NodeID)
