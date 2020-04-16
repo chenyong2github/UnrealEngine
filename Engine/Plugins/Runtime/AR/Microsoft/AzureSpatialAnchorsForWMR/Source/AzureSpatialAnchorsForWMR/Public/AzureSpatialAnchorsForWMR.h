@@ -83,6 +83,9 @@ protected:
 	}
 
 private:
+	void CreateInterop();
+	void Reset();
+
 	UAzureCloudSpatialAnchor* GetCloudAnchor(AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID) const;
 
 	TArray<UAzureCloudSpatialAnchor*> CloudAnchors;
