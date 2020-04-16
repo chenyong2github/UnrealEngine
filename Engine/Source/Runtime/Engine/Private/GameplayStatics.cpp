@@ -966,22 +966,25 @@ void UGameplayStatics::PlayWorldCameraShake(const UObject* WorldContextObject, T
 UParticleSystemComponent* CreateParticleSystem(UParticleSystem* EmitterTemplate, UWorld* World, AActor* Actor, bool bAutoDestroy, EPSCPoolMethod PoolingMethod)
 {
 	//Defaulting to creating systems from a pool. Can be disabled via fx.ParticleSystemPool.Enable 0
-	UParticleSystemComponent* PSC;
+	UParticleSystemComponent* PSC = nullptr;
 
-	if (PoolingMethod != EPSCPoolMethod::None)
+	if (FApp::CanEverRender() && World && !World->IsNetMode(NM_DedicatedServer))
 	{
-		//If system is set to auto destroy the we should be safe to automatically allocate from a the world pool.
-		PSC = World->GetPSCPool().CreateWorldParticleSystem(EmitterTemplate, World, PoolingMethod);
-	}
-	else
-	{
-		PSC = NewObject<UParticleSystemComponent>((Actor ? Actor : (UObject*)World));
-		PSC->bAutoDestroy = bAutoDestroy;
-		PSC->bAllowAnyoneToDestroyMe = true;
-		PSC->SecondsBeforeInactive = 0.0f;
-		PSC->bAutoActivate = false;
-		PSC->SetTemplate(EmitterTemplate);
-		PSC->bOverrideLODMethod = false;
+		if (PoolingMethod != EPSCPoolMethod::None)
+		{
+			//If system is set to auto destroy the we should be safe to automatically allocate from a the world pool.
+			PSC = World->GetPSCPool().CreateWorldParticleSystem(EmitterTemplate, World, PoolingMethod);
+		}
+		else
+		{
+			PSC = NewObject<UParticleSystemComponent>((Actor ? Actor : (UObject*)World));
+			PSC->bAutoDestroy = bAutoDestroy;
+			PSC->bAllowAnyoneToDestroyMe = true;
+			PSC->SecondsBeforeInactive = 0.0f;
+			PSC->bAutoActivate = false;
+			PSC->SetTemplate(EmitterTemplate);
+			PSC->bOverrideLODMethod = false;
+		}
 	}
 
 	return PSC;
