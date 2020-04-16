@@ -901,26 +901,6 @@ UEdGraphPin* UNiagaraGraph::FindParameterMapDefaultValuePin(const FName Variable
 				break;
 			}
 		}
-
-		if (UNiagaraNodeParameterMapSet* SetNode = Cast<UNiagaraNodeParameterMapSet>(Node))
-		{
-			TArray<UEdGraphPin*> InputPins;
-			SetNode->GetInputPins(InputPins);
-			for (UEdGraphPin* InputPin : InputPins)
-			{
-				if (VariableName == InputPin->PinName)
-				{
-					DefaultInputPin = InputPin;
-					break;
-				}
-			}
-
-			if (DefaultInputPin != nullptr)
-			{
-				break;
-			}
-		}
-
 	}
 
 
