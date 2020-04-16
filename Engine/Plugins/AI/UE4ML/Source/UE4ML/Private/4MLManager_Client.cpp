@@ -70,7 +70,7 @@ void U4MLManager::AddCommonFunctions(FRPCServer& Server)
 		std::vector<bool> Results;
 		if (HasSession() == false || GetSession().IsDone())
 		{
-			for (int Index = 0; Index < AgentIDs.size(); ++Index)
+			for (int Index = 0; Index < int(AgentIDs.size()); ++Index)
 			{
 				Results.push_back(true);
 			}
