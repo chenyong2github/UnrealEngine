@@ -1047,7 +1047,10 @@ void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWor
 	
 	if (!FFileHelper::SaveArrayToFile(Message.ScreenImage, *FileName))
 	{
-		UE_LOG(LogAutomationController, Error, TEXT("Failed to save screenshot to %s"), *FileName);
+		uint32 WriteErrorCode = FPlatformMisc::GetLastError();
+		TCHAR WriteErrorBuffer[2048];
+		FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
+		UE_LOG(LogAutomationController, Warning, TEXT("Fail to save screenshot to %s. WriteError: %u (%s)"), *FileName, WriteErrorCode, WriteErrorBuffer);
 		return;
 	}
 
