@@ -4194,12 +4194,6 @@ void FAudioDevice::Update(bool bGameTicking)
 	}
 
 	{
-		SCOPED_NAMED_EVENT(FAudioDevice_UpdateAudioClock, FColor::Blue);
-		// Update the audio clock, this can be overridden per platform to get a sample-accurate clock
-		UpdateAudioClock();
-	}
-
-	{
 		SCOPED_NAMED_EVENT(FAudioDevice_UpdateVirtualLoops, FColor::Blue);
 		// Update which loops should re-trigger due to coming back into proximity
 		// or allowed by concurrency re-evaluating in context of other sounds stopping
