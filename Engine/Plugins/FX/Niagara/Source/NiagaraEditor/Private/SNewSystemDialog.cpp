@@ -83,7 +83,7 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				.AutoHeight()
 				[
 					SAssignNew(SelectedEmitterBox, SWrapBox)
-					.UseAllottedWidth(true)
+					.UseAllottedSize(true)
 				]),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateFromTemplateLabel", "New system from a template"),

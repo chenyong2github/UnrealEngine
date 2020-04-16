@@ -55,7 +55,7 @@ public:
 			+SOverlay::Slot()
 			[
 				SAssignNew( TagArea, SWrapBox )
-				.UseAllottedWidth( true )
+				.UseAllottedSize( true )
 			]
 
 			+SOverlay::Slot()

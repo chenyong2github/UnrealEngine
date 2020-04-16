@@ -105,7 +105,7 @@ void FPaperTileMapDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 
 	TAttribute<EVisibility> InternalInstanceVis = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FPaperTileMapDetailsCustomization::GetVisibilityForInstancedOnlyProperties));
 
-	TSharedRef<SWrapBox> ButtonBox = SNew(SWrapBox).UseAllottedWidth(true);
+	TSharedRef<SWrapBox> ButtonBox = SNew(SWrapBox).UseAllottedSize(true);
 
 	const float MinButtonSize = 120.0f;
 	const FMargin ButtonPadding(0.0f, 2.0f, 2.0f, 0.0f);

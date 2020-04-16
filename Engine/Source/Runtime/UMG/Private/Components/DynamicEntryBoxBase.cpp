@@ -39,6 +39,7 @@ void UDynamicEntryBoxBase::ResetInternal(bool bDeleteWidgets)
 			StaticCastSharedPtr<SBoxPanel>(MyPanelWidget)->ClearChildren();
 			break;
 		case EDynamicBoxType::Wrap:
+		case EDynamicBoxType::VerticalWrap:
 			StaticCastSharedPtr<SWrapBox>(MyPanelWidget)->ClearChildren();
 			break;
 		case EDynamicBoxType::Overlay:
@@ -74,6 +75,7 @@ void UDynamicEntryBoxBase::RemoveEntryInternal(UUserWidget* EntryWidget)
 					StaticCastSharedPtr<SBoxPanel>(MyPanelWidget)->RemoveSlot(CachedEntryWidget.ToSharedRef());
 					break;
 				case EDynamicBoxType::Wrap:
+				case EDynamicBoxType::VerticalWrap:
 					StaticCastSharedPtr<SWrapBox>(MyPanelWidget)->RemoveSlot(CachedEntryWidget.ToSharedRef());
 					break;
 				case EDynamicBoxType::Overlay:
@@ -92,7 +94,7 @@ void UDynamicEntryBoxBase::SetEntrySpacing(const FVector2D& InEntrySpacing)
 
 	if (MyPanelWidget.IsValid())
 	{
-		if (EntryBoxType == EDynamicBoxType::Wrap)
+		if (EntryBoxType == EDynamicBoxType::Wrap || EntryBoxType == EDynamicBoxType::VerticalWrap)
 		{
 			// Wrap boxes can change their widget spacing on the fly
 			StaticCastSharedPtr<SWrapBox>(MyPanelWidget)->SetInnerSlotPadding(EntrySpacing);
@@ -197,7 +199,14 @@ TSharedRef<SWidget> UDynamicEntryBoxBase::RebuildWidget()
 		break;
 	case EDynamicBoxType::Wrap:
 		EntryBoxWidget = SAssignNew(MyPanelWidget, SWrapBox)
-			.UseAllottedWidth(true)
+			.UseAllottedSize(true)
+			.Orientation(EOrientation::Orient_Horizontal)
+			.InnerSlotPadding(EntrySpacing);
+		break;
+	case EDynamicBoxType::VerticalWrap:
+		EntryBoxWidget = SAssignNew(MyPanelWidget, SWrapBox)
+			.UseAllottedSize(true)
+			.Orientation(EOrientation::Orient_Vertical)
 			.InnerSlotPadding(EntrySpacing);
 		break;
 	case EDynamicBoxType::Overlay:
@@ -302,7 +311,7 @@ FMargin UDynamicEntryBoxBase::BuildEntryPadding(const FVector2D& DesiredSpacing)
 void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 {
 	FSlotBase* NewSlot = nullptr;
-	if (EntryBoxType == EDynamicBoxType::Wrap)
+	if (EntryBoxType == EDynamicBoxType::Wrap || EntryBoxType == EDynamicBoxType::VerticalWrap)
 	{
 		NewSlot = &StaticCastSharedPtr<SWrapBox>(MyPanelWidget)->AddSlot()
 			.FillEmptySpace(false)
