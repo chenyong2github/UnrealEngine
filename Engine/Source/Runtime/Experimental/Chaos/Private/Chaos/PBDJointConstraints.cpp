@@ -4,6 +4,7 @@
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Joint/ChaosJointLog.h"
 #include "Chaos/Joint/ColoringGraph.h"
+#include "Chaos/Joint/JointConstraintsCVars.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
@@ -18,20 +19,6 @@
 #endif
 
 //PRAGMA_DISABLE_OPTIMIZATION
-
-bool bChaos_Joint_EarlyOut_Enabled = true;
-FAutoConsoleVariableRef CVarChaosJointEarlyOutEnabled(TEXT("p.Chaos.Joint.EarlyOut"), bChaos_Joint_EarlyOut_Enabled, TEXT("Whether to iterating when joints report being solved"));
-
-bool bChaos_Joint_Batching = false;
-FAutoConsoleVariableRef CVarChaosJointBatching(TEXT("p.Chaos.Joint.Batching"), bChaos_Joint_Batching, TEXT(""));
-
-int32 bChaos_Joint_MaxBatchSize = 1000;
-FAutoConsoleVariableRef CVarChaosJointBatchSize(TEXT("p.Chaos.Joint.MaxBatchSize"), bChaos_Joint_MaxBatchSize, TEXT(""));
-
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bChaos_Joint_ISPC_Enabled = true;
-FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bChaos_Joint_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Joint Solver"));
-#endif
 
 namespace Chaos
 {
@@ -225,6 +212,8 @@ namespace Chaos
 		, SoftTwistDamping(0)
 		, SoftSwingStiffness(0)
 		, SoftSwingDamping(0)
+		, ProjectionInvMassScale(0)
+		, VelProjectionInvMassScale(0)
 	{
 	}
 

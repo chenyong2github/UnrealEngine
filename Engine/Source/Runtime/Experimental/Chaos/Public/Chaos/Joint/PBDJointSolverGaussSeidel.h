@@ -130,16 +130,6 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		int32 ApplyPositionProjections(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		int32 ApplyRotationProjections(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
 
 		void ApplyPositionDelta(
 			const int32 BodyIndex,
@@ -195,6 +185,18 @@ namespace Chaos
 			FReal& Lambda);
 
 		void ApplyRotationConstraint(
+			const FReal Stiffness,
+			const FVec3& Axis,
+			const FReal Angle);
+
+		void ApplyRotationConstraintKD(
+			const int32 KIndex,
+			const int32 DIndex,
+			const FReal Stiffness,
+			const FVec3& Axis,
+			const FReal Angle);
+
+		void ApplyRotationConstraintDD(
 			const FReal Stiffness,
 			const FVec3& Axis,
 			const FReal Angle);
@@ -357,7 +359,12 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		int32 ApplyPointPositionProjection(
+		int32 ApplyPointProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		int32 ApplyPointConeProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
@@ -392,6 +399,9 @@ namespace Chaos
 
 		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 		FReal AngleTolerance;						// Angle error below which we consider a constraint or drive solved
+
+		FReal ProjectionInvMassScale;
+		FReal VelProjectionInvMassScale;
 	};
 
 }

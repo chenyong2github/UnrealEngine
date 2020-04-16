@@ -46,6 +46,9 @@ struct FJointSolverGaussSeidel
 	
 	float PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 	float AngleTolerance;						// Angle error below which we consider a constraint or drive solved
+
+	float ProjectionInvMassScale;
+	float VelProjectionInvMassScale;
 };
 
 export uniform int32 SizeofFJointSolverGaussSeidel()
@@ -411,23 +414,46 @@ export void ApplyPointPositionProjection(
 {
 	// Apply a position correction with the parent body set to infinite mass
 	{
-		const uniform FMatrix33 J = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]);
+		const uniform float InvM0 = M->InvMs[0] * M->ProjectionInvMassScale;
+		const uniform FMatrix33 InvI0 = Multiply(M->InvIs[0], M->ProjectionInvMassScale);
+
+		uniform FMatrix33 J = SetMatrix33(0, 0, 0);
+		if (InvM0 > SMALL_NUMBER)
+		{
+			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], InvI0, InvM0));
+		}
+		if (M->InvMs[1] > SMALL_NUMBER)
+		{
+			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]));
+		}
 		const uniform FMatrix33 IJ = MatrixInverse(J);
-		const uniform FVector DX = VectorNegate(Multiply(IJ, CX));
-		const uniform FVector DP1 = M->InvMs[1] * DX;
-		const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], DX));
-		ApplyDelta(M, 1, LinearProjection, DP1, DR1);
+		const uniform FVector DX = Multiply(IJ, CX);
+
+		if (InvM0 > SMALL_NUMBER)
+		{
+			const uniform FVector DP0 = InvM0 * DX;
+			const uniform FVector DR0 = Multiply(InvI0, VectorCross(M->Xs[0] - M->Ps[0], DX));
+			ApplyDelta(M, 0, LinearProjection, DP0, DR0);
+		}
+		if (M->InvMs[1] > SMALL_NUMBER)
+		{
+			const uniform FVector NDX = VectorNegate(DX);
+			const uniform FVector DP1 = M->InvMs[1] * NDX;
+			const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], NDX));
+			ApplyDelta(M, 1, LinearProjection, DP1, DR1);
+		}
 	}
 
 	// Apply a velocity correction to set the relative velocity at the joint to zero
-	// NOTE: No parent mass scale here - velocity correction is shared between bodies normally
-	// (if we don't do this, velocity tends to accumulate down chains leading to whip-like behaviour)
 	{
+		const uniform float InvM0 = M->VelProjectionInvMassScale * M->InvMs[0];
+		const uniform FMatrix33 InvI0 = Multiply(M->InvIs[0], M->VelProjectionInvMassScale);
+
 		// Calculate joint-space mass
 		uniform FMatrix33 J = SetMatrix33(0, 0, 0);
-		if (M->InvMs[0] > 0)
+		if (InvM0 > 0)
 		{
-			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], M->InvMs[0]));
+			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], InvI0, InvM0));
 		}
 		if (M->InvMs[1] > 0)
 		{
@@ -441,10 +467,10 @@ export void ApplyPointPositionProjection(
 		const uniform FVector CV = V1 - V0;
 		const uniform FVector DV = Multiply(IJ, CV);
 
-		if (M->InvMs[0] > 0)
+		if (InvM0 > 0)
 		{
-			const uniform FVector DV0 = M->InvMs[0] * DV;
-			const uniform FVector DW0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DV));
+			const uniform FVector DV0 = InvM0 * DV;
+			const uniform FVector DW0 = Multiply(InvI0, VectorCross(M->Xs[0] - M->Ps[0], DV));
 			ApplyVelocityDelta(M, 0, LinearProjection, DV0, DW0);
 		}
 		if (M->InvMs[1] > 0)

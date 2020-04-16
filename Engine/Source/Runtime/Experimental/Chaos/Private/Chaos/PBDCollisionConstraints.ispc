@@ -765,22 +765,6 @@ export uniform int32 SizeofFCollisionContact()
 	return sizeof(uniform FCollisionContact);
 }
 
-// @todo(ccaulfield): move to ispc libs
-inline uniform FMatrix33 Multiply(const uniform FMatrix33& L, const uniform float R)
-{
-	uniform FMatrix33 M;
-	for (uniform int Index = 0; Index < 12; ++Index)
-	{
-		M.M[Index] = L.M[Index] * R;
-	}
-	M.M[12] = 0.0f;
-	M.M[13] = 0.0f;
-	M.M[14] = 0.0f;
-	M.M[15] = 1.0f;
-	return M;
-}
-
-
 // Get the CoM position given the Actor position
 static inline uniform FVector GetCoMWorldPosition(
 	const uniform FVector& PActorWorld,
