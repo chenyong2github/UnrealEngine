@@ -485,11 +485,15 @@ namespace F4MLConsoleCommands
 {
 	struct FHelper
 	{
-		static void RestartServer()
+		static void RestartServer(const TArray<FString>& Args, UWorld*)
 		{
 			U4MLManager& Manager = U4MLManager::Get();
 			uint16 Port = UUE4MLSettings::GetDefaultRPCServerPort();
 			FParse::Value(FCommandLine::Get(), TEXT("4MLPort="), Port);
+			if (Args.Num() > 0)
+			{
+				Port = uint16(TCString<TCHAR>::Atoi(*Args[0]));
+			}
 			Manager.StartServer(Port, Manager.CurrentFunctionMode, Manager.CurrentServerThreads);
 		}
 	};
@@ -499,5 +503,7 @@ namespace F4MLConsoleCommands
 		U4MLManager::Get().SetSession(nullptr);
 	}));
 
-	FAutoConsoleCommand RestartServer(TEXT("4ml.server.restart"), TEXT(""), FConsoleCommandDelegate::CreateStatic(FHelper::RestartServer));
+	FAutoConsoleCommandWithWorldAndArgs RestartServer(TEXT("4ml.server.restart")
+		, TEXT("restarts the UE4ML RPC server, optionally changing the port the server is listening at. Use: 4ml.server.restart [port]")
+		, FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(FHelper::RestartServer));
 }
