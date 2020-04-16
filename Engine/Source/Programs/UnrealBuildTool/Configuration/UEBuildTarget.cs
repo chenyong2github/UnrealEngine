@@ -2897,6 +2897,17 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets the output directory for a target
+		/// </summary>
+		/// <param name="BaseDir">The base directory for output files</param>
+		/// <param name="TargetFile">Path to the target file</param>
+		/// <returns>The output directory for this target</returns>
+		public static DirectoryReference GetOutputDirectoryForExecutable(DirectoryReference BaseDir, FileReference TargetFile)
+		{
+			return UnrealBuildTool.GetExtensionDirs(BaseDir).Where(x => TargetFile.IsUnderDirectory(x)).OrderByDescending(x => x.FullName.Length).FirstOrDefault() ?? UnrealBuildTool.EngineDirectory;
+		}
+
+		/// <summary>
 		/// Finds the base output directory for build products of the given module
 		/// </summary>
 		/// <param name="ModuleRules">The rules object created for this module</param>
@@ -3386,14 +3397,15 @@ namespace UnrealBuildTool
 			}
 
 			// Construct the output paths for this target's executable
-			List<DirectoryReference> PossibleOutputDirectories = new List<DirectoryReference>();
-			PossibleOutputDirectories.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory));
-			if (ProjectFile != null && (bCompileMonolithic || !bUseSharedBuildEnvironment))
+			DirectoryReference OutputDirectory;
+			if (ProjectFile != null && (bCompileMonolithic || !bUseSharedBuildEnvironment) && Rules.File.IsUnderDirectory(ProjectDirectory))
 			{
-				PossibleOutputDirectories.AddRange(UnrealBuildTool.GetExtensionDirs(ProjectDirectory));
+				OutputDirectory = GetOutputDirectoryForExecutable(ProjectDirectory, Rules.File);
 			}
-
-			DirectoryReference OutputDirectory = PossibleOutputDirectories.Where(x => Rules.File.IsUnderDirectory(x)).OrderByDescending(x => x.FullName.Length).FirstOrDefault() ?? UnrealBuildTool.EngineDirectory;
+			else
+			{
+				OutputDirectory = GetOutputDirectoryForExecutable(UnrealBuildTool.EngineDirectory, Rules.File);
+			}
 
 			bool bCompileAsDLL = Rules.bShouldCompileAsDLL && bCompileMonolithic;
 			List<FileReference> OutputPaths = MakeBinaryPaths(OutputDirectory, bCompileMonolithic ? TargetName : AppName, Platform, Configuration, bCompileAsDLL ? UEBuildBinaryType.DynamicLinkLibrary : UEBuildBinaryType.Executable, Rules.Architecture, Rules.UndecoratedConfiguration, bCompileMonolithic && ProjectFile != null, Rules.ExeBinariesSubFolder, ProjectFile, Rules);
