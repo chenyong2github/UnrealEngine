@@ -47,8 +47,6 @@
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 static int32 AudioChannelCountCVar = 0;
 FAutoConsoleVariableRef CVarSetAudioChannelCount(
 	TEXT("au.SetAudioChannelCount"),
@@ -6543,5 +6541,3 @@ int32 FAudioDevice::GetNumPrecacheFrames() const
 	// Otherwise, use the default value or value set in ini file
 	return NumPrecacheFrames;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
