@@ -48,7 +48,7 @@
 #include "ShaderParameterMetadata.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
-#include "ShaderCompilerCommon.h"
+#include "ShaderCore.h"
 
 #define LOCTEXT_NAMESPACE "ShaderCompiler"
 

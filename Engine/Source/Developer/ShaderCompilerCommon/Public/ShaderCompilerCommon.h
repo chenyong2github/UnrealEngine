@@ -357,21 +357,5 @@ namespace CrossCompiler
 
 }
 
-enum class ESCWErrorCode
-{
-	NotSet = -1,
-	Success,
-	GeneralCrash,
-	BadShaderFormatVersion,
-	BadInputVersion,
-	BadSingleJobHeader,
-	BadPipelineJobHeader,
-	CantDeleteInputFile,
-	CantSaveOutputFile,
-	NoTargetShaderFormatsFound,
-	CantCompileForSpecificFormat,
-	CrashInsidePlatformCompiler,
-};
-
 // Error code for SCW to help track down crashes
 extern SHADERCOMPILERCOMMON_API ESCWErrorCode GSCWErrorCode;
