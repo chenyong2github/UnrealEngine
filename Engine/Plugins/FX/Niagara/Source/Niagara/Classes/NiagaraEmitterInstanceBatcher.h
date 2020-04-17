@@ -202,6 +202,9 @@ private:
 	void ClearFreeIDsListSizesBuffer(FRHICommandList& RHICmdList);
 	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, FEmitterInstanceList& Instances);
 
+	void SetConstantBuffers(FRHICommandList &RHICmdList, const FNiagaraShaderRef& Shader, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData* Instance);
+	void BuildConstantBuffers(FNiagaraGPUSystemTick& Tick);
+
 	/** Feature level of this effects system */
 	ERHIFeatureLevel::Type FeatureLevel;
 	/** Shader platform that will be rendering this effects system */
@@ -214,6 +217,12 @@ private:
 
 	// GPU emitter instance count buffer. Contains the actual particle / instance count generate in the GPU tick.
 	FNiagaraGPUInstanceCountManager GPUInstanceCounterManager;
+
+	// persistent layouts used to create the constant buffers for the compute sim shader
+	FRHIUniformBufferLayout GlobalCBufferLayout;
+	FRHIUniformBufferLayout SystemCBufferLayout;
+	FRHIUniformBufferLayout OwnerCBufferLayout;
+	FRHIUniformBufferLayout EmitterCBufferLayout;
 
 	// @todo REMOVE THIS HACK
 	uint32 LastFrameThatDrainedData;
