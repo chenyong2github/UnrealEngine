@@ -31,13 +31,16 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	uint32 PlatformProcessID;
 	uint32 MonitorProcessID; // Set to the CrashReportClientEditor PID when out-of-process reporting is used.
 	TOptional<int32> ExitCode; // Set by CrashReportClientEditor after the Editor process exit when out-of-process reporting is used and reading the exit code is supported.
+	TOptional<int32> MonitorExceptCode; // Set by CrashReportClientEditor if an exception is caught by monitoring the Editor. This is to detect if CRC crashes itself.
 
 	FDateTime StartupTimestamp;
 	FDateTime Timestamp;
-	volatile int32 IdleSeconds; // Can be updated from concurrent threads.
-	volatile int32 Idle1Min;
-	volatile int32 Idle5Min;
-	volatile int32 Idle30Min;
+	volatile int32 IdleSeconds = 0; // Can be updated from concurrent threads.
+	volatile int32 Idle1Min = 0;
+	volatile int32 Idle5Min = 0;
+	volatile int32 Idle30Min = 0;
+	volatile int32 TotalUserInactivitySeconds = 0; // If time elapsed between two user interaction is greater than a threshold, consider it inactivity and sum it up.
+	volatile int32 TotalEditorInactivitySeconds = 0; // Account for user input and Editor process CPU usage. Add up gaps where the CPU was not used intensively and the user did not interact.
 	FString CurrentUserActivity;
 	TArray<FString> Plugins;
 	float AverageFPS;
@@ -157,6 +160,14 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 * @node This function should only be called by the out of process monitor when the process exit value is known.
 	 */
 	void SaveExitCode(int32 ExitCode);
+
+	/**
+	 * Set the exception code that caused the monitor application to crash. When the monitoring application raises
+	 * and catches an unexpected exception, it tries to save the exception code it in the session before dying.
+	 * @note This is to diagnose the cases where CrashReportClientEditor send the summary event delayed and without
+	 *       the Editor exit code.
+	 */
+	void SaveMonitorExceptCode(int32 ExceptCode);
 
 private:
 	static FSystemWideCriticalSection* StoredValuesLock;

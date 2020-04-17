@@ -41,6 +41,7 @@ namespace EditorAnalyticsDefs
 	static const FString PlatformProcessIDStoreKey(TEXT("PlatformProcessID"));
 	static const FString MonitorProcessIDStoreKey(TEXT("MonitorProcessID"));
 	static const FString ExitCodeStoreKey(TEXT("ExitCode"));
+	static const FString MonitorExceptCodeStoreKey(TEXT("MonitorExceptCode"));
 
 	// timestamps
 	static const FString StartupTimestampStoreKey(TEXT("StartupTimestamp"));
@@ -49,6 +50,8 @@ namespace EditorAnalyticsDefs
 	static const FString Idle1MinStoreKey(TEXT("Idle1Min"));
 	static const FString Idle5MinStoreKey(TEXT("Idle5Min"));
 	static const FString Idle30MinStoreKey(TEXT("Idle30Min"));
+	static const FString TotalUserInactivitySecondsStoreKey(TEXT("TotalUserInactivitySecs"));
+	static const FString TotalEditorInactivitySecondsStoreKey(TEXT("TotalEditorInactivitySecs"));
 	static const FString CurrentUserActivityStoreKey(TEXT("CurrentUserActivity"));
 	static const FString PluginsStoreKey(TEXT("Plugins"));
 	static const FString AverageFPSStoreKey(TEXT("AverageFPS"));
@@ -258,6 +261,14 @@ namespace EditorAnalyticsUtils
 			}
 		}
 
+		{
+			FString MonitorExceptCodeString;
+			if (FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorExceptCodeStoreKey, MonitorExceptCodeString))
+			{
+				Session.MonitorExceptCode.Emplace(FCString::Atoi(*MonitorExceptCodeString));
+			}
+		}
+
 		// scope is just to isolate the temporary value
 		{
 			FString StartupTimestampString;
@@ -274,6 +285,8 @@ namespace EditorAnalyticsUtils
 		GET_STORED_INT(Idle1Min);
 		GET_STORED_INT(Idle5Min);
 		GET_STORED_INT(Idle30Min);
+		GET_STORED_INT(TotalUserInactivitySeconds);
+		GET_STORED_INT(TotalEditorInactivitySeconds);
 
 		GET_STORED_STRING(CurrentUserActivity);
 
@@ -359,10 +372,6 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	MonitorProcessID = 0;
 	StartupTimestamp = FDateTime::MinValue();
 	Timestamp = FDateTime::MinValue();
-	IdleSeconds = 0;
-	Idle1Min = 0;
-	Idle5Min = 0;
-	Idle30Min = 0;
 	CurrentUserActivity = EditorAnalyticsDefs::DefaultUserActivity;
 	AverageFPS = 0;
 	GPUVendorID = 0;
@@ -478,6 +487,8 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::Idle1MinStoreKey,  FString::FromInt(Idle1Min)},
 			{EditorAnalyticsDefs::Idle5MinStoreKey,  FString::FromInt(Idle5Min)},
 			{EditorAnalyticsDefs::Idle30MinStoreKey, FString::FromInt(Idle30Min)},
+			{EditorAnalyticsDefs::TotalUserInactivitySecondsStoreKey, FString::FromInt(TotalUserInactivitySeconds)},
+			{EditorAnalyticsDefs::TotalEditorInactivitySecondsStoreKey, FString::FromInt(TotalEditorInactivitySeconds)},
 			{EditorAnalyticsDefs::CurrentUserActivityStoreKey, CurrentUserActivity},
 			{EditorAnalyticsDefs::AverageFPSStoreKey,     FString::SanitizeFloat(AverageFPS)},
 			{EditorAnalyticsDefs::IsDebuggerStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bIsDebugger)},
@@ -492,6 +503,11 @@ bool FEditorAnalyticsSession::Save()
 		if (ExitCode.IsSet())
 		{
 			KeyValues.Emplace(EditorAnalyticsDefs::ExitCodeStoreKey, FString::FromInt(ExitCode.GetValue()));
+		}
+
+		if (MonitorExceptCode.IsSet())
+		{
+			KeyValues.Emplace(EditorAnalyticsDefs::MonitorExceptCodeStoreKey, FString::FromInt(MonitorExceptCode.GetValue()));
 		}
 
 		FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
@@ -534,6 +550,7 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::PlatformProcessIDStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorProcessIDStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ExitCodeStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorExceptCodeStoreKey);
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::StartupTimestampStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TimestampStoreKey);
@@ -541,6 +558,8 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle1MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle5MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle30MinStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TotalUserInactivitySecondsStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TotalEditorInactivitySecondsStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::CurrentUserActivityStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::PluginsStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::AverageFPSStoreKey);
@@ -677,4 +696,18 @@ void FEditorAnalyticsSession::SaveExitCode(int32 InExitCode)
 
 	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::ExitCodeStoreKey, ExitCodeStr);
+}
+
+void FEditorAnalyticsSession::SaveMonitorExceptCode(int32 InExceptCode)
+{
+	if (!ensure(IsLocked()))
+	{
+		return;
+	}
+
+	MonitorExceptCode.Emplace(InExceptCode);
+	FString ExceptCodeStr = FString::Printf(TFormatSpecifier<decltype(InExceptCode)>::GetFormatSpecifier(), InExceptCode);
+
+	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::MonitorExceptCodeStoreKey, ExceptCodeStr);
 }
