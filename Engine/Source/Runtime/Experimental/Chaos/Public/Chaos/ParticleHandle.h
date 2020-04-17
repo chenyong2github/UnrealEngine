@@ -13,8 +13,6 @@
 #include "Chaos/ChaosDebugDraw.h"
 #endif
 
-
-
 class IPhysicsProxyBase;
 
 namespace Chaos
