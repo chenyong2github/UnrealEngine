@@ -42,6 +42,7 @@ struct FHairStrandsInterpolationInput
 
 		bool bIsSimulationEnable = false;
 		bool bHasGlobalInterpolation = false;
+		uint32 HairInterpolationType = 0;
 		
 		FHairGroupDesc GroupDesc;
 

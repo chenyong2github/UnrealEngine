@@ -17,6 +17,15 @@
 
 #include "GroomAsset.generated.h"
 
+/** List of interpolation type */
+UENUM(BlueprintType)
+enum class EGroomInterpolationType : uint8
+{
+	None = 0 UMETA(Hidden),
+	RigidTransform = 0x02 UMETA(DisplatName = "RigidTransform"),
+	OffsetTransform = 0x04 UMETA(DisplatName = "OffsetTransform"),
+	SmoothTransform = 0x08 UMETA(DisplatName = "SmoothTransform")
+};
 
 /** List of niagara solvers */
 UENUM(BlueprintType)
@@ -634,6 +643,10 @@ public:
 	/** Enable radial basis function interpolation to be used instead of the local skin rigid transform */
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (ToolTip = "Enable radial basis function interpolation to be used instead of the local skin rigid transform (WIP)"))
 	bool EnableGlobalInterpolation = false;
+
+	/** Type of interpolation used */
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (ToolTip = "Type of interpolation used (WIP)"))
+	EGroomInterpolationType HairInterpolationType = EGroomInterpolationType::RigidTransform;
 
 	TArray<FHairGroupData> HairGroupsData;
 
