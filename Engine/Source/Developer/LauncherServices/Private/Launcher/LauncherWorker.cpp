@@ -516,17 +516,19 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		MapList = TEXT(" -map=") + InitialMap;
 	}
 
+	bool bIsBuilding = InProfile->ShouldBuild();
+
 	// Override the Blueprint nativization method for anything other than "cook by the book" mode. Nativized assets
 	// won't get regenerated otherwise, and we don't want UBT to include generated code assets from a previous cook.
 	// Also disable Blueprint nativization if the profile is not configured to also build code. Otherwise nativized
 	// assets generated at cook time will not be linked into the game's executable prior to stage/deployment phases.
-	if (InProfile->GetCookMode() != ELauncherProfileCookModes::ByTheBook || !InProfile->IsBuilding())
+	if (InProfile->GetCookMode() != ELauncherProfileCookModes::ByTheBook || !bIsBuilding)
 	{
 		UATCommand += TEXT(" -ini:Game:[/Script/UnrealEd.ProjectPackagingSettings]:BlueprintNativizationMethod=Disabled");
 	}
 
 	// build
-	if (InProfile->IsBuilding())
+	if (bIsBuilding)
 	{
 		UATCommand += TEXT(" -build");
 
@@ -864,25 +866,12 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 
 void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfile )
 {
-	// check to see if we need to build by default
-	if (!InProfile->HasProjectSpecified())
-	{
-		FString ProjectPath = FPaths::GetPath(InProfile->GetProjectPath());
-		TArray<FString> OutProjectCodeFilenames;
-		IFileManager::Get().FindFilesRecursive(OutProjectCodeFilenames, *(ProjectPath / TEXT("Source")), TEXT("*.h"), true, false, false);
-		IFileManager::Get().FindFilesRecursive(OutProjectCodeFilenames, *(ProjectPath / TEXT("Source")), TEXT("*.cpp"), true, false, false);
-		ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
-		if (OutProjectCodeFilenames.Num() > 0 && SourceCodeAccessModule.GetAccessor().CanAccessSourceCode())
-		{
-			InProfile->SetBuildGame(true);
-		}
-	}
 	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
 	// create task chains
 	TaskChain = MakeShareable(new FLauncherVerifyProfileTask());
 	TArray<FString> Platforms;
-	if (InProfile->GetCookMode() == ELauncherProfileCookModes::ByTheBook || InProfile->IsBuilding())
+	if (InProfile->GetCookMode() == ELauncherProfileCookModes::ByTheBook || InProfile->ShouldBuild())
 	{
 		Platforms = InProfile->GetCookedPlatforms();
 	}
