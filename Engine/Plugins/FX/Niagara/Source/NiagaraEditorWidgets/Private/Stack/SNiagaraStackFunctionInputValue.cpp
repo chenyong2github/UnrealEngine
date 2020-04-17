@@ -486,7 +486,6 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 	.Padding(5)
 	[
 		SNew(SBox)
-		.WidthOverride(300)
 		.HeightOverride(400)
 		[
 			SNew(SVerticalBox)

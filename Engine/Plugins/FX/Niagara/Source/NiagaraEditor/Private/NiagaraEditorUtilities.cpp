@@ -2592,7 +2592,7 @@ bool FNiagaraParameterUtilities::GetNamespaceEditData(
 	OutParameterHandle = FNiagaraParameterHandle(InParameterName);
 	TArray<FName> NameParts = OutParameterHandle.GetHandleParts();
 	OutNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(NameParts);
-	if (OutNamespaceMetadata.IsValid() == false || OutNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditing))
+	if (OutNamespaceMetadata.IsValid() == false)
 	{
 		OutErrorMessage = LOCTEXT("NoMetadataForNamespace", "This parameter doesn't support editing.");
 		return false;
@@ -2609,7 +2609,7 @@ bool FNiagaraParameterUtilities::GetNamespaceModifierEditData(
 {
 	if (GetNamespaceEditData(InParameterName, OutParameterHandle, OutNamespaceMetadata, OutErrorMessage))
 	{
-		if (OutNamespaceMetadata.IsValid() == false || OutNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier) == false)
+		if (OutNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier))
 		{
 			OutErrorMessage = LOCTEXT("NotSupportedForThisNamespace", "This parameter doesn't support namespace modifiers.");
 			return false;
@@ -2624,13 +2624,19 @@ bool FNiagaraParameterUtilities::GetNamespaceModifierEditData(
 
 bool FNiagaraParameterUtilities::TestCanChangeNamespaceWithMessage(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata, FText& OutMessage)
 {
+	if (NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace))
+	{
+		OutMessage = LOCTEXT("NewNamespaceNotSupported", "The new namespace does not support editing so it can not be assigned.");
+		return false;
+	}
+
 	FNiagaraParameterHandle ParameterHandle;
 	FNiagaraNamespaceMetadata NamespaceMetadata;
 	if (GetNamespaceEditData(ParameterName, ParameterHandle, NamespaceMetadata, OutMessage))
 	{
-		if (NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditing))
+		if (NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace))
 		{
-			OutMessage = LOCTEXT("NewNamespaceIsntValid", "The new namespace does not support editing so it can not be assigned.");
+			OutMessage = LOCTEXT("ParameterDoesntSupportChangingNamespace", "This parameter doesn't support changing its namespace.");
 			return false;
 		}
 		else
@@ -2648,7 +2654,7 @@ FName FNiagaraParameterUtilities::ChangeNamespace(FName ParameterName, const FNi
 	FNiagaraNamespaceMetadata NamespaceMetadata;
 	FText Unused;
 	if (NewNamespaceMetadata.IsValid() &&
-		NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditing) == false &&
+		NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) == false &&
 		GetNamespaceEditData(ParameterName, ParameterHandle, NamespaceMetadata, Unused))
 	{
 		TArray<FName> NameParts = ParameterHandle.GetHandleParts();
@@ -2762,7 +2768,20 @@ bool FNiagaraParameterUtilities::TestCanRenameWithMessage(FName ParameterName, F
 {
 	FNiagaraParameterHandle ParameterHandle;
 	FNiagaraNamespaceMetadata NamespaceMetadata;
-	return GetNamespaceEditData(ParameterName, ParameterHandle, NamespaceMetadata, OutMessage);
+	if (GetNamespaceEditData(ParameterName, ParameterHandle, NamespaceMetadata, OutMessage))
+	{
+		if (NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName))
+		{
+			OutMessage = LOCTEXT("ParameterDoesntSupportChangingName", "This parameter doesn't support changing its name.");
+			return false;
+		}
+		else
+		{
+			OutMessage = LOCTEXT("ChangeParameterName", "Edit this parameter's name.");
+			return true;
+		}
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

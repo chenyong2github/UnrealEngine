@@ -327,7 +327,7 @@ void UNiagaraNodeParameterMapBase::GetChangeNamespaceSubMenuForPin(UToolMenu* Me
 
 	for (const FNiagaraNamespaceMetadata& Metadata : NamespaceMetadata)
 	{
-		if (Metadata.IsValid() == false || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditing) || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript))
+		if (Metadata.IsValid() == false || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript))
 		{
 			continue;
 		}
@@ -362,6 +362,7 @@ void UNiagaraNodeParameterMapBase::GetChangeNamespaceSubMenuForPin(UToolMenu* Me
 				SNew(SNiagaraParameterName)
 				.ParameterName(*NamespaceNameString)
 				.IsReadOnly(true)
+				.SingleNameDisplayMode(SNiagaraParameterName::ESingleNameDisplayMode::Namespace)
 				.ToolTipText(ToolTip)
 			];
 
