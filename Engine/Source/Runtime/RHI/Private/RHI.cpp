@@ -134,6 +134,7 @@ FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 TArray<FRHIResource::ResourcesToDelete> FRHIResource::DeferredDeletionQueue;
 uint32 FRHIResource::CurrentFrame = 0;
 RHI_API FDrawCallCategoryName* FDrawCallCategoryName::Array[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
+RHI_API int32 FDrawCallCategoryName::DisplayCounts[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
 RHI_API int32 FDrawCallCategoryName::NumCategory = 0;
 
 FString FVertexElement::ToString() const
@@ -786,6 +787,7 @@ void RHIPrivateBeginFrame()
 	for (int32 Index=0; Index<FDrawCallCategoryName::NumCategory; ++Index)
 	{
 		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
+		FDrawCallCategoryName::DisplayCounts[Index] = CategoryName->Counter;
 		GNumDrawCallsRHI += CategoryName->Counter;
 		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), CategoryName->Counter, ECsvCustomStatOp::Set);
 		CategoryName->Counter = 0;
