@@ -3697,7 +3697,7 @@ struct FGatherShadowPrimitivesPacket
 	// Inputs
 	const FScene* Scene;
 	TArray<FViewInfo>& Views;
-	const FScenePrimitiveOctree::FNode* Node;
+	const FScenePrimitiveOctree::FNodeIndex NodeIndex;
 	int32 StartPrimitiveIndex;
 	int32 NumPrimitives;
 	const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& PreShadows;
@@ -3718,7 +3718,7 @@ struct FGatherShadowPrimitivesPacket
 	FGatherShadowPrimitivesPacket(
 		const FScene* InScene,
 		TArray<FViewInfo>& InViews,
-		const FScenePrimitiveOctree::FNode* InNode,
+		const FScenePrimitiveOctree::FNodeIndex InNodeIndex,
 		int32 InStartPrimitiveIndex,
 		int32 InNumPrimitives,
 		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& InPreShadows,
@@ -3728,7 +3728,7 @@ struct FGatherShadowPrimitivesPacket
 		FPerShadowGatherStats& OutGlobalStats) 
 		: Scene(InScene)
 		, Views(InViews)
-		, Node(InNode)
+		, NodeIndex(InNodeIndex)
 		, StartPrimitiveIndex(InStartPrimitiveIndex)
 		, NumPrimitives(InNumPrimitives)
 		, PreShadows(InPreShadows)
@@ -3761,14 +3761,14 @@ struct FGatherShadowPrimitivesPacket
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_GatherShadowPrimitivesPacket);
 
-		if (Node)
+		if (NodeIndex != INDEX_NONE)
 		{
 			// Check all the primitives in this octree node.
-			for (FScenePrimitiveOctree::ElementConstIt NodePrimitiveIt(Node->GetElementIt()); NodePrimitiveIt; ++NodePrimitiveIt)
+			for (const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact : Scene->PrimitiveOctree.GetElementsForNode(NodeIndex))
 			{
-				if (NodePrimitiveIt->PrimitiveFlagsCompact.bCastDynamicShadow)
+				if (PrimitiveSceneInfoCompact.PrimitiveFlagsCompact.bCastDynamicShadow)
 				{
-					FilterPrimitiveForShadows(*NodePrimitiveIt);
+					FilterPrimitiveForShadows(PrimitiveSceneInfoCompact);
 				}
 			}
 		}
@@ -3979,78 +3979,49 @@ void FSceneRenderer::GatherShadowPrimitives(
 			Packets.Reserve(100);
 
 			// Find primitives that are in a shadow frustum in the octree.
-			for(FScenePrimitiveOctree::TConstIterator<SceneRenderingAllocator> PrimitiveOctreeIt(Scene->PrimitiveOctree);
-				PrimitiveOctreeIt.HasPendingNodes();
-				PrimitiveOctreeIt.Advance())
+			Scene->PrimitiveOctree.IterateNodesWithPredicate([&PreShadows, &ViewDependentWholeSceneShadows](const FBoxCenterAndExtent& NodeBounds)
 			{
-				const FScenePrimitiveOctree::FNode& PrimitiveOctreeNode = PrimitiveOctreeIt.GetCurrentNode();
-				const FOctreeNodeContext& PrimitiveOctreeNodeContext = PrimitiveOctreeIt.GetCurrentContext();
+				// Check that the child node is in the frustum for at least one shadow.
 
+				// Check for subjects of preshadows.
+				for (int32 ShadowIndex = 0, Num = PreShadows.Num(); ShadowIndex < Num; ShadowIndex++)
 				{
-					// Find children of this octree node that may contain relevant primitives.
-					FOREACH_OCTREE_CHILD_NODE(ChildRef)
-					{
-						if(PrimitiveOctreeNode.HasChild(ChildRef))
-						{
-							// Check that the child node is in the frustum for at least one shadow.
-							const FOctreeNodeContext ChildContext = PrimitiveOctreeNodeContext.GetChildContext(ChildRef);
-							bool bIsInFrustum = false;
+					FProjectedShadowInfo* ProjectedShadowInfo = PreShadows[ShadowIndex];
 
-							// Check for subjects of preshadows.
-							if(!bIsInFrustum)
-							{
-								for(int32 ShadowIndex = 0, Num = PreShadows.Num(); ShadowIndex < Num; ShadowIndex++)
-								{
-									FProjectedShadowInfo* ProjectedShadowInfo = PreShadows[ShadowIndex];
-
-									check(ProjectedShadowInfo->CasterFrustum.PermutedPlanes.Num());
-									// Check if this primitive is in the shadow's frustum.
-									if(ProjectedShadowInfo->CasterFrustum.IntersectBox(
-										ChildContext.Bounds.Center + ProjectedShadowInfo->PreShadowTranslation,
-										ChildContext.Bounds.Extent
-										))
-									{
-										bIsInFrustum = true;
-										break;
-									}
-								}
-							}
-
-							if (!bIsInFrustum)
-							{
-								for(int32 ShadowIndex = 0, Num = ViewDependentWholeSceneShadows.Num(); ShadowIndex < Num; ShadowIndex++)
-								{
-									FProjectedShadowInfo* ProjectedShadowInfo = ViewDependentWholeSceneShadows[ShadowIndex];
-
-									//check(ProjectedShadowInfo->CasterFrustum.PermutedPlanes.Num());
-									// Check if this primitive is in the shadow's frustum.
-									if(ProjectedShadowInfo->CasterFrustum.IntersectBox(
-										ChildContext.Bounds.Center + ProjectedShadowInfo->PreShadowTranslation,
-										ChildContext.Bounds.Extent
-										))
-									{
-										bIsInFrustum = true;
-										break;
-									}
-								}
-							}
-
-							if(bIsInFrustum)
-							{
-								// If the child node was in the frustum of at least one preshadow, push it on
-								// the iterator's pending node stack.
-								PrimitiveOctreeIt.PushChild(ChildRef);
-							}
-						}
-					}
+					check(ProjectedShadowInfo->CasterFrustum.PermutedPlanes.Num());
+					// Check if this primitive is in the shadow's frustum.
+					if (ProjectedShadowInfo->CasterFrustum.IntersectBox(
+						NodeBounds.Center + ProjectedShadowInfo->PreShadowTranslation,
+						NodeBounds.Extent
+					))
+					return true;
 				}
 
-				if (PrimitiveOctreeNode.GetElementCount() > 0)
+				for (int32 ShadowIndex = 0, Num = ViewDependentWholeSceneShadows.Num(); ShadowIndex < Num; ShadowIndex++)
+				{
+					FProjectedShadowInfo* ProjectedShadowInfo = ViewDependentWholeSceneShadows[ShadowIndex];
+
+					//check(ProjectedShadowInfo->CasterFrustum.PermutedPlanes.Num());
+					// Check if this primitive is in the shadow's frustum.
+					if (ProjectedShadowInfo->CasterFrustum.IntersectBox(
+						NodeBounds.Center + ProjectedShadowInfo->PreShadowTranslation,
+						NodeBounds.Extent
+					))
+					return true;
+				}
+
+				// If the child node was in the frustum of at least one preshadow, push it on
+				// the iterator's pending node stack.
+				return false;
+			},
+			[this, &PreShadows, &ViewDependentWholeSceneShadows, bStaticSceneOnly, &GatherStats, &Packets](FScenePrimitiveOctree::FNodeIndex NodeIndex)
+			{
+				if (Scene->PrimitiveOctree.GetElementsForNode(NodeIndex).Num() > 0)
 				{
 					FGatherShadowPrimitivesPacket* Packet = new(FMemStack::Get()) FGatherShadowPrimitivesPacket(
 						Scene,
 						Views,
-						&PrimitiveOctreeNode,
+						NodeIndex,
 						0,
 						0,
 						PreShadows,
@@ -4060,7 +4031,7 @@ void FSceneRenderer::GatherShadowPrimitives(
 						GatherStats);
 					Packets.Add(Packet);
 				}
-			}
+			});
 		}
 		else
 		{
@@ -4076,7 +4047,7 @@ void FSceneRenderer::GatherShadowPrimitives(
 				FGatherShadowPrimitivesPacket* Packet = new(FMemStack::Get()) FGatherShadowPrimitivesPacket(
 					Scene,
 					Views,
-					NULL,
+					INDEX_NONE,
 					StartPrimitiveIndex,
 					NumPrimitives,
 					PreShadows,

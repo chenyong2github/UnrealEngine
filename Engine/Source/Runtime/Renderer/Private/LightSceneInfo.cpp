@@ -116,10 +116,11 @@ void FLightSceneInfo::AddToScene()
 			Scene->LocalShadowCastingLightOctree.AddElement(LightSceneInfoCompact);
 			// Find primitives that the light affects in the primitive octree.
 			FMemMark MemStackMark(FMemStack::Get());
-			for (FScenePrimitiveOctree::TConstElementBoxIterator<SceneRenderingAllocator> PrimitiveIt(Scene->PrimitiveOctree, GetBoundingBox()); PrimitiveIt.HasPendingElements(); PrimitiveIt.Advance())
+
+			Scene->PrimitiveOctree.IterateElementsWithBoundsTest(GetBoundingBox(), [&LightSceneInfoCompact, this](const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact)
 			{
-				CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveIt.GetCurrentElement());
-			}
+				CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
+			});
 		}
 	}
 }

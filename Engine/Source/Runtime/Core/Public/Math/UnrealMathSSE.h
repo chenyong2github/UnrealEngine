@@ -1489,6 +1489,6 @@ FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
 * @param Ptr	Unaligned memory pointer to the 4 int32s
 * @return		VectorRegisterInt(*Ptr, *Ptr, *Ptr, *Ptr)
 */
-#define VectorIntLoad1( Ptr )	_mm_shuffle_epi32(_mm_loadu_si128((VectorRegisterInt*)(Ptr)),_MM_SHUFFLE(0,0,0,0))
+#define VectorIntLoad1( Ptr )	_mm_set1_epi32(*(Ptr))
 #endif
 

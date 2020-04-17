@@ -1443,43 +1443,12 @@ void MatchVertexIndexUsingPosition(
 		FBox CurBox(PositionSrc - Extent, PositionSrc + Extent);
 		while (OcTreeTriangleResults.Num() <= 0)
 		{
-			TTriangleElementOctree::TConstIterator<> OctreeIter(OcTree);
-			while (OctreeIter.HasPendingNodes())
+			OcTree.IterateElementsWithBoundsTest(CurBox, [&OcTreeTriangleResults](const FTriangleElement& Element)
 			{
-				const TTriangleElementOctree::FNode& CurNode = OctreeIter.GetCurrentNode();
-				const FOctreeNodeContext& CurContext = OctreeIter.GetCurrentContext();
-
-				// Find the child of the current node, if any, that contains the current new point
-				FOctreeChildNodeRef ChildRef = CurContext.GetContainingChild(CurBox);
-
-				if (!ChildRef.IsNULL())
-				{
-					const TTriangleElementOctree::FNode* ChildNode = CurNode.GetChild(ChildRef);
-
-					// If the specified child node exists and contains any of the old vertices, push it to the iterator for future consideration
-					if (ChildNode && ChildNode->GetInclusiveElementCount() > 0)
-					{
-						OctreeIter.PushChild(ChildRef);
-					}
-					// If the child node doesn't have any of the old vertices in it, it's not worth pursuing any further. In an attempt to find
-					// anything to match vs. the new point, add all of the children of the current octree node that have old points in them to the
-					// iterator for future consideration.
-					else
-					{
-						FOREACH_OCTREE_CHILD_NODE(OctreeChildRef)
-						{
-							if (CurNode.HasChild(OctreeChildRef))
-							{
-								OctreeIter.PushChild(OctreeChildRef);
-							}
-						}
-					}
-				}
-
 				// Add all of the elements in the current node to the list of points to consider for closest point calculations
-				OcTreeTriangleResults.Append(CurNode.GetElements());
-				OctreeIter.Advance();
-			}
+				OcTreeTriangleResults.Add(Element);
+			});
+
 			//Increase the extend so we try to found in a larger area
 			Extent *= 2;
 			CurBox = FBox(PositionSrc - Extent, PositionSrc + Extent);

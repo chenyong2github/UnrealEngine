@@ -273,36 +273,11 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 
 		// 	Query the Octree
 		OtherFaceTransformDataArray.Reserve(NumFaces);
-		for (FProximityTriangleOctree::TConstIterator<> OctreeIt(*MeshTriOctree); OctreeIt.HasPendingNodes(); OctreeIt.Advance())
+
+		MeshTriOctree->IterateElementsWithBoundsTest(ThisFaceBounds, [&OtherFaceTransformDataArray, &FaceTransformDataArray](const FProximityTriangle& OctreePolygon)
 		{
-			const FProximityTriangleOctree::FNode& OctreeNode = OctreeIt.GetCurrentNode();
-			const FOctreeNodeContext& OctreeNodeContext = OctreeIt.GetCurrentContext();
-
-			// Leaf nodes have no children, so don't bother iterating
-			if (!OctreeNode.IsLeaf())
-			{
-				FOREACH_OCTREE_CHILD_NODE(ChildRef)
-				{
-					if (OctreeNode.HasChild(ChildRef))
-					{
-						const FOctreeNodeContext ChildContext = OctreeNodeContext.GetChildContext(ChildRef);
-
-						if (ThisFaceBounds.Intersect(ChildContext.Bounds.GetBox()))
-						{
-							// Push it on the iterator's pending node stack.
-							OctreeIt.PushChild(ChildRef);
-						}
-					}
-				}
-			}
-
-			// All of the elements in this octree node are candidates.  Note this node may not be a leaf node, and that's OK.
-			for (FProximityTriangleOctree::ElementConstIt OctreeElementIt(OctreeNode.GetElementIt()); OctreeElementIt; ++OctreeElementIt)
-			{
-				const FProximityTriangle& OctreePolygon = *OctreeElementIt;
-				OtherFaceTransformDataArray.Add(FaceTransformDataArray[OctreePolygon.ArrayIndex]);
-			}
-		}
+			OtherFaceTransformDataArray.Add(FaceTransformDataArray[OctreePolygon.ArrayIndex]);
+		});
 
 		for (auto& OtherFaceTransformDataRef : OtherFaceTransformDataArray)
 		{

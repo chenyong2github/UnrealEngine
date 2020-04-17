@@ -30,7 +30,7 @@ bool FNavigationOctreeController::GetNavOctreeElementData(const UObject& NodeOwn
 	if (ElementId != nullptr && IsValidElement(*ElementId))
 	{
 		// mark area occupied by given actor as dirty
-		FNavigationOctreeElement& ElementData = NavOctree->GetElementById(*ElementId);
+		const FNavigationOctreeElement& ElementData = NavOctree->GetElementById(*ElementId);
 		DirtyFlags = ElementData.Data->GetDirtyFlag();
 		DirtyBounds = ElementData.Bounds.GetBox();
 		return true;
