@@ -76,6 +76,8 @@ namespace Chaos
 						{
 							for (IPhysicsProxyBase* Proxy : *Proxies)
 							{
+								if (NumValidCollisions >= CollisionRule.NumConstraints()) break;
+
 								if (Proxy != nullptr)
 								{
 									if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
@@ -114,6 +116,8 @@ namespace Chaos
 						{
 							for (IPhysicsProxyBase* Proxy : *Proxies)
 							{
+								if (NumValidCollisions >= CollisionRule.NumConstraints()) break;
+
 								if (Proxy != nullptr)
 								{
 									if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
