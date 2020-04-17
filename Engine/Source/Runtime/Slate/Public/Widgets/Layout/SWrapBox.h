@@ -86,6 +86,7 @@ public:
 		: _PreferredWidth(100.f)
 		, _PreferredSize(100.f)
 		, _InnerSlotPadding(FVector2D::ZeroVector)
+		, _UseAllottedWidth(false)
 		, _UseAllottedSize(false)
 		, _Orientation(EOrientation::Orient_Horizontal)
 		{
@@ -103,6 +104,9 @@ public:
 
 		/** The inner slot padding goes between slots sharing borders */
 		SLATE_ARGUMENT( FVector2D, InnerSlotPadding )
+
+		/** if true, the PreferredWidth will always match the room available to the SWrapBox  */
+		SLATE_ARGUMENT( bool, UseAllottedWidth )
 
 		/** if true, the PreferredSize will always match the room available to the SWrapBox  */
 		SLATE_ARGUMENT( bool, UseAllottedSize )
