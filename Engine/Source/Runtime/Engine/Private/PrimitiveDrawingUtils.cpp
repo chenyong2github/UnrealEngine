@@ -1445,24 +1445,6 @@ void ApplyViewModeOverrides(
 			Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 		}
 	}
-	else if (EngineShowFlags.LODColoration)
-	{
-		if (!Mesh.IsTranslucent(FeatureLevel) && GEngine->LODColorationColors.Num()  > 0)
-		{
-			int32 lodColorationIndex = FMath::Clamp((int32)Mesh.VisualizeLODIndex, 0, GEngine->LODColorationColors.Num() - 1);
-	
-			bool bLit = Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->GetShadingModels().IsLit();
-			const UMaterial* LODColorationMaterial = (bLit && EngineShowFlags.Lighting) ? GEngine->LevelColorationLitMaterial : GEngine->LevelColorationUnlitMaterial;
-
-			auto LODColorationMaterialInstance = new FColoredMaterialRenderProxy(
-				LODColorationMaterial->GetRenderProxy(),
-				GetSelectionColor(GEngine->LODColorationColors[lodColorationIndex], bSelected, PrimitiveSceneProxy->IsHovered() )
-				);
-
-			Mesh.MaterialRenderProxy = LODColorationMaterialInstance;
-			Collector.RegisterOneFrameMaterialProxy(LODColorationMaterialInstance);
-		}
-	}
 	else if (EngineShowFlags.HLODColoration)
 	{
 		if (!Mesh.IsTranslucent(FeatureLevel) && GEngine->HLODColorationColors.Num() > 0)
