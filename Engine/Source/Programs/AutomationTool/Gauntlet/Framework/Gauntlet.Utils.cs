@@ -989,6 +989,11 @@ namespace Gauntlet
 					{
 						FileInfo DestInfo = new FileInfo(Path.Combine(DestDir.FullName, RelativePath));
 
+						if (!DestInfo.Exists)
+						{
+							continue;
+						}
+
 						if (Options.Verbose)
 						{
 							Log.Info("Deleting extra file {0}", DestInfo.FullName);
