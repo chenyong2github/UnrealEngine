@@ -379,10 +379,19 @@ public:
 			Data.CopyFrom(*Handle);
 		});
 
-		NonFrequentData.SyncRemoteData(Manager,Idx,Dirty.ParticleData,[Handle](FParticleNonFrequentData& Data)
+		if(auto Rigid = Handle->CastToRigidParticle())
 		{
-			Data.CopyFrom(*Handle);
-		});
+			DynamicsMisc.SyncRemoteData(Manager,Idx,Dirty.ParticleData,[Rigid](FParticleDynamicMisc& Data)
+			{
+				Data.CopyFrom(*Rigid);
+			});
+
+			MassProps.SyncRemoteData(Manager,Idx,Dirty.ParticleData,[Rigid](FParticleMassProps& Data)
+			{
+				Data.CopyFrom(*Rigid);
+			});
+		}
+		
 	}
 
 	void SyncIfDirty(FDirtyPropertiesManager& Manager,int32 Idx,const TGeometryParticle<FReal,3>& InParticle, const FGeometryParticleStateBase& RewindState)
@@ -475,15 +484,39 @@ public:
 			{
 				return true;
 			}
+
+			if(!NonFrequentData.IsInSync(SrcManager,DataIdxIn,Flags,Handle))
+			{
+				return true;
+			}
+
+			if(auto Kinematic = Handle.CastToKinematicParticle())
+			{
+				if(!Velocities.IsInSync(SrcManager,DataIdxIn,Flags,*Kinematic))
+				{
+					return true;
+				}
+			}
+
+			if(auto Rigid = Handle.CastToRigidParticle())
+			{
+				if(!Dynamics.IsInSync(SrcManager,DataIdxIn,Flags,*Rigid))
+				{
+					return true;
+				}
+
+				if(!DynamicsMisc.IsInSync(SrcManager,DataIdxIn,Flags,*Rigid))
+				{
+					return true;
+				}
+
+				if(!MassProps.IsInSync(SrcManager,DataIdxIn,Flags,*Rigid))
+				{
+					return true;
+				}
+			}
 		}
 
-		//TODO: test other properties, should probably find a better way to do this to avoid getting into the individual variables
-		
-		/*Desynced = ParticlePositionRotation.IsDesynced(SrcManager,DataIdxIn,Dirty);
-		Desynced = Desynced || NonFrequentData.IsDesynced(SrcManager,DataIdxIn,Dirty);
-		Desynced = Desynced || Velocities.IsDesynced(SrcManager,DataIdxIn,Dirty);
-		Desynced = Desynced || Dynamics.IsDesynced(SrcManager,DataIdxIn,Dirty);
-		return Desynced;*/
 		return false;
 	}
 
