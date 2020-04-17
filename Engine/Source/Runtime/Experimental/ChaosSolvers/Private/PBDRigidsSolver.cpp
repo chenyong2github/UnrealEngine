@@ -206,7 +206,7 @@ namespace Chaos
 		, MTime(0.0)
 		, MLastDt(0.0)
 		, MMaxDeltaTime(0.0)
-		, MMinDeltaTime(1.e-10f)
+		, MMinDeltaTime(SMALL_NUMBER)
 		, MMaxSubSteps(1)
 		, bEnabled(false)
 		, bHasFloor(true)
@@ -543,7 +543,7 @@ namespace Chaos
 		bEnabled = false;
 		CurrentFrame = 0;
 		MMaxDeltaTime = 1.f;
-		MMinDeltaTime = 1.e-10f;
+		MMinDeltaTime = SMALL_NUMBER;
 		MMaxSubSteps = 1;
 		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, ChaosSolverCollisionDefaultIterationsCVar, ChaosSolverCollisionDefaultPushoutIterationsCVar, BufferMode == EMultiBufferMode::Single)); 
 
