@@ -44,6 +44,19 @@ namespace UE4PushModelPrivate
 		FPushModelPerObjectState(const FPushModelPerObjectState& Other) = delete;
 		FPushModelPerObjectState& operator=(const FPushModelPerObjectState& Other) = delete;
 
+		/**
+		 * Currently, there are no notifications when a property gets nulled out from Garbage Collection.
+		 * This should'nt happen frequently in networked scenarios as it can cause other bugs with things like
+		 * Dormancy. However, it is easily reproducible on Clients recording Replays.
+		 */
+		void SetRecentlyCollectedGarbage()
+		{
+			for (FPushModelPerNetDriverState& NetDriverObject : PerNetDriverStates)
+			{
+				NetDriverObject.SetRecentlyCollectedGarbage();
+			}
+		}
+
 		void MarkPropertyDirty(const uint16 RepIndex)
 		{
 			DirtiedThisFrame[RepIndex] = true;
