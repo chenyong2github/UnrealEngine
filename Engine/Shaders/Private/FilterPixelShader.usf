@@ -120,19 +120,17 @@ void MainPS(
 		Color += SampleFilterTexture(InOffsetUVs[i]) * SampleWeights[i];
 	}
 #else
-	int SampleIndex = 0;
-
-	UNROLL for (; SampleIndex < STATIC_SAMPLE_COUNT - 1; SampleIndex += 2)
+	UNROLL for (int SampleIndex = 0; SampleIndex < STATIC_SAMPLE_COUNT - 1; SampleIndex += 2)
 	{
 		float4 UVUV = InOffsetUVs[SampleIndex / 2];
 		Color += SampleFilterTexture(UVUV.xy) * SampleWeights[SampleIndex + 0];
 		Color += SampleFilterTexture(UVUV.zw) * SampleWeights[SampleIndex + 1];
 	}
 
-	FLATTEN if (SampleIndex < STATIC_SAMPLE_COUNT)
+	FLATTEN if (STATIC_SAMPLE_COUNT & 1)
 	{
-		float2 UV = InOffsetUVs[SampleIndex / 2].xy;
-		Color += SampleFilterTexture(UV) * SampleWeights[SampleIndex + 0];
+		float2 UV = InOffsetUVs[PACKED_STATIC_SAMPLE_COUNT - 1].xy;
+		Color += SampleFilterTexture(UV) * SampleWeights[STATIC_SAMPLE_COUNT - 1];
 	}
 #endif
 
