@@ -42,11 +42,11 @@ void UNiagaraNodeAssignment::RefreshTitle()
 {
 	if (AssignmentTargets.Num() == 1)
 	{
-		Title = FText::Format(LOCTEXT("NodeTitleSingle", "Set {0}"), FText::FromName(AssignmentTargets[0].GetName()));
+		Title = FText::Format(LOCTEXT("NodeTitleSingle", "Set {0}"), FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(AssignmentTargets[0].GetName()));
 	}
 	else if (AssignmentTargets.Num() > 1)
 	{
-		Title = FText::Format(LOCTEXT("NodeTitleMultiple", "Set {0} (+{1})"), FText::FromName(AssignmentTargets[0].GetName()), AssignmentTargets.Num() - 1);
+		Title = FText::Format(LOCTEXT("NodeTitleMultiple", "Set {0} (+{1})"), FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(AssignmentTargets[0].GetName()), AssignmentTargets.Num() - 1);
 	}
 	else
 	{
@@ -62,7 +62,7 @@ FText UNiagaraNodeAssignment::GetTooltipText() const
 	TargetNames.Add(BaseText);
 	for (const FNiagaraVariable& Var : AssignmentTargets)
 	{
-		TargetNames.Add(FText::Format(LOCTEXT("Indent", "\t{0}"), FText::FromName(Var.GetName())));
+		TargetNames.Add(FText::Format(LOCTEXT("Indent", "\t{0}"), FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(Var.GetName())));
 	}
 
 	return FText::Join(FText::FromString("\n"), TargetNames);
@@ -355,6 +355,7 @@ void UNiagaraNodeAssignment::AddParameter(FNiagaraVariable InVar, FString InDefa
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
 
 	RefreshTitle();
+	AssignmentTargetsChangedDelegate.Broadcast();
 }
 
 void UNiagaraNodeAssignment::RemoveParameter(const FNiagaraVariable& InVar)
@@ -384,6 +385,7 @@ void UNiagaraNodeAssignment::RemoveParameter(const FNiagaraVariable& InVar)
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
 
 	RefreshTitle();
+	AssignmentTargetsChangedDelegate.Broadcast();
 }
 
 void UNiagaraNodeAssignment::UpdateUsageBitmaskFromOwningScript()
@@ -656,6 +658,7 @@ int32 UNiagaraNodeAssignment::AddAssignmentTarget(const FNiagaraVariable& InVar,
 	int32 IdxB = AssignmentDefaultValues.AddDefaulted();
 	check(IdxA == IdxB);
 	SetAssignmentTarget(IdxA, InVar, InDefaultValue);
+	AssignmentTargetsChangedDelegate.Broadcast();
 	return IdxA;
 }
 
@@ -677,6 +680,8 @@ bool UNiagaraNodeAssignment::SetAssignmentTarget(int32 Idx, const FNiagaraVariab
 		MarkNodeRequiresSynchronization(__FUNCTION__, true);
 		bRetValue = true;
 	}
+
+	AssignmentTargetsChangedDelegate.Broadcast();
 	return bRetValue;
 }
 
@@ -696,6 +701,7 @@ bool UNiagaraNodeAssignment::RenameAssignmentTarget(FName OldName, FName NewName
 
 			AssignmentTarget.SetName(NewName);
 			RefreshTitle();
+			AssignmentTargetsChangedDelegate.Broadcast();
 			return true;
 		}
 	}

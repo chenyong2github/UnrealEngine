@@ -55,6 +55,8 @@ public:
 
 	virtual FText GetTooltipText() const override;
 
+	FSimpleMulticastDelegate& OnAssignmentTargetsChanged() { return AssignmentTargetsChangedDelegate; }
+
 protected:
 
 	UPROPERTY()
@@ -73,6 +75,8 @@ protected:
 	FString OldFunctionCallName;
 
 	FText Title;
+
+	FSimpleMulticastDelegate AssignmentTargetsChangedDelegate;
 
 private:
 	void GenerateScript();

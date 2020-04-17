@@ -135,13 +135,17 @@ protected:
 			}
 			else
 			{
-				CreatedParameterNamePinLabel = SNew(SNiagaraParameterNamePinLabel, this->GraphPinObj)
-					.EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
-					.ParameterText(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinLabel)
-					.IsReadOnly(bIsPinEditable == false)
-					.Visibility(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinVisibility)
-					.OnVerifyTextChanged(this, &TNiagaraGraphPinEditableName<BaseClass>::OnVerifyTextChanged)
-					.OnTextCommitted(this, &TNiagaraGraphPinEditableName<BaseClass>::OnTextCommitted);
+				return SNew(SBox)
+					.Padding(FMargin(0.0f, 1.0f, 0.0f, 1.0f))
+					[
+						SAssignNew(CreatedParameterNamePinLabel, SNiagaraParameterNamePinLabel, this->GraphPinObj)
+						.EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
+						.ParameterText(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinLabel)
+						.IsReadOnly(bIsPinEditable == false)
+						.Visibility(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinVisibility)
+						.OnVerifyTextChanged(this, &TNiagaraGraphPinEditableName<BaseClass>::OnVerifyTextChanged)
+						.OnTextCommitted(this, &TNiagaraGraphPinEditableName<BaseClass>::OnTextCommitted)
+					];
 				return CreatedParameterNamePinLabel.ToSharedRef();
 			}
 		}

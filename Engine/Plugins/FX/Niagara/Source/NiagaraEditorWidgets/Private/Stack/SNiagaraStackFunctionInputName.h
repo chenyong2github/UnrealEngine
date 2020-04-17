@@ -5,6 +5,7 @@
 #include "SNiagaraStackEntryWidget.h"
 #include "Layout/Visibility.h"
 #include "Styling/SlateTypes.h"
+#include "NiagaraEditorSettings.h"
 
 class UNiagaraStackFunctionInput;
 class SInlineEditableTextBlock;
@@ -24,6 +25,8 @@ public:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+	void FillRowContextMenu(class FMenuBuilder& MenuBuilder);
+
 private:
 	EVisibility GetEditConditionCheckBoxVisibility() const;
 
@@ -40,6 +43,27 @@ private:
 	FText GetToolTipText() const;
 
 	void OnNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
+
+	void GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder);
+	void OnChangeNamespace(FNiagaraNamespaceMetadata Metadata);
+
+	void GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder);
+
+	FText GetAddNamespaceModifierToolTip() const;
+	bool CanAddNamespaceModifier() const;
+	void OnAddNamespaceModifier();
+
+	FText GetRemoveNamespaceModifierToolTip() const;
+	bool CanRemoveNamespaceModifier() const;
+	void OnRemoveNamespaceModifier();
+
+	FText GetEditNamespaceModifierToolTip() const;
+	bool CanEditNamespaceModifier() const;
+	void OnEditNamespaceModifier();
+
+	FText GetCopyParameterReferenceToolTip() const;
+	bool CanCopyParameterReference() const;
+	void OnCopyParameterReference();
 
 private:
 	UNiagaraStackFunctionInput* FunctionInput;
