@@ -1611,8 +1611,7 @@ void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AAct
 		}
 	}
 
-	// Regenerate skeleton class as components have been added since initial generation
-	FKismetEditorUtilities::GenerateBlueprintSkeleton(Blueprint, /*bForceRegeneration=*/ true);
+	FKismetEditorUtilities::CompileBlueprint(Blueprint);
 
 	// Notify the asset registry
 	FAssetRegistryModule::AssetCreated(Blueprint);
