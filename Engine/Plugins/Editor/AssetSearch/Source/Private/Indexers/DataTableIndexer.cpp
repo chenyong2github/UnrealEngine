@@ -8,6 +8,7 @@ enum class EDataTableIndexerVersion
 {
 	Empty,
 	Initial,
+	AddedIndexingDataTableRowNames,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
@@ -31,6 +32,8 @@ void FDataTableIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 	{
 		const FName& RowName = Entry.Key;
 		uint8* Row = Entry.Value;
+
+		Serializer.IndexProperty(TEXT("Row"), RowName);
 
 		FIndexerUtilities::IterateIndexableProperties(DataTable->GetRowStruct(), Row, [&Serializer](const FProperty* Property, const FString& Value) {
 			Serializer.IndexProperty(Property, Value);
