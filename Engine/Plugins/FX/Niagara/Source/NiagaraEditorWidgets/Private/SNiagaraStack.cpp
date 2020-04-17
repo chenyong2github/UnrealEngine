@@ -108,7 +108,7 @@ public:
 					// Name and Source Emitter Name
 					SNew(SWrapBox)
 					.Clipping(EWidgetClipping::ClipToBoundsAlways) 
-					.UseAllottedWidth(true)
+					.UseAllottedSize(true)
 					+ SWrapBox::Slot()
 					[
 				

@@ -51,7 +51,7 @@ namespace
 			.Padding(4.0f)
 			[
 				SNew(SWrapBox)
-				.UseAllottedWidth(true)
+				.UseAllottedSize(true)
 
 				+ SWrapBox::Slot()
 				.Padding(FMargin(0.0f, 2.0f, 2.0f, 0.0f))

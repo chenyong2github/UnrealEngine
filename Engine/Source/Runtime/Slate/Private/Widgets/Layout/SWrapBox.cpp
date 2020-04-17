@@ -36,9 +36,17 @@ int32 SWrapBox::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 
 void SWrapBox::Construct( const FArguments& InArgs )
 {
-	PreferredWidth = InArgs._PreferredWidth;
+	PreferredSize = InArgs._PreferredSize;
+
+	// Handle deprecation of PreferredWidth
+	if (!PreferredSize.IsSet() && !PreferredSize.IsBound())
+	{
+		PreferredSize = InArgs._PreferredWidth;
+	}
+
 	InnerSlotPadding = InArgs._InnerSlotPadding;
-	bUseAllottedWidth = InArgs._UseAllottedWidth;
+	bUseAllottedSize = InArgs._UseAllottedSize;
+	Orientation = InArgs._Orientation;
 
 	// Copy the children from the declaration to the widget
 	for ( int32 ChildIndex=0; ChildIndex < InArgs.Slots.Num(); ++ChildIndex )
@@ -49,9 +57,9 @@ void SWrapBox::Construct( const FArguments& InArgs )
 
 void SWrapBox::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
-	if (bUseAllottedWidth)
+	if (bUseAllottedSize)
 	{
-		PreferredWidth = AllottedGeometry.GetLocalSize().X;
+		PreferredSize = Orientation == EOrientation::Orient_Vertical ? AllottedGeometry.GetLocalSize().Y : AllottedGeometry.GetLocalSize().X;
 	}
 }
 
@@ -81,7 +89,7 @@ private:
 	const SWrapBox& WrapBox;
 	const FOnSlotArranged& OnSlotArranged;
 	FVector2D Offset;
-	float MaximumHeightInCurrentLine;
+	float MaximumSizeInCurrentLine;
 	int32 IndexOfFirstChildInCurrentLine;
 	TMap<int32, FArrangementData> OngoingArrangementDataMap;
 };
@@ -91,7 +99,7 @@ SWrapBox::FChildArranger::FChildArranger(const SWrapBox& InWrapBox, const FOnSlo
 	: WrapBox(InWrapBox)
 	, OnSlotArranged(InOnSlotArranged)
 	, Offset(FVector2D::ZeroVector)
-	, MaximumHeightInCurrentLine(0.0f)
+	, MaximumSizeInCurrentLine(0.0f)
 	, IndexOfFirstChildInCurrentLine(INDEX_NONE)
 {
 	OngoingArrangementDataMap.Reserve(WrapBox.Slots.Num());
@@ -142,10 +150,11 @@ void SWrapBox::FChildArranger::Arrange()
 			ArrangementData.SlotOffset.Y = Offset.Y;
 		};
 
-		// Rule: If this child is not the first child in the line, "inner slot padding" needs to be injected left of it.
+		// Rule: If this child is not the first child in the line, "inner slot padding" needs to be injected left or top of it, dependently of the orientation.
 		if (!IsFirstChildInCurrentLine())
 		{
-			Offset.X += WrapBox.InnerSlotPadding.X;
+			Offset.Y += ((WrapBox.Orientation == EOrientation::Orient_Vertical) * WrapBox.InnerSlotPadding.Y);
+			Offset.X += ((WrapBox.Orientation == EOrientation::Orient_Horizontal) * WrapBox.InnerSlotPadding.X);
 		}
 
 		const FVector2D DesiredSizeOfSlot = Slot.SlotPadding.Get().GetDesiredSize() + Widget->GetDesiredSize();
@@ -156,35 +165,70 @@ void SWrapBox::FChildArranger::Arrange()
 		ArrangementData.SlotSize.X = DesiredSizeOfSlot.X;
 		ArrangementData.SlotSize.Y = DesiredSizeOfSlot.Y;
 
-		const float RightBoundOfChild = ArrangementData.SlotOffset.X + ArrangementData.SlotSize.X;
-
-		// Rule: If required due to a wrapping width under specified threshold, start a new line and allocate all of it to this child.
-		if (Slot.SlotFillLineWhenWidthLessThan.IsSet() && WrapBox.PreferredWidth.Get() < Slot.SlotFillLineWhenWidthLessThan.GetValue())
+		if (WrapBox.Orientation == EOrientation::Orient_Vertical)
 		{
-			// Begin a new line if the current one isn't empty, because we demand a whole line to ourselves.
-			if (!IsFirstChildInCurrentLine())
+			const float BottomBoundOfChild = ArrangementData.SlotOffset.Y + ArrangementData.SlotSize.Y;
+
+			// Rule: If required due to a wrapping height under specified threshold, start a new line and allocate all of it to this child.
+			if (Slot.SlotFillLineWhenSizeLessThan.IsSet() && WrapBox.PreferredSize.Get() < Slot.SlotFillLineWhenSizeLessThan.GetValue())
 			{
-				BeginNewLine();
+				// Begin a new line if the current one isn't empty, because we demand a whole line to ourselves.
+				if (!IsFirstChildInCurrentLine())
+				{
+					BeginNewLine();
+				}
+
+				// Fill height of rest of wrap box.
+				ArrangementData.SlotSize.Y = WrapBox.PreferredSize.Get() - Offset.Y;
+			}
+			// Rule: If the end of a child would go beyond the width to wrap at, it should move to a new line.
+			else if (BottomBoundOfChild > WrapBox.PreferredSize.Get())
+			{
+				// Begin a new line if the current one isn't empty, because we demand a new line.
+				if (!IsFirstChildInCurrentLine())
+				{
+					BeginNewLine();
+				}
 			}
 
-			// Fill width of rest of wrap box.
-			ArrangementData.SlotSize.X = WrapBox.PreferredWidth.Get() - Offset.X;
+			// Update current line maximum size.
+			MaximumSizeInCurrentLine = FMath::Max(MaximumSizeInCurrentLine, ArrangementData.SlotSize.X);
+
+			// Update offset to bottom bound of child.
+			Offset.Y = ArrangementData.SlotOffset.Y + ArrangementData.SlotSize.Y;
 		}
-		// Rule: If the end of a child would go beyond the width to wrap at, it should move to a new line.
-		else if (RightBoundOfChild > WrapBox.PreferredWidth.Get())
+		else
 		{
-			// Begin a new line if the current one isn't empty, because we demand a new line.
-			if (!IsFirstChildInCurrentLine())
+			const float RightBoundOfChild = ArrangementData.SlotOffset.X + ArrangementData.SlotSize.X;
+
+			// Rule: If required due to a wrapping width under specified threshold, start a new line and allocate all of it to this child.
+			if (Slot.SlotFillLineWhenSizeLessThan.IsSet() && WrapBox.PreferredSize.Get() < Slot.SlotFillLineWhenSizeLessThan.GetValue())
 			{
-				BeginNewLine();
+				// Begin a new line if the current one isn't empty, because we demand a whole line to ourselves.
+				if (!IsFirstChildInCurrentLine())
+				{
+					BeginNewLine();
+				}
+
+				// Fill width of rest of wrap box.
+				ArrangementData.SlotSize.X = WrapBox.PreferredSize.Get() - Offset.X;
 			}
+			// Rule: If the end of a child would go beyond the width to wrap at, it should move to a new line.
+			else if (RightBoundOfChild > WrapBox.PreferredSize.Get())
+			{
+				// Begin a new line if the current one isn't empty, because we demand a new line.
+				if (!IsFirstChildInCurrentLine())
+				{
+					BeginNewLine();
+				}
+			}
+
+			// Update current line maximum size.
+			MaximumSizeInCurrentLine = FMath::Max(MaximumSizeInCurrentLine, ArrangementData.SlotSize.Y);
+
+			// Update offset to right bound of child.
+			Offset.X = ArrangementData.SlotOffset.X + ArrangementData.SlotSize.X;
 		}
-
-		// Update current line maximum height.
-		MaximumHeightInCurrentLine = FMath::Max(MaximumHeightInCurrentLine, ArrangementData.SlotSize.Y);
-
-		// Update offset to right bound of child.
-		Offset.X = ArrangementData.SlotOffset.X + ArrangementData.SlotSize.X;
 	}
 
 	// Attempt to finalize the final line if there are any children in it.
@@ -222,7 +266,14 @@ void SWrapBox::FChildArranger::FinalizeLine(int32 IndexOfLastChildInCurrentLine)
 		// Rule: The last uncollapsed child in a line may request to fill the remaining empty space in the line.
 		if (ChildIndex == IndexOfLastChildInCurrentLine && Slot.bSlotFillEmptySpace)
 		{
-			ArrangementData.SlotSize.X = WrapBox.PreferredWidth.Get() - ArrangementData.SlotOffset.X;
+			if (WrapBox.Orientation == EOrientation::Orient_Vertical)
+			{
+				ArrangementData.SlotSize.Y = WrapBox.PreferredSize.Get() - ArrangementData.SlotOffset.Y;
+			}
+			else
+			{
+				ArrangementData.SlotSize.X = WrapBox.PreferredSize.Get() - ArrangementData.SlotOffset.X;
+			}
 		}
 		
 		// All slots on this line should now match to the tallest element's height, which they can then use to do their alignment in OnSlotArranged below (eg. center within that)
@@ -233,11 +284,24 @@ void SWrapBox::FChildArranger::FinalizeLine(int32 IndexOfLastChildInCurrentLine)
 		OnSlotArranged(Slot, ArrangementData);
 	}
 
-	// Set initial state for new line.
-	Offset.X = 0.0f;
-	// Since this is the initial state for a new line, this only happens after the first line, so the inner slot vertical padding should always be added.
-	Offset.Y += MaximumHeightInCurrentLine + WrapBox.InnerSlotPadding.Y;
-	MaximumHeightInCurrentLine = 0.0f;
+	if (WrapBox.Orientation == EOrientation::Orient_Vertical)
+	{
+		// Set initial state for new vertical line.
+		Offset.Y = 0.0f;
+
+		// Since this is the initial state for a new vertical line, this only happens after the first line, so the inner slot horizontal padding should always be added.
+		Offset.X += MaximumSizeInCurrentLine + WrapBox.InnerSlotPadding.X;
+	}
+	else
+	{
+		// Set initial state for horizontal new line.
+		Offset.X = 0.0f;
+
+		// Since this is the initial state for a new horizontal line, this only happens after the first line, so the inner slot vertical padding should always be added.
+		Offset.Y += MaximumSizeInCurrentLine + WrapBox.InnerSlotPadding.Y;
+	}
+
+	MaximumSizeInCurrentLine = 0.0f;
 	IndexOfFirstChildInCurrentLine = INDEX_NONE;
 }
 
@@ -248,8 +312,6 @@ void SWrapBox::FChildArranger::Arrange(const SWrapBox& WrapBox, const FOnSlotArr
 
 void SWrapBox::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
 {
-	const float WidthToWrapAt = PreferredWidth.Get();
-
 	FChildArranger::Arrange(*this, [&](const FSlot& Slot, const FChildArranger::FArrangementData& ArrangementData)
 	{
 		// Calculate offset and size in slot using alignment.
@@ -295,10 +357,25 @@ void SWrapBox::SetInnerSlotPadding(FVector2D InInnerSlotPadding)
 
 void SWrapBox::SetWrapWidth(const TAttribute<float>& InWrapWidth)
 {
-	PreferredWidth = InWrapWidth;
+	PreferredSize = InWrapWidth;
+}
+
+void SWrapBox::SetWrapSize(const TAttribute<float>& InWrapSize)
+{
+	PreferredSize = InWrapSize;
 }
 
 void SWrapBox::SetUseAllottedWidth(bool bInUseAllottedWidth)
 {
-	bUseAllottedWidth = bInUseAllottedWidth;
+	bUseAllottedSize = bInUseAllottedWidth;
+}
+
+void SWrapBox::SetUseAllottedSize(bool bInUseAllottedSize)
+{
+	bUseAllottedSize = bInUseAllottedSize;
+}
+
+void SWrapBox::SetOrientation(EOrientation InOrientation)
+{
+	Orientation = InOrientation;
 }
