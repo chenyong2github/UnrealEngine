@@ -540,14 +540,14 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.LinearProjection > 0.0f) ? SolverSettings.LinearProjection : JointSettings.LinearProjection;
+		return (SolverSettings.LinearProjection >= 0.0f) ? SolverSettings.LinearProjection : JointSettings.LinearProjection;
 	}
 
 	FReal FPBDJointUtilities::GetAngularProjection(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.AngularProjection > 0.0f) ? SolverSettings.AngularProjection : JointSettings.AngularProjection;
+		return (SolverSettings.AngularProjection >= 0.0f) ? SolverSettings.AngularProjection : JointSettings.AngularProjection;
 	}
 
 	bool FPBDJointUtilities::GetLinearSoftAccelerationMode(

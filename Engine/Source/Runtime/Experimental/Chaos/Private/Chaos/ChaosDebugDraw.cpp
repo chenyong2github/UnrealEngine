@@ -36,6 +36,8 @@ namespace Chaos
 		float FontScale = 1.5f;
 		float ShapeThicknesScale = 1.0f;
 		float PointSize = 2.0f;
+		float VelScale = 0.0f;
+		float AngVelScale = 0.0f;
 		int DrawPriority = 10.0f;
 
 		FAutoConsoleVariableRef CVarArrowSize(TEXT("p.Chaos.DebugDrawArrowSize"), ArrowSize, TEXT("ArrowSize."));
@@ -47,6 +49,8 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarConstraintAxisLen(TEXT("p.Chaos.DebugDrawConstraintAxisLen"), ConstraintAxisLen, TEXT("ConstraintAxisLen."));
 		FAutoConsoleVariableRef CVarLineThickness(TEXT("p.Chaos.DebugDrawLineThickness"), LineThickness, TEXT("LineThickness."));
 		FAutoConsoleVariableRef CVarLineShapeThickness(TEXT("p.Chaos.DebugDrawShapeLineThicknessScale"), ShapeThicknesScale, TEXT("Shape lineThickness multiplier."));
+		FAutoConsoleVariableRef CVarVelScale(TEXT("p.Chaos.DebugDrawVelScale"), VelScale, TEXT("If >0 show velocity when drawing particle transforms."));
+		FAutoConsoleVariableRef CVarAngVelScale(TEXT("p.Chaos.DebugDrawAngVelScale"), AngVelScale, TEXT("If >0 show angular velocity when drawing particle transforms."));
 		FAutoConsoleVariableRef CVarScale(TEXT("p.Chaos.DebugDrawScale"), DrawScale, TEXT("Scale applied to all Chaos Debug Draw line lengths etc."));
 
 		//
@@ -298,7 +302,16 @@ namespace Chaos
 		
 			if (Index >= 0)
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugString(PCOM + FontHeight * FVec3(0, 0, 1), FString::Format(TEXT("{0}{1}"), { Particle->IsKinematic()? TEXT("K"): TEXT("D"), Index }), nullptr, FColor::White, KINDA_SMALL_NUMBER, false, FontScale);
+				//FDebugDrawQueue::GetInstance().DrawDebugString(PCOM + FontHeight * FVec3(0, 0, 1), FString::Format(TEXT("{0}{1}"), { Particle->IsKinematic()? TEXT("K"): TEXT("D"), Index }), nullptr, FColor::White, KINDA_SMALL_NUMBER, false, FontScale);
+			}
+
+			if ((VelScale > 0.0f) && (Particle->V().Size() > KINDA_SMALL_NUMBER))
+			{
+				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + Particle->V() * VelScale, Red, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			}
+			if ((AngVelScale > 0.0f) && (Particle->W().Size() > KINDA_SMALL_NUMBER))
+			{
+				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + Particle->W() * AngVelScale, Green, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 			}
 		}
 
@@ -360,8 +373,8 @@ namespace Chaos
 
 			// Draw the particle (mass frame) coordinates
 			{
-				DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[0], 0, 1.0f);
-				DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[1], 0, 1.0f);				
+				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[0], INDEX_NONE, 1.0f);
+				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[1], INDEX_NONE, 1.0f);				
 			}
 		}
 		

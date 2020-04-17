@@ -185,6 +185,8 @@ namespace Chaos
 		FReal SoftTwistDamping;
 		FReal SoftSwingStiffness;
 		FReal SoftSwingDamping;
+		FReal ProjectionInvMassScale;
+		FReal VelProjectionInvMassScale;
 	};
 
 	class FJointSolverResult
