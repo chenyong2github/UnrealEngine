@@ -198,6 +198,13 @@ namespace Chaos
 						continue;
 					}
 
+					// HACK : This should not be happening if the disabled particles are properly removed from the active particles list. 
+					if (Particle1.Disabled() || Particle2Generic->Disabled())
+					{
+						continue;
+					}
+
+
 					// Sleeping won't collide against another sleeping and sleeping vs dynamic gets picked up by the other direction.
 					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
 						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
