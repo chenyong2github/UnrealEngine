@@ -859,6 +859,11 @@ public:
 	*/
 	FSoundClassProperties* GetSoundClassCurrentProperties(USoundClass* InSoundClass);
 
+	/** 
+	* Returns the parameters which are dynamic from the given sound class. 
+	*/
+	FSoundClassDynamicProperties* GetSoundClassDynamicProperties(USoundClass* InSoundClass);
+
 	/**
 	* Checks to see if a coordinate is within a distance of any listener
 	*/
@@ -1801,6 +1806,7 @@ private:
 
 	/** Current properties of all sound classes */
 	TMap<USoundClass*, FSoundClassProperties> SoundClasses;
+	TMap<USoundClass*, FSoundClassDynamicProperties> DynamicSoundClassProperties;
 
 	/** The Base SoundMix that's currently active */
 	USoundMix* BaseSoundMix;
