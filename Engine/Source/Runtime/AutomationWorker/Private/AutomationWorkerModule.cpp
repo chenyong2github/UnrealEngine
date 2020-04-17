@@ -454,7 +454,10 @@ void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FCol
 
 		if (!FFileHelper::SaveArrayToFile(CompressedBitmap, *LocalFile))
 		{
-			UE_LOG(LogAutomationWorker, Error, TEXT("Failed to save screenshot to %s"), *LocalFile);
+			uint32 WriteErrorCode = FPlatformMisc::GetLastError();
+			TCHAR WriteErrorBuffer[2048];
+			FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
+			UE_LOG(LogAutomationWorker, Warning, TEXT("Fail to save screenshot to %s. WriteError: %u (%s)"), *LocalFile, WriteErrorCode, WriteErrorBuffer);
 			return;
 		}
 
