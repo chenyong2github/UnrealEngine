@@ -257,19 +257,14 @@ static void AddIfDirectoryExists(TArray<FString>& ExtensionDirs, FString&& Dir)
 	}
 }
 
-TArray<FString> FPaths::GetExtensionDirs(const FString& BaseDir, const FString& SubDir)
+static void GetExtensionDirsInternal(TArray<FString>& ExtensionDirs, const FString& BaseDir, const FString& SubDir)
 {
-	TArray<FString> ExtensionDirs;
 	AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(BaseDir, SubDir));
 
 	FString PlatformExtensionBaseDir = FPaths::Combine(BaseDir, TEXT("Platforms"));
-	for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+	for (const FString& PlatformName : FDataDrivenPlatformInfoRegistry::GetValidPlatformDirectoryNames())
 	{
-		for (auto const& AdditionalFolder : Platform.Value.AdditionalRestrictedFolders)
-		{
-			AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(PlatformExtensionBaseDir, AdditionalFolder, SubDir));
-		}
-		AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(PlatformExtensionBaseDir, Platform.Key, SubDir));
+		AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(PlatformExtensionBaseDir, PlatformName, SubDir));
 	}
 
 	FString RestrictedBaseDir = FPaths::Combine(BaseDir, TEXT("Restricted"));
@@ -280,12 +275,28 @@ TArray<FString> FPaths::GetExtensionDirs(const FString& BaseDir, const FString& 
 			AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(FilenameOrDirectory, SubDir));
 
 			// now look for platforms under it
-			ExtensionDirs.Append(GetExtensionDirs(FilenameOrDirectory, SubDir));
+			GetExtensionDirsInternal(ExtensionDirs, FilenameOrDirectory, SubDir);
 		}
 		return true;
 	});
+}
 
-	return ExtensionDirs;
+const TArray<FString>& FPaths::GetExtensionDirs(const FString& BaseDir, const FString& SubDir)
+{
+	static TMap<TTuple<FString, FString>, TArray<FString>> CachedExtensionDirs;
+
+	// look up a cached set of this BaseDir/SubDir combo
+	TTuple<FString, FString> DirKey(BaseDir, SubDir);
+	TArray<FString>* CachedDirs = CachedExtensionDirs.Find(DirKey);
+	if (CachedDirs == nullptr)
+	{
+		CachedDirs = &CachedExtensionDirs.Emplace(DirKey);
+
+		// get the directories
+		GetExtensionDirsInternal(*CachedDirs, BaseDir, SubDir);
+	}
+
+	return *CachedDirs;
 }
 
 FString FPaths::RootDir()

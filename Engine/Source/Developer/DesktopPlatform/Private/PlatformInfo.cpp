@@ -6,6 +6,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
+#include "Misc/DelayedAutoRegister.h"
 
 #define LOCTEXT_NAMESPACE "PlatformInfo"
 
@@ -202,18 +203,12 @@ void LoadDataDrivenPlatforms()
 	}
 }
 
-struct FPlatformInfoAutoInit
+FDelayedAutoRegisterHelper GPlatformInfoInit(EDelayedRegisterRunPhase::FileSystemReady, []()
 {
-	FPlatformInfoAutoInit()
-	{
-		FCoreDelegates::ConfigReadyForUse.AddLambda([]
-		{
-			BuildHardcodedPlatforms();
-			LoadDataDrivenPlatforms();
-		});
-	}
+	BuildHardcodedPlatforms();
+	LoadDataDrivenPlatforms();
+});
 
-} GPlatformInfoAutoInit;
 #endif
 
 } // anonymous namespace
