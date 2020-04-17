@@ -837,6 +837,9 @@ FCollisionShape UWidgetComponent::GetCollisionShape(float Inflation) const
 
 void UWidgetComponent::OnRegister()
 {
+	// Set this prior to registering the scene component so that bounds are calculated correctly.
+	CurrentDrawSize = DrawSize;
+
 	Super::OnRegister();
 
 #if !UE_SERVER
