@@ -45,7 +45,7 @@ void SWrapBox::Construct( const FArguments& InArgs )
 	}
 
 	InnerSlotPadding = InArgs._InnerSlotPadding;
-	bUseAllottedSize = InArgs._UseAllottedSize;
+	bUseAllottedSize = InArgs._UseAllottedSize || InArgs._UseAllottedWidth;
 	Orientation = InArgs._Orientation;
 
 	// Copy the children from the declaration to the widget
