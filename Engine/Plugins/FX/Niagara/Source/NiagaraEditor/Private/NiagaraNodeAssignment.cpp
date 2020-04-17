@@ -255,7 +255,7 @@ void UNiagaraNodeAssignment::MergeUp()
 	//NiagaraStackUtilities::
 }
 
-void UNiagaraNodeAssignment::BuildAddParameterMenu(FMenuBuilder& MenuBuilder, ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode)
+void UNiagaraNodeAssignment::CollectAddExistingActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutAddExistingActions)
 {
 	TArray<FNiagaraVariable> AvailableParameters;
 	FNiagaraStackGraphUtilities::GetAvailableParametersForScript(*InGraphOutputNode, AvailableParameters);
@@ -266,25 +266,20 @@ void UNiagaraNodeAssignment::BuildAddParameterMenu(FMenuBuilder& MenuBuilder, EN
 		FText VarDesc = FNiagaraConstants::GetAttributeDescription(AvailableParameter);
 		FString VarDefaultValue = FNiagaraConstants::GetAttributeDefaultValue(AvailableParameter);
 		const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Description: Set the parameter {0}. {1}"), NameText, VarDesc);
-		FText CategoryName = LOCTEXT("ModuleSetCategory", "Set Specific Parameters");
+		FText Category = LOCTEXT("ModuleSetCategory", "Set Specific Parameters");
 		bool bCanExecute = AssignmentTargets.Contains(AvailableParameter) == false; 
 
-		MenuBuilder.AddMenuEntry(
-			FUIAction(
-				FExecuteAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, AvailableParameter, VarDefaultValue),
-				FCanExecuteAction::CreateLambda([bCanExecute] { return bCanExecute; })),
-			SNew(SBox)
-			.Padding(FMargin(5, 1, 5, 1))
-			[
-				SNew(SNiagaraParameterName)
-				.ParameterName(AvailableParameter.GetName())
-				.IsReadOnly(true)
-			]);
+		TSharedRef<FNiagaraMenuAction> AddExistingAction = MakeShareable<FNiagaraMenuAction>(new FNiagaraMenuAction(
+			Category, NameText, TooltipDesc,
+			0, FText(),
+			FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, AvailableParameter, VarDefaultValue),
+			FNiagaraMenuAction::FCanExecuteStackAction::CreateLambda([bCanExecute] { return bCanExecute; })));
+		AddExistingAction->SetParamterVariable(AvailableParameter);
+		OutAddExistingActions.Add(AddExistingAction);
 	}
-
 }
 
-void UNiagaraNodeAssignment::BuildCreateParameterMenu(FMenuBuilder& MenuBuilder, ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode)
+void UNiagaraNodeAssignment::CollectCreateNewActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutCreateNewActions)
 {
 	// Generate actions for creating new typed parameters.
 	TOptional<FName> NewParameterNamespace = FNiagaraStackGraphUtilities::GetNamespaceForScriptUsage(InGraphOutputNode->GetUsage());
@@ -323,12 +318,11 @@ void UNiagaraNodeAssignment::BuildCreateParameterMenu(FMenuBuilder& MenuBuilder,
 			const FText TooltipDesc = FText::Format(LOCTEXT("NewParameterModuleDescriptionFormat", "Description: Create a new {0} parameter. {1}"), TypeText, VarDesc);
 			FText Category = LOCTEXT("NewParameterModuleCategory", "Create New Parameter");
 
-			MenuBuilder.AddMenuEntry(
-				TypeText,
-				TooltipDesc,
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, NewParameter, VarDefaultValue)));
+			TSharedRef<FNiagaraMenuAction> CreateNewAction = MakeShareable<FNiagaraMenuAction>(new FNiagaraMenuAction(
+				Category, TypeText, TooltipDesc,
+				0, FText(),
+				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, NewParameter, VarDefaultValue)));
+			OutCreateNewActions.Add(CreateNewAction);
 		}
 	}
 }
