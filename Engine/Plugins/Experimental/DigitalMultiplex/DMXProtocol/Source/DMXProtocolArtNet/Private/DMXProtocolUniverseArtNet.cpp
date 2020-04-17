@@ -18,8 +18,8 @@ FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(IDMXProtocolPtr InDMXProt
 	checkf(WeakDMXProtocol.IsValid(), TEXT("DMXProtocol pointer is nullptr"));
 
 	Priority = 100;
-	OutputDMXBuffer = MakeShared<FDMXBuffer>();
-	InputDMXBuffer = MakeShared<FDMXBuffer>();
+	OutputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
+	InputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
 
 	Settings = MakeShared<FJsonObject>(InSettings);
 	checkf(Settings->HasField(TEXT("PortID")), TEXT("DMXProtocol PortID is not valid"));
@@ -45,12 +45,12 @@ IDMXProtocolPtr FDMXProtocolUniverseArtNet::GetProtocol() const
 	return WeakDMXProtocol.Pin();
 }
 
-TSharedPtr<FDMXBuffer> FDMXProtocolUniverseArtNet::GetOutputDMXBuffer() const
+FDMXBufferPtr FDMXProtocolUniverseArtNet::GetOutputDMXBuffer() const
 {
 	return OutputDMXBuffer;
 }
 
-TSharedPtr<FDMXBuffer> FDMXProtocolUniverseArtNet::GetInputDMXBuffer() const
+FDMXBufferPtr FDMXProtocolUniverseArtNet::GetInputDMXBuffer() const
 {
 	return InputDMXBuffer;
 }
