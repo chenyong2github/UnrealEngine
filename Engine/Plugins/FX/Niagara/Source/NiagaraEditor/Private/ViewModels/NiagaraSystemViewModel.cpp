@@ -525,6 +525,37 @@ void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 	System->RequestCompile(false);
 }
 
+bool FNiagaraSystemViewModel::WaitingOnCompilation() const
+{
+	UNiagaraSystem& ViewedSystem = GetSystem();
+
+	if (ViewedSystem.HasOutstandingCompilationRequests())
+	{
+		return true;
+	}
+
+	// the above check only handles the VM script generation, and so GPU compute script compilation can still
+	// be underway, so we'll check for that explicitly so that we don't burden the user with excessive compiles
+	for (const FNiagaraEmitterHandle& EmitterHandle : ViewedSystem.GetEmitterHandles())
+	{
+		if (const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
+		{
+			if (const UNiagaraScript* GPUComputeScript = Emitter->GetGPUComputeScript())
+			{
+				if (const FNiagaraShaderScript* ShaderScript = GPUComputeScript->GetRenderThreadScript())
+				{
+					if (!ShaderScript->IsCompilationFinished())
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 void FNiagaraSystemViewModel::Tick(float DeltaTime)
 {
 	if (System == nullptr)
@@ -549,8 +580,7 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 	TickCompileStatus();
 
 	bool bAutoCompileThisFrame = GetDefault<UNiagaraEditorSettings>()->GetAutoCompile() && bCanAutoCompile && GetLatestCompileStatus() == ENiagaraScriptCompileStatus::NCS_Dirty;
-	if ((bForceAutoCompileOnce || bAutoCompileThisFrame) && GetSystem().HasOutstandingCompilationRequests() == false)
-
+	if ((bForceAutoCompileOnce || bAutoCompileThisFrame) && !WaitingOnCompilation())
 	{
 		CompileSystem(false);
 		bForceAutoCompileOnce = false;
