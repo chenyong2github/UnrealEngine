@@ -737,6 +737,8 @@ void FGPUSortManager::OnPreRender(FRHICommandListImmediate& RHICmdList)
 			SortBatch.GenerateKeys(RHICmdList, Callbacks, EGPUSortFlags::KeyGenAfterPreRender);
 		}
 	}
+
+	PostPreRenderEvent.Broadcast(RHICmdList);
 }
 
 void FGPUSortManager::OnPostRenderOpaque(FRHICommandListImmediate& RHICmdList)

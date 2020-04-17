@@ -23,6 +23,7 @@ FNiagaraDrawIndirectArgsGenCS::FNiagaraDrawIndirectArgsGenCS(const ShaderMetaTyp
 	: FGlobalShader(Initializer)
 {
 	TaskInfosParam.Bind(Initializer.ParameterMap, TEXT("TaskInfos"));
+	CulledInstanceCountsParam.Bind(Initializer.ParameterMap, TEXT("CulledInstanceCounts"));
 	InstanceCountsParam.Bind(Initializer.ParameterMap, TEXT("InstanceCounts"));
 	DrawIndirectArgsParam.Bind(Initializer.ParameterMap, TEXT("DrawIndirectArgs"));
 	TaskCountParam.Bind(Initializer.ParameterMap, TEXT("TaskCount"));
@@ -32,6 +33,7 @@ FNiagaraDrawIndirectArgsGenCS::FNiagaraDrawIndirectArgsGenCS(const ShaderMetaTyp
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 	Ar << TaskInfosParam;
+	Ar << CulledInstanceCountsParam;
 	Ar << InstanceCountsParam;
 	Ar << DrawIndirectArgsParam;
 	Ar << TaskCountParam;
@@ -51,11 +53,12 @@ void FNiagaraDrawIndirectArgsGenCS::SetOutput(FRHICommandList& RHICmdList, FRHIU
 	}
 }
 
-void FNiagaraDrawIndirectArgsGenCS::SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks)
+void FNiagaraDrawIndirectArgsGenCS::SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks)
 {
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, TaskInfosParam, TaskInfosBuffer);
+	SetSRVParameter(RHICmdList, ComputeShaderRHI, CulledInstanceCountsParam, CulledInstanceCountsBuffer);
 
 	const FUintVector4 TaskCountValue((int32)NumArgGenTasks, (int32)NumInstanceCountClearTasks, (int32)(NumArgGenTasks + NumInstanceCountClearTasks), 0);
 	SetShaderValue(RHICmdList, ComputeShaderRHI, TaskCountParam, TaskCountValue);
@@ -75,7 +78,6 @@ void FNiagaraDrawIndirectArgsGenCS::UnbindBuffers(FRHICommandList& RHICmdList)
 		RHICmdList.SetUAVParameter(ComputeShaderRHI, InstanceCountsParam.GetUAVIndex(), nullptr);
 	}
 }
-
 void FNiagaraDrawIndirectResetCountsCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
