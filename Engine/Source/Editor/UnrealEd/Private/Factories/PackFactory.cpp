@@ -369,7 +369,7 @@ UObject* UPackFactory::FactoryCreateBinary
 				FPakEntry EntryInfo;
 				EntryInfo.Serialize(PakReader, PakFile.GetInfo().Version);
 
-				if (EntryInfo == Entry)
+				if (EntryInfo.IndexDataEquals(Entry))
 				{
 					FString ConfigString;
 					PackFactoryHelper::ExtractFileToString(Entry, PakReader, CopyBuffer, PersistentCompressionBuffer, ConfigString, PakFile);
@@ -377,7 +377,7 @@ UObject* UPackFactory::FactoryCreateBinary
 				}
 				else
 				{
-					UE_LOG(LogPackFactory, Error, TEXT("Serialized hash mismatch for \"%s\"."), **EntryFilename);
+					UE_LOG(LogPackFactory, Error, TEXT("Index data mismatch for entry: \"%s\"."), **EntryFilename);
 					ErrorCount++;
 				}
 			}
@@ -480,7 +480,7 @@ UObject* UPackFactory::FactoryCreateBinary
 			FPakEntry EntryInfo;
 			EntryInfo.Serialize(PakReader, PakFile.GetInfo().Version);
 
-			if (EntryInfo == Entry)
+			if (EntryInfo.IndexDataEquals(Entry))
 			{
 				if (EntryFilename->StartsWith(TEXT("Source/")) || EntryFilename->Contains(TEXT("/Source/")))
 				{
@@ -558,7 +558,7 @@ UObject* UPackFactory::FactoryCreateBinary
 			}
 			else
 			{
-				UE_LOG(LogPackFactory, Error, TEXT("Serialized hash mismatch for \"%s\"."), **EntryFilename);
+				UE_LOG(LogPackFactory, Error, TEXT("Index data mismatch for entry: \"%s\"."), **EntryFilename);
 				ErrorCount++;
 			}
 		}
