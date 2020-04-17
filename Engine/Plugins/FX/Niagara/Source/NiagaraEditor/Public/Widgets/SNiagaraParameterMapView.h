@@ -155,6 +155,8 @@ private:
 		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
 		FText& OutErrorMessage) const;
 
+	bool ParameterExistsByName(FName ParameterName) const;
+
 	void GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder);
 	void OnChangeNamespace(FNiagaraNamespaceMetadata Metadata);
 
@@ -218,6 +220,8 @@ private:
 	TSharedPtr<FUICommandList> ToolkitCommands;
 
 	TArray<int32> HiddenSectionIDs;
+
+	TArray<FNiagaraVariable> LastCollectedParameters;
 
 	bool bNeedsRefresh;
 	bool bIsAddingParameter;

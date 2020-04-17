@@ -2690,9 +2690,13 @@ void FNiagaraParameterUtilities::GetChangeNamespaceMenuData(FName InParameterNam
 	NamespaceMetadata.Sort([](const FNiagaraNamespaceMetadata& MetadataA, const FNiagaraNamespaceMetadata& MetadataB)
 		{ return MetadataA.SortId < MetadataB.SortId; });
 
+	FNiagaraParameterHandle ParameterHandle(InParameterName);
+	FNiagaraNamespaceMetadata CurrentMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(ParameterHandle.GetHandleParts());
 	for (const FNiagaraNamespaceMetadata& Metadata : NamespaceMetadata)
 	{
-		if (Metadata.IsValid() == false || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) ||
+		if (Metadata.IsValid() == false ||
+			Metadata == CurrentMetadata ||
+			Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) ||
 			(InParameterContext == EParameterContext::Script && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript)) ||
 			(InParameterContext == EParameterContext::System && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInSystem)))
 		{
