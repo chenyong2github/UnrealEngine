@@ -165,10 +165,10 @@ namespace UnrealBuildTool
 					TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
 				}
 
-				// Hack for single file compile; don't build the ShaderCompileWorker target that's added to the command line for generated project files
+				// Hack for specific files compile; don't build the ShaderCompileWorker target that's added to the command line for generated project files
 				if(TargetDescriptors.Count >= 2)
 				{
-					TargetDescriptors.RemoveAll(x => (x.Name == "ShaderCompileWorker" || x.Name == "LiveCodingConsole") && x.SingleFileToCompile != null);
+					TargetDescriptors.RemoveAll(x => (x.Name == "ShaderCompileWorker" || x.Name == "LiveCodingConsole") && x.SpecificFilesToCompile.Count > 0);
 				}
 
 				// Handle remote builds
@@ -357,13 +357,16 @@ namespace UnrealBuildTool
 					}
 
 					// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.
-					if (TargetDescriptor.SingleFileToCompile == null)
+					if (TargetDescriptor.SpecificFilesToCompile.Count == 0)
 					{
 						ActionGraph.GatherAllOutdatedActions(PrerequisiteActions, History, ActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries);
 					}
 					else
 					{
-						ActionToOutdatedFlag[PrerequisiteActions.FirstOrDefault(x => x.PrerequisiteItems.Any(y => y.Location == TargetDescriptor.SingleFileToCompile))] = true;
+						foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
+						{
+							ActionToOutdatedFlag[PrerequisiteActions.FirstOrDefault(x => x.PrerequisiteItems.Any(y => y.Location == SpecificFile))] = true;
+						}
 					}
 				}
 
@@ -532,7 +535,7 @@ namespace UnrealBuildTool
 		{
 			// Get the path to the makefile for this target
 			FileReference MakefileLocation = null;
-			if(BuildConfiguration.bUseUBTMakefiles && TargetDescriptor.SingleFileToCompile == null)
+			if(BuildConfiguration.bUseUBTMakefiles && TargetDescriptor.SpecificFilesToCompile.Count == 0)
 			{
 				MakefileLocation = TargetMakefile.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration);
 			}
@@ -599,7 +602,7 @@ namespace UnrealBuildTool
 				using(Timeline.ScopeEvent("UEBuildTarget.Build()"))
 				{
 					const bool bIsAssemblingBuild = true;
-					Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild, TargetDescriptor.SingleFileToCompile);
+					Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild, TargetDescriptor.SpecificFilesToCompile);
 				}
 
 				// Save the pre-build scripts onto the makefile
@@ -653,11 +656,13 @@ namespace UnrealBuildTool
 		/// <returns>List of actions that need to be executed</returns>
 		static void GatherOutputItems(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, HashSet<FileItem> OutputItems)
 		{
-			if(TargetDescriptor.SingleFileToCompile != null)
+			if(TargetDescriptor.SpecificFilesToCompile.Count > 0)
 			{
-				// If we're just compiling a single file, set the target items to be all the derived items
-				FileItem FileToCompile = FileItem.GetItemByFileReference(TargetDescriptor.SingleFileToCompile);
-				OutputItems.UnionWith(Makefile.Actions.Where(x => x.PrerequisiteItems.Contains(FileToCompile)).SelectMany(x => x.ProducedItems));
+				// If we're just compiling a specific files, set the target items to be all the derived items
+				List<FileItem> FilesToCompile = TargetDescriptor.SpecificFilesToCompile.ConvertAll(x => FileItem.GetItemByFileReference(x));
+				OutputItems.UnionWith(
+					Makefile.Actions.Where(x => x.PrerequisiteItems.Any(y => FilesToCompile.Contains(y)))
+					.SelectMany(x => x.ProducedItems));
 			}
 			else if(TargetDescriptor.OnlyModuleNames.Count > 0)
 			{

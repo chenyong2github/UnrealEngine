@@ -181,7 +181,7 @@ namespace UnrealBuildTool
 			if (TargetDescriptor.HotReloadMode == HotReloadMode.Disabled)
 			{
 				// Make sure we're not doing a partial build from the editor (eg. compiling a new plugin)
-				if (TargetDescriptor.ForeignPlugin == null && TargetDescriptor.SingleFileToCompile == null)
+				if (TargetDescriptor.ForeignPlugin == null && TargetDescriptor.SpecificFilesToCompile.Count == 0)
 				{
 					// Delete the previous state file
 					FileReference StateFile = HotReloadState.GetLocation(TargetDescriptor);
