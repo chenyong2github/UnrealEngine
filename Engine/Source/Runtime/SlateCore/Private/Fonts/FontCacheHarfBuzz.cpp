@@ -54,35 +54,37 @@ namespace Internal
 {
 
 template <bool IsUnicode, size_t TCHARSize>
-void AppendStringToBuffer(const FString& InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer)
+void AppendStringToBuffer(const FStringView InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer)
 {
 	// todo: SHAPING - This is losing the context information that may be required to shape a sub-section of text.
 	//				   In practice this may not be an issue as our platforms should all use the other functions, but to fix it we'd need UTF-8 iteration functions to find the correct points the buffer
-	hb_buffer_add_utf8(InHarfBuzzTextBuffer, TCHAR_TO_UTF8(*InString.Mid(InStartIndex, InLength)), -1, 0, -1);
+	FStringView SubString = InString.Mid(InStartIndex, InLength);
+	FTCHARToUTF8 SubStringUtf8(SubString.GetData(), SubString.Len());
+	hb_buffer_add_utf8(InHarfBuzzTextBuffer, SubStringUtf8.Get(), SubStringUtf8.Length(), 0, SubStringUtf8.Length());
 }
 
 template <>
-void AppendStringToBuffer<true, 2>(const FString& InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer)
+void AppendStringToBuffer<true, 2>(const FStringView InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer)
 {
 	// A unicode encoding with a TCHAR size of 2 bytes is assumed to be UTF-16
-	hb_buffer_add_utf16(InHarfBuzzTextBuffer, reinterpret_cast<const uint16_t*>(InString.GetCharArray().GetData()), InString.Len(), InStartIndex, InLength);
+	hb_buffer_add_utf16(InHarfBuzzTextBuffer, reinterpret_cast<const uint16_t*>(InString.GetData()), InString.Len(), InStartIndex, InLength);
 }
 
 template <>
-void AppendStringToBuffer<true, 4>(const FString& InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer)
+void AppendStringToBuffer<true, 4>(const FStringView InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer)
 {
 	// A unicode encoding with a TCHAR size of 4 bytes is assumed to be UTF-32
-	hb_buffer_add_utf32(InHarfBuzzTextBuffer, reinterpret_cast<const uint32_t*>(InString.GetCharArray().GetData()), InString.Len(), InStartIndex, InLength);
+	hb_buffer_add_utf32(InHarfBuzzTextBuffer, reinterpret_cast<const uint32_t*>(InString.GetData()), InString.Len(), InStartIndex, InLength);
 }
 
 } // namespace Internal
 
-void AppendStringToBuffer(const FString& InString, hb_buffer_t* InHarfBuzzTextBuffer)
+void AppendStringToBuffer(const FStringView InString, hb_buffer_t* InHarfBuzzTextBuffer)
 {
 	return Internal::AppendStringToBuffer<FPlatformString::IsUnicodeEncoded, sizeof(TCHAR)>(InString, 0, InString.Len(), InHarfBuzzTextBuffer);
 }
 
-void AppendStringToBuffer(const FString& InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer)
+void AppendStringToBuffer(const FStringView InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer)
 {
 	return Internal::AppendStringToBuffer<FPlatformString::IsUnicodeEncoded, sizeof(TCHAR)>(InString, InStartIndex, InLength, InHarfBuzzTextBuffer);
 }
