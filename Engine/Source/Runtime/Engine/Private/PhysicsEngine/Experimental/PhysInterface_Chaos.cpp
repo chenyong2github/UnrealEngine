@@ -872,7 +872,7 @@ bool FPhysInterface_Chaos::IsGravityEnabled_AssumesLocked(const FPhysicsActorHan
 {
 	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->CastToRigidParticle())
 	{
-		return RigidParticle->IsGravityEnabled();
+		return RigidParticle->GravityEnabled();
 	}
 	return false;
 }
