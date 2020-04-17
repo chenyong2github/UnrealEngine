@@ -376,11 +376,11 @@ void AzureSpatialAnchorsInteropImpl::StopSession()
 
 void AzureSpatialAnchorsInteropImpl::DestroySession()
 {
-	Log(L"StopSession");
+	Log(L"DestroySession");
 
 	if (m_cloudSession == nullptr)
 	{
-		Log(L"StartSession called, but session does not exist!  Ignoring.");
+		Log(L"DestroySession called, but session does not exist!  Ignoring.");
 		return;
 	}
 
@@ -1145,6 +1145,7 @@ void AzureSpatialAnchorsInteropImpl::RemoveEventListeners()
 
 AzureSpatialAnchorsInterop::CloudAnchorID AzureSpatialAnchorsInteropImpl::GetNextCloudAnchorID()
 {
+	// Note: IDs must remain unique across the creation of multiple Interop's in a UE4 app lifetime (important for remoting).
 	static std::atomic<int> NextCloudAnchorID(0);
 	return NextCloudAnchorID++;
 }

@@ -53,6 +53,11 @@ void FAzureSpatialAnchorsForWMR::StartupModule()
 	}
 #endif
 
+	CreateInterop();
+}
+
+void FAzureSpatialAnchorsForWMR::CreateInterop()
+{
 	WindowsMixedReality::MixedRealityInterop* MixedRealityInterop = IWindowsMixedRealityHMDPlugin::Get().GetMixedRealityInterop();
 	check(MixedRealityInterop);
 
@@ -66,8 +71,6 @@ void FAzureSpatialAnchorsForWMR::StartupModule()
 		AnchorLocatedLambda,
 		LocateAnchorsCompletedLambda,
 		SessionUpdatedLambda);
-
-	AzureSpatialAnchorsInterop& Interop = AzureSpatialAnchorsInterop::Get();
 }
 
 void FAzureSpatialAnchorsForWMR::ShutdownModule()
@@ -123,9 +126,23 @@ void FAzureSpatialAnchorsForWMR::StopSession()
 void FAzureSpatialAnchorsForWMR::DestroySession()
 {
 	AzureSpatialAnchorsInterop& Interop = AzureSpatialAnchorsInterop::Get();
+	Reset();
 	Interop.DestroySession();
 	AzureSpatialAnchorsInterop::Release();
+	CreateInterop();
 }
+
+void FAzureSpatialAnchorsForWMR::Reset()
+{
+	CloudAnchors.Reset();
+	SaveAsyncDataMap.Reset();
+	DeleteAsyncDataMap.Reset();
+	LoadByIDAsyncDataMap.Reset();
+	UpdateCloudAnchorPropertiesAsyncDataMap.Reset();
+	RefreshCloudAnchorPropertiesAsyncDataMap.Reset();
+	GetCloudAnchorPropertiesAsyncDataMap.Reset();
+}
+
 
 bool FAzureSpatialAnchorsForWMR::GetCloudAnchor(UARPin*& InARPin, UAzureCloudSpatialAnchor*& OutCloudAnchor)
 {
@@ -594,6 +611,19 @@ bool FAzureSpatialAnchorsForWMR::CreateARPinAroundAzureCloudSpatialAnchor(const 
 		return false;
 	}
 
+	if (PinId.IsEmpty())
+	{
+		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("WrapARPinAroundAzureCloudSpatialAnchor called with an empty PinId.  Ignoring."));
+		return false;
+	}
+
+	FName PinIdName(PinId);
+
+	if (PinIdName == NAME_None)
+	{
+		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("WrapARPinAroundAzureCloudSpatialAnchor called with illegal PinId of 'None'.  This is dangerous because empty strings cast to Name 'None'."));
+	}
+
 	AzureSpatialAnchorsInterop& Interop = AzureSpatialAnchorsInterop::Get();
 	if (Interop.CreateARPinAroundAzureCloudSpatialAnchor(*PinId, InAzureCloudSpatialAnchor->CloudAnchorID) == false)
 	{
@@ -602,7 +632,7 @@ bool FAzureSpatialAnchorsForWMR::CreateARPinAroundAzureCloudSpatialAnchor(const 
 	}
 
 	// create a pin around the local anchor
-	OutARPin = UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName(PinId), PinId);
+	OutARPin = UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(PinIdName, PinId);
 	return (OutARPin != nullptr);
 	{
 		InAzureCloudSpatialAnchor->ARPin = OutARPin;
