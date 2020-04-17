@@ -103,7 +103,7 @@ private:
 			ComponentIcon = FSlateIconFinder::FindIconBrushForClass( InNodePtr->GetComponentTemplate()->GetClass(), TEXT("SCS.Component") );
 		}
 
-		FText Label = InNodePtr->IsInherited() && !bIsInEditMode
+		FText Label = InNodePtr->IsInheritedComponent() && !bIsInEditMode
 			? FText::Format(LOCTEXT("NativeComponentFormatString","{0} (Inherited)"), FText::FromString(InNodePtr->GetDisplayString()))
 			: FText::FromString(InNodePtr->GetDisplayString());
 
