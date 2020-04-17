@@ -227,7 +227,7 @@ FSimpleDelegate& FNiagaraScratchPadScriptViewModel::OnRequestDiscardChanges()
 
 FText FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal() const
 {
-	return FText::Format(LOCTEXT("DisplayNameFormat", "{0}{1}"), FText::FromString(OriginalScript->GetName()), bHasPendingChanges ? LOCTEXT("HasPendingChanges", "*") : FText());
+	return FText::FromString(OriginalScript->GetName());
 }
 
 void FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged(const FEdGraphEditAction &Action)
