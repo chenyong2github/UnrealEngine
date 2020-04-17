@@ -3151,7 +3151,9 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 			}
 		}
 
+#if WITH_EDITOR
 		MI->UpdateCachedLayerParameters();
+#endif
 		MI->RecacheUniformExpressions(true);
 		MI->InitStaticPermutation();//bHasStaticPermutation can change.
 		if (MI->bHasStaticPermutationResource)
