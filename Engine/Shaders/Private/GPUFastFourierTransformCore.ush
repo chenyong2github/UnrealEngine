@@ -376,17 +376,19 @@ groupshared float SharedImag[ SCAN_LINE_LENGTH ];
 
 void CopyLocalToGroupShared(in Complex Local[RADIX], in uint Head, in uint Stride)
 {
- 
-	for (uint r = 0, i = Head; r < RADIX; ++r, i += Stride)
 	{
-		SharedReal[ i ] = Local[ r ].x;
+		for (uint r = 0, i = Head; r < RADIX; ++r, i += Stride)
+		{
+			SharedReal[ i ] = Local[ r ].x;
+		}
 	}
 	 
-	for (uint r = 0, i = Head; r < RADIX; ++r, i += Stride)
 	{
-		SharedImag[ i ] = Local[ r ].y;
+		for (uint r = 0, i = Head; r < RADIX; ++r, i += Stride)
+		{
+			SharedImag[ i ] = Local[ r ].y;
+		}
 	}
-
 }
 
 void CopyLocalToGroupSharedWSync(in Complex Local[RADIX], in uint Head, in uint Stride)
@@ -398,15 +400,18 @@ void CopyLocalToGroupSharedWSync(in Complex Local[RADIX], in uint Head, in uint 
 
 void CopyGroupSharedToLocal(inout Complex Local[RADIX], in uint Head, in uint Stride)
 {
- 
-	for (uint r = 0, i = Head; r < RADIX; ++r, i += Stride) 
 	{
-		Local[ r ].x = SharedReal[ i ];
+ 		for (uint r = 0, i = Head; r < RADIX; ++r, i += Stride) 
+		{
+			Local[ r ].x = SharedReal[ i ];
+		}
 	}
 
-	for (uint r = 0, i = Head; r < RADIX; ++r, i += Stride) 
 	{
-		Local[ r ].y = SharedImag[ i ];
+		for (uint r = 0, i = Head; r < RADIX; ++r, i += Stride) 
+		{
+			Local[ r ].y = SharedImag[ i ];
+		}
 	}
 }
 
@@ -616,13 +621,18 @@ void GroupSharedFFT(in const bool bIsForward, inout Complex Local[RADIX], in con
 void Scale(inout Complex LocalBuffer[2][RADIX], in float ScaleValue)
 {
 	// Scale
-	for (uint r = 0; r < RADIX; ++r)
-	{	
-		LocalBuffer[0][r] *= ScaleValue; 
+	{
+		for (uint r = 0; r < RADIX; ++r)
+		{	
+			LocalBuffer[0][r] *= ScaleValue; 
+		}
 	}
-	for (uint r = 0; r < RADIX; ++r)
-	{	
-		LocalBuffer[1][r] *= ScaleValue; 
+
+	{
+		for (uint r = 0; r < RADIX; ++r)
+		{	
+			LocalBuffer[1][r] *= ScaleValue; 
+		}
 	}
 }
 
@@ -709,44 +719,50 @@ void SplitTwoForOne(inout Complex LocalBuffer[RADIX], in uint Head, in uint Stri
 
 	// Construct the transform for the two real signals in the LocalBuffer
 
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
-		//
-		// K = N/2 - abs(SrcIdx - N/2)
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
+			//
+			// K = N/2 - abs(SrcIdx - N/2)
 
-		// DstK = SrcIdx % Non2;
-		// N - k
+			// DstK = SrcIdx % Non2;
+			// N - k
 		
-		FLATTEN uint NmK = (K > 0) ? ( N - K) : 0;
+			uint NmK = (K > 0) ? ( N - K) : 0;
 
-		// Z_k = LocalBuffer[i]
-		// If k < N/2  : Store  F_k = 1/2 (Z_k + Z*_{N-k})
-		// If k > N/2  : Compute I*G_k = 1/2 (Z_k - Z*_{N-k})
+			// Z_k = LocalBuffer[i]
+			// If k < N/2  : Store  F_k = 1/2 (Z_k + Z*_{N-k})
+			// If k > N/2  : Compute I*G_k = 1/2 (Z_k - Z*_{N-k})
 		
-		// Tmp =  {+,-}ComplexConjugate( Z_{N-k})
-		Complex Tmp = Complex( SharedReal[NmK], -SharedImag[NmK] );
+			// Tmp =  {+,-}ComplexConjugate( Z_{N-k})
+			Complex Tmp = Complex( SharedReal[NmK], -SharedImag[NmK] );
 		
-		Tmp *= (K > Non2)? -1 : 1;
+			Tmp *= (K > Non2)? -1 : 1;
 
-		LocalBuffer[i] += Tmp;
+			LocalBuffer[i] += Tmp;
 		
+		}
 	}
 
-	for (uint i =0; i < RADIX; ++i) LocalBuffer[ i ] *= 0.5f;
-	
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
-		// If k > N/2 get G_k from I*G_k:  G_k = -I * (I G_k)
-		if (K > Non2) LocalBuffer[i] = ComplexMult(Complex(0, -1), LocalBuffer[i] );
-		
-		if (K == Non2) 
-		{	
-			// F_N/2 + I * G_N/2
-			LocalBuffer[i] = Complex(SharedReal[Non2], SharedImag[Non2]);
-		}
+		for (uint i =0; i < RADIX; ++i) LocalBuffer[ i ] *= 0.5f;
+	}
 	
+	{
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
+			// If k > N/2 get G_k from I*G_k:  G_k = -I * (I G_k)
+			if (K > Non2) LocalBuffer[i] = ComplexMult(Complex(0, -1), LocalBuffer[i] );
+		
+			if (K == Non2) 
+			{	
+				// F_N/2 + I * G_N/2
+				LocalBuffer[i] = Complex(SharedReal[Non2], SharedImag[Non2]);
+			}
+	
+		}
 	}
 
 	if (Head == 0) 
@@ -773,27 +789,29 @@ void SplitTwoForOne(inout Complex LocalBuffer[RADIX], in uint Head, in uint Stri
 
 	// Construct the transform for the two real signals in the LocalBuffer
 
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
-		//
-		// K = N/2 - abs(SrcIdx - N/2)
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
+			//
+			// K = N/2 - abs(SrcIdx - N/2)
 
-		// DstK = SrcIdx % Non2;
-		// N - k
+			// DstK = SrcIdx % Non2;
+			// N - k
 		
-		FLATTEN uint NmK = (K > 0) ? ( N - K) : 0;
+			uint NmK = (K > 0) ? ( N - K) : 0;
 
-		// Z_k = LocalBuffer[i]
-		// If k < N/2  : Store  F_k = 1/2 (Z_k + Z*_{N-k})
-		// If k > N/2  : Compute I*G_k = 1/2 (Z_k - Z*_{N-k})
+			// Z_k = LocalBuffer[i]
+			// If k < N/2  : Store  F_k = 1/2 (Z_k + Z*_{N-k})
+			// If k > N/2  : Compute I*G_k = 1/2 (Z_k - Z*_{N-k})
 		
-		// Tmp =  {+,-}ComplexConjugate( Z_{N-k})
-		float Tmp = SharedReal[NmK]; 
+			// Tmp =  {+,-}ComplexConjugate( Z_{N-k})
+			float Tmp = SharedReal[NmK]; 
 		
-		Tmp *= (K > Non2)? -1 : 1;
+			Tmp *= (K > Non2)? -1 : 1;
 
-		LocalBuffer[i].x += Tmp;
+			LocalBuffer[i].x += Tmp;
+		}
 	}
 
 	if (Head == 0 ) LocalBuffer[0].x = 2.f * SharedReal[0];
@@ -804,39 +822,45 @@ void SplitTwoForOne(inout Complex LocalBuffer[RADIX], in uint Head, in uint Stri
 
 	FFTMemoryBarrier();
 
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
-		//
-		// K = N/2 - abs(SrcIdx - N/2)
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
+			//
+			// K = N/2 - abs(SrcIdx - N/2)
 
-		// DstK = SrcIdx % Non2;
-		// N - k
+			// DstK = SrcIdx % Non2;
+			// N - k
 		
-		FLATTEN uint NmK = (K > 0) ? ( N - K) : 0;
+			uint NmK = (K > 0) ? ( N - K) : 0;
 
-		// Z_k = LocalBuffer[i]
-		// If k < N/2  : Store  F_k = 1/2 (Z_k + Z*_{N-k})
-		// If k > N/2  : Compute I*G_k = 1/2 (Z_k - Z*_{N-k})
+			// Z_k = LocalBuffer[i]
+			// If k < N/2  : Store  F_k = 1/2 (Z_k + Z*_{N-k})
+			// If k > N/2  : Compute I*G_k = 1/2 (Z_k - Z*_{N-k})
 		
-		// Tmp =  {+,-}ComplexConjugate( Z_{N-k})
-		float Tmp = -SharedReal[NmK];
+			// Tmp =  {+,-}ComplexConjugate( Z_{N-k})
+			float Tmp = -SharedReal[NmK];
 		
-		Tmp *= (K < Non2)? 1 : -1;
+			Tmp *= (K < Non2)? 1 : -1;
 
-		LocalBuffer[i].y += Tmp;
-		//LocalBuffer[i] *= 0.5; 
+			LocalBuffer[i].y += Tmp;
+			//LocalBuffer[i] *= 0.5; 
+		}
 	}
 
 	if (Head == 0) LocalBuffer[0].y = 2.f * SharedReal[0];
  
-	UNROLL for (uint i = 0; i < RADIX; ++i) LocalBuffer[i] *= 0.5;
-
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
-		// If k > N/2 get G_k from I*G_k:  G_k = -I * (I G_k)
-		if (K > Non2) LocalBuffer[i] = ComplexMult(Complex(0, -1), LocalBuffer[i] );
+		UNROLL for (uint i = 0; i < RADIX; ++i) LocalBuffer[i] *= 0.5;
+	}
+
+	{
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
+			// If k > N/2 get G_k from I*G_k:  G_k = -I * (I G_k)
+			if (K > Non2) LocalBuffer[i] = ComplexMult(Complex(0, -1), LocalBuffer[i] );
+		}
 	}
 }
 
@@ -880,45 +904,49 @@ void MergeTwoForOne(inout Complex LocalBuffer[RADIX], in uint Head, in uint Stri
 
 
 	// Compose the transform of a single f+ig signal from the two real signals in the LocalBuffer
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
 	
-		// N - k 
-		FLATTEN uint NmK = (K > 0) ? (N - K) : 0 ;
+			// N - k 
+			uint NmK = (K > 0) ? (N - K) : 0 ;
 	
 			
 		
-		// If k < N/2  : LocalBuffer[i] = F_k,  
-		//               Shared[N-K] =  G[N-K] = Conjugate(G[k]) =  (G[k]_r, -G[k]_i) = Complex(G_r, -G_i)
-		//                          want   I G[k] =  float(-G[k]_i, G[k]_r)
-		//                 Tmp = I * G_k   
-		// If k > N/2  : LocalBuffer[i] = G_k 
-		//               Shared[N-K] = F[N-k] = Conjugate(F[k]) = Complex(F[k]_r, -F[k]_i)
-		//                           want -I F[k] = Complex(F[k]_i, -F[k]_r)
-		//                 Tmp = -I * F   
-		//  ComplexConjugate( Z_{N-k})
+			// If k < N/2  : LocalBuffer[i] = F_k,  
+			//               Shared[N-K] =  G[N-K] = Conjugate(G[k]) =  (G[k]_r, -G[k]_i) = Complex(G_r, -G_i)
+			//                          want   I G[k] =  float(-G[k]_i, G[k]_r)
+			//                 Tmp = I * G_k   
+			// If k > N/2  : LocalBuffer[i] = G_k 
+			//               Shared[N-K] = F[N-k] = Conjugate(F[k]) = Complex(F[k]_r, -F[k]_i)
+			//                           want -I F[k] = Complex(F[k]_i, -F[k]_r)
+			//                 Tmp = -I * F   
+			//  ComplexConjugate( Z_{N-k})
 
-		// Tmp = (K < Non2) ? I *  G_k : -I * F
-		Complex Tmp = Complex( SharedImag[ NmK ], SharedReal[ NmK ] );
-		Tmp *= (K > Non2) ? -1 : 1;
+			// Tmp = (K < Non2) ? I *  G_k : -I * F
+			Complex Tmp = Complex( SharedImag[ NmK ], SharedReal[ NmK ] );
+			Tmp *= (K > Non2) ? -1 : 1;
 		
-		LocalBuffer[i] += Tmp;
+			LocalBuffer[i] += Tmp;
+		}
 	}
 	// Compose the transform of a single f+ig signal from the two real signals in the LocalBuffer
 
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
-		// if k > N/2 we have G - I *  F.  Multiply by I to get F + I * G
-		if (K > Non2) LocalBuffer[ i ] = ComplexMult(Complex(0, 1), LocalBuffer[ i ]);
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
+			// if k > N/2 we have G - I *  F.  Multiply by I to get F + I * G
+			if (K > Non2) LocalBuffer[ i ] = ComplexMult(Complex(0, 1), LocalBuffer[ i ]);
 
-		if (K == Non2)
-		{	
-			// F_N/2 + I * G_N/2
-			LocalBuffer[ i ] = Complex(SharedReal[ Non2 ], SharedImag[ Non2 ]);
+			if (K == Non2)
+			{	
+				// F_N/2 + I * G_N/2
+				LocalBuffer[ i ] = Complex(SharedReal[ Non2 ], SharedImag[ Non2 ]);
+			}
+
 		}
-
 	}
 
 	if (Head == 0) 
@@ -936,37 +964,41 @@ void MergeTwoForOne(inout Complex LocalBuffer[RADIX], in uint Head, in uint Stri
 	// Write the two FFTs into shared memory.
 
 	float TmpX[RADIX];
-	for (uint i = 0; i < RADIX; ++i) TmpX[i] = LocalBuffer[i].x;
+	{
+		for (uint i = 0; i < RADIX; ++i) TmpX[i] = LocalBuffer[i].x;
+	}
 
 	CopyLocalYToGroupShared(LocalBuffer, Head, Stride);
 	
 	FFTMemoryBarrier();
 
 	// Compose the transform of a single f+ig signal from the two real signals in the LocalBuffer
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
 	
-		// N - k 
-		FLATTEN uint NmK = (K > 0) ? (N - K) : 0 ;
+			// N - k 
+			uint NmK = (K > 0) ? (N - K) : 0 ;
 	
 			
 		
-		// If k < N/2  : LocalBuffer[i] = F_k,  
-		//               Shared[N-K] =  G[N-K] = Conjugate(G[k]) =  (G[k]_r, -G[k]_i) = Complex(G_r, -G_i)
-		//                          want   I G[k] =  float(-G[k]_i, G[k]_r)
-		//                 Tmp = I * G_k   
-		// If k > N/2  : LocalBuffer[i] = G_k 
-		//               Shared[N-K] = F[N-k] = Conjugate(F[k]) = Complex(F[k]_r, -F[k]_i)
-		//                           want -I F[k] = Complex(F[k]_i, -F[k]_r)
-		//                 Tmp = -I * F   
-		//  ComplexConjugate( Z_{N-k})
+			// If k < N/2  : LocalBuffer[i] = F_k,  
+			//               Shared[N-K] =  G[N-K] = Conjugate(G[k]) =  (G[k]_r, -G[k]_i) = Complex(G_r, -G_i)
+			//                          want   I G[k] =  float(-G[k]_i, G[k]_r)
+			//                 Tmp = I * G_k   
+			// If k > N/2  : LocalBuffer[i] = G_k 
+			//               Shared[N-K] = F[N-k] = Conjugate(F[k]) = Complex(F[k]_r, -F[k]_i)
+			//                           want -I F[k] = Complex(F[k]_i, -F[k]_r)
+			//                 Tmp = -I * F   
+			//  ComplexConjugate( Z_{N-k})
 
-		// Tmp = (K < Non2) ? I *  G_k : -I * F
-		float Tmp = SharedReal[ NmK ]; 
-		Tmp *= (K > Non2) ? -1 : 1;
+			// Tmp = (K < Non2) ? I *  G_k : -I * F
+			float Tmp = SharedReal[ NmK ]; 
+			Tmp *= (K > Non2) ? -1 : 1;
 		
-		LocalBuffer[i].x += Tmp;
+			LocalBuffer[i].x += Tmp;
+		}
 	}
 	
 	float2 FirstElement  = float2(0, SharedReal[0]);
@@ -985,45 +1017,47 @@ void MergeTwoForOne(inout Complex LocalBuffer[RADIX], in uint Head, in uint Stri
 	FirstElement.x  = SharedReal[0];
 	MiddleElement.x = SharedReal[Non2];
 
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
 	
-		// N - k 
-		FLATTEN uint NmK = (K > 0) ? (N - K) : 0 ;
+			// N - k 
+			uint NmK = (K > 0) ? (N - K) : 0 ;
 	
 			
 		
-		// If k < N/2  : LocalBuffer[i] = F_k,  
-		//               Shared[N-K] =  G[N-K] = Conjugate(G[k]) =  (G[k]_r, -G[k]_i) = Complex(G_r, -G_i)
-		//                          want   I G[k] =  float(-G[k]_i, G[k]_r)
-		//                 Tmp = I * G_k   
-		// If k > N/2  : LocalBuffer[i] = G_k 
-		//               Shared[N-K] = F[N-k] = Conjugate(F[k]) = Complex(F[k]_r, -F[k]_i)
-		//                           want -I F[k] = Complex(F[k]_i, -F[k]_r)
-		//                 Tmp = -I * F   
-		//  ComplexConjugate( Z_{N-k})
+			// If k < N/2  : LocalBuffer[i] = F_k,  
+			//               Shared[N-K] =  G[N-K] = Conjugate(G[k]) =  (G[k]_r, -G[k]_i) = Complex(G_r, -G_i)
+			//                          want   I G[k] =  float(-G[k]_i, G[k]_r)
+			//                 Tmp = I * G_k   
+			// If k > N/2  : LocalBuffer[i] = G_k 
+			//               Shared[N-K] = F[N-k] = Conjugate(F[k]) = Complex(F[k]_r, -F[k]_i)
+			//                           want -I F[k] = Complex(F[k]_i, -F[k]_r)
+			//                 Tmp = -I * F   
+			//  ComplexConjugate( Z_{N-k})
 
-		// Tmp = (K < Non2) ? I *  G_k : -I * F
-		float Tmp = SharedReal[ NmK ]; 
-		Tmp *= (K > Non2) ? -1 : 1;
+			// Tmp = (K < Non2) ? I *  G_k : -I * F
+			float Tmp = SharedReal[ NmK ]; 
+			Tmp *= (K > Non2) ? -1 : 1;
 		
-		LocalBuffer[i].y += Tmp;
+			LocalBuffer[i].y += Tmp;
+		}
 	}
 
-	
-	UNROLL
-	for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
 	{
-		// if k > N/2 we have G - I *  F.  Multiply by I to get F + I * G
-		if (K > Non2) LocalBuffer[ i ] = ComplexMult(Complex(0, 1), LocalBuffer[ i ]);
+		UNROLL
+		for (uint i = 0, K = Head; i < RADIX; ++i, K += Stride)
+		{
+			// if k > N/2 we have G - I *  F.  Multiply by I to get F + I * G
+			if (K > Non2) LocalBuffer[ i ] = ComplexMult(Complex(0, 1), LocalBuffer[ i ]);
 
-		if (K == Non2)
-		{	
-			// F_N/2 + I * G_N/2
-			LocalBuffer[ i ] = MiddleElement;
+			if (K == Non2)
+			{	
+				// F_N/2 + I * G_N/2
+				LocalBuffer[ i ] = MiddleElement;
+			}
 		}
-
 	}
 
 	if (Head == 0) LocalBuffer[ 0 ] = FirstElement;

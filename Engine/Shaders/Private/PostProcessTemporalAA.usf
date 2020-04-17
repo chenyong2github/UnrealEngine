@@ -2078,7 +2078,7 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 		bool Dynamic7 = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV, 0, int2( 0,  1)).x > 0;
 
 		bool Dynamic = Dynamic1 || Dynamic3 || Dynamic4 || Dynamic5 || Dynamic7;
-		IgnoreHistory = IgnoreHistory || !Dynamic && History.Color.a > 0;
+		IgnoreHistory = IgnoreHistory || (!Dynamic && History.Color.a > 0);
 	}
 	#endif
 	
