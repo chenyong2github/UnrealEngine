@@ -63,6 +63,7 @@ public:
 	HolographicSpace^ GetHolographicSpace() const { return HoloSpace; }
 private:
 	HolographicSpace^ HoloSpace;
+	bool bIsMobileMultiViewEnabled = false;
 #endif // PLATFORM_HOLOLENS
 	
 };
