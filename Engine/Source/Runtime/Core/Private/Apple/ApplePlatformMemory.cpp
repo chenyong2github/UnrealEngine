@@ -28,6 +28,9 @@
 #include <os/proc.h>
 #endif
 #include <CoreFoundation/CFBase.h>
+#include <mach/vm_map.h>
+#include <mach/vm_region.h>
+#include <mach/vm_statistics.h>
 #include "HAL/LowLevelMemTracker.h"
 #include "Apple/AppleLLM.h"
 
@@ -186,6 +189,79 @@ void FApplePlatformMemory::ConfigureDefaultCFAllocator(void)
 	CFAllocatorSetDefault(Alloc);
 }
 
+vm_address_t FApplePlatformMemory::NanoRegionStart = 0;
+vm_address_t FApplePlatformMemory::NanoRegionEnd = 0;
+
+void FApplePlatformMemory::NanoMallocInit()
+{
+	/*
+		iOS reserves 512MB of address space for 'nano' allocations (allocations <= 256 bytes)
+		Nano malloc has buckets for sizes 16, 32, 48....256
+		The number of buckets and their sizes are fixed and do not grow
+		We'll walk through the buckets and ask the VM about the backing regions
+		We may have to check several sizes because we can hit a case where all the buckets
+		for a specific size are full - which means malloc will put that allocation into
+		the MALLOC_TINY region instead.
+	 
+		The OS always tags the nano VM region with user_tag == VM_MEMORY_MALLOC_NANO (which is 11)
+	 
+		Being apple this is subject to change at any time and may be different in debug modes, etc.
+		We'll fall back to the UE allocators if we can't find the nano region.
+	 
+		We want to detect this as early as possible, before any of the memory system is initialized.
+	*/
+	
+	NanoRegionStart = 0;
+	NanoRegionEnd = 0;
+	
+	size_t MallocSize = 16;
+	while(true)
+	{
+		void* NanoMalloc = ::malloc(MallocSize);
+		FMemory::Memzero(NanoMalloc, MallocSize); // This will wire the memory. Shouldn't be necessary but better safe than sorry.
+	
+		kern_return_t kr = KERN_SUCCESS;
+		vm_address_t address = (vm_address_t)(NanoMalloc);
+		vm_size_t regionSizeInBytes = 0;
+		mach_port_t regionObjectOut;
+		vm_region_extended_info_data_t regionInfo;
+		mach_msg_type_number_t infoSize = sizeof(vm_region_extended_info_data_t);
+		kr = vm_region_64(mach_task_self(), &address, &regionSizeInBytes, VM_REGION_EXTENDED_INFO, (vm_region_info_t) &regionInfo, &infoSize, &regionObjectOut);
+		check(kr == KERN_SUCCESS);
+		
+		::free(NanoMalloc);
+		
+		if(regionInfo.user_tag == VM_MEMORY_MALLOC_NANO)
+		{
+			uint8_t* Start = (uint8_t*) address;
+			uint8_t* End = Start + regionSizeInBytes;
+			NanoRegionStart = address;
+			NanoRegionEnd = (vm_address_t) End;
+			break;
+		}
+		
+		MallocSize += 16;
+		
+		if(MallocSize > 256)
+		{
+			// Nano region wasn't found.
+			// We'll fall back to the UE allocator
+			// This can happen when using various tools
+			check(NanoRegionStart == 0 && NanoRegionEnd == 0);
+			break;
+		}
+	}
+	
+	if(NanoRegionStart == 0 && NanoRegionEnd == 0)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("WARNING: No nano malloc region found. We will always use UE allocators\n"));
+	}
+	else
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Detected nanozone %p - %p\n"), (void*) NanoRegionStart, (void*) NanoRegionEnd);
+	}
+}
+
 void FApplePlatformMemory::Init()
 {
 	FGenericPlatformMemory::Init();
@@ -198,6 +274,7 @@ void FApplePlatformMemory::Init()
 		   MemoryConstants.TotalPhysicalGB,
 		   float((MemoryConstants.TotalVirtual-MemoryConstants.TotalPhysical)/1024.0/1024.0/1024.0),
 		   float(MemoryConstants.TotalVirtual/1024.0/1024.0/1024.0) );
+	
 }
 
 // Set rather to use BinnedMalloc2 for binned malloc, can be overridden below
@@ -611,6 +688,21 @@ void FApplePlatformMemory::BinnedFreeToOS(void* Ptr, SIZE_T Size)
 			ErrNo, StringCast< TCHAR >(strerror(ErrNo)).Get());
 	}
 #endif // USE_MALLOC_BINNED2
+}
+
+bool FApplePlatformMemory::PtrIsOSMalloc( void* Ptr)
+{
+	return malloc_zone_from_ptr(Ptr) != nullptr;
+}
+
+bool FApplePlatformMemory::IsNanoMallocAvailable()
+{
+	return (NanoRegionStart != 0) && (NanoRegionEnd != 0);
+}
+
+bool FApplePlatformMemory::PtrIsFromNanoMalloc( void* Ptr)
+{
+	return IsNanoMallocAvailable() && ((uintptr_t) Ptr >= NanoRegionStart && (uintptr_t) Ptr < NanoRegionEnd);
 }
 
 size_t FApplePlatformMemory::FPlatformVirtualMemoryBlock::GetVirtualSizeAlignment()
