@@ -574,15 +574,6 @@ namespace Audio
 			// StopRunningNullDevice blocks until the sleeping thread wakes up
 			StopRunningNullDevice();
 
-			// Reset UE buffers.
-			for (int32 Index = 0; Index < OutputBuffers.Num(); ++Index)
-			{
-				OutputBuffers[Index].Reset(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels);
-			}
-
-			CurrentBufferReadIndex = 0;
-			CurrentBufferWriteIndex = 1;
-
 #if WITH_MLSDK
 			// Reset the device buffers
 			// Stopping and starting the audio causes the streaming buffer position to be set to 0
