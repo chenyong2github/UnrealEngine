@@ -19,6 +19,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "ToolMenus.h"
 #include "NiagaraScriptVariable.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #include "IAssetTools.h"
 #include "AssetRegistryModule.h"
@@ -210,6 +211,34 @@ bool UNiagaraNodeParameterMapBase::OnAllowDrop(TSharedPtr<FDragDropOperation> Dr
 	return true;
 }
 
+bool UNiagaraNodeParameterMapBase::CanRenamePin(const UEdGraphPin* Pin) const
+{
+	if (IsAddPin(Pin))
+	{
+		return false;
+	}
+
+	FText Unused;
+	return FNiagaraParameterUtilities::TestCanRenameWithMessage(Pin->PinName, Unused);
+}
+
+bool UNiagaraNodeParameterMapBase::GetIsPinEditNamespaceModifierPending(const UEdGraphPin* Pin)
+{
+	return PinsGuidsWithEditNamespaceModifierPending.Contains(Pin->PersistentGuid);
+}
+
+void UNiagaraNodeParameterMapBase::SetIsPinEditNamespaceModifierPending(const UEdGraphPin* Pin, bool bInIsEditNamespaceModifierPending)
+{
+	if (bInIsEditNamespaceModifierPending)
+	{
+		PinsGuidsWithEditNamespaceModifierPending.AddUnique(Pin->PersistentGuid);
+	}
+	else
+	{
+		PinsGuidsWithEditNamespaceModifierPending.Remove(Pin->PersistentGuid);
+	}
+}
+
 void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName)
 {
 	RenamedPin->PinFriendlyName = FText::FromName(RenamedPin->PinName);
@@ -258,7 +287,24 @@ void UNiagaraNodeParameterMapBase::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		FNiagaraVariable Var = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToNiagaraVariable(Pin);
 		const UNiagaraGraph* Graph = GetNiagaraGraph();
 
+		UNiagaraNodeParameterMapBase* NonConstThis = const_cast<UNiagaraNodeParameterMapBase*>(this);
+		UEdGraphPin* NonConstPin = const_cast<UEdGraphPin*>(Context->Pin);
 		//if (!FNiagaraConstants::IsNiagaraConstant(Var))
+		FToolMenuSection& EditSection = Menu->FindOrAddSection("EditPin");
+		{
+			EditSection.AddSubMenu(
+				"ChangeNamespace",
+				LOCTEXT("ChangeNamespace", "Change Namespace"),
+				LOCTEXT("ChangeNamespaceToolTip", "Change the namespace for this parameter pin."),
+				FNewToolMenuDelegate::CreateUObject(NonConstThis, &UNiagaraNodeParameterMapBase::GetChangeNamespaceSubMenuForPin, NonConstPin));
+
+			EditSection.AddSubMenu(
+				"ChangeNamespaceModifier",
+				LOCTEXT("ChangeNamespaceModifier", "Change Namespace Modifier"),
+				LOCTEXT("ChangeNamespaceModifierToolTip", "Change the namespace modifier for this parameter pin."),
+				FNewToolMenuDelegate::CreateUObject(NonConstThis, &UNiagaraNodeParameterMapBase::GetChangeNamespaceModifierSubMenuForPin, NonConstPin));
+		}
+
 		{
 			FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraParamAction", LOCTEXT("EditPinMenuHeader", "Parameters"));
 			Section.AddMenuEntry(
@@ -266,12 +312,74 @@ void UNiagaraNodeParameterMapBase::GetNodeContextMenuActions(UToolMenu* Menu, UG
 				LOCTEXT("SelectParameterPin", "Select parameter"),
 				LOCTEXT("SelectParameterPinToolTip", "Select this parameter in the paramter panel"),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeParameterMapBase*>(this), &UNiagaraNodeParameterMapBase::SelectParameterFromPin, const_cast<UEdGraphPin*>(Context->Pin))));
+				FUIAction(FExecuteAction::CreateUObject(NonConstThis, &UNiagaraNodeParameterMapBase::SelectParameterFromPin, Context->Pin)));
 		}
 	}
 }
 
-void UNiagaraNodeParameterMapBase::SelectParameterFromPin(UEdGraphPin* InPin) 
+void UNiagaraNodeParameterMapBase::GetChangeNamespaceSubMenuForPin(UToolMenu* Menu, UEdGraphPin* InPin)
+{
+	FToolMenuSection& Section = Menu->AddSection("Section");
+
+	TArray<FNiagaraNamespaceMetadata> NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetAllNamespaceMetadata();
+	NamespaceMetadata.Sort([](const FNiagaraNamespaceMetadata& MetadataA, const FNiagaraNamespaceMetadata& MetadataB)
+		{ return MetadataA.SortId < MetadataB.SortId; });
+
+	for (const FNiagaraNamespaceMetadata& Metadata : NamespaceMetadata)
+	{
+		if (Metadata.IsValid() == false || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditing) || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript))
+		{
+			continue;
+		}
+
+		FText CanChangeMessage;
+		bool bCanChange = FNiagaraParameterUtilities::TestCanChangeNamespaceWithMessage(InPin->PinName, Metadata, CanChangeMessage);
+
+		FText ToolTip;
+		if (bCanChange)
+		{
+			ToolTip = FText::Format(LOCTEXT("ChangeNamespaceToolTipFormat", "{0}\n\nDescription:\n{1}"), CanChangeMessage, Metadata.Description);
+		}
+		else
+		{
+			ToolTip = CanChangeMessage;
+		}
+
+		FString NamespaceNameString = Metadata.Namespaces[0].ToString();
+		for (int32 i = 1; i < Metadata.Namespaces.Num(); i++)
+		{
+			NamespaceNameString += TEXT(".") + Metadata.Namespaces[i].ToString();
+		}
+
+		FUIAction Action = FUIAction(
+			FExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::ChangeNamespaceForPin, InPin, Metadata),
+			FCanExecuteAction::CreateLambda([bCanChange]() { return bCanChange; }));
+
+		TSharedRef<SWidget> NamespaceWidget =
+			SNew(SBox)
+			.Padding(FMargin(7, 2, 7, 2))
+			[
+				SNew(SNiagaraParameterName)
+				.ParameterName(*NamespaceNameString)
+				.IsReadOnly(true)
+				.ToolTipText(ToolTip)
+			];
+
+		Section.AddEntry(FToolMenuEntry::InitMenuEntry(NAME_None, Action, NamespaceWidget));
+	}
+}
+
+void UNiagaraNodeParameterMapBase::ChangeNamespaceForPin(UEdGraphPin* InPin, FNiagaraNamespaceMetadata NewNamespaceMetadata)
+{
+	FName NewName = FNiagaraParameterUtilities::ChangeNamespace(InPin->PinName, NewNamespaceMetadata);
+	if (NewName != NAME_None)
+	{
+		FScopedTransaction Transaction(LOCTEXT("ChangeNamespaceTransaction", "Change parameter namespace"));
+		CommitEditablePinName(FText::FromName(NewName), InPin);
+	}
+}
+
+void UNiagaraNodeParameterMapBase::SelectParameterFromPin(const UEdGraphPin* InPin) 
 {
 	UNiagaraGraph* NiagaraGraph = GetNiagaraGraph();
 	if (NiagaraGraph && InPin)
@@ -293,6 +401,108 @@ void UNiagaraNodeParameterMapBase::SelectParameterFromPin(UEdGraphPin* InPin)
 			}
 		}
 	}
+}
+
+void UNiagaraNodeParameterMapBase::GetChangeNamespaceModifierSubMenuForPin(UToolMenu* Menu, UEdGraphPin* InPin)
+{
+	FToolMenuSection& Section = Menu->AddSection("Section");
+
+	TAttribute<FText> AddToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateUObject(
+		this, &UNiagaraNodeParameterMapBase::GetAddNamespaceModifierForPinToolTip, (const UEdGraphPin*)InPin));
+	Section.AddMenuEntry(
+		"AddNamespaceModifier",
+		LOCTEXT("AddNamespaceModifierForPin", "Add"),
+		AddToolTip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::AddNamespaceModifierForPin, InPin),
+			FCanExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::CanAddNamespaceModifierForPin, (const UEdGraphPin*)InPin)));
+
+	TAttribute<FText> RemoveToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateUObject(
+		this, &UNiagaraNodeParameterMapBase::GetRemoveNamespaceModifierForPinToolTip, (const UEdGraphPin*)InPin));
+	Section.AddMenuEntry(
+		"RemoveNamespceModifier",
+		LOCTEXT("RemoveNamespaceModifierForPin", "Remove"),
+		RemoveToolTip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::RemoveNamespaceModifierForPin, InPin),
+			FCanExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::CanRemoveNamespaceModifierForPin, (const UEdGraphPin*)InPin)));
+
+	TAttribute<FText> EditToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateUObject(
+		this, &UNiagaraNodeParameterMapBase::GetEditNamespaceModifierForPinToolTip, (const UEdGraphPin*)InPin));
+	Section.AddMenuEntry(
+		"EditNamespaceModifier",
+		LOCTEXT("EditNamespaceModifierForPin", "Edit"),
+		EditToolTip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::EditNamespaceModifierForPin, (const UEdGraphPin*)InPin),
+			FCanExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::CanEditNamespaceModifierForPin, (const UEdGraphPin*)InPin)));
+}
+
+FText UNiagaraNodeParameterMapBase::GetAddNamespaceModifierForPinToolTip(const UEdGraphPin* InPin) const
+{
+	FText AddMessage;
+	FNiagaraParameterUtilities::TestCanAddNamespaceModifierWithMessage(InPin->PinName, AddMessage);
+	return AddMessage;
+}
+
+bool UNiagaraNodeParameterMapBase::CanAddNamespaceModifierForPin(const UEdGraphPin* InPin) const
+{
+	FText Unused;
+	return FNiagaraParameterUtilities::TestCanAddNamespaceModifierWithMessage(InPin->PinName, Unused);
+}
+
+void UNiagaraNodeParameterMapBase::AddNamespaceModifierForPin(UEdGraphPin* InPin)
+{
+	FName NewName = FNiagaraParameterUtilities::AddNamespaceModifier(InPin->PinName);
+	if (NewName != NAME_None)
+	{
+		FScopedTransaction Transaction(LOCTEXT("AddNamespaceModifierTransaction", "Add namespace modifier"));
+		CommitEditablePinName(FText::FromName(NewName), InPin);
+	}
+}
+
+FText UNiagaraNodeParameterMapBase::GetRemoveNamespaceModifierForPinToolTip(const UEdGraphPin* InPin) const
+{
+	FText RemoveMessage;
+	FNiagaraParameterUtilities::TestCanRemoveNamespaceModifierWithMessage(InPin->PinName, RemoveMessage);
+	return RemoveMessage;
+}
+
+bool UNiagaraNodeParameterMapBase::CanRemoveNamespaceModifierForPin(const UEdGraphPin* InPin) const
+{
+	FText Unused;
+	return FNiagaraParameterUtilities::TestCanRemoveNamespaceModifierWithMessage(InPin->PinName, Unused);
+}
+
+void UNiagaraNodeParameterMapBase::RemoveNamespaceModifierForPin(UEdGraphPin* InPin)
+{
+	FName NewName = FNiagaraParameterUtilities::RemoveNamespaceModifier(InPin->PinName);
+	if (NewName != NAME_None)
+	{
+		FScopedTransaction Transaction(LOCTEXT("RemoveNamespaceModifierTransaction", "Remove namespace modifier"));
+		CommitEditablePinName(FText::FromName(NewName), InPin);
+	}
+}
+
+FText UNiagaraNodeParameterMapBase::GetEditNamespaceModifierForPinToolTip(const UEdGraphPin* InPin) const
+{
+	FText EditMessage;
+	FNiagaraParameterUtilities::TestCanEditNamespaceModifierWithMessage(InPin->PinName, EditMessage);
+	return EditMessage;
+}
+
+bool UNiagaraNodeParameterMapBase::CanEditNamespaceModifierForPin(const UEdGraphPin* InPin) const
+{
+	FText Unused;
+	return FNiagaraParameterUtilities::TestCanEditNamespaceModifierWithMessage(InPin->PinName, Unused);
+}
+
+void UNiagaraNodeParameterMapBase::EditNamespaceModifierForPin(const UEdGraphPin* InPin)
+{
+	SetIsPinEditNamespaceModifierPending(InPin, true);
 }
 
 

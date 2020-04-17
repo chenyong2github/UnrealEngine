@@ -39,11 +39,11 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 
 	bool IsExperimental = false;
 
-	TOptional<FNiagaraParameterHandle> GetParameterHandle() const;
-	void SetParamterHandle(const FNiagaraParameterHandle& InParameterHandle);
+	TOptional<FNiagaraVariable> GetParameterVariable() const;
+	void SetParamterVariable(const FNiagaraVariable& InParameterVariable);
 
 private:
-	TOptional<FNiagaraParameterHandle> ParameterHandle;
+	TOptional<FNiagaraVariable> ParameterVariable;
 	FOnExecuteStackAction Action;
 	FCanExecuteStackAction CanPerformAction;
 };
