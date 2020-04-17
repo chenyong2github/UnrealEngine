@@ -175,14 +175,3 @@ protected:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 };
-
-UCLASS(config=Editor, defaultconfig)
-class BLUEPRINTGRAPH_API UBlueprintProjectSettings : public UDeveloperSettings
-{
-public:
-	GENERATED_BODY()
-
-	// The list of namespaces to always expose in any Blueprint (for all users of the game/project)
-	UPROPERTY(EditAnywhere, config, Category=Experimental)
-	TArray<FString> NamespacesToAlwaysInclude;
-};
