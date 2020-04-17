@@ -293,6 +293,7 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	{
 		// handle potential renames of the class package
 		Handler.ValueHandlerNodeProperty.ResolveWithRenamedStructPackage(this);
+		check(Handler.ValueHandlerNodeProperty.Get() || Handler.ValueHandlerNodeProperty.IsPathToFieldEmpty());
 	}
 #endif // WITH_EDITORONLY_DATA
 
