@@ -2566,12 +2566,73 @@ FText FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(FName Parame
 	FNiagaraParameterHandle ParameterHandle(ParameterName);
 	TArray<FName> HandleParts = ParameterHandle.GetHandleParts();
 	FString DisplayString;
-	for (int32 HandlePartIndex = 0; HandlePartIndex < HandleParts.Num() - 1; HandlePartIndex++)
+
+	if (HandleParts.Num() == 0)
 	{
-		DisplayString += TEXT("(") + HandleParts[HandlePartIndex].ToString().ToUpper() + TEXT(") ");
+		return FText();
 	}
-	DisplayString += HandleParts[HandleParts.Num() - 1].ToString();
-	return FText::FromString(DisplayString);
+	else if (HandleParts.Num() == 1)
+	{
+		return FText::FromName(HandleParts[0]);
+	}
+
+	FText NamespaceText;
+	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(HandleParts);
+	if (NamespaceMetadata.IsValid() && NamespaceMetadata.DisplayName.IsEmptyOrWhitespace() == false)
+	{
+		NamespaceText = NamespaceMetadata.DisplayName.ToUpper();
+		HandleParts.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
+	}
+	else
+	{
+		NamespaceText = FText::FromName(HandleParts[0]).ToUpper();
+		HandleParts.RemoveAt(0);
+	}
+
+	FText NamespaceModfierText;
+	if(HandleParts.Num() > 1)
+	{
+		FNiagaraNamespaceMetadata NamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(HandleParts[0]);
+		if (NamespaceModifierMetadata.IsValid() && NamespaceModifierMetadata.DisplayName.IsEmptyOrWhitespace() == false)
+		{
+			NamespaceModfierText = NamespaceModifierMetadata.DisplayName.ToUpper();
+		}
+		else
+		{
+			NamespaceModfierText = FText::FromName(HandleParts[0]).ToUpper();
+		}
+		HandleParts.RemoveAt(0);
+	}
+
+	FText NameText;
+	if (HandleParts.Num() == 0)
+	{
+		NameText = FText::FromName(NAME_None);
+	}
+	else if (HandleParts.Num() == 1)
+	{
+		NameText = FText::FromName(HandleParts[0]);
+	}
+	else
+	{
+		// This shouldn't happen for new data, and old data should have been fixed up, but handle it
+		// anyway just in case.
+		TArray<FString> HandlePartStrings;
+		for (FName HandlePart : HandleParts)
+		{
+			HandlePartStrings.Add(HandlePart.ToString());
+		}
+		NameText = FText::FromString(FString::Join(HandlePartStrings, TEXT(".")));
+	}
+
+	if (NamespaceModfierText.IsEmptyOrWhitespace())
+	{
+		return FText::Format(LOCTEXT("ParameterNameFormat", "({0}) {1}"), NamespaceText, NameText);
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("ParameterNameWithModifierFormat", "({0}) ({1}) {2}"), NamespaceText, NamespaceModfierText, NameText);
+	}
 }
 
 FName NamePartsToName(const TArray<FName>& NameParts)
