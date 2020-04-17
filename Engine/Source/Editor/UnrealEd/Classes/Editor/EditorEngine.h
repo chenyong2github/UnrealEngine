@@ -3030,6 +3030,9 @@ protected:
 	/** Above function but called a frame later, to stop PIE login from happening from a network callback */
 	virtual void OnLoginPIEComplete_Deferred(int32 LocalUserNum, bool bWasSuccessful, FString ErrorString, FPieLoginStruct DataStruct);
 
+	/** allow for game specific override to determine if login should be treated as successful for pass-through handling instead */
+	virtual bool IsLoginPIESuccessful(int32 LocalUserNum, bool bWasSuccessful, const FString& ErrorString, const FPieLoginStruct& DataStruct) { return bWasSuccessful; }
+
 	/** Called when all PIE instances have been successfully logged in */
 	virtual void OnAllPIEInstancesStarted();
 	
