@@ -261,7 +261,6 @@ public:
 			}
 
 			// All active particles RIGID particles
-			if (Particle->ObjectState() == EObjectStateType::Dynamic)
 			{
 				RemoveFromMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
 			}
