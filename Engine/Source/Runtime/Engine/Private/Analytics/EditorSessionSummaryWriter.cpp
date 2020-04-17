@@ -23,6 +23,7 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/Guid.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 #include "EditorAnalyticsSession.h"
 #include "IVREditorModule.h"
@@ -253,6 +254,16 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 		{
 			HeartbeatTimeElapsed = 0.0f;
 
+			// Check if the out of process monitor is running.
+			if (CurrentSession->MonitorProcessID != 0 && !CurrentSession->MonitorExceptCode.IsSet())
+			{
+				// The out-of-process application reporting our crash shouldn't die before this process.
+				if (!FPlatformProcess::IsApplicationRunning(CurrentSession->MonitorProcessID))
+				{
+					CurrentSession->MonitorExceptCode.Emplace(ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly);
+				}
+			}
+
 			// check if the debugger is present
 			bool bIsDebuggerPresent = FPlatformMisc::IsDebuggerPresent();
 			if (CurrentSession->bIsDebugger != bIsDebuggerPresent)
@@ -390,6 +401,12 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	}
 
 	Session->Plugins.Sort();
+
+	// The out-of-process application reporting our crash shouldn't die before this process.
+	if (Session->MonitorProcessID != 0 && !FPlatformProcess::IsApplicationRunning(Session->MonitorProcessID))
+	{
+		Session->MonitorExceptCode.Emplace(ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly);
+	}
 
 	return Session;
 }
