@@ -521,11 +521,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	// SM5 and above use Texture2D for EyeAdaptation
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
 	SHADER_PARAMETER_RDG_TEXTURE(, ColorGradingLUT)
-	SHADER_PARAMETER_TEXTURE(Texture2D, NoiseTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, BloomDirtMaskTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomSampler)
-	SHADER_PARAMETER_SAMPLER(SamplerState, NoiseSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorGradingLUTSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomDirtMaskSampler)
 	SHADER_PARAMETER(FVector4, ColorScale0)
@@ -685,18 +683,6 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 	const FScreenPassTextureViewport OutputViewport(Output);
 
-	FRHITexture* NoiseTexture = nullptr;
-
-	{
-		check(GEngine);
-		const auto* HighFrequencyNoiseTexture = GEngine->HighFrequencyNoiseTexture;
-		check(HighFrequencyNoiseTexture);
-		const auto* Resource = HighFrequencyNoiseTexture->Resource;
-		check(Resource);
-		NoiseTexture = Resource->TextureRHI;
-		check(NoiseTexture);
-	}
-
 	FRHITexture* BloomDirtMaskTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture;
 
 	if (PostProcessSettings.BloomDirtMask && PostProcessSettings.BloomDirtMask->Resource)
@@ -766,11 +752,9 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	CommonParameters.BloomTexture = Inputs.Bloom.Texture;
 	CommonParameters.EyeAdaptation = Inputs.EyeAdaptationTexture;
 	CommonParameters.ColorGradingLUT = Inputs.ColorGradingTexture;
-	CommonParameters.NoiseTexture = NoiseTexture;
 	CommonParameters.BloomDirtMaskTexture = BloomDirtMaskTexture;
 	CommonParameters.ColorSampler = BilinearClampSampler;
 	CommonParameters.BloomSampler = BilinearClampSampler;
-	CommonParameters.NoiseSampler = PointClampSampler;
 	CommonParameters.ColorGradingLUTSampler = BilinearClampSampler;
 	CommonParameters.BloomDirtMaskSampler = BilinearClampSampler;
 	CommonParameters.ColorScale0 = PostProcessSettings.SceneColorTint;
