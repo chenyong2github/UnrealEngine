@@ -139,7 +139,6 @@ void FRuntimeVirtualTextureDetailsCustomization::CustomizeDetails(IDetailLayoutB
 	DetailBuilder.GetProperty(FName(TEXT("MaterialType")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
 	DetailBuilder.GetProperty(FName(TEXT("bCompressTextures")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
 	DetailBuilder.GetProperty(FName(TEXT("RemoveLowMips")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
-	DetailBuilder.GetProperty(FName(TEXT("StreamLowMips")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
 
 	// Initialize text blocks
 	RefreshDetails();
@@ -201,16 +200,13 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		SNew(SHorizontalBox)
 		
 		+ SHorizontalBox::Slot()
-		.FillWidth(5.0f)
 		[
 			SourceActorValue->CreatePropertyValueWidget()
 		]
 
 		+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
 		[
 			SNew(SWrapBox)
-			.UseAllottedWidth(true)
 			
 			+ SWrapBox::Slot()
 			.Padding(FMargin(0.0f, 2.0f, 2.0f, 0.0f))
@@ -244,11 +240,11 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 	];
 
 	// Use existing property to add build button
-	TSharedPtr<IPropertyHandle> LowMipsValue = DetailBuilder.GetProperty("bUseStreamingLowMips");
+	TSharedPtr<IPropertyHandle> LowMipsValue = DetailBuilder.GetProperty("StreamLowMips");
 	DetailBuilder.HideProperty(LowMipsValue);
 
-	IDetailCategoryBuilder& VirtualTextureCategory = DetailBuilder.EditCategory("VirtualTexture", FText::GetEmpty());
-	VirtualTextureCategory.AddCustomRow(LowMipsValue->GetPropertyDisplayName(), true)
+	IDetailCategoryBuilder& VirtualTextureCategory = DetailBuilder.EditCategory("VirtualTextureBuild", FText::GetEmpty());
+	VirtualTextureCategory.AddCustomRow(LowMipsValue->GetPropertyDisplayName())
 	.NameContent()
 	[
 		LowMipsValue->CreatePropertyNameWidget()
@@ -259,6 +255,7 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
+		.Padding(5.f, 0.f)
 		[
 			LowMipsValue->CreatePropertyValueWidget()
 		]
