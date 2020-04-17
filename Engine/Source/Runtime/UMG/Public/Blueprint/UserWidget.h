@@ -407,6 +407,24 @@ public:
 		return nullptr;
 	}
 
+	/**
+	 * Gets the player camera manager associated with this UI.
+	 * @return Gets the owning player camera manager that's owned by the player controller assigned to this widget.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Player")
+	class APlayerCameraManager* GetOwningPlayerCameraManager() const;
+
+	/**
+	 * Gets the player camera manager associated with this UI cast to the template type.
+	 * @return Gets the owning player camera manager that's owned by the player controller assigned to this widget.
+	 * May be NULL if the cast fails.
+	 */
+	template <class T>
+	T* GetOwningPlayerCameraManager() const
+	{
+		return Cast<T>(GetOwningPlayerCameraManager());
+	}
+
 	/** 
 	 * Called once only at game time on non-template instances.
 	 * While Construct/Destruct pertain to the underlying Slate, this is called only once for the UUserWidget.
