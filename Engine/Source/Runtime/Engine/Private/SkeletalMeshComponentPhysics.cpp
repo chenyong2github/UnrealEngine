@@ -3100,7 +3100,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		FScopeCycleCounterUObject ContextScope(&SkeletalMeshComponent);
+		FScopeCycleCounterUObject ContextScope(SkeletalMeshComponent.SkeletalMesh);
 		SCOPE_CYCLE_COUNTER(STAT_ClothTotalTime);
 
 		if(SkeletalMeshComponent.ClothingSimulation)
