@@ -118,7 +118,7 @@ void AFunctionalAITest::OnTimeout()
 		const FVector TransformedOrigin = GetTransform().TransformPosition(NavMeshDebugOrigin);
 		const FBox DebugBounds = FBox::BuildAABB(TransformedOrigin, NavMeshDebugExtent);
 
-		NavigationOctree->IterateElementsWithBoundsTest(DebugBounds, [&AreaFilter, &Navmesh](const FNavigationOctreeElement& Element)
+		NavigationOctree->FindElementsWithBoundsTest(DebugBounds, [&AreaFilter, &Navmesh](const FNavigationOctreeElement& Element)
 		{
 			if (Element.IsMatchingFilter(AreaFilter))
 			{

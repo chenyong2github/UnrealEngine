@@ -221,7 +221,7 @@ FArchive& operator<<(FArchive& Ar,FPrecomputedLightVolumeData& Volume)
 			if (!Ar.IsCooking() || Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HighQualityLightmaps))
 			{
 				// Gather an array of samples from the octree
-				Volume.HighQualityLightmapOctree.IterateAllElements([&HighQualitySamples](const FVolumeLightingSample& Sample)
+				Volume.HighQualityLightmapOctree.FindAllElements([&HighQualitySamples](const FVolumeLightingSample& Sample)
 				{
 					HighQualitySamples.Add(Sample);
 				});
@@ -234,7 +234,7 @@ FArchive& operator<<(FArchive& Ar,FPrecomputedLightVolumeData& Volume)
 			if (!Ar.IsCooking() || Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::LowQualityLightmaps))
 			{
 				// Gather an array of samples from the octree
-				Volume.LowQualityLightmapOctree.IterateAllElements([&LowQualitySamples](const FVolumeLightingSample& Sample)
+				Volume.LowQualityLightmapOctree.FindAllElements([&LowQualitySamples](const FVolumeLightingSample& Sample)
 				{
 					LowQualitySamples.Add(Sample);
 				});
@@ -397,7 +397,7 @@ void FPrecomputedLightVolume::InterpolateIncidentRadiancePoint(
 		FVector WorldPosition = InWorldPosition - WorldOriginOffset; // relocate from world to volume space
 		FBoxCenterAndExtent BoundingBox( WorldPosition, FVector::ZeroVector );
 		// Iterate over the octree nodes containing the query point.
-		OctreeForRendering->IterateElementsWithBoundsTest(BoundingBox, [&AccumulatedIncidentRadiance, &SkyBentNormal, &AccumulatedDirectionalLightShadowing, &AccumulatedWeight, &WorldPosition](const FVolumeLightingSample& VolumeSample)
+		OctreeForRendering->FindElementsWithBoundsTest(BoundingBox, [&AccumulatedIncidentRadiance, &SkyBentNormal, &AccumulatedDirectionalLightShadowing, &AccumulatedWeight, &WorldPosition](const FVolumeLightingSample& VolumeSample)
 		{
 			const float DistanceSquared = (VolumeSample.Position - WorldPosition).SizeSquared();
 			const float RadiusSquared = FMath::Square(VolumeSample.Radius);
@@ -441,7 +441,7 @@ void FPrecomputedLightVolume::InterpolateIncidentRadianceBlock(
 		PotentiallyIntersectingSamples.Reset(100);
 
 		// Iterate over the octree nodes containing the query point.
-		OctreeForRendering->IterateElementsWithBoundsTest(BoundingBox, [&](const FVolumeLightingSample& VolumeSample)
+		OctreeForRendering->FindElementsWithBoundsTest(BoundingBox, [&](const FVolumeLightingSample& VolumeSample)
 		{
 			PotentiallyIntersectingSamples.Add(&VolumeSample);
 		});
@@ -500,7 +500,7 @@ void FPrecomputedLightVolume::InterpolateIncidentRadianceBlock(
 
 void FPrecomputedLightVolume::DebugDrawSamples(FPrimitiveDrawInterface* PDI, bool bDrawDirectionalShadowing) const
 {
-	OctreeForRendering->IterateAllElements([bDrawDirectionalShadowing, PDI, this](const FVolumeLightingSample& VolumeSample)
+	OctreeForRendering->FindAllElements([bDrawDirectionalShadowing, PDI, this](const FVolumeLightingSample& VolumeSample)
 	{
 		const FLinearColor AverageColor = bDrawDirectionalShadowing
 			? FLinearColor(VolumeSample.DirectionalLightShadowing, VolumeSample.DirectionalLightShadowing, VolumeSample.DirectionalLightShadowing)

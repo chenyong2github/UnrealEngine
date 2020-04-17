@@ -85,7 +85,7 @@ TArray<uint32> FBaseMeshPaintComponentAdapter::SphereIntersectTriangles(const fl
 	// definitely don't want our brush to be cut off by a hard triangle edge
 	const float SquaredRadiusBias = ComponentSpaceSquaredBrushRadius * 0.025f;
 
-	MeshTriOctree->IterateElementsWithBoundsTest(FBoxCenterAndExtent(ComponentSpaceBrushPosition, FVector(FMath::Sqrt(ComponentSpaceSquaredBrushRadius + SquaredRadiusBias))), [&OutTriangles, bOnlyFrontFacing, &ComponentSpaceCameraPosition](const FMeshPaintTriangle& CurrentTri)
+	MeshTriOctree->FindElementsWithBoundsTest(FBoxCenterAndExtent(ComponentSpaceBrushPosition, FVector(FMath::Sqrt(ComponentSpaceSquaredBrushRadius + SquaredRadiusBias))), [&OutTriangles, bOnlyFrontFacing, &ComponentSpaceCameraPosition](const FMeshPaintTriangle& CurrentTri)
 	{
 		const float SignedPlaneDist = FVector::PointPlaneDist(ComponentSpaceCameraPosition, CurrentTri.Vertices[0], CurrentTri.Normal);
 		if (!bOnlyFrontFacing || SignedPlaneDist < 0.0f)

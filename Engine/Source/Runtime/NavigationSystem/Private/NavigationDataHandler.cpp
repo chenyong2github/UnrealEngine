@@ -360,7 +360,7 @@ void FNavigationDataHandler::FindElementsInNavOctree(const FBox& QueryBox, const
 		return;
 	}
 
-	OctreeController.NavOctree->IterateElementsWithBoundsTest(QueryBox, [&Elements, &Filter](const FNavigationOctreeElement& Element)
+	OctreeController.NavOctree->FindElementsWithBoundsTest(QueryBox, [&Elements, &Filter](const FNavigationOctreeElement& Element)
 	{
 		if (Element.IsMatchingFilter(Filter))
 		{

@@ -274,7 +274,7 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 		// 	Query the Octree
 		OtherFaceTransformDataArray.Reserve(NumFaces);
 
-		MeshTriOctree->IterateElementsWithBoundsTest(ThisFaceBounds, [&OtherFaceTransformDataArray, &FaceTransformDataArray](const FProximityTriangle& OctreePolygon)
+		MeshTriOctree->FindElementsWithBoundsTest(ThisFaceBounds, [&OtherFaceTransformDataArray, &FaceTransformDataArray](const FProximityTriangle& OctreePolygon)
 		{
 			OtherFaceTransformDataArray.Add(FaceTransformDataArray[OctreePolygon.ArrayIndex]);
 		});

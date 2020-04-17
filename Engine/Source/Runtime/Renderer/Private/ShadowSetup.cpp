@@ -3979,7 +3979,7 @@ void FSceneRenderer::GatherShadowPrimitives(
 			Packets.Reserve(100);
 
 			// Find primitives that are in a shadow frustum in the octree.
-			Scene->PrimitiveOctree.IterateNodesWithPredicate([&PreShadows, &ViewDependentWholeSceneShadows](const FBoxCenterAndExtent& NodeBounds)
+			Scene->PrimitiveOctree.FindNodesWithPredicate([&PreShadows, &ViewDependentWholeSceneShadows](const FBoxCenterAndExtent& NodeBounds)
 			{
 				// Check that the child node is in the frustum for at least one shadow.
 

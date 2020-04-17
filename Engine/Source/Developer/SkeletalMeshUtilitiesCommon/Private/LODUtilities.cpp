@@ -1443,7 +1443,7 @@ void MatchVertexIndexUsingPosition(
 		FBox CurBox(PositionSrc - Extent, PositionSrc + Extent);
 		while (OcTreeTriangleResults.Num() <= 0)
 		{
-			OcTree.IterateElementsWithBoundsTest(CurBox, [&OcTreeTriangleResults](const FTriangleElement& Element)
+			OcTree.FindElementsWithBoundsTest(CurBox, [&OcTreeTriangleResults](const FTriangleElement& Element)
 			{
 				// Add all of the elements in the current node to the list of points to consider for closest point calculations
 				OcTreeTriangleResults.Add(Element);
