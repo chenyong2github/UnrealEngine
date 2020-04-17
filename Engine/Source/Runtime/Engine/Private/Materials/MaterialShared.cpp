@@ -203,6 +203,8 @@ bool ReloadMaterialResource(
 	FString Filename;
 	GetReloadInfo(PackageName, &Filename);
 
+	UE_LOG(LogMaterial, VeryVerbose, TEXT("Attempting to load material resources for package %s (file name: %s)."), *PackageName, *Filename);
+
 	FMaterialResourceProxyReader Ar(*Filename, OffsetToFirstResource, FeatureLevel, QualityLevel);
 	FMaterialResource& Tmp = *InOutMaterialResource;
 	Tmp.SerializeInlineShaderMap(Ar);
