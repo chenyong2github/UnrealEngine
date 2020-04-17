@@ -159,6 +159,7 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 			}
 			else
 			{
+				DynamicsProcessor.SetKeyGain(0.0f);
 				AudioKeyFrame[Channel] = InBuffer[SampleIndex];
 			}
 		}
@@ -209,7 +210,7 @@ void FSubmixEffectDynamicsProcessor::SetExternalSubmix(USoundSubmix* InSoundSubm
 	else
 	{
 		DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FSubmixEffectDynamicsProcessor::OnNewDeviceCreated);
-		bUseExternalSubmix = true;
+		bUseExternalSubmix = false;
 	}
 }
 
