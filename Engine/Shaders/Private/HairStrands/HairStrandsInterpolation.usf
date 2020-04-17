@@ -37,14 +37,14 @@ Buffer<uint>   SimRootPointIndexBuffer;
 Buffer<uint4>  AttributeBuffer;
 #endif
 
-#if PERMUTATION_DYNAMIC_GEOMETRY == 1 || PERMUTATION_DEBUG == 1 || PERMUTATION_DYNAMIC_GEOMETRY == 2
+#if PERMUTATION_DYNAMIC_GEOMETRY >= 1 || PERMUTATION_DEBUG == 1 
 Buffer<uint>   RenVertexToRootIndexBuffer;
 Buffer<uint>   SimVertexToRootIndexBuffer;
 #endif
 
 RWBuffer<uint4> OutRenderDeformedPositionBuffer;
 
-#if PERMUTATION_DYNAMIC_GEOMETRY == 1 || PERMUTATION_DYNAMIC_GEOMETRY == 2
+#if PERMUTATION_DYNAMIC_GEOMETRY >= 1 
 
 // Compact all these buffers into 2 buffers: translation + quaternion
 Buffer<float4>  RestPosition0Buffer;
@@ -113,6 +113,32 @@ float3 ComputeDynamicGeometryOffset(
 
 	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutHairPositionOffset;
 	const float3 LocalDeformedGuidePoint = ToTriangle(DeformedGuidePoint, RootBarycentric, DeformedTriangle);
+
+	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
+}
+
+float3 ComputeTranslateGeometryOffset(uint GuideIndex, float GuideVertexWeight)
+{	
+	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) - 
+					f16tof32(SimRestPosePositionBuffer[SimRootPointIndexBuffer[GuideIndex]].xyz) ;
+
+	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) - 
+					f16tof32(DeformedSimPositionBuffer[SimRootPointIndexBuffer[GuideIndex]].xyz) ;
+
+	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
+}
+
+float3 ComputeRotateGeometryOffset(uint GuideIndex, float GuideVertexWeight,
+	FHairMeshTriangle RestTriangle, 
+	FHairMeshTriangle DeformedTriangle)
+{	
+	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) - 
+					f16tof32(SimRestPosePositionBuffer[SimRootPointIndexBuffer[GuideIndex]].xyz) ;
+	const float3 LocalRestGuidePoint = VectorToTriangle(RestGuidePoint, RestTriangle);
+
+	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) - 
+					f16tof32(DeformedSimPositionBuffer[SimRootPointIndexBuffer[GuideIndex]].xyz) ;
+	const float3 LocalDeformedGuidePoint = VectorToTriangle(DeformedGuidePoint, DeformedTriangle);
 
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
 }
@@ -278,14 +304,20 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 		#endif	
 
-		// 3. Skin transformation
-		// Apply dynamic mesh deformation (translation)
+		// 3. Linear blend skinning (translation)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == 2
 		{
 			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
 			const float3 RestControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
 			float3 ControlPoint = RestControlPoint;
 
+			const uint RootIndex						= RenVertexToRootIndexBuffer[VertexIndex];
+			const float3 RootBarycentric				= DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
+			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+			
+			ControlPoint -= RootBarycentric.x * RestTriangle.P0 + RootBarycentric.y * RestTriangle.P1 + RootBarycentric.z * RestTriangle.P2;
+			
 			float3 CurrOffset = 0;
 
 			#if PERMUTATION_SIMULATION == 1
@@ -295,19 +327,13 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				const uint GuideIndex0 = GuideVertexIndices[K];
 				const uint GuideIndex1 = GuideIndex0 + 1;
 
-				const float3 Offset0 = ComputeLocalGeometryOffset(GuideIndex0, GuideVertexWeights[K]);
-				const float3 Offset1 = ComputeLocalGeometryOffset(GuideIndex1, GuideVertexWeights[K]);
+				const float3 Offset0 = ComputeTranslateGeometryOffset(GuideIndex0, 1.0);
+				const float3 Offset1 = ComputeTranslateGeometryOffset(GuideIndex1, 1.0);
 
-				CurrOffset += lerp(Offset0, Offset1, GuideVertexLerps[K]);
+				CurrOffset += GuideVertexWeights[K] * lerp(Offset0, Offset1, GuideVertexLerps[K]);
 			}
 			#endif
 
-			const uint RootIndex						= RenVertexToRootIndexBuffer[VertexIndex];
-			const float3 RootBarycentric				= DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
-			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
-			
-			ControlPoint -= RootBarycentric.x * RestTriangle.P0     + RootBarycentric.y * RestTriangle.P1     + RootBarycentric.z * RestTriangle.P2;
 			ControlPoint += RootBarycentric.x * DeformedTriangle.P0 + RootBarycentric.y * DeformedTriangle.P1 + RootBarycentric.z * DeformedTriangle.P2;
 
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
@@ -316,6 +342,93 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
 		}
 		#endif	
+
+		// 4. Linear blend skinning (rotation)
+		#if PERMUTATION_DYNAMIC_GEOMETRY == 3
+		{
+			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			const float3 RestControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
+			float3 ControlPoint = RestControlPoint;
+
+			const uint RootIndex						= RenVertexToRootIndexBuffer[VertexIndex];
+			const float3 RootBarycentric				= DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
+			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+
+			ControlPoint -= RootBarycentric.x * RestTriangle.P0 + RootBarycentric.y * RestTriangle.P1 + RootBarycentric.z * RestTriangle.P2;
+
+			float3 CurrOffset = 0;
+
+			#if PERMUTATION_SIMULATION == 1
+			for (uint K = 0; K < 3; ++K)
+			{
+				const uint GuideIndex0 = GuideVertexIndices[K];
+				const uint GuideIndex1 = GuideIndex0 + 1;
+
+				const uint RootIndexG = SimVertexToRootIndexBuffer[GuideIndex0];
+				
+				const FHairMeshTriangle RestTriangleG		= GetTriangleTransformation(RootIndexG, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
+				const FHairMeshTriangle DeformedTriangleG	= GetTriangleTransformation(RootIndexG, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
+				
+				const float3 LocalPoint = VectorToTriangle(ControlPoint,RestTriangleG);
+
+				const float3 Offset0 = ComputeRotateGeometryOffset(GuideIndex0, 1.0, RestTriangleG, DeformedTriangleG);
+				const float3 Offset1 = ComputeRotateGeometryOffset(GuideIndex1, 1.0, RestTriangleG, DeformedTriangleG);
+
+				CurrOffset += GuideVertexWeights[K] * VectorToWorld(lerp(Offset0, Offset1, GuideVertexLerps[K])+LocalPoint,DeformedTriangleG);
+			}
+			#endif
+
+			ControlPoint =  RootBarycentric.x * DeformedTriangle.P0 + RootBarycentric.y * DeformedTriangle.P1 + RootBarycentric.z * DeformedTriangle.P2;
+
+			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(1.#INF, 1.#INF, 1.#INF);
+
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
+		}
+		#endif
+
+		// 5. Linear blend skinning (translation + rotation)
+		#if PERMUTATION_DYNAMIC_GEOMETRY == 3
+		{
+			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			const float3 RestControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
+			float3 ControlPoint = RestControlPoint;
+
+			const uint RootIndex						= RenVertexToRootIndexBuffer[VertexIndex];
+			const float3 RootBarycentric				= DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
+			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+
+			float3 CurrOffset = 0;
+
+			#if PERMUTATION_SIMULATION == 1
+			for (uint K = 0; K < 3; ++K)
+			{
+				const uint GuideIndex0 = GuideVertexIndices[K];
+				const uint GuideIndex1 = GuideIndex0 + 1;
+
+				const uint RootIndexG = SimVertexToRootIndexBuffer[GuideIndex0];
+				const float3 RootBarycentricG				= DecodeBarycentrics(RootBarycentricBuffer[RootIndexG]);
+				
+				const FHairMeshTriangle RestTriangleG		= GetTriangleTransformation(RootIndexG, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
+				const FHairMeshTriangle DeformedTriangleG	= GetTriangleTransformation(RootIndexG, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
+				
+				const float3 LocalPoint = ToTriangle(ControlPoint,RootBarycentricG,RestTriangleG);
+
+				const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, 1.0, RestTriangleG, DeformedTriangleG, RootBarycentricG);
+				const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, 1.0, RestTriangleG, DeformedTriangleG, RootBarycentricG);
+
+				CurrOffset += GuideVertexWeights[K] * ToWorld(lerp(Offset0, Offset1, GuideVertexLerps[K])+LocalPoint,RootBarycentricG,DeformedTriangleG);
+			}
+			#endif
+
+			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = bIsValid ? CurrOffset : float3(1.#INF, 1.#INF, 1.#INF);
+
+			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutHairPositionOffset), PackedRestPosition.w);
+		}
+		#endif
 
 		#if PERMUTATION_DEBUG == 1
 		if (HairDebugMode == 1)
