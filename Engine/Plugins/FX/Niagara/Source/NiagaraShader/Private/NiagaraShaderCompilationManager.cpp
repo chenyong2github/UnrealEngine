@@ -47,14 +47,13 @@ NIAGARASHADER_API void FNiagaraShaderCompilationManager::AddJobs(TArray<TSharedR
 
 		UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("Adding niagara gpu shader compile job... %s"), *CurrentJob->Input.DebugGroupName);
 
-		static ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-		const FName Format = LegacyShaderPlatformToShaderFormat(EShaderPlatform(CurrentJob->Input.Target.Platform));
-		FString AbsoluteDebugInfoDirectory = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*(FPaths::ProjectSavedDir() / TEXT("ShaderDebugInfo")));
-		FPaths::NormalizeDirectoryName(AbsoluteDebugInfoDirectory);
-		CurrentJob->Input.DumpDebugInfoPath = AbsoluteDebugInfoDirectory / Format.ToString() / CurrentJob->Input.DebugGroupName;
-		if (!IFileManager::Get().DirectoryExists(*CurrentJob->Input.DumpDebugInfoPath))
+		CurrentJob->Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / LegacyShaderPlatformToShaderFormat(EShaderPlatform(CurrentJob->Input.Target.Platform)).ToString();
+		FPaths::NormalizeDirectoryName(CurrentJob->Input.DumpDebugInfoRootPath);
+		CurrentJob->Input.DebugExtension.Empty();
+		CurrentJob->Input.DumpDebugInfoPath.Empty();
+		if (GShaderCompilingManager->GetDumpShaderDebugInfo() == FShaderCompilingManager::EDumpShaderDebugInfo::Always)
 		{
-			verifyf(IFileManager::Get().MakeDirectory(*CurrentJob->Input.DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *CurrentJob->Input.DumpDebugInfoPath);
+			CurrentJob->Input.DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(CurrentJob->Input);
 		}
 	}
 	GShaderCompilingManager->AddJobs(InNewJobs, true, false, FString(), FString(), true);
