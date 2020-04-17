@@ -95,7 +95,7 @@ struct FNDIHairStrandsData
 		BoxCenter = FVector(0, 0, 0);
 		BoxExtent = FVector(0, 0, 0);
 
-		KinematicsTarget = false;
+		GlobalInterpolation = false;
 
 		TickCount = 0;
 		ForceReset = true;
@@ -148,7 +148,7 @@ struct FNDIHairStrandsData
 			BoxCenter = OtherDatas->BoxCenter;
 			BoxExtent = OtherDatas->BoxExtent;
 
-			KinematicsTarget = OtherDatas->KinematicsTarget;
+			GlobalInterpolation = OtherDatas->GlobalInterpolation;
 
 			TickCount = OtherDatas->TickCount;
 			ForceReset = OtherDatas->ForceReset;
@@ -192,8 +192,8 @@ struct FNDIHairStrandsData
 	/** Cached World transform. */
 	FTransform WorldTransform;
 
-	/** Kinematics target */
-	bool KinematicsTarget;
+	/** Global Interpolation */
+	bool GlobalInterpolation;
 
 	/** Number of strands*/
 	int32 NumStrands;
@@ -547,11 +547,8 @@ public:
 	/** Check if we need or not a simulation reset*/
 	void NeedSimulationReset(FVectorVMContext& Context);
 
-	/** Check if we need or not a simulation reset*/
+	/** Check if we have a global interpolation */
 	void HasGlobalInterpolation(FVectorVMContext& Context);
-
-	/** Check if we need or not a simulation reset*/
-	void HasKinematicsTarget(FVectorVMContext& Context);
 
 	/** Eval the skinned position given a rest position*/
 	void EvalSkinnedPosition(FVectorVMContext& Context);

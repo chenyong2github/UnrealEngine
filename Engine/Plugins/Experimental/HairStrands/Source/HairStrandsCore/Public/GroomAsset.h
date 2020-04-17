@@ -359,10 +359,6 @@ struct HAIRSTRANDSCORE_API FHairSolverSettings
 	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Enable the simulation on that group"))
 	bool EnableSimulation;
 
-	/** Allow the simulation to follow a kinematics target*/
-	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Allow the simulation to follow a kinematics target"))
-	bool KinematicsTarget;
-
 	/** Niagara solver to be used for simulation */
 	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Niagara solver to be used for simulation"))
 	EGroomNiagaraSolvers NiagaraSolver;
@@ -523,27 +519,27 @@ struct HAIRSTRANDSCORE_API FHairStrandsParameters
 {
 	GENERATED_BODY()
 
-		FHairStrandsParameters();
+	FHairStrandsParameters();
 
 	/** Number of particles per guide that will be used for simulation*/
 	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ToolTip = "Number of particles per guide that will be used for simulation"))
-		EGroomStrandsSize StrandsSize;
+	EGroomStrandsSize StrandsSize;
 
 	/** Density of the strands in g/cm3 */
 	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ToolTip = "Density of the strands in g/cm3"))
-		float StrandsDensity;
+	float StrandsDensity;
 
 	/** Smoothing between 0 and 1 of the incoming guides curves for better stability */
 	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ToolTip = "Smoothing between 0 and 1 of the incoming guides curves for better stability"))
-		float StrandsSmoothing;
+	float StrandsSmoothing;
 
 	/** Strands thickness in cm that will be used for mass and inertia computation */
 	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ToolTip = "Strands thickness in cm that will be used for mass and inertia computation"))
-		float StrandsThickness;
+	float StrandsThickness;
 
 	/** Thickness scale along the curve */
 	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Strands Thickness", ToolTip = "This curve determines how much the strands thickness will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
-		FRuntimeFloatCurve ThicknessScale;
+	FRuntimeFloatCurve ThicknessScale;
 };
 
 USTRUCT(BlueprintType)
@@ -634,6 +630,10 @@ public:
 
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairPhysics", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsPhysics> HairGroupsPhysics;
+
+	/** Enable radial basis function interpolation to be used instead of the local skin rigid transform */
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (ToolTip = "Enable radial basis function interpolation to be used instead of the local skin rigid transform (WIP)"))
+	bool EnableGlobalInterpolation = false;
 
 	TArray<FHairGroupData> HairGroupsData;
 
@@ -768,8 +768,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
 	USkeletalMesh* TargetSkeletalMesh;
 
-	/** Number of points used for the rbf interpolation */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
+	/** Number of points to be used for radial basis function interpolation  */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HairInterpolation", meta = (ClampMax = "100", ClampMin = "0", ToolTip = "Number of points to be used for radial basis function interpolation (WIP)"))
 	int32 NumInterpolationPoints = 100;
 
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroups", meta = (DisplayName = "Group"))
