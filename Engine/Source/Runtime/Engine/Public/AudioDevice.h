@@ -1636,12 +1636,6 @@ public:
 		LastUpdateTime = CurrTime;
 	}
 
-	/** Update the audio clock to be based off the update delta time */
-	virtual void UpdateAudioClock()
-	{
-		AudioClock += GetDeviceDeltaTime();
-	}
-
 private:
 	/** Processes the set of pending sounds that need to be stopped */
 	void ProcessingPendingActiveSoundStops(bool bForceDelete = false);
