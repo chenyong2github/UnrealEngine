@@ -934,6 +934,7 @@ public:
 #if WITH_EDITOR
 	LANDSCAPE_API void CreateSplineComponent(const FVector& Scale3D);
 
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditImport() override;
 	//~ End UObject Interface
