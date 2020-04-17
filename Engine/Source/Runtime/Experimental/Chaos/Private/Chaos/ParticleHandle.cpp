@@ -123,7 +123,7 @@ namespace Chaos
 		{
 			if (const auto* PerShapeData = GetImplicitShape(Implicit))
 			{
-				if (PerShapeData->bDisable)
+				if (!PerShapeData->GetSimEnabled())
 				{
 					return;
 				}
@@ -135,7 +135,7 @@ namespace Chaos
 			}
 			else
 			{
-				Implicit->SetCollsionType(MGeometry->GetType());
+				Implicit->SetCollsionType(Implicit->GetType());
 				// @todo (mlentine): Need to in theory set convex properly here
 			}
 		}
