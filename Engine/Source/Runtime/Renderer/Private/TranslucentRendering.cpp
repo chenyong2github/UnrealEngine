@@ -404,7 +404,7 @@ void RenderViewTranslucencyInner(FRHICommandListImmediate& RHICmdList, const FVi
 			if (ParallelCommandListSet)
 			{
 				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-				SceneContext.BeginRenderingPrePass(RHICmdList, false);
+				SceneContext.BeginRenderingTranslucency(RHICmdList, View, *ParallelCommandListSet->SceneRenderer, false);
 			}
 
 			{
