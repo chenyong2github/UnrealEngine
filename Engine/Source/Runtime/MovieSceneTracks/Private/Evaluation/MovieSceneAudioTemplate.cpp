@@ -29,7 +29,7 @@ FAutoConsoleVariableRef CVarMaxSequenceAudioDesyncTolerance(
 	TEXT("Controls how many seconds an audio track can be out of sync in a Sequence before we attempt a time correction.\n"),
 	ECVF_Default);
 
-static int32 UseAudioClockForSequencerDesyncCVar = 1;
+static int32 UseAudioClockForSequencerDesyncCVar = 0;
 FAutoConsoleVariableRef CVaUseAudioClockForSequencerDesync(
 	TEXT("Sequencer.Audio.UseAudioClockForAudioDesync"),
 	UseAudioClockForSequencerDesyncCVar,

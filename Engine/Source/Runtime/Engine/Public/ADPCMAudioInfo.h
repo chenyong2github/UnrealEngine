@@ -154,6 +154,8 @@ private:
 	int32	NumChannels;
 	int32	Format;
 
+	uint32 PreviouslyRequestedChunkIndex;
+
 	uint8*			UncompressedBlockData;			// This holds the current block of compressed data for all channels
 	uint32			CurrentUncompressedBlockSampleIndex;	// This is the sample index within the current uncompressed block data
 	uint32			CurrentChunkIndex;				// This is the index that is currently being used, needed by streaming engine to make sure it stays loaded and the next chunk gets preloaded
@@ -172,6 +174,7 @@ private:
 	uint32			CurrentCompressedBlockIndex;		// For non disk streaming - the current compressed block in the compressed source data
 	uint32			TotalCompressedBlocksPerChannel;	// For non disk streaming - the total number of compressed blocks per channel
 	uint8			bSeekPending : 1;					// Whether or not seek has been requested and pending a read
+	uint8           bSeekedFowardToNextChunk : 1;       // If this is true, we have already seeked forward to the next chunk while waiting for the current chunk of audio to load.
 
 private:
 	void ProcessSeekRequest();
