@@ -365,13 +365,13 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 
 	SimpleSettings.Add(FName("MultiView"), {
 		FName("MultiView"),
-		LOCTEXT("MultiViewDescription", "Multi-view is not enabled for this project. Instanced stereo substantially reduces draw calls, and improves rendering performance."),
+		LOCTEXT("InstancedStereoDescription", "Instanced stereo is not enabled for this project. Instanced stereo substantially reduces draw calls, and improves rendering performance."),
 		&SOculusToolWidget::MultiViewVisibility,
 		TArray<SimpleSettingAction>(),
 		(int)SupportFlags::SupportPC
 	});
 	SimpleSettings.Find(FName("MultiView"))->actions.Add(
-		{ LOCTEXT("MultiViewButtonText", "Enable Multi-View"),
+		{ LOCTEXT("InstancedStereoButtonText", "Enable Instanced Stereo"),
 		&SOculusToolWidget::MultiViewEnable }
 	);
 
@@ -389,13 +389,13 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 
 	SimpleSettings.Add(FName("MobilePostProcessing"), {
 		FName("MobilePostProcessing"),
-		LOCTEXT("MobilePostProcessingDescription", "Mobile Post-Processing has performance and stability issues in VR. We strongly recommend disabling it."),
+		LOCTEXT("MobileHDRDescription", "Mobile HDR has performance and stability issues in VR. We strongly recommend disabling it."),
 		&SOculusToolWidget::MobilePostProcessingVisibility,
 		TArray<SimpleSettingAction>(),
 		(int)SupportFlags::SupportMobile
 	});
 	SimpleSettings.Find(FName("MobilePostProcessing"))->actions.Add(
-		{ LOCTEXT("MobileHDRButton", "Disable Mobile Post-Processing"),
+		{ LOCTEXT("MobileHDRButton", "Disable Mobile HDR"),
 		&SOculusToolWidget::MobilePostProcessingDisable }
 	);
 
