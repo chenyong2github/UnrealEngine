@@ -550,16 +550,6 @@ private:
 				return;
 			}
 		}
-
-		UE_LOG(LogGenericOctree, Fatal,
-			TEXT("Failed to find an octree node for an element with bounds (%f,%f,%f) +/- (%f,%f,%f)!"),
-			ElementBounds.Center.X,
-			ElementBounds.Center.Y,
-			ElementBounds.Center.Z,
-			ElementBounds.Extent.X,
-			ElementBounds.Extent.Y,
-			ElementBounds.Extent.Z
-		);
 	}
 
 	void CollapseNodesInternal(FNodeIndex CurrentNodeIndex, ElementArrayType& CollapsedNodeElements)
