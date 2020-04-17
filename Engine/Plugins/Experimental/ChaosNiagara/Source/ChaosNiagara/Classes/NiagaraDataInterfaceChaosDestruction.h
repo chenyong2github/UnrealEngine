@@ -86,7 +86,7 @@ struct FSolverData
 		: Solver(nullptr)
 	{}
 
-	FPhysScene* PhysScene;
+	FPhysScene_Chaos* PhysScene;
 	Chaos::FPhysicsSolver* Solver;
 };
 
