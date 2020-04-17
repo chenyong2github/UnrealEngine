@@ -21,23 +21,23 @@ protected:
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
 
 	/** Texture object containing streamed low mips. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Streaming Mips"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTexture)
 	UVirtualTextureBuilder* StreamingTexture = nullptr;
 
 	/** Actor to copy the bounds from to set up the transform. */
-	UPROPERTY(EditAnywhere, DuplicateTransient, Category = TransformFromBounds, meta = (DisplayName = "Source Actor"))
-	AActor* BoundsSourceActor = nullptr;
+	UPROPERTY(EditAnywhere, Category = TransformFromBounds, meta = (DisplayName = "Source Actor"))
+	TSoftObjectPtr<AActor> BoundsSourceActor;
 
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
-	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Number of low mips to stream to the virtual texture"))
+	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Streaming Mips"))
 	int32 StreamLowMips = 0;
 
 	/** Enable Crunch compression. ZLib compression is used when Crunch is disabled. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Enable Crunch compression"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Enable Crunch"))
 	bool bEnableCompressCrunch = false;
 
 	/** Use any streaming low mips when rendering in editor. Set true to view and debug the baked streaming low mips. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "View Streaming Mips in Editor"))
 	bool bUseStreamingLowMipsInEditor = false;
 
 public:
@@ -52,7 +52,7 @@ public:
 	FTransform GetVirtualTextureTransform() const;
 
 	/** Public getter for virtual texture streaming low mips */
-	int32 GetStreamLowMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
+	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
 
 	/** Get if we want to use any streaming low mips on this component. */
 	bool IsStreamingLowMips() const;
@@ -86,7 +86,7 @@ protected:
 	/** Calculate a hash used to determine if the StreamingTexture contents are valid for use. The hash doesn't include whether the contents are up to date. */
 	uint32 CalculateStreamingTextureSettingsHash() const;
 	/** Returns true if the StreamingTexure contents are valid for use. */
-	bool StreamingTextureIsValid() const;
+	bool IsStreamingTextureValid() const;
 
 public:
 	/** Scene proxy object. Managed by the scene but stored here. */

@@ -10,6 +10,7 @@
 #include "SceneInterface.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureRender.h"
+#include "VT/VirtualTextureBuilder.h"
 
 namespace
 {
@@ -126,7 +127,7 @@ namespace RuntimeVirtualTexture
 			return false;
 		}
 
-		if (InComponent->GetStreamLowMips() <= 0)
+		if (InComponent->NumStreamingMips() <= 0)
 		{
 			return false;
 		}
@@ -155,7 +156,7 @@ namespace RuntimeVirtualTexture
 		const int32 TextureSizeX = VTDesc.WidthInBlocks * VTDesc.BlockWidthInTiles * TileSize;
 		const int32 TextureSizeY = VTDesc.HeightInBlocks * VTDesc.BlockHeightInTiles * TileSize;
 		const int32 MaxLevel = (int32)FMath::CeilLogTwo(FMath::Max(VTDesc.BlockWidthInTiles, VTDesc.BlockHeightInTiles));
-		const int32 RenderLevel = FMath::Max(MaxLevel - InComponent->GetStreamLowMips() + 1, 0);
+		const int32 RenderLevel = FMath::Max(MaxLevel - InComponent->NumStreamingMips() + 1, 0);
 		const int32 ImageSizeX = FMath::Max(TileSize, TextureSizeX >> RenderLevel);
 		const int32 ImageSizeY = FMath::Max(TileSize, TextureSizeY >> RenderLevel);
 		const int32 NumTilesX = ImageSizeX / TileSize;
@@ -172,7 +173,7 @@ namespace RuntimeVirtualTexture
 		// Spin up slow task UI
 		const float TaskWorkRender = NumTilesX * NumTilesY;
 		const float TaskWorkBuildBulkData = NumTilesX * NumTilesY / 2;
-		FScopedSlowTask Task(TaskWorkRender + TaskWorkBuildBulkData, FText::AsCultureInvariant(RuntimeVirtualTexture->GetName()));
+		FScopedSlowTask Task(TaskWorkRender + TaskWorkBuildBulkData, FText::AsCultureInvariant(InComponent->GetStreamingTexture()->GetName()));
 		Task.MakeDialog(true);
 
 		// Allocate render targets for rendering out the runtime virtual texture tiles
