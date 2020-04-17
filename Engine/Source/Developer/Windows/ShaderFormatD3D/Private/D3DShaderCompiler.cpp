@@ -500,7 +500,7 @@ static FString DxcBlobEncodingToFString(TRefCountPtr<IDxcBlobEncoding> DxcBlob)
 
 
 static HRESULT DXCCompileWrapper(
-	TRefCountPtr<IDxcCompiler> Compiler,
+	TRefCountPtr<IDxcCompiler>& Compiler,
 	TRefCountPtr<IDxcBlobEncoding>& TextBlob,
 	LPCWSTR EntryPoint,
 	LPCWSTR TargetProfile,
