@@ -1923,6 +1923,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		if (bHairEnable)
 		{
+			RenderHairPrePass(RHICmdList, Scene, Views, HairClusterData, HairDatasStorage);
 			RenderHairBasePass(RHICmdList, Scene, SceneContext, Views, HairClusterData, HairDatasStorage);
 			HairDatas = &HairDatasStorage;
 		}
@@ -2238,6 +2239,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ServiceLocalQueue();
 	}
 
+	// Hair base pass for deferred shading
+	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
+	{
+		RenderHairPrePass(RHICmdList, Scene, Views, HairClusterData, HairDatasStorage);
+		HairDatas = &HairDatasStorage;
+	}
+
 #if !UE_BUILD_SHIPPING
 	if (CVarForceBlackVelocityBuffer.GetValueOnRenderThread())
 	{
@@ -2253,7 +2261,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bRayTracingEnabled = IsRayTracingEnabled();
 	if (bRayTracingEnabled && bCanOverlayRayTracingOutput && !IsForwardShadingEnabled(ShaderPlatform))
 	{		
-		RenderRayTracingSkyLight(RHICmdList, SkyLightRT, SkyLightHitDistanceRT);
+		RenderRayTracingSkyLight(RHICmdList, SkyLightRT, SkyLightHitDistanceRT, HairDatas);
 	}
 #endif // RHI_RAYTRACING
 	checkSlow(RHICmdList.IsOutsideRenderPass());
@@ -2332,10 +2340,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	// Hair base pass for deferred shading
-	if (bHairEnable && !HairDatas)
+	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
+		check(HairDatas);
 		RenderHairBasePass(RHICmdList, Scene, SceneContext, Views, HairClusterData, HairDatasStorage);
-		HairDatas = &HairDatasStorage;
 	}
 
 	// Render lighting.
