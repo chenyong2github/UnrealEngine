@@ -143,10 +143,6 @@ void FSubmixEffectReverbFast::OnProcessAudio(const FSoundEffectSubmixInputData& 
 	{
 		LastWet = CurrentWetDry.WetLevel;
 	}
-	if (LastDry < 0.0f)
-	{
-		LastDry = CurrentWetDry.DryLevel;
-	}
 
 
 	WetInputBuffer.Reset();
@@ -159,7 +155,6 @@ void FSubmixEffectReverbFast::OnProcessAudio(const FSoundEffectSubmixInputData& 
 
 	PlateReverb->ProcessAudio(WetInputBuffer, InData.NumChannels, *OutData.AudioBuffer, OutData.NumChannels);
 
-	Audio::MixInBufferFast(*InData.AudioBuffer, *OutData.AudioBuffer, LastDry, CurrentWetDry.DryLevel);
 }
 
 bool FSubmixEffectReverbFast::SetParameters(const FAudioEffectParameters& InParams)
