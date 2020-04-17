@@ -814,12 +814,26 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		// Starts the disaster recovery service. This records transactions and allows users to recover from previous crashes.
 		RecoveryServicePtr = MakeShared<FRecoveryService>(MonitorPid);
 #endif
+
+		// Try to open the process. The analytics shows that CRC sometime exits before the Editor. This can happen if OpenProcess() fails, maybe because
+		// this process was spawned in the Editor Pre-init phase and the OS did not make it available yet. In case of failure, give it a few trials.
+		FProcHandle MonitoredProcess;
+		for (int Trial = 0; Trial < 5; ++Trial)
+		{
 #if PLATFORM_WINDOWS
-		// We do not need to open a full access process handle when monitoring process health.
-		FProcHandle MonitoredProcess = FProcHandle(::OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, 0, MonitorPid));
+			// We do not need to open a full access 
+			MonitoredProcess = FProcHandle(::OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, 0, MonitorPid));
 #else
-		FProcHandle MonitoredProcess = FPlatformProcess::OpenProcess(MonitorPid);
+			MonitoredProcess = FPlatformProcess::OpenProcess(MonitorPid);
 #endif
+			if (MonitoredProcess.IsValid())
+			{
+				break;
+			}
+
+			FPlatformProcess::Sleep(1); // Wait a seconds before retrying. Give time to the Editor to initialize.
+		}
+
 		if (!MonitoredProcess.IsValid())
 		{
 			UE_LOG(CrashReportClientLog, Error, TEXT("Failed to open monitor process handle!"));
