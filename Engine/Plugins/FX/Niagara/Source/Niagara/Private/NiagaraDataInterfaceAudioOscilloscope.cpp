@@ -99,8 +99,14 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnNewDeviceCreated(Audio::FDeviceId
 	if (bIsSubmixListenerRegistered)
 	{
 		check(!SubmixListeners.Contains(InID));
-		SubmixListeners.Emplace(InID, new FNiagaraSubmixListener(PatchMixer, Resolution * 2, InID, SubmixRegisteredTo));
-		SubmixListeners[InID]->RegisterToSubmix();
+
+		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InID);
+		if (ensure(DeviceHandle))
+		{
+			const int32 NumSamplesToPop = Align(FMath::FloorToInt(ScopeInMilliseconds / 1000.0f * DeviceHandle->GetSampleRate()) * AUDIO_MIXER_MAX_OUTPUT_CHANNELS, 4);
+			SubmixListeners.Emplace(InID, new FNiagaraSubmixListener(PatchMixer, NumSamplesToPop, InID, SubmixRegisteredTo));
+			SubmixListeners[InID]->RegisterToSubmix();
+		}
 	}
 }
 
