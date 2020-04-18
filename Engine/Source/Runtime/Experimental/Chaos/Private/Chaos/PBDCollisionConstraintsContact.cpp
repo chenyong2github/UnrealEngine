@@ -87,14 +87,14 @@ namespace Chaos
 			FVec3 Delta = FinalAngularVelocity - RelativeAngularVelocity;
 			if (!bIsRigidDynamic0 && bIsRigidDynamic1)
 			{
-				FMatrix33 WorldSpaceI2 = (Q1 * FMatrix::Identity) * PBDRigid1->I() * (Q1 * FMatrix::Identity).GetTransposed();
+				FMatrix33 WorldSpaceI2 = Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->I());
 				FVec3 ImpulseDelta = PBDRigid1->M() * FVec3::CrossProduct(VectorToPoint2, Delta);
 				Impulse += ImpulseDelta;
 				AngularImpulse += WorldSpaceI2 * Delta - FVec3::CrossProduct(VectorToPoint2, ImpulseDelta);
 			}
 			else if (bIsRigidDynamic0 && !bIsRigidDynamic1)
 			{
-				FMatrix33 WorldSpaceI1 = (Q0 * FMatrix::Identity) * PBDRigid0->I() * (Q0 * FMatrix::Identity).GetTransposed();
+				FMatrix33 WorldSpaceI1 = Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->I());
 				FVec3 ImpulseDelta = PBDRigid0->M() * FVec3::CrossProduct(VectorToPoint1, Delta);
 				Impulse += ImpulseDelta;
 				AngularImpulse += WorldSpaceI1 * Delta - FVec3::CrossProduct(VectorToPoint1, ImpulseDelta);
@@ -307,9 +307,8 @@ namespace Chaos
 					FReal NormalVelocityChange = FVec3::DotProduct(VelocityChange, Contact.Normal);
 					FMatrix33 FactorInverse = Factor.Inverse();
 					FVec3 MinimalImpulse = FactorInverse * VelocityChange;
-					const FReal MinimalImpulseDotNormal = FVec3::DotProduct(MinimalImpulse, Contact.Normal);
-					const FReal TangentialSize = (MinimalImpulse - MinimalImpulseDotNormal * Contact.Normal).Size();
-					if (TangentialSize <= Friction * MinimalImpulseDotNormal)
+					const FReal TangentialSize = (VelocityChange - NormalVelocityChange * Contact.Normal).Size();
+					if (TangentialSize <= Friction * NormalVelocityChange)
 					{
 						//within friction cone so just solve for static friction stopping the object
 						Impulse = MinimalImpulse;
