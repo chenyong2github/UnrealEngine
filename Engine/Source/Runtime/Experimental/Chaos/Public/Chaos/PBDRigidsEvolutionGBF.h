@@ -48,7 +48,7 @@ namespace Chaos
 
 		static constexpr int32 DefaultNumIterations = 1;
 		static constexpr int32 DefaultNumPairIterations = 1;
-		static constexpr int32 DefaultNumPushOutIterations = 5;
+		static constexpr int32 DefaultNumPushOutIterations = 3;
 		static constexpr int32 DefaultNumPushOutPairIterations = 2;
 
 		// @todo(chaos): Required by clustering - clean up
