@@ -833,6 +833,11 @@ void SNiagaraParameterCollection::ParameterContentColumnWidthChanged(float Width
 
 void SNiagaraParameterCollection::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
+	if (PropertyChangedEvent.GetNumObjectsBeingEdited() == 0)
+	{
+		return;
+	}
+
 	for (TSharedRef<INiagaraParameterViewModel> Parameter : Collection->GetParameters())
 	{
 		if (Parameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Object)
