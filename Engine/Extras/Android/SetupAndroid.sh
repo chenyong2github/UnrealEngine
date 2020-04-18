@@ -46,7 +46,18 @@ if [ "$retVal" == "" ]; then
 	echo Added $PLATFORMTOOLS to path
 fi
 
-"$STUDIO_SDK_PATH/tools/bin/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.0.6113669"
+SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
+if [ ! -d "$SDKMANAGERPATH" ]; then
+	SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bintools/bin"
+	if [ ! -d "$SDKMANAGERPATH" ]; then
+		echo Unable to locate sdkmanager.bat. Did you run Android Studio and install cmdline-tools after installing?
+		SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bintools/bin"
+		read -rsp $'Press any key to continue...\n' -n1 key
+		exit 1
+	fi
+fi
+
+"$SDKMANAGERPATH/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.0.6113669"
 
 retVal=$?
 if [ $retVal -ne 0 ]; then
