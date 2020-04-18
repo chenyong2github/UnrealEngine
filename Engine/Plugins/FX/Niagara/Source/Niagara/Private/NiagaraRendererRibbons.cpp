@@ -735,6 +735,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			}
 			DynamicData->MultiRibbonInfos.AddZeroed(MultiRibbonSortedIndices.Num());
 
+			// Sort the ribbons by ID so that the draw order stays consistent.
+			MultiRibbonSortedIndices.KeySort(TLess<FNiagaraID>());
+
 			uint32 RibbonIndex = 0;
 			for (TPair<FNiagaraID, TArray<int32>>& Pair : MultiRibbonSortedIndices)
 			{
@@ -758,6 +761,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 				Indices.Add(i);
 			}
 			DynamicData->MultiRibbonInfos.AddZeroed(MultiRibbonSortedIndices.Num());
+
+			// Sort the ribbons by ID so that the draw order stays consistent.
+			MultiRibbonSortedIndices.KeySort(TLess<int32>());
 
 			uint32 RibbonIndex = 0;
 			for (TPair<int32, TArray<int32>>& Pair : MultiRibbonSortedIndices)
