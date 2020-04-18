@@ -557,7 +557,7 @@ void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 
 	if (bInvalidationPending)
 	{
-		ViewportClient->Invalidate();
+		ViewportClient->Invalidate(false, false);
 		bInvalidationPending = false;
 	}
 

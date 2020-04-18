@@ -2,6 +2,29 @@
 
 #include "Util/IndexUtil.h"
 
+// integer indices offsets in x/y directions
+const FVector2i IndexUtil::GridOffsets4[] =
+{
+	FVector2i(-1, 0), FVector2i(1, 0),
+	FVector2i(0, -1), FVector2i(0, 1)
+};
+
+// integer indices offsets in x/y directions and diagonals
+const FVector2i IndexUtil::GridOffsets8[] =
+{
+	FVector2i(-1, 0),  FVector2i(1, 0),
+	FVector2i(0, -1),  FVector2i(0, 1),
+	FVector2i(-1, 1),  FVector2i(1, 1),
+	FVector2i(-1, -1), FVector2i(1, -1)
+};
+
+// integer indices offsets in x/y/z directions, corresponds w/ BoxFaces directions
+const FVector3i IndexUtil::GridOffsets6[] =
+{
+	FVector3i( 0, 0,-1), FVector3i( 0, 0, 1),
+	FVector3i(-1, 0, 0), FVector3i( 1, 0, 0),
+	FVector3i( 0,-1, 0), FVector3i( 0, 1, 0)
+};
 
 // integer indices offsets in x/y/z directions and diagonals
 const FVector3i IndexUtil::GridOffsets26[] = 

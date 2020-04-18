@@ -14,17 +14,17 @@
 class ISpatial
 {
 public:
-	virtual ~ISpatial() {}
+	virtual ~ISpatial() = default;
 
 	/**
 	 * @return true if this object supports point-containment inside/outside queries
 	 */
-	virtual bool SupportsPointContainment() = 0;
+	virtual bool SupportsPointContainment() const = 0;
 
 	/**
 	 * @return true if the query point is inside the object
 	 */
-	virtual bool IsInside(const FVector3d & Point) = 0;
+	virtual bool IsInside(const FVector3d & Point) const = 0;
 };
 
 
@@ -35,12 +35,30 @@ public:
 class IMeshSpatial : public ISpatial
 {
 public:
-	virtual ~IMeshSpatial() {}
+	virtual ~IMeshSpatial() = default;
+
+	// standard shared options for all mesh spatial queries
+	struct FQueryOptions
+	{
+		/**
+		 * Maximum search distance / hit distance, where applicable
+		 */
+		double MaxDistance = TNumericLimits<double>::Max();
+
+		/**
+		 * If non-null, only triangle IDs that pass this filter (i.e. filter is true) are considered
+		 */
+		TFunction<bool(int)> TriangleFilterF = nullptr;
+
+		FQueryOptions() {}
+		FQueryOptions(TFunction<bool(int)> TriangleFilterF) : TriangleFilterF(TriangleFilterF) {}
+		FQueryOptions(double MaxDistance, TFunction<bool(int)> TriangleFilterF = nullptr) : MaxDistance(MaxDistance), TriangleFilterF(TriangleFilterF) {}
+	};
 
 	/**
 	 * @return true if this object supports nearest-triangle queries
 	 */
-	virtual bool SupportsNearestTriangle() = 0;
+	virtual bool SupportsNearestTriangle() const = 0;
 
 	/**
 	 * @param Query point
@@ -48,24 +66,24 @@ public:
 	 * @param MaxDistance maximum search distance
 	 * @return ID of triangle nearest to Point within MaxDistance, or InvalidID if not found
 	 */
-	virtual int FindNearestTriangle(const FVector3d& Point, double& NearestDistSqrOut, double MaxDistance = TNumericLimits<double>::Max()) = 0;
+	virtual int FindNearestTriangle(const FVector3d& Point, double& NearestDistSqrOut, const FQueryOptions& Options = FQueryOptions()) const = 0;
 
 
 	/**
 	 * @return true if this object supports ray-triangle intersection queries
 	 */
-	virtual bool SupportsTriangleRayIntersection() = 0;
+	virtual bool SupportsTriangleRayIntersection() const = 0;
 
 	/**
 	 * @param Ray query ray
 	 * @param MaxDistance maximum hit distance
 	 * @return ID of triangle intersected by ray within MaxDistance, or InvalidID if not found
 	 */
-	inline virtual int FindNearestHitTriangle(const FRay3d& Ray, double MaxDistance = TNumericLimits<double>::Max())
+	virtual int FindNearestHitTriangle(const FRay3d& Ray, const FQueryOptions& Options = FQueryOptions()) const
 	{
 		double NearestT;
 		int TID;
-		FindNearestHitTriangle(Ray, NearestT, TID, MaxDistance);
+		FindNearestHitTriangle(Ray, NearestT, TID, Options);
 		return TID;
 	}
 
@@ -77,7 +95,7 @@ public:
 	 * @param MaxDistance maximum hit distance
 	 * @return true if hit, false if no hit found
 	 */
-	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, double MaxDistance = TNumericLimits<double>::Max()) = 0;
+	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, const FQueryOptions& Options = FQueryOptions()) const = 0;
 
 
 };

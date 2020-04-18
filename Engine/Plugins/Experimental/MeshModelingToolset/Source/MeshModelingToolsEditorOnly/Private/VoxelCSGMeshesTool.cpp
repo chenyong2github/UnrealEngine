@@ -165,7 +165,7 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 
 
-void UVoxelCSGMeshesTool::Tick(float DeltaTime)
+void UVoxelCSGMeshesTool::OnTick(float DeltaTime)
 {
 	Preview->Tick(DeltaTime);
 }

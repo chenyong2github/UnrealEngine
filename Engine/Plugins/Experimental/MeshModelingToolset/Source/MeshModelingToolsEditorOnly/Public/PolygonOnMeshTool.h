@@ -14,7 +14,6 @@
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "Mechanics/CollectSurfacePathMechanic.h"
 #include "Polygon2.h"
-#include "Changes/ValueWatcher.h"
 #include "PolygonOnMeshTool.generated.h"
 
 
@@ -149,7 +148,7 @@ public:
 
 	virtual void SetWorld(UWorld* World);
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }

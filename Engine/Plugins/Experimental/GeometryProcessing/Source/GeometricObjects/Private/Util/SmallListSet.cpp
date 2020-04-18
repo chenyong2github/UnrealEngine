@@ -334,6 +334,41 @@ bool FSmallListSet::Replace(int32 ListIndex, const TFunction<bool(int32)>& Predi
 
 
 
+void FSmallListSet::Enumerate(int32 ListIndex, TFunctionRef<void(int32)> ApplyFunc) const
+{
+	int32 block_ptr = ListHeads[ListIndex];
+	if (block_ptr != NullValue)
+	{
+		int32 N = ListBlocks[block_ptr];
+		if (N < BLOCKSIZE)
+		{
+			int32 iEnd = block_ptr + N;
+			for (int32 i = block_ptr + 1; i <= iEnd; ++i)
+			{
+				ApplyFunc(ListBlocks[i]);
+			}
+		}
+		else
+		{
+			// we spilled to linked list, have to iterate through it as well
+			int32 iEnd = block_ptr + BLOCKSIZE;
+			for (int32 i = block_ptr + 1; i <= iEnd; ++i)
+			{
+				ApplyFunc(ListBlocks[i]);
+			}
+			int32 cur_ptr = ListBlocks[block_ptr + BLOCK_LIST_OFFSET];
+			while (cur_ptr != NullValue)
+			{
+				ApplyFunc(LinkedListElements[cur_ptr]);
+				cur_ptr = LinkedListElements[cur_ptr + 1];
+			}
+		}
+	}
+}
+
+
+
+
 int32 FSmallListSet::AllocateBlock()
 {
 	int32 nfree = (int32)FreeBlocks.GetLength();

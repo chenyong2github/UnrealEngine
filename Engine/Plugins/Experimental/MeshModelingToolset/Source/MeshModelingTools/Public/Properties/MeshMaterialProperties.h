@@ -24,7 +24,7 @@ public:
 	UNewMeshMaterialProperties();
 
 	/** Material for new mesh*/
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Material, meta = (DisplayName = "Material"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Material, meta = (DisplayName = "Material", TransientToolProperty))
 	UMaterialInterface* Material;
 
 	/** Scale factor for generated UVs */
@@ -42,12 +42,6 @@ public:
 	// controls visibility of UV/etc properties
 	UPROPERTY()
 	bool bShowExtendedOptions = true;
-
-	//
-	// save/restore support
-	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -83,25 +77,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (EditCondition = "MaterialMode == ESetMeshMaterialMode::Override"))
 	UMaterialInterface* OverrideMaterial = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(meta = (TransientToolProperty))
 	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
 
 	void Setup();
 
 	void UpdateMaterials();
 	UMaterialInterface* GetActiveOverrideMaterial() const;
-
-	//
-	// save/restore support
-	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
-
-
-
-
-
 
 UENUM()
 enum class EMeshEditingMaterialModes
@@ -138,9 +121,6 @@ public:
 	FLinearColor Color = FLinearColor(0.4f, 0.4f, 0.4f);
 
 	/** Image used in Image-Based Material */
-	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Custom") )
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Custom", TransientToolProperty) )
 	UTexture2D* Image;
-
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };

@@ -9,7 +9,6 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "MeshOpPreviewHelpers.h"
-#include "Changes/ValueWatcher.h"
 #include "CleaningOps/SimplifyMeshOp.h"
 #include "Properties/MeshStatisticsProperties.h"
 #include "Properties/RemeshProperties.h"
@@ -45,8 +44,6 @@ class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolProperties : public UMesh
 	GENERATED_BODY()
 public:
 	USimplifyMeshToolProperties();
-
-	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
 
 	/** Simplification Target Type  */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -103,7 +100,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -127,9 +124,6 @@ private:
 
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
-
-	TValueWatcher<bool> ShowWireFrameWatcher;
-	TValueWatcher<bool> ShowGroupsWatcher;
 
 	TSharedPtr<FMeshDescription> OriginalMeshDescription;
 	// Dynamic Mesh versions precomputed in Setup (rather than recomputed for every simplify op)

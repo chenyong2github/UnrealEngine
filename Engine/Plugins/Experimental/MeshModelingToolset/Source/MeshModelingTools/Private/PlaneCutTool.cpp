@@ -82,41 +82,6 @@ UPlaneCutToolProperties::UPlaneCutToolProperties() :
 {
 }
 
-void UPlaneCutToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UPlaneCutToolProperties* PropertyCache = GetPropertyCache<UPlaneCutToolProperties>();
-	PropertyCache->bKeepBothHalves = this->bKeepBothHalves;
-	PropertyCache->bFillCutHole = this->bFillCutHole;
-	PropertyCache->SpacingBetweenHalves = this->SpacingBetweenHalves;
-	PropertyCache->bSnapToWorldGrid = this->bSnapToWorldGrid;
-	PropertyCache->bFillSpans = this->bFillSpans;
-	PropertyCache->bShowPreview = this->bShowPreview;
-}
-
-void UPlaneCutToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UPlaneCutToolProperties* PropertyCache = GetPropertyCache<UPlaneCutToolProperties>();
-	this->bKeepBothHalves = PropertyCache->bKeepBothHalves;
-	this->bFillCutHole = PropertyCache->bFillCutHole;
-	this->SpacingBetweenHalves = PropertyCache->SpacingBetweenHalves;
-	this->bSnapToWorldGrid = PropertyCache->bSnapToWorldGrid;
-	this->bFillSpans = PropertyCache->bFillSpans;
-	this->bShowPreview = PropertyCache->bShowPreview;
-}
-
-void UAcceptOutputProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UAcceptOutputProperties* PropertyCache = GetPropertyCache<UAcceptOutputProperties>();
-	PropertyCache->bExportSeparatedPiecesAsNewMeshAssets = this->bExportSeparatedPiecesAsNewMeshAssets;
-}
-
-void UAcceptOutputProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UAcceptOutputProperties* PropertyCache = GetPropertyCache<UAcceptOutputProperties>();
-	this->bExportSeparatedPiecesAsNewMeshAssets = PropertyCache->bExportSeparatedPiecesAsNewMeshAssets;
-}
-
-
 UPlaneCutTool::UPlaneCutTool()
 {
 	CutPlaneOrigin = FVector::ZeroVector;
@@ -416,7 +381,7 @@ void UPlaneCutTool::Render(IToolsContextRenderAPI* RenderAPI)
 	MeshDebugDraw::DrawSimpleGrid(DrawFrame, NumGridLines, GridLineSpacing, GridThickness, GridColor, false, PDI, FTransform::Identity);
 }
 
-void UPlaneCutTool::Tick(float DeltaTime)
+void UPlaneCutTool::OnTick(float DeltaTime)
 {
 	if (PlaneTransformGizmo != nullptr)
 	{

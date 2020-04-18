@@ -45,37 +45,9 @@ UInteractiveTool* UParameterizeMeshToolBuilder::BuildTool(const FToolBuilderStat
 	return NewTool;
 }
 
-
-
-
-
-void UParameterizeMeshToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UParameterizeMeshToolProperties* PropertyCache = GetPropertyCache<UParameterizeMeshToolProperties>();
-	PropertyCache->ChartStretch = this->ChartStretch;
-	//PropertyCache->IslandMode = this->IslandMode;
-	PropertyCache->UnwrapType = this->UnwrapType;
-	PropertyCache->UVScaleMode = this->UVScaleMode;
-	PropertyCache->UVScale = this->UVScale;
-}
-
-void UParameterizeMeshToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UParameterizeMeshToolProperties* PropertyCache = GetPropertyCache<UParameterizeMeshToolProperties>();
-	this->ChartStretch = PropertyCache->ChartStretch;
-	//this->IslandMode = PropertyCache->IslandMode;
-	this->UnwrapType = PropertyCache->UnwrapType;
-	this->UVScaleMode = PropertyCache->UVScaleMode;
-	this->UVScale = PropertyCache->UVScale;
-}
-
-
-
-
 /*
  * Tool
  */
-
 UParameterizeMeshTool::UParameterizeMeshTool()
 {
 }
@@ -202,13 +174,9 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 }
 
-void UParameterizeMeshTool::Tick(float DeltaTime)
+void UParameterizeMeshTool::OnTick(float DeltaTime)
 {
 	Preview->Tick(DeltaTime);
-}
-
-void UParameterizeMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
 }
 
 bool UParameterizeMeshTool::HasAccept() const

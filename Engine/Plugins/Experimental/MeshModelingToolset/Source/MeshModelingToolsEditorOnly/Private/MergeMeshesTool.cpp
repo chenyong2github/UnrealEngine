@@ -168,16 +168,10 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 
 
-void UMergeMeshesTool::Tick(float DeltaTime)
+void UMergeMeshesTool::OnTick(float DeltaTime)
 {
 	Preview->Tick(DeltaTime);
 }
-
-
-void UMergeMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-}
-
 
 bool UMergeMeshesTool::HasAccept() const
 {

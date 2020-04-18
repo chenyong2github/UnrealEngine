@@ -155,7 +155,7 @@ void USmoothMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Proper
 }
 
 
-void USmoothMeshTool::Tick(float DeltaTime)
+void USmoothMeshTool::OnTick(float DeltaTime)
 {
 	Preview->Tick(DeltaTime);
 }

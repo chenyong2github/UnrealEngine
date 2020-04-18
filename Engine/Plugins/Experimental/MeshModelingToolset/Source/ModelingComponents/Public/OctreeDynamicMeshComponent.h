@@ -73,7 +73,7 @@ public:
 	}
 
 	/**
-	 * Apply transform to internal mesh. Updates Octree and RenderProxy if available.
+	 * Apply transform to internal mesh. Invalidates RenderProxy.
 	 * @param bInvert if true, inverse tranform is applied instead of forward transform
 	 */
 	void ApplyTransform(const FTransform3d& Transform, bool bInvert);
@@ -115,6 +115,11 @@ public:
 	 */
 	UPROPERTY()
 	bool bExplicitShowWireframe = false;
+
+	/**
+	 * Configure whether wireframe rendering is enabled or not
+	 */
+	virtual void SetEnableWireframeRenderPass(bool bEnable) override { bExplicitShowWireframe = bEnable; }
 
 	/**
 	 * @return true if wireframe rendering pass is enabled

@@ -21,6 +21,23 @@ class FMeshChange;
 
 
 
+/**
+ * EMeshRenderAttributeFlags is used to identify different mesh rendering attributes, for things
+ * like fast-update functions
+ */
+enum class EMeshRenderAttributeFlags : uint8
+{
+	None = 0,
+	Positions = 0x1,
+	VertexColors = 0x2,
+	VertexNormals = 0x4,
+	VertexUVs = 0x8,
+
+	All = 0xFF
+};
+ENUM_CLASS_FLAGS(EMeshRenderAttributeFlags);
+
+
 
 /**
  * Tangent calculation modes
@@ -94,6 +111,11 @@ protected:
 
 
 public:
+
+	/**
+	 * Configure whether wireframe rendering is enabled or not
+	 */
+	virtual void SetEnableWireframeRenderPass(bool bEnable) { check(false); }
 
 	/**
 	 * @return true if wireframe rendering pass is enabled (default false)

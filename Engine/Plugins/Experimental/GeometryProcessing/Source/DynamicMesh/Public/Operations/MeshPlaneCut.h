@@ -138,6 +138,8 @@ public:
 	 */
 	virtual bool SimpleHoleFill(int ConstantGroupID = -1);
 
+	virtual bool MinimalHoleFill(int ConstantGroupID = -1);
+
 	/**
 	 *  Fill cut loops with FPlanarHoleFiller, using a caller-provided triangulation function
 	 */

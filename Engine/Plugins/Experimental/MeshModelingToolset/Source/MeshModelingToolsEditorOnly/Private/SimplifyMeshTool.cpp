@@ -75,30 +75,6 @@ USimplifyMeshToolProperties::USimplifyMeshToolProperties()
 	MaterialBoundaryConstraint = EMaterialBoundaryConstraint::Ignore;
 }
 
-void
-USimplifyMeshToolProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
-{
-	USimplifyMeshToolProperties* PropertyCache = GetPropertyCache<USimplifyMeshToolProperties>();
-
-	// MeshConstraintProperties
-	SaveRestoreProperty(PropertyCache->bPreserveSharpEdges, this->bPreserveSharpEdges, bSaving);
-	SaveRestoreProperty(PropertyCache->MeshBoundaryConstraint, this->MeshBoundaryConstraint, bSaving);
-	SaveRestoreProperty(PropertyCache->GroupBoundaryConstraint, this->GroupBoundaryConstraint, bSaving);
-	SaveRestoreProperty(PropertyCache->MaterialBoundaryConstraint, this->MaterialBoundaryConstraint, bSaving);
-	SaveRestoreProperty(PropertyCache->bPreventNormalFlips, this->bPreventNormalFlips, bSaving);
-
-	// SimplifyMeshToolProperties
-	SaveRestoreProperty(PropertyCache->TargetMode, this->TargetMode, bSaving);
-	SaveRestoreProperty(PropertyCache->SimplifierType, this->SimplifierType, bSaving);
-	SaveRestoreProperty(PropertyCache->TargetPercentage, this->TargetPercentage, bSaving);
-	SaveRestoreProperty(PropertyCache->TargetEdgeLength, this->TargetEdgeLength, bSaving);
-	SaveRestoreProperty(PropertyCache->TargetCount, this->TargetCount, bSaving);
-	SaveRestoreProperty(PropertyCache->bDiscardAttributes, this->bDiscardAttributes, bSaving);
-	SaveRestoreProperty(PropertyCache->bShowWireframe, this->bShowWireframe, bSaving);
-	SaveRestoreProperty(PropertyCache->bShowGroupColors, this->bShowGroupColors, bSaving);
-	SaveRestoreProperty(PropertyCache->bReproject, this->bReproject, bSaving);
-}
-
 void USimplifyMeshTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
@@ -159,12 +135,10 @@ void USimplifyMeshTool::Setup()
 	SimplifyProperties->RestoreProperties(this);
 	AddToolPropertySource(SimplifyProperties);
 
-	ShowGroupsWatcher.Initialize(
-		[this]() { return SimplifyProperties->bShowGroupColors; },
-		[this](bool bNewValue) { UpdateVisualization(); }, SimplifyProperties->bShowGroupColors );
-	ShowWireFrameWatcher.Initialize(
-		[this]() { return SimplifyProperties->bShowWireframe; },
-		[this](bool bNewValue) { UpdateVisualization(); }, SimplifyProperties->bShowWireframe );
+	SimplifyProperties->WatchProperty(SimplifyProperties->bShowGroupColors,
+									  [this](bool bNewValue) { UpdateVisualization(); });
+	SimplifyProperties->WatchProperty(SimplifyProperties->bShowWireframe,
+									  [this](bool bNewValue) { UpdateVisualization(); });
 
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 	AddToolPropertySource(MeshStatisticsProperties);
@@ -191,11 +165,8 @@ void USimplifyMeshTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
-void USimplifyMeshTool::Tick(float DeltaTime)
+void USimplifyMeshTool::OnTick(float DeltaTime)
 {
-	ShowWireFrameWatcher.CheckAndUpdate();
-	ShowGroupsWatcher.CheckAndUpdate();
-
 	Preview->Tick(DeltaTime);
 }
 

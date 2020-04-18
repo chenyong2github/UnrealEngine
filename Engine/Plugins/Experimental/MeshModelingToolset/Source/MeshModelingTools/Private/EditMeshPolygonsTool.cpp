@@ -59,27 +59,6 @@ void UEditMeshPolygonsToolActionPropertySet::PostAction(EEditMeshPolygonsToolAct
 	}
 }
 
-
-void UPolyEditExtrudeProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
-{
-	UPolyEditExtrudeProperties* PropertyCache = GetPropertyCache<UPolyEditExtrudeProperties>();
-	SaveRestoreProperty(PropertyCache->Direction, this->Direction, bSaving);
-}
-void UPolyEditCutProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
-{
-	UPolyEditCutProperties* PropertyCache = GetPropertyCache<UPolyEditCutProperties>();
-	SaveRestoreProperty(PropertyCache->Orientation, this->Orientation, bSaving);
-	SaveRestoreProperty(PropertyCache->bSnapToVertices, this->bSnapToVertices, bSaving);
-}
-void UPolyEditSetUVProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
-{
-	UPolyEditSetUVProperties* PropertyCache = GetPropertyCache<UPolyEditSetUVProperties>();
-	SaveRestoreProperty(PropertyCache->bShowMaterial, this->bShowMaterial, bSaving);
-}
-
-
-
-
 /*
 * Tool methods
 */
@@ -146,8 +125,13 @@ void UEditMeshPolygonsTool::Setup()
 	// add properties
 	TransformProps = NewObject<UPolyEditTransformProperties>(this);
 	AddToolPropertySource(TransformProps);
-	LocalFrameModeWatcher.Initialize([&]() { return TransformProps->LocalFrameMode; }, [this](ELocalFrameMode) { UpdateMultiTransformerFrame(); }, TransformProps->LocalFrameMode);
-	LockFrameWatcher.Initialize([&]() { return TransformProps->bLockRotation; }, [this](bool) { LockedTransfomerFrame = LastTransformerFrame; UpdateMultiTransformerFrame(); }, TransformProps->bLockRotation);
+	TransformProps->WatchProperty(TransformProps->LocalFrameMode,
+								  [this](ELocalFrameMode) { UpdateMultiTransformerFrame(); });
+	TransformProps->WatchProperty(TransformProps->bLockRotation,
+								  [this](bool)
+								  {
+									  LockedTransfomerFrame = LastTransformerFrame; UpdateMultiTransformerFrame();
+								  });
 
 	// set up SelectionMechanic
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
@@ -215,7 +199,8 @@ void UEditMeshPolygonsTool::Setup()
 	ExtrudeProperties->RestoreProperties(this);
 	AddToolPropertySource(ExtrudeProperties);
 	SetToolPropertySourceEnabled(ExtrudeProperties, false);
-	ExtrudeDirectionWatcher.Initialize([this]() { return ExtrudeProperties->Direction; }, [this](EPolyEditExtrudeDirection) { RestartExtrude(); }, ExtrudeProperties->Direction);
+	ExtrudeProperties->WatchProperty(ExtrudeProperties->Direction,
+									 [this](EPolyEditExtrudeDirection){ RestartExtrude(); });
 
 	CutProperties = NewObject<UPolyEditCutProperties>();
 	CutProperties->RestoreProperties(this);
@@ -621,15 +606,8 @@ void UEditMeshPolygonsTool::ComputeUpdate_Gizmo()
 
 
 
-void UEditMeshPolygonsTool::Tick(float DeltaTime)
+void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 {
-	UMeshSurfacePointTool::Tick(DeltaTime);
-
-	// update value watchers
-	ExtrudeDirectionWatcher.CheckAndUpdate();
-	LocalFrameModeWatcher.CheckAndUpdate();
-	LockFrameWatcher.CheckAndUpdate();
-
 	MultiTransformer->Tick(DeltaTime);
 
 	if (bGizmoUpdatePending)
@@ -838,7 +816,7 @@ void UEditMeshPolygonsTool::UpdateChangeFromROI(bool bFinal)
 	}
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	ActiveVertexChange->SavePositions(Mesh, LinearDeformer.GetModifiedVertices(), !bFinal);
+	ActiveVertexChange->SaveVertices(Mesh, LinearDeformer.GetModifiedVertices(), !bFinal);
 	ActiveVertexChange->SaveOverlayNormals(Mesh, LinearDeformer.GetModifiedOverlayNormals(), !bFinal);
 }
 
@@ -847,7 +825,7 @@ void UEditMeshPolygonsTool::BeginChange()
 {
 	if (ActiveVertexChange == nullptr)
 	{
-		ActiveVertexChange = new FMeshVertexChangeBuilder(true);
+		ActiveVertexChange = new FMeshVertexChangeBuilder(EMeshVertexChangeComponents::VertexPositions | EMeshVertexChangeComponents::OverlayNormals);
 		UpdateChangeFromROI(false);
 	}
 }

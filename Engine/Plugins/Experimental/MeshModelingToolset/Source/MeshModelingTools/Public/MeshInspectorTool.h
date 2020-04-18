@@ -6,6 +6,7 @@
 #include "UObject/NoExportTypes.h"
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
+#include "Drawing/LineSetComponent.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "Properties/MeshMaterialProperties.h"
@@ -73,17 +74,7 @@ public:
 	/** Length of line segments representing tangent vectors */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bTangentVectors"))
 	float TangentLength = 5.0f;
-
-
-	//
-	// save/restore support
-	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
-
-
-
 
 /**
  * Mesh Inspector Tool for visualizing mesh information
@@ -128,6 +119,9 @@ protected:
 protected:
 	UPROPERTY()
 	UPreviewMesh* PreviewMesh;
+
+	UPROPERTY()
+	ULineSetComponent* DrawnLineSet;
 
 	UPROPERTY()
 	UMaterialInterface* DefaultMaterial = nullptr;

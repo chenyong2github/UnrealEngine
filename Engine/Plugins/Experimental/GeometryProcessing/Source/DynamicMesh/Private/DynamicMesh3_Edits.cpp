@@ -195,12 +195,13 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 
 	// look up edges. if any already have two triangles, this would 
 	// create non-manifold geometry and so we do not allow it
-	int e0 = FindEdge(tv[0], tv[1]);
-	int e1 = FindEdge(tv[1], tv[2]);
-	int e2 = FindEdge(tv[2], tv[0]);
-	if ((e0 != InvalidID && IsBoundaryEdge(e0) == false)
-		|| (e1 != InvalidID && IsBoundaryEdge(e1) == false)
-		|| (e2 != InvalidID && IsBoundaryEdge(e2) == false)) 
+	bool boundary0, boundary1, boundary2;
+	int e0 = FindEdgeInternal(tv[0], tv[1], boundary0);
+	int e1 = FindEdgeInternal(tv[1], tv[2], boundary1);
+	int e2 = FindEdgeInternal(tv[2], tv[0], boundary2);
+	if ((e0 != InvalidID && boundary0 == false)
+		|| (e1 != InvalidID && boundary1 == false)
+		|| (e2 != InvalidID && boundary2 == false))
 	{
 		return NonManifoldID;
 	}
@@ -224,10 +225,10 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 	// now safe to insert triangle
 	int tid = TriangleRefCounts.Allocate();
 	int i = 3 * tid;
-	Triangles.InsertAt(tv[2], i + 2);
-	Triangles.InsertAt(tv[1], i + 1);
 	Triangles.InsertAt(tv[0], i);
-	if (bHasGroups) 
+	Triangles.InsertAt(tv[1], i + 1);
+	Triangles.InsertAt(tv[2], i + 2);
+	if (bHasGroups)
 	{
 		TriangleGroups->InsertAt(gid, tid);
 		GroupIDCounter = FMath::Max(GroupIDCounter, gid + 1);
@@ -1401,7 +1402,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		}
 	}
 
-	// [RMS] I am not sure this tetrahedron case will detect bowtie vertices.
+	// I am not sure this tetrahedron case will detect bowtie vertices.
 	// But the single-triangle case does
 
 	// We cannot collapse if we have a tetrahedron. In this case a has 3 nbr edges,
@@ -1434,9 +1435,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		}
 	}
 
-	// [RMS] this was added from C++ version...seems like maybe I never hit
-	//   this case? Conceivably could be porting bug but looking at the
-	//   C++ code I cannot see how we could possibly have caught this case...
+	// TODO: it's unclear how this case would ever be encountered; check if it is needed
 	//
 	// cannot collapse an edge where both vertices are boundary vertices
 	// because that would create a bowtie

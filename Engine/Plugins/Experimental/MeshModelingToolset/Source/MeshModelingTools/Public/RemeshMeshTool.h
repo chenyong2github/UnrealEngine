@@ -6,7 +6,6 @@
 #include "UObject/NoExportTypes.h"
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "Changes/ValueWatcher.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "MeshOpPreviewHelpers.h"
@@ -41,20 +40,13 @@ class MESHMODELINGTOOLS_API URemeshMeshToolProperties : public URemeshProperties
 public:
 	URemeshMeshToolProperties();
 
-	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
-
 	/** Target triangle count */
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (EditCondition = "bUseTargetEdgeLength == false"))
 	int TargetTriangleCount;
 
-
 	/** Smoothing type */
 	UPROPERTY(EditAnywhere, Category = Remeshing)
 	ERemeshSmoothingType SmoothingType;
-
-	/** Number of Remeshing passes */
-	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0", UIMax = "50", ClampMin = "0", ClampMax = "1000"))
-	int RemeshIterations;
 
 	/** If true, UVs and Normals are discarded  */
 	UPROPERTY(EditAnywhere, Category = Remeshing)
@@ -67,6 +59,14 @@ public:
 	/** Display colors corresponding to the mesh's polygon groups */
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowGroupColors = false;
+
+	/** Remeshing type */
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
+	ERemeshType RemeshType;
+
+	/** Number of Remeshing passes */
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay, meta = (EditCondition = "RemeshType == ERemeshType::FullPass", UIMin = "0", UIMax = "50", ClampMin = "0", ClampMax = "1000"))
+	int RemeshIterations;
 
 	/** If true, the target count is ignored and the target edge length is used directly */
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
@@ -99,7 +99,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -127,9 +127,6 @@ private:
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
 	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
 	double InitialMeshArea;
-
-	TValueWatcher<bool> ShowWireFrameWatcher;
-	TValueWatcher<bool> ShowGroupsWatcher;
 
 	double CalculateTargetEdgeLength(int TargetTriCount);
 	void GenerateAsset(const FDynamicMeshOpResult& Result);

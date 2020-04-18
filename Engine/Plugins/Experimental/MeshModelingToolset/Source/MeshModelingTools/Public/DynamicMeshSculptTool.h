@@ -18,6 +18,7 @@
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/RemeshProperties.h"
 #include "TransformTypes.h"
+#include "Sculpting/MeshSculptToolBase.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 class UTransformGizmo;
@@ -55,7 +56,13 @@ enum class EDynamicMeshSculptBrushType : uint8
 	/** Move vertices parallel to the view plane  */
 	Move UMETA(DisplayName = "Move"),
 
-	/** Smooth mesh vertices */
+	/** Grab Brush, fall-off alters the influence of the grab */
+	PullKelvin UMETA(DisplayName = "Kelvin Grab"),
+
+	/** Grab Brush that may generate cusps, fall-off alters the influence of the grab */
+	PullSharpKelvin UMETA(DisplayName = "Sharp Kelvin Grab"),
+
+	/** Smooth mesh vertices  */
 	Smooth UMETA(DisplayName = "Smooth"),
 
 	/** Displace vertices along the average surface normal (Ctrl to invert) */
@@ -70,8 +77,14 @@ enum class EDynamicMeshSculptBrushType : uint8
 	/** Displace vertices along their vertex normals */
 	Inflate UMETA(DisplayName = "Inflate"),
 
-	/** Move vertices towards the center of the brush (Ctrl to push away) */
+	/** Scale Brush will inflate or pinch radially from the center of the brush */
+	ScaleKelvin UMETA(DisplayName = "Kelvin Scale"),
+
+	/** Move vertices towards the center of the brush (Ctrl to push away)*/
 	Pinch UMETA(DisplayName = "Pinch"),
+
+	/** Twist Brush moves vertices in the plane perpendicular to the local mesh normal */
+	TwistKelvin UMETA(DisplayName = "Kelvin Twist"),
 
 	/** Move vertices towards the average plane of the brush stamp region */
 	Flatten UMETA(DisplayName = "Flatten"),
@@ -113,24 +126,6 @@ public:
 
 
 
-UCLASS()
-class MESHMODELINGTOOLS_API USculptBrushProperties : public UBrushBaseProperties
-{
-	GENERATED_BODY()
-public:
-	USculptBrushProperties();
-
-	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
-
-	/** Depth of Brush into surface along view ray or surface normal, depending on the Active Brush Type */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0", DisplayPriority = 5))
-	float Depth = 0;
-
-	/** Allow the Brush to hit the back-side of the mesh */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayPriority = 6))
-	bool bHitBackFaces = true;
-};
-
 
 UCLASS()
 class MESHMODELINGTOOLS_API UBrushSculptProperties : public UInteractiveToolPropertySet
@@ -138,10 +133,8 @@ class MESHMODELINGTOOLS_API UBrushSculptProperties : public UInteractiveToolProp
 	GENERATED_BODY()
 
 public:
-	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
-
 	/* This is a dupe of the bool in the tool class.  I needed it here so it could be checked as an EditCondition */
-	UPROPERTY()
+	UPROPERTY(meta = (TransientToolProperty))
 	bool bIsRemeshingEnabled = false;
 
 	/** Primary Brush Mode */
@@ -171,83 +164,12 @@ public:
 
 
 
-
-UENUM()
-enum class EPlaneBrushSideMode : uint8
-{
-	BothSides = 0,
-	PushDown = 1,
-	PullTowards = 2
-};
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UPlaneBrushProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-public:
-	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
-
-	/** Control whether effect of brush should be limited to one side of the Plane  */
-	UPROPERTY(EditAnywhere, Category = PlaneBrush)
-	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
-};
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UFixedPlaneBrushProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	UFixedPlaneBrushProperties();
-
-	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
-
-	UPROPERTY()
-	bool bPropertySetEnabled = true;
-
-	/** Toggle whether Work Plane Positioing Gizmo is visible */
-	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
-	bool bShowGizmo;
-
-	/** Toggle whether Work Plane snaps to grid when using Gizmo */
-	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
-	bool bSnapToGrid;
-
-	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
-	FVector Position;
-
-	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
-	FQuat Rotation;
-};
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API USculptMaxBrushProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-public:
-	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
-
-	/** Specify maximum displacement height (relative to brush size) */
-	UPROPERTY(EditAnywhere, Category = SculptMaxBrush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float MaxHeight = 0.5;
-
-	/** Use maximum height from last brush stroke, regardless of brush size. Note that spatial brush falloff still applies.  */
-	UPROPERTY(EditAnywhere, Category = SculptMaxBrush)
-	bool bFreezeCurrentHeight = false;
-};
-
-
 UCLASS()
 class MESHMODELINGTOOLS_API UBrushRemeshProperties : public URemeshProperties
 {
 	GENERATED_BODY()
 
 public:
-	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
-
 	/** Toggle remeshing on/off */
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (DisplayPriority = 1))
 	bool bEnableRemeshing = true;
@@ -261,6 +183,35 @@ public:
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0", UIMax = "5", ClampMin = "0", ClampMax = "5", DisplayPriority = 3))
 	int PreserveDetail = 0;
 };
+
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UFixedPlaneBrushProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY( meta = (TransientToolProperty) )
+	bool bPropertySetEnabled = true;
+
+	/** Toggle whether Work Plane Positioing Gizmo is visible */
+	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
+	bool bShowGizmo = true;
+
+	/** Toggle whether Work Plane snaps to grid when using Gizmo */
+	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
+	bool bSnapToGrid = true;
+
+	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
+	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
+	FQuat Rotation = FQuat::Identity;
+};
+
+
+
 
 /**
  * Dynamic Mesh Sculpt Tool Class
@@ -279,7 +230,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -316,6 +267,8 @@ public:
 	UPROPERTY()
 	USculptMaxBrushProperties* SculptMaxBrushProperties;
 	
+	UPROPERTY()
+	UKelvinBrushProperties* KelvinBrushProperties;
 
 	/** Properties that control dynamic remeshing */
 	UPROPERTY()
@@ -453,11 +406,16 @@ private:
 	void ApplyFixedPlaneBrush(const FRay& WorldRay);
 	void ApplyFlattenBrush(const FRay& WorldRay);
 	void ApplyResampleBrush(const FRay& WorldRay);
+	void ApplyPullKelvinBrush(const FRay& WorldRay);
+	void ApplyPullSharpKelvinBrush(const FRay& WorldRay);
+	void ApplyTwistKelvinBrush(const FRay& WorldRay);
+	void ApplyScaleKelvinBrush(const FRay& WorldRay);
 
 	double SculptMaxFixedHeight = -1.0;
 
 	double CalculateBrushFalloff(double Distance);
 	TArray<FVector3d> ROIPositionBuffer;
+	void SyncMeshWithPositionBuffer(FDynamicMesh3* Mesh);
 
 	FFrame3d ActiveFixedBrushPlane;
 	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth, bool bViewAligned);
