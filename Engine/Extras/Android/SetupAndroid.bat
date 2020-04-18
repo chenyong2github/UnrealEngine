@@ -58,7 +58,21 @@ IF /I "%ERRORLEVEL%" NEQ "0" (
 	echo Added %PLATFORMTOOLS% to path
 )
 
-call %STUDIO_SDK_PATH%\tools\bin\sdkmanager.bat "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.0.6113669"
+set SDKMANAGER=%STUDIO_SDK_PATH%\tools\bin\sdkmanager.bat
+IF EXIST "%SDKMANAGER%" (
+	echo Using sdkmanager: %SDKMANAGER%
+) ELSE (
+	set SDKMANAGER=%STUDIO_SDK_PATH%\cmdline-tools\latest\bin\sdkmanager.bat
+	IF EXIST "%SDKMANAGER%" (
+		echo Using sdkmanager: %SDKMANAGER%
+	) ELSE (
+		echo Unable to locate sdkmanager.bat. Did you run Android Studio and install cmdline-tools after installing?
+		pause
+		exit /b 1
+	)
+)
+
+call "%SDKMANAGER%" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.0.6113669"
 
 IF /I "%ERRORLEVEL%" NEQ "0" (
 	echo Update failed. Please check the Android Studio install.
