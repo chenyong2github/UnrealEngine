@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
-class UMaterialInterface;
-class UMaterialInstanceDynamic;
 class UTexture;
 class UInteractiveToolManager;
 
@@ -20,6 +20,12 @@ namespace ToolSetupUtil
 	 * @return default material to use for objects in a tool.
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultMaterial(UInteractiveToolManager* ToolManager, UMaterialInterface* SourceMaterial = nullptr);
+
+	/**
+	 * @return configurable vertex color material
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetVertexColorMaterial(UInteractiveToolManager* ToolManager);
+
 
 	/**
 	 * @return default material to use for "Working"/In-Progress animations
@@ -75,4 +81,8 @@ namespace ToolSetupUtil
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultPointComponentMaterial(bool bRoundPoints, UInteractiveToolManager* ToolManager);
 
+	/**
+	 * @return custom material suitable for use with ULineSetComponent
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultLineComponentMaterial(UInteractiveToolManager* ToolManager);
 }

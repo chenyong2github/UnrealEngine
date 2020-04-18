@@ -99,7 +99,7 @@ void UTransformMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 
 
-void UTransformMeshesTool::Tick(float DeltaTime)
+void UTransformMeshesTool::OnTick(float DeltaTime)
 {
 	// make sure state is up-to-date
 

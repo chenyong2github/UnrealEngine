@@ -193,9 +193,9 @@ public:
 				const double EdgeACSqLength = EdgeAC.SquaredLength();
 				const double EdgeBCSqLength = EdgeBC.SquaredLength();
 
-				VoronoiArea[0] = EdgeABSqLength * Cotangent[1] + EdgeACSqLength * Cotangent[2];
-				VoronoiArea[1] = EdgeABSqLength * Cotangent[0] + EdgeBCSqLength * Cotangent[2];
-				VoronoiArea[2] = EdgeACSqLength * Cotangent[0] + EdgeBCSqLength * Cotangent[1];
+				VoronoiArea[0] = EdgeABSqLength * Cotangent[2] + EdgeACSqLength * Cotangent[1];
+				VoronoiArea[1] = EdgeABSqLength * Cotangent[2] + EdgeBCSqLength * Cotangent[0];
+				VoronoiArea[2] = EdgeACSqLength * Cotangent[1] + EdgeBCSqLength * Cotangent[0];
 
 				const double Inv8 = .125; // 1/8
 

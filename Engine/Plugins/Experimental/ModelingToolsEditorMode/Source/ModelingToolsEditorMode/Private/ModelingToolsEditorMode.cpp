@@ -12,6 +12,7 @@
 //#include "MeshSurfacePointTool.h"
 //#include "MeshVertexDragTool.h"
 #include "DynamicMeshSculptTool.h"
+#include "MeshVertexSculptTool.h"
 #include "EditMeshPolygonsTool.h"
 #include "DeformMeshPolygonsTool.h"
 #include "ConvertToPolygonsTool.h"
@@ -28,6 +29,9 @@
 #include "MergeMeshesTool.h"
 #include "VoxelCSGMeshesTool.h"
 #include "PlaneCutTool.h"
+#include "SelfUnionMeshesTool.h"
+#include "CSGMeshesTool.h"
+#include "HoleFillTool.h"
 #include "PolygonOnMeshTool.h"
 #include "DisplaceMeshTool.h"
 #include "MeshSpaceDeformerTool.h"
@@ -44,6 +48,7 @@
 #include "CombineMeshesTool.h"
 #include "AlignObjectsTool.h"
 #include "EditUVIslandsTool.h"
+#include "MeshAttributePaintTool.h"
 
 #include "ParameterizeMeshTool.h"
 
@@ -296,7 +301,7 @@ bool FModelingToolsEditorMode::MouseLeave(FEditorViewportClient* ViewportClient,
 //
 // FStylusStateTracker registers itself as a listener for stylus events and implements
 // the IToolStylusStateProviderAPI interface, which allows MeshSurfacePointTool implementations
-// to query for the pen pressure. 
+ // to query for the pen pressure.
 //
 // This is kind of a hack. Unfortunately the current Stylus module is a Plugin so it
 // cannot be used in the base ToolsFramework, and we need this in the Mode as a workaround.
@@ -453,12 +458,55 @@ void FModelingToolsEditorMode::Enter()
 	// register tool set
 
 	//
+	// primitive tools
+	//
+	auto RegisterPrimitiveToolFunc  =
+		[this, &RegisterToolFunc](TSharedPtr<FUICommandInfo> UICommand,
+								  FString&& ToolIdentifier,
+								  UAddPrimitiveToolBuilder::EMakeMeshShapeType ShapeTypeIn)
+	{
+		auto AddPrimitiveToolBuilder = NewObject<UAddPrimitiveToolBuilder>();
+		AddPrimitiveToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+		AddPrimitiveToolBuilder->ShapeType = ShapeTypeIn;
+		RegisterToolFunc(UICommand, ToolIdentifier, AddPrimitiveToolBuilder);
+	};
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddBoxPrimitiveTool,
+							  TEXT("BeginAddBoxPrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Box);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddCylinderPrimitiveTool,
+							  TEXT("BeginAddCylinderPrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Cylinder);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddConePrimitiveTool,
+							  TEXT("BeginAddConePrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Cone);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddArrowPrimitiveTool,
+							  TEXT("BeginAddArrowPrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Arrow);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddRectanglePrimitiveTool,
+							  TEXT("BeginAddRectanglePrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Rectangle);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddRoundedRectanglePrimitiveTool,
+							  TEXT("BeginAddRoundedRectanglePrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::RoundedRectangle);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddDiscPrimitiveTool,
+							  TEXT("BeginAddDiscPrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Disc);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddPuncturedDiscPrimitiveTool,
+							  TEXT("BeginAddPuncturedDiscPrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::PuncturedDisc);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddTorusPrimitiveTool,
+							  TEXT("BeginAddTorusPrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Torus);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddSpherePrimitiveTool,
+							  TEXT("BeginAddSpherePrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Sphere);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddSphericalBoxPrimitiveTool,
+							  TEXT("BeginAddSphericalBoxPrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::SphericalBox);
+
+	//
 	// make shape tools
 	//
-	auto AddPrimitiveToolBuilder = NewObject<UAddPrimitiveToolBuilder>();
-	AddPrimitiveToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
-	RegisterToolFunc(ToolManagerCommands.BeginAddPrimitiveTool, TEXT("AddPrimitiveTool"), AddPrimitiveToolBuilder);
-
 	auto AddPatchToolBuilder = NewObject<UAddPatchToolBuilder>();
 	AddPatchToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginAddPatchTool, TEXT("AddPatchTool"), AddPatchToolBuilder);
@@ -478,10 +526,9 @@ void FModelingToolsEditorMode::Enter()
 
 	//
 	// vertex deform tools
-	// 
+	//
 
-	auto MoveVerticesToolBuilder = NewObject<UDynamicMeshSculptToolBuilder>();
-	MoveVerticesToolBuilder->bEnableRemeshing = false;
+	auto MoveVerticesToolBuilder = NewObject<UMeshVertexSculptToolBuilder>();
 	MoveVerticesToolBuilder->StylusAPI = StylusStateTracker.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginSculptMeshTool, TEXT("MoveVerticesTool"), MoveVerticesToolBuilder);
 
@@ -529,6 +576,9 @@ void FModelingToolsEditorMode::Enter()
 	RemoveOccludedTrianglesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginRemoveOccludedTrianglesTool, TEXT("RemoveOccludedTrianglesTool"), RemoveOccludedTrianglesToolBuilder);
 
+	auto HoleFillToolBuilder = NewObject<UHoleFillToolBuilder>();
+	RegisterToolFunc(ToolManagerCommands.BeginHoleFillTool, TEXT("HoleFillTool"), HoleFillToolBuilder);
+
 	auto UVProjectionToolBuilder = NewObject<UUVProjectionToolBuilder>();
 	UVProjectionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginUVProjectionTool, TEXT("UVProjectionTool"), UVProjectionToolBuilder);
@@ -544,6 +594,14 @@ void FModelingToolsEditorMode::Enter()
 	auto VoxelCSGMeshesToolBuilder = NewObject<UVoxelCSGMeshesToolBuilder>();
 	VoxelCSGMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginVoxelBooleanTool, TEXT("VoxelCSGMeshesTool"), VoxelCSGMeshesToolBuilder);
+
+	auto SelfUnionMeshesToolBuilder = NewObject<USelfUnionMeshesToolBuilder>();
+	SelfUnionMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginSelfUnionTool, TEXT("SelfUnionMeshesTool"), SelfUnionMeshesToolBuilder);
+
+	auto CSGMeshesToolBuilder = NewObject<UCSGMeshesToolBuilder>();
+	CSGMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginMeshBooleanTool, TEXT("CSGMeshesTool"), CSGMeshesToolBuilder);
 
 	auto PlaneCutToolBuilder = NewObject<UPlaneCutToolBuilder>();
 	PlaneCutToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
@@ -570,6 +628,7 @@ void FModelingToolsEditorMode::Enter()
 	EditMeshMaterialsToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginEditMeshMaterialsTool, TEXT("EditMaterialsTool"), EditMeshMaterialsToolBuilder);
 	
+	RegisterToolFunc(ToolManagerCommands.BeginMeshAttributePaintTool, TEXT("MeshAttributePaintTool"), NewObject<UMeshAttributePaintToolBuilder>());
 
 	// analysis tools
 

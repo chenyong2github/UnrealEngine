@@ -371,7 +371,7 @@ void UPreviewMesh::ForceRebuildSpatial()
 }
 
 
-void UPreviewMesh::NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, bool bRebuildSpatial)
+void UPreviewMesh::NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, EMeshRenderAttributeFlags ModifiedAttribs, bool bRebuildSpatial)
 {
 	if (bBuildSpatialDataStructure && bRebuildSpatial)
 	{
@@ -382,9 +382,20 @@ void UPreviewMesh::NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, boo
 	{
 		DynamicMeshComponent->NotifyMeshUpdated();
 	}
-	else
+	else if (UpdateMode == ERenderUpdateMode::FastUpdate)
 	{
-		DynamicMeshComponent->FastNotifyPositionsUpdated();
+		bool bPositions = (ModifiedAttribs & EMeshRenderAttributeFlags::Positions) != EMeshRenderAttributeFlags::None;
+		bool bNormals = (ModifiedAttribs & EMeshRenderAttributeFlags::VertexNormals) != EMeshRenderAttributeFlags::None;
+		bool bColors = (ModifiedAttribs & EMeshRenderAttributeFlags::VertexColors) != EMeshRenderAttributeFlags::None;
+		bool bUVs = (ModifiedAttribs & EMeshRenderAttributeFlags::VertexUVs) != EMeshRenderAttributeFlags::None;
+		if (bPositions)
+		{
+			DynamicMeshComponent->FastNotifyPositionsUpdated(bNormals, bColors, bUVs);
+		}
+		else
+		{
+			DynamicMeshComponent->FastNotifyVertexAttributesUpdated(bNormals, bColors, bUVs);
+		}
 	}
 }
 

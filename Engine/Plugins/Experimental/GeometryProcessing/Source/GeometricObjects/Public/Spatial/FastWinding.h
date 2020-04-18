@@ -214,6 +214,11 @@ public:
 		}
 	}
 
+	TMeshAABBTree3<TriangleMeshType>* GetTree() const
+	{
+		return Tree;
+	}
+
 	void Build(bool bAlwaysBuildRegardlessOfTimestamp = true)
 	{
 		check(Tree);

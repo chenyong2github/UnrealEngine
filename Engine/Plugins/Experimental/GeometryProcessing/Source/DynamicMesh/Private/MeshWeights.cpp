@@ -31,14 +31,17 @@ FVector3d FMeshWeights::MeanValueCentroid(const FDynamicMesh3 & mesh, int v_i)
 		FVector3d Vj = mesh.GetVertex(v_j);
 		FVector3d vVj = (Vj - Vi);
 		double len_vVj = vVj.Normalize();
-		// [RMS] is this the right thing to do? if vertices are coincident,
+		// TODO: is this the right thing to do? if vertices are coincident,
 		//   weight of this vertex should be very high!
 		if (len_vVj < FMathd::ZeroTolerance)
+		{
 			continue;
+		}
 		FVector3d vVdelta = (mesh.GetVertex(opp_v1) - Vi).Normalized();
 		double w_ij = VectorUtil::VectorTanHalfAngle(vVj, vVdelta);
 
-		if (opp_v2 != FDynamicMesh3::InvalidID) {
+		if (opp_v2 != FDynamicMesh3::InvalidID)
+		{
 			FVector3d vVgamma = (mesh.GetVertex(opp_v2) - Vi).Normalized();
 			w_ij += VectorUtil::VectorTanHalfAngle(vVj, vVgamma);
 		}

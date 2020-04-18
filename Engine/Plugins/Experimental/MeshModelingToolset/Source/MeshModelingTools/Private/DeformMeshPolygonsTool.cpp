@@ -56,13 +56,6 @@ UDeformMeshPolygonsTransformProperties::UDeformMeshPolygonsTransformProperties()
 	bSnapToWorldGrid = false;
 }
 
-#if WITH_EDITOR
-void UDeformMeshPolygonsTransformProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-#endif
-
 /*
  * Asynchronous Task
  */
@@ -1024,7 +1017,7 @@ void UDeformMeshPolygonsTool::UpdateChangeFromROI(bool bFinal)
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	const TSet<int>& ModifiedVertices = (bIsLaplacian) ? LaplacianDeformer.GetModifiedVertices() : LinearDeformer.GetModifiedVertices();
-	ActiveVertexChange->SavePositions(Mesh, ModifiedVertices, !bFinal);
+	ActiveVertexChange->SaveVertices(Mesh, ModifiedVertices, !bFinal);
 	const TSet<int>& ModifiedNormals = (bIsLaplacian) ? LaplacianDeformer.GetModifiedOverlayNormals() : LinearDeformer.GetModifiedOverlayNormals();
 	ActiveVertexChange->SaveOverlayNormals(Mesh, ModifiedNormals, !bFinal);
 }
@@ -1325,10 +1318,8 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 
 
 
-void UDeformMeshPolygonsTool::Tick(float DeltaTime)
+void UDeformMeshPolygonsTool::OnTick(float DeltaTime)
 {
-	UMeshSurfacePointTool::Tick(DeltaTime);
-	
 	LaplacianDeformer.HandleWeights   = TransformProps->HandleWeight;
 	LaplacianDeformer.bPostfixHandles = TransformProps->bPostFixHandles;
 }
@@ -1448,7 +1439,7 @@ void UDeformMeshPolygonsTool::BeginChange()
 	{
 		if (ActiveVertexChange == nullptr)
 		{
-			ActiveVertexChange = new FMeshVertexChangeBuilder(true);
+			ActiveVertexChange = new FMeshVertexChangeBuilder(EMeshVertexChangeComponents::VertexPositions | EMeshVertexChangeComponents::OverlayNormals);
 			UpdateChangeFromROI(false);
 		}
 	}

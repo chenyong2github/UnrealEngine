@@ -24,7 +24,6 @@
 /*
  * ToolBuilder
  */
-
 UMeshSurfacePointTool* UMeshSelectionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	UMeshSelectionTool* SelectionTool = NewObject<UMeshSelectionTool>(SceneState.ToolManager);
@@ -33,9 +32,9 @@ UMeshSurfacePointTool* UMeshSelectionToolBuilder::CreateNewTool(const FToolBuild
 	return SelectionTool;
 }
 
-
-
-
+/*
+ * Properties
+ */
 void UMeshSelectionToolActionPropertySet::PostAction(EMeshSelectionToolActions Action)
 {
 	if (ParentTool.IsValid())
@@ -44,33 +43,9 @@ void UMeshSelectionToolActionPropertySet::PostAction(EMeshSelectionToolActions A
 	}
 }
 
-
-void UMeshSelectionToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UMeshSelectionToolProperties* PropertyCache = GetPropertyCache<UMeshSelectionToolProperties>();
-	PropertyCache->SelectionMode = this->SelectionMode;
-	PropertyCache->AngleTolerance = this->AngleTolerance;
-	PropertyCache->bHitBackFaces = this->bHitBackFaces;
-	PropertyCache->bShowWireframe = this->bShowWireframe;
-	PropertyCache->FaceColorMode = this->FaceColorMode;
-}
-
-void UMeshSelectionToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UMeshSelectionToolProperties* PropertyCache = GetPropertyCache<UMeshSelectionToolProperties>();
-	this->SelectionMode = PropertyCache->SelectionMode;
-	this->AngleTolerance = PropertyCache->AngleTolerance;
-	this->bHitBackFaces = PropertyCache->bHitBackFaces;
-	this->bShowWireframe = PropertyCache->bShowWireframe;
-	this->FaceColorMode = PropertyCache->FaceColorMode;
-}
-
-
-
 /*
  * Tool
  */
-
 UMeshSelectionTool::UMeshSelectionTool()
 {
 }
@@ -147,13 +122,13 @@ void UMeshSelectionTool::Setup()
 	// rebuild octree if mesh changes
 	PreviewMesh->GetOnMeshChanged().AddLambda([this]() { bOctreeValid = false; bFullMeshInvalidationPending = true; });
 
-	ShowWireframeWatcher.Initialize(
-		[this]() { return SelectionProps->bShowWireframe; },
-		[this](bool bNewValue) { PreviewMesh->EnableWireframe(bNewValue); }, SelectionProps->bShowWireframe);
-
-	ColorModeWatcher.Initialize(
-		[this]() { return SelectionProps->FaceColorMode; },
-		[this](EMeshFacesColorMode NewValue) { bColorsUpdatePending = true; UpdateVisualization(false); }, SelectionProps->FaceColorMode );
+	SelectionProps->WatchProperty(SelectionProps->bShowWireframe,
+								  [this](bool bNewValue) { PreviewMesh->EnableWireframe(bNewValue); });
+	SelectionProps->WatchProperty(SelectionProps->FaceColorMode,
+								  [this](EMeshFacesColorMode NewValue)
+								  {
+									  bColorsUpdatePending = true; UpdateVisualization(false);
+								  });
 	bColorsUpdatePending = (SelectionProps->FaceColorMode != EMeshFacesColorMode::None);
 
 	RecalculateBrushRadius();
@@ -451,8 +426,6 @@ static void UpdateList(TArray<int>& List, int Value, bool bAdd)
 
 void UMeshSelectionTool::ApplyStamp(const FBrushStampData& Stamp)
 {
-	//const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
-
 	IndexBuf.Reset();
 
 	bool bDesiredValue = bInRemoveStroke ? false : true;
@@ -589,7 +562,7 @@ void UMeshSelectionTool::OnEndDrag(const FRay& Ray)
 	bStampPending = false;
 
 	// close change record
-	TUniquePtr<FMeshSelectionChange> Change = EndChange();
+	TUniquePtr<FToolCommandChange> Change = EndChange();
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(Change), LOCTEXT("MeshSelectionChange", "Mesh Selection"));
 }
 
@@ -635,7 +608,7 @@ void UMeshSelectionTool::UpdateVisualization(bool bSelectionModified)
 	// force an update of renderbuffers
 	if (bSelectionModified)
 	{
-		PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FullUpdate, true);
+		PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FullUpdate, EMeshRenderAttributeFlags::All, true);
 	}
 
 	if (bColorsUpdatePending)
@@ -730,14 +703,8 @@ void UMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void UMeshSelectionTool::Tick(float DeltaTime)
-
+void UMeshSelectionTool::OnTick(float DeltaTime)
 {
-	UDynamicMeshBrushTool::Tick(DeltaTime);
-
-	ShowWireframeWatcher.CheckAndUpdate();
-	ColorModeWatcher.CheckAndUpdate();
-
 	if (bStampPending)
 	{
 		ApplyStamp(LastStamp);
@@ -769,7 +736,7 @@ void UMeshSelectionTool::CancelChange()
 	}
 }
 
-TUniquePtr<FMeshSelectionChange> UMeshSelectionTool::EndChange()
+TUniquePtr<FToolCommandChange> UMeshSelectionTool::EndChange()
 {
 	check(ActiveSelectionChange);
 	if (ActiveSelectionChange != nullptr)
@@ -882,7 +849,7 @@ void UMeshSelectionTool::SelectAll()
 	ActiveSelectionChange->Add(AddFaces);
 	Selection->AddIndices(EMeshSelectionElementType::Face, AddFaces);
 	
-	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("SelectAll", "Select All"));
 
@@ -903,7 +870,7 @@ void UMeshSelectionTool::ClearSelection()
 	ActiveSelectionChange->Add(SelectedFaces);
 	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
 
-	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("ClearSelection", "Clear Selection"));
 
@@ -938,7 +905,7 @@ void UMeshSelectionTool::InvertSelection()
 	BeginChange(false);
 	ActiveSelectionChange->Add(SelectedFaces);
 	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
-	TUniquePtr<FMeshSelectionChange> ClearChange = EndChange();
+	TUniquePtr<FToolCommandChange> ClearChange = EndChange();
 
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(ClearChange), LOCTEXT("InvertSelection", "Invert Selection"));
 
@@ -946,7 +913,7 @@ void UMeshSelectionTool::InvertSelection()
 	BeginChange(true);
 	ActiveSelectionChange->Add(InvertedFaces);
 	Selection->AddIndices(EMeshSelectionElementType::Face, InvertedFaces);
-	TUniquePtr<FMeshSelectionChange> AddChange = EndChange();
+	TUniquePtr<FToolCommandChange> AddChange = EndChange();
 
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(AddChange), LOCTEXT("InvertSelection", "Invert Selection"));
 
@@ -1022,13 +989,13 @@ void UMeshSelectionTool::GrowShrinkSelection(bool bGrow)
 	if (bGrow)
 	{
 		Selection->AddIndices(EMeshSelectionElementType::Face, ChangeFaces);
-		TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+		TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 		GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("GrowSelection", "Grow Selection"));
 	}
 	else
 	{
 		Selection->RemoveIndices(EMeshSelectionElementType::Face, ChangeFaces);
-		TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+		TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 		GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("ShrinkSelection", "Shrink Selection"));
 	}
 	OnExternalSelectionChange();
@@ -1075,7 +1042,7 @@ void UMeshSelectionTool::ExpandToConnected()
 	BeginChange(true);
 	ActiveSelectionChange->Add(AddFaces);
 	Selection->AddIndices(EMeshSelectionElementType::Face, AddFaces);
-	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("ExpandToConnected", "Expand Selection"));
 	OnExternalSelectionChange();
 }
@@ -1131,7 +1098,7 @@ void UMeshSelectionTool::SelectLargestComponent(bool bWeightByArea)
 		}
 	}
 	
-	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(SelectionChange), LOCTEXT("SelectLargestComponentByArea", "Select Largest Component By Area"));
 
@@ -1170,7 +1137,7 @@ void UMeshSelectionTool::OptimizeSelection()
 	}
 	Selection->NotifySelectionSetModified();
 
-	TUniquePtr<FMeshSelectionChange> DeselectChange = EndChange();
+	TUniquePtr<FToolCommandChange> DeselectChange = EndChange();
 
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(DeselectChange), LOCTEXT("OptimizeSelection", "Optimize Selection"));
 
@@ -1190,7 +1157,7 @@ void UMeshSelectionTool::OptimizeSelection()
 
 	check(Selection->Faces.Num() == FaceSelection.Num());
 	
-	TUniquePtr<FMeshSelectionChange> AddChange = EndChange();
+	TUniquePtr<FToolCommandChange> AddChange = EndChange();
 
 	GetToolManager()->EmitObjectChange(Selection, MoveTemp(AddChange), LOCTEXT("OptimizeSelection", "Optimize Selection"));
 
@@ -1218,7 +1185,7 @@ void UMeshSelectionTool::DeleteSelectedTriangles()
 		ActiveSelectionChange->Add(tid);
 	}
 	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
-	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 	ChangeSeq->AppendChange(Selection, MoveTemp(SelectionChange));
 
 	// delete triangles and emit delete triangles change
@@ -1342,7 +1309,7 @@ void UMeshSelectionTool::FlipSelectedTriangles()
 		ActiveSelectionChange->Add(tid);
 	}
 	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
-	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 	ChangeSeq->AppendChange(Selection, MoveTemp(SelectionChange));
 
 	// flip normals
@@ -1383,7 +1350,7 @@ void UMeshSelectionTool::AssignNewGroupToSelectedTriangles()
 		ActiveSelectionChange->Add(tid);
 	}
 	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
-	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 	ChangeSeq->AppendChange(Selection, MoveTemp(SelectionChange));
 
 	// assign new groups to triangles

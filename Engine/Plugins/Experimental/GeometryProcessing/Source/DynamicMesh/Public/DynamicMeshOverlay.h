@@ -9,6 +9,7 @@
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
 #include "InfoTypes.h"
+#include "IndexTypes.h"
 
 class FDynamicMesh3;
 
@@ -98,7 +99,7 @@ public:
 			if (Copy.IsElement(EID))
 			{
 				Copy.GetElement(EID, Data);
-				MapE[EID] = AppendElement(Data, CompactMaps.MapV[Copy.ParentVertices[EID]]);
+				MapE[EID] = AppendElement(Data);
 			}
 			else
 			{
@@ -150,7 +151,14 @@ public:
 			GetElement(iLastE, Data);
 			SetElement(iCurE, Data);
 			int OrigParent = ParentVertices[iLastE];
-			ParentVertices[iCurE] = CompactMaps.GetVertex(OrigParent);
+			if (OrigParent == IndexConstants::InvalidID)
+			{
+				ParentVertices[iCurE] = IndexConstants::InvalidID;
+			}
+			else 
+			{
+				ParentVertices[iCurE] = CompactMaps.GetVertex(OrigParent);
+			}
 			ERef[iCurE] = ERef[iLastE];
 			ERef[iLastE] = FRefCountVector::INVALID_REF_COUNT;
 			MapE[iLastE] = iCurE;
@@ -207,10 +215,10 @@ public:
 	element_iterator ElementIndicesItr() const { return ElementsRefCounts.Indices(); }
 
 
-	/** Allocate a new element with the given constant value and parent-mesh vertex */
-	int AppendElement(RealType ConstantValue, int ParentVertex);
-	/** Allocate a new element with the given value and parent-mesh vertex */
-	int AppendElement(const RealType* Value, int ParentVertex);
+	/** Allocate a new element with the given constant value */
+	int AppendElement(RealType ConstantValue);
+	/** Allocate a new element with the given value */
+	int AppendElement(const RealType* Value);
 
 	/** Initialize the triangle list to the given size, and set all triangles to InvalidID */
 	void InitializeTriangles(int MaxTriangleID);
@@ -265,6 +273,7 @@ public:
 
 	/**
 	* Create a new copy of ElementID, and update connected triangles in the TrianglesToUpdate array to reference the copy of ElementID where they used to reference ElementID.  The new element will have the given parent vertex ID.
+	* Deletes any elements that are no longer used after the triangles are changed.
 	*
 	* @param ElementID the element to copy
 	* @param SplitParentVertexID the new parent vertex for copied elements
@@ -305,7 +314,7 @@ public:
 	 * If bUnsafe, we use fast id allocation that does not update free list.
 	 * You should only be using this between BeginUnsafeElementsInsert() / EndUnsafeElementsInsert() calls
 	 */
-	EMeshResult InsertElement(int ElementID, const RealType* Value, int ParentVertex, bool bUnsafe = false);
+	EMeshResult InsertElement(int ElementID, const RealType* Value, bool bUnsafe = false);
 
 
 	//
@@ -395,8 +404,28 @@ public:
 	/** find the triangles connected to an element */
 	void GetElementTriangles(int ElementID, TArray<int>& OutTriangles) const;
 
-	/** Currently an iteration every time */
+	/** @return true if overlay has any interior seam edges. This requires an O(N) search unless it early-outs. */
 	bool HasInteriorSeamEdges() const;
+
+	/**
+	 * Compute interpolated parameter value inside triangle using barycentric coordinates
+	 * @param TriangleID index of triangle
+	 * @param BaryCoords 3 barycentric coordinates inside triangle
+	 * @param DataOut resulting interpolated overlay parameter value (of size ElementSize)
+	 */
+	template<typename AsType>
+	void GetTriBaryInterpolate(int32 TriangleID, const AsType* BaryCoords, AsType* DataOut) const
+	{
+		int32 TriIndex = 3 * TriangleID;
+		int32 ElemIndex0 = ElementTriangles[TriIndex] * ElementSize;
+		int32 ElemIndex1 = ElementTriangles[TriIndex+1] * ElementSize;
+		int32 ElemIndex2 = ElementTriangles[TriIndex+2] * ElementSize;
+		const AsType Bary0 = (AsType)BaryCoords[0], Bary1 = (AsType)BaryCoords[1], Bary2 = (AsType)BaryCoords[2];
+		for (int32 i = 0; i < ElementSize; ++i)
+		{
+			DataOut[i] = Bary0*(AsType)Elements[ElemIndex0+i] + Bary1*(AsType)Elements[ElemIndex1+i] + Bary2*(AsType)Elements[ElemIndex2+i];
+		}
+	}
 
 	/**
 	 * Checks that the overlay mesh is well-formed, ie all internal data structures are consistent
@@ -432,6 +461,7 @@ protected:
 
 	/** updates the triangles array and optionally the element reference counts */
 	void InternalSetTriangle(int TriangleID, const FIndex3i& TriElements, bool bIncrementRefCounts);
+
 };
 
 
@@ -463,9 +493,9 @@ public:
 	/**
 	 * Append a new Element to the overlay
 	 */
-	inline int AppendElement(const VectorType& Value, int SourceVertex)
+	inline int AppendElement(const VectorType& Value)
 	{
-		return BaseType::AppendElement((const RealType*)Value, SourceVertex);
+		return BaseType::AppendElement((const RealType*)Value);
 	}
 
 	/**

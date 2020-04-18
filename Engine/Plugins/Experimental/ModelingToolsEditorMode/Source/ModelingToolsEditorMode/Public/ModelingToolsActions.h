@@ -66,49 +66,20 @@ public:
 // would ever be used at the same time. And we cannot create/register TCommands at runtime.
 // So, we have to define a separate TCommands instance for each Tool. This is unfortunate.
 
-
-class FSculptToolActionCommands : public TInteractiveToolCommands<FSculptToolActionCommands>
-{
-public:
-	FSculptToolActionCommands();
-	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
-};
-
-
-class FTransformToolActionCommands : public TInteractiveToolCommands<FTransformToolActionCommands>
-{
-public:
-	FTransformToolActionCommands();
-	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
-};
+#define DECLARE_TOOL_ACTION_COMMANDS(CommandsClassName) \
+class CommandsClassName : public TInteractiveToolCommands<CommandsClassName> \
+{\
+public:\
+	CommandsClassName();\
+	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;\
+};\
 
 
-class FDrawPolygonToolActionCommands : public TInteractiveToolCommands<FDrawPolygonToolActionCommands>
-{
-public:
-	FDrawPolygonToolActionCommands();
-	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
-};
+DECLARE_TOOL_ACTION_COMMANDS(FSculptToolActionCommands);
+DECLARE_TOOL_ACTION_COMMANDS(FVertexSculptToolActionCommands);
+DECLARE_TOOL_ACTION_COMMANDS(FTransformToolActionCommands);
+DECLARE_TOOL_ACTION_COMMANDS(FDrawPolygonToolActionCommands);
+DECLARE_TOOL_ACTION_COMMANDS(FMeshSelectionToolActionCommands);
+DECLARE_TOOL_ACTION_COMMANDS(FMeshPlaneCutToolActionCommands);
+DECLARE_TOOL_ACTION_COMMANDS(FEditMeshPolygonsToolActionCommands);
 
-
-class FMeshSelectionToolActionCommands : public TInteractiveToolCommands<FMeshSelectionToolActionCommands>
-{
-public:
-	FMeshSelectionToolActionCommands();
-	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
-};
-
-
-class FMeshPlaneCutToolActionCommands : public TInteractiveToolCommands<FMeshPlaneCutToolActionCommands>
-{
-public:
-	FMeshPlaneCutToolActionCommands();
-	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
-};
-
-class FEditMeshPolygonsToolActionCommands : public TInteractiveToolCommands<FEditMeshPolygonsToolActionCommands>
-{
-public:
-	FEditMeshPolygonsToolActionCommands();
-	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
-};

@@ -4,8 +4,11 @@
 
 #include "Distance/DistPoint3Triangle3.h"
 #include "Intersection/IntrRay3Triangle3.h"
+#include "Intersection/IntrTriangle3Triangle3.h"
 #include "BoxTypes.h"
 #include "IndexTypes.h"
+#include "Algo/Accumulate.h"
+#include "Async/ParallelFor.h"
 
 template <class TriangleMeshType>
 class TMeshQueries
@@ -216,6 +219,38 @@ public:
 	}
 
 	/**
+	 * brute force search for any intersecting triangles on two meshes
+	 * @return Index pair of IDs of first intersecting triangles found, or InvalidID if no intersection found
+	 */
+	static FIndex2i FindIntersectingTriangles_LinearSearch(const TriangleMeshType& Mesh1, const TriangleMeshType& Mesh2)
+	{
+		for (int TI = 0; TI < Mesh1.MaxTriangleID(); TI++)
+		{
+			if (!Mesh1.IsTriangle(TI))
+			{
+				continue;
+			}
+			FVector3d a, b, c;
+			FTriangle3d Tri1;
+			Mesh1.GetTriVertices(TI, Tri1.V[0], Tri1.V[1], Tri1.V[2]);
+			for (int TJ = 0; TJ < Mesh2.MaxTriangleID(); TJ++)
+			{
+				if (!Mesh2.IsTriangle(TJ))
+				{
+					continue;
+				}
+				FTriangle3d Tri2;
+				Mesh2.GetTriVertices(TJ, Tri2.V[0], Tri2.V[1], Tri2.V[2]);
+				if (FIntrTriangle3Triangle3d::Intersects(Tri1, Tri2))
+				{
+					return FIndex2i(TI, TJ);
+				}
+			}
+		}
+		return FIndex2i::Invalid();
+	}
+
+	/**
 	 * convenience function to construct a IntrRay3Triangle3 object for a Mesh triangle
 	 */
 	static FIntrRay3Triangle3d RayTriangleIntersection(const TriangleMeshType& Mesh, int TriIdx, const FRay3d& Ray)
@@ -227,4 +262,232 @@ public:
 		Query.Find();
 		return Query;
 	}
+
+	/// Compute the mean edge length for the given mesh
+	static double AverageEdgeLength(const TriangleMeshType& Mesh)
+	{
+		if (Mesh.EdgeCount() == 0) 
+		{ 
+			return 0.0; 
+		}
+
+		double SumLengths = Algo::TransformAccumulate(Mesh.EdgeIndicesItr(), [&Mesh](int EdgeIndex) -> double
+		{
+			FIndex4i Edge = Mesh.GetEdge(EdgeIndex);
+			FVector3d vA = Mesh.GetVertex(Edge[0]);
+			FVector3d vB = Mesh.GetVertex(Edge[1]);
+			return (vA - vB).Length();
+		}, 0.0);
+
+		return SumLengths / Mesh.EdgeCount();
+	}
+
+	/// Compute the longest edge length for the given mesh
+	static double MaxEdgeLength(const TriangleMeshType& Mesh)
+	{
+		if (Mesh.EdgeCount() == 0)
+		{
+			return 0.0;
+		}
+
+		double MaxLength = -BIG_NUMBER;
+		for (auto EdgeID : Mesh.EdgeIndicesItr())
+		{
+			FIndex4i Edge = Mesh.GetEdge(EdgeID);
+			FVector3d vA = Mesh.GetVertex(Edge[0]);
+			FVector3d vB = Mesh.GetVertex(Edge[1]);
+			MaxLength = FMath::Max(MaxLength, (vA - vB).Length());
+		}
+
+		return MaxLength;
+	}
+
+	/// Compute the shortest edge length for the given mesh
+	static double MinEdgeLength(const TriangleMeshType& Mesh)
+	{
+		if (Mesh.EdgeCount() == 0)
+		{
+			return 0.0;
+		}
+
+		double MinLength = BIG_NUMBER;
+		for (auto EdgeID : Mesh.EdgeIndicesItr())
+		{
+			FIndex4i Edge = Mesh.GetEdge(EdgeID);
+			FVector3d vA = Mesh.GetVertex(Edge[0]);
+			FVector3d vB = Mesh.GetVertex(Edge[1]);
+			MinLength = FMath::Min(MinLength, (vA - vB).Length());
+		}
+
+		return MinLength;
+	}
+
+	/// Given a mesh and a subset of mesh edges, compute the min, max, and mean edge lengths
+	static void EdgeLengthStatsFromEdges(const TriangleMeshType& Mesh, const TArray<int>& Edges, double& MinEdgeLength,
+		double& MaxEdgeLength, double& AverageEdgeLength)
+	{
+		if (Mesh.EdgeCount() == 0)
+		{
+			MinEdgeLength = 0.0;
+			MaxEdgeLength = 0.0;
+			AverageEdgeLength = 0.0;
+			return;
+		}
+
+		MinEdgeLength = BIG_NUMBER;
+		MaxEdgeLength = -BIG_NUMBER;
+		AverageEdgeLength = 0;
+		int EdgeCount = 0;
+
+		for (int EdgeID : Edges)
+		{
+			if (Mesh.IsEdge(EdgeID))
+			{
+				FVector3d A, B;
+				Mesh.GetEdgeV(EdgeID, A, B);
+				double Length = A.Distance(B);
+				if (Length < MinEdgeLength) { MinEdgeLength = Length; }
+				if (Length > MaxEdgeLength) { MaxEdgeLength = Length; }
+				AverageEdgeLength += Length;
+				++EdgeCount;
+			}
+		}
+
+		AverageEdgeLength /= (double)EdgeCount;
+	}
+
+	/// Compute the min, max, and mean edge lengths for the given mesh. Optionally, choose a subest of size NumSamples
+	/// and compute stats of that subset.
+	static void EdgeLengthStats(const TriangleMeshType& Mesh, double& MinEdgeLength, double& MaxEdgeLength,
+		double& AverageEdgeLength, int NumSamples = 0)
+	{
+		if (Mesh.EdgeCount() == 0)
+		{
+			MinEdgeLength = 0.0;
+			MaxEdgeLength = 0.0;
+			AverageEdgeLength = 0.0;
+			return;
+		}
+
+		MinEdgeLength = BIG_NUMBER;
+		MaxEdgeLength = -BIG_NUMBER;
+		AverageEdgeLength = 0;
+		int MaxID = Mesh.MaxEdgeID();
+
+		// if we are only taking some samples, use a prime-modulo-loop instead of random
+		int PrimeNumber = (NumSamples == 0) ? 1 : 31337;
+		int MaxCount = (NumSamples == 0) ? MaxID : NumSamples;
+
+		FVector3d A, B;
+		int EdgeID = 0;
+		int EdgeCount = 0;
+		do
+		{
+			if (Mesh.IsEdge(EdgeID))
+			{
+				Mesh.GetEdgeV(EdgeID, A, B);
+				double Length = A.Distance(B);
+				if (Length < MinEdgeLength) MinEdgeLength = Length;
+				if (Length > MaxEdgeLength) MaxEdgeLength = Length;
+				AverageEdgeLength += Length;
+				++EdgeCount;
+			}
+			EdgeID = (EdgeID + PrimeNumber) % MaxID;
+		} while (EdgeID != 0 && EdgeCount < MaxCount);
+
+		AverageEdgeLength /= (double)EdgeCount;
+	}
+
+	/// For each vertex on MeshA, compute the distance to the nearest point on the surface contained in SpatialB.
+	/// @param MeshA The mesh whose vertex distances should be computed.
+	/// @param SpatialB The target surface's acceleration structure.
+	/// @param Distances For each vertex in MeshA, the distance to the closest point in SpatialB.
+	template<typename MeshSpatialType>
+	static void VertexToSurfaceDistances(const TriangleMeshType& MeshA, const MeshSpatialType& SpatialB, TArray<double>& Distances)
+	{
+		check(SpatialB.SupportsNearestTriangle());
+		Distances.SetNumZeroed(MeshA.VertexCount());
+
+		ParallelFor(MeshA.VertexCount(), [&MeshA, &SpatialB, &Distances](int VertexID)
+		{
+			if (!MeshA.IsVertex(VertexID)) { return; }
+
+			FVector3d VertexPosition = MeshA.GetVertex(VertexID);
+			double DistSqr;
+			SpatialB.FindNearestTriangle(VertexPosition, DistSqr);
+			Distances[VertexID] = sqrt(DistSqr);
+		});
+	}
+
+	/// Compute all vertex-to-surface distances in parallel. Serial raw loop to find max element (using Algo::MaxElement 
+	/// was never faster in initial benchmarking.)
+	/// @param MeshA The mesh whose maximum vertex distance should be computed.
+	/// @param SpatialB The target surface's acceleration structure.
+	/// @return The maximum distance to the surface contained in SpatialB over all vertices in MeshA.
+	template<typename MeshSpatialType>
+	static double HausdorffDistance(const TriangleMeshType& MeshA, const MeshSpatialType& SpatialB)
+	{
+		TArray<double> Distances;
+		VertexToSurfaceDistances(MeshA, SpatialB, Distances);
+
+		double MaxDist = -BIG_NUMBER;
+		for (auto& Dist : Distances)
+		{
+			MaxDist = FMath::Max(Dist, MaxDist);
+		}
+
+		return MaxDist;
+	}
+
+	/// Because Hausdorff distance is not symmetric, we compute the maximum of the distances between two surfaces.
+	template<typename MeshSpatialType>
+	static double TwoSidedHausdorffDistance(const TriangleMeshType& MeshA, const MeshSpatialType& SpatialA,
+											const TriangleMeshType& MeshB, const MeshSpatialType& SpatialB)
+	{
+		return FMath::Max(HausdorffDistance(MeshA, SpatialB), HausdorffDistance(MeshB, SpatialA));
+	}
+
+
+	/// Compute all vertex-to-surface distances in serial. Should only be used for debugging the parallel version above!
+	template<typename MeshSpatialType>
+	static void VertexToSurfaceDistancesSerial(const TriangleMeshType& MeshA, const MeshSpatialType& SpatialB, TArray<double>& Distances)
+	{
+		check(SpatialB.SupportsNearestTriangle());
+		Distances.SetNumZeroed(MeshA.VertexCount());
+
+		for (int VertexID = 0; VertexID < MeshA.VertexCount(); ++VertexID)
+		{
+			if (!MeshA.IsVertex(VertexID)) { continue; }
+
+			FVector3d VertexPosition = MeshA.GetVertex(VertexID);
+			double DistSqr;
+			SpatialB.FindNearestTriangle(VertexPosition, DistSqr);
+			Distances[VertexID] = sqrt(DistSqr);
+		}
+	}
+
+	/// Compute all distances in serial, then a serial raw loop to find max. Should only be used for debugging the 
+	/// parallel version above!
+	template<typename MeshSpatialType>
+	static double HausdorffDistanceSerial(const TriangleMeshType& MeshA, const MeshSpatialType& SpatialB)
+	{
+		TArray<double> Distances;
+		VertexToSurfaceDistancesSerial(MeshA, SpatialB, Distances);
+
+		double MaxDist = -BIG_NUMBER;
+		for (auto& Dist : Distances)
+		{
+			MaxDist = FMath::Max(Dist, MaxDist);
+		}
+
+		return MaxDist;
+	}
+
+	template<typename MeshSpatialType>
+	static double TwoSidedHausdorffDistanceSerial(const TriangleMeshType& MeshA, const MeshSpatialType& SpatialA,
+												  const TriangleMeshType& MeshB, const MeshSpatialType& SpatialB)
+	{
+		return FMath::Max(HausdorffDistanceSerial(MeshA, SpatialB), HausdorffDistanceSerial(MeshB, SpatialA));
+	}
+
 };

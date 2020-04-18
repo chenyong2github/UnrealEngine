@@ -251,7 +251,7 @@ void UPolygonOnMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-void UPolygonOnMeshTool::Tick(float DeltaTime)
+void UPolygonOnMeshTool::OnTick(float DeltaTime)
 {
 	PlaneMechanic->Tick(DeltaTime);
 	Preview->Tick(DeltaTime);

@@ -74,7 +74,7 @@ public:
 		UsedCount++;
 		if (FreeIndices.IsEmpty())
 		{
-			// [RMS] do we need this branch anymore?
+			// TODO: do we need this branch anymore?
 			RefCounts.Add(1);
 			return (int)RefCounts.GetLength() - 1;
 		}

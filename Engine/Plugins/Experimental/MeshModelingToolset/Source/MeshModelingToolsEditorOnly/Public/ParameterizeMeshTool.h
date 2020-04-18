@@ -103,7 +103,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolProperties : public U
 public:
 
 	//UPROPERTY(EditAnywhere, Category = Options)
-	UPROPERTY()
+	UPROPERTY(meta = (TransientToolProperty))
 	EUVIslandMode IslandMode = EUVIslandMode::PolyGroups;
 
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "bIsGlobalMode == false"))
@@ -121,11 +121,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "UVScaleMode!=EParameterizeMeshToolUVScaleMode::NoScaling", UIMin = "0.001", UIMax = "10", ClampMin = "0.00001", ClampMax = "1000000.0") )
 	float UVScale = 1.0;
 
-	UPROPERTY()
+	UPROPERTY(meta = (TransientToolProperty))
 	bool bIsGlobalMode = false;
-
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -150,8 +147,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override;

@@ -17,6 +17,21 @@ typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3;
 
 /** Remeshing modes */
 UENUM()
+enum class ERemeshType : uint8
+{
+	/** One pass over the entire mesh, then remesh only changed edges */
+	Standard = 0 UMETA(DisplayName = "Standard"),
+
+	/** Multiple full passes over the entire mesh */
+	FullPass = 1 UMETA(DisplayName = "Full Pass"),
+
+	/** One pass over the entire mesh, then remesh only changed edges. Use Normal flow to align triangles with input.*/
+	NormalFlow = 2 UMETA(DisplayName = "Normal Flow"),
+
+};
+
+/** Smoothing modes */
+UENUM()
 enum class ERemeshSmoothingType : uint8
 {
 	/** Uniform Smoothing */
@@ -37,6 +52,8 @@ public:
 	// inputs
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
 	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
+
+	ERemeshType RemeshType = ERemeshType::Standard;
 
 	int RemeshIterations;
 	float SmoothingStrength, TargetEdgeLength;

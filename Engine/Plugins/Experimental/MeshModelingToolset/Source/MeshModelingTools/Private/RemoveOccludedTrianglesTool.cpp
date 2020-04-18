@@ -325,13 +325,7 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	return Op;
 }
 
-
-
-void URemoveOccludedTrianglesTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-}
-
-void URemoveOccludedTrianglesTool::Tick(float DeltaTime)
+void URemoveOccludedTrianglesTool::OnTick(float DeltaTime)
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{

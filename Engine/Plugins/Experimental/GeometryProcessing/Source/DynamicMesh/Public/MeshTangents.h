@@ -53,6 +53,20 @@ public:
 		BitangentOut = Bitangents[k];
 	}
 
+	/**
+	 * @return Interpolated tangent and bitangent at barycentric coordinates inside a triangle, for per-triangle computed tangents
+	 * @param TriangleID triangle index in mesh
+	 * @param BaryCoords barycentric coordinates in triangle
+	 * @param TangentOut interpolated tangent
+	 * @param BitangentOut interpolated bitangent
+	 */
+	void GetInterpolatedTriangleTangent(int32 TriangleID, const FVector3<RealType>& BaryCoords, FVector3<RealType>& TangentOut, FVector3<RealType>& BitangentOut) const
+	{
+		int32 k = TriangleID * 3;
+		TangentOut = BaryCoords.X*Tangents[k] + BaryCoords.Y*Tangents[k+1] + BaryCoords.Z*Tangents[k+2];
+		BitangentOut = BaryCoords.X*Bitangents[k] + BaryCoords.Y*Bitangents[k+1] + BaryCoords.Z*Bitangents[k+2];
+	}
+
 
 	/**
 	 * Set tangent and bitangent at a vertex of triangle for per-triangle computed tangents.

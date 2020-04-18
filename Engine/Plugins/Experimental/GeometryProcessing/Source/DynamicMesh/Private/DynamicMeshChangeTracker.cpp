@@ -112,7 +112,7 @@ void TDynamicMeshAttributeChange<RealType,ElementSize>::ApplyReplaceChange(TDyna
 		if (Overlay->IsElement(ElemInfo.ElementID) == false)
 		{
 			const RealType* Data = &InsertElementData[ElemInfo.DataIndex];
-			EMeshResult Result = Overlay->InsertElement(ElemInfo.ElementID, Data, ElemInfo.ParentVertexID, bUseUnsafe);
+			EMeshResult Result = Overlay->InsertElement(ElemInfo.ElementID, Data, bUseUnsafe);
 			check(Result == EMeshResult::Ok);
 		}
 		else
