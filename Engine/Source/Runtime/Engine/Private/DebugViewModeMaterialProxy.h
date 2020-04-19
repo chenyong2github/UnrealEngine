@@ -168,6 +168,7 @@ public:
 	virtual bool IsUsedWithInstancedStaticMeshes() const override { return bIsUsedWithInstancedStaticMeshes; }
 	virtual bool IsUsedWithAPEXCloth() const override { return bIsUsedWithAPEXCloth; }
 	virtual bool IsUsedWithWater() const override { return bIsUsedWithWater; }
+	virtual bool IsUsedWithVirtualHeightfieldMesh() const override { return bIsUsedWithVirtualHeightfieldMesh; }
 
 	virtual EMaterialShaderMapUsage::Type GetMaterialShaderMapUsage() const { return Usage; }
 
@@ -202,6 +203,7 @@ private:
 			uint32 bIsUsedWithInstancedStaticMeshes : 1;
 			uint32 bIsUsedWithAPEXCloth : 1;
 			uint32 bIsUsedWithWater : 1;
+			uint32 bIsUsedWithVirtualHeightfieldMesh : 1;
 		};
 	};
 

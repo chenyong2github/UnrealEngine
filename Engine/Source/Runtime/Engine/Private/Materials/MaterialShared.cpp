@@ -1076,6 +1076,11 @@ bool FMaterialResource::IsUsedWithLidarPointCloud() const
 	return Material->bUsedWithLidarPointCloud;
 }
 
+bool FMaterialResource::IsUsedWithVirtualHeightfieldMesh() const
+{
+	return Material->bUsedWithVirtualHeightfieldMesh;
+}
+
 bool FMaterialResource::IsUsedWithLandscape() const
 {
 	return false;
