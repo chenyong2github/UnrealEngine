@@ -225,7 +225,7 @@ bool FMeshNormals::QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInver
 FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertIdx, bool bWeightByArea, bool bWeightByAngle)
 {
 	FVector3d SumNormal = FVector3d::Zero();
-	for (int TriIdx : Mesh.VtxTrianglesItr(VertIdx))
+	Mesh.EnumerateVertexTriangles(VertIdx, [&](int32 TriIdx)
 	{
 		FVector3d TriNormal, TriCentroid; double TriArea;
 		Mesh.GetTriInfo(TriIdx, TriNormal, TriArea, TriCentroid);
@@ -234,7 +234,7 @@ FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertI
 		FIndex3i Triangle = Mesh.GetTriangle(TriIdx);
 		int32 j = IndexUtil::FindTriIndex(VertIdx, Triangle);
 		SumNormal += TriNormal * TriNormalWeights[j];
-	}
+	});
 	return SumNormal.Normalized();
 }
 
@@ -242,7 +242,7 @@ FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertI
 FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int32 VertIdx, TFunctionRef<bool(int32)> TriangleFilterFunc, bool bWeightByArea, bool bWeightByAngle)
 {
 	FVector3d NormalSum(0, 0, 0);
-	for (int TriIdx : Mesh.VtxTrianglesItr(VertIdx))
+	Mesh.EnumerateVertexTriangles(VertIdx, [&](int32 TriIdx)
 	{
 		if (TriangleFilterFunc(TriIdx))
 		{
@@ -254,7 +254,7 @@ FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int32 Ver
 			int32 j = IndexUtil::FindTriIndex(VertIdx, Triangle);
 			NormalSum += TriNormal * TriNormalWeights[j];
 		}
-	}
+	});
 	return NormalSum.Normalized();
 }
 
@@ -265,7 +265,7 @@ FVector3d FMeshNormals::ComputeOverlayNormal(const FDynamicMesh3& Mesh, FDynamic
 	int ParentVertexID = NormalOverlay->GetParentVertex(ElemIdx);
 	FVector3d SumNormal = FVector3d::Zero();
 	int Count = 0;
-	for (int TriIdx : Mesh.VtxTrianglesItr(ParentVertexID))
+	Mesh.EnumerateVertexTriangles(ParentVertexID, [&](int32 TriIdx)
 	{
 		if (NormalOverlay->TriangleHasElement(TriIdx, ElemIdx))
 		{
@@ -274,7 +274,7 @@ FVector3d FMeshNormals::ComputeOverlayNormal(const FDynamicMesh3& Mesh, FDynamic
 			SumNormal += Area * Normal;
 			Count++;
 		}
-	}
+	});
 
 	return (Count > 0) ? SumNormal.Normalized() : FVector3d::Zero();
 }
@@ -297,7 +297,7 @@ void FMeshNormals::InitializeOverlayToPerVertexNormals(FDynamicMeshNormalOverlay
 	for (int vid : Mesh->VertexIndicesItr())
 	{
 		FVector3f Normal = (bUseMeshNormals) ? Mesh->GetVertexNormal(vid) : (FVector3f)Normals[vid];
-		int nid = NormalOverlay->AppendElement(Normal, vid);
+		int nid = NormalOverlay->AppendElement(Normal);
 		VertToNormalMap[vid] = nid;
 	}
 

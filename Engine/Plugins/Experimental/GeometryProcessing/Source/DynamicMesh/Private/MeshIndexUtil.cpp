@@ -55,14 +55,33 @@ void MeshIndexUtil::VertexToTriangleOneRing(const FDynamicMesh3* Mesh, const TAr
 {
 	int NumVerts = VertexIDs.Num();
 	TriangleIDsOut.Reserve( (NumVerts < 5) ? NumVerts*6 : NumVerts*4);
+	TArray<int32> OneRingT;  // temp storage
+	OneRingT.Reserve(16);
+
+	//auto AddFunc = [&](int32 TriID)
+	//{
+	//	TriangleIDsOut.Add(TriID);
+	//};
+
 	for (int k = 0; k < NumVerts; ++k)
 	{
 		if (Mesh->IsVertex(VertexIDs[k]))
 		{
-			for (int TriID : Mesh->VtxTrianglesItr(VertexIDs[k]))
+			// slowest
+			//for (int TriID : Mesh->VtxTrianglesItr(VertexIDs[k]))
+			//{
+			//	TriangleIDsOut.Add(TriID);
+			//}
+
+			OneRingT.SetNum(0, false);
+			Mesh->GetVertexOneRingTriangles(VertexIDs[k], OneRingT);
+			for (int TriID : OneRingT)
 			{
 				TriangleIDsOut.Add(TriID);
 			}
+
+			// slightly slower?
+			//Mesh->EnumerateVertexTriangles(VertexIDs[k], AddFunc);
 		}
 	}
 }

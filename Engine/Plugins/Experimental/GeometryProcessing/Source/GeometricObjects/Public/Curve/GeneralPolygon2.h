@@ -83,7 +83,6 @@ public:
 				return false;
 			}
 
-			// [RMS] segment/segment intersection broken?
 			for (const TPolygon2<T>& ExistingHole : Holes)
 			{
 				if (Hole.Overlaps(ExistingHole))

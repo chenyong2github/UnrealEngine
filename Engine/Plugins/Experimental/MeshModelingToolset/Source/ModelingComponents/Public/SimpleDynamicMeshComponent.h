@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 #include "BaseDynamicMeshComponent.h"
 #include "MeshConversionOptions.h"
-
+#include "Drawing/MeshRenderDecomposition.h"
 #include "MeshTangents.h"
+#include "TransformTypes.h"
 
 #include "SimpleDynamicMeshComponent.generated.h"
 
@@ -85,6 +86,12 @@ public:
 		Bake(MeshDescription, bHaveModifiedTopology, ConversionOptions);
 	}
 
+	/**
+	 * Apply transform to internal mesh. Updates Octree and RenderProxy if available.
+	 * @param bInvert if true, inverse tranform is applied instead of forward transform
+	 */
+	void ApplyTransform(const FTransform3d& Transform, bool bInvert);
+
 
 	//
 	// change tracking/etc
@@ -103,10 +110,22 @@ public:
 	void FastNotifyColorsUpdated();
 
 	/**
-	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex positions.
+	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex positions (and possibly some attributes).
 	 * This function will update the existing RenderProxy buffers if possible
 	 */
 	void FastNotifyPositionsUpdated(bool bNormals = false, bool bColors = false, bool bUVs = false);
+
+	/**
+	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex attributes (but not positions).
+	 * This function will update the existing RenderProxy buffers if possible, rather than create new ones.
+	 */
+	void FastNotifyVertexAttributesUpdated(bool bNormals, bool bColors, bool bUVs);
+
+	/**
+	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex positions/attributes
+	 * This function will update the existing RenderProxy buffers if possible, rather than create new ones.
+	 */
+	void FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags UpdatedAttributes);
 
 	/**
 	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex uvs.
@@ -120,6 +139,22 @@ public:
 	 */
 	void FastNotifySecondaryTrianglesChanged();
 
+	/**
+	 * This function updates vertex positions/attributes of existing SceneProxy render buffers if possible, for the given triangles.
+	 * If a FMeshRenderDecomposition has not been explicitly set, call is forwarded to FastNotifyVertexAttributesUpdated()
+	 */
+	void FastNotifyTriangleVerticesUpdated(const TArray<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes);
+
+	/**
+	 * This function updates vertex positions/attributes of existing SceneProxy render buffers if possible, for the given triangles.
+	 * If a FMeshRenderDecomposition has not been explicitly set, call is forwarded to FastNotifyVertexAttributesUpdated()
+	 */
+	void FastNotifyTriangleVerticesUpdated(const TSet<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes);
+
+
+	/** If false, we don't completely invalidate the RenderProxy when ApplyChange() is called (assumption is it will be handled elsewhere) */
+	UPROPERTY()
+	bool bInvalidateProxyOnChange = true;
 
 	/**
 	 * Apply a vertex deformation change to the internal mesh
@@ -145,10 +180,22 @@ public:
 
 
 	/**
+	 * This delegate fires when ApplyChange(FMeshVertexChange) executes
+	 */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FMeshVerticesModified, USimpleDynamicMeshComponent*, const FMeshVertexChange*, bool);
+	FMeshVerticesModified OnMeshVerticesChanged;
+
+
+	/**
 	 * if true, we always show the wireframe on top of the shaded mesh, even when not in wireframe mode
 	 */
 	UPROPERTY()
 	bool bExplicitShowWireframe = false;
+
+	/**
+	 * Configure whether wireframe rendering is enabled or not
+	 */
+	virtual void SetEnableWireframeRenderPass(bool bEnable) override { bExplicitShowWireframe = bEnable; }
 
 	/**
 	 * @return true if wireframe rendering pass is enabled
@@ -173,6 +220,12 @@ public:
 	 * Disable secondary triangle buffers. This invalidates the SceneProxy.
 	 */
 	virtual void DisableSecondaryTriangleBuffers();
+
+	/**
+	 * Configure a decomposition of the mesh, which will result in separate render buffers for each decomposition triangle group.
+	 * Invalidates existing SceneProxy.
+	 */
+	virtual void SetExternalDecomposition(TUniquePtr<FMeshRenderDecomposition> Decomposition);
 
 
 public:
@@ -217,6 +270,5 @@ private:
 
 	TUniqueFunction<bool(const FDynamicMesh3*, int32)> SecondaryTriFilterFunc = nullptr;
 
-
-	//friend class FCustomMeshSceneProxy;
+	TUniquePtr<FMeshRenderDecomposition> Decomposition;
 };

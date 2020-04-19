@@ -8,12 +8,13 @@
 #include "SimpleDynamicMeshComponent.h"
 #include "MeshNormals.h"
 #include "ModelingOperators.h"
-#include "SceneManagement.h" // for FPrimitiveDrawInterface
 #include "Async/ParallelFor.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "MeshDescription.h"
 #define LOCTEXT_NAMESPACE "UDisplaceMeshTool"
 
 namespace {
+
 	void SubdivideMesh(FDynamicMesh3& Mesh)
 	{
 		TArray<int> EdgesToProcess;
@@ -60,26 +61,80 @@ namespace {
 
 	namespace ComputeDisplacement 
 	{
-		void Constant(const FDynamicMesh3& Mesh,
-				const TArray<FVector3d>& Positions, const FMeshNormals& Normals, double Intensity,
-				TArray<FVector3d>& DisplacedPositions)
+		/// Directional Filter: Scale displacement for a given vertex based on how well 
+		/// the vertex normal agrees with the specified direction.
+		struct FDirectionalFilter
 		{
-			DisplacedPositions.SetNumUninitialized(Positions.Num());
-			for (int vid : Mesh.VertexIndicesItr())
+			bool bEnableFilter = false;
+			FVector3d FilterDirection = {1,0,0};
+			double FilterWidth = 0.1;
+			const double RampSlope = 5.0;
+
+			double FilterValue(const FVector3d& EvalNormal) const
 			{
-				DisplacedPositions[vid] = Positions[vid] + (Intensity * Normals[vid]);
+				if (!bEnableFilter)	{ return 1.0;}
+
+				double DotWithFilterDirection = EvalNormal.Dot(FilterDirection);
+				double Offset = 1.0 / RampSlope;
+				double MinX = 1.0 - (2.0 + Offset) * FilterWidth;			// Start increasing here
+				double MaxX = FMathd::Min(1.0, MinX + Offset);				// Stop increasing here
+				
+				if (FMathd::Abs(MaxX - MinX) < FMathd::ZeroTolerance) { return 0.0; }
+				
+				double Y = (DotWithFilterDirection - MinX) / (MaxX - MinX); // Clamped linear interpolation for the ramp region
+				return FMathd::Clamp(Y, 0.0, 1.0);
 			}
+		};
+
+		template<typename DisplaceFunc>
+		void ParallelDisplace(const FDynamicMesh3& Mesh,
+			const TArray<FVector3d>& Positions,
+			const FMeshNormals& Normals,
+			TArray<FVector3d>& DisplacedPositions,
+			DisplaceFunc Displace)
+		{
+			ensure(Positions.Num() == Normals.GetNormals().Num());
+			ensure(Positions.Num() == DisplacedPositions.Num());
+			ensure(Mesh.VertexCount() == Positions.Num());
+
+			int32 NumVertices = Mesh.MaxVertexID();
+			ParallelFor(NumVertices, [&](int32 vid)
+			{
+				if (Mesh.IsVertex(vid))
+				{
+					DisplacedPositions[vid] = Displace(vid, Positions[vid], Normals[vid]);
+				}
+			});
 		}
 
+
+		void Constant(const FDynamicMesh3& Mesh,
+			const TArray<FVector3d>& Positions, 
+			const FMeshNormals& Normals, 
+			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			TArray<FVector3d>& DisplacedPositions)
+		{
+			ParallelDisplace(Mesh, Positions, Normals, DisplacedPositions,
+				[&](int32 vid, const FVector3d& Position, const FVector3d& Normal)
+			{
+				double Intensity = IntensityFunc(Position, Normal);
+				return Position + (Intensity * Normal);
+			});
+		}
+
+
 		void RandomNoise(const FDynamicMesh3& Mesh,
-				const TArray<FVector3d>& Positions, const FMeshNormals& Normals,
-				double Intensity, int RandomSeed, 
-				TArray<FVector3d>& DisplacedPositions)
+			const TArray<FVector3d>& Positions, 
+			const FMeshNormals& Normals,
+			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			int RandomSeed, 
+			TArray<FVector3d>& DisplacedPositions)
 		{
 			FMath::SRandInit(RandomSeed);
 			for (int vid : Mesh.VertexIndicesItr())
 			{
 				double RandVal = 2.0 * (FMath::SRand() - 0.5);
+				double Intensity = IntensityFunc(Positions[vid], Normals[vid]);
 				DisplacedPositions[vid] = Positions[vid] + (Normals[vid] * RandVal * Intensity);
 			}
 		}
@@ -87,24 +142,35 @@ namespace {
 		void PerlinNoise(const FDynamicMesh3& Mesh,
 			const TArray<FVector3d>& Positions,
 			const FMeshNormals& Normals,
-			double Intensity,
+			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			const TArray<FPerlinLayerProperties>& PerlinLayerProperties,
 			int RandomSeed,
-			double Frequency,
 			TArray<FVector3d>& DisplacedPositions)
 		{
 			FMath::SRandInit(RandomSeed);
-			float RandomOffset = 10000.0f * FMath::SRand();
-			for (int vid : Mesh.VertexIndicesItr())
+			const float RandomOffset = 10000.0f * FMath::SRand();
+
+			ParallelDisplace(Mesh, Positions, Normals, DisplacedPositions,
+				[&](int32 vid, const FVector3d& Position, const FVector3d& Normal)
 			{
-				float NoiseValue = FMath::PerlinNoise3D(Frequency * FVector(Positions[vid] + RandomOffset));
-				DisplacedPositions[vid] = Positions[vid] + (NoiseValue * Intensity * Normals[vid]);
-			}
+				// Compute the sum of Perlin noise evaluations for this point
+				FVector EvalLocation(Position + RandomOffset);
+				double TotalNoiseValue = 0.0;
+				for (int32 Layer = 0; Layer < PerlinLayerProperties.Num(); ++Layer)
+				{
+					TotalNoiseValue += PerlinLayerProperties[Layer].Intensity * FMath::PerlinNoise3D(PerlinLayerProperties[Layer].Frequency * EvalLocation);
+				}
+				double Intensity = IntensityFunc(Position, Normal);
+				return Position + (TotalNoiseValue * Intensity * Normal);
+			});
 		}
 
 		void Map(const FDynamicMesh3& Mesh,
-				const TArray<FVector3d>& Positions, const FMeshNormals& Normals,
-				double Intensity, const FSampledScalarField2f& DisplaceField,
-				TArray<FVector3d>& DisplacedPositions)
+			const TArray<FVector3d>& Positions, 
+			const FMeshNormals& Normals,
+			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			const FSampledScalarField2f& DisplaceField,
+			TArray<FVector3d>& DisplacedPositions)
 		{
 			const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(0);
 			for (int tid : Mesh.TriangleIndicesItr())
@@ -116,6 +182,7 @@ namespace {
 					int vid = Tri[j];
 					FVector2f UV = UVOverlay->GetElement(UVTri[j]);
 					double Offset = DisplaceField.BilinearSampleClamped(UV);
+					double Intensity = IntensityFunc(Positions[vid], Normals[vid]);
 					DisplacedPositions[vid] = Positions[vid] + (Offset * Intensity * Normals[vid]);
 				}
 			}
@@ -123,21 +190,29 @@ namespace {
 		
 		void Sine(const FDynamicMesh3& Mesh,
 			const TArray<FVector3d>& Positions,
-			double Amplitude,
+			const FMeshNormals& Normals,
+			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
 			double Frequency,
 			double PhaseShift,
+			const FVector3d& Direction,
 			TArray<FVector3d>& DisplacedPositions)
 		{
-			for (int vid : Mesh.VertexIndicesItr())
+			FQuaterniond RotateToDirection(Direction, { 0.0, 0.0, 1.0 });
+
+			ParallelDisplace(Mesh, Positions, Normals, DisplacedPositions,
+				[&](int32 vid, const FVector3d& Position, const FVector3d& Normal)
 			{
-				DisplacedPositions[vid].X = Positions[vid].X;
-				DisplacedPositions[vid].Y = Positions[vid].Y;
-				double DistXY = FMath::Sqrt(Positions[vid].X*Positions[vid].X + Positions[vid].Y*Positions[vid].Y);
-				DisplacedPositions[vid].Z = Positions[vid].Z + Amplitude * FMath::Sin(Frequency*DistXY + PhaseShift);
-			}
+				FVector3d RotatedPosition = RotateToDirection * Position;
+				double DistXY = FMath::Sqrt(RotatedPosition.X * RotatedPosition.X + RotatedPosition.Y * RotatedPosition.Y);
+				double Intensity = IntensityFunc(Position, Normal);
+				FVector3d Offset = Intensity * FMath::Sin(Frequency * DistXY + PhaseShift) * Direction;
+				return Position + Offset;
+
+			});
 		}
 
-		}
+	}
+
 	class FTextureAccess
 	{
 	public:
@@ -249,34 +324,49 @@ namespace {
 		return SubdivisionsCount;
 	}
 
+
+	// A collection of parameters to avoid having excess function parameters
+	struct DisplaceMeshParameters
+	{
+		float DisplaceIntensity = 0.0f;
+		int RandomSeed = 0;
+		UTexture2D* DisplacementMap = nullptr;
+		float SineWaveFrequency = 0.0f;
+		float SineWavePhaseShift = 0.0f;
+		FVector SineWaveDirection = { 0.0f, 0.0f, 0.0f };
+		bool bEnableFilter = false;
+		FVector FilterDirection = { 0.0f, 0.0f, 0.0f };
+		float FilterWidth = 0.0f;
+		FSampledScalarField2f DisplaceField;
+		TArray<FPerlinLayerProperties> PerlinLayerProperties;
+
+		TSharedPtr<FIndexedWeightMap> WeightMap;
+		TFunction<float(const FVector3d&, const FIndexedWeightMap)> WeightMapQueryFunc;
+	};
+
 	class FDisplaceMeshOp : public FDynamicMeshOperator
 	{
 	public:
-		FDisplaceMeshOp(TSharedPtr<FDynamicMesh3> SourceMeshIn, const FSampledScalarField2f& DisplaceFieldIn,
-			float DisplaceIntensityIn, int RandomSeedIn, float DisplaceFrequencyIn,  float DisplacePhaseShiftIn,
-			EDisplaceMeshToolDisplaceType DisplacementTypeIn);
+		FDisplaceMeshOp(TSharedPtr<FDynamicMesh3> SourceMeshIn, 
+						const DisplaceMeshParameters& DisplaceParametersIn,
+						EDisplaceMeshToolDisplaceType DisplacementTypeIn);
 		void CalculateResult(FProgressCancel* Progress) final;
 
 	private:
 		TSharedPtr<FDynamicMesh3> SourceMesh;
-		float DisplaceIntensity;
-		int RandomSeed;
+		DisplaceMeshParameters Parameters;
 		EDisplaceMeshToolDisplaceType DisplacementType;
-		const FSampledScalarField2f& DisplaceField;
-		float DisplaceFrequency;
-		float DisplacePhaseShift;
-
 		TArray<FVector3d> SourcePositions;
 		FMeshNormals SourceNormals;
 		TArray<FVector3d> DisplacedPositions;
 	};
 
-	FDisplaceMeshOp::FDisplaceMeshOp(TSharedPtr<FDynamicMesh3> SourceMeshIn, const FSampledScalarField2f& DisplaceFieldIn,
-		float DisplaceIntensityIn, int RandomSeedIn, float DisplaceFrequencyIn, float DisplacePhaseShiftIn, 
-		EDisplaceMeshToolDisplaceType DisplacementTypeIn)
-		: SourceMesh(MoveTemp(SourceMeshIn)), DisplaceIntensity(DisplaceIntensityIn), RandomSeed(RandomSeedIn),
-		DisplacementType(DisplacementTypeIn), DisplaceField(DisplaceFieldIn), DisplaceFrequency(DisplaceFrequencyIn),
-		DisplacePhaseShift(DisplacePhaseShiftIn)
+	FDisplaceMeshOp::FDisplaceMeshOp(TSharedPtr<FDynamicMesh3> SourceMeshIn, 
+									 const DisplaceMeshParameters& DisplaceParametersIn,
+									 EDisplaceMeshToolDisplaceType DisplacementTypeIn)
+		: SourceMesh(MoveTemp(SourceMeshIn)), 
+		  Parameters(DisplaceParametersIn), 
+		  DisplacementType(DisplacementTypeIn)
 	{
 	}
 
@@ -301,19 +391,41 @@ namespace {
 		DisplacedPositions.SetNum(SourceMesh->MaxVertexID());
 
 		if (Progress->Cancelled()) return;
+
+		ComputeDisplacement::FDirectionalFilter DirectionalFilter{ Parameters.bEnableFilter,
+			FVector3d(Parameters.FilterDirection),
+			Parameters.FilterWidth };
+		double Intensity = Parameters.DisplaceIntensity;
+
+		TUniqueFunction<float(const FVector3d&)> WeightMapQueryFunc = [&](const FVector3d&) { return 1.0f; };
+		if (Parameters.WeightMap.IsValid())
+		{
+			WeightMapQueryFunc = [&](const FVector3d& Pos) { return Parameters.WeightMapQueryFunc(Pos, *Parameters.WeightMap); };
+		}
+		auto IntensityFunc = [&](const FVector3d& Position, const FVector3d& Normal) 
+		{
+			return Intensity * DirectionalFilter.FilterValue(Normal) * WeightMapQueryFunc(Position);
+		};
+
+
 		// compute Displaced positions in PositionBuffer
 		switch (DisplacementType)
 		{
 		default:
 		case EDisplaceMeshToolDisplaceType::Constant:
-			ComputeDisplacement::Constant(*SourceMesh, SourcePositions, SourceNormals,
-				DisplaceIntensity,
+			ComputeDisplacement::Constant(*SourceMesh, 
+				SourcePositions, 
+				SourceNormals,
+				IntensityFunc,
 				DisplacedPositions);
 			break;
 
 		case EDisplaceMeshToolDisplaceType::RandomNoise:
-			ComputeDisplacement::RandomNoise(*SourceMesh, SourcePositions, SourceNormals,
-				DisplaceIntensity, RandomSeed,
+			ComputeDisplacement::RandomNoise(*SourceMesh, 
+				SourcePositions, 
+				SourceNormals,
+				IntensityFunc,
+				Parameters.RandomSeed,
 				DisplacedPositions);
 			break;
 			
@@ -321,24 +433,29 @@ namespace {
 			ComputeDisplacement::PerlinNoise(*SourceMesh,
 				SourcePositions,
 				SourceNormals,
-				DisplaceIntensity,
-				RandomSeed,
-				DisplaceFrequency,
+				IntensityFunc,
+				Parameters.PerlinLayerProperties,	
+				Parameters.RandomSeed,
 				DisplacedPositions);
 			break;
 
 		case EDisplaceMeshToolDisplaceType::DisplacementMap:
-			ComputeDisplacement::Map(*SourceMesh, SourcePositions, SourceNormals,
-				DisplaceIntensity, DisplaceField,
+			ComputeDisplacement::Map(*SourceMesh, 
+				SourcePositions, 
+				SourceNormals,
+				IntensityFunc,
+				Parameters.DisplaceField, 
 				DisplacedPositions);
 			break;
 
 		case EDisplaceMeshToolDisplaceType::SineWave:
-			double Amplitude = DisplaceIntensity;
-			double Frequency = DisplaceFrequency;
-			double Phase = DisplacePhaseShift;
-			ComputeDisplacement::Sine(*SourceMesh, SourcePositions, 
-				Amplitude, Frequency, Phase,
+			ComputeDisplacement::Sine(*SourceMesh, 
+				SourcePositions, 
+				SourceNormals,
+				IntensityFunc,
+				Parameters.SineWaveFrequency,
+				Parameters.SineWavePhaseShift,
+				Parameters.SineWaveDirection,
 				DisplacedPositions);
 			break;
 		}
@@ -367,70 +484,83 @@ namespace {
 	{
 	public:
 		FDisplaceMeshOpFactory(TSharedPtr<FDynamicMesh3>& SourceMeshIn,
-			float DisplaceIntensityIn, int RandomSeedIn, UTexture2D* DisplacementMapIn,
-			float DisplaceFrequencyIn, float DisplacePhaseShiftIn,
+			const DisplaceMeshParameters& DisplaceParametersIn,
 			EDisplaceMeshToolDisplaceType DisplacementTypeIn )
 			: SourceMesh(SourceMeshIn)
 		{
-			SetIntensity(DisplaceIntensityIn);
-			SetRandomSeed(RandomSeed);
-			SetDisplacementMap(DisplacementMapIn);
+			SetIntensity(DisplaceParametersIn.DisplaceIntensity);
+			SetRandomSeed(DisplaceParametersIn.RandomSeed);
+			SetDisplacementMap(DisplaceParametersIn.DisplacementMap);
+			SetFrequency(DisplaceParametersIn.SineWaveFrequency);
+			SetPhaseShift(DisplaceParametersIn.SineWavePhaseShift);
+			SetSineWaveDirection(DisplaceParametersIn.SineWaveDirection);
+			SetEnableDirectionalFilter(DisplaceParametersIn.bEnableFilter);
+			SetFilterDirection(DisplaceParametersIn.FilterDirection);
+			SetFilterFalloffWidth(DisplaceParametersIn.FilterWidth);
+			SetPerlinNoiseLayerProperties(DisplaceParametersIn.PerlinLayerProperties);
 			SetDisplacementType(DisplacementTypeIn);
-			SetFrequency(DisplaceFrequencyIn);
-			SetPhaseShift(DisplacePhaseShiftIn);
+
+			Parameters.WeightMap = DisplaceParametersIn.WeightMap;
+			Parameters.WeightMapQueryFunc = DisplaceParametersIn.WeightMapQueryFunc;
 		}
 		void SetIntensity(float IntensityIn);
 		void SetRandomSeed(int RandomSeedIn);
 		void SetDisplacementMap(UTexture2D* DisplacementMapIn);
 		void SetFrequency(float FrequencyIn);
 		void SetPhaseShift(float PhaseShiftIn);
+		void SetSineWaveDirection(const FVector& Direction);
 		void SetDisplacementType(EDisplaceMeshToolDisplaceType TypeIn);
+		void SetEnableDirectionalFilter(bool EnableDirectionalFilter);
+		void SetFilterDirection(const FVector& Direction);
+		void SetFilterFalloffWidth(float FalloffWidth);
+		void SetPerlinNoiseLayerProperties(const TArray<FPerlinLayerProperties>& PerlinLayerProperties);
+		void SetWeightMap(TSharedPtr<FIndexedWeightMap> WeightMap);
 
 		TUniquePtr<FDynamicMeshOperator> MakeNewOperator() final
 		{
-			return MakeUnique<FDisplaceMeshOp>(SourceMesh, DisplaceField, DisplaceIntensity, RandomSeed, DisplaceFrequency, DisplacePhaseShift, DisplacementType);
+			return MakeUnique<FDisplaceMeshOp>(SourceMesh, Parameters, DisplacementType);
 		}
 	private:
 		void UpdateMap();
 
-		float DisplaceIntensity;
-		int RandomSeed;
-		UTexture2D* DisplacementMap;
-		float DisplaceFrequency;
-		float DisplacePhaseShift;
+		DisplaceMeshParameters Parameters;
 		EDisplaceMeshToolDisplaceType DisplacementType;
 
 		TSharedPtr<FDynamicMesh3>& SourceMesh;
-		FSampledScalarField2f DisplaceField;
 	};
 
 	void FDisplaceMeshOpFactory::SetIntensity(float IntensityIn)
 	{
-		DisplaceIntensity = IntensityIn;
+		Parameters.DisplaceIntensity = IntensityIn;
 	}
 
 	void FDisplaceMeshOpFactory::SetRandomSeed(int RandomSeedIn)
 	{
-		RandomSeed = RandomSeedIn;
+		Parameters.RandomSeed = RandomSeedIn;
 	}
 
 	void FDisplaceMeshOpFactory::SetDisplacementMap(UTexture2D* DisplacementMapIn)
 	{
-		if (DisplacementMap != DisplacementMapIn)
+		if (Parameters.DisplacementMap != DisplacementMapIn)
 		{
-			DisplacementMap = DisplacementMapIn;
+			Parameters.DisplacementMap = DisplacementMapIn;
 			UpdateMap();
 		}
 	}
 
 	void FDisplaceMeshOpFactory::SetFrequency(float FrequencyIn)
 	{
-		DisplaceFrequency = FrequencyIn;
+		Parameters.SineWaveFrequency = FrequencyIn;
 	}
 
 	void FDisplaceMeshOpFactory::SetPhaseShift(float PhaseShiftIn)
 	{
-		DisplacePhaseShift = PhaseShiftIn;
+		Parameters.SineWavePhaseShift = PhaseShiftIn;
+	}
+
+	void FDisplaceMeshOpFactory::SetSineWaveDirection(const FVector& Direction)
+	{
+		Parameters.SineWaveDirection = Direction;
 	}
 
 	void FDisplaceMeshOpFactory::SetDisplacementType(EDisplaceMeshToolDisplaceType TypeIn)
@@ -440,25 +570,25 @@ namespace {
 
 	void FDisplaceMeshOpFactory::UpdateMap()
 	{
-		if (DisplacementMap == nullptr ||
-			DisplacementMap->PlatformData == nullptr ||
-			DisplacementMap->PlatformData->Mips.Num() < 1)
+		if (Parameters.DisplacementMap == nullptr ||
+			Parameters.DisplacementMap->PlatformData == nullptr ||
+			Parameters.DisplacementMap->PlatformData->Mips.Num() < 1)
 		{
-			DisplaceField = FSampledScalarField2f();
+			Parameters.DisplaceField = FSampledScalarField2f();
 			return;
 		}
 
-		FTextureAccess TextureAccess(DisplacementMap);
+		FTextureAccess TextureAccess(Parameters.DisplacementMap);
 		if (!TextureAccess.HasData())
 		{
-			DisplaceField = FSampledScalarField2f();
+			Parameters.DisplaceField = FSampledScalarField2f();
 		}
 		else
 		{
-			int TextureWidth = DisplacementMap->GetSizeX();
-			int TextureHeight = DisplacementMap->GetSizeY();
-			DisplaceField.Resize(TextureWidth, TextureHeight, 0.0f);
-			DisplaceField.SetCellSize(1.0f / (float)TextureWidth);
+			int TextureWidth = Parameters.DisplacementMap->GetSizeX();
+			int TextureHeight = Parameters.DisplacementMap->GetSizeY();
+			Parameters.DisplaceField.Resize(TextureWidth, TextureHeight, 0.0f);
+			Parameters.DisplaceField.SetCellSize(1.0f / (float)TextureWidth);
 
 			const FColor* FormattedData = TextureAccess.GetData();
 			for (int y = 0; y < TextureHeight; ++y)
@@ -467,11 +597,37 @@ namespace {
 				{
 					FColor PixelColor = FormattedData[y * TextureWidth + x];
 					float Value = PixelColor.R / 255.0;
-					DisplaceField.GridValues[y * TextureWidth + x] = Value;
+					Parameters.DisplaceField.GridValues[y * TextureWidth + x] = Value;
 				}
 			}
 		}
 	}
+
+	void FDisplaceMeshOpFactory::SetEnableDirectionalFilter(bool EnableDirectionalFilter)
+	{
+		Parameters.bEnableFilter = EnableDirectionalFilter;
+	}
+
+	void FDisplaceMeshOpFactory::SetFilterDirection(const FVector& Direction)
+	{
+		Parameters.FilterDirection = Direction;
+	}
+
+	void FDisplaceMeshOpFactory::SetFilterFalloffWidth(float FalloffWidth)
+	{
+		Parameters.FilterWidth = FalloffWidth;
+	}
+
+	void FDisplaceMeshOpFactory::SetPerlinNoiseLayerProperties(const TArray<FPerlinLayerProperties>& LayerProperties )
+	{
+		Parameters.PerlinLayerProperties = LayerProperties;
+	}
+
+	void FDisplaceMeshOpFactory::SetWeightMap(TSharedPtr<FIndexedWeightMap> WeightMap)
+	{
+		Parameters.WeightMap = WeightMap;
+	}
+
 } // namespace
 
 /*
@@ -498,19 +654,46 @@ UInteractiveTool* UDisplaceMeshToolBuilder::BuildTool(const FToolBuilderState& S
 /*
  * Tool
  */
-UDisplaceMeshTool::UDisplaceMeshTool()
+TArray<FString> UDisplaceMeshCommonProperties::GetWeightMapsFunc()
 {
-	DisplacementType = EDisplaceMeshToolDisplaceType::Constant;
-	DisplaceIntensity = 10.0f;
-	DisplaceFrequency = 0.1f;
-	DisplacePhaseShift = 0.0f;
-	RandomSeed = 31337;
-	Subdivisions = 4;
+	return WeightMapsList;
 }
 
 void UDisplaceMeshTool::Setup()
 {
 	UInteractiveTool::Setup();
+
+	// UInteractiveToolPropertySets
+	NoiseProperties = NewObject<UDisplaceMeshPerlinNoiseProperties>();
+	NoiseProperties->RestoreProperties(this);
+	CommonProperties = NewObject<UDisplaceMeshCommonProperties>();
+	CommonProperties->RestoreProperties(this);
+	DirectionalFilterProperties = NewObject<UDisplaceMeshDirectionalFilterProperties>();
+	DirectionalFilterProperties->RestoreProperties(this);
+	TextureMapProperties = NewObject<UDisplaceMeshTextureMapProperties>();
+	TextureMapProperties->RestoreProperties(this);
+	SineWaveProperties = NewObject<UDisplaceMeshSineWaveProperties>();
+	SineWaveProperties->RestoreProperties(this);
+
+	if (TextureMapProperties->DisplacementMap != nullptr && TextureMapProperties->DisplacementMap->IsValidLowLevel() == false)
+	{
+		TextureMapProperties->DisplacementMap = nullptr;
+	}
+
+	// populate weight maps list
+	TArray<FName> WeightMaps;
+	UE::WeightMaps::FindVertexWeightMaps(ComponentTarget->GetMesh(), WeightMaps);
+	CommonProperties->WeightMapsList.Add(TEXT("None"));
+	for (FName Name : WeightMaps)
+	{
+		CommonProperties->WeightMapsList.Add(Name.ToString());
+	}
+	if (WeightMaps.Contains(CommonProperties->WeightMap) == false)		// discard restored value if it doesn't apply
+	{
+		CommonProperties->WeightMap = FName(CommonProperties->WeightMapsList[0]);
+	}
+	UpdateActiveWeightMap();
+
 
 	// create dynamic mesh component to use for live preview
 	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMesh");
@@ -529,21 +712,72 @@ void UDisplaceMeshTool::Setup()
 	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
 	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
 	OriginalMesh.Copy(*DynamicMeshComponent->GetMesh());
+	OriginalMeshSpatial.SetMesh(&OriginalMesh, true);
 
-	Subdivider = MakeUnique<FSubdivideMeshOpFactory>(OriginalMesh, Subdivisions);
-	Displacer = MakeUnique<FDisplaceMeshOpFactory>(SubdividedMesh, DisplaceIntensity, RandomSeed, DisplacementMap, DisplaceFrequency, DisplacePhaseShift, DisplacementType);
+	Subdivider = MakeUnique<FSubdivideMeshOpFactory>(OriginalMesh, CommonProperties->Subdivisions);
+	
+	DisplaceMeshParameters Parameters;
+	Parameters.DisplaceIntensity = CommonProperties->DisplaceIntensity;
+	Parameters.RandomSeed = CommonProperties->RandomSeed;
+	Parameters.DisplacementMap = TextureMapProperties->DisplacementMap;
+	Parameters.SineWaveFrequency = SineWaveProperties->SineWaveFrequency;
+	Parameters.SineWavePhaseShift = SineWaveProperties->SineWavePhaseShift;
+	Parameters.SineWaveDirection = SineWaveProperties->SineWaveDirection;
+	Parameters.bEnableFilter = DirectionalFilterProperties->bEnableFilter;
+	Parameters.FilterDirection = DirectionalFilterProperties->FilterDirection;
+	Parameters.FilterWidth = DirectionalFilterProperties->FilterWidth;
+	Parameters.PerlinLayerProperties = NoiseProperties->PerlinLayerProperties;
+	Parameters.WeightMap = ActiveWeightMap;
+	Parameters.WeightMapQueryFunc = [this](const FVector3d& Position, const FIndexedWeightMap& WeightMap) { return WeightMapQuery(Position, WeightMap);	};
+
+	Displacer = MakeUnique<FDisplaceMeshOpFactory>(SubdividedMesh, Parameters, CommonProperties->DisplacementType);
 		
 	// hide input StaticMeshComponent
 	ComponentTarget->SetOwnerVisibility(false);
 
 	// initialize our properties
 	ToolPropertyObjects.Add(this);
+
+	AddToolPropertySource(CommonProperties);
+	SetToolPropertySourceEnabled(CommonProperties, true);
+
+	AddToolPropertySource(DirectionalFilterProperties);
+	SetToolPropertySourceEnabled(DirectionalFilterProperties, true);
+
+	AddToolPropertySource(TextureMapProperties);
+	SetToolPropertySourceEnabled(TextureMapProperties, CommonProperties->DisplacementType == EDisplaceMeshToolDisplaceType::DisplacementMap);
+
+	AddToolPropertySource(SineWaveProperties);
+	SetToolPropertySourceEnabled(SineWaveProperties, CommonProperties->DisplacementType == EDisplaceMeshToolDisplaceType::SineWave);
+
+	AddToolPropertySource(NoiseProperties);
+	SetToolPropertySourceEnabled(NoiseProperties, CommonProperties->DisplacementType == EDisplaceMeshToolDisplaceType::PerlinNoise);
+
+	// Set up a callback for when the type of displacement changes
+	CommonProperties->WatchProperty(CommonProperties->DisplacementType,
+									[this](EDisplaceMeshToolDisplaceType NewType)
+									{
+										SetToolPropertySourceEnabled(NoiseProperties, (NewType == EDisplaceMeshToolDisplaceType::PerlinNoise));
+										SetToolPropertySourceEnabled(SineWaveProperties, (NewType == EDisplaceMeshToolDisplaceType::SineWave));
+										SetToolPropertySourceEnabled(TextureMapProperties, (NewType == EDisplaceMeshToolDisplaceType::DisplacementMap));
+									} );
+
 	ValidateSubdivisions();
 	StartComputation();
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartDisplaceMesh", "Subdivide and Displace the input mesh using different noise functions and maps"),
+		EToolMessageLevel::UserNotification);
 }
 
 void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	CommonProperties->SaveProperties(this);
+	NoiseProperties->SaveProperties(this);
+	DirectionalFilterProperties->SaveProperties(this);
+	SineWaveProperties->SaveProperties(this);
+	TextureMapProperties->SaveProperties(this);
+
 	if (DynamicMeshComponent != nullptr)
 	{
 		ComponentTarget->SetOwnerVisibility(true);
@@ -554,7 +788,7 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("DisplaceMeshToolTransactionName", "Displace Mesh"));
 			ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 			{
-				DynamicMeshComponent->Bake(CommitParams.MeshDescription, Subdivisions > 0);
+				DynamicMeshComponent->Bake(CommitParams.MeshDescription, CommonProperties->Subdivisions > 0);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -567,42 +801,54 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UDisplaceMeshTool::ValidateSubdivisions()
 {
+	if (CommonProperties->bDisableSizeWarning)
+	{
+		GetToolManager()->DisplayMessage(FText::GetEmpty(), EToolMessageLevel::UserWarning);
+		return;
+	}
+
 	constexpr int MaxTriangles = 3000000;
 	double NumTriangles = OriginalMesh.MaxTriangleID();
 	int MaxSubdivisions = (int)floor(log2(MaxTriangles / NumTriangles) / 2.0);
-	if (Subdivisions > MaxSubdivisions)
+	if (CommonProperties->Subdivisions > MaxSubdivisions)
 	{
-		FText WarningText = FText::Format(LOCTEXT("SubdivisionsTooHigh", "Desired number of Subdivisions ({0}) exceeds maximum number of {1}"), FText::AsNumber(Subdivisions), FText::AsNumber(MaxSubdivisions));
+		FText WarningText = FText::Format(LOCTEXT("SubdivisionsTooHigh", "Desired number of Subdivisions ({0}) exceeds maximum number of {1}"), 
+			FText::AsNumber(CommonProperties->Subdivisions), 
+			FText::AsNumber(MaxSubdivisions));
 		GetToolManager()->DisplayMessage(WarningText, EToolMessageLevel::UserWarning);
-		Subdivisions = MaxSubdivisions;
+		CommonProperties->Subdivisions = MaxSubdivisions;
 	}
 	else
 	{
 		FText ClearWarningText;
 		GetToolManager()->DisplayMessage(ClearWarningText, EToolMessageLevel::UserWarning);
 	}
-	if (Subdivisions < 0)
+	if (CommonProperties->Subdivisions < 0)
 	{
-		Subdivisions = 0;
+		CommonProperties->Subdivisions = 0;
 	}
 }
 
 #if WITH_EDITOR
-void UDisplaceMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+
+void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
-	if (PropertyThatChanged)
+	if (PropertySet && Property)
 	{
-		FSubdivideMeshOpFactory*  SubdividerDownCast = static_cast<FSubdivideMeshOpFactory*>(Subdivider.Get());
-		FDisplaceMeshOpFactory*  DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
-		const FName PropName = PropertyThatChanged->GetFName();
+		FDisplaceMeshOpFactory* DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
+		FSubdivideMeshOpFactory* SubdividerDownCast = static_cast<FSubdivideMeshOpFactory*>(Subdivider.Get());
+
+		const FString PropertySetName = PropertySet->GetFName().GetPlainNameString();
+		const FName PropName = Property->GetFName();
+	
 		bNeedsDisplaced = true;
-		if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, Subdivisions))
+
+		if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, Subdivisions))
 		{
 			ValidateSubdivisions();
-			if (Subdivisions != SubdividerDownCast->GetSubdivisionsCount())
+			if (CommonProperties->Subdivisions != SubdividerDownCast->GetSubdivisionsCount())
 			{
-				SubdividerDownCast->SetSubdivisionsCount(Subdivisions);
+				SubdividerDownCast->SetSubdivisionsCount(CommonProperties->Subdivisions);
 				bNeedsSubdivided = true;
 			}
 			else
@@ -610,38 +856,70 @@ void UDisplaceMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 				return;
 			}
 		}
-		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, RandomSeed))
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, RandomSeed))
 		{
-			DisplacerDownCast->SetRandomSeed(RandomSeed);
+			DisplacerDownCast->SetRandomSeed(CommonProperties->RandomSeed);
 		}
-		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, DisplacementType))
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, DisplacementType))
 		{
-			DisplacerDownCast->SetDisplacementType(DisplacementType);
+			DisplacerDownCast->SetDisplacementType(CommonProperties->DisplacementType);
 		}
-		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, DisplaceIntensity))
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, DisplaceIntensity))
 		{
-			DisplacerDownCast->SetIntensity(DisplaceIntensity);
+			DisplacerDownCast->SetIntensity(CommonProperties->DisplaceIntensity);
 		}
-		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, DisplaceFrequency))
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshSineWaveProperties, SineWaveFrequency))
 		{
-			DisplacerDownCast->SetFrequency(DisplaceFrequency);
+			DisplacerDownCast->SetFrequency(SineWaveProperties->SineWaveFrequency);
 		}
-		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, DisplacePhaseShift))
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshSineWaveProperties, SineWavePhaseShift))
 		{
-			DisplacerDownCast->SetPhaseShift(DisplacePhaseShift);
+			DisplacerDownCast->SetPhaseShift(SineWaveProperties->SineWavePhaseShift);
 		}
-		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTool, DisplacementMap))
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTextureMapProperties, DisplacementMap))
 		{
-			DisplacerDownCast->SetDisplacementMap(DisplacementMap);
+			DisplacerDownCast->SetDisplacementMap(TextureMapProperties->DisplacementMap);
 		}
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, WeightMap) 
+				 || PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, bInvertWeightMap))
+		{
+			UpdateActiveWeightMap();
+			DisplacerDownCast->SetWeightMap(ActiveWeightMap);
+		}
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshDirectionalFilterProperties, bEnableFilter))
+		{
+			DisplacerDownCast->SetEnableDirectionalFilter(DirectionalFilterProperties->bEnableFilter);
+		}
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshDirectionalFilterProperties, FilterWidth))
+		{
+			DisplacerDownCast->SetFilterFalloffWidth(DirectionalFilterProperties->FilterWidth);
+		}
+		else if ((PropName == GET_MEMBER_NAME_CHECKED(FPerlinLayerProperties, Frequency)) || (PropName == GET_MEMBER_NAME_CHECKED(FPerlinLayerProperties, Intensity)))
+		{
+			DisplacerDownCast->SetPerlinNoiseLayerProperties(NoiseProperties->PerlinLayerProperties);
+		}
+		else if (PropName == "X" || PropName == "Y" || PropName == "Z")
+		{
+			if (PropertySetName == "DisplaceMeshDirectionalFilterProperties")
+			{
+				DirectionalFilterProperties->FilterDirection.Normalize();
+				DisplacerDownCast->SetFilterDirection(DirectionalFilterProperties->FilterDirection);
+			}
+			else if (PropertySetName == "DisplaceMeshSineWaveProperties")
+			{
+				SineWaveProperties->SineWaveDirection.Normalize();
+				DisplacerDownCast->SetSineWaveDirection(SineWaveProperties->SineWaveDirection);
+			}
+		}
+
+
 		StartComputation();
 	}
 }
 #endif
 
-void UDisplaceMeshTool::Tick(float DeltaTime)
+void UDisplaceMeshTool::OnTick(float DeltaTime)
 {
-	Super::Tick(DeltaTime); 
 	AdvanceComputation();
 }
 
@@ -693,5 +971,36 @@ void UDisplaceMeshTool::AdvanceComputation()
 		GetToolManager()->PostInvalidation();
 	}
 }
+
+
+
+void UDisplaceMeshTool::UpdateActiveWeightMap()
+{
+	TSharedPtr<FIndexedWeightMap> NewWeightMap = MakeShared<FIndexedWeightMap>();
+	UE::WeightMaps::GetVertexWeightMap(ComponentTarget->GetMesh(), CommonProperties->WeightMap, *NewWeightMap, 1.0f);
+	if (CommonProperties->bInvertWeightMap)
+	{
+		NewWeightMap->InvertWeightMap();
+	}
+	ActiveWeightMap = NewWeightMap;
+}
+
+
+float UDisplaceMeshTool::WeightMapQuery(const FVector3d& Position, const FIndexedWeightMap& WeightMap) const
+{
+	double NearDistSqr;
+	int32 NearTID = OriginalMeshSpatial.FindNearestTriangle(Position, NearDistSqr);
+	if (NearTID < 0)
+	{
+		return 1.0f;
+	}
+	FDistPoint3Triangle3d Distance = TMeshQueries<FDynamicMesh3>::TriangleDistance(OriginalMesh, NearTID, Position);
+	FIndex3i Tri = OriginalMesh.GetTriangle(NearTID);
+	return WeightMap.GetInterpValue(Tri, Distance.TriangleBaryCoords);
+}
+
+
+#include "Tests/DisplaceMeshTool_Tests.inl"
+
 
 #undef LOCTEXT_NAMESPACE

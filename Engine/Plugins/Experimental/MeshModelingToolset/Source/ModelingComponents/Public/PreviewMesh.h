@@ -314,9 +314,10 @@ public:
 	/**
 	 * Notify that a DeferredEditMesh sequence is complete and cause update of rendering data structures.
 	 * @param UpdateMode type of rendering update required for the applied mesh edits
+	 * @param ModifiedAttribs which mesh attributes have been modified and need to be updated
 	 * @param bRebuildSpatial if true, and internal spatial data structure is enabled, rebuild it for updated mesh
 	 */
-	void NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, bool bRebuildSpatial);
+	void NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, EMeshRenderAttributeFlags ModifiedAttribs, bool bRebuildSpatial);
 
 
 	/**

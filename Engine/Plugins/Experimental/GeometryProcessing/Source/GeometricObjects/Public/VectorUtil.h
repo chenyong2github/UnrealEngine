@@ -316,7 +316,7 @@ namespace VectorUtil
 	* TODO: make robust to degenerate triangles?
 	*/
 	template <typename RealType>
-	FVector3<RealType> BarycentricCoords(const FVector3<RealType>& Point, const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	FVector3<RealType> BarycentricCoords(const FVector2<RealType>& Point, const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
 	{
 		FVector2<RealType> kV02 = V0 - V2;
 		FVector2<RealType> kV12 = V1 - V2;
@@ -421,7 +421,13 @@ namespace VectorUtil
 			NormalIn.X*TangentIn.Y - NormalIn.Y*TangentIn.X);
 	}
 
-
+	/// @return Aspect ratio of triangle 
+	inline double AspectRatio(const FVector3d& v1, const FVector3d& v2, const FVector3d& v3)
+	{
+		double a = v1.Distance(v2), b = v2.Distance(v3), c = v3.Distance(v1);
+		double s = (a + b + c) / 2.0;
+		return (a * b * c) / (8.0 * (s - a) * (s - b) * (s - c));
+	}
 
 
 }; // namespace VectorUtil

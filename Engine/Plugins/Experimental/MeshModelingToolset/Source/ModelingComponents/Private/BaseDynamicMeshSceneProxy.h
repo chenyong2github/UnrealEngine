@@ -180,6 +180,47 @@ public:
 	}
 
 
+	void TransferVertexUpdateToGPU(bool bPositions, bool bNormals, bool bTexCoords, bool bColors)
+	{
+		check(IsInRenderingThread());
+		if (TriangleCount == 0)
+		{
+			return;
+		}
+
+		if (bPositions)
+		{
+			auto& VertexBuffer = this->PositionVertexBuffer;
+			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
+			RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+		}
+		if (bNormals)
+		{
+			auto& VertexBuffer = this->StaticMeshVertexBuffer;
+			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTangentSize(), RLM_WriteOnly);
+			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTangentData(), VertexBuffer.GetTangentSize());
+			RHIUnlockVertexBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI);
+		}
+		if (bColors)
+		{
+			auto& VertexBuffer = this->ColorVertexBuffer;
+			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
+			RHIUnlockVertexBuffer(VertexBuffer.VertexBufferRHI);
+		}
+		if (bTexCoords)
+		{
+			auto& VertexBuffer = this->StaticMeshVertexBuffer;
+			void* VertexBufferData = RHILockVertexBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTexCoordSize(), RLM_WriteOnly);
+			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTexCoordData(), VertexBuffer.GetTexCoordSize());
+			RHIUnlockVertexBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
+		}
+	}
+
+
+
+
 
 
 	/**

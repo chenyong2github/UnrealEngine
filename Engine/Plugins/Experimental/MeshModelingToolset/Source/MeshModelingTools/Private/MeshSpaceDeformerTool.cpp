@@ -486,10 +486,8 @@ void UMeshSpaceDeformerTool::UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceD
 	MeshSpaceDeformerOp.CopySource(*OriginalDynamicMesh, ComponentTarget->GetWorldTransform());
 }
 
-void UMeshSpaceDeformerTool::Tick(float DeltaTime)
+void UMeshSpaceDeformerTool::OnTick(float DeltaTime)
 {
-	UMeshSurfacePointTool::Tick(DeltaTime);
-
 	if (Preview != nullptr)
 	{
 		Preview->Tick(DeltaTime);

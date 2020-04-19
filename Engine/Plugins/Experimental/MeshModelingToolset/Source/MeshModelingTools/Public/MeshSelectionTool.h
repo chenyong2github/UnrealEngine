@@ -6,7 +6,6 @@
 #include "DynamicMeshBrushTool.h"
 #include "SelectionSet.h"
 #include "Changes/MeshSelectionChange.h"
-#include "Changes/ValueWatcher.h"
 #include "DynamicMeshOctree3.h"
 #include "MeshSelectionTool.generated.h"
 
@@ -250,9 +249,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Selection)
 	EMeshFacesColorMode FaceColorMode = EMeshFacesColorMode::None;
-
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -275,7 +271,7 @@ public:
 
 	virtual void Setup() override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -330,10 +326,6 @@ protected:
 
 	EMeshSelectionElementType SelectionType = EMeshSelectionElementType::Face;
 
-	TValueWatcher<bool> ShowWireframeWatcher;
-	TValueWatcher<EMeshFacesColorMode> ColorModeWatcher;
-
-
 	bool bInRemoveStroke = false;
 	FBrushStampData StartStamp;
 	FBrushStampData LastStamp;
@@ -364,7 +356,7 @@ protected:
 	// selection change
 	FMeshSelectionChangeBuilder* ActiveSelectionChange = nullptr;
 	void BeginChange(bool bAdding);
-	TUniquePtr<FMeshSelectionChange> EndChange();
+	TUniquePtr<FToolCommandChange> EndChange();
 	void CancelChange();
 
 

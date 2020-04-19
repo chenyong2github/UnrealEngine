@@ -79,7 +79,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UEditMeshMaterialsTool : public UMeshSelec
 
 public:
 	virtual void Setup() override;
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool CanAccept() const override { return UMeshSelectionTool::CanAccept() || bHaveModifiedMaterials; }
 
@@ -111,7 +111,6 @@ protected:
 	FMaterialSetKey GetMaterialKey();
 
 	FMaterialSetKey InitialMaterialKey;
-	TValueWatcher<FMaterialSetKey> MaterialSetWatcher;
 	bool bHaveModifiedMaterials = false;
 
 	void ExternalUpdateMaterialSet(const TArray<UMaterialInterface*>& NewMaterialSet);

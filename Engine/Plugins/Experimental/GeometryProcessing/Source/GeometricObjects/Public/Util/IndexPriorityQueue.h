@@ -11,7 +11,7 @@
  * Integer IDs must be provided by the user to identify unique nodes.
  * Internally an array is used to keep track of the mapping from ids to internal indices, so the max ID must also be provided.
  *
- * @todo based on C# code where TDynamicVector could not return a reference to internal element. In C++ we can and code could be updated to be more efficient in many places.
+ * @todo based on C# code where TDynamicVector could not return a reference to internal element. In C++ we can, and code could be updated to be more efficient in many places.
  * @todo id_to_index could be sparse in many situations...
  */
 class FIndexPriorityQueue
@@ -211,7 +211,7 @@ private:
 			return;
 		}
 
-		// [RMS] is there a better way to do this? seems random to move the last node to
+		// TODO: is there a better way to do this? seems random to move the last node to
 		// top of tree? But I guess otherwise we might have to shift entire branches??
 
 		//Swap the node with the last node

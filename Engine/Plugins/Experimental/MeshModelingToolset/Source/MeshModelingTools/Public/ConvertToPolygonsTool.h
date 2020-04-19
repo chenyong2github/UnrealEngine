@@ -9,7 +9,6 @@
 #include "DynamicMesh3.h"
 #include "FindPolygonsAlgorithm.h"
 #include "PreviewMesh.h"
-#include "Changes/ValueWatcher.h"
 #include "ConvertToPolygonsTool.generated.h"
 
 // predeclaration
@@ -60,8 +59,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowGroupColors = true;
-
-	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
 };
 
 /**
@@ -79,7 +76,7 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override;
@@ -97,9 +94,6 @@ protected:
 protected:
 	FDynamicMesh3 SearchMesh;
 	FDynamicMeshNormalOverlay InitialNormals;
-
-	TValueWatcher<EConvertToPolygonsMode> ConvertModeWatcher;
-	TValueWatcher<bool> ShowGroupsWatcher;
 
 	FFindPolygonsAlgorithm Polygons;
 	bool bPolygonsValid = false;

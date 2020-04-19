@@ -5,6 +5,7 @@
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshOverlay.h"
 #include "MeshDescriptionBuilder.h"
+#include "Async/Async.h"
 
 
 struct FVertexUV
@@ -30,6 +31,10 @@ public:
 	TMap<FVertexUV, int> UniqueVertexUVs;
 	FDynamicMeshUVOverlay* UVOverlay;
 
+	FUVWelder() : UVOverlay(nullptr)
+	{
+	}
+
 	FUVWelder(FDynamicMeshUVOverlay* UVOverlayIn)
 	{
 		check(UVOverlayIn);
@@ -40,16 +45,14 @@ public:
 	{
 		FVertexUV VertUV = { VertexID, UV.X, UV.Y };
 
-		int NewIndex = -1;
-		if (UniqueVertexUVs.Contains(VertUV))
+		const int32* FoundIndex = UniqueVertexUVs.Find(VertUV);
+		if (FoundIndex != nullptr)
 		{
-			NewIndex = UniqueVertexUVs[VertUV];
+			return *FoundIndex;
 		}
-		else
-		{
-			NewIndex = UVOverlay->AppendElement(FVector2f(UV), VertexID);
-			UniqueVertexUVs.Add(VertUV, NewIndex);
-		}
+
+		int32 NewIndex = UVOverlay->AppendElement(FVector2f(UV));
+		UniqueVertexUVs.Add(VertUV, NewIndex);
 		return NewIndex;
 	}
 };
@@ -81,6 +84,10 @@ public:
 	TMap<FVertexNormal, int> UniqueVertexNormals;
 	FDynamicMeshNormalOverlay* NormalOverlay;
 
+	FNormalWelder() : NormalOverlay(nullptr)
+	{
+	}
+
 	FNormalWelder(FDynamicMeshNormalOverlay* NormalOverlayIn)
 	{
 		check(NormalOverlayIn);
@@ -91,16 +98,14 @@ public:
 	{
 		FVertexNormal VertNormal = { VertexID, Normal.X, Normal.Y, Normal.Z };
 
-		int NewIndex = -1;
-		if (UniqueVertexNormals.Contains(VertNormal))
+		const int32* FoundIndex = UniqueVertexNormals.Find(VertNormal);
+		if (FoundIndex != nullptr)
 		{
-			NewIndex = UniqueVertexNormals[VertNormal];
+			return *FoundIndex;
 		}
-		else
-		{
-			NewIndex = NormalOverlay->AppendElement(Normal, VertexID);
-			UniqueVertexNormals.Add(VertNormal, NewIndex);
-		}
+
+		int32 NewIndex = NormalOverlay->AppendElement(Normal);
+		UniqueVertexNormals.Add(VertNormal, NewIndex);
 		return NewIndex;
 	}
 };
@@ -139,22 +144,14 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TVertexInstanceAttributesConstRef<FVector> InstanceNormals =
 		MeshIn->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
 
-	int NumUVLayers = InstanceUVs.GetNumIndices();
-
-	// enable attributes on output mesh
-	MeshOut.EnableAttributes();
-	MeshOut.Attributes()->SetNumUVLayers(NumUVLayers);
-	FDynamicMeshNormalOverlay* NormalOverlay = MeshOut.Attributes()->PrimaryNormals();
-
 	TPolygonAttributesConstRef<int> PolyGroups =
 		MeshIn->PolygonAttributes().GetAttributesRef<int>(ExtendedMeshAttribute::PolyTriGroups);
-
-	// base triangle groups will track polygons
 	if (bEnableOutputGroups)
 	{
 		MeshOut.EnableTriangleGroups(0);
 	}
 
+	// base triangle groups will track polygons
 	int NumVertices = MeshIn->Vertices().Num();
 	int NumPolygons = MeshIn->Polygons().Num();
 	int NumVtxInstances = MeshIn->VertexInstances().Num();
@@ -163,19 +160,19 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		UE_LOG(LogTemp, Warning, TEXT("FMeshDescriptionToDynamicMesh: MeshDescription verts %d polys %d instances %d"), NumVertices, NumPolygons, NumVtxInstances);
 	}
 
-	// reserve space in MeshOut?
+	FDateTime Time_AfterVertices = FDateTime::Now();
 
-	// used to merge coincident elements so that we get actual topology
-	TArray<FUVWelder> UVWelders;
-	for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
+	// Although it is slightly redundant, we will build up this list of MeshDescription data
+	// so that it is easier to index into it below (profile whether extra memory here hurts us?)
+	struct FTriData
 	{
-		UVWelders.Emplace(MeshOut.Attributes()->GetUVLayer(UVLayerIndex));
-	}
-	FNormalWelder NormalWelder(NormalOverlay);
-
-	// always enable material ID
-	MeshOut.Attributes()->EnableMaterialID();
-	FDynamicMeshMaterialAttribute* MaterialIDAttrib = MeshOut.Attributes()->GetMaterialID();
+		FPolygonID PolygonID;
+		int32 PolygonGroupID;
+		int32 TriIndex;
+		FVertexInstanceID TriInstances[3];
+	};
+	TArray<FTriData> AddedTriangles;
+	AddedTriangles.SetNum(MeshIn->Triangles().Num());
 
 	// NOTE: If you change the iteration order here, please update the corresponding iteration in FDynamicMeshToMeshDescription::UpdateAttributes, 
 	//	which assumes the iteration order here is polygons -> triangles, to correspond the triangles when writing updated attributes back!
@@ -186,11 +183,17 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 		const TArray<FTriangleID>& TriangleIDs = MeshIn->GetPolygonTriangleIDs(PolygonID);
 		int NumTriangles = TriangleIDs.Num();
-		for ( int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
+		for (int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
 		{
-			const FTriangleID TriangleID = TriangleIDs[TriIdx];
-				
-			TArrayView<const FVertexInstanceID> InstanceTri = MeshIn->GetTriangleVertexInstances(TriangleID);
+			FTriData TriData;
+			TriData.PolygonID = PolygonID;
+			TriData.PolygonGroupID = PolygonGroupID;
+			TriData.TriIndex = TriIdx;
+
+			TArrayView<const FVertexInstanceID> InstanceTri = MeshIn->GetTriangleVertexInstances(TriangleIDs[TriIdx]);
+			TriData.TriInstances[0] = InstanceTri[0];
+			TriData.TriInstances[1] = InstanceTri[1];
+			TriData.TriInstances[2] = InstanceTri[2];
 
 			int GroupID = 0;
 			if (GroupMode == EPrimaryGroupMode::SetToPolyGroup)
@@ -208,19 +211,18 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			{
 				GroupID = PolygonGroupID;
 			}
-			
 
 			// append triangle
-			int VertexID0 = MeshIn->GetVertexInstanceVertex(InstanceTri[0]).GetValue();
-			int VertexID1 = MeshIn->GetVertexInstanceVertex(InstanceTri[1]).GetValue();
-			int VertexID2 = MeshIn->GetVertexInstanceVertex(InstanceTri[2]).GetValue();
+			int32 VertexID0 = MeshIn->GetVertexInstanceVertex(InstanceTri[0]).GetValue();
+			int32 VertexID1 = MeshIn->GetVertexInstanceVertex(InstanceTri[1]).GetValue();
+			int32 VertexID2 = MeshIn->GetVertexInstanceVertex(InstanceTri[2]).GetValue();
 			int NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
 
 			if (NewTriangleID == FDynamicMesh3::DuplicateTriangleID)
 			{
 				continue;
 			}
-			
+
 			// if append failed due to non-manifold, duplicate verts
 			if (NewTriangleID == FDynamicMesh3::NonManifoldID)
 			{
@@ -272,49 +274,132 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			}
 
 			checkSlow(NewTriangleID >= 0);
-
-			FIndex3i Tri(VertexID0, VertexID1, VertexID2);
-
-			if (bCalculateMaps)
-			{
-				TriToPolyTriMap.Insert(FIndex2i(PolygonID.GetValue(), TriIdx), NewTriangleID);
-			}
-
-			for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
-			{
-				FDynamicMeshUVOverlay* UVOverlay = MeshOut.Attributes()->GetUVLayer(UVLayerIndex);
-				FIndex3i TriUV;
-				for (int j = 0; j < 3; ++j)
-				{
-					FVector2D UV = InstanceUVs.Get(InstanceTri[j], UVLayerIndex);
-					TriUV[j] = UVWelders[UVLayerIndex].FindOrAddUnique(UV, Tri[j]);
-				}
-				UVOverlay->SetTriangle(NewTriangleID, TriUV);
-			}
-
-			if (NormalOverlay != nullptr)
-			{
-				FIndex3i TriNormals;
-				for (int j = 0; j < 3; ++j)
-				{
-					FVector Normal = InstanceNormals.Get(InstanceTri[j]);
-					TriNormals[j] = NormalWelder.FindOrAddUnique(Normal, Tri[j]);
-				}
-				NormalOverlay->SetTriangle(NewTriangleID, TriNormals);
-			}
-
-			// use PolygonGroup as MaterialID
-			if (MaterialIDAttrib != nullptr)
-			{
-				MaterialIDAttrib->SetValue(NewTriangleID, &PolygonGroupID);
-			}
-
+			AddedTriangles[NewTriangleID] = TriData;
 		}
 	}
 
+	FDateTime Time_AfterTriangles = FDateTime::Now();
+
+	//
+	// Enable relevant attributes and initialize UV/Normal welders
+	// 
+
+	int NumUVLayers = InstanceUVs.GetNumIndices();
+	TArray<FDynamicMeshUVOverlay*> UVOverlays;
+	TArray<FUVWelder> UVWelders;
+	FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
+	FNormalWelder NormalWelder;
+	FDynamicMeshMaterialAttribute* MaterialIDAttrib = nullptr;
+	if (!bDisableAttributes)
+	{
+		MeshOut.EnableAttributes();
+
+		MeshOut.Attributes()->SetNumUVLayers(NumUVLayers);
+		UVOverlays.SetNum(NumUVLayers);
+		UVWelders.SetNum(NumUVLayers);
+		for (int j = 0; j < NumUVLayers; ++j)
+		{
+			UVOverlays[j] = MeshOut.Attributes()->GetUVLayer(j);
+			UVWelders[j].UVOverlay = UVOverlays[j];
+		}
+
+		NormalOverlay = MeshOut.Attributes()->PrimaryNormals();
+		NormalWelder.NormalOverlay = NormalOverlay;
+
+		// always enable Material ID if there are any attributes
+		MeshOut.Attributes()->EnableMaterialID();
+		MaterialIDAttrib = MeshOut.Attributes()->GetMaterialID();
+	}
+
+
+	// we will weld/populate all the attributes simultaneously, hold on to futures in this array and then Wait for them at the end
+	TArray<TFuture<void>> Pending;
+
+	if (bCalculateMaps)
+	{
+		auto Future = Async(EAsyncExecution::ThreadPool, [&]()
+		{
+			for (int32 TriangleID : MeshOut.TriangleIndicesItr())
+			{
+				const FTriData& TriData = AddedTriangles[TriangleID];
+				TriToPolyTriMap.Insert(FIndex2i(TriData.PolygonID.GetValue(), TriData.TriIndex), TriangleID);
+			}
+		});
+		Pending.Add(MoveTemp(Future));
+	}
+
+	if (!bDisableAttributes)
+	{
+		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
+		{
+			auto UVFuture = Async(EAsyncExecution::ThreadPool, [&, UVLayerIndex]() // must copy UVLayerIndex here!
+			{
+				for (int32 TriangleID : MeshOut.TriangleIndicesItr())
+				{
+					FIndex3i Tri = MeshOut.GetTriangle(TriangleID);
+					const FTriData& TriData = AddedTriangles[TriangleID];
+					FIndex3i TriUV;
+					for (int j = 0; j < 3; ++j)
+					{
+						FVector2D UV = InstanceUVs.Get(TriData.TriInstances[j], UVLayerIndex);
+						TriUV[j] = UVWelders[UVLayerIndex].FindOrAddUnique(UV, Tri[j]);
+					}
+					UVOverlays[UVLayerIndex]->SetTriangle(TriangleID, TriUV);
+				}
+			});
+			Pending.Add(MoveTemp(UVFuture));
+		}
+
+
+		if (NormalOverlay != nullptr)
+		{
+			auto NormalFuture = Async(EAsyncExecution::ThreadPool, [&]()
+			{
+				for (int32 TriangleID : MeshOut.TriangleIndicesItr())
+				{
+					FIndex3i Tri = MeshOut.GetTriangle(TriangleID);
+					const FTriData& TriData = AddedTriangles[TriangleID];
+					FIndex3i TriNormals;
+					for (int j = 0; j < 3; ++j)
+					{
+						FVector Normal = InstanceNormals.Get(TriData.TriInstances[j]);
+						TriNormals[j] = NormalWelder.FindOrAddUnique(Normal, Tri[j]);
+					}
+					NormalOverlay->SetTriangle(TriangleID, TriNormals);
+				}
+			});
+			Pending.Add(MoveTemp(NormalFuture));
+		}
+
+
+		if (MaterialIDAttrib != nullptr)
+		{
+			auto MaterialFuture = Async(EAsyncExecution::ThreadPool, [&]()
+			{
+				for (int32 TriangleID : MeshOut.TriangleIndicesItr())
+				{
+					const FTriData& TriData = AddedTriangles[TriangleID];
+					MaterialIDAttrib->SetValue(TriangleID, &TriData.PolygonGroupID);
+				}
+			});
+			Pending.Add(MoveTemp(MaterialFuture));
+		}
+	}
+
+	// wait for all work to be done
+	for (TFuture<void>& Future : Pending)
+	{
+		Future.Wait();
+	}
+
+	FDateTime Time_AfterAttribs = FDateTime::Now();
+
 	if (bPrintDebugMessages)
 	{
-		int NumUVs = (NumUVLayers > 0) ? MeshOut.Attributes()->PrimaryUV()->MaxElementID() : 0;
+		UE_LOG(LogTemp, Warning, TEXT("FMeshDescriptionToDynamicMesh:  Conversion Timing: Triangles %fs   Attributbes %fs"),
+			(Time_AfterTriangles - Time_AfterVertices).GetTotalSeconds(), (Time_AfterAttribs - Time_AfterTriangles).GetTotalSeconds());
+
+		int NumUVs = (MeshOut.HasAttributes() && NumUVLayers > 0) ? MeshOut.Attributes()->PrimaryUV()->MaxElementID() : 0;
 		int NumNormals = (NormalOverlay != nullptr) ? NormalOverlay->MaxElementID() : 0;
 		UE_LOG(LogTemp, Warning, TEXT("FMeshDescriptionToDynamicMesh:  FDynamicMesh verts %d triangles %d (primary) uvs %d normals %d"), MeshOut.MaxVertexID(), MeshOut.MaxTriangleID(), NumUVs, NumNormals);
 	}
