@@ -207,4 +207,14 @@ namespace FNiagaraStackGraphUtilities
 
 	/** Gets the valid namespaces which new parameters for this usage can write to. */
 	void GetNamespacesForNewWriteParameters(EStackEditContext EditContext, ENiagaraScriptUsage Usage, TArray<FName>& OutNamespacesForNewParameters);
+
+	bool TryRenameAssignmentTarget(UNiagaraNodeAssignment& OwningAssignmentNode, FNiagaraVariable CurrentAssignmentTarget, FName NewAssignmentTargetName);
+
+	void RenameAssignmentTarget(
+		UNiagaraSystem& OwningSystem,
+		UNiagaraEmitter* OwningEmitter,
+		UNiagaraScript& OwningScript,
+		UNiagaraNodeAssignment& OwningAssignmentNode,
+		FNiagaraVariable CurrentAssignmentTarget,
+		FName NewAssignmentTargetName);
 }
