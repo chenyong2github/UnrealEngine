@@ -1670,6 +1670,7 @@ struct RHI_API FDrawCallCategoryName
 
 	static constexpr int32 MAX_DRAWCALL_CATEGORY = 256;
 	static FDrawCallCategoryName* Array[MAX_DRAWCALL_CATEGORY];
+	static int32 DisplayCounts[MAX_DRAWCALL_CATEGORY]; // A backup of the counts that can be used to display on screen to avoid flickering.
 	static int32 NumCategory;
 };
 
