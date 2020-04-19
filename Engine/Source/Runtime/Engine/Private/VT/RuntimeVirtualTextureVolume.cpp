@@ -3,6 +3,7 @@
 #include "VT/RuntimeVirtualTextureVolume.h"
 
 #include "Components/BoxComponent.h"
+#include "Components/BoundsCopyComponent.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 
 ARuntimeVirtualTextureVolume::ARuntimeVirtualTextureVolume(const FObjectInitializer& ObjectInitializer)
@@ -11,6 +12,9 @@ ARuntimeVirtualTextureVolume::ARuntimeVirtualTextureVolume(const FObjectInitiali
 	RootComponent = VirtualTextureComponent = CreateDefaultSubobject<URuntimeVirtualTextureComponent>(TEXT("VirtualTextureComponent"));
 
 #if WITH_EDITORONLY_DATA
+	// Add bounds copier
+	BoundsCopyComponent = CreateDefaultSubobject<UBoundsCopyComponent>(TEXT("BoundsCopyComponent"));
+
 	// Add box for visualization of bounds
 	Box = CreateDefaultSubobject<UBoxComponent>(TEXT("Bounds"));
 	Box->SetBoxExtent(FVector(0.5f, 0.5f, 1.f), false);
