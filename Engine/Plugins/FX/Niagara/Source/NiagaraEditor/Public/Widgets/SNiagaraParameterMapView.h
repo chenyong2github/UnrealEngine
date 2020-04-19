@@ -149,39 +149,42 @@ private:
 	FText GetRenameOnActionNodeToolTip() const;
 	void OnRequestRenameOnActionNode();
 	bool CanRequestRenameOnActionNode() const;
-	void OnPostRenameActionNode(const FText& InText, FNiagaraParameterAction& InAction);
+	void OnPostRenameActionNode(const FText& InText, TSharedRef<FNiagaraParameterAction> InAction);
 
-	bool GetSingleParameterActionForSelection(
-		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
-		FText& OutErrorMessage) const;
+	bool GetSingleParameterActionForSelection(TSharedPtr<FNiagaraParameterAction>& OutParameterAction, FText& OutErrorMessage) const;
 
 	bool ParameterExistsByName(FName ParameterName) const;
 
-	void GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder);
-	void OnChangeNamespace(FNiagaraNamespaceMetadata Metadata);
+	void GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder, bool bDuplicateParameter);
+	void OnChangeNamespace(FNiagaraNamespaceMetadata Metadata, bool bDuplicateParameter);
 
-	void GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder);
+	TArray<FName> GetOptionalNamespaceModifiers() const;
 
-	FText GetAddNamespaceModifierToolTip() const;
-	bool CanAddNamespaceModifier() const;
-	void OnAddNamespaceModifier();
+	void GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder, bool bDuplicateParameter);
 
-	FText GetRemoveNamespaceModifierToolTip() const;
-	bool CanRemoveNamespaceModifier() const;
-	void OnRemoveNamespaceModifier();
+	bool TestCanSetNamespaceModifierWithMessage(FName InNamespaceModifier, bool bDuplicateParameter, FText& OutMessage) const;
+	FText GetSetNamespaceModifierToolTip(FName InNamespaceModifier, bool bDuplicateParameter) const;
+	bool CanSetNamespaceModifier(FName InNamespaceModifier, bool bDuplicateParameter) const;
+	void OnSetNamespaceModifier(FName InNamespaceModifier, bool bDuplicateParameter);
 
-	FText GetEditNamespaceModifierToolTip() const;
-	bool CanEditNamespaceModifier() const;
-	void OnEditNamespaceModifier();
+	bool TestCanSetCustomNamespaceModifierWithMessage(bool bDuplicateParameter, FText& OutMessage) const;
+	FText GetSetCustomNamespaceModifierToolTip(bool bDuplicateParameter) const;
+	bool CanSetCustomNamespaceModifier(bool bDuplicateParameter) const;
+	void OnSetCustomNamespaceModifier(bool bDuplicateParameter);
+
+	bool TestCanDuplicateParameterWithMessage(FText& OutMessage) const;
+	FText GetDuplicateParameterToolTip() const;
+	bool CanDuplicateParameter() const;
+	void OnDuplicateParameter();
 
 	FText GetCopyParameterReferenceToolTip() const;
 	bool CanCopyParameterReference() const;
 	void OnCopyParameterReference();
 
-	void RenameParameter(FNiagaraVariable& Parameter, FName NewName);
+	void RenameParameter(TSharedPtr<FNiagaraParameterAction> ParameterAction, FName NewName);
 
-	bool IsSystemToolkit();
-	bool IsScriptToolkit();
+	bool IsSystemToolkit() const;
+	bool IsScriptToolkit() const;
 
 	/** Delegate handler used to match an FName to an action in the list, used for renaming keys */
 	bool HandleActionMatchesName(struct FEdGraphSchemaAction* InAction, const FName& InName) const;

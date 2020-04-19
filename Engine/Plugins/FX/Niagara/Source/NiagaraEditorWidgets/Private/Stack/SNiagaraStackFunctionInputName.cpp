@@ -208,56 +208,62 @@ void SNiagaraStackFunctionInputName::OnChangeNamespace(FNiagaraNamespaceMetadata
 
 void SNiagaraStackFunctionInputName::GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder)
 {
-	TAttribute<FText> AddToolTip;
-	AddToolTip.Bind(this, &SNiagaraStackFunctionInputName::GetAddNamespaceModifierToolTip);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AddNamespaceModifier", "Add"),
-		AddToolTip,
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnAddNamespaceModifier),
-			FCanExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::CanAddNamespaceModifier)));
+	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
+	TArray<FName> OptionalNamespaceModifiers;
+	FNiagaraParameterUtilities::GetOptionalNamespaceModifiers(InputParameterName, FNiagaraParameterUtilities::EParameterContext::System, OptionalNamespaceModifiers);
+	for (FName OptionalNamespaceModifier : OptionalNamespaceModifiers)
+	{
+		TAttribute<FText> SetToolTip;
+		SetToolTip.Bind(TAttribute<FText>::FGetter::CreateSP(this, &SNiagaraStackFunctionInputName::GetSetNamespaceModifierToolTip, OptionalNamespaceModifier));
+		MenuBuilder.AddMenuEntry(
+			FText::FromName(OptionalNamespaceModifier),
+			SetToolTip,
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnSetNamespaceModifier, OptionalNamespaceModifier),
+				FCanExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::CanSetNamespaceModifier, OptionalNamespaceModifier)));
+	}
 
-	TAttribute<FText> RemoveToolTip;
-	RemoveToolTip.Bind(this, &SNiagaraStackFunctionInputName::GetRemoveNamespaceModifierToolTip);
+	TAttribute<FText> SetCustomToolTip;
+	SetCustomToolTip.Bind(TAttribute<FText>::FGetter::CreateSP(this, &SNiagaraStackFunctionInputName::GetSetCustomNamespaceModifierToolTip));
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("RemoveNamespaceModifier", "Remove"),
-		RemoveToolTip,
+		LOCTEXT("CustomNamespaceModifier", "Custom..."),
+		SetCustomToolTip,
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnRemoveNamespaceModifier),
-			FCanExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::CanRemoveNamespaceModifier)));
+			FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnSetCustomNamespaceModifier),
+			FCanExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::CanSetCustomNamespaceModifier)));
 
-	TAttribute<FText> EditToolTip;
-	EditToolTip.Bind(this, &SNiagaraStackFunctionInputName::GetEditNamespaceModifierToolTip);
+	TAttribute<FText> SetNoneToolTip;
+	SetNoneToolTip.Bind(TAttribute<FText>::FGetter::CreateSP(this, &SNiagaraStackFunctionInputName::GetSetNamespaceModifierToolTip, FName(NAME_None)));
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("EditNamespaceModifier", "Edit"),
-		EditToolTip,
+		LOCTEXT("NoneNamespaceModifier", "None"),
+		SetNoneToolTip,
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnEditNamespaceModifier),
-			FCanExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::CanEditNamespaceModifier)));
+			FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnSetNamespaceModifier, FName(NAME_None)),
+			FCanExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::CanSetNamespaceModifier, FName(NAME_None))));
 }
 
-FText SNiagaraStackFunctionInputName::GetAddNamespaceModifierToolTip() const
+FText SNiagaraStackFunctionInputName::GetSetNamespaceModifierToolTip(FName NamespaceModifier) const
 {
 	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
 	FText AddMessage;
-	FNiagaraParameterUtilities::TestCanAddNamespaceModifierWithMessage(InputParameterName, AddMessage);
+	FNiagaraParameterUtilities::TestCanSetSpecificNamespaceModifierWithMessage(InputParameterName, NamespaceModifier, AddMessage);
 	return AddMessage;
 }
 
-bool SNiagaraStackFunctionInputName::CanAddNamespaceModifier() const
+bool SNiagaraStackFunctionInputName::CanSetNamespaceModifier(FName NamespaceModifier) const
 {
 	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
 	FText Unused;
-	return FNiagaraParameterUtilities::TestCanAddNamespaceModifierWithMessage(InputParameterName, Unused);
+	return FNiagaraParameterUtilities::TestCanSetSpecificNamespaceModifierWithMessage(InputParameterName, NamespaceModifier, Unused);
 }
 
-void SNiagaraStackFunctionInputName::OnAddNamespaceModifier()
+void SNiagaraStackFunctionInputName::OnSetNamespaceModifier(FName NamespaceModifier)
 {
 	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
-	FName NewName = FNiagaraParameterUtilities::AddNamespaceModifier(InputParameterName);
+	FName NewName = FNiagaraParameterUtilities::SetSpecificNamespaceModifier(InputParameterName, NamespaceModifier);
 	if (NewName != NAME_None)
 	{
 		FScopedTransaction Transaction(LOCTEXT("AddNamespaceModifierTransaction", "Add namespace modifier."));
@@ -265,53 +271,36 @@ void SNiagaraStackFunctionInputName::OnAddNamespaceModifier()
 	}
 }
 
-FText SNiagaraStackFunctionInputName::GetRemoveNamespaceModifierToolTip() const
+FText SNiagaraStackFunctionInputName::GetSetCustomNamespaceModifierToolTip() const
 {
 	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
-	FText RemoveMessage;
-	FNiagaraParameterUtilities::TestCanRemoveNamespaceModifierWithMessage(InputParameterName, RemoveMessage);
-	return RemoveMessage;
+	FText AddMessage;
+	FNiagaraParameterUtilities::TestCanSetCustomNamespaceModifierWithMessage(InputParameterName, AddMessage);
+	return AddMessage;
 }
 
-bool SNiagaraStackFunctionInputName::CanRemoveNamespaceModifier() const
+bool SNiagaraStackFunctionInputName::CanSetCustomNamespaceModifier() const
 {
 	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
 	FText Unused;
-	return FNiagaraParameterUtilities::TestCanRemoveNamespaceModifierWithMessage(InputParameterName, Unused);
+	return FNiagaraParameterUtilities::TestCanSetCustomNamespaceModifierWithMessage(InputParameterName, Unused);
 }
 
-void SNiagaraStackFunctionInputName::OnRemoveNamespaceModifier()
+void SNiagaraStackFunctionInputName::OnSetCustomNamespaceModifier()
 {
 	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
-	FText Unused;
-	FName NewName = FNiagaraParameterUtilities::RemoveNamespaceModifier(InputParameterName);
+	FName NewName = FNiagaraParameterUtilities::SetCustomNamespaceModifier(InputParameterName);
 	if (NewName != NAME_None)
 	{
-		FScopedTransaction Transaction(LOCTEXT("RemoveNamespaceModifierTransaction", "Remove namespace modifier."));
-		FunctionInput->OnRenamed(FText::FromName(NewName));
-	}
-}
-
-FText SNiagaraStackFunctionInputName::GetEditNamespaceModifierToolTip() const
-{
-	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
-	FText EditMessage;
-	FNiagaraParameterUtilities::TestCanEditNamespaceModifierWithMessage(InputParameterName, EditMessage);
-	return EditMessage;
-}
-
-bool SNiagaraStackFunctionInputName::CanEditNamespaceModifier() const
-{
-	FName InputParameterName = *FunctionInput->GetDisplayName().ToString();
-	FText Unused;
-	return FNiagaraParameterUtilities::TestCanEditNamespaceModifierWithMessage(InputParameterName, Unused);
-}
-
-void SNiagaraStackFunctionInputName::OnEditNamespaceModifier()
-{
-	if (ParameterTextBlock.IsValid())
-	{
-		ParameterTextBlock->EnterNamespaceModifierEditingMode();
+		if (NewName != InputParameterName)
+		{
+			FScopedTransaction Transaction(LOCTEXT("AddNamespaceModifierTransaction", "Add namespace modifier."));
+			FunctionInput->OnRenamed(FText::FromName(NewName));
+		}
+		if (ParameterTextBlock.IsValid())
+		{
+			ParameterTextBlock->EnterNamespaceModifierEditingMode();
+		}
 	}
 }
 
