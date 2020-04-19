@@ -790,10 +790,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			ViewRects[ViewIndex] = Views[ViewIndex].ViewRect;
 		}
 		
-		FVirtualTextureFeedback::FBufferDesc Desc;
+		FVirtualTextureFeedbackBufferDesc Desc;
 		Desc.Init2D(SceneContext.GetBufferSizeXY(), ViewRects, SceneContext.GetVirtualTextureFeedbackScale());
 
-		GVirtualTextureFeedback.TransferGPUToCPU(RHICmdList, SceneContext.VirtualTextureFeedback, Desc);
+		SubmitVirtualTextureFeedbackBuffer(RHICmdList, SceneContext.VirtualTextureFeedback, Desc);
 	}
 	
 	if (ViewFamily.bResolveScene)
