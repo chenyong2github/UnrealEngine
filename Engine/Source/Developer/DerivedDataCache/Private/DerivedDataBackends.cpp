@@ -764,7 +764,7 @@ public:
 		FString Filename;
 
 		FParse::Value( Entry, TEXT("Filename="), Filename );
-		Cache = new FMemoryDerivedDataBackend(TEXT("Memory"));
+		Cache = new FMemoryDerivedDataBackend(NodeName);
 		if( Cache && Filename.Len() )
 		{
 			if( Cache->LoadCache( *Filename ) )

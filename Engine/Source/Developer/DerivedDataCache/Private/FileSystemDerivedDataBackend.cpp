@@ -655,7 +655,7 @@ public:
 							}
 							else
 							{
-								UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Successful cache put to %s"),*GetName(), *Filename);
+								UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Successful cache put of %s to %s"),*GetName(), CacheKey, *Filename);
 							}
 						}
 					}
@@ -680,6 +680,7 @@ public:
 			else
 			{
 				COOK_STAT(Timer.AddMiss(Data.Num()));
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s skipping put to existing file %s"), *GetName(), CacheKey);
 			}
 
 			// If not using a shared cache, update estimated build time
@@ -719,7 +720,10 @@ public:
 				}
 
 			}
-
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s is read only. Skipping put of %s"), *GetName(), CacheKey);
 		}
 	}
 
