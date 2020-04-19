@@ -294,12 +294,12 @@ void AChaosSolverActor::BeginPlay()
 		{
 #if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 			InSolver->SetTimeStepMultiplier(InTimeStepMultiplier);
-			InSolver->SetIterations(InCollisionIterations);
-			InSolver->SetPushOutIterations(InPushOutIterations);
-			InSolver->SetPushOutPairIterations(InPushOutPairIterations);
 			InSolver->SetClusterConnectionFactor(InClusterConnectionFactor);
 			InSolver->SetClusterUnionConnectionType((Chaos::FClusterCreationParameters<float>::EConnectionMethod)InClusterUnionConnectionType);
 #endif
+			InSolver->SetIterations(InCollisionIterations);
+			InSolver->SetPushOutPairIterations(InPushOutPairIterations);
+			InSolver->SetPushOutIterations(InPushOutIterations);
 			InSolver->SetGenerateCollisionData(InDoGenerateCollisionData);
 			InSolver->SetGenerateBreakingData(InDoGenerateBreakingData);
 			InSolver->SetGenerateTrailingData(InDoGenerateTrailingData);
