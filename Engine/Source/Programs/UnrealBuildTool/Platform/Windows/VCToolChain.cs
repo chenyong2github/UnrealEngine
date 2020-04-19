@@ -52,6 +52,11 @@ namespace UnrealBuildTool
 		public override void SetEnvironmentVariables()
 		{
 			EnvVars.SetEnvironmentVariables();
+
+			// Don't allow the INCLUDE environment variable to propagate. It's set by the IDE based on the IncludePath property in the project files which we
+			// add to improve Visual Studio memory usage, but we don't actually need it to set when invoking the compiler. Doing so results in it being converted
+			// into /I arguments by the CL driver, which results in errors due to the command line not fitting into the PDB debug record.
+			Environment.SetEnvironmentVariable("INCLUDE", null);
 		}
 
 		/// <summary>
