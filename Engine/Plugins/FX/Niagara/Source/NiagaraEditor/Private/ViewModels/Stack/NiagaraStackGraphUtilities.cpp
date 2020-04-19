@@ -22,6 +22,9 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemEditorData.h"
+#include "NiagaraEmitterEditorData.h"
+#include "NiagaraStackEditorData.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraConstants.h"
@@ -2673,6 +2676,103 @@ void FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(EStackEditC
 	}
 
 	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
+}
+
+bool FNiagaraStackGraphUtilities::TryRenameAssignmentTarget(UNiagaraNodeAssignment& OwningAssignmentNode, FNiagaraVariable CurrentAssignmentTarget, FName NewAssignmentTargetName)
+{
+	UNiagaraNodeOutput* OutputNode = GetEmitterOutputNodeForStackNode(OwningAssignmentNode);
+	if (OutputNode != nullptr)
+	{
+		UNiagaraSystem* OwningSystem = OwningAssignmentNode.GetTypedOuter<UNiagaraSystem>();
+		UNiagaraEmitter* OwningEmitter = OwningAssignmentNode.GetTypedOuter<UNiagaraEmitter>();
+		UNiagaraScript* OwningScript = nullptr;
+		if (OwningEmitter != nullptr)
+		{
+			OwningScript = OwningEmitter->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId());
+		}
+		else if(OwningSystem != nullptr)
+		{
+			if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript)
+			{
+				OwningScript = OwningSystem->GetSystemSpawnScript();
+			}
+			else if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript)
+			{
+				OwningScript = OwningSystem->GetSystemUpdateScript();
+			}
+		}
+
+		if (OwningSystem != nullptr && OwningScript != nullptr)
+		{
+			RenameAssignmentTarget(*OwningSystem, OwningEmitter, *OwningScript, OwningAssignmentNode, CurrentAssignmentTarget, NewAssignmentTargetName);
+			return true;
+		}
+	}
+	return false;
+}
+
+void FNiagaraStackGraphUtilities::RenameAssignmentTarget(
+	UNiagaraSystem& OwningSystem,
+	UNiagaraEmitter* OwningEmitter,
+	UNiagaraScript& OwningScript,
+	UNiagaraNodeAssignment& OwningAssignmentNode,
+	FNiagaraVariable CurrentAssignmentTarget,
+	FName NewAssignmentTargetName)
+{
+	UNiagaraStackEditorData* StackEditorData;
+	if (OwningEmitter != nullptr)
+	{
+		UNiagaraEmitterEditorData* EmitterEditorData = Cast<UNiagaraEmitterEditorData>(OwningEmitter->GetEditorData());
+		StackEditorData = EmitterEditorData != nullptr ? &EmitterEditorData->GetStackEditorData() : nullptr;
+	}
+	else
+	{
+		UNiagaraSystemEditorData* SystemEditorData = Cast<UNiagaraSystemEditorData>(OwningSystem.GetEditorData());
+		StackEditorData = SystemEditorData != nullptr ? &SystemEditorData->GetStackEditorData() : nullptr;
+	}
+
+	bool bIsCurrentlyExpanded = StackEditorData != nullptr 
+		? StackEditorData->GetStackEntryIsExpanded(GenerateStackModuleEditorDataKey(OwningAssignmentNode), false) 
+		: false;
+
+	if (ensureMsgf(OwningAssignmentNode.RenameAssignmentTarget(CurrentAssignmentTarget.GetName(), NewAssignmentTargetName), TEXT("Failed to rename assignment node input.")))
+	{
+		// Fixing up the stack graph and rapid iteration parameters must happen first so that when the stack is refreshed the UI is correct.
+		FNiagaraParameterHandle CurrentInputParameterHandle = FNiagaraParameterHandle::CreateModuleParameterHandle(CurrentAssignmentTarget.GetName());
+		FNiagaraParameterHandle CurrentAliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(CurrentInputParameterHandle, &OwningAssignmentNode);
+		FNiagaraParameterHandle NewInputParameterHandle = FNiagaraParameterHandle(CurrentInputParameterHandle.GetNamespace(), NewAssignmentTargetName);
+		FNiagaraParameterHandle NewAliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(NewInputParameterHandle, &OwningAssignmentNode);
+		UEdGraphPin* OverridePin = GetStackFunctionInputOverridePin(OwningAssignmentNode, CurrentAliasedInputParameterHandle);
+		if (OverridePin != nullptr)
+		{
+			// If there is an override pin then the only thing that needs to happen is that it's name needs to be updated so that the value it
+			// holds or is linked to stays intact.
+			OverridePin->Modify();
+			OverridePin->PinName = NewAliasedInputParameterHandle.GetParameterHandleString();
+		}
+		else if (IsRapidIterationType(CurrentAssignmentTarget.GetType()))
+		{
+			// Otherwise if this is a rapid iteration type check to see if there is an existing rapid iteration value, and if so, rename it.
+			FString UniqueEmitterName = OwningEmitter != nullptr ? OwningEmitter->GetUniqueEmitterName() : FString();
+			FNiagaraVariable CurrentRapidIterationParameter = CreateRapidIterationParameter(UniqueEmitterName, OwningScript.GetUsage(), CurrentAliasedInputParameterHandle.GetParameterHandleString(), CurrentAssignmentTarget.GetType());
+			if (OwningScript.RapidIterationParameters.IndexOf(CurrentRapidIterationParameter) != INDEX_NONE)
+			{
+				FNiagaraVariable NewRapidIterationParameter = CreateRapidIterationParameter(UniqueEmitterName, OwningScript.GetUsage(), NewAliasedInputParameterHandle.GetParameterHandleString(), CurrentAssignmentTarget.GetType());
+				OwningScript.Modify();
+				OwningScript.RapidIterationParameters.RenameParameter(CurrentRapidIterationParameter, NewRapidIterationParameter.GetName());
+			}
+		}
+
+		if (StackEditorData != nullptr)
+		{
+			// Restore the expanded state with the new editor data key.
+			FString NewStackEditorDataKey = GenerateStackFunctionInputEditorDataKey(OwningAssignmentNode, NewInputParameterHandle);
+			StackEditorData->SetStackEntryIsExpanded(NewStackEditorDataKey, bIsCurrentlyExpanded);
+		}
+
+		// This refresh call must come last because it will finalize this input entry which would cause earlier fixup to fail.
+		OwningAssignmentNode.RefreshFromExternalChanges();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

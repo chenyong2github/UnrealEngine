@@ -347,15 +347,21 @@ namespace FNiagaraParameterUtilities
 
 	NIAGARAEDITOR_API FName ChangeNamespace(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata);
 
-	NIAGARAEDITOR_API bool TestCanAddNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+	NIAGARAEDITOR_API int32 GetNumberOfNamePartsBeforeEditableModifier(const FNiagaraNamespaceMetadata& NamespaceMetadata);
 
-	NIAGARAEDITOR_API FName AddNamespaceModifier(FName InParameterName);
+	NIAGARAEDITOR_API void GetOptionalNamespaceModifiers(FName ParameterName, EParameterContext InParameterContext, TArray<FName>& OutOptionalNamespaceModifiers);
 
-	NIAGARAEDITOR_API bool TestCanRemoveNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+	NIAGARAEDITOR_API FName GetEditableNamespaceModifierForParameter(FName ParameterName);
 
-	NIAGARAEDITOR_API FName RemoveNamespaceModifier(FName InParameterName);
+	NIAGARAEDITOR_API bool TestCanSetSpecificNamespaceModifierWithMessage(FName InParameterName, FName InNamespaceModifier, FText& OutMessage);
 
-	NIAGARAEDITOR_API bool TestCanEditNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+	NIAGARAEDITOR_API FName SetSpecificNamespaceModifier(FName InParameterName, FName InNamespaceModifier);
+
+	NIAGARAEDITOR_API bool TestCanSetCustomNamespaceModifierWithMessage(FName InParameterName, FText& OutMessage);
+
+	NIAGARAEDITOR_API FName SetCustomNamespaceModifier(FName InParameterName);
+
+	NIAGARAEDITOR_API FName SetCustomNamespaceModifier(FName InParameterName, TSet<FName>& CurrentParameterNames);
 
 	NIAGARAEDITOR_API bool TestCanRenameWithMessage(FName ParameterName, FText& OutMessage);
 };

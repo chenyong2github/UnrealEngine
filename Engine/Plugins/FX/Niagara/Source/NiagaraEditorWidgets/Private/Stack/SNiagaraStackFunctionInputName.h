@@ -49,17 +49,13 @@ private:
 
 	void GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder);
 
-	FText GetAddNamespaceModifierToolTip() const;
-	bool CanAddNamespaceModifier() const;
-	void OnAddNamespaceModifier();
+	FText GetSetNamespaceModifierToolTip(FName InNamespaceModifier) const;
+	bool CanSetNamespaceModifier(FName InNamespaceModifier) const;
+	void OnSetNamespaceModifier(FName InNamespaceModifier);
 
-	FText GetRemoveNamespaceModifierToolTip() const;
-	bool CanRemoveNamespaceModifier() const;
-	void OnRemoveNamespaceModifier();
-
-	FText GetEditNamespaceModifierToolTip() const;
-	bool CanEditNamespaceModifier() const;
-	void OnEditNamespaceModifier();
+	FText GetSetCustomNamespaceModifierToolTip() const;
+	bool CanSetCustomNamespaceModifier() const;
+	void OnSetCustomNamespaceModifier();
 
 	FText GetCopyParameterReferenceToolTip() const;
 	bool CanCopyParameterReference() const;
