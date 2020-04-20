@@ -145,6 +145,10 @@ public:
 	bool IsBodySelected(const FSelection& Body) const;
 	void ToggleSelectionType();
 	void ToggleShowSelected();
+	void ShowAll();
+	void HideAll();
+	void ShowSelected();
+	void HideSelected();
 	void SetSelectedBodyAnyPrim(int32 BodyIndex, bool bSelected);
 	void DeleteCurrentPrim();
 	void DeleteBody(int32 DelBodyIndex, bool bRefreshComponent=true);
