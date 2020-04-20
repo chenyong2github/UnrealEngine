@@ -92,6 +92,11 @@ public:
 	TSharedPtr<FUICommandInfo> SelectAllConstraints;
 	TSharedPtr<FUICommandInfo> ToggleSelectionType;
 	TSharedPtr<FUICommandInfo> ToggleShowSelected;
+	TSharedPtr<FUICommandInfo> ShowAll;
+	TSharedPtr<FUICommandInfo> HideAll;
+	TSharedPtr<FUICommandInfo> ShowSelected;
+	TSharedPtr<FUICommandInfo> HideSelected;
+	TSharedPtr<FUICommandInfo> ShowOnlySelected;
 	TSharedPtr<FUICommandInfo> DeselectAll;
 	TSharedPtr<FUICommandInfo> Mirror;
 	TSharedPtr<FUICommandInfo> NewPhysicalAnimationProfile;
