@@ -662,6 +662,10 @@ struct FAutomationWorkerScreenImage
 	UPROPERTY(EditAnywhere, Category="Message")
 	TArray<uint8> ScreenImage;
 
+	/** The frame trace data. */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	TArray<uint8> FrameTrace;
+
 	/** The screen shot name. */
 	UPROPERTY(EditAnywhere, Category="Message")
 	FString ScreenShotName;
