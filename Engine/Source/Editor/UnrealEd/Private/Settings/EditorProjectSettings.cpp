@@ -156,25 +156,32 @@ void UBlueprintEditorProjectSettings::PostEditChangeProperty(struct FPropertyCha
 	const FName Name = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	if (Name == GET_MEMBER_NAME_CHECKED(UBlueprintEditorProjectSettings, bEnableChildActorExpansionInTreeView))
 	{
-		// Find open blueprint editors and refresh them
-		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-		TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets();
-		for (UObject* Asset : EditedAssets)
+		if (!GEditor)
 		{
-			if (Asset && Asset->IsA<UBlueprint>())
+			return;
+		}
+
+		// Find open blueprint editors and refresh them
+		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets();
+			for (UObject* Asset : EditedAssets)
 			{
-				TSharedPtr<IToolkit> AssetEditorPtr = FToolkitManager::Get().FindEditorForAsset(Asset);
-				if (AssetEditorPtr.IsValid() && AssetEditorPtr->IsBlueprintEditor())
+				if (Asset && Asset->IsA<UBlueprint>())
 				{
-					TSharedPtr<IBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<IBlueprintEditor>(AssetEditorPtr);
-					BlueprintEditorPtr->RefreshEditors();
+					TSharedPtr<IToolkit> AssetEditorPtr = FToolkitManager::Get().FindEditorForAsset(Asset);
+					if (AssetEditorPtr.IsValid() && AssetEditorPtr->IsBlueprintEditor())
+					{
+						TSharedPtr<IBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<IBlueprintEditor>(AssetEditorPtr);
+						BlueprintEditorPtr->RefreshEditors();
+					}
 				}
 			}
 		}
 
 		// Deselect actors so we are forced to clear the current tree view
 		// @todo - Figure out how to update the tree view directly instead?
-		if (GEditor && GEditor->GetSelectedActorCount() > 0)
+		if (GEditor->GetSelectedActorCount() > 0)
 		{
 			const bool bNoteSelectionChange = true;
 			const bool bDeselectBSPSurfaces = true;
