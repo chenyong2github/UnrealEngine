@@ -225,6 +225,7 @@ private:
 	TArray<int32> HiddenSectionIDs;
 
 	TArray<FNiagaraVariable> LastCollectedParameters;
+	TSharedPtr<TArray<FName>> ParametersWithNamespaceModifierRenamePending;
 
 	bool bNeedsRefresh;
 	bool bIsAddingParameter;

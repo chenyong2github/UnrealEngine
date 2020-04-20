@@ -609,7 +609,7 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		{
 			InputNames.Add(FunctionInput->GetInputParameterHandlePath()[i].GetName().ToString());
 		}
-		FName InputName = *FString::Join(InputNames, TEXT("_"));
+		FName InputName = *FString::Join(InputNames, TEXT("_")).Replace(TEXT("."), TEXT("_"));
 
 		for (const FName AvailableNamespace : AvailableNamespaces)
 		{
