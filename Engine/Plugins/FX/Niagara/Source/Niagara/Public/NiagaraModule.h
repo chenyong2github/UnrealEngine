@@ -159,6 +159,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonTwist() { return Particles_RibbonTwist; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonFacing() { return Particles_RibbonFacing; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonLinkOrder() { return Particles_RibbonLinkOrder; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_VisibilityTag() { return Particles_VisibilityTag; }
 	
 	FORCEINLINE static const FNiagaraVariable&  GetVar_DataInstance_Alive() { return DataInstance_Alive; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_BeginDefaults() { return Translator_BeginDefaults; }
@@ -246,6 +247,7 @@ private:
 	static FNiagaraVariable Particles_Scale;
 	static FNiagaraVariable Particles_Lifetime;
 	static FNiagaraVariable Particles_MeshOrientation;
+	static FNiagaraVariable Particles_VisibilityTag;
 	static FNiagaraVariable Particles_UVScale;
 	static FNiagaraVariable Particles_CameraOffset;
 	static FNiagaraVariable Particles_MaterialRandom;
