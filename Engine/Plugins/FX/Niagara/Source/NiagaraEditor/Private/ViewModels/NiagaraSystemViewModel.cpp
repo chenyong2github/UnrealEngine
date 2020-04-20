@@ -2064,8 +2064,11 @@ void FNiagaraSystemViewModel::BuildStackModuleData(UNiagaraScript* Script, FGuid
 
 void FNiagaraSystemViewModel::SystemChanged(UNiagaraSystem* ChangedSystem)
 {
-	check(System == ChangedSystem);
-	RefreshAll();
+	if (GIsTransacting == false)
+	{
+		check(System == ChangedSystem);
+		RefreshAll();
+	}
 }
 
 void FNiagaraSystemViewModel::StackViewModelStructureChanged()
