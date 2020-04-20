@@ -735,6 +735,11 @@ namespace WindowsMixedReality
 
 		bool CommitDepthTexture(Microsoft::WRL::ComPtr<ID3D11Texture2D> depthTexture, HolographicCameraRenderingParameters RenderingParameters)
 		{
+			if (isRemoteHolographicSpace && m_isHL1Remoting)
+			{
+				return false;
+			}
+
 			if (!isDepthBasedReprojectionSupported || depthTexture == nullptr)
 			{
 				return false;
