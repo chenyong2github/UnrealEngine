@@ -754,8 +754,12 @@ void FStaticMeshEditor::BindCommands()
 		Commands.ResetCamera,
 		FExecuteAction::CreateSP(this, &FStaticMeshEditor::ResetCamera));
 
-
-
+	// Draw additional data
+	UICommandList->MapAction(
+		Commands.SetDrawAdditionalData,
+		FExecuteAction::CreateSP(this, &FStaticMeshEditor::ToggleDrawAdditionalData),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FStaticMeshEditor::IsDrawAdditionalDataChecked));
 }
 
 static TSharedRef< SWidget > GenerateCollisionMenuContent(TSharedPtr<const FUICommandList> InCommandList)
@@ -2735,6 +2739,33 @@ void FStaticMeshEditor::ResetCamera()
 // 	{
 // 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("ResetCamera"));
 // 	}
+}
+
+void FStaticMeshEditor::ToggleDrawAdditionalData()
+{
+	bDrawAdditionalData = !bDrawAdditionalData;
+	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> ToggleDrawAdditionalDataFunc =
+		[this](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+	{
+		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
+		FStaticMeshEditorViewportClient& StaticMeshEditorViewportClient = StaticMeshEditorViewport->GetViewportClient();
+		if (StaticMeshEditorViewportClient.IsDrawAdditionalDataChecked() != bDrawAdditionalData)
+		{
+			StaticMeshEditorViewportClient.ToggleDrawAdditionalData();
+		}
+	};
+
+	ViewportTabContent->PerformActionOnViewports(ToggleDrawAdditionalDataFunc);
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawAdditionalData"), bDrawAdditionalData ? TEXT("True") : TEXT("False"));
+	}
+}
+
+bool FStaticMeshEditor::IsDrawAdditionalDataChecked() const
+{
+	return bDrawAdditionalData;
 }
 
 void FStaticMeshEditor::RemoveCurrentUVChannel()

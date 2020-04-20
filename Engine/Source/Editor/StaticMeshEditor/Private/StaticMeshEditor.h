@@ -59,6 +59,7 @@ public:
 		, bDrawSockets(false)
 		, bDrawWireframes(false)
 		, bDrawVertexColors(false)
+		, bDrawAdditionalData(true)
 	{}
 
 	~FStaticMeshEditor();
@@ -293,6 +294,12 @@ private:
 
 	/** Reset the viewport camera to look at the mesh. */
 	void ResetCamera();
+
+	/** Callback for toggling the draw additional data flag. */
+	void ToggleDrawAdditionalData();
+
+	/** Callback for checking the draw additional data flag. */
+	bool IsDrawAdditionalDataChecked() const;
 
 private:
 
@@ -555,4 +562,5 @@ private:
 	bool bDrawSockets;
 	bool bDrawWireframes;
 	bool bDrawVertexColors;
+	bool bDrawAdditionalData;
 };
