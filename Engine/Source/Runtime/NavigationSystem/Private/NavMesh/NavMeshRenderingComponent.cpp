@@ -751,59 +751,49 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 				TArray<FVector> CollidingVerts;
 				TArray<uint32> CollidingIndices;
 
-				for (FNavigationOctree::TConstIterator<> NodeIt(*NavOctree); NodeIt.HasPendingNodes(); NodeIt.Advance())
+				FBox CurrentNodeBoundsBox;
+				NavOctree->IterateElementsWithPredicate([bGatherOctree, bGatherPathCollidingGeometry, this, &CurrentNodeBoundsBox](const FBoxCenterAndExtent& NodeBounds)
 				{
-					const FNavigationOctree::FNode& CurrentNode = NodeIt.GetCurrentNode();
-					const FOctreeNodeContext& CorrentContext = NodeIt.GetCurrentContext();					
-
 					if (bGatherOctree)
 					{
-						OctreeBounds.Add(CorrentContext.Bounds);
-
-						if (bGatherOctreeDetails)
-						{
-							for (FNavigationOctree::ElementConstIt ElementIt(CurrentNode.GetElementIt()); ElementIt; ElementIt++)
-							{
-								const FNavigationOctreeElement& Element = *ElementIt;
-								OctreeBounds.Add(FBoxCenterAndExtent(Element.Bounds));
-							}
-						}
+						OctreeBounds.Add(NodeBounds);
 					}
 
 					if (bGatherPathCollidingGeometry)
 					{
-						for (FNavigationOctree::ElementConstIt ElementIt(CurrentNode.GetElementIt()); ElementIt; ElementIt++)
+						CurrentNodeBoundsBox = NodeBounds.GetBox();
+					}
+					return true;
+				},
+				[bGatherOctree, bGatherOctreeDetails, bGatherPathCollidingGeometry, this, NavMesh, &CollidingVerts, &CollidingIndices, &CurrentNodeBoundsBox](const FNavigationOctreeElement& Element)
+				{
+					if (bGatherOctree && bGatherOctreeDetails)
+					{
+						OctreeBounds.Add(FBoxCenterAndExtent(Element.Bounds));
+					}
+
+					if (bGatherPathCollidingGeometry)
+					{
+						if (Element.ShouldUseGeometry(NavMesh->GetConfig()) && Element.Data->CollisionData.Num())
 						{
-							const FNavigationOctreeElement& Element = *ElementIt;
-							if (Element.ShouldUseGeometry(NavMesh->GetConfig()) && Element.Data->CollisionData.Num())
+							const FRecastGeometryCache CachedGeometry(Element.Data->CollisionData.GetData());
+							TArray<FTransform> InstanceTransforms;
+							Element.Data->NavDataPerInstanceTransformDelegate.ExecuteIfBound(CurrentNodeBoundsBox, InstanceTransforms);
+
+							if (InstanceTransforms.Num() == 0)
 							{
-								const FRecastGeometryCache CachedGeometry(Element.Data->CollisionData.GetData());
-								TArray<FTransform> InstanceTransforms;
-								Element.Data->NavDataPerInstanceTransformDelegate.ExecuteIfBound(CorrentContext.Bounds.GetBox(), InstanceTransforms);
-								
-								if (InstanceTransforms.Num() == 0)
+								FNavMeshRenderingHelpers::AddRecastGeometry(CollidingVerts, CollidingIndices, CachedGeometry.Verts, CachedGeometry.Header.NumVerts, CachedGeometry.Indices, CachedGeometry.Header.NumFaces);
+							}
+							else
+							{
+								for (const auto& Transform : InstanceTransforms)
 								{
-									FNavMeshRenderingHelpers::AddRecastGeometry(CollidingVerts, CollidingIndices, CachedGeometry.Verts, CachedGeometry.Header.NumVerts, CachedGeometry.Indices, CachedGeometry.Header.NumFaces);
-								}
-								else
-								{
-									for (const auto& Transform : InstanceTransforms)
-									{
-										FNavMeshRenderingHelpers::AddRecastGeometry(CollidingVerts, CollidingIndices, CachedGeometry.Verts, CachedGeometry.Header.NumVerts, CachedGeometry.Indices, CachedGeometry.Header.NumFaces, Transform);
-									}
+									FNavMeshRenderingHelpers::AddRecastGeometry(CollidingVerts, CollidingIndices, CachedGeometry.Verts, CachedGeometry.Header.NumVerts, CachedGeometry.Indices, CachedGeometry.Header.NumFaces, Transform);
 								}
 							}
 						}
 					}
-					
-					FOREACH_OCTREE_CHILD_NODE(ChildRef)
-					{
-						if (CurrentNode.HasChild(ChildRef))
-						{
-							NodeIt.PushChild(ChildRef);
-						}
-					}
-				}
+				});
 			
 				if (CollidingVerts.Num())
 				{
@@ -1575,11 +1565,8 @@ FBoxSphereBounds UNavMeshRenderingComponent::CalcBounds(const FTransform& LocalT
 			const FNavigationOctree* NavOctree = NavSys ? NavSys->GetNavOctree() : nullptr;
 			if (NavOctree)
 			{
-				for (FNavigationOctree::TConstIterator<> NodeIt(*NavOctree); NodeIt.HasPendingNodes(); NodeIt.Advance())
-				{
-					const FOctreeNodeContext& CorrentContext = NodeIt.GetCurrentContext();
-					BoundingBox += CorrentContext.Bounds.GetBox();
-				}
+				//this is only iterating over the rootnode
+				BoundingBox += NavOctree->GetRootBounds().GetBox();
 			}
 		}
 	}

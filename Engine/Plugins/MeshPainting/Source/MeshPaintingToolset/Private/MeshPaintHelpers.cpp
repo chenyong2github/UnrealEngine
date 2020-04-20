@@ -1322,7 +1322,6 @@ void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter
 					for (uint32 VertexIndex = 0; VertexIndex < ApplyLOD.GetNumVertices(); ++VertexIndex)
 					{
 						TArray<FPaintedMeshVertex> PointsToConsider;
-						TVertexColorPropogationPosOctree::TConstIterator<> OctreeIter(VertPosOctree);
 						const FVector CurPosition = ApplyLOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 
 						FPackedNormal VertexTangentZ;
@@ -1331,42 +1330,11 @@ void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter
 						FVector CurNormal = VertexTangentZ.ToFVector();
 
 						// Iterate through the octree attempting to find the vertices closest to the current new point
-						while (OctreeIter.HasPendingNodes())
+						VertPosOctree.IterateElementsWithBoundsTest(FBoxCenterAndExtent(CurPosition, FVector::ZeroVector), [&PointsToConsider](const FPaintedMeshVertex& Vertex)
 						{
-							const TVertexColorPropogationPosOctree::FNode& CurNode = OctreeIter.GetCurrentNode();
-							const FOctreeNodeContext& CurContext = OctreeIter.GetCurrentContext();
-
-							// Find the child of the current node, if any, that contains the current new point
-							FOctreeChildNodeRef ChildRef = CurContext.GetContainingChild(FBoxCenterAndExtent(CurPosition, FVector::ZeroVector));
-
-							if (!ChildRef.IsNULL())
-							{
-								const TVertexColorPropogationPosOctree::FNode* ChildNode = CurNode.GetChild(ChildRef);
-
-								// If the specified child node exists and contains any of the old vertices, push it to the iterator for future consideration
-								if (ChildNode && ChildNode->GetInclusiveElementCount() > 0)
-								{
-									OctreeIter.PushChild(ChildRef);
-								}
-								// If the child node doesn't have any of the old vertices in it, it's not worth pursuing any further. In an attempt to find
-								// anything to match vs. the new point, add all of the children of the current octree node that have old points in them to the
-								// iterator for future consideration.
-								else
-								{
-									FOREACH_OCTREE_CHILD_NODE(OctreeChildRef)
-									{
-										if (CurNode.HasChild(OctreeChildRef))
-										{
-											OctreeIter.PushChild(OctreeChildRef);
-										}
-									}
-								}
-							}
-
 							// Add all of the elements in the current node to the list of points to consider for closest point calculations
-							PointsToConsider.Append(CurNode.GetElements());
-							OctreeIter.Advance();
-						}
+							PointsToConsider.Add(Vertex);
+						});
 
 						// If any points to consider were found, iterate over each and find which one is the closest to the new point 
 						if (PointsToConsider.Num() > 0)

@@ -937,33 +937,15 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector& SearchPosition, 
 	FVector Extend(2.0f);
 	for (int i = 0; i < 2; ++i)
 	{
-		TWedgeInfoPosOctree::TConstIterator<> OctreeIter((*WedgePosOctree));
 		// Iterate through the octree attempting to find the vertices closest to the current new point
-		while (OctreeIter.HasPendingNodes())
+		// The first shot is an intersection with a 1 CM cube box around the search position, this ensure we dont fall in the wrong neighbourg
+		WedgePosOctree->IterateElementsWithBoundsTest(FBoxCenterAndExtent(SearchPosition, Extend), [&OutNearestWedges, &MinSquaredDistance, &SearchPosition](const FWedgeInfo& WedgeInfo)
 		{
-			const TWedgeInfoPosOctree::FNode& CurNode = OctreeIter.GetCurrentNode();
-			const FOctreeNodeContext& CurContext = OctreeIter.GetCurrentContext();
-
-			// Find the child of the current node, if any, that contains the current new point
-
-			//The first shot is an intersection with a 1 CM cube box around the search position, this ensure we dont fall in the wrong neighbourg
-			FOctreeChildNodeSubset ChilNodesSubset = CurContext.GetIntersectingChildren(FBoxCenterAndExtent(SearchPosition, Extend));
-			FOREACH_OCTREE_CHILD_NODE(OctreeChildRef)
-			{
-				if (ChilNodesSubset.Contains(OctreeChildRef) && CurNode.HasChild(OctreeChildRef))
-				{
-					OctreeIter.PushChild(OctreeChildRef);
-				}
-			}
 			// Add all of the elements in the current node to the list of points to consider for closest point calculations
-			for (const FWedgeInfo& WedgeInfo : CurNode.GetElements())
-			{
-				float VectorDelta = FVector::DistSquared(SearchPosition, WedgeInfo.Position);
-				MinSquaredDistance = FMath::Min(VectorDelta, MinSquaredDistance);
-				OutNearestWedges.Add(WedgeInfo);
-			}
-			OctreeIter.Advance();
-		}
+			float VectorDelta = FVector::DistSquared(SearchPosition, WedgeInfo.Position);
+			MinSquaredDistance = FMath::Min(VectorDelta, MinSquaredDistance);
+			OutNearestWedges.Add(WedgeInfo);
+		});
 
 		if (i == 0)
 		{

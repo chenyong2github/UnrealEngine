@@ -341,7 +341,7 @@ bool FNavigationDataHandler::UpdateNavOctreeElementBounds(UActorComponent& Comp,
 			ElementId = OctreeController.GetObjectsNavOctreeId(Comp);
 			if (ElementId != nullptr && ensure(OctreeController.IsValidElement(*ElementId)))
 			{
-				FNavigationOctreeElement& ElementData = OctreeController.NavOctree->GetElementById(*ElementId);
+				const FNavigationOctreeElement& ElementData = OctreeController.NavOctree->GetElementById(*ElementId);
 				DirtyAreasController.AddArea(DirtyArea, ElementData.Data->GetDirtyFlag(), [&Comp] { return &Comp; });
 			}
 		}
@@ -360,14 +360,13 @@ void FNavigationDataHandler::FindElementsInNavOctree(const FBox& QueryBox, const
 		return;
 	}
 
-	for (FNavigationOctree::TConstElementBoxIterator<> It(*OctreeController.NavOctree, QueryBox); It.HasPendingElements(); It.Advance())
+	OctreeController.NavOctree->IterateElementsWithBoundsTest(QueryBox, [&Elements, &Filter](const FNavigationOctreeElement& Element)
 	{
-		const FNavigationOctreeElement& Element = It.GetCurrentElement();
 		if (Element.IsMatchingFilter(Filter))
 		{
 			Elements.Add(Element);
 		}
-	}
+	});
 }
 
 bool FNavigationDataHandler::ReplaceAreaInOctreeData(const UObject& Object, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea, bool bReplaceChildClasses)
@@ -453,7 +452,7 @@ void FNavigationDataHandler::RemoveLevelCollisionFromOctree(ULevel& Level)
 			if (ensure(OctreeController.IsValidElement(*ElementId)))
 			{
 				// mark area occupied by given actor as dirty
-				FNavigationOctreeElement& ElementData = OctreeController.NavOctree->GetElementById(*ElementId);
+				const FNavigationOctreeElement& ElementData = OctreeController.NavOctree->GetElementById(*ElementId);
 				DirtyAreasController.AddArea(ElementData.Bounds.GetBox(), ENavigationDirtyFlag::All, [&Level] { return &Level; });
 			}
 

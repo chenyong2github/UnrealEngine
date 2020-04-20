@@ -169,38 +169,16 @@ static bool MobileDetermineStaticMeshesCSMVisibilityState(FScene* Scene, FViewIn
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_ShadowOctreeTraversal);
 		// Find primitives that are in a shadow frustum in the octree.
-		for (FScenePrimitiveOctree::TConstIterator<SceneRenderingAllocator> PrimitiveOctreeIt(Scene->PrimitiveOctree);
-		PrimitiveOctreeIt.HasPendingNodes();
-			PrimitiveOctreeIt.Advance())
+		Scene->PrimitiveOctree.IterateElementsWithPredicate([&IsReceiverFunc](const FBoxCenterAndExtent& NodeBounds)
 		{
-			const FScenePrimitiveOctree::FNode& PrimitiveOctreeNode = PrimitiveOctreeIt.GetCurrentNode();
-			const FOctreeNodeContext& PrimitiveOctreeNodeContext = PrimitiveOctreeIt.GetCurrentContext();
-
-			// Find children of this octree node that may contain relevant primitives.
-			FOREACH_OCTREE_CHILD_NODE(ChildRef)
-			{
-				if (PrimitiveOctreeNode.HasChild(ChildRef))
-				{
-					// Check that the child node is in the frustum for at least one shadow.
-					const FOctreeNodeContext ChildContext = PrimitiveOctreeNodeContext.GetChildContext(ChildRef);
-					bool bCanReceiveDynamicShadow = IsReceiverFunc(FVector(ChildContext.Bounds.Center), FVector(ChildContext.Bounds.Extent), ChildContext.Bounds.Extent.Size3());
-
-					if (bCanReceiveDynamicShadow)
-					{
-						PrimitiveOctreeIt.PushChild(ChildRef);
-					}
-				}
-			}
-
-			// Check all the primitives in this octree node.
-			for (FScenePrimitiveOctree::ElementConstIt NodePrimitiveIt(PrimitiveOctreeNode.GetElementIt()); NodePrimitiveIt; ++NodePrimitiveIt)
-			{
-				// gather the shadows for this one primitive
-				bFoundReceiver = MobileDetermineStaticMeshesCSMVisibilityStateInner(Scene, View, *NodePrimitiveIt, WholeSceneShadow, IsReceiverFunc) || bFoundReceiver;
-			}
-		}
+			return IsReceiverFunc(FVector(NodeBounds.Center), FVector(NodeBounds.Extent), NodeBounds.Extent.Size3());
+		},
+		[&bFoundReceiver, Scene, &View, WholeSceneShadow, &IsReceiverFunc](const FPrimitiveSceneInfoCompact& Primitive)
+		{
+			// gather the shadows for this one primitive
+			bFoundReceiver = MobileDetermineStaticMeshesCSMVisibilityStateInner(Scene, View, Primitive, WholeSceneShadow, IsReceiverFunc) || bFoundReceiver;
+		});
 	}
-
 	return bFoundReceiver;
 }
 
