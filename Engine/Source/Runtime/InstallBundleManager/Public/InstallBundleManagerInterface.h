@@ -60,8 +60,8 @@ DECLARE_DELEGATE_RetVal(bool, FInstallBundleManagerEnvironmentWantsPatchCheck);
 class INSTALLBUNDLEMANAGER_API IInstallBundleManager
 {
 public:
-	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate;
-	static FInstallBundleCompleteMultiDelegate RemoveBundleCompleteDelegate;
+	static FInstallBundleCompleteMultiDelegate InstallBundleUpdatedDelegate;  // Called when content is up to do date
+	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate; // Called when content is ready to use
 	static FInstallBundlePausedMultiDelegate PausedBundleDelegate;
 	static FInstallBundleManagerOnPatchCheckComplete PatchCheckCompleteDelegate;
 
