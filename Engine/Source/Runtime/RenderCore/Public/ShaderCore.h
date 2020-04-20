@@ -205,8 +205,6 @@ enum ECompilerFlags
 	// Use DirectX Shader Compiler (DXC) to compile all shaders, intended for compatibility testing.
 	CFLAG_ForceDXC,
 	CFLAG_SkipOptimizations,
-	// Temporarily disable optimizations with DXC compiler only, intended to workaround shader compiler bugs until they can be resolved with 1st party
-	CFLAG_SkipOptimizationsDXC
 };
 
 enum class EShaderParameterType : uint8
