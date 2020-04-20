@@ -94,6 +94,13 @@ UEdGraphPin* UNiagaraNodeParameterMapGet::CreateDefaultPin(UEdGraphPin* OutputPi
 
 	UEdGraphPin* DefaultPin = CreatePin(EEdGraphPinDirection::EGPD_Input, OutputPin->PinType, TEXT(""));
 
+	// make sure the new pin name is legal
+	FName OutName;
+	if (FNiagaraEditorUtilities::DecomposeVariableNamespace(OutputPin->GetFName(), OutName).Num() == 0)
+	{
+		OutputPin->PinName = FName(FNiagaraConstants::LocalNamespace.ToString() + "." + OutputPin->GetName());
+	}
+
 	// we make the pin read only because the default value is set in the parameter panel unless the default mode is set to "custom" by the user
 	DefaultPin->bNotConnectable = true;
 	DefaultPin->bDefaultValueIsReadOnly = true;
