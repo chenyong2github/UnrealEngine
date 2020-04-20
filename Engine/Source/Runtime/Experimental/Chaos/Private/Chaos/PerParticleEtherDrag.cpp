@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PerParticleEtherDrag.h"
+#include "HAL/IConsoleManager.h"
 
 namespace Chaos
 {
