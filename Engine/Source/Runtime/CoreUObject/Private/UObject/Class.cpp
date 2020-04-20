@@ -1967,7 +1967,7 @@ void UStruct::PostLoad()
 				FField** TargetScriptPropertyPtr = (FField**)(Script.GetData() + MissingProperty.Value);
 				*TargetScriptPropertyPtr = ResolvedProperty;
 			}
-			else if (!MissingProperty.Key.IsEmpty())
+			else if (!MissingProperty.Key.IsPathToFieldEmpty())
 			{
 				UE_LOG(LogClass, Warning, TEXT("Failed to resolve bytecode referenced field from path: %s when loading %s"), *MissingProperty.Key.ToString(), *GetFullName());
 			}

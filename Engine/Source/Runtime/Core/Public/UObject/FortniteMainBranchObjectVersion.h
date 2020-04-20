@@ -105,6 +105,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Ocean collision component has become dynamic
 		MakeOceanCollisionTransient,
 
+		// FFieldPath will serialize the owner struct reference and only a short path to its property
+		FFieldPathOwnerSerialization,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
