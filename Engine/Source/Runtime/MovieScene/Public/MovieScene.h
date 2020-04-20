@@ -256,6 +256,8 @@ class MOVIESCENE_API UMovieSceneNodeGroup : public UObject
 {
 	GENERATED_BODY()
 
+	virtual bool IsEditorOnly() const override { return true; }
+
 #if WITH_EDITORONLY_DATA
 public:
 	const FName GetName() const { return Name; }
@@ -312,6 +314,8 @@ UCLASS()
 class MOVIESCENE_API UMovieSceneNodeGroupCollection : public UObject
 {
 	GENERATED_BODY()
+
+	virtual bool IsEditorOnly() const override { return true; }
 
 #if WITH_EDITORONLY_DATA
 public:
@@ -1209,11 +1213,9 @@ private:
 	UPROPERTY()
 	TArray<FMovieSceneSectionGroup> SectionGroups;
 
-#if WITH_EDITORONLY_DATA
 	/** Collection of user-defined groups */
 	UPROPERTY()
 	UMovieSceneNodeGroupCollection* NodeGroupCollection;
-#endif
 
 	/** Whether this scene's marked frames should be shown globally */
 	bool bGloballyShowMarkedFrames;
