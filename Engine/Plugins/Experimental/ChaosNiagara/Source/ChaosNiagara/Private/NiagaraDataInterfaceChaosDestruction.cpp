@@ -455,8 +455,8 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 					int32 NewIdx = Solvers.Add(FSolverData());
 
 					FSolverData& SolverData = Solvers[NewIdx];
-					SolverData.PhysScene = World->GetPhysicsScene();
-					SolverData.Solver = SolverData.PhysScene->GetScene().GetSolver();
+					SolverData.PhysScene = &World->GetPhysicsScene()->GetScene();
+					SolverData.Solver = SolverData.PhysScene->GetSolver();
 
 					RegisterWithSolverEventManager(SolverData.Solver);
 				}
@@ -464,27 +464,27 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 		}
 #endif
 	}
-	else
+	//else
 	{
-//#todo : are solver actors going to exist going forwards?
-//		for (AChaosSolverActor* SolverActor : ChaosSolverActorSet)
-//		{
-//			if (SolverActor)
-//			{
-//				if (Chaos::FPhysicsSolver* Solver = SolverActor->GetSolver())
-//				{
-//					int32 NewIdx = Solvers.Add(FSolverData());
-//
-//					FSolverData& SolverData = Solvers[NewIdx];
-//					SolverData.PhysScene = SolverActor->GetPhysicsScene();
-//					SolverData.Solver = Solver;
-//
-//#if INCLUDE_CHAOS
-//					RegisterWithSolverEventManager(Solver);
-//#endif
-//				}
-//			}
-//		}
+		// #todo : are solver actors going to exist going forwards?
+		for (AChaosSolverActor* SolverActor : ChaosSolverActorSet)
+		{
+			if (SolverActor)
+			{
+				if (Chaos::FPhysicsSolver* Solver = SolverActor->GetSolver())
+				{
+					int32 NewIdx = Solvers.Add(FSolverData());
+
+					FSolverData& SolverData = Solvers[NewIdx];
+					SolverData.PhysScene = SolverActor->GetPhysicsScene().Get();
+					SolverData.Solver = Solver;
+
+#if INCLUDE_CHAOS
+					RegisterWithSolverEventManager(Solver);
+#endif
+				}
+			}
+		}
 	}
 
 	ResetInstData(InstData);
@@ -1201,8 +1201,6 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 	ensure(IsInGameThread());
 	Chaos::FBreakingDataArray const& BreakingDataIn = Event.BreakingData.AllBreakingsArray;
 
-	BreakingEvents.Reset();
-
 	// Copy data from Event
 	BreakingEvents.InsertZeroed(0, BreakingDataIn.Num());
 
@@ -1233,8 +1231,16 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 			UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
 			UMaterialInterface* Material = nullptr;
 #if INCLUDE_CHAOS
-			GeometryCollectionComponent = Solvers[0].PhysScene->GetScene().GetOwningComponent<UGeometryCollectionComponent>(DataIn.ParticleProxy);
-			Material = GeometryCollectionComponent->GetMaterial(MaterialID);
+			for (auto& Solver : Solvers)
+			{
+				GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.ParticleProxy);
+				if (GeometryCollectionComponent)
+					break;
+			}
+			if (GeometryCollectionComponent)
+			{
+				Material = GeometryCollectionComponent->GetMaterial(MaterialID);
+			}
 #endif
 			if (Material)
 			{
@@ -1739,6 +1745,8 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 
 		IdxSolver++;
 	}
+
+	BreakingEvents.Reset();
 
 	INC_DWORD_STAT_BY(STAT_NiagaraNumParticlesSpawnedFromBreakings, InstData->PositionArray.Num());
 
