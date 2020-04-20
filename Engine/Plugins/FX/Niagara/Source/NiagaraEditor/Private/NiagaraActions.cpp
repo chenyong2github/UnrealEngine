@@ -43,22 +43,52 @@ void FNiagaraMenuAction::SetParamterVariable(const FNiagaraVariable& InParameter
 /************************************************************************/
 FNiagaraParameterAction::FNiagaraParameterAction(const FNiagaraVariable& InParameter,
 	const TArray<FNiagaraGraphParameterReferenceCollection>& InReferenceCollection,
-	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID)
+	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
+	TSharedPtr<TArray<FName>> ParameterWithNamespaceModifierRenamePending, 
+	int32 InSectionID)
 	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords), InSectionID)
 	, Parameter(InParameter)
 	, ReferenceCollection(InReferenceCollection)
 	, bIsExternallyReferenced(false)
-	, bNamespaceModifierRenamePending(false)
+	, ParameterWithNamespaceModifierRenamePendingWeak(ParameterWithNamespaceModifierRenamePending)
 {
 }
 
 FNiagaraParameterAction::FNiagaraParameterAction(const FNiagaraVariable& InParameter,
-	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID)
+	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
+	TSharedPtr<TArray<FName>> ParameterWithNamespaceModifierRenamePending, 
+	int32 InSectionID)
 	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords), InSectionID)
 	, Parameter(InParameter)
 	, bIsExternallyReferenced(false)
-	, bNamespaceModifierRenamePending(false)
+	, ParameterWithNamespaceModifierRenamePendingWeak(ParameterWithNamespaceModifierRenamePending)
 {
+}
+
+bool FNiagaraParameterAction::GetIsNamespaceModifierRenamePending() const
+{
+	TSharedPtr<TArray<FName>> ParameterNamesWithNamespaceModifierRenamePending = ParameterWithNamespaceModifierRenamePendingWeak.Pin();
+	if (ParameterNamesWithNamespaceModifierRenamePending.IsValid())
+	{
+		return ParameterNamesWithNamespaceModifierRenamePending->Contains(Parameter.GetName());
+	}
+	return false;
+}
+
+void FNiagaraParameterAction::SetIsNamespaceModifierRenamePending(bool bIsNamespaceModifierRenamePending)
+{
+	TSharedPtr<TArray<FName>> ParameterNamesWithNamespaceModifierRenamePending = ParameterWithNamespaceModifierRenamePendingWeak.Pin();
+	if (ParameterNamesWithNamespaceModifierRenamePending.IsValid())
+	{
+		if (bIsNamespaceModifierRenamePending)
+		{
+			ParameterNamesWithNamespaceModifierRenamePending->AddUnique(Parameter.GetName());
+		}
+		else
+		{
+			ParameterNamesWithNamespaceModifierRenamePending->Remove(Parameter.GetName());
+		}
+	}
 }
 
 /************************************************************************/

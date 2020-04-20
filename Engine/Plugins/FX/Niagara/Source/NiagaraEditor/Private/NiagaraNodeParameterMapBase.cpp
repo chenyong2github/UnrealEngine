@@ -404,7 +404,7 @@ void UNiagaraNodeParameterMapBase::GetChangeNamespaceModifierSubMenuForPin(UTool
 		this, &UNiagaraNodeParameterMapBase::GetSetNamespaceModifierForPinToolTip, (const UEdGraphPin*)InPin, FName(NAME_None)));
 	Section.AddMenuEntry(
 		"AddNoneNamespaceModifier",
-		LOCTEXT("SetNoneNamespaceModifierForPin", "None"),
+		LOCTEXT("SetNoneNamespaceModifierForPin", "Clear"),
 		SetNoneToolTip,
 		FSlateIcon(),
 		FUIAction(
@@ -455,7 +455,7 @@ void UNiagaraNodeParameterMapBase::SetCustomNamespaceModifierForPin(UEdGraphPin*
 	{
 		if (NewName != InPin->PinName)
 		{
-			FScopedTransaction Transaction(LOCTEXT("AddNamespaceModifierTransaction", "Add custom namespace modifier"));
+			FScopedTransaction Transaction(LOCTEXT("AddCustomNamespaceModifierTransaction", "Add custom namespace modifier"));
 			CommitEditablePinName(FText::FromName(NewName), InPin);
 		}
 		SetIsPinEditNamespaceModifierPending(InPin, true);

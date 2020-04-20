@@ -225,6 +225,7 @@ void SNiagaraParameterMapView::Construct(const FArguments& InArgs, const TArray<
 	ToolkitCommands = InToolkitCommands;
 	AddParameterButtons.SetNum(NiagaraParameterMapSectionID::Num);
 	const FVector2D ViewOptionsShadowOffset = FNiagaraEditorStyle::Get().GetVector("NiagaraEditor.Stack.ViewOptionsShadowOffset");
+	ParametersWithNamespaceModifierRenamePending = MakeShared<TArray<FName>>();
 
 	SelectedScriptObjects = InSelectedObjects[0];
 	SelectedScriptObjects->OnSelectedObjectsChanged().AddSP(this, &SNiagaraParameterMapView::SelectedObjectsChanged);
@@ -578,7 +579,7 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 
 		const FText Name = FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(Parameter.GetName());
 		const FText Tooltip = FText::Format(TooltipFormat, Name, Parameter.GetType().GetNameText());
-		TSharedPtr<FNiagaraParameterAction> ParameterAction(new FNiagaraParameterAction(Parameter, ParameterEntry.Value, FText::GetEmpty(), Name, Tooltip, 0, FText(), Section));
+		TSharedPtr<FNiagaraParameterAction> ParameterAction(new FNiagaraParameterAction(Parameter, ParameterEntry.Value, FText::GetEmpty(), Name, Tooltip, 0, FText(), ParametersWithNamespaceModifierRenamePending, Section));
 		ParameterAction->bIsExternallyReferenced = bIsExternallyReferenced;
 		OutAllActions.AddAction(ParameterAction);
 		LastCollectedParameters.Add(Parameter);
@@ -855,7 +856,7 @@ TSharedPtr<SWidget> SNiagaraParameterMapView::OnContextMenuOpening()
 
 			MenuBuilder.AddSubMenu(
 				LOCTEXT("DuplicateWithNewNamespaceModifier", "Duplicate with Namespace Modifier"),
-				LOCTEXT("ChangeNamespaceModifierToolTip", "Duplicate this parameter with a different namespace modifier."),
+				LOCTEXT("DupilcateWithNewNamespaceModifierToolTip", "Duplicate this parameter with a different namespace modifier."),
 				FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceModifierSubMenu, true));
 		}
 		MenuBuilder.EndSection();
@@ -1377,7 +1378,7 @@ void SNiagaraParameterMapView::GetChangeNamespaceModifierSubMenu(FMenuBuilder& M
 	TAttribute<FText> SetNoneToolTip;
 	SetNoneToolTip.Bind(TAttribute<FText>::FGetter::CreateSP(this, &SNiagaraParameterMapView::GetSetNamespaceModifierToolTip, FName(NAME_None), bDuplicateParameter));
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("NoneNamespaceModifier", "None"),
+		LOCTEXT("NoneNamespaceModifier", "Clear"),
 		SetNoneToolTip,
 		FSlateIcon(),
 		FUIAction(
@@ -1535,16 +1536,10 @@ void SNiagaraParameterMapView::OnSetCustomNamespaceModifier(bool bDuplicateParam
 				{
 					NewUniqueName = NewName;
 				}
-				FScopedTransaction Transaction(LOCTEXT("DuplicateParameterToWithNamespaceModifierTransaction", "Duplicate parameter with custom namespace modifier"));
+				FScopedTransaction Transaction(LOCTEXT("DuplicateParameterToWithCustomNamespaceModifierTransaction", "Duplicate parameter with custom namespace modifier"));
 				AddParameter(FNiagaraVariable(ParameterAction->Parameter.GetType(), NewUniqueName), false);
 
-				FName ActionName = *FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewUniqueName).ToString();
-				GraphActionMenu->SelectItemByName(ActionName);
-				TSharedPtr<FNiagaraParameterAction> RenamedParameterAction;
-				if (GetSingleParameterActionForSelection(RenamedParameterAction, Unused))
-				{
-					RenamedParameterAction->bNamespaceModifierRenamePending = true;
-				}
+				ParametersWithNamespaceModifierRenamePending->Add(NewUniqueName);
 			}
 			else
 			{
@@ -1552,19 +1547,8 @@ void SNiagaraParameterMapView::OnSetCustomNamespaceModifier(bool bDuplicateParam
 				{
 					FScopedTransaction Transaction(LOCTEXT("SetCustomNamespaceModifierTransaction", "Set custom namespace modifier"));
 					RenameParameter(ParameterAction, NewName);
-
-					FName ActionName = *FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewName).ToString();
-					GraphActionMenu->SelectItemByName(ActionName);
-					TSharedPtr<FNiagaraParameterAction> RenamedParameterAction;
-					if (GetSingleParameterActionForSelection(RenamedParameterAction, Unused))
-					{
-						RenamedParameterAction->bNamespaceModifierRenamePending = true;
-					}
 				}
-				else
-				{
-					ParameterAction->bNamespaceModifierRenamePending = true;
-				}
+				ParametersWithNamespaceModifierRenamePending->Add(NewName);
 			}
 		}
 	}
@@ -1678,6 +1662,7 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 		return;
 	}
 
+	bool bSuccess = false;
 	FNiagaraVariable Parameter = ParameterAction->Parameter;
 	if (ToolkitType == SCRIPT)
 	{
@@ -1700,6 +1685,7 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 				}
 
 				Graph->RenameParameter(Parameter, NewName);
+				bSuccess = true;
 			}
 		}
 	}
@@ -1709,11 +1695,18 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 		if (System != nullptr)
 		{
 			// Rename the parameter in the parameter stores.
-			System->GetExposedParameters().RenameParameter(Parameter, NewName);
-			System->EditorOnlyAddedParameters.RenameParameter(Parameter, NewName);
+			if (System->GetExposedParameters().IndexOf(Parameter) != INDEX_NONE)
+			{
+				System->GetExposedParameters().RenameParameter(Parameter, NewName);
+				bSuccess = true;
+			}
+			if (System->EditorOnlyAddedParameters.IndexOf(Parameter) != INDEX_NONE)
+			{
+				System->EditorOnlyAddedParameters.RenameParameter(Parameter, NewName);
+				bSuccess = true;
+			}
 
 			// Look for set variables nodes or linked inputs which reference this parameter.
-
 			for (FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterAction->ReferenceCollection)
 			{
 				for (FNiagaraGraphParameterReference& ParameterReference : ReferenceCollection.ParameterReferences)
@@ -1725,7 +1718,7 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 						if (OwningAssignmentNode != nullptr)
 						{
 							// If this is owned by a set variables node and it's not locked, update the assignment target on the assignment node.
-							FNiagaraStackGraphUtilities::TryRenameAssignmentTarget(*OwningAssignmentNode, Parameter, NewName);
+							bSuccess = FNiagaraStackGraphUtilities::TryRenameAssignmentTarget(*OwningAssignmentNode, Parameter, NewName);
 						}
 						else
 						{
@@ -1739,6 +1732,7 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 									UEdGraphPin* LinkedInputPin = *LinkedInputPinPtr;
 									LinkedInputPin->Modify();
 									LinkedInputPin->PinName = NewName;
+									bSuccess = true;
 								}
 							}
 						}
@@ -1746,6 +1740,12 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 				}
 			}
 		}
+	}
+
+	if (bSuccess)
+	{
+		GraphActionMenu->RefreshAllActions(true);
+		GraphActionMenu->SelectItemByName(*FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewName).ToString());
 	}
 }
 

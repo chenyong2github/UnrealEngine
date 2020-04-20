@@ -2757,12 +2757,25 @@ FName FNiagaraParameterUtilities::ChangeNamespace(FName ParameterName, const FNi
 	{
 		TArray<FName> NameParts = ParameterHandle.GetHandleParts();
 		NameParts.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
-		bool bHasNamespaceModifier = NameParts.Num() > 1;
-		bool bNewNamespaceCanHaveNamespaceModifier =
-			NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier) == false;
-		if (bHasNamespaceModifier && bNewNamespaceCanHaveNamespaceModifier == false)
+		int32 NumberOfNamespaceModifiers = NameParts.Num() - 1;
+		if (NumberOfNamespaceModifiers > 0)
 		{
-			NameParts.RemoveAt(0);
+			bool bNewNamespaceCanHaveNamespaceModifier =
+				NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier) == false;
+			if (bNewNamespaceCanHaveNamespaceModifier == false)
+			{
+				// Remove all modifiers.
+				NameParts.RemoveAt(0, NumberOfNamespaceModifiers);
+			}
+			else 
+			{
+				// Remove all but the last modifier.
+				NameParts.RemoveAt(0, NumberOfNamespaceModifiers - 1);
+			}
+		}
+		if (NewNamespaceMetadata.RequiredNamespaceModifier != NAME_None && NameParts.Num() > 1 && NameParts[0] != NewNamespaceMetadata.RequiredNamespaceModifier)
+		{
+			NameParts.Insert(NewNamespaceMetadata.RequiredNamespaceModifier, 0);
 		}
 		NameParts.Insert(NewNamespaceMetadata.Namespaces, 0);
 		return NamePartsToName(NameParts);
@@ -2839,7 +2852,14 @@ bool FNiagaraParameterUtilities::TestCanSetSpecificNamespaceModifierWithMessage(
 		}
 		else
 		{
-			OutMessage = FText::Format(LOCTEXT("SetNamespaceModifierFormat", "Set the namespace modifier for this parameter to {0}."), FText::FromName(InNamespaceModifier));
+			if(InNamespaceModifier == NAME_None)
+			{ 
+				OutMessage = LOCTEXT("ClearNamespaceModifier", "Clears the namespace modifier on this parameter.");
+			}
+			else 
+			{
+				OutMessage = FText::Format(LOCTEXT("SetNamespaceModifierFormat", "Set the namespace modifier for this parameter to {0}."), FText::FromName(InNamespaceModifier));
+			}
 		}
 		return true;
 	}
