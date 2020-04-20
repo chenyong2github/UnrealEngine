@@ -1434,6 +1434,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// If this is an installed engine build, clear the promoted flag on the output binaries. This will ensure we will rebuild them.
+			if (Version.IsPromotedBuild && UnrealBuildTool.IsEngineInstalled())
+			{
+				Version.IsPromotedBuild = false;
+			}
+
 			// Create the receipt
 			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture);
 
