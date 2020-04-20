@@ -489,9 +489,8 @@ void ComplexMultTexture(bool bIsHorizontal, bool bUseAlpha, bool bIsGAGroup, in 
 //float4 FilterTint;
 void ApplyTint(in Complex Tint, inout Complex LocalBuffer[2][RADIX])
 {
-	for (uint r = 0; r < RADIX; ++r) LocalBuffer[0][r] *= Tint.x;
-
-	for (uint r = 0; r < RADIX; ++r) LocalBuffer[1][r] *= Tint.y;
+	{ for (uint r = 0; r < RADIX; ++r) LocalBuffer[0][r] *= Tint.x; }
+	{ for (uint r = 0; r < RADIX; ++r) LocalBuffer[1][r] *= Tint.y; }
 }
 
 
@@ -632,19 +631,23 @@ void GSConvolutionWithTextureCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID 
 
 
 		// Normalize R & G
-		for (uint r = 0; r < RADIX; ++r)
 		{
-			// This is the R or G channel
-			LocalBuffer[0][r] /= NormMax; 
+			for (uint r = 0; r < RADIX; ++r)
+			{
+				// This is the R or G channel
+				LocalBuffer[0][r] /= NormMax; 
+			}
 		}
 		
 		float AorBNorm = (bIsGAGroup) ? AlphaSum : NormMax; 
 
 		// Normalize B & A
-		for (uint r = 0; r < RADIX; ++r)
 		{
-			// This is the B or A channel
-			LocalBuffer[1][r] /= AorBNorm; 
+			for (uint r = 0; r < RADIX; ++r)
+			{
+				// This is the B or A channel
+				LocalBuffer[1][r] /= AorBNorm; 
+			}
 		}
 	}
 

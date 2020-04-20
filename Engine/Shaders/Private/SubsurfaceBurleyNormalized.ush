@@ -944,39 +944,43 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 #if !TEXTURE_CACHE_DISABLED
 
 	// We do not need to use unroll if we have a fixed number of thread dimension.
-	UNROLL for (uint i = 0; i < NUM_OF_PASS_REQUIRED_FILL_SHARED_DIFFUSE_TEXTURE; i++)
 	{
-		// Calculate the sample uv for the current thread
-		uint LocalSharedIndex = GI * NUM_OF_PASS_REQUIRED_FILL_SHARED_DIFFUSE_TEXTURE + i;
-		BRANCH if (LocalSharedIndex >= LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE)
+		UNROLL for (uint i = 0; i < NUM_OF_PASS_REQUIRED_FILL_SHARED_DIFFUSE_TEXTURE; i++)
 		{
-			break;
+			// Calculate the sample uv for the current thread
+			uint LocalSharedIndex = GI * NUM_OF_PASS_REQUIRED_FILL_SHARED_DIFFUSE_TEXTURE + i;
+			BRANCH if (LocalSharedIndex >= LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE)
+			{
+				break;
+			}
+
+			float2 SampleUV = Output_ExtentInverse * (TopLeftCorner + float2(LocalSharedIndex % LARGE_GROUP_TEXTURE_DIMENSION_SIZE,
+				LocalSharedIndex / LARGE_GROUP_TEXTURE_DIMENSION_SIZE) + 0.5f);
+			SampleUV = clamp(SampleUV, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
+
+			float4 SubsurfaceColorWithSSSIndicator = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, SampleUV);
+			SharedSubsurfaceDiffuseLighting[LocalSharedIndex] = SubsurfaceColorWithSSSIndicator;
+
+			// Also fetch the normal and profile ID
+			FScreenSpaceData SampleScreenSpaceData = GetScreenSpaceData(SampleUV);
+			SharedSubsurfaceWorldNormal[LocalSharedIndex] = SampleScreenSpaceData.GBuffer.WorldNormal;
+			SharedSubsurfaceProfileID[LocalSharedIndex] = ExtractSubsurfaceProfileIntWithInvalid(SampleScreenSpaceData.GBuffer);
 		}
-
-		float2 SampleUV = Output_ExtentInverse * (TopLeftCorner + float2(LocalSharedIndex % LARGE_GROUP_TEXTURE_DIMENSION_SIZE,
-			LocalSharedIndex / LARGE_GROUP_TEXTURE_DIMENSION_SIZE) + 0.5f);
-		SampleUV = clamp(SampleUV, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
-
-		float4 SubsurfaceColorWithSSSIndicator = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, SampleUV);
-		SharedSubsurfaceDiffuseLighting[LocalSharedIndex] = SubsurfaceColorWithSSSIndicator;
-
-		// Also fetch the normal and profile ID
-		FScreenSpaceData SampleScreenSpaceData = GetScreenSpaceData(SampleUV);
-		SharedSubsurfaceWorldNormal[LocalSharedIndex] = SampleScreenSpaceData.GBuffer.WorldNormal;
-		SharedSubsurfaceProfileID[LocalSharedIndex] = ExtractSubsurfaceProfileIntWithInvalid(SampleScreenSpaceData.GBuffer);
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
 	// need to perform burley normalized subsurface scattering if it's burley
 	// this would unroll to just 1 sequence.
-	UNROLL for (uint i = 0; i < LOCALGROUP_RATIO; ++i)
 	{
-		UNROLL for (uint j = 0; j < LOCALGROUP_RATIO; ++j)
+		UNROLL for (uint i = 0; i < LOCALGROUP_RATIO; ++i)
 		{
-			uint2 Pos = ConvertGroupIndexToNormal2DGrid(GI, TopLeftCorner + THREAD_TEXTURE_BORDER + uint2(j, i)*THREAD_SIZE_1D);
-			float2 LBufferUV = ConvertGridPos2UV(Pos);
-			SSSColorUAV[Pos] = BurleyNormalizedSS(LBufferUV, Pos - (TopLeftCorner + THREAD_TEXTURE_BORDER));
+			UNROLL for (uint j = 0; j < LOCALGROUP_RATIO; ++j)
+			{
+				uint2 Pos = ConvertGroupIndexToNormal2DGrid(GI, TopLeftCorner + THREAD_TEXTURE_BORDER + uint2(j, i)*THREAD_SIZE_1D);
+				float2 LBufferUV = ConvertGridPos2UV(Pos);
+				SSSColorUAV[Pos] = BurleyNormalizedSS(LBufferUV, Pos - (TopLeftCorner + THREAD_TEXTURE_BORDER));
+			}
 		}
 	}
 
