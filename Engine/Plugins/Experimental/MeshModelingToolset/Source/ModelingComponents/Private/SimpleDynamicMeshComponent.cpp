@@ -269,7 +269,7 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderA
 
 void USimpleDynamicMeshComponent::FastNotifyUVsUpdated()
 {
-	FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::Positions);
+	FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexUVs);
 }
 
 
