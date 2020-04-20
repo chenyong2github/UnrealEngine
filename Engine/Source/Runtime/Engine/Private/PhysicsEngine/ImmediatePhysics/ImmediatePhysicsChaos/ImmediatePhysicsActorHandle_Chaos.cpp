@@ -190,8 +190,9 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		if (BodyInstance == nullptr)
+		if ((BodyInstance == nullptr) || (BodyInstance->BodySetup == nullptr))
 		{
+			// @todo(ccaulfield): fix this path
 			return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
 		}
 
