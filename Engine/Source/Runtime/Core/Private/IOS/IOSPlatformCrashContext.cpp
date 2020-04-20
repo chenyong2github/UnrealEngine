@@ -15,7 +15,7 @@
 
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
-#include "Miscs/Paths.h"
+#include "Misc/Paths.h"
 
 
 FIOSApplicationInfo GIOSAppInfo;
