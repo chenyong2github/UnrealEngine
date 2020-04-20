@@ -622,9 +622,24 @@ bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVect
 		return false;
 	}
 
+	XrTime DisplayTime = 0;
+	if (IsInRenderingThread())
+	{
+		DisplayTime = FrameStateRHI.predictedDisplayTime;
+	}
+	else if (IsInGameThread())
+	{
+		DisplayTime = FrameState.predictedDisplayTime;
+	}
+	else
+	{
+		check(false)
+		return false;
+	}
+
 	XrSpaceLocation Location = {};
 	Location.type = XR_TYPE_SPACE_LOCATION;
-	XrResult Result = xrLocateSpace(DeviceSpaces[DeviceId].Space, GetTrackingSpace(), FrameState.predictedDisplayTime, &Location);
+	XrResult Result = xrLocateSpace(DeviceSpaces[DeviceId].Space, GetTrackingSpace(), DisplayTime, &Location);
 	if (!XR_ENSURE(Result))
 	{
 		return false;
@@ -1349,6 +1364,10 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 
 void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
 {
+	FrameStateRHI = FrameState;
+
+	// xrBeginFrame is called _AFTER_ data the above data is cloned for RHI because xrBeginFrame will unblock xrWaitFrame in the game thread
+	// and that can lead to data races.
 	if (bIsReady)
 	{
 		XrFrameBeginInfo BeginInfo;
@@ -1376,8 +1395,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			}
 		}
 	}
-
-	FrameStateRHI = FrameState;
 
 	const FSceneView* MainView = ViewFamily.Views[0];
 	check(MainView);
