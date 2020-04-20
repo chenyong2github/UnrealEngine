@@ -807,7 +807,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 					}
 				}
 			}
-			else if (!Ar.IsAllowingLazyLoading() && !IsInSeperateFile())
+			else if (!Ar.IsAllowingLazyLoading() && !IsInSeparateFile())
 			{
 
 				// If the archive does not support lazy loading and the data is not in a different file then we have to load 
@@ -1082,7 +1082,7 @@ bool FBulkDataBase::IsInlined() const
 	return	(GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0;
 }
 
-bool FBulkDataBase::IsInSeperateFile() const
+bool FBulkDataBase::IsInSeparateFile() const
 {
 	return	(GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0;
 }
@@ -1637,7 +1637,7 @@ FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 		// optional data first.
 		return FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
 	}
-	else if (!IsInSeperateFile())
+	else if (!IsInSeparateFile())
 	{
 		return Filename;
 	}
