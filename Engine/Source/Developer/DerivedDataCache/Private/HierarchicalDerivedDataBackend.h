@@ -99,6 +99,15 @@ public:
 				COOK_STAT(Timer.AddHit(0));
 				return true;
 			}
+			else
+			{
+				extern bool GVerifyDDC;
+
+				if (GVerifyDDC)
+				{
+					ensureMsgf(!AsyncPutInnerBackends[CacheIndex]->CachedDataProbablyExists(CacheKey), TEXT("%s did not exist in sync interface for CachedDataProbablyExists but was found in async wrapper"), CacheKey);
+				}
+			}
 		}
 		return false;
 	}
@@ -253,6 +262,16 @@ public:
 				}
 				COOK_STAT(Timer.AddHit(OutData.Num()));
 				return true;
+			}
+			else
+			{
+				extern bool GVerifyDDC;
+
+				if (GVerifyDDC)
+				{
+					TArray<uint8> TempData;
+					ensureMsgf(!AsyncPutInnerBackends[CacheIndex]->GetCachedData(CacheKey, TempData), TEXT("CacheKey %s did not exist in sync interface for GetCachedData but was found in async wrapper"), CacheKey);
+				}
 			}
 		}
 		return false;
