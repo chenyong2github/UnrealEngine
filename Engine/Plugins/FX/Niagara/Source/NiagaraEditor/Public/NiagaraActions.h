@@ -61,7 +61,8 @@ struct NIAGARAEDITOR_API FNiagaraScriptVarAndViewInfoAction : public FEdGraphSch
 struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 {
 	FNiagaraParameterAction()
-		: bNamespaceModifierRenamePending(false)
+		: bIsExternallyReferenced(false)
+		, bNamespaceModifierRenamePending(false)
 	{
 	}
 
@@ -77,6 +78,7 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 
 	TArray<FNiagaraGraphParameterReferenceCollection> ReferenceCollection;
 
+	bool bIsExternallyReferenced;
 	bool bNamespaceModifierRenamePending;
 };
 

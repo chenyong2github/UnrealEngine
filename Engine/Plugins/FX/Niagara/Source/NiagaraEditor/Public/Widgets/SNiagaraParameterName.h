@@ -32,6 +32,7 @@ public:
 		, _IsReadOnly(false)
 		, _SingleNameDisplayMode(ESingleNameDisplayMode::Name)
 		, _DecoratorHAlign(HAlign_Left)
+		, _DecoratorPadding(5.0f, 0.0f, 0.0f, 0.0f)
 	{
 		_Clipping = EWidgetClipping::OnDemand;
 	}
@@ -46,6 +47,7 @@ public:
 		SLATE_EVENT(FIsSelected, IsSelected)
 		SLATE_EVENT(FPointerEventHandler, OnDoubleClicked)
 		SLATE_ARGUMENT(EHorizontalAlignment, DecoratorHAlign)
+		SLATE_ARGUMENT(FMargin, DecoratorPadding)
 		SLATE_NAMED_SLOT(FArguments, Decorator)
 	SLATE_END_ARGS()
 
@@ -62,13 +64,9 @@ public:
 private:
 	TSharedRef<SBorder> CreateNamespaceWidget(FText NamespaceDisplayName, FText NamespaceDescription, FLinearColor NamespaceBorderColor, FName NamespaceForegroundStyle);
 
-	void UpdateContent(FName InDisplayedParameterName);
+	void UpdateContent(FName InDisplayedParameterName, int32 InEditableNamespaceModifierIndex = INDEX_NONE);
 
 	FName ReconstructNameFromEditText(const FText& InEditText);
-
-	FName ReconstructNameFromNamespaceModifierEditText(const FText& InEditText);
-
-	FText GetNamespaceModifierText();
 
 	bool VerifyNameTextChange(const FText& InNewNameText, FText& OutErrorMessage);
 
@@ -81,19 +79,24 @@ private:
 private:
 	const FInlineEditableTextBlockStyle* EditableTextStyle;
 	const FTextBlockStyle* ReadOnlyTextStyle;
+
 	TAttribute<FName> ParameterName;
 	bool bIsReadOnly;
 	ESingleNameDisplayMode SingleNameDisplayMode;
 	TAttribute<FText> HighlightText;
+
 	FOnVerifyNameChange OnVerifyNameChangeDelegate;
 	FOnNameChanged OnNameChangedDelegate;
 	FPointerEventHandler OnDoubleClickedDelegate;
+
 	FIsSelected IsSelected;
 	FName DisplayedParameterName;
-	FName DisplayedNamespaceModifier;
-	TSharedPtr<SInlineEditableTextBlock> EditableTextBlock;
-	TSharedPtr<SBorder> NamespaceModifierBorder;
+	TSharedPtr<SInlineEditableTextBlock> EditableNameTextBlock;
+	TSharedPtr<SInlineEditableTextBlock> EditableModifierTextBlock;
+	bool bModifierIsPendingEdit;
+
 	EHorizontalAlignment DecoratorHAlign;
+	FMargin DecoratorPadding;
 	TSharedPtr<SWidget> Decorator;
 };
 
@@ -103,6 +106,8 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterNameTextBlock)
 		: _EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
 		, _IsReadOnly(false)
+		, _DecoratorHAlign(HAlign_Left)
+		, _DecoratorPadding(5.0f, 0.0f, 0.0f, 0.0f)
 	{
 		_Clipping = EWidgetClipping::OnDemand;
 	}
@@ -113,6 +118,8 @@ public:
 		SLATE_EVENT(FOnVerifyTextChanged, OnVerifyTextChanged)
 		SLATE_EVENT(FOnTextCommitted, OnTextCommitted)
 		SLATE_EVENT(FIsSelected, IsSelected)
+		SLATE_ARGUMENT(EHorizontalAlignment, DecoratorHAlign)
+		SLATE_ARGUMENT(FMargin, DecoratorPadding)
 		SLATE_NAMED_SLOT(FArguments, Decorator)
 		
 	SLATE_END_ARGS()
@@ -146,6 +153,8 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterNamePinLabel)
 		: _EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
 		, _IsReadOnly(false)
+		, _DecoratorHAlign(HAlign_Left)
+		, _DecoratorPadding(5.0f, 0.0f, 0.0f, 0.0f)
 	{
 		_Clipping = EWidgetClipping::OnDemand;
 	}
@@ -156,10 +165,12 @@ public:
 		SLATE_EVENT(FOnVerifyTextChanged, OnVerifyTextChanged)
 		SLATE_EVENT(FOnTextCommitted, OnTextCommitted)
 		SLATE_EVENT(FIsSelected, IsSelected)
+		SLATE_ARGUMENT(EHorizontalAlignment, DecoratorHAlign)
+		SLATE_ARGUMENT(FMargin, DecoratorPadding)
 		SLATE_NAMED_SLOT(FArguments, Decorator)
-		SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, UEdGraphPin* InTargetPin);
+	void Construct(const FArguments& InArgs, UEdGraphPin* InTargetPin);
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 

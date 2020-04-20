@@ -1542,46 +1542,17 @@ bool UNiagaraStackFunctionInput::SupportsRename() const
 void UNiagaraStackFunctionInput::OnRenamed(FText NewNameText)
 {
 	FName NewName(*NewNameText.ToString());
-	if (InputParameterHandle.GetName() != NewName && OwningAssignmentNode.IsValid())
+	if (InputParameterHandle.GetName() != NewName && OwningAssignmentNode.IsValid() && SourceScript.IsValid())
 	{
-		bool bIsCurrentlyExpanded = GetStackEditorData().GetStackEntryIsExpanded(FNiagaraStackGraphUtilities::GenerateStackModuleEditorDataKey(*OwningAssignmentNode.Get()), false);
-
 		FScopedTransaction ScopedTransaction(LOCTEXT("RenameInput", "Rename this function's input."));
-		if (ensureMsgf(OwningAssignmentNode->RenameAssignmentTarget(InputParameterHandle.GetName(), NewName), TEXT("Failed to rename assignment node input.")))
-		{
-			// Fixing up the stack graph and rapid iteration parameters must happen first so that when the stack is refreshed the UI is correct.
-			FNiagaraParameterHandle NewInputParameterHandle = FNiagaraParameterHandle(InputParameterHandle.GetNamespace(), NewName);
-			FNiagaraParameterHandle NewAliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(NewInputParameterHandle, OwningAssignmentNode.Get());
-			UEdGraphPin* OverridePin = GetOverridePin();
-			if (OverridePin != nullptr)
-			{
-				// If there is an override pin then the only thing that needs to happen is that it's name needs to be updated so that the value it
-				// holds or is linked to stays intact.
-				OverridePin->Modify();
-				OverridePin->PinName = NewAliasedInputParameterHandle.GetParameterHandleString();
-			}
-			else if (IsRapidIterationCandidate())
-			{
-				// Otherwise if this is a valid rapid iteration parameter the values in the affected scripts need to be updated.
-				FNiagaraVariable NewRapidIterationParameter = CreateRapidIterationVariable(NewAliasedInputParameterHandle.GetParameterHandleString());
-				for (TWeakObjectPtr<UNiagaraScript> AffectedScript : AffectedScripts)
-				{
-					if (AffectedScript.IsValid())
-					{
-						AffectedScript->Modify();
-						AffectedScript->RapidIterationParameters.RenameParameter(RapidIterationParameter, *NewRapidIterationParameter.GetName().ToString());
-					}
-				}
-			}
-
-			// Restore the expanded state with the new editor data key.
-			FString NewStackEditorDataKey = FNiagaraStackGraphUtilities::GenerateStackFunctionInputEditorDataKey(*OwningAssignmentNode.Get(), NewInputParameterHandle);
-			GetStackEditorData().SetStackEntryIsExpanded(NewStackEditorDataKey, bIsCurrentlyExpanded);
-
-			// This refresh call must come last because it will finalize this input entry which would cause earlier fixup to fail.
-			OwningAssignmentNode->RefreshFromExternalChanges();
-			ensureMsgf(IsFinalized(), TEXT("Input not finalized when renamed."));
-		}
+		FNiagaraStackGraphUtilities::RenameAssignmentTarget(
+			GetSystemViewModel()->GetSystem(),
+			GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr,
+			*SourceScript.Get(),
+			*OwningAssignmentNode.Get(),
+			FNiagaraVariable(InputType, InputParameterHandle.GetName()),
+			NewName);
+		ensureMsgf(IsFinalized(), TEXT("Input not finalized when renamed."));
 	}
 }
 

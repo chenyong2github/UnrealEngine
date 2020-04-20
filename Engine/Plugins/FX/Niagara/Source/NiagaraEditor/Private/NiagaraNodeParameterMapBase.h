@@ -61,17 +61,13 @@ protected:
 
 	void GetChangeNamespaceModifierSubMenuForPin(UToolMenu* Menu, UEdGraphPin* InPin);
 
-	FText GetAddNamespaceModifierForPinToolTip(const UEdGraphPin* InPin) const;
-	bool CanAddNamespaceModifierForPin(const UEdGraphPin* InPin) const;
-	void AddNamespaceModifierForPin(UEdGraphPin* InPin);
+	FText GetSetNamespaceModifierForPinToolTip(const UEdGraphPin* InPin, FName InNamespaceModifier) const;
+	bool CanSetNamespaceModifierForPin(const UEdGraphPin* InPin, FName InNamespaceModifier) const;
+	void SetNamespaceModifierForPin(UEdGraphPin* InPin, FName InNamespaceModifier);
 
-	FText GetRemoveNamespaceModifierForPinToolTip(const UEdGraphPin* InPin) const;
-	bool CanRemoveNamespaceModifierForPin(const UEdGraphPin* InPin) const;
-	void RemoveNamespaceModifierForPin(UEdGraphPin* InPin);
-
-	FText GetEditNamespaceModifierForPinToolTip(const UEdGraphPin* InPin) const;
-	bool CanEditNamespaceModifierForPin(const UEdGraphPin* InPin) const;
-	void EditNamespaceModifierForPin(const UEdGraphPin* InPin);
+	FText GetSetCustomNamespaceModifierForPinToolTip(const UEdGraphPin* InPin) const;
+	bool CanSetCustomNamespaceModifierForPin(const UEdGraphPin* InPin) const;
+	void SetCustomNamespaceModifierForPin(UEdGraphPin* InPin);
 
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
 

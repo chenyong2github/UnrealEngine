@@ -27,15 +27,12 @@ void SNiagaraGraphActionWidget::Construct(const FArguments& InArgs, const FCreat
 			.IsReadOnly(true)
 			.HighlightText(InArgs._HighlightText)
 			.DecoratorHAlign(HAlign_Right)
+			.DecoratorPadding(FMargin(7.0f, 0.0f, 0.0f, 0.0f))
 			.Decorator()
 			[
-				SNew(SBox)
-				.Padding(FMargin(7.0f, 0.0f, 0.0f, 0.0f))
-				[
-					SNew(STextBlock)
-					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterName.TypeText")
-					.Text(NiagaraAction->GetParameterVariable()->GetType().GetNameText())
-				]
+				SNew(STextBlock)
+				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterName.TypeText")
+				.Text(NiagaraAction->GetParameterVariable()->GetType().GetNameText())
 			];
 	}
 	else
