@@ -605,7 +605,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bMultiView : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = VR, meta=(
-		ConsoleVariable="r.MobileHDR",DisplayName="Mobile Post-Processing",
+		ConsoleVariable="r.MobileHDR", DisplayName="Mobile HDR",
 		ToolTip="If true, mobile pipelines include a full post-processing pass with tonemapping. Disable this setting for a performance boost and to enable stereoscopic rendering optimizations. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
 	uint32 bMobilePostProcessing:1;
@@ -617,7 +617,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bMobileMultiView : 1;
 	
-	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
+	UPROPERTY(config, meta = (
 		EditCondition = "!bMobilePostProcessing",
 		ConsoleVariable = "r.Mobile.UseHWsRGBEncoding", DisplayName = "Single-pass linear rendering",
 		ToolTip = "If true then mobile single-pass (without post-processing) rendering will use HW accelerated sRGB encoding/decoding. Available only on Oculus for now."))
