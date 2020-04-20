@@ -66,7 +66,7 @@ void FOSCBundlePacket::ReadData(FOSCStream& Stream)
 		int32 PacketLength = Stream.ReadInt32();
 
 		int32 StartPos = Stream.GetPosition();
-		TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Stream.GetData() + Stream.GetPosition());
+		TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Stream.GetData() + Stream.GetPosition(), Endpoint);
 		if (!Packet.IsValid())
 		{
 			break;
