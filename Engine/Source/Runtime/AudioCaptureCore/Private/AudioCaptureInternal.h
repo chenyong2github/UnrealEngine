@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AudioCaptureCore.h"
+#include "AudioCaptureCoreLog.h"
 #include "Features/IModularFeatures.h"
 
 namespace Audio

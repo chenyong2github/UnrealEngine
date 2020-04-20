@@ -23,7 +23,7 @@ bool UAudioCapture::OpenDefaultAudioStream()
 {
 	if (!AudioCapture.IsStreamOpen())
 	{
-		Audio::FOnCaptureFunction OnCapture = [this](const float* AudioData, int32 NumFrames, int32 InNumChannels, double StreamTime, bool bOverFlow)
+		Audio::FOnCaptureFunction OnCapture = [this](const float* AudioData, int32 NumFrames, int32 InNumChannels, int32 InSampleRate, double StreamTime, bool bOverFlow)
 		{
 			OnGeneratedAudio(AudioData, NumFrames * InNumChannels);
 		};
