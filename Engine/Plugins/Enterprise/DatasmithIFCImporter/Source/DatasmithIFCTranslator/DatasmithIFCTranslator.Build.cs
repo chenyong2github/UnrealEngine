@@ -33,7 +33,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("MessageLog");
 			}
 
-			string IfcEngineDir = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Plugins/Enterprise/DatasmithIFCTranslator/Source/ThirdParty/ifcengine");
+			string IfcEngineDir = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Source/ThirdParty/Enterprise/ifcengine");
 			if (Directory.Exists(IfcEngineDir))
 			{
 				PrivateDependencyModuleNames.AddRange(
