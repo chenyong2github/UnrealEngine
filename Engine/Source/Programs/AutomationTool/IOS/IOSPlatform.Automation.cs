@@ -440,7 +440,9 @@ public class IOSPlatform : Platform
 				string IPPArguments = "RepackageFromStage \"" + (Params.IsCodeBasedProject ? Params.RawProjectPath.FullName : "Engine") + "\"";
 				IPPArguments += " -config " + TargetConfiguration.ToString();
 				IPPArguments += " -schemename " + SchemeName + " -schemeconfig \"" + SchemeConfiguration + "\"";
-				IPPArguments += " -targetname " + SC.StageExecutables[0];
+
+				// targetname will be eg FooClient for a Client Shipping build.
+				IPPArguments += " -targetname " + SC.StageExecutables[0].Split("-".ToCharArray())[0];
 
 				if (TargetConfiguration == UnrealTargetConfiguration.Shipping)
 				{
