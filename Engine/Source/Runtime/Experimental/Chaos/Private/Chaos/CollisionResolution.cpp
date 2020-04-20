@@ -2617,15 +2617,15 @@ namespace Chaos
 					Union0->FindAllIntersectingObjects(Children, Implicit1->BoundingBox());
 					for (const auto& Child0 : Children)
 					{
-						TRigidTransform<T, d> TransformedChild0 = Child0.Second * LocalTransform0;
-						ConstructConstraints(Particle0, Particle1, Child0.First, Implicit1, TransformedChild0, LocalTransform1, CullDistance, Context, NewConstraints);
+						TRigidTransform<FReal, 3> TransformedChild0 = Child0.Second * LocalTransform0;
+						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.First, Implicit1, TransformedChild0, LocalTransform1, CullDistance, Context, NewConstraints);
 					}
 				}
 				else
 				{
 					for (const auto& Child0 : Union0->GetObjects())
 					{
-						ConstructConstraints(Particle0, Particle1, Child0.Get(), Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Get(), Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 					}
 				}
 				return;
@@ -2652,15 +2652,15 @@ namespace Chaos
 					Union1->FindAllIntersectingObjects(Children, Implicit0->BoundingBox());
 					for (const auto& Child1 : Children)
 					{
-						TRigidTransform<T, d> TransformedChild1 = Child1.Second * LocalTransform1;
-						ConstructConstraints(Particle0, Particle1, Implicit0, Child1.First, LocalTransform0, TransformedChild1, CullDistance, Context, NewConstraints);
+						TRigidTransform<FReal, 3> TransformedChild1 = Child1.Second * LocalTransform1;
+						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Child1.First, LocalTransform0, TransformedChild1, CullDistance, Context, NewConstraints);
 					}
 				}
 				else
 				{
 					for (const auto& Child1 : Union1->GetObjects())
 					{
-						ConstructConstraints(Particle0, Particle1, Implicit0, Child1.Get(), LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Child1.Get(), LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 					}
 				}
 				return;

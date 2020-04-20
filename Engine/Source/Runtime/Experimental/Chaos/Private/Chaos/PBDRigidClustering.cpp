@@ -1345,11 +1345,11 @@ namespace Chaos
 		for(TPBDRigidParticleHandle<T, d>* Child : Children)
 		{
 			bool bFilterValid = false;
-			for(const TUniquePtr<TPerShapeData<FReal, 3>>& Shape : Child->ShapesArray())
+			for(const TUniquePtr<FPerShapeData>& Shape : Child->ShapesArray())
 			{
 				if(Shape)
 				{
-					Filter = Shape->SimData;
+					Filter = Shape->GetSimData();
 					bFilterValid = Filter.Word0 != 0 || Filter.Word1 != 0 || Filter.Word2 != 0 || Filter.Word3 != 0;
 				}
 
@@ -1571,9 +1571,9 @@ namespace Chaos
 		}
 
 		// Set the captured filter to our new shapes
-		for(const TUniquePtr<TPerShapeData<FReal, 3>>& Shape : Parent->ShapesArray())
+		for(const TUniquePtr<FPerShapeData>& Shape : Parent->ShapesArray())
 		{
-			Shape->SimData = Filter;
+			Shape->SetSimData(Filter);
 		}
 	}
 
