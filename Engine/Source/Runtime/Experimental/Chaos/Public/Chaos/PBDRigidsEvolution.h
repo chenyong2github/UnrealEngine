@@ -912,7 +912,7 @@ protected:
 	TUniquePtr<ISpatialAccelerationCollectionFactory> SpatialCollectionFactory;
 };
 
-#define EVOLUTION_TRAIT(Trait) extern template TPBDRigidsEvolutionBase<Trait>;
+#define EVOLUTION_TRAIT(Trait) extern template class TPBDRigidsEvolutionBase<Trait>;
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 
