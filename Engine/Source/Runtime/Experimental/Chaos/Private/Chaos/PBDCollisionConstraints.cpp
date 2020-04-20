@@ -655,7 +655,7 @@ namespace Chaos
 					Collisions::ApplyPushOut(ConstraintHandle->GetContact(), IsTemporarilyStatic, IterationParameters, ParticleParameters);
 				}
 
-			}, /*bDisableCollisionParallelFor*/true);
+			}, bDisableCollisionParallelFor);
 		}
 
 		if (PostApplyPushOutCallback != nullptr)
