@@ -18,6 +18,11 @@ class USoundCue;
 struct FPropertyChangedEvent;
 struct Rect;
 
+namespace Audio
+{
+	class FAudioDebugger;
+}
+
 /*-----------------------------------------------------------------------------
    FSoundCueEditor
 -----------------------------------------------------------------------------*/
@@ -211,7 +216,7 @@ private:
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
 	/** Cache of the Audio debugger instance */
-	class FAudioDebugger* Debugger;
+	Audio::FAudioDebugger* Debugger;
 
 	/**	The tab ids for all the tabs used */
 	static const FName GraphCanvasTabId;

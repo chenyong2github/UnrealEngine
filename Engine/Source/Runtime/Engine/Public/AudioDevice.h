@@ -27,7 +27,6 @@
  */
 
 class FArchive;
-class FAudioDebugger;
 class FAudioDevice;
 class FAudioEffectsManager;
 class FCanvas;
@@ -57,6 +56,10 @@ struct FAudioQualitySettings;
 struct FRotator;
 struct FWaveInstance;
 
+namespace Audio
+{
+	class FAudioDebugger;
+}
 
 /**
  * Debug state of the audio system
@@ -466,7 +469,7 @@ private:
 	bool HandleSetDynamicSoundCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 
 	/** Handles all argument parsing for the solo commands in one place */
-	using FToggleSoloPtr = void (FAudioDebugger::*)(FName InName, bool bExclusive);
+	using FToggleSoloPtr = void (Audio::FAudioDebugger::*)(FName InName, bool bExclusive);
 	void HandleAudioSoloCommon(const TCHAR* Cmd, FOutputDevice& Ar, FToggleSoloPtr Funct);
 
 	/**
