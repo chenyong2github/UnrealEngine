@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "RenderResource.h"
+#include "VT/VirtualTextureFeedbackBuffer.h"
 
 /** 
  * Class that handles the read back of feedback buffers from the GPU.
  * Multiple buffers can be transferred per frame using TransferGPUToCPU().
- * RHIBuffers that are passed in are expected to have been transitioned to a state for reading.
  * Use Map()/Unmap() to return the data. It will only return data that is ready to fetch without stalling the GPU.
  * All calls are expected to be from the single render thread only.
  */
@@ -18,34 +18,8 @@ public:
 	FVirtualTextureFeedback();
 	~FVirtualTextureFeedback();
 
-	/** 
-	 * Description of how to interpret a Buffer that is being transferred.
-	 * For example a buffer may be a simple flat buffer, or a 2D screen-space buffer with rectangles representing multiple player viewports.
-	 * In the future we may also want to support append style buffers containing buffer size etc.
-	 */
-	struct FBufferDesc
-	{
-		/** Initialize for a flat "1D" buffer. */
-		void Init(int32 InBufferSize);
-		/** Initialize for a "2D" buffer. */
-		void Init2D(FIntPoint InBufferSize);
-		/** Initialize for a "2D" buffer. Pass in view rectangles that define some subset of the buffer to actually analyze. */
-		void Init2D(FIntPoint InUnscaledBufferSize, TArrayView<FIntRect> const& InUnscaledViewRects, int32 InBufferScale);
-
-		/** Size of buffer. 1D buffers have Y=1. */
-		FIntPoint BufferSize = 0;
-		/** The maximum number of rectangles to read from a 2D buffer. */
-		static const uint32 MaxRectPerTransfer = 4u;
-		/** The number of rectangles to read from the buffer. */
-		int32 NumRects = 0;
-		/** Rectangles to read from the buffer. */
-		FIntRect Rects[MaxRectPerTransfer];
-		/** Number of buffer elements to actually read (calculated from the Rects). */
-		int32 TotalReadSize = 0;
-	};
-
 	/** Commit a RHIBuffer to be transferred for later CPU analysis. */
-	void TransferGPUToCPU(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FBufferDesc const& Desc);
+	void TransferGPUToCPU(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FVirtualTextureFeedbackBufferDesc const& Desc);
 
 	/** Returns true if there are any pending transfer results that are ready so that we can call Map(). */
 	bool CanMap(FRHICommandListImmediate& RHICmdList);
@@ -76,7 +50,7 @@ private:
 	/** Description of a pending feedback transfer. */
 	struct FFeedbackItem
 	{
-		FBufferDesc Desc;
+		FVirtualTextureFeedbackBufferDesc Desc;
 		FRHIGPUMask GPUMask;
 		FStagingBufferRHIRef StagingBuffer;
 	};
