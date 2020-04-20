@@ -143,7 +143,7 @@ public:
 	 *
 	 * @return BaseDir and usable extension directories under BaseDir (either Engine or Project)
 	 */
-	static TArray<FString> GetExtensionDirs(const FString& BaseDir, const FString& SubDir=FString());
+	static const TArray<FString>& GetExtensionDirs(const FString& BaseDir, const FString& SubDir=FString());
 
 	/**
 	 * Returns the root directory of the engine directory tree
