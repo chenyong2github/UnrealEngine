@@ -510,7 +510,7 @@ namespace Chaos
 		return NewParticle;
 	}
 
-	int32 UnionsHaveCollisionParticles = 0;
+	int32 UnionsHaveCollisionParticles = 1;
 	FAutoConsoleVariableRef CVarUnionsHaveCollisionParticles(TEXT("p.UnionsHaveCollisionParticles"), UnionsHaveCollisionParticles, TEXT(""));
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::CreateClusterParticleFromClusterChildren"), STAT_CreateClusterParticleFromClusterChildren, STATGROUP_Chaos);
