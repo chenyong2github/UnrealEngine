@@ -40,7 +40,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		// The Producer object created here will be passed into the virtual texture system which will take ownership.
 		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, bClearTextures, InComponent->GetScene(), Transform, Bounds);
 
-		int32 StreamLowMips = InComponent->IsStreamingLowMips() ? InComponent->GetStreamLowMips() : 0;
+		int32 StreamLowMips = InComponent->IsStreamingLowMips() ? InComponent->NumStreamingMips() : 0;
 		if (StreamLowMips > 0)
 		{
 			UVirtualTexture2D* StreamingTexture = InComponent->GetStreamingTexture()->Texture;
