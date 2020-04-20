@@ -363,12 +363,5 @@ namespace UnrealBuildTool
 		{
 			// do nothing on TVOS
 		}
-
-		protected override void CopyLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory)
-		{
-			// do nothing on TVOS
-		}
-
-
 	}
 }
