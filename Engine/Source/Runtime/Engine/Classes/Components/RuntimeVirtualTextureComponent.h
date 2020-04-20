@@ -10,7 +10,7 @@ class URuntimeVirtualTexture;
 class UVirtualTextureBuilder;
 
 /** Component used to place a URuntimeVirtualTexture in the world. */
-UCLASS(Blueprintable, ClassGroup = Rendering, collapsecategories, hidecategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering), editinlinenew)
+UCLASS(Blueprintable, ClassGroup = Rendering, HideCategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering))
 class ENGINE_API URuntimeVirtualTextureComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -21,15 +21,11 @@ protected:
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
 
 	/** Texture object containing streamed low mips. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTexture)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTextureBuild)
 	UVirtualTextureBuilder* StreamingTexture = nullptr;
 
-	/** Actor to copy the bounds from to set up the transform. */
-	UPROPERTY(EditAnywhere, Category = TransformFromBounds, meta = (DisplayName = "Source Actor"))
-	TSoftObjectPtr<AActor> BoundsSourceActor;
-
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
-	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Streaming Mips"))
+	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Num Streaming Mips"))
 	int32 StreamLowMips = 0;
 
 	/** Enable Crunch compression. ZLib compression is used when Crunch is disabled. */
@@ -63,12 +59,6 @@ public:
 #if WITH_EDITOR
 	/** Initialize the low mip streaming texture with the passed in size and data. */
 	void InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData);
-
-	/** Copy the rotation from BoundsSourceActor to this component. Called by our UI details customization. */
-	void SetRotation();
-
-	/** Set this component transform to include the BoundsSourceActor bounds. Called by our UI details customization. */
-	void SetTransformToBounds();
 #endif
 
 protected:
