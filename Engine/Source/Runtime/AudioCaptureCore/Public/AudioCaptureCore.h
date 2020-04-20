@@ -10,6 +10,14 @@
 
 namespace Audio
 {
+	// Various hardware-accelerated features that an input device can have.
+	enum class EHardwareInputFeature : uint8
+	{
+		EchoCancellation,
+		NoiseSuppression,
+		AutomaticGainControl
+	};
+
 	// Class which handles audio capture internally, implemented with a back-end per platform
 	class AUDIOCAPTURECORE_API FAudioCapture
 	{
@@ -20,6 +28,12 @@ namespace Audio
 
 		// Returns the total amount of audio devices.
 		int32 GetCaptureDevicesAvailable(TArray<FCaptureDeviceInfo>& OutDevices);
+
+		// Adds a user to the system so we can use its devices.
+		bool RegisterUser(const TCHAR* UserId);
+
+		// Removes a user added with RegisterUser.
+		bool UnregisterUser(const TCHAR* UserId);
 
 		// Returns the audio capture device information at the given Id.
 		bool GetCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo, int32 DeviceIndex = INDEX_NONE);
@@ -50,6 +64,10 @@ namespace Audio
 
 		// Returns true if the audio capture stream is currently capturing audio
 		bool IsCapturing() const;
+
+		bool GetIfHardwareFeatureIsSupported(EHardwareInputFeature FeatureType);
+
+		void SetHardwareFeatureEnabled(EHardwareInputFeature FeatureType, bool bIsEnabled);
 
 	private:
 
@@ -118,12 +136,3 @@ namespace Audio
 	};
 
 } // namespace Audio
-
-DECLARE_LOG_CATEGORY_EXTERN(LogAudioCaptureCore, Log, All);
-
-class FAudioCaptureCoreModule : public IModuleInterface
-{
-public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-};
