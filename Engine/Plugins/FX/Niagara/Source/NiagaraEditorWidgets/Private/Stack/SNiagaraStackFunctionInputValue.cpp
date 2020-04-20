@@ -601,7 +601,7 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		const FText CategoryName = LOCTEXT("MakeCategory", "Make");
 
 		TArray<FName> AvailableNamespaces;
-		FunctionInput->GetNamespacesForNewParameters(AvailableNamespaces);
+		FunctionInput->GetNamespacesForNewReadParameters(AvailableNamespaces);
 
 		TArray<FString> InputNames;
 		for (int32 i = FunctionInput->GetInputParameterHandlePath().Num() - 1; i >= 0; i--)

@@ -23,9 +23,12 @@
 #include "NiagaraStackCommandContext.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraNodeAssignment.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SToolTip.h"
@@ -299,25 +302,121 @@ class SNiagaraSystemOverviewItemName : public SCompoundWidget
 		StackItem = InStackItem;
 		StackItem->OnAlternateDisplayNameChanged().AddSP(this, &SNiagaraSystemOverviewItemName::UpdateFromAlternateDisplayName);
 
-		ChildSlot
-		[
-			SAssignNew(NameTextBlock, STextBlock)
-			.Text(this, &SNiagaraSystemOverviewItemName::GetItemDisplayName)
-			.ToolTipText(this, &SNiagaraSystemOverviewItemName::GetItemToolTip)
-			.IsEnabled_UObject(StackItem.Get(), &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
-		];
-		UpdateFromAlternateDisplayName();
+		if (StackItem->IsA<UNiagaraStackModuleItem>() &&
+			CastChecked<UNiagaraStackModuleItem>(StackItem)->GetModuleNode().IsA<UNiagaraNodeAssignment>())
+		{
+			UNiagaraNodeAssignment* AssignmentNode = CastChecked<UNiagaraNodeAssignment>(&CastChecked<UNiagaraStackModuleItem>(StackItem)->GetModuleNode());
+			AssignmentNode->OnAssignmentTargetsChanged().AddSP(this, &SNiagaraSystemOverviewItemName::UpdateFromAssignmentTargets);
+		}
+
+		UpdateContent();
 	}
 
 	~SNiagaraSystemOverviewItemName()
 	{
-		if (StackItem.IsValid())
+		if (StackItem.IsValid() && StackItem->IsFinalized() == false)
 		{
 			StackItem->OnAlternateDisplayNameChanged().RemoveAll(this);
+
+			if (StackItem->IsA<UNiagaraStackModuleItem>() &&
+				CastChecked<UNiagaraStackModuleItem>(StackItem)->GetModuleNode().IsA<UNiagaraNodeAssignment>())
+			{
+				UNiagaraNodeAssignment* AssignmentNode = CastChecked<UNiagaraNodeAssignment>(&CastChecked<UNiagaraStackModuleItem>(StackItem)->GetModuleNode());
+				AssignmentNode->OnAssignmentTargetsChanged().RemoveAll(this);
+			}
 		}
 	}
 
 private:
+	void UpdateContent()
+	{
+		UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(StackItem);
+		UNiagaraNodeAssignment* AssignmentNode = ModuleItem != nullptr 
+			? Cast<UNiagaraNodeAssignment>(&ModuleItem->GetModuleNode())
+			: nullptr;
+
+		if (StackItem->GetAlternateDisplayName().IsSet() == false &&
+			AssignmentNode != nullptr &&
+			AssignmentNode->GetAssignmentTargets().Num() > 0)
+		{
+			NameTextBlock.Reset();
+
+			TSharedPtr<SWidget> ParameterWidget;
+			if (AssignmentNode->GetAssignmentTargets().Num() == 1)
+			{
+				ParameterWidget = SNew(SNiagaraParameterName)
+					.ParameterName(AssignmentNode->GetAssignmentTargets()[0].GetName())
+					.IsReadOnly(true);
+			}
+			else
+			{
+				TSharedRef<SVerticalBox> ParameterBox = SNew(SVerticalBox);
+				for (const FNiagaraVariable& AssignmentTarget : AssignmentNode->GetAssignmentTargets())
+				{
+					ParameterBox->AddSlot()
+					.AutoHeight()
+					.Padding(0.0f, 1.0f, 0.0f, 1.0f)
+					[
+						SNew(SScaleBox)
+						.UserSpecifiedScale(0.85f)
+						.Stretch(EStretch::UserSpecified)
+						.HAlign(HAlign_Left)
+						[
+							SNew(SNiagaraParameterName)
+							.ParameterName(AssignmentTarget.GetName())
+							.IsReadOnly(true)
+						]
+					];
+				}
+				ParameterWidget = ParameterBox;
+			}
+
+			ChildSlot
+			[
+				SNew(SHorizontalBox)
+				.IsEnabled_UObject(StackItem.Get(), &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(0.0f, 0.0f, 6.0f, 0.0f)
+				[
+					SNew(STextBlock)
+					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.ItemText")
+					.Text(LOCTEXT("SetVariablesPrefix", "Set:"))
+				]
+				+ SHorizontalBox::Slot()
+				[
+					ParameterWidget.ToSharedRef()
+				]
+			];
+		}
+		else
+		{
+			ChildSlot
+			[
+				SAssignNew(NameTextBlock, STextBlock)
+				.Text(this, &SNiagaraSystemOverviewItemName::GetItemDisplayName)
+				.ToolTipText(this, &SNiagaraSystemOverviewItemName::GetItemToolTip)
+				.IsEnabled_UObject(StackItem.Get(), &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+			];
+			UpdateTextStyle();
+		}
+	}
+
+	void UpdateTextStyle()
+	{
+		if (NameTextBlock.IsValid())
+		{
+			if (StackItem->GetAlternateDisplayName().IsSet())
+			{
+				NameTextBlock->SetTextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.AlternateItemText"));
+			}
+			else
+			{
+				NameTextBlock->SetTextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.ItemText"));
+			}
+		}
+	}
+
 	FText GetItemDisplayName() const
 	{
 		if (StackItem.IsValid() && StackItem->IsFinalized() == false)
@@ -359,13 +458,35 @@ private:
 
 	void UpdateFromAlternateDisplayName()
 	{
-		if (StackItem.IsValid() && StackItem->IsFinalized() == false && StackItem->GetAlternateDisplayName().IsSet())
+		if (StackItem.IsValid() && StackItem->IsFinalized() == false)
 		{
-			NameTextBlock->SetTextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.AlternateItemText"));
+			if (StackItem->GetAlternateDisplayName().IsSet())
+			{
+				if (NameTextBlock.IsValid() == false)
+				{
+					UpdateContent();
+				}
+				else
+				{
+					UpdateTextStyle();
+				}
+			}
+			else
+			{
+				if (NameTextBlock.IsValid())
+				{
+					UpdateContent();
+				}
+			}
 		}
-		else
+		ToolTipCache.Reset();
+	}
+
+	void UpdateFromAssignmentTargets()
+	{
+		if (StackItem.IsValid() && StackItem->IsFinalized() == false)
 		{
-			NameTextBlock->SetTextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.ItemText"));
+			UpdateContent();
 		}
 		ToolTipCache.Reset();
 	}

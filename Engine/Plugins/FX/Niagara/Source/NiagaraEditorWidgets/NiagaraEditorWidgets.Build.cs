@@ -28,7 +28,8 @@ public class NiagaraEditorWidgets : ModuleRules
 			"Projects",
 			"Sequencer",
             "EditorWidgets",
-        });
+			"ApplicationCore",
+		});
 
 		PrivateIncludePathModuleNames.AddRange(new string[] {
 		});
