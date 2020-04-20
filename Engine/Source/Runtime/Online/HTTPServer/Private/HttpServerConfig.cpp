@@ -2,6 +2,7 @@
 
 #include "HttpServerConfig.h"
 #include "CoreMinimal.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY(LogHttpServerConfig)
 
