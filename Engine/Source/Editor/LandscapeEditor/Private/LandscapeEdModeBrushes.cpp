@@ -638,8 +638,8 @@ public:
 
 					float SquaredScaleXY = FMath::Square(ScaleXY);
 					FLinearColor AlphaScaleBias(
-						SquaredScaleXY / (Gizmo->GetWidth() * DataTexture->GetSizeX()),
-						SquaredScaleXY / (Gizmo->GetHeight() * DataTexture->GetSizeY()),
+						SquaredScaleXY / FMath::Max<float>(1.f, Gizmo->GetWidth() * DataTexture->GetSizeX()),
+						SquaredScaleXY / FMath::Max<float>(1.f, Gizmo->GetHeight() * DataTexture->GetSizeY()),
 						Gizmo->TextureScale.X,
 						Gizmo->TextureScale.Y
 						);
