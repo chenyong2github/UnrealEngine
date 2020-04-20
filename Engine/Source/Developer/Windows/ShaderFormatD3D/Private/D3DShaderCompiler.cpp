@@ -1643,7 +1643,9 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 			// Check for resource limits for feature level 11.0
 			if (NumUAVs > GD3DMaximumNumUAVs)
 			{
-				UE_LOG(LogD3D11ShaderCompiler, Fatal, TEXT("Number of UAVs in \"%s\" exceeded limit: %d slots used, but limit is %d due to maximum feature level 11.0"), *Input.VirtualSourceFilePath, NumUAVs, GD3DMaximumNumUAVs);
+				FilteredErrors.Add(FString::Printf(TEXT("Number of UAVs in \"%s\" exceeded limit: %d slots used, but limit is %d due to maximum feature level 11.0"), *Input.VirtualSourceFilePath, NumUAVs, GD3DMaximumNumUAVs));
+				Result = E_FAIL;
+				Output.bSucceeded = false;
 			}
 
 			// Set the number of instructions.
