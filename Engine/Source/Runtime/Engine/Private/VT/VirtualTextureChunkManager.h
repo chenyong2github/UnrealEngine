@@ -3,16 +3,10 @@
 #pragma once
 
 #include "ContentStreaming.h"
-#include "Containers/Queue.h"
-#include "Containers/List.h"
-#include "VirtualTextureBuiltData.h"
 #include "VirtualTextureUploadCache.h"
 #include "VirtualTextureTranscodeCache.h"
 
-class FChunkProvider;
-struct FVirtualTextureChunkStreamingManager;
 class FUploadingVirtualTexture;
-class IMemoryReadStream;
 
 DECLARE_STATS_GROUP(TEXT("Virtual Texturing Paging"), STATGROUP_VTP, STATCAT_Advanced);
 
@@ -33,14 +27,10 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num uploads"), STAT_VTP_NumUploads, STATGROUP_V
 
 struct FVirtualTextureChunkStreamingManager final  : public IStreamingManager
 {
-	static FVirtualTextureChunkStreamingManager* AddRef();
-	static void DecRef();
-
-private:
+public:
 	FVirtualTextureChunkStreamingManager();
 	virtual ~FVirtualTextureChunkStreamingManager();
 
-public:
 	// IStreamingManager interface
 	virtual void UpdateResourceStreaming(float DeltaTime, bool bProcessEverything = false) override;
 	virtual int32 BlockTillAllRequestsFinished(float TimeLimit = 0.0f, bool bLogResults = false) override;
@@ -60,4 +50,3 @@ private:
 	FVirtualTextureUploadCache UploadCache;
 	FVirtualTextureTranscodeCache TranscodeCache;
 };
-
