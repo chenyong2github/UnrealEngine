@@ -286,7 +286,6 @@ private:
 	int32 MApplyPushOutPairIterations;
 	FReal MCullDistance;
 	FReal MShapePadding;
-	FReal MAngularFriction;
 	bool bUseCCD;
 	bool bEnableCollisions;
 	bool bHandlesEnabled;

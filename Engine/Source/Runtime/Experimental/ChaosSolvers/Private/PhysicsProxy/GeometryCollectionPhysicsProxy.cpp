@@ -657,6 +657,15 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 	const FGeometryCollection* RestCollection = Parameters.RestCollection;
 	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
+	if (!Parameters.PhysicalMaterial)
+	{
+		// If PhysicalMaterial is non-null, then we have a physics material in the scene 
+		// that we're using.  If not, then we need to allocate a default FChaosPhysicsMaterial
+		// that we'll point PhysicalMaterial at.
+		Parameters.PhysicalMaterialOwner = TUniquePtr<Chaos::FChaosPhysicsMaterial>(new Chaos::FChaosPhysicsMaterial());
+		Parameters.PhysicalMaterial = Chaos::MakeSerializable(Parameters.PhysicalMaterialOwner);
+	}
+
 	if (Parameters.Simulating)
 	{
 		const TManagedArray<int32>& TransformIndex = RestCollection->TransformIndex;
@@ -767,7 +776,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					CollisionParticles->Resize(CollisionParticlesSize); // Truncates!
 				}
 
-
+				Handle->SetLinearEtherDrag(Parameters.PhysicalMaterial->LinearEtherDrag);
+				Handle->SetAngularEtherDrag(Parameters.PhysicalMaterial->AngularEtherDrag);
 				RigidsSolver->GetEvolution()->SetPhysicsMaterial(Handle, Parameters.PhysicalMaterial);
 			}
 		});
@@ -1088,6 +1098,11 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 
 	Parent->SetStrains(Damage);
 
+	// If no PhysicalMaterial was specified by the caller, then a default one was constructed 
+	// for us by InitializeBodiesPT().
+	check(Parameters.PhysicalMaterial);
+	Parent->SetLinearEtherDrag(Parameters.PhysicalMaterial->LinearEtherDrag);
+	Parent->SetAngularEtherDrag(Parameters.PhysicalMaterial->AngularEtherDrag);
 	GetSolver()->GetEvolution()->SetPhysicsMaterial(Parent, Parameters.PhysicalMaterial);
 
 	const FTransform ParentTransform = GeometryCollectionAlgo::GlobalMatrix(DynamicCollection.Transform, DynamicCollection.Parent, CollectionClusterIndex);
