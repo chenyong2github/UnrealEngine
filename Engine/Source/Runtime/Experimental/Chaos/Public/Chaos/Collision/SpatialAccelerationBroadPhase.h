@@ -14,7 +14,6 @@
 namespace Chaos
 {
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::BroadPhase"), STAT_Collisions_SpatialBroadPhase, STATGROUP_ChaosCollision, CHAOS_API);
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::NarrowPhase"), STAT_Collisions_SpatialNarrowPhase, STATGROUP_ChaosCollision, CHAOS_API);
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Filtering"), STAT_Collisions_Filtering, STATGROUP_ChaosCollision, CHAOS_API);
 	
 	template <typename TPayloadType, typename T, int d>
@@ -238,12 +237,9 @@ namespace Chaos
 					const FReal Box2Thickness = bIsParticle2Dynamic ? ComputeBoundsThickness(*Particle2.CastToRigidParticle(), Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size()
 						: (bIsParticle2Kinematic ? ComputeBoundsThickness(*Particle2.CastToKinematicParticle(), Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size() : (FReal)0);
 
-					{
-						SCOPE_CYCLE_COUNTER(STAT_Collisions_SpatialNarrowPhase);
-						FCollisionConstraintsArray NewConstraints;
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), FMath::Max(Box1Thickness, Box2Thickness), StatData);
-						Receiver.ReceiveCollisions(NewConstraints);
-					}
+					FCollisionConstraintsArray NewConstraints;
+					NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), FMath::Max(Box1Thickness, Box2Thickness), StatData);
+					Receiver.ReceiveCollisions(NewConstraints);
 				}
 			}
 
