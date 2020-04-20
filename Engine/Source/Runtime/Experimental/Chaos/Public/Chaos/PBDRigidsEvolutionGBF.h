@@ -214,7 +214,7 @@ namespace Chaos
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 	};
 
-#define EVOLUTION_TRAIT(Trait) extern template TPBDRigidsEvolutionGBF<Trait>;
+#define EVOLUTION_TRAIT(Trait) extern template class TPBDRigidsEvolutionGBF<Trait>;
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 }
