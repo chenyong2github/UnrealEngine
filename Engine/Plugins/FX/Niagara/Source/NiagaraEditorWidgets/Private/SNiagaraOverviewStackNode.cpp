@@ -26,6 +26,7 @@
 #include "Widgets/SWidget.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
+#include "Materials/MaterialInterface.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
 
@@ -62,8 +63,10 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 			}
 			if (StackViewModel)
 			{
+				StackViewModel->OnStructureChanged().AddSP(this, &SNiagaraOverviewStackNode::RefreshThumbnailBar);
 				StackViewModel->OnDataObjectChanged().AddSP(this, &SNiagaraOverviewStackNode::FillThumbnailBar, true);
 			}
+			UMaterial::OnMaterialCompilationFinished().AddSP(this, &SNiagaraOverviewStackNode::OnMaterialCompiled);
 			OverviewSelectionViewModel = OwningSystemViewModel->GetSelectionViewModel();
 		}
 	}
@@ -250,6 +253,34 @@ void SNiagaraOverviewStackNode::Tick(const FGeometry& AllottedGeometry, const do
 	}
 }
 
+void SNiagaraOverviewStackNode::OnMaterialCompiled(class UMaterialInterface* MaterialInterface)
+{
+	bool bUsingThisMaterial = false;
+	if (EmitterHandleViewModelWeak.IsValid())
+	{
+		EmitterHandleViewModelWeak.Pin()->GetRendererEntries(PreviewStackEntries);
+		FNiagaraEmitterInstance* InInstance = EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetSimulation().IsValid() ? EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetSimulation().Pin().Get() : nullptr;
+		for (UNiagaraStackEntry* Entry : PreviewStackEntries)
+		{
+			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(Entry))
+			{
+				TArray<UMaterialInterface*> Materials;
+				RendererItem->GetRendererProperties()->GetUsedMaterials(InInstance, Materials);
+				if (Materials.Contains(MaterialInterface))
+				{
+					bUsingThisMaterial = true;
+					break;
+				}
+			}
+		}
+
+		if (bUsingThisMaterial)
+		{
+			RefreshThumbnailBar();
+		}
+	}
+}
+
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 {
 	TSharedPtr<SWidget> ContentWidget;
@@ -323,6 +354,11 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 
 	return NodeWidget;
 
+}
+
+void SNiagaraOverviewStackNode::RefreshThumbnailBar()
+{
+	FillThumbnailBar(nullptr, false);
 }
 
 void SNiagaraOverviewStackNode::FillThumbnailBar(UObject* ChangedObject, const bool bIsTriggeredByObjectUpdate)
