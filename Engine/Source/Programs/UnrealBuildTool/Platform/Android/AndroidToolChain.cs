@@ -14,9 +14,9 @@ namespace UnrealBuildTool
 	class AndroidToolChain : ISPCToolChain, IAndroidToolChain
 	{
 		// Android NDK toolchain that must be used for C++ compiling
-		readonly int MinimumNDKToolchain = 200200;
-		readonly int MaximumNDKToolchain = 220100;
-		readonly int RecommendedNDKToolchain = 210100;
+		readonly int MinimumNDKToolchain = 210100;
+		readonly int MaximumNDKToolchain = 230100;
+		readonly int RecommendedNDKToolchain = 210200;
 
 		public static readonly string[] AllCpuSuffixes =
 		{
@@ -107,6 +107,14 @@ namespace UnrealBuildTool
 		public string GetClangVersionString()
 		{
 			return string.Format("{0}.{1}.{2}", ClangVersionMajor, ClangVersionMinor, ClangVersionPatch);
+		}
+
+		public void ShowNDKWarnings()
+		{
+			if (NDKDefineInt < RecommendedNDKToolchain)
+			{
+				Log.TraceInformation("Note: Android toolchain NDK " + ToolchainIntToString(RecommendedNDKToolchain) + " recommended");
+			}
 		}
 
 		/// <summary>

@@ -338,6 +338,7 @@ namespace UnrealBuildTool
 
 			int NDKVersionInt = ToolChain.GetNdkApiLevelInt();
 			Log.TraceInformation("NDK toolchain: {0}, NDK version: {1}, GccVersion: {2}, ClangVersion: {3}", NDKToolchainVersion, NDKVersionInt.ToString(), GccVersion, ToolChain.GetClangVersionString());
+			ToolChain.ShowNDKWarnings();
 
 			CompileEnvironment.Definitions.Add("PLATFORM_DESKTOP=0");
 			CompileEnvironment.Definitions.Add("PLATFORM_CAN_SUPPORT_EDITORONLY_DATA=0");
