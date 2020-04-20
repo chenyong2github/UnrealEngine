@@ -226,8 +226,6 @@ protected:
 	// want to also constrain this new vertex, possibly project to constraint target. 
 	virtual void UpdateAfterSplit(int edgeID, int va, int vb, const FDynamicMesh3::FEdgeSplitInfo& splitInfo);
 
-
-
 	TDynamicVector<FVector3d> TempPosBuffer;	// this is a temporary buffer used by smoothing and projection
 	TArray<bool> TempFlagBuffer;				// list of which indices in TempPosBuffer were modified
 
@@ -251,16 +249,22 @@ protected:
 	virtual TFunction<FVector3d(const FDynamicMesh3&, int, double)> GetSmoothFunction();
 
 
-
 	// Project vertices onto projection target.
-	virtual void FullProjectionPass();
+	virtual void FullProjectionPass(bool bParallel);
 
+	// Project a single vertex using the given target
 	virtual void ProjectVertex(int VertexID, IProjectionTarget* UseTarget);
 
 	// used by collapse-edge to get projected position for new vertex
 	virtual FVector3d GetProjectedCollapsePosition(int VertexID, const FVector3d& vNewPos);
 
+	// Apply the given projection function to all vertices in the mesh
 	virtual void ApplyToProjectVertices(const TFunction<void(int)>& VertexProjectFunc);
+
+	// Move all vertices in parallel. Update the timestamps.
+	// The NewVertexPosition function accepts a vertex index and returns a new vertex position, as well as setting the 
+	// bool out-param to indicate that the vertex has moved.
+	void MoveVerticesParallel(TFunction<FVector3d(int, bool&)> NewVertexPosition);
 
 
 	/*

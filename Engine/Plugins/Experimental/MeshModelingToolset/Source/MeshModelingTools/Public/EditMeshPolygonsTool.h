@@ -17,7 +17,6 @@
 #include "Operations/GroupTopologyDeformer.h"
 #include "ModelingOperators/Public/ModelingTaskTypes.h"
 #include "Transforms/MultiTransformer.h"
-#include "Changes/ValueWatcher.h"
 #include "Selection/PolygonSelectionMechanic.h"
 #include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "Mechanics/SpatialCurveDistanceMechanic.h"
@@ -316,8 +315,6 @@ class MESHMODELINGTOOLS_API UPolyEditExtrudeProperties : public UInteractiveTool
 public:
 	UPROPERTY(EditAnywhere, Category = Extrude)
 	EPolyEditExtrudeDirection Direction = EPolyEditExtrudeDirection::SelectionNormal;
-
-	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
 };
 
 
@@ -343,8 +340,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Cut)
 	bool bSnapToVertices = true;
-
-	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
 };
 
 
@@ -358,8 +353,6 @@ class MESHMODELINGTOOLS_API UPolyEditSetUVProperties : public UInteractiveToolPr
 public:
 	UPROPERTY(EditAnywhere, Category = PlanarProjectUV)
 	bool bShowMaterial = false;
-
-	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
 };
 
 
@@ -382,7 +375,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -420,8 +413,6 @@ protected:
 
 	UPROPERTY()
 	UPolyEditTransformProperties* TransformProps;
-	TValueWatcher<ELocalFrameMode> LocalFrameModeWatcher;
-	TValueWatcher<bool> LockFrameWatcher;
 
 	UPROPERTY()
 	UEditMeshPolygonsToolActions* EditActions;
@@ -438,7 +429,6 @@ protected:
 
 	UPROPERTY()
 	UPolyEditExtrudeProperties* ExtrudeProperties;
-	TValueWatcher<EPolyEditExtrudeDirection> ExtrudeDirectionWatcher;
 
 	UPROPERTY()
 	UPolyEditCutProperties* CutProperties;

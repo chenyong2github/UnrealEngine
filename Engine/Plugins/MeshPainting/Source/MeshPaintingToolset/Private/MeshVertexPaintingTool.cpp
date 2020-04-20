@@ -169,10 +169,8 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 }
 
-void UMeshVertexPaintingTool::Tick(float DeltaTime)
+void UMeshVertexPaintingTool::OnTick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
-
 	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
 	{
 		if (MeshToolManager->bNeedsRecache)

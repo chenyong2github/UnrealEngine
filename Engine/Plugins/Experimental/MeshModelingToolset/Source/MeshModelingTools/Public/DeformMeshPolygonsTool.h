@@ -93,12 +93,6 @@ class MESHMODELINGTOOLS_API UDeformMeshPolygonsTransformProperties : public UInt
 public:
 	UDeformMeshPolygonsTransformProperties();
 
-#if WITH_EDITOR
-	// UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	// End of UObject interface
-#endif
-
 	//Options
 
 	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Deformation Type", ToolTip = "Select the type of deformation you wish to employ on a polygroup."))
@@ -399,7 +393,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }

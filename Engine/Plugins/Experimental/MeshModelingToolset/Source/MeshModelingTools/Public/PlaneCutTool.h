@@ -15,8 +15,6 @@
 
 
 // predeclarations
-struct FMeshDescription;
-class USimpleDynamicMeshComponent;
 class UTransformGizmo;
 class UTransformProxy;
 
@@ -54,12 +52,6 @@ public:
 	/** If true, meshes cut into multiple pieces will be saved as separate assets on 'accept'. */
 	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
 	bool bExportSeparatedPiecesAsNewMeshAssets = true;
-
-	//
-	// save/restore support
-	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -99,12 +91,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bFillSpans;
-
-	//
-	// save/restore support
-	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -147,7 +133,7 @@ public:
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }

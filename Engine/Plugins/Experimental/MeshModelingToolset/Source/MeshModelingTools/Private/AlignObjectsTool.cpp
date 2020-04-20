@@ -50,32 +50,6 @@ UInteractiveTool* UAlignObjectsToolBuilder::BuildTool(const FToolBuilderState& S
 	return NewTool;
 }
 
-
-
-
-void UAlignObjectsToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UAlignObjectsToolProperties* PropertyCache = GetPropertyCache<UAlignObjectsToolProperties>();
-	PropertyCache->AlignType = this->AlignType;
-	PropertyCache->AlignTo = this->AlignTo;
-	PropertyCache->BoxPosition = this->BoxPosition;
-	PropertyCache->bAlignX = this->bAlignX;
-	PropertyCache->bAlignY = this->bAlignY;
-	PropertyCache->bAlignZ = this->bAlignZ;
-}
-
-void UAlignObjectsToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UAlignObjectsToolProperties* PropertyCache = GetPropertyCache<UAlignObjectsToolProperties>();
-	this->AlignType = PropertyCache->AlignType;
-	this->AlignTo = PropertyCache->AlignTo;
-	this->BoxPosition = PropertyCache->BoxPosition;
-	this->bAlignX = PropertyCache->bAlignX;
-	this->bAlignY = PropertyCache->bAlignY;
-	this->bAlignZ = PropertyCache->bAlignZ;
-}
-
-
 /*
  * Tool
  */
@@ -140,7 +114,7 @@ void UAlignObjectsTool::Shutdown(EToolShutdownType ShutdownType)
 
 
 
-void UAlignObjectsTool::Tick(float DeltaTime)
+void UAlignObjectsTool::OnTick(float DeltaTime)
 {
 	if (bAlignDirty)
 	{

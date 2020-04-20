@@ -104,7 +104,7 @@ public:
 			return (Result == EIntersectionResult::Intersects);
 		}
 
-		// [RMS] if either line direction is not a normalized vector, 
+		// if either line direction is not a normalized vector, 
 		//   results are garbage, so fail query
 		if (Line1.Direction.IsNormalized() == false || Line2.Direction.IsNormalized() == false) 
 		{

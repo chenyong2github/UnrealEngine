@@ -440,6 +440,11 @@ public:
 	/** Generate the mesh */
 	virtual FMeshShapeGenerator& Generate() override
 	{
+		if (bCapped)
+		{
+			AngleSamples = FMath::Max(AngleSamples, 3);
+		}
+
 		TArray<float> Radii, Heights;
 
 		Radii.Add(Radius[0]);
@@ -468,7 +473,7 @@ public:
 	float StickRadius = 0.5f;
 	float StickLength = 1.0f;
 	float HeadBaseRadius = 1.0f;
-	float TipRadius = 0.01f;
+	float HeadTipRadius = 0.01f;
 	float HeadLength = 0.5f;
 
 	int AdditionalLengthSamples[3]{ 0,0,0 }; // additional length-wise samples on the three segments (along stick, along arrow base, along arrow cone)
@@ -476,7 +481,7 @@ public:
 	void DistributeAdditionalLengthSamples(int TargetSamples)
 	{
 		TArray<float> AlongPercents;
-		TArray<float> Radii{ StickRadius, StickRadius, HeadBaseRadius, TipRadius };
+		TArray<float> Radii{ StickRadius, StickRadius, HeadBaseRadius, HeadTipRadius };
 		TArray<float> Heights{ 0, StickLength, StickLength, StickLength + HeadLength };
 		float LenAlong = ComputeSegLengths(Radii, Heights, AlongPercents);
 		for (int Idx = 0; Idx < 3; Idx++)
@@ -491,7 +496,7 @@ public:
 	{
 		TArray<float> Radii, Heights;
 		TArray<int> SharpNormalsAlongLength;
-		float SrcRadii[] { StickRadius, StickRadius, HeadBaseRadius, TipRadius };
+		float SrcRadii[] { StickRadius, StickRadius, HeadBaseRadius, HeadTipRadius };
 		float SrcHeights[] { 0, StickLength, StickLength, StickLength + HeadLength };
 
 		int SegIdx = 0;

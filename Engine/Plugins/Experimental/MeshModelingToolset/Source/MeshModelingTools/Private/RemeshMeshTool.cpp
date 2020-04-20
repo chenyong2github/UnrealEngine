@@ -52,6 +52,7 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	SmoothingStrength = 0.25;
 	RemeshIterations = 20;
 	bDiscardAttributes = false;
+	RemeshType = ERemeshType::Standard;
 	SmoothingType = ERemeshSmoothingType::MeanValue;
 	bPreserveSharpEdges = true;
 	bShowWireframe = true;
@@ -64,36 +65,6 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	bReproject = true;
 	bPreventNormalFlips = true;
 	bUseTargetEdgeLength = false;
-}
-
-void
-URemeshMeshToolProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
-{
-	URemeshMeshToolProperties* PropertyCache = GetPropertyCache<URemeshMeshToolProperties>();
-
-	// MeshConstraintProperties
-	SaveRestoreProperty(PropertyCache->bPreserveSharpEdges, this->bPreserveSharpEdges, bSaving);
-	SaveRestoreProperty(PropertyCache->MeshBoundaryConstraint, this->MeshBoundaryConstraint, bSaving);
-	SaveRestoreProperty(PropertyCache->GroupBoundaryConstraint, this->GroupBoundaryConstraint, bSaving);
-	SaveRestoreProperty(PropertyCache->MaterialBoundaryConstraint, this->MaterialBoundaryConstraint, bSaving);
-	SaveRestoreProperty(PropertyCache->bPreventNormalFlips, this->bPreventNormalFlips, bSaving);
-
-	//RemeshProperties
-	SaveRestoreProperty(PropertyCache->SmoothingStrength, this->SmoothingStrength, bSaving);
-	SaveRestoreProperty(PropertyCache->bFlips, this->bFlips, bSaving);
-	SaveRestoreProperty(PropertyCache->bSplits, this->bSplits, bSaving);
-	SaveRestoreProperty(PropertyCache->bCollapses, this->bCollapses, bSaving);
-
-	//RemeshMeshToolProperties
-	SaveRestoreProperty(PropertyCache->TargetTriangleCount, this->TargetTriangleCount, bSaving);
-	SaveRestoreProperty(PropertyCache->SmoothingType, this->SmoothingType, bSaving);
-	SaveRestoreProperty(PropertyCache->RemeshIterations, this->RemeshIterations, bSaving);
-	SaveRestoreProperty(PropertyCache->bDiscardAttributes, this->bDiscardAttributes, bSaving);
-	SaveRestoreProperty(PropertyCache->bShowWireframe, this->bShowWireframe, bSaving);
-	SaveRestoreProperty(PropertyCache->bShowGroupColors, this->bShowGroupColors, bSaving);
-	SaveRestoreProperty(PropertyCache->bUseTargetEdgeLength, this->bUseTargetEdgeLength, bSaving);
-	SaveRestoreProperty(PropertyCache->TargetEdgeLength, this->TargetEdgeLength, bSaving);
-	SaveRestoreProperty(PropertyCache->bReproject, this->bReproject, bSaving);
 }
 
 URemeshMeshTool::URemeshMeshTool()
@@ -133,12 +104,10 @@ void URemeshMeshTool::Setup()
 	);
 	Preview->PreviewMesh->EnableWireframe(BasicProperties->bShowWireframe);
 
-	ShowGroupsWatcher.Initialize(
-		[this]() { return BasicProperties->bShowGroupColors; },
-		[this](bool bNewValue) { UpdateVisualization(); }, BasicProperties->bShowGroupColors );
-	ShowWireFrameWatcher.Initialize(
-		[this]() { return BasicProperties->bShowWireframe; },
-		[this](bool bNewValue) { UpdateVisualization(); }, BasicProperties->bShowWireframe );
+	BasicProperties->WatchProperty(BasicProperties->bShowGroupColors,
+								   [this](bool bNewValue) { UpdateVisualization();});
+	BasicProperties->WatchProperty(BasicProperties->bShowWireframe,
+								   [this](bool bNewValue) { UpdateVisualization();});
 
 	OriginalMesh = MakeShared<FDynamicMesh3>();
 	FMeshDescriptionToDynamicMesh Converter;
@@ -182,17 +151,16 @@ void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-void URemeshMeshTool::Tick(float DeltaTime)
+void URemeshMeshTool::OnTick(float DeltaTime)
 {
-	ShowWireFrameWatcher.CheckAndUpdate();
-	ShowGroupsWatcher.CheckAndUpdate();
-
 	Preview->Tick(DeltaTime);
 }
 
 TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 {
 	TUniquePtr<FRemeshMeshOp> Op = MakeUnique<FRemeshMeshOp>();
+
+	Op->RemeshType = BasicProperties->RemeshType;
 
 	if (!BasicProperties->bUseTargetEdgeLength)
 	{
@@ -256,7 +224,7 @@ void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Proper
 		if ( ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(URemeshMeshToolProperties, bShowWireframe) ) ||
 			 ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(URemeshMeshToolProperties, bShowGroupColors) ) )
 		{
-			UpdateVisualization();
+			//UpdateVisualization();
 		}
 		else
 		{

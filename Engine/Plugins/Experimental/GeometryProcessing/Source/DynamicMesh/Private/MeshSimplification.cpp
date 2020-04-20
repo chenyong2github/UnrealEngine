@@ -766,13 +766,7 @@ void TMeshSimplification<QuadricErrorType>::FullProjectionPass()
 
 	ApplyToProjectVertices(project);
 
-	// [RMS] not sure how to do this...
-	//if (EnableParallelProjection) {
-	//    gParallel.ForEach<int>(project_vertices(), project);
-	//} else {
-	//    foreach (int vid in project_vertices())
-	//        project(vid);
-	//}
+	// TODO: optionally do projection in parallel?
 }
 
 template <typename QuadricErrorType>

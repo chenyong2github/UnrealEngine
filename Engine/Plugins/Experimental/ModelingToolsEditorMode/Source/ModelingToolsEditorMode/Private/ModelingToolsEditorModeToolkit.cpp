@@ -26,7 +26,7 @@
 // if set to 1, then on mode initialization we include buttons for prototype modeling tools
 static TAutoConsoleVariable<int32> CVarEnablePrototypeModelingTools(
 	TEXT("modeling.EnablePrototypes"),
-	0,
+	1,
 	TEXT("Enable unsupported Experimental prototype Modeling Tools"));
 
 
@@ -316,6 +316,7 @@ UEdModeInteractiveToolsContext* FModelingToolsEditorModeToolkit::GetToolsContext
 	return GetToolsEditorMode()->GetToolsContext();
 }
 
+static const FName PrimitiveTabName(TEXT("Primitives"));
 static const FName CreateTabName(TEXT("Create"));
 static const FName EditTabName(TEXT("Edit"));
 static const FName SculptTabName(TEXT("Sculpt"));
@@ -327,8 +328,8 @@ static const FName DeformTabName(TEXT("Deform"));
 static const FName PrototypesTabName(TEXT("Prototypes"));
 
 
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName };
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, PrototypesTabName };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, PrototypesTabName };
 
 
 void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
@@ -370,17 +371,31 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 	ToolbarBuilder.AddSeparator();
 
 
-	if (PaletteIndex == CreateTabName)
+	if (PaletteIndex == PrimitiveTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddBoxPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddCylinderPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddConePrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddArrowPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddRectanglePrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddRoundedRectanglePrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddDiscPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPuncturedDiscPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddTorusPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddSpherePrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddSphericalBoxPrimitiveTool);
+	}
+	else if (PaletteIndex == CreateTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
 		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPrimitiveTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolygonTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolyPathTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshBooleanTool);
 	}
 	else if (PaletteIndex == TransformTabName)
 	{
@@ -424,6 +439,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditMeshMaterialsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemoveOccludedTrianglesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginHoleFillTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
@@ -470,18 +486,32 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 
 	ToolbarBuilder.AddSeparator();
 
-
-	if (PaletteIndex == CreateTabName)
+	if (PaletteIndex == PrimitiveTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddBoxPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddCylinderPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddConePrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddArrowPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddRectanglePrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddRoundedRectanglePrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddDiscPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPuncturedDiscPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddTorusPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddSpherePrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddSphericalBoxPrimitiveTool);
+	}
+	else if (PaletteIndex == CreateTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
 		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPrimitiveTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolygonTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolyPathTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelfUnionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshBooleanTool);
 	}
 	else if (PaletteIndex == TransformTabName)
 	{
@@ -525,6 +555,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditMeshMaterialsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemoveOccludedTrianglesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginHoleFillTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
@@ -564,6 +595,8 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPatchTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginShapeSprayTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshAttributePaintTool);
+
 	}
 }
 

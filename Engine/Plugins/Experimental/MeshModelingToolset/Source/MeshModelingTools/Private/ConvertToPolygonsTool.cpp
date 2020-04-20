@@ -40,23 +40,9 @@ UInteractiveTool* UConvertToPolygonsToolBuilder::BuildTool(const FToolBuilderSta
 	return NewTool;
 }
 
-
-
-void UConvertToPolygonsToolProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
-{
-	UConvertToPolygonsToolProperties* PropertyCache = GetPropertyCache<UConvertToPolygonsToolProperties>();
-	SaveRestoreProperty(PropertyCache->ConversionMode, this->ConversionMode, bSaving);
-	SaveRestoreProperty(PropertyCache->AngleTolerance, this->AngleTolerance, bSaving);
-	SaveRestoreProperty(PropertyCache->bCalculateNormals, this->bCalculateNormals, bSaving);
-	SaveRestoreProperty(PropertyCache->bShowGroupColors, this->bShowGroupColors, bSaving);
-}
-
-
-
 /*
  * Tool
  */
-
 UConvertToPolygonsTool::UConvertToPolygonsTool()
 {
 	SetToolDisplayName(LOCTEXT("ConvertToPolygonsToolName", "Find PolyGroups"));
@@ -92,13 +78,11 @@ void UConvertToPolygonsTool::Setup()
 	ComponentTarget->GetMaterialSet(MaterialSet);
 	PreviewMesh->SetMaterials(MaterialSet.Materials);
 
-	ConvertModeWatcher.Initialize(
-		[this]() { return Settings->ConversionMode; },
-		[this](EConvertToPolygonsMode NewMode) { bPolygonsValid = false; }, Settings->ConversionMode);
-
-	ShowGroupsWatcher.Initialize(
-		[this]() { return Settings->bShowGroupColors; },
-		[this](bool bNewValue) { UpdateVisualization(); }, Settings->bShowGroupColors );
+	Settings->WatchProperty(Settings->ConversionMode,
+							[this](EConvertToPolygonsMode NewMode)
+							{ bPolygonsValid = false; });
+	Settings->WatchProperty(Settings->bShowGroupColors,
+							[this](bool bNewValue) { UpdateVisualization(); });
 	if (Settings->bShowGroupColors)
 	{
 		UpdateVisualization();
@@ -137,11 +121,8 @@ void UConvertToPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty*
 }
 
 
-void UConvertToPolygonsTool::Tick(float DeltaTime)
+void UConvertToPolygonsTool::OnTick(float DeltaTime)
 {
-	ConvertModeWatcher.CheckAndUpdate();
-	ShowGroupsWatcher.CheckAndUpdate();
-
 	if (bPolygonsValid == false)
 	{
 		UpdatePolygons();

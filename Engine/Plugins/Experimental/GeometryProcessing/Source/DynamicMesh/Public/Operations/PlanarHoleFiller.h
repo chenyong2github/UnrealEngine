@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "HoleFiller.h"
 #include "CoreMinimal.h"
 #include "MathUtil.h"
 #include "VectorTypes.h"
@@ -19,7 +20,7 @@ class FDynamicMesh3;
 /**
  * Fill a set of boundary loops with planar surfaces.  User must provide the triangulation function.
  */
-class DYNAMICMESH_API FPlanarHoleFiller
+class DYNAMICMESH_API FPlanarHoleFiller : public IHoleFiller
 {
 public:
 	//
@@ -32,11 +33,6 @@ public:
 
 	FVector3d PlaneOrigin;
 	FVector3d PlaneNormal;
-
-	//
-	// Outputs
-	//
-	TArray<int> NewTriangles;
 
 public:
 	/**
@@ -59,5 +55,5 @@ public:
 		return EOperationValidationResult::Ok;
 	}
 
-	virtual bool Fill(int GroupID = -1);
+	bool Fill(int GroupID = -1) override;
 };

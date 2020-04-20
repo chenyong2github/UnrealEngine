@@ -66,24 +66,6 @@ UUVLayoutToolProperties::UUVLayoutToolProperties()
 
 }
 
-
-void UUVLayoutToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UUVLayoutToolProperties* PropertyCache = GetPropertyCache<UUVLayoutToolProperties>();
-	PropertyCache->bSeparateUVIslands = this->bSeparateUVIslands;
-	PropertyCache->TextureResolution = this->TextureResolution;
-	PropertyCache->UVScaleFactor = this->UVScaleFactor;
-}
-
-void UUVLayoutToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UUVLayoutToolProperties* PropertyCache = GetPropertyCache<UUVLayoutToolProperties>();
-	this->bSeparateUVIslands = PropertyCache->bSeparateUVIslands;
-	this->TextureResolution = PropertyCache->TextureResolution;
-	this->UVScaleFactor = PropertyCache->UVScaleFactor;
-}
-
-
 UUVLayoutAdvancedProperties::UUVLayoutAdvancedProperties()
 {
 }
@@ -213,7 +195,7 @@ void UUVLayoutTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
-void UUVLayoutTool::Tick(float DeltaTime)
+void UUVLayoutTool::OnTick(float DeltaTime)
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{

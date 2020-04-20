@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/DelegateCombinations.h"
 #include "PreviewMesh.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
@@ -124,12 +125,12 @@ public:
 	//
 	// Change notification
 	//
-
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMeshUpdated, UMeshOpPreviewWithBackgroundCompute*);
 	/** This delegate is broadcast whenever the embedded preview mesh is updated */
 	FOnMeshUpdated OnMeshUpdated;
 
-
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnOpCompleted, const FDynamicMeshOperator*);
+	FOnOpCompleted OnOpCompleted;
 
 public:
 	// preview of MeshOperator result

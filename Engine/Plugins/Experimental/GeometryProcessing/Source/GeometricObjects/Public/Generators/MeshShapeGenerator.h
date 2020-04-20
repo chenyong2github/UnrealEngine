@@ -9,7 +9,7 @@
  * Base class for triangle mesh generators (eg like to generate sphere, cylinder, etc)
  * Subclasses must implement ::Generate() 
  */
-class GEOMETRICOBJECTS_API FMeshShapeGenerator
+class /*GEOMETRICOBJECTS_API*/ FMeshShapeGenerator
 {
 public:
 	/** Array of vertex positions */
@@ -31,7 +31,7 @@ public:
 	TArray<FIndex3i> TriangleUVs;
 	/** Array of triangle corner Normals, stored as tuples of indices into Normals array. Same length as Triangles array. */
 	TArray<FIndex3i> TriangleNormals;
-	/** ARray of per-triangle integer polygon IDs. Same length as Triangles array. */
+	/** Array of per-triangle integer polygon IDs. Same length as Triangles array. */
 	TArray<int> TrianglePolygonIDs;
 
 
@@ -49,6 +49,10 @@ public:
 	 */
 	virtual FMeshShapeGenerator& Generate() = 0;
 
+	bool HasAttributes() const
+	{
+		return UVs.Num() > 0 || Normals.Num() > 0;
+	}
 
 	/** clear arrays so that Generate() can be run again */
 	void Reset()
@@ -178,7 +182,7 @@ public:
 	}
 
 	
-	inline int AppendTriangle(int Index, int A, int B, int C)
+	inline int AppendTriangle(int A, int B, int C)
 	{
 		Triangles.Add( bReverseOrientation ? FIndex3i(C, B, A) : FIndex3i(A, B, C) );
 		return Triangles.Num() - 1;
