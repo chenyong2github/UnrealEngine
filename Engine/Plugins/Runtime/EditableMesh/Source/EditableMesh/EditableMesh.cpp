@@ -8099,7 +8099,7 @@ void UEditableMesh::SearchSpatialDatabaseWithPredicate( TFunctionRef< bool( cons
 	if( IsSpatialDatabaseAllowed() && ensure( Octree.IsValid() ) )
 	{
 		// @todo mesheditor perf: Do we need to use a custom stack allocator for iterating?  The default should probably be okay.
-		Octree->IterateElementsWithPredicate([&Predicate](const FBoxCenterAndExtent& NodeBounds)
+		Octree->FindElementsWithPredicate([&Predicate](const FBoxCenterAndExtent& NodeBounds)
 		{
 			return Predicate(NodeBounds.GetBox());
 		},
@@ -8153,7 +8153,7 @@ void UEditableMesh::SearchSpatialDatabaseForPolygonsPotentiallyIntersectingPlane
 	if( IsSpatialDatabaseAllowed() && ensure( Octree.IsValid() ) )
 	{
 		// @todo mesheditor perf: Do we need to use a custom stack allocator for iterating?  The default should probably be okay.
-		Octree->IterateElementsWithPredicate([&InPlane](const FBoxCenterAndExtent& NodeBounds)
+		Octree->FindElementsWithPredicate([&InPlane](const FBoxCenterAndExtent& NodeBounds)
 		{
 			const bool bIsOverlappingLineSegment =
 				FMath::PlaneAABBIntersection(

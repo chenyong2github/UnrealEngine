@@ -220,7 +220,7 @@ void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh,
 		const FVector& Normal = WedgeIndexToNormal.FindChecked(WedgeIndex);
 
 		TArray<FSoftSkinVertex> PointsToConsider;
-		VertPosOctree.IterateElementsWithBoundsTest(FBoxCenterAndExtent(Position, FVector::ZeroVector), [&PointsToConsider](const FSoftSkinVertex& Vertex)
+		VertPosOctree.FindNearbyElements(Position, [&PointsToConsider](const FSoftSkinVertex& Vertex)
 		{
 			PointsToConsider.Add(Vertex);
 		});
