@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 
-class FOSCStream
+class OSC_API FOSCStream
 {
 public:
 	FOSCStream();
