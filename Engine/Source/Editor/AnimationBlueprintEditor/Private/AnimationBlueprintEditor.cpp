@@ -265,7 +265,7 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	TArray<UBlueprint*> AnimBlueprints;
 	AnimBlueprints.Add(InAnimBlueprint);
 
-	CommonInitialization(AnimBlueprints);
+	CommonInitialization(AnimBlueprints, /*bShouldOpenInDefaultsMode=*/ false);
 
 	if(InAnimBlueprint->BlueprintType == BPTYPE_Interface)
 	{
