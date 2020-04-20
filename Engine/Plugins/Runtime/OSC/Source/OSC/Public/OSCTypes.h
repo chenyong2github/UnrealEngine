@@ -25,7 +25,7 @@ enum class EOSCTypeTag : uint8
 };
 
 
-class FOSCType
+class OSC_API FOSCType
 {
 public:
 	explicit FOSCType(int32 Value)

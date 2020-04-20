@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OSCPacket.h"
 
-#include "Interfaces/IPv4/IPv4Endpoint.h"
-
 #include "OSCMessagePacket.h"
 #include "OSCBundlePacket.h"
 #include "OSCLog.h"
 
 
-TSharedPtr<IOSCPacket> IOSCPacket::CreatePacket(const uint8* InPacketType, const FIPv4Endpoint& InEndpoint)
+TSharedPtr<IOSCPacket> IOSCPacket::CreatePacket(const uint8* InPacketType, const FString& InIPAddress, uint16 InPort)
 {
 	const FString PacketIdentifier(ANSI_TO_TCHAR((const ANSICHAR*)&InPacketType[0]));
 	
@@ -28,11 +26,17 @@ TSharedPtr<IOSCPacket> IOSCPacket::CreatePacket(const uint8* InPacketType, const
 		return nullptr;
 	}
 
-	Packet->Endpoint = InEndpoint;
+	Packet->IPAddress = InIPAddress;
+	Packet->Port = InPort;
 	return Packet;
 }
 
-const FIPv4Endpoint& IOSCPacket::GetEndpoint() const
+const FString& IOSCPacket::GetIPAddress() const
 {
-	return Endpoint;
+	return IPAddress;
+}
+
+uint16 IOSCPacket::GetPort() const
+{
+	return Port;
 }
