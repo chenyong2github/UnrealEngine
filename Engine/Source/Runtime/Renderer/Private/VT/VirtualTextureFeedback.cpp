@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VirtualTextureFeedback.h"
+#include "VT/VirtualTextureFeedback.h"
 
 #if PLATFORM_WINDOWS
 // Use Query objects until RHI has a good fence on D3D11
@@ -150,42 +150,6 @@ public:
 
 #endif // USE_RHI_FENCES
 
-void FVirtualTextureFeedback::FBufferDesc::Init(int32 InBufferSize)
-{
-	BufferSize = FIntPoint(InBufferSize, 1);
-	NumRects = 0;
-	TotalReadSize = InBufferSize;
-}
-
-void FVirtualTextureFeedback::FBufferDesc::Init2D(FIntPoint InBufferSize)
-{
-	BufferSize = InBufferSize;
-	NumRects = 0;
-	TotalReadSize = BufferSize.X * BufferSize.Y;
-}
-
-void FVirtualTextureFeedback::FBufferDesc::Init2D(FIntPoint InUnscaledBufferSize, TArrayView<FIntRect> const& InUnscaledViewRects, int32 InBufferScale)
-{
-	const int32 BufferScale = FMath::Max(InBufferScale, 1);
-
-	BufferSize = FIntPoint::DivideAndRoundUp(InUnscaledBufferSize, BufferScale);
-	NumRects = 0;
-	TotalReadSize = BufferSize.X * BufferSize.Y;
-
-	if (InUnscaledViewRects.Num() > 0 && InUnscaledViewRects[0].Size() != InUnscaledBufferSize)
-	{
-		NumRects = FMath::Min((int32)MaxRectPerTransfer, InUnscaledViewRects.Num());
-		TotalReadSize = 0;
-
-		for (int32 RectIndex = 0; RectIndex < NumRects; ++RectIndex)
-		{
-			FIntRect const& Rect = InUnscaledViewRects[RectIndex];
-			Rects[RectIndex].Min = FIntPoint::DivideAndRoundDown(Rect.Min, BufferScale);
-			Rects[RectIndex].Max = FIntPoint::DivideAndRoundUp(Rect.Max, BufferScale);
-			TotalReadSize += Rects[RectIndex].Area();
-		}
-	}
-}
 
 FVirtualTextureFeedback::FVirtualTextureFeedback()
 	: NumPending(0)
@@ -220,7 +184,7 @@ void FVirtualTextureFeedback::ReleaseRHI()
 	Fences->ReleaseRHI();
 }
 
-void FVirtualTextureFeedback::TransferGPUToCPU(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FBufferDesc const& Desc)
+void FVirtualTextureFeedback::TransferGPUToCPU(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FVirtualTextureFeedbackBufferDesc const& Desc)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_VirtualTextureFeedback_TransferGPUToCPU);
 
@@ -268,7 +232,7 @@ FVirtualTextureFeedback::FMapResult FVirtualTextureFeedback::Map(FRHICommandList
 	for (int32 ResultIndex = 0; ResultIndex < MaxTransfersToMap && ResultIndex < NumPending; ++ResultIndex)
 	{
 		const int32 FeedbackIndex = (ReadIndex + ResultIndex) % MaxTransfers;
-		FBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
+		FVirtualTextureFeedbackBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
 
 		if (!Fences->Poll(RHICmdList, FeedbackIndex))
 		{
@@ -290,7 +254,7 @@ FVirtualTextureFeedback::FMapResult FVirtualTextureFeedback::Map(FRHICommandList
 		{
 			// If only one target with no rectangles then fast path is to return the locked buffer.
 			const int32 FeedbackIndex = ReadIndex;
-			FBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
+			FVirtualTextureFeedbackBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
 			FRHIGPUMask GPUMask = FeedbackItems[FeedbackIndex].GPUMask;
 			FStagingBufferRHIRef StagingBuffer = FeedbackItems[FeedbackIndex].StagingBuffer;
 			
@@ -312,7 +276,7 @@ FVirtualTextureFeedback::FMapResult FVirtualTextureFeedback::Map(FRHICommandList
 			for (int32 ResultIndex = 0; ResultIndex < NumResults; ++ResultIndex)
 			{
 				const int32 FeedbackIndex = (ReadIndex + ResultIndex) % MaxTransfers;
-				FBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
+				FVirtualTextureFeedbackBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
 				FRHIGPUMask GPUMask = FeedbackItems[FeedbackIndex].GPUMask;
 				FStagingBufferRHIRef StagingBuffer = FeedbackItems[FeedbackIndex].StagingBuffer;
 
