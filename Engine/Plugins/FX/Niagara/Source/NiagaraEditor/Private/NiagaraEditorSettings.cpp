@@ -120,7 +120,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(91, 161, 194)))
 			.SetSortId(0)
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInScript)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ParameterCollectionNamespace})
 			.SetDisplayName(LOCTEXT("NiagaraParameterCollectionDisplayName", "NPC"))
 			.SetDisplayNameLong(LOCTEXT("NiagaraParameterCollectionDisplayNameLong", "Niagara Parameter Collection"))
