@@ -459,6 +459,7 @@ static HRESULT D3DCompileWrapper(
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__except( EXCEPTION_EXECUTE_HANDLER )
 	{
+		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
 		bException = true;
 		return E_FAIL;
 	}
@@ -497,6 +498,42 @@ static FString DxcBlobEncodingToFString(TRefCountPtr<IDxcBlobEncoding> DxcBlob)
 	return OutString;
 }
 
+
+static HRESULT DXCCompileWrapper(
+	TRefCountPtr<IDxcCompiler> Compiler,
+	TRefCountPtr<IDxcBlobEncoding>& TextBlob,
+	LPCWSTR EntryPoint,
+	LPCWSTR TargetProfile,
+	LPCWSTR* Arguments,
+	uint32 NumArguments,
+	TRefCountPtr<IDxcOperationResult>& OutCompileResult)
+{
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__try
+#endif
+	{
+		return Compiler->Compile(
+			TextBlob,							// source text to compile
+			nullptr,							// optional file name for pSource. Used in errors and include handlers.
+			EntryPoint,							// entry point name
+			TargetProfile,						// shader profile to compile
+			Arguments,							// array of pointers to arguments
+			NumArguments,						// number of arguments
+			nullptr,							// array of defines
+			0,									// number of defines
+			nullptr,							// user-provided interface to handle #include directives (optional)
+			OutCompileResult.GetInitReference()	// compiler output status, buffer, and errors
+		);
+	}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+		return E_FAIL;
+	}
+#endif
+}
+
 static HRESULT D3DCompileToDxil(const char* SourceText, LPCWSTR EntryPoint, LPCWSTR TargetProfile, LPCWSTR* Arguments, uint32 NumArguments, 
 	const FString& DisasmFilename, TRefCountPtr<ID3DBlob>& OutDxilBlob, TRefCountPtr<IDxcBlobEncoding>& OutErrorBlob)
 {
@@ -512,19 +549,7 @@ static HRESULT D3DCompileToDxil(const char* SourceText, LPCWSTR EntryPoint, LPCW
 	VERIFYHRESULT(Library->CreateBlobWithEncodingFromPinned((LPBYTE)SourceText, FCStringAnsi::Strlen(SourceText), CP_UTF8, TextBlob.GetInitReference()));
 
 	TRefCountPtr<IDxcOperationResult> CompileResult;
-
-	VERIFYHRESULT(Compiler->Compile(
-		TextBlob,							// source text to compile
-		nullptr,							// optional file name for pSource. Used in errors and include handlers.
-		EntryPoint,							// entry point name
-		TargetProfile,						// shader profile to compile
-		Arguments,							// array of pointers to arguments
-		NumArguments,						// number of arguments
-		nullptr,							// array of defines
-		0,									// number of defines
-		nullptr,							// user-provided interface to handle #include directives (optional)
-		CompileResult.GetInitReference()	// compiler output status, buffer, and errors
-	));
+	VERIFYHRESULT(DXCCompileWrapper(Compiler, TextBlob, EntryPoint, TargetProfile, Arguments, NumArguments, CompileResult));
 
 	HRESULT CompileResultCode;
 	CompileResult->GetStatus(&CompileResultCode);
