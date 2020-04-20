@@ -115,8 +115,5 @@ public:
 	/** Process the input block of audio. Called on audio thread. */
 	virtual void ProcessAudio(const FSoundEffectSourceInputData& InData, float* OutAudioBufferData) = 0;
 
-	/** Process modulation controls if enabled */
-	virtual void ProcessControls(const FSoundModulationControls& InControls) { }
-
 	friend class USoundEffectPreset;
 };
