@@ -27,6 +27,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/Material.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
 
