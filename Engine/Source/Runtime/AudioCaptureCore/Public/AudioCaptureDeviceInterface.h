@@ -7,9 +7,12 @@
 
 namespace Audio
 {
+	enum class EHardwareInputFeature : uint8;
+	
 	struct FCaptureDeviceInfo
  	{
 		FString DeviceName;
+		FString DeviceId;
 		int32 InputChannels;
 		int32 PreferredSampleRate;
 		bool bSupportsHardwareAEC;
@@ -31,7 +34,7 @@ namespace Audio
 		}
 	};
 
-	typedef TFunction<void(const float* InAudio, int32 NumFrames, int32 NumChannels, double StreamTime, bool bOverFlow)> FOnCaptureFunction;
+	typedef TFunction<void(const float* InAudio, int32 NumFrames, int32 NumChannels, int32 SampleRate, double StreamTime, bool bOverFlow)> FOnCaptureFunction;
 	
 	class IAudioCaptureStream : public IModularFeature
 	{
@@ -40,7 +43,10 @@ namespace Audio
 		virtual ~IAudioCaptureStream() {}
 
 		
-
+		// Lets us know which users are in the system.
+		virtual bool RegisterUser(const TCHAR* UserId) { return true; }
+		// Call this to remove a user that was added with RegisterUser.
+		virtual bool UnregisterUser(const TCHAR* UserId) { return true; }
 		// Returns the audio capture device information at the given Id.
 		virtual bool GetCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo, int32 DeviceIndex) = 0;
 		// Opens the audio capture stream with the given parameters
@@ -67,6 +73,15 @@ namespace Audio
 
 		// Returns the total amount of audio devices.
 		virtual bool GetInputDevicesAvailable(TArray<FCaptureDeviceInfo>& OutDevices) = 0;
+
+		virtual bool GetIfHardwareFeatureIsSupported(EHardwareInputFeature FeatureType) 
+		{ 
+			return false;
+		}
+
+		virtual void SetHardwareFeatureEnabled(EHardwareInputFeature FeatureType, bool bEnabled)
+		{
+		}
 	};
 
 	class IAudioCaptureFactory : public IModularFeature

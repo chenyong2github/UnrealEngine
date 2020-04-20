@@ -330,7 +330,8 @@ class AUDIOCAPTURERTAUDIO_API RtAudio
   //! The public device information structure for returning queried values.
   struct DeviceInfo {
     bool probed;                  /*!< true if the device capabilities were successfully probed. */
-    std::string name;             /*!< Character string device identifier. */
+	std::string name;             /*!< Character string device display name. */
+	std::string deviceId;               /*!< Character string device identifier. */
     unsigned int outputChannels;  /*!< Maximum output channels supported by device. */
     unsigned int inputChannels;   /*!< Maximum input channels supported by device. */
     unsigned int duplexChannels;  /*!< Maximum simultaneous input/output channels supported by device. */
