@@ -61,7 +61,7 @@ namespace ChaosTest
 
 		// Solver state
 		TPBDRigidsSOAs<FReal, 3> SOAs;
-		FPBDRigidsEvolutionGBF Evolution;
+		FPBDRigidsEvolution Evolution;
 		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 
