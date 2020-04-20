@@ -1600,23 +1600,50 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	FString ExecCmds;
 	if( FParse::Value(FCommandLine::Get(), TEXT("ExecCmds="), ExecCmds, false) )
 	{
+		// Read the command array, ignoring any commas in single-quotes. 
+		// Convert any single-quotes to double-quotes and skip leading whitespace
+		// This allows passing of strings, e:g -execcmds="exampleCvar '0,1,2,3'"
 		TArray<FString> CommandArray;
-		ExecCmds.ParseIntoArray( CommandArray, TEXT(","), true );
+		FString CurrentCommand = "";
+		bool bInQuotes = false;
+		bool bSkippingWhitespace = true;
+		for (int i = 0; i < ExecCmds.Len(); i++)
+		{
+			TCHAR CurrentChar = ExecCmds[i];
+			if (CurrentChar == '\'')
+			{
+				bInQuotes = !bInQuotes;
+				CurrentCommand += "\"";
+			}
+			else if (CurrentChar == ',' && !bInQuotes)
+			{
+				if (CurrentCommand.Len() > 0)
+				{
+					CommandArray.Add(CurrentCommand);
+					CurrentCommand = "";
+				}
+				bSkippingWhitespace = true;
+			}
+			else
+			{
+				if (bSkippingWhitespace)
+				{
+					bSkippingWhitespace = FChar::IsWhitespace(CurrentChar);
+				}
+				if (!bSkippingWhitespace)
+				{
+					CurrentCommand += CurrentChar;
+				}
+			}
+		}
+		if (CurrentCommand.Len() > 0)
+		{
+			CommandArray.Add(CurrentCommand);
+		}
 
 		for( int32 Cx = 0; Cx < CommandArray.Num(); ++Cx )
 		{
-			const FString& Command = CommandArray[Cx];
-			// Skip leading whitespaces in the command.
-			int32 Index = 0;
-			while( FChar::IsWhitespace( Command[Index] ) )
-			{
-				Index++;
-			}
-
-			if( Index < Command.Len()-1 )
-			{
-				new(GEngine->DeferredCommands) FString(*Command+Index);
-			}
+			new(GEngine->DeferredCommands) FString(*CommandArray[Cx]);
 		}
 	}
 
