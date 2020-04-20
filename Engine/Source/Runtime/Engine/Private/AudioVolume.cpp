@@ -209,7 +209,10 @@ void AAudioVolume::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 
 	GetRootComponent()->TransformUpdated.AddUObject(this, &AAudioVolume::TransformUpdated);
-	AddProxy();
+	if (bEnabled)
+	{
+		AddProxy();
+	}
 
 	UWorld* World = GetWorld();
 	World->AudioVolumes.Add(this);
