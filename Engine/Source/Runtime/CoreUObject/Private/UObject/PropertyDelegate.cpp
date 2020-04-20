@@ -171,6 +171,17 @@ void FDelegateProperty::Serialize( FArchive& Ar )
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 }
 
+void FDelegateProperty::AddReferencedObjects(FReferenceCollector& Collector)
+{
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	if (SignatureFunction && !SignatureFunction->IsA<ULinkerPlaceholderFunction>())
+#endif//USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	{
+		Collector.AddReferencedObject(SignatureFunction);
+	}
+	Super::AddReferencedObjects(Collector);
+}
+
 bool FDelegateProperty::SameType(const FProperty* Other) const
 {
 	return Super::SameType(Other) && (SignatureFunction == ((FDelegateProperty*)Other)->SignatureFunction);
