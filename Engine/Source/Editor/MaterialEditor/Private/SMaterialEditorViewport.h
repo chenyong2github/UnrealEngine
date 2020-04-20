@@ -64,9 +64,6 @@ public:
 	
 	/** The preview primitive we are using. */
 	EThumbnailPrimType PreviewPrimType;
-
-	/** If true, render grid the preview scene. */
-	bool bShowGrid;
 	
 	/** The material editor has been added to a tab */
 	void OnAddedToTab( const TSharedRef<SDockTab>& OwnerTab );
