@@ -718,6 +718,33 @@ namespace UnrealBuildTool
 			return ProjectFiles;
 		}
 
+		/// <summary>
+		/// Append a list of include paths to a property list
+		/// </summary>
+		/// <param name="Builder">String builder for the property value</param>
+		/// <param name="BaseDir">Directory containing the source file</param>
+		/// <param name="BaseDirToIncludePaths">Map of base directory to set of include paths</param>
+		/// <param name="IgnorePaths">Set of paths to ignore</param>
+		static void AppendIncludePaths(StringBuilder Builder, DirectoryReference BaseDir, Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToIncludePaths, HashSet<DirectoryReference> IgnorePaths)
+		{
+			for (DirectoryReference CurrentDir = BaseDir; CurrentDir != null; CurrentDir = CurrentDir.ParentDirectory)
+			{
+				IncludePathsCollection Collection;
+				if (BaseDirToIncludePaths.TryGetValue(CurrentDir, out Collection))
+				{
+					foreach(DirectoryReference IncludePath in Collection.AbsolutePaths)
+					{
+						if (!IgnorePaths.Contains(IncludePath))
+						{
+							Builder.Append(NormalizeProjectPath(IncludePath.FullName));
+							Builder.Append(';');
+						}
+					}
+					break;
+				}
+			}
+		}
+
 		/// Implements Project interface
 		public override bool WriteProjectFile(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
@@ -725,28 +752,74 @@ namespace UnrealBuildTool
 
 			bool bSuccess = true;
 
+			// Merge as many include paths as possible into the shared list
+			HashSet<DirectoryReference> SharedIncludeSearchPathsSet = new HashSet<DirectoryReference>();
+
 			// Build up the new include search path string
-			StringBuilder VCIncludeSearchPaths = new StringBuilder();
+			StringBuilder SharedIncludeSearchPaths = new StringBuilder();
 			{
-				foreach (string CurPath in IntelliSenseIncludeSearchPaths)
+				// Find out how many source files there are in each directory
+				Dictionary<DirectoryReference, int> SourceDirToCount = new Dictionary<DirectoryReference, int>();
+				foreach (SourceFile SourceFile in SourceFiles)
 				{
-					VCIncludeSearchPaths.Append(CurPath + ";");
+					if(SourceFile.Reference.HasExtension(".cpp"))
+					{
+						DirectoryReference SourceDir = SourceFile.Reference.Directory;
+
+						int Count;
+						SourceDirToCount.TryGetValue(SourceDir, out Count);
+						SourceDirToCount[SourceDir] = Count + 1;
+					}
 				}
-				foreach (string CurPath in IntelliSenseSystemIncludeSearchPaths)
+
+				// Figure out the most common include paths
+				Dictionary<DirectoryReference, int> IncludePathToCount = new Dictionary<DirectoryReference, int>();
+				foreach (KeyValuePair<DirectoryReference, int> Pair in SourceDirToCount)
 				{
-					VCIncludeSearchPaths.Append(CurPath + ";");
+					for (DirectoryReference CurrentDir = Pair.Key; CurrentDir != null; CurrentDir = CurrentDir.ParentDirectory)
+					{
+						IncludePathsCollection IncludePaths;
+						if (BaseDirToUserIncludePaths.TryGetValue(CurrentDir, out IncludePaths))
+						{
+							foreach (DirectoryReference IncludePath in IncludePaths.AbsolutePaths)
+							{
+								int Count;
+								IncludePathToCount.TryGetValue(IncludePath, out Count);
+								IncludePathToCount[IncludePath] = Count + Pair.Value;
+							}
+							break;
+						}
+					}
 				}
+
+				// Append the most common include paths to the search list.
+				const int MaxSharedIncludePathsLength = 24 * 1024;
+				foreach (DirectoryReference IncludePath in IncludePathToCount.OrderByDescending(x => x.Value).Select(x => x.Key))
+				{
+					string RelativePath = NormalizeProjectPath(IncludePath);
+					if (SharedIncludeSearchPaths.Length + RelativePath.Length < MaxSharedIncludePathsLength)
+					{
+						SharedIncludeSearchPaths.AppendFormat("{0};", RelativePath);
+						SharedIncludeSearchPathsSet.Add(IncludePath);
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				// Add all the default system include paths
 				if (InPlatforms.Contains(UnrealTargetPlatform.Win64))
 				{
-					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
+					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
 				}
 				else if (InPlatforms.Contains(UnrealTargetPlatform.Win32))
 				{
-					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win32, GetCompilerForIntellisense(), null) + ";");
+					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win32, GetCompilerForIntellisense(), null) + ";");
 				}
 				else if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
 				{
-					VCIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
+					SharedIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
 				}
 			}
 
@@ -957,9 +1030,7 @@ namespace UnrealBuildTool
 				// NOTE: Setting the IncludePath property rather than NMakeIncludeSearchPath results in significantly less
 				// memory usage, because NMakeIncludeSearchPath metadata is duplicated to each output item. Functionality should be identical for
 				// intellisense results.
-				// VCProjectFileContent.AppendLine("    <IncludePath>$(IncludePath){0}</IncludePath>", (VCIncludeSearchPaths.Length > 0 ? (";" + VCIncludeSearchPaths) : ""));
-				// NOTE 2: Temporarily reverted due to errors setting INCLUDE environment variable to a string exceeding the max allowed when building large projects
-				VCProjectFileContent.AppendLine("    <NMakeIncludeSearchPath>$(NMakeIncludeSearchPath){0}</NMakeIncludeSearchPath>", (VCIncludeSearchPaths.Length > 0 ? (";" + VCIncludeSearchPaths) : ""));
+				VCProjectFileContent.AppendLine("    <IncludePath>$(IncludePath){0}</IncludePath>", (SharedIncludeSearchPaths.Length > 0 ? (";" + SharedIncludeSearchPaths) : ""));
 				VCProjectFileContent.AppendLine("    <NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>");
 				VCProjectFileContent.AppendLine("    <NMakeAssemblySearchPath>$(NMakeAssemblySearchPath)</NMakeAssemblySearchPath>");
 				VCProjectFileContent.AppendLine("    <AdditionalOptions>{0}</AdditionalOptions>",
@@ -1012,6 +1083,7 @@ namespace UnrealBuildTool
 				HashSet<string> FilterDirectories = new HashSet<string>();
 				//UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform);
 
+				Dictionary<DirectoryReference, string> DirectoryToIncludeSearchPaths = new Dictionary<DirectoryReference, string>();
 				Dictionary<DirectoryReference, string> DirectoryToForceIncludePaths = new Dictionary<DirectoryReference, string>();
 				foreach (AliasedFile AliasedFile in LocalAliasedFiles)
 				{
@@ -1021,29 +1093,43 @@ namespace UnrealBuildTool
 						FiltersFileIsNeeded = EnsureFilterPathExists(AliasedFile.ProjectPath, VCFiltersFileContent, FilterDirectories);
 					}
 
-					DirectoryReference Directory = AliasedFile.Location.Directory;
-
-					string ForceIncludePaths;
-					if (!DirectoryToForceIncludePaths.TryGetValue(Directory, out ForceIncludePaths))
-					{
-						for(DirectoryReference ParentDir = Directory; ParentDir != null; ParentDir = ParentDir.ParentDirectory)
-						{
-							if(ModuleDirToForceIncludePaths.TryGetValue(ParentDir, out ForceIncludePaths))
-							{
-								break;
-							}
-						}
-						DirectoryToForceIncludePaths[Directory] = ForceIncludePaths;
-					}
-
 					string VCFileType = GetVCFileType(AliasedFile.FileSystemPath);
-					if (ForceIncludePaths == null)// || VCFileType != "ClCompile")
+					if (VCFileType != "ClCompile")
 					{
 						VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\"/>", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
 					}
 					else
 					{
+						DirectoryReference Directory = AliasedFile.Location.Directory;
+
+						// Find the force-included headers
+						string ForceIncludePaths;
+						if (!DirectoryToForceIncludePaths.TryGetValue(Directory, out ForceIncludePaths))
+						{
+							for (DirectoryReference ParentDir = Directory; ParentDir != null; ParentDir = ParentDir.ParentDirectory)
+							{
+								if (ModuleDirToForceIncludePaths.TryGetValue(ParentDir, out ForceIncludePaths))
+								{
+									break;
+								}
+							}
+							DirectoryToForceIncludePaths[Directory] = ForceIncludePaths;
+						}
+
+						// Find the include search paths
+						string IncludeSearchPaths;
+						if (!DirectoryToIncludeSearchPaths.TryGetValue(Directory, out IncludeSearchPaths))
+						{
+							StringBuilder Builder = new StringBuilder();
+							AppendIncludePaths(Builder, Directory, BaseDirToUserIncludePaths, SharedIncludeSearchPathsSet);
+							AppendIncludePaths(Builder, Directory, BaseDirToSystemIncludePaths, SharedIncludeSearchPathsSet);
+							IncludeSearchPaths = Builder.ToString();
+
+							DirectoryToIncludeSearchPaths.Add(Directory, IncludeSearchPaths);
+						}
+
 						VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\">", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
+						VCProjectFileContent.AppendLine("      <AdditionalIncludeDirectories>$(NMakeIncludeSearchPath);{0}</AdditionalIncludeDirectories>", IncludeSearchPaths);
 						VCProjectFileContent.AppendLine("      <ForcedIncludeFiles>$(NMakeForcedIncludes);{0}</ForcedIncludeFiles>", ForceIncludePaths);
 						VCProjectFileContent.AppendLine("    </{0}>", VCFileType);
 					}
