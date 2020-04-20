@@ -390,6 +390,11 @@ static FAutoConsoleCommand StartFrameProRecordCommand(
 
 void FFrameProProfiler::StopFrameProRecording()
 {
+	if (!GFrameProIsRecording)
+	{
+		return;
+	}
+
 	FramePro::StopRecording();
 
 	// Disable named events
