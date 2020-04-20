@@ -63,6 +63,14 @@ namespace Chaos
 		using Base::NumIslands;
 		using Base::GetNonDisabledClusteredArray;
 		using Base::DisableParticle;
+		using Base::PrepareIteration;
+		using Base::GetConstraintGraph;
+		using Base::ApplyConstraints;
+		using Base::UpdateVelocities;
+		using Base::PhysicsMaterials;
+		using Base::ParticleDisableCount;
+		using Base::SolverPhysicsMaterials;
+		using Base::UnprepareIteration;
 
 		using FGravityForces = TPerParticleGravity<FReal, 3>;
 		using FCollisionConstraints = FPBDCollisionConstraints;

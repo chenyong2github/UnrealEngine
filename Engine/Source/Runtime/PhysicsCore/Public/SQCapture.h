@@ -11,7 +11,7 @@
 #include "PhysXInterfaceWrapperCore.h"
 #include "CollisionQueryFilterCallbackCore.h"
 #include "ChaosInterfaceWrapperCore.h"
-#include "Chaos/PBDrigidsEvolutionFwd.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 class FPhysTestSerializer;
 
