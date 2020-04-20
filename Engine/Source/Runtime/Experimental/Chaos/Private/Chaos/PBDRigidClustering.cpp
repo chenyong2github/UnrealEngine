@@ -1339,6 +1339,32 @@ namespace Chaos
 		bool bUseParticleImplicit = false;
 		bool bUsingMultiChildProxy = false;
 
+		// Need to extract a filter off one of the cluster children 
+		FCollisionFilterData Filter;
+		for(TPBDRigidParticleHandle<T, d>* Child : Children)
+		{
+			bool bFilterValid = false;
+			for(const TUniquePtr<TPerShapeData<FReal, 3>>& Shape : Child->ShapesArray())
+			{
+				if(Shape)
+				{
+					Filter = Shape->SimData;
+					bFilterValid = Filter.Word0 != 0 || Filter.Word1 != 0 || Filter.Word2 != 0 || Filter.Word3 != 0;
+				}
+
+				if(bFilterValid)
+				{
+					break;
+				}
+			}
+
+			// Bail once we've found one
+			if(bFilterValid)
+			{
+				break;
+			}
+		}
+
 		{ // STAT_UpdateGeometry_GatherObjects
 			SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry_GatherObjects);
 
@@ -1541,6 +1567,12 @@ namespace Chaos
 			const Chaos::TRigidTransform<float, 3> Xf(Parent->X(), Parent->R());
 			const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
 			Parent->SetWorldSpaceInflatedBounds(TransformedBBox);
+		}
+
+		// Set the captured filter to our new shapes
+		for(const TUniquePtr<TPerShapeData<FReal, 3>>& Shape : Parent->ShapesArray())
+		{
+			Shape->SimData = Filter;
 		}
 	}
 
