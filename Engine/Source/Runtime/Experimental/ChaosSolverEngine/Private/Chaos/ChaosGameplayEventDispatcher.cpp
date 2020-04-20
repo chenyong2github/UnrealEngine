@@ -249,6 +249,8 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 {
 	SCOPE_CYCLE_COUNTER(STAT_DispatchCollisionEvents);
 
+#if INCLUDE_CHAOS
+
 	FPhysScene_Chaos& Scene = GetWorld()->GetPhysicsScene()->GetScene();
 
 	PendingChaosCollisionNotifies.Reset();
@@ -363,6 +365,8 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 
 	// Tell the world and actors about the collisions
 	DispatchPendingCollisionNotifies();
+
+#endif
 }
 
 void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
