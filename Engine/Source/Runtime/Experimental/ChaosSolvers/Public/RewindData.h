@@ -346,11 +346,6 @@ public:
 
 		if(auto Rigid = Particle.CastToRigidParticle())
 		{
-			Dynamics.SyncToParticle([Rigid](const auto& Data)
-			{
-				Rigid->SetDynamics(Data);
-			});
-
 			DynamicsMisc.SyncToParticle([Rigid](const auto& Data)
 			{
 				Rigid->SetDynamicMisc(Data);
