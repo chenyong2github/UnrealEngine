@@ -40,6 +40,7 @@ namespace Chaos
 		using Base = TPBDRigidsEvolutionBase<Traits>;
 		using Base::Particles;
 		using Base::FForceRule;
+		using Base::ForceRules;
 		using Base::PrepareTick;
 		using Base::UnprepareTick;
 		using Base::ApplyKinematicTargets;
