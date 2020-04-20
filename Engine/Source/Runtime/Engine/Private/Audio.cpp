@@ -473,7 +473,7 @@ float FSoundSource::GetDebugVolume(const float InVolume)
 	}
 
 	// Solos/Mutes (dev only).
-	FAudioDebugger& Debugger = GEngine->GetAudioDeviceManager()->GetDebugger();	
+	Audio::FAudioDebugger& Debugger = GEngine->GetAudioDeviceManager()->GetDebugger();	
 	FDebugInfo Info;
 				
 	// SoundWave Solo/Mutes.

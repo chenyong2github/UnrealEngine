@@ -722,7 +722,7 @@ void FAudioDevice::Teardown()
 	PluginListeners.Reset();
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::RemoveDevice(*this);
+	Audio::FAudioDebugger::RemoveDevice(*this);
 #endif // ENABLE_AUDIO_DEBUG
 }
 
@@ -1403,19 +1403,19 @@ void FAudioDevice::HandleAudioSoloCommon(const TCHAR* Cmd, FOutputDevice& Ar, FT
 
 bool FAudioDevice::HandleAudioSoloSoundClass(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundClass);
+	HandleAudioSoloCommon(Cmd, Ar, &Audio::FAudioDebugger::ToggleSoloSoundClass);
 	return true;
 }
 
 bool FAudioDevice::HandleAudioSoloSoundWave(const TCHAR* Cmd, FOutputDevice& Ar)
 {	
-	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundWave);
+	HandleAudioSoloCommon(Cmd, Ar, &Audio::FAudioDebugger::ToggleSoloSoundWave);
 	return true;
 }
 
 bool FAudioDevice::HandleAudioSoloSoundCue(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundCue);
+	HandleAudioSoloCommon(Cmd, Ar, &Audio::FAudioDebugger::ToggleSoloSoundCue);
 	return true;
 }
 
@@ -3931,7 +3931,7 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 			}
 
 #if ENABLE_AUDIO_DEBUG
-			FAudioDebugger::DrawDebugInfo(*Source);
+			Audio::FAudioDebugger::DrawDebugInfo(*Source);
 #endif // ENABLE_AUDIO_DEBUG
 		}
 	}
@@ -3946,7 +3946,7 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 	}
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::UpdateAudibleInactiveSounds(FirstActiveIndex, WaveInstances);
+	Audio::FAudioDebugger::UpdateAudibleInactiveSounds(FirstActiveIndex, WaveInstances);
 #endif // ENABLE_AUDIO_DEBUG
 }
 
@@ -4144,6 +4144,23 @@ void FAudioDevice::Update(bool bGameTicking)
 	{
 		// Make sure our referenced sound waves is up-to-date
 		UpdateReferencedSoundWaves();
+
+#if ENABLE_AUDIO_DEBUG
+		if (GEngine)
+		{
+			if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
+			{
+				TArray<UWorld*> Worlds = DeviceManager->GetWorldsUsingAudioDevice(DeviceID);
+				for (UWorld* World : Worlds)
+				{
+					if (World)
+					{
+						Audio::FAudioDebugger::DrawDebugStats(*World);
+					}
+				}
+			}
+		}
+#endif // ENABLE_AUDIO_DEBUG
 	}
 
 	if (!IsInAudioThread())
@@ -4260,17 +4277,18 @@ void FAudioDevice::Update(bool bGameTicking)
 	}
 
 #if ENABLE_AUDIO_DEBUG
-	for (FActiveSound* ActiveSound : ActiveSounds)
+	if (GEngine)
 	{
-		if (!ActiveSound)
+		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			continue;
-		}
-		
-		if (UWorld* World = ActiveSound->GetWorld())
-		{
-			FAudioDebugger::DrawDebugInfo(*World, Listeners);
-			break;
+			TArray<UWorld*> Worlds = DeviceManager->GetWorldsUsingAudioDevice(DeviceID);
+			for (UWorld* World : Worlds)
+			{
+				if (World)
+				{
+					Audio::FAudioDebugger::DrawDebugInfo(*World, Listeners);
+				}
+			}
 		}
 	}
 #endif // ENABLE_AUDIO_DEBUG
@@ -4381,7 +4399,7 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 	}, GET_STATID(STAT_AudioSendResults));
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::SendUpdateResultsToGameThread(*this, FirstActiveIndex);
+	Audio::FAudioDebugger::SendUpdateResultsToGameThread(*this, FirstActiveIndex);
 #endif // ENABLE_AUDIO_DEBUG
 }
 
@@ -6362,7 +6380,7 @@ void FAudioDevice::OnBeginPIE(const bool bIsSimulating)
 	}
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::OnBeginPIE();
+	Audio::FAudioDebugger::OnBeginPIE();
 #endif // ENABLE_AUDIO_DEBUG
 }
 
@@ -6375,7 +6393,7 @@ void FAudioDevice::OnEndPIE(const bool bIsSimulating)
 	}
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::OnEndPIE();
+	Audio::FAudioDebugger::OnEndPIE();
 #endif // ENABLE_AUDIO_DEBUG
 }
 #endif // WITH_EDITOR
