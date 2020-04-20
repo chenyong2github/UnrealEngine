@@ -9,7 +9,7 @@
 class SSCSEditor;
 
 UCLASS()
-class USSCSEditorMenuContext : public UObject
+class KISMET_API USSCSEditorMenuContext : public UObject
 {
 	GENERATED_BODY()
 public:

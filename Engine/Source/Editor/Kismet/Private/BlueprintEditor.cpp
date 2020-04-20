@@ -966,9 +966,9 @@ void FBlueprintEditor::OnSelectionUpdated(const TArray<FSCSEditorTreeNodePtrType
 		{
 			if (NodePtr.IsValid())
 			{
-				if (NodePtr->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
+				if (NodePtr->IsActorNode())
 				{
-					AActor* DefaultActor = GetSCSEditorActorContext();
+					AActor* DefaultActor = NodePtr->GetEditableObjectForBlueprint<AActor>(GetBlueprintObj());
 					InspectorObjects.Add(DefaultActor);
 					
 					FString Title; 
