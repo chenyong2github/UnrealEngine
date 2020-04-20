@@ -69,7 +69,6 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackModuleItemOutput::GetStackRowSty
 
 void UNiagaraStackModuleItemOutput::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const
 {
-	SearchItems.Add({ FName("DisplayName"), GetDisplayName() });
 	SearchItems.Add({ FName("OutputParamHandleText"), GetOutputParameterHandleText() });
 }
 
