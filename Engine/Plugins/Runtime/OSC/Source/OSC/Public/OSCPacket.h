@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "OSCTypes.h"
 #include "OSCStream.h"
 #include "OSCAddress.h"
@@ -10,7 +9,7 @@
 class FOSCStream;
 
 
-class IOSCPacket
+class OSC_API IOSCPacket
 {
 public:
 	IOSCPacket() = default;
@@ -28,12 +27,16 @@ public:
 	/** Returns true if packet is bundle */
 	virtual bool IsBundle() = 0;
 
-	/** Get endpoint responsible for creation/forwarding of packet */
-	virtual const FIPv4Endpoint& GetEndpoint() const;
+	/** Get endpoint IP address responsible for creation/forwarding of packet */
+	virtual const FString& GetIPAddress() const;
+
+	/** Get endpoint address responsible for creation/forwarding of packet */
+	virtual uint16 GetPort() const;
 
 	/** Create an OSC packet according to the input data. */
-	static TSharedPtr<IOSCPacket> CreatePacket(const uint8* InPacketType, const FIPv4Endpoint& InEndpoint);
+	static TSharedPtr<IOSCPacket> CreatePacket(const uint8* InPacketType, const FString& InAddress, uint16 InPort);
 
 protected:
-	FIPv4Endpoint Endpoint;
+	FString IPAddress;
+	uint16 Port;
 };

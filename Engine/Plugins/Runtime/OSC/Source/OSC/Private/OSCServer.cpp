@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OSCServer.h"
 
-#include "Runtime/Core/Public/Async/TaskGraphInterfaces.h"
-#include "Sockets.h"
 #include "Common/UdpSocketBuilder.h"
 #include "Common/UdpSocketReceiver.h"
+#include "Interfaces/IPv4/IPv4Address.h"
+#include "Runtime/Core/Public/Async/TaskGraphInterfaces.h"
+#include "Sockets.h"
 
 #include "OSCStream.h"
 #include "OSCMessage.h"
@@ -231,16 +232,18 @@ void UOSCServer::PumpPacketQueue(const TSet<uint32>* WhitelistedClients)
 	TSharedPtr<IOSCPacket> Packet;
 	while (OSCPackets.Dequeue(Packet))
 	{
-		const FIPv4Endpoint& Endpoint = Packet->GetEndpoint();
-		if (!WhitelistedClients || WhitelistedClients->Contains(Endpoint.Address.Value))
+		FIPv4Address IPAddr;
+		const FString& Address = Packet->GetIPAddress();
+		if (!WhitelistedClients || (FIPv4Address::Parse(Address, IPAddr) && WhitelistedClients->Contains(IPAddr.Value)))
 		{
+			uint16 Port = Packet->GetPort();
 			if (Packet->IsMessage())
 			{
-				DispatchMessage(Endpoint.Address.ToString(), Endpoint.Port, FOSCMessage(Packet));
+				DispatchMessage(Address, Port, FOSCMessage(Packet));
 			}
 			else if (Packet->IsBundle())
 			{
-				DispatchBundle(Endpoint.Address.ToString(), Endpoint.Port, FOSCBundle(Packet));
+				DispatchBundle(Address, Port, FOSCBundle(Packet));
 			}
 			else
 			{
