@@ -13,6 +13,7 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraEditorUtilities.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputName"
 
