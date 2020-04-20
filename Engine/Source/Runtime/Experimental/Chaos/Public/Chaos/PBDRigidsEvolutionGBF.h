@@ -25,8 +25,6 @@ namespace Chaos
 	CHAOS_API extern float HackLinearDrag;
 	CHAOS_API extern float HackAngularDrag;
 
-	class FPBDRigidsEvolutionGBF;
-
 	using FPBDRigidsEvolutionCallback = TFunction<void()>;
 
 	using FPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
@@ -34,11 +32,12 @@ namespace Chaos
 	using FPBDRigidsEvolutionInternalHandleCallback = TFunction<void(
 		const TGeometryParticleHandle<float, 3> * OldParticle,
 		const TGeometryParticleHandle<float, 3> * NewParticle)>;
-	
-	class FPBDRigidsEvolutionGBF : public FPBDRigidsEvolutionBase
+
+	template <typename Traits>
+	class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<Traits>
 	{
 	public:
-		using Base = FPBDRigidsEvolutionBase;
+		using Base = TPBDRigidsEvolutionBase<Traits>;
 
 		using FGravityForces = TPerParticleGravity<FReal, 3>;
 		using FCollisionConstraints = FPBDCollisionConstraints;
@@ -54,8 +53,8 @@ namespace Chaos
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
 
-		CHAOS_API FPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
-		CHAOS_API ~FPBDRigidsEvolutionGBF() {}
+		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
+		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 		void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
@@ -197,7 +196,7 @@ namespace Chaos
 
 		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FReal StepFraction);
 
-		TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints, FReal, 3> Clustering;
+		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3> Clustering;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;
@@ -214,4 +213,8 @@ namespace Chaos
 		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 	};
+
+#define EVOLUTION_TRAIT(Trait) extern template TPBDRigidsEvolutionGBF<Trait>;
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
 }

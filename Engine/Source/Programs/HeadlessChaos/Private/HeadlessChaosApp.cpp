@@ -94,7 +94,7 @@ TEST(CollisionTests, PGS) {
 }
 
 TEST(ForceTests, Forces) {
-	ChaosTest::Gravity<Chaos::FPBDRigidsEvolutionGBF, float>();
+	ChaosTest::Gravity<Chaos::FPBDRigidsEvolution, float>();
 	SUCCEED();
 }
 
