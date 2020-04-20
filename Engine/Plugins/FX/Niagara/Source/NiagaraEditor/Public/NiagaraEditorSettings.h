@@ -49,6 +49,19 @@ struct FNiagaraNamespaceMetadata
 
 	FNiagaraNamespaceMetadata(TArray<FName> InNamespaces);
 
+	bool operator==(const FNiagaraNamespaceMetadata& Other) const
+	{
+		return
+			Namespaces == Other.Namespaces &&
+			DisplayName.IdenticalTo(Other.DisplayName) &&
+			DisplayNameLong.IdenticalTo(Other.DisplayNameLong) &&
+			Description.IdenticalTo(Other.Description) &&
+			BackgroundColor == Other.BackgroundColor &&
+			ForegroundStyle == Other.ForegroundStyle &&
+			SortId == Other.SortId &&
+			Options == Other.Options;
+	}
+
 	UPROPERTY()
 	TArray<FName> Namespaces;
 
