@@ -12,8 +12,6 @@ URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectIn
 	: Super(ObjectInitializer)
 	, SceneProxy(nullptr)
 {
-	PrimaryComponentTick.bCanEverTick = true;
-	bTickInEditor = true;
 }
 
 bool URuntimeVirtualTextureComponent::IsVisible() const
@@ -158,61 +156,6 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 
 		// Trigger refresh of the runtime virtual texture producer.
 		VirtualTexture->PostEditChange();
-	}
-}
-
-void URuntimeVirtualTextureComponent::SetRotation()
-{
-	if (BoundsSourceActor.IsValid())
-	{
-		// Copy the source actor rotation and notify the parent actor
-		SetWorldRotation(BoundsSourceActor->GetTransform().GetRotation());
-		GetOwner()->PostEditMove(true);
-	}
-}
-
-void URuntimeVirtualTextureComponent::SetTransformToBounds()
-{
-	if (BoundsSourceActor.IsValid())
-	{
-		// Calculate the bounds in our local rotation space translated to the BoundsSourceActor center
-		const FQuat TargetRotation = GetComponentToWorld().GetRotation();
-		const FVector InitialPosition = BoundsSourceActor->GetComponentsBoundingBox().GetCenter();
-
-		FTransform LocalTransform;
-		LocalTransform.SetComponents(TargetRotation, InitialPosition, FVector::OneVector);
-		FTransform WorldToLocal = LocalTransform.Inverse();
-
-		FBox BoundBox(ForceInit);
-		for (const UActorComponent* Component : BoundsSourceActor->GetComponents())
-		{
-			// Only gather visual components in the bounds calculation
-			const UPrimitiveComponent* PrimitiveComponent = Cast<const UPrimitiveComponent>(Component);
-			if (PrimitiveComponent != nullptr && PrimitiveComponent->IsRegistered())
-			{
-				const FTransform ComponentToActor = PrimitiveComponent->GetComponentTransform() * WorldToLocal;
-				FBoxSphereBounds LocalSpaceComponentBounds = PrimitiveComponent->CalcBounds(ComponentToActor);
-				if (LocalSpaceComponentBounds.GetBox().GetVolume() > 0.f)
-				{
-					BoundBox += LocalSpaceComponentBounds.GetBox();
-				}
-			}
-		}
-
-		// Create transform from bounds
-		FVector Origin;
-		FVector Extent;
-		BoundBox.GetCenterAndExtents(Origin, Extent);
-
-		Origin = LocalTransform.TransformPosition(Origin);
-		Extent *= FVector(2.f, 2.f, 1.f); // Account for ARuntimeVirtualTextureVolume:Box offset which centers it on origin
-
-		FTransform Transform;
-		Transform.SetComponents(TargetRotation, Origin, Extent);
-
-		// Apply final result and notify the parent actor
-		SetWorldTransform(Transform);
-		GetOwner()->PostEditMove(true);
 	}
 }
 
