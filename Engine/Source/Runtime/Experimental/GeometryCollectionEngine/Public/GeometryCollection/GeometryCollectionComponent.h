@@ -415,12 +415,12 @@ public:
 	float CollisionSampleFraction;
 
 	/** Uniform linear ether drag. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Ether Drag")
-	float LinearEtherDrag;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use PhysicalMaterial instead."))
+	float LinearEtherDrag_DEPRECATED;
 
 	/** Uniform angular ether drag. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Ether Drag")
-	float AngularEtherDrag;
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use PhysicalMaterial instead."))
+	float AngularEtherDrag_DEPRECATED;
 
 	/** Physical Properties */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics")
