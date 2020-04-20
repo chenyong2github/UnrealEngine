@@ -356,7 +356,6 @@ UOSCServer* UOSCManager::CreateOSCServer(FString InReceiveIPAddress, int32 InPor
 
 	if (UOSCServer* NewOSCServer = NewObject<UOSCServer>(GetTransientPackage(), FName(*ServerName)))
 	{
-		NewOSCServer->Connect();
 		NewOSCServer->SetMulticastLoopback(bInMulticastLoopback);
 		if (NewOSCServer->SetAddress(InReceiveIPAddress, InPort))
 		{
