@@ -3,9 +3,9 @@
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleManagerModule.h"
 
-FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleCompleteDelegate;
+FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleUpdatedDelegate;
 
-FInstallBundleCompleteMultiDelegate IInstallBundleManager::RemoveBundleCompleteDelegate;
+FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleCompleteDelegate;
 
 FInstallBundlePausedMultiDelegate IInstallBundleManager::PausedBundleDelegate;
 

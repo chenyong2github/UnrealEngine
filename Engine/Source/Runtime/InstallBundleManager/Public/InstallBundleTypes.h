@@ -86,11 +86,12 @@ enum class EInstallBundleRequestInfoFlags : int32
 	None = 0,
 	EnqueuedBundlesForInstall = (1 << 0),
 	SkippedAlreadyMountedBundles = (1 << 1),
-	SkippedUnknownBundles = (1 << 2),
-	SkippedInvalidBundles = (1 << 3), // Bundle can't be used with this build
-	SkippedUnusableLanguageBundles = (1 << 4), // Can't enqueue language bundles because of current system settings
-	SkippedBundlesDueToBundleSource = (1 << 5), // A bundle source rejected a bundle for some reason
-	InitializationError = (1 << 6), // Can't enqueue because the bundle manager failed to initialize
+	SkippedAlreadyUpdatedBundles = (1 << 2), // Only possible with EInstallBundleRequestFlags::SkipMount
+	SkippedUnknownBundles = (1 << 3),
+	SkippedInvalidBundles = (1 << 4), // Bundle can't be used with this build
+	SkippedUnusableLanguageBundles = (1 << 5), // Can't enqueue language bundles because of current system settings
+	SkippedBundlesDueToBundleSource = (1 << 6), // A bundle source rejected a bundle for some reason
+	InitializationError = (1 << 7), // Can't enqueue because the bundle manager failed to initialize
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
 
@@ -116,6 +117,7 @@ enum class EInstallBundleRequestFlags : uint32
 	SendNotificationIfDownloadCompletesInBackground = (1 << 2),
 	ForceNoPatching = (1 << 3),
 	TrackPersistentBundleStats = (1 << 4),
+	SkipMount = (1 << 5),
 	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
