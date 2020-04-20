@@ -281,6 +281,12 @@ namespace UnrealBuildTool
 						FilePattern SourcePattern = new FilePattern(UnrealBuildTool.EngineSourceDirectory, Module.ExpandPathVariables(Dependency.SourcePath, OutputDir, ExeDir));
 						FilePattern TargetPattern = new FilePattern(UnrealBuildTool.EngineSourceDirectory, Module.ExpandPathVariables(Dependency.Path, OutputDir, ExeDir));
 
+						// Skip non-essential single files if they do not exist
+						if (Dependency.Type == StagedFileType.DebugNonUFS && !SourcePattern.ContainsWildcards() && !FileReference.Exists(SourcePattern.GetSingleFile()))
+						{
+							continue;
+						}
+
 						// Resolve all the wildcards between the source and target paths
 						Dictionary<FileReference, FileReference> Mapping;
 						try
