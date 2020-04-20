@@ -51,5 +51,5 @@ public:
 private:
 	TUniquePtr<FNiagaraCompilerJob> CompilationJob;
 
-	void DumpDebugInfo(FNiagaraCompileResults& CompileResult, bool bGPUScript);
+	void DumpDebugInfo(const FNiagaraCompileResults& CompileResult, const FShaderCompilerInput& Input, bool bGPUScript);
 };
