@@ -842,7 +842,7 @@ private:
 			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray = 
 			{ 
 				{&ActiveParticlesArray},
-				{&NonDisabledClusteredArray},
+			//	{&NonDisabledClusteredArray},  Cluster particles appear in the ActiveParticlesArray
 				{&StaticGeometryCollectionArray},
 				{&KinematicGeometryCollectionArray},
 				{&DynamicGeometryCollectionArray}
