@@ -71,6 +71,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;
 #endif // WITH_EDITOR
+	virtual void PostInitProperties() override;
 
 protected:
 	/** Keep range valid */
