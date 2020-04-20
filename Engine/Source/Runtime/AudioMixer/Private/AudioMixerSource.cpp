@@ -423,7 +423,7 @@ namespace Audio
 		UpdateChannelMaps();
 
 #if ENABLE_AUDIO_DEBUG
-		FAudioDebugger::DrawDebugInfo(*this);
+		Audio::FAudioDebugger::DrawDebugInfo(*this);
 #endif // ENABLE_AUDIO_DEBUG
 	}
 
