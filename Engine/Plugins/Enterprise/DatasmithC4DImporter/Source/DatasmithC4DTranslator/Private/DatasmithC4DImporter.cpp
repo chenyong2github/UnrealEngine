@@ -2728,6 +2728,12 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 		}
 	}
 
+	if (UVWTagsData.Num() > MAX_STATIC_TEXCOORDS-1)
+	{
+		UE_LOG(LogDatasmithC4DImport, Error, TEXT("Mesh '%s' has %d UV channels! Only the first %d will be used"), *DatasmithLabel, MAX_STATIC_TEXCOORDS-1, UVWTagsData.Num());
+		UVWTagsData.SetNum(MAX_STATIC_TEXCOORDS-1);
+	}
+
 	int32 NumSlots = SelectionTags.Num();
 
 	// Create MeshDescription
