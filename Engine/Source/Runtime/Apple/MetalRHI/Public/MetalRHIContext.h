@@ -241,6 +241,8 @@ public:
 	virtual void RHIBeginComputePass(const TCHAR* InName) final override;
 	
 	virtual void RHIEndComputePass() final override;
+	
+	virtual void RHINextSubpass() final override;
 
 protected:
 	static TGlobalResource<TBoundShaderStateHistory<10000>> BoundShaderStateHistory;
