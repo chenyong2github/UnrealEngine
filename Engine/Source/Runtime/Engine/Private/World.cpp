@@ -7568,7 +7568,23 @@ void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneVi
 
 void UWorld::SetAudioDevice(FAudioDeviceHandle& InHandle)
 {
+	if (InHandle.GetDeviceID() == AudioDeviceHandle.GetDeviceID())
+	{
+		return;
+	}
+
+	FAudioDeviceManager* DeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
+	if (DeviceManager && InHandle.IsValid())
+	{
+		GEngine->GetAudioDeviceManager()->UnregisterWorld(this, InHandle.GetDeviceID());
+	}
+
 	AudioDeviceHandle = InHandle;
+
+	if (DeviceManager)
+	{
+		GEngine->GetAudioDeviceManager()->RegisterWorld(this, InHandle.GetDeviceID());
+	}
 }
 
 FAudioDeviceHandle UWorld::GetAudioDevice()

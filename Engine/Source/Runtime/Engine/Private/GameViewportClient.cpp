@@ -418,7 +418,7 @@ void UGameViewportClient::SetEnabledStats(const TArray<FString>& InEnabledStats)
 	{
 		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			FAudioDebugger::ResolveDesiredStats(this);
+			Audio::FAudioDebugger::ResolveDesiredStats(this);
 		}
 	}
 #endif // ENABLE_AUDIO_DEBUG
@@ -484,7 +484,7 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 			if (AudioDevice.IsValid())
 			{
 #if ENABLE_AUDIO_DEBUG
-				FAudioDebugger::ResolveDesiredStats(this);
+				Audio::FAudioDebugger::ResolveDesiredStats(this);
 #endif // ENABLE_AUDIO_DEBUG
 
 				// Set the base mix of the new device based on the world settings of the world

@@ -2605,6 +2605,11 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					FReferenceChainSearch RefChainSearch(WorldPackage, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
 					UE_LOG(LogEditorServer, Fatal, TEXT("Failed to find the world in already loaded world package %s! Referenced by:") LINE_TERMINATOR TEXT("%s"), *WorldPackage->GetPathName(), *RefChainSearch.GetRootPath());
 				}
+
+				if (Context.AudioDeviceID == INDEX_NONE && GEngine->GetAudioDeviceManager())
+				{
+					Context.AudioDeviceID = GEngine->GetAudioDeviceManager()->GetMainAudioDeviceID();
+				}
 				Context.SetCurrentWorld(World);
 				GWorld = World;
 

@@ -134,7 +134,7 @@ FAudioDeviceManager::FAudioDeviceManager()
 {
 
 #if ENABLE_AUDIO_DEBUG
-	AudioDebugger = TUniquePtr<FAudioDebugger>(new FAudioDebugger());
+	AudioDebugger = MakeUnique<Audio::FAudioDebugger>();
 
 	// Check for a command line debug sound argument.
 	FString DebugSound;
@@ -381,19 +381,47 @@ FAudioDeviceHandle FAudioDeviceManager::RequestAudioDevice(const FAudioDevicePar
 		{
 			if (CanUseAudioDevice(InParams, Device.Value))
 			{
-				if (InParams.AssociatedWorld != nullptr)
-				{
-					
-					Device.Value.WorldsUsingThisDevice.AddUnique(InParams.AssociatedWorld);
-					FAudioDeviceManagerDelegates::OnWorldRegisteredToAudioDevice.Broadcast(InParams.AssociatedWorld, Device.Key);
-				}
-
+				RegisterWorld(InParams.AssociatedWorld, Device.Key);
 				return BuildNewHandle(Device.Value, Device.Key, InParams);
 			}
 		}
 
 		// If we did not find a suitable device, build one.
 		return CreateNewDevice(InParams);
+	}
+}
+
+void FAudioDeviceManager::RegisterWorld(UWorld* InWorld, Audio::FDeviceId DeviceId)
+{
+	if (!InWorld)
+	{
+		return;
+	}
+
+	if (FAudioDeviceContainer* DeviceContainer = Devices.Find(DeviceId))
+	{
+		if (!DeviceContainer->WorldsUsingThisDevice.Contains(InWorld))
+		{
+			DeviceContainer->WorldsUsingThisDevice.AddUnique(InWorld);
+			FAudioDeviceManagerDelegates::OnWorldRegisteredToAudioDevice.Broadcast(InWorld, DeviceId);
+		}
+	}
+}
+
+void FAudioDeviceManager::UnregisterWorld(UWorld* InWorld, Audio::FDeviceId DeviceId)
+{
+	if (!InWorld)
+	{
+		return;
+	}
+
+	if (FAudioDeviceContainer* DeviceContainer = Devices.Find(DeviceId))
+	{
+		if (DeviceContainer->WorldsUsingThisDevice.Contains(InWorld))
+		{
+			DeviceContainer->WorldsUsingThisDevice.Remove(InWorld);
+			FAudioDeviceManagerDelegates::OnWorldUnregisteredWithAudioDevice.Broadcast(InWorld, DeviceId);
+		}
 	}
 }
 
@@ -421,6 +449,7 @@ bool FAudioDeviceManager::InitializeManager()
 		FAudioDeviceParams MainDeviceParams;
 		MainDeviceParams.Scope = EAudioDeviceScope::Shared;
 		MainDeviceParams.bIsNonRealtime = false;
+		MainDeviceParams.AssociatedWorld = GWorld;
 
 		MainAudioDeviceHandle = RequestAudioDevice(MainDeviceParams);
 		
@@ -530,6 +559,8 @@ FAudioDeviceHandle FAudioDeviceManager::CreateNewDevice(const FAudioDeviceParams
 	}
 	else
 	{
+		RegisterWorld(InParams.AssociatedWorld, DeviceID);
+
 		FAudioDeviceHandle Handle = BuildNewHandle(*ContainerPtr, DeviceID, InParams);
 		FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Broadcast(DeviceID);
 		return Handle;
@@ -582,10 +613,8 @@ void FAudioDeviceManager::DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InW
 		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
 		Devices.Remove(DeviceID);
 	}
-	else if (InWorld)
-	{
-		Container.WorldsUsingThisDevice.Remove(InWorld);
-	}
+
+	UnregisterWorld(InWorld, DeviceID);
 }
 
 bool FAudioDeviceManager::ShutdownAllAudioDevices()
@@ -743,7 +772,6 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 			}
 		}
 	}
-
 
 	IterateOverAllDevices(
 		[&bGameTicking](Audio::FDeviceId, FAudioDevice* InDevice)
@@ -1257,14 +1285,14 @@ void FAudioDeviceManager::SetDynamicSoundVolume(ESoundType SoundType, const FNam
 }
 
 #if ENABLE_AUDIO_DEBUG
-FAudioDebugger& FAudioDeviceManager::GetDebugger()
+Audio::FAudioDebugger& FAudioDeviceManager::GetDebugger()
 {
 	check(AudioDebugger.IsValid());
 
 	return *AudioDebugger;
 }
 
-const FAudioDebugger& FAudioDeviceManager::GetDebugger() const
+const Audio::FAudioDebugger& FAudioDeviceManager::GetDebugger() const
 {
 	check(AudioDebugger.IsValid());
 
@@ -1555,3 +1583,4 @@ FAudioDeviceManager::FAudioDeviceContainer::~FAudioDeviceContainer()
 FAudioDeviceManagerDelegates::FOnAudioDeviceCreated FAudioDeviceManagerDelegates::OnAudioDeviceCreated;
 FAudioDeviceManagerDelegates::FOnAudioDeviceDestroyed FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed;
 FAudioDeviceManagerDelegates::FOnWorldRegisteredToAudioDevice FAudioDeviceManagerDelegates::OnWorldRegisteredToAudioDevice;
+FAudioDeviceManagerDelegates::FOnWorldUnregisteredWithAudioDevice FAudioDeviceManagerDelegates::OnWorldUnregisteredWithAudioDevice;
