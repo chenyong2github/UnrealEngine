@@ -2364,6 +2364,8 @@ public:
 
 	/** Apply a RootMotionSource to current root motion 
 	 *  @return LocalID for this Root Motion Source */
+	uint16 ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr);
+	UE_DEPRECATED(4.26, "ApplyRootMotionSource no longer takes raw pointers. Pass in a TSharedPtr instead.")
 	uint16 ApplyRootMotionSource(FRootMotionSource* SourcePtr);
 
 	/** Called during ApplyRootMotionSource call, useful for project-specific alerts for "something is about to be altering our movement" */

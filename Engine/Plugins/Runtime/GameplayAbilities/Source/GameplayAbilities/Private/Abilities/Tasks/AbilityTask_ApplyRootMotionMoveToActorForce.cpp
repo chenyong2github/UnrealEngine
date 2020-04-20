@@ -122,7 +122,7 @@ void UAbilityTask_ApplyRootMotionMoveToActorForce::SharedInitAndApply()
 			}
 
 			ForceName = ForceName.IsNone() ? FName("AbilityTaskApplyRootMotionMoveToActorForce") : ForceName;
-			FRootMotionSource_MoveToDynamicForce* MoveToActorForce = new FRootMotionSource_MoveToDynamicForce();
+			TSharedPtr<FRootMotionSource_MoveToDynamicForce> MoveToActorForce = MakeShared<FRootMotionSource_MoveToDynamicForce>();
 			MoveToActorForce->InstanceName = ForceName;
 			MoveToActorForce->AccumulateMode = ERootMotionAccumulateMode::Override;
 			MoveToActorForce->Settings.SetFlag(ERootMotionSourceSettingsFlags::UseSensitiveLiftoffCheck);

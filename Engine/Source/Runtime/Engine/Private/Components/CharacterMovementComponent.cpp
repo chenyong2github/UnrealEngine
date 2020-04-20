@@ -10016,9 +10016,9 @@ bool UCharacterMovementComponent::HasRootMotionSources() const
 	return CurrentRootMotion.HasActiveRootMotionSources() || (CharacterOwner && CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh());
 }
 
-uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* SourcePtr)
+uint16 UCharacterMovementComponent::ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr)
 {
-	if (SourcePtr != nullptr)
+	if (ensure(SourcePtr.IsValid()))
 	{
 		// Set default StartTime if it hasn't been set manually
 		if (!SourcePtr->IsStartTimeValid())
@@ -10046,16 +10046,17 @@ uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* Sou
 			}
 		}
 
-		OnRootMotionSourceBeingApplied(SourcePtr);
+		OnRootMotionSourceBeingApplied(SourcePtr.Get());
 
 		return CurrentRootMotion.ApplyRootMotionSource(SourcePtr);
 	}
-	else
-	{
-		checkf(false, TEXT("Passing nullptr into UCharacterMovementComponent::ApplyRootMotionSource"));
-	}
 
 	return (uint16)ERootMotionSourceID::Invalid;
+}
+
+uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* SourcePtr)
+{
+	return ApplyRootMotionSource(TSharedPtr<FRootMotionSource>(SourcePtr));
 }
 
 void UCharacterMovementComponent::OnRootMotionSourceBeingApplied(const FRootMotionSource* Source)
