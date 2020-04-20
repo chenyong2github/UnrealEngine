@@ -427,14 +427,14 @@ public:
 		return   (GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0;
 	}
 
-	UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
-	FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
+	UE_DEPRECATED(4.25, "Use ::IsInSeparateFile() instead")
+	FORCEINLINE bool InSeperateFile() const { return IsInSeparateFile(); }
 
 	/**
 	* Returns whether this bulk data is currently stored in it's own file or not
 	* @return true if BULKDATA_PayloadInSeperateFile is not set
 	*/
-	bool IsInSeperateFile() const
+	bool IsInSeparateFile() const
 	{
 		return	(GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0;
 	}

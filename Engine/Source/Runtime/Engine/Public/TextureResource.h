@@ -74,9 +74,9 @@ struct FTexture2DMipMap
 		bool IsAvailableForUse() const { return !(BulkDataFlags & BULKDATA_Unused); }
 		bool IsOptional() const { return (BulkDataFlags & BULKDATA_OptionalPayload) != 0; }
 		bool IsInlined() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) == 0 && (GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0; }
-		UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
-		FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
-		bool IsInSeperateFile() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0; }
+		UE_DEPRECATED(4.25, "Use ::IsInSeparateFile() instead")
+		FORCEINLINE bool InSeperateFile() const { return IsInSeparateFile(); }
+		bool IsInSeparateFile() const { return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0; }
 		bool IsBulkDataLoaded() const { return IsInlined(); }
 		bool IsAsyncLoadingComplete() const { return true; }
 		bool IsStoredCompressedOnDisk() const { return !!(BulkDataFlags & BULKDATA_SerializeCompressed); }
