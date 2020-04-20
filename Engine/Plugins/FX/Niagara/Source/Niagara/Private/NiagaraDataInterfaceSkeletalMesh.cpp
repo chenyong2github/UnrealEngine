@@ -1985,6 +1985,10 @@ UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInit
 	, WholeMeshLOD(INDEX_NONE)
 	, ChangeId(0)
 {
+
+	FNiagaraTypeDefinition Def(UObject::StaticClass());
+	MeshUserParameter.Parameter.SetType(Def);
+
 	static const FName NAME_Root("root");
 	ExcludeBoneName = NAME_Root;
 	bExcludeBone = false;
