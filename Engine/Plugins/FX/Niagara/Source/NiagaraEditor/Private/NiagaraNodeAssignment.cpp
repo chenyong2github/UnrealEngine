@@ -5,6 +5,8 @@
 #include "NiagaraGraph.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScript.h"
+#include "NiagaraSystem.h"
+#include "NiagaraSystemEditorData.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
 #include "EdGraphSchema_Niagara.h"
@@ -257,11 +259,36 @@ void UNiagaraNodeAssignment::MergeUp()
 
 void UNiagaraNodeAssignment::CollectAddExistingActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutAddExistingActions)
 {
+	UNiagaraSystem* OwningSystem = GetTypedOuter<UNiagaraSystem>();
+	if (OwningSystem == nullptr)
+	{
+		return;
+	}
+
+	UNiagaraSystemEditorData* OwningSystemEditorData = Cast<UNiagaraSystemEditorData>(OwningSystem->GetEditorData());
+	if (OwningSystemEditorData == nullptr)
+	{
+		return;
+	}
+
+	bool bOwningSystemIsPlaceholder = OwningSystemEditorData->GetOwningSystemIsPlaceholder();
+
 	TArray<FNiagaraVariable> AvailableParameters;
 	FNiagaraStackGraphUtilities::GetAvailableParametersForScript(*InGraphOutputNode, AvailableParameters);
 
+	TArray<FName> AvailableWriteNamespaces;
+	FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(
+		bOwningSystemIsPlaceholder ? FNiagaraStackGraphUtilities::EStackEditContext::Emitter : FNiagaraStackGraphUtilities::EStackEditContext::System,
+		InUsage, AvailableWriteNamespaces);
+
 	for (const FNiagaraVariable& AvailableParameter : AvailableParameters)
 	{
+		FNiagaraParameterHandle AvailableParameterHandle(AvailableParameter.GetName());
+		if (AvailableWriteNamespaces.Contains(AvailableParameterHandle.GetHandleParts()[0]) == false)
+		{
+			continue;
+		}
+
 		const FText NameText = FText::FromName(AvailableParameter.GetName());
 		FText VarDesc = FNiagaraConstants::GetAttributeDescription(AvailableParameter);
 		FString VarDefaultValue = FNiagaraConstants::GetAttributeDefaultValue(AvailableParameter);
