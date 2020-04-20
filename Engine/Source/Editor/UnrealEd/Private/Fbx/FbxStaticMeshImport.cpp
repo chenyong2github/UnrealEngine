@@ -22,6 +22,7 @@
 #include "Engine/StaticMeshSocket.h"
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #include "StaticMeshResources.h"
 #include "ObjectTools.h"
