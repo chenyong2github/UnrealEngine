@@ -597,7 +597,7 @@ void AOculusMR_CastingCameraActor::UpdateCameraColorTexture(const ovrpSizei &fra
 		{
 			CameraFrameMaterialInstance->SetTextureParameterValue(FName(TEXT("CameraCaptureTexture")), CameraColorTexture);
 			CameraFrameMaterialInstance->SetVectorParameterValue(FName(TEXT("CameraCaptureTextureSize")),
-				FLinearColor((float)CameraColorTexture->GetSizeX(), (float)CameraColorTexture->GetSizeY(), 1.0f / CameraColorTexture->GetSizeX(), 1.0f / CameraColorTexture->GetSizeY()));
+				FLinearColor((float)CameraColorTexture->GetSizeX(), (float)CameraColorTexture->GetSizeY(), 1.0f / FMath::Max<int32>(1, CameraColorTexture->GetSizeX()), 1.0f / FMath::Max<int32>(1, CameraColorTexture->GetSizeY())));
 		}
 	}
 	uint32 Pitch = rowPitch;
@@ -985,7 +985,7 @@ void AOculusMR_CastingCameraActor::SetupCameraFrameMaterialInstance()
 	{
 		CameraFrameMaterialInstance->SetTextureParameterValue(FName(TEXT("CameraCaptureTexture")), CameraColorTexture);
 		CameraFrameMaterialInstance->SetVectorParameterValue(FName(TEXT("CameraCaptureTextureSize")),
-			FLinearColor((float)CameraColorTexture->GetSizeX(), (float)CameraColorTexture->GetSizeY(), 1.0f / CameraColorTexture->GetSizeX(), 1.0f / CameraColorTexture->GetSizeY()));
+			FLinearColor((float)CameraColorTexture->GetSizeX(), (float)CameraColorTexture->GetSizeY(), 1.0f / FMath::Max<int32>(1, CameraColorTexture->GetSizeX()), 1.0f / FMath::Max<int32>(1, CameraColorTexture->GetSizeY())));
 		if (MRSettings->GetUseDynamicLighting())
 		{
 			CameraFrameMaterialInstance->SetTextureParameterValue(FName(TEXT("CameraDepthTexture")), CameraDepthTexture);
