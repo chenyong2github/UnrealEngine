@@ -912,7 +912,11 @@ protected:
 	TUniquePtr<ISpatialAccelerationCollectionFactory> SpatialCollectionFactory;
 };
 
+#if PLATFORM_MAC
+#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_API TPBDRigidsEvolutionBase<Trait>;
+#else
 #define EVOLUTION_TRAIT(Trait) extern template class TPBDRigidsEvolutionBase<Trait>;
+#endif
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 
