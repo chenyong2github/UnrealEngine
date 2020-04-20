@@ -140,7 +140,7 @@ public:
 					.Padding(15)
 					[
 						SAssignNew(TemplatesWrapBox, SWrapBox)
-						.PreferredWidth(DEFAULT_WINDOW_SIZE.X - 35.0)   // apparently no way to auto size the width of wrap boxes
+						.PreferredSize(DEFAULT_WINDOW_SIZE.X - 35.0)   // apparently no way to auto size the width of wrap boxes
 					]
 				]
 				+SVerticalBox::Slot()

@@ -197,7 +197,7 @@ void SCameraShakePreviewer::Construct(const FArguments& InArgs)
 			.Padding(1.0f)
 			[
 				SNew(SWrapBox)
-				.UseAllottedWidth(true)
+				.UseAllottedSize(true)
 				+SWrapBox::Slot()
 				.Padding(FMargin(2.0f))
 				[

@@ -12,7 +12,7 @@
 class UWrapBoxSlot;
 
 /**
- * Arranges widgets left-to-right.  When the widgets exceed the Width it will place widgets on the next line.
+ * Arranges widgets left-to-right or top-to-bottom dependently of the orientation.  When the widgets exceed the wrapSize it will place widgets on the next line.
  * 
  * * Many Children
  * * Flows
@@ -28,18 +28,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Content Layout")
 	FVector2D InnerSlotPadding;
 
-	/** When this width is exceeded, elements will start appearing on the next line. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout", meta=(EditCondition = "bExplicitWrapWidth"))
-	float WrapWidth;
+	/** DEPRECATED value replaced by WrapSize, When this width is exceeded, elements will start appearing on the next line. */
+	UPROPERTY()
+	float WrapWidth_DEPRECATED;
 
-	/** Use explicit wrap width whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
+	/** When this size is exceeded, elements will start appearing on the next line. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout", meta=(EditCondition = "bExplicitWrapSize"))
+	float WrapSize;
+
+	/** DEPRECATED value replaced by bExplicitWrapSize, Use explicit wrap width whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
+	UPROPERTY()
+	bool bExplicitWrapWidth_DEPRECATED;
+
+	/** Use explicit wrap size whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout")
-	bool bExplicitWrapWidth;
+	bool bExplicitWrapSize;
+
+	/** Determines if the Wrap Box should arranges the widgets left-to-right or top-to-bottom */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout")
+	TEnumAsByte<EOrientation> Orientation = EOrientation::Orient_Horizontal;
 
 	/** Sets the inner slot padding goes between slots sharing borders */
 	UFUNCTION(BlueprintCallable, Category="Content Layout")
 	void SetInnerSlotPadding(FVector2D InPadding);
-
 
 public:
 
@@ -54,6 +65,8 @@ public:
 	virtual const FText GetPaletteCategory() override;
 	// End UWidget interface
 #endif
+
+	virtual void PostLoad() override;
 
 protected:
 
