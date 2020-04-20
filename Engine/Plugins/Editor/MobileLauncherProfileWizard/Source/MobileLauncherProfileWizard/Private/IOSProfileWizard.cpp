@@ -35,7 +35,7 @@ static void SetupIOSAppProfile(ILauncherProfileRef& AppProfile, const FProfilePa
 
 	AppProfile->SetBuildUAT(true);
 	// App build configuration
-	AppProfile->SetBuildGame(true);
+	AppProfile->SetBuildMode(ELauncherProfileBuildModes::Auto);
 	AppProfile->SetBuildConfiguration(Params.BuildConfiguration);
 	
 	//// Cooking
@@ -85,7 +85,7 @@ static void SetupIOSDLCProfile(ILauncherProfileRef& DLCProfile, const FProfilePa
 
 	DLCProfile->SetBuildUAT(true);
 	// App build configuration
-	DLCProfile->SetBuildGame(false);
+	DLCProfile->SetBuildMode(ELauncherProfileBuildModes::DoNotBuild);
 	DLCProfile->SetBuildConfiguration(Params.BuildConfiguration);
 	
 	//// Cooking

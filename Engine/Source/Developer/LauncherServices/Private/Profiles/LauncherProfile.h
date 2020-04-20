@@ -19,6 +19,10 @@
 #include "GameProjectHelper.h"
 #include "Profiles/LauncherProfileLaunchRole.h"
 #include "PlatformInfo.h"
+#include "TargetReceipt.h"
+#include "DesktopPlatformModule.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogLauncherProfile, Log, All);
 
 class Error;
 
@@ -42,6 +46,7 @@ enum ELauncherVersion
 	LAUNCHERSERVICES_ADDEDMULTILEVELPATCHING = 25,
 	LAUNCHERSERVICES_ADDEDADDITIONALCOMMANDLINE = 26,
 	LAUNCHERSERVICES_ADDEDINCLUDEPREREQUISITES = 27,
+	LAUNCHERSERVICES_ADDEDBUILDMODE = 28,
 
 	//ADD NEW STUFF HERE
 
@@ -55,6 +60,59 @@ enum ESimpleLauncherVersion
 	LAUNCHERSERVICES_SIMPLEPROFILEVERSION=1,
 	LAUNCHERSERVICES_SIMPLEFILEFORMATCHANGE = 2,
 };
+
+LAUNCHERSERVICES_API bool HasPromotedTarget(const TCHAR* BaseDir, const TCHAR* TargetName, const TCHAR* Platform, EBuildConfiguration Configuration, const TCHAR* Architecture)
+{
+	// Get the path to the receipt, and check it exists
+	FString ReceiptPath = FTargetReceipt::GetDefaultPath(BaseDir, TargetName, Platform, Configuration, Architecture);
+	if (!FPaths::FileExists(*ReceiptPath))
+	{
+		UE_LOG(LogLauncherProfile, Log, TEXT("Unable to use promoted target - %s does not exist."), *ReceiptPath);
+		return false;
+	}
+
+	// Read the receipt for this target
+	FTargetReceipt Receipt;
+	if (!Receipt.Read(ReceiptPath))
+	{
+		UE_LOG(LogLauncherProfile, Log, TEXT("Unable to use promoted target - cannot read %s"), *ReceiptPath);
+		return false;
+	}
+
+	// Check the receipt is for a promoted build
+	if (!Receipt.Version.IsPromotedBuild)
+	{
+		UE_LOG(LogLauncherProfile, Log, TEXT("Unable to use promoted target - receipt %s is not for a promoted target"), *ReceiptPath);
+		return false;
+	}
+
+	// Make sure it matches the current build info
+	FEngineVersion ReceiptVersion = Receipt.Version.GetEngineVersion();
+	FEngineVersion CurrentVersion = FEngineVersion::Current();
+	if (!ReceiptVersion.ExactMatch(CurrentVersion))
+	{
+		UE_LOG(LogLauncherProfile, Log, TEXT("Unable to use promoted target - receipt version (%s) is not exact match with current engine version (%s)"), *ReceiptVersion.ToString(), *CurrentVersion.ToString());
+		return false;
+	}
+
+	// Print the matching target info
+	UE_LOG(LogLauncherProfile, Log, TEXT("Found promoted target with matching version at %s"), *ReceiptPath);
+	return true;
+}
+
+bool TryGetDefaultTargetName(const FString& ProjectFile, EBuildTargetType TargetType, FString& OutTargetName)
+{
+	const TArray<FTargetInfo>& Targets = FDesktopPlatformModule::Get()->GetTargetsForProject(ProjectFile);
+	for (const FTargetInfo& Target : Targets)
+	{
+		if (Target.Type == TargetType)
+		{
+			OutTargetName = Target.Name;
+			return true;
+		}
+	}
+	return false;
+}
 
 /**
 * Implements a simple profile which controls the desired output of the Launcher for simple
@@ -653,9 +711,66 @@ public:
 		return InvalidPlatform;
 	}
 
-	virtual bool IsBuilding() const override
+	virtual ELauncherProfileBuildModes::Type GetBuildMode() const override
 	{
-		return BuildGame;
+		return BuildMode;
+	}
+
+	virtual bool ShouldBuild() override
+	{
+		bool bBuild = true;
+		if (BuildMode == ELauncherProfileBuildModes::DoNotBuild)
+		{
+			bBuild = false;
+		}
+		else if (BuildMode == ELauncherProfileBuildModes::Auto)
+		{
+			if (FApp::GetEngineIsPromotedBuild())
+			{
+				TArray<FString> TargetPlatformNames = FindPlatforms();
+				for (const FString& TargetPlatformName : TargetPlatformNames)
+				{
+					// Get the target we're building for
+					const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(TargetPlatformName);
+					const PlatformInfo::FPlatformInfo& PlatformInfo = TargetPlatform->GetPlatformInfo();
+
+					// Figure out which target we're building
+					FString ReceiptDir;
+					FString TargetName;
+					if (TryGetDefaultTargetName(FPaths::GetProjectFilePath(), PlatformInfo.PlatformType, TargetName))
+					{
+						ReceiptDir = FPaths::GetPath(FPaths::GetProjectFilePath());
+					}
+					else if (TryGetDefaultTargetName(FString(), PlatformInfo.PlatformType, TargetName))
+					{
+						FText Reason;
+						if (TargetPlatform->RequiresTempTarget(false, BuildConfiguration, false, Reason))
+						{
+							UE_LOG(LogLauncherProfile, Log, TEXT("Project requires temp target (%s)"), *Reason.ToString());
+							ReceiptDir = FPaths::GetPath(FPaths::GetProjectFilePath());
+						}
+						else
+						{
+							UE_LOG(LogLauncherProfile, Log, TEXT("Project does not require temp target"));
+							ReceiptDir = FPaths::EngineDir();
+						}
+					}
+					else
+					{
+						UE_LOG(LogLauncherProfile, Log, TEXT("Unable to find any targets for platform %s - forcing build"), *TargetPlatformName);
+						break;
+					}
+
+					// Check if the existing target is valid
+					FString BuildPlatform = PlatformInfo.UBTTargetId.ToString();
+					if (!HasPromotedTarget(*ReceiptDir, *TargetName, *BuildPlatform, BuildConfiguration, nullptr))
+					{
+						break;
+					}
+				}
+			}
+		}
+		return bBuild;
 	}
 
 	virtual bool IsBuildingUAT() const override
@@ -823,6 +938,7 @@ public:
 		}
 
 		// IMPORTANT: make sure to bump LAUNCHERSERVICES_PROFILEVERSION when modifying this!
+		bool BuildGame = false;
 		Archive << Id
 				<< Name
 				<< Description
@@ -928,6 +1044,15 @@ public:
 		if (Version >= LAUNCHERSERVICES_ADDEDINCLUDEPREREQUISITES)
 		{
 			Archive << IncludePrerequisites;
+		}
+
+		if (Version >= LAUNCHERSERVICES_ADDEDBUILDMODE)
+		{
+			Archive << BuildMode;
+		}
+		else if(Archive.IsLoading())
+		{
+			BuildMode = BuildGame ? ELauncherProfileBuildModes::Build : ELauncherProfileBuildModes::DoNotBuild;
 		}
 		
 		DefaultLaunchRole->Serialize(Archive);
@@ -1038,7 +1163,7 @@ public:
 		Writer.WriteValue("LaunchMode", LaunchMode);
 		Writer.WriteValue("PackagingMode", PackagingMode);
 		Writer.WriteValue("PackageDir", PackageDir);
-		Writer.WriteValue("BuildGame", BuildGame);
+		Writer.WriteValue("BuildMode", BuildMode);
 		Writer.WriteValue("ForceClose", ForceClose);
 		Writer.WriteValue("Timeout", (int32)Timeout);
 		Writer.WriteValue("Compressed", Compressed);
@@ -1241,7 +1366,7 @@ public:
 		}
 
 		// build
-		Writer.WriteValue("build", IsBuilding());
+		Writer.WriteValue("build", ShouldBuild());
 
 		// cook
 		switch (GetCookMode())
@@ -1512,7 +1637,7 @@ public:
 	TArray<FString> FindPlatforms()
 	{
 		TArray<FString> Platforms;
-		if (GetCookMode() == ELauncherProfileCookModes::ByTheBook || IsBuilding())
+		if (GetCookMode() == ELauncherProfileCookModes::ByTheBook)
 		{
 			Platforms = GetCookedPlatforms();
 		}
@@ -1668,7 +1793,17 @@ public:
 		LaunchMode = (TEnumAsByte<ELauncherProfileLaunchModes::Type>)((int32)Object.GetNumberField("LaunchMode"));
 		PackagingMode = (TEnumAsByte<ELauncherProfilePackagingModes::Type>)((int32)Object.GetNumberField("PackagingMode"));
 		PackageDir = Object.GetStringField("PackageDir");
-		BuildGame = Object.GetBoolField("BuildGame");
+
+		int64 BuildModeValue;
+		if (Object.TryGetNumberField("BuildMode", BuildModeValue))
+		{
+			BuildMode = (TEnumAsByte<ELauncherProfileBuildModes::Type>)(int32)BuildModeValue;
+		}
+		else
+		{
+			BuildMode = Object.GetBoolField("BuildGame") ? ELauncherProfileBuildModes::Build : ELauncherProfileBuildModes::DoNotBuild;
+		}
+
 		ForceClose = Object.GetBoolField("ForceClose");
 		Timeout = (uint32)Object.GetNumberField("Timeout");
 		Compressed = Object.GetBoolField("Compressed");
@@ -1797,7 +1932,7 @@ public:
 		FInternationalization& I18N = FInternationalization::Get();
 
 		// default build settings
-		BuildGame = !FApp::GetEngineIsPromotedBuild() && !FApp::IsEngineInstalled();
+		BuildMode = ELauncherProfileBuildModes::Auto;
 		BuildUAT = !FApp::GetEngineIsPromotedBuild() && !FApp::IsEngineInstalled();
 
 		// default cook settings
@@ -1873,11 +2008,11 @@ public:
 		Validate();
 	}
 
-	virtual void SetBuildGame(bool Build) override
+	virtual void SetBuildMode(ELauncherProfileBuildModes::Type Mode) override
 	{
-		if (BuildGame != Build)
+		if (BuildMode != Mode)
 		{
-			BuildGame = Build;
+			BuildMode = Mode;
 
 			Validate();
 		}
@@ -2632,8 +2767,8 @@ private:
 	// Holds the cooking mode.
 	TEnumAsByte<ELauncherProfileCookModes::Type> CookMode;
 
-	// Holds a flag indicating whether the game should be built
-	bool BuildGame;
+	// Holds the build mode
+	TEnumAsByte<ELauncherProfileBuildModes::Type> BuildMode;
 
 	// Holds a flag indicating whether UAT should be built
 	bool BuildUAT;
