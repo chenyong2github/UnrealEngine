@@ -305,8 +305,15 @@ namespace UnrealBuildTool
 		public virtual void AddModule(UEBuildModuleCPP Module, CppCompileEnvironment CompileEnvironment)
 		{
 			AddIntelliSensePreprocessorDefinitions(CompileEnvironment.Definitions);
-			AddIntelliSenseIncludePaths(CompileEnvironment.SystemIncludePaths, true);
-			AddIntelliSenseIncludePaths(CompileEnvironment.UserIncludePaths, false);
+			AddIntelliSenseIncludePaths(SystemIncludePaths, CompileEnvironment.SystemIncludePaths);
+			AddIntelliSenseIncludePaths(UserIncludePaths, CompileEnvironment.UserIncludePaths);
+
+			foreach (DirectoryReference BaseDir in Module.ModuleDirectories)
+			{
+				AddIntelliSenseIncludePaths(BaseDir, BaseDirToSystemIncludePaths, CompileEnvironment.SystemIncludePaths);
+				AddIntelliSenseIncludePaths(BaseDir, BaseDirToUserIncludePaths, CompileEnvironment.UserIncludePaths);
+			}
+
 			SetIntelliSenseCppVersion(Module.Rules.CppStandard);
 		}
 
@@ -355,38 +362,38 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <summary>
+		/// Adds all of the specified include paths to this VCProject's list of include paths for all modules in the project
+		/// </summary>
+		/// <param name="BaseDir">The base directory to which the include paths apply</param>
+		/// <param name="BaseDirToCollection">Map of base directory to include paths</param>
+		/// <param name="NewIncludePaths">List of include paths to add</param>
+		public void AddIntelliSenseIncludePaths(DirectoryReference BaseDir, Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToCollection, IEnumerable<DirectoryReference> NewIncludePaths)
+		{
+			IncludePathsCollection ModuleUserPaths;
+			if (!BaseDirToCollection.TryGetValue(BaseDir, out ModuleUserPaths))
+			{
+				ModuleUserPaths = new IncludePathsCollection();
+				BaseDirToCollection.Add(BaseDir, ModuleUserPaths);
+			}
+			AddIntelliSenseIncludePaths(ModuleUserPaths, NewIncludePaths);
+		}
 
 		/// <summary>
 		/// Adds all of the specified include paths to this VCProject's list of include paths for all modules in the project
 		/// </summary>
+		/// <param name="Collection">The collection to add to</param>
 		/// <param name="NewIncludePaths">List of include paths to add</param>
-		/// <param name="bAddingSystemIncludes"></param>
-		public void AddIntelliSenseIncludePaths(HashSet<DirectoryReference> NewIncludePaths, bool bAddingSystemIncludes)
+		public void AddIntelliSenseIncludePaths(IncludePathsCollection Collection, IEnumerable<DirectoryReference> NewIncludePaths)
 		{
 			foreach (DirectoryReference CurPath in NewIncludePaths)
 			{
-				if (bAddingSystemIncludes ? KnownIntelliSenseSystemIncludeSearchPaths.Add(CurPath.FullName) : KnownIntelliSenseIncludeSearchPaths.Add(CurPath.FullName))
+				if(Collection.AbsolutePaths.Add(CurPath))
 				{
 					// Incoming include paths are relative to the solution directory, but we need these paths to be
 					// relative to the project file's directory
 					string PathRelativeToProjectFile = NormalizeProjectPath(CurPath);
-
-					// Make sure that it doesn't exist already
-					bool AlreadyExists = false;
-					List<string> SearchPaths = bAddingSystemIncludes ? IntelliSenseSystemIncludeSearchPaths : IntelliSenseIncludeSearchPaths;
-					foreach (string ExistingPath in SearchPaths)
-					{
-						if (PathRelativeToProjectFile == ExistingPath)
-						{
-							AlreadyExists = true;
-							break;
-						}
-					}
-
-					if (!AlreadyExists)
-					{
-						SearchPaths.Add(PathRelativeToProjectFile);
-					}
+					Collection.RelativePaths.Add(PathRelativeToProjectFile);
 				}
 			}
 		}
@@ -472,7 +479,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Takes the given path and tries to rebase it relative to the project or solution directory variables.
 		/// </summary>
-		public string NormalizeProjectPath(string InputPath)
+		public static string NormalizeProjectPath(string InputPath)
 		{
 			// If the path is rooted in an environment variable, leave it be.
 			if (InputPath.StartsWith("$("))
@@ -492,7 +499,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Takes the given path and tries to rebase it relative to the project.
 		/// </summary>
-		public string NormalizeProjectPath(FileSystemReference InputPath)
+		public static string NormalizeProjectPath(FileSystemReference InputPath)
 		{
 			// Try to make it relative to the solution directory.
 			if (InputPath.IsUnderDirectory(ProjectFileGenerator.MasterProjectPath))
@@ -526,23 +533,74 @@ namespace UnrealBuildTool
 			return ProjectFilePath.ToString();
 		}
 
+		/// <summary>
 		/// Map of file paths to files in the project.
+		/// </summary>
 		private readonly Dictionary<FileReference, SourceFile> SourceFileMap = new Dictionary<FileReference, SourceFile>();
 
+		/// <summary>
 		/// Files in this project
+		/// </summary>
 		public readonly List<SourceFile> SourceFiles = new List<SourceFile>();
 
-		/// Include paths for every single module in the project file, merged together
-		public readonly List<string> IntelliSenseIncludeSearchPaths = new List<string>();
-		public readonly List<string> IntelliSenseSystemIncludeSearchPaths = new List<string>();
-		public readonly HashSet<string> KnownIntelliSenseIncludeSearchPaths = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-		public readonly HashSet<string> KnownIntelliSenseSystemIncludeSearchPaths = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+		/// <summary>
+		/// Collection of include paths
+		/// </summary>
+		public class IncludePathsCollection
+		{
+			public List<string> RelativePaths = new List<string>();
+			public HashSet<DirectoryReference> AbsolutePaths = new HashSet<DirectoryReference>();
+		}
 
-		/// Preprocessor definitions for every single module in the project file, merged together
+		/// <summary>
+		/// Merged list of include paths for the project
+		/// </summary>
+		IncludePathsCollection UserIncludePaths = new IncludePathsCollection();
+
+		/// <summary>
+		/// Merged list of include paths for the project
+		/// </summary>
+		IncludePathsCollection SystemIncludePaths = new IncludePathsCollection();
+
+		/// <summary>
+		/// Map of base directory to user include paths
+		/// </summary>
+		protected Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToUserIncludePaths = new Dictionary<DirectoryReference, IncludePathsCollection>();
+
+		/// <summary>
+		/// Map of base directory to system include paths
+		/// </summary>
+		protected Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToSystemIncludePaths = new Dictionary<DirectoryReference, IncludePathsCollection>();
+
+		/// <summary>
+		/// Legacy accessor for user search paths
+		/// </summary>
+		public List<string> IntelliSenseIncludeSearchPaths
+		{
+			get { return UserIncludePaths.RelativePaths; }
+		}
+
+		/// <summary>
+		/// Legacy accessor for system include paths
+		/// </summary>
+		public List<string> IntelliSenseSystemIncludeSearchPaths
+		{
+			get { return SystemIncludePaths.RelativePaths; }
+		}
+
+		/// <summary>
+		/// List of preprocessor definitions for the project
+		/// </summary>
 		public readonly List<string> IntelliSensePreprocessorDefinitions = new List<string>();
-		public readonly HashSet<string> KnownIntelliSensePreprocessorDefinitions = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 
+		/// <summary>
+		/// Set of unique preprocessor definitions
+		/// </summary>
+		HashSet<string> KnownIntelliSensePreprocessorDefinitions = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+
+		/// <summary>
 		/// Projects that this project is dependent on
+		/// </summary>
 		public readonly List<ProjectFile> DependsOnProjects = new List<ProjectFile>();
 	}
 
