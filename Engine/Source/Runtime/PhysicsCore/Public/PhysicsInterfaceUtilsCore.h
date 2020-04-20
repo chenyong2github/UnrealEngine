@@ -15,7 +15,12 @@ PHYSICSCORE_API FCollisionFilterData C2UFilterData(const FChaosFilterData& Filte
 PHYSICSCORE_API FChaosFilterData U2CFilterData(const FCollisionFilterData& FilterData);
 
 #if PHYSICS_INTERFACE_PHYSX
+PHYSICSCORE_API FCollisionFilterData ToUnrealFilterData(const PxFilterData& FilterData);
+#else
+PHYSICSCORE_API FCollisionFilterData ToUnrealFilterData(const FChaosFilterData& FilterData);
+#endif
 
+#if PHYSICS_INTERFACE_PHYSX
 PHYSICSCORE_API FCollisionFilterData P2UFilterData(const PxFilterData& PFilterData);
 PHYSICSCORE_API PxFilterData U2PFilterData(const FCollisionFilterData& FilterData);
 PHYSICSCORE_API PxShapeFlags BuildPhysXShapeFlags(FBodyCollisionFlags BodyCollisionFlags, bool bPhysicsStatic, bool bIsTriangleMesh);
