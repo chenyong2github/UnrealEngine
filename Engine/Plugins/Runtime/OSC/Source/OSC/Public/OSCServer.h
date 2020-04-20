@@ -42,6 +42,9 @@ public:
 	virtual void Listen(const FString& ServerName) = 0;
 	virtual bool SetAddress(const FString& InReceiveIPAddress, int32 InPort) = 0;
 	virtual void SetMulticastLoopback(bool bInMulticastLoopback) = 0;
+#if WITH_EDITOR
+	virtual void SetTickableInEditor(bool bInTickInEditor) = 0;
+#endif // WITH_EDITOR
 	virtual void Stop() = 0;
 	virtual void AddWhitelistedClient(const FString& InIPAddress) = 0;
 	virtual void RemoveWhitelistedClient(const FString& IPAddress) = 0;
@@ -56,8 +59,6 @@ class OSC_API UOSCServer : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	void Connect();
-
 	/** Gets whether or not to loopback if ReceiveIPAddress provided is multicast. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	bool GetMulticastLoopback() const;
@@ -146,24 +147,32 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	TArray<FOSCAddress> GetBoundOSCAddressPatterns() const;
 
+#if WITH_EDITOR
+	/** Set whether server instance can be ticked in-editor (editor only and available to blueprint
+	  * for use in editor utility scripts/script actions).
+	  */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void SetTickInEditor(bool bInTickInEditor);
+#endif // WITH_EDITOR
+
 	/** Clears all packets pending processing */
 	void ClearPackets();
 
 	/** Enqueues packet to be processed */
-	void EnqueuePacket(TSharedPtr<IOSCPacket>);
+	void EnqueuePacket(TSharedPtr<IOSCPacket> InPacket);
 
 	/** Callback for when packet is received by server */
-	void OnPacketReceived(const FString& InIPAddress, uint16 Port);
+	void PumpPacketQueue(const TSet<uint32>* InWhitelistedClients);
 
 protected:
 	void BeginDestroy() override;
 
 private:
 	/** Dispatches provided bundle received */
-	void DispatchBundle(const FString& InIPAddress, uint16 Port, const FOSCBundle& InBundle);
+	void DispatchBundle(const FString& InIPAddress, uint16 InPort, const FOSCBundle& InBundle);
 
 	/** Dispatches provided message received */
-	void DispatchMessage(const FString& InIPAddress, uint16 Port, const FOSCMessage& InMessage);
+	void DispatchMessage(const FString& InIPAddress, uint16 InPort, const FOSCMessage& InMessage);
 
 	/** Pointer to internal implementation of server proxy */
 	TUniquePtr<IOSCServerProxy> ServerProxy;
