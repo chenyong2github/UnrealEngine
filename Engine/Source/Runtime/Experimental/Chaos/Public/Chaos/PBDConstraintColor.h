@@ -3,9 +3,6 @@
 
 #include "Chaos/ParticleHandle.h"
 
-// @todo(ccaulfield): move level/shock system out of coloring
-#define USE_CONTACT_LEVELS 1
-
 namespace Chaos
 {
 	class FPBDConstraintGraph;
@@ -22,6 +19,10 @@ namespace Chaos
 		typedef TArray<FConstraintHandle*> FConstraintList;
 		typedef TMap<int32, FConstraintList> FColorToConstraintListMap;
 		typedef TArray<FColorToConstraintListMap> FLevelToColorToConstraintListMap;
+
+		FPBDConstraintColor()
+			: bUseContactGraph(true)
+		{}
 
 		/**
 		 * Initialize the color structures based on the connectivity graph (i.e., reset all color-related node, edge and island data).
@@ -48,6 +49,11 @@ namespace Chaos
 		 */
 		int GetIslandMaxLevel(int32 Island) const;
 
+		void SetUseContactGraph(bool bInUseContactGraph)
+		{
+			bUseContactGraph = bInUseContactGraph;
+		}
+
 	private:
 		void ComputeContactGraph(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId);
 		void ComputeIslandColoring(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId);
@@ -66,30 +72,22 @@ namespace Chaos
 		{
 			FGraphEdgeColor()
 				: Color(INDEX_NONE)
-	#ifdef USE_CONTACT_LEVELS
 				, Level(INDEX_NONE)
-	#endif
 			{
 			}
 			int32 Color;
-	#ifdef USE_CONTACT_LEVELS
 			int32 Level;
-	#endif
 		};
 
 		struct FIslandColor
 		{
 			FIslandColor()
 				: MaxColor(0)
-	#ifdef USE_CONTACT_LEVELS
 				, MaxLevel(0)
-	#endif
 			{
 			}
 			int32 MaxColor;
-	#ifdef USE_CONTACT_LEVELS
 			int32 MaxLevel;
-	#endif
 			FLevelToColorToConstraintListMap LevelToColorToConstraintListMap;
 		};
 
@@ -98,6 +96,7 @@ namespace Chaos
 		TArray<FIslandColor> IslandData;
 		FLevelToColorToConstraintListMap EmptyLevelToColorToConstraintListMap;
 		TArray<int32> UpdatedNodes;
+		bool bUseContactGraph;
 	};
 
 }
