@@ -38,7 +38,7 @@ FNiagaraDataInterfaceProxyOscilloscope::FNiagaraDataInterfaceProxyOscilloscope(i
 	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FNiagaraDataInterfaceProxyOscilloscope::OnDeviceDestroyed);
 
 	VectorVMReadBuffer.Reset();
-	VectorVMReadBuffer.AddZeroed(Resolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+	VectorVMReadBuffer.AddZeroed(UNiagaraDataInterfaceAudioOscilloscope::MaxBufferResolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 }
 
 FNiagaraDataInterfaceProxyOscilloscope::~FNiagaraDataInterfaceProxyOscilloscope()
@@ -363,7 +363,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResoluti
 			GPUDownsampledBuffer.Initialize(sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		});
 
-		VectorVMReadBuffer.SetNumZeroed(Resolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+		VectorVMReadBuffer.SetNumZeroed(UNiagaraDataInterfaceAudioOscilloscope::MaxBufferResolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 	}
 }
 
@@ -557,7 +557,7 @@ int32 FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
 	DownsampledBuffer.SetNumZeroed(Resolution * NumChannels);
 
 	check(DownsampledBuffer.Num() <= VectorVMReadBuffer.Num());
-	FMemory::Memcpy(VectorVMReadBuffer.GetData(), DownsampledBuffer.GetData(), VectorVMReadBuffer.Num());
+	FMemory::Memcpy(VectorVMReadBuffer.GetData(), DownsampledBuffer.GetData(), DownsampledBuffer.Num());
 
 	return Resolution;
 }
