@@ -31,9 +31,8 @@ bool Audio::FAudioCaptureRtAudioStream::GetCaptureDeviceInfo(FCaptureDeviceInfo&
 
 	RtAudio::DeviceInfo DeviceInfo = CaptureDevice.getDeviceInfo(InputDeviceId);
 
-	const char* NameStr = DeviceInfo.name.c_str();
-
-	OutInfo.DeviceName = FString(ANSI_TO_TCHAR(NameStr));
+	OutInfo.DeviceName = FString(ANSI_TO_TCHAR(DeviceInfo.name.c_str()));
+	OutInfo.DeviceId = FString(ANSI_TO_TCHAR(DeviceInfo.deviceId.c_str()));
 	OutInfo.InputChannels = DeviceInfo.inputChannels;
 	OutInfo.PreferredSampleRate = DeviceInfo.preferredSampleRate;
 
@@ -49,7 +48,32 @@ bool Audio::FAudioCaptureRtAudioStream::OpenCaptureStream(const FAudioCaptureDev
 	uint32 InputDeviceId = CaptureDevice.getDefaultInputDevice();
 	if (InParams.DeviceIndex != DefaultDeviceIndex)
 	{
-		InputDeviceId = InParams.DeviceIndex - 1;
+		// InParams.DeviceIndex is the index inside the sublist of devices including only
+		// the Input devices.
+		uint32 NumInputDevices = 0;
+		bool DeviceFound = false;
+		uint32 NumDevices = CaptureDevice.getDeviceCount();
+		for (uint32 DeviceIndex = 0; DeviceIndex < NumDevices; DeviceIndex++)
+		{
+			FCaptureDeviceInfo DeviceInfo;
+			GetCaptureDeviceInfo(DeviceInfo, DeviceIndex);
+			bool IsInput = DeviceInfo.InputChannels > 0;
+			if (!IsInput)
+			{
+				continue;
+			}
+			if (NumInputDevices == InParams.DeviceIndex)
+			{
+				DeviceFound = true;
+				InputDeviceId = DeviceIndex;
+				break;
+			}
+			NumInputDevices++;
+		}
+		if (!DeviceFound)
+		{
+			return false;
+		}
 	}
 
 	RtAudio::DeviceInfo DeviceInfo = CaptureDevice.getDeviceInfo(InputDeviceId);
@@ -167,7 +191,7 @@ void Audio::FAudioCaptureRtAudioStream::OnAudioCapture(void* InBuffer, uint32 In
 {
 #if WITH_RTAUDIO
 	float* InBufferData = (float*)InBuffer;
-	OnCapture(InBufferData, InBufferFrames, NumChannels, StreamTime, bOverflow);
+	OnCapture(InBufferData, InBufferFrames, NumChannels, SampleRate, StreamTime, bOverflow);
 #endif // WITH_RTAUDIO
 }
 
@@ -176,10 +200,16 @@ bool Audio::FAudioCaptureRtAudioStream::GetInputDevicesAvailable(TArray<FCapture
 #if WITH_RTAUDIO
 	uint32 NumDevices = CaptureDevice.getDeviceCount();
 	OutDevices.Reset();
-	for (uint32 DeviceIndex = 1; DeviceIndex < NumDevices; DeviceIndex++)
+	// Iterate over all devices and include in the output only the ones that are input devices
+	for (uint32 DeviceIndex = 0; DeviceIndex < NumDevices; DeviceIndex++)
 	{
-		FCaptureDeviceInfo& DeviceInfo = OutDevices.AddDefaulted_GetRef();
+		FCaptureDeviceInfo DeviceInfo;
 		GetCaptureDeviceInfo(DeviceInfo, DeviceIndex);
+		bool IsInput = DeviceInfo.InputChannels > 0;
+		if (IsInput)
+		{
+			OutDevices.Add(DeviceInfo);
+		}
 	}
 
 	return true;

@@ -29,6 +29,7 @@ public class OnlineSubsystem : ModuleRules
 				"Sockets",
 				"JsonUtilities",
 				"AudioMixerCore",
+				"SignalProcessing",
 			}
 		);
 	}
