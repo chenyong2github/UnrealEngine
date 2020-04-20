@@ -1334,7 +1334,7 @@ FName URigVMController::GetUniqueName(const FName& InName, TFunction<bool(const 
 
 #endif
 
-bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo)
+bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo, bool bRecursive)
 {
 	if (!IsValidNodeForGraph(InNode))
 	{
@@ -1370,7 +1370,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo)
 		}
 	}
 
-	if (bUndo)
+	if (bUndo || bRecursive)
 	{
 		SelectNode(InNode, false, bUndo);
 
@@ -1425,13 +1425,13 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo)
 	return true;
 }
 
-bool URigVMController::RemoveNodeByName(const FName& InNodeName, bool bUndo)
+bool URigVMController::RemoveNodeByName(const FName& InNodeName, bool bUndo, bool bRecursive)
 {
 	if (!IsValidGraph())
 	{
 		return false;
 	}
-	return RemoveNode(Graph->FindNodeByName(InNodeName), bUndo);
+	return RemoveNode(Graph->FindNodeByName(InNodeName), bUndo, bRecursive);
 }
 
 bool URigVMController::SelectNode(URigVMNode* InNode, bool bSelect, bool bUndo)
