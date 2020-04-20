@@ -62,6 +62,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 				bIsUsedWithInstancedStaticMeshes = Resource->IsUsedWithInstancedStaticMeshes();
 				bIsUsedWithAPEXCloth = Resource->IsUsedWithAPEXCloth();
 				bIsUsedWithWater = Resource->IsUsedWithWater();
+				bIsUsedWithVirtualHeightfieldMesh = Resource->IsUsedWithVirtualHeightfieldMesh();
 			}
 		}
 
