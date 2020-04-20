@@ -175,7 +175,8 @@ namespace ImmediatePhysics_Chaos
 		NewShape->SetGeometry(MakeSerializable(ImplicitSphere));
 		NewShape->UpdateShapeBounds(FTransform::Identity);
 		NewShape->SetUserData(nullptr);
-		NewShape->SetSimulate(false);
+		NewShape->SetQueryEnabled(false);
+		NewShape->SetSimEnabled(false);
 
 		OutMass = Mass;
 		OutInertia = TSphere<FReal, 3>::GetInertiaTensor(Mass, Radius).GetDiagonal();

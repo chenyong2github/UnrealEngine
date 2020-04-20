@@ -87,26 +87,19 @@ class FPhysicsShapeReference_Chaos
 public:
 	
 	FPhysicsShapeReference_Chaos()
-		: Shape(nullptr), bSimulation(false), bQuery(false), ActorRef() {}
-	FPhysicsShapeReference_Chaos(Chaos::FPerShapeData* ShapeIn, bool bSimulationIn, bool bQueryIn, FPhysicsActorHandle ActorRefIn)
-		: Shape(ShapeIn),bSimulation(bSimulationIn),bQuery(bQueryIn),ActorRef(ActorRefIn){}
+		: Shape(nullptr), ActorRef() { }
+	FPhysicsShapeReference_Chaos(Chaos::FPerShapeData* ShapeIn, FPhysicsActorHandle ActorRefIn)
+		: Shape(ShapeIn), ActorRef(ActorRefIn) { }
 	FPhysicsShapeReference_Chaos(const FPhysicsShapeReference_Chaos& Other)
 		: Shape(Other.Shape)
-		, bSimulation(Other.bSimulation)
-		, bQuery(Other.bQuery)
 		, ActorRef(Other.ActorRef){}
-
 
 	bool IsValid() const { return (Shape != nullptr); }
 	bool Equals(const FPhysicsShapeReference_Chaos& Other) const { return Shape == Other.Shape; }
     bool operator==(const FPhysicsShapeReference_Chaos& Other) const { return Equals(Other); }
-	
 	const Chaos::FImplicitObject& GetGeometry() const;
 
-
 	Chaos::FPerShapeData* Shape;
-	bool bSimulation;
-	bool bQuery;
     FPhysicsActorHandle ActorRef;
 };
 
@@ -402,7 +395,7 @@ public:
 	static void SetSimulationFilter(const FPhysicsShapeHandle& InShape, const FCollisionFilterData& InFilter);
 	static void SetQueryFilter(const FPhysicsShapeHandle& InShape, const FCollisionFilterData& InFilter);
 	static void SetIsSimulationShape(const FPhysicsShapeHandle& InShape, bool bIsSimShape);
-    static void SetIsQueryShape(const FPhysicsShapeHandle& InShape, bool bIsQueryShape) { const_cast<FPhysicsShapeHandle&>(InShape).bQuery = bIsQueryShape; }
+    static void SetIsQueryShape(const FPhysicsShapeHandle& InShape, bool bIsQueryShape);
     static void SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData);
     static void SetGeometry(const FPhysicsShapeHandle& InShape, physx::PxGeometry& InGeom) {}
 	static void SetLocalTransform(const FPhysicsShapeHandle& InShape, const FTransform& NewLocalTransform);
