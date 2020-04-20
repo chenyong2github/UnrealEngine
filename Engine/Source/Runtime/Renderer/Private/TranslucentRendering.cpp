@@ -401,6 +401,12 @@ void RenderViewTranslucencyInner(FRHICommandListImmediate& RHICmdList, const FVi
 		// editor and debug rendering
 		if (View.bHasTranslucentViewMeshElements)
 		{
+			if (ParallelCommandListSet)
+			{
+				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+				SceneContext.BeginRenderingPrePass(RHICmdList, false);
+			}
+
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(RenderTranslucencyParallel_SDPG_World);
 
@@ -449,6 +455,11 @@ void RenderViewTranslucencyInner(FRHICommandListImmediate& RHICmdList, const FVi
 						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
 					}
 				});
+			}
+
+			if (ParallelCommandListSet)
+			{
+				RHICmdList.EndRenderPass();
 			}
 		}
 
