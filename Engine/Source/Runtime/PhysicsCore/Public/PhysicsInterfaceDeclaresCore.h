@@ -90,6 +90,7 @@ namespace physx
 	struct PxSweepHit;
 	struct PxRaycastHit;
 	struct PxOverlapHit;
+	struct PxQueryFlag;
 	struct PxQueryHit;
 
 	class PxTransform;

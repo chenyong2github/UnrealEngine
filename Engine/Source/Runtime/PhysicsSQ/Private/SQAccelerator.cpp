@@ -422,12 +422,12 @@ struct TBPVisitor : public Chaos::ISpatialVisitor<TPayload, float>
 		, DebugParams(InDebugParams)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
-		, QueryFilterDataConcrete(C2UFilterData(QueryFilterData.data))
+		, QueryFilterDataConcrete(ToUnrealFilterData(InQueryFilterData.data))
 		, QueryGeom(&InQueryGeom)
 		, QueryCallback(InQueryCallback)
 		, StartTM(InWorldTM)
 	{
-		bAnyHit = QueryFilterData.flags & FChaosQueryFlag::eANY_HIT;
+		bAnyHit = QueryFilterData.flags & FPhysicsQueryFlag::eANY_HIT;
 	}
 	virtual bool Overlap(const Chaos::TSpatialVisitorData<TPayload>& Instance) override
 	{
@@ -479,7 +479,7 @@ private:
 		Hit.Actor = GeometryParticle;
 		for (const auto& Shape : Shapes)
 		{
-			ECollisionQueryHitType HitType = QueryFilterData.flags & FChaosQueryFlag::ePREFILTER ? QueryCallback.PreFilter(QueryFilterDataConcrete, *Shape, *GeometryParticle) : ECollisionQueryHitType::Block;
+			ECollisionQueryHitType HitType = QueryFilterData.flags & FPhysicsQueryFlag::ePREFILTER ? QueryCallback.PreFilter(QueryFilterDataConcrete, *Shape, *GeometryParticle) : ECollisionQueryHitType::Block;
 			if (HitType != ECollisionQueryHitType::None)
 			{
 				const bool bBlocker = (HitType == ECollisionQueryHitType::Block || bAnyHit || HitBuffer.WantsSingleResult());
@@ -559,7 +559,12 @@ void OverlapHelper(const QueryGeomType& QueryGeom, const Chaos::ISpatialAccelera
 	const TAABB<float, 3> Bounds = QueryGeom.BoundingBox().TransformedAABB(GeomPose);
 
 	HitBuffer.IncFlushCount();
-	if (QueryFilterData.flags & FChaosQueryFlag::eSKIPNARROWPHASE)
+#if PHYSICS_INTERFACE_PHYSX
+	bool bSkipNarrowPhase = false; // Flag doesn't exist on PhysX type.
+#else
+	bool bSkipNarrowPhase = QueryFilterData.flags & FPhysicsQueryFlag::eSKIPNARROWPHASE;
+#endif
+	if (bSkipNarrowPhase)
 	{
 		TBPVisitor<QueryGeomType, TAccelerationStructureHandle<float, 3>, FOverlapHit> OverlapVisitor(GeomPose, HitBuffer, QueryFilterData, QueryCallback, QueryGeom, DebugParams);
 		SpatialAcceleration.Overlap(Bounds, OverlapVisitor);
