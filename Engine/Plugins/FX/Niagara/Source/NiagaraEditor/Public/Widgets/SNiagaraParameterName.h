@@ -19,17 +19,27 @@ public:
 	DECLARE_DELEGATE_OneParam(FOnNameChanged, FName /* InNewName */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnVerifyNameChange, FName /* InNewName */, FText& /* OutErrorMessage */)
 
+public: 
+	enum class ESingleNameDisplayMode
+	{
+		Namespace,
+		Name
+	};
 public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterName) 
 		: _EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
 		, _ReadOnlyTextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 		, _IsReadOnly(false)
+		, _SingleNameDisplayMode(ESingleNameDisplayMode::Name)
 		, _DecoratorHAlign(HAlign_Left)
-	{}
+	{
+		_Clipping = EWidgetClipping::OnDemand;
+	}
 		SLATE_STYLE_ARGUMENT(FInlineEditableTextBlockStyle, EditableTextStyle)
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, ReadOnlyTextStyle)
 		SLATE_ATTRIBUTE(FName, ParameterName)
 		SLATE_ARGUMENT(bool, IsReadOnly)
+		SLATE_ARGUMENT(ESingleNameDisplayMode, SingleNameDisplayMode)
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_EVENT(FOnVerifyNameChange, OnVerifyNameChange)
 		SLATE_EVENT(FOnNameChanged, OnNameChanged)
@@ -73,6 +83,7 @@ private:
 	const FTextBlockStyle* ReadOnlyTextStyle;
 	TAttribute<FName> ParameterName;
 	bool bIsReadOnly;
+	ESingleNameDisplayMode SingleNameDisplayMode;
 	TAttribute<FText> HighlightText;
 	FOnVerifyNameChange OnVerifyNameChangeDelegate;
 	FOnNameChanged OnNameChangedDelegate;

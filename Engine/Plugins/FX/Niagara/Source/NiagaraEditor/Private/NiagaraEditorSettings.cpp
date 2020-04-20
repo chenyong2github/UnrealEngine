@@ -39,36 +39,34 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetDisplayName(LOCTEXT("DefaultDisplayName", "None"))
 			.SetDescription(LOCTEXT("DefaultDescription", "Arbitrary sub-namespace for specifying module specific dataset attributes, or calling nested modules."))
 			.SetBackgroundColor(FLinearColor(FColor(102, 102, 102)))
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditing),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::SystemNamespace})
 			.SetDisplayName(LOCTEXT("SystemDisplayName", "System"))
 			.SetDisplayNameLong(LOCTEXT("SystemDisplayNameLong", "System Attributes"))
 			.SetDescription(LOCTEXT("SystemDescription", "Persistent attribute in the system which is written in a system\n stage and can be read anywhere."))
 			.SetBackgroundColor(FLinearColor(FColor(49, 113, 142)))
-			.SetSortId(10)
-			.AddOption(ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier),
+			.SetSortId(10),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::EmitterNamespace})
 			.SetDisplayName(LOCTEXT("EmitterDisplayName", "Emitter"))
-		.SetDisplayNameLong(LOCTEXT("EmitterDisplayNameLong", "Emitter Attributes"))
+			.SetDisplayNameLong(LOCTEXT("EmitterDisplayNameLong", "Emitter Attributes"))
 			.SetDescription(LOCTEXT("EmitterDescription", "Persistent attribute which is written in a emitter\nstage and can be read in emitter and particle stages."))
 			.SetBackgroundColor(FLinearColor(FColor(145, 99, 56)))
-			.SetSortId(20)
-			.AddOption(ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier),
+			.SetSortId(20),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ParticleAttributeNamespace})
 			.SetDisplayName(LOCTEXT("ParticleDisplayName", "Particles"))
 			.SetDisplayNameLong(LOCTEXT("ParticleDisplayNameLong", "Particle Attributes"))
 			.SetDescription(LOCTEXT("ParticleDescription", "Persistent attribute which is written in a particle\nstage and can be read in particle stages."))
 			.SetBackgroundColor(FLinearColor(FColor(72, 130, 71)))
-			.SetSortId(30)
-			.AddOption(ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier),
+			.SetSortId(30),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleDisplayName", "Input"))
 			.SetDisplayNameLong(LOCTEXT("ModuleDisplayNameLong", "Module Inputs"))
 			.SetDescription(LOCTEXT("ModuleDescription", "A value which exposes a module input to the system and emitter editor."))
 			.SetBackgroundColor(FLinearColor(FColor(136, 66, 65)))
 			.SetSortId(40)
-			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier),
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::OutputNamespace, FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleOutputDisplayName", "Output"))
 			.SetDisplayNameLong(LOCTEXT("ModuleOutputDisplayNameLong", "Module Outputs"))
@@ -77,15 +75,16 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(60)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventCreatingInSystemEditor)
-			.AddOption(ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventCreatingInSystemEditor),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::OutputNamespace})
 			.SetDisplayName(LOCTEXT("OutputDisplayName", "Output"))
 			.SetDescription(LOCTEXT("OutputDescription", "A transient value which the module author has decided might be useful to other modules further down in the stage.\nTransient values do not persist from frame to frame, or between stages, e.g. emitter to particle, or spawn to update."))
 			.SetBackgroundColor(FLinearColor(FColor(108, 87, 131)))
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditing),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::LocalNamespace, FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleLocalDisplayName", "Local"))
 			.SetDisplayNameLong(LOCTEXT("ModuleLocalDisplayNameLong", "Module Locals"))
@@ -93,8 +92,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(191, 176, 84)))
 			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark")
 			.SetSortId(50)
-			//.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
-			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem),
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::TransientNamespace})
 			.SetDisplayName(LOCTEXT("TransientDisplayName", "Transient"))
 			.SetDisplayNameLong(LOCTEXT("TransientDisplayNameLong", "Stage Transients"))
@@ -102,7 +101,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(108, 87, 131)))
 			.SetSortId(80)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
-			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem),
+			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::EngineNamespace})
 			.SetDisplayName(LOCTEXT("EngineDisplayName", "Engine"))
 			.SetDisplayNameLong(LOCTEXT("EngineDisplayNameLong", "Engine Provided"))
@@ -110,14 +110,17 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(170, 170, 170)))
 			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark")
 			.SetSortId(70)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditing),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::UserNamespace})
 			.SetDisplayName(LOCTEXT("UserDisplayName", "User"))
 			.SetDisplayNameLong(LOCTEXT("UserDisplayNameLong", "User Exposed"))
 			.SetDescription(LOCTEXT("UserDescription", "A read only value which can be initialized per system and\nmodified externally in the level, by blueprint, or by c++."))
 			.SetBackgroundColor(FLinearColor(FColor(91, 161, 194)))
 			.SetSortId(0)
-			.AddOption(ENiagaraNamespaceMetadataOptions::HideInScript),
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInScript)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ParameterCollectionNamespace})
 			.SetDisplayName(LOCTEXT("NiagaraParameterCollectionDisplayName", "NPC"))
 			.SetDisplayNameLong(LOCTEXT("NiagaraParameterCollectionDisplayNameLong", "Niagara Parameter Collection"))
@@ -127,7 +130,9 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(90)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditing),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::DataInstanceNamespace})
 			.SetDisplayName(LOCTEXT("DataInstanceDisplayName", "Data Instance"))
 			.SetDescription(LOCTEXT("DataInstanceDescription", "A special value which has a single bool IsAlive value, which determines if a particle is alive or not."))
@@ -137,7 +142,17 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditing),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
+		FNiagaraNamespaceMetadata({FNiagaraConstants::StaticSwitchNamespace})
+			.SetDisplayName(LOCTEXT("StatisSwitchDisplayName", "Static Switch"))
+			.SetDescription(LOCTEXT("StaticSwitchDescription", "Values which can only be set at edit time."))
+			.SetSortId(45)
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 	};
 
 	NamespaceModifierMetadata =
