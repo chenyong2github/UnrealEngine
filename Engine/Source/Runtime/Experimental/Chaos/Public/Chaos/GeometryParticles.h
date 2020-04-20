@@ -161,21 +161,6 @@ namespace Chaos
 			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bEnable](FCollisionData& Data){ Data.bSimCollision = bEnable; });
 		}
 
-		/*
-		// TODO: Deprecate GetDisable() and SetDisable()!
-		bool GetDisable() const { return !CollisionData.Read().bSimCollision; }
-		void SetDisable(const bool bDisable)
-		{
-			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bDisable](FCollisionData& Data){ Data.bSimCollision = !bDisable; });
-		}
-		*/
-
-		bool GetSimulate() const { return CollisionData.Read().bSimulate; }
-		void SetSimulate(const bool bSimulate)
-		{
-			CollisionData.Modify(true,DirtyFlags,Proxy, ShapeIdx,[bSimulate](FCollisionData& Data){ Data.bSimulate = bSimulate; });
-		}
-
 		EChaosCollisionTraceFlag GetCollisionTraceType() const { return CollisionData.Read().CollisionTraceType; }
 		void SetCollisionTraceType(const EChaosCollisionTraceFlag InTraceFlag)
 		{
