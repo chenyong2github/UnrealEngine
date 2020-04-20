@@ -263,6 +263,11 @@ namespace Chaos
 		int32 GetMaxSubSteps() const { return MMaxSubSteps; }
 
 		/**/
+		void SetIterations(const int32 InNumIterations) { GetEvolution()->SetNumIterations(InNumIterations); }
+		void SetPushOutIterations(const int32 InNumIterations) {  GetEvolution()->SetNumPushOutIterations(InNumIterations); }
+		void SetPushOutPairIterations(const int32 InNumIterations) {  GetEvolution()->GetCollisionConstraints().SetPushOutPairIterations(InNumIterations); }
+
+		/**/
 		void SetGenerateCollisionData(bool bDoGenerate) { GetEventFilters()->SetGenerateCollisionEvents(bDoGenerate); }
 		void SetGenerateBreakingData(bool bDoGenerate)
 		{
