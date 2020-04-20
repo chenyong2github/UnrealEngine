@@ -1798,7 +1798,7 @@ void UAbilitySystemComponent::ClientActivateAbilitySucceedWithEventData_Implemen
 			TArray<UGameplayAbility*> Instances = Spec->GetAbilityInstances();
 			for (UGameplayAbility* LocalAbility : Instances)
 			{
-				if (LocalAbility->GetCurrentActivationInfo().GetActivationPredictionKey() == PredictionKey)
+				if (LocalAbility != nullptr && LocalAbility->GetCurrentActivationInfo().GetActivationPredictionKey() == PredictionKey)
 				{
 					LocalAbility->ConfirmActivateSucceed();
 					found = true;
