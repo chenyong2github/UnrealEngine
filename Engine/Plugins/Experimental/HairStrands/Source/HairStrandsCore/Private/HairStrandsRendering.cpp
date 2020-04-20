@@ -278,7 +278,7 @@ class FHairInterpolationCS : public FGlobalShader
 
 	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
 	class FDebug : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 2);
-	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 3);
+	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 5);
 	class FSimulation : SHADER_PERMUTATION_INT("PERMUTATION_SIMULATION", 2);
 	class FScaleAndClip : SHADER_PERMUTATION_INT("PERMUTATION_SCALE_AND_CLIP", 2);
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry, FSimulation, FScaleAndClip>;
@@ -374,7 +374,8 @@ static void AddHairStrandsInterpolationPass(
 	const FShaderResourceViewRHIRef& VertexToClusterIdBuffer,
 	const FShaderResourceViewRHIRef& SimRootPointIndexBuffer,
 	FBufferTransitionQueue& OutTransitionQueue,
-	const bool bHasGlobalInterpolation)
+	const bool bHasGlobalInterpolation,
+	const uint32 HairInterpolationType)
 {
 	const uint32 GroupSize = ComputeGroupSize();
 	const FIntVector DispatchCount = ComputeDispatchCount(VertexCount, GroupSize);
@@ -507,8 +508,8 @@ static void AddHairStrandsInterpolationPass(
 	FHairInterpolationCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairInterpolationCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 	PermutationVector.Set<FHairInterpolationCS::FDebug>(Parameters->HairDebugMode > 0 ? 1 : 0);
-	PermutationVector.Set<FHairInterpolationCS::FDynamicGeometry>((bSupportDynamicMesh && bSupportGlobalInterpolation) ? 2 :
-							(bSupportDynamicMesh && !bSupportGlobalInterpolation) ? 1 : 0);
+	PermutationVector.Set<FHairInterpolationCS::FDynamicGeometry>((bSupportDynamicMesh && bHasLocalDeformation) ? HairInterpolationType+1 :
+							(bSupportDynamicMesh && !bHasLocalDeformation) ? 1 : 0);
 	PermutationVector.Set<FHairInterpolationCS::FSimulation>(bHasLocalDeformation ? 1 : 0);
 	PermutationVector.Set<FHairInterpolationCS::FScaleAndClip>(bNeedScaleOrClip ? 1 : 0);
 
@@ -1014,7 +1015,8 @@ void ComputeHairStrandsInterpolation(
 					Input.VertexToClusterIdBuffer->SRV,
 					Input.SimRootPointIndexBuffer->SRV,
 					TransitionQueue,
-					Input.bHasGlobalInterpolation);
+					Input.bHasGlobalInterpolation,
+					Input.HairInterpolationType);
 
 			}
 			GraphBuilder.Execute();
