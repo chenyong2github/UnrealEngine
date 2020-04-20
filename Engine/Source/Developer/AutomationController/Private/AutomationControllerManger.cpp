@@ -1036,6 +1036,7 @@ void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWor
 
 	bool bTree = true;
 	FString FileName = ScreenshotIncomingFolder / Message.ScreenShotName;
+	FString TraceFileName = FPaths::ChangeExtension(ScreenshotIncomingFolder / Message.ScreenShotName, TEXT(".rdc"));
 
 	FString DirectoryPath = FPaths::GetPath(FileName);
 
@@ -1052,6 +1053,17 @@ void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWor
 		FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
 		UE_LOG(LogAutomationController, Warning, TEXT("Fail to save screenshot to %s. WriteError: %u (%s)"), *FileName, WriteErrorCode, WriteErrorBuffer);
 		return;
+	}
+
+	if (Message.FrameTrace.Num() > 0)
+	{
+		if (!FFileHelper::SaveArrayToFile(Message.FrameTrace, *TraceFileName))
+		{
+			uint32 WriteErrorCode = FPlatformMisc::GetLastError();
+			TCHAR WriteErrorBuffer[2048];
+			FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
+			UE_LOG(LogAutomationController, Warning, TEXT("Faild to save frame trace to %s. WriteError: %u (%s)"), *TraceFileName, WriteErrorCode, WriteErrorBuffer);
+		}
 	}
 
 	// TODO Automation There is identical code in, Engine\Source\Runtime\AutomationWorker\Private\AutomationWorkerModule.cpp,

@@ -28,6 +28,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogEngineAutomationLatentCommand, Log, All);
 DEFINE_LOG_CATEGORY(LogEditorAutomationTests);
 DEFINE_LOG_CATEGORY(LogEngineAutomationTests);
 
+static TAutoConsoleVariable<int32> CVarAutomationAllowFrameTraceCapture(
+	TEXT("AutomationAllowFrameTraceCapture"),
+	1,
+	TEXT("Allow automation to capture frame traces."),
+	ECVF_Default
+	);
+
 //declare static variable
 FOnEditorAutomationMapLoad AutomationCommon::OnEditorAutomationMapLoad;
 
@@ -137,6 +144,43 @@ namespace AutomationCommon
 		Data.ScreenshotName = GetScreenshotName(MapAndTest);
 
 		return Data;
+	}
+
+	TArray<uint8> CaptureFrameTrace(const FString& MapOrContext, const FString& TestName)
+	{
+		TArray<uint8> FrameTrace;
+
+		if (CVarAutomationAllowFrameTraceCapture.GetValueOnGameThread() != 0 && FAutomationTestFramework::Get().OnCaptureFrameTrace.IsBound())
+		{
+			const FString MapAndTest = MapOrContext / FPaths::MakeValidFileName(TestName, TEXT('_'));
+			FString ScreenshotName = GetScreenshotName(MapAndTest);
+			FString TempCaptureFilePath = FPaths::ChangeExtension(FPaths::ConvertRelativePathToFull(FPaths::AutomationDir() / TEXT("Incoming/") / ScreenshotName), TEXT(".rdc"));
+
+			UE_LOG(LogEngineAutomationTests, Log, TEXT("Taking Frame Trace: %s"), *TempCaptureFilePath);
+
+			FAutomationTestFramework::Get().OnCaptureFrameTrace.Execute(TempCaptureFilePath, GEngine->GameViewport->Viewport);
+			FlushRenderingCommands();
+
+			IPlatformFile& PlatformFileSystem = IPlatformFile::GetPlatformPhysical();
+			if (PlatformFileSystem.FileExists(*TempCaptureFilePath))
+			{
+				{
+					TUniquePtr<IFileHandle> FileHandle(PlatformFileSystem.OpenRead(*TempCaptureFilePath));
+
+					int64 FileSize = FileHandle->Size();
+					FrameTrace.SetNumUninitialized(FileSize);
+					FileHandle->Read(FrameTrace.GetData(), FileSize);
+				}
+
+				PlatformFileSystem.DeleteFile(*TempCaptureFilePath);
+			}
+			else
+			{
+				UE_LOG(LogEngineAutomationTests, Warning, TEXT("Failed taking frame trace: %s"), *TempCaptureFilePath);
+			}
+		}
+
+		return FrameTrace;
 	}
 #endif
 
