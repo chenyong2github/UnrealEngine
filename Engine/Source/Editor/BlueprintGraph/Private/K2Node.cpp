@@ -1016,6 +1016,8 @@ void UK2Node::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) con
 			ValidateOrphanPins(MessageLog, false);
 		}
 	}
+
+	FBlueprintEditorUtils::ValidateEditorOnlyNodes(this, MessageLog);
 }
 
 FString UK2Node::GetPinMetaData(FName InPinName, FName InKey)

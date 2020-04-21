@@ -4376,6 +4376,29 @@ void FBlueprintEditorUtils::ValidatePinConnections(const UEdGraphNode* Node, FCo
 	}
 }
 
+void FBlueprintEditorUtils::ValidateEditorOnlyNodes(const UK2Node* Node, FCompilerResultsLog& MessageLog)
+{
+	if(!Node)
+	{
+		return;
+	}
+
+	const UBlueprint* BP = Node->GetBlueprint();
+	const UClass* NodeClass = Node->GetClass();
+	const UPackage* NodeCDOPackage = NodeClass->ClassDefaultObject ? NodeClass->ClassDefaultObject->GetOutermost() : nullptr;
+	
+	if(NodeCDOPackage && BP)
+	{
+		const bool bIsEditorOnlyPackage = NodeCDOPackage->HasAllPackagesFlags(PKG_EditorOnly);
+		const bool bIsUncookedOrDev = NodeCDOPackage->HasAnyPackageFlags(PKG_UncookedOnly | PKG_Developer);		
+
+		if (!bIsUncookedOrDev && bIsEditorOnlyPackage && !BP->IsEditorOnly())
+		{
+			MessageLog.Warning(*LOCTEXT("EditorOnlyConflict_ErrorFmt", "The node '@@' is from an Editor Only module, but is placed in a runtime blueprint! K2 Nodes should only be defined in a Developer or UncookedOnly module.").ToString(), Node);
+		}
+	}
+}
+
 void FBlueprintEditorUtils::GetClassVariableList(const UBlueprint* Blueprint, TSet<FName>& VisibleVariables, bool bIncludePrivateVars) 
 {
 	// Existing variables in the parent class and above, when using the compilation manager the previous SkeletonGeneratedClass will have been cleared when

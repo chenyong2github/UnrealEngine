@@ -767,6 +767,15 @@ public:
 	static void ValidatePinConnections(const UEdGraphNode* Node, FCompilerResultsLog& MessageLog);
 
 	/**
+	* If the given node is from an editor only module but is placed in a runtime blueprint
+	* then place a warning in the message log that it will not be included in a cooked build. 
+	* 
+	* @param Node			Node to check the outer package on
+	* @param MessageLog		BP Compiler results log to output messages to
+	*/
+	static void ValidateEditorOnlyNodes(const UK2Node* Node, FCompilerResultsLog& MessageLog);
+
+	/**
 	 * Gets the visible class variable list.  This includes both variables introduced here and in all superclasses.
 	 *
 	 * @param [in,out]	VisibleVariables	The visible variables will be appended to this array.
