@@ -15,6 +15,7 @@ namespace ChaosTest
 	/**
 	 * Base class for constraint tests. Provides a basic sim with no builtin constraint support.
 	 */
+	template <typename TEvolution>
 	class FConstraintsTest
 	{
 	public:
@@ -61,7 +62,7 @@ namespace ChaosTest
 
 		// Solver state
 		TPBDRigidsSOAs<FReal, 3> SOAs;
-		FPBDRigidsEvolution Evolution;
+		TEvolution Evolution;
 		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 
