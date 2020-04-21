@@ -43,8 +43,8 @@ bool SPropertyEditorMap::Supports(const TSharedRef< FPropertyEditor >& InPropert
 
 void SPropertyEditorMap::GetDesiredWidth(float& OutMinDesiredWidth, float& OutMaxDesiredWidth)
 {
-	OutMinDesiredWidth = 190.0f;
-	OutMaxDesiredWidth = 190.0f;
+	OutMinDesiredWidth = 170.0f;
+	OutMaxDesiredWidth = 170.0f;
 }
 
 FText SPropertyEditorMap::GetMapTextValue() const

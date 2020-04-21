@@ -682,12 +682,6 @@ namespace PropertyEditorHelpers
 		// Handle a container property.
 		if( NodeProperty->IsA(FArrayProperty::StaticClass()) || NodeProperty->IsA(FSetProperty::StaticClass()) || NodeProperty->IsA(FMapProperty::StaticClass()) )
 		{
-			if (!NodeProperty->IsA(FArrayProperty::StaticClass()))
-		{
-				// Only Sets and Maps get a Documentation widget
-				OutRequiredButtons.Add(EPropertyButton::Documentation);
-			}
-			
 			if( !(NodeProperty->PropertyFlags & CPF_EditFixedSize) )
 			{
 				OutRequiredButtons.Add( EPropertyButton::Add );
