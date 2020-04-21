@@ -595,8 +595,8 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 	if (bUseGpuUniformlyDistributedSampling)
 	{
 		const FSkeletalMeshAreaWeightedTriangleSampler& triangleSampler = SkeletalMeshSamplingLODBuiltData->AreaWeightedTriangleSampler;
-		const TArray<float, FMemoryImageAllocator>& Prob = triangleSampler.GetProb();
-		const TArray<int32, FMemoryImageAllocator>& Alias = triangleSampler.GetAlias();
+		TArrayView<const float> Prob = triangleSampler.GetProb();
+		TArrayView<const int32> Alias = triangleSampler.GetAlias();
 		check(TriangleCount == triangleSampler.GetNumEntries());
 
 		FRHIResourceCreateInfo CreateInfo;
