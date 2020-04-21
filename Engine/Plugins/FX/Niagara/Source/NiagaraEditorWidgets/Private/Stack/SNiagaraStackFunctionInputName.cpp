@@ -237,7 +237,7 @@ void SNiagaraStackFunctionInputName::GetChangeNamespaceModifierSubMenu(FMenuBuil
 	TAttribute<FText> SetNoneToolTip;
 	SetNoneToolTip.Bind(TAttribute<FText>::FGetter::CreateSP(this, &SNiagaraStackFunctionInputName::GetSetNamespaceModifierToolTip, FName(NAME_None)));
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("NoneNamespaceModifier", "None"),
+		LOCTEXT("NoneNamespaceModifier", "Clear"),
 		SetNoneToolTip,
 		FSlateIcon(),
 		FUIAction(

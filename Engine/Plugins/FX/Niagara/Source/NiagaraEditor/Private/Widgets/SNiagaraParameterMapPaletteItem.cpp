@@ -125,9 +125,9 @@ void SNiagaraParameterMapPalleteItem::Tick(const FGeometry& AllottedGeometry, co
 	if (ParameterNameTextBlock.IsValid())
 	{
 		TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(ActionPtr.Pin());
-		if (ParameterAction.IsValid() && ParameterAction->bNamespaceModifierRenamePending)
+		if (ParameterAction.IsValid() && ParameterAction->GetIsNamespaceModifierRenamePending())
 		{
-			ParameterAction->bNamespaceModifierRenamePending = false;
+			ParameterAction->SetIsNamespaceModifierRenamePending(false);
 			ParameterNameTextBlock->EnterNamespaceModifierEditingMode();
 		}
 	}
