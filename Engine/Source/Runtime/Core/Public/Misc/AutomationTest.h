@@ -663,6 +663,10 @@ struct CORE_API FAutomationScreenshotCompareResults
  */
 DECLARE_DELEGATE_TwoParams(FOnTestScreenshotCaptured, const TArray<FColor>&, const FAutomationScreenshotData&);
 
+DECLARE_DELEGATE_ThreeParams(FOnTestScreenshotAndTraceCaptured, const TArray<FColor>&, const TArray<uint8>&, const FAutomationScreenshotData&);
+
+DECLARE_DELEGATE_TwoParams(FOnCaptureFrameTrace, const FString& /*DestPath*/, class FViewport* /*Optional Capture Viewport*/);
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTestScreenshotComparisonComplete, const FAutomationScreenshotCompareResults& /*CompareResults*/);
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTestDataRetrieved, bool /*bWasNew*/, const FString& /*JsonData*/);
@@ -690,6 +694,9 @@ public:
 
 	/** The final call related to screenshots, after they've been taken, and after they've been compared (or not if automation isn't running). */
 	FSimpleMulticastDelegate OnScreenshotTakenAndCompared;
+
+	/** Called when a frame trace should be captured */
+	FOnCaptureFrameTrace OnCaptureFrameTrace;
 
 	/**
 	 * Return the singleton instance of the framework.
@@ -835,6 +842,11 @@ public:
 	 * Accessor for delegate called when a png screenshot is captured 
 	 */
 	FOnTestScreenshotCaptured& OnScreenshotCaptured();
+
+	/**
+	 * Accessor for delegate called when a png screenshot is captured and a frame trace
+	 */
+	FOnTestScreenshotAndTraceCaptured& OnScreenshotAndTraceCaptured();
 
 	/**
 	 * Sets forcing smoke tests.
@@ -1017,6 +1029,9 @@ private:
 
 	/** Delegate called at the end of the frame when a screenshot is captured and a .png is requested */
 	FOnTestScreenshotCaptured TestScreenshotCapturedDelegate;
+
+	/** Delegate called at the end of the frame when a screenshot and frame trace is captured and a .png is requested */
+	FOnTestScreenshotAndTraceCaptured TestScreenshotAndTraceCapturedDelegate;
 
 	/** Forces running smoke tests */
 	bool bForceSmokeTests;
