@@ -63,6 +63,7 @@ public:
 	TSharedPtr<FUICommandInfo> PrimitiveQueryOnly;
 	TSharedPtr<FUICommandInfo> PrimitivePhysicsOnly;
 	TSharedPtr<FUICommandInfo> PrimitiveNoCollision;
+	TSharedPtr<FUICommandInfo> PrimitiveContributeToMass;
 	TSharedPtr<FUICommandInfo> WeldToBody;
 	TSharedPtr<FUICommandInfo> AddSphere;
 	TSharedPtr<FUICommandInfo> AddSphyl;

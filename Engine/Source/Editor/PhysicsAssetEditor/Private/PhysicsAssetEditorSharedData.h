@@ -193,6 +193,9 @@ public:
 	void SetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled);
 	bool CanSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled) const;
 	bool GetIsPrimitiveCollisionEnabled(ECollisionEnabled::Type CollisionEnabled) const;
+	void SetPrimitiveContributeToMass(bool bContributeToMass);
+	bool CanSetPrimitiveContributeToMass() const;
+	bool GetPrimitiveContributeToMass() const;
 
 	/** Prevents GC from collecting our objects */
 	void AddReferencedObjects(FReferenceCollector& Collector);
