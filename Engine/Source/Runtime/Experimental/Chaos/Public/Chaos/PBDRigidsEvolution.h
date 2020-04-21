@@ -390,7 +390,7 @@ class TPBDRigidsEvolutionBase
 		ExternalSpatialData = SpatialData;
 	}
 
-	void DestroyParticle(TGeometryParticleHandle<FReal, 3>* Particle)
+	CHAOS_API void DestroyParticle(TGeometryParticleHandle<FReal, 3>* Particle)
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
 		ConstraintGraph.RemoveParticle(Particle);
