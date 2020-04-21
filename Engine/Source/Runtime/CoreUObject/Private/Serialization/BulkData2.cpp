@@ -1483,7 +1483,6 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 
 	SerializeDuplicateData(Ar, NewFlags, NewSizeOnDisk, NewOffset);
 
-
 #if ALLOW_OPTIONAL_DATA
 	if (IsUsingIODispatcher())
 	{
@@ -1502,7 +1501,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 	else
 	{
 		check(Filename != nullptr);
-		const FString OptionalDataFilename = ConvertFilenameFromFlags(*Filename);
+		const FString OptionalDataFilename = FPathViews::ChangeExtension(*Filename, BulkDataExt::Optional);
 
 		if (IFileManager::Get().FileExists(*OptionalDataFilename))
 		{
