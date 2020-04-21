@@ -22,6 +22,11 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 inline void InitializeBlueNoise(FBlueNoise& BlueNoise)
 {
 	check(GEngine);
-	BlueNoise.Dimensions = FIntVector(GEngine->BlueNoiseTexture->GetSizeX(), GEngine->BlueNoiseTexture->GetSizeX(), GEngine->BlueNoiseTexture->GetSizeY() / GEngine->BlueNoiseTexture->GetSizeX());
+	BlueNoise.Dimensions = FIntVector(
+		GEngine->BlueNoiseTexture->GetSizeX(), 
+		GEngine->BlueNoiseTexture->GetSizeX(), 
+		GEngine->BlueNoiseTexture->GetSizeY() / FMath::Max<int32>(1, GEngine->BlueNoiseTexture->GetSizeX())
+	);
+
 	BlueNoise.Texture = GEngine->BlueNoiseTexture->Resource->TextureRHI;
 }
