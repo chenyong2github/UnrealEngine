@@ -14,4 +14,7 @@ public:
 	virtual UClass* GetSupportedTemplateType() const override;
 	virtual UObject* SpawnObject(FMovieSceneSpawnable& Spawnable, FMovieSceneSequenceIDRef TemplateID, IMovieScenePlayer& Player) override;
 	virtual void DestroySpawnedObject(UObject& Object) override;
+
+private:
+	TSet<FName> ErrorLevels;
 };
