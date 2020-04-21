@@ -666,17 +666,17 @@ const FUniformExpressionSet& FMaterial::GetUniformExpressions() const
 	return EmptyExpressions;
 }
 
-const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& FMaterial::GetUniformTextureExpressions(EMaterialTextureParameterType Type) const
+TArrayView<const FMaterialTextureParameterInfo> FMaterial::GetUniformTextureExpressions(EMaterialTextureParameterType Type) const
 {
 	return GetUniformExpressions().UniformTextureParameters[(uint32)Type];
 }
 
-const TArray<FMaterialVectorParameterInfo, FMemoryImageAllocator>& FMaterial::GetUniformVectorParameterExpressions() const
+TArrayView<const FMaterialVectorParameterInfo> FMaterial::GetUniformVectorParameterExpressions() const
 { 
 	return GetUniformExpressions().UniformVectorParameters;
 }
 
-const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>& FMaterial::GetUniformScalarParameterExpressions() const
+TArrayView<const FMaterialScalarParameterInfo> FMaterial::GetUniformScalarParameterExpressions() const
 { 
 	return GetUniformExpressions().UniformScalarParameters;
 }

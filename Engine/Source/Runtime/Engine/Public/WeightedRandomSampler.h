@@ -50,8 +50,8 @@ public:
 
 	int32 GetNumEntries() const { return Prob.Num(); }
 
-	const TArray<float, FMemoryImageAllocator>& GetProb() const { return Prob; }
-	const TArray<int32, FMemoryImageAllocator>& GetAlias() const { return Alias; }
+	TArrayView<const float> GetProb() const { return Prob; }
+	TArrayView<const int32> GetAlias() const { return Alias; }
 
 protected:
 

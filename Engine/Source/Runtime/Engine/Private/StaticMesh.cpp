@@ -204,8 +204,8 @@ void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI()
 		for (uint32 i = 0; i < AllSectionCount; ++i)
 		{
 			FStaticMeshSectionAreaWeightedTriangleSampler& sampler = (*Samplers)[i];
-			const TArray<float, FMemoryImageAllocator>& ProbTris = sampler.GetProb();
-			const TArray<int32, FMemoryImageAllocator>& AliasTris = sampler.GetAlias();
+			TArrayView<const float> ProbTris = sampler.GetProb();
+			TArrayView<const int32> AliasTris = sampler.GetAlias();
 			const uint32 NumTriangle = sampler.GetNumEntries();
 
 			for (uint32 t = 0; t < NumTriangle; ++t)
