@@ -278,6 +278,11 @@ private:
 	void OnSelectAllConstraints();
 	void OnToggleSelectionType();
 	void OnToggleShowSelected();
+	void OnShowAll();
+	void OnHideAll();
+	void OnShowSelected();
+	void OnHideSelected();
+	void OnShowOnlySelected();
 	void OnDeselectAll();
 
 	FText GetRepeatLastSimulationToolTip() const;
