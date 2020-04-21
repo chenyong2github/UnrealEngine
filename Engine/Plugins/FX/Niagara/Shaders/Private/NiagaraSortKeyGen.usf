@@ -18,8 +18,8 @@
 
 #define NIAGARA_KEY_GEN_MAX_CULL_PLANES 6 // must match the code
 Buffer<float> NiagaraParticleDataFloat;
-Buffer<float> NiagaraParticleDataHalf;
-Buffer<uint> NiagaraParticleDataInt;
+Buffer<half> NiagaraParticleDataHalf;
+Buffer<int> NiagaraParticleDataInt;
 Buffer<uint> GPUParticleCountBuffer;
 
 uint FloatDataStride;
@@ -50,17 +50,12 @@ float2 CullDistanceRangeSquared;
 float4 LocalBoundingSphere;
 
 RWBuffer<uint> OutKeys;
-RWBuffer<uint> OutParticleIndices;
+RWBuffer<int> OutParticleIndices;
 RWBuffer<uint> OutCulledParticleCounts;
 
 #if ENABLE_CULLING && !USE_WAVE_INTRINSICS
 groupshared uint CullGroupCount;
 #endif
-
-float GetFloat(Buffer<float> Buff, uint DataStride, uint RegisterIdx, uint InstanceID)
-{
-	return Buff[RegisterIdx * DataStride + InstanceID];
-}
 
 float GetFloat(uint RegisterIdx, uint InstanceID)
 {
@@ -68,11 +63,11 @@ float GetFloat(uint RegisterIdx, uint InstanceID)
 	if (RegisterIdx & (1 << 31))
 	{
 		RegisterIdx &= ~(1 << 31);
-		return GetFloat(NiagaraParticleDataHalf, HalfDataStride, RegisterIdx, InstanceID);
+		return NiagaraParticleDataHalf[RegisterIdx * HalfDataStride + InstanceID];
 	}
 	else
 	{
-		return GetFloat(NiagaraParticleDataFloat, FloatDataStride, RegisterIdx, InstanceID);
+		return NiagaraParticleDataFloat[RegisterIdx * FloatDataStride + InstanceID];
 	}
 }
 
