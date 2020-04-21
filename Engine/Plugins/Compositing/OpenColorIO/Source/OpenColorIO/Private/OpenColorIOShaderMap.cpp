@@ -237,18 +237,13 @@ FShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
 FShader* FOpenColorIOShaderType::FinishCompileShader(
 	const FSHAHash& InShaderMapHash,
 	const FShaderCompileJob& InCurrentJob,
-	const FString& InDebugDescription,
-	FShaderMapResourceBuilder& ResourceBuilder
+	const FString& InDebugDescription
 	)
 {
 	check(InCurrentJob.bSucceeded);
 
-	// Reuse an existing resource with the same key or create a new one based on the compile output
-	// This allows FShaders to share compiled bytecode and RHI shader references
-	const int32 ResourceIndex = ResourceBuilder.FindOrAddCode(InCurrentJob.Output);
-
 	const int32 PermutationId = 0;
-	FShader* Shader = ConstructCompiled(FOpenColorIOShaderType::CompiledShaderInitializerType(this, PermutationId, InCurrentJob.Output, ResourceIndex, InShaderMapHash, InDebugDescription));
+	FShader* Shader = ConstructCompiled(FOpenColorIOShaderType::CompiledShaderInitializerType(this, PermutationId, InCurrentJob.Output, InShaderMapHash, InDebugDescription));
 	InCurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), InCurrentJob.Output.Target, InCurrentJob.VFType);
 
 	return Shader;
@@ -476,15 +471,17 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 	}
 }
 
-FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompileJob& CurrentJob, const FSHAHash& InShaderMapHash, FShaderMapResourceBuilder& InResourceBuilder)
+FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompileJob& CurrentJob, const FSHAHash& InShaderMapHash)
 {
 	check(CurrentJob.Id == CompilingId);
+
+	GetResourceCode()->AddShaderCompilerOutput(CurrentJob.Output);
 
 	FShader* Shader = nullptr;
 
 	FOpenColorIOShaderType* OpenColorIOShaderType = CurrentJob.ShaderType->GetOpenColorIOShaderType();
 	check(OpenColorIOShaderType);
-	Shader = OpenColorIOShaderType->FinishCompileShader(InShaderMapHash, CurrentJob, GetContent()->FriendlyName, InResourceBuilder);
+	Shader = OpenColorIOShaderType->FinishCompileShader(InShaderMapHash, CurrentJob, GetContent()->FriendlyName);
 	bCompiledSuccessfully = CurrentJob.bSucceeded;
 
 	FOpenColorIOPixelShader *OpenColorIOShader = static_cast<FOpenColorIOPixelShader*>(Shader);
@@ -502,10 +499,9 @@ bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FS
 	FSHAHash ShaderMapHash;
 	GetContent()->ShaderMapId.GetOpenColorIOHash(ShaderMapHash);
 
-	FShaderMapResourceBuilder ResourceBuilder(GetResourceCode());
 	do
 	{
-		ProcessCompilationResultsForSingleJob(StaticCastSharedRef<FShaderCompileJob>(InCompilationResults[InOutJobIndex]).Get(), ShaderMapHash, ResourceBuilder);
+		ProcessCompilationResultsForSingleJob(StaticCastSharedRef<FShaderCompileJob>(InCompilationResults[InOutJobIndex]).Get(), ShaderMapHash);
 
 		InOutJobIndex++;
 		

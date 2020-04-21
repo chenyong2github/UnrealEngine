@@ -3,6 +3,7 @@
 #include "Serialization/MemoryImage.h"
 #include "Containers/UnrealString.h"
 #include "Misc/SecureHash.h"
+#include "Misc/StringBuilder.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/NameTypes.h"
 #include "Hash/CityHash.h"
@@ -639,6 +640,132 @@ uint32 Freeze::DefaultGetTargetAlignment(const FTypeLayoutDesc& TypeDesc, const 
 	}
 
 	return Alignment;
+}
+
+void FMemoryToStringContext::AppendNullptr()
+{
+	String->Append(TEXT("nullptr\n"));
+}
+
+void FMemoryToStringContext::AppendIndent()
+{
+	for (int32 i = 0; i < Indent; ++i)
+	{
+		String->Append(TEXT("    "));
+	}
+}
+
+void Freeze::DefaultToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%s\n"), TypeDesc.Name);
+	++OutContext.Indent;
+
+	const FFieldLayoutDesc* FieldDesc = TypeDesc.Fields;
+	while (FieldDesc)
+	{
+		if (Freeze::IncludeField(FieldDesc, LayoutParams))
+		{
+			const FTypeLayoutDesc& FieldType = *FieldDesc->Type;
+			const uint8* FieldObject = (uint8*)Object + FieldDesc->Offset;
+
+			OutContext.AppendIndent();
+			OutContext.String->Appendf(TEXT("%s: "), FieldDesc->Name);
+
+			if (FieldDesc->BitFieldSize == 0u)
+			{
+				FieldType.ToStringFunc(FieldObject, FieldType, LayoutParams, OutContext);
+			}
+			else
+			{
+				OutContext.String->Append(TEXT("(BITFIELD)\n"));
+			}
+		}
+
+		FieldDesc = FieldDesc->Next;
+	}
+
+	--OutContext.Indent;
+}
+
+void Freeze::IntrinsicToString(char Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(short Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(int Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(int8 Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(long Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(long long Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(unsigned char Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(unsigned short Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(unsigned int Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(unsigned long Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(unsigned long long Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(float Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%g\n"), Object);
+}
+void Freeze::IntrinsicToString(double Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%g\n"), Object);
+}
+void Freeze::IntrinsicToString(wchar_t Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(char16_t Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%d\n"), Object);
+}
+void Freeze::IntrinsicToString(void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%p\n"), Object);
+}
+void Freeze::IntrinsicToString(const FHashedName& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%016llX\n"), Object.GetHash());
+}
+
+void FMemoryImageString::ToString(FMemoryToStringContext& OutContext) const
+{
+	if (Data.Num() > 0)
+	{
+		OutContext.String->Appendf(TEXT("\"%s\"\n"), Data.GetData());
+	}
+	else
+	{
+		OutContext.String->Append(TEXT("\"\"\n"));
+	}
 }
 
 uint32 Freeze::AppendHash(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)

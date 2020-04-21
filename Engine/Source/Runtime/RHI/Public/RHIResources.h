@@ -358,6 +358,7 @@ public:
 
 	explicit FRHIUniformBufferLayout(const TCHAR* InName) :
 		ConstantBufferSize(0),
+		NumUsesForDebugging(0),
 		Name(InName),
 		Hash(0)
 	{
@@ -369,6 +370,7 @@ public:
 	};
 	explicit FRHIUniformBufferLayout(EInit) :
 		ConstantBufferSize(0),
+		NumUsesForDebugging(0),
 		Hash(0)
 	{
 	}

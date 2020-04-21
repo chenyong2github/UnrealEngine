@@ -241,6 +241,12 @@ public:
 	friend CORE_API FString LexToString(const FSHAHash&);
 	friend CORE_API void LexFromString(FSHAHash& Hash, const TCHAR*);
 };
+
+namespace Freeze
+{
+	CORE_API void IntrinsicToString(const FSHAHash& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+}
+
 DECLARE_INTRINSIC_TYPE_LAYOUT(FSHAHash);
 
 inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSHAHash& Hash) { UE::String::BytesToHex(Hash.Hash, Builder); return Builder; }
