@@ -54,11 +54,10 @@ public:
 			FShaderType* InType,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
-			int32 InResourceIndex,
 			const FSHAHash& InOCIOShaderMapHash,
 			const FString& InDebugDescription
 			)
-		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InResourceIndex, InOCIOShaderMapHash,nullptr,nullptr)
+		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InOCIOShaderMapHash,nullptr,nullptr)
 		, DebugDescription(InDebugDescription)
 		{}
 	};
@@ -110,8 +109,7 @@ public:
 	FShader* FinishCompileShader(
 		const FSHAHash& InOCIOShaderMapHash,
 		const FShaderCompileJob& CurrentJob,
-		const FString& InDebugDescription,
-		FShaderMapResourceBuilder& ResourceBuilder
+		const FString& InDebugDescription
 		);
 
 	/**

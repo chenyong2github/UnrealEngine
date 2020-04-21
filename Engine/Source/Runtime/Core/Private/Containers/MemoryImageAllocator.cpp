@@ -2,6 +2,7 @@
 
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/ResourceArray.h"
+#include "Misc/StringBuilder.h"
 #include "Serialization/MemoryImage.h"
 
 IMPLEMENT_ABSTRACT_TYPE_LAYOUT(FResourceArrayInterface);
@@ -81,4 +82,26 @@ void FMemoryImageAllocatorBase::CopyUnfrozen(const FMemoryUnfreezeContent& Conte
 				(uint8*)OutDst + ElementSize * i);
 		}
 	}
+}
+
+void FMemoryImageAllocatorBase::ToString(const FTypeLayoutDesc& TypeDesc, int32 NumAllocatedElements, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) const
+{
+	OutContext.String->Appendf(TEXT("TArray<%s>, Num: %d\n"), TypeDesc.Name, NumAllocatedElements);
+	++OutContext.Indent;
+
+	const void* RawPtr = GetAllocation();
+	FTypeLayoutDesc::FToStringFunc* Func = TypeDesc.ToStringFunc;
+	const uint32 ElementSize = TypeDesc.Size;
+
+	for (int32 i = 0; i < NumAllocatedElements; ++i)
+	{
+		OutContext.AppendIndent();
+		OutContext.String->Appendf(TEXT("[%d]: "), i);
+		Func((uint8*)RawPtr + ElementSize * i,
+			TypeDesc,
+			LayoutParams,
+			OutContext);
+	}
+
+	--OutContext.Indent;
 }
