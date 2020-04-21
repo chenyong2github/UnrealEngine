@@ -581,7 +581,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 							+ SWrapBox::Slot()
 							.FillEmptySpace(true)
-							.FillLineWhenWidthLessThan(600)
+							.FillLineWhenSizeLessThan(600)
 							[
 								SAssignNew(ToolbarContainer, SBox)
 							]
