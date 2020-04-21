@@ -344,6 +344,7 @@ namespace ImmediatePhysics_Chaos
 					{
 						Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
 						Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
+						Dynamic->SetGravityEnabled(BodyInstance->bEnableGravity);
 					}
 					Dynamic->Disabled() = true;
 				}
