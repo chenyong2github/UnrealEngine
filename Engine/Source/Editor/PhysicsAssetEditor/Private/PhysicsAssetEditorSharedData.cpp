@@ -879,7 +879,7 @@ void FPhysicsAssetEditorSharedData::SetPrimitiveCollision(ECollisionEnabled::Typ
 
 	for (FSelection SelectedBody : SelectedBodies)
 	{
-		PhysicsAsset->SetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveIndex, CollisionEnabled);
+		PhysicsAsset->SetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex, CollisionEnabled);
 	}
 
 	PreviewChangedEvent.Broadcast();
@@ -899,7 +899,33 @@ bool FPhysicsAssetEditorSharedData::GetIsPrimitiveCollisionEnabled(ECollisionEna
 {
 	for (const FSelection SelectedBody : SelectedBodies)
 	{
-		if (PhysicsAsset->GetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveIndex) == CollisionEnabled)
+		if (PhysicsAsset->GetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex) == CollisionEnabled)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FPhysicsAssetEditorSharedData::SetPrimitiveContributeToMass(bool bContributeToMass)
+{
+	for (const FSelection SelectedBody : SelectedBodies)
+	{
+		PhysicsAsset->SetPrimitiveContributeToMass(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex, bContributeToMass);
+	}
+}
+
+bool FPhysicsAssetEditorSharedData::CanSetPrimitiveContributeToMass() const
+{
+	return true;
+}
+
+bool FPhysicsAssetEditorSharedData::GetPrimitiveContributeToMass() const
+{
+	for (const FSelection SelectedBody : SelectedBodies)
+	{
+		if (PhysicsAsset->GetPrimitiveContributeToMass(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex))
 		{
 			return true;
 		}

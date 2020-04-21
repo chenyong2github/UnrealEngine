@@ -700,6 +700,12 @@ void FPhysicsAssetEditor::BindCommands()
 		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsPrimitiveCollisionChecked, ECollisionEnabled::NoCollision));
 
 	ToolkitCommands->MapAction(
+		Commands.PrimitiveContributeToMass,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSetPrimitiveContributeToMass),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanSetPrimitiveContributeToMass),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::GetPrimitiveContributeToMass));
+
+	ToolkitCommands->MapAction(
 		Commands.WeldToBody,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnWeldToBody),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanWeldToBody));
@@ -1190,6 +1196,9 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveNoCollision);
 				InSubMenuBuilder.EndSection();
 #endif
+				InSubMenuBuilder.BeginSection("MassHeader", LOCTEXT("MassHeader", "Mass"));
+				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveContributeToMass);
+				InSubMenuBuilder.EndSection();
 			}
 		};
 
@@ -2239,6 +2248,21 @@ bool FPhysicsAssetEditor::CanSetPrimitiveCollision(ECollisionEnabled::Type Colli
 bool FPhysicsAssetEditor::IsPrimitiveCollisionChecked(ECollisionEnabled::Type CollisionEnabled) const
 {
 	return SharedData->GetIsPrimitiveCollisionEnabled(CollisionEnabled);
+}
+
+void FPhysicsAssetEditor::OnSetPrimitiveContributeToMass()
+{
+	SharedData->SetPrimitiveContributeToMass(!SharedData->GetPrimitiveContributeToMass());
+}
+
+bool FPhysicsAssetEditor::CanSetPrimitiveContributeToMass() const
+{
+	return SharedData->CanSetPrimitiveContributeToMass();
+}
+
+bool FPhysicsAssetEditor::GetPrimitiveContributeToMass() const
+{
+	return SharedData->GetPrimitiveContributeToMass();
 }
 
 void FPhysicsAssetEditor::OnWeldToBody()
