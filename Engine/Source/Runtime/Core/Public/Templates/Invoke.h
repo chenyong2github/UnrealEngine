@@ -107,3 +107,30 @@ FORCEINLINE auto Invoke(ReturnType (ObjType::*PtrMemFun)(PMFArgTypes...) const, 
 	{ \
 		return UE4Invoke_Private::DereferenceIfNecessary<Type>(Forward<decltype(Obj)>(Obj)).FuncName(Forward<decltype(Args)>(Args)...); \
 	}
+
+
+namespace UE4Invoke_Private
+{
+	template <typename, typename FuncType, typename... ArgTypes>
+	struct TInvokeResult_Impl
+	{
+	};
+
+	template <typename FuncType, typename... ArgTypes>
+	struct TInvokeResult_Impl<decltype((void)Invoke(DeclVal<FuncType>(), DeclVal<ArgTypes>()...)), FuncType, ArgTypes...>
+	{
+		using Type = decltype(Invoke(DeclVal<FuncType>(), DeclVal<ArgTypes>()...));
+	};
+}
+
+/**
+ * Trait for the type of the result when invoking a callable with the given argument types.
+ * Not defined (as thus usable in SFINAE contexts) when the callable cannot be invoked with the given argument types.
+ */
+template <typename FuncType, typename... ArgTypes>
+struct TInvokeResult : UE4Invoke_Private::TInvokeResult_Impl<void, FuncType, ArgTypes...>
+{
+};
+
+template <typename FuncType, typename... ArgTypes>
+using TInvokeResult_T = typename TInvokeResult<FuncType, ArgTypes...>::Type;
