@@ -236,7 +236,6 @@ namespace Audio
 		void UpdateDeviceChannelCount(const int32 InNumOutputChannels);
 
 		void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
-		void UpdateModulationControls(const int32 SourceId, const FSoundModulationControls& InControls);
 
 		const float* GetPreDistanceAttenuationBuffer(const int32 SourceId) const;
 		const float* GetPreEffectBuffer(const int32 SourceId) const;
@@ -511,7 +510,6 @@ namespace Audio
 			uint8 bIsAmbisonics:1;
 			uint8 bIsBypassingLPF:1;
 			uint8 bIsBypassingHPF:1;
-			uint8 bIsModulationUpdated:1;
 
 			// Source format info
 			int32 NumInputChannels;
