@@ -158,7 +158,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 			.InnerSlotPadding( FVector2D( 5, 2 ) )
 
 			+ SWrapBox::Slot()
-			.FillLineWhenWidthLessThan( 600 )
+			.FillLineWhenSizeLessThan( 600 )
 			.FillEmptySpace( true )
 			[
 				SNew( SHorizontalBox )
