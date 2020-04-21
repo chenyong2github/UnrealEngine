@@ -42,7 +42,7 @@ if DEFINED JAVA_HOME (set a=1) ELSE (
 	set JAVA_HOME=%STUDIO_PATH%\jre
 	setx JAVA_HOME %STUDIO_PATH%\jre
 )
-set NDKINSTALLPATH=%STUDIO_SDK_PATH%\ndk\21.0.6113669
+set NDKINSTALLPATH=%STUDIO_SDK_PATH%\ndk\21.1.6352462
 set PLATFORMTOOLS=%STUDIO_SDK_PATH%\platform-tools;%STUDIO_SDK_PATH%\tools
 
 set KEY_NAME=HKCU\Environment
@@ -72,7 +72,7 @@ IF EXIST "%SDKMANAGER%" (
 	)
 )
 
-call "%SDKMANAGER%" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.0.6113669"
+call "%SDKMANAGER%" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
 
 IF /I "%ERRORLEVEL%" NEQ "0" (
 	echo Update failed. Please check the Android Studio install.
@@ -83,6 +83,7 @@ IF /I "%ERRORLEVEL%" NEQ "0" (
 if EXIST %NDKINSTALLPATH% (
 	echo Success!
 	setx NDKROOT %NDKINSTALLPATH%
+	setx NDK_ROOT %NDKINSTALLPATH%
 ) ELSE (
 	echo Update failed. Did you accept the license agreement?
 	pause

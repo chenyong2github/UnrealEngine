@@ -39,7 +39,7 @@ if ! grep -q "export JAVA_HOME=\"$JAVA_HOME\"" ~/.bash_profile
 then
 	echo "export JAVA_HOME=\"$JAVA_HOME\"" >>~/.bash_profile
 fi
-NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.0.6113669"
+NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.1.6352462"
 PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/28.0.3:$%STUDIO_SDK_PATH/tools/bin"
 
 retVal=$(type -P "adb")
@@ -59,7 +59,7 @@ if [ ! -d "$SDKMANAGERPATH" ]; then
 	fi
 fi
 
-"$SDKMANAGERPATH/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.0.6113669"
+"$SDKMANAGERPATH/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
 
 retVal=$?
 if [ $retVal -ne 0 ]; then
@@ -92,6 +92,7 @@ echo Success!
 if ! grep -q "export NDKROOT=\"$NDKINSTALLPATH\"" ~/.bash_profile
 then
 	echo "export NDKROOT=\"$NDKINSTALLPATH\"" >>~/.bash_profile
+	echo "export NDK_ROOT=\"$NDKINSTALLPATH\"" >>~/.bash_profile
 fi
 
 exit 0
