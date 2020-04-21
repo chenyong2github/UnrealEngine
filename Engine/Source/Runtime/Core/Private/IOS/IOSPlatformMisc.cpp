@@ -337,6 +337,72 @@ bool FIOSPlatformMisc::HasPlatformFeature(const TCHAR* FeatureName)
 	return FGenericPlatformMisc::HasPlatformFeature(FeatureName);
 }
 
+const TCHAR* FIOSPlatformMisc::GetDefaultDeviceProfileName()
+{
+	static const TCHAR* IOSDeviceNames[] =
+	{
+		TEXT("IPhone4"),
+		TEXT("IPhone4S"),
+		TEXT("IPhone5"),
+		TEXT("IPhone5S"),
+		TEXT("IPodTouch5"),
+		TEXT("IPodTouch6"),
+		TEXT("IPad2"),
+		TEXT("IPad3"),
+		TEXT("IPad4"),
+		TEXT("IPadMini"),
+		TEXT("IPadMini2"),
+		TEXT("IPadMini4"),
+		TEXT("IPadAir"),
+		TEXT("IPadAir2"),
+		TEXT("IPhone6"),
+		TEXT("IPhone6Plus"),
+		TEXT("IPhone6S"),
+		TEXT("IPhone6SPlus"),
+		TEXT("IPhone7"),
+		TEXT("IPhone7Plus"),
+		TEXT("IPhone8"),
+		TEXT("IPhone8Plus"),
+		TEXT("IPhoneX"),
+		TEXT("IPadPro"),
+		TEXT("AppleTV"),
+		TEXT("AppleTV4K"),
+		TEXT("IPhoneSE"),
+		TEXT("IPadPro129"),
+		TEXT("IPadPro97"),
+		TEXT("IPadPro105"),
+		TEXT("IPadPro2_129"),
+		TEXT("IPad5"),
+		TEXT("IPhoneXS"),
+		TEXT("IPhoneXSMax"),
+		TEXT("IPhoneXR"),
+		TEXT("IPhone11"),
+		TEXT("IPhone11Pro"),
+		TEXT("IPhone11ProMax"),
+		TEXT("IPad6"),
+		TEXT("IPadPro11"),
+		TEXT("IPadPro3_129"),
+		TEXT("IPadAir3"),
+		TEXT("IPadMini5"),
+		TEXT("IPodTouch7"),
+		TEXT("IPad7"),
+		TEXT("IPhoneSE2"),
+		TEXT("NewIDevice1"),
+		TEXT("NewIDevice2"),
+		TEXT("NewIDevice3"),
+		TEXT("NewIDevice4"),
+		TEXT("NewIDevice5"),
+		TEXT("NewIDevice6"),
+		TEXT("NewIDevice7"),
+		TEXT("NewIDevice8"),
+		TEXT("Unknown"),
+	};
+	static_assert((sizeof(IOSDeviceNames) / sizeof(IOSDeviceNames[0])) == ((int32)IOS_Unknown + 1), "Mismatched IOSDeviceNames and EIOSDevice.");
+
+	// look up into the string array by the enum
+	return IOSDeviceNames[(int32)GetIOSDeviceType()];
+}
+
 FString GetIOSDeviceIDString()
 {
 	static FString CachedResult;
