@@ -24,12 +24,23 @@ namespace Audio
 	class FMixerSourceVoice;
 	class FMixerDevice;
 
+	enum EMixerSourceSubmixSendStage
+	{
+		// Whether to do the send pre distance attenuation
+		PostDistanceAttenuation,
+
+		// Whether to do the send post distance attenuation
+		PreDistanceAttenuation,
+	};
+
 	struct FSubmixVoiceData
 	{
 		float SendLevel;
+		EMixerSourceSubmixSendStage SubmixSendStage;
 
 		FSubmixVoiceData()
 			: SendLevel(1.0f)
+			, SubmixSendStage(EMixerSourceSubmixSendStage::PostDistanceAttenuation)
 		{
 		}
 	};
@@ -111,7 +122,7 @@ namespace Audio
 		int32 GetSizeOfSubmixChain() const;
 
 		// Add (if not already added) or sets the amount of the source voice's send amount
-		void AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float SendLevel);
+		void AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage);
 
 		/** Removes the given source voice from the submix. */
 		void RemoveSourceVoice(FMixerSourceVoice* InSourceVoice);

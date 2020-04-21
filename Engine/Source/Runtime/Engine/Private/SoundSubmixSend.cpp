@@ -5,6 +5,7 @@
 
 FSoundSubmixSendInfo::FSoundSubmixSendInfo()
 	: SendLevelControlMethod(ESendLevelControlMethod::Manual)
+	, SendStage(ESubmixSendStage::PostDistanceAttenuation)
 	, SoundSubmix(nullptr)
 	, SendLevel(0.0f)
 	, MinSendLevel(0.0f)
