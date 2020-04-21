@@ -93,11 +93,6 @@ TEST(CollisionTests, PGS) {
 	SUCCEED();
 }
 
-TEST(ForceTests, Forces) {
-	ChaosTest::Gravity<Chaos::FPBDRigidsEvolution, float>();
-	SUCCEED();
-}
-
 TEST(Clustering, Clustering) {
 	ChaosTest::ImplicitCluster<float>();
 	ChaosTest::FractureCluster<float>();

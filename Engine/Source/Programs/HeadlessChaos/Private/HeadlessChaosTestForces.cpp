@@ -11,8 +11,8 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
 
-namespace ChaosTest {
-
+namespace ChaosTest
+{
 	template<typename TEvolution, typename T>
 	void Gravity()
 	{
@@ -24,7 +24,10 @@ namespace ChaosTest {
 		Evolution.AdvanceOneTimeStep(0.1);
 		EXPECT_LT(Dynamics[0]->X()[2], 0);
 	}
-	template void Gravity<Chaos::FPBDRigidsEvolution, float>();
-
-
+	
+	TYPED_TEST(AllEvolutions,Forces)
+	{
+		ChaosTest::Gravity<TypeParam,float>();
+		SUCCEED();
+	}
 }
