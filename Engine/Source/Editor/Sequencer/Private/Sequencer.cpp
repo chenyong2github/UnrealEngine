@@ -5017,6 +5017,16 @@ FGuid FSequencer::MakeNewSpawnable( UObject& Object, UActorFactory* ActorFactory
 	ESpawnOwnership SavedOwnership = Spawnable->GetSpawnOwnership();
 	Spawnable->SetSpawnOwnership(ESpawnOwnership::External);
 
+	// Spawn into the current level
+	FName LevelName;
+	UWorld* World = Cast<UWorld>(GetPlaybackContext());
+	if (World && World->GetCurrentLevel() && World->GetCurrentLevel() != World->PersistentLevel)
+	{
+		LevelName = FPackageName::GetShortFName(World->GetCurrentLevel()->GetOutermost()->GetFName());
+	}
+
+	Spawnable->SetLevelName(LevelName);
+
 	// Spawn the object so we can position it correctly, it's going to get spawned anyway since things default to spawned.
 	UObject* SpawnedObject = SpawnRegister->SpawnObject(NewGuid, *MovieScene, ActiveTemplateIDs.Top(), *this);
 
