@@ -589,6 +589,67 @@ void FPhysicsAssetEditorSharedData::ToggleShowSelected()
 	}
 }
 
+void FPhysicsAssetEditorSharedData::ShowAll()
+{
+	HiddenConstraints.Empty();
+	HiddenBodies.Empty();
+}
+
+
+void FPhysicsAssetEditorSharedData::HideAll()
+{
+	if (PhysicsAsset != nullptr)
+	{
+		HiddenBodies.Empty();
+		for (int32 i = 0; i < PhysicsAsset->SkeletalBodySetups.Num(); ++i)
+		{
+			HiddenBodies.Add(i);
+		}
+
+		HiddenConstraints.Empty();
+		for (int32 i = 0; i < PhysicsAsset->ConstraintSetup.Num(); ++i)
+		{
+			HiddenConstraints.Add(i);
+		}
+	}
+}
+
+void FPhysicsAssetEditorSharedData::ShowSelected()
+{
+	for (const FSelection& Selection : SelectedConstraints)
+	{
+		if (HiddenConstraints.Contains(Selection.Index))
+		{
+			HiddenConstraints.Remove(Selection.Index);
+		}
+	}
+	for (const FSelection& Selection : SelectedBodies)
+	{
+		if (HiddenBodies.Contains(Selection.Index))
+		{
+			HiddenBodies.Remove(Selection.Index);
+		}
+	}
+}
+
+void FPhysicsAssetEditorSharedData::HideSelected()
+{
+	for (const FSelection& Selection : SelectedConstraints)
+	{
+		if (!HiddenConstraints.Contains(Selection.Index))
+		{
+			HiddenConstraints.Add(Selection.Index);
+		}
+	}
+	for (const FSelection& Selection : SelectedBodies)
+	{
+		if (!HiddenBodies.Contains(Selection.Index))
+		{
+			HiddenBodies.Add(Selection.Index);
+		}
+	}
+}
+
 void FPhysicsAssetEditorSharedData::UpdateNoCollisionBodies()
 {
 	NoCollisionBodies.Empty();
