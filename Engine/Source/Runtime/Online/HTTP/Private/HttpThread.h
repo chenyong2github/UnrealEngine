@@ -19,6 +19,7 @@ class FHttpThread
 	: FRunnable, FSingleThreadRunnable
 {
 public:
+	friend class FHttpManager;
 
 	FHttpThread();
 	virtual ~FHttpThread();
@@ -33,6 +34,10 @@ public:
 	 */
 	void StopThread();
 
+	/**
+	 * Is the HTTP thread started or stopped.
+	 */
+	bool IsStopped() const { return bIsStopped; }
 	/** 
 	 * Add a request to begin processing on HTTP thread.
 	 *
@@ -58,6 +63,12 @@ public:
 	// Cannot be overriden to ensure identical behavior with the threaded tick
 	virtual void Tick() override final;
 	//~ End FSingleThreadRunnable Interface
+
+	/**
+	 * When true the owner of the HTTPThread needs to manually call Tick() since no automomous threads are
+	 * executing the runnable object
+	 */
+	bool NeedsSingleThreadTick() const;
 
 protected:
 
@@ -136,4 +147,17 @@ protected:
 
 	/** Pointer to Runnable Thread */
 	FRunnableThread* Thread;
+
+private:
+
+	/** Are we holding a fake thread and we need to be ticked manually when Flushing */
+	bool bNeedsSingleThreadTick;
+
+	/** Tells if the runnable thread is running or stopped */
+	bool bIsStopped;
+
+	/**
+	 * Determines if we allow the creation of real threads on forked processes
+	 */
+	static bool bAllowForkableThreads;
 };
