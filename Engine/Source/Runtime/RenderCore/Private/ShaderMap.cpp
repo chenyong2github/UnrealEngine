@@ -6,6 +6,7 @@
 
 #include "Shader.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/StringBuilder.h"
 #include "Stats/StatsMisc.h"
 #include "Serialization/MemoryWriter.h"
 #include "VertexFactory.h"
@@ -63,8 +64,20 @@ void FShaderMapBase::AssignContent(FShaderMapContent* InContent)
 
 void FShaderMapBase::FinalizeContent()
 {
+	check(Code);
+
 	if (Content && FrozenContentSize == 0u)
 	{
+		for (FShader* Shader : Content->GetShaders())
+		{
+			Shader->Finalize(Code);
+		}
+
+		for (FShaderPipeline* Pipeline : Content->GetShaderPipelines())
+		{
+			Pipeline->Finalize(Code);
+		}
+
 		Content->Validate(*this);
 
 		FMemoryImage MemoryImage;
@@ -93,7 +106,6 @@ void FShaderMapBase::FinalizeContent()
 		INC_DWORD_STAT_BY(STAT_Shaders_NumShadersLoaded, NumFrozenShaders);
 	}
 
-	check(Code);
 	Code->Finalize();
 	Resource = new FShaderMapResource_InlineCode(GetShaderPlatform(), Code);
 	BeginInitResource(Resource);
@@ -288,6 +300,28 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 	}
 
 	return bContentValid;
+}
+
+FString FShaderMapBase::ToString() const
+{
+	TStringBuilder<32000> String;
+	{
+		FMemoryToStringContext Context;
+		Context.PrevPointerTable = PointerTable;
+		Context.String = &String;
+
+		FPlatformTypeLayoutParameters LayoutParams;
+		LayoutParams.InitializeForCurrent();
+
+		ContentTypeLayout.ToStringFunc(Content, ContentTypeLayout, LayoutParams, Context);
+	}
+
+	if (Code)
+	{
+		Code->ToString(String);
+	}
+
+	return String.ToString();
 }
 
 void FShaderMapBase::DestroyContent()
@@ -680,6 +714,7 @@ void FShaderMapContent::Finalize()
 	for (int32 SortedIndex = 0; SortedIndex < SortedEntries.Num(); ++SortedIndex)
 	{
 		const FSortedShaderEntry& SortedEntry = SortedEntries[SortedIndex];
+
 		const uint16 Key = MakeShaderHash(SortedEntry.TypeName, SortedEntry.PermutationId);
 		NewShaders.Add(Shaders[SortedEntry.Index]);
 		ShaderTypes.Add(SortedEntry.TypeName);

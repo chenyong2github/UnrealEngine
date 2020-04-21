@@ -6,6 +6,7 @@
 
 #include "Shader.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/StringBuilder.h"
 #include "Stats/StatsMisc.h"
 #include "Serialization/MemoryWriter.h"
 #include "VertexFactory.h"
@@ -38,6 +39,32 @@ IMPLEMENT_TYPE_LAYOUT(FShaderPipeline);
 IMPLEMENT_TYPE_LAYOUT(FShaderParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FShaderLooseParameterBufferInfo);
 IMPLEMENT_TYPE_LAYOUT(FShaderParameterMapInfo);
+
+void Freeze::IntrinsicToString(const TIndexedPtr<FShaderType>& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	const FShaderType* Type = Object.Get(OutContext.TryGetPrevPointerTable());
+	if (Type)
+	{
+		OutContext.String->Appendf(TEXT("%s\n"), Type->GetName());
+	}
+	else
+	{
+		OutContext.AppendNullptr();
+	}
+}
+
+void Freeze::IntrinsicToString(const TIndexedPtr<FVertexFactoryType>& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	const FVertexFactoryType* Type = Object.Get(OutContext.TryGetPrevPointerTable());
+	if (Type)
+	{
+		OutContext.String->Appendf(TEXT("%s\n"), Type->GetName());
+	}
+	else
+	{
+		OutContext.AppendNullptr();
+	}
+}
 
 IMPLEMENT_EXPORTED_INTRINSIC_TYPE_LAYOUT(TIndexedPtr<FShaderType>);
 IMPLEMENT_EXPORTED_INTRINSIC_TYPE_LAYOUT(TIndexedPtr<FVertexFactoryType>);
@@ -474,7 +501,7 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 	: Type(Initializer.Type)
 	, VFType(Initializer.VertexFactoryType)
 	, Target(Initializer.Target)
-	, ResourceIndex(Initializer.ResourceIndex)
+	, ResourceIndex(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 	, NumInstructions(Initializer.NumInstructions)
 	, NumTextureSamplers(Initializer.NumTextureSamplers)
@@ -516,6 +543,13 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 
 FShader::~FShader()
 {
+}
+
+void FShader::Finalize(const FShaderMapResourceCode* Code)
+{
+	check(ResourceIndex == INDEX_NONE);
+	ResourceIndex = Code->FindShaderIndex(GetOutputHash());
+	check(ResourceIndex != INDEX_NONE);
 }
 
 void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& ParameterMap)
@@ -933,6 +967,17 @@ void FShaderPipeline::Validate(const FShaderPipelineType* InPipelineType) const
 		const FShader* Shader = GetShader(Stage->GetFrequency());
 		check(Shader);
 		check(Shader->GetTypeUnfrozen() == Stage);
+	}
+}
+
+void FShaderPipeline::Finalize(FShaderMapResourceCode* Code)
+{
+	for (uint32 i = 0u; i < SF_NumGraphicsFrequencies; ++i)
+	{
+		if (Shaders[i])
+		{
+			Shaders[i]->Finalize(Code);
+		}
 	}
 }
 
