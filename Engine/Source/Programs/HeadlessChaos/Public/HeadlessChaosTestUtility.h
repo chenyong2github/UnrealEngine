@@ -17,6 +17,7 @@
 #include "Chaos/Utilities.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Chaos/EvolutionTraits.h"
 
 namespace Chaos
 {
@@ -26,6 +27,31 @@ namespace Chaos
 namespace ChaosTest {
 	
 	using namespace Chaos;
+
+	template <typename... T>
+	struct TTypesWithoutVoid
+	{
+		using Types = ::testing::Types<T...>;
+	};
+
+	template <typename... T>
+	struct TTypesWithoutVoid<void,T...>
+	{
+		using Types = ::testing::Types<T...>;
+	};
+
+	//should be TAllEvolutions, but used in macros and logs and this makes it more readable
+	template <typename T>
+	class AllEvolutions : public ::testing::Test {};
+
+#define EVOLUTION_TRAIT(Trait) ,TPBDRigidsEvolutionGBF<Trait>
+	using AllEvolutionTypesTmp = TTypesWithoutVoid <
+		void
+#include "Chaos/EvolutionTraits.inl"
+	>;
+	using AllEvolutionTypes = AllEvolutionTypesTmp::Types;
+#undef EVOLUTION_TRAIT
+	TYPED_TEST_SUITE(AllEvolutions,AllEvolutionTypes);
 
 	MATCHER_P2(VectorNear, V, Tolerance, "") { return arg.Equals(V, Tolerance); }
 
