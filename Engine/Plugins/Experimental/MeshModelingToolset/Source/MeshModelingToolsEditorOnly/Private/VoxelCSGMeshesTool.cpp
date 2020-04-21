@@ -130,8 +130,14 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		// Hide or destroy the sources
 		{
 			
-			if (CSGProps->bDeleteInputActors) 
+			if (CSGProps->bDeleteInputActors)
+			{
 				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
+			}
+			else
+			{
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("HideSource", "Hide Sources"));
+			}
 			
 			for (auto& ComponentTarget : ComponentTargets)
 			{
@@ -143,12 +149,15 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 				}
 				else
 				{
+					// Save the actor to the transaction buffer to support undo/redo, but do
+					// not call Modify, as we do not want to dirty the actor's package and
+					// we're only editing temporary, transient values
+					SaveToTransactionBuffer(Actor, false);
 					Actor->SetIsTemporarilyHiddenInEditor(true);
 				}
 			}
 
-			if (CSGProps->bDeleteInputActors) 
-				GetToolManager()->EndUndoTransaction();
+			GetToolManager()->EndUndoTransaction();
 			
 		}
 		

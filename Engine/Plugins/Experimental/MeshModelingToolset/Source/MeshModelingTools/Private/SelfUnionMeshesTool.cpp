@@ -221,35 +221,55 @@ void USelfUnionMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			GetToolManager()->EndUndoTransaction();
 		}
 
-		// Hide or destroy the sources
+		// Restore (unhide) the source meshes
+		for (auto& ComponentTarget : ComponentTargets)
 		{
+			ComponentTarget->SetOwnerVisibility(true);
+		}
 
-			if (Properties->bDeleteInputActors)
+		// Hide or destroy the sources
+		if (Properties->OnToolAccept != ESelfUnionAcceptBehavior::LeaveOriginalsUnchanged)
+		{
+			bool bDelete = Properties->OnToolAccept == ESelfUnionAcceptBehavior::DeleteOriginals;
+			if (bDelete)
 			{
 				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
+			}
+			else
+			{
+#if WITH_EDITOR
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("HideSources", "Hide Sources"));
+#endif
 			}
 
 			for (auto& ComponentTarget : ComponentTargets)
 			{
-				ComponentTarget->SetOwnerVisibility(true);
 				AActor* Actor = ComponentTarget->GetOwnerActor();
-				if (Properties->bDeleteInputActors)
+				if (bDelete)
 				{
 					Actor->Destroy();
 				}
 				else
 				{
 #if WITH_EDITOR
+					// Save the actor to the transaction buffer to support undo/redo, but do
+					// not call Modify, as we do not want to dirty the actor's package and
+					// we're only editing temporary, transient values
+					SaveToTransactionBuffer(Actor, false);
 					Actor->SetIsTemporarilyHiddenInEditor(true);
 #endif
 				}
 			}
-
-			if (Properties->bDeleteInputActors)
+			if (bDelete)
 			{
 				GetToolManager()->EndUndoTransaction();
 			}
-
+			else
+			{
+#if WITH_EDITOR
+				GetToolManager()->EndUndoTransaction();
+#endif
+			}
 		}
 
 	}
@@ -301,7 +321,7 @@ void USelfUnionMeshesTool::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 void USelfUnionMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USelfUnionMeshesToolProperties, bDeleteInputActors)))
+	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USelfUnionMeshesToolProperties, OnToolAccept)))
 	{
 		// nothing
 	}

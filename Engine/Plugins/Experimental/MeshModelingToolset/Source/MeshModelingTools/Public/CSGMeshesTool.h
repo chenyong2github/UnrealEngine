@@ -33,6 +33,18 @@ public:
 };
 
 
+/** Choice of behavior on accepting CSG */
+UENUM()
+enum class ECSGAcceptBehavior : uint8
+{
+	DeleteOriginals = 0			UMETA(DisplayName = "Delete Inputs"),
+
+	HideOriginals = 1			UMETA(DisplayName = "Hide Inputs"),
+
+	LeaveOriginalsUnchanged = 2	UMETA(DisplayName = "Keep Inputs")
+};
+
+
 
 /**
  * Standard properties of the CSG operation
@@ -45,10 +57,6 @@ public:
 	/** The type of operation */
 	UPROPERTY(EditAnywhere, Category = Options)
 	ECSGOperation Operation = ECSGOperation::Union;
-
-	/** Remove the source Actors/Components when accepting results of tool.*/
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bDeleteInputActors = true;
 
 	/** Show UI to allow changing translation, rotation and scale of input meshes */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -65,6 +73,10 @@ public:
 	/** Automatically attempt to fill any holes left by CSG (e.g. due to numerical errors) */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAttemptFixHoles = false;
+
+	/** What to do with the source Actors/Components when accepting results of tool.*/
+	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
+	ECSGAcceptBehavior OnToolAccept;
 };
 
 

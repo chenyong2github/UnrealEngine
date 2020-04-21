@@ -30,6 +30,17 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
+/** Choice of behavior on accepting CSG */
+UENUM()
+enum class ESelfUnionAcceptBehavior : uint8
+{
+	DeleteOriginals = 0			UMETA(DisplayName = "Delete Inputs"),
+
+	HideOriginals = 1			UMETA(DisplayName = "Hide Inputs"),
+
+	LeaveOriginalsUnchanged = 2	UMETA(DisplayName = "Keep Inputs")
+};
+
 
 
 /**
@@ -40,11 +51,6 @@ class MESHMODELINGTOOLS_API USelfUnionMeshesToolProperties : public UInteractive
 {
 	GENERATED_BODY()
 public:
-
-	/** Remove the source Actors/Components when accepting results of tool.*/
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bDeleteInputActors = true;
-
 	/** Automatically attempt to fill any holes left by merging (e.g. due to numerical errors) */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAttemptFixHoles = false;
@@ -52,6 +58,10 @@ public:
 	/** Show boundary edges created by the union operation -- often due to numerical error */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowNewBoundaryEdges = true;
+
+	/** What to do with the source Actors/Components when accepting results of tool.*/
+	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
+	ESelfUnionAcceptBehavior OnToolAccept;
 };
 
 
