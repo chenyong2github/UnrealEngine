@@ -118,7 +118,7 @@ namespace Audio
 			InitParams.SourceVoice = MixerSourceVoice;
 			InitParams.bUseHRTFSpatialization = UseObjectBasedSpatialization();
 			InitParams.bIsExternalSend = MixerDevice->bSpatializationIsExternalSend;
-			InitParams.bIsAmbisonics = WaveInstance->bIsAmbisonics && (WaveInstance->WaveData->NumChannels == 4);
+			InitParams.bIsSoundfield = WaveInstance->bIsAmbisonics && (WaveInstance->WaveData->NumChannels == 4);
 
 			if (WaveInstance->bIsAmbisonics && (WaveInstance->WaveData->NumChannels != 4))
 			{
@@ -199,6 +199,7 @@ namespace Audio
 
 					FMixerSourceSubmixSend SubmixSend;
 					SubmixSend.Submix = SubmixPtr;
+					SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
 					SubmixSend.SendLevel = 1.0f;
 					SubmixSend.bIsMainSend = true;
 					SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
@@ -212,6 +213,12 @@ namespace Audio
 					{
 						FMixerSourceSubmixSend SubmixSend;
 						SubmixSend.Submix = MixerDevice->GetSubmixInstance(SendInfo.SoundSubmix);
+
+						SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
+						if (SendInfo.SendStage == ESubmixSendStage::PreDistanceAttenuation)
+						{
+							SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PreDistanceAttenuation;
+						}
 						SubmixSend.SendLevel = SendInfo.SendLevel;
 						SubmixSend.bIsMainSend = false;
 						SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
@@ -246,6 +253,9 @@ namespace Audio
 
 			// Whether or not we're 3D
 			bIs3D = !UseObjectBasedSpatialization() && WaveInstance->GetUseSpatialization() && SoundBuffer->NumChannels < 3;
+
+			// Pass on the fact that we're 3D to the init params
+			InitParams.bIs3D = bIs3D;
 
 			// Grab the source's reverb plugin settings
 			InitParams.SpatializationPluginSettings = UseSpatializationPlugin() ? WaveInstance->SpatializationPluginSettings : nullptr;

@@ -95,7 +95,7 @@ namespace Audio
 		float GetEnvelopeValue() const;
 
 		// Mixes the dry and wet buffer audio into the given buffers.
-		void MixOutputBuffers(int32 InNumChannels, const float SendLevel, AlignedFloatBuffer& OutWetBuffer) const;
+		void MixOutputBuffers(int32 InNumChannels, const float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, AlignedFloatBuffer& OutWetBuffer) const;
 
 		// For soundfield conversions, get the encoded audio.
 		const ISoundfieldAudioPacket* GetEncodedOutput(const FSoundfieldEncodingKey& InKey) const;
