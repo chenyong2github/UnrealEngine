@@ -123,7 +123,7 @@ namespace Chaos
 		{
 			if (const auto* PerShapeData = GetImplicitShape(Implicit))
 			{
-				if (PerShapeData->bDisable)
+				if (!PerShapeData->GetSimEnabled())
 				{
 					return;
 				}
