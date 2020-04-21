@@ -229,10 +229,16 @@ public:
 	ENGINE_API bool IsCollisionEnabled(int32 BodyIndexA, int32 BodyIndexB) const;
 
 	// Get the per-primitive collision filtering mode for a body
-	ENGINE_API void SetPrimitiveCollision(int32 BodyIndex, int32 PrimitiveIndex, ECollisionEnabled::Type CollisionEnabled);
+	ENGINE_API void SetPrimitiveCollision(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex, ECollisionEnabled::Type CollisionEnabled);
 
 	// Get the per-primitive collision filtering mode for a body
-	ENGINE_API ECollisionEnabled::Type GetPrimitiveCollision(int32 BodyIndex, int32 PrimitiveIndex) const;
+	ENGINE_API ECollisionEnabled::Type GetPrimitiveCollision(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex) const;
+
+	// Set whether or not a primitive volume contributes to the mass of the object
+	ENGINE_API void SetPrimitiveContributeToMass(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex, bool bContributesToMass);
+
+	// Get whether or not a primitive volume contributes to the mass of the object
+	ENGINE_API bool GetPrimitiveContributeToMass(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex) const;
 
 	/** Update the BoundsBodies array and cache the indices of bodies marked with bConsiderForBounds to BoundsBodies array. */
 	ENGINE_API void UpdateBoundsBodiesArray();

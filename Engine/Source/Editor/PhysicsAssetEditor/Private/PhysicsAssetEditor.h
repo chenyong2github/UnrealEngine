@@ -236,6 +236,9 @@ private:
 	void OnSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled);
 	bool CanSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled) const;
 	bool IsPrimitiveCollisionChecked(ECollisionEnabled::Type CollisionEnabled) const;
+	void OnSetPrimitiveContributeToMass();
+	bool CanSetPrimitiveContributeToMass() const;
+	bool GetPrimitiveContributeToMass() const;
 	void OnWeldToBody();
 	bool CanWeldToBody();
 	void OnAddSphere();

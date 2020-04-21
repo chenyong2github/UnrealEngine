@@ -253,22 +253,36 @@ bool UPhysicsAsset::IsCollisionEnabled(int32 BodyIndexA, int32 BodyIndexB) const
 	return true;
 }
 
-void UPhysicsAsset::SetPrimitiveCollision(int32 BodyIndex, int32 PrimitiveIndex, ECollisionEnabled::Type CollisionEnabled)
+void UPhysicsAsset::SetPrimitiveCollision(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex, ECollisionEnabled::Type CollisionEnabled)
 {
-#if WITH_CHAOS
 	check(SkeletalBodySetups.IsValidIndex(BodyIndex));
 	FKAggregateGeom* AggGeom = &SkeletalBodySetups[BodyIndex]->AggGeom;
 	ensure(PrimitiveIndex < AggGeom->GetElementCount());
-	AggGeom->GetElement(PrimitiveIndex)->SetCollisionEnabled(CollisionEnabled);
-#endif
+	AggGeom->GetElement(PrimitiveType, PrimitiveIndex)->SetCollisionEnabled(CollisionEnabled);
 }
 
-ECollisionEnabled::Type UPhysicsAsset::GetPrimitiveCollision(int32 BodyIndex, int32 PrimitiveIndex) const
+ECollisionEnabled::Type UPhysicsAsset::GetPrimitiveCollision(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex) const
 {
 	check(SkeletalBodySetups.IsValidIndex(BodyIndex));
 	FKAggregateGeom* AggGeom = &SkeletalBodySetups[BodyIndex]->AggGeom;
 	ensure(PrimitiveIndex < AggGeom->GetElementCount());
-	return AggGeom->GetElement(PrimitiveIndex)->GetCollisionEnabled();
+	return AggGeom->GetElement(PrimitiveType, PrimitiveIndex)->GetCollisionEnabled();
+}
+
+void UPhysicsAsset::SetPrimitiveContributeToMass(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex, bool bContributeToMass)
+{
+	check(SkeletalBodySetups.IsValidIndex(BodyIndex));
+	FKAggregateGeom* AggGeom = &SkeletalBodySetups[BodyIndex]->AggGeom;
+	ensure(PrimitiveIndex < AggGeom->GetElementCount());
+	return AggGeom->GetElement(PrimitiveType, PrimitiveIndex)->SetContributeToMass(bContributeToMass);
+}
+
+bool UPhysicsAsset::GetPrimitiveContributeToMass(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex) const
+{
+	check(SkeletalBodySetups.IsValidIndex(BodyIndex));
+	FKAggregateGeom* AggGeom = &SkeletalBodySetups[BodyIndex]->AggGeom;
+	ensure(PrimitiveIndex < AggGeom->GetElementCount());
+	return AggGeom->GetElement(PrimitiveType, PrimitiveIndex)->GetContributeToMass();
 }
 
 FBox UPhysicsAsset::CalcAABB(const USkinnedMeshComponent* MeshComp, const FTransform& LocalToWorld) const
