@@ -6417,22 +6417,46 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 		//       want to make sure our flags get set
 		Package->SetPackageFlags(PKG_ContainsScript | PKG_Compiling);
 		Package->ClearPackageFlags(PKG_ClientOptional | PKG_ServerSideOnly);
-		switch (Module.ModuleType)
+		
+		if(Module.OverrideModuleType == EPackageOverrideType::None)
 		{
-		case EBuildModuleType::GameEditor:
-		case EBuildModuleType::EngineEditor:
-			Package->SetPackageFlags(PKG_EditorOnly);
-			break;
+			switch (Module.ModuleType)
+			{
+			case EBuildModuleType::GameEditor:
+			case EBuildModuleType::EngineEditor:
+				Package->SetPackageFlags(PKG_EditorOnly);
+				break;
 
-		case EBuildModuleType::GameDeveloper:
-		case EBuildModuleType::EngineDeveloper:
-			Package->SetPackageFlags(PKG_Developer);
-			break;
+			case EBuildModuleType::GameDeveloper:
+			case EBuildModuleType::EngineDeveloper:
+				Package->SetPackageFlags(PKG_Developer);
+				break;
 
-		case EBuildModuleType::GameUncooked:
-		case EBuildModuleType::EngineUncooked:
-			Package->SetPackageFlags(PKG_UncookedOnly);
-			break;
+			case EBuildModuleType::GameUncooked:
+			case EBuildModuleType::EngineUncooked:
+				Package->SetPackageFlags(PKG_UncookedOnly);
+				break;
+			}
+		}
+		else
+		{
+			// If the user has specified this module to have another package flag, then OR it on
+			switch (Module.OverrideModuleType)
+			{
+			case EPackageOverrideType::EditorOnly:
+				Package->SetPackageFlags(PKG_EditorOnly);
+				break;
+
+			case EPackageOverrideType::EngineDeveloper:
+			case EPackageOverrideType::GameDeveloper:
+				Package->SetPackageFlags(PKG_Developer);
+				break;
+
+			case EPackageOverrideType::EngineUncookedOnly:
+			case EPackageOverrideType::GameUncookedOnly:
+				Package->SetPackageFlags(PKG_UncookedOnly);
+				break;
+			}
 		}
 
 		// Add new module or overwrite whatever we had loaded, that data is obsolete.
