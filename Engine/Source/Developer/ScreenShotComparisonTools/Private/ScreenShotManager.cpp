@@ -213,6 +213,8 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingIma
 		FString IncomingFile = ( ScreenshotUnapprovedFolder / ComparisonResult.IncomingFile );
 		FString IncomingMetadataFile = FPaths::ChangeExtension(IncomingFile, ".json");
 
+		FString IncomingTraceFile = FPaths::ChangeExtension(IncomingFile, TEXT(".rdc"));
+
 		if ( IFileManager::Get().Copy(*( ReportFolder / TEXT("Approved.png")), *ApprovedFile, true, true) == COPY_OK )
 		{
 			IFileManager::Get().Copy(*( ReportFolder / TEXT("Approved.json")), *ApprovedMetadataFile, true, true);
@@ -223,6 +225,18 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingIma
 		{
 			IFileManager::Get().Copy(*( ReportFolder / TEXT("Incoming.json")), *IncomingMetadataFile, true, true);
 			ComparisonResult.ReportIncomingFile = TEXT("Incoming.png");
+		}
+
+		if (ComparisonResult.AreSimilar())
+		{
+			IFileManager::Get().Delete(*IncomingTraceFile, false, true);
+		}
+		else
+		{
+			if (IFileManager::Get().FileExists(*IncomingTraceFile))
+			{
+				IFileManager::Get().Copy(*(ReportFolder / TEXT("Incoming.rdc")), *IncomingTraceFile, true, true);
+			}
 		}
 
 		if ( IFileManager::Get().Copy(*( ReportFolder / TEXT("Delta.png")), *( ScreenshotDeltaFolder / ComparisonResult.ComparisonFile ), true, true) == COPY_OK )

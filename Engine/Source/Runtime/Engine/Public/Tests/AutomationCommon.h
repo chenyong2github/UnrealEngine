@@ -49,6 +49,8 @@ namespace AutomationCommon
 		return OnEditorAutomationMapLoad;
 	}
 
+	ENGINE_API TArray<uint8> CaptureFrameTrace(const FString& MapOrContext, const FString& TestName);
+
 #endif
 }
 

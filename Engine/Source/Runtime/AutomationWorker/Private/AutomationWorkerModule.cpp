@@ -375,6 +375,7 @@ void FAutomationWorkerModule::HandlePreTestingEvent()
 {
 #if WITH_ENGINE
 	FAutomationTestFramework::Get().OnScreenshotCaptured().BindRaw(this, &FAutomationWorkerModule::HandleScreenShotCapturedWithName);
+	FAutomationTestFramework::Get().OnScreenshotAndTraceCaptured().BindRaw(this, &FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName);
 #endif
 }
 
@@ -382,6 +383,7 @@ void FAutomationWorkerModule::HandlePreTestingEvent()
 void FAutomationWorkerModule::HandlePostTestingEvent()
 {
 #if WITH_ENGINE
+	FAutomationTestFramework::Get().OnScreenshotAndTraceCaptured().Unbind();
 	FAutomationTestFramework::Get().OnScreenshotCaptured().Unbind();
 #endif
 }
@@ -414,6 +416,11 @@ void FAutomationWorkerModule::HandlePerformanceDataRetrieved(const FAutomationWo
 #if WITH_ENGINE
 void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FColor>& RawImageData, const FAutomationScreenshotData& Data)
 {
+	HandleScreenShotAndTraceCapturedWithName(RawImageData, TArray<uint8>(), Data);
+}
+
+void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TArray<FColor>& RawImageData, const TArray<uint8>& CapturedFrameTrace, const FAutomationScreenshotData& Data)
+{
 #if WITH_AUTOMATION_TESTS
 	int32 NewHeight = Data.Height;
 	int32 NewWidth = Data.Width;
@@ -424,12 +431,13 @@ void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FCol
 	FAutomationScreenshotMetadata Metadata(Data);
 		
 	// Send the screen shot if we have a target
-	if( TestRequesterAddress.IsValid() )
+	if (TestRequesterAddress.IsValid())
 	{
 		FAutomationWorkerScreenImage* Message = new FAutomationWorkerScreenImage();
 
 		Message->ScreenShotName = Data.ScreenshotName;
 		Message->ScreenImage = CompressedBitmap;
+		Message->FrameTrace = CapturedFrameTrace;
 		Message->Metadata = Metadata;
 
 		UE_LOG(LogAutomationWorker, Log, TEXT("Sending screenshot %s"), *Message->ScreenShotName);
@@ -442,6 +450,7 @@ void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FCol
 		const bool bTree = true;
 
 		FString LocalFile = AutomationCommon::GetLocalPathForScreenshot(Data.ScreenshotName);
+		FString LocalTraceFile = FPaths::ChangeExtension(LocalFile, TEXT(".rdc"));
 		FString DirectoryPath = FPaths::GetPath(LocalFile);
 
 		UE_LOG(LogAutomationWorker, Log, TEXT("Saving screenshot %s as %s"),*Data.ScreenshotName, *LocalFile);
@@ -459,6 +468,17 @@ void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FCol
 			FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
 			UE_LOG(LogAutomationWorker, Warning, TEXT("Fail to save screenshot to %s. WriteError: %u (%s)"), *LocalFile, WriteErrorCode, WriteErrorBuffer);
 			return;
+		}
+
+		if (CapturedFrameTrace.Num() > 0)
+		{
+			if (!FFileHelper::SaveArrayToFile(CapturedFrameTrace, *LocalTraceFile))
+			{
+				uint32 WriteErrorCode = FPlatformMisc::GetLastError();
+				TCHAR WriteErrorBuffer[2048];
+				FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
+				UE_LOG(LogAutomationWorker, Warning, TEXT("Failed to save frame trace to %s. WriteError: %u (%s)"), *LocalTraceFile, WriteErrorCode, WriteErrorBuffer);
+			}
 		}
 
 		FString Json;
