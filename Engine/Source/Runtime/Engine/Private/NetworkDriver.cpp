@@ -4,6 +4,7 @@
 	NetworkDriver.cpp: Unreal network driver base class.
 =============================================================================*/
 
+#include "Engine/NetDriver.h"
 #include "CoreMinimal.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/CommandLine.h"
@@ -38,7 +39,6 @@
 #include "PacketHandler.h"
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"
 #include "Net/Core/Analytics/NetAnalytics.h"
-#include "Engine/NetDriver.h"
 #include "Engine/LocalPlayer.h"
 #include "Net/DataBunch.h"
 #include "Engine/NetConnection.h"
