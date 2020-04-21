@@ -58,13 +58,23 @@ public:
 		FSlot()
 			: TSlotBase<FSlot>()
 			, TSupportsContentAlignmentMixin<FSlot>(HAlign_Fill, VAlign_Fill)
+			, SlotFillLineWhenWidthLessThan()
 			, SlotFillLineWhenSizeLessThan()
 			, bSlotFillEmptySpace(false)
 		{
 		}
 
-		/** If the total available space in the wrap panel drops below this threshold, this slot will attempt to fill an entire line. */
-		FSlot& FillLineWhenWidthLessThan(TOptional<float> InFillLineWhenSizeLessThan)
+		UE_DEPRECATED(4.26, "Deprecated, please use FillLineWhenSizeLessThan() instead")
+		FSlot& FillLineWhenWidthLessThan(TOptional<float> InFillLineWhenWidthLessThan)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			SlotFillLineWhenWidthLessThan = InFillLineWhenWidthLessThan;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			return *(static_cast<FSlot*>(this));
+		}
+
+		/** Dependently of the Orientation, if the total available horizontal or vertical space in the wrap panel drops below this threshold, this slot will attempt to fill an entire line. */
+		FSlot& FillLineWhenSizeLessThan(TOptional<float> InFillLineWhenSizeLessThan)
 		{
 			SlotFillLineWhenSizeLessThan = InFillLineWhenSizeLessThan;
 			return *(static_cast<FSlot*>(this));
@@ -76,6 +86,9 @@ public:
 			bSlotFillEmptySpace = bInFillEmptySpace;
 			return *(static_cast<FSlot*>(this));
 		}
+
+		UE_DEPRECATED(4.26, "Deprecated, please use SlotFillLineWhenSizeLessThan instead")
+		TOptional<float> SlotFillLineWhenWidthLessThan;
 
 		TOptional<float> SlotFillLineWhenSizeLessThan;
 		bool bSlotFillEmptySpace;
