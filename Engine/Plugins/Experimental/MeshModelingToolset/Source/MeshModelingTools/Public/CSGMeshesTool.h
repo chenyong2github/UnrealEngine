@@ -54,6 +54,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowTransformUI = true;
 
+	/** Snap the cut plane to the world grid */
+	UPROPERTY(EditAnywhere, Category = Snapping, meta = (EditCondition = "bShowTransformUI == true"))
+	bool bSnapToWorldGrid = false;
+
 	/** Show boundary edges created by the CSG operation -- often due to numerical error */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowNewBoundaryEdges = true;

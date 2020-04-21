@@ -315,6 +315,11 @@ void UCSGMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UCSGMeshesTool::OnTick(float DeltaTime)
 {
+	for (UTransformGizmo* Gizmo : TransformGizmos)
+	{
+		Gizmo->bSnapToWorldGrid = CSGProperties->bSnapToWorldGrid;
+	}
+
 	Preview->Tick(DeltaTime);
 }
 
@@ -333,7 +338,10 @@ void UCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Propert
 	{
 		UpdateGizmoVisibility();
 	}
-	else if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bDeleteInputActors)))
+	else if (Property && 
+		(  Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bDeleteInputActors)
+		|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bSnapToWorldGrid)
+		))
 	{
 		// nothing
 	}
