@@ -80,6 +80,9 @@ public:
 	UPROPERTY(meta = (TransientToolProperty))
 	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
 
+	// Needs custom restore in order to call setup
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+
 	void Setup();
 
 	void UpdateMaterials();
