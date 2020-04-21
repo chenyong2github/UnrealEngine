@@ -333,7 +333,6 @@ class TPBDRigidsEvolutionBase
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
 		ConstraintGraph.DisableParticle(Particle);
-
 		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 	}
 
@@ -437,7 +436,6 @@ class TPBDRigidsEvolutionBase
 		}
 
 		ConstraintGraph.DisableParticles(InParticles);
-
 		RemoveConstraints(InParticles);
 	}
 
@@ -454,9 +452,13 @@ class TPBDRigidsEvolutionBase
 	// @todo(ccaulfield): Remove the uint version
 	CHAOS_API void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
 	{
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		// Only remove constraints if we have the possibility of rewinding state. Otherwise they will be rebuilt next frame
+		if(ChaosClusteringChildrenInheritVelocity < 1.0f)
 		{
-			ConstraintRule->RemoveConstraints(RemovedParticles);
+			for(FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+			{
+				ConstraintRule->RemoveConstraints(RemovedParticles);
+			}
 		}
 	}
 
