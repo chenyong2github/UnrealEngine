@@ -52,7 +52,7 @@ void UNiagaraNodeAssignment::RefreshTitle()
 	}
 	else
 	{
-		Title = LOCTEXT("NodeTitle", "Set Variables");
+		Title = LOCTEXT("NodeTitle", "Set Parameters");
 	}
 }
 
