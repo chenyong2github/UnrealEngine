@@ -56,6 +56,11 @@ void FEditorSessionSummarySender::Shutdown()
 	SendStoredSessions(/*bForceSendCurrentSession*/true);
 }
 
+void FEditorSessionSummarySender::SetMonitorDiagnosticLogs(TMap<uint32, FString>&& Logs)
+{
+	MonitorMiniLogs = Logs;
+}
+
 void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedSession) const
 {
 	// Load the list of sessions to process. Expect contention on the analytic session lock between the Editor and CrashReportClientEditor (on windows) or between Editor instances (on mac/linux)
@@ -203,16 +208,30 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("IsLowDriveSpace"), Session.bIsLowDriveSpace);
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
 
+	bool bErrorDetected = (ShutdownTypeString != EditorSessionSenderDefs::ShutdownSessionToken && ShutdownTypeString != EditorSessionSenderDefs::TerminatedSessionToken);
+
 	// Add the exit code to the report if it was set by out-of-process monitor (CrashReportClientEditor).
 	if (Session.ExitCode.IsSet())
 	{
 		AnalyticsAttributes.Emplace(TEXT("ExitCode"), Session.ExitCode.GetValue());
+		bErrorDetected |= Session.ExitCode.GetValue() != 0;
 	}
 
 	// Add the monitor exception code in case the out-of-process monitor (CrashReportClientEditor) crashed itself, caught the exception and was able to store it in the session before dying.
 	if (Session.MonitorExceptCode.IsSet())
 	{
 		AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), Session.MonitorExceptCode.GetValue());
+		bErrorDetected = true;
+	}
+
+	// If the session did not end normally, try to attache the mini-log created for that session to help diagnose abnormal terminations.
+	if (bErrorDetected && !Session.bWasEverDebugger)
+	{
+		// Check if a monitor log is available. (Set by CrashReportClientEditor before sending the summary events).
+		if (const FString* MonitorLog = MonitorMiniLogs.Find(Session.MonitorProcessID))
+		{
+			AnalyticsAttributes.Emplace(TEXT("MonitorLog"), *MonitorLog);
+		}
 	}
 
 	// Was this summary produced by another process than itself or the out-of-process monitor for that run?
