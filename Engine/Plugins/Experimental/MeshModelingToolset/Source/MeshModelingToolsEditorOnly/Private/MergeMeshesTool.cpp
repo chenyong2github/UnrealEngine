@@ -132,8 +132,14 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 		// Hide or destroy the sources
 		{
-			if (MergeProps->bDeleteInputActors) 
+			if (MergeProps->bDeleteInputActors)
+			{
 				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
+			}
+			else
+			{
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("HideSource", "Hide Sources"));
+			}
 			
 			for (auto& ComponentTarget : ComponentTargets)
 			{
@@ -146,12 +152,15 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 				else
 				{
 					// just hide the result.
+					// Save the actor to the transaction buffer to support undo/redo, but do
+					// not call Modify, as we do not want to dirty the actor's package and
+					// we're only editing temporary, transient values
+					SaveToTransactionBuffer(Actor, false);
 					Actor->SetIsTemporarilyHiddenInEditor(true);
 				}
 			}
 
-			if (MergeProps->bDeleteInputActors) 
-				GetToolManager()->EndUndoTransaction();
+			GetToolManager()->EndUndoTransaction();
 		}
 		
 

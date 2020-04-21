@@ -237,35 +237,55 @@ void UCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			GetToolManager()->EndUndoTransaction();
 		}
 
-		// Hide or destroy the sources
+		// Restore (unhide) the source meshes
+		for (auto& ComponentTarget : ComponentTargets)
 		{
+			ComponentTarget->SetOwnerVisibility(true);
+		}
 
-			if (CSGProperties->bDeleteInputActors)
+		// Hide or destroy the sources
+		if (CSGProperties->OnToolAccept != ECSGAcceptBehavior::LeaveOriginalsUnchanged)
+		{
+			bool bDelete = CSGProperties->OnToolAccept == ECSGAcceptBehavior::DeleteOriginals;
+			if (bDelete)
 			{
 				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
+			}
+			else
+			{
+#if WITH_EDITOR
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("HideSources", "Hide Sources"));
+#endif
 			}
 
 			for (auto& ComponentTarget : ComponentTargets)
 			{
-				ComponentTarget->SetOwnerVisibility(true);
 				AActor* Actor = ComponentTarget->GetOwnerActor();
-				if (CSGProperties->bDeleteInputActors)
+				if (bDelete)
 				{
 					Actor->Destroy();
 				}
 				else
 				{
 #if WITH_EDITOR
+					// Save the actor to the transaction buffer to support undo/redo, but do
+					// not call Modify, as we do not want to dirty the actor's package and
+					// we're only editing temporary, transient values
+					SaveToTransactionBuffer(Actor, false);
 					Actor->SetIsTemporarilyHiddenInEditor(true);
 #endif
 				}
 			}
-
-			if (CSGProperties->bDeleteInputActors)
+			if (bDelete)
 			{
 				GetToolManager()->EndUndoTransaction();
 			}
-
+			else
+			{
+#if WITH_EDITOR
+				GetToolManager()->EndUndoTransaction();
+#endif
+			}
 		}
 
 	}
@@ -339,7 +359,7 @@ void UCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Propert
 		UpdateGizmoVisibility();
 	}
 	else if (Property && 
-		(  Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bDeleteInputActors)
+		(  Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, OnToolAccept)
 		|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bSnapToWorldGrid)
 		))
 	{
