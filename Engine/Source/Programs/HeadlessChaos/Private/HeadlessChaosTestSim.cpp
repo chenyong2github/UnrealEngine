@@ -13,11 +13,12 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	GTEST_TEST(SimTests, SphereSphereSimTest)
+	TYPED_TEST(AllEvolutions, SimTests_SphereSphereSimTest)
 	{
+		using TEvolution = TypeParam;
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -48,11 +49,12 @@ namespace ChaosTest {
 		EXPECT_NEAR(Dynamic->X().Z, 110, 1);
 	}
 
-	GTEST_TEST(SimTests, BoxBoxSimTest)
+	TYPED_TEST(AllEvolutions, SimTests_BoxBoxSimTest)
 	{
+		using TEvolution = TypeParam;
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -87,11 +89,12 @@ namespace ChaosTest {
 	// This will be fixed if/when we have a multi-contact manifold between particle pairs and we simultaneously
 	// resolve contacts in that manifold.
 	//
-	GTEST_TEST(SimTests, DISABLED_VeryLowInertiaSimTest)
+	TYPED_TEST(AllEvolutions, DISABLED_SimTests_VeryLowInertiaSimTest)
 	{
+		using TEvolution = TypeParam;
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -116,11 +119,12 @@ namespace ChaosTest {
 		EXPECT_NEAR(Dynamic->X().Z, 110, 10);
 	}
 
-	GTEST_TEST(SimTests, SleepAndWakeSimTest)
+	TYPED_TEST(AllEvolutions, SimTests_SleepAndWakeSimTest)
 	{
+		using TEvolution = TypeParam;
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic1 = Evolution.CreateDynamicParticles(1)[0];
 		auto Dynamic2 = Evolution.CreateDynamicParticles(1)[0];

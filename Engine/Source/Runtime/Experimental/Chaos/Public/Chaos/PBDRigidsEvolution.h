@@ -23,7 +23,11 @@ extern int32 ChaosNumPushOutIterationsOverride;
 extern int32 ChaosNumContactIterationsOverride;
 
 // Declaring so it can be friended for tests.
-namespace ChaosTest { void TestPendingSpatialDataHandlePointerConflict(); } 
+namespace ChaosTest
+{
+	template <typename TEvolution>
+	void TestPendingSpatialDataHandlePointerConflict();
+} 
 
 namespace Chaos
 {
@@ -232,6 +236,7 @@ class TPBDRigidsEvolutionBase
 	typedef TFunction<void(TPBDRigidParticles<FReal, 3>&, const FReal, const FReal, const int32)> FKinematicUpdateRule;
 	typedef TFunction<void(TParticleView<TPBDRigidParticles<FReal,3>>&)> FCaptureRewindRule;
 
+	template <typename TEvolution>
 	friend void ChaosTest::TestPendingSpatialDataHandlePointerConflict();
 
 	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
