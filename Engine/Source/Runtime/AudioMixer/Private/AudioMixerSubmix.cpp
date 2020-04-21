@@ -432,12 +432,14 @@ namespace Audio
 		return EffectSubmixChain.Num();
 	}
 
-	void FMixerSubmix::AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float InSendLevel)
+
+	void FMixerSubmix::AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float InSendLevel, EMixerSourceSubmixSendStage InSubmixSendStage)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSubmixVoiceData NewVoiceData;
 		NewVoiceData.SendLevel = InSendLevel;
+		NewVoiceData.SubmixSendStage = InSubmixSendStage;
 
 		MixerSourceVoices.Add(InSourceVoice, NewVoiceData);
 	}
@@ -686,9 +688,7 @@ namespace Audio
 				// If this is true, the Soundfield Factory explicitly requested that a seperate encoder stream was set up for every
 				// non-soundfield child submix.
 				if (Child.Encoder.IsValid())
-				{
-					
-
+				{					
 					ChildSubmixSharedPtr->ProcessAudio(ScratchBuffer);
 
 					// Encode the resulting audio and mix it in.
@@ -954,9 +954,9 @@ namespace Audio
 			{
 				const FMixerSourceVoice* MixerSourceVoice = MixerSourceVoiceIter.Key;
 				const float SendLevel = MixerSourceVoiceIter.Value.SendLevel;
+				const EMixerSourceSubmixSendStage SubmixSendStage = MixerSourceVoiceIter.Value.SubmixSendStage;
 
-
-				MixerSourceVoice->MixOutputBuffers(NumChannels, SendLevel, InputBuffer);
+				MixerSourceVoice->MixOutputBuffers(NumChannels, SendLevel, SubmixSendStage, InputBuffer);
 			}
 		}
 
@@ -1055,6 +1055,7 @@ namespace Audio
 		{
 			FMemory::Memzero((void*)BufferPtr, sizeof(float) * NumSamples);
 		}
+	
 	
 		// If we are recording, Add out buffer to the RecordingData buffer:
 		{
