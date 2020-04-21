@@ -17,6 +17,12 @@ UNewMeshMaterialProperties::UNewMeshMaterialProperties()
 	Material = CreateDefaultSubobject<UMaterialInterface>(TEXT("MATERIAL"));
 }
 
+void UExistingMeshMaterialProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	Super::RestoreProperties(RestoreToTool);
+	Setup();
+}
+
 void UExistingMeshMaterialProperties::Setup()
 {
 	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/CheckerMaterial"));
