@@ -682,6 +682,7 @@ namespace ChaosTest
 	}
 	template void BroadphaseCollectionTest<float>();
 
+	template <typename TEvolution>
 	void TestPendingSpatialDataHandlePointerConflict()
 	{
 		// We are testing an edge case in the way we queue updates to our acceleration structures.
@@ -702,7 +703,7 @@ namespace ChaosTest
 		Particle->X() = TVector<FReal, 3>(0, 0, 0);
 
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
+		TEvolution Evolution(Particles, PhysicalMaterials);
 
 		// Flush spatial acceleration structures to put particle into structure.
 		Evolution.FlushSpatialAcceleration();
@@ -772,6 +773,11 @@ namespace ChaosTest
 
 			EXPECT_EQ(HitNum, 0);
 		}
+	}
+
+	TYPED_TEST(AllEvolutions, TestPendingSpatialDataHandlePointerConflict)
+	{
+		TestPendingSpatialDataHandlePointerConflict<TypeParam>();
 	}
 
 	template<typename T>

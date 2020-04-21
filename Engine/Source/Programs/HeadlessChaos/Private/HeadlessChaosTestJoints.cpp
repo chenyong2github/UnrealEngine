@@ -31,11 +31,16 @@ namespace ChaosTest {
 	 * Base class for joint constraint tests.
 	 * Initialize the particle and joint data in the test code and call Create()
 	 */
-	class FJointConstraintsTest : public FConstraintsTest
+	template <typename TEvolution>
+	class FJointConstraintsTest : public FConstraintsTest<TEvolution>
 	{
 	public:
+		using Base = FConstraintsTest<TEvolution>;
+		using Base::Evolution;
+		using Base::AddParticleBox;
+
 		FJointConstraintsTest(const int32 NumIterations, const FReal Gravity)
-			: FConstraintsTest(NumIterations, Gravity)
+			: Base(NumIterations, Gravity)
 			, JointsRule(Joints)
 		{
 			Evolution.AddConstraintRule(&JointsRule);
@@ -77,13 +82,14 @@ namespace ChaosTest {
 	/**
 	 * One kinematic, one dynamic particle connected by a ball-socket joint in the middle.
 	 */
+	template <typename TEvolution>
 	void JointConstraint_Single()
 	{
 
 		const int32 NumIterations = 1;
 		const FReal Gravity = 980;
 
-		FJointConstraintsTest Test(NumIterations, Gravity);
+		FJointConstraintsTest<TEvolution> Test(NumIterations, Gravity);
 
 		Test.ParticlePositions =
 		{
@@ -133,6 +139,7 @@ namespace ChaosTest {
 		}
 	}
 
+	template <typename TEvolution>
 	void JointConstraint_SingleMoveRoot()
 	{
 		const int32 NumIterations = 5;
@@ -142,7 +149,7 @@ namespace ChaosTest {
 		const FReal Dt = (FReal)1 / 20;
 		const FVec3 RootDelta(1 * BoxSize, 0, 0);
 
-		FJointConstraintsTest Test(NumIterations, Gravity);
+		FJointConstraintsTest<TEvolution> Test(NumIterations, Gravity);
 
 		Test.ParticlePositions =
 		{
@@ -216,6 +223,7 @@ namespace ChaosTest {
 	/**
 	 * Pendulum with animated root.
 	 */
+	template <typename TEvolution>
 	void JointConstraint_SingleAnimated()
 	{
 		const int32 NumIterations = 5;
@@ -226,7 +234,7 @@ namespace ChaosTest {
 		const FReal AnimPeriod = (FReal)2;
 		const FVec3 AnimDelta = FVec3(10 * BoxSize, 0, 0);
 
-		FJointConstraintsTest Test(NumIterations, Gravity);
+		FJointConstraintsTest<TEvolution> Test(NumIterations, Gravity);
 
 		Test.ParticlePositions =
 		{
@@ -288,6 +296,7 @@ namespace ChaosTest {
 	/**
 	 * Pendulum with animated root.
 	 */
+	template <typename TEvolution>
 	void JointConstraint_ShortChainAnimated()
 	{
 		const int32 NumIterations = 10;
@@ -299,7 +308,7 @@ namespace ChaosTest {
 		const FVec3 AnimDelta = FVec3(5 * BoxSize, 0, 0);
 		const FReal AcceptableDistanceError = 5;
 
-		FJointConstraintsTest Test(NumIterations, Gravity);
+		FJointConstraintsTest<TEvolution> Test(NumIterations, Gravity);
 
 		Test.ParticlePositions =
 		{
@@ -373,6 +382,7 @@ namespace ChaosTest {
 	/**
 	 * Pendulum with animated root.
 	 */
+	template <typename TEvolution>
 	void JointConstraint_LongChainAnimated()
 	{
 		const int NumParticles = 10;
@@ -392,7 +402,7 @@ namespace ChaosTest {
 		FMath::RandInit(1048604845);
 
 		// Create a chain of connected particles, with particle 0 fixed
-		FJointConstraintsTest Test(NumIterations, Gravity);
+		FJointConstraintsTest<TEvolution> Test(NumIterations, Gravity);
 		for (int32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
 		{
 			Test.ParticlePositions.Add(Begin + ParticleIndex * Separation * Dir);
@@ -458,6 +468,7 @@ namespace ChaosTest {
 		EXPECT_LT(MaxDistanceError, AcceptableDistanceError) << "On frame " << MaxDistanceErrorFrameIndex;
 	}
 
+	template <typename TEvolution>
 	void SpringConstraint()
 	{
 		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<FChaosPhysicsMaterial>();
@@ -477,7 +488,7 @@ namespace ChaosTest {
 		Box2->X() = FVec3((FReal)500, (FReal)0, (FReal)1000);
 		Box2->P() = Box2->X();
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		TVector<TGeometryParticleHandle<FReal, 3>*,2> ConstrainedParticles = TVector<TGeometryParticleHandle<FReal,3>*, 2>(StaticBox, Box2);
 		TVector<FVec3, 2> Points = { FVec3((FReal)100, (FReal)0, (FReal)1000), FVec3((FReal)400, (FReal)0, (FReal)1000) };
 
@@ -498,6 +509,7 @@ namespace ChaosTest {
 		}
 	}
 
+	template <typename TEvolution>
 	void DynamicSpringConstraint()
 	{
 		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<FChaosPhysicsMaterial>();
@@ -519,7 +531,7 @@ namespace ChaosTest {
 			Box2.P() = Box2.X();
 
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-			FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
+			TEvolution Evolution(Particles, PhysicalMaterials);
 			TArray<TVector<TGeometryParticleHandle<FReal,3>*, 2>> Constraints = { TVector<TGeometryParticleHandle<FReal,3>*, 2>(&StaticBox, &Box2) };
 
 			Evolution.SetPhysicsMaterial(&StaticBox, MakeSerializable(PhysicalMaterial));
@@ -549,7 +561,7 @@ namespace ChaosTest {
 			Box2.P() = Box2.X();
 
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-			FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
+			TEvolution Evolution(Particles, PhysicalMaterials);
 			TArray<TVector<TGeometryParticleHandle<FReal,3>*, 2>> Constraints = { TVector<TGeometryParticleHandle<FReal,3>*, 2>(&StaticBox, &Box2) };
 
 			Evolution.SetPhysicsMaterial(&StaticBox, MakeSerializable(PhysicalMaterial));
@@ -571,32 +583,32 @@ namespace ChaosTest {
 
 
 
-	TEST(JointTests, TestSingleConstraint) {
-		JointConstraint_Single();
+	TYPED_TEST(AllEvolutions, JointTests_TestSingleConstraint) {
+		JointConstraint_Single<TypeParam>();
 	}
 
-	TEST(JointTests, TestSingleConstraintWithLateralTranslation) {
-		JointConstraint_SingleMoveRoot();
+	TYPED_TEST(AllEvolutions, JointTests_TestSingleConstraintWithLateralTranslation) {
+		JointConstraint_SingleMoveRoot<TypeParam>();
 	}
 
-	TEST(JointTests, TestSingleConstraintWithAnimatedRoot) {
-		JointConstraint_SingleAnimated();
+	TYPED_TEST(AllEvolutions, JointTests_TestSingleConstraintWithAnimatedRoot) {
+		JointConstraint_SingleAnimated<TypeParam>();
 	}
 
-	TEST(JointTests, TestShortJointChainWithAnimatedRoot) {
-		JointConstraint_ShortChainAnimated();
+	TYPED_TEST(AllEvolutions, JointTests_TestShortJointChainWithAnimatedRoot) {
+		JointConstraint_ShortChainAnimated<TypeParam>();
 	}
 
-	TEST(JointTests, TestLongJointChainWithAnimatedRoot) {
-		JointConstraint_LongChainAnimated();
+	TYPED_TEST(AllEvolutions, JointTests_TestLongJointChainWithAnimatedRoot) {
+		JointConstraint_LongChainAnimated<TypeParam>();
 	}
 
-	TEST(JointTests, TestSingleSpringConstraint) {
-		SpringConstraint();
+	TYPED_TEST(AllEvolutions, JointTests_TestSingleSpringConstraint) {
+		SpringConstraint<TypeParam>();
 	}
 
-	TEST(JointTests, TestSingleDynamicSpringConstraint) {
-		DynamicSpringConstraint();
+	TYPED_TEST(AllEvolutions, JointTests_TestSingleDynamicSpringConstraint) {
+		DynamicSpringConstraint<TypeParam>();
 	}
 }
 
