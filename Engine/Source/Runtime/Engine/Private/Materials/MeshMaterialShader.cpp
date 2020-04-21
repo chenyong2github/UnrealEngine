@@ -139,15 +139,10 @@ FShader* FMeshMaterialShaderType::FinishCompileShader(
 	const FSHAHash& MaterialShaderMapHash,
 	const FShaderCompileJob& CurrentJob,
 	const FShaderPipelineType* ShaderPipelineType,
-	const FString& InDebugDescription,
-	FShaderMapResourceBuilder& ResourceBuilder)
+	const FString& InDebugDescription)
 {
 	checkf(CurrentJob.bSucceeded, TEXT("Failed MeshMaterialType compilation job: %s"), *GetJobName(&CurrentJob, ShaderPipelineType, InDebugDescription));
 	checkf(CurrentJob.VFType, TEXT("No VF on MeshMaterialType compilation job: %s"), *GetJobName(&CurrentJob, ShaderPipelineType, InDebugDescription));
-
-	// Reuse an existing resource with the same key or create a new one based on the compile output
-	// This allows FShaders to share compiled bytecode and RHI shader references
-	const int32 ResourceIndex = ResourceBuilder.FindOrAddCode(CurrentJob.Output);
 
 	if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 	{
@@ -155,7 +150,7 @@ FShader* FMeshMaterialShaderType::FinishCompileShader(
 		ShaderPipelineType = nullptr;
 	}
 
-	FShader* Shader = ConstructCompiled(CompiledShaderInitializerType(this, CurrentJob.PermutationId, CurrentJob.Output, ResourceIndex, UniformExpressionSet, MaterialShaderMapHash, InDebugDescription, ShaderPipelineType, CurrentJob.VFType));
+	FShader* Shader = ConstructCompiled(CompiledShaderInitializerType(this, CurrentJob.PermutationId, CurrentJob.Output, UniformExpressionSet, MaterialShaderMapHash, InDebugDescription, ShaderPipelineType, CurrentJob.VFType));
 	ValidateAfterBind(this, (FMeshMaterialShader*)Shader);
 	CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), CurrentJob.Output.Target, CurrentJob.VFType);
 

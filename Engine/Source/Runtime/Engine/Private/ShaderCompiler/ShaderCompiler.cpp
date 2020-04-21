@@ -4313,16 +4313,13 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 		EShaderPlatform Platform = CurrentJob.Input.Target.GetPlatform();
 		FGlobalShaderMapSection* Section = GGlobalShaderMap[Platform]->FindOrAddSection(ShaderType);
 
-		// Reuse an existing resource with the same key or create a new one based on the compile output
-		// This allows FShaders to share compiled bytecode and RHI shader references
-		const int32 ResourceIndex = Section->GetResourceBuilder().FindOrAddCode(CurrentJob.Output);
+		Section->GetResourceCode()->AddShaderCompilerOutput(CurrentJob.Output);
 
 		if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 		{
 			// If sharing shaders in this pipeline, remove it from the type/id so it uses the one in the shared shadermap list
 			ShaderPipelineType = nullptr;
 		}
-
 
 		// Create the global shader map hash
 		FSHAHash GlobalShaderMapHash;
@@ -4334,7 +4331,7 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 			HashState.GetHash(&GlobalShaderMapHash.Hash[0]);
 		}
 
-		Shader = ShaderType->ConstructCompiled(FGlobalShaderType::CompiledShaderInitializerType(ShaderType, CurrentJob.PermutationId, CurrentJob.Output, ResourceIndex, GlobalShaderMapHash, ShaderPipelineType, nullptr));
+		Shader = ShaderType->ConstructCompiled(FGlobalShaderType::CompiledShaderInitializerType(ShaderType, CurrentJob.PermutationId, CurrentJob.Output, GlobalShaderMapHash, ShaderPipelineType, nullptr));
 		CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(ShaderType->GetName(), CurrentJob.Output.Target, CurrentJob.VFType);
 	}
 
@@ -4577,8 +4574,7 @@ static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 		if (Section)
 		{
 			Section->FinalizeContent();
-			Section->ReleaseResourceBuilder();
-
+	
 			SaveData.Reset();
 			FMemoryWriter Ar(SaveData, true);
 			Section->Serialize(Ar);
