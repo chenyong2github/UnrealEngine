@@ -1476,7 +1476,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 		
 	for (int32 TypeIndex = 0; TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
 	{
-		const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& Parameters = SourceMaterialResource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
+		const TArrayView<const FMaterialTextureParameterInfo> Parameters = SourceMaterialResource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
 		// Iterate over each of the material's texture expressions.
 		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
@@ -1508,7 +1508,7 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FHashedMaterialPara
 	if (bHasStaticPermutationResource)
 	{
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
-		const TArray<FMaterialVectorParameterInfo, FMemoryImageAllocator>& Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
+		const TArrayView<const FMaterialVectorParameterInfo> Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
 
 		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
@@ -1535,7 +1535,7 @@ void UMaterialInstance::OverrideScalarParameterDefault(const FHashedMaterialPara
 	if (bHasStaticPermutationResource)
 	{
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
-		const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>& Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
+		const TArrayView<const FMaterialScalarParameterInfo> Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
 
 		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
