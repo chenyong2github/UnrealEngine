@@ -945,9 +945,12 @@ void FPhysInterface_Chaos::SetComLocalPose_AssumesLocked(const FPhysicsActorHand
 
 void FPhysInterface_Chaos::SetIsSimulationShape(const FPhysicsShapeHandle& InShape, bool bIsSimShape)
 {
-	FPhysicsShapeHandle& ShapeHandle = const_cast<FPhysicsShapeHandle&>(InShape);
-	ShapeHandle.Shape->SetSimulate(bIsSimShape);
-	ShapeHandle.bSimulation = bIsSimShape;
+	InShape.Shape->SetSimEnabled(bIsSimShape);
+}
+
+void FPhysInterface_Chaos::SetIsQueryShape(const FPhysicsShapeHandle& InShape, bool bIsQueryShape)
+{
+	InShape.Shape->SetQueryEnabled(bIsQueryShape);
 }
 
 float FPhysInterface_Chaos::GetStabilizationEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InHandle)
@@ -1472,7 +1475,7 @@ FPhysicsShapeHandle FPhysInterface_Chaos::CreateShape(physx::PxGeometry* InGeom,
 	// #todo : Implement
 	// @todo(mlentine): Should we be doing anything with the InGeom here?
     FPhysicsActorHandle NewActor = nullptr;
-	return { nullptr, bSimulation, bQuery, NewActor };
+	return { nullptr, NewActor };
 }
 
 const FBodyInstance* FPhysInterface_Chaos::ShapeToOriginalBodyInstance(const FBodyInstance* InCurrentInstance, const Chaos::FPerShapeData* InShape)
@@ -1512,7 +1515,7 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 	{
 		for (TUniquePtr<Chaos::FPerShapeData>& Shape : Shapes)
 		{
-			FPhysicsShapeHandle NewHandle(Shape.Get(), true, true, InActor);
+			FPhysicsShapeHandle NewHandle(Shape.Get(), InActor);
 			if (OutOptShapes)
 			{
 				OutOptShapes->Add(NewHandle);
@@ -1542,8 +1545,8 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 // @todo(chaos): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
 FPhysicsShapeHandle FPhysInterface_Chaos::CloneShape(const FPhysicsShapeHandle& InShape)
 {
-	FPhysicsActorHandle NewActor = nullptr; // why zero and not the default INDEX_NONE?
-	return { InShape.Shape, InShape.bSimulation, InShape.bQuery, NewActor };
+	FPhysicsActorHandle NewActor = nullptr;
+	return { InShape.Shape, NewActor };
 }
 
 FPhysicsGeometryCollection_Chaos FPhysInterface_Chaos::GetGeometryCollection(const FPhysicsShapeHandle& InShape)
@@ -1630,14 +1633,14 @@ void FPhysInterface_Chaos::SetSimulationFilter(const FPhysicsShapeReference_Chao
 
 bool FPhysInterface_Chaos::IsSimulationShape(const FPhysicsShapeHandle& InShape)
 {
-    return InShape.bSimulation;
+	return InShape.Shape->GetSimEnabled();
 }
 
 bool FPhysInterface_Chaos::IsQueryShape(const FPhysicsShapeHandle& InShape)
 {
 	// This data is not stored on concrete shape. TODO: Remove ensure if we actually use this flag when constructing shape handles.
 	CHAOS_ENSURE(false);
-    return InShape.bQuery;
+	return InShape.Shape->GetQueryEnabled();
 }
 
 ECollisionShapeType FPhysInterface_Chaos::GetShapeType(const FPhysicsShapeReference_Chaos& InShapeRef)
@@ -2236,7 +2239,7 @@ int32 GetAllShapesInternal_AssumedLocked(const FPhysicsActorHandle& InActorHandl
 	//todo: can we avoid this construction?
 	for (const TUniquePtr<Chaos::FPerShapeData>& Shape : ShapesArray)
 	{
-		OutShapes.Add(FPhysicsShapeReference_Chaos(Shape.Get(), Shape->GetSimulate(), true, InActorHandle));
+		OutShapes.Add(FPhysicsShapeReference_Chaos(Shape.Get(), InActorHandle));
 	}
 	return OutShapes.Num();
 }

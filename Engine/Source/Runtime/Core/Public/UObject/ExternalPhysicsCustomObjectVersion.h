@@ -126,6 +126,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Added ability to remove shapes from sim and/or query separately
 		AddShapeSimAndQueryCollisionEnabled,
 
+		// Remove extra representations of per shape sim and query enabled flags
+		RemoveShapeSimAndQueryDuplicateRepresentations,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
