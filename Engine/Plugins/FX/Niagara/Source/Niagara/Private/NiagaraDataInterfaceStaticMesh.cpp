@@ -104,8 +104,8 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources* Res, c
 	SectionRenderData = Res;
 
 	const uint32 ValidSectionCount = ValidSection.Num();
-	const TArray<float, FMemoryImageAllocator>& Prob = SectionSamplerParam.GetProb();
-	const TArray<int32, FMemoryImageAllocator>& Alias = SectionSamplerParam.GetAlias();
+	TArrayView<const float> Prob = SectionSamplerParam.GetProb();
+	TArrayView<const int32> Alias = SectionSamplerParam.GetAlias();
 	check(ValidSectionCount == Prob.Num());
 	// Build data that will be uploaded to GPU later from the render thread.
 	// The array contains data used to select regions for uniform particle spawning on them, as well as section triangle ranges.
