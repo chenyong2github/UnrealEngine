@@ -14,7 +14,7 @@
 
 namespace Chaos
 {
-	extern float ChaosClusteringChildrenInheritVelocity;
+	extern CHAOS_API float ChaosClusteringChildrenInheritVelocity;
 }
 
 namespace Chaos
