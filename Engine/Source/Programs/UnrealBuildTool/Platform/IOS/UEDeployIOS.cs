@@ -1046,7 +1046,15 @@ namespace UnrealBuildTool
 			// copy the GameName binary
 			File.Copy(BinaryPath + "/" + GameExeName, AppDirectory + "/" + GameName, true);
 
-			CopyLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory);
+			if (SubDir == GetTargetPlatformName())
+			{
+				string BuildDirectoryFortvOS = InProjectDirectory + "/Build/IOS";
+				CopyLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectoryFortvOS);
+			}
+			else
+			{
+				CopyLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory);
+			}
 
 			if (!bCreateStubIPA)
 			{
