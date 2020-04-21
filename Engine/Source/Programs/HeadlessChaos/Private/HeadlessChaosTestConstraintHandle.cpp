@@ -188,37 +188,37 @@ namespace ChaosTest {
 		CheckConstraintHandles(Constraints, ParticleHandles, ConstraintsHandles);
 	}
 
-	TEST(ConstraintHandleTests, DISABLED_CollisionConstraintHandle)
+	TYPED_TEST(AllEvolutions, DISABLED_ConstraintHandleTests_CollisionConstraintHandle)
 	{
-		CollisionConstraintHandles<Chaos::FPBDRigidsEvolution>();
+		CollisionConstraintHandles<TypeParam>();
 
 		SUCCEED();
 	}
 
-	TEST(ConstraintHandleTests, JointConstraintHandle)
+	TYPED_TEST(AllEvolutions, ConstraintHandleTests_JointConstraintHandle)
 	{
-		JointConstraintHandles<Chaos::FPBDRigidsEvolution>();
+		JointConstraintHandles<TypeParam>();
 
 		SUCCEED();
 	}
 
-	TEST(ConstraintHandleTests, PositionConstraintHandles)
+	TYPED_TEST(AllEvolutions, ConstraintHandleTests_PositionConstraintHandles)
 	{
-		PositionConstraintHandles<Chaos::FPBDRigidsEvolution>();
+		PositionConstraintHandles<TypeParam>();
 
 		SUCCEED();
 	}
 
-	TEST(ConstraintHandleTests, RigidSpringConstraintHandles)
+	TYPED_TEST(AllEvolutions, ConstraintHandleTests_RigidSpringConstraintHandles)
 	{
-		RigidSpringConstraintHandles<Chaos::FPBDRigidsEvolution>();
+		RigidSpringConstraintHandles<TypeParam>();
 
 		SUCCEED();
 	}
 
-	TEST(ConstraintHandleTests, RigidDynamicSpringConstraintHandles)
+	TYPED_TEST(AllEvolutions, ConstraintHandleTests_RigidDynamicSpringConstraintHandles)
 	{
-		RigidDynamicSpringConstraintHandles<Chaos::FPBDRigidsEvolution>();
+		RigidDynamicSpringConstraintHandles<TypeParam>();
 
 		SUCCEED();
 	}
