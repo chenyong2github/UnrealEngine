@@ -243,11 +243,6 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings,
 			const bool bUseSoftLimit);
 
-		int32 ApplyTwistDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
 		int32 ApplyTwistProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
@@ -258,11 +253,6 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const bool bUseSoftLimit);
-
-		int32 ApplyConeDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
 
 		int32 ApplyConeProjection(
 			const FReal Dt,
@@ -293,17 +283,19 @@ namespace Chaos
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const bool bUseSoftLimit);
 
-		int32 ApplySwingDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex);
-
 		int32 ApplySwingProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex);
+
+		int32 ApplySwingTwistDrives(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const bool bTwistDriveEnabled,
+			const bool bSwing1DriveEnabled,
+			const bool bSwing2DriveEnabled);
 
 		int32 ApplySLerpDrive(
 			const FReal Dt,
@@ -393,7 +385,8 @@ namespace Chaos
 		// XPBD Previous iteration world-space body state
 		FVec3 PrevPs[MaxConstrainedBodies];			// World-space particle CoM positions
 		FReal TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-		FReal SwingDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+		FReal Swing1DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
+		FReal Swing2DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
 		FRotation3 PrevQs[MaxConstrainedBodies];	// World-space particle CoM rotations
 		FVec3 PrevXs[MaxConstrainedBodies];			// World-space joint connector positions
 
