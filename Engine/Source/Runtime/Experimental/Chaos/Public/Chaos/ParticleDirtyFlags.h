@@ -392,14 +392,12 @@ struct FCollisionData
 	EChaosCollisionTraceFlag CollisionTraceType;
 	uint8 bSimCollision : 1;
 	uint8 bQueryCollision : 1;
-	uint8 bSimulate : 1;
 
 	FCollisionData()
 	: UserData(nullptr)
 	, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
 	, bSimCollision(true)
 	, bQueryCollision(true)
-	, bSimulate(true)
 	{
 	}
 
@@ -427,11 +425,12 @@ struct FCollisionData
 			bSimCollision = !Disable;
 		}
 
-		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag)
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag &&
+			Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::RemoveShapeSimAndQueryDuplicateRepresentations)
 		{
-			bool Simulate = bSimulate;
+			bool Simulate = bSimCollision;
 			Ar << Simulate;
-			bSimulate= Simulate;
+			bSimCollision = Simulate;
 		}
 
 		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeCollisionTraceType)

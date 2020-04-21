@@ -109,8 +109,14 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 		{
 			const FShapeDirtyData& ShapeData = ShapesData[ShapeDataIdx];
 			const int32 ShapeIdx = ShapeData.GetShapeIdx();
-			if(auto NewData = ShapeData.FindCollisionData(Manager, ShapeDataIdx)){ Handle->ShapesArray()[ShapeIdx]->SetCollisionData(*NewData); }
-			if(auto NewData = ShapeData.FindMaterials(Manager, ShapeDataIdx)){ Handle->ShapesArray()[ShapeIdx]->SetMaterialData(*NewData); }
+			if(auto NewData = ShapeData.FindCollisionData(Manager, ShapeDataIdx))
+			{
+				Handle->ShapesArray()[ShapeIdx]->SetCollisionData(*NewData);
+			}
+			if(auto NewData = ShapeData.FindMaterials(Manager, ShapeDataIdx))
+			{
+				Handle->ShapesArray()[ShapeIdx]->SetMaterialData(*NewData);
+			}
 		}
 	}
 }

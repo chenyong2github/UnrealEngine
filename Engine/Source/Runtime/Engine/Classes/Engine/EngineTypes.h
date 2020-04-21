@@ -1218,6 +1218,16 @@ FORCEINLINE bool CollisionEnabledHasQuery(ECollisionEnabled::Type CollisionEnabl
 			(CollisionEnabled == ECollisionEnabled::QueryAndPhysics);
 }
 
+FORCEINLINE ECollisionEnabled::Type CollisionEnabledIntersection(ECollisionEnabled::Type CollisionEnabledA, ECollisionEnabled::Type CollisionEnabledB)
+{
+	const bool bHasQuery = (CollisionEnabledHasQuery(CollisionEnabledA) && CollisionEnabledHasQuery(CollisionEnabledB));
+	const bool bHasPhysics = (CollisionEnabledHasPhysics(CollisionEnabledA) && CollisionEnabledHasPhysics(CollisionEnabledB));
+	if (bHasQuery && bHasPhysics) { return ECollisionEnabled::QueryAndPhysics; }
+	if (bHasQuery) { return ECollisionEnabled::QueryOnly; }
+	if (bHasPhysics) { return ECollisionEnabled::PhysicsOnly; }
+	return ECollisionEnabled::NoCollision;
+}
+
 /** Describes the physical state of a rigid body. */
 USTRUCT()
 struct FRigidBodyState
