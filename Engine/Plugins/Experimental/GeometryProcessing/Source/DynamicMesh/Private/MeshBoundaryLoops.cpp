@@ -488,6 +488,7 @@ bool FMeshBoundaryLoops::ExtractSubloops(TArray<int>& loopV, TArray<int>& loopE,
 			FEdgeSpan& NewSpan = subs.Spans[subs.Spans.Emplace()];
 			NewSpan.InitializeFromVertices(Mesh, VerticesTemp, false);
 			NewSpan.SetBowtieVertices(bowties);
+			return false;
 		}
 
 		if (bv != bv_shortest)
