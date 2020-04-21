@@ -39,9 +39,9 @@ public:
 	inline uint32 GetLooseDataSizeBytes() const
 	{
 		uint32 DataSize = 0;
-		for (int32 LooseBufferIndex = 0; LooseBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseBufferIndex++)
+		for (const FShaderLooseParameterBufferInfo& Info : ParameterMapInfo.LooseParameterBuffers)
 		{
-			DataSize += ParameterMapInfo.LooseParameterBuffers[LooseBufferIndex].Size;
+			DataSize += Info.Size;
 		}
 		return DataSize;
 	}
@@ -188,15 +188,17 @@ public:
 			bool bFoundParameter = false;
 			uint8* LooseDataOffset = GetLooseDataStart();
 
-			for (int32 LooseBufferIndex = 0; LooseBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseBufferIndex++)
+			TArrayView<const FShaderLooseParameterBufferInfo> LooseParameterBuffers(ParameterMapInfo.LooseParameterBuffers);
+			for (int32 LooseBufferIndex = 0; LooseBufferIndex < LooseParameterBuffers.Num(); LooseBufferIndex++)
 			{
-				const FShaderLooseParameterBufferInfo& LooseParameterBuffer = ParameterMapInfo.LooseParameterBuffers[LooseBufferIndex];
+				const FShaderLooseParameterBufferInfo& LooseParameterBuffer = LooseParameterBuffers[LooseBufferIndex];
 
 				if (LooseParameterBuffer.BaseIndex == Parameter.GetBufferIndex())
 				{
-					for (int32 LooseParameterIndex = 0; LooseParameterIndex < LooseParameterBuffer.Parameters.Num(); LooseParameterIndex++)
+					TArrayView<const FShaderParameterInfo> Parameters(LooseParameterBuffer.Parameters);
+					for (int32 LooseParameterIndex = 0; LooseParameterIndex < Parameters.Num(); LooseParameterIndex++)
 					{
-						FShaderParameterInfo LooseParameter = LooseParameterBuffer.Parameters[LooseParameterIndex];
+						FShaderParameterInfo LooseParameter = Parameters[LooseParameterIndex];
 
 						if (Parameter.GetBaseIndex() == LooseParameter.BaseIndex)
 						{
@@ -258,27 +260,30 @@ private:
 	template<typename ElementType>
 	inline int FindSortedArrayBaseIndex(const TConstArrayView<ElementType>& Array, uint32 BaseIndex)
 	{
-		int S0 = 0;
-		int S1 = Array.Num() - 1;
-		while (S0 < S1)
+		int Index = 0; 
+		int Size = Array.Num();
+
+		//start with binary search for larger lists
+		while (Size > 8)
 		{
-			int MED = (S0 + S1) / 2;
-			if (Array[MED].BaseIndex >= BaseIndex)
-			{
-				S1 = MED;
-			}
-			else
-			{
-				S0 = (S0 == MED) ? S0 + 1 : MED;
-			}
+			const int LeftoverSize = Size % 2;
+			Size = Size / 2;
+
+			const int CheckIndex = Index + Size;
+			const int IndexIfLess = CheckIndex + LeftoverSize;
+
+			Index = Array[CheckIndex].BaseIndex < BaseIndex ? IndexIfLess : Index;
 		}
 
-		if (S0 == S1)
+		//small size array optimization
+		const int ArrayEnd = Index + Size;
+		while (Index < ArrayEnd)
 		{
-			if (Array[S0].BaseIndex == BaseIndex)
+			if (Array[Index].BaseIndex == BaseIndex)
 			{
-				return S0;
+				return Index;
 			}
+			Index++;
 		}
 
 		return -1;

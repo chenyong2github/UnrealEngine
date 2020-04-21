@@ -731,9 +731,10 @@ public:
 	{
 		const FHashedName SearchName = SearchStruct->GetShaderVariableHashedName();
 		int32 FoundIndex = INDEX_NONE;
-		for (int32 StructIndex = 0, Count = UniformBufferParameterStructs.Num(); StructIndex < Count; StructIndex++)
+		TArrayView<const FHashedName> UniformBufferParameterStructsView(UniformBufferParameterStructs);
+		for (int32 StructIndex = 0, Count = UniformBufferParameterStructsView.Num(); StructIndex < Count; StructIndex++)
 		{
-			if (UniformBufferParameterStructs[StructIndex] == SearchName)
+			if (UniformBufferParameterStructsView[StructIndex] == SearchName)
 			{
 				FoundIndex = StructIndex;
 				break;
@@ -1779,12 +1780,12 @@ public:
 		return HasShader(Type->GetHashedName(), PermutationId);
 	}
 
-	inline const TMemoryImageArray<TMemoryImagePtr<FShader>>& GetShaders() const
+	inline TArrayView<const TMemoryImagePtr<FShader>> GetShaders() const
 	{
 		return Shaders;
 	}
 
-	inline const TMemoryImageArray<TMemoryImagePtr<FShaderPipeline>>& GetShaderPipelines() const
+	inline TArrayView<const TMemoryImagePtr<FShaderPipeline>> GetShaderPipelines() const
 	{
 		return ShaderPipelines;
 	}
