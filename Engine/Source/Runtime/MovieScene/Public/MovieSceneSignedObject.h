@@ -53,11 +53,6 @@ private:
 	UPROPERTY()
 	FGuid Signature;
 
-#if WITH_EDITOR
-	/** Keep track of the above signature before and after post load to ensure that it got deserialized. If it didn't this will create deterministic cooking issues. */
-	FGuid PreLoadSignature;
-#endif
-
 	/** Event that is triggered whenever this object's signature has changed */
 	FOnSignatureChanged OnSignatureChangedEvent;
 };
