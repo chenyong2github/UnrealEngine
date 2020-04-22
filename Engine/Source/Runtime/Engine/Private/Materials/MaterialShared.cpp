@@ -3939,8 +3939,7 @@ FMaterialResourceProxyReader::FMaterialResourceProxyReader(
 	ERHIFeatureLevel::Type FeatureLevel,
 	EMaterialQualityLevel::Type QualityLevel) :
 	FArchiveProxy(Ar),
-	OffsetToEnd(-1),
-	bReleaseInnerArchive(false)
+	OffsetToEnd(-1)
 {
 	check(InnerArchive.IsLoading());
 	Initialize(FeatureLevel, QualityLevel, FeatureLevel != ERHIFeatureLevel::Num);
@@ -3951,9 +3950,9 @@ FMaterialResourceProxyReader::FMaterialResourceProxyReader(
 	uint32 NameMapOffset,
 	ERHIFeatureLevel::Type FeatureLevel,
 	EMaterialQualityLevel::Type QualityLevel) :
-	FArchiveProxy(*IFileManager::Get().CreateFileReader(Filename, FILEREAD_NoFail)),
-	OffsetToEnd(-1),
-	bReleaseInnerArchive(true)
+	TUniquePtr(IFileManager::Get().CreateFileReader(Filename, FILEREAD_NoFail)), // Create and store the FileArchive
+	FArchiveProxy(*Get()), // Now link it to the archive proxy
+	OffsetToEnd(-1)
 {
 	InnerArchive.Seek(NameMapOffset);
 	Initialize(FeatureLevel, QualityLevel);
@@ -3961,11 +3960,7 @@ FMaterialResourceProxyReader::FMaterialResourceProxyReader(
 
 FMaterialResourceProxyReader::~FMaterialResourceProxyReader()
 {
-	if (bReleaseInnerArchive)
-	{
-		delete &InnerArchive;
-	}
-	else if (OffsetToEnd != -1)
+	if (OffsetToEnd != -1)
 	{
 		InnerArchive.Seek(OffsetToEnd);
 	}
