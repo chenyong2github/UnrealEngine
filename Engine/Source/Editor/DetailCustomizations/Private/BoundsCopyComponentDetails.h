@@ -6,6 +6,10 @@
 #include "IDetailCustomization.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Input/Reply.h"
+#include "UObject/WeakObjectPtr.h"
+enum class ECheckBoxState : uint8;
+
+class UBoundsCopyComponent;
 
 /** UI customization for UBoundsCopyComponent */
 class FBoundsCopyComponentDetailsCustomization : public IDetailCustomization
@@ -26,5 +30,14 @@ protected:
 	//~ End IDetailCustomization Interface.
 
 private:
-	class UBoundsCopyComponent* BoundsCopyComponent;
+	void OnBoundsComponentsXChanged(ECheckBoxState NewState);
+	void OnBoundsComponentsYChanged(ECheckBoxState NewState);
+	void OnBoundsComponentsZChanged(ECheckBoxState NewState);
+	ECheckBoxState IsBoundsComponentsXChecked() const;
+	ECheckBoxState IsBoundsComponentsYChecked() const;
+	ECheckBoxState IsBoundsComponentsZChecked() const;
+	bool IsCopyEnabled() const;
+
+private:
+	TWeakObjectPtr<UBoundsCopyComponent> BoundsCopyComponent;
 };

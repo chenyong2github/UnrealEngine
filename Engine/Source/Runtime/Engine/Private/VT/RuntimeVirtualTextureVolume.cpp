@@ -14,6 +14,7 @@ ARuntimeVirtualTextureVolume::ARuntimeVirtualTextureVolume(const FObjectInitiali
 #if WITH_EDITORONLY_DATA
 	// Add bounds copier
 	BoundsCopyComponent = CreateDefaultSubobject<UBoundsCopyComponent>(TEXT("BoundsCopyComponent"));
+	BoundsCopyComponent->BoundsScaleFactor = FVector(2.f, 2.f, 1.f); // Account for Box offset which centers it on origin
 
 	// Add box for visualization of bounds
 	Box = CreateDefaultSubobject<UBoxComponent>(TEXT("Bounds"));
