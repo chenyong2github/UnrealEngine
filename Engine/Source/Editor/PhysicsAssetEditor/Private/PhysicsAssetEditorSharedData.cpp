@@ -591,6 +591,78 @@ void FPhysicsAssetEditorSharedData::ToggleShowSelected()
 	}
 }
 
+void FPhysicsAssetEditorSharedData::ToggleShowOnlySelected()
+{
+	// Show only selected: make selected items visible and all others invisible.
+	// If we are already in the ShowOnlySelected state, make all visible.
+	bool bAllSelectedVisible = true;
+	if (bAllSelectedVisible)
+	{
+		for (const FSelection& Selection : SelectedConstraints)
+		{
+			if (HiddenConstraints.Contains(Selection.Index))
+			{
+				bAllSelectedVisible = false;
+				break;
+			}
+		}
+	}
+	if (bAllSelectedVisible)
+	{
+		for (const FSelection& Selection : SelectedBodies)
+		{
+			if (HiddenBodies.Contains(Selection.Index))
+			{
+				bAllSelectedVisible = false;
+			}
+		}
+	}
+
+	bool bAllNotSelectedHidden = true;
+	if (bAllNotSelectedHidden)
+	{
+		for (int32 ConstraintIndex = 0; ConstraintIndex < PhysicsAsset->ConstraintSetup.Num(); ++ConstraintIndex)
+		{
+			// Look at unselected constraints
+			if (!SelectedConstraints.ContainsByPredicate([ConstraintIndex](FSelection& V) { return V.Index == ConstraintIndex; } ))
+			{
+				// Is it hidden?
+				if (!HiddenConstraints.Contains(ConstraintIndex))
+				{
+					bAllNotSelectedHidden = false;
+					break;
+				}
+			}
+		}
+	}
+	if (bAllNotSelectedHidden)
+	{
+		for (int32 BodyIndex = 0; BodyIndex < PhysicsAsset->SkeletalBodySetups.Num(); ++BodyIndex)
+		{
+			// Look at unselected bodies
+			if (!SelectedBodies.ContainsByPredicate([BodyIndex](FSelection& V) { return V.Index == BodyIndex; }))
+			{
+				// Is it hidden?
+				if (!HiddenBodies.Contains(BodyIndex))
+				{
+					bAllNotSelectedHidden = false;
+					break;
+				}
+			}
+		}
+	}
+
+	if (bAllSelectedVisible && bAllNotSelectedHidden)
+	{
+		ShowAll();
+	}
+	else
+	{
+		HideAll();
+		ShowSelected();
+	}
+}
+
 void FPhysicsAssetEditorSharedData::ShowAll()
 {
 	HiddenConstraints.Empty();
