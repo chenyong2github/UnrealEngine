@@ -6704,6 +6704,29 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	FParse::Value(FCommandLine::Get(), TEXT("StartupPaksWildcard="), StartupPaksWildcard);
 #endif
 
+	FIoStoreEnvironment IoStoreGlobalEnvironment;
+	IoStoreGlobalEnvironment.InitializeFileEnvironment(FString::Printf(TEXT("%sPaks/global"), *FPaths::ProjectContentDir()));
+	if (FIoDispatcher::IsValidEnvironment(IoStoreGlobalEnvironment))
+	{
+		FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
+		if (IoDispatcherInitStatus.IsOk())
+		{
+			FIoStatus IoDispatcherMountStatus = FIoDispatcher::Get().Mount(IoStoreGlobalEnvironment);
+			if (IoDispatcherMountStatus.IsOk())
+			{
+				UE_LOG(LogPakFile, Display, TEXT("Initialized I/O dispatcher"));
+			}
+			else
+			{
+				UE_LOG(LogPakFile, Error, TEXT("Failed to mount I/O dispatcher global environment: '%s'"), *IoDispatcherMountStatus.ToString());
+			}
+		}
+		else
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
+		}
+	}
+
 	// Find and mount pak files from the specified directories.
 	TArray<FString> PakFolders;
 	GetPakFolders(FCommandLine::Get(), PakFolders);
@@ -6916,7 +6939,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			if (FIoDispatcher::IsInitialized())
 			{
 				FIoStoreEnvironment IoStoreEnvironment;
-				IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()));
+				IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()), PakOrder);
 				FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment);
 				if (IoStatus.IsOk())
 				{
@@ -6924,7 +6947,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 				}
 				else
 				{
-					UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());
+					UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore environment \"%s\" [%s]"), *IoStoreEnvironment.GetPath(), *IoStatus.ToString());
 				}
 			}
 

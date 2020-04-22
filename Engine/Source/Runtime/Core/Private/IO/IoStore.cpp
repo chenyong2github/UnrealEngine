@@ -10,12 +10,53 @@
 #include "Async/Async.h"
 #include "Async/Future.h"
 #include "Async/ParallelFor.h"
+#include "HAL/PlatformFilemanager.h"
+#include "Misc/StringBuilder.h"
 
 //////////////////////////////////////////////////////////////////////////
 
 constexpr char FIoStoreTocHeader::TocMagicImg[];
 
 //////////////////////////////////////////////////////////////////////////
+
+/**
+ * I/O store compresssion info.
+ */
+struct FIoStoreCompressionInfo
+{
+	enum
+	{
+		/** Compression method name max length. */
+		CompressionMethodNameLen = 32
+	};
+
+	uint8 GetCompressionMethodIndex(FName CompressionMethod)
+	{
+		if (CompressionMethod == NAME_None)
+		{
+			return 0;
+		}
+
+		for (int32 Idx = 0; Idx < CompressionMethods.Num(); ++Idx)
+		{
+			if (CompressionMethods[Idx] == CompressionMethod)
+			{
+				return uint8(Idx) + 1;
+			}
+		}
+
+		const uint8 Idx = uint8(CompressionMethods.Num());
+		CompressionMethods.Add(CompressionMethod);
+
+		return Idx + 1;
+	}
+
+	TArray<FIoStoreTocCompressedBlockEntry> BlockEntries;
+	TArray<FName> CompressionMethods;
+	int64 BlockSize = 0;
+	int64 UncompressedContainerSize = 0;
+	int64 CompressedContainerSize = 0;
+};
 
 FIoStoreEnvironment::FIoStoreEnvironment()
 {
@@ -25,9 +66,10 @@ FIoStoreEnvironment::~FIoStoreEnvironment()
 {
 }
 
-void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InPath)
+void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InPath, int32 InOrder)
 {
 	Path = InPath;
+	Order = InOrder;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -211,7 +253,7 @@ public:
 						check(FileHandle->Tell() % CurrentWriteQueueItem->Alignment == 0);
 					}
 					const int64 CompressedFileOffset = FileHandle->Tell();
-					FIoStoreCompressedBlockEntry& CompressedBlockEntry = CompressionInfo.BlockEntries.AddDefaulted_GetRef();
+					FIoStoreTocCompressedBlockEntry& CompressedBlockEntry = CompressionInfo.BlockEntries.AddDefaulted_GetRef();
 					CompressedBlockEntry.OffsetAndLength.SetOffset(CompressedFileOffset);
 					const uint8* SourceData;
 					uint64 SourceDataSize;
@@ -226,7 +268,6 @@ public:
 						SourceDataSize = CurrentWriteQueueItem->CompressedSize;
 					}
 
-					FIoBuffer& SourceBuffer = CurrentWriteQueueItem->CompressionMethod == NAME_None ? CurrentWriteQueueItem->UncompressedData : CurrentWriteQueueItem->CompressedData;
 					CompressedBlockEntry.OffsetAndLength.SetLength(SourceDataSize);
 					CompressedBlockEntry.CompressionMethodIndex = CompressionInfo.GetCompressionMethodIndex(CurrentWriteQueueItem->CompressionMethod);
 					{
@@ -340,20 +381,6 @@ public:
 		
 		check(!WriteQueueHead);
 		check(!WriteQueueTail);
-		bool bIsUncompressed = true;
-		for (const FIoStoreCompressedBlockEntry& CompressedBlock : CompressionInfo.BlockEntries)
-		{
-			if (CompressedBlock.CompressionMethodIndex != FIoStoreCompressionInfo::InvalidCompressionIndex)
-			{
-				bIsUncompressed = false;
-				break;
-			}
-		}
-		if (bIsUncompressed)
-		{
-			CompressionInfo.BlockEntries.Empty();
-			CompressionInfo.BlockSize = 0;
-		}
 		CompressionInfo.UncompressedContainerSize = UncompressedOffset;
 		CompressionInfo.CompressedContainerSize = FileHandle.IsValid() ? FileHandle->Tell() : 0;
 
@@ -461,8 +488,9 @@ private:
 class FIoStoreWriterImpl
 {
 public:
-	FIoStoreWriterImpl(FIoStoreEnvironment& InEnvironment)
-	:	Environment(InEnvironment)
+	FIoStoreWriterImpl(FIoStoreEnvironment& InEnvironment, FIoContainerId InContainerId)
+		: Environment(InEnvironment)
+		, ContainerId(InContainerId)
 	{
 	}
 
@@ -473,6 +501,7 @@ public:
 		FString TocFilePath = Environment.GetPath() + TEXT(".utoc");
 		FString ContainerFilePath = Environment.GetPath() + TEXT(".ucas");
 
+		Result.ContainerId = ContainerId;
 		Result.ContainerName = FPaths::GetBaseFilename(Environment.GetPath());
 		Result.CompressionMethod = InContext.Settings().CompressionMethod;
 
@@ -517,7 +546,12 @@ public:
 		return FIoStatus::Ok;
 	}
 
-	UE_NODISCARD FIoStatus Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions)
+	UE_NODISCARD FIoStatus Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
+	{
+		return Append(ChunkId, FIoChunkHash::HashBuffer(Chunk.Data(), Chunk.DataSize()), Chunk, WriteOptions);
+	}
+
+	UE_NODISCARD FIoStatus Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
 	{
 		if (!ChunkWriter)
 		{
@@ -541,6 +575,7 @@ public:
 		if (TocEntryStatus.IsOk())
 		{
 			FIoStoreTocEntry TocEntry = TocEntryStatus.ConsumeValueOrDie();
+			TocEntry.ChunkHash = ChunkHash;
 			Toc.Add(ChunkId, TocEntry);
 
 			if (CsvArchive)
@@ -588,13 +623,14 @@ public:
 			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("The given range (Offset/Length) is not within the bounds of OriginalChunkId's data"));
 		}
 
-		FIoStoreTocEntry TocEntry;
+		FIoStoreTocPartialEntry TocPartialEntry;
 
-		TocEntry.SetOffset(Entry->GetOffset() + Offset);
-		TocEntry.SetLength(Length);
-		TocEntry.ChunkId = ChunkIdPartialRange;
+		TocPartialEntry.SetOffset(Entry->GetOffset() + Offset);
+		TocPartialEntry.SetLength(Length);
+		TocPartialEntry.ChunkId = ChunkIdPartialRange;
+		TocPartialEntry.OriginalChunkId = OriginalChunkId;
 
-		Toc.Add(ChunkIdPartialRange, TocEntry);
+		PartialToc.Add(ChunkIdPartialRange, TocPartialEntry);
 
 		IsMetadataDirty = true;
 
@@ -620,9 +656,14 @@ public:
 		TocHeader.TocHeaderSize = sizeof(TocHeader);
 		TocHeader.TocEntryCount = Toc.Num();
 		TocHeader.TocEntrySize = sizeof(FIoStoreTocEntry);
-		TocHeader.CompressionBlockCount = CompressionInfo.BlockEntries.Num();
+		TocHeader.TocPartialEntryCount = PartialToc.Num();
+		TocHeader.TocPartialEntrySize = sizeof(FIoStoreTocPartialEntry);
+		TocHeader.TocCompressedBlockEntryCount = CompressionInfo.BlockEntries.Num();
+		TocHeader.TocCompressedBlockEntrySize = sizeof(FIoStoreTocCompressedBlockEntry);
 		TocHeader.CompressionBlockSize = uint32(CompressionInfo.BlockSize);
-		TocHeader.CompressionNameCount = CompressionInfo.CompressionMethods.Num();
+		TocHeader.CompressionMethodNameCount = CompressionInfo.CompressionMethods.Num();
+		TocHeader.CompressionMethodNameLength = FIoStoreCompressionInfo::CompressionMethodNameLen;
+		TocHeader.ContainerId = ContainerId;
 
 		TocFileHandle->Seek(0);
 		if (!TocFileHandle->Write(reinterpret_cast<const uint8*>(&TocHeader), sizeof(TocHeader)))
@@ -641,8 +682,18 @@ public:
 			}
 		}
 
+		for (auto& _: PartialToc)
+		{
+			FIoStoreTocPartialEntry& TocEntry = _.Value;
+
+			if (!TocFileHandle->Write(reinterpret_cast<const uint8*>(&TocEntry), sizeof(TocEntry)))
+			{
+				return FIoStatus(EIoErrorCode::WriteError, TEXT("Failed to write TOC entry"));
+			}
+		}
+
 		// Compression blocks
-		for (const FIoStoreCompressedBlockEntry& CompressedBlockEntry : CompressionInfo.BlockEntries)
+		for (const FIoStoreTocCompressedBlockEntry& CompressedBlockEntry : CompressionInfo.BlockEntries)
 		{
 			if (!TocFileHandle->Write(reinterpret_cast<const uint8*>(&CompressedBlockEntry), sizeof(CompressedBlockEntry)))
 			{
@@ -665,7 +716,7 @@ public:
 		}
 
 		Result.TocSize = TocFileHandle->Tell();
-		Result.TocEntryCount = TocHeader.TocEntryCount;
+		Result.TocEntryCount = TocHeader.TocEntryCount + TocHeader.TocPartialEntryCount;
 		Result.PaddingSize = ChunkWriter->GetPaddingSize();
 		Result.UncompressedContainerSize = CompressionInfo.UncompressedContainerSize;
 		Result.CompressedContainerSize = CompressionInfo.CompressedContainerSize;
@@ -677,15 +728,17 @@ private:
 	friend class FIoStoreWriter;
 	FIoStoreEnvironment&				Environment;
 	TMap<FIoChunkId, FIoStoreTocEntry>	Toc;
+	TMap<FIoChunkId, FIoStoreTocPartialEntry> PartialToc;
 	TUniquePtr<FChunkWriter>			ChunkWriter;
 	TUniquePtr<IFileHandle>				TocFileHandle;
 	TUniquePtr<FArchive>				CsvArchive;
 	FIoStoreWriterResult				Result;
+	FIoContainerId						ContainerId;
 	bool								IsMetadataDirty = true;
 };
 
-FIoStoreWriter::FIoStoreWriter(FIoStoreEnvironment& InEnvironment)
-:	Impl(new FIoStoreWriterImpl(InEnvironment))
+FIoStoreWriter::FIoStoreWriter(FIoStoreEnvironment& InEnvironment, FIoContainerId InContainerId)
+:	Impl(new FIoStoreWriterImpl(InEnvironment, InContainerId))
 {
 }
 
@@ -699,9 +752,14 @@ FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, bool 
 	return Impl->Initialize(*Context.Impl, bIsContainerCompressed);
 }
 
-FIoStatus FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions)
+FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
 {
 	return Impl->Append(ChunkId, Chunk, WriteOptions);
+}
+
+FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
+{
+	return Impl->Append(ChunkId, ChunkHash, Chunk, WriteOptions);
 }
 
 FIoStatus FIoStoreWriter::AppendPadding(uint64 Count)
@@ -717,4 +775,291 @@ FIoStatus FIoStoreWriter::MapPartialRange(FIoChunkId OriginalChunkId, uint64 Off
 TIoStatusOr<FIoStoreWriterResult> FIoStoreWriter::Flush()
 {
 	return Impl->Flush();
+}
+
+class FIoStoreReaderImpl
+{
+public:
+	FIoStoreReaderImpl()
+	{
+
+	}
+
+	UE_NODISCARD FIoStatus Initialize(const FIoStoreEnvironment& Environment)
+	{
+		IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
+
+		TStringBuilder<256> ContainerFilePath;
+		ContainerFilePath.Append(Environment.GetPath());
+
+		TStringBuilder<256> TocFilePath;
+		TocFilePath.Append(ContainerFilePath);
+
+		ContainerFilePath.Append(TEXT(".ucas"));
+		TocFilePath.Append(TEXT(".utoc"));
+
+		ContainerFileHandle.Reset(Ipf.OpenRead(*ContainerFilePath, /* allowwrite */ false));
+		if (!ContainerFileHandle)
+		{
+			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore container file '") << *TocFilePath << TEXT("'");
+		}
+
+		FIoStoreTocReader TocReader;
+		FIoStatus Status = TocReader.Initialize(*TocFilePath);
+		if (!Status.IsOk())
+		{
+			return Status;
+		}
+
+		uint32 TocEntryCount;
+		const FIoStoreTocEntry* TocEntry = TocReader.GetEntries(TocEntryCount);
+
+		uint32 TocPartialEntryCount;
+		const FIoStoreTocPartialEntry* TocPartialEntry = TocReader.GetPartialEntries(TocPartialEntryCount);
+
+		TocEntries.Reserve(TocEntryCount);
+		int32 EntryIndex = 0;
+		while (TocEntryCount--)
+		{
+			TocEntries.Add(*TocEntry);
+			TocMap.Add(TocEntry->ChunkId, EntryIndex++);
+			++TocEntry;
+		}
+		while (TocPartialEntryCount--)
+		{
+			TocPartialEntries.Add(*TocPartialEntry);
+			TocMap.Add(TocPartialEntry->ChunkId, EntryIndex++);
+			++TocPartialEntry;
+		}
+
+		uint32 CompressionMethodNameCount;
+		const FName* CompressionMethodNames = TocReader.GetCompressionMethodNames(CompressionMethodNameCount);
+
+		CompressionBlockSize = TocReader.GetCompressionBlockSize();
+		CompressedBuffer.SetNumUninitialized(int32(CompressionBlockSize));
+		UncompressedBuffer.SetNumUninitialized(int32(CompressionBlockSize));
+
+		uint32 CompressedBlockEntryCount;
+		const FIoStoreTocCompressedBlockEntry* CompressedBlockEntry = TocReader.GetCompressedBlockEntries(CompressedBlockEntryCount);
+		CompressionBlocks.Reserve(CompressedBlockEntryCount);
+
+		while (CompressedBlockEntryCount--)
+		{
+			FCompressionBlock& CompressionBlock = CompressionBlocks.AddDefaulted_GetRef();
+			CompressionBlock.OffsetAndLength = CompressedBlockEntry->OffsetAndLength;
+			CompressionBlock.CompressionMethod = CompressionMethodNames[CompressedBlockEntry->CompressionMethodIndex];
+			++CompressedBlockEntry;
+		}
+
+		return FIoStatus::Ok;
+	}
+
+	void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
+	{
+		for (const FIoStoreTocEntry& TocEntry : TocEntries)
+		{
+			FIoStoreTocChunkInfo ChunkInfo;
+			ChunkInfo.Id = TocEntry.ChunkId;
+			ChunkInfo.Hash = TocEntry.ChunkHash;
+			ChunkInfo.Offset = TocEntry.GetOffset();
+			ChunkInfo.Size = TocEntry.GetLength();
+			if (!Callback(ChunkInfo))
+			{
+				break;
+			}
+		}
+	}
+
+	void EnumeratePartialChunks(TFunction<bool(const FIoStoreTocPartialChunkInfo&)>&& Callback) const
+	{
+		for (const FIoStoreTocPartialEntry& TocPartialEntry : TocPartialEntries)
+		{
+			FIoStoreTocPartialChunkInfo ChunkInfo;
+			ChunkInfo.Id = TocPartialEntry.ChunkId;
+			ChunkInfo.OrginalId = TocPartialEntry.OriginalChunkId;
+			const int32* FindOriginalEntry = TocMap.Find(TocPartialEntry.OriginalChunkId);
+			check(FindOriginalEntry);
+			check(*FindOriginalEntry < TocEntries.Num());
+			const FIoStoreTocEntry& OriginalTocEntry = TocEntries[*FindOriginalEntry];
+			ChunkInfo.RangeStart = TocPartialEntry.GetOffset() - OriginalTocEntry.GetOffset();
+			ChunkInfo.Size = TocPartialEntry.GetLength();
+			if (!Callback(ChunkInfo))
+			{
+				break;
+			}
+		}
+	}
+
+	TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const
+	{
+		FIoOffsetAndLength OffsetAndLength;
+		const int32* FindEntryIndex = TocMap.Find(Chunk);
+		if (!FindEntryIndex)
+		{
+			return FIoStatus(EIoErrorCode::NotFound, TEXT("Unknown chunk ID"));
+		}
+		if (*FindEntryIndex < TocEntries.Num())
+		{
+			OffsetAndLength = TocEntries[*FindEntryIndex].OffsetAndLength;
+		}
+		else
+		{
+			OffsetAndLength = TocPartialEntries[*FindEntryIndex - TocEntries.Num()].OffsetAndLength;
+		}
+
+		FIoBuffer IoBuffer = FIoBuffer(OffsetAndLength.GetLength());
+		int32 FirstBlockIndex = int32(OffsetAndLength.GetOffset() / CompressionBlockSize);
+		int32 LastBlockIndex = int32((Align(OffsetAndLength.GetOffset() + OffsetAndLength.GetLength(), CompressionBlockSize) - 1) / CompressionBlockSize);
+		uint64 OffsetInBlock = OffsetAndLength.GetOffset() % CompressionBlockSize;
+		uint8* Dst = IoBuffer.Data();
+		uint8* Src = nullptr;
+		uint64 RemainingSize = OffsetAndLength.GetLength();
+		for (int32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; ++BlockIndex)
+		{
+			const FCompressionBlock& CompressionBlock = CompressionBlocks[BlockIndex];
+			if (CompressedBuffer.Num() < CompressionBlock.OffsetAndLength.GetLength())
+			{
+				CompressedBuffer.SetNumUninitialized(int32(CompressionBlock.OffsetAndLength.GetLength()));
+			}
+			ContainerFileHandle->Seek(CompressionBlock.OffsetAndLength.GetOffset());
+			ContainerFileHandle->Read(CompressedBuffer.GetData(), CompressionBlock.OffsetAndLength.GetLength());
+			if (CompressionBlock.CompressionMethod.IsNone())
+			{
+				Src = CompressedBuffer.GetData();
+			}
+			else
+			{
+				bool bUncompressed = FCompression::UncompressMemory(CompressionBlock.CompressionMethod, UncompressedBuffer.GetData(), int32(CompressionBlockSize), CompressedBuffer.GetData(), int32(CompressionBlock.OffsetAndLength.GetLength()));
+				if (!bUncompressed)
+				{
+					return FIoStatus(EIoErrorCode::CorruptToc, TEXT("Failed uncompressing block"));
+				}
+				Src = UncompressedBuffer.GetData();
+			}
+			uint64 SizeInBlock = FMath::Min(CompressionBlockSize - OffsetInBlock, RemainingSize);
+			FMemory::Memcpy(Dst, Src + OffsetInBlock, SizeInBlock);
+			OffsetInBlock = 0;
+			RemainingSize -= SizeInBlock;
+			Dst += SizeInBlock;
+		}
+		
+		return IoBuffer;
+	}
+
+private:
+	struct FCompressionBlock
+	{
+		FIoOffsetAndLength OffsetAndLength;
+		FName CompressionMethod;
+	};
+
+	TArray<FIoStoreTocEntry> TocEntries;
+	TArray<FIoStoreTocPartialEntry> TocPartialEntries;
+	TMap<FIoChunkId, int32> TocMap;
+	TArray<FCompressionBlock> CompressionBlocks;
+	uint64 CompressionBlockSize = 0;
+	TUniquePtr<IFileHandle> ContainerFileHandle;
+	mutable TArray<uint8> CompressedBuffer;
+	mutable TArray<uint8> UncompressedBuffer;
+};
+
+
+FIoStoreReader::FIoStoreReader()
+	: Impl(new FIoStoreReaderImpl())
+{
+}
+
+FIoStoreReader::~FIoStoreReader()
+{
+	delete Impl;
+}
+
+FIoStatus FIoStoreReader::Initialize(const FIoStoreEnvironment& InEnvironment)
+{
+	return Impl->Initialize(InEnvironment);
+}
+
+void FIoStoreReader::EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
+{
+	Impl->EnumerateChunks(MoveTemp(Callback));
+}
+
+void FIoStoreReader::EnumeratePartialChunks(TFunction<bool(const FIoStoreTocPartialChunkInfo&)>&& Callback) const
+{
+	Impl->EnumeratePartialChunks(MoveTemp(Callback));
+}
+
+TIoStatusOr<FIoBuffer> FIoStoreReader::Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const
+{
+	return Impl->Read(Chunk, Options);
+}
+
+FIoStatus FIoStoreTocReader::Initialize(const TCHAR* TocFilePath)
+{
+	bool bTocReadOk = false;
+
+	{
+		IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
+		TUniquePtr<IFileHandle>	TocFileHandle(Ipf.OpenRead(TocFilePath, /* allowwrite */ false));
+
+		if (!TocFileHandle)
+		{
+			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore TOC file '") << TocFilePath << TEXT("'");
+		}
+
+		const int64 TocSize = TocFileHandle->Size();
+		TocBuffer = MakeUnique<uint8[]>(TocSize);
+		bTocReadOk = TocFileHandle->Read(TocBuffer.Get(), TocSize);
+	}
+
+	if (!bTocReadOk)
+	{
+		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("Failed to read IoStore TOC file '") << TocFilePath << TEXT("'");
+	}
+
+	Header = reinterpret_cast<const FIoStoreTocHeader*>(TocBuffer.Get());
+
+	if (!Header->CheckMagic())
+	{
+		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC header magic mismatch while reading '") << TocFilePath << TEXT("'");
+	}
+
+	if (Header->TocHeaderSize != sizeof(FIoStoreTocHeader))
+	{
+		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC header size mismatch while reading '") << TocFilePath << TEXT("'");
+	}
+
+	if (Header->TocEntrySize != sizeof(FIoStoreTocEntry))
+	{
+		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC entry size mismatch while reading '") << TocFilePath << TEXT("'");
+	}
+
+	if (Header->TocPartialEntrySize != sizeof(FIoStoreTocPartialEntry))
+	{
+		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC partial entry size mismatch while reading '") << TocFilePath << TEXT("'");
+	}
+
+	if (Header->TocCompressedBlockEntrySize != sizeof(FIoStoreTocCompressedBlockEntry))
+	{
+		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC compressed block entry size mismatch while reading '") << TocFilePath << TEXT("'");
+	}
+
+	Entries = reinterpret_cast<const FIoStoreTocEntry*>(TocBuffer.Get() + sizeof(FIoStoreTocHeader));
+	EntryCount = Header->TocEntryCount;
+
+	PartialEntries = reinterpret_cast<const FIoStoreTocPartialEntry*>(Entries + EntryCount);
+	PartialEntryCount = Header->TocPartialEntryCount;
+
+	CompressionMethodNames.Add(NAME_None);
+	CompressedBlockEntries = reinterpret_cast<const FIoStoreTocCompressedBlockEntry*>(PartialEntries + PartialEntryCount);
+	CompressedBlockEntryCount = Header->TocCompressedBlockEntryCount;
+
+	const ANSICHAR* AnsiCompressionMethodNames = reinterpret_cast<const ANSICHAR*>(CompressedBlockEntries + CompressedBlockEntryCount);
+	for (uint32 CompressonNameIndex = 0; CompressonNameIndex < Header->CompressionMethodNameCount; CompressonNameIndex++)
+	{
+		const ANSICHAR* AnsiCompressionMethodName = AnsiCompressionMethodNames + CompressonNameIndex * Header->CompressionMethodNameLength;
+		CompressionMethodNames.Add(FName(AnsiCompressionMethodName));
+	}
+
+	return FIoStatus::Ok;
 }

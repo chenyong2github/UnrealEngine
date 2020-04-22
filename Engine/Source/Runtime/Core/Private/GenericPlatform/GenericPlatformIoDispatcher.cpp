@@ -103,7 +103,7 @@ bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint
 void FGenericFileIoStoreImpl::ReadBlockFromFile(uint8* Target, uint64 InFileHandle, FFileIoStoreRawBlock* Block)
 {
 	FCachedBlock* CachedBlock = nullptr;
-	bool bIsCacheableBlock = CacheMemory != nullptr && !Block->DirectToRequest && Block->Size == ReadBufferSize;
+	bool bIsCacheableBlock = CacheMemory != nullptr && ((Block->Flags & FFileIoStoreRawBlock::Cacheable) > 0);
 	if (bIsCacheableBlock)
 	{
 		CachedBlock = CachedBlocks.FindRef(Block->Key.Hash);

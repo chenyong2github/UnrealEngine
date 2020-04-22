@@ -1697,35 +1697,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		BeginPreInitTextLocalization();
 	}
 
-#if !(IS_PROGRAM || WITH_EDITOR)
-	// Initialize I/O dispatcher if available
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
-		FIoStoreEnvironment IoStoreEnvironment;
-		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("global"));
-		bool bEnableIoDispatcher = false;
-		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
-		{
-			bEnableIoDispatcher = true;
-		}
-#if !UE_BUILD_SHIPPING
-		if (FParse::Param(CmdLine, TEXT("forceiodispatcher")))
-		{
-			bEnableIoDispatcher = true;
-		}
-		else if (FParse::Param(CmdLine, TEXT("noiodispatcher")))
-		{
-			bEnableIoDispatcher = false;
-		}
-#endif
-		if (bEnableIoDispatcher)
-		{
-			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
-			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
-		}
-	}
-#endif
-
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
 	{
