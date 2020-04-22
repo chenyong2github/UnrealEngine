@@ -109,17 +109,6 @@ void FHttpManager::OnAfterFork()
 
 }
 
-void FHttpManager::SetAllowThreadsOnForkedProcess(bool bAllow)
-{
-	if (FHttpThread::bAllowForkableThreads != bAllow)
-	{
-		if (ensureMsgf(Thread == nullptr || Thread->IsStopped(), TEXT("Only modify the forked process thread behavior when the HTTPThread does not exist")))
-		{
-			FHttpThread::bAllowForkableThreads = bAllow;
-		}
-	}
-}
-
 void FHttpManager::UpdateConfigs()
 {
 	// empty
@@ -179,17 +168,14 @@ void FHttpManager::Flush(bool bShutdown)
 		LastTime = AppTime;
 		if (Requests.Num() > 0)
 		{
-			if (Thread)
+			if (FPlatformProcess::SupportsMultithreading())
 			{
-				if( Thread->NeedsSingleThreadTick() )
-				{
-					Thread->Tick();
-				}
-				else
-				{
-					UE_LOG(LogHttp, Display, TEXT("Sleeping 0.5s to wait for %d outstanding Http requests."), Requests.Num());
-					FPlatformProcess::Sleep(0.5f);
-				}
+				UE_LOG(LogHttp, Display, TEXT("Sleeping 0.5s to wait for %d outstanding Http requests."), Requests.Num());
+				FPlatformProcess::Sleep(0.5f);
+			}
+			else if (Thread)
+			{
+				Thread->Tick();
 			}
 			else
 			{
