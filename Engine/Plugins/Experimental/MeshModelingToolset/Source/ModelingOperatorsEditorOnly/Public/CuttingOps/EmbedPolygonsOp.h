@@ -31,7 +31,7 @@ public:
 	FFrame3d PolygonFrame;
 	FPolygon2d EmbedPolygon;
 
-	// TODO: stop hardcoding the polygon shape, switch to FGeneralPolygon2d
+	// TODO: switch to FGeneralPolygon2d?
 	FPolygon2d GetPolygon()
 	{
 		return EmbedPolygon;
@@ -50,6 +50,14 @@ public:
 	// 
 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
+
+
+	// Outputs
+	TArray<int> EmbeddedEdges;
+	bool bEmbedSucceeded = false;
+
+private:
+	void RecordEmbeddedEdges(TArray<int>& PathVertIDs);
 };
 
 

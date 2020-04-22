@@ -10,6 +10,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "ToolDataVisualizer.h"
 #include "Util/ColorConstants.h"
+#include "Drawing/LineSetComponent.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
@@ -96,7 +97,28 @@ void UPolygonOnMeshTool::Setup()
 	AddToolPropertySource(ActionProperties);
 
 	// initialize the PreviewMesh+BackgroundCompute object
-	UpdateNumPreviews();
+	SetupPreview();
+
+	DrawnLineSet = NewObject<ULineSetComponent>(Preview->PreviewMesh->GetRootComponent());
+	DrawnLineSet->SetupAttachment(Preview->PreviewMesh->GetRootComponent());
+	DrawnLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager()));
+	DrawnLineSet->RegisterComponent();
+
+	Preview->OnOpCompleted.AddLambda(
+		[this](const FDynamicMeshOperator* Op)
+		{
+			const FEmbedPolygonsOp* PolygonsOp = (const FEmbedPolygonsOp*)(Op);
+			EmbeddedEdges = PolygonsOp->EmbeddedEdges;
+			bEmbedSucceeded = PolygonsOp->bEmbedSucceeded;
+		}
+	);
+	Preview->OnMeshUpdated.AddLambda(
+		[this](const UMeshOpPreviewWithBackgroundCompute*)
+		{
+			GetToolManager()->PostInvalidation();
+			UpdateVisualization();
+		}
+	);
 
 	DrawPlaneWorld = FFrame3d(WorldTransform.GetTranslation());
 
@@ -121,6 +143,25 @@ void UPolygonOnMeshTool::Setup()
 }
 
 
+void UPolygonOnMeshTool::UpdateVisualization()
+{
+	FColor PartialPathEdgeColor(240, 15, 15);
+	float PartialPathEdgeThickness = 2.0;
+	float PartialPathEdgeDepthBias = 2.0f;
+
+	const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
+	FVector3d A, B;
+
+	DrawnLineSet->Clear();
+	if (!bEmbedSucceeded)
+	{
+		for (int EID : EmbeddedEdges)
+		{
+			TargetMesh->GetEdgeV(EID, A, B);
+			DrawnLineSet->AddLine((FVector)A, (FVector)B, PartialPathEdgeColor, PartialPathEdgeThickness, PartialPathEdgeDepthBias);
+		}
+	}
+}
 
 
 void UPolygonOnMeshTool::UpdatePolygonType()
@@ -162,7 +203,7 @@ void UPolygonOnMeshTool::UpdateDrawPlane()
 }
 
 
-void UPolygonOnMeshTool::UpdateNumPreviews()
+void UPolygonOnMeshTool::SetupPreview()
 {
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
 	Preview->Setup(this->TargetWorld, this);
