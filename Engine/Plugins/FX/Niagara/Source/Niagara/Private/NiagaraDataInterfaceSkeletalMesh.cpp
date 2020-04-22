@@ -2164,6 +2164,11 @@ bool UNiagaraDataInterfaceSkeletalMesh::PerInstanceTick(void* PerInstanceData, F
 void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
 	TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
 {
+	if (Asset == nullptr)
+	{
+		return;
+	}
+
 	bool bHasCPUAccessWarning = false;
 	bool bHasNoMeshAssignedError = false;
 	
