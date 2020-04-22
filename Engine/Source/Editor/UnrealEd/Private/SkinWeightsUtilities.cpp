@@ -43,7 +43,7 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 	
 	if (LODInfo && LODInfo->bHasBeenSimplified && LODInfo->ReductionSettings.BaseLOD != TargetLODIndex)
 	{
-		//We cannot remove alternate skin weights profile for a generated LOD
+		//We cannot import alternate skin weights profile for a generated LOD
 		UE_LOG(LogSkinWeightsUtilities, Error, TEXT("Cannot import Skin Weight Profile for a generated LOD."));
 		return false;
 	}
@@ -98,7 +98,7 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 	//Force some material options
 	if (FbxFactory->ImportUI->TextureImportData)
 	{
-		FbxFactory->ImportUI->TextureImportData->MaterialSearchLocation = EMaterialSearchLocation::Local;
+		FbxFactory->ImportUI->TextureImportData->MaterialSearchLocation = EMaterialSearchLocation::DoNotSearch;
 		FbxFactory->ImportUI->TextureImportData->BaseMaterialName.Reset();
 	}
 
@@ -129,7 +129,7 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 	Task->DestinationPath = ImportAssetPath;
 	Task->bSave = false;
 	Task->DestinationName = FGuid::NewGuid().ToString(EGuidFormats::Digits);
-	Task->Options = FbxFactory->ImportUI->SkeletalMeshImportData;
+	Task->Options = FbxFactory->ImportUI;
 	Task->Filename = AbsoluteFilePath;
 	Task->Factory = FbxFactory;
 	FbxFactory->SetAssetImportTask(Task);
@@ -203,7 +203,6 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 				bool ShouldImportTangents = ImportOptions.ShouldImportTangents();
 				bool bUseMikkTSpace = ImportOptions.NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace;
 
-				TArray<FRawSkinWeight>& SkinWeights = ProfileData.SkinWeights;
 				bResult = FLODUtilities::UpdateAlternateSkinWeights(SkeletalMesh, ProfileName, TmpSkeletalMesh, TargetLODIndex, SrcLodIndex, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, ImportOptions.bComputeWeightedNormals);
 				
 				if (!bResult)

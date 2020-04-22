@@ -14,6 +14,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "EditorFramework/AssetImportData.h"
 #include "MeshUtilities.h"
+#include "MeshUtilitiesCommon.h"
 #include "ClothingAsset.h"
 #include "OverlappingCorners.h"
 #include "Framework/Commands/UIAction.h"
@@ -1320,10 +1321,10 @@ namespace VertexMatchNameSpace
 struct FTriangleOctreeSemantics
 {
 	// When a leaf gets more than this number of elements, it will split itself into a node with multiple child leaves
-	enum { MaxElementsPerLeaf = 6 };
+	enum { MaxElementsPerLeaf = 10 };
 
 	// This is used for incremental updates.  When removing a polygon, larger values will cause leaves to be removed and collapsed into a parent node.
-	enum { MinInclusiveElementsPerNode = 7 };
+	enum { MinInclusiveElementsPerNode = 5 };
 
 	// How deep the tree can go.
 	enum { MaxNodeDepth = 20 };
@@ -1440,7 +1441,8 @@ void MatchVertexIndexUsingPosition(
 
 		//Use the OcTree to find closest triangle
 		FVector Extent(DistanceThreshold, DistanceThreshold, DistanceThreshold);
-		FBox CurBox(PositionSrc - Extent, PositionSrc + Extent);
+		FBoxCenterAndExtent CurBox(PositionSrc, Extent);
+		
 		while (OcTreeTriangleResults.Num() <= 0)
 		{
 			OcTree.FindElementsWithBoundsTest(CurBox, [&OcTreeTriangleResults](const FTriangleElement& Element)
@@ -1451,6 +1453,11 @@ void MatchVertexIndexUsingPosition(
 
 			//Increase the extend so we try to found in a larger area
 			Extent *= 2;
+			if (Extent.SizeSquared() >= BaseMeshPositionBound.GetSize().SizeSquared())
+			{
+				//Extend must not be bigger then the whole mesh, its acceptable to have error at this point
+				break;
+			}
 			CurBox = FBox(PositionSrc - Extent, PositionSrc + Extent);
 		}
 
@@ -1587,6 +1594,40 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 		UE_LOG(LogLODUtilities, Error, TEXT("Failed to import Skin Weight Profile as the target skeletal mesh (%s) or imported file does not contain UV coordinates."), *SkeletalMeshName);
 		return false;
 	}
+	
+	// Create a list of vertex Z/index pairs
+	TArray<FIndexAndZ> VertIndexAndZ;
+	VertIndexAndZ.Reserve(VertexNumberDest);
+	for (int32 VertexIndex = 0; VertexIndex < VertexNumberDest; ++VertexIndex)
+	{
+		new(VertIndexAndZ)FIndexAndZ(VertexIndex, ImportDataDest.Points[VertexIndex]);
+	}
+	// Sort the vertices by z value
+	VertIndexAndZ.Sort(FCompareIndexAndZ());
+	
+	auto FindSimilarPosition = [&VertIndexAndZ, &ImportDataDest](const FVector& Position, TArray<int32>& PositionMatches, const float ComparisonThreshold)
+	{
+		PositionMatches.Reset();
+		FIndexAndZ PositionZ = FIndexAndZ(0, Position);
+		// Search for duplicates, quickly!
+		for (int32 i = 0; i < VertIndexAndZ.Num(); i++)
+		{
+			if (PositionZ.Z - ComparisonThreshold > VertIndexAndZ[i].Z)
+			{
+				continue;
+			}
+			else if (PositionZ.Z + ComparisonThreshold < VertIndexAndZ[i].Z)
+			{
+				break;
+			}
+
+			const FVector& PositionA = ImportDataDest.Points[VertIndexAndZ[i].Index];
+			if (PointsEqual(PositionA, Position, ComparisonThreshold))
+			{
+				PositionMatches.Add(VertIndexAndZ[i].Index);
+			}
+		}
+	};
 
 	//Create a map linking all similar Position of destination vertex index
 	TMap<FVector, TArray<uint32>> PositionToVertexIndexDest;
@@ -1611,8 +1652,10 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	{
 		const FVector& PositionSrc = ImportDataSrc.Points[VertexIndexSrc];
 		
-		TArray<uint32>* SimilarDestinationVertex = PositionToVertexIndexDest.Find(PositionSrc);
-		if (!SimilarDestinationVertex)
+		TArray<int32> SimilarDestinationVertex;
+		FindSimilarPosition(PositionSrc, SimilarDestinationVertex, KINDA_SMALL_NUMBER);
+
+		if (SimilarDestinationVertex.Num() == 0)
 		{
 			//Match with UV projection
 			VertexIndexToMatchWithUVs.Add(VertexIndexSrc);
@@ -1621,9 +1664,9 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 		{
 			//We have a direct match
 			VertexMatchNameSpace::FVertexMatchResult& VertexMatchDest = VertexIndexSrcToVertexIndexDestMatches.Add(VertexIndexSrc);
-			for (int32 MatchDestinationIndex = 0; MatchDestinationIndex < SimilarDestinationVertex->Num(); ++MatchDestinationIndex)
+			for (int32 MatchDestinationIndex = 0; MatchDestinationIndex < SimilarDestinationVertex.Num(); ++MatchDestinationIndex)
 			{
-				VertexMatchDest.VertexIndexes.Add((*SimilarDestinationVertex)[MatchDestinationIndex]);
+				VertexMatchDest.VertexIndexes.Add(SimilarDestinationVertex[MatchDestinationIndex]);
 				VertexMatchDest.Ratios.Add(1.0f);
 			}
 		}
@@ -1648,6 +1691,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 				continue;
 			}
 		}
+		bAllSourceVertexAreMatch = VertexIndexSrcToVertexIndexDestMatches.Num() == PointNumberSrc;
 	}
 	
 	
@@ -1675,11 +1719,11 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	for (int32 InfluenceIndexSrc = 0; InfluenceIndexSrc < InfluenceNumberSrc; ++InfluenceIndexSrc)
 	{
 		const SkeletalMeshImportData::FRawBoneInfluence& InfluenceSrc = ImportDataSrc.Influences[InfluenceIndexSrc];
-		uint32 VertexIndexSource = InfluenceSrc.VertexIndex;
-		uint32 BoneIndexSource = InfluenceSrc.BoneIndex;
+		int32 VertexIndexSource = InfluenceSrc.VertexIndex;
+		int32 BoneIndexSource = InfluenceSrc.BoneIndex;
 		float Weight = InfluenceSrc.Weight;
 		//We need to remap the source bone index to have the matching target bone index
-		uint32 BoneIndexDest = RemapBoneIndexSrcToDest[BoneIndexSource];
+		int32 BoneIndexDest = RemapBoneIndexSrcToDest[BoneIndexSource];
 		if (BoneIndexDest != INDEX_NONE)
 		{
 			//Find the match destination vertex index
@@ -1804,9 +1848,9 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	//
 	//////////////////////////////////////////////////////////////////////////
 
+	bool bBuildSuccess = true;
 	//Prepare the build data to rebuild the asset with the alternate influences
 	//The chunking can be different when we have alternate influences
-
 	//Grab the build data from ImportDataDest
 	TArray<FVector> LODPointsDest;
 	TArray<SkeletalMeshImportData::FMeshWedge> LODWedgesDest;
@@ -1829,7 +1873,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	TArray<FText> WarningMessages;
 	TArray<FName> WarningNames;
 	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
-	bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
+	bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
 	//Re-Apply the user section changes, the UserSectionsData is map to original section and should match the builded LODModel
 	LODModelDest.SyncronizeUserSectionsDataArray();
 
@@ -1881,8 +1925,12 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 	//Resave the bulk data with the new or refreshed data
 	SkeletalMeshDest->SaveLODImportedData(LODIndexDest, ImportDataDest);
 
-	//Build the alternate buffer with all the data into the bulk
-	return UpdateAlternateSkinWeights(SkeletalMeshDest, ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
+	if(!SkeletalMeshDest->IsLODImportedDataBuildAvailable(LODIndexDest))
+	{
+		//Build the alternate buffer with all the data into the bulk, in case the build data is not existing (old asset)
+		return UpdateAlternateSkinWeights(SkeletalMeshDest, ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
+	}
+	return true;
 }
 
 void FLODUtilities::GenerateImportedSkinWeightProfileData(const FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData &ImportedProfileData)
