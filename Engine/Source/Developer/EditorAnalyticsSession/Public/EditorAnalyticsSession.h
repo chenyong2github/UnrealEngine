@@ -15,6 +15,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 		Crashed = 0,
 		GpuCrashed,
 		Terminated,
+		Shutdown,
 	};
 
 	FString SessionId;
