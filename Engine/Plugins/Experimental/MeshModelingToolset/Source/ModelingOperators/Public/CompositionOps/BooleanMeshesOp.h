@@ -25,6 +25,13 @@ enum class ECSGOperation : uint8
 
 	/** union of two objects */
 	Union = 3 UMETA(DisplayName = "Union"),
+
+	/** Trim the first object using the second */
+	TrimA = 4 UMETA(DisplayName = "Trim A"),
+
+	/** Trim the second object using the first */
+	TrimB = 5 UMETA(DisplayName = "Trim B"),
+
 };
 
 

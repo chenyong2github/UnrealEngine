@@ -49,6 +49,7 @@ bool FMeshBoolean::Compute()
 	// cut the meshes
 	FMeshMeshCut Cut(CutMesh[0], CutMesh[1]);
 	Cut.bTrackInsertedVertices = bCollapseDegenerateEdgesOnCut; // to collect candidates to collapse
+	Cut.bMutuallyCut = Operation != EBooleanOp::Trim;
 	Cut.Cut(Intersections);
 
 	if (Cancelled())
@@ -56,11 +57,13 @@ bool FMeshBoolean::Compute()
 		return false;
 	}
 
+	int NumMeshesToProcess = Operation == EBooleanOp::Trim ? 1 : 2;
+
 	// collapse tiny edges along cut boundary
 	if (bCollapseDegenerateEdgesOnCut)
 	{
 		double DegenerateEdgeTolSq = DegenerateEdgeTol * DegenerateEdgeTol;
-		for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
+		for (int MeshIdx = 0; MeshIdx < NumMeshesToProcess; MeshIdx++)
 		{
 			// convert vertex chains to edge IDs to simplify logic of finding remaining candidate edges after collapses
 			TArray<int> EIDs;
@@ -122,7 +125,7 @@ bool FMeshBoolean::Compute()
 	{ // (just for scope)
 		// first decide what triangles to delete for both meshes (*before* deleting anything so winding doesn't get messed up!)
 		TArray<bool> KeepTri[2];
-		for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
+		for (int MeshIdx = 0; MeshIdx < NumMeshesToProcess; MeshIdx++)
 		{
 			TFastWindingTree<FDynamicMesh3> Winding(&Spatial[1 - MeshIdx]);
 			FDynamicMeshAABBTree3& OtherSpatial = Spatial[1 - MeshIdx];
@@ -131,7 +134,7 @@ bool FMeshBoolean::Compute()
 			KeepTri[MeshIdx].SetNumUninitialized(MaxTriID);
 			bool bCoplanarKeepSameDir = Operation != EBooleanOp::Difference;
 			bool bRemoveInside = 1; // whether to remove the inside triangles (e.g. for union) or the outside ones (e.g. for intersection)
-			if (Operation == EBooleanOp::Intersect || (Operation == EBooleanOp::Difference && MeshIdx == 1))
+			if (Operation == EBooleanOp::Trim || Operation == EBooleanOp::Intersect || (Operation == EBooleanOp::Difference && MeshIdx == 1))
 			{
 				bRemoveInside = 0;
 			}
@@ -202,7 +205,7 @@ bool FMeshBoolean::Compute()
 			}
 		}
 		// now go ahead and delete from both meshes
-		for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
+		for (int MeshIdx = 0; MeshIdx < NumMeshesToProcess; MeshIdx++)
 		{
 			FDynamicMesh3& ProcessMesh = *CutMesh[MeshIdx];
 
@@ -221,96 +224,100 @@ bool FMeshBoolean::Compute()
 		return false;
 	}
 
-	// Hash boundary verts for faster search
-	TArray<TPointHashGrid3d<int>> PointHashes;
-	for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
-	{
-		PointHashes.Emplace(CutMesh[MeshIdx]->GetCachedBounds().MaxDim() / 64, -1);
-		for (int BoundaryVID : PossUnmatchedBdryVerts[MeshIdx])
-		{
-			PointHashes[MeshIdx].InsertPointUnsafe(BoundaryVID, CutMesh[MeshIdx]->GetVertex(BoundaryVID));
-		}
-	}
-
-	// ensure segments that are now on boundaries have 1:1 vertex correspondence across meshes
+	// correspond vertices across both meshes (in cases where both meshes were processed)
 	TMap<int, int> AllVIDMatches; // mapping of matched vertex IDs from cutmesh 0 to cutmesh 1
-	for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
+	if (NumMeshesToProcess == 2)
 	{
-		int OtherMeshIdx = 1 - MeshIdx;
-		FDynamicMesh3& OtherMesh = *CutMesh[OtherMeshIdx];
-
-		// mapping from OtherMesh VIDs to ProcessMesh VIDs
-		// used to ensure we only keep the best match, in cases where multiple boundary vertices map to a given vertex on the other mesh boundary
-		TMap<int, int> FoundMatches;
-
-		for (int BoundaryVID : PossUnmatchedBdryVerts[MeshIdx])
+		// Hash boundary verts for faster search
+		TArray<TPointHashGrid3d<int>> PointHashes;
+		for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
 		{
-			FVector3d Pos = CutMesh[MeshIdx]->GetVertex(BoundaryVID);
-			TPair<int, double> VIDDist = PointHashes[OtherMeshIdx].FindNearestInRadius(Pos, SnapTolerance, [&Pos, &OtherMesh](int VID)
-				{
-					return Pos.DistanceSquared(OtherMesh.GetVertex(VID));
-				});
-			int NearestVID = VIDDist.Key; // ID of nearest vertex on other mesh
-			double DSq = VIDDist.Value;   // square distance to that vertex
-
-			if (NearestVID != FDynamicMesh3::InvalidID)
+			PointHashes.Emplace(CutMesh[MeshIdx]->GetCachedBounds().MaxDim() / 64, -1);
+			for (int BoundaryVID : PossUnmatchedBdryVerts[MeshIdx])
 			{
-
-				int* Match = FoundMatches.Find(NearestVID);
-				if (Match)
-				{
-					double OldDSq = CutMesh[MeshIdx]->GetVertex(*Match).DistanceSquared(OtherMesh.GetVertex(NearestVID));
-					if (DSq < OldDSq) // new vertex is a better match than the old one
-					{
-						int OldVID = *Match; // copy old VID out of match before updating the TMap
-						FoundMatches.Add(NearestVID, BoundaryVID); // new VID is recorded as best match
-
-						// old VID is swapped in as the one to consider as unmatched
-						// it will now be matched below
-						BoundaryVID = OldVID;
-						Pos = CutMesh[MeshIdx]->GetVertex(BoundaryVID);
-						DSq = OldDSq;
-					}
-					NearestVID = FDynamicMesh3::InvalidID; // one of these vertices will be unmatched
-				}
-				else
-				{
-					FoundMatches.Add(NearestVID, BoundaryVID);
-				}
-			}
-
-			// if we didn't find a valid match, try to split the nearest edge to create a match
-			if (NearestVID == FDynamicMesh3::InvalidID)
-			{
-				// vertex had no match -- try to split edge to match it
-				int OtherEID = FindNearestEdge(OtherMesh, CutBoundaryEdges[OtherMeshIdx], Pos);
-				if (OtherEID != FDynamicMesh3::InvalidID)
-				{
-					FVector3d EdgePts[2];
-					OtherMesh.GetEdgeV(OtherEID, EdgePts[0], EdgePts[1]);
-					FSegment3d Seg(EdgePts[0], EdgePts[1]);
-					double Along = Seg.ProjectUnitRange(Pos);
-					FDynamicMesh3::FEdgeSplitInfo SplitInfo;
-					if (ensure(EMeshResult::Ok == OtherMesh.SplitEdge(OtherEID, SplitInfo, Along)))
-					{
-						FoundMatches.Add(SplitInfo.NewVertex, BoundaryVID);
-						OtherMesh.SetVertex(SplitInfo.NewVertex, Pos);
-						CutBoundaryEdges[OtherMeshIdx].Add(SplitInfo.NewEdges.A);
-						// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
-						// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
-					}
-				}
+				PointHashes[MeshIdx].InsertPointUnsafe(BoundaryVID, CutMesh[MeshIdx]->GetVertex(BoundaryVID));
 			}
 		}
 
-		// actually snap the positions together for final matches
-		for (TPair<int, int>& Match : FoundMatches)
+		// ensure segments that are now on boundaries have 1:1 vertex correspondence across meshes
+		for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
 		{
-			CutMesh[MeshIdx]->SetVertex(Match.Value, OtherMesh.GetVertex(Match.Key));
+			int OtherMeshIdx = 1 - MeshIdx;
+			FDynamicMesh3& OtherMesh = *CutMesh[OtherMeshIdx];
 
-			// Copy match to AllVIDMatches; note this is always mapping from CutMesh 0 to 1
-			int VIDs[2]{ Match.Key, Match.Value }; // just so we can access by index
-			AllVIDMatches.Add(VIDs[1 - MeshIdx], VIDs[MeshIdx]);
+			// mapping from OtherMesh VIDs to ProcessMesh VIDs
+			// used to ensure we only keep the best match, in cases where multiple boundary vertices map to a given vertex on the other mesh boundary
+			TMap<int, int> FoundMatches;
+
+			for (int BoundaryVID : PossUnmatchedBdryVerts[MeshIdx])
+			{
+				FVector3d Pos = CutMesh[MeshIdx]->GetVertex(BoundaryVID);
+				TPair<int, double> VIDDist = PointHashes[OtherMeshIdx].FindNearestInRadius(Pos, SnapTolerance, [&Pos, &OtherMesh](int VID)
+					{
+						return Pos.DistanceSquared(OtherMesh.GetVertex(VID));
+					});
+				int NearestVID = VIDDist.Key; // ID of nearest vertex on other mesh
+				double DSq = VIDDist.Value;   // square distance to that vertex
+
+				if (NearestVID != FDynamicMesh3::InvalidID)
+				{
+
+					int* Match = FoundMatches.Find(NearestVID);
+					if (Match)
+					{
+						double OldDSq = CutMesh[MeshIdx]->GetVertex(*Match).DistanceSquared(OtherMesh.GetVertex(NearestVID));
+						if (DSq < OldDSq) // new vertex is a better match than the old one
+						{
+							int OldVID = *Match; // copy old VID out of match before updating the TMap
+							FoundMatches.Add(NearestVID, BoundaryVID); // new VID is recorded as best match
+
+							// old VID is swapped in as the one to consider as unmatched
+							// it will now be matched below
+							BoundaryVID = OldVID;
+							Pos = CutMesh[MeshIdx]->GetVertex(BoundaryVID);
+							DSq = OldDSq;
+						}
+						NearestVID = FDynamicMesh3::InvalidID; // one of these vertices will be unmatched
+					}
+					else
+					{
+						FoundMatches.Add(NearestVID, BoundaryVID);
+					}
+				}
+
+				// if we didn't find a valid match, try to split the nearest edge to create a match
+				if (NearestVID == FDynamicMesh3::InvalidID)
+				{
+					// vertex had no match -- try to split edge to match it
+					int OtherEID = FindNearestEdge(OtherMesh, CutBoundaryEdges[OtherMeshIdx], Pos);
+					if (OtherEID != FDynamicMesh3::InvalidID)
+					{
+						FVector3d EdgePts[2];
+						OtherMesh.GetEdgeV(OtherEID, EdgePts[0], EdgePts[1]);
+						FSegment3d Seg(EdgePts[0], EdgePts[1]);
+						double Along = Seg.ProjectUnitRange(Pos);
+						FDynamicMesh3::FEdgeSplitInfo SplitInfo;
+						if (ensure(EMeshResult::Ok == OtherMesh.SplitEdge(OtherEID, SplitInfo, Along)))
+						{
+							FoundMatches.Add(SplitInfo.NewVertex, BoundaryVID);
+							OtherMesh.SetVertex(SplitInfo.NewVertex, Pos);
+							CutBoundaryEdges[OtherMeshIdx].Add(SplitInfo.NewEdges.A);
+							// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
+							// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
+						}
+					}
+				}
+			}
+
+			// actually snap the positions together for final matches
+			for (TPair<int, int>& Match : FoundMatches)
+			{
+				CutMesh[MeshIdx]->SetVertex(Match.Value, OtherMesh.GetVertex(Match.Key));
+
+				// Copy match to AllVIDMatches; note this is always mapping from CutMesh 0 to 1
+				int VIDs[2]{ Match.Key, Match.Value }; // just so we can access by index
+				AllVIDMatches.Add(VIDs[1 - MeshIdx], VIDs[MeshIdx]);
+			}
 		}
 	}
 
@@ -331,13 +338,23 @@ bool FMeshBoolean::Compute()
 		return false;
 	}
 
-	FDynamicMeshEditor Editor(Result);
-	FMeshIndexMappings IndexMaps;
-	Editor.AppendMesh(CutMesh[1], IndexMaps);
+	bool bSuccess = true;
 
-	bool bWeldSuccess = MergeEdges(IndexMaps, CutMesh, CutBoundaryEdges, AllVIDMatches);
+	if (NumMeshesToProcess > 1)
+	{
+		FDynamicMeshEditor Editor(Result);
+		FMeshIndexMappings IndexMaps;
+		Editor.AppendMesh(CutMesh[1], IndexMaps);
 
-	return bWeldSuccess;
+		bool bWeldSuccess = MergeEdges(IndexMaps, CutMesh, CutBoundaryEdges, AllVIDMatches);
+		bSuccess = bSuccess && bWeldSuccess;
+	}
+	else
+	{
+		CreatedBoundaryEdges = CutBoundaryEdges[0];
+	}
+
+	return bSuccess;
 }
 
 
