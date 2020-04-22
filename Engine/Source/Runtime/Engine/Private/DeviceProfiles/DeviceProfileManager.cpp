@@ -18,6 +18,7 @@
 #include "PIEPreviewDeviceProfileSelectorModule.h"
 #endif
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "DeviceProfiles/DeviceProfileFragment.h"
 
 static TAutoConsoleVariable<FString> CVarDeviceProfileOverride(
 	TEXT("dp.Override"),
@@ -81,6 +82,32 @@ UDeviceProfileManager& UDeviceProfileManager::Get(bool bFromPostCDOContruct)
 	return *DeviceProfileManagerSingleton;
 }
 
+static void GetFragmentCvars(const FString& CurrentSectionName, const FString& CVarArrayName, TArray<FString>& FragmentCVarsINOUT, const FString& DeviceProfileFileNameIn)
+{
+	FString FragmentIncludes = TEXT("FragmentIncludes");
+	TArray<FString> FragmentIncludeArray;
+	GConfig->GetArray(*CurrentSectionName, *FragmentIncludes, FragmentIncludeArray, DeviceProfileFileNameIn);
+
+	for(const FString& FragmentInclude : FragmentIncludeArray)
+	{
+		FString FragmentSectionName = FString::Printf(TEXT("%s %s"), *FragmentInclude, *UDeviceProfileFragment::StaticClass()->GetName());
+		if (GConfig->DoesSectionExist(*FragmentSectionName, DeviceProfileFileNameIn))
+		{
+			TArray<FString> FragmentCVars;
+			GConfig->GetArray(*FragmentSectionName, *CVarArrayName, FragmentCVars, DeviceProfileFileNameIn);
+			UE_CLOG(FragmentCVars.Num()>0, LogInit, Log, TEXT("Including %s from fragment: %s"), *CVarArrayName, *FragmentInclude);
+			FragmentCVarsINOUT += FragmentCVars;
+		}
+		else
+		{
+#if UE_BUILD_SHIPPING
+			UE_LOG(LogInit, Error, TEXT("Could not find device profile fragment %s."), *FragmentInclude);
+#else
+			UE_LOG(LogInit, Fatal, TEXT("Could not find device profile fragment %s."), *FragmentInclude);
+#endif
+		}
+	}
+}
 
 void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings)
 {
@@ -196,8 +223,16 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 					ArrayName += BucketNames[(int32)FPlatformMemory::GetMemorySizeBucket()];
 				}
 
-				TArray< FString > CurrentProfilesCVars;
+				TArray< FString > CurrentProfilesCVars, FragmentCVars;
+				GetFragmentCvars(*CurrentSectionName, *ArrayName, FragmentCVars, DeviceProfileFileName);
 				GConfig->GetArray(*CurrentSectionName, *ArrayName, CurrentProfilesCVars, GDeviceProfilesIni);
+
+				if (FragmentCVars.Num())
+				{
+					// Prepend fragments to CurrentProfilesCVars, fragment cvars should be first so the DP's cvars take priority.
+					Swap(CurrentProfilesCVars, FragmentCVars);
+					CurrentProfilesCVars += FragmentCVars;
+				}
 
 				// Iterate over the profile and make sure we do not have duplicate CVars
 				{
