@@ -40,7 +40,8 @@ struct FJointSolverGaussSeidel
 	// XPBD Previous iteration world-space body state
 	FVector PrevPs[MaxConstrainedBodies];		// World-space particle CoM positions
 	float TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float SwingDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+	float Swing1DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
+	float Swing2DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
 	FVector4 PrevQs[MaxConstrainedBodies];		// World-space particle CoM rotations
 	FVector PrevXs[MaxConstrainedBodies];		// World-space joint connector positions
 	
