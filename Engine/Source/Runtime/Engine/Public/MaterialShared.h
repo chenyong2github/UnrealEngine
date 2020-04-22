@@ -2881,11 +2881,6 @@ public:
 
 	virtual FString GetArchiveName() const override { return TEXT("FMaterialResourceProxyReader"); }
 
-	operator FArchive& ()
-	{
-		return *static_cast<FArchiveProxy*>(this);
-	}
-
 private:
 	TArray<FName> Names;
 	int64 OffsetToFirstResource;
