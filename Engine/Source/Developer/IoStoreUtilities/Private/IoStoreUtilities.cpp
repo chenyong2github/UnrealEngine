@@ -52,167 +52,15 @@ static const FName DefaultCompressionMethod = NAME_Zlib;
 static const int64 DefaultCompressionBlockSize = 64 << 10;
 const int64 DefaultMemoryMappingAlignment = 16 << 10;
 
-class FNameReaderProxyArchive
-	: public FArchiveProxy
-{
-	const TArray<FNameEntryId>& NameMap;
-
-public:
-	using FArchiveProxy::FArchiveProxy;
-
-	FNameReaderProxyArchive(FArchive& InAr, const TArray<FNameEntryId>& InNameMap)
-		: FArchiveProxy(InAr)
-		, NameMap(InNameMap) { }
-
-	FArchive& operator<<(FName& Name)
-	{
-		int32 NameIndex, Number;
-		InnerArchive << NameIndex << Number;
-
-		if (!NameMap.IsValidIndex(NameIndex))
-		{
-			UE_LOG(LogStreaming, Fatal, TEXT("Bad name index %i/%i"), NameIndex, NameMap.Num());
-		}
-
-		const FNameEntryId MappedName = NameMap[NameIndex];
-		Name = FName::CreateFromDisplayId(MappedName, Number);
-
-		return *this;
-	}
-};
-
-struct FContainerSourceFile 
-{
-	FString NormalizedPath;
-	bool bNeedsCompression = false;
-};
-
-struct FContainerSourceSpec
-{
-	FString OutputPath;
-	TArray<FContainerSourceFile> SourceFiles;
-};
-
-struct FCookedFileStatData
-{
-	enum EFileExt { UMap, UAsset, UExp, UBulk, UPtnl, UMappedBulk };
-	enum EFileType { PackageHeader, PackageData, BulkData };
-
-	int64 FileSize = 0;
-	EFileType FileType = PackageHeader;
-	EFileExt FileExt = UMap;
-};
-
-using FCookedFileStatMap = TMap<FString, FCookedFileStatData>;
-
-struct FPackage;
-
-struct FContainerTargetFile
-{
-	FPackage* Package = nullptr;
-	FString NormalizedSourcePath;
-	FString TargetPath;
-	uint64 SourceSize = 0;
-	uint64 TargetSize = 0;
-	uint64 Offset = 0;
-	uint64 Padding = 0;
-	uint64 Alignment = 0;
-	FIoChunkId ChunkId;
-	FSHAHash Hash;
-	bool bIsBulkData = false;
-	bool bIsOptionalBulkData = false;
-	bool bIsMemoryMappedBulkData = false;
-	bool bForceUncompressed = false;
-};
-
-struct FIoStoreArguments
-{
-	FString OutputDir;
-	FString CookedDir;
-	FString OutputReleaseVersionDir;
-	FString BasedOnReleaseVersionDir;
-	TArray<FContainerSourceSpec> Containers;
-	FCookedFileStatMap CookedFileStatMap;
-	TMap<FName, uint64> GameOrderMap;
-	TMap<FName, uint64> CookerOrderMap;
-	int64 MemoryMappingAlignment = 0;
-};
-
-struct FTocMetaEntry
-{
-	uint64 Offset = 0;
-	uint64 Size = 0;
-	FSHAHash Hash;
-
-	friend FArchive& operator<<(FArchive& Ar, FTocMetaEntry& TocMetaEntry)
-	{
-		Ar << TocMetaEntry.Offset;
-		Ar << TocMetaEntry.Size;
-		Ar << TocMetaEntry.Hash;
-		return Ar;
-	}
-};
-
-struct FContainerTargetSpec
-{
-	FString Name;
-	FString OutputPath;
-	FIoStoreWriter* IoStoreWriter;
-	TArray<FContainerTargetFile> TargetFiles;
-	TUniquePtr<FIoStoreEnvironment> IoStoreEnv;
-	TArray<FTocMetaEntry> PreviousBuildToc;
-	bool bIsCompressed = false;
-};
-
-struct FPackageAssetData
-{
-	TArray<FObjectImport> ObjectImports;
-	TArray<FObjectExport> ObjectExports;
-	TArray<FPackageIndex> PreloadDependencies;
-};
-
-struct FPackage;
-using FPackageMap = TMap<FName, FPackage*>;
-using FPackageGlobalIdMap = TMap<FName, FPackageId>;
-using FSourceToLocalizedPackageMultimap = TMultiMap<FPackage*, FPackage*>;
-using FLocalizedToSourceImportIndexMap = TMap<FPackageObjectIndex, FPackageObjectIndex>;
-
-static constexpr TCHAR L10NPrefix[] = TEXT("/Game/L10N/");
-
-// modified copy from PakFileUtilities
-static FString RemapLocalizationPathIfNeeded(const FString& Path, FString* OutRegion)
-{
-	static constexpr int32 L10NPrefixLength = sizeof(L10NPrefix)/sizeof(TCHAR) - 1;
-
-	int32 FoundIndex = Path.Find(L10NPrefix, ESearchCase::IgnoreCase);
-	if (FoundIndex >= 0)
-	{
-		// Validate the content index is the first one
-		int32 ContentIndex = Path.Find(TEXT("/Game/"), ESearchCase::IgnoreCase);
-		if (ContentIndex == FoundIndex)
-		{
-			int32 EndL10NOffset = ContentIndex + L10NPrefixLength;
-			int32 NextSlashIndex = Path.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, EndL10NOffset);
-			int32 RegionLength = NextSlashIndex - EndL10NOffset;
-			if (RegionLength >= 2)
-			{
-				FString NonLocalizedPath = Path.Mid(0, ContentIndex) + TEXT("/Game") + Path.Mid(NextSlashIndex);
-				if (OutRegion)
-				{
-					*OutRegion = Path.Mid(EndL10NOffset, RegionLength);
-					OutRegion->ToLowerInline();
-				}
-				return NonLocalizedPath;
-			}
-		}
-	}
-	return Path;
-}
-
 class FNameMapBuilder
 {
 public:
-	void MarkNamesAsReferenced(const TArray<FName>& Names, TArray<FNameEntryId>& OutNameMap, TArray<int32>& OutNameIndices)
+	void SetNameMapType(FMappedName::EType InNameMapType)
+	{
+		NameMapType = InNameMapType;
+	}
+
+	void MarkNamesAsReferenced(const TArray<FName>& Names, TArray<int32>& OutNameIndices)
 	{
 		for (const FName& Name : Names)
 		{
@@ -224,7 +72,6 @@ public:
 				NameMap.Add(Id);
 			}
 
-			OutNameMap.Emplace(Name.GetDisplayIndex());
 			OutNameIndices.Add(Index - 1);
 		}
 	}
@@ -260,24 +107,12 @@ public:
 #endif
 	}
 
-	int32 MapName(const FName& Name) const
+	FMappedName MapName(const FName& Name) const
 	{
 		const FNameEntryId Id = Name.GetComparisonIndex();
 		const int32* Index = NameIndices.Find(Id);
 		check(Index);
-		return Index ? *Index - 1 : INDEX_NONE;
-	}
-
-	void SerializeName(FArchive& A, const FName& N) const
-	{
-		int32 NameIndex = MapName(N);
-		int32 NameNumber = N.GetNumber();
-		A << NameIndex << NameNumber;
-	}
-
-	const TMap<FNameEntryId, int32>& GetNameIndices() const
-	{
-		return NameIndices;
+		return FMappedName::Create(*Index - 1, Name.GetNumber(), NameMapType);
 	}
 
 	const TArray<FNameEntryId>& GetNameMap() const
@@ -344,13 +179,204 @@ public:
 	}
 #endif
 
+	void Empty()
+	{
+		NameIndices.Empty();
+		NameMap.Empty();
+#if OUTPUT_NAMEMAP_CSV
+		DebugNameCounts.Empty();
+#endif
+	}
 private:
 	TMap<FNameEntryId, int32> NameIndices;
 	TArray<FNameEntryId> NameMap;
 #if OUTPUT_NAMEMAP_CSV
 	TMap<FNameEntryId, TTuple<int32,int32,int32>> DebugNameCounts; // <Number0Count,OtherNumberCount,MaxNumber>
 #endif
+	FMappedName::EType NameMapType = FMappedName::EType::Global;
 };
+
+class FNameReaderProxyArchive
+	: public FArchiveProxy
+{
+	const TArray<FNameEntryId>& NameMap;
+
+public:
+	using FArchiveProxy::FArchiveProxy;
+
+	FNameReaderProxyArchive(FArchive& InAr, const TArray<FNameEntryId>& InNameMap)
+		: FArchiveProxy(InAr)
+		, NameMap(InNameMap)
+	{ 
+		// Replicate the filter editor only state of the InnerArchive as FArchiveProxy will
+		// not intercept it.
+		FArchive::SetFilterEditorOnly(InAr.IsFilterEditorOnly());
+	}
+
+	FArchive& operator<<(FName& Name)
+	{
+		int32 NameIndex, Number;
+		InnerArchive << NameIndex << Number;
+
+		if (!NameMap.IsValidIndex(NameIndex))
+		{
+			UE_LOG(LogStreaming, Fatal, TEXT("Bad name index %i/%i"), NameIndex, NameMap.Num());
+		}
+
+		const FNameEntryId MappedName = NameMap[NameIndex];
+		Name = FName::CreateFromDisplayId(MappedName, Number);
+
+		return *this;
+	}
+};
+
+struct FContainerSourceFile 
+{
+	FString NormalizedPath;
+	bool bNeedsCompression = false;
+};
+
+struct FContainerSourceSpec
+{
+	FName Name;
+	FString OutputPath;
+	TArray<FContainerSourceFile> SourceFiles;
+	TArray<FString> PatchSourceContainerFiles;
+	bool bGenerateDiffPatch;
+};
+
+struct FCookedFileStatData
+{
+	enum EFileExt { UMap, UAsset, UExp, UBulk, UPtnl, UMappedBulk };
+	enum EFileType { PackageHeader, PackageData, BulkData };
+
+	int64 FileSize = 0;
+	EFileType FileType = PackageHeader;
+	EFileExt FileExt = UMap;
+};
+
+using FCookedFileStatMap = TMap<FString, FCookedFileStatData>;
+
+struct FPackage;
+struct FContainerTargetSpec;
+
+struct FContainerTargetFilePartialMapping
+{
+	FIoChunkId PartialChunkId;
+	uint64 Offset;
+	uint64 Length;
+};
+
+struct FContainerTargetFile
+{
+	FContainerTargetSpec* ContainerTarget = nullptr;
+	FPackage* Package = nullptr;
+	FString NormalizedSourcePath;
+	FString TargetPath;
+	uint64 SourceSize = 0;
+	uint64 TargetSize = 0;
+	uint64 Offset = 0;
+	uint64 Padding = 0;
+	uint64 Alignment = 0;
+	FIoChunkId ChunkId;
+	FIoChunkHash ChunkHash;
+	TArray<uint8> PackageHeaderData;
+	TArray<int32> NameIndices;
+	TArray<FContainerTargetFilePartialMapping> PartialMappings;
+	bool bIsBulkData = false;
+	bool bIsOptionalBulkData = false;
+	bool bIsMemoryMappedBulkData = false;
+	bool bForceUncompressed = false;
+};
+
+struct FIoStoreArguments
+{
+	FString GlobalContainerPath;
+	FString CookedDir;
+	FString OutputReleaseVersionDir;
+	FString BasedOnReleaseVersionDir;
+	TArray<FContainerSourceSpec> Containers;
+	FCookedFileStatMap CookedFileStatMap;
+	TMap<FName, uint64> GameOrderMap;
+	TMap<FName, uint64> CookerOrderMap;
+	int64 MemoryMappingAlignment = 0;
+};
+
+struct FContainerMeta
+{
+	FString ContainerName;
+	FIoContainerId ContainerId;
+	FNameMapBuilder NameMapBuilder;
+
+	friend FArchive& operator<<(FArchive& Ar, FContainerMeta& ContainerMeta)
+	{
+		Ar << ContainerMeta.ContainerName;
+		Ar << ContainerMeta.ContainerId;
+		Ar << ContainerMeta.NameMapBuilder;
+		return Ar;
+	}
+};
+
+struct FContainerTargetSpec
+{
+	FContainerHeader Header;
+	FName Name;
+	FString OutputPath;
+	FIoStoreWriter* IoStoreWriter;
+	TArray<FContainerTargetFile> TargetFiles;
+	TUniquePtr<FIoStoreEnvironment> IoStoreEnv;
+	TArray<TUniquePtr<FIoStoreReader>> PatchSourceReaders;
+	FNameMapBuilder LocalNameMapBuilder;
+	FNameMapBuilder* NameMapBuilder = nullptr;
+	bool bIsCompressed = false;
+	bool bUseLocalNameMap = false;
+	bool bGenerateDiffPatch = false;
+};
+
+struct FPackageAssetData
+{
+	TArray<FObjectImport> ObjectImports;
+	TArray<FObjectExport> ObjectExports;
+	TArray<FPackageIndex> PreloadDependencies;
+};
+
+struct FPackage;
+using FPackageMap = TMap<FName, FPackage*>;
+using FPackageGlobalIdMap = TMap<FName, FPackageId>;
+using FSourceToLocalizedPackageMultimap = TMultiMap<FPackage*, FPackage*>;
+using FLocalizedToSourceImportIndexMap = TMap<FPackageObjectIndex, FPackageObjectIndex>;
+
+static constexpr TCHAR L10NPrefix[] = TEXT("/Game/L10N/");
+
+// modified copy from PakFileUtilities
+static FString RemapLocalizationPathIfNeeded(const FString& Path, FString* OutRegion)
+{
+	static constexpr int32 L10NPrefixLength = sizeof(L10NPrefix)/sizeof(TCHAR) - 1;
+
+	int32 FoundIndex = Path.Find(L10NPrefix, ESearchCase::IgnoreCase);
+	if (FoundIndex >= 0)
+	{
+		// Validate the content index is the first one
+		int32 ContentIndex = Path.Find(TEXT("/Game/"), ESearchCase::IgnoreCase);
+		if (ContentIndex == FoundIndex)
+		{
+			int32 EndL10NOffset = ContentIndex + L10NPrefixLength;
+			int32 NextSlashIndex = Path.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, EndL10NOffset);
+			int32 RegionLength = NextSlashIndex - EndL10NOffset;
+			if (RegionLength >= 2)
+			{
+				FString NonLocalizedPath = Path.Mid(0, ContentIndex) + TEXT("/Game") + Path.Mid(NextSlashIndex);
+				if (OutRegion)
+				{
+					*OutRegion = Path.Mid(EndL10NOffset, RegionLength);
+					OutRegion->ToLowerInline();
+				}
+				return NonLocalizedPath;
+			}
+		}
+	}
+	return Path;
+}
 
 #if OUTPUT_CHUNKID_DIRECTORY
 class FChunkIdCsv
@@ -549,7 +575,7 @@ struct FPackageHashes
 {
 	FSHAHash UAssetHash;
 	FSHAHash UExpHash;
-	FSHAHash ExportBundleHash;
+	FIoChunkHash ExportBundleHash;
 };
 #endif
 
@@ -590,8 +616,8 @@ struct FPackage
 	TSet<FPackage*> AllReachablePackages;
 	TSet<FPackage*> ImportedPreloadPackages;
 
+	TArray<FName> Names;
 	TArray<FNameEntryId> NameMap;
-	TArray<int32> NameIndices;
 
 	TArray<FPackageObjectIndex> Imports;
 	TArray<FPackageObjectIndex> PublicExports;
@@ -608,7 +634,7 @@ struct FPackage
 	TArray<FExportGraphNode*> NodesWithNoIncomingEdges;
 	FPackageGraphNode* Node = nullptr;
 
-	TArray<uint8> HeaderData;
+	uint64 HeaderSerialSize = 0;
 	uint64 ExportsSerialSize = 0;
 
 	uint64 DiskLayoutOrder = MAX_uint64;
@@ -1019,26 +1045,11 @@ static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Pac
 	}
 }
 
-struct FFileLayoutNode
-{
-	FFileLayoutNode* Prev = nullptr;
-	FFileLayoutNode* Next = nullptr;
-	FContainerTargetFile* TargetFile = nullptr;
-	uint64 IdealOrder = 0;
-	uint64 PreviousOffset = 0;
-	bool bHasPreviousOffset = false;
-};
-
-static void CreateDiskLayout(
-	TArray<FContainerTargetSpec>& ContainerTargets,
+static void AssignPackagesDiskOrder(
 	const TArray<FPackage*>& Packages,
 	const TMap<FName, uint64> GameOrderMap,
-	const TMap<FName, uint64>& CookerOrderMap,
-	uint64 CompressionBlockSize,
-	uint64 MemoryMappingAlignment)
+	const TMap<FName, uint64>& CookerOrderMap)
 {
-	IOSTORE_CPU_SCOPE(CreateDiskLayout);
-
 	struct FCluster
 	{
 		TArray<FPackage*> Packages;
@@ -1144,10 +1155,135 @@ static void CreateDiskLayout(
 		}
 		delete Cluster;
 	}
+}
 
-	for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
+static void CreateDiskLayout(
+	const TArray<FContainerTargetSpec*>& ContainerTargets,
+	const TArray<FPackage*>& Packages,
+	const TMap<FName, uint64> PackageOrderMap,
+	const TMap<FName, uint64>& CookerOrderMap,
+	uint64 CompressionBlockSize,
+	uint64 MemoryMappingAlignment)
+{
+	IOSTORE_CPU_SCOPE(CreateDiskLayout);
+
+	struct FLayoutEntry
 	{
-		Algo::Sort(ContainerTarget.TargetFiles, [](const FContainerTargetFile& A, const FContainerTargetFile& B)
+		enum ELayoutEntryType
+		{
+			Invalid,
+			File,
+			FreeSpace,
+			BlockBoundary,
+		};
+		FLayoutEntry* Prev = nullptr;
+		FLayoutEntry* Next = nullptr;
+		int32 BeginBlockIndex = -1;
+		int32 EndBlockIndex = -1;
+		ELayoutEntryType Type = Invalid;
+		uint64 Size = 0;
+		uint64 PreviousBuildOffset = 0;
+		uint64 IdealOrder = 0;
+		FContainerTargetFile* TargetFile = nullptr;
+		bool bHasPreviousBuildOffset = false;
+		bool bModified = false;
+		bool bLocked = false;
+	};
+
+	struct FLayoutBlock
+	{
+		FLayoutEntry* FirstEntry = nullptr;
+		FLayoutEntry* LastEntry = nullptr;
+		bool bModified = false;
+	};
+
+	AssignPackagesDiskOrder(Packages, PackageOrderMap, CookerOrderMap);
+
+	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
+	{
+		TArray<FLayoutEntry*> Entries;
+
+		FLayoutEntry* EntriesHead = new FLayoutEntry();
+		Entries.Add(EntriesHead);
+
+		TMap<int64, FLayoutEntry*> EntriesByOrderMap;
+		FLayoutEntry* LastAddedEntry = EntriesHead;
+
+		TMap<FIoChunkHash, TArray<FLayoutEntry*>> PreviousBuildFileByHash;
+		TMap<FIoChunkId, FIoChunkHash> PreviousBuildHashByChunkId;
+		uint64 CurrentOffset = 0;
+		FLayoutEntry* PrevEntryLink = EntriesHead;
+		
+		if (ContainerTarget->bGenerateDiffPatch)
+		{
+			for (const TUniquePtr<FIoStoreReader>& PatchSourceReader : ContainerTarget->PatchSourceReaders)
+			{
+				PatchSourceReader->EnumerateChunks([&PreviousBuildHashByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
+				{
+					PreviousBuildHashByChunkId.Add(ChunkInfo.Id, ChunkInfo.Hash);
+					return true;
+				});
+			}
+		}
+		else
+		{
+			if (ContainerTarget->PatchSourceReaders.Num())
+			{
+				ContainerTarget->PatchSourceReaders[0]->EnumerateChunks([&CurrentOffset, &PrevEntryLink, &Entries, &PreviousBuildFileByHash, &PreviousBuildHashByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
+				{
+					if (CurrentOffset < ChunkInfo.Offset)
+					{
+						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
+						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
+						FreeSpaceEntry->Size = ChunkInfo.Offset - CurrentOffset;
+						FreeSpaceEntry->PreviousBuildOffset = CurrentOffset;
+						FreeSpaceEntry->bHasPreviousBuildOffset = true;
+						CurrentOffset = ChunkInfo.Offset;
+						PrevEntryLink->Next = FreeSpaceEntry;
+						FreeSpaceEntry->Prev = PrevEntryLink;
+						PrevEntryLink = FreeSpaceEntry;
+						Entries.Add(FreeSpaceEntry);
+					}
+					FLayoutEntry* FileEntry = new FLayoutEntry();
+					FileEntry->Type = FLayoutEntry::File;
+					FileEntry->Size = ChunkInfo.Size;
+					FileEntry->PreviousBuildOffset = ChunkInfo.Offset;
+					FileEntry->bHasPreviousBuildOffset = true;
+
+					PrevEntryLink->Next = FileEntry;
+					FileEntry->Prev = PrevEntryLink;
+					PrevEntryLink = FileEntry;
+
+					CurrentOffset += ChunkInfo.Size;
+
+					Entries.Add(FileEntry);
+
+					TArray<FLayoutEntry*>& PreviousBuildFileHashesArray = PreviousBuildFileByHash.FindOrAdd(ChunkInfo.Hash);
+					PreviousBuildFileHashesArray.Push(FileEntry);
+					PreviousBuildHashByChunkId.Add(ChunkInfo.Id, ChunkInfo.Hash);
+
+					return true;
+				});
+			}
+		}
+		if (CurrentOffset % CompressionBlockSize != 0)
+		{
+			FLayoutEntry* LastFreeSpace = new FLayoutEntry();
+			LastFreeSpace->Type = FLayoutEntry::FreeSpace;
+			LastFreeSpace->Size = Align(CurrentOffset, CompressionBlockSize) - CurrentOffset;
+			LastFreeSpace->Prev = PrevEntryLink;
+			PrevEntryLink->Next = LastFreeSpace;
+			PrevEntryLink = LastFreeSpace;
+			Entries.Add(LastFreeSpace);
+			CurrentOffset += LastFreeSpace->Size;
+		}
+
+		FLayoutEntry* EntriesTail = new FLayoutEntry();
+		Entries.Add(EntriesTail);
+		PrevEntryLink->Next = EntriesTail;
+		EntriesTail->Prev = PrevEntryLink;
+
+		Algo::Sort(ContainerTarget->TargetFiles, [](const FContainerTargetFile& A, const FContainerTargetFile& B)
 		{
 			if (A.bIsMemoryMappedBulkData != B.bIsMemoryMappedBulkData)
 			{
@@ -1161,207 +1297,403 @@ static void CreateDiskLayout(
 			return A.Package->DiskLayoutOrder < B.Package->DiskLayoutOrder;
 		});
 
-		TMap<FSHAHash, FTocMetaEntry> PreviousBuildTocMap;
-		for (const FTocMetaEntry& TocMetaEntry : ContainerTarget.PreviousBuildToc)
+		uint64 DiffFileCount = 0;
+		uint64 DiffFileSize = 0;
+		uint64 AddedFileCount = 0;
+		uint64 AddedFileSize = 0;
+		int64 IdealOrder = 0;
+		TArray<FLayoutEntry*> UnassignedEntries;
+		for (FContainerTargetFile& ContainerTargetFile : ContainerTarget->TargetFiles)
 		{
-			if (PreviousBuildTocMap.Find(TocMetaEntry.Hash))
+			bool bIsAddedOrModified = false;
+			const FIoChunkHash* FindPreviousHashByChunkId = PreviousBuildHashByChunkId.Find(ContainerTargetFile.ChunkId);
+			if (FindPreviousHashByChunkId)
 			{
-				UE_DEBUG_BREAK();
-			}
-			PreviousBuildTocMap.Add(TocMetaEntry.Hash, TocMetaEntry);
-		}
-
-		uint64 DiffCount = 0;
-		uint64 DiffSize = 0;
-		TArray<FFileLayoutNode*> LayoutNodes;
-		LayoutNodes.Reserve(ContainerTarget.TargetFiles.Num());
-		uint64 IdealOrder = 0;
-		TMap<uint64, FFileLayoutNode*> UnassignedNodes;
-		TMap<uint64, FFileLayoutNode*> AssignedNodes;
-		for (FContainerTargetFile& ContainerTargetFile : ContainerTarget.TargetFiles)
-		{
-			FFileLayoutNode* LayoutNode = new FFileLayoutNode();
-			LayoutNodes.Add(LayoutNode);
-			LayoutNode->TargetFile = &ContainerTargetFile;
-			LayoutNode->IdealOrder = IdealOrder++;
-			UnassignedNodes.Add(LayoutNode->IdealOrder, LayoutNode);
-
-			FTocMetaEntry* FindPreviousBuildEntry = PreviousBuildTocMap.Find(ContainerTargetFile.Hash);
-			if (!FindPreviousBuildEntry)
-			{
-				++DiffCount;
-				DiffSize += ContainerTargetFile.TargetSize;
-				//UE_LOG(LogIoStore, Display, TEXT("Diffing: %s"), *ContainerTargetFile.TargetPath);
+				if (*FindPreviousHashByChunkId != ContainerTargetFile.ChunkHash)
+				{
+					//UE_LOG(LogIoStore, Display, TEXT("Diffing: %s"), *ContainerTargetFile.TargetPath);
+					++DiffFileCount;
+					DiffFileSize += ContainerTargetFile.TargetSize;
+					bIsAddedOrModified = true;
+				}
 			}
 			else
 			{
-				LayoutNode->PreviousOffset = FindPreviousBuildEntry->Offset;
-				LayoutNode->bHasPreviousOffset = true;
+				//UE_LOG(LogIoStore, Display, TEXT("Added: %s"), *ContainerTargetFile.TargetPath);
+				++AddedFileCount;
+				AddedFileSize += ContainerTargetFile.TargetSize;
+				bIsAddedOrModified = true;
+			}
+
+			bool bAddToUnassignedPool = true;
+			if (ContainerTarget->bGenerateDiffPatch)
+			{
+				if (!bIsAddedOrModified)
+				{
+					bAddToUnassignedPool = false;
+				}
+			}
+			else
+			{
+				FLayoutEntry* FindPreviousFileEntry = nullptr;
+				TArray<FLayoutEntry*>* FindPreviousBuildFileHashesArray = PreviousBuildFileByHash.Find(ContainerTargetFile.ChunkHash);
+				if (FindPreviousBuildFileHashesArray && FindPreviousBuildFileHashesArray->Num())
+				{
+					FindPreviousFileEntry = FindPreviousBuildFileHashesArray->Pop(false);
+				}
+
+				if (FindPreviousFileEntry && !FindPreviousFileEntry->TargetFile && ContainerTargetFile.TargetSize == FindPreviousFileEntry->Size)
+				{
+					FindPreviousFileEntry->TargetFile = &ContainerTargetFile;
+					FindPreviousFileEntry->IdealOrder = IdealOrder;
+					EntriesByOrderMap.Add(IdealOrder, FindPreviousFileEntry);
+					bAddToUnassignedPool = false;
+				}
+			}
+			if (bAddToUnassignedPool)
+			{
+				FLayoutEntry* NewEntry = new FLayoutEntry();
+				NewEntry->Type = FLayoutEntry::File;
+				NewEntry->Size = ContainerTargetFile.TargetSize;
+				NewEntry->TargetFile = &ContainerTargetFile;
+				NewEntry->IdealOrder = IdealOrder;
+				NewEntry->bModified = true;
+				Entries.Add(NewEntry);
+				UnassignedEntries.Add(NewEntry);
+			}
+			++IdealOrder;
+		}
+		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d modified entries (%fMB)"), *ContainerTarget->Name.ToString(), DiffFileCount, ContainerTarget->TargetFiles.Num(), DiffFileSize / 1024.0 / 1024.0);
+		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d added entries (%fMB)"), *ContainerTarget->Name.ToString(), AddedFileCount, ContainerTarget->TargetFiles.Num(), AddedFileSize / 1024.0 / 1024.0);
+
+		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		{
+			if (EntryIt->Type == FLayoutEntry::File && !EntryIt->TargetFile)
+			{
+				EntryIt->Type = FLayoutEntry::FreeSpace;
+				EntryIt->bModified = true;
 			}
 		}
-		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d new/modified entries (%fMB)"), *ContainerTarget.Name, DiffCount, ContainerTarget.TargetFiles.Num(), DiffSize / 1024.0 / 1024.0);
 
-		Algo::Sort(LayoutNodes, [](const FFileLayoutNode* A, const FFileLayoutNode* B)
+		// Assign entries to blocks
+		TArray<FLayoutBlock> Blocks;
+		Blocks.SetNum(CurrentOffset / CompressionBlockSize);
+		CurrentOffset = 0;
+		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
 		{
-			if (A->bHasPreviousOffset != B->bHasPreviousOffset)
+			EntryIt->BeginBlockIndex = int32(CurrentOffset / CompressionBlockSize);
+			EntryIt->EndBlockIndex = int32(Align(CurrentOffset + EntryIt->Size, CompressionBlockSize) / CompressionBlockSize);
+			CurrentOffset += EntryIt->Size;
+			for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
 			{
-				return A->bHasPreviousOffset;
+				FLayoutBlock& Block = Blocks[BlockIndex];
+				Block.bModified |= EntryIt->bModified;
+				if (!Block.FirstEntry)
+				{
+					Block.FirstEntry = EntryIt;
+				}
+				Block.LastEntry = EntryIt;
 			}
-			else if (A->PreviousOffset != B->PreviousOffset)
+		}
+		// Put all file entries that only touch already modified blocks back to the unassigned pool
+		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		{
+			if (EntryIt->Type == FLayoutEntry::File)
 			{
-				return A->PreviousOffset < B->PreviousOffset;
+				bool bAllBlocksTouchedByEntryModified = true;
+				for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
+				{
+					FLayoutBlock& Block = Blocks[BlockIndex];
+					if (!Block.bModified)
+					{
+						bAllBlocksTouchedByEntryModified = false;
+						break;
+					}
+				}
+				if (bAllBlocksTouchedByEntryModified)
+				{
+					FLayoutEntry* ReleasedEntry = new FLayoutEntry();
+					ReleasedEntry->Type = FLayoutEntry::File;
+					ReleasedEntry->Size = EntryIt->Size;
+					ReleasedEntry->TargetFile = EntryIt->TargetFile;
+					ReleasedEntry->IdealOrder = EntryIt->IdealOrder;
+					ReleasedEntry->bModified = true;
+					Entries.Add(ReleasedEntry);
+					UnassignedEntries.Add(ReleasedEntry);
+
+					EntryIt->Type = FLayoutEntry::FreeSpace;
+					EntryIt->TargetFile = nullptr;
+					EntryIt->bModified = true;
+				}
 			}
+		}
+		uint64 UnmodifiedBlocksCount = 0;
+		for (const FLayoutBlock& Block : Blocks)
+		{
+			if (!Block.bModified)
+			{
+				++UnmodifiedBlocksCount;
+			}
+		}
+
+		// Split all free space entries so that they don't cross any block boundaries
+		CurrentOffset = 0;
+		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		{
+			uint64 NextOffset = CurrentOffset + EntryIt->Size;
+			if (EntryIt->Type == FLayoutEntry::FreeSpace)
+			{
+				if (EntryIt->BeginBlockIndex != EntryIt->EndBlockIndex - 1)
+				{
+					uint64 SizeInFirstBlock = Align(CurrentOffset, CompressionBlockSize) - CurrentOffset;
+					if (SizeInFirstBlock)
+					{
+						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
+						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
+						FreeSpaceEntry->Size = SizeInFirstBlock;
+						FreeSpaceEntry->bModified = EntryIt->bModified;
+						EntryIt->Size -= SizeInFirstBlock;
+						FreeSpaceEntry->Prev = EntryIt->Prev;
+						FreeSpaceEntry->Next = EntryIt;
+						EntryIt->Prev->Next = FreeSpaceEntry;
+						EntryIt->Prev = FreeSpaceEntry;
+						Entries.Add(FreeSpaceEntry);
+					}
+					uint64 SizeInLastBlock = EntryIt->Size % CompressionBlockSize;
+					if (SizeInLastBlock != EntryIt->Size)
+					{
+						uint64 SizeInMiddleBlocks = EntryIt->Size - SizeInLastBlock;
+						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
+						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
+						FreeSpaceEntry->Size = SizeInMiddleBlocks;
+						FreeSpaceEntry->bModified = EntryIt->bModified;
+						EntryIt->Size -= SizeInMiddleBlocks;
+						FreeSpaceEntry->Prev = EntryIt->Prev;
+						FreeSpaceEntry->Next = EntryIt;
+						EntryIt->Prev->Next = FreeSpaceEntry;
+						EntryIt->Prev = FreeSpaceEntry;
+						Entries.Add(FreeSpaceEntry);
+					}
+				}
+			}
+			CurrentOffset = NextOffset;
+		}
+		// Update entry block assignment
+		// Lock all file entries
+		CurrentOffset = 0;
+		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		{
+			EntryIt->BeginBlockIndex = int32(CurrentOffset / CompressionBlockSize);
+			EntryIt->EndBlockIndex = int32(Align(CurrentOffset + EntryIt->Size, CompressionBlockSize) / CompressionBlockSize);
+			CurrentOffset += EntryIt->Size;
+			for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
+			{
+				FLayoutBlock& Block = Blocks[BlockIndex];
+				check(!EntryIt->bModified || Block.bModified);
+				if (!Block.FirstEntry)
+				{
+					Block.FirstEntry = EntryIt;
+				}
+				Block.LastEntry = EntryIt;
+			}
+			if (EntryIt->Type == FLayoutEntry::File)
+			{
+				check(!EntryIt->bModified);
+				EntryIt->bLocked = true;
+			}
+		}
+		// Lock all free space entries in unmodified blocks
+		for (FLayoutBlock& Block : Blocks)
+		{
+			if (!Block.bModified)
+			{
+				for (FLayoutEntry* EntryIt = Block.FirstEntry; EntryIt != Block.LastEntry->Next; EntryIt = EntryIt->Next)
+				{
+					if (EntryIt->Type == FLayoutEntry::FreeSpace)
+					{
+						EntryIt->bLocked = true;
+					}
+				}
+			}
+		}
+		// Merge and shrink all unlocked free space
+		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		{
+			if (EntryIt->Type == FLayoutEntry::FreeSpace && !EntryIt->bLocked)
+			{
+				if (EntryIt->Prev->Type == FLayoutEntry::FreeSpace && !EntryIt->Prev->bLocked)
+				{
+					FLayoutEntry* MergeWithFreeSpace = EntryIt->Prev;
+					EntryIt->Size += MergeWithFreeSpace->Size;
+					MergeWithFreeSpace->Prev->Next = EntryIt;
+					EntryIt->Prev = MergeWithFreeSpace->Prev;
+				}
+				EntryIt->Size %= CompressionBlockSize;
+			}
+		}
+		// Insert block boundaries
+		CurrentOffset = 0;
+		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		{
+			if (CurrentOffset % CompressionBlockSize == 0)
+			{
+				FLayoutEntry* BlockBoundaryEntry = new FLayoutEntry();
+				BlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
+				BlockBoundaryEntry->Prev = EntryIt->Prev;
+				BlockBoundaryEntry->Next = EntryIt;
+				EntryIt->Prev->Next = BlockBoundaryEntry;
+				EntryIt->Prev = BlockBoundaryEntry;
+				Entries.Add(BlockBoundaryEntry);
+			}
+			
+			CurrentOffset += EntryIt->Size;
+		}
+		check(CurrentOffset % CompressionBlockSize == 0);
+		FLayoutEntry* LastBlockBoundaryEntry = new FLayoutEntry();
+		LastBlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
+		LastBlockBoundaryEntry->Prev = EntriesTail->Prev;
+		LastBlockBoundaryEntry->Next = EntriesTail;
+		EntriesTail->Prev->Next = LastBlockBoundaryEntry;
+		EntriesTail->Prev = LastBlockBoundaryEntry;
+		Entries.Add(LastBlockBoundaryEntry);
+
+		FLayoutEntry* MemoryMappedFilesTarget = new FLayoutEntry();
+		MemoryMappedFilesTarget->Type = FLayoutEntry::BlockBoundary;
+		MemoryMappedFilesTarget->Prev = LastBlockBoundaryEntry;
+		LastBlockBoundaryEntry->Next = MemoryMappedFilesTarget;
+		EntriesTail->Prev = MemoryMappedFilesTarget;
+		MemoryMappedFilesTarget->Next = EntriesTail;
+		Entries.Add(MemoryMappedFilesTarget);
+
+		// Insert new/modified entries according to their ideal order
+		Algo::Sort(UnassignedEntries, [](const FLayoutEntry* A, const FLayoutEntry* B)
+		{
 			return A->IdealOrder < B->IdealOrder;
 		});
-
-		FFileLayoutNode Head;
-		FFileLayoutNode Tail;
-		Head.Next = &Tail;
-		Tail.Prev = &Head;
-		FFileLayoutNode* PreviousNode = &Head;
-		for (FFileLayoutNode* LayoutNode : LayoutNodes)
+		for (FLayoutEntry* UnassignedEntry : UnassignedEntries)
 		{
-			check(UnassignedNodes.Contains(LayoutNode->IdealOrder));
-			check(!AssignedNodes.Contains(LayoutNode->IdealOrder));
-			
-			FFileLayoutNode* OrderAfterNode;
-			if (LayoutNode->bHasPreviousOffset)
+			check(UnassignedEntry->TargetFile);
+			if (UnassignedEntry->TargetFile->bIsMemoryMappedBulkData)
 			{
-				OrderAfterNode = PreviousNode;
+				UnassignedEntry->Prev = MemoryMappedFilesTarget->Prev;
+				UnassignedEntry->Next = MemoryMappedFilesTarget;
+				MemoryMappedFilesTarget->Prev->Next = UnassignedEntry;
+				MemoryMappedFilesTarget->Prev = UnassignedEntry;
+
+				uint64 AlignedSize = Align(UnassignedEntry->Size, MemoryMappingAlignment);
+				uint64 MemoryMapPadding = AlignedSize - UnassignedEntry->Size;
+				if (MemoryMapPadding)
+				{
+					FLayoutEntry* PaddingEntry = new FLayoutEntry();
+					PaddingEntry->Type = FLayoutEntry::FreeSpace;
+					PaddingEntry->Size = MemoryMapPadding;
+
+					PaddingEntry->Prev = UnassignedEntry;
+					PaddingEntry->Next = UnassignedEntry->Next;
+					UnassignedEntry->Next->Prev = PaddingEntry;
+					UnassignedEntry->Next = PaddingEntry;
+					Entries.Add(PaddingEntry);
+				}
 			}
 			else
 			{
-				if (LayoutNode->IdealOrder == 0)
+				FLayoutEntry* PutAfterEntry = EntriesByOrderMap.FindRef(UnassignedEntry->IdealOrder - 1);
+				if (!PutAfterEntry)
 				{
-					OrderAfterNode = &Head;
+					PutAfterEntry = LastAddedEntry;
 				}
-				else
+				
+				FLayoutEntry* TargetFreeSpace = nullptr;
+				FLayoutEntry* CandidateTarget = PutAfterEntry->Next;
+				if (CandidateTarget->Type == FLayoutEntry::FreeSpace && !CandidateTarget->bLocked)
 				{
-					OrderAfterNode = AssignedNodes.FindRef(LayoutNode->IdealOrder - 1);
-					check(OrderAfterNode);
-				}
-			}
-
-			OrderAfterNode->Next->Prev = LayoutNode;
-			LayoutNode->Next = OrderAfterNode->Next;
-			LayoutNode->Prev = OrderAfterNode;
-			OrderAfterNode->Next = LayoutNode;
-			
-			AssignedNodes.Add(LayoutNode->IdealOrder, LayoutNode);
-			UnassignedNodes.Remove(LayoutNode->IdealOrder);
-
-			PreviousNode = LayoutNode;
-		}
-
-		TArray<bool> BlocksModificationState;
-		uint64 CurrentOffset = 0;
-		FFileLayoutNode* CurrentNode = Head.Next;
-		bool bIsAlignedForMemoryMappedBulkData = false;
-		while (CurrentNode != &Tail)
-		{
-			uint64 ModificationOffset = 0;
-			uint64 ModificationSize = 0;
-
-			if (CurrentNode->TargetFile->bIsMemoryMappedBulkData)
-			{
-				if (!bIsAlignedForMemoryMappedBulkData)
-				{
-					if (!IsAligned(CurrentOffset, CompressionBlockSize))
+					TargetFreeSpace = CandidateTarget;
+					if (TargetFreeSpace->Size < UnassignedEntry->Size)
 					{
-						uint64 RemainingInBlock = Align(CurrentOffset, CompressionBlockSize) - CurrentOffset;
-						CurrentNode->TargetFile->Padding = RemainingInBlock;
-						CurrentOffset += RemainingInBlock;
-					}
-					CurrentNode->TargetFile->Alignment = MemoryMappingAlignment;
-					bIsAlignedForMemoryMappedBulkData = true;
-				}
-				else
-				{
-					if (!IsAligned(CurrentOffset, MemoryMappingAlignment))
-					{
-						uint64 RequiredPadding = Align(CurrentOffset, MemoryMappingAlignment) - CurrentOffset;
-						CurrentNode->TargetFile->Padding = RequiredPadding;
-						CurrentOffset += RequiredPadding;
+						uint64 SizeExtension = Align(UnassignedEntry->Size - TargetFreeSpace->Size, CompressionBlockSize);
+						TargetFreeSpace->Size += SizeExtension;
 					}
 				}
-			}
-			else if (bIsAlignedForMemoryMappedBulkData)
-			{
-				if (!IsAligned(CurrentOffset, CompressionBlockSize))
-				{
-					uint64 RemainingInBlock = Align(CurrentOffset, CompressionBlockSize) - CurrentOffset;
-					CurrentNode->TargetFile->Padding = RemainingInBlock;
-					CurrentOffset += RemainingInBlock;
-				}
-				bIsAlignedForMemoryMappedBulkData = false;
-			}
 
-			if (CurrentNode->bHasPreviousOffset)
-			{
-				uint64 PreviousOffsetInBlock = CurrentNode->PreviousOffset % CompressionBlockSize;
-				uint64 CurrentOffsetInBlock = CurrentOffset % CompressionBlockSize;
-				if (CurrentOffsetInBlock != PreviousOffsetInBlock)
+				if (!TargetFreeSpace)
 				{
-					uint64 PadBytes = 0;
-					if (CurrentOffsetInBlock < PreviousOffsetInBlock)
+					FLayoutEntry* NextBlockBoundary = PutAfterEntry->Next;
+					check(NextBlockBoundary);
+					while (NextBlockBoundary->Type != FLayoutEntry::BlockBoundary)
 					{
-						PadBytes = PreviousOffsetInBlock - CurrentOffsetInBlock;
+						NextBlockBoundary = NextBlockBoundary->Next;
 					}
-					else if (PreviousOffsetInBlock < CurrentOffsetInBlock)
-					{
-						PadBytes = CompressionBlockSize - CurrentOffsetInBlock + PreviousOffsetInBlock;
-					}
-					ModificationOffset = CurrentOffset;
-					ModificationSize += PadBytes;
-					CurrentOffset += PadBytes;
-					CurrentNode->TargetFile->Padding = PadBytes;
-				}
-				check(CurrentOffset % CompressionBlockSize == CurrentNode->PreviousOffset % CompressionBlockSize);
-			}
-			else
-			{
-				ModificationOffset = CurrentOffset;
-				ModificationSize = CurrentNode->TargetFile->TargetSize;
-			}
+					FLayoutEntry* NewFreeSpaceEntry = new FLayoutEntry();
+					NewFreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
+					NewFreeSpaceEntry->Size = Align(UnassignedEntry->Size, CompressionBlockSize);
+					Entries.Add(NewFreeSpaceEntry);
+					FLayoutEntry* NewBlockBoundaryEntry = new FLayoutEntry();
+					NewBlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
+					Entries.Add(NewBlockBoundaryEntry);
 
-			if (ModificationSize)
+					NewFreeSpaceEntry->Prev = NextBlockBoundary;
+					NewFreeSpaceEntry->Next = NewBlockBoundaryEntry;
+					NewBlockBoundaryEntry->Prev = NewFreeSpaceEntry;
+					NewBlockBoundaryEntry->Next = NextBlockBoundary->Next;
+					NextBlockBoundary->Next->Prev = NewBlockBoundaryEntry;
+					NextBlockBoundary->Next = NewFreeSpaceEntry;
+					TargetFreeSpace = NewFreeSpaceEntry;
+				}
+
+				check(TargetFreeSpace->Type == FLayoutEntry::FreeSpace);
+				check(TargetFreeSpace->Size >= UnassignedEntry->Size);
+				check(!TargetFreeSpace->bLocked);
+				UnassignedEntry->Prev = TargetFreeSpace->Prev;
+				UnassignedEntry->Next = TargetFreeSpace;
+				TargetFreeSpace->Prev->Next = UnassignedEntry;
+				TargetFreeSpace->Prev = UnassignedEntry;
+				TargetFreeSpace->Size -= UnassignedEntry->Size;
+
+				EntriesByOrderMap.Add(UnassignedEntry->IdealOrder, UnassignedEntry);
+				LastAddedEntry = UnassignedEntry;
+			}
+		}
+		TArray<FContainerTargetFile> IncludedContainerTargetFiles;
+		CurrentOffset = 0;
+		uint64 PaddingBytes = 0;
+		uint64 TotalChunkPaddingSize = 0;
+		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		{
+			if (EntryIt->Type == FLayoutEntry::FreeSpace)
 			{
-				int32 BeginBlockIndex = ModificationOffset / CompressionBlockSize;
-				int32 EndBlockIndex = Align(ModificationOffset + ModificationSize, CompressionBlockSize) / CompressionBlockSize;
-				if (BlocksModificationState.Num() < EndBlockIndex)
+				PaddingBytes += EntryIt->Size;
+			}
+			else if (EntryIt->Type == FLayoutEntry::File)
+			{
+				check(EntryIt->TargetFile);
+				EntryIt->TargetFile->Padding = PaddingBytes;
+				TotalChunkPaddingSize += PaddingBytes;
+				PaddingBytes = 0;
+				EntryIt->TargetFile->Offset = CurrentOffset;
+
+				if (EntryIt->bHasPreviousBuildOffset && EntryIt->bLocked)
 				{
-					BlocksModificationState.AddZeroed(EndBlockIndex - BlocksModificationState.Num());
+					check(EntryIt->PreviousBuildOffset % CompressionBlockSize == EntryIt->TargetFile->Offset % CompressionBlockSize);
 				}
-				for (int32 BlockIndex = BeginBlockIndex; BlockIndex < EndBlockIndex; ++BlockIndex)
+				if (EntryIt->TargetFile->bIsMemoryMappedBulkData)
 				{
-					BlocksModificationState[BlockIndex] = true;
+					check(IsAligned(CurrentOffset, MemoryMappingAlignment));
 				}
+				IncludedContainerTargetFiles.Add(*EntryIt->TargetFile);
 			}
+			CurrentOffset += EntryIt->Size;
+		}
+		uint64 TotalBlockCount = Align(CurrentOffset, CompressionBlockSize) / CompressionBlockSize;
+		uint64 ModifiedBlocksCount = TotalBlockCount - UnmodifiedBlocksCount;
+		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d modified blocks (%fMB)"), *ContainerTarget->Name.ToString(), ModifiedBlocksCount, TotalBlockCount, (ModifiedBlocksCount * CompressionBlockSize) / 1024.0 / 1024.0);
+		UE_LOG(LogIoStore, Display, TEXT("%s: Total chunk padding %fMB"), *ContainerTarget->Name.ToString(), TotalChunkPaddingSize / 1024.0 / 1024.0);
 
-			CurrentNode->TargetFile->Offset = CurrentOffset;
-			CurrentOffset += CurrentNode->TargetFile->TargetSize;
-			CurrentNode = CurrentNode->Next;
+		for (FLayoutEntry* Entry : Entries)
+		{
+			delete Entry;
 		}
 
-		uint64 ModifiedBlocksCount = 0;
-		for (bool BlockModified : BlocksModificationState)
-		{
-			if (BlockModified)
-			{
-				++ModifiedBlocksCount;
-			}
-		}
-		UE_LOG(LogIoStore, Display, TEXT("%s: %d new/modified blocks (%fMB)"), *ContainerTarget.Name, ModifiedBlocksCount, ModifiedBlocksCount * CompressionBlockSize / 1024.0f / 1024.0f);
-
-		for (FFileLayoutNode* LayoutNode : LayoutNodes)
-		{
-			delete LayoutNode;
-		}
-
-		Algo::Sort(ContainerTarget.TargetFiles, [](const FContainerTargetFile& A, const FContainerTargetFile& B)
-		{
-			return A.Offset < B.Offset;
-		});
+		Swap(ContainerTarget->TargetFiles, IncludedContainerTargetFiles);
 	}
 }
 
@@ -1381,7 +1713,7 @@ static EIoChunkType BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBu
 	}
 }
 
-static bool MapAdditionalBulkDataChunks(const FContainerTargetFile& TargetFile, const FPackageStoreBulkDataManifest& BulkDataManifest, FIoStoreWriter* IoStoreWriter)
+static bool MapAdditionalBulkDataChunks(FContainerTargetFile& TargetFile, const FPackageStoreBulkDataManifest& BulkDataManifest)
 {
 	const FPackage& Package = *TargetFile.Package;
 	const FPackageStoreBulkDataManifest::FPackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
@@ -1400,12 +1732,10 @@ static bool MapAdditionalBulkDataChunks(const FContainerTargetFile& TargetFile, 
 		{
 			if (BulkDataDesc.Type == BulkDataType)
 			{
-				const FIoChunkId AccessChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, ChunkIdType, *Package.FileName);
-				const FIoStatus PartialResult = IoStoreWriter->MapPartialRange(TargetFile.ChunkId, BulkDataDesc.Offset, BulkDataDesc.Size, AccessChunkId);
-				if (!PartialResult.IsOk())
-				{
-					UE_LOG(LogIoStore, Warning, TEXT("Failed to map partial range for '%s' due to: %s"), *Package.FileName, *PartialResult.ToString());
-				}
+				FContainerTargetFilePartialMapping& PartialMapping = TargetFile.PartialMappings.AddDefaulted_GetRef();
+				PartialMapping.PartialChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, ChunkIdType, *Package.FileName);
+				PartialMapping.Offset = BulkDataDesc.Offset;
+				PartialMapping.Length = BulkDataDesc.Size;
 			}
 		}
 	}
@@ -1671,6 +2001,48 @@ static void FindExport(
 		ExportData.SourceIndex = LocalExportIndex;
 		ExportData.FullName = FullName;
 	}
+}
+
+FContainerTargetSpec* AddContainer(
+	FName Name,
+	FIoContainerId Id,
+	TArray<FContainerTargetSpec*>& Containers,
+	TMap<FName, FContainerTargetSpec*>& ContainerMap)
+{
+	for (const FContainerTargetSpec* ExistingContainer : Containers)
+	{
+		check(ExistingContainer->Header.ContainerId != Id);
+	}
+	check(!ContainerMap.Contains(Name));
+	FContainerTargetSpec* ContainerTargetSpec = new FContainerTargetSpec();
+	ContainerTargetSpec->Name = Name;
+	ContainerTargetSpec->Header.ContainerId = Id;
+	ContainerMap.Add(Name, ContainerTargetSpec);
+	Containers.Add(ContainerTargetSpec);
+	return ContainerTargetSpec;
+}
+
+FContainerTargetSpec* FindOrAddContainer(
+	FName Name,
+	TArray<FContainerTargetSpec*>& Containers,
+	TMap<FName, FContainerTargetSpec*>& ContainerMap)
+{
+	FContainerTargetSpec* ContainerTargetSpec = ContainerMap.FindRef(Name);
+	if (!ContainerTargetSpec)
+	{
+		uint16 NextContainerTargetId = 1;
+		for (const FContainerTargetSpec* ExistingContainer : Containers)
+		{
+			check(ExistingContainer->Header.ContainerId.IsValid());
+			NextContainerTargetId = FMath::Max<uint16>(ExistingContainer->Header.ContainerId.ToIndex() + 1, NextContainerTargetId);
+		}
+		ContainerTargetSpec = new FContainerTargetSpec();
+		ContainerTargetSpec->Name = Name;
+		ContainerTargetSpec->Header.ContainerId = FIoContainerId::FromIndex(NextContainerTargetId);
+		ContainerMap.Add(Name, ContainerTargetSpec);
+		Containers.Add(ContainerTargetSpec);
+	}
+	return ContainerTargetSpec;
 }
 
 FPackage* FindOrAddPackage(
@@ -2026,18 +2398,31 @@ static void AddPreloadDependencies(
 	}
 };
 
+void BuildContainerNameMap(FContainerTargetSpec& ContainerTarget)
+{
+	FNameMapBuilder& NameMapBuilder = *ContainerTarget.NameMapBuilder;
+
+	for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
+	{
+		NameMapBuilder.MarkNameAsReferenced(TargetFile.Package->Name);
+		NameMapBuilder.MarkNamesAsReferenced(TargetFile.Package->Names, TargetFile.NameIndices);
+	}
+}
+
 void FinalizePackageHeaders(
-	const TArray<FPackage*>& Packages,
-	const FNameMapBuilder& NameMapBuilder,
+	FContainerTargetSpec& ContainerTarget,
 	const TArray<FObjectExport>& ObjectExports,
 	const TArray<FExportData>& GlobalExports,
 	const FImportObjectsByFullName& GlobalImportsByFullName)
 {
-	IOSTORE_CPU_SCOPE(FinalizePackageHeaders);
-	UE_LOG(LogIoStore, Display, TEXT("Finalizing package headers..."));
+	const uint16 NameMapIndex = ContainerTarget.bUseLocalNameMap ? ContainerTarget.Header.ContainerId.ToIndex() : 0;
 
-	for (FPackage* Package : Packages)
+	for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
 	{
+		FPackage* Package = TargetFile.Package;
+		check(TargetFile.ContainerTarget->NameMapBuilder);
+		const FNameMapBuilder& NameMapBuilder = *TargetFile.ContainerTarget->NameMapBuilder;
+
 		// Temporary Archive for serializing ImportMap
 		FBufferWriter ImportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
 		for (FPackageObjectIndex& GlobalImportIndex : Package->Imports)
@@ -2077,8 +2462,7 @@ void FinalizePackageHeaders(
 			FExportMapEntry ExportMapEntry;
 			ExportMapEntry.CookedSerialOffset = ObjectExport.SerialOffset;
 			ExportMapEntry.CookedSerialSize = ObjectExport.SerialSize;
-			ExportMapEntry.ObjectName.NameEntryIndex = NameMapBuilder.MapName(ObjectExport.ObjectName);
-			ExportMapEntry.ObjectName.Number = ObjectExport.ObjectName.GetNumber();
+			ExportMapEntry.ObjectName = NameMapBuilder.MapName(ObjectExport.ObjectName);
 			ExportMapEntry.OuterIndex = ExportData.OuterIndex;
 			ExportMapEntry.ClassIndex = ExportData.ClassIndex;
 			ExportMapEntry.SuperIndex = ExportData.SuperIndex;
@@ -2119,7 +2503,11 @@ void FinalizePackageHeaders(
 		}
 		Package->ExportBundlesHeaderSize = ExportBundlesArchive.Tell();
 
-		uint64 PackageHeaderSize =
+		const uint64 NameMapSize = TargetFile.NameIndices.Num() * TargetFile.NameIndices.GetTypeSize();
+		check(Package->NameMapSize == 0 || Package->NameMapSize == NameMapSize);
+		Package->NameMapSize = NameMapSize;
+
+		const uint64 PackageHeaderSize =
 			sizeof(FPackageSummary)
 			+ Package->NameMapSize
 			+ Package->ImportMapSize
@@ -2127,12 +2515,17 @@ void FinalizePackageHeaders(
 			+ Package->ExportBundlesHeaderSize
 			+ Package->UGraphSize;
 
-		Package->HeaderData.AddZeroed(PackageHeaderSize);
-		uint8* PackageHeaderBuffer = Package->HeaderData.GetData();
+		check(Package->HeaderSerialSize == 0 || Package->HeaderSerialSize == PackageHeaderSize);
+		Package->HeaderSerialSize = PackageHeaderSize;
+
+		TargetFile.PackageHeaderData.AddZeroed(PackageHeaderSize);
+		uint8* PackageHeaderBuffer = TargetFile.PackageHeaderData.GetData();
 		FPackageSummary* PackageSummary = reinterpret_cast<FPackageSummary*>(PackageHeaderBuffer);
 
 		PackageSummary->PackageFlags = Package->PackageFlags;
 		PackageSummary->CookedHeaderSize = Package->CookedHeaderSize;
+		PackageSummary->NameMapIndex = NameMapIndex;
+		PackageSummary->Pad = 0;
 		PackageSummary->GraphDataSize = Package->UGraphSize;
 
 		FBufferWriter SummaryArchive(PackageHeaderBuffer, PackageHeaderSize);
@@ -2141,7 +2534,8 @@ void FinalizePackageHeaders(
 		// NameMap data
 		{
 			PackageSummary->NameMapOffset = SummaryArchive.Tell();
-			SummaryArchive.Serialize(Package->NameIndices.GetData(), Package->NameMapSize);
+			SummaryArchive.Serialize(TargetFile.NameIndices.GetData(),
+				TargetFile.NameIndices.Num() * TargetFile.NameIndices.GetTypeSize());
 		}
 
 		// ImportMap data
@@ -2176,7 +2570,6 @@ void FinalizePackageHeaders(
 
 void SerializePackageStoreEntries(
 	TArray<FPackage*> Packages,
-	FNameMapBuilder& NameMapBuilder,
 	FArchive& StoreTocArchive,
 	FArchive& StoreDataArchive)
 {
@@ -2196,11 +2589,10 @@ void SerializePackageStoreEntries(
 		StoreTocArchive << OffsetToDataFromThis;
 	};
 
-
 	for (FPackage* Package : Packages)
 	{
-		NameMapBuilder.MarkNameAsReferenced(Package->Name);
-		NameMapBuilder.SerializeName(StoreTocArchive, Package->Name);
+		FMappedName PackageName;
+		StoreTocArchive << PackageName;
 		StoreTocArchive << Package->SourceGlobalPackageId;
 		StoreTocArchive << Package->ExportCount;
 
@@ -2229,7 +2621,7 @@ void SerializePackageStoreEntries(
 			//       or just store the data for the first entry directly on the package entry itself
 			SerializePackageEntryCArrayHeader(Package->ExportBundles.Num());
 			FExportBundleMetaEntry ExportBundleMetaEntry;
-			ExportBundleMetaEntry.PayloadSize = Package->HeaderData.Num() + Package->ExportsSerialSize;
+			ExportBundleMetaEntry.PayloadSize = Package->HeaderSerialSize + Package->ExportsSerialSize;
 			for (const FExportBundle& ExportBundle : Package->ExportBundles)
 			{
 				ExportBundleMetaEntry.LoadOrder = ExportBundle.LoadOrder;
@@ -2241,22 +2633,8 @@ void SerializePackageStoreEntries(
 	}
 }
 
-template<class T>
-static void SerializeImportNames(
-	const FNameMapBuilder& NameMapBuilder,
-	const TArray<T>& Imports,
-	FArchive& Ar)
-{
-	int32 Count = Imports.Num();
-	Ar << Count;
-	for (const T& ImportData : Imports)
-	{
-		NameMapBuilder.SerializeName(Ar, ImportData.ObjectName);
-	}
-};
-
 static void SerializeInitialLoad(
-	const FNameMapBuilder& NameMapBuilder,
+	FNameMapBuilder& GlobalNameMapBuilder,
 	const FGlobalScriptImports& GlobalScriptImports,
 	FArchive& InitialLoadArchive)
 {
@@ -2268,9 +2646,9 @@ static void SerializeInitialLoad(
 
 	for (const FScriptImportData& ImportData : GlobalScriptImports)
 	{
+		GlobalNameMapBuilder.MarkNameAsReferenced(ImportData.ObjectName);
 		FScriptObjectEntry Entry;
-		Entry.ObjectName.Index = NameMapBuilder.MapName(ImportData.ObjectName);
-		Entry.ObjectName.Number = ImportData.ObjectName.GetNumber();
+		Entry.ObjectName = GlobalNameMapBuilder.MapName(ImportData.ObjectName).ToUnresolvedMinimalName();
 		Entry.OuterIndex = ImportData.OuterIndex;
 		Entry.CDOClassIndex = ImportData.CDOClassIndex;
 
@@ -2278,13 +2656,15 @@ static void SerializeInitialLoad(
 	}
 };
 
-static FIoBuffer CreateExportBundleBuffer(const FPackage* Package, const TArray<FObjectExport>& ObjectExports, const FIoBuffer UExpBuffer)
+static FIoBuffer CreateExportBundleBuffer(const FContainerTargetFile& TargetFile, const TArray<FObjectExport>& ObjectExports, const FIoBuffer UExpBuffer)
 {
-	uint64 BundleBufferSize = Package->HeaderData.Num() + Package->ExportsSerialSize;
+	const FPackage* Package = TargetFile.Package;
+	check(TargetFile.PackageHeaderData.Num() > 0);
+	const uint64 BundleBufferSize = TargetFile.PackageHeaderData.Num() + TargetFile.Package->ExportsSerialSize;
 	FIoBuffer BundleBuffer(BundleBufferSize);
-	FMemory::Memcpy(BundleBuffer.Data(), Package->HeaderData.GetData(), Package->HeaderData.Num());
-	uint64 BundleBufferOffset = Package->HeaderData.Num();
-	for (const FExportBundle& ExportBundle : Package->ExportBundles)
+	FMemory::Memcpy(BundleBuffer.Data(), TargetFile.PackageHeaderData.GetData(), TargetFile.PackageHeaderData.Num());
+	uint64 BundleBufferOffset = TargetFile.PackageHeaderData.Num();
+	for (const FExportBundle& ExportBundle : TargetFile.Package->ExportBundles)
 	{
 		for (const FExportGraphNode* Node : ExportBundle.Nodes)
 		{
@@ -2303,10 +2683,8 @@ static FIoBuffer CreateExportBundleBuffer(const FPackage* Package, const TArray<
 }
 
 static void ParsePackageAssets(
-	FNameMapBuilder& NameMapBuilder,
 	TArray<FPackage*>& Packages,
 	FPackageAssetData& PackageAssetData,
-	FGlobalPackageData& GlobalPackageData,
 	FExportGraph& ExportGraph)
 {
 	IOSTORE_CPU_SCOPE(ParsePackageAssets);
@@ -2427,22 +2805,17 @@ static void ParsePackageAssets(
 			{
 				Ar.Seek(Summary.NameOffset);
 
-				TArray<FName> Names;
-				Names.Reserve(Summary.NameCount);
+				Package.Names.Reserve(Summary.NameCount);
 				Package.NameMap.Reserve(Summary.NameCount);
-				Package.NameIndices.Reserve(Summary.NameCount);
 				FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
 
 				for (int32 I = 0; I < Summary.NameCount; ++I)
 				{
 					Ar << NameEntry;
-					Names.Emplace(NameEntry);
+					FName& Name = Package.Names.Emplace_GetRef(NameEntry);
+					Package.NameMap.Emplace(Name.GetDisplayIndex());
 				}
-
-				NameMapBuilder.MarkNamesAsReferenced(Names, Package.NameMap, Package.NameIndices);
 			}
-
-			Package.NameMapSize = Package.NameIndices.Num() * Package.NameIndices.GetTypeSize();
 		}
 
 		ParallelFor(TotalPackageCount,[
@@ -2450,9 +2823,7 @@ static void ParsePackageAssets(
 				&PackageAssetBuffers,
 				&PackageFileSummaries,
 				&Packages,
-				&NameMapBuilder,
 				&PackageAssetData,
-				&GlobalPackageData,
 				&ExportGraph](int32 Index)
 		{
 			uint8* PackageBuffer = PackageAssetBuffers[Index];
@@ -2460,6 +2831,7 @@ static void ParsePackageAssets(
 			FPackage& Package = *Packages[Index];
 			TArrayView<const uint8> MemView(PackageBuffer, Package.UAssetSize);
 			FMemoryReaderView Ar(MemView);
+			Ar.SetFilterEditorOnly((Package.PackageFlags & EPackageFlags::PKG_FilterEditorOnly) != 0);
 
 			IOSTORE_CPU_SCOPE_DATA(ParsePackage, TCHAR_TO_ANSI(*Package.FileName));
 
@@ -2809,14 +3181,16 @@ static void ProcessLocalizedPackages(
 	}
 }
 
-static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const FNameMapBuilder& NameMap, const FPackageGlobalIdMap& PackageGlobalIdMap, const FGlobalImports& GlobalImports, const TArray<FContainerTargetSpec>& ContainerTargets)
+static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const FNameMapBuilder& GlobalNameMap, const FPackageGlobalIdMap& PackageGlobalIdMap, const FGlobalImports& GlobalImports, TArray<FContainerTargetSpec*>& ContainerTargets)
 {
+	UE_LOG(LogIoStore, Display, TEXT("Saving release meta data to '%s'"), ReleaseVersionOutputDir);
+
 	IPlatformFile::GetPlatformPhysical().CreateDirectoryTree(ReleaseVersionOutputDir);
 
 	{
 		FString NameMapOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.unamemap"));
 		TUniquePtr<FArchive> NameMapArchive(IFileManager::Get().CreateFileWriter(*NameMapOutputPath));
-		(*NameMapArchive) << const_cast<FNameMapBuilder&>(NameMap);
+		(*NameMapArchive) << const_cast<FNameMapBuilder&>(GlobalNameMap);
 	}
 
 	{
@@ -2862,32 +3236,43 @@ static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const F
 		}
 	}
 
-	for (const FContainerTargetSpec& ContainerTarget : ContainerTargets)
+	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
-		TArray<FTocMetaEntry> TocMetaEntries;
-		TocMetaEntries.Reserve(ContainerTarget.TargetFiles.Num());
-		for (const FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
-		{
-			FTocMetaEntry& TocMetaEntry = TocMetaEntries.AddDefaulted_GetRef();
-			TocMetaEntry.Offset = TargetFile.Offset;
-			TocMetaEntry.Size = TargetFile.TargetSize;
-			TocMetaEntry.Hash = TargetFile.Hash;
-		}
+		FContainerMeta ContainerMeta;
+		ContainerMeta.ContainerId = ContainerTarget->Header.ContainerId;
+		ContainerMeta.ContainerName = ContainerTarget->Name.ToString();
 
-		FString TocMetaOutputPath = FPaths::Combine(ReleaseVersionOutputDir, ContainerTarget.Name + TEXT(".utocmeta"));
-		TUniquePtr<FArchive> TocMetaArchive(IFileManager::Get().CreateFileWriter(*TocMetaOutputPath));
-		(*TocMetaArchive) << TocMetaEntries;
-	}
+		// Should be safe now as all container(s) has been saved.
+		ContainerMeta.NameMapBuilder = MoveTemp(ContainerTarget->LocalNameMapBuilder);
+
+		FString MetaOutputPath = FPaths::Combine(ReleaseVersionOutputDir, ContainerTarget->Name.ToString() + TEXT(".ucontainermeta"));
+		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*MetaOutputPath));
+		*Ar << ContainerMeta;
+
+		UE_LOG(LogIoStore, Display,
+			TEXT("Saved container release meta '%s' with container ID '%d' and '%d' names"),
+			*MetaOutputPath,
+			ContainerMeta.ContainerId.ToIndex(),
+			ContainerMeta.NameMapBuilder.GetNameMap().Num());
+	}	
 }
 
-static void LoadReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, FNameMapBuilder& NameMap, FPackageGlobalIdMap& PackageGlobalIdMap, FGlobalImports& GlobalImports, TArray<FContainerTargetSpec>& ContainerTargets)
+static void LoadReleaseVersionMeta(
+	const TCHAR* ReleaseVersionOutputDir,
+	FNameMapBuilder& GlobalNameMap,
+	FPackageGlobalIdMap& PackageGlobalIdMap,
+	FGlobalImports& GlobalImports,
+	TArray<FContainerTargetSpec*>& ContainerTargets,
+	TMap<FName, FContainerTargetSpec*>& ContainerTargetMap)
 {
+	UE_LOG(LogIoStore, Display, TEXT("Loading release meta data from '%s'"), ReleaseVersionOutputDir);
+
 	{
 		FString NameMapPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.unamemap"));
 		TUniquePtr<FArchive> NameMapArchive(IFileManager::Get().CreateFileReader(*NameMapPath));
 		if (NameMapArchive)
 		{
-			(*NameMapArchive) << NameMap;
+			(*NameMapArchive) << GlobalNameMap;
 		}
 	}
 	{
@@ -2956,13 +3341,26 @@ static void LoadReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, FNameMa
 		}
 	}
 
-	for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
+	FString ContainerMetaWildcard = FPaths::Combine(ReleaseVersionOutputDir, TEXT("*.ucontainermeta"));
+	TArray<FString> ContainerMetaFileNames;
+	IFileManager::Get().FindFiles(ContainerMetaFileNames, *ContainerMetaWildcard, true, false);
+	for (FString& ContainerMetaFileName : ContainerMetaFileNames)
 	{
-		FString TocMetaOutputPath = FPaths::Combine(ReleaseVersionOutputDir, ContainerTarget.Name + TEXT(".utocmeta"));
-		TUniquePtr<FArchive> TocMetaArchive(IFileManager::Get().CreateFileReader(*TocMetaOutputPath));
-		if (TocMetaArchive)
+		ContainerMetaFileName = ReleaseVersionOutputDir / ContainerMetaFileName;
+		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*ContainerMetaFileName));
+		if (Ar)
 		{
-			(*TocMetaArchive) << ContainerTarget.PreviousBuildToc;
+			FContainerMeta ContainerMeta;
+			*Ar << ContainerMeta;
+
+			FContainerTargetSpec* ContainerTarget = AddContainer(FName(ContainerMeta.ContainerName), ContainerMeta.ContainerId, ContainerTargets, ContainerTargetMap);
+			ContainerTarget->LocalNameMapBuilder = MoveTemp(ContainerMeta.NameMapBuilder);
+
+			UE_LOG(LogIoStore, Display,
+				TEXT("Loaded container release meta '%s' with container ID '%d' and '%d' names"),
+				*ContainerMetaFileName,
+				ContainerTarget->Header.ContainerId.ToIndex(),
+				ContainerTarget->LocalNameMapBuilder.GetNameMap().Num());
 		}
 	}
 }
@@ -2972,16 +3370,71 @@ void InitializeContainerTargetsAndPackages(
 	TArray<FPackage*>& Packages,
 	FPackageMap& PackageMap,
 	FPackageGlobalIdMap& PackageGlobalIdMap,
-	TArray<FContainerTargetSpec>& ContainerTargets)
+	TArray<FContainerTargetSpec*>& ContainerTargets,
+	TMap<FName, FContainerTargetSpec*>& ContainerTargetMap,
+	FNameMapBuilder& GlobalNameMapBuilder)
 {
-	int32 CookedDirLen = Arguments.CookedDir.Len() + 1;
-	for (int32 ContainerIndex = 0; ContainerIndex < ContainerTargets.Num(); ++ContainerIndex)
+	FString ProjectName = FApp::GetProjectName();
+	FString RelativeEnginePath = FPaths::GetRelativePathToRoot();
+	FString RelativeProjectPath = FPaths::ProjectDir();
+	int32 CookedEngineDirLen = Arguments.CookedDir.Len() + 1;;
+	int32 CookedProjectDirLen = CookedEngineDirLen + ProjectName.Len() + 1;
+
+	auto ConvertCookedPathToRelativePath = [
+		&ProjectName,
+		&CookedEngineDirLen,
+		&CookedProjectDirLen,
+		&RelativeEnginePath,
+		&RelativeProjectPath]
+		(const FString& CookedFile) -> FString
 	{
-		const FContainerSourceSpec& Container = Arguments.Containers[ContainerIndex];
-		FContainerTargetSpec& ContainerTarget = ContainerTargets[ContainerIndex];
+		FString RelativeFileName;
+		const TCHAR* FileName = *CookedFile + CookedEngineDirLen;
+		if (FCString::Strncmp(FileName, *ProjectName, ProjectName.Len()))
+		{
+			int32 FileNameLen = CookedFile.Len() - CookedEngineDirLen;
+			RelativeFileName.Reserve(RelativeEnginePath.Len() + FileNameLen);
+			RelativeFileName = RelativeEnginePath;
+			RelativeFileName.AppendChars(*CookedFile + CookedEngineDirLen, FileNameLen);
+		}
+		else
+		{
+			FileName = *CookedFile + CookedProjectDirLen;
+			int32 FileNameLen = CookedFile.Len() - CookedProjectDirLen;
+			RelativeFileName.Reserve(RelativeProjectPath.Len() + FileNameLen);
+			RelativeFileName = RelativeProjectPath;
+			RelativeFileName.AppendChars(*CookedFile + CookedProjectDirLen, FileNameLen);
+		}
+		return RelativeFileName;
+	};
+
+	for (const FContainerSourceSpec& ContainerSource : Arguments.Containers)
+	{
+		FContainerTargetSpec* ContainerTarget = FindOrAddContainer(ContainerSource.Name, ContainerTargets, ContainerTargetMap);
+		ContainerTarget->OutputPath = ContainerSource.OutputPath;
+		ContainerTarget->bGenerateDiffPatch = ContainerSource.bGenerateDiffPatch;
+
+		for (const FString& PatchSourceContainerFile : ContainerSource.PatchSourceContainerFiles)
+		{
+			FIoStoreEnvironment PatchSourceEnvironment;
+			PatchSourceEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(PatchSourceContainerFile, TEXT("")));
+			TUniquePtr<FIoStoreReader> PatchSourceReader(new FIoStoreReader());
+			FIoStatus Status = PatchSourceReader->Initialize(PatchSourceEnvironment);
+			if (Status.IsOk())
+			{
+				UE_LOG(LogIoStore, Display, TEXT("Loaded patch source container '%s'"), *PatchSourceContainerFile);
+				ContainerTarget->PatchSourceReaders.Add(MoveTemp(PatchSourceReader));
+			}
+			else
+			{
+				UE_LOG(LogIoStore, Warning, TEXT("Failed loading patch source container '%s' [%s]"), *PatchSourceContainerFile, *Status.ToString())
+			}
+		}
+		
+		ContainerTarget->LocalNameMapBuilder.SetNameMapType(FMappedName::EType::Container);
 		{
 			IOSTORE_CPU_SCOPE(ProcessSourceFiles);
-			for (const FContainerSourceFile& SourceFile : Container.SourceFiles)
+			for (const FContainerSourceFile& SourceFile : ContainerSource.SourceFiles)
 			{
 				const FCookedFileStatData* OriginalCookedFileStatData = Arguments.CookedFileStatMap.Find(SourceFile.NormalizedPath);
 				if (!OriginalCookedFileStatData)
@@ -3002,8 +3455,7 @@ void InitializeContainerTargetsAndPackages(
 					}
 				}
 
-				FString RelativeFileName = TEXT("../../../");
-				RelativeFileName.AppendChars(*NormalizedSourcePath + CookedDirLen, NormalizedSourcePath.Len() - CookedDirLen);
+				FString RelativeFileName = ConvertCookedPathToRelativePath(SourceFile.NormalizedPath);
 				FPackage* Package = nullptr;
 				const bool bIsMemoryMappedBulkData = CookedFileStatData->FileExt == FCookedFileStatData::EFileExt::UMappedBulk;
 
@@ -3019,14 +3471,15 @@ void InitializeContainerTargetsAndPackages(
 
 				if (Package)
 				{
-					FContainerTargetFile& TargetFile = ContainerTarget.TargetFiles.AddDefaulted_GetRef();
+					FContainerTargetFile& TargetFile = ContainerTarget->TargetFiles.AddDefaulted_GetRef();
+					TargetFile.ContainerTarget = ContainerTarget;
 					TargetFile.SourceSize = uint64(CookedFileStatData->FileSize);
 					TargetFile.NormalizedSourcePath = NormalizedSourcePath;
 					TargetFile.TargetPath = MoveTemp(RelativeFileName);
 					TargetFile.Package = Package;
 					if (SourceFile.bNeedsCompression)
 					{
-						ContainerTarget.bIsCompressed = true;
+						ContainerTarget->bIsCompressed = true;
 					}
 					else
 					{
@@ -3062,6 +3515,17 @@ void InitializeContainerTargetsAndPackages(
 					}
 				}
 			}
+
+			if (ContainerTarget->bUseLocalNameMap)
+			{
+				ContainerTarget->NameMapBuilder = &ContainerTarget->LocalNameMapBuilder;
+			}
+			else
+			{
+				// Clear the local container map in case this was used in a previous release
+				ContainerTarget->LocalNameMapBuilder.Empty();
+				ContainerTarget->NameMapBuilder = &GlobalNameMapBuilder;
+			}
 		}
 	}
 
@@ -3089,7 +3553,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	ChunkIdCsv.CreateOutputFile(CookedDir);
 #endif
 
-	FNameMapBuilder NameMapBuilder;
+	FNameMapBuilder GlobalNameMapBuilder;
 	FPackageAssetData PackageAssetData;
 	FGlobalPackageData GlobalPackageData;
 	FExportGraph ExportGraph;
@@ -3102,21 +3566,15 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	TMap<FName, FPackageHashes> PreviousBuildPackageHashes;
 #endif
 
-	TArray<FContainerTargetSpec> ContainerTargets;
+	TArray<FContainerTargetSpec*> ContainerTargets;
+	TMap<FName, FContainerTargetSpec*> ContainerTargetMap;
 	UE_LOG(LogIoStore, Display, TEXT("Creating container targets..."));
 	{
 		IOSTORE_CPU_SCOPE(CreateContainerTargets);
 
-		for (const FContainerSourceSpec& Container : Arguments.Containers)
-		{
-			FContainerTargetSpec& ContainerTarget = ContainerTargets.AddDefaulted_GetRef();
-			ContainerTarget.OutputPath = Container.OutputPath;
-			ContainerTarget.Name = FPaths::GetBaseFilename(ContainerTarget.OutputPath);
-		}
-
 		if (!Arguments.BasedOnReleaseVersionDir.IsEmpty())
 		{
-			LoadReleaseVersionMeta(*Arguments.BasedOnReleaseVersionDir, NameMapBuilder, PackageGlobalIdMap, GlobalPackageData.Imports, ContainerTargets);
+			LoadReleaseVersionMeta(*Arguments.BasedOnReleaseVersionDir, GlobalNameMapBuilder, PackageGlobalIdMap, GlobalPackageData.Imports, ContainerTargets, ContainerTargetMap);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.BasedOnReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
 			TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileReader(*PackageHashesOutputPath));
@@ -3140,10 +3598,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #endif
 		}
 
-		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageMap, PackageGlobalIdMap, ContainerTargets);
+		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageMap, PackageGlobalIdMap, ContainerTargets, ContainerTargetMap, GlobalNameMapBuilder);
 	}
 
-	ParsePackageAssets(NameMapBuilder, Packages, PackageAssetData, GlobalPackageData, ExportGraph);
+	ParsePackageAssets(Packages, PackageAssetData, ExportGraph);
 	CreateGlobalImportsAndExports(Packages, PackageMap, PackageAssetData, GlobalPackageData, ExportGraph);
 
 	FGlobalPackageImports& PackageImports = GlobalPackageData.Imports.PackageImports;
@@ -3172,12 +3630,42 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	BuildBundles(ExportGraph, Packages);
 
-	FinalizePackageHeaders(
-		Packages,
-		NameMapBuilder,
-		PackageAssetData.ObjectExports,
-		GlobalPackageData.Exports.Objects,
-		GlobalPackageData.Imports.ObjectsByFullName);
+	{
+		IOSTORE_CPU_SCOPE(BuildContainerNameMaps);
+		UE_LOG(LogIoStore, Display, TEXT("Creating container local name map(s)..."));
+
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
+		{
+			BuildContainerNameMap(*ContainerTarget);
+		}
+	}
+
+	{
+		IOSTORE_CPU_SCOPE(FinalizePackageHeaders);
+		UE_LOG(LogIoStore, Display, TEXT("Finalizing package headers..."));
+
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
+		{
+			FinalizePackageHeaders(
+				*ContainerTarget,
+				PackageAssetData.ObjectExports,
+				GlobalPackageData.Exports.Objects,
+				GlobalPackageData.Imports.ObjectsByFullName);
+
+			const FNameMapBuilder& NameMapBuilder = *ContainerTarget->NameMapBuilder;
+			SaveNameBatch(ContainerTarget->LocalNameMapBuilder.GetNameMap(), ContainerTarget->Header.Names, ContainerTarget->Header.NameHashes);
+			ContainerTarget->Header.PackageIds.Reserve(ContainerTarget->TargetFiles.Num());
+			ContainerTarget->Header.PackageNames.Reserve(ContainerTarget->TargetFiles.Num());
+			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+			{
+				if (!TargetFile.bIsBulkData)
+				{
+					ContainerTarget->Header.PackageIds.Add(TargetFile.Package->GlobalPackageId);
+					ContainerTarget->Header.PackageNames.Add(NameMapBuilder.MapName(TargetFile.Package->Name));
+				}
+			}
+		}
+	}
 
 	FLargeMemoryWriter GlobalMetaArchive(0, true);
 	FLargeMemoryWriter InitialLoadArchive(0, true);
@@ -3191,34 +3679,29 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 		FLargeMemoryWriter StoreTocArchive(0, true);
 		FLargeMemoryWriter StoreDataArchive(0, true);
-		FLargeMemoryWriter GlobalImportNamesArchive(0, true);
-
-		SerializeImportNames(NameMapBuilder, PackageImports, GlobalImportNamesArchive);
 
 		SerializePackageStoreEntries(
 			Packages,
-			NameMapBuilder,
 			StoreTocArchive,
 			StoreDataArchive);
 
 		SerializeInitialLoad(
-			NameMapBuilder,
+			GlobalNameMapBuilder,
 			ScriptImports,
 			InitialLoadArchive);
 
 		StoreTocByteCount = StoreTocArchive.TotalSize();
 		StoreDataByteCount = StoreDataArchive.TotalSize();
-		GlobalImportNamesByteCount = GlobalImportNamesArchive.TotalSize();
 
 		int32 NumPackages = Packages.Num();
+		int32 PackageImportCount = PackageImports.Num();
 		int32 StoreByteCount = StoreTocByteCount + StoreDataByteCount;
 
 		GlobalMetaArchive << NumPackages;
+		GlobalMetaArchive << PackageImportCount;
 		GlobalMetaArchive << StoreByteCount;
 		GlobalMetaArchive.Serialize(StoreTocArchive.GetData(), StoreTocByteCount);
 		GlobalMetaArchive.Serialize(StoreDataArchive.GetData(), StoreDataByteCount);
-
-		GlobalMetaArchive.Serialize(GlobalImportNamesArchive.GetData(), GlobalImportNamesByteCount);
 
 		GlobalMetaArchive << CulturePackageMap;
 	}
@@ -3228,15 +3711,15 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		IOSTORE_CPU_SCOPE(CalculateHashes);
 
 		int32 TotalFileCount = 0;
-		for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
+		for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			TotalFileCount += ContainerTarget.TargetFiles.Num();
+			TotalFileCount += ContainerTarget->TargetFiles.Num();
 		}
 		TArray<FContainerTargetFile*> AllTargetFiles;
 		AllTargetFiles.Reserve(TotalFileCount);
-		for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
+			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 			{
 				AllTargetFiles.Add(&TargetFile);
 			}
@@ -3255,18 +3738,18 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			delete FileHandle;
 			if (!TargetFile->bIsBulkData)
 			{
-				IoBuffer = CreateExportBundleBuffer(TargetFile->Package, ObjectExports, IoBuffer);
+				IoBuffer = CreateExportBundleBuffer(*TargetFile, ObjectExports, IoBuffer);
 				TargetFile->TargetSize = IoBuffer.DataSize();
 			}
 			else
 			{
 				TargetFile->TargetSize = TargetFile->SourceSize;
 			}
-			FSHA1::HashBuffer(IoBuffer.Data(), IoBuffer.DataSize(), TargetFile->Hash.Hash);
+			TargetFile->ChunkHash = FIoChunkHash::HashBuffer(IoBuffer.Data(), IoBuffer.DataSize());
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 			if (!TargetFile->bIsBulkData)
 			{
-				TargetFile->Package->Hashes.ExportBundleHash = TargetFile->Hash;
+				TargetFile->Package->Hashes.ExportBundleHash = TargetFile->ChunkHash;
 			}
 #endif
 			uint64 LocalFileIndex = CurrentFileIndex.IncrementExchange() + 1;
@@ -3300,6 +3783,20 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #endif
 	}
 
+	{
+		IOSTORE_CPU_SCOPE(MapAdditionalBulkDataChunkIds);
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
+		{
+			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+			{
+				if (TargetFile.bIsBulkData)
+				{
+					MapAdditionalBulkDataChunks(TargetFile, BulkDataManifest);
+				}
+			}
+		}
+	}
+
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
 	CreateDiskLayout(ContainerTargets, Packages, Arguments.GameOrderMap, Arguments.CookerOrderMap, GeneralIoWriterSettings.CompressionBlockSize, Arguments.MemoryMappingAlignment);
 
@@ -3310,33 +3807,29 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	FIoStoreWriter* GlobalIoStoreWriter;
 	{
 		IOSTORE_CPU_SCOPE(InitializeIoStoreWriters);
-		FString GlobalOutputPath = FString(Arguments.OutputDir) / TEXT("global");
-		GlobalIoStoreEnv.InitializeFileEnvironment(*GlobalOutputPath);
-		GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv);
+		GlobalIoStoreEnv.InitializeFileEnvironment(*Arguments.GlobalContainerPath);
+		GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv, FIoContainerId::FromIndex(0));
 		IoStoreWriters.Add(GlobalIoStoreWriter);
-		for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			if (ContainerTarget.OutputPath.IsEmpty())
+			check(ContainerTarget->Header.ContainerId.IsValid());
+			if (!ContainerTarget->OutputPath.IsEmpty())
 			{
-				ContainerTarget.IoStoreWriter = GlobalIoStoreWriter;
-			}
-			else
-			{
-				ContainerTarget.IoStoreEnv.Reset(new FIoStoreEnvironment());
-				ContainerTarget.IoStoreEnv->InitializeFileEnvironment(ContainerTarget.OutputPath);
-				ContainerTarget.IoStoreWriter = new FIoStoreWriter(*ContainerTarget.IoStoreEnv);
-				IoStoreWriters.Add(ContainerTarget.IoStoreWriter);
+				ContainerTarget->IoStoreEnv.Reset(new FIoStoreEnvironment());
+				ContainerTarget->IoStoreEnv->InitializeFileEnvironment(ContainerTarget->OutputPath);
+				ContainerTarget->IoStoreWriter = new FIoStoreWriter(*ContainerTarget->IoStoreEnv, ContainerTarget->Header.ContainerId);
+				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 			}
 		}
 		FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
 		check(IoStatus.IsOk());
 		IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, /* bIsCompressed */ false);
 		check(IoStatus.IsOk());
-		for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			if (ContainerTarget.IoStoreWriter != GlobalIoStoreWriter)
+			if (ContainerTarget->IoStoreWriter && ContainerTarget->IoStoreWriter != GlobalIoStoreWriter)
 			{
-				IoStatus = ContainerTarget.IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerTarget.bIsCompressed);
+				IoStatus = ContainerTarget->IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerTarget->bIsCompressed);
 				check(IoStatus.IsOk());
 			}
 		}
@@ -3355,22 +3848,53 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		};
 
 		int32 TotalFileCount = 0;
-		for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			TotalFileCount += ContainerTarget.TargetFiles.Num();
+			check(ContainerTarget->IoStoreWriter || ContainerTarget->TargetFiles.Num() == 0);
+			TotalFileCount += ContainerTarget->TargetFiles.Num();
+		}
+
+		TArray<uint8> ContainerHeaderPadding;
+		if (GeneralIoWriterSettings.CompressionBlockSize > 0)
+		{
+			ContainerHeaderPadding.AddZeroed(GeneralIoWriterSettings.CompressionBlockSize);
 		}
 
 		TArray<FReadFileTask> ReadFileTasks;
 		ReadFileTasks.SetNum(TotalFileCount);
 		int32 ReadFileTaskIndex = 0;
-		for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
+		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
+			if (!ContainerTarget->IoStoreWriter)
+			{
+				continue;
+			}
+			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 			{
 				FReadFileTask& ReadFileTask = ReadFileTasks[ReadFileTaskIndex++];
 				ReadFileTask.ContainerTargetFile = &TargetFile;
-				ReadFileTask.IoStoreWriter = ContainerTarget.IoStoreWriter;
+				ReadFileTask.IoStoreWriter = ContainerTarget->IoStoreWriter;
 			}
+
+			FLargeMemoryWriter Ar(0, true);
+			Ar << ContainerTarget->Header;
+
+			if (GeneralIoWriterSettings.CompressionBlockSize > 0)
+			{
+				const uint64 RemainingInBlock = Align(Ar.TotalSize(), GeneralIoWriterSettings.CompressionBlockSize) - Ar.TotalSize();
+				if (RemainingInBlock > 0)
+				{
+					Ar.Serialize(ContainerHeaderPadding.GetData(), RemainingInBlock);
+				}
+			}
+
+			FIoWriteOptions WriteOptions;
+			WriteOptions.DebugName = TEXT("ContainerHeader");
+			FIoStatus Status = ContainerTarget->IoStoreWriter->Append(
+				CreateIoChunkId(0, ContainerTarget->Header.ContainerId.ToIndex(), EIoChunkType::ContainerHeader), 
+				FIoBuffer(FIoBuffer::Wrap, Ar.GetData(), Ar.TotalSize()), WriteOptions);
+
+			UE_CLOG(!Status.IsOk(), LogIoStore, Error, TEXT("Failed to serialize container header"));
 		}
 
 		FEvent* TaskStartedEvent = FPlatformProcess::GetSynchEventFromPool(false);
@@ -3401,7 +3925,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				uint64 BufferSize = ReadFileTask.IoBuffer.DataSize();
 				if (!TargetFile.bIsBulkData)
 				{
-					ReadFileTask.IoBuffer = CreateExportBundleBuffer(TargetFile.Package, ObjectExports, ReadFileTask.IoBuffer);
+					ReadFileTask.IoBuffer = CreateExportBundleBuffer(TargetFile, ObjectExports, ReadFileTask.IoBuffer);
 				}
 
 				if (TargetFile.Padding)
@@ -3412,8 +3936,17 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				WriteOptions.DebugName = *TargetFile.TargetPath;
 				WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
 				WriteOptions.Alignment = TargetFile.Alignment;
-				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, ReadFileTask.IoBuffer, WriteOptions);
+				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions);
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
+
+				for (const FContainerTargetFilePartialMapping& PartialMapping : TargetFile.PartialMappings)
+				{
+					const FIoStatus PartialResult = ReadFileTask.IoStoreWriter->MapPartialRange(TargetFile.ChunkId, PartialMapping.Offset, PartialMapping.Length, PartialMapping.PartialChunkId);
+					if (!PartialResult.IsOk())
+					{
+						UE_LOG(LogIoStore, Warning, TEXT("Failed to map partial range for '%s' due to: %s"), *TargetFile.Package->FileName, *PartialResult.ToString());
+					}
+				}
 
 				ReadFileTask.IoBuffer = FIoBuffer();
 				BufferMemoryAllocated -= BufferSize;
@@ -3456,20 +3989,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 
 	{
-		IOSTORE_CPU_SCOPE(MapAdditionalBulkDataChunkIds);
-		for (FContainerTargetSpec& ContainerTarget : ContainerTargets)
-		{
-			for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
-			{
-				if (TargetFile.bIsBulkData)
-				{
-					MapAdditionalBulkDataChunks(TargetFile, BulkDataManifest, ContainerTarget.IoStoreWriter);
-				}
-			}
-		}
-	}
-
-	{
 		UE_LOG(LogIoStore, Display, TEXT("Saving global meta data to container file"));
 		FIoWriteOptions WriteOptions;
 		WriteOptions.DebugName = TEXT("LoaderGlobalMeta");
@@ -3500,7 +4019,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 		TArray<uint8> Names;
 		TArray<uint8> Hashes;
-		SaveNameBatch(NameMapBuilder.GetNameMap(), /* out */ Names, /* out */ Hashes);
+		SaveNameBatch(GlobalNameMapBuilder.GetNameMap(), /* out */ Names, /* out */ Hashes);
 
 		GlobalNamesMB = Names.Num() >> 20;
 		GlobalNameHashesMB = Hashes.Num() >> 20;
@@ -3534,7 +4053,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	if (!Arguments.OutputReleaseVersionDir.IsEmpty())
 	{
-		SaveReleaseVersionMeta(*Arguments.OutputReleaseVersionDir, NameMapBuilder, PackageGlobalIdMap, GlobalPackageData.Imports, ContainerTargets);
+		SaveReleaseVersionMeta(*Arguments.OutputReleaseVersionDir, GlobalNameMapBuilder, PackageGlobalIdMap, GlobalPackageData.Imports, ContainerTargets);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.OutputReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
 		TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileWriter(*PackageHashesOutputPath));
@@ -3587,7 +4106,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				if (PreviousHashes->ExportBundleHash != Package->Hashes.ExportBundleHash)
 				{
 					++ModifiedExportBundlesCount;
-					ModifiedExportBundlesSize += Package->HeaderData.Num() + Package->ExportsSerialSize;
+					ModifiedExportBundlesSize += Package->ExportBundlesHeaderSize + Package->ExportsSerialSize;
 				}
 				if (bModified)
 				{
@@ -3654,7 +4173,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		ImportMapSize += Package.ImportMapSize;
 		ExportMapSize += Package.ExportMapSize;
 		NameMapSize += Package.NameMapSize;
-		NameMapCount += Package.NameIndices.Num();
+		NameMapCount += Package.NameMap.Num();
 		CircularPackagesCount += Package.bHasCircularImportDependencies;
 		TotalInternalArcCount += Package.InternalArcs.Num();
 		ImportedPackagesCount += Package.ImportedPackagesSerializeCount;
@@ -3682,7 +4201,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------- IoStore Summary -----------------------------------------------"));
 
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("%-35s %15s %15s %15s %25s"), TEXT("Container"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
+	UE_LOG(LogIoStore, Display, TEXT("%-4s %-35s %15s %15s %15s %25s"), TEXT("ID"), TEXT("Container"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
 	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------"));
 	int64 TotalPaddingSize = 0;
 	for (const FIoStoreWriterResult& Result : IoStoreWriterResults)
@@ -3691,7 +4210,8 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			? 0.0
 			: (double(Result.UncompressedContainerSize - Result.CompressedContainerSize) / double(Result.UncompressedContainerSize)) * 100.0;
 
-		UE_LOG(LogIoStore, Display, TEXT("%-35s %15.2lf %15d %15.2lf %25s"),
+		UE_LOG(LogIoStore, Display, TEXT("%-4d %-35s %15.2lf %15d %15.2lf %25s"),
+			Result.ContainerId.ToIndex(),
 			*Result.ContainerName,
 			(double)Result.TocSize / 1024.0,
 			Result.TocEntryCount,
@@ -3702,13 +4222,13 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				*Result.CompressionMethod.ToString()));
 		TotalPaddingSize += Result.PaddingSize;
 	}
-	UE_LOG(LogIoStore, Display, TEXT("Padding: %8.2f MB"), TotalPaddingSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2f MB"), TotalPaddingSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no preload dependencies, %d no import dependencies"),
 		PackageMap.Num(), CircularPackagesCount, PackagesWithoutPreloadDependenciesCount, PackagesWithoutImportDependenciesCount);
 	UE_LOG(LogIoStore, Display, TEXT("Bundles:  %8d total, %d entries, %d export objects"), BundleCount, BundleEntryCount, GlobalPackageData.Exports.Objects.Num());
 
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNames, %d unique names"), (double)GlobalNamesMB, NameMapBuilder.GetNameMap().Num());
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNames, %d unique names"), (double)GlobalNamesMB, GlobalNameMapBuilder.GetNameMap().Num());
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameHashes"), (double)GlobalNameHashesMB);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageStoreToc"), (double)StoreTocByteCount / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageStoreData, %d imported packages, %d public exports, %d export bundles"),
@@ -4003,16 +4523,9 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	FParse::Value(CmdLine, TEXT("-CreateReleaseVersionDirectory="), Arguments.OutputReleaseVersionDir);
 	FParse::Value(CmdLine, TEXT("-BasedOnReleaseVersionDirectory="), Arguments.BasedOnReleaseVersionDir);
 
-	FString CommandListFile;
-	if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
+	if (FParse::Value(FCommandLine::Get(), TEXT("CreateGlobalContainer="), Arguments.GlobalContainerPath))
 	{
-		UE_LOG(LogIoStore, Display, TEXT("Using command list file: '%s'"), *CommandListFile);
-
-		if (!FParse::Value(FCommandLine::Get(), TEXT("OutputDirectory="), Arguments.OutputDir))
-		{
-			UE_LOG(LogIoStore, Error, TEXT("OutputDirectory must be specified"));
-			return 1;
-		}
+		Arguments.GlobalContainerPath = FPaths::ChangeExtension(Arguments.GlobalContainerPath, TEXT(""));
 
 		if (!FParse::Value(FCommandLine::Get(), TEXT("CookedDirectory="), Arguments.CookedDir))
 		{
@@ -4020,42 +4533,74 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			return 1;
 		}
 
-		TArray<FString> Commands;
-		if (!FFileHelper::LoadFileToStringArray(Commands, *CommandListFile))
+		FContainerSourceSpec* CookedFilesVisitorContainerSpec = nullptr;
+		FString CommandListFile;
+		if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
 		{
-			UE_LOG(LogIoStore, Error, TEXT("Failed to read command list file '%s'."), *CommandListFile);
-			return -1;
+			UE_LOG(LogIoStore, Display, TEXT("Using command list file: '%s'"), *CommandListFile);
+			TArray<FString> Commands;
+			if (!FFileHelper::LoadFileToStringArray(Commands, *CommandListFile))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Failed to read command list file '%s'."), *CommandListFile);
+				return -1;
+			}
+
+			Arguments.Containers.Reserve(Commands.Num());
+			for (const FString& Command : Commands)
+			{
+				FContainerSourceSpec& ContainerSpec = Arguments.Containers.AddDefaulted_GetRef();
+
+				if (!FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
+				{
+					UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
+					return -1;
+				}
+				ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
+
+				FString ContainerName;
+				if (!FParse::Value(*Command, TEXT("ContainerName="), ContainerName))
+				{
+					UE_LOG(LogIoStore, Error, TEXT("ContainerName argument missing from command '%s'"), *Command);
+					return -1;
+				}
+				ContainerSpec.Name = FName(ContainerName);
+
+				FString PatchSourceWildcard;
+				if (FParse::Value(*Command, TEXT("PatchSource="), PatchSourceWildcard))
+				{
+					IFileManager::Get().FindFiles(ContainerSpec.PatchSourceContainerFiles, *PatchSourceWildcard, true, false);
+					FString PatchSourceContainersDirectory = FPaths::GetPath(*PatchSourceWildcard);
+					for (FString& PatchSourceContainerFile : ContainerSpec.PatchSourceContainerFiles)
+					{
+						PatchSourceContainerFile = PatchSourceContainersDirectory / PatchSourceContainerFile;
+						FPaths::NormalizeFilename(PatchSourceContainerFile);
+					}
+				}
+
+				ContainerSpec.bGenerateDiffPatch = FParse::Param(*Command, TEXT("GenerateDiffPatch"));
+				
+				FString ResponseFilePath;
+				if (!FParse::Value(*Command, TEXT("ResponseFile="), ResponseFilePath))
+				{
+					UE_LOG(LogIoStore, Error, TEXT("ResponseFile argument missing from command '%s'"), *Command);
+					return -1;
+				}
+
+				if (!ParsePakResponseFile(*ResponseFilePath, ContainerSpec.SourceFiles))
+				{
+					UE_LOG(LogIoStore, Error, TEXT("Failed to parse Pak response file '%s'"), *ResponseFilePath);
+					return -1;
+				}
+			}
 		}
-
-		Arguments.Containers.Reserve(Commands.Num());
-		for (const FString& Command : Commands)
+		else
 		{
-			FContainerSourceSpec& ContainerSpec = Arguments.Containers.AddDefaulted_GetRef();
-
-			if (!FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
-				return -1;
-			}
-			ContainerSpec.OutputPath = FPaths::Combine(Arguments.OutputDir, ContainerSpec.OutputPath);
-
-			FString ResponseFilePath;
-			if (!FParse::Value(*Command, TEXT("ResponseFile="), ResponseFilePath))
-			{
-				UE_LOG(LogIoStore, Error, TEXT("ResponseFile argument missing from command '%s'"), *Command);
-				return -1;
-			}
-
-			if (!ParsePakResponseFile(*ResponseFilePath, ContainerSpec.SourceFiles))
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Failed to parse Pak response file '%s'"), *ResponseFilePath);
-				return -1;
-			}
+			CookedFilesVisitorContainerSpec = &Arguments.Containers.AddDefaulted_GetRef();
 		}
 
 		UE_LOG(LogIoStore, Display, TEXT("Searching for cooked assets in folder '%s'"), *Arguments.CookedDir);
 		FCookedFileStatMap CookedFileStatMap;
-		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap);
+		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, CookedFilesVisitorContainerSpec);
 		IFileManager::Get().IterateDirectoryStatRecursively(*Arguments.CookedDir, CookedFileVistor);
 		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), Arguments.CookedFileStatMap.Num());
 
@@ -4067,30 +4612,8 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	}
 	else
 	{
-		const TArray<ITargetPlatform*>& Platforms = GetTargetPlatformManagerRef().GetActiveTargetPlatforms();
-
-		for (const ITargetPlatform* TargetPlatform : Platforms)
-		{
-			Arguments.CookedDir = FPaths::ProjectSavedDir() / TEXT("Cooked") / TargetPlatform->PlatformName();
-			Arguments.OutputDir = Arguments.CookedDir / FApp::GetProjectName();
-
-			TArray<FContainerSourceSpec> Containers;
-			FContainerSourceSpec& ContainerSpec = Arguments.Containers.AddDefaulted_GetRef();
-			FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, &ContainerSpec);
-
-			UE_LOG(LogIoStore, Display, TEXT("Searching for cooked files..."));
-			IFileManager::Get().IterateDirectoryStatRecursively(*Arguments.CookedDir, CookedFileVistor);
-
-			UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), ContainerSpec.SourceFiles.Num());
-
-			UE_LOG(LogIoStore, Display, TEXT("Creating target: '%s' using output path: '%s'"), *TargetPlatform->PlatformName(), *Arguments.OutputDir);
-
-			int32 ReturnValue = CreateTarget(Arguments, GeneralIoWriterSettings);
-			if (ReturnValue != 0)
-			{
-				return ReturnValue;
-			}
-		}
+		UE_LOG(LogIoStore, Error, TEXT("Nothing to do!"));
+		return -1;
 	}
 
 	return 0;
