@@ -42,6 +42,7 @@ void STextBlock::Construct( const FArguments& InArgs )
 	WrapTextAt = InArgs._WrapTextAt;
 	AutoWrapText = InArgs._AutoWrapText;
 	WrappingPolicy = InArgs._WrappingPolicy;
+	TransformPolicy = InArgs._TransformPolicy;
 	Margin = InArgs._Margin;
 	LineHeightPercentage = InArgs._LineHeightPercentage;
 	Justification = InArgs._Justification;
@@ -275,7 +276,7 @@ FVector2D STextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 	{
 		// ComputeDesiredSize will also update the text layout cache if required
 		const FVector2D TextSize = TextLayoutCache->ComputeDesiredSize(
-			FSlateTextBlockLayout::FWidgetArgs(BoundText, HighlightText, WrapTextAt, AutoWrapText, WrappingPolicy, Margin, LineHeightPercentage, Justification),
+			FSlateTextBlockLayout::FWidgetArgs(BoundText, HighlightText, WrapTextAt, AutoWrapText, WrappingPolicy, TransformPolicy, Margin, LineHeightPercentage, Justification),
 			LayoutScaleMultiplier, GetComputedTextStyle()
 		);
 
@@ -298,6 +299,7 @@ bool STextBlock::ComputeVolatility() const
 		|| WrapTextAt.IsBound()
 		|| AutoWrapText.IsBound()
 		|| WrappingPolicy.IsBound()
+		|| TransformPolicy.IsBound()
 		|| Margin.IsBound()
 		|| Justification.IsBound()
 		|| LineHeightPercentage.IsBound()
@@ -388,6 +390,15 @@ void STextBlock::SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrap
 	if(!WrappingPolicy.IdenticalTo(InWrappingPolicy))
 	{
 		WrappingPolicy = InWrappingPolicy;
+		InvalidateText(EInvalidateWidget::LayoutAndVolatility);
+	}
+}
+
+void STextBlock::SetTransformPolicy(const TAttribute<ETextTransformPolicy>& InTransformPolicy)
+{
+	if(!TransformPolicy.IdenticalTo(InTransformPolicy))
+	{
+		TransformPolicy = InTransformPolicy;
 		InvalidateText(EInvalidateWidget::LayoutAndVolatility);
 	}
 }

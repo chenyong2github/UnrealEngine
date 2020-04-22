@@ -40,6 +40,7 @@ public:
 		, _WrapTextAt( 0.0f )
 		, _AutoWrapText(false)
 		, _WrappingPolicy(ETextWrappingPolicy::DefaultWrapping)
+		, _TransformPolicy(ETextTransformPolicy::None)
 		, _Marshaller()
 		, _DecoratorStyleSet( &FCoreStyle::Get() )
 		, _TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "NormalText" ) )
@@ -70,6 +71,9 @@ public:
 
 		/** The wrapping policy to use */
 		SLATE_ATTRIBUTE( ETextWrappingPolicy, WrappingPolicy )
+
+		/** The transform policy to use */
+		SLATE_ATTRIBUTE( ETextTransformPolicy, TransformPolicy )
 
 		/** The marshaller used to get/set the raw text to/from the text layout. */
 		SLATE_ARGUMENT(TSharedPtr<class FRichTextLayoutMarshaller>, Marshaller)
@@ -193,6 +197,9 @@ public:
 	/** Set WrappingPolicy attribute */
 	void SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
 
+	/** Set TransformPolicy attribute */
+	void SetTransformPolicy(const TAttribute<ETextTransformPolicy>& InTransformPolicy);
+
 	/** See LineHeightPercentage attribute */
 	void SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage);
 
@@ -247,6 +254,9 @@ private:
 
 	/** The wrapping policy we're using */
 	TAttribute<ETextWrappingPolicy> WrappingPolicy;
+
+	/** The transform policy we're using */
+	TAttribute<ETextTransformPolicy> TransformPolicy;
 
 	/** The amount of blank space left around the edges of text area. */
 	TAttribute< FMargin > Margin;

@@ -46,6 +46,22 @@ namespace ETextJustify
 	};
 }
 
+/**
+ * The different methods that can be used if a word is too long to be broken by the default line-break iterator.
+ */
+UENUM(BlueprintType)
+enum class ETextTransformPolicy : uint8
+{
+	/** No transform, just use the given text as-is */
+	None = 0,
+
+	/** Convert the text to lowercase for display */
+	ToLower,
+
+	/** Convert the text to uppercase for display */
+	ToUpper,
+};
+
 /** 
  * The different methods that can be used if a word is too long to be broken by the default line-break iterator.
  */
@@ -395,6 +411,10 @@ public:
 	/** Get the visual justification for this document (based on the visual justification used by the first line of text) */
 	ETextJustify::Type GetVisualJustification() const;
 
+	/** @note This option is destructive to the model text, so changing it requires refreshing the text layout from its marshaller */
+	FORCEINLINE ETextTransformPolicy GetTransformPolicy() const { return TransformPolicy; }
+	void SetTransformPolicy(ETextTransformPolicy Value);
+
 	FORCEINLINE float GetScale() const { return Scale; }
 	void SetScale( float Value );
 
@@ -586,6 +606,12 @@ protected:
 	void ClearView();
 
 	/**
+	 * Transform the given line model text based on the active transform policy.
+	 * @note This is destructive to the model text!
+	 */
+	void TransformLineText(FLineModel& LineModel) const;
+
+	/**
 	* Notifies all Runs that we are beginning to generate a new layout.
 	*/
 	virtual void BeginLayout();
@@ -698,6 +724,9 @@ protected:
 
 	/** The wrapping policy used by this text layout. */
 	ETextWrappingPolicy WrappingPolicy;
+
+	/** The transform policy used by this text layout. */
+	ETextTransformPolicy TransformPolicy;
 
 	/** The size of the margins to put about the text. This is an unscaled value. */
 	FMargin Margin;
