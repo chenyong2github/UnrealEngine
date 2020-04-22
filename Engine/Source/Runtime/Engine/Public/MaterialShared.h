@@ -2846,7 +2846,7 @@ private:
 	const FMaterialResource& Resource;
 };
 
-class FMaterialResourceProxyReader final : public FArchiveProxy
+class FMaterialResourceProxyReader final : private TUniquePtr<FArchive>, public FArchiveProxy
 {
 public:
 	FMaterialResourceProxyReader(
@@ -2881,11 +2881,15 @@ public:
 
 	virtual FString GetArchiveName() const override { return TEXT("FMaterialResourceProxyReader"); }
 
+	operator FArchive& ()
+	{
+		return *static_cast<FArchiveProxy*>(this);
+	}
+
 private:
 	TArray<FName> Names;
 	int64 OffsetToFirstResource;
 	int64 OffsetToEnd;
-	bool bReleaseInnerArchive;
 
 	void Initialize(
 		ERHIFeatureLevel::Type FeatureLevel,
