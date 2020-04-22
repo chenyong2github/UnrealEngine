@@ -2,6 +2,8 @@
 
 #include "Properties/OnAcceptProperties.h"
 
+#include "GameFramework/Actor.h"
+#include "UObject/UObjectGlobals.h"
 #include "InteractiveToolManager.h"
 
 #define LOCTEXT_NAMESPACE "UOnAcceptHandleSourcesProperties"
