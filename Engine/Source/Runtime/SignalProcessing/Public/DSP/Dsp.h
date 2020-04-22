@@ -208,6 +208,38 @@ namespace Audio
 		return OutQ;
 	}
 
+	// Given three values, determine peak location and value of quadratic fitted to the data.
+	//
+	// @param InValues - An array of 3 values with the maximum value located in InValues[1].
+	// @param OutPeakLoc - The peak location relative to InValues[1].
+	// @param OutPeakValue - The value of the peak at the peak location.
+	//
+	// @returns True if a peak was found, false if the values do not represent a peak.
+	static FORCEINLINE bool QuadraticPeakInterpolation(const float InValues[3], float& OutPeakLoc, float& OutPeakValue)
+	{
+		float Denom = InValues[0] - 2.f * InValues[1] + InValues[2];
+
+		if (Denom >= 0.f)
+		{
+			// This is not a peak.
+			return false;
+		}
+
+		float Tmp = InValues[0] - InValues[2];
+
+		OutPeakLoc = 0.5f * Tmp / Denom;
+
+		if ((OutPeakLoc > 0.5f) || (OutPeakLoc < -0.5f))
+		{
+			// This is not a peak.
+			return false;
+		}
+
+		OutPeakValue = InValues[1] - 0.25f * Tmp * OutPeakLoc;
+
+		return true;
+	}
+
 	// Polynomial interpolation using lagrange polynomials. 
 	// https://en.wikipedia.org/wiki/Lagrange_polynomial
 	static FORCEINLINE float LagrangianInterpolation(const TArray<FVector2D> Points, const float Alpha)
