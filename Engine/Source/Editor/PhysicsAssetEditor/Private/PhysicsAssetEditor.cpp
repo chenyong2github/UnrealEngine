@@ -88,6 +88,8 @@ const FName PhysicsAssetEditorAppIdentifier = FName(TEXT("PhysicsAssetEditorApp"
 DEFINE_LOG_CATEGORY(LogPhysicsAssetEditor);
 #define LOCTEXT_NAMESPACE "PhysicsAssetEditor"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 namespace PhysicsAssetEditor
 {
 	const float	DefaultPrimSize = 15.0f;
