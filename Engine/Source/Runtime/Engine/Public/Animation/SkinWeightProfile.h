@@ -101,12 +101,14 @@ struct FRuntimeSkinWeightProfileData
 	TArray<uint16> Weights_DEPRECATED;	
 #endif 
 
-	TArray<FBoneIndexType> BoneIDs;
+	// Either contains FBoneIndexType or uint8 bone indices
+	TArray<uint8> BoneIDs;
 	TArray<uint8> BoneWeights;
 	/** Map between Vertex Indices and the influence offset into BoneIDs/BoneWeights (DEPRECATED and entries of OverridesInfo) */
 	TMap<uint32, uint32> VertexIndexToInfluenceOffset;
 
 	uint8 NumWeightsPerVertex;
+	bool b16BitBoneIndices;
 	
 	friend FArchive& operator<<(FArchive& Ar, FRuntimeSkinWeightProfileData& OverrideData);
 };
