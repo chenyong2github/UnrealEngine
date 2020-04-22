@@ -1655,7 +1655,7 @@ public:
 
 	void Validate(const FShaderPipelineType* InPipelineType) const;
 
-	void Finalize(FShaderMapResourceCode* Code);
+	void Finalize(const FShaderMapResourceCode* Code);
 
 	enum EFilter
 	{
@@ -1858,7 +1858,7 @@ public:
 
 	uint32 GetMaxNumInstructionsForShader(const FShaderMapBase& InShaderMap, FShaderType* ShaderType) const;
 
-	void Finalize();
+	void Finalize(const FShaderMapResourceCode* Code);
 
 	void UpdateHash(FSHA1& Hasher) const;
 
@@ -1953,7 +1953,9 @@ public:
 
 	void FinalizeContent()
 	{
-		this->GetMutableContent()->Finalize();
+		ContentType* LocalContent = this->GetMutableContent();
+		check(LocalContent);
+		LocalContent->Finalize(this->GetResourceCode());
 		FShaderMapBase::FinalizeContent();
 	}
 
