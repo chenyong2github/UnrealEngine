@@ -702,13 +702,13 @@ FORCEINLINE FOctreeChildNodeRef FOctreeNodeContext::GetContainingChild(const FBo
 }
 
 template<typename ElementType,typename OctreeSemantics>
-void TOctree<ElementType,OctreeSemantics>::AddElement(typename TTypeTraits<ElementType>::ConstInitType Element)
+void TOctree2<ElementType,OctreeSemantics>::AddElement(typename TTypeTraits<ElementType>::ConstInitType Element)
 {
 	AddElementToNode(Element,RootNode,RootNodeContext);
 }
 															
 template<typename ElementType,typename OctreeSemantics>
-void TOctree<ElementType,OctreeSemantics>::AddElementToNode(
+void TOctree2<ElementType,OctreeSemantics>::AddElementToNode(
 	typename TTypeTraits<ElementType>::ConstInitType Element,
 	const FNode& InNode,
 	const FOctreeNodeContext& InContext
@@ -765,7 +765,7 @@ void TOctree<ElementType,OctreeSemantics>::AddElementToNode(
 				// Create the child node if it hasn't been created yet.
 				if(!Node.Children[ChildRef.Index])
 				{
-					Node.Children[ChildRef.Index] = new typename TOctree<ElementType,OctreeSemantics>::FNode(&Node);
+					Node.Children[ChildRef.Index] = new typename TOctree2<ElementType,OctreeSemantics>::FNode(&Node);
 				}
 
 				// Push the node onto the stack to visit.
@@ -787,7 +787,7 @@ void TOctree<ElementType,OctreeSemantics>::AddElementToNode(
 }
 
 template<typename ElementType,typename OctreeSemantics>
-void TOctree<ElementType,OctreeSemantics>::DumpStats(bool bDetailed) const
+void TOctree2<ElementType,OctreeSemantics>::DumpStats(bool bDetailed) const
 {
 	int32 NumNodes = 0;
 	int32 NumLeaves = 0;
@@ -857,7 +857,7 @@ void TOctree<ElementType,OctreeSemantics>::DumpStats(bool bDetailed) const
 }
 
 template<typename ElementType,typename OctreeSemantics>
-void TOctree<ElementType,OctreeSemantics>::GetMemoryUsage(size_t& OutSizeBytes) const
+void TOctree2<ElementType,OctreeSemantics>::GetMemoryUsage(size_t& OutSizeBytes) const
 {
 	size_t SizeBytes = 0;
 
@@ -880,7 +880,7 @@ void TOctree<ElementType,OctreeSemantics>::GetMemoryUsage(size_t& OutSizeBytes) 
 }
 
 template<typename ElementType,typename OctreeSemantics>
-TOctree<ElementType,OctreeSemantics>::TOctree(const FVector4& InOrigin,float InExtent)
+TOctree2<ElementType,OctreeSemantics>::TOctree(const FVector4& InOrigin,float InExtent)
 :	RootNode(NULL)
 ,	RootNodeContext(FBoxCenterAndExtent(InOrigin,FVector4(InExtent,InExtent,InExtent,0)), OctreeSemantics::LoosenessDenominator)
 ,	MinLeafExtent(InExtent * FMath::Pow((1.0f + 1.0f / (float)OctreeSemantics::LoosenessDenominator) / 2.0f,OctreeSemantics::MaxNodeDepth))

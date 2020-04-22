@@ -90,7 +90,7 @@ struct FLightVolumeOctreeSemantics
 	}
 };
 
-typedef TOctree<FVolumeLightingSample, FLightVolumeOctreeSemantics> FLightVolumeOctree;
+typedef TOctree2<FVolumeLightingSample, FLightVolumeOctreeSemantics> FLightVolumeOctree;
 
 /** Set of volume lighting samples belonging to one streaming level, which can be queried about the lighting at a given position. */
 class FPrecomputedLightVolumeData

@@ -492,7 +492,7 @@ struct FStaticMeshComponentVertPosOctreeSemantics
 	{
 	}
 };
-typedef TOctree<FPaintedVertex, FStaticMeshComponentVertPosOctreeSemantics> TSMCVertPosOctree;
+typedef TOctree2<FPaintedVertex, FStaticMeshComponentVertPosOctreeSemantics> TSMCVertPosOctree;
 
 void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 	const FColorVertexBuffer* InOverrideColors,
