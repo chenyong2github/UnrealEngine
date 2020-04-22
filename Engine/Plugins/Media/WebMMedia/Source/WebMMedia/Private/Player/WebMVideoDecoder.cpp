@@ -229,7 +229,7 @@ void FWebMVideoDecoder::ConvertYUVToRGBAndSubmit(const FConvertParams& Params)
 				check(Stride >= (uint32)Image->stride[ImageIndex]);
 				if (Stride == Image->stride[ImageIndex])
 				{
-					FMemory::Memcpy(TextureMemory, Image->planes[0], Image->stride[ImageIndex] * CopyHeight);
+					FMemory::Memcpy(TextureMemory, Image->planes[ImageIndex], Image->stride[ImageIndex] * CopyHeight);
 				}
 				else
 				{
