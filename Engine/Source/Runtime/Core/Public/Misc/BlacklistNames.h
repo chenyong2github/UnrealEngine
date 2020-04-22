@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/StringView.h"
 #include "Templates/SharedPointer.h"
 #include "Delegates/Delegate.h"
 
@@ -73,22 +74,40 @@ public:
 	~FBlacklistPaths() {}
 	
 	/** Returns true if passes filter restrictions using exact match */
-	bool PassesFilter(const FString& Item) const;
+	bool PassesFilter(const FStringView Item) const;
 
 	/** Returns true if passes filter restrictions using exact match */
 	bool PassesFilter(const FName Item) const;
 
+	/** Returns true if passes filter restrictions using exact match */
+	bool PassesFilter(const TCHAR* Item) const;
+
 	/** Returns true if passes filter restrictions for path */
-	bool PassesStartsWithFilter(const FString& Item) const;
+	bool PassesStartsWithFilter(const FStringView Item) const;
 
 	/** Returns true if passes filter restrictions for path */
 	bool PassesStartsWithFilter(const FName Item) const;
 
+	/** Returns true if passes filter restrictions for path */
+	bool PassesStartsWithFilter(const TCHAR* Item) const;
+
 	/** Add item to blacklist, this specific item will be filtered out */
-	void AddBlacklistItem(const FName OwnerName, const FString& Item);
+	void AddBlacklistItem(const FName OwnerName, const FStringView Item);
+
+	/** Add item to blacklist, this specific item will be filtered out */
+	void AddBlacklistItem(const FName OwnerName, const FName Item);
+
+	/** Add item to blacklist, this specific item will be filtered out */
+	void AddBlacklistItem(const FName OwnerName, const TCHAR* Item);
 
 	/** Add item to whitelist after which all items not in the whitelist will be filtered out */
-	void AddWhitelistItem(const FName OwnerName, const FString& Item);
+	void AddWhitelistItem(const FName OwnerName, const FStringView Item);
+
+	/** Add item to whitelist after which all items not in the whitelist will be filtered out */
+	void AddWhitelistItem(const FName OwnerName, const FName Item);
+
+	/** Add item to whitelist after which all items not in the whitelist will be filtered out */
+	void AddWhitelistItem(const FName OwnerName, const TCHAR* Item);
 
 	/** Set to filter out all items */
 	void AddBlacklistAll(const FName OwnerName);
