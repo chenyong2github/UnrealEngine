@@ -37,7 +37,8 @@ public:
 	{
 		Union,
 		Difference,
-		Intersect
+		Intersect,
+		Trim
 	};
 	EBooleanOp Operation;
 	
