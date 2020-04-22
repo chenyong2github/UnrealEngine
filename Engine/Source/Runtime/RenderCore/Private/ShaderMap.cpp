@@ -64,20 +64,8 @@ void FShaderMapBase::AssignContent(FShaderMapContent* InContent)
 
 void FShaderMapBase::FinalizeContent()
 {
-	check(Code);
-
 	if (Content && FrozenContentSize == 0u)
 	{
-		for (FShader* Shader : Content->GetShaders())
-		{
-			Shader->Finalize(Code);
-		}
-
-		for (FShaderPipeline* Pipeline : Content->GetShaderPipelines())
-		{
-			Pipeline->Finalize(Code);
-		}
-
 		Content->Validate(*this);
 
 		FMemoryImage MemoryImage;
@@ -689,8 +677,20 @@ struct FSortedShaderEntry
 	}
 };
 
-void FShaderMapContent::Finalize()
+void FShaderMapContent::Finalize(const FShaderMapResourceCode* Code)
 {
+	check(Code);
+
+	for (FShader* Shader : Shaders)
+	{
+		Shader->Finalize(Code);
+	}
+
+	for (FShaderPipeline* Pipeline : ShaderPipelines)
+	{
+		Pipeline->Finalize(Code);
+	}
+
 	// Sort the shaders by type/permutation, so they are consistently ordered
 	TArray<FSortedShaderEntry> SortedEntries;
 	SortedEntries.Empty(Shaders.Num());

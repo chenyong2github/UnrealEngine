@@ -1252,14 +1252,15 @@ void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sh
 void FMaterialShaderMap::FinalizeContent()
 {
 	FMaterialShaderMapContent* LocalContent = GetMutableContent();
+	const FShaderMapResourceCode* LocalCode = GetResourceCode();
 
 	FSHA1 Hasher;
-	LocalContent->Finalize();
+	LocalContent->Finalize(LocalCode);
 	LocalContent->UpdateHash(Hasher);
 
 	for (FMeshMaterialShaderMap* MeshShaderMap : LocalContent->OrderedMeshShaderMaps)
 	{
-		MeshShaderMap->Finalize();
+		MeshShaderMap->Finalize(LocalCode);
 		MeshShaderMap->UpdateHash(Hasher);
 	}
 
