@@ -158,6 +158,12 @@ public:
 	/** Set to true when the current shading setup uses tessellation */
 	bool bUsingTessellation;
 
+	/** Used by variable rate shading to cache the current state of the combiners and the constant shading rate*/
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+	D3D12_SHADING_RATE_COMBINER		VRSCombiners[D3D12_RS_SET_SHADING_RATE_COMBINER_COUNT];
+	D3D12_SHADING_RATE				VRSShadingRate;
+#endif
+
 	virtual void FlushMetadata(FRHITexture** InTextures, int32 NumTextures) {};
 
 	D3D12_RESOURCE_STATES SkipFastClearEliminateState;
@@ -227,6 +233,7 @@ public:
 		);
 
 	virtual void SetDepthBounds(float MinDepth, float MaxDepth);
+	virtual void SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner);
 
 	virtual void SetAsyncComputeBudgetInternal(EAsyncComputeBudget Budget) {}
 
@@ -287,6 +294,8 @@ public:
 	virtual void RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBuffer, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances) final override;
 	virtual void RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBuffer, FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override;
 	virtual void RHISetDepthBounds(float MinDepth, float MaxDepth) final override;
+    virtual void RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner) final override;
+    virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) final override;
 	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture) final override;
 
 	virtual void RHIClearMRTImpl(bool bClearColor, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
@@ -664,6 +673,16 @@ public:
 	FORCEINLINE virtual void RHISetDepthBounds(float MinDepth, float MaxDepth) final override
 	{
 		ContextRedirect(RHISetDepthBounds(MinDepth, MaxDepth));
+	}
+	
+	FORCEINLINE virtual void RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner) final override
+	{
+		ContextRedirect(RHISetShadingRate(ShadingRate, Combiner));
+	}
+
+	FORCEINLINE virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) final override
+	{
+		ContextRedirect(RHISetShadingRateImage(RateImageTexture, Combiner));
 	}
 
 	FORCEINLINE virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture) final override
