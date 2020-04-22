@@ -47,6 +47,13 @@ namespace Chaos
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		// End of FGCObject interface
 
+		// IClothingSimulation interface
+		virtual int32 GetNumCloths() const { return NumCloths; }
+		virtual int32 GetNumKinematicParticles() const { return NumKinemamicParticles; }
+		virtual int32 GetNumDynamicParticles() const { return NumDynamicParticles; }
+		virtual float GetSimulationTime() const { return SimulationTime; }
+		// End of IClothingSimulation interface
+
 		// Editor only debug draw function
 		CHAOSCLOTH_API void DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 #endif  // #if WITH_EDITOR
@@ -89,6 +96,9 @@ namespace Chaos
 		// End of IClothingSimulation interface
 
 	private:
+		void ResetStats();
+		void UpdateStats(int32 InSimDataIndex);
+
 #if CHAOS_DEBUG_DRAW
 		// Runtime only debug draw functions
 		void DebugDrawBounds() const;
@@ -181,6 +191,12 @@ namespace Chaos
 		TArray<float> AngularDeltaRatios;  // Angular ratios factor applied to the reference bone transforms
 
 #if WITH_EDITOR
+		// Stats
+		TAtomic<int32> NumCloths;
+		TAtomic<int32> NumKinemamicParticles;
+		TAtomic<int32> NumDynamicParticles;
+		TAtomic<float> SimulationTime;
+
 		// Visualization material
 		UMaterial* DebugClothMaterial;
 		UMaterial* DebugClothMaterialVertex;
