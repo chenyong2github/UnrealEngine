@@ -8,6 +8,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
+#include "Sound/SoundWave.h"
 #include "SoundNode.generated.h"
 
 class FAudioDevice;
@@ -211,6 +212,17 @@ public:
 	 * @param bRecurse when true, this will cause all children of child nodes to be primed as well.
 	 */
 	virtual void RetainChildWavePlayers(bool bRecurse);
+
+	/**
+	 * When this is called and stream caching is enabled,
+	 * any wave player sound nodes childed off of this node
+	 * with loading behavior set to "Inherited"
+	 * will have their loading behavior updated and
+	 * their bLoadingBehaviorOverridden flag raised
+	 *
+	 * @param bRecurse when true, this will cause all children of child nodes to be overridden as well.
+	 */
+	virtual void OverrideLoadingBehaviorOnChildWaves(const bool bRecurse, const ESoundWaveLoadingBehavior InLoadingBehavior);
 
 	virtual void ReleaseRetainerOnChildWavePlayers(bool bRecurse);
 

@@ -13,7 +13,6 @@
 #include "Sound/SoundNode.h"
 #include "Sound/SoundNodeAssetReferencer.h"
 #include "Sound/SoundNodeMixer.h"
-#include "Sound/SoundWave.h"
 #include "Sound/SoundNodeAttenuation.h"
 #include "Sound/SoundNodeModulator.h"
 #include "Sound/SoundNodeQualityLevel.h"
@@ -117,6 +116,14 @@ void USoundCue::ReleaseRetainedAudio()
 	bIsRetainingAudio = false;
 }
 
+void USoundCue::CacheLoadingBehavior(ESoundWaveLoadingBehavior InBehavior)
+{
+	if (FirstNode)
+	{
+		FirstNode->OverrideLoadingBehaviorOnChildWaves(true, InBehavior);
+	}
+}
+
 void USoundCue::Serialize(FStructuredArchive::FRecord Record)
 {
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
@@ -195,14 +202,25 @@ void USoundCue::PostLoad()
 		CurrentSoundClass = CurrentSoundClass->ParentClass;
 	}
 
+	// RETAIN behavior gets demoted to PRIME in editor because in editor so many sound waves are technically "loaded" at a time.
+	// If the Cache were not willing to evict them, that would cause issues.
 	if (!GIsEditor && SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 	{
 		RetainSoundCue();
 	}
-	else if (bPrimeOnLoad || SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad)
+	else if (bPrimeOnLoad
+		|| (SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad)
+		|| (GIsEditor && (SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad))
+		)
 	{
+		// In editor, we call this for RetainOnLoad behavior as well
 		PrimeSoundCue();
 	}
+	else if (SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::LoadOnDemand)
+	{
+		// update the soundWaves with the loading behavior they inherited
+		CacheLoadingBehavior(SoundClassLoadingBehavior);
+ 	}
 }
 
 bool USoundCue::CanBeClusterRoot() const

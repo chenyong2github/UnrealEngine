@@ -8,8 +8,15 @@
 
 #define ASYNC_LOAD_RANDOMIZED_SOUNDS 1
 
+// If stream caching is enabled and this is set to 0,
+// we may result in dropped sounds due to USoundNodeWavePlayer::LoadAsset nulling out the SoundWave ptr.
+#define MAKE_SOUNDWAVES_HARD_REFERENCES 1
+
 bool USoundNodeAssetReferencer::ShouldHardReferenceAsset() const
 {
+#if MAKE_SOUNDWAVES_HARD_REFERENCES
+	return true;
+#else
 	bool bShouldHardReference = true;
 
 	if (USoundCue* Cue = Cast<USoundCue>(GetOuter()))
@@ -53,6 +60,7 @@ bool USoundNodeAssetReferencer::ShouldHardReferenceAsset() const
 	}
 
 	return bShouldHardReference;
+#endif // MAKE_SOUNDWAVES_HARD_REFERENCES
 }
 
 #if WITH_EDITOR
