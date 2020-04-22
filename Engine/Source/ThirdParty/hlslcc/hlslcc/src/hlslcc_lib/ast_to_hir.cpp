@@ -2333,8 +2333,25 @@ const glsl_type* ast_type_specifier::glsl_type(const char **name, _mesa_glsl_par
 			InnerType = state->symbols->get_type(this->inner_type);
 		}
 
-		type = glsl_type::GetStructuredBufferInstance(this->type_name, InnerType);
-		*name = type->name;
+		// Emulate structured buffer with a typed buffer if platform does not properly support them. Only for vec4&vec1 atm
+		// Android devices with MALI GPUs do not support SSBO in vertex shaders (OpenGL)
+		if (state->LanguageSpec->EmulateStructuredWithTypedBuffers())
+		{
+			if ((InnerType == glsl_type::vec4_type || InnerType == glsl_type::float_type) ||
+				(InnerType == glsl_type::ivec4_type || InnerType == glsl_type::int_type) ||
+				(InnerType == glsl_type::uvec4_type || InnerType == glsl_type::uint_type))
+			{
+				const char* emulated_type_name = bRWStructuredBuffer ? "RWBuffer" : "Buffer";
+				type = glsl_type::get_templated_instance(InnerType, emulated_type_name, this->texture_ms_num_samples, this->patch_size);
+				check(type != NULL);
+				*name = emulated_type_name;
+			}
+		}
+		else
+		{
+			type = glsl_type::GetStructuredBufferInstance(this->type_name, InnerType);
+			*name = type->name;
+		}
 	}
 	else if (!strcmp(this->type_name, "ByteAddressBuffer") || !strcmp(this->type_name + 2, "ByteAddressBuffer"))
 	{
