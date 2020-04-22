@@ -31,11 +31,6 @@ namespace Audio
 
 
 		public:
-			/** NumWindowSamples describes the number of samples in a window */
-			const int32 NumWindowSamples;
-
-			/** NumHopSamples describes the number of samples between adjacent windows */
-			const int32 NumHopSamples;
 
 			/**
 			 * Constructs a TSlidingBuffer with a constant window and hop size
@@ -47,6 +42,18 @@ namespace Audio
 			{
 				check(NumWindowSamples >= 1);
 				check(NumHopSamples >= 1);
+			}
+
+			/** Returns the number of samples in a window. */
+			int32 GetNumWindowSamples() const
+			{
+				return NumWindowSamples;
+			}
+
+			/** Returns the number of samples between windows. */
+			int32 GetNumHopSamples() const
+			{
+				return NumHopSamples;
 			}
 
 			/**
@@ -141,6 +148,11 @@ namespace Audio
 			}
 
 		private:
+			// NumWindowSamples describes the number of samples in a window.
+			int32 NumWindowSamples;
+
+			// NumHopSamples describes the number of samples between adjacent windows.
+			int32 NumHopSamples;
 
 			// Stores samples from previous calls which are still needed for future buffers
 			TArray<InSampleType> StorageBuffer;
