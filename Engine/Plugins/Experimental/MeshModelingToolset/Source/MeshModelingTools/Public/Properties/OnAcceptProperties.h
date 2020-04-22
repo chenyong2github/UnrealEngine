@@ -9,6 +9,7 @@
 
 
 class UInteractiveToolManager;
+class AActor;
 
 
 /** Options to handle source meshes */
