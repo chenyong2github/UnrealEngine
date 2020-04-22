@@ -283,6 +283,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 
 			FRHIShaderResourceView* CulledCountsSRV = CulledCountBuffer.SRV.IsValid() ? CulledCountBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer();
 			FNiagaraDrawIndirectArgsGenCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FNiagaraDrawIndirectArgsGenCS::FSupportsTextureRW>(GRHISupportsRWTextureBuffers ? 1 : 0);
 			TShaderMapRef<FNiagaraDrawIndirectArgsGenCS> DrawIndirectArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 			RHICmdList.SetComputeShader(DrawIndirectArgsGenCS.GetComputeShader());
 			DrawIndirectArgsGenCS->SetOutput(RHICmdList, DrawIndirectBuffer.UAV, CountBuffer.UAV);
