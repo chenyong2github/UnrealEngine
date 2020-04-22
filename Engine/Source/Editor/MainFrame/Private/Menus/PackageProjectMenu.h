@@ -16,6 +16,7 @@
 #include "Interfaces/IProjectManager.h"
 #include "InstalledPlatformInfo.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/ConfigCacheIni.h"
 #include "DesktopPlatformModule.h"
 
 #define LOCTEXT_NAMESPACE "FPackageProjectMenu"
