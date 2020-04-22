@@ -85,6 +85,9 @@ void USelfUnionMeshesTool::Setup()
 	Properties = NewObject<USelfUnionMeshesToolProperties>(this);
 	Properties->RestoreProperties(this);
 	AddToolPropertySource(Properties);
+	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
+	HandleSourcesProperties->RestoreProperties(this);
+	AddToolPropertySource(HandleSourcesProperties);
 
 
 	// initialize the PreviewMesh+BackgroundCompute object
@@ -208,8 +211,14 @@ void USelfUnionMeshesTool::UpdateVisualization()
 void USelfUnionMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Properties->SaveProperties(this);
+	HandleSourcesProperties->SaveProperties(this);
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
+	// Restore (unhide) the source meshes
+	for (auto& ComponentTarget : ComponentTargets)
+	{
+		ComponentTarget->SetOwnerVisibility(true);
+	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		// Generate the result
@@ -221,65 +230,12 @@ void USelfUnionMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			GetToolManager()->EndUndoTransaction();
 		}
 
-		// Restore (unhide) the source meshes
+		TArray<AActor*> Actors;
 		for (auto& ComponentTarget : ComponentTargets)
 		{
-			ComponentTarget->SetOwnerVisibility(true);
+			Actors.Add(ComponentTarget->GetOwnerActor());
 		}
-
-		// Hide or destroy the sources
-		if (Properties->OnToolAccept != ESelfUnionAcceptBehavior::LeaveOriginalsUnchanged)
-		{
-			bool bDelete = Properties->OnToolAccept == ESelfUnionAcceptBehavior::DeleteOriginals;
-			if (bDelete)
-			{
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
-			}
-			else
-			{
-#if WITH_EDITOR
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("HideSources", "Hide Sources"));
-#endif
-			}
-
-			for (auto& ComponentTarget : ComponentTargets)
-			{
-				AActor* Actor = ComponentTarget->GetOwnerActor();
-				if (bDelete)
-				{
-					Actor->Destroy();
-				}
-				else
-				{
-#if WITH_EDITOR
-					// Save the actor to the transaction buffer to support undo/redo, but do
-					// not call Modify, as we do not want to dirty the actor's package and
-					// we're only editing temporary, transient values
-					SaveToTransactionBuffer(Actor, false);
-					Actor->SetIsTemporarilyHiddenInEditor(true);
-#endif
-				}
-			}
-			if (bDelete)
-			{
-				GetToolManager()->EndUndoTransaction();
-			}
-			else
-			{
-#if WITH_EDITOR
-				GetToolManager()->EndUndoTransaction();
-#endif
-			}
-		}
-
-	}
-	else
-	{
-		// Restore (unhide) the source meshes
-		for (auto& ComponentTarget : ComponentTargets)
-		{
-			ComponentTarget->SetOwnerVisibility(true);
-		}
+		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
 	}
 }
 
@@ -321,7 +277,7 @@ void USelfUnionMeshesTool::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 void USelfUnionMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USelfUnionMeshesToolProperties, OnToolAccept)))
+	if (PropertySet == HandleSourcesProperties)
 	{
 		// nothing
 	}

@@ -9,6 +9,8 @@
 #include "MultiSelectionTool.h"
 #include "ProxyLODVolume.h"
 #include "Properties/MeshStatisticsProperties.h"
+#include "Properties/OnAcceptProperties.h"
+
 #include "VoxelCSGMeshesTool.generated.h"
 
 
@@ -70,19 +72,15 @@ public:
 
 	/** Remeshing adaptivity, prior to optional simplification */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float MeshAdaptivity = 0.001f;
+	float MeshAdaptivity = 0.01f;
 
 	/** Offset when remeshing, note large offsets with high voxels counts will be slow */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-10", UIMax = "10", ClampMin = "-10", ClampMax = "10"))
-	float OffsetDistance = 0;
+	float OffsetDistance = 0.0f;
 
 	/** Automatically simplify the result of voxel-based merge.*/
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAutoSimplify = false;
-
-	/** Remove the source Actors/Components when accepting results of tool.*/
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bDeleteInputActors = true;
 };
 
 
@@ -124,6 +122,9 @@ protected:
 
 	UPROPERTY()
 	UMeshStatisticsProperties* MeshStatisticsProperties;
+
+	UPROPERTY()
+	UOnAcceptHandleSourcesProperties* HandleSourcesProperties;
 
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
