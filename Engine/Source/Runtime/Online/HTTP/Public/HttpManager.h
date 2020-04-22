@@ -146,15 +146,6 @@ public:
 	 */
 	virtual void OnAfterFork();
 
-
-	/**
-	 * Tells if we allow real threads to be created on forked processes
-	 * Should be called when the manager is shutdown and has finished all processing
-
-	 * @param bAllow Do we allow real threads or not
-	 */
-	void SetAllowThreadsOnForkedProcess(bool bAllow);
-
 	/**
 	 * Update configuration. Called when config has been updated and we need to apply any changes.
 	 */
