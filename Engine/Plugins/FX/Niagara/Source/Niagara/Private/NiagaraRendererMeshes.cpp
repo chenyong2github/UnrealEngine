@@ -208,8 +208,8 @@ int32 FNiagaraRendererMeshes::GetMaxIndirectArgs() const
 	{
 		MaxSectionCount = FMath::Max(MaxSectionCount, IndexInfo.Num());
 	}
-
-	//REVERB_WIP: This needs to be multiplied by the number of active viewsv
+	
+	//TODO: This needs to be multiplied by the number of active viewsv
 	return MaxSectionCount;
 }
 
@@ -607,7 +607,6 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					Mesh.CastRayTracedShadow = SceneProxy->CastsDynamicShadow();
 #endif
 					Mesh.DepthPriorityGroup = (ESceneDepthPriorityGroup)SceneProxy->GetDepthPriorityGroup(View);
-					Mesh.bUseSelectionOutline = !bDoGPUCulling; //TODO: selection outline can't use the culled instance index buffer, so it causes bad flickering
 
 					FMeshBatchElement& BatchElement = Mesh.Elements[0];
 					BatchElement.PrimitiveUniformBuffer = IsMotionBlurEnabled() ? SceneProxy->GetUniformBuffer() : SceneProxy->GetUniformBufferNoVelocity();
