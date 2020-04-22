@@ -973,7 +973,7 @@ void FShaderPipeline::Validate(const FShaderPipelineType* InPipelineType) const
 	}
 }
 
-void FShaderPipeline::Finalize(FShaderMapResourceCode* Code)
+void FShaderPipeline::Finalize(const FShaderMapResourceCode* Code)
 {
 	for (uint32 i = 0u; i < SF_NumGraphicsFrequencies; ++i)
 	{
