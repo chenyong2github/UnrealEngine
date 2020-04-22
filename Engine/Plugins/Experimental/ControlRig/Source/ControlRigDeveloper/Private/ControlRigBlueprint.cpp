@@ -44,7 +44,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	bVMRecompilationRequired = false;
 	VMRecompilationBracket = 0;
 
-	Model = ObjectInitializer.CreateDefaultSubobject<URigVMGraph>(this, TEXT("Model"));
+	Model = ObjectInitializer.CreateDefaultSubobject<URigVMGraph>(this, TEXT("RigVMModel"));
 	Controller = nullptr;
 }
 
