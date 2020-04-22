@@ -255,7 +255,7 @@ public:
 	TArray<class FStaticMeshBatch> StaticMeshes;
 
 	/** The identifier for the primitive in Scene->PrimitiveOctree. */
-	FOctreeElementId OctreeId;
+	FOctreeElementId2 OctreeId;
 
 	/** 
 	 * Caches the primitive's indirect lighting cache allocation.
@@ -565,7 +565,7 @@ struct FPrimitiveOctreeSemantics
 		return A.PrimitiveSceneInfo == B.PrimitiveSceneInfo;
 	}
 
-	FORCEINLINE static void SetElementId(const FPrimitiveSceneInfoCompact& Element,FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FPrimitiveSceneInfoCompact& Element,FOctreeElementId2 Id)
 	{
 		Element.PrimitiveSceneInfo->OctreeId = Id;
 	}

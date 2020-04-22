@@ -11,7 +11,7 @@
 /** 
  *	An identifier for an element in the octree. 
  */
-class FOctreeElementId
+class FOctreeElementId2
 {
 public:
 
@@ -22,7 +22,7 @@ public:
 	friend class TOctree2;
 
 	/** Default constructor. */
-	FOctreeElementId()
+	FOctreeElementId2()
 		:	NodeIndex(INDEX_NONE)
 		,	ElementIndex(INDEX_NONE)
 	{}
@@ -42,7 +42,7 @@ private:
 	int32 ElementIndex;
 
 	/** Initialization constructor. */
-	FOctreeElementId(uint32 InNodeIndex, int32 InElementIndex)
+	FOctreeElementId2(uint32 InNodeIndex, int32 InElementIndex)
 		:	NodeIndex(InNodeIndex)
 		,	ElementIndex(InElementIndex)
 	{}

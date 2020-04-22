@@ -13,7 +13,7 @@
 class FBoxCenterAndExtent;
 class FOctreeChildNodeRef;
 class FOctreeChildNodeSubset;
-class FOctreeElementId;
+class FOctreeElementId2;
 class FOctreeNodeContext;
 struct FMath;
 template<typename ElementType,typename OctreeSemantics> class TOctree;

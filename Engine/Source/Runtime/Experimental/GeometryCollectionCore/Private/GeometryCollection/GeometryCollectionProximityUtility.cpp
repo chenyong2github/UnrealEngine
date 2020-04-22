@@ -64,7 +64,7 @@ struct FMeshProximityTriangleOctreeSemantics
 	}
 
 	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId(const FProximityTriangle& Element, FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FProximityTriangle& Element, FOctreeElementId2 Id)
 	{
 
 	}

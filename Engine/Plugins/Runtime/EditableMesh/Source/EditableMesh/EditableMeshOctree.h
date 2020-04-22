@@ -48,7 +48,7 @@ struct FEditableMeshOctreeSemantics
 		return ( A.PolygonID == B.PolygonID );
 	}
 
-	FORCEINLINE static void SetElementId( const FEditableMeshOctreePolygon& Element, FOctreeElementId OctreeElementID )
+	FORCEINLINE static void SetElementId( const FEditableMeshOctreePolygon& Element, FOctreeElementId2 OctreeElementID )
 	{
 		Element.EditableMesh.PolygonIDToOctreeElementIDMap.Add( Element.PolygonID, OctreeElementID );
 	}

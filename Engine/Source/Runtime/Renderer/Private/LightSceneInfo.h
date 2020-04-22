@@ -169,7 +169,7 @@ public:
 	int32 Id;
 
 	/** The identifier for the primitive in Scene->PrimitiveOctree. */
-	FOctreeElementId OctreeId;
+	FOctreeElementId2 OctreeId;
 
 	/** Tile intersection buffer for distance field shadowing, stored on the light to avoid reallocating each frame. */
 	mutable TUniquePtr<class FLightTileIntersectionResources> TileIntersectionResources;
@@ -340,7 +340,7 @@ struct FLightOctreeSemantics
 		return A.LightSceneInfo == B.LightSceneInfo;
 	}
 	
-	FORCEINLINE static void SetElementId(const FLightSceneInfoCompact& Element,FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FLightSceneInfoCompact& Element,FOctreeElementId2 Id)
 	{
 		Element.LightSceneInfo->OctreeId = Id;
 	}
