@@ -751,6 +751,11 @@ bool GRHISupportsBackBufferWithCustomDepthStencil = true;
 
 bool GRHIIsHDREnabled = false;
 bool GRHISupportsHDROutput = false;
+
+bool GRHISupportsVariableRateShading = false;
+int32 GVariableRateShadingImageTileSize = 0;
+int32 GVariableRateShadingTier = 0;
+
 EPixelFormat GRHIHDRDisplayOutputFormat = PF_FloatRGBA;
 
 uint64 GRHIPresentCounter = 1;
