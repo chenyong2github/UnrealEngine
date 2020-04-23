@@ -101,34 +101,48 @@ void UCSGMeshesTool::Setup()
 
 
 
-
-void UCSGMeshesTool::SetupPreview()
+void UCSGMeshesTool::ConfigurePreviewMaterials()
 {
+	OriginalDynamicMeshes.SetNum(ComponentTargets.Num());
 	FComponentMaterialSet AllMaterialSet;
 	TMap<UMaterialInterface*, int> KnownMaterials;
 	TArray<TArray<int>> MaterialRemap; MaterialRemap.SetNum(ComponentTargets.Num());
-	for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+
+	if (!CSGProperties->bOnlyUseFirstMeshMaterials)
 	{
-		FComponentMaterialSet ComponentMaterialSet;
-		ComponentTargets[ComponentIdx]->GetMaterialSet(ComponentMaterialSet);
-		for (UMaterialInterface* Mat : ComponentMaterialSet.Materials)
+		for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 		{
-			int* FoundMatIdx = KnownMaterials.Find(Mat);
-			int MatIdx;
-			if (FoundMatIdx)
+			FComponentMaterialSet ComponentMaterialSet;
+			ComponentTargets[ComponentIdx]->GetMaterialSet(ComponentMaterialSet);
+			for (UMaterialInterface* Mat : ComponentMaterialSet.Materials)
 			{
-				MatIdx = *FoundMatIdx;
+				int* FoundMatIdx = KnownMaterials.Find(Mat);
+				int MatIdx;
+				if (FoundMatIdx)
+				{
+					MatIdx = *FoundMatIdx;
+				}
+				else
+				{
+					MatIdx = AllMaterialSet.Materials.Add(Mat);
+					KnownMaterials.Add(Mat, MatIdx);
+				}
+				MaterialRemap[ComponentIdx].Add(MatIdx);
 			}
-			else
-			{
-				MatIdx = AllMaterialSet.Materials.Add(Mat);
-				KnownMaterials.Add(Mat, MatIdx);
-			}
-			MaterialRemap[ComponentIdx].Add(MatIdx);
 		}
 	}
-
-	OriginalDynamicMeshes.SetNum(ComponentTargets.Num());
+	else
+	{
+		ComponentTargets[0]->GetMaterialSet(AllMaterialSet);
+		for (int MatIdx = 0; MatIdx < AllMaterialSet.Materials.Num(); MatIdx++)
+		{
+			MaterialRemap[0].Add(MatIdx);
+		}
+		for (int ComponentIdx = 1; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+		{
+			MaterialRemap[ComponentIdx].Init(0, ComponentTargets[ComponentIdx]->GetNumMaterials());
+		}
+	}
 
 	for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
@@ -145,11 +159,16 @@ void UCSGMeshesTool::SetupPreview()
 			MaterialIDs->SetValue(TID, MaterialRemap[ComponentIdx][MaterialIDs->GetValue(TID)]);
 		}
 	}
+	Preview->ConfigureMaterials(AllMaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+}
 
+
+void UCSGMeshesTool::SetupPreview()
+{
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
-	Preview->ConfigureMaterials(AllMaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 
+	ConfigurePreviewMaterials();
 	
 	DrawnLineSet = NewObject<ULineSetComponent>(Preview->PreviewMesh->GetRootComponent());
 	DrawnLineSet->SetupAttachment(Preview->PreviewMesh->GetRootComponent());
@@ -309,7 +328,12 @@ void UCSGMeshesTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 void UCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bShowTransformUI)))
+	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bOnlyUseFirstMeshMaterials)))
+	{
+		ConfigurePreviewMaterials();
+		Preview->InvalidateResult();
+	}
+	else if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bShowTransformUI)))
 	{
 		UpdateGizmoVisibility();
 	}
