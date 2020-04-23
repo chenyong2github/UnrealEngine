@@ -24,6 +24,7 @@ UTextBlock::UTextBlock(const FObjectInitializer& ObjectInitializer)
 	ColorAndOpacity = FLinearColor::White;
 	ShadowColorAndOpacity = FLinearColor::Transparent;
 	bAutoWrapText_DEPRECATED = false;
+	TextTransformPolicy = ETextTransformPolicy::None;
 
 	if (!IsRunningDedicatedServer())
 	{
@@ -132,6 +133,15 @@ void UTextBlock::SetAutoWrapText(bool InAutoWrapText)
 	if(MyTextBlock.IsValid())
 	{
 		MyTextBlock->SetAutoWrapText(InAutoWrapText);
+	}
+}
+
+void UTextBlock::SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy)
+{
+	TextTransformPolicy = InTransformPolicy;
+	if(MyTextBlock.IsValid())
+	{
+		MyTextBlock->SetTransformPolicy(TextTransformPolicy);
 	}
 }
 
@@ -277,6 +287,7 @@ void UTextBlock::SynchronizeProperties()
 		MyTextBlock->SetShadowOffset( ShadowOffset );
 		MyTextBlock->SetShadowColorAndOpacity( ShadowColorAndOpacityBinding );
 		MyTextBlock->SetMinDesiredWidth( MinDesiredWidth );
+		MyTextBlock->SetTransformPolicy( TextTransformPolicy );
 		Super::SynchronizeTextLayoutProperties( *MyTextBlock );
 	}
 }
