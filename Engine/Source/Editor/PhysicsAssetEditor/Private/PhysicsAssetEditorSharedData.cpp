@@ -567,27 +567,36 @@ void FPhysicsAssetEditorSharedData::ToggleSelectionType()
 
 void FPhysicsAssetEditorSharedData::ToggleShowSelected()
 {
-	for (const FSelection& Selection : SelectedConstraints)
+	bool bAllSelectedVisible = true;
+	if (bAllSelectedVisible)
 	{
-		if (HiddenConstraints.Contains(Selection.Index))
+		for (const FSelection& Selection : SelectedConstraints)
 		{
-			HiddenConstraints.Remove(Selection.Index);
-		}
-		else
-		{
-			HiddenConstraints.AddUnique(Selection.Index);
+			if (HiddenConstraints.Contains(Selection.Index))
+			{
+				bAllSelectedVisible = false;
+				break;
+			}
 		}
 	}
-	for (const FSelection& Selection : SelectedBodies)
+	if (bAllSelectedVisible)
 	{
-		if (HiddenBodies.Contains(Selection.Index))
+		for (const FSelection& Selection : SelectedBodies)
 		{
-			HiddenBodies.Remove(Selection.Index);
+			if (HiddenBodies.Contains(Selection.Index))
+			{
+				bAllSelectedVisible = false;
+			}
 		}
-		else
-		{
-			HiddenBodies.AddUnique(Selection.Index);
-		}
+	}
+
+	if (bAllSelectedVisible)
+	{
+		HideSelected();
+	}
+	else
+	{
+		ShowSelected();
 	}
 }
 
