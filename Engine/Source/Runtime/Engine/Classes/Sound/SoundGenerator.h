@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers\Queue.h"
-#include "Templates\Function.h"
+#include "Containers/Queue.h"
+#include "Templates/Function.h"
 
 enum class EGeneratorState : uint8
 {
