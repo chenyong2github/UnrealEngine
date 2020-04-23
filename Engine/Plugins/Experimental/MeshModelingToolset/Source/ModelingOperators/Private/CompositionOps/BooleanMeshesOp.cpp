@@ -20,7 +20,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	check(Meshes.Num() == 2 && Transforms.Num() == 2);
 	
 	int FirstIdx = 0;
-	if (Operation == ECSGOperation::DifferenceBA)
+	if (Operation == ECSGOperation::DifferenceBA || Operation == ECSGOperation::TrimB)
 	{
 		FirstIdx = 1;
 	}
@@ -33,6 +33,10 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	case ECSGOperation::DifferenceAB:
 	case ECSGOperation::DifferenceBA:
 		Op = FMeshBoolean::EBooleanOp::Difference;
+		break;
+	case ECSGOperation::TrimA:
+	case ECSGOperation::TrimB:
+		Op = FMeshBoolean::EBooleanOp::Trim;
 		break;
 	case ECSGOperation::Union:
 		Op = FMeshBoolean::EBooleanOp::Union;
@@ -60,7 +64,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
-	if (!bSuccess && bAttemptFixHoles)
+	if (MeshBoolean.CreatedBoundaryEdges.Num() > 0 && bAttemptFixHoles)
 	{
 		FMeshBoundaryLoops OpenBoundary(MeshBoolean.Result, false);
 		TSet<int> ConsiderEdges(MeshBoolean.CreatedBoundaryEdges);
