@@ -76,7 +76,7 @@ public:
 	/**
 	 * Determines if data is cooked for 32bit (or 64bit) exe
 	 */
-	UPROPERTY(EditAnywhere, config, Category = "OS Info", Meta = (DisplayName = "Target 32bit"))
+	UPROPERTY(EditAnywhere, config, Category = "OS Info", Meta = (DisplayName = "Target 32bit (should restart editor if changed)"))
 	bool bTarget32Bit;
 
 	/** Sample rate to run the audio mixer with. */
