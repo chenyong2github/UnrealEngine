@@ -8,6 +8,7 @@
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Async/ParallelFor.h"
+#include "Containers/Queue.h"
 
 class FChaosSolversModule;
 class FPhysicsSolverAdvanceTask;
