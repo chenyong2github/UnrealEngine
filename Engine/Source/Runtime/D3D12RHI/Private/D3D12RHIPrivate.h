@@ -225,31 +225,6 @@ public:
 	{
 		return static_cast<typename TD3D12ResourceTraits<TRHIType>::TConcreteType*>(Resource);
 	}
-
-	template<typename TRHIType>
-	static FORCEINLINE_DEBUGGABLE typename TD3D12ResourceTraits<TRHIType>::TConcreteType* ResourceCast(TRHIType* Resource, uint32 GPUIndex)
-	{
-#if !WITH_MGPU
-		return ResourceCast(Resource);
-#else
-		typename TD3D12ResourceTraits<TRHIType>::TConcreteType* Object = ResourceCast(Resource);
-		if (GNumExplicitGPUsForRendering > 1)
-		{
-			if (!Object)
-			{
-				return nullptr;
-			}
-
-			while (Object && Object->GetParentDevice()->GetGPUIndex() != GPUIndex)
-			{
-				Object = Object->GetNextObject();
-			}
-
-			check(Object);
-		}
-		return Object;
-#endif
-	}
 	
 	virtual FD3D12CommandContext* CreateCommandContext(FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext = false);
 	virtual ID3D12CommandQueue* CreateCommandQueue(FD3D12Device* Device, const D3D12_COMMAND_QUEUE_DESC& Desc);
@@ -475,11 +450,8 @@ public:
 	bool IsQuadBufferStereoEnabled() const;
 	void DisableQuadBufferStereo();
 
-	template<class BufferType>
-	void* LockBuffer(FRHICommandListImmediate* RHICmdList, BufferType* Buffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode);
-
-	template<class BufferType>
-	void UnlockBuffer(FRHICommandListImmediate* RHICmdList, BufferType* Buffer);
+	void* LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferSize, uint32 BufferUsage, uint32 Offset, uint32 Size, EResourceLockMode LockMode);
+	void UnlockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferUsage);
 
 	static inline bool ShouldDeferBufferLockOperation(FRHICommandListImmediate* RHICmdList)
 	{
