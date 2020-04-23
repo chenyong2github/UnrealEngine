@@ -1353,6 +1353,14 @@ void USceneComponent::AddWorldTransform(const FTransform& DeltaTransform, bool b
 	SetWorldTransform(FTransform(NewWorldRotation, NewWorldLocation, FVector(1,1,1)),bSweep, OutSweepHitResult, Teleport);
 }
 
+void USceneComponent::AddWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
+{
+	const FTransform& LocalComponentTransform = GetComponentTransform();
+	const FQuat NewWorldRotation = DeltaTransform.GetRotation() * LocalComponentTransform.GetRotation();
+	const FVector NewWorldLocation = FTransform::AddTranslations(DeltaTransform, LocalComponentTransform);
+	SetWorldTransform(FTransform(NewWorldRotation, NewWorldLocation, LocalComponentTransform.GetScale3D()), bSweep, OutSweepHitResult, Teleport);
+}
+
 void USceneComponent::SetRelativeScale3D(FVector NewScale3D)
 {
 	if (NewScale3D != GetRelativeScale3D())
@@ -3831,6 +3839,11 @@ void USceneComponent::K2_AddWorldRotation(FRotator DeltaRotation, bool bSweep, F
 void USceneComponent::K2_AddWorldTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
 {
 	AddWorldTransform(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
+}
+
+void USceneComponent::K2_AddWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
+{
+	AddWorldTransformKeepScale(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
 }
 
 void USceneComponent::SetVisibleFlag(const bool bNewVisible)
