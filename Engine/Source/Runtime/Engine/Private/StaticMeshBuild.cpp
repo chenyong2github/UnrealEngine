@@ -488,7 +488,7 @@ struct FStaticMeshComponentVertPosOctreeSemantics
 	}
 
 	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId( const FPaintedVertex& Element, FOctreeElementId Id )
+	FORCEINLINE static void SetElementId( const FPaintedVertex& Element, FOctreeElementId2 Id )
 	{
 	}
 };

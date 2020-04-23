@@ -20,7 +20,7 @@ FNavigationDataHandler::FNavigationDataHandler(FNavigationOctreeController& InOc
 		: OctreeController(InOctreeController), DirtyAreasController(InDirtyAreasController)
 {}
 
-void FNavigationDataHandler::RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags)
+void FNavigationDataHandler::RemoveNavOctreeElementId(const FOctreeElementId2& ElementId, int32 UpdateFlags)
 {
 	if (ensure(OctreeController.IsValidElement(ElementId)))
 	{
@@ -116,7 +116,7 @@ void FNavigationDataHandler::AddElementToNavOctree(const FNavigationDirtyElement
 	{
 		// check if parent node is waiting in queue
 		const FSetElementId ParentRequestId = OctreeController.PendingOctreeUpdates.FindId(FNavigationDirtyElement(NavigationParent));
-		const FOctreeElementId* ParentId = OctreeController.GetObjectsNavOctreeId(*NavigationParent);
+		const FOctreeElementId2* ParentId = OctreeController.GetObjectsNavOctreeId(*NavigationParent);
 		if (ParentRequestId.IsValidId() && ParentId == nullptr)
 		{
 			FNavigationDirtyElement& ParentNode = OctreeController.PendingOctreeUpdates[ParentRequestId];
@@ -126,7 +126,7 @@ void FNavigationDataHandler::AddElementToNavOctree(const FNavigationDirtyElement
 			ParentNode.bInvalidRequest = true;
 		}
 
-		const FOctreeElementId* ElementId = ParentId ? ParentId : OctreeController.GetObjectsNavOctreeId(*NavigationParent);
+		const FOctreeElementId2* ElementId = ParentId ? ParentId : OctreeController.GetObjectsNavOctreeId(*NavigationParent);
 		if (ElementId && ensure(OctreeController.IsValidElement(*ElementId)))
 		{
 			UE_LOG(LogNavOctree, Log, TEXT("ADD %s to %s"), *GetNameSafe(ElementOwner), *GetNameSafe(NavigationParent));
@@ -168,7 +168,7 @@ bool FNavigationDataHandler::UnregisterNavOctreeElement(UObject& ElementOwner, I
 	}
 
 	bool bUnregistered = false;
-	const FOctreeElementId* ElementId = OctreeController.GetObjectsNavOctreeId(ElementOwner);
+	const FOctreeElementId2* ElementId = OctreeController.GetObjectsNavOctreeId(ElementOwner);
 	UE_LOG(LogNavOctree, Log, TEXT("UNREG %s %s"), *ElementOwner.GetName(), ElementId ? TEXT("[exists]") : TEXT("[does\'t exist]"));
 
 	if (ElementId != nullptr)
@@ -329,7 +329,7 @@ void FNavigationDataHandler::UpdateNavOctreeParentChain(UObject& ElementOwner, b
 
 bool FNavigationDataHandler::UpdateNavOctreeElementBounds(UActorComponent& Comp, const FBox& NewBounds, const FBox& DirtyArea)
 {
-	const FOctreeElementId* ElementId = OctreeController.GetObjectsNavOctreeId(Comp);
+	const FOctreeElementId2* ElementId = OctreeController.GetObjectsNavOctreeId(Comp);
 	if (ElementId != nullptr && ensure(OctreeController.IsValidElement(*ElementId)))
 	{
 		OctreeController.NavOctree->UpdateNode(*ElementId, NewBounds);
@@ -420,7 +420,7 @@ void FNavigationDataHandler::AddLevelCollisionToOctree(ULevel& Level)
 		OctreeController.NavOctree->GetNavGeometryStoringMode() == FNavigationOctree::StoreNavGeometry)
 	{
 		const TArray<FVector>* LevelGeom = Level.GetStaticNavigableGeometry();
-		const FOctreeElementId* ElementId = OctreeController.GetObjectsNavOctreeId(Level);
+		const FOctreeElementId2* ElementId = OctreeController.GetObjectsNavOctreeId(Level);
 
 		if (!ElementId && LevelGeom && LevelGeom->Num() > 0)
 		{
@@ -444,7 +444,7 @@ void FNavigationDataHandler::RemoveLevelCollisionFromOctree(ULevel& Level)
 {
 	if (OctreeController.NavOctree.IsValid())
 	{
-		const FOctreeElementId* ElementId = OctreeController.GetObjectsNavOctreeId(Level);
+		const FOctreeElementId2* ElementId = OctreeController.GetObjectsNavOctreeId(Level);
 		UE_LOG(LogNavOctree, Log, TEXT("UNREG %s %s"), *Level.GetName(), ElementId ? TEXT("[exists]") : TEXT(""));
 
 		if (ElementId != nullptr)

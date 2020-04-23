@@ -149,7 +149,7 @@ void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavEl
 	AddElement(Element);
 }
 
-void FNavigationOctree::AppendToNode(const FOctreeElementId& Id, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Element)
+void FNavigationOctree::AppendToNode(const FOctreeElementId2& Id, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Element)
 {
 	FNavigationOctreeElement OrgData = GetElementById(Id);
 
@@ -187,7 +187,7 @@ void FNavigationOctree::AppendToNode(const FOctreeElementId& Id, INavRelevantInt
 	AddElement(Element);
 }
 
-void FNavigationOctree::UpdateNode(const FOctreeElementId& Id, const FBox& NewBounds)
+void FNavigationOctree::UpdateNode(const FOctreeElementId2& Id, const FBox& NewBounds)
 {
 	FNavigationOctreeElement ElementCopy = GetElementById(Id);
 	RemoveElement(Id);
@@ -195,7 +195,7 @@ void FNavigationOctree::UpdateNode(const FOctreeElementId& Id, const FBox& NewBo
 	AddElement(ElementCopy);
 }
 
-void FNavigationOctree::RemoveNode(const FOctreeElementId& Id)
+void FNavigationOctree::RemoveNode(const FOctreeElementId2& Id)
 {
 	const FNavigationOctreeElement& Element = GetElementById(Id);
 	const int32 ElementMemory = Element.GetAllocatedSize();
@@ -205,7 +205,7 @@ void FNavigationOctree::RemoveNode(const FOctreeElementId& Id)
 	RemoveElement(Id);
 }
 
-const FNavigationRelevantData* FNavigationOctree::GetDataForID(const FOctreeElementId& Id) const
+const FNavigationRelevantData* FNavigationOctree::GetDataForID(const FOctreeElementId2& Id) const
 {
 	if (Id.IsValidId() == false)
 	{
@@ -217,7 +217,7 @@ const FNavigationRelevantData* FNavigationOctree::GetDataForID(const FOctreeElem
 	return &*OctreeElement.Data;
 }
 
-void FNavigationOctree::SetElementIdImpl(const uint32 OwnerUniqueId, FOctreeElementId Id)
+void FNavigationOctree::SetElementIdImpl(const uint32 OwnerUniqueId, FOctreeElementId2 Id)
 {
 	ObjectToOctreeId.Add(OwnerUniqueId, Id);
 }
@@ -228,7 +228,7 @@ void FNavigationOctree::SetElementIdImpl(const uint32 OwnerUniqueId, FOctreeElem
 #if NAVSYS_DEBUG
 FORCENOINLINE
 #endif // NAVSYS_DEBUG
-void FNavigationOctreeSemantics::SetElementId(FNavigationOctreeSemantics::FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId Id)
+void FNavigationOctreeSemantics::SetElementId(FNavigationOctreeSemantics::FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId2 Id)
 {
 	((FNavigationOctree&)OctreeOwner).SetElementIdImpl(Element.OwnerUniqueId, Id);
 }

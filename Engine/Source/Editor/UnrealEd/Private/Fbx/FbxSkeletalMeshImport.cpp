@@ -156,7 +156,7 @@ struct FSkeletalMeshVertPosOctreeSemantics
 	}
 
 	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId(const FSoftSkinVertex& Element, FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FSoftSkinVertex& Element, FOctreeElementId2 Id)
 	{
 	}
 };

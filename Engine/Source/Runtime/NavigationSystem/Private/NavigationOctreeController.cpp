@@ -26,7 +26,7 @@ void FNavigationOctreeController::SetNavigableGeometryStoringMode(FNavigationOct
 
 bool FNavigationOctreeController::GetNavOctreeElementData(const UObject& NodeOwner, int32& DirtyFlags, FBox& DirtyBounds)
 {
-	const FOctreeElementId* ElementId = GetObjectsNavOctreeId(NodeOwner);
+	const FOctreeElementId2* ElementId = GetObjectsNavOctreeId(NodeOwner);
 	if (ElementId != nullptr && IsValidElement(*ElementId))
 	{
 		// mark area occupied by given actor as dirty
@@ -41,7 +41,7 @@ bool FNavigationOctreeController::GetNavOctreeElementData(const UObject& NodeOwn
 
 const FNavigationRelevantData* FNavigationOctreeController::GetDataForObject(const UObject& Object) const
 {
-	const FOctreeElementId* ElementId = GetObjectsNavOctreeId(Object);
+	const FOctreeElementId2* ElementId = GetObjectsNavOctreeId(Object);
 
 	if (ElementId != nullptr && IsValidElement(*ElementId))
 	{

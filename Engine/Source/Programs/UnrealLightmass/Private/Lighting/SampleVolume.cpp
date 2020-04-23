@@ -12,7 +12,7 @@ namespace Lightmass
 
 typedef FVolumeSampleInterpolationElement FVolumeSampleProximityElement;
 
-typedef TOctree2<FVolumeSampleProximityElement,struct FVolumeLightingProximityOctreeSemantics> FVolumeLightingProximityOctree;
+typedef TOctree<FVolumeSampleProximityElement,struct FVolumeLightingProximityOctreeSemantics> FVolumeLightingProximityOctree;
 
 struct FVolumeLightingProximityOctreeSemantics
 {
