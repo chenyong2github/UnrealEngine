@@ -337,6 +337,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
 	static void SetSubOuputFolder(const TArray<UObject*>& SelectedObjects, const FString& SubFolderName);
 
+	/**
+	 * Add all Actors to a given layer.
+	 * @param SelectedObjects:	Objects to consider
+	 * @param LayerName:	Name of the sub-folder
+	 * @note - This operation only applies on assets
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void AddToLayer(const TArray<UObject*>& SelectedObjects, const FName& LayerName);
+
 private:
 	static void SubstituteMaterial(const TArray<UObject*>& SelectedObjects, const FString& MaterialSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UMaterialInterface*>& MaterialList, UMaterialInterface* MaterialSubstitute);
 	static void SubstituteMesh(const TArray<UObject*>& SelectedObjects, const FString& MeshSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UStaticMesh*>& MeshList, UStaticMesh* MeshSubstitute);
