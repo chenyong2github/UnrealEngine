@@ -5,6 +5,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "MoviePipelineConsoleVariableSetting.generated.h"
 
 UCLASS(BlueprintType)
@@ -73,8 +74,7 @@ protected:
 			for (const FString& Command : StartConsoleCommands)
 			{
 				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Executing Console Command \"%s\" before shot starts."), *Command);
-
-				GetWorld()->Exec(GetWorld(), *Command);
+				UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), Command, nullptr);
 			}
 		}
 		else
@@ -82,9 +82,7 @@ protected:
 			for (const FString& Command : EndConsoleCommands)
 			{
 				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Executing Console Command \"%s\" after shot ends."), *Command);
-
-				GetWorld()->Exec(GetWorld(), 
-					*Command);
+				UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), Command, nullptr);
 			}
 		}
 		
