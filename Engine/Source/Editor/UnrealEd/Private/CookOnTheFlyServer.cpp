@@ -8237,31 +8237,63 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 
 bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, TArray<FName>& OutPackageFilenames ) const
 {
+	SCOPE_TIMER(GetAllPackageFilenamesFromAssetRegistry);
 	FArrayReader SerializedAssetData;
 	if (FFileHelper::LoadFileToArray(SerializedAssetData, *AssetRegistryPath))
 	{
 		FAssetRegistryState TempState;
-		FAssetRegistrySerializationOptions LoadOptions;
-		LoadOptions.bSerializeDependencies = false;
-		LoadOptions.bSerializePackageData = false;
-
-		TempState.Serialize(SerializedAssetData, LoadOptions);
+		TempState.Serialize(SerializedAssetData, FAssetRegistrySerializationOptions());
 
 		const TMap<FName, const FAssetData*>& RegistryDataMap = TempState.GetObjectPathToAssetDataMap();
 
+		check(OutPackageFilenames.Num() == 0);
+		OutPackageFilenames.SetNum(RegistryDataMap.Num());
+
+		TArray<FName> PackageNames;
+		PackageNames.Reserve(RegistryDataMap.Num());
+
 		for (const TPair<FName, const FAssetData*>& RegistryData : RegistryDataMap)
 		{
-			const FAssetData* NewAssetData = RegistryData.Value;
-			FName CachedPackageFileFName = PackageNameCache->GetCachedStandardPackageFileFName(NewAssetData->ObjectPath);
-			if (CachedPackageFileFName != NAME_None)
+			int32 AddedIndex = PackageNames.Add(RegistryData.Value->ObjectPath);
+			if (PackageNameCache->Contains(PackageNames.Last()))
 			{
-				OutPackageFilenames.Add(CachedPackageFileFName);
-			}
-			else
-			{
-				UE_LOG(LogCook, Warning, TEXT("Could not resolve package %s from %s"), *NewAssetData->ObjectPath.ToString(), *AssetRegistryPath);
+				OutPackageFilenames[AddedIndex] = PackageNameCache->GetCachedStandardPackageFileFName(PackageNames.Last());
 			}
 		}
+
+		TArray<TTuple<FName, FString, FString>> PackageToStandardFileNames;
+		PackageToStandardFileNames.SetNum(RegistryDataMap.Num());
+
+		ParallelFor(PackageNames.Num(), [&AssetRegistryPath, &OutPackageFilenames, &PackageToStandardFileNames, &PackageNames, this](int32 AssetIndex)
+			{
+				if (!OutPackageFilenames[AssetIndex].IsNone())
+				{
+					return;
+				}
+
+				const FName PackageName = PackageNames[AssetIndex];
+
+				FString PackageFilename;
+				FString StandardFilename;
+				FName StandardFileFName;
+				if (!PackageNameCache->CalculateCacheData(PackageName, PackageFilename, StandardFilename, StandardFileFName))
+				{
+					UE_LOG(LogCook, Warning, TEXT("Could not resolve package %s from %s"), *PackageName.ToString(), *AssetRegistryPath);
+				}
+
+				OutPackageFilenames[AssetIndex] = StandardFileFName;
+				PackageToStandardFileNames[AssetIndex] = { PackageName, MoveTemp(PackageFilename), MoveTemp(StandardFilename) };
+			});
+
+		for (int32 Idx = OutPackageFilenames.Num() - 1; Idx >= 0; --Idx)
+		{
+			if (OutPackageFilenames[Idx] == NAME_None)
+			{
+				OutPackageFilenames.RemoveAtSwap(Idx);
+			}
+		}
+
+		PackageNameCache->AppendCacheResults(MoveTemp(PackageToStandardFileNames));
 		return true;
 	}
 
