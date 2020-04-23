@@ -4,6 +4,8 @@ from subprocess import Popen
 from . import logger
 import copy
 import os
+import argparse
+from .error import *
 
 DEFAULT_FPS = 20
 
@@ -67,19 +69,17 @@ class UE4Params(object):
 
     @classmethod
     def from_args(cls, args):
-        import argparse
-        assert type(args) == argparse.Namespace
         params = cls()
-        params.rendering(args.norendering == 0)
-        params.single_thread(args.nothreads == 1)
-        params.sound(args.nosound == 0)
-        params.resolution(args.resx, args.resy)
+        if args is not None:
+            params.rendering(not hasattr(args, 'norendering') or args.norendering == 0)
+            params.single_thread(hasattr(args, 'nothreads') and args.nothreads == 1)
+            params.sound(not hasattr(args, 'nosound') or args.nosound == 0)
+            if hasattr(args, 'resx') and hasattr(args, 'resy'): 
+                params.resolution(args.resx, args.resy)
         return params
 
     def set_default_map_name(self, name):
-        """ Sets self.map_name only if it hasn't been set as part of constructor's execution """
-        if len(self.map_name) == 0:
-            self.map_name = name
+        self.map_name = name
 
     def resolution(self, x, y):
         self.__params['resx'] = x
@@ -109,7 +109,7 @@ class UE4Params(object):
     def set_enable_option(self, option, enabled):
         if enabled:
             if option not in self.__options:
-                self.add_option(option)
+                self.__options.append(option)
         elif option in self.__options:
             self.__options.remove(option)
             
@@ -117,11 +117,14 @@ class UE4Params(object):
         if type(options) is not list:
             options = [options]
         for o in options:
-            if o not in self.__options:
-                self.__options.append(o)
+            self.set_enable_option(o, True)
 
     def add_param(self, param, value):
         self.__params[param] = value
+
+    def remove_param(self, param):
+        if param in self.__params:
+            del self.__params[param]
         
     def copy(self):
         return copy.deepcopy(self)
@@ -137,11 +140,11 @@ class UE4Runner:
         logger.info('Launching UE4 instance with commandline:\n\t {}'.format(commandline))
         try:
             return Popen(commandline)
-        except FileNotFoundError:
+        except (FileNotFoundError, OSError):
             logger.error('Failed to launch the executable. Please verify the executable\'s path')
-            return None
+            raise FailedToLaunch
 
     @staticmethod
-    def stop(engine_subprocess):
+    def stop(engine_subprocess: Popen):
         if engine_subprocess is not None:
             engine_subprocess.terminate()

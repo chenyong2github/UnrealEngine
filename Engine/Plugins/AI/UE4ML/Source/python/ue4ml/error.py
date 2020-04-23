@@ -3,7 +3,11 @@
 from gym.error import Error
 
 
-class MissingBinary(Error):
+class UE4MLError(Exception):
+    pass
+
+
+class FailedToLaunch(UE4MLError):
     """Raised when the we fail to launch the executable, usually due to wrong executable directory or file being used.
     """
     pass

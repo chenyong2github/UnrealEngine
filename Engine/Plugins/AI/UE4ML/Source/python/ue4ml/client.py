@@ -30,14 +30,14 @@ class Client(msgpackrpc.Client):
             except TransportError:
                 self._restart()
 
-    def add_function(self, function_name):
+    def _add_function(self, function_name):
         self.__dict__[function_name] = lambda *args: self.call(function_name, *args)
 
     def add_functions(self):
         self.wait()
         function_list = self.call('list_functions')
         for fname in map(lambda x: x.decode('utf-8'), function_list):
-            self.add_function(fname)            
+            self._add_function(fname)            
         logger.debug('Funtions bound: {}'.format(function_list))
 
     @staticmethod

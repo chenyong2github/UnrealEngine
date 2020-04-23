@@ -10,7 +10,7 @@ from . import spaces
 from .client import Client
 from .runner import UE4Runner
 from .utils import LOCALHOST, DEFAULT_PORT
-from .error import MissingBinary
+from .error import FailedToLaunch
 
 INVALID_ID = 4294967295  # uint32(-1)
 
@@ -60,6 +60,7 @@ class UnrealEnv(gym.Env):
             agent_config = self.__class__.default_agent_config()
 
         self.__agent_config = agent_config
+        logger.info('attempting connection at at port {}:{}'.format(server_address, server_port))
         self.__rpc_client = Client(server_address, server_port, timeout)
         server_port = self.__rpc_client.address.port
         self._debug_id = server_port
@@ -68,12 +69,13 @@ class UnrealEnv(gym.Env):
 
         self.__engine_process = None
         if ue4params is not None:
-            self.__engine_process = UE4Runner.run(self._project_name, ue4params, server_port)
-            if self.__engine_process is None:
+            try:
+                self.__engine_process = UE4Runner.run(self._project_name, ue4params, server_port)
+            except FailedToLaunch:
                 # failed to launch the engine
                 self.__rpc_client.close()
                 self.__rpc_client = None
-                raise MissingBinary
+                raise
 
         if await_connection:
             # if this takes too long it's possible there's a dangling server instance that failed to shutdown (i.e. it's
@@ -133,7 +135,6 @@ class UnrealEnv(gym.Env):
         return gym.spaces.unflatten(self.observation_space, raw_obs)
 
     def _tick_world(self):
-        self.__rpc_client.request_world_tick(self._frames_step, True)
         self.__rpc_client.request_world_tick(self._frames_step, True)
 
     def reset(self, wait_action=None, skip_time=1):

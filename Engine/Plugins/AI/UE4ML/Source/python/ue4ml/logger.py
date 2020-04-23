@@ -22,3 +22,6 @@ def warn(msg, *args):
 
 def error(msg, *args):
     logger.error('ue4ml: ' + msg, *args)
+
+def get_level():
+    return logger.MIN_LEVEL
