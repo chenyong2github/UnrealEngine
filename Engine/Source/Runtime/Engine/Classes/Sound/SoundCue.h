@@ -7,6 +7,7 @@
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundNode.h"
+#include "Sound/SoundWave.h"
 
 #if WITH_EDITOR
 #include "EdGraph/EdGraph.h"
@@ -263,6 +264,9 @@ public:
 	/** Call this when stream caching is enabled to retain all soundwave assets referenced by this sound cue. */
 	void RetainSoundCue();
 	void ReleaseRetainedAudio();
+
+	/** Call this when stream caching is enabled to update sound waves of loading behavior they are inheriting via SoundCue */
+	void CacheLoadingBehavior(ESoundWaveLoadingBehavior InBehavior);
 
 protected:
 	bool RecursiveFindPathToNode(USoundNode* CurrentNode, const UPTRINT CurrentHash, const UPTRINT NodeHashToFind, TArray<USoundNode*>& OutPath) const;

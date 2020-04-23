@@ -127,6 +127,7 @@ private:
 
 		// Note the loading behavior of the sound wave that inserted this element into the cache
 		ESoundWaveLoadingBehavior LoadingBehavior;
+		bool bLoadingBehaviorExternallyOverriden;
 
 		// if true, 
 		bool bWasCacheMiss;
