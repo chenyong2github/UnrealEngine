@@ -498,8 +498,8 @@ namespace Audio
 			}
 		}
 
-		check(!MixerSourceBuffer.IsValid());
-		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
+		check(!MixerSourceBuffer.IsValid());		
+		MixerSourceBuffer = FMixerSourceBuffer::Create(AudioDevice->GetSampleRate(), *MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
 		
 		if (!MixerSourceBuffer.IsValid())
 		{
