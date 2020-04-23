@@ -416,6 +416,7 @@
 	
 	<!-- Mac -->
 	<Property Name="CopyMacFilter">
+		Engine/Binaries/Mac/BootstrapPackagedGame.app/...
 	</Property>
 	<Property Name="CopyMacExceptions">
 	</Property>
