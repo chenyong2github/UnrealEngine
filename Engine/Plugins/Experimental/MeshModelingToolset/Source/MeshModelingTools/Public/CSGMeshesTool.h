@@ -62,6 +62,10 @@ public:
 	/** Automatically attempt to fill any holes left by CSG (e.g. due to numerical errors) */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAttemptFixHoles = false;
+
+	/** If true, only the first mesh will keep its materials assignments; all other triangles will be assigned material 0 */
+	UPROPERTY(EditAnywhere, Category = Materials)
+	bool bOnlyUseFirstMeshMaterials = false;
 };
 
 
@@ -128,6 +132,7 @@ protected:
 	IToolsContextAssetAPI* AssetAPI;
 
 	void SetupPreview();
+	void ConfigurePreviewMaterials();
 	void SetTransformGizmos();
 	void UpdateGizmoVisibility();
 
