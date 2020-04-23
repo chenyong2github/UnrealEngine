@@ -378,6 +378,10 @@ public:
 	/** Attempts to remove the specified path to the set of cached paths. This will only succeed if there are no assets left in the specified path. */
 	virtual bool RemovePath(const FString& PathToRemove) = 0;
 
+	/** Queries whether the given path exists in the set of cached paths */
+	virtual bool PathExists(const FString& PathToTest) const = 0;
+	virtual bool PathExists(const FName PathToTest) const = 0;
+
 	/** Scan the supplied paths recursively right now and populate the asset registry. If bForceRescan is true, the paths will be scanned again, even if they were previously scanned */
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
 	virtual void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan = false) = 0;
