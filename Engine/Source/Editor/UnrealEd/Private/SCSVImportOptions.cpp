@@ -27,6 +27,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 	ImportTypes.Add(MakeShareable(new ECSVImportType(ECSVImportType::ECSV_CurveTable)));
 	ImportTypes.Add(MakeShareable(new ECSVImportType(ECSVImportType::ECSV_CurveFloat)));
 	ImportTypes.Add(MakeShareable(new ECSVImportType(ECSVImportType::ECSV_CurveVector)));
+	ImportTypes.Add(MakeShareable(new ECSVImportType(ECSVImportType::ECSV_CurveLinearColor)));
 
 	// Create properties view
 	FPropertyEditorModule & EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -154,7 +155,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 					PropertyView.ToSharedRef()
 				]
 			]
-			// Ok/Cancel
+			// Apply/Apply to All/Cancel
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -164,8 +165,17 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 				.Padding(2)
 				[
 					SNew(SButton)
-					.Text(LOCTEXT("OK", "OK"))
+					.Text(LOCTEXT("Import", "Apply"))
 					.OnClicked( this, &SCSVImportOptions::OnImport )
+					.IsEnabled( this, &SCSVImportOptions::CanImport )
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2)
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("ImportAll", "Apply to All"))
+					.OnClicked( this, &SCSVImportOptions::OnImportAll )
 					.IsEnabled( this, &SCSVImportOptions::CanImport )
 				]
 				+SHorizontalBox::Slot()
@@ -197,7 +207,12 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 	/** If we should import */
 bool SCSVImportOptions::ShouldImport()
 {
-	return ((SelectedStruct != nullptr) || GetSelectedImportType() != ECSVImportType::ECSV_DataTable) && bImport;
+	return ((SelectedStruct != nullptr) || GetSelectedImportType() != ECSVImportType::ECSV_DataTable) && (UserDlgResponse != ECSVImportOptionDlgResponse::Cancel);
+}
+
+bool SCSVImportOptions::ShouldImportAll()
+{
+	return UserDlgResponse == ECSVImportOptionDlgResponse::ImportAll;
 }
 
 /** Get the row struct we selected */
@@ -253,6 +268,10 @@ FString SCSVImportOptions::GetImportTypeText(TSharedPtr<ECSVImportType> Type) co
 	else if (*Type == ECSVImportType::ECSV_CurveVector)
 	{
 		EnumString = TEXT("Vector Curve");
+	}
+	else if (*Type == ECSVImportType::ECSV_CurveLinearColor)
+	{
+		EnumString = TEXT("Linear Color Curve");
 	}
 	return EnumString;
 }
@@ -312,17 +331,8 @@ TSharedRef<SWidget> SCSVImportOptions::MakeCurveTypeWidget(CurveInterpModePtr In
 /** Called when 'OK' button is pressed */
 FReply SCSVImportOptions::OnImport()
 {
-	SelectedImportType = *ImportTypeCombo->GetSelectedItem();
-	if (CurveInterpCombo->GetSelectedItem().IsValid())
-	{
-		SelectedCurveInterpMode = *CurveInterpCombo->GetSelectedItem();
-	}
-	bImport = true;
-	if (WidgetWindow.IsValid())
-	{
-		WidgetWindow.Pin()->RequestDestroyWindow();
-	}
-	return FReply::Handled();
+	UserDlgResponse = ECSVImportOptionDlgResponse::Import;
+	return HandleImport();
 }
 
 bool SCSVImportOptions::CanImport() const
@@ -349,7 +359,7 @@ bool SCSVImportOptions::CanImport() const
 /** Called when 'Cancel' button is pressed */
 FReply SCSVImportOptions::OnCancel()
 {
-	bImport = false;
+	UserDlgResponse = ECSVImportOptionDlgResponse::Cancel;
 	if (WidgetWindow.IsValid())
 	{
 		WidgetWindow.Pin()->RequestDestroyWindow();
@@ -372,6 +382,26 @@ FText SCSVImportOptions::GetSelectedCurveTypeText() const
 	return (CurveModePtr.IsValid())
 		? FText::FromString(GetCurveTypeText(CurveModePtr))
 		: FText::GetEmpty();
+}
+
+FReply SCSVImportOptions::HandleImport()
+{
+	SelectedImportType = *ImportTypeCombo->GetSelectedItem();
+	if (CurveInterpCombo->GetSelectedItem().IsValid())
+	{
+		SelectedCurveInterpMode = *CurveInterpCombo->GetSelectedItem();
+	}
+	if (WidgetWindow.IsValid())
+	{
+		WidgetWindow.Pin()->RequestDestroyWindow();
+	}
+	return FReply::Handled();
+}
+
+FReply SCSVImportOptions::OnImportAll()
+{
+	UserDlgResponse = ECSVImportOptionDlgResponse::ImportAll;
+	return HandleImport();
 }
 
 #undef LOCTEXT_NAMESPACE
