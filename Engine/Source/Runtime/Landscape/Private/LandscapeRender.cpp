@@ -3635,9 +3635,9 @@ public:
 	{
 	}
 
-	void GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const override
+	void GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FMaterialShaderMapId& OutId) const override
 	{
-		FMaterialResource::GetShaderMapId(Platform, OutId);
+		FMaterialResource::GetShaderMapId(Platform, TargetPlatform, OutId);
 
 #if WITH_EDITOR
 		if (bIsLayerThumbnail || bDisableTessellation)

@@ -234,7 +234,7 @@ public:
 		const FMaterialResource* Resource = InMaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel);
 
 		FMaterialShaderMapId ResourceId;
-		Resource->GetShaderMapId(GMaxRHIShaderPlatform, ResourceId);
+		Resource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ResourceId);
 
 		// Our Id must be the same as BaseMaterialId for the shader compiler
 		// to be able to set back GameThreadShaderMap after async compilation.
