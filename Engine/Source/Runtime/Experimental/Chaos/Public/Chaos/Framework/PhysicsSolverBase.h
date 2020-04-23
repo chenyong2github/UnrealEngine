@@ -9,8 +9,15 @@
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Async/ParallelFor.h"
 
+class FChaosSolversModule;
+class FPhysicsSolverAdvanceTask;
+
 namespace Chaos
 {
+	class FPersistentPhysicsTask;
+
+	enum class ELockType: uint8;
+
 	struct FDirtyProxy
 	{
 		IPhysicsProxyBase* Proxy;
@@ -178,6 +185,9 @@ namespace Chaos
 
 		void ChangeBufferMode(EMultiBufferMode InBufferMode);
 
+		TQueue<TFunction<void()>,EQueueMode::Mpsc>& GetCommandQueue() { return CommandQueue; }
+		bool HasPendingCommands() const { return !CommandQueue.IsEmpty(); }
+
 		void AddDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
 			DirtyProxiesDataBuffer.AccessProducerBuffer()->Add(ProxyBaseIn);
@@ -253,6 +263,12 @@ namespace Chaos
 		FName DebugName;
 #endif
 
+	//
+	// Commands
+	//
+	TQueue<TFunction<void()>,EQueueMode::Mpsc> CommandQueue;
+
+
 	private:
 
 		/** 
@@ -262,5 +278,13 @@ namespace Chaos
 		 * @see FChaosSolversModule::CreateSolver
 		 */
 		const UObject* Owner = nullptr;
+		FRWLock QueryMaterialLock;
+
+		friend FChaosSolversModule;
+		friend FPersistentPhysicsTask;
+		friend FPhysicsSolverAdvanceTask;
+
+		template<ELockType>
+		friend struct TSolverQueryMaterialScope;
 	};
 }

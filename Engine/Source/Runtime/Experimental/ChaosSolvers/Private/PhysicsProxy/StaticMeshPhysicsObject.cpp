@@ -10,6 +10,10 @@
 #include "Chaos/Serializable.h"
 #include "ChaosStats.h"
 
+#ifndef ADD_TRAITS_TO_STATIC_MESH_PROXY
+#define ADD_TRAITS_TO_STATIC_MESH_PROXY 0
+#endif
+
 FStaticMeshPhysicsProxy::FStaticMeshPhysicsProxy(UObject* InOwner, FCallbackInitFunc InInitFunc, FSyncDynamicFunc InSyncFunc)
 	: Base(InOwner)
 	, bInitializedState(false)
@@ -325,6 +329,8 @@ void FStaticMeshPhysicsProxy::AddForceCallback(FParticlesType& InParticles, cons
 
 void FStaticMeshPhysicsProxy::OnRemoveFromScene()
 {
+	ensure(false);	//GetSolver needs a trait, but we don't know it - this class changing anyway
+#if ADD_TRAITS_TO_STATIC_MESH_PROXY
 	// Disable the particle we added
 	Chaos::FPhysicsSolver* CurrSolver = GetSolver();
 
@@ -342,6 +348,7 @@ void FStaticMeshPhysicsProxy::OnRemoveFromScene()
 		CurrSolver->GetRigidClustering().GetTopLevelClusterParents().Remove(RigidBodyId);
 #endif
 	}
+#endif
 }
 
 void FStaticMeshPhysicsProxy::BufferPhysicsResults()

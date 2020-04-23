@@ -18,6 +18,7 @@
 #include "Framework/Threading.h"
 #include "Chaos/Core.h"
 #include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -37,7 +38,6 @@ struct FSolverStateStorage;
 
 class FSkeletalMeshPhysicsProxy;
 class FStaticMeshPhysicsProxy;
-class FGeometryCollectionPhysicsProxy;
 class FFieldSystemPhysicsProxy;
 
 class IPhysicsProxyBase;
