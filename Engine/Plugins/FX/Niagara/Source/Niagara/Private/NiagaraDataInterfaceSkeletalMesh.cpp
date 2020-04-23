@@ -1506,6 +1506,12 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	}
 #endif
 
+	// Get the first LOD level we can guarantee to be in memory
+	//-TODO: Support skeletal mesh streaming
+	const FSkeletalMeshRenderData* SkelMeshRenderData = Mesh->GetResourceForRendering();
+	check(SkelMeshRenderData != nullptr);
+	const int32 FirstInlineLODLevel = SkelMeshRenderData->LODRenderData.Num() - SkelMeshRenderData->NumInlinedLODs;
+
 	//Setup where to spawn from
 	SamplingRegionIndices.Empty();
 	bool bAllRegionsAreAreaWeighting = true;
@@ -1525,7 +1531,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		}
 		else
 		{
-			LODIndex = FMath::Clamp(LODIndex, 0, Mesh->GetLODNum() - 1);
+			LODIndex = FMath::Clamp(LODIndex, FirstInlineLODLevel, Mesh->GetLODNum() - 1);
 		}
 	}
 	else
@@ -1552,6 +1558,17 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				if (LODIndex == INDEX_NONE)
 				{
 					LODIndex = RegionLODIndex;
+				}
+
+				// Ensure we aren't using a region from a streaming / culled LOD level
+				if (LODIndex < FirstInlineLODLevel)
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to use regions on LODs levels that are either streamed or cooked out. This is currently unsupported.\nInterface: %s\nMesh: %s\nRegion: %s"),
+						*Interface->GetFullName(),
+						*Mesh->GetFullName(),
+						*RegionName.ToString());
+
+					return false;
 				}
 
 				//ensure we don't try to use two regions from different LODs.
