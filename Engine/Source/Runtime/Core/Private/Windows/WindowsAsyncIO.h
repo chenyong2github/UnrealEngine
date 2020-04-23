@@ -341,9 +341,14 @@ public:
 		Size = InFileSize;
 		SetComplete();
 	}
+
 	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
 	{
+		// Even though SetComplete called in the constructor and sets bCompleteAndCallbackCalled=true, we still need to implement WaitComplete as
+		// the CompleteCallback can end up starting async tasks that can overtake the constructor execution and need to wait for the constructor to finish.
+		while (!bCompleteAndCallbackCalled);
 	}
+
 	virtual void CancelImpl()
 	{
 	}
@@ -357,9 +362,14 @@ public:
 	{
 		SetComplete();
 	}
+
 	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
 	{
+		// Even though SetComplete called in the constructor and sets bCompleteAndCallbackCalled=true, we still need to implement WaitComplete as
+		// the CompleteCallback can end up starting async tasks that can overtake the constructor execution and need to wait for the constructor to finish.
+		while (!bCompleteAndCallbackCalled);
 	}
+
 	virtual void CancelImpl()
 	{
 	}

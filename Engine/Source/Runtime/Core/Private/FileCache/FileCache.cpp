@@ -160,7 +160,7 @@ public:
 				{
 					// Requests are added to this list from the completed callback, but the final completion flag is not set until after callback is finished
 					// This means that there's a narrow window where the request is not technically considered to be complete yet
-					CompletedRequest->WaitCompletion();
+					verify(CompletedRequest->WaitCompletion());
 					delete CompletedRequest;
 				}
 			}, TStatId());
