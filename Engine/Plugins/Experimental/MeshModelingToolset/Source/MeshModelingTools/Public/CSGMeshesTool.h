@@ -9,6 +9,7 @@
 #include "Drawing/LineSetComponent.h"
 #include "MeshOpPreviewHelpers.h"
 #include "BaseTools/SingleClickTool.h"
+#include "Properties/OnAcceptProperties.h"
 
 #include "CompositionOps/BooleanMeshesOp.h"
 
@@ -30,18 +31,6 @@ public:
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-};
-
-
-/** Choice of behavior on accepting CSG */
-UENUM()
-enum class ECSGAcceptBehavior : uint8
-{
-	DeleteOriginals = 0			UMETA(DisplayName = "Delete Inputs"),
-
-	HideOriginals = 1			UMETA(DisplayName = "Hide Inputs"),
-
-	LeaveOriginalsUnchanged = 2	UMETA(DisplayName = "Keep Inputs")
 };
 
 
@@ -73,10 +62,6 @@ public:
 	/** Automatically attempt to fill any holes left by CSG (e.g. due to numerical errors) */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAttemptFixHoles = false;
-
-	/** What to do with the source Actors/Components when accepting results of tool.*/
-	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
-	ECSGAcceptBehavior OnToolAccept;
 };
 
 
@@ -122,6 +107,9 @@ protected:
 
 	UPROPERTY()
 	UCSGMeshesToolProperties* CSGProperties;
+
+	UPROPERTY()
+	UOnAcceptHandleSourcesProperties* HandleSourcesProperties;
 
 	UPROPERTY()
 	TArray<UTransformProxy*> TransformProxies;
