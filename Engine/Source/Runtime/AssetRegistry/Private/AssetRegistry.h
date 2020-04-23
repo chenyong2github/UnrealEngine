@@ -74,6 +74,8 @@ public:
 	virtual void PrioritizeAssetInstall(const FAssetData& AssetData) const override;
 	virtual bool AddPath(const FString& PathToAdd) override;
 	virtual bool RemovePath(const FString& PathToRemove) override;
+	virtual bool PathExists(const FString& PathToTest) const override;
+	virtual bool PathExists(const FName PathToTest) const override;
 	virtual void SearchAllAssets(bool bSynchronousSearch) override;
 	virtual void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan = false) override;
 	virtual void ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan = false) override;

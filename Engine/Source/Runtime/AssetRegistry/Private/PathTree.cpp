@@ -149,6 +149,31 @@ bool FPathTree::RemovePath(FName Path)
 	return true;
 }
 
+bool FPathTree::PathExists(FName Path) const
+{
+	if (Path.IsNone())
+	{
+		return false;
+	}
+
+	const TSet<FName>* ChildPathsPtr = ParentPathToChildPaths.Find(Path);
+	if (!ChildPathsPtr)
+	{
+		// Paths are cached without their trailing slash, so if the given path has a trailing slash, test it again now as it may already be cached
+		// We do this after the initial map test as: a) Most paths are well formed, b) This avoids string allocations until we know we need them
+		FString PathStr = Path.ToString();
+		if (PathStr[PathStr.Len() - 1] == '/')
+		{
+			PathStr.RemoveAt(PathStr.Len() - 1, 1, /*bAllowShrinking*/false);
+			Path = *PathStr;
+
+			ChildPathsPtr = ParentPathToChildPaths.Find(Path);
+		}
+	}
+
+	return ChildPathsPtr != nullptr;
+}
+
 bool FPathTree::GetAllPaths(TSet<FName>& OutPaths) const
 {
 	OutPaths.Reset();
