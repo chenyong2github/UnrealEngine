@@ -194,7 +194,14 @@ public class IOSPlatform : Platform
 	{
 		string TargetName = Path.GetFileNameWithoutExtension(InExecutablePath).Split("-".ToCharArray())[0];
 		FileReference TargetReceiptFileName;
-		TargetReceiptFileName = TargetReceipt.GetDefaultPath(InProjectDirectory, TargetName, UnrealTargetPlatform.IOS, Config, "");
+		if (bIsUE4Game)
+		{
+			TargetReceiptFileName = TargetReceipt.GetDefaultPath(InEngineDir, "UE4Game", UnrealTargetPlatform.IOS, Config, "");
+		}
+		else
+		{
+			TargetReceiptFileName = TargetReceipt.GetDefaultPath(InProjectDirectory, TargetName, UnrealTargetPlatform.IOS, Config, "");
+		}
 		return TargetReceiptFileName;
 	}
 
@@ -356,6 +363,13 @@ public class IOSPlatform : Platform
 				Directory.CreateDirectory(Path.GetDirectoryName(DestFilename));
 				InternalUtils.SafeCopyFile(Filename, DestFilename, true);
 			}
+		}
+
+		// Stage the user defined LaunchScreen if any.
+		string BuildGraphicsDirectory = Path.GetDirectoryName(Params.RawProjectPath.FullName) + "/Build/IOS/Resources/Graphics/";
+		if (File.Exists(BuildGraphicsDirectory + "LaunchScreenIOS.png"))
+		{
+			InternalUtils.SafeCopyFile(BuildGraphicsDirectory + "LaunchScreenIOS.png", SC.StageDirectory + "/LaunchScreenIOS.png");
 		}
 
 		IOSExports.GenerateAssetCatalog(Params.RawProjectPath, new FileReference(FullExePath), new DirectoryReference(CombinePaths(Params.BaseStageDirectory, (Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"))), Platform);
