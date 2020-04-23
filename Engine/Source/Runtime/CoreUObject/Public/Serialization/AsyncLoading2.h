@@ -171,7 +171,7 @@ public:
 
 	inline uint32 ToPackageImport() const
 	{
-		check(IsScriptImport());
+		check(IsPackageImport());
 		return TypeAndIndex & IndexMask;
 	}
 
