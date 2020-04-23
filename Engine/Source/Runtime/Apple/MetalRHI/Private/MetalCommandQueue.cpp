@@ -21,6 +21,7 @@ NSUInteger FMetalCommandQueue::PermittedOptions = 0;
 uint64 FMetalCommandQueue::Features = 0;
 extern mtlpp::VertexFormat GMetalFColorVertexFormat;
 bool GMetalCommandBufferDebuggingEnabled = 0;
+extern int32 GMetalForceIOSLockBlits;
 
 #pragma mark - Public C++ Boilerplate -
 
@@ -138,7 +139,11 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		if(Vers.majorVersion > 10 || (Vers.majorVersion == 10 && Vers.minorVersion >= 3))
         {
 			// Turning the below option on will allocate more buffer memory which isn't generally desirable on iOS
-			// Features |= EMetalFeaturesEfficientBufferBlits;
+			if(GMetalForceIOSLockBlits)
+			{
+				UE_LOG(LogMetal, Display, TEXT("Buffer updates will happen via Blit Commands instead of renaming."));
+				Features |= EMetalFeaturesEfficientBufferBlits;
+			}
 			
 			// These options are fine however as thye just change how we allocate small buffers
             Features |= EMetalFeaturesBufferSubAllocation;
