@@ -1032,9 +1032,14 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 	bWasLocked = true;
 	int32 RawDataSize = SoundWave->RawData.GetBulkDataSize();
 
-	// parse the wave data
-	if (!WaveInfo.ReadWaveHeader(RawWaveData, RawDataSize, 0))
+
+	if (!RawWaveData || RawDataSize == 0)
 	{
+		UE_LOG(LogAudioDerivedData, Warning, TEXT("LPCM data failed to load for sound %s"), *SoundWave->GetFullName());
+	}
+	else if (!WaveInfo.ReadWaveHeader(RawWaveData, RawDataSize, 0))
+	{
+		// If we failed to parse the wave header, it's either because of an invalid bitdepth or channel configuration.
 		UE_LOG(LogAudioDerivedData, Warning, TEXT("Only mono or stereo 16 bit waves allowed: %s (%d bytes)"), *SoundWave->GetFullName(), RawDataSize);
 	}
 	else
@@ -1629,7 +1634,7 @@ void USoundWave::WillNeverCacheCookedPlatformDataAgain()
 	Super::WillNeverCacheCookedPlatformDataAgain();
 
 	// TODO: We can clear these arrays if we never need to cook again.
-	RawData.RemoveBulkData();
+	RawData.UnloadBulkData();
 	CompressedFormatData.FlushData();
 }
 #endif
