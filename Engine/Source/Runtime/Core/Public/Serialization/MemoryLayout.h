@@ -94,6 +94,38 @@ struct FPlatformTypeLayoutParameters
 	 * This is mostly needed when fixing bugs related to writing memory images with certain parameter combinations
 	 */
 	CORE_API void AppendKeyString(FString& KeyString) const;
+
+	/**
+	 * This is used for serializing into/from the DDC
+	 */
+	void Serialize(FArchive& Ar)
+	{
+		// if you change this code, please bump MATERIALSHADERMAP_DERIVEDDATA_VER (see FMaterialShaderMap::Serialize)
+		// since this is a part of ShaderMapId
+		Ar << MaxFieldAlignment;
+		Ar << b32Bit;
+		Ar << bForce64BitMemoryImagePointers;
+		Ar << bAlignBases;
+		Ar << bWithEditorOnly;
+		Ar << bWithRayTracing;
+		Ar << bIsCurrentPlatform;
+	}
+
+	bool operator==(const FPlatformTypeLayoutParameters& ReferenceSet) const
+	{
+		return MaxFieldAlignment == ReferenceSet.MaxFieldAlignment &&
+			b32Bit == ReferenceSet.b32Bit &&
+			bForce64BitMemoryImagePointers == ReferenceSet.bForce64BitMemoryImagePointers &&
+			bAlignBases == ReferenceSet.bAlignBases &&
+			bWithEditorOnly == ReferenceSet.bWithEditorOnly &&
+			bWithRayTracing == ReferenceSet.bWithRayTracing &&
+			bIsCurrentPlatform == ReferenceSet.bIsCurrentPlatform;
+	}
+
+	bool operator!=(const FPlatformTypeLayoutParameters& ReferenceSet) const
+	{
+		return !(*this == ReferenceSet);
+	}
 };
 
 struct FMemoryToStringContext

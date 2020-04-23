@@ -263,9 +263,9 @@ void FMaterialResource::EndAllowCachingStaticParameterValues()
 }
 #endif // WITH_EDITOR
 
-void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
+void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FMaterialShaderMapId& OutId) const
 {
-	FMaterial::GetShaderMapId(Platform, OutId);
+	FMaterial::GetShaderMapId(Platform, TargetPlatform, OutId);
 #if WITH_EDITOR
 	Material->AppendReferencedFunctionIdsTo(OutId.ReferencedFunctions);
 	Material->AppendReferencedParameterCollectionIdsTo(OutId.ReferencedParameterCollections);
