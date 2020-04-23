@@ -67,6 +67,7 @@ class ENGINE_API UChannel
 	uint32				Broken:1;			// Has encountered errors and is ignoring subsequent packets.
 	uint32				bTornOff:1;			// Actor associated with this channel was torn off
 	uint32				bPendingDormancy:1;	// Channel wants to go dormant (it will check during tick if it can go dormant)
+	uint32				bIsInDormancyHysteresis:1; // Channel wants to go dormant, and is otherwise ready to become dormant, but is waiting for a timeout before doing so.
 	uint32				bPausedUntilReliableACK:1; // Unreliable property replication is paused until all reliables are ack'd.
 	uint32				SentClosingBunch:1;	// Set when sending closing bunch to avoid recursion in send-failure-close case.
 	uint32				bPooled:1;			// Set when placed in the actor channel pool

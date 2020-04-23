@@ -2866,6 +2866,58 @@ void UNetDriver::HandlePacketLossBurstCommand( int32 DurationInMilliseconds )
 #endif
 }
 
+#if !UE_BUILD_SHIPPING
+void HandleNetFlushAllDormancy(UNetDriver* InNetDriver, UWorld* InWorld)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetDriver_HandleNetFlushAllDormancy);
+
+	// TODO: Maybe prevent this from happening on Beacons or Demo Net Drivers?
+	if (InNetDriver && InWorld && InNetDriver->ServerConnection == nullptr)
+	{
+		const FNetworkObjectList& NetworkObjectList = InNetDriver->GetNetworkObjectList();
+		const int32 NumberOfActorsDormantOnAllConnections = NetworkObjectList.GetDormantObjectsOnAllConnections().Num();
+
+		TSet<AActor*> ActorsToReset;
+		ActorsToReset.Reserve(NumberOfActorsDormantOnAllConnections);
+
+		// Just iterate over all network objects here to make sure we get Actors that are Pending Dormancy.
+		for (const TSharedPtr<FNetworkObjectInfo>& NetworkObjectInfo : NetworkObjectList.GetAllObjects())
+		{
+			if (NetworkObjectInfo.IsValid())
+			{
+				if (AActor* Actor = NetworkObjectInfo->WeakActor.Get())
+				{
+					if (Actor->NetDormancy.GetValue() > (int32)DORM_Awake)
+					{
+						ActorsToReset.Add(Actor);
+					}
+				}
+			}
+		}
+
+		const double StartTime = FPlatformTime::Seconds();
+
+		for (AActor* Actor : ActorsToReset)
+		{
+			Actor->FlushNetDormancy();
+		}
+
+		const double TotalTime = FPlatformTime::Seconds() - StartTime;
+
+
+		float DormancyHysteresis = -1.f;
+		if (IConsoleVariable* CVarDormancyHysteresis = IConsoleManager::Get().FindConsoleVariable(TEXT("net.DormancyHysteresis")))
+		{
+			DormancyHysteresis = CVarDormancyHysteresis->GetFloat();
+		}
+
+		UE_LOG(LogNet, Warning, TEXT("HandleNetFlushAllDormancy: NumberOfActors: %d, NumberOfActorsDormantOnAllConnections: %d, TimeForFlush: %lf, DormancyHysteresis: %f"),
+			ActorsToReset.Num(), NumberOfActorsDormantOnAllConnections, TotalTime, DormancyHysteresis);
+	}
+}
+#endif
+
+
 bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 #if !UE_BUILD_SHIPPING
@@ -2911,6 +2963,11 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	else if (FParse::Value(Cmd, TEXT("PKTLOSSBURST="), PacketLossBurstMilliseconds))
 	{
 		HandlePacketLossBurstCommand(PacketLossBurstMilliseconds);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("FLUSHALLNETDORMANCY")))
+	{
+		HandleNetFlushAllDormancy(this, InWorld);
 		return true;
 	}
 	else
@@ -4492,20 +4549,24 @@ struct FScopedNetDriverStats
 		// Set GReplicateActorTimingEnabled for this frame. (This will determine if actor channels do cycle counting while replicating)
 		GReplicateActorTimingEnabled = ShouldEnableScopeSecondsTimers();
 		if (GReplicateActorTimingEnabled)
-	{
-		GReplicateActorTimeSeconds = 0;
-		GNumReplicateActorCalls = 0;
-		GNumSaturatedConnections = 0;
+		{
+			GReplicateActorTimeSeconds = 0;
+			GNumReplicateActorCalls = 0;
+			GNumSaturatedConnections = 0;
 
-		GReplicationGatherPrioritizeTimeSeconds = 0.f;
-		GServerReplicateActorTimeSeconds = 0.f;
+			GReplicationGatherPrioritizeTimeSeconds = 0.f;
+			GServerReplicateActorTimeSeconds = 0.f;
 
-		// Whatever these values currently are were (mostly) set by RPCs (technically something else could have force ReplicateActor to be called but this is rare).
-		SET_DWORD_STAT(STAT_SharedSerializationRPCHit, GNumSharedSerializationHit);
-		SET_DWORD_STAT(STAT_SharedSerializationRPCMiss, GNumSharedSerializationMiss);
+			// Whatever these values currently are were (mostly) set by RPCs (technically something else could have force ReplicateActor to be called but this is rare).
+			SET_DWORD_STAT(STAT_SharedSerializationRPCHit, GNumSharedSerializationHit);
+			SET_DWORD_STAT(STAT_SharedSerializationRPCMiss, GNumSharedSerializationMiss);
 
-		StartTime = FPlatformTime::Seconds();
-		StartOutBytes = GNetOutBytes;
+			const FNetworkObjectList& NetworkObjectList = NetDriver->GetNetworkObjectList();
+			CSV_CUSTOM_STAT(Replication, NumberOfActiveActors, NetworkObjectList.GetActiveObjects().Num(), ECsvCustomStatOp::Set);
+			CSV_CUSTOM_STAT(Replication, NumberOfFullyDormantActors, NetworkObjectList.GetDormantObjectsOnAllConnections().Num(), ECsvCustomStatOp::Set);
+
+			StartTime = FPlatformTime::Seconds();
+			StartOutBytes = GNetOutBytes;
 		}
 	}
 
@@ -4513,34 +4574,34 @@ struct FScopedNetDriverStats
 	{
 		if (GReplicateActorTimingEnabled)
 		{
-		const double TotalTime = FPlatformTime::Seconds() - StartTime;
+			const double TotalTime = FPlatformTime::Seconds() - StartTime;
 
-		GServerReplicateActorTimeSeconds = TotalTime;
-		GReplicationGatherPrioritizeTimeSeconds = TotalTime - GReplicateActorTimeSeconds;
+			GServerReplicateActorTimeSeconds = TotalTime;
+			GReplicationGatherPrioritizeTimeSeconds = TotalTime - GReplicateActorTimeSeconds;
 
-		uint32 FrameOutBytes = GNetOutBytes - StartOutBytes;
+			uint32 FrameOutBytes = GNetOutBytes - StartOutBytes;
 
-		SET_FLOAT_STAT(STAT_NetServerGatherPrioritizeRepActorsTime, GReplicationGatherPrioritizeTimeSeconds * 1000.0);
-		SET_DWORD_STAT(STAT_NumReplicatedActors, GNumReplicateActorCalls);
-		SET_DWORD_STAT(STAT_NumSaturatedConnections, GNumSaturatedConnections);
+			SET_FLOAT_STAT(STAT_NetServerGatherPrioritizeRepActorsTime, GReplicationGatherPrioritizeTimeSeconds * 1000.0);
+			SET_DWORD_STAT(STAT_NumReplicatedActors, GNumReplicateActorCalls);
+			SET_DWORD_STAT(STAT_NumSaturatedConnections, GNumSaturatedConnections);
 
-		CSV_CUSTOM_STAT(Replication, ServerReplicateActorTimeMS, (float)(GServerReplicateActorTimeSeconds * 1000.0), ECsvCustomStatOp::Set );
-		CSV_CUSTOM_STAT(Replication, GatherPrioritizeTimeMS, (float)(GReplicationGatherPrioritizeTimeSeconds * 1000.0), ECsvCustomStatOp::Set );
-		CSV_CUSTOM_STAT(Replication, ReplicateActorTimeMS, (float)(GReplicateActorTimeSeconds * 1000.0), ECsvCustomStatOp::Set );
-		CSV_CUSTOM_STAT(Replication, NumReplicateActorCallsPerConAvg, ((float)GNumReplicateActorCalls)/(float)GNumClientConnections, ECsvCustomStatOp::Set );
-		CSV_CUSTOM_STAT(Replication, Connections, (float)GNumClientConnections, ECsvCustomStatOp::Set );
-		CSV_CUSTOM_STAT(Replication, SatConnections, (float)GNumSaturatedConnections, ECsvCustomStatOp::Set );
+			CSV_CUSTOM_STAT(Replication, ServerReplicateActorTimeMS, (float)(GServerReplicateActorTimeSeconds * 1000.0), ECsvCustomStatOp::Set );
+			CSV_CUSTOM_STAT(Replication, GatherPrioritizeTimeMS, (float)(GReplicationGatherPrioritizeTimeSeconds * 1000.0), ECsvCustomStatOp::Set );
+			CSV_CUSTOM_STAT(Replication, ReplicateActorTimeMS, (float)(GReplicateActorTimeSeconds * 1000.0), ECsvCustomStatOp::Set );
+			CSV_CUSTOM_STAT(Replication, NumReplicateActorCallsPerConAvg, ((float)GNumReplicateActorCalls)/(float)GNumClientConnections, ECsvCustomStatOp::Set );
+			CSV_CUSTOM_STAT(Replication, Connections, (float)GNumClientConnections, ECsvCustomStatOp::Set );
+			CSV_CUSTOM_STAT(Replication, SatConnections, (float)GNumSaturatedConnections, ECsvCustomStatOp::Set );
 			CSV_CUSTOM_STAT(Replication, OutKBytes, ((float)FrameOutBytes) / 1024.f, ECsvCustomStatOp::Set );
 			CSV_CUSTOM_STAT(Replication, OutNetGUIDKBytesSec, ((float)NetDriver->NetGUIDOutBytes / 1024.f), ECsvCustomStatOp::Set );
 			CSV_CUSTOM_STAT(Replication, NumClientUpdateLevelVisibility, ((float)GNumClientUpdateLevelVisibility), ECsvCustomStatOp::Set );
 				
 
-		SET_DWORD_STAT(STAT_SharedSerializationPropertyHit, GNumSharedSerializationHit);
-		SET_DWORD_STAT(STAT_SharedSerializationPropertyMiss, GNumSharedSerializationMiss);
+			SET_DWORD_STAT(STAT_SharedSerializationPropertyHit, GNumSharedSerializationHit);
+			SET_DWORD_STAT(STAT_SharedSerializationPropertyMiss, GNumSharedSerializationMiss);
 
-		// Note: we want to reset this at the end of the frame since the RPC stats are incremented at the top (recv)
-		GNumSharedSerializationHit = 0;
-		GNumSharedSerializationMiss = 0;
+			// Note: we want to reset this at the end of the frame since the RPC stats are incremented at the top (recv)
+			GNumSharedSerializationHit = 0;
+			GNumSharedSerializationMiss = 0;
 			GNumClientUpdateLevelVisibility = 0;
 		}
 	}

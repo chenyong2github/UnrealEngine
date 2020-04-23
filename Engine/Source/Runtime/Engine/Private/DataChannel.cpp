@@ -86,6 +86,13 @@ static FAutoConsoleVariableRef CVarNetMaxConstructedPartialBunchSizeBytes(
 	TEXT("The maximum size allowed for Partial Bunches.")
 );
 
+static float DormancyHysteresis = 0;
+static FAutoConsoleVariableRef CVarDormancyHysteresis(
+	TEXT("net.DormancyHysteresis"),
+	DormancyHysteresis,
+	TEXT("When > 0, represents the time we'll wait before letting a channel become fully dormant (in seconds). This can prevent churn when objects are going in and out of dormant more frequently than normal.")
+);
+
 template<typename T>
 static const bool IsBunchTooLarge(UNetConnection* Connection, T* Bunch)
 {
@@ -1354,6 +1361,7 @@ void UChannel::AddedToChannelPool()
 	Broken = false;
 	bTornOff = false;
 	bPendingDormancy = false;
+	bIsInDormancyHysteresis = false;
 	bPausedUntilReliableACK = false;
 	SentClosingBunch = false;
 	bOpenedForCheckpoint = false;
@@ -2945,6 +2953,11 @@ int64 UActorChannel::ReplicateActor()
 		GNumReplicateActorCalls++;
 	}
 
+	if (bIsInDormancyHysteresis)
+	{
+		return 0;
+	}
+
 	// triggering replication of an Actor while already in the middle of replication can result in invalid data being sent and is therefore illegal
 	if (bIsReplicatingActor)
 	{
@@ -2953,15 +2966,17 @@ int64 UActorChannel::ReplicateActor()
 		ensureMsgf(false, TEXT("%s"), *Error);
 		return 0;
 	}
-	else if (bActorIsPendingKill)
+
+	if (bActorIsPendingKill)
 	{
 		// Don't need to do anything, because it should have already been logged.
 		return 0;
 	}
+
 	// If our Actor is PendingKill, that's bad. It means that somehow it wasn't properly removed
 	// from the NetDriver or ReplicationDriver.
 	// TODO: Maybe notify the NetDriver / RepDriver about this, and have the channel close?
-	else if (Actor->IsPendingKillOrUnreachable())
+	if (Actor->IsPendingKillOrUnreachable())
 	{
 		bActorIsPendingKill = true;
 		ActorReplicator.Reset();
@@ -2970,7 +2985,8 @@ int64 UActorChannel::ReplicateActor()
 		ensureMsgf(false, TEXT("%s"), *Error);
 		return 0;
 	}
-	else if (bPausedUntilReliableACK)
+
+	if (bPausedUntilReliableACK)
 	{
 		if (NumOutRec > 0)
 		{
@@ -3347,6 +3363,7 @@ void UActorChannel::BecomeDormant()
 {
 	UE_LOG(LogNetDormancy, Verbose, TEXT("BecomeDormant: %s"), *Describe() );
 	bPendingDormancy = false;
+	bIsInDormancyHysteresis = false;
 	Dormant = true;
 	// Replays do not close dormant channels currently, so just mark the channel dormant directly.
 	if (Connection && Connection->IsInternalAck())
@@ -3361,13 +3378,29 @@ void UActorChannel::BecomeDormant()
 
 bool UActorChannel::ReadyForDormancy(bool suppressLogs)
 {
-	for (auto MapIt = ReplicationMap.CreateIterator(); MapIt; ++MapIt)
+	// We need to keep replicating the Actor and its subobjects until none of them have
+	// changes, and would otherwise go Dormant normally.
+	if (!bIsInDormancyHysteresis)
 	{
-		if (!MapIt.Value()->ReadyForDormancy(suppressLogs))
+		for (auto MapIt = ReplicationMap.CreateIterator(); MapIt; ++MapIt)
+		{
+			if (!MapIt.Value()->ReadyForDormancy(suppressLogs))
+			{
+				return false;
+			}
+		}
+	}
+
+	if (DormancyHysteresis > 0 && Connection && Connection->Driver)
+	{
+		bIsInDormancyHysteresis = true;
+		const double TimePassed = Connection->Driver->Time - LastUpdateTime;
+		if (TimePassed < DormancyHysteresis)
 		{
 			return false;
 		}
 	}
+
 	return true;
 }
 
@@ -3384,7 +3417,8 @@ void UActorChannel::StartBecomingDormant()
 	{
 		MapIt.Value()->StartBecomingDormant();
 	}
-	bPendingDormancy = 1;
+	bPendingDormancy = true;
+	bIsInDormancyHysteresis = false;
 	Connection->StartTickingChannel(this);
 }
 

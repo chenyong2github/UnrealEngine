@@ -3380,6 +3380,8 @@ void UNetConnection::Tick()
 		// We should never need more ticking channels than open channels
 		checkf(ChannelsToTick.Num() <= OpenChannels.Num(), TEXT("More ticking channels (%d) than open channels (%d) for net connection!"), ChannelsToTick.Num(), OpenChannels.Num())
 
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_NetConnection_TickChannels);
+
 		// Tick the channels.
 		if (CVarTickAllOpenChannels.GetValueOnAnyThread() == 0)
 		{
@@ -3793,6 +3795,7 @@ void UNetConnection::FlushDormancy(class AActor* Actor)
 
 		Ch->Dormant = false;
 		Ch->bPendingDormancy = false;
+		Ch->bIsInDormancyHysteresis = false;
 	}
 
 }
@@ -3810,6 +3813,8 @@ void UNetConnection::ForcePropertyCompare( AActor* Actor )
 /** Wrapper for validating an objects dormancy state, and to prepare the object for replication again */
 void UNetConnection::FlushDormancyForObject( UObject* Object )
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetConnection_FlushDormancyForObject)
+
 	const bool ValidateProperties = (GNetDormancyValidate == 1);
 
 	TSharedRef< FObjectReplicator > * Replicator = DormantReplicatorMap.Find( Object );
