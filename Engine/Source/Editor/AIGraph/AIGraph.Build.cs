@@ -14,7 +14,9 @@ public class AIGraph : ModuleRules
 			}
         );
 
-        PrivateIncludePathModuleNames.AddRange(
+		OverridePackageType = PackageOverrideType.EngineDeveloper;
+
+		PrivateIncludePathModuleNames.AddRange(
             new string[] {
 				"AssetRegistry",
 				"AssetTools",
