@@ -8,7 +8,7 @@
 #include "Styling/SlateTypes.h"
 
 /** Handles the collection management for the given assets */
-class FCollectionAssetManagement
+class ASSETTOOLS_API FCollectionAssetManagement
 {
 public:
 	/** Constructor */
