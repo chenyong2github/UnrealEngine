@@ -13,7 +13,7 @@ struct FMetaDataLine;
 /**
  * The widget to display metadata as a table of tag/value rows
  */
-class SMetaDataView : public SCompoundWidget
+class EDITORWIDGETS_API SMetaDataView : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SMetaDataView)	{}
