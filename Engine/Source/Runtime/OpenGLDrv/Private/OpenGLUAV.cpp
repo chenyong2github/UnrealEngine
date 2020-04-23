@@ -90,7 +90,9 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const F
 					FOpenGLStructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
 					FOpenGL::GenTextures(1, &TextureID);
 					CachedSetupTextureStage(GetContextStateForCurrentContext(), FOpenGL::GetMaxCombinedTextureImageUnits() - 1, GL_TEXTURE_BUFFER, TextureID, -1, 1);
-					BindGLTexBufferRange(GL_TEXTURE_BUFFER, GL_RGBA32F, StructuredBuffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, 16);
+					uint32 Stride = StructuredBuffer->GetStride();
+					GLenum Format = (Stride == 4) ? GL_R32F : GL_RGBA32F;
+					BindGLTexBufferRange(GL_TEXTURE_BUFFER, Format, StructuredBuffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, Stride);
 				}
 
 				return new FOpenGLShaderResourceView(this, TextureID, GL_TEXTURE_BUFFER);
@@ -218,12 +220,16 @@ FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHIS
 	// emulate structured buffer of specific size as typed buffer
 	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
-		// ES3.1 cross-compiler converts StructuredBuffer<float4> into Buffer<float4> 
-		// only float4 atm
-		check(StructuredBuffer->GetStride() == 16);
+		// ES3.1 cross-compiler converts StructuredBuffer<type4> into Buffer<type4> and StructuredBuffer<type> into Buffer<type>
+		// type can be float, int and uint
+		check(StructuredBuffer->GetStride() == 16 || StructuredBuffer->GetStride() == 4);
 		if (StructuredBuffer->GetStride() == 16)
 		{
 			return new FOpenGLStructuredBufferUnorderedAccessView(this, StructuredBufferRHI, PF_A32B32G32R32F);
+		}
+		else if (StructuredBuffer->GetStride() == 4)
+		{
+			return new FOpenGLStructuredBufferUnorderedAccessView(this, StructuredBufferRHI, PF_R32_FLOAT);
 		}
 	}
 	
