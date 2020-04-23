@@ -3130,7 +3130,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 			Ar.CookedHeaderSize = Package->CookedHeaderSize;
 			Ar.PackageDesc = &Package->Desc;
 			Ar.PackageNameMap = Package->PackageNameMap;
-			Ar.GlobalNameMap = &Package->AsyncLoadingThread.GlobalNameMap.GetNameEntries();
+			Ar.NameMap = &Package->NameMap->GetNameEntries();
 			Ar.ImportStore = &Package->ImportStore;
 			Ar.Exports = &Package->Exports;
 			Ar.ExportMap = Package->ExportMap;
