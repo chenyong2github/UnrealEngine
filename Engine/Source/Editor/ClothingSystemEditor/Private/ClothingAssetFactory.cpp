@@ -25,6 +25,7 @@
 #include "Utils/ClothingMeshUtils.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "ClothPhysicalMeshData.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "ClothingAssetFactory"
 DEFINE_LOG_CATEGORY(LogClothingAssetFactory)
