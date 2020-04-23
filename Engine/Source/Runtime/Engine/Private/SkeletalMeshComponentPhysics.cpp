@@ -2402,22 +2402,28 @@ void USkeletalMeshComponent::RecreateClothingActors()
 			}
 		}
 
-		if(ClothingSimulation)
+		if (ClothingSimulation)
 		{
-			TArray<UClothingAssetBase*> AssetsInUse;
-			SkeletalMesh->GetClothingAssetsInUse(AssetsInUse);
-
-			const int32 NumMeshAssets = SkeletalMesh->MeshClothingAssets.Num();
-			for(int32 BaseAssetIndex = 0; BaseAssetIndex < NumMeshAssets; ++BaseAssetIndex)
+			// Only create cloth sim actors when the world is ready for it
+			const UWorld* const World = GetWorld();
+			if (World && World->bShouldSimulatePhysics && World->GetPhysicsScene())
 			{
-				UClothingAssetBase* Asset = SkeletalMesh->MeshClothingAssets[BaseAssetIndex];
-				if(!Asset || !AssetsInUse.Contains(Asset))
+				TArray<UClothingAssetBase*> AssetsInUse;
+				SkeletalMesh->GetClothingAssetsInUse(AssetsInUse);
+
+				const int32 NumMeshAssets = SkeletalMesh->MeshClothingAssets.Num();
+				for (int32 BaseAssetIndex = 0; BaseAssetIndex < NumMeshAssets; ++BaseAssetIndex)
 				{
-					continue;
+					UClothingAssetBase* const Asset = SkeletalMesh->MeshClothingAssets[BaseAssetIndex];
+					if (Asset && AssetsInUse.Contains(Asset))
+					{
+						ClothingSimulation->CreateActor(this, Asset, BaseAssetIndex);
+					}
 				}
-				ClothingSimulation->CreateActor(this, Asset, BaseAssetIndex);
+				ClothingSimulation->PostActorCreationInitialize();
 			}
-			ClothingSimulation->PostActorCreationInitialize();
+
+			// Retrieve the cloth sim data, or clear the data if the world isn't ready to sim
 			WritebackClothingSimulationData();
 		}
 	}
