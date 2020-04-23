@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/GCObject.h"
 #include "HitProxies.h"
+#include "UObject/GCObject.h"
 
 class FCanvas;
 class FEditorModeTools;
@@ -18,19 +18,18 @@ class FMaterialRenderProxy;
 /** Coordinate system identifiers. */
 enum ECoordSystem
 {
-	COORD_None	= -1,
+	COORD_None = -1,
 	COORD_World,
 	COORD_Local,
 	COORD_Max,
 };
 
-class FWidget
-	: public FGCObject
+class FWidget : public FGCObject
 {
 public:
 	enum EWidgetMode
 	{
-		WM_None			= -1,
+		WM_None = -1,
 		WM_Translate,
 		WM_TranslateRotateZ,
 		WM_2D,
@@ -50,64 +49,32 @@ public:
 	 * Renders any widget specific HUD text
 	 * @param Canvas - Canvas to use for 2d rendering
 	 */
-	void DrawHUD (FCanvas* Canvas);
+	void DrawHUD(FCanvas* Canvas);
 
 	// @param ViewportClient must not be 0
-	void Render( const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient );
+	void Render(const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient);
 
-	// @param ViewportClient must not be 0
-	void RenderGrid( const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient );
-
-	/**
-	 * Draws an arrow head line for a specific axis.
-	 * @param	bCubeHead		[opt] If true, render a cube at the axis tips.  If false (the default), render a cone.
-	 */
-	void Render_Axis(const FSceneView* View, FPrimitiveDrawInterface* PDI, EAxisList::Type InAxis, FMatrix& InMatrix, UMaterialInterface* InMaterial, const FLinearColor& InColor, FVector2D& OutAxisDir, const FVector& InScale, bool bDrawWidget, bool bCubeHead=false, float AxisLengthOffset = 0);
-
-	/**
-	 * Draws a cube
-	 */
-	void Render_Cube( FPrimitiveDrawInterface* PDI, const FMatrix& InMatrix, const UMaterialInterface* InMaterial, const FVector& InScale );
-
-	/**
-	 * Draws the translation widget.
-	 */
-	UNREALED_API void Render_Translate( const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient,  const FVector& InLocation, bool bDrawWidget );
-
-	/**
-	 * Draws the rotation widget.
-	 */
-	UNREALED_API void Render_Rotate( const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient, const FVector& InLocation, bool bDrawWidget );
-
-	/**
-	 * Draws the scaling widget.
-	 */
-	void Render_Scale( const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient, const FVector& InLocation, bool bDrawWidget );
-
-	/**
-	* Draws the Translate & Rotate Z widget.
-	*/
-	void Render_TranslateRotateZ( const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient, const FVector& InLocation, bool bDrawWidget );
-
-	/**
-	* Draws the combined 2D widget.
-	*/
-	void Render_2D(const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient, const FVector& InLocation, bool bDrawWidget);
-
+public:
 	/**
 	 * Converts mouse movement on the screen to widget axis movement/rotation.
 	 */
-	void ConvertMouseMovementToAxisMovement(FSceneView* InView,  FEditorViewportClient* InViewportClient, bool bInUsedDragModifier, FVector& InDiff, FVector& OutDrag, FRotator& OutRotation, FVector& OutScale );
+	void ConvertMouseMovementToAxisMovement(FSceneView* InView, FEditorViewportClient* InViewportClient,
+	                                        bool bInUsedDragModifier, FVector& InDiff, FVector& OutDrag,
+	                                        FRotator& OutRotation, FVector& OutScale);
 
 	/**
 	 * Absolute Translation conversion from mouse movement on the screen to widget axis movement/rotation.
 	 */
-	void AbsoluteTranslationConvertMouseMovementToAxisMovement(FSceneView* InView, FEditorViewportClient* InViewportClient, const FVector& InLocation, const FVector2D& InMousePosition, FVector& OutDrag, FRotator& OutRotation, FVector& OutScale );
+	void AbsoluteTranslationConvertMouseMovementToAxisMovement(FSceneView* InView,
+	                                                           FEditorViewportClient* InViewportClient,
+	                                                           const FVector& InLocation,
+	                                                           const FVector2D& InMousePosition, FVector& OutDrag,
+	                                                           FRotator& OutRotation, FVector& OutScale);
 
 	/** 
 	 * Grab the initial offset again first time input is captured
 	 */
-	void ResetInitialTranslationOffset (void)
+	void ResetInitialTranslationOffset(void)
 	{
 		bAbsoluteTranslationInitialOffsetCached = false;
 	}
@@ -159,7 +126,7 @@ public:
 	void SetDragStartPosition(const FVector2D& Position)
 	{
 		DragStartPos = Position;
-		LastDragPos = DragStartPos;
+		LastDragPos  = DragStartPos;
 	}
 
 	/**
@@ -173,16 +140,16 @@ public:
 	/**
 	 * Sets if we are currently engaging the widget in dragging
 	 */
-	void SetDragging (const bool InDragging) 
-	{ 
+	void SetDragging(const bool InDragging)
+	{
 		bDragging = InDragging;
 	}
 
 	/**
 	 * Sets if we are currently engaging the widget in dragging
 	 */
-	void SetSnapEnabled (const bool InSnapEnabled) 
-	{ 
+	void SetSnapEnabled(const bool InSnapEnabled)
+	{
 		bSnapEnabled = InSnapEnabled;
 	}
 
@@ -191,7 +158,7 @@ public:
 	 *
 	 * @param Ar	FArchive to serialize with
 	 */
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override
 	{
 		return "FWidget";
@@ -200,7 +167,7 @@ public:
 	/**
 	 * Gets the axis to draw based on the current widget mode
 	 */
-	EAxisList::Type GetAxisToDraw( EWidgetMode WidgetMode ) const;
+	EAxisList::Type GetAxisToDraw(EWidgetMode WidgetMode) const;
 
 	/** @return true if the widget is disabled */
 	bool IsWidgetDisabled() const;
@@ -209,12 +176,26 @@ public:
 	UNREALED_API void UpdateDeltaRotation();
 
 	/** Resets the total delta rotation back to zero */
-	void ResetDeltaRotation() { TotalDeltaRotation = 0; }
+	void ResetDeltaRotation()
+	{
+		TotalDeltaRotation = 0;
+	}
 
 	/** @return the rotation speed of the widget */
-	static float GetRotationSpeed() { return (2.f*(float)PI)/360.f; }
-private:
+	static float GetRotationSpeed()
+	{
+		return (2.f * (float)PI) / 360.f;
+	}
 
+private:
+	void ConvertMouseToAxis_Translate(FVector2D DragDir, FVector& InOutDelta, FVector& OutDrag) const;
+	void ConvertMouseToAxis_Rotate(FVector2D TangentDir, FVector2D DragDir, FSceneView* InView,
+	                               FEditorViewportClient* InViewportClient, FVector& InOutDelta, FRotator& OutRotation);
+	void ConvertMouseToAxis_Scale(FVector2D DragDir, FVector& InOutDelta, FVector& OutScale);
+	void ConvertMouseToAxis_TranslateRotateZ(FVector2D TangentDir, FVector2D DragDir, FVector& InOutDelta,
+	                                         FVector& OutDrag, FRotator& OutRotation);
+	void ConvertMouseToAxis_WM_2D(FVector2D TangentDir, FVector2D DragDir, FVector& InOutDelta, FVector& OutDrag,
+	                              FRotator& OutRotation);
 
 	struct FAbsoluteMovementParams
 	{
@@ -243,16 +224,46 @@ private:
 		bool bPositionSnapping;
 	};
 
+	void AbsoluteConvertMouseToAxis_Translate(FSceneView* InView, const FMatrix& InputCoordSystem,
+	                                          FAbsoluteMovementParams& InOutParams, FVector& OutDrag);
+	void AbsoluteConvertMouseToAxis_WM_2D(const FMatrix& InputCoordSystem, FAbsoluteMovementParams& InOutParams,
+	                                      FVector& OutDrag, FRotator& OutRotation);
+	void AbsoluteConvertMouseToAxis_TranslateRotateZ(const FMatrix& InputCoordSystem,
+	                                                 FAbsoluteMovementParams& InOutParams, FVector& OutDrag,
+	                                                 FRotator& OutRotation);
+
+	/**
+	 * Render helper functions
+	 */
+	void RenderGrid(const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient);
+	void Render_Axis(const FSceneView* View, FPrimitiveDrawInterface* PDI, EAxisList::Type InAxis, FMatrix& InMatrix,
+	                 UMaterialInterface* InMaterial, const FLinearColor& InColor, FVector2D& OutAxisDir,
+	                 const FVector& InScale, bool bDrawWidget, bool bCubeHead = false, float AxisLengthOffset = 0);
+	void Render_Cube(FPrimitiveDrawInterface* PDI, const FMatrix& InMatrix, const UMaterialInterface* InMaterial,
+	                 const FVector& InScale);
+	UNREALED_API void Render_Translate(const FSceneView* View, FPrimitiveDrawInterface* PDI,
+	                                   FEditorViewportClient* ViewportClient, const FVector& InLocation,
+	                                   bool bDrawWidget);
+	UNREALED_API void Render_Rotate(const FSceneView* View, FPrimitiveDrawInterface* PDI,
+	                                FEditorViewportClient* ViewportClient, const FVector& InLocation, bool bDrawWidget);
+	void Render_Scale(const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient,
+	                  const FVector& InLocation, bool bDrawWidget);
+	void Render_TranslateRotateZ(const FSceneView* View, FPrimitiveDrawInterface* PDI,
+	                             FEditorViewportClient* ViewportClient, const FVector& InLocation, bool bDrawWidget);
+	void Render_2D(const FSceneView* View, FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient,
+	               const FVector& InLocation, bool bDrawWidget);
+
+
 	struct FThickArcParams
 	{
-		FThickArcParams(FPrimitiveDrawInterface* InPDI, const FVector& InPosition, UMaterialInterface* InMaterial, const float InInnerRadius, const float InOuterRadius)
-			: Position(InPosition)
-			, PDI(InPDI)
-			, Material(InMaterial)
-			, InnerRadius(InInnerRadius)
-			, OuterRadius(InOuterRadius)
-		{
-		}
+		FThickArcParams(FPrimitiveDrawInterface* InPDI, const FVector& InPosition, UMaterialInterface* InMaterial,
+		                const float InInnerRadius, const float InOuterRadius)
+		    : Position(InPosition)
+		    , PDI(InPDI)
+		    , Material(InMaterial)
+		    , InnerRadius(InInnerRadius)
+		    , OuterRadius(InOuterRadius)
+		{}
 
 		/** The current position of the widget */
 		FVector Position;
@@ -273,7 +284,7 @@ private:
 	 * @param InParams - Structure containing all the information needed for absolute movement
 	 * @return - The requested delta from the current position
 	 */
-	FVector GetAbsoluteTranslationDelta (const FAbsoluteMovementParams& InParams);
+	FVector GetAbsoluteTranslationDelta(const FAbsoluteMovementParams& InParams);
 	/**
 	 * Returns the offset from the initial selection point
 	 */
@@ -303,7 +314,10 @@ private:
 	 * @param InScale - Multiplier to maintain a constant screen size for rendering the widget
 	 * @param OutAxisDir - Viewport-space direction of rotation arc chord is placed here
 	 */
-	void DrawRotationArc(const FSceneView* View, FPrimitiveDrawInterface* PDI, EAxisList::Type InAxis, const FVector& InLocation, const FVector& Axis0, const FVector& Axis1, const FVector& InDirectionToWidget, const FColor& InColor, const float InScale, FVector2D& OutAxisEnd);
+	void DrawRotationArc(const FSceneView* View, FPrimitiveDrawInterface* PDI, EAxisList::Type InAxis,
+	                     const FVector& InLocation, const FVector& Axis0, const FVector& Axis1,
+	                     const FVector& InDirectionToWidget, const FColor& InColor, const float InScale,
+	                     FVector2D& OutAxisEnd);
 
 	/**
 	 * If actively dragging, draws a ring representing the potential rotation of the selected objects, snap ticks, and "delta" markers
@@ -319,7 +333,10 @@ private:
 	 * @param InColor - The color associated with the axis of rotation
 	 * @param InScale - Multiplier to maintain a constant screen size for rendering the widget
 	 */
-	void DrawPartialRotationArc(const FSceneView* View, FPrimitiveDrawInterface* PDI, EAxisList::Type InAxis, const FVector& InLocation, const FVector& Axis0, const FVector& Axis1, const float InStartAngle, const float InEndAngle, const FColor& InColor, const float InScale, const FVector& InDirectionToWidget);
+	void DrawPartialRotationArc(const FSceneView* View, FPrimitiveDrawInterface* PDI, EAxisList::Type InAxis,
+	                            const FVector& InLocation, const FVector& Axis0, const FVector& Axis1,
+	                            const float InStartAngle, const float InEndAngle, const FColor& InColor,
+	                            const float InScale, const FVector& InDirectionToWidget);
 
 	/**
 	 * Renders a portion of an arc for the rotation widget
@@ -328,7 +345,9 @@ private:
 	 * @param InEndAxis - End of the arc
 	 * @param InColor - Color to use for the arc
 	 */
-	void DrawThickArc (const FThickArcParams& InParams, const FVector& Axis0, const FVector& Axis1, const float InStartAngle, const float InEndAngle, const FColor& InColor, const FVector& InDirectionToWidget, bool bIsOrtho );
+	void DrawThickArc(const FThickArcParams& InParams, const FVector& Axis0, const FVector& Axis1,
+	                  const float InStartAngle, const float InEndAngle, const FColor& InColor,
+	                  const FVector& InDirectionToWidget, bool bIsOrtho);
 
 	/**
 	 * Draws protractor like ticks where the rotation widget would snap too.
@@ -343,7 +362,9 @@ private:
 	 * @param InWidthPercent - The percent of the distance between the outer ring and inner ring to use for tangential thickness
 	 * @param InPercentSize - The percent of the distance between the outer ring and inner ring to use for radial distance
 	 */
-	void DrawSnapMarker(FPrimitiveDrawInterface* PDI, const FVector& InLocation, const FVector& Axis0, const FVector& Axis1, const FColor& InColor, const float InScale, const float InWidthPercent=0.0f, const float InPercentSize = 1.0f);
+	void DrawSnapMarker(FPrimitiveDrawInterface* PDI, const FVector& InLocation, const FVector& Axis0,
+	                    const FVector& Axis1, const FColor& InColor, const float InScale,
+	                    const float InWidthPercent = 0.0f, const float InPercentSize = 1.0f);
 
 	/**
 	 * Draw Start/Stop Marker to show delta rotations along the arc of rotation
@@ -355,7 +376,8 @@ private:
 	 * @param InColor - The color to use for line/poly drawing
 	 * @param InScale - Multiplier to maintain a constant screen size for rendering the widget
 	 */
-	void 	DrawStartStopMarker(FPrimitiveDrawInterface* PDI, const FVector& InLocation, const FVector& Axis0, const FVector& Axis1, const float InAngle, const FColor& InColor, const float InScale);
+	void DrawStartStopMarker(FPrimitiveDrawInterface* PDI, const FVector& InLocation, const FVector& Axis0,
+	                         const FVector& Axis1, const float InAngle, const FColor& InColor, const float InScale);
 
 	/**
 	 * Caches off HUD text to display after 3d rendering is complete
@@ -367,7 +389,9 @@ private:
 	 * @param AngleOfAngle - angle we've rotated so far (in degrees)
 	 * @param InScale - Multiplier to maintain a constant screen size for rendering the widget
 	 */
-	void CacheRotationHUDText(const FSceneView* View, FPrimitiveDrawInterface* PDI, const FVector& InLocation, const FVector& Axis0, const FVector& Axis1, const float AngleOfChange, const float InScale);
+	void CacheRotationHUDText(const FSceneView* View, FPrimitiveDrawInterface* PDI, const FVector& InLocation,
+	                          const FVector& Axis0, const FVector& Axis1, const float AngleOfChange,
+	                          const float InScale);
 
 	/**
 	 * Gets the axis to use when converting mouse movement, accounting for Ortho views.
@@ -377,10 +401,13 @@ private:
 	 *
 	 * @return Index of the dominant axis.
 	 */
-	uint32 GetDominantAxisIndex( const FVector& InDiff, FEditorViewportClient* ViewportClient ) const;
+	uint32 GetDominantAxisIndex(const FVector& InDiff, FEditorViewportClient* ViewportClient) const;
 
 
-	void DrawColoredSphere(FPrimitiveDrawInterface* PDI, const FVector& Center, const FRotator& Orientation, FColor Color, const FVector& Radii, int32 NumSides, int32 NumRings, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriority, bool bDisableBackfaceCulling);
+	void DrawColoredSphere(FPrimitiveDrawInterface* PDI, const FVector& Center, const FRotator& Orientation,
+	                       FColor Color, const FVector& Radii, int32 NumSides, int32 NumRings,
+	                       const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriority,
+	                       bool bDisableBackfaceCulling);
 
 	/** The axis currently being moused over */
 	EAxisList::Type CurrentAxis;
@@ -420,7 +447,7 @@ private:
 	 * An extra matrix to apply to the widget before drawing it (allows for local/custom coordinate systems).
 	 */
 	FMatrix CustomCoordSystem;
-	
+
 	/** The space of the custom coord system */
 	ECoordSystem CustomCoordSystemSpace;
 
@@ -456,15 +483,14 @@ private:
  */
 struct HWidgetAxis : public HHitProxy
 {
-	DECLARE_HIT_PROXY( UNREALED_API );
+	DECLARE_HIT_PROXY(UNREALED_API);
 
 	EAxisList::Type Axis;
-	uint32 bDisabled:1;
+	uint32 bDisabled : 1;
 
-	HWidgetAxis(EAxisList::Type InAxis, bool InbDisabled = false, EHitProxyPriority InHitProxy = HPP_UI):
-		HHitProxy(InHitProxy),
-		Axis(InAxis),
-		bDisabled(InbDisabled) {}
+	HWidgetAxis(EAxisList::Type InAxis, bool InbDisabled = false, EHitProxyPriority InHitProxy = HPP_UI)
+	    : HHitProxy(InHitProxy), Axis(InAxis), bDisabled(InbDisabled)
+	{}
 
 	virtual EMouseCursor::Type GetMouseCursor() override
 	{
