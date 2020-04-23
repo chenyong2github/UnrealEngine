@@ -32,7 +32,7 @@ void FBoundsCopyComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBui
 		return;
 	}
 	BoundsCopyComponent = Cast<UBoundsCopyComponent>(ObjectsBeingCustomized[0].Get());
-	if (BoundsCopyComponent == nullptr)
+	if (!BoundsCopyComponent.IsValid())
 	{
 		return;
 	}
@@ -50,6 +50,7 @@ void FBoundsCopyComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBui
 		SourceActorValue->CreatePropertyNameWidget()
 	]
 	.ValueContent()
+	.MinDesiredWidth(250.f)
 	[
 		SourceActorValue->CreatePropertyValueWidget()
 	];
@@ -64,16 +65,21 @@ void FBoundsCopyComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBui
 		.Text(LOCTEXT("Button_CopyRotation", "Copy Rotation"))
 	]
 	.ValueContent()
-	.MaxDesiredWidth(125.f)
+	.MinDesiredWidth(125.f)
 	[
 		SNew(SButton)
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
 		.Text(LOCTEXT("Button_Copy", "Copy"))
-		.ToolTipText(LOCTEXT("Button_CopyRotation_Tooltip", "Set the virtual texture rotation to match the source actor"))
+		.ToolTipText(LOCTEXT("Button_CopyRotation_Tooltip", "Set the actor rotation to match the source actor"))
 		.OnClicked(this, &FBoundsCopyComponentDetailsCustomization::SetRotation)
+		.IsEnabled(this, &FBoundsCopyComponentDetailsCustomization::IsCopyEnabled)
 	];
+
+	const FText CheckboxCopy_X_Tooltip = LOCTEXT("CheckboxCopy_X_Tooltip", "Limit the change to the X component of the bounds");
+	const FText CheckboxCopy_Y_Tooltip = LOCTEXT("CheckboxCopy_Y_Tooltip", "Limit the change to the Y component of the bounds");
+	const FText CheckboxCopy_Z_Tooltip = LOCTEXT("CheckboxCopy_Z_Tooltip", "Limit the change to the Z component of the bounds");
 
 	BoundsCategory
 	.AddCustomRow(LOCTEXT("Button_CopyBounds", "Copy Bounds"))
@@ -84,16 +90,117 @@ void FBoundsCopyComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBui
 		.Text(LOCTEXT("Button_CopyBounds", "Copy Bounds"))
 	]
 	.ValueContent()
-	.MaxDesiredWidth(125.f)
+	.MinDesiredWidth(250.f)
 	[
-		SNew(SButton)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Center)
-		.ContentPadding(2)
-		.Text(LOCTEXT("Button_Copy", "Copy"))
-		.ToolTipText(LOCTEXT("Button_CopyBounds_Tooltip", "Set the virtual texture transform so that it includes the full bounds of the source actor"))
-		.OnClicked(this, &FBoundsCopyComponentDetailsCustomization::SetTransformToBounds)
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SButton)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				.ContentPadding(2)
+				.Text(LOCTEXT("Button_Copy", "Copy"))
+				.ToolTipText(LOCTEXT("Button_CopyBounds_Tooltip", "Set the actor transform so that it includes the full bounds of the source actor"))
+				.OnClicked(this, &FBoundsCopyComponentDetailsCustomization::SetTransformToBounds)
+				.IsEnabled(this, &FBoundsCopyComponentDetailsCustomization::IsCopyEnabled)
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &FBoundsCopyComponentDetailsCustomization::OnBoundsComponentsXChanged)
+					.IsChecked(this, &FBoundsCopyComponentDetailsCustomization::IsBoundsComponentsXChecked)
+					.IsEnabled(this, &FBoundsCopyComponentDetailsCustomization::IsCopyEnabled)
+					.ToolTipText(CheckboxCopy_X_Tooltip)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CheckboxCopy_X", "X"))
+						.ToolTipText(CheckboxCopy_X_Tooltip)
+						.MinDesiredWidth(10.0f)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &FBoundsCopyComponentDetailsCustomization::OnBoundsComponentsYChanged)
+					.IsChecked(this, &FBoundsCopyComponentDetailsCustomization::IsBoundsComponentsYChecked)
+					.IsEnabled(this, &FBoundsCopyComponentDetailsCustomization::IsCopyEnabled)
+					.ToolTipText(CheckboxCopy_Y_Tooltip)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CheckboxCopy_Y", "Y"))
+						.ToolTipText(CheckboxCopy_Y_Tooltip)
+						.MinDesiredWidth(10.0f)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &FBoundsCopyComponentDetailsCustomization::OnBoundsComponentsZChanged)
+					.IsChecked(this, &FBoundsCopyComponentDetailsCustomization::IsBoundsComponentsZChecked)
+					.IsEnabled(this, &FBoundsCopyComponentDetailsCustomization::IsCopyEnabled)
+					.ToolTipText(CheckboxCopy_Z_Tooltip)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CheckboxCopy_Z", "Z"))
+						.ToolTipText(CheckboxCopy_Z_Tooltip)
+						.MinDesiredWidth(10.0f)
+					]
+				]
+			]
+		]
 	];
+}
+
+void FBoundsCopyComponentDetailsCustomization::OnBoundsComponentsXChanged(ECheckBoxState NewState)
+{
+	if (BoundsCopyComponent.IsValid())
+	{
+		BoundsCopyComponent->bCopyXBounds = !BoundsCopyComponent->bCopyXBounds;
+	}
+}
+
+void FBoundsCopyComponentDetailsCustomization::OnBoundsComponentsYChanged(ECheckBoxState NewState)
+{
+	if (BoundsCopyComponent.IsValid())
+	{
+		BoundsCopyComponent->bCopyYBounds = !BoundsCopyComponent->bCopyYBounds;
+	}
+}
+
+void FBoundsCopyComponentDetailsCustomization::OnBoundsComponentsZChanged(ECheckBoxState NewState)
+{
+	if (BoundsCopyComponent.IsValid())
+	{
+		BoundsCopyComponent->bCopyZBounds = !BoundsCopyComponent->bCopyZBounds;
+	}
+}
+
+ECheckBoxState FBoundsCopyComponentDetailsCustomization::IsBoundsComponentsXChecked() const
+{
+	return BoundsCopyComponent.IsValid() ? (BoundsCopyComponent->bCopyXBounds ? ECheckBoxState::Checked : ECheckBoxState::Unchecked) : ECheckBoxState::Undetermined;
+}
+
+ECheckBoxState FBoundsCopyComponentDetailsCustomization::IsBoundsComponentsYChecked() const
+{
+	return BoundsCopyComponent.IsValid() ? (BoundsCopyComponent->bCopyYBounds ? ECheckBoxState::Checked : ECheckBoxState::Unchecked) : ECheckBoxState::Undetermined;
+}
+
+ECheckBoxState FBoundsCopyComponentDetailsCustomization::IsBoundsComponentsZChecked() const
+{
+	return BoundsCopyComponent.IsValid() ? (BoundsCopyComponent->bCopyZBounds ? ECheckBoxState::Checked : ECheckBoxState::Unchecked) : ECheckBoxState::Undetermined;
+}
+
+bool FBoundsCopyComponentDetailsCustomization::IsCopyEnabled() const
+{
+	return BoundsCopyComponent.IsValid() && BoundsCopyComponent->BoundsSourceActor.IsValid();
 }
 
 FReply FBoundsCopyComponentDetailsCustomization::SetRotation()
