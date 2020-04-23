@@ -910,9 +910,10 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 		SimpleRenderPhysicalMaterialIds = RenderPhysicalMaterialIds + NumSamples;
 	}
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// List of materials which is actually used by heightfield
 	InOutMaterials.Empty();
+
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 		
 	TArray<PxHeightFieldSample> Samples;
 	TArray<PxHeightFieldSample> SimpleSamples;
