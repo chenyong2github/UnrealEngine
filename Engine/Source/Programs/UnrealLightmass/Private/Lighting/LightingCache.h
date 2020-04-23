@@ -205,7 +205,7 @@ public:
 	struct FRecordOctreeSemantics;
 
 	/** The type of lighting cache octree nodes. */
-	typedef TOctree<FRecord<SampleType>,FRecordOctreeSemantics> LightingOctreeType;
+	typedef TOctree2<FRecord<SampleType>,FRecordOctreeSemantics> LightingOctreeType;
 	
 	/** The octree semantics for irradiance records. */
 	struct FRecordOctreeSemantics

@@ -86,7 +86,7 @@ public:
 
 struct FNavigationOctreeSemantics
 {
-	typedef TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics> FOctree;
+	typedef TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics> FOctree;
 	enum { MaxElementsPerLeaf = 16 };
 	enum { MinInclusiveElementsPerNode = 7 };
 	enum { MaxNodeDepth = 12 };
@@ -115,7 +115,7 @@ struct FNavigationOctreeSemantics
 	static void SetElementId(FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId Id);
 };
 
-class NAVIGATIONSYSTEM_API FNavigationOctree : public TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
+class NAVIGATIONSYSTEM_API FNavigationOctree : public TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
 {
 public:
 	DECLARE_DELEGATE_TwoParams(FNavigableGeometryComponentExportDelegate, UActorComponent*, FNavigationRelevantData&);
@@ -134,7 +134,7 @@ public:
 	{
 		DEC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
 		DEC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
-		TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>::AddElement(Element);
+		TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics>::AddElement(Element);
 		OctreeSizeBytes = GetSizeBytes();
 		INC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
 		INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
@@ -148,7 +148,7 @@ public:
 	{
 		DEC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
 		DEC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
-		TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>::RemoveElement(ElementId);
+		TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics>::RemoveElement(ElementId);
 		OctreeSizeBytes = GetSizeBytes();
 		INC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
 		INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);

@@ -350,7 +350,7 @@ CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogGenericOctree, Log, All);
 
 /** An octree. */
 template<typename ElementType,typename OctreeSemantics>
-class TOctree
+class TOctree2
 {
 	using ElementArrayType = TArray<ElementType, typename OctreeSemantics::ElementAllocator>;
 public:
@@ -986,7 +986,7 @@ public:
 	}
 
 	/** Initialization constructor. */
-	TOctree(const FVector& InOrigin,float InExtent)
+	TOctree2(const FVector& InOrigin,float InExtent)
 		: RootNodeContext(FBoxCenterAndExtent(InOrigin, FVector(InExtent, InExtent, InExtent)), 0, 0)
 		, MinLeafExtent(InExtent* FMath::Pow((1.0f + 1.0f / (float)FOctreeNodeContext::LoosenessDenominator) / 2.0f, OctreeSemantics::MaxNodeDepth))
 	{
@@ -995,7 +995,7 @@ public:
 	}
 
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	TOctree() 
+	TOctree2() 
 	{
 		TreeNodes.AddDefaulted();
 		TreeElements.AddDefaulted();

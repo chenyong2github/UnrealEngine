@@ -54,11 +54,11 @@ struct FEditableMeshOctreeSemantics
 	}
 };
 
-class FEditableMeshOctree : public TOctree<FEditableMeshOctreePolygon, FEditableMeshOctreeSemantics>
+class FEditableMeshOctree : public TOctree2<FEditableMeshOctreePolygon, FEditableMeshOctreeSemantics>
 {
 public:
 	FEditableMeshOctree( const FVector& InOrigin, float InExtent )
-		: TOctree( InOrigin, InExtent )
+		: TOctree2( InOrigin, InExtent )
 	{
 	}
 };

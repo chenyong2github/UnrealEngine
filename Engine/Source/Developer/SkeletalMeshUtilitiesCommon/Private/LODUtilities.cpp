@@ -1346,7 +1346,7 @@ struct FTriangleOctreeSemantics
 	}
 };
 
-typedef TOctree<FTriangleElement, FTriangleOctreeSemantics> TTriangleElementOctree;
+typedef TOctree2<FTriangleElement, FTriangleOctreeSemantics> TTriangleElementOctree;
 
 void MatchVertexIndexUsingPosition(
 	const FSkeletalMeshImportData& ImportDataDest

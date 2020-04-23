@@ -9,7 +9,7 @@
 // FNavigationOctree
 //----------------------------------------------------------------------//
 FNavigationOctree::FNavigationOctree(const FVector& Origin, float Radius)
-	: TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>(Origin, Radius)
+	: TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics>(Origin, Radius)
 	, DefaultGeometryGatheringMode(ENavDataGatheringMode::Instant)
 	, bGatherGeometry(false)
 	, NodesMemory(0)
