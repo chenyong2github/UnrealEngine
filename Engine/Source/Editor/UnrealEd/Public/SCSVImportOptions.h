@@ -15,6 +15,13 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboBox.h"
 
+enum class ECSVImportOptionDlgResponse : uint8
+{
+	Import,
+	ImportAll,
+	Cancel
+};
+
 class UNREALED_API SCSVImportOptions : public SCompoundWidget
 {
 private:
@@ -34,7 +41,7 @@ public:
 	SLATE_END_ARGS()
 
 	SCSVImportOptions()
-		: bImport(false)
+		: UserDlgResponse(ECSVImportOptionDlgResponse::Cancel)
 		, SelectedImportType(ECSVImportType::ECSV_DataTable)
 		, SelectedStruct(nullptr)
 		, TempImportDataTable(nullptr)
@@ -44,6 +51,9 @@ public:
 
 	/** If we should import */
 	bool ShouldImport();
+
+	/** If the current settings should be applied to all items being imported */
+	bool ShouldImportAll();
 
 	/** Get the row struct we selected */
 	UScriptStruct* GetSelectedRowStruct();
@@ -79,7 +89,7 @@ public:
 	/** Called to create a widget for each curve interpolation enum */
 	TSharedRef<SWidget> MakeCurveTypeWidget(CurveInterpModePtr InterpMode);
 
-	/** Called when 'OK' button is pressed */
+	/** Called when 'Apply' button is pressed */
 	FReply OnImport();
 
 	/** Do we have all of the data we need to import this asset? */
@@ -93,8 +103,11 @@ public:
 	FText GetSelectedCurveTypeText() const;
 
 private:
+	FReply HandleImport();
+	FReply OnImportAll();
+
 	/** Whether we should go ahead with import */
-	uint8										bImport : 1;
+	ECSVImportOptionDlgResponse					UserDlgResponse : ECSVImportOptionDlgResponse::Cancel;
 
 	/** Window that owns us */
 	TWeakPtr< SWindow >							WidgetWindow;
