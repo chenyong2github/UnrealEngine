@@ -46,6 +46,16 @@ namespace Audio
 		SetFrequency(InFrequencyHz);
 	}
 
+	void FSineOsc::SetScale(const float InScale)
+	{
+		Scale = InScale;
+	}
+
+	void FSineOsc::SetAdd(const float InAdd)
+	{
+		Add = InAdd;
+	}
+
 	void FSineOsc::SetFrequency(const float InFrequencyHz)
 	{
 		check(SampleRate > 0);

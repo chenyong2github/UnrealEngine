@@ -28,6 +28,12 @@ namespace Audio
 		/** Initialize the oscillator with a sample rate and new frequency. Must be called before playing oscillator. */
 		void Init(const int32 InSampleRate, const float InFrequencyHz, const float Scale = 1.0f, const float Add = 0.0f);
 
+		/** Sets the scale of the oscillator. */
+		void SetScale(const float InScale);
+
+		/** Sets the scale of the oscillator. */
+		void SetAdd(const float InAdd);
+
 		/** Sets the frequency of the oscillator in Hz (based on sample rate). Performs initial condition calculation to avoid pops. */
 		void SetFrequency(const float InFrequencyHz);
 
