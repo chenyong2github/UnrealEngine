@@ -171,6 +171,7 @@ namespace EditorAnalyticsUtils
 						case FEditorAnalyticsSession::EEventType::Crashed:     Session.bCrashed = true;       break;
 						case FEditorAnalyticsSession::EEventType::GpuCrashed : Session.bGPUCrashed = true;    break;
 						case FEditorAnalyticsSession::EEventType::Terminated:  Session.bIsTerminating = true; break;
+						case FEditorAnalyticsSession::EEventType::Shutdown:    Session.bWasShutdown = true;   break;
 						default: break;
 					}
 

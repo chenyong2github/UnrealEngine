@@ -37,7 +37,7 @@ private:
 	void UpdateEditorIdleTime(const FDateTime& InActivityTimeUtc, bool bSaveSession);
 	void UpdateUserIdleTime(const FDateTime& InUserActivityTimeUtc, bool bSaveSession);
 	void UpdateLegacyIdleTimes();
-	void TrySaveCurrentSession();
+	bool TrySaveCurrentSession();
 
 private:
 	TUniquePtr<FEditorAnalyticsSession> CurrentSession;
