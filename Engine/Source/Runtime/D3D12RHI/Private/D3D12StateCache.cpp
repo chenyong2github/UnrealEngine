@@ -263,6 +263,7 @@ void FD3D12StateCacheBase::DirtyState()
 	bNeedSetBlendFactor = true;
 	bNeedSetStencilRef = true;
 	bNeedSetDepthBounds = GSupportsDepthBoundsTest;
+	bNeedSetShadingRate = GRHISupportsVariableRateShading;
 	PipelineState.Common.SRVCache.DirtyAll();
 	PipelineState.Common.UAVCache.DirtyAll();
 	PipelineState.Common.CBVCache.DirtyAll();
@@ -457,6 +458,12 @@ void FD3D12StateCacheBase::ApplyState()
 		{
 			bNeedSetDepthBounds = false;
 			CmdContext->SetDepthBounds(PipelineState.Graphics.MinDepth, PipelineState.Graphics.MaxDepth);
+		}
+		
+		if (bNeedSetShadingRate)
+		{
+			bNeedSetShadingRate = false;
+			CmdContext->SetShadingRate(PipelineState.Graphics.DrawShadingRate, PipelineState.Graphics.Combiner);
 		}
 	}
 

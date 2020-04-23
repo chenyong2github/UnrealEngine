@@ -589,6 +589,17 @@ enum EMaterialStencilCompare
 	MSC_Count			UMETA(Hidden),
 };
 
+UENUM()
+enum EMaterialShadingRate
+{
+	MSR_1x1				UMETA(DisplayName = "1x1"),
+	MSR_2x1				UMETA(DisplayName = "2x1"),
+	MSR_1x2				UMETA(DisplayName = "1x2"),
+	MSR_2x2				UMETA(DisplayName = "2x2"),
+	MSR_Count			UMETA(Hidden),
+};
+
+
 /**	Lighting build quality enumeration */
 UENUM()
 enum ELightingBuildQuality

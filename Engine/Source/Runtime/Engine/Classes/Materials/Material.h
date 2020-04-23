@@ -795,6 +795,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 Wireframe : 1;
 
+	/** Select what shading rate to apply for platforms that have variable rate shading */
+	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay)
+	TEnumAsByte<EMaterialShadingRate> ShadingRate;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 EditorX;
