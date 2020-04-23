@@ -210,7 +210,7 @@ void FSubmixEffectDynamicsProcessor::SetExternalSubmix(USoundSubmix* InSoundSubm
 	else
 	{
 		DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FSubmixEffectDynamicsProcessor::OnNewDeviceCreated);
-		bUseExternalSubmix = false;
+		bUseExternalSubmix = ExternalSubmix.IsValid();
 	}
 }
 
