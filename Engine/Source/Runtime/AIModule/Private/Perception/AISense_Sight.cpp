@@ -6,6 +6,7 @@
 #include "CollisionQueryParams.h"
 #include "Engine/Engine.h"
 #include "AISystem.h"
+#include "AIHelpers.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Perception/AISightTargetInterface.h"
@@ -31,42 +32,6 @@ DECLARE_CYCLE_STAT(TEXT("Perception Sense: Sight, Remove To Target"), STAT_AI_Se
 
 static const int32 DefaultMaxTracesPerTick = 6;
 static const int32 DefaultMinQueriesPerTimeSliceCheck = 40;
-
-//----------------------------------------------------------------------//
-// CheckIsTargetInSightCone
-//                     R
-//                   *****  
-//              *             *
-//          *                     *
-//       *                           *
-//     *                               *
-// R *                                   * R
-//    \                                 /
-//     \                               /
-//      \                             /
-//       \             X             /
-//        \                         /
-//         \          ***          /
-//          \     *    N    *     /
-//           \ *               * /
-//            N                 N
-// X = Actor Location
-// R = Sight Radius
-// N = Near Clipping Radius
-//----------------------------------------------------------------------//
-FORCEINLINE_DEBUGGABLE bool CheckIsTargetInSightCone(const FPerceptionListener& Listener, const UAISense_Sight::FDigestedSightProperties& DigestedProps, const FVector& TargetLocation, const float SightRadiusSq)
-{
-	const FVector& BaseLocation = FMath::IsNearlyZero(DigestedProps.PointOfViewBackwardOffset) ? Listener.CachedLocation : Listener.CachedLocation - Listener.CachedDirection * DigestedProps.PointOfViewBackwardOffset;
-	const FVector ActorToTarget = TargetLocation - BaseLocation;
-	const float DistToTargetSq = ActorToTarget.SizeSquared();
-	if (DistToTargetSq <= SightRadiusSq && DistToTargetSq >= DigestedProps.NearClippingRadiusSq)
-	{
-		const FVector DirectionToTarget = ActorToTarget.GetUnsafeNormal();
-		return FVector::DotProduct(DirectionToTarget, Listener.CachedDirection) > DigestedProps.PeripheralVisionAngleCos;
-	}
-
-	return false;
-}
 
 enum class EForEachResult : uint8
 {
@@ -323,7 +288,7 @@ float UAISense_Sight::Update()
 					Listener.RegisterStimulus(TargetActor, FAIStimulus(*this, StimulusStrength, SightQuery->LastSeenLocation, Listener.CachedLocation));
 					SightQuery->bLastResult = true;
 				}
-				else if (CheckIsTargetInSightCone(Listener, PropDigest, TargetLocation, SightRadiusSq))
+				else if (FAISystem::CheckIsTargetInSightCone(Listener.CachedLocation, Listener.CachedDirection, PropDigest.PeripheralVisionAngleCos, PropDigest.PointOfViewBackwardOffset, PropDigest.NearClippingRadiusSq, SightRadiusSq, TargetLocation))
 				{
 					SIGHT_LOG_SEGMENT(ListenerPtr->GetOwner(), Listener.CachedLocation, TargetLocation, FColor::Green, TEXT("%s"), *(Target.TargetId.ToString()));
 
