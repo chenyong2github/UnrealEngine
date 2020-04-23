@@ -48,6 +48,10 @@ public:
 	/** Show boundary edges created by the union operation -- often due to numerical error */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowNewBoundaryEdges = true;
+
+	/** If true, only the first mesh will keep its materials assignments; all other triangles will be assigned material 0 */
+	UPROPERTY(EditAnywhere, Category = Materials)
+	bool bOnlyUseFirstMeshMaterials = false;
 };
 
 
@@ -106,6 +110,7 @@ protected:
 	IToolsContextAssetAPI* AssetAPI;
 
 	void SetupPreview();
+	void ConfigurePreviewMaterials();
 
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
 
