@@ -36,7 +36,7 @@ namespace F4MLScribe
 		const F4MLLibrarian& Librarian = F4MLLibrarian::Get();
 		for (TMap<FName, FString>::TConstIterator It = Librarian.GetFunctionDescriptionsIterator(); It; ++It)
 		{
-			Ret.push_back(FSTRING_TO_STD(It->Key.ToString()));
+			Ret.push_back(FSTRING_TO_STD(It->Key.ToString().ToLower()));
 		}
 		return Ret;
 	}
