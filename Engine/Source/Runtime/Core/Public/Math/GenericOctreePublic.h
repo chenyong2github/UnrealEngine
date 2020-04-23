@@ -15,9 +15,6 @@ class FOctreeElementId2
 {
 public:
 
-	template<typename,typename>
-	friend class TOctree;
-
 	template<typename, typename>
 	friend class TOctree2;
 
@@ -62,7 +59,7 @@ class FOctreeElementId
 public:
 
 	template<typename, typename>
-	friend class TOctree;
+	friend class TOctree_DEPRECATED;
 
 	/** Default constructor. */
 	FOctreeElementId()
