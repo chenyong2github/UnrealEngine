@@ -41,12 +41,18 @@ public:
 	/**
 	 * initialize the internal mesh from a MeshDescription
 	 */
-	void InitializeMesh(FMeshDescription* MeshDescription);
+	virtual void InitializeMesh(FMeshDescription* MeshDescription) override;
 
 	/**
 	 * @return pointer to internal mesh
 	 */
-	FDynamicMesh3* GetMesh() { return Mesh.Get(); }
+	virtual FDynamicMesh3* GetMesh() override { return Mesh.Get(); }
+
+	/**
+	 * @return pointer to internal mesh
+	 */
+	virtual const FDynamicMesh3* GetMesh() const override { return Mesh.Get(); }
+
 
 	FDynamicMeshOctree3* GetOctree() { return Octree.Get(); }
 
@@ -60,7 +66,7 @@ public:
 	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
 	 * @param ConversionOptions struct of additional options for the conversion
 	 */
-	void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions);
+	virtual void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions) override;
 
 	/**
 	* Write the internal mesh to a MeshDescription with default conversion options
@@ -76,7 +82,7 @@ public:
 	 * Apply transform to internal mesh. Invalidates RenderProxy.
 	 * @param bInvert if true, inverse tranform is applied instead of forward transform
 	 */
-	void ApplyTransform(const FTransform3d& Transform, bool bInvert);
+	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert) override;
 
 	//
 	// change tracking/etc

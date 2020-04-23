@@ -9,13 +9,13 @@
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 #include "Changes/MeshReplacementChange.h"
-
+#include "MeshConversionOptions.h"
 #include "DynamicMesh3.h"
 
 #include "BaseDynamicMeshComponent.generated.h"
 
-
 // predecl
+struct FMeshDescription;
 class FMeshVertexChange;
 class FMeshChange;
 
@@ -66,6 +66,32 @@ class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, 
 public:
 
 	/**
+	 * initialize the internal mesh from a MeshDescription
+	 */
+	virtual void InitializeMesh(FMeshDescription* MeshDescription)
+	{
+		unimplemented();
+	}
+
+	/**
+	 * @return pointer to internal mesh
+	 */
+	virtual FDynamicMesh3* GetMesh()
+	{
+		unimplemented();
+		return nullptr;
+	}
+
+	/**
+	 * @return pointer to internal mesh
+	 */
+	virtual const FDynamicMesh3* GetMesh() const
+	{
+		unimplemented();
+		return nullptr;
+	}
+
+	/**
 	 * Call this if you update the mesh via GetMesh()
 	 * @todo should provide a function that calls a lambda to modify the mesh, and only return const mesh pointer
 	 */
@@ -97,6 +123,28 @@ public:
 	{
 		unimplemented();
 	}
+
+
+	//
+	// Modification support
+	//
+public:
+
+	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert)
+	{
+		unimplemented();
+	}
+
+	/**
+	 * Write the internal mesh to a MeshDescription
+	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
+	 * @param ConversionOptions struct of additional options for the conversion
+	 */
+	virtual void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
+	{
+		unimplemented();
+	}
+
 
 
 protected:
