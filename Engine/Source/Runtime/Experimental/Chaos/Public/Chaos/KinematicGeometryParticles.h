@@ -12,9 +12,9 @@ namespace Chaos
 	enum class EKinematicTargetMode
 	{
 		None,			/** Particle does not move and no data is changed */
-		Zero,			/** Particle does not move, velocity and angular velocity are zeroed, then mode is set to "None". */
-		Position,		/** Particle is moved to Kinematic Target transform, velocity and angular velocity updated to reflect the change, then mode is reset to "Zero". */
-		Velocity,		/** Particle is moved based on velocity and angular velocity, mode remains as "Velocity". */
+		Reset,			/** Particle does not move, velocity and angular velocity are zeroed, then mode is set to "None". */
+		Position,		/** Particle is moved to Kinematic Target transform, velocity and angular velocity updated to reflect the change, then mode is set to "Zero". */
+		Velocity,		/** Particle is moved based on velocity and angular velocity, mode remains as "Velocity" until changed. */
 	};
 
 	/**
@@ -37,6 +37,9 @@ namespace Chaos
 
 		/** Get the target transform (asserts if not in Position mode) */
 		const TRigidTransform<T, d>& GetTarget() const { check(Mode == EKinematicTargetMode::Position); return Target; }
+
+		/** Clear the kinematic target */
+		void Clear() { Target = TRigidTransform<T, d>(); Mode = EKinematicTargetMode::None; }
 
 		/** Use transform target mode and set the transform target */
 		void SetTargetMode(const TRigidTransform<T, d>& InTarget) { Target = InTarget;  Mode = EKinematicTargetMode::Position; }
