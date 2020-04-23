@@ -1994,7 +1994,7 @@ void FTickFunction::QueueTickFunctionParallel(const struct FTickContext& TickCon
 				{
 					FTickFunction* Prereq = Prerequisites[PrereqIndex].Get();
 #if USING_THREAD_SANITISER
-					if (Prereq) { TSAN_AFTER(&InternalData->TickQueuedGFrameCounter); }
+					if (Prereq) { TSAN_AFTER(&Prereq->InternalData->TickQueuedGFrameCounter); }
 #endif
 					if (!Prereq)
 					{
