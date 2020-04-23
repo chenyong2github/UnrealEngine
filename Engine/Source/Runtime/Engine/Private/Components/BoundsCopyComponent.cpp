@@ -31,10 +31,10 @@ void UBoundsCopyComponent::SetTransformToBounds()
 	{
 		// Calculate the bounds in our local rotation space translated to the BoundsSourceActor center
 		const FQuat TargetRotation = GetOwner()->ActorToWorld().GetRotation();
-		const FVector InitialPosition = BoundsSourceActor->GetComponentsBoundingBox().GetCenter();
+		const FBox InitialBoundingBox = BoundsSourceActor->GetComponentsBoundingBox(bUseCollidingComponentsForSourceBounds);
 
 		FTransform LocalTransform;
-		LocalTransform.SetComponents(TargetRotation, InitialPosition, FVector::OneVector);
+		LocalTransform.SetComponents(TargetRotation, InitialBoundingBox.GetCenter(), FVector::OneVector);
 		FTransform WorldToLocal = LocalTransform.Inverse();
 
 		FBox BoundBox(ForceInit);
@@ -59,10 +59,25 @@ void UBoundsCopyComponent::SetTransformToBounds()
 		BoundBox.GetCenterAndExtents(Origin, Extent);
 
 		Origin = LocalTransform.TransformPosition(Origin);
-		Extent *= FVector(2.f, 2.f, 1.f); // Account for ARuntimeVirtualTextureVolume:Box offset which centers it on origin
+		Extent *= BoundsScaleFactor; 
 
+		FVector OwnExtent = bKeepOwnBoundsScale ? GetOwner()->CalculateComponentsBoundingBoxInLocalSpace(bUseCollidingComponentsForOwnBounds).GetExtent() : FVector::OneVector;
+
+		FVector NewScale = GetOwner()->ActorToWorld().GetScale3D();
+		if (bCopyXBounds)
+		{
+			NewScale.X = Extent.X / FMath::Max(OwnExtent.X, SMALL_NUMBER);
+		}
+		if (bCopyYBounds)
+		{
+			NewScale.Y = Extent.Y / FMath::Max(OwnExtent.Y, SMALL_NUMBER);
+		}
+		if (bCopyZBounds)
+		{
+			NewScale.Z = Extent.Z / FMath::Max(OwnExtent.Z, SMALL_NUMBER);
+		}
 		FTransform Transform;
-		Transform.SetComponents(TargetRotation, Origin, Extent);
+		Transform.SetComponents(TargetRotation, Origin, NewScale);
 
 		// Apply final result and notify the parent actor
 		GetOwner()->Modify();
