@@ -13,11 +13,8 @@
 class FBoxCenterAndExtent;
 class FOctreeChildNodeRef;
 class FOctreeChildNodeSubset;
-class FOctreeElementId2;
 class FOctreeNodeContext;
 struct FMath;
-template<typename ElementType,typename OctreeSemantics> class TOctree;
-template<typename T> struct TTypeTraits;
 
 
 FORCEINLINE bool FOctreeChildNodeSubset::Contains(FOctreeChildNodeRef ChildRef) const
