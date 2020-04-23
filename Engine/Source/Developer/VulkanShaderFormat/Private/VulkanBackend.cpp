@@ -4214,11 +4214,13 @@ static void ConfigureInOutVariableLayout(EHlslShaderFrequency Frequency,
 		Variable->semantic = ralloc_strdup(Variable, Semantic);
 		if (Mode == ir_var_in)
 		{
-			Variable->location = ParseState->next_in_location_slot++;
+			Variable->location = ParseState->next_in_location_slot;
+			ParseState->next_in_location_slot += Variable->type->matrix_columns;
 		}
 		else
 		{
-			Variable->location = ParseState->next_out_location_slot++;
+			Variable->location = ParseState->next_out_location_slot;
+			ParseState->next_out_location_slot += Variable->type->matrix_columns;
 		}
 	}
 }
