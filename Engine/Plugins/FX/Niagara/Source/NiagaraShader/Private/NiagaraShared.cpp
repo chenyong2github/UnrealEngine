@@ -19,6 +19,9 @@
 #include "RendererInterface.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraCustomVersion.h"
+#if WITH_EDITOR
+#include "Interfaces/ITargetPlatform.h"
+#endif
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParamRef);
 IMPLEMENT_TYPE_LAYOUT(FNiagaraShaderMapContent);
@@ -120,6 +123,7 @@ bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 	{
 		return false;
 	}
+
 	for (int32 i = 0; i < ReferencedCompileHashes.Num(); ++i)
 	{
 		if (ReferencedCompileHashes[i] != InId.ReferencedCompileHashes[i])
@@ -159,7 +163,7 @@ void FNiagaraShaderScript::GetDependentShaderTypes(EShaderPlatform Platform, TAr
 
 
 
-NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Platform, FNiagaraShaderMapId& OutId) const
+NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FNiagaraShaderMapId& OutId) const
 {
 	if (bLoadedCookedShaderMapId)
 	{
@@ -167,6 +171,8 @@ NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Plat
 	}
 	else
 	{
+		INiagaraShaderModule* Module = INiagaraShaderModule::Get();
+
 		TArray<FShaderType*> ShaderTypes;
 		GetDependentShaderTypes(Platform, ShaderTypes);
 		OutId.FeatureLevel = GetFeatureLevel();/*
@@ -185,6 +191,19 @@ NIAGARASHADER_API void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Plat
 		for(const FString& Define : AdditionalDefines)
 		{
 			OutId.AdditionalDefines.Emplace(Define);
+		}
+
+		if (TargetPlatform)
+		{
+#if WITH_EDITOR
+			OutId.LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
+#else
+			UE_LOG(LogShaders, Error, TEXT("FNiagaraShaderScript::GetShaderMapId: TargetPlatform is not null, but a cooked executable cannot target platforms other than its own."));
+#endif
+		}
+		else
+		{
+			OutId.LayoutParams.InitializeForCurrent();
 		}
 	}
 }
@@ -337,10 +356,10 @@ NIAGARASHADER_API  bool FNiagaraShaderScript::IsCompilationFinished() const
 */
 #if WITH_EDITOR
 
-bool FNiagaraShaderScript::CacheShaders(bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous)
+bool FNiagaraShaderScript::CacheShaders(bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous, const ITargetPlatform* TargetPlatform)
 {
 	FNiagaraShaderMapId NoStaticParametersId;
-	GetShaderMapId(ShaderPlatform, NoStaticParametersId);
+	GetShaderMapId(ShaderPlatform, TargetPlatform, NoStaticParametersId);
 	return CacheShaders(NoStaticParametersId, bApplyCompletedShaderMapForRendering, bForceRecompile, bSynchronous);
 }
 
