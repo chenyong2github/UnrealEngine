@@ -94,7 +94,7 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsSha
 	const auto& Materials = Shape.GetMaterials();
 	if(Materials.Num() > 0 && Actor.GetProxy())
 	{
-		Chaos::FPBDRigidsSolver* Solver = Actor.GetProxy()->GetSolver();
+		Chaos::FPBDRigidsSolver* Solver = Actor.GetProxy()->GetSolver<Chaos::FPBDRigidsSolver>();
 
 		if(ensure(Solver))
 		{
@@ -124,7 +124,7 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndexAndHitLocation(con
 
 		if (Shape.GetMaterials().Num() > 0 && Actor.GetProxy())
 		{
-			Chaos::FPBDRigidsSolver* Solver = Actor.GetProxy()->GetSolver();
+			Chaos::FPBDRigidsSolver* Solver = Actor.GetProxy()->GetSolver<Chaos::FPBDRigidsSolver>();
 
 			if (ensure(Solver))
 			{
@@ -477,7 +477,7 @@ FPhysScene* FPhysInterface_Chaos::GetCurrentScene(const FPhysicsActorHandle& InH
 
 	if (IPhysicsProxyBase* Proxy = InHandle->GetProxy())
 	{
-		Chaos::FPhysicsSolver* Solver = Proxy->GetSolver();
+		Chaos::FPBDRigidsSolver* Solver = Proxy->GetSolver<Chaos::FPBDRigidsSolver>();
 		return static_cast<FPhysScene*>(Solver ? Solver->PhysSceneHack : nullptr);
 	}
 	return nullptr;

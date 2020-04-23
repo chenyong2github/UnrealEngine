@@ -717,10 +717,10 @@ void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, F
 	const bool bDedicatedThread = PhysDispatcher->GetMode() == Chaos::EThreadingMode::DedicatedThread;
 
 	// Remove the object from the solver
-	PhysDispatcher->EnqueueCommandImmediate(InSolver, [InObject, bDedicatedThread](Chaos::FPBDRigidsSolver* InnerSolver)
+	InSolver->EnqueueCommandImmediate([InSolver, InObject, bDedicatedThread]()
 	{
 #if CHAOS_PARTICLEHANDLE_TODO
-		InnerSolver->UnregisterObject(InObject);
+		InSolver->UnregisterObject(InObject);
 #endif
 		InObject->OnRemoveFromScene();
 
@@ -791,7 +791,7 @@ void FPhysScene_Chaos::RemoveObject(FGeometryParticlePhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 {
-	Chaos::FPhysicsSolver* Solver = InObject->GetSolver();
+	Chaos::FPhysicsSolver* Solver = InObject->GetSolver<Chaos::FPhysicsSolver>();
 	if(Solver && !Solver->UnregisterObject(InObject))
 	{
 		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
@@ -802,7 +802,8 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
 {
-	Chaos::FPhysicsSolver* CurrSceneSolver = InObject->GetSolver();
+	//Does it make sense to remove field form just one solver since it affects multiple solvers?
+	Chaos::FPhysicsSolver* CurrSceneSolver = InObject->GetSolver<Chaos::FPhysicsSolver>();
 	if(CurrSceneSolver)
 	{
 		if(!CurrSceneSolver->UnregisterObject(InObject))
@@ -1347,11 +1348,11 @@ void FPhysScene_ChaosInterface::Flush_AssumesLocked()
 		//Make sure any dirty proxy data is pushed
 		Solver->PushPhysicsState(Dispatcher);
 
-		TQueue<TFunction<void(Chaos::FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
-		TFunction<void(Chaos::FPhysicsSolver*)> Command;
+		TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
+		TFunction<void()> Command;
 		while(Queue.Dequeue(Command))
 		{
-			Command(Solver);
+			Command();
 		}
 
 		// Populate the spacial acceleration
@@ -1803,7 +1804,7 @@ void FPhysScene_ChaosInterface::UpdateKinematicsOnDeferredSkelMeshes()
 	{
 		// Assumes all particles have the same solver, safe for now, maybe not in the future.
 		IPhysicsProxyBase* Proxy = ProxiesToDirty[0];
-		Chaos::FPhysicsSolverBase* Solver = Proxy->GetSolver();
+		auto* Solver = Proxy->GetSolver<Chaos::FPhysicsSolverBase>();
 		Solver->AddDirtyProxiesUnsafe(ProxiesToDirty);
 	}
 
@@ -2097,11 +2098,11 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		// flush solver queues
 		for (FPhysicsSolver* Solver : SolverList)
 		{
-			TQueue<TFunction<void(Chaos::FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
-			TFunction<void(Chaos::FPhysicsSolver*)> Command;
+			TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
+			TFunction<void()> Command;
 			while (Queue.Dequeue(Command))
 			{
-				Command(Solver);
+				Command();
 			}
 		}
 
