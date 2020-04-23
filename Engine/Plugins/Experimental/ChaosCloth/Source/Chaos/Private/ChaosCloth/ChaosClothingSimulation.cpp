@@ -1570,31 +1570,42 @@ void ClothingSimulation::GetSimulationData(
 	USkeletalMeshComponent* InOwnerComponent,
 	USkinnedMeshComponent* InOverrideComponent) const
 {
-	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
-	for (int32 i = 0; i < IndexToRangeMap.Num(); ++i)
+	const int32 NumSimulatedCloth = IndexToRangeMap.Num();
+	if (OutData.Num() != NumSimulatedCloth)
 	{
+		OutData.Reset();
+	}
+
+	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
+	for (int32 i = 0; i < NumSimulatedCloth; ++i)
+	{
+		FClothSimulData& Data = OutData.FindOrAdd(i);
+
 		const TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[i];
 		if (!Mesh)
+		{
+			Data.Reset();
 			continue;
+		}
 		Mesh->GetFaceNormals(FaceNormals[i], Evolution->Particles().X(), false);  // No need to add a point index offset here since that is baked into the triangles
 		Mesh->GetPointNormals(PointNormals[i], FaceNormals[i], /*bReturnEmptyOnError =*/ false, /*bFillAtStartIndex =*/ false);
 
-		FClothSimulData& Data = OutData.FindOrAdd(i);
-		Data.Reset();
-
 		const UClothingAssetCommon* const Asset = Assets[i];
 		if (!Asset)
+		{
+			Data.Reset();
 			continue;
+		}
 
 		const TArray<FTransform>& ComponentSpaceTransforms = InOverrideComponent ?
 			InOverrideComponent->GetComponentSpaceTransforms() :
 			InOwnerComponent->GetComponentSpaceTransforms();
-		if (!ComponentSpaceTransforms.IsValidIndex(Asset->ReferenceBoneIndex))
+		if (!ensure(ComponentSpaceTransforms.IsValidIndex(Asset->ReferenceBoneIndex)))
 		{
 			UE_LOG(LogSkeletalMesh, Warning,
 				TEXT("Failed to write back clothing simulation data for component '%s' as bone transforms are invalid."),
 				*InOwnerComponent->GetName());
-			check(false);
+			Data.Reset();
 			continue;
 		}
 
