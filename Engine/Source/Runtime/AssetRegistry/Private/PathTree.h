@@ -13,6 +13,9 @@ public:
 	/** Removes the specified path in the tree relative to this node. Returns true if the path was found and removed. */
 	bool RemovePath(FName Path);
 
+	/** Checks whether the given path is one that we know about */
+	bool PathExists(FName Path) const;
+
 	/** Get all of the paths we know about */
 	bool GetAllPaths(TSet<FName>& OutPaths) const;
 
