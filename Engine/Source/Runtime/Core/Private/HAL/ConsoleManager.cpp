@@ -2743,6 +2743,14 @@ static TAutoConsoleVariable<int32> CVarDisableOpenGLTextureStreamingSupport(
 	TEXT("  1 = Texture streaming will be disabled."),
 	ECVF_ReadOnly);
 
+// Moved here from OpenGLRHI module to make sure its always accessible on all platforms
+static FAutoConsoleVariable CVarOpenGLUseEmulatedUBs(
+	TEXT("OpenGL.UseEmulatedUBs"),
+	1,
+	TEXT("If true, enable using emulated uniform buffers on OpenGL ES3.1 mode."),
+	ECVF_ReadOnly
+	);
+
 static TAutoConsoleVariable<int32> CVarAndroidOverrideExternalTextureSupport(
 	TEXT("r.Android.OverrideExternalTextureSupport"),
 	0,
