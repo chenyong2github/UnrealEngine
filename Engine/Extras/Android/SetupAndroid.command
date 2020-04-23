@@ -12,10 +12,7 @@ fi
 echo Android Studio Path: $STUDIO_PATH
 
 if [ "$STUDIO_SDK_PATH" == "" ]; then
-	STUDIO_SDK_PATH=$ANDROID_HOME
-	if [ "$STUDIO_SDK_PATH" == "" ]; then
-		STUDIO_SDK_PATH=~/Library/Android/sdk
-	fi
+	STUDIO_SDK_PATH=~/Library/Android/sdk
 fi
 if [ "$1" != "" ]; then
 	STUDIO_SDK_PATH=$1
