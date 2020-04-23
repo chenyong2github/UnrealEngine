@@ -26,6 +26,7 @@
 #include "HeadlessChaosTestSerialization.h"
 #include "HeadlessChaosTestBP.h"
 #include "HeadlessChaosTestRaycast.h"
+#include "HeadlessChaosTestSweep.h"
 #include "HeadlessChaosTestGJK.h"
 #include "HeadlessChaosTestEPA.h"
 #include "HeadlessChaosTestBroadphase.h"
@@ -138,6 +139,10 @@ TEST(RaycastTests, Raycast) {
 	//ChaosTest::IntersectionRaycast<float>();
 	
 	SUCCEED();
+}
+
+TEST(SweepTests, Sweep) {
+	ChaosTest::CapsuleSweepAgainstTriMeshReal<float>();
 }
 
 TEST(MostOpposingTests, MostOpposing) {
