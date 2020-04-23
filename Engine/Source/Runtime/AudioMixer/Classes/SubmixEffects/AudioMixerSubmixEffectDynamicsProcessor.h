@@ -133,8 +133,8 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Audition"))
 	uint8 bKeyAudition : 1;
 
-	// Gain to apply to key signal (external signal if supplied or input signal if disabled)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Gain (dB)", UIMin = "-60.0", UIMax = "30.0"))
+	// Gain to apply to key signal if external input is supplied
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "External Input Gain (dB)", EditCondition = "ExternalSubmix != nullptr", UIMin = "-60.0", UIMax = "30.0"))
 	float KeyGainDb;
 
 	// The output gain of the dynamics processor
