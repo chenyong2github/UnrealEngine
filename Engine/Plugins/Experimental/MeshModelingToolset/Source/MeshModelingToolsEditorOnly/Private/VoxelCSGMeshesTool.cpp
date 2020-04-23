@@ -74,13 +74,16 @@ void UVoxelCSGMeshesTool::Setup()
 	UInteractiveTool::Setup();
 
 	CSGProps = NewObject<UVoxelCSGMeshesToolProperties>();
-	CSGProps->VoxelCount = 128;
-	CSGProps->MeshAdaptivity = 0.01f;
-	CSGProps->OffsetDistance = 0.0f;
+	CSGProps->RestoreProperties(this);
 	AddToolPropertySource(CSGProps);
 
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 	AddToolPropertySource(MeshStatisticsProperties);
+
+	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
+	HandleSourcesProperties->RestoreProperties(this);
+	AddToolPropertySource(HandleSourcesProperties);
+
 
 	// Hide the source meshes
 	for (auto& ComponentTarget : ComponentTargets)
@@ -115,7 +118,15 @@ void UVoxelCSGMeshesTool::Setup()
 
 void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	CSGProps->SaveProperties(this);
+	HandleSourcesProperties->SaveProperties(this);
+
 	FDynamicMeshOpResult Result = Preview->Shutdown();
+	// Restore (unhide) the source meshes
+	for (auto& ComponentTarget : ComponentTargets)
+	{
+		ComponentTarget->SetOwnerVisibility(true);
+	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		// Generate the result
@@ -127,48 +138,12 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			GetToolManager()->EndUndoTransaction();
 		}
 
-		// Hide or destroy the sources
-		{
-			
-			if (CSGProps->bDeleteInputActors)
-			{
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
-			}
-			else
-			{
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("HideSource", "Hide Sources"));
-			}
-			
-			for (auto& ComponentTarget : ComponentTargets)
-			{
-				ComponentTarget->SetOwnerVisibility(true);
-				AActor* Actor = ComponentTarget->GetOwnerActor();
-				if (CSGProps->bDeleteInputActors)
-				{
-					Actor->Destroy();
-				}
-				else
-				{
-					// Save the actor to the transaction buffer to support undo/redo, but do
-					// not call Modify, as we do not want to dirty the actor's package and
-					// we're only editing temporary, transient values
-					SaveToTransactionBuffer(Actor, false);
-					Actor->SetIsTemporarilyHiddenInEditor(true);
-				}
-			}
-
-			GetToolManager()->EndUndoTransaction();
-			
-		}
-		
-	}
-	else
-	{
-		// Restore (unhide) the source meshes
+		TArray<AActor*> Actors;
 		for (auto& ComponentTarget : ComponentTargets)
 		{
-			ComponentTarget->SetOwnerVisibility(true);
+			Actors.Add(ComponentTarget->GetOwnerActor());
 		}
+		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
 	}
 }
 
