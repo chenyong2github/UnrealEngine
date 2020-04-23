@@ -11,12 +11,8 @@
 
 // FHttpThread
 
-bool FHttpThread::bAllowForkableThreads = true;
-
 FHttpThread::FHttpThread()
 	:	Thread(nullptr)
-	,	bNeedsSingleThreadTick(false)
-	,	bIsStopped(true)
 {
 	HttpThreadActiveFrameTimeInSeconds = FHttpModule::Get().GetHttpThreadActiveFrameTimeInSeconds();
 	HttpThreadActiveMinimumSleepTimeInSeconds = FHttpModule::Get().GetHttpThreadActiveMinimumSleepTimeInSeconds();
@@ -33,25 +29,7 @@ FHttpThread::~FHttpThread()
 
 void FHttpThread::StartThread()
 {
-	bNeedsSingleThreadTick = false;
-
-	if (bAllowForkableThreads && FForkProcessHelper::IsForkedMultithreadInstance() )
-	{
-		// We only create forkable threads on the forked instance since the HTTPManager cannot safely transition from fake to real seamlessly
-		Thread = FForkProcessHelper::CreateForkableThread(this, TEXT("HttpManagerThread"), 128 * 1024, TPri_Normal);
-	}
-	else
-	{
-		// If the runnable thread is fake.
-		if (FGenericPlatformProcess::SupportsMultithreading() == false)
-		{
-			bNeedsSingleThreadTick = true;
-		}
-
-		Thread = FRunnableThread::Create(this, TEXT("HttpManagerThread"), 128 * 1024, TPri_Normal);
-	}
-
-	bIsStopped = false;
+	Thread = FRunnableThread::Create(this, TEXT("HttpManagerThread"), 128 * 1024, TPri_Normal);
 }
 
 void FHttpThread::StopThread()
@@ -62,8 +40,6 @@ void FHttpThread::StopThread()
 		delete Thread;
 		Thread = nullptr;
 	}
-
-	bIsStopped = true;
 }
 
 void FHttpThread::AddRequest(IHttpThreadedRequest* Request)
@@ -89,7 +65,6 @@ void FHttpThread::GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutComplet
 bool FHttpThread::Init()
 {
 	LastTime = FPlatformTime::Seconds();
-	ExitRequest.Set(false);
 	return true;
 }
 
@@ -101,43 +76,35 @@ uint32 FHttpThread::Run()
 	TArray<IHttpThreadedRequest*> RequestsToComplete;
 	while (!ExitRequest.GetValue())
 	{
-		const bool bIsMultithreaded = NeedsSingleThreadTick() == false;
-		if (ensureMsgf(bIsMultithreaded, TEXT("HTTP Thread was set to singlethread mode while it was running autonomously!")))
+		const double OuterLoopBegin = FPlatformTime::Seconds();
+		double OuterLoopEnd = 0.0;
+		bool bKeepProcessing = true;
+		while (bKeepProcessing)
 		{
-			const double OuterLoopBegin = FPlatformTime::Seconds();
-			double OuterLoopEnd = 0.0;
-			bool bKeepProcessing = true;
-			while (bKeepProcessing)
+			const double InnerLoopBegin = FPlatformTime::Seconds();
+			
+			Process(RequestsToCancel, RequestsToStart, RequestsToComplete);
+			
+			if (RunningThreadedRequests.Num() == 0)
 			{
-				const double InnerLoopBegin = FPlatformTime::Seconds();
-			
-				Process(RequestsToCancel, RequestsToStart, RequestsToComplete);
-			
-				if (RunningThreadedRequests.Num() == 0)
-				{
-					bKeepProcessing = false;
-				}
-
-				const double InnerLoopEnd = FPlatformTime::Seconds();
-				if (bKeepProcessing)
-				{
-					double InnerLoopTime = InnerLoopEnd - InnerLoopBegin;
-					double InnerSleep = FMath::Max(HttpThreadActiveFrameTimeInSeconds - InnerLoopTime, HttpThreadActiveMinimumSleepTimeInSeconds);
-					FPlatformProcess::SleepNoStats(InnerSleep);
-				}
-				else
-				{
-					OuterLoopEnd = InnerLoopEnd;
-				}
+				bKeepProcessing = false;
 			}
-			double OuterLoopTime = OuterLoopEnd - OuterLoopBegin;
-			double OuterSleep = FMath::Max(HttpThreadIdleFrameTimeInSeconds - OuterLoopTime, HttpThreadIdleMinimumSleepTimeInSeconds);
-			FPlatformProcess::SleepNoStats(OuterSleep);
+
+			const double InnerLoopEnd = FPlatformTime::Seconds();
+			if (bKeepProcessing)
+			{
+				double InnerLoopTime = InnerLoopEnd - InnerLoopBegin;
+				double InnerSleep = FMath::Max(HttpThreadActiveFrameTimeInSeconds - InnerLoopTime, HttpThreadActiveMinimumSleepTimeInSeconds);
+				FPlatformProcess::SleepNoStats(InnerSleep);
+			}
+			else
+			{
+				OuterLoopEnd = InnerLoopEnd;
+			}
 		}
-		else
-		{
-			break;
-		}
+		double OuterLoopTime = OuterLoopEnd - OuterLoopBegin;
+		double OuterSleep = FMath::Max(HttpThreadIdleFrameTimeInSeconds - OuterLoopTime, HttpThreadIdleMinimumSleepTimeInSeconds);
+		FPlatformProcess::SleepNoStats(OuterSleep);
 	}
 	return 0;
 }
@@ -145,18 +112,10 @@ uint32 FHttpThread::Run()
 
 void FHttpThread::Tick()
 {
-	if (ensure(NeedsSingleThreadTick()))
-	{
-		TArray<IHttpThreadedRequest*> RequestsToCancel;
-		TArray<IHttpThreadedRequest*> RequestsToStart;
-		TArray<IHttpThreadedRequest*> RequestsToComplete;
-		Process(RequestsToCancel, RequestsToStart, RequestsToComplete);
-	}
-}
-
-bool FHttpThread::NeedsSingleThreadTick() const
-{
-	return bNeedsSingleThreadTick;
+	TArray<IHttpThreadedRequest*> RequestsToCancel;
+	TArray<IHttpThreadedRequest*> RequestsToStart;
+	TArray<IHttpThreadedRequest*> RequestsToComplete;
+	Process(RequestsToCancel, RequestsToStart, RequestsToComplete);
 }
 
 void FHttpThread::HttpThreadTick(float DeltaSeconds)
