@@ -1787,13 +1787,16 @@ namespace Audio
 		{
 			// Get the envelope data
 			TArray<float> EnvelopeData;
-			EnvelopeData.AddUninitialized(EnvelopeNumChannels);
 
 			{
 				// Make the copy of the envelope values using a critical section
 				FScopeLock EnvelopeScopeLock(&EnvelopeCriticalSection);
 
-				FMemory::Memcpy(EnvelopeData.GetData(), EnvelopeValues, sizeof(float)*EnvelopeNumChannels);
+				if (EnvelopeNumChannels > 0)
+				{
+					EnvelopeData.AddUninitialized(EnvelopeNumChannels);
+					FMemory::Memcpy(EnvelopeData.GetData(), EnvelopeValues, sizeof(float)*EnvelopeNumChannels);
+				}
 			}
 
 			// Broadcast to any bound delegates
