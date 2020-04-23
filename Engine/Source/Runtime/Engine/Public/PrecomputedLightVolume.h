@@ -80,7 +80,7 @@ struct FLightVolumeOctreeSemantics
 		return &Sample.Position.X;
 	}
 
-	static void SetElementId(const FVolumeLightingSample& Element, FOctreeElementId Id)
+	static void SetElementId(const FVolumeLightingSample& Element, FOctreeElementId2 Id)
 	{
 	}
 

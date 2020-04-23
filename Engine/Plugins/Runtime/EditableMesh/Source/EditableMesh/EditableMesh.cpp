@@ -512,7 +512,7 @@ void UEditableMesh::RemapOctreeIDs( const FElementIDRemappings& Remappings )
 
 	{
 		// Make a temporary copy of the original map, and clear the stored version
-		static TMap<FPolygonID, FOctreeElementId> OldPolygonIDToOctreeElementIDMap;
+		static TMap<FPolygonID, FOctreeElementId2> OldPolygonIDToOctreeElementIDMap;
 		OldPolygonIDToOctreeElementIDMap = PolygonIDToOctreeElementIDMap;
 		PolygonIDToOctreeElementIDMap.Reset();
 
@@ -520,7 +520,7 @@ void UEditableMesh::RemapOctreeIDs( const FElementIDRemappings& Remappings )
 		for( const auto& OldPolygonIDAndOctreeElementID : OldPolygonIDToOctreeElementIDMap )
 		{
 			const FPolygonID OldPolygonID = OldPolygonIDAndOctreeElementID.Key;
-			const FOctreeElementId OctreeElementID = OldPolygonIDAndOctreeElementID.Value;
+			const FOctreeElementId2 OctreeElementID = OldPolygonIDAndOctreeElementID.Value;
 
 			const FPolygonID NewPolygonID = Remappings.GetRemappedPolygonID( OldPolygonID );
 			PolygonIDToOctreeElementIDMap.Add( NewPolygonID, OctreeElementID );
@@ -7989,7 +7989,7 @@ void UEditableMesh::UpdateOrRebuildOctree()
 			{
 				for( const FPolygonID PolygonID : DeletedOctreePolygonIDs )
 				{
-					const FOctreeElementId OctreeElementID = PolygonIDToOctreeElementIDMap.FindAndRemoveChecked( PolygonID );
+					const FOctreeElementId2 OctreeElementID = PolygonIDToOctreeElementIDMap.FindAndRemoveChecked( PolygonID );
 					Octree->RemoveElement( OctreeElementID );
 				}
 				DeletedOctreePolygonIDs.Reset();

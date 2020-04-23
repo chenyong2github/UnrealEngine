@@ -537,7 +537,7 @@ private:
 			{
 				int ElementIndex = TreeElements[CurrentNodeIndex].Emplace(Element);
 
-				SetElementId(Element, FOctreeElementId(CurrentNodeIndex, ElementIndex));	
+				SetElementId(Element, FOctreeElementId2(CurrentNodeIndex, ElementIndex));	
 				return;
 			}
 		}
@@ -547,7 +547,7 @@ private:
 			if (ChildRef.IsNULL())
 			{
 				int ElementIndex = TreeElements[CurrentNodeIndex].Emplace(Element);
-				SetElementId(Element, FOctreeElementId(CurrentNodeIndex, ElementIndex));
+				SetElementId(Element, FOctreeElementId2(CurrentNodeIndex, ElementIndex));
 				return;
 			}
 			else
@@ -785,7 +785,7 @@ public:
 	 * Removes an element from the octree.
 	 * @param ElementId - The element to remove from the octree.
 	 */
-	inline void RemoveElement(FOctreeElementId ElementId)
+	inline void RemoveElement(FOctreeElementId2 ElementId)
 	{
 		checkSlow(ElementId.IsValidId());
 
@@ -834,7 +834,7 @@ public:
 				for (int ElementIndex = 0; ElementIndex < TreeElements[CollapseNodeIndex].Num(); ElementIndex++)
 				{
 					// Update the external element id for the element that's being collapsed.
-					SetElementId(TreeElements[CollapseNodeIndex][ElementIndex], FOctreeElementId(CollapseNodeIndex, ElementIndex));
+					SetElementId(TreeElements[CollapseNodeIndex][ElementIndex], FOctreeElementId2(CollapseNodeIndex, ElementIndex));
 				}
 
 				// Mark the node as a leaf.
@@ -857,22 +857,22 @@ public:
 	}
 
 	/** Accesses an octree element by ID. */
-	ElementType& GetElementById(FOctreeElementId ElementId)
+	ElementType& GetElementById(FOctreeElementId2 ElementId)
 	{
 		return TreeElements[ElementId.NodeIndex][ElementId.ElementIndex];
 	}
 
 	/** Accesses an octree element by ID. */
-	const ElementType& GetElementById(FOctreeElementId ElementId) const
+	const ElementType& GetElementById(FOctreeElementId2 ElementId) const
 	{
 		return TreeElements[ElementId.NodeIndex][ElementId.ElementIndex];
 	}
 
 	/**
-	 * check if a FOctreeElementId is valid.
+	 * check if a FOctreeElementId2 is valid.
 	 * @param ElementId - The ElementId to check.
 	 */
-	bool IsValidElementId(FOctreeElementId ElementId) const
+	bool IsValidElementId(FOctreeElementId2 ElementId) const
 	{
 		return ElementId.IsValidId() && ElementId.ElementIndex < TreeElements[ElementId.NodeIndex].Num();
 	};
@@ -1008,25 +1008,25 @@ private:
 	struct COctreeSemanticsV2
 	{
 		template<typename Semantics>
-		auto Requires(typename Semantics::FOctree& OctreeInstance, const ElementType& Element, FOctreeElementId Id)
+		auto Requires(typename Semantics::FOctree& OctreeInstance, const ElementType& Element, FOctreeElementId2 Id)
 			-> decltype(Semantics::SetElementId(OctreeInstance, Element, Id));
 	};
 
 	// Function overload set which calls the V2 version if it's supported or the old version if it's not
 	template <typename Semantics>
-	typename TEnableIf<!TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId Id)
+	typename TEnableIf<!TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId2 Id)
 	{
 		Semantics::SetElementId(Element, Id);
 	}
 	template <typename Semantics>
-	typename TEnableIf<TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId Id)
+	typename TEnableIf<TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId2 Id)
 	{
 		Semantics::SetElementId(*this, Element, Id);
 	}
 
 protected:
 	// redirects SetElementId call to the proper implementation
-	void SetElementId(const ElementType& Element, FOctreeElementId Id)
+	void SetElementId(const ElementType& Element, FOctreeElementId2 Id)
 	{
 		SetOctreeSemanticsElementId<OctreeSemantics>(Element, Id);
 	}

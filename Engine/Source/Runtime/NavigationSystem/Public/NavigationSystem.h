@@ -741,11 +741,11 @@ public:
 	{
 		return FNavigationOctree::HashObject(Object);
 	}
-	FORCEINLINE const FOctreeElementId* GetObjectsNavOctreeId(const UObject& Object) const { return DefaultOctreeController.GetObjectsNavOctreeId(Object); }
+	FORCEINLINE const FOctreeElementId2* GetObjectsNavOctreeId(const UObject& Object) const { return DefaultOctreeController.GetObjectsNavOctreeId(Object); }
 	FORCEINLINE bool HasPendingObjectNavOctreeId(UObject* Object) const { return Object && DefaultOctreeController.HasPendingObjectNavOctreeId(*Object); }
 	FORCEINLINE void RemoveObjectsNavOctreeId(const UObject& Object) { DefaultOctreeController.RemoveObjectsNavOctreeId(Object); }
 
-	void RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags);
+	void RemoveNavOctreeElementId(const FOctreeElementId2& ElementId, int32 UpdateFlags);
 
 	const FNavigationRelevantData* GetDataForObject(const UObject& Object) const;
 	FNavigationRelevantData* GetMutableDataForObject(const UObject& Object);
@@ -1204,10 +1204,10 @@ public:
 	virtual ANavigationData* CreateNavigationDataInstance(const FNavDataConfig& NavConfig);
 	
 	UE_DEPRECATED(4.24, "This function is deprecated and no longer used. NavigationSystem is no longer involved in storing navoctree element IDs. See FNavigationOctree for more details.")
-	void SetObjectsNavOctreeId(const UObject& Object, FOctreeElementId Id) {}
+	void SetObjectsNavOctreeId(const UObject& Object, FOctreeElementId2 Id) {}
 
 	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
-	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
+	TMap<uint32, FOctreeElementId2> ObjectToOctreeId;
 	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
 	TSet<FNavigationDirtyElement> PendingOctreeUpdates;
 	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")

@@ -1341,7 +1341,7 @@ struct FTriangleOctreeSemantics
 		return (A.TriangleIndex == B.TriangleIndex);
 	}
 
-	FORCEINLINE static void SetElementId(const FTriangleElement& Element, FOctreeElementId OctreeElementID)
+	FORCEINLINE static void SetElementId(const FTriangleElement& Element, FOctreeElementId2 OctreeElementID)
 	{
 	}
 };

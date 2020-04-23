@@ -112,7 +112,7 @@ struct FNavigationOctreeSemantics
 #if NAVSYS_DEBUG
 	FORCENOINLINE 
 #endif // NAVSYS_DEBUG
-	static void SetElementId(FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId Id);
+	static void SetElementId(FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId2 Id);
 };
 
 class NAVIGATIONSYSTEM_API FNavigationOctree : public TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
@@ -144,7 +144,7 @@ public:
 	 * Removes an element from the octree.
 	 * @param ElementId - The element to remove from the octree.
 	 */
-	inline void RemoveElement(FOctreeElementId ElementId)
+	inline void RemoveElement(FOctreeElementId2 ElementId)
 	{
 		DEC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
 		DEC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
@@ -161,17 +161,17 @@ public:
 	void AddNode(UObject* ElementOb, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Data);
 
 	/** Append new data to existing node */
-	void AppendToNode(const FOctreeElementId& Id, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Data);
+	void AppendToNode(const FOctreeElementId2& Id, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Data);
 
 	/** Updates element bounds remove/add operation */
-	void UpdateNode(const FOctreeElementId& Id, const FBox& NewBounds);
+	void UpdateNode(const FOctreeElementId2& Id, const FBox& NewBounds);
 
 	/** Remove node */
-	void RemoveNode(const FOctreeElementId& Id);
+	void RemoveNode(const FOctreeElementId2& Id);
 
 	void SetNavigableGeometryStoringMode(ENavGeometryStoringMode NavGeometryMode);
 
-	const FNavigationRelevantData* GetDataForID(const FOctreeElementId& Id) const;
+	const FNavigationRelevantData* GetDataForID(const FOctreeElementId2& Id) const;
 
 	ENavGeometryStoringMode GetNavGeometryStoringMode() const
 	{
@@ -194,9 +194,9 @@ protected:
 	friend struct FNavigationOctreeController;
 	friend struct FNavigationOctreeSemantics;
 
-	void SetElementIdImpl(const uint32 OwnerUniqueId, FOctreeElementId Id);
+	void SetElementIdImpl(const uint32 OwnerUniqueId, FOctreeElementId2 Id);
 
-	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
+	TMap<uint32, FOctreeElementId2> ObjectToOctreeId;
 	ENavDataGatheringMode DefaultGeometryGatheringMode;
 	uint32 bGatherGeometry : 1;
 	uint32 NodesMemory;
