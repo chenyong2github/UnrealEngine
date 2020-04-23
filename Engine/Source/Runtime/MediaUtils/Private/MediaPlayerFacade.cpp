@@ -242,6 +242,7 @@ void FMediaPlayerFacade::Close()
 	bHaveActiveAudio = false;
 	VideoSampleAvailability = -1;
 	AudioSampleAvailability = -1;
+	bIsSinkFlushPending = false;
 
 	FlushSinks();
 }
@@ -1224,6 +1225,11 @@ void FMediaPlayerFacade::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 			//
 			// New timing control (handled before any engine world, object etc. updates; so "all frame" (almost) see the state produced here)
 			//
+			if (bIsSinkFlushPending)
+			{
+				bIsSinkFlushPending = false;
+				FlushSinks();
+			}
 
 			// Do we have a current timestamp estimation?
 			if (!bHaveActiveAudio && !NextEstVideoTimeAtFrameStart.IsValid())
@@ -1862,6 +1868,23 @@ void FMediaPlayerFacade::ReceiveMediaEvent(EMediaEvent Event)
 				SET_DWORD_STAT(STAT_MediaUtils_FacadeNumPurgedVideoSamples, NumPurged);
 				INC_DWORD_STAT_BY(STAT_MediaUtils_FacadeTotalPurgedVideoSamples, NumPurged);
 
+				break;
+			}
+
+			case	EMediaEvent::Internal_ResetForDiscontinuity:
+			{
+				UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Reset for discontinuity"), this);
+				bIsSinkFlushPending = true;
+				break;
+			}
+			case	EMediaEvent::Internal_RenderClockStart:
+			{
+				UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Render clock shall start"), this);
+				break;
+			}
+			case	EMediaEvent::Internal_RenderClockStop:
+			{
+				UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Render clock shall stop"), this);
 				break;
 			}
 
