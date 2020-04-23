@@ -5,6 +5,10 @@
 #include "ChaosStats.h"
 #include "PhysicsSolver.h"
 
+#ifndef ADD_TRAITS_TO_SKELTAL_MESH_PROXY
+#define ADD_TRAITS_TO_SKELTAL_MESH_PROXY 0
+#endif
+
 FSkeletalMeshPhysicsProxy::FSkeletalMeshPhysicsProxy(UObject* InOwner, const FInitFunc& InInitFunc)
 	: Base(InOwner)
 	, JointConstraints(Chaos::FPBDJointSolverSettings())
@@ -340,6 +344,8 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 				BBox.Extents().Product());
 		}
 
+	ensure(false);	//GetSolver needs a trait, but we don't know it - this class changing anyway
+#if ADD_TRAITS_TO_SKELTAL_MESH_PROXY
 		// Add joints to the scene
 		if (JointConstraints.NumConstraints() > 0)
 		{
@@ -347,6 +353,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 		}
 
 		bInitializedState = true;
+#endif
 	}
 }
 
@@ -379,6 +386,8 @@ void FSkeletalMeshPhysicsProxy::SyncBeforeDestroy()
 
 void FSkeletalMeshPhysicsProxy::OnRemoveFromScene()
 {
+	ensure(false);	//GetSolver needs a trait, but we don't know it - this class changing anyway
+#if ADD_TRAITS_TO_SKELTAL_MESH_PROXY
 	// Disable the particle we added
 	Chaos::FPhysicsSolver* CurrSolver = GetSolver();
 	if(CurrSolver && RigidBodyIds.Num())
@@ -402,6 +411,7 @@ void FSkeletalMeshPhysicsProxy::OnRemoveFromScene()
 		}
 #endif
 	}
+#endif
 }
 
 void FSkeletalMeshPhysicsProxy::BufferPhysicsResults()
@@ -409,6 +419,8 @@ void FSkeletalMeshPhysicsProxy::BufferPhysicsResults()
 	using namespace Chaos;
 	// PHYSICS THREAD
 
+	ensure(false);	//GetSolver needs a trait, but we don't know it - this class changing anyway
+#if ADD_TRAITS_TO_SKELTAL_MESH_PROXY
 	// @todo(ccaulfield)
 	if (GetSolver() != nullptr)
 	{
@@ -439,6 +451,7 @@ void FSkeletalMeshPhysicsProxy::BufferPhysicsResults()
 		}
 #endif
 	}
+#endif
 }
 
 void FSkeletalMeshPhysicsProxy::FlipBuffer()

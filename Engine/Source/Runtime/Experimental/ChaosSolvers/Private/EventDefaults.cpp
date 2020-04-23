@@ -16,7 +16,8 @@
 namespace Chaos
 {
 
-	void FEventDefaults::RegisterSystemEvents(FEventManager& EventManager)
+	template <typename Traits>
+	void TEventDefaults<Traits>::RegisterSystemEvents(TEventManager<Traits>& EventManager)
 	{
 		RegisterCollisionEvent(EventManager);
 		RegisterBreakingEvent(EventManager);
@@ -24,10 +25,11 @@ namespace Chaos
 		RegisterSleepingEvent(EventManager);
 	}
 
-	void FEventDefaults::RegisterCollisionEvent(FEventManager& EventManager)
+	template <typename Traits>
+	void TEventDefaults<Traits>::RegisterCollisionEvent(TEventManager<Traits>& EventManager)
 	{
-		EventManager.RegisterEvent<FCollisionEventData>(EEventType::Collision, []
-		(const Chaos::FPBDRigidsSolver* Solver, FCollisionEventData& CollisionEventData)
+		EventManager.template RegisterEvent<FCollisionEventData>(EEventType::Collision, []
+		(const Chaos::TPBDRigidsSolver<Traits>* Solver, FCollisionEventData& CollisionEventData)
 		{
 			check(Solver);
 			SCOPE_CYCLE_COUNTER(STAT_GatherCollisionEvent);
@@ -45,7 +47,7 @@ namespace Chaos
 			CollisionEventData.CollisionData.TimeCreated = Solver->MTime;
 			CollisionEventData.PhysicsProxyToCollisionIndices.TimeCreated = Solver->MTime;
 
-			const FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
+			const auto* Evolution = Solver->GetEvolution();
 
 			const FPBDCollisionConstraints& CollisionRule = Evolution->GetCollisionConstraints();
 
@@ -53,9 +55,9 @@ namespace Chaos
 			const TPBDRigidParticles<float, 3>& Particles = Evolution->GetParticles().GetDynamicParticles();
 			const TArrayCollectionArray<ClusterId>& ClusterIdsArray = Evolution->GetRigidClustering().GetClusterIdsArray();
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
-			const Chaos::FPBDRigidsSolver::FClusteringType::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
+			const Chaos::TPBDRigidsSolver<Traits>::FClusteringType::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 #endif
-			const Chaos::TPBDRigidClustering<FPhysicsSolver::FPBDRigidsEvolution, FPBDCollisionConstraints, float, 3>::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
+			const typename Chaos::TPBDRigidClustering<typename TPBDRigidsSolver<Traits>::FPBDRigidsEvolution, FPBDCollisionConstraints, float, 3>::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 
 			if(CollisionRule.NumConstraints() > 0)
 			{
@@ -78,32 +80,32 @@ namespace Chaos
 							{
 								if (NumValidCollisions >= CollisionRule.NumConstraints()) break;
 
-								if (Proxy != nullptr)
+						if (Proxy != nullptr)
+						{
+							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+							{
+								TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+								TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
+								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
+
+								// presently when a rigidbody or kinematic hits static geometry then Body1 is null
+								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
+
+								if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
 								{
-									if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+									if (ensure(!Constraint.GetLocation().ContainsNaN() &&
+										!Constraint.GetNormal().ContainsNaN()) &&
+										!Body0->V().ContainsNaN() &&
+										!Body0->W().ContainsNaN() &&
+										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
 									{
-										TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
-										TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-										TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
-
-										// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-										TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
-
-										if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
-										{
-											if (ensure(!Constraint.GetLocation().ContainsNaN() &&
-												!Constraint.GetNormal().ContainsNaN()) &&
-												!Body0->V().ContainsNaN() &&
-												!Body0->W().ContainsNaN() &&
-												(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
-											{
-												ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-												NumValidCollisions++;
-											}
-										}
+										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+										NumValidCollisions++;
 									}
 								}
 							}
+						}
+					}
 						}
 					}
 					else if (ContactHandle->GetType() == FCollisionConstraintBase::FType::MultiPoint)
@@ -118,33 +120,33 @@ namespace Chaos
 							{
 								if (NumValidCollisions >= CollisionRule.NumConstraints()) break;
 
-								if (Proxy != nullptr)
+						if (Proxy != nullptr)
+						{
+							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+							{
+								TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+								TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
+								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
+
+								// presently when a rigidbody or kinematic hits static geometry then Body1 is null
+								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
+
+								if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
 								{
-									if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+									if (ensure(!Constraint.GetLocation().ContainsNaN() &&
+										!Constraint.GetNormal().ContainsNaN()) &&
+										!Body0->V().ContainsNaN() &&
+										!Body0->W().ContainsNaN() &&
+										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
 									{
-										TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
-										TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-										TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
-
-										// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-										TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
-
-										if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
-										{
-											if (ensure(!Constraint.GetLocation().ContainsNaN() &&
-												!Constraint.GetNormal().ContainsNaN()) &&
-												!Body0->V().ContainsNaN() &&
-												!Body0->W().ContainsNaN() &&
-												(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
-											{
-												ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-												NumValidCollisions++;
-											}
-										}
+										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+										NumValidCollisions++;
 									}
 								}
 							}
 						}
+					}
+				}
 					}
 				}
 
@@ -221,11 +223,11 @@ namespace Chaos
 #endif
 
 								// Add to AllCollisionsIndicesByPhysicsProxy
-								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
+								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(TEventManager<Traits>::EncodeCollisionIndex(NewIdx, false));
 
 								if (OtherPhysicsProxy && OtherPhysicsProxy != PhysicsProxy)
 								{
-									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, true));
+									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(TEventManager<Traits>::EncodeCollisionIndex(NewIdx, true));
 								}
 							}
 						}
@@ -297,11 +299,11 @@ namespace Chaos
 #endif
 
 								// Add to AllCollisionsIndicesByPhysicsProxy
-								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
+								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(TEventManager<Traits>::EncodeCollisionIndex(NewIdx, false));
 
 								if (OtherPhysicsProxy && OtherPhysicsProxy != PhysicsProxy)
 								{
-									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, true));
+									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(TEventManager<Traits>::EncodeCollisionIndex(NewIdx, true));
 								}
 							}
 						}
@@ -311,10 +313,11 @@ namespace Chaos
 		});
 	}
 
-	void FEventDefaults::RegisterBreakingEvent(FEventManager& EventManager)
+	template <typename Traits>
+	void TEventDefaults<Traits>::RegisterBreakingEvent(TEventManager<Traits>& EventManager)
 	{
-		EventManager.RegisterEvent<FBreakingEventData>(EEventType::Breaking, []
-		(const Chaos::FPBDRigidsSolver* Solver, FBreakingEventData& BreakingEventData)
+		EventManager.template RegisterEvent<FBreakingEventData>(EEventType::Breaking, []
+		(const Chaos::TPBDRigidsSolver<Traits>* Solver, FBreakingEventData& BreakingEventData)
 		{
 			check(Solver);
 			SCOPE_CYCLE_COUNTER(STAT_GatherBreakingEvent);
@@ -329,7 +332,7 @@ namespace Chaos
 
 			BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
 
-			const FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
+			const auto* Evolution = Solver->GetEvolution();
 			const TPBDRigidParticles<float, 3>& Particles = Evolution->GetParticles().GetDynamicParticles();
 			const TArray<TBreakingData<float, 3>>& AllBreakingsArray = Evolution->GetRigidClustering().GetAllClusterBreakings();
 			const TArrayCollectionArray<ClusterId>& ClusterIdsArray = Evolution->GetRigidClustering().GetClusterIdsArray();
@@ -381,7 +384,7 @@ namespace Chaos
 									BreakingDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
 								}
 #endif
-							}
+								}
 						}
 					}
 				}
@@ -389,10 +392,11 @@ namespace Chaos
 		});
 	}
 
-	void FEventDefaults::RegisterTrailingEvent(FEventManager& EventManager)
+	template <typename Traits>
+	void TEventDefaults<Traits>::RegisterTrailingEvent(TEventManager<Traits>& EventManager)
 	{
-		EventManager.RegisterEvent<FTrailingEventData>(EEventType::Trailing, []
-		(const Chaos::FPBDRigidsSolver* Solver, FTrailingEventData& TrailingEventData)
+		EventManager.template RegisterEvent<FTrailingEventData>(EEventType::Trailing, []
+		(const Chaos::TPBDRigidsSolver<Traits>* Solver, FTrailingEventData& TrailingEventData)
 		{
 			check(Solver);
 
@@ -400,7 +404,7 @@ namespace Chaos
 			if (!Solver->GetEventFilters()->IsTrailingEventEnabled())
 				return;
 
-			const FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
+			const auto* Evolution = Solver->GetEvolution();
 
 			const TArrayCollectionArray<ClusterId>& ClusterIdsArray = Evolution->GetRigidClustering().GetClusterIdsArray();
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
@@ -461,20 +465,21 @@ namespace Chaos
 		});
 	}
 
-	void FEventDefaults::RegisterSleepingEvent(FEventManager& EventManager)
+	template <typename Traits>
+	void TEventDefaults<Traits>::RegisterSleepingEvent(TEventManager<Traits>& EventManager)
 	{
-		EventManager.RegisterEvent<FSleepingEventData>(EEventType::Sleeping, []
-		(const Chaos::FPBDRigidsSolver* Solver, FSleepingEventData& SleepingEventData)
+		EventManager.template RegisterEvent<FSleepingEventData>(EEventType::Sleeping, []
+		(const Chaos::TPBDRigidsSolver<Traits>* Solver, FSleepingEventData& SleepingEventData)
 		{
 			check(Solver);
 			SCOPE_CYCLE_COUNTER(STAT_GatherSleepingEvent);
 
-			const FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
+			const auto* Evolution = Solver->GetEvolution();
 
 			FSleepingDataArray& EventSleepDataArray = SleepingEventData.SleepingData;
 			EventSleepDataArray.Reset();
 
-			Chaos::FPBDRigidsSolver* NonConstSolver = (Chaos::FPBDRigidsSolver*)(Solver);
+			Chaos::TPBDRigidsSolver<Traits>* NonConstSolver = const_cast<Chaos::TPBDRigidsSolver<Traits>*>(Solver);
 
 			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadLock();
 			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
@@ -486,13 +491,13 @@ namespace Chaos
 					{
 						for (IPhysicsProxyBase* Proxy : *Proxies)
 						{
-							TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
+					TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
 							if (Particle != nullptr && Proxy != nullptr)
-							{
-								int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
-								TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
-								SleepingDataArrayItem.Particle = Particle;
-								SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
+					{
+						int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
+						TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
+						SleepingDataArrayItem.Particle = Particle;
+						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 							}
 						}
 					}
@@ -505,4 +510,8 @@ namespace Chaos
 
 		});
 	}
+
+#define EVOLUTION_TRAIT(Trait) template class TEventDefaults<Trait>;
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
 }

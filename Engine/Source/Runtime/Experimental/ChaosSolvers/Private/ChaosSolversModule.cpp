@@ -306,7 +306,7 @@ void FChaosSolversModule::ShutdownThreadingMode()
 				IDispatcher::FSolverCommand Command;
 				while(Solver->CommandQueue.Dequeue(Command))
 				{
-					Command(Solver);
+					Command();
 				}
 			}
 
@@ -953,10 +953,10 @@ void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
 	{
 		if (Dispatcher)
 		{
-			Dispatcher->EnqueueCommandImmediate(Solver, [InBufferMode = BufferMode]
-			(Chaos::FPhysicsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [InBufferMode = BufferMode, Solver]
+			()
 			{
-				InSolver->ChangeBufferMode(InBufferMode);
+				Solver->ChangeBufferMode(InBufferMode);
 			});
 		}
 		else
@@ -998,9 +998,9 @@ void FChaosSolversModule::OnUpdateMaterial(Chaos::FMaterialHandle InHandle)
 		for(Chaos::FPhysicsSolver* Solver : AllSolvers)
 		{
 			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialCopy = *Material](Chaos::FPhysicsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialCopy = *Material, Solver]()
 			{
-				InSolver->UpdateMaterial(InHandle, MaterialCopy);
+				Solver->UpdateMaterial(InHandle, MaterialCopy);
 			});
 		}
 	}
@@ -1018,9 +1018,9 @@ void FChaosSolversModule::OnCreateMaterial(Chaos::FMaterialHandle InHandle)
 		for(Chaos::FPhysicsSolver* Solver : AllSolvers)
 		{
 			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialCopy = *Material](Chaos::FPhysicsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialCopy = *Material, Solver]()
 			{
-				InSolver->CreateMaterial(InHandle, MaterialCopy);
+				Solver->CreateMaterial(InHandle, MaterialCopy);
 			});
 		}
 	}
@@ -1041,9 +1041,9 @@ void FChaosSolversModule::OnDestroyMaterial(Chaos::FMaterialHandle InHandle)
 		for(Chaos::FPhysicsSolver* Solver : AllSolvers)
 		{
 			// Notify each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle](Chaos::FPhysicsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, Solver]()
 			{
-				InSolver->DestroyMaterial(InHandle);
+				Solver->DestroyMaterial(InHandle);
 			});
 		}
 	}
@@ -1061,9 +1061,9 @@ void FChaosSolversModule::OnUpdateMaterialMask(Chaos::FMaterialMaskHandle InHand
 		for (Chaos::FPhysicsSolver* Solver : AllSolvers)
 		{
 			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialMaskCopy = *MaterialMask](Chaos::FPhysicsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialMaskCopy = *MaterialMask, Solver]()
 			{
-				InSolver->UpdateMaterialMask(InHandle, MaterialMaskCopy);
+				Solver->UpdateMaterialMask(InHandle, MaterialMaskCopy);
 			});
 		}
 	}
@@ -1081,9 +1081,9 @@ void FChaosSolversModule::OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHand
 		for (Chaos::FPhysicsSolver* Solver : AllSolvers)
 		{
 			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialMaskCopy = *MaterialMask](Chaos::FPhysicsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialMaskCopy = *MaterialMask, Solver]()
 			{
-				InSolver->CreateMaterialMask(InHandle, MaterialMaskCopy);
+				Solver->CreateMaterialMask(InHandle, MaterialMaskCopy);
 			});
 		}
 	}
@@ -1104,9 +1104,9 @@ void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHan
 		for (Chaos::FPhysicsSolver* Solver : AllSolvers)
 		{
 			// Notify each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle](Chaos::FPhysicsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, Solver]()
 			{
-				InSolver->DestroyMaterialMask(InHandle);
+				Solver->DestroyMaterialMask(InHandle);
 			});
 		}
 	}

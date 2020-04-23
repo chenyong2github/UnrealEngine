@@ -15,6 +15,8 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Containers/Array.h"
 #include "PBDRigidsSolver.h"
+#include "Chaos/EvolutionTraits.h"
+#include "Chaos/Defines.h"
 
 namespace Chaos
 {
@@ -50,10 +52,11 @@ private:
  * Class to manage sharing data between the game thread and the simulation thread 
  * (which may not be different than the game thread) for a \c FGeometryDynamicCollection.
  */
-class CHAOSSOLVERS_API FGeometryCollectionPhysicsProxy : public TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData>
+template <typename Traits>
+class TGeometryCollectionPhysicsProxy : public TPhysicsProxy<TGeometryCollectionPhysicsProxy<Traits>, FStubGeometryCollectionData>
 {
 public:
-	typedef TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData> Base;
+	typedef TPhysicsProxy<TGeometryCollectionPhysicsProxy<Traits>, FStubGeometryCollectionData> Base;
 	typedef FCollisionStructureManager::FSimplicial FSimplicial;
 	typedef Chaos::TPBDRigidParticleHandle<float, 3> FParticleHandle;
 	typedef Chaos::TPBDRigidClusteredParticleHandle<float, 3> FClusterHandle;
@@ -62,8 +65,9 @@ public:
 	using FInitFunc = TFunction<void(FSimulationParameters&)>;
 	using FCacheSyncFunc = TFunction<void(const FGeometryCollectionResults&)>;
 	using FFinalSyncFunc = TFunction<void(const FRecordedTransformTrack&)>;
+	using IPhysicsProxyBase::GetSolver;
 
-	FGeometryCollectionPhysicsProxy() = delete;
+	TGeometryCollectionPhysicsProxy() = delete;
 	/**
 	 * \p InOwner
 	 * \p InDynamicCollection game thread owned geometry collection.
@@ -71,7 +75,7 @@ public:
 	 * \p InCacheSyncFunc callback invoked from \c PullFromPhysicsState().
 	 * \p InFinalSyncFunc callback invoked from \c SyncBeforeDestory().
 	 */
-	FGeometryCollectionPhysicsProxy(
+	TGeometryCollectionPhysicsProxy(
 		UObject* InOwner, 
 		FGeometryDynamicCollection& GameThreadCollection,
 		const FSimulationParameters& SimulationParameters,
@@ -81,7 +85,7 @@ public:
 		FCacheSyncFunc InCacheSyncFunc, 
 		FFinalSyncFunc InFinalSyncFunc  ,
 		const Chaos::EMultiBufferMode BufferMode=Chaos::EMultiBufferMode::TripleGuarded);
-	virtual ~FGeometryCollectionPhysicsProxy();
+	virtual ~TGeometryCollectionPhysicsProxy();
 
 	/**
 	 * Construct \c PTDynamicCollection, copying attributes from the game thread, 
@@ -96,8 +100,8 @@ public:
 	 * Called by solver command registered by \c FPBDRigidsSolver::RegisterObject().
 	 */
 	void InitializeBodiesPT(
-		Chaos::FPBDRigidsSolver* RigidsSolver,
-		Chaos::FPBDRigidsSolver::FParticlesType& Particles);
+		Chaos::TPBDRigidsSolver<Traits>* RigidsSolver,
+		typename Chaos::TPBDRigidsSolver<Traits>::FParticlesType& Particles);
 
 	/** */
 	static void InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params);
@@ -148,7 +152,7 @@ public:
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::GeometryCollectionType; }
 
 	void SyncBeforeDestroy();
-	void OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver);
+	void OnRemoveFromSolver(Chaos::TPBDRigidsSolver<Traits> *RBDSolver);
 	void OnRemoveFromScene();
 
 	void SetCollisionParticlesPerObjectFraction(float CollisionParticlesPerObjectFractionIn) 
@@ -170,7 +174,7 @@ public:
 	static void InitializeSharedCollisionStructures(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams);
 	static void InitRemoveOnFracture(FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams);
 
-	void FieldForcesUpdateCallback(Chaos::FPhysicsSolver* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<FVector>& Force, Chaos::TArrayCollectionArray<FVector>& Torque, const float Time);
+	void FieldForcesUpdateCallback(Chaos::TPBDRigidsSolver<Traits>* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<FVector>& Force, Chaos::TArrayCollectionArray<FVector>& Torque, const float Time);
 	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime);
 
 	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy) {}
@@ -203,7 +207,7 @@ protected:
 		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
 		TArray<FVector>& Samples,
 		TArray<ContextIndex>& SampleIndices,
-		const Chaos::FPhysicsSolver* RigidSolver, 
+		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver, 
 		EFieldResolutionType ResolutionType, 
 		bool bForce);
 
@@ -220,6 +224,7 @@ protected:
 
 private:
 
+	using FSolver = Chaos::TPBDRigidsSolver<Traits>;
 	FSimulationParameters Parameters;
 	TArray<FFieldSystemCommand> Commands;
 
@@ -295,6 +300,10 @@ private:
 	Chaos::FGuardedTripleBuffer<FGeometryCollectionResults> PhysToGameInterchange;
 
 };
+
+#define EVOLUTION_TRAIT(Traits) extern template CHAOSSOLVERS_TEMPLATE_API class TGeometryCollectionPhysicsProxy<Chaos::Traits>;
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
 
 CHAOSSOLVERS_API Chaos::TTriangleMesh<float>* CreateTriangleMesh(const int32 FaceStart,const int32 FaceCount,const TManagedArray<bool>& Visible,const TManagedArray<FIntVector>& Indices);
 CHAOSSOLVERS_API void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& GeometryCollection, const FSharedSimulationParameters& SharedParams);

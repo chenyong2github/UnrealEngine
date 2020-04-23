@@ -5,6 +5,8 @@
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Field/FieldSystem.h"
 #include "Chaos/PBDPositionConstraints.h"
+#include "Chaos/Defines.h"
+#include "Chaos/EvolutionTraits.h"
 
 struct FKinematicProxy;
 
@@ -45,8 +47,9 @@ public:
 	 *	* EFieldPhysicsType::Field_PositionAnimated
 	 *	* EFieldPhysicsType::Field_DynamicConstraint
 	 */
+	template <typename Traits>
 	void FieldParameterUpdateCallback(
-		Chaos::FPhysicsSolver* InSolver, 
+		Chaos::TPBDRigidsSolver<Traits>* InSolver, 
 		FParticlesType& InParticles, 
 		Chaos::TArrayCollectionArray<float>& Strains, 
 		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
@@ -61,14 +64,15 @@ public:
 	 *	* EFieldPhysicsType::Field_LinearForce
 	 *	* EFieldPhysicsType::Field_AngularTorque
 	 */
+	template <typename Traits>
 	void FieldForcesUpdateCallback(
-		Chaos::FPhysicsSolver* InSolver, 
+		Chaos::TPBDRigidsSolver<Traits>* InSolver, 
 		FParticlesType& Particles, 
 		Chaos::TArrayCollectionArray<FVector> & Force, 
 		Chaos::TArrayCollectionArray<FVector> & Torque, 
 		const float Time);
 
-	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommand);
+	void BufferCommand(Chaos::FPhysicsSolverBase* InSolver, const FFieldSystemCommand& InCommand);
 
 	// Inactive Callbacks
 	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime){}
@@ -106,16 +110,42 @@ public:
 	 * the active clusters are set in the \p IndicesArray.
 	 */
 
+	template <typename Traits>
 	static void GetParticleHandles(
 		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,
-		const Chaos::FPhysicsSolver* RigidSolver,
+		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		const EFieldResolutionType ResolutionType,
 		const bool bForce = true);
 
 private:
 
-	TArray<FFieldSystemCommand>* GetSolverCommandList(const Chaos::FPhysicsSolver* InSolver);
+	TArray<FFieldSystemCommand>* GetSolverCommandList(const Chaos::FPhysicsSolverBase* InSolver);
 
 	FCriticalSection CommandLock;
-	TMap<Chaos::FPhysicsSolver*, TArray<FFieldSystemCommand>*> Commands;
+	TMap<Chaos::FPhysicsSolverBase*, TArray<FFieldSystemCommand>*> Commands;
 };
+
+#define EVOLUTION_TRAIT(Traits)\
+extern template CHAOSSOLVERS_API void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(\
+		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
+		FParticlesType& InParticles, \
+		Chaos::TArrayCollectionArray<float>& Strains, \
+		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, \
+		TMap<int32, int32>& PositionTargetedParticles, \
+		const float InTime);\
+\
+extern template CHAOSSOLVERS_API void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(\
+		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
+		FParticlesType& Particles, \
+		Chaos::TArrayCollectionArray<FVector> & Force, \
+		Chaos::TArrayCollectionArray<FVector> & Torque, \
+		const float Time);\
+\
+extern template CHAOSSOLVERS_API void FFieldSystemPhysicsProxy::GetParticleHandles(\
+		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
+		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
+		const EFieldResolutionType ResolutionType,\
+		const bool bForce);\
+
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
