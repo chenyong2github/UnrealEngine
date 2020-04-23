@@ -272,9 +272,6 @@ static void GetExtensionDirsInternal(TArray<FString>& ExtensionDirs, const FStri
 	{
 		if (bIsDirectory)
 		{
-			AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(FilenameOrDirectory, SubDir));
-
-			// now look for platforms under it
 			GetExtensionDirsInternal(ExtensionDirs, FilenameOrDirectory, SubDir);
 		}
 		return true;
