@@ -46,6 +46,12 @@ struct FPackageNameCache
 	void			ClearPackageFilenameCache(IAssetRegistry* InAssetRegistry) const;
 	bool			ClearPackageFilenameCacheForPackage(const UPackage* Package) const;
 
+	void			AppendCacheResults(TArray<TTuple<FName, FString, FString>>&& PackageToStandardFileNames);
+
+	bool			CalculateCacheData(FName PackageName, FString& OutPackageFilename, FString& OutStandardFilename, FName& OutStandardFileFName) const;
+
+	bool			Contains(FName PackageName) const;
+	
 private:
 	bool DoesPackageExist(const FName& PackageName, FString* OutFilename) const;
 	const FCachedPackageFilename& Cache(const FName& PackageName) const;
@@ -89,6 +95,21 @@ bool FPackageNameCache::ClearPackageFilenameCacheForPackage(const UPackage* Pack
 	return PackageFilenameCache.Remove(Package->GetFName()) >= 1;
 }
 
+void FPackageNameCache::AppendCacheResults(TArray<TTuple<FName, FString, FString>>&& PackageToStandardFileNames)
+{
+	check(IsInGameThread());
+	for (auto& Entry : PackageToStandardFileNames)
+	{
+		FName PackageName = Entry.Get<0>();
+		FString& PackageFilename = Entry.Get<1>();
+		FString& StandardFilename = Entry.Get<2>();
+
+		FName StandardFileFName(*StandardFilename);
+		PackageFilenameToPackageFNameCache.Add(StandardFileFName, PackageName);
+		PackageFilenameCache.Emplace(PackageName, FCachedPackageFilename(MoveTemp(PackageFilename), MoveTemp(StandardFilename), StandardFileFName));
+	}
+}
+
 bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutFilename) const
 {
 	if (!AssetRegistry)
@@ -115,6 +136,24 @@ bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutF
 	return true;
 }
 
+bool FPackageNameCache::CalculateCacheData(FName PackageName, FString& OutPackageFilename, FString& OutStandardFilename, FName& OutStandardFileFName) const
+{
+	if (DoesPackageExist(PackageName, &OutPackageFilename))
+	{
+		OutStandardFilename = OutPackageFilename = FPaths::ConvertRelativePathToFull(OutPackageFilename);
+
+		FPaths::MakeStandardFilename(OutStandardFilename);
+		OutStandardFileFName = FName(*OutStandardFilename);
+		return true;
+	}
+	return false;
+}
+
+bool FPackageNameCache::Contains(FName PackageName) const
+{
+	return PackageFilenameCache.Contains(PackageName);
+}
+
 const FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName) const
 {
 	check(IsInGameThread());
@@ -128,18 +167,11 @@ const FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName)
 
 	// cache all the things, like it's your birthday!
 
-	FString Filename;
 	FString PackageFilename;
 	FString StandardFilename;
 	FName StandardFileFName = NAME_None;
 
-	if (DoesPackageExist(PackageName, &Filename))
-	{
-		StandardFilename = PackageFilename = FPaths::ConvertRelativePathToFull(Filename);
-
-		FPaths::MakeStandardFilename(StandardFilename);
-		StandardFileFName = FName(*StandardFilename);
-	}
+	CalculateCacheData(PackageName, PackageFilename, StandardFilename, StandardFileFName);
 
 	PackageFilenameToPackageFNameCache.Add(StandardFileFName, PackageName);
 
