@@ -207,6 +207,11 @@ private:
 		TRefCountPtr<ID3D12GraphicsCommandList1> CommandList1;
 		TRefCountPtr<ID3D12GraphicsCommandList2> CommandList2;
 #endif
+
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+		TRefCountPtr<ID3D12GraphicsCommandList5> CommandList5;
+#endif
+
 #if D3D12_RHI_RAYTRACING
 		TRefCountPtr<ID3D12GraphicsCommandList4> RayTracingCommandList;
 #endif // D3D12_RHI_RAYTRACING
@@ -418,6 +423,14 @@ public:
 	FD3D12CommandListManager* GetCommandListManager() const
 	{
 		return CommandListData->CommandListManager;
+	}
+#endif
+
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+	ID3D12GraphicsCommandList5* GraphicsCommandList5() const
+	{
+		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT));
+		return CommandListData->CommandList5.GetReference();
 	}
 #endif
 

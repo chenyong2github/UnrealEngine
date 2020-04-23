@@ -347,6 +347,7 @@ protected:
 	bool bNeedSetBlendFactor;
 	bool bNeedSetStencilRef;
 	bool bNeedSetDepthBounds;
+	bool bNeedSetShadingRate;
 	bool bAutoFlushComputeShaderCache;
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 
@@ -403,6 +404,9 @@ protected:
 
 			float MinDepth;
 			float MaxDepth;
+
+			EVRSShadingRate  DrawShadingRate;
+			EVRSRateCombiner Combiner;
 		} Graphics;
 
 		struct
@@ -961,6 +965,21 @@ public:
 			PipelineState.Graphics.MaxDepth = MaxDepth;
 
 			bNeedSetDepthBounds = GSupportsDepthBoundsTest;
+		}
+	}
+
+	void SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner)
+	{
+		if (PipelineState.Graphics.DrawShadingRate != ShadingRate )
+		{
+			PipelineState.Graphics.DrawShadingRate = ShadingRate;
+			bNeedSetShadingRate = GRHISupportsVariableRateShading;
+		}
+
+		if (PipelineState.Graphics.Combiner != Combiner)
+		{
+			PipelineState.Graphics.Combiner = Combiner;
+			bNeedSetShadingRate = GRHISupportsVariableRateShading;
 		}
 	}
 
