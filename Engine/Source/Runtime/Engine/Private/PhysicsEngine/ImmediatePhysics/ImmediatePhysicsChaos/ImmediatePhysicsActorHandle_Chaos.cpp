@@ -390,13 +390,20 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		FParticleUtilities::SetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
+		FParticleUtilitiesXR::SetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
+
+		if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
+		{
+			Kinematic->V() = FVec3(0);
+			Kinematic->W() = FVec3(0);
+			Kinematic->KinematicTarget().Clear();
+		}
 
 		auto* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
 		{
-			Dynamic->X() = Dynamic->P();
-			Dynamic->R() = Dynamic->Q();
+			Dynamic->P() = Dynamic->X();
+			Dynamic->Q() = Dynamic->R();
 			Dynamic->AuxilaryValue(ParticlePrevXs) = Dynamic->P();
 			Dynamic->AuxilaryValue(ParticlePrevRs) = Dynamic->Q();
 		}

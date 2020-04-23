@@ -13,6 +13,7 @@
 #include "Physics/ImmediatePhysics/ImmediatePhysicsStats.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Logging/MessageLog.h"
+#include "Logging/LogMacros.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -24,6 +25,13 @@
 DEFINE_STAT(STAT_RigidBodyNodeInitTime);
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
+
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+DECLARE_LOG_CATEGORY_EXTERN(LogRBAN, Log, Warning);
+#else
+DECLARE_LOG_CATEGORY_EXTERN(LogRBAN, Log, All);
+#endif
+DEFINE_LOG_CATEGORY(LogRBAN);
 
 TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_Default);
 TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold(TEXT("p.RigidBodyLODThreshold"), -1, TEXT("Max LOD that rigid body node is allowed to run on. Provides a global threshold that overrides per-node the LODThreshold property. -1 means no override."), ECVF_Scalability);
@@ -60,6 +68,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	bTransferBoneVelocities = false;
 	bFreezeIncomingPoseOnStart = false;
 	bClampLinearTranslationLimitToRefPose = false;
+	WorldSpaceMinimumScale = 0.01f;
 
 	OverrideSolverIterations.SolverIterations = -1;
 	OverrideSolverIterations.JointIterations = -1;
@@ -268,6 +277,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 		EvalCounter.SetMaxSkippedFrames(Output.AnimInstanceProxy->GetEvaluationCounter().GetMaxSkippedFrames());
 		if(!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter())  && bRBAN_EnableTimeBasedReset)
 		{
+			UE_LOG(LogRBAN, Verbose, TEXT("%s Time-Based Reset"), *Output.AnimInstanceProxy->GetAnimInstanceName());
+
 			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
 		}
 	}
@@ -284,8 +295,14 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 		{
 			PreviousCompWorldSpaceTM = CompWorldSpaceTM;
 		}
-		const FTransform BaseBoneTM = Output.Pose.GetComponentSpaceTransform(BaseBoneRef.GetCompactPoseIndex(BoneContainer));
 
+		// Disable simulation below minimum scale in world space mode. World space sim doesn't play nice with scale anyway - we do not scale joint offets or collision shapes.
+		if ((SimulationSpace == ESimulationSpace::WorldSpace) && (CompWorldSpaceTM.GetScale3D().SizeSquared() < WorldSpaceMinimumScale * WorldSpaceMinimumScale))
+		{
+			return;
+		}
+
+		const FTransform BaseBoneTM = Output.Pose.GetComponentSpaceTransform(BaseBoneRef.GetCompactPoseIndex(BoneContainer));
 		PhysicsSimulation->SetSimulationSpaceTransform(SpaceToWorldTransform(SimulationSpace, CompWorldSpaceTM, BaseBoneTM));
 
 		// Initialize potential new bodies because of LOD change.
@@ -349,6 +366,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			{
 				case ETeleportType::TeleportPhysics:
 				{
+					UE_LOG(LogRBAN, Verbose, TEXT("%s TeleportPhysics (Scale: %f %f %f)"), *Output.AnimInstanceProxy->GetAnimInstanceName(), CompWorldSpaceTM.GetScale3D().X, CompWorldSpaceTM.GetScale3D().Y, CompWorldSpaceTM.GetScale3D().Z);
+
 					// Teleport bodies.
 					for (const FOutputBoneData& OutputData : OutputBoneData)
 					{
@@ -378,6 +397,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 				case ETeleportType::ResetPhysics:
 				{
+					UE_LOG(LogRBAN, Verbose, TEXT("%s ResetPhysics (Scale: %f %f %f)"), *Output.AnimInstanceProxy->GetAnimInstanceName(), CompWorldSpaceTM.GetScale3D().X, CompWorldSpaceTM.GetScale3D().Y, CompWorldSpaceTM.GetScale3D().Z);
+
 					// Completely reset bodies.
 					for (const FOutputBoneData& OutputData : OutputBoneData)
 					{

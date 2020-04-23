@@ -284,7 +284,7 @@ namespace Chaos
 				// Nothing to do
 				break;
 
-			case EKinematicTargetMode::Zero:
+			case EKinematicTargetMode::Reset:
 			{
 				// Reset velocity and then switch to do-nothing mode
 				Particle.V() = FVec3(0);
@@ -303,7 +303,7 @@ namespace Chaos
 				{
 					TargetPos = KinematicTarget.GetTarget().GetLocation();
 					TargetRot = KinematicTarget.GetTarget().GetRotation();
-					KinematicTarget.SetMode(EKinematicTargetMode::Zero);
+					KinematicTarget.SetMode(EKinematicTargetMode::Reset);
 				}
 				else
 				{
