@@ -42,6 +42,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "UObject/CoreRedirects.h"
 #include "RayTracingDefinitions.h"
+#include "Interfaces/ITargetPlatform.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
@@ -513,7 +514,7 @@ int32 FMaterialAttributesInput::CompileWithDefault(class FMaterialCompiler* Comp
 }
 #endif  // WITH_EDITOR
 
-void FMaterial::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
+void FMaterial::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FMaterialShaderMapId& OutId) const
 { 
 	if (bLoadedCookedShaderMapId)
 	{
@@ -545,11 +546,26 @@ void FMaterial::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& O
 		OutId.FeatureLevel = GetFeatureLevel();
 		OutId.SetShaderDependencies(ShaderTypes, ShaderPipelineTypes, VFTypes, Platform);
 		GetReferencedTexturesHash(Platform, OutId.TextureReferencesHash);
+
+		if (TargetPlatform)
+		{
+			OutId.LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
+		}
+		else
+		{
+			OutId.LayoutParams.InitializeForCurrent();
+		}
 #else
 		OutId.QualityLevel = GetQualityLevelForShaderMapId();
 		OutId.FeatureLevel = GetFeatureLevel();
 
-		UE_LOG(LogMaterial, Log, TEXT("Tried to access an uncooked shader map ID in a cooked application"));
+		if (TargetPlatform != nullptr)
+		{
+			UE_LOG(LogMaterial, Error, TEXT("FMaterial::GetShaderMapId: TargetPlatform is not null, but a cooked executable cannot target platforms other than its own."));
+		}
+		OutId.LayoutParams.InitializeForCurrent();
+
+		UE_LOG(LogMaterial, Error, TEXT("Tried to access an uncooked shader map ID in a cooked application"));
 #endif
 	}
 }
@@ -1717,7 +1733,7 @@ bool FMaterial::CacheShaders(EShaderPlatform Platform, const ITargetPlatform* Ta
 {
 	FAllowCachingStaticParameterValues AllowCachingStaticParameterValues(*this);
 	FMaterialShaderMapId NoStaticParametersId;
-	GetShaderMapId(Platform, NoStaticParametersId);
+	GetShaderMapId(Platform, TargetPlatform, NoStaticParametersId);
 	return CacheShaders(NoStaticParametersId, Platform, TargetPlatform);
 }
 
@@ -2912,7 +2928,7 @@ bool FMaterial::GetMaterialExpressionSource( FString& OutSource )
 
 	FMaterialCompilationOutput TempOutput;
 	FMaterialShaderMapId ShaderMapID;
-	GetShaderMapId(GMaxRHIShaderPlatform, ShaderMapID);
+	GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ShaderMapID);
 	FStaticParameterSet StaticParamSet;
 	GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 
@@ -3300,7 +3316,7 @@ void UMaterialInterface::AnalyzeMaterialProperty(EMaterialProperty InProperty, i
 	FMaterialCompilationOutput TempOutput;
 	FMaterialResource* MaterialResource = GetMaterialResource(GMaxRHIFeatureLevel);
 	FMaterialShaderMapId ShaderMapID;
-	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, ShaderMapID);
+	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ShaderMapID);
 	FStaticParameterSet StaticParamSet;
 	MaterialResource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 	FMaterialAnalyzer MaterialTranslator(MaterialResource, TempOutput, StaticParamSet, GMaxRHIShaderPlatform, MaterialResource->GetQualityLevel(), GMaxRHIFeatureLevel);
@@ -3338,7 +3354,7 @@ bool UMaterialInterface::IsTextureReferencedByProperty(EMaterialProperty InPrope
 	FMaterialCompilationOutput TempOutput;
 	FMaterialResource* MaterialResource = GetMaterialResource(GMaxRHIFeatureLevel);
 	FMaterialShaderMapId ShaderMapID;
-	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, ShaderMapID);
+	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ShaderMapID);
 	FStaticParameterSet StaticParamSet;
 	MaterialResource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 	FHLSLMaterialTranslator MaterialTranslator(MaterialResource, TempOutput, StaticParamSet, GMaxRHIShaderPlatform, MaterialResource->GetQualityLevel(), GMaxRHIFeatureLevel);
