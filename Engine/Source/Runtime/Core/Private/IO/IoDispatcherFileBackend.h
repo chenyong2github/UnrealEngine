@@ -18,7 +18,7 @@ struct FFileIoStoreContainerFile
 	uint64 FileSize = 0;
 	uint64 CompressionBlockSize = 0;
 	TArray<FName> CompressionMethods;
-	TArray<FIoStoreCompressedBlockEntry> CompressionBlocks;
+	TArray<FIoStoreTocCompressedBlockEntry> CompressionBlocks;
 	FString FilePath;
 	TUniquePtr<IMappedFileHandle> MappedFileHandle;
 };
@@ -92,6 +92,12 @@ struct FFileIoStoreCompressedBlock
 
 struct FFileIoStoreRawBlock
 {
+	enum EFlags
+	{
+		None = 0,
+		Cacheable = 1
+	};
+
 	FFileIoStoreRawBlock* Next = nullptr;
 	FFileIoStoreBlockKey Key;
 	uint64 Offset;
@@ -101,6 +107,7 @@ struct FFileIoStoreRawBlock
 	uint32 RefCount = 0;
 	FIoRequestImpl* DirectToRequest = nullptr;
 	uint64 DirectToRequestOffset = 0;
+	uint8 Flags = None;
 };
 
 struct FFileIoStoreResolvedRequest
@@ -120,26 +127,35 @@ public:
 	const FIoOffsetAndLength* Resolve(const FIoChunkId& ChunkId) const;
 	const FFileIoStoreContainerFile& GetContainerFile() { return ContainerFile; }
 	IMappedFileHandle* GetMappedContainerFileHandle();
+	const FIoContainerId& GetContainerId() const { return ContainerId; }
+	int32 GetOrder() const { return Order; }
 
 private:
 	FFileIoStoreImpl& PlatformImpl;
 
 	TMap<FIoChunkId, FIoOffsetAndLength> Toc;
 	FFileIoStoreContainerFile ContainerFile;
+	FIoContainerId ContainerId;
+	int32 Order;
 };
 
 class FFileIoStore
 	: public FRunnable
 {
 public:
-	FFileIoStore(FIoDispatcherEventQueue& InEventQueue, bool bInIsMultithreaded);
+	FFileIoStore(FIoDispatcherEventQueue& InEventQueue);
 	~FFileIoStore();
-	FIoStatus Mount(const FIoStoreEnvironment& Environment);
+	TIoStatusOr<FIoContainerId> Mount(const FIoStoreEnvironment& Environment);
 	EIoStoreResolveResult Resolve(FIoRequestImpl* Request);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
+	bool ReadPendingBlock();
 	void ProcessCompletedBlocks();
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
+	void FlushReads()
+	{ 
+		PlatformImpl.FlushReads();
+	}
 
 	static bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 
@@ -181,8 +197,7 @@ private:
 	};
 
 	void InitCache();
-	void ReadBlockAndScatter(uint32 ReaderIndex, uint32 BlockIndex, const FFileIoStoreResolvedRequest& ResolvedRequest);
-	void ReadNoScatter(uint32 ReaderIndex, uint64 Offset, uint64 Size, const FFileIoStoreResolvedRequest& ResolvedRequest);
+	void ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequest& ResolvedRequest);
 	FFileIoStoreBuffer* AllocBuffer();
 	void FreeBuffer(FFileIoStoreBuffer* Buffer);
 	FFileIoStoreCompressionContext* AllocCompressionContext();
@@ -190,11 +205,9 @@ private:
 	void ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync);
 	void AllocMemoryForRequest(FIoRequestImpl* Request);
 	void FinalizeCompressedBlock(FFileIoStoreCompressedBlock* CompressedBlock);
-	void ReadPendingBlocks();
 
 	const uint64 ReadBufferSize;
 	FIoDispatcherEventQueue& EventQueue;
-	bool bIsMultithreaded;
 	FFileIoStoreImpl PlatformImpl;
 
 	FRunnableThread* Thread;

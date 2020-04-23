@@ -11,11 +11,11 @@
  * This object assumes that it owns the buffer that it has been given and will free the
  * memory when the object is destroyed.
  */
-template<typename TYPE>
+template<typename DataType>
 class FBulkDataBuffer
 {
 public:
-	using ViewType = TArrayView<TYPE>;
+	using ViewType = TArrayView<DataType>;
 
 	/** Constructor. */
 	FBulkDataBuffer() = default;
@@ -47,7 +47,7 @@ public:
 	* @param InBuffer Pointer to memory to take ownership of, must've have been allocated via FMemory::Malloc/Realloc.
 	* @param InNumberOfElements The number of elements in the buffer.
 	*/
-	FBulkDataBuffer(TYPE* InBuffer, uint64 InNumberOfElements)
+	FBulkDataBuffer(DataType* InBuffer, uint64 InNumberOfElements)
 		: View(InBuffer, InNumberOfElements)
 	{
 		check(InNumberOfElements <= TNumericLimits<uint32>::Max());
@@ -74,7 +74,7 @@ public:
 		{
 			const int32 BufferSize = Other.View.Num();
 
-			TYPE* BufferCopy = (TYPE*)FMemory::Malloc(BufferSize);
+			DataType* BufferCopy = (DataType*)FMemory::Malloc(BufferSize);
 			FMemory::Memcpy(BufferCopy, Other.View.GetData(), BufferSize);
 
 			View = ViewType(BufferCopy, BufferSize);
@@ -119,7 +119,7 @@ public:
 	*  @param InNumberOfElements The number of elements in the buffer.
 	 * buffers actual size if desired.
 	 */
-	void Reset(TYPE* InBuffer, uint64 InNumberOfElements)
+	void Reset(DataType* InBuffer, uint64 InNumberOfElements)
 	{
 		FreeBuffer();
 
