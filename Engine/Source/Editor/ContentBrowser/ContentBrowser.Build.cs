@@ -9,7 +9,6 @@ public class ContentBrowser : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",
-				"AssetTools",
 				"CollectionManager",
 				"EditorWidgets",
 				"GameProjectGeneration",
@@ -31,6 +30,7 @@ public class ContentBrowser : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"AssetTools",
 				"SourceControl",
 				"SourceControlWindows",
 				"WorkspaceMenuStructure",
@@ -49,7 +49,6 @@ public class ContentBrowser : ModuleRules
 			new string[] {
 				"PropertyEditor",
 				"PackagesDialog",
-				"AssetTools",
 				"CollectionManager",
 				"GameProjectGeneration",
                 "MainFrame"
