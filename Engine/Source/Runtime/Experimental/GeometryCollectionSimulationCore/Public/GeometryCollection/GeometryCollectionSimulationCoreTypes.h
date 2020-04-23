@@ -8,6 +8,7 @@
 #include "GeometryCollectionSimulationTypes.h"
 #include "Chaos/ClusterCreationParameters.h"
 #include "Chaos/CollisionFilterData.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 class FGeometryCollection;
 class FGeometryDynamicCollection;
@@ -219,8 +220,6 @@ struct FTrailingDataSimulationParameters
 	float TrailingMinVolumeThreshold;
 };
 
-class FGeometryCollectionPhysicsProxy;
-
 struct FSimulationParameters
 {
 	FSimulationParameters()
@@ -331,7 +330,8 @@ struct FSimulationParameters
 	EObjectStateTypeEnum ObjectType;
 
 private:
-	friend class ::FGeometryCollectionPhysicsProxy;
+	template<typename>
+	friend class TGeometryCollectionPhysicsProxy;
 	TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterialOwner; // can be null
 public:
 	Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial; // may or may not point to PhysicalMaterialOwner
