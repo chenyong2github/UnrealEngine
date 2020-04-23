@@ -20,6 +20,7 @@ public:
 
 	void TransitionBuffers(FD3D12CommandContext& CommandContext);
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
+	void ConditionalCompactAccelerationStructure(FD3D12CommandContext& CommandContext);
 
 	bool bIsAccelerationStructureDirty[MAX_NUM_GPUS] = {};
 	void SetDirty(FRHIGPUMask GPUMask, bool bState)
@@ -48,6 +49,10 @@ public:
 
 	TRefCountPtr<FD3D12MemBuffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
 	TRefCountPtr<FD3D12MemBuffer> ScratchBuffers[MAX_NUM_GPUS];
+
+	uint64 PostBuildInfoBufferReadbackFences[MAX_NUM_GPUS];
+	TRefCountPtr<FD3D12MemBuffer> PostBuildInfoBuffers[MAX_NUM_GPUS];
+	FStagingBufferRHIRef PostBuildInfoStagingBuffers[MAX_NUM_GPUS];
 
 };
 
