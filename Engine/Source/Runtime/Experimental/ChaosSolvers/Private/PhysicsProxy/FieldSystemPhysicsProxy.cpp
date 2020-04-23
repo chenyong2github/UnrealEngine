@@ -32,7 +32,7 @@ FFieldSystemPhysicsProxy::~FFieldSystemPhysicsProxy()
 {
 	// Need to delete any command lists we have hanging around
 	FScopeLock Lock(&CommandLock);
-	for(TTuple<Chaos::FPhysicsSolver*, TArray<FFieldSystemCommand>*>& Pair : Commands)
+	for(TTuple<Chaos::FPhysicsSolverBase*, TArray<FFieldSystemCommand>*>& Pair : Commands)
 	{
 		delete Pair.Get<1>();
 	}
@@ -47,8 +47,9 @@ bool FFieldSystemPhysicsProxy::IsSimulating() const
 	return true; // #todo Actually start gating this?
 }
 
+template <typename Traits>
 void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
-	Chaos::FPhysicsSolver* InSolver, 
+	Chaos::TPBDRigidsSolver<Traits>* InSolver, 
 	FParticlesType& Particles, 
 	Chaos::TArrayCollectionArray<float>& Strains, 
 	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
@@ -59,7 +60,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 	using namespace Chaos;
 	SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Object);
 	
-	Chaos::FPhysicsSolver* CurrentSolver = InSolver;
+	Chaos::TPBDRigidsSolver<Traits>* CurrentSolver = InSolver;
 
 	if (Commands.Num() && InSolver)
 	{
@@ -893,8 +894,9 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 	}
 }
 
+template <typename Traits>
 void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
-	Chaos::FPhysicsSolver* InSolver, 
+	Chaos::TPBDRigidsSolver<Traits>* InSolver, 
 	FParticlesType& Particles, 
 	Chaos::TArrayCollectionArray<FVector> & Force, 
 	Chaos::TArrayCollectionArray<FVector> & Torque, 
@@ -902,7 +904,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 {
 	if (Commands.Num() && InSolver)
 	{
-		Chaos::FPhysicsSolver* CurrentSolver = InSolver;
+		Chaos::TPBDRigidsSolver<Traits>* CurrentSolver = InSolver;
 		TArray<ContextIndex> IndicesArray;
 
 		TArray<FFieldSystemCommand>* CommandListPtr = GetSolverCommandList(InSolver);
@@ -1055,7 +1057,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 	}
 }
 
-void FFieldSystemPhysicsProxy::BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommand)
+void FFieldSystemPhysicsProxy::BufferCommand(Chaos::FPhysicsSolverBase* InSolver, const FFieldSystemCommand& InCommand)
 {
 	// TODO: Consider inspecting InCommand and bucketing according to which evaluation 
 	// path it requires; FieldParameterUpdateCallback() or FieldForcesUpdateCallback().
@@ -1123,9 +1125,10 @@ void FFieldSystemPhysicsProxy::BufferCommand(Chaos::FPhysicsSolver* InSolver, co
 //	}
 //}
 
+template <typename Traits>
 void FFieldSystemPhysicsProxy::GetParticleHandles(
 	TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
-	const Chaos::FPhysicsSolver* RigidSolver,
+	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 	const EFieldResolutionType ResolutionType, 
 	const bool bForce)
 {
@@ -1191,7 +1194,7 @@ void FFieldSystemPhysicsProxy::GetParticleHandles(
 	}
 }
 
-TArray<FFieldSystemCommand>* FFieldSystemPhysicsProxy::GetSolverCommandList(const Chaos::FPhysicsSolver* InSolver)
+TArray<FFieldSystemCommand>* FFieldSystemPhysicsProxy::GetSolverCommandList(const Chaos::FPhysicsSolverBase* InSolver)
 {
 	FScopeLock Lock(&CommandLock);
 	TArray<FFieldSystemCommand>** ExistingList = Commands.Find(InSolver);
@@ -1201,3 +1204,28 @@ TArray<FFieldSystemCommand>* FFieldSystemPhysicsProxy::GetSolverCommandList(cons
 void FFieldSystemPhysicsProxy::OnRemoveFromScene()
 {
 }
+
+#define EVOLUTION_TRAIT(Traits)\
+template void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(\
+		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
+		FParticlesType& InParticles, \
+		Chaos::TArrayCollectionArray<float>& Strains, \
+		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, \
+		TMap<int32, int32>& PositionTargetedParticles, \
+		const float InTime);\
+\
+template void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(\
+		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
+		FParticlesType& Particles, \
+		Chaos::TArrayCollectionArray<FVector> & Force, \
+		Chaos::TArrayCollectionArray<FVector> & Torque, \
+		const float Time);\
+\
+template void FFieldSystemPhysicsProxy::GetParticleHandles(\
+		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
+		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
+		const EFieldResolutionType ResolutionType,\
+		const bool bForce);\
+
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT

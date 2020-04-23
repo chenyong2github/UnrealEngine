@@ -15,6 +15,8 @@ namespace Chaos
 	class FPersistentPhysicsTask;
 	class FCommandList;
 	class FCommandListData;
+
+	class FPhysicsSolverBase;
 }
 
 namespace Chaos
@@ -56,7 +58,7 @@ namespace Chaos
 
 		using FGlobalCommand = TFunction<void()>;
 		using FTaskCommand = TFunction<void(FPersistentPhysicsTask*)>;
-		using FSolverCommand = TFunction<void(FPhysicsSolver*)>;
+		using FSolverCommand = TFunction<void()>;
 
 		/**
 		 * Immediate commands:
@@ -67,7 +69,7 @@ namespace Chaos
 		 */
 		virtual void EnqueueCommandImmediate(FGlobalCommand InCommand) = 0;
 		virtual void EnqueueCommandImmediate(FTaskCommand InCommand) = 0;
-		virtual void EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand) = 0;
+		virtual void EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand) = 0;
 
 		/**
 		 * Get the current threading mode for this dispatcher

@@ -33,7 +33,7 @@ public:
 
 	virtual UObject* GetOwner() const = 0;
 
-	template< class SOLVER_TYPE = Chaos::FPhysicsSolver>
+	template< class SOLVER_TYPE>
 	SOLVER_TYPE* GetSolver() const { return static_cast<SOLVER_TYPE*>(Solver); }
 
 	//Should this be in the public API? probably not

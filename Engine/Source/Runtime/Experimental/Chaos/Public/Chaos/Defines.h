@@ -1,6 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#ifndef CHAOS_TEMPLATE_API
+#if PLATFORM_MAC || PLATFORM_LINUX
+#define CHAOS_TEMPLATE_API CHAOS_API
+#else
+#define CHAOS_TEMPLATE_API
+#endif
+#endif
+
+#ifndef CHAOSSOLVERS_TEMPLATE_API
+#if PLATFORM_MAC || PLATFORM_LINUX
+#define CHAOSSOLVERS_TEMPLATE_API CHAOSSOLVERS_API
+#else
+#define CHAOSSOLVERS_TEMPLATE_API
+#endif
+#endif
+
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
 	#include <stdint.h>
 #else

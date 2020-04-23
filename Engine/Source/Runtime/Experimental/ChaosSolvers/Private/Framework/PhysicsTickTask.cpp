@@ -201,11 +201,11 @@ void FPhysicsSolverAdvanceTask::StepSolver(Chaos::FPhysicsSolver* InSolver, floa
 	{
 		SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
 
-		TQueue<TFunction<void(FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
-		TFunction<void(FPhysicsSolver*)> Command;
+		TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
+		TFunction<void()> Command;
 		while(Queue.Dequeue(Command))
 		{
-			Command(InSolver);
+			Command();
 		}
 	}
 
