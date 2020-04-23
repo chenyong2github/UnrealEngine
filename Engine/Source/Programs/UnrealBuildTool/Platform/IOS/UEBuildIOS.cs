@@ -956,20 +956,6 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		public bool HasCustomLaunchScreen(DirectoryReference ProjectDirectoryName)
-		{
-			string LaunchScreenDir = Path.Combine(ProjectDirectoryName.FullName, "Build", "IOS", "Resources", "Graphics");
-			if (Directory.Exists(LaunchScreenDir))
-			{
-				if (File.Exists(LaunchScreenDir + "\\LaunchScreenIOS.png"))
-				{
-					Log.TraceInformation("Requiring custom build because project {0} has a custom LaunchScreen", Path.GetFileName(ProjectDirectoryName.FullName));
-					return true;
-				}
-			}
-			return false;
-		}
-
 		/// <summary>
 		/// Check for the default configuration
 		/// return true if the project uses the default build config
@@ -989,7 +975,7 @@ namespace UnrealBuildTool
 			};
 
 			// check for custom icons
-			if (HasCustomIcons(ProjectDirectoryName) || HasCustomLaunchScreen(ProjectDirectoryName))
+			if (HasCustomIcons(ProjectDirectoryName))
 			{
 				return false;
 			}
