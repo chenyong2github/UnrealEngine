@@ -150,6 +150,12 @@ public:
 	uint8 bClampLinearTranslationLimitToRefPose : 1;
 
 	/**
+		For world-space simulations, if the magnitude of the component's 3D scale is less than WorldSpaceMinimumScale, do not update the node.
+	*/
+	UPROPERTY(EditAnywhere, Category = Settings)
+	float WorldSpaceMinimumScale;
+
+	/**
 	 * Solver iteration settings overrides (defaults are set in the Physics Asset).
 	 * These can be varied in the runtime and set through blueprint (e.g., to increase
 	 * iterations during difficult movements).
