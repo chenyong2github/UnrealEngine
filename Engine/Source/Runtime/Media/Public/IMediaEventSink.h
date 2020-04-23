@@ -46,6 +46,13 @@ enum class EMediaEvent
 	/** Player requests purge of outdated video samples from queues. */
 	Internal_PurgeVideoSamplesHint = Internal_Start,
 
+	/** Player requests an internal reset of all queues and timing. **/
+	Internal_ResetForDiscontinuity,
+
+	/** Player requests render clock to start and stop in preparation for moving playback to a new position. **/
+	Internal_RenderClockStart,
+	Internal_RenderClockStop,
+
 	/** Player notifies about availability or unavailablity of media samples. **/
 	Internal_VideoSamplesAvailable,
 	Internal_VideoSamplesUnavailable,
