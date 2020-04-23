@@ -9,6 +9,7 @@
 #include "AudioMixerBuffer.h"
 #include "Async/Async.h"
 #include "AudioDecompress.h"
+#include "Sound/SoundGenerator.h"
 
 static int32 ForceSyncAudioDecodesCvar = 0;
 FAutoConsoleVariableRef CVarForceSyncAudioDecodes(
@@ -56,44 +57,53 @@ public:
 			case EAudioTaskType::Procedural:
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FAsyncDecodeWorker_Procedural);
-				// Make sure we've been flagged as active
-				if (!ProceduralTaskData.ProceduralSoundWave || !ProceduralTaskData.ProceduralSoundWave->IsGeneratingAudio())
+				if (ProceduralTaskData.SoundGenerator.IsValid())
 				{
-					// Act as if we generated audio, but return silence.
+					// Pre-zero the buffer before calling into the generator code as a convenience to implementers
 					FMemory::Memzero(ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples * sizeof(float));
-					ProceduralResult.NumSamplesWritten = ProceduralTaskData.NumSamples;
-					return;
-				}
-
-				// If we're not a float format, we need to convert the format to float
-				const EAudioMixerStreamDataFormat::Type FormatType = ProceduralTaskData.ProceduralSoundWave->GetGeneratedPCMDataFormat();
-				if (FormatType != EAudioMixerStreamDataFormat::Float)
-				{
-					check(FormatType == EAudioMixerStreamDataFormat::Int16);
-
-					int32 NumChannels = ProceduralTaskData.NumChannels;
-					int32 ByteSize = NumChannels * ProceduralTaskData.NumSamples * sizeof(int16);
-
-					TArray<uint8> DecodeBuffer;
-					DecodeBuffer.AddUninitialized(ByteSize);
-
-					const int32 NumBytesWritten = ProceduralTaskData.ProceduralSoundWave->GeneratePCMData(DecodeBuffer.GetData(), ProceduralTaskData.NumSamples);
-
-					check(NumBytesWritten <= ByteSize);
-
-					ProceduralResult.NumSamplesWritten = NumBytesWritten / sizeof(int16);
-
-					// Convert the buffer to float
-					int16* DecodedBufferPtr = (int16*)DecodeBuffer.GetData();
-					for (int32 SampleIndex = 0; SampleIndex < ProceduralResult.NumSamplesWritten; ++SampleIndex)
-					{
-						ProceduralTaskData.AudioData[SampleIndex] = (float)(DecodedBufferPtr[SampleIndex]) / 32768.0f;
-					}
+					ProceduralResult.NumSamplesWritten = ProceduralTaskData.SoundGenerator->GetNextBuffer(ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples);
 				}
 				else
 				{
-					const int32 NumBytesWritten = ProceduralTaskData.ProceduralSoundWave->GeneratePCMData((uint8*)ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples);
-					ProceduralResult.NumSamplesWritten = NumBytesWritten / sizeof(float);
+					// Make sure we've been flagged as active
+					if (!ProceduralTaskData.ProceduralSoundWave || !ProceduralTaskData.ProceduralSoundWave->IsGeneratingAudio())
+					{
+						// Act as if we generated audio, but return silence.
+						FMemory::Memzero(ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples * sizeof(float));
+						ProceduralResult.NumSamplesWritten = ProceduralTaskData.NumSamples;
+						return;
+					}
+
+					// If we're not a float format, we need to convert the format to float
+					const EAudioMixerStreamDataFormat::Type FormatType = ProceduralTaskData.ProceduralSoundWave->GetGeneratedPCMDataFormat();
+					if (FormatType != EAudioMixerStreamDataFormat::Float)
+					{
+						check(FormatType == EAudioMixerStreamDataFormat::Int16);
+
+						int32 NumChannels = ProceduralTaskData.NumChannels;
+						int32 ByteSize = NumChannels * ProceduralTaskData.NumSamples * sizeof(int16);
+
+						TArray<uint8> DecodeBuffer;
+						DecodeBuffer.AddUninitialized(ByteSize);
+
+						const int32 NumBytesWritten = ProceduralTaskData.ProceduralSoundWave->GeneratePCMData(DecodeBuffer.GetData(), ProceduralTaskData.NumSamples);
+
+						check(NumBytesWritten <= ByteSize);
+
+						ProceduralResult.NumSamplesWritten = NumBytesWritten / sizeof(int16);
+
+						// Convert the buffer to float
+						int16* DecodedBufferPtr = (int16*)DecodeBuffer.GetData();
+						for (int32 SampleIndex = 0; SampleIndex < ProceduralResult.NumSamplesWritten; ++SampleIndex)
+						{
+							ProceduralTaskData.AudioData[SampleIndex] = (float)(DecodedBufferPtr[SampleIndex]) / 32768.0f;
+						}
+					}
+					else
+					{
+						const int32 NumBytesWritten = ProceduralTaskData.ProceduralSoundWave->GeneratePCMData((uint8*)ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples);
+						ProceduralResult.NumSamplesWritten = NumBytesWritten / sizeof(float);
+					}
 				}
 			}
 			break;
