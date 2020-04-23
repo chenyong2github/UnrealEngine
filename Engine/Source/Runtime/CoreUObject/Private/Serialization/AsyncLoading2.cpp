@@ -46,23 +46,34 @@
 #include "Serialization/AsyncPackage.h"
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "Serialization/Zenaphore.h"
-#include "IO/IoDispatcher.h"
 #include "UObject/GCObject.h"
 #include "UObject/ObjectRedirector.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Serialization/MemoryReader.h"
 #include "UObject/UObjectClusters.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "Async/Async.h"
 #include "HAL/LowLevelMemStats.h"
 
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
-FArchive& operator<<(FArchive& Ar, FNameMapEntry& NameMapEntry)
+FArchive& operator<<(FArchive& Ar, FMappedName& MappedName)
 {
-	Ar << NameMapEntry.Index;
-	Ar << NameMapEntry.Number;
+	Ar << MappedName.Index << MappedName.Number;
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader)
+{
+	Ar << ContainerHeader.ContainerId;
+	Ar << ContainerHeader.Names;
+	Ar << ContainerHeader.NameHashes;
+	Ar << ContainerHeader.PackageIds;
+	Ar << ContainerHeader.PackageNames;
 
 	return Ar;
 }
@@ -93,7 +104,7 @@ FArchive& operator<<(FArchive& Ar, FExportBundleMetaEntry& ExportBundleMetaEntry
 
 FArchive& operator<<(FArchive& Ar, FScriptObjectEntry& ScriptObjectEntry)
 {
-	Ar << ScriptObjectEntry.ObjectName;
+	Ar << ScriptObjectEntry.ObjectName.Index << ScriptObjectEntry.ObjectName.Number;
 	Ar << ScriptObjectEntry.OuterIndex;
 	Ar << ScriptObjectEntry.CDOClassIndex;
 	return Ar;
@@ -103,7 +114,7 @@ FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry)
 {
 	Ar << ExportMapEntry.CookedSerialOffset;
 	Ar << ExportMapEntry.CookedSerialSize;
-	Ar << ExportMapEntry.ObjectName.NameEntryIndex << ExportMapEntry.ObjectName.Number;
+	Ar << ExportMapEntry.ObjectName;
 	Ar << ExportMapEntry.OuterIndex;
 	Ar << ExportMapEntry.ClassIndex;
 	Ar << ExportMapEntry.SuperIndex;
@@ -382,10 +393,10 @@ private:
 	}
 };
 
-class FGlobalNameMap
+class FNameMap
 {
 public:
-	void Load(FIoDispatcher& IoDispatcher)
+	void LoadGlobal(FIoDispatcher& IoDispatcher)
 	{
 		check(NameEntries.Num() == 0);
 
@@ -405,23 +416,29 @@ public:
 		FIoBuffer NameBuffer = NameRequest.GetResult().ConsumeValueOrDie();
 		FIoBuffer HashBuffer = HashRequest.GetResult().ConsumeValueOrDie();
 
-		LoadNameBatch(/* Out */ NameEntries, 
-						MakeArrayView(NameBuffer.Data(), NameBuffer.DataSize()),
-						MakeArrayView(HashBuffer.Data(), HashBuffer.DataSize()));
+		Load(MakeArrayView(NameBuffer.Data(), NameBuffer.DataSize()), MakeArrayView(HashBuffer.Data(), HashBuffer.DataSize()), FMappedName::EType::Global);
 
 		IoDispatcher.FreeBatch(Batch);
 	}
 
-	FName GetName(const FNameMapIndex& NameMapIndex) const
+	void Load(TArrayView<const uint8> NameBuffer, TArrayView<const uint8> HashBuffer, FMappedName::EType InNameMapType)
 	{
-		FNameEntryId NameEntry = NameEntries[NameMapIndex.NameEntryIndex];
-		return FName::CreateFromDisplayId(NameEntry, NameMapIndex.Number);
+		LoadNameBatch(NameEntries, NameBuffer, HashBuffer);
+		NameMapType = InNameMapType;
 	}
 
-	FNameMapEntry FromSerializedNameMapEntry(const FNameMapEntry& SerializedNameMapEntry) const
+	FName GetName(const FMappedName& MappedName) const
 	{
-		FNameEntryId NameEntry = NameEntries[SerializedNameMapEntry.Index];
-		return FNameMapEntry { NameEntry.ToUnstableInt(), SerializedNameMapEntry.Number };
+		check(MappedName.GetType() == NameMapType);
+		FNameEntryId NameEntry = NameEntries[MappedName.GetIndex()];
+		return FName::CreateFromDisplayId(NameEntry, MappedName.GetNumber());
+	}
+
+	FMinimalName GetMinimalName(const FMappedName& MappedName) const
+	{
+		check(MappedName.GetType() == NameMapType);
+		FNameEntryId NameEntry = NameEntries[MappedName.GetIndex()];
+		return FMinimalName(NameEntry, MappedName.GetNumber());
 	}
 
 	const TArray<FNameEntryId>& GetNameEntries() const
@@ -431,40 +448,43 @@ public:
 
 private:
 	TArray<FNameEntryId> NameEntries;
+	FMappedName::EType NameMapType = FMappedName::EType::Global;
 };
 
 struct FGlobalImportStore
 {
-	TArray<FGlobalImport> Imports[FPackageObjectIndex::ImportTypeCount];
+	TArray<UObject*> ScriptObjects;
+	TArray<FGlobalImport> PublicExports;
 	TArray<FScriptObjectEntry> ScriptObjectEntries;
-	TArray<FName> PackageImportNames;
 
 	inline FName GetName(FPackageObjectIndex GlobalIndex)
 	{
 		check(GlobalIndex.IsImport());
-		FName Name;
-		if (GlobalIndex.IsPackageImport())
-		{
-			Name = PackageImportNames[GlobalIndex.GetIndex()];
-		}
-		else if (GlobalIndex.IsScriptImport() && ScriptObjectEntries.Num() > 0)
-		{
-			Name = ScriptObjectEntries[GlobalIndex.GetIndex()].ObjectName.ToFName();
-		}
-		return Name;
+
+		return GlobalIndex.IsScriptImport() && ScriptObjectEntries.Num() > 0
+			? MinimalNameToName(ScriptObjectEntries[GlobalIndex.GetIndex()].ObjectName)
+			: NAME_None;
 	}
 
 	inline FGlobalImport& GetImport(FPackageObjectIndex GlobalIndex)
 	{
-		check(GlobalIndex.IsImport());
-		FGlobalImport& Import = Imports[GlobalIndex.GetType()][GlobalIndex.GetIndex()];
+		check(GlobalIndex.IsPackageImport());
+		FGlobalImport& Import = PublicExports[GlobalIndex.GetIndex()];
 		return Import;
 	}
 
 	inline UObject* GetImportObject(FPackageObjectIndex GlobalIndex)
 	{
-		FGlobalImport& Import = GetImport(GlobalIndex);
-		return Import.GetObject();
+		if (GlobalIndex.IsScriptImport())
+		{
+			return ScriptObjects[GlobalIndex.GetIndex()];
+		}
+		if (GlobalIndex.IsPackageImport())
+		{
+			return PublicExports[GlobalIndex.GetIndex()].GetObject();
+		}
+		check(false);
+		return nullptr;
 	}
 
 	UObject* FindScriptImportObjectFromIndex(int32 ScriptImportIndex);
@@ -505,12 +525,22 @@ struct FGlobalImportStore
 		return Object;
 	}
 
-	void StoreGlobalImportObject(FPackageObjectIndex GlobalIndex, UObject* InObject)
+	void StoreGlobalObject(FPackageObjectIndex GlobalIndex, UObject* InObject)
 	{
-		if (GlobalIndex.IsImport())
+		if (GlobalIndex.IsScriptImport())
 		{
-			FGlobalImport& Import = Imports[GlobalIndex.GetType()][GlobalIndex.GetIndex()];
+			UObject*& Object = ScriptObjects[GlobalIndex.GetIndex()];
+			check(!Object || Object == InObject);
+			Object = InObject;
+		}
+		else if (GlobalIndex.IsPackageImport())
+		{
+			FGlobalImport& Import = PublicExports[GlobalIndex.GetIndex()];
 			Import.SetObject(InObject);
+		}
+		else
+		{
+			check(GlobalIndex.IsNull());
 		}
 	}
 
@@ -521,14 +551,32 @@ struct FGlobalImportStore
 	void OnPreGarbageCollect(bool bInIsLoadingPackages);
 	void OnPostGarbageCollect();
 
-	void FindAllScriptImports();
+	void FindAllScriptObjects();
 };
 
 class FPackageStore
 {
 public:
+	FPackageStore(FIoDispatcher& InIoDispatcher, FNameMap& InGlobalNameMap)
+		: IoDispatcher(InIoDispatcher)
+		, GlobalNameMap(InGlobalNameMap) { }
+	
+	struct FLoadedContainer
+	{
+		TUniquePtr<FNameMap> ContainerNameMap;
+		int32 Order;
+		bool bValid = false;
+	};
+
+	FIoDispatcher& IoDispatcher;
+	FNameMap& GlobalNameMap;
+	TArray<FLoadedContainer> LoadedContainers;
+
 	FCriticalSection PackageNameToPackageIdCritical;
 	TMap<FName, FPackageId> PackageNameToPackageId;
+
+	FCulturePackageMap CulturePackageMap;
+	FSourceToLocalizedPackageIdMap* LocalizedPackageIdMap = nullptr;
 
 	FGlobalImportStore ImportStore;
 	FPackageStoreEntry* StoreEntries = nullptr;
@@ -536,7 +584,7 @@ public:
 	int32 ScriptArcsCount = 0;
 
 public:
-	void Load(FIoDispatcher& IoDispatcher, FGlobalNameMap& GlobalNameMap)
+	void Load()
 	{
 		FIoBuffer IoBuffer;
 		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
@@ -574,7 +622,9 @@ public:
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreTocFixup);
 
 			int32 PackageByteCount = 0;
+			int32 PackageImportCount = 0;
 			GlobalMetaAr << PackageCount;
+			GlobalMetaAr << PackageImportCount;
 			GlobalMetaAr << PackageByteCount;
 
 			StoreEntries = reinterpret_cast<FPackageStoreEntry*>(FMemory::Malloc(PackageByteCount));
@@ -582,98 +632,24 @@ public:
 			// In-place loading
 			GlobalMetaAr.Serialize(StoreEntries, PackageByteCount);
 
-			// FName fixup
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreFNameFixup);
-				for (int I = 0; I < PackageCount; ++I)
-				{
-					StoreEntries[I].Name = GlobalNameMap.FromSerializedNameMapEntry(StoreEntries[I].Name);
-				}
-			}
+			ImportStore.PublicExports.AddDefaulted(PackageImportCount);
 
-			// Global package index
+			// add 10% slack for temp package names
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreGlobalIds);
-				// add 10% slack for temp package names
+				FScopeLock Lock(&PackageNameToPackageIdCritical);
 				PackageNameToPackageId.Reserve(PackageCount + PackageCount / 10);
-				for (int I = 0; I < PackageCount; ++I)
-				{
-					PackageNameToPackageId.Add(StoreEntries[I].Name.ToFName(), FPackageId::FromIndex(I));
-				}
 			}
-		}
-
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreGlobalImports);
-
-			int32 Count = 0;
-			GlobalMetaAr << Count; 
-
-			TArray<FGlobalImport>& Imports = ImportStore.Imports[FPackageObjectIndex::PackageImport];
-			TArray<FName>& Names = ImportStore.PackageImportNames;
-			Imports.AddDefaulted(Count);
-			Names.Reserve(Count);
-
-			FNameMapEntry* NameMapEntries = reinterpret_cast<FNameMapEntry*>(IoBuffer.Data() + GlobalMetaAr.Tell());
-			for (int I = 0; I < Count; ++I)
-			{
-				Names.Emplace(NameMapEntries[I].ToFName());
-			}
-			GlobalMetaAr.Seek(GlobalMetaAr.Tell() + Count * sizeof(FName));
 		}
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreLocalization);
-
-			FCulturePackageMap CulturePackageMap;
 
 			GlobalMetaAr << CulturePackageMap;
 
 			FString CurrentCultureName = FInternationalization::Get().GetCurrentCulture()->GetName();
 			FParse::Value(FCommandLine::Get(), TEXT("CULTURE="), CurrentCultureName);
 
-			FSourceToLocalizedPackageIdMap* LocalizedPackageIdMap = CulturePackageMap.Find(CurrentCultureName);
-			if (LocalizedPackageIdMap)
-			{
-				for (auto It = LocalizedPackageIdMap->CreateIterator(); It; ++It)
-				{
-					const FName SourceName = StoreEntries[It.Key().ToIndex()].Name.ToFName();
-					FPackageId* FoundPackageId = PackageNameToPackageId.Find(SourceName);
-
-					UE_CLOG(!FoundPackageId, LogStreaming, Warning,
-						TEXT("Skip remapping for localized package %s (%d) since the source package %s (%d) is unknown."),
-						It.Value().ToIndex(),
-						*StoreEntries[It.Value().ToIndex()].Name.ToFName().ToString(),
-						It.Key().ToIndex(),
-						*SourceName.ToString());
-
-					if (FoundPackageId)
-					{
-						const FPackageId LocalizedPackageId = It.Value();
-						*FoundPackageId = LocalizedPackageId;
-
-#if ALT2_LOG_VERBOSE
-						UE_LOG(LogStreaming, Verbose, TEXT("LoadPackageStore: RemapLocalizedPackage: %s (%d) %s (%d)."),
-							*StoreEntries[It.Key().ToIndex()].Name.ToFName().ToString(),
-							It.Key().ToIndex(),
-							*StoreEntries[It.Value().ToIndex()].Name.ToFName().ToString(),
-							It.Value().ToIndex());
-#endif
-					}
-				}
-
-				for (int I = 0; I < PackageCount; ++I)
-				{
-					FPackageStoreEntry& StoreEntry = StoreEntries[I];
-					for (FPackageId& ImportedPackageIndex : StoreEntry.ImportedPackages)
-					{
-						if (FPackageId* Value = LocalizedPackageIdMap->Find(ImportedPackageIndex))
-						{
-							ImportedPackageIndex = *Value;
-						}
-					}
-				}
-			}
+			LocalizedPackageIdMap = CulturePackageMap.Find(CurrentCultureName);
 		}
 
 		// Load initial loading meta data
@@ -692,25 +668,211 @@ public:
 
 			for (FScriptObjectEntry& ScriptObjectEntry : ImportStore.ScriptObjectEntries)
 			{
-				ScriptObjectEntry.ObjectName = GlobalNameMap.FromSerializedNameMapEntry(ScriptObjectEntry.ObjectName);
+				const FMappedName& MappedName = FMappedName::FromMinimalName(ScriptObjectEntry.ObjectName);
+				check(MappedName.IsGlobal());
+				ScriptObjectEntry.ObjectName = GlobalNameMap.GetMinimalName(MappedName);
 			}
 
-			TArray<FGlobalImport>& Imports = ImportStore.Imports[FPackageObjectIndex::ScriptImport];
-			Imports.AddDefaulted(ImportStore.ScriptObjectEntries.Num());
+			ImportStore.ScriptObjects.AddDefaulted(ImportStore.ScriptObjectEntries.Num());
 		}
 
 		FPackageName::DoesPackageExistOverride().BindLambda([this](FName InPackageName)
 		{
+			FScopeLock Lock(&PackageNameToPackageIdCritical);
 			return PackageNameToPackageId.Contains(InPackageName);
 		});
+
+		LoadContainers(IoDispatcher.GetMountedContainers());
+		IoDispatcher.OnContainerMounted().AddRaw(this, &FPackageStore::OnContainerMounted);
+	}
+
+	void LoadContainers(TArrayView<const FIoDispatcherMountedContainer> Containers)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LoadContainers);
+
+		int32 ContainersToLoad = 0;
+
+		int32 MaxContainerIndex = LoadedContainers.Num();
+		for (const FIoDispatcherMountedContainer& Container : Containers)
+		{
+			const int32 ContainerIndex = Container.ContainerId.ToIndex();
+			if (ContainerIndex != 0)
+			{
+				++ContainersToLoad;
+				MaxContainerIndex = FMath::Max(MaxContainerIndex, ContainerIndex);
+			}
+		}
+
+		if (!ContainersToLoad)
+		{
+			return;
+		}
+
+		const int32 NewContainerMapSize = MaxContainerIndex + 1;
+		if (NewContainerMapSize > LoadedContainers.Num())
+		{
+			LoadedContainers.SetNum(NewContainerMapSize, false);
+		}
+
+		TAtomic<int32> Remaining(ContainersToLoad);
+
+		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
+
+		for (const FIoDispatcherMountedContainer& Container : Containers)
+		{
+			FIoContainerId ContainerId = Container.ContainerId;
+			if (ContainerId.ToIndex() == 0)
+			{
+				continue;
+			}
+
+			FLoadedContainer& LoadedContainer = LoadedContainers[ContainerId.ToIndex()];
+			if (LoadedContainer.bValid && LoadedContainer.Order >= Container.Environment.GetOrder())
+			{
+				UE_LOG(LogStreaming, Log, TEXT("Skipping loading mounted container ID '%d', already loaded with higher order"), ContainerId.ToIndex());
+				if (--Remaining == 0)
+				{
+					Event->Trigger();
+				}
+				continue;
+			}
+
+			UE_LOG(LogStreaming, Log, TEXT("Loading mounted container ID '%d'"), ContainerId.ToIndex());
+			LoadedContainer.bValid = true;
+			LoadedContainer.Order = Container.Environment.GetOrder();
+
+			FIoChunkId HeaderChunkId = CreateIoChunkId(0, ContainerId.ToIndex(), EIoChunkType::ContainerHeader);
+			IoDispatcher.ReadWithCallback(HeaderChunkId, FIoReadOptions(), [this, &Remaining, Event, &LoadedContainer](TIoStatusOr<FIoBuffer> Result)
+			{
+				// Execution method Thread will run the async block synchronously when multithreading is NOT supported
+				const EAsyncExecution ExecutionMethod = FPlatformProcess::SupportsMultithreading() ? EAsyncExecution::TaskGraph : EAsyncExecution::Thread;
+
+				Async(ExecutionMethod, [this, &Remaining, Event, IoBuffer = Result.ConsumeValueOrDie(), &LoadedContainer]()
+				{
+					FMemoryReaderView Ar(MakeArrayView(IoBuffer.Data(), IoBuffer.DataSize()));
+
+					FContainerHeader ContainerHeader;
+					Ar << ContainerHeader;
+
+					const bool bHasContainerLocalNameMap = ContainerHeader.Names.Num() > 0;
+					if (bHasContainerLocalNameMap)
+					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(LoadContainerNameMap);
+						LoadedContainer.ContainerNameMap.Reset(new FNameMap());
+						LoadedContainer.ContainerNameMap->Load(ContainerHeader.Names, ContainerHeader.NameHashes, FMappedName::EType::Container);
+					}
+
+					FNameMap& NameMap = bHasContainerLocalNameMap ? *LoadedContainer.ContainerNameMap : GlobalNameMap;
+
+					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(AddPackages);
+						FScopeLock Lock(&PackageNameToPackageIdCritical);
+
+						int32 NameIndex = 0;
+						for (FPackageId PackageId : ContainerHeader.PackageIds)
+						{
+							FName PackageName = NameMap.GetName(ContainerHeader.PackageNames[NameIndex++]);
+							FPackageId& Id = PackageNameToPackageId.FindOrAdd(PackageName);
+							if (!Id.IsValid())
+							{
+								Id = PackageId;
+								StoreEntries[PackageId.ToIndex()].Name = NameToMinimalName(PackageName);
+							}
+						}
+					}
+
+					if (--Remaining == 0)
+					{
+						Event->Trigger();
+					}
+				});
+			});
+		}
+
+		Event->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(Event);
+
+		ApplyLocalization();
+	}
+
+	void OnContainerMounted(const FIoDispatcherMountedContainer& Container)
+	{
+		LoadContainers(MakeArrayView(&Container, 1));
+	}
+
+	void ApplyLocalization()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ApplyLocalization);
+
+		if (!LocalizedPackageIdMap)
+		{
+			return;
+		}
+
+		// Mark already localized entries if this becomes a perfromance problem
+
+		for (auto It = LocalizedPackageIdMap->CreateIterator(); It; ++It)
+		{
+			const FPackageStoreEntry& PackageEntry = StoreEntries[It.Key().ToIndex()];
+
+			if (!FMappedName::IsResolvedToMinimalName(PackageEntry.Name))
+			{
+				// Not mounted yet
+				continue;
+			}
+
+			const FName SourceName = MinimalNameToName(PackageEntry.Name);
+			FScopeLock Lock(&PackageNameToPackageIdCritical);
+			FPackageId* FoundPackageId = PackageNameToPackageId.Find(SourceName);
+
+			UE_CLOG(!FoundPackageId, LogStreaming, Warning,
+				TEXT("Skip remapping for localized package %s (%d) since the source package %s (%d) is unknown."),
+				It.Value().ToIndex(),
+				*FMappedName::SafeMinimalNameToName(StoreEntries[It.Value().ToIndex()].Name).ToString(),
+				It.Key().ToIndex(),
+				*SourceName.ToString());
+
+			if (FoundPackageId)
+			{
+				const FPackageId LocalizedPackageId = It.Value();
+				*FoundPackageId = LocalizedPackageId;
+
+#if ALT2_LOG_VERBOSE
+				UE_LOG(LogStreaming, Verbose, TEXT("LoadPackageStore: RemapLocalizedPackage: %s (%d) %s (%d)."),
+					*FMappedName::SafeMinimalNameToName(StoreEntries[It.Key().ToIndex()].Name).ToString(),
+					It.Key().ToIndex(),
+					*FMappedName::SafeMinimalNameToName(StoreEntries[It.Value().ToIndex()].Name).ToString(),
+					It.Value().ToIndex());
+#endif
+			}
+		}
+
+		for (int I = 0; I < PackageCount; ++I)
+		{
+			FPackageStoreEntry& StoreEntry = StoreEntries[I];
+
+			if (!FMappedName::IsResolvedToMinimalName(StoreEntry.Name))
+			{
+				// Not mounted yet
+				continue;
+			}
+
+			for (FPackageId& ImportedPackageIndex : StoreEntry.ImportedPackages)
+			{
+				if (FPackageId* Value = LocalizedPackageIdMap->Find(ImportedPackageIndex))
+				{
+					ImportedPackageIndex = *Value;
+				}
+			}
+		}
 	}
 
 	void FinalizeInitialLoad()
 	{
-		ImportStore.FindAllScriptImports();
+		ImportStore.FindAllScriptObjects();
 
-		UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - InitialLoad Finalized: Script Imports: %d"),
-			ImportStore.Imports[FPackageObjectIndex::ScriptImport].Num());
+		UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - InitialLoad Finalized: Script Objects: %d"),
+			ImportStore.ScriptObjects.Num());
 	}
 
 	inline FGlobalImportStore& GetGlobalImportStore()
@@ -746,6 +908,11 @@ public:
 	inline const FPackageStoreEntry& GetStoreEntry(FPackageId PackageId) const
 	{
 		return StoreEntries[PackageId.ToIndex()];
+	}
+
+	inline const FNameMap& GetPackageNameMap(const uint16 NameMapIndex) const
+	{
+		return NameMapIndex > 0 ? *LoadedContainers[NameMapIndex].ContainerNameMap : GlobalNameMap;
 	}
 };
 
@@ -812,9 +979,9 @@ struct FPackageImportStore
 		return FName();
 	}
 
-	void StoreGlobalImportObject(FPackageObjectIndex GlobalIndex, UObject* InObject)
+	void StoreGlobalObject(FPackageObjectIndex GlobalIndex, UObject* InObject)
 	{
-		GlobalImportStore.StoreGlobalImportObject(GlobalIndex, InObject);
+		GlobalImportStore.StoreGlobalObject(GlobalIndex, InObject);
 	}
 
 	void ClearReferences()
@@ -990,8 +1157,8 @@ public:
 
 #if ALT2_LOG_VERBOSE
 				const FExportMapEntry& Export = ExportMap[ExportIndex];
-				FNameEntryId NameEntry = (*GlobalNameMap)[Export.ObjectName.NameEntryIndex];
-				FName ObjectName = FName::CreateFromDisplayId(NameEntry, Export.ObjectName.Number);
+				FNameEntryId NameEntry = (*NameMap)[Export.ObjectName.GetIndex()];
+				FName ObjectName = FName::CreateFromDisplayId(NameEntry, Export.ObjectName.GetNumber());
 				UE_ASYNC_PACKAGE_CLOG_VERBOSE(!Object, VeryVerbose, *PackageDesc,
 					TEXT("FExportArchive: Object"), TEXT("Export %s at index %d is null."),
 					*ObjectName.ToString(), 
@@ -1043,7 +1210,7 @@ public:
 	FORCENOINLINE void HandleBadNameIndex(int32 NameIndex, FName& Name)
 	{
 		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadNameIndex"),
-			TEXT("Index: %d/%d"), NameIndex, GlobalNameMap->Num());
+			TEXT("Index: %d/%d"), NameIndex, NameMap->Num());
 
 		Name = FName();
 		SetCriticalError();
@@ -1059,10 +1226,10 @@ public:
 
 		NameIndex = PackageNameMap[NameIndex];
 
-		if (GlobalNameMap->IsValidIndex(NameIndex))
+		if (NameMap->IsValidIndex(NameIndex))
 		{
 			// if the name wasn't loaded (because it wasn't valid in this context)
-			FNameEntryId MappedName = (*GlobalNameMap)[NameIndex];
+			FNameEntryId MappedName = (*NameMap)[NameIndex];
 
 			// simply create the name from the NameMap's name and the serialized instance number
 			Name = FName::CreateFromDisplayId(MappedName, Number);
@@ -1084,7 +1251,7 @@ private:
 	FPackageImportStore* ImportStore = nullptr;
 	TArray<FExternalReadCallback>* ExternalReadDependencies;
 	const int32* PackageNameMap = nullptr;
-	const TArray<FNameEntryId>* GlobalNameMap = nullptr;
+	const TArray<FNameEntryId>* NameMap = nullptr;
 	const FExportObjects* Exports = nullptr;
 	const FExportMapEntry* ExportMap = nullptr;
 	int32 ExportCount = 0;
@@ -1535,6 +1702,7 @@ private:
 	const int32* PackageNameMap = nullptr;
 	FExportObjects Exports;
 	FPackageImportStore ImportStore;
+	const FNameMap* NameMap = nullptr;
 
 	int32 ExportBundleCount = 0;
 	const FExportBundleHeader* ExportBundles = nullptr;
@@ -1791,9 +1959,9 @@ private:
 	FThreadSafeCounter PackageRequestID;
 
 	/** I/O Dispatcher */
-	FGlobalNameMap GlobalNameMap;
 	FIoDispatcher& IoDispatcher;
 
+	FNameMap GlobalNameMap;
 	FPackageStore GlobalPackageStore;
 
 	struct FBundleIoRequest
@@ -2153,31 +2321,26 @@ struct FAsyncLoadingTickScope2
 
 void FAsyncLoadingThread2::InitializeLoading()
 {
-	FIoStoreEnvironment GlobalEnvironment;
-	GlobalEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("global"));
-	FIoStatus MountStatus = IoDispatcher.Mount(GlobalEnvironment);
-	UE_CLOG(!MountStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *MountStatus.ToString());
-
 #if USE_NEW_BULKDATA
 	FBulkDataBase::SetIoDispatcher(&IoDispatcher);
 #endif
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(LoadGlobalNameMap);
-		GlobalNameMap.Load(IoDispatcher);
+		GlobalNameMap.LoadGlobal(IoDispatcher);
 	}
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStore);
-		GlobalPackageStore.Load(IoDispatcher, GlobalNameMap);
+		GlobalPackageStore.Load();
 	}
 
 	AsyncThreadReady.Increment();
 
-	UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - Initialized: Packages: %d, PackageImports: %d, ScriptImports %d, FNames: %d"),
+	UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - Initialized: Packages: %d, PublicExports: %d, ScriptObjects %d, FNames: %d"),
 		GlobalPackageStore.PackageCount,
-		GlobalPackageStore.ImportStore.Imports[FPackageObjectIndex::PackageImport].Num(),
-		GlobalPackageStore.ImportStore.Imports[FPackageObjectIndex::ScriptImport].Num(),
+		GlobalPackageStore.ImportStore.PublicExports.Num(),
+		GlobalPackageStore.ImportStore.ScriptObjects.Num(),
 		GlobalNameMap.GetNameEntries().Num());
 }
 
@@ -2722,27 +2885,25 @@ void FAsyncPackage2::SetupSerializedArcs(const uint8* GraphData, uint64 GraphDat
 }
 
 static UObject* GFindExistingScriptImport(int32 GlobalImportIndex,
-	TArray<FGlobalImport>& ScriptImports,
+	TArray<UObject*>& ScriptObjects,
 	const TArray<FScriptObjectEntry>& ScriptObjectEntries)
 {
-	FGlobalImport& ScriptImport = ScriptImports[GlobalImportIndex];
-	UObject* Object = ScriptImport.GetObject();
+	UObject*& Object = ScriptObjects[GlobalImportIndex];
 	if (!Object)
 	{
 		const FScriptObjectEntry& Entry = ScriptObjectEntries[GlobalImportIndex];
 		if (Entry.OuterIndex.IsNull())
 		{
-			Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, Entry.ObjectName.ToFName(), true);
+			Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry.ObjectName), true);
 		}
 		else
 		{
-			UObject* Outer = GFindExistingScriptImport(Entry.OuterIndex.GetIndex(), ScriptImports, ScriptObjectEntries);
+			UObject* Outer = GFindExistingScriptImport(Entry.OuterIndex.GetIndex(), ScriptObjects, ScriptObjectEntries);
 			if (Outer)
 			{
-				Object = StaticFindObjectFast(UObject::StaticClass(), Outer, Entry.ObjectName.ToFName(), false, true);
+				Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry.ObjectName), false, true);
 			}
 		}
-		ScriptImport.SetObject(Object);
 	}
 	return Object;
 }
@@ -2750,19 +2911,18 @@ static UObject* GFindExistingScriptImport(int32 GlobalImportIndex,
 UObject* FGlobalImportStore::FindScriptImportObjectFromIndex(int32 GlobalImportIndex)
 {
 	check(ScriptObjectEntries.Num() > 0);
-	return GFindExistingScriptImport(
-		GlobalImportIndex, Imports[FPackageObjectIndex::ScriptImport], ScriptObjectEntries);
+	return GFindExistingScriptImport(GlobalImportIndex, ScriptObjects, ScriptObjectEntries);
 }
 
-void FGlobalImportStore::FindAllScriptImports()
+void FGlobalImportStore::FindAllScriptObjects()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FindAllScriptImports);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FindAllScriptObjects);
 	const int32 ScriptImportCount = ScriptObjectEntries.Num();
 	check(ScriptImportCount > 0);
 	for (int32 GlobalImportIndex = 0; GlobalImportIndex < ScriptImportCount; ++GlobalImportIndex)
 	{
 		UObject* Object = GFindExistingScriptImport(
-			GlobalImportIndex, Imports[FPackageObjectIndex::ScriptImport], ScriptObjectEntries);
+			GlobalImportIndex, ScriptObjects, ScriptObjectEntries);
 #if DO_CHECK
 		if (!Object)
 		{
@@ -2771,14 +2931,16 @@ void FGlobalImportStore::FindAllScriptImports()
 			{
 				UE_LOG(LogStreaming, Warning,
 					TEXT("AsyncLoading2 - Failed to find import script package after initial load: %s"),
-					*ScriptObjectEntries[GlobalImportIndex].ObjectName.ToFName().ToString());
+					*MinimalNameToName(ScriptObjectEntries[GlobalImportIndex].ObjectName).ToString());
 			}
 			else
 			{
 				UE_LOG(LogStreaming, Warning,
-					TEXT("AsyncLoading2 - Failed to find import script object after initial load: %s - %s"),
-					*ScriptObjectEntries[Entry.OuterIndex.GetIndex()].ObjectName.ToFName().ToString(),
-					*ScriptObjectEntries[GlobalImportIndex].ObjectName.ToFName().ToString());
+					TEXT("AsyncLoading2 - Failed to find import script object after initial load: %s (%d) in outer %s (%d)"),
+					*MinimalNameToName(ScriptObjectEntries[GlobalImportIndex].ObjectName).ToString(),
+					GlobalImportIndex,
+					*MinimalNameToName(ScriptObjectEntries[Entry.OuterIndex.GetIndex()].ObjectName).ToString(),
+					*MinimalNameToName(ScriptObjectEntries[GlobalImportIndex].ObjectName).ToString());
 			}
 		}
 #endif
@@ -2805,6 +2967,12 @@ void FAsyncPackage2::ImportPackagesRecursive()
 	{
 		// AreAllImportsInImportPackageAlreadyLoaded?
 		const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(ImportedPackageId);
+#if DO_CHECK
+		UE_CLOG(!FMappedName::IsResolvedToMinimalName(ImportEntry.Name), LogStreaming, Warning,
+			TEXT("Package '%s' is trying to import non mounted package ID '%d'"),
+			*Desc.Name.ToString(),
+			ImportedPackageId.ToIndex());
+#endif
 		bool bNeedToLoadPackage = false;
 		for (const FPackageObjectIndex& GlobalImportIndex : ImportEntry.PublicExports)
 		{
@@ -2818,12 +2986,11 @@ void FAsyncPackage2::ImportPackagesRecursive()
 
 		if (bNeedToLoadPackage)
 		{
-			const FGlobalNameMap& GlobalNameMap = AsyncLoadingThread.GlobalNameMap;
 			const FPackageId PackageIdToLoad = ImportedPackageId;
-			const FName NameToLoad = ImportEntry.Name.ToFName();
+			const FName NameToLoad = MinimalNameToName(ImportEntry.Name);
 			const FName SourceName =
 				ImportEntry.SourcePackageId.IsValid() ?
-				GlobalPackageStore.StoreEntries[ImportEntry.SourcePackageId.ToIndex()].Name.ToFName() :
+				MinimalNameToName(GlobalPackageStore.StoreEntries[ImportEntry.SourcePackageId.ToIndex()].Name) :
 				NameToLoad;
 
 			FAsyncPackageDesc2 PackageDesc(INDEX_NONE, PackageIdToLoad, PackageIdToLoad, SourceName, NameToLoad);
@@ -2923,6 +3090,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 			const uint64 PackageSummarySize = GraphData + PackageSummary->GraphDataSize - PackageSummaryData;
 
 			Package->CookedHeaderSize = PackageSummary->CookedHeaderSize;
+			Package->NameMap = &Package->AsyncLoadingThread.GlobalPackageStore.GetPackageNameMap(PackageSummary->NameMapIndex);
 			Package->PackageNameMap = reinterpret_cast<const int32*>(PackageSummaryData + PackageSummary->NameMapOffset);
 			Package->ImportStore.ImportMap = reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset);
 			Package->ImportStore.ImportMapCount = (PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(int32);
@@ -3115,8 +3283,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	FName ObjectName;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ObjectNameFixup);
-		const FGlobalNameMap& GlobalNameMap = AsyncLoadingThread.GlobalNameMap;
-		ObjectName = GlobalNameMap.GetName(Export.ObjectName);
+		ObjectName = NameMap->GetName(Export.ObjectName);
 	}
 
 	TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Object);
@@ -3272,7 +3439,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	}
 
 	check(Object);
-	ImportStore.StoreGlobalImportObject(Export.GlobalImportIndex, Object);
+	ImportStore.StoreGlobalObject(Export.GlobalImportIndex, Object);
 }
 
 void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportArchive& Ar)
@@ -3811,6 +3978,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(bo
 FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher)
 	: Thread(nullptr)
 	, IoDispatcher(InIoDispatcher)
+	, GlobalPackageStore(InIoDispatcher, GlobalNameMap)
 {
 	GEventDrivenLoaderEnabled = true;
 
@@ -4250,7 +4418,7 @@ void FGlobalImportStore::OnPreGarbageCollect(bool bInIsLoadingPackages)
 	bNeedToHandleGarbageCollect = bInIsLoadingPackages;
 
 	int32 NumWeak = 0;
-	for (FGlobalImport& GlobalImport : Imports[FPackageObjectIndex::PackageImport])
+	for (FGlobalImport& GlobalImport : PublicExports)
 	{
 		UObject* Object = GlobalImport.GetObjectIfRawPointer();
 		if (!Object)
@@ -4283,10 +4451,10 @@ void FGlobalImportStore::OnPreGarbageCollect(bool bInIsLoadingPackages)
 		check(KeepAliveObjects.Num() == 0);
 	}
 
-#ifdef ALT2_VERIFY_ASYNC_FLAGS
+#if ALT2_VERIFY_ASYNC_FLAGS
 	if (!bInIsLoadingPackages)
 	{
-		for (FGlobalImport& GlobalImport : Imports[FPackageObjectIndex::PackageImport])
+		for (FGlobalImport& GlobalImport : PublicExports)
 		{
 			check(GlobalImport.GetObjectIfRawPointer() == nullptr);
 			check(GlobalImport.GetRefCount() == 0);

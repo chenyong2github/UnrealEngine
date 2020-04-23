@@ -197,7 +197,7 @@ public:
 	void RemoveBulkData();
 
 	/**
-	* Initiates a new asynchronous operation to load the dulkdata from disk assuming that it is not already
+	* Initiates a new asynchronous operation to load the bulkdata from disk assuming that it is not already
 	* loaded.
 	* Note that a new asynchronous loading operation will not be created if one is already in progress.
 	*

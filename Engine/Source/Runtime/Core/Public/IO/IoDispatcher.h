@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "IO/IoContainerId.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Logging/LogMacros.h"
@@ -10,6 +11,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "HAL/PlatformAtomics.h"
+#include "Misc/SecureHash.h"
 
 #if __cplusplus >= 201703L
 #	define UE_NODISCARD		[[nodiscard]]
@@ -29,6 +31,7 @@ class FIoBatchImpl;
 class FIoDispatcherImpl;
 class FIoStoreWriterContextImpl;
 class FIoStoreWriterImpl;
+class FIoStoreReaderImpl;
 class IMappedFileHandle;
 class IMappedFileRegion;
 
@@ -377,6 +380,26 @@ TIoStatusOr<T>& TIoStatusOr<T>::operator=(const TIoStatusOr<U>& Other)
 	return *this;
 }
 
+//////////////////////////////////////////////////////////////////////////
+
+/** Helper used to manage creation of I/O store file handles etc
+  */
+class FIoStoreEnvironment
+{
+public:
+	CORE_API FIoStoreEnvironment();
+	CORE_API ~FIoStoreEnvironment();
+
+	CORE_API void InitializeFileEnvironment(FStringView InPath, int32 InOrder = 0);
+
+	CORE_API const FString& GetPath() const { return Path; }
+	CORE_API int32 GetOrder() const { return Order; }
+
+private:
+	FString			Path;
+	int32			Order = 0;
+};
+
 /** Reference to buffer data used by I/O dispatcher APIs
   */
 class FIoBuffer
@@ -533,6 +556,47 @@ private:
 	friend class FIoBufferManager;
 };
 
+class FIoChunkHash
+{
+public:
+	friend uint32 GetTypeHash(const FIoChunkHash& InChunkHash)
+	{
+		uint32 Result = 5381;
+		for (int i = 0; i < sizeof Hash; ++i)
+		{
+			Result = Result * 33 + InChunkHash.Hash[i];
+		}
+		return Result;
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FIoChunkHash& ChunkHash)
+	{
+		Ar.Serialize(&ChunkHash.Hash, sizeof Hash);
+		return Ar;
+	}
+
+	inline bool operator ==(const FIoChunkHash& Rhs) const
+	{
+		return 0 == FMemory::Memcmp(Hash, Rhs.Hash, sizeof Hash);
+	}
+
+	inline bool operator !=(const FIoChunkHash& Rhs) const
+	{
+		return !(*this == Rhs);
+	}
+
+	static FIoChunkHash HashBuffer(const void* Data, uint64 DataSize)
+	{
+		FIoChunkHash Result;
+		FSHA1::HashBuffer(Data, DataSize, Result.Hash);
+		FMemory::Memset(Result.Hash + 20, 0, 12);
+		return Result;
+	}
+
+private:
+	uint8	Hash[32];
+};
+
 /**
  * Identifier to a chunk of data.
  */
@@ -605,7 +669,8 @@ enum class EIoChunkType : uint8
 	LoaderGlobalMeta,
 	LoaderInitialLoadMeta,
 	LoaderGlobalNames,
-	LoaderGlobalNameHashes
+	LoaderGlobalNameHashes,
+	ContainerHeader
 };
 
 /**
@@ -817,11 +882,19 @@ struct FIoMappedRegion
 	IMappedFileRegion* MappedFileRegion = nullptr;
 };
 
+struct FIoDispatcherMountedContainer
+{
+	FIoStoreEnvironment Environment;
+	FIoContainerId ContainerId;
+};
+
 /** I/O dispatcher
   */
 class FIoDispatcher
 {
 public:
+	DECLARE_EVENT_OneParam(FIoDispatcher, FIoContainerMountedEvent, const FIoDispatcherMountedContainer&);
+
 	CORE_API						FIoDispatcher();
 	CORE_API virtual				~FIoDispatcher();
 
@@ -837,6 +910,10 @@ public:
 	// Polling methods
 	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
+	CORE_API TArray<FIoDispatcherMountedContainer> GetMountedContainers() const;
+
+	// Events
+	CORE_API FIoContainerMountedEvent& OnContainerMounted();
 
 	FIoDispatcher(const FIoDispatcher&) = default;
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;
@@ -857,24 +934,6 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-/** Helper used to manage creation of I/O store file handles etc 
-  */
-class FIoStoreEnvironment
-{
-public:
-	CORE_API FIoStoreEnvironment();
-	CORE_API ~FIoStoreEnvironment();
-
-	CORE_API void InitializeFileEnvironment(FStringView InPath);
-
-	CORE_API const FString& GetPath() const { return Path; }
-
-private:
-	FString			Path;
-};
-
-//////////////////////////////////////////////////////////////////////////
-
 struct FIoStoreWriterSettings
 {
 	FName CompressionMethod = NAME_None;
@@ -885,6 +944,7 @@ struct FIoStoreWriterSettings
 
 struct FIoStoreWriterResult
 {
+	FIoContainerId ContainerId;
 	FString ContainerName;
 	int64 TocSize = 0;
 	int64 TocEntryCount = 0;
@@ -918,14 +978,15 @@ private:
 class FIoStoreWriter
 {
 public:
-	CORE_API 			FIoStoreWriter(FIoStoreEnvironment& InEnvironment);
+	CORE_API 			FIoStoreWriter(FIoStoreEnvironment& InEnvironment, FIoContainerId InContainerId);
 	CORE_API virtual	~FIoStoreWriter();
 
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
 	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed);
-	UE_NODISCARD CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions);
+	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
+	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API FIoStatus	AppendPadding(uint64 Count);
 
 	/**
@@ -941,6 +1002,37 @@ public:
 
 private:
 	FIoStoreWriterImpl*		Impl;
+};
+
+struct FIoStoreTocChunkInfo
+{
+	FIoChunkId Id;
+	FIoChunkHash Hash;
+	uint64 Offset;
+	uint64 Size;
+};
+
+struct FIoStoreTocPartialChunkInfo
+{
+	FIoChunkId Id;
+	FIoChunkId OrginalId;
+	uint64 RangeStart;
+	uint64 Size;
+};
+
+class FIoStoreReader
+{
+public:
+	CORE_API FIoStoreReader();
+	CORE_API ~FIoStoreReader();
+
+	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment);
+	CORE_API void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const;
+	CORE_API void EnumeratePartialChunks(TFunction<bool(const FIoStoreTocPartialChunkInfo&)>&& Callback) const;
+	CORE_API TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
+
+private:
+	FIoStoreReaderImpl* Impl;
 };
 
 //////////////////////////////////////////////////////////////////////////

@@ -10,6 +10,7 @@
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageId.h"
 #include "Serialization/Archive.h"
+#include "IO/IoContainerId.h"
 
 class FArchive;
 class IAsyncPackageLoader;
@@ -19,29 +20,92 @@ class IEDLBootNotificationManager;
 using FSourceToLocalizedPackageIdMap = TMap<FPackageId, FPackageId>;
 using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
 
-struct FNameMapEntry
+class FMappedName
 {
-	uint32 Index;
-	uint32 Number;
-#if WITH_EDITOR
-	FName ToFName() const
-	{
-		return FName::CreateFromDisplayId(FNameEntryId::FromUnstableInt(Index), Number);
-	}
-#else
-	FName ToFName() const
-	{
-		return *reinterpret_cast<const FName*>(this);
-	}
-#endif
+	static constexpr uint32 InvalidIndex = ~uint32(0);
+	static constexpr uint32 IndexBits = 31u;
+	static constexpr uint32 IndexMask = (1u << IndexBits) - 1u;
+	static constexpr uint32 TypeMask = ~IndexMask;
+	static constexpr uint32 TypeShift = IndexBits;
 
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FNameMapEntry& NameMapEntry);
+public:
+	enum class EType { Container, Global };
+
+	inline FMappedName() = default;
+
+	static inline FMappedName Create(const uint32 InIndex, const uint32 InNumber, EType InType)
+	{
+		check(InIndex <= MAX_int32);
+		return FMappedName((uint32(InType) << TypeShift) | InIndex, InNumber);
+	}
+
+	static inline FMappedName FromMinimalName(const FMinimalName& MinimalName)
+	{
+		return *reinterpret_cast<const FMappedName*>(&MinimalName);
+	}
+
+	static inline bool IsResolvedToMinimalName(const FMinimalName& MinimalName)
+	{
+		// Not completely safe, relies on that no FName will have its Index and Number equal to Max_uint32
+		const FMappedName MappedName = FromMinimalName(MinimalName);
+		return MappedName.IsValid();
+	}
+
+	static inline FName SafeMinimalNameToName(const FMinimalName& MinimalName)
+	{
+		return IsResolvedToMinimalName(MinimalName) ? MinimalNameToName(MinimalName) : NAME_None;
+	}
+
+	inline FMinimalName ToUnresolvedMinimalName() const
+	{
+		return *reinterpret_cast<const FMinimalName*>(this);
+	}
+
+	inline bool IsValid() const
+	{
+		return Index != InvalidIndex && Number != InvalidIndex;
+	}
+
+	inline EType GetType() const
+	{
+		return static_cast<EType>(uint32((Index & TypeMask) >> TypeShift));
+	}
+
+	inline bool IsGlobal() const
+	{
+		return ((Index & TypeMask) >> TypeShift) != 0;
+	}
+
+	inline uint32 GetIndex() const
+	{
+		return Index & IndexMask;
+	}
+
+	inline uint32 GetNumber() const
+	{
+		return Number;
+	}
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FMappedName& MappedName);
+
+private:
+	inline FMappedName(const uint32 InIndex, const uint32 InNumber)
+		: Index(InIndex)
+		, Number(InNumber) { }
+
+	uint32 Index = InvalidIndex;
+	uint32 Number = InvalidIndex;
 };
 
-struct FNameMapIndex
+struct FContainerHeader
 {
-	uint32 NameEntryIndex;
-	uint32 Number;
+	FIoContainerId ContainerId;
+	TArray<uint8> Names;
+	TArray<uint8> NameHashes;
+	TArray<FPackageId> PackageIds;
+	TArray<FMappedName> PackageNames;
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader);
 };
 
 class FPackageObjectIndex
@@ -174,6 +238,8 @@ struct FPackageSummary
 {
 	uint32 PackageFlags;
 	uint32 CookedHeaderSize;
+	uint16 NameMapIndex;
+	uint16 Pad;
 	int32 NameMapOffset;
 	int32 ImportMapOffset;
 	int32 ExportMapOffset;
@@ -231,10 +297,9 @@ public:
 	inline T& operator[](uint32 Index)				{ return Data()[Index]; }
 };
 
-
 struct FPackageStoreEntry
 {
-	FNameMapEntry Name;
+	FMinimalName Name;
 	FPackageId SourcePackageId;
 	int32 ExportCount;
 	TPackageStoreEntryCArrayView<FPackageId> ImportedPackages;
@@ -255,7 +320,7 @@ struct FExportBundleHeader
 
 struct FScriptObjectEntry
 {
-	FNameMapEntry ObjectName;
+	FMinimalName ObjectName;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex CDOClassIndex;
 
@@ -269,7 +334,7 @@ struct FExportMapEntry
 {
 	uint64 CookedSerialOffset;
 	uint64 CookedSerialSize;
-	FNameMapIndex ObjectName;
+	FMappedName ObjectName;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex ClassIndex;
 	FPackageObjectIndex SuperIndex;

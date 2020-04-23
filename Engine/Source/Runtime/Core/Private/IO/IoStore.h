@@ -15,10 +15,15 @@ struct FIoStoreTocHeader
 	uint32	TocHeaderSize;
 	uint32	TocEntryCount;
 	uint32	TocEntrySize;	// For sanity checking
-	uint32	CompressionBlockCount;
+	uint32	TocPartialEntryCount;
+	uint32	TocPartialEntrySize;	// For sanity checking
+	uint32	TocCompressedBlockEntryCount;
+	uint32	TocCompressedBlockEntrySize;	// For sanity checking
+	uint32	CompressionMethodNameCount;
+	uint32	CompressionMethodNameLength;
 	uint32	CompressionBlockSize;
-	uint32	CompressionNameCount;
-	uint32	TocPad[22];
+	FIoContainerId ContainerId;
+	uint8 Pad[70];
 
 	void MakeMagic()
 	{
@@ -86,11 +91,36 @@ private:
  */
 struct FIoStoreTocEntry
 {
-	FIoOffsetAndLength	OffsetAndLength;
+	FIoOffsetAndLength OffsetAndLength;
+	FIoChunkId ChunkId;
+	FIoChunkHash ChunkHash;
+	
+	inline uint64 GetOffset() const
+	{
+		return OffsetAndLength.GetOffset();
+	}
 
-	// TBD: should the chunk ID use content addressing, or names, or a
-	//      mix of both?
-	FIoChunkId	ChunkId;
+	inline uint64 GetLength() const
+	{
+		return OffsetAndLength.GetLength();
+	}
+
+	inline void SetOffset(uint64 Offset)
+	{
+		OffsetAndLength.SetOffset(Offset);
+	}
+
+	inline void SetLength(uint64 Length)
+	{
+		OffsetAndLength.SetLength(Length);
+	}
+};
+
+struct FIoStoreTocPartialEntry
+{
+	FIoOffsetAndLength OffsetAndLength;
+	FIoChunkId ChunkId;
+	FIoChunkId OriginalChunkId;
 
 	inline uint64 GetOffset() const
 	{
@@ -112,10 +142,11 @@ struct FIoStoreTocEntry
 		OffsetAndLength.SetLength(Length);
 	}
 };
+
 /**
  * Compression block entry.
  */
-struct FIoStoreCompressedBlockEntry
+struct FIoStoreTocCompressedBlockEntry
 {
 	/** Offset and size of the compressed block. */
 	FIoOffsetAndLength OffsetAndLength;
@@ -123,43 +154,54 @@ struct FIoStoreCompressedBlockEntry
 	uint8 CompressionMethodIndex;
 };
 
-/**
- * I/O store compresssion info.
- */
-struct FIoStoreCompressionInfo
+class FIoStoreTocReader
 {
-	enum
+public:
+	UE_NODISCARD FIoStatus Initialize(const TCHAR* TocFilePath);
+	
+	const FIoStoreTocEntry* GetEntries(uint32& OutCount) const
 	{
-		/** Compression method name max length. */
-		CompressionMethodNameLen = 32,
-		/** No compression. */
-		InvalidCompressionIndex = 255,
-	};
-
-	uint8 GetCompressionMethodIndex(FName CompressionMethod)
-	{
-		if (CompressionMethod == NAME_None)
-		{
-			return InvalidCompressionIndex;
-		}
-
-		for (int32 Idx = 0; Idx < CompressionMethods.Num(); ++Idx)
-		{
-			if (CompressionMethods[Idx] == CompressionMethod)
-			{
-				return uint8(Idx);
-			}
-		}
-
-		const uint8 Idx = uint8(CompressionMethods.Num());
-		CompressionMethods.Add(CompressionMethod);
-
-		return Idx;
+		OutCount = EntryCount;
+		return EntryCount > 0 ? Entries : nullptr;
 	}
 
-	TArray<FIoStoreCompressedBlockEntry> BlockEntries;
-	TArray<FName> CompressionMethods;
-	int64 BlockSize = 0;
-	int64 UncompressedContainerSize = 0;
-	int64 CompressedContainerSize = 0;
+	const FIoStoreTocPartialEntry* GetPartialEntries(uint32& OutCount) const
+	{
+		OutCount = PartialEntryCount;
+		return PartialEntryCount > 0 ? PartialEntries : nullptr;
+	}
+
+	const FIoStoreTocCompressedBlockEntry* GetCompressedBlockEntries(uint32& OutCount) const
+	{
+		OutCount = CompressedBlockEntryCount;
+		return CompressedBlockEntryCount > 0 ? CompressedBlockEntries : nullptr;
+	}
+
+	const FName* GetCompressionMethodNames(uint32& OutCount) const
+	{
+		OutCount = CompressionMethodNames.Num();
+		return CompressionMethodNames.Num() > 0 ? CompressionMethodNames.GetData() : nullptr;
+	}
+
+	uint32 GetCompressionBlockSize() const
+	{
+		return Header->CompressionBlockSize;
+	}
+
+	FIoContainerId GetContainerId() const
+	{
+		return Header->ContainerId;
+	}
+
+private:
+	TArray<FName> CompressionMethodNames;
+	TUniquePtr<uint8[]> TocBuffer;
+	const FIoStoreTocHeader* Header = nullptr;
+	const FIoStoreTocEntry* Entries = nullptr;
+	const FIoStoreTocPartialEntry* PartialEntries = nullptr;
+	const FIoStoreTocCompressedBlockEntry* CompressedBlockEntries = nullptr;
+	uint32 EntryCount = 0;
+	uint32 PartialEntryCount = 0;
+	uint32 CompressedBlockEntryCount = 0;
 };
+
