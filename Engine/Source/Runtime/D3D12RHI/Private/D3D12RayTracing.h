@@ -72,6 +72,11 @@ class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterCh
 {
 public:
 
+	// Ray tracing shader bindings can be processed in parallel.
+	// Each concurrent worker gets its own dedicated descriptor cache instance to avoid contention or locking.
+	// Scaling beyond 5 total threads does not yield any speedup in practice.
+	static constexpr uint32 MaxBindingWorkers = 5; // RHI thread + 4 parallel workers.
+
 	FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayTracingSceneInitializer& Initializer);
 	~FD3D12RayTracingScene();
 
