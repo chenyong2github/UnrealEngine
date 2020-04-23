@@ -217,7 +217,7 @@ void TestLightmass()
 
 	UE_LOG(LogLightmass, Display, TEXT("sizeof FDirectionalLight = %d, FLight = %d, FDirectionalLightData = %d"), sizeof(FDirectionalLight), sizeof(FLight), sizeof(FDirectionalLightData));
 
-	TOctree<float, FTestOctreeSemantics> TestOctree(FVector4(0), 10.0f);
+	TOctree2<float, FTestOctreeSemantics> TestOctree(FVector4(0), 10.0f);
 	TestOctree.AddElement(5);
 
 

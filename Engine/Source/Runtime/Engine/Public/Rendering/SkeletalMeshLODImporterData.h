@@ -609,7 +609,7 @@ struct FWedgeInfoOctreeSemantics
 	{
 	}
 };
-typedef TOctree<FWedgeInfo, FWedgeInfoOctreeSemantics> TWedgeInfoPosOctree;
+typedef TOctree2<FWedgeInfo, FWedgeInfoOctreeSemantics> TWedgeInfoPosOctree;
 
 class FOctreeQueryHelper
 {

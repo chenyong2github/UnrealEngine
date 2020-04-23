@@ -231,7 +231,7 @@ struct FPhotonElement
 	{}
 };
 
-typedef TOctree<FPhotonElement,struct FPhotonMapOctreeSemantics> FPhotonOctree;
+typedef TOctree2<FPhotonElement,struct FPhotonMapOctreeSemantics> FPhotonOctree;
 
 /** Octree semantic definitions. */
 struct FPhotonMapOctreeSemantics
@@ -299,7 +299,7 @@ struct FPhotonSegmentMapOctreeSemantics
 	}
 };
 
-typedef TOctree<FPhotonSegmentElement,struct FPhotonSegmentMapOctreeSemantics> FPhotonSegmentOctree;
+typedef TOctree2<FPhotonSegmentElement,struct FPhotonSegmentMapOctreeSemantics> FPhotonSegmentOctree;
 
 /** A photon which stores a precalculated irradiance estimate. */
 class FIrradiancePhoton : public FIrradiancePhotonData
@@ -376,7 +376,7 @@ private:
 	TArray<FIrradiancePhoton>& PhotonArray;
 };
 
-typedef TOctree<FIrradiancePhotonElement,struct FIrradiancePhotonMapOctreeSemantics> FIrradiancePhotonOctree;
+typedef TOctree2<FIrradiancePhotonElement,struct FIrradiancePhotonMapOctreeSemantics> FIrradiancePhotonOctree;
 
 /** Octree semantic definitions. */
 struct FIrradiancePhotonMapOctreeSemantics
@@ -438,7 +438,7 @@ struct FVolumeSampleInterpolationElement
 	{}
 };
 
-typedef TOctree<FVolumeSampleInterpolationElement,struct FVolumeLightingInterpolationOctreeSemantics> FVolumeLightingInterpolationOctree;
+typedef TOctree2<FVolumeSampleInterpolationElement,struct FVolumeLightingInterpolationOctreeSemantics> FVolumeLightingInterpolationOctree;
 
 /** Octree semantic definitions. */
 struct FVolumeLightingInterpolationOctreeSemantics

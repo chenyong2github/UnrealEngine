@@ -18,6 +18,9 @@ public:
 	template<typename,typename>
 	friend class TOctree;
 
+	template<typename, typename>
+	friend class TOctree2;
+
 	/** Default constructor. */
 	FOctreeElementId()
 		:	NodeIndex(INDEX_NONE)

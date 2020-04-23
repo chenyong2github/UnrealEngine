@@ -56,4 +56,4 @@ struct FMeshPaintTriangleOctreeSemantics
 
 	}
 };
-typedef TOctree<FMeshPaintTriangle, FMeshPaintTriangleOctreeSemantics> FMeshPaintTriangleOctree;
+typedef TOctree2<FMeshPaintTriangle, FMeshPaintTriangleOctreeSemantics> FMeshPaintTriangleOctree;

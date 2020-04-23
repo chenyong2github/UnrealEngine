@@ -143,7 +143,7 @@ struct TUseBitwiseSwap<FSortedLightSceneInfo>
 };
 
 /** The type of the octree used by FScene to find lights. */
-typedef TOctree<FLightSceneInfoCompact,struct FLightOctreeSemantics> FSceneLightOctree;
+typedef TOctree2<FLightSceneInfoCompact,struct FLightOctreeSemantics> FSceneLightOctree;
 
 /**
  * The information used to render a light.  This is the rendering thread's mirror of the game thread's ULightComponent.
