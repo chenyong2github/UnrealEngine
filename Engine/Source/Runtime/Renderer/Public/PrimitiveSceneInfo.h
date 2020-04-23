@@ -24,7 +24,7 @@ class FScene;
 class FViewInfo;
 class UPrimitiveComponent;
 class FIndirectLightingCacheUniformParameters;
-template<typename ElementType,typename OctreeSemantics> class TOctree;
+template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
 /** Data used to track a primitive's allocation in the volume texture atlas that stores indirect lighting. */
 class FIndirectLightingCacheAllocation
