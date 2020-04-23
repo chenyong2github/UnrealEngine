@@ -31,18 +31,20 @@ def is_port_available(server, port):
 
 
 def random_action(env):
-    return env.action_space.sample()
+    return env.action_space.sample() if env.action_space else None
 
 
 class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, **kwargs):
         super().__init__(kwargs)
+        self.add_argument('--env', type=str, default='UE4-ActionRPG-v0', help='environment ID')
         self.add_argument('--nothreads', type=int, default=0)
         self.add_argument('--norendering', type=int, default=0)
         self.add_argument('--nosound', type=int, default=0)
         self.add_argument('--resx', type=int, default=800)
         self.add_argument('--resy', type=int, default=600)
         self.add_argument('--exec', type=str, default=None)
+        self.add_argument('--port', type=int, default=DEFAULT_PORT)
 
     def parse_args(self, **kwargs):
         args = super().parse_args(**kwargs)

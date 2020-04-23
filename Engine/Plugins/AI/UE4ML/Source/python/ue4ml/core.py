@@ -53,10 +53,8 @@ class UnrealEnv(gym.Env):
     def __init__(self, server_address=LOCALHOST, server_port=DEFAULT_PORT, agent_config=None, reacquire=True, realtime=False,
                  await_connection=True, timeout=20, ue4params=None, project_name=None):
 
-        try:
-            self._project_name
-        except AttributeError:
-            self._project_name = project_name
+        # it's expected that the used passes in project_name or implements a wrapper defining PROJECT_NAME
+        self._project_name = project_name if project_name is not None else self.__class__.PROJECT_NAME
 
         if agent_config is None:
             agent_config = self.__class__.default_agent_config()
@@ -89,6 +87,8 @@ class UnrealEnv(gym.Env):
 
         self._set_realtime(realtime)
         self._frames_step = 1
+        # stores number of actions performed and frames skipped. Not counting skipped time in realtime mode
+        self._steps_performed = 0
 
     def _setup_agents(self, reacquire):
         # if there's already an agent created in the environment
@@ -134,6 +134,7 @@ class UnrealEnv(gym.Env):
 
     def _tick_world(self):
         self.__rpc_client.request_world_tick(self._frames_step, True)
+        self.__rpc_client.request_world_tick(self._frames_step, True)
 
     def reset(self, wait_action=None, skip_time=1):
         logger.debug('{}: reset'.format(self._debug_id))
@@ -144,6 +145,7 @@ class UnrealEnv(gym.Env):
                 self.__rpc_client.act(self.__agent_id, self.wrap_action(
                     self.action_space.sample() if wait_action is None else wait_action))
             self.skip(skip_time)
+        self._steps_performed = 0
         return self._get_observation()
 
     def close(self, shutdown=True):
@@ -192,6 +194,7 @@ class UnrealEnv(gym.Env):
         else:
             # @todo measure time or add rpc function to skip X seconds
             self.__rpc_client.request_world_tick(int(interval), True)
+            self._steps_performed += interval
 
     def wrap_action(self, action):
         return list(map(float, gym.spaces.flatten(self.action_space, action)))
@@ -201,17 +204,14 @@ class UnrealEnv(gym.Env):
 
     def step(self, action=None):
         """
-        :param action: action that will be passed over to the RPC server. Note that the value of None is valid only
-            if self.action_space is empty (the receiving agent doesn't have any actuators)
-        """
-        assert self.action_space is None or action is not None,\
-            'the value of None is valid only if self.action_space is empty' 
-        
-        if self.action_space is not None:
+        :param action: action that will be passed over to the RPC server. If action is None then 'act' won't get called
+        """        
+        if self.action_space is not None and action is not None:
             assert self.action_space.contains(action)
             action = self.wrap_action(action)
             self.__rpc_client.act(self.__agent_id, action)
         
+        self._steps_performed += 1        
         self._world_step_impl()
         observation = self._get_observation()
         reward = self.get_reward()

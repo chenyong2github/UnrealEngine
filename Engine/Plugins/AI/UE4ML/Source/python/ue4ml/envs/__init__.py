@@ -6,18 +6,18 @@ from .platformer import PlatformerGame
 from .action_rpg import ActionRPG
 from ..runner import UE4Params
 
-__all__ = ['PlatformerGame']
+__all__ = ['PlatformerGame', 'ActionRPG']
 
 fast_kwargs = {
     'ue4params': UE4Params(rendering=False, sound=False, single_thread=True)
 }
 
 default_kwargs = {
-    'ue4params': UE4Params()
+    'ue4params': UE4Params(sound=False)
 }
 
 real_time_kwargs = {
-    'ue4params': UE4Params(),
+    'ue4params': UE4Params(sound=False),
     'realtime': True
 }
 

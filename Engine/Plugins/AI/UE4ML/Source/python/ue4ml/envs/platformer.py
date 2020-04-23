@@ -4,14 +4,16 @@ from ..core import UnrealEnv, AgentConfig
 import numpy as np
 
 
-class PlatformerGame(UnrealEnv):    
+class PlatformerGame(UnrealEnv):
+    
+    PROJECT_NAME = 'PlatformerGame'
+    
     """
     @Note due to how PlatformerGame's in-game menu is implemented a command line parameter is required to disable it.
     When PlatformerGame environment is responsible for launching the game it will all the parameter automatically (see
     the ctor).
     """
     def __init__(self, ue4params=None, **kwargs):
-        self._project_name = 'PlatformerGame'
 
         if ue4params is not None:
             ue4params.set_default_map_name('Platformer_StreetSection')

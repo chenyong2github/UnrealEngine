@@ -54,9 +54,10 @@ class UE4Params(object):
     WINDOW = 'windowed'
     FIXED_TIME_STEP = 'usefixedtimestep'
     GAME = 'game'
+    UNATTENDED = 'unattended'
     
     def __init__(self, map_name='', rendering=True, sound=True, single_thread=False, custom=''):
-        self.__options = [UE4Params.WINDOW, UE4Params.FIXED_TIME_STEP, UE4Params.GAME]
+        self.__options = [UE4Params.WINDOW, UE4Params.FIXED_TIME_STEP, UE4Params.GAME, UE4Params.UNATTENDED]
         self.__params = {'resx': 320, 'resy': 240, 'fps': DEFAULT_FPS}
         self.map_name = map_name
         self.custom = custom
