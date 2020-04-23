@@ -1324,6 +1324,16 @@ bool UAssetRegistryImpl::RemovePath(const FString& PathToRemove)
 	return RemoveAssetPath(FName(*PathToRemove));
 }
 
+bool UAssetRegistryImpl::PathExists(const FString& PathToTest) const
+{
+	return PathExists(FName(*PathToTest));
+}
+
+bool UAssetRegistryImpl::PathExists(const FName PathToTest) const
+{
+	return CachedPathTree.PathExists(PathToTest);
+}
+
 void UAssetRegistryImpl::ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan)
 {
 	ScanPathsAndFilesSynchronous(InPaths, TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
