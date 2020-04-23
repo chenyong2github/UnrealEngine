@@ -197,6 +197,14 @@ void UControlRig::Execute(const EControlRigState InState)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	if (VM)
+	{
+		if (VM->GetOuter() != this)
+		{
+			InstantiateVMFromCDO();
+		}
+	}
+
 	if (bRequiresInitExecution)
 	{
 		bRequiresInitExecution = false;

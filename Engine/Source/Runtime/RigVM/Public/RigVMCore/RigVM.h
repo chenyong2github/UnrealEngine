@@ -458,5 +458,7 @@ private:
 	TArray<void*> CachedMemoryPointers;
 	TArray<FRigVMMemoryContainer*> CachedMemory;
 
+	int32 ThreadId;
+
 	friend class URigVMCompiler;
 };
