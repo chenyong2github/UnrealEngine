@@ -223,8 +223,8 @@ namespace Chaos
 
 				// Calculate new velocities from forces, torques and drag
 				const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, Particle.InvI());
-				const FVec3 G = (Particle.GravityEnabled()) ? Gravity : FVec3(0);
-				const FVec3 DV = Particle.InvM() * ((G + Particle.F()) * Dt + Particle.LinearImpulse());
+				const FVec3 GDt = (Particle.GravityEnabled()) ? Gravity * Dt : FVec3(0);
+				const FVec3 DV = GDt + Particle.InvM() * (Particle.F() * Dt + Particle.LinearImpulse());
 				const FVec3 DW = WorldInvI * (Particle.Torque() * Dt + Particle.AngularImpulse());
 				const FReal LinearDrag = FMath::Max(FReal(0), FReal(1) - (Particle.LinearEtherDrag() * Dt));
 				const FReal AngularDrag = FMath::Max(FReal(0), FReal(1) - (Particle.AngularEtherDrag() * Dt));
