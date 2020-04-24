@@ -1079,7 +1079,7 @@ UActorComponent* AActor::CreateComponentFromTemplateData(const FBlueprintCookedC
 	return NewActorComp;
 }
 
-UActorComponent* AActor::AddComponent(FName TemplateName, bool bManualAttachment, const FTransform& RelativeTransform, const UObject* ComponentTemplateContext)
+UActorComponent* AActor::AddComponent(FName TemplateName, bool bManualAttachment, const FTransform& RelativeTransform, const UObject* ComponentTemplateContext, bool bDeferredFinish)
 {
 	UWorld* World = GetWorld();
 	if (World->bIsTearingDown)
@@ -1118,10 +1118,22 @@ UActorComponent* AActor::AddComponent(FName TemplateName, bool bManualAttachment
 		}
 	}
 
-	bool bIsSceneComponent = false;
 	UActorComponent* NewActorComp = TemplateData ? CreateComponentFromTemplateData(TemplateData) : CreateComponentFromTemplate(Template);
+
+	if (!bDeferredFinish)
+	{
+		FinishAddComponent(NewActorComp, bManualAttachment, RelativeTransform);
+	}
+
+	return NewActorComp;
+}
+
+void AActor::FinishAddComponent(UActorComponent* NewActorComp, bool bManualAttachment, const FTransform& RelativeTransform)
+{
 	if(NewActorComp != nullptr)
 	{
+		bool bIsSceneComponent = false;
+
 		// Call function to notify component it has been created
 		NewActorComp->OnComponentCreated();
 		
@@ -1153,6 +1165,7 @@ UActorComponent* AActor::AddComponent(FName TemplateName, bool bManualAttachment
 			NewActorComp->RegisterComponent();
 		}
 
+		UWorld* World = GetWorld();
 		if (!bRunningUserConstructionScript && World && bIsSceneComponent)
 		{
 			UPrimitiveComponent* NewPrimitiveComponent = Cast<UPrimitiveComponent>(NewActorComp);
@@ -1162,8 +1175,6 @@ UActorComponent* AActor::AddComponent(FName TemplateName, bool bManualAttachment
 			}
 		}
 	}
-
-	return NewActorComp;
 }
 
 void AActor::CheckComponentInstanceName(const FName InName)
