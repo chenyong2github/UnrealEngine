@@ -127,8 +127,6 @@ public:
 		}
 	}
 
-private:
-
 	struct FChunk
 	{
 		static constexpr uint32 MaxNum = 1024;
@@ -139,6 +137,13 @@ private:
 		FChunk* Next;
 		uint32 Num;
 	};
+
+	const FChunk* GetFirstChunk() const
+	{
+		return FirstChunk;
+	}
+
+private:
 
 	FChunk* FirstChunk = nullptr;
 	FChunk* CurrentChunk = nullptr;
