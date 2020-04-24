@@ -394,7 +394,7 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 	// the LayoutParams serialized. The other option (old DDC) should be prevented by us having mutated MATERIALSHADERMAP_DERIVEDDATA_VER
 	if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
 	{
-		LayoutParams.Serialize(Ar);
+		Ar << LayoutParams;
 	}
 	else
 	{
@@ -601,6 +601,11 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 bool FMaterialShaderMapId::IsContentValid() const
 {
 #if WITH_EDITOR
+	if (!LayoutParams.IsInitialized())
+	{
+		return false;
+	}
+
 	//We expect overrides to be set to false
 	for (const FStaticSwitchParameter& StaticSwitchParameter : StaticSwitchParameters)
 	{

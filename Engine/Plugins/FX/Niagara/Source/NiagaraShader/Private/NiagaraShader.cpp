@@ -15,6 +15,8 @@
 	#include "Interfaces/ITargetPlatformManagerModule.h"
 	#include "TickableEditorObject.h"
 	#include "DerivedDataCacheInterface.h"
+	#include "Interfaces/ITargetPlatformManagerModule.h"
+	#include "Interfaces/ITargetPlatform.h"
 #endif
 #include "ProfilingDebugging/CookStats.h"
 
@@ -240,13 +242,18 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		|| */BaseCompileHash != ReferenceSet.BaseCompileHash
 		|| FeatureLevel != ReferenceSet.FeatureLevel
 		|| CompilerVersionID != ReferenceSet.CompilerVersionID 
-		|| bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams)
+		|| bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams
+		|| LayoutParams != ReferenceSet.LayoutParams)
 	{
 		return false;
 	}
-	
-	
+
 	if (AdditionalDefines.Num() != ReferenceSet.AdditionalDefines.Num())
+	{
+		return false;
+	}
+
+	if (ReferencedCompileHashes.Num() != ReferenceSet.ReferencedCompileHashes.Num())
 	{
 		return false;
 	}
@@ -259,11 +266,6 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		{
 			return false;
 		}
-	}
-
-	if (ReferencedCompileHashes.Num() != ReferenceSet.ReferencedCompileHashes.Num())
-	{
-		return false;
 	}
 
 	for (int32 i = 0; i < ReferencedCompileHashes.Num(); i++)
@@ -304,8 +306,34 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 
 	FString FeatureLevelString;
 	GetFeatureLevelName(FeatureLevel, FeatureLevelString);
-	KeyString += FeatureLevelString + TEXT("_");
 
+	{
+		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FNiagaraShaderMapContent>(), LayoutParams);
+		KeyString += TEXT("_");
+		KeyString += LayoutHash.ToString();
+		KeyString += TEXT("_");
+	}
+
+	{
+		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FNiagaraShader>(), LayoutParams);
+		KeyString += TEXT("_");
+		KeyString += LayoutHash.ToString();
+		KeyString += TEXT("_");
+	}
+
+	/*for (const FHashedName& DITypeName : DITypeNames)
+	{
+		const FTypeLayoutDesc* DIType = FTypeLayoutDesc::Find(DITypeName.GetHash());
+		if (DIType)
+		{
+			const FSHAHash LayoutHash = Freeze::HashLayout(*DIType, LayoutParams);
+			KeyString += TEXT("_");
+			KeyString += LayoutHash.ToString();
+			KeyString += TEXT("_");
+		}
+	}*/
+
+	KeyString += FeatureLevelString + TEXT("_");
 	KeyString += CompilerVersionID.ToString();
 	KeyString += TEXT("_");
 
