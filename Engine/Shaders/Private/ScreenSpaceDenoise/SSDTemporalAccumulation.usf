@@ -1069,7 +1069,7 @@ void TemporallyAccumulate(
 				SafeRcp(CurrentFrameSample.SampleCount) *
 				HistorySample.SampleCount);
 
-			if (View.GeneralPurposeTweak > 0.5)
+			//if (View.GeneralPurposeTweak > 0.5)
 			HistorySamples.Array[BatchedSignalId] = HistorySample;
 		}
 	}
