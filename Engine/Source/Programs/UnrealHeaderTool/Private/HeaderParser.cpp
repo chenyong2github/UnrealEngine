@@ -5038,7 +5038,7 @@ void FHeaderParser::GetVarType(
 		}
 		else
 		{
-			FError::Throwf(TEXT("'Instanced' is only allowed on object property (or array of objects)"));
+			FError::Throwf(TEXT("'Instanced' is only allowed on an object property, an array of objects, a set of objects, or a map with an object value type."));
 		}
 	}
 
