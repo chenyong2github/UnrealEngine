@@ -806,25 +806,42 @@ public:
 };
 #endif
 
-/** Index buffer resource class that stores stride information. */
-class FD3D12IndexBuffer : public FRHIIndexBuffer, public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12IndexBuffer>
+class FD3D12Buffer : public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12Buffer>
 {
 public:
-	FD3D12IndexBuffer()
-		: FD3D12BaseShaderResource(nullptr)
-		, LockedData(nullptr)
-	{}
-
-	FD3D12IndexBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
-		: FRHIIndexBuffer(InStride, InSize, InUsage)
-		, FD3D12BaseShaderResource(InParent)
+	FD3D12Buffer(FD3D12Device* InParent)
+		: FD3D12BaseShaderResource(InParent)
 		, LockedData(InParent)
-	{}
-
-	virtual ~FD3D12IndexBuffer();
+	{
+	}
+	virtual ~FD3D12Buffer()
+	{
+	}
 
 	void Rename(FD3D12ResourceLocation& NewLocation);
 	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);
+
+	void ReleaseUnderlyingResource();
+
+	FD3D12LockedResource LockedData;
+};
+
+/** Index buffer resource class that stores stride information. */
+class FD3D12IndexBuffer : public FRHIIndexBuffer, public FD3D12Buffer
+{
+public:
+	FD3D12IndexBuffer()
+		: FD3D12Buffer(nullptr)
+	{
+	}
+
+	FD3D12IndexBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
+		: FRHIIndexBuffer(InStride, InSize, InUsage)
+		, FD3D12Buffer(InParent)
+	{
+	}
+
+	virtual ~FD3D12IndexBuffer();
 
 	void Swap(FD3D12IndexBuffer& Other);
 
@@ -843,27 +860,19 @@ public:
 	{
 		return FRHIResource::GetRefCount();
 	}
-
-	FD3D12LockedResource LockedData;
 };
 
 class FD3D12ShaderResourceView;
 
 /** Structured buffer resource class. */
-class FD3D12StructuredBuffer : public FRHIStructuredBuffer, public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12StructuredBuffer>
+class FD3D12StructuredBuffer : public FRHIStructuredBuffer, public FD3D12Buffer
 {
 public:
-	// Current SRV
-
 	FD3D12StructuredBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
 		: FRHIStructuredBuffer(InStride, InSize, InUsage)
-		, FD3D12BaseShaderResource(InParent)
-		, LockedData(InParent)
+		, FD3D12Buffer(InParent)
 	{
 	}
-
-	void Rename(FD3D12ResourceLocation& NewLocation);
-	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);
 
 	virtual ~FD3D12StructuredBuffer();
 
@@ -880,31 +889,24 @@ public:
 	{
 		return FRHIResource::GetRefCount();
 	}
-
-	FD3D12LockedResource LockedData;
 };
 
 /** Vertex buffer resource class. */
-class FD3D12VertexBuffer : public FRHIVertexBuffer, public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12VertexBuffer>
+class FD3D12VertexBuffer : public FRHIVertexBuffer, public FD3D12Buffer
 {
 public:
 	FD3D12VertexBuffer()
-		: FD3D12BaseShaderResource(nullptr)
-		, LockedData(nullptr)
+		: FD3D12Buffer(nullptr)
 	{}
 
 	FD3D12VertexBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
 		: FRHIVertexBuffer(InSize, InUsage)
-		, FD3D12BaseShaderResource(InParent)
-		, LockedData(InParent)
+		, FD3D12Buffer(InParent)
 	{
 		UNREFERENCED_PARAMETER(InStride);
 	}
 
 	virtual ~FD3D12VertexBuffer();
-
-	void Rename(FD3D12ResourceLocation& NewLocation);
-	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);
 
 	void Swap(FD3D12VertexBuffer& Other);
 
@@ -923,8 +925,6 @@ public:
 	{
 		return FRHIResource::GetRefCount();
 	}
-
-	FD3D12LockedResource LockedData;
 };
 
 template<class BufferType>
