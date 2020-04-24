@@ -18,7 +18,7 @@ StructuredBuffer<FImaginaryReflectionGBufferData> ImaginaryReflectionGBuffer;
 
 RWTexture2D<float4> ImaginaryReflectionGBufferA;
 RWTexture2D<float> ImaginaryReflectionDepthZ;
-RWTexture2D<float2> ImaginaryReflectionVelocity;
+RWTexture2D<float4> ImaginaryReflectionVelocity;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void MainCS(
@@ -51,13 +51,13 @@ void MainCS(
 		// Encode split components to output formats and output
 		ImaginaryReflectionGBufferA[PixelCoord] = float4(EncodeNormal(NormalizedWorldNormal), 0.0f);
 		ImaginaryReflectionDepthZ[PixelCoord] = ConvertToDeviceZ(AveragedSceneDepth); // Output format expecting DeviceZ similar to a proper depth buffer
-		ImaginaryReflectionVelocity[PixelCoord] = EncodeVelocityToTexture(AveragedVelocity);
+		ImaginaryReflectionVelocity[PixelCoord] = float4(EncodeVelocityToTexture(float3(AveragedVelocity, 0.0)), 0.0);
 	}
 	else
 	{
 		// Output special invalid sample values
 		ImaginaryReflectionGBufferA[PixelCoord] = float4(0.0f, 0.0f, 0.0f, 0.0f);
 		ImaginaryReflectionDepthZ[PixelCoord] = 0.0f;
-		ImaginaryReflectionVelocity[PixelCoord] = float2(0.0f, 0.0f);
+		ImaginaryReflectionVelocity[PixelCoord] = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 }
