@@ -864,7 +864,7 @@ float4 UpdateQualityVariance(float4 SubsurfaceColor, float2 BufferUV)
 
 		if (DynamicN)
 		{
-			BackN = DecodeVelocityFromTexture(VelocityN);
+			BackN = DecodeVelocityFromTexture(float3(VelocityN, 0.0)).xy;
 		}
 
 		BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;

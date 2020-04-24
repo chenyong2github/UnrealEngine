@@ -32,11 +32,11 @@ EMeshPass::Type GetMeshPassFromVelocityPass(EVelocityPass VelocityPass);
 // Group Velocity Rendering accessors, types, etc.
 struct FVelocityRendering
 {
-	static EPixelFormat GetFormat();
-	static FPooledRenderTargetDesc GetRenderTargetDesc();
+	static EPixelFormat GetFormat(EShaderPlatform ShaderPlatform);
+	static FPooledRenderTargetDesc GetRenderTargetDesc(EShaderPlatform ShaderPlatform);
 
 	/** Returns true if the separate velocity pass is enabled. */
-	static bool IsSeparateVelocityPassSupported();
+	static bool IsSeparateVelocityPassSupported(EShaderPlatform ShaderPlatform);
 
 	/** Returns true if the velocity can be output in the BasePass. */
 	static bool BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform);

@@ -407,7 +407,7 @@ void VisualizeMotionBlurPS(
 	// relative, in screen space -1...1 -1..1, can be even outside of that range, points into the movement direction
 	float2 VelocityAtTileCenter;
 	{
-		VelocityAtTileCenter = DecodeVelocityFromTexture(VelocityTexture.SampleLevel(SharedVelocitySampler, UVAtTileCenter, 0).xy);
+		VelocityAtTileCenter = DecodeVelocityFromTexture(float3(VelocityTexture.SampleLevel(SharedVelocitySampler, UVAtTileCenter, 0).xy, 0.0)).xy;
 
 		// reconstruct from camera motion if we don't have velocity data
 		if(!bSelectorOpaqueAtTileCenter)

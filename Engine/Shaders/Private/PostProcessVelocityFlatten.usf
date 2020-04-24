@@ -68,7 +68,7 @@ void VelocityFlattenMain(
 
 	if (Velocity.x > 0.0)
 	{
-		Velocity = DecodeVelocityFromTexture(Velocity);
+		Velocity = DecodeVelocityFromTexture(float3(Velocity, 0.0)).xy;
 	}
 	else
 	{
