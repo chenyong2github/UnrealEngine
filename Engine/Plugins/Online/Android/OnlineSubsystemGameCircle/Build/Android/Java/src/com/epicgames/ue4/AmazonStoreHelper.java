@@ -107,7 +107,7 @@ public class AmazonStoreHelper implements StoreHelper, PurchasingListener
 		return true;
 	}
 
-	public boolean BeginPurchase(String ProductID, string ObfuscatedAccountId)
+	public boolean BeginPurchase(String ProductID)
 	{
 		Log.debug("AmazonStoreHelper.BeginPurchase - " + ProductID);
 
