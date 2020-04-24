@@ -16,6 +16,7 @@ class FMemoryImageWriter;
 class FMemoryUnfreezeContent;
 class FPointerTableBase;
 struct FTypeLayoutDesc;
+struct FPlatformTypeLayoutParameters;
 
 // Duplicated from RHIDefinitions.h [AND MUST MATCH THE Freezing_bWithRayTracing in DataDrivenPlatformInfo.ini]
 #ifndef WITH_RAYTRACING
@@ -65,57 +66,6 @@ using FMemoryImageUPtrInt = UPTRINT;
 #endif
 
 template<typename T> const FTypeLayoutDesc& StaticGetTypeLayoutDesc();
-
-struct FPlatformTypeLayoutParameters
-{
-	uint32 MaxFieldAlignment = 0xffffffff;
-	bool b32Bit = false;
-	bool bForce64BitMemoryImagePointers = true;
-	bool bAlignBases = false;
-	bool bWithEditorOnly = false;
-	bool bWithRayTracing = false;
-	bool bIsCurrentPlatform = false;
-
-	inline bool Has32BitMemoryImagePointers() const { return b32Bit && !bForce64BitMemoryImagePointers; }
-	inline bool Has64BitMemoryImagePointers() const { return !Has32BitMemoryImagePointers(); }
-
-	inline uint32 GetRawPointerSize() const { return b32Bit ? sizeof(uint32) : sizeof(uint64); }
-	inline uint32 GetMemoryImagePointerSize() const { return Has32BitMemoryImagePointers() ? sizeof(uint32) : sizeof(uint64); }
-
-	CORE_API void InitializeForArchive(FArchive& Ar);
-	CORE_API void InitializeForPlatform(const FString& PlatformName, bool bHasEditorOnlyData);
-	CORE_API void InitializeForCurrent();
-	CORE_API void InitializeForMSVC();
-	CORE_API void InitializeForClang();
-
-	/**
-	 * Allow the layout parameters to modify the given DDC key string
-	 * Normally this should not be used, and instead hashed layouts of any dependent types should be preferred
-	 * This is mostly needed when fixing bugs related to writing memory images with certain parameter combinations
-	 */
-	CORE_API void AppendKeyString(FString& KeyString) const;
-
-	/**
-	 * This is used for serializing into/from the DDC
-	 */
-	void Serialize(FArchive& Ar);
-
-	bool operator==(const FPlatformTypeLayoutParameters& ReferenceSet) const
-	{
-		return MaxFieldAlignment == ReferenceSet.MaxFieldAlignment &&
-			b32Bit == ReferenceSet.b32Bit &&
-			bForce64BitMemoryImagePointers == ReferenceSet.bForce64BitMemoryImagePointers &&
-			bAlignBases == ReferenceSet.bAlignBases &&
-			bWithEditorOnly == ReferenceSet.bWithEditorOnly &&
-			bWithRayTracing == ReferenceSet.bWithRayTracing &&
-			bIsCurrentPlatform == ReferenceSet.bIsCurrentPlatform;
-	}
-
-	bool operator!=(const FPlatformTypeLayoutParameters& ReferenceSet) const
-	{
-		return !(*this == ReferenceSet);
-	}
-};
 
 struct FMemoryToStringContext
 {
@@ -354,21 +304,14 @@ namespace Freeze
 		return TypeDesc.Alignment;
 	}
 
-	inline uint32 IntrinsicAppendHash(void* const* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
-	{
-		return AppendHashForNameAndSize(TypeDesc.Name, LayoutParams.GetRawPointerSize(), Hasher);
-	}
-
-	inline uint32 IntrinsicGetTargetAlignment(void* const* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams)
-	{
-		return LayoutParams.GetRawPointerSize();
-	}
-
 	template<typename T>
 	inline void IntrinsicToString(const T& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
 	{
 		DefaultToString(&Object, TypeDesc, LayoutParams, OutContext);
 	}
+
+	CORE_API uint32 IntrinsicAppendHash(void* const* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
+	CORE_API uint32 IntrinsicGetTargetAlignment(void* const* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams);
 
 	CORE_API void IntrinsicToString(char Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
 	CORE_API void IntrinsicToString(short Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
@@ -884,3 +827,68 @@ ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename T>, const T, T);
 
 // All raw pointer types map to void*, since they're all handled the same way
 ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename T>, T*, void*);
+
+struct FPlatformTypeLayoutParameters
+{
+	DECLARE_EXPORTED_TYPE_LAYOUT(FPlatformTypeLayoutParameters, CORE_API, NonVirtual);
+
+	enum Flags
+	{
+		Flag_Initialized = (1 << 0),
+		Flag_Is32Bit = (1 << 1),
+		Flag_Force64BitMemoryImagePointers = (1 << 2),
+		Flag_AlignBases = (1 << 3),
+		Flag_WithEditorOnly = (1 << 4),
+		Flag_WithRaytracing = (1 << 5),
+	};
+
+	LAYOUT_FIELD_INITIALIZED(uint32, MaxFieldAlignment, 0xffffffff);
+	LAYOUT_FIELD_INITIALIZED(uint32, Flags, 0u);
+
+	inline bool IsInitialized() const { return (Flags & Flag_Initialized) != 0u; }
+	inline bool Is32Bit() const { return (Flags & Flag_Is32Bit) != 0u; }
+	inline bool HasForce64BitMemoryImagePointers() const { return (Flags & Flag_Force64BitMemoryImagePointers) != 0u; }
+	inline bool HasAlignBases() const { return (Flags & Flag_AlignBases) != 0u; }
+	inline bool WithEditorOnly() const { return (Flags & Flag_WithEditorOnly) != 0u; }
+	inline bool WithRaytracing() const { return (Flags & Flag_WithRaytracing) != 0u; }
+
+	inline bool Has32BitMemoryImagePointers() const { return Is32Bit() && !HasForce64BitMemoryImagePointers(); }
+	inline bool Has64BitMemoryImagePointers() const { return !Has32BitMemoryImagePointers(); }
+
+	inline uint32 GetRawPointerSize() const { return Is32Bit() ? sizeof(uint32) : sizeof(uint64); }
+	inline uint32 GetMemoryImagePointerSize() const { return Has32BitMemoryImagePointers() ? sizeof(uint32) : sizeof(uint64); }
+
+	friend inline FArchive& operator<<(FArchive& Ar, FPlatformTypeLayoutParameters& Ref)
+	{
+		return Ref.Serialize(Ar);
+	}
+
+	friend inline bool operator==(const FPlatformTypeLayoutParameters& Lhs, const FPlatformTypeLayoutParameters& Rhs)
+	{
+		return Lhs.Flags == Rhs.Flags && Lhs.MaxFieldAlignment == Rhs.MaxFieldAlignment;
+	}
+
+	friend inline bool operator!=(const FPlatformTypeLayoutParameters& Lhs, const FPlatformTypeLayoutParameters& Rhs)
+	{
+		return !operator==(Lhs, Rhs);
+	}
+
+	CORE_API bool IsCurrentPlatform() const;
+	CORE_API void InitializeForArchive(FArchive& Ar);
+	CORE_API void InitializeForPlatform(const FString& PlatformName, bool bHasEditorOnlyData);
+	CORE_API void InitializeForCurrent();
+	CORE_API void InitializeForMSVC();
+	CORE_API void InitializeForClang();
+
+	/**
+	 * This is used for serializing into/from the DDC
+	 */
+	CORE_API FArchive& Serialize(FArchive& Ar);
+
+	/**
+	 * Allow the layout parameters to modify the given DDC key string
+	 * Normally this should not be used, and instead hashed layouts of any dependent types should be preferred
+	 * This is mostly needed when fixing bugs related to writing memory images with certain parameter combinations
+	 */
+	CORE_API void AppendKeyString(FString& KeyString) const;
+};
