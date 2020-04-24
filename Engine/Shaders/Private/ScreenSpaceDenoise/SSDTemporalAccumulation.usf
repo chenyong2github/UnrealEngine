@@ -318,7 +318,10 @@ int bCameraCut[MAX_SIGNAL_BATCH_SIZE];
 
 float HistoryPreExposureCorrection;
 
-float4 HistoryBufferUVMinMax[CONFIG_SIGNAL_BATCH_SIZE];
+float4 ScreenPosToHistoryBufferUV;
+float4 HistoryBufferSizeAndInvSize;
+float4 HistoryBufferUVMinMax;
+float4 HistoryBufferScissorUVMinMax[CONFIG_SIGNAL_BATCH_SIZE];
 
 
 #if !defined(CONFIG_INPUT_TEXTURE_COUNT)
@@ -523,8 +526,8 @@ void TemporallyAccumulate(
 	// Sample the history buffer.
 	FSSDSignalArray HistorySamples = CreateSignalArrayFromScalarValue(0.0);
 	{
-		float2 HistoryBufferUV = HistoryScreenPosition.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
+		float2 HistoryBufferUV = HistoryScreenPosition.xy * ScreenPosToHistoryBufferUV.xy + ScreenPosToHistoryBufferUV.wz;
+		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, HistoryBufferUVMinMax.xy, HistoryBufferUVMinMax.zw);
 		bool bIsPreviousFrameOffscreen = any(HistoryBufferUV != ClampedHistoryBufferUV);
 
 		// TODO(Denoiser): global camera cut to save perf that is going to be required for panic post filtering.
@@ -557,8 +560,8 @@ void TemporallyAccumulate(
 			SetBilateralPreset(CONFIG_HISTORY_BILATERAL_PRESET, /* inout */ KernelConfig);
 
 			// SGPR configuration of the kernel.
-			KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
-			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
+			KernelConfig.BufferSizeAndInvSize = HistoryBufferSizeAndInvSize;
+			KernelConfig.BufferBilinearUVMinMax = HistoryBufferUVMinMax;
 			
 			#if CONFIG_CLAMP_UV_PER_SIGNAL
 			{
@@ -566,7 +569,7 @@ void TemporallyAccumulate(
 				for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 				{
 					uint MultiplexId = BatchedSignalId / CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
-					KernelConfig.PerSignalUVMinMax[MultiplexId] = HistoryBufferUVMinMax[MultiplexId];
+					KernelConfig.PerSignalUVMinMax[MultiplexId] = HistoryBufferScissorUVMinMax[MultiplexId];
 				}
 			}
 			#endif
