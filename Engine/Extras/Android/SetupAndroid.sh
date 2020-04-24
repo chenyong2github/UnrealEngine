@@ -33,12 +33,14 @@ echo Android Studio SDK Path: $STUDIO_SDK_PATH
 
 if ! grep -q "export ANDROID_HOME=\"$STUDIO_SDK_PATH\"" $HOME/.bashrc
 then
+	echo >>$HOME/.bashrc
 	echo "export ANDROID_HOME=\"$STUDIO_SDK_PATH\"" >>$HOME/.bashrc
 fi
 
 export JAVA_HOME="$STUDIO_PATH/jre"
 if ! grep -q "export JAVA_HOME=\"$JAVA_HOME\"" $HOME/.bashrc
 then
+	echo >>$HOME/.bashrc
 	echo "export JAVA_HOME=\"$JAVA_HOME\"" >>$HOME/.bashrc
 fi
 NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.1.6352462"
@@ -46,6 +48,7 @@ PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/28.0
 
 retVal=$(type -P "adb")
 if [ "$retVal" == "" ]; then
+	echo >>$HOME/.bashrc
 	echo export PATH="\"\$PATH:$PLATFORMTOOLS\"" >>$HOME/.bashrc
 	echo Added $PLATFORMTOOLS to path
 fi
@@ -92,6 +95,7 @@ echo Success!
 
 if ! grep -q "export NDKROOT=\"$NDKINSTALLPATH\"" $HOME/.bashrc
 then
+	echo >>$HOME/.bashrc
 	echo "export NDKROOT=\"$NDKINSTALLPATH\"" >>$HOME/.bashrc
 	echo "export NDK_ROOT=\"$NDKINSTALLPATH\"" >>$HOME/.bashrc
 fi
