@@ -26,7 +26,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"NetCore",
+					"NetCore"
                     //"GameplayTags",
 					// ... add other public dependencies that you statically link with here ...
 				}
@@ -36,7 +36,6 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					// ... add private dependencies that you statically link with here ...
-					"UnrealEd",
 				}
 				);
 
@@ -44,16 +43,12 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					// ... add any modules that your module loads dynamically here ...
-					"Kismet",
-					"KismetCompiler",
-					"BlueprintGraph",
 				}
 				);
 
 			if (Target.bBuildEditor == true)
 			{
 				PrivateDependencyModuleNames.Add("UnrealEd");
-
 				CircularlyReferencedDependentModules.Add("UnrealEd");
                 //PrivateDependencyModuleNames.Add("GameplayTagsEditor");
 			}
