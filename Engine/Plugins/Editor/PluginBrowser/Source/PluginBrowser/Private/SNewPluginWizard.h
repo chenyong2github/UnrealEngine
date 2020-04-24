@@ -25,32 +25,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPluginWizard, Log, All);
 class SFilePathBlock;
 
 /**
- * Parameters for writing out the descriptor file
- */
-struct FWriteDescriptorParams
-{
-	FWriteDescriptorParams()
-		: bCanContainContent(false)
-		, bHasModules(false)
-		, ModuleDescriptorType(EHostType::Runtime)
-		, LoadingPhase(ELoadingPhase::Default)
-	{
-	}
-
-	/** Can this plugin contain content */
-	bool bCanContainContent;
-
-	/** Does this plugin have Source files? */
-	bool bHasModules;
-
-	/** If this plugin has Source, what is the type of Source included(so it can potentially be excluded in the right builds) */
-	EHostType::Type ModuleDescriptorType;
-
-	/** If this plugin has Source, when should the module be loaded (may need to be earlier than default if used in blueprints) */
-	ELoadingPhase::Type LoadingPhase;
-};
-
-/**
  * A wizard to create a new plugin
  */
 class SNewPluginWizard : public SCompoundWidget
@@ -145,36 +119,6 @@ private:
 	 * Create actual plugin using parameters collected from other widgets
 	 */
 	FReply OnCreatePluginClicked();
-
-	/**
-	 * Copies a file and adds to a list of created files
-	 * @param DestinationFile Where the file will be copied
-	 * @param SourceFile Original file to copy
-	 * @param InOutCreatedFiles Array of created files to add to
-	 * @return Whether the file was copied successfully
-	 */
-	bool CopyFile(const FString& DestinationFile, const FString& SourceFile, TArray<FString>& InOutCreatedFiles);
-
-	/**
-	 * Writes a plugin descriptor file to disk
-	 * @param PluginModuleName		Name of the plugin and its module
-	 * @param UPluginFilePath		Path where the descriptor file should be written
-	 * @param Parmas				Additional parameters for writing out the descriptor file		
-	 * @return Whether the files was written successfully
-	 */
-	bool WritePluginDescriptor(const FString& PluginModuleName, const FString& UPluginFilePath, const FWriteDescriptorParams& Params);
-
-	/**
-	 * Displays an editor pop up error notification
-	 * @param ErrorMessage Message to display in the pop up
-	 */
-	void PopErrorNotification(const FText& ErrorMessage);
-
-	/**
-	 * Helper function to delete given directory
-	 * @param InPath - full path to directory that you want to remove
-	 */
-	void DeletePluginDirectory(const FString& InPath);
 
 	/**
 	 * Generates the expected list view for the plugin wizard, based on the wizard's definition

@@ -8,10 +8,12 @@ public class AssetTools : ModuleRules
 	{
 		PrivateIncludePaths.Add("Developer/AssetTools/Private");
 
-		PrivateDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"SlateCore",
+				"UnrealEd",
 			}
 		);
 
@@ -22,11 +24,9 @@ public class AssetTools : ModuleRules
                 "InputCore",
 				"ApplicationCore",
 				"Slate",
-				"SlateCore",
                 "EditorStyle",
 				"SourceControl",
 				"TextureEditor",
-				"UnrealEd",
 				"PropertyEditor",
 				"Kismet",
 				"Landscape",
