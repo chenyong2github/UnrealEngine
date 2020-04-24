@@ -12,7 +12,7 @@
 	#endif //PLATFORM_SWITCH
 
 #elif PLATFORM_XBOXONE && WITH_LEGACY_XDK
-#include "XboxOne/XboxOneWebSocketsManager.h"
+#include "XboxOneWebSocketsManager.h"
 #elif PLATFORM_HOLOLENS
 #include "HoloLens/HoloLensWebSocketsManager.h"
 typedef FHoloLensWebSocketsManager FPlatformWebSocketsManager;
