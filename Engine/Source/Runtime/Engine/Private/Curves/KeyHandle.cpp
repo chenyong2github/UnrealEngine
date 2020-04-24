@@ -50,6 +50,17 @@ void FKeyHandleMap::Add( const FKeyHandle& InHandle, int32 InIndex )
 }
 
 
+void FKeyHandleMap::SetKeyHandles(int32 Num)
+{
+	KeyHandles.SetNum(Num);
+	KeyHandlesToIndices.Reserve(Num);
+	for (int32 Index = 0; Index < Num; ++Index)
+	{
+		KeyHandlesToIndices.Add(FKeyHandle(), Index);
+	}
+}
+
+
 void FKeyHandleMap::Empty()
 {
 	KeyHandlesToIndices.Empty();
