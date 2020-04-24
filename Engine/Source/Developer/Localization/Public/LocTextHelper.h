@@ -38,8 +38,8 @@ enum class ELocTextPlatformSplitMode : uint8
 {
 	/** Don't split platform specific localization data */
 	None,
-	/** Split platform specific localization data for restricted platforms only */
-	Restricted,
+	/** Split platform specific localization data for confidential platforms only */
+	Confidential,
 	/** Split platform specific localization data for all platforms */
 	All,
 };
