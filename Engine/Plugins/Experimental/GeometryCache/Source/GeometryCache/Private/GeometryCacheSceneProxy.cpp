@@ -531,6 +531,7 @@ FPrimitiveViewRelevance FGeometryCacheSceneProxy::GetViewRelevance(const FSceneV
 	Result.bShadowRelevance = IsShadowCast(View);
 	Result.bDynamicRelevance = true;
 	Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+	Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 	MaterialRelevance.SetPrimitiveViewRelevance(Result);
 	Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
 	return Result;
