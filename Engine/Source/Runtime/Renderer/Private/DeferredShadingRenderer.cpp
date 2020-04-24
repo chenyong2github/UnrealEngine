@@ -1287,17 +1287,46 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRHICommandListImmedi
 		{
 			FTaskGraphInterface::Get().WaitUntilTaskCompletes(View.RayTracingMaterialBindingsTask, ENamedThreads::GetRenderThread_Local());
 
+			// Gather bindings from all chunks and submit them all as a single batch to allow RHI to bind all shader parameters in parallel.
+
+			uint32 NumTotalBindings = 0;
+
 			for (FRayTracingLocalShaderBindingWriter* BindingWriter : View.RayTracingMaterialBindings)
 			{
-				// Data is kept alive at the high level and explicitly deleted on RHI timeline,
-				// so we can avoid copying parameters to the command list and simply pass raw pointers around.
-				const bool bCopyDataToInlineStorage = false;
-				BindingWriter->Commit(
-					RHICmdList,
-					View.RayTracingScene.RayTracingSceneRHI,
-					View.RayTracingMaterialPipeline,
-					bCopyDataToInlineStorage);
+				const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
+				while (Chunk)
+				{
+					NumTotalBindings += Chunk->Num;
+					Chunk = Chunk->Next;
+				}
 			}
+
+			FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)RHICmdList.Alloc(
+				sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings,
+				alignof(FRayTracingLocalShaderBindings));
+
+			uint32 MergedBindingIndex = 0;
+			for (FRayTracingLocalShaderBindingWriter* BindingWriter : View.RayTracingMaterialBindings)
+			{
+				const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
+				while (Chunk)
+				{
+					const uint32 Num = Chunk->Num;
+					for (uint32_t i = 0; i < Num; ++i)
+					{
+						MergedBindings[MergedBindingIndex] = Chunk->Bindings[i];
+						MergedBindingIndex++;
+					}
+					Chunk = Chunk->Next;
+				}
+			}
+
+			const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
+			RHICmdList.SetRayTracingHitGroups(
+				View.RayTracingScene.RayTracingSceneRHI, 
+				View.RayTracingMaterialPipeline,
+				NumTotalBindings, MergedBindings,
+				bCopyDataToInlineStorage);
 
 			// Move the ray tracing binding container ownership to the command list, so that memory will be
 			// released on the RHI thread timeline, after the commands that reference it are processed.
@@ -1323,7 +1352,6 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRHICommandListImmedi
 		RayTracingDynamicGeometryUpdateEndFence = nullptr;
 	}
 }
-
 
 #endif // RHI_RAYTRACING
 
