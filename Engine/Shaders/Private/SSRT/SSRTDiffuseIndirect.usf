@@ -413,10 +413,10 @@ void MainCS(
 			{
 				uint DestPos = SelectedBinStartingPos + OffsetInBin;
 
-				#if 1 // Uncomment me to measure performance improvement.
-					if (View.GeneralPurposeTweak > 0.5)
-						DestPos = GroupPixelId + RaySequenceId * TILE_PIXEL_COUNT;
-				#endif
+				//#if 1 // Uncomment me to measure performance improvement.
+				//	if (View.GeneralPurposeTweak > 0.5)
+				//		DestPos = GroupPixelId + RaySequenceId * TILE_PIXEL_COUNT;
+				//#endif
 		
 				#if LANE_PER_GROUPS > 256
 					#error "LANE_PER_GROUPS needs to be encodable in 8bits."
