@@ -702,6 +702,10 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 
 			DynamicData->PackPerRibbonData(U0Scale, U0Offset, U1Scale, U1Offset, NumSegments, StartIndex);
 		}
+		else
+		{
+			DynamicData->PackPerRibbonData(0, 0, 0, 0, 0, 0);
+		}
 	};
 
 	DynamicData->MultiRibbonInfos.Reset();
