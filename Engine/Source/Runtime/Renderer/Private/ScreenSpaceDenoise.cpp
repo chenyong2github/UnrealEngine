@@ -294,7 +294,6 @@ static int32 SignalMaxBatchSize(ESignalProcessing SignalProcessing)
 static bool SignalSupport1SPP(ESignalProcessing SignalProcessing)
 {
 	return (
-		SignalProcessing == ESignalProcessing::Reflections ||
 		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion);
 }
 
