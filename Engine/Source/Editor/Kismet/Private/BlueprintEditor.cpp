@@ -3898,9 +3898,12 @@ void FBlueprintEditor::JumpToPin(const UEdGraphPin* Pin)
 
 void FBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	TArray<UObject*>& LocalEditingObjects = const_cast<TArray<UObject*>&>(GetEditingObjects());
+	if (GetObjectsCurrentlyBeingEdited()->Num() > 0)
+	{
+		TArray<UObject*>& LocalEditingObjects = const_cast<TArray<UObject*>&>(GetEditingObjects());
 
-	Collector.AddReferencedObjects(LocalEditingObjects);
+		Collector.AddReferencedObjects(LocalEditingObjects);
+	}
 
 	Collector.AddReferencedObjects(StandardLibraries);
 
