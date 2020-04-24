@@ -453,7 +453,8 @@ private:
 	bool IsOwningWorldEditor() const;
 #endif
 
-	void SyncBodies(Chaos::FPhysicsSolver* Solver);
+	template <typename TSolver>
+	void SyncBodies(TSolver* Solver);
 
 	void SetKinematicTransform(FPhysicsActorHandle& InActorReference, const Chaos::TRigidTransform<float, 3>& NewTransform)
 	{

@@ -42,7 +42,7 @@ FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, Chaos::FPh
 	Module->GetSolverUpdatePrerequisites(SolverTaskPrerequisites);
 }
 
-FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, const TArray<Chaos::FPhysicsSolver*>& InSolverList, float InDt)
+FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, const TArray<Chaos::FPhysicsSolverBase*>& InSolverList, float InDt)
 	: CompletionEvent(InCompletionEvent)
 	, Module(nullptr)
 	, Dt(InDt)
@@ -85,15 +85,18 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 
 
 	// List of active solvers (assume all are active for single alloc)
-	TArray<FPhysicsSolver*> ActiveSolvers;
+	TArray<FPhysicsSolverBase*> ActiveSolvers;
 	ActiveSolvers.Reserve(SolverList.Num());
 
-	for(FPhysicsSolver* Solver : SolverList)
+	for(FPhysicsSolverBase* Solver : SolverList)
 	{
-		if(Solver->HasActiveParticles() || Solver->HasPendingCommands())
+		Solver->CastHelper([&ActiveSolvers](auto& ConcreteSolver)
 		{
-			ActiveSolvers.Add(Solver);
-		}
+			if(ConcreteSolver.HasActiveParticles() || ConcreteSolver.HasPendingCommands())
+			{
+				ActiveSolvers.Add(&ConcreteSolver);
+			}
+		});
 	}
 
 	const int32 NumActiveSolvers = ActiveSolvers.Num();
@@ -103,7 +106,7 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 
 	// For each solver spawn a new solver advance task (which will run the per-solver command buffer and then advance the solver)
 	// Record the task reference as a prerequisite for the completion
-	for(FPhysicsSolver* Solver : ActiveSolvers)
+	for(FPhysicsSolverBase* Solver : ActiveSolvers)
 	{
 		FGraphEventRef SolverTaskRef = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&SolverTaskPrerequisites).ConstructAndDispatchWhenReady(Solver, Dt);
 		CompletionTaskPrerequisites.Add(SolverTaskRef);
@@ -159,7 +162,7 @@ void FPhysicsCommandsTask::DoTask(ENamedThreads::Type CurrentThread, const FGrap
 
 //////////////////////////////////////////////////////////////////////////
 
-FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(Chaos::FPhysicsSolver* InSolver, float InDt)
+FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(Chaos::FPhysicsSolverBase* InSolver, float InDt)
 	: Solver(InSolver)
 	, Dt(InDt)
 {
@@ -188,10 +191,11 @@ void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread, const 
 	SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
-	StepSolver(Solver, Dt);
+	Solver->CastHelper([this](auto& Concrete){StepSolver(&Concrete,Dt);});
 }
 
-void FPhysicsSolverAdvanceTask::StepSolver(Chaos::FPhysicsSolver* InSolver, float InDt)
+template <typename TSolver>
+void FPhysicsSolverAdvanceTask::StepSolver(TSolver* InSolver, float InDt)
 {
 	using namespace Chaos;
 
@@ -212,7 +216,7 @@ void FPhysicsSolverAdvanceTask::StepSolver(Chaos::FPhysicsSolver* InSolver, floa
 	if(InSolver->bEnabled)
 	{
 		// Only process if we have something to actually simulate
-		if(Solver->HasActiveParticles())
+		if(InSolver->HasActiveParticles())
 		{
 			InSolver->AdvanceSolverBy(InDt);
 		}

@@ -21,7 +21,7 @@ namespace ChaosTest {
 
     using namespace Chaos;
 
-	template<class T>
+	template<typename Traits, class T>
 	void SingleParticleProxySingleThreadTest()
 	{
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
@@ -30,7 +30,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		Chaos::FPhysicsSolver* Solver = Module->CreateSolver(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -73,7 +73,7 @@ namespace ChaosTest {
 	template void SingleParticleProxySingleThreadTest<float>();
 
 	
-	template<class T>
+	template<typename Traits, class T>
 	void SingleParticleProxyTaskGraphTest()
 	{
 		//
@@ -89,7 +89,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::DedicatedThread);
 
 		// Make a solver
-		Chaos::FPhysicsSolver* Solver = Module->CreateSolver(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -133,10 +133,8 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	template void SingleParticleProxyTaskGraphTest<float>();
 
-
-	template<class T>
+	template<typename Traits, class T>
 	void SingleParticleProxyWakeEventPropergationTest()
 	{
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
@@ -145,7 +143,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		Chaos::FPhysicsSolver* Solver = Module->CreateSolver(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -198,8 +196,15 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	template void SingleParticleProxyWakeEventPropergationTest<float>();
+	TYPED_TEST(AllTraits, SingleParticleProxyTests)
+	{
+		ChaosTest::SingleParticleProxySingleThreadTest<TypeParam,float>();
+		ChaosTest::SingleParticleProxyWakeEventPropergationTest<TypeParam,float>();
+	}
 
-
+	TYPED_TEST(AllTraits,DISABLED_SingleParticleProxyTests)
+	{
+		ChaosTest::SingleParticleProxyTaskGraphTest<TypeParam,float>();
+	}
 
 }
