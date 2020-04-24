@@ -18,7 +18,8 @@ namespace ChaosTest {
 
     using namespace Chaos;
 
-	void TickSolverHelper(FChaosSolversModule* Module, FPhysicsSolver* Solver, FReal Dt = 1.0)
+	template <typename TSolver>
+	void TickSolverHelper(FChaosSolversModule* Module, TSolver* Solver, FReal Dt = 1.0)
 	{
 		Solver->PushPhysicsState(Module->GetDispatcher());
 		FPhysicsSolverAdvanceTask AdvanceTask(Solver,Dt);
@@ -28,7 +29,7 @@ namespace ChaosTest {
 		Solver->UpdateGameThreadStructures();
 	}
 
-	GTEST_TEST(RewindTest,MovingGeomChange)
+	TYPED_TEST(AllTraits, RewindTest_MovingGeomChange)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(0),FVec3(1)));
@@ -38,7 +39,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(20);
@@ -112,7 +113,7 @@ namespace ChaosTest {
 	}
 
 
-	GTEST_TEST(RewindTest,AddForce)
+	TYPED_TEST(AllTraits, RewindTest_AddForce)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -120,7 +121,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(20);
@@ -156,7 +157,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,IntermittentForce)
+	TYPED_TEST(AllTraits, RewindTest_IntermittentForce)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -164,7 +165,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(20);
@@ -219,7 +220,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,IntermittentGeomChange)
+	TYPED_TEST(AllTraits, RewindTest_IntermittentGeomChange)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(0),FVec3(1)));
@@ -229,7 +230,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(20);
@@ -293,7 +294,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,FallingObjectWithTeleport)
+	TYPED_TEST(AllTraits, RewindTest_FallingObjectWithTeleport)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -301,7 +302,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(20);
@@ -349,7 +350,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,ApplyRewind)
+	TYPED_TEST(AllTraits, RewindTest_ApplyRewind)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -357,7 +358,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(20);
@@ -420,7 +421,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,Remove)
+	TYPED_TEST(AllTraits, RewindTest_Remove)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -428,7 +429,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(20);
@@ -471,7 +472,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,BufferLimit)
+	TYPED_TEST(AllTraits, RewindTest_BufferLimit)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -479,7 +480,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(5);
@@ -535,7 +536,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,NumDirty)
+	TYPED_TEST(AllTraits, RewindTest_NumDirty)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -543,7 +544,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(5);
@@ -594,7 +595,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,Resim)
+	TYPED_TEST(AllTraits, RewindTest_Resim)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -602,7 +603,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(5);
@@ -704,7 +705,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,ResimDesyncAfterMissingTeleport)
+	TYPED_TEST(AllTraits, RewindTest_ResimDesyncAfterMissingTeleport)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -712,7 +713,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(7);
@@ -779,7 +780,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,ResimDesyncAfterChangingMass)
+	TYPED_TEST(AllTraits, RewindTest_ResimDesyncAfterChangingMass)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -787,7 +788,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(7);
@@ -847,7 +848,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,DISABLED_DesyncFromPT)
+	TYPED_TEST(AllTraits, DISABLED_RewindTest_DesyncFromPT)
 	{
 		//We want to detect when sim results change
 		//Detecting output of position and velocity is expensive and hard to track
@@ -859,7 +860,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 		Solver->EnableRewindCapture(7);
 
@@ -913,7 +914,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,DeltaTimeRecord)
+	TYPED_TEST(AllTraits, RewindTest_DeltaTimeRecord)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -921,7 +922,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(7);
@@ -959,7 +960,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,ResimDesyncFromChangeForce)
+	TYPED_TEST(AllTraits, RewindTest_ResimDesyncFromChangeForce)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -967,7 +968,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		Solver->EnableRewindCapture(7);
