@@ -1565,7 +1565,7 @@ float3 ReprojectPos(float2 UV, float Depth)
 	float2 Velocity	=  Texture2DSampleLevel(SceneVelocityTexture, SceneVelocityTextureSampler, UV,0).rg;
 	if( Velocity.x > 0.0 )
 	{
-		PrevScreen = ThisClip.xy - DecodeVelocityFromTexture( Velocity );
+		PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(float3(Velocity, 0.0)).xy;
 	}
 	
 	float2 PrevUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;

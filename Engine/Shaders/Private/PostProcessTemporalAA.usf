@@ -2015,7 +2015,7 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 			bool DynamicN = VelocityN.x > 0.0;
 			if(DynamicN)
 			{
-				BackN = DecodeVelocityFromTexture(VelocityN);
+				BackN = DecodeVelocityFromTexture(float3(VelocityN, 0.0)).xy;
 			}
 			BackTemp = BackN * OutputViewportSize.xy;
 		}

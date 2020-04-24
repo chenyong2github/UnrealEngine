@@ -262,6 +262,11 @@
 	#define CONFIG_BILATERAL_DISTANCE_MULTIPLIER 1.0
 #endif
 
+/** Whether should consider the depth velocity to compute the reference scene depth. */
+#ifndef CONFIG_PATCH_PREV_SCENE_DEPTH
+	#define CONFIG_PATCH_PREV_REF_SCENE_DEPTH 0
+#endif
+
 
 //------------------------------------------------------- CONFIG ENABLED DEFAULTS
 
@@ -432,35 +437,44 @@ void TemporallyAccumulate(
 		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 
+	// Sample current frame data.
+	FSSDCompressedSceneInfos CompressedRefSceneMetadata = SampleCompressedSceneMetadata(
+		/* bPrevFrame = */ false,
+		SceneBufferUV, BufferUVToBufferPixelCoord(SceneBufferUV));
+
+	float DeviceZ;
+	{
+		FSSDSampleSceneInfos RefInfo = UncompressSampleSceneInfo(
+			CONFIG_METADATA_BUFFER_LAYOUT, /* bIsPrevFrame = */ false,
+			DenoiserBufferUVToScreenPosition(SceneBufferUV),
+			CompressedRefSceneMetadata);
+
+		DeviceZ = RefInfo.DeviceZ;
+	}
+
 	// Reproject to previous frame.
-	float2 HistoryScreenPosition = DenoiserBufferUVToScreenPosition(SceneBufferUV);
+	float3 HistoryScreenPosition = float3(DenoiserBufferUVToScreenPosition(SceneBufferUV), DeviceZ);
 	if (1)
 	{
-		float DeviceZ = SceneDepthBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).r;
+		float4 ThisClip = float4(HistoryScreenPosition, 1);
 
-		float4 ThisClip = float4(HistoryScreenPosition, DeviceZ, 1);
 		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-		float2 PrevScreen = PrevClip.xy / PrevClip.w;
-		float2 Velocity = HistoryScreenPosition - PrevScreen;
+		float3 PrevScreen = PrevClip.xyz * rcp(PrevClip.w);
+		float3 Velocity = HistoryScreenPosition - PrevScreen;
 
 		if (1)
 		{
-			float2 VelocityN = SceneVelocityBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).xy;
-			bool DynamicN = VelocityN.x > 0.0;
-			if (DynamicN)
+			float3 EncodedVelocity = SceneVelocityBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).xyz;
+			if (EncodedVelocity.x > 0.0)
+
 			{
-				Velocity = DecodeVelocityFromTexture(VelocityN);
+				Velocity = DecodeVelocityFromTexture(EncodedVelocity);
 			}
 		}
 
 		HistoryScreenPosition -= Velocity;
 	}
 
-
-	// Sample current frame data.
-	FSSDCompressedSceneInfos CompressedRefSceneMetadata = SampleCompressedSceneMetadata(
-		/* bPrevFrame = */ false,
-		SceneBufferUV, BufferUVToBufferPixelCoord(SceneBufferUV));
 
 	FSSDSignalArray CurrentFrameSamples = SampleMultiplexedSignals(
 		SignalInput_Textures_0,
@@ -509,7 +523,7 @@ void TemporallyAccumulate(
 	// Sample the history buffer.
 	FSSDSignalArray HistorySamples = CreateSignalArrayFromScalarValue(0.0);
 	{
-		float2 HistoryBufferUV = HistoryScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+		float2 HistoryBufferUV = HistoryScreenPosition.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
 		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 		bool bIsPreviousFrameOffscreen = any(HistoryBufferUV != ClampedHistoryBufferUV);
 
@@ -559,11 +573,38 @@ void TemporallyAccumulate(
 			
 			// VGPR configuration of the kernel.
 			KernelConfig.BufferUV = HistoryBufferUV + BufferUVBilinearCorrection;
+
+			#if CONFIG_PATCH_PREV_SCENE_DEPTH
+			{
+				KernelConfig.RefBufferUV = HistoryBufferUV;
+				KernelConfig.RefSceneMetadataLayout = METADATA_BUFFER_LAYOUT_WORLD_POS_SHADINGMODEL;
+				//KernelConfig.RefSceneMetadataLayout = CONFIG_METADATA_BUFFER_LAYOUT;
+
+				FSSDSampleSceneInfos PrevRefInfo = UncompressSampleSceneInfo(
+					CONFIG_METADATA_BUFFER_LAYOUT, /* bIsPrevFrame = */ false,
+					BufferUVToBufferPixelCoord(SceneBufferUV),
+					CompressedRefSceneMetadata);
+
+				PrevRefInfo.ScreenPosition = HistoryScreenPosition.xy;
+				PrevRefInfo.DeviceZ = HistoryScreenPosition.z;
+				PrevRefInfo.WorldDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
+				
+				float4 ClipPosition = float4(HistoryScreenPosition.xy * (View.ViewToClip[3][3] < 1.0f ? PrevRefInfo.WorldDepth : 1.0f), PrevRefInfo.WorldDepth, 1);
+				
+				PrevRefInfo.TranslatedWorldPosition = mul(ClipPosition, View.PrevScreenToTranslatedWorld).xyz + (View.PreViewTranslation.xyz - View.PrevPreViewTranslation.xyz);
+				
+				KernelConfig.CompressedRefSceneMetadata = CompressSampleSceneInfo(
+					KernelConfig.RefSceneMetadataLayout,
+					PrevRefInfo);
+			}
+			#else
 			{
 				KernelConfig.CompressedRefSceneMetadata = CompressedRefSceneMetadata;
 				KernelConfig.RefBufferUV = SceneBufferUV;
 				KernelConfig.RefSceneMetadataLayout = CONFIG_METADATA_BUFFER_LAYOUT;
 			}
+			#endif
+
 
 			// Compute random signals.
 			ISOLATE
