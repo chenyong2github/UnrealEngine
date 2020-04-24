@@ -2623,10 +2623,8 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 						if(InstancedSceneComponent && InstancedSceneComponent->IsRegistered())
 						{
 							// If we find a match, save off the world position
-							FTransform ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
-							SceneComponentTemplate->SetRelativeLocation_Direct(ComponentToWorld.GetTranslation());
-							SceneComponentTemplate->SetRelativeRotation_Direct(ComponentToWorld.Rotator());
-							SceneComponentTemplate->SetRelativeScale3D_Direct(ComponentToWorld.GetScale3D());
+							const FTransform& ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
+							SceneComponentTemplate->SetRelativeTransform_Direct(ComponentToWorld);
 						}
 					}
 				}
@@ -2757,10 +2755,8 @@ void SSCS_RowWidget::OnDetachFromDropAction(const TArray<FSCSEditorTreeNodePtrTy
 				if(InstancedSceneComponent && InstancedSceneComponent->IsRegistered())
 				{
 					// If we find a match, save off the world position
-					FTransform ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
-					SceneComponentTemplate->SetRelativeLocation_Direct(ComponentToWorld.GetTranslation());
-					SceneComponentTemplate->SetRelativeRotation_Direct(ComponentToWorld.Rotator());
-					SceneComponentTemplate->SetRelativeScale3D_Direct(ComponentToWorld.GetScale3D());
+					const FTransform& ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
+					SceneComponentTemplate->SetRelativeTransform_Direct(ComponentToWorld);
 				}
 			}
 
@@ -5302,7 +5298,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			UActorComponent* NewInstanceComponent = NewObject<UActorComponent>(ActorInstance, NewComponentClass, NewComponentName, RF_Transactional);
 			FSCSEditorTreeNodePtrType ParentNodePtr = FindParentForNewComponent(NewInstanceComponent);
 						
-			// Do Scene Attachment if this new Comnponent is a USceneComponent
+			// Do Scene Attachment if this new Component is a USceneComponent
 			if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(NewInstanceComponent))
 			{
 				if(ParentNodePtr->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
@@ -6666,11 +6662,12 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 				{
 					const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties | EditorUtilities::ECopyOptions::PropagateChangesToArchetypeInstances | EditorUtilities::ECopyOptions::SkipInstanceOnlyProperties);
 					NumChangedProperties = EditorUtilities::CopyActorProperties(Actor, BlueprintCDO, CopyOptions);
-					if (Actor->GetInstanceComponents().Num() > 0)
+					const TArray<UActorComponent*>& InstanceComponents = Actor->GetInstanceComponents();
+					if (InstanceComponents.Num() > 0)
 					{
 						RestoreSelectedInstanceComponent.Save(Actor);
-						FKismetEditorUtilities::AddComponentsToBlueprint(Blueprint, Actor->GetInstanceComponents());
-						NumChangedProperties += Actor->GetInstanceComponents().Num();
+						FKismetEditorUtilities::AddComponentsToBlueprint(Blueprint, InstanceComponents);
+						NumChangedProperties += InstanceComponents.Num();
 						Actor->ClearInstanceComponents(true);
 					}
 					if (NumChangedProperties > 0)

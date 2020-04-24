@@ -1419,6 +1419,18 @@ public:
 	void SetRelativeScale3D_Direct(const FVector NewRelativeScale3D);
 
 	/**
+	 * Helper function to set the location, rotation, and scale without causing other side effects to this instance.
+	 *
+	 * You should not use this method. The standard SetRelativeTransform variants should be used.
+	 */
+	void SetRelativeTransform_Direct(const FTransform& NewRelativeTransform)
+	{
+		SetRelativeLocation_Direct(NewRelativeTransform.GetLocation());
+		SetRelativeRotation_Direct(NewRelativeTransform.Rotator());
+		SetRelativeScale3D_Direct(NewRelativeTransform.GetScale3D());
+	}
+
+	/**
 	 * Gets the property name for bAbsoluteLocation.
 	 *
 	 * This exists so subclasses don't need to have direct access to the bAbsoluteLocation property so it

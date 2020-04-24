@@ -1561,9 +1561,7 @@ void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AAct
 			{
 				//The relative transform for those component was converted into the world space
 				const FTransform NewRelativeTransform = NodeTemplate->GetRelativeTransform().GetRelativeTransform(NewActorTransform);
-				NodeTemplate->SetRelativeLocation_Direct(NewRelativeTransform.GetLocation());
-				NodeTemplate->SetRelativeRotation_Direct(NewRelativeTransform.GetRotation().Rotator());
-				NodeTemplate->SetRelativeScale3D_Direct(NewRelativeTransform.GetScale3D());
+				NodeTemplate->SetRelativeTransform_Direct(NewRelativeTransform);
 			}
 		}
 	};
@@ -1816,7 +1814,7 @@ UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName Bluep
 			{
 				USceneComponent* SceneComponent = Actor->GetRootComponent();
 				SceneComponentOldRelativeTransforms.Emplace(SceneComponent, SceneComponent->GetRelativeTransform());
-				SceneComponent->SetRelativeTransform(SceneComponent->GetComponentTransform());
+				SceneComponent->SetRelativeTransform_Direct(SceneComponent->GetComponentTransform());
 			}
 		}
 
@@ -1826,7 +1824,7 @@ UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName Bluep
 		// Replace the modified components to their relative transform
 		for (const TPair<USceneComponent*, FTransform >& Pair : SceneComponentOldRelativeTransforms)
 		{
-			Pair.Key->SetRelativeTransform(Pair.Value);
+			Pair.Key->SetRelativeTransform_Direct(Pair.Value);
 		}
 	};
 

@@ -2303,9 +2303,7 @@ void FSceneComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 		// and so the rebuilt component should not take back attachment ownership
 		if (ChildComponent && (ChildComponent->GetAttachParent() == nullptr || ChildComponent->GetAttachParent()->IsPendingKill()))
 		{
-			ChildComponent->SetRelativeLocation_Direct(ChildComponentPair.Value.GetLocation());
-			ChildComponent->SetRelativeRotation_Direct(ChildComponentPair.Value.GetRotation().Rotator());
-			ChildComponent->SetRelativeScale3D_Direct(ChildComponentPair.Value.GetScale3D());
+			ChildComponent->SetRelativeTransform_Direct(ChildComponentPair.Value);
 			ChildComponent->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepRelativeTransform);
 		}
 	}
