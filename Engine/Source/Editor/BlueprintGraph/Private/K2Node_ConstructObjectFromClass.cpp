@@ -326,6 +326,11 @@ FText UK2Node_ConstructObjectFromClass::GetBaseNodeTitle() const
 	return NSLOCTEXT("K2Node", "ConstructObject_BaseTitle", "Construct Object from Class");
 }
 
+FText UK2Node_ConstructObjectFromClass::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("K2Node", "ConstructObject_Title_NONE", "Construct NONE");
+}
+
 FText UK2Node_ConstructObjectFromClass::GetNodeTitleFormat() const
 {
 	return NSLOCTEXT("K2Node", "Construct", "Construct {ClassName}");
@@ -348,7 +353,7 @@ FText UK2Node_ConstructObjectFromClass::GetNodeTitle(ENodeTitleType::Type TitleT
 		}
 		return CachedNodeTitle;
 	}
-	return NSLOCTEXT("K2Node", "ConstructObject_Title_NONE", "Construct NONE");
+	return GetDefaultNodeTitle();
 }
 
 bool UK2Node_ConstructObjectFromClass::IsCompatibleWithGraph(const UEdGraph* TargetGraph) const 
