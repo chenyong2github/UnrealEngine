@@ -1110,8 +1110,8 @@ void RecombineMainCS(
 		}
 
 		OutputFinalSceneColor.rgb *= DebugColor;
-		if (View.GeneralPurposeTweak > 0.5)
-			OutputFinalSceneColor.rgb = DebugColor;
+		//if (View.GeneralPurposeTweak > 0.5)
+		//	OutputFinalSceneColor.rgb = DebugColor;
 	}
 	#endif
 	
@@ -1120,41 +1120,41 @@ void RecombineMainCS(
 		OutputFinalSceneColor = GatherParameters.KernelPixelRadius;
 	}
 	#elif 0 // DEBUG
-	if (View.GeneralPurposeTweak > 0.5)
-	{
-		//OutputFinalSceneColor = ForegroundColor;
-		//OutputFinalSceneColor = HoleFillingAdditiveColor;
-		//OutputFinalSceneColor = BackgroundColor.a;
-		//OutputFinalSceneColor = SlightOutOfFocusConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0).a;
-		//OutputFinalSceneColor = GatherBackgroundUnpremultipliedColor;
-		//OutputFinalSceneColor.a = GatherBackgroundTranslucency;
-	}
+	//if (View.GeneralPurposeTweak > 0.5)
+	//{
+	//	//OutputFinalSceneColor = ForegroundColor;
+	//	//OutputFinalSceneColor = HoleFillingAdditiveColor;
+	//	//OutputFinalSceneColor = BackgroundColor.a;
+	//	//OutputFinalSceneColor = SlightOutOfFocusConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0).a;
+	//	//OutputFinalSceneColor = GatherBackgroundUnpremultipliedColor;
+	//	//OutputFinalSceneColor.a = GatherBackgroundTranslucency;
+	//}
 	#elif 0 // DEBUG
-	if (View.GeneralPurposeTweak > 0.5)
-	{
-		OutputFinalSceneColor = GatherBackgroundAdditiveColor;
-		if (View.GeneralPurposeTweak > 1.5)
-			OutputFinalSceneColor = GatherBackgroundTranslucency;
-		if (View.GeneralPurposeTweak > 2.5)
-			OutputFinalSceneColor = BackgroundColor;
-		if (View.GeneralPurposeTweak > 3.5)
-			OutputFinalSceneColor = ForegroundColor;
-		if (View.GeneralPurposeTweak > 4.5)
-			OutputFinalSceneColor = GatherForegroundTranslucency;
-		
-		//OutputFinalSceneColor = GatherForegroundTranslucency;
-		//OutputFinalSceneColor = BackgroundConvolution_SceneColor.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
-
-
-		//if (View.GeneralPurposeTweak > 3.5)
-		//	OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
-		//if (View.GeneralPurposeTweak > 4.5)
-		//	OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0).a;
-
-		//OutputFinalSceneColor = BackgroundColor;
-		//OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
-		//OutputFinalSceneColor = ForegroundHoleFillingConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
-	}
+	//if (View.GeneralPurposeTweak > 0.5)
+	//{
+	//	OutputFinalSceneColor = GatherBackgroundAdditiveColor;
+	//	if (View.GeneralPurposeTweak > 1.5)
+	//		OutputFinalSceneColor = GatherBackgroundTranslucency;
+	//	if (View.GeneralPurposeTweak > 2.5)
+	//		OutputFinalSceneColor = BackgroundColor;
+	//	if (View.GeneralPurposeTweak > 3.5)
+	//		OutputFinalSceneColor = ForegroundColor;
+	//	if (View.GeneralPurposeTweak > 4.5)
+	//		OutputFinalSceneColor = GatherForegroundTranslucency;
+	//	
+	//	//OutputFinalSceneColor = GatherForegroundTranslucency;
+	//	//OutputFinalSceneColor = BackgroundConvolution_SceneColor.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
+	//
+	//
+	//	//if (View.GeneralPurposeTweak > 3.5)
+	//	//	OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
+	//	//if (View.GeneralPurposeTweak > 4.5)
+	//	//	OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0).a;
+	//
+	//	//OutputFinalSceneColor = BackgroundColor;
+	//	//OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
+	//	//OutputFinalSceneColor = ForegroundHoleFillingConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
+	//}
 	#endif
 	
 	#if 1 // Lower VGPR footprint.
