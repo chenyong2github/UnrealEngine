@@ -14,13 +14,14 @@
 #include "Modules/ModuleManager.h"
 #include "Framework/PhysicsTickTask.h"
 #include "Framework/CommandBuffer.h"
+#include "HeadlessChaosTestUtility.h"
 
 
 namespace ChaosTest {
 
     using namespace Chaos;
 
-	template<class T>
+	template<typename Traits, class T>
 	void CommandListTest()
 	{
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
@@ -31,7 +32,7 @@ namespace ChaosTest {
 		Module->ChangeThreadingMode(EChaosThreadingMode::DedicatedThread);
 
 		// Make a solver
-		Chaos::FPhysicsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, ESolverFlags::Standalone);
+		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -73,5 +74,9 @@ namespace ChaosTest {
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 	}
 
-	template void CommandListTest<float>();
+	
+	TYPED_TEST(AllTraits,CommandListTests)
+	{
+		ChaosTest::CommandListTest<TypeParam,float>();
+	}
 }

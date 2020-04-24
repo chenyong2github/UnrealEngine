@@ -213,18 +213,6 @@ TEST(Perf, PerfTests)
 	SUCCEED();
 }
 
-
-TEST(ChaosSolver, ChaosSolverTests)
-{
-	ChaosTest::SingleParticleProxySingleThreadTest<float>();
-	ChaosTest::CommandListTest<float>();
-	ChaosTest::SingleParticleProxyWakeEventPropergationTest<float>();
-}
-TEST(ChaosSolver, DISABLED_ChaosSolverTests)
-{
-	ChaosTest::SingleParticleProxyTaskGraphTest<float>();
-}
-
 TEST(Handles, FrameworkTests)
 {
 	ChaosTest::Handles::HandleArrayTest<float>();
