@@ -17,6 +17,7 @@ class FCurlHttpManager : public FHttpManager
 public:
 	static void InitCurl();
 	static void ShutdownCurl();
+	static bool IsInit();
 	static CURLSH* GShareHandle;
 	static CURLM * GMultiHandle;
 
