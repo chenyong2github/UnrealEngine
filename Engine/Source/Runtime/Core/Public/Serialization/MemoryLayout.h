@@ -98,18 +98,7 @@ struct FPlatformTypeLayoutParameters
 	/**
 	 * This is used for serializing into/from the DDC
 	 */
-	void Serialize(FArchive& Ar)
-	{
-		// if you change this code, please bump MATERIALSHADERMAP_DERIVEDDATA_VER (see FMaterialShaderMap::Serialize)
-		// since this is a part of ShaderMapId
-		Ar << MaxFieldAlignment;
-		Ar << b32Bit;
-		Ar << bForce64BitMemoryImagePointers;
-		Ar << bAlignBases;
-		Ar << bWithEditorOnly;
-		Ar << bWithRayTracing;
-		Ar << bIsCurrentPlatform;
-	}
+	void Serialize(FArchive& Ar);
 
 	bool operator==(const FPlatformTypeLayoutParameters& ReferenceSet) const
 	{
