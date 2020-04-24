@@ -1128,6 +1128,26 @@ UActorComponent* AActor::AddComponent(FName TemplateName, bool bManualAttachment
 	return NewActorComp;
 }
 
+UActorComponent* AActor::AddComponentByClass(TSubclassOf<UActorComponent> Class, bool bManualAttachment, const FTransform& RelativeTransform, bool bDeferredFinish)
+{
+	UWorld* World = GetWorld();
+	if (World->bIsTearingDown)
+	{
+		UE_LOG(LogActor, Warning, TEXT("AddComponent failed because we are in the process of tearing down the world"));
+		return nullptr;
+	}
+
+	UActorComponent* NewActorComp = NewObject<UActorComponent>(this, *Class);
+	PostCreateBlueprintComponent(NewActorComp);
+
+	if (!bDeferredFinish)
+	{
+		FinishAddComponent(NewActorComp, bManualAttachment, RelativeTransform);
+	}
+
+	return NewActorComp;
+}
+
 void AActor::FinishAddComponent(UActorComponent* NewActorComp, bool bManualAttachment, const FTransform& RelativeTransform)
 {
 	if(NewActorComp != nullptr)
