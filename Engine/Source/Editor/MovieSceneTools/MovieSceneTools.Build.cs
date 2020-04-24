@@ -18,6 +18,8 @@ public class MovieSceneTools : ModuleRules
             }
         );
 
+		OverridePackageType = PackageOverrideType.EngineDeveloper;
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
