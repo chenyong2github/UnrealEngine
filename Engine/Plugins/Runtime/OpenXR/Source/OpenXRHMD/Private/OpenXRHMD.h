@@ -39,6 +39,17 @@ public:
 		XrSpace Space;
 	};
 
+	// The game and render threads each have a separate copy of this structure so that they don't stomp on each other or cause tearing
+	// when the game thread progresses to the next frame while the render thread is still working on the previous frame.
+	struct FPipelinedFrameState
+	{
+		XrFrameState FrameState{XR_TYPE_FRAME_STATE};
+		XrViewState ViewState{XR_TYPE_VIEW_STATE};
+		TArray<XrView> Views;
+		TArray<XrSpaceLocation> DeviceLocations;
+		XrSpace TrackingSpace;
+	};
+
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
 	{
 	public:
@@ -112,6 +123,10 @@ protected:
 
 	void BuildOcclusionMeshes();
 	bool BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMDViewMesh& Mesh);
+
+	const FPipelinedFrameState& GetPipelinedFrameStateForThread() const;
+	FPipelinedFrameState& GetPipelinedFrameStateForThread();
+	void UpdateDeviceLocations();
 
 public:
 	/** IHeadMountedDisplay interface */
@@ -210,25 +225,21 @@ private:
 
 	XrSessionState			CurrentSessionState;
 
-	FTransform				BaseTransform;
 	TArray<const char*>		EnabledExtensions;
 	XrInstance				Instance;
 	XrSystemId				System;
 	XrSession				Session;
 	XrSpace					LocalSpace;
 	XrSpace					StageSpace;
-	XrSpace					TrackingSpaceRHI;
 	XrReferenceSpaceType	TrackingSpaceType;
 	XrViewConfigurationType SelectedViewConfigurationType;
 	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
 
-	XrFrameState			FrameState;
-	XrFrameState			FrameStateRHI;
-	XrViewState				ViewState;
+	FPipelinedFrameState	PipelinedFrameStateGame;
+	FPipelinedFrameState	PipelinedFrameStateRHI;
 
 	TArray<XrViewConfigurationView> Configs;
-	TArray<XrView>			Views;
-	TArray<XrCompositionLayerProjectionView> ViewsRHI;
+	TArray<XrCompositionLayerProjectionView> ProjectionViewsRHI;
 	TArray<XrCompositionLayerDepthInfoKHR> DepthLayersRHI;
 
 	TArray<FDeviceSpace>	DeviceSpaces;
