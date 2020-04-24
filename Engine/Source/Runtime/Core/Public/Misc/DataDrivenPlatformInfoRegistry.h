@@ -20,9 +20,6 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 		// is this platform confidential
 		bool bIsConfidential = false;
 
-		// should this platform be split when using ELocTextPlatformSplitMode::Restricted (only used when bIsConfidential is true)
-		bool bRestrictLocalization = false;
-
 		// the name of the ini section to use to load audio compression settings (used at runtime and cooktime)
 		FString AudioCompressionSettingsIniSectionName;
 
