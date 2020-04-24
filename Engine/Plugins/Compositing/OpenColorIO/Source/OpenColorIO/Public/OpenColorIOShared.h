@@ -53,6 +53,11 @@ public:
 	/** Shader types of shaders that are inlined in this shader map in the DDC. */
 	LAYOUT_FIELD(TMemoryImageArray<FShaderTypeDependency>, ShaderTypeDependencies);
 
+	/*
+	* Type layout parameters of the memory image
+	*/
+	LAYOUT_FIELD(FPlatformTypeLayoutParameters, LayoutParams);
+
 public:
 	FOpenColorIOShaderMapId()
 		: FeatureLevel(ERHIFeatureLevel::SM5)
@@ -315,7 +320,7 @@ public:
 	 * Caches the shaders for this color transform with no static parameters on the given platform.
 	 * This is used by UOpenColorIOColorTransform
 	 */
-	OPENCOLORIO_API  bool CacheShaders(EShaderPlatform InPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous);
+	OPENCOLORIO_API  bool CacheShaders(EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous);
 	bool CacheShaders(const FOpenColorIOShaderMapId& InShaderMapId, EShaderPlatform InPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous);
 
 	/**
@@ -338,7 +343,7 @@ public:
 	OPENCOLORIO_API void DiscardShaderMap();
 
 	void GetDependentShaderTypes(EShaderPlatform InPlatform, TArray<FShaderType*>& OutShaderTypes) const;
-	OPENCOLORIO_API  virtual void GetShaderMapId(EShaderPlatform InPlatform, FOpenColorIOShaderMapId& OutId) const;
+	OPENCOLORIO_API  virtual void GetShaderMapId(EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, FOpenColorIOShaderMapId& OutId) const;
 
 	OPENCOLORIO_API void Invalidate();
 

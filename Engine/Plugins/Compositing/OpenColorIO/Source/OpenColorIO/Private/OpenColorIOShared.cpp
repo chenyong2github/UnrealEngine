@@ -92,7 +92,7 @@ void FOpenColorIOTransformResource::GetDependentShaderTypes(EShaderPlatform InPl
 	OutShaderTypes.Sort(FCompareShaderTypes());
 }
 
-OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatform InPlatform, FOpenColorIOShaderMapId& OutId) const
+OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, FOpenColorIOShaderMapId& OutId) const
 {
 	if (bLoadedCookedShaderMapId)
 	{
@@ -106,6 +106,22 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatfo
 		OutId.FeatureLevel = GetFeatureLevel();
 		OutId.ShaderCodeHash = ShaderCodeHash;
 		OutId.SetShaderDependencies(ShaderTypes, InPlatform);
+#if WITH_EDITOR
+		if (TargetPlatform)
+		{
+			OutId.LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
+		}
+		else
+		{
+			OutId.LayoutParams.InitializeForCurrent();
+		}
+#else
+		if (TargetPlatform != nullptr)
+		{
+			UE_LOG(LogMaterial, Error, TEXT("FOpenColorIOTransformResource::GetShaderMapId: TargetPlatform is not null, but a cooked executable cannot target platforms other than its own."));
+		}
+		OutId.LayoutParams.InitializeForCurrent();
+#endif
 	}
 }
 
@@ -206,10 +222,10 @@ OPENCOLORIO_API  bool FOpenColorIOTransformResource::IsCompilationFinished() con
 	return bRet;
 }
 
-bool FOpenColorIOTransformResource::CacheShaders(EShaderPlatform InPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous)
+bool FOpenColorIOTransformResource::CacheShaders(EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous)
 {
 	FOpenColorIOShaderMapId ResourceShaderMapId;
-	GetShaderMapId(InPlatform, ResourceShaderMapId);
+	GetShaderMapId(InPlatform, TargetPlatform, ResourceShaderMapId);
 	return CacheShaders(ResourceShaderMapId, InPlatform, bApplyCompletedShaderMapForRendering, bSynchronous);
 }
 
