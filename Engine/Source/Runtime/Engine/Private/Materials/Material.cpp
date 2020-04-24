@@ -64,6 +64,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "RenderCore/Public/RenderUtils.h"
 #include "Materials/MaterialStaticParameterValueResolver.h"
+#include "Engine/Font.h"
 
 #if WITH_EDITOR
 #include "Logging/TokenizedMessage.h"
