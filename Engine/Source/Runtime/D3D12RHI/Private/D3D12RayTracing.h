@@ -6,16 +6,26 @@
 
 #if D3D12_RHI_RAYTRACING
 
+#include "RayTracingBuiltInResources.h"
+
 class FD3D12RayTracingPipelineState;
 class FD3D12RayTracingShaderTable;
 
 typedef FD3D12VertexBuffer FD3D12MemBuffer; // Generic GPU memory buffer
 
+// Built-in local root parameters that are always bound to all hit shaders
+struct FHitGroupSystemParameters
+{
+	D3D12_GPU_VIRTUAL_ADDRESS IndexBuffer;
+	D3D12_GPU_VIRTUAL_ADDRESS VertexBuffer;
+	FHitGroupSystemRootConstants RootConstants;
+};
+
 class FD3D12RayTracingGeometry : public FRHIRayTracingGeometry
 {
 public:
 
-	FD3D12RayTracingGeometry();
+	FD3D12RayTracingGeometry(const FRayTracingGeometryInitializer& Initializer);
 	~FD3D12RayTracingGeometry();
 
 	void TransitionBuffers(FD3D12CommandContext& CommandContext);
@@ -54,13 +64,15 @@ public:
 	TRefCountPtr<FD3D12MemBuffer> PostBuildInfoBuffers[MAX_NUM_GPUS];
 	FStagingBufferRHIRef PostBuildInfoStagingBuffers[MAX_NUM_GPUS];
 
+	// Hit shader parameters per geometry segment
+	TArray<FHitGroupSystemParameters> HitGroupSystemParameters[MAX_NUM_GPUS];
 };
 
-class FD3D12RayTracingScene : public FRHIRayTracingScene
+class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterChild
 {
 public:
 
-	FD3D12RayTracingScene(FD3D12Adapter& Adapter);
+	FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayTracingSceneInitializer& Initializer);
 	~FD3D12RayTracingScene();
 
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags);
@@ -70,8 +82,14 @@ public:
 
 	TArray<FRayTracingGeometryInstance> Instances;
 
-	// Scene keeps track of child acceleration structures to manage their residency
-	TArray<TRefCountPtr<FD3D12MemBuffer>> BottomLevelAccelerationStructureBuffers[MAX_NUM_GPUS];
+	// Unique list of geometries referenced by all instances in this scene.
+	// Any referenced geometry is kept alive while the scene is alive.
+	TArray<TRefCountPtr<FD3D12RayTracingGeometry>> Geometries;
+
+	// Scene keeps track of child acceleration structure buffers to ensure
+	// they are resident when any ray tracing work is dispatched.
+	TArray<FD3D12ResidencyHandle*> GeometryResidencyHandles[MAX_NUM_GPUS];
+
 	void UpdateResidency(FD3D12CommandContext& CommandContext);
 
 	uint32 ShaderSlotsPerGeometrySegment = 1;
