@@ -114,10 +114,20 @@ void FMovieSceneLiveLinkPropertyHandler<float>::Finalize(bool bInReduceKeys, con
 	for (int32 i = 0; i < Keys.Num(); ++i)
 	{
 		const TArray<FLiveLinkPropertyKey<float>>& ElementKeys = Keys[i];
+
+		TArray<FFrameNumber> Times;
+		Times.SetNum(ElementKeys.Num());
+		TArray<FMovieSceneFloatValue> Values;
+		Values.SetNum(ElementKeys.Num());
+		int32 j = 0;
 		for (const FLiveLinkPropertyKey<float>& Key : ElementKeys)
 		{
-			PropertyStorage->FloatChannel[i].AddCubicKey(Key.Time, Key.Value, RCTM_Auto);
+			Times[j] = Key.Time;
+			Values[j] = FMovieSceneFloatValue(Key.Value);
+			j++;
 		}
+
+		PropertyStorage->FloatChannel[i].Set(Times, Values);
 	}
 
 	if (bInReduceKeys)
@@ -512,12 +522,26 @@ void FMovieSceneLiveLinkPropertyHandler<FVector>::Finalize(bool bInReduceKeys, c
 	for (int32 i = 0; i < Keys.Num(); ++i)
 	{
 		const TArray<FLiveLinkPropertyKey<FVector>>& ElementKeys = Keys[i];
+
+		TArray<FFrameNumber> Times;
+		Times.SetNum(ElementKeys.Num());
+		TArray<FMovieSceneFloatValue> ValuesX, ValuesY, ValuesZ;
+		ValuesX.SetNum(ElementKeys.Num());
+		ValuesY.SetNum(ElementKeys.Num());
+		ValuesZ.SetNum(ElementKeys.Num());
+		int32 j = 0;
 		for (const FLiveLinkPropertyKey<FVector>& Key : ElementKeys)
 		{
-			PropertyStorage->FloatChannel[(i * 3) + 0].AddCubicKey(Key.Time, Key.Value.X, RCTM_Break);
-			PropertyStorage->FloatChannel[(i * 3) + 1].AddCubicKey(Key.Time, Key.Value.Y, RCTM_Break);
-			PropertyStorage->FloatChannel[(i * 3) + 2].AddCubicKey(Key.Time, Key.Value.Z, RCTM_Break);
+			Times[j] = Key.Time;
+			ValuesX[j] = FMovieSceneFloatValue(Key.Value.X);
+			ValuesY[j] = FMovieSceneFloatValue(Key.Value.Y);
+			ValuesZ[j] = FMovieSceneFloatValue(Key.Value.Z);
+			j++;
 		}
+
+		PropertyStorage->FloatChannel[(i * 3) + 0].Set(Times, ValuesX);
+		PropertyStorage->FloatChannel[(i * 3) + 1].Set(Times, ValuesY);
+		PropertyStorage->FloatChannel[(i * 3) + 2].Set(Times, ValuesZ);
 	}
 
 	if (bInReduceKeys)
@@ -525,6 +549,13 @@ void FMovieSceneLiveLinkPropertyHandler<FVector>::Finalize(bool bInReduceKeys, c
 		for (FMovieSceneFloatChannel& Channel : PropertyStorage->FloatChannel)
 		{
 			MovieScene::Optimize(&Channel, InOptimizationParams);
+		}
+	}
+	else
+	{
+		for (FMovieSceneFloatChannel& Channel : PropertyStorage->FloatChannel)
+		{
+			Channel.AutoSetTangents();
 		}
 	}
 }
