@@ -9,12 +9,23 @@
 #include "HAL/MemoryMisc.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/ThreadSafeCounter64.h"
+#include "HAL/IConsoleManager.h"
 #include "Engine/Engine.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHealthSnapshot, Log, All);
 
 //////////////////////////////////////////////////////////////////////
 // FFortHealthSnapshot
+
+namespace HealthSnapshot
+{
+	static int32 GLogHealthSnapshot = 1;
+	static FAutoConsoleVariableRef CVarHealthSnapshot(
+		TEXT("health.logHealthSnapshot"),
+		GLogHealthSnapshot,
+		TEXT("Log health snapshot)\n"),
+		ECVF_Default);
+}
 
 TSharedPtr<FPerformanceTrackingChart> UHealthSnapshotBlueprintLibrary::PerformanceChart;
 
@@ -164,17 +175,20 @@ void FHealthSnapshot::CapturePerformanceStats(const FPerformanceTrackingChart* G
 
 void FHealthSnapshot::Dump(FOutputDevice& Ar)
 {
+	if (HealthSnapshot::GLogHealthSnapshot)
+	{
 #if !NO_LOGGING
-	const FName CategoryName(LogHealthSnapshot.GetCategoryName());
+		const FName CategoryName(LogHealthSnapshot.GetCategoryName());
 #else
-	const FName CategoryName(TEXT("LogHealthSnapshot"));
+		const FName CategoryName(TEXT("LogHealthSnapshot"));
 #endif
 
-	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("======= Snapshot: %s ======="), *Title);
+		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("======= Snapshot: %s ======="), *Title);
 
-	DumpStats(Ar, CategoryName);
+		DumpStats(Ar, CategoryName);
 
-	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("========================================================="));
+		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("========================================================="));
+	}
 }
 
 void FHealthSnapshot::DumpStats(FOutputDevice& Ar, FName CategoryName)
