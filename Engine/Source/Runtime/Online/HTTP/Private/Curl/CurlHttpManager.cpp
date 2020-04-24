@@ -105,9 +105,14 @@ namespace LibCryptoMemHooks
 	}
 }
 
+bool FCurlHttpManager::IsInit()
+{
+	return GMultiHandle != nullptr;
+}
+
 void FCurlHttpManager::InitCurl()
 {
-	if (GMultiHandle != NULL)
+	if (IsInit())
 	{
 		UE_LOG(LogInit, Warning, TEXT("Already initialized multi handle"));
 		return;
@@ -346,10 +351,17 @@ void FCurlHttpManager::OnBeforeFork()
 void FCurlHttpManager::OnAfterFork()
 {
 	InitCurl();
+
+	//todo: not for mut supported instead
 	Thread->StartThread();
 
 	FHttpManager::OnAfterFork();
 }
+
+//void FCurlHttpManager::OnEndFramePostFork()
+//{
+//	Thread->StartThread();
+//}
 
 void FCurlHttpManager::UpdateConfigs()
 {
