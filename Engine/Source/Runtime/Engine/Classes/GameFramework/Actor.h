@@ -1260,9 +1260,23 @@ public:
 	 * @param bManualAttachment				Whether manual or automatic attachment is to be used
 	 * @param RelativeTransform				The relative transform between the new component and its attach parent (automatic only)
 	 * @param ComponentTemplateContext		Optional UBlueprintGeneratedClass reference to use to find the template in. If null (or not a BPGC), component is sought in this Actor's class
+	 * @param bDeferredFinish				Whether or not to immediately complete the creation and registration process for this component. Will be false if there are expose on spawn properties being set
 	 */
-	UFUNCTION(BlueprintCallable, meta=(ScriptNoExport, BlueprintInternalUseOnly = "true", DefaultToSelf="ComponentTemplateContext", InternalUseParam="ComponentTemplateContext"))
-	class UActorComponent* AddComponent(FName TemplateName, bool bManualAttachment, const FTransform& RelativeTransform, const UObject* ComponentTemplateContext);
+	UFUNCTION(BlueprintCallable, meta=(ScriptNoExport, BlueprintInternalUseOnly = "true", DefaultToSelf="ComponentTemplateContext", InternalUseParam="ComponentTemplateContext,bDeferredFinish"))
+	class UActorComponent* AddComponent(FName TemplateName, bool bManualAttachment, const FTransform& RelativeTransform, const UObject* ComponentTemplateContext, bool bDeferredFinish = false);
+
+	/** 
+	 * Completes the creation of a new actor component. Called either from blueprint after
+	 * expose on spawn properties are set, or directly from AddComponent
+	 *
+	 * @see UK2Node_AddComponent	DO NOT CALL MANUALLY - BLUEPRINT INTERNAL USE ONLY (for Add Component nodes)
+	 *
+	 * @param Component						The component created in AddComponent to finish creation of
+	 * @param bManualAttachment				Whether manual or automatic attachment is to be used
+	 * @param RelativeTransform				The relative transform between the new component and its attach parent (automatic only)
+	 */
+	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true"))
+	void FinishAddComponent(UActorComponent* Component, bool bManualAttachment, const FTransform& RelativeTransform);
 
 	UE_DEPRECATED(4.17, "Use UActorComponent::DestroyComponent() instead")
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage = "Use Component.DestroyComponent instead", BlueprintProtected = "true", DisplayName = "DestroyComponent", ScriptName = "DestroyComponent"))
