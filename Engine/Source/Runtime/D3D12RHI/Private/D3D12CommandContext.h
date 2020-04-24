@@ -384,12 +384,18 @@ public:
 	}
 
 	template<typename ObjectType, typename RHIType>
-	FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject)
+	static FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject, FD3D12Device* Device)
 	{
 		return RetrieveObject<ObjectType, RHIType>(RHIObject, [&](ObjectType* Object)
 		{
-			return Object->GetParentDevice() == GetParentDevice();
+			return Object->GetParentDevice() == Device;
 		});
+	}
+
+	template<typename ObjectType, typename RHIType>
+	FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject)
+	{
+		return RetrieveObject<ObjectType, RHIType>(RHIObject, GetParentDevice());
 	}
 
 	template<typename Predicate>
