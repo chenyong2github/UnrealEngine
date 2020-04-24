@@ -11,6 +11,7 @@ using System.Linq;
 using Ionic.Zip;
 using Tools.DotNETCommon;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -537,7 +538,24 @@ namespace UnrealBuildTool
 					CompileAction.ProducedItems.Add(DependencyListFile);
 				}
 
-				string AllArgs = Arguments + FileArguments + CompileEnvironment.AdditionalArguments;
+				string EscapedAdditionalArgs = "";
+				if(!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
+				{
+					foreach(string AdditionalArg in CompileEnvironment.AdditionalArguments.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+					{
+						Match DefinitionMatch = Regex.Match(AdditionalArg, "-D\"?(?<Name>.*)=(?<Value>.*)\"?");
+						if (DefinitionMatch.Success)
+						{
+							EscapedAdditionalArgs += string.Format(" -D{0}=\"{1}\"", DefinitionMatch.Groups["Name"].Value, DefinitionMatch.Groups["Value"].Value);
+						}
+						else
+						{
+							EscapedAdditionalArgs += " " + AdditionalArg;
+						}
+					}
+				}
+
+				string AllArgs = Arguments + FileArguments + EscapedAdditionalArgs;
 				string CompilerPath = Settings.ToolchainDir + MacCompiler;
 				
 				// Analyze and then compile using the shell to perform the indirection
