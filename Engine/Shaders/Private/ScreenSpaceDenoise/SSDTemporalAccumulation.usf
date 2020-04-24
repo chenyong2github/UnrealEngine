@@ -454,6 +454,7 @@ void TemporallyAccumulate(
 
 	// Reproject to previous frame.
 	float3 HistoryScreenPosition = float3(DenoiserBufferUVToScreenPosition(SceneBufferUV), DeviceZ);
+	bool bIsDynamicPixel = false;
 	if (1)
 	{
 		float4 ThisClip = float4(HistoryScreenPosition, 1);
@@ -466,7 +467,6 @@ void TemporallyAccumulate(
 		{
 			float3 EncodedVelocity = SceneVelocityBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).xyz;
 			if (EncodedVelocity.x > 0.0)
-
 			{
 				Velocity = DecodeVelocityFromTexture(EncodedVelocity);
 			}
@@ -573,6 +573,7 @@ void TemporallyAccumulate(
 			
 			// VGPR configuration of the kernel.
 			KernelConfig.BufferUV = HistoryBufferUV + BufferUVBilinearCorrection;
+			KernelConfig.bIsDynamicPixel = bIsDynamicPixel;
 
 			#if CONFIG_PATCH_PREV_SCENE_DEPTH
 			{
