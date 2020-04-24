@@ -34,18 +34,18 @@ public:
 	void InnerAssignment(FKismetFunctionContext& Context, UEdGraphNode* Node, UEdGraphPin* VariablePin, UEdGraphPin* ValuePin)
 	{
 		FBPTerminal** VariableTerm = Context.NetMap.Find(VariablePin);
-		if (VariableTerm == NULL)
+		if (VariableTerm == nullptr)
 		{
 			VariableTerm = Context.NetMap.Find(FEdGraphUtilities::GetNetFromPin(VariablePin));
 		}
 
 		FBPTerminal** ValueTerm = Context.LiteralHackMap.Find(ValuePin);
-		if (ValueTerm == NULL)
+		if (ValueTerm == nullptr)
 		{
 			ValueTerm = Context.NetMap.Find(FEdGraphUtilities::GetNetFromPin(ValuePin));
 		}
 
-		if ((VariableTerm != NULL) && (ValueTerm != NULL))
+		if ((VariableTerm != nullptr) && (ValueTerm != nullptr))
 		{
 			FBlueprintCompiledStatement& Statement = Context.AppendStatementForNode(Node);
 
@@ -176,8 +176,25 @@ void UK2Node_VariableSetRef::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 
 	if( (Pin == TargetPin) || (Pin == ValuePin) )
 	{
-		UEdGraphPin* ConnectedToPin = (Pin->LinkedTo.Num() > 0) ? Pin->LinkedTo[0] : NULL;
+		UEdGraphPin* ConnectedToPin = (Pin->LinkedTo.Num() > 0) ? Pin->LinkedTo[0] : nullptr;
 		CoerceTypeFromPin(ConnectedToPin);
+
+		// If both target and value pins are unlinked, then reset types to wildcard
+		if(TargetPin->LinkedTo.Num() == 0 && ValuePin->LinkedTo.Num() == 0)
+		{
+			// Pin disconnected...revert to wildcard
+			TargetPin->PinType.PinCategory = UEdGraphSchema_K2::PC_Wildcard;
+			TargetPin->PinType.PinSubCategory = NAME_None;
+			TargetPin->PinType.PinSubCategoryObject = nullptr;
+			TargetPin->BreakAllPinLinks();
+
+			ValuePin->PinType.PinCategory = UEdGraphSchema_K2::PC_Wildcard;
+			ValuePin->PinType.PinSubCategory = NAME_None;
+			ValuePin->PinType.PinSubCategoryObject = nullptr;
+			ValuePin->BreakAllPinLinks();			
+		}
+
+		CachedNodeTitle.MarkDirty();
 	}
 }
 
@@ -197,21 +214,6 @@ void UK2Node_VariableSetRef::CoerceTypeFromPin(const UEdGraphPin* Pin)
 
 		ValuePin->PinType = Pin->PinType;
 		ValuePin->PinType.bIsReference = false;
-	}
-	else
-	{
-		// Pin disconnected...revert to wildcard
-		TargetPin->PinType.PinCategory = UEdGraphSchema_K2::PC_Wildcard;
-		TargetPin->PinType.PinSubCategory = NAME_None;
-		TargetPin->PinType.PinSubCategoryObject = nullptr;
-		TargetPin->BreakAllPinLinks();
-
-		ValuePin->PinType.PinCategory = UEdGraphSchema_K2::PC_Wildcard;
-		ValuePin->PinType.PinSubCategory = NAME_None;
-		ValuePin->PinType.PinSubCategoryObject = nullptr;
-		ValuePin->BreakAllPinLinks();
-
-		CachedNodeTitle.MarkDirty();
 	}
 }
 
