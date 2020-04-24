@@ -230,10 +230,12 @@ void FRichCurve::SetKeys(const TArray<FRichCurveKey>& InKeys)
 {
 	Reset();
 
+	Keys.SetNum(InKeys.Num());
+	KeyHandlesToIndices.SetKeyHandles(InKeys.Num());
+
 	for (int32 Index = 0; Index < InKeys.Num(); ++Index)
 	{
-		Keys.Add(InKeys[Index]);
-		KeyHandlesToIndices.Add(FKeyHandle(), Index);
+		Keys[Index] = InKeys[Index];
 	}
 
 	AutoSetTangents();
