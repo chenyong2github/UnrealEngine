@@ -10,7 +10,7 @@ from . import spaces
 from .client import Client
 from .runner import UE4Runner
 from .utils import LOCALHOST, DEFAULT_PORT
-from .error import FailedToLaunch
+from .error import FailedToLaunch, NotConnected
 
 INVALID_ID = 4294967295  # uint32(-1)
 
@@ -49,12 +49,13 @@ class AgentConfig:
     
     
 class UnrealEnv(gym.Env):
-
-    def __init__(self, server_address=LOCALHOST, server_port=DEFAULT_PORT, agent_config=None, reacquire=True, realtime=False,
-                 await_connection=True, timeout=20, ue4params=None, project_name=None):
+    PROJECT_NAME = 'GenericUnrealEnvironment'
+    
+    def __init__(self, server_address=LOCALHOST, server_port=DEFAULT_PORT, agent_config=None, reacquire=True, 
+                 realtime=False, auto_connect=True, timeout=20, ue4params=None, project_name=None):
 
         # it's expected that the used passes in project_name or implements a wrapper defining PROJECT_NAME
-        self._project_name = project_name if project_name is not None else self.__class__.PROJECT_NAME
+        self._project_name = project_name or self.__class__.PROJECT_NAME
 
         if agent_config is None:
             agent_config = self.__class__.default_agent_config()
@@ -77,20 +78,28 @@ class UnrealEnv(gym.Env):
                 self.__rpc_client = None
                 raise
 
-        if await_connection:
-            # if this takes too long it's possible there's a dangling server instance that failed to shutdown (i.e. it's
-            # not the one you're trying to connect). Try using a different port.
-            self.__rpc_client.wait()
-        self.__rpc_client.add_functions()
-        self.name = self.__rpc_client.get_name().decode('utf-8')
-        logger.info('connected to {} at port {}'.format(self.name, server_port))
-
-        self._setup_agents(reacquire)
-
-        self._set_realtime(realtime)
         self._frames_step = 1
         # stores number of actions performed and frames skipped. Not counting skipped time in realtime mode
         self._steps_performed = 0
+        self.name = 'Not connected yet'
+
+        self._set_realtime(realtime)
+        if auto_connect:
+            self.connect(reacquire)
+            
+    def connect(self, reacquire=True):
+        # if this takes too long it's possible there's a dangling server instance that failed to shutdown (i.e. it's
+        # not the one you're trying to connect). Try using a different port.
+        self.__rpc_client.ensure_connection()
+        self.__rpc_client.add_functions()
+        self.name = self.__rpc_client.get_name().decode('utf-8')
+        logger.info('connected to {} at port {}'.format(self.name, self.__server_port))
+
+        self._setup_agents(reacquire)
+        self._set_realtime(self._realtime)
+        
+    def is_connected(self):
+        return self.__rpc_client and self.__rpc_client.connected
 
     def _setup_agents(self, reacquire):
         # if there's already an agent created in the environment
@@ -128,7 +137,8 @@ class UnrealEnv(gym.Env):
     def _set_realtime(self, realtime):
         self._realtime = realtime
         self._world_step_impl = self._tick_world if not realtime else lambda: None
-        self.__rpc_client.enable_manual_world_tick(not realtime)
+        if hasattr(self.__rpc_client, 'enable_manual_world_tick'):
+            self.__rpc_client.enable_manual_world_tick(not realtime)
 
     def _get_observation(self):
         raw_obs = self.__rpc_client.get_observations(self.__agent_id)
@@ -138,6 +148,8 @@ class UnrealEnv(gym.Env):
         self.__rpc_client.request_world_tick(self._frames_step, True)
 
     def reset(self, wait_action=None, skip_time=1):
+        if not self.is_connected():
+            raise NotConnected
         logger.debug('{}: reset'.format(self._debug_id))
         self.__rpc_client.reset()
         # wait until game says it's not over        
@@ -155,20 +167,17 @@ class UnrealEnv(gym.Env):
             shutdown (bool): if True will shut down the simulation as well.
         """
         logger.debug('{}: close(shutdown={})'.format(self._debug_id, shutdown))
-        if self.__rpc_client is not None:
+        if self.is_connected():
             try:
                 logger.info('Closing connection on port {}'.format(self.__server_port))
                 if not self._realtime:
                     # resume the natural flow of the sim
                     self.__rpc_client.enable_manual_world_tick(False)
-
                 self.__rpc_client.close()
             except msgpackrpc.error.TimeoutError:
                 logger.debug(
                     "msgpackrpc.error.TimeoutError occurred. Ignoring due to the environment being closed anyway.")
-                pass
-            finally:
-                self.__rpc_client = None
+        self.__rpc_client = None
 
         if shutdown:
             UE4Runner.stop(self.__engine_process)

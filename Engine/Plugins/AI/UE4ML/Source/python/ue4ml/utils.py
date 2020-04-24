@@ -1,6 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-import socket
 import json
 import msgpackrpc
 import argparse
@@ -8,6 +7,7 @@ from collections import OrderedDict
 
 LOCALHOST = '127.0.0.1'
 DEFAULT_PORT = 15151 
+
 
 def dict_from_json(data):
     if type(data) == bytes:
@@ -25,10 +25,19 @@ def connect(server_address=LOCALHOST, server_port=DEFAULT_PORT):
     return msgpackrpc.Client(msgpackrpc.Address(server_address, server_port))
 
 
-def is_port_available(server, port):
+def is_port_available(port, host=LOCALHOST):
+    import socket    
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex((server, port)) != 0
+        return s.connect_ex((host, port)) != 0
 
+
+def find_available_port(host=LOCALHOST):
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, 0))
+        s.listen(1)
+        return s.getsockname()[1]
+    
 
 def random_action(env):
     return env.action_space.sample() if env.action_space else None
