@@ -9,6 +9,7 @@
 #include "Hash/CityHash.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Serialization/Archive.h"
 
 IMPLEMENT_TYPE_LAYOUT(FMemoryImageString);
 
@@ -77,6 +78,19 @@ void FPlatformTypeLayoutParameters::AppendKeyString(FString& KeyString) const
 	{
 		KeyString += TEXT("FIX_");
 	}
+}
+
+void FPlatformTypeLayoutParameters::Serialize(FArchive& Ar)
+{
+	// if you change this code, please bump MATERIALSHADERMAP_DERIVEDDATA_VER (see FMaterialShaderMap::Serialize)
+	// since this is a part of ShaderMapId
+	Ar << MaxFieldAlignment;
+	Ar << b32Bit;
+	Ar << bForce64BitMemoryImagePointers;
+	Ar << bAlignBases;
+	Ar << bWithEditorOnly;
+	Ar << bWithRayTracing;
+	Ar << bIsCurrentPlatform;
 }
 
 // evaluated during static-initialization, so logging from regular check() macros won't work correctly
