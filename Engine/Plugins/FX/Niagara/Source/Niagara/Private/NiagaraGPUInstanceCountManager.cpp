@@ -146,6 +146,7 @@ FRWBuffer* FNiagaraGPUInstanceCountManager::AcquireCulledCountsBuffer(FRHIComman
 			CulledCountBuffer.AcquireTransientResource();
 
 			// Initialize the buffer by clearing it to zero then transition it to be ready to write to
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, CulledCountBuffer.UAV);
 			RHICmdList.ClearUAVUint(CulledCountBuffer.UAV, FUintVector4(EForceInit::ForceInitToZero));
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, CulledCountBuffer.UAV);
 		}

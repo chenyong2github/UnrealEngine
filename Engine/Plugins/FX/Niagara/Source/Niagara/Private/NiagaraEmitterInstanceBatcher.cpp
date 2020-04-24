@@ -1248,6 +1248,10 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 	check(EnumHasAnyFlags(Flags, EGPUSortFlags::KeyGenAfterPreRender));
 
 	FRWBuffer* CulledCountsBuffer = GPUInstanceCounterManager.AcquireCulledCountsBuffer(RHICmdList, FeatureLevel);
+	if (CulledCountsBuffer)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, CulledCountsBuffer->UAV);
+	}
 
 	const FGPUSortManager::FKeyGenInfo KeyGenInfo((uint32)NumElementsInBatch, EnumHasAnyFlags(Flags, EGPUSortFlags::HighPrecisionKeys));
 
@@ -1270,7 +1274,7 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 	Params.OutParticleIndices = ValuesUAV;
 	Params.OutCulledParticleCounts = CulledCountsBuffer ? (FRHIUnorderedAccessView*)CulledCountsBuffer->UAV : GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, false);
 
-	FRHIUnorderedAccessView* OutputUAVs[] = { KeysUAV, ValuesUAV };
+	FRHIUnorderedAccessView* OutputUAVs[] = { KeysUAV, ValuesUAV, Params.OutCulledParticleCounts };
 	for (const FNiagaraGPUSortInfo& SortInfo : SimulationsToSort)
 	{
 		if (SortInfo.AllocationInfo.SortBatchId == BatchId)
