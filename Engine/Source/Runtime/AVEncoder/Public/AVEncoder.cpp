@@ -9,7 +9,7 @@
 	#include "Microsoft/WmfAudioEncoder.h"
 #elif PLATFORM_XBOXONE
 	#include "Microsoft/WmfAudioEncoder.h"
-	#include "Microsoft/XBoxOne/XboxOneVideoEncoder.h"
+	#include "XboxOneVideoEncoder.h"
 #endif
 
 namespace AVEncoder
