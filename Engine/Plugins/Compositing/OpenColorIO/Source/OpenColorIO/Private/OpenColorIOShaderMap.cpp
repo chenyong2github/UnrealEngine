@@ -113,6 +113,11 @@ bool FOpenColorIOShaderMapId::operator==(const FOpenColorIOShaderMapId& InRefere
 		return false;
 	}
 
+	if (LayoutParams != InReferenceSet.LayoutParams)
+	{
+		return false;
+	}
+
 	for (int32 ShaderIndex = 0; ShaderIndex < ShaderTypeDependencies.Num(); ShaderIndex++)
 	{
 		const FShaderTypeDependency& ShaderTypeDependency = ShaderTypeDependencies[ShaderIndex];
@@ -129,9 +134,6 @@ bool FOpenColorIOShaderMapId::operator==(const FOpenColorIOShaderMapId& InRefere
 void FOpenColorIOShaderMapId::AppendKeyString(FString& OutKeyString) const
 {
 #if WITH_EDITOR
-	FPlatformTypeLayoutParameters LayoutParams;
-	LayoutParams.InitializeForCurrent();
-
 	OutKeyString += ShaderCodeHash;
 	OutKeyString += TEXT("_");
 
