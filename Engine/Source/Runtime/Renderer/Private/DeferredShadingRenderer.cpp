@@ -1227,11 +1227,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 			EUniformBufferUsage::UniformBuffer_SingleFrame,
 			View.RayTracingLightingDataBuffer,
 			View.RayTracingLightingDataSRV);
-
-		if (CanUseRayTracingLightingMissShader(View.GetShaderPlatform()))
-		{
-			SetupRayTracingLightingMissShader(RHICmdList, View);
-		}
 	}
 
 	if (!bAsyncUpdateGeometry)
@@ -1313,6 +1308,11 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRHICommandListImmedi
 					delete Ptr;
 				}
 			});
+		}
+
+		if (CanUseRayTracingLightingMissShader(View.GetShaderPlatform()))
+		{
+			SetupRayTracingLightingMissShader(RHICmdList, View);
 		}
 	}
 
