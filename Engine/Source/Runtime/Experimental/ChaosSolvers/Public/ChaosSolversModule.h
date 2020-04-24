@@ -16,6 +16,8 @@
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Declares.h"
 #include "Chaos/PhysicalMaterials.h"
+#include "Chaos/Defines.h"
+#include "Chaos/EvolutionTraits.h"
 
 /** Classes that want to set the solver actor class can implement this. */
 class IChaosSolverActorClassProvider
@@ -159,18 +161,27 @@ public:
 	 * @param InOwner Ptr to some owning UObject. The module doesn't use this but allows calling code to organize solver ownership
 	 * @param bStandalone Whether the solver is standalone (not sent to physics thread - updating left to caller)
 	 */
-	Chaos::FPhysicsSolver* CreateSolver(UObject* InOwner
+	template <typename Traits>
+	Chaos::TPBDRigidsSolver<Traits>* CreateSolver(UObject* InOwner
 #if CHAOS_CHECKED
 		, const FName& DebugName = NAME_None
 #endif
-	);
-	Chaos::FPhysicsSolver* CreateSolver(UObject* InOwner, ESolverFlags InFlags
+	)
+	{
+		return CreateSolver<Traits>(InOwner,ESolverFlags::None
+#if CHAOS_CHECKED
+			,DebugName
+#endif
+		);
+	}
+	template <typename Traits>
+	Chaos::TPBDRigidsSolver<Traits>* CreateSolver(UObject* InOwner, ESolverFlags InFlags
 #if CHAOS_CHECKED
 		, const FName& DebugName = NAME_None
 #endif
 	);
 
-	void MigrateSolver(Chaos::FPhysicsSolver* InSolver, const UObject* InNewOwner);
+	void MigrateSolver(Chaos::FPhysicsSolverBase* InSolver, const UObject* InNewOwner);
 
 	Chaos::EMultiBufferMode GetBufferModeFromThreadingModel(Chaos::EThreadingMode ThreadingMode) const
 	{
@@ -235,21 +246,21 @@ public:
 	 *
 	 * Should be called on whichever thread currently owns the solver state
 	 */
-	void DestroySolver(Chaos::FPhysicsSolver* InState);
+	void DestroySolver(Chaos::FPhysicsSolverBase* InState);
 
 	/** Retrieve the master list of solvers. This contains all owned, unowned and standalone solvers */
-	const TArray<Chaos::FPhysicsSolver*>& GetAllSolvers() const;
+	const TArray<Chaos::FPhysicsSolverBase*>& GetAllSolvers() const;
 
 	/**
 	 * Read access to the current solver-state objects, be aware which thread owns this data when
 	 * attempting to use this. Physics thread will query when spinning up to get current world state
 	 */
-	TArray<const Chaos::FPhysicsSolver*> GetSolvers(const UObject* InOwner) const;
-	void GetSolvers(const UObject* InOwner, TArray<const Chaos::FPhysicsSolver*>& OutSolvers) const;
+	TArray<const Chaos::FPhysicsSolverBase*> GetSolvers(const UObject* InOwner) const;
+	void GetSolvers(const UObject* InOwner, TArray<const Chaos::FPhysicsSolverBase*>& OutSolvers) const;
 
 	/** Non-const access to the solver array is private - only the module should ever modify the storage lists */
-	TArray<Chaos::FPhysicsSolver*> GetSolversMutable(const UObject* InOwner);
-	void GetSolversMutable(const UObject* InOwner, TArray<Chaos::FPhysicsSolver*>& OutSolvers);
+	TArray<Chaos::FPhysicsSolverBase*> GetSolversMutable(const UObject* InOwner);
+	void GetSolversMutable(const UObject* InOwner, TArray<Chaos::FPhysicsSolverBase*>& OutSolvers);
 
 	/**
 	 * Outputs statistics for the solver hierarchies. Currently engine calls into this
@@ -352,11 +363,11 @@ private:
 	FDelegateHandle PreExitHandle;
 
 	// Flat list of every solver the module has created.
-	TArray<Chaos::FPhysicsSolver*> AllSolvers;
+	TArray<Chaos::FPhysicsSolverBase*> AllSolvers;
 
 	// Map of solver owners to the solvers they own. Nullptr is a valid 'owner' in that it's a map
 	// key for unowned, standalone solvers
-	TMap<const UObject*, TArray<Chaos::FPhysicsSolver*>> SolverMap;
+	TMap<const UObject*, TArray<Chaos::FPhysicsSolverBase*>> SolverMap;
 
 	// Lock for the above list to ensure we don't delete solvers out from underneath other threads
 	// or mess up the solvers array during use.
@@ -450,3 +461,14 @@ struct CHAOSSOLVERS_API FChaosScopeSolverLock
 		FChaosSolversModule::GetModule()->UnlockSolvers();
 	}
 };
+
+#if CHAOS_CHECKED
+#define EVOLUTION_TRAIT(Traits)\
+extern template CHAOSSOLVERS_API Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, ESolverFlags InFlags, const FName& DebugName);
+#else
+#define EVOLUTION_TRAIT(Traits)\
+extern template CHAOSSOLVERS_API Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner,ESolverFlags InFlags);
+#endif
+
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT

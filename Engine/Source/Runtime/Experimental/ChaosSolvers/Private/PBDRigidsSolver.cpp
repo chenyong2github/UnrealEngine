@@ -203,7 +203,7 @@ namespace Chaos
 
 	template <typename Traits>
 	TPBDRigidsSolver<Traits>::TPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner)
-		: Super(BufferingModeIn, InOwner)
+		: Super(BufferingModeIn, InOwner, TraitToIdx<Traits>())
 		, CurrentFrame(0)
 		, MTime(0.0)
 		, MLastDt(0.0)

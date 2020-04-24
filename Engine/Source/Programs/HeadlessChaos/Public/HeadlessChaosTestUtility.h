@@ -53,6 +53,19 @@ namespace ChaosTest {
 #undef EVOLUTION_TRAIT
 	TYPED_TEST_SUITE(AllEvolutions,AllEvolutionTypes);
 
+	//should be TAllTraits, but used in macros and logs and this makes it more readable
+	template <typename T>
+	class AllTraits : public ::testing::Test {};
+
+#define EVOLUTION_TRAIT(Trait) ,Trait
+	using AllTraitsTypesTmp = TTypesWithoutVoid <
+		void
+#include "Chaos/EvolutionTraits.inl"
+	>;
+	using AllTraitsTypes = AllTraitsTypesTmp::Types;
+#undef EVOLUTION_TRAIT
+	TYPED_TEST_SUITE(AllTraits,AllTraitsTypes);
+
 	MATCHER_P2(VectorNear, V, Tolerance, "") { return arg.Equals(V, Tolerance); }
 
 	// Expects each component of the vector is within T of its corresponding component in A. 

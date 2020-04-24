@@ -9,6 +9,7 @@
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Async/ParallelFor.h"
 #include "Containers/Queue.h"
+#include "Chaos/EvolutionTraits.h"
 
 class FChaosSolversModule;
 class FPhysicsSolverAdvanceTask;
@@ -184,6 +185,24 @@ namespace Chaos
 	{
 	public:
 
+#define EVOLUTION_TRAIT(Trait) case ETraits::Trait: Func((TPBDRigidsSolver<Trait>&)(*this)); return;
+		template <typename Lambda>
+		void CastHelper(const Lambda& Func)
+		{
+			switch(TraitIdx)
+			{
+#include "Chaos/EvolutionTraits.inl"
+			}
+		}
+#undef EVOLUTION_TRAIT
+
+		template <typename Traits>
+		TPBDRigidsSolver<Traits>& CastChecked()
+		{
+			check(TraitIdx == TraitToIdx<Traits>());
+			return (TPBDRigidsSolver<Traits>&)(*this);
+		}
+
 		void ChangeBufferMode(EMultiBufferMode InBufferMode);
 
 		TQueue<TFunction<void()>,EQueueMode::Mpsc>& GetCommandQueue() { return CommandQueue; }
@@ -243,9 +262,10 @@ namespace Chaos
 		EMultiBufferMode BufferMode;
 
 		/** Protected construction so callers still have to go through the module to create new instances */
-		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn, UObject* InOwner)
+		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn, UObject* InOwner, ETraits InTraitIdx)
 			: BufferMode(BufferingModeIn)
 			, Owner(InOwner)
+			, TraitIdx(InTraitIdx)
 		{}
 
 		/** Only allow construction with valid parameters as well as restricting to module construction */
@@ -287,5 +307,7 @@ namespace Chaos
 
 		template<ELockType>
 		friend struct TSolverQueryMaterialScope;
+
+		ETraits TraitIdx;
 	};
 }
