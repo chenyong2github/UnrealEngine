@@ -107,7 +107,7 @@ private:
 	FReply OnImportAll();
 
 	/** Whether we should go ahead with import */
-	ECSVImportOptionDlgResponse					UserDlgResponse : ECSVImportOptionDlgResponse::Cancel;
+	ECSVImportOptionDlgResponse					UserDlgResponse;
 
 	/** Window that owns us */
 	TWeakPtr< SWindow >							WidgetWindow;
