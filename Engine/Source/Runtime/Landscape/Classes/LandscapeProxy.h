@@ -421,6 +421,9 @@ protected:
 public:
 	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location) const;
 
+	/** Fills an array with height values **/
+	LANDSCAPE_API void GetHeightValues(int32& SizeX, int32& SizeY, TArray<float>& ArrayValue) const;
+
 	/** Offset in quads from global components grid origin (in quads) **/
 	UPROPERTY()
 	FIntPoint LandscapeSectionOffset;
