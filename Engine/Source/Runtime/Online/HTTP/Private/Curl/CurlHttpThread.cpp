@@ -15,7 +15,7 @@ FCurlHttpThread::FCurlHttpThread()
 void FCurlHttpThread::HttpThreadTick(float DeltaSeconds)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpThread_HttpThreadTick);
-	check(FCurlHttpManager::GMultiHandle);
+	check(FCurlHttpManager::IsInit());
 
 	if (RunningThreadedRequests.Num() > 0)
 	{
