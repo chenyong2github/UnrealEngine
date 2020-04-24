@@ -775,6 +775,9 @@ struct FGTAOTAAHistory
 // Structure that hold all information related to previous frame.
 struct FPreviousViewInfo
 {
+	// View rect
+	FIntRect ViewRect;
+
 	// View matrices.
 	FViewMatrices ViewMatrices;
 
