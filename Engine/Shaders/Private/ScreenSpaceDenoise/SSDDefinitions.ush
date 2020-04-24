@@ -205,6 +205,9 @@
 	// Stocastic 2x2 that only take one sample.
 	#define SAMPLE_SET_2X2_STOCASTIC 13
 
+	// Adapt between bilinear and stocastic 2x2.
+	#define SAMPLE_SET_2X2_ADAPTIVE 17
+
 	// Square kernel
 	#define SAMPLE_SET_3X3 2
 	#define SAMPLE_SET_3X3_SOBEK2018 3
