@@ -1301,9 +1301,10 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRHICommandListImmedi
 				}
 			}
 
-			FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)RHICmdList.Alloc(
-				sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings,
-				alignof(FRayTracingLocalShaderBindings));
+			const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
+			FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*) (RHICmdList.Bypass() 
+				? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
+				: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
 
 			uint32 MergedBindingIndex = 0;
 			for (FRayTracingLocalShaderBindingWriter* BindingWriter : View.RayTracingMaterialBindings)
