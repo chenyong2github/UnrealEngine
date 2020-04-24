@@ -147,7 +147,7 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetRenderTargetOutputFormat(0, FVelocityRendering::GetFormat());
+		OutEnvironment.SetRenderTargetOutputFormat(0, FVelocityRendering::GetFormat(Parameters.Platform));
 	}
 
 	FVelocityPS() = default;
@@ -375,7 +375,7 @@ void FDeferredShadingSceneRenderer::RenderVelocitiesInner(FRHICommandListImmedia
 
 bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 {
-	if (!FVelocityRendering::IsSeparateVelocityPassSupported() || ViewFamily.UseDebugViewPS())
+	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS())
 	{
 		return false;
 	}
@@ -420,7 +420,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 
 	if (!VelocityRT)
 	{
-		FPooledRenderTargetDesc Desc = FVelocityRendering::GetRenderTargetDesc();
+		FPooledRenderTargetDesc Desc = FVelocityRendering::GetRenderTargetDesc(ShaderPlatform);
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, VelocityRT, TEXT("Velocity"));
 	}
 
@@ -464,21 +464,21 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 	GVisualizeTexture.SetCheckPoint(RHICmdList, VelocityRT);
 }
 
-EPixelFormat FVelocityRendering::GetFormat()
+EPixelFormat FVelocityRendering::GetFormat(EShaderPlatform ShaderPlatform)
 {
-	return PF_G16R16;
+	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(ShaderPlatform) ? PF_A16B16G16R16 : PF_G16R16;
 }
 
-FPooledRenderTargetDesc FVelocityRendering::GetRenderTargetDesc()
+FPooledRenderTargetDesc FVelocityRendering::GetRenderTargetDesc(EShaderPlatform ShaderPlatform)
 {
 	const FIntPoint BufferSize = FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY();
 	const FIntPoint VelocityBufferSize = BufferSize;		// full resolution so we can reuse the existing full res z buffer
-	return FPooledRenderTargetDesc(FPooledRenderTargetDesc::Create2DDesc(VelocityBufferSize, GetFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource, false));
+	return FPooledRenderTargetDesc(FPooledRenderTargetDesc::Create2DDesc(VelocityBufferSize, GetFormat(ShaderPlatform), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource, false));
 }
 
-bool FVelocityRendering::IsSeparateVelocityPassSupported()
+bool FVelocityRendering::IsSeparateVelocityPassSupported(EShaderPlatform ShaderPlatform)
 {
-	return GPixelFormats[GetFormat()].Supported;
+	return GPixelFormats[GetFormat(ShaderPlatform)].Supported;
 }
 
 bool FVelocityRendering::BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform)
@@ -529,7 +529,7 @@ bool FVelocityMeshProcessor::PrimitiveHasVelocityForView(const FViewInfo& View, 
 
 bool FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(EShaderPlatform ShaderPlatform, const FPrimitiveSceneProxy* PrimitiveSceneProxy)
 {
-	if (!FVelocityRendering::IsSeparateVelocityPassSupported())
+	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform))
 	{
 		return false;
 	}
@@ -643,7 +643,7 @@ bool FTranslucentVelocityMeshProcessor::PrimitiveCanHaveVelocity(EShaderPlatform
 	 * Therefore, the primitive can't be filtered based on motion, or it will break post
 	 * effects like depth of field which rely on depth information.
 	 */
-	return FVelocityRendering::IsSeparateVelocityPassSupported();
+	return FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform);
 }
 
 bool FTranslucentVelocityMeshProcessor::PrimitiveHasVelocityForFrame(const FPrimitiveSceneProxy* PrimitiveSceneProxy)

@@ -63,7 +63,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			const float2 EncodedVelocity = NodeVelocity[SampleIndex];
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-			AverageVelocity += DecodeVelocityFromTexture(EncodedVelocity);
+			AverageVelocity += DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
 			#endif			
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
@@ -76,7 +76,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			#endif
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
-			const float2 CurrentVelocity = DecodeVelocityFromTexture(EncodedVelocity);
+			const float2 CurrentVelocity = DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
 			const float CurrentVelocityMagnitude2 = dot(CurrentVelocity, CurrentVelocity);
 			if (CurrentVelocityMagnitude2 > MaxVelocityMagnitude2)
 			{
@@ -87,7 +87,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		}
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-		OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(AverageVelocity / max(NodeDesc.Count, 1));
+		OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1), 0.0)).xy;
 		#endif		
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST

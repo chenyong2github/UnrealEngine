@@ -483,7 +483,7 @@ void ReprojectHit(float4 PrevScreenPositionScaleBias, Texture2D Texture, Sampler
 	float2 Velocity = Texture.SampleLevel( Sampler, HitUVz.xy, 0 ).xy;
 	if( Velocity.x > 0.0 )
 	{
-		PrevScreen = ThisClip.xy - DecodeVelocityFromTexture( Velocity );
+		PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(float3(Velocity, 0.0)).xy;
 	}
 
 	float2 PrevUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
