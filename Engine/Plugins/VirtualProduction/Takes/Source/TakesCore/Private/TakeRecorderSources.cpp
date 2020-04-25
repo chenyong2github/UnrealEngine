@@ -427,7 +427,7 @@ void UTakeRecorderSources::StartRecordingTheseSources(const TArray<UTakeRecorder
 				for (UMovieSceneSubSection* ActiveSubSection : ActiveSubSections)
 				{
 					// Set timecode source and start time if it hasn't been set
-					if (ActiveSubSection->TimecodeSource == FMovieSceneTimecodeSource())
+					if (ActiveSubSection->TimecodeSource.Timecode == FTimecode())
 					{
 						SetSectionStartTimecode(ActiveSubSection, CurrentTimecode, TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution);
 					}
