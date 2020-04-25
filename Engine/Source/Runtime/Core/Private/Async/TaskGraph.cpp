@@ -62,8 +62,8 @@ namespace ENamedThreads
 }
 
 // RenderingThread.cpp sets these values if needed
-TAtomic<bool> GDoRenderThreadWakeupTrigger(true);	// Accessed by any thread, modified by GT.
-int32 GRenderThreadPollPeriodMs = -1;				// Accessed/Modified by RT only.
+CORE_API TAtomic<bool> GDoRenderThreadWakeupTrigger(true);	// Accessed by any thread, modified by GT/RT.
+CORE_API int32 GRenderThreadPollPeriodMs = -1;				// Accessed/Modified by RT only.
 
 static int32 GIgnoreThreadToDoGatherOn = 0;
 static FAutoConsoleVariableRef CVarIgnoreThreadToDoGatherOn(
