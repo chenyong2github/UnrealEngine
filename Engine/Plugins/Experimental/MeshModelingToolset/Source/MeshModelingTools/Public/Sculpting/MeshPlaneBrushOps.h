@@ -5,13 +5,110 @@
 #include "Sculpting/MeshBrushOpBase.h"
 #include "DynamicMesh3.h"
 #include "Async/ParallelFor.h"
+#include "MeshPlaneBrushOps.generated.h"
+
+
+
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UBasePlaneBrushOpProps : public UMeshSculptBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	virtual EPlaneBrushSideMode GetWhichSide() { return EPlaneBrushSideMode::BothSides; }
+};
+
+UCLASS()
+class MESHMODELINGTOOLS_API UPlaneBrushOpProps : public UBasePlaneBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = PlaneBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 0.5;
+
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = PlaneBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 0.5;
+
+	/** Depth of Brush into surface along surface normal */
+	UPROPERTY(EditAnywhere, Category = PlaneBrush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
+	float Depth = 0;
+
+	/** Control whether effect of brush should be limited to one side of the Plane  */
+	UPROPERTY(EditAnywhere, Category = PlaneBrush)
+	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+	virtual float GetDepth() override { return Depth; }
+	virtual EPlaneBrushSideMode GetWhichSide() { return WhichSide; }
+};
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UViewAlignedPlaneBrushOpProps : public UBasePlaneBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = ViewPlaneBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 0.5;
+
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = ViewPlaneBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 0.5;
+
+	/** Depth of Brush into surface along view ray */
+	UPROPERTY(EditAnywhere, Category = ViewPlaneBrush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
+	float Depth = 0;
+
+	/** Control whether effect of brush should be limited to one side of the Plane  */
+	UPROPERTY(EditAnywhere, Category = ViewPlaneBrush)
+	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+	virtual float GetDepth() override { return Depth; }
+	virtual EPlaneBrushSideMode GetWhichSide() { return WhichSide; }
+};
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UFixedPlaneBrushOpProps : public UBasePlaneBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = FixedPlaneBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 0.5;
+
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = FixedPlaneBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 0.5;
+
+	/** Depth of Brush into surface relative to plane */
+	UPROPERTY(EditAnywhere, Category = FixedPlaneBrush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
+	float Depth = 0;
+
+	/** Control whether effect of brush should be limited to one side of the Plane  */
+	UPROPERTY(EditAnywhere, Category = FixedPlaneBrush)
+	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+	virtual float GetDepth() override { return Depth; }
+	virtual EPlaneBrushSideMode GetWhichSide() { return WhichSide; }
+};
+
 
 
 class FPlaneBrushOp : public FMeshSculptBrushOp
 {
 
 public:
-	double BrushSpeedTuning = 0.05;
+	double BrushSpeedTuning = 6.0;
 
 	FFrame3d StrokePlane;
 
@@ -23,11 +120,12 @@ public:
 	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewPositionsOut) override
 	{
 		static const double PlaneSigns[3] = { 0, -1, 1 };
-		double PlaneSign = PlaneSigns[CurrentOptions.WhichPlaneSideIndex];
+		UBasePlaneBrushOpProps* Props = GetPropertySetAs<UBasePlaneBrushOpProps>();
+		double PlaneSign = PlaneSigns[(int32)Props->GetWhichSide()];
 
 		const FVector3d& StampPos = Stamp.LocalFrame.Origin;
 
-		double UseSpeed = Stamp.Power * Stamp.Radius * BrushSpeedTuning;
+		double UseSpeed = Stamp.Power * Stamp.Radius * Stamp.DeltaTime * BrushSpeedTuning;
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
 		{

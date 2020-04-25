@@ -9,6 +9,7 @@
 #include "BoxTypes.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Changes/ValueWatcher.h"
+#include "BaseDynamicMeshComponent.h"
 #include "MeshSculptToolBase.generated.h"
 
 
@@ -16,7 +17,26 @@ class UMaterialInstanceDynamic;
 class UTransformGizmo;
 class UTransformProxy;
 class UPreviewMesh;
-class UBaseDynamicMeshComponent;
+
+
+/** Mesh Sculpting Brush Types */
+UENUM()
+enum class EMeshSculptFalloffType : uint8
+{
+	Smooth,
+	Linear,
+	Inverse,
+	Round,
+	BoxSmooth,
+	BoxLinear,
+	BoxInverse,
+	BoxRound,
+
+	LastValue UMETA(Hidden)
+};
+
+
+
 
 
 UCLASS()
@@ -30,12 +50,20 @@ public:
 	}
 
 	/** Depth of Brush into surface along view ray or surface normal, depending on the Active Brush Type */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0", DisplayPriority = 5))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0", DisplayPriority = 5, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowPerBrushProps"))
 	float Depth = 0;
 
 	/** Allow the Brush to hit the back-side of the mesh */
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayPriority = 6))
 	bool bHitBackFaces = true;
+
+
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 7))
+	float Lazyness = 0;
+
+	/**  */
+	UPROPERTY( meta = (TransientToolProperty))
+	bool bShowPerBrushProps = true;
 };
 
 
@@ -64,27 +92,6 @@ public:
 	int BrushSteps = 3;
 };
 
-
-
-UENUM()
-enum class EPlaneBrushSideMode : uint8
-{
-	BothSides = 0,
-	PushDown = 1,
-	PullTowards = 2
-};
-
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UPlaneBrushProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-public:
-	/** Control whether effect of brush should be limited to one side of the Plane  */
-	UPROPERTY(EditAnywhere, Category = PlaneBrush)
-	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
-};
 
 
 
@@ -149,26 +156,103 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
+	// UMeshSurfacePointTool API
+	virtual bool HitTest(const FRay& Ray, FHitResult& OutHit) override;
+	virtual void OnBeginDrag(const FRay& Ray) override;
+	virtual void OnUpdateDrag(const FRay& Ray) override;
+	virtual void OnEndDrag(const FRay& Ray) override;
+	// end UMeshSurfacePointTool API
+
 protected:
 	virtual void OnTick(float DeltaTime) override;
+
+	
+	virtual void OnCompleteSetup();
+	virtual void OnBeginStroke(const FRay& WorldRay) { check(false); }
+	virtual void OnEndStroke() { check(false); }
+
+public:
+	/** Properties that control brush size/etc */
+	UPROPERTY()
+	USculptBrushProperties* BrushProperties;
+
+	/** Properties for 3D workplane / gizmo */
+	UPROPERTY()
+	UWorkPlaneProperties* GizmoProperties;
+
 
 protected:
 	UWorld* TargetWorld;		// required to spawn UPreviewMesh/etc
 	FViewCameraState CameraState;
+
+	/** Initial transformation on target mesh */
+	FTransform3d InitialTargetTransform;
+	/** Active transformation on target mesh, includes baked scale */
+	FTransform3d CurTargetTransform;
+
+	FRay3d GetLocalRay(const FRay& WorldRay) const;
+
 
 	/**
 	 * Subclass must implement this and return relevant rendering component
 	 */
 	virtual UBaseDynamicMeshComponent* GetSculptMeshComponent() { check(false); return nullptr; }
 
+	virtual FDynamicMesh3* GetSculptMesh() { return GetSculptMeshComponent()->GetMesh(); }
+	virtual const FDynamicMesh3* GetSculptMesh() const { return const_cast<UMeshSculptToolBase*>(this)->GetSculptMeshComponent()->GetMesh(); }
 
-public:
-	/** Properties that control brush size/etc*/
+	virtual FDynamicMesh3* GetBaseMesh() { check(false); return nullptr; }
+	virtual const FDynamicMesh3* GetBaseMesh() const { check(false); return nullptr; }
+
+
+	/**
+	 * Subclass calls this to set up editing component
+	 */
+	void InitializeSculptMeshComponent(UBaseDynamicMeshComponent* Component);
+
+
+
+	//
+	// Brush Types
+	//
+protected:
 	UPROPERTY()
-	USculptBrushProperties* BrushProperties;
+	TMap<int32, UMeshSculptBrushOpProps*> BrushOpPropSets;
+
+	TMap<int32, TUniquePtr<FMeshSculptBrushOpFactory>> BrushOpFactories;
 
 	UPROPERTY()
-	UWorkPlaneProperties* GizmoProperties;
+	TMap<int32, UMeshSculptBrushOpProps*> SecondaryBrushOpPropSets;
+
+	TMap<int32, TUniquePtr<FMeshSculptBrushOpFactory>> SecondaryBrushOpFactories;
+
+	void RegisterBrushType(int32 Identifier, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet);
+	void RegisterSecondaryBrushType(int32 Identifier, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet);
+
+	virtual void SaveAllBrushTypeProperties(UInteractiveTool* SaveFromTool);
+	virtual void RestoreAllBrushTypeProperties(UInteractiveTool* RestoreToTool);
+
+private:
+	TUniquePtr<FMeshSculptBrushOp> PrimaryBrushOp;
+	UMeshSculptBrushOpProps* PrimaryVisiblePropSet = nullptr;		// BrushOpPropSets prevents GC of this
+
+	TUniquePtr<FMeshSculptBrushOp> SecondaryBrushOp;
+	UMeshSculptBrushOpProps* SecondaryVisiblePropSet = nullptr;
+protected:
+	void SetActivePrimaryBrushType(int32 Identifier);
+	void SetActiveSecondaryBrushType(int32 Identifier);
+	TUniquePtr<FMeshSculptBrushOp>& GetActiveBrushOp();
+
+
+	//
+	// Falloff types
+	//
+private:
+	TSharedPtr<FMeshSculptFallofFunc> PrimaryFalloff;
+protected:
+	void SetPrimaryFalloffType(EMeshSculptFalloffType Falloff);
+
+
 
 
 	//
@@ -176,21 +260,25 @@ public:
 	//
 protected:
 	FInterval1d BrushRelativeSizeRange;
-	double CurrentBrushRadius;
+	double CurrentBrushRadius = 1.0;
 	virtual void InitializeBrushSizeRange(const FAxisAlignedBox3d& TargetBounds);
 	virtual void CalculateBrushRadius();
 	virtual double GetCurrentBrushRadius() const { return CurrentBrushRadius; }
 
+	double CurrentBrushFalloff = 0.5;
+	virtual double GetCurrentBrushFalloff() const { return CurrentBrushFalloff; }
+
 	double ActivePressure = 1.0;
 	virtual double GetActivePressure() const { return ActivePressure; }
+
+	virtual double GetCurrentBrushStrength();
+	virtual double GetCurrentBrushDepth();
 
 public:
 	virtual void IncreaseBrushRadiusAction();
 	virtual void DecreaseBrushRadiusAction();
 	virtual void IncreaseBrushRadiusSmallStepAction();
 	virtual void DecreaseBrushRadiusSmallStepAction();
-	virtual void IncreaseBrushFalloffAction();
-	virtual void DecreaseBrushFalloffAction();
 
 
 	// client currently needs to implement these...
@@ -200,16 +288,89 @@ public:
 	virtual void PreviousBrushModeAction() {}
 
 
+
+	//
+	// Brush/Stroke stuff
+	//
+private:
+	FFrame3d LastBrushFrameWorld;
+	FFrame3d LastBrushFrameLocal;
+protected:
+	const FFrame3d& GetBrushFrameWorld() const { return LastBrushFrameWorld; }
+	const FFrame3d& GetBrushFrameLocal() const { return LastBrushFrameLocal; }
+	void UpdateBrushFrameWorld(const FVector3d& NewPosition, const FVector3d& NewNormal);
+	void AlignBrushToView();
+
+	bool GetBrushCanHitBackFaces() const { return BrushProperties->bHitBackFaces; }
+
+	/** @return hit triangle at ray position - subclass must implement this */
+	virtual int32 FindHitSculptMeshTriangle(const FRay3d& LocalRay) { check(false); return IndexConstants::InvalidID; }
+	/** @return hit triangle at ray position - subclass should implement this for most brushes */
+	virtual int32 FindHitTargetMeshTriangle(const FRay3d& LocalRay) { check(false); return IndexConstants::InvalidID;	}
+
+	virtual bool UpdateBrushPositionOnActivePlane(const FRay& WorldRay);
+	virtual bool UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, bool bFallbackToViewPlane);
+	virtual bool UpdateBrushPositionOnSculptMesh(const FRay& WorldRay, bool bFallbackToViewPlane);
+
+
+
+	//
+	// Brush Target Plane is plane that some brushes move on
+	//
+private:
+	FFrame3d ActiveBrushTargetPlaneWorld;
+protected:
+	void UpdateBrushTargetPlaneFromHit(const FRay& WorldRay, const FHitResult& Hit);
+
+
+	//
+	// Stroke Modifiers
+	//
+private:
+	bool bInStroke = false;
+	bool bSmoothing = false;
+	bool bInvert = false;
+protected:
+	void SaveActiveStrokeModifiers();
+	bool InStroke() const { return bInStroke; }
+	bool GetInSmoothingStroke() const { return bSmoothing; }
+	bool GetInInvertStroke() const { return bInvert; }
+
+	void ApplyStrokeFlowInTick();
+
 	//
 	// Stamps
 	//
+private:
+	bool bIsStampPending = false;
+	FRay PendingStampRay;
 protected:
 	FSculptBrushStamp HoverStamp;
 	FSculptBrushStamp CurrentStamp;
 	FSculptBrushStamp LastStamp;
-	void UpdateHoverStamp(const FVector3d& WorldPos, const FVector3d& WorldNormal);
+	void UpdateHoverStamp(const FFrame3d& StampFrame);
+	bool IsStampPending() const { return bIsStampPending; }
+	const FRay& GetPendingStampRayWorld() const { return PendingStampRay;  }
 
 
+	//
+	// Stamp ROI Plane is a plane used by some brush ops
+	//
+private:
+	FFrame3d StampRegionPlane;
+protected:
+	virtual FFrame3d ComputeStampRegionPlane(const FFrame3d& StampFrame, const TSet<int32>& StampTriangles, bool bIgnoreDepth, bool bViewAligned, bool bInvDistFalloff = true);
+
+
+	// Stroke plane is a plane used by some brush ops
+	//
+private:
+	FFrame3d StrokePlane;
+protected:
+	virtual const FFrame3d& GetCurrentStrokeReferencePlane() const { return StrokePlane; }
+
+	virtual void UpdateStrokeReferencePlaneForROI(const FFrame3d& StampFrame, const TSet<int32>& TriangleROI, bool bViewAligned);
+	virtual void UpdateStrokeReferencePlaneFromWorkPlane();
 
 
 	//
