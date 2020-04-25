@@ -15,7 +15,15 @@
 
 IMPLEMENT_HIT_PROXY(HWidgetAxis, HHitProxy);
 
-static const float INNER_AXIS_CIRCLE_RADIUS = 48.0f;
+constexpr float FWidget::AXIS_LENGTH;
+constexpr float FWidget::TRANSLATE_ROTATE_AXIS_CIRCLE_RADIUS;
+constexpr float FWidget::TWOD_AXIS_CIRCLE_RADIUS;
+constexpr float FWidget::INNER_AXIS_CIRCLE_RADIUS;
+constexpr float FWidget::OUTER_AXIS_CIRCLE_RADIUS;
+constexpr float FWidget::ROTATION_TEXT_RADIUS;
+constexpr int32 FWidget::AXIS_CIRCLE_SIDES;
+constexpr float FWidget::ARCALL_RELATIVE_INNER_SIZE;
+constexpr float FWidget::AXIS_LENGTH_SCALE_OFFSET;
 
 FWidget::FWidget()
 {

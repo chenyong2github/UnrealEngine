@@ -27,6 +27,16 @@ enum ECoordSystem
 class FWidget : public FGCObject
 {
 public:
+	constexpr static float AXIS_LENGTH                         = 35.0f;
+	constexpr static float TRANSLATE_ROTATE_AXIS_CIRCLE_RADIUS = 20.0f;
+	constexpr static float TWOD_AXIS_CIRCLE_RADIUS             = 10.0f;
+	constexpr static float INNER_AXIS_CIRCLE_RADIUS            = 48.0f;
+	constexpr static float OUTER_AXIS_CIRCLE_RADIUS            = 56.0f;
+	constexpr static float ROTATION_TEXT_RADIUS                = 75.0f;
+	constexpr static int32 AXIS_CIRCLE_SIDES                   = 24;
+	constexpr static float ARCALL_RELATIVE_INNER_SIZE          = 0.75f;
+	constexpr static float AXIS_LENGTH_SCALE_OFFSET            = 5.0f;
+
 	enum EWidgetMode
 	{
 		WM_None = -1,
