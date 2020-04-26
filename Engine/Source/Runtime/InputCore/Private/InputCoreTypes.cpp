@@ -15,6 +15,7 @@ const FKey EKeys::AnyKey("AnyKey");
 
 const FKey EKeys::MouseX("MouseX");
 const FKey EKeys::MouseY("MouseY");
+const FKey EKeys::Mouse2D("Mouse2D");
 const FKey EKeys::MouseScrollUp("MouseScrollUp");
 const FKey EKeys::MouseScrollDown("MouseScrollDown");
 const FKey EKeys::MouseWheelAxis("MouseWheelAxis");
@@ -548,6 +549,7 @@ void EKeys::Initialize()
 
 	AddKey(FKeyDetails(EKeys::MouseX, LOCTEXT("MouseX", "Mouse X"), FKeyDetails::Axis1D | FKeyDetails::MouseButton | FKeyDetails::UpdateAxisWithoutSamples));
 	AddKey(FKeyDetails(EKeys::MouseY, LOCTEXT("MouseY", "Mouse Y"), FKeyDetails::Axis1D | FKeyDetails::MouseButton | FKeyDetails::UpdateAxisWithoutSamples));
+	AddPairedKey(FKeyDetails(EKeys::Mouse2D, LOCTEXT("Mouse2D", "Mouse XY 2D-Axis"), FKeyDetails::Axis2D | FKeyDetails::MouseButton | FKeyDetails::UpdateAxisWithoutSamples), EKeys::MouseX, EKeys::MouseY);
 	AddKey(FKeyDetails(EKeys::MouseWheelAxis, LOCTEXT("MouseWheelAxis", "Mouse Wheel Axis"), FKeyDetails::Axis1D | FKeyDetails::MouseButton | FKeyDetails::UpdateAxisWithoutSamples));
 	AddKey(FKeyDetails(EKeys::MouseScrollUp, LOCTEXT("MouseScrollUp", "Mouse Wheel Up"), FKeyDetails::MouseButton | FKeyDetails::ButtonAxis));
 	AddKey(FKeyDetails(EKeys::MouseScrollDown, LOCTEXT("MouseScrollDown", "Mouse Wheel Down"), FKeyDetails::MouseButton | FKeyDetails::ButtonAxis));

@@ -271,6 +271,7 @@ struct INPUTCORE_API EKeys
 
 	static const FKey MouseX;
 	static const FKey MouseY;
+	static const FKey Mouse2D;
 	static const FKey MouseScrollUp;
 	static const FKey MouseScrollDown;
 	static const FKey MouseWheelAxis;
