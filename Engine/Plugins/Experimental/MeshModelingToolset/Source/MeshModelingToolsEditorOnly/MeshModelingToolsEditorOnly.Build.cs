@@ -33,7 +33,6 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"DynamicMesh",
 				"MeshConversion",
 				"MeshModelingTools",
-                "MeshSolverUtilities",
 				"ModelingComponents",
 				"ModelingOperators",
 				"ModelingOperatorsEditorOnly",
