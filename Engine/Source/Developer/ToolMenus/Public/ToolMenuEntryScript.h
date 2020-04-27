@@ -158,6 +158,7 @@ private:
 
 	friend struct FToolMenuSection;
 	friend class UToolMenus;
+	friend class FPopulateMenuBuilderWithToolMenuEntry;
 
 	TAttribute<FText> CreateLabelAttribute(FToolMenuContext& Context);
 
