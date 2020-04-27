@@ -146,6 +146,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
+#include "LandscapeSubsystem.h"
 #endif
 // @todo this is here only due to circular dependency to AIModule. To be removed
 
@@ -9984,6 +9985,19 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 		}
 #endif
 	}
+
+#if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+	{
+		if (int32 OutdatedGrassMapCount = LandscapeSubsystem->GetOutdatedGrassMapCount())
+		{
+			SmallTextItem.SetColor(FLinearColor::Red);
+			SmallTextItem.Text = FText::Format(LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "GRASS MAPS NEED TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), OutdatedGrassMapCount);
+			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+			MessageY += FontSizeY;
+		}
+	}
+#endif
 
 	if (World->NumTextureStreamingUnbuiltComponents > 0 || World->NumTextureStreamingDirtyResources > 0)
 	{
