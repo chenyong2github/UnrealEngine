@@ -569,6 +569,7 @@ void FNiagaraStaticSwitchNodeDetails::OnParameterNameCommited(const FText& InTex
 	if (Node.IsValid())
 	{
 		Node->ChangeSwitchParameterName(FName(*InText.ToString()));
+		Node->GetNiagaraGraph()->NotifyGraphNeedsRecompile();
 	}
 }
 
