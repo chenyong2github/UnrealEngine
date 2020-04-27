@@ -85,6 +85,7 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
+	Concrete.SetResimType(EResimType::FullSim);
 }
 
 template <typename T, int d>
@@ -109,6 +110,7 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
 	Concrete.ClearEvents();
 	Concrete.SetInitialized(false);
+	Concrete.SetResimType(EResimType::FullSim);
 }
 
 
@@ -757,6 +759,7 @@ public:
 		SetAngularEtherDrag(DynamicMisc.AngularEtherDrag());
 		SetCollisionGroup(DynamicMisc.CollisionGroup());
 		SetGravityEnabled(DynamicMisc.GravityEnabled());
+		SetResimType(DynamicMisc.ResimType());
 	}
 
 	const PMatrix<T, d, d>& I() const { return PBDRigidParticles->I(ParticleIdx); }
@@ -812,6 +815,12 @@ public:
 	bool GravityEnabled() const { return PBDRigidParticles->GravityEnabled(ParticleIdx); }
 
 	void SetGravityEnabled(bool bEnabled){ PBDRigidParticles->GravityEnabled(ParticleIdx) = bEnabled; }
+
+	EResimType ResimType() const { return PBDRigidParticles->ResimType(ParticleIdx);}
+
+	void SetResimType(EResimType ResimType){ PBDRigidParticles->ResimType(ParticleIdx) = ResimType; }
+
+
 
 	static constexpr EParticleType StaticType() { return EParticleType::Rigid; }
 };
@@ -1594,7 +1603,7 @@ public:
 	const FShapesArray& ShapesArray() const { return MShapesArray; }
 
 	EObjectStateType ObjectState() const;
-	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false);
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate=true);
 
 	EParticleType ObjectType() const
 	{
@@ -2046,6 +2055,16 @@ public:
 		this->MInitialized = InInitialized;
 	}
 
+	void SetResimType(EResimType ResimType)
+	{
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[ResimType](auto& Data){ Data.SetResimType(ResimType);});
+	}
+
+	EResimType ResimType() const
+	{
+		return MMiscData.Read().ResimType();
+	}
+
 	const TVector<T, d>& F() const { return MDynamics.Read().F(); }
 	void SetF(const TVector<T, d>& InF, bool bInvalidate = true)
 	{
@@ -2164,7 +2183,7 @@ public:
 	}
 
 	EObjectStateType ObjectState() const { return MMiscData.Read().ObjectState(); }
-	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false)
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate=true)
 	{
 		if (bAllowEvents && ObjectState() != EObjectStateType::Dynamic && InState == EObjectStateType::Dynamic)
 		{
@@ -2175,8 +2194,8 @@ public:
 		{
 			// When an object is forced into a sleep state, the velocities must be zeroed and buffered,
 			// in case the velocity is queried during sleep, or in case the object is woken up again.
-			this->SetV(FVec3(0.f), true);
-			this->SetW(FVec3(0.f), true);
+			this->SetV(FVec3(0.f), bInvalidate);
+			this->SetW(FVec3(0.f), bInvalidate);
 
 			// Dynamic particle properties must be marked clean in order not to actually apply forces which
 			// have been buffered. If another force is added after the object is put to sleep, the old forces
@@ -2185,7 +2204,7 @@ public:
 			MDirtyFlags.MarkClean(ParticlePropToFlag(EParticleProperty::Dynamics));
 		}
 
-		MMiscData.Modify(true,MDirtyFlags,Proxy,[&InState](auto& Data){ Data.SetObjectState(InState);});
+		MMiscData.Modify(bInvalidate,MDirtyFlags,Proxy,[&InState](auto& Data){ Data.SetObjectState(InState);});
 
 	}
 
@@ -2409,12 +2428,12 @@ const TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::CastToRigidParticle()  c
 }
 
 template <typename T, int d>
-void TGeometryParticle<T, d>::SetObjectState(const EObjectStateType InState, bool bAllowEvents)
+void TGeometryParticle<T, d>::SetObjectState(const EObjectStateType InState, bool bAllowEvents, bool bInvalidate)
 {
 	TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
 	if (Dyn)
 	{
-		Dyn->SetObjectState(InState, bAllowEvents);
+		Dyn->SetObjectState(InState, bAllowEvents, bInvalidate);
 	}
 }
 
