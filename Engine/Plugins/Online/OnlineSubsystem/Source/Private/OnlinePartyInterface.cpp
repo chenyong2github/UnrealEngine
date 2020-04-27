@@ -541,6 +541,10 @@ const TCHAR* ToString(const EJoinPartyCompletionResult Value)
 	{
 		return TEXT("GameSpecificReason");
 	}
+	case EJoinPartyCompletionResult::MismatchedApp:
+	{
+		return TEXT("MismatchedApp");
+	}
 	case EJoinPartyCompletionResult::Succeeded:
 	{
 		return TEXT("Succeeded");
