@@ -43,15 +43,6 @@ namespace UnrealBuildTool.Rules
 					}
 				);
 			}
-			else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-			{
-				PrivateDependencyModuleNames.AddRange(
-					new string[]
-					{
-						"ApplicationCore"
-					}
-				);
-			}
 		}
 	}
 }
