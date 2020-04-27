@@ -6563,10 +6563,9 @@ void FHeaderParser::CompileInterfaceDeclaration(FClasses& AllClasses)
 	}
 
 	// Try parsing metadata for the interface
-	FClassMetaData* ClassData = GScriptHelper.AddClassData(InterfaceClass, CurrentSrcFile);
+	FClassMetaData* ClassData = GScriptHelper.AddInterfaceClassData(InterfaceClass, CurrentSrcFile);
 	check(ClassData);
 
-	ClassData->ParsedInterface = EParsedInterface::ParsedUInterface;
 	ClassData->SetPrologLine(PrologFinishLine);
 
 	// Register the metadata
