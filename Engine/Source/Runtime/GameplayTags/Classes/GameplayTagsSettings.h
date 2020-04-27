@@ -128,7 +128,7 @@ class GAMEPLAYTAGS_API UGameplayTagsSettings : public UGameplayTagsList
 	bool ImportTagsFromConfig;
 
 	/** If true, will give load warnings when reading in saved tag references that are not in the dictionary */
-	UPROPERTY(config, EditAnywhere, Category = GameplayTags)
+	UPROPERTY(config, EditAnywhere, Category = GameplayTags, meta = (ConfigRestartRequired = true))
 	bool WarnOnInvalidTags;
 
 	/** If true, will replicate gameplay tags by index instead of name. For this to work, tags must be identical on client and server */
@@ -148,7 +148,7 @@ class GAMEPLAYTAGS_API UGameplayTagsSettings : public UGameplayTagsList
 	TArray<FSoftObjectPath> GameplayTagTableList;
 
 	/** List of active tag redirects */
-	UPROPERTY(config, EditAnywhere, Category = GameplayTags)
+	UPROPERTY(config, EditAnywhere, Category = GameplayTags, meta = (ConfigRestartRequired = true))
 	TArray<FGameplayTagRedirect> GameplayTagRedirects;
 
 	/** List of most frequently replicated tags */
