@@ -60,8 +60,8 @@ float GRenderingThreadMaxIdleTickFrequency = 40.f;
  * RT Task Graph polling.
  */
 
-extern TAtomic<bool> GDoRenderThreadWakeupTrigger;
-extern int32 GRenderThreadPollPeriodMs;
+extern CORE_API TAtomic<bool> GDoRenderThreadWakeupTrigger;
+extern CORE_API int32 GRenderThreadPollPeriodMs;
 
 static void OnRenderThreadPollPeriodMsChanged(IConsoleVariable* Var)
 {
