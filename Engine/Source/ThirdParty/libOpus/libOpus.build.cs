@@ -118,7 +118,8 @@ public class libOpus : ModuleRules
 			string[] Architectures = new string[] {
 				"ARMv7",
 				"ARM64",
-				"x64",
+				"x86",
+				"x64"
 			};
 
 			foreach(string Architecture in Architectures)
