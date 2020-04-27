@@ -29,6 +29,7 @@ class Client(msgpackrpc.Client):
         #self._restart = lambda: self.__init__(server_address, server_port, **kwargs)
 
     def ensure_connection(self):
+        logger.info('attempting connection at at port {}:{}'.format(self.address.host, self.address.port))
         try:
             self.call(Client.FUNCNAME_PING)
         except TransportError as e:

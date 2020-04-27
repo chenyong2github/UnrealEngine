@@ -11,6 +11,7 @@ from .client import Client
 from .runner import UE4Runner
 from .utils import LOCALHOST, DEFAULT_PORT
 from .error import FailedToLaunch, NotConnected
+from .error import ReconnectionLimitReached, UE4InstanceNoLongerRunning, ConnectionTimeoutError, UnableToReachRPCServer
 
 INVALID_ID = 4294967295  # uint32(-1)
 
@@ -61,7 +62,6 @@ class UnrealEnv(gym.Env):
             agent_config = self.__class__.default_agent_config()
 
         self.__agent_config = agent_config
-        logger.info('attempting connection at at port {}:{}'.format(server_address, server_port))
         self.__rpc_client = Client(server_address, server_port, timeout)
         server_port = self.__rpc_client.address.port
         self._debug_id = server_port
@@ -90,7 +90,13 @@ class UnrealEnv(gym.Env):
     def connect(self, reacquire=True):
         # if this takes too long it's possible there's a dangling server instance that failed to shutdown (i.e. it's
         # not the one you're trying to connect). Try using a different port.
-        self.__rpc_client.ensure_connection()
+        try:
+            self.__rpc_client.ensure_connection()
+        except (ReconnectionLimitReached, ConnectionTimeoutError):
+            if self.__engine_process and self.__engine_process.poll() is not None:
+                raise UE4InstanceNoLongerRunning
+            raise UnableToReachRPCServer
+        
         self.__rpc_client.add_functions()
         self.name = self.__rpc_client.get_name().decode('utf-8')
         logger.info('connected to {} at port {}'.format(self.name, self.__server_port))
