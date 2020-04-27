@@ -32,6 +32,7 @@ public:
 		, BytecodeIndex(InBytecodeIndex)
 		, Container(InContainer)
 	{
+		ArIsFilterEditorOnly = InnerArchive.ArIsFilterEditorOnly;
 	}
 	virtual FArchive& operator<<(FField*& Value) override
 	{
