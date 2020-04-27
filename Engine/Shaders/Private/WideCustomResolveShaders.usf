@@ -8,8 +8,6 @@
 
 #ifdef OVERRIDE_WIDECUSTOMRESOLVESHADERS_USH
 # include "/Platform/Private/WideCustomResolveShaders.ush"
-#elif PS4_PROFILE
-# include "Platform/PS4/WideCustomResolveShaders.ush"
 #else
 
 float2 ResolveOrigin;
