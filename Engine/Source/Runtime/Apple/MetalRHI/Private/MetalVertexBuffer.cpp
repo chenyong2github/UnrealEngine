@@ -13,17 +13,6 @@
 #include "MetalLLM.h"
 #include <objc/runtime.h>
 
-#if PLATFORM_IOS
-int32 GMetalForceIOSLockBlits = 1;
-#else
-int32 GMetalForceIOSLockBlits = 0;
-#endif
-FAutoConsoleVariableRef CVarMetalForceIOSLockBlits(
-														TEXT("rhi.Metal.ForceIOSLockBlits"),
-														GMetalForceIOSLockBlits,
-														TEXT("If true, WriteOnly Buffer Lock() to blit instead of renaming"),
-														ECVF_RenderThreadSafe);
-
 #if STATS
 #define METAL_INC_DWORD_STAT_BY(Type, Name, Size) \
 	switch(Type)	{ \
@@ -508,11 +497,10 @@ void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uin
 			Buffer = nil;
 		}
 	}
-
+	
 	// When writing to a private buffer, make sure that we can perform an async copy so we don't introduce order of operation bugs
 	// When we can't we have to reallocate the backing store
-	if (!GMetalForceIOSLockBlits &&
-		LockMode != RLM_ReadOnly &&
+	if (LockMode != RLM_ReadOnly &&
 		Mode == mtlpp::StorageMode::Private &&
 		Buffer)
 	{
