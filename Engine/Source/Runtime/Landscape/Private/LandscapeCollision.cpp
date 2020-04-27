@@ -1720,7 +1720,8 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 
 				TArray<int32> InstancesToRemove;
 				TSet<UHierarchicalInstancedStaticMeshComponent*> AffectedFoliageComponents;
-
+				
+				bool bIsMeshInfoDirty = false;
 				for (int32 InstanceIndex : *InstanceSet)
 				{
 					FFoliageInstance& Instance = MeshInfo.Instances[InstanceIndex];
@@ -1750,6 +1751,8 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 								if ((TestLocation - Hit.Location).SizeSquared() > KINDA_SMALL_NUMBER)
 								{
 									IFA->Modify();
+
+									bIsMeshInfoDirty = true;
 
 									// Remove instance location from the hash. Do not need to update ComponentHash as we re-add below.
 									MeshInfo.InstanceHash->RemoveInstance(Instance.Location, InstanceIndex);
@@ -1784,13 +1787,13 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 						{
 							// Couldn't find new spot - remove instance
 							InstancesToRemove.Add(InstanceIndex);
+							bIsMeshInfoDirty = true;
 						}
 
-						if (MeshInfo.GetComponent() != nullptr)
+						if (bIsMeshInfoDirty && (MeshInfo.GetComponent() != nullptr))
 						{
 							AffectedFoliageComponents.Add(MeshInfo.GetComponent());
 						}
-						
 					}
 				}
 
