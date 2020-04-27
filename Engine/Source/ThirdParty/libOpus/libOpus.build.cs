@@ -127,15 +127,5 @@ public class libOpus : ModuleRules
 				PublicAdditionalLibraries.Add(LibraryPath + "Android/" + Architecture + "/libspeex_resampler.a");
 			}
 		}
-        else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-        {
-            LibraryPath += "XboxOne/VS2015/Release/";
-
-            PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
-            PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
-            PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
-            PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
-            PublicAdditionalLibraries.Add(LibraryPath + "speex_resampler.lib");
-        }
     }
 }

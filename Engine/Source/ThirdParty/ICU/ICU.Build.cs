@@ -24,7 +24,6 @@ public class ICU : ModuleRules
 				Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64 ||
-				Target.Platform == UnrealTargetPlatform.XboxOne ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
@@ -171,20 +170,6 @@ public class ICU : ModuleRules
 		{
 			string ICULibName = UseDebugLibs ? "libicud_fPIC.a" : "libicu_fPIC.a";
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, Target.Architecture, ICULibName));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			// Use reflection to allow type not to exist if console code is not present
-			System.Type XboxOnePlatformType = System.Type.GetType("UnrealBuildTool.XboxOnePlatform,UnrealBuildTool");
-			if (XboxOnePlatformType != null)
-			{
-				string VersionName = "VS" + (XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null)).ToString();
-				PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, VersionName, UseDebugLibs ? "Debug" : "Release", "icu.lib"));
-			}
-
-			// Definitions
-			PublicDefinitions.Add("ICU_NO_USER_DATA_OVERRIDE=1");
-			PublicDefinitions.Add("U_PLATFORM=U_PF_DURANGO");
 		}
 
 		// DLL Definitions

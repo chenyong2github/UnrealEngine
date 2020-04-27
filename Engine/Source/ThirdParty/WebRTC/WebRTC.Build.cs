@@ -6,6 +6,17 @@ using System;
 
 public class WebRTC : ModuleRules
 {
+	protected virtual bool bShouldUseWebRTC
+	{
+		get
+		{
+			return Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Mac ||
+				(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"));
+		}
+	}
+
+	protected string ConfigPath { get { return (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release"; } }
+
 	public WebRTC(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
@@ -31,10 +42,8 @@ public class WebRTC : ModuleRules
 		if (bShouldUseWebRTC)
 		{
 			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/rev.24472"; // Revision 24472 is Release 70
-			string VS2013Friendly_WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/VS2013_friendly";
 
 			string PlatformSubdir = Target.Platform.ToString();
-			string ConfigPath = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" :"Release";
 
 			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 			{
@@ -97,24 +106,6 @@ public class WebRTC : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libprotoc_lib.a"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libsystem_wrappers.a"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libwebrtc.a"));
-			}
-			else if (Target.Platform == UnrealTargetPlatform.PS4)
-			{
-				PublicDefinitions.Add("WEBRTC_ORBIS");
-				PublicDefinitions.Add("FEATURE_ENABLE_SSL");
-				PublicDefinitions.Add("SSL_USE_OPENSSL");
-				PublicDefinitions.Add("EXPAT_RELATIVE_PATH");
-
-				string IncludePath = Path.Combine(VS2013Friendly_WebRtcSdkPath, "include", PlatformSubdir);
-				PublicSystemIncludePaths.Add(IncludePath);
-
-				string LibraryPath = Path.Combine(VS2013Friendly_WebRtcSdkPath, "lib", PlatformSubdir, ConfigPath);
-
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "rtc_base.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "rtc_base_approved.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "rtc_xmllite.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "rtc_xmpp.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "expat.a"));
 			}
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
