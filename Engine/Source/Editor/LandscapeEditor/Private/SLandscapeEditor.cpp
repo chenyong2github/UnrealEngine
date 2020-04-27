@@ -208,6 +208,7 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		ToolBarBuilder.AddToolBarButton(Commands.AddComponentTool);
 		ToolBarBuilder.AddToolBarButton(Commands.DeleteComponentTool);
 		ToolBarBuilder.AddToolBarButton(Commands.MoveToLevelTool);
+		ToolBarBuilder.AddToolBarButton(Commands.ResizeLandscape);
 
 		ToolBarBuilder.AddSeparator();	
 		ToolBarBuilder.AddToolBarButton(Commands.SplineTool);

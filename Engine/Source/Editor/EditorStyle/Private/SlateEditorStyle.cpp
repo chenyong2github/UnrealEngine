@@ -7159,10 +7159,11 @@ void FSlateEditorStyle::FStyle::SetupLandscapeEditorStyle()
 		else
 		{
 			// Tools
-			Set("LandscapeEditor.NewLandscape",       			new IMAGE_BRUSH("Icons/Landscape/Landscape_NewLandscape_x40", 		Icon20x20));
+			Set("LandscapeEditor.NewLandscape",					new IMAGE_BRUSH("Icons/Landscape/Landscape_NewLandscape_x40",		Icon20x20));
 			Set("LandscapeEditor.NewLandscape.Small",       	new IMAGE_BRUSH("Icons/Landscape/Landscape_NewLandscape_x40", 		Icon20x20));
-			// Set("LandscapeEditor.ResizeLandscape		",      new IMAGE_BRUSH("Icons/Landscape/Landscape_Copy_x40", 			Icon40x40));
-			// Set("LandscapeEditor.ResizeLandscape.Small",     new IMAGE_BRUSH("Icons/Landscape/Landscape_Copy_x40", 			Icon40x40));
+			Set("LandscapeEditor.ResizeLandscape",				new IMAGE_BRUSH("Icons/Landscape/Landscape_Resize_x40",				Icon20x20));
+			Set("LandscapeEditor.ResizeLandscape.Small",		new IMAGE_BRUSH("Icons/Landscape/Landscape_Resize_x40",				Icon20x20));
+
 
 			Set("LandscapeEditor.SculptTool",       			new IMAGE_BRUSH("Icons/Landscape/Landscape_Sculpt_x40",            Icon20x20));
 			Set("LandscapeEditor.SculptTool.Small",       		new IMAGE_BRUSH("Icons/Landscape/Landscape_Sculpt_x40",            Icon20x20));
