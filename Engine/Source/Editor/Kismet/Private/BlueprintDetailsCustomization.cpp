@@ -2868,8 +2868,11 @@ void FBlueprintGraphArgumentLayout::GenerateChildContent( IDetailChildrenBuilder
 		UEdGraphPin* FoundPin = GetPin();
 		if (FoundPin)
 		{
-			// Certain types are outlawed at the compiler level
-			const bool bTypeWithNoDefaults = (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object) || (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class) || (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface) || UEdGraphSchema_K2::IsExecPin(*FoundPin);
+			// Certain types are outlawed at the compiler level, or to keep consistency with variable rules for actors
+			const UClass* ClassObject = Cast<UClass>(FoundPin->PinType.PinSubCategoryObject.Get());
+			const bool bTypeWithNoDefaults = (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object) || (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class) || (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface) 
+				|| (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject && ClassObject && ClassObject->IsChildOf(AActor::StaticClass()))
+				|| UEdGraphSchema_K2::IsExecPin(*FoundPin);
 
 			if (!FoundPin->PinType.bIsReference && !bTypeWithNoDefaults)
 			{
