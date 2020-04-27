@@ -14,7 +14,262 @@
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
 
+// WAT
+#include "DynamicMesh/Private/Solvers/Internal/LaplacianMeshSmoother.h"
+#include "ModelingOperators/Public/ModelingTaskTypes.h"
+
+
 #define LOCTEXT_NAMESPACE "UDeformMeshPolygonsTool"
+
+
+class FDeformTask;
+
+
+
+//Stores per-vertex data needed by the laplacian deformer object
+//TODO: May be a candidate for a subclass of the FGroupTopologyLaplacianDeformer
+struct FDeformerVertexConstraintData
+{
+	FDeformerVertexConstraintData& operator=(const FDeformerVertexConstraintData& other)
+	{
+		Position = other.Position;
+		Weight = other.Weight;
+		bPostFix = other.bPostFix;
+		return *this;
+	}
+
+	FVector3d Position;
+	double Weight{ 0.0 };
+	bool bPostFix{ false };
+};
+
+/**
+*	FDeformTask is an object which wraps an asynchronous task to be run multiple times on a separate thread.
+*	The Laplacian deformation process requires the use of potentially large sparse matrices and sparse multiplication.
+*
+*   Expected usage:
+*
+*
+*   // define constraints.  Need Constraints[VertID] to hold the constraints for the corresponding vertex.
+*   TArray<FDeformerVertexConstraintData> Constraints;
+*   ....
+*
+*   // populate with the VertexIDs of the vertices that are in the region you wish to deform.
+*   TArray<int32> SrcVertIDs;  //Basically a mini-index buffer.
+*   ...
+*
+*   // Create or reuse a laplacian deformation task.
+*   FDeformTask*   DeformTask = New FDeformTask(WeightScheme);
+*
+*   // the deformer will have to build a new mesh that represents the regions in SrcVertIDs;
+*   // but set this to false on subsequent calls to UpdateDeformer if the SrcVertIDs array hasn't changed.
+*   bool bRequiresRegion = true;
+
+*   DefTask->UpdateDeformer(WeightScheme, Mesh, Constraints, SrcVertIDs, bRequiresRegion);
+*
+*   DeformTask->DoWork();  or DeformTask->StartBackgroundTask(); //which calls DoWork on background thread.
+*
+*  // wheh DeformTask->IsDone == true; you can copy the results back to the mesh
+*  DeformTask->ExportResults(Mesh);
+*
+* Note: if only the positions in the Constraints change (e.g. handle positions) then subsequent calls
+* to UpdateDeformer() and DoWork() will be much faster as the matrix system will not be rebuilt or re-factored
+*/
+class FConstrainedMeshDeformerTask : public FNonAbandonableTask
+{
+	friend class FAsyncTask<FDeformTask>;
+public:
+
+	enum
+	{
+		INACTIVE_SUBSET_ID = -1
+	};
+
+	FConstrainedMeshDeformerTask(const ELaplacianWeightScheme SelectedWeightScheme)
+	{
+		LaplacianWeightScheme = SelectedWeightScheme;
+	}
+
+	virtual ~FConstrainedMeshDeformerTask() {};
+
+	//NO idea what this is meant to do. Performance analysis maybe? Scheduling data?
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FConstrainedMeshDeformerTask, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+
+	/** Called by the main thread in the tool, this copies the Constraint buffer right before the task begins on another thread.
+	  * Ensures the FConstrainedMeshDeformer is using correct mesh subset and the selected settings, then updates on change in properties, i.e. weight scheme */
+	void UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme, const FDynamicMesh3& Mesh, const TArray<FDeformerVertexConstraintData>& ConstraintArray, const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction, const FRichCurve* Curve);
+
+	/** Required by the FAsyncTaskExecutor */
+	void SetAbortSource(bool* bAbort) { bAbortSource = bAbort; };
+
+	/** Called by the FAsyncTask<FDeformTask> object for background computation. */
+	void DoWork();
+
+
+	/** Updates the positions in the target mesh for regions that correspond to the subset mesh */
+	void ExportResults(FDynamicMesh3& TargetMesh) const;
+
+private:
+
+	/** Creates the mesh (i.e. SubsetMesh) that corresponds to the region of the SrcMesh defined by the partial index buffer SrcIDBufferSubset */
+	void InitializeSubsetMesh(const FDynamicMesh3& SrcMesh, const TArray<int32>& SrcIDBufferSubset);
+
+	/** Attenuates the weights of the constraints using the selected curve */
+	void ApplyAttenuation();
+
+	/** Denotes the weight scheme being used by the running background task. Changes when selected property changes in editor. */
+	ELaplacianWeightScheme LaplacianWeightScheme;
+
+	/** positions for each vertex in the subset mesh - for use in the deformer */
+	TArray<FVector3d> SubsetPositionBuffer;
+
+	/** constraint data for each vertex in subset mesh - for use by the deformer*/
+	TArray<FDeformerVertexConstraintData> SubsetConstraintBuffer;
+
+	FRichCurve WeightAttenuationCurve;
+
+	/** True only for the first update, and then false for the duration of the Input transaction
+	  * It's passed in and copied in UpdateDeformer() */
+	bool bIsNewTransaction = true;
+
+	/** When true, the constraint weights will be attenuated based on distance using the provided curve object*/
+	bool bAttenuateWeights = false;
+
+	/** The abort bool used by the Task Deleter */
+	bool* bAbortSource = nullptr;
+
+	/** Used to initialize the array mapping, updated during the UpdateDeformer() function */
+	int SrcMeshMaxVertexID;
+
+	/** A subset of the original mesh */
+	FDynamicMesh3 SubsetMesh;
+
+	/** Maps Subset Mesh VertexID to Src Mesh VertexID */
+	TArray<int32> SubsetVertexIDToSrcVertexIDMap;
+
+	/** Laplacian deformer object gets rebuilt each new transaction */
+	TUniquePtr<FConstrainedMeshDeformer> ConstrainedDeformer;
+
+private:
+	FConstrainedMeshDeformerTask();
+
+};
+
+class FGroupTopologyLaplacianDeformer : public FGroupTopologyDeformer
+{
+
+public:
+
+	FGroupTopologyLaplacianDeformer() = default;
+
+	virtual ~FGroupTopologyLaplacianDeformer();
+
+	/** Used to begin a procedural addition of modified vertices */
+	inline void ResetModifiedVertices()
+	{
+		ModifiedVertices.Empty();
+	};
+
+	/** Change tracking */
+	template <typename ValidSetAppendContainerType>
+	void RecordModifiedVertices(const ValidSetAppendContainerType& Container)
+	{
+		ModifiedVertices.Empty();
+		ModifiedVertices.Append(Container);
+	}
+
+	/** Used to iteratively add to the active change set (TSet<>)*/
+	inline void RecordModifiedVertex(int32 VertexID)
+	{
+		ModifiedVertices.Add(VertexID);
+	};
+
+
+	void SetActiveHandleFaces(const TArray<int>& FaceGroupIDs) override;
+	void SetActiveHandleEdges(const TArray<int>& TopologyEdgeIDs) override;
+	void SetActiveHandleCorners(const TArray<int>& TopologyCornerIDs) override;
+
+
+
+	/** Allocates shared storage for use in task synchronization */
+	void InitBackgroundWorker(const ELaplacianWeightScheme WeightScheme);
+
+
+	/** Coordinates the background tasks. Returns false if the worker was already running */
+	bool UpdateAndLaunchdWorker(const ELaplacianWeightScheme WeightScheme, const FRichCurve* Curve = nullptr);
+
+	/** Capture data about background task state.*/
+	bool IsTaskInFlight() const;
+
+
+
+	/** Sets the SrcMeshConstraintBuffer to have a size of MaxVertexID, and initializes with the current mesh positions, but weight zero*/
+	void InitializeConstraintBuffer();
+
+	/** Given an array of Group IDs, update the selection and record vertices */
+	void UpdateSelection(const FDynamicMesh3* TargetMesh, const TArray<int>& Groups, bool bLocalizeDeformation);
+
+	/** Updates the mesh preview and/or solvers upon user input, provided a deformation strategy */
+	void UpdateSolution(FDynamicMesh3* TargetMesh, const TFunction<FVector3d(FDynamicMesh3* Mesh, int)>& HandleVertexDeformFunc) override;
+
+	/** Updates the vertex positions of the mesh with the result from the last deformation solve. */
+	void ExportDeformedPositions(FDynamicMesh3* TargetMesh);
+
+	/** Returns true if the asynchronous task has finished. */
+	inline bool IsDone() { return AsyncMeshDeformTask == nullptr || AsyncMeshDeformTask->IsDone(); };
+
+	/** Triggers abort on task and passes off ownership to deleter object */
+	inline void Shutdown();
+
+	const TArray<FROIFace>& GetROIFaces() const { return ROIFaces; }
+
+	/** Stores the position of the vertex constraints and corresponding weights for the entire mesh.  This is used as a form of scratch space.*/
+	TArray<FDeformerVertexConstraintData> SrcMeshConstraintBuffer;
+
+	/** Array of vertex indices organized in groups of three - basically an index buffer - that defines the subset of the mesh that the deformation task will work on.*/
+	TArray<int32> SubsetIDBuffer;
+
+	/** Need to update the task with the current submesh */
+	bool bTaskSubmeshIsDirty = true;
+
+	/** Asynchronous task object. This object deals with expensive matrix functionality that computes the deformation of a local mesh. */
+	FAsyncTaskExecuterWithAbort<FConstrainedMeshDeformerTask>* AsyncMeshDeformTask = nullptr;
+
+
+	/** The weight which will be applied to the constraints corresponding to the handle vertices. */
+	double HandleWeights = 1.0;
+
+	/** This is set to true whenever the user interacts with the tool under laplacian deformation mode.
+	  * It is set to false immediately before beginning a background task and cannot be set to false again until the work is done. */
+	bool bDeformerNeedsToRun = false;
+
+
+	/** When true, tells the solver to attempt to postfix the actual position of the handles to the constrained position */
+	bool bPostfixHandles = false;
+
+	//This is set to false only after 
+	//	1) the asynchronous deformation task is complete
+	//	2) the main thread has seen it complete, and
+	//	3) the main thread updates the vertex positions of the mesh one last time
+	bool bVertexPositionsNeedSync = false;
+
+	bool bLocalize = true;
+
+};
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -609,6 +864,8 @@ void UDeformMeshPolygonsTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 
+	LaplacianDeformer = MakeShared<FGroupTopologyLaplacianDeformer>();
+
 	// create dynamic mesh component to use for live preview
 	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMesh");
 	DynamicMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
@@ -666,7 +923,7 @@ void UDeformMeshPolygonsTool::Setup()
 	// Allocates buffers, sets up the asynchronous task
 	// Copies the source mesh positions.
 	const ELaplacianWeightScheme LaplacianWeightScheme = ConvertToLaplacianWeightScheme(TransformProps->SelectedWeightScheme);
-	LaplacianDeformer.InitBackgroundWorker(LaplacianWeightScheme);
+	LaplacianDeformer->InitBackgroundWorker(LaplacianWeightScheme);
 	
 
 	/**
@@ -695,7 +952,7 @@ void UDeformMeshPolygonsTool::Setup()
 void UDeformMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	//Tell the background thread to cancel the rest of its jobs before we close;
-	LaplacianDeformer.Shutdown();
+	LaplacianDeformer->Shutdown();
 
 	if (DynamicMeshComponent != nullptr)
 	{
@@ -770,15 +1027,15 @@ void UDeformMeshPolygonsTool::OnDynamicMeshComponentChanged()
 	for (int VertexID : Mesh->VertexIndicesItr())
 	{
 		const FVector3d Position = Mesh->GetVertex(VertexID);
-		LaplacianDeformer.SrcMeshConstraintBuffer[VertexID].Position = Position;
+		LaplacianDeformer->SrcMeshConstraintBuffer[VertexID].Position = Position;
 	}
 
 	// a deform task could still be in flight.
-	if (LaplacianDeformer.AsyncMeshDeformTask != nullptr)
+	if (LaplacianDeformer->AsyncMeshDeformTask != nullptr)
 	{
-		LaplacianDeformer.AsyncMeshDeformTask->CancelAndDelete();
-		LaplacianDeformer.AsyncMeshDeformTask = nullptr;
-		LaplacianDeformer.bTaskSubmeshIsDirty = true;
+		LaplacianDeformer->AsyncMeshDeformTask->CancelAndDelete();
+		LaplacianDeformer->AsyncMeshDeformTask = nullptr;
+		LaplacianDeformer->bTaskSubmeshIsDirty = true;
 	}
 }
 
@@ -884,28 +1141,28 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 
 	if (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian)
 	{
-		LaplacianDeformer.bLocalize = true; // TransformProps->bLocalizeDeformation;
+		LaplacianDeformer->bLocalize = true; // TransformProps->bLocalizeDeformation;
 
 		//Determine which of the following (corners, edges or faces) has been selected by counting the associated feature's IDs
 		if (Selection.SelectedCornerIDs.Num() > 0)
 		{
 			//Add all the the Corner's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-			LaplacianDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs);
+			LaplacianDeformer->SetActiveHandleCorners(Selection.SelectedCornerIDs);
 		}
 		else if (Selection.SelectedEdgeIDs.Num() > 0)
 		{
 			//Add all the the edge's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-			LaplacianDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs);
+			LaplacianDeformer->SetActiveHandleEdges(Selection.SelectedEdgeIDs);
 		}
 		else if (Selection.SelectedGroupIDs.Num() > 0)
 		{
-			LaplacianDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs);
+			LaplacianDeformer->SetActiveHandleFaces(Selection.SelectedGroupIDs);
 		}
 
 
 		// If there are actually no interior points, then we can't actually use the laplacian deformer. Need to fall back to the linear.
 		bool bHasInteriorVerts = false;
-		const auto& ROIFaces = LaplacianDeformer.GetROIFaces();
+		const auto& ROIFaces = LaplacianDeformer->GetROIFaces();
 		for (const auto& Face : ROIFaces)
 		{
 			bHasInteriorVerts = bHasInteriorVerts || ( Face.InteriorVerts.Num() != 0);
@@ -921,7 +1178,7 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 		{		
 			// finalize the laplacian deformer : the task will need a new mesh that corresponds to the selected region.
 		
-			LaplacianDeformer.bTaskSubmeshIsDirty = true;
+			LaplacianDeformer->bTaskSubmeshIsDirty = true;
 
 		}
 		
@@ -1016,9 +1273,9 @@ void UDeformMeshPolygonsTool::UpdateChangeFromROI(bool bFinal)
 	const bool bIsLaplacian = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	const TSet<int>& ModifiedVertices = (bIsLaplacian) ? LaplacianDeformer.GetModifiedVertices() : LinearDeformer.GetModifiedVertices();
+	const TSet<int>& ModifiedVertices = (bIsLaplacian) ? LaplacianDeformer->GetModifiedVertices() : LinearDeformer.GetModifiedVertices();
 	ActiveVertexChange->SaveVertices(Mesh, ModifiedVertices, !bFinal);
-	const TSet<int>& ModifiedNormals = (bIsLaplacian) ? LaplacianDeformer.GetModifiedOverlayNormals() : LinearDeformer.GetModifiedOverlayNormals();
+	const TSet<int>& ModifiedNormals = (bIsLaplacian) ? LaplacianDeformer->GetModifiedOverlayNormals() : LinearDeformer.GetModifiedOverlayNormals();
 	ActiveVertexChange->SaveOverlayNormals(Mesh, ModifiedNormals, !bFinal);
 }
 
@@ -1106,18 +1363,18 @@ void UDeformMeshPolygonsTool::ComputeUpdate()
 
 	if (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian)
 	{
-		bool bIsWorking = LaplacianDeformer.IsTaskInFlight();
+		bool bIsWorking = LaplacianDeformer->IsTaskInFlight();
 
 		if (!bIsWorking)
 		{
 			// Sync update if we have new results.
-			if (LaplacianDeformer.bVertexPositionsNeedSync)
+			if (LaplacianDeformer->bVertexPositionsNeedSync)
 			{
 				
 				//Update the mesh with the provided solutions.
-				LaplacianDeformer.ExportDeformedPositions(DynamicMeshComponent->GetMesh());
+				LaplacianDeformer->ExportDeformedPositions(DynamicMeshComponent->GetMesh());
 
-				LaplacianDeformer.bVertexPositionsNeedSync = false;
+				LaplacianDeformer->bVertexPositionsNeedSync = false;
 
 				//Re-sync mesh, and flag the spatial data struct & topology for re-evaluation
 				DynamicMeshComponent->FastNotifyPositionsUpdated(true, false, false);
@@ -1128,14 +1385,14 @@ void UDeformMeshPolygonsTool::ComputeUpdate()
 			}
 
 			// emit end change if we are done with the drag
-			if (!LaplacianDeformer.bDeformerNeedsToRun && !bInDrag)
+			if (!LaplacianDeformer->bDeformerNeedsToRun && !bInDrag)
 			{
 				EndChange();
 			}
 
 			// Not working but we have more work for it to do..
 
-			if (LaplacianDeformer.bDeformerNeedsToRun)
+			if (LaplacianDeformer->bDeformerNeedsToRun)
 			{
 			
 				FRichCurve* Curve = NULL;
@@ -1149,7 +1406,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate()
 				}
 				*/
 				const ELaplacianWeightScheme LaplacianWeightScheme = ConvertToLaplacianWeightScheme(TransformProps->SelectedWeightScheme);
-				LaplacianDeformer.UpdateAndLaunchdWorker(LaplacianWeightScheme, Curve);
+				LaplacianDeformer->UpdateAndLaunchdWorker(LaplacianWeightScheme, Curve);
 
 			}
 		}
@@ -1164,7 +1421,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate()
 void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 {
 	const bool bIsLaplacian = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian); 
-	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? LaplacianDeformer : LinearDeformer;
+	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? *LaplacianDeformer : LinearDeformer;
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FTransform3d Transform = FTransform3d(ComponentTarget->GetWorldTransform());
@@ -1254,7 +1511,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 {
 	const bool bIsLaplacian = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
-	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? LaplacianDeformer : LinearDeformer;
+	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? *LaplacianDeformer : LinearDeformer;
 
 	TFunction<FVector3d(const FVector3d&)> PointConstraintFunc = nullptr;
 	if (TransformProps->bSnapToWorldGrid 
@@ -1320,8 +1577,8 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 
 void UDeformMeshPolygonsTool::OnTick(float DeltaTime)
 {
-	LaplacianDeformer.HandleWeights   = TransformProps->HandleWeight;
-	LaplacianDeformer.bPostfixHandles = TransformProps->bPostFixHandles;
+	LaplacianDeformer->HandleWeights   = TransformProps->HandleWeight;
+	LaplacianDeformer->bPostfixHandles = TransformProps->bPostFixHandles;
 }
 
 
@@ -1332,10 +1589,10 @@ void UDeformMeshPolygonsTool::PrecomputeTopology()
 	Topology = FGroupTopology(Mesh, true);
 
 	LinearDeformer.Initialize(Mesh, &Topology);
-	LaplacianDeformer.Initialize(Mesh, &Topology);
+	LaplacianDeformer->Initialize(Mesh, &Topology);
 
 	// Make the Constraint Buffer, zero weights, but current pos
-	LaplacianDeformer.InitializeConstraintBuffer();
+	LaplacianDeformer->InitializeConstraintBuffer();
 }
 
 
@@ -1435,7 +1692,7 @@ void UDeformMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty
 void UDeformMeshPolygonsTool::BeginChange()
 {
 	const bool bIsLaplacian = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
-	if (!bIsLaplacian || LaplacianDeformer.IsDone())
+	if (!bIsLaplacian || LaplacianDeformer->IsDone())
 	{
 		if (ActiveVertexChange == nullptr)
 		{

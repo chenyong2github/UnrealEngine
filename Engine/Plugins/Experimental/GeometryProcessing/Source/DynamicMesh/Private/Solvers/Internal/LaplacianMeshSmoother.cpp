@@ -2,11 +2,9 @@
 
 #include "LaplacianMeshSmoother.h"
 
-#include "FSOAPositions.h"
-
 #include "LaplacianOperators.h"
 #include "MatrixSolver.h"
-#include "MeshSmoothingUtilities.h"
+//#include "Solvers/MeshSmoothing.h"
 
 #ifdef TIME_LAPLACIAN_SMOOTHERS
 
@@ -80,10 +78,7 @@ FConstrainedMeshOperator::FConstrainedMeshOperator(const FDynamicMesh3& DynamicM
 		{
 			const int32 VtxId = ToVertId[i + InternalVertexCount];
 			const FVector3d Pos = DynamicMesh.GetVertex(VtxId);
-
-			BoundaryPositions.XVector[i] = Pos.X;
-			BoundaryPositions.YVector[i] = Pos.Y;
-			BoundaryPositions.ZVector[i] = Pos.Z;
+			BoundaryPositions.SetXYZ(i, Pos);
 		}
 	}
 
@@ -226,7 +221,7 @@ bool FConstrainedMeshOperator::CopyInternalPositions(const FSOAPositions& Positi
 {
 	// Number of positions
 
-	const int32 Num = PositionalVector.XVector.rows();
+	const int32 Num = PositionalVector.Num();
 
 	// early out if the x,y,z arrays in the PositionalVector have different lengths
 	if (!PositionalVector.bHasSize(Num))
@@ -250,7 +245,7 @@ bool FConstrainedMeshOperator::CopyInternalPositions(const FSOAPositions& Positi
 	{
 		const int32 VtxId = ToVtxId[i];
 
-		LinearArray[VtxId] = FVector3d(PositionalVector.XVector.coeff(i), PositionalVector.YVector.coeff(i), PositionalVector.ZVector.coeff(i));
+		LinearArray[VtxId] = FVector3d(PositionalVector.X(i), PositionalVector.Y(i), PositionalVector.Z(i));
 	}
 
 	return true;
@@ -271,7 +266,7 @@ bool FConstrainedMeshOperator::CopyBoundaryPositions(TArray<FVector3d>& LinearAr
 	for (int32 i = 0; i < BoundaryVertexCount; ++i)
 	{
 		const int32 VtxId = ToVtxId[i + InternalVertexCount];
-		LinearArray[VtxId] = FVector3d(BoundaryPositions.XVector.coeff(i), BoundaryPositions.YVector.coeff(i), BoundaryPositions.ZVector.coeff(i)); //BoundaryPositions[i];
+		LinearArray[VtxId] = FVector3d(BoundaryPositions.X(i), BoundaryPositions.Y(i), BoundaryPositions.Z(i)); //BoundaryPositions[i];
 	}
 
 	return true;
@@ -288,9 +283,7 @@ void FConstrainedMeshOperator::ExtractInteriorVertexPositions(const FDynamicMesh
 	{
 		const int32 VtxId = ToVtxId[i];
 		const FVector3d& Pos = DynamicMesh.GetVertex(VtxId);
-		VertexPositions.XVector.coeffRef(i) = Pos.X;
-		VertexPositions.YVector.coeffRef(i) = Pos.Y;
-		VertexPositions.ZVector.coeffRef(i) = Pos.Z;
+		VertexPositions.SetXYZ(i, Pos);
 	}
 }
 
@@ -308,9 +301,7 @@ void FConstrainedMeshOperator::UpdateWithPostFixConstraints(FSOAPositions& Posit
 		if (Constraint.bPostFix)
 		{
 			const FVector3d& Pos = Constraint.Position;
-			PositionVector.XVector[Index] = Pos.X;
-			PositionVector.YVector[Index] = Pos.Y;
-			PositionVector.ZVector[Index] = Pos.Z;
+			PositionVector.SetXYZ(Index, Pos);
 		}
 	}
 }
@@ -518,11 +509,8 @@ void FDiffusionIntegrator::Initialize(const FDynamicMesh3& DynamicMesh, const EL
 	for (int32 i = 0; i < InternalVertexCount; ++i)
 	{
 		const int32 VtxId = ToVertId[i];
-
 		const FVector3d Pos = DynamicMesh.GetVertex(VtxId);
-		Tmp[0].XVector[i] = Pos.X;
-		Tmp[0].YVector[i] = Pos.Y;
-		Tmp[0].ZVector[i] = Pos.Z;
+		Tmp[0].SetXYZ(i, Pos);
 	}
 
 	// backup the locations of the boundary verts.
@@ -532,10 +520,7 @@ void FDiffusionIntegrator::Initialize(const FDynamicMesh3& DynamicMesh, const EL
 		{
 			const int32 VtxId = ToVertId[i + InternalVertexCount];
 			const FVector3d Pos = DynamicMesh.GetVertex(VtxId);
-
-			BoundaryPositions.XVector[i] = Pos.X;
-			BoundaryPositions.YVector[i] = Pos.Y;
-			BoundaryPositions.ZVector[i] = Pos.Z;
+			BoundaryPositions.SetXYZ(i, Pos);
 		}
 	}
 
@@ -577,9 +562,9 @@ void FDiffusionIntegrator::Integrate_ForwardEuler(const int32 NumSteps, const do
 
 		int32 SrcBuffer = Id;
 		Id = 1 - Id;
-		Tmp[Id].XVector = Tmp[SrcBuffer].XVector + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].XVector + BoundaryOperator * BoundaryPositions.XVector );
-		Tmp[Id].YVector = Tmp[SrcBuffer].YVector + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].YVector + BoundaryOperator * BoundaryPositions.YVector );
-		Tmp[Id].ZVector = Tmp[SrcBuffer].ZVector + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].ZVector + BoundaryOperator * BoundaryPositions.ZVector ); 
+		Tmp[Id].Array(0) = Tmp[SrcBuffer].Array(0) + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].Array(0) + BoundaryOperator * BoundaryPositions.Array(0));
+		Tmp[Id].Array(1) = Tmp[SrcBuffer].Array(1) + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].Array(1) + BoundaryOperator * BoundaryPositions.Array(1));
+		Tmp[Id].Array(2) = Tmp[SrcBuffer].Array(2) + TimeStep * ( DiffusionOperator * Tmp[SrcBuffer].Array(2) + BoundaryOperator * BoundaryPositions.Array(2));
 
 	}
 
@@ -689,7 +674,7 @@ bool FDiffusionIntegrator::CopyInternalPositions(const FSOAPositions& Positional
 {
 	// Number of positions
 
-	const int32 Num = PositionalVector.XVector.rows();
+	const int32 Num = PositionalVector.Num();
 
 	// early out if the x,y,z arrays in the PositionalVector have different lengths
 	if (!PositionalVector.bHasSize(Num))
@@ -712,7 +697,7 @@ bool FDiffusionIntegrator::CopyInternalPositions(const FSOAPositions& Positional
 	{
 		const int32 VtxId = ToVtxId[i];
 
-		LinearArray[VtxId] = FVector3d(PositionalVector.XVector.coeff(i), PositionalVector.YVector.coeff(i), PositionalVector.ZVector.coeff(i));
+		LinearArray[VtxId] = FVector3d(PositionalVector.X(i), PositionalVector.Y(i), PositionalVector.Z(i));
 	}
 
 	return true;
@@ -733,7 +718,7 @@ bool FDiffusionIntegrator::CopyBoundaryPositions(TArray<FVector3d>& LinearArray)
 	for (int32 i = 0; i < BoundaryVertexCount; ++i)
 	{
 		const int32 VtxId = ToVtxId[i + InternalVertexCount];
-		LinearArray[VtxId] = FVector3d(BoundaryPositions.XVector.coeff(i), BoundaryPositions.YVector.coeff(i), BoundaryPositions.ZVector.coeff(i));
+		LinearArray[VtxId] = FVector3d(BoundaryPositions.X(i), BoundaryPositions.Y(i), BoundaryPositions.Z(i));
 	}
 
 	return true;
@@ -792,143 +777,3 @@ void FBiHarmonicDiffusionMeshSmoother::ConstructOperators( const ELaplacianWeigh
 }
 
 
-void MeshSmoothingOperators::ComputeSmoothing_BiHarmonic(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& OriginalMesh, 
-	                                                     const double Speed, const double Intensity, const int32 NumIterations, TArray<FVector3d>& PositionArray)
-{
-
-
-
-	// This is equivalent to taking a single backward Euler time step of bi-harmonic diffusion
-	// where L is the Laplacian (Del^2) , and L^T L is an approximation of the Del^4.
-	// 
-	// dp/dt = - k*k L^T L[p]
-	// with 
-	// weight = 1 / (k * Sqrt[dt] )
-	//
-	// p^{n+1} + dt * k * k L^TL [p^{n+1}] = p^{n}
-	//
-	// re-write as
-	// L^TL[p^{n+1}] + weight * weight p^{n+1} = weight * weight p^{n}
-
-#ifndef EIGEN_MPL2_ONLY
-	const EMatrixSolverType MatrixSolverType = EMatrixSolverType::LTL;
-#else
-	// const EMatrixSolverType MatrixSolverType = EMatrixSolverType::LU;
-	// const EMatrixSolverType MatrixSolverType = EMatrixSolverType::PCG;
-
-	// The Symmetric Laplacians are SPD, and so are the LtL Operators
-	const EMatrixSolverType MatrixSolverType = (bIsSymmetricLaplacian(WeightScheme))? EMatrixSolverType::PCG : EMatrixSolverType::LU;
-	
-#endif
-
-
-#ifdef TIME_LAPLACIAN_SMOOTHERS
-	FString DebugLogString = FString::Printf(TEXT("Biharmonic Smoothing of mesh with %d verts "), OriginalMesh.VertexCount()) + LaplacianSchemeName(WeightScheme) + MatrixSolverName(MatrixSolverType);
-
-	FScopedDurationTimeLogger Timer(DebugLogString);
-#endif
-
-	const double TimeStep = Speed * FMath::Min(Intensity, 1.e6);
-
-	FBiHarmonicDiffusionMeshSmoother BiHarmonicDiffusionSmoother(OriginalMesh, WeightScheme);
-
-	BiHarmonicDiffusionSmoother.Integrate_BackwardEuler(MatrixSolverType, NumIterations, TimeStep);
-
-	BiHarmonicDiffusionSmoother.GetPositions(PositionArray);
-
-}
-
-void MeshSmoothingOperators::ComputeSmoothing_ImplicitBiHarmonicPCG( const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& OriginalMesh, 
-	                                                                 const double Speed, const double Weight, const int32 MaxIterations, TArray<FVector3d>& PositionArray)
-{
-
-	// This is equivalent to taking a single backward Euler time step of bi-harmonic diffusion
-	// where L is the Laplacian (Del^2) , and L^T L is an approximation of the Del^4.
-	// 
-	// dp/dt = - k*k L^T L[p]
-	// with 
-	// weight = 1 / (k * Sqrt[dt] )
-	//
-	// p^{n+1} + dt * k * k L^TL [p^{n+1}] = p^{n}
-	//
-	// re-write as
-	// L^TL[p^{n+1}] + weight * weight p^{n+1} = weight * weight p^{n}
-#ifdef TIME_LAPLACIAN_SMOOTHERS
-	FString DebugLogString = FString::Printf(TEXT("PCG Biharmonic Smoothing of mesh with %d verts "), OriginalMesh.VertexCount()) + LaplacianSchemeName(WeightScheme);
-
-	FScopedDurationTimeLogger Timer(DebugLogString);
-#endif 
-	if (MaxIterations < 1) return;
-
-	FCGBiHarmonicMeshSmoother Smoother(OriginalMesh, WeightScheme);
-
-	// Treat all vertices as constraints with the same weight
-	const bool bPostFix = false;
-
-	for (int32 VertId : OriginalMesh.VertexIndicesItr())
-	{
-		FVector3d Pos = OriginalMesh.GetVertex(VertId);
-
-		Smoother.AddConstraint(VertId, Weight, Pos, bPostFix);
-	}
-
-	Smoother.SetMaxIterations(MaxIterations);
-	Smoother.SetTolerance(1.e-4);
-
-	bool bSuccess = Smoother.ComputeSmoothedMeshPositions(PositionArray);
-
-}
-
-void  MeshSmoothingOperators::ComputeSmoothing_Diffusion( const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& OriginalMesh, bool bForwardEuler,
-	                                                      const double Speed, const double Intensity, const int32 IterationCount, TArray<FVector3d>& PositionArray)
-{
-
-#ifndef EIGEN_MPL2_ONLY
-	const EMatrixSolverType MatrixSolverType = EMatrixSolverType::LTL;
-#else
-	const EMatrixSolverType MatrixSolverType = EMatrixSolverType::LU;
-	//const EMatrixSolverType MatrixSolverType = EMatrixSolverType::PCG;
-	//const EMatrixSolverType MatrixSolverType = EMatrixSolverType::BICGSTAB;
-#endif
-
-#ifdef TIME_LAPLACIAN_SMOOTHERS
-	FString DebugLogString = FString::Printf(TEXT("Diffusion Smoothing of mesh with %d verts"), OriginalMesh.VertexCount());
-	if (!bForwardEuler)
-	{
-		DebugLogString += MatrixSolverName(MatrixSolverType);
-	}
-
-	FScopedDurationTimeLogger Timer(DebugLogString);
-#endif
-	if (IterationCount < 1) return;
-
-	FLaplacianDiffusionMeshSmoother Smoother(OriginalMesh, WeightScheme);
-
-	if (bForwardEuler)
-	{
-		Smoother.Integrate_ForwardEuler(IterationCount, Speed);
-	}
-	else
-	{
-		const double TimeStep = Speed * FMath::Min(Intensity, 1.e6);
-		Smoother.Integrate_BackwardEuler(MatrixSolverType, IterationCount, TimeStep);
-	}
-
-	Smoother.GetPositions(PositionArray);
-};
-
-
-TUniquePtr<MeshDeformingOperators::IConstrainedMeshOperator> MeshDeformingOperators::ConstructConstrainedMeshDeformer(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& DynamicMesh)
-{
-	TUniquePtr<MeshDeformingOperators::IConstrainedMeshOperator> Deformer(new FConstrainedMeshDeformer(DynamicMesh, WeightScheme));
-
-	return Deformer;
-}
-
-
-TUniquePtr<MeshDeformingOperators::IConstrainedMeshOperator> MeshDeformingOperators::ConstructConstrainedMeshSmoother(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& DynamicMesh)
-{
-	TUniquePtr<MeshDeformingOperators::IConstrainedMeshOperator> Deformer(new FBiHarmonicMeshSmoother(DynamicMesh, WeightScheme));
-
-	return Deformer;
-}
