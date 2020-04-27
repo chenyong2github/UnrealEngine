@@ -7,13 +7,31 @@
 #include "MeshNormals.h"
 #include "MeshWeights.h"
 #include "Async/ParallelFor.h"
+#include "MeshInflateBrushOps.generated.h"
 
+
+UCLASS()
+class MESHMODELINGTOOLS_API UInflateBrushOpProps : public UMeshSculptBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = InflateBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 0.5;
+
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = InflateBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 0.5;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+};
 
 class FInflateBrushOp : public FMeshSculptBrushOp
 {
 
 public:
-	double BrushSpeedTuning = 0.05;
+	double BrushSpeedTuning = 2.0;
 
 	virtual ESculptBrushOpTargetType GetBrushTargetType() const override
 	{
@@ -24,7 +42,7 @@ public:
 	{
 		const FVector3d& StampPos = Stamp.LocalFrame.Origin;
 
-		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * BrushSpeedTuning;
+		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * Stamp.DeltaTime * BrushSpeedTuning;
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
 		{

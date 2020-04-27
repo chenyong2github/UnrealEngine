@@ -157,10 +157,6 @@ void UDynamicMeshSculptTool::Setup()
 	AddToolPropertySource(SculptProperties);
 
 	// add brush-specific properties 
-	PlaneBrushProperties = NewObject<UPlaneBrushProperties>(this);
-	PlaneBrushProperties->RestoreProperties(this);
-	AddToolPropertySource(PlaneBrushProperties);
-
 	SculptMaxBrushProperties = NewObject<USculptMaxBrushProperties>();
 	SculptMaxBrushProperties->RestoreProperties(this);
 	AddToolPropertySource(SculptMaxBrushProperties);
@@ -183,7 +179,6 @@ void UDynamicMeshSculptTool::Setup()
 	SculptProperties->RestoreProperties(this);
 
 	// disable tool-specific properties
-	SetToolPropertySourceEnabled(PlaneBrushProperties, false);
 	SetToolPropertySourceEnabled(GizmoProperties, false);
 	SetToolPropertySourceEnabled(SculptMaxBrushProperties, false);
 	SetToolPropertySourceEnabled(KelvinBrushProperties, false);
@@ -283,7 +278,6 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 	KelvinBrushProperties->SaveProperties(this);
 	ViewProperties->SaveProperties(this);
 	GizmoProperties->SaveProperties(this);
-	PlaneBrushProperties->SaveProperties(this);
 	SculptMaxBrushProperties->SaveProperties(this);
 	RemeshProperties->SaveProperties(this);
 }
@@ -810,7 +804,7 @@ void UDynamicMeshSculptTool::ApplyPlaneBrush(const FRay& WorldRay)
 	}
 
 	static const double PlaneSigns[3] = { 0, -1, 1 };
-	double PlaneSign = PlaneSigns[(int32)PlaneBrushProperties->WhichSide];
+	double PlaneSign = PlaneSigns[0];
 
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
@@ -853,7 +847,7 @@ void UDynamicMeshSculptTool::ApplyFixedPlaneBrush(const FRay& WorldRay)
 	}
 
 	static const double PlaneSigns[3] = { 0, -1, 1 };
-	double PlaneSign = PlaneSigns[(int32)PlaneBrushProperties->WhichSide];
+	double PlaneSign = PlaneSigns[0];
 
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
@@ -902,7 +896,7 @@ void UDynamicMeshSculptTool::ApplyFlattenBrush(const FRay& WorldRay)
 	}
 
 	static const double PlaneSigns[3] = { 0, -1, 1 };
-	double PlaneSign = PlaneSigns[(int32)PlaneBrushProperties->WhichSide];
+	double PlaneSign = PlaneSigns[0];
 
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
@@ -2314,18 +2308,12 @@ void UDynamicMeshSculptTool::UpdateBrushType(EDynamicMeshSculptBrushType BrushTy
 	Builder.AppendLine(BaseMessage);
 
 	SetToolPropertySourceEnabled(GizmoProperties, false);
-	SetToolPropertySourceEnabled(PlaneBrushProperties, false);
 	SetToolPropertySourceEnabled(SculptMaxBrushProperties, false);
 
 	if (BrushType == EDynamicMeshSculptBrushType::FixedPlane)
 	{
 		Builder.AppendLine(LOCTEXT("FixedPlaneTip", "Use T to reposition Work Plane at cursor, Shift+T to align to Normal, Ctrl+Shift+T to align to View"));
-		SetToolPropertySourceEnabled(PlaneBrushProperties, true);
 		SetToolPropertySourceEnabled(GizmoProperties, true);
-	}
-	if (BrushType == EDynamicMeshSculptBrushType::Plane || BrushType == EDynamicMeshSculptBrushType::PlaneViewAligned || BrushType == EDynamicMeshSculptBrushType::Flatten)
-	{
-		SetToolPropertySourceEnabled(PlaneBrushProperties, true);
 	}
 	if (BrushType == EDynamicMeshSculptBrushType::SculptMax)
 	{

@@ -7,12 +7,30 @@
 #include "MeshNormals.h"
 #include "MeshWeights.h"
 #include "Async/ParallelFor.h"
+#include "MeshSculptBrushOps.generated.h"
 
+
+UCLASS()
+class MESHMODELINGTOOLS_API UStandardSculptBrushOpProps : public UMeshSculptBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = SculptBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 0.5;
+
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = SculptBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 1.0;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+};
 
 class FSurfaceSculptBrushOp : public FMeshSculptBrushOp
 {
 public:
-	double BrushSpeedTuning = 0.05;
+	double BrushSpeedTuning = 6.0;
 
 	typedef TUniqueFunction<bool(int32, const FVector3d&, double, FVector3d&, FVector3d&)> NearestQueryFuncType;
 
@@ -30,7 +48,7 @@ public:
 
 	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewPositionsOut) override
 	{
-		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * BrushSpeedTuning;
+		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * Stamp.DeltaTime * BrushSpeedTuning;
 		double MaxOffset = Stamp.Radius;
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
@@ -47,7 +65,7 @@ public:
 			else
 			{
 				FVector3d MoveVec = UsePower * BaseNormal;
-				double Falloff = GetFalloff().Evaluate(Stamp, BasePos);
+				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
 				FVector3d NewPos = OrigPos + Falloff * MoveVec;
 				NewPositionsOut[k] = NewPos;
 			}
@@ -60,13 +78,28 @@ public:
 
 
 
+UCLASS()
+class MESHMODELINGTOOLS_API UViewAlignedSculptBrushOpProps : public UMeshSculptBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = SculptToViewBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 0.5;
 
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = SculptToViewBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 1.0;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+};
 
 
 class FViewAlignedSculptBrushOp : public FMeshSculptBrushOp
 {
 public:
-	double BrushSpeedTuning = 0.05;
+	double BrushSpeedTuning = 6.0;
 
 	typedef TUniqueFunction<bool(int32, const FVector3d&, double, FVector3d&, FVector3d&)> NearestQueryFuncType;
 
@@ -91,7 +124,7 @@ public:
 	{
 		FVector3d StampNormal = Stamp.LocalFrame.Z();
 
-		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * BrushSpeedTuning;
+		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * Stamp.DeltaTime * BrushSpeedTuning;
 		double MaxOffset = Stamp.Radius;
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
@@ -108,7 +141,7 @@ public:
 			else
 			{
 				FVector3d MoveVec = UsePower * StampNormal;
-				double Falloff = GetFalloff().Evaluate(Stamp, BasePos);
+				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
 				FVector3d NewPos = OrigPos + Falloff * MoveVec;
 				NewPositionsOut[k] = NewPos;
 			}
@@ -121,12 +154,41 @@ public:
 
 
 
+UCLASS()
+class MESHMODELINGTOOLS_API USculptMaxBrushOpProps : public UMeshSculptBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = SculptMaxBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 0.5;
+
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = SculptMaxBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 0.5;
+
+	/** Maximum height as fraction of brush size */
+	UPROPERTY(EditAnywhere, Category = SculptMaxBrush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float MaxHeight = 0.5;
+
+	/** If true, maximum height is defined using the FixedHeight constant instead of brush-relative size */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SculptMaxBrush)
+	bool bUseFixedHeight = false;
+
+	/** Maximum height in world-space dimension */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SculptMaxBrush)
+	float FixedHeight = 0.0;
+
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+};
 
 
 class FSurfaceMaxSculptBrushOp : public FMeshSculptBrushOp
 {
 public:
-	double BrushSpeedTuning = 0.05;
+	double BrushSpeedTuning = 6.0;
 
 	typedef TUniqueFunction<bool(int32, const FVector3d&, double, FVector3d&, FVector3d&)> NearestQueryFuncType;
 
@@ -144,8 +206,10 @@ public:
 
 	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewPositionsOut) override
 	{
-		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * BrushSpeedTuning;
-		double MaxOffset = CurrentOptions.MaxHeight;
+		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * Stamp.DeltaTime * BrushSpeedTuning;
+
+		USculptMaxBrushOpProps* Props = GetPropertySetAs<USculptMaxBrushOpProps>();
+		double MaxOffset = (Props->bUseFixedHeight) ? Props->FixedHeight : (Props->MaxHeight * Stamp.Radius);
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
 		{
@@ -161,7 +225,7 @@ public:
 			else
 			{
 				FVector3d MoveVec = UsePower * BaseNormal;
-				double Falloff = GetFalloff().Evaluate(Stamp, BasePos);
+				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
 				FVector3d NewPos = OrigPos + Falloff * MoveVec;
 
 				FVector3d DeltaPos = NewPos - BasePos;

@@ -262,9 +262,6 @@ public:
 	UBrushSculptProperties* SculptProperties;
 
 	UPROPERTY()
-	UPlaneBrushProperties* PlaneBrushProperties;
-
-	UPROPERTY()
 	USculptMaxBrushProperties* SculptMaxBrushProperties;
 	
 	UPROPERTY()
