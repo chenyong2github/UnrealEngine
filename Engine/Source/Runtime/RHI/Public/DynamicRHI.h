@@ -222,6 +222,11 @@ struct FShaderResourceViewInitializer
 		uint32 StartOffsetBytes;
 		uint32 NumElements;
 		EPixelFormat Format;
+
+		inline bool IsWholeResource() const 
+		{ 
+			return StartOffsetBytes == 0 && NumElements == UINT32_MAX;
+		}
 	};
 
 	RHI_API FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, EPixelFormat InFormat, uint32 InStartOffsetBytes, uint32 InNumElements);
@@ -238,6 +243,11 @@ struct FShaderResourceViewInitializer
 		FRHIStructuredBuffer* StructuredBuffer;
 		uint32 StartOffsetBytes;
 		uint32 NumElements;
+
+		inline bool IsWholeResource() const 
+		{
+			return StartOffsetBytes == 0 && NumElements == UINT32_MAX;
+		}
 	};
 
 	RHI_API FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer, uint32 InStartOffsetBytes, uint32 InNumElements);
@@ -254,6 +264,11 @@ struct FShaderResourceViewInitializer
 		FRHIIndexBuffer* IndexBuffer;
 		uint32 StartOffsetBytes;
 		uint32 NumElements;
+
+		inline bool IsWholeResource() const 
+		{ 
+			return StartOffsetBytes == 0 && NumElements == UINT32_MAX;
+		}
 	};
 
 	RHI_API FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer, uint32 InStartOffsetBytes, uint32 InNumElements);
