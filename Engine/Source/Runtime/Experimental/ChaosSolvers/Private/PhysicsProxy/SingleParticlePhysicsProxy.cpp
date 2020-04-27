@@ -282,7 +282,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPh
 		//question: is it ok to call this when it was one of the other properties that changed?
 		if (!Particle->IsDirty(Chaos::EParticleFlags::DynamicMisc))
 		{
-			Particle->SetObjectState(Buffer->MObjectState, true);
+			Particle->SetObjectState(Buffer->MObjectState, true, /*bInvalidate=*/false);
 		}
 	}
 }
