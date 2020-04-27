@@ -21,21 +21,7 @@ public class Expat : ModuleRules
 
 		PublicSystemIncludePaths.Add(ExpatIncludePath);
 
-		if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			// Use reflection to allow type not to exist if console code is not present
-			string ToolchainName = "VS";
-			System.Type XboxOnePlatformType = System.Type.GetType("UnrealBuildTool.XboxOnePlatform,UnrealBuildTool");
-			if (XboxOnePlatformType != null)
-			{
-				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				ToolchainName += VersionName.ToString();
-			}
-
-			string LibraryPath = Path.Combine(ExpatPackagePath, "XboxOne", ToolchainName, ConfigName);
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "expat.lib"));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Android)
+		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			string LibraryPath = Path.Combine(ExpatPackagePath, "Android", ConfigName);
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "arm64", "libexpat.a"));
@@ -58,7 +44,7 @@ public class Expat : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "expat.lib"));
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Mac)
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, Target.Platform.ToString(), ConfigName, "libexpat.a"));
 		}
