@@ -53,7 +53,11 @@ public:
 	{
 		// Only instantiate the bundle manager if this is the version the game has been configured to use
 		FString ModuleName;
+#if WITH_EDITOR
 		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
+#else
+		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("EditorModuleName"), ModuleName, GEngineIni);
+#endif // WITH_EDITOR
 
 		if (FModuleManager::Get().GetModule(*ModuleName) == this)
 		{
