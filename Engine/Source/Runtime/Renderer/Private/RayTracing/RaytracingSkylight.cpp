@@ -162,6 +162,7 @@ void SetupSkyLightParameters(
 		SkyLightData->SamplingStopLevel = GRayTracingSkyLightSamplingStopLevel;
 		SkyLightData->MaxRayDistance = GRayTracingSkyLightMaxRayDistance;
 		SkyLightData->MaxNormalBias = GetRaytracingMaxNormalBias();
+		SkyLightData->bTransmission = Scene.SkyLight->bTransmission;
 		SkyLightData->MaxShadowThickness = GRayTracingSkyLightMaxShadowThickness;
 
 		ensure(SkyLightData->SamplesPerPixel > 0);
