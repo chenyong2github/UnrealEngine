@@ -143,14 +143,23 @@ void SkyLightEvaluate(
 		}
 
 		// Apply a depth bias based on if the sample world position came from the g-buffer or not
-		if (bGBufferSampleOrigin)
+		float NoL = dot(CurrentWorldNormal, Ray.Direction);
+		if (NoL > 0.0)
 		{
-			ApplyCameraRelativeDepthBias(Ray, SampleCoord, DeviceZ, CurrentWorldNormal, SkyLight.MaxNormalBias);
+			if (bGBufferSampleOrigin)
+			{
+				ApplyCameraRelativeDepthBias(Ray, SampleCoord, DeviceZ, CurrentWorldNormal, SkyLight.MaxNormalBias);
+			}
+			else
+			{
+				ApplyPositionBias(Ray, CurrentWorldNormal, SkyLight.MaxNormalBias);
+			}
 		}
 		else
 		{
-			ApplyPositionBias(Ray, CurrentWorldNormal, SkyLight.MaxNormalBias);
+			ApplyPositionBias(Ray, -CurrentWorldNormal, SkyLight.MaxNormalBias);
 		}
+		NoL = saturate(NoL);
 
 		// Trace a visibility ray
 		uint RayFlags = 0;
@@ -189,7 +198,6 @@ void SkyLightEvaluate(
 			const half3 N = WorldNormal;
 			const half3 V = -ViewDirection;
 			const half3 L = Ray.Direction;
-			const float NoL = saturate(dot(CurrentWorldNormal, L));
 			FDirectLighting LightingSample;
 			if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
 			{
@@ -212,7 +220,12 @@ void SkyLightEvaluate(
 			float3 IncomingRadiance = EvaluateSkyLightRadiance(Ray.Direction);
 
 			ExitantRadiance += IncomingRadiance * Brdf * RayWeight;
-			DiffuseExitantRadiance += IncomingRadiance * (LightingSample.Diffuse + LightingSample.Transmission) * RayWeight;
+			float3 DiffuseThroughput = LightingSample.Diffuse;
+			if (SkyLight.bTransmission)
+			{
+				DiffuseThroughput += LightingSample.Transmission;
+			}
+			DiffuseExitantRadiance += IncomingRadiance * DiffuseThroughput * RayWeight;
 		}
 	}
 

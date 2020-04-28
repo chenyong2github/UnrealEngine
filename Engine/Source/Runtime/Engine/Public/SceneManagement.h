@@ -1076,6 +1076,7 @@ public:
 	uint8 bCastRayTracedShadow:1;
 	uint8 bAffectReflection:1;
 	uint8 bAffectGlobalIllumination:1;
+	uint8 bTransmission:1;
 	TEnumAsByte<EOcclusionCombineMode> OcclusionCombineMode;
 	float AverageBrightness;
 	float IndirectLightingIntensity;
