@@ -17,7 +17,10 @@ class FFinalPostProcessSettings : public FPostProcessSettings
 {
 public:
 	FFinalPostProcessSettings()
-	: HighResScreenshotMaterial(NULL)
+	: DebugColorVisualizationMaterial(NULL)
+	, DebugGrayscaleVisualizationMaterial(NULL)
+	, DebugCustomVisualizationMaterial(NULL)
+	, HighResScreenshotMaterial(NULL)
 	, HighResScreenshotMaskMaterial(NULL)
 	, HighResScreenshotCaptureRegionMaterial(NULL)
 	, bBufferVisualizationDumpRequired(false)
@@ -167,6 +170,15 @@ public:
 
 	// List of materials to use in the buffer visualization overview
 	TArray<UMaterialInterface*> BufferVisualizationOverviewMaterials;
+
+	// Material to use for debug color visualization
+	UMaterialInterface* DebugColorVisualizationMaterial;
+
+	// Material to use for debug grayscale visualization
+	UMaterialInterface* DebugGrayscaleVisualizationMaterial;
+
+	// Material to use for debug custom post-processing visualization
+	UMaterialInterface* DebugCustomVisualizationMaterial;
 
 	// Material to use for rendering high res screenshot with mask. Post process expects this material to be set all the time.
 	UMaterialInterface* HighResScreenshotMaterial;
