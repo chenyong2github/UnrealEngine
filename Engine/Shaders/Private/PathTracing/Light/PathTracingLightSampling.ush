@@ -6,6 +6,10 @@ LightSampling.usf: Light sampling for next-event estimation
 
 #pragma once
 
+#ifndef ENABLE_TRANSMISSION
+	#define ENABLE_TRANSMISSION 1
+#endif
+
 #include "PathTracingLightCommon.ush"
 #include "PathTracingDirectionalLight.ush"
 #include "PathTracingPointLight.ush"

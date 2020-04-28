@@ -52,7 +52,7 @@ void DirectionalLight_EstimateLight(
 	float3 LightDirection = GetNormal(LightId);
 	float3 SurfaceNormal = Payload.WorldNormal;
 	float NoL = dot(SurfaceNormal, LightDirection);
-	NoL = HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
+	NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
 
 	float LightPower = Luminance(GetColor(LightId));
 	OutIrradiance = LightPower * NoL;

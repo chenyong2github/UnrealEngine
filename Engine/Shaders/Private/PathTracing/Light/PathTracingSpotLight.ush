@@ -145,7 +145,7 @@ void SpotLight_EstimateLight(
 		Falloff *= Falloff;
 		Falloff *= ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
 		float CosTheta = dot(Payload.WorldNormal, LightDirection);
-		CosTheta = HasTransmission(LightId) ? abs(CosTheta) : saturate(CosTheta);
+		CosTheta = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(CosTheta) : saturate(CosTheta);
 		OutIrradiance = LightPower * CosTheta * Falloff / LightDistanceSquared;
 		// #dxr_todo: UE-72534 apply inner core
 	}
