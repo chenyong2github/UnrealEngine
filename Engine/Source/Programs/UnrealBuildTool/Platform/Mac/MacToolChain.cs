@@ -815,7 +815,13 @@ namespace UnrealBuildTool
 			List<string> InputFileNames = new List<string>();
 			foreach (FileItem InputFile in LinkEnvironment.InputFiles)
 			{
-				InputFileNames.Add(string.Format("\"{0}\"", InputFile.AbsolutePath));
+				string InputFilePath = InputFile.AbsolutePath;
+				if (InputFile.Location.IsUnderDirectory(UnrealBuildTool.RootDirectory))
+				{
+					InputFilePath = InputFile.Location.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+				}
+
+				InputFileNames.Add(string.Format("\"{0}\"", InputFilePath));
 				LinkAction.PrerequisiteItems.Add(InputFile);
 			}
 
