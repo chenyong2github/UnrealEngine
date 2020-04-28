@@ -328,13 +328,10 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	const FPointWeightMap& MaxDistances = ClothLodData.PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance);
 	for(FMeshToMeshVertData& VertData : MeshToMeshData)
 	{
-		if(MaxDistances.AreAnyBelowThreshold(
-			VertData.SourceMeshVertIndices[0], 
-			VertData.SourceMeshVertIndices[1], 
-			VertData.SourceMeshVertIndices[2])) // Default threshold is 0.1, not 0.0.  Using 0.1 for consistency.
-		{
-			VertData.SourceMeshVertIndices[3] = 0xFFFF;
-		}
+		VertData.SourceMeshVertIndices[3] = MaxDistances.AreAllBelowThreshold(
+			VertData.SourceMeshVertIndices[0],
+			VertData.SourceMeshVertIndices[1],
+			VertData.SourceMeshVertIndices[2]) ? 0xFFFF : 0;
 	}
 
 	// We have to copy the bone map to verify we don't exceed the maximum while adding the clothing bones
