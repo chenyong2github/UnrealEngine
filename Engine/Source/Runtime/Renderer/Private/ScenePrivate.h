@@ -1631,19 +1631,22 @@ class FVolumetricLightmapSceneData
 {
 public:
 
-	FVolumetricLightmapSceneData() { GlobalVolumetricLightmap.Data = &GlobalVolumetricLightmapData; }
-	bool HasData() const { return LevelVolumetricLightmaps.Num() > 0; }
+	FVolumetricLightmapSceneData(FScene* InScene)
+		: Scene(InScene)
+	{
+		GlobalVolumetricLightmap.Data = &GlobalVolumetricLightmapData;
+	}
+
+	bool HasData() const;
 	void AddLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath, bool bIsPersistentLevel);
 	void RemoveLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume);
-	const FPrecomputedVolumetricLightmap* GetLevelVolumetricLightmap() const 
-	{ 
-		return &GlobalVolumetricLightmap;
-	}
+	const FPrecomputedVolumetricLightmap* GetLevelVolumetricLightmap() const;
 
 	TMap<FVector, FVolumetricLightmapInterpolation> CPUInterpolationCache;
 
 	FPrecomputedVolumetricLightmapData GlobalVolumetricLightmapData;
 private:
+	FScene* Scene;
 	FPrecomputedVolumetricLightmap GlobalVolumetricLightmap;
 	const FPrecomputedVolumetricLightmap* PersistentLevelVolumetricLightmap = nullptr;
 	TArray<const FPrecomputedVolumetricLightmap*> LevelVolumetricLightmaps;
