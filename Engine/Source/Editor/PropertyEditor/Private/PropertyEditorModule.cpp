@@ -555,7 +555,7 @@ void FPropertyEditorModule::UpdatePropertyViews( const TArray<UObject*>& NewObje
 				}
 				else
 				{
-					DetailViewPin->RemoveInvalidObjects();
+					DetailViewPin->ForceRefresh();
 				}
 			}
 		}
