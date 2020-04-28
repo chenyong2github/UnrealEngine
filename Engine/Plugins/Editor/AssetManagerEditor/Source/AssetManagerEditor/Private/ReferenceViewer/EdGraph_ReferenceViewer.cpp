@@ -20,7 +20,7 @@ UEdGraph_ReferenceViewer::UEdGraph_ReferenceViewer(const FObjectInitializer& Obj
 	AssetThumbnailPool = MakeShareable( new FAssetThumbnailPool(1024) );
 
 	MaxSearchDepth = 1;
-	MaxSearchBreadth = 15;
+	MaxSearchBreadth = 20;
 
 	bLimitSearchDepth = true;
 	bLimitSearchBreadth = true;
