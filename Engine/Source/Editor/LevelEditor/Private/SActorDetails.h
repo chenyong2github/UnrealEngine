@@ -67,6 +67,7 @@ private:
 
 	bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const;
 	bool IsPropertyEditingEnabled() const;
+	EVisibility GetComponentsBoxVisibility() const;
 	EVisibility GetUCSComponentWarningVisibility() const;
 	EVisibility GetInheritedBlueprintComponentWarningVisibility() const;
 	EVisibility GetNativeComponentWarningVisibility() const;
@@ -92,6 +93,9 @@ private:
 
 	// Used to prevent reentrant changes
 	bool bSelectionGuard;
+
+	// True if the actor details should be showing the components.
+	bool bShowingComponents = false;
 
 	// True if the actor "root" node in the SCS editor is currently shown as selected
 	bool bShowingRootActorNodeSelected;
