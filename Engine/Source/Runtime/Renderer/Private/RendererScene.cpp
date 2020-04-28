@@ -1132,6 +1132,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	SimpleDirectionalLight(NULL)
 ,	ReflectionSceneData(InFeatureLevel)
 ,	IndirectLightingCache(InFeatureLevel)
+,	VolumetricLightmapSceneData(this)
 ,	DistanceFieldSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel])
 ,	PreshadowCacheLayout(0, 0, 0, 0, false)
 ,	AtmosphericFog(NULL)
@@ -2375,6 +2376,28 @@ void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetri
 	{
 		PersistentLevelVolumetricLightmap = nullptr;
 	}
+}
+
+const FPrecomputedVolumetricLightmap* FVolumetricLightmapSceneData::GetLevelVolumetricLightmap() const
+{
+	return &GlobalVolumetricLightmap;
+}
+
+bool FVolumetricLightmapSceneData::HasData() const
+{
+	if (LevelVolumetricLightmaps.Num() > 0)
+	{
+		if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+		{
+			return GlobalVolumetricLightmapData.IndirectionTexture.Texture.IsValid();
+		}
+		else
+		{
+			return GlobalVolumetricLightmapData.IndirectionTexture.Data.Num() > 0;
+		}
+	}
+
+	return false;
 }
 
 bool FScene::HasPrecomputedVolumetricLightmap_RenderThread() const
