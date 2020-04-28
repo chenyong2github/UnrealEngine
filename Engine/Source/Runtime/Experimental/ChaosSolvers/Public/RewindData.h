@@ -722,7 +722,7 @@ public:
 	FRewindData(int32 NumFrames)
 	: Managers(NumFrames+1)	//give 1 extra for saving at head
 	, CurFrame(0)
-	, LatestFrame(0)
+	, LatestFrame(-1)
 	, CurWave(1)
 	, FramesSaved(0)
 	, DataIdxOffset(0)
@@ -868,8 +868,6 @@ public:
 		QUICK_SCOPE_CYCLE_COUNTER(RewindDataAdvance);
 		Managers[CurFrame].DeltaTime = DeltaTime;
 
-		++CurFrame;
-		LatestFrame = FMath::Max(LatestFrame,CurFrame);
 		FramesSaved = FMath::Min(FramesSaved+1,static_cast<int32>(Managers.Capacity()));
 		
 		const int32 EarliestFrame = CurFrame - 1 - FramesSaved;
@@ -891,9 +889,9 @@ public:
 
 				//During a resim it's possible the user will not dirty a particle that was previously dirty.
 				//If this happens we need to mark the particle as desynced
-				if(ResimType == EResimType::FullResim && !Info.bDesync && Info.GTDirtyOnFrame[CurFrame-1].MissingWrite(CurFrame-1, CurWave))
+				if(ResimType == EResimType::FullResim && !Info.bDesync && Info.GTDirtyOnFrame[CurFrame].MissingWrite(CurFrame, CurWave))
 				{
-					Info.Desync(CurFrame-1, LatestFrame);
+					Info.Desync(CurFrame, LatestFrame);
 				}
 
 				
@@ -904,6 +902,9 @@ public:
 	void FinishFrame()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(RewindDataFinishFrame);
+		LatestFrame = FMath::Max(LatestFrame,CurFrame);
+		++CurFrame;
+
 		if(IsResim())
 		{
 			ensure(IsInGameThread());
@@ -930,7 +931,7 @@ public:
 
 	bool IsResim() const
 	{
-		return CurFrame < LatestFrame;
+		return CurFrame <= LatestFrame;
 	}
 
 	//Number of particles that we're currently storing history for
@@ -954,9 +955,8 @@ public:
 		bNeedsSave = true;
 
 		//If manager already exists for previous frame, use it
-		const int32 PrevFrame = CurFrame - 1;
-		FFrameManagerInfo& Info = Managers[PrevFrame];
-		ensure(Info.Manager && Info.FrameCreatedFor == (PrevFrame));
+		FFrameManagerInfo& Info = Managers[CurFrame];
+		ensure(Info.Manager && Info.FrameCreatedFor == (CurFrame));
 
 		DataIdxOffset = Info.Manager->GetNumParticles();
 		Info.Manager->SetNumParticles(DataIdxOffset + NumActiveParticles);
@@ -1063,28 +1063,36 @@ public:
 	{
 		const int32 DestDataIdx = SrcDataIdx + DataIdxOffset;
 
-		if(bResim && Rigid.ResimType() == EResimType::ResimAsSlave)
+		//during resim only full resim objects should modify future
+		if(bResim && Rigid.ResimType() != EResimType::FullResim)
 		{
-			//resim not allowed for this particle so don't modify
-		}
-		else
-		{
-			//todo: is this check needed? why do we pass sleeping rigids into this function?
-			if(SimWritablePropsMayChange(Rigid))
+			if(FindParticle(Rigid.UniqueIdx()) == nullptr)
 			{
-				FDirtyParticleInfo& Info = FindOrAddParticle(Rigid);
-				Info.LastDirtyFrame = CurFrame-1;
-
-				//User called PrepareManagerForFrame (or PrepareFrameForPTDirty) for the previous frame, so use it
-				FDirtyPropData DestManagerWrapper(Managers[CurFrame-1].Manager.Get(), DestDataIdx);
-
-				//sim-writable properties changed at head, so we must write down what they were
-				FGeometryParticleStateBase& LatestState = Info.AddFrame(CurFrame-1);
-				LatestState.SyncSimWritablePropsFromSim(DestManagerWrapper,Rigid);
-
-				//update any previous frames that were pointing at head
-				CoalesceBack(Info.Frames, CurFrame-1);
+				//no history but collision moved/woke us up so snap back manually (if history exists we'll snap in FinishFrame
+				Rigid.SetP(Rigid.X());
+				Rigid.SetQ(Rigid.R());
+				Rigid.SetV(Rigid.PreV());
+				Rigid.SetW(Rigid.PreW());
 			}
+			
+			return;
+		}
+
+		//todo: is this check needed? why do we pass sleeping rigids into this function?
+		if(SimWritablePropsMayChange(Rigid))
+		{
+			FDirtyParticleInfo& Info = FindOrAddParticle(Rigid);
+			Info.LastDirtyFrame = CurFrame;
+
+			//User called PrepareManagerForFrame (or PrepareFrameForPTDirty) for the previous frame, so use it
+			FDirtyPropData DestManagerWrapper(Managers[CurFrame].Manager.Get(),DestDataIdx);
+
+			//sim-writable properties changed at head, so we must write down what they were
+			FGeometryParticleStateBase& LatestState = Info.AddFrame(CurFrame);
+			LatestState.SyncSimWritablePropsFromSim(DestManagerWrapper,Rigid);
+
+			//update any previous frames that were pointing at head
+			CoalesceBack(Info.Frames,CurFrame);
 		}
 	}
 
