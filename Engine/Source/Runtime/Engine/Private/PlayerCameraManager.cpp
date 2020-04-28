@@ -21,6 +21,7 @@
 #include "GameFramework/PlayerState.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 #include "GameFramework/GameNetworkManager.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayerCameraManager, Log, All);
 
