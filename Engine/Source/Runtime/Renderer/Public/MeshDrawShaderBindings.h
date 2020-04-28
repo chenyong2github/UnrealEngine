@@ -276,7 +276,7 @@ private:
 		}
 
 		//small size array optimization
-		const int ArrayEnd = FMath::Min(Index + Size + 1, Array.Num() - Index);
+		const int ArrayEnd = FMath::Min(Index + Size + 1, Array.Num());
 		while (Index < ArrayEnd)
 		{
 			if (Array[Index].BaseIndex == BaseIndex)
