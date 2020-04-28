@@ -293,12 +293,13 @@ private:
 	 */
 	static void ExportEventParm(FUHTStringBuilder& Out, TSet<FString>& PropertyFwd, UFunction* Function, int32 Indent, bool bOutputConstructor, EExportingState ExportingState);
 
-	/** 
-	* Exports the temp header files into the .h files, then deletes the temp files.
+	/**
+	* Move the temp header files into the .h files
 	* 
 	* @param	PackageName	Name of the package being saved
+	* @param	TempHeaderPaths	Names of all the headers to move
 	*/
-	static void ExportUpdatedHeaders(const FString& PackageName, const TArray<FString>& TempHeaderPaths);
+	static void ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths);
 
 	/**
 	 * Exports the generated cpp file for all functions/events/delegates in package.
@@ -483,7 +484,7 @@ private:
 	/**
 	 * Deletes all .generated.h files which do not correspond to any of the classes.
 	 */
-	static void DeleteUnusedGeneratedHeaders(const TSet<FString>& PackageHeaderPathSet);
+	static void DeleteUnusedGeneratedHeaders(TSet<FString>&& PackageHeaderPathSet);
 
 	/**
 	 * Exports macros that manages UObject constructors.
