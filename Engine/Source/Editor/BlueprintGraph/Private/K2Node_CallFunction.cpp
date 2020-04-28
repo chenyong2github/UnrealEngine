@@ -3305,6 +3305,12 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 				bIsDisallowed = true;
 				OutReason = LOCTEXT("PinSetConnectionDisallowed", "Containers of containers are not supported - consider wrapping a container in a Structure object").ToString();
 			}
+			// Do not allow exec pins to be connected to a wildcard if this is a container function
+			else if(MyPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard && OtherPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
+			{
+				bIsDisallowed = true;
+				OutReason = LOCTEXT("PinExecConnectionDisallowed", "Cannot create a container of Exec pins.").ToString();
+			}	
 		}
 	}
 
