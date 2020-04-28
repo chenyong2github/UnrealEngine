@@ -984,6 +984,7 @@ void FShaderPipeline::Finalize(const FShaderMapResourceCode* Code)
 	}
 }
 
+
 #if WITH_EDITOR
 void FShaderPipeline::SaveShaderStableKeys(const FShaderMapPointerTable& InPtrTable, EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& InSaveKeyVal) const
 {
