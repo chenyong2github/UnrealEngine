@@ -13,16 +13,16 @@ def dict_from_json(data):
     if type(data) == bytes:
         data = data.decode('utf8')
     if type(data) == str:
-        # using OrderedDict to retain items order 
-        data = json.loads(data, object_pairs_hook=OrderedDict)
-        if type(data) == OrderedDict:
-            for key in data:
-                data[key] = dict_from_json(data[key])
+        if not data:
+            data = None
+        else:
+            # using OrderedDict to retain items order 
+            data = json.loads(data, object_pairs_hook=OrderedDict)
+            if type(data) == OrderedDict:
+                for key in data:
+                    # at this point data[key] is a string and we need the structure represented by it
+                    data[key] = dict_from_json(data[key])
     return data
-
-
-def connect(server_address=LOCALHOST, server_port=DEFAULT_PORT):
-    return msgpackrpc.Client(msgpackrpc.Address(server_address, server_port))
 
 
 def is_port_available(port, host=LOCALHOST):
@@ -63,18 +63,3 @@ class ArgumentParser(argparse.ArgumentParser):
             set_executable(args.exec)
 
         return args
-
-
-def draw_img(img, colormap=lambda x: x):
-    import matplotlib.pyplot as plt
-    from matplotlib.pyplot import show, imshow, colorbar
-    import numpy as np
-    plt.figure()
-    plt.axis('off')
-    if np.min(img) < 0:
-        img = img * 0.5 + 0.5
-    imshow(colormap(np.asarray(img)))
-    imshow(img)
-    colorbar()
-    show()
-    
