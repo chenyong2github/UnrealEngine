@@ -14,6 +14,7 @@
 #include "Engine/Canvas.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Settings/LevelEditorMiscSettings.h"
+#include "Engine/RendererSettings.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Audio/AudioDebug.h"
@@ -2565,6 +2566,17 @@ FText FEditorViewportClient::GetCurrentBufferVisualizationModeDisplayName() cons
 		? FBufferVisualizationData::GetMaterialDefaultDisplayName() : GetBufferVisualizationData().GetMaterialDisplayName(CurrentBufferVisualizationMode));
 }
 
+bool FEditorViewportClient::IsVisualizeDebugMaterialEnabled() const
+{
+	// Get the list of requested buffers from the console
+	const URendererSettings* Settings = GetDefault<URendererSettings>();
+	check(Settings);
+
+	return ((EngineShowFlags.VisualizeDebugCustomPostProcessMaterial && Settings->VisualizeDebugCustomMaterialPath.IsValid()) ||
+		(EngineShowFlags.VisualizeDebugColor  && Settings->VisualizeDebugColorMaterialPath.IsValid()) ||
+		(EngineShowFlags.VisualizeDebugGrayscale && Settings->VisualizeDebugGrayscaleMaterialPath.IsValid()));
+}
+
 void FEditorViewportClient::ChangeRayTracingDebugVisualizationMode(FName InName)
 {
 	SetViewMode(VMI_RayTracingDebug);
@@ -2599,7 +2611,7 @@ bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 	}
 
 	// Don't do preview screen percentage for buffer visualization.
-	if (EngineShowFlags.VisualizeBuffer)
+	if (EngineShowFlags.VisualizeBuffer || IsVisualizeDebugMaterialEnabled())
 	{
 		return false;
 	}
@@ -3865,7 +3877,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	}
 
 	// Axes indicators
-	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden())
+	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden() && !IsVisualizeDebugMaterialEnabled())
 	{
 		switch (GetViewportType())
 		{

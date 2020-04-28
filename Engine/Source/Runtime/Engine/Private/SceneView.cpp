@@ -2011,6 +2011,9 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	if (AllowDebugViewmodes())
 	{
 		ConfigureBufferVisualizationSettings();
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		ConfigureDebugVisualizationSettings();
+#endif
 	}
 
 #if WITH_EDITOR
@@ -2123,6 +2126,71 @@ void FSceneView::ConfigureBufferVisualizationSettings()
 		}
 	}
 }
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+void FSceneView::ConfigureDebugVisualizationSettings()
+{
+	// Get the list of requested buffers from the console
+	const URendererSettings* Settings = GetDefault<URendererSettings>();
+	check(Settings);
+
+	if (Family->EngineShowFlags.VisualizeDebugCustomPostProcessMaterial)
+	{
+		if (Settings->VisualizeDebugCustomMaterialPath.IsValid())
+		{
+			if (UMaterial* Material = Cast<UMaterial>(Settings->VisualizeDebugCustomMaterialPath.TryLoad()))
+			{
+				FinalPostProcessSettings.DebugCustomVisualizationMaterial = Material;
+				CurrentVisualizeDebugCustomMaterialName = *Material->GetPathName();
+			}
+			else
+			{
+				UE_LOG(LogBufferVisualization, Warning, TEXT("Error loading material '%s'"), *Settings->VisualizeDebugCustomMaterialPath.ToString());
+				FinalPostProcessSettings.DebugCustomVisualizationMaterial = nullptr;
+				CurrentVisualizeDebugCustomMaterialName = NAME_None;
+			}
+		}
+	}
+
+	if (Family->EngineShowFlags.VisualizeDebugColor)
+	{
+		if (Settings->VisualizeDebugColorMaterialPath.IsValid())
+		{
+			if (UMaterial* Material = Cast<UMaterial>(Settings->VisualizeDebugColorMaterialPath.TryLoad()))
+			{
+				FinalPostProcessSettings.DebugColorVisualizationMaterial = Material;
+				CurrentVisualizeDebugColorMaterialName = *Material->GetPathName();
+			}
+			else
+			{
+				UE_LOG(LogBufferVisualization, Warning, TEXT("Error loading material '%s'"), *Settings->VisualizeDebugColorMaterialPath.ToString());
+				FinalPostProcessSettings.DebugColorVisualizationMaterial = nullptr;
+				CurrentVisualizeDebugColorMaterialName = NAME_None;
+			}
+		}
+	}
+
+	if (Family->EngineShowFlags.VisualizeDebugGrayscale)
+	{
+		if (Settings->VisualizeDebugGrayscaleMaterialPath.IsValid())
+		{
+			if (UMaterial* Material = Cast<UMaterial>(Settings->VisualizeDebugGrayscaleMaterialPath.TryLoad()))
+			{
+				FinalPostProcessSettings.DebugGrayscaleVisualizationMaterial = Material;
+				CurrentVisualizeDebugGrayscaleMaterialName = *Material->GetPathName();
+			}
+			else
+			{
+				UE_LOG(LogBufferVisualization, Warning, TEXT("Error loading material '%s'"), *Settings->VisualizeDebugGrayscaleMaterialPath.ToString());
+				FinalPostProcessSettings.DebugGrayscaleVisualizationMaterial = nullptr;
+				CurrentVisualizeDebugGrayscaleMaterialName = NAME_None;
+			}
+		}
+	}
+}
+
+#endif
 
 EShaderPlatform FSceneView::GetShaderPlatform() const
 {

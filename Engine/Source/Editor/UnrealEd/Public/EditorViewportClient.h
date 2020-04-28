@@ -1190,6 +1190,11 @@ public:
 	FText GetCurrentBufferVisualizationModeDisplayName() const;
 
 	/**
+	* Returns whether visualize debug material is enabled.
+	*/
+	bool IsVisualizeDebugMaterialEnabled() const;
+
+	/**
 	 * Changes the ray tracing debug visualization mode for this viewport
 	 *
 	 * @param InName	The ID of the required ray tracing debug visualization mode

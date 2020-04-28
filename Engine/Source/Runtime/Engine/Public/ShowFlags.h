@@ -400,6 +400,9 @@ private:
 		SetPathTracing(false);
 		SetRayTracingDebug(false);
 		SetVisualizeSkyAtmosphere(false);
+		SetVisualizeDebugColor(false);
+		SetVisualizeDebugGrayscale(false);
+		SetVisualizeDebugCustomPostProcessMaterial(false);
 	}
 
 

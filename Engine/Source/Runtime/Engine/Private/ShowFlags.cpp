@@ -333,6 +333,11 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 	EngineShowFlags.SetPathTracing(ViewModeIndex == VMI_PathTracing);
 }
 
+static bool IsVisualizeDebugMaterialEnabled(FEngineShowFlags& EngineShowFlags)
+{
+	return (EngineShowFlags.VisualizeDebugColor || EngineShowFlags.VisualizeDebugGrayscale || EngineShowFlags.VisualizeDebugCustomPostProcessMaterial);
+}
+
 void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex ViewModeIndex, FEngineShowFlags& EngineShowFlags, bool bCanDisableTonemapper)
 {
 	if(ShowFlagInitMode == ESFIM_Game)
@@ -509,8 +514,8 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 		}
 	}
 
-	// disable AA in full screen GBuffer visualization
-	if (bCanDisableTonemapper && EngineShowFlags.VisualizeBuffer)
+	// disable AA in full screen GBuffer visualization or debug material visualization
+	if (bCanDisableTonemapper && (EngineShowFlags.VisualizeBuffer || IsVisualizeDebugMaterialEnabled(EngineShowFlags)))
 	{
 		EngineShowFlags.SetTonemapper(false);
 	}
