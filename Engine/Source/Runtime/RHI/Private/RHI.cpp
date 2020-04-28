@@ -789,10 +789,24 @@ void RHIPrivateBeginFrame()
 	GNumDrawCallsRHI = GCurrentNumDrawCallsRHI;
 	
 #if CSV_PROFILER
+	// Only copy the display counters every so many frames to keep things more stable.
+	const int32 FramesUntilDisplayCopy = 30;
+	static int32 FrameCount = 0;
+	bool bCopyDisplayFrames = false;
+	++FrameCount;
+	if (FrameCount >= FramesUntilDisplayCopy)
+	{
+		bCopyDisplayFrames = true;
+		FrameCount = 0;
+	}
+
 	for (int32 Index=0; Index<FDrawCallCategoryName::NumCategory; ++Index)
 	{
 		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
-		FDrawCallCategoryName::DisplayCounts[Index] = CategoryName->Counter;
+		if (bCopyDisplayFrames)
+		{
+			FDrawCallCategoryName::DisplayCounts[Index] = CategoryName->Counter;
+		}
 		GNumDrawCallsRHI += CategoryName->Counter;
 		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), CategoryName->Counter, ECsvCustomStatOp::Set);
 		CategoryName->Counter = 0;
