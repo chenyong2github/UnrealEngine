@@ -589,7 +589,7 @@ public:
 		{
 			if (Resource)
 			{
-				Resource->ReleaseRHI();
+				BeginReleaseResource(Resource);
 			}
 		}
 		
