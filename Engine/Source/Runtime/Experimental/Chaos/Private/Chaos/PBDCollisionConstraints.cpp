@@ -171,11 +171,16 @@ namespace Chaos
 				{
 					return ShapeData->GetMaterials()[0].Get();
 				}
+				else
+				{
+					// This shape doesn't have a material assigned
+					return nullptr;
+				}
 			}
 		}
 
-		check(false); // The geometry used for this particle does not belong to the particle..
-
+		// The geometry used for this particle does not belong to the particle.
+		// This can happen in the case of fracture.
 		return nullptr;
 	}
 
