@@ -85,7 +85,7 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
-	Concrete.SetResimType(EResimType::FullSim);
+	Concrete.SetResimType(EResimType::FullResim);
 }
 
 template <typename T, int d>
@@ -110,7 +110,7 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
 	Concrete.ClearEvents();
 	Concrete.SetInitialized(false);
-	Concrete.SetResimType(EResimType::FullSim);
+	Concrete.SetResimType(EResimType::FullResim);
 }
 
 
