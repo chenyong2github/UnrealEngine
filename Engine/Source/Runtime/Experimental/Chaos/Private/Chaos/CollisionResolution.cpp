@@ -2070,6 +2070,9 @@ namespace Chaos
 			const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
 			const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
 
+			const FVec3 OriginalContactPositionLocal0 = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
+			const FVec3 OriginalContactPositionLocal1 = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location);
+
 			switch (Constraint.Manifold.ShapesType)
 			{
 			case EContactShapesType::SphereSphere:
@@ -2183,6 +2186,10 @@ namespace Chaos
 				ensure(false);
 				break;
 			}
+
+			const FVec3 NewContactPositionLocal0 = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
+			const FVec3 NewContactPositionLocal1 = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location);
+			Constraint.Manifold.ContactMoveSQRDistance = FMath::Max((NewContactPositionLocal0 - OriginalContactPositionLocal0).SizeSquared(), (NewContactPositionLocal1 - OriginalContactPositionLocal1).SizeSquared());
 		}
 
 		template<typename T_TRAITS>
@@ -2407,10 +2414,12 @@ namespace Chaos
 			// Get the plane and point transforms (depends which body owns the plane)
 			const FRigidTransform3& PlaneTransform = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? WorldTransform0 : WorldTransform1;
 			const FRigidTransform3& PointsTransform = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? WorldTransform1 : WorldTransform0;
+			const FVec3 OriginalContactPositionLocal = PointsTransform.InverseTransformPosition(Constraint.Manifold.Location);
 
 			// World-space manifold plane
 			FVec3 PlaneNormal = PlaneTransform.TransformVectorNoScale(Constraint.GetManifoldPlaneNormal());
 			FVec3 PlanePos = PlaneTransform.TransformPosition(Constraint.GetManifoldPlanePosition());
+			FReal ContactMoveSQRDistance = 0;
 
 			// Select the best manifold point
 			for (int32 PointIndex = 0; PointIndex < NumPoints; ++PointIndex)
@@ -2428,8 +2437,10 @@ namespace Chaos
 					Constraint.Manifold.Phi = PointDistance;
 					Constraint.Manifold.Location = ContactPos;
 					Constraint.Manifold.Normal = ContactNormal;
+					ContactMoveSQRDistance = (OriginalContactPositionLocal - Constraint.GetManifoldPoint(PointIndex)).SizeSquared();
 				}
 			}
+			Constraint.Manifold.ContactMoveSQRDistance = ContactMoveSQRDistance;
 		}
 
 
