@@ -7166,24 +7166,37 @@ bool ALandscapeProxy::LandscapeImportHeightmapFromRenderTarget(UTextureRenderTar
 
 	return true;
 }
+#endif
 
-bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarget2D* InRenderTarget, bool InExportHeightIntoRGChannel)
+bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarget2D* InRenderTarget, bool bInExportHeightIntoRGChannel, bool InExportLandscapeProxies)
 {
+#if WITH_EDITOR
 	uint64 StartCycle = FPlatformTime::Cycles64();
 
-	ALandscape* Landscape = GetLandscapeActor();
-	if (Landscape == nullptr)
-	{
-		FMessageLog("Blueprint").Error(LOCTEXT("LandscapeExportHeightmapToRenderTarget_NullLandscape.", "LandscapeExportHeightmapToRenderTarget: Landscape must be non-null."));
-		return false;
-	}
-
 	UMaterial* HeightmapRenderMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/Landscape_Heightmap_To_RenderTarget2D.Landscape_Heightmap_To_RenderTarget2D"));
-
 	if (HeightmapRenderMaterial == nullptr)
 	{
 		FMessageLog("Blueprint").Error(LOCTEXT("LandscapeExportHeightmapToRenderTarget_Landscape_Heightmap_To_RenderTarget2D.", "LandscapeExportHeightmapToRenderTarget: Material Landscape_Heightmap_To_RenderTarget2D not found in engine content."));
 		return false;
+	}
+
+	TArray<ULandscapeComponent*> LandscapeComponentsToExport;
+	//  Export the component of the specified proxy
+	LandscapeComponentsToExport.Append(LandscapeComponents);
+
+	// If requested, export all proxies
+	if (InExportLandscapeProxies && (GetLandscapeActor() == this))
+	{
+		ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+		for (ALandscapeProxy* Proxy : LandscapeInfo->Proxies)
+		{
+			LandscapeComponentsToExport.Append(Proxy->LandscapeComponents);
+		}
+	}
+
+	if (LandscapeComponentsToExport.Num() == 0)
+	{
+		return true;
 	}
 
 	UWorld* World = GEditor->GetEditorWorldContext().World();
@@ -7193,19 +7206,13 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 	FCanvas Canvas(RenderTargetResource, nullptr, 0, 0, 0, World->FeatureLevel);
 	Canvas.Clear(FLinearColor::Black);
 
-	ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-
-	TArray<ULandscapeComponent*> LandscapeComponentsToExport;
-	LandscapeComponentsToExport.Append(Landscape->LandscapeComponents);
-
-	// When run on the landscape actor, we will also export all proxies otherwise, we only export the component linked to the specified proxy
-	if (Landscape == LandscapeInfo->LandscapeActor.Get())
+	// Find exported component's base offset
+	FIntRect ComponentsExtent(MAX_int32, MAX_int32, MIN_int32, MIN_int32);
+	for (ULandscapeComponent* Component : LandscapeComponentsToExport)
 	{
-		for (ALandscapeProxy* Proxy : LandscapeInfo->Proxies)
-		{
-			LandscapeComponentsToExport.Append(Proxy->LandscapeComponents);
-		}
+		Component->GetComponentExtent(ComponentsExtent.Min.X, ComponentsExtent.Min.Y, ComponentsExtent.Max.X, ComponentsExtent.Max.Y);
 	}
+	FIntPoint ExportBaseOffset = ComponentsExtent.Min;
 
 	struct FTrianglePerMID
 	{
@@ -7224,7 +7231,7 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 			FTrianglePerMID Data;
 			Data.HeightmapMID = UMaterialInstanceDynamic::Create(HeightmapRenderMaterial, this);
 			Data.HeightmapMID->SetTextureParameterValue(TEXT("Heightmap"), Component->GetHeightmap());
-			Data.HeightmapMID->SetScalarParameterValue(TEXT("ExportHeightIntoRGChannel"), InExportHeightIntoRGChannel);
+			Data.HeightmapMID->SetScalarParameterValue(TEXT("ExportHeightIntoRGChannel"), bInExportHeightIntoRGChannel);
 			TrianglesPerMID = &TrianglesPerHeightmap.Add(Component->GetHeightmap(), Data);
 		}
 
@@ -7238,9 +7245,9 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 		{
 			for (int8 SubX = 0; SubX < NumSubsections; ++SubX)
 			{
-				FIntPoint SubSectionSectionBase = ComponentSectionBase;
-				SubSectionSectionBase.X = ComponentSectionBase.X + Component->SubsectionSizeQuads * SubX;
-				SubSectionSectionBase.Y = ComponentSectionBase.Y + Component->SubsectionSizeQuads * SubY;
+				FIntPoint SubSectionSectionBase = ComponentSectionBase - ExportBaseOffset;
+				SubSectionSectionBase.X += Component->SubsectionSizeQuads * SubX;
+				SubSectionSectionBase.Y += Component->SubsectionSizeQuads * SubY;
 
 				// Offset for this component's data in heightmap texture
 				float HeightmapOffsetU = Component->HeightmapScaleBias.Z + HeightmapSubsectionOffsetU * (float)SubX;
@@ -7300,10 +7307,11 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 
 	double SecondsTaken = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartCycle);
 	UE_LOG(LogLandscapeBP, Display, TEXT("Took %f seconds to export heightmap to render target."), SecondsTaken);
-
+#endif
 	return true;
 }
 
+#if WITH_EDITOR
 bool ALandscapeProxy::LandscapeImportWeightmapFromRenderTarget(UTextureRenderTarget2D* InRenderTarget, FName InLayerName)
 {
 	ALandscape* Landscape = GetLandscapeActor();
