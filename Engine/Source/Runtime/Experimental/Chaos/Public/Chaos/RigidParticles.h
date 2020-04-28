@@ -17,10 +17,10 @@ namespace Chaos
 
 enum class EResimType : uint8
 {
-	FullSim,	//fully re-run simulation and keep results (any forces must be applied again)
-	//SimWithPrevForces, //use previous forces and keep results (UNIMPLEMENTED)
-	SimAsSlave //use previous forces and snap to previous results regardless of variation - used to push other objects away
-	//SimAsKinematic //treat as kinematic (UNIMPLEMENTED)
+	FullResim,	//fully re-run simulation and keep results (any forces must be applied again)
+	//ResimWithPrevForces, //use previous forces and keep results (UNIMPLEMENTED)
+	ResimAsSlave //use previous forces and snap to previous results regardless of variation - used to push other objects away
+	//ResimAsKinematic //treat as kinematic (UNIMPLEMENTED)
 };
 
 template<class T, int d>
