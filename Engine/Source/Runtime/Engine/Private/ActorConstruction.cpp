@@ -1130,6 +1130,11 @@ UActorComponent* AActor::AddComponent(FName TemplateName, bool bManualAttachment
 
 UActorComponent* AActor::AddComponentByClass(TSubclassOf<UActorComponent> Class, bool bManualAttachment, const FTransform& RelativeTransform, bool bDeferredFinish)
 {
+	if (Class == nullptr)
+	{
+		return nullptr;
+	}
+
 	UWorld* World = GetWorld();
 	if (World->bIsTearingDown)
 	{
