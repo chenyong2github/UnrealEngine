@@ -108,13 +108,6 @@ uint32_t Swappy_version();
  */
 void Swappy_setThreadFunctions(const SwappyThreadFunctions* thread_functions);
 
-/**
- * @brief Get the supported refresh rates of this device. Up to allocated_entries refresh 
- * rates will be filled in, and the total number of rates suported is returned.
- * 
- */
-int Swappy_getSupportedRefreshRates(uint64_t *out_refreshrates, int allocated_entries);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
