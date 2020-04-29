@@ -12,6 +12,28 @@
 
 namespace Audio
 {
+	namespace FFTPeakPitchDetectorIntrinsics
+	{
+		constexpr int32 PeakPickerMinSize = 2;
+
+		int32 PowerScalePeakPickerValue(float InValue, int32 MinimumValue, int32 MaximumValue)
+		{
+			MinimumValue = FMath::Max(2, MinimumValue);
+			MaximumValue = FMath::Max(2, MaximumValue);
+			InValue = FMath::Clamp(InValue, 0.f, 1.f);
+
+			float Power = FMath::Max(SMALL_NUMBER, FMath::Loge(static_cast<float>(MaximumValue)) / FMath::Loge(static_cast<float>(MinimumValue)));
+			float Denom = FMath::Max(SMALL_NUMBER, Power - 1.f);
+
+			// Power mapped scale between 0 and 1.
+			const float Scale = (FMath::Pow(Power, InValue) - 1.f) / Denom;
+
+			float Range = static_cast<float>(MaximumValue - MinimumValue);
+
+			return FMath::Clamp(MinimumValue + FMath::RoundToInt(Range * Scale), MinimumValue, MaximumValue);
+		}
+	}
+
 	FFFTPeakPitchDetector::FFFTPeakPitchDetector(const FFFTPeakPitchDetectorSettings& InSettings, float InSampleRate)
 	:	Settings(InSettings)
 	,	SampleRate(InSampleRate)
@@ -22,6 +44,8 @@ namespace Audio
 	,	WindowCounter(0)
 	,	SlidingBuffer(1, 1)
 	{
+		using namespace FFTPeakPitchDetectorIntrinsics;
+
 		if (!ensure(SampleRate > 0.f))
 		{
 			SampleRate = 1.f;
@@ -83,12 +107,13 @@ namespace Audio
 		float InverseSensitivity = 1.f - Settings.Sensitivity;
 		
 		FPeakPickerSettings PeakPickerSettings;
-		PeakPickerSettings.NumPreMax = FMath::Max(1, FMath::RoundToInt(InverseSensitivity * FFTRange / 2.f));
+		PeakPickerSettings.NumPreMax = FMath::Max(1, PowerScalePeakPickerValue(InverseSensitivity, PeakPickerMinSize, FFTRange / 2));
 		PeakPickerSettings.NumPostMax = PeakPickerSettings.NumPreMax;
-		PeakPickerSettings.NumPreMean = FMath::Max(1, FMath::RoundToInt(InverseSensitivity * FFTRange));
+		PeakPickerSettings.NumPreMean = FMath::Max(1, PowerScalePeakPickerValue(InverseSensitivity, PeakPickerMinSize, FFTRange));
+
 		PeakPickerSettings.NumPostMean = PeakPickerSettings.NumPreMean;
 		PeakPickerSettings.NumWait = 1;
-		PeakPickerSettings.MeanDelta = 0.01f + InverseSensitivity;
+		PeakPickerSettings.MeanDelta = 0.f;
 
 		PeakPicker = MakeUnique<FPeakPicker>(PeakPickerSettings);
 
