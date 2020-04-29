@@ -22,8 +22,9 @@ namespace Audio
 		/** Maximum frequency of pitch result. */
 		float MaximumFrequency = 10000.f;
 
-		/** Sensitivity of peak detection */
-		float Sensitivity = 0.9f;
+		/** Sensitivity of peak detection. Valid values are between 0.0 and 1.0. 
+		 * 0.0 results in the least amount of pitches, while 1.0 result in the most pitches. */
+		float Sensitivity = 0.5f;
 	};
 
 	/** Pitch detector based on autocorrelation. Note that autocorrelation pitch detectors 
