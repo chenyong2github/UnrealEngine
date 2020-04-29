@@ -5,6 +5,8 @@
 #include "ToolBuilderUtil.h"
 
 #include "DynamicMesh3.h"
+#include "MeshNormals.h"
+#include "MeshTransforms.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
@@ -77,6 +79,27 @@ void USmoothMeshTool::Setup()
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(ComponentTarget->GetMesh(), SrcDynamicMesh);
 
+	// compute area of the input mesh and compute normalization scaling factor
+	FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(SrcDynamicMesh);
+	double AreaScale = FMathd::Max(0.01, 6.0 / FMathd::Sqrt(VolArea.Y) );	// 6.0 is a bit arbitrary here...surface area of unit box
+
+	// translate to origin and then apply inverse of scale
+	FAxisAlignedBox3d Bounds = SrcDynamicMesh.GetCachedBounds();
+	SrcTranslate = Bounds.Center();
+	MeshTransforms::Translate(SrcDynamicMesh, -SrcTranslate);
+	SrcScale = AreaScale;
+	MeshTransforms::Scale(SrcDynamicMesh, (1.0/SrcScale)*FVector3d::One(), FVector3d::Zero() );
+
+	// apply that transform to target transform so that visible mesh stays in the same spot
+	OverrideTransform = ComponentTarget->GetWorldTransform();
+	FVector TranslateDelta = OverrideTransform.TransformVector((FVector)SrcTranslate);
+	FVector CurScale = OverrideTransform.GetScale3D();
+	OverrideTransform.AddToTranslation(TranslateDelta);
+	CurScale.X *= (float)SrcScale;
+	CurScale.Y *= (float)SrcScale;
+	CurScale.Z *= (float)SrcScale;
+	OverrideTransform.SetScale3D(CurScale);
+
 	// Initialize the preview mesh with a copy of the source mesh.
 	{
 		// Construct the preview object and set the material on it.
@@ -90,9 +113,13 @@ void USmoothMeshTool::Setup()
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
 		Preview->SetWorkingMaterialDelay(0.75);
-		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+		Preview->PreviewMesh->SetTransform(OverrideTransform);
 		Preview->PreviewMesh->UpdatePreview(&SrcDynamicMesh);
 	}
+
+	// calculate normals
+	BaseNormals = MakeShared<FMeshNormals>(&SrcDynamicMesh);
+	BaseNormals->ComputeVertexNormals();
 
 	// show the preview mesh
 	Preview->SetVisibility(true);
@@ -102,33 +129,24 @@ void USmoothMeshTool::Setup()
 	SmoothProperties->RestoreProperties(this);
 	SmoothProperties->WatchProperty(SmoothProperties->SmoothingType,
 		[&](ESmoothMeshToolSmoothType) { UpdateVisiblePropertySets(); InvalidateResult();  });
-	//SmoothProperties->WatchProperty(SmoothProperties->bPreserveUVs,
-	//	[&](bool) { InvalidateResult(); });
 
 	IterativeProperties = NewObject<UIterativeSmoothProperties>(this);
 	AddToolPropertySource(IterativeProperties);
 	IterativeProperties->RestoreProperties(this);
 	SetToolPropertySourceEnabled(IterativeProperties, false);
 	IterativeProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { InvalidateResult(); });
-	//IterativeProperties->WatchProperty(IterativeProperties->SmoothingPerStep,[&](float) { InvalidateResult(); } );
-	//IterativeProperties->WatchProperty(IterativeProperties->Steps, [&](int) { InvalidateResult(); });
-	//IterativeProperties->WatchProperty(IterativeProperties->bSmoothBoundary, [&](int) { InvalidateResult(); });
 
 	DiffusionProperties = NewObject<UDiffusionSmoothProperties>(this);
 	AddToolPropertySource(DiffusionProperties);
 	DiffusionProperties->RestoreProperties(this);
 	SetToolPropertySourceEnabled(DiffusionProperties, false);
 	DiffusionProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { InvalidateResult(); });
-	//DiffusionProperties->WatchProperty(DiffusionProperties->SmoothingPerStep, [&](float) { InvalidateResult(); });
-	//DiffusionProperties->WatchProperty(DiffusionProperties->Steps, [&](int) { InvalidateResult(); });
 
 	ImplicitProperties = NewObject<UImplicitSmoothProperties>(this);
 	AddToolPropertySource(ImplicitProperties);
 	ImplicitProperties->RestoreProperties(this);
 	SetToolPropertySourceEnabled(ImplicitProperties, false);
 	ImplicitProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { InvalidateResult(); });
-	//ImplicitProperties->WatchProperty(ImplicitProperties->SmoothSpeed, [&](float) { InvalidateResult(); });
-	//ImplicitProperties->WatchProperty(ImplicitProperties->Smoothness, [&](float) { InvalidateResult(); });
 
 	// start the compute
 	InvalidateResult();
@@ -159,6 +177,9 @@ void USmoothMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 			check(DynamicMeshResult != nullptr);
+
+			MeshTransforms::Scale(*DynamicMeshResult, FVector3d(SrcScale, SrcScale, SrcScale), FVector3d::Zero());
+			MeshTransforms::Translate(*DynamicMeshResult, SrcTranslate);
 
 			ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 			{
@@ -237,6 +258,7 @@ TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 	TUniquePtr<FSmoothingOpBase> MeshOp;
 	
 	FSmoothingOpBase::FOptions Options;
+	Options.BaseNormals = this->BaseNormals;
 
 	switch (SmoothProperties->SmoothingType)
 	{
@@ -259,16 +281,21 @@ TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 		break;
 
 	case ESmoothMeshToolSmoothType::Implicit:
+		{	
 		Options.SmoothAlpha = ImplicitProperties->SmoothSpeed;
-		Options.SmoothPower = (ImplicitProperties->Smoothness >= 100.0) ? FMathf::MaxReal : ImplicitProperties->Smoothness;
+		double NonlinearT = FMathd::Pow(ImplicitProperties->Smoothness, 2.0);
+		// this is an empirically-determined hack that seems to work OK to normalize the smoothing result for variable vertex count...
+		double ScaledPower = (NonlinearT/50.0) * SrcDynamicMesh.VertexCount();
+		Options.SmoothPower = ScaledPower;
 		Options.bUniform = ImplicitProperties->bPreserveUVs == false;
 		Options.bUseImplicit = true;
+		Options.NormalOffset = ImplicitProperties->VolumeCorrection;
 		MeshOp = MakeUnique<FCotanSmoothingOp>(&SrcDynamicMesh, Options);
+		}
 		break;
 	}
 
-	const FTransform XForm = ComponentTarget->GetWorldTransform();
-	FTransform3d XForm3d(XForm);
+	FTransform3d XForm3d(OverrideTransform);
 	MeshOp->SetTransform(XForm3d);
 
 	return MeshOp;

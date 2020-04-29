@@ -12,6 +12,7 @@
 
 // predeclarations
 struct FMeshDescription;
+class FMeshNormals;
 class USimpleDynamicMeshComponent;
 
 /**
@@ -46,10 +47,10 @@ enum class ESmoothMeshToolSmoothType : uint8
 	Iterative UMETA(DisplayName = "Fast Iterative"),
 
 	/** Implicit smoothing, produces smoother output and does a better job at preserving UVs, but can be very slow on large meshes */
-	Implicit UMETA(DisplayName = "Implicit Single"),
+	Implicit UMETA(DisplayName = "Fast Implicit"),
 
 	/** Iterative implicit-diffusion smoothing with N iterations */
-	Diffusion UMETA(DisplayName = "Implicit Diffusion")
+	Diffusion UMETA(DisplayName = "Iterative Diffusion")
 };
 
 
@@ -76,11 +77,11 @@ class MESHMODELINGTOOLS_API UIterativeSmoothProperties : public UInteractiveTool
 public:
 	/** Amount of smoothing allowed per step. Smaller steps will avoid things like collapse of small/thin features. */
 	UPROPERTY(EditAnywhere, Category = IterativeSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float SmoothingPerStep = 1.0f;
+	float SmoothingPerStep = 0.8f;
 
 	/** Number of Smoothing iterations */
 	UPROPERTY(EditAnywhere, Category = IterativeSmoothing, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
-	int32 Steps = 1;
+	int32 Steps = 10;
 
 	/** If this is false, the smoother will try to reshape the triangles to be more regular, which will distort UVs */
 	UPROPERTY(EditAnywhere, Category = IterativeSmoothing)
@@ -98,7 +99,7 @@ class MESHMODELINGTOOLS_API UDiffusionSmoothProperties : public UInteractiveTool
 public:
 	/** Amount of smoothing allowed per step. Smaller steps will avoid things like collapse of small/thin features. */
 	UPROPERTY(EditAnywhere, Category = DiffusionSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float SmoothingPerStep = 1.0f;
+	float SmoothingPerStep = 0.8f;
 
 	/** Number of Smoothing iterations */
 	UPROPERTY(EditAnywhere, Category = DiffusionSmoothing, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
@@ -125,12 +126,16 @@ public:
 	float SmoothSpeed = 0.1f;
 
 	/** Desired Smoothness. This is not a linear quantity, but larger numbers produce smoother results */
-	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing, meta = (UIMin = "0.0", UIMax = "100.0", ClampMin = "0.0", ClampMax = "10000.0"))
-	float Smoothness = 1.0f;
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
+	float Smoothness = 0.2f;
 
 	/** If this is false, the smoother will try to reshape the triangles to be more regular, which will distort UVs */
 	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing)
 	bool bPreserveUVs = true;
+
+	/** Magic number that allows you to try to correct for shrinking caused by smoothing */
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing, meta = (UIMin = "0.0", UIMax = "1000.0", ClampMin = "0.0", ClampMax = "1000000.0"))
+	float VolumeCorrection = 0.0f;
 };
 
 
@@ -188,6 +193,14 @@ protected:
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
 	FDynamicMesh3 SrcDynamicMesh;
+
+	// scale/translate applied to input mesh to regularize it
+	FVector3d SrcTranslate;
+	double SrcScale;
+	// transform that does the opposite of scale/translate so that mesh stays in the right spot on screen
+	FTransform OverrideTransform;
+
+	TSharedPtr<FMeshNormals> BaseNormals;
 
 	UWorld* TargetWorld = nullptr;
 	IToolsContextAssetAPI* AssetAPI = nullptr;
