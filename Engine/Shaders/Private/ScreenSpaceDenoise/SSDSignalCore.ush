@@ -65,6 +65,9 @@ struct FSSDSignalFrequency
 
 	// Blur radius allowed for this sample.
 	float WorldBluringRadius;
+
+	// Circle confusion multiplier.
+	float ConfusionFactor;
 };
 
 /** Array of signal samples. Technically should be a typedef, but there is a bug in HLSL with the out operator of an array. */
@@ -119,6 +122,7 @@ FSSDSignalFrequency CreateInvalidSignalFrequency()
 	FSSDSignalFrequency Frequency;
 	Frequency.ClosestHitDistance = DENOISER_INVALID_HIT_DISTANCE;
 	Frequency.WorldBluringRadius = WORLD_RADIUS_INVALID;
+	Frequency.ConfusionFactor = CONFUSION_FACTOR_INVALID;
 	return Frequency;
 }
 
@@ -477,6 +481,7 @@ FSSDSignalFrequency MinSignalFrequency(FSSDSignalFrequency FrequencyA, FSSDSigna
 	FSSDSignalFrequency OutFrequency;
 	OutFrequency.ClosestHitDistance = min(FrequencyA.ClosestHitDistance, FrequencyB.ClosestHitDistance);
 	OutFrequency.WorldBluringRadius = min(FrequencyA.WorldBluringRadius, FrequencyB.WorldBluringRadius);
+	OutFrequency.ConfusionFactor = min(FrequencyA.ConfusionFactor, FrequencyB.ConfusionFactor);
 	return OutFrequency;
 }
 
@@ -485,5 +490,6 @@ FSSDSignalFrequency WaveBroadcastSignalFrequency(const FWaveBroadcastSettings Br
 	FSSDSignalFrequency OutFrequency;
 	OutFrequency.ClosestHitDistance = WaveBroadcast(BroadcastSettings, Frequency.ClosestHitDistance);
 	OutFrequency.WorldBluringRadius = WaveBroadcast(BroadcastSettings, Frequency.WorldBluringRadius);
+	OutFrequency.ConfusionFactor = WaveBroadcast(BroadcastSettings, Frequency.ConfusionFactor);
 	return OutFrequency;
 }

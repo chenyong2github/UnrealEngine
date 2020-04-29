@@ -117,6 +117,7 @@ FSSDSignalAccumulator CreateSignalAccumulator()
 	#if COMPILE_MIN_FREQUENCY_ACCUMULATOR
 		Accumulator.MinFrequency.ClosestHitDistance = INFINITE_FLOAT;
 		Accumulator.MinFrequency.WorldBluringRadius = WORLD_RADIUS_MISS;
+		Accumulator.MinFrequency.ConfusionFactor = CONFUSION_FACTOR_MISS;
 	#endif
 
 	// DRB initialization.
