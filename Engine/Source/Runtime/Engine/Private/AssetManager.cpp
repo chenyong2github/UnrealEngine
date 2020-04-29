@@ -385,6 +385,7 @@ bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, 
 
 int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const TArray<FString>& Paths, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly, bool bForceSynchronousScan)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetManager::ScanPathsForPrimaryAssets)
 	TArray<FString> Directories, PackageNames;
 	TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetType);
 
@@ -571,12 +572,9 @@ void UAssetManager::StartBulkScanning()
 	{
 		bIsBulkScanning = true;
 		NumberOfSpawnedNotifications = 0;
-
-		if (!WITH_EDITOR)
-		{
-			// Go into temporary caching mode to speed up class queries, not guaranteed safe in editor builds
-			GetAssetRegistry().SetTemporaryCachingMode(true);
-		}
+		bOldTemporaryCachingMode = GetAssetRegistry().GetTemporaryCachingMode();
+		// Go into temporary caching mode to speed up class queries
+		GetAssetRegistry().SetTemporaryCachingMode(true);
 	}
 }
 
@@ -585,12 +583,9 @@ void UAssetManager::StopBulkScanning()
 	if (ensure(bIsBulkScanning))
 	{
 		bIsBulkScanning = false;
-	}
 
-	if (!WITH_EDITOR)
-	{
 		// Leave temporary caching mode
-		GetAssetRegistry().SetTemporaryCachingMode(false);
+		GetAssetRegistry().SetTemporaryCachingMode(bOldTemporaryCachingMode);
 	}
 	
 	RebuildObjectReferenceList();
