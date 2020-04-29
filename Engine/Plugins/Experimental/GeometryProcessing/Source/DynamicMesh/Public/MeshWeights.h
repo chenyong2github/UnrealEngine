@@ -18,26 +18,53 @@ public:
 	 * Compute uniform centroid of a vertex one-ring.
 	 * These weights are strictly positive and all equal to 1 / valence
 	 */
-	static FVector3d UniformCentroid(const FDynamicMesh3 & mesh, int VertexIndex);
+	static FVector3d UniformCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex);
 
+	/**
+	 * Compute uniform centroid of a vertex one-ring.
+	 * These weights are strictly positive and all equal to 1 / valence
+	 */
+	static FVector3d UniformCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc );
 
 	/**
 	 * Compute mean-value centroid of a vertex one-ring.
 	 * These weights are strictly positive.
 	 */
-	static FVector3d MeanValueCentroid(const FDynamicMesh3 & mesh, int VertexIndex);
+	static FVector3d MeanValueCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex, double WeightClamp = FMathf::MaxReal);
+
+	/**
+	 * Compute mean-value centroid of a vertex one-ring.
+	 * These weights are strictly positive.
+	 */
+	static FVector3d MeanValueCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc, double WeightClamp = FMathf::MaxReal);
 
 	/**
 	 * Compute cotan-weighted centroid of a vertex one-ring.
 	 * These weights are numerically unstable if any of the triangles are degenerate.
 	 * We catch these problems and return input vertex as centroid
 	 */
-	static FVector3d CotanCentroid(const FDynamicMesh3 & mesh, int VertexIndex);
+	static FVector3d CotanCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex);
 
 	/**
-	 * Compute the voronoi area associated with a vertex.
+	 * Compute cotan-weighted centroid of a vertex one-ring.
+	 * These weights are numerically unstable if any of the triangles are degenerate.
+	 * We catch these problems and return input vertex as centroid
 	 */
-	static double VoronoiArea(const FDynamicMesh3& mesh, int VertexIndex);
+	static FVector3d CotanCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc);
+
+
+	/**
+	 * Compute the Mixed Voronoi Area associated with a vertex.
+	 * Based on Fig 4 from "Discrete Differential-Geometry Operators for Triangulated 2-Manifolds", Meyer et al 2002,
+	 */
+	static double VoronoiArea(const FDynamicMesh3& Mesh, int32 VertexIndex);
+
+	/**
+	 * Compute the Mixed Voronoi Area associated with a vertex.
+	 * Based on Fig 4 from "Discrete Differential-Geometry Operators for Triangulated 2-Manifolds", Meyer et al 2002,
+	 */
+	static double VoronoiArea(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc);
+
 
 protected:
 	FMeshWeights() = delete;
