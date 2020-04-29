@@ -126,9 +126,9 @@
 	<Option Name="CrashReporterAPIURL" DefaultValue="" Description="The URL to use to talk to the CrashReporterClient API."/>
 	<Option Name="CrashReporterAPIKey" DefaultValue="" Description="The API key to use to talk to the CrashReporterClient API."/>
 	<Property Name="CrashReporterCompileArgsWin" Value=""/>
-	<Property Name="CrashReporterCompileArgsWin" Value="-CompilerArguments=&quot;/DCRC_TELEMETRY_URL=$(CrashReporterAPIURL) /DCRC_TELEMETRY_KEY=$(CrashReporterAPIKey) /DCRC_TELEMETRY_KEY_RELEASE=$(CrashReporterAPIKey)&quot;" If="'$(CrashReporterAPIURL)' != '' And '$(CrashReporterAPIKey)' != ''" />
+	<Property Name="CrashReporterCompileArgsWin" Value="-CompilerArguments=&quot;/DCRC_TELEMETRY_URL=\&quot;$(CrashReporterAPIURL)\&quot; /DCRC_TELEMETRY_KEY=$(CrashReporterAPIKey) /DCRC_TELEMETRY_KEY_RELEASE=$(CrashReporterAPIKey)&quot;" If="'$(CrashReporterAPIURL)' != '' And '$(CrashReporterAPIKey)' != ''" />
 	<Property Name="CrashReporterCompileArgsMac" Value=""/>
-	<Property Name="CrashReporterCompileArgsMac" Value="-CompilerArguments=&quot; -DCRC_TELEMETRY_URL=$(CrashReporterAPIURL) -DCRC_TELEMETRY_KEY=$(CrashReporterAPIKey) -DCRC_TELEMETRY_KEY_RELEASE=$(CrashReporterAPIKey)&quot;" If="'$(CrashReporterAPIURL)' != '' And '$(CrashReporterAPIKey)' != ''" />
+	<Property Name="CrashReporterCompileArgsMac" Value="-CompilerArguments=&quot; -DCRC_TELEMETRY_URL=\&quot;$(CrashReporterAPIURL)\&quot; -DCRC_TELEMETRY_KEY=$(CrashReporterAPIKey) -DCRC_TELEMETRY_KEY_RELEASE=$(CrashReporterAPIKey)&quot;" If="'$(CrashReporterAPIURL)' != '' And '$(CrashReporterAPIKey)' != ''" />
 
 	<!-- Base editor and tools for compile on Windows -->
 	<Agent Name="Editor Win64" Type="Win64_Licensee">
