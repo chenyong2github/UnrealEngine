@@ -44,6 +44,11 @@ void FModelingModeActionCommands::RegisterCommandBindings(TSharedPtr<FUICommandL
 		FExecuteAction::CreateLambda([OnCommandExecuted]() { OnCommandExecuted(EModelingModeActionCommands::FocusViewToCursor); }));
 }
 
+void FModelingModeActionCommands::UnRegisterCommandBindings(TSharedPtr<FUICommandList> UICommandList)
+{
+	const FModelingModeActionCommands& Commands = FModelingModeActionCommands::Get();
+	UICommandList->UnmapAction(Commands.FocusViewCommand);
+}
 
 
 
