@@ -5,6 +5,7 @@
 #include "Solvers/ConstrainedMeshSmoother.h"
 #include "MeshCurvature.h"
 #include "MeshWeights.h"
+#include "MeshNormals.h"
 
 
 FCotanSmoothingOp::FCotanSmoothingOp(const FDynamicMesh3* Mesh, const FSmoothingOpBase::FOptions& OptionsIn) :
@@ -51,7 +52,15 @@ void FCotanSmoothingOp::Smooth()
 		double Weight = 1.0 / Power;
 		for (int32 vid : ResultMesh->VertexIndicesItr())
 		{
-			Smoother->AddConstraint(vid, Weight, ResultMesh->GetVertex(vid), false);
+			FVector3d Position = ResultMesh->GetVertex(vid);
+
+			if (SmoothOptions.NormalOffset > 0)
+			{
+				check(SmoothOptions.BaseNormals.IsValid());
+				Position += SmoothOptions.NormalOffset * SmoothOptions.BaseNormals->GetNormals()[vid];
+			}
+
+			Smoother->AddConstraint(vid, Weight, Position, false);
 		}
 		Smoother->Deform(PositionBuffer);
 	}
