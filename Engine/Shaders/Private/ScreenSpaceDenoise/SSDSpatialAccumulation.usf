@@ -14,9 +14,6 @@
 
 /** Policy to use to change the size of kernel. */
 	#define SAMPLE_COUNT_POLICY_DISABLED 0
-	#define SAMPLE_COUNT_POLICY_METADATA_BASED 1
-	#define SAMPLE_COUNT_POLICY_HIT_DISTANCE_BASED 2
-	#define SAMPLE_COUNT_POLICY_ACCUMULATION_BASED 3
 	#define SAMPLE_COUNT_POLICY_SAMPLE_ACCUMULATION_BASED 4
 
 /** What signal should be outputed. */
@@ -158,64 +155,30 @@
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 	// Denoise only specular.
 	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
 
 	#define COMPILE_SIGNAL_COLOR 1
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS
 
-	#if DIM_STAGE == STAGE_RECONSTRUCTION
+	#if DIM_STAGE == STAGE_RECONSTRUCTION || DIM_STAGE == STAGE_PRE_CONVOLUTION
 		#define SIGNAL_ARRAY_SIZE 1
 
 		// Input and output layout.
+		#if DIM_STAGE == STAGE_RECONSTRUCTION 
+			#define CONFIG_INPUT_TEXTURE_COUNT 2
 			#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT
+		#else
+			#define CONFIG_INPUT_TEXTURE_COUNT 2
+			#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
+		#endif
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
+		#define CONFIG_OUTPUT_TEXTURE_COUNT 2
 
-		// Configure the bilateral therm.
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_ELLIPSE
-
-		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS
-		//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_1SPP
-		//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
-
-		//#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_DISABLED
 
 		// Do color accumulation with karis weighting to avoid flickering specular highlight to show up the kernel pattern.
 		// TODO(Denoiser): This is a bit agressive.
 		#define CONFIG_ACCUMULATION_COLOR_SPACE (COLOR_SPACE_RGB | COLOR_SPACE_KARIS_WEIGHTING)
-
-		#define CONFIG_INPUT_TEXTURE_COUNT 2
-		#define CONFIG_OUTPUT_TEXTURE_COUNT 2
-
-	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
-		#define SIGNAL_ARRAY_SIZE 2 // first and second momment to measure variance in temporal accumulation.
-
-		// Input and output layout.
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
-		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION
-
-		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS
-
-		#define CONFIG_ACCUMULATION_COLOR_SPACE REFLECTIONS_REJECTION_COLOR_SPACE
-		#define CONFIG_OUTPUT_COLOR_SPACE       REFLECTIONS_REJECTION_COLOR_SPACE
-
-		#define CONFIG_INPUT_TEXTURE_COUNT 2
-		#define CONFIG_OUTPUT_TEXTURE_COUNT 3
-
-	#elif DIM_STAGE == STAGE_POST_FILTERING
-		#define SIGNAL_ARRAY_SIZE 1
-
-		// Input and output layout.
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
-		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
-
-		//#define CONFIG_SAMPLE_SET           SAMPLE_SET_3X3
-		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
-		#define CONFIG_SAMPLE_SUBSET        1
-		#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_ACCUMULATION_BASED
-		//#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_DISABLED
-
-		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS
-
-		#define CONFIG_INPUT_TEXTURE_COUNT 2
-		#define CONFIG_OUTPUT_TEXTURE_COUNT 2
 
 	#else
 		#error Unexpected stage.
@@ -534,6 +497,7 @@
 //------------------------------------------------------- PARAMETERS
 
 uint MaxSampleCount;
+uint PreviousCumulativeMaxSampleCount;
 uint UpscaleFactor;
 
 #if !CONFIG_UPSCALE && CONFIG_CUSTOM_SPREAD_FACTOR
@@ -700,32 +664,6 @@ void MainCS(
 		RequestedSampleCount = 1;
 	#elif CONFIG_SAMPLE_COUNT_POLICY == SAMPLE_COUNT_POLICY_DISABLED
 		// NOP
-	#elif CONFIG_SAMPLE_COUNT_POLICY == SAMPLE_COUNT_POLICY_METADATA_BASED
-	{
-		float RefBluringRadius = ComputeInfinityBluringRadius(RefSceneMetadata) * View.ViewSizeAndInvSize.x * rcp(KernelSpreadFactor);
-		RequestedSampleCount = PI * RefBluringRadius * RefBluringRadius;
-	}
-	#elif CONFIG_SAMPLE_COUNT_POLICY == SAMPLE_COUNT_POLICY_HIT_DISTANCE_BASED
-	{
-		#if CONFIG_SIGNAL_BATCH_SIZE != 1
-			#error Unable to support more than one signal.
-		#endif
-		float RefBluringRadius = ComputeBluringRadiusOfNormalizedSample(RefFrequencies, RefSceneMetadata) * View.ViewSizeAndInvSize.x * rcp(KernelSpreadFactor);
-		RequestedSampleCount = PI * RefBluringRadius * RefBluringRadius;
-	}
-	#elif CONFIG_SAMPLE_COUNT_POLICY == SAMPLE_COUNT_POLICY_ACCUMULATION_BASED
-	{
-		#if CONFIG_SIGNAL_BATCH_SIZE != 1
-			#error Unable to support more than one signal.
-		#endif
-		// TOOD: use ComputeBluringRadiusOfNormalizedSample instead.
-		float RefBluringRadius = ComputeInfinityBluringRadius(RefSceneMetadata) * View.ViewSizeAndInvSize.x * rcp(KernelSpreadFactor);
-		float IdealSampleCount = PI * RefBluringRadius * RefBluringRadius;
-
-		IdealSampleCount = min(IdealSampleCount, TARGETED_SAMPLE_COUNT);
-
-		RequestedSampleCount = IdealSampleCount / clamp(RefSamples.Array[0].SampleCount, 1, MaxSampleCount);
-	}
 	#elif CONFIG_SAMPLE_COUNT_POLICY == SAMPLE_COUNT_POLICY_SAMPLE_ACCUMULATION_BASED
 	{
 		#if CONFIG_SIGNAL_BATCH_SIZE != 1
@@ -956,16 +894,16 @@ void MainCS(
 					/* out */ InifinityMajorViewportRadius,
 					/* out */ InifinityMinorViewportRadius);
 
-				float OutOfFocus = ComputeBluringOutOfFocusOfNormalizedSample(RefFrequencies.Array[0], RefSceneMetadata);
-
-				KernelConfig.MajorAxis = NormalizedScreenMajorAxis * float2(1, -1);
-				KernelConfig.MajorPixelRadius = InifinityMajorViewportRadius * OutOfFocus * View.ViewSizeAndInvSize.x;
-
+				float ConfusionFactor = saturate(RefFrequencies.Array[0].ConfusionFactor);
 				float AspectRatio = InifinityMinorViewportRadius / InifinityMajorViewportRadius;
 
-				float MaxPixelDiameter = sqrt(rcp(TargetSamplePerPixel) * MaxSampleCount / AspectRatio);
-				float MaxPixelRadius = 0.5 * MaxPixelDiameter;
+				float PreviousMaxPixelDiameter = sqrt(rcp(TargetSamplePerPixel) * PreviousCumulativeMaxSampleCount / AspectRatio);
+				float MaxPixelDiameter = sqrt(rcp(TargetSamplePerPixel) * MaxSampleCount * PreviousCumulativeMaxSampleCount / AspectRatio);
 
+				KernelConfig.MajorAxis = NormalizedScreenMajorAxis * float2(1, -1);
+				KernelConfig.MajorPixelRadius = InifinityMajorViewportRadius * ConfusionFactor * View.ViewSizeAndInvSize.x - PreviousMaxPixelDiameter;
+
+				float MaxPixelRadius = 0.5 * MaxPixelDiameter;
 
 				KernelConfig.MajorPixelRadius = clamp(KernelConfig.MajorPixelRadius, 0, MaxPixelRadius);
 				KernelConfig.MinorPixelRadius = AspectRatio * KernelConfig.MajorPixelRadius;
@@ -973,8 +911,33 @@ void MainCS(
 				// *4 to multiply from radii area to diameters area.
 				float ConvolutionArea = 4.0 * max(KernelConfig.MajorPixelRadius, MinimalPixelRadius) * max(KernelConfig.MinorPixelRadius, MinimalPixelRadius);
 
-				KernelConfig.SampleCount = clamp(ConvolutionArea * TargetSamplePerPixel, 0, MaxSampleCount);
+				KernelConfig.SampleCount = clamp(ConvolutionArea * TargetSamplePerPixel * rcp(PreviousCumulativeMaxSampleCount), 0, MaxSampleCount);
 			
+				#if 0
+				{
+					DebugOutput[DispatchThreadId] = float4(
+						KernelConfig.SampleCount,
+						KernelConfig.MajorPixelRadius,
+						KernelConfig.MinorPixelRadius,
+						ConfusionFactor);
+				}
+				#elif 0
+				{
+					// DebugOutput[DispatchThreadId] = float4(
+					// 	KernelConfig.SampleCount,
+					// 	InifinityMajorViewportRadius,
+					// 	InifinityMinorViewportRadius,
+					// 	AspectRatio);
+				}
+				#elif 0
+				{
+					DebugOutput[DispatchThreadId] = float4(
+						//GetWorldNormal(RefSceneMetadata) * 0.5 + 0.5,
+						abs(GetTranslatedWorldPosition(RefSceneMetadata) * 0.001),
+						RefSceneMetadata.WorldDepth);
+				}
+				#endif
+
 				// DebugOutput[DispatchThreadId] = float4(
 				// 	KernelConfig.SampleCount,
 				// 	KernelConfig.MajorPixelRadius,
@@ -988,15 +951,26 @@ void MainCS(
 		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_*
 		
 		FSSDCompressedSignalAccumulatorArray CompressedAccumulators = CompressAccumulatorArray(UncompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
-
-		AccumulateKernel(
-			KernelConfig,
-			Signal_Textures_0,
-			Signal_Textures_1,
-			Signal_Textures_2,
-			Signal_Textures_3,
-			/* inout */ UncompressedAccumulators,
-			/* inout */ CompressedAccumulators);
+		
+		#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
+		bool bRefHasSamples = false;
+		for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
+		{
+			bRefHasSamples = bRefHasSamples || (RefSamples.Array[SignalMultiplexId].SampleCount > 0);
+		}
+		BRANCH
+		if (bRefHasSamples)
+		#endif
+		{
+			AccumulateKernel(
+				KernelConfig,
+				Signal_Textures_0,
+				Signal_Textures_1,
+				Signal_Textures_2,
+				Signal_Textures_3,
+				/* inout */ UncompressedAccumulators,
+				/* inout */ CompressedAccumulators);
+		}
 
 		// When doing history rejection pre convolution, could still have no information found with the 3x3 + kernel,
 		// therefore dynamically complete to form an entire 3x3 convolution.

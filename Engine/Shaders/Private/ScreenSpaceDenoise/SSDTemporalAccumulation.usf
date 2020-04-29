@@ -9,12 +9,6 @@
 	#define REJECTION_INPUT_MODE_1UNNORMALIZED 0
 	#define REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS 1
 
-/** What set of sample should be used for history rejection. */
-	#define REJECTION_SAMPLE_SET_BOX 0
-	// [ Sobek 2018, "Real-time Reflections_in Mafia III" ]
-	#define REJECTION_SAMPLE_SET_SOBEK2018 1
-
-
 /** How to perform history rejection. */
 	#define HISTORY_REJECTION_DISABLED 0
 	#define HISTORY_REJECTION_MINMAX_BOUNDARIES 1
@@ -96,21 +90,11 @@
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_TAA
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_TAA
 
+	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3_PLUS
+
 	// Use variance based rejection.
 	#define CONFIG_HISTORY_REJECTION             HISTORY_REJECTION_VAR_BOUNDARIES
 	#define CONFIG_HISTORY_REJECTION_COLOR_SPACE REFLECTIONS_REJECTION_COLOR_SPACE
-
-	// Use pre transformed rejection buffer that contains pre transformed momment 1 & 2.
-	#if 1
-		#define CONFIG_USE_REJECTION_BUFFER               1
-		#define CONFIG_SIGNAL_HISTORY_REJECTION_LAYOUT    SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION
-		
-		#define CONFIG_REJECTION_TEXTURE_COUNT 3 
-
-		#define CONFIG_REJECTION_BUFFER_COLOR_SPACE       REFLECTIONS_REJECTION_COLOR_SPACE
-		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
-		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
-	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
 	#define MAX_SIGNAL_BATCH_SIZE 1
@@ -135,7 +119,7 @@
 		#define CONFIG_REJECTION_TEXTURE_COUNT            1
 
 		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
-		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
+		#define CONFIG_REJECTION_SAMPLE_SET               SAMPLE_SET_3X3_SOBEK2018
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
@@ -202,6 +186,8 @@
 	// Reject using variance to smooth highlights further on history rejections.
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
+	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3_PLUS
+
 	// Use position and normal based rejection ideal for diffuse.
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
@@ -236,7 +222,7 @@
 
 /** Sample set to use for history rejection. */
 #ifndef CONFIG_REJECTION_SAMPLE_SET
-	#define CONFIG_REJECTION_SAMPLE_SET REJECTION_SAMPLE_SET_BOX
+	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_NXN
 #endif
 
 /** The color space to use for history rejection. */
@@ -508,9 +494,19 @@ void TemporallyAccumulate(
 
 		#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 		{
-			float SignalPixelBluringRadius = ComputeInfinityBluringRadius(RefSceneMetadata) * View.ViewSizeAndInvSize.x;
+			float2 NormalizedScreenMajorAxis;
+			float InifinityMajorViewportRadius;
+			float InifinityMinorViewportRadius;
+			ProjectSpecularLobeToScreenSpace(
+				RefSceneMetadata,
+				/* out */ NormalizedScreenMajorAxis,
+				/* out */ InifinityMajorViewportRadius,
+				/* out */ InifinityMinorViewportRadius);
 
-			TargetedSampleCount = PI * SignalPixelBluringRadius * SignalPixelBluringRadius;
+			InifinityMajorViewportRadius *= View.ViewSizeAndInvSize.x;
+			InifinityMinorViewportRadius *= View.ViewSizeAndInvSize.x;
+
+			TargetedSampleCount = PI * InifinityMajorViewportRadius * InifinityMinorViewportRadius;
 
 			// TODO(Denoiser): try to make this better? * 0.125 to avoid banding caused by floating point precision.
 			TargetedSampleCount = clamp(TargetedSampleCount, 1, TARGETED_SAMPLE_COUNT);
@@ -690,23 +686,16 @@ void TemporallyAccumulate(
 				KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS;
 			KernelConfig.WorldBluringDistanceMultiplier = CONFIG_BILATERAL_DISTANCE_MULTIPLIER;
 			
-			#if CONFIG_REJECTION_SAMPLE_SET == REJECTION_SAMPLE_SET_SOBEK2018
+			#if CONFIG_REJECTION_SAMPLE_SET == SAMPLE_SET_NXN
 			{
-				KernelConfig.SampleSet = SAMPLE_SET_3X3_SOBEK2018;
-				//KernelConfig.SampleSet = SAMPLE_SET_NXN;
-				//KernelConfig.BoxKernelRadius = 3;
-				KernelConfig.bUnroll = true;
-			}
-			#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
-			{
-				KernelConfig.SampleSet = SAMPLE_SET_3X3_PLUS;
-				KernelConfig.bUnroll = true;
+				KernelConfig.SampleSet = SAMPLE_SET_NXN;
+				KernelConfig.BoxKernelRadius = 3;
+				KernelConfig.bUnroll = false;
 			}
 			#else
 			{
-				KernelConfig.SampleSet = CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK ? SAMPLE_SET_3X3 : SAMPLE_SET_NXN;
-				KernelConfig.BoxKernelRadius = 3;
-				KernelConfig.bUnroll = false;
+				KernelConfig.SampleSet = CONFIG_REJECTION_SAMPLE_SET;
+				KernelConfig.bUnroll = true;
 			}
 			#endif
 

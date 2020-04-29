@@ -58,6 +58,11 @@
 #define WORLD_RADIUS_INVALID -1
 #define WORLD_RADIUS_MISS (INFINITE_FLOAT)
 
+// World bluring radius for a miss.
+#define CONFUSION_FACTOR_INVALID -1
+#define CONFUSION_FACTOR_MISS 1
+
+
 // Mip level for sample that are invalid or missed.
 #define MIP_LEVEL_INVALID -1
 #define MIP_LEVEL_MISS 1024
@@ -115,9 +120,6 @@
 
 	/** Buffer layout for the reflection given by the ray generation shader. */
 	#define SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT 3
-
-	/** Buffer layout for the rejection output. */
-	#define SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION 9
 
 	/** Buffer layout for the reflection output. */
 	#define SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY 4
