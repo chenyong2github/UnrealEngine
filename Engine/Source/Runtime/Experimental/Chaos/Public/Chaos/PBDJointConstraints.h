@@ -19,7 +19,6 @@ namespace Chaos
 {
 	class FJointSolverConstraints;
 	class FJointSolverGaussSeidel;
-	class FJointSolverResult;
 
 	class CHAOS_API FPBDJointConstraintHandle : public TContainerConstraintHandle<FPBDJointConstraints>
 	{
@@ -55,6 +54,7 @@ namespace Chaos
 		int32 Level;
 		int32 Color;
 		int32 IslandSize;
+		bool bDisabled;
 	};
 
 	/**
@@ -106,6 +106,26 @@ namespace Chaos
 		// @todo(ccaulfield): rename/remove  this
 		void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles);
 
+		/*
+		 * Whether the constraint is enabled
+		 */
+		bool IsConstraintEnabled(int32 ConstraintIndex) const;
+
+		/*
+		 * Enable or disable a constraints
+		 */
+		void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled);
+
+		/*
+		 * Force a constraints to break
+		 */
+		void BreakConstraint(int32 ConstraintIndex);
+
+		/**
+		 * Repair a broken constraints (does not adjust particle positions)
+		 */
+		void FixConstraints(int32 ConstraintIndex);
+
 		void SetPreApplyCallback(const FJointPostApplyCallback& Callback);
 		void ClearPreApplyCallback();
 
@@ -114,6 +134,9 @@ namespace Chaos
 
 		void SetPostProjectCallback(const FJointPostApplyCallback& Callback);
 		void ClearPostProjectCallback();
+
+		void SetBreakCallback(const FJointBreakCallback& Callback);
+		void ClearBreakCallback();
 
 		//
 		// Constraint API
@@ -197,6 +220,7 @@ namespace Chaos
 		int32 ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		int32 ApplySingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		int32 ApplyPushOutSingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		void ApplyBreakThreshold(const FReal Dt, int32 ConstraintIndex, const FVec3& LinearImpulse, const FVec3& AngularImpulse);
 
 		FPBDJointSolverSettings Settings;
 
@@ -213,6 +237,7 @@ namespace Chaos
 		FJointPreApplyCallback PreApplyCallback;
 		FJointPostApplyCallback PostApplyCallback;
 		FJointPostApplyCallback PostProjectCallback;
+		FJointBreakCallback BreakCallback;
 
 		// @todo(ccaulfield): optimize storage for joint solver
 		TArray<FJointSolverGaussSeidel> ConstraintSolvers;

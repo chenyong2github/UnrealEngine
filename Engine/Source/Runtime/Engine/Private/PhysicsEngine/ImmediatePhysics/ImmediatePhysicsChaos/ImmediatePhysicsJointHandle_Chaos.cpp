@@ -40,6 +40,9 @@ namespace ImmediatePhysics_Chaos
 	float ChaosImmediate_JointMinAngularProjection = 0.0f;
 	float ChaosImmediate_JointMaxAngularProjection = 0.0f;
 
+	float ChaosImmediate_LinearBreakScale = 1.0f;
+	float ChaosImmediate_AngularBreakScale = 1.0f;
+
 	FAutoConsoleVariableRef CVarJointStiffness(TEXT("p.Chaos.ImmPhys.JointStiffness"), ChaosImmediate_JointStiffness, TEXT("Hard-joint solver stiffness."));
 	FAutoConsoleVariableRef CVarLinearDriveStiffnessScale(TEXT("p.Chaos.ImmPhys.LinearDriveStiffnessScale"), ChaosImmediate_LinearDriveStiffnessScale, TEXT("Conversion factor for Linear drive stiffness."));
 	FAutoConsoleVariableRef CVarLinearDriveDampingScale(TEXT("p.Chaos.ImmPhys.LinaearDriveDampingScale"), ChaosImmediate_LinearDriveDampingScale, TEXT("Conversion factor for Linear drive damping."));
@@ -55,6 +58,8 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarJointMaxLinearProjection(TEXT("p.Chaos.ImmPhys.JointMaxLinearProjection"), ChaosImmediate_JointMaxLinearProjection, TEXT("Joint max projection (for joints with projection enabled)."));
 	FAutoConsoleVariableRef CVarJointMinAngularProjection(TEXT("p.Chaos.ImmPhys.JointMinAngularProjection"), ChaosImmediate_JointMinAngularProjection, TEXT("Joint min projection (for joints with projection disabled)."));
 	FAutoConsoleVariableRef CVarJointMaxAngularProjection(TEXT("p.Chaos.ImmPhys.JointMaxAngularProjection"), ChaosImmediate_JointMaxAngularProjection, TEXT("Joint max projection (for joints with projection enabled)."));
+	FAutoConsoleVariableRef CVarJointLinearBreakScale(TEXT("p.Chaos.ImmPhys.LinearBreakScale"), ChaosImmediate_LinearBreakScale, TEXT("Conversion factory for Linear Break Theshold."));
+	FAutoConsoleVariableRef CVarJointAngularBreakScale(TEXT("p.Chaos.ImmPhys.AngularBreakScale"), ChaosImmediate_AngularBreakScale, TEXT("Conversion factory for Angular Break Theshold."));
 
 	void TransferJointSettings(FConstraintInstance* ConstraintInstance, Chaos::FPBDJointSettings& ConstraintSettings)
 	{
@@ -108,9 +113,6 @@ namespace ImmediatePhysics_Chaos
 
 		ConstraintSettings.AngularDrivePositionTarget = FQuat(Profile.AngularDrive.OrientationTarget);
 		ConstraintSettings.AngularDriveVelocityTarget = Profile.AngularDrive.AngularVelocityTarget;
-		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(Profile.AngularDrive.OrientationTarget.Roll);
-		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(Profile.AngularDrive.OrientationTarget.Yaw);
-		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(Profile.AngularDrive.OrientationTarget.Pitch);
 
 		if (Profile.AngularDrive.AngularDriveMode == EAngularDriveMode::SLERP)
 		{
@@ -127,6 +129,9 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.AngularDriveStiffness = ChaosImmediate_AngularDriveStiffnessScale * Profile.AngularDrive.TwistDrive.Stiffness;
 		ConstraintSettings.AngularDriveDamping = ChaosImmediate_AngularDriveDampingScale * Profile.AngularDrive.TwistDrive.Damping;
 		ConstraintSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
+
+		ConstraintSettings.LinearBreakForce = (Profile.bLinearBreakable) ? ChaosImmediate_LinearBreakScale * Profile.LinearBreakThreshold : 0.0f;
+		ConstraintSettings.AngularBreakTorque = (Profile.bAngularBreakable) ? ChaosImmediate_AngularBreakScale * Profile.AngularBreakThreshold : 0.0f;
 
 		// UE Disables Soft Limits when the Limit is less than some threshold. This is not necessary in Chaos but for now we also do it for parity's sake (See FLinearConstraint::UpdateLinearLimit_AssumesLocked).
 		if (ConstraintSettings.LinearLimit < RB_MinSizeToLockDOF)
