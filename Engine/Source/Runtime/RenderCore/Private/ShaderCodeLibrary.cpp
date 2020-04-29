@@ -774,7 +774,10 @@ void FShaderMapResource_SharedCode::ReleaseRHI()
 		}
 	}
 
-	LibraryInstance->Library->ReleasePreloadedShaderMap(ShaderMapIndex);
+	if(LibraryInstance->Library.IsValid())
+	{
+		LibraryInstance->Library->ReleasePreloadedShaderMap(ShaderMapIndex);
+	}
 
 	FShaderMapResource::ReleaseRHI();
 }
