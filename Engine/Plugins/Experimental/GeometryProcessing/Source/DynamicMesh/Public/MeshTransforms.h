@@ -19,6 +19,11 @@ namespace MeshTransforms
 	DYNAMICMESH_API void Translate(FDynamicMesh3& Mesh, const FVector3d& Translation);
 
 	/**
+	 * Apply Scale to vertex positions of Mesh, relative to given Origin. Does not modify any other attributes (normals/etc)
+	 */
+	DYNAMICMESH_API void Scale(FDynamicMesh3& Mesh, const FVector3d& Scale, const FVector3d& Origin);
+
+	/**
 	 * Transform Mesh into local coordinates of Frame
 	 */
 	DYNAMICMESH_API void WorldToFrameCoords(FDynamicMesh3& Mesh, const FFrame3d& Frame);
