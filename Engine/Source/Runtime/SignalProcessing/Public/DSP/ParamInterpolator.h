@@ -60,6 +60,12 @@ namespace Audio
 			return CurrentValue;
 		}
 
+		// Returns the target value
+		FORCEINLINE float GetTarget() const
+		{
+			return TargetValue;
+		}
+
 	private:
 		float CurrentValue;
 		float StartingValue;
