@@ -51,7 +51,10 @@ struct FPackageNameCache
 	bool			CalculateCacheData(FName PackageName, FString& OutPackageFilename, FString& OutStandardFilename, FName& OutStandardFileFName) const;
 
 	bool			Contains(FName PackageName) const;
-	
+
+	IAssetRegistry* GetAssetRegistry() const;
+	void SetAssetRegistry(IAssetRegistry* NewRegistry);
+
 private:
 	bool DoesPackageExist(const FName& PackageName, FString* OutFilename) const;
 	const FCachedPackageFilename& Cache(const FName& PackageName) const;
@@ -152,6 +155,16 @@ bool FPackageNameCache::CalculateCacheData(FName PackageName, FString& OutPackag
 bool FPackageNameCache::Contains(FName PackageName) const
 {
 	return PackageFilenameCache.Contains(PackageName);
+}
+
+IAssetRegistry* FPackageNameCache::GetAssetRegistry() const
+{
+	return AssetRegistry;
+}
+
+void FPackageNameCache::SetAssetRegistry(IAssetRegistry* NewRegistry)
+{
+	 AssetRegistry = NewRegistry;
 }
 
 const FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName) const
