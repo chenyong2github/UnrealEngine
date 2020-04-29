@@ -157,7 +157,7 @@ namespace Gauntlet
 			// If we have both 32 and 64-bit builds, prefer 64-bit
 			if (DiscoveredBuilds.Where(B => B.Is32Bit == false).Any())
 			{
-				DiscoveredBuilds = DiscoveredBuilds.Where(B => B.Is32Bit = false).ToList();
+				DiscoveredBuilds = DiscoveredBuilds.Where(B => !B.Is32Bit).ToList();
 			}
 
 			return DiscoveredBuilds;
