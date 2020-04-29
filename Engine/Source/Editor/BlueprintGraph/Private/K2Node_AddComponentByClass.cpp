@@ -16,6 +16,7 @@
 
 struct FK2Node_AddComponentByClassHelper
 {
+	static const FName ClassPinName;
 	static const FName TransformPinName;
 	static const FName ManualAttachmentPinName;
 	static const FName DeferredFinishPinName;
@@ -23,6 +24,7 @@ struct FK2Node_AddComponentByClassHelper
 	static const FName ActorComponentPinName;
 };
 
+const FName FK2Node_AddComponentByClassHelper::ClassPinName(TEXT("Class"));
 const FName FK2Node_AddComponentByClassHelper::TransformPinName(TEXT("RelativeTransform"));
 const FName FK2Node_AddComponentByClassHelper::ManualAttachmentPinName(TEXT("bManualAttachment"));
 const FName FK2Node_AddComponentByClassHelper::DeferredFinishPinName(TEXT("bDeferredFinish"));
@@ -68,6 +70,8 @@ void UK2Node_AddComponentByClass::AllocateDefaultPins()
 	CreatePinCopy(AddComponentByClassNode->FindPinChecked(FK2Node_AddComponentByClassHelper::TransformPinName));
 
 	AddComponentByClassNode->DestroyNode();
+
+	SetSceneComponentPinsHidden(true);
 }
 
 FText UK2Node_AddComponentByClass::GetBaseNodeTitle() const
@@ -90,18 +94,33 @@ UClass* UK2Node_AddComponentByClass::GetClassPinBaseClass() const
 	return UActorComponent::StaticClass();
 }
 
+void UK2Node_AddComponentByClass::SetSceneComponentPinsHidden(const bool bHidden)
+{
+	UEdGraphPin* ManualAttachmentPin = GetManualAttachmentPin();
+	ManualAttachmentPin->SafeSetHidden(bHidden);
+
+	UEdGraphPin* TransformPin = GetRelativeTransformPin();
+	TransformPin->SafeSetHidden(bHidden);
+}
+
+void UK2Node_AddComponentByClass::PinDefaultValueChanged(UEdGraphPin* ChangedPin)
+{
+	if (ChangedPin && (ChangedPin->PinName == FK2Node_AddComponentByClassHelper::ClassPinName))
+	{
+		// If the class pin changes set the scene components hidden and then CreatePinsForClass will unhide if appropriate
+		SetSceneComponentPinsHidden(true);
+	}
+
+	Super::PinDefaultValueChanged(ChangedPin);
+}
+
 void UK2Node_AddComponentByClass::CreatePinsForClass(UClass* InClass, TArray<UEdGraphPin*>* OutClassPins)
 {
 	Super::CreatePinsForClass(InClass, OutClassPins);
 
 	// Based on the supplied class we hide the transform and manual attachment pins
 	const bool bIsSceneComponent = InClass ? InClass->IsChildOf<USceneComponent>() : false;
-	
-	UEdGraphPin* ManualAttachmentPin = GetManualAttachmentPin();
-	ManualAttachmentPin->SafeSetHidden(!bIsSceneComponent);
-
-	UEdGraphPin* TransformPin = GetRelativeTransformPin();
-	TransformPin->SafeSetHidden(!bIsSceneComponent);
+	SetSceneComponentPinsHidden(!bIsSceneComponent);
 }
 
 UEdGraphPin* UK2Node_AddComponentByClass::GetRelativeTransformPin() const
