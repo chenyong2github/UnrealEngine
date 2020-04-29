@@ -2940,6 +2940,13 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 
 		Geometry->BuildAccelerationStructure(*this, P.BuildMode);
 	}
+
+	// Add a UAV barrier after each acceleration structure build batch.
+	// This is required because there are currently no explicit read/write barriers
+	// for acceleration structures, but we need to ensure that all commands
+	// are complete before BLAS is used again on the GPU.
+
+	CommandListHandle.AddUAVBarrier();
 }
 
 void FD3D12CommandContext::RHIBuildAccelerationStructure(FRHIRayTracingScene* InScene)
