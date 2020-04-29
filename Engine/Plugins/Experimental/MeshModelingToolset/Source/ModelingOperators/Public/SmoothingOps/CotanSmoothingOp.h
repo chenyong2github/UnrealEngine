@@ -9,7 +9,7 @@
 class MODELINGOPERATORS_API  FCotanSmoothingOp : public FSmoothingOpBase
 {
 public:
-	FCotanSmoothingOp(const FDynamicMesh3* Mesh, float Speed, int32 Iterations);
+	FCotanSmoothingOp(const FDynamicMesh3* Mesh, const FSmoothingOpBase::FOptions& OptionsIn);
 
 	~FCotanSmoothingOp() override {};
 

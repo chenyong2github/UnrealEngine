@@ -2,10 +2,13 @@
 
 #include "SmoothingOps/CotanSmoothingOp.h"
 #include "Solvers/MeshSmoothing.h"
+#include "Solvers/ConstrainedMeshSmoother.h"
+#include "MeshCurvature.h"
+#include "MeshWeights.h"
 
 
-FCotanSmoothingOp::FCotanSmoothingOp(const FDynamicMesh3* Mesh, float Speed, int32 Iterations) :
-	FSmoothingOpBase(Mesh, Speed, Iterations)
+FCotanSmoothingOp::FCotanSmoothingOp(const FDynamicMesh3* Mesh, const FSmoothingOpBase::FOptions& OptionsIn) :
+	FSmoothingOpBase(Mesh, OptionsIn)
 {
 }
 
@@ -22,6 +25,35 @@ void FCotanSmoothingOp::CalculateResult(FProgressCancel* Progress)
 
 void FCotanSmoothingOp::Smooth()
 {
-	double Intensity = 1.;
-	UE::MeshDeformation::ComputeSmoothing_BiHarmonic(ELaplacianWeightScheme::ClampedCotangent, *ResultMesh, SmoothSpeed, Intensity, SmoothIterations, PositionBuffer);
+	ELaplacianWeightScheme UseScheme = ELaplacianWeightScheme::ClampedCotangent;
+	if (SmoothOptions.bUniform)
+	{
+		UseScheme = ELaplacianWeightScheme::Uniform;
+	}
+
+	TUniquePtr<IConstrainedMeshSolver> Smoother = UE::MeshDeformation::ConstructConstrainedMeshSmoother(
+		UseScheme, *ResultMesh);
+
+	double Power = SmoothOptions.SmoothPower;
+	if (Power < 0.0001)
+	{
+		for (int32 vid : ResultMesh->VertexIndicesItr())
+		{
+			PositionBuffer[vid] = ResultMesh->GetVertex(vid);
+		}
+	}
+	else if ( Power > 10000 )
+	{
+		Smoother->Deform(PositionBuffer);
+	}
+	else
+	{
+		double Weight = 1.0 / Power;
+		for (int32 vid : ResultMesh->VertexIndicesItr())
+		{
+			Smoother->AddConstraint(vid, Weight, ResultMesh->GetVertex(vid), false);
+		}
+		Smoother->Deform(PositionBuffer);
+	}
+
 }
