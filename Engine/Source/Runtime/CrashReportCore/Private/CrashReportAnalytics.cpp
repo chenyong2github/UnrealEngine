@@ -53,7 +53,7 @@ void FCrashReportAnalytics::Initialize()
 			!FEngineBuildSettings::IsInternalBuild();	// Internal Epic build
 
 		FAnalyticsET::Config Config;
-		Config.APIServerET = FString::Printf(TEXT("https://%s"), TEXT(PREPROCESSOR_TO_STRING(CRC_TELEMETRY_URL)));
+		Config.APIServerET = TEXT(CRC_TELEMETRY_URL);
 		Config.APIKeyET = bUseReleaseAccount ? TEXT(PREPROCESSOR_TO_STRING(CRC_TELEMETRY_KEY_RELEASE)) : TEXT(PREPROCESSOR_TO_STRING(CRC_TELEMETRY_KEY_DEV));
 
 	#else
