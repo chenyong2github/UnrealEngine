@@ -70,6 +70,10 @@ public:
 	{
 		return Analytics.Pin()->StartSession(MoveTemp(InSessionID), MoveTemp(Attributes));
 	}
+	virtual bool ShouldRecordEvent(const FString& EventName) const override
+	{
+		return Analytics.Pin()->ShouldRecordEvent(EventName);
+	}
 
 	virtual void SetDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes) override
 	{
@@ -155,6 +159,10 @@ public:
 		FStudioAnalytics::RecordEventJson(EventName, MoveTemp(AttributesJson));
 
 		Analytics.Pin()->RecordEventJson(EventName, MoveTemp(AttributesJson));
+	}
+	virtual void SetShouldRecordEventFunc(const ShouldRecordEventFunction& ShouldRecordEventFunc)
+	{
+		Analytics.Pin()->SetShouldRecordEventFunc(ShouldRecordEventFunc);
 	}
 
 private:
