@@ -291,7 +291,7 @@
 #define COMPILE_MOMENT1_ACCUMULATOR 1
 
 #if CONFIG_HISTORY_REJECTION != HISTORY_REJECTION_DISABLED
-	#define COMPILE_MININVFREQ_ACCUMULATOR 1
+	#define COMPILE_MIN_FREQUENCY_ACCUMULATOR 1
 #endif
 
 #if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_MINMAX_BOUNDARIES
@@ -476,7 +476,9 @@ void TemporallyAccumulate(
 	}
 
 
-	FSSDSignalArray CurrentFrameSamples = SampleMultiplexedSignals(
+	FSSDSignalArray CurrentFrameSamples;
+	FSSDSignalFrequencyArray CurrentFrameFrequencies;
+	SampleMultiplexedSignals(
 		SignalInput_Textures_0,
 		SignalInput_Textures_1,
 		SignalInput_Textures_2,
@@ -486,8 +488,8 @@ void TemporallyAccumulate(
 		/* MultiplexedSampleId = */ 0,
 		/* bNormalizeSample = */ false,
 		SceneBufferUV,
-		/* MipLevel = */ 0);
-
+		/* out */ CurrentFrameSamples,
+		/* out */ CurrentFrameFrequencies);
 
 	float WorldBluringRadius;
 	float TargetedSampleCount;
@@ -643,12 +645,6 @@ void TemporallyAccumulate(
 				FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
 				FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
 
-				// Override the previous frame's inverse frequency with the current frame's one, because don't know how much it changed.
-				HistorySamples.Array[BatchedSignalId].WorldBluringRadius = (
-					HistorySample.SampleCount *
-					CurrentFrameSample.WorldBluringRadius *
-					SafeRcp(CurrentFrameSample.SampleCount));
-
 				// Applies correction when pre exposure change happen.
 				#if COMPILE_SIGNAL_COLOR
 					HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
@@ -787,7 +783,8 @@ void TemporallyAccumulate(
 				/* inout */ UnusedCompressedAccumulators,
 				KernelConfig.RefBufferUV,
 				RefSceneMetadata,
-				CenterSample);
+				CenterSample,
+				CurrentFrameFrequencies);
 		}
 
 		{
@@ -957,16 +954,9 @@ void TemporallyAccumulate(
 			// Dilate the smallest inv frequency.
 			if (1)
 			{
-				float NeightborMinBluringRadius = SignalAccumulators.Array[BatchedSignalId].MinInvFrequency;
-				CurrentFrameSample.WorldBluringRadius = min(CurrentFrameSample.WorldBluringRadius, NeightborMinBluringRadius * CurrentFrameSample.SampleCount); 
-			
-				#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK && 0
-					DebugOutput[DispatchThreadId] = float4(
-						NeightborMinBluringRadius,
-						NeightborMinBluringRadius == WORLD_RADIUS_MISS,
-						0,
-						0);
-				#endif
+				CurrentFrameFrequencies.Array[BatchedSignalId] = MinSignalFrequency(
+					CurrentFrameFrequencies.Array[BatchedSignalId],
+					SignalAccumulators.Array[BatchedSignalId].MinFrequency);
 			}
 			
 			HistorySamples.Array[BatchedSignalId] = HistorySample;
@@ -1004,12 +994,6 @@ void TemporallyAccumulate(
 				HistorySample,
 				/* SrcBasis = */ CONFIG_HISTORY_BLENDING_COLOR_SPACE,
 				/* DestBasis = */ STANDARD_BUFFER_COLOR_SPACE);
-			
-			// Ignore the bluring radius of previous frame frequencies as it gets clamped anyway, just take the current frame.
-			HistorySample.WorldBluringRadius = (
-				CurrentFrameSample.WorldBluringRadius *
-				SafeRcp(CurrentFrameSample.SampleCount) *
-				HistorySample.SampleCount);
 
 			//if (View.GeneralPurposeTweak > 0.5)
 			HistorySamples.Array[BatchedSignalId] = HistorySample;
@@ -1022,6 +1006,7 @@ void TemporallyAccumulate(
 	// Whitelists what should be outputed to ensure the compiler compiles out evreything that ends up unneeded.
 	uint MultiplexCount = 1;
 	FSSDSignalArray OutputSamples = CreateSignalArrayFromScalarValue(0.0);
+	FSSDSignalFrequencyArray OutputFrequencies = CreateInvalidSignalFrequencyArray();
 	{
 		MultiplexCount = CONFIG_SIGNAL_BATCH_SIZE;
 		
@@ -1029,6 +1014,7 @@ void TemporallyAccumulate(
 		for (uint BatchedSignalId = 0; BatchedSignalId < MultiplexCount; BatchedSignalId++)
 		{
 			OutputSamples.Array[BatchedSignalId] = HistorySamples.Array[BatchedSignalId];
+			OutputFrequencies.Array[BatchedSignalId] = CurrentFrameFrequencies.Array[BatchedSignalId];
 		}
 	}
 	
@@ -1043,8 +1029,11 @@ void TemporallyAccumulate(
 			SignalHistoryOutput_UAVs_1,
 			SignalHistoryOutput_UAVs_2,
 			SignalHistoryOutput_UAVs_3,
-			CONFIG_SIGNAL_HISTORY_LAYOUT, MultiplexCount,
-			OutputPixelPostion, OutputSamples.Array);
+			CONFIG_SIGNAL_HISTORY_LAYOUT,
+			MultiplexCount,
+			OutputPixelPostion,
+			OutputSamples,
+			OutputFrequencies);
 	}
 } // TemporallyAccumulate
 
