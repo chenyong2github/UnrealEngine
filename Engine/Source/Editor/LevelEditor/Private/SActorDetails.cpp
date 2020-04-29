@@ -709,7 +709,7 @@ void SActorDetails::OnNativeComponentWarningHyperlinkClicked(const FSlateHyperli
 
 EVisibility SActorDetails::GetComponentsBoxVisibility() const
 {
-	return (bHasComponentsToShow & ShowComponents->GetBool()) ? EVisibility::Visible : EVisibility::Collapsed;
+	return (bHasComponentsToShow && ShowComponents->GetBool()) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SActorDetails::GetUCSComponentWarningVisibility() const
