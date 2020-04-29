@@ -220,12 +220,6 @@ static bool SignalUsesInjestion(ESignalProcessing SignalProcessing)
 	return SignalProcessing == ESignalProcessing::ShadowVisibilityMask;
 }
 
-/** Returns whether a signal processing uses a reduction pass before the reconstruction. */
-static bool SignalUsesReduction(ESignalProcessing SignalProcessing)
-{
-	return SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic;
-}
-
 /** Returns whether a signal processing uses an additional pre convolution pass. */
 static bool SignalUsesPreConvolution(ESignalProcessing SignalProcessing)
 {
@@ -367,49 +361,6 @@ const TCHAR* const kInjestResourceNames[] = {
 	nullptr,
 };
 
-const TCHAR* const kReduceResourceNames[] = {
-	// ShadowVisibilityMask
-	nullptr,
-	nullptr,
-	nullptr,
-	nullptr,
-
-	// PolychromaticPenumbraHarmonic
-	nullptr,
-	nullptr,
-	nullptr,
-	nullptr,
-
-	// Reflections
-	nullptr,
-	nullptr,
-	nullptr,
-	nullptr,
-
-	// AmbientOcclusion
-	nullptr,
-	nullptr,
-	nullptr,
-	nullptr,
-
-	// DiffuseIndirect
-	nullptr,
-	nullptr,
-	nullptr,
-	nullptr,
-
-	// DiffuseSphericalHarmonic
-	TEXT("DiffuseHarmonicReduce0"),
-	TEXT("DiffuseHarmonicReduce1"),
-	TEXT("DiffuseHarmonicReduce2"),
-	TEXT("DiffuseHarmonicReduce3"),
-
-	// ScreenSpaceDiffuseIndirect
-	nullptr,
-	nullptr,
-	nullptr,
-	nullptr,
-};
 
 const TCHAR* const kReconstructionResourceNames[] = {
 	// ShadowVisibilityMask
@@ -697,12 +648,15 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 	}
 	else if (
 		SignalProcessing == ESignalProcessing::ShadowVisibilityMask ||
-		SignalProcessing == ESignalProcessing::PolychromaticPenumbraHarmonic ||
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion)
 	{
 		// Only for ray tracing denoising.
 		return RHISupportsRayTracingShaders(Platform);
+	}
+	else if (SignalProcessing == ESignalProcessing::PolychromaticPenumbraHarmonic)
+	{
+		return false;
 	}
 	check(0);
 	return false;
@@ -842,7 +796,6 @@ class FSSDCompressMetadataCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-// TOOD: collapse within reduce pass.
 class FSSDInjestCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FSSDInjestCS);
@@ -901,67 +854,6 @@ class FSSDInjestCS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, SignalInput)
 		SHADER_PARAMETER_STRUCT(FSSDSignalUAVs, SignalOutput)
-	END_SHADER_PARAMETER_STRUCT()
-};
-
-class FSSDReduceCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FSSDReduceCS);
-	SHADER_USE_PARAMETER_STRUCT(FSSDReduceCS, FGlobalShader);
-
-	using FPermutationDomain = TShaderPermutationDomain<FSignalProcessingDim, FSignalBatchSizeDim, FMultiSPPDim>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		ESignalProcessing SignalProcessing = PermutationVector.Get<FSignalProcessingDim>();
-
-		// Only compile this shader for signal processing that uses it.
-		if (!SignalUsesReduction(SignalProcessing))
-		{
-			return false;
-		}
-
-		// Not all signal processing allow to batch multiple signals at the same time.
-		if (PermutationVector.Get<FSignalBatchSizeDim>() > SignalMaxBatchSize(SignalProcessing))
-		{
-			return false;
-		}
-
-		// Only compiler multi SPP permutation for signal that supports it.
-		if (PermutationVector.Get<FMultiSPPDim>() && !SignalSupportMultiSPP(SignalProcessing))
-		{
-			return false;
-		}
-
-		// Compile out the shader if this permutation gets remapped.
-		if (RemapPermutationVector(PermutationVector) != PermutationVector)
-		{
-			return false;
-		}
-
-		return ShouldCompileSignalPipeline(SignalProcessing, Parameters.Platform);
-	}
-
-	static FPermutationDomain RemapPermutationVector(FPermutationDomain PermutationVector)
-	{
-		ESignalProcessing SignalProcessing = PermutationVector.Get<FSignalProcessingDim>();
-
-		// force use the multi sample per pixel code path.
-		if (!SignalSupport1SPP(SignalProcessing))
-		{
-			PermutationVector.Set<FMultiSPPDim>(true);
-		}
-
-		return PermutationVector;
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDCommonParameters, CommonParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDConvolutionMetaData, ConvolutionMetaData)
-
-		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, SignalInput)
-		SHADER_PARAMETER_STRUCT_ARRAY(FSSDSignalUAVs, SignalOutputMips, [kMaxMipLevel])
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -1185,7 +1077,6 @@ class FSSDComposeHarmonicsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FSSDCompressMetadataCS, "/Engine/Private/ScreenSpaceDenoise/SSDCompressMetadata.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSSDInjestCS, "/Engine/Private/ScreenSpaceDenoise/SSDInjest.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FSSDReduceCS, "/Engine/Private/ScreenSpaceDenoise/SSDReduce.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSSDSpatialAccumulationCS, "/Engine/Private/ScreenSpaceDenoise/SSDSpatialAccumulation.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSSDTemporalAccumulationCS, "/Engine/Private/ScreenSpaceDenoise/SSDTemporalAccumulation.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSSDComposeHarmonicsCS, "/Engine/Private/ScreenSpaceDenoise/SSDComposeHarmonics.usf", "MainCS", SF_Compute);
@@ -1314,7 +1205,6 @@ static void DenoiseSignalAtConstantPixelDensity(
 	// Descriptor to allocate internal denoising buffer.
 	bool bHasReconstructionLayoutDifferentFromHistory = false;
 	TStaticArray<FRDGTextureDesc, kMaxBufferProcessingCount> InjestDescs;
-	TStaticArray<FRDGTextureDesc, kMaxBufferProcessingCount> ReduceDescs;
 	TStaticArray<FRDGTextureDesc, kMaxBufferProcessingCount> ReconstructionDescs;
 	TStaticArray<FRDGTextureDesc, kMaxBufferProcessingCount> HistoryDescs;
 	FRDGTextureDesc DebugDesc;
@@ -1344,8 +1234,6 @@ static void DenoiseSignalAtConstantPixelDensity(
 		for (int32 i = 0; i < kMaxBufferProcessingCount; i++)
 		{
 			InjestDescs[i] = RefDesc;
-			ReduceDescs[i] = RefDesc;
-			ReduceDescs[i].NumMips = kMaxMipLevel;
 			ReconstructionDescs[i] = RefDesc;
 			HistoryDescs[i] = RefDesc;
 		}
@@ -1405,12 +1293,10 @@ static void DenoiseSignalAtConstantPixelDensity(
 		{
 			for (int32 i = 0; i < 3; i++)
 			{
-				ReduceDescs[i].Format = PF_G32R32F;
 				ReconstructionDescs[i].Format = PF_G32R32F;
 				HistoryDescs[i].Format = PF_G32R32F;
 			}
 
-			ReduceDescs[3].Format = PF_R32_FLOAT;
 			ReconstructionDescs[3].Format = PF_R32_FLOAT;
 			HistoryDescs[3].Format = PF_R32_FLOAT;
 
@@ -1636,40 +1522,6 @@ static void DenoiseSignalAtConstantPixelDensity(
 		SignalHistory = NewSignalOutput;
 	}
 
-	// Reduce the input to speed up the reconstruction pass.
-	if (SignalUsesReduction(Settings.SignalProcessing))
-	{
-		FSSDSignalTextures NewSignalOutput = CreateMultiplexedTextures(
-			GraphBuilder,
-			InjestTextureCount, ReduceDescs,
-			GetResourceNames(kReduceResourceNames));
-
-		FSSDReduceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSDReduceCS::FParameters>();
-		PassParameters->CommonParameters = CommonParameters;
-		PassParameters->ConvolutionMetaData = ConvolutionMetaData;
-		PassParameters->SignalInput = SignalHistory;
-		for (int32 MipLevel = 0; MipLevel < kMaxMipLevel; MipLevel++)
-			PassParameters->SignalOutputMips[MipLevel] = CreateMultiplexedUAVs(GraphBuilder, NewSignalOutput, MipLevel);
-
-		FSSDReduceCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FSignalProcessingDim>(Settings.SignalProcessing);
-		PermutationVector.Set<FSignalBatchSizeDim>(Settings.SignalBatchSize);
-		PermutationVector.Set<FMultiSPPDim>(bUseMultiInputSPPShaderPath);
-		PermutationVector = FSSDReduceCS::RemapPermutationVector(PermutationVector);
-
-		TShaderMapRef<FSSDReduceCS> ComputeShader(View.ShaderMap, PermutationVector);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("SSD Reduce(Mips=%i MultiSPP=%i)",
-				kMaxMipLevel,
-				int32(PermutationVector.Get<FMultiSPPDim>())),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FComputeShaderUtils::kGolden2DGroupSize));
-
-		SignalHistory = NewSignalOutput;
-	}
-
 	// Spatial reconstruction with ratio estimator to be more precise in the history rejection.
 	if (Settings.bEnableReconstruction)
 	{
@@ -1711,7 +1563,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		TShaderMapRef<FSSDSpatialAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("SSD SpatialAccumulation(Reconstruction MaxSamples=%i Scissor=%ix%i%s%s)",
+			RDG_EVENT_NAME("SSD Reconstruction(MaxSamples=%i Scissor=%ix%i%s%s)",
 				PassParameters->MaxSampleCount,
 				Viewport.Width(), Viewport.Height(),
 				PermutationVector.Get<FSSDSpatialAccumulationCS::FUpscaleDim>() ? TEXT(" Upscale") : TEXT(""),

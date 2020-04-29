@@ -147,3 +147,14 @@ FSSDSignalArray WaveBroadcastSignalArray(const FWaveBroadcastSettings BroadcastS
 	}
 	return OutSamples;
 }
+
+FSSDSignalFrequencyArray WaveBroadcastSignalFrequenciesArray(const FWaveBroadcastSettings BroadcastSettings, FSSDSignalFrequencyArray Frequencies)
+{
+	FSSDSignalFrequencyArray OutFrequencies;
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
+	{
+		OutFrequencies.Array[BatchedSignalId] = WaveBroadcastSignalFrequency(BroadcastSettings, Frequencies.Array[BatchedSignalId]);
+	}
+	return OutFrequencies;
+}

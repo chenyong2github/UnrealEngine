@@ -83,9 +83,11 @@ void DecodeMultiplexedSignalsFromFloat4(
 	const uint MultiplexedSampleId,
 	const bool bNormalizeSample,
 	float4 RawSample[MAX_MULTIPLEXED_TEXTURES],
-	out FSSDSignalArray OutSamples)
+	out FSSDSignalArray OutSamples,
+	out FSSDSignalFrequencyArray OutSampleFrequencies)
 {
 	OutSamples = CreateSignalArrayFromScalarValue(0.0);
+	OutSampleFrequencies = CreateInvalidSignalFrequencyArray();
 
 	if (0)
 	{
@@ -106,8 +108,9 @@ void DecodeMultiplexedSignalsFromFloat4(
 			// TODO(Denoiser): feed the actual number of sample.
 			OutSamples.Array[MultiplexId].SampleCount = (RawSample[MultiplexId].g == DENOISER_INVALID_HIT_DISTANCE ? 0.0 : 1.0);
 			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * RawSample[MultiplexId].r;
-			OutSamples.Array[MultiplexId].ClosestHitDistance = OutSamples.Array[MultiplexId].SampleCount * (RawSample[MultiplexId].g == DENOISER_MISS_HIT_DISTANCE ? 1000000 : RawSample[MultiplexId].g);
 			OutSamples.Array[MultiplexId].TransmissionDistance = OutSamples.Array[MultiplexId].SampleCount * RawSample[MultiplexId].a;
+
+			OutSampleFrequencies.Array[MultiplexId].ClosestHitDistance = RawSample[MultiplexId].g;
 		}
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP)
@@ -121,8 +124,10 @@ void DecodeMultiplexedSignalsFromFloat4(
 			// TODO(Denoiser): feed the actual number of sample.
 			OutSamples.Array[MultiplexId].SampleCount = (Channels.g == -2.0 ? 0.0 : 1.0);
 			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * Channels.r;
-			OutSamples.Array[MultiplexId].WorldBluringRadius = OutSamples.Array[MultiplexId].SampleCount * (Channels.g == -1 ? WORLD_RADIUS_MISS : Channels.g);
 			OutSamples.Array[MultiplexId].TransmissionDistance = OutSamples.Array[MultiplexId].SampleCount * Channels.a;
+
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (Channels.g == -1 ? WORLD_RADIUS_MISS : Channels.g);
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = Channels.g;
 		}
 	}
 	//else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
@@ -155,8 +160,10 @@ void DecodeMultiplexedSignalsFromFloat4(
 
 			OutSamples.Array[MultiplexId].MissCount = Channels.r * SampleCount;
 			OutSamples.Array[MultiplexId].SampleCount = SampleCount;
-			OutSamples.Array[MultiplexId].WorldBluringRadius = (Channels.b == DENOISER_MISS_HIT_DISTANCE ? WORLD_RADIUS_MISS : Channels.b) * SampleCount;
 			OutSamples.Array[MultiplexId].TransmissionDistance = Channels.a * SampleCount;
+
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (Channels.b == DENOISER_MISS_HIT_DISTANCE ? WORLD_RADIUS_MISS : Channels.b);
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = Channels.b;
 		}
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION)
@@ -170,8 +177,10 @@ void DecodeMultiplexedSignalsFromFloat4(
 
 			OutSamples.Array[MultiplexId].SampleCount = SampleCount;
 			OutSamples.Array[MultiplexId].MissCount = Channels.r * SampleCount;
-			OutSamples.Array[MultiplexId].WorldBluringRadius = (Channels.b == -1 ? WORLD_RADIUS_MISS : Channels.b * SampleCount);
 			OutSamples.Array[MultiplexId].TransmissionDistance = Channels.a * SampleCount;
+
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (Channels.b == -1 ? WORLD_RADIUS_MISS : Channels.b);
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = Channels.b;
 		}
 	}
 	#endif
@@ -279,8 +288,8 @@ void DecodeMultiplexedSignalsFromFloat4(
 		OutSamples.Array[0].SceneColor = RawSample[0];
 
 		// max() because ray hit distance is < 0 when miss / not ray has been shot.
-		//OutSamples.Array[0].ClosestHitDistance = RawSample[1].r * OutSamples.Array[0].SampleCount;
-		OutSamples.Array[0].ClosestHitDistance = ((RawSample[1].r == DENOISER_MISS_HIT_DISTANCE) ? 1.0e20 : RawSample[1].r) * OutSamples.Array[0].SampleCount;
+		OutSampleFrequencies.Array[0].ClosestHitDistance = RawSample[1].r;
+		//OutSampleFrequencies.Array[0].ClosestHitDistance = ((RawSample[1].r == DENOISER_MISS_HIT_DISTANCE) ? 1.0e20 : RawSample[1].r);
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION)
 	{
@@ -328,7 +337,8 @@ void DecodeMultiplexedSignalsFromFloat4(
 	{
 		OutSamples.Array[0].SampleCount = RawSample[1].r < 0 ? 0 : 1;
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * RawSample[0].r;
-		OutSamples.Array[0].ClosestHitDistance = OutSamples.Array[0].SampleCount * RawSample[1].r;
+
+		OutSampleFrequencies.Array[0].ClosestHitDistance = RawSample[1].r;
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_REJECTION)
 	{
@@ -370,9 +380,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[0].a);
 		OutSamples.Array[0].SceneColor = OutSamples.Array[0].SampleCount * RawSample[0];
 
-		// max() because ray hit distance is < 0 when miss / not ray has been shot.
-		OutSamples.Array[0].ClosestHitDistance = RawSample[1].r * OutSamples.Array[0].SampleCount;
-		OutSamples.Array[0].ClosestHitDistance = ((RawSample[1].r == -1.0) ? 1.0e20 : RawSample[1].r) * OutSamples.Array[0].SampleCount;
+		OutSampleFrequencies.Array[0].ClosestHitDistance = ((RawSample[1].r == -1.0) ? 1.0e20 : RawSample[1].r);
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_RECONSTRUCTION)
 	{
@@ -430,17 +438,15 @@ void DecodeMultiplexedSignalsFromUint2(
 	const uint MultiplexedSampleId,
 	const bool bNormalizeSample,
 	uint2 RawSample[MAX_MULTIPLEXED_TEXTURES],
-	out FSSDSignalArray OutSamples)
+	out FSSDSignalArray OutSamples,
+	out FSSDSignalFrequencyArray OutSampleFrequencies)
 {
 	OutSamples = CreateSignalArrayFromScalarValue(0.0);
+	OutSampleFrequencies = CreateInvalidSignalFrequencyArray();
 
 	if (0)
 	{
 
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_NSPP)
-	{
-		// Shouldn't happen..
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP)
 	{
@@ -457,13 +463,14 @@ void DecodeMultiplexedSignalsFromUint2(
 
 			float MissCount = SampleCount * MissCountRatio;
 			float TransmissionDistance = TransmissionDistanceRatio * 5.0;
-			WorldBluringRadius = SampleCount * (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
 
 			// TODO(Denoiser): feed the actual number of sample.
 			OutSamples.Array[MultiplexId].SampleCount = SampleCount;
 			OutSamples.Array[MultiplexId].MissCount = MissCount;
-			OutSamples.Array[MultiplexId].WorldBluringRadius = WorldBluringRadius;
 			OutSamples.Array[MultiplexId].TransmissionDistance = TransmissionDistance;
+
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WorldBluringRadius;
 		}
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY || SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
@@ -480,8 +487,10 @@ void DecodeMultiplexedSignalsFromUint2(
 
 			OutSamples.Array[MultiplexId].MissCount = MissCount;
 			OutSamples.Array[MultiplexId].SampleCount = SampleCount;
-			OutSamples.Array[MultiplexId].WorldBluringRadius = (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
 			OutSamples.Array[MultiplexId].TransmissionDistance = TransmissionDistance;
+
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WorldBluringRadius;
 		}
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION)
@@ -498,71 +507,44 @@ void DecodeMultiplexedSignalsFromUint2(
 
 			OutSamples.Array[MultiplexId + 0].SampleCount = SampleCount;
 			OutSamples.Array[MultiplexId + 0].MissCount = MissCount0;
-			OutSamples.Array[MultiplexId + 0].WorldBluringRadius = (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
 
 			OutSamples.Array[MultiplexId + 1].SampleCount = SampleCount;
 			OutSamples.Array[MultiplexId + 1].MissCount = MissCount1;
+
+			OutSampleFrequencies.Array[MultiplexId + 0].WorldBluringRadius = (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
+			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WorldBluringRadius;
 		}
 	}
 }
 
 /** Decode input signal sample from raw float. */
-FSSDSignalArray DecodeMultiplexedSignals(
+void DecodeMultiplexedSignals(
 	const uint SignalBufferLayout,
 	const uint MultiplexedSampleId,
 	const bool bNormalizeSample,
-	FSSDCompressedMultiplexedSample CompressedSample)
+	FSSDCompressedMultiplexedSample CompressedSample,
+	out FSSDSignalArray OutSamples,
+	out FSSDSignalFrequencyArray OutSampleFrequencies)
 #if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
 {
-	FSSDSignalArray MultiplexedSamples;
 	DecodeMultiplexedSignalsFromFloat4(
-		SignalBufferLayout, MultiplexedSampleId, bNormalizeSample,
-		CompressedSample.VGPRArray, /* out */ MultiplexedSamples);
-	return MultiplexedSamples;
+		SignalBufferLayout,
+		MultiplexedSampleId,
+		bNormalizeSample,
+		CompressedSample.VGPRArray,
+		/* out */ OutSamples,
+		/* out */ OutSampleFrequencies);
 } // DecodeMultiplexedSignals()
 #elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
 {
 	FSSDSignalArray MultiplexedSamples = CreateSignalArrayFromScalarValue(0.0);
 	DecodeMultiplexedSignalsFromUint2(
-		SignalBufferLayout, MultiplexedSampleId, bNormalizeSample,
-		CompressedSample.VGPRArray, /* out */ MultiplexedSamples);
-
-	if (0)
-	{
-	
-	}
-	#if COMPILE_SIGNAL_COLOR_SH
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
-	{
-		const uint DecodeOptions = bNormalizeSample ? SSD_DECODE_NORMALIZE : 0x0;
-
-		DecodeDiffuseSphericalHarmonicTexel(
-			CompressedSample.VGPRArray,
-			DecodeOptions,
-			/* out */ MultiplexedSamples.Array[0].SampleCount,
-			/* out */ MultiplexedSamples.Array[0].MissCount,
-			/* out */ MultiplexedSamples.Array[0].ColorSH);
-
-		// TODO(Denoiser): SRV on RG F32 and manually decode with f16tof32(), going to reduce VGPR pressure between fetch and result.
-	}
-	#endif
-#if 0
-	// Uncompress assuming this is packed as 16bit floats.
-	else
-	{
-		float4 FloatVGPRArray[MAX_MULTIPLEXED_TEXTURES];
-		
-		UNROLL_N(MAX_MULTIPLEXED_TEXTURES)
-		for (uint TexId = 0; TexId < MAX_MULTIPLEXED_TEXTURES; TexId++)
-			FloatVGPRArray[TexId] = Uncompress4Floats(CompressedSample.VGPRArray[TexId]);
-		
-		DecodeMultiplexedSignalsFromFloat4(
-			SignalBufferLayout, MultiplexedSampleId, bNormalizeSample,
-			FloatVGPRArray, /* out */ MultiplexedSamples);
-	}
-#endif
-
-	return MultiplexedSamples;
+		SignalBufferLayout,
+		MultiplexedSampleId,
+		bNormalizeSample,
+		CompressedSample.VGPRArray,
+		/* out */ OutSamples,
+		/* out */ OutSampleFrequencies);
 } // DecodeMultiplexedSignals()
 #endif
 
@@ -570,6 +552,7 @@ FSSDSignalArray DecodeMultiplexedSignals(
 void EncodeMultiplexedSignals(
 	const uint SignalBufferLayout, const uint MultiplexCount,
 	FSSDSignalSample Sample[SIGNAL_ARRAY_SIZE],
+	FSSDSignalFrequency SampleFrequency[SIGNAL_ARRAY_SIZE],
 	out FSSDOutputRawSample OutRawSample[MAX_MULTIPLEXED_TEXTURES],
 	out uint OutBufferCount)
 #if CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
@@ -592,21 +575,22 @@ void EncodeMultiplexedSignals(
 		UNROLL
 		for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
 		{
+			float NormalizationFactor = SafeRcp(Sample[MultiplexId].SampleCount);
+
 			float4 EncodedChannels = float4(
 				Sample[MultiplexId].MissCount,
-				Sample[MultiplexId].WorldBluringRadius,
+				SampleFrequency[MultiplexId].WorldBluringRadius,
 				0.0,
-				Sample[MultiplexId].TransmissionDistance);
-			EncodedChannels *= SafeRcp(Sample[MultiplexId].SampleCount);
+				Sample[MultiplexId].TransmissionDistance * NormalizationFactor);
 			
-			if (Sample[MultiplexId].SampleCount == 0)
-			{
-				EncodedChannels.y = -2;
-			}
-			else if (Sample[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS)
-			{
-				EncodedChannels.y = -1;
-			}
+			//if (Sample[MultiplexId].SampleCount == 0)
+			//{
+			//	EncodedChannels.y = -2;
+			//}
+			//else if (SampleFrequency[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS)
+			//{
+			//	EncodedChannels.y = -1;
+			//}
 
 			OutRawSample[MultiplexId] = EncodedChannels;
 		}
@@ -635,13 +619,12 @@ void EncodeMultiplexedSignals(
 		{
 			float NormalizationFactor = SafeRcp(Sample[MultiplexId].SampleCount);
 
-			float NormalizedWorldBluringRadius = Sample[MultiplexId].WorldBluringRadius * NormalizationFactor;
 			float NormalizedTransmissionDistance = Sample[MultiplexId].TransmissionDistance * NormalizationFactor;
 
 			OutRawSample[MultiplexId] = float4(
 				Sample[MultiplexId].MissCount * NormalizationFactor,
 				Sample[MultiplexId].SampleCount,
-				NormalizedWorldBluringRadius == WORLD_RADIUS_MISS ? -1 : NormalizedWorldBluringRadius,
+				SampleFrequency[MultiplexId].WorldBluringRadius,
 				NormalizedTransmissionDistance);
 		}
 		OutBufferCount = MultiplexCount;
@@ -656,16 +639,12 @@ void EncodeMultiplexedSignals(
 		{
 			uint MultiplexId = BatchSignalId;
 
-			float NormalizationFactor = SafeRcp(Sample[MultiplexId + 0].SampleCount);
+			float NormalizationFactor = SafeRcp(Sample[MultiplexId].SampleCount);
 
-			float NormalizedWorldBluringRadius = Sample[MultiplexId + 0].WorldBluringRadius * NormalizationFactor;
-
-			// Samples are normalised when doing history preconvolution, so the number of is either 0 or 1 on both momments. Therefore
-			// Sample[MultiplexId + 0].SampleCount == Sample[MultiplexId + 1].SampleCount.
 			OutRawSample[BatchSignalId] = float4(
 				Sample[MultiplexId].MissCount * NormalizationFactor,
 				Sample[MultiplexId].SampleCount,
-				NormalizedWorldBluringRadius == WORLD_RADIUS_MISS ? -1 : NormalizedWorldBluringRadius,
+				SampleFrequency[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS ? -1 : SampleFrequency[MultiplexId].WorldBluringRadius,
 				Sample[MultiplexId].TransmissionDistance * NormalizationFactor);
 		}
 	}
@@ -835,7 +814,7 @@ void EncodeMultiplexedSignals(
 		for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
 		{
 			float MissCount = Sample[MultiplexId].MissCount;
-			float WorldBluringRadius = Sample[MultiplexId].WorldBluringRadius;
+			float WorldBluringRadius = SampleFrequency[MultiplexId].WorldBluringRadius;
 			float TransmissionDistance = Sample[MultiplexId].TransmissionDistance;
 			float SampleCount = Sample[MultiplexId].SampleCount;
 			if (SampleCount == 0)
@@ -874,7 +853,7 @@ void EncodeMultiplexedSignals(
 			float NormalizationFactor = rcp(SampleCount);
 
 			float MissCount = Sample[MultiplexId].MissCount;
-			float WorldBluringRadius = (Sample[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS ? -1.0 : Sample[MultiplexId].WorldBluringRadius);
+			float WorldBluringRadius = (SampleFrequency[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS ? -1.0 : SampleFrequency[MultiplexId].WorldBluringRadius);
 			float TransmissionDistance = Sample[MultiplexId].TransmissionDistance;
 
 			uint2 EncodedData = 0;
@@ -902,7 +881,7 @@ void EncodeMultiplexedSignals(
 
 			float MissCount0 = Sample[MultiplexId + 0].MissCount;
 			float MissCount1 = Sample[MultiplexId + 1].MissCount;
-			float WorldBluringRadius = (Sample[MultiplexId + 0].WorldBluringRadius == WORLD_RADIUS_MISS ? -1.0 : Sample[MultiplexId + 0].WorldBluringRadius);
+			float WorldBluringRadius = (SampleFrequency[MultiplexId + 0].WorldBluringRadius == WORLD_RADIUS_MISS ? -1.0 : SampleFrequency[MultiplexId + 0].WorldBluringRadius);
 			float TransmissionDistance = 0.0;
 
 			uint2 EncodedData = 0;
@@ -938,7 +917,7 @@ void EncodeMultiplexedSignals(
 /** Sample the raw of multiple input signals that have been multiplexed. */
 FSSDCompressedMultiplexedSample SampleCompressedMultiplexedSignals(
 	FSSDTexture2D SignalBuffer0, FSSDTexture2D SignalBuffer1, FSSDTexture2D SignalBuffer2, FSSDTexture2D SignalBuffer3,
-	SamplerState Sampler, float2 UV, float Level, uint2 PixelCoord)
+	SamplerState Sampler, float2 UV, uint2 PixelCoord)
 {
 	FSSDCompressedMultiplexedSample CompressedSample;
 
@@ -948,15 +927,15 @@ FSSDCompressedMultiplexedSample SampleCompressedMultiplexedSignals(
 	{
 		#if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
 		{
-			CompressedSample.VGPRArray[0] = SignalBuffer0.SampleLevel(Sampler, UV, Level);
-			CompressedSample.VGPRArray[1] = SignalBuffer1.SampleLevel(Sampler, UV, Level);
-			CompressedSample.VGPRArray[2] = SignalBuffer2.SampleLevel(Sampler, UV, Level);
-			CompressedSample.VGPRArray[3] = SignalBuffer3.SampleLevel(Sampler, UV, Level);
+			CompressedSample.VGPRArray[0] = SignalBuffer0.SampleLevel(Sampler, UV, 0.0);
+			CompressedSample.VGPRArray[1] = SignalBuffer1.SampleLevel(Sampler, UV, 0.0);
+			CompressedSample.VGPRArray[2] = SignalBuffer2.SampleLevel(Sampler, UV, 0.0);
+			CompressedSample.VGPRArray[3] = SignalBuffer3.SampleLevel(Sampler, UV, 0.0);
 		}
 		#elif CONFIG_SIGNAL_INPUT_TEXTURE_TYPE >= SIGNAL_TEXTURE_TYPE_UINT1 && CONFIG_SIGNAL_INPUT_TEXTURE_TYPE <= SIGNAL_TEXTURE_TYPE_UINT4
 		{
 			// TODO(Denoiser): Exposed the int3 instead as function parameter.
-			int3 Coord = int3(PixelCoord >> uint(Level), int(Level));
+			int3 Coord = int3(PixelCoord, 0);
 			CompressedSample.VGPRArray[0] = SignalBuffer0.Load(Coord);
 			CompressedSample.VGPRArray[1] = SignalBuffer1.Load(Coord);
 			CompressedSample.VGPRArray[2] = SignalBuffer2.Load(Coord);
@@ -972,21 +951,25 @@ FSSDCompressedMultiplexedSample SampleCompressedMultiplexedSignals(
 
 
 /** Sample multiple input signals that have been multiplexed. */
-FSSDSignalArray SampleMultiplexedSignals(
+void SampleMultiplexedSignals( // TODO
 	FSSDTexture2D SignalBuffer0, FSSDTexture2D SignalBuffer1, FSSDTexture2D SignalBuffer2, FSSDTexture2D SignalBuffer3,
 	SamplerState Sampler,
 	const uint SignalBufferLayout, const uint MultiplexedSampleId,
 	const bool bNormalizeSample,
-	float2 UV, float Level = 0)
+	float2 UV,
+	out FSSDSignalArray OutMultiplexedSamples,
+	out FSSDSignalFrequencyArray OutMultiplexedFrequencies)
 {
 	uint2 PixelCoord = BufferUVToBufferPixelCoord(UV);
 
 	FSSDCompressedMultiplexedSample CompressedSample = SampleCompressedMultiplexedSignals(
 		SignalBuffer0, SignalBuffer1, SignalBuffer2, SignalBuffer3,
-		Sampler, UV, Level, PixelCoord);
+		Sampler, UV, PixelCoord);
 
-	return DecodeMultiplexedSignals(
-		SignalBufferLayout, MultiplexedSampleId, bNormalizeSample, CompressedSample);
+	DecodeMultiplexedSignals(
+		SignalBufferLayout, MultiplexedSampleId, bNormalizeSample, CompressedSample,
+		/* out */ OutMultiplexedSamples,
+		/* out */ OutMultiplexedFrequencies);
 }
 
 
@@ -997,14 +980,17 @@ void OutputMultiplexedSignal(
 	FSSDRWTexture2D OutputSignalBuffer2,
 	FSSDRWTexture2D OutputSignalBuffer3,
 	const uint SignalBufferLayout, const uint MultiplexCount,
-	const uint2 PixelPosition, FSSDSignalSample MultiplexedSamples[SIGNAL_ARRAY_SIZE])
+	const uint2 PixelPosition,
+	FSSDSignalArray MultiplexedSamples,
+	FSSDSignalFrequencyArray MultiplexedFrequencies)
 {
 	// Encode the output signal.
 	FSSDOutputRawSample RawSample[MAX_MULTIPLEXED_TEXTURES];
 	uint BufferCount;
 	EncodeMultiplexedSignals(
 		SignalBufferLayout, MultiplexCount,
-		MultiplexedSamples,
+		MultiplexedSamples.Array,
+		MultiplexedFrequencies.Array,
 		/* out */ RawSample, /* out */ BufferCount);
 
 	// Output the raw encoded sample according to number of RT they requires.
