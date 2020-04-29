@@ -52,10 +52,13 @@ class Settings {
     void setDisplayTimings(const DisplayTimings& displayTimings);
     void setSwapIntervalNS(uint64_t swap_ns);
     void setUseAffinity(bool);
+    void setSupportedRefreshRates(const std::vector<uint64_t>& refreshRates);
 
     const DisplayTimings& getDisplayTimings() const;
     uint64_t getSwapIntervalNS() const;
     bool getUseAffinity() const;
+    int getSupportedRefreshRates(uint64_t* out_refreshrates, int allocated_entries) const;
+
 
   private:
     void notifyListeners();
@@ -68,6 +71,7 @@ class Settings {
     DisplayTimings mDisplayTimings GUARDED_BY(mMutex);
     uint64_t mSwapIntervalNS GUARDED_BY(mMutex) = 16666667L;
     bool mUseAffinity GUARDED_BY(mMutex) = true;
+    std::vector<uint64_t> mSupportedRefreshRates GUARDED_BY(mMutex);
 };
 
 } // namespace swappy

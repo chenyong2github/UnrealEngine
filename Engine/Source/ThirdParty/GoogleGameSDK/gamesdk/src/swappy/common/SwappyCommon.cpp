@@ -225,6 +225,13 @@ void SwappyCommon::updateDisplayTimings() {
     // grab a pointer to the latest supported refresh rates
     if (mDisplayManager) {
         mSupportedRefreshRates = mDisplayManager->getSupportedRefreshRates();
+        
+        // cache in settings
+		std::vector<uint64_t> refreshRates;
+		for (auto const& it : *mSupportedRefreshRates) {
+            refreshRates.push_back(it.first.count());
+		}
+        Settings::getInstance()->setSupportedRefreshRates(refreshRates);
     }
 
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
@@ -738,3 +745,9 @@ int SwappyCommon::getSDKVersion(JNIEnv *env) {
 }
 
 } // namespace swappy
+
+extern "C" {
+    int Swappy_getSupportedRefreshRates(uint64_t* out_refreshrates, int allocated_entries) {
+        return swappy::Settings::getInstance()->getSupportedRefreshRates(out_refreshrates, allocated_entries);
+    }
+}

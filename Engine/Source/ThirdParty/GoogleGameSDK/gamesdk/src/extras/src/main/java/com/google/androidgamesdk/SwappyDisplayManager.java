@@ -76,7 +76,7 @@ public class SwappyDisplayManager implements DisplayManager.DisplayListener {
     public SwappyDisplayManager(long cookie, Activity activity) {
         // Load the native library for cases where an NDK application is running
         // without a java componenet
-        try {
+/*        try {
             ActivityInfo ai = activity.getPackageManager().getActivityInfo(
                     activity.getIntent().getComponent(), PackageManager.GET_META_DATA);
             if (ai.metaData != null) {
@@ -88,6 +88,7 @@ public class SwappyDisplayManager implements DisplayManager.DisplayListener {
         } catch (java.lang.Throwable e) {
             Log.e(LOG_TAG, e.getMessage());
         }
+*/
 
         mCookie = cookie;
         mActivity = activity;
