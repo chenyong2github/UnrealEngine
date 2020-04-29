@@ -612,9 +612,9 @@ void FAudioDeviceManager::DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InW
 
 		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
 		Devices.Remove(DeviceID);
-	}
 
-	UnregisterWorld(InWorld, DeviceID);
+		UnregisterWorld(InWorld, DeviceID);
+	}
 }
 
 bool FAudioDeviceManager::ShutdownAllAudioDevices()
