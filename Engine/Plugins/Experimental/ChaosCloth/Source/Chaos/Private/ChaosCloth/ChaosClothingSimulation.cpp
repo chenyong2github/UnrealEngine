@@ -47,6 +47,12 @@
 #include "PhysXIncludes.h"
 #endif
 
+#if WITH_EDITOR
+#include "Engine/Canvas.h"  // For debug draw text
+#include "CanvasItem.h"     //
+#include "Engine/Engine.h"  //
+#endif
+
 #if CHAOS_DEBUG_DRAW
 #include "Chaos/DebugDrawQueue.h"
 #include "HAL/IConsoleManager.h"
@@ -1895,10 +1901,86 @@ void ClothingSimulation::DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerCo
 	LocalSimSpaceToWorld.SetOrigin(LocalSpaceLocation);
 	MeshBuilder.Draw(PDI, LocalSimSpaceToWorld, DebugClothMaterial->GetRenderProxy(), SDPG_World, false, false);
 }
+
+static void DrawText(FCanvas* Canvas, const FSceneView* SceneView, const FVector& Pos, const FText& Text, const FLinearColor& Color)
+{
+	FVector2D PixelLocation;
+	if (SceneView->WorldToPixel(Pos, PixelLocation))
+	{
+		FCanvasTextItem TextItem(PixelLocation, Text, GEngine->GetSmallFont(), Color);
+		TextItem.Scale = FVector2D::UnitVector;
+		TextItem.EnableShadow(FLinearColor::Black);
+		TextItem.Draw(Canvas);
+	}
+}
+
+void ClothingSimulation::DebugDrawParticleIndices(USkeletalMeshComponent* /*OwnerComponent*/, FCanvas* Canvas, const FSceneView* SceneView) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
+	static const FLinearColor DynamicColor = FColor::White;
+	static const FLinearColor KinematicColor = FColor::Purple;
+
+	for (int32 Index = 0; Index < Assets.Num(); ++Index)
+	{
+		const UClothingAssetCommon* const Asset = Assets[Index];
+		if (!Asset) { continue; }
+
+		for (uint32 ParticleIndex = IndexToRangeMap[Index][0]; ParticleIndex < IndexToRangeMap[Index][1]; ++ParticleIndex)
+		{
+			const FVector Position = Particles.X(ParticleIndex) + LocalSpaceLocation;
+
+			const FText Text = FText::AsNumber(ParticleIndex);
+			DrawText(Canvas, SceneView, Position, Text, Particles.InvM(ParticleIndex) == 0.0f ? KinematicColor : DynamicColor);
+		}
+	}
+}
+
+void ClothingSimulation::DebugDrawMaxDistanceValues(USkeletalMeshComponent* /*OwnerComponent*/, FCanvas* Canvas, const FSceneView* SceneView) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
+	static const FLinearColor DynamicColor = FColor::White;
+	static const FLinearColor KinematicColor = FColor::Purple;
+
+	FNumberFormattingOptions NumberFormattingOptions;
+	NumberFormattingOptions.AlwaysSign = false;
+	NumberFormattingOptions.UseGrouping = false;
+	NumberFormattingOptions.RoundingMode = ERoundingMode::HalfFromZero;
+	NumberFormattingOptions.MinimumIntegralDigits = 1;
+	NumberFormattingOptions.MaximumIntegralDigits = 6;
+	NumberFormattingOptions.MinimumFractionalDigits = 2;
+	NumberFormattingOptions.MaximumFractionalDigits = 2;
+
+	for (int32 Index = 0; Index < Assets.Num(); ++Index)
+	{
+		const UClothingAssetCommon* const Asset = Assets[Index];
+		if (!Asset) { continue; }
+
+		// Get Maximum Distances
+		const FClothLODDataCommon& AssetLodData = Asset->LodData[0];
+		const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
+		const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
+		if (MaxDistances.Num() == 0)
+		{
+			continue;
+		}
+		
+		for (uint32 ParticleIndex = IndexToRangeMap[Index][0]; ParticleIndex < IndexToRangeMap[Index][1]; ++ParticleIndex)
+		{
+			const uint32 WeightMapIndex = ParticleIndex - IndexToRangeMap[Index][0];
+			const float Distance = MaxDistances[WeightMapIndex];
+			const FVector Position = Particles.X(ParticleIndex) + LocalSpaceLocation;
+
+			const FText Text = FText::AsNumber(Distance, &NumberFormattingOptions);
+			DrawText(Canvas, SceneView, Position, Text, Particles.InvM(ParticleIndex) == 0.0f ? KinematicColor : DynamicColor);
+		}
+	}
+}
 #endif  // #if WITH_EDITOR
 
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
-static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FLinearColor& Color, UMaterial* DebugClothMaterialVertex)  // USe color or material
+static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FLinearColor& Color, UMaterial* DebugClothMaterialVertex)  // Use color or material
 {
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
