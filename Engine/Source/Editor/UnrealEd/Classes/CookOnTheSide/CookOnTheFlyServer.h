@@ -139,12 +139,11 @@ private:
 	uint32 PackagesPerGC;
 	/** Amount of time that is allowed to be idle before forcing a garbage collect. Set to 0 to never force GC due to idle time */
 	double IdleTimeToGC;
-	/** Max memory the cooker should use before forcing a gc */
-	uint64 MaxMemoryAllowance;
-	/** Min memory before the cooker should partial gc */
-	uint64 MinMemoryBeforeGC;
-	/** If we have less then this much memory free then finish current task and kick off gc */
-	uint64 MinFreeMemory;
+	// Memory Limits for when to Collect Garbage
+	uint64 MemoryMaxUsedVirtual;
+	uint64 MemoryMaxUsedPhysical;
+	uint64 MemoryMinFreeVirtual;
+	uint64 MemoryMinFreePhysical;
 	/** Max number of packages to save before we partial gc */
 	int32 MaxNumPackagesBeforePartialGC;
 	/** Max number of concurrent shader jobs reducing this too low will increase cook time */
@@ -495,6 +494,7 @@ public:
 	double GetIdleTimeToGC() const;
 
 	/** Returns the configured amount of memory allowed before forcing a GC */
+	UE_DEPRECATED(4.26, "Use HasExceededMaxMemory instead")
 	uint64 GetMaxMemoryAllowance() const;
 
 	/** Mark package as keep around for the cooker (don't GC) */

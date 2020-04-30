@@ -903,7 +903,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 		const uint32 PackagesPerGC = CookOnTheFlyServer->GetPackagesPerGC();
 		const double IdleTimeToGC = CookOnTheFlyServer->GetIdleTimeToGC();
-		const uint64 MaxMemoryAllowance = CookOnTheFlyServer->GetMaxMemoryAllowance();
 		const uint32 PackagesPerPartialGC = CookOnTheFlyServer->GetPackagesPerPartialGC();
 
 		double LastCookActionTime = FPlatformTime::Seconds();
@@ -1079,19 +1078,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 	}
 
 	return true;
-}
-
-bool UCookCommandlet::HasExceededMaxMemory(uint64 MaxMemoryAllowance) const
-{
-	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
-
-	uint64 UsedMemory = MemStats.UsedPhysical;
-	if ( (UsedMemory >= MaxMemoryAllowance) && 
-		(MaxMemoryAllowance > 0u) )
-	{
-		return true;
-	}
-	return false;
 }
 
 void UCookCommandlet::ProcessDeferredCommands()
