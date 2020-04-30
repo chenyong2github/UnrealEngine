@@ -131,3 +131,8 @@ float ComputeAttenuationFalloff(float Distance, float Attenuation)
 	return 1.0;
 #endif
 }
+
+bool HasTransmission(int LightId)
+{
+	return SceneLightsData.Flags[LightId] & 0x01;
+}
