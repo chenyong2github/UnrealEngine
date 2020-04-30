@@ -51,12 +51,6 @@ public:
 		};
 	}
 
-	TUniquePtr<FSparseMatrixD> ExtractResult()
-	{
-		Matrix->setFromTriplets(EntryTriplets.begin(), EntryTriplets.end());
-		Matrix->makeCompressed();
-	}
-
 	void ExtractResult(FSparseMatrixD& Result)
 	{
 		Matrix->setFromTriplets(EntryTriplets.begin(), EntryTriplets.end());
