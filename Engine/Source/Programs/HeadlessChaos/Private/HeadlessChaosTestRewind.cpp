@@ -547,6 +547,7 @@ namespace ChaosTest {
 		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
+		//note: this 5 is just a suggestion, there could be more frames saved than that
 		Solver->EnableRewindCapture(5);
 
 
@@ -569,7 +570,7 @@ namespace ChaosTest {
 		Particle->SetGravityEnabled(false);
 		Particle->SetV(FVec3(0));
 
-		for(int Step = 0; Step < 10; ++Step)
+		for(int Step = 0; Step < 11; ++Step)
 		{
 			TickSolverHelper(Module,Solver);
 		}
@@ -1158,6 +1159,147 @@ namespace ChaosTest {
 			TickSolverHelper(Module,Solver);
 
 			EXPECT_VECTOR_FLOAT_EQ(FullSim->X(),Xs[Step]);
+		}
+
+		Module->DestroySolver(Solver);
+	}
+
+	TYPED_TEST(AllTraits,RewindTest_ResimAsSlaveWokenUp)
+	{
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+		Solver->EnableRewindCapture(7);
+
+		// Make particles
+		auto ImpulsedObj = TPBDRigidParticle<float,3>::CreateParticle();
+		auto HitObj = TPBDRigidParticle<float,3>::CreateParticle();
+
+		ImpulsedObj->SetGeometry(Box);
+		ImpulsedObj->SetGravityEnabled(false);
+		Solver->RegisterObject(ImpulsedObj.Get());
+
+		HitObj->SetGeometry(Box);
+		HitObj->SetGravityEnabled(false);
+		Solver->RegisterObject(HitObj.Get());
+
+		ImpulsedObj->SetX(FVec3(0,0,20));
+		ImpulsedObj->SetM(1);
+		ImpulsedObj->SetInvM(1);
+		ImpulsedObj->SetResimType(EResimType::ResimAsSlave);
+		ImpulsedObj->SetObjectState(EObjectStateType::Sleeping);
+
+		HitObj->SetX(FVec3(0,0,0));
+		HitObj->SetM(1);
+		HitObj->SetInvM(1);
+		HitObj->SetResimType(EResimType::ResimAsSlave);
+		HitObj->SetObjectState(EObjectStateType::Sleeping);
+
+
+		ChaosTest::SetParticleSimDataToCollide({ImpulsedObj.Get(),HitObj.Get()});
+
+		const int32 ApplyImpulseStep = 8;
+		const int32 LastStep = 11;
+
+		TArray<FVec3> Xs;
+
+		for(int Step = 0; Step <= LastStep; ++Step)
+		{
+			if(ApplyImpulseStep == Step)
+			{
+				ImpulsedObj->SetLinearImpulse(FVec3(0,0,-10));
+			}
+
+			TickSolverHelper(Module,Solver);
+			Xs.Add(HitObj->X());
+		}
+
+		const int RewindStep = 5;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
+		{
+			TickSolverHelper(Module,Solver);
+
+			EXPECT_VECTOR_FLOAT_EQ(HitObj->X(),Xs[Step]);
+		}
+
+		Module->DestroySolver(Solver);
+	}
+
+	TYPED_TEST(AllTraits,RewindTest_ResimAsSlaveWokenUpNoHistory)
+	{
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+		Solver->EnableRewindCapture(7);
+
+		// Make particles
+		auto ImpulsedObj = TPBDRigidParticle<float,3>::CreateParticle();
+		auto HitObj = TPBDRigidParticle<float,3>::CreateParticle();
+
+		ImpulsedObj->SetGeometry(Box);
+		ImpulsedObj->SetGravityEnabled(false);
+		Solver->RegisterObject(ImpulsedObj.Get());
+
+		HitObj->SetGeometry(Box);
+		HitObj->SetGravityEnabled(false);
+		Solver->RegisterObject(HitObj.Get());
+
+		ImpulsedObj->SetX(FVec3(0,0,20));
+		ImpulsedObj->SetM(1);
+		ImpulsedObj->SetInvM(1);
+		ImpulsedObj->SetObjectState(EObjectStateType::Sleeping);
+
+		HitObj->SetX(FVec3(0,0,0));
+		HitObj->SetM(1);
+		HitObj->SetInvM(1);
+		HitObj->SetResimType(EResimType::ResimAsSlave);
+		HitObj->SetObjectState(EObjectStateType::Sleeping);
+
+
+		ChaosTest::SetParticleSimDataToCollide({ImpulsedObj.Get(),HitObj.Get()});
+
+		const int32 ApplyImpulseStep = 97;
+		const int32 LastStep = 100;
+
+		TArray<FVec3> Xs;
+
+		for(int Step = 0; Step <= LastStep; ++Step)
+		{
+			TickSolverHelper(Module,Solver);
+			Xs.Add(HitObj->X());	//not a full re-sim so we should end up with exact same result
+		}
+
+		const int RewindStep = 95;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
+		{
+			//during resim apply correction impulse
+			if(ApplyImpulseStep == Step)
+			{
+				ImpulsedObj->SetLinearImpulse(FVec3(0,0,-10));
+			}
+
+			TickSolverHelper(Module,Solver);
+
+			//even though there's now a different collision in the sim, the final result of slave is the same as before
+			EXPECT_VECTOR_FLOAT_EQ(HitObj->X(),Xs[Step]);
 		}
 
 		Module->DestroySolver(Solver);
