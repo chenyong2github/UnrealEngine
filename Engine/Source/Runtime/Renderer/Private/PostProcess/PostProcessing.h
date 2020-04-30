@@ -55,7 +55,13 @@ struct FPostProcessingInputs
 
 void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
 
-void AddDebugPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
+void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+void AddVisualizeDebugMaterialPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const UMaterialInterface* InMaterialInterface);
+
+#endif
 
 // For compatibility with composition graph passes until they are ported to Render Graph.
 class FPostProcessVS : public FScreenPassVS

@@ -23,6 +23,7 @@
 #include "PostProcess/PostProcessLensFlares.h"
 #include "PostProcess/PostProcessBokehDOF.h"
 #include "PostProcess/PostProcessCombineLUTs.h"
+#include "PostProcess/PostProcessDeviceEncodingOnly.h"
 #include "PostProcess/PostProcessTemporalAA.h"
 #include "PostProcess/PostProcessMotionBlur.h"
 #include "PostProcess/PostProcessDOF.h"
@@ -31,6 +32,7 @@
 #include "PostProcess/PostProcessVisualizeComplexity.h"
 #include "PostProcess/PostProcessCompositeEditorPrimitives.h"
 #include "PostProcess/PostProcessTestImage.h"
+#include "PostProcess/PostProcessVisualizeDebugMaterial.h"
 #include "PostProcess/PostProcessFFTBloom.h"
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "PostProcess/PostProcessSubsurface.h"
@@ -892,7 +894,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	}
 }
 
-void AddDebugPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs)
+void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -1074,6 +1076,48 @@ void AddDebugPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		SceneColor = AddUpscalePass(GraphBuilder, View, PassInputs);
 	}
 }
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+void AddVisualizeDebugMaterialPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const UMaterialInterface* InMaterialInterface)
+{
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPostProcessing);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
+
+	check(IsInRenderingThread());
+	check(View.VerifyMembersChecks());
+	check(InMaterialInterface);
+	Inputs.Validate();
+
+	const FIntRect PrimaryViewRect = View.ViewRect;
+
+	const FSceneTextureParameters& SceneTextures = *Inputs.SceneTextures;
+	const FScreenPassRenderTarget ViewFamilyOutput = FScreenPassRenderTarget::CreateViewFamilyOutput(Inputs.ViewFamilyTexture, View);
+
+	// Scene color is updated incrementally through the post process pipeline.
+	FScreenPassTexture SceneColor(Inputs.SceneColor, PrimaryViewRect);
+
+	const FEngineShowFlags& EngineShowFlags = View.Family->EngineShowFlags;
+	const bool bVisualizeHDR = EngineShowFlags.VisualizeHDR;
+	const bool bViewFamilyOutputInHDR = GRHISupportsHDROutput && IsHDREnabled();
+	const bool bOutputInHDR = IsPostProcessingOutputInHDR();
+
+	// Post Process Material - Before Color Correction
+	FPostProcessMaterialInputs PostProcessMaterialInputs;
+	PostProcessMaterialInputs.SetInput(EPostProcessMaterialInput::SceneColor, SceneColor);
+
+	SceneColor = AddPostProcessMaterialPass(GraphBuilder, View, PostProcessMaterialInputs, InMaterialInterface);
+
+	// Replace tonemapper with device encoding only pass, which converts the scene color to device-specific color.
+	FDeviceEncodingOnlyInputs PassInputs;
+	PassInputs.OverrideOutput = ViewFamilyOutput;
+	PassInputs.SceneColor = SceneColor;
+	PassInputs.bOutputInHDR = bViewFamilyOutputInHDR;
+
+	SceneColor = AddDeviceEncodingOnlyPass(GraphBuilder, View, PassInputs);
+}
+
+#endif
 
 ///////////////////////////////////////////////////////////////////////////
 // Mobile Post Processing

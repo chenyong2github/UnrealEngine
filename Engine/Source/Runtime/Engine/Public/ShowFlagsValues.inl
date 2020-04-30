@@ -350,6 +350,12 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, RayTracingDebug, SFG_Hidden, NSLOCTEXT("UnrealEd",
 
 /** Enable the SkyAtmosphere visualization to be drawn on screen */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeSkyAtmosphere, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeSkyAtmosphereSF", "Sky Atmosphere"))
+/** Shows a debug color post process material defined in renderer config  */
+SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeDebugColor, SFG_Developer, NSLOCTEXT("UnrealEd", "VisualizeDebugColorSF", "Visualize Debug Color"))
+/** Shows a debug grayscale post process material defined in renderer config  */
+SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeDebugGrayscale, SFG_Developer, NSLOCTEXT("UnrealEd", "VisualizeDebugGrayscaleSF", "Visualize Debug Grayscale"))
+/** Shows a debug custom post process material defined in renderer config  */
+SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeDebugCustomPostProcessMaterial, SFG_Developer, NSLOCTEXT("UnrealEd", "VisualizeDebugCustomPostProcessMaterialSF", "Visualize Debug Custom"))
 
 #undef SHOWFLAG_ALWAYS_ACCESSIBLE
 #undef SHOWFLAG_FIXED_IN_SHIPPING
