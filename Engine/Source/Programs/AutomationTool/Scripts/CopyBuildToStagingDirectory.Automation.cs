@@ -2197,7 +2197,11 @@ public partial class Project : CommandUtils
 				foreach (string OrderLocation in OrderLocations)
 				{
 					// Add input file to control order of file within the pak
-					DirectoryReference PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+					DirectoryReference PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
+					if (!DirectoryReference.Exists(PakOrderFileLocationBase))
+					{
+						PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+					}
 
 					FileReference FileLocation = FileReference.Combine(PakOrderFileLocationBase, OrderFileName);
 
@@ -2408,7 +2412,11 @@ public partial class Project : CommandUtils
 
 			foreach (string OrderLocation in OrderLocations.Reverse())
 			{
-				DirectoryReference IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+				DirectoryReference IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
+				if (!DirectoryReference.Exists(IoStoreOrderFileLocationBase))
+				{
+					IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+				}
 				FileReference FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "GameOpenOrder.log");
 				if (FileExists_NoExceptions(FileLocation.FullName))
 				{
