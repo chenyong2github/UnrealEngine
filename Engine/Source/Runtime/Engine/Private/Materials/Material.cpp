@@ -44,6 +44,7 @@
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Engine/Font.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Engine/SubsurfaceProfile.h"
