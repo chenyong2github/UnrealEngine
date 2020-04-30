@@ -17,6 +17,8 @@ namespace Chaos
 
 	using FJointPostApplyCallback = TFunction<void(const FReal Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)>;
 
+	using FJointBreakCallback = TFunction<void(FPBDJointConstraintHandle * ConstraintHandle)>;
+
 	enum class EJointMotionType : int32
 	{
 		Free,
@@ -131,9 +133,7 @@ namespace Chaos
 		FReal LinearDriveStiffness;
 		FReal LinearDriveDamping;
 
-		// @todo(ccaulfield): remove one of these
 		FRotation3 AngularDrivePositionTarget;
-		FVec3 AngularDriveTargetAngles;
 		FVec3 AngularDriveVelocityTarget;
 
 		bool bAngularSLerpPositionDriveEnabled;
@@ -145,6 +145,9 @@ namespace Chaos
 		EJointForceMode AngularDriveForceMode;
 		FReal AngularDriveStiffness;
 		FReal AngularDriveDamping;
+
+		FReal LinearBreakForce;
+		FReal AngularBreakTorque;
 	};
 
 	class CHAOS_API FPBDJointSolverSettings
@@ -168,6 +171,10 @@ namespace Chaos
 		// Angular stiffness
 		FReal AngularConstraintPositionCorrection;
 
+		// Projection settings
+		FReal ProjectionInvMassScale;
+		FReal VelProjectionInvMassScale;
+
 		// @todo(ccaulfield): remove these TEMP overrides for testing
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
@@ -185,47 +192,6 @@ namespace Chaos
 		FReal SoftTwistDamping;
 		FReal SoftSwingStiffness;
 		FReal SoftSwingDamping;
-		FReal ProjectionInvMassScale;
-		FReal VelProjectionInvMassScale;
-	};
-
-	class FJointSolverResult
-	{
-	public:
-		static FJointSolverResult MakeActive() { return { 1, 0 }; }
-		static FJointSolverResult MakeInactive() { return { 0, 1 }; }
-		static FJointSolverResult Make(int32 NumActive, int32 NumInactive) { return { NumActive, NumInactive }; }
-
-		FJointSolverResult()
-			: NumActive(0)
-			, NumInactive(0)
-		{
-		}
-
-		int32 GetNumActive() const { return NumActive; }
-		int32 GetNumInactive() const { return NumInactive; }
-
-		FJointSolverResult& operator+=(const FJointSolverResult& R)
-		{
-			NumActive += R.NumActive;
-			NumInactive += R.NumInactive;
-			return *this;
-		}
-
-		friend FJointSolverResult operator+(const FJointSolverResult& L, const FJointSolverResult& R)
-		{
-			return { L.NumActive + R.NumActive, L.NumInactive + R.NumInactive };
-		}
-
-	private:
-		FJointSolverResult(int32 InActive, int32 InSolved)
-			: NumActive(InActive)
-			, NumInactive(InSolved)
-		{
-		}
-
-		int32 NumActive;
-		int32 NumInactive;
 	};
 
 }
