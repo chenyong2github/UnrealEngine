@@ -284,6 +284,8 @@ void FAnimationRecorder::FixupNotifies()
 
 UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 {
+	double StartTime, ElapsedTime = 0;
+
 	if (AnimationObject)
 	{
 		int32 NumFrames = LastFrame  + 1;
@@ -300,6 +302,8 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		// add to real curve data 
 		if (RecordedCurves.Num() == NumFrames && UIDToArrayIndexLUT)
 		{
+			StartTime = FPlatformTime::Seconds();
+
 			USkeleton* SkeletonObj = AnimationObject->GetSkeleton();
 			for (int32 CurveUID = 0; CurveUID < UIDToArrayIndexLUT->Num(); ++CurveUID)
 			{
@@ -359,6 +363,9 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					}
 				}
 			}	
+
+			ElapsedTime = FPlatformTime::Seconds() - StartTime;
+			UE_LOG(LogAnimation, Log, TEXT("Animation Recorder set keys in %0.02f seconds"), ElapsedTime);
 		}
 
 		//AnimationObject->RawCurveData.RemoveRedundantKeys();
@@ -372,8 +379,13 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 			UPackage* const Package = AnimationObject->GetOutermost();
 			FString const PackageName = Package->GetName();
 			FString const PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
+			
+			StartTime = FPlatformTime::Seconds();
 
 			UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
+
+			ElapsedTime = FPlatformTime::Seconds() - StartTime;
+			UE_LOG(LogAnimation, Log, TEXT("Animation Recorder saved %s in %0.2f seconds"), *PackageName, ElapsedTime);
 		}
 
 		UAnimSequence* ReturnObject = AnimationObject;
