@@ -482,6 +482,9 @@ void FAnimationViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& Vi
 		{
 			DrawUVsForMesh(Viewport, &Canvas, 1.0f);
 		}
+
+		// Debug draw clothing texts
+		PreviewMeshComponent->DebugDrawClothingTexts(&Canvas, &View);
 	}
 }
 
