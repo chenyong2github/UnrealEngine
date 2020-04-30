@@ -61,19 +61,9 @@ namespace ENamedThreads
 	CORE_API int32 bHasHighPriorityThreads = CREATE_HIPRI_TASK_THREADS;
 }
 
-static bool GDoRenderThreadWakeupTrigger = true;
-static FAutoConsoleVariableRef CVarDoRenderThreadWakeupTrigger(
-	TEXT("TaskGraph.DoRenderThreadWakeupTrigger"),
-	GDoRenderThreadWakeupTrigger,
-	TEXT("If true, task graph tasks sent to the render thread trigger a wakeup. See TaskGraph.RenderThreadPollPeriodMs.")
-);
-
-static int32 GRenderThreadPollPeriodMs = (int32)MAX_uint32;
-static FAutoConsoleVariableRef CVarRenderThreadPollPeriodMs(
-	TEXT("TaskGraph.RenderThreadPollPeriodMs"),
-	GRenderThreadPollPeriodMs,
-	TEXT("Render thread polling period in milliseconds.")
-);
+// RenderingThread.cpp sets these values if needed
+TAtomic<bool> GDoRenderThreadWakeupTrigger(true);	// Accessed by any thread, modified by GT.
+int32 GRenderThreadPollPeriodMs = -1;				// Accessed/Modified by RT only.
 
 static int32 GIgnoreThreadToDoGatherOn = 0;
 static FAutoConsoleVariableRef CVarIgnoreThreadToDoGatherOn(
