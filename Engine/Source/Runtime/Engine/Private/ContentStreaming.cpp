@@ -1281,6 +1281,8 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 		//Add the texture streaming manager if it's needed.
 		if( !TextureStreamingManager )
 		{
+			FlushRenderingCommands();
+
 			GConfig->GetFloat( TEXT("TextureStreaming"), TEXT("LoadMapTimeLimit"), LoadMapTimeLimit, GEngineIni );
 			// Create the streaming manager and add the default streamers.
 			TextureStreamingManager = new FRenderAssetStreamingManager();
@@ -1323,6 +1325,7 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 		//Remove the texture streaming manager if needed.
 		if( TextureStreamingManager )
 		{
+			FlushRenderingCommands();
 			TextureStreamingManager->BlockTillAllRequestsFinished();
 
 			RemoveStreamingManager(TextureStreamingManager);
