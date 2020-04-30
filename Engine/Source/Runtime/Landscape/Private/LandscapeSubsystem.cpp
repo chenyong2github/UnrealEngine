@@ -48,12 +48,18 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	RegisterTickFunction(GetWorld()->PersistentLevel);
 
 #if WITH_EDITOR
-	GrassMapsBuilder = MakeUnique<FLandscapeGrassMapsBuilder>(GetWorld());
+	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
 #endif
 }
 
 void ULandscapeSubsystem::Deinitialize()
 {
+#if WITH_EDITOR
+	if (GrassMapsBuilder)
+	{
+		delete GrassMapsBuilder;
+	}
+#endif
 	UnRegisterTickFunction();
 	Proxies.Empty();
 
