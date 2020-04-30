@@ -37,15 +37,15 @@ public:
 	FPBDCollisionConstraintAccessor()
 		: SpatialAcceleration(EmptyParticles.GetNonDisabledView())
 		, BroadPhase(EmptyParticles, (FReal)1, (FReal)0)
-		, CollisionConstraints(EmptyParticles, EmptyCollided, EmptyPhysicsMaterials, 1, 1)
+		, CollisionConstraints(EmptyParticles, EmptyCollided, EmptyPhysicsMaterials, EmptyUniquePhysicsMaterials, 1, 1)
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{}
 
-	FPBDCollisionConstraintAccessor(const TPBDRigidsSOAs<FReal, 3>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials,
+	FPBDCollisionConstraintAccessor(const TPBDRigidsSOAs<FReal, 3>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticleUniqueMaterials,
 	const int32 PushOutIterations, const int32 PushOutPairIterations, const FReal Thickness) 
 		: SpatialAcceleration(InParticles.GetNonDisabledView())
 		, BroadPhase(InParticles, (FReal)1, (FReal)0)
-		, CollisionConstraints(InParticles, Collided, PerParticleMaterials, 1, 1, Thickness)
+		, CollisionConstraints(InParticles, Collided, PerParticleMaterials, PerParticleUniqueMaterials, 1, 1, Thickness)
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{}
 
@@ -122,6 +122,7 @@ public:
 	TPBDRigidsSOAs<FReal, 3> EmptyParticles;
 	TArrayCollectionArray<bool> EmptyCollided;
 	TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> EmptyPhysicsMaterials;
+	TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> EmptyUniquePhysicsMaterials;
 
 	FAccelerationStructure SpatialAcceleration;
 	FSpatialAccelerationBroadPhase BroadPhase;
