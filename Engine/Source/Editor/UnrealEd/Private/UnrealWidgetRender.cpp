@@ -12,16 +12,6 @@
 #include "DynamicMeshBuilder.h"
 #include "CanvasTypes.h"
 
-static const float AXIS_LENGTH = 35.0f;
-static const float TRANSLATE_ROTATE_AXIS_CIRCLE_RADIUS = 20.0f;
-static const float TWOD_AXIS_CIRCLE_RADIUS = 10.0f;
-static const float INNER_AXIS_CIRCLE_RADIUS = 48.0f;
-static const float OUTER_AXIS_CIRCLE_RADIUS = 56.0f;
-static const float ROTATION_TEXT_RADIUS = 75.0f;
-static const int32 AXIS_CIRCLE_SIDES = 24;
-static const float ARCALL_RELATIVE_INNER_SIZE = 0.75f;
-static const float AXIS_LENGTH_SCALE_OFFSET = 5.0f;
-
 /*
  *  Simple struct used to create and group data related to the current window's / viewport's space,
  *  orientation, and scale.
