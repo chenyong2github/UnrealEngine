@@ -659,23 +659,35 @@ namespace ChaosTest {
 			X[Step] = Particle->X();
 			TickSolverHelper(Module,Solver);
 
+			auto PTParticle = static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<FReal,3>>*>(Particle->GetProxy())->GetHandle();
+			auto PTKinematic = static_cast<FSingleParticlePhysicsProxy<TKinematicGeometryParticle<FReal,3>>*>(Kinematic->GetProxy())->GetHandle();
+
 			//see that particle has desynced
 			if(Step < LastStep)
 			{
 				//If we're still in the past make sure future has been marked as desync
 				FGeometryParticleState State(*Particle);
 				EXPECT_EQ(EFutureQueryResult::Desync,RewindData->GetFutureStateAtFrame(State,Step));
+				EXPECT_EQ(PTParticle->SyncState(),ESyncState::HardDesync);
 
 				FGeometryParticleState KinState(*Kinematic);
 				const EFutureQueryResult KinFutureStatus = RewindData->GetFutureStateAtFrame(KinState,Step);
 				if(Step < 10)
 				{
 					EXPECT_EQ(KinFutureStatus,EFutureQueryResult::Ok);
+					EXPECT_EQ(PTKinematic->SyncState(),ESyncState::InSync);
 				}
 				else
 				{
 					EXPECT_EQ(KinFutureStatus,EFutureQueryResult::Desync);
+					EXPECT_EQ(PTKinematic->SyncState(),ESyncState::HardDesync);
 				}
+			}
+			else
+			{
+				//Last resim frame ran so everything is marked as in sync
+				EXPECT_EQ(PTParticle->SyncState(),ESyncState::InSync);
+				EXPECT_EQ(PTKinematic->SyncState(),ESyncState::InSync);
 			}
 		}
 
