@@ -91,22 +91,33 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 	check(PoolingMethod != ENCPoolMethod::None);
 
 	FNCPoolElement RetElem;
-	if (FreeElements.Num())
+	while (FreeElements.Num())//Loop until we pop a valid free element or we're empty.
 	{
 		RetElem = FreeElements.Pop(false);
-		check(RetElem.Component->GetAsset() == Template);
-		check(!RetElem.Component->IsPendingKill());
-		RetElem.Component->SetUserParametersToDefaultValues();
-
-		if (RetElem.Component->GetWorld() != World)
+		if (RetElem.Component == nullptr || RetElem.Component->IsPendingKill())
+		{			
+			RetElem = FNCPoolElement();
+			//Possible someone still has a reference to our NC and destroyed it while it was sat in the pool. Or possibly a teardown edgecase path that is GCing components from the pool be
+			UE_LOG(LogNiagara, Log, TEXT("Pooled NC has been destroyed! Possibly via a DestroyComponent() call. You should not destroy pooled components manually. \nJust deactivate them and allow them to destroy themselves or be reclaimed by the pool. | NC: %p |\t System: %s"), RetElem.Component, *Template->GetFullName());
+		}
+		else
 		{
-			// Rename the NC to move it into the current PersistentLevel - it may have been spawned in one
-			// level but is now needed in another level.
-			// Use the REN_ForceNoResetLoaders flag to prevent the rename from potentially calling FlushAsyncLoading.
-			RetElem.Component->Rename(nullptr, World, REN_ForceNoResetLoaders);
+			check(RetElem.Component->GetAsset() == Template);
+			check(!RetElem.Component->IsPendingKill());
+			RetElem.Component->SetUserParametersToDefaultValues();
+
+			if (RetElem.Component->GetWorld() != World)
+			{
+				// Rename the NC to move it into the current PersistentLevel - it may have been spawned in one
+				// level but is now needed in another level.
+				// Use the REN_ForceNoResetLoaders flag to prevent the rename from potentially calling FlushAsyncLoading.
+				RetElem.Component->Rename(nullptr, World, REN_ForceNoResetLoaders);
+			}
+			break;
 		}
 	}
-	else
+
+	if(RetElem.Component == nullptr)
 	{
 		//None in the pool so create a new one.
 		RetElem.Component = NewObject<UNiagaraComponent>(World);
