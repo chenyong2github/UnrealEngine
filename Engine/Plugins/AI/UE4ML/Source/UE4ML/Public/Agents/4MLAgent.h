@@ -20,12 +20,9 @@ struct F4MLSpaceDescription;
 
 
 USTRUCT()
-struct F4MLBasicConfig
+struct F4MLParameterMap
 {
 	GENERATED_BODY()
-
-	UPROPERTY()
-	FName Key;
 
 	UPROPERTY()
 	TMap<FName, FString> Params;
@@ -37,10 +34,10 @@ struct F4MLAgentConfig
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<F4MLBasicConfig> Sensors;
+	TMap<FName, F4MLParameterMap> Sensors;
 
 	UPROPERTY()
-	TArray<F4MLBasicConfig> Actuators;
+	TMap<FName, F4MLParameterMap> Actuators;
 
 	UPROPERTY()
 	FName AvatarClassName;
@@ -56,6 +53,9 @@ struct F4MLAgentConfig
 	bool bAutoRequestNewAvatarUponClearingPrev = true;
 
 	TSubclassOf<AActor> AvatarClass;
+
+	F4MLParameterMap& AddSensor(const FName SensorName, F4MLParameterMap&& Parameters = F4MLParameterMap());
+	F4MLParameterMap& AddActuator(const FName ActuatorName, F4MLParameterMap&& Parameters = F4MLParameterMap());
 };
 
 namespace F4MLAgentHelpers

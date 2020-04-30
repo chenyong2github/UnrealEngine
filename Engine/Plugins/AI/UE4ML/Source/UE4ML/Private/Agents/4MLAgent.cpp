@@ -47,6 +47,21 @@ namespace F4MLAgentHelpers
 }
 
 //----------------------------------------------------------------------//
+// F4MLAgentConfig
+//----------------------------------------------------------------------//
+F4MLParameterMap& F4MLAgentConfig::AddSensor(const FName SensorName, F4MLParameterMap&& Parameters)
+{
+	F4MLParameterMap& Entry = Sensors.Add(SensorName, Parameters);
+	return Entry;
+}
+
+F4MLParameterMap& F4MLAgentConfig::AddActuator(const FName ActuatorName, F4MLParameterMap&& Parameters)
+{
+	F4MLParameterMap& Entry = Actuators.Add(ActuatorName, Parameters);
+	return Entry;
+}
+
+//----------------------------------------------------------------------//
 // U4MLAgent 
 //----------------------------------------------------------------------//
 U4MLAgent::U4MLAgent(const FObjectInitializer& ObjectInitializer)
@@ -55,23 +70,11 @@ U4MLAgent::U4MLAgent(const FObjectInitializer& ObjectInitializer)
 	AgentID = F4ML::InvalidAgentID;
 	bEverHadAvatar = false;
 
-	{
-		F4MLBasicConfig& SensorConfig = AgentConfig.Sensors.AddZeroed_GetRef();
-		SensorConfig.Key = TEXT("Camera");
-	}
-	{
-		F4MLBasicConfig& SensorConfig = AgentConfig.Sensors.AddZeroed_GetRef();
-		SensorConfig.Key = TEXT("Movement");
-	}
-	{
-		F4MLBasicConfig& SensorConfig = AgentConfig.Sensors.AddZeroed_GetRef();
-		SensorConfig.Key = TEXT("Input");
-		SensorConfig.Params.Add(TEXT("mode"), TEXT("action"));
-	}
-	{
-		F4MLBasicConfig& ActuatorConfig = AgentConfig.Actuators.AddZeroed_GetRef();
-		ActuatorConfig.Key = U4MLActuator_InputKey::StaticClass()->GetFName();
-	}
+	AgentConfig.AddSensor(TEXT("Camera"));
+	AgentConfig.AddSensor(TEXT("Movement"));
+	AgentConfig.AddSensor(TEXT("Input"));
+	AgentConfig.AddActuator(U4MLActuator_InputKey::StaticClass()->GetFName());
+	AgentConfig.Actuators.Add(U4MLActuator_InputKey::StaticClass()->GetFName(), F4MLParameterMap());
 	AgentConfig.AvatarClass = APlayerController::StaticClass();
 	AgentConfig.bAutoRequestNewAvatarUponClearingPrev = true;
 }
@@ -188,29 +191,29 @@ void U4MLAgent::Configure(const F4MLAgentConfig& NewConfig)
 
 	AgentConfig = NewConfig;
 
-	for (F4MLBasicConfig& Config : AgentConfig.Actuators)
+	for (const TTuple<FName, F4MLParameterMap>& KeyValue : AgentConfig.Actuators)
 	{
-		UClass* ResultClass = F4MLLibrarian::Get().FindActuatorClass(Config.Key);
+		UClass* ResultClass = F4MLLibrarian::Get().FindActuatorClass(KeyValue.Key);
 		if (ResultClass)
 		{
 			U4MLActuator* NewActuator = F4ML::NewObject<U4MLActuator>(this, ResultClass);
 			check(NewActuator);
-			NewActuator->SetNickname(Config.Key.ToString());
-			NewActuator->Configure(Config.Params);
+			NewActuator->SetNickname(KeyValue.Key.ToString());
+			NewActuator->Configure(KeyValue.Value.Params);
 			Actuators.Add(NewActuator);
 		}
 	}
 	Actuators.Sort(FAgentElementSort());
 
-	for (F4MLBasicConfig& Config : AgentConfig.Sensors)
+	for (const TTuple<FName, F4MLParameterMap>& KeyValue : AgentConfig.Sensors)
 	{
-		UClass* ResultClass = F4MLLibrarian::Get().FindSensorClass(Config.Key);
+		UClass* ResultClass = F4MLLibrarian::Get().FindSensorClass(KeyValue.Key);
 		if (ResultClass)
 		{
 			U4MLSensor* NewSensor = F4ML::NewObject<U4MLSensor>(this, ResultClass);
 			check(NewSensor);
-			NewSensor->SetNickname(Config.Key.ToString());
-			NewSensor->Configure(Config.Params);
+			NewSensor->SetNickname(KeyValue.Key.ToString());
+			NewSensor->Configure(KeyValue.Value.Params);
 			Sensors.Add(NewSensor);
 		}
 	}

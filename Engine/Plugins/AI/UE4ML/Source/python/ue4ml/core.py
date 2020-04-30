@@ -19,28 +19,29 @@ INVALID_ID = 4294967295  # uint32(-1)
 class AgentConfig:
     
     def __init__(self, config={}):
-        self.sensors = []
-        self.actuators = []
+        self.sensors = {}
+        self.actuators = {}
         self.avatarClassName = 'PlayerController'
         self.agentClassName = ''
         self.bAutoRequestNewAvatarUponClearingPrev = True
         self.bAvatarClassExact = False
 
-        if len(config):
+        if config:
             self.__dict__ = config
 
     def add_sensor(self, sensor_name, sensor_params={}):
-        self.sensors.append({'key': sensor_name, 'params': sensor_params})
+        if type(sensor_params) != dict:
+            raise ValueError('sensor_params must be a dict')
+        self.sensors[sensor_name] = {'params': sensor_params}
 
     def add_actuator(self, actuator_name, actuator_params={}):
-        self.actuators.append({'key': actuator_name, 'params': actuator_params})
+        if type(actuator_params) != dict:
+            raise ValueError('sensor_params must be a dict')
+        self.actuators[actuator_name] = {'params': actuator_params}
 
     @property
     def as_json(self):
         return json.dumps(self, default=lambda x: x.__dict__)
-
-    def get_json(self):
-        return self.as_json
 
     @classmethod
     def from_json(self, json_string):
