@@ -114,7 +114,7 @@ enum EPackageFlags
 //	PKG_Unused						= 0x00000400,
 //	PKG_Unused						= 0x00000800,
 //	PKG_Unused						= 0x00001000,
-//	PKG_Unused						= 0x00002000,
+	PKG_UnversionedProperties		= 0x00002000,   ///< Uses unversioned property serialization instead of versioned tagged property serialization
 	PKG_ContainsMapData				= 0x00004000,   ///< Contains map data (UObjects only referenced by a single ULevel) but is stored in a different package
 //	PKG_Unused						= 0x00008000,
 	PKG_Compiling					= 0x00010000,	///< package is currently being compiled

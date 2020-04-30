@@ -4,11 +4,6 @@
 
 #include "UObject/UnrealType.h"
 
-struct FUnversionedStructSchema;
-
-// Check if unversioned property serialization is configured to be used on current platform
-bool CanUseUnversionedPropertySerialization();
-
 // Check if unversioned property serialization is configured to be used on target platform
 bool CanUseUnversionedPropertySerialization(const ITargetPlatform* Target);
 
