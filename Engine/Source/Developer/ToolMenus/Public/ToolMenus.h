@@ -296,6 +296,7 @@ public:
 	//~ End UObject Interface
 
 private:
+	friend class FPopulateMenuBuilderWithToolMenuEntry;
 
 	/** Create a finalized menu that combines given hierarchy array that will generate a widget. Advanced special use cases only. */
 	UToolMenu* GenerateMenuFromHierarchy(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext);
