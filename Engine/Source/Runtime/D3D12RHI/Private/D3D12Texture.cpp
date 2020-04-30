@@ -2159,7 +2159,10 @@ public:
 				FD3D12Resource* UploadBuffer = UpdateInfo.SrcResourceLocation->GetResource();
 				CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadBuffer->GetResource(), UpdateInfo.PlacedSubresourceFootprint);
 #if USE_PIX
-				PIXBeginEvent(NativeCmdList.GraphicsCommandList(), PIX_COLOR(255, 255, 255), TEXT("EndMultiUpdateTexture3D"));
+				if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
+				{
+					PIXBeginEvent(NativeCmdList.GraphicsCommandList(), PIX_COLOR(255, 255, 255), TEXT("EndMultiUpdateTexture3D"));
+				}
 #endif
 				NativeCmdList->CopyTextureRegion(
 					&DestCopyLocation,
@@ -2173,7 +2176,10 @@ public:
 
 				DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 #if USE_PIX
-				PIXEndEvent(NativeCmdList.GraphicsCommandList());
+				if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
+				{
+					PIXEndEvent(NativeCmdList.GraphicsCommandList());
+				}
 #endif
 			}
 		}
@@ -2375,7 +2381,10 @@ public:
 			FD3D12Device* Device = TextureLink->GetParentDevice();
 			FD3D12CommandListHandle& NativeCmdList = Device->GetDefaultCommandContext().CommandListHandle;
 #if USE_PIX
-			PIXBeginEvent(NativeCmdList.GraphicsCommandList(), PIX_COLOR(255, 255, 255), TEXT("EndUpdateTexture3D"));
+			if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
+			{
+				PIXBeginEvent(NativeCmdList.GraphicsCommandList(), PIX_COLOR(255, 255, 255), TEXT("EndUpdateTexture3D"));
+			}
 #endif
 			CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TextureLink->GetResource()->GetResource(), MipIdx);
 			CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadBuffer->GetResource(), PlacedSubresourceFootprint);
@@ -2400,7 +2409,10 @@ public:
 
 			DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 #if USE_PIX
-			PIXEndEvent(NativeCmdList.GraphicsCommandList());
+			if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
+			{
+				PIXEndEvent(NativeCmdList.GraphicsCommandList());
+			}
 #endif
 		}
 
