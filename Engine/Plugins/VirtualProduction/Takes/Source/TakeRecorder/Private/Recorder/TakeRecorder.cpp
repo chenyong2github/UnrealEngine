@@ -796,6 +796,8 @@ void UTakeRecorder::Stop()
 		return;
 	}
 
+	double StartTime = FPlatformTime::Seconds();
+
 	TGuardValue<bool> ReentrantGuard(bStoppedRecording, true);
 
 	FTimecode TimecodeOut = FApp::GetTimecode();
@@ -917,6 +919,15 @@ void UTakeRecorder::Stop()
 			OnRecordingCancelledEvent.Broadcast(this);
 			UTakeRecorderBlueprintLibrary::OnTakeRecorderCancelled();
 		}
+	}
+
+	if (SequenceAsset)
+	{
+		UPackage* const Package = SequenceAsset->GetOutermost();
+		FString const PackageName = Package->GetName();
+
+		double ElapsedTime = FPlatformTime::Seconds() - StartTime;
+		UE_LOG(LogTakesCore, Log, TEXT("Finished processing %s in %0.2f seconds"), *PackageName, ElapsedTime);
 	}
 
 	RemoveFromRoot();
