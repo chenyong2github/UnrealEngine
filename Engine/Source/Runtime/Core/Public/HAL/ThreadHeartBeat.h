@@ -86,6 +86,12 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	TMap<uint32, FHeartBeatInfo> ThreadHeartBeat;
 	/** The last heartbeat time for the rendering or RHI thread frame present. */
 	FHeartBeatInfo PresentHeartBeat;
+
+	/** Synch object for the function heartbeat */
+	FCriticalSection FunctionHeartBeatCritical;
+	/** Keeps track of the last heartbeat time for a function, can't be nested */
+	TMap<uint32, FHeartBeatInfo> FunctionHeartBeat;
+	
 	/** True if heartbeat should be measured */
 	FThreadSafeBool bReadyToCheckHeartbeat;
 	/** Max time the thread is allowed to not send the heartbeat*/
@@ -115,6 +121,8 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	void FORCENOINLINE OnHang(double HangDuration, uint32 ThreadThatHung);
 	void FORCENOINLINE OnPresentHang(double HangDuration);
 
+	bool IsEnabled();
+
 public:
 
 	enum EConstants
@@ -140,6 +148,14 @@ public:
 	uint32 CheckHeartBeat(double& OutHangDuration);
 	/** Called by a thread when it's no longer expecting to be ticked */
 	void KillHeartBeat();
+
+	/** Called from a thread once on entry to a function to be monitored */
+	void MonitorFunctionStart();
+	/** Called by a thread when a function has completed and no longer needs to be monitored */
+	void MonitorFunctionEnd();
+	/** Called by a supervising thread to check all function calls' being monitored health */
+	uint32 CheckFunctionHeartBeat(double& OutHangDuration);
+
 	/** 
 	 * Suspend heartbeat measuring for the current thread if the thread has already had a heartbeat 
 	 * @param bAllThreads If true, suspends heartbeat for all threads, not only the current one
@@ -197,6 +213,27 @@ public:
 		}
 	}
 };
+
+/** Simple scope object to put at the top of a function to monitor it completes in a timely fashion */
+struct FFunctionHeartBeatScope
+{
+public:
+	FORCEINLINE FFunctionHeartBeatScope()
+	{
+		if (FThreadHeartBeat* HB = FThreadHeartBeat::GetNoInit())
+		{
+			HB->MonitorFunctionStart();
+		}
+	}
+	FORCEINLINE ~FFunctionHeartBeatScope()
+	{
+		if (FThreadHeartBeat* HB = FThreadHeartBeat::GetNoInit())
+		{
+			HB->MonitorFunctionEnd();
+		}
+	}
+};
+
 
 // When 1, performs a full symbol lookup in hitch call stacks, otherwise only
 // a backtrace is performed and the raw addresses are written to the log.
