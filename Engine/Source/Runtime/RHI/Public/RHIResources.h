@@ -606,7 +606,7 @@ public:
 	, Usage(InUsage)
 	{}
 
-	/** @return The stride in bytes of the structured buffer. */
+	/** @return The stride in bytes of the structured buffer; must be 2 or 4. */
 	uint32 GetStride() const { return Stride; }
 
 	/** @return The number of bytes in the structured buffer. */
