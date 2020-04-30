@@ -4,17 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
-#include "FSOAPositions.h"
 #include "FSparseMatrixD.h"
-
 #include "MatrixSolver.h"
 
 
 // only needed if you enable logging by changing the typedef for FConstrainedSolverTimeLogger
 //#include "ProfilingDebugging/ScopedTimers.h"
-
-
-//#include "Async/ParallelFor.h"
 
 
 
@@ -122,9 +117,9 @@ public:
 
 
 			// constrained source vector
-			ConstraintPositions.XVector[i] = Pos.X;
-			ConstraintPositions.YVector[i] = Pos.Y;
-			ConstraintPositions.ZVector[i] = Pos.Z;
+			ConstraintPositions.SetX(i, Pos.X);
+			ConstraintPositions.SetY(i, Pos.Y);
+			ConstraintPositions.SetZ(i, Pos.Z);
 
 		}
 	}

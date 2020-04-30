@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmoothingOps/MeanValueSmoothingOp.h"
-
-#include "MeshSmoothingUtilities.h"
+#include "Solvers/MeshSmoothing.h"
 
 
 FMeanValueSmoothingOp::FMeanValueSmoothingOp(const FDynamicMesh3* Mesh, float Speed, int32 Iterations) :
@@ -24,5 +23,5 @@ void FMeanValueSmoothingOp::CalculateResult(FProgressCancel* Progress)
 void FMeanValueSmoothingOp::Smooth()
 {
 	double Intensity = 1.;
-	MeshSmoothingOperators::ComputeSmoothing_BiHarmonic(ELaplacianWeightScheme::MeanValue, *ResultMesh, SmoothSpeed, Intensity, SmoothIterations, PositionBuffer);
+	UE::MeshDeformation::ComputeSmoothing_BiHarmonic(ELaplacianWeightScheme::MeanValue, *ResultMesh, SmoothSpeed, Intensity, SmoothIterations, PositionBuffer);
 }
