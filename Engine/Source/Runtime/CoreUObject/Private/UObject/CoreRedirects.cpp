@@ -14,6 +14,10 @@
 #include "Serialization/DeferredMessageLog.h"
 #include "Templates/Casts.h"
 
+#if !defined UE_WITH_CORE_REDIRECTS
+#	define UE_WITH_CORE_REDIRECTS 1
+#endif
+
 FCoreRedirectObjectName::FCoreRedirectObjectName(const FString& InString)
 {
 	if (!ExpandNames(InString, ObjectName, OuterName, PackageName))
@@ -1100,6 +1104,8 @@ ECoreRedirectFlags FCoreRedirects::GetFlagsForTypeClass(UClass *TypeClass)
 
 // We want to only load these redirects in editor builds, but Matinee needs them at runtime still 
 
+#if UE_WITH_CORE_REDIRECTS
+
 PRAGMA_DISABLE_OPTIMIZATION
 
 // The compiler doesn't like having a massive string table in a single function so split it up
@@ -1913,3 +1919,8 @@ void FCoreRedirects::RegisterNativeRedirects()
 
 	AddRedirectList(Redirects, TEXT("RegisterNativeRedirects"));
 }
+#else
+void FCoreRedirects::RegisterNativeRedirects()
+{
+}
+#endif // UE_WITH_CORE_REDIRECTS
