@@ -358,11 +358,11 @@ FSphericalGaussian ComputeRoughnessLobe(FSSDSampleSceneInfos RefSceneMetadata)
 }
 
 /** Compute the factor to apply to inifinity bluring radius based on the sample's hit distance. */
-float ComputeBluringOutOfFocusOfNormalizedSample(FSSDSignalSample Sample, FSSDSampleSceneInfos SceneMetadata)
+float ComputeBluringOutOfFocusOfNormalizedSample(FSSDSignalFrequency SampleFrequency, FSSDSampleSceneInfos SceneMetadata)
 {
 	float DistanceCameraToPixel = length(View.TranslatedWorldCameraOrigin - GetTranslatedWorldPosition(SceneMetadata));
 
-	return Sample.ClosestHitDistance / (DistanceCameraToPixel + Sample.ClosestHitDistance);
+	return SampleFrequency.ClosestHitDistance / (DistanceCameraToPixel + SampleFrequency.ClosestHitDistance);
 }
 
 
@@ -469,88 +469,13 @@ float ComputeInfinityBluringRadius(FSSDSampleSceneInfos SceneMetadata)
 }
 
 /** Return the size of bluring radius caused by specular lobe in ViewportUV.x space. */
-float ComputeBluringRadiusOfNormalizedSample(FSSDSignalSample Sample, FSSDSampleSceneInfos SceneMetadata)
+float ComputeBluringRadiusOfNormalizedSample(FSSDSignalFrequency SampleFrequency, FSSDSampleSceneInfos SceneMetadata)
 {
-	return ComputeInfinityBluringRadius(SceneMetadata) * ComputeBluringOutOfFocusOfNormalizedSample(Sample, SceneMetadata);
-}
-
-// TODO(Denoiser): duplicated...
-float3 GenerateReflectedRayDirection(
-	float3 IncidentDirection,
-	float3 WorldNormal,
-	float Roughness,
-	float2 RandSample,
-	out float3 RayDirection,
-	out float PDF)
-{
-	if (Roughness < 0.001 ) //ReflectionSmoothClamp)
-	{
-		RayDirection = reflect(IncidentDirection, WorldNormal);
-		PDF = 1.0;
-	}
-	else
-	{
-		float3 N = WorldNormal;
-		float3 V = -IncidentDirection;
-		float2 E = RandSample;
-
-		float3x3 TangentBasis = GetTangentBasis(N);
-		float3 TangentV = mul(TangentBasis, V);
-
-		float NoV = saturate(dot(V, WorldNormal));
-
-		float4 Sample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(Roughness), TangentV);
-
-		float3 H = mul(Sample.xyz, TangentBasis);
-		float3 L = 2 * dot( V, H ) * H - V;
-
-		RayDirection = L;
-		PDF = Sample.w;
-	}
-
-	return RayDirection;
-}
-
-// TODO(Denoiser): duplicated...
-void GetInputRayDirectionPixel(
-	uint2 PixelCoord,
-	FSSDSampleSceneInfos SceneMetadata,
-	out float3 RayDirection,
-	out float PDF)
-{
-	float3 IncidentDirection = normalize(GetTranslatedWorldPosition(SceneMetadata) - View.TranslatedWorldCameraOrigin);
-
-	float2 E;
-	{
-		E = Rand1SPPDenoiserInput(PixelCoord);
-		E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
-	}
-
-	GenerateReflectedRayDirection(
-		IncidentDirection,
-		GetWorldNormal(SceneMetadata),
-		SceneMetadata.Roughness,
-		E,
-		/* out = */ RayDirection,
-		/* out = */ PDF);
+	return ComputeInfinityBluringRadius(SceneMetadata) * ComputeBluringOutOfFocusOfNormalizedSample(SampleFrequency, SceneMetadata);
 }
 
 
 //------------------------------------------------------- MAIN FUNCTIONS TO IMPLEMENT FOR THE PASSES
-
-/** Return whether this signal is occluded or not. */
-#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
-bool IsMissSample(FSSDSignalSample Sample)
-{
-	return Sample.MissCount != 0.0;
-}
-#endif
-
-/** Return whether this signal is valid or not. */
-bool IsInvalidSample(FSSDSignalSample Sample)
-{
-	return Sample.SampleCount == 0.0;
-}
 
 /** COmpute the weight of the bilateral filter to use between a reference sample and a neighbor. */
 float ComputeBilateralWeight(
@@ -664,16 +589,16 @@ float ComputeBilateralWeight(
 	return PositionBilateralWeight * NormalBilateralWeight * LobeSimilarity * AxesSimilarity;
 }
 
-float GetSignalWorldBluringRadius(FSSDSignalSample Sample, FSSDSampleSceneInfos SceneMetadata, uint BatchedSignalId)
+float GetSignalWorldBluringRadius(FSSDSignalFrequency SampleFrequency, FSSDSampleSceneInfos SceneMetadata, uint BatchedSignalId)
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
 {
-	if (IsInvalidSample(Sample))
+	if (SampleFrequency.ClosestHitDistance == DENOISER_INVALID_HIT_DISTANCE)
 	{
 		return WORLD_RADIUS_INVALID;
 	}
-	else if (IsMissSample(Sample))
+	else if (SampleFrequency.ClosestHitDistance == DENOISER_MISS_HIT_DISTANCE)
 	{
-		return WORLD_RADIUS_MISS;
+		return 100000;
 	}
 
 	FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
@@ -685,14 +610,14 @@ float GetSignalWorldBluringRadius(FSSDSignalSample Sample, FSSDSampleSceneInfos 
 	BRANCH
 	if (DomainKnowledge.LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
-		return DomainKnowledge.HitDistanceToWorldBluringRadius * Sample.ClosestHitDistance;
+		return DomainKnowledge.HitDistanceToWorldBluringRadius * SampleFrequency.ClosestHitDistance;
 	}
 	else
 	{
 		return ComputeLightSampleWorldBluringRadius(
 			GetTranslatedWorldPosition(SceneMetadata),
 			DomainKnowledge.LightType, DomainKnowledge.Light,
-			Sample.ClosestHitDistance);
+			SampleFrequency.ClosestHitDistance);
 	}
 }
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
@@ -707,8 +632,17 @@ float GetSignalWorldBluringRadius(FSSDSignalSample Sample, FSSDSampleSceneInfos 
 }
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
 {
+	if (SampleFrequency.ClosestHitDistance == DENOISER_INVALID_HIT_DISTANCE)
+	{
+		return WORLD_RADIUS_INVALID;
+	}
+	else if (SampleFrequency.ClosestHitDistance == DENOISER_MISS_HIT_DISTANCE)
+	{
+		return 100000;
+	}
+
 	// How much can be blured is about the the length of hit distance assuming some amount of visiiblity.
-	return Sample.ClosestHitDistance;
+	return SampleFrequency.ClosestHitDistance;
 }
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
 {
@@ -739,89 +673,6 @@ float GetSamplePenumbra(FSSDSignalSample Sample)
 	}
 	return Sample.MissCount / Sample.SampleCount;
 }
-
-/** Get the weight for multi importance sampling. */
-float GetRatioEstimatorWeight(
-	FSSDSampleSceneInfos RefSceneMetadata,
-	FSSDSampleSceneInfos SampleSceneMetadata,
-	FSSDSignalSample Sample,
-	uint2 SamplePixelCoord)
-#if CONFIG_SPECULAR_RATIO_ESTIMATOR
-// [ Stackowiak 2018, "Stochastic all the things: Raytracing in hybrid real-time rendering" ]
-{
-	#if CONFIG_USE_VIEW_SPACE
-		#error Ratio estimator should be done in world space to ensure exact same ray direction.
-	#endif
-
-	// If invalid ray or geometric miss, just.
-	if (IsInvalidSample(Sample) && 0)
-	{
-		return 0; 
-	}
-
-	float3 OriginalRayDirection;
-	float OriginalRayPDF;
-
-	GetInputRayDirectionPixel(
-		SamplePixelCoord,
-		SampleSceneMetadata, 
-		/* out */ OriginalRayDirection,
-		/* out */ OriginalRayPDF);
-
-	// min to avoid floating point underflow that causes artifact by D anormally high.
-	float ClosestHitDistance = min(Sample.ClosestHitDistance, 1000000);
-
-	float a2 = Pow4(RefSceneMetadata.Roughness);
-
-	// TODO(Denoiser): Improve quantization in CONFIG_COMPRESS_WORLD_NORMAL and use it.
-	float3 N = GetWorldNormal(RefSceneMetadata);
-
-	float NoH;
-	#if CONFIG_VALU_OPTIMIZATIONS
-	{
-		float3 V = (View.TranslatedWorldCameraOrigin - GetTranslatedWorldPosition(RefSceneMetadata));
-		float3 L = ((GetTranslatedWorldPosition(SampleSceneMetadata) - GetTranslatedWorldPosition(RefSceneMetadata)) + OriginalRayDirection * ClosestHitDistance);
-		float3 H = (L + V * (sqrt(length2(L)) * rsqrt(length2(V))));
-
-		NoH = saturate(dot(N, H) * rsqrt(length2(H)));
-	}
-	#else
-	{
-		float3 V = normalize(View.TranslatedWorldCameraOrigin - GetTranslatedWorldPosition(RefSceneMetadata));
-		float3 L = normalize((GetTranslatedWorldPosition(SampleSceneMetadata) - GetTranslatedWorldPosition(RefSceneMetadata)) + OriginalRayDirection * ClosestHitDistance);
-		float3 H = normalize(L + V);
-
-		NoH = abs(dot(N, H));
-	}
-	#endif
-
-
-	#if 1
-	{
-		const float MaximumWeight = 10;
-
-		float d = saturate(clamp( NoH * a2 - NoH, -NoH, 0) * NoH + 1);
-	
-		if (d == 0)
-		{
-			return MaximumWeight;
-		}
-
-		return clamp(a2 / (PI * d * d * OriginalRayPDF), 0, MaximumWeight);
-	}
-	#else
-	{
-		float D = D_GGX(a2, NoH);
-	
-		return clamp(D / OriginalRayPDF, 0, 10);
-	}
-	#endif
-}
-#else // !CONFIG_SPECULAR_RATIO_ESTIMATOR
-{
-	return 1.0;
-}
-#endif // CONFIG_SPECULAR_RATIO_ESTIMATOR
 
 
 // Matches GenerateCosineNormalRay()
