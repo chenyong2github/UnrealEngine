@@ -740,7 +740,7 @@ namespace Chaos
 				break;
 			}
 			default:
-			ensure("Unknown proxy type in physics solver.");
+			ensure(0 && TEXT("Unknown proxy type in physics solver."));
 			}
 		});
 
@@ -823,7 +823,12 @@ namespace Chaos
 					break;
 				}
 				default:
-				ensure("Unknown proxy type in physics solver.");
+				{
+					ensure(0 && TEXT("Unknown proxy type in physics solver."));
+					//Can't use, but we can still mark as "clean"
+					Dirty.Proxy->ResetDirtyIdx();
+				}
+				
 				}
 			});
 
