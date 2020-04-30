@@ -8,6 +8,7 @@
 #include "VectorTypes.h"
 
 class FDynamicMesh3;
+class FMeshNormals;
 
 class MODELINGOPERATORS_API FSmoothingOpBase : public FDynamicMeshOperator
 {
@@ -35,6 +36,12 @@ public:
 
 		// use this value to clamp weights (eg for clamped mean value)
 		double WeightClamp = FMathf::MaxReal;
+
+		// mesh normals calculated for input mesh
+		TSharedPtr<FMeshNormals> BaseNormals;
+
+		// offset used by some smoothers
+		double NormalOffset = 0.0;
 	};
 
 
