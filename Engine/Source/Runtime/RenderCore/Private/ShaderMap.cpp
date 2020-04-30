@@ -451,6 +451,7 @@ void FShaderMapContent::RemoveShaderTypePermutaion(const FHashedName& TypeName, 
 				ShaderHash.Remove(SwapHash, SwapIndex);
 				ShaderHash.Add(SwapHash, Index);
 			}
+
 			break;
 		}
 	}
