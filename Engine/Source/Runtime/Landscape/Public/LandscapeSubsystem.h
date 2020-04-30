@@ -10,7 +10,7 @@
 
 class ALandscapeProxy;
 
-UCLASS()
+UCLASS(MinimalAPI)
 class ULandscapeSubsystem : public UWorldSubsystem, public FTickFunction
 {
 	GENERATED_BODY()
@@ -21,6 +21,11 @@ public:
 
 	void RegisterActor(ALandscapeProxy* Proxy);
 	void UnregisterActor(ALandscapeProxy* Proxy);
+
+#if WITH_EDITOR
+	LANDSCAPE_API void BuildGrassMaps();
+	LANDSCAPE_API int32 GetOutdatedGrassMapCount();
+#endif
 
 private:
 	// Begin USubsystem
@@ -35,4 +40,8 @@ private:
 	// End FTickFunction overrides
 
 	TArray<ALandscapeProxy*> Proxies;
+
+#if WITH_EDITOR
+	TUniquePtr<class FLandscapeGrassMapsBuilder> GrassMapsBuilder;
+#endif
 };

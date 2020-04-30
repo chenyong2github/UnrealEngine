@@ -899,7 +899,7 @@ public:
 
 #if WITH_EDITOR
 	/** Update Grass maps */
-	void UpdateGrassData();
+	void UpdateGrassData(bool bInShouldMarkDirty = false, struct FScopedSlowTask* InSlowTask = nullptr);
 
 	/** Render grass maps for the specified components */
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);
@@ -935,6 +935,8 @@ public:
 	/** Get landscape position in section space */
 	LANDSCAPE_API FIntPoint GetSectionBaseOffset() const;
 #if WITH_EDITOR
+	LANDSCAPE_API int32 GetOutdatedGrassMapCount() const;
+	LANDSCAPE_API void BuildGrassMaps(struct FScopedSlowTask* InSlowTask = nullptr);
 	LANDSCAPE_API void CreateSplineComponent(const FVector& Scale3D);
 
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
@@ -1135,7 +1137,7 @@ private:
 	static int32 GrassUpdateInterval;
 
 #if WITH_EDITOR
-	void UpdateGrassDataStatus(TSet<UTexture2D*>& OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>& OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag);
+	void UpdateGrassDataStatus(TSet<UTexture2D*>* OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>* OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag, int32* OutOutdatedGrassMaps = nullptr) const;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -1147,3 +1149,21 @@ private:
 	static TArray<ALandscapeProxy*> LandscapeProxies;
 #endif
 };
+
+
+#if WITH_EDITOR
+/**
+ * Helper class used to Build or monitor outdated Grass maps of a world
+ */
+class LANDSCAPE_API FLandscapeGrassMapsBuilder
+{
+public:
+	FLandscapeGrassMapsBuilder(UWorld* InWorld);
+	void Build();
+	int32 GetOutdatedGrassMapCount(bool bInForceUpdate = true) const;
+private:
+	UWorld* World;
+	mutable int32 OutdatedGrassMapCount;
+	mutable double GrassMapsLastCheckTime;
+};
+#endif
