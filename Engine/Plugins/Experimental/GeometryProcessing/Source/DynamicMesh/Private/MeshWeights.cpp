@@ -150,6 +150,80 @@ FVector3d FMeshWeights::CotanCentroid(const FDynamicMesh3& mesh, int32 v_i, TFun
 }
 
 
+
+
+
+
+
+
+template<typename PositionFuncType>
+FVector3d TCotanCentroidSafe(const FDynamicMesh3& mesh, int32 v_i, PositionFuncType PositionFunc, double DegenerateTol = 100.0, bool* bOutputIsUniform = nullptr)
+{
+	// based on equations in http://www.geometry.caltech.edu/pubs/DMSB_III.pdf
+
+	FVector3d vSum = FVector3d::Zero();
+	double wSum = 0;
+	FVector3d Vi = PositionFunc(v_i);
+
+	bool bDegenerated = false;
+
+	int v_j = FDynamicMesh3::InvalidID, opp_v1 = FDynamicMesh3::InvalidID, opp_v2 = FDynamicMesh3::InvalidID;
+	int t1 = FDynamicMesh3::InvalidID, t2 = FDynamicMesh3::InvalidID;
+	for (int eid : mesh.VtxEdgesItr(v_i))
+	{
+		opp_v2 = FDynamicMesh3::InvalidID;
+		mesh.GetVtxNbrhood(eid, v_i, v_j, opp_v1, opp_v2, t1, t2);
+		FVector3d Vj = PositionFunc(v_j);
+
+		FVector3d Vo1 = PositionFunc(opp_v1);
+		double cot_alpha_ij = VectorUtil::VectorCot((Vi - Vo1), (Vj - Vo1));
+		double w_ij = cot_alpha_ij;
+
+		double cot_beta_ij = 0;
+		if (opp_v2 != FDynamicMesh3::InvalidID)
+		{
+			FVector3d Vo2 = PositionFunc(opp_v2);
+			cot_beta_ij = VectorUtil::VectorCot((Vi - Vo2), (Vj - Vo2));
+		}
+		w_ij += cot_beta_ij;
+
+		if (FMathd::Abs(w_ij) > DegenerateTol)
+		{
+			bDegenerated = true;
+			break;
+		}
+
+		vSum += w_ij * Vj;
+		wSum += w_ij;
+	}
+
+	if (bOutputIsUniform != nullptr)
+	{
+		*bOutputIsUniform = bDegenerated;
+	}
+
+	if (bDegenerated || fabs(wSum) < FMathd::ZeroTolerance)
+	{
+		return FMeshWeights::UniformCentroid(mesh, v_i);
+	}
+
+	return vSum / wSum;
+}
+
+
+
+FVector3d FMeshWeights::CotanCentroidSafe(const FDynamicMesh3& mesh, int32 v_i, double DegenerateTol, bool* bFailedToUniform)
+{
+	return TCotanCentroidSafe(mesh, v_i, [&](int32 vid) { return mesh.GetVertex(vid); });
+}
+
+FVector3d FMeshWeights::CotanCentroidSafe(const FDynamicMesh3& mesh, int32 v_i, TFunctionRef<FVector3d(int32)> VertexPositionFunc, double DegenerateTol, bool* bFailedToUniform)
+{
+	return TCotanCentroid(mesh, v_i, VertexPositionFunc);
+}
+
+
+
 template<typename GetPositionFuncType>
 double TVoronoiArea(const FDynamicMesh3& mesh, int32 v_i, GetPositionFuncType GetPositionFunc, double CotClampRange = 1000 /* about 0.05 deg */ )
 {
