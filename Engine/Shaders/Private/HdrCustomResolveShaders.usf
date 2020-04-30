@@ -8,8 +8,6 @@
 
 #ifdef OVERRIDE_HDRCUSTOMRESOLVESHADERS_USH
 # include "/Platform/Private/HdrCustomResolveShaders.ush"
-#elif PS4_PROFILE
-# include "Platform/PS4/HdrCustomResolveShaders.ush"
 #else
 
 float4 HdrCustomResolveVS(uint Id : SV_VertexID) : SV_POSITION
