@@ -29,8 +29,9 @@ namespace Audio
 		/** Maximum frequency of detected pitches. */
 		float MaximumFrequency = 10000.f;
 
-		/** Sensitivity used for picking peaks in the power spectrum. */
-		float Sensitivity = 0.9f;
+		/** Sensitivity of peak detection. Valid values are between 0.0 and 1.0. 
+		 * 0.0 results in the least amount of pitches, while 1.0 result in the most pitches. */
+		float Sensitivity = 0.5f;
 
 		/** Reference SNR for calculating strength of signal. */
 		float MaxStrengthSNRDecibels = 20.f;
