@@ -106,6 +106,16 @@ public:
 	// Generate a formatted text file for this cache.
 	FString DebugPrint();
 
+	void IncrementCacheOverflowCounter()
+	{
+		CacheOverflowCount.Increment();
+	}
+
+	int32 GetNumberOfCacheOverflows() const
+	{
+		return CacheOverflowCount.GetValue();
+	}
+
 private:
 
 #if DEBUG_STREAM_CACHE
@@ -155,6 +165,11 @@ private:
 		}
 	};
 #endif
+
+
+	// counter for the number of times this cache has overflown
+	FThreadSafeCounter CacheOverflowCount;
+
 
 	// Struct containing a single element in our LRU Cache.  
 	struct FCacheElement
