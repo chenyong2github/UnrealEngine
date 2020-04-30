@@ -3756,38 +3756,46 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 
 	TStringBuilder<256> TriggerMessages;
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
-	if (MinFreeMemory != 0)
+	if (MemoryMinFreeVirtual > 0 || MemoryMinFreePhysical > 0)
 	{
 		++ActiveTriggers;
-		if (MemStats.AvailablePhysical < MinFreeMemory)
+		bool bFired = false;
+		if (MemoryMinFreeVirtual > 0 && MemStats.AvailableVirtual < MemoryMinFreeVirtual)
+		{
+			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMinFreeVirtual: Available virtual memory %dMiB is less than %dMiB."),
+				static_cast<uint32>(MemStats.AvailableVirtual / 1024 / 1024), static_cast<uint32>(MemoryMinFreeVirtual / 1024 / 1024));
+			bFired = true;
+		}
+		if (MemoryMinFreePhysical > 0 && MemStats.AvailablePhysical < MemoryMinFreePhysical)
+		{
+			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMinFreePhysical: Available physical memory %dMiB is less than %dMiB."),
+				static_cast<uint32>(MemStats.AvailablePhysical / 1024 / 1024), static_cast<uint32>(MemoryMinFreePhysical / 1024 / 1024));
+			bFired = true;
+		}
+		if (bFired)
 		{
 			++FiredTriggers;
-			TriggerMessages.Appendf(TEXT("\n  CookSettings.MinFreeMemory: Available physical memory %dMiB is less than %dMiB."),
-				static_cast<uint32>(MemStats.AvailablePhysical / 1024 / 1024), static_cast<uint32>(MinFreeMemory / 1024 / 1024));
 		}
 	}
 
-	// don't gc if we haven't reached our min gc level yet
-	if (MinMemoryBeforeGC > 0)
+	if (MemoryMaxUsedVirtual > 0 || MemoryMaxUsedPhysical > 0)
 	{
 		++ActiveTriggers;
-		if (MemStats.UsedVirtual >= MinMemoryBeforeGC)
+		bool bFired = false;
+		if (MemoryMaxUsedVirtual > 0 && MemStats.UsedVirtual >= MemoryMaxUsedVirtual)
 		{
-			TriggerMessages.Appendf(TEXT("\n  CookSettings.MinMemoryBeforeGC: Used virtual memory %dMiB is greater than %dMiB."),
-				static_cast<uint32>(MemStats.UsedVirtual / 1024 / 1024), static_cast<uint32>(MinMemoryBeforeGC / 1024 / 1024));
-			++FiredTriggers;
+			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMaxUsedVirtual: Used virtual memory %dMiB is greater than %dMiB."),
+				static_cast<uint32>(MemStats.UsedVirtual / 1024 / 1024), static_cast<uint32>(MemoryMaxUsedVirtual / 1024 / 1024));
+			bFired = true;
 		}
-	}
-
-	if (MaxMemoryAllowance > 0u)
-	{
-		++ActiveTriggers;
-		//uint64 UsedMemory = MemStats.UsedVirtual; 
-		uint64 UsedMemory = MemStats.UsedPhysical; //should this be used virtual?
-		if (UsedMemory >= MaxMemoryAllowance)
+		if (MemoryMaxUsedPhysical > 0 && MemStats.UsedPhysical >= MemoryMaxUsedPhysical)
 		{
-			TriggerMessages.Appendf(TEXT("\n  CookSettings.MaxMemoryAllowance: Used physical memory %dMiB is greater than %dMiB."),
-				static_cast<uint32>(MemStats.UsedPhysical / 1024 / 1024), static_cast<uint32>(MaxMemoryAllowance / 1024 / 1024));
+			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMaxUsedPhysical: Used physical memory %dMiB is greater than %dMiB."),
+				static_cast<uint32>(MemStats.UsedPhysical / 1024 / 1024), static_cast<uint32>(MemoryMaxUsedPhysical / 1024 / 1024));
+			bFired = true;
+		}
+		if (bFired)
+		{
 			++FiredTriggers;
 		}
 	}
@@ -4024,7 +4032,7 @@ double UCookOnTheFlyServer::GetIdleTimeToGC() const
 
 uint64 UCookOnTheFlyServer::GetMaxMemoryAllowance() const
 {
-	return MaxMemoryAllowance;
+	return MemoryMaxUsedPhysical;
 }
 
 const TArray<FName>& UCookOnTheFlyServer::GetFullPackageDependencies(const FName& PackageName ) const
@@ -4663,43 +4671,62 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	IdleTimeToGC = 20.0;
 	GConfig->GetDouble( TEXT("CookSettings"), TEXT("IdleTimeToGC"), IdleTimeToGC, GEditorIni );
 
-	int32 MaxMemoryAllowanceInMB = 8 * 1024;
-	GConfig->GetInt( TEXT("CookSettings"), TEXT("MaxMemoryAllowance"), MaxMemoryAllowanceInMB, GEditorIni );
-	MaxMemoryAllowanceInMB = FMath::Max(MaxMemoryAllowanceInMB, 0);
-	MaxMemoryAllowance = MaxMemoryAllowanceInMB * 1024LL * 1024LL;
-	
-	int32 MinMemoryBeforeGCInMB = 0; // 6 * 1024;
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinMemoryBeforeGC"), MinMemoryBeforeGCInMB, GEditorIni);
-	MinMemoryBeforeGCInMB = FMath::Max(MinMemoryBeforeGCInMB, 0);
-	MinMemoryBeforeGC = MinMemoryBeforeGCInMB * 1024LL * 1024LL;
-	MinMemoryBeforeGC = FMath::Min(MaxMemoryAllowance, MinMemoryBeforeGC);
+	auto ReadMemorySetting = [](const TCHAR* SettingName, uint64& TargetVariable)
+	{
+		int32 ValueInMB = 0;
+		if (GConfig->GetInt(TEXT("CookSettings"), SettingName, ValueInMB, GEditorIni))
+		{
+			ValueInMB = FMath::Max(ValueInMB, 0);
+			TargetVariable = ValueInMB * 1024LL * 1024LL;
+			return true;
+		}
+		return false;
+	};
+	MemoryMaxUsedVirtual = 0;
+	MemoryMaxUsedPhysical = 0;
+	MemoryMinFreeVirtual = 0;
+	MemoryMinFreePhysical = 0;
+	ReadMemorySetting(TEXT("MemoryMaxUsedVirtual"), MemoryMaxUsedVirtual);
+	ReadMemorySetting(TEXT("MemoryMaxUsedPhysical"), MemoryMaxUsedPhysical);
+	ReadMemorySetting(TEXT("MemoryMinFreeVirtual"), MemoryMinFreeVirtual);
+	ReadMemorySetting(TEXT("MemoryMinFreePhysical"), MemoryMinFreePhysical);
 
+	uint64 MaxMemoryAllowance;
+	if (ReadMemorySetting(TEXT("MaxMemoryAllowance"), MaxMemoryAllowance))
+	{ 
+		UE_LOG(LogCook, Warning, TEXT("CookSettings.MaxMemoryAllowance is deprecated. Use CookSettings.MemoryMaxUsedPhysical instead."));
+		MemoryMaxUsedPhysical = MaxMemoryAllowance;
+	}
+	uint64 MinMemoryBeforeGC;
+	if (ReadMemorySetting(TEXT("MinMemoryBeforeGC"), MinMemoryBeforeGC))
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinMemoryBeforeGC is deprecated. Use CookSettings.MemoryMaxUsedVirtual instead."));
+		MemoryMaxUsedVirtual = MinMemoryBeforeGC;
+	}
+	uint64 MinFreeMemory;
+	if (ReadMemorySetting(TEXT("MinFreeMemory"), MinFreeMemory))
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinFreeMemory is deprecated. Use CookSettings.MemoryMinFreePhysical instead."));
+		MemoryMinFreePhysical = MinFreeMemory;
+	}
+	uint64 MinReservedMemory;
+	if (ReadMemorySetting(TEXT("MinReservedMemory"), MinReservedMemory))
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinReservedMemory is deprecated. Use CookSettings.MemoryMinFreePhysical instead."));
+		MemoryMinFreePhysical = MinReservedMemory;
+	}
+	
 	MinFreeUObjectIndicesBeforeGC = 100000;
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinFreeUObjectIndicesBeforeGC"), MinFreeUObjectIndicesBeforeGC, GEditorIni);
 	MinFreeUObjectIndicesBeforeGC = FMath::Max(MinFreeUObjectIndicesBeforeGC, 0);
-
-	int32 MinFreeMemoryInMB = 0;
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinFreeMemory"), MinFreeMemoryInMB, GEditorIni);
-	MinFreeMemoryInMB = FMath::Max(MinFreeMemoryInMB, 0);
-	MinFreeMemory = MinFreeMemoryInMB * 1024LL * 1024LL;
-
-	// check the amount of OS memory and use that number minus the reserved memory number
-	int32 MinReservedMemoryInMB = 0;
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinReservedMemory"), MinReservedMemoryInMB, GEditorIni);
-	MinReservedMemoryInMB = FMath::Max(MinReservedMemoryInMB, 0);
-	int64 MinReservedMemory = MinReservedMemoryInMB * 1024LL * 1024LL;
-	if ( MinReservedMemory )
-	{
-		int64 TotalRam = FPlatformMemory::GetPhysicalGBRam() * 1024LL * 1024LL * 1024LL;
-		MaxMemoryAllowance = FMath::Min<int64>( MaxMemoryAllowance, TotalRam - MinReservedMemory );
-	}
 
 	MaxNumPackagesBeforePartialGC = 400;
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MaxNumPackagesBeforePartialGC"), MaxNumPackagesBeforePartialGC, GEditorIni);
 	
 	GConfig->GetArray(TEXT("CookSettings"), TEXT("ConfigSettingBlacklist"), ConfigSettingBlacklist, GEditorIni);
 
-	UE_LOG(LogCook, Display, TEXT("Max memory allowance for cook %dmb min free memory %dmb"), MaxMemoryAllowanceInMB, MinFreeMemoryInMB);
+	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB"),
+		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024);
 
 
 	{
