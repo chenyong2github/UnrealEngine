@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
+#include "UObject/GarbageCollection.h"	// Needed for UE_WITH_GC definition
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Class.h"
 
