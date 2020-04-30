@@ -2099,11 +2099,12 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 
 #if WITH_EDITOR
 	// Work out whether we have grass or not for the next game run
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		bHasLandscapeGrass = LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Component) { return Component->MaterialHasGrass(); });
+	BuildGrassMaps();
 
-		UpdateGrassData();
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		// Reset flag
+		Component->GrassData->bIsDirty = false;
 	}
 
 	if (ALandscape* Landscape = GetLandscapeActor())
