@@ -115,6 +115,10 @@ public:
 	 */
 	void SetVisibility(bool bVisible);
 
+	/**
+	 * Set time that Preview will wait before showing working material
+	 */
+	void SetWorkingMaterialDelay(float TimeInSeconds) { SecondsBeforeWorkingMaterial = TimeInSeconds; }
 
 	/**
 	 * @return true if currently using the 'in progress' working material
@@ -155,7 +159,7 @@ protected:
 
 	bool bVisible = true;
 
-	const float SecondsBeforeWorkingMaterial = 2.0;
+	float SecondsBeforeWorkingMaterial = 2.0;
 
 	// this object manages the background computes
 	TUniquePtr<FBackgroundDynamicMeshComputeSource> BackgroundCompute;

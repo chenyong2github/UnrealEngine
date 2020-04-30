@@ -16,7 +16,6 @@
 // Smoothing operators
 #include "SmoothingOps/IterativeSmoothingOp.h"
 #include "SmoothingOps/CotanSmoothingOp.h"
-//#include "SmoothingOps/MeanValueSmoothingOp.h"
 
 
 #define LOCTEXT_NAMESPACE "USmoothMeshTool"
@@ -90,7 +89,7 @@ void USmoothMeshTool::Setup()
 		Preview->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
-
+		Preview->SetWorkingMaterialDelay(0.75);
 		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
 		Preview->PreviewMesh->UpdatePreview(&SrcDynamicMesh);
 	}
@@ -98,18 +97,57 @@ void USmoothMeshTool::Setup()
 	// show the preview mesh
 	Preview->SetVisibility(true);
 
+	SmoothProperties = NewObject<USmoothMeshToolProperties>(this);
+	AddToolPropertySource(SmoothProperties);
+	SmoothProperties->RestoreProperties(this);
+	SmoothProperties->WatchProperty(SmoothProperties->SmoothingType,
+		[&](ESmoothMeshToolSmoothType) { UpdateVisiblePropertySets(); InvalidateResult();  });
+	//SmoothProperties->WatchProperty(SmoothProperties->bPreserveUVs,
+	//	[&](bool) { InvalidateResult(); });
+
+	IterativeProperties = NewObject<UIterativeSmoothProperties>(this);
+	AddToolPropertySource(IterativeProperties);
+	IterativeProperties->RestoreProperties(this);
+	SetToolPropertySourceEnabled(IterativeProperties, false);
+	IterativeProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { InvalidateResult(); });
+	//IterativeProperties->WatchProperty(IterativeProperties->SmoothingPerStep,[&](float) { InvalidateResult(); } );
+	//IterativeProperties->WatchProperty(IterativeProperties->Steps, [&](int) { InvalidateResult(); });
+	//IterativeProperties->WatchProperty(IterativeProperties->bSmoothBoundary, [&](int) { InvalidateResult(); });
+
+	DiffusionProperties = NewObject<UDiffusionSmoothProperties>(this);
+	AddToolPropertySource(DiffusionProperties);
+	DiffusionProperties->RestoreProperties(this);
+	SetToolPropertySourceEnabled(DiffusionProperties, false);
+	DiffusionProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { InvalidateResult(); });
+	//DiffusionProperties->WatchProperty(DiffusionProperties->SmoothingPerStep, [&](float) { InvalidateResult(); });
+	//DiffusionProperties->WatchProperty(DiffusionProperties->Steps, [&](int) { InvalidateResult(); });
+
+	ImplicitProperties = NewObject<UImplicitSmoothProperties>(this);
+	AddToolPropertySource(ImplicitProperties);
+	ImplicitProperties->RestoreProperties(this);
+	SetToolPropertySourceEnabled(ImplicitProperties, false);
+	ImplicitProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { InvalidateResult(); });
+	//ImplicitProperties->WatchProperty(ImplicitProperties->SmoothSpeed, [&](float) { InvalidateResult(); });
+	//ImplicitProperties->WatchProperty(ImplicitProperties->Smoothness, [&](float) { InvalidateResult(); });
+
 	// start the compute
-	Preview->InvalidateResult();    // start compute
+	InvalidateResult();
 
-	bResultValid = false;
-
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("StartSmoothToolMessage", "Smooths the mesh vertex positions using various smoothing methods."),
+		EToolMessageLevel::UserNotification);
 }
 
 
 void USmoothMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	SmoothProperties->SaveProperties(this);
+	IterativeProperties->SaveProperties(this);
+	DiffusionProperties->SaveProperties(this);
+	ImplicitProperties->SaveProperties(this);
+
 	// Restore (unhide) the source meshes
-		ComponentTarget->SetOwnerVisibility(true);
+	ComponentTarget->SetOwnerVisibility(true);
 
 	if (Preview != nullptr)
 	{
@@ -139,20 +177,6 @@ void USmoothMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 	UpdateResult();
 }
 
-#if WITH_EDITOR
-void USmoothMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	// one of the parameters changed.  Dirty the result for force a recompute.
-	Preview->InvalidateResult();
-	bResultValid = false;
-}
-#endif
-
-void USmoothMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
-{
-	Preview->InvalidateResult();
-	bResultValid = false;
-}
 
 
 void USmoothMeshTool::OnTick(float DeltaTime)
@@ -160,12 +184,18 @@ void USmoothMeshTool::OnTick(float DeltaTime)
 	Preview->Tick(DeltaTime);
 }
 
+void USmoothMeshTool::InvalidateResult()
+{
+	Preview->InvalidateResult();
+	bResultValid = false;
+}
+
 void USmoothMeshTool::UpdateResult()
 {
 	if (bResultValid) 
 	{
-				return;
-			}
+		return;
+	}
 
 	bResultValid = Preview->HaveValidResult();
 }
@@ -180,24 +210,61 @@ bool USmoothMeshTool::CanAccept() const
 	return bResultValid;
 }
 
+
+void USmoothMeshTool::UpdateVisiblePropertySets()
+{
+	SetToolPropertySourceEnabled(IterativeProperties, false);
+	SetToolPropertySourceEnabled(DiffusionProperties, false);
+	SetToolPropertySourceEnabled(ImplicitProperties, false);
+
+	switch (SmoothProperties->SmoothingType)
+	{
+	case ESmoothMeshToolSmoothType::Iterative:
+		SetToolPropertySourceEnabled(IterativeProperties, true);
+		break;
+	case ESmoothMeshToolSmoothType::Diffusion:
+		SetToolPropertySourceEnabled(DiffusionProperties, true);
+		break;
+	case ESmoothMeshToolSmoothType::Implicit:
+		SetToolPropertySourceEnabled(ImplicitProperties, true);
+		break;
+	}
+}
+
+
 TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 {
 	TUniquePtr<FSmoothingOpBase> MeshOp;
-	switch (SmoothType)
+	
+	FSmoothingOpBase::FOptions Options;
+
+	switch (SmoothProperties->SmoothingType)
 	{
 	default:
 	case ESmoothMeshToolSmoothType::Iterative:
-		MeshOp = MakeUnique<FIterativeSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
+		Options.SmoothAlpha = IterativeProperties->SmoothingPerStep;
+		Options.Iterations = IterativeProperties->Steps;
+		Options.bSmoothBoundary = IterativeProperties->bSmoothBoundary;
+		Options.bUniform = true;
+		Options.bUseImplicit = false;
+		MeshOp = MakeUnique<FIterativeSmoothingOp>(&SrcDynamicMesh, Options);
 		break;
 
-	case ESmoothMeshToolSmoothType::BiHarmonic_Cotan:
-		MeshOp = MakeUnique<FCotanSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
+	case ESmoothMeshToolSmoothType::Diffusion:
+		Options.SmoothAlpha = DiffusionProperties->SmoothingPerStep;
+		Options.Iterations = DiffusionProperties->Steps;
+		Options.bUniform = DiffusionProperties->bPreserveUVs == false;
+		Options.bUseImplicit = true;
+		MeshOp = MakeUnique<FIterativeSmoothingOp>(&SrcDynamicMesh, Options);
 		break;
-/**
-	case ESmoothMeshToolSmoothType::BiHarmonic_MVW:
-		MeshOp = MakeShared<FMeanValueSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
+
+	case ESmoothMeshToolSmoothType::Implicit:
+		Options.SmoothAlpha = ImplicitProperties->SmoothSpeed;
+		Options.SmoothPower = (ImplicitProperties->Smoothness >= 100.0) ? FMathf::MaxReal : ImplicitProperties->Smoothness;
+		Options.bUniform = ImplicitProperties->bPreserveUVs == false;
+		Options.bUseImplicit = true;
+		MeshOp = MakeUnique<FCotanSmoothingOp>(&SrcDynamicMesh, Options);
 		break;
-*/
 	}
 
 	const FTransform XForm = ComponentTarget->GetWorldTransform();
