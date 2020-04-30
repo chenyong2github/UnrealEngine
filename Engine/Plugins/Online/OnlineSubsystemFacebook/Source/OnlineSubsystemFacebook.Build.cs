@@ -76,16 +76,6 @@ public class OnlineSubsystemFacebook : ModuleRules
 			bUsesRestfulImpl = true;
 			PublicDefinitions.Add("WITH_FACEBOOK=1");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			PublicDefinitions.Add("WITH_FACEBOOK=1");
-			PrivateIncludePaths.Add("Private/XboxOne");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			PublicDefinitions.Add("WITH_FACEBOOK=1");
-			PrivateIncludePaths.Add("Private/PS4");
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicDefinitions.Add("WITH_FACEBOOK=1");
