@@ -197,6 +197,7 @@ public:
 	virtual FString GetSessionID() const override;
 	virtual bool SetSessionID(const FString& InSessionID) override;
 
+	virtual bool ShouldRecordEvent(const FString& EventName) const override;
 	virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) override;
 	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes) override;
 	virtual void RecordEventJson(FString EventName, TArray<FAnalyticsEventAttribute>&& AttributesJson) override;
@@ -206,6 +207,7 @@ public:
 
 	virtual void SetURLEndpoint(const FString& UrlEndpoint, const TArray<FString>& AltDomains) override;
 	virtual void BlockUntilFlushed(float InTimeoutSec) override;
+	virtual void SetShouldRecordEventFunc(const ShouldRecordEventFunction& InShouldRecordEventFunc) override;
 	virtual ~FAnalyticsProviderET();
 
 	virtual const FAnalyticsET::Config& GetConfig() const override { return Config; }
@@ -286,6 +288,9 @@ private:
 
 	TArray<OnEventRecorded> EventRecordedCallbacks;
 
+	/** Event filter function */
+	ShouldRecordEventFunction ShouldRecordEventFunc;
+
 	/**
 	* Delegate called when an event Http request completes
 	*/
@@ -303,7 +308,7 @@ TSharedPtr<IAnalyticsProviderET> FAnalyticsET::CreateAnalyticsProvider(const Con
 		UE_LOG(LogAnalytics, Warning, TEXT("CreateAnalyticsProvider config not contain required parameter %s"), *Config::GetKeyNameForAPIKey());
 		return NULL;
 	}
-	return TSharedPtr<IAnalyticsProviderET>(new FAnalyticsProviderET(ConfigValues));
+	return MakeShared<FAnalyticsProviderET>(ConfigValues);
 }
 
 /**
@@ -838,6 +843,11 @@ bool FAnalyticsProviderET::SetSessionID(const FString& InSessionID)
 	return true;
 }
 
+bool FAnalyticsProviderET::ShouldRecordEvent(const FString& EventName) const
+{
+	return !ShouldRecordEventFunc || ShouldRecordEventFunc(*this, EventName);
+}
+
 void FAnalyticsProviderET::RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
 {
 	// Have to copy Attributes array because this doesn't come in as an rvalue ref.
@@ -846,20 +856,24 @@ void FAnalyticsProviderET::RecordEvent(const FString& EventName, const TArray<FA
 
 void FAnalyticsProviderET::RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
 {
-	// fire any callbacks
-	for (const auto& Cb : EventRecordedCallbacks)
+	// let higher level code filter the decision of whether to send the event
+	if (ShouldRecordEvent(EventName))
 	{
-		Cb(EventName, Attributes, false);
-	}
+		// fire any callbacks
+		for (const auto& Cb : EventRecordedCallbacks)
+		{
+			Cb(EventName, Attributes, false);
+		}
 
-	// There are much better ways to do this, but since most events are recorded and handled on the same (game) thread,
-	// this is probably mostly fine for now, and simply favoring not crashing at the moment
-	FScopeLock ScopedLock(&CachedEventsCS);
-	CachedEvents.Emplace(MoveTemp(EventName), MoveTemp(Attributes), false, false);
-	// if we aren't caching events, flush immediately. This is really only for debugging as it will significantly affect bandwidth.
-	if (!bShouldCacheEvents)
-	{
-		FlushEvents();
+		// There are much better ways to do this, but since most events are recorded and handled on the same (game) thread,
+		// this is probably mostly fine for now, and simply favoring not crashing at the moment
+		FScopeLock ScopedLock(&CachedEventsCS);
+		CachedEvents.Emplace(MoveTemp(EventName), MoveTemp(Attributes), false, false);
+		// if we aren't caching events, flush immediately. This is really only for debugging as it will significantly affect bandwidth.
+		if (!bShouldCacheEvents)
+		{
+			FlushEvents();
+		}
 	}
 }
 
@@ -867,20 +881,24 @@ void FAnalyticsProviderET::RecordEventJson(FString EventName, TArray<FAnalyticsE
 {
 	checkf(!Config.UseLegacyProtocol, TEXT("Cannot use Json events with legacy protocol"));
 
-	// fire any callbacks
-	for (const auto& Cb : EventRecordedCallbacks)
+	// let higher level code filter the decision of whether to send the event
+	if (ShouldRecordEvent(EventName))
 	{
-		Cb(EventName, AttributesJson, true);
-	}
+		// fire any callbacks
+		for (const auto& Cb : EventRecordedCallbacks)
+		{
+			Cb(EventName, AttributesJson, true);
+		}
 
-	// There are much better ways to do this, but since most events are recorded and handled on the same (game) thread,
-	// this is probably mostly fine for now, and simply favoring not crashing at the moment
-	FScopeLock ScopedLock(&CachedEventsCS);
-	CachedEvents.Emplace(MoveTemp(EventName), MoveTemp(AttributesJson), true, false);
-	// if we aren't caching events, flush immediately. This is really only for debugging as it will significantly affect bandwidth.
-	if (!bShouldCacheEvents)
-	{
-		FlushEvents();
+		// There are much better ways to do this, but since most events are recorded and handled on the same (game) thread,
+		// this is probably mostly fine for now, and simply favoring not crashing at the moment
+		FScopeLock ScopedLock(&CachedEventsCS);
+		CachedEvents.Emplace(MoveTemp(EventName), MoveTemp(AttributesJson), true, false);
+		// if we aren't caching events, flush immediately. This is really only for debugging as it will significantly affect bandwidth.
+		if (!bShouldCacheEvents)
+		{
+			FlushEvents();
+		}
 	}
 }
 
@@ -998,4 +1016,9 @@ void FAnalyticsProviderET::BlockUntilFlushed(float InTimeoutSec)
 {
 	FlushEvents();
 	HttpRetryManager->BlockUntilFlushed(InTimeoutSec);
+}
+
+void FAnalyticsProviderET::SetShouldRecordEventFunc(const ShouldRecordEventFunction& InShouldRecordEventFunc)
+{
+	ShouldRecordEventFunc = InShouldRecordEventFunc;
 }
