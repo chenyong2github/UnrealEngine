@@ -52,13 +52,6 @@ FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos()
 	bFreezeIncomingPoseOnStart = false;
 	bClampLinearTranslationLimitToRefPose = false;
 
-	OverrideSolverIterations.SolverIterations = -1;
-	OverrideSolverIterations.JointIterations = -1;
-	OverrideSolverIterations.CollisionIterations = -1;
-	OverrideSolverIterations.SolverPushOutIterations = -1;
-	OverrideSolverIterations.JointPushOutIterations = -1;
-	OverrideSolverIterations.CollisionPushOutIterations = -1;
-
 	PreviousTransform = CurrentTransform = FTransform::Identity;
 	PreviousComponentLinearVelocity = FVector::ZeroVector;	
 
@@ -478,14 +471,6 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 				SolverIterations.JointPushOutIterations,
 				SolverIterations.CollisionPushOutIterations
 			);
-			PhysicsSimulation->SetSolverIterations(
-				SolverIterations.FixedTimeStep,
-				OverrideSolverIterations.SolverIterations,
-				OverrideSolverIterations.JointIterations,
-				OverrideSolverIterations.CollisionIterations,
-				OverrideSolverIterations.SolverPushOutIterations,
-				OverrideSolverIterations.JointPushOutIterations,
-				OverrideSolverIterations.CollisionPushOutIterations);
 
 			// Run simulation at a minimum of 30 FPS to prevent system from exploding.
 			// DeltaTime can be higher due to URO, so take multiple iterations in that case.
