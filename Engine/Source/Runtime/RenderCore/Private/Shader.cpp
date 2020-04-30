@@ -640,6 +640,7 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 			}
 		}
 	}
+
 	for (FShaderLooseParameterBufferInfo& Info : ParameterMapInfo.LooseParameterBuffers)
 	{
 		Info.Parameters.Sort();
@@ -648,6 +649,32 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 	ParameterMapInfo.UniformBuffers.Sort();
 	ParameterMapInfo.TextureSamplers.Sort();
 	ParameterMapInfo.SRVs.Sort();
+
+	uint64 Hash = 0;
+
+	{
+		const auto CityHashValue = [&](auto Value)
+		{
+			CityHash64WithSeed((const char*)&Value, sizeof(Value), Hash);
+		};
+
+		const auto CityHashArray = [&](const TMemoryImageArray<FShaderParameterInfo>& Array)
+		{
+			CityHash64WithSeed((const char*)Array.GetData(), Array.Num() * sizeof(FShaderParameterInfo), Hash);
+		};
+
+		for (FShaderLooseParameterBufferInfo& Info : ParameterMapInfo.LooseParameterBuffers)
+		{
+			CityHashValue(Info.BaseIndex);
+			CityHashValue(Info.Size);
+			CityHashArray(Info.Parameters);
+		}
+		CityHashArray(ParameterMapInfo.UniformBuffers);
+		CityHashArray(ParameterMapInfo.TextureSamplers);
+		CityHashArray(ParameterMapInfo.SRVs);
+	}
+
+	ParameterMapInfo.Hash = Hash;
 }
 
 const FSHAHash& FShader::GetOutputHash() const

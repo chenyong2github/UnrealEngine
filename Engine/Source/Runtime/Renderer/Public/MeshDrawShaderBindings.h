@@ -15,11 +15,13 @@ class FMeshDrawShaderBindingsLayout
 {
 protected:
 	const FShaderParameterMapInfo& ParameterMapInfo;
+	const uint64 ParameterMapHash;
 
 public:
 
-	FMeshDrawShaderBindingsLayout(const TShaderRef<FShader>& Shader) :
-		ParameterMapInfo(Shader->ParameterMapInfo)
+	FMeshDrawShaderBindingsLayout(const TShaderRef<FShader>& Shader)
+		: ParameterMapInfo(Shader->ParameterMapInfo)
+		, ParameterMapHash(ParameterMapInfo.Hash)
 	{
 		check(Shader.IsValid());
 	}
@@ -33,7 +35,7 @@ public:
 
 	bool operator==(const FMeshDrawShaderBindingsLayout& Rhs) const
 	{
-		return ParameterMapInfo == Rhs.ParameterMapInfo;
+		return ParameterMapHash == Rhs.ParameterMapHash;
 	}
 
 	inline uint32 GetLooseDataSizeBytes() const
