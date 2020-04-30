@@ -60,7 +60,7 @@ public:
 
 	// This is a lower bound to cloth particle masses.
 	UPROPERTY()
-	float MinPerParticleMass = 0.0001f;	
+	float MinPerParticleMass = 0.0001f;
 
 	// The Stiffness of the Edge constraints, only use lower than 1 values for very stretchy materials. Increase the iteration count for stiffer materials.
 	UPROPERTY(EditAnywhere, Category = "Material Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
@@ -95,7 +95,7 @@ public:
 
 	// Use geodesic instead of euclidean distance calculations in the long range attachment constraint,
 	// which is slower at setup but less prone to artifacts during simulation.
-	UPROPERTY(EditAnywhere, Category = "Long Range Attachment")
+	UPROPERTY()
 	bool bUseGeodesicDistance = true;
 
 	// The stiffness of the shape target constraints
