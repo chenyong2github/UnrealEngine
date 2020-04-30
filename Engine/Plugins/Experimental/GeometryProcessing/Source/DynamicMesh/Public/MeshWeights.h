@@ -53,6 +53,25 @@ public:
 	static FVector3d CotanCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc);
 
 
+
+	/**
+	 * Compute cotan-weighted centroid of a vertex one-ring, with some weight analysis/clamping to avoid vertices getting "stuck"
+	 * in explicit integration/iterations. If failure is detected, Uniform centroid is returned, which does cause some tangential flow
+	 * @param DegenerateTol if any weights are larger than this value, return uniform weights instead. Should be > 1.
+	 * @param bFailedToUniform will be set to true if non-null and result was clamped
+	 */
+	static FVector3d CotanCentroidSafe(const FDynamicMesh3& Mesh, int32 VertexIndex, double DegenerateTol = 100.0, bool* bFailedToUniform = nullptr);
+
+	/**
+	 * Compute cotan-weighted centroid of a vertex one-ring, with some weight analysis/clamping to avoid vertices getting "stuck"
+	 * in explicit integration/iterations. If failure is detected, Uniform centroid is returned, which does cause some tangential flow
+	 * @param DegenerateTol if any weights are larger than this value, return uniform weights instead. Should be > 1.
+	 * @param bFailedToUniform will be set to true if non-null and result was clamped
+	 */
+	static FVector3d CotanCentroidSafe(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc, double DegenerateTol = 100.0, bool* bFailedToUniform = nullptr);
+
+
+
 	/**
 	 * Compute the Mixed Voronoi Area associated with a vertex.
 	 * Based on Fig 4 from "Discrete Differential-Geometry Operators for Triangulated 2-Manifolds", Meyer et al 2002,

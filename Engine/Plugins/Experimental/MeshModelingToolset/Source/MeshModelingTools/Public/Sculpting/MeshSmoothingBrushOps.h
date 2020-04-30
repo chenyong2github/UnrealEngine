@@ -85,8 +85,15 @@ public:
 
 			double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
 
-			FVector3d SmoothedPos = (bPreserveUVFlow) ?
-				FMeshWeights::MeanValueCentroid(*Mesh, VertIdx) : FMeshWeights::UniformCentroid(*Mesh, VertIdx);
+			FVector3d SmoothedPos = OrigPos;
+			if (bPreserveUVFlow)
+			{
+				SmoothedPos = FMeshWeights::CotanCentroidSafe(*Mesh, VertIdx, 10.0);
+			}
+			else
+			{
+				SmoothedPos = FMeshWeights::UniformCentroid(*Mesh, VertIdx);
+			}
 
 			FVector3d NewPos = FVector3d::Lerp(OrigPos, SmoothedPos, Falloff * Stamp.Power);
 
@@ -122,6 +129,7 @@ public:
 };
 
 
+
 class FSmoothFillBrushOp : public FMeshSculptBrushOp
 {
 
@@ -142,8 +150,15 @@ public:
 
 			double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
 
-			FVector3d SmoothedPos = (bPreserveUVFlow) ?
-				FMeshWeights::MeanValueCentroid(*Mesh, VertIdx) : FMeshWeights::UniformCentroid(*Mesh, VertIdx);
+			FVector3d SmoothedPos = OrigPos;
+			if (bPreserveUVFlow)
+			{
+				SmoothedPos = FMeshWeights::CotanCentroidSafe(*Mesh, VertIdx, 10.0);
+			}
+			else
+			{
+				SmoothedPos = FMeshWeights::UniformCentroid(*Mesh, VertIdx);
+			}
 
 			FVector3d NewPos = FVector3d::Lerp(OrigPos, SmoothedPos, Falloff * Stamp.Power);
 
