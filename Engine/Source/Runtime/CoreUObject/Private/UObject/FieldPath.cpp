@@ -9,6 +9,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectArray.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/PropertyHelper.h"
@@ -313,6 +314,7 @@ FString FFieldPath::ToString() const
 FArchive& operator<<(FArchive& Ar, FFieldPath& InOutPropertyPath)
 {
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	if (Ar.IsSaving())
 	{		
@@ -353,7 +355,7 @@ FArchive& operator<<(FArchive& Ar, FFieldPath& InOutPropertyPath)
 		{
 			InOutPropertyPath.Path.Empty();
 		}
-		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::FFieldPathOwnerSerialization)
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::FFieldPathOwnerSerialization || Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::FFieldPathOwnerSerialization)
 		{
 			UStruct* SerializedOwner = InOutPropertyPath.ResolvedOwner.Get();
 			Ar << SerializedOwner;
@@ -420,5 +422,4 @@ int32 FFieldPath::GetFieldPathSerialNumber(UStruct* InStruct) const
 {
 	return InStruct->FieldPathSerialNumber;
 }
-
 #endif // WITH_EDITORONLY_DATA
