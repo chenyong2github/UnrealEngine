@@ -16,6 +16,8 @@ struct FChaosClothConfigCustomVersion
 		UpdateDragDefault = 1,
 		// Added damping and collision thickness per cloth
 		AddDampingThicknessMigration = 2,
+		// Added gravity and self collision thickness per cloth
+		AddGravitySelfCollisionMigration = 3,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
