@@ -7,14 +7,35 @@
 #include "MeshNormals.h"
 #include "MeshWeights.h"
 #include "Async/ParallelFor.h"
+#include "MeshMoveBrushOps.generated.h"
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UMoveBrushOpProps : public UMeshSculptBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = MoveBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 1.0;
+
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = MoveBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 0.5;
+
+	/** Depth of Brush into surface along view ray */
+	UPROPERTY(EditAnywhere, Category = MoveBrush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
+	float Depth = 0;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+	virtual float GetDepth() override { return Depth; }
+};
 
 
 class FMoveBrushOp : public FMeshSculptBrushOp
 {
-
 public:
-	
-
 
 	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewPositionsOut) override
 	{
@@ -46,43 +67,3 @@ public:
 		return true;
 	}
 };
-
-
-
-
-
-//void UMeshVertexSculptTool::ApplyMoveBrush(const FRay& WorldRay)
-//{
-//	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
-//	FVector3d MoveVec = NewBrushPosLocal - LastBrushPosLocal;
-//
-//	if (MoveVec.SquaredLength() <= 0)
-//	{
-//		LastBrushPosLocal = NewBrushPosLocal;
-//		return;
-//	}
-//
-//	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-//	int NumV = VertexROI.Num();
-//	ROIPositionBuffer.SetNum(NumV, false);
-//
-//	ParallelFor(NumV, [this, Mesh, NewBrushPosLocal, MoveVec](int k)
-//	{
-//		int VertIdx = VertexROI[k];
-//		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
-//
-//		double PrevDist = (OrigPos - LastBrushPosLocal).Length();
-//		double NewDist = (OrigPos - NewBrushPosLocal).Length();
-//		double UseDist = FMath::Min(PrevDist, NewDist);
-//
-//		double Falloff = CalculateBrushFalloff(UseDist) * ActivePressure;
-//
-//		FVector3d NewPos = OrigPos + Falloff * MoveVec;
-//		ROIPositionBuffer[k] = NewPos;
-//	});
-//
-//	// Update the mesh positions to match those in the position buffer
-//	SyncMeshWithPositionBuffer(Mesh);
-//
-//	LastBrushPosLocal = NewBrushPosLocal;
-//}
