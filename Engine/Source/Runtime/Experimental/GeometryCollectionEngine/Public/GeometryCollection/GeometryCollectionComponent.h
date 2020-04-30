@@ -464,8 +464,6 @@ public:
 	
 	bool GetIsObjectLoading() { return IsObjectLoading; }
 
-
-
 	/**
 	*
 	*/
@@ -533,6 +531,7 @@ public:
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Chaos")
 	bool CachePlayback;
 
+	bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
