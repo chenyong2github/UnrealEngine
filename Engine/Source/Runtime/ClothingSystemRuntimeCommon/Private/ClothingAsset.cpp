@@ -819,6 +819,18 @@ void UClothingAssetCommon::PostLoad()
 			ClothConfig.Value->ConditionalPostLoad();  // PostLoad configs before adding new ones
 		}
 	}
+	if (ClothSimConfig_DEPRECATED)
+	{
+		ClothSimConfig_DEPRECATED->ConditionalPostLoad();  // PostLoad old configs before replacing them
+	}
+	if (ChaosClothSimConfig_DEPRECATED)
+	{
+		ChaosClothSimConfig_DEPRECATED->ConditionalPostLoad();  // PostLoad old configs before replacing them
+	}
+	if (ClothSharedSimConfig_DEPRECATED)
+	{
+		ClothSharedSimConfig_DEPRECATED->ConditionalPostLoad();  // PostLoad old configs before replacing them
+	}
 	AddClothConfigs();
 
 	// Migrate configs
