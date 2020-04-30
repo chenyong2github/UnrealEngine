@@ -206,7 +206,8 @@ public:
 
 	// CPU indirection table for mobile path
 	TArray<uint8> CPUSubLevelIndirectionTable;
-	TArray<FPrecomputedVolumetricLightmapData*> CPUSubLevelBrickDataList;
+	TSparseArray<FPrecomputedVolumetricLightmapData*> CPUSubLevelBrickDataList;
+	int32 IndexInCPUSubLevelBrickDataList;
 
 private:
 
