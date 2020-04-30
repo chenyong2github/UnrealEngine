@@ -24,8 +24,6 @@ static FAutoConsoleCommand HandleDumpUpdateListCommand(
 );
 #endif
 
-TArray<FSlateInvalidationRoot*> FSlateInvalidationRoot::ClearUpdateList;
-
 #if SLATE_CSV_TRACKER
 	static int32 CascadeInvalidationEventAmount = 5;
 	FAutoConsoleVariableRef CVarCascadeInvalidationEventAmount(
@@ -249,6 +247,8 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 #endif
 	}
 
+	FinalUpdateList.Empty();
+
 	Result.MaxLayerIdPainted = CachedMaxLayerId;
 	return Result;
 }
@@ -266,15 +266,6 @@ void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
 	}
 		
 	Widget->PersistentState.CachedElementHandle.RemoveFromCache();
-}
-
-void FSlateInvalidationRoot::ClearAllWidgetUpdatesPending()
-{
-	// Once a frame we free the FinalUpdateList
-	for (FSlateInvalidationRoot* Root : ClearUpdateList)
-	{
-		Root->FinalUpdateList.Reset();
-	}
 }
 
 bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Context)
@@ -489,19 +480,6 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 			ensureAlways(Copy[i].Widget == TempList[i].Widget);
 		}
 #endif
-
-		// When it's the first time the FastWidgetPathList has item, we know we will need to clear the UpdateList on the next frame.
-		if (FastWidgetPathList.Num() == 0 && TempList.Num() != 0)
-		{
-			ensure(ClearUpdateList.Find(this) == INDEX_NONE);
-			ClearUpdateList.Push(this);
-		}
-		// When FastWidgetPathList is empty for the first time, we know we don't need to clear the list until we have items readded
-		else if (FastWidgetPathList.Num() != 0 && TempList.Num() == 0)
-		{
-			ClearUpdateList.RemoveSingleSwap(this, false);
-		}
-
 		FastWidgetPathList = MoveTemp(TempList);
 	}
 }
@@ -510,6 +488,8 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 {
 	SCOPED_NAMED_EVENT(Slate_InvalidationProcessing, FColor::Blue);
 	CSV_SCOPED_TIMING_STAT(Slate, InvalidationProcessing);
+
+	FinalUpdateList.Empty();
 
 	bool bWidgetsNeedRepaint = false;
 
@@ -684,11 +664,6 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediatel
 		}
 	}
 
-
-	if (FastWidgetPathList.Num() != 0)
-	{
-		ClearUpdateList.RemoveSingleSwap(this, false);
-	}
 	FastWidgetPathList.Empty();
 	WidgetsNeedingUpdate.Empty();
 	CachedElementData->Empty();
