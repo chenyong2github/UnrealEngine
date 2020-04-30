@@ -93,7 +93,7 @@ void FStreamLevelAction::UpdateOperation(FLatentResponse& Response)
 {
 	ULevelStreaming* LevelStreamingObject = Level.Get(); // to avoid confusion.
 	const bool bIsLevelValid = LevelStreamingObject != nullptr;
-	UE_LOG(LogLevelStreaming, Display, TEXT("FStreamLevelAction::UpdateOperation() LevelName %s, bIsLevelValid %d"), *LevelName.ToString(), (int32)bIsLevelValid);
+	UE_LOG(LogLevelStreaming, Verbose, TEXT("FStreamLevelAction::UpdateOperation() LevelName %s, bIsLevelValid %d"), *LevelName.ToString(), (int32)bIsLevelValid);
 	if (bIsLevelValid)
 	{
 		bool bIsOperationFinished = UpdateLevel(LevelStreamingObject);
