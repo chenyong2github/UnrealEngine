@@ -17,6 +17,8 @@ class FName;
 namespace Chaos
 {
 
+enum class EResimType: uint8;
+
 class FParticlePositionRotation
 {
 public:
@@ -258,6 +260,7 @@ public:
 		SetObjectState(Other.ObjectState());
 		SetGravityEnabled(Other.GravityEnabled());
 		SetCollisionGroup(Other.CollisionGroup());
+		SetResimType(Other.ResimType());
 	}
 
 	template <typename TOther>
@@ -267,7 +270,8 @@ public:
 			&& LinearEtherDrag() == Other.LinearEtherDrag()
 			&& AngularEtherDrag() == Other.AngularEtherDrag()
 			&& GravityEnabled() == Other.GravityEnabled()
-			&& CollisionGroup() == Other.CollisionGroup();
+			&& CollisionGroup() == Other.CollisionGroup()
+			&& ResimType() == Other.ResimType();
 	}
 
 	bool operator==(const FParticleDynamicMisc& Other) const
@@ -290,6 +294,8 @@ public:
 	int32 CollisionGroup() const { return MCollisionGroup; }
 	void SetCollisionGroup(int32 InGroup){ MCollisionGroup = InGroup; }
 
+	EResimType ResimType() const { return MResimType; }
+	void SetResimType(EResimType Type) { MResimType = Type; }
 
 private:
 	FReal MLinearEtherDrag;
@@ -297,6 +303,8 @@ private:
 	int32 MCollisionGroup;
 
 	EObjectStateType MObjectState;
+	EResimType MResimType;
+
 	bool MGravityEnabled;
 };
 
