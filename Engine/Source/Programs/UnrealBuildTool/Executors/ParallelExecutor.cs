@@ -107,6 +107,12 @@ namespace UnrealBuildTool
 				BuildAction Action = new BuildAction();
 				Action.SortIndex = Idx;
 				Action.Inner = InputActions[Idx];
+
+				if (!Action.Inner.StatusDescription.EndsWith(".ispc"))
+				{
+					Action.SortIndex += 10000;
+				}
+
 				Actions.Add(Action);
 			}
 
