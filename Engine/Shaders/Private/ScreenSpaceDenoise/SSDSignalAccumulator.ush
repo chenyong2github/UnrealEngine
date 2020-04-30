@@ -22,8 +22,8 @@
 	#define COMPILE_MINMAX_ACCUMULATOR 0
 #endif
 
-#ifndef COMPILE_MININVFREQ_ACCUMULATOR
-	#define COMPILE_MININVFREQ_ACCUMULATOR 0
+#ifndef COMPILE_MIN_FREQUENCY_ACCUMULATOR
+	#define COMPILE_MIN_FREQUENCY_ACCUMULATOR 0
 #endif
 
 #ifndef COMPILE_DRB_ACCUMULATOR
@@ -63,8 +63,8 @@ struct FSSDSignalAccumulator
 	#endif
 
 	// Minimal inverse frequency found and intersected when sampling.
-	#if COMPILE_MININVFREQ_ACCUMULATOR
-		float MinInvFrequency;
+	#if COMPILE_MIN_FREQUENCY_ACCUMULATOR
+		FSSDSignalFrequency MinFrequency;
 	#endif
 
 	// Descending ring bucketing.
@@ -114,8 +114,9 @@ FSSDSignalAccumulator CreateSignalAccumulator()
 		Accumulator.Max = CreateSignalSampleFromScalarValue(0.0); // TODO(Denoiser): -INFINITE_FLOAT? otherwise there is a risk to color clamp with YCoCg.
 	#endif
 		
-	#if COMPILE_MININVFREQ_ACCUMULATOR
-		Accumulator.MinInvFrequency = WORLD_RADIUS_MISS;
+	#if COMPILE_MIN_FREQUENCY_ACCUMULATOR
+		Accumulator.MinFrequency.ClosestHitDistance = INFINITE_FLOAT;
+		Accumulator.MinFrequency.WorldBluringRadius = WORLD_RADIUS_MISS;
 	#endif
 
 	// DRB initialization.
@@ -143,6 +144,9 @@ struct FSSDSampleAccumulationInfos
 {
 	// Sample to accumulate.
 	FSSDSignalSample Sample;
+
+	// Frequency of the sample.
+	FSSDSignalFrequency Frequency;
 
 	// Weight of the sample in the kernel.
 	float FinalWeight;
@@ -202,9 +206,11 @@ void AccumulateSampleInDomainBoundaries(inout FSSDSignalAccumulator Accumulator,
 		
 		// Track the minimal frequency inverse.
 		
-		#if COMPILE_MININVFREQ_ACCUMULATOR
-			if (SampleInfos.InvFrequency != WORLD_RADIUS_MISS)
-				Accumulator.MinInvFrequency = min(Accumulator.MinInvFrequency, SampleInfos.InvFrequency);
+		#if COMPILE_MIN_FREQUENCY_ACCUMULATOR
+		if (SampleInfos.InvFrequency != WORLD_RADIUS_INVALID)
+		{
+			Accumulator.MinFrequency = MinSignalFrequency(Accumulator.MinFrequency, SampleInfos.Frequency);
+		}
 		#endif
 	}
 }
