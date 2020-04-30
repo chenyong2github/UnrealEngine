@@ -4357,7 +4357,10 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 	FWorldDelegates::OnPostWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
 
-	SubsystemCollection.Deinitialize();
+	if (bCleanupResources)
+	{
+		SubsystemCollection.Deinitialize();
+	}
 
 	if(FXSystem && bWorldChanged)
 	{
