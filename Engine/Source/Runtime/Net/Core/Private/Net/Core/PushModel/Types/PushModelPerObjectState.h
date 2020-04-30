@@ -120,7 +120,7 @@ namespace UE4PushModelPrivate
 
 		const FObjectKey& GetObjectKey() const
 		{
-			return ObjectId;
+			return ObjectKey;
 		}
 
 	private:
