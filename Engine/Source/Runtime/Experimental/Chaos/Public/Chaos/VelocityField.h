@@ -13,7 +13,7 @@ namespace Chaos
 	{
 	public:
 		TVelocityField()
-			: QuarterRhoDragCoefficient((T)0.), bIsUniform(true) {}
+			: Elements(nullptr), QuarterRhoDragCoefficient((T)0.), bIsUniform(true) {}
 
 		TVelocityField(
 			const TTriangleMesh<T>& TriangleMesh,
@@ -21,13 +21,20 @@ namespace Chaos
 			const bool bInIsUniform,
 			const T DragCoefficient = (T)0.5,
 			const T FluidDensity = (T)1.225e-6)
-			: PointToTriangleMap(TriangleMesh.GetPointToTriangleMap())  // TODO(Kriss.Gossart): Replace map lookup by safer array lookup
-			, Elements(TriangleMesh.GetElements())
+			: Elements(&TriangleMesh.GetElements())
 			, GetVelocity(InGetVelocity)
 			, bIsUniform(bInIsUniform)
+			, Offset(TriangleMesh.GetVertexRange().Key)
 		{
-			Forces.SetNumUninitialized(Elements.Num());
+			Forces.SetNumUninitialized(Elements->Num());
 			SetProperties(DragCoefficient, FluidDensity);
+
+			const int32 NumPoints = TriangleMesh.GetVertexRange().Value + 1 - Offset;
+			PointToTriangleMap.SetNumUninitialized(NumPoints);
+			for (const TPair<int32, TArray<int32>>& PointToTriangle : TriangleMesh.GetPointToTriangleMap())
+			{
+				PointToTriangleMap[PointToTriangle.Key - Offset] = &PointToTriangle.Value;
+			}
 		}
 
 		virtual ~TVelocityField() {}
@@ -39,14 +46,14 @@ namespace Chaos
 				if (bIsUniform)
 				{
 					const TVector<T, d> Velocity = GetVelocity(TVector<T, d>(0.));
-					for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+					for (int32 ElementIndex = 0; ElementIndex < Elements->Num(); ++ElementIndex)
 					{
 						UpdateUniformField(InParticles, Dt, ElementIndex, Velocity);
 					}
 				}
 				else
 				{
-					for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+					for (int32 ElementIndex = 0; ElementIndex < Elements->Num(); ++ElementIndex)
 					{
 						UpdateVectorField(InParticles, Dt, ElementIndex);
 					}
@@ -56,8 +63,11 @@ namespace Chaos
 
 		inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const
 		{
-			if (const TArray<int32>* ElementIndices = PointToTriangleMap.Find(Index))  // TODO(Kriss.Gossart): Replace map lookup by faster array lookup
+			const int32 PointIndex = Index - Offset;
+			if (PointToTriangleMap.IsValidIndex(PointIndex))
 			{
+				const TArray<int32>* ElementIndices = PointToTriangleMap[PointIndex];
+
 				for (const int32 ElementIndex : *ElementIndices)
 				{
 					InParticles.F(Index) += Forces[ElementIndex];
@@ -70,13 +80,13 @@ namespace Chaos
 			QuarterRhoDragCoefficient = (T)0.25 * FluidDensity * DragCoefficient;
 		}
 
-		const TArray<TVector<int32, 3>>& GetElements() const { return Elements; }
+		const TArray<TVector<int32, 3>>& GetElements() const { return *Elements; }
 		const TArray<TVector<T, d>>& GetForces() const { return Forces; }
 
 	private:
 		inline void UpdateUniformField(const TPBDParticles<T, d>& InParticles, const T Dt, int32 ElementIndex, const TVector<T, d>& Velocity) const
 		{
-			const TVector<int32, 3>& Element = Elements[ElementIndex];
+			const TVector<int32, 3>& Element = (*Elements)[ElementIndex];
 
 			// Calculate direction and the relative velocity of the triangle to the flow
 			const TVector<T, d>& SurfaceVelocity = (T)(1. / 3.) * (
@@ -100,7 +110,7 @@ namespace Chaos
 
 		inline void UpdateVectorField(const TPBDParticles<T, d>& InParticles, const T Dt, int32 ElementIndex) const
 		{
-			const TVector<int32, 3>& Element = Elements[ElementIndex];
+			const TVector<int32, 3>& Element = (*Elements)[ElementIndex];
 
 			// Get the triangle's position
 			const TVector<T, d>& SurfacePosition = (T)(1. / 3.) * (
@@ -129,11 +139,12 @@ namespace Chaos
 		}
 
 	private:
-		const TMap<int32, TArray<int32>>& PointToTriangleMap;
-		const TArray<TVector<int32, 3>>& Elements;
+		TArray<const TArray<int32>*> PointToTriangleMap;
+		const TArray<TVector<int32, 3>>* Elements;
 		TFunction<TVector<T, d>(const TVector<T, d>&)> GetVelocity;
 		mutable TArray<TVector<T, 3>> Forces;
 		float QuarterRhoDragCoefficient;
 		bool bIsUniform;
+		int32 Offset;
 	};
 }

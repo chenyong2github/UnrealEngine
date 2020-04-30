@@ -10,7 +10,7 @@
 namespace Chaos
 {
 template<class T, int d>
-class CHAOS_API TPBDEvolution
+class CHAOS_API TPBDEvolution  : private TArrayCollection
 {
   public:
 	using FGravityForces = TPerParticleGravity<T, d>;
@@ -37,11 +37,11 @@ class CHAOS_API TPBDEvolution
 	const TPBDParticles<T, d>& Particles() const { return MParticles; }
 	TPBDParticles<T, d>& Particles() { return MParticles; }
 
-	FGravityForces& GetGravityForces() { return GravityForces; }
-	const FGravityForces& GetGravityForces() const { return GravityForces; }
+	FGravityForces& GetGravityForces(const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); return MGroupGravityForces[GroupId]; }
+	const FGravityForces& GetGravityForces(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupGravityForces[GroupId]; }
 
-	TArray<FVelocityField>& GetVelocityFields() { return VelocityFields; }
-	const TArray<FVelocityField>& GetVelocityFields() const { return VelocityFields; }
+	TUniquePtr<FVelocityField>& GetVelocityField(const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); return MGroupVelocityFields[GroupId]; }
+	const TUniquePtr<FVelocityField>& GetVelocityField(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupVelocityFields[GroupId]; }
 
 	const TGeometryClothParticles<T, d>& CollisionParticles() const { return MCollisionParticles; }
 	TGeometryClothParticles<T, d>& CollisionParticles() { return MCollisionParticles; }
@@ -53,25 +53,29 @@ class CHAOS_API TPBDEvolution
 	int32 GetIterations() const { return MNumIterations; }
 	void SetIterations(const int32 Iterations) { MNumIterations = Iterations; }
 
-	T GetSelfCollisionThickness() const { return MSelfCollisionThickness; }
-	void SetSelfCollisionThickness(const T SelfCollisionThickness) { MSelfCollisionThickness = SelfCollisionThickness; }
+	T GetSelfCollisionThickness(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupSelfCollisionThicknesses[GroupId]; }
+	void SetSelfCollisionThickness(const T SelfCollisionThickness, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupSelfCollisionThicknesses[GroupId] = SelfCollisionThickness; }
 
-	T GetCollisionThickness(const uint32 GroupId = 0) const { return MPerGroupCollisionThickness[GroupId]; }
-	void SetCollisionThickness(const T CollisionThickness, const uint32 GroupId = 0) { MPerGroupCollisionThickness[GroupId] = CollisionThickness; }
+	T GetCollisionThickness(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupCollisionThicknesses[GroupId]; }
+	void SetCollisionThickness(const T CollisionThickness, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupCollisionThicknesses[GroupId] = CollisionThickness; }
 
-	T GetCoefficientOfFriction(const uint32 GroupId = 0) const { return MPerGroupCoefficientOfFriction[GroupId]; }
-	void SetCoefficientOfFriction(const T CoefficientOfFriction, const uint32 GroupId = 0) { MPerGroupCoefficientOfFriction[GroupId] = CoefficientOfFriction; }
+	T GetCoefficientOfFriction(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupCoefficientOfFrictions[GroupId]; }
+	void SetCoefficientOfFriction(const T CoefficientOfFriction, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupCoefficientOfFrictions[GroupId] = CoefficientOfFriction; }
 
-	T GetDamping(const uint32 GroupId = 0) const { return MPerGroupDamping[GroupId]; }
-	void SetDamping(const T Damping, const uint32 GroupId = 0) { MPerGroupDamping[GroupId] = Damping; }
+	T GetDamping(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupDampings[GroupId]; }
+	void SetDamping(const T Damping, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupDampings[GroupId] = Damping; }
 
 	T GetTime() const { return MTime; }
 
 	void ResetConstraintRules() { MInitConstraintRules.Reset(); MConstraintRules.Reset(); };
 	void ResetSelfCollision() { MCollisionTriangles.Reset(); MDisabledCollisionElements.Reset(); };
-	void ResetVelocityFields() { VelocityFields.Reset(); };
+
+	const TArrayCollectionArray<uint32>& ParticleGroupIds() const { return MParticleGroupIds; }
 
   private:
+	// Add simulation groups and set default values
+	void AddGroups(int32 Num);
+
 	TPBDParticles<T, d> MParticles;
 	TKinematicGeometryClothParticles<T, d> MCollisionParticles;
 	TArray<TVector<int32, 3>> MCollisionTriangles;       // Used for self-collisions
@@ -79,18 +83,19 @@ class CHAOS_API TPBDEvolution
 	TArrayCollectionArray<bool> MCollided;
 	TArrayCollectionArray<uint32> MCollisionParticleGroupIds;  // Used for per group parameters for collision particles
 	TArrayCollectionArray<uint32> MParticleGroupIds;  // Used for per group parameters for particles
-	TArray<T> MPerGroupDamping;
-	TArray<T> MPerGroupCollisionThickness;
-	TArray<T> MPerGroupCoefficientOfFriction;
+	TArrayCollectionArray<FGravityForces> MGroupGravityForces;
+	TArrayCollectionArray<T> MGroupCollisionThicknesses;
+	TArrayCollectionArray<T> MGroupSelfCollisionThicknesses;
+	TArrayCollectionArray<T> MGroupCoefficientOfFrictions;
+	TArrayCollectionArray<T> MGroupDampings;
+	TArrayCollectionArray<TUniquePtr<FVelocityField>> MGroupVelocityFields;
 	int32 MNumIterations;
+	TVector<T, d> MGravity;
 	T MCollisionThickness;
 	T MSelfCollisionThickness;
 	T MCoefficientOfFriction;
 	T MDamping;
 	T MTime;
-
-	FGravityForces GravityForces;
-	TArray<FVelocityField> VelocityFields;
 
 	TArray<TFunction<void(TPBDParticles<T, d>&, const T, const int32)>> MForceRules;
 	TArray<TFunction<void()>> MInitConstraintRules;

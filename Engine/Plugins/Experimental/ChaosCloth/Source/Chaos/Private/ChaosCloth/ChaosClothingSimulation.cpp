@@ -9,12 +9,14 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/Material.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Chaos/TriangleMesh.h"
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Cylinder.h"
 #include "Chaos/ImplicitObjectIntersection.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/Levelset.h"
+#include "Chaos/PBDEvolution.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/PBDBendingConstraints.h"
@@ -39,9 +41,6 @@
 #include "Chaos/XPBDLongRangeConstraints.h"
 #include "Chaos/XPBDSpringConstraints.h"
 #include "Chaos/XPBDAxialSpringConstraints.h"
-
-#include "Chaos/PBDEvolution.h"
-#include "Chaos/TriangleMesh.h"
 
 #if PHYSICS_INTERFACE_PHYSX && !PLATFORM_LUMIN && !PLATFORM_ANDROID
 #include "PhysXIncludes.h"
@@ -98,12 +97,8 @@ ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
 	, NumSubsteps(1)
-	, bOverrideGravity(false)
-	, bUseConfigGravity(false)
-	, GravityScale(1.f)
-	, Gravity(ChaosClothingSimulationDefault::Gravity)
-	, ConfigGravity(ChaosClothingSimulationDefault::Gravity)
-	, WindVelocity(FVector::ZeroVector)
+	, bUseGravityOverride(false)
+	, GravityOverride(ChaosClothingSimulationDefault::Gravity)
 	, bUseLocalSpaceSimulation(false)
 	, LocalSpaceLocation(FVector::ZeroVector)
 {
@@ -134,7 +129,6 @@ void ClothingSimulation::Initialize()
 			ChaosClothingSimulationDefault::DampingCoefficient));
     Evolution->CollisionParticles().AddArray(&BoneIndices);
 	Evolution->CollisionParticles().AddArray(&BaseTransforms);
-    Evolution->GetGravityForces().SetAcceleration(Gravity);
 
     Evolution->SetKinematicUpdateFunction(
 		[this](Chaos::TPBDParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index)
@@ -194,6 +188,10 @@ void ClothingSimulation::Shutdown()
 	ExternalCollisionsOffset = 0;
 	ClothSharedSimConfig = nullptr;
 	LongRangeConstraints.Reset();
+	bUseGravityConfigs.Reset();
+	GravityScales.Reset();
+	GravityConfigs.Reset();
+	WindVelocities.Reset();
 
 	ResetStats();
 }
@@ -241,6 +239,11 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		AngularDeltaRatios.SetNum(NumAssets);
 
 		CollisionsRangeMap.SetNumZeroed(NumAssets);
+
+		GravityScales.SetNum(NumAssets);
+		bUseGravityConfigs.SetNum(NumAssets);
+		GravityConfigs.SetNum(NumAssets);
+		WindVelocities.SetNum(NumAssets);
 	}
 	Assets[InSimDataIndex] = Asset;
 
@@ -319,20 +322,26 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	Evolution->SetCoefficientOfFriction(ChaosClothSimConfig->FrictionCoefficient, InSimDataIndex);
 
 	// Add velocity field
-	auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
+	auto GetVelocity = [this, InSimDataIndex](const TVector<float, 3>&)->TVector<float, 3>
 	{
-		return WindVelocity;
+		return WindVelocities[InSimDataIndex];
 	};
-	Evolution->GetVelocityFields().Emplace(
+	Evolution->GetVelocityField(InSimDataIndex) = MakeUnique<TVelocityField<float, 3>>(
 		*Meshes[InSimDataIndex],
 		GetVelocity,
 		/*bInIsUniform =*/ true,
 		ChaosClothSimConfig->DragCoefficient);
 
+	// Update gravity related config values
+	GravityScales[InSimDataIndex] = ChaosClothSimConfig->GravityScale;
+	bUseGravityConfigs[InSimDataIndex] = ChaosClothSimConfig->bUseGravityOverride;
+	GravityConfigs[InSimDataIndex] = ChaosClothSimConfig->Gravity;
+
 	// Add Self Collisions
 	if (ChaosClothSimConfig->bUseSelfCollisions)
 	{
 		AddSelfCollisions(InSimDataIndex);
+		Evolution->SetSelfCollisionThickness(ChaosClothSimConfig->SelfCollisionThickness, InSimDataIndex);
 	}
 
 	// Warn about legacy apex collisions
@@ -428,15 +437,9 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		// Update local space simulation switch
 		bUseLocalSpaceSimulation = ClothSharedSimConfig->bUseLocalSpaceSimulation;
 
-		// Update gravity related config values
-		ConfigGravity = ClothSharedSimConfig->Gravity;
-		GravityScale = ClothSharedSimConfig->GravityScale;
-		bUseConfigGravity = ClothSharedSimConfig->bUseGravityOverride;
-
 		// Now set all the common parameters on the simulation
 		NumSubsteps = ClothSharedSimConfig->SubdivisionCount;
 		Evolution->SetIterations(ClothSharedSimConfig->IterationCount);
-		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 	}
 }
 
@@ -1348,15 +1351,6 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	static const float DeltaTimeDecay = 0.1f;
 	DeltaTime = DeltaTime + (Context->DeltaSeconds - DeltaTime) * DeltaTimeDecay;
 
-	// Set gravity, using the legacy priority: 1) game override, 2) config override, 3) world gravity
-	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
-		bOverrideGravity ? Gravity * GravityScale :
-		bUseConfigGravity ? ConfigGravity :  // Config gravity is not subject to scale
-		Context->WorldGravity * GravityScale));
-
-	// Set wind velocity, used by the velocity field lambda
-	WindVelocity = Context->WindVelocity * ChaosClothingSimulationDefault::WorldScale;  // Wind speed is set in m/s and need to be converted to cm/s
-
 	// Check teleport modes
 	const bool bTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
 	const bool bTeleportAndReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
@@ -1386,6 +1380,18 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		{
 			const UClothingAssetCommon* const Asset = Assets[Index];
 			if (!Asset) { continue; }
+
+			// Set wind velocity, used by the velocity field lambda
+			WindVelocities[Index] = Context->WindVelocity * ChaosClothingSimulationDefault::WorldScale;  // Wind speed is set in m/s and need to be converted to cm/s
+
+			// Set gravity, using the legacy priority: 1) game override, 2) config override, 3) world gravity
+			const TVector<float, 3> Gravity = TVector<float, 3>(
+				bUseGravityOverride ? GravityOverride * GravityScales[Index] :
+				bUseGravityConfigs[Index] ? GravityConfigs[Index] :  // Config gravity is not subject to scale
+				Context->WorldGravity * GravityScales[Index]);
+
+			// Update gravity
+			Evolution->GetGravityForces(Index).SetAcceleration(Gravity);
 
 			const uint32 Offset = IndexToRangeMap[Index][0];
 			const uint32 Range = IndexToRangeMap[Index][1];
@@ -1763,7 +1769,6 @@ void ClothingSimulation::RefreshClothConfig()
 
 	Evolution->ResetConstraintRules();
 	Evolution->ResetSelfCollision();
-	Evolution->ResetVelocityFields();
 
 	// Reset stats
 	ResetStats();
@@ -1792,20 +1797,26 @@ void ClothingSimulation::RefreshClothConfig()
 				Evolution->SetCoefficientOfFriction(ChaosClothConfig->FrictionCoefficient, SimDataIndex);
 
 				// Add Velocity field
-				auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
+				auto GetVelocity = [this, SimDataIndex](const TVector<float, 3>&)->TVector<float, 3>
 				{
-					return WindVelocity;
+					return WindVelocities[SimDataIndex];
 				};
-				Evolution->GetVelocityFields().Emplace(
+				Evolution->GetVelocityField(SimDataIndex) = MakeUnique<TVelocityField<float, 3>>(
 					*Meshes[SimDataIndex],
 					GetVelocity,
 					/*bInIsUniform =*/ true,
 					ChaosClothConfig->DragCoefficient);
 
+				// Update gravity related config values
+				GravityScales[SimDataIndex] = ChaosClothConfig->GravityScale;
+				bUseGravityConfigs[SimDataIndex] = ChaosClothConfig->bUseGravityOverride;
+				GravityConfigs[SimDataIndex] = ChaosClothConfig->Gravity;
+
 				// Add Self Collisions
 				if (ChaosClothConfig->bUseSelfCollisions)
 				{
 					AddSelfCollisions(SimDataIndex);
+					Evolution->SetSelfCollisionThickness(ChaosClothConfig->SelfCollisionThickness, SimDataIndex);
 				}
 
 				// Update stats
@@ -1846,13 +1857,13 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 
 void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
 {
-	bOverrideGravity = true;
-	Gravity = InGravityOverride;
+	bUseGravityOverride = true;
+	GravityOverride = InGravityOverride;
 }
 
 void ClothingSimulation::DisableGravityOverride()
 {
-	bOverrideGravity = false;
+	bUseGravityOverride = false;
 }
 
 #if WITH_EDITOR
@@ -2536,12 +2547,16 @@ void ClothingSimulation::DebugDrawLongRangeConstraint(USkeletalMeshComponent* /*
 void ClothingSimulation::DebugDrawWindDragForces(USkeletalMeshComponent* /*OwnerComponent*/, FPrimitiveDrawInterface* PDI) const
 {
 	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
-	const TArray<TVelocityField<float, 3>>& VelocityFields = Evolution->GetVelocityFields();
 
-	for (const TVelocityField<float, 3>& VelocityField : VelocityFields)
+	for (int32 Index = 0; Index < Assets.Num(); ++Index)
 	{
-		const TArray<TVector<int32, 3>>& Elements = VelocityField.GetElements();
-		const TArray<TVector<float, 3>>& Forces = VelocityField.GetForces();
+		const UClothingAssetCommon* const Asset = Assets[Index];
+		if (!Asset) { continue; }
+
+		const TUniquePtr<TVelocityField<float, 3>>& VelocityField = Evolution->GetVelocityField(Index);
+
+		const TArray<TVector<int32, 3>>& Elements = VelocityField->GetElements();
+		const TArray<TVector<float, 3>>& Forces = VelocityField->GetForces();
 
 		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 		{
