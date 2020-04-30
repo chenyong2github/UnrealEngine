@@ -1189,7 +1189,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 		// If we ever hit this, it means that we couldn't find any cache elements that aren't in use.
 		if (!CacheElement || CacheElement == ElementToStopAt)
 		{
-			ensureMsgf(false, TEXT("Cache blown! Please increase the cache size or load less audio."));
+			ensureMsgf(false, TEXT("Cache blown! Please increase the cache size (currently %i bytes) or load less audio."), ReportCacheSize());
 			return nullptr;
 		}
 	}
