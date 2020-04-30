@@ -262,7 +262,7 @@ namespace VectorUtil
 	}
 
 	/**
-	 * Fast cotangent of angle between two vectors.
+	 * Fast cotangent of angle between two vectors (*do not have to be normalized unit vectors*).
 	 * cot = cos/sin, both of which can be computed from vector identities
 	 * @return cotangent of angle between V1 and V2, or zero if result would be unstable (eg infinity)
 	 */ 
