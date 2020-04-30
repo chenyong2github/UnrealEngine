@@ -15159,10 +15159,12 @@ int32 UEngine::RenderStatUnit(UWorld* World, FViewport* Viewport, FCanvas* Canva
 int32 UEngine::RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
 #if CSV_PROFILER
+	int32 TotalCount = 0;
 	// Display all the categories of draw counts. This may always report 0 in some modes if AreGPUStatsEnabled is not enabled.
 	// Most likely because we are not currently capturing a CSV.
 	for (int32 Index = 0; Index < FDrawCallCategoryName::NumCategory; ++Index)
 	{
+		TotalCount += FDrawCallCategoryName::DisplayCounts[Index];
 		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
 		Canvas->DrawShadowedString(X - 50,
 			Y,
@@ -15171,6 +15173,12 @@ int32 UEngine::RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* 
 			FColor::Green);
 		Y += 12;
 	}
+	Canvas->DrawShadowedString(X - 50,
+		Y,
+		*FString::Printf(TEXT("Total: %i"), TotalCount),
+		GetSmallFont(),
+		FColor::Green);
+	Y += 12;
 #else
 	Canvas->DrawShadowedString(X - 200,
 		Y,
