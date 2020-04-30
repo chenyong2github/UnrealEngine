@@ -283,31 +283,12 @@ void DecodeMultiplexedSignalsFromFloat4(
 	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT)
 	{
-		OutSamples.Array[0].SampleCount = RawSample[1].r == DENOISER_INVALID_HIT_DISTANCE ? 0 : 1;
-		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[0].a);
+		OutSamples.Array[0].SampleCount = RawSample[1].r == DENOISER_INVALID_CONFUSION_FACTOR ? 0 : 1;
+		OutSamples.Array[0].MissCount = RawSample[1].r == DENOISER_INVALID_CONFUSION_FACTOR ? 0 : (1 - RawSample[0].a);
 		OutSamples.Array[0].SceneColor = RawSample[0];
 
 		// max() because ray hit distance is < 0 when miss / not ray has been shot.
-		OutSampleFrequencies.Array[0].ClosestHitDistance = RawSample[1].r;
-		//OutSampleFrequencies.Array[0].ClosestHitDistance = ((RawSample[1].r == DENOISER_MISS_HIT_DISTANCE) ? 1.0e20 : RawSample[1].r);
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION)
-	{
-		if (bNormalizeSample)
-		{
-			OutSamples.Array[0].SampleCount = RawSample[1].r > 0 ? 1 : 0;
-		}
-		else
-		{
-			OutSamples.Array[0].SampleCount = RawSample[1].r;
-		}
-		
-		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[0].a);
-		OutSamples.Array[0].SceneColor = OutSamples.Array[0].SampleCount * RawSample[0];
-
-		OutSamples.Array[1].SampleCount = RawSample[1].g;
-		OutSamples.Array[1].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[2].a);
-		OutSamples.Array[1].SceneColor = OutSamples.Array[0].SampleCount * RawSample[2];
+		OutSampleFrequencies.Array[0].ConfusionFactor = RawSample[1].r;
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY)
 	{
@@ -323,13 +304,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[0].a);
 		OutSamples.Array[0].SceneColor = OutSamples.Array[0].SampleCount * RawSample[0];
 
-		// Temporal analysis of the history.
-		#if SIGNAL_ARRAY_SIZE >= 3
-			OutSamples.Array[1].SampleCount = OutSamples.Array[0].SampleCount;
-			OutSamples.Array[1].SceneColor.x = OutSamples.Array[1].SampleCount * RawSample[1].g;
-			OutSamples.Array[2].SampleCount = OutSamples.Array[0].SampleCount;
-			OutSamples.Array[2].SceneColor.x = OutSamples.Array[2].SampleCount * RawSample[1].b;
-		#endif
+		OutSampleFrequencies.Array[0].ConfusionFactor = RawSample[1].g;
 	}
 	#endif
 	#if 1
@@ -704,20 +679,6 @@ void EncodeMultiplexedSignals(
 	}
 	#endif
 	#if COMPILE_SIGNAL_COLOR
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION)
-	{
-		// Outputs scene color to be compatible with a SSR output.
-		OutRawSample[0] = ClampColorForEncoding(Sample[0].SceneColor * (Sample[0].SampleCount > 0 ? rcp(Sample[0].SampleCount) : 0));
-		OutRawSample[1].r = Sample[0].SampleCount;
-		OutBufferCount = 2;
-
-		if (MultiplexCount == 2)
-		{
-			OutRawSample[2] = ClampColorForEncoding(Sample[1].SceneColor * (Sample[1].SampleCount > 0 ? rcp(Sample[1].SampleCount) : 0));
-			OutRawSample[1].g = Sample[1].SampleCount;
-			OutBufferCount = 3;
-		}
-	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY)
 	{
 		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
@@ -725,17 +686,8 @@ void EncodeMultiplexedSignals(
 		// Outputs scene color to be compatible with a SSR output.
 		OutRawSample[0] = ClampColorForEncoding(Sample[0].SceneColor * NormalizationFactor);
 		OutRawSample[1].r = Sample[0].SampleCount;
+		OutRawSample[1].g = SampleFrequency[0].ConfusionFactor;
 		OutBufferCount = 2;
-
-		// Temporal analysis.
-		#if SIGNAL_ARRAY_SIZE >= 3
-		if (MultiplexCount == 3)
-		{
-			OutRawSample[1].g = Sample[1].SceneColor.x * NormalizationFactor;
-			OutRawSample[1].b = Sample[2].SceneColor.x * NormalizationFactor;
-			OutBufferCount = 3;
-		}
-		#endif
 	}
 	#endif
 	#if 1

@@ -452,28 +452,6 @@ void ProjectSpecularLobeToScreenSpace(
 	}
 }
 
-/** Return the size of the bluring radius caused by the specular lobe in ViewportUV.x space. */
-float ComputeInfinityBluringRadius(FSSDSampleSceneInfos SceneMetadata)
-{
-	float2 NormalizedScreenMajorAxis;
-	float InifinityMajorViewportRadius;
-	float InifinityMinorViewportRadius;
-	ProjectSpecularLobeToScreenSpace(
-		SceneMetadata,
-		/* out */ NormalizedScreenMajorAxis,
-		/* out */ InifinityMajorViewportRadius,
-		/* out */ InifinityMinorViewportRadius);
-	
-	// To avoid overbluring killing anisotropy, use minor viewport radius that is smaller.
-	return InifinityMinorViewportRadius;
-}
-
-/** Return the size of bluring radius caused by specular lobe in ViewportUV.x space. */
-float ComputeBluringRadiusOfNormalizedSample(FSSDSignalFrequency SampleFrequency, FSSDSampleSceneInfos SceneMetadata)
-{
-	return ComputeInfinityBluringRadius(SceneMetadata) * ComputeBluringOutOfFocusOfNormalizedSample(SampleFrequency, SceneMetadata);
-}
-
 
 //------------------------------------------------------- MAIN FUNCTIONS TO IMPLEMENT FOR THE PASSES
 
