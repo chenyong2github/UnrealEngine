@@ -3117,7 +3117,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 			Ar.SetLicenseeUE4Ver(Package->LinkerRoot->LinkerLicenseeVersion);
 			// Ar.SetEngineVer(Summary.SavedByEngineVersion); // very old versioning scheme
 			// Ar.SetCustomVersions(LinkerRoot->LinkerCustomVersion); // only if not cooking with -unversioned
-			Ar.SetUseUnversionedPropertySerialization(CanUseUnversionedPropertySerialization());
+			Ar.SetUseUnversionedPropertySerialization((Package->LinkerRoot->GetPackageFlags() & PKG_UnversionedProperties) != 0);
 			Ar.SetIsLoading(true);
 			Ar.SetIsPersistent(true);
 			if (Package->LinkerRoot->GetPackageFlags() & PKG_FilterEditorOnly)
