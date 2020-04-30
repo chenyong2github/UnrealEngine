@@ -162,7 +162,7 @@ public:
 		return TArray<FWidgetAndPointer>();
 	}
 
-	virtual void ArrangeChildren( FArrangedChildren& ArrangedChildren ) const override
+	virtual void ArrangeCustomHitTestChildren( FArrangedChildren& ArrangedChildren ) const override
 	{
 		for( TWeakObjectPtr<UWidgetComponent> Component : RegisteredComponents )
 		{
@@ -177,7 +177,7 @@ public:
 		}
 	}
 
-	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateFor3DChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const override
+	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const override
 	{
 		if ( World.IsValid() && ensure(World->IsGameWorld()) )
 		{
