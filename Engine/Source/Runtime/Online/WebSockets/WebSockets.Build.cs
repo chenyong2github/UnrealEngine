@@ -31,10 +31,9 @@ public class WebSockets : ModuleRules
 	{
 		get
 		{
-			bool bPlatformSupportsXboxWebsockets = Target.Platform == UnrealTargetPlatform.XboxOne;
 			bool bPlatformSupportsWinRTWebsockets = Target.Platform == UnrealTargetPlatform.HoloLens;
 
-			return PlatformSupportsLibWebsockets || bPlatformSupportsXboxWebsockets || bPlatformSupportsWinRTWebsockets;
+			return PlatformSupportsLibWebsockets || bPlatformSupportsWinRTWebsockets;
 		}
 	}
 
