@@ -177,6 +177,7 @@ public:
 	LAYOUT_FIELD(TMemoryImageArray<FShaderParameterInfo>, TextureSamplers);
 	LAYOUT_FIELD(TMemoryImageArray<FShaderParameterInfo>, SRVs);
 	LAYOUT_FIELD(TMemoryImageArray<FShaderLooseParameterBufferInfo>, LooseParameterBuffers);
+	LAYOUT_FIELD(uint64, Hash);
 
 	friend FArchive& operator<<(FArchive& Ar,FShaderParameterMapInfo& Info)
 	{
@@ -184,15 +185,13 @@ public:
 		Ar << Info.TextureSamplers;
 		Ar << Info.SRVs;
 		Ar << Info.LooseParameterBuffers;
+		Ar << Info.Hash;
 		return Ar;
 	}
 
 	inline bool operator==(const FShaderParameterMapInfo& Rhs) const
 	{
-		return UniformBuffers == Rhs.UniformBuffers
-			&& TextureSamplers == Rhs.TextureSamplers
-			&& SRVs == Rhs.SRVs
-			&& LooseParameterBuffers == Rhs.LooseParameterBuffers;
+		return Hash == Rhs.Hash;
 	}
 };
 
