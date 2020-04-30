@@ -542,7 +542,7 @@ FName UDiffAssetRegistriesCommandlet::GetClassName(FAssetRegistryState& InRegist
 
 		if (NewName == NAME_None)
 		{
-			UE_LOG(LogDiffAssets, Warning, TEXT("Unable to find class type of asset %s"), *InAssetPath.ToString());
+			UE_LOG(LogDiffAssets, Log, TEXT("Unable to find class type of asset %s"), *InAssetPath.ToString());
 		}
 		AssetPathToClassName.Add(InAssetPath) = NewName;
 	}
