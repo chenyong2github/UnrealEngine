@@ -1986,10 +1986,16 @@ void FPhysScene_ChaosInterface::StartFrame()
 			
 			if (FPhysicsSolver* Solver = GetSolver())
 			{
-				Solver->PushPhysicsState(Dispatcher);
-
 				// Make sure our solver is in the list
 				SolverList.AddUnique(Solver);
+			}
+
+			for(FPhysicsSolverBase* Solver : SolverList)
+			{
+				Solver->CastHelper([Dispatcher](auto& InSolver)
+					{
+						InSolver.PushPhysicsState(Dispatcher);
+					});
 			}
 
 			FGraphEventRef SimulationCompleteEvent = FGraphEvent::CreateGraphEvent();
