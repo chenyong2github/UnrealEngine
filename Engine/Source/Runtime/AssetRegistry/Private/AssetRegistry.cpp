@@ -22,6 +22,7 @@
 #include "Misc/RedirectCollector.h"
 #include "AssetRegistryModule.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Misc/ScopeExit.h"
 
 #if WITH_EDITOR
 #include "IDirectoryWatcher.h"
@@ -29,6 +30,9 @@
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformProcess.h"
 #endif // WITH_EDITOR
+
+// Caching is permanently enabled in editor because memory is not that constrained, disabled by default otherwise
+#define ASSETREGISTRY_CACHE_ALWAYS_ENABLED (WITH_EDITOR)
 
 DEFINE_LOG_CATEGORY(LogAssetRegistry);
 
@@ -74,8 +78,12 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	// By default update the disk cache once on asset load, to incorporate changes made in PostLoad. This only happens in editor builds
 	bUpdateDiskCacheAfterLoad = true;
 
-	// Caching is disabled by default
-	bTempCachingEnabled = false;
+	bIsTempCachingAlwaysEnabled = ASSETREGISTRY_CACHE_ALWAYS_ENABLED;
+	bIsTempCachingEnabled = bIsTempCachingAlwaysEnabled;
+	bIsTempCachingUpToDate = false;
+	
+	// The initial value doesn't matter since caching has not yet been computed
+	TempCachingRegisteredClassesVersionNumber = 0;
 
 	// Collect all code generator classes (currently BlueprintCore-derived ones)
 	CollectCodeGeneratorClasses();
@@ -1388,11 +1396,6 @@ void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 
 		// Notify listeners that an asset was just created
 		InMemoryAssetCreatedEvent.Broadcast(NewAsset);
-
-		if (bTempCachingEnabled)
-		{
-			UE_LOG(LogAssetRegistry, Warning, TEXT("Asset %s created while in temporary cache mode, returned results will be incorrect!"), *NewPackageName);
-		}
 	}
 }
 
@@ -1494,6 +1497,10 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 		// Force a full flush
 		TickStartTime = -1;
 	}
+	
+	bool bOldTemporaryCachingMode = GetTemporaryCachingMode();
+	SetTemporaryCachingMode(true);
+	ON_SCOPE_EXIT { SetTemporaryCachingMode(bOldTemporaryCachingMode); };
 
 	// Gather results from the background search
 	bool bIsSearching = false;
@@ -1635,14 +1642,12 @@ void UAssetRegistryImpl::CachePathsFromState(const FAssetRegistryState& InState)
 					const FName GeneratedClassFName = *ExportTextPathToObjectName(GeneratedClass);
 					const FName ParentClassFName = *ExportTextPathToObjectName(ParentClass);
 					CachedBPInheritanceMap.Add(GeneratedClassFName, ParentClassFName);
+
+					// Invalidate caching because CachedBPInheritanceMap got modified
+					bIsTempCachingUpToDate = false;
 				}
 			}
 		}
-	}
-
-	if (bTempCachingEnabled)
-	{
-		UE_LOG(LogAssetRegistry, Warning, TEXT("CachePathsFromState called while in temporary cache mode, returned results will be incorrect!"));
 	}
 }
 
@@ -1653,7 +1658,7 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 	uint32 StaticSize = sizeof(UAssetRegistryImpl) + CachedEmptyPackages.GetAllocatedSize() + CachedBPInheritanceMap.GetAllocatedSize()  + ClassGeneratorNames.GetAllocatedSize() + OnDirectoryChangedDelegateHandles.GetAllocatedSize();
 	uint32 SearchSize = BackgroundAssetResults.GetAllocatedSize() + BackgroundPathResults.GetAllocatedSize() + BackgroundDependencyResults.GetAllocatedSize() + BackgroundCookedPackageNamesWithoutAssetDataResults.GetAllocatedSize() + SynchronouslyScannedPathsAndFiles.GetAllocatedSize() + CachedPathTree.GetAllocatedSize();
 
-	if (bTempCachingEnabled)
+	if (bIsTempCachingEnabled && !bIsTempCachingAlwaysEnabled)
 	{
 		uint32 TempCacheMem = TempCachedInheritanceMap.GetAllocatedSize() + TempReverseInheritanceMap.GetAllocatedSize();
 		StaticSize += TempCacheMem;
@@ -1915,11 +1920,6 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 
 	// Trim the results array
 	AssetResults.Trim();
-
-	if (bTempCachingEnabled)
-	{
-		UE_LOG(LogAssetRegistry, Warning, TEXT("AssetSearchDataGathered called while in temporary cache mode, returned results will be incorrect!"));
-	}
 }
 
 void UAssetRegistryImpl::PathDataGathered(const double TickStartTime, TBackgroundGatherResults<FString>& PathResults)
@@ -2205,6 +2205,9 @@ void UAssetRegistryImpl::AddAssetData(FAssetData* AssetData)
 			const FName GeneratedClassFName = *ExportTextPathToObjectName(GeneratedClass);
 			const FName ParentClassFName = *ExportTextPathToObjectName(ParentClass);
 			CachedBPInheritanceMap.Add(GeneratedClassFName, ParentClassFName);
+			
+			// Invalidate caching because CachedBPInheritanceMap got modified
+			bIsTempCachingUpToDate = false;
 		}
 	}
 }
@@ -2219,6 +2222,9 @@ void UAssetRegistryImpl::UpdateAssetData(FAssetData* AssetData, const FAssetData
 		{
 			const FName OldGeneratedClassFName = *ExportTextPathToObjectName(OldGeneratedClass);
 			CachedBPInheritanceMap.Remove(OldGeneratedClassFName);
+
+			// Invalidate caching because CachedBPInheritanceMap got modified
+			bIsTempCachingUpToDate = false;
 		}
 
 		const FString NewGeneratedClass = NewAssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
@@ -2228,6 +2234,9 @@ void UAssetRegistryImpl::UpdateAssetData(FAssetData* AssetData, const FAssetData
 			const FName NewGeneratedClassFName = *ExportTextPathToObjectName(*NewGeneratedClass);
 			const FName NewParentClassFName = *ExportTextPathToObjectName(*NewParentClass);
 			CachedBPInheritanceMap.Add(NewGeneratedClassFName, NewParentClassFName);
+
+			// Invalidate caching because CachedBPInheritanceMap got modified
+			bIsTempCachingUpToDate = false;
 		}
 	}
 
@@ -2253,6 +2262,9 @@ bool UAssetRegistryImpl::RemoveAssetData(FAssetData* AssetData)
 			{
 				const FName OldGeneratedClassFName = *ExportTextPathToObjectName(OldGeneratedClass);
 				CachedBPInheritanceMap.Remove(OldGeneratedClassFName);
+
+				// Invalidate caching because CachedBPInheritanceMap got modified
+				bIsTempCachingUpToDate = false;
 			}
 		}
 
@@ -2654,55 +2666,51 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 
 void UAssetRegistryImpl::SetTemporaryCachingMode(bool bEnable)
 {
-	if (bEnable == bTempCachingEnabled)
+	if (bIsTempCachingAlwaysEnabled || bEnable == bIsTempCachingEnabled)
 	{
 		return;
 	}
 
 	if (bEnable)
 	{
-		UpdateTemporaryCaches();
-		bTempCachingEnabled = true;
+		bIsTempCachingEnabled = true;
+		bIsTempCachingUpToDate = false;
 	}
 	else
 	{
-		bTempCachingEnabled = false;
+		bIsTempCachingEnabled = false;
 		ClearTemporaryCaches();
 	}
 }
 
 bool UAssetRegistryImpl::GetTemporaryCachingMode() const
 {
-	return bTempCachingEnabled;
+	return bIsTempCachingEnabled;
 }
 
 void UAssetRegistryImpl::ClearTemporaryCaches() const
 {
-	if (!bTempCachingEnabled)
+	if (!bIsTempCachingEnabled && !bIsTempCachingAlwaysEnabled)
 	{
-		UAssetRegistryImpl* MutableThis = const_cast<UAssetRegistryImpl*>(this);
-
 		// We clear these as much as possible to get back memory
-		MutableThis->TempCachedInheritanceMap.Empty();
-		MutableThis->TempReverseInheritanceMap.Empty();
+		TempCachedInheritanceMap.Empty();
+		TempReverseInheritanceMap.Empty();
+		bIsTempCachingUpToDate = false;
 	}
 }
 
 void UAssetRegistryImpl::UpdateTemporaryCaches() const
 {
-	UAssetRegistryImpl* MutableThis = const_cast<UAssetRegistryImpl*>(this);
-
-	if (bTempCachingEnabled)
+	if (bIsTempCachingEnabled && bIsTempCachingUpToDate && TempCachingRegisteredClassesVersionNumber == GetRegisteredClassesVersionNumber())
 	{
-		// Created these when enabling temp caching
 		return;
 	}
 
-	MutableThis->TempCachedInheritanceMap = MutableThis->CachedBPInheritanceMap;
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetRegistryImpl::UpdateTemporaryCaches)
 
-	// And add all in-memory classes at request time
-	TSet<FName> InMemoryClassNames;
-
+	TempCachedInheritanceMap = CachedBPInheritanceMap;
+	TempReverseInheritanceMap.Reset();
+	TempCachingRegisteredClassesVersionNumber = GetRegisteredClassesVersionNumber();
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
 		UClass* Class = *ClassIt;
@@ -2713,15 +2721,15 @@ void UAssetRegistryImpl::UpdateTemporaryCaches() const
 			if (Class->GetSuperClass())
 			{
 				FName SuperClassName = Class->GetSuperClass()->GetFName();
-				TSet<FName>& ChildClasses = MutableThis->TempReverseInheritanceMap.FindOrAdd(SuperClassName);
+				TSet<FName>& ChildClasses = TempReverseInheritanceMap.FindOrAdd(SuperClassName);
 				ChildClasses.Add(ClassName);
 
-				MutableThis->TempCachedInheritanceMap.Add(ClassName, SuperClassName);
+				TempCachedInheritanceMap.Add(ClassName, SuperClassName);
 			}
 			else
 			{
 				// This should only be true for a small number of CoreUObject classes
-				MutableThis->TempCachedInheritanceMap.Add(ClassName, NAME_None);
+				TempCachedInheritanceMap.Add(ClassName, NAME_None);
 			}
 
 			// Add any implemented interfaces to the reverse inheritance map, but not to the forward map
@@ -2730,29 +2738,25 @@ void UAssetRegistryImpl::UpdateTemporaryCaches() const
 				UClass* InterfaceClass = Class->Interfaces[i].Class;
 				if (InterfaceClass) // could be nulled out by ForceDelete of a blueprint interface
 				{
-					TSet<FName>& ChildClasses = MutableThis->TempReverseInheritanceMap.FindOrAdd(InterfaceClass->GetFName());
+					TSet<FName>& ChildClasses = TempReverseInheritanceMap.FindOrAdd(InterfaceClass->GetFName());
 					ChildClasses.Add(ClassName);
 				}
 			}
-
-			InMemoryClassNames.Add(ClassName);
 		}
 	}
 
 	// Add non-native classes to reverse map
-	for (auto ClassNameIt = TempCachedInheritanceMap.CreateConstIterator(); ClassNameIt; ++ClassNameIt)
+	for (const TPair<FName, FName>& Kvp : CachedBPInheritanceMap)
 	{
-		const FName ClassName = ClassNameIt.Key();
-		if (!InMemoryClassNames.Contains(ClassName))
+		const FName& ParentClassName = Kvp.Value;
+		if (ParentClassName != NAME_None)
 		{
-			const FName ParentClassName = ClassNameIt.Value();
-			if (ParentClassName != NAME_None)
-			{
-				TSet<FName>& ChildClasses = MutableThis->TempReverseInheritanceMap.FindOrAdd(ParentClassName);
-				ChildClasses.Add(ClassName);
-			}
+			TSet<FName>& ChildClasses = TempReverseInheritanceMap.FindOrAdd(ParentClassName);
+			ChildClasses.Add(Kvp.Key);
 		}
 	}
+
+	bIsTempCachingUpToDate = true;
 }
 
 void UAssetRegistryImpl::GetSubClasses(const TArray<FName>& InClassNames, const TSet<FName>& ExcludedClassNames, TSet<FName>& SubClassNames) const

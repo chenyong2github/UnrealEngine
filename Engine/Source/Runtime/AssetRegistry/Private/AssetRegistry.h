@@ -292,14 +292,27 @@ private:
 	/** The map of classes to their parents, only full for offline blueprints */
 	TMap<FName, FName> CachedBPInheritanceMap;
 
+	/** If true, search caching is enabled */
+	bool bIsTempCachingEnabled;
+
+	/** If true, search caching is enabled permanently */
+	bool bIsTempCachingAlwaysEnabled;
+
 	/** A temporary fully cached list including native classes */
-	TMap<FName, FName> TempCachedInheritanceMap;
+	mutable TMap<FName, FName> TempCachedInheritanceMap;
 
 	/** A reverse map of TempCachedInheritanceMap, only kept during temp caching */
-	TMap<FName, TSet<FName>> TempReverseInheritanceMap;
+	mutable TMap<FName, TSet<FName>> TempReverseInheritanceMap;
 
-	/** If true, search caching is enabled */
-	bool bTempCachingEnabled;
+	/** If true, temp caching has been computed and is valid.
+	    Set this to false when changing something that might invalidate the cache so it gets recomputed on-demand.
+	*/
+	mutable bool bIsTempCachingUpToDate;
+
+	/** Contains a snapshot of GetRegisteredClassesVersionNumber() at the time of caching so the cache can
+	    be invalidated whenever registered classes have changed.
+	*/
+	mutable uint64 TempCachingRegisteredClassesVersionNumber;
 
 	/** If true, will cache AssetData loaded from in memory assets back into the disk cache */
 	bool bUpdateDiskCacheAfterLoad;
