@@ -66,6 +66,11 @@ void Settings::setUseAffinity(bool tf) {
     notifyListeners();
 }
 
+void Settings::setSupportedRefreshRates(const std::vector<uint64_t>& refreshRates) {
+	std::lock_guard<std::mutex> lock(mMutex);
+    mSupportedRefreshRates = refreshRates;
+}
+
 const Settings::DisplayTimings& Settings::getDisplayTimings() const {
     std::lock_guard<std::mutex> lock(mMutex);
     return mDisplayTimings;
@@ -93,6 +98,18 @@ void Settings::notifyListeners() {
     for (const auto &listener : listeners) {
         listener();
     }
+}
+
+int Settings::getSupportedRefreshRates(uint64_t* out_refreshrates, int allocated_entries) const {
+	std::lock_guard<std::mutex> lock(mMutex);
+    int index = 0;
+	for (uint64_t rate : mSupportedRefreshRates) {
+		if (index >= allocated_entries) {
+			break;
+		}
+		out_refreshrates[index++] = rate;
+	}
+	return mSupportedRefreshRates.size();
 }
 
 } // namespace swappy
