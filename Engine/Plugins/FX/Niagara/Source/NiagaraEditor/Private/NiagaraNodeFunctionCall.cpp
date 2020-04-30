@@ -1076,7 +1076,9 @@ bool UNiagaraNodeFunctionCall::FindAutoBoundInput(UNiagaraNodeInput* InputNode, 
 {
 	check(InputNode && InputNode->IsExposed());
 	if (PinToAutoBind->LinkedTo.Num() > 0 || !InputNode->CanAutoBind())
+	{
 		return false;
+	}
 
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 	FNiagaraVariable PinVar = Schema->PinToNiagaraVariable(PinToAutoBind);
@@ -1087,7 +1089,7 @@ bool UNiagaraNodeFunctionCall::FindAutoBoundInput(UNiagaraNodeInput* InputNode, 
 	UNiagaraNodeOutput* CallerOutputNodeSpawn = CallerGraph->FindOutputNode(ENiagaraScriptUsage::ParticleSpawnScript);
 	UNiagaraNodeOutput* CallerOutputNodeUpdate = CallerGraph->FindOutputNode(ENiagaraScriptUsage::ParticleUpdateScript);
 
-	//First, lest see if we're an attribute of this emitter. Only valid if we're a module call off the primary script.
+	//First, let's see if we're an attribute of this emitter. Only valid if we're a module call off the primary script.
 	if (CallerOutputNodeSpawn || CallerOutputNodeUpdate)
 	{
 		UNiagaraNodeOutput* CallerOutputNode = CallerOutputNodeSpawn != nullptr ? CallerOutputNodeSpawn : CallerOutputNodeUpdate;
@@ -1112,25 +1114,6 @@ bool UNiagaraNodeFunctionCall::FindAutoBoundInput(UNiagaraNodeInput* InputNode, 
 		OutNodeUsage = ENiagaraInputNodeUsage::SystemConstant;
 		return true;
 	}
-
-	//Not sure it's a good idea to allow binding to user made parameters.
-// 	if (AutoBindOptions.bBindToParameters)
-// 	{
-// 		//Finally, lets see if we're a parameter of this emitter.
-// 		TArray<UNiagaraNodeInput*> CallerInputNodes;
-// 		CallerGraph->FindInputNodes(CallerInputNodes);
-// 		UNiagaraNodeInput** MatchingParamPtr = CallerInputNodes.FindByPredicate([&](UNiagaraNodeInput*& CallerInputNode)
-// 		{
-// 			return CallerInputNode->Input.IsEquivalent(PinVar);
-// 		});
-// 
-// 		if (MatchingParamPtr)
-// 		{
-// 			OutFoundVar = (*MatchingParamPtr)->Input;
-// 			OutNodeUsage = ENiagaraInputNodeUsage::Parameter;
-// 			return true;
-// 		}
-// 	}
 
 	//Unable to auto bind.
 	return false;
