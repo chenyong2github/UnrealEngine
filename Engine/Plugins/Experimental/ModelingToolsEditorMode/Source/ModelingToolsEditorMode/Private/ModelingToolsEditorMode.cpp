@@ -675,9 +675,17 @@ void FModelingToolsEditorMode::Exit()
 
 	if (Toolkit.IsValid())
 	{
+		const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
+		const TSharedRef<FUICommandList>& ToolkitCommandList = Toolkit->GetToolkitCommands();
+		ToolkitCommandList->UnmapAction(ToolManagerCommands.AcceptActiveTool);
+		ToolkitCommandList->UnmapAction(ToolManagerCommands.CancelActiveTool);
+		ToolkitCommandList->UnmapAction(ToolManagerCommands.CompleteActiveTool);
+
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
+
+	FModelingModeActionCommands::UnRegisterCommandBindings(UICommandList);
 
 	// clear realtime viewport override
 	ConfigureRealTimeViewportsOverride(false);
