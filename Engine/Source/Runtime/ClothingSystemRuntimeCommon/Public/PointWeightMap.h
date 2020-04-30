@@ -108,9 +108,13 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FPointWeightMap
 	bool IsBelowThreshold(const int32 Index, const float Threshold=0.1f) const
 	{ return Values.IsValidIndex(Index) && Values[Index] <= Threshold; }
 
-	/** Return whether one of the specified triangle has at least one point weight below (or equal) to the specified @param Threshold. */
+	/** Return whether at least one of the specified triangle points has weight below (or equal) to the specified @param Threshold. */
 	bool AreAnyBelowThreshold(const int32 Index0, const int32 Index1, const int32 Index2, const float Threshold=0.1f) const
 	{ return IsBelowThreshold(Index0, Threshold) || IsBelowThreshold(Index1, Threshold) || IsBelowThreshold(Index2, Threshold); }
+
+	/** Return whether all of the specified triangle points have weight below (or equal) to the specified @param Threshold. */
+	bool AreAllBelowThreshold(const int32 Index0, const int32 Index1, const int32 Index2, const float Threshold=0.1f) const
+	{ return IsBelowThreshold(Index0, Threshold) && IsBelowThreshold(Index1, Threshold) && IsBelowThreshold(Index2, Threshold); }
 
 	/** Return whether all points' values are zero. */
 	bool IsZeroed() const
