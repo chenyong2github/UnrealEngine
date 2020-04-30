@@ -902,9 +902,7 @@ public:
 	void FinishFrame()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(RewindDataFinishFrame);
-		LatestFrame = FMath::Max(LatestFrame,CurFrame);
-		++CurFrame;
-
+		
 		if(IsResim())
 		{
 			ensure(IsInGameThread());
@@ -917,7 +915,7 @@ public:
 					if(Rigid->ResimType() == EResimType::ResimAsSlave)
 					{
 						ensure(!Info.bDesync);
-						const FGeometryParticleStateBase* State = GetStateAtFrameImp(Info,CurFrame);
+						const FGeometryParticleStateBase* State = GetStateAtFrameImp(Info,CurFrame+1);
 						if(ensure(State != nullptr))
 						{
 							State->SyncToParticle(*Rigid);
@@ -926,12 +924,14 @@ public:
 				}
 			}
 		}
-		
+
+		++CurFrame;
+		LatestFrame = FMath::Max(LatestFrame,CurFrame);
 	}
 
 	bool IsResim() const
 	{
-		return CurFrame <= LatestFrame;
+		return CurFrame < LatestFrame;
 	}
 
 	//Number of particles that we're currently storing history for
