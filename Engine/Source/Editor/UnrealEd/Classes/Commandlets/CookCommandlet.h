@@ -73,9 +73,6 @@ class UCookCommandlet
 	/** Cooks specified list of files */
 	bool CookByTheBook(const TArray<ITargetPlatform*>& Platforms, TArray<FString>& FilesInPath);
 
-	/** See if the cooker has exceeded max memory allowance in this case the cooker should force a garbage collection */
-	bool HasExceededMaxMemory(uint64 MaxMemoryAllowance) const;
-
 	/**	Process deferred commands */
 	void ProcessDeferredCommands();
 
