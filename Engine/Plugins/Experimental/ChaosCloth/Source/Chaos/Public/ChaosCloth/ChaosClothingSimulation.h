@@ -11,15 +11,10 @@
 
 namespace Chaos
 {
-
-	template <typename T>
-	class TTriangleMesh;
-
-	template <typename T, int d>
-	class TPBDEvolution;
-
 	typedef FClothingSimulationContextCommon ClothingSimulationContext;
 	template<class T, int d> class TPBDLongRangeConstraintsBase;
+	template<typename T> class TTriangleMesh;
+	template<typename T, int d> class TPBDEvolution;
 
 	class ClothingSimulation : public FClothingSimulationCommon
 #if WITH_EDITOR
@@ -177,12 +172,12 @@ namespace Chaos
 		float DeltaTime;
 		int32 NumSubsteps;
 
-		bool bOverrideGravity;
-		bool bUseConfigGravity;
-		float GravityScale;
-		FVector Gravity;
-		FVector ConfigGravity;
-		FVector WindVelocity;
+		bool bUseGravityOverride;
+		FVector GravityOverride;
+		TArray<float> GravityScales;
+		TArray<bool> bUseGravityConfigs; 
+		TArray<FVector> GravityConfigs;
+		TArray<FVector> WindVelocities;
 
 		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
 
