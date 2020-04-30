@@ -2243,17 +2243,15 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"), STAT_SyncBodies, STATGROUP_Physics);
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
-
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
 	{
 		Chaos::FPBDRigidActiveParticlesBufferAccessor Accessor(Solver->GetActiveParticlesBuffer());
 
-
 		const Chaos::FPBDRigidActiveParticlesBufferOut* ActiveParticleBuffer = Accessor.GetSolverOutData();
 		for (Chaos::TGeometryParticle<float, 3>* ActiveParticle : ActiveParticleBuffer->ActiveGameThreadParticles)
 		{
-		if (IPhysicsProxyBase* ProxyBase = ActiveParticle->GetProxy())
+			if (IPhysicsProxyBase* ProxyBase = ActiveParticle->GetProxy())
 			{
 				if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
 				{
@@ -2311,10 +2309,11 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 		}
 	}
 	
-	for (auto* GCProxy : GCProxies)
+	for (FGeometryCollectionPhysicsProxy* GCProxy : GCProxies)
 	{
 		GCProxy->PullFromPhysicsState();
 	}
+
 	for (const FPhysScenePendingComponentTransform_Chaos& ComponentTransform : PendingTransforms)
 	{
 		if (ComponentTransform.OwningComp != nullptr)
