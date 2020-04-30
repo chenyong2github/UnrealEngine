@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "VectorTypes.h"
 #include "FrameTypes.h"
+#include "InteractiveTool.h"
 #include "MeshBrushOpBase.generated.h"
 
 class FDynamicMesh3;
