@@ -524,7 +524,7 @@ protected:
 	virtual void RebuildObjectReferenceList();
 
 	/** Called when an internal load handle finishes, handles setting to pending state */
-	virtual void OnAssetStateChangeCompleted(FPrimaryAssetId PrimaryAssetId, TSharedPtr<FStreamableHandle> BoundHandle, FStreamableDelegate WrappedDelegate);
+	virtual void OnAssetStateChangeCompleted(TArray<FPrimaryAssetId> PrimaryAssetId, TSharedPtr<FStreamableHandle> BoundHandle, FStreamableDelegate WrappedDelegate);
 
 	/** Helper function to write out asset reports */
 	virtual bool WriteCustomReport(FString FileName, TArray<FString>& FileLines) const;
