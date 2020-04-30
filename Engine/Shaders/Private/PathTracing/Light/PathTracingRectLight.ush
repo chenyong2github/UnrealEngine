@@ -73,7 +73,7 @@ void RectLight_EstimateLight(
 	// Approximate geometric term
 	float3 SurfaceNormal = Payload.WorldNormal;
 	float NoL = dot(SurfaceNormal, LightDirection);
-	NoL = HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
+	NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
 	float Area = GetWidth(LightId) * GetHeight(LightId);
 
 	float LightPower = Luminance(GetColor(LightId));
