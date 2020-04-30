@@ -12,6 +12,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
 #include "Async/AsyncFileHandle.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 class IAsyncReadFileHandle;
 class FPlatformFileOpenLog;
@@ -93,7 +94,14 @@ public:
 
 			for (int32 Platform = 0;Platform < PlatformNames.Num(); ++Platform)
 			{
-				LogFileDirectory = FPaths::Combine( FPlatformMisc::ProjectDir(), TEXT( "Build" ), *PlatformNames[Platform], TEXT("FileOpenOrder"));
+				if (FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformNames[Platform]).bIsConfidential)
+				{
+					LogFileDirectory = FPaths::Combine(FPlatformMisc::ProjectDir(), TEXT("Platforms"), *PlatformNames[Platform], TEXT("Build"), TEXT("FileOpenOrder"));
+				}
+				else
+				{
+					LogFileDirectory = FPaths::Combine( FPlatformMisc::ProjectDir(), TEXT( "Build" ), *PlatformNames[Platform], TEXT("FileOpenOrder"));
+				}
 #if WITH_EDITOR
 				LogFilePath = FPaths::Combine( *LogFileDirectory, TEXT("EditorOpenOrder.log"));
 #else 
@@ -109,7 +117,14 @@ public:
 		}
 		else
 		{
-			LogFileDirectory = FPaths::Combine( FPlatformMisc::ProjectDir(), TEXT( "Build" ), StringCast<TCHAR>(FPlatformProperties::PlatformName()).Get(), TEXT("FileOpenOrder"));
+			if (FDataDrivenPlatformInfoRegistry::GetPlatformInfo(FPlatformProperties::PlatformName()).bIsConfidential)
+			{
+				LogFileDirectory = FPaths::Combine(FPlatformMisc::ProjectDir(), TEXT("Platforms"), StringCast<TCHAR>(FPlatformProperties::PlatformName()).Get(), TEXT("Build"), TEXT("FileOpenOrder"));
+			}
+			else
+			{
+				LogFileDirectory = FPaths::Combine(FPlatformMisc::ProjectDir(), TEXT("Build"), StringCast<TCHAR>(FPlatformProperties::PlatformName()).Get(), TEXT("FileOpenOrder"));
+			}
 #if WITH_EDITOR
 			LogFilePath = FPaths::Combine( *LogFileDirectory, TEXT("EditorOpenOrder.log"));
 #else 
