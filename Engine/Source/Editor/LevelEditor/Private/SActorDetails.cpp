@@ -135,7 +135,7 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 	GEditor->RegisterForUndo(this);
 
 	ComponentsBox = SNew(SBox)
-		.Visibility(EVisibility::Collapsed);
+		.Visibility(this, &SActorDetails::GetComponentsBoxVisibility);
 
 	SCSEditor = SNew(SSCSEditor)
 		.EditorMode(EComponentEditorMode::ActorInstance)
@@ -240,7 +240,7 @@ void SActorDetails::OnDetailsViewObjectArrayChanged(const FString& InTitle, cons
 	// The DetailsView will already check validity every tick and hide itself when invalid, so this piggy-backs on that code instead of needing a second tick function.
 	if (InObjects.Num() == 0 && !LockedActorSelection.IsValid())
 	{
-		ComponentsBox->SetVisibility(EVisibility::Collapsed);
+		bShowingComponents = false;
 	}
 }
 
@@ -250,7 +250,7 @@ void SActorDetails::SetObjects(const TArray<UObject*>& InObjects, bool bForceRef
 	{
 		DetailsView->SetObjects(InObjects, bForceRefresh);
 
-		bool bShowingComponents = false;
+		bShowingComponents = false;
 
 		if(InObjects.Num() == 1 && FKismetEditorUtilities::CanCreateBlueprintOfClass(InObjects[0]->GetClass()))
 		{
@@ -269,9 +269,6 @@ void SActorDetails::SetObjects(const TArray<UObject*>& InObjects, bool bForceRef
 				}
 			}
 		}
-
-		bool ShowComponentsInDetailsPanel = ShowComponents->GetBool();
- 		ComponentsBox->SetVisibility((bShowingComponents & ShowComponentsInDetailsPanel) ? EVisibility::Visible : EVisibility::Collapsed);
 
 		if(DetailsView->GetHostTabManager().IsValid())
 		{
@@ -706,6 +703,11 @@ void SActorDetails::OnNativeComponentWarningHyperlinkClicked(const FSlateHyperli
 			FSourceCodeNavigation::OpenSourceFile(AbsoluteHeaderPath);
 		}
 	}
+}
+
+EVisibility SActorDetails::GetComponentsBoxVisibility() const
+{
+	return (bShowingComponents & ShowComponents->GetBool()) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SActorDetails::GetUCSComponentWarningVisibility() const
