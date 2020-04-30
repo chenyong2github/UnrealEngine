@@ -95,6 +95,10 @@ public:
 		{
 			RenderBufferSets[k] = AllocateNewRenderBufferSet();
 			RenderBufferSets[k]->Material = Decomposition->GetGroup(k).Material;
+			if (RenderBufferSets[k]->Material == nullptr)
+			{
+				RenderBufferSets[k]->Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
 		}
 
 		bIsSingleBuffer = false;
