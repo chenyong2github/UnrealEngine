@@ -416,10 +416,20 @@ FSSDSampleSceneInfos UncompressRefSceneMetadata(FSSDKernelConfig KernelConfig)
 	// Find out the buffer UV of the reference pixel.
 	float2 RefBufferUV = ComputeRefBufferUV(KernelConfig);
 
+	float2 ScreenPos;
+	if (KernelConfig.bPreviousFrameMetadata)
+	{
+		ScreenPos = RefBufferUV * PrevSceneBufferUVToScreenPosition.xy + PrevSceneBufferUVToScreenPosition.zw;
+	}
+	else
+	{
+		ScreenPos = DenoiserBufferUVToScreenPosition(RefBufferUV);
+	}
+
 	// Uncompress the reference scene metadata to keep a low VGPR pressure.
 	return UncompressSampleSceneInfo(
 		KernelConfig.RefSceneMetadataLayout, /* bIsPrevFrame = */ false,
-		DenoiserBufferUVToScreenPosition(RefBufferUV),
+		ScreenPos,
 		KernelConfig.CompressedRefSceneMetadata);
 }
 
@@ -429,9 +439,19 @@ FSSDSampleSceneInfos UncompressSampleSceneMetadata(
 	float2 SampleBufferUV,
 	FSSDCompressedSceneInfos CompressedSampleSceneMetadata)
 {
+	float2 ScreenPos;
+	if (KernelConfig.bPreviousFrameMetadata)
+	{
+		ScreenPos = SampleBufferUV * PrevSceneBufferUVToScreenPosition.xy + PrevSceneBufferUVToScreenPosition.zw;
+	}
+	else
+	{
+		ScreenPos = DenoiserBufferUVToScreenPosition(SampleBufferUV);
+	}
+
 	return UncompressSampleSceneInfo(
 		CONFIG_METADATA_BUFFER_LAYOUT, KernelConfig.bPreviousFrameMetadata,
-		DenoiserBufferUVToScreenPosition(SampleBufferUV),
+		ScreenPos,
 		CompressedSampleSceneMetadata);
 }
 
