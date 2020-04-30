@@ -184,6 +184,11 @@
 	#define USE_CHECKS_IN_SHIPPING 0
 #endif
 
+/** If not defined follow the CHECK behavior since previously ensures were compiled in with checks */
+#ifndef USE_ENSURES_IN_SHIPPING
+	#define USE_ENSURES_IN_SHIPPING USE_CHECKS_IN_SHIPPING
+#endif
+
 #ifndef ALLOW_CONSOLE_IN_SHIPPING
 	#define ALLOW_CONSOLE_IN_SHIPPING 0
 #endif
@@ -209,7 +214,8 @@
 	Basic options that by default depend on the build configuration and platform
 
 	DO_GUARD_SLOW									If true, then checkSlow, checkfSlow and verifySlow are compiled into the executable.
-	DO_CHECK										If true, then checkCode, checkf, verify, check, checkNoEntry, checkNoReentry, checkNoRecursion, verifyf, checkf, ensure, ensureAlways, ensureMsgf and ensureAlwaysMsgf are compiled into the executables
+	DO_CHECK										If true, then checkCode, checkf, verify, check, checkNoEntry, checkNoReentry, checkNoRecursion, verifyf, checkf are compiled into the executables
+	DO_ENSURE										If true, then ensure, ensureAlways, ensureMsgf and ensureAlwaysMsgf are compiled into the executables
 	STATS											If true, then the stats system is compiled into the executable.
 	ALLOW_DEBUG_FILES								If true, then debug files like screen shots and profiles can be saved from the executable.
 	NO_LOGGING										If true, then no logs or text output will be produced
@@ -222,6 +228,9 @@
 	#endif
 	#ifndef DO_CHECK
 		#define DO_CHECK										1
+	#endif
+	#ifndef DO_ENSURE
+		#define DO_ENSURE										1
 	#endif
 	#ifndef STATS
 		#define STATS											((WITH_UNREAL_DEVELOPER_TOOLS || !WITH_EDITORONLY_DATA || USE_STATS_WITHOUT_ENGINE || USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
@@ -242,6 +251,9 @@
 	#ifndef DO_CHECK
 		#define DO_CHECK										1
 	#endif
+	#ifndef DO_ENSURE
+		#define DO_ENSURE										1
+	#endif
 	#ifndef STATS
 		#define STATS											((WITH_UNREAL_DEVELOPER_TOOLS || !WITH_EDITORONLY_DATA || USE_STATS_WITHOUT_ENGINE || USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
 	#endif
@@ -260,6 +272,9 @@
 	#endif
 	#ifndef DO_CHECK
 		#define DO_CHECK										USE_CHECKS_IN_SHIPPING
+	#endif
+	#ifndef DO_ENSURE
+		#define DO_ENSURE										USE_ENSURES_IN_SHIPPING
 	#endif
 	#ifndef STATS
 		#define STATS											((USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
@@ -281,6 +296,9 @@
 		#ifndef DO_CHECK
 			#define DO_CHECK									1
 		#endif
+		#ifndef DO_ENSURE
+			#define DO_ENSURE									1
+		#endif
 		#ifndef STATS
 			#define STATS										1
 		#endif
@@ -299,6 +317,9 @@
 		#endif
 		#ifndef DO_CHECK
 			#define DO_CHECK									USE_CHECKS_IN_SHIPPING
+		#endif
+		#ifndef DO_ENSURE
+			#define DO_ENSURE									USE_ENSURES_IN_SHIPPING
 		#endif
 		#ifndef STATS
 			#define STATS										(FORCE_USE_STATS && !ENABLE_STATNAMEDEVENTS)
