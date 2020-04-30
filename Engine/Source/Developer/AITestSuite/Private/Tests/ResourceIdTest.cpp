@@ -4,6 +4,7 @@
 #include "AITypes.h"
 #include "AITestsCommon.h"
 #include "Actions/TestPawnAction_Log.h"
+#include "Actions/PawnActionsComponent.h"
 
 //----------------------------------------------------------------------//
 // 
@@ -128,7 +129,7 @@ IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceSet, "System.Engine.AI.Resource ID.Res
 //----------------------------------------------------------------------//
 // 
 //----------------------------------------------------------------------//
-struct FAITest_PawnActions_PausingActionsOfSameResource : public FAITest_SimpleActionsTest
+struct FAITest_PawnActions_PausingActionsOfSameResource : public FAITest_SimpleComponentBasedTest<UPawnActionsComponent>
 {
 	void InstantTest()
 	{
@@ -157,7 +158,7 @@ IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_PausingActionsOfSameResource, "Sys
 //----------------------------------------------------------------------//
 // 
 //----------------------------------------------------------------------//
-struct FAITest_PawnActions_NotPausingActionsOfDifferentResources : public FAITest_SimpleActionsTest
+struct FAITest_PawnActions_NotPausingActionsOfDifferentResources : public FAITest_SimpleComponentBasedTest<UPawnActionsComponent>
 {
 	void InstantTest()
 	{

@@ -5,10 +5,102 @@
 #include "BehaviorTree/Decorators/BTDecorator_ForceSuccess.h"
 #include "BTBuilder.h"
 #include "AITestsCommon.h"
+#include "MockAI_BT.h"
 #include "BehaviorTree/TestBTDecorator_CantExecute.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_BTTest"
 
+//----------------------------------------------------------------------//
+// FAITest_SimpleBT
+//----------------------------------------------------------------------//
+struct FAITest_SimpleBT : public FAITestBase
+{
+	TArray<int32> ExpectedResult;
+	UBehaviorTree* BTAsset;
+	UMockAI_BT* AIBTUser;
+	bool bUseSystemTicking;
+
+	FAITest_SimpleBT()
+	{
+		bUseSystemTicking = false;
+
+		BTAsset = &FBTBuilder::CreateBehaviorTree();
+		if (BTAsset)
+		{
+			AddAutoDestroyObject(*BTAsset);
+		}
+	}
+
+	void SetUp() override
+	{
+		FAITestBase::SetUp();
+
+		AIBTUser = NewAutoDestroyObject<UMockAI_BT>();
+
+		UMockAI_BT::ExecutionLog.Reset();
+
+		if (AIBTUser && BTAsset)
+		{
+			AIBTUser->RunBT(*BTAsset, EBTExecutionMode::SingleRun);
+			AIBTUser->SetEnableTicking(bUseSystemTicking);
+		}
+	}
+
+	bool Update() override
+	{
+		FAITestHelpers::UpdateFrameCounter();
+
+		if (AIBTUser != NULL)
+		{
+			if (bUseSystemTicking == false)
+			{
+				AIBTUser->TickMe(FAITestHelpers::TickInterval);
+			}
+
+			if (AIBTUser->IsRunning())
+			{
+				return false;
+			}
+		}
+
+		VerifyResults();
+		return true;
+	}
+
+	void VerifyResults()
+	{
+		const bool bMatch = (ExpectedResult == UMockAI_BT::ExecutionLog);
+		//ensure(bMatch && "VerifyResults failed!");
+		if (!bMatch)
+		{
+			FString DescriptionResult;
+			for (int32 Idx = 0; Idx < UMockAI_BT::ExecutionLog.Num(); Idx++)
+			{
+				DescriptionResult += TTypeToString<int32>::ToString(UMockAI_BT::ExecutionLog[Idx]);
+				if (Idx < (UMockAI_BT::ExecutionLog.Num() - 1))
+				{
+					DescriptionResult += TEXT(", ");
+				}
+			}
+
+			FString DescriptionExpected;
+			for (int32 Idx = 0; Idx < ExpectedResult.Num(); Idx++)
+			{
+				DescriptionExpected += TTypeToString<int32>::ToString(ExpectedResult[Idx]);
+				if (Idx < (ExpectedResult.Num() - 1))
+				{
+					DescriptionExpected += TEXT(", ");
+				}
+			}
+
+			UE_LOG(LogBehaviorTreeTest, Error, TEXT("Test scenario failed to produce expected results!\nExecution log: %s\nExpected values: %s"), *DescriptionResult, *DescriptionExpected);
+		}
+	}
+};
+
+//----------------------------------------------------------------------//
+// TESTS 
+//----------------------------------------------------------------------//
 struct FAITest_BTBasicSelector : public FAITest_SimpleBT
 {
 	FAITest_BTBasicSelector()

@@ -3,14 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/UObjectGlobals.h"
 #include "Misc/AutomationTest.h"
 #include "TestLogger.h"
-#include "Actions/PawnActionsComponent.h"
+#include "Engine/EngineBaseTypes.h"
+
 
 #define ENSURE_FAILED_TESTS 1
-
-class UBehaviorTree;
-class UMockAI_BT;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAITestSuite, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogBehaviorTreeTest, Log, All);
@@ -59,21 +58,12 @@ protected:
 		return ObjectInstance;
 	}
 
-	void AddAutoDestroyObject(UObject& ObjectRef)
-	{
-		ObjectRef.AddToRoot();
-		SpawnedObjects.Add(&ObjectRef);
-	}
+	void AddAutoDestroyObject(UObject& ObjectRef);
+	UWorld& GetWorld() const;
 
-	UWorld& GetWorld() const
-	{
-		UWorld* World = FAITestHelpers::GetWorld();
-		check(World);
-		return *World;
-	}
-
-	// loggin helper
+	// logging helper
 	void Test(const FString& Description, bool bValue);
+	FAutomationTestBase& GetTestRunner() const { check(TestRunner); return *TestRunner; }
 
 public:
 
@@ -85,7 +75,7 @@ public:
 	/** @return true to indicate that the test is done. */
 	virtual bool Update() { return true; }
 	virtual void InstantTest() {}
-	// must be called!
+	// it's essential that overriding functions call the super-implementation. Otherwise the check in ~FAITestBase will fail.
 	virtual void TearDown();
 };
 
@@ -123,28 +113,13 @@ DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(AITESTSUITE_API, FAITest
 		TestInstance->InstantTest(); \
 		/* tear down */ \
 		TestInstance->TearDown(); \
+		delete TestInstance; \
 		return true; \
 	} 
 
 //----------------------------------------------------------------------//
 // Specific test types
 //----------------------------------------------------------------------//
-
-struct FAITest_SimpleBT : public FAITestBase
-{
-	TArray<int32> ExpectedResult;
-	UBehaviorTree* BTAsset;
-	UMockAI_BT* AIBTUser;
-	bool bUseSystemTicking;
-
-	FAITest_SimpleBT();	
-	
-	virtual void SetUp() override;
-	virtual bool Update() override;
-	
-	virtual void VerifyResults();
-};
-
 template<class TComponent>
 struct FAITest_SimpleComponentBasedTest : public FAITestBase
 {
@@ -180,5 +155,3 @@ struct FAITest_SimpleComponentBasedTest : public FAITestBase
 
 	//virtual bool Update() override;
 };
-
-typedef FAITest_SimpleComponentBasedTest<UPawnActionsComponent> FAITest_SimpleActionsTest;

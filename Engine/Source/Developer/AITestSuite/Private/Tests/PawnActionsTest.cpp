@@ -2,10 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "AITestsCommon.h"
+#include "Actions/PawnActionsComponent.h"
 #include "Actions/TestPawnAction_Log.h"
 #include "Actions/TestPawnAction_CallFunction.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_PawnActionTest"
+
+typedef FAITest_SimpleComponentBasedTest<UPawnActionsComponent> FAITest_SimpleActionsTest;
 
 //----------------------------------------------------------------------//
 // 
