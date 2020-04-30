@@ -640,7 +640,7 @@ bool FLandscapeEditorDetails::GetBrushSelectorIsVisible() const
 FText FLandscapeEditorDetails::GetCurrentBrushFalloffName() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode != NULL && LandscapeEdMode->CurrentBrush != NULL)
+	if (LandscapeEdMode != NULL && LandscapeEdMode->CurrentBrush != NULL && GetBrushFalloffSelectorIsVisible())
 	{
 		const TCHAR* CurrentBrushName = LandscapeEdMode->CurrentBrush->GetBrushName();
 		return GetLocalizedName(CurrentBrushName);
