@@ -56,7 +56,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysFixedStepTolerance(TEXT("p.Chaos.ImmPhys
 
 int32 ChaosImmediate_Collision_Enabled = 1;
 int32 ChaosImmediate_Collision_PairIterations = -1;
-int32 ChaosImmediate_Collision_PushOutPairIterations = -1;
+int32 ChaosImmediate_Collision_PushOutPairIterations = 0;	// Force disabled - not compatible with ECollisionApplyType::Position
 int32 ChaosImmediate_Collision_Priority = 1;
 float ChaosImmediate_Collision_CullDistance = 1.0f;
 float ChaosImmediate_Collision_ShapePadding = 0;

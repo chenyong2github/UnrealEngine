@@ -1249,6 +1249,25 @@ public:
 		return TRotation<T, d>::FromIdentity();
 	}
 
+	T LinearEtherDrag() const
+	{
+		if (auto RigidHandle = Handle->CastToRigidParticle())
+		{
+			return RigidHandle->LinearEtherDrag();
+		}
+		return 0.0f;
+	}
+
+	T AngularEtherDrag() const
+	{
+		if (auto RigidHandle = Handle->CastToRigidParticle())
+		{
+			return RigidHandle->AngularEtherDrag();
+		}
+		return 0.0f;
+	}
+
+
 #if CHAOS_CHECKED
 	const FName& DebugName() const
 	{
