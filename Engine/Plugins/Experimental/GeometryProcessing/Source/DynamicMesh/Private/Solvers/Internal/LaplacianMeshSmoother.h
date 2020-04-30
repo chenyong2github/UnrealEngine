@@ -4,15 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
+#include "Solvers/MeshLaplacian.h"
+#include "Solvers/MeshLinearization.h"
+#include "Solvers/ConstrainedMeshSolver.h"
 #include "ConstrainedPoissonSolver.h"
-#include "FSOAPositions.h"
 #include "MatrixSolver.h"
-#include "MeshSmoothingUtilities.h"
-#include "MeshElementLinearizations.h"
 
 
 
-class MESHSOLVERUTILITIES_API FConstrainedMeshOperator : public MeshDeformingOperators::IConstrainedMeshOperator
+class DYNAMICMESH_API FConstrainedMeshOperator : public IConstrainedMeshSolver
 {
 public:
 	typedef FConstrainedSolver::FConstraintPosition   FConstraintPosition;
@@ -96,7 +96,7 @@ protected:
 };
 
 
-class MESHSOLVERUTILITIES_API FConstrainedMeshDeformer : public FConstrainedMeshOperator
+class DYNAMICMESH_API FConstrainedMeshDeformer : public FConstrainedMeshOperator
 {
 public:
 	FConstrainedMeshDeformer(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme LaplacianType);

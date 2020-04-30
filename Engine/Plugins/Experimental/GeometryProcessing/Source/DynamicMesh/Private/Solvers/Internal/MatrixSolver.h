@@ -29,9 +29,6 @@ THIRD_PARTY_INCLUDES_END
 #pragma warning(pop)
 #endif
 
-#include "FSOAPositions.h"
-
-
 #include "ProfilingDebugging/ScopedTimers.h"
 
 

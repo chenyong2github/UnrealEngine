@@ -42,7 +42,6 @@ public class MeshModelingTools : ModuleRules
 				"MeshConversion",
 				"MeshDescription",
                 "StaticMeshDescription",
-                "MeshSolverUtilities",
 				"ModelingComponents",
 				"ModelingOperators",
 

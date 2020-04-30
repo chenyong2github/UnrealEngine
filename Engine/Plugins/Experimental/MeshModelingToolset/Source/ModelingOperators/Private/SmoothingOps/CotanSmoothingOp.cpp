@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmoothingOps/CotanSmoothingOp.h"
-
-#include "MeshSmoothingUtilities.h"
+#include "Solvers/MeshSmoothing.h"
 
 
 FCotanSmoothingOp::FCotanSmoothingOp(const FDynamicMesh3* Mesh, float Speed, int32 Iterations) :
@@ -24,5 +23,5 @@ void FCotanSmoothingOp::CalculateResult(FProgressCancel* Progress)
 void FCotanSmoothingOp::Smooth()
 {
 	double Intensity = 1.;
-	MeshSmoothingOperators::ComputeSmoothing_BiHarmonic(ELaplacianWeightScheme::ClampedCotangent, *ResultMesh, SmoothSpeed, Intensity, SmoothIterations, PositionBuffer);
+	UE::MeshDeformation::ComputeSmoothing_BiHarmonic(ELaplacianWeightScheme::ClampedCotangent, *ResultMesh, SmoothSpeed, Intensity, SmoothIterations, PositionBuffer);
 }

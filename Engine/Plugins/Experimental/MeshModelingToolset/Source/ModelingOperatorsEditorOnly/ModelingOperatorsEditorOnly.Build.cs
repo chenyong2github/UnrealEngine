@@ -33,7 +33,6 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				"GeometricObjects",
 				"DynamicMesh",
 				"MeshConversion",
-				"MeshSolverUtilities",
 				"GeometryAlgorithms", // required for constrained Delaunay triangulation
                 "ProxyLODMeshReduction", // currently required to be public due to IVoxelBasedCSG API
 				"MeshUtilitiesCommon", // required by uvlayoutop
