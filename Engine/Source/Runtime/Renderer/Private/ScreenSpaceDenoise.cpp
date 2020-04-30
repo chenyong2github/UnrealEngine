@@ -1038,6 +1038,7 @@ class FSSDTemporalAccumulationCS : public FGlobalShader
 		SHADER_PARAMETER(FVector4, HistoryBufferSizeAndInvSize)
 		SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
 		SHADER_PARAMETER_ARRAY(FVector4, HistoryBufferScissorUVMinMax, [IScreenSpaceDenoiser::kMaxBatchSize])
+		SHADER_PARAMETER(FVector4, PrevSceneBufferUVToScreenPosition)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDCommonParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDConvolutionMetaData, ConvolutionMetaData)
@@ -1762,6 +1763,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 				(ViewportOffset.Y + ViewportExtent.Y - 0.5f) * InvBufferSizeY);
 
 			PassParameters->HistoryBufferSizeAndInvSize = FVector4(PrevFrameBufferExtent.X, PrevFrameBufferExtent.Y, InvBufferSizeX, InvBufferSizeY);
+
+			PassParameters->PrevSceneBufferUVToScreenPosition.X = float(PrevFrameBufferExtent.X) / float(ViewportExtent.X) * 2.0f;
+			PassParameters->PrevSceneBufferUVToScreenPosition.Y = -float(PrevFrameBufferExtent.Y) / float(ViewportExtent.Y) * 2.0f;
+			PassParameters->PrevSceneBufferUVToScreenPosition.Z = float(ViewportOffset.X) / float(ViewportExtent.X) * 2.0f - 1.0f;
+			PassParameters->PrevSceneBufferUVToScreenPosition.W = -float(ViewportOffset.Y) / float(ViewportExtent.Y) * 2.0f + 1.0f;
 		}
 
 		FScreenSpaceDenoiserHistory DummyPrevFrameHistory;

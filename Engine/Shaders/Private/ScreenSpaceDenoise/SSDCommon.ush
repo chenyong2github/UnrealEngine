@@ -80,6 +80,9 @@ float4 BufferUVToScreenPosition;
 float4x4 ScreenToView;
 float2 BufferUVBilinearCorrection;
 
+
+float4 PrevSceneBufferUVToScreenPosition;
+
 float WorldDepthToPixelWorldRadius;
 
 Texture2D PrevDepthBuffer;
