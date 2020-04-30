@@ -6,13 +6,37 @@
 #include "DynamicMesh3.h"
 #include "Async/ParallelFor.h"
 #include "LineTypes.h"
+#include "MeshPinchBrushOps.generated.h"
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UPinchBrushOpProps : public UMeshSculptBrushOpProps
+{
+	GENERATED_BODY()
+public:
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = PinchBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Strength = 0.5;
+
+	/** Amount of falloff to apply */
+	UPROPERTY(EditAnywhere, Category = PinchBrush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float Falloff = 1.0;
+
+	/** Depth of Brush into surface along surface normal */
+	UPROPERTY(EditAnywhere, Category = PinchBrush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
+	float Depth = 0;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual float GetFalloff() override { return Falloff; }
+	virtual float GetDepth() override { return Depth; }
+};
 
 
 class FPinchBrushOp : public FMeshSculptBrushOp
 {
 
 public:
-	double BrushSpeedTuning = 0.05;
+	double BrushSpeedTuning = 6.0;
 
 	FVector3d LastSmoothBrushPosLocal;
 	FVector3d LastSmoothBrushNormalLocal;;
@@ -37,7 +61,7 @@ public:
 		FLine3d MoveLine(LastSmoothBrushPosLocal, MotionVec);
 
 		FVector3d DepthPosLocal = NewSmoothBrushPosLocal - (Stamp.Depth * Stamp.Radius * NewSmoothBrushNormal);
-		double UseSpeed = Stamp.Direction * Stamp.Radius * Stamp.Power * BrushSpeedTuning;
+		double UseSpeed = Stamp.Direction * Stamp.Radius * Stamp.Power * Stamp.DeltaTime * BrushSpeedTuning;
 
 		LastSmoothBrushPosLocal = NewSmoothBrushPosLocal;
 

@@ -10,7 +10,6 @@
 #include "DynamicMeshOctree3.h"
 #include "MeshNormals.h"
 #include "BaseTools/BaseBrushTool.h"
-#include "Changes/ValueWatcher.h"
 #include "TransformTypes.h"
 #include "Sculpting/MeshSculptToolBase.h"
 #include "Sculpting/MeshBrushOpBase.h"
@@ -65,6 +64,9 @@ enum class EMeshVertexSculptBrushType : uint8
 	/** Smooth mesh vertices  */
 	Smooth UMETA(DisplayName = "Smooth"),
 
+	/** Smooth mesh vertices but only in direction of normal (Ctrl to invert) */
+	SmoothFill UMETA(DisplayName = "SmoothFill"),
+
 	/** Displace vertices along the average surface normal (Ctrl to invert) */
 	Offset UMETA(DisplayName = "Sculpt (Normal)"),
 
@@ -109,23 +111,20 @@ class MESHMODELINGTOOLS_API UVertexBrushSculptProperties : public UInteractiveTo
 public:
 	/** Primary Brush Mode */
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Brush Type"))
-	EMeshVertexSculptBrushType PrimaryBrushType = EMeshVertexSculptBrushType::Move;
+	EMeshVertexSculptBrushType PrimaryBrushType = EMeshVertexSculptBrushType::Offset;
 
-	/** Strength of the Primary Brush */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditCondition = "PrimaryBrushType != EMeshVertexSculptBrushType::Pull"))
-	float PrimaryBrushSpeed = 0.5;
-
-	/** If true, try to preserve the shape of the UV/3D mapping. This will limit Smoothing and Remeshing in some cases. */
-	UPROPERTY(EditAnywhere, Category = Sculpting)
-	bool bPreserveUVFlow = false;
+	/** Primary Brush Falloff */
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Falloff Shape"))
+	EMeshSculptFalloffType PrimaryFalloffType = EMeshSculptFalloffType::Smooth;
 
 	/** When Freeze Target is toggled on, the Brush Target Surface will be Frozen in its current state, until toggled off. Brush strokes will be applied relative to the Target Surface, for applicable Brushes */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EMeshVertexSculptBrushType::Sculpt || PrimaryBrushType == EMeshVertexSculptBrushType::SculptMax || PrimaryBrushType == EMeshVertexSculptBrushType::SculptView || PrimaryBrushType == EMeshVertexSculptBrushType::Pinch || PrimaryBrushType == EMeshVertexSculptBrushType::Resample" ))
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EMeshVertexSculptBrushType::Offset || PrimaryBrushType == EMeshVertexSculptBrushType::SculptMax || PrimaryBrushType == EMeshVertexSculptBrushType::SculptView || PrimaryBrushType == EMeshVertexSculptBrushType::Pinch || PrimaryBrushType == EMeshVertexSculptBrushType::Resample" ))
 	bool bFreezeTarget = false;
 
-	/** Strength of Shift-to-Smooth Brushing and Smoothing Brush */
-	UPROPERTY(EditAnywhere, Category = Smoothing, meta = (DisplayName = "Smoothing Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float SmoothBrushSpeed = 0.25;
+	/** When enabled, instead of Mesh Smoothing, the Shift-Smooth modifier will "erase" the displacement relative to the Brush Target Surface */
+	//UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Shift-Smooth Erases", EditCondition = "bFreezeTarget == true"))
+	UPROPERTY()
+	bool bSmoothErases = false;
 };
 
 
@@ -150,13 +149,6 @@ public:
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override { return true; }
 
-	virtual bool HitTest(const FRay& Ray, FHitResult& OutHit) override;
-
-	virtual void OnBeginDrag(const FRay& Ray) override;
-	virtual void OnUpdateDrag(const FRay& Ray) override;
-	virtual void OnEndDrag(const FRay& Ray) override;
-
-	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
@@ -167,16 +159,6 @@ public:
 	UPROPERTY()
 	UVertexBrushSculptProperties* SculptProperties;
 
-	UPROPERTY()
-	UPlaneBrushProperties* PlaneBrushProperties;
-
-	UPROPERTY()
-	USculptMaxBrushProperties* SculptMaxBrushProperties;
-	
-	//UPROPERTY()
-	//UKelvinBrushProperties* KelvinBrushProperties;
-
-
 public:
 	virtual void IncreaseBrushSpeedAction() override;
 	virtual void DecreaseBrushSpeedAction() override;
@@ -184,29 +166,27 @@ public:
 	virtual void PreviousBrushModeAction() override;
 
 protected:
+	// UMeshSculptToolBase API
+	virtual UBaseDynamicMeshComponent* GetSculptMeshComponent() { return DynamicMeshComponent; }
+	virtual FDynamicMesh3* GetBaseMesh() { return &BaseMesh; }
+	virtual const FDynamicMesh3* GetBaseMesh() const { return &BaseMesh; }
+
+	virtual int32 FindHitSculptMeshTriangle(const FRay3d& LocalRay) override;
+	virtual int32 FindHitTargetMeshTriangle(const FRay3d& LocalRay) override;
+
+	virtual void OnBeginStroke(const FRay& WorldRay) override;
+	virtual void OnEndStroke() override;
+	// end UMeshSculptToolBase API
+
+protected:
 	UPROPERTY()
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
-
-	virtual UBaseDynamicMeshComponent* GetSculptMeshComponent() { return DynamicMeshComponent; }
-
-	FTransform3d InitialTargetTransform;
-	FTransform3d CurTargetTransform;
 
 	// realtime visualization
 	void OnDynamicMeshComponentChanged(USimpleDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
-	TValueWatcher<EMeshVertexSculptBrushType> BrushTypeWatcher;
 	void UpdateBrushType(EMeshVertexSculptBrushType BrushType);
-
-
-	bool bInDrag;
-
-	FFrame3d ActiveDragPlane;
-	FVector3d LastHitPosWorld;
-	FVector3d LastBrushPosLocal;
-	FVector3d LastBrushPosWorld;
-	FVector3d LastBrushPosNormalWorld;
 
 	TSet<int32> AccumulatedTriangleROI;
 	bool bUndoUpdatePending = false;
@@ -223,21 +203,10 @@ protected:
 
 	bool bTargetDirty;
 
-	bool bSmoothing;
-	bool bInvert;
-
-	bool bStampPending;
-	FRay PendingStampRay;
-	int StampTimestamp = 0;
 	EMeshVertexSculptBrushType PendingStampType = EMeshVertexSculptBrushType::Smooth;
-
-	TUniquePtr<FMeshSculptBrushOp> PrimaryBrushOp;
-	TUniquePtr<FMeshSculptBrushOp> SecondaryBrushOp;
-	TSharedPtr<FMeshSculptFallofFunc> ActiveFalloff;
 
 	bool UpdateStampPosition(const FRay& WorldRay);
 	void ApplyStamp();
-
 
 	FDynamicMesh3 BaseMesh;
 	FDynamicMeshOctree3 BaseMeshSpatial;
@@ -245,33 +214,20 @@ protected:
 	bool bCachedFreezeTarget = false;
 	void UpdateBaseMesh(const TSet<int32>* TriangleROI = nullptr);
 	bool GetBaseMeshNearest(int32 VertexID, const FVector3d& Position, double SearchRadius, FVector3d& TargetPosOut, FVector3d& TargetNormalOut);
+	TFunction<bool(int32, const FVector3d&, double MaxDist, FVector3d&, FVector3d&)> BaseMeshQueryFunc;
 
 	FDynamicMeshOctree3 Octree;
 
-	int FindHitSculptMeshTriangle(const FRay3d& LocalRay);
-	int FindHitTargetMeshTriangle(const FRay3d& LocalRay);
-
 	bool UpdateBrushPosition(const FRay& WorldRay);
-	bool UpdateBrushPositionOnActivePlane(const FRay& WorldRay);
-	bool UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, bool bFallbackToViewPlane);
-	bool UpdateBrushPositionOnSculptMesh(const FRay& WorldRay, bool bFallbackToViewPlane);
-	void AlignBrushToView();
 
 	double SculptMaxFixedHeight = -1.0;
 
-	double CalculateBrushFalloff(double Distance);
 	TArray<FVector3d> ROIPositionBuffer;
 	void SyncMeshWithPositionBuffer(FDynamicMesh3* Mesh);
-
-	FFrame3d ActiveFixedBrushPlane;
-	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth, bool bViewAligned);
 
 	FMeshVertexChangeBuilder* ActiveVertexChange = nullptr;
 	void BeginChange();
 	void EndChange();
-
-	FCriticalSection UpdateSavedVertexLock;
-
 
 
 protected:
