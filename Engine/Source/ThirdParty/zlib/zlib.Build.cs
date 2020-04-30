@@ -72,16 +72,5 @@ public class zlib : ModuleRules
 			PublicIncludePaths.Add(zlibPath + "/include" + platform);
 			PublicAdditionalLibraries.Add(zlibPath + "/lib/" + platform + "/libz_fPIC.a");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			// Use reflection to allow type not to exist if console code is not present
-			System.Type XboxOnePlatformType = System.Type.GetType("UnrealBuildTool.XboxOnePlatform,UnrealBuildTool");
-			if (XboxOnePlatformType != null)
-			{
-				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				PublicIncludePaths.Add(OldzlibPath + "/Inc");
-				PublicAdditionalLibraries.Add(OldzlibPath + "/Lib/XboxOne/VS" + VersionName.ToString() + "/zlib125_XboxOne.lib");
-			}
-		}
 	}
 }
