@@ -121,7 +121,7 @@ public:
 	//TODO: Allow pool size overriding per world and possibly implement some preallocation too.
 
 #if WITH_PARTICLE_PERF_STATS
-	FParticlePerfStats ParticlePerfStats;
+	FParticlePerfStats* ParticlePerfStats;
 #endif
 };
 
