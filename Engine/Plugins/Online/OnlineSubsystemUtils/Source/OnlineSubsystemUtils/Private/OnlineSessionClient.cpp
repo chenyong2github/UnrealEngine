@@ -46,12 +46,6 @@ void UOnlineSessionClient::RegisterOnlineDelegates()
 	OnDestroyForJoinSessionCompleteDelegate = FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::OnDestroyForJoinSessionComplete);
 	OnDestroyForMainMenuCompleteDelegate	= FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::OnDestroyForMainMenuComplete);
 	OnSessionUserInviteAcceptedDelegate     = FOnSessionUserInviteAcceptedDelegate::CreateUObject(this, &ThisClass::OnSessionUserInviteAccepted);
-	OnPlayTogetherEventReceivedDelegate		= FOnPlayTogetherEventReceivedDelegate::CreateUObject(this, &ThisClass::OnPlayTogetherEventReceived);
-
-	if (IOnlineSubsystem* const OnlineSubsystem = IOnlineSubsystem::Get())
-	{
-		OnPlayTogetherEventReceivedDelegateHandle = OnlineSubsystem->AddOnPlayTogetherEventReceivedDelegate_Handle(OnPlayTogetherEventReceivedDelegate);
-	}
 
 	IOnlineSessionPtr SessionInt = GetSessionInt();
 	if (SessionInt.IsValid())
@@ -66,11 +60,6 @@ void UOnlineSessionClient::ClearOnlineDelegates()
 	if (SessionInt.IsValid())
 	{
 		SessionInt->ClearOnSessionUserInviteAcceptedDelegate_Handle(OnSessionUserInviteAcceptedDelegateHandle);
-	}
-
-	if (IOnlineSubsystem* const OnlineSubsystem = IOnlineSubsystem::Get())
-	{
-		OnlineSubsystem->ClearOnPlayTogetherEventReceivedDelegate_Handle(OnPlayTogetherEventReceivedDelegateHandle);
 	}
 }
 
