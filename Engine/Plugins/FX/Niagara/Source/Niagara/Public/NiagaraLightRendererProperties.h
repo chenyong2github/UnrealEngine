@@ -11,7 +11,7 @@
 class FNiagaraEmitterInstance;
 class SWidget;
 
-UCLASS(editinlinenew, meta = (DisplayName = "Light Renderer"))
+UCLASS(editinlinenew, MinimalAPI, meta = (DisplayName = "Light Renderer"))
 class UNiagaraLightRendererProperties : public UNiagaraRendererProperties
 {
 public:
