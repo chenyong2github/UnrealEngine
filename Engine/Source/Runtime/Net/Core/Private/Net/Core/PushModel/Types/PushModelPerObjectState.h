@@ -11,6 +11,7 @@
 #include "PushModelUtils.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Containers/SparseArray.h"
+#include "UObject/ObjectKey.h"
 
 namespace UE4PushModelPrivate
 {
@@ -25,17 +26,17 @@ namespace UE4PushModelPrivate
 		/**
 		 * Creates a new FPushModelPerObjectState.
 		 *
-		 * @param InObjectId			The ID that we'll use to refer to this object. Should be unique across all Push Model Objects (but doesn't necessarily have to be UObject::GetUniqueId()).
+		 * @param InObjectKey			An ObjectKey that can uniqely identify the object we're representing.
 		 * @param InNumberOfProperties	The total number of replicated properties this object has.
 		 */
-		FPushModelPerObjectState(const FNetPushObjectId InObjectId, const uint16 InNumberOfProperties)
-			: ObjectId(InObjectId)
+		FPushModelPerObjectState(const FObjectKey InObjectKey, const uint16 InNumberOfProperties)
+			: ObjectKey(InObjectKey)
 			, DirtiedThisFrame(true, InNumberOfProperties)
 		{
 		}
 
 		FPushModelPerObjectState(FPushModelPerObjectState&& Other)
-			: ObjectId(Other.ObjectId)
+			: ObjectKey(Other.ObjectKey)
 			, DirtiedThisFrame(MoveTemp(Other.DirtiedThisFrame))
 			, PerNetDriverStates(MoveTemp(Other.PerNetDriverStates))
 		{
@@ -117,7 +118,7 @@ namespace UE4PushModelPrivate
 			return DirtiedThisFrame.Num();
 		}
 
-		const FNetPushObjectId GetObjectId() const
+		const FObjectKey& GetObjectKey() const
 		{
 			return ObjectId;
 		}
@@ -125,7 +126,7 @@ namespace UE4PushModelPrivate
 	private:
 	
 		//! A unique ID for the object.
-		const FNetPushObjectId ObjectId;
+		const FObjectKey ObjectKey;
 
 		//! Bitfield tracking which properties we've dirtied since the last time
 		//! our state was pushed to NetDrivers.
