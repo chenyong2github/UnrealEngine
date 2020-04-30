@@ -1389,6 +1389,53 @@ bool FPImplRecastNavMesh::GetRandomPointInCluster(NavNodeRef ClusterRef, FNavLoc
 	return false;
 }
 
+bool FPImplRecastNavMesh::FindMoveAlongSurface(const FNavLocation& StartLocation, const FVector& TargetPosition, FNavLocation& OutLocation, const FNavigationQueryFilter& Filter, const UObject* Owner) const
+{
+	// sanity check
+	if (DetourNavMesh == NULL)
+	{
+		return false;
+	}
+
+	FRecastSpeciaLinkFilter LinkFilter(FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMeshOwner->GetWorld()), Owner);
+	// using 0 as NumNodes since findNearestPoly2D, being the only dtNavMeshQuery
+	// function we're using, is not utilizing m_nodePool
+	INITIALIZE_NAVQUERY(NavQuery, /*NumNodes=*/0, LinkFilter);
+
+	const dtQueryFilter* QueryFilter = ((const FRecastQueryFilter*)(Filter.GetImplementation()))->GetAsDetourQueryFilter();
+	ensure(QueryFilter);
+	if (!QueryFilter)
+	{
+		return false;
+	}
+
+	FVector RcStartPos = Unreal2RecastPoint(StartLocation.Location);
+	FVector RcEndPos = Unreal2RecastPoint(TargetPosition);
+
+	float Result[3];
+	static const int MAX_VISITED = 16;
+	dtPolyRef Visited[MAX_VISITED];
+	int VisitedCount = 0;
+
+	dtStatus status = NavQuery.moveAlongSurface(StartLocation.NodeRef, &RcStartPos.X, &RcEndPos.X, QueryFilter, Result, Visited, &VisitedCount, MAX_VISITED);
+	if (dtStatusFailed(status))
+	{
+		return false;
+	}
+	dtPolyRef ResultPoly = Visited[VisitedCount - 1];
+
+	// Adjust the position to stay on top of the navmesh.
+	float h = RcStartPos.Y;
+	NavQuery.getPolyHeight(ResultPoly, Result, &h);
+	Result[1] = h;
+
+	const FVector UnrealResult = Recast2UnrVector(Result);
+
+	OutLocation = FNavLocation(UnrealResult, ResultPoly);
+
+	return true;
+}
+
 bool FPImplRecastNavMesh::ProjectPointToNavMesh(const FVector& Point, FNavLocation& Result, const FVector& Extent, const FNavigationQueryFilter& Filter, const UObject* Owner) const
 {
 	// sanity check
