@@ -3770,6 +3770,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				bool bUseUnversionedProperties = bSaveUnversioned && CanUseUnversionedPropertySerialization(TargetPlatform);
 				Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 				Linker->Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+				if (bUseUnversionedProperties)
+				{
+					Linker->Summary.PackageFlags |= PKG_UnversionedProperties;
+					Linker->LinkerRoot->SetPackageFlags(PKG_UnversionedProperties);
+				}
 
 				// Make sure the package has the same version as the linker
 				InOuter->LinkerPackageVersion = Linker->UE4Ver();
