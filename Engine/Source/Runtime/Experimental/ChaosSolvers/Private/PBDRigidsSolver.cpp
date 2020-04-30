@@ -183,6 +183,11 @@ namespace Chaos
 				MSolver->GetEvolution()->EndFrame(MDeltaTime);
 			}
 
+			if(FRewindData* RewindData = MSolver->GetRewindData())
+			{
+				RewindData->FinishFrame();
+			}
+
 			MSolver->GetSolverTime() += MDeltaTime;
 			MSolver->GetCurrentFrame()++;
 			MSolver->PostTickDebugDraw();
@@ -749,12 +754,18 @@ namespace Chaos
 			auto ProcessProxyPT = [bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, RewindData, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 			{
 				const bool bIsNew = !Proxy->IsInitialized();
-				//single threaded version already created particle, but didn't initialize it
-				if(!bIsSingleThreaded && bIsNew)
+				if(bIsNew)
 				{
-					const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager,DataIdx);
-					const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx() : nullptr;
-					Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
+					//single threaded version already created particle, but didn't initialize it
+					if(!bIsSingleThreaded)
+					{
+						const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager,DataIdx);
+						const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx() : nullptr;
+						Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
+					}
+
+					auto Handle = Proxy->GetHandle();
+					Handle->GTGeometryParticle() = Proxy->GetParticle();
 				}
 
 				if(RewindData)
@@ -775,8 +786,7 @@ namespace Chaos
 				if(bIsNew)
 				{
 					auto Handle = Proxy->GetHandle();
-					Handle->GTGeometryParticle() = Proxy->GetParticle();
-					AddParticleToProxy(Handle,Proxy);;
+					AddParticleToProxy(Handle,Proxy);
 					GetEvolution()->CreateParticle(Handle);
 					Proxy->SetInitialized(true);
 				}
@@ -1047,15 +1057,15 @@ namespace Chaos
 					{
 
 						if (ActiveObject.GetParticleType() == EParticleType::Rigid)
-					{
-						//may want to remove branch using templates outside loop
+						{
+							//may want to remove branch using templates outside loop
 							if (MRewindData->IsResim())
-						{
-								MRewindData->PushPTDirtyData<true>(*static_cast<const FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(), DataIdx++);
-						}
-						else
-						{
-								MRewindData->PushPTDirtyData<false>(*static_cast<const FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(), DataIdx++);
+							{
+									MRewindData->PushPTDirtyData<true>(*static_cast<FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(), DataIdx++);
+							}
+							else
+							{
+								MRewindData->PushPTDirtyData<false>(*static_cast<FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(), DataIdx++);
 							}
 						}
 					}

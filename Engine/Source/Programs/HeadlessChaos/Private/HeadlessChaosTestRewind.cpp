@@ -1032,4 +1032,71 @@ namespace ChaosTest {
 
 		Module->DestroySolver(Solver);
 	}
+
+	TYPED_TEST(AllTraits,RewindTest_ResimAsSlave)
+	{
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<FReal,3>(TVector<float,3>(0),10));
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-100,-100,-100),FVec3(100,100,0)));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+		Solver->EnableRewindCapture(7);
+
+		// Make particles
+		auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+		auto Kinematic = TKinematicGeometryParticle<float,3>::CreateParticle();
+
+		Dynamic->SetGeometry(Sphere);
+		Dynamic->SetGravityEnabled(true);
+		Solver->RegisterObject(Dynamic.Get());
+
+		Kinematic->SetGeometry(Box);
+		Solver->RegisterObject(Kinematic.Get());
+
+		Dynamic->SetX(FVec3(0,0,17));
+		Dynamic->SetGravityEnabled(false);
+		Dynamic->SetV(FVec3(0,0,-1));
+		Dynamic->SetObjectState(EObjectStateType::Dynamic);
+		Dynamic->SetResimType(EResimType::SimAsSlave);
+
+		Kinematic->SetX(FVec3(0,0,0));
+
+		ChaosTest::SetParticleSimDataToCollide({Dynamic.Get(),Kinematic.Get()});
+
+		const int32 LastStep = 11;
+
+		TArray<FVec3> Xs;
+
+		for(int Step = 0; Step <= LastStep; ++Step)
+		{
+			TickSolverHelper(Module,Solver);
+			Xs.Add(Dynamic->X());
+		}
+
+		EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+
+		const int RewindStep = 5;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		//make avoid collision
+		Kinematic->SetX(FVec3(0,0,100000));
+
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
+		{
+			//Resim but dynamic will take old path since it's marked as ResimAsSlave
+			TickSolverHelper(Module,Solver);
+
+			EXPECT_VECTOR_FLOAT_EQ(Dynamic->X(),Xs[Step]);
+		}
+
+		EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+
+		Module->DestroySolver(Solver);
+	}
 }

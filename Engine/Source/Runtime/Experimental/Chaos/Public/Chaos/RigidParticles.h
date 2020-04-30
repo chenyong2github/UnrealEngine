@@ -15,6 +15,14 @@
 namespace Chaos
 {
 
+enum class EResimType : uint8
+{
+	FullSim,	//fully re-run simulation and keep results (any forces must be applied again)
+	//SimWithPrevForces, //use previous forces and keep results (UNIMPLEMENTED)
+	SimAsSlave //use previous forces and snap to previous results regardless of variation - used to push other objects away
+	//SimAsKinematic //treat as kinematic (UNIMPLEMENTED)
+};
+
 template<class T, int d>
 struct TSleepData
 {
@@ -79,6 +87,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
+		TArrayCollection::AddArray(&MResimType);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
 	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
@@ -96,6 +105,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		, MCollisionGroup(MoveTemp(Other.MCollisionGroup))
 		, MObjectState(MoveTemp(Other.MObjectState))
 		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
+		, MResimType(MoveTemp(Other.MResimType))
 	{
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
@@ -116,6 +126,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
+		TArrayCollection::AddArray(&MResimType);
 	}
 
 	CHAOS_API virtual ~TRigidParticles()
@@ -181,6 +192,9 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 
 	FORCEINLINE const bool& GravityEnabled(const int32 Index) const { return MGravityEnabled[Index]; }
 	FORCEINLINE bool& GravityEnabled(const int32 Index) { return MGravityEnabled[Index]; }
+
+	FORCEINLINE EResimType ResimType(const int32 Index) const { return MResimType[Index]; }
+	FORCEINLINE EResimType& ResimType(const int32 Index) { return MResimType[Index]; }
 
 	FORCEINLINE TArray<TSleepData<T, d>>& GetSleepData() { return MSleepData; }
 	FORCEINLINE	void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
@@ -265,6 +279,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
 	TArrayCollectionArray<bool> MGravityEnabled;
+	TArrayCollectionArray<EResimType> MResimType;
 
 	TArray<TSleepData<T, d>> MSleepData;
 	FRWLock SleepDataLock;
