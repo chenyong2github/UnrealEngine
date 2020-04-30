@@ -64,7 +64,8 @@ void PointLight_EstimateLight(
 	// Geometric term
 	float3 SurfaceNormal = Payload.WorldNormal;
 	// dxr_todo: incorporate sphere light radius
-	float NoL = saturate(dot(SurfaceNormal, LightDirection));
+	float NoL = dot(SurfaceNormal, LightDirection);
+	NoL = HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
 
 	float LightPower = Luminance(GetColor(LightId));
 	float Falloff = ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
