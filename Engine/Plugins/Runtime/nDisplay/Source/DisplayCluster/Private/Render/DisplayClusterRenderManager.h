@@ -87,9 +87,9 @@ private:
 	// FDisplayClusterRenderManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	void ResizeWindow(int32 WinX, int32 WinY, int32 ResX, int32 ResY);
-	void OnViewportCreatedHandler_SetCustomPresent();
-	void OnViewportCreatedHandler_CheckViewportClass();
-	void OnBeginDrawHandler();
+	void OnViewportCreatedHandler_SetCustomPresent() const;
+	void OnViewportCreatedHandler_CheckViewportClass() const;
+	void OnBeginDrawHandler() const;
 
 private:
 	EDisplayClusterOperationMode CurrentOperationMode;
@@ -110,7 +110,7 @@ private:
 	// Synchronization internals
 	TMap<FString, TSharedPtr<IDisplayClusterRenderSyncPolicyFactory>> SyncPolicyFactories;
 	TSharedPtr<IDisplayClusterRenderSyncPolicy> CreateRenderSyncPolicy() const;
-	TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy;
+	mutable TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy;
 
 private:
 	// Projection internals
