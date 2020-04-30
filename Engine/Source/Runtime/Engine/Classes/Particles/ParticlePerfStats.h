@@ -45,39 +45,49 @@ struct ENGINE_API FParticlePerfStats
 		uint64			GetDynamicMeshElementsCycles;	// Total cycles spent setting up dynamic mesh elements
 	};
 
+	static constexpr int32 kNumMaxSamples = 10;
+
+	FParticlePerfStats()
+	{
+		Reset();
+	}
+
 	uint32			AccumulatedNumFrames = 0;
 	FGroupedStats	AccumulatedStats;
 
+	TArray<uint64, TInlineAllocator<kNumMaxSamples>>	MaxPerFrameTotalGameThreadCycles;
+	TArray<uint64, TInlineAllocator<kNumMaxSamples>>	MaxPerFrameTotalRenderThreadCycles;
+
 	FGroupedStats	CurrentFrameStats;
+
+	static FParticlePerfStats* GetPerfStats(class UFXSystemAsset* Asset);
 
 	void Reset();
 	void Tick();
 
 	static void OnStartup();
 	static void OnShutdown();
-
-	static FParticlePerfStats Dummy;
 };
 
 //-TODO: Need to remove the task graph WakeUp cost otherwise it skews results!
 #define PARTICLE_PERF_STAT_INSTANCE_COUNT(STATS, COUNT) \
-	(STATS) != nullptr ? (STATS)->ParticlePerfStats.CurrentFrameStats.NumInstances += COUNT : 0
+	FParticlePerfStats::GetPerfStats(STATS)->CurrentFrameStats.NumInstances += COUNT
 
 #define PARTICLE_PERF_STAT_CYCLES(STATS, NAME) \
 	struct FScopedParticleStat_##NAME \
 	{ \
-		FORCEINLINE FScopedParticleStat_ ## NAME(FParticlePerfStats& InStats) \
-			: Stats(InStats) \
+		FORCEINLINE FScopedParticleStat_ ## NAME(class UFXSystemAsset* InSystemAsset) \
+			: SystemAsset(InSystemAsset) \
 			, StartCycles(FPlatformTime::Cycles64()) \
 		{ \
 		} \
 		FORCEINLINE ~FScopedParticleStat_##NAME() \
 		{ \
-			Stats.CurrentFrameStats.NAME##Cycles += FPlatformTime::Cycles64() - StartCycles; \
+			FParticlePerfStats::GetPerfStats(SystemAsset)->CurrentFrameStats.NAME##Cycles += FPlatformTime::Cycles64() - StartCycles; \
 		} \
-		FParticlePerfStats& Stats; \
+		class UFXSystemAsset* SystemAsset; \
 		uint64 StartCycles; \
-	} NAME##Stat((STATS) ? (STATS)->ParticlePerfStats : FParticlePerfStats::Dummy);
+	} NAME##Stat(STATS);
 
 #else //WITH_PARTICLE_PERF_STATS
 
