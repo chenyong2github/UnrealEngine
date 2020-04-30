@@ -1473,9 +1473,9 @@ bool FAssetRegistryState::RemoveAssetData(FAssetData* AssetData, bool bRemoveDep
 	return bRemoved;
 }
 
-FDependsNode* FAssetRegistryState::FindDependsNode(const FAssetIdentifier& Identifier)
+FDependsNode* FAssetRegistryState::FindDependsNode(const FAssetIdentifier& Identifier) const
 {
-	FDependsNode** FoundNode = CachedDependsNodes.Find(Identifier);
+	FDependsNode*const* FoundNode = CachedDependsNodes.Find(Identifier);
 	if (FoundNode)
 	{
 		return *FoundNode;
