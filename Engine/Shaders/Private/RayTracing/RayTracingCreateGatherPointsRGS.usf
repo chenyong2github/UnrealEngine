@@ -349,7 +349,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 					RayDesc LightRay;
 					GenerateLightRay(Ray, LightId, LightUV, LightRay);
 					LightRay.TMax = min(LightRay.TMax, MaxShadowDistance);
-					ApplyPositionBias(LightRay, Payload.WorldNormal, MaxNormalBias);
+					bool bTransmission = HasTransmission(LightId);
+					float3 BiasNormal = Payload.WorldNormal;
+					if (bTransmission && dot(BiasNormal, LightRay.Direction) < 0.0)
+					{
+						BiasNormal = -BiasNormal;
+					}
+					ApplyPositionBias(LightRay, BiasNormal, MaxNormalBias);
 
 					// Trace visibility ray
 					uint NeeRayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
@@ -380,6 +386,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 						FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
 						FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 						float3 MaterialThroughput = LightingSample.Diffuse;
+						if (bTransmission)
+						{
+							MaterialThroughput += LightingSample.Transmission;
+						}
 
 						// Record the contribution
 						float3 ExitantRadianceSample = Radiance * MaterialThroughput * SplitFactor / NeePdf;

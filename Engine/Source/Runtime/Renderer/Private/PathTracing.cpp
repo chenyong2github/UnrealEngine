@@ -196,6 +196,7 @@ public:
 			uint32 SkyLightIndex = 0;
 			LightData.Type[SkyLightIndex] = 0;
 			LightData.Color[SkyLightIndex] = FVector(SkyLightData.Color);
+			LightData.Flags[SkyLightIndex] = SkyLightData.bTransmission & 0x01;
 			LightData.Count++;
 
 			for (auto Light : Lights)
@@ -206,6 +207,8 @@ public:
 
 				FLightShaderParameters LightParameters;
 				Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
+				uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
+				LightData.Flags[LightData.Count] = Transmission & 0x01;
 
 				ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 				switch (LightComponentType)

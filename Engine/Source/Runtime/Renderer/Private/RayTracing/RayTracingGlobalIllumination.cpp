@@ -187,12 +187,14 @@ void SetupLightParameters(
 	{
 		SkyLightColor = FVector(SkyLight->GetEffectiveLightColor());
 	}
+	uint32 SkyLightTransmission = SkyLight->bTransmission;
 
 	// Prepend SkyLight to light buffer
 	// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
 	uint32 SkyLightIndex = 0;
 	LightParameters->Type[SkyLightIndex] = 0;
 	LightParameters->Color[SkyLightIndex] = SkyLightColor;
+	LightParameters->Flags[SkyLightIndex] = SkyLightTransmission & 0x01;
 	LightParameters->Count++;
 
 	uint32 MaxLightCount = FMath::Min(CVarRayTracingGlobalIlluminationMaxLightCount.GetValueOnRenderThread(), RAY_TRACING_LIGHT_COUNT_MAXIMUM);
@@ -205,6 +207,8 @@ void SetupLightParameters(
 
 		FLightShaderParameters LightShaderParameters;
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightShaderParameters);
+		uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
+		LightParameters->Flags[LightParameters->Count] = Transmission & 0x01;
 
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 		switch (LightComponentType)
