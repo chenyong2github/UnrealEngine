@@ -1903,9 +1903,9 @@ void UStruct::Serialize(FArchive& Ar)
 
 				{
 					FPropertyProxyArchive PropertyAr(Ar, iCode, this);
-				// now, use the linker to save the byte code, but writing to memory
-				while (iCode < ScriptBytecodeSize)
-				{
+					// now, use the linker to save the byte code, but writing to memory
+					while (iCode < ScriptBytecodeSize)
+					{
 						SerializeExpr(iCode, PropertyAr);
 					}
 				}
