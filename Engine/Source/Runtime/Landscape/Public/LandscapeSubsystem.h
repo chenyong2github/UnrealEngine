@@ -42,6 +42,6 @@ private:
 	TArray<ALandscapeProxy*> Proxies;
 
 #if WITH_EDITOR
-	TUniquePtr<class FLandscapeGrassMapsBuilder> GrassMapsBuilder;
+	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
 #endif
 };
