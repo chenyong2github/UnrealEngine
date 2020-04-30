@@ -894,7 +894,11 @@ public:
 					Info.Desync(CurFrame, LatestFrame);
 				}
 
-				
+				if(Info.bDesync)
+				{
+					//Any desync from GT is considered a hard desync - in theory we could make this more fine grained
+					Info.GetPTParticle()->SetSyncState(ESyncState::HardDesync);
+				}
 			}
 		}
 	}
@@ -905,6 +909,7 @@ public:
 		
 		if(IsResim())
 		{
+			const bool bLastResim = IsFinalResim();
 			ensure(IsInGameThread());
 			//snap particles forward that are not desynced or  do not have resim enabled
 			//TODO: handle desync case
@@ -922,6 +927,12 @@ public:
 						}
 					}
 				}
+
+				//Last resim so mark everything as in sync
+				if(bLastResim)
+				{
+					Info.GetPTParticle()->SetSyncState(ESyncState::InSync);
+				}
 			}
 		}
 
@@ -932,6 +943,11 @@ public:
 	bool IsResim() const
 	{
 		return CurFrame < LatestFrame;
+	}
+
+	bool IsFinalResim() const
+	{
+		return (CurFrame + 1) == LatestFrame;
 	}
 
 	//Number of particles that we're currently storing history for

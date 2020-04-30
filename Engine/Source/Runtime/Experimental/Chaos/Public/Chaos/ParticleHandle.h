@@ -441,6 +441,16 @@ public:
 #endif
 	}
 
+	ESyncState SyncState() const
+	{
+		return GeometryParticles->SyncState(ParticleIdx);
+	}
+
+	void SetSyncState(ESyncState State)
+	{
+		GeometryParticles->SyncState(ParticleIdx) = State;
+	}
+
 	TSerializablePtr<FImplicitObject> Geometry() const { return GeometryParticles->Geometry(ParticleIdx); }
 	void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
 
