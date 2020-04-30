@@ -7,6 +7,8 @@
 #include "CollectionManagerLog.h"
 #include "FileCache.h"
 #include "Misc/FileHelper.h"
+#include "Misc/ScopeRWLock.h"
+#include "Async/ParallelFor.h"
 
 #define LOCTEXT_NAMESPACE "CollectionManager"
 
@@ -1816,35 +1818,48 @@ bool FCollectionManager::TickFileCache(float InDeltaTime)
 
 void FCollectionManager::LoadCollections()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCollectionManager::LoadCollections)
+
 	const double LoadStartTime = FPlatformTime::Seconds();
 	const int32 PrevNumCollections = AvailableCollections.Num();
 
-	for (int32 CacheIdx = 0; CacheIdx < ECollectionShareType::CST_All; ++CacheIdx)
-	{
-		const ECollectionShareType::Type ShareType = ECollectionShareType::Type(CacheIdx);
-		const FString& CollectionFolder = CollectionFolders[CacheIdx];
-		const FString WildCard = FString::Printf(TEXT("%s/*.%s"), *CollectionFolder, *CollectionExtension);
-
-		TArray<FString> Filenames;
-		IFileManager::Get().FindFiles(Filenames, *WildCard, true, false);
-
-		for (const FString& BaseFilename : Filenames)
+	FRWLock CollectionLock;
+	ParallelFor(
+		ECollectionShareType::CST_All,
+		[this, &CollectionLock](int32 CacheIdx)
 		{
-			const FString Filename = CollectionFolder / BaseFilename;
+			const ECollectionShareType::Type ShareType = ECollectionShareType::Type(CacheIdx);
 			const bool bUseSCC = ShouldUseSCC(ShareType);
+			const FString& CollectionFolder = CollectionFolders[CacheIdx];
+			const FString WildCard = FString::Printf(TEXT("%s/*.%s"), *CollectionFolder, *CollectionExtension);
 
-			FText LoadErrorText;
-			TSharedRef<FCollection> NewCollection = MakeShareable(new FCollection(Filename, bUseSCC, ECollectionStorageMode::Static));
-			if (NewCollection->Load(LoadErrorText))
-			{
-				AddCollection(NewCollection, ShareType);
-			}
-			else
-			{
-				UE_LOG(LogCollectionManager, Warning, TEXT("%s"), *LoadErrorText.ToString());
-			}
-		}
-	}
+			TArray<FString> Filenames;
+			IFileManager::Get().FindFiles(Filenames, *WildCard, true, false);
+
+			ParallelFor(
+				Filenames.Num(),
+				[this, &CollectionLock, &Filenames, &CollectionFolder, bUseSCC, ShareType](int32 FilenameIdx)
+				{
+					const FString& BaseFilename = Filenames[FilenameIdx];
+					const FString Filename = CollectionFolder / BaseFilename;
+
+					FText LoadErrorText;
+					TSharedRef<FCollection> NewCollection = MakeShareable(new FCollection(Filename, bUseSCC, ECollectionStorageMode::Static));
+					if (NewCollection->Load(LoadErrorText))
+					{
+						FRWScopeLock Lock(CollectionLock, SLT_Write);
+						AddCollection(NewCollection, ShareType);
+					}
+					else
+					{
+						UE_LOG(LogCollectionManager, Warning, TEXT("%s"), *LoadErrorText.ToString());
+					}
+				},
+				EParallelForFlags::Unbalanced
+			);
+		},
+		EParallelForFlags::Unbalanced
+	);
 
 	// AddCollection is assumed to be adding an empty collection, so also notify that collection cache that the collection has "changed" since loaded collections may not always be empty
 	CollectionCache.HandleCollectionChanged();
