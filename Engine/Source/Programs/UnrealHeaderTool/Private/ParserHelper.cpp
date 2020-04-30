@@ -266,6 +266,14 @@ FClassMetaData* FCompilerMetadataManager::AddClassData(UStruct* Struct, FUnrealS
 	return pClassData->Get();
 }
 
+FClassMetaData* FCompilerMetadataManager::AddInterfaceClassData(UStruct* Struct, FUnrealSourceFile* UnrealSourceFile)
+{
+	FClassMetaData* ClassData = AddClassData(Struct, UnrealSourceFile);
+	ClassData->ParsedInterface = EParsedInterface::ParsedUInterface;
+	InterfacesToVerify.Emplace(Struct, ClassData);
+	return ClassData;
+}
+
 FTokenData* FPropertyData::Set(FProperty* InKey, const FTokenData& InValue, FUnrealSourceFile* UnrealSourceFile)
 {
 	FTokenData* Result = NULL;
@@ -285,16 +293,15 @@ FTokenData* FPropertyData::Set(FProperty* InKey, const FTokenData& InValue, FUnr
 	return Result;
 }
 
-void FCompilerMetadataManager::CheckForNoIInterfaces() const
+void FCompilerMetadataManager::CheckForNoIInterfaces()
 {
-	const TPair<UStruct*, TUniquePtr<FClassMetaData>>* UnparsedIInterface = Algo::FindBy(
-		*(Super*)this,
-		EParsedInterface::ParsedUInterface,
-		[](const TPair<UStruct*, TUniquePtr<FClassMetaData>>& Kvp) { return Kvp.Value->ParsedInterface; }
-	);
-	if (UnparsedIInterface)
+	for (const TPair<UStruct*, FClassMetaData*>& StructDataPair : InterfacesToVerify)
 	{
-		FString Name = UnparsedIInterface->Key->GetName();
-		FError::Throwf(TEXT("UInterface 'U%s' parsed without a corresponding 'I%s'"), *Name, *Name);
+		if (StructDataPair.Value->ParsedInterface == EParsedInterface::ParsedUInterface)
+		{
+			FString Name = StructDataPair.Key->GetName();
+			FError::Throwf(TEXT("UInterface 'U%s' parsed without a corresponding 'I%s'"), *Name, *Name);
+		}
 	}
+	InterfacesToVerify.Reset();
 }
