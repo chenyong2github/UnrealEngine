@@ -92,16 +92,6 @@ public class UEOgg : ModuleRules
 				: "_fPIC";
 			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Linux", Target.Architecture, "libogg" + fPIC + ".a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			// Use reflection to allow type not to exist if console code is not present
-			System.Type XboxOnePlatformType = System.Type.GetType("UnrealBuildTool.XboxOnePlatform,UnrealBuildTool");
-			if (XboxOnePlatformType != null)
-			{
-				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "XboxOne", "VS" + VersionName.ToString(), "libogg_static.lib"));
-			}
-		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
         {
             PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "ios", "libogg.a"));
