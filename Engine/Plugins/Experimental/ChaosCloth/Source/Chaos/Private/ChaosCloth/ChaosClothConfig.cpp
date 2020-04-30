@@ -117,6 +117,12 @@ void UChaosClothConfig::PostLoad()
 	{
 		DragCoefficient = 0.07f;  // Reset to a more appropriate default for chaos cloth assets saved before this custom version
 	}
+
+	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::RemoveInternalConfigParameters)
+	{
+		MinPerParticleMass = 0.0001f;  // Override these values in case they might have been accidentally
+		bUseGeodesicDistance = true;   // changed from their default at any point in time
+	}
 }
 
 UChaosClothSharedSimConfig::UChaosClothSharedSimConfig()
