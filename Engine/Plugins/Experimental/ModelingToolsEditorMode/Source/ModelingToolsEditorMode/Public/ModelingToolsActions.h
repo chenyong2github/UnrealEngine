@@ -23,7 +23,7 @@ public:
 	TSharedPtr<FUICommandInfo> FocusViewCommand;
 
 	static void RegisterCommandBindings(TSharedPtr<FUICommandList> UICommandList, TFunction<void(EModelingModeActionCommands)> OnCommandExecuted);
-
+	static void UnRegisterCommandBindings(TSharedPtr<FUICommandList> UICommandList);
 };
 
 
