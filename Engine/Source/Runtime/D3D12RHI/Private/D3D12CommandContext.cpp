@@ -186,7 +186,10 @@ void FD3D12CommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 #endif
 
 #if USE_PIX
-	PIXBeginEvent(CommandListHandle.GraphicsCommandList(), PIX_COLOR(Color.R, Color.G, Color.B), Name);
+	if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
+	{
+		PIXBeginEvent(CommandListHandle.GraphicsCommandList(), PIX_COLOR(Color.R, Color.G, Color.B), Name);
+	}
 #endif // USE_PIX
 }
 
@@ -219,7 +222,10 @@ void FD3D12CommandContext::RHIPopEvent()
 #endif
 
 #if USE_PIX
-	PIXEndEvent(CommandListHandle.GraphicsCommandList());
+	if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
+	{
+		PIXEndEvent(CommandListHandle.GraphicsCommandList());
+	}
 #endif
 }
 

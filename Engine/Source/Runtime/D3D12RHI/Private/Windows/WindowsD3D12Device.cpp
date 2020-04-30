@@ -469,7 +469,13 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
 	}
 
-	GD3D12RHI = new FD3D12DynamicRHI(ChosenAdapters);
+#if USE_PIX
+	bool bPixEventEnabled = (WindowsPixDllHandle != nullptr);
+#else
+	bool bPixEventEnabled = false;
+#endif // USE_PIX
+
+	GD3D12RHI = new FD3D12DynamicRHI(ChosenAdapters, bPixEventEnabled);
 #if ENABLE_RHI_VALIDATION
 	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
 	{
