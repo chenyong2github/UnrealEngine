@@ -178,14 +178,15 @@ namespace UE4_RepLayout_Private
 	}
 
 #if WITH_PUSH_MODEL
-	const UE4PushModelPrivate::FPushModelPerNetDriverHandle ConditionallyAddPushModelObject(const UE4PushModelPrivate::FNetPushObjectId ObjectId, const TSharedRef<const FRepLayout>& InRepLayout)
+	const UE4PushModelPrivate::FPushModelPerNetDriverHandle ConditionallyAddPushModelObject(const UObject* const Object, const TSharedRef<const FRepLayout>& InRepLayout)
 	{
 		const int32 NumReplicatedProperties = InRepLayout->GetNumParents();
 		if (UE4PushModelPrivate::IsPushModelEnabled() &&
 			NumReplicatedProperties > 0 &&
 			EnumHasAnyFlags(InRepLayout->GetFlags(), ERepLayoutFlags::FullPushSupport | ERepLayoutFlags::PartialPushSupport))
 		{
-			return UE4PushModelPrivate::AddPushModelObject(ObjectId, NumReplicatedProperties);
+			const FObjectKey ObjectKey(Object);
+			return UE4PushModelPrivate::AddPushModelObject(ObjectKey, NumReplicatedProperties);
 		}
 
 		return UE4PushModelPrivate::FPushModelPerNetDriverHandle::MakeInvalidHandle();
@@ -974,7 +975,7 @@ FRepChangelistState::FRepChangelistState(
 	, StaticBuffer(InRepLayout->CreateShadowBuffer(InSource))
 
 #if WITH_PUSH_MODEL
-	, PushModelObjectHandle(UE4_RepLayout_Private::ConditionallyAddPushModelObject(InRepresenting->GetUniqueID(), InRepLayout))
+	, PushModelObjectHandle(UE4_RepLayout_Private::ConditionallyAddPushModelObject(InRepresenting, InRepLayout))
 #endif // WITH_PUSH_MODEL
 
 {
