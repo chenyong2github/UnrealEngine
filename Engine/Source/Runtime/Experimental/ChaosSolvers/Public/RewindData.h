@@ -356,6 +356,15 @@ public:
 			{
 				Rigid->SetMassProps(Data);
 			});
+
+			if(Rigid->ResimType() != EResimType::FullResim)
+			{
+				//Not full resim so apply dynamics automatically
+				Dynamics.SyncToParticle([Rigid](const auto& Data)
+				{
+					Rigid->SetDynamics(Data);
+				});
+			}
 		}
 	}
 
@@ -874,20 +883,20 @@ public:
 			}
 			else if(IsResim())
 			{
+				EResimType ResimType = EResimType::FullResim;
+				if(auto* Rigid = Info.GetPTParticle()->CastToRigidParticle())
+				{
+					ResimType = Rigid->ResimType();
+				}
+
 				//During a resim it's possible the user will not dirty a particle that was previously dirty.
 				//If this happens we need to mark the particle as desynced
-				if(!Info.bDesync && Info.GTDirtyOnFrame[CurFrame-1].MissingWrite(CurFrame-1, CurWave))
+				if(ResimType == EResimType::FullResim && !Info.bDesync && Info.GTDirtyOnFrame[CurFrame-1].MissingWrite(CurFrame-1, CurWave))
 				{
 					Info.Desync(CurFrame-1, LatestFrame);
 				}
 
-				if(auto* Rigid = Info.GetPTParticle()->CastToRigidParticle())
-				{
-					if(Rigid->ResimType() == EResimType::SimAsSlave)
-					{
-						//TODO: Need to reapply forces automatically
-					}
-				}
+				
 			}
 		}
 	}
@@ -904,7 +913,7 @@ public:
 			{
 				if(auto* Rigid = Info.GetPTParticle()->CastToRigidParticle())
 				{
-					if(Rigid->ResimType() == EResimType::SimAsSlave)
+					if(Rigid->ResimType() == EResimType::ResimAsSlave)
 					{
 						ensure(!Info.bDesync);
 						const FGeometryParticleStateBase* State = GetStateAtFrameImp(Info,CurFrame);
@@ -978,17 +987,28 @@ public:
 			//check if particle has desynced
 			if(bResim)
 			{
-				FGeometryParticleState FutureState(*Proxy->GetParticle());
-				if(GetFutureStateAtFrame(FutureState,CurFrame) == EFutureQueryResult::Ok)
+				EResimType ResimType = EResimType::FullResim;
+				if(const auto* Rigid = PTParticle->CastToRigidParticle())
 				{
-					if(FutureState.IsDesynced(SrcManagerWrapper, *PTParticle, Dirty.ParticleData.GetFlags()))
+					ResimType = Rigid->ResimType();
+				}
+				
+				//Only desync if full resim - might be nice to give a log warning for other cases
+				if(ResimType == EResimType::FullResim)
+				{
+					//TODO: should not be passing GTParticle in here, it's not used so ok but not safe if someone decides to use it by mistake
+					FGeometryParticleState FutureState(*Proxy->GetParticle());
+					if(GetFutureStateAtFrame(FutureState,CurFrame) == EFutureQueryResult::Ok)
+					{
+						if(FutureState.IsDesynced(SrcManagerWrapper, *PTParticle, Dirty.ParticleData.GetFlags()))
+						{
+							Info.Desync(CurFrame-1, LatestFrame);
+						}
+					}
+					else if(!Info.bDesync)
 					{
 						Info.Desync(CurFrame-1, LatestFrame);
 					}
-				}
-				else if(!Info.bDesync)
-				{
-					Info.Desync(CurFrame-1, LatestFrame);
 				}
 			}
 
@@ -1043,7 +1063,7 @@ public:
 	{
 		const int32 DestDataIdx = SrcDataIdx + DataIdxOffset;
 
-		if(bResim && Rigid.ResimType() == EResimType::SimAsSlave)
+		if(bResim && Rigid.ResimType() == EResimType::ResimAsSlave)
 		{
 			//resim not allowed for this particle so don't modify
 		}

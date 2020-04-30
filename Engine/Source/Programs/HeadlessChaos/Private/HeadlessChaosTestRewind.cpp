@@ -1061,7 +1061,7 @@ namespace ChaosTest {
 		Dynamic->SetGravityEnabled(false);
 		Dynamic->SetV(FVec3(0,0,-1));
 		Dynamic->SetObjectState(EObjectStateType::Dynamic);
-		Dynamic->SetResimType(EResimType::SimAsSlave);
+		Dynamic->SetResimType(EResimType::ResimAsSlave);
 
 		Kinematic->SetX(FVec3(0,0,0));
 
@@ -1096,6 +1096,69 @@ namespace ChaosTest {
 		}
 
 		EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+
+		Module->DestroySolver(Solver);
+	}
+
+	TYPED_TEST(AllTraits,RewindTest_ResimAsSlaveWithForces)
+	{
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+		Solver->EnableRewindCapture(7);
+
+		// Make particles
+		auto FullSim = TPBDRigidParticle<float,3>::CreateParticle();
+		auto SlaveSim = TPBDRigidParticle<float,3>::CreateParticle();
+
+		FullSim->SetGeometry(Box);
+		FullSim->SetGravityEnabled(false);
+		Solver->RegisterObject(FullSim.Get());
+
+		SlaveSim->SetGeometry(Box);
+		SlaveSim->SetGravityEnabled(false);
+		Solver->RegisterObject(SlaveSim.Get());
+
+		FullSim->SetX(FVec3(0,0,20));
+		FullSim->SetObjectState(EObjectStateType::Dynamic);
+		FullSim->SetM(1);
+		FullSim->SetInvM(1);
+
+		SlaveSim->SetX(FVec3(0,0,0));
+		SlaveSim->SetResimType(EResimType::ResimAsSlave);
+		SlaveSim->SetM(1);
+		SlaveSim->SetInvM(1);
+
+		ChaosTest::SetParticleSimDataToCollide({FullSim.Get(),SlaveSim.Get()});
+
+		const int32 LastStep = 11;
+
+		TArray<FVec3> Xs;
+
+		for(int Step = 0; Step <= LastStep; ++Step)
+		{
+			SlaveSim->SetLinearImpulse(FVec3(0,0,0.5));
+			TickSolverHelper(Module,Solver);
+			Xs.Add(FullSim->X());
+		}
+
+		const int RewindStep = 5;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
+		{
+			//resim - slave sim should have its impulses automatically added thus moving FullSim in the exact same way
+			TickSolverHelper(Module,Solver);
+
+			EXPECT_VECTOR_FLOAT_EQ(FullSim->X(),Xs[Step]);
+		}
 
 		Module->DestroySolver(Solver);
 	}
