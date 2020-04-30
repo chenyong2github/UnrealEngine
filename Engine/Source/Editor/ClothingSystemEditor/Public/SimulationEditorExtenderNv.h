@@ -7,9 +7,6 @@
 #include "SimulationEditorExtender.h"
 #include "Internationalization/Text.h"
 
-class USkeletalMeshComponent;
-class FPrimitiveDrawInterface;
-
 struct FNvVisualizationOptions
 {
 	FNvVisualizationOptions();
@@ -73,6 +70,7 @@ public:
 	virtual UClass* GetSupportedSimulationFactoryClass() override;
 	virtual void ExtendViewportShowMenu(FMenuBuilder& InMenuBuilder, TSharedRef<IPersonaPreviewScene> InPreviewScene) override;
 	virtual void DebugDrawSimulation(const IClothingSimulation* InSimulation, USkeletalMeshComponent* InOwnerComponent, FPrimitiveDrawInterface* PDI) override;
+	virtual void DebugDrawSimulationTexts(const IClothingSimulation* InSimulation, USkeletalMeshComponent* InOwnerComponent, FCanvas* Canvas, const FSceneView* SceneView) override {}
 	// End ISimulationEditorExtender Interface
 
 private:

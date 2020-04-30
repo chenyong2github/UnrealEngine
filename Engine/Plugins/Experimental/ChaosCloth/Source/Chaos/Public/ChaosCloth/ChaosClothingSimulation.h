@@ -56,6 +56,8 @@ namespace Chaos
 
 		// Editor only debug draw function
 		CHAOSCLOTH_API void DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
+		CHAOSCLOTH_API void DebugDrawParticleIndices(USkeletalMeshComponent* OwnerComponent, FCanvas* Canvas, const FSceneView* SceneView) const;
+		CHAOSCLOTH_API void DebugDrawMaxDistanceValues(USkeletalMeshComponent* OwnerComponent, FCanvas* Canvas, const FSceneView* SceneView) const;
 #endif  // #if WITH_EDITOR
 
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW

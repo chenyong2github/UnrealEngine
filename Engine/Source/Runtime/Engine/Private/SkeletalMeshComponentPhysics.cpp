@@ -3292,6 +3292,25 @@ void USkeletalMeshComponent::DebugDrawClothing(FPrimitiveDrawInterface* PDI)
 #endif
 }
 
+void USkeletalMeshComponent::DebugDrawClothingTexts(FCanvas* Canvas, const FSceneView* SceneView)
+{
+#if WITH_EDITOR && ENABLE_DRAW_DEBUG
+
+	if(ClothingSimulation)
+	{
+		FClothingSystemEditorInterfaceModule& ClothingEditorModule = FModuleManager::LoadModuleChecked<FClothingSystemEditorInterfaceModule>(TEXT("ClothingSystemEditorInterface"));
+
+		if(ISimulationEditorExtender* Extender = ClothingEditorModule.GetSimulationEditorExtender(ClothingSimulationFactory->GetFName()))
+		{
+			Extender->DebugDrawSimulationTexts(ClothingSimulation, this, Canvas, SceneView);
+		}
+
+		return;
+	}
+
+#endif
+}
+
 void USkeletalMeshComponent::SetAllMassScale(float InMassScale)
 {
 	// Apply mass scale to each child body
