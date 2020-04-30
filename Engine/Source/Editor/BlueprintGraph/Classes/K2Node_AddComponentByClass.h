@@ -20,13 +20,8 @@ public:
 	//~ Begin UEdGraphNode Interface.
 	virtual void AllocateDefaultPins() override;
 	virtual void ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
+	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	//~ End UEdGraphNode Interface.
-
-	UEdGraphPin* GetRelativeTransformPin() const;
-	UEdGraphPin* GetManualAttachmentPin() const;
-
-	/** Returns if the currently selected or linked class is known to be a scene component */
-	bool IsSceneComponent() const;
 
 	//~ Begin UK2Node_ConstructObjectFromClass Interface
 	virtual void CreatePinsForClass(UClass* InClass, TArray<UEdGraphPin*>* OutClassPins) override;
@@ -38,4 +33,13 @@ protected:
 	virtual UClass* GetClassPinBaseClass() const override;
 	virtual bool IsSpawnVarPin(UEdGraphPin* Pin) const override;
 	//~ End UK2Node_ConstructObjectFromClass Interface
+
+	UEdGraphPin* GetRelativeTransformPin() const;
+	UEdGraphPin* GetManualAttachmentPin() const;
+
+	/** Returns true if the currently selected or linked class is known to be a scene component */
+	bool IsSceneComponent() const;
+
+	/** Utility function to set whether the scene component specific pins are hidden or not */
+	void SetSceneComponentPinsHidden(bool bHidden);
 };
