@@ -24,9 +24,9 @@ IInstallBundleManager* IInstallBundleManager::GetPlatformInstallBundleManager()
 		FString ModuleName;
 		IInstallBundleManagerModule* Module = nullptr;
 #if WITH_EDITOR
-		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
-#else
 		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("EditorModuleName"), ModuleName, GEngineIni);
+#else
+		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
 #endif // WITH_EDITOR
 
 		if (FModuleManager::Get().ModuleExists(*ModuleName))
