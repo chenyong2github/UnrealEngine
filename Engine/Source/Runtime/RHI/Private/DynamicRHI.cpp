@@ -15,6 +15,12 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "PipelineStateCache.h"
 
+#if NV_GEFORCENOW
+THIRD_PARTY_INCLUDES_START
+#include "GfnRuntimeSdk_CAPI.h"
+THIRD_PARTY_INCLUDES_END
+#endif
+
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometrySegment);
 
@@ -39,6 +45,11 @@ static TAutoConsoleVariable<int32> CVarWarnOfBadDrivers(
 	ECVF_RenderThreadSafe
 	);
 
+static TAutoConsoleVariable<int32> CVarDisableDriverWarningPopupIfGFN(
+	TEXT("r.DisableDriverWarningPopupIfGFN"),
+	1,
+	TEXT("If non-zero, disable driver version warning popup if running on a GFN cloud machine."),
+	ECVF_RenderThreadSafe);
 
 void InitNullRHI()
 {
@@ -193,7 +204,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 
 void RHIInit(bool bHasEditorToken)
 {
-	if(!GDynamicRHI)
+	if (!GDynamicRHI)
 	{
 		// read in any data driven shader platform info structures we can find
 		FGenericDataDrivenShaderPlatformInfo::Initialize();
@@ -232,7 +243,7 @@ void RHIInit(bool bHasEditorToken)
 					FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Error));
 					FPlatformMisc::RequestExit(1);
 				}
-				
+
 				// Update the crash context analytics
 				FGenericCrashContext::SetEngineData(TEXT("RHI.RHIName"), GDynamicRHI ? GDynamicRHI->GetName() : TEXT("Unknown"));
 				FGenericCrashContext::SetEngineData(TEXT("RHI.AdapterName"), GRHIAdapterName);
@@ -254,7 +265,32 @@ void RHIInit(bool bHasEditorToken)
 	}
 
 #if PLATFORM_WINDOWS || PLATFORM_MAC
+#if NV_GEFORCENOW
+	bool bDetectAndWarnBadDrivers = true;
+	if (!!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
+	{
+		const GfnRuntimeSdk::GfnRuntimeError GfnResult = GfnRuntimeSdk::gfnInitializeRuntimeSdk(GfnRuntimeSdk::gfnDefaultLanguage);
+		const bool bGfnRuntimeSDKInitialized = GfnResult == GfnRuntimeSdk::gfnSuccess || GfnResult == GfnRuntimeSdk::gfnInitSuccessClientOnly;
+		if (bGfnRuntimeSDKInitialized)
+		{
+			UE_LOG(LogRHI, Log, TEXT("GeForceNow SDK initialized: %d"), (int32)GfnResult);
+		}
+		else
+		{
+			UE_LOG(LogRHI, Log, TEXT("GeForceNow SDK initialization failed: %d"), (int32)GfnResult);
+		}
+
+		// Don't pop up a driver version warning window when running on a cloud machine
+		bDetectAndWarnBadDrivers = !bGfnRuntimeSDKInitialized || !GfnRuntimeSdk::gfnIsRunningInCloud();
+	}
+
+	if (bDetectAndWarnBadDrivers)
+	{
+		RHIDetectAndWarnOfBadDrivers(bHasEditorToken);
+	}
+#else
 	RHIDetectAndWarnOfBadDrivers(bHasEditorToken);
+#endif
 #endif
 }
 
@@ -267,7 +303,7 @@ void RHIPostInit(const TArray<uint32>& InPixelFormatByteWidth)
 
 void RHIExit()
 {
-	if ( !GUsingNullRHI && GDynamicRHI != NULL )
+	if (!GUsingNullRHI && GDynamicRHI != NULL)
 	{
 		// Clean up all cached pipelines
 		PipelineStateCache::Shutdown();
@@ -277,6 +313,13 @@ void RHIExit()
 		delete GDynamicRHI;
 		GDynamicRHI = NULL;
 	}
+
+#if NV_GEFORCENOW
+	if (!!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
+	{
+		GfnRuntimeSdk::gfnShutdownRuntimeSdk();
+	}
+#endif
 }
 
 
