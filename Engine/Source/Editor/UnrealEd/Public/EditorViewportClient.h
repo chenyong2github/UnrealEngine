@@ -1192,7 +1192,7 @@ public:
 	/**
 	* Returns whether visualize debug material is enabled.
 	*/
-	bool IsVisualizeDebugMaterialEnabled() const;
+	bool IsVisualizeCalibrationMaterialEnabled() const;
 
 	/**
 	 * Changes the ray tracing debug visualization mode for this viewport

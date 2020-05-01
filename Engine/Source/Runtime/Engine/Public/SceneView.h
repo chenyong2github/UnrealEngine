@@ -931,14 +931,14 @@ public:
 	/** Current buffer visualization mode */
 	FName CurrentBufferVisualizationMode;
 
-	/** Current visualize debug color material name */
-	FName CurrentVisualizeDebugColorMaterialName;
+	/** Current visualize calibration color material name */
+	FName CurrentVisualizeCalibrationColorMaterialName;
 
-	/** Current visualize debug grayscale material name */
-	FName CurrentVisualizeDebugGrayscaleMaterialName;
+	/** Current visualize calibration grayscale material name */
+	FName CurrentVisualizeCalibrationGrayscaleMaterialName;
 
-	/** Current visualize debug custom material name */
-	FName CurrentVisualizeDebugCustomMaterialName;
+	/** Current visualize calibration custom material name */
+	FName CurrentVisualizeCalibrationCustomMaterialName;
 
 #if WITH_EDITOR
 	/* Whether to use the pixel inspector */
@@ -1271,9 +1271,9 @@ public:
 	/** Configure post process settings for the buffer visualization system */
 	void ConfigureBufferVisualizationSettings();
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	/** Configure post process settings for debug image */
-	void ConfigureDebugVisualizationSettings();
+#if !(UE_BUILD_SHIPPING)
+	/** Configure post process settings for calibration material */
+	void ConfigureVisualizeCalibrationSettings();
 #endif
 
 	/** Get the feature level for this view (cached from the scene so this is not different per view) **/
