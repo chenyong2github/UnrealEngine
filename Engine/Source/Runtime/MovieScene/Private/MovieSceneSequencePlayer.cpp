@@ -44,6 +44,36 @@ bool FMovieSceneSequencePlaybackSettings::SerializeFromMismatchedTag( const FPro
 	return false;
 }
 
+FFrameTime FMovieSceneSequencePlaybackParams::GetPlaybackPosition(UMovieSceneSequencePlayer* Player) const
+{
+	FFrameTime PlaybackPosition = Player->GetCurrentTime().Time;
+
+	if (PositionType == EMovieScenePositionType::Frame)
+	{
+		PlaybackPosition = Frame;
+	}
+	else if (PositionType == EMovieScenePositionType::Time)
+	{
+		PlaybackPosition = Time * Player->GetFrameRate();
+	}
+	else if (PositionType == EMovieScenePositionType::MarkedFrame)
+	{
+		UMovieScene* MovieScene = Player->GetSequence() ? Player->GetSequence()->GetMovieScene() : nullptr;
+
+		if (MovieScene)
+		{
+			int32 MarkedIndex = MovieScene->FindMarkedFrameByLabel(MarkedFrame);
+
+			if (MarkedIndex != INDEX_NONE)
+			{
+				PlaybackPosition = ConvertFrameTime(MovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber, MovieScene->GetTickResolution(), MovieScene->GetDisplayRate());
+			}
+		}
+	}
+
+	return PlaybackPosition;
+}
+
 UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& Init)
 	: Super(Init)
 	, Status(EMovieScenePlayerStatus::Stopped)
@@ -151,14 +181,14 @@ void UMovieSceneSequencePlayer::PlayInternal()
 		{
 			if (PlayRate > 0.f)
 			{
-				JumpToFrame(FFrameTime(StartTime));
+				SetPlaybackPosition(FMovieSceneSequencePlaybackParams(FFrameTime(StartTime), EUpdatePositionMethod::Jump));
 			}
 		}
 		else if (GetCurrentTime().Time == FFrameTime(StartTime))
 		{
 			if (PlayRate < 0.f)
 			{
-				JumpToFrame(GetLastValidTime());
+				SetPlaybackPosition(FMovieSceneSequencePlaybackParams(GetLastValidTime(), EUpdatePositionMethod::Jump));
 			}
 		}
 
@@ -236,6 +266,7 @@ void UMovieSceneSequencePlayer::Pause()
 		Status = EMovieScenePlayerStatus::Paused;
 		TimeController->StopPlaying(GetCurrentTime());
 
+		PauseOnFrame.Reset();
 		LastTickGameTimeSeconds.Reset();
 
 		// Evaluate the sequence at its current time, with a status of 'stopped' to ensure that animated state pauses correctly. (ie. audio sounds should stop/pause)
@@ -315,6 +346,7 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		}
 
 		CurrentNumLoops = 0;
+		PauseOnFrame.Reset();
 		LastTickGameTimeSeconds.Reset();
 
 		// Reset loop count on stop so that it doesn't persist to the next call to play
@@ -374,7 +406,7 @@ void UMovieSceneSequencePlayer::GoToEndAndStop()
 	}
 
 	Status = EMovieScenePlayerStatus::Playing;
-	JumpToFrame(LastValidTime);
+	SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LastValidTime, EUpdatePositionMethod::Jump));
 	StopInternal(LastValidTime);
 }
 
@@ -453,114 +485,33 @@ void UMovieSceneSequencePlayer::SetTimeRange( float StartTimeSeconds, float Dura
 	SetFrameRange(StartFrame.Value, Duration.Value);
 }
 
-void UMovieSceneSequencePlayer::PlayToFrame(FFrameTime NewPosition)
+void UMovieSceneSequencePlayer::PlayTo(FMovieSceneSequencePlaybackParams InPlaybackParams)
 {
-	UpdateTimeCursorPosition(NewPosition, EUpdatePositionMethod::Play);
+	PauseOnFrame = InPlaybackParams.GetPlaybackPosition(this);
+
+	if (GetCurrentTime().Time < PauseOnFrame.GetValue())
+	{
+		Play();
+	}
+	else
+	{
+		PlayReverse();
+	}
+}
+
+
+void UMovieSceneSequencePlayer::SetPlaybackPosition(FMovieSceneSequencePlaybackParams InPlaybackParams)
+{
+	FFrameTime NewPosition = InPlaybackParams.GetPlaybackPosition(this);
+
+	UpdateTimeCursorPosition(NewPosition, InPlaybackParams.UpdateMethod);
 
 	TimeController->Reset(GetCurrentTime());
 
 	if (HasAuthority())
 	{
-		RPC_ExplicitServerUpdateEvent(EUpdatePositionMethod::Play, NewPosition);
+		RPC_ExplicitServerUpdateEvent(InPlaybackParams.UpdateMethod, NewPosition);
 	}
-}
-
-void UMovieSceneSequencePlayer::ScrubToFrame(FFrameTime NewPosition)
-{
-	UpdateTimeCursorPosition(NewPosition, EUpdatePositionMethod::Scrub);
-
-	TimeController->Reset(GetCurrentTime());
-
-	if (HasAuthority())
-	{
-		RPC_ExplicitServerUpdateEvent(EUpdatePositionMethod::Scrub, NewPosition);
-	}
-}
-
-void UMovieSceneSequencePlayer::JumpToFrame(FFrameTime NewPosition)
-{
-	UpdateTimeCursorPosition(NewPosition, EUpdatePositionMethod::Jump);
-
-	TimeController->Reset(GetCurrentTime());
-
-	if (HasAuthority())
-	{
-		RPC_ExplicitServerUpdateEvent(EUpdatePositionMethod::Jump, NewPosition);
-	}
-}
-
-void UMovieSceneSequencePlayer::PlayToSeconds(float TimeInSeconds)
-{
-	PlayToFrame(TimeInSeconds * PlayPosition.GetInputRate());
-}
-
-void UMovieSceneSequencePlayer::ScrubToSeconds(float TimeInSeconds)
-{
-	ScrubToFrame(TimeInSeconds * PlayPosition.GetInputRate());
-}
-
-void UMovieSceneSequencePlayer::JumpToSeconds(float TimeInSeconds)
-{
-	JumpToFrame(TimeInSeconds * PlayPosition.GetInputRate());
-}
-
-
-int32 UMovieSceneSequencePlayer::FindMarkedFrameByLabel(const FString& InLabel) const
-{
-	if (!Sequence)
-	{
-		return INDEX_NONE;
-	}
-
-	UMovieScene* MovieScene = Sequence ? Sequence->GetMovieScene() : nullptr;
-
-	int32 MarkedIndex = MovieScene->FindMarkedFrameByLabel(InLabel);
-	return MarkedIndex;
-}
-
-bool UMovieSceneSequencePlayer::PlayToMarkedFrame(const FString& InLabel)
-{
-	int32 MarkedIndex = FindMarkedFrameByLabel(InLabel);
-
-	if (MarkedIndex != INDEX_NONE)
-	{
-		UMovieScene* MovieScene = Sequence->GetMovieScene();
-		PlayToFrame(ConvertFrameTime(MovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber, MovieScene->GetTickResolution(), MovieScene->GetDisplayRate()));
-
-		return true;
-	}
-
-	return false;
-}
-
-bool UMovieSceneSequencePlayer::ScrubToMarkedFrame(const FString& InLabel)
-{
-	int32 MarkedIndex = FindMarkedFrameByLabel(InLabel);
-
-	if (MarkedIndex != INDEX_NONE)
-	{
-		UMovieScene* MovieScene = Sequence->GetMovieScene();
-		ScrubToFrame(ConvertFrameTime(MovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber, MovieScene->GetTickResolution(), MovieScene->GetDisplayRate()));
-
-		return true;
-	}
-
-	return false;
-}
-
-bool UMovieSceneSequencePlayer::JumpToMarkedFrame(const FString& InLabel)
-{
-	int32 MarkedIndex = FindMarkedFrameByLabel(InLabel);
-
-	if (MarkedIndex != INDEX_NONE)
-	{
-		UMovieScene* MovieScene = Sequence->GetMovieScene();
-		JumpToFrame(ConvertFrameTime(MovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber, MovieScene->GetTickResolution(), MovieScene->GetDisplayRate()));
-
-		return true;
-	}
-
-	return false;
 }
 
 bool UMovieSceneSequencePlayer::IsPlaying() const
@@ -578,11 +529,6 @@ bool UMovieSceneSequencePlayer::IsReversed() const
 	return bReversePlayback;
 }
 
-float UMovieSceneSequencePlayer::GetLength() const
-{
-	return GetDuration().AsSeconds();
-}
-
 float UMovieSceneSequencePlayer::GetPlayRate() const
 {
 	return PlaybackSettings.PlayRate;
@@ -591,11 +537,6 @@ float UMovieSceneSequencePlayer::GetPlayRate() const
 void UMovieSceneSequencePlayer::SetPlayRate(float PlayRate)
 {
 	PlaybackSettings.PlayRate = PlayRate;
-}
-
-void UMovieSceneSequencePlayer::SetPlaybackRange( float NewStartTime, float NewEndTime )
-{
-	SetTimeRange(NewStartTime, NewEndTime - NewStartTime);
 }
 
 FFrameTime UMovieSceneSequencePlayer::GetLastValidTime() const
@@ -627,6 +568,24 @@ bool UMovieSceneSequencePlayer::ShouldStopOrLoop(FFrameTime NewPosition) const
 	}
 
 	return bShouldStopOrLoop;
+}
+
+bool UMovieSceneSequencePlayer::ShouldPause(FFrameTime NewPosition) const
+{
+	bool bShouldPause = false;
+	if (IsPlaying() && PauseOnFrame.IsSet())
+	{
+		if (!bReversePlayback)
+		{
+			bShouldPause = PauseOnFrame.GetValue() <= PlayPosition.GetCurrentPosition();
+		}
+		else
+		{
+			bShouldPause = PauseOnFrame.GetValue() >= PlayPosition.GetCurrentPosition();
+		}
+	}
+
+	return bShouldPause;
 }
 
 void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings)
@@ -807,7 +766,15 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 		bPendingOnStartedPlaying = false;
 	}
 
-	if (Method == EUpdatePositionMethod::Play && ShouldStopOrLoop(NewPosition))
+	if (Method == EUpdatePositionMethod::Play && ShouldPause(NewPosition))
+	{
+		if (PauseOnFrame.GetValue() != PlayPosition.GetCurrentPosition())
+		{
+			UpdateTimeCursorPosition(PauseOnFrame.GetValue(), EUpdatePositionMethod::Jump);
+		}
+		Pause();
+	}
+	else if (Method == EUpdatePositionMethod::Play && ShouldStopOrLoop(NewPosition))
 	{
 		// The actual start time taking into account reverse playback
 		FFrameNumber StartTimeWithReversed = bReversePlayback ? GetLastValidTime().FrameNumber : StartTime;
@@ -954,12 +921,7 @@ void UMovieSceneSequencePlayer::ApplyLatentActions()
 		}
 
 		check(LatentAction.Type == FLatentAction::EType::Update);
-		switch (LatentAction.UpdateMethod)
-		{
-		case EUpdatePositionMethod::Play:  PlayToFrame( LatentAction.Position); continue;
-		case EUpdatePositionMethod::Jump:  JumpToFrame( LatentAction.Position); continue;
-		case EUpdatePositionMethod::Scrub: ScrubToFrame(LatentAction.Position); continue;
-		}
+		SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LatentAction.Position, LatentAction.UpdateMethod));
 	}
 }
 
@@ -1055,12 +1017,7 @@ void UMovieSceneSequencePlayer::RPC_ExplicitServerUpdateEvent_Implementation(EUp
 	// Note: in the case of PlayToFrame this will not necessarily sweep the exact same range as the server did
 	// because this client player is unlikely to be at exactly the same time that the server was at when it performed the operation.
 	// This is irrelevant for jumps and scrubs as only the new time is meaningful.
-	switch (EventMethod)
-	{
-	case EUpdatePositionMethod::Play:  PlayToFrame( MarkerTime);  break;
-	case EUpdatePositionMethod::Jump:  JumpToFrame( MarkerTime);  break;
-	case EUpdatePositionMethod::Scrub: ScrubToFrame(MarkerTime);  break;
-	}
+	SetPlaybackPosition(FMovieSceneSequencePlaybackParams(MarkerTime, EventMethod));
 }
 
 void UMovieSceneSequencePlayer::RPC_OnStopEvent_Implementation(FFrameTime StoppedTime)
@@ -1120,12 +1077,7 @@ void UMovieSceneSequencePlayer::RPC_OnStopEvent_Implementation(FFrameTime Stoppe
 
 		if (bBehindTime)
 		{
-			switch (Status.GetValue())
-			{
-			case EMovieScenePlayerStatus::Playing:   PlayToFrame(StoppedTime);  break;
-			case EMovieScenePlayerStatus::Stopped:   JumpToFrame(StoppedTime);  break;
-			case EMovieScenePlayerStatus::Scrubbing: ScrubToFrame(StoppedTime);  break;
-			}
+			SetPlaybackPosition(FMovieSceneSequencePlaybackParams(StoppedTime, (EUpdatePositionMethod)Status.GetValue()));
 		}
 	}
 
@@ -1202,7 +1154,7 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 		if (LagDisparity > LagThreshold)
 		{
 			// Synchronize to the server time as best we can if there is a large disparity
-			PlayToFrame(NetSyncProps.LastKnownPosition + PingLag);
+			SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Play));
 		}
 	}
 	else
@@ -1229,7 +1181,7 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 				if (bHasChangedStatus)
 				{
 					// If the status has changed forcibly play to the server position before setting the new status
-					PlayToFrame(NetSyncProps.LastKnownPosition + PingLag);
+					SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Play));
 				}
 				else if (Difference > LagThreshold + PingLag)
 				{
@@ -1255,21 +1207,21 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 					const bool bPlayToFrame = bReversePlayback ? NetSyncProps.LastKnownPosition < PlayPosition.GetCurrentPosition() : NetSyncProps.LastKnownPosition > PlayPosition.GetCurrentPosition();
 					if (bPlayToFrame)
 					{
-						PlayToFrame(NetSyncProps.LastKnownPosition + PingLag);
+						SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Play));
 					}
 					else
 					{
-						JumpToFrame(NetSyncProps.LastKnownPosition + PingLag);
+						SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Jump));
 					}
 				}
 			}
 			else if (Status == EMovieScenePlayerStatus::Stopped)
 			{
-				JumpToFrame(NetSyncProps.LastKnownPosition);
+				SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition, EUpdatePositionMethod::Jump));
 			}
 			else if (Status == EMovieScenePlayerStatus::Scrubbing)
 			{
-				ScrubToFrame(NetSyncProps.LastKnownPosition);
+				SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition, EUpdatePositionMethod::Scrub));
 			}
 		}
 
