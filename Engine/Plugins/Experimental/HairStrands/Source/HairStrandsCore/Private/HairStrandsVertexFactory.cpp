@@ -37,6 +37,12 @@ public:
 		SRVFloat = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_FLOAT);
 	}
 
+	virtual void ReleaseRHI() override
+	{
+		VertexBufferRHI.SafeRelease();
+		SRVUint.SafeRelease();
+		SRVFloat.SafeRelease();
+	}
 };
 TGlobalResource<FDummyCulledDispatchVertexIdsBuffer> GDummyCulledDispatchVertexIdsBuffer;
 
