@@ -58,7 +58,7 @@ void UTakeRecorderLevelSequenceSource::StartRecording(const FTimecode& InSection
 		if (ActorToTrigger->SequencePlayer)
 		{
 			ActorToTrigger->SequencePlayer->SetDisableCameraCuts(true);
-			ActorToTrigger->SequencePlayer->JumpToFrame(ActorToTrigger->SequencePlayer->GetStartTime().Time.FrameNumber);
+			ActorToTrigger->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(ActorToTrigger->SequencePlayer->GetStartTime().Time, EUpdatePositionMethod::Jump));
 			ActorToTrigger->SequencePlayer->Play();
 		}
 		else
