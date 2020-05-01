@@ -66,7 +66,7 @@ public:
 	 * @param Key The key to query for existence
 	 * @return true if found
 	 */
-	bool HasValue(const UObject* Object, FName Key);
+	bool HasValue(const UObject* Object, FName Key)
 	{
 		return FindValue(Object, Key) != nullptr;
 	}
