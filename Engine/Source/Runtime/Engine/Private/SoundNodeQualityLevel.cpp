@@ -41,7 +41,7 @@ void USoundNodeQualityLevel::PostLoad()
 			{
 				continue;
 			}
-			else
+			else if(ChildNodes[Index] != nullptr)
 			{
 				ChildNodes[Index]->RemoveSoundWaveOnChildWavePlayers();
 			}
