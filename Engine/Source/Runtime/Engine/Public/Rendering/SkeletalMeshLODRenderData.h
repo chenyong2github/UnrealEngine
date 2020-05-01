@@ -96,7 +96,7 @@ struct FSkelMeshRenderSection
 	friend FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S);
 };
 
-class FSkeletalMeshLODRenderData
+class FSkeletalMeshLODRenderData : public FRefCountBase
 {
 public:
 
@@ -159,11 +159,20 @@ public:
 	void ReleaseCPUResources(bool bForStreaming = false);
 
 	/** Constructor (default) */
-	FSkeletalMeshLODRenderData()
+	ENGINE_API FSkeletalMeshLODRenderData(bool bAddRef = true)
 		: BuffersSize(0)
 		, bStreamedDataInlined(true)
 		, bIsLODOptional(false)
 	{
+		if (bAddRef)
+		{
+			AddRef();
+		}
+	}
+
+	FORCEINLINE ~FSkeletalMeshLODRenderData()
+	{
+		check(GetRefCount() == 0);
 	}
 
 	/**
