@@ -280,8 +280,6 @@ private:
 	FDelegateHandle OnPostEngineInitHandle;
 	static int32 CachedQualityLevel;
 
-	void ApplySoundClassLoadingBehaviorToSoundWaves();
-
 public:
 
 	/**
