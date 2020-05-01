@@ -145,7 +145,7 @@ void USoundNode::ReleaseRetainerOnChildWavePlayers(bool bRecurse)
 {
 	if (bIsRetainingAudio && FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
 	{
-		// Search child nodes for wave players, then prime their waves.
+		// Search child nodes for wave players, then release their retainers.
 		for (USoundNode* ChildNode : ChildNodes)
 		{
 			if (ChildNode)
@@ -170,6 +170,29 @@ void USoundNode::ReleaseRetainerOnChildWavePlayers(bool bRecurse)
 	}
 
 	bIsRetainingAudio = false;
+}
+
+void USoundNode::RemoveSoundWaveOnChildWavePlayers()
+{
+	// Search child nodes for wave players, then null out their sound wave.
+	for (USoundNode* ChildNode : ChildNodes)
+	{
+		if (ChildNode)
+		{
+			ChildNode->ConditionalPostLoad();
+			ChildNode->RemoveSoundWaveOnChildWavePlayers();
+
+			USoundNodeWavePlayer* WavePlayer = Cast<USoundNodeWavePlayer>(ChildNode);
+			if (WavePlayer != nullptr)
+			{
+				USoundWave* SoundWave = WavePlayer->GetSoundWave();
+				if (SoundWave && !WavePlayer->IsCurrentlyAsyncLoadingAsset())
+				{
+					WavePlayer->SetSoundWave(nullptr);
+				}
+			}
+		}
+	}
 }
 
 void USoundNode::BeginDestroy()

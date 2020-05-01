@@ -226,5 +226,11 @@ public:
 
 	virtual void ReleaseRetainerOnChildWavePlayers(bool bRecurse);
 
+	/**
+	 * When called, this will find any child wave players connected to this node
+	 * and null out their associated USoundWave, allowing the USoundWave to be garbage collected.
+	 * This should only be called by USoundNodeQualityLevel::PostLoad when au.CullSoundWaveHardReferences is 1.
+	 */
+	virtual void RemoveSoundWaveOnChildWavePlayers();
 };
 
