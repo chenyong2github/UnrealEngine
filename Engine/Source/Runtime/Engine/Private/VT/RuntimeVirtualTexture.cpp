@@ -2,7 +2,11 @@
 
 #include "VT/RuntimeVirtualTexture.h"
 
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 #include "EngineModule.h"
+#include "Engine/TextureLODSettings.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "RendererInterface.h"
 #include "VT/RuntimeVirtualTextureNotify.h"
 #include "VT/VirtualTexture.h"
@@ -184,17 +188,22 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 {
 	OutDesc.Name = GetFName();
 	OutDesc.Dimensions = 2;
-	OutDesc.TileSize = GetTileSize();
-	OutDesc.TileBorderSize = GetTileBorderSize();
 	OutDesc.DepthInTiles = 1;
 	OutDesc.WidthInBlocks = 1;
 	OutDesc.HeightInBlocks = 1;
 
-	// Apply TileCount modifier here to allow size scalability option
+	// Apply LODGroup TileSize bias here.
+	const int32 TileSizeBias = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(LODGroup).VirtualTextureTileSizeBias;
+	OutDesc.TileSize = GetTileSize(TileSize + TileSizeBias);
+
+	OutDesc.TileBorderSize = GetTileBorderSize();
+
+	// Apply runtime scalability option for TileCount bias here.
+	// We could also add a LODGroup driven bias in the future if it is useful.
 	const int32 TileCountBias = VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias();
 	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBias);
 
-	// Set width and height to best match the runtime virtual texture volume's aspect ratio
+	// Set width and height to best match the runtime virtual texture volume's aspect ratio.
 	const FVector VolumeSize = VolumeToWorld.GetScale3D();
 	const float VolumeSizeX = FMath::Max(FMath::Abs(VolumeSize.X), 0.0001f);
 	const float VolumeSizeY = FMath::Max(FMath::Abs(VolumeSize.Y), 0.0001f);
@@ -469,28 +478,35 @@ namespace RuntimeVirtualTexture
 {
 	IVirtualTexture* CreateStreamingTextureProducer(
 		IVirtualTexture* InProducer,
-		URuntimeVirtualTexture* InBaseVirtualTexure,
+		FVTProducerDescription const& InProducerDesc,
 		UVirtualTexture2D* InStreamingTexture,
-		int32 InMaxLevel, int32 InNumMips,
+		int32 InMaxLevel,
 		int32& OutTransitionLevel)
 	{
-		if (InBaseVirtualTexure != nullptr && InStreamingTexture != nullptr)
+		if (InProducer != nullptr && InStreamingTexture != nullptr)
 		{
 			FTexturePlatformData** StreamingTextureData = InStreamingTexture->GetRunningPlatformData();
 			if (StreamingTextureData != nullptr && *StreamingTextureData != nullptr)
 			{
 				FVirtualTextureBuiltData* VTData = (*StreamingTextureData)->VTData;
 
-				ensure(InBaseVirtualTexure->GetTileSize() == VTData->TileSize);
-				ensure(InBaseVirtualTexure->GetTileBorderSize() == VTData->TileBorderSize);
-				if (InBaseVirtualTexure->GetTileSize() == VTData->TileSize && InBaseVirtualTexure->GetTileBorderSize() == VTData->TileBorderSize)
+				ensure(InProducerDesc.TileSize == VTData->TileSize);
+				ensure(InProducerDesc.TileBorderSize == VTData->TileBorderSize);
+				if (InProducerDesc.TileSize == VTData->TileSize && InProducerDesc.TileBorderSize == VTData->TileBorderSize)
 				{
-					// Streaming data may have mips removed during cook
-					const int32 NumStreamMips = FMath::Min(InNumMips, (*StreamingTextureData)->GetNumVTMips());
+					// Note that streaming data may have mips added/removed during cook.
+					const uint32 Size = FMath::Max(VTData->Width, VTData->Height);
+					const uint32 NumTiles = FMath::DivideAndRoundUp(Size, VTData->TileSize);
+					const uint32 NumMips = FMath::CeilLogTwo(NumTiles) + 1;
 
-					OutTransitionLevel = FMath::Max(InMaxLevel - NumStreamMips + 1, 0);
-					IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(VTData, 0);
-					return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, OutTransitionLevel);
+					// If the streaming texture is bigger then the runtime virtual texture then offset the first mip.
+					const int32 TransitionLevel = InMaxLevel - (int32)NumMips + 1;
+					const int32 FirstStreamingMip = TransitionLevel < 0 ? -TransitionLevel : 0;
+					const int32 AdjustedTransitionLevel = TransitionLevel + FirstStreamingMip;
+					OutTransitionLevel = TransitionLevel;
+
+					IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(VTData, FirstStreamingMip);
+					return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, AdjustedTransitionLevel);
 				}
 			}
 		}
