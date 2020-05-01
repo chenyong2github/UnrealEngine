@@ -116,7 +116,7 @@ struct FRestoreReimportData
 			//Package was recreate so restore the metadata
 			UMetaData* PackageMetaData = DupObject->GetOutermost()->GetMetaData();
 			checkSlow(PackageMetaData);
-			PackageMetaData->SetObjectValues(DupObject, ObjectMetaData);
+			PackageMetaData->SetObjectValues(DupObject, MoveTemp(ObjectMetaData));
 		}
 		//Since all loaded package are add to root, we have to remove the dup from the root
 		DupObject->RemoveFromRoot();
