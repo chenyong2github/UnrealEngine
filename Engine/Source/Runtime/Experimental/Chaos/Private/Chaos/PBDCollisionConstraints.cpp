@@ -252,8 +252,6 @@ namespace Chaos
 			Manifolds.Add(Handle->GetKey(), Handle);
 #endif
 		}
-
-		UpdateConstraintMaterialProperties(Constraints.SinglePointConstraints[Idx]);
 	}
 
 	void FPBDCollisionConstraints::AddConstraint(const FRigidBodySweptPointContactConstraint& InConstraint)
@@ -277,8 +275,6 @@ namespace Chaos
 #endif
 			}
 		}
-
-		UpdateConstraintMaterialProperties(Constraints.SinglePointSweptConstraints[Idx]);
 	}
 
 
@@ -301,8 +297,28 @@ namespace Chaos
 			Manifolds.Add(Handle->GetKey(), Handle);
 #endif
 		}
+	}
 
-		UpdateConstraintMaterialProperties(Constraints.MultiPointConstraints[Idx]);
+	void FPBDCollisionConstraints::PrepareIteration(float dt)
+	{
+		// NOTE: We could set material properties as we add constraints, but the ParticlePairBroadphase
+		// skips the call to AddConstraint and writes directly to the constraint array, so we
+		// need to do it after all constraints are added.
+
+		for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
+		{
+			UpdateConstraintMaterialProperties(Contact);
+		}
+
+		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
+		{
+			UpdateConstraintMaterialProperties(Contact);
+		}
+
+		for (FRigidBodySweptPointContactConstraint& Contact : Constraints.SinglePointSweptConstraints)
+		{
+			UpdateConstraintMaterialProperties(Contact);
+		}
 	}
 
 	void FPBDCollisionConstraints::UpdatePositionBasedState(const FReal Dt)
