@@ -39,6 +39,7 @@ public:
 #endif
 
 	FSkeletalMeshRenderData();
+	~FSkeletalMeshRenderData();
 
 #if WITH_EDITOR
 	void Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner);
@@ -69,13 +70,24 @@ public:
 	*/
 	ENGINE_API int32 GetMaxBonesPerSection() const;
 
+
 	/** Return first valid LOD index starting at MinLODIdx. */
 	ENGINE_API int32 GetFirstValidLODIdx(int32 MinLODIdx) const;
 
-	/** Return the current first LODIdx that can be used. */
-	FORCEINLINE int32 GetCurrentFirstLODIdx(int32 MinLODIdx) const
+	/** Return the pending first LODIdx that can be used. */
+	FORCEINLINE int32 GetPendingFirstLODIdx(int32 MinLODIdx) const
 	{
-		return GetFirstValidLODIdx(FMath::Max<int32>(CurrentFirstLODIdx, MinLODIdx));
+		return GetFirstValidLODIdx(FMath::Max<int32>(PendingFirstLODIdx, MinLODIdx));
+	}
+
+	/** 
+	 * Return the pending first LOD that can be used for rendering starting at MinLODIdx.
+	 * This takes into account the streaming status from PendingFirstLODIdx, 
+	 * and MinLODIdx is expected to be UStaticMesh::MinLOD, which is platform specific.
+	 */
+	FORCEINLINE const FSkeletalMeshLODRenderData* GetPendingFirstLOD(int32 MinLODIdx) const
+	{
+		return &LODRenderData[GetPendingFirstLODIdx(MinLODIdx)];
 	}
 
 private:

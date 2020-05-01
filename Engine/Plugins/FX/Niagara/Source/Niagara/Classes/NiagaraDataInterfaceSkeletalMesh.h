@@ -27,32 +27,27 @@ struct FSkeletalMeshSkinningDataUsage
 		: LODIndex(INDEX_NONE)
 		, bUsesBoneMatrices(false)
 		, bUsesPreSkinnedVerts(false)
-		, bNeedDataImmediately(false)
 	{}
 
-	FSkeletalMeshSkinningDataUsage(int32 InLODIndex, bool bInUsesBoneMatrices, bool bInUsesPreSkinnedVerts, bool bInNeedDataImmediately)
+	FSkeletalMeshSkinningDataUsage(int32 InLODIndex, bool bInUsesBoneMatrices, bool bInUsesPreSkinnedVerts)
 		: LODIndex(InLODIndex)
 		, bUsesBoneMatrices(bInUsesBoneMatrices)
 		, bUsesPreSkinnedVerts(bInUsesPreSkinnedVerts)
-		, bNeedDataImmediately(bInNeedDataImmediately)
 	{}
 
 	FORCEINLINE bool NeedBoneMatrices()const { return bUsesBoneMatrices || bUsesPreSkinnedVerts; }
 	FORCEINLINE bool NeedPreSkinnedVerts()const { return bUsesPreSkinnedVerts; }
-	FORCEINLINE bool NeedsDataImmediately()const { return bNeedDataImmediately; }
 	FORCEINLINE int32 GetLODIndex()const { return LODIndex; }
 private:
 	int32 LODIndex;
 	uint32 bUsesBoneMatrices : 1;
 	uint32 bUsesPreSkinnedVerts : 1;
-	/** Some users need valid data immediately after the register call rather than being able to wait until the next tick. */
-	uint32 bNeedDataImmediately : 1;
 };
 
 struct FSkeletalMeshSkinningDataHandle
 {
 	FSkeletalMeshSkinningDataHandle();
-	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataUsage InUsage, TSharedPtr<struct FSkeletalMeshSkinningData> InSkinningData);
+	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataUsage InUsage, const TSharedPtr<struct FSkeletalMeshSkinningData>& InSkinningData, bool bNeedsDataImmediately);
 	FSkeletalMeshSkinningDataHandle(const FSkeletalMeshSkinningDataHandle& Other) = delete;
 	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other);
 	~FSkeletalMeshSkinningDataHandle();
@@ -71,10 +66,11 @@ struct FSkeletalMeshSkinningData
 		, DeltaSeconds(.0333f)
 		, CurrIndex(0)
 		, BoneMatrixUsers(0)
+		, TotalPreSkinnedVertsUsers(0)
 		, bForceDataRefresh(false)
 	{}
 
-	void RegisterUser(FSkeletalMeshSkinningDataUsage Usage);
+	void RegisterUser(FSkeletalMeshSkinningDataUsage Usage, bool bNeedsDataImmediately);
 	void UnregisterUser(FSkeletalMeshSkinningDataUsage Usage);
 	bool IsUsed()const;
 	void ForceDataRefresh();
@@ -173,6 +169,14 @@ struct FSkeletalMeshSkinningData
 		return ComponentTransforms[CurrIndex ^ 1];
 	}
 
+	FORCEINLINE bool NeedPreSkinnedVerts() const
+	{
+		return TotalPreSkinnedVertsUsers > 0;
+	}
+
+	/** Whether this has been ticked this frame.*/
+	mutable bool bHasTicked = false;
+
 private:
 
 	void UpdateBoneTransforms();
@@ -189,6 +193,8 @@ private:
 
 	/** Number of users for cached bone matrices. */
 	volatile int32 BoneMatrixUsers;
+	/** Total number of users for pre skinned verts.  (From LODData) */
+	volatile int32 TotalPreSkinnedVertsUsers;
 
 	/** Cached bone matrices. */
 	TArray<FMatrix> BoneRefToLocals[2];
@@ -216,20 +222,11 @@ private:
 
 class FNDI_SkeletalMesh_GeneratedData
 {
-	// Encapsulates skinning data and mesh usage information. 
-	// Set by GetCachedSkinningData and used by TickGeneratedData to determine whether we need to pre-skin or not.
-	struct CachedSkinningDataAndUsage
-	{
-		bool bHasTicked = false;
-		TSharedPtr<FSkeletalMeshSkinningData> SkinningData;
-		FSkeletalMeshSkinningDataUsage Usage;
-	};
-
 	FRWLock CachedSkinningDataGuard;
-	TMap<TWeakObjectPtr<USkeletalMeshComponent>, CachedSkinningDataAndUsage> CachedSkinningData;
+	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedPtr<FSkeletalMeshSkinningData> > CachedSkinningData;
 
 public:
-	FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage);
+	FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage, bool bNeedsDataImmediately);
 	void TickGeneratedData(ETickingGroup TickGroup, float DeltaSeconds);
 };
 
@@ -519,42 +516,29 @@ struct FNDISkeletalMesh_InstanceData
 	/** Flag to stub VM functions that rely on mesh data being accessible on the CPU */
 	bool bAllowCPUMeshDataAccess;
 
+	/** The MinLOD applicable to the skeletal mesh, based on USkeletalMesh::MinLod which is platform specific.*/
+	int32 MinLODIdx = 0;
+	/** Whether to reset the emitter if any LOD get streamed in. Used when the required LOD was not initially available. */
+	bool bResetOnLODStreamedIn = false;
+	/** The cached LODIdx used to initialize the FNDIStaticMesh_InstanceData.*/
+	int32 CachedLODIdx = 0;
+	/** The referenced LOD data, used to prevent streaming out LODs while they are being referenced*/
+	TRefCountPtr<const FSkeletalMeshLODRenderData> CachedLODData;
+
 	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceSkeletalMesh* Interface)const;
 
 	bool Init(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance);
 	FORCEINLINE_DEBUGGABLE bool Tick(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds);
 	FORCEINLINE_DEBUGGABLE void Release();
-	FORCEINLINE int32 GetLODIndex()const { return SkinningData.Usage.GetLODIndex(); }
+	FORCEINLINE int32 GetLODIndex()const { return CachedLODIdx; }
 
-	FORCEINLINE_DEBUGGABLE FSkeletalMeshLODRenderData* GetLODRenderDataAndSkinWeights(FSkinWeightVertexBuffer*& OutSkinWeightBuffer)
-	{
-		FSkeletalMeshLODRenderData* Ret = nullptr;
-		OutSkinWeightBuffer = nullptr;
-		if (Mesh)
-		{
-			Ret = &Mesh->GetResourceForRendering()->LODRenderData[GetLODIndex()];
-			if (bAllowCPUMeshDataAccess)
-			{
-				if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get()))
-				{
-					OutSkinWeightBuffer = SkelComp->GetSkinWeightBuffer(GetLODIndex());
-				}
-				else
-				{
-					OutSkinWeightBuffer = &Ret->SkinWeightVertexBuffer; // Todo @sckime fix this when main comes in for real
-				}
-			}
-		}
-		return Ret;
-	}
-
-	FORCEINLINE_DEBUGGABLE FSkinWeightVertexBuffer* GetSkinWeights()
+	FORCEINLINE_DEBUGGABLE const FSkinWeightVertexBuffer* GetSkinWeights()
 	{
 		if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get()))
 		{
-			return SkelComp->GetSkinWeightBuffer(GetLODIndex());
+			return SkelComp->GetSkinWeightBuffer(CachedLODIdx);
 		}
-		return &Mesh->GetResourceForRendering()->LODRenderData[GetLODIndex()].SkinWeightVertexBuffer;
+		return CachedLODData ? &CachedLODData->SkinWeightVertexBuffer : nullptr;
 	}
 
 	void UpdateFilteredSocketTransforms();
@@ -661,6 +645,8 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
+
+	int32 CalculateLODIndexAndSamplingRegions(USkeletalMesh* InMesh, TArray<int32>& OutSamplingRegionIndices, bool& OutAllRegionsAreAreaWeighting) const;
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
