@@ -141,7 +141,7 @@ public:
 
 	void UnprepareTick() {}
 
-	void PrepareIteration(FReal Dt) {}
+	void PrepareIteration(FReal Dt);
 
 	void UnprepareIteration(FReal Dt) {}
 
