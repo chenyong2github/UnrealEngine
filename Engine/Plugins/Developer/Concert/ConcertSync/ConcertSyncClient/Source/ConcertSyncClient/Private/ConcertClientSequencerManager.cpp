@@ -524,7 +524,7 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 					CompensatedTime.FrameNumber.Value, CompensatedTime.GetSubFrame(), CompensatedTime / SequenceRate
 				);
 
-				Player->PlayToFrame(CompensatedTime);
+				Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(CompensatedTime, EUpdatePositionMethod::Play));
 				Player->SetPlayRate(EventState.PlaybackSpeed);
 			}
 			else
@@ -552,20 +552,20 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 			case EConcertMovieScenePlayerStatus::Stepping:
 				// fallthrough, handles as scrub
 			case EConcertMovieScenePlayerStatus::Scrubbing:
-				Player->ScrubToFrame(IncomingTime);
+				Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(IncomingTime, EUpdatePositionMethod::Scrub));
 				break;
 			case EConcertMovieScenePlayerStatus::Paused:
-				Player->JumpToFrame(IncomingTime);
+				Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(IncomingTime, EUpdatePositionMethod::Jump));
 				Player->Pause();
 				break;
 			case EConcertMovieScenePlayerStatus::Stopped:
-				Player->JumpToFrame(IncomingTime);
+				Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(IncomingTime, EUpdatePositionMethod::Jump));
 				Player->Stop();
 				break;
 			case EConcertMovieScenePlayerStatus::Jumping:
 				// fallthrough, handles as stop
 			default:
-				Player->JumpToFrame(IncomingTime);
+				Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(IncomingTime, EUpdatePositionMethod::Jump));
 			}
 
 			Player->SetPlayRate(EventState.PlaybackSpeed);

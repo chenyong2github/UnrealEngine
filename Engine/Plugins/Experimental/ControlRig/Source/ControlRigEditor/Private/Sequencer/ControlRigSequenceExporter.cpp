@@ -256,7 +256,7 @@ void Convert(UControlRigSequence* Sequence, UAnimSequence* AnimSequence, USkelet
 				float CurrentTime = (float)(StartTime + FMath::Clamp(((double)Frame / FrameCountDouble) * DurationSeconds, 0.0, DurationSeconds));
 
 				// Tick Sequence
-				LevelSequenceActor->SequencePlayer->JumpToSeconds(CurrentTime);
+				LevelSequenceActor->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(CurrentTime, EUpdatePositionMethod::Jump));
 
 				// Tick skeletal mesh component
 				SkeletalMeshComponent->TickAnimation(FrameLength, false);

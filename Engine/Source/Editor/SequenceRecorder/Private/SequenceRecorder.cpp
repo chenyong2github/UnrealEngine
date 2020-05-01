@@ -709,7 +709,7 @@ bool FSequenceRecorder::StartRecordingInternal(UWorld* World)
 				if (DupActorToTrigger->SequencePlayer)
 				{
 					DupActorToTrigger->SequencePlayer->SetDisableCameraCuts(true);
-					DupActorToTrigger->SequencePlayer->JumpToFrame(0);
+					DupActorToTrigger->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(0, EUpdatePositionMethod::Jump));
 					DupActorToTrigger->SequencePlayer->Play();
 				}
 				else
