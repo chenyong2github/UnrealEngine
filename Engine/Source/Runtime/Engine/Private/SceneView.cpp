@@ -2011,10 +2011,14 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	if (AllowDebugViewmodes())
 	{
 		ConfigureBufferVisualizationSettings();
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		ConfigureDebugVisualizationSettings();
-#endif
 	}
+
+#if !(UE_BUILD_SHIPPING)
+	if (Family->EngineShowFlags.IsVisualizeCalibrationEnabled())
+	{
+		ConfigureVisualizeCalibrationSettings();
+	}
+#endif
 
 #if WITH_EDITOR
 	FHighResScreenshotConfig& Config = GetHighResScreenshotConfig();
@@ -2127,70 +2131,46 @@ void FSceneView::ConfigureBufferVisualizationSettings()
 	}
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING)
 
-void FSceneView::ConfigureDebugVisualizationSettings()
+void FSceneView::ConfigureVisualizeCalibrationSettings()
 {
-	// Get the list of requested buffers from the console
 	const URendererSettings* Settings = GetDefault<URendererSettings>();
 	check(Settings);
-
-	if (Family->EngineShowFlags.VisualizeDebugCustomPostProcessMaterial)
+	
+	auto ConfigureCalibrationSettings = [](const FSoftObjectPath& InPath, UMaterialInterface*& OutMaterialInterface, FName& OutMaterialName)
 	{
-		if (Settings->VisualizeDebugCustomMaterialPath.IsValid())
+		if (InPath.IsValid())
 		{
-			if (UMaterial* Material = Cast<UMaterial>(Settings->VisualizeDebugCustomMaterialPath.TryLoad()))
+			if (UMaterial* Material = Cast<UMaterial>(InPath.TryLoad()))
 			{
-				FinalPostProcessSettings.DebugCustomVisualizationMaterial = Material;
-				CurrentVisualizeDebugCustomMaterialName = *Material->GetPathName();
+				OutMaterialInterface = Material;
+				OutMaterialName = *Material->GetPathName();
 			}
 			else
 			{
-				UE_LOG(LogBufferVisualization, Warning, TEXT("Error loading material '%s'"), *Settings->VisualizeDebugCustomMaterialPath.ToString());
-				FinalPostProcessSettings.DebugCustomVisualizationMaterial = nullptr;
-				CurrentVisualizeDebugCustomMaterialName = NAME_None;
+				UE_LOG(LogBufferVisualization, Warning, TEXT("Error loading material '%s'"), *InPath.ToString());
+				OutMaterialInterface = nullptr;
+				OutMaterialName = NAME_None;
 			}
 		}
+	};
+
+	if (Family->EngineShowFlags.VisualizeCalibrationColor)
+	{
+		ConfigureCalibrationSettings(Settings->VisualizeCalibrationColorMaterialPath, FinalPostProcessSettings.VisualizeCalibrationColorMaterial, CurrentVisualizeCalibrationColorMaterialName);
 	}
-
-	if (Family->EngineShowFlags.VisualizeDebugColor)
+	else if (Family->EngineShowFlags.VisualizeCalibrationGrayscale)
 	{
-		if (Settings->VisualizeDebugColorMaterialPath.IsValid())
-		{
-			if (UMaterial* Material = Cast<UMaterial>(Settings->VisualizeDebugColorMaterialPath.TryLoad()))
-			{
-				FinalPostProcessSettings.DebugColorVisualizationMaterial = Material;
-				CurrentVisualizeDebugColorMaterialName = *Material->GetPathName();
-			}
-			else
-			{
-				UE_LOG(LogBufferVisualization, Warning, TEXT("Error loading material '%s'"), *Settings->VisualizeDebugColorMaterialPath.ToString());
-				FinalPostProcessSettings.DebugColorVisualizationMaterial = nullptr;
-				CurrentVisualizeDebugColorMaterialName = NAME_None;
-			}
-		}
+		ConfigureCalibrationSettings(Settings->VisualizeCalibrationGrayscaleMaterialPath, FinalPostProcessSettings.VisualizeCalibrationGrayscaleMaterial, CurrentVisualizeCalibrationGrayscaleMaterialName);
 	}
-
-	if (Family->EngineShowFlags.VisualizeDebugGrayscale)
+	else if (Family->EngineShowFlags.VisualizeCalibrationCustom)
 	{
-		if (Settings->VisualizeDebugGrayscaleMaterialPath.IsValid())
-		{
-			if (UMaterial* Material = Cast<UMaterial>(Settings->VisualizeDebugGrayscaleMaterialPath.TryLoad()))
-			{
-				FinalPostProcessSettings.DebugGrayscaleVisualizationMaterial = Material;
-				CurrentVisualizeDebugGrayscaleMaterialName = *Material->GetPathName();
-			}
-			else
-			{
-				UE_LOG(LogBufferVisualization, Warning, TEXT("Error loading material '%s'"), *Settings->VisualizeDebugGrayscaleMaterialPath.ToString());
-				FinalPostProcessSettings.DebugGrayscaleVisualizationMaterial = nullptr;
-				CurrentVisualizeDebugGrayscaleMaterialName = NAME_None;
-			}
-		}
+		ConfigureCalibrationSettings(Settings->VisualizeCalibrationCustomMaterialPath, FinalPostProcessSettings.VisualizeCalibrationCustomMaterial, CurrentVisualizeCalibrationCustomMaterialName);
 	}
 }
 
-#endif
+#endif // #if !(UE_BUILD_SHIPPING)
 
 EShaderPlatform FSceneView::GetShaderPlatform() const
 {

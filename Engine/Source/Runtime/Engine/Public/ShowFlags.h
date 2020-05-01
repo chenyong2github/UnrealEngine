@@ -223,6 +223,10 @@ struct FEngineShowFlags
 		SetDistanceFieldGI(true);
 	}
 
+	bool IsVisualizeCalibrationEnabled() const
+	{
+		return (VisualizeCalibrationColor || VisualizeCalibrationGrayscale || VisualizeCalibrationCustom);
+	}
 
 	// ---------------------------------------------------------
 	// The following methods are there for serialization, localization and in general to iterate and manipulate flags.
@@ -400,9 +404,9 @@ private:
 		SetPathTracing(false);
 		SetRayTracingDebug(false);
 		SetVisualizeSkyAtmosphere(false);
-		SetVisualizeDebugColor(false);
-		SetVisualizeDebugGrayscale(false);
-		SetVisualizeDebugCustomPostProcessMaterial(false);
+		SetVisualizeCalibrationColor(false);
+		SetVisualizeCalibrationGrayscale(false);
+		SetVisualizeCalibrationCustom(false);
 	}
 
 

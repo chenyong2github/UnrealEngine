@@ -13,7 +13,7 @@
 #include "ScreenRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessSubsurface.h"
-#include "PostProcess/PostProcessVisualizeDebugMaterial.h"
+#include "PostProcess/PostProcessVisualizeCalibrationMaterial.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "FXSystem.h"
 #include "OneColorShader.h"
@@ -2915,16 +2915,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			{
 				FViewInfo& View = Views[ViewIndex];
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING)
 
-				if (IsPostProcessVisualizeDebugMaterialEnabled(View))
+				if (IsPostProcessVisualizeCalibrationMaterialEnabled(View))
 				{
-					const UMaterialInterface* DebugMaterialInterface = GetPostProcessVisualizeDebugMaterialInterface(View);
+					const UMaterialInterface* DebugMaterialInterface = GetPostProcessVisualizeCalibrationMaterialInterface(View);
 					check(DebugMaterialInterface);
 
 					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-					AddVisualizeDebugMaterialPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, DebugMaterialInterface);
+					AddVisualizeCalibrationMaterialPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, DebugMaterialInterface);
 
 				}
 				else
@@ -2934,7 +2934,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 					AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING)
 				}
 #endif
 			}
