@@ -2566,15 +2566,15 @@ FText FEditorViewportClient::GetCurrentBufferVisualizationModeDisplayName() cons
 		? FBufferVisualizationData::GetMaterialDefaultDisplayName() : GetBufferVisualizationData().GetMaterialDisplayName(CurrentBufferVisualizationMode));
 }
 
-bool FEditorViewportClient::IsVisualizeDebugMaterialEnabled() const
+bool FEditorViewportClient::IsVisualizeCalibrationMaterialEnabled() const
 {
 	// Get the list of requested buffers from the console
 	const URendererSettings* Settings = GetDefault<URendererSettings>();
 	check(Settings);
 
-	return ((EngineShowFlags.VisualizeDebugCustomPostProcessMaterial && Settings->VisualizeDebugCustomMaterialPath.IsValid()) ||
-		(EngineShowFlags.VisualizeDebugColor  && Settings->VisualizeDebugColorMaterialPath.IsValid()) ||
-		(EngineShowFlags.VisualizeDebugGrayscale && Settings->VisualizeDebugGrayscaleMaterialPath.IsValid()));
+	return ((EngineShowFlags.VisualizeCalibrationCustom && Settings->VisualizeCalibrationCustomMaterialPath.IsValid()) ||
+		(EngineShowFlags.VisualizeCalibrationColor  && Settings->VisualizeCalibrationColorMaterialPath.IsValid()) ||
+		(EngineShowFlags.VisualizeCalibrationGrayscale && Settings->VisualizeCalibrationGrayscaleMaterialPath.IsValid()));
 }
 
 void FEditorViewportClient::ChangeRayTracingDebugVisualizationMode(FName InName)
@@ -2611,7 +2611,7 @@ bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 	}
 
 	// Don't do preview screen percentage for buffer visualization.
-	if (EngineShowFlags.VisualizeBuffer || IsVisualizeDebugMaterialEnabled())
+	if (EngineShowFlags.VisualizeBuffer || IsVisualizeCalibrationMaterialEnabled())
 	{
 		return false;
 	}
@@ -3877,7 +3877,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	}
 
 	// Axes indicators
-	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden() && !IsVisualizeDebugMaterialEnabled())
+	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden() && !IsVisualizeCalibrationMaterialEnabled())
 	{
 		switch (GetViewportType())
 		{
