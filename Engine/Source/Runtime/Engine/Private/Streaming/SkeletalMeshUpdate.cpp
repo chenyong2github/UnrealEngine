@@ -15,6 +15,8 @@ SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
 #include "Components/SkinnedMeshComponent.h"
 #include "Streaming/RenderAssetUpdate.inl"
 
+extern int32 GStreamingMaxReferenceChecks;
+
 template class TRenderAssetUpdate<FSkelMeshUpdateContext>;
 
 static constexpr uint32 GSkelMeshMaxNumResourceUpdatesPerLOD = 16;
@@ -239,12 +241,12 @@ void FSkeletalMeshStreamIn::DoCancel(const FContext& Context)
 FSkeletalMeshStreamOut::FSkeletalMeshStreamOut(USkeletalMesh* InMesh, int32 InRequestedMips)
 	: FSkeletalMeshUpdate(InMesh, InRequestedMips)
 {
-	PushTask(FContext(InMesh, TT_None), TT_GameThread, SRA_UPDATE_CALLBACK(DoConditionalMarkComponentsDirty), TT_None, nullptr);
+	PushTask(FContext(InMesh, TT_None), TT_GameThread, SRA_UPDATE_CALLBACK(ConditionalMarkComponentsDirty), TT_None, nullptr);
 }
 
-void FSkeletalMeshStreamOut::DoConditionalMarkComponentsDirty(const FContext& Context)
+void FSkeletalMeshStreamOut::ConditionalMarkComponentsDirty(const FContext& Context)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshStreamOut_DoConditionalMarkComponentsDirty);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshStreamOut::ConditionalMarkComponentsDirty"), STAT_SkeletalMeshStreamOut_ConditionalMarkComponentsDirty, STATGROUP_StreamingDetails);
 	CSV_SCOPED_TIMING_STAT_GLOBAL(SkStreamingMarkDirtyTime);
 	check(Context.CurrentThread == TT_GameThread);
 
@@ -275,11 +277,53 @@ void FSkeletalMeshStreamOut::DoConditionalMarkComponentsDirty(const FContext& Co
 	{
 		Abort();
 	}
-	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(DoReleaseBuffers), (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(DoCancel));
+	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(WaitForReferences), (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(Cancel));
 }
 
-void FSkeletalMeshStreamOut::DoReleaseBuffers(const FContext& Context)
+void FSkeletalMeshStreamOut::WaitForReferences(const FContext& Context)
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshStreamOut::WaitForReferences"), STAT_SkeletalMeshStreamOut_WaitForReferences, STATGROUP_StreamingDetails);
+	check(Context.CurrentThread == TT_Async);
+
+	USkeletalMesh* Mesh = Context.Mesh;
+	FSkeletalMeshRenderData* RenderData = Context.RenderData;
+	uint32 NumExternalReferences = 0;
+
+	if (Mesh && RenderData)
+	{
+		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
+		{
+			// Minus 1 since the LODResources reference is not considered external
+			NumExternalReferences += RenderData->LODRenderData[LODIdx].GetRefCount() - 1;
+		}
+
+		if (NumExternalReferences > PreviousNumberOfExternalReferences && NumReferenceChecks > 0)
+		{
+			PreviousNumberOfExternalReferences = NumExternalReferences;
+			UE_LOG(LogSkeletalMesh, Warning, TEXT("[%s] Streamed out LODResources got referenced while in pending stream out."), *Mesh->GetName());
+		}
+	}
+
+	if (!NumExternalReferences || NumReferenceChecks >= GStreamingMaxReferenceChecks)
+	{
+		PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(ReleaseBuffers), (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(Cancel));
+	}
+	else
+	{
+		++NumReferenceChecks;
+		if (NumReferenceChecks >= GStreamingMaxReferenceChecks)
+		{
+			UE_LOG(LogSkeletalMesh, Log, TEXT("[%s] Streamed out LODResources references are not getting released."), *Mesh->GetName());
+		}
+
+		bDeferExecution = true;
+		PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(WaitForReferences),  (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(Cancel));
+	}
+}
+
+void FSkeletalMeshStreamOut::ReleaseBuffers(const FContext& Context)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshStreamOut::ReleaseBuffers"), STAT_SkeletalMeshStreamOut_ReleaseBuffers, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Render);
 	USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
@@ -305,12 +349,18 @@ void FSkeletalMeshStreamOut::DoReleaseBuffers(const FContext& Context)
 			LODResource.MultiSizeIndexContainer.ReleaseRHIForStreaming(Batcher);
 			LODResource.AdjacencyMultiSizeIndexContainer.ReleaseRHIForStreaming(Batcher);
 			LODResource.SkinWeightProfilesData.ReleaseRHIForStreaming(Batcher);
+
+			if (!FPlatformProperties::HasEditorOnlyData())
+			{
+				// TODO requires more testing : LODResource.ReleaseCPUResources(true);
+			}
 		}
 	}
 }
 
-void FSkeletalMeshStreamOut::DoCancel(const FContext& Context)
+void FSkeletalMeshStreamOut::Cancel(const FContext& Context)
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshStreamOut::Cancel"), STAT_SkeletalMeshStreamOut_Cancel, STATGROUP_StreamingDetails);
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (RenderData)
 	{

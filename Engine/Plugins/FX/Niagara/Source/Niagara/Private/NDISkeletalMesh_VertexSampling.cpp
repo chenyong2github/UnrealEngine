@@ -559,13 +559,12 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexColor(FVectorVMContext& Context
 	VectorVM::FExternalFuncRegisterHandler<float> OutColorA(Context);
 
 	USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(InstData->Component.Get());
-	FSkinWeightVertexBuffer* SkinWeightBuffer;
-	FSkeletalMeshLODRenderData* LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
+	const FSkeletalMeshLODRenderData* LODData = InstData->CachedLODData;
 	check(LODData);
 	const FColorVertexBuffer& Colors = LODData->StaticVertexBuffers.ColorVertexBuffer;
 	checkfSlow(Colors.GetNumVertices() != 0, TEXT("Trying to access vertex colors from mesh without any."));
 
-	FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
+	const FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
 	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
 	int32 VertMax = LODData->GetNumVertices();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -616,12 +615,11 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> OutUVX(Context);	VectorVM::FExternalFuncRegisterHandler<float> OutUVY(Context);
 
 	USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(InstData->Component.Get());
-	FSkinWeightVertexBuffer* SkinWeightBuffer;
-	FSkeletalMeshLODRenderData* LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
+	const FSkeletalMeshLODRenderData* LODData = InstData->CachedLODData;
 	check(LODData);
 
-	FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
-	FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
+	const FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
+	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
 	const int32 VertMax = LODData->GetNumVertices() - 1;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{

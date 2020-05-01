@@ -384,6 +384,19 @@ FSkeletalMeshRenderData::FSkeletalMeshRenderData()
 	, bInitialized(false)
 {}
 
+FSkeletalMeshRenderData::~FSkeletalMeshRenderData()
+{
+	FSkeletalMeshLODRenderData** LODRenderDataArray = LODRenderData.GetData();
+	for (int32 LODIndex = 0; LODIndex < LODRenderData.Num(); ++LODIndex)
+	{
+		LODRenderDataArray[LODIndex]->Release();
+		// Prevent the array from calling the destructor to handle correctly the refcount.
+		// For compatibility reason, LODRenderDataArray is using ptr directly instead of TRefCountPtr.
+		LODRenderDataArray[LODIndex] = nullptr;
+	}
+	LODRenderData.Empty();
+}
+
 void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshRenderData::Serialize"), STAT_SkeletalMeshRenderData_Serialize, STATGROUP_LoadTime);

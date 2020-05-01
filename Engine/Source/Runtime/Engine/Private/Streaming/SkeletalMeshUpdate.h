@@ -132,15 +132,22 @@ public:
 	virtual ~FSkeletalMeshStreamOut() {}
 
 private:
-	void DoConditionalMarkComponentsDirty(const FContext& Context);
 
-	/** Release RHI buffers and update SRVs */
-	void DoReleaseBuffers(const FContext& Context);
+	int32 NumReferenceChecks = 0;
+	uint32 PreviousNumberOfExternalReferences = 0;
 
-	/** */
-	void DoCancel(const FContext& Context);
 
-	uint32 StartFrameNumber;
+	/** Notify components that the LOD is being streamed out so that they can release references. */
+	void ConditionalMarkComponentsDirty(const FContext& Context);
+
+	/** Wait for all references to be released. */
+	void WaitForReferences(const FContext& Context);
+
+	/** Release RHI buffers and update SRVs. */
+	void ReleaseBuffers(const FContext& Context);
+
+	/** Cancel the pending mip change. */
+	void Cancel(const FContext& Context);
 };
 
 class FSkeletalMeshStreamIn_IO : public FSkeletalMeshStreamIn
