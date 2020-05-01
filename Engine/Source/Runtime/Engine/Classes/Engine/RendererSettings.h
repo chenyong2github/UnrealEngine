@@ -822,25 +822,25 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	FPerPlatformBool bDiscardSkeletalMeshOptionalLODs;
 
 	/**
-	" Visualize debug material settings for post process debug materials, used for setting full-screen images used for monitor calibration."
+	" Visualize calibration material settings for post process calibration materials, used for setting full-screen images used for monitor calibration."
 	*/
-	UPROPERTY(config, EditAnywhere, Category = PostProcessDebugMaterials, meta = (AllowedClasses = "Material",
-		DisplayName = "Visualize Debug Color Material Path",
-		ToolTip = "When the VisualizeDebugColor show flag is enabled, this path will be used as the post-process material to render.",
+	UPROPERTY(config, EditAnywhere, Category = PostProcessCalibrationMaterials, meta = (AllowedClasses = "Material",
+		DisplayName = "Visualize Calibration Color Material Path",
+		ToolTip = "When the VisualizeCalibrationColor show flag is enabled, this path will be used as the post-process material to render.",
 		ConfigRestartRequired = true))
-	FSoftObjectPath VisualizeDebugColorMaterialPath;
+	FSoftObjectPath VisualizeCalibrationColorMaterialPath;
 
-	UPROPERTY(config, EditAnywhere, Category = PostProcessDebugMaterials, meta = (AllowedClasses = "Material",
-		DisplayName = "Visualize Debug Grayscale Material Path",
-		ToolTip = "When the VisualizeDebugGrayscale show flag is enabled, this path will be used as the post-process material to render.",
+	UPROPERTY(config, EditAnywhere, Category = PostProcessCalibrationMaterials, meta = (AllowedClasses = "Material",
+		DisplayName = "Visualize Calibration Grayscale Material Path",
+		ToolTip = "When the VisualizeCalibrationGrayscale show flag is enabled, this path will be used as the post-process material to render.",
 		ConfigRestartRequired = true))
-	FSoftObjectPath VisualizeDebugGrayscaleMaterialPath;
+	FSoftObjectPath VisualizeCalibrationGrayscaleMaterialPath;
 
-	UPROPERTY(config, EditAnywhere, Category = PostProcessDebugMaterials, meta = (AllowedClasses = "Material",
-		DisplayName = "Visualize Debug Custom Material Path",
-		ToolTip = "When the VisualizeDebugCustom show flag is enabled, this path will be used as the post-process material to render.",
+	UPROPERTY(config, EditAnywhere, Category = PostProcessCalibrationMaterials, meta = (AllowedClasses = "Material",
+		DisplayName = "Visualize Calibration Custom Material Path",
+		ToolTip = "When the VisualizeCalibrationCustom show flag is enabled, this path will be used as the post-process material to render.",
 		ConfigRestartRequired = true))
-	FSoftObjectPath VisualizeDebugCustomMaterialPath;
+	FSoftObjectPath VisualizeCalibrationCustomMaterialPath;
 
 public:
 
