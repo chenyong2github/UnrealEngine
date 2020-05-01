@@ -93,7 +93,7 @@ void UMoviePipeline::TickProducingFrames()
 		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(CurrentCameraCut.CurrentMasterSeqTick, TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
 		
 		// We tell it to jump so that things responding to different scrub-types work correctly.
-		LevelSequenceActor->GetSequencePlayer()->JumpToFrame(TimeInPlayRate);
+		LevelSequenceActor->GetSequencePlayer()->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(TimeInPlayRate, EUpdatePositionMethod::Jump));
 		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(CurrentCameraCut.CurrentMasterSeqTick, TargetSequence->GetMovieScene()->GetTickResolution()));
 
 		// Ensure we don't try to evaluate as we want to sit and wait during warm up and motion blur frames.
@@ -212,7 +212,7 @@ void UMoviePipeline::TickProducingFrames()
 
 		// Jump to the motion blur frame
 		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(FinalEvalTime, FrameMetrics.TickResolution, TargetSequence->GetMovieScene()->GetDisplayRate());
-		LevelSequenceActor->GetSequencePlayer()->JumpToFrame(TimeInPlayRate);
+		LevelSequenceActor->GetSequencePlayer()->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(TimeInPlayRate, EUpdatePositionMethod::Jump));
 		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(FinalEvalTime, FrameMetrics.TickResolution));
 		
 		// We early out on this loop so that at least one tick passes for motion blur. We need to leave our state in
@@ -484,7 +484,7 @@ void UMoviePipeline::TickProducingFrames()
 			// important because we're going backwards in time from the motion blur frame, and some tracks need to be notified
 			// of a jump when time goes backwards.
 			FFrameTime TimeInPlayRate = FFrameRate::TransformTime(FinalEvalTime, FrameMetrics.TickResolution, TargetSequence->GetMovieScene()->GetDisplayRate());
-			LevelSequenceActor->GetSequencePlayer()->JumpToFrame(TimeInPlayRate);
+			LevelSequenceActor->GetSequencePlayer()->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(TimeInPlayRate, EUpdatePositionMethod::Jump));
 			LevelSequenceActor->GetSequencePlayer()->Play();
 		}
 

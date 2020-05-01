@@ -98,7 +98,7 @@ void ALevelSequenceMediaController::Client_Play()
 
 	UE_LOG(LogLevelSequence, Log, TEXT("Initiating playback of sequence '%s' starting at time %fs"), *Sequence->GetName(), StartTimeSeconds);
 
-	Sequence->GetSequencePlayer()->JumpToSeconds(StartTimeSeconds);
+	Sequence->GetSequencePlayer()->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(StartTimeSeconds, EUpdatePositionMethod::Jump));
 	Sequence->GetSequencePlayer()->Play();
 }
 
@@ -126,7 +126,7 @@ void ALevelSequenceMediaController::Client_ConditionallyForceTime(float DesyncTh
 	if (Difference > DesyncThresholdSeconds)
 	{
 		const double NewTimeSeconds = Sequence->GetSequencePlayer()->GetStartTime().AsSeconds() + (CurrentServerTime - ServerStartTimeSeconds);
-		Sequence->GetSequencePlayer()->JumpToSeconds(NewTimeSeconds);
+		Sequence->GetSequencePlayer()->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NewTimeSeconds, EUpdatePositionMethod::Jump));
 
 		UE_LOG(LogLevelSequence, Warning, TEXT("Forcibly synchronizing sequence '%s' to time %f to server time (it is out by %fs)."), *Sequence->GetName(), NewTimeSeconds, Difference);
 	}
