@@ -196,6 +196,7 @@ namespace ImmediatePhysics_Chaos
 			, MaxNumRollingAverageStepTimes(ChaosImmediate_Evolution_DeltaTimeCount)
 			, bActorsDirty(false)
 		{
+			Particles.GetParticleHandles().AddArray(&CollidedParticles);
 			Particles.GetParticleHandles().AddArray(&ParticleMaterials);
 			Particles.GetParticleHandles().AddArray(&PerParticleMaterials);
 			Particles.GetParticleHandles().AddArray(&ParticlePrevXs);
@@ -401,11 +402,11 @@ namespace ImmediatePhysics_Chaos
 			}
 		}
 
-		Implementation->ParticleMaterials.Add(MakeSerializable(Material));
-		Implementation->PerParticleMaterials.Add(MoveTemp(Material));
-		Implementation->CollidedParticles.Add(false);
-		Implementation->ParticlePrevXs.Add(ActorHandle->GetParticle()->X());
-		Implementation->ParticlePrevRs.Add(ActorHandle->GetParticle()->R());
+		ActorHandle->GetParticle()->AuxilaryValue(Implementation->ParticleMaterials) = MakeSerializable(Material);
+		ActorHandle->GetParticle()->AuxilaryValue(Implementation->PerParticleMaterials) = MoveTemp(Material);
+		ActorHandle->GetParticle()->AuxilaryValue(Implementation->CollidedParticles) = false;
+		ActorHandle->GetParticle()->AuxilaryValue(Implementation->ParticlePrevXs) = ActorHandle->GetParticle()->X();
+		ActorHandle->GetParticle()->AuxilaryValue(Implementation->ParticlePrevRs) = ActorHandle->GetParticle()->R();
 
 		Implementation->bActorsDirty = true;
 
@@ -419,12 +420,6 @@ namespace ImmediatePhysics_Chaos
 
 		int32 Index = Implementation->ActorHandles.Remove(ActorHandle);
 		delete ActorHandle;
-
-		Implementation->ParticleMaterials.RemoveAt(Index, 1);
-		Implementation->PerParticleMaterials.RemoveAt(Index, 1);
-		Implementation->CollidedParticles.RemoveAt(Index, 1);
-		Implementation->ParticlePrevXs.RemoveAt(Index, 1);
-		Implementation->ParticlePrevRs.RemoveAt(Index, 1);
 
 		Implementation->bActorsDirty = true;
 	}
