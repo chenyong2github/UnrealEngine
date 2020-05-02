@@ -68,7 +68,7 @@ UMovieSceneTrackRecorder* FMovieScenePropertyTrackRecorderFactory::CreateTrackRe
 		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<uint8>(Binding));
 		break;
 	case ESerializedPropertyType::EnumType:
-		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorderEnum(Binding));
+		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<uint8>(Binding));
 		break;
 	case ESerializedPropertyType::IntegerType:
 		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<int32>(Binding));
@@ -106,7 +106,7 @@ void UMovieScenePropertyTrackRecorder::CreateTrackImpl()
  		}
 		else if (Property->IsA<FEnumProperty>())
 		{
-			PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorderEnum(Binding));
+			PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<uint8>(Binding));
 		}
 		else if (Property->IsA<FIntProperty>())
 		{
