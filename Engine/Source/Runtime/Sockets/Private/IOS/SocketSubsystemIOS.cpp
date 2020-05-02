@@ -222,7 +222,7 @@ bool FSocketSubsystemIOS::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAd
 			OutAddresses.Add(AddressInterface.Address);
 		}
 
-		return true;
+		return OutAddresses.Num() > 0;
 	}
 	return false;
 }
