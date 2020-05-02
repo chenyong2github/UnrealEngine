@@ -38,6 +38,7 @@ void UVirtualTextureBuilder::BuildTexture(FVirtualTextureBuildDesc const& BuildD
 
 	Texture = NewObject<UVirtualTexture2D>(this, TEXT("Texture"));
 	Texture->VirtualTextureStreaming = true;
+	Texture->LODGroup = BuildDesc.LODGroup;
 
 	Texture->Settings.Init();
 	Texture->Settings.TileSize = BuildDesc.TileSize;

@@ -61,7 +61,7 @@ FTransform URuntimeVirtualTextureComponent::GetVirtualTextureTransform() const
 	return FTransform(FVector(-0.5f, -0.5f, 0.f)) * GetComponentTransform();
 }
 
-uint32 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() const
+uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() const
 {
 	// Shouldn't need to call this when there is VirtualTexture == nullptr
 	check(VirtualTexture != nullptr);
@@ -69,13 +69,14 @@ uint32 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	// If a setting change can cause the streaming texture to no longer be valid then it should be included in this hash.
 	union FPackedSettings
 	{
-		uint32 PackedValue;
+		uint64 PackedValue;
 		struct
 		{
 			uint32 MaterialType : 4;
 			uint32 TileSize : 12;
 			uint32 TileBorderSize : 4;
 			uint32 StreamLowMips : 4;
+			uint32 LODGroup : 8;
 			uint32 CompressTextures : 1;
 			uint32 SinglePhysicalSpace : 1;
 			uint32 EnableCompressCrunch : 1;
@@ -88,6 +89,7 @@ uint32 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	Settings.TileSize = (uint32)VirtualTexture->GetTileSize();
 	Settings.TileBorderSize = (uint32)VirtualTexture->GetTileBorderSize();
 	Settings.StreamLowMips = (uint32)StreamLowMips;
+	Settings.LODGroup = (uint32)VirtualTexture->GetLODGroup();
 	Settings.CompressTextures = (uint32)VirtualTexture->GetCompressTextures();
 	Settings.SinglePhysicalSpace = (uint32)VirtualTexture->GetSinglePhysicalSpace();
 	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
@@ -126,6 +128,7 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 
 		BuildDesc.TileSize = VirtualTexture->GetTileSize();
 		BuildDesc.TileBorderSize = VirtualTexture->GetTileBorderSize();
+		BuildDesc.LODGroup = VirtualTexture->GetLODGroup();
 		BuildDesc.bCrunchCompressed = bEnableCompressCrunch;
 
 		BuildDesc.LayerCount = VirtualTexture->GetLayerCount();
