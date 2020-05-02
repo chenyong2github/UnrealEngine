@@ -74,7 +74,7 @@ protected:
 	//~ End USceneComponent Interface
 
 	/** Calculate a hash used to determine if the StreamingTexture contents are valid for use. The hash doesn't include whether the contents are up to date. */
-	uint32 CalculateStreamingTextureSettingsHash() const;
+	uint64 CalculateStreamingTextureSettingsHash() const;
 	/** Returns true if the StreamingTexure contents are valid for use. */
 	bool IsStreamingTextureValid() const;
 
