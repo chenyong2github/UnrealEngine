@@ -288,9 +288,6 @@ public:
 	virtual void IncreaseBrushSpeedAction();
 	virtual void DecreaseBrushSpeedAction();
 
-	virtual void NextBrushModeAction();
-	virtual void PreviousBrushModeAction();
-
 	virtual void NextHistoryBrushModeAction();
 	virtual void PreviousHistoryBrushModeAction();
 

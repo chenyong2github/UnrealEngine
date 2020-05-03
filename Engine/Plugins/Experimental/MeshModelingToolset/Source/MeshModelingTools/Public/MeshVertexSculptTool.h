@@ -162,8 +162,6 @@ public:
 public:
 	virtual void IncreaseBrushSpeedAction() override;
 	virtual void DecreaseBrushSpeedAction() override;
-	virtual void NextBrushModeAction() override;
-	virtual void PreviousBrushModeAction() override;
 
 protected:
 	// UMeshSculptToolBase API

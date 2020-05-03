@@ -664,25 +664,6 @@ void UMeshVertexSculptTool::DecreaseBrushSpeedAction()
 
 
 
-void UMeshVertexSculptTool::NextBrushModeAction()
-{
-	uint8 LastMode = (uint8)EMeshVertexSculptBrushType::LastValue;
-	SculptProperties->PrimaryBrushType = (EMeshVertexSculptBrushType)(((uint8)SculptProperties->PrimaryBrushType + 1) % LastMode);
-}
-
-void UMeshVertexSculptTool::PreviousBrushModeAction()
-{
-	uint8 LastMode = (uint8)EMeshVertexSculptBrushType::LastValue;
-	uint8 CurMode = (uint8)SculptProperties->PrimaryBrushType;
-	if (CurMode == 0)
-	{
-		SculptProperties->PrimaryBrushType = (EMeshVertexSculptBrushType)((uint8)LastMode - 1);
-	}
-	else
-	{
-		SculptProperties->PrimaryBrushType = (EMeshVertexSculptBrushType)((uint8)CurMode - 1);
-	}
-}
 
 
 
@@ -776,7 +757,7 @@ void UMeshVertexSculptTool::OnDynamicMeshComponentChanged(USimpleDynamicMeshComp
 
 void UMeshVertexSculptTool::UpdateBrushType(EMeshVertexSculptBrushType BrushType)
 {
-	static const FText BaseMessage = LOCTEXT("OnStartSculptTool", "Hold Shift to Smooth, Ctrl to Invert (where applicable). Q/A keys cycle Brush Type. S/D changes Size (+Shift to small-step), W/E changes Strength.");
+	static const FText BaseMessage = LOCTEXT("OnStartSculptTool", "Hold Shift to Smooth, Ctrl to Invert (where applicable). [/] and S/D change Size (+Shift to small-step), W/E changes Strength.");
 	FTextBuilder Builder;
 	Builder.AppendLine(BaseMessage);
 
