@@ -1986,25 +1986,6 @@ void UDynamicMeshSculptTool::DecreaseBrushFalloffAction()
 
 
 
-void UDynamicMeshSculptTool::NextBrushModeAction()
-{
-	uint8 LastMode = (uint8)EDynamicMeshSculptBrushType::LastValue;
-	SculptProperties->PrimaryBrushType = (EDynamicMeshSculptBrushType)(((uint8)SculptProperties->PrimaryBrushType + 1) % LastMode);
-}
-
-void UDynamicMeshSculptTool::PreviousBrushModeAction()
-{
-	uint8 LastMode = (uint8)EDynamicMeshSculptBrushType::LastValue;
-	uint8 CurMode = (uint8)SculptProperties->PrimaryBrushType;
-	if (CurMode == 0)
-	{
-		SculptProperties->PrimaryBrushType = (EDynamicMeshSculptBrushType)((uint8)LastMode - 1);
-	}
-	else
-	{
-		SculptProperties->PrimaryBrushType = (EDynamicMeshSculptBrushType)((uint8)CurMode - 1);
-	}
-}
 
 void UDynamicMeshSculptTool::NextHistoryBrushModeAction()
 {
@@ -2057,20 +2038,6 @@ void UDynamicMeshSculptTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 		EModifierKey::Shift | EModifierKey::Control, EKeys::LeftBracket,
 		[this]() { DecreaseBrushFalloffAction(); });
 
-
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID+1,
-		TEXT("NextBrushMode"),
-		LOCTEXT("SculptNextBrushMode", "Next Brush Type"),
-		LOCTEXT("SculptNextBrushModeTooltip", "Cycle to next Brush Type"),
-		EModifierKey::None, EKeys::A,
-		[this]() { NextBrushModeAction(); });
-
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID+2,
-		TEXT("PreviousBrushMode"),
-		LOCTEXT("SculptPreviousBrushMode", "Previous Brush Type"),
-		LOCTEXT("SculptPreviousBrushModeTooltip", "Cycle to previous Brush Type"),
-		EModifierKey::None, EKeys::Q,
-		[this]() { PreviousBrushModeAction(); });
 
 	//ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 10,
 	//	TEXT("NextBrushHistoryState"),
@@ -2303,7 +2270,7 @@ void UDynamicMeshSculptTool::UpdateImageSetting(UTexture2D* NewImage)
 
 void UDynamicMeshSculptTool::UpdateBrushType(EDynamicMeshSculptBrushType BrushType)
 {
-	static const FText BaseMessage = LOCTEXT("OnStartSculptTool", "Hold Shift to Smooth, Ctrl to Invert (where applicable). Q/A keys cycle Brush Type. S/D changes Size (+Shift to small-step), W/E changes Strength.");
+	static const FText BaseMessage = LOCTEXT("OnStartSculptTool", "Hold Shift to Smooth, Ctrl to Invert (where applicable). [/] and S/D change Size (+Shift to small-step), W/E changes Strength.");
 	FTextBuilder Builder;
 	Builder.AppendLine(BaseMessage);
 
