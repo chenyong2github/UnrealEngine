@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
+
 #include "FSparseMatrixD.h"
 #include "MatrixSolver.h"
 
@@ -49,14 +50,6 @@ public:
 	// Change this to enable time logging for testing.
 	//typedef FScopedDurationTimeLogger FConstrainedSolverTimeLogger; 
 	typedef FDummyTimeLogger FConstrainedSolverTimeLogger;
-
-	struct FConstraintPosition
-	{
-		FConstraintPosition(const FVector3d& P, bool b) : Position(P), bPostFix(b) {}
-
-		FVector3d Position;
-		bool     bPostFix;
-	};
 
 
 	FConstrainedSolver(TUniquePtr<FSparseMatrixD>& SymmatrixMatrixOperator, const EMatrixSolverType MatrixSolverType)
@@ -104,7 +97,7 @@ public:
 	}
 
 	// Updates the positional source term
-	void SetContraintPositions(const TMap<int32, FConstraintPosition>& PositionMap)
+	void SetContraintPositions(const TMap<int32, UE::Solvers::FPositionConstraint>& PositionMap)
 	{
 		ClearConstraintPositions();
 

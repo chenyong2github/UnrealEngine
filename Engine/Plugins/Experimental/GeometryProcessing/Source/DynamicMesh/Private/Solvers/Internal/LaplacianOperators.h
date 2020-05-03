@@ -6,6 +6,7 @@
 #include "DynamicMesh3.h"
 #include "Solvers/MeshLaplacian.h"
 #include "Solvers/MeshLinearization.h"
+
 #include "FSparseMatrixD.h"
 
 

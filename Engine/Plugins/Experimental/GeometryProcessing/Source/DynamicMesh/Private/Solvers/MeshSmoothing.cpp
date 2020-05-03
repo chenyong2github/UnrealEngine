@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Solvers/MeshSmoothing.h"
-#include "Solvers/Internal/LaplacianMeshSmoother.h"
+#include "Solvers/Internal/MeshDiffusionSmoothing.h"
+#include "Solvers/Internal/ConstrainedMeshSmoothers.h"
 
 
 void UE::MeshDeformation::ComputeSmoothing_BiHarmonic(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& OriginalMesh,

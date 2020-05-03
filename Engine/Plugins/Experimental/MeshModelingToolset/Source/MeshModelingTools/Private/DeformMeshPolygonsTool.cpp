@@ -14,8 +14,7 @@
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
 
-// WAT
-#include "DynamicMesh/Private/Solvers/Internal/LaplacianMeshSmoother.h"
+#include "Solvers/ConstrainedMeshDeformer.h"
 #include "ModelingOperators/Public/ModelingTaskTypes.h"
 
 
@@ -152,7 +151,7 @@ private:
 	TArray<int32> SubsetVertexIDToSrcVertexIDMap;
 
 	/** Laplacian deformer object gets rebuilt each new transaction */
-	TUniquePtr<FConstrainedMeshDeformer> ConstrainedDeformer;
+	TUniquePtr<UE::Solvers::IConstrainedMeshSolver> ConstrainedDeformer;
 
 private:
 	FConstrainedMeshDeformerTask();
@@ -370,7 +369,7 @@ void FConstrainedMeshDeformerTask::DoWork()
 	{
 		
 		// Create a new deformation solver.
-		ConstrainedDeformer = MakeUnique<FConstrainedMeshDeformer>(SubsetMesh, LaplacianWeightScheme);
+		ConstrainedDeformer = UE::MeshDeformation::ConstructConstrainedMeshDeformer(LaplacianWeightScheme, SubsetMesh);
 
 		if (bAttenuateWeights)
 		{

@@ -54,7 +54,7 @@ namespace UE
 		*   MeshDeformer->Deform(PositionBuffer);
 		*   // Update Mesh?
 		*/
-		TUniquePtr<IConstrainedMeshSolver> DYNAMICMESH_API ConstructConstrainedMeshDeformer(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& DynamicMesh);
+		TUniquePtr<UE::Solvers::IConstrainedMeshSolver> DYNAMICMESH_API ConstructConstrainedMeshDeformer(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& DynamicMesh);
 
 	}
 }

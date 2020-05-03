@@ -32,7 +32,7 @@ void FCotanSmoothingOp::Smooth()
 		UseScheme = ELaplacianWeightScheme::Uniform;
 	}
 
-	TUniquePtr<IConstrainedMeshSolver> Smoother = UE::MeshDeformation::ConstructConstrainedMeshSmoother(
+	TUniquePtr<UE::Solvers::IConstrainedMeshSolver> Smoother = UE::MeshDeformation::ConstructConstrainedMeshSmoother(
 		UseScheme, *ResultMesh);
 
 	double Power = SmoothOptions.SmoothPower;

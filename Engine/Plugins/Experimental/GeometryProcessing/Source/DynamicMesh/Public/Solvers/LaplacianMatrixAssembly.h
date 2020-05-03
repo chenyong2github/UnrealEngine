@@ -38,7 +38,8 @@ namespace UE
 		*/
 		template<typename RealType>
 		void ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-			TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary);
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary);
 
 		/**
 		* Construct a sparse matrix representation of an umbrella weighted Laplacian.
@@ -64,7 +65,8 @@ namespace UE
 		*/
 		template<typename RealType>
 		void ConstructUmbrellaLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-			TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary);
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary);
 
 		/**
 		* Construct a sparse matrix representation of a valence-weighted Laplacian.
@@ -89,7 +91,8 @@ namespace UE
 		*/
 		template<typename RealType>
 		void ConstructValenceWeightedLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-			TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary);
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary);
 
 		/**
 		* Construct a sparse matrix representation using a meanvalue-weighted  Laplacian.
@@ -107,7 +110,8 @@ namespace UE
 		*/
 		template<typename RealType>
 		void ConstructMeanValueWeightLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-			TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary);
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary);
 
 
 		/**
@@ -130,8 +134,9 @@ namespace UE
 		*/
 		template<typename RealType>
 		void ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-			TSparseMatrixAssembler<RealType>& AreaMatrix,
-			TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary);
+			UE::Solvers::TSparseMatrixAssembler<RealType>& AreaMatrix,
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary);
 
 
 		/**
@@ -154,7 +159,8 @@ namespace UE
 		*/
 		template<typename RealType>
 		void ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-			TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary,
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary,
 			const bool bClampWeights);
 
 	}
@@ -174,7 +180,8 @@ namespace UE
 
 template<typename RealType>
 void UE::MeshDeformation::ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-	TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary)
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary)
 {
 	//check(VertexMap_is_good)
 	const TArray<int32>& ToMeshV = VertexMap.ToId();
@@ -223,7 +230,8 @@ void UE::MeshDeformation::ConstructUniformLaplacian(const FDynamicMesh3& Dynamic
 
 template<typename RealType>
 void UE::MeshDeformation::ConstructUmbrellaLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-	TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary)
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary)
 {
 	//check(VertexMap_is_good)
 	const TArray<int32>& ToMeshV = VertexMap.ToId();
@@ -287,7 +295,8 @@ void UE::MeshDeformation::ConstructUmbrellaLaplacian(const FDynamicMesh3& Dynami
 
 template<typename RealType>
 void UE::MeshDeformation::ConstructValenceWeightedLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-	TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary)
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary)
 {
 	const TArray<int32>& ToMeshV = VertexMap.ToId();
 	const TArray<int32>& ToIndex = VertexMap.ToIndex();
@@ -348,7 +357,8 @@ void UE::MeshDeformation::ConstructValenceWeightedLaplacian(const FDynamicMesh3&
 
 template<typename RealType>
 void UE::MeshDeformation::ConstructMeanValueWeightLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-	TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary)
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary)
 {
 	const TArray<int32>& ToMeshV = VertexMap.ToId();
 	const TArray<int32>& ToIndex = VertexMap.ToIndex();
@@ -419,8 +429,9 @@ void UE::MeshDeformation::ConstructMeanValueWeightLaplacian(const FDynamicMesh3&
 
 template<typename RealType>
 void UE::MeshDeformation::ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-	TSparseMatrixAssembler<RealType>& AreaMatrix,
-	TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary)
+	UE::Solvers::TSparseMatrixAssembler<RealType>& AreaMatrix,
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary)
 {
 	const TArray<int32>& ToMeshV = VertexMap.ToId();
 	const TArray<int32>& ToIndex = VertexMap.ToIndex();
@@ -519,7 +530,8 @@ void UE::MeshDeformation::ConstructCotangentLaplacian(const FDynamicMesh3& Dynam
 
 template<typename RealType>
 void UE::MeshDeformation::ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-	TSparseMatrixAssembler<RealType>& LaplacianInterior, TSparseMatrixAssembler<RealType>& LaplacianBoundary,
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary,
 	const bool bClampWeights)
 {
 	const TArray<int32>& ToMeshV = VertexMap.ToId();
