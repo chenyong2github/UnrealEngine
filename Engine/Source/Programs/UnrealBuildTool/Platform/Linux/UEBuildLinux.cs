@@ -679,6 +679,31 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns a path to the internal SDK
+		/// </summary>
+		/// <returns>Valid path to the internal SDK, null otherwise</returns>
+		static public string GetInternalSDKPath()
+		{
+			string SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
+			if (!String.IsNullOrEmpty(SDKRoot))
+			{
+				string AutoSDKPath = Path.Combine(SDKRoot, "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName, ExpectedSDKVersion, LinuxPlatform.DefaultHostArchitecture);
+				if (DirectoryReference.Exists(new DirectoryReference(AutoSDKPath)))
+				{
+					return AutoSDKPath;
+				}
+			}
+
+			string InTreeSDKPath = Path.Combine(LinuxPlatformSDK.GetInTreeSDKRoot().FullName, ExpectedSDKVersion, LinuxPlatform.DefaultHostArchitecture);
+			if (DirectoryReference.Exists(new DirectoryReference(InTreeSDKPath)))
+			{
+				return InTreeSDKPath;
+			}
+
+			return null;
+		}
+
+		/// <summary>
 		/// Returns SDK string as required by the platform
 		/// </summary>
 		/// <returns>Valid SDK string</returns>
