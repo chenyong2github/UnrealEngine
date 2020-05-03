@@ -25,7 +25,7 @@ namespace UE
 		* Expected Use: same as the ConstrainedMeshDeformer above.
 		*
 		*/
-		TUniquePtr<IConstrainedMeshSolver> DYNAMICMESH_API ConstructConstrainedMeshSmoother(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& DynamicMesh);
+		TUniquePtr<UE::Solvers::IConstrainedMeshSolver> DYNAMICMESH_API ConstructConstrainedMeshSmoother(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& DynamicMesh);
 	}
 }
 

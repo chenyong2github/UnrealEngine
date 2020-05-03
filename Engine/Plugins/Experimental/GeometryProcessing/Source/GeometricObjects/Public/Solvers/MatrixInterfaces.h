@@ -3,21 +3,51 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "VectorTypes.h"
 
-/**
- * Generic adapter for building a Sparse Matrix. Generally sparse-matrix assembly
- * code emits matrix entries as tuples of form (i,j,Value).
- */
-template<typename RealType>
-class TSparseMatrixAssembler
+
+namespace UE
 {
-public:
-	/** Hint to reserve space for at least this many entries */
-	TUniqueFunction<void(int32)> ReserveEntriesFunc;
 
-	/** Add matrix entry tuple (i,j,Value) */
-	TUniqueFunction<void(int32, int32, RealType)> AddEntryFunc;
-};
+	namespace Solvers
+	{
 
-typedef TSparseMatrixAssembler<double> FSparseMatrixAssemblerd;
-typedef TSparseMatrixAssembler<float> FSparseMatrixAssemblerf;
+		/**
+		 * Generic adapter for building a Sparse Matrix. Generally sparse-matrix assembly
+		 * code emits matrix entries as tuples of form (i,j,Value).
+		 */
+		template<typename RealType>
+		class TSparseMatrixAssembler
+		{
+		public:
+			/** Hint to reserve space for at least this many entries */
+			TUniqueFunction<void(int32)> ReserveEntriesFunc;
+
+			/** Add matrix entry tuple (i,j,Value) */
+			TUniqueFunction<void(int32, int32, RealType)> AddEntryFunc;
+		};
+
+		typedef TSparseMatrixAssembler<double> FSparseMatrixAssemblerd;
+		typedef TSparseMatrixAssembler<float> FSparseMatrixAssemblerf;
+
+
+
+		/**
+		 * Basic position constraint
+		 */
+		struct FPositionConstraint
+		{
+			FPositionConstraint(const FVector3d& P, bool b) : Position(P), bPostFix(b) {}
+
+			FVector3d Position;
+
+			/** If bPostFix is true, this position constraint should be explicitly enforced after a solve */
+			bool     bPostFix;
+		};
+
+
+
+	}
+}
+
+
