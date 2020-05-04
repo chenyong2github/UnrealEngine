@@ -16,6 +16,7 @@
 #include "Misc/FrameRate.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "Subsystems/EngineSubsystem.h"
+#include "RHI.h"
 #include "AudioDeviceManager.h"
 #include "Engine.generated.h"
 
