@@ -14,6 +14,7 @@
 #include "PluginStyle.h"
 #include "Widgets/Navigation/SBreadcrumbTrail.h"
 #include "SPluginCategoryTree.h"
+#include "SPluginTile.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "PluginBrowserModule.h"
 #include "IDirectoryWatcher.h"
@@ -84,10 +85,9 @@ void SPluginBrowser::Construct( const FArguments& Args )
 	{
 		static void PluginToStringArray( const IPlugin* Plugin, OUT TArray< FString >& StringArray )
 		{
-			// NOTE: Only the friendly name is searchable for now.  We don't display the actual plugin name in the UI.
 			const FPluginDescriptor& Descriptor = Plugin->GetDescriptor();
-			StringArray.Add( Descriptor.FriendlyName );
-			StringArray.Add( Descriptor.Description );
+			StringArray.Add(SPluginTile::GetPluginDisplayName(Plugin));
+			StringArray.Add(Descriptor.Description);
 		}
 	};
 
@@ -291,7 +291,7 @@ void SPluginBrowser::SearchBox_OnPluginSearchTextChanged( const FText& NewText )
 
 TSharedPtr< FPluginCategory > SPluginBrowser::GetSelectedCategory() const
 {
-	return PluginCategories->GetSelectedCategory();
+	return PluginCategories.IsValid() ? PluginCategories->GetSelectedCategory() : nullptr;
 }
 
 
