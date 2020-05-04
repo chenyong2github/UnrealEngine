@@ -16145,6 +16145,11 @@ int32 UEngine::RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanva
 }
 #endif
 
+ERHIFeatureLevel::Type UEngine::GetDefaultWorldFeatureLevel() const
+{
+	return GMaxRHIFeatureLevel;
+}
+
 #if WITH_EDITOR
 void UEngine::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -16177,6 +16182,34 @@ void UEngine::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChang
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+bool UEngine::GetPreviewPlatformName(FName& PlatformGroupName, FName& VanillaPlatformName) const
+{
+	// Support returning "Mobile" when started with -featureleveles31 etc
+
+	static bool bHasCachedResult = false;
+	static bool bCachedMobile = false;
+
+	if (!bHasCachedResult)
+	{
+		bHasCachedResult = true;
+		ERHIFeatureLevel::Type FeatureLevel;
+
+		bCachedMobile = (RHIGetPreviewFeatureLevel(FeatureLevel) && FeatureLevel <= ERHIFeatureLevel::ES3_1);
+	}
+
+	if (bCachedMobile)
+	{
+		PlatformGroupName = NAME_Mobile;
+		PlatformGroupName = NAME_None;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE
