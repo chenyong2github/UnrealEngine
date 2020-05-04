@@ -386,11 +386,12 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
-	void FActorHandle::SetWorldTransform(const FTransform& WorldTM)
+
+	void FActorHandle::InitWorldTransform(const FTransform& WorldTM)
 	{
 		using namespace Chaos;
 
-		FParticleUtilitiesXR::SetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
+		SetWorldTransform(WorldTM);
 
 		if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
 		{
@@ -398,6 +399,13 @@ namespace ImmediatePhysics_Chaos
 			Kinematic->W() = FVec3(0);
 			Kinematic->KinematicTarget().Clear();
 		}
+	}
+
+	void FActorHandle::SetWorldTransform(const FTransform& WorldTM)
+	{
+		using namespace Chaos;
+
+		FParticleUtilitiesXR::SetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
 
 		auto* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)

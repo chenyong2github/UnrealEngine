@@ -235,7 +235,7 @@ void FAnimNode_RigidBody::InitializeNewBodyTransformsDuringSimulation(FComponent
 				}
 
 				const FTransform WSBodyTM = BodyRelativeTransform * Bodies[OutputData.ParentBodyIndex]->GetWorldTransform();
-				Bodies[BodyIndex]->SetWorldTransform(WSBodyTM);
+				Bodies[BodyIndex]->InitWorldTransform(WSBodyTM);
 				BodyAnimData[BodyIndex].RefPoseLength = BodyRelativeTransform.GetLocation().Size();
 			}
 			// If we don't have a parent body, then we can just grab the incoming pose in component space.
@@ -244,7 +244,7 @@ void FAnimNode_RigidBody::InitializeNewBodyTransformsDuringSimulation(FComponent
 				const FTransform& ComponentSpaceTM = Output.Pose.GetComponentSpaceTransform(OutputData.CompactPoseBoneIndex);
 				const FTransform BodyTM = ConvertCSTransformToSimSpace(SimulationSpace, ComponentSpaceTM, ComponentTransform, BaseBoneTM);
 
-				Bodies[BodyIndex]->SetWorldTransform(BodyTM);
+				Bodies[BodyIndex]->InitWorldTransform(BodyTM);
 			}
 		}
 	}
@@ -400,7 +400,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 						const FTransform& ComponentSpaceTM = Output.Pose.GetComponentSpaceTransform(OutputData.CompactPoseBoneIndex);
 						const FTransform BodyTM = ConvertCSTransformToSimSpace(SimulationSpace, ComponentSpaceTM, CompWorldSpaceTM, BaseBoneTM);
-						Bodies[BodyIndex]->SetWorldTransform(BodyTM);
+						Bodies[BodyIndex]->InitWorldTransform(BodyTM);
 						if (OutputData.ParentBodyIndex != INDEX_NONE)
 						{
 							BodyAnimData[BodyIndex].RefPoseLength = BodyTM.GetRelativeTransform(Bodies[OutputData.ParentBodyIndex]->GetWorldTransform()).GetLocation().Size();
@@ -538,6 +538,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 				// if we clamp translation, we only do this when all linear translation are locked
 				// 
+				// @todo(ccaulfield): this shouldn't be required with Chaos - projection should be handling it...
 				if (bClampLinearTranslationLimitToRefPose
 					&&BodyAnimData[BodyIndex].LinearXMotion == ELinearConstraintMotion::LCM_Locked
 					&& BodyAnimData[BodyIndex].LinearYMotion == ELinearConstraintMotion::LCM_Locked
