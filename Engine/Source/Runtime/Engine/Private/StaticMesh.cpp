@@ -2158,7 +2158,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.                                       
+// and set this new GUID as the version.
 #define STATICMESH_DERIVEDDATA_VER TEXT("F9378A28F161444987BACE79B2590E57")
 
 static const FString& GetStaticMeshDerivedDataVersion()
@@ -2803,7 +2803,7 @@ bool UStaticMesh::HasValidRenderData(bool bCheckLODForVerts, int32 LODIndex) con
 		{
 		    if (LODIndex == INDEX_NONE)
 		    {
-			    LODIndex = FMath::Clamp<int32>(MinLOD.GetValueForFeatureLevel(GMaxRHIFeatureLevel), 0, RenderData->LODResources.Num() - 1);
+			    LODIndex = FMath::Clamp<int32>(MinLOD.GetValue(), 0, RenderData->LODResources.Num() - 1);
 		    }
 			return (RenderData->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0);
 		}

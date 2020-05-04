@@ -570,7 +570,7 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeMaterial(int8 InLODIndex) c
 		{
 			for (const FLandscapeComponentMaterialOverride& Material : OverrideMaterials)
 			{
-				if (Material.LODIndex.GetValueForFeatureLevel(World->FeatureLevel) == InLODIndex)
+				if (Material.LODIndex.GetValue() == InLODIndex)
 				{
 					if (Material.Material != nullptr)
 					{
@@ -2739,7 +2739,7 @@ UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
 		{
 			for (const FLandscapeProxyMaterialOverride& OverrideMaterial : LandscapeMaterialsOverride)
 			{
-				if (OverrideMaterial.LODIndex.GetValueForFeatureLevel(World->FeatureLevel) == InLODIndex)
+				if (OverrideMaterial.LODIndex.GetValue() == InLODIndex)
 				{
 					if (OverrideMaterial.Material != nullptr)
 					{
@@ -2774,7 +2774,7 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODInd
 		{
 			for (const FLandscapeProxyMaterialOverride& OverrideMaterial : LandscapeMaterialsOverride)
 			{
-				if (OverrideMaterial.LODIndex.GetValueForFeatureLevel(World->FeatureLevel) == InLODIndex)
+				if (OverrideMaterial.LODIndex.GetValue() == InLODIndex)
 				{
 					if (OverrideMaterial.Material != nullptr)
 					{

@@ -2057,8 +2057,7 @@ bool UStaticMeshComponent::HasLightmapTextureCoordinates() const
 		Mesh->RenderData->LODResources.Num() > 0 &&
 		Mesh->LightMapCoordinateIndex >= 0)
 	{
-		const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : GMaxRHIFeatureLevel;
-		int32 MeshMinLOD = Mesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
+		int32 MeshMinLOD = Mesh->MinLOD.GetValue();
 		MeshMinLOD = FMath::Min(MeshMinLOD,  Mesh->RenderData->LODResources.Num() - 1);
 		
 		return ((uint32)Mesh->LightMapCoordinateIndex < Mesh->RenderData->LODResources[MeshMinLOD].VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords());
