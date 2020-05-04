@@ -16,6 +16,7 @@ void SPluginCategoryTree::Construct( const FArguments& Args, const TSharedRef< S
 	FilterType = EFilterType::None;
 
 	// Create the root categories
+	AllCategory = MakeShareable(new FPluginCategory(NULL, TEXT("All"), LOCTEXT("AllCategoryName", "All")));
 	BuiltInCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Built-In"), LOCTEXT("BuiltInCategoryName", "Built-In")));
 	InstalledCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Installed"), LOCTEXT("InstalledCategoryName", "Installed")));
 	ProjectCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Project"), LOCTEXT("ProjectCategoryName", "Project")));
@@ -159,6 +160,12 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 			ParentCategory->Plugins.Add(Plugin);
 			ParentCategory = ParentCategory->ParentCategory.Pin();
 		}
+
+		// Add the plugin in the "All" category
+		if (AllCategory.IsValid())
+		{
+			AllCategory->Plugins.Add(Plugin);
+		}
 	}
 
 	// Remove any empty categories, keeping track of which items are still selected
@@ -214,6 +221,10 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 	{
 		RootCategories.Add(ProjectCategory);
 	}
+	if (RootCategories.Num() > 0)
+	{
+		RootCategories.Insert(AllCategory, 0);
+	}
 
 	// Sort every single category alphabetically
 	for(TSharedPtr<FPluginCategory> RootCategory: RootCategories)
@@ -231,21 +242,25 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 	TreeView->RequestTreeRefresh();
 
 	// Make sure we have something selected
-	if(RootCategories.Num() > 0)
+	if (RootCategories.Num() > 0)
 	{
-		if(SelectCategory.IsValid())
+		if (SelectCategory.IsValid())
 		{
 			TreeView->SetSelection(SelectCategory);
 		}
-		else if(RootCategories.Contains(ModCategory))
+		else if (RootCategories.Contains(ModCategory))
 		{
 			TreeView->SetSelection(ModCategory);
 		}
-		else if(RootCategories.Contains(InstalledCategory))
+		else if (RootCategories.Contains(InstalledCategory))
 		{
 			TreeView->SetSelection(InstalledCategory);
 		}
-		else if(RootCategories.Num() > 0)
+		else if (RootCategories.Contains(AllCategory))
+		{
+			TreeView->SetSelection(AllCategory);
+		}
+		else if (RootCategories.Num() > 0)
 		{
 			TreeView->SetSelection(RootCategories[0]);
 		}

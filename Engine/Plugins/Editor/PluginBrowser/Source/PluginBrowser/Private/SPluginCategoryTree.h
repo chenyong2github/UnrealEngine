@@ -85,6 +85,9 @@ private:
 	/** Root list of categories */
 	TArray<TSharedPtr<FPluginCategory>> RootCategories;
 
+	/** Category that includes all plugins */
+	TSharedPtr<FPluginCategory> AllCategory;
+
 	/** Category for built-in plugins */
 	TSharedPtr<FPluginCategory> BuiltInCategory;
 

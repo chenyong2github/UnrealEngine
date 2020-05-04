@@ -41,6 +41,15 @@ void SPluginTile::Construct( const FArguments& Args, const TSharedRef<SPluginTil
 
 	RecreateWidgets();
 }
+FString SPluginTile::GetPluginDisplayName(const IPlugin* InPlugin)
+{
+	return InPlugin ? (!InPlugin->GetDescriptor().FriendlyName.IsEmpty() ? InPlugin->GetDescriptor().FriendlyName : InPlugin->GetName()) : "";
+}
+
+FText SPluginTile::GetPluginDisplayText() const
+{	
+	return FText::FromString(GetPluginDisplayName(Plugin.Get()));
+}
 
 void SPluginTile::RecreateWidgets()
 {
@@ -236,7 +245,7 @@ void SPluginTile::RecreateWidgets()
 											.Padding(PaddingAmount)
 											[
 												SNew(STextBlock)
-													.Text(FText::FromString(PluginDescriptor.FriendlyName))
+													.Text(GetPluginDisplayText())
 													.HighlightText_Raw(&OwnerWeak.Pin()->GetOwner().GetPluginTextFilter(), &FPluginTextFilter::GetRawFilterText)
 													.TextStyle(FPluginStyle::Get(), "PluginTile.NameText")
 											]
@@ -461,7 +470,7 @@ void SPluginTile::OnEnablePluginCheckboxChanged(ECheckBoxState NewCheckedState)
 		// If this is plugin is marked as beta, make sure the user is aware before enabling it.
 		if (PluginDescriptor.bIsBetaVersion)
 		{
-			FText WarningMessage = FText::Format(LOCTEXT("Warning_EnablingBetaPlugin", "Plugin '{0}' is a beta version and might be unstable or removed without notice. Please use with caution. Are you sure you want to enable the plugin?"), FText::FromString(PluginDescriptor.FriendlyName));
+			FText WarningMessage = FText::Format(LOCTEXT("Warning_EnablingBetaPlugin", "Plugin '{0}' is a beta version and might be unstable or removed without notice. Please use with caution. Are you sure you want to enable the plugin?"), GetPluginDisplayText());
 			if (EAppReturnType::No == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
 			{
 				return;
