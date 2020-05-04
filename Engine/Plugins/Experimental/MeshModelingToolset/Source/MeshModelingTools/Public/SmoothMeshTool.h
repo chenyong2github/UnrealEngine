@@ -3,41 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
-#include "DynamicMesh3.h"
-#include "MeshOpPreviewHelpers.h"
+#include "BaseTools/BaseMeshProcessingTool.h"
 #include "SmoothMeshTool.generated.h"
-
-// predeclarations
-struct FMeshDescription;
-class FMeshNormals;
-class USimpleDynamicMeshComponent;
-
-/**
- *
- */
-UCLASS()
-class MESHMODELINGTOOLS_API USmoothMeshToolBuilder : public UInteractiveToolBuilder
-{
-	GENERATED_BODY()
-
-public:
-
-	IToolsContextAssetAPI* AssetAPI;
-
-	USmoothMeshToolBuilder()
-	{
-		AssetAPI = nullptr;
-	}
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-};
-
-
-
 
 
 UENUM()
@@ -63,7 +30,7 @@ class MESHMODELINGTOOLS_API USmoothMeshToolProperties : public UInteractiveToolP
 
 public:
 	/** Type of smoothing to apply */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = SmoothingType)
 	ESmoothMeshToolSmoothType SmoothingType = ESmoothMeshToolSmoothType::Iterative;
 };
 
@@ -76,15 +43,15 @@ class MESHMODELINGTOOLS_API UIterativeSmoothProperties : public UInteractiveTool
 	GENERATED_BODY()
 public:
 	/** Amount of smoothing allowed per step. Smaller steps will avoid things like collapse of small/thin features. */
-	UPROPERTY(EditAnywhere, Category = IterativeSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = IterativeSmoothingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float SmoothingPerStep = 0.8f;
 
 	/** Number of Smoothing iterations */
-	UPROPERTY(EditAnywhere, Category = IterativeSmoothing, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, Category = IterativeSmoothingOptions, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	int32 Steps = 10;
 
 	/** If this is false, the smoother will try to reshape the triangles to be more regular, which will distort UVs */
-	UPROPERTY(EditAnywhere, Category = IterativeSmoothing)
+	UPROPERTY(EditAnywhere, Category = IterativeSmoothingOptions)
 	bool bSmoothBoundary = true;
 };
 
@@ -98,15 +65,15 @@ class MESHMODELINGTOOLS_API UDiffusionSmoothProperties : public UInteractiveTool
 
 public:
 	/** Amount of smoothing allowed per step. Smaller steps will avoid things like collapse of small/thin features. */
-	UPROPERTY(EditAnywhere, Category = DiffusionSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = DiffusionSmoothingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float SmoothingPerStep = 0.8f;
 
 	/** Number of Smoothing iterations */
-	UPROPERTY(EditAnywhere, Category = DiffusionSmoothing, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, Category = DiffusionSmoothingOptions, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	int32 Steps = 1;
 
 	/** If this is false, the smoother will try to reshape the triangles to be more regular, which will distort UVs */
-	UPROPERTY(EditAnywhere, Category = DiffusionSmoothing)
+	UPROPERTY(EditAnywhere, Category = DiffusionSmoothingOptions)
 	bool bPreserveUVs = true;
 };
 
@@ -126,15 +93,15 @@ public:
 	float SmoothSpeed = 0.1f;
 
 	/** Desired Smoothness. This is not a linear quantity, but larger numbers produce smoother results */
-	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
 	float Smoothness = 0.2f;
 
 	/** If this is false, the smoother will try to reshape the triangles to be more regular, which will distort UVs */
-	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing)
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothingOptions)
 	bool bPreserveUVs = true;
 
 	/** Magic number that allows you to try to correct for shrinking caused by smoothing */
-	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
 	float VolumeCorrection = 0.0f;
 };
 
@@ -144,31 +111,26 @@ public:
 
 
 /**
- * Simple Mesh Smoothing Tool
+ * Mesh Smoothing Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API USmoothMeshTool : public USingleSelectionTool, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API USmoothMeshTool : public UBaseMeshProcessingTool
 {
 	GENERATED_BODY()
 
 public:
 	USmoothMeshTool() = default;
 
-	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn);
-
-	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
-	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override;
-	virtual bool CanAccept() const override;
+	virtual void InitializeProperties() override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
-	
+
+	virtual bool HasMeshTopologyChanged() const override;
+
+	virtual FText GetToolMessageString() const override;
+	virtual FText GetAcceptTransactionName() const override;
+
 protected:
 	UPROPERTY()
 	USmoothMeshToolProperties* SmoothProperties = nullptr;
@@ -181,27 +143,20 @@ protected:
 
 	UPROPERTY()
 	UImplicitSmoothProperties* ImplicitProperties = nullptr;
+};
 
-	void UpdateVisiblePropertySets();
 
-protected:
-	void UpdateResult();
 
-	bool bResultValid = false;
-	void InvalidateResult();
 
-	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
-	FDynamicMesh3 SrcDynamicMesh;
-
-	// scale/translate applied to input mesh to regularize it
-	FVector3d SrcTranslate;
-	double SrcScale;
-	// transform that does the opposite of scale/translate so that mesh stays in the right spot on screen
-	FTransform OverrideTransform;
-
-	TSharedPtr<FMeshNormals> BaseNormals;
-
-	UWorld* TargetWorld = nullptr;
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+/**
+ *
+ */
+UCLASS()
+class MESHMODELINGTOOLS_API USmoothMeshToolBuilder : public UBaseMeshProcessingToolBuilder
+{
+	GENERATED_BODY()
+public:
+	virtual UBaseMeshProcessingTool* MakeNewToolInstance(UObject* Outer) const {
+		return NewObject<USmoothMeshTool>(Outer);
+	}
 };
