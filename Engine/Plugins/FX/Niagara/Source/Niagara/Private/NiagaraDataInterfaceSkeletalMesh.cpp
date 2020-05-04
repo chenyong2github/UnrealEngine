@@ -1527,7 +1527,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	if (Mesh)
 	{
-		MinLODIdx = Mesh->MinLod.GetValueForFeatureLevel(SystemInstance->GetFeatureLevel());
+		MinLODIdx = Mesh->MinLod.GetValue();
 		const int32 PendingFirstLODIndex = Mesh->GetResourceForRendering()->GetPendingFirstLODIdx(MinLODIdx);
 
 		const int32 DesiredLODIndex = Interface->CalculateLODIndexAndSamplingRegions(Mesh, SamplingRegionIndices, bAllRegionsAreAreaWeighting);
