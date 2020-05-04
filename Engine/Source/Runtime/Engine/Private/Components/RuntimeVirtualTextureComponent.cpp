@@ -4,9 +4,13 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
+#include "Misc/UObjectToken.h"
+#include "Misc/MapErrors.h"
 #include "SceneInterface.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/VirtualTextureBuilder.h"
+
+#define LOCTEXT_NAMESPACE "URuntimeVirtualTextureComponent"
 
 URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -162,4 +166,20 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 	}
 }
 
+void URuntimeVirtualTextureComponent::CheckForErrors()
+{
+	Super::CheckForErrors();
+
+	// Check if streaming texture has been built with the latest settings. If not then it won't be used which would cause a performance regression.
+	if (VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->Texture != nullptr && StreamingTexture->BuildHash != CalculateStreamingTextureSettingsHash())
+	{
+		FMessageLog("MapCheck").PerformanceWarning()
+			->AddToken(FUObjectToken::Create(this))
+			->AddToken(FTextToken::Create(LOCTEXT("RuntimeVirtualTextureComponent_StreamingTextureNeedsUpdate", "The settings have changed since the streaming texture was last rebuilt. Streaming mips are disabled.")))
+			->AddToken(FMapErrorToken::Create(FName(TEXT("RuntimeVirtualTextureComponent_StreamingTextureNeedsUpdate"))));
+	}
+}
+
 #endif
+
+#undef LOCTEXT_NAMESPACE
