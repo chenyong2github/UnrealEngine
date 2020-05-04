@@ -74,6 +74,11 @@ static const uint32 GNumTokensPerPointer = sizeof(void*) / sizeof(uint32); //-V5
 
 FThreadSafeBool GIsGarbageCollecting(false);
 
+/**
+* Call back into the async loading code to inform of the destruction of serialized objects
+*/
+void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects);
+
 /** Locks all UObject hash tables when performing GC */
 class FGCScopeLock
 {
@@ -1981,6 +1986,7 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 			FGCArrayPool::Get().ClearWeakReferences(bPerformFullPurge);
 
 			GatherUnreachableObjects(bForceSingleThreadedGC);
+			NotifyUnreachableObjects(GUnreachableObjects);
 
 			if (bPerformFullPurge || !GIncrementalBeginDestroyEnabled)
 			{
