@@ -1590,6 +1590,11 @@ protected:
 	/** Use new physics after landing. Defaults to swimming if in water, walking otherwise. */
 	virtual void SetPostLandedPhysics(const FHitResult& Hit);
 
+	/** Updates acceleration and perform movement, called from the TickComponent on the authoritative side for controlled characters, 
+	 *	or on the client for characters without a controller when either playing root motion or bRunPhysicsWithNoController is true.
+	 */
+	virtual void ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds);
+
 	/** Switch collision settings for NavWalking mode (ignore world collisions) */
 	virtual void SetNavWalkingPhysics(bool bEnable);
 

@@ -1317,28 +1317,9 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 		}
 
 		// Allow root motion to move characters that have no controller.
-		if( CharacterOwner->IsLocallyControlled() || (!CharacterOwner->Controller && bRunPhysicsWithNoController) || (!CharacterOwner->Controller && CharacterOwner->IsPlayingRootMotion()) )
+		if (CharacterOwner->IsLocallyControlled() || (!CharacterOwner->Controller && bRunPhysicsWithNoController) || (!CharacterOwner->Controller && CharacterOwner->IsPlayingRootMotion()))
 		{
-			{
-				SCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);
-
-				// We need to check the jump state before adjusting input acceleration, to minimize latency
-				// and to make sure acceleration respects our potentially new falling state.
-				CharacterOwner->CheckJumpInput(DeltaTime);
-
-				// apply input to acceleration
-				Acceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));
-				AnalogInputModifier = ComputeAnalogInputModifier();
-			}
-
-			if (CharacterOwner->GetLocalRole() == ROLE_Authority)
-			{
-				PerformMovement(DeltaTime);
-			}
-			else if (bIsClient)
-			{
-				ReplicateMoveToServer(DeltaTime, Acceleration);
-			}
+			ControlledCharacterMove(InputVector, DeltaTime);
 		}
 		else if (CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy)
 		{
@@ -5527,6 +5508,30 @@ void UCharacterMovementComponent::SetPostLandedPhysics(const FHitResult& Hit)
 			
 			ApplyImpactPhysicsForces(Hit, PreImpactAccel, PreImpactVelocity);
 		}
+	}
+}
+
+void UCharacterMovementComponent::ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds)
+{
+	{
+		SCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);
+
+		// We need to check the jump state before adjusting input acceleration, to minimize latency
+		// and to make sure acceleration respects our potentially new falling state.
+		CharacterOwner->CheckJumpInput(DeltaSeconds);
+
+		// apply input to acceleration
+		Acceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector));
+		AnalogInputModifier = ComputeAnalogInputModifier();
+	}
+
+	if (CharacterOwner->GetLocalRole() == ROLE_Authority)
+	{
+		PerformMovement(DeltaSeconds);
+	}
+	else if (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy && IsNetMode(NM_Client))
+	{
+		ReplicateMoveToServer(DeltaSeconds, Acceleration);
 	}
 }
 
