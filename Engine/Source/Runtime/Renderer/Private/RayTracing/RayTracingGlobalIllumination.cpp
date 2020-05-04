@@ -191,6 +191,8 @@ void SetupLightParameters(
 	FSkyLightSceneProxy* SkyLight = Scene.SkyLight;
 	FVector SkyLightColor = FVector(0.0f, 0.0f, 0.0f);
 	uint32 SkyLightTransmission = 0;
+	// SkyLight does not have a LightingChannelMask
+	uint8 SkyLightLightingChannelMask = 0xFF;
 	if (SkyLight && SkyLight->bAffectGlobalIllumination)
 	{
 		SkyLightColor = FVector(SkyLight->GetEffectiveLightColor());
@@ -202,7 +204,9 @@ void SetupLightParameters(
 	uint32 SkyLightIndex = 0;
 	LightParameters->Type[SkyLightIndex] = 0;
 	LightParameters->Color[SkyLightIndex] = SkyLightColor;
-	LightParameters->Flags[SkyLightIndex] = SkyLightTransmission & 0x01;
+	LightParameters->Flags[SkyLightIndex]  = SkyLightTransmission & 0x01;
+	LightParameters->Flags[SkyLightIndex] |= (SkyLightLightingChannelMask & 0x7) << 1;
+	
 	LightParameters->Count++;
 
 	uint32 MaxLightCount = FMath::Min(CVarRayTracingGlobalIlluminationMaxLightCount.GetValueOnRenderThread(), RAY_TRACING_LIGHT_COUNT_MAXIMUM);
@@ -215,8 +219,11 @@ void SetupLightParameters(
 
 		FLightShaderParameters LightShaderParameters;
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightShaderParameters);
+
 		uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
-		LightParameters->Flags[LightParameters->Count] = Transmission & 0x01;
+		uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
+		LightParameters->Flags[LightParameters->Count]  = Transmission & 0x01;
+		LightParameters->Flags[LightParameters->Count] |= (LightingChannelMask & 0x7) << 1;
 
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 		switch (LightComponentType)

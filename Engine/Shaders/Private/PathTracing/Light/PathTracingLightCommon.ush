@@ -136,3 +136,8 @@ bool HasTransmission(int LightId)
 {
 	return SceneLightsData.Flags[LightId] & 0x01;
 }
+
+uint GetLightingChannelMask(int LightId)
+{
+	return (SceneLightsData.Flags[LightId] >> 1) & 0x7;
+}
