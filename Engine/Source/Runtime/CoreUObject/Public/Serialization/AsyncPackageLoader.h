@@ -188,6 +188,8 @@ public:
 
 	virtual void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) = 0;
 
+	virtual void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) = 0;
+
 	virtual void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) = 0;
 };
 
