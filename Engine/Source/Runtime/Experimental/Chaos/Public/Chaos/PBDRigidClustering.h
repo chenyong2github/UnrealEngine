@@ -228,9 +228,18 @@ public:
 	/** If multi child proxy is used, this is the data needed */
 	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>>& GetMultiChildProxyDataArray() const { return MParticles.MultiChildProxyDataArray(); }
 
-	void AddToClusterUnion(int32 ClusterID, TPBDRigidClusteredParticleHandle<T, 3>* Handle) {
-		if (ClusterID <= 0) return;
-		if (!ClusterUnionMap.Contains(ClusterID)) ClusterUnionMap.Add(ClusterID, TArray<TPBDRigidClusteredParticleHandle<T, 3>*>());
+	void AddToClusterUnion(int32 ClusterID, TPBDRigidClusteredParticleHandle<T, 3>* Handle)
+	{
+		if(ClusterID <= 0)
+		{
+			return;
+		}
+
+		if(!ClusterUnionMap.Contains(ClusterID))
+		{
+			ClusterUnionMap.Add(ClusterID, TArray<TPBDRigidClusteredParticleHandle<T, 3>*>());
+		}
+
 		ClusterUnionMap[ClusterID].Add(Handle);
 	}
 
