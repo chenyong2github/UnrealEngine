@@ -134,7 +134,10 @@ namespace Chaos
 
 		void DoInternalParticleInitilization(const TGeometryParticleHandle<float, 3>* OldParticle, const TGeometryParticleHandle<float, 3>* NewParticle) 
 		{ 
-			if (InternalParticleInitilization) InternalParticleInitilization(OldParticle, NewParticle); 
+			if(InternalParticleInitilization)
+			{
+				InternalParticleInitilization(OldParticle, NewParticle);
+			}
 		}
 
 
