@@ -107,9 +107,19 @@ public:
 	void SetMaterials(const TArray<UMaterialInterface*>& Materials);
 
 	/**
+	* Get number of materials in the preview mesh (base materials, i.e., not including override material)
+	*/
+	int32 GetNumMaterials() const;
+
+	/**
 	* Get material from the preview mesh
 	*/
 	UMaterialInterface* GetMaterial(int MaterialIndex = 0) const;
+
+	/**
+	* Get the entire materials array from the preview mesh. Appends to OutMaterials without clearing it.
+	*/
+	void GetMaterials(TArray<UMaterialInterface*>& OutMaterials) const;
 
 	/**
 	 * Set an override material for the preview mesh. This material will override all the given materials.
