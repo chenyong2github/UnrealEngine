@@ -73,7 +73,10 @@ namespace ToolSetupUtil
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager);
 
-
+	/**
+	 * @return Simple material with configurable color and opacity.
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetSimpleCustomMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float Opacity);
 
 	/**
 	 * @param bRoundPoints true for round points, false for square
