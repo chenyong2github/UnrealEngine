@@ -13,7 +13,7 @@ class FAudioDebugger;
 // Set this to one if you'd like to check who owns
 // handles to an audio device.
 #ifndef INSTRUMENT_AUDIODEVICE_HANDLES
-#define INSTRUMENT_AUDIODEVICE_HANDLES 1
+#define INSTRUMENT_AUDIODEVICE_HANDLES 0
 #endif
 
 class FReferenceCollector;
@@ -194,6 +194,18 @@ public:
 	// This delegate is called whenever an audio device is destroyed.
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceDestroyed, Audio::FDeviceId /* AudioDeviceId*/);
 	static FOnAudioDeviceDestroyed OnAudioDeviceDestroyed;
+
+	// Called whenever a world is registered to an audio device. UWorlds are not guaranteed to be registered to the same
+	// audio device throughout their lifecycle, and there is no guarantee on the lifespan of both the UWorld and the Audio
+	// Device registered in this callback.
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldRegisteredToAudioDevice, const UWorld* /*InWorld */, Audio::FDeviceId /* AudioDeviceId*/);
+	static FOnWorldRegisteredToAudioDevice OnWorldRegisteredToAudioDevice;
+
+	// Called whenever a world is unregistered from an audio device. UWorlds are not guaranteed to be registered to the same
+	// audio device throughout their lifecycle, and there is no guarantee on the lifespan of both the UWorld and the Audio
+	// Device registered in this callback.
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldUnregisteredWithAudioDevice, const UWorld* /*InWorld */, Audio::FDeviceId /* AudioDeviceId*/);
+	static FOnWorldUnregisteredWithAudioDevice OnWorldUnregisteredWithAudioDevice;
 };
 
 /**
@@ -412,11 +424,22 @@ private:
 
 	FAudioDeviceHandle CreateNewDevice(const FAudioDeviceParams& InParams);
 
+	/**
+	* Shutsdown the audio device associated with the handle. The handle
+	* will become invalid after the audio device is shut down.
+	*/
+	bool ShutdownAudioDevice(Audio::FDeviceId DeviceID);
+
 	// Called exclusively by the FAudioDeviceHandle copy constructor and assignment operators:
 	void IncrementDevice(Audio::FDeviceId DeviceID);
 
 	// Called exclusively by the FAudioDeviceHandle dtor.
 	void DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InWorld);
+
+	/**
+	* Shuts down all active audio devices
+	*/
+	bool ShutdownAllAudioDevices();
 
 	/** Application enters background handler */
 	void AppWillEnterBackground();
