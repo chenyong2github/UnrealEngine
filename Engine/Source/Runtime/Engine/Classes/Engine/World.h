@@ -3388,6 +3388,9 @@ public:
 private:
 	bool bIsRefreshingStreamingLevels;
 
+	/** Handle to delegate in case audio device is destroyed. */
+	FDelegateHandle AudioDeviceDestroyedHandle;
+
 public:
 
 	bool IsRefreshingStreamingLevels() const { return bIsRefreshingStreamingLevels; }
