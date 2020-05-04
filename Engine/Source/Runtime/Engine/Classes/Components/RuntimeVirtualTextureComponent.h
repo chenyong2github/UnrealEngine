@@ -66,6 +66,7 @@ protected:
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
+	virtual void CheckForErrors() override;
 	//~ End UActorComponent Interface
 
 	//~ Begin USceneComponent Interface
