@@ -3,7 +3,7 @@
 #include "Components/RuntimeVirtualTextureComponent.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "GameFramework/Actor.h"
+#include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 #include "SceneInterface.h"
