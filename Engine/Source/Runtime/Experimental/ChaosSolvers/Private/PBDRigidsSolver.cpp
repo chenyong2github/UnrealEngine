@@ -739,6 +739,11 @@ namespace Chaos
 				ProcessProxyGT(Proxy,DataIdx,Dirty);
 				break;
 			}
+			case EPhysicsProxyType::GeometryCollectionType:
+			{
+				// Not invalid but doesn't currently use the remote data process
+				break;
+			}
 			default:
 			ensure(0 && TEXT("Unknown proxy type in physics solver."));
 			}
@@ -820,6 +825,13 @@ namespace Chaos
 				{
 					auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
 					ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateStaticParticles(1,UniqueIdx)[0]; });
+					break;
+				}
+				case EPhysicsProxyType::GeometryCollectionType:
+				{
+					// Currently no push needed for geometry collections and they handle the particle creation internally
+					// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
+					Dirty.Proxy->ResetDirtyIdx();
 					break;
 				}
 				default:
