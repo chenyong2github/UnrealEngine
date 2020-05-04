@@ -118,20 +118,6 @@ public:
 	Chaos::FParticleData* NewData() { BufferGameState(); return nullptr; }
 	void BufferGameState();
 
-	/** 
-	 * Push game data to the physics thread.
-	 * 
-	 * The solver has determined that this proxy needs to update its physics state 
-	 * with game data, either as part of the solver registration process, or
-	 * a game thread particle instance was updated, which marked this proxy dirty.
-	 * 
-	 * Pulls data out of the \c GameToPhysInterchange, and updates solver particle 
-	 * data.
-	 *
-	 * Invoked by \c FPBDRigidsSolver::RegisterObject() and via particle dirtying. 
-	 */
-	void PushToPhysicsState(const Chaos::FParticleData*);
-
 	/** Called at the end of \c FPBDRigidsSolver::PushPhysicsStateExec(). */
 	void ClearAccumulatedData() {}
 
