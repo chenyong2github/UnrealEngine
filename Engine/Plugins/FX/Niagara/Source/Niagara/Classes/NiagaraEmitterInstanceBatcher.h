@@ -203,7 +203,7 @@ private:
 	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, FEmitterInstanceList& Instances);
 
 	void SetConstantBuffers(FRHICommandList &RHICmdList, const FNiagaraShaderRef& Shader, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData* Instance);
-	void BuildConstantBuffers(FNiagaraGPUSystemTick& Tick);
+	void BuildConstantBuffers(FNiagaraGPUSystemTick& Tick) const;
 
 	/** Feature level of this effects system */
 	ERHIFeatureLevel::Type FeatureLevel;
