@@ -208,7 +208,9 @@ public:
 				FLightShaderParameters LightParameters;
 				Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 				uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
+				uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
 				LightData.Flags[LightData.Count] = Transmission & 0x01;
+				LightData.Flags[LightData.Count] |= (LightingChannelMask & 0x7) << 1;
 
 				ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 				switch (LightComponentType)
