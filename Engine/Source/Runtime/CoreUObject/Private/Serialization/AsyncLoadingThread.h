@@ -282,6 +282,8 @@ public:
 
 	void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) override;
 
+	void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) override {};
+
 	void FireCompletedCompiledInImport(void* AsyncPacakge, FPackageIndex Import) override;
 
 	/** [EDL] Event queue */

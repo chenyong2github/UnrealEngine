@@ -668,6 +668,11 @@ void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject)
 	GetAsyncPackageLoader().NotifyConstructedDuringAsyncLoading(Object, bSubObject);
 }
 
+void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects)
+{
+	GetAsyncPackageLoader().NotifyUnreachableObjects(UnreachableObjects);
+}
+
 double GFlushAsyncLoadingTime = 0.0;
 uint32 GFlushAsyncLoadingCount = 0;
 uint32 GSyncLoadCount = 0;
