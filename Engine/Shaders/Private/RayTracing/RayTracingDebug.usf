@@ -80,7 +80,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 			Result = float4(Payload.BlendingMode, Payload.BlendingMode, Payload.BlendingMode, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_LIGHTING_CHANNEL_MASK:
-			Result = float4(Payload.PrimitiveLightingChannelMask, Payload.PrimitiveLightingChannelMask, Payload.PrimitiveLightingChannelMask, 1.0f);
+			Result = float4(Payload.PrimitiveLightingChannelMask & 0x1, Payload.PrimitiveLightingChannelMask & 0x2, Payload.PrimitiveLightingChannelMask & 0x4, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_CUSTOM_DATA:
 			Result = float4(Payload.CustomData);
