@@ -1404,29 +1404,6 @@ void TGeometryCollectionPhysicsProxy<Traits>::BufferGameState()
 }
 
 template <typename Traits>
-void TGeometryCollectionPhysicsProxy<Traits>::PushToPhysicsState(const Chaos::FParticleData *InData)
-{
-	/*CONTEXT: GAMETHREAD->to->PHYSICSTHREAD
-	* Called on the game thread when the solver is about to advance forward.This
-	* callback should Enqueue commands on the PhysicsThread to update the state of
-	* the solver
-	*/
-
-	// We need to update physics thread world space bounding boxes.
-	for (FClusterHandle* Handle : SolverParticleHandles)
-	{
-		if (!Handle || !Handle->HasBounds())
-		{
-			continue;
-		}
-		const Chaos::TAABB<float, 3>& LocalBounds = Handle->LocalBounds();
-		const Chaos::TRigidTransform<float, 3> Xf(Handle->X(), Handle->R());
-		const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
-		Handle->SetWorldSpaceInflatedBounds(TransformedBBox);
-	}
-}
-
-template <typename Traits>
 void TGeometryCollectionPhysicsProxy<Traits>::BufferPhysicsResults()
 {
 	/**
