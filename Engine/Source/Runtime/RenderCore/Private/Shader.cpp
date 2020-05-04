@@ -660,6 +660,7 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 
 		const auto CityHashArray = [&](const TMemoryImageArray<FShaderParameterInfo>& Array)
 		{
+			CityHashValue(Array.Num());
 			CityHash64WithSeed((const char*)Array.GetData(), Array.Num() * sizeof(FShaderParameterInfo), Hash);
 		};
 
