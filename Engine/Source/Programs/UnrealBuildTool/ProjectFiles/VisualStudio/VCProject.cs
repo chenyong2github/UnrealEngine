@@ -255,13 +255,10 @@ namespace UnrealBuildTool
 	{
 		//FileReference OnlyGameProject;
 		VCProjectFileFormat ProjectFileFormat;
-		bool bUseFastPDB;
-		bool bUsePerFileIntellisense;
 		bool bUsePrecompiled;
-		bool bEditorDependsOnShaderCompileWorker;
-		bool bBuildLiveCodingConsole;
 		string BuildToolOverride;
 		Dictionary<DirectoryReference, string> ModuleDirToForceIncludePaths = new Dictionary<DirectoryReference, string>();
+		VCProjectFileSettings Settings;
 
 		/// This is the platform name that Visual Studio is always guaranteed to support.  We'll use this as
 		/// a platform for any project configurations where our actual platform is not supported by the
@@ -277,26 +274,18 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructs a new project file object
 		/// </summary>
-		/// <param name="InFilePath">The path to the project file on disk</param>
-		/// <param name="InOnlyGameProject"></param>
-		/// <param name="InProjectFileFormat">Visual C++ project file version</param>
-		/// <param name="bUseFastPDB">If true, adds the -FastPDB argument to build command lines</param>
-		/// <param name="bUsePerFileIntellisense">If true, generates per-file intellisense data</param>
+		/// <param name="FilePath">The path to the project file on disk</param>
+		/// <param name="ProjectFileFormat">Visual C++ project file version</param>
 		/// <param name="bUsePrecompiled">Whether to add the -UsePrecompiled argumemnt when building targets</param>
-		/// <param name="bEditorDependsOnShaderCompileWorker">Whether editor targets should also build ShaderCompileWorker</param>
-		/// <param name="bBuildLiveCodingConsole">Whether targets using live coding should also build LiveCodingConsole</param>
 		/// <param name="BuildToolOverride">Optional arguments to pass to UBT when building</param>
-		public VCProjectFile(FileReference InFilePath, FileReference InOnlyGameProject, VCProjectFileFormat InProjectFileFormat, bool bUseFastPDB, bool bUsePerFileIntellisense, bool bUsePrecompiled, bool bEditorDependsOnShaderCompileWorker, bool bBuildLiveCodingConsole, string BuildToolOverride)
-			: base(InFilePath)
+		/// <param name="Settings">Other settings</param>
+		public VCProjectFile(FileReference FilePath, VCProjectFileFormat ProjectFileFormat, bool bUsePrecompiled, string BuildToolOverride, VCProjectFileSettings Settings)
+			: base(FilePath)
 		{
-			//OnlyGameProject = InOnlyGameProject;
-			ProjectFileFormat = InProjectFileFormat;
-			this.bUseFastPDB = bUseFastPDB;
-			this.bUsePerFileIntellisense = bUsePerFileIntellisense;
+			this.ProjectFileFormat = ProjectFileFormat;
 			this.bUsePrecompiled = bUsePrecompiled;
-			this.bEditorDependsOnShaderCompileWorker = bEditorDependsOnShaderCompileWorker;
-			this.bBuildLiveCodingConsole = bBuildLiveCodingConsole;
 			this.BuildToolOverride = BuildToolOverride;
+			this.Settings = Settings;
 		}
 
 		/// <summary>
@@ -516,7 +505,7 @@ namespace UnrealBuildTool
 		{
 			base.AddModule(Module, CompileEnvironment);
 
-			if (bUsePerFileIntellisense)
+			if (Settings.bUsePerFileIntellisense)
 			{
 				foreach (DirectoryReference ModuleDirectory in Module.ModuleDirectories)
 				{
@@ -793,18 +782,17 @@ namespace UnrealBuildTool
 				}
 
 				// Append the most common include paths to the search list.
-				const int MaxSharedIncludePathsLength = 24 * 1024;
-				foreach (DirectoryReference IncludePath in IncludePathToCount.OrderByDescending(x => x.Value).Select(x => x.Key))
+				if (Settings.MaxSharedIncludePaths > 0)
 				{
-					string RelativePath = NormalizeProjectPath(IncludePath);
-					if (SharedIncludeSearchPaths.Length + RelativePath.Length < MaxSharedIncludePathsLength)
+					foreach (DirectoryReference IncludePath in IncludePathToCount.OrderByDescending(x => x.Value).Select(x => x.Key))
 					{
+						string RelativePath = NormalizeProjectPath(IncludePath);
+						if (SharedIncludeSearchPaths.Length + RelativePath.Length >= Settings.MaxSharedIncludePaths)
+						{
+							break;
+						}
 						SharedIncludeSearchPaths.AppendFormat("{0};", RelativePath);
 						SharedIncludeSearchPathsSet.Add(IncludePath);
-					}
-					else
-					{
-						break;
 					}
 				}
 
@@ -1576,11 +1564,11 @@ namespace UnrealBuildTool
 					List<string> ExtraTargets = new List<string>();
 					if (!bUsePrecompiled)
 					{
-						if (TargetRulesObject.Type == TargetType.Editor && bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
+						if (TargetRulesObject.Type == TargetType.Editor && Settings.bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
 						{
 							ExtraTargets.Add("ShaderCompileWorker Win64 Development");
 						}
-						if (TargetRulesObject.bWithLiveCoding && bBuildLiveCodingConsole && !UnrealBuildTool.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
+						if (TargetRulesObject.bWithLiveCoding && Settings.bBuildLiveCodingConsole && !UnrealBuildTool.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
 						{
 							ExtraTargets.Add(TargetRulesObject.bUseDebugLiveCodingConsole? "LiveCodingConsole Win64 Debug" : "LiveCodingConsole Win64 Development");
 						}
@@ -1608,7 +1596,7 @@ namespace UnrealBuildTool
 					// Always include a flag to format log messages for MSBuild
 					BuildArguments.Append(" -FromMsBuild");
 
-					if (bUseFastPDB)
+					if (Settings.bAddFastPDBToProjects)
 					{
 						// Pass Fast PDB option to make use of Visual Studio's /DEBUG:FASTLINK option
 						BuildArguments.Append(" -FastPDB");
