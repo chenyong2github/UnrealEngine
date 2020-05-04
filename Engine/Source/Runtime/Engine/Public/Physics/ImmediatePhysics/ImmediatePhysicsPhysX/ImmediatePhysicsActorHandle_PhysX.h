@@ -21,6 +21,11 @@ namespace ImmediatePhysics_PhysX
 			OwningSimulation.GetLowLevelBody(ActorDataIndex).body2World = U2PTransform(ActorToBody * WorldTM);
 		}
 
+		void InitWorldTransform(const FTransform& WorldTM)
+		{
+			SetWorldTransform(WorldTM);
+		}
+
 		/** Make a body kinematic, or non-kinematic */
 		void SetIsKinematic(bool bKinematic)
 		{
