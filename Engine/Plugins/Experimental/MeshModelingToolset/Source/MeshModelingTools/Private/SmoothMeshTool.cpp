@@ -81,13 +81,13 @@ void USmoothMeshTool::Setup()
 
 	// compute area of the input mesh and compute normalization scaling factor
 	FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(SrcDynamicMesh);
-	double AreaScale = FMathd::Max(0.01, 6.0 / FMathd::Sqrt(VolArea.Y) );	// 6.0 is a bit arbitrary here...surface area of unit box
+	double UnitScalingMeasure = FMathd::Max(0.01, FMathd::Sqrt(VolArea.Y / 6.0));  // 6.0 is a bit arbitrary here...surface area of unit box
 
 	// translate to origin and then apply inverse of scale
 	FAxisAlignedBox3d Bounds = SrcDynamicMesh.GetCachedBounds();
 	SrcTranslate = Bounds.Center();
 	MeshTransforms::Translate(SrcDynamicMesh, -SrcTranslate);
-	SrcScale = AreaScale;
+	SrcScale = UnitScalingMeasure;
 	MeshTransforms::Scale(SrcDynamicMesh, (1.0/SrcScale)*FVector3d::One(), FVector3d::Zero() );
 
 	// apply that transform to target transform so that visible mesh stays in the same spot

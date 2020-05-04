@@ -134,7 +134,7 @@ public:
 	bool bPreserveUVs = true;
 
 	/** Magic number that allows you to try to correct for shrinking caused by smoothing */
-	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing, meta = (UIMin = "0.0", UIMax = "1000.0", ClampMin = "0.0", ClampMax = "1000000.0"))
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
 	float VolumeCorrection = 0.0f;
 };
 
