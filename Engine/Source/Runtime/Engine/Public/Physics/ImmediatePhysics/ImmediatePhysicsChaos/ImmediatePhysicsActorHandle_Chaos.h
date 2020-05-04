@@ -20,7 +20,10 @@ namespace ImmediatePhysics_Chaos
 
 		void SetEnabled(bool bEnabled);
 
-		/** Sets the world transform.*/
+		/** Sets the world transform, zeroes velocity, etc.*/
+		void InitWorldTransform(const FTransform& WorldTM);
+
+		/** Sets the world transform, maintains velocity etc.*/
 		void SetWorldTransform(const FTransform& WorldTM);
 
 		/** Make a body kinematic, or non-kinematic */
