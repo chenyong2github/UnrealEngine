@@ -91,6 +91,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "IMediaModule.h"
 #include "Scalability.h"
+#include "PlatformInfo.h"
 
 // needed for the RemotePropagator
 #include "AudioDevice.h"
@@ -7671,6 +7672,20 @@ void UEditorEngine::SaveEditorFeatureLevel()
 	Settings->PreviewShaderFormatName = PreviewPlatform.PreviewShaderPlatformName;
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
 	Settings->PostEditChange();
+}
+
+bool UEditorEngine::GetPreviewPlatformName(FName& PlatformGroupName, FName& VanillaPlatformName) const
+{
+	FName PlatformName = PreviewPlatform.GetEffectivePreviewPlatformName();
+	const PlatformInfo::FPlatformInfo* PlatInfo;
+	if (PlatformName != NAME_None && (PlatInfo = PlatformInfo::FindPlatformInfo(PlatformName)) != nullptr)
+	{
+		VanillaPlatformName = PlatInfo->VanillaPlatformName;
+		PlatformGroupName = PlatInfo->PlatformGroupName;
+		return true;
+	}
+
+	return false;
 }
 
 void UEditorEngine::AddReferencedObjects(FReferenceCollector& Collector)

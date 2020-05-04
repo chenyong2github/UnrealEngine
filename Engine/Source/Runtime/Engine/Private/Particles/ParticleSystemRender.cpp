@@ -1571,8 +1571,7 @@ uint32 FDynamicMeshEmitterData::GetMeshLODIndexFromProxy(const FParticleSystemSc
 	{
 		return FirstAvailableLOD;
 	}
-	const auto FeatureLevel = InOwnerProxy->GetScene().GetFeatureLevel();
-	const int32 EffectiveMinLOD = StaticMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
+	const int32 EffectiveMinLOD = StaticMesh->MinLOD.GetValue();
 	const int32 MaxLOD = StaticMesh->RenderData->LODResources.Num() - 1;
 	const int32 ClampedMinLOD = FMath::Clamp(EffectiveMinLOD, FirstAvailableLOD, MaxLOD);
 	const int32 MeshLOD = (InOwnerProxy->MeshEmitterLODIndices.IsValidIndex(EmitterIndex)) ? InOwnerProxy->MeshEmitterLODIndices[EmitterIndex] : 0;

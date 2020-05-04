@@ -16,7 +16,6 @@
 #include "Misc/FrameRate.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "Subsystems/EngineSubsystem.h"
-#include "RHI.h"
 #include "AudioDeviceManager.h"
 #include "Engine.generated.h"
 
@@ -1832,9 +1831,11 @@ public:
 	virtual bool IsInitialized() const { return bIsInitialized; }
 
 	/** The feature used to create new worlds, by default. Overridden for feature level preview in the editor */
-	virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const { return GMaxRHIFeatureLevel;  }
+	virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const;
 
 #if WITH_EDITOR
+	/** Return the platform group name and vanilla platform name the current preview platform, or false if there is no preview platform. */
+	virtual bool GetPreviewPlatformName(FName& PlatformGroupName, FName& VanillaPlatformName) const;
 
 	/** Editor-only event triggered when the actor list of the world has changed */
 	DECLARE_EVENT( UEngine, FLevelActorListChangedEvent );

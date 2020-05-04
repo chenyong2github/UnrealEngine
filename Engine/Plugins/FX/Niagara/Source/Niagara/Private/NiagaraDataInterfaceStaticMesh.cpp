@@ -307,7 +307,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	ValidSections.Empty();
 	if (Mesh)
 	{
-	    MinLOD = Mesh->MinLOD.GetValueForFeatureLevel(SystemInstance->GetFeatureLevel());
+	    MinLOD = Mesh->MinLOD.GetValue();
 	    CachedLODIdx = Mesh->RenderData->GetCurrentFirstLODIdx(MinLOD);
 
 		bMeshAllowsCpuAccess = Mesh->bAllowCPUAccess;
