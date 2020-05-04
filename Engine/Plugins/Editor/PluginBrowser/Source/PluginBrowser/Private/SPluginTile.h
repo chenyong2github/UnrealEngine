@@ -29,7 +29,13 @@ class SPluginTile : public SCompoundWidget
 	/** Widget constructor */
 	void Construct( const FArguments& Args, const TSharedRef< class SPluginTileList > Owner, TSharedRef<IPlugin> Plugin );
 
+	/** Returns plugin friendly name if not empty otherwise the plugin name. */
+	static FString GetPluginDisplayName(const IPlugin* InPlugin);
+
 private:
+
+	/** Returns text to display for the plugin name. */
+	FText GetPluginDisplayText() const;
 
 	/** Updates the contents of this tile */
 	void RecreateWidgets();
