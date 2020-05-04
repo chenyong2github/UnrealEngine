@@ -109,9 +109,6 @@ protected:
 	/** Strong handle to the audio device used by this viewport. */
 	FAudioDeviceHandle AudioDevice;
 
-	/** Handle to delegate in case audio device is destroyed. */
-	FDelegateHandle AudioDeviceDestroyedHandle;
-
 public:
 
 	/** see enum EViewModeIndex */

@@ -9,7 +9,6 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "UObject/Class.h"
-#include "Delegates/IDelegateInstance.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "CollisionQueryParams.h"
@@ -210,23 +209,6 @@ public:
 private:
 
 	UWorld* World;
-};
-
-// List of delegates for the world being registered to an audio device.
-class ENGINE_API FAudioDeviceWorldDelegates
-{
-public:
-	// Called whenever a world is registered to an audio device. UWorlds are not guaranteed to be registered to the same
-	// audio device throughout their lifecycle, and there is no guarantee on the lifespan of both the UWorld and the Audio
-	// Device registered in this callback.
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldRegisteredToAudioDevice, const UWorld* /*InWorld */, Audio::FDeviceId /* AudioDeviceId*/);
-	static FOnWorldRegisteredToAudioDevice OnWorldRegisteredToAudioDevice;
-
-	// Called whenever a world is unregistered from an audio device. UWorlds are not guaranteed to be registered to the same
-	// audio device throughout their lifecycle, and there is no guarantee on the lifespan of both the UWorld and the Audio
-	// Device registered in this callback.
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldUnregisteredWithAudioDevice, const UWorld* /*InWorld */, Audio::FDeviceId /* AudioDeviceId*/);
-	static FOnWorldUnregisteredWithAudioDevice OnWorldUnregisteredWithAudioDevice;
 };
 
 /** class that encapsulates seamless world traveling */
@@ -3405,9 +3387,6 @@ public:
 		
 private:
 	bool bIsRefreshingStreamingLevels;
-
-	/** Handle to delegate in case audio device is destroyed. */
-	FDelegateHandle AudioDeviceDestroyedHandle;
 
 public:
 

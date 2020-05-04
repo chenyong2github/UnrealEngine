@@ -63,7 +63,6 @@
 #include "TickTaskManagerInterface.h"
 #include "FXSystem.h"
 #include "AudioDevice.h"
-#include "AudioDeviceManager.h"
 #include "VisualLogger/VisualLogger.h"
 #include "LevelUtils.h"
 #include "Physics/PhysicsInterfaceCore.h"
@@ -303,9 +302,7 @@ FScopedLevelCollectionContextSwitch::~FScopedLevelCollectionContextSwitch()
 	}
 }
 
-FAudioDeviceWorldDelegates::FOnWorldRegisteredToAudioDevice FAudioDeviceWorldDelegates::OnWorldRegisteredToAudioDevice;
 
-FAudioDeviceWorldDelegates::FOnWorldUnregisteredWithAudioDevice FAudioDeviceWorldDelegates::OnWorldUnregisteredWithAudioDevice;
 
 /*-----------------------------------------------------------------------------
 	UWorld implementation.
@@ -369,15 +366,6 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 	FWorldDelegates::OnPostWorldCreation.Broadcast(this);
 
 	PerfTrackers = new FWorldInGamePerformanceTrackers();
-
-	AudioDeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddLambda([this](const Audio::FDeviceId InDeviceId)
-		{
-			if (InDeviceId == AudioDeviceHandle.GetDeviceID())
-			{
-				FAudioDeviceHandle EmptyHandle;
-				SetAudioDevice(EmptyHandle);
-			}
-		});
 }
 
 UWorld::~UWorld()
@@ -860,7 +848,6 @@ void UWorld::BeginDestroy()
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
 	}
 
-	AudioDeviceDestroyedHandle.Reset();
 	AudioDeviceHandle.Reset();
 }
 
@@ -7589,16 +7576,16 @@ void UWorld::SetAudioDevice(FAudioDeviceHandle& InHandle)
 	}
 
 	FAudioDeviceManager* DeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
-	if (DeviceManager && AudioDeviceHandle.IsValid())
+	if (DeviceManager && InHandle.IsValid())
 	{
-		GEngine->GetAudioDeviceManager()->UnregisterWorld(this, AudioDeviceHandle.GetDeviceID());
+		GEngine->GetAudioDeviceManager()->UnregisterWorld(this, InHandle.GetDeviceID());
 	}
 
 	AudioDeviceHandle = InHandle;
 
-	if (DeviceManager && AudioDeviceHandle.IsValid())
+	if (DeviceManager)
 	{
-		GEngine->GetAudioDeviceManager()->RegisterWorld(this, AudioDeviceHandle.GetDeviceID());
+		GEngine->GetAudioDeviceManager()->RegisterWorld(this, InHandle.GetDeviceID());
 	}
 }
 
