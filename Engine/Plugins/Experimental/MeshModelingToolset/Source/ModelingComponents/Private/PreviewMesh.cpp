@@ -87,12 +87,26 @@ void UPreviewMesh::SetMaterials(const TArray<UMaterialInterface*>& Materials)
 	DynamicMeshComponent->NotifyMeshUpdated();
 }
 
+int32 UPreviewMesh::GetNumMaterials() const
+{
+	check(DynamicMeshComponent);
+	return DynamicMeshComponent->GetNumMaterials();
+}
+
 UMaterialInterface* UPreviewMesh::GetMaterial(int MaterialIndex) const
 {
 	check(DynamicMeshComponent);
 	return DynamicMeshComponent->GetMaterial(MaterialIndex);
 }
 
+void UPreviewMesh::GetMaterials(TArray<UMaterialInterface*>& OutMaterials) const
+{
+	check(DynamicMeshComponent);
+	for (int32 i = 0; i < DynamicMeshComponent->GetNumMaterials(); ++i)
+	{
+		OutMaterials.Add(DynamicMeshComponent->GetMaterial(i));
+	}
+}
 
 void UPreviewMesh::SetOverrideRenderMaterial(UMaterialInterface* Material)
 {
