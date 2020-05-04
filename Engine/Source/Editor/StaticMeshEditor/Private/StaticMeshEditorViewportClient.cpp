@@ -815,8 +815,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 			LOD - 1;
 	}();
 
-	const ERHIFeatureLevel::Type FeatureLevel = GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel();
-	const int32 CurrentMinLODLevel = StaticMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
+	const int32 CurrentMinLODLevel = StaticMesh->MinLOD.GetValue();
 	const bool bBelowMinLOD = CurrentLODLevel < CurrentMinLODLevel;
 	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
 		FText::Format(NSLOCTEXT("UnrealEd", "LOD_F", "LOD:  {0}"), FText::AsNumber(CurrentLODLevel)),

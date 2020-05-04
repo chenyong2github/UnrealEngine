@@ -507,7 +507,7 @@ int8 ComputeTemporalStaticMeshLOD( const FStaticMeshRenderData* RenderData, cons
 	// Walk backwards and return the first matching LOD
 	for(int32 LODIndex = NumLODs - 1 ; LODIndex >= 0 ; --LODIndex)
 	{
-		if(FMath::Square(RenderData->ScreenSize[LODIndex].GetValueForFeatureLevel(View.GetFeatureLevel()) * 0.5f) > ScreenRadiusSquared)
+		if(FMath::Square(RenderData->ScreenSize[LODIndex].GetValue() * 0.5f) > ScreenRadiusSquared)
 		{
 			return FMath::Max(LODIndex, MinLOD);
 		}
@@ -542,7 +542,7 @@ int8 ComputeStaticMeshLOD( const FStaticMeshRenderData* RenderData, const FVecto
 		for (int32 LODIndex = NumLODs - 1; LODIndex >= 0; --LODIndex)
 		{
 			float ScreenSizeScale = FactorScale * LODView.LODDistanceFactor;
-			float MeshScreenSize = RenderData->ScreenSize[LODIndex].GetValueForFeatureLevel(View.GetFeatureLevel()) * ScreenSizeScale;
+			float MeshScreenSize = RenderData->ScreenSize[LODIndex].GetValue() * ScreenSizeScale;
 
 			if (FMath::Square(MeshScreenSize * 0.5f) > ScreenRadiusSquared)
 			{
