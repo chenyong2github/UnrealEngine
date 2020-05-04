@@ -13,7 +13,7 @@ class FAudioDebugger;
 // Set this to one if you'd like to check who owns
 // handles to an audio device.
 #ifndef INSTRUMENT_AUDIODEVICE_HANDLES
-#define INSTRUMENT_AUDIODEVICE_HANDLES 0
+#define INSTRUMENT_AUDIODEVICE_HANDLES 1
 #endif
 
 class FReferenceCollector;
@@ -424,22 +424,11 @@ private:
 
 	FAudioDeviceHandle CreateNewDevice(const FAudioDeviceParams& InParams);
 
-	/**
-	* Shutsdown the audio device associated with the handle. The handle
-	* will become invalid after the audio device is shut down.
-	*/
-	bool ShutdownAudioDevice(Audio::FDeviceId DeviceID);
-
 	// Called exclusively by the FAudioDeviceHandle copy constructor and assignment operators:
 	void IncrementDevice(Audio::FDeviceId DeviceID);
 
 	// Called exclusively by the FAudioDeviceHandle dtor.
 	void DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InWorld);
-
-	/**
-	* Shuts down all active audio devices
-	*/
-	bool ShutdownAllAudioDevices();
 
 	/** Application enters background handler */
 	void AppWillEnterBackground();
