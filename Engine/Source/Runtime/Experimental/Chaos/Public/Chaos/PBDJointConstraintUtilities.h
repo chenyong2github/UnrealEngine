@@ -152,6 +152,18 @@ namespace Chaos
 			const FReal MinParentMassRatio,
 			const FReal MaxInertiaRatio);
 
+		static bool GetSoftLinearLimitEnabled(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static bool GetSoftTwistLimitEnabled(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static bool GetSoftSwingLimitEnabled(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
 		static FReal GetLinearStiffness(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);

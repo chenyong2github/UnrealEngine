@@ -18,3 +18,7 @@ extern int32 bChaos_Joint_MaxBatchSize;
 
 extern float Chaos_Joint_DegenerateRotationLimit;
 extern bool bChaos_Joint_EllipticalFix;
+
+extern float Chaos_Joint_VelProjectionAlpha;
+
+extern bool bChaos_Joint_DisableSoftLimits;
