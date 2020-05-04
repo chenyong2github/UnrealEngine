@@ -361,20 +361,29 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		int32 ApplyPointProjection(
+		int32 ApplyPointConeTwistProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			bool bApplyPositionCorrection,
+			bool bApplySwingCorrection,
+			bool bApplyTwistCorrection);
 
-		int32 ApplyPointConeProjection(
+		int32 ApplySphereConeTwistProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			bool bApplyPositionCorrection,
+			bool bApplySwingCorrection,
+			bool bApplyTwistCorrection);
 
 		int32 ApplyPointDoubleSwingLockProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			bool bApplyPositionCorrection,
+			bool bApplySwingCorrection,
+			bool bApplyTwistCorrection);
 
 
 

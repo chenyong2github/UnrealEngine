@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/DenseMatrix.h"
+#include "Chaos/Joint/JointConstraintsCVars.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Utilities.h"
 
@@ -391,8 +392,27 @@ namespace Chaos
 		return SwingAngleMax;
 	}
 
-	
-	// @todo(ccaulfield): separate linear soft and stiff
+	bool FPBDJointUtilities::GetSoftLinearLimitEnabled(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return JointSettings.bSoftLinearLimitsEnabled && !bChaos_Joint_DisableSoftLimits;
+	}
+
+	bool FPBDJointUtilities::GetSoftTwistLimitEnabled(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return JointSettings.bSoftTwistLimitsEnabled && !bChaos_Joint_DisableSoftLimits;
+	}
+
+	bool FPBDJointUtilities::GetSoftSwingLimitEnabled(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return JointSettings.bSoftSwingLimitsEnabled && !bChaos_Joint_DisableSoftLimits;
+	}
+
 	FReal FPBDJointUtilities::GetLinearStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
