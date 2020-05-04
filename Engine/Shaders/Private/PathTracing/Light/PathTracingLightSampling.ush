@@ -52,6 +52,7 @@ void EstimateLight(
 )
 {
 	OutIrradiance = 0.0f;
+	if ((GetLightingChannelMask(LightId) & Payload.PrimitiveLightingChannelMask) == 0) return;
 
 	if (IsPointLight(LightId))
 	{
