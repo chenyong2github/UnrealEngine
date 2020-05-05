@@ -10,6 +10,7 @@
 #include "IO/IoDispatcher.h"
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
