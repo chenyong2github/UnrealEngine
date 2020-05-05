@@ -533,7 +533,7 @@ private:
 	{
 		const TSharedRef< IPropertyHandle > PropertyHandle = PropertyEditor->GetPropertyHandle();
 		NumericType OrgValue(0);
-		if (PropertyHandle->GetValue(OrgValue) == FPropertyAccess::Fail || OrgValue != NewValue)
+		if (bIsUsingSlider || (PropertyHandle->GetValue(OrgValue) == FPropertyAccess::Fail || OrgValue != NewValue))
 		{
 			PropertyHandle->SetValue(NewValue);
 			LastSliderCommittedValue = NewValue;
