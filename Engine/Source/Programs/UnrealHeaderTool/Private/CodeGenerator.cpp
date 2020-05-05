@@ -5661,18 +5661,16 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	});
 	if (bPackageHasAnyExportClasses)
 	{
-		TArray<UClass*> DefinedClasses;
 		for (FUnrealSourceFile* SourceFile : SourceFiles)
 		{
-			DefinedClasses.Reset();
-			SourceFile->AppendDefinedClasses(DefinedClasses);
-			for (UClass* Class : DefinedClasses)
+			for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 			{
+				UClass* Class = ClassDataPair.Key;
 				if (!Class->HasAnyClassFlags(CLASS_Native))
 				{
 					Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
 				}
-				else if (GTypeDefinitionInfoMap.Contains(Class) && !Class->HasAnyClassFlags(CLASS_NoExport))
+				else if (!Class->HasAnyClassFlags(CLASS_NoExport) && GTypeDefinitionInfoMap.Contains(Class))
 				{
 					bWriteClassesH = true;
 					Class->UnMark(OBJECTMARK_TagImp);
@@ -5724,8 +5722,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		// This needs to be done outside of parallel blocks because it will modify UClass memory.
 		// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
 		// they will see the memory has already been set up, and just return the parent pointer.
-		for (UClass* Class : SourceFile->GetDefinedClasses())
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			if (ClassHasReplicatedProperties(Class))
 			{
 				Class->SetUpUhtReplicationData();
@@ -5811,10 +5810,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 
 		EExportClassOutFlags ExportFlags = EExportClassOutFlags::None;
 		TSet<FString> AdditionalHeaders;
-		TArray<UClass*>	DefinedClasses;
-		SourceFile->AppendDefinedClasses(DefinedClasses);
-		for (UClass* Class : DefinedClasses)
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			if (!(Class->ClassFlags & CLASS_Intrinsic))
 			{
 				ConstThis->ExportClassFromSourceFileInner(GeneratedHeaderText, OutText, GeneratedFunctionDeclarations, ReferenceGatherers, (FClass*)Class, *SourceFile, ExportFlags);
@@ -5848,10 +5846,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 
 	for (FUnrealSourceFile* SourceFile : Exported)
 	{
-		DefinedClasses.Reset();
-		SourceFile->AppendDefinedClasses(DefinedClasses);
-		for (UClass* Class : DefinedClasses)
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			GClassToSourceFileMap.Add(Class, SourceFile);
 		}
 
@@ -5871,10 +5868,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		bool bAddedArchiveUObjectFromStructuredArchiveHeader = false;
 
 		TArray<FString>& RelativeIncludes = GeneratedCPPs[SourceFile].RelativeIncludes;
-		DefinedClasses.Reset();
-		SourceFile->AppendDefinedClasses(DefinedClasses);
-		for (UClass* Class : DefinedClasses)
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			if (Class->ClassWithin && Class->ClassWithin != UObject::StaticClass())
 			{
 				if (FUnrealSourceFile** WithinSourceFile = GClassToSourceFileMap.Find(Class->ClassWithin))
@@ -6486,7 +6482,6 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 
 					TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerformInitialParseOnHeader(Package, *RawFilename, RF_Public | RF_Standalone, *HeaderFile);
 					FUnrealSourceFile* UnrealSourceFilePtr = &UnrealSourceFile.Get();
-					TArray<UClass*> DefinedClasses = UnrealSourceFile->GetDefinedClasses();
 					GUnrealSourceFilesMap.Add(FPaths::GetCleanFilename(RawFilename), UnrealSourceFile);
 
 					if (CurrentlyProcessing == PublicClassesHeaders)
