@@ -57,6 +57,36 @@ public:
 	virtual void DisableGravityOverride()
 	PURE_VIRTUAL(UClothingSimulationInteractor::DisableGravityOverride, );
 
+	// Return the number of cloths run by the simulation.
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual int32 GetNumCloths() const
+	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumCloths, return 0;);
+
+	// Return the number of kinematic (animated) particles.
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual int32 GetNumKinematicParticles() const
+	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumKinematicParticles, return 0;);
+
+	// Return the number of dynamic (simulated) particles.
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual int32 GetNumDynamicParticles() const
+	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumDynamicParticles, return 0;);
+
+	// Return the solver number of iterations.
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual int32 GetNumIterations() const
+	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumIterations, return 0;);
+
+	// Return the solver number of subdivisions.
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual int32 GetNumSubsteps() const
+	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumSubsteps, return 0;);
+
+	// Return the instant average simulation time in ms. 
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual float GetSimulationTime() const
+	PURE_VIRTUAL(UClothingSimulationInteractor::GetSimulationTime, return 0.f;);
+
 protected:
 
 	// Intended to be called by functions on the interactor to message to the 
