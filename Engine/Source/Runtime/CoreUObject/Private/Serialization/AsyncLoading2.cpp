@@ -1063,8 +1063,11 @@ private:
 		for (const FPackageObjectIndex& GlobalIndex : ImportEntry.PublicExports)
 		{
 			UObject* Object = GlobalImportStore.GetPublicExportObject(GlobalIndex);
-			check(Object && !Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
-			Object->SetInternalFlags(EInternalObjectFlags::Async);
+			if (Object)
+			{
+				check(!Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
+				Object->SetInternalFlags(EInternalObjectFlags::Async);
+			}
 		}
 	}
 
@@ -1074,8 +1077,11 @@ private:
 		for (const FPackageObjectIndex& GlobalIndex : ImportEntry.PublicExports)
 		{
 			UObject* Object = GlobalImportStore.GetPublicExportObject(GlobalIndex);
-			check(Object && Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
-			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
+			if (Object)
+			{
+				check(Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
+				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
+			}
 		}
 	}
 
