@@ -106,7 +106,9 @@ PBDCollisionSpringConstraintsBase<T, d>::PBDCollisionSpringConstraintsBase(
 			// TODO(mlentine): In theory this shouldn't happen as this means no collision but I'm not positive that the collision check is always correct.
 			//if (Bary.Y < 0 || Bary.Z < 0 || Bary.X < 0) return;
 			// TODO(mlentine): Incorporate history
-			TVector<T, d> Normal = TVector<T, d>::DotProduct(Result.Normal, PP0) > 0 ? Result.Normal : -Result.Normal;
+			TVector<T, d> Normal = TVector<T, d>::CrossProduct(P10, P20);
+			Normal.Normalize();
+			Normal = TVector<T, d>::DotProduct(Normal, PP0) > 0 ? Normal : -Normal;
 			CriticalSection.Lock();
 			MConstraints.Add({Index, Elem[0], Elem[1], Elem[2]});
 			MBarys.Add(Bary);
