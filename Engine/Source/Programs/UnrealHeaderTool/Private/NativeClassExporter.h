@@ -103,8 +103,8 @@ private:
 		{
 		}
 
-	/** Set of already exported cross-module references, to prevent duplicates */
-	TSet<FString>* UniqueCrossModuleReferences;
+		/** Set of already exported cross-module references, to prevent duplicates */
+		TSet<FString>* UniqueCrossModuleReferences;
 		/** Array of all header filenames from the current package. */
 		TSet<FString>& PackageHeaderPaths;
 		/** Array of temp filenames that for files to overwrite headers */
@@ -119,9 +119,6 @@ private:
 
 	/** If false, exported headers will not be saved to disk */
 	bool bAllowSaveExportedHeaders;
-
-	/** If true, any change in the generated headers will result in UHT failure. */
-	bool bFailIfGeneratedCodeChanges;
 
 	/**
 	 * Exports the struct's C++ properties to the HeaderText output device and adds special
