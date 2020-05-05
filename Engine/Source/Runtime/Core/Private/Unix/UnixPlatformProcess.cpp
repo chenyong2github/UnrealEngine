@@ -28,6 +28,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
+#include "Misc/Fork.h"
 
 namespace PlatformProcessLimits
 {
@@ -1422,6 +1423,8 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 			}
 			else if (ChildPID == 0)
 			{
+				FForkProcessHelper::SetIsForkedChildProcess();
+
 				// Child
 				uint16 Cookie = (SignalValue >> 16) & 0xffff;
 				uint16 ChildIdx = SignalValue & 0xffff;

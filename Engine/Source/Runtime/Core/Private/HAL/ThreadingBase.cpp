@@ -1091,6 +1091,17 @@ protected:
 //-------------------------------------------------------------------------------
 
 bool FForkProcessHelper::bIsForkedMultithreadInstance = false;
+bool FForkProcessHelper::bIsForkedChildProcess = false;
+
+bool FForkProcessHelper::IsForkedChildProcess()
+{
+	return bIsForkedChildProcess;
+}
+
+void FForkProcessHelper::SetIsForkedChildProcess()
+{
+	bIsForkedChildProcess = true;
+}
 
 void FForkProcessHelper::OnForkingOccured()
 {

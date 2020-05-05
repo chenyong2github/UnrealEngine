@@ -60,6 +60,7 @@ public:
 	//~ Begin HttpManager Interface
 	virtual void OnBeforeFork() override;
 	virtual void OnAfterFork() override;
+	virtual void OnEndFramePostFork() override;
 	virtual void UpdateConfigs() override;
 
 public:
