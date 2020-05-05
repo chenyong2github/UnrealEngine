@@ -23,7 +23,9 @@ struct FIoStoreTocHeader
 	uint32	CompressionMethodNameLength;
 	uint32	CompressionBlockSize;
 	FIoContainerId ContainerId;
-	uint8 Pad[70];
+	FGuid	EncryptionKeyGuid;
+	uint8	bIsEncrypted;
+	uint8	Pad[53];
 
 	void MakeMagic()
 	{
@@ -191,6 +193,16 @@ public:
 	FIoContainerId GetContainerId() const
 	{
 		return Header->ContainerId;
+	}
+
+	const FGuid& GetEncryptionKeyGuid() const
+	{
+		return Header->EncryptionKeyGuid;
+	}
+
+	bool IsContainerEncrypted() const
+	{
+		return Header->bIsEncrypted > 0;
 	}
 
 private:
