@@ -304,6 +304,7 @@ private:
 
 	void SetIsRequestingShutdown(bool bInRequestingShutdown);
 
+	void CreatePlatformSession(FName PlatformOssName);
 	void UpdatePlatformSessionLeader(FName PlatformOssName);
 
 	void HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
