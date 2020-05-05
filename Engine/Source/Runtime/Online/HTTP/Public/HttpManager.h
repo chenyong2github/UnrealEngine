@@ -147,6 +147,12 @@ public:
 	virtual void OnAfterFork();
 
 	/**
+	 * Inform the HTTP Manager that we finished ticking right after forking. Only called on the forked process
+	 */
+	virtual void OnEndFramePostFork();
+
+
+	/**
 	 * Update configuration. Called when config has been updated and we need to apply any changes.
 	 */
 	virtual void UpdateConfigs();
