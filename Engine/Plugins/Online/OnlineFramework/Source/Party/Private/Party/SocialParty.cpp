@@ -584,28 +584,40 @@ void USocialParty::OnLocalPlayerIsLeaderChanged(bool bIsLeader)
 		// It's possible that membership changes resulting in this promotion also require updates to the session info
 		//	If we found out about the changes in membership before learning we're the leader, we were unable to update the rep data accordingly
 		//	So, upon becoming leader, we must do a sweep to account for any such changes we missed out on
-		TArray<FName> AllMemberPlatformSubsystems;
+		TArray<FName> SessionsToUpdate;
+		TArray<FName> SessionsToCreate;
 		for (UPartyMember* Member : GetPartyMembers())
 		{
 			FName PlatformOssName = Member->GetPlatformOssName();
 			if (!PlatformOssName.IsNone())
 			{
-				AllMemberPlatformSubsystems.AddUnique(PlatformOssName);
+				if (GetRepData().FindSessionInfo(PlatformOssName))
+				{
+					SessionsToUpdate.AddUnique(PlatformOssName);
+				}
+				else if (FPartyPlatformSessionManager::DoesOssNeedPartySession(PlatformOssName))
+				{
+					SessionsToCreate.AddUnique(PlatformOssName);
+				}
 			}
 		}
 		for (const FPartyPlatformSessionInfo& PlatformSessionInfo : GetRepData().GetPlatformSessions())
 		{
 			// Not using AddUnique so we can log if we are catching OSSs to remove
 			// TODO: Remove logging when we are sure this is fixed
-			if (!AllMemberPlatformSubsystems.Contains(PlatformSessionInfo.OssName))
+			if (!SessionsToUpdate.Contains(PlatformSessionInfo.OssName))
 			{
 				UE_LOG(LogParty, Verbose, TEXT("OnLocalPlayerIsLeaderChanged: Adding existing platform OSS [%s] which has no members"), *PlatformSessionInfo.OssName.ToString());
-				AllMemberPlatformSubsystems.Add(PlatformSessionInfo.OssName);
+				SessionsToUpdate.Add(PlatformSessionInfo.OssName);
 			}
 		}
-		for (FName PlatformOssName : AllMemberPlatformSubsystems)
+		for (FName PlatformOssName : SessionsToUpdate)
 		{
 			UpdatePlatformSessionLeader(PlatformOssName);
+		}
+		for (FName PlatformOssName : SessionsToCreate)
+		{
+			CreatePlatformSession(PlatformOssName);
 		}
 	}
 	else
@@ -1739,6 +1751,33 @@ void USocialParty::FinalizePartyLeave(EMemberExitedReason Reason)
 
 	// Wait until the very end to actually clear out the members array, since otherwise the exact order of event broadcasting matters and becomes a hassle
 	PartyMembersById.Reset();
+}
+
+void USocialParty::CreatePlatformSession(FName PlatformOssName)
+{
+	if (!PlatformOssName.IsNone() && !GetRepData().FindSessionInfo(PlatformOssName))
+	{
+		FUniqueNetIdRepl OwnerPrimaryId;
+		for (UPartyMember* Member : GetPartyMembers())
+		{
+			if (Member->GetPlatformOssName() == PlatformOssName)
+			{
+				OwnerPrimaryId = Member->GetPrimaryNetId();
+				if (Member->IsLocalPlayer())
+				{
+					break; // Prefer Local players
+				}
+			}
+		}
+
+		if (OwnerPrimaryId.IsValid())
+		{
+			FPartyPlatformSessionInfo NewSessionInfo;
+			NewSessionInfo.OssName = PlatformOssName;
+			NewSessionInfo.OwnerPrimaryId = OwnerPrimaryId;
+			GetMutableRepData().UpdatePlatformSessionInfo(NewSessionInfo);
+		}
+	}
 }
 
 void USocialParty::UpdatePlatformSessionLeader(FName PlatformOssName)
