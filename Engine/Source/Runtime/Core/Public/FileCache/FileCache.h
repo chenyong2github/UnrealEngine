@@ -17,10 +17,7 @@ struct FFileCachePreloadEntry
 };
 
 /**
- * Thready safety note: Once created a IFileCacheHandle is assumed to be only used from a single thread.
- * (i.e. the IFileCacheHandle interface is not thread safe, and the user will need to ensure serialization).
- * Of course you can create several IFileCacheHandle's on separate threads if needed. And obviously Internally threading
- * will also be used to do async IO and cache management.
+ * All methods may be safely called from multiple threads simultaneously, unless otherwise noted
  * 
  * Also note, if you create several IFileCacheHandle's to the same file on separate threads these will be considered
  * as individual separate files from the cache point of view and thus each will have their own cache data allocated.
