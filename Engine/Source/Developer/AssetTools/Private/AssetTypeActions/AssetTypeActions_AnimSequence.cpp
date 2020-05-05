@@ -82,8 +82,8 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 			)
 		);
 
-	// Not supported, streamable animation logic will be ported to UAnimSequence (temp undone in FN for event)
-	MenuBuilder.AddMenuEntry(
+	// Not supported, streamable animation logic will be ported to UAnimSequence
+	/*MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimSequence_NewAnimStreamable", "Create AnimStreamable"),
 		LOCTEXT("AnimSequence_NewAnimStreamableTooltip", "Creates an AnimStreamable using the selected anim sequence."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
@@ -91,7 +91,7 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteNewAnimStreamable, Sequences),
 			FCanExecuteAction()
 		)
-	);
+	);*/
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimSequence_NewPoseAsset", "Create PoseAsset"),

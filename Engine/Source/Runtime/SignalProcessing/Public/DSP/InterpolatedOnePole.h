@@ -66,7 +66,7 @@ namespace Audio
 		int32 NumInterpSteps;
 		float SampleRate{ 0 };
 		int32 NumChannels{ 1 };
-		int32 isFirstFrequencyChange : 1;
+		bool bIsFirstFrequencyChange{ true };
 
 	}; // class Interpolated Low pass filter
 
@@ -121,14 +121,6 @@ namespace Audio
 		void ClearMemory();
 		
 	private:
-		FORCEINLINE float GetGCoefficient() const
-		{
-			const float OmegaDigital = 2.0f * PI * CutoffFrequency;
-			const float OmegaAnalog = 2.0f * SampleRate * Audio::FastTan(0.5f * OmegaDigital / SampleRate);
-			const float G = 0.5f * OmegaAnalog / SampleRate;
-			return G;
-		}
-
 		float CutoffFrequency{ -1.0f };
 		float A0Curr{ 0.0f }; // coefficient
 		float A0Delta{ 0.0f }; // coefficient step size
@@ -140,7 +132,7 @@ namespace Audio
 		float SampleRate{ 0 };
 		float NyquistLimit{ 0.0f };
 		int32 NumChannels{ 1 };
-		int32 isFirstFrequencyChange : 1;
+		bool bIsFirstFrequencyChange{ true };
 	
 	}; // class Interpolated High pass filter
 } // namespace Audio

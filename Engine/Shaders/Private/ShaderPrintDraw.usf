@@ -97,22 +97,26 @@ void AddUIntSymbols(inout float2 ScreenPos, in uint Value)
 	uint SymbolCount = 1;
 	uint Divisor = 1;
 	uint TestValue = Value;
-	for (uint i = 0; i < MaxSymbols-1; ++i)
 	{
-		TestValue /= 10;
-		if (TestValue > 0)
+		for (uint i = 0; i < MaxSymbols-1; ++i)
 		{
-			SymbolCount ++;
-			Divisor *= 10;
+			TestValue /= 10;
+			if (TestValue > 0)
+			{
+				SymbolCount ++;
+				Divisor *= 10;
+			}
 		}
 	}
 	
-	for (uint i = 0; i < SymbolCount; ++i)
 	{
-		uint Digit = Value / Divisor;
-		AddSymbol(ScreenPos, GetDecimalSymbol((int)Digit));
-		Value = Value - (Digit * Divisor);
-		Divisor /= 10;
+		for (uint i = 0; i < SymbolCount; ++i)
+		{
+			uint Digit = Value / Divisor;
+			AddSymbol(ScreenPos, GetDecimalSymbol((int)Digit));
+			Value = Value - (Digit * Divisor);
+			Divisor /= 10;
+		}
 	}
 }
 

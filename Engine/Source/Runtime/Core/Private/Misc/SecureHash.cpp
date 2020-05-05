@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/SecureHash.h"
+#include "Misc/StringBuilder.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 
@@ -613,6 +614,11 @@ FString LexToString(const FSHAHash& InHash)
 void LexFromString(FSHAHash& InHash, const TCHAR* InString)
 {
 	InHash.FromString(InString);
+}
+
+void Freeze::IntrinsicToString(const FSHAHash& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+{
+	OutContext.String->Appendf(TEXT("%s\n"), *Object.ToString());
 }
 
 FSHA1::FSHA1()

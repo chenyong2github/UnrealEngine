@@ -27,19 +27,19 @@ void MainVS(
 {
 	DrawRectangle(InPosition, UV, OutPosition, UV);
 
-	int SampleIndex = 0;
+	
 
-	for (;SampleIndex < STATIC_SAMPLE_COUNT - 1; SampleIndex += 2)
+	for (int SampleIndex = 0; SampleIndex < STATIC_SAMPLE_COUNT - 1; SampleIndex += 2)
 	{
 		half4 OffsetUVUV = SampleOffsets[SampleIndex / 2];
 		OutOffsetUVs[SampleIndex + 0] = UV.xy + OffsetUVUV.xy;
 		OutOffsetUVs[SampleIndex + 1] = UV.xy + OffsetUVUV.zw;
 	}
 
-	if (SampleIndex < STATIC_SAMPLE_COUNT)
+	if (STATIC_SAMPLE_COUNT & 1)
 	{
-		half4 OffsetUVUV = SampleOffsets[SampleIndex / 2];
-		OutOffsetUVs[SampleIndex] = UV.xy + OffsetUVUV.xy;
+		half4 OffsetUVUV = SampleOffsets[PACKED_STATIC_SAMPLE_COUNT - 1];
+		OutOffsetUVs[STATIC_SAMPLE_COUNT - 1] = UV.xy + OffsetUVUV.xy;
 	}
 
 	OutUV = UV;
@@ -57,7 +57,7 @@ void MainVS(
 {
 	DrawRectangle(InPosition, UV, OutPosition, UV);
 
-	for(int OffsetIndex = 0; OffsetIndex < PACKED_STATIC_SAMPLE_COUNT; ++OffsetIndex)
+	UNROLL for(int OffsetIndex = 0; OffsetIndex < PACKED_STATIC_SAMPLE_COUNT; ++OffsetIndex)
 	{
 		OutOffsetUVs[OffsetIndex] = UV.xyxy + SampleOffsets[OffsetIndex];
 	}

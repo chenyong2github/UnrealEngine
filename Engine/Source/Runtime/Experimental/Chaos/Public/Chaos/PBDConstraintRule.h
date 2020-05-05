@@ -150,6 +150,8 @@ namespace Chaos
 		/** Set up the perf-acceleration structures for the specified island. May be called in parallel for islands */
 		virtual void UpdateAccelerationStructures(const int32 Island) {}
 
+		virtual void SetUseContactGraph(const bool InUseContactGraph) {}
+
 		/** Remove all constraints associated with the specified particles */
 		// @todo(ccaulfield): remove uint version
 		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles) { }
@@ -404,6 +406,11 @@ namespace Chaos
 		virtual void UpdateAccelerationStructures(const int32 Island) override
 		{
 			GraphColor.ComputeColor(Island, *ConstraintGraph, ContainerId);
+		}
+
+		virtual void SetUseContactGraph(const bool bInUseContactGraph) override
+		{
+			GraphColor.SetUseContactGraph(bInUseContactGraph);
 		}
 
 		template<typename TVisitor>

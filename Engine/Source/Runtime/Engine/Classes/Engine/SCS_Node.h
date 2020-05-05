@@ -186,7 +186,7 @@ class USCS_Node : public UObject
 	ENGINE_API void SetParent(USCS_Node* InParentNode);
 
 	/** Sets parent component attributes based on the given component instance */
-	ENGINE_API void SetParent(USceneComponent* InParentComponent);
+	ENGINE_API void SetParent(const USceneComponent* InParentComponent);
 
 	/** Finds and returns the parent component template through the given Blueprint */
 	ENGINE_API USceneComponent* GetParentComponentTemplate(UBlueprint* InBlueprint) const;

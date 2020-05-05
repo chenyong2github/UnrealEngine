@@ -12,7 +12,7 @@
 namespace Chaos
 {
 	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand)
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand)
 	{
 		check(InSolver && InCommand);
 		InSolver->GetCommandQueue().Enqueue(InCommand);
@@ -89,10 +89,10 @@ namespace Chaos
 	//////////////////////////////////////////////////////////////////////////
 
 	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand)
+	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand)
 	{
 		check(InSolver && InCommand);
-		InCommand(InSolver);
+		InCommand();
 	}
 
 	template<>
@@ -141,7 +141,7 @@ namespace Chaos
 	//////////////////////////////////////////////////////////////////////////
 
 	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand)
+	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand)
 	{
 		check(InSolver && InCommand);
 		InSolver->GetCommandQueue().Enqueue(InCommand);

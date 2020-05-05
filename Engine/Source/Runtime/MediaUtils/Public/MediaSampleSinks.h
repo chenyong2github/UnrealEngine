@@ -114,6 +114,20 @@ public:
 		Sinks.Remove(SampleSink);
 	}
 
+	/**
+	 * Remove any invalid sinks
+	 */
+	void Cleanup()
+	{
+		for (int32 SinkIndex = Sinks.Num() - 1; SinkIndex >= 0; --SinkIndex)
+		{
+			if (!Sinks[SinkIndex].IsValid())
+			{
+				Sinks.RemoveAtSwap(SinkIndex);
+			}
+		}
+	}
+
 protected:
 
 	/** The collection of registered sinks. */
@@ -125,8 +139,12 @@ typedef TMediaSampleSinks<IMediaTextureSample, FMediaTextureSampleSink> FMediaVi
 class FMediaAudioSampleSinks : public TMediaSampleSinks<IMediaAudioSample, FMediaAudioSampleSink>
 {
 public:
+	/**
+	 * Get primary audio sink and cleanup any invalid sinks
+	 */
 	TSharedPtr<FMediaAudioSampleSink, ESPMode::ThreadSafe> GetPrimaryAudioSink()
 	{
+		Cleanup();
 		if (Sinks.Num() == 0)
 		{
 			return TSharedPtr<FMediaAudioSampleSink, ESPMode::ThreadSafe>();

@@ -1025,16 +1025,21 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 		SoundWave->RawData.ForceBulkDataResident();
 	}
 	
-	UE_CLOG(SoundWave->RawData.IsBulkDataLoaded(), LogAudioDerivedData, Display, TEXT("calling ForceBulkDataResident for LPCM data for USoundWave %s failed."), *SoundWave->GetFullName());
-
+	UE_CLOG(!SoundWave->RawData.IsBulkDataLoaded(), LogAudioDerivedData, Display, TEXT("Calling ForceBulkDataResident for LPCM data for USoundWave %s failed."), *SoundWave->GetFullName());
+	
 	// Lock raw wave data.
 	const uint8* RawWaveData = (const uint8*)SoundWave->RawData.LockReadOnly();
 	bWasLocked = true;
 	int32 RawDataSize = SoundWave->RawData.GetBulkDataSize();
 
-	// parse the wave data
-	if (!WaveInfo.ReadWaveHeader(RawWaveData, RawDataSize, 0))
+
+	if (!RawWaveData || RawDataSize == 0)
 	{
+		UE_LOG(LogAudioDerivedData, Warning, TEXT("LPCM data failed to load for sound %s"), *SoundWave->GetFullName());
+	}
+	else if (!WaveInfo.ReadWaveHeader(RawWaveData, RawDataSize, 0))
+	{
+		// If we failed to parse the wave header, it's either because of an invalid bitdepth or channel configuration.
 		UE_LOG(LogAudioDerivedData, Warning, TEXT("Only mono or stereo 16 bit waves allowed: %s (%d bytes)"), *SoundWave->GetFullName(), RawDataSize);
 	}
 	else
@@ -1622,6 +1627,8 @@ void USoundWave::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPla
 
 void USoundWave::WillNeverCacheCookedPlatformDataAgain()
 {
+	FinishCachePlatformData();
+
 	// this is called after we have finished caching the platform data but before we have saved the data
 	// so need to keep the cached platform data around
 	Super::WillNeverCacheCookedPlatformDataAgain();

@@ -171,7 +171,7 @@ bool FPluginDescriptor::Save(const FString& FileName, FText& OutFailReason) cons
 	// Save it to a file
 	if ( !FFileHelper::SaveStringToFile(Text, *FileName) )
 	{
-		OutFailReason = FText::Format( LOCTEXT("FailedToWriteOutputFile", "Failed to write output file '{0}'. Perhaps the file is Read-Only?"), FText::FromString(FileName) );
+		OutFailReason = FText::Format( LOCTEXT("FailedToWriteOutputFile", "Failed to write plugin descriptor file '{0}'. Perhaps the file is Read-Only?"), FText::FromString(FileName) );
 		return false;
 	}
 	return true;

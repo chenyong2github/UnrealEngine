@@ -33,7 +33,14 @@ private:
 
 	void OnSoundWaveLoaded(const FName& PackageName, UPackage * Package, EAsyncLoadingResult::Type Result, bool bAddToRoot);
 
-	uint32 bAsyncLoading:1;
+	uint8 bAsyncLoading:1;
+
+	// Set to true when we enqueue a task to the game thread to load
+	// the asset associated with this thread.
+	// This only occurs if ClearAssetReferences() was called and we still tried to play this wave player,
+	// likely because the quality level was changed.
+	FThreadSafeBool bAsyncLoadRequestPending;
+
 public:
 
 	UPROPERTY(EditAnywhere, Category=WavePlayer)
@@ -65,5 +72,7 @@ public:
 	virtual void ClearAssetReferences() override;
 	//~ End USoundNode Interface
 
+	// If this returns true, this wave player currently has an async load for the USoundWave in flight.
+	bool IsCurrentlyAsyncLoadingAsset() const { return bAsyncLoading; }
 };
 

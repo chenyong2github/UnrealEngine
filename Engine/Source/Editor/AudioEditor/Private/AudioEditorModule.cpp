@@ -12,13 +12,14 @@
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
 #include "SoundClassEditor.h"
+#include "Sound/AudioSettings.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundEffectPreset.h"
 #include "SoundCueEditor.h"
+#include "SoundModulationParameterLayout.h"
 #include "SoundSubmixEditor.h"
-#include "Sound/AudioSettings.h"
 #include "AssetTypeActions/AssetTypeActions_DialogueVoice.h"
 #include "AssetTypeActions/AssetTypeActions_DialogueWave.h"
 #include "AssetTypeActions/AssetTypeActions_SoundAttenuation.h"
@@ -91,6 +92,10 @@ public:
 
 		// Create reimport handler for sound node waves
 		UReimportSoundFactory::StaticClass();
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+		PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationParameterSettings",
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationParameterLayoutCustomization::MakeInstance));
 
 		SetupIcons();
 #if WITH_SNDFILE_IO

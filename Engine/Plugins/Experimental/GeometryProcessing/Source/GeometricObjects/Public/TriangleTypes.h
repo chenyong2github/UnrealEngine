@@ -57,6 +57,10 @@ struct TTriangle2
 		return BaryCoords[0] * V[0] + BaryCoords[1] * V[1] + BaryCoords[2] * V[2];
 	}
 
+	FVector3<RealType> GetBarycentricCoords(const FVector2<RealType>& Point) const
+	{
+		return VectorUtil::BarycentricCoords(Point, V[0], V[1], V[2]);
+	}
 
 	/**
 	 * @param A first vertex of triangle
@@ -95,6 +99,46 @@ struct TTriangle2
 	bool IsInside(const FVector2<RealType>& QueryPoint) const
 	{
 		return IsInside(V[0], V[1], V[2], QueryPoint);
+	}
+
+	/**
+	 * More robust (because it doesn't multiply orientation test results) inside-triangle test for oriented triangles only
+	 *  (the code early-outs at the first 'outside' edge, which only works if the triangle is oriented as expected)
+	 * @return 1 if outside, -1 if inside, 0 if on boundary
+	 */
+	int IsInsideOrOn_Oriented(const FVector2<RealType>& QueryPoint) const
+	{
+		return IsInsideOrOn_Oriented(V[0], V[1], V[2], QueryPoint);
+	}
+
+	/**
+	 * More robust (because it doesn't multiply orientation test results) inside-triangle test for oriented triangles only
+	 *  (the code early-outs at the first 'outside' edge, which only works if the triangle is oriented as expected)
+	 * @return 1 if outside, -1 if inside, 0 if on boundary
+	 */
+	static int IsInsideOrOn_Oriented(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C, const FVector2<RealType>& QueryPoint)
+	{
+		checkSlow(FVector2<RealType>::Orient(A, B, C) <= 0); // TODO: remove this checkSlow; it's just to make sure the orientation is as expected
+
+		RealType Sign1 = FVector2<RealType>::Orient(A, B, QueryPoint);
+		if (Sign1 > 0)
+		{
+			return 1;
+		}
+		
+		RealType Sign2 = FVector2<RealType>::Orient(B, C, QueryPoint);
+		if (Sign2 > 0)
+		{
+			return 1;
+		}
+		
+		RealType Sign3 = FVector2<RealType>::Orient(A, C, QueryPoint);
+		if (Sign3 < 0) // note this edge is queried backwards so the sign test is also backwards
+		{
+			return 1;
+		}
+
+		return (Sign1 != 0 && Sign2 != 0 && Sign3 != 0) ? -1 : 0;
 	}
 
 
@@ -140,6 +184,10 @@ struct TTriangle3
 		return BaryCoords[0]*V[0] + BaryCoords[1]*V[1] + BaryCoords[2]*V[2];
 	}
 
+	FVector3<RealType> GetBarycentricCoords(const FVector3<RealType>& Point) const
+	{
+		return VectorUtil::BarycentricCoords(Point, V[0], V[1], V[2]);
+	}
 
 	/** @return vector that is perpendicular to the plane of this triangle */
 	FVector3<RealType> Normal() const

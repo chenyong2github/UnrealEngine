@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/DelegateCombinations.h"
 #include "PreviewMesh.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
@@ -114,6 +115,10 @@ public:
 	 */
 	void SetVisibility(bool bVisible);
 
+	/**
+	 * Set time that Preview will wait before showing working material
+	 */
+	void SetWorkingMaterialDelay(float TimeInSeconds) { SecondsBeforeWorkingMaterial = TimeInSeconds; }
 
 	/**
 	 * @return true if currently using the 'in progress' working material
@@ -124,12 +129,12 @@ public:
 	//
 	// Change notification
 	//
-
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMeshUpdated, UMeshOpPreviewWithBackgroundCompute*);
 	/** This delegate is broadcast whenever the embedded preview mesh is updated */
 	FOnMeshUpdated OnMeshUpdated;
 
-
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnOpCompleted, const FDynamicMeshOperator*);
+	FOnOpCompleted OnOpCompleted;
 
 public:
 	// preview of MeshOperator result
@@ -154,7 +159,7 @@ protected:
 
 	bool bVisible = true;
 
-	const float SecondsBeforeWorkingMaterial = 2.0;
+	float SecondsBeforeWorkingMaterial = 2.0;
 
 	// this object manages the background computes
 	TUniquePtr<FBackgroundDynamicMeshComputeSource> BackgroundCompute;

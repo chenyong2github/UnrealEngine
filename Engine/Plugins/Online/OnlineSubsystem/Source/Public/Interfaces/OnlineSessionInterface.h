@@ -249,6 +249,18 @@ namespace ESessionFailure
 	};
 }
 
+/** Convert a ESessionFailure into a string */
+inline const TCHAR* LexToString(const ESessionFailure::Type Value)
+{
+	switch (Value)
+	{
+	case ESessionFailure::ServiceConnectionLost:
+		return TEXT("ServiceConnectionLost");
+	}
+
+	return TEXT("UnknownError");
+}
+
 /**
  * Delegate fired when an unexpected error occurs that impacts session connectivity or use
  *

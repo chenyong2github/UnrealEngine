@@ -31,13 +31,22 @@ FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetArgs& InWidgetA
 	CachedWrapTextAt = InWidgetArgs.WrapTextAt.Get(0.0f);
 	bCachedAutoWrapText = InWidgetArgs.AutoWrapText.Get(false);
 
+	const ETextTransformPolicy PreviousTransformPolicy = TextLayout->GetTransformPolicy();
+
 	// Set the text layout information
 	TextLayout->SetScale(InScale);
 	TextLayout->SetWrappingWidth(CalculateWrappingWidth());
 	TextLayout->SetWrappingPolicy(InWidgetArgs.WrappingPolicy.Get());
+	TextLayout->SetTransformPolicy(InWidgetArgs.TransformPolicy.Get());
 	TextLayout->SetMargin(InWidgetArgs.Margin.Get());
 	TextLayout->SetJustification(InWidgetArgs.Justification.Get());
 	TextLayout->SetLineHeightPercentage(InWidgetArgs.LineHeightPercentage.Get());
+
+	// Has the transform policy changed? If so we need a full refresh as that is destructive to the model text
+	if (PreviousTransformPolicy != TextLayout->GetTransformPolicy())
+	{
+		Marshaller->MakeDirty();
+	}
 
 	// Has the style used for this text block changed?
 	if(!IsStyleUpToDate(InTextStyle))

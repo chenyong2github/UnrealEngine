@@ -178,7 +178,7 @@ void UpdateHistoryDepthRejectionPS(
 		
 	if (VelocityN.x > 0.0)
 	{
-		Screenvelocity = DecodeVelocityFromTexture(VelocityN);
+		Screenvelocity = DecodeVelocityFromTexture(float3(VelocityN, 0.0)).xy;
 	}
 		
 	float PixelSpeed = 0.5 * length(Screenvelocity);

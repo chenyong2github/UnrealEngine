@@ -24,6 +24,12 @@ class INavigationDataInterface
 {
 	GENERATED_IINTERFACE_BODY()
 public:
+	/**	Tries to move current nav location towards target constrained to navigable area.
+	 *	@param OutLocation if successful this variable will be filed with result
+	 *	@return true if successful, false otherwise
+	 */
+	virtual bool FindMoveAlongSurface(const FNavLocation& StartLocation, const FVector& TargetPosition, FNavLocation& OutLocation, FSharedConstNavQueryFilter Filter = nullptr, const UObject* Querier = nullptr) const PURE_VIRTUAL(INavigationDataInterface::FindMoveAlongSurface, return false;);
+
 	/**	Tries to project given Point to this navigation type, within given Extent.
 	*	@param OutLocation if successful this variable will be filed with result
 	*	@return true if successful, false otherwise

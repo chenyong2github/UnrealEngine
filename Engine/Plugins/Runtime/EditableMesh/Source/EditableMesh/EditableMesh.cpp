@@ -512,7 +512,7 @@ void UEditableMesh::RemapOctreeIDs( const FElementIDRemappings& Remappings )
 
 	{
 		// Make a temporary copy of the original map, and clear the stored version
-		static TMap<FPolygonID, FOctreeElementId> OldPolygonIDToOctreeElementIDMap;
+		static TMap<FPolygonID, FOctreeElementId2> OldPolygonIDToOctreeElementIDMap;
 		OldPolygonIDToOctreeElementIDMap = PolygonIDToOctreeElementIDMap;
 		PolygonIDToOctreeElementIDMap.Reset();
 
@@ -520,7 +520,7 @@ void UEditableMesh::RemapOctreeIDs( const FElementIDRemappings& Remappings )
 		for( const auto& OldPolygonIDAndOctreeElementID : OldPolygonIDToOctreeElementIDMap )
 		{
 			const FPolygonID OldPolygonID = OldPolygonIDAndOctreeElementID.Key;
-			const FOctreeElementId OctreeElementID = OldPolygonIDAndOctreeElementID.Value;
+			const FOctreeElementId2 OctreeElementID = OldPolygonIDAndOctreeElementID.Value;
 
 			const FPolygonID NewPolygonID = Remappings.GetRemappedPolygonID( OldPolygonID );
 			PolygonIDToOctreeElementIDMap.Add( NewPolygonID, OctreeElementID );
@@ -7989,7 +7989,7 @@ void UEditableMesh::UpdateOrRebuildOctree()
 			{
 				for( const FPolygonID PolygonID : DeletedOctreePolygonIDs )
 				{
-					const FOctreeElementId OctreeElementID = PolygonIDToOctreeElementIDMap.FindAndRemoveChecked( PolygonID );
+					const FOctreeElementId2 OctreeElementID = PolygonIDToOctreeElementIDMap.FindAndRemoveChecked( PolygonID );
 					Octree->RemoveElement( OctreeElementID );
 				}
 				DeletedOctreePolygonIDs.Reset();
@@ -8099,38 +8099,15 @@ void UEditableMesh::SearchSpatialDatabaseWithPredicate( TFunctionRef< bool( cons
 	if( IsSpatialDatabaseAllowed() && ensure( Octree.IsValid() ) )
 	{
 		// @todo mesheditor perf: Do we need to use a custom stack allocator for iterating?  The default should probably be okay.
-		for( FEditableMeshOctree::TConstIterator<> OctreeIt( *Octree );
-			 OctreeIt.HasPendingNodes();
-			 OctreeIt.Advance() )
+		Octree->FindElementsWithPredicate([&Predicate](const FBoxCenterAndExtent& NodeBounds)
 		{
-			const FEditableMeshOctree::FNode& OctreeNode = OctreeIt.GetCurrentNode();
-			const FOctreeNodeContext& OctreeNodeContext = OctreeIt.GetCurrentContext();
-
-			// Leaf nodes have no children, so don't bother iterating
-			if( !OctreeNode.IsLeaf() )
-			{
-				FOREACH_OCTREE_CHILD_NODE( ChildRef )
-				{
-					if( OctreeNode.HasChild( ChildRef ) )
-					{
-						const FOctreeNodeContext ChildContext = OctreeNodeContext.GetChildContext( ChildRef );
-
-						if( Predicate( ChildContext.Bounds.GetBox() ) )
-						{
-							// Push it on the iterator's pending node stack.
-							OctreeIt.PushChild( ChildRef );
-						}
-					}
-				}
-			}
-
+			return Predicate(NodeBounds.GetBox());
+		},
+		[&OutPolygons](const FEditableMeshOctreePolygon& OctreePolygon)
+		{
 			// All of the elements in this octree node are candidates.  Note this node may not be a leaf node, and that's OK.
-			for( FEditableMeshOctree::ElementConstIt OctreeElementIt( OctreeNode.GetElementIt() ); OctreeElementIt; ++OctreeElementIt )
-			{
-				const FEditableMeshOctreePolygon& OctreePolygon = *OctreeElementIt;
-				OutPolygons.Add( OctreePolygon.PolygonID );
-			}
-		}
+			OutPolygons.Add(OctreePolygon.PolygonID);
+		});
 	}
 }
 
@@ -8176,50 +8153,29 @@ void UEditableMesh::SearchSpatialDatabaseForPolygonsPotentiallyIntersectingPlane
 	if( IsSpatialDatabaseAllowed() && ensure( Octree.IsValid() ) )
 	{
 		// @todo mesheditor perf: Do we need to use a custom stack allocator for iterating?  The default should probably be okay.
-		for( FEditableMeshOctree::TConstIterator<> OctreeIt( *Octree );
-			 OctreeIt.HasPendingNodes();
-			 OctreeIt.Advance() )
+		Octree->FindElementsWithPredicate([&InPlane](const FBoxCenterAndExtent& NodeBounds)
 		{
-			const FEditableMeshOctree::FNode& OctreeNode = OctreeIt.GetCurrentNode();
-			const FOctreeNodeContext& OctreeNodeContext = OctreeIt.GetCurrentContext();
+			const bool bIsOverlappingLineSegment =
+				FMath::PlaneAABBIntersection(
+					InPlane,
+					NodeBounds.GetBox());
 
-			// Leaf nodes have no children, so don't bother iterating
-			if( !OctreeNode.IsLeaf() )
+			if (bIsOverlappingLineSegment)
 			{
-				// Find children of this octree node that overlap our line segment
-				FOREACH_OCTREE_CHILD_NODE( ChildRef )
-				{
-					if( OctreeNode.HasChild( ChildRef ) )
-					{
-						const FOctreeNodeContext ChildContext = OctreeNodeContext.GetChildContext( ChildRef );
-
-                        const bool bIsOverlappingLineSegment =
-                            FMath::PlaneAABBIntersection(
-                                InPlane,
-                                ChildContext.Bounds.GetBox());
-
-						if( bIsOverlappingLineSegment )
-						{
-							// DrawDebugBox( GWorld, ChildContext.Bounds.Center, ChildContext.Bounds.Extent * 0.8f, FQuat::Identity, FColor::Green, false, 0.0f );		// @todo mesheditor debug: (also, wrong coordinate system!)
-
-							// Push it on the iterator's pending node stack.
-							OctreeIt.PushChild( ChildRef );
-						}
-						else
-						{
-							// DrawDebugBox( GWorld, ChildContext.Bounds.Center, ChildContext.Bounds.Extent, FQuat::Identity, FColor( 128, 128, 128 ), false, 0.0f );	// @todo mesheditor debug: (also, wrong coordinate system!)
-						}
-					}
-				}
+				// DrawDebugBox( GWorld, ChildContext.Bounds.Center, ChildContext.Bounds.Extent * 0.8f, FQuat::Identity, FColor::Green, false, 0.0f );		// @todo mesheditor debug: (also, wrong coordinate system!)
+				// Push it on the iterator's pending node stack.
+				return true;
 			}
-
-			// All of the elements in this octree node are candidates.  Note this node may not be a leaf node, and that's OK.
-			for( FEditableMeshOctree::ElementConstIt OctreeElementIt( OctreeNode.GetElementIt() ); OctreeElementIt; ++OctreeElementIt )
+			else
 			{
-				const FEditableMeshOctreePolygon& OctreePolygon = *OctreeElementIt;
-				OutPolygons.Add( OctreePolygon.PolygonID );
+				// DrawDebugBox( GWorld, ChildContext.Bounds.Center, ChildContext.Bounds.Extent, FQuat::Identity, FColor( 128, 128, 128 ), false, 0.0f );	// @todo mesheditor debug: (also, wrong coordinate system!)
+				return false;
 			}
-		}
+		},
+		[&OutPolygons](const FEditableMeshOctreePolygon& OctreePolygon)
+		{
+			OutPolygons.Add(OctreePolygon.PolygonID);
+		});
 	}
 }
 

@@ -431,13 +431,14 @@ namespace Chaos
 		const FRotation3& R1,
 		const FRotation3& RTwist)
 	{
-		const FVec3 Axis = R1 * FJointConstants::TwistAxis();
-		const FReal Angle = FPBDJointUtilities::GetTwistAngle(RTwist);
-		const FReal TwistAngleTarget = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist];
-		const FReal DTwistAngle = Angle - TwistAngleTarget;
+		// @todo(ccaulfield): Reimplement with AngularDriveTarget
+		//const FVec3 Axis = R1 * FJointConstants::TwistAxis();
+		//const FReal Angle = FPBDJointUtilities::GetTwistAngle(RTwist);
+		//const FReal TwistAngleTarget = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist];
+		//const FReal DTwistAngle = Angle - TwistAngleTarget;
 
-		RowState.Axis = Axis;
-		RowState.CalculateError(DTwistAngle, RowData.Limit);
+		//RowState.Axis = Axis;
+		//RowState.CalculateError(DTwistAngle, RowData.Limit);
 	}
 
 	FORCEINLINE void FJointSolverConstraints::UpdateConeSwingDrive(
@@ -447,23 +448,24 @@ namespace Chaos
 		const FRotation3& R0,
 		const FRotation3& RSwing)
 	{
-		FReal SwingAngle;
-		FVec3 SwingAxisLocal;
-		RSwing.ToAxisAndAngleSafe(SwingAxisLocal, SwingAngle, FJointConstants::Swing1Axis(), AngleTolerance);
-		if (SwingAngle > PI)
-		{
-			SwingAngle = SwingAngle - (FReal)2 * PI;
-		}
+		// @todo(ccaulfield): Reimplement with AngularDriveTarget
+		//FReal SwingAngle;
+		//FVec3 SwingAxisLocal;
+		//RSwing.ToAxisAndAngleSafe(SwingAxisLocal, SwingAngle, FJointConstants::Swing1Axis(), AngleTolerance);
+		//if (SwingAngle > PI)
+		//{
+		//	SwingAngle = SwingAngle - (FReal)2 * PI;
+		//}
 
-		// Circular swing target (max of Swing1, Swing2 targets)
-		// @todo(ccaulfield): what should cone target really do?
-		const FReal Swing1Target = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1];
-		const FReal Swing2Target = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2];
-		const FReal SwingAngleTarget = FMath::Max(Swing1Target, Swing2Target);
-		const FReal DSwingAngle = SwingAngle - SwingAngleTarget;
+		//// Circular swing target (max of Swing1, Swing2 targets)
+		//// @todo(ccaulfield): what should cone target really do?
+		//const FReal Swing1Target = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1];
+		//const FReal Swing2Target = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2];
+		//const FReal SwingAngleTarget = FMath::Max(Swing1Target, Swing2Target);
+		//const FReal DSwingAngle = SwingAngle - SwingAngleTarget;
 
-		RowState.Axis = R0 * SwingAxisLocal;
-		RowState.CalculateError(DSwingAngle, RowData.Limit);
+		//RowState.Axis = R0 * SwingAxisLocal;
+		//RowState.CalculateError(DSwingAngle, RowData.Limit);
 	}
 
 	FORCEINLINE void FJointSolverConstraints::UpdateSwingDrive(
@@ -473,14 +475,15 @@ namespace Chaos
 		const FRotation3& R0,
 		const FRotation3& RSwing)
 	{
-		const FReal R01SwingYorZ = (FJointConstants::AxisIndex((EJointAngularConstraintIndex)RowData.ConstraintIndex) == 2) ? RSwing.Z : RSwing.Y;	// Can't index a quat :(
-		const FReal SwingAngle = 4.0f * FMath::Atan2(R01SwingYorZ, 1.0f + RSwing.W);
-		const FReal SwingAngleTarget = JointSettings.AngularDriveTargetAngles[(int32)RowData.ConstraintIndex];
-		const FReal DSwingAngle = SwingAngle - SwingAngleTarget;
-		const FVec3& AxisLocal = ((EJointAngularConstraintIndex)RowData.ConstraintIndex == EJointAngularConstraintIndex::Swing1) ? FJointConstants::Swing1Axis() : FJointConstants::Swing2Axis();
+		// @todo(ccaulfield): Reimplement with AngularDriveTarget
+		//const FReal R01SwingYorZ = (FJointConstants::AxisIndex((EJointAngularConstraintIndex)RowData.ConstraintIndex) == 2) ? RSwing.Z : RSwing.Y;	// Can't index a quat :(
+		//const FReal SwingAngle = 4.0f * FMath::Atan2(R01SwingYorZ, 1.0f + RSwing.W);
+		//const FReal SwingAngleTarget = JointSettings.AngularDriveTargetAngles[(int32)RowData.ConstraintIndex];
+		//const FReal DSwingAngle = SwingAngle - SwingAngleTarget;
+		//const FVec3& AxisLocal = ((EJointAngularConstraintIndex)RowData.ConstraintIndex == EJointAngularConstraintIndex::Swing1) ? FJointConstants::Swing1Axis() : FJointConstants::Swing2Axis();
 
-		RowState.Axis = R0 * AxisLocal;
-		RowState.CalculateError(DSwingAngle, RowData.Limit);
+		//RowState.Axis = R0 * AxisLocal;
+		//RowState.CalculateError(DSwingAngle, RowData.Limit);
 	}
 
 	FORCEINLINE void FJointSolverConstraints::UpdateSLerpDrive(

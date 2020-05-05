@@ -127,12 +127,12 @@ namespace Chaos
 		 * Once the solver has been added to this task the game thread should never
 		 * touch the internal state again unless performing a sync of the data
 		 */
-		void AddSolver(FPhysicsSolver* InSolver);
+		void AddSolver(FPhysicsSolverBase* InSolver);
 
 		/**
 		 * Removes a solver from the internal list of solvers to run on the async task
 		 */
-		void RemoveSolver(FPhysicsSolver* InSolver);
+		void RemoveSolver(FPhysicsSolverBase* InSolver);
 
 		/**
 		 * Synchronize proxies to their most recent gamethread readable results
@@ -199,12 +199,14 @@ namespace Chaos
 			RETURN_QUICK_DECLARE_CYCLE_STAT(FPersistentPhysicsTask, STATGROUP_ThreadPoolAsyncTasks);
 		}
 
-		void StepSolver(FPhysicsSolver* InSolver, float InDt);
-		void HandleSolverCommands(FPhysicsSolver* InSolver);
-		void AdvanceSolver(FPhysicsSolver* InSolver, float InDt);
+		void StepSolver(FPhysicsSolverBase* InSolver, float InDt);
+		void HandleSolverCommands(FPhysicsSolverBase* InSolver);
+
+		template <typename TSolver>
+		void AdvanceSolver(TSolver* InSolver, float InDt);
 
 		// List of solvers we'll advance in this task
-		TArray<FPhysicsSolver*> Solvers;
+		TArray<FPhysicsSolverBase*> Solvers;
 
 		// Debug threads used to debug substep solver advance.
 		FDebugSolverTasks DebugSolverTasks;

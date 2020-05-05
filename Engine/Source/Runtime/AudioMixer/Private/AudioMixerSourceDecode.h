@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
 #include "Sound/SoundWaveProcedural.h"
+#include "Sound/SoundGenerator.h"
 #include "AudioDecompress.h"
 #include "AudioMixerBuffer.h"
 
@@ -18,7 +19,11 @@ namespace Audio
 	struct FProceduralAudioTaskData
 	{
 		// The procedural sound wave ptr to use to generate audio with
+		// TODO: remove the need for this
 		USoundWave* ProceduralSoundWave;
+
+		// The sound generator to use to generate audio
+		ISoundGeneratorPtr SoundGenerator;
 
 		// The audio buffer to fill from the results of the generation
 		float* AudioData;

@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Chaos/EvolutionTraits.h"
+#include "Chaos/Defines.h"
 
 namespace Chaos
 {
@@ -13,8 +16,6 @@ namespace Chaos
 	//#todo : add timers
 	//#todo : warning if trying to add same event ID twice
 	//#todo : need sparse array for EventID -> EventContainer?
-
-	class FPBDRigidsSolver;
 
 	/**
 	 * Predefined System Event Types
@@ -35,7 +36,7 @@ namespace Chaos
 	 */
 	class IEventHandler
 	{
-		template<typename PayloadType>
+		template<typename PayloadType, typename Traits>
 		friend class TEventContainer;
 
 	public:
@@ -86,10 +87,11 @@ namespace Chaos
 	/**
 	 * Interface for the injected producer function and associated data buffer
 	 */
-	class IEventContainer
+	template <typename Traits>
+	class TEventContainerBase
 	{
 	public:
-		virtual ~IEventContainer() {}
+		virtual ~TEventContainerBase() {}
 		/**
 		 * Register the delegate function that will handle the events on the game thread
 		 */
@@ -103,7 +105,7 @@ namespace Chaos
 		/*
 		 * Inject data from the physics solver into the producer side of the buffer
 		 */
-		virtual void InjectProducerData(const FPBDRigidsSolver* Solver) = 0;
+		virtual void InjectProducerData(const TPBDRigidsSolver<Traits>* Solver) = 0;
 
 		/**
 		 * Flips the buffer if the buffer type is double or triple
@@ -119,14 +121,14 @@ namespace Chaos
 	/**
 	 * Class that owns the injected producer function and its associated data buffer
 	 */
-	template<typename PayloadType>
-	class TEventContainer : public IEventContainer
+	template<typename PayloadType, typename Traits>
+	class TEventContainer : public TEventContainerBase<Traits>
 	{
 	public:
 		/**
 		 * Regular constructor
 		 */
-		TEventContainer(const Chaos::EMultiBufferMode& BufferMode, TFunction<void(const FPBDRigidsSolver* Solver, PayloadType& EventDataInOut)> InFunction)
+		TEventContainer(const Chaos::EMultiBufferMode& BufferMode, TFunction<void(const TPBDRigidsSolver<Traits>* Solver, PayloadType& EventDataInOut)> InFunction)
 			: InjectedFunction(InFunction)
 			, EventBuffer(Chaos::FMultiBufferFactory<PayloadType>::CreateBuffer(BufferMode))
 		{
@@ -135,7 +137,7 @@ namespace Chaos
 		/**
 		 * Copy constructor
 		 */
-		TEventContainer(TEventContainer& Other)
+		TEventContainer(TEventContainer<PayloadType, Traits>& Other)
 		{
 			InjectedFunction = Other.InjectedFunction;
 			EventBuffer = MoveTemp(Other.EventBuffer);
@@ -180,7 +182,7 @@ namespace Chaos
 		/*
 		 * Inject data from the physics solver into the producer side of the buffer
 		 */
-		virtual void InjectProducerData(const FPBDRigidsSolver* Solver)
+		virtual void InjectProducerData(const TPBDRigidsSolver<Traits>* Solver)
 		{
 			InjectedFunction(Solver, *EventBuffer->AccessProducerBuffer());
 		}
@@ -220,7 +222,7 @@ namespace Chaos
 		/**
 		 * The function that handles filling the event data buffer
 		 */
-		TFunction<void(const FPBDRigidsSolver* Solver, PayloadType& EventData)> InjectedFunction;
+		TFunction<void(const TPBDRigidsSolver<Traits>* Solver, PayloadType& EventData)> InjectedFunction;
 
 		/**
 		 * The data buffer that is filled by the producer and read by the consumer
@@ -236,18 +238,20 @@ namespace Chaos
 	/**
 	 * Pointer to event data buffer & injector functionality
 	 */
-	typedef IEventContainer* FEventContainerPtr;
+	template <typename Traits>
+	using TEventContainerBasePtr = TEventContainerBase<Traits>*;
 
-
-	class CHAOSSOLVERS_API FEventManager
+	template <typename Traits>
+	class TEventManager
 	{
-		friend class FPBDRigidsSolver;
+		template <typename Traits2>
+		friend class TPBDRigidsSolver;
 
 	public:
 
-		FEventManager(const Chaos::EMultiBufferMode& BufferModeIn) : BufferMode(BufferModeIn) {}
+		TEventManager(const Chaos::EMultiBufferMode& BufferModeIn) : BufferMode(BufferModeIn) {}
 
-		~FEventManager()
+		~TEventManager()
 		{
 			Reset();
 		}
@@ -269,10 +273,10 @@ namespace Chaos
 		 * Register a new event into the system, providing the function that will fill the producer side of the event buffer
 		 */
 		template<typename PayloadType>
-		void RegisterEvent(const FEventID& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InFunction)
+		void RegisterEvent(const FEventID& EventID, TFunction<void(const Chaos::TPBDRigidsSolver<Traits>* Solver, PayloadType& EventData)> InFunction)
 		{
 			ContainerLock.WriteLock();
-			InternalRegisterInjector(EventID, new TEventContainer<PayloadType>(BufferMode, InFunction));
+			InternalRegisterInjector(EventID, new TEventContainer<PayloadType, Traits>(BufferMode, InFunction));
 			ContainerLock.WriteUnlock();
 		}
 
@@ -284,7 +288,7 @@ namespace Chaos
 		{
 			ContainerLock.ReadLock();
 
-			((TEventContainer<PayloadType>*)(EventContainers[EventID]))->DestroyStaleEvents(InFunction);
+			((TEventContainer<PayloadType, Traits>*)(EventContainers[EventID]))->DestroyStaleEvents(InFunction);
 			ContainerLock.ReadUnlock();
 		}
 
@@ -313,7 +317,7 @@ namespace Chaos
 		/**
 		 * Called by the solver to invoke the functions that fill the producer side of all the event data buffers
 		 */
-		void FillProducerData(const Chaos::FPBDRigidsSolver* Solver);
+		void FillProducerData(const Chaos::TPBDRigidsSolver<Traits>* Solver);
 
 		/**
 		 * Flips the event data buffer if it is of double or triple buffer type
@@ -332,13 +336,16 @@ namespace Chaos
 
 	private:
 
-		void InternalRegisterInjector(const FEventID& EventID, const FEventContainerPtr& Container);
+		void InternalRegisterInjector(const FEventID& EventID, const TEventContainerBasePtr<Traits>& Container);
 
 		Chaos::EMultiBufferMode BufferMode;			// specifies the buffer type to be constructed, single, double, triple
-		TArray<FEventContainerPtr> EventContainers;	// Array of event types
+		TArray<TEventContainerBasePtr<Traits>> EventContainers;	// Array of event types
 		FRWLock ResourceLock;
 		FRWLock ContainerLock;
 
 	};
 
+#define EVOLUTION_TRAIT(Trait) extern template class CHAOSSOLVERS_TEMPLATE_API TEventManager<Trait>;
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
 }

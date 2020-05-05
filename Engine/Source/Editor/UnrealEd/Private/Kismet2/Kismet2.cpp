@@ -1207,7 +1207,12 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 
 			if (Parent == nullptr && RootTemplate)
 			{
-				Parent = RootTemplate;
+				AActor* Owner = SceneComponent->GetOwner();
+				const bool bIsRootComponent = (Owner == nullptr || Owner->GetRootComponent() == SceneComponent);
+				if (bIsRootComponent)
+				{
+					Parent = RootTemplate;
+				}
 			}
 
 			SceneComponentNodes.Emplace(SceneComponent, Parent);
@@ -1609,8 +1614,7 @@ void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AAct
 		}
 	}
 
-	// Regenerate skeleton class as components have been added since initial generation
-	FKismetEditorUtilities::GenerateBlueprintSkeleton(Blueprint, /*bForceRegeneration=*/ true);
+	FKismetEditorUtilities::CompileBlueprint(Blueprint);
 
 	// Notify the asset registry
 	FAssetRegistryModule::AssetCreated(Blueprint);

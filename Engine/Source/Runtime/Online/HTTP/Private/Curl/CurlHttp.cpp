@@ -79,6 +79,8 @@ FCurlHttpRequest::FCurlHttpRequest()
 	,	LastReportedBytesSent(0)
 	,   LeastRecentlyCachedInfoMessageIndex(0)
 {
+	checkf(FCurlHttpManager::IsInit(), TEXT("Curl request was created while the library is shutdown"));
+
 	EasyHandle = curl_easy_init();
 
 	// Always setup the debug function to allow for activity to be tracked
@@ -168,6 +170,7 @@ FCurlHttpRequest::FCurlHttpRequest()
 
 FCurlHttpRequest::~FCurlHttpRequest()
 {
+	checkf(FCurlHttpManager::IsInit(), TEXT("Curl request was held after the library was shutdown."));
 	if (EasyHandle)
 	{
 		// clear to prevent crashing in debug callback when this handle is part of an asynchronous curl_multi_perform()
@@ -1175,7 +1178,7 @@ void FCurlHttpRequest::FinishedRequest()
 				Response->ContentLength = Response->TotalBytesRead.GetValue();
 			}
 
-			if (Response->HttpCode <= 0)
+			if (Response->HttpCode <= 0 && URL.StartsWith(TEXT("Http"), ESearchCase::IgnoreCase))
 			{
 				UE_LOG(LogHttp, Warning, TEXT("%p: invalid HTTP response code received. URL: %s, HTTP code: %d, content length: %d, actual payload size: %d"),
 					this, *GetURL(), Response->HttpCode, Response->ContentLength, Response->Payload.Num());

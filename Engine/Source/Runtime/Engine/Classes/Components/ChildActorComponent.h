@@ -55,6 +55,21 @@ public:
 	TSharedPtr<FComponentInstanceDataCache> ComponentInstanceData;
 };
 
+#if WITH_EDITORONLY_DATA
+UENUM()
+enum class EChildActorComponentTreeViewVisualizationMode : uint8
+{
+	/** Use the editor's default setting. */
+	UseDefault UMETA(Hidden),
+	/** Show only the outer component as a single component node. */
+	ComponentOnly,
+	/** Include the child actor hierarchy attached to the outer component as the root node. */
+	ComponentWithChildActor,
+	/** Show only as a child actor hierarchy (i.e. do not show the outer component node as the root). */
+	ChildActorOnly,
+};
+#endif
+
 /** A component that spawns an Actor when registered, and destroys it when unregistered.*/
 UCLASS(ClassGroup=Utility, hidecategories=(Object,LOD,Physics,Lighting,TextureStreaming,Activation,"Components|Activation",Collision), meta=(BlueprintSpawnableComponent))
 class ENGINE_API UChildActorComponent : public USceneComponent
@@ -108,6 +123,12 @@ private:
 	/** Cached copy of the instance data when the ChildActor is destroyed to be available when needed */
 	mutable FChildActorComponentInstanceData* CachedInstanceData;
 
+#if WITH_EDITORONLY_DATA
+	/** Indicates how this component will be visualized for editing in a tree view. Users can change this setting per instance via the context menu in the Blueprint/SCS editor. */
+	UPROPERTY()
+	EChildActorComponentTreeViewVisualizationMode EditorTreeViewVisualizationMode;
+#endif
+
 	/** Flag indicating that when the component is registered that the child actor should be recreated */
 	uint8 bNeedsRecreate:1;
 
@@ -149,6 +170,15 @@ public:
 
 	/** Kill any currently present child actor */
 	void DestroyChildActor();
+
+#if WITH_EDITOR
+	EChildActorComponentTreeViewVisualizationMode GetEditorTreeViewVisualizationMode() const
+	{
+		return EditorTreeViewVisualizationMode;
+	}
+
+	void SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode InMode);
+#endif
 };
 
 

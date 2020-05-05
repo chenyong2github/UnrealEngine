@@ -35,7 +35,7 @@ const TCHAR* FDerivedDataAnimationCompression::GetVersionString() const
 	// This is a version string that mimics the old versioning scheme. If you
 	// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 	// return it here. Ex.
-	return TEXT("0B129554D9A4427784EC46E2AFD314B7");
+	return TEXT("28FD8FC5802144D29FF3E40C3BBE5DB1");
 }
 
 bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
@@ -45,6 +45,11 @@ bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 	check(DataToCompressPtr.IsValid());
 	FCompressibleAnimData& DataToCompress = *DataToCompressPtr.Get();
 	FCompressedAnimSequence OutData;
+
+	if (DataToCompress.IsCancelled())
+	{
+		return false;
+	}
 
 	SCOPE_CYCLE_COUNTER(STAT_AnimCompressionDerivedData);
 	UE_LOG(LogAnimationCompression, Log, TEXT("Building Anim DDC data for %s"), *DataToCompress.FullName);
@@ -56,6 +61,10 @@ bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 		DataToCompress.Update(OutData);
 
 		const bool bBoneCompressionOk = FAnimationUtils::CompressAnimBones(DataToCompress, CompressionResult);
+		if (DataToCompress.IsCancelled())
+		{
+			return false;
+		}
 		const bool bCurveCompressionOk = FAnimationUtils::CompressAnimCurves(DataToCompress, OutData);
 
 #if DO_CHECK

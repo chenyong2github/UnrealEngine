@@ -11,7 +11,7 @@
 /** Description object used to build the contents of a UVirtualTextureBuilder. */
 struct FVirtualTextureBuildDesc
 {
-	uint32 BuildHash = 0;
+	uint64 BuildHash = 0;
 
 	int32 LayerCount = 0;
 	TArray<ETextureSourceFormat, TInlineAllocator<4>> LayerFormats;
@@ -19,6 +19,8 @@ struct FVirtualTextureBuildDesc
 
 	int32 TileSize = 0;
 	int32 TileBorderSize = 0;
+
+	TEnumAsByte<enum TextureGroup> LODGroup;
 
 	bool bCrunchCompressed = false;
 	bool bSinglePhysicalSpace = false;
@@ -50,7 +52,7 @@ public:
 
 	/** Some client defined hash of that defines how the Texture was built. */
 	UPROPERTY()
-	uint32 BuildHash;
+	uint64 BuildHash;
 
 #if WITH_EDITOR
 	/** Creates a new UVirtualTexture2D and stores it in the contained Texture. */

@@ -126,18 +126,6 @@ void UCombineMeshesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-
-
-void UCombineMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-}
-
-void UCombineMeshesTool::Tick(float DeltaTime)
-{
-}
-
-
-
 bool UCombineMeshesTool::HasAccept() const
 {
 	return true;

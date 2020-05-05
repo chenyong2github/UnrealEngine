@@ -25,6 +25,6 @@ public:
 	USkeletalMesh* TargetSkeletalMesh;
 
 	/** Number of points used for the rbf interpolation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = BuildSettings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties, ClampMin = "0", ClampMax = "100"), Category = HairInterpolation)
 	int32 NumInterpolationPoints;
 };

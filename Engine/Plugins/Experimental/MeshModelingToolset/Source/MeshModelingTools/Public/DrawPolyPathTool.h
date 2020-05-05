@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "BaseTools/MeshSurfacePointTool.h"
-#include "Changes/ValueWatcher.h"
 #include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "Mechanics/SpatialCurveDistanceMechanic.h"
 #include "Mechanics/CollectSurfacePathMechanic.h"
@@ -87,8 +86,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Snapping)
 	bool bSnapToWorldGrid = true;
-
-	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
 };
 
 
@@ -129,8 +126,6 @@ class MESHMODELINGTOOLS_API UDrawPolyPathTool : public UInteractiveTool, public 
 	GENERATED_BODY()
 
 public:
-	UDrawPolyPathTool();
-
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	virtual void SetWorld(UWorld* World);
@@ -139,7 +134,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return false; }

@@ -208,10 +208,9 @@ bool FParameterizeMeshOp::ComputeUVs(FDynamicMesh3& Mesh,  TFunction<bool(float)
 
 			// The associated VertID in the dynamic mesh
 			const int32 VertOffset = VertexRemapArray[i];
-			const int32 VertID = LinearMesh.VertToID[VertOffset];
 
 			// add the UV to the mesh overlay
-			const int32 NewID = UVOverlay->AppendElement(FVector2f(UV), VertID);
+			const int32 NewID = UVOverlay->AppendElement(FVector2f(UV));
 			UVOffsetToElID.Add(NewID);
 		}
 
@@ -294,7 +293,7 @@ bool FParameterizeMeshOp::ComputeUVs_ExpMap(FDynamicMesh3& Mesh, TFunction<bool(
 	{
 		check(Param.HasUV(VertexID));
 		FVector2d UV = Param.GetUV(VertexID) - Center;
-		int32 NewElemID = UVOverlay->AppendElement(FVector2f(UV), VertexID);
+		int32 NewElemID = UVOverlay->AppendElement(FVector2f(UV));
 		check(NewElemID == VertexID);
 	}
 
@@ -476,8 +475,7 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 			for (int32 ElemID : ComponentUVOverlay->ElementIndicesItr())
 			{
 				int ParentVertexID = ComponentUVOverlay->GetParentVertex(ElemID);
-				int32 BaseVertexID = ComponentSubmesh.MapVertexToBaseMesh(ParentVertexID);
-				int32 BaseElemID = UVOverlay->AppendElement(ComponentUVOverlay->GetElement(ElemID), BaseVertexID);
+				int32 BaseElemID = UVOverlay->AppendElement(ComponentUVOverlay->GetElement(ElemID));
 				ElemIDMap[ElemID] = BaseElemID;
 			}
 

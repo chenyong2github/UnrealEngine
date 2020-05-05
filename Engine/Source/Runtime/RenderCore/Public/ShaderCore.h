@@ -17,7 +17,7 @@
 class Error;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
-const int32 ShaderCompileWorkerInputVersion = 12;
+const int32 ShaderCompileWorkerInputVersion = 13;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
 const int32 ShaderCompileWorkerOutputVersion = 5;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
@@ -205,8 +205,6 @@ enum ECompilerFlags
 	// Use DirectX Shader Compiler (DXC) to compile all shaders, intended for compatibility testing.
 	CFLAG_ForceDXC,
 	CFLAG_SkipOptimizations,
-	// Temporarily disable optimizations with DXC compiler only, intended to workaround shader compiler bugs until they can be resolved with 1st party
-	CFLAG_SkipOptimizationsDXC
 };
 
 enum class EShaderParameterType : uint8
@@ -596,6 +594,7 @@ struct FShaderCompilerInput
 	FString DumpDebugInfoPath;
 	// materialname or "Global" "for debugging and better error messages
 	FString DebugGroupName;
+	FString DebugExtension;
 
 	// Description of the configuration used when compiling. 
 	FString DebugDescription;
@@ -744,6 +743,7 @@ struct FShaderCompilerInput
 		Ar << Input.UsedOutputs;
 		Ar << Input.DumpDebugInfoRootPath;
 		Ar << Input.DumpDebugInfoPath;
+		Ar << Input.DebugExtension;
 		Ar << Input.DebugGroupName;
 		Ar << Input.DebugDescription;
 		Ar << Input.Environment;
@@ -1289,3 +1289,19 @@ void ApplyGlobalUniformBuffers(
 		}
 	}
 }
+
+enum class ESCWErrorCode
+{
+	NotSet = -1,
+	Success,
+	GeneralCrash,
+	BadShaderFormatVersion,
+	BadInputVersion,
+	BadSingleJobHeader,
+	BadPipelineJobHeader,
+	CantDeleteInputFile,
+	CantSaveOutputFile,
+	NoTargetShaderFormatsFound,
+	CantCompileForSpecificFormat,
+	CrashInsidePlatformCompiler,
+};

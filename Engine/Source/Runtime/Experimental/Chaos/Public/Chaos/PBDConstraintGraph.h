@@ -3,10 +3,6 @@
 
 #include "ParticleHandle.h"
 
-
-// @todo(ccaulfield): can we get rid of this now?
-#define USE_CONTACT_LEVELS 1
-
 namespace Chaos
 {
 	template<typename T, int d>

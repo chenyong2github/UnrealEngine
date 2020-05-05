@@ -395,9 +395,7 @@ int FMeshBoundaryLoops::FindLeftTurnEdge(int incoming_e, int bowtie_v, TArray<in
 		}
 	}
 
-	// [RMS] w/ bowtie vertices and open spans, this does happen
-	//Debug.Assert(best_e != -1);
-
+	// Note w/ bowtie vertices and open spans, best_e CAN be invalid (== -1)
 	return best_e;
 }
 
@@ -490,6 +488,7 @@ bool FMeshBoundaryLoops::ExtractSubloops(TArray<int>& loopV, TArray<int>& loopE,
 			FEdgeSpan& NewSpan = subs.Spans[subs.Spans.Emplace()];
 			NewSpan.InitializeFromVertices(Mesh, VerticesTemp, false);
 			NewSpan.SetBowtieVertices(bowties);
+			return false;
 		}
 
 		if (bv != bv_shortest)

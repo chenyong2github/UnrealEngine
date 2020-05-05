@@ -9,15 +9,18 @@ NiagaraSortingGPU.h: Niagara sorting shaders
 #include "CoreMinimal.h"
 #include "GlobalShader.h"
 #include "ShaderPermutation.h"
+#include "ShaderParameterStruct.h"
 
 struct FNiagaraGPUSortInfo;
 
+extern NIAGARAVERTEXFACTORIES_API int32 GNiagaraGPUCulling;
 extern NIAGARAVERTEXFACTORIES_API int32 GNiagaraGPUSortingUseMaxPrecision;
 extern NIAGARAVERTEXFACTORIES_API int32 GNiagaraGPUSortingCPUToGPUThreshold;
 
 #define NIAGARA_KEY_GEN_THREAD_COUNT 64
 #define NIAGARA_COPY_BUFFER_THREAD_COUNT 64
 #define NIAGARA_COPY_BUFFER_BUFFER_COUNT 3
+#define NIAGARA_KEY_GEN_MAX_CULL_PLANES 6
 
 /**
  * Compute shader used to generate particle sort keys.
@@ -25,11 +28,48 @@ extern NIAGARAVERTEXFACTORIES_API int32 GNiagaraGPUSortingCPUToGPUThreshold;
 class NIAGARAVERTEXFACTORIES_API FNiagaraSortKeyGenCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraSortKeyGenCS);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraSortKeyGenCS, FGlobalShader);
 
 public:
-
+	class FEnableCulling : SHADER_PERMUTATION_BOOL("ENABLE_CULLING");
 	class FSortUsingMaxPrecision : SHADER_PERMUTATION_BOOL("SORT_MAX_PRECISION");
-	using FPermutationDomain = TShaderPermutationDomain<FSortUsingMaxPrecision>;
+	using FPermutationDomain = TShaderPermutationDomain<FEnableCulling, FSortUsingMaxPrecision>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, NIAGARAVERTEXFACTORIES_API)
+		SHADER_PARAMETER_SRV(Buffer, NiagaraParticleDataFloat)
+		SHADER_PARAMETER_SRV(Buffer, NiagaraParticleDataHalf)
+		SHADER_PARAMETER_SRV(Buffer, NiagaraParticleDataInt)
+		SHADER_PARAMETER_SRV(Buffer, GPUParticleCountBuffer)
+
+		SHADER_PARAMETER(uint32, FloatDataStride)
+		SHADER_PARAMETER(uint32, HalfDataStride)
+		SHADER_PARAMETER(uint32, IntDataStride)
+		SHADER_PARAMETER(uint32, ParticleCount)
+		SHADER_PARAMETER(uint32, GPUParticleCountOffset)
+		SHADER_PARAMETER(uint32, CulledGPUParticleCountOffset)
+		SHADER_PARAMETER(uint32, EmitterKey)
+		SHADER_PARAMETER(uint32, OutputOffset)
+		SHADER_PARAMETER(FVector, CameraPosition)
+		SHADER_PARAMETER(FVector, CameraDirection)
+		SHADER_PARAMETER(uint32, SortMode)
+		SHADER_PARAMETER(uint32, SortAttributeOffset)
+		SHADER_PARAMETER(uint32, SortKeyMask)
+		SHADER_PARAMETER(uint32, SortKeyShift)
+		SHADER_PARAMETER(uint32, SortKeySignBit)
+		SHADER_PARAMETER(uint32, CullPositionAttributeOffset)
+		SHADER_PARAMETER(uint32, CullOrientationAttributeOffset)
+		SHADER_PARAMETER(uint32, CullScaleAttributeOffset)
+		SHADER_PARAMETER(int32, NumCullPlanes)
+		SHADER_PARAMETER_ARRAY(FVector4, CullPlanes, [NIAGARA_KEY_GEN_MAX_CULL_PLANES])
+		SHADER_PARAMETER(int32, RendererVisibility)
+		SHADER_PARAMETER(uint32, RendererVisTagAttributeOffset)
+		SHADER_PARAMETER(FVector2D, CullDistanceRangeSquared)
+		SHADER_PARAMETER(FVector4, LocalBoundingSphere)
+
+		SHADER_PARAMETER_UAV(Buffer, OutKeys)
+		SHADER_PARAMETER_UAV(Buffer, OutParticleIndices)
+		SHADER_PARAMETER_UAV(Buffer, OutCulledParticleCounts)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -37,43 +77,4 @@ public:
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-
-	/** Default constructor. */
-	FNiagaraSortKeyGenCS() {}
-
-	/** Initialization constructor. */
-	explicit FNiagaraSortKeyGenCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
-
-
-	/**
-	 * Set output buffers for this shader.
-	 */
-	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* OutKeysUAV, FRHIUnorderedAccessView* OutIndicesUAV);
-
-	/**
-	 * Set input parameters.
-	 */
-	void SetParameters(FRHICommandList& RHICmdList,	const FNiagaraGPUSortInfo& SortInfo, uint32 EmitterKey, int32 OutputOffset, const FUintVector4& SortKeyParamsValue);
-
-	/**
-	 * Unbinds any buffers that have been bound.
-	 */
-	void UnbindBuffers(FRHICommandList& RHICmdList);
-
-private:
-
-	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFloat)
-	LAYOUT_FIELD(FShaderParameter, FloatDataStride)
-	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataHalf)
-	LAYOUT_FIELD(FShaderResourceParameter, GPUParticleCountBuffer)
-	LAYOUT_FIELD(FShaderParameter, ParticleCountParams)
-	LAYOUT_FIELD(FShaderParameter, SortParams)
-	LAYOUT_FIELD(FShaderParameter, SortKeyParams)
-	LAYOUT_FIELD(FShaderParameter, CameraPosition)
-	LAYOUT_FIELD(FShaderParameter, CameraDirection)
-
-	/** Output key buffer. */
-	LAYOUT_FIELD(FShaderResourceParameter, OutKeys)
-	/** Output indices buffer. */
-	LAYOUT_FIELD(FShaderResourceParameter, OutParticleIndices)
 };

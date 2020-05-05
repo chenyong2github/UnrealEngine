@@ -8,11 +8,16 @@
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
+#include "Chaos/Defines.h"
+#include "Chaos/EvolutionTraits.h"
 
 namespace Chaos
 {
 	template<typename T, int d>
 	class TGeometryParticle;
+
+	template <typename Traits>
+	class TPBDRigidsEvolutionGBF;
 }
 
 class FInitialState
@@ -123,7 +128,8 @@ public:
 	/**/
 	void FlipBuffer() { BufferedData->FlipProducer(); }
 
-	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData);
+	template <typename Traits>
+	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution);
 
 	/**/
 	void ClearAccumulatedData();
@@ -184,8 +190,9 @@ CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::IsDirty();
 
-template< >
-void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData);
+template<>
+template<typename Traits>
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution);
 
 template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ConcreteType();
@@ -198,8 +205,9 @@ CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float
 
 // TKinematicGeometryParticle specialization prototypes
 
-template< >
-void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData);
+template<>
+template<typename Traits>
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution);
 
 template< >
 void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearAccumulatedData();
@@ -236,8 +244,9 @@ CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty();
 
-template< >
-void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData);
+template<>
+template<typename Traits>
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution);
 
 template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ConcreteType();
@@ -252,3 +261,16 @@ CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float
 extern template class FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >;
 extern template class FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >;
 extern template class FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float,3> >;
+
+
+#define EVOLUTION_TRAIT(Traits)\
+extern template CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<Chaos::FReal,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,\
+	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution);\
+\
+extern template CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<Chaos::FReal,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,\
+	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData,Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution);\
+\
+extern template CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<Chaos::FReal,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,\
+	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution);
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT

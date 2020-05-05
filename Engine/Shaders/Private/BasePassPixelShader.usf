@@ -971,13 +971,12 @@ void FPixelShaderInOut_MainPS(
 	{
 		// 2d velocity, includes camera an object motion
 	#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
-		float2 Velocity = Calculate2DVelocity(BasePassInterpolants.VelocityScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
+		float3 Velocity = Calculate3DVelocity(BasePassInterpolants.VelocityScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
 	#else
-		float2 Velocity = Calculate2DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
+		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
 	#endif
 
-		// Make sure not to touch 0,0 which is clear color
-		float4 EncodedVelocity = float4(EncodeVelocityToTexture(Velocity) * GetPrimitiveData(MaterialParameters.PrimitiveId).DrawsVelocity, 0, 0);
+		float4 EncodedVelocity = float4(EncodeVelocityToTexture(Velocity) * GetPrimitiveData(MaterialParameters.PrimitiveId).DrawsVelocity, 0);
 	#if USES_GBUFFER
 		GBuffer.Velocity = EncodedVelocity;
 	#else

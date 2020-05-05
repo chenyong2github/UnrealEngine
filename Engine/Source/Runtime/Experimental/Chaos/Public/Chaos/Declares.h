@@ -3,11 +3,10 @@
 #pragma once
 
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 namespace Chaos
 {
-	class FPBDRigidsSolver;
-
 	typedef FPBDRigidsSolver FPhysicsSolver;
 
 	class FImplicitObject;

@@ -1329,6 +1329,9 @@ public:
 	/** Flushes actor from NetDriver's dormancy list, but does not change any state on the Actor itself */
 	ENGINE_API void FlushActorDormancy(AActor *Actor, bool bWasDormInitial=false);
 
+	//~ This probably doesn't need to be exported, since it's only called by AActor::SetNetDormancy.
+
+	/** Notifies the NetDriver that the desired Dormancy state for this Actor has changed. */
 	ENGINE_API void NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState);
 
 	/** Forces properties on this actor to do a compare for one frame (rather than share shadow state) */
@@ -1494,6 +1497,7 @@ public:
 	/** Adds (fully initialized, ready to go) client connection to the ClientConnections list + any other game related setup */
 	ENGINE_API void	AddClientConnection(UNetConnection * NewConnection);
 
+	//~ This method should only be called by internal networking systems.
 	ENGINE_API void NotifyActorFullyDormantForConnection(AActor* Actor, UNetConnection* Connection);
 
 	/** Returns true if this actor is considered to be in a loaded level */

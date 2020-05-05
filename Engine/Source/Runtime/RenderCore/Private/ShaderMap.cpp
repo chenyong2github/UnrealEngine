@@ -6,6 +6,7 @@
 
 #include "Shader.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/StringBuilder.h"
 #include "Stats/StatsMisc.h"
 #include "Serialization/MemoryWriter.h"
 #include "VertexFactory.h"
@@ -93,7 +94,6 @@ void FShaderMapBase::FinalizeContent()
 		INC_DWORD_STAT_BY(STAT_Shaders_NumShadersLoaded, NumFrozenShaders);
 	}
 
-	check(Code);
 	Code->Finalize();
 	Resource = new FShaderMapResource_InlineCode(GetShaderPlatform(), Code);
 	BeginInitResource(Resource);
@@ -290,6 +290,28 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 	return bContentValid;
 }
 
+FString FShaderMapBase::ToString() const
+{
+	TStringBuilder<32000> String;
+	{
+		FMemoryToStringContext Context;
+		Context.PrevPointerTable = PointerTable;
+		Context.String = &String;
+
+		FPlatformTypeLayoutParameters LayoutParams;
+		LayoutParams.InitializeForCurrent();
+
+		ContentTypeLayout.ToStringFunc(Content, ContentTypeLayout, LayoutParams, Context);
+	}
+
+	if (Code)
+	{
+		Code->ToString(String);
+	}
+
+	return String.ToString();
+}
+
 void FShaderMapBase::DestroyContent()
 {
 	if (Content)
@@ -429,6 +451,7 @@ void FShaderMapContent::RemoveShaderTypePermutaion(const FHashedName& TypeName, 
 				ShaderHash.Remove(SwapHash, SwapIndex);
 				ShaderHash.Add(SwapHash, Index);
 			}
+
 			break;
 		}
 	}
@@ -655,8 +678,20 @@ struct FSortedShaderEntry
 	}
 };
 
-void FShaderMapContent::Finalize()
+void FShaderMapContent::Finalize(const FShaderMapResourceCode* Code)
 {
+	check(Code);
+
+	for (FShader* Shader : Shaders)
+	{
+		Shader->Finalize(Code);
+	}
+
+	for (FShaderPipeline* Pipeline : ShaderPipelines)
+	{
+		Pipeline->Finalize(Code);
+	}
+
 	// Sort the shaders by type/permutation, so they are consistently ordered
 	TArray<FSortedShaderEntry> SortedEntries;
 	SortedEntries.Empty(Shaders.Num());
@@ -680,6 +715,7 @@ void FShaderMapContent::Finalize()
 	for (int32 SortedIndex = 0; SortedIndex < SortedEntries.Num(); ++SortedIndex)
 	{
 		const FSortedShaderEntry& SortedEntry = SortedEntries[SortedIndex];
+
 		const uint16 Key = MakeShaderHash(SortedEntry.TypeName, SortedEntry.PermutationId);
 		NewShaders.Add(Shaders[SortedEntry.Index]);
 		ShaderTypes.Add(SortedEntry.TypeName);

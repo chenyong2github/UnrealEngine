@@ -80,6 +80,8 @@ public:
 	TArray<FKeyHandle>::TConstIterator CreateConstIterator() const { return KeyHandles.CreateConstIterator(); }
 	const TMap<FKeyHandle, int32>& GetMap() const { return KeyHandlesToIndices; }
 
+	void SetKeyHandles(int32 Num);
+
 	/** ICPPStructOps implementation */
 	bool Serialize(FArchive& Ar);
 	bool operator==(const FKeyHandleMap& Other) const { return KeyHandles == Other.KeyHandles; }

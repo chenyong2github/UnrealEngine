@@ -135,7 +135,7 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 	GEditor->RegisterForUndo(this);
 
 	ComponentsBox = SNew(SBox)
-		.Visibility(EVisibility::Collapsed);
+		.Visibility(this, &SActorDetails::GetComponentsBoxVisibility);
 
 	SCSEditor = SNew(SSCSEditor)
 		.EditorMode(EComponentEditorMode::ActorInstance)
@@ -159,7 +159,7 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 		.AutoHeight()
 		[
-			SNew(SExtensionPanel)
+			SAssignNew(ExtensionPanel, SExtensionPanel)
 			.ExtensionPanelID("ActorDetailsPanel")
 		]
 		+SVerticalBox::Slot()
@@ -240,28 +240,30 @@ void SActorDetails::OnDetailsViewObjectArrayChanged(const FString& InTitle, cons
 	// The DetailsView will already check validity every tick and hide itself when invalid, so this piggy-backs on that code instead of needing a second tick function.
 	if (InObjects.Num() == 0 && !LockedActorSelection.IsValid())
 	{
-		ComponentsBox->SetVisibility(EVisibility::Collapsed);
+		bHasComponentsToShow = false;
 	}
 }
 
 void SActorDetails::SetObjects(const TArray<UObject*>& InObjects, bool bForceRefresh)
 {
-	if(!DetailsView->IsLocked())
+	if (!DetailsView->IsLocked())
 	{
 		DetailsView->SetObjects(InObjects, bForceRefresh);
 
-		bool bShowingComponents = false;
+		ExtensionPanel->SetVisibility(InObjects.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed);
 
-		if(InObjects.Num() == 1 && FKismetEditorUtilities::CanCreateBlueprintOfClass(InObjects[0]->GetClass()))
+		bHasComponentsToShow = false;
+
+		if (InObjects.Num() == 1 && FKismetEditorUtilities::CanCreateBlueprintOfClass(InObjects[0]->GetClass()))
 		{
 			AActor* Actor = GetSelectedActorInEditor();
-			if(Actor)
+			if (Actor)
 			{
 				LockedActorSelection = Actor;
-				bShowingComponents = true;
+				bHasComponentsToShow = true;
 
 				// Update the tree if a new actor is selected
-				if(GEditor->GetSelectedComponentCount() == 0)
+				if (GEditor->GetSelectedComponentCount() == 0)
 				{
 					// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
 					TGuardValue<bool> SelectionGuard(bSelectionGuard, true);
@@ -270,10 +272,7 @@ void SActorDetails::SetObjects(const TArray<UObject*>& InObjects, bool bForceRef
 			}
 		}
 
-		bool ShowComponentsInDetailsPanel = ShowComponents->GetBool();
- 		ComponentsBox->SetVisibility((bShowingComponents & ShowComponentsInDetailsPanel) ? EVisibility::Visible : EVisibility::Collapsed);
-
-		if(DetailsView->GetHostTabManager().IsValid())
+		if (DetailsView->GetHostTabManager().IsValid())
 		{
 			TSharedPtr<SDockTab> Tab = DetailsView->GetHostTabManager()->FindExistingLiveTab(DetailsView->GetIdentifier());
 			if (Tab.IsValid() && !Tab->IsForeground() )
@@ -666,7 +665,7 @@ bool SActorDetails::IsPropertyEditingEnabled() const
 	bool bIsEditable = true;
 	for (const FSCSEditorTreeNodePtrType& Node : SCSEditor->GetSelectedNodes())
 	{
-		bIsEditable = Node->CanEditDefaults() || Node->GetNodeType() == FSCSEditorTreeNode::ENodeType::RootActorNode;
+		bIsEditable = Node->CanEdit();
 		if (!bIsEditable)
 		{
 			break;
@@ -708,6 +707,11 @@ void SActorDetails::OnNativeComponentWarningHyperlinkClicked(const FSlateHyperli
 	}
 }
 
+EVisibility SActorDetails::GetComponentsBoxVisibility() const
+{
+	return (bHasComponentsToShow && ShowComponents->GetBool()) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 EVisibility SActorDetails::GetUCSComponentWarningVisibility() const
 {
 	bool bIsUneditableBlueprintComponent = false;
@@ -715,7 +719,7 @@ EVisibility SActorDetails::GetUCSComponentWarningVisibility() const
 	// Check to see if any selected components are inherited from blueprint
 	for (const FSCSEditorTreeNodePtrType& Node : SCSEditor->GetSelectedNodes())
 	{
-		if (!Node->IsNative())
+		if (!Node->IsNativeComponent())
 		{
 			UActorComponent* Component = Node->GetComponentTemplate();
 			bIsUneditableBlueprintComponent = Component ? Component->CreationMethod == EComponentCreationMethod::UserConstructionScript : false;
@@ -760,7 +764,7 @@ EVisibility SActorDetails::GetInheritedBlueprintComponentWarningVisibility() con
 	// Check to see if any selected components are inherited from blueprint
 	for (const FSCSEditorTreeNodePtrType& Node : SCSEditor->GetSelectedNodes())
 	{
-		if (!Node->IsNative())
+		if (!Node->IsNativeComponent())
 		{
 			if (UActorComponent* Component = Node->GetComponentTemplate())
 			{
@@ -771,7 +775,7 @@ EVisibility SActorDetails::GetInheritedBlueprintComponentWarningVisibility() con
 				}
 			}
 		}
-		else if (!Node->CanEditDefaults() && NotEditableSetByBlueprint(Node->GetComponentTemplate()))
+		else if (!Node->CanEdit() && NotEditableSetByBlueprint(Node->GetComponentTemplate()))
 		{
 			bIsUneditableBlueprintComponent = true;
 			break;
@@ -787,7 +791,7 @@ EVisibility SActorDetails::GetNativeComponentWarningVisibility() const
 	for (const FSCSEditorTreeNodePtrType& Node : SCSEditor->GetSelectedNodes())
 	{
 		// Check to see if the component is native and not editable
-		if (Node->IsNative() && !Node->CanEditDefaults() && !NotEditableSetByBlueprint(Node->GetComponentTemplate()))
+		if (Node->IsNativeComponent() && !Node->CanEdit() && !NotEditableSetByBlueprint(Node->GetComponentTemplate()))
 		{
 			bIsUneditableNative = true;
 			break;

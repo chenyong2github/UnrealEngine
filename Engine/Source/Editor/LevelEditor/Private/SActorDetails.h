@@ -67,6 +67,7 @@ private:
 
 	bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const;
 	bool IsPropertyEditingEnabled() const;
+	EVisibility GetComponentsBoxVisibility() const;
 	EVisibility GetUCSComponentWarningVisibility() const;
 	EVisibility GetInheritedBlueprintComponentWarningVisibility() const;
 	EVisibility GetNativeComponentWarningVisibility() const;
@@ -82,6 +83,7 @@ private:
 	TSharedPtr<class IDetailsView> DetailsView;
 	TSharedPtr<SBox> ComponentsBox;
 	TSharedPtr<class SSCSEditor> SCSEditor;
+	TSharedPtr<class SExtensionPanel> ExtensionPanel;
 
 	// The actor selected when the details panel was locked
 	TWeakObjectPtr<AActor> LockedActorSelection;
@@ -92,6 +94,9 @@ private:
 
 	// Used to prevent reentrant changes
 	bool bSelectionGuard;
+
+	// True if the actor details has any component to show.
+	bool bHasComponentsToShow = false;
 
 	// True if the actor "root" node in the SCS editor is currently shown as selected
 	bool bShowingRootActorNodeSelected;

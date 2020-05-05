@@ -161,21 +161,6 @@ namespace Chaos
 			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bEnable](FCollisionData& Data){ Data.bSimCollision = bEnable; });
 		}
 
-		/*
-		// TODO: Deprecate GetDisable() and SetDisable()!
-		bool GetDisable() const { return !CollisionData.Read().bSimCollision; }
-		void SetDisable(const bool bDisable)
-		{
-			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bDisable](FCollisionData& Data){ Data.bSimCollision = !bDisable; });
-		}
-		*/
-
-		bool GetSimulate() const { return CollisionData.Read().bSimulate; }
-		void SetSimulate(const bool bSimulate)
-		{
-			CollisionData.Modify(true,DirtyFlags,Proxy, ShapeIdx,[bSimulate](FCollisionData& Data){ Data.bSimulate = bSimulate; });
-		}
-
 		EChaosCollisionTraceFlag GetCollisionTraceType() const { return CollisionData.Read().CollisionTraceType; }
 		void SetCollisionTraceType(const EChaosCollisionTraceFlag InTraceFlag)
 		{
@@ -290,6 +275,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
 			TArrayCollection::AddArray(&MUserData);
+			TArrayCollection::AddArray(&MSyncState);
 #if CHAOS_CHECKED
 			TArrayCollection::AddArray(&MDebugName);
 #endif
@@ -318,6 +304,7 @@ namespace Chaos
 			, MHasBounds(MoveTemp(Other.MHasBounds))
 			, MSpatialIdx(MoveTemp(Other.MSpatialIdx))
 			, MUserData(MoveTemp(Other.MUserData))
+			, MSyncState(MoveTemp(Other.MSyncState))
 #if CHAOS_DETERMINISTIC
 			, MParticleIDs(MoveTemp(Other.MParticleIDs))
 #endif
@@ -335,6 +322,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
 			TArrayCollection::AddArray(&MUserData);
+			TArrayCollection::AddArray(&MSyncState);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -367,6 +355,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
 			TArrayCollection::AddArray(&MUserData);
+			TArrayCollection::AddArray(&MSyncState);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -392,6 +381,9 @@ namespace Chaos
 
 		CHAOS_API void*& UserData(const int32 Index) { return MUserData[Index]; }
 		CHAOS_API const void* UserData(const int32 Index) const { return MUserData[Index]; }
+
+		CHAOS_API ESyncState& SyncState(const int32 Index) { return MSyncState[Index].State; }
+		CHAOS_API ESyncState SyncState(const int32 Index) const { return MSyncState[Index].State; }
 
 		CHAOS_API TSerializablePtr<FImplicitObject> Geometry(const int32 Index) const { return MGeometry[Index]; }
 
@@ -619,6 +611,7 @@ namespace Chaos
 		TArrayCollectionArray<bool> MHasBounds;
 		TArrayCollectionArray<FSpatialAccelerationIdx> MSpatialIdx;
 		TArrayCollectionArray<void*> MUserData;
+		TArrayCollectionArray<FSyncState> MSyncState;
 
 		void UpdateShapesArray(const int32 Index)
 		{

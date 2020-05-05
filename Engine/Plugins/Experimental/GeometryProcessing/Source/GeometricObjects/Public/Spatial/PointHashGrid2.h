@@ -12,40 +12,38 @@
  * Hash Grid for values associated with 2D points.
  *
  * This class addresses the situation where you have a list of (point, point_data) and you
- * would like to be able to do efficient proximity queries, ie find the nearest point_data
+ * would like to be able to do efficient proximity queries, i.e. find the nearest point_data
  * for a given query point.
  *
  * We don't store copies of the 2D points. You provide a point_data type. This could just be the
  * integer index into your list for example, a pointer to something more complex, etc.
  * Insert and Remove functions require you to pass in the 2D point for the point_data.
- * To Update a point you need to know it's old and new 2D coordinates.
- *
- * @todo also template on point realtype?
+ * To Update a point you need to know its old and new 2D coordinates.
  */
-template<typename PointDataType>
-class TPointHashGrid2d
+template<typename PointDataType, typename RealType>
+class TPointHashGrid2
 {
 private:
 	TMultiMap<FVector2i, PointDataType> Hash;
 	FCriticalSection CriticalSection;
-	FScaleGridIndexer2d Indexer;
-	PointDataType invalidValue;
+	TScaleGridIndexer2<RealType> Indexer;
+	PointDataType InvalidValue;
 
 public:
 
 	/**
-	 * Construct 2D hashgrid
+	 * Construct 2D hash grid
 	 * @param cellSize size of grid cells
-	 * @param invalidValue this value will be returned by queries if no valid result is found (eg bounded-distance query)
+	 * @param InvalidValue this value will be returned by queries if no valid result is found (e.g. bounded-distance query)
 	 */
-	TPointHashGrid2d(double cellSize, PointDataType InvalidValue) : Indexer(cellSize), invalidValue(InvalidValue)
+	TPointHashGrid2(RealType cellSize, PointDataType InvalidValue) : Indexer(cellSize), InvalidValue(InvalidValue)
 	{
 	}
 
 	/** Invalid grid value */
-	PointDataType InvalidValue() const
+	PointDataType GetInvalidValue() const
 	{
-		return invalidValue;
+		return InvalidValue;
 	}
 
 	/**
@@ -53,7 +51,7 @@ public:
 	 * @param Value the point/value to insert
 	 * @param Position the position associated with this value
 	 */
-	void InsertPoint(const PointDataType& Value, const FVector2d& Position)
+	void InsertPoint(const PointDataType& Value, const FVector2<RealType>& Position)
 	{
 		FVector2i idx = Indexer.ToGrid(Position);
 		{
@@ -67,7 +65,7 @@ public:
 	 * @param Value the point/value to insert
 	 * @param Position the position associated with this value
 	 */
-	void InsertPointUnsafe(const PointDataType& Value, const FVector2d& Position)
+	void InsertPointUnsafe(const PointDataType& Value, const FVector2<RealType>& Position)
 	{
 		FVector2i idx = Indexer.ToGrid(Position);
 		Hash.Add(idx, Value);
@@ -80,7 +78,7 @@ public:
 	 * @param Position the position associated with this value
 	 * @return true if the value existed at this position
 	 */
-	bool RemovePoint(const PointDataType& Value, const FVector2d& Position)
+	bool RemovePoint(const PointDataType& Value, const FVector2<RealType>& Position)
 	{
 		FVector2i idx = Indexer.ToGrid(Position);
 		{
@@ -95,7 +93,7 @@ public:
 	 * @param Position the position associated with this value
 	 * @return true if the value existed at this position
 	 */
-	bool RemovePointUnsafe(const PointDataType& Value, const FVector2d& Position)
+	bool RemovePointUnsafe(const PointDataType& Value, const FVector2<RealType>& Position)
 	{
 		FVector2i idx = Indexer.ToGrid(Position);
 		return Hash.RemoveSingle(idx, Value) > 0;
@@ -108,7 +106,7 @@ public:
 	 * @param OldPosition the current position associated with this value
 	 * @param NewPosition the new position for this value
 	 */
-	void UpdatePoint(const PointDataType& Value, const FVector2d& OldPosition, const FVector2d& NewPosition)
+	void UpdatePoint(const PointDataType& Value, const FVector2<RealType>& OldPosition, const FVector2<RealType>& NewPosition)
 	{
 		FVector2i old_idx = Indexer.ToGrid(OldPosition);
 		FVector2i new_idx = Indexer.ToGrid(NewPosition);
@@ -136,7 +134,7 @@ public:
 	 * @param OldPosition the current position associated with this value
 	 * @param NewPosition the new position for this value
 	 */
-	void UpdatePointUnsafe(const PointDataType& Value, const FVector2d& OldPosition, const FVector2d& NewPosition)
+	void UpdatePointUnsafe(const PointDataType& Value, const FVector2<RealType>& OldPosition, const FVector2<RealType>& NewPosition)
 	{
 		FVector2i old_idx = Indexer.ToGrid(OldPosition);
 		FVector2i new_idx = Indexer.ToGrid(NewPosition);
@@ -159,22 +157,22 @@ public:
 	 * @param IgnoreFunc optional Function you may provide which will result in a Value being ignored if IgnoreFunc(Value) returns true
 	 * @return the found pair (Value,DistanceFunc(Value)), or (InvalidValue,MaxDouble) if not found
 	 */
-	TPair<PointDataType, double> FindNearestInRadius(
-		const FVector2d& QueryPoint, double Radius, 
-		TFunction<double(const PointDataType&)> DistanceSqFunc,
-		TFunction<bool(const PointDataType&)> IgnoreFunc = [](const PointDataType& data) { return false; }) const
+	TPair<PointDataType, RealType> FindNearestInRadius(
+		const FVector2<RealType>& QueryPoint, RealType Radius, 
+		TFunctionRef<RealType(const PointDataType&)> DistanceSqFunc,
+		TFunctionRef<bool(const PointDataType&)> IgnoreFunc = [](const PointDataType& data) { return false; }) const
 	{
 		if (!Hash.Num())
 		{
-			return TPair<PointDataType, double>(InvalidValue(), TNumericLimits<double>::Max());
+			return TPair<PointDataType, RealType>(GetInvalidValue(), TNumericLimits<RealType>::Max());
 		}
 
-		FVector2i min_idx = Indexer.ToGrid(QueryPoint - Radius * FVector2d::One());
-		FVector2i max_idx = Indexer.ToGrid(QueryPoint + Radius * FVector2d::One());
+		FVector2i min_idx = Indexer.ToGrid(QueryPoint - Radius * FVector2<RealType>::One());
+		FVector2i max_idx = Indexer.ToGrid(QueryPoint + Radius * FVector2<RealType>::One());
 
-		double min_distsq = TNumericLimits<double>::Max();
-		PointDataType nearest = InvalidValue();
-		double RadiusSquared = Radius * Radius;
+		RealType min_distsq = TNumericLimits<RealType>::Max();
+		PointDataType nearest = GetInvalidValue();
+		RealType RadiusSquared = Radius * Radius;
 
 		TArray<PointDataType> Values;
 		for (int yi = min_idx.Y; yi <= max_idx.Y; yi++) 
@@ -190,7 +188,7 @@ public:
 					{
 						continue;
 					}
-					double distsq = DistanceSqFunc(Value);
+					RealType distsq = DistanceSqFunc(Value);
 					if (distsq < RadiusSquared && distsq < min_distsq)
 					{
 						nearest = Value;
@@ -200,7 +198,9 @@ public:
 			}
 		}
 
-		return TPair<PointDataType, double>(nearest, min_distsq);
+		return TPair<PointDataType, RealType>(nearest, min_distsq);
 	}
 };
 
+template <typename PointDataType> using TPointHashGrid2d = TPointHashGrid2<PointDataType, double>;
+template <typename PointDataType> using TPointHashGrid2f = TPointHashGrid2<PointDataType, float>;

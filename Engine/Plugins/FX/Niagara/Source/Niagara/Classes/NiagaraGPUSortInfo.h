@@ -28,21 +28,38 @@ enum class ENiagaraSortMode : uint8
 
 struct FNiagaraGPUSortInfo
 {
+	static constexpr uint32 MaxCullPlanes = 6;
+
 	// The number of particles in the system.
 	int32 ParticleCount = 0;
 	// How the particles should be sorted.
 	ENiagaraSortMode SortMode = ENiagaraSortMode::None;
 	// On which attribute to base the sorting
-	int32 SortAttributeOffset = INDEX_NONE;
-	// The data buffer that holds the particle attributes.
+	int32 SortAttributeOffset = INDEX_NONE;	
+	// The data buffers that hold the particle attributes and their strides
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
+	FShaderResourceViewRHIRef ParticleDataHalfSRV;
+	FShaderResourceViewRHIRef ParticleDataIntSRV;
 	uint32 FloatDataStride = 0;
+	uint32 HalfDataStride = 0;
+	uint32 IntDataStride = 0;
 	// The actual GPU sim particle count. Needed to get an exact match on the index list.
 	FShaderResourceViewRHIRef GPUParticleCountSRV;
 	uint32 GPUParticleCountOffset = INDEX_NONE;
+	uint32 CulledGPUParticleCountOffset = INDEX_NONE;
 	// View data.
 	FVector ViewOrigin = FVector(0, 0, 0);
 	FVector ViewDirection = FVector(0, 0, 1);
+	// Culling/Visibility data
+	bool bEnableCulling = false;
+	int32 CullPositionAttributeOffset = INDEX_NONE;
+	int32 CullOrientationAttributeOffset = INDEX_NONE;
+	int32 CullScaleAttributeOffset = INDEX_NONE;
+	int32 RendererVisTagAttributeOffset = INDEX_NONE;
+	int32 RendererVisibility = 0;
+	FSphere LocalBSphere;
+	FVector2D DistanceCullRange { 0.0f, FLT_MAX };
+	TArray<FPlane, TFixedAllocator<MaxCullPlanes>> CullPlanes;
 
 	// The GPUSortManager bindings for this sort task.
 	FGPUSortManager::FAllocationInfo AllocationInfo;

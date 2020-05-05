@@ -125,7 +125,7 @@ public:
 	/**
 	 * Embed a surface path in mesh provided that the path only crosses vertices and edges except at the start and end, so we can add the path easily with local edge splits and possibly two triangle pokes (rather than needing general remeshing machinery)
 	 *
-	 * @param bUpdatePath Updating the Path array with the new vertices (if false, the path will no longer be valid after running this function)\
+	 * @param bUpdatePath Updating the Path array with the new vertices (if false, the path will no longer be valid after running this function)
 	 * @param PathVertices Indices of the vertices on the path after embedding succeeds; NOTE these will not be 1:1 with the input Path
 	 * @return true if embedding succeeded.
 	 */

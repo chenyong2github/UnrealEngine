@@ -369,7 +369,7 @@ UObject* UPackFactory::FactoryCreateBinary
 				FPakEntry EntryInfo;
 				EntryInfo.Serialize(PakReader, PakFile.GetInfo().Version);
 
-				if (EntryInfo == Entry)
+				if (EntryInfo.IndexDataEquals(Entry))
 				{
 					FString ConfigString;
 					PackFactoryHelper::ExtractFileToString(Entry, PakReader, CopyBuffer, PersistentCompressionBuffer, ConfigString, PakFile);
@@ -377,7 +377,7 @@ UObject* UPackFactory::FactoryCreateBinary
 				}
 				else
 				{
-					UE_LOG(LogPackFactory, Error, TEXT("Serialized hash mismatch for \"%s\"."), **EntryFilename);
+					UE_LOG(LogPackFactory, Error, TEXT("Index data mismatch for entry: \"%s\"."), **EntryFilename);
 					ErrorCount++;
 				}
 			}
@@ -480,7 +480,7 @@ UObject* UPackFactory::FactoryCreateBinary
 			FPakEntry EntryInfo;
 			EntryInfo.Serialize(PakReader, PakFile.GetInfo().Version);
 
-			if (EntryInfo == Entry)
+			if (EntryInfo.IndexDataEquals(Entry))
 			{
 				if (EntryFilename->StartsWith(TEXT("Source/")) || EntryFilename->Contains(TEXT("/Source/")))
 				{
@@ -558,7 +558,7 @@ UObject* UPackFactory::FactoryCreateBinary
 			}
 			else
 			{
-				UE_LOG(LogPackFactory, Error, TEXT("Serialized hash mismatch for \"%s\"."), **EntryFilename);
+				UE_LOG(LogPackFactory, Error, TEXT("Index data mismatch for entry: \"%s\"."), **EntryFilename);
 				ErrorCount++;
 			}
 		}
@@ -701,6 +701,10 @@ UObject* UPackFactory::FactoryCreateBinary
 					}
 					else
 					{
+						// We didn't previously have source, so the UBT target name will be UE4Editor, and attempts to recompile will end up building the wrong target. Now that we have source,
+						// we need to change the UBT target to be the newly created editor module
+						FPlatformMisc::SetUBTTargetName(*(FString(FApp::GetProjectName()) + TEXT("Editor")));
+
 						if (!HotReloadSupport.RecompileModule(FApp::GetProjectName(), *GWarn, ERecompileModuleFlags::ReloadAfterRecompile | ERecompileModuleFlags::ForceCodeProject))
 						{
 							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("PackFactory", "FailedToCompileNewGameModule", "Failed to compile newly created game module."));

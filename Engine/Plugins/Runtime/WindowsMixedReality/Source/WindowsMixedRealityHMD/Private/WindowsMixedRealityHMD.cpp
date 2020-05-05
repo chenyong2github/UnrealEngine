@@ -1368,8 +1368,7 @@ namespace WindowsMixedReality
 		FRHIResourceCreateInfo CreateInfo;
 
 #if PLATFORM_HOLOLENS
-        // TODO: Remove index < 16 condition once FWindowsMixedRealityViewport has been removed
-		if (index < 16 && bIsMobileMultiViewEnabled)
+		if (bIsMobileMultiViewEnabled)
 		{
 			FTexture2DArrayRHIRef texture, resource;
 			RHICreateTargetableShaderResource2DArray(

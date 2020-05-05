@@ -210,4 +210,22 @@ FOnEntitiesUpdated& UDMXLibrary::GetOnEntitiesUpdated()
 	return OnEntitiesUpdated;
 }
 
+void UDMXLibrary::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	if (DuplicateMode != EDuplicateMode::Normal)
+	{
+		return;
+	}
+
+	// Make sure all Entity children have this library as their parent
+	// and refresh their ID
+	for (UDMXEntity* Entity : Entities)
+	{
+		Entity->SetParentLibrary(this);
+		Entity->RefreshID();
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

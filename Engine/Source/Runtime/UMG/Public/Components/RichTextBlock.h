@@ -88,6 +88,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetAutoWrapText(bool InAutoTextWrap);
 
+	/**
+	 * Set the text transformation policy for this text block.
+	 * @param InTransformPolicy the new text transformation policy.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy);
+
 	/** 
 	 * Wholesale override of the currently established default text style
 	 * @param InDefaultTextStyle The new text style to apply to all default (i.e. undecorated) text in the block
@@ -182,6 +189,10 @@ protected:
 	/** The minimum desired size for the text */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
 	float MinDesiredWidth;
+
+	/** The text transformation policy to apply to this text block */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=(DisplayName="Transform Policy"))
+	ETextTransformPolicy TextTransformPolicy;
 
 	FTextBlockStyle DefaultTextStyle;
 

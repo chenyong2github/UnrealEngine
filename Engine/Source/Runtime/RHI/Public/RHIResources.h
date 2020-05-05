@@ -358,6 +358,7 @@ public:
 
 	explicit FRHIUniformBufferLayout(const TCHAR* InName) :
 		ConstantBufferSize(0),
+		NumUsesForDebugging(0),
 		Name(InName),
 		Hash(0)
 	{
@@ -369,6 +370,7 @@ public:
 	};
 	explicit FRHIUniformBufferLayout(EInit) :
 		ConstantBufferSize(0),
+		NumUsesForDebugging(0),
 		Hash(0)
 	{
 	}
@@ -1971,6 +1973,7 @@ public:
 		, bDepthBounds(false)
 		, bMultiView(false)
 		, bHasFragmentDensityAttachment(false)
+		, ShadingRate(EVRSShadingRate::VRSSR_1x1)
 		, Flags(0)
 	{
 		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
@@ -2000,8 +2003,8 @@ public:
 		uint16						InFlags,
 		bool						bInDepthBounds,
 		bool						bInMultiView,
-		bool						bHasFragmentDensityAttachment
-		)
+		bool						bHasFragmentDensityAttachment,
+		EVRSShadingRate				InShadingRate)
 		: BoundShaderState(InBoundShaderState)
 		, BlendState(InBlendState)
 		, RasterizerState(InRasterizerState)
@@ -2024,6 +2027,7 @@ public:
 		, bDepthBounds(bInDepthBounds)
 		, bMultiView(bInMultiView)
 		, bHasFragmentDensityAttachment(bHasFragmentDensityAttachment)
+		, ShadingRate(InShadingRate)
 		, Flags(InFlags)
 	{
 	}
@@ -2110,6 +2114,7 @@ public:
 	bool							bDepthBounds;
 	bool							bMultiView;
 	bool							bHasFragmentDensityAttachment;
+	EVRSShadingRate					ShadingRate;
 	
 	// Note: these flags do NOT affect compilation of this PSO.
 	// The resulting object is invariant with respect to whatever is set here, they are

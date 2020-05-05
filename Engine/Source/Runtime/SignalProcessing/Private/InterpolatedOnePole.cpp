@@ -2,16 +2,17 @@
 
 #include "DSP/InterpolatedOnePole.h"
 
+#include "AudioDefines.h"
+
+
 namespace Audio
 {
 
 	// INTERPOLATED ONE-POLE LOW-PASS IMPLEMENTATION
 	FInterpolatedLPF::FInterpolatedLPF()
 	{
-		Z1.Init(0.0f, NumChannels);
 		Reset();
 	}
-
 
 	void FInterpolatedLPF::Init(float InSampleRate, int32 InNumChannels)
 	{
@@ -23,20 +24,21 @@ namespace Audio
 		Reset();
 	}
 
-	void FInterpolatedLPF::StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength)
+	void FInterpolatedLPF::StartFrequencyInterpolation(const float InTargetFrequency, const int32 InInterpLength)
 	{
-		CurrInterpLength = InterpLength;
+		CurrInterpLength = InInterpLength;
 
-		if(isFirstFrequencyChange)
+		if (bIsFirstFrequencyChange)
 		{
 			CurrInterpLength = 0;
-			isFirstFrequencyChange = false;
+			bIsFirstFrequencyChange = false;
 		}
 
 		if (!FMath::IsNearlyEqual(InTargetFrequency, CutoffFrequency))
 		{
 			CutoffFrequency = InTargetFrequency;
-			float NormalizedFreq = FMath::Clamp(2.0f * InTargetFrequency / SampleRate, 0.0f, 1.0f);
+
+			const float NormalizedFreq = FMath::Clamp(2.0f * GetCutoffFrequency() / SampleRate, 0.0f, 1.0f);
 			B1Target = FMath::Exp(-PI * NormalizedFreq);
 			B1Delta = (B1Target - B1Curr) / static_cast<float>(CurrInterpLength);
 		}
@@ -100,7 +102,7 @@ namespace Audio
 		CurrInterpLength = 0;
 		ClearMemory();
 		Z1Data = Z1.GetData();
-		isFirstFrequencyChange = true;
+		bIsFirstFrequencyChange = true;
 	}
 
 	void FInterpolatedLPF::ClearMemory()
@@ -113,7 +115,6 @@ namespace Audio
 	// INTERPOLATED ONE-POLE HIGH-PASS IMPLEMENTATION
 	FInterpolatedHPF::FInterpolatedHPF()
 	{
-		Z1.Init(0.0f, NumChannels);
 		Reset();
 	}
 
@@ -132,19 +133,23 @@ namespace Audio
 	{
 		CurrInterpLength = InterpLength;
 
-		if (isFirstFrequencyChange)
+		if (bIsFirstFrequencyChange)
 		{
 			CurrInterpLength = 0;
-			isFirstFrequencyChange = false;
+			bIsFirstFrequencyChange = false;
 		}
 
 		if (!FMath::IsNearlyEqual(InTargetFrequency, CutoffFrequency))
 		{
 			CutoffFrequency = FMath::Min(InTargetFrequency, NyquistLimit);
 
-			const float G = GetGCoefficient();
-			A0Target = G / (1.0f + G);
+			// G computation is a reduced form of the following set of equations:
+			// OmegaDigital = 2.0f * PI * CutoffFrequency;
+			// OmegaAnalog = 2.0f * SampleRate * Audio::FastTan(0.5f * OmegaDigital / SampleRate);
+			// G = 0.5f * OmegaAnalog / SampleRate;
+			const float G = Audio::FastTan(PI * GetCutoffFrequency() / SampleRate);
 
+			A0Target = G / (1.0f + G);
 			A0Delta = (A0Target - A0Curr) / static_cast<float>(CurrInterpLength);
 		}
 
@@ -189,7 +194,6 @@ namespace Audio
 		}
 	}
 
-
 	void FInterpolatedHPF::Reset()
 	{
 		A0Curr = 0.0f;
@@ -197,7 +201,7 @@ namespace Audio
 		CurrInterpLength = 0;
 		ClearMemory();
 		Z1Data = Z1.GetData();
-		isFirstFrequencyChange = true;
+		bIsFirstFrequencyChange = true;
 	}
 
 	void FInterpolatedHPF::ClearMemory()

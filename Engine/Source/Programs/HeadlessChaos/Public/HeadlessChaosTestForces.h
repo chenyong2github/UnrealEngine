@@ -9,10 +9,3 @@
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
-
-namespace ChaosTest {
-
-	/**/
-	template<class FPBDRigidsEvolution, class T>
-	void Gravity();
-}

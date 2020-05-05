@@ -3346,6 +3346,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		// Setup a new FPreviousViewInfo from current frame infos.
 		FPreviousViewInfo NewPrevViewInfo;
 		{
+			NewPrevViewInfo.ViewRect = View.ViewRect;
 			NewPrevViewInfo.ViewMatrices = View.ViewMatrices;
 		}
 

@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
+
 #include "../Common.ush"
 #include "../SceneTextureParameters.ush"
-#include "../SceneTextureParameters.ush"
+#include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
+
+#if USE_HAIR_LIGHTING
+#include "../HairStrands/HairStrandsRaytracing.ush"
+#endif
+
 #include "RayTracingSkyLightEvaluation.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 

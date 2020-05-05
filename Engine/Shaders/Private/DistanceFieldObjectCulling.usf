@@ -41,16 +41,20 @@ void UploadObjectsToBufferCS(
 	{
 		uint DestIndex = UploadOperationIndices[UploadOperationIndex];
 
-		UNROLL
-		for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
 		{
-			UploadBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, UploadOperationIndex * UPLOAD_DATA_STRIDE + VectorIndex);
+			UNROLL
+			for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
+			{
+				UploadBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, UploadOperationIndex * UPLOAD_DATA_STRIDE + VectorIndex);
+			}
 		}
 
-		UNROLL
-		for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; ++VectorIndex)
 		{
-			UploadDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, UploadOperationIndex * UPLOAD_DATA_STRIDE + OBJECT_BOUNDS_STRIDE + VectorIndex);
+			UNROLL
+			for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; ++VectorIndex)
+			{
+				UploadDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, UploadOperationIndex * UPLOAD_DATA_STRIDE + OBJECT_BOUNDS_STRIDE + VectorIndex);
+			}
 		}
 	}
 }
@@ -86,16 +90,20 @@ void CopyObjectBufferCS(
 		uint SourceIndex = CopyOperationIndex;
 		uint DestIndex = CopyOperationIndex;
 
-		UNROLL
-		for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
 		{
-			CopyBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, SourceIndex * OBJECT_BOUNDS_STRIDE + VectorIndex);
+			UNROLL
+			for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
+			{
+				CopyBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, SourceIndex * OBJECT_BOUNDS_STRIDE + VectorIndex);
+			}
 		}
 
-		UNROLL
-		for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; VectorIndex++)
 		{
-			CopyDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, SourceIndex * OBJECT_DATA_STRIDE + VectorIndex);
+			UNROLL
+			for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; VectorIndex++)
+			{
+				CopyDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, SourceIndex * OBJECT_DATA_STRIDE + VectorIndex);
+			}
 		}
 	}
 }
@@ -144,16 +152,20 @@ void RemoveObjectsFromBufferCS(
 		uint SourceIndex = RemoveOperationIndices[RemoveOperationIndex].y;
 		uint DestIndex = RemoveOperationIndices[RemoveOperationIndex].x;
 
-		UNROLL
-		for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
 		{
-			WriteBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, SourceIndex * OBJECT_BOUNDS_STRIDE + VectorIndex);
+			UNROLL
+			for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
+			{
+				WriteBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, SourceIndex * OBJECT_BOUNDS_STRIDE + VectorIndex);
+			}
 		}
 
-		UNROLL
-		for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; VectorIndex++)
 		{
-			WriteDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, SourceIndex * OBJECT_DATA_STRIDE + VectorIndex);
+			UNROLL
+			for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; VectorIndex++)
+			{
+				WriteDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, SourceIndex * OBJECT_DATA_STRIDE + VectorIndex);
+			}
 		}
 	}
 }

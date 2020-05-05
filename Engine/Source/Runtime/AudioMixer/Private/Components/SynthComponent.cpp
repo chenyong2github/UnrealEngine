@@ -98,10 +98,19 @@ int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
 void USynthSound::OnEndGenerate()
 {
 	// Mark pending kill can null this out on the game thread in rare cases.
-	if(OwningSynthComponent)
+	if (OwningSynthComponent)
 	{
 		OwningSynthComponent->OnEndGenerate();
 	}
+}
+
+ISoundGeneratorPtr USynthSound::CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels)
+{
+	if (OwningSynthComponent)
+	{
+		return OwningSynthComponent->CreateSoundGeneratorInternal(SampleRate, NumChannels);
+	}
+	return nullptr;
 }
 
 Audio::EAudioMixerStreamDataFormat::Type USynthSound::GetGeneratedPCMDataFormat() const
@@ -403,7 +412,7 @@ void USynthComponent::PumpPendingMessages()
 	}
 }
 
-FAudioDevice* USynthComponent::GetAudioDevice()
+FAudioDevice* USynthComponent::GetAudioDevice() const
 {
 	// If the synth component has a world, that means it was already registed with that world
 	if (UWorld* World = GetWorld())
@@ -482,7 +491,10 @@ void USynthComponent::Start()
 
 		if (IsActive())
 		{
-			PendingSynthEvents.Enqueue(ESynthEvent::Start);
+			if (!SoundGenerator.IsValid())
+			{
+				PendingSynthEvents.Enqueue(ESynthEvent::Start);
+			}
 		}
 	}
 }
@@ -491,7 +503,10 @@ void USynthComponent::Stop()
 {
 	if (IsActive())
 	{
-		PendingSynthEvents.Enqueue(ESynthEvent::Stop);
+		if (!SoundGenerator.IsValid())
+		{
+			PendingSynthEvents.Enqueue(ESynthEvent::Stop);
+		}
 
 		if (AudioComponent)
 		{
@@ -525,5 +540,17 @@ void USynthComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 
 void USynthComponent::SynthCommand(TFunction<void()> Command)
 {
-	CommandQueue.Enqueue(MoveTemp(Command));
+	if (SoundGenerator.IsValid())
+	{
+		UE_LOG(LogAudioMixer, Error, TEXT("Synthesis component '%s' has implemented a sound generator interface. Do not call SynthCommand on the USynthComponent)."), *GetName());
+	}
+	else
+	{
+		CommandQueue.Enqueue(MoveTemp(Command));
+	}
+}
+
+ISoundGeneratorPtr USynthComponent::CreateSoundGeneratorInternal(int32 InSampleRate, int32 InNumChannels)
+{	
+	return SoundGenerator = CreateSoundGenerator(InSampleRate, InNumChannels);
 }

@@ -1697,35 +1697,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		BeginPreInitTextLocalization();
 	}
 
-#if !(IS_PROGRAM || WITH_EDITOR)
-	// Initialize I/O dispatcher if available
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
-		FIoStoreEnvironment IoStoreEnvironment;
-		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("global"));
-		bool bEnableIoDispatcher = false;
-		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
-		{
-			bEnableIoDispatcher = true;
-		}
-#if !UE_BUILD_SHIPPING
-		if (FParse::Param(CmdLine, TEXT("forceiodispatcher")))
-		{
-			bEnableIoDispatcher = true;
-		}
-		else if (FParse::Param(CmdLine, TEXT("noiodispatcher")))
-		{
-			bEnableIoDispatcher = false;
-		}
-#endif
-		if (bEnableIoDispatcher)
-		{
-			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
-			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
-		}
-	}
-#endif
-
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
 	{
@@ -3051,6 +3022,16 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 				// Now our shader code main library is opened, kick off the precompile, if already initialized
 				FShaderPipelineCache::OpenPipelineFileCache(GMaxRHIShaderPlatform);
+			}
+		}
+		else
+		{
+			// TEMPORARY FIX UNTIL WE FIGURE OUT WHY A DEFAULT MATERIAL IS USING A GAME LIBRARY SHADER
+			// Open the game library which contains the material shaders.
+			FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::ProjectContentDir());
+			for (const FString& RootDir : FPlatformMisc::GetAdditionalRootDirectories())
+			{
+				FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::Combine(RootDir, FApp::GetProjectName(), TEXT("Content")));
 			}
 		}
 
@@ -4920,6 +4901,21 @@ void FEngineLoop::Tick()
 		}
 #endif
 
+		// Tick the platform and input portion of Slate application, we need to do this before we run things
+		// concurrent with networking.
+		if (FSlateApplication::IsInitialized() && !bIdleMode)
+		{
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_ProcessPlayerControllersSlateOperations);
+				check(!IsRunningDedicatedServer());
+
+				// Process slate operations accumulated in the world ticks.
+				ProcessLocalPlayerSlateOperations();
+			}
+
+			FSlateApplication::Get().Tick(ESlateTickType::PlatformAndInput);
+		}
+
 #if WITH_ENGINE
 		// process concurrent Slate tasks
 		FGraphEventRef ConcurrentTask;
@@ -4960,18 +4956,11 @@ void FEngineLoop::Tick()
 		}
 #endif
 
-		// tick Slate application
+		// Tick(Advance) Time for the application and then tick and paint slate application widgets.
+		// We split separate this action from the one above to permit running network replication concurrent with slate widget ticking and painting.
 		if (FSlateApplication::IsInitialized() && !bIdleMode)
 		{
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_ProcessPlayerControllersSlateOperations);
-				check(!IsRunningDedicatedServer());
-
-				// Process slate operations accumulated in the world ticks.
-				ProcessLocalPlayerSlateOperations();
-			}
-
-			FSlateApplication::Get().Tick();
+			FSlateApplication::Get().Tick(ESlateTickType::TimeAndWidgets);
 		}
 
 #if WITH_ENGINE
@@ -5435,15 +5424,18 @@ bool FEngineLoop::AppInit( )
 
 		// Find the editor target
 		FString EditorTargetFileName;
+		FString DefaultEditorTarget;
+		GConfig->GetString(TEXT("/Script/BuildSettings.BuildSettings"), TEXT("DefaultEditorTarget"), DefaultEditorTarget, GEngineIni);
+
 		for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForProject(FPaths::GetProjectFilePath()))
 		{
-			if (Target.Type == EBuildTargetType::Editor)
+			if (Target.Type == EBuildTargetType::Editor && (DefaultEditorTarget.Len() == 0 || Target.Name == DefaultEditorTarget))
 			{
-				if(FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+				if (FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
 				{
 					EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
 				}
-				else if(FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
+				else if (FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
 				{
 					EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
 				}

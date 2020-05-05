@@ -151,7 +151,7 @@ void MainCS(
 		float2 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, SceneBufferUV, 0).xy;
 		if (EncodedVelocity.x > 0.0)
 		{
-			PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(EncodedVelocity);
+			PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
 		}
 
 		float2 PrevFrameUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;

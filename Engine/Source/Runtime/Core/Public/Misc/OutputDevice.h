@@ -11,7 +11,7 @@
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfType.h"
 
-#if !PLATFORM_DESKTOP
+#if !PLATFORM_SUPPORTS_COLORIZED_OUTPUT_DEVICE
 	// don't support colorized text on consoles
 	#define SET_WARN_COLOR(Color)
 	#define SET_WARN_COLOR_AND_BACKGROUND(Color, Bkgrnd)

@@ -51,7 +51,7 @@ namespace
 			.Padding(4.0f)
 			[
 				SNew(SWrapBox)
-				.UseAllottedWidth(true)
+				.UseAllottedSize(true)
 
 				+ SWrapBox::Slot()
 				.Padding(FMargin(0.0f, 2.0f, 2.0f, 0.0f))
@@ -139,7 +139,6 @@ void FRuntimeVirtualTextureDetailsCustomization::CustomizeDetails(IDetailLayoutB
 	DetailBuilder.GetProperty(FName(TEXT("MaterialType")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
 	DetailBuilder.GetProperty(FName(TEXT("bCompressTextures")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
 	DetailBuilder.GetProperty(FName(TEXT("RemoveLowMips")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
-	DetailBuilder.GetProperty(FName(TEXT("StreamLowMips")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
 
 	// Initialize text blocks
 	RefreshDetails();
@@ -172,7 +171,7 @@ TSharedRef<IDetailCustomization> FRuntimeVirtualTextureComponentDetailsCustomiza
 
 void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	// Get and store the linked ARuntimeRuntimeVirtualTextureComponent
+	// Get and store the linked URuntimeVirtualTextureComponent
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
 	if (ObjectsBeingCustomized.Num() > 1)
@@ -185,126 +184,47 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		return;
 	}
 
-	// Use existing property to add bounds copy buttons
-	TSharedPtr<IPropertyHandle> SourceActorValue = DetailBuilder.GetProperty("BoundsSourceActor");
-	DetailBuilder.HideProperty(SourceActorValue);
-
-	IDetailCategoryBuilder& BoundsCategory = DetailBuilder.EditCategory("TransformFromBounds", FText::GetEmpty(), ECategoryPriority::Important);
-	BoundsCategory.AddCustomRow(SourceActorValue->GetPropertyDisplayName())
+	IDetailCategoryBuilder& VirtualTextureCategory = DetailBuilder.EditCategory("VirtualTextureBuild", FText::GetEmpty());
+	
+	VirtualTextureCategory
+	.AddCustomRow(LOCTEXT("Button_BuildStreamingMips", "Build Streaming Mips"), true)
 	.NameContent()
 	[
-		SourceActorValue->CreatePropertyNameWidget()
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("Button_BuildStreamingMips", "Build Streaming Mips"))
 	]
 	.ValueContent()
-	.MaxDesiredWidth(TOptional<float>())
+	.MaxDesiredWidth(125.f)
 	[
-		SNew(SHorizontalBox)
-		
-		+ SHorizontalBox::Slot()
-		.FillWidth(5.0f)
-		[
-			SourceActorValue->CreatePropertyValueWidget()
-		]
-
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		[
-			SNew(SWrapBox)
-			.UseAllottedWidth(true)
-			
-			+ SWrapBox::Slot()
-			.Padding(FMargin(0.0f, 2.0f, 2.0f, 0.0f))
-			[
-				SNew(SBox)
-				[
-					SNew(SVerticalBox)
-					
-					+ SVerticalBox::Slot()
-					[
-						SNew(SButton)
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						.Text(LOCTEXT("Button_CopyRotation", "Copy Rotation"))
-						.ToolTipText(LOCTEXT("Button_CopyRotation_Tooltip", "Set the virtual texture rotation to match the source actor"))
-						.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::SetRotation)
-					]
-
-					+ SVerticalBox::Slot()
-					[
-						SNew(SButton)
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						.Text(LOCTEXT("Button_CopyBounds", "Copy Bounds"))
-						.ToolTipText(LOCTEXT("Button_CopyBounds_Tooltip", "Set the virtual texture transform so that it includes the full bounds of the source actor"))
-						.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::SetTransformToBounds)
-					]
-				]
-			]
-		]
+		SNew(SButton)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
+		.ContentPadding(2)
+		.Text(LOCTEXT("Button_Build", "Build"))
+		.ToolTipText(LOCTEXT("Button_Build_Tooltip", "Build the low mips as streaming virtual texture data"))
+		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips)
 	];
 
-	// Use existing property to add build button
-	TSharedPtr<IPropertyHandle> LowMipsValue = DetailBuilder.GetProperty("bUseStreamingLowMips");
-	DetailBuilder.HideProperty(LowMipsValue);
-
-	IDetailCategoryBuilder& VirtualTextureCategory = DetailBuilder.EditCategory("VirtualTexture", FText::GetEmpty());
-	VirtualTextureCategory.AddCustomRow(LowMipsValue->GetPropertyDisplayName(), true)
+	VirtualTextureCategory
+	.AddCustomRow(LOCTEXT("Button_BuildDebugStreamingMips", "Build Debug Streaming Mips"), true)
 	.NameContent()
 	[
-		LowMipsValue->CreatePropertyNameWidget()
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("Button_BuildDebugStreamingMips", "Build Debug Streaming Mips"))
 	]
 	.ValueContent()
-	.MaxDesiredWidth(TOptional<float>())
+	.MaxDesiredWidth(125.f)
 	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		[
-			LowMipsValue->CreatePropertyValueWidget()
-		]
-
-		+ SHorizontalBox::Slot()
-		[
-			SNew(SWrapBox)
-
-			+ SWrapBox::Slot()
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("Button_Build", "Build"))
-				.ToolTipText(LOCTEXT("Button_Build_Tooltip", "Build the low mips as streaming virtual texture data"))
-				.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips)
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		[
-			SNew(SWrapBox)
-
-			+ SWrapBox::Slot()
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("Button_BuildDebig", "Build Debug"))
-				.ToolTipText(LOCTEXT("Button_BuildDebug_Tooltip", "Build the low mips with debug data"))
-				.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildLowMipsDebug)
-			]
-		]
+		SNew(SButton)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
+		.ContentPadding(2)
+		.Text(LOCTEXT("Button_Build", "Build"))
+		.ToolTipText(LOCTEXT("Button_BuildDebug_Tooltip", "Build the low mips with debug data"))
+		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildLowMipsDebug)
 	];
-}
-
-FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetRotation()
-{
-	FScopedTransaction BakeTransaction(LOCTEXT("Transaction_CopyRotation", "Copy Rotation"));
-	RuntimeVirtualTextureComponent->Modify();
-	RuntimeVirtualTextureComponent->SetRotation();
-	return FReply::Handled();
-}
-
-FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetTransformToBounds()
-{
-	FScopedTransaction BakeTransaction(LOCTEXT("Transaction_CopyBounds", "Copy Bounds"));
-	RuntimeVirtualTextureComponent->Modify();
-	RuntimeVirtualTextureComponent->SetTransformToBounds();
-	return FReply::Handled();
 }
 
 FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips()

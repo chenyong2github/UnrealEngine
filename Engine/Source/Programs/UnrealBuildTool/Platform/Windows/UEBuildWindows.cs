@@ -135,6 +135,7 @@ namespace UnrealBuildTool
 		/// WindowsPlatform.DefaultToolChainVersion (otherwise, we use the latest version).
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-CompilerVersion")]
 		public string CompilerVersion = null;
 
 		/// <summary>

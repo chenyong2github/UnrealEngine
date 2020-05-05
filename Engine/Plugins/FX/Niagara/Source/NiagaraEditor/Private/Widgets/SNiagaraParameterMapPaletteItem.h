@@ -16,7 +16,7 @@ class SNiagaraParameterMapPalleteItem : public SGraphPaletteItem
 {
 public:
 
-	DECLARE_DELEGATE_TwoParams(FOnItemRenamed, const FText&, struct FNiagaraParameterAction&)
+	DECLARE_DELEGATE_TwoParams(FOnItemRenamed, const FText&, TSharedRef<struct FNiagaraParameterAction>)
 
 	SLATE_BEGIN_ARGS(SNiagaraParameterMapPalleteItem)
 	{}
@@ -38,7 +38,6 @@ protected:
 private:
 	FOnItemRenamed OnItemRenamed;
 	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterNameTextBlock;
-	bool bWasCreated;
 	mutable FText ToolTipCache;
 	mutable FText CreatedToolTipCache;
 };

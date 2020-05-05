@@ -175,7 +175,8 @@ namespace ImmediatePhysics_Chaos
 		NewShape->SetGeometry(MakeSerializable(ImplicitSphere));
 		NewShape->UpdateShapeBounds(FTransform::Identity);
 		NewShape->SetUserData(nullptr);
-		NewShape->SetSimulate(false);
+		NewShape->SetQueryEnabled(false);
+		NewShape->SetSimEnabled(false);
 
 		OutMass = Mass;
 		OutInertia = TSphere<FReal, 3>::GetInertiaTensor(Mass, Radius).GetDiagonal();
@@ -190,8 +191,9 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		if (BodyInstance == nullptr)
+		if ((BodyInstance == nullptr) || (BodyInstance->BodySetup == nullptr))
 		{
+			// @todo(ccaulfield): fix this path
 			return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
 		}
 
@@ -342,6 +344,7 @@ namespace ImmediatePhysics_Chaos
 					{
 						Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
 						Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
+						Dynamic->SetGravityEnabled(BodyInstance->bEnableGravity);
 					}
 					Dynamic->Disabled() = true;
 				}
@@ -383,17 +386,32 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
+
+	void FActorHandle::InitWorldTransform(const FTransform& WorldTM)
+	{
+		using namespace Chaos;
+
+		SetWorldTransform(WorldTM);
+
+		if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
+		{
+			Kinematic->V() = FVec3(0);
+			Kinematic->W() = FVec3(0);
+			Kinematic->KinematicTarget().Clear();
+		}
+	}
+
 	void FActorHandle::SetWorldTransform(const FTransform& WorldTM)
 	{
 		using namespace Chaos;
 
-		FParticleUtilities::SetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
+		FParticleUtilitiesXR::SetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
 
 		auto* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
 		{
-			Dynamic->X() = Dynamic->P();
-			Dynamic->R() = Dynamic->Q();
+			Dynamic->P() = Dynamic->X();
+			Dynamic->Q() = Dynamic->R();
 			Dynamic->AuxilaryValue(ParticlePrevXs) = Dynamic->P();
 			Dynamic->AuxilaryValue(ParticlePrevRs) = Dynamic->Q();
 		}

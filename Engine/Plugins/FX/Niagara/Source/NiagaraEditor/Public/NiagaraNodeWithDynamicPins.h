@@ -95,6 +95,8 @@ private:
 	/** Called when a pin's name text is committed. */
 	void PinNameTextCommitted(const FText& Text, ETextCommit::Type CommitType, UEdGraphPin* Pin);
 	
+	void RenameDynamicPinFromMenu(UEdGraphPin* Pin);
+
 	void RemoveDynamicPinFromMenu(UEdGraphPin* Pin);
 
 	void MoveDynamicPinFromMenu(UEdGraphPin* Pin, int32 DirectionToMove);

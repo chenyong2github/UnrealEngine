@@ -62,11 +62,12 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 				bIsUsedWithInstancedStaticMeshes = Resource->IsUsedWithInstancedStaticMeshes();
 				bIsUsedWithAPEXCloth = Resource->IsUsedWithAPEXCloth();
 				bIsUsedWithWater = Resource->IsUsedWithWater();
+				bIsUsedWithVirtualHeightfieldMesh = Resource->IsUsedWithVirtualHeightfieldMesh();
 			}
 		}
 
 		FMaterialShaderMapId ResourceId;
-		Resource->GetShaderMapId(ShaderPlatform, ResourceId);
+		Resource->GetShaderMapId(ShaderPlatform, nullptr, ResourceId);
 
 		{
 			TArray<FShaderType*> ShaderTypes;

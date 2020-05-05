@@ -14,6 +14,9 @@
 #include "ISourceControlModule.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Misc/ScopeRWLock.h"
+#include "Async/ParallelFor.h"
+#include "String/ParseLines.h"
 
 #define LOCTEXT_NAMESPACE "CollectionManager"
 
@@ -67,6 +70,7 @@ TSharedRef<FCollection> FCollection::Clone(const FString& InFilename, bool InUse
 
 bool FCollection::Load(FText& OutError)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCollection::Load)
 	Empty();
 
 	FString FullFileContentsString;
@@ -76,25 +80,23 @@ bool FCollection::Load(FText& OutError)
 		return false;
 	}
 
-	// Normalize line endings and parse into array
-	TArray<FString> FileContents;
-	FullFileContentsString.ReplaceInline(TEXT("\r"), TEXT(""));
-	FullFileContentsString.ParseIntoArray(FileContents, TEXT("\n"), /*bCullEmpty=*/false);
+	TArray<FStringView> FileContents;
+	UE::String::ParseLines(FullFileContentsString, [&FileContents](const FStringView& Line) { FileContents.Add(Line); });
 
-	if ( FileContents.Num() == 0 )
+	if (FileContents.Num() == 0)
 	{
 		// Empty file, assume static collection with no items
 		return true;
 	}
 
 	// Load the header from the contents array
-	TMap<FString,FString> HeaderPairs;
-	while ( FileContents.Num() )
+	TMap<FString, FString> HeaderPairs;
+	
+	int32 LineIndex = 0;
+	for (int32 Num = FileContents.Num(); LineIndex < Num; ++LineIndex)
 	{
-		// Pop the 0th element from the contents array and read it
-		FileContents[0].TrimStartAndEndInline();
-		const FString Line = FileContents[0];
-		FileContents.RemoveAt(0);
+		FStringView Line(FileContents[LineIndex]);
+		Line.TrimStartAndEndInline();
 
 		if (Line.Len() == 0)
 		{
@@ -102,11 +104,12 @@ bool FCollection::Load(FText& OutError)
 			break;
 		}
 
-		FString Key;
-		FString Value;
-		if ( Line.Split(TEXT(":"), &Key, &Value) )
+		FStringView::SizeType Offset;
+		if (Line.FindChar(TEXT(':'), Offset))
 		{
-			HeaderPairs.Add(Key, Value);
+			FString Key(Line.Left(Offset));
+			FString Value(Line.Right(Line.Len() - Offset - 1));
+			HeaderPairs.Emplace(MoveTemp(Key), MoveTemp(Value));
 		}
 	}
 
@@ -121,23 +124,34 @@ bool FCollection::Load(FText& OutError)
 	// Now load the content if the header load was successful
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
-		// Static collection, a flat list of asset paths
-		for (FString& Line : FileContents)
-		{
-			Line.TrimStartAndEndInline();
+		const int32 NamesNum = FileContents.Num() - LineIndex;
 
-			if ( int32 Len = Line.Len() )
+		TArray<FName> FNames;
+		FNames.SetNum(NamesNum);
+
+		// Name hashing to register new FName takes time
+		// Process as much as possible in multiple threads
+		ParallelFor(
+			NamesNum,
+			[this, &FileContents, &LineIndex, &FNames](int32 LocalLineIndex)
 			{
-				AddObjectToCollection(FName(Len, *Line));
-			}
+				FStringView Line(FileContents[LineIndex + LocalLineIndex]);
+				FNames[LocalLineIndex] = FName(Line.TrimStartAndEnd());
+			},
+			// Do not pay for scheduling cost if number of items is too low
+			NamesNum < 1000 ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None
+		);
+
+		// Static collection, a flat list of asset paths
+		for (FName& Name : FNames)
+		{
+			AddObjectToCollection(Name);
 		}
 	}
 	else
 	{
 		// Dynamic collection, a single query line
-		DynamicQueryText = (FileContents.Num() > 0) ? FileContents[0] : FString();
-
-		DynamicQueryText.TrimStartAndEndInline();
+		DynamicQueryText = (FileContents.Num() > LineIndex) ? FString(FileContents[LineIndex].TrimStartAndEnd()) : FString();
 	}
 
 	DiskSnapshot.TakeSnapshot(*this);
@@ -743,6 +757,14 @@ void FCollection::GetObjectDifferences(const TSet<FName>& BaseSet, const TSet<FN
 		{
 			ObjectsRemoved.Add(BaseObjectName);
 		}
+	}
+
+	// If both sets have the same number of items and nothing has been removed
+	// we can safely infer that both collections are equals without going
+	// over them a second time.
+	if (ObjectsRemoved.Num() == 0 && BaseSet.Num() == NewSet.Num())
+	{
+		return;
 	}
 
 	// Find the objects that were added compare to the base set

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/SavePackage.h"
+
+#if UE_WITH_SAVEPACKAGE
 #include "CoreMinimal.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
@@ -3770,6 +3772,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				bool bUseUnversionedProperties = bSaveUnversioned && CanUseUnversionedPropertySerialization(TargetPlatform);
 				Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 				Linker->Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+				if (bUseUnversionedProperties)
+				{
+					Linker->Summary.PackageFlags |= PKG_UnversionedProperties;
+					Linker->LinkerRoot->SetPackageFlags(PKG_UnversionedProperties);
+				}
 
 				// Make sure the package has the same version as the linker
 				InOuter->LinkerPackageVersion = Linker->UE4Ver();
@@ -6467,3 +6474,4 @@ FSavePackageContext::~FSavePackageContext()
 	delete PackageStoreWriter;
 	delete BulkDataManifest;
 }
+#endif	// UE_WITH_SAVEPACKAGE

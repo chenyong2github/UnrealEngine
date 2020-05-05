@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OSCServer.h"
 
-#include "Runtime/Core/Public/Async/TaskGraphInterfaces.h"
-#include "Sockets.h"
 #include "Common/UdpSocketBuilder.h"
 #include "Common/UdpSocketReceiver.h"
+#include "Interfaces/IPv4/IPv4Address.h"
+#include "Runtime/Core/Public/Async/TaskGraphInterfaces.h"
+#include "Sockets.h"
 
 #include "OSCStream.h"
 #include "OSCMessage.h"
@@ -17,13 +18,8 @@
 
 UOSCServer::UOSCServer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, ServerProxy(new FOSCServerProxy(*this))
+	, ServerProxy(MakeUnique<FOSCServerProxy>(*this))
 {
-}
-
-void UOSCServer::Connect()
-{
-	ServerProxy.Reset(new FOSCServerProxy(*this));
 }
 
 bool UOSCServer::GetMulticastLoopback() const
@@ -55,6 +51,15 @@ void UOSCServer::SetMulticastLoopback(bool bInMulticastLoopback)
 	check(ServerProxy.IsValid());
 	ServerProxy->SetMulticastLoopback(bInMulticastLoopback);
 }
+
+#if WITH_EDITOR
+void UOSCServer::SetTickInEditor(bool bInTickInEditor)
+{
+	check(ServerProxy.IsValid());
+	ServerProxy->SetTickableInEditor(bInTickInEditor);
+}
+#endif // WITH_EDITOR
+
 
 void UOSCServer::Stop()
 {
@@ -172,15 +177,15 @@ void UOSCServer::ClearPackets()
 	OSCPackets.Empty();
 }
 
-void UOSCServer::EnqueuePacket(TSharedPtr<IOSCPacket> Packet)
+void UOSCServer::EnqueuePacket(TSharedPtr<IOSCPacket> InPacket)
 {
-	OSCPackets.Enqueue(Packet);
+	OSCPackets.Enqueue(InPacket);
 }
 
-void UOSCServer::DispatchBundle(const FString& InIPAddress, uint16 Port, const FOSCBundle& InBundle)
+void UOSCServer::DispatchBundle(const FString& InIPAddress, uint16 InPort, const FOSCBundle& InBundle)
 {
-	OnOscBundleReceived.Broadcast(InBundle, InIPAddress, Port);
-	OnOscBundleReceivedNative.Broadcast(InBundle, InIPAddress, Port);
+	OnOscBundleReceived.Broadcast(InBundle, InIPAddress, InPort);
+	OnOscBundleReceivedNative.Broadcast(InBundle, InIPAddress, InPort);
 
 	TSharedPtr<FOSCBundlePacket> BundlePacket = StaticCastSharedPtr<FOSCBundlePacket>(InBundle.GetPacket());
 	FOSCBundlePacket::FPacketBundle Packets = BundlePacket->GetPackets();
@@ -188,11 +193,11 @@ void UOSCServer::DispatchBundle(const FString& InIPAddress, uint16 Port, const F
 	{
 		if (Packet->IsMessage())
 		{
-			DispatchMessage(InIPAddress, Port, FOSCMessage(Packet));
+			DispatchMessage(InIPAddress, InPort, FOSCMessage(Packet));
 		}
 		else if (Packet->IsBundle())
 		{
-			DispatchBundle(InIPAddress, Port, FOSCBundle(Packet));
+			DispatchBundle(InIPAddress, InPort, FOSCBundle(Packet));
 		}
 		else
 		{
@@ -201,10 +206,10 @@ void UOSCServer::DispatchBundle(const FString& InIPAddress, uint16 Port, const F
 	}
 }
 
-void UOSCServer::DispatchMessage(const FString& InIPAddress, uint16 Port, const FOSCMessage& InMessage)
+void UOSCServer::DispatchMessage(const FString& InIPAddress, uint16 InPort, const FOSCMessage& InMessage)
 {
-	OnOscMessageReceived.Broadcast(InMessage, InIPAddress, Port);
-	OnOscMessageReceivedNative.Broadcast(InMessage, InIPAddress, Port);
+	OnOscMessageReceived.Broadcast(InMessage, InIPAddress, InPort);
+	OnOscMessageReceivedNative.Broadcast(InMessage, InIPAddress, InPort);
 
 	UE_LOG(LogOSC, Verbose, TEXT("Message received from endpoint '%s', OSCAddress of '%s'."), *InIPAddress, *InMessage.GetAddress().GetFullPath());
 
@@ -213,7 +218,7 @@ void UOSCServer::DispatchMessage(const FString& InIPAddress, uint16 Port, const 
 		const FOSCDispatchMessageEvent& DispatchEvent = Pair.Value;
 		if (Pair.Key.Matches(InMessage.GetAddress()))
 		{
-			DispatchEvent.Broadcast(Pair.Key, InMessage, InIPAddress, Port);
+			DispatchEvent.Broadcast(Pair.Key, InMessage, InIPAddress, InPort);
 			UE_LOG(LogOSC, Verbose, TEXT("Message dispatched from endpoint '%s', OSCAddress path of '%s' matched OSCAddress pattern '%s'."),
 				*InIPAddress,
 				*InMessage.GetAddress().GetFullPath(),
@@ -222,22 +227,28 @@ void UOSCServer::DispatchMessage(const FString& InIPAddress, uint16 Port, const 
 	}
 }
 
-void UOSCServer::OnPacketReceived(const FString& InIPAddress, uint16 Port)
+void UOSCServer::PumpPacketQueue(const TSet<uint32>* WhitelistedClients)
 {
 	TSharedPtr<IOSCPacket> Packet;
 	while (OSCPackets.Dequeue(Packet))
 	{
-		if (Packet->IsMessage())
+		FIPv4Address IPAddr;
+		const FString& Address = Packet->GetIPAddress();
+		if (!WhitelistedClients || (FIPv4Address::Parse(Address, IPAddr) && WhitelistedClients->Contains(IPAddr.Value)))
 		{
-			DispatchMessage(InIPAddress, Port, FOSCMessage(Packet));
-		}
-		else if (Packet->IsBundle())
-		{
-			DispatchBundle(InIPAddress, Port, FOSCBundle(Packet));
-		}
-		else
-		{
-			UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received message. Invalid OSC type (packet is neither identified as message nor bundle)."));
+			uint16 Port = Packet->GetPort();
+			if (Packet->IsMessage())
+			{
+				DispatchMessage(Address, Port, FOSCMessage(Packet));
+			}
+			else if (Packet->IsBundle())
+			{
+				DispatchBundle(Address, Port, FOSCBundle(Packet));
+			}
+			else
+			{
+				UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received message. Invalid OSC type (packet is neither identified as message nor bundle)."));
+			}
 		}
 	}
 }

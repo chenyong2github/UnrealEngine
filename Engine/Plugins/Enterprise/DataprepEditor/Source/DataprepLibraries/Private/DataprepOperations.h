@@ -475,7 +475,6 @@ protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
 };
-
 // Customization of the details of the "Output to Folder" operation.
 class FDataprepSetOutputFolderDetails : public IDetailCustomization
 {
@@ -497,4 +496,26 @@ private:
 	bool bValidFolderName = true;
 
 	TSharedPtr< class SEditableTextBox > TextBox;
+};
+
+UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Add To Layer", ToolTip = "On each actor to process, add the actor to the layer"))
+class UDataprepAddToLayerOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+public:
+	// Name of the layer to add the actors to.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, Meta = (ToolTip = "Name of the layer to add the actors to"))
+	FName LayerName;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::ActorOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
 };

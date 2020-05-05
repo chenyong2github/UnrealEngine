@@ -22,12 +22,15 @@ struct FToolMenuEntrySubMenuData
 public:
 	FToolMenuEntrySubMenuData() :
 		bIsSubMenu(false),
-		bOpenSubMenuOnClick(false)
+		bOpenSubMenuOnClick(false),
+		bAutoCollapse(false)
 	{
 	}
 
 	bool bIsSubMenu;
 	bool bOpenSubMenuOnClick;
+	/** Entry placed into the parent's menu when there is only one entry */
+	bool bAutoCollapse;
 	FNewToolMenuChoice ConstructMenu;
 };
 
@@ -162,6 +165,7 @@ private:
 
 	friend class UToolMenus;
 	friend class UToolMenuEntryExtensions;
+	friend class FPopulateMenuBuilderWithToolMenuEntry;
 
 	TAttribute<FText> Label;
 	TAttribute<FText> ToolTip;

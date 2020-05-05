@@ -210,6 +210,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 	};
 
 	bool bCutSide1 = CutHole(*ResultMesh, Frame, SortedHitTriangles[0].Value, Polygon, PathVertIDs1, PathVertCorrespond1, bCollapseDegenerateEdges);
+	RecordEmbeddedEdges(PathVertIDs1);
 	if (!bCutSide1 || PathVertIDs1.Num() < 2)
 	{
 		return;
@@ -219,6 +220,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 	{
 		TArray<int> PathVertIDs2, PathVertCorrespond2;
 		bool bCutSide2 = CutHole(*ResultMesh, Frame, SortedHitTriangles[SecondHit].Value, Polygon, PathVertIDs2, PathVertCorrespond2, bCollapseDegenerateEdges);
+		RecordEmbeddedEdges(PathVertIDs1);
 		if (!bCutSide2 || PathVertIDs2.Num() < 2)
 		{
 			return;
@@ -268,6 +270,20 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 					MeshEditor.SetTriangleUVsFromProjection(Filler.NewTriangles, Frame, UVScaleFactor, FVector2f::Zero(), true, UVIdx);
 				}
 			}
+		}
+	}
+
+	bEmbedSucceeded = true;
+}
+
+void FEmbedPolygonsOp::RecordEmbeddedEdges(TArray<int>& PathVertIDs)
+{
+	for (int Idx = 0; Idx + 1 < PathVertIDs.Num(); Idx++)
+	{
+		int EID = ResultMesh->FindEdge(PathVertIDs[Idx], PathVertIDs[Idx + 1]);
+		if (ensure(ResultMesh->IsEdge(EID)))
+		{
+			EmbeddedEdges.Add(EID);
 		}
 	}
 }

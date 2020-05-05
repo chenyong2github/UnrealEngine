@@ -56,7 +56,7 @@ namespace Audio
 		return CurrentSample >= NumSamples;
 	}
 
-	TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> FMixerSourceBuffer::Create(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode)
+	TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> FMixerSourceBuffer::Create(int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode)
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
@@ -72,11 +72,11 @@ namespace Audio
 			return nullptr;
 		}
 
-		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InBuffer, InWave, InLoopingMode, bInIsSeeking, bInForceSyncDecode));
+		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InSampleRate, InBuffer, InWave, InLoopingMode, bInIsSeeking, bInForceSyncDecode));
 		return NewSourceBuffer;
 	}
 
-	FMixerSourceBuffer::FMixerSourceBuffer(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode)
+	FMixerSourceBuffer::FMixerSourceBuffer(int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode)
 		: NumBuffersQeueued(0)
 		, CurrentBuffer(0)
 		, SoundWave(&InWave)
@@ -95,7 +95,14 @@ namespace Audio
 		, bIsBus(InWave.bIsSourceBus)
 		, bForceSyncDecode(bInForceSyncDecode)
 	{
+		// TODO: remove the need to do this here. 1) remove need for decoders to depend on USoundWave and 2) remove need for procedural sounds to use USoundWaveProcedural
 		InWave.AddPlayingSource(this);
+
+		// Retrieve a sound generator if this is a procedural sound wave
+		if (bProcedural)
+		{
+			SoundGenerator = InWave.CreateSoundGenerator(InSampleRate, NumChannels);
+		}
 
 		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;
 		for (int32 BufferIndex = 0; BufferIndex < Audio::MAX_BUFFERS_QUEUED; ++BufferIndex)
@@ -326,9 +333,20 @@ namespace Audio
 			
 			if (Lock.IsLocked() && SoundWave)
 			{
-				check(SoundWave && SoundWave->bProcedural);
 				FProceduralAudioTaskData NewTaskData;
-				NewTaskData.ProceduralSoundWave = SoundWave;
+
+				// Pass the generator instance to the async task
+				if (SoundGenerator.IsValid())
+				{
+					NewTaskData.SoundGenerator = SoundGenerator;
+				}
+				else
+				{
+					// Otherwise pass the raw sound wave procedural ptr.
+					check(SoundWave && SoundWave->bProcedural);
+					NewTaskData.ProceduralSoundWave = SoundWave;
+				}
+
 				NewTaskData.AudioData = SourceVoiceBuffers[BufferIndex]->AudioData.GetData();
 				NewTaskData.NumSamples = MaxSamples;
 				NewTaskData.NumChannels = NumChannels;
@@ -550,11 +568,22 @@ namespace Audio
 	void FMixerSourceBuffer::OnBeginGenerate()
 	{
 		FScopeTryLock Lock(&SoundWaveCritSec);
-
-		if (Lock.IsLocked() && SoundWave && bProcedural)
+		if (!Lock.IsLocked())
 		{
-			check(SoundWave && SoundWave->bProcedural);
-			SoundWave->OnBeginGenerate();
+			return;
+		}
+
+		if (SoundGenerator.IsValid())
+		{
+			SoundGenerator->OnBeginGenerate();
+		}
+		else
+		{
+			if (SoundWave && bProcedural)
+			{
+				check(SoundWave && SoundWave->bProcedural);
+				SoundWave->OnBeginGenerate();
+			}
 		}
 	}
 
@@ -569,12 +598,18 @@ namespace Audio
 			return;
 		}
 
-
-		// Only need to call OnEndGenerate and access SoundWave here if we successfully initialized
-		if (SoundWave && bInitialized && bProcedural)
+		if (SoundGenerator.IsValid())
 		{
-			check(SoundWave && SoundWave->bProcedural);
-			SoundWave->OnEndGenerate();
+			SoundGenerator->OnEndGenerate();
+		}
+		else
+		{
+			// Only need to call OnEndGenerate and access SoundWave here if we successfully initialized
+			if (SoundWave && bInitialized && bProcedural)
+			{
+				check(SoundWave && SoundWave->bProcedural);
+				SoundWave->OnEndGenerate();
+			}
 		}
 	}
 

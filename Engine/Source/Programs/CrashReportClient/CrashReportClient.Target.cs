@@ -53,7 +53,7 @@ public class CrashReportClientTarget : TargetRules
 		WindowsPlatform.bUseBundledDbgHelp = false;
 
 		// Add the definitions from config files
-		AddConfigMacro("CRC_TELEMETRY_URL=", TelemetryUrl);
+		AddConfigMacro("CRC_TELEMETRY_URL=", string.Format("\"{0}\"", TelemetryUrl));
 		AddConfigMacro("CRC_TELEMETRY_KEY_DEV=", TelemetryKey_Dev);
 		AddConfigMacro("CRC_TELEMETRY_KEY_RELEASE=", TelemetryKey_Release);
 

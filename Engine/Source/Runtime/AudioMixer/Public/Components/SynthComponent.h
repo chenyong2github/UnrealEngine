@@ -7,6 +7,7 @@
 #include "Engine/EngineTypes.h"
 #include "IAudioExtensionPlugin.h"
 #include "Sound/SoundWaveProcedural.h"
+#include "Sound/SoundGenerator.h"
 #include "UObject/ObjectMacros.h"
 
 #include "SynthComponent.generated.h"
@@ -50,6 +51,7 @@ class AUDIOMIXER_API USynthSound : public USoundWaveProcedural
 	virtual int32 OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples) override;
 	virtual void OnEndGenerate() override;
 	virtual Audio::EAudioMixerStreamDataFormat::Type GetGeneratedPCMDataFormat() const override;
+	virtual ISoundGeneratorPtr CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels) override;
 	/** End USoundWave */
 
 protected:
@@ -240,14 +242,19 @@ protected:
 	virtual void OnEndGenerate() {}
 
 	// Called when more audio is needed to be generated
+	// This method of generating audio is soon to be deprecated. For all new synth components, create an FSoundGenerator instance and implement CreateSoundGenerator method to create an instance.
 	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) PURE_VIRTUAL(USynthComponent::OnGenerateAudio, return 0; );
+
+	// Implemented by the synth component to create a generator object instead of generating audio directly on the synth component.
+	// This method prevents UObjects from having to exist in the audio render thread.
+	virtual ISoundGeneratorPtr CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels) { return nullptr; }
 
 	// Called by procedural sound wave
 	// Returns the number of samples actually generated
 	int32 OnGeneratePCMAudio(float* GeneratedPCMData, int32 NumSamples);
 
 	// Gets the audio device associated with this synth component
-	FAudioDevice* GetAudioDevice();
+	FAudioDevice* GetAudioDevice() const;
 
 	// Can be set by the derived class, defaults to 2
 	int32 NumChannels;
@@ -256,6 +263,8 @@ protected:
 	int32 PreferredBufferLength;
 
 private:
+	// Creates the synth component's sound generator, calls into overridden client code to create the instance.
+	ISoundGeneratorPtr CreateSoundGeneratorInternal(int32 InSampleRate, int32 InNumChannels);
 
 	UPROPERTY(Transient)
 	USynthSound* Synth;
@@ -284,6 +293,10 @@ private:
 	};
 
 	TQueue<ESynthEvent> PendingSynthEvents;
+
+	// Synth component's handle to its sound generator instance.
+	// used to forward BP functions to the instance directly.
+	ISoundGeneratorPtr SoundGenerator;
 
 	friend class USynthSound;
 };

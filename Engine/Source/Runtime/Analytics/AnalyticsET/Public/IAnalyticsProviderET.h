@@ -7,7 +7,7 @@
 #include "AnalyticsET.h"
 #include "Interfaces/IAnalyticsProvider.h"
 
-/** ET specific analytics provider instance. Exposes additional APIs to support Json-based events. */
+/** ET specific analytics provider instance. Exposes additional APIs to support Json-based events, using move-semantics, and allowing events to be disabled (generally via hotfixing). */
 class IAnalyticsProviderET : public IAnalyticsProvider
 {
 public:
@@ -56,6 +56,14 @@ public:
 	* @param AttributesJson	array of key/value attribute pairs
 	*/
 	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) = 0;
+
+	/**
+	* Allows higher level code to abort logic to set up for a RecordEvent call by checking the filter that will be used to send the event first.
+	*
+	* @param EventName			The name of the event.
+	* @return true if the event will be recorded using the currently installed ShouldRecordEvent function
+	*/
+	virtual bool ShouldRecordEvent(const FString& EventName) const = 0;
 
 	/**
 	* Optimization for RecordEvent that avoids the array copy using rvalue references.
@@ -132,4 +140,10 @@ public:
 	 * Return the current provider configuration.
 	 */
 	virtual const FAnalyticsET::Config& GetConfig() const = 0;
+
+	/** Callback used before any event is actually sent. Allows higher level code to disable events. */
+	typedef TFunction<bool(const IAnalyticsProviderET& ThisProvider, const FString& EventName)> ShouldRecordEventFunction;
+
+	/** Set an event filter to dynamically control whether an event should be sent. */
+	virtual void SetShouldRecordEventFunc(const ShouldRecordEventFunction& ShouldRecordEventFunc) = 0;
 };

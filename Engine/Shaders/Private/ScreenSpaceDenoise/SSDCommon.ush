@@ -28,7 +28,7 @@
 //------------------------------------------------------- SHARED CONSTANTS DEPENDING ON CONFIG OF SHADER
 
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
-	#define TARGETED_SAMPLE_COUNT 128
+	#define TARGETED_SAMPLE_COUNT 1024
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
 	// A gray scale valued encoded into a 16bit float only have 10bits mantissa.
@@ -79,6 +79,9 @@ float2 BufferUVToOutputPixelPosition;
 float4 BufferUVToScreenPosition;
 float4x4 ScreenToView;
 float2 BufferUVBilinearCorrection;
+
+
+float4 PrevSceneBufferUVToScreenPosition;
 
 float WorldDepthToPixelWorldRadius;
 

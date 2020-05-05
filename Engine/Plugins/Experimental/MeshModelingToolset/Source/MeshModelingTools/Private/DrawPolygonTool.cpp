@@ -65,62 +65,6 @@ UDrawPolygonToolStandardProperties::UDrawPolygonToolStandardProperties()
 {
 }
 
-
-void UDrawPolygonToolStandardProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UDrawPolygonToolStandardProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolStandardProperties>();
-	PropertyCache->PolygonType = this->PolygonType;
-	PropertyCache->OutputMode = this->OutputMode;
-	PropertyCache->ExtrudeHeight = this->ExtrudeHeight;
-	PropertyCache->Steps = this->Steps;
-	PropertyCache->bAllowSelfIntersections = this->bAllowSelfIntersections;
-	PropertyCache->bShowGizmo = this->bShowGizmo;
-}
-
-void UDrawPolygonToolStandardProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UDrawPolygonToolStandardProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolStandardProperties>();
-	this->PolygonType = PropertyCache->PolygonType;
-	this->OutputMode = PropertyCache->OutputMode;
-	this->ExtrudeHeight = PropertyCache->ExtrudeHeight;
-	this->Steps = PropertyCache->Steps;
-	this->bAllowSelfIntersections = PropertyCache->bAllowSelfIntersections;
-	this->bShowGizmo = PropertyCache->bShowGizmo;
-}
-
-
-
-void UDrawPolygonToolSnapProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UDrawPolygonToolSnapProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolSnapProperties>();
-	PropertyCache->bEnableSnapping = this->bEnableSnapping;
-	PropertyCache->bSnapToWorldGrid = this->bSnapToWorldGrid;
-	PropertyCache->bSnapToVertices = this->bSnapToVertices;
-	PropertyCache->bSnapToEdges = this->bSnapToEdges;
-	PropertyCache->bSnapToAngles = this->bSnapToAngles;
-	PropertyCache->bSnapToLengths = this->bSnapToLengths;
-	PropertyCache->bHitSceneObjects = this->bHitSceneObjects;
-	//PropertyCache->SegmentLength = this->Length;		// this is purely a feedback property
-	PropertyCache->HitNormalOffset = this->HitNormalOffset;
-}
-
-void UDrawPolygonToolSnapProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UDrawPolygonToolSnapProperties* PropertyCache = GetPropertyCache<UDrawPolygonToolSnapProperties>();
-	this->bEnableSnapping = PropertyCache->bEnableSnapping;
-	this->bSnapToWorldGrid = PropertyCache->bSnapToWorldGrid;
-	this->bSnapToVertices = PropertyCache->bSnapToVertices;
-	this->bSnapToEdges = PropertyCache->bSnapToEdges;
-	this->bSnapToAngles = PropertyCache->bSnapToAngles;
-	this->bSnapToLengths = PropertyCache->bSnapToLengths;
-	this->bHitSceneObjects = PropertyCache->bHitSceneObjects;
-	//this->SegmentLength = PropertyCache->Length;
-	this->HitNormalOffset = PropertyCache->HitNormalOffset;
-}
-
-
-
-
 /*
  * Tool
  */
@@ -173,10 +117,8 @@ void UDrawPolygonTool::Setup()
 
 	PolygonProperties = NewObject<UDrawPolygonToolStandardProperties>(this, TEXT("Polygon Settings"));
 	PolygonProperties->RestoreProperties(this);
-	ShowGizmoWatcher.Initialize(
-		[this]() { return this->PolygonProperties->bShowGizmo; }, 
-		[this](bool bNewValue) { this->UpdateShowGizmoState(bNewValue); },
-		true);
+	PolygonProperties->WatchProperty(PolygonProperties->bShowGizmo,
+									 [this](bool bNewValue) { this->UpdateShowGizmoState(bNewValue); });
 
 	// Create a new TransformGizmo and associated TransformProxy. The TransformProxy will not be the
 	// parent of any Components in this case, we just use it's transform and change delegate.
@@ -289,7 +231,7 @@ void UDrawPolygonTool::PopLastVertexAction()
 
 
 
-void UDrawPolygonTool::Tick(float DeltaTime)
+void UDrawPolygonTool::OnTick(float DeltaTime)
 {
 	if (PlaneTransformGizmo != nullptr)
 	{
@@ -438,6 +380,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 		auto DrawVertices = [&PDI, &UseColor](const TArray<FVector3d>& Vertices, ESceneDepthPriorityGroup Group, float Thickness)
 		{
 			for (int lasti = Vertices.Num() - 1, i = 0, NumVertices = Vertices.Num(); i < NumVertices; lasti = i++)
+
 			{
 				PDI->DrawLine((FVector)Vertices[lasti], (FVector)Vertices[i], UseColor, Group, Thickness, 0.0f, true);
 			}
@@ -485,8 +428,6 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		HeightMechanic->Render(RenderAPI);
 	}
-
-	ShowGizmoWatcher.CheckAndUpdate();
 }
 
 
@@ -1004,8 +945,10 @@ void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
 	}
 	else
 	{
-		PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
-			ETransformGizmoSubElements::StandardTranslateRotate, this);
+		if (!PlaneTransformGizmo) {
+			PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
+				ETransformGizmoSubElements::StandardTranslateRotate, this);
+		}
 		PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
 		PlaneTransformGizmo->SetNewGizmoTransform(FTransform((FQuat)DrawPlaneOrientation, (FVector)DrawPlaneOrigin));
 	}

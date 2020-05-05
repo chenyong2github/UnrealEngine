@@ -364,6 +364,7 @@ public:
 	NIAGARA_API UNiagaraScript* GetScript(ENiagaraScriptUsage Usage, FGuid UsageId);
 
 	NIAGARA_API UNiagaraScript* GetGPUComputeScript() { return GPUComputeScript; }
+	NIAGARA_API const UNiagaraScript* GetGPUComputeScript() const { return GPUComputeScript; }
 
 #if WITH_EDITORONLY_DATA
 	/** 'Source' data/graphs for the scripts used by this emitter. */

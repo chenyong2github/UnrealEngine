@@ -296,7 +296,7 @@ void FAssetTypeActions_SoundBase::ExecuteMuteSound(TArray<TWeakObjectPtr<USoundB
 {	
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		FAudioDebugger& Debugger = ADM->GetDebugger();
+		Audio::FAudioDebugger& Debugger = ADM->GetDebugger();
 
 		// In a selection that consists of some already muted, toggle everything in the same direction,
 		// to avoid AB problem.
@@ -320,7 +320,7 @@ void FAssetTypeActions_SoundBase::ExecuteSoloSound(TArray<TWeakObjectPtr<USoundB
 {
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		FAudioDebugger& Debugger = ADM->GetDebugger();
+		Audio::FAudioDebugger& Debugger = ADM->GetDebugger();
 
 		// In a selection that consists of some already soloed, toggle everything in the same direction,
 		// to avoid AB problem.
@@ -345,7 +345,7 @@ bool FAssetTypeActions_SoundBase::IsActionCheckedMute(TArray<TWeakObjectPtr<USou
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		// If *any* of the selection are muted, show the tick box as ticked.
-		FAudioDebugger& Debugger = ADM->GetDebugger();
+		Audio::FAudioDebugger& Debugger = ADM->GetDebugger();
 		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
 			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
@@ -372,7 +372,7 @@ bool FAssetTypeActions_SoundBase::IsActionCheckedSolo(TArray<TWeakObjectPtr<USou
 	// If *any* of the selection are solod, show the tick box as ticked.
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
-		FAudioDebugger& Debugger = ADM->GetDebugger();
+		Audio::FAudioDebugger& Debugger = ADM->GetDebugger();
 		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
 			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
@@ -399,7 +399,7 @@ bool FAssetTypeActions_SoundBase::CanExecuteMuteCommand(TArray<TWeakObjectPtr<US
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		// Allow muting if we're not Soloing.
-		FAudioDebugger& Debugger = ADM->GetDebugger();
+		Audio::FAudioDebugger& Debugger = ADM->GetDebugger();
 		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
 			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))
@@ -429,7 +429,7 @@ bool FAssetTypeActions_SoundBase::CanExecuteSoloCommand(TArray<TWeakObjectPtr<US
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		// Allow Soloing if we're not Muting.
-		FAudioDebugger& Debugger = ADM->GetDebugger();
+		Audio::FAudioDebugger& Debugger = ADM->GetDebugger();
 		for (TWeakObjectPtr<USoundBase> SoundBase : Objects)
 		{
 			if (USoundCue* Cue = Cast<USoundCue>(SoundBase.Get()))

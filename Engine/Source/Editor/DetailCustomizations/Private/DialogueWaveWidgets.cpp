@@ -655,7 +655,7 @@ void STargetsSummaryWidget::GenerateContent()
 		{
 			const TSharedRef<SWrapBox> WrapBox =
 				SNew( SWrapBox )
-				.PreferredWidth(this, &STargetsSummaryWidget::GetPreferredWidthForWrapping);
+				.PreferredSize(this, &STargetsSummaryWidget::GetPreferredWidthForWrapping);
 
 			// Show tiles only.
 			for(uint32 i = 0; i < TargetCount; ++i)

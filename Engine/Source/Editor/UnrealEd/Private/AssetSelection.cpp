@@ -89,7 +89,7 @@ namespace AssetSelectionUtils
 			// Get the class type of the first actor.
 			AActor* FirstActor = SelectedActors[0];
 
-			if( FirstActor && !FirstActor->HasAnyFlags( RF_ClassDefaultObject ) )
+			if( FirstActor && !FirstActor->IsTemplate() )
 			{
 				UClass* FirstClass = FirstActor->GetClass();
 				UObject* FirstArchetype = FirstActor->GetArchetype();
@@ -102,7 +102,7 @@ namespace AssetSelectionUtils
 				{
 					AActor* CurrentActor = SelectedActors[ ActorIndex ];
 
-					if( CurrentActor->HasAnyFlags( RF_ClassDefaultObject ) )
+					if( CurrentActor->IsTemplate() )
 					{
 						continue;
 					}

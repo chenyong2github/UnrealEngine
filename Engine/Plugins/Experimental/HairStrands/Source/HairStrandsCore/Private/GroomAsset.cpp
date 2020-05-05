@@ -771,7 +771,6 @@ FHairSolverSettings::FHairSolverSettings()
 {
 	EnableSimulation = false;
 	NiagaraSolver = EGroomNiagaraSolvers::AngularSprings;
-	KinematicsTarget = false;
 	SubSteps = 5;
 	IterationCount = 5;
 }

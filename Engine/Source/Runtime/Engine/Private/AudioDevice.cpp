@@ -47,7 +47,6 @@
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
 
-
 static int32 AudioChannelCountCVar = 0;
 FAutoConsoleVariableRef CVarSetAudioChannelCount(
 	TEXT("au.SetAudioChannelCount"),
@@ -723,7 +722,7 @@ void FAudioDevice::Teardown()
 	PluginListeners.Reset();
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::RemoveDevice(*this);
+	Audio::FAudioDebugger::RemoveDevice(*this);
 #endif // ENABLE_AUDIO_DEBUG
 }
 
@@ -1404,19 +1403,19 @@ void FAudioDevice::HandleAudioSoloCommon(const TCHAR* Cmd, FOutputDevice& Ar, FT
 
 bool FAudioDevice::HandleAudioSoloSoundClass(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundClass);
+	HandleAudioSoloCommon(Cmd, Ar, &Audio::FAudioDebugger::ToggleSoloSoundClass);
 	return true;
 }
 
 bool FAudioDevice::HandleAudioSoloSoundWave(const TCHAR* Cmd, FOutputDevice& Ar)
 {	
-	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundWave);
+	HandleAudioSoloCommon(Cmd, Ar, &Audio::FAudioDebugger::ToggleSoloSoundWave);
 	return true;
 }
 
 bool FAudioDevice::HandleAudioSoloSoundCue(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	HandleAudioSoloCommon(Cmd, Ar, &FAudioDebugger::ToggleSoloSoundCue);
+	HandleAudioSoloCommon(Cmd, Ar, &Audio::FAudioDebugger::ToggleSoloSoundCue);
 	return true;
 }
 
@@ -2080,7 +2079,13 @@ void FAudioDevice::InitSoundClasses()
 	for (TObjectIterator<USoundClass> It; It; ++It)
 	{
 		USoundClass* SoundClass = *It;
-		FSoundClassProperties& Properties = SoundClasses.Add(SoundClass, SoundClass->Properties);
+		SoundClasses.Add(SoundClass, SoundClass->Properties);
+
+		// Set the dynamic properties
+		FSoundClassDynamicProperties DynamicProperty;
+		DynamicProperty.AttenuationScaleParam.Set(SoundClass->Properties.AttenuationDistanceScale, 0.0f);
+
+		DynamicSoundClassProperties.Add(SoundClass, DynamicProperty);
 	}
 
 	// Propagate the properties down the hierarchy
@@ -2172,7 +2177,6 @@ void FAudioDevice::RecurseIntoSoundClasses(USoundClass* CurrentClass, FSoundClas
 				Properties->Pitch *= ParentProperties.Pitch;
 				Properties->bIsUISound |= ParentProperties.bIsUISound;
 				Properties->bIsMusic |= ParentProperties.bIsMusic;
-				Properties->SetParentAttenuationDistanceScale(ParentProperties.GetAttenuationDistanceScale());
 
 				// Not all values propagate equally...
 				// VoiceCenterChannelVolume, RadioFilterVolume, RadioFilterVolumeThreshold, bApplyEffects, BleedStereo, bReverb, and bCenterChannelOnly do not propagate (sub-classes can be non-zero even if parent class is zero)
@@ -2226,9 +2230,12 @@ void FAudioDevice::ParseSoundClasses(float InDeltaTime)
 		USoundClass* SoundClass = It.Key();
 		if (SoundClass)
 		{
-			// Update any dynamic sound class properties
-			SoundClass->Properties.UpdateSoundClassProperties(InDeltaTime);
+			if (FSoundClassDynamicProperties* DynamicProperties = DynamicSoundClassProperties.Find(SoundClass))
+			{
+				DynamicProperties->AttenuationScaleParam.Update(InDeltaTime);
+			}
 
+			// Reset the property values
 			It.Value() = SoundClass->Properties;
 			if (SoundClass->ParentClass == NULL)
 			{
@@ -3924,7 +3931,7 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 			}
 
 #if ENABLE_AUDIO_DEBUG
-			FAudioDebugger::DrawDebugInfo(*Source);
+			Audio::FAudioDebugger::DrawDebugInfo(*Source);
 #endif // ENABLE_AUDIO_DEBUG
 		}
 	}
@@ -3939,7 +3946,7 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 	}
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::UpdateAudibleInactiveSounds(FirstActiveIndex, WaveInstances);
+	Audio::FAudioDebugger::UpdateAudibleInactiveSounds(FirstActiveIndex, WaveInstances);
 #endif // ENABLE_AUDIO_DEBUG
 }
 
@@ -4137,6 +4144,23 @@ void FAudioDevice::Update(bool bGameTicking)
 	{
 		// Make sure our referenced sound waves is up-to-date
 		UpdateReferencedSoundWaves();
+
+#if ENABLE_AUDIO_DEBUG
+		if (GEngine)
+		{
+			if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
+			{
+				TArray<UWorld*> Worlds = DeviceManager->GetWorldsUsingAudioDevice(DeviceID);
+				for (UWorld* World : Worlds)
+				{
+					if (World)
+					{
+						Audio::FAudioDebugger::DrawDebugStats(*World);
+					}
+				}
+			}
+		}
+#endif // ENABLE_AUDIO_DEBUG
 	}
 
 	if (!IsInAudioThread())
@@ -4191,12 +4215,6 @@ void FAudioDevice::Update(bool bGameTicking)
 
 		// Updates the audio device delta time
 		UpdateDeviceDeltaTime();
-	}
-
-	{
-		SCOPED_NAMED_EVENT(FAudioDevice_UpdateAudioClock, FColor::Blue);
-		// Update the audio clock, this can be overridden per platform to get a sample-accurate clock
-		UpdateAudioClock();
 	}
 
 	{
@@ -4259,17 +4277,18 @@ void FAudioDevice::Update(bool bGameTicking)
 	}
 
 #if ENABLE_AUDIO_DEBUG
-	for (FActiveSound* ActiveSound : ActiveSounds)
+	if (GEngine)
 	{
-		if (!ActiveSound)
+		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			continue;
-		}
-		
-		if (UWorld* World = ActiveSound->GetWorld())
-		{
-			FAudioDebugger::DrawDebugInfo(*World, Listeners);
-			break;
+			TArray<UWorld*> Worlds = DeviceManager->GetWorldsUsingAudioDevice(DeviceID);
+			for (UWorld* World : Worlds)
+			{
+				if (World)
+				{
+					Audio::FAudioDebugger::DrawDebugInfo(*World, Listeners);
+				}
+			}
 		}
 	}
 #endif // ENABLE_AUDIO_DEBUG
@@ -4380,7 +4399,7 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 	}, GET_STATID(STAT_AudioSendResults));
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::SendUpdateResultsToGameThread(*this, FirstActiveIndex);
+	Audio::FAudioDebugger::SendUpdateResultsToGameThread(*this, FirstActiveIndex);
 #endif // ENABLE_AUDIO_DEBUG
 }
 
@@ -6022,6 +6041,10 @@ void FAudioDevice::RegisterSoundClass(USoundClass* InSoundClass)
 		if (!SoundClasses.Contains(InSoundClass))
 		{
 			SoundClasses.Add(InSoundClass, FSoundClassProperties());
+
+			FSoundClassDynamicProperties NewDynamicProperties;
+			NewDynamicProperties.AttenuationScaleParam.Set(InSoundClass->Properties.AttenuationDistanceScale, 0.0f);
+			DynamicSoundClassProperties.Add(InSoundClass, NewDynamicProperties);
 		}
 	}
 }
@@ -6044,6 +6067,7 @@ void FAudioDevice::UnregisterSoundClass(USoundClass* InSoundClass)
 		}
 
 		SoundClasses.Remove(InSoundClass);
+		DynamicSoundClassProperties.Remove(InSoundClass);
 	}
 }
 
@@ -6059,6 +6083,17 @@ FSoundClassProperties* FAudioDevice::GetSoundClassCurrentProperties(USoundClass*
 	return nullptr;
 }
 
+FSoundClassDynamicProperties* FAudioDevice::GetSoundClassDynamicProperties(USoundClass* InSoundClass)
+{
+	if (InSoundClass)
+	{
+		check(IsInAudioThread());
+
+		FSoundClassDynamicProperties* Properties = DynamicSoundClassProperties.Find(InSoundClass);
+		return Properties;
+	}
+	return nullptr;
+}
 
 #if !UE_BUILD_SHIPPING
 /**
@@ -6345,7 +6380,7 @@ void FAudioDevice::OnBeginPIE(const bool bIsSimulating)
 	}
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::OnBeginPIE();
+	Audio::FAudioDebugger::OnBeginPIE();
 #endif // ENABLE_AUDIO_DEBUG
 }
 
@@ -6358,7 +6393,7 @@ void FAudioDevice::OnEndPIE(const bool bIsSimulating)
 	}
 
 #if ENABLE_AUDIO_DEBUG
-	FAudioDebugger::OnEndPIE();
+	Audio::FAudioDebugger::OnEndPIE();
 #endif // ENABLE_AUDIO_DEBUG
 }
 #endif // WITH_EDITOR
@@ -6459,13 +6494,9 @@ void FAudioDevice::SetSoundClassDistanceScale(USoundClass* InSoundClass, float D
 		return;
 	}
 
-	if (FSoundClassProperties* Properties = SoundClasses.Find(InSoundClass))
+	if (FSoundClassDynamicProperties* DynamicProperties = DynamicSoundClassProperties.Find(InSoundClass))
 	{
-		Properties->SetAttenuationDistanceScale(DistanceScale, TimeSec);
-	}
-	else
-	{
-		UE_LOG(LogAudio, Warning, TEXT("Failed to find sound class %s to set attenuation scale."), *InSoundClass->GetName());
+		DynamicProperties->AttenuationScaleParam.Set(DistanceScale, TimeSec);
 	}
 }
 

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright Epic Games, Inc. All Rights Reserved.
  */
 
@@ -168,7 +168,7 @@ namespace iPhonePackager
 		//@TODO: Deprecate this directory
 		public static string PayloadDirectory
 		{
-			get { return Path.GetFullPath(PCStagingRootDir + @"\Payload\" + Program.GameName + (Program.IsClient ? "Client" : "") + Program.Architecture + ".app"); }
+			get { return Path.GetFullPath(PCStagingRootDir + @"\Payload\" + GetTargetName() + Program.Architecture + ".app"); }
 		}
 
 		/// <summary>
@@ -196,11 +196,11 @@ namespace iPhonePackager
 			{
 				if (Program.GameConfiguration == "Development")
 				{
-					return SigningPrefix + Program.GameName + (Program.IsClient ? "Client" : "") + Program.Architecture + ".ipa";
+					return SigningPrefix + GetTargetName() + Program.Architecture + ".ipa";
 				}
 				else
 				{
-					return SigningPrefix + Program.GameName + (Program.IsClient ? "Client" : "") + "-" + Config.OSString + "-" + Program.GameConfiguration + Program.Architecture + ".ipa";
+					return SigningPrefix + GetTargetName() + "-" + Config.OSString + "-" + Program.GameConfiguration + Program.Architecture + ".ipa";
 				}
 			}
 		}
@@ -236,11 +236,11 @@ namespace iPhonePackager
 
 			if (Program.GameConfiguration == "Development")
 			{
-				Filename = Path.Combine(Config.BinariesDirectory, FilePrefix + Program.GameName + (Program.IsClient ? "Client" : "") + Program.Architecture + FileSuffix);
+				Filename = Path.Combine(Config.BinariesDirectory, FilePrefix + GetTargetName() + Program.Architecture + FileSuffix);
 			}
 			else
 			{
-				Filename = Path.Combine(Config.BinariesDirectory, FilePrefix + Program.GameName + (Program.IsClient ? "Client" : "") + "-" + Config.OSString + "-" + Program.GameConfiguration + Program.Architecture + FileSuffix);
+				Filename = Path.Combine(Config.BinariesDirectory, FilePrefix + GetTargetName() + "-" + Config.OSString + "-" + Program.GameConfiguration + Program.Architecture + FileSuffix);
 			}
 
 			return Filename;
@@ -254,24 +254,42 @@ namespace iPhonePackager
 			string Filename;
 
 			string BinariesDir = BinariesDirectory;
-			string GameName = Program.GameName;
+			string ExeName = Program.GameName;
 			if (!String.IsNullOrEmpty(ProjectFile))
 			{
 				BinariesDir = Path.Combine(Path.GetDirectoryName(ProjectFile), "Binaries", Config.OSString);
-				GameName = Path.GetFileNameWithoutExtension(ProjectFile);
+				ExeName = Path.GetFileNameWithoutExtension(ProjectFile);
 			}
+			if (!bIsCodeBasedProject)
+			{
+				ExeName = (Program.IsClient ? "UE4Client" : "UE4Game");
+			}
+			else if(Program.IsClient)
+			{
+				ExeName += "Client";
+			}
+
 			if (Program.GameConfiguration == "Development")
 			{
-				Filename = Path.Combine(BinariesDir, FilePrefix + (bIsCodeBasedProject ? GameName : "UE4Game") + (Program.IsClient ? "Client" : "") + Program.Architecture + FileSuffix);
+				Filename = Path.Combine(BinariesDir, FilePrefix + ExeName + Program.Architecture + FileSuffix);
 			}
 			else
 			{
-				Filename = Path.Combine(BinariesDir, FilePrefix + (bIsCodeBasedProject ? GameName : "UE4Game") + (Program.IsClient ? "Client" : "") + "-" + Config.OSString + "-" + Program.GameConfiguration + Program.Architecture + FileSuffix);
+				Filename = Path.Combine(BinariesDir, FilePrefix + ExeName + "-" + Config.OSString + "-" + Program.GameConfiguration + Program.Architecture + FileSuffix);
 			}
 
 			// ensure the directory exists
 			
 			return Filename;
+		}
+
+
+		/// <summary>
+		/// Returns target name, either the GameName + optional Client or specified by -targetname
+		/// </summary>
+		public static string GetTargetName()
+		{
+			return TargetName != "" ? TargetName : Program.GameName + (Program.IsClient ? "Client" : "");
 		}
 
 		/// <summary>
@@ -281,11 +299,11 @@ namespace iPhonePackager
 		{
 			if (Program.GameConfiguration == "Development")
 			{
-				return FileOperations.FindPrefixedFile(Config.BinariesDirectory, Program.GameName + (Program.IsClient ? "Client" : "") + Program.Architecture + FileSuffix);
+				return FileOperations.FindPrefixedFile(Config.BinariesDirectory, GetTargetName() + Program.Architecture + FileSuffix);
 			}
 			else
 			{
-				return FileOperations.FindPrefixedFile(Config.BinariesDirectory, Program.GameName + (Program.IsClient ? "Client" : "") + "-" + Config.OSString + "-" + Program.GameConfiguration + Program.Architecture + FileSuffix);
+				return FileOperations.FindPrefixedFile(Config.BinariesDirectory, GetTargetName() + "-" + Config.OSString + "-" + Program.GameConfiguration + Program.Architecture + FileSuffix);
 			}
 		}
 
@@ -356,6 +374,11 @@ namespace iPhonePackager
 		public static string ProvisionFile;
 
 		/// <summary>
+		/// target name specificied by the command line, if not set GameName + optional Client will be used
+		/// </summary>
+		public static string TargetName = "";
+
+		/// <summary>
 		/// IOS Team ID to be used for automatic signing
 		/// </summary>
 		public static string TeamID = "";
@@ -396,7 +419,7 @@ namespace iPhonePackager
 		/// </summary>
 		public static string AppDirectoryInZIP
 		{
-			get { return String.Format("Payload/{0}{1}.app", Program.GameName + (Program.IsClient ? "Client" : ""), Program.Architecture); }
+			get { return String.Format("Payload/{0}{1}.app", GetTargetName(), Program.Architecture); }
 		}
 
 		/// <summary>
@@ -484,7 +507,7 @@ namespace iPhonePackager
 			// Root directory on PC for staging files to copy to Mac
 			Config.PCStagingRootDir = String.Format(@"{0}-Deploy\{1}\{2}{3}\",
 				IntermediateDirectory,
-				Program.GameName + (Program.IsClient ? "Client" : ""),
+				GetTargetName(),
 				Program.GameConfiguration,
 				Program.Architecture);
 

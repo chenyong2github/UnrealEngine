@@ -21,12 +21,12 @@
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Chaos/ChaosNotifyHandlerInterface.h"
 #include "Chaos/ChaosSolverComponentTypes.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 #include "GeometryCollectionComponent.generated.h"
 
 struct FGeometryCollectionConstantData;
 struct FGeometryCollectionDynamicData;
-class FGeometryCollectionPhysicsProxy;
 class UGeometryCollectionComponent;
 class UBoxComponent;
 class UGeometryCollectionCache;
@@ -415,12 +415,12 @@ public:
 	float CollisionSampleFraction;
 
 	/** Uniform linear ether drag. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Ether Drag")
-	float LinearEtherDrag;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use PhysicalMaterial instead."))
+	float LinearEtherDrag_DEPRECATED;
 
 	/** Uniform angular ether drag. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Ether Drag")
-	float AngularEtherDrag;
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use PhysicalMaterial instead."))
+	float AngularEtherDrag_DEPRECATED;
 
 	/** Physical Properties */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics")
@@ -463,8 +463,6 @@ public:
 	FNotifyGeometryCollectionPhysicsLoadingStateChange NotifyGeometryCollectionPhysicsLoadingStateChange;
 	
 	bool GetIsObjectLoading() { return IsObjectLoading; }
-
-
 
 	/**
 	*
@@ -533,6 +531,7 @@ public:
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Chaos")
 	bool CachePlayback;
 
+	bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
@@ -633,6 +632,8 @@ private:
 	bool IsEqual(const TArray<FMatrix> &A, const TArray<FMatrix> &B, const float Tolerance = 1e-6);
 	TArray<bool> TransformsAreEqual;	
 	int32 TransformsAreEqualIndex;
+
+	UChaosGameplayEventDispatcher* EventDispatcher;
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	bool bIsTransformSelectionModeEnabled;

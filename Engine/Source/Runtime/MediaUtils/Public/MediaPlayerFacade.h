@@ -817,6 +817,10 @@ private:
 	/** Flag indicating that we have an active audio setup */
 	bool bHaveActiveAudio;
 
+	/** Flag indicating the current availability of media samples. **/
+	int32 VideoSampleAvailability;
+	int32 AudioSampleAvailability;
+
 	/** An event delegate that is invoked when a media event occurred. */
 	FOnMediaEvent MediaEvent;
 
@@ -849,6 +853,9 @@ private:
 
 	/** Estimation for next frame's video timestamp (used when no audio present or active in stream) */
 	FMediaTimeStamp NextEstVideoTimeAtFrameStart;
+
+	/** Set if sinks are to be flushed at the request of the player. **/
+	TAtomic<bool>	bIsSinkFlushPending;
 
 	/** Mediamodule we are working in */
 	IMediaModule* MediaModule;

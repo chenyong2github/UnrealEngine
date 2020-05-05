@@ -962,4 +962,23 @@ void UDataprepOperationsLibrary::SetSubOuputFolder(const TArray<UObject*>& Selec
 	}
 }
 
+void UDataprepOperationsLibrary::AddToLayer(const TArray<UObject*>& SelectedObjects, const FName& LayerName)
+{
+	if (LayerName == NAME_None)
+	{
+		return;
+	}
+
+	for (UObject* Object : SelectedObjects)
+	{
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			if (Actor && !Actor->IsPendingKill())
+			{
+				Actor->Layers.AddUnique(LayerName);
+			}
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

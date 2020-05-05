@@ -258,7 +258,7 @@ void FIOSPlatformApplicationMisc::ClipboardPaste(class FString& Result)
 EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensity(int32& ScreenDensity)
 {
 	FPlatformMisc::EIOSDevice Device = FPlatformMisc::GetIOSDeviceType();
-	static_assert( FPlatformMisc::EIOSDevice::IOS_Unknown == 45, "Every device needs to be handled here." );
+	static_assert( FPlatformMisc::EIOSDevice::IOS_Unknown == 56, "Every device needs to be handled here." );
 
 	ScreenDensity = 0;
 	EScreenPhysicalAccuracy Accuracy = EScreenPhysicalAccuracy::Unknown;
@@ -282,6 +282,7 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 	case FPlatformMisc::IOS_IPhone8:
     case FPlatformMisc::IOS_IPhoneXR:
 	case FPlatformMisc::IOS_IPhone11:
+	case FPlatformMisc::IOS_IPhoneSE2:
 		ScreenDensity = 326;
 		Accuracy = EScreenPhysicalAccuracy::Truth;
 		break;
@@ -321,8 +322,10 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 	case FPlatformMisc::IOS_IPadPro_129:
 	case FPlatformMisc::IOS_IPadPro_105:
 	case FPlatformMisc::IOS_IPadPro_11:
+	case FPlatformMisc::IOS_IPadPro2_11:
 	case FPlatformMisc::IOS_IPadPro2_129:
 	case FPlatformMisc::IOS_IPadPro3_129:
+	case FPlatformMisc::IOS_IPadPro4_129:
 		ScreenDensity = 264;
 		Accuracy = EScreenPhysicalAccuracy::Truth;
 		break;
@@ -330,6 +333,14 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 	case FPlatformMisc::IOS_AppleTV4K:
 		Accuracy = EScreenPhysicalAccuracy::Unknown;
 		break;
+	case FPlatformMisc::IOS_NewDevice1:
+	case FPlatformMisc::IOS_NewDevice2:
+	case FPlatformMisc::IOS_NewDevice3:
+	case FPlatformMisc::IOS_NewDevice4:
+	case FPlatformMisc::IOS_NewDevice5:
+	case FPlatformMisc::IOS_NewDevice6:
+	case FPlatformMisc::IOS_NewDevice7:
+	case FPlatformMisc::IOS_NewDevice8:
 	default:
 		// If we don't know, assume that the density is a multiple of the 
 		// native Content Scaling Factor.  Won't be exact, but should be close enough.

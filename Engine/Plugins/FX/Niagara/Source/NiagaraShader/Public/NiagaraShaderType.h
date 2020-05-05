@@ -63,12 +63,11 @@ public:
 			FShaderType* InType,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
-			int32 InResourceIndex,
 			const FSHAHash& InNiagaraShaderMapHash,
 			const FString& InDebugDescription,
 			const TArray< FNiagaraDataInterfaceGPUParamInfo > &InDIParamInfo
 			)
-		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InResourceIndex, InNiagaraShaderMapHash,nullptr,nullptr)
+		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InNiagaraShaderMapHash,nullptr,nullptr)
 		, DebugDescription(InDebugDescription)
 		, DIParamInfo(InDIParamInfo)
 		{}
@@ -123,8 +122,7 @@ public:
 	FShader* FinishCompileShader(
 		const FSHAHash& NiagaraShaderMapHash,
 		const FShaderCompileJob& CurrentJob,
-		const FString& InDebugDescription,
-		FShaderMapResourceBuilder& ResourceBuilder
+		const FString& InDebugDescription
 		);
 
 	/**

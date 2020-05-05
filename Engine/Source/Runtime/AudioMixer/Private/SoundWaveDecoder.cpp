@@ -53,7 +53,7 @@ namespace Audio
 		const ELoopingMode LoopingMode = SoundWave->bLooping ? ELoopingMode::LOOP_Forever : ELoopingMode::LOOP_Never;
 		const bool bIsSeeking = SeekTime > 0.0f;
 
-		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, *SoundWave, LoopingMode, bIsSeeking, bForceSyncDecode);
+		MixerSourceBuffer = FMixerSourceBuffer::Create(InSampleRate, *MixerBuffer, *SoundWave, LoopingMode, bIsSeeking, bForceSyncDecode);
 		return MixerSourceBuffer.IsValid();
 	}
 

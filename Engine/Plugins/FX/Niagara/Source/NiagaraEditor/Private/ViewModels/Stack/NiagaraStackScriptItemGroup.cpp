@@ -108,8 +108,8 @@ public:
 
 	static TSharedRef<FScriptGroupAddAction> CreateNewSetSpecificModuleAction()
 	{
-		FText DisplayName = LOCTEXT("NewSetSpecificModuleName", "Set new or existing value directly");
-		FText Description = LOCTEXT("NewSetSpecificModuleDescription", "Description: Create a new module that can set new orexisting values directly.");
+		FText DisplayName = LOCTEXT("NewSetSpecificModuleName", "Set new or existing parameter directly");
+		FText Description = LOCTEXT("NewSetSpecificModuleDescription", "Description: Create a new module that can set new or existing parameters directly.");
 		return MakeShareable(new FScriptGroupAddAction(FText(), DisplayName, Description, FText(), FNiagaraVariable(), false, FAssetData(), nullptr, false, true));
 	}
 

@@ -467,9 +467,8 @@ void LightScatteringCS(
 	// Supersample if the history was outside the camera frustum
 	// The compute shader is dispatched with extra threads, make sure those don't supersample
 	NumSuperSamples = HistoryAlpha < .001f && all(GridCoordinate < VolumetricFog.GridSizeInt) ? HISTORY_MISS_SUPER_SAMPLE_COUNT : 1;
-
 #endif
-	UNROLL
+
 	for (uint SampleIndex = 0; SampleIndex < NumSuperSamples; SampleIndex++)
 	{
 		float3 CellOffset = FrameJitterOffsets[SampleIndex].xyz;
@@ -558,17 +557,6 @@ void LightScatteringCS(
 			LightScattering += (StaticLightingScatteringIntensity / PI) * max(DotSH(IrradianceSH, RotatedHGZonalHarmonic), 0);
 		}
 #endif
-	}
-
-	for (uint SampleIndex = 0; SampleIndex < NumSuperSamples; SampleIndex++)
-	{
-		float3 CellOffset = FrameJitterOffsets[SampleIndex].xyz;
-		//float CellOffset = .5f;
-
-		float SceneDepth;
-		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, CellOffset, SceneDepth);
-		float CameraVectorLength = length(WorldPosition - View.WorldCameraOrigin);
-		float3 CameraVector = (WorldPosition - View.WorldCameraOrigin) / CameraVectorLength;
 
 		uint GridIndex = ComputeLightGridCellIndex(GridCoordinate.xy * VolumetricFog.FogGridToPixelXY, SceneDepth, 0);
 		const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, 0);
@@ -598,8 +586,8 @@ void LightScatteringCS(
 				LightData.SpotAngles = LocalLight.SpotAnglesAndSourceRadiusPacked.xy;
 				LightData.SourceRadius = LocalLight.SpotAnglesAndSourceRadiusPacked.z;
 				LightData.SourceLength = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w));
-                LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
-                LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
+				LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
+				LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
 				LightData.bInverseSquared = LightData.FalloffExponent == 0;
 				LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoor.x;
 				LightData.RectLightBarnLength = LocalLight.RectBarnDoor.y;

@@ -15,15 +15,14 @@ public:
 	/** Radius */
 	double Radius = 1;
 
-	int NumPhi = 16; // number of vertices along vertical extent from north pole to south pole
-	int NumTheta = 16; // number of vertices around circles
+	int NumPhi = 3; // number of vertices along vertical extent from north pole to south pole
+	int NumTheta = 3; // number of vertices around circles
 
-	/** If true, each quad of sphere gets a separate polygroup */
+	/** If true, each quad of box gets a separate polygroup */
 	bool bPolygroupPerQuad = false;
 
-public:
-
-	inline static FVector3d SphericalToCartesian(double r, double theta, double phi)
+private:
+	static FVector3d SphericalToCartesian(double r, double theta, double phi)
 	{
 		double Sphi = sin(phi);
 		double Cphi = cos(phi);
@@ -33,184 +32,173 @@ public:
 		return FVector3d(r * Ctheta * Sphi, r * Stheta * Sphi, r * Cphi);
 	}
 
-	/** Generate the mesh */
-	virtual FMeshShapeGenerator& Generate() override
+	void GenerateVertices()
 	{
-		// enforce sane values for vertex counts
-		if (NumPhi < 3)
+		auto SetVertex = [this](int32 VtxIdx,
+								FVector3d Pos, FVector3f Normal )
 		{
-			NumPhi = 3;
-		}
-		if (NumTheta < 3)
-		{
-			NumTheta = 3;
-		}
-		int32 NumVertices = (NumPhi - 2) * NumTheta + 2;
-		int32 NumUVs = NumPhi * (NumTheta + 1);
-		int32 NumTris = (NumPhi - 2) * NumTheta * 2;
-		SetBufferSizes(NumVertices, NumTris, NumUVs, NumVertices);
-
-		double Dphi = FMathd::Pi / double(NumPhi - 1);
-		double Dtheta = FMathd::TwoPi / double(NumTheta);
-		float DUVphi = 1.0 / float(NumPhi - 1);
-		float DUVtheta = 1.0 / float(NumTheta);
-
-		TArray<int32> Grid2d; Grid2d.SetNumUninitialized(NumTheta * NumPhi);
-		for (int32 i = 0; i < NumTheta * NumPhi; ++i)
-		{
-			Grid2d[i] = -1;
-		}
-
-
-		auto GridInterface = [&Grid2d, this](int32 itheta, int32 jphi)->int32&
-		{
-			// make periodic in j
-			while (itheta >= NumTheta) { itheta = itheta - NumTheta; }
-
-			int32 offset = itheta + jphi * NumTheta;
-
-			return Grid2d[offset];
+			Vertices[VtxIdx] = Pos;
+			Normals[VtxIdx] = Normal;
+			NormalParentVertex[VtxIdx] = VtxIdx;
 		};
-
-		int32 VtxIdx = 0;
-		for (int32 p = 1; p < NumPhi - 1; ++p) // NB: this skips the poles.
 		{
-			double Phi = p * Dphi;
+			const double Dphi = FMathd::Pi / double(NumPhi - 1);
+			const double Dtheta = FMathd::TwoPi / double(NumTheta);
 
-			for (int32 t = 0; t < NumTheta; ++t)
+			int32 p,t;
+			double Phi, Theta;
+			int32 VtxIdx = 0;
+
+			// Add points between the poles
+			for (p = 1, Phi = Dphi; p < NumPhi - 1; ++p, Phi += Dphi) // NB: this skips the poles.
 			{
-				double Theta = t * Dtheta;
-				FVector3d Pos = SphericalToCartesian(1., Theta, Phi);
-
-				Vertices[VtxIdx] = Pos * Radius;
-				Normals[VtxIdx] = FVector3f(Pos);
-				NormalParentVertex[VtxIdx] = VtxIdx;
-				GridInterface(t, p) = VtxIdx;
-				VtxIdx++;
+				for (t = 0, Theta = 0; t < NumTheta; ++t, ++VtxIdx, Theta += Dtheta)
+				{
+					FVector3d Normal = SphericalToCartesian(1., Theta, Phi);
+					SetVertex(VtxIdx, Normal * Radius, FVector3f(Normal));
+				}
 			}
+			// add a single point at the North Pole
+			SetVertex(VtxIdx++, FVector3d::UnitZ() * Radius, FVector3f::UnitZ());
+			// add a single point at the South Pole
+			SetVertex(VtxIdx++, -FVector3d::UnitZ() * Radius, -FVector3f::UnitZ());
 		}
+	}
 
-
-		// add a single point at the North Pole
-		{
-			FVector3d Pos = SphericalToCartesian(1., 0., 0.);
-			Vertices[VtxIdx] = Pos * Radius;
-			Normals[VtxIdx] = FVector3f(Pos);
-			NormalParentVertex[VtxIdx] = VtxIdx;
-
-			for (int32 t = 0; t < NumTheta; ++t)
-			{
-				GridInterface(t, 0) = VtxIdx;
-			}
-
-			VtxIdx++;
-		}
-		// add a single point at the south pole
-		{
-			FVector3d Pos = SphericalToCartesian(-1., 0., 0.);
-			Vertices[VtxIdx] = Pos * Radius;
-			Normals[VtxIdx] = FVector3f(Pos);
-			NormalParentVertex[VtxIdx] = VtxIdx;
-
-			for (int32 t = 0; t < NumTheta; ++t)
-			{
-				GridInterface(t, NumPhi - 1) = VtxIdx;
-			}
-
-			VtxIdx++;
-		}
+	void GenerateUVVertices()
+	{
+		// generate the UV's
+		const float DUVphi = 1.0 / float(NumPhi - 1);
+		const float DUVtheta = -1.0 / float(NumTheta);
 
 		int32 UVIdx = 0;
-		auto UVIdxLookup = [this](int32 t, int32 p)
+		int32 p,t;
+		float UVPhi, UVTheta;
+		for ( p = 1, UVPhi = DUVphi; p < NumPhi - 1; ++p, UVPhi += DUVphi)
 		{
-			check(t >= 0 && t <= NumTheta);
-			return p * (NumTheta+1) + t;
-		};
-		for (int32 p = 0; p < NumPhi; ++p) // NB: this skips the poles.
-		{
-			float Phi = p * DUVphi;
-
-			for (int32 t = 0; t <= NumTheta; ++t)
+			for (t = 0, UVTheta = 1; t < NumTheta; ++t, ++UVIdx, UVTheta += DUVtheta)
 			{
-				float Theta = 1 - t * DUVtheta;
-				UVs[UVIdx] = FVector2f(Theta, Phi);
-				UVParentVertex[UVIdx] = GridInterface(t, p);
-				ensure(UVIdxLookup(t, p) == UVIdx);
-
-				UVIdx++;
+				UVs[UVIdx] = FVector2f(UVTheta, UVPhi);
+				UVParentVertex[UVIdx] = (p - 1) * NumTheta + t;
 			}
+			UVs[UVIdx] = FVector2f(UVTheta, UVPhi);
+			UVParentVertex[UVIdx] = (p - 1) * NumTheta; // Wrap around
+			++UVIdx;
 		}
+		int32 NorthPoleVtxIdx = (NumPhi - 2) * NumTheta;
+		for (t = 0, UVTheta = 1 + DUVtheta; t < NumTheta; ++t, ++UVIdx, UVTheta += DUVtheta)
+		{
+			UVs[UVIdx] = FVector2f(UVTheta, 0.0);
+			UVParentVertex[UVIdx] = NorthPoleVtxIdx;
+		}
+		int32 SouthPoleVtxIdx = NorthPoleVtxIdx + 1;
+		for (t = 0, UVTheta = 1 + DUVtheta; t < NumTheta; ++t, ++UVIdx, UVTheta += DUVtheta)
+		{
+			UVs[UVIdx] = FVector2f(UVTheta, 1.0);
+			UVParentVertex[UVIdx] = SouthPoleVtxIdx;
+		}
+	}
 
+	using CornerIndices =  FVector3i;
+	void OutputTriangle(int TriIdx, int PolyIdx,  CornerIndices Corners, CornerIndices UVCorners)
+	{
+		SetTriangle(TriIdx, Corners.X, Corners.Y, Corners.Z);
+		SetTrianglePolygon(TriIdx, PolyIdx);
+		SetTriangleUVs(TriIdx, UVCorners.X, UVCorners.Y, UVCorners.Z);
+		SetTriangleNormals(TriIdx, Corners.X, Corners.Y, Corners.Z);
+	}
+
+	void OutputEquatorialTriangles()
+	{
 		int32 TriIdx = 0, PolyIdx = 0;
+
+		// Generate equatorial triangles
+		int32 Corners[4] =   { 0, 1,     NumTheta + 1, NumTheta};
+		int32 UVCorners[4] = { 0, 1, NumTheta + 2, NumTheta + 1};
 		for (int32 p = 1; p < NumPhi - 2; ++p)
 		{
-			for (int32 t = 0; t < NumTheta; ++t)
+			for (int32 t = 0; t < NumTheta - 1; ++t)
 			{
-				// (p,t), (p, t+1), (p+1, t), (p+1, t+1) are the 4 corners of a quad.
-				// counter clockwise.
-				int32 Corners[4] = { GridInterface(t, p + 1), GridInterface(t + 1, p + 1), GridInterface(t + 1, p), GridInterface(t, p) };
-				int32 UVCorners[4] = { UVIdxLookup(t, p + 1),   UVIdxLookup(t + 1, p + 1),   UVIdxLookup(t + 1, p),   UVIdxLookup(t, p) };
-
 				// convert each quad into 2 triangles.
-
-				SetTriangle(TriIdx, Corners[0], Corners[2], Corners[1]);
-				SetTrianglePolygon(TriIdx, PolyIdx);
-				SetTriangleUVs(TriIdx, UVCorners[0], UVCorners[2], UVCorners[1]);
-				SetTriangleNormals(TriIdx, Corners[0], Corners[2], Corners[1]);
-				TriIdx++;
-
-				SetTriangle(TriIdx, Corners[2], Corners[0], Corners[3]);
-				SetTrianglePolygon(TriIdx, PolyIdx);
-				SetTriangleUVs(TriIdx, UVCorners[2], UVCorners[0], UVCorners[3]);
-				SetTriangleNormals(TriIdx, Corners[2], Corners[0], Corners[3]);
-				TriIdx++;
+				OutputTriangle(TriIdx++, PolyIdx,
+							   {Corners[0],   Corners[1],   Corners[2]},
+							   {UVCorners[0], UVCorners[1], UVCorners[2]});
+				OutputTriangle(TriIdx++, PolyIdx,
+							   {Corners[2],   Corners[3],   Corners[0]},
+							   {UVCorners[2], UVCorners[3], UVCorners[0]});
+				for (auto& i : Corners) ++i; 
+				for (auto& i : UVCorners) ++i;
 				if (bPolygroupPerQuad)
 				{
 					PolyIdx++;
 				}
 			}
-		}
-
-		// Do Triangles that connect to north pole
-		{
-			int32 p = 0; // North pole 
-			for (int32 t = 0; t < NumTheta; ++t)
+			OutputTriangle(TriIdx++, PolyIdx,
+						   {Corners[0], Corners[1] - NumTheta, Corners[2] - NumTheta},
+						   {UVCorners[0]         , UVCorners[1],            UVCorners[2] });
+			OutputTriangle(TriIdx++, PolyIdx,
+						   {Corners[2] - NumTheta, Corners[3],   Corners[0]},
+						   {UVCorners[2],          UVCorners[3],            UVCorners[0]});
+			for (auto& i : Corners) ++i; 
+			for (auto& i : UVCorners) i += 2;
+			if (bPolygroupPerQuad)
 			{
-				int32 Corners[3] = { GridInterface(t, p + 1), GridInterface(t + 1, p + 1), GridInterface(t + 1, p) };
-				int32 UVCorners[3] = { UVIdxLookup(t, p + 1),   UVIdxLookup(t + 1, p + 1),   UVIdxLookup(t + 1, p) };
-
-				SetTriangle(TriIdx, Corners[0], Corners[2], Corners[1]);
-				SetTrianglePolygon(TriIdx, PolyIdx);
-				SetTriangleUVs(TriIdx, UVCorners[0], UVCorners[2], UVCorners[1]);
-				SetTriangleNormals(TriIdx, Corners[0], Corners[2], Corners[1]);
-				TriIdx++;
-				if (bPolygroupPerQuad)
-				{
-					PolyIdx++;
-				}
+				PolyIdx++;
 			}
 		}
+	}
 
-		// Do Triangles that connect to south pole
+	void OutputPolarTriangles()
+	{
+		const int32 NumEquatorialVtx = (NumPhi - 2) * NumTheta;
+		const int32 NumEquatorialUVVtx = (NumPhi - 2) * (NumTheta + 1);
+		const int32 NorthPoleVtxIdx = NumEquatorialVtx;
+		const int32 SouthPoleVtxIdx = NumEquatorialVtx + 1;
+		int32 PolyIdx = NumTheta  * (NumPhi - 3);
+		int32 TriIdx = PolyIdx * 2;
+
+		// Triangles that connect to north pole
+		for (int32 t = 0; t < NumTheta; ++t)
 		{
-			int32 p = NumPhi - 2; // South pole 
-			for (int32 t = 0; t < NumTheta; ++t)
+			OutputTriangle(TriIdx++, PolyIdx,
+						   {t, NorthPoleVtxIdx,       (t + 1) % NumTheta},
+						   {t, NumEquatorialUVVtx + t, t + 1});
+			if (bPolygroupPerQuad)
 			{
-				int32 Corners[4] = { GridInterface(t, p + 1), GridInterface(t + 1, p), GridInterface(t, p) };
-				int32 UVCorners[3] = { UVIdxLookup(t, p + 1),   UVIdxLookup(t + 1, p),   UVIdxLookup(t, p) };
-
-				SetTriangle(TriIdx, Corners[0], Corners[2], Corners[1]);
-				SetTrianglePolygon(TriIdx, PolyIdx);
-				SetTriangleUVs(TriIdx, UVCorners[0], UVCorners[2], UVCorners[1]);
-				SetTriangleNormals(TriIdx, Corners[0], Corners[2], Corners[1]);
-				TriIdx++;
-				if (bPolygroupPerQuad)
-				{
-					PolyIdx++;
-				}
+				PolyIdx++;
 			}
 		}
 
+		// Triangles that connect to South pole
+		const int32 Offset   = NumEquatorialVtx - NumTheta;
+		const int32 OffsetUV = NumEquatorialUVVtx - (NumTheta + 1);
+		for (int32 t = 0; t < NumTheta; ++t)
+		{
+			OutputTriangle(TriIdx++, PolyIdx,
+						   {t + Offset,   ((t + 1) % NumTheta) + Offset, SouthPoleVtxIdx},
+						   {t + OffsetUV, t + 1 + OffsetUV             , NumEquatorialUVVtx + NumTheta + t});
+			if (bPolygroupPerQuad)
+			{
+				PolyIdx++;
+			}
+		}
+	}
+public:
+	/** Generate the mesh */
+	FMeshShapeGenerator& Generate() override
+	{
+		// enforce sane values for vertex counts
+		NumPhi = FMath::Max(NumPhi, 3);
+		NumTheta = FMath::Max(NumTheta, 3);
+		const int32 NumVertices = (NumPhi - 2) * NumTheta + 2;
+		const int32 NumUVs = (NumPhi - 2) * (NumTheta + 1) + (2 * NumTheta);
+		const int32 NumTris = (NumPhi - 2) * NumTheta * 2;
+		SetBufferSizes(NumVertices, NumTris, NumUVs, NumVertices);
+
+		GenerateVertices();
+		GenerateUVVertices();
+		OutputEquatorialTriangles();
+		OutputPolarTriangles();
 		return *this;
 	}
 

@@ -252,10 +252,17 @@ struct FLandscapeComponentGrassData
 #if WITH_EDITORONLY_DATA
 	// Height data for LODs 1+, keyed on LOD index
 	TMap<int32, TArray<uint16>> HeightMipData;
+
+	// Grass data was updated but not saved yet
+	bool bIsDirty;
 #endif
 	TMap<ULandscapeGrassType*, TArray<uint8>> WeightData;
 
-	FLandscapeComponentGrassData() {}
+	FLandscapeComponentGrassData()
+#if WITH_EDITORONLY_DATA
+		: bIsDirty(false) 
+#endif
+	{}
 
 #if WITH_EDITOR
 	FLandscapeComponentGrassData(ULandscapeComponent* Component);

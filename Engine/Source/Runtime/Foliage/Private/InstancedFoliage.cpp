@@ -3803,6 +3803,25 @@ void AInstancedFoliageActor::PostLoad()
 					}
 				}
 			}
+
+			// Fixup corrupted data
+			if (Info.Type == EFoliageImplType::StaticMesh)
+			{
+				UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType);
+				if (UStaticMesh* FoliageTypeStaticMesh = FoliageType_InstancedStaticMesh->GetStaticMesh())
+				{
+					FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Info.Implementation.Get());
+					if (UHierarchicalInstancedStaticMeshComponent* HISMComponent = FoliageStaticMesh->Component)
+					{
+						HISMComponent->ConditionalPostLoad();
+						UStaticMesh* ComponentStaticMesh = HISMComponent->GetStaticMesh();
+						if (ComponentStaticMesh != FoliageTypeStaticMesh)
+						{
+							HISMComponent->SetStaticMesh(FoliageTypeStaticMesh);
+						}
+					}
+				}
+			}
 		}
 
 		UWorld* World = GetWorld();

@@ -28,16 +28,20 @@ void CopySurfelBufferCS(
 		uint SourceIndex = CopyOperationIndex;
 		uint DestIndex = CopyOperationIndex;
 
-		UNROLL
-		for (uint VectorIndex = 0; VectorIndex < INTERPOLATED_VERTEX_DATA_STRIDE; VectorIndex++)
 		{
-			RWCopyInterpolatedVertexData[DestIndex * INTERPOLATED_VERTEX_DATA_STRIDE + VectorIndex] = InterpolatedVertexData[SourceIndex * INTERPOLATED_VERTEX_DATA_STRIDE + VectorIndex];
+			UNROLL
+			for (uint VectorIndex = 0; VectorIndex < INTERPOLATED_VERTEX_DATA_STRIDE; VectorIndex++)
+			{
+				RWCopyInterpolatedVertexData[DestIndex * INTERPOLATED_VERTEX_DATA_STRIDE + VectorIndex] = InterpolatedVertexData[SourceIndex * INTERPOLATED_VERTEX_DATA_STRIDE + VectorIndex];
+			}
 		}
 
-		UNROLL
-		for (uint VectorIndex = 0; VectorIndex < SURFEL_DATA_STRIDE; VectorIndex++)
 		{
-			RWCopySurfelData[DestIndex * SURFEL_DATA_STRIDE + VectorIndex] = SurfelData[SourceIndex * SURFEL_DATA_STRIDE + VectorIndex];
+			UNROLL
+			for (uint VectorIndex = 0; VectorIndex < SURFEL_DATA_STRIDE; VectorIndex++)
+			{
+				RWCopySurfelData[DestIndex * SURFEL_DATA_STRIDE + VectorIndex] = SurfelData[SourceIndex * SURFEL_DATA_STRIDE + VectorIndex];
+			}
 		}
 	}
 }

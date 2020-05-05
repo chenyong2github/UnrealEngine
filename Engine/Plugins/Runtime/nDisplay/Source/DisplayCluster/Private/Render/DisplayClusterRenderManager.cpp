@@ -747,7 +747,7 @@ void FDisplayClusterRenderManager::ResizeWindow(int32 WinX, int32 WinY, int32 Re
 	window->ReshapeWindow(FVector2D(WinX, WinY), FVector2D(ResX, ResY));
 }
 
-void FDisplayClusterRenderManager::OnViewportCreatedHandler_SetCustomPresent()
+void FDisplayClusterRenderManager::OnViewportCreatedHandler_SetCustomPresent() const
 {
 	if (GEngine && GEngine->GameViewport)
 	{
@@ -758,7 +758,7 @@ void FDisplayClusterRenderManager::OnViewportCreatedHandler_SetCustomPresent()
 	}
 }
 
-void FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass()
+void FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass() const
 {
 	if (GEngine && GEngine->GameViewport)
 	{
@@ -770,7 +770,7 @@ void FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass()
 	}
 }
 
-void FDisplayClusterRenderManager::OnBeginDrawHandler()
+void FDisplayClusterRenderManager::OnBeginDrawHandler() const
 {
 	static bool initialized = false;
 	if (!initialized && GEngine->GameViewport->Viewport->GetViewportRHI().IsValid())

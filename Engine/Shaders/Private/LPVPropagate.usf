@@ -423,20 +423,22 @@ void CSPropagate(uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID
 	ldsCacheOrigin -= int3(1,1,1);
 #endif
 
-	for (int i=0;i<4;i++)
 	{
-		// Get the cell index,from 0-215 (6x6x6 block). There will be 4 indices per thread (with some duplication)
-		uint cellCacheIndex = laneID*4+i;
-		if ( cellCacheIndex < (6*6*6) )
+		for (int i=0;i<4;i++)
 		{
-			uint3 offset3;
-			offset3.x = ( cellCacheIndex % 6 );
-			offset3.y = ( cellCacheIndex / 6 ) %  6;
-			offset3.z = cellCacheIndex / ( 6 * 6 );
-			int3 cachedGridPos = ldsCacheOrigin + int3(offset3);
-			LPVCell CachedThreadCell = ReadLpvCell( GetGridAddress(cachedGridPos) );
+			// Get the cell index,from 0-215 (6x6x6 block). There will be 4 indices per thread (with some duplication)
+			uint cellCacheIndex = laneID*4+i;
+			if ( cellCacheIndex < (6*6*6) )
+			{
+				uint3 offset3;
+				offset3.x = ( cellCacheIndex % 6 );
+				offset3.y = ( cellCacheIndex / 6 ) %  6;
+				offset3.z = cellCacheIndex / ( 6 * 6 );
+				int3 cachedGridPos = ldsCacheOrigin + int3(offset3);
+				LPVCell CachedThreadCell = ReadLpvCell( GetGridAddress(cachedGridPos) );
  
-			LDSCachedLPV[cellCacheIndex] = PackLPVCell( CachedThreadCell );
+				LDSCachedLPV[cellCacheIndex] = PackLPVCell( CachedThreadCell );
+			}
 		}
 	}
 

@@ -35,7 +35,6 @@ namespace physx
 
 namespace Chaos
 {
-	class FPBDRigidsEvolutionGBF;
 
 	class FChaosArchive;
 }
@@ -53,7 +52,7 @@ public:
 	void Serialize(const TCHAR* FilePrefix);
 
 	//Set the data from an external source. This will obliterate any existing data. Make sure you are not holding on to old internal data as it will go away
-	void SetPhysicsData(Chaos::FPBDRigidsEvolutionGBF& ChaosEvolution);
+	void SetPhysicsData(Chaos::FPBDRigidsEvolution& ChaosEvolution);
 
 #if PHYSICS_INTERFACE_PHYSX
 	void SetPhysicsData(physx::PxScene& Scene);
@@ -89,7 +88,7 @@ public:
 		return SQCapture.Get();
 	}
 
-	Chaos::FPBDRigidsEvolutionGBF* GetChaosData()
+	Chaos::FPBDRigidsEvolution* GetChaosData()
 	{
 #if 0
 		if (!bChaosDataReady)
@@ -140,7 +139,7 @@ private:
 
 	TUniquePtr<FSQCapture> SQCapture;
 
-	TUniquePtr<Chaos::FPBDRigidsEvolutionGBF> ChaosEvolution;
+	TUniquePtr<Chaos::FPBDRigidsEvolution> ChaosEvolution;
 	Chaos::TPBDRigidsSOAs<float, 3> Particles;
 	Chaos::THandleArray<Chaos::FChaosPhysicsMaterial> PhysicalMaterials;
 	TArray <TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTParticles;

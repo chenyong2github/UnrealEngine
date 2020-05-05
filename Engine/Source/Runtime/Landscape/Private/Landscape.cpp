@@ -120,7 +120,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("A7E61E6494A6450F950333B3BD0DF7A9")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("F96002C1787F44878795B534CEE2F902")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -570,7 +570,7 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeMaterial(int8 InLODIndex) c
 		{
 			for (const FLandscapeComponentMaterialOverride& Material : OverrideMaterials)
 			{
-				if (Material.LODIndex.GetValueForFeatureLevel(World->FeatureLevel) == InLODIndex)
+				if (Material.LODIndex.GetValue() == InLODIndex)
 				{
 					if (Material.Material != nullptr)
 					{
@@ -2099,11 +2099,12 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 
 #if WITH_EDITOR
 	// Work out whether we have grass or not for the next game run
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		bHasLandscapeGrass = LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Component) { return Component->MaterialHasGrass(); });
+	BuildGrassMaps();
 
-		UpdateGrassData();
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		// Reset flag
+		Component->GrassData->bIsDirty = false;
 	}
 
 	if (ALandscape* Landscape = GetLandscapeActor())
@@ -2738,7 +2739,7 @@ UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
 		{
 			for (const FLandscapeProxyMaterialOverride& OverrideMaterial : LandscapeMaterialsOverride)
 			{
-				if (OverrideMaterial.LODIndex.GetValueForFeatureLevel(World->FeatureLevel) == InLODIndex)
+				if (OverrideMaterial.LODIndex.GetValue() == InLODIndex)
 				{
 					if (OverrideMaterial.Material != nullptr)
 					{
@@ -2773,7 +2774,7 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODInd
 		{
 			for (const FLandscapeProxyMaterialOverride& OverrideMaterial : LandscapeMaterialsOverride)
 			{
-				if (OverrideMaterial.LODIndex.GetValueForFeatureLevel(World->FeatureLevel) == InLODIndex)
+				if (OverrideMaterial.LODIndex.GetValue() == InLODIndex)
 				{
 					if (OverrideMaterial.Material != nullptr)
 					{
@@ -3352,7 +3353,7 @@ ULandscapeWeightmapUsage::ULandscapeWeightmapUsage(const FObjectInitializer& Obj
 }
 
 // Generate a new guid to force a recache of all landscape derived data
-#define LANDSCAPE_FULL_DERIVEDDATA_VER			TEXT("746F41F382904AC9BA4C6449C3BF4A38")
+#define LANDSCAPE_FULL_DERIVEDDATA_VER			TEXT("3000901CF3B24F028854C2DB986E5B3B")
 
 FString FLandscapeComponentDerivedData::GetDDCKeyString(const FGuid& StateId)
 {

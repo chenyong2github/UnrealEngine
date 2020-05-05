@@ -34,21 +34,28 @@ EConvertFromTypeResult FFieldPathProperty::ConvertFromType(const FPropertyTag& T
 		FLinker* Linker = UnderlyingArchive.GetLinker();
 		check(Linker);
 
+		FFieldPath ConvertedValue;
+
 		FPackageIndex Index;
 		UnderlyingArchive << Index;
 
-		FString PropertyPathName;
-		if (Index.IsImport())
+		bool bExport = Index.IsExport();
+		while (!Index.IsNull())
 		{
-			PropertyPathName = Linker->GetImportPathName(Index);
+			const FObjectResource& Res = Linker->ImpExp(Index);
+			ConvertedValue.Path.Add(Res.ObjectName);
+			Index = Res.OuterIndex;
 		}
-		else if (Index.IsExport())
+		if (bExport)
 		{
-			PropertyPathName = Linker->GetExportPathName(Index);
+			check(Linker->LinkerRoot);
+			ConvertedValue.Path.Add(Linker->LinkerRoot->GetFName());
+		}
+		if (ConvertedValue.Path.Num())
+		{
+			ConvertedValue.ConvertFromFullPath(Cast<FLinkerLoad>(Linker));
 		}
 
-		FFieldPath ConvertedValue;
-		ConvertedValue.Generate(*PropertyPathName);
 		SetPropertyValue_InContainer(Data, ConvertedValue, Tag.ArrayIndex);
 		return EConvertFromTypeResult::Converted;
 	}
@@ -62,10 +69,10 @@ bool FFieldPathProperty::Identical( const void* A, const void* B, uint32 PortFla
 	if (B)
 	{
 		const FFieldPath ValueB = GetPropertyValue(B);
-		return ValueA.IsPathIdentical(ValueB);
+		return ValueA == ValueB;
 	}
 
-	return ValueA.IsEmpty();
+	return !ValueA.GetTyped(FField::StaticClass());
 }
 
 void FFieldPathProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
@@ -180,6 +187,11 @@ FString FFieldPathProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExpo
 		InnerTypeText += TEXT(">");
 	}
 	return TEXT("TFieldPath");
+}
+
+bool FFieldPathProperty::SupportsNetSharedSerialization() const
+{
+	return false;
 }
 
 #include "UObject/DefineUPropertyMacros.h"

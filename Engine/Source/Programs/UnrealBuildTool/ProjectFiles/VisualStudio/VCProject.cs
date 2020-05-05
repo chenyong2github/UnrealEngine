@@ -255,13 +255,10 @@ namespace UnrealBuildTool
 	{
 		//FileReference OnlyGameProject;
 		VCProjectFileFormat ProjectFileFormat;
-		bool bUseFastPDB;
-		bool bUsePerFileIntellisense;
 		bool bUsePrecompiled;
-		bool bEditorDependsOnShaderCompileWorker;
-		bool bBuildLiveCodingConsole;
 		string BuildToolOverride;
 		Dictionary<DirectoryReference, string> ModuleDirToForceIncludePaths = new Dictionary<DirectoryReference, string>();
+		VCProjectFileSettings Settings;
 
 		/// This is the platform name that Visual Studio is always guaranteed to support.  We'll use this as
 		/// a platform for any project configurations where our actual platform is not supported by the
@@ -277,26 +274,18 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructs a new project file object
 		/// </summary>
-		/// <param name="InFilePath">The path to the project file on disk</param>
-		/// <param name="InOnlyGameProject"></param>
-		/// <param name="InProjectFileFormat">Visual C++ project file version</param>
-		/// <param name="bUseFastPDB">If true, adds the -FastPDB argument to build command lines</param>
-		/// <param name="bUsePerFileIntellisense">If true, generates per-file intellisense data</param>
+		/// <param name="FilePath">The path to the project file on disk</param>
+		/// <param name="ProjectFileFormat">Visual C++ project file version</param>
 		/// <param name="bUsePrecompiled">Whether to add the -UsePrecompiled argumemnt when building targets</param>
-		/// <param name="bEditorDependsOnShaderCompileWorker">Whether editor targets should also build ShaderCompileWorker</param>
-		/// <param name="bBuildLiveCodingConsole">Whether targets using live coding should also build LiveCodingConsole</param>
 		/// <param name="BuildToolOverride">Optional arguments to pass to UBT when building</param>
-		public VCProjectFile(FileReference InFilePath, FileReference InOnlyGameProject, VCProjectFileFormat InProjectFileFormat, bool bUseFastPDB, bool bUsePerFileIntellisense, bool bUsePrecompiled, bool bEditorDependsOnShaderCompileWorker, bool bBuildLiveCodingConsole, string BuildToolOverride)
-			: base(InFilePath)
+		/// <param name="Settings">Other settings</param>
+		public VCProjectFile(FileReference FilePath, VCProjectFileFormat ProjectFileFormat, bool bUsePrecompiled, string BuildToolOverride, VCProjectFileSettings Settings)
+			: base(FilePath)
 		{
-			//OnlyGameProject = InOnlyGameProject;
-			ProjectFileFormat = InProjectFileFormat;
-			this.bUseFastPDB = bUseFastPDB;
-			this.bUsePerFileIntellisense = bUsePerFileIntellisense;
+			this.ProjectFileFormat = ProjectFileFormat;
 			this.bUsePrecompiled = bUsePrecompiled;
-			this.bEditorDependsOnShaderCompileWorker = bEditorDependsOnShaderCompileWorker;
-			this.bBuildLiveCodingConsole = bBuildLiveCodingConsole;
 			this.BuildToolOverride = BuildToolOverride;
+			this.Settings = Settings;
 		}
 
 		/// <summary>
@@ -516,7 +505,7 @@ namespace UnrealBuildTool
 		{
 			base.AddModule(Module, CompileEnvironment);
 
-			if (bUsePerFileIntellisense)
+			if (Settings.bUsePerFileIntellisense)
 			{
 				foreach (DirectoryReference ModuleDirectory in Module.ModuleDirectories)
 				{
@@ -718,6 +707,33 @@ namespace UnrealBuildTool
 			return ProjectFiles;
 		}
 
+		/// <summary>
+		/// Append a list of include paths to a property list
+		/// </summary>
+		/// <param name="Builder">String builder for the property value</param>
+		/// <param name="BaseDir">Directory containing the source file</param>
+		/// <param name="BaseDirToIncludePaths">Map of base directory to set of include paths</param>
+		/// <param name="IgnorePaths">Set of paths to ignore</param>
+		static void AppendIncludePaths(StringBuilder Builder, DirectoryReference BaseDir, Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToIncludePaths, HashSet<DirectoryReference> IgnorePaths)
+		{
+			for (DirectoryReference CurrentDir = BaseDir; CurrentDir != null; CurrentDir = CurrentDir.ParentDirectory)
+			{
+				IncludePathsCollection Collection;
+				if (BaseDirToIncludePaths.TryGetValue(CurrentDir, out Collection))
+				{
+					foreach(DirectoryReference IncludePath in Collection.AbsolutePaths)
+					{
+						if (!IgnorePaths.Contains(IncludePath))
+						{
+							Builder.Append(NormalizeProjectPath(IncludePath.FullName));
+							Builder.Append(';');
+						}
+					}
+					break;
+				}
+			}
+		}
+
 		/// Implements Project interface
 		public override bool WriteProjectFile(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
@@ -725,28 +741,73 @@ namespace UnrealBuildTool
 
 			bool bSuccess = true;
 
+			// Merge as many include paths as possible into the shared list
+			HashSet<DirectoryReference> SharedIncludeSearchPathsSet = new HashSet<DirectoryReference>();
+
 			// Build up the new include search path string
-			StringBuilder VCIncludeSearchPaths = new StringBuilder();
+			StringBuilder SharedIncludeSearchPaths = new StringBuilder();
 			{
-				foreach (string CurPath in IntelliSenseIncludeSearchPaths)
+				// Find out how many source files there are in each directory
+				Dictionary<DirectoryReference, int> SourceDirToCount = new Dictionary<DirectoryReference, int>();
+				foreach (SourceFile SourceFile in SourceFiles)
 				{
-					VCIncludeSearchPaths.Append(CurPath + ";");
+					if(SourceFile.Reference.HasExtension(".cpp"))
+					{
+						DirectoryReference SourceDir = SourceFile.Reference.Directory;
+
+						int Count;
+						SourceDirToCount.TryGetValue(SourceDir, out Count);
+						SourceDirToCount[SourceDir] = Count + 1;
+					}
 				}
-				foreach (string CurPath in IntelliSenseSystemIncludeSearchPaths)
+
+				// Figure out the most common include paths
+				Dictionary<DirectoryReference, int> IncludePathToCount = new Dictionary<DirectoryReference, int>();
+				foreach (KeyValuePair<DirectoryReference, int> Pair in SourceDirToCount)
 				{
-					VCIncludeSearchPaths.Append(CurPath + ";");
+					for (DirectoryReference CurrentDir = Pair.Key; CurrentDir != null; CurrentDir = CurrentDir.ParentDirectory)
+					{
+						IncludePathsCollection IncludePaths;
+						if (BaseDirToUserIncludePaths.TryGetValue(CurrentDir, out IncludePaths))
+						{
+							foreach (DirectoryReference IncludePath in IncludePaths.AbsolutePaths)
+							{
+								int Count;
+								IncludePathToCount.TryGetValue(IncludePath, out Count);
+								IncludePathToCount[IncludePath] = Count + Pair.Value;
+							}
+							break;
+						}
+					}
 				}
+
+				// Append the most common include paths to the search list.
+				if (Settings.MaxSharedIncludePaths > 0)
+				{
+					foreach (DirectoryReference IncludePath in IncludePathToCount.OrderByDescending(x => x.Value).Select(x => x.Key))
+					{
+						string RelativePath = NormalizeProjectPath(IncludePath);
+						if (SharedIncludeSearchPaths.Length + RelativePath.Length >= Settings.MaxSharedIncludePaths)
+						{
+							break;
+						}
+						SharedIncludeSearchPaths.AppendFormat("{0};", RelativePath);
+						SharedIncludeSearchPathsSet.Add(IncludePath);
+					}
+				}
+
+				// Add all the default system include paths
 				if (InPlatforms.Contains(UnrealTargetPlatform.Win64))
 				{
-					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
+					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
 				}
 				else if (InPlatforms.Contains(UnrealTargetPlatform.Win32))
 				{
-					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win32, GetCompilerForIntellisense(), null) + ";");
+					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win32, GetCompilerForIntellisense(), null) + ";");
 				}
 				else if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
 				{
-					VCIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
+					SharedIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
 				}
 			}
 
@@ -954,7 +1015,10 @@ namespace UnrealBuildTool
 				//      data being stored into the project file, and might make the IDE perform worse when switching configurations!
 				VCProjectFileContent.AppendLine("  <PropertyGroup>");
 				VCProjectFileContent.AppendLine("    <NMakePreprocessorDefinitions>$(NMakePreprocessorDefinitions){0}</NMakePreprocessorDefinitions>", (VCPreprocessorDefinitions.Length > 0 ? (";" + VCPreprocessorDefinitions) : ""));
-				VCProjectFileContent.AppendLine("    <NMakeIncludeSearchPath>$(NMakeIncludeSearchPath){0}</NMakeIncludeSearchPath>", (VCIncludeSearchPaths.Length > 0 ? (";" + VCIncludeSearchPaths) : ""));
+				// NOTE: Setting the IncludePath property rather than NMakeIncludeSearchPath results in significantly less
+				// memory usage, because NMakeIncludeSearchPath metadata is duplicated to each output item. Functionality should be identical for
+				// intellisense results.
+				VCProjectFileContent.AppendLine("    <IncludePath>$(IncludePath){0}</IncludePath>", (SharedIncludeSearchPaths.Length > 0 ? (";" + SharedIncludeSearchPaths) : ""));
 				VCProjectFileContent.AppendLine("    <NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>");
 				VCProjectFileContent.AppendLine("    <NMakeAssemblySearchPath>$(NMakeAssemblySearchPath)</NMakeAssemblySearchPath>");
 				VCProjectFileContent.AppendLine("    <AdditionalOptions>{0}</AdditionalOptions>",
@@ -1007,6 +1071,7 @@ namespace UnrealBuildTool
 				HashSet<string> FilterDirectories = new HashSet<string>();
 				//UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform);
 
+				Dictionary<DirectoryReference, string> DirectoryToIncludeSearchPaths = new Dictionary<DirectoryReference, string>();
 				Dictionary<DirectoryReference, string> DirectoryToForceIncludePaths = new Dictionary<DirectoryReference, string>();
 				foreach (AliasedFile AliasedFile in LocalAliasedFiles)
 				{
@@ -1016,29 +1081,43 @@ namespace UnrealBuildTool
 						FiltersFileIsNeeded = EnsureFilterPathExists(AliasedFile.ProjectPath, VCFiltersFileContent, FilterDirectories);
 					}
 
-					DirectoryReference Directory = AliasedFile.Location.Directory;
-
-					string ForceIncludePaths;
-					if (!DirectoryToForceIncludePaths.TryGetValue(Directory, out ForceIncludePaths))
-					{
-						for(DirectoryReference ParentDir = Directory; ParentDir != null; ParentDir = ParentDir.ParentDirectory)
-						{
-							if(ModuleDirToForceIncludePaths.TryGetValue(ParentDir, out ForceIncludePaths))
-							{
-								break;
-							}
-						}
-						DirectoryToForceIncludePaths[Directory] = ForceIncludePaths;
-					}
-
 					string VCFileType = GetVCFileType(AliasedFile.FileSystemPath);
-					if (ForceIncludePaths == null)
+					if (VCFileType != "ClCompile")
 					{
 						VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\"/>", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
 					}
 					else
 					{
+						DirectoryReference Directory = AliasedFile.Location.Directory;
+
+						// Find the force-included headers
+						string ForceIncludePaths;
+						if (!DirectoryToForceIncludePaths.TryGetValue(Directory, out ForceIncludePaths))
+						{
+							for (DirectoryReference ParentDir = Directory; ParentDir != null; ParentDir = ParentDir.ParentDirectory)
+							{
+								if (ModuleDirToForceIncludePaths.TryGetValue(ParentDir, out ForceIncludePaths))
+								{
+									break;
+								}
+							}
+							DirectoryToForceIncludePaths[Directory] = ForceIncludePaths;
+						}
+
+						// Find the include search paths
+						string IncludeSearchPaths;
+						if (!DirectoryToIncludeSearchPaths.TryGetValue(Directory, out IncludeSearchPaths))
+						{
+							StringBuilder Builder = new StringBuilder();
+							AppendIncludePaths(Builder, Directory, BaseDirToUserIncludePaths, SharedIncludeSearchPathsSet);
+							AppendIncludePaths(Builder, Directory, BaseDirToSystemIncludePaths, SharedIncludeSearchPathsSet);
+							IncludeSearchPaths = Builder.ToString();
+
+							DirectoryToIncludeSearchPaths.Add(Directory, IncludeSearchPaths);
+						}
+
 						VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\">", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
+						VCProjectFileContent.AppendLine("      <AdditionalIncludeDirectories>$(NMakeIncludeSearchPath);{0}</AdditionalIncludeDirectories>", IncludeSearchPaths);
 						VCProjectFileContent.AppendLine("      <ForcedIncludeFiles>$(NMakeForcedIncludes);{0}</ForcedIncludeFiles>", ForceIncludePaths);
 						VCProjectFileContent.AppendLine("    </{0}>", VCFileType);
 					}
@@ -1410,23 +1489,22 @@ namespace UnrealBuildTool
 						bShouldCompileMonolithic = (Combination.ProjectTarget.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
 					}
 
-					// Get the output directory
-					DirectoryReference RootDirectory = UnrealBuildTool.EngineDirectory;
-					if (TargetRulesObject.Type != TargetType.Program && (bShouldCompileMonolithic || TargetRulesObject.BuildEnvironment == TargetBuildEnvironment.Unique))
-					{
-						if(Combination.ProjectTarget.UnrealProjectFilePath != null)
-						{
-							RootDirectory = Combination.ProjectTarget.UnrealProjectFilePath.Directory;
-						}
-					}
-
-					if (TargetRulesObject.Type == TargetType.Program && Combination.ProjectTarget.UnrealProjectFilePath != null)
-					{
-						RootDirectory = Combination.ProjectTarget.UnrealProjectFilePath.Directory;
-					}
+					// Get the .uproject directory
+					DirectoryReference UProjectDirectory = DirectoryReference.FromFile(Combination.ProjectTarget.UnrealProjectFilePath);
 
 					// Get the output directory
-					DirectoryReference OutputDirectory = DirectoryReference.Combine(RootDirectory, "Binaries", UBTPlatformName);
+					DirectoryReference RootOutputDirectory;
+					if (UProjectDirectory != null && (bShouldCompileMonolithic || TargetRulesObject.BuildEnvironment == TargetBuildEnvironment.Unique) && TargetRulesObject.File.IsUnderDirectory(UProjectDirectory))
+					{
+						RootOutputDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UProjectDirectory, TargetRulesObject.File);
+					}
+					else
+					{
+						RootOutputDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UnrealBuildTool.EngineDirectory, TargetRulesObject.File);
+					}
+
+					// Get the output directory
+					DirectoryReference OutputDirectory = DirectoryReference.Combine(RootOutputDirectory, "Binaries", UBTPlatformName);
 
 					if (!string.IsNullOrEmpty(TargetRulesObject.ExeBinariesSubFolder))
 					{
@@ -1486,11 +1564,11 @@ namespace UnrealBuildTool
 					List<string> ExtraTargets = new List<string>();
 					if (!bUsePrecompiled)
 					{
-						if (TargetRulesObject.Type == TargetType.Editor && bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
+						if (TargetRulesObject.Type == TargetType.Editor && Settings.bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
 						{
 							ExtraTargets.Add("ShaderCompileWorker Win64 Development");
 						}
-						if (TargetRulesObject.bWithLiveCoding && bBuildLiveCodingConsole && !UnrealBuildTool.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
+						if (TargetRulesObject.bWithLiveCoding && Settings.bBuildLiveCodingConsole && !UnrealBuildTool.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
 						{
 							ExtraTargets.Add(TargetRulesObject.bUseDebugLiveCodingConsole? "LiveCodingConsole Win64 Debug" : "LiveCodingConsole Win64 Development");
 						}
@@ -1518,7 +1596,7 @@ namespace UnrealBuildTool
 					// Always include a flag to format log messages for MSBuild
 					BuildArguments.Append(" -FromMsBuild");
 
-					if (bUseFastPDB)
+					if (Settings.bAddFastPDBToProjects)
 					{
 						// Pass Fast PDB option to make use of Visual Studio's /DEBUG:FASTLINK option
 						BuildArguments.Append(" -FastPDB");
@@ -1553,7 +1631,7 @@ namespace UnrealBuildTool
 					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client || TargetRulesObject.Type == TargetType.Server)
 					{
 						// Allow platforms to add any special properties they require... like aumid override for Xbox One
-						PlatformProjectGenerators.GenerateGamePlatformSpecificProperties(Platform, Configuration, TargetRulesObject.Type, VCProjectFileContent, RootDirectory, TargetFilePath);
+						PlatformProjectGenerators.GenerateGamePlatformSpecificProperties(Platform, Configuration, TargetRulesObject.Type, VCProjectFileContent, RootOutputDirectory, TargetFilePath);
 					}
 
 					VCProjectFileContent.AppendLine("  </PropertyGroup>");

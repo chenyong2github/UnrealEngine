@@ -214,13 +214,7 @@ public:
 		{
 			if (PayloadInfo->GlobalPayloadIdx != INDEX_NONE)
 			{
-				ensure(PayloadInfo->DirtyPayloadIdx == INDEX_NONE);
-				auto LastGlobalPayload = MGlobalPayloads.Last().Payload;
-				if (!(LastGlobalPayload == Payload))
-				{
-					MPayloadInfo.FindChecked(LastGlobalPayload).GlobalPayloadIdx = PayloadInfo->GlobalPayloadIdx;
-				}
-				MGlobalPayloads.RemoveAtSwap(PayloadInfo->GlobalPayloadIdx);
+				RemoveGlobalElement(Payload, *PayloadInfo);
 			}
 			else
 			{
@@ -240,6 +234,11 @@ public:
 			if (PayloadInfo->GlobalPayloadIdx == INDEX_NONE)
 			{
 				RemoveElementFromExistingGrid(Payload, *PayloadInfo);
+				AddElementToExistingGrid(Payload, *PayloadInfo, NewBounds, bHasBounds);
+			}
+			else if (bHasBounds)
+			{
+				RemoveGlobalElement(Payload, *PayloadInfo);
 				AddElementToExistingGrid(Payload, *PayloadInfo, NewBounds, bHasBounds);
 			}
 		}
@@ -392,6 +391,17 @@ private:
 
 	using FCellElement = TBVCellElement<TPayloadType, T, d>;
 	using FPayloadInfo = TBVPayloadInfo<T, d>;
+
+	void RemoveGlobalElement(const TPayloadType& Payload, const FPayloadInfo& PayloadInfo)
+	{
+		ensure(PayloadInfo.DirtyPayloadIdx == INDEX_NONE);
+		auto LastGlobalPayload = MGlobalPayloads.Last().Payload;
+		if (!(LastGlobalPayload == Payload))
+		{
+			MPayloadInfo.FindChecked(LastGlobalPayload).GlobalPayloadIdx = PayloadInfo.GlobalPayloadIdx;
+		}
+		MGlobalPayloads.RemoveAtSwap(PayloadInfo.GlobalPayloadIdx);
+	}
 
 	template <typename SQVisitor, bool bPruneDuplicates = true>
 	bool RaycastImp(const TVector<T, d>& Start, FQueryFastData& CurData, SQVisitor& Visitor) const

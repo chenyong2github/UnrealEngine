@@ -733,45 +733,51 @@ FPropertyAccess::Result FPropertyNode::GetPropertyValueText(FText& OutText, cons
 	if (ValueAddress != nullptr)
 	{
 		const FProperty* PropertyPtr = GetProperty();
-
-		if (PropertyPtr->IsA(FTextProperty::StaticClass()))
+		if (PropertyPtr)
 		{
-			OutText = CastField<FTextProperty>(PropertyPtr)->GetPropertyValue(ValueAddress);
-		}
-		else
-		{
-			FString ExportedTextString;
-			FPropertyTextUtilities::PropertyToTextHelper(ExportedTextString, this, PropertyPtr, ValueAddress, PPF_PropertyWindow);
-
-			UEnum* Enum = nullptr;
-			int64 EnumValue = 0;
-			if (const FByteProperty* ByteProperty = CastField<FByteProperty>(PropertyPtr))
+			if (PropertyPtr->IsA(FTextProperty::StaticClass()))
 			{
-				Enum = ByteProperty->Enum;
-				EnumValue = ByteProperty->GetPropertyValue(ValueAddress);
-			}
-			else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(PropertyPtr))
-			{
-				Enum = EnumProperty->GetEnum();
-				EnumValue = EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(ValueAddress);
-			}
-
-			if (Enum)
-			{
-				if (Enum->IsValidEnumValue(EnumValue))
-				{
-					// Text form is always display name
-					OutText = Enum->GetDisplayNameTextByValue(EnumValue);
-				}
-				else
-				{
-					Result = FPropertyAccess::Fail;
-				}
+				OutText = CastField<FTextProperty>(PropertyPtr)->GetPropertyValue(ValueAddress);
 			}
 			else
 			{
-				OutText = FText::FromString(ExportedTextString);
+				FString ExportedTextString;
+				FPropertyTextUtilities::PropertyToTextHelper(ExportedTextString, this, PropertyPtr, ValueAddress, PPF_PropertyWindow);
+
+				UEnum* Enum = nullptr;
+				int64 EnumValue = 0;
+				if (const FByteProperty* ByteProperty = CastField<FByteProperty>(PropertyPtr))
+				{
+					Enum = ByteProperty->Enum;
+					EnumValue = ByteProperty->GetPropertyValue(ValueAddress);
+				}
+				else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(PropertyPtr))
+				{
+					Enum = EnumProperty->GetEnum();
+					EnumValue = EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(ValueAddress);
+				}
+
+				if (Enum)
+				{
+					if (Enum->IsValidEnumValue(EnumValue))
+					{
+						// Text form is always display name
+						OutText = Enum->GetDisplayNameTextByValue(EnumValue);
+					}
+					else
+					{
+						Result = FPropertyAccess::Fail;
+					}
+				}
+				else
+				{
+					OutText = FText::FromString(ExportedTextString);
+				}
 			}
+		}
+		else
+		{
+			Result = FPropertyAccess::Fail;
 		}
 	}
 

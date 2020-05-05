@@ -10,7 +10,7 @@
 #include "Misc/Change.h"		// For TUniquePtr<FChange>
 #include "Logging/LogMacros.h"
 #include "Materials/MaterialInterface.h"
-#include "Math/GenericOctreePublic.h"	// For FOctreeElementId
+#include "Math/GenericOctreePublic.h"	// For FOctreeElementId2
 #include "GeometryHitTest.h"
 #include "EditableMesh.generated.h"
 
@@ -625,7 +625,7 @@ public:
 	TSharedPtr<class FEditableMeshOctree> Octree;
 
 	/** Maps our polygon IDs to octree element IDs */
-	TMap<FPolygonID, FOctreeElementId> PolygonIDToOctreeElementIDMap;
+	TMap<FPolygonID, FOctreeElementId2> PolygonIDToOctreeElementIDMap;
 
 	/** Polygons that were deleted since the last time our octree was refreshed */
 	TSet<FPolygonID> DeletedOctreePolygonIDs;

@@ -31,6 +31,8 @@
 
 class Error;
 class FPrimitiveDrawInterface;
+class FCanvas;
+class FSceneView;
 class UAnimInstance;
 class UPhysicalMaterial;
 class USkeletalMeshComponent;
@@ -1417,6 +1419,13 @@ public:
 	 */
 	void DebugDrawClothing(FPrimitiveDrawInterface* PDI);
 
+	/**
+	 * Draw the currently clothing state, using the editor extender interface
+	 * @param Canvas The canvas to draw the text on
+	 * @param SceneView The view to project the text with
+	 */
+	void DebugDrawClothingTexts(FCanvas* Canvas, const FSceneView* SceneView);
+
 	/** Changes the value of bNotifyRigidBodyCollision
 	* @param bNewNotifyRigidBodyCollision - The value to assign to bNotifyRigidBodyCollision
 	*/
@@ -1689,12 +1698,12 @@ public:
 	virtual void SetPhysicsAsset(class UPhysicsAsset* NewPhysicsAsset,bool bForceReInit = false) override;
 	virtual void SetSkeletalMesh(class USkeletalMesh* NewMesh, bool bReinitPose = true) override;
 
-	static FVector GetSkinnedVertexPosition(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer);
-	static FVector GetSkinnedVertexPosition(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals);
-	static void ComputeSkinnedPositions(USkeletalMeshComponent* Component, TArray<FVector> & OutPositions, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer);
+	static FVector GetSkinnedVertexPosition(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, const FSkinWeightVertexBuffer& SkinWeightBuffer);
+	static FVector GetSkinnedVertexPosition(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, const FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals);
+	static void ComputeSkinnedPositions(USkeletalMeshComponent* Component, TArray<FVector> & OutPositions, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& Model, const FSkinWeightVertexBuffer& SkinWeightBuffer);
 
-	static void GetSkinnedTangentBasis(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals, FVector& OutTangentX, FVector& OutTangentZ);
-	static void ComputeSkinnedTangentBasis(USkeletalMeshComponent* Component, TArray<FVector>& OutTangenXZ, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer);
+	static void GetSkinnedTangentBasis(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, const FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals, FVector& OutTangentX, FVector& OutTangentZ);
+	static void ComputeSkinnedTangentBasis(USkeletalMeshComponent* Component, TArray<FVector>& OutTangenXZ, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& Model, const FSkinWeightVertexBuffer& SkinWeightBuffer);
 
 	void SetSkeletalMeshWithoutResettingAnimation(class USkeletalMesh* NewMesh);
 

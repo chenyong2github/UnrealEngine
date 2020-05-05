@@ -134,6 +134,7 @@ FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 TArray<FRHIResource::ResourcesToDelete> FRHIResource::DeferredDeletionQueue;
 uint32 FRHIResource::CurrentFrame = 0;
 RHI_API FDrawCallCategoryName* FDrawCallCategoryName::Array[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
+RHI_API int32 FDrawCallCategoryName::DisplayCounts[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
 RHI_API int32 FDrawCallCategoryName::NumCategory = 0;
 
 FString FVertexElement::ToString() const
@@ -750,6 +751,11 @@ bool GRHISupportsBackBufferWithCustomDepthStencil = true;
 
 bool GRHIIsHDREnabled = false;
 bool GRHISupportsHDROutput = false;
+
+bool GRHISupportsVariableRateShading = false;
+int32 GVariableRateShadingImageTileSize = 0;
+int32 GVariableRateShadingTier = 0;
+
 EPixelFormat GRHIHDRDisplayOutputFormat = PF_FloatRGBA;
 
 uint64 GRHIPresentCounter = 1;
@@ -783,9 +789,24 @@ void RHIPrivateBeginFrame()
 	GNumDrawCallsRHI = GCurrentNumDrawCallsRHI;
 	
 #if CSV_PROFILER
+	// Only copy the display counters every so many frames to keep things more stable.
+	const int32 FramesUntilDisplayCopy = 30;
+	static int32 FrameCount = 0;
+	bool bCopyDisplayFrames = false;
+	++FrameCount;
+	if (FrameCount >= FramesUntilDisplayCopy)
+	{
+		bCopyDisplayFrames = true;
+		FrameCount = 0;
+	}
+
 	for (int32 Index=0; Index<FDrawCallCategoryName::NumCategory; ++Index)
 	{
 		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
+		if (bCopyDisplayFrames)
+		{
+			FDrawCallCategoryName::DisplayCounts[Index] = CategoryName->Counter;
+		}
 		GNumDrawCallsRHI += CategoryName->Counter;
 		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), CategoryName->Counter, ECsvCustomStatOp::Set);
 		CategoryName->Counter = 0;

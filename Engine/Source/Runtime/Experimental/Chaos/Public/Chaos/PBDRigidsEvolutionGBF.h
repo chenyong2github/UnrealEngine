@@ -25,8 +25,6 @@ namespace Chaos
 	CHAOS_API extern float HackLinearDrag;
 	CHAOS_API extern float HackAngularDrag;
 
-	class FPBDRigidsEvolutionGBF;
-
 	using FPBDRigidsEvolutionCallback = TFunction<void()>;
 
 	using FPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
@@ -34,11 +32,53 @@ namespace Chaos
 	using FPBDRigidsEvolutionInternalHandleCallback = TFunction<void(
 		const TGeometryParticleHandle<float, 3> * OldParticle,
 		const TGeometryParticleHandle<float, 3> * NewParticle)>;
-	
-	class FPBDRigidsEvolutionGBF : public FPBDRigidsEvolutionBase
+
+	template <typename Traits>
+	class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<Traits>
 	{
 	public:
-		using Base = FPBDRigidsEvolutionBase;
+		using Base = TPBDRigidsEvolutionBase<Traits>;
+		using Base::Particles;
+		using typename Base::FForceRule;
+		using Base::ForceRules;
+		using Base::PrepareTick;
+		using Base::UnprepareTick;
+		using Base::ApplyKinematicTargets;
+		using Base::UpdateConstraintPositionBasedState;
+		using Base::InternalAcceleration;
+		using Base::CreateConstraintGraph;
+		using Base::CreateIslands;
+		using Base::GetParticles;
+		using Base::DirtyParticle;
+		using Base::SetPhysicsMaterial;
+		using Base::SetPerParticlePhysicsMaterial;
+		using Base::GetPerParticlePhysicsMaterial;
+		using Base::CreateParticle;
+		using Base::GenerateUniqueIdx;
+		using Base::DestroyParticle;
+		using Base::CreateClusteredParticles;
+		using Base::EnableParticle;
+		using Base::DisableParticles;
+		using Base::GetActiveClusteredArray;
+		using Base::NumIslands;
+		using Base::GetNonDisabledClusteredArray;
+		using Base::DisableParticle;
+		using Base::PrepareIteration;
+		using Base::GetConstraintGraph;
+		using Base::ApplyConstraints;
+		using Base::UpdateVelocities;
+		using Base::PhysicsMaterials;
+		using Base::PerParticlePhysicsMaterials;
+		using Base::ParticleDisableCount;
+		using Base::SolverPhysicsMaterials;
+		using Base::UnprepareIteration;
+		using Base::CaptureRewindData;
+		using Base::Collided;
+		using Base::SetParticleUpdateVelocityFunction;
+		using Base::SetParticleUpdatePositionFunction;
+		using Base::AddForceFunction;
+		using Base::AddConstraintRule;
+		using Base::ParticleUpdatePosition;
 
 		using FGravityForces = TPerParticleGravity<FReal, 3>;
 		using FCollisionConstraints = FPBDCollisionConstraints;
@@ -48,14 +88,14 @@ namespace Chaos
 
 		static constexpr int32 DefaultNumIterations = 1;
 		static constexpr int32 DefaultNumPairIterations = 1;
-		static constexpr int32 DefaultNumPushOutIterations = 5;
+		static constexpr int32 DefaultNumPushOutIterations = 3;
 		static constexpr int32 DefaultNumPushOutPairIterations = 2;
 
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
 
-		CHAOS_API FPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
-		CHAOS_API ~FPBDRigidsEvolutionGBF() {}
+		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
+		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 		void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
@@ -94,7 +134,10 @@ namespace Chaos
 
 		void DoInternalParticleInitilization(const TGeometryParticleHandle<float, 3>* OldParticle, const TGeometryParticleHandle<float, 3>* NewParticle) 
 		{ 
-			if (InternalParticleInitilization) InternalParticleInitilization(OldParticle, NewParticle); 
+			if(InternalParticleInitilization)
+			{
+				InternalParticleInitilization(OldParticle, NewParticle);
+			}
 		}
 
 
@@ -179,7 +222,7 @@ namespace Chaos
 					{
 						const FAABB3& LocalBounds = Particle.LocalBounds();
 						FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
-						WorldSpaceBounds.ThickenSymmetrically(Particle.V());
+						WorldSpaceBounds.ThickenSymmetrically(Particle.V() * Dt);
 						Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 					}
 				}
@@ -197,7 +240,7 @@ namespace Chaos
 
 		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FReal StepFraction);
 
-		TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints, FReal, 3> Clustering;
+		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3> Clustering;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;
@@ -214,4 +257,8 @@ namespace Chaos
 		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 	};
+
+#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsEvolutionGBF<Trait>;
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
 }

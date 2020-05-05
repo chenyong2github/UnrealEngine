@@ -24,11 +24,23 @@ public:
 
 	/**
 	 * Are we a forked process that supports multithreading
+	 * This only becomes true after its safe to be multithread.
+	 * Since a process can be forked mid-tick, there is a period of time where IsForkedChildProcess is true but IsForkedMultithreadInstance will be false
 	 */
 	static bool IsForkedMultithreadInstance();
 
 	/**
-	 * Event triggered when the fork occurred on the child process
+	 * Is this a process that was forked
+	 */
+	static bool IsForkedChildProcess();
+
+	/**
+	 * Sets the forked child process flag 
+	 */
+	static void SetIsForkedChildProcess();
+
+	/**
+	 * Event triggered when a fork occurred on the child process and its safe to create real threads
 	 */
 	static void OnForkingOccured();
 
@@ -58,6 +70,8 @@ public:
 private:
 
 	static bool bIsForkedMultithreadInstance;
+
+	static bool bIsForkedChildProcess;
 };
 
 

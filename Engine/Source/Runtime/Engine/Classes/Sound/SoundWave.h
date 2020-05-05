@@ -341,6 +341,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Loading", meta = (DisplayName = "Loading Behavior Override"))
 	ESoundWaveLoadingBehavior LoadingBehavior;
 
+	/** Set to true if LoadingBehavior was inherited from a SoundCue. This is useful for debugging/logging */
+	uint8 bLoadingBehaviorOverridden:1;
+
 	/** Set to true for programmatically generated audio. */
 	uint8 bProcedural:1;
 	
@@ -492,6 +495,13 @@ public:
 	void ReleaseCompressedAudio();
 
 	bool IsRetainingAudio();
+
+	/**
+	 * If Stream Caching is enabled, this can be used to override the default loading behavior of this USoundWave.
+	 * This can even be called on USoundWaves that still have the RF_NeedLoad flag, and won't be stomped by serialization.
+	 * NOTE: The new behavior will be ignored if it is less memory-aggressive than existing (even inherited) behavior
+	 */
+	void OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBehavior);
 
 	/**
 	 * This is called by the audio stream cache once we put a chunk of compressed data in the chunk table. 

@@ -5,6 +5,7 @@
 #include "ActiveSound.h"
 #include "Sound/SoundWave.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "Async/Async.h"
 
 #define LOCTEXT_NAMESPACE "SoundNodeWavePlayer"
 
@@ -181,6 +182,24 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 		}
 
 		SoundWave->bLooping = bWaveIsLooping;
+	}
+	else if (!SoundWaveAssetPtr.IsNull() && !bAsyncLoadRequestPending)
+	{
+		UE_LOG(LogAudio, Warning, TEXT("Asynchronous load of %s required in USoundNodeWavePlayer::ParseNodes when we attempted to play, likely because the quality node was changed."), *GetFullNameSafe(this));
+		
+		// raise this flag in case this node is parsed again before the game thread task queue is executed.
+		bAsyncLoadRequestPending = true;
+
+		TWeakObjectPtr<USoundNodeWavePlayer> WeakThis = MakeWeakObjectPtr(this);
+
+		// Dispatch a call to the game thread to load this asset.
+		AsyncTask(ENamedThreads::GameThread, [WeakThis]() {
+			if (WeakThis.IsValid())
+			{
+				WeakThis->LoadAsset();
+				WeakThis->bAsyncLoadRequestPending = false;
+			}
+		});	
 	}
 }
 

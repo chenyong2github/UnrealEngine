@@ -1099,13 +1099,11 @@ public:
 			const FPrimitiveSceneInfoCompact PrimitiveSceneInfoCompact(PrimInfo);
 
 			// Find local lights that affect the primitive in the light octree.
-			for (FSceneLightOctree::TConstElementBoxIterator<SceneRenderingAllocator> LightIt(Scene->LocalShadowCastingLightOctree, Bounds.GetBox());
-				LightIt.HasPendingElements();
-				LightIt.Advance())
+			Scene->LocalShadowCastingLightOctree.FindElementsWithBoundsTest(Bounds.GetBox(), [&PrimitiveSceneInfoCompact](const FLightSceneInfoCompact& LightSceneInfoCompact)
 			{
-				const FLightSceneInfoCompact& LightSceneInfoCompact = LightIt.GetCurrentElement();
 				LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
-			}
+			});
+
 			// Also loop through non-local (directional) shadow-casting lights
 			for (int32 LightID : Scene->DirectionalShadowCastingLightIDs)
 			{
@@ -1134,6 +1132,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	SimpleDirectionalLight(NULL)
 ,	ReflectionSceneData(InFeatureLevel)
 ,	IndirectLightingCache(InFeatureLevel)
+,	VolumetricLightmapSceneData(this)
 ,	DistanceFieldSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel])
 ,	PreshadowCacheLayout(0, 0, 0, 0, false)
 ,	AtmosphericFog(NULL)
@@ -2377,6 +2376,28 @@ void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetri
 	{
 		PersistentLevelVolumetricLightmap = nullptr;
 	}
+}
+
+const FPrecomputedVolumetricLightmap* FVolumetricLightmapSceneData::GetLevelVolumetricLightmap() const
+{
+	return &GlobalVolumetricLightmap;
+}
+
+bool FVolumetricLightmapSceneData::HasData() const
+{
+	if (LevelVolumetricLightmaps.Num() > 0)
+	{
+		if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+		{
+			return GlobalVolumetricLightmapData.IndirectionTexture.Texture.IsValid();
+		}
+		else
+		{
+			return GlobalVolumetricLightmapData.IndirectionTexture.Data.Num() > 0;
+		}
+	}
+
+	return false;
 }
 
 bool FScene::HasPrecomputedVolumetricLightmap_RenderThread() const
@@ -4224,13 +4245,11 @@ void FScene::CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* P
 		const FPrimitiveSceneInfoCompact PrimitiveSceneInfoCompact(PrimitiveInfo);
 
 		// Find local lights that affect the primitive in the light octree.
-		for (FSceneLightOctree::TConstElementBoxIterator<SceneRenderingAllocator> LightIt(LocalShadowCastingLightOctree, Bounds.GetBox());
-			LightIt.HasPendingElements();
-			LightIt.Advance())
+		LocalShadowCastingLightOctree.FindElementsWithBoundsTest(Bounds.GetBox(), [&PrimitiveSceneInfoCompact](const FLightSceneInfoCompact& LightSceneInfoCompact)
 		{
-			const FLightSceneInfoCompact& LightSceneInfoCompact = LightIt.GetCurrentElement();
 			LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
-		}
+		});
+	
 		// Also loop through non-local (directional) shadow-casting lights
 		for (int32 LightID : DirectionalShadowCastingLightIDs)
 		{

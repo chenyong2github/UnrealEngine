@@ -14,6 +14,7 @@
 #include "Engine/Canvas.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Settings/LevelEditorMiscSettings.h"
+#include "Engine/RendererSettings.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Audio/AudioDebug.h"
@@ -2565,6 +2566,17 @@ FText FEditorViewportClient::GetCurrentBufferVisualizationModeDisplayName() cons
 		? FBufferVisualizationData::GetMaterialDefaultDisplayName() : GetBufferVisualizationData().GetMaterialDisplayName(CurrentBufferVisualizationMode));
 }
 
+bool FEditorViewportClient::IsVisualizeCalibrationMaterialEnabled() const
+{
+	// Get the list of requested buffers from the console
+	const URendererSettings* Settings = GetDefault<URendererSettings>();
+	check(Settings);
+
+	return ((EngineShowFlags.VisualizeCalibrationCustom && Settings->VisualizeCalibrationCustomMaterialPath.IsValid()) ||
+		(EngineShowFlags.VisualizeCalibrationColor  && Settings->VisualizeCalibrationColorMaterialPath.IsValid()) ||
+		(EngineShowFlags.VisualizeCalibrationGrayscale && Settings->VisualizeCalibrationGrayscaleMaterialPath.IsValid()));
+}
+
 void FEditorViewportClient::ChangeRayTracingDebugVisualizationMode(FName InName)
 {
 	SetViewMode(VMI_RayTracingDebug);
@@ -2599,7 +2611,7 @@ bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 	}
 
 	// Don't do preview screen percentage for buffer visualization.
-	if (EngineShowFlags.VisualizeBuffer)
+	if (EngineShowFlags.VisualizeBuffer || IsVisualizeCalibrationMaterialEnabled())
 	{
 		return false;
 	}
@@ -3865,7 +3877,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	}
 
 	// Axes indicators
-	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden())
+	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden() && !IsVisualizeCalibrationMaterialEnabled())
 	{
 		switch (GetViewportType())
 		{
@@ -5127,7 +5139,7 @@ bool FEditorViewportClient::IsCameraLocked() const
 
 void FEditorViewportClient::SetShowGrid()
 {
-	EngineShowFlags.SetGrid(!EngineShowFlags.Grid) ;
+	EngineShowFlags.SetGrid(!EngineShowFlags.Grid);
 	if (FEngineAnalytics::IsAvailable())
 	{
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("EngineShowFlags.Grid"), EngineShowFlags.Grid ? TEXT("True") : TEXT("False"));
@@ -5901,7 +5913,7 @@ void FEditorViewportClient::SetEnabledStats(const TArray<FString>& InEnabledStat
 	{
 		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			FAudioDebugger::ResolveDesiredStats(this);
+			Audio::FAudioDebugger::ResolveDesiredStats(this);
 		}
 	}
 #endif // ENABLE_AUDIO_DEBUG

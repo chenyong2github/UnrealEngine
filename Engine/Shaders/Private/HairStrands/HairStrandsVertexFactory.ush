@@ -274,7 +274,7 @@ FHairControlPoint GetVertexPosition(const FVertexInfo VertexInfo, bool bInvalidJ
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
 	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_START && VertexInfo.IsTip == 1) || (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END && VertexInfo.IsTip == 0) || VertexInfo.bForceInvalidQuad;
-	Out.Position = bIsInvalidQuad ? float3(1.#INF, 1.#INF, 1.#INF) : Out.Position;
+	Out.Position = bIsInvalidQuad ? float3(INFINITE_FLOAT, INFINITE_FLOAT, INFINITE_FLOAT) : Out.Position;
 
 	return Out;
 }
@@ -308,7 +308,7 @@ float3 GetVertexPreviousPosition(FVertexFactoryInput Input, bool bInvalidJointVe
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
 	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_START && VertexInfo.IsTip == 1) || (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END && VertexInfo.IsTip == 0) || VertexInfo.bForceInvalidQuad;
-	Out.Position = bIsInvalidQuad ? float3(1.#INF, 1.#INF, 1.#INF) : Out.Position;
+	Out.Position = bIsInvalidQuad ? float3(INFINITE_FLOAT, INFINITE_FLOAT, INFINITE_FLOAT) : Out.Position;
 
 	return Out.Position;
 }
@@ -409,8 +409,8 @@ half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 
 half3x3 CalcTangentToWorld(FVertexFactoryIntermediates Intermediates, half3x3 TangentToLocal)
 {
-	half3x3 TangentToWorld = CalcTangentToWorldNoScale(Intermediates, TangentToLocal);
-	return TangentToWorld;
+	half3x3 LocalTangentToWorld = CalcTangentToWorldNoScale(Intermediates, TangentToLocal);
+	return LocalTangentToWorld;
 }
 
 float3 GetTangent(FVertexFactoryInput Input)

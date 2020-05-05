@@ -17,6 +17,11 @@ UWMRARPin* FHoloLensARSystem::CreateNamedARPin(FName Name, const FTransform& Pin
 	const FTransform& TrackingToAlignedTracking = ARSupportInterface->GetAlignmentTransform();
 	const FTransform PinToTrackingTransform = PinToWorldTransform.GetRelativeTransform(TrackingSystem->GetTrackingToWorldTransform()).GetRelativeTransform(TrackingToAlignedTracking);
 
+	if (Name == NAME_None)
+	{
+		UE_LOG(LogHoloLensAR, Warning, TEXT("CreateNamedARPin: Creating anchor with illegal name 'None' (aka NAME_None). This can result from casting an empty string to a Name."));
+	}
+
 	FString WMRAnchorId = Name.ToString();
 
 	if (AnchorIdToPinMap.Contains(WMRAnchorId))

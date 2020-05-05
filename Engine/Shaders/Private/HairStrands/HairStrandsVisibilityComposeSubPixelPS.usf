@@ -47,7 +47,7 @@ void FastResolvePS(in FScreenVertexOutput Input)
 	for (uint SampleIt = 0; SampleIt < PERMUTATION_MSAACOUNT; ++SampleIt)
 	{
 		const float2 EncodedVelocity = HairVisibilityVelocityTexture.Load(PixelCoord, SampleIt);
-		const float2 Velocity = DecodeVelocityFromTexture(EncodedVelocity);
+		const float2 Velocity = DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
 		const float VelocityMagnitude = sqrt(dot(Velocity, Velocity));
 		if (EncodedVelocity.x > 0 && VelocityMagnitude > VelocityThreshold)
 		{

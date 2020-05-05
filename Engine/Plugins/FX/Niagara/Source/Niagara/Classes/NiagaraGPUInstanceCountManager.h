@@ -52,13 +52,21 @@ public:
 	void FreeEntry(uint32& BufferOffset);
 	uint32 AcquireEntry();
 
+	uint32 AcquireCulledEntry()
+	{
+		check(!bAcquiredCulledCounts);
+		return RequiredCulledCounts++;
+	}
+
+	FRWBuffer* AcquireCulledCountsBuffer(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
+
 	const uint32* GetGPUReadback();
 	void ReleaseGPUReadback();
 	void EnqueueGPUReadback(FRHICommandListImmediate& RHICmdList);
 	bool HasPendingGPUReadback() const;
 
 	/** Add a draw indirect task to generate the draw indirect args. Returns the draw indirect arg buffer offset. */
-	uint32 AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation);
+	uint32 AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation, bool bCulled = false);
 	FRWBuffer& GetDrawIndirectBuffer() { return DrawIndirectBuffer; }
 
 	/** 
@@ -76,16 +84,21 @@ public:
 
 protected:
 
-	/** Buffer slack size hysteresis used to managed the size of CountBuffer and DrawIndirectBuffer. */
-	float BufferSlack = 1.5f;
-
 	/** The current used instance counts allocated from FNiagaraDataBuffer::AllocateGPU() */
 	int32 UsedInstanceCounts = 0;
 	/** The allocated instance counts in CountBuffer */
 	int32 AllocatedInstanceCounts = 0;
 
+	/** The number of culled instance counts needed from view culling */
+	int32 RequiredCulledCounts = 0;
+	/** The allocated instance counts in the culled count buffer*/
+	int32 AllocatedCulledCounts = 0;
+	/** Whether or not the culled counts were acquired this frame */
+	bool bAcquiredCulledCounts = false;
+
 	/** A buffer holding the each emitter particle count after a simulation tick. */
 	FRWBuffer CountBuffer;
+	FRWBuffer CulledCountBuffer;
 	TArray<uint32> FreeEntries;
 	FRHIGPUMemoryReadback* CountReadback = nullptr;
 	int32 CountReadbackSize = 0;

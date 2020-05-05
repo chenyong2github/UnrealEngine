@@ -17,6 +17,7 @@
 #include "Launcher/LauncherUATTask.h"
 #include "Launcher/LauncherVerifyProfileTask.h"
 #include "PlatformInfo.h"
+#include "Misc/ConfigCacheIni.h"
 
 
 #define LOCTEXT_NAMESPACE "LauncherWorker"
@@ -336,7 +337,27 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			{
 				Platforms += TEXT("+LinuxAArch64");
 			}
-			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") || PlatformInfo->TargetPlatformName == FName("Windows") || PlatformInfo->TargetPlatformName == FName("WindowsClient"))
+			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor"))
+			{
+				// find out if the project is targeting 32bit
+				FConfigFile ProjectEngineConfig;
+				FString ProjectDir = FPaths::GetPath(InProfile->GetProjectPath());
+				FConfigCacheIni::LoadExternalIniFile(ProjectEngineConfig, TEXT("Engine"), *FPaths::EngineConfigDir(), *FPaths::Combine(ProjectDir, TEXT("Config/")), true, TEXT("Windows"));
+				bool bTarget32Bit = false;
+				ProjectEngineConfig.GetBool(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("bTarget32Bit"), bTarget32Bit);
+
+				// normally this would get the 64bit one, so if we need the 32-bit one, swap it out
+				if (bTarget32Bit)
+				{
+					PlatformInfo = PlatformInfo::FindPlatformInfo(TEXT("WindowsNoEditorWin32"));
+					check(PlatformInfo != nullptr);
+				}
+			
+				// if target wants 32-bit, use 32-bit
+				Platforms += TEXT("+");
+				Platforms += PlatformInfo->UBTTargetId.ToString();
+			}
+			else if (PlatformInfo->TargetPlatformName == FName("Windows") || PlatformInfo->TargetPlatformName == FName("WindowsClient"))
 			{
 				Platforms += TEXT("+Win64");
 			}
@@ -516,17 +537,19 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		MapList = TEXT(" -map=") + InitialMap;
 	}
 
+	bool bIsBuilding = InProfile->ShouldBuild();
+
 	// Override the Blueprint nativization method for anything other than "cook by the book" mode. Nativized assets
 	// won't get regenerated otherwise, and we don't want UBT to include generated code assets from a previous cook.
 	// Also disable Blueprint nativization if the profile is not configured to also build code. Otherwise nativized
 	// assets generated at cook time will not be linked into the game's executable prior to stage/deployment phases.
-	if (InProfile->GetCookMode() != ELauncherProfileCookModes::ByTheBook || !InProfile->IsBuilding())
+	if (InProfile->GetCookMode() != ELauncherProfileCookModes::ByTheBook || !bIsBuilding)
 	{
 		UATCommand += TEXT(" -ini:Game:[/Script/UnrealEd.ProjectPackagingSettings]:BlueprintNativizationMethod=Disabled");
 	}
 
 	// build
-	if (InProfile->IsBuilding())
+	if (bIsBuilding)
 	{
 		UATCommand += TEXT(" -build");
 
@@ -864,25 +887,12 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 
 void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfile )
 {
-	// check to see if we need to build by default
-	if (!InProfile->HasProjectSpecified())
-	{
-		FString ProjectPath = FPaths::GetPath(InProfile->GetProjectPath());
-		TArray<FString> OutProjectCodeFilenames;
-		IFileManager::Get().FindFilesRecursive(OutProjectCodeFilenames, *(ProjectPath / TEXT("Source")), TEXT("*.h"), true, false, false);
-		IFileManager::Get().FindFilesRecursive(OutProjectCodeFilenames, *(ProjectPath / TEXT("Source")), TEXT("*.cpp"), true, false, false);
-		ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
-		if (OutProjectCodeFilenames.Num() > 0 && SourceCodeAccessModule.GetAccessor().CanAccessSourceCode())
-		{
-			InProfile->SetBuildGame(true);
-		}
-	}
 	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
 	// create task chains
 	TaskChain = MakeShareable(new FLauncherVerifyProfileTask());
 	TArray<FString> Platforms;
-	if (InProfile->GetCookMode() == ELauncherProfileCookModes::ByTheBook || InProfile->IsBuilding())
+	if (InProfile->GetCookMode() == ELauncherProfileCookModes::ByTheBook || InProfile->ShouldBuild())
 	{
 		Platforms = InProfile->GetCookedPlatforms();
 	}

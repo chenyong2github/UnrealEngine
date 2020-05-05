@@ -192,7 +192,7 @@ bool FMeshRefinerBase::CanCollapseVertex(int eid, int a, int b, int& collapse_to
 		return true;
 	}
 	// if both fixed, and options allow, treat this edge as unconstrained (eg collapse to midpoint)
-	// [RMS] tried picking a or b here, but something weird happens, where
+	// TODO: tried picking a or b here, but something weird happens, where
 	//   eg cylinder cap will entirely erode away. Somehow edge lengths stay below threshold??
 	if (AllowCollapseFixedVertsWithSameSetID
 		&& ca.FixedSetID >= 0

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/EnumAsByte.h"
+#include "Containers/StringFwd.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsPolymorphic.h"
 #include "Templates/IsTriviallyDestructible.h"
@@ -15,6 +16,7 @@ class FMemoryImageWriter;
 class FMemoryUnfreezeContent;
 class FPointerTableBase;
 struct FTypeLayoutDesc;
+struct FPlatformTypeLayoutParameters;
 
 // Duplicated from RHIDefinitions.h [AND MUST MATCH THE Freezing_bWithRayTracing in DataDrivenPlatformInfo.ini]
 #ifndef WITH_RAYTRACING
@@ -65,34 +67,16 @@ using FMemoryImageUPtrInt = UPTRINT;
 
 template<typename T> const FTypeLayoutDesc& StaticGetTypeLayoutDesc();
 
-struct FPlatformTypeLayoutParameters
+struct FMemoryToStringContext
 {
-	uint32 MaxFieldAlignment = 0xffffffff;
-	bool b32Bit = false;
-	bool bForce64BitMemoryImagePointers = true;
-	bool bAlignBases = false;
-	bool bWithEditorOnly = false;
-	bool bWithRayTracing = false;
-	bool bIsCurrentPlatform = false;
+	CORE_API void AppendNullptr();
+	CORE_API void AppendIndent();
 
-	inline bool Has32BitMemoryImagePointers() const { return b32Bit && !bForce64BitMemoryImagePointers; }
-	inline bool Has64BitMemoryImagePointers() const { return !Has32BitMemoryImagePointers(); }
+	const FPointerTableBase* TryGetPrevPointerTable() const { return PrevPointerTable; }
 
-	inline uint32 GetRawPointerSize() const { return b32Bit ? sizeof(uint32) : sizeof(uint64); }
-	inline uint32 GetMemoryImagePointerSize() const { return Has32BitMemoryImagePointers() ? sizeof(uint32) : sizeof(uint64); }
-
-	CORE_API void InitializeForArchive(FArchive& Ar);
-	CORE_API void InitializeForPlatform(const FString& PlatformName, bool bHasEditorOnlyData);
-	CORE_API void InitializeForCurrent();
-	CORE_API void InitializeForMSVC();
-	CORE_API void InitializeForClang();
-
-	/**
-	 * Allow the layout parameters to modify the given DDC key string
-	 * Normally this should not be used, and instead hashed layouts of any dependent types should be preferred
-	 * This is mostly needed when fixing bugs related to writing memory images with certain parameter combinations
-	 */
-	CORE_API void AppendKeyString(FString& KeyString) const;
+	FStringBuilderBase* String = nullptr;
+	const FPointerTableBase* PrevPointerTable = nullptr;
+	int32 Indent = 0;
 };
 
 namespace ETypeLayoutInterface
@@ -145,6 +129,7 @@ struct FTypeLayoutDesc
 	typedef void (FUnfrozenCopyFunc)(const FMemoryUnfreezeContent& Context, const void* Object, const FTypeLayoutDesc& TypeDesc, void* OutDst);
 	typedef uint32 (FAppendHashFunc)(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
 	typedef uint32 (FGetTargetAlignmentFunc)(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams);
+	typedef void (FToStringFunc)(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
 	typedef const void* (FGetDefaultFunc)();
 
 	static CORE_API const FTypeLayoutDesc& GetInvalidTypeLayout();
@@ -163,6 +148,7 @@ struct FTypeLayoutDesc
 	FUnfrozenCopyFunc* UnfrozenCopyFunc;
 	FAppendHashFunc* AppendHashFunc;
 	FGetTargetAlignmentFunc* GetTargetAlignmentFunc;
+	FToStringFunc* ToStringFunc;
 	FGetDefaultFunc* GetDefaultObjectFunc;
 
 	uint64 NameHash; // from FHashedName(Name)
@@ -289,6 +275,7 @@ namespace Freeze
 	CORE_API void DefaultUnfrozenCopy(const FMemoryUnfreezeContent& Context, const void* Object, const FTypeLayoutDesc& TypeDesc, void* OutDst);
 	CORE_API uint32 DefaultAppendHash(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
 	CORE_API uint32 DefaultGetTargetAlignment(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams);
+	CORE_API void DefaultToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
 	CORE_API uint32 AppendHashForNameAndSize(const TCHAR* Name, uint32 Size, FSHA1& Hasher);
 	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const void* Object, uint32 Size);
 	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, void*, const FTypeLayoutDesc&);
@@ -317,15 +304,31 @@ namespace Freeze
 		return TypeDesc.Alignment;
 	}
 
-	inline uint32 IntrinsicAppendHash(void* const* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	template<typename T>
+	inline void IntrinsicToString(const T& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
 	{
-		return AppendHashForNameAndSize(TypeDesc.Name, LayoutParams.GetRawPointerSize(), Hasher);
+		DefaultToString(&Object, TypeDesc, LayoutParams, OutContext);
 	}
 
-	inline uint32 IntrinsicGetTargetAlignment(void* const* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams)
-	{
-		return LayoutParams.GetRawPointerSize();
-	}
+	CORE_API uint32 IntrinsicAppendHash(void* const* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
+	CORE_API uint32 IntrinsicGetTargetAlignment(void* const* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams);
+
+	CORE_API void IntrinsicToString(char Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(short Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(int Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(int8 Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(long Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(long long Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(unsigned char Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(unsigned short Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(unsigned int Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(unsigned long Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(unsigned long long Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(float Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(double Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(wchar_t Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(char16_t Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+	CORE_API void IntrinsicToString(void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
 
 	// helper functions
 	CORE_API void ExtractBitFieldValue(const void* Value, uint32 SrcBitOffset, uint32 DestBitOffset, uint32 NumBits, uint64& InOutValue);
@@ -491,6 +494,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		} \
 	};
 
+#define INTERNAL_LAYOUT_TOSTRING(Func, Counter) \
+	UE_DECLARE_INTERNAL_LINK_SPECIALIZATION(InternalLinkType, Counter - CounterBase) { \
+		UE_STATIC_ONLY(InternalLinkType); \
+		static void CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) { \
+			static_cast<const DerivedType*>(Object)->Func(OutContext); \
+		} \
+		static void Initialize(FTypeLayoutDesc& TypeDesc) { \
+			InternalLinkType<Counter - CounterBase + 1>::Initialize(TypeDesc); \
+			TypeDesc.ToStringFunc = &CallToString; \
+		} \
+	};
+
 #define LAYOUT_FIELD(T, Name, ...) PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name; INTERNAL_LAYOUT_FIELD(T, Name, STRUCT_OFFSET(DerivedType, Name), EFieldLayoutFlags::MakeFlags(__VA_ARGS__), 1u, 0u, __COUNTER__)
 #define LAYOUT_MUTABLE_FIELD(T, Name, ...) mutable PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name; INTERNAL_LAYOUT_FIELD(T, Name, STRUCT_OFFSET(DerivedType, Name), EFieldLayoutFlags::MakeFlags(__VA_ARGS__), 1u, 0u, __COUNTER__)
 #define LAYOUT_FIELD_INITIALIZED(T, Name, Value, ...) PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name = Value; INTERNAL_LAYOUT_FIELD(T, Name, STRUCT_OFFSET(DerivedType, Name), EFieldLayoutFlags::MakeFlags(__VA_ARGS__), 1u, 0u, __COUNTER__)
@@ -501,6 +516,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #define LAYOUT_FIELD_WITH_WRITER(T, Name, Func) PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name; INTERNAL_LAYOUT_FIELD_WITH_WRITER(T, Name, Func, __COUNTER__)
 #define LAYOUT_MUTABLE_FIELD_WITH_WRITER(T, Name, Func) mutable PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name; INTERNAL_LAYOUT_FIELD_WITH_WRITER(T, Name, Func, __COUNTER__)
 #define LAYOUT_WRITE_MEMORY_IMAGE(Func) INTERNAL_LAYOUT_WRITE_MEMORY_IMAGE(Func, __COUNTER__)
+#define LAYOUT_TOSTRING(Func) INTERNAL_LAYOUT_TOSTRING(Func, __COUNTER__)
 
 #if WITH_EDITORONLY_DATA
 #define LAYOUT_FIELD_EDITORONLY(T, Name, ...) PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name; INTERNAL_LAYOUT_FIELD(T, Name, STRUCT_OFFSET(DerivedType, Name), EFieldLayoutFlags::MakeFlagsEditorOnly(__VA_ARGS__), 1u, 0u, __COUNTER__)
@@ -555,6 +571,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			TypeDesc.UnfrozenCopyFunc = &Freeze::DefaultUnfrozenCopy; \
 			TypeDesc.AppendHashFunc = &Freeze::DefaultAppendHash; \
 			TypeDesc.GetTargetAlignmentFunc = &Freeze::DefaultGetTargetAlignment; \
+			TypeDesc.ToStringFunc = &Freeze::DefaultToString; \
 			TypeDesc.Size = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 			TypeDesc.Alignment = alignof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 			TypeDesc.Interface = ETypeLayoutInterface::InInterface; \
@@ -601,6 +618,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			TypeDesc.UnfrozenCopyFunc = &Freeze::DefaultUnfrozenCopy; \
 			TypeDesc.AppendHashFunc = &Freeze::DefaultAppendHash; \
 			TypeDesc.GetTargetAlignmentFunc = &Freeze::DefaultGetTargetAlignment; \
+			TypeDesc.ToStringFunc = &Freeze::DefaultToString; \
 			TypeDesc.Size = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 			TypeDesc.Alignment = alignof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 			TypeDesc.Interface = InterfaceType; \
@@ -697,6 +715,9 @@ inline void DeleteObjectFromLayout(T* Object, FPointerTableBase* PtrTable = null
 		static uint32 CallGetTargetAlignment(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams) { \
 			return Freeze::IntrinsicGetTargetAlignment(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) const*>(nullptr), TypeDesc, LayoutParams); \
 		} \
+		static void CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) { \
+			return Freeze::IntrinsicToString(*static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) const*>(Object), TypeDesc, LayoutParams, OutContext); \
+		} \
 		static const FTypeLayoutDesc& Do() { \
 			alignas(FTypeLayoutDesc) static uint8 TypeBuffer[sizeof(FTypeLayoutDesc)] = { 0 }; \
 			FTypeLayoutDesc& TypeDesc = *(FTypeLayoutDesc*)TypeBuffer; \
@@ -708,6 +729,7 @@ inline void DeleteObjectFromLayout(T* Object, FPointerTableBase* PtrTable = null
 				TypeDesc.UnfrozenCopyFunc = &CallUnfrozenCopy; \
 				TypeDesc.AppendHashFunc = &CallAppendHash; \
 				TypeDesc.GetTargetAlignmentFunc = &CallGetTargetAlignment; \
+				TypeDesc.ToStringFunc = &CallToString; \
 				TypeDesc.Size = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 				TypeDesc.Alignment = alignof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 				TypeDesc.Interface = ETypeLayoutInterface::NonVirtual; \
@@ -727,6 +749,7 @@ inline void DeleteObjectFromLayout(T* Object, FPointerTableBase* PtrTable = null
 		static void CallUnfrozenCopy(const FMemoryUnfreezeContent& Context, const void* Object, const FTypeLayoutDesc& TypeDesc, void* OutDst); \
 		static uint32 CallAppendHash(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher); \
 		static uint32 CallGetTargetAlignment(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams); \
+		static void CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext); \
 		RequiredAPI static const FTypeLayoutDesc& Do(); }; \
 	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) struct TGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)> { \
 		UE_STATIC_ONLY(TGetTypeLayoutHelper); \
@@ -745,6 +768,9 @@ inline void DeleteObjectFromLayout(T* Object, FPointerTableBase* PtrTable = null
 		uint32 TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::CallGetTargetAlignment(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams) { \
 			return Freeze::IntrinsicGetTargetAlignment(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) const*>(nullptr), TypeDesc, LayoutParams); \
 		} \
+		void TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) { \
+			return Freeze::IntrinsicToString(*static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) const*>(Object), TypeDesc, LayoutParams, OutContext); \
+		} \
 		const FTypeLayoutDesc& TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::Do() { \
 			alignas(FTypeLayoutDesc) static uint8 TypeBuffer[sizeof(FTypeLayoutDesc)] = { 0 }; \
 			FTypeLayoutDesc& TypeDesc = *(FTypeLayoutDesc*)TypeBuffer; \
@@ -756,6 +782,7 @@ inline void DeleteObjectFromLayout(T* Object, FPointerTableBase* PtrTable = null
 				TypeDesc.UnfrozenCopyFunc = &CallUnfrozenCopy; \
 				TypeDesc.AppendHashFunc = &CallAppendHash; \
 				TypeDesc.GetTargetAlignmentFunc = &CallGetTargetAlignment; \
+				TypeDesc.ToStringFunc = &CallToString; \
 				TypeDesc.Size = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 				TypeDesc.Alignment = alignof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 				TypeDesc.Interface = ETypeLayoutInterface::NonVirtual; \
@@ -800,3 +827,68 @@ ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename T>, const T, T);
 
 // All raw pointer types map to void*, since they're all handled the same way
 ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename T>, T*, void*);
+
+struct FPlatformTypeLayoutParameters
+{
+	DECLARE_EXPORTED_TYPE_LAYOUT(FPlatformTypeLayoutParameters, CORE_API, NonVirtual);
+
+	enum Flags
+	{
+		Flag_Initialized = (1 << 0),
+		Flag_Is32Bit = (1 << 1),
+		Flag_Force64BitMemoryImagePointers = (1 << 2),
+		Flag_AlignBases = (1 << 3),
+		Flag_WithEditorOnly = (1 << 4),
+		Flag_WithRaytracing = (1 << 5),
+	};
+
+	LAYOUT_FIELD_INITIALIZED(uint32, MaxFieldAlignment, 0xffffffff);
+	LAYOUT_FIELD_INITIALIZED(uint32, Flags, 0u);
+
+	inline bool IsInitialized() const { return (Flags & Flag_Initialized) != 0u; }
+	inline bool Is32Bit() const { return (Flags & Flag_Is32Bit) != 0u; }
+	inline bool HasForce64BitMemoryImagePointers() const { return (Flags & Flag_Force64BitMemoryImagePointers) != 0u; }
+	inline bool HasAlignBases() const { return (Flags & Flag_AlignBases) != 0u; }
+	inline bool WithEditorOnly() const { return (Flags & Flag_WithEditorOnly) != 0u; }
+	inline bool WithRaytracing() const { return (Flags & Flag_WithRaytracing) != 0u; }
+
+	inline bool Has32BitMemoryImagePointers() const { return Is32Bit() && !HasForce64BitMemoryImagePointers(); }
+	inline bool Has64BitMemoryImagePointers() const { return !Has32BitMemoryImagePointers(); }
+
+	inline uint32 GetRawPointerSize() const { return Is32Bit() ? sizeof(uint32) : sizeof(uint64); }
+	inline uint32 GetMemoryImagePointerSize() const { return Has32BitMemoryImagePointers() ? sizeof(uint32) : sizeof(uint64); }
+
+	friend inline FArchive& operator<<(FArchive& Ar, FPlatformTypeLayoutParameters& Ref)
+	{
+		return Ref.Serialize(Ar);
+	}
+
+	friend inline bool operator==(const FPlatformTypeLayoutParameters& Lhs, const FPlatformTypeLayoutParameters& Rhs)
+	{
+		return Lhs.Flags == Rhs.Flags && Lhs.MaxFieldAlignment == Rhs.MaxFieldAlignment;
+	}
+
+	friend inline bool operator!=(const FPlatformTypeLayoutParameters& Lhs, const FPlatformTypeLayoutParameters& Rhs)
+	{
+		return !operator==(Lhs, Rhs);
+	}
+
+	CORE_API bool IsCurrentPlatform() const;
+	CORE_API void InitializeForArchive(FArchive& Ar);
+	CORE_API void InitializeForPlatform(const FString& PlatformName, bool bHasEditorOnlyData);
+	CORE_API void InitializeForCurrent();
+	CORE_API void InitializeForMSVC();
+	CORE_API void InitializeForClang();
+
+	/**
+	 * This is used for serializing into/from the DDC
+	 */
+	CORE_API FArchive& Serialize(FArchive& Ar);
+
+	/**
+	 * Allow the layout parameters to modify the given DDC key string
+	 * Normally this should not be used, and instead hashed layouts of any dependent types should be preferred
+	 * This is mostly needed when fixing bugs related to writing memory images with certain parameter combinations
+	 */
+	CORE_API void AppendKeyString(FString& KeyString) const;
+};

@@ -75,17 +75,20 @@ void FVulkanShaderResourceView::UpdateView()
 	// update the buffer view for dynamic backed buffers (or if it was never set)
 	if (SourceBuffer != nullptr)
 	{
+		uint32 CurrentViewSize = Size;
 		if (SourceBuffer->IsVolatile() && VolatileLockCounter != SourceBuffer->GetVolatileLockCounter())
 		{
 			VkBuffer SourceVolatileBufferHandle = SourceBuffer->GetHandle();
 
-			//Inherit Size from volatile buffer, as it might change
-			Size = SourceBuffer->GetVolatileLockSize();
+			// If the volatile buffer shrinks, make sure our size doesn't exceed the new limit.
+			uint32 AvailableSize = SourceBuffer->GetVolatileLockSize();
+			AvailableSize = Offset < AvailableSize ? AvailableSize - Offset : 0;
+			CurrentViewSize = FMath::Min(CurrentViewSize, AvailableSize);
 
 			// We might end up with the same BufferView, so do not recreate in that case
 			if (!BufferViews[0] 
 				|| BufferViews[0]->Offset != (SourceBuffer->GetOffset() + Offset)
-				|| BufferViews[0]->Size != Size
+				|| BufferViews[0]->Size != CurrentViewSize
 				|| VolatileBufferHandle != SourceVolatileBufferHandle)
 			{
 				BufferViews[0] = nullptr;
@@ -102,7 +105,7 @@ void FVulkanShaderResourceView::UpdateView()
 		if (!BufferViews[BufferIndex])
 		{
 			BufferViews[BufferIndex] = new FVulkanBufferView(Device);
-			BufferViews[BufferIndex]->Create(SourceBuffer, BufferViewFormat, SourceBuffer->GetOffset() + Offset, Size);
+			BufferViews[BufferIndex]->Create(SourceBuffer, BufferViewFormat, SourceBuffer->GetOffset() + Offset, CurrentViewSize);
 		}
 	}
 	else if (SourceStructuredBuffer)

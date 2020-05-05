@@ -4808,6 +4808,7 @@ public:
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void BeginDestroy() override;
 	// End of UObject interface
 

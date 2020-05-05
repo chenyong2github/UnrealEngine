@@ -54,7 +54,7 @@ void TGeometryCollectionParticlesData<T, d>::Sync(Chaos::FPhysicsSolver* Solver,
 			Chaos::IDispatcher* const PhysicsDispatcher = ChaosModule->GetDispatcher();
 			check(PhysicsDispatcher);
 
-			PhysicsDispatcher->EnqueueCommandImmediate(Solver, [this, &RigidBodyIds](Chaos::FPhysicsSolver* InSolver)
+			Solver->EnqueueCommandImmediate([this, &RigidBodyIds, InSolver=Solver]()
 			{
 				// Iterate through all data
 				FData& Data = BufferedData.GetPhysicsDataForWrite();

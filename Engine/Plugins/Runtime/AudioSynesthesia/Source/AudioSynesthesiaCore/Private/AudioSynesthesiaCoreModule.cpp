@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioSynesthesiaCoreModule.h"
+#include "AudioSynesthesiaCoreLog.h"
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -9,6 +10,7 @@
 #include "ConstantQNRTFactory.h"
 #include "OnsetNRTFactory.h"
 
+DEFINE_LOG_CATEGORY(LogAudioSynesthesiaCore);
 
 namespace Audio
 {

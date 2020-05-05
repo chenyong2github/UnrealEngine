@@ -245,7 +245,7 @@ public:
 			if (Resource)
 			{
 				FMaterialShaderMapId ResourceId;
-				Resource->GetShaderMapId(GMaxRHIShaderPlatform, ResourceId);
+				Resource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ResourceId);
 
 				{
 					TArray<FShaderType*> ShaderTypes;

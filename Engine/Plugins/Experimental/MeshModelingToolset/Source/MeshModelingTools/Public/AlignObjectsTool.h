@@ -84,9 +84,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Axes)
 	bool bAlignZ = true;
-
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -113,7 +110,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }

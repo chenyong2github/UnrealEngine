@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "ContentStreaming.h"
 #include "Landscape.h"
+#include "LandscapeProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 static int32 GUseStreamingManagerForCameras = 1;
@@ -45,10 +46,20 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	TickGroup = TG_DuringPhysics;
 	bAllowTickOnDedicatedServer = false;
 	RegisterTickFunction(GetWorld()->PersistentLevel);
+
+#if WITH_EDITOR
+	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
+#endif
 }
 
 void ULandscapeSubsystem::Deinitialize()
 {
+#if WITH_EDITOR
+	if (GrassMapsBuilder)
+	{
+		delete GrassMapsBuilder;
+	}
+#endif
 	UnRegisterTickFunction();
 	Proxies.Empty();
 
@@ -139,3 +150,15 @@ FName ULandscapeSubsystem::DiagnosticContext(bool bDetailed)
 	static const FName Context(TEXT("ULandscapeSubsystem"));
 	return Context;
 }
+
+#if WITH_EDITOR
+void ULandscapeSubsystem::BuildGrassMaps()
+{
+	GrassMapsBuilder->Build();
+}
+
+int32 ULandscapeSubsystem::GetOutdatedGrassMapCount()
+{
+	return GrassMapsBuilder->GetOutdatedGrassMapCount(/*bInForceUpdate*/false);
+}
+#endif

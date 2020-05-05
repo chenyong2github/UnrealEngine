@@ -284,6 +284,14 @@ void FNiagaraOverviewGraphViewModel::PasteNodes()
 	UEdGraph* Graph = GetGraph();
 	if (Graph != nullptr)
 	{
+		// Check if we need to early out due to trying to paste nodes to an emitter asset edit mode overview graph.
+		TSharedPtr<FNiagaraSystemViewModel> WeakSystemViewModel = SystemViewModel.Pin();
+		ENiagaraSystemViewModelEditMode SystemEditMode = WeakSystemViewModel->GetEditMode();
+		if (SystemEditMode == ENiagaraSystemViewModelEditMode::EmitterAsset)
+		{
+			return;
+		}
+
 		const FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());;
 		Graph->Modify();
 

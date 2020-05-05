@@ -193,7 +193,7 @@ void UEditPivotTool::RequestAction(EEditPivotToolActions ActionType)
 }
 
 
-void UEditPivotTool::Tick(float DeltaTime)
+void UEditPivotTool::OnTick(float DeltaTime)
 {
 	if (PendingAction != EEditPivotToolActions::NoAction)
 	{

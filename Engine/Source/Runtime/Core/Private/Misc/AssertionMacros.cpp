@@ -233,7 +233,7 @@ void FDebug::LogFormattedMessageWithCallstack(const FName& InLogName, const ANSI
 	}
 }
 
-#if DO_CHECK || DO_GUARD_SLOW
+#if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 //
 // Failed assertion handler.
 //warning: May be called at library startup time.
@@ -457,7 +457,7 @@ void FORCENOINLINE FDebug::CheckVerifyFailedImpl(
 	}
 }
 
-#endif // DO_CHECK || DO_GUARD_SLOW
+#endif // DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 
 void VARARGS FDebug::AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format/* = TEXT("")*/, ...)
 {
@@ -483,7 +483,7 @@ void FDebug::ProcessFatalError()
 	GError->Logf(TEXT("%s"), GErrorHist);
 }
 
-#if DO_CHECK || DO_GUARD_SLOW
+#if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 FORCENOINLINE bool VARARGS FDebug::OptionallyLogFormattedEnsureMessageReturningFalseImpl( bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* FormattedMsg, ... )
 {
 	if (bLog)

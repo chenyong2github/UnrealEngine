@@ -3,6 +3,7 @@
 #include "RigVMCore/RigVM.h"
 #include "UObject/Package.h"
 #include "UObject/AnimObjectVersion.h"
+#include "HAL/PlatformTLS.h"
 
 bool FRigVMParameter::Serialize(FArchive& Ar)
 {
@@ -41,6 +42,7 @@ UScriptStruct* FRigVMParameter::GetScriptStruct() const
 }
 
 URigVM::URigVM()
+	: ThreadId(INDEX_NONE)
 {
 	WorkMemory.SetMemoryType(ERigVMMemoryType::Work);
 	LiteralMemory.SetMemoryType(ERigVMMemoryType::Literal);
@@ -234,6 +236,12 @@ void URigVM::InvalidateCachedMemory()
 
 void URigVM::CacheMemoryPointersIfRequired(FRigVMMemoryContainerPtrArray InMemory)
 {
+	if (ThreadId != INDEX_NONE)
+	{
+		ensureMsgf(ThreadId == FPlatformTLS::GetCurrentThreadId(), TEXT("RigVM from multiple threads (%d and %d)"), ThreadId, (int32)FPlatformTLS::GetCurrentThreadId());
+	}
+	TGuardValue<int32> GuardThreadId(ThreadId, FPlatformTLS::GetCurrentThreadId());
+
 	RefreshInstructionsIfRequired();
 
 	if (Instructions.Num() == 0 || InMemory.Num() == 0)

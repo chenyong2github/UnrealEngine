@@ -416,7 +416,7 @@ public:
 		FMaterialResource* Resource = InMaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel);
 
 		FMaterialShaderMapId ResourceId;
-		Resource->GetShaderMapId(GMaxRHIShaderPlatform, ResourceId);
+		Resource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ResourceId);
 
 		{
 			TArray<FShaderType*> ShaderTypes;

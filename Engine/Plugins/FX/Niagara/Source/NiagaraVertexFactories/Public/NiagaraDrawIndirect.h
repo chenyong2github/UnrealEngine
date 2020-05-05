@@ -13,7 +13,7 @@ NiagaraDrawIndirect.h: Niagara shader to generate the draw indirect args for Nia
 
 #define NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT 64
 #define NIAGARA_DRAW_INDIRECT_ARGS_SIZE 5
-#define NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE 3
+#define NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE 4
 
 // #define NIAGARA_COPY_BUFFER_THREAD_COUNT 64
 // #define NIAGARA_COPY_BUFFER_BUFFER_COUNT 3
@@ -25,21 +25,24 @@ NiagaraDrawIndirect.h: Niagara shader to generate the draw indirect args for Nia
 */
 struct FNiagaraDrawIndirectArgGenTaskInfo
 {
-	FNiagaraDrawIndirectArgGenTaskInfo(uint32 InInstanceCountBufferOffset, uint32 InNumIndicesPerInstance, uint32 InStartIndexLocation)
+	FNiagaraDrawIndirectArgGenTaskInfo(uint32 InInstanceCountBufferOffset, uint32 InNumIndicesPerInstance, uint32 InStartIndexLocation, bool bInUseCulledCounts)
 		: InstanceCountBufferOffset(InInstanceCountBufferOffset)
 		, NumIndicesPerInstance(InNumIndicesPerInstance)
 		, StartIndexLocation(InStartIndexLocation)
+		, bUseCulledCounts(bInUseCulledCounts ? 1 : 0)
 	{}
 
 	uint32 InstanceCountBufferOffset;
 	uint32 NumIndicesPerInstance; // When -1 the counter needs to be reset to 0.
 	uint32 StartIndexLocation;
+	uint32 bUseCulledCounts;
 
 	bool operator==(const FNiagaraDrawIndirectArgGenTaskInfo& Rhs) const
 	{
 		return InstanceCountBufferOffset == Rhs.InstanceCountBufferOffset
 			&& NumIndicesPerInstance == Rhs.NumIndicesPerInstance
-			&& StartIndexLocation == Rhs.StartIndexLocation;
+			&& StartIndexLocation == Rhs.StartIndexLocation
+			&& bUseCulledCounts == Rhs.bUseCulledCounts;
 	}
 };
 
@@ -67,12 +70,13 @@ public:
 
 	//bool Serialize(FArchive& Ar);
 	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* DrawIndirectArgsUAV, FRHIUnorderedAccessView* InstanceCountsUAV);
-	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks);
+	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks);
 	void UnbindBuffers(FRHICommandList& RHICmdList);
 
 protected:
 	
 	LAYOUT_FIELD(FShaderResourceParameter, TaskInfosParam)
+	LAYOUT_FIELD(FShaderResourceParameter, CulledInstanceCountsParam);
 	LAYOUT_FIELD(FRWShaderParameter, InstanceCountsParam)
 	LAYOUT_FIELD(FRWShaderParameter, DrawIndirectArgsParam)
 	LAYOUT_FIELD(FShaderParameter, TaskCountParam)

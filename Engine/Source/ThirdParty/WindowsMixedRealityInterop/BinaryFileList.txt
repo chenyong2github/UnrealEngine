@@ -40,3 +40,4 @@
 ..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\lib\x64\MixedRealityInteropDebug.lib
 ..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\lib\x64\MixedRealityInteropHoloLens.lib
 ..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\lib\x64\MixedRealityInteropHoloLensDebug.lib
+..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\Include\MixedRealityInteropBuildInfo.h

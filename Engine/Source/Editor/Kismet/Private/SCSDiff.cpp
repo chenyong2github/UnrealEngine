@@ -98,10 +98,10 @@ void FSCSDiff::OnSCSEditorUpdateSelectionFromNodes(const TArray<FSCSEditorTreeNo
 	for (auto NodeIt = SelectedNodes.CreateConstIterator(); NodeIt; ++NodeIt)
 	{
 		auto NodePtr = *NodeIt;
-		if(NodePtr.IsValid() && NodePtr->CanEditDefaults())
+		if(NodePtr.IsValid() && NodePtr->CanEdit())
 		{
 			InspectorTitle = FText::FromString(NodePtr->GetDisplayString());
-			InspectorObjects.Add(NodePtr->GetOrCreateEditableComponentTemplate(Blueprint));
+			InspectorObjects.Add(NodePtr->GetEditableObjectForBlueprint<UObject>(Blueprint));
 		}
 	}
 

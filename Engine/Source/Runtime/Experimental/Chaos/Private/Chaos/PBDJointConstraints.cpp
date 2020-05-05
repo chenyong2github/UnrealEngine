@@ -4,6 +4,7 @@
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Joint/ChaosJointLog.h"
 #include "Chaos/Joint/ColoringGraph.h"
+#include "Chaos/Joint/JointConstraintsCVars.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
@@ -18,20 +19,6 @@
 #endif
 
 //PRAGMA_DISABLE_OPTIMIZATION
-
-bool bChaos_Joint_EarlyOut_Enabled = true;
-FAutoConsoleVariableRef CVarChaosJointEarlyOutEnabled(TEXT("p.Chaos.Joint.EarlyOut"), bChaos_Joint_EarlyOut_Enabled, TEXT("Whether to iterating when joints report being solved"));
-
-bool bChaos_Joint_Batching = false;
-FAutoConsoleVariableRef CVarChaosJointBatching(TEXT("p.Chaos.Joint.Batching"), bChaos_Joint_Batching, TEXT(""));
-
-int32 bChaos_Joint_MaxBatchSize = 1000;
-FAutoConsoleVariableRef CVarChaosJointBatchSize(TEXT("p.Chaos.Joint.MaxBatchSize"), bChaos_Joint_MaxBatchSize, TEXT(""));
-
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bChaos_Joint_ISPC_Enabled = true;
-FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bChaos_Joint_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Joint Solver"));
-#endif
 
 namespace Chaos
 {
@@ -138,7 +125,6 @@ namespace Chaos
 		, LinearDriveStiffness(0)
 		, LinearDriveDamping(0)
 		, AngularDrivePositionTarget(FRotation3::FromIdentity())
-		, AngularDriveTargetAngles(FVec3(0, 0, 0))
 		, AngularDriveVelocityTarget(FVec3(0, 0, 0))
 		, bAngularSLerpPositionDriveEnabled(false)
 		, bAngularSLerpVelocityDriveEnabled(false)
@@ -149,6 +135,8 @@ namespace Chaos
 		, AngularDriveForceMode(EJointForceMode::Acceleration)
 		, AngularDriveStiffness(0)
 		, AngularDriveDamping(0)
+		, LinearBreakForce(0)
+		, AngularBreakTorque(0)
 	{
 		if (bChaos_Joint_ISPC_Enabled)
 		{
@@ -182,6 +170,54 @@ namespace Chaos
 		{
 			AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = 0;
 		}
+
+		// If we have a zero degree limit angle, lock the joint, or set a non-zero limit (to avoid division by zero in axis calculations)
+		const FReal MinAngularLimit = 0.01f;
+		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Twist] == 0))
+		{
+			if (bSoftTwistLimitsEnabled)
+			{
+				AngularLimits[(int32)EJointAngularConstraintIndex::Twist] = MinAngularLimit;
+			}
+			else
+			{
+				AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] = EJointMotionType::Locked;
+			}
+		}
+		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] == 0))
+		{
+			if (bSoftSwingLimitsEnabled)
+			{
+				AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] = MinAngularLimit;
+			}
+			else
+			{
+				AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] = EJointMotionType::Locked;
+			}
+		}
+		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Limited) && (AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] == 0))
+		{
+			if (bSoftSwingLimitsEnabled)
+			{
+				AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = MinAngularLimit;
+			}
+			else
+			{
+				AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] = EJointMotionType::Locked;
+			}
+		}
+
+		// SLerp drive is only allowed if no angular dofs are locked
+		if (bAngularSLerpPositionDriveEnabled || bAngularSLerpVelocityDriveEnabled)
+		{
+			if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
+				|| (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
+				|| (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked))
+			{
+				bAngularSLerpPositionDriveEnabled = false;
+				bAngularSLerpVelocityDriveEnabled = false;
+			}
+		}
 	}
 
 	
@@ -191,6 +227,7 @@ namespace Chaos
 		, Level(INDEX_NONE)
 		, Color(INDEX_NONE)
 		, IslandSize(0)
+		, bDisabled(false)
 	{
 	}
 
@@ -209,6 +246,8 @@ namespace Chaos
 		, MinParentMassRatio(0)
 		, MaxInertiaRatio(0)
 		, AngularConstraintPositionCorrection(1.0f)
+		, ProjectionInvMassScale(0)
+		, VelProjectionInvMassScale(0)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
 		, bEnableDrives(true)
@@ -405,6 +444,30 @@ namespace Chaos
 	}
 
 
+	bool FPBDJointConstraints::IsConstraintEnabled(int32 ConstraintIndex) const
+	{
+		return !ConstraintStates[ConstraintIndex].bDisabled;
+	}
+
+
+	void FPBDJointConstraints::SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled)
+	{
+		ConstraintStates[ConstraintIndex].bDisabled = !bEnabled;
+	}
+
+
+	void FPBDJointConstraints::BreakConstraint(int32 ConstraintIndex)
+	{
+		SetConstraintEnabled(ConstraintIndex, false);
+		BreakCallback(Handles[ConstraintIndex]);
+	}
+
+
+	void FPBDJointConstraints::FixConstraints(int32 ConstraintIndex)
+	{
+		SetConstraintEnabled(ConstraintIndex, true);
+	}
+
 	
 	void FPBDJointConstraints::SetPreApplyCallback(const FJointPreApplyCallback& Callback)
 	{
@@ -441,7 +504,19 @@ namespace Chaos
 		PostProjectCallback = nullptr;
 	}
 
-	
+
+	void FPBDJointConstraints::SetBreakCallback(const FJointBreakCallback& Callback)
+	{
+		BreakCallback = Callback;
+	}
+
+
+	void FPBDJointConstraints::ClearBreakCallback()
+	{
+		BreakCallback = nullptr;
+	}
+
+
 	const typename FPBDJointConstraints::FConstraintContainerHandle* FPBDJointConstraints::GetConstraintHandle(int32 ConstraintIndex) const
 	{
 		return Handles[ConstraintIndex];
@@ -903,7 +978,6 @@ namespace Chaos
 			GatherSolverJointState(JointIndex);
 		}
 
-		FJointSolverResult NetResult;
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
 			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("  Pair Iteration %d / %d"), PairIt, NumPairIts);
@@ -1038,6 +1112,11 @@ namespace Chaos
 	// This will converge slowly in some cases, particularly where resolving angular constraints violates position constraints and vice versa.
 	int32 FPBDJointConstraints::ApplySingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
+		if (!IsConstraintEnabled(ConstraintIndex))
+		{
+			return 0;
+		}
+
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
@@ -1083,11 +1162,22 @@ namespace Chaos
 		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetPrevP(0), Solver.GetPrevQ(0), Solver.GetP(0), Solver.GetQ(0), bUpdateVelocity);
 		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetPrevP(1), Solver.GetPrevQ(1), Solver.GetP(1), Solver.GetQ(1), bUpdateVelocity);
 
+		// @todo(ccaulfield): The break limit should really be applied to the impulse in the solver to prevent 1-frame impulses larger than the threshold
+		if ((JointSettings.LinearBreakForce > 0.0f) || (JointSettings.AngularBreakTorque > 0.0f))
+		{
+			ApplyBreakThreshold(Dt, ConstraintIndex, Solver.GetNetLinearImpulse(), Solver.GetNetAngularImpulse());
+		}
+
 		return NumActive;
 	}
 
 	int32 FPBDJointConstraints::ApplyPushOutSingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
+		if (!IsConstraintEnabled(ConstraintIndex))
+		{
+			return 0;
+		}
+
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Project Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
@@ -1124,7 +1214,41 @@ namespace Chaos
 		UpdateParticleStateExplicit(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));
 		UpdateParticleStateExplicit(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1), Solver.GetV(1), Solver.GetW(1));
 
+		// @todo(ccaulfield): should probably add to net impulses in push out too...
+
 		return NumActive;
+	}
+
+	void FPBDJointConstraints::ApplyBreakThreshold(const FReal Dt, int32 ConstraintIndex, const FVec3& LinearImpulse, const FVec3& AngularImpulse)
+	{
+		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+
+		// NOTE: LinearImpulse/AngularImpulse are not really an impulses - it is a mass-weighted position/rotation delta, or (impulse x dt).
+		// The Threshold is a force limit, so we need to convert it to a position delta caused by that force in one timestep
+
+		bool bBreak = false;
+		if (!bBreak && (JointSettings.LinearBreakForce > 0.0f))
+		{
+			const FReal LinearThreshold = JointSettings.LinearBreakForce * Dt * Dt;
+			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Constraint %d Linear Break Check: %f / %f"), ConstraintIndex, LinearImpulse.Size(), LinearThreshold);
+
+			const FReal LinearThresholdSq = LinearThreshold * LinearThreshold;
+			bBreak = LinearImpulse.SizeSquared() > LinearThresholdSq;
+		}
+
+		if (!bBreak && (JointSettings.AngularBreakTorque > 0.0f))
+		{
+			const FReal AngularThreshold = JointSettings.AngularBreakTorque * Dt * Dt;
+			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Constraint %d Angular Break Check: %f / %f"), ConstraintIndex, AngularImpulse.Size(), AngularThreshold);
+
+			const FReal AngularThresholdSq = AngularThreshold * AngularThreshold;
+			bBreak = AngularImpulse.SizeSquared() > AngularThresholdSq;
+		}
+
+		if (bBreak)
+		{
+			BreakConstraint(ConstraintIndex);
+		}
 	}
 
 

@@ -166,7 +166,7 @@ static FString GetHFDDCKeyString(const FName& Format, bool bDefMaterial, const F
 #if PHYSICS_INTERFACE_PHYSX
 	const FString InterfacePrefix = TEXT("PHYSX");
 #elif WITH_CHAOS
-	const FString InterfacePrefix = TEXT("CHAOS");
+	const FString InterfacePrefix = FString::Printf(TEXT("%s_%s"), TEXT("CHAOS"), *Chaos::ChaosVersionString);
 #else
 	const FString InterfacePrefix = TEXT("UNDEFINED");
 #endif
@@ -910,9 +910,10 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 		SimpleRenderPhysicalMaterialIds = RenderPhysicalMaterialIds + NumSamples;
 	}
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// List of materials which is actually used by heightfield
 	InOutMaterials.Empty();
+
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 		
 	TArray<PxHeightFieldSample> Samples;
 	TArray<PxHeightFieldSample> SimpleSamples;
@@ -1719,7 +1720,8 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 
 				TArray<int32> InstancesToRemove;
 				TSet<UHierarchicalInstancedStaticMeshComponent*> AffectedFoliageComponents;
-
+				
+				bool bIsMeshInfoDirty = false;
 				for (int32 InstanceIndex : *InstanceSet)
 				{
 					FFoliageInstance& Instance = MeshInfo.Instances[InstanceIndex];
@@ -1749,6 +1751,8 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 								if ((TestLocation - Hit.Location).SizeSquared() > KINDA_SMALL_NUMBER)
 								{
 									IFA->Modify();
+
+									bIsMeshInfoDirty = true;
 
 									// Remove instance location from the hash. Do not need to update ComponentHash as we re-add below.
 									MeshInfo.InstanceHash->RemoveInstance(Instance.Location, InstanceIndex);
@@ -1783,13 +1787,13 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 						{
 							// Couldn't find new spot - remove instance
 							InstancesToRemove.Add(InstanceIndex);
+							bIsMeshInfoDirty = true;
 						}
 
-						if (MeshInfo.GetComponent() != nullptr)
+						if (bIsMeshInfoDirty && (MeshInfo.GetComponent() != nullptr))
 						{
 							AffectedFoliageComponents.Add(MeshInfo.GetComponent());
 						}
-						
 					}
 				}
 
@@ -2635,7 +2639,7 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 		Height = HeightfieldRef->RBHeightfield->getHeight(HeightfieldRef->RBHeightfield->getNbRows() - 1 - X, Y) * ZScale;
 	}
 #elif WITH_CHAOS
-	if(IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield.Get())
+	if (IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield.Get())
 	{
 		Height = HeightfieldRef->Heightfield->GetHeightAt({ X, Y }) * ZScale;
 	}
@@ -2643,7 +2647,7 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 	return Height;
 }
 
-LANDSCAPE_API TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
+TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
 {
 	TOptional<float> Height;
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -2660,4 +2664,95 @@ LANDSCAPE_API TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Loca
 		}
 	}
 	return Height;
+}
+
+void ALandscapeProxy::GetHeightValues(int32& SizeX, int32& SizeY, TArray<float> &ArrayValues) const
+{			
+	SizeX = 0;
+	SizeY = 0;
+	ArrayValues.SetNum(0);
+	
+	// Exit if we have no landscape data
+	if (LandscapeComponents.Num() == 0 || CollisionComponents.Num() == 0)
+	{
+		return;
+	}
+
+	// find index coordinate range for landscape
+	int32 MinX = MAX_int32;
+	int32 MinY = MAX_int32;
+	int32 MaxX = -MAX_int32;
+	int32 MaxY = -MAX_int32;
+
+	for (ULandscapeComponent* LandscapeComponent : LandscapeComponents)
+	{
+		// expecting a valid pointer to a landscape component
+		if (!LandscapeComponent)
+		{
+			return;
+		}
+
+		// #todo(dmp): should we be using ULandscapeHeightfieldCollisionComponent.CollisionSizeQuads (or HeightFieldData->GetNumCols)
+		MinX = FMath::Min(LandscapeComponent->SectionBaseX, MinX);
+		MinY = FMath::Min(LandscapeComponent->SectionBaseY, MinY);
+		MaxX = FMath::Max(LandscapeComponent->SectionBaseX + LandscapeComponent->ComponentSizeQuads, MaxX);
+		MaxY = FMath::Max(LandscapeComponent->SectionBaseY + LandscapeComponent->ComponentSizeQuads, MaxY);		
+	}
+
+	if (MinX == MAX_int32)
+	{
+		return;
+	}			
+		
+	SizeX = (MaxX - MinX + 1);
+	SizeY = (MaxY - MinY + 1);
+	ArrayValues.SetNumUninitialized(SizeX * SizeY);
+	
+	for (ULandscapeHeightfieldCollisionComponent *CollisionComponent : CollisionComponents)
+	{
+		// Make sure we have a valid collision component and a heightfield
+		if (!CollisionComponent || !IsValidRef(CollisionComponent->HeightfieldRef))
+		{
+			SizeX = 0;
+			SizeY = 0;
+			ArrayValues.SetNum(0);
+			return;
+		}
+
+		TUniquePtr<Chaos::FHeightField> &HeightFieldData = CollisionComponent->HeightfieldRef->Heightfield;
+
+		// If we are expecting height data, but it isn't there, clear the return array, and exit
+		if (!HeightFieldData.IsValid())
+		{
+			SizeX = 0;
+			SizeY = 0;
+			ArrayValues.SetNum(0);
+			return;
+		}
+
+		const int32 BaseX = CollisionComponent->SectionBaseX;
+		const int32 BaseY = CollisionComponent->SectionBaseY;
+
+		const int32 NumX = HeightFieldData->GetNumCols();
+		const int32 NumY = HeightFieldData->GetNumRows();
+
+		const FTransform& ComponentToWorld = CollisionComponent->GetComponentToWorld();
+		const float ZScale = ComponentToWorld.GetScale3D().Z * LANDSCAPE_ZSCALE;
+
+		// Write all values to output array
+		for (int32 x = 0; x < NumX; ++x)
+		{
+			for (int32 y = 0; y < NumY; ++y)
+			{
+				const float CurrHeight = HeightFieldData->GetHeight(x, y) * ZScale;				
+				const float WorldHeight = ComponentToWorld.TransformPositionNoScale(FVector(0, 0, CurrHeight)).Z;
+				
+				// write output
+				const int32 WriteX = BaseX + x;
+				const int32 WriteY = BaseY + y;
+				const int32 Idx = WriteY * SizeX + WriteX;
+				ArrayValues[Idx] = WorldHeight;
+			}
+		}
+	}
 }

@@ -55,7 +55,10 @@ public:
 	 * @param Key The key to query for existence
 	 * @return true if found
 	 */
-	bool HasValue(const UObject* Object, const TCHAR* Key);
+	bool HasValue(const UObject* Object, const TCHAR* Key)
+	{
+		return FindValue(Object, Key) != nullptr;
+	}
 
 	/**
 	 * Return whether or not the Key is in the meta data
@@ -63,7 +66,26 @@ public:
 	 * @param Key The key to query for existence
 	 * @return true if found
 	 */
-	bool HasValue(const UObject* Object, FName Key);
+	bool HasValue(const UObject* Object, FName Key)
+	{
+		return FindValue(Object, Key) != nullptr;
+	}
+
+	/**
+	 * Returns the value for a the given key if it exists, null otherwise
+	 * @param Object the object to lookup the metadata for
+	 * @param Key The key to query for existence
+	 * @return true if found
+	 */
+	const FString* FindValue(const UObject* Object, const TCHAR* Key);
+
+	/**
+	 * Returns the value for a the given key if it exists, null otherwise
+	 * @param Object the object to lookup the metadata for
+	 * @param Key The key to query for existence
+	 * @return true if found
+	 */
+	const FString* FindValue(const UObject* Object, FName Key);
 
 	/**
 	 * Is there any metadata for this property?
@@ -78,6 +100,13 @@ public:
 	 * @Values The metadata key/value pairs
 	 */
 	void SetObjectValues(const UObject* Object, const TMap<FName, FString>& Values);
+
+	/**
+	 * Set the key/value pair in the Property's metadata
+	 * @param Object the object to set the metadata for
+	 * @Values The metadata key/value pairs
+	 */
+	void SetObjectValues(const UObject* Object, TMap<FName, FString>&& Values);
 
 	/**
 	 * Set the key/value pair in the Object's metadata

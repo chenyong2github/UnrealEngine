@@ -11,6 +11,8 @@ struct FCompactHeapPose;
 
 struct FAnimNodePoseWatch
 {
+	// Object (anim instance) that this pose came from
+	TWeakObjectPtr<const UObject>	Object;
 	TSharedPtr<FCompactHeapPose>	PoseInfo;
 	FColor							PoseDrawColour;
 	int32							NodeID;

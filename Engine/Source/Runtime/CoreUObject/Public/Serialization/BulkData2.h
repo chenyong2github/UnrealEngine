@@ -177,9 +177,9 @@ public:
 	bool IsDuplicateNonOptional() const;
 	bool IsOptional() const;
 	bool IsInlined() const;
-	UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
-	FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
-	bool IsInSeperateFile() const;
+	UE_DEPRECATED(4.25, "Use ::IsInSeparateFile() instead")
+	FORCEINLINE bool InSeperateFile() const { return IsInSeparateFile(); }
+	bool IsInSeparateFile() const;
 	bool IsSingleUse() const;
 	UE_DEPRECATED(4.26, "Use ::IsFileMemoryMapped() instead")
 	bool IsMemoryMapped() const { return IsFileMemoryMapped(); }
@@ -197,7 +197,7 @@ public:
 	void RemoveBulkData();
 
 	/**
-	* Initiates a new asynchronous operation to load the dulkdata from disk assuming that it is not already
+	* Initiates a new asynchronous operation to load the bulkdata from disk assuming that it is not already
 	* loaded.
 	* Note that a new asynchronous loading operation will not be created if one is already in progress.
 	*

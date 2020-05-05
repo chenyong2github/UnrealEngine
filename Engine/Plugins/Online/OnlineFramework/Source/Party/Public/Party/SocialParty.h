@@ -205,6 +205,7 @@ PARTY_SCOPE:
 	bool IsCurrentlyLeaving() const;
 
 	void SetIsMissingPlatformSession(bool bInIsMissingPlatformSession);
+	bool IsMissingPlatformSession() { return bIsMissingPlatformSession; }
 
 	FPartyRepData& GetMutableRepData() { return *PartyDataReplicator; }
 
@@ -303,6 +304,7 @@ private:
 
 	void SetIsRequestingShutdown(bool bInRequestingShutdown);
 
+	void CreatePlatformSession(FName PlatformOssName);
 	void UpdatePlatformSessionLeader(FName PlatformOssName);
 
 	void HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);

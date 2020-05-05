@@ -25,18 +25,24 @@ FString FMeshVertexChange::ToString() const
 }
 
 
+FMeshVertexChangeBuilder::FMeshVertexChangeBuilder()
+{
+	Change = MakeUnique<FMeshVertexChange>();
+}
 
 
-
-FMeshVertexChangeBuilder::FMeshVertexChangeBuilder(bool bSaveOverlayNormalsIn)
+FMeshVertexChangeBuilder::FMeshVertexChangeBuilder(EMeshVertexChangeComponents Components)
 {
 	Change = MakeUnique<FMeshVertexChange>();
 
-	bSaveOverlayNormals = bSaveOverlayNormalsIn;
-	if (bSaveOverlayNormals)
-	{
-		Change->bHaveOverlayNormals = true;
-	}
+	bSavePositions = ((Components & EMeshVertexChangeComponents::VertexPositions) != EMeshVertexChangeComponents::None);
+	Change->bHaveVertexPositions = bSavePositions;
+
+	bSaveColors = ((Components & EMeshVertexChangeComponents::VertexColors) != EMeshVertexChangeComponents::None);
+	Change->bHaveVertexColors = bSaveColors;
+	
+	bSaveOverlayNormals = ((Components & EMeshVertexChangeComponents::OverlayNormals) != EMeshVertexChangeComponents::None);
+	Change->bHaveOverlayNormals = bSaveOverlayNormals;
 }
 
 void FMeshVertexChangeBuilder::UpdateVertex(int VertexID, const FVector3d& OldPosition, const FVector3d& NewPosition)
@@ -71,60 +77,67 @@ void FMeshVertexChangeBuilder::UpdateVertexFinal(int VertexID, const FVector3d& 
 
 
 
-void FMeshVertexChangeBuilder::SavePosition(const FDynamicMesh3* Mesh, int VertexID, bool bInitial)
+void FMeshVertexChangeBuilder::SaveVertexInitial(const FDynamicMesh3* Mesh, int32 VertexID)
 {
-	FVector3d Pos = Mesh->GetVertex(VertexID);
-	if (bInitial)
+	const int32* FoundIndex = SavedVertices.Find(VertexID);
+	if (FoundIndex == nullptr)
 	{
-		UpdateVertex(VertexID, Pos, Pos);
-	}
-	else 
-	{
-		UpdateVertexFinal(VertexID, Pos);
-	}
-}
-
-void FMeshVertexChangeBuilder::SavePositions(const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, bool bInitial)
-{
-	int Num = VertexIDs.Num();
-	if (bInitial)
-	{
-		for (int k = 0; k < Num; ++k)
+		int32 Index = Change->Vertices.Num();
+		SavedVertices.Add(VertexID, Index);
+		Change->Vertices.Add(VertexID);
+		if (bSavePositions)
 		{
-			FVector3d Pos = Mesh->GetVertex(VertexIDs[k]);
-			UpdateVertex(VertexIDs[k], Pos, Pos);
+			FVector3d Pos = Mesh->GetVertex(VertexID);
+			Change->OldPositions.Add(Pos);
+			Change->NewPositions.Add(Pos);
+		}
+		if (bSaveColors)
+		{
+			FVector3f Color = Mesh->GetVertexColor(VertexID);
+			Change->OldColors.Add(Color);
+			Change->NewColors.Add(Color);
+		}
+		if (OnNewVertexSaved)
+		{
+			OnNewVertexSaved(VertexID, Index);
 		}
 	}
 	else
 	{
-		for (int k = 0; k < Num; ++k)
+		int32 Index = *FoundIndex;
+		if (bSavePositions)
 		{
-			FVector3d Pos = Mesh->GetVertex(VertexIDs[k]);
-			UpdateVertexFinal(VertexIDs[k], Pos);
+			Change->NewPositions[Index] = Mesh->GetVertex(VertexID);
+		}
+		if (bSaveColors)
+		{
+			Change->NewColors[Index] = Mesh->GetVertexColor(VertexID);
 		}
 	}
 }
 
 
-void FMeshVertexChangeBuilder::SavePositions(const FDynamicMesh3* Mesh, const TSet<int>& VertexIDs, bool bInitial)
+void FMeshVertexChangeBuilder::SaveVertexFinal(const FDynamicMesh3* Mesh, int32 VertexID)
 {
-	if (bInitial)
+	const int32* FoundIndex = SavedVertices.Find(VertexID);
+	if (FoundIndex != nullptr)
 	{
-		for (int VertexID : VertexIDs)
+		int32 Index = *FoundIndex;
+		if (bSavePositions)
 		{
-			FVector3d Pos = Mesh->GetVertex(VertexID);
-			UpdateVertex(VertexID, Pos, Pos);
+			Change->NewPositions[Index] = Mesh->GetVertex(VertexID);
 		}
-	}
-	else
-	{
-		for (int VertexID : VertexIDs)
+		if (bSaveColors)
 		{
-			FVector3d Pos = Mesh->GetVertex(VertexID);
-			UpdateVertexFinal(VertexID, Pos);
+			Change->NewColors[Index] = Mesh->GetVertexColor(VertexID);
 		}
 	}
 }
+
+
+
+
+
 
 
 

@@ -12,7 +12,7 @@ struct NAVIGATIONSYSTEM_API FNavigationDataHandler
 
 	FNavigationDataHandler(FNavigationOctreeController& InOctreeController, FNavigationDirtyAreasController& InDirtyAreasController);
 
-	void RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags);
+	void RemoveNavOctreeElementId(const FOctreeElementId2& ElementId, int32 UpdateFlags);
 	FSetElementId RegisterNavOctreeElement(UObject& ElementOwner, INavRelevantInterface& ElementInterface, int32 UpdateFlags);
 	void AddElementToNavOctree(const FNavigationDirtyElement& DirtyElement);
 

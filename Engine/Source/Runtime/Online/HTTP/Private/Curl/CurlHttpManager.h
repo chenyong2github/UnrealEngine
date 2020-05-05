@@ -17,6 +17,7 @@ class FCurlHttpManager : public FHttpManager
 public:
 	static void InitCurl();
 	static void ShutdownCurl();
+	static bool IsInit();
 	static CURLSH* GShareHandle;
 	static CURLM * GMultiHandle;
 
@@ -59,6 +60,7 @@ public:
 	//~ Begin HttpManager Interface
 	virtual void OnBeforeFork() override;
 	virtual void OnAfterFork() override;
+	virtual void OnEndFramePostFork() override;
 	virtual void UpdateConfigs() override;
 
 public:

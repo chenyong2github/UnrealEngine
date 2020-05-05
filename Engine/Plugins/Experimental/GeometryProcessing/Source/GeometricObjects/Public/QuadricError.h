@@ -143,7 +143,7 @@ struct TQuadricError
 		RealType a33 = Axx * Ayy - Axy * Axy;
 		RealType det = (Axx * a11) + (Axy * a12) + (Axz * a13);
 
-		// [RMS] not sure what we should be using for this threshold...have seen
+		// TODO: not sure what we should be using for this threshold...have seen
 		//  det less than 10^-9 on "normal" meshes.
 		if (FMath::Abs(det) > minThresh)
 		{

@@ -25,7 +25,7 @@ FPuncturedDiscMeshGenerator::FPuncturedDiscMeshGenerator()
 
 FMeshShapeGenerator& FDiscMeshGenerator::Generate()
 {
-	int AngleNV = AngleSamples > 2 ? AngleSamples : 2;
+	int AngleNV = AngleSamples > 3 ? AngleSamples : 3;
 	int RadialNV = RadialSamples > 1 ? RadialSamples : 1;
 	int NumVertices = AngleNV * RadialNV + 1;
 	
@@ -126,7 +126,7 @@ FMeshShapeGenerator& FDiscMeshGenerator::Generate()
 
 FMeshShapeGenerator& FPuncturedDiscMeshGenerator::Generate()
 {
-	int AngleNV = AngleSamples > 2 ? AngleSamples : 2;
+	int AngleNV = AngleSamples > 3 ? AngleSamples : 3;
 	int RadialNV = RadialSamples > 2 ? RadialSamples : 2;
 	int NumVertices = AngleNV * RadialNV;
 

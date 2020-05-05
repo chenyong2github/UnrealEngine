@@ -1932,6 +1932,9 @@ enum class EJoinPartyCompletionResult : int8
 
 	/** Game specific reason, indicated by the NotApprovedReason parameter.  Message might or might not have been sent to party leader. */
 	GameSpecificReason,
+	
+	/** Your app id does not match the app id of the party */
+	MismatchedApp,
 
 	/** DEPRECATED */
 	UnknownInternalFailure = 0,

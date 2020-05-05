@@ -1443,6 +1443,32 @@ FRHICOMMAND_MACRO(FRHICommandSetDepthBounds)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandSetShadingRate)
+{
+	EVRSShadingRate   ShadingRate;
+	EVRSRateCombiner  Combiner;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandSetShadingRate(EVRSShadingRate InShadingRate, EVRSRateCombiner InCombiner)
+		: ShadingRate(InShadingRate),
+		Combiner(InCombiner)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+FRHICOMMAND_MACRO(FRHICommandSetShadingRateImage)
+{
+	FRHITexture* RateImageTexture;
+	EVRSRateCombiner  Combiner;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandSetShadingRateImage(FRHITexture* InRateImageTexture, EVRSRateCombiner InCombiner)
+		: RateImageTexture(InRateImageTexture),
+		Combiner(InCombiner)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 FRHICOMMAND_MACRO(FRHICommandClearUAVFloat)
 {
 	FRHIUnorderedAccessView* UnorderedAccessViewRHI;
@@ -3272,6 +3298,30 @@ public:
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandSetDepthBounds)(MinDepth, MaxDepth);
+	}
+	
+	FORCEINLINE_DEBUGGABLE void SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner)
+	{
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+		if (Bypass())
+		{
+			GetContext().RHISetShadingRate(ShadingRate, Combiner);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandSetShadingRate)(ShadingRate, Combiner);
+#endif
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner)
+	{
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+		if (Bypass())
+		{
+			GetContext().RHISetShadingRateImage(RateImageTexture, Combiner);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandSetShadingRateImage)(RateImageTexture, Combiner);
+#endif
 	}
 
 	FORCEINLINE_DEBUGGABLE void CopyToResolveTarget(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FResolveParams& ResolveParams)

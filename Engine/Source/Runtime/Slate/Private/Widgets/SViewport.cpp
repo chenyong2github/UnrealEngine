@@ -385,17 +385,17 @@ void SViewport::OnFinishedPointerInput()
 void SViewport::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
 {
 	SCompoundWidget::OnArrangeChildren(AllottedGeometry, ArrangedChildren);
-	if( ArrangedChildren.Allows3DWidgets() && CustomHitTestPath.IsValid() )
+	if (ArrangedChildren.Allows3DWidgets() && CustomHitTestPath.IsValid())
 	{
-		CustomHitTestPath->ArrangeChildren( ArrangedChildren );
+		CustomHitTestPath->ArrangeCustomHitTestChildren(ArrangedChildren);
 	}
 }
 
-TSharedPtr<FVirtualPointerPosition> SViewport::TranslateMouseCoordinateFor3DChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& MyGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const
+TSharedPtr<FVirtualPointerPosition> SViewport::TranslateMouseCoordinateForCustomHitTestChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& MyGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const
 {
 	if( CustomHitTestPath.IsValid() )
 	{
-		return CustomHitTestPath->TranslateMouseCoordinateFor3DChild( ChildWidget, MyGeometry, ScreenSpaceMouseCoordinate, LastScreenSpaceMouseCoordinate );
+		return CustomHitTestPath->TranslateMouseCoordinateForCustomHitTestChild( ChildWidget, MyGeometry, ScreenSpaceMouseCoordinate, LastScreenSpaceMouseCoordinate );
 	}
 
 	return nullptr;

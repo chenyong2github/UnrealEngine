@@ -25,8 +25,8 @@ namespace UnrealBuildTool
         public VCMacProjectFileGenerator(FileReference InOnlyGameProject, CommandLineArguments InArguments)
 			: base(InOnlyGameProject, VCProjectFileFormat.Default, InArguments)
         {
-            // no suo file, requires ole32
-            bWriteSolutionOptionFile = false;
+			// no suo file, requires ole32
+			Settings.bWriteSolutionOptionFile = false;
         }
 
         /// True if we should include IntelliSense data in the generated project files when possible
@@ -41,9 +41,9 @@ namespace UnrealBuildTool
         /// <returns>True if successful</returns>
         protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
         {
-            // This can be reset by higher level code when it detects that we don't have
-            // VS2015 installed (TODO - add custom format for Mac?)
-            ProjectFileFormat = VCProjectFileFormat.VisualStudio2015;
+			// This can be reset by higher level code when it detects that we don't have
+			// VS2015 installed (TODO - add custom format for Mac?)
+			Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2015;
 
             // we can't generate native projects so clear them here, we will just
             // write out OtherProjectFiles and AutomationProjectFiles
@@ -63,7 +63,7 @@ namespace UnrealBuildTool
                 DirectoryReference AutomationToolDir = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", "AutomationTool");
                 new XDocument(
                     new XElement(NS + "Project",
-                        new XAttribute("ToolsVersion", VCProjectFileGenerator.GetProjectFileToolVersionString(ProjectFileFormat)),
+                        new XAttribute("ToolsVersion", VCProjectFileGenerator.GetProjectFileToolVersionString(Settings.ProjectFileFormat)),
                         new XAttribute("DefaultTargets", "Build"),
                         new XElement(NS + "ItemGroup",
                             from AutomationProject in AutomationProjectFiles

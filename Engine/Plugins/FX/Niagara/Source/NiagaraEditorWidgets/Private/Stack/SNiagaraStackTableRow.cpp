@@ -359,17 +359,26 @@ const FSlateBrush* SNiagaraStackTableRow::GetBorder() const
 	return FEditorStyle::GetBrush("NoBrush");
 }
 
-void SNiagaraStackTableRow::CollapseChildren()
+void SetExpansionStateRecursive(UNiagaraStackEntry* StackEntry, bool bIsExpanded)
 {
+	if (StackEntry->GetCanExpand())
+	{
+		StackEntry->SetIsExpanded(bIsExpanded);
+	}
+
 	TArray<UNiagaraStackEntry*> Children;
 	StackEntry->GetUnfilteredChildren(Children);
 	for (UNiagaraStackEntry* Child : Children)
 	{
-		if (Child->GetCanExpand())
-		{
-			Child->SetIsExpanded(false);
-		}
+		SetExpansionStateRecursive(Child, bIsExpanded);
 	}
+}
+
+void SNiagaraStackTableRow::CollapseChildren()
+{
+	bool bIsExpanded = false;
+	SetExpansionStateRecursive(StackEntry, bIsExpanded);
+
 	// Calling SetIsExpanded doesn't broadcast structure change automatically due to the expense of synchronizing
 	// expanded state with the tree to prevent items being expanded on tick, so we call this manually here.
 	StackEntry->OnStructureChanged().Broadcast();
@@ -377,15 +386,9 @@ void SNiagaraStackTableRow::CollapseChildren()
 
 void SNiagaraStackTableRow::ExpandChildren()
 {
-	TArray<UNiagaraStackEntry*> Children;
-	StackEntry->GetUnfilteredChildren(Children);
-	for (UNiagaraStackEntry* Child : Children)
-	{
-		if (Child->GetCanExpand())
-		{
-			Child->SetIsExpanded(true);
-		}
-	}
+	bool bIsExpanded = true;
+	SetExpansionStateRecursive(StackEntry, bIsExpanded);
+
 	// Calling SetIsExpanded doesn't broadcast structure change automatically due to the expense of synchronizing
 	// expanded state with the tree to prevent items being expanded on tick, so we call this manually here.
 	StackEntry->OnStructureChanged().Broadcast();

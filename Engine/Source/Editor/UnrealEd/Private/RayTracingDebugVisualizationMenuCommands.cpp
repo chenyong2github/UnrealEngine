@@ -75,13 +75,9 @@ bool FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(cons
 	static TArray<FName> TonemappedRayTracingDebugVisualizationModes;
 	if (TonemappedRayTracingDebugVisualizationModes.Num() == 0)
 	{
-		// World normal is tonemapped to match raster buffer visualization mode
-		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("World Normal", "World Normal").ToString());
-		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("BaseColor", "BaseColor").ToString());
-		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("DiffuseColor", "DiffuseColor").ToString());
-		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("SpecularColor", "SpecularColor").ToString());
-		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("ShadingModelID", "ShadingModelID").ToString());
 		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("PrimaryRays", "PrimaryRays").ToString());
+		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("Radiance", "Radiance").ToString());
+		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("IndirectIrradiance", "IndirectIrradiance").ToString());
 	}
 
 	return TonemappedRayTracingDebugVisualizationModes.Contains(RayTracingDebugModeName);

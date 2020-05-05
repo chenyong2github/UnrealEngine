@@ -87,6 +87,10 @@ FString GOBBFilePathBase;
 FString GOBBMainFilePath;
 // Obb Patch filepath
 FString GOBBPatchFilePath;
+// Obb Overflow1 filepath
+FString GOBBOverflow1FilePath;
+// Obb Overflow2 filepath
+FString GOBBOverflow2FilePath;
 // Internal File Direcory Path (for application) - setup during load
 FString GInternalFilePath;
 // External File Direcory Path (for application) - setup during load
@@ -1032,29 +1036,80 @@ public:
 			}
 			else if (FileExists(*(OBBDir1 / MainOBBName), true))
 			{
-				MountOBB(*(OBBDir1 / MainOBBName));
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted main OBB: %s"), *(OBBDir1 / MainOBBName));
+				GOBBMainFilePath = OBBDir1 / MainOBBName;
+				MountOBB(*GOBBMainFilePath);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted main OBB: %s"), *GOBBMainFilePath);
 			}
 			else if (FileExists(*(OBBDir2 / MainOBBName), true))
 			{
-				MountOBB(*(OBBDir2 / MainOBBName));
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted main OBB: %s"), *(OBBDir2 / MainOBBName));
+				GOBBMainFilePath = OBBDir2 / MainOBBName;
+				MountOBB(*GOBBMainFilePath);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted main OBB: %s"), *GOBBMainFilePath);
 			}
 
+			bool bHavePatch = false;
 			if (!GOBBPatchFilePath.IsEmpty() && FileExists(*GOBBPatchFilePath, true))
 			{
+				bHavePatch = true;
 				MountOBB(*GOBBPatchFilePath);
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB: %s"), *GOBBPatchFilePath);
 			}
 			else if (FileExists(*(OBBDir1 / PatchOBBName), true))
 			{
-				MountOBB(*(OBBDir1 / PatchOBBName));
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB: %s"), *(OBBDir1 / PatchOBBName));
+				bHavePatch = true;
+				GOBBPatchFilePath = OBBDir1 / PatchOBBName;
+				MountOBB(*GOBBPatchFilePath);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB: %s"), *GOBBPatchFilePath);
 			}
 			else if (FileExists(*(OBBDir2 / PatchOBBName), true))
 			{
-				MountOBB(*(OBBDir2 / PatchOBBName));
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB: %s"), *(OBBDir2 / PatchOBBName));
+				bHavePatch = true;
+				GOBBPatchFilePath = OBBDir2 / PatchOBBName;
+				MountOBB(*GOBBPatchFilePath);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted patch OBB: %s"), *GOBBPatchFilePath);
+			}
+
+			// Only check for overflow files if we found a patch file
+			if (bHavePatch)
+			{
+				FString Overflow1OBBName = FString::Printf(TEXT("overflow1.%d.%s.obb"), GAndroidPackageVersion, *GPackageName);
+				FString Overflow2OBBName = FString::Printf(TEXT("overflow2.%d.%s.obb"), GAndroidPackageVersion, *GPackageName);
+
+				if (!GOBBOverflow1FilePath.IsEmpty() && FileExists(*GOBBOverflow1FilePath, true))
+				{
+					MountOBB(*GOBBOverflow1FilePath);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow1 OBB: %s"), *GOBBOverflow1FilePath);
+				}
+				else if (FileExists(*(OBBDir1 / Overflow1OBBName), true))
+				{
+					GOBBOverflow1FilePath = OBBDir1 / Overflow1OBBName;
+					MountOBB(*GOBBOverflow1FilePath);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow1 OBB: %s"), *GOBBOverflow1FilePath);
+				}
+				else if (FileExists(*(OBBDir2 / Overflow1OBBName), true))
+				{
+					GOBBOverflow1FilePath = OBBDir2 / Overflow1OBBName;
+					MountOBB(*GOBBOverflow1FilePath);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow1 OBB: %s"), *GOBBOverflow1FilePath);
+				}
+
+				if (!GOBBOverflow2FilePath.IsEmpty() && FileExists(*GOBBOverflow2FilePath, true))
+				{
+					MountOBB(*GOBBOverflow2FilePath);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow2 OBB: %s"), *GOBBOverflow2FilePath);
+				}
+				else if (FileExists(*(OBBDir1 / Overflow2OBBName), true))
+				{
+					GOBBOverflow2FilePath = OBBDir1 / Overflow2OBBName;
+					MountOBB(*GOBBOverflow2FilePath);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow2 OBB: %s"), *GOBBOverflow2FilePath);
+				}
+				else if (FileExists(*(OBBDir2 / Overflow2OBBName), true))
+				{
+					GOBBOverflow2FilePath = OBBDir2 / Overflow2OBBName;
+					MountOBB(*GOBBOverflow2FilePath);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow2 OBB: %s"), *GOBBOverflow2FilePath);
+				}
 			}
 		}
 

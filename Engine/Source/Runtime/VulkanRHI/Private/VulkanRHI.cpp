@@ -1463,8 +1463,9 @@ void FVulkanBufferView::Create(VkFormat Format, FVulkanResourceMultiBuffer* Buff
 
 	//#todo-rco: Revisit this if buffer views become VK_BUFFER_USAGE_STORAGE_BUFFER_BIT instead of VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT
 	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
-	//#todo-rco: 4 for rgba, do we need 1 for r, 2 for rg and 3 for rgb?
-	ViewInfo.range = ((Size / (GetNumBitsPerPixel(Format) / 4)) < Limits.maxTexelBufferElements) ? Size : VK_WHOLE_SIZE;
+	const uint64 MaxSize = (uint64)Limits.maxTexelBufferElements * GetNumBitsPerPixel(Format) / 8;
+	ViewInfo.range = FMath::Min<uint64>(Size, MaxSize);
+	// TODO: add a check() for exceeding MaxSize, to catch code which blindly makes views without checking the platform limits.
 
 	Flags = Buffer->GetBufferUsageFlags() & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
 	check(Flags);

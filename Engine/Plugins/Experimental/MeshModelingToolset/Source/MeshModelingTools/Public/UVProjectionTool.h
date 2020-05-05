@@ -78,13 +78,6 @@ public:
 	/** If set, UV scales will be relative to world space so different objects created with the same UV scale should have the same average texel size */
 	UPROPERTY(EditAnywhere, Category = ProjectionSettings, meta = (DisplayName = "UV Scale Relative to World Space"))
 	bool bWorldSpaceUVScale = false;
-
-	//
-	// save/restore support
-	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
-
 };
 
 
@@ -143,7 +136,7 @@ public:
 	virtual void SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManagerIn);
 	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }

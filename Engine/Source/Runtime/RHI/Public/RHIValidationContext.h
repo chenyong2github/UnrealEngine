@@ -620,6 +620,16 @@ public:
 		RHIContext->RHISetDepthBounds(MinDepth, MaxDepth);
 	}
 
+	virtual void RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner) override final
+	{
+		RHIContext->RHISetShadingRate(ShadingRate, Combiner);
+	}
+
+	virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) override final
+	{
+		RHIContext->RHISetShadingRateImage(RateImageTexture, Combiner);
+	}
+
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) override final
 	{
 		RHIContext->RHIPushEvent(Name, Color);

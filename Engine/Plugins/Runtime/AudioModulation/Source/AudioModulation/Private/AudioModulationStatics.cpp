@@ -282,7 +282,7 @@ USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldC
 	{
 		if (Channel.Bus)
 		{
-			NewBusMix->Channels.Emplace_GetRef(Channel);
+			NewBusMix->Channels.Emplace(Channel);
 		}
 		else
 		{

@@ -72,14 +72,6 @@ public class OnlineSubsystemGoogle : ModuleRules
 		{
 			bUsesRestfulImpl = true;
 		}
-		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			PrivateIncludePaths.Add("Private/XboxOne");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			PrivateIncludePaths.Add("Private/PS4");
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			bUsesRestfulImpl = true;

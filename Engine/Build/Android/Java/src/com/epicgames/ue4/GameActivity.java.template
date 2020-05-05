@@ -67,6 +67,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
+import java.security.NoSuchAlgorithmException;
 
 import android.annotation.TargetApi;
 
@@ -203,6 +204,7 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputConnectionWrapper;
 import android.util.AttributeSet;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
@@ -2275,10 +2277,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					}
 					
 					// Centering background image by default
-					View decorView = mSplashDialog.getWindow().getDecorView();
-					BitmapDrawable SplashBitmap = (BitmapDrawable)decorView.getBackground();
-					if (SplashBitmap != null)
+					Drawable BackgroundDrawable = mSplashDialog.getWindow().getDecorView().getBackground();
+					if (BackgroundDrawable != null && BackgroundDrawable instanceof BitmapDrawable)
 					{
+						BitmapDrawable SplashBitmap = (BitmapDrawable)BackgroundDrawable;
 						SplashBitmap.setGravity(android.view.Gravity.CENTER);
 					}
 					
@@ -6215,7 +6217,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public native boolean nativeIsShippingBuild();
 	public native void nativeSetAndroidStartupState(boolean bDebuggerAttached);
 	public native void nativeSetGlobalActivity(boolean bUseExternalFilesDir, boolean bPublicLogFiles, String internalFilePath, String externalFilePath, boolean bOBBInAPK, String APKPath);
-	public native void nativeSetObbFilePaths(String OBBMainFilePath, String OBBPatchFilePath);
+	public native void nativeSetObbFilePaths(String OBBMainFilePath, String OBBPatchFilePath, String OBBOverflow1FilePath, String OBBOverflow2FilePath);
 	public native void nativeSetWindowInfo(boolean bIsPortrait, int DepthBufferPreference);
 	public native void nativeSetObbInfo(String ProjectName, String PackageName, int Version, int PatchVersion, String AppType);
 	public native void nativeSetAndroidVersionInformation( String AndroidVersion, String PhoneMake, String PhoneModel, String PhoneBuildNumber, String OSLanguage );

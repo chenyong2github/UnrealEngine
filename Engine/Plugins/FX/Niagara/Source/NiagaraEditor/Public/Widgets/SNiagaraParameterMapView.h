@@ -14,6 +14,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraActions.h"
 #include "EditorStyleSet.h"
+#include "NiagaraEditorSettings.h"
 
 class SGraphActionMenu;
 class SEditableTextBox;
@@ -27,6 +28,7 @@ struct FSlateBrush;
 class UNiagaraSystem;
 struct FNiagaraNamespaceMetadata;
 class IToolTip;
+class UNiagaraEditorSettings;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NiagaraParameterMapSectionID
@@ -55,7 +57,7 @@ namespace NiagaraParameterMapSectionID
 	};
 
 	static FText OnGetSectionTitle(const NiagaraParameterMapSectionID::Type InSection);
-	static void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
+	void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
 	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
 	static bool GetSectionIsAdvancedForScript(const NiagaraParameterMapSectionID::Type InSection);
 	static bool GetSectionIsAdvancedForSystem(const NiagaraParameterMapSectionID::Type InSection);
@@ -96,6 +98,7 @@ public:
 	static bool IsStaticSwitchParameter(const FNiagaraVariable& Variable, const TArray<TWeakObjectPtr<UNiagaraGraph>>& Graphs);
 
 private:
+	void NiagaraEditorSettingsChanged(const FString& PropertyName, const UNiagaraEditorSettings* NiagaraEditorSettings);
 	
 	TSharedRef<SWidget> GetViewOptionsMenu();
 	static const FSlateBrush* GetViewOptionsBorderBrush();
@@ -146,40 +149,42 @@ private:
 	FText GetRenameOnActionNodeToolTip() const;
 	void OnRequestRenameOnActionNode();
 	bool CanRequestRenameOnActionNode() const;
-	void OnPostRenameActionNode(const FText& InText, FNiagaraParameterAction& InAction);
+	void OnPostRenameActionNode(const FText& InText, TSharedRef<FNiagaraParameterAction> InAction);
 
-	bool GetNamespaceEditDataForSelection(
-		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
-		FNiagaraParameterHandle& OutParameterHandle,
-		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
-		FText& OutErrorMessage) const;
+	bool GetSingleParameterActionForSelection(TSharedPtr<FNiagaraParameterAction>& OutParameterAction, FText& OutErrorMessage) const;
 
-	bool GetNamespaceModifierEditDataForSelection(
-		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
-		FNiagaraParameterHandle& OutParameterHandle,
-		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
-		FText& OutErrorMessage) const;
+	bool ParameterExistsByName(FName ParameterName) const;
 
-	FText GetAddNamespaceModifierToolTip() const;
-	bool CanAddNamespaceModifier() const;
-	void OnAddNamespaceModifier();
+	void GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder, bool bDuplicateParameter);
+	void OnChangeNamespace(FNiagaraNamespaceMetadata Metadata, bool bDuplicateParameter);
 
-	FText GetRemoveNamespaceModifierToolTip() const;
-	bool CanRemoveNamespaceModifier() const;
-	void OnRemoveNamespaceModifier();
+	TArray<FName> GetOptionalNamespaceModifiers() const;
 
-	FText GetEditNamespaceModifierToolTip() const;
-	bool CanEditNamespaceModifier() const;
-	void OnEditNamespaceModifier();
+	void GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder, bool bDuplicateParameter);
+
+	bool TestCanSetNamespaceModifierWithMessage(FName InNamespaceModifier, bool bDuplicateParameter, FText& OutMessage) const;
+	FText GetSetNamespaceModifierToolTip(FName InNamespaceModifier, bool bDuplicateParameter) const;
+	bool CanSetNamespaceModifier(FName InNamespaceModifier, bool bDuplicateParameter) const;
+	void OnSetNamespaceModifier(FName InNamespaceModifier, bool bDuplicateParameter);
+
+	bool TestCanSetCustomNamespaceModifierWithMessage(bool bDuplicateParameter, FText& OutMessage) const;
+	FText GetSetCustomNamespaceModifierToolTip(bool bDuplicateParameter) const;
+	bool CanSetCustomNamespaceModifier(bool bDuplicateParameter) const;
+	void OnSetCustomNamespaceModifier(bool bDuplicateParameter);
+
+	bool TestCanDuplicateParameterWithMessage(FText& OutMessage) const;
+	FText GetDuplicateParameterToolTip() const;
+	bool CanDuplicateParameter() const;
+	void OnDuplicateParameter();
 
 	FText GetCopyParameterReferenceToolTip() const;
 	bool CanCopyParameterReference() const;
 	void OnCopyParameterReference();
 
-	void RenameParameter(FNiagaraVariable& Parameter, FName NewName);
+	void RenameParameter(TSharedPtr<FNiagaraParameterAction> ParameterAction, FName NewName);
 
-	bool IsSystemToolkit();
-	bool IsScriptToolkit();
+	bool IsSystemToolkit() const;
+	bool IsScriptToolkit() const;
 
 	/** Delegate handler used to match an FName to an action in the list, used for renaming keys */
 	bool HandleActionMatchesName(struct FEdGraphSchemaAction* InAction, const FName& InName) const;
@@ -188,6 +193,8 @@ private:
 
 	/** Sets bNeedsRefresh to true. Causing the list to be refreshed next tick. */
 	void RefreshActions();
+
+	void HandleGraphSubObjectSelectionChanged(const UObject* NewSelection);
 
 	/** Graph Action Menu for displaying all our variables and functions */
 	TSharedPtr<SGraphActionMenu> GraphActionMenu;
@@ -210,9 +217,15 @@ private:
 	/** The handle to the graph changed delegate. */
 	TArray<FDelegateHandle> OnGraphChangedHandles;
 	TArray<FDelegateHandle> OnRecompileHandles;
+	FDelegateHandle OnSubObjectSelectionChangedHandle;
 
 	EToolkitType ToolkitType;
 	TSharedPtr<FUICommandList> ToolkitCommands;
+
+	TArray<int32> HiddenSectionIDs;
+
+	TArray<FNiagaraVariable> LastCollectedParameters;
+	TSharedPtr<TArray<FName>> ParametersWithNamespaceModifierRenamePending;
 
 	bool bNeedsRefresh;
 	bool bIsAddingParameter;

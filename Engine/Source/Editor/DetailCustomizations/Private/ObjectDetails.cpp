@@ -167,7 +167,7 @@ void FObjectDetails::AddCallInEditorMethods(IDetailLayoutBuilder& DetailBuilder)
 			FCategoryEntry(FName InCategoryName)
 				: CategoryName(InCategoryName)
 			{
-				WrapBox = SNew(SWrapBox).UseAllottedWidth(true);
+				WrapBox = SNew(SWrapBox).UseAllottedSize(true);
 			}
 		};
 

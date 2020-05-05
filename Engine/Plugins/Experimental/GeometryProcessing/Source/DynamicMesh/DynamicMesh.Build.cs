@@ -13,6 +13,13 @@ public class DynamicMesh : ModuleRules
 				"Core",
 				"GeometricObjects"
 			}
-			);
+		);
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Eigen"
+			}
+		);
+
 	}
 }

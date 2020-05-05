@@ -337,7 +337,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 		// Finally, if there's a chunk after this in the sound, request that it is in the cache.
 		const int32 NextChunk = GetNextChunkIndex(SoundWave, ChunkIndex);
 
-		if (NextChunk != INDEX_NONE)
+		if (NextChunk != INDEX_NONE) 
 		{
 			const FAudioChunkCache::FChunkKey NextChunkKey = 
 			{ 
@@ -352,30 +352,33 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 			uint64 LookupIDForNextChunk = Cache->AddOrTouchChunk(NextChunkKey, [](EAudioChunkLoadResult) {}, ENamedThreads::AnyThread, false);
 			if (LookupIDForNextChunk == InvalidAudioStreamCacheLookupID)
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Cache overflow!!! couldn't load chunk %d for sound %s!"), ChunkIndex, *SoundWave->GetName());
+				// this bool is true while we are waiting on the game thread to reset chunk handles owned by USoundWaves
+				static FThreadSafeBool bCacheCurrentlyBlown = false;
 
-
-				AsyncTask(ENamedThreads::GameThread, []()
+				if (!bCacheCurrentlyBlown)
 				{
-					if (GEngine && GEngine->GetMainAudioDevice())
+					bCacheCurrentlyBlown = true;
+					UE_LOG(LogAudio, Warning, TEXT("Cache overflow!!! couldn't load chunk %d for sound %s!"), ChunkIndex, *SoundWave->GetName());
+					AsyncTask(ENamedThreads::GameThread, []()
 					{
-						GEngine->GetMainAudioDevice()->Exec(nullptr, TEXT("audiomemreport"));
-					}
-					
-					int32 NumChunksReleased = 0;
-
-					for (TObjectIterator<USoundWave> It; It; ++It)
-					{
-						USoundWave* Wave = *It;
-						if (Wave && Wave->IsRetainingAudio())
+						if (GEngine && GEngine->GetMainAudioDevice())
 						{
-							Wave->ReleaseCompressedAudio();
-							NumChunksReleased++;
+							GEngine->GetMainAudioDevice()->Exec(nullptr, TEXT("audiomemreport"));
 						}
-					}
-
-					UE_LOG(LogAudio, Warning, TEXT("Removed %d retained sounds from the stream cache."), NumChunksReleased);
-				});
+						int32 NumChunksReleased = 0;
+						for (TObjectIterator<USoundWave> It; It; ++It)
+						{
+							USoundWave* Wave = *It;
+							if (Wave && Wave->IsRetainingAudio())
+							{
+								Wave->ReleaseCompressedAudio();
+								NumChunksReleased++;
+							}
+						}
+						UE_LOG(LogAudio, Warning, TEXT("Removed %d retained sounds from the stream cache."), NumChunksReleased);
+						bCacheCurrentlyBlown = false;
+					});
+				}
 			}
 			else
 			{
@@ -500,7 +503,16 @@ bool FCachedAudioStreamingManager::RequestChunk(USoundWave* SoundWave, uint32 Ch
 	FAudioChunkCache* Cache = GetCacheForWave(SoundWave);
 	if (Cache)
 	{
-		FAudioChunkCache::FChunkKey ChunkKey = { SoundWave, SoundWave->GetFName(), ChunkIndex };
+		FAudioChunkCache::FChunkKey ChunkKey = 
+		{
+			SoundWave
+		  , SoundWave->GetFName()
+		  , ChunkIndex
+#if WITH_EDITOR
+		  , (uint32)SoundWave->CurrentChunkRevision.GetValue()
+#endif
+		};
+
 		uint64 LookupIDForChunk = Cache->AddOrTouchChunk(ChunkKey, OnLoadCompleted, ThreadToCallOnLoadCompletedOn, bForImmediatePlayback);
 		SoundWave->SetCacheLookupIDForChunk(ChunkIndex, LookupIDForChunk);
 		return LookupIDForChunk != InvalidAudioStreamCacheLookupID;
@@ -528,6 +540,7 @@ FAudioChunkCache::FAudioChunkCache(uint32 InMaxChunkSize, uint32 NumChunks, uint
 	{
 		CachePool.Emplace(MaxChunkSize, Index);
 	}
+	CacheOverflowCount.Set(0);
 }
 
 FAudioChunkCache::~FAudioChunkCache()
@@ -564,16 +577,16 @@ uint64 FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(
 		if (FoundElement->bIsLoaded)
 		{
 			ExecuteOnLoadCompleteCallback(EAudioChunkLoadResult::AlreadyLoaded, OnLoadCompleted, CallbackThread);
-#if DEBUG_STREAM_CACHE
-			checkf(FoundElement->DebugInfo.LoadingBehavior == InKey.SoundWave->GetLoadingBehavior(true), TEXT("Cached element had different LoadingBehavior {%i} than the new request {%i}")
-				, EnumToString(FoundElement->DebugInfo.LoadingBehavior), EnumToString(InKey.SoundWave->GetLoadingBehavior(true)))
-#endif
-
 		}
 
 #if DEBUG_STREAM_CACHE
 		FoundElement->DebugInfo.NumTimesTouched++;
-		FoundElement->DebugInfo.LoadingBehavior = InKey.SoundWave->GetLoadingBehavior(true);
+
+		// Recursing in no longer needed at this point since the inherited loading behavior has already been cached by the time this information is needed
+		const bool bRecurseSoundClasses = false;
+		FoundElement->DebugInfo.LoadingBehavior = InKey.SoundWave->GetLoadingBehavior(bRecurseSoundClasses);
+
+		FoundElement->DebugInfo.bLoadingBehaviorExternallyOverriden = InKey.SoundWave->bLoadingBehaviorOverridden;
 #endif
 
 		return FoundElement->CacheLookupID;
@@ -590,7 +603,12 @@ uint64 FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(
 
 #if DEBUG_STREAM_CACHE
 		CacheElement->DebugInfo.bWasCacheMiss = bNeededForPlayback;
-		CacheElement->DebugInfo.LoadingBehavior = InKey.SoundWave->GetLoadingBehavior(true);
+
+		// Recursing in no longer needed at this point since the inherited loading behavior has already been cached by the time this information is needed
+		const bool bRecurseSoundClasses = false;
+		CacheElement->DebugInfo.LoadingBehavior = InKey.SoundWave->GetLoadingBehavior(bRecurseSoundClasses);
+
+		CacheElement->DebugInfo.bLoadingBehaviorExternallyOverriden = InKey.SoundWave->bLoadingBehaviorOverridden;
 #endif
 		const FStreamedAudioChunk& Chunk = InKey.SoundWave->RunningPlatformData->Chunks[InKey.ChunkIndex];
 		int32 ChunkDataSize = Chunk.AudioDataSize;
@@ -659,7 +677,7 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 			int32 ChunkAudioDataSize = Chunk.AudioDataSize;
 #if DEBUG_STREAM_CACHE
 			FoundElement->DebugInfo.NumTotalChunks = InKey.SoundWave->GetNumChunks() - 1;
-			FoundElement->DebugInfo.TimeLoadStarted = FPlatformTime::Cycles64();
+			FoundElement->DebugInfo.TimeLoadStarted = FPlatformTime::Seconds();
 #endif
 			MemoryCounterBytes -= FoundElement->ChunkDataSize;
 
@@ -691,7 +709,19 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 			FoundElement->bIsLoaded = true;
 #if DEBUG_STREAM_CACHE
 			FoundElement->DebugInfo.TimeToLoad = (FPlatformTime::Seconds() - FoundElement->DebugInfo.TimeLoadStarted) * 1000.0f;
+
 #endif
+			// If this value is ever negative, it means that we're decrementing more than we're incrementing:
+			if (ensureMsgf(FoundElement->NumConsumers.GetValue() >= 0, TEXT("NumConsumers was negative for FoundElement. Reseting to 1")))
+			{
+				FoundElement->NumConsumers.Increment();
+			}
+			else
+			{
+				FoundElement->NumConsumers.Set(1);
+			}
+
+			return TArrayView<uint8>(FoundElement->ChunkData, ChunkAudioDataSize);
 		}
 		else
 		{
@@ -1163,7 +1193,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 		// If we ever hit this, it means that we couldn't find any cache elements that aren't in use.
 		if (!CacheElement || CacheElement == ElementToStopAt)
 		{
-			ensureMsgf(false, TEXT("Cache blown! Please increase the cache size or load less audio."));
+			UE_LOG(LogAudio, Warning, TEXT("Cache blown! Please increase the cache size (currently %lu bytes) or load less audio."), ReportCacheSize());
 			return nullptr;
 		}
 	}
@@ -1175,6 +1205,46 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 
 	return CacheElement;
 }
+
+static FAutoConsoleTaskPriority CPrio_ClearAudioChunkCacheReadRequest(
+	TEXT("TaskGraph.TaskPriorities.ClearAudioChunkCacheReadRequest"),
+	TEXT("Task and thread priority for an async task that clears FCacheElement::ReadRequest"),
+	ENamedThreads::BackgroundThreadPriority, // if we have background priority task threads, then use them...
+	ENamedThreads::NormalTaskPriority, // .. at normal task priority
+	ENamedThreads::NormalTaskPriority // if we don't have background threads, then use normal priority threads at normal task priority instead
+);
+
+class FClearAudioChunkCacheReadRequestTask
+{
+	IBulkDataIORequest* ReadRequest;
+
+public:
+	FORCEINLINE FClearAudioChunkCacheReadRequestTask(IBulkDataIORequest* InReadRequest)
+		: ReadRequest(InReadRequest)
+	{
+	}
+	static FORCEINLINE TStatId GetStatId()
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FClearAudioChunkCacheReadRequestTask, STATGROUP_TaskGraphTasks);
+	}
+	static FORCEINLINE ENamedThreads::Type GetDesiredThread()
+	{
+		return CPrio_ClearAudioChunkCacheReadRequest.Get();
+	}
+	FORCEINLINE static ESubsequentsMode::Type GetSubsequentsMode()
+	{
+		return ESubsequentsMode::FireAndForget;
+	}
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		if (ReadRequest)
+		{
+			ReadRequest->WaitCompletion();
+			delete ReadRequest;
+			ReadRequest = nullptr;
+		}
+	}
+};
 
 void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback)
 {
@@ -1199,7 +1269,8 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 
 #if DEBUG_STREAM_CACHE
 	CacheElement->DebugInfo.NumTotalChunks = InKey.SoundWave->GetNumChunks() - 1;
-	CacheElement->DebugInfo.LoadingBehavior = InKey.SoundWave->GetLoadingBehavior(true);
+	CacheElement->DebugInfo.LoadingBehavior = InKey.SoundWave->GetLoadingBehavior(false);
+	CacheElement->DebugInfo.bLoadingBehaviorExternallyOverriden = InKey.SoundWave->bLoadingBehaviorOverridden;
 #endif
 
 	// In editor, we retrieve from the DDC. In non-editor situations, we read the chunk async from the pak file.
@@ -1279,14 +1350,26 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 			ExecuteOnLoadCompleteCallback(LoadResult, OnLoadCompleted, CallbackThread);
 
 			NumberOfLoadsInFlight.Decrement();
+
+			IBulkDataIORequest* LocalReadRequest = nullptr;
+			if (CacheElement->ReadRequest)
+			{
+				LocalReadRequest = (IBulkDataIORequest*)FPlatformAtomics::InterlockedExchangePtr((void* volatile*)&CacheElement->ReadRequest, nullptr);
+			}
+
+			if (LocalReadRequest)
+			{
+				TGraphTask<FClearAudioChunkCacheReadRequestTask>::CreateTask().ConstructAndDispatchWhenReady(LocalReadRequest);
+			}
 		};
 
 #if DEBUG_STREAM_CACHE
 		CacheElement->DebugInfo.TimeLoadStarted = FPlatformTime::Seconds();
 #endif
 
-		CacheElement->ReadRequest.Reset(Chunk.BulkData.CreateStreamingRequest(0, ChunkDataSize, AsyncIOPriority, &AsyncFileCallBack, CacheElement->ChunkData));
-		if (!CacheElement->ReadRequest.IsValid())
+		IBulkDataIORequest* LocalReadRequest = Chunk.BulkData.CreateStreamingRequest(0, ChunkDataSize, AsyncIOPriority | AIOP_FLAG_DONTCACHE, &AsyncFileCallBack, CacheElement->ChunkData);
+		CacheElement->ReadRequest = LocalReadRequest;
+		if (!LocalReadRequest)
 		{
 			UE_LOG(LogAudio, Error, TEXT("Chunk load in audio LRU cache failed."));
 			OnLoadCompleted(EAudioChunkLoadResult::ChunkOutOfBounds);
@@ -1494,12 +1577,18 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 
 	FString NumElementsDetail = *FString::Printf(TEXT("Number of chunks loaded: %d of %d"), ChunksInUse, CachePool.Num());
 
+	const int32 NumCacheOverflows = CacheOverflowCount.GetValue();
+	FString CacheOverflowsDetail = *FString::Printf(TEXT("The cache has blown %d times)"), NumCacheOverflows);
+
 	// Offset our number of elements loaded horizontally to the right next to the cache title:
 	int32 CacheTitleOffsetX = 0;
 	int32 CacheTitleOffsetY = 0;
 	UEngine::GetSmallFont()->GetStringHeightAndWidth(TEXT("Cache XX "), CacheTitleOffsetY, CacheTitleOffsetX);
 
 	Canvas->DrawShadowedString(X + CacheTitleOffsetX, Y - 12, *NumElementsDetail, UEngine::GetSmallFont(), FLinearColor::Green);
+	Y += 10;
+
+	Canvas->DrawShadowedString(X + CacheTitleOffsetX, Y - 12, *CacheOverflowsDetail, UEngine::GetSmallFont(), NumCacheOverflows != 0? FLinearColor::Red : FLinearColor::Green);
 	Y += 10;
 
 	// First pass: We run through and get a snap shot of the amount of memory currently in use.
@@ -1544,6 +1633,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 		double TimeToLoad = -1.0;
 		float AveragePlaceInCache = -1.0f;
 		ESoundWaveLoadingBehavior LoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
+		bool bLoadingBehaviorExternallyOverriden = false;
 		bool bWasCacheMiss = false;
 		bool bIsStaleChunk = false;
 
@@ -1553,6 +1643,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 		TimeToLoad = CurrentElement->DebugInfo.TimeToLoad;
 		AveragePlaceInCache = CurrentElement->DebugInfo.AverageLocationInCacheWhenNeeded;
 		LoadingBehavior = CurrentElement->DebugInfo.LoadingBehavior;
+		bLoadingBehaviorExternallyOverriden = CurrentElement->DebugInfo.bLoadingBehaviorExternallyOverriden;
 		bWasCacheMiss = CurrentElement->DebugInfo.bWasCacheMiss;
 #endif
 
@@ -1563,7 +1654,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 
 		const bool bWasTrimmed = CurrentElement->ChunkDataSize == 0;
 
-		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Average Index: %6.2f  Number of Handles Retaining Chunk: %d     Chunk Load Time(in ms): %6.4fms      Loading Behavior: %s      Name: %s Notes: %s %s"),
+		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Average Index: %6.2f  Number of Handles Retaining Chunk: %d     Chunk Load Time(in ms): %6.4fms      Loading Behavior: %s%s      Name: %s Notes: %s %s"),
 			Index,
 			CurrentElement->ChunkDataSize / 1024.0f,
 			CurrentElement->Key.ChunkIndex,
@@ -1573,6 +1664,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 			CurrentElement->NumConsumers.GetValue(),
 			TimeToLoad,
 			EnumToString(LoadingBehavior),
+			bLoadingBehaviorExternallyOverriden ? TEXT("*") : TEXT(""),
 			bWasTrimmed ? TEXT("TRIMMED CHUNK") : *CurrentElement->Key.SoundWaveName.ToString(),
 			bWasCacheMiss ? TEXT("(Cache Miss!)") : TEXT(""),
 			bIsStaleChunk ? TEXT("(Stale Chunk)") : TEXT("")
@@ -1631,8 +1723,10 @@ FString FAudioChunkCache::DebugPrint()
 	FString OutputString;
 
 	FString NumElementsDetail = *FString::Printf(TEXT("Number of chunks loaded: %d of %d"), ChunksInUse, CachePool.Num());
+	FString NumCacheOverflows = *FString::Printf(TEXT("The cache has blown %d times"), CacheOverflowCount.GetValue());
 
 	OutputString += NumElementsDetail + TEXT("\n");
+	OutputString += NumCacheOverflows + TEXT("\n");
 
 	// First pass: We run through and get a snap shot of the amount of memory currently in use.
 	FCacheElement* CurrentElement = MostRecentElement;
@@ -1679,6 +1773,7 @@ FString FAudioChunkCache::DebugPrint()
 		double TimeToLoad = -1.0;
 		float AveragePlaceInCache = -1.0f;
 		ESoundWaveLoadingBehavior LoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
+		bool bLoadingBehaviorExternallyOverriden = false;
 		bool bWasCacheMiss = false;
 		bool bIsStaleChunk = false;
 
@@ -1688,6 +1783,7 @@ FString FAudioChunkCache::DebugPrint()
 		TimeToLoad = CurrentElement->DebugInfo.TimeToLoad;
 		AveragePlaceInCache = CurrentElement->DebugInfo.AverageLocationInCacheWhenNeeded;
 		LoadingBehavior = CurrentElement->DebugInfo.LoadingBehavior;
+		bLoadingBehaviorExternallyOverriden = CurrentElement->DebugInfo.bLoadingBehaviorExternallyOverriden;
 		bWasCacheMiss = CurrentElement->DebugInfo.bWasCacheMiss;
 #endif
 
@@ -1698,7 +1794,7 @@ FString FAudioChunkCache::DebugPrint()
 
 		const bool bWasTrimmed = CurrentElement->ChunkDataSize == 0;
 
-		FString ElementInfo = *FString::Printf(TEXT("%4i.\t, %6.2f\t, %d of %d\t, %d\t, %6.2f\t, %d\t,  %6.4f\t, %s\t, %s, %s %s %s"),
+		FString ElementInfo = *FString::Printf(TEXT("%4i.\t, %6.2f\t, %d of %d\t, %d\t, %6.2f\t, %d\t,  %6.4f\t, %s\t, %s%s, %s %s %s"),
 			Index,
 			CurrentElement->ChunkDataSize / 1024.0f,
 			CurrentElement->Key.ChunkIndex,
@@ -1709,6 +1805,7 @@ FString FAudioChunkCache::DebugPrint()
 			TimeToLoad,
 			bWasTrimmed ? TEXT("TRIMMED CHUNK") : *CurrentElement->Key.SoundWaveName.ToString(),
 			EnumToString(LoadingBehavior),
+			bLoadingBehaviorExternallyOverriden ? TEXT("*") : TEXT(""),
 			bWasCacheMiss ? TEXT("(Cache Miss!)") : TEXT(""),
 			bIsStaleChunk ? TEXT("(Stale Chunk)") : TEXT(""),
 			CurrentElement->IsLoadInProgress() ? TEXT("(Loading In Progress)") : TEXT("")

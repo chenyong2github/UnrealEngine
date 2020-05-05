@@ -90,10 +90,10 @@ void FMeshRepairOrientation::ComputeComponentStatistics(FDynamicMeshAABBTree3* T
 	
 	// only want to raycast triangles in this component
 	TSet<int> TrisInComponent; TrisInComponent.Append(C.Triangles);
-	Tree->TriangleFilterF = [&TrisInComponent](int TID)
-	{
-		return TrisInComponent.Contains(TID);
-	};
+	IMeshSpatial::FQueryOptions RaycastOptions([&TrisInComponent](int TID)
+		{
+			return TrisInComponent.Contains(TID);
+		});
 	
 	// We want to try to figure out what is 'outside' relative to the world.
 	// Assumption is that faces we can hit from far away should be oriented outwards.
@@ -105,9 +105,9 @@ void FMeshRepairOrientation::ComputeComponentStatistics(FDynamicMeshAABBTree3* T
 	
 	FCriticalSection Mutex;
 
-	// note the C# version of this explicitly set a block size for parallel groups, and used a spin lock; TODO: revisit whether that should be ported / if the naive version is causing badness
+	// TODO: profile the parallel for and consider whether block size / locking method should be different
 	bool bNoParallel = false;
-	ParallelFor(C.Triangles.Num(), [this, &Tree, &Mutex, &C, &Dist](int32 Idx)
+	ParallelFor(C.Triangles.Num(), [this, &Tree, &RaycastOptions, &Mutex, &C, &Dist](int32 Idx)
 	{
 		int TID = C.Triangles[Idx];
 		FVector3d Normal, Centroid;
@@ -120,8 +120,8 @@ void FMeshRepairOrientation::ComputeComponentStatistics(FDynamicMeshAABBTree3* T
 
 		FVector3d PosPt = Centroid + Dist * Normal;
 		FVector3d NegPt = Centroid - Dist * Normal;
-		int HitPos = Tree->FindNearestHitTriangle(FRay3d(PosPt, -Normal));
-		int HitNeg = Tree->FindNearestHitTriangle(FRay3d(NegPt, Normal));
+		int HitPos = Tree->FindNearestHitTriangle(FRay3d(PosPt, -Normal), RaycastOptions);
+		int HitNeg = Tree->FindNearestHitTriangle(FRay3d(NegPt, Normal), RaycastOptions);
 		if (HitPos != TID && HitNeg != TID)
 		{
 			return; // no evidence
@@ -144,8 +144,6 @@ void FMeshRepairOrientation::ComputeComponentStatistics(FDynamicMeshAABBTree3* T
 		}
 	},
 		bNoParallel);
-	
-	Tree->TriangleFilterF = nullptr;
 }
 
 

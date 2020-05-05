@@ -1694,6 +1694,18 @@ struct FNiagaraEitherDataSetAccessor
 	typedef typename TagType::EitherB EitherB;
 
 	FNiagaraEitherDataSetAccessor() {}
+	FNiagaraEitherDataSetAccessor(FNiagaraDataSet& InDataSet, const FNiagaraVariable& InVar)
+	{
+		if (InDataSet.HasVariable(InVar))
+		{
+			FloatDataSet = FNiagaraDataSetAccessor<EitherA>(InDataSet, FNiagaraVariable(TagType::GetTypeA(), InVar.GetName()));
+		}
+		else
+		{
+			HalfDataSet = FNiagaraDataSetAccessor<EitherB>(InDataSet, FNiagaraVariable(TagType::GetTypeB(), InVar.GetName()));
+		}
+		InitForAccess();
+	}
 	FNiagaraEitherDataSetAccessor(FNiagaraDataSet& InDataSet, const FName& InName)
 	{
 		if (InDataSet.HasVariable(FNiagaraVariable(TagType::GetTypeA(), InName)))
@@ -1825,256 +1837,240 @@ private:
 	FNiagaraDataSetAccessor<EitherB> HalfDataSet;
 };
 
+//////////////////////////////////////////////////////////////////////////
+//Conversion helpers for compressable types.
+
+template<typename T>
 struct FNiagaraDataConversions
 {
-	struct FHalfOrFloat
-	{
-		using EitherA = float;
-		using EitherB = TStaticArray<FFloat16, 1>;
-
-		static TStaticArray<FFloat16, 1> ConvertA(float In)
-		{
-			TStaticArray<FFloat16, 1> Ret;
-			FPlatformMath::StoreHalf((uint16*)&Ret[0], In);
-			return Ret;
-		}
-		static float ConvertB(TStaticArray<FFloat16, 1> In)
-		{
-			return FPlatformMath::LoadHalf((uint16*)&In[0]);
-		}
-
-		static FNiagaraTypeDefinition GetTypeA()
-		{
-			return FNiagaraTypeDefinition::GetFloatDef();
-		}
-
-		static FNiagaraTypeDefinition GetTypeB()
-		{
-			return FNiagaraTypeDefinition::GetHalfDef();
-		}
-	};
-
-	struct FHalf2OrFloat2
-	{
-		using EitherA = FVector2D;
-		using EitherB = TStaticArray<FFloat16, 2>;
-
-		static TStaticArray<FFloat16, 2> ConvertA(FVector2D In)
-		{
-			TStaticArray<FFloat16, 2> Ret;
-			FPlatformMath::StoreHalf((uint16*)&Ret[0], In.X);
-			FPlatformMath::StoreHalf((uint16*)&Ret[1], In.Y);
-			return Ret;
-		}
-		static FVector2D ConvertB(TStaticArray<FFloat16, 2> In)
-		{
-			return FVector2D
-			(
-				FPlatformMath::LoadHalf((uint16*)&In[0]),
-				FPlatformMath::LoadHalf((uint16*)&In[1])
-			);
-		}
-
-		static FNiagaraTypeDefinition GetTypeA()
-		{
-			return FNiagaraTypeDefinition::GetVec2Def();
-		}
-
-		static FNiagaraTypeDefinition GetTypeB()
-		{
-			return FNiagaraTypeDefinition::GetHalfVec2Def();
-		}
-	};
-
-	struct FHalf3OrFloat3
-	{
-		using EitherA = FVector;
-		using EitherB = TStaticArray<FFloat16, 3>;
-
-		static TStaticArray<FFloat16, 3> ConvertA(FVector In)
-		{
-			TStaticArray<FFloat16, 3> Ret;
-			FPlatformMath::StoreHalf((uint16*)&Ret[0], In.X);
-			FPlatformMath::StoreHalf((uint16*)&Ret[1], In.Y);
-			FPlatformMath::StoreHalf((uint16*)&Ret[2], In.Z);
-			return Ret;
-		}
-		static FVector ConvertB(TStaticArray<FFloat16, 3> In)
-		{
-			return FVector
-			(
-				FPlatformMath::LoadHalf((uint16*)&In[0]), 
-				FPlatformMath::LoadHalf((uint16*)&In[1]), 
-				FPlatformMath::LoadHalf((uint16*)&In[2])
-			);
-		}
-
-		static FNiagaraTypeDefinition GetTypeA()
-		{
-			return FNiagaraTypeDefinition::GetVec3Def();
-		}
-
-		static FNiagaraTypeDefinition GetTypeB()
-		{
-			return FNiagaraTypeDefinition::GetHalfVec3Def();
-		}
-	};
-
-	struct FHalf4OrFloat4
-	{
-		using EitherA = FVector4;
-		using EitherB = TStaticArray<FFloat16, 4>;
-
-		static TStaticArray<FFloat16, 4> ConvertA(FVector4 In)
-		{
-			TStaticArray<FFloat16, 4> Ret;
-			FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
-			return Ret;
-		}
-		static FVector4 ConvertB(TStaticArray<FFloat16, 4> In)
-		{
-			FVector4 Ret;
-			FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
-			return Ret;
-		}
-
-		static FNiagaraTypeDefinition GetTypeA()
-		{
-			return FNiagaraTypeDefinition::GetVec4Def();
-		}
-
-		static FNiagaraTypeDefinition GetTypeB()
-		{
-			return FNiagaraTypeDefinition::GetHalfVec4Def();
-		}
-	};
-
-	struct FHalf4OrColor4
-	{
-		using EitherA = FLinearColor;
-		using EitherB = TStaticArray<FFloat16, 4>;
-
-		static TStaticArray<FFloat16, 4> ConvertA(FLinearColor In)
-		{
-			TStaticArray<FFloat16, 4> Ret;
-			FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
-			return Ret;
-		}
-		static FLinearColor ConvertB(TStaticArray<FFloat16, 4> In)
-		{
-			FLinearColor Ret;
-			FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
-			return Ret;
-		}
-
-		static FNiagaraTypeDefinition GetTypeA()
-		{
-			return FNiagaraTypeDefinition::GetColorDef();
-		}
-
-		static FNiagaraTypeDefinition GetTypeB()
-		{
-			return FNiagaraTypeDefinition::GetHalfVec4Def();
-		}
-	};
-
-	struct FHalf4OrQuat4
-	{
-		using EitherA = FQuat;
-		using EitherB = TStaticArray<FFloat16, 4>;
-
-		static TStaticArray<FFloat16, 4> ConvertA(FQuat In)
-		{
-			TStaticArray<FFloat16, 4> Ret;
-			FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
-			return Ret;
-		}
-		static FQuat ConvertB(TStaticArray<FFloat16, 4> In)
-		{
-			FQuat Ret;
-			FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
-			return Ret;
-		}
-
-		static FNiagaraTypeDefinition GetTypeA()
-		{
-			return FNiagaraTypeDefinition::GetQuatDef();
-		}
-
-		static FNiagaraTypeDefinition GetTypeB()
-		{
-			return FNiagaraTypeDefinition::GetHalfVec4Def();
-		}
-	};
-
-	struct FNiagaraInt {};
-
-	struct FNiagaraBool {};
-
-	struct FNiagaraConvertID {};
 };
 
 template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>
+struct FNiagaraDataConversions<float>
 {
-	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>::FNiagaraEitherDataSetAccessor;
-};
+	using EitherA = float;
+	using EitherB = TStaticArray<FFloat16, 1>;
 
-
-template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2>
-{
-	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2>::FNiagaraEitherDataSetAccessor;
-};
-
-template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>
-{
-	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>::FNiagaraEitherDataSetAccessor;
-};
-
-
-template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>
-{
-	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>::FNiagaraEitherDataSetAccessor;
-};
-
-
-template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrColor4> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrColor4>
-{
-	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrColor4>::FNiagaraEitherDataSetAccessor;
-};
-
-template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrQuat4> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrQuat4>
-{
-	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrQuat4>::FNiagaraEitherDataSetAccessor;
-};
-
-template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraInt> : public FNiagaraDataSetAccessor<int>
-{
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraInt>(FNiagaraDataSet& InDataSet, const FName& InName) : FNiagaraDataSetAccessor<int>(InDataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), InName))
+	static TStaticArray<FFloat16, 1> ConvertA(float In)
 	{
+		TStaticArray<FFloat16, 1> Ret;
+		FPlatformMath::StoreHalf((uint16*)&Ret[0], In);
+		return Ret;
+	}
+	static float ConvertB(TStaticArray<FFloat16, 1> In)
+	{
+		return FPlatformMath::LoadHalf((uint16*)&In[0]);
+	}
+
+	static FNiagaraTypeDefinition GetTypeA()
+	{
+		return FNiagaraTypeDefinition::GetFloatDef();
+	}
+
+	static FNiagaraTypeDefinition GetTypeB()
+	{
+		return FNiagaraTypeDefinition::GetHalfDef();
 	}
 };
 
 template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraBool> : public FNiagaraDataSetAccessor<FNiagaraBool>
+struct FNiagaraDataConversions<FVector2D>
 {
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraBool>(FNiagaraDataSet& InDataSet, const FName& InName) : FNiagaraDataSetAccessor<FNiagaraBool>(InDataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), InName))
+	using EitherA = FVector2D;
+	using EitherB = TStaticArray<FFloat16, 2>;
+
+	static TStaticArray<FFloat16, 2> ConvertA(FVector2D In)
 	{
+		TStaticArray<FFloat16, 2> Ret;
+		FPlatformMath::StoreHalf((uint16*)&Ret[0], In.X);
+		FPlatformMath::StoreHalf((uint16*)&Ret[1], In.Y);
+		return Ret;
+	}
+	static FVector2D ConvertB(TStaticArray<FFloat16, 2> In)
+	{
+		return FVector2D
+		(
+			FPlatformMath::LoadHalf((uint16*)&In[0]),
+			FPlatformMath::LoadHalf((uint16*)&In[1])
+		);
+	}
+
+	static FNiagaraTypeDefinition GetTypeA()
+	{
+		return FNiagaraTypeDefinition::GetVec2Def();
+	}
+
+	static FNiagaraTypeDefinition GetTypeB()
+	{
+		return FNiagaraTypeDefinition::GetHalfVec2Def();
 	}
 };
 
 template<>
-struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraConvertID> : public FNiagaraDataSetAccessor<FNiagaraID>
+struct FNiagaraDataConversions<FVector>
 {
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraConvertID>(FNiagaraDataSet& InDataSet, const FName& InName) : FNiagaraDataSetAccessor<FNiagaraID>(InDataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), InName))
+	using EitherA = FVector;
+	using EitherB = TStaticArray<FFloat16, 3>;
+
+	static TStaticArray<FFloat16, 3> ConvertA(FVector In)
 	{
+		TStaticArray<FFloat16, 3> Ret;
+		FPlatformMath::StoreHalf((uint16*)&Ret[0], In.X);
+		FPlatformMath::StoreHalf((uint16*)&Ret[1], In.Y);
+		FPlatformMath::StoreHalf((uint16*)&Ret[2], In.Z);
+		return Ret;
 	}
+	static FVector ConvertB(TStaticArray<FFloat16, 3> In)
+	{
+		return FVector
+		(
+			FPlatformMath::LoadHalf((uint16*)&In[0]),
+			FPlatformMath::LoadHalf((uint16*)&In[1]),
+			FPlatformMath::LoadHalf((uint16*)&In[2])
+		);
+	}
+
+	static FNiagaraTypeDefinition GetTypeA()
+	{
+		return FNiagaraTypeDefinition::GetVec3Def();
+	}
+
+	static FNiagaraTypeDefinition GetTypeB()
+	{
+		return FNiagaraTypeDefinition::GetHalfVec3Def();
+	}
+};
+
+template<>
+struct FNiagaraDataConversions<FVector4>
+{
+	using EitherA = FVector4;
+	using EitherB = TStaticArray<FFloat16, 4>;
+
+	static TStaticArray<FFloat16, 4> ConvertA(FVector4 In)
+	{
+		TStaticArray<FFloat16, 4> Ret;
+		FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
+		return Ret;
+	}
+	static FVector4 ConvertB(TStaticArray<FFloat16, 4> In)
+	{
+		FVector4 Ret;
+		FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
+		return Ret;
+	}
+
+	static FNiagaraTypeDefinition GetTypeA()
+	{
+		return FNiagaraTypeDefinition::GetVec4Def();
+	}
+
+	static FNiagaraTypeDefinition GetTypeB()
+	{
+		return FNiagaraTypeDefinition::GetHalfVec4Def();
+	}
+};
+
+template<>
+struct FNiagaraDataConversions<FLinearColor>
+{
+	using EitherA = FLinearColor;
+	using EitherB = TStaticArray<FFloat16, 4>;
+
+	static TStaticArray<FFloat16, 4> ConvertA(FLinearColor In)
+	{
+		TStaticArray<FFloat16, 4> Ret;
+		FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
+		return Ret;
+	}
+	static FLinearColor ConvertB(TStaticArray<FFloat16, 4> In)
+	{
+		FLinearColor Ret;
+		FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
+		return Ret;
+	}
+
+	static FNiagaraTypeDefinition GetTypeA()
+	{
+		return FNiagaraTypeDefinition::GetColorDef();
+	}
+
+	static FNiagaraTypeDefinition GetTypeB()
+	{
+		return FNiagaraTypeDefinition::GetHalfVec4Def();
+	}
+};
+
+template<>
+struct FNiagaraDataConversions<FQuat>
+{
+	using EitherA = FQuat;
+	using EitherB = TStaticArray<FFloat16, 4>;
+
+	static TStaticArray<FFloat16, 4> ConvertA(FQuat In)
+	{
+		TStaticArray<FFloat16, 4> Ret;
+		FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
+		return Ret;
+	}
+	static FQuat ConvertB(TStaticArray<FFloat16, 4> In)
+	{
+		FQuat Ret;
+		FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
+		return Ret;
+	}
+
+	static FNiagaraTypeDefinition GetTypeA()
+	{
+		return FNiagaraTypeDefinition::GetQuatDef();
+	}
+
+	static FNiagaraTypeDefinition GetTypeB()
+	{
+		return FNiagaraTypeDefinition::GetHalfVec4Def();
+	}
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<float>>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<float>>::FNiagaraEitherDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector2D>> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FVector2D>>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FVector2D>>::FNiagaraEitherDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FVector>>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FVector>>::FNiagaraEitherDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FVector4>>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FVector4>>::FNiagaraEitherDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions<FLinearColor>> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FLinearColor>>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FLinearColor>>::FNiagaraEitherDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions<FQuat>> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FQuat>>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions<FQuat>>::FNiagaraEitherDataSetAccessor;
+};
+
+template<typename T>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions<T>> : public FNiagaraDataSetAccessor<T>
+{
+	using FNiagaraDataSetAccessor<T>::FNiagaraDataSetAccessor;
 };
 
 /**

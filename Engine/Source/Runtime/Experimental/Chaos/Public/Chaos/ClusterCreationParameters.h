@@ -14,7 +14,14 @@ namespace Chaos
 	template <typename T>
 	struct CHAOS_API FClusterCreationParameters
 	{
-		enum EConnectionMethod { PointImplicit = 0, DelaunayTriangulation, MinimalSpanningSubsetDelaunayTriangulation, PointImplicitAugmentedWithMinimalDelaunay,  None };
+		enum EConnectionMethod
+		{
+			PointImplicit = 0,
+			DelaunayTriangulation,
+			MinimalSpanningSubsetDelaunayTriangulation,
+			PointImplicitAugmentedWithMinimalDelaunay,
+			None
+		};
 
 
 		FClusterCreationParameters(

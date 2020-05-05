@@ -12,22 +12,9 @@
 #include "Interfaces/IShaderFormatModule.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "RHIShaderFormatDefinitions.inl"
+#include "ShaderCompilerCommon.h"
 
 #define DEBUG_USING_CONSOLE	0
-
-enum class ESCWErrorCode
-{
-	Success,
-	GeneralCrash,
-	BadShaderFormatVersion,
-	BadInputVersion,
-	BadSingleJobHeader,
-	BadPipelineJobHeader,
-	CantDeleteInputFile,
-	CantSaveOutputFile,
-	NoTargetShaderFormatsFound,
-	CantCompileForSpecificFormat,
-};
 
 static double LastCompileTime = 0.0;
 static int32 GNumProcessedJobs = 0;
@@ -1017,8 +1004,16 @@ static int32 GuardedMainWrapper(int32 ArgC, TCHAR* ArgV[], const TCHAR* CrashOut
 
 			if (GFailedErrorCode == ESCWErrorCode::Success)
 			{
-				// Something else failed before we could set the error code, so mark it as a General Crash
-				GFailedErrorCode = ESCWErrorCode::GeneralCrash;
+				if (GSCWErrorCode != ESCWErrorCode::NotSet)
+				{
+					// Use the value set inside the shader format
+					GFailedErrorCode = GSCWErrorCode;
+				}
+				else
+				{
+					// Something else failed before we could set the error code, so mark it as a General Crash
+					GFailedErrorCode = ESCWErrorCode::GeneralCrash;
+				}
 			}
 			int64 FileSizePosition = WriteOutputFileHeader(OutputFile, (int32)GFailedErrorCode, FCString::Strlen(GErrorHist), GErrorHist,
 				FCString::Strlen(GErrorExceptionDescription), GErrorExceptionDescription);

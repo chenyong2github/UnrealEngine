@@ -605,11 +605,11 @@ struct FWedgeInfoOctreeSemantics
 	}
 
 	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId(const FWedgeInfo& Element, FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FWedgeInfo& Element, FOctreeElementId2 Id)
 	{
 	}
 };
-typedef TOctree<FWedgeInfo, FWedgeInfoOctreeSemantics> TWedgeInfoPosOctree;
+typedef TOctree2<FWedgeInfo, FWedgeInfoOctreeSemantics> TWedgeInfoPosOctree;
 
 class FOctreeQueryHelper
 {

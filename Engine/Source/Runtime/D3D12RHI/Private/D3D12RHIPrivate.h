@@ -209,7 +209,7 @@ private:
 public:
 
 	/** Initialization constructor. */
-	FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn);
+	FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn, bool bInPixEventEnabled);
 
 	/** Destructor */
 	virtual ~FD3D12DynamicRHI();
@@ -224,31 +224,6 @@ public:
 	static FORCEINLINE typename TD3D12ResourceTraits<TRHIType>::TConcreteType* ResourceCast(TRHIType* Resource)
 	{
 		return static_cast<typename TD3D12ResourceTraits<TRHIType>::TConcreteType*>(Resource);
-	}
-
-	template<typename TRHIType>
-	static FORCEINLINE_DEBUGGABLE typename TD3D12ResourceTraits<TRHIType>::TConcreteType* ResourceCast(TRHIType* Resource, uint32 GPUIndex)
-	{
-#if !WITH_MGPU
-		return ResourceCast(Resource);
-#else
-		typename TD3D12ResourceTraits<TRHIType>::TConcreteType* Object = ResourceCast(Resource);
-		if (GNumExplicitGPUsForRendering > 1)
-		{
-			if (!Object)
-			{
-				return nullptr;
-			}
-
-			while (Object && Object->GetParentDevice()->GetGPUIndex() != GPUIndex)
-			{
-				Object = Object->GetNextObject();
-			}
-
-			check(Object);
-		}
-		return Object;
-#endif
 	}
 	
 	virtual FD3D12CommandContext* CreateCommandContext(FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext = false);
@@ -475,11 +450,11 @@ public:
 	bool IsQuadBufferStereoEnabled() const;
 	void DisableQuadBufferStereo();
 
-	template<class BufferType>
-	void* LockBuffer(FRHICommandListImmediate* RHICmdList, BufferType* Buffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode);
+	static int32 GetResourceBarrierBatchSizeLimit();
 
-	template<class BufferType>
-	void UnlockBuffer(FRHICommandListImmediate* RHICmdList, BufferType* Buffer);
+
+	void* LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferSize, uint32 BufferUsage, uint32 Offset, uint32 Size, EResourceLockMode LockMode);
+	void UnlockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferUsage);
 
 	static inline bool ShouldDeferBufferLockOperation(FRHICommandListImmediate* RHICmdList)
 	{
@@ -927,6 +902,8 @@ public:
 	FD3D12Adapter& GetAdapter(uint32_t Index = 0) { return *ChosenAdapters[Index]; }
 	int32 GetNumAdapters() const { return ChosenAdapters.Num(); }
 
+	bool IsPixEventEnabled() const { return bPixEventEnabled; }
+
 	template<typename PerDeviceFunction>
 	void ForEachDevice(ID3D12Device* inDevice, const PerDeviceFunction& pfPerDeviceFunction)
 	{
@@ -950,6 +927,9 @@ public:
 protected:
 
 	TArray<TSharedPtr<FD3D12Adapter>> ChosenAdapters;
+
+	/** Can pix events be used */
+	bool bPixEventEnabled = false;
 
 	/** The feature level of the device. */
 	D3D_FEATURE_LEVEL FeatureLevel;
@@ -1021,7 +1001,6 @@ class FD3D12DynamicRHIModule : public IDynamicRHIModule
 public:
 
 	FD3D12DynamicRHIModule()
-		: WindowsPixDllHandle(nullptr)
 	{
 	}
 
@@ -1039,7 +1018,11 @@ public:
 	virtual FDynamicRHI* CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::Num) override;
 
 private:
-	void* WindowsPixDllHandle;
+
+#if USE_PIX && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+	void* WindowsPixDllHandle = nullptr;
+#endif // USE_PIX && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+
 	TArray<TSharedPtr<FD3D12Adapter>> ChosenAdapters;
 
 	// set MaxSupportedFeatureLevel and ChosenAdapter

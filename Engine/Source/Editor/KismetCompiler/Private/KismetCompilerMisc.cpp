@@ -438,7 +438,8 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 
 		if (Property->HasAnyPropertyFlags(CPF_ReferenceParm)
 			&& (SourcePin->LinkedTo.Num() == 0)
-			&& (SourcePin->PinType.PinSubCategoryObject.Get() != TBaseStructure<FTransform>::Get()))
+			&& (SourcePin->PinType.PinSubCategoryObject.Get() != TBaseStructure<FTransform>::Get())
+			&& (SourcePin->Direction == EGPD_Input))
 		{
 			TArray<FString> AutoEmittedTerms;
 			Schema->GetAutoEmitTermParameters(OwningFunction, AutoEmittedTerms);

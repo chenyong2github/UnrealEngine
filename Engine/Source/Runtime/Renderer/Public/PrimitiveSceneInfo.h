@@ -24,7 +24,7 @@ class FScene;
 class FViewInfo;
 class UPrimitiveComponent;
 class FIndirectLightingCacheUniformParameters;
-template<typename ElementType,typename OctreeSemantics> class TOctree;
+template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
 /** Data used to track a primitive's allocation in the volume texture atlas that stores indirect lighting. */
 class FIndirectLightingCacheAllocation
@@ -207,7 +207,7 @@ struct FPrimitiveVirtualTextureLodInfo
 };
 
 /** The type of the octree used by FScene to find primitives. */
-typedef TOctree<FPrimitiveSceneInfoCompact,struct FPrimitiveOctreeSemantics> FScenePrimitiveOctree;
+typedef TOctree2<FPrimitiveSceneInfoCompact,struct FPrimitiveOctreeSemantics> FScenePrimitiveOctree;
 
 /**
  * The renderer's internal state for a single UPrimitiveComponent.  This has a one to one mapping with FPrimitiveSceneProxy, which is in the engine module.
@@ -255,7 +255,7 @@ public:
 	TArray<class FStaticMeshBatch> StaticMeshes;
 
 	/** The identifier for the primitive in Scene->PrimitiveOctree. */
-	FOctreeElementId OctreeId;
+	FOctreeElementId2 OctreeId;
 
 	/** 
 	 * Caches the primitive's indirect lighting cache allocation.
@@ -565,7 +565,7 @@ struct FPrimitiveOctreeSemantics
 		return A.PrimitiveSceneInfo == B.PrimitiveSceneInfo;
 	}
 
-	FORCEINLINE static void SetElementId(const FPrimitiveSceneInfoCompact& Element,FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FPrimitiveSceneInfoCompact& Element,FOctreeElementId2 Id)
 	{
 		Element.PrimitiveSceneInfo->OctreeId = Id;
 	}

@@ -31,7 +31,7 @@ static TAutoConsoleVariable<int32> CVarVTTileBorderSize(
 void FVirtualTextureBuildSettings::Init()
 {
 	TileSize = CVarVTTileSize.GetValueOnAnyThread();
-	TileBorderSize = CVarVTTileBorderSize.GetValueOnAnyThread();;
+	TileBorderSize = CVarVTTileBorderSize.GetValueOnAnyThread();
 	bEnableCompressCrunch = CVarVTCompressCrunch.GetValueOnAnyThread() != 0;
 	bEnableCompressZlib = CVarVTCompressZlib.GetValueOnAnyThread() != 0;
 }

@@ -47,6 +47,7 @@ URichTextBlock::URichTextBlock(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	Visibility = ESlateVisibility::SelfHitTestInvisible;
+	TextTransformPolicy = ETextTransformPolicy::None;
 }
 
 void URichTextBlock::ReleaseSlateResources(bool bReleaseChildren)
@@ -79,6 +80,7 @@ void URichTextBlock::SynchronizeProperties()
 	Super::SynchronizeProperties();
 
 	MyRichTextBlock->SetText(Text);
+	MyRichTextBlock->SetTransformPolicy(TextTransformPolicy);
 	MyRichTextBlock->SetMinDesiredWidth(MinDesiredWidth);
 
 	Super::SynchronizeTextLayoutProperties( *MyRichTextBlock );
@@ -332,6 +334,15 @@ void URichTextBlock::SetAutoWrapText(bool InAutoTextWrap)
 	if (MyRichTextBlock.IsValid())
 	{
 		MyRichTextBlock->SetAutoWrapText(InAutoTextWrap);
+	}
+}
+
+void URichTextBlock::SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy)
+{
+	TextTransformPolicy = InTransformPolicy;
+	if (MyRichTextBlock.IsValid())
+	{
+		MyRichTextBlock->SetTransformPolicy(TextTransformPolicy);
 	}
 }
 

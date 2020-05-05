@@ -474,6 +474,8 @@ public:
 	virtual bool EncryptBuffer(TArrayView<const uint8> Plaintext, TArray<uint8>& Ciphertext, TArrayView<const uint8> EncryptionKey) const { return false; }
 	virtual bool DecryptBuffer(TArrayView<const uint8> Ciphertext, TArray<uint8>& Plaintext, TArrayView<const uint8> EncryptionKey) const { return false; }
 
+	bool AllowEncryptedWrite() const;
+
 	void Tick(float DeltaSeconds);
 
 	virtual uint32 GetMaxFriendlyNameSize() const override;

@@ -21,22 +21,29 @@ DECLARE_LOG_CATEGORY_EXTERN(RenderDocPlugin, Log, All);
 
 class FRenderDocPluginModule : public IRenderDocPlugin
 {
-public:	
+public:
+	enum class ELaunchAfterCapture
+	{
+		No,
+		Yes,
+	};
+
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
 	void Tick(float DeltaTime);
-	void CaptureFrame();
+	void CaptureFrame(FViewport* Viewport, const FString& DestPath, ELaunchAfterCapture LaunchOption);
+	void CaptureFrame() { CaptureFrame(nullptr, FString(), ELaunchAfterCapture::Yes); }
 	void CapturePIE(const TArray<FString>& Args);
-	void StartRenderDoc(FString FrameCaptureBaseDirectory);
-	FString GetNewestCapture(FString BaseDirectory);
+	void StartRenderDoc(FString CapturePath);
+	FString GetNewestCapture();
 
 private:
 	virtual TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
 
 	void BeginCapture();
-	void EndCapture();
-	void DoCaptureCurrentViewport();	
+	void EndCapture(void* HWnd, const FString& DestPath, ELaunchAfterCapture LaunchOption);
+	void DoCaptureCurrentViewport(FViewport* Viewport, const FString& DestPath, ELaunchAfterCapture LaunchOption);
 
 	/** Injects a debug key bind into the local player so that the hot key works the same in game */
 	void InjectDebugExecKeybind();

@@ -11,6 +11,7 @@
 
 namespace Chaos
 {
+class FPhysicsSolverBase;
 	/**
 	 * Async task to run the solver advance in its own debug thread, substep by substep.
 	 */
@@ -49,19 +50,19 @@ namespace Chaos
 		~FDebugSolverTasks() { Shutdown(); }
 
 		/** Add debug task entry for the specified solver. */
-		void Add(FPhysicsSolver* Solver);
+		void Add(FPhysicsSolverBase* Solver);
 
 		/** Remove the debug task entry for the specified solver, and delete its task if any was created. */
-		void Remove(FPhysicsSolver* Solver);
+		void Remove(FPhysicsSolverBase* Solver);
 
 		/** Run the specified step function in one go within the current thread, or in a debug thread substep by substep depending on the Solver's DebugSustep status. */
-		void DebugStep(FPhysicsSolver* Solver, TFunction<void()> StepFunction);
+		void DebugStep(FPhysicsSolverBase* Solver, TFunction<void()> StepFunction);
 
 		/** Shutdown all debug threads. */
 		void Shutdown();
 
 	private:
-		TMap<FPhysicsSolver*, FAsyncTask<FDebugSolverTask>*> SolverToTaskMap;
+		TMap<FPhysicsSolverBase*, FAsyncTask<FDebugSolverTask>*> SolverToTaskMap;
 	};
 }  // namespace Chaos
 
@@ -78,10 +79,10 @@ namespace Chaos
 		FDebugSolverTasks() {}
 		~FDebugSolverTasks() {}
 
-		void Add(FPhysicsSolver* /*Solver*/) {}
-		void Remove(FPhysicsSolver* /*Solver*/) {}
+		void Add(FPhysicsSolverBase* /*Solver*/) {}
+		void Remove(FPhysicsSolverBase* /*Solver*/) {}
 
-		FORCEINLINE void DebugStep(FPhysicsSolver* /*Solver*/, TFunction<void()> StepFunction) { StepFunction(); }
+		FORCEINLINE void DebugStep(FPhysicsSolverBase* /*Solver*/, TFunction<void()> StepFunction) { StepFunction(); }
 
 		void Shutdown() {}
 	};

@@ -1034,7 +1034,7 @@ public:
 	void WriteMemoryImage(FMemoryImageWriter& Writer) const
 	{
 		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage;
-		checkf(!Writer.GetTargetLayoutParams().b32Bit, TEXT("TBitArray does not currently support freezing for 32bits"));
+		checkf(!Writer.Is32BitTarget(), TEXT("TBitArray does not currently support freezing for 32bits"));
 		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
 	}
 };

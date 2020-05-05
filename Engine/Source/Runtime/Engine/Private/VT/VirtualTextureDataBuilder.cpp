@@ -789,9 +789,11 @@ static const FName RemovePlatformPrefixFromName(FName const& InName)
 
 	for (const auto& PlatformInfo : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 	{
-		if (NameString.StartsWith(PlatformInfo.Key, ESearchCase::IgnoreCase))
+		FString PlatformTextureFormatPrefix = PlatformInfo.Key;
+		PlatformTextureFormatPrefix += TEXT('_');
+		if (NameString.StartsWith(PlatformTextureFormatPrefix, ESearchCase::IgnoreCase))
 		{
-			return *NameString.RightChop(PlatformInfo.Key.Len() + 1); // Platform name followed by `_`
+			return *NameString.RightChop(PlatformTextureFormatPrefix.Len());
 		}
 	}
 

@@ -37,13 +37,22 @@ namespace Tools.DotNETCommon
 			else
 			{
 				ParentInfo = FindCorrectCase(ParentInfo);
-				foreach (DirectoryInfo ChildInfo in ParentInfo.EnumerateDirectories())
+				try
 				{
-					if (String.Equals(ChildInfo.Name, Info.Name, DirectoryReference.Comparison))
+					foreach (DirectoryInfo ChildInfo in ParentInfo.EnumerateDirectories())
 					{
-						return ChildInfo;
+						if (String.Equals(ChildInfo.Name, Info.Name, DirectoryReference.Comparison))
+						{
+							return ChildInfo;
+						}
 					}
 				}
+				catch (Exception)
+				{
+					// System.Security.SecurityException is expected here if we try to enumerate a directory
+					// we don't have permission to read, such as another user's mounted volume.
+				}
+
 				return new DirectoryInfo(Path.Combine(ParentInfo.FullName, Info.Name));
 			}
 		}

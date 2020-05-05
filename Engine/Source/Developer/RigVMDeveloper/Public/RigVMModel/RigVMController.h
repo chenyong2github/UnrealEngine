@@ -212,12 +212,12 @@ public:
 	// Removes a node from the graph
 	// This causes a NodeRemoved modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveNode(URigVMNode* InNode, bool bUndo = true);
+	bool RemoveNode(URigVMNode* InNode, bool bUndo = true, bool bRecursive = false);
 
 	// Removes a node from the graph given the node's name.
 	// This causes a NodeRemoved modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveNodeByName(const FName& InNodeName, bool bUndo = true);
+	bool RemoveNodeByName(const FName& InNodeName, bool bUndo = true, bool bRecursive = false);
 
 	// Selects a single node in the graph.
 	// This causes a NodeSelected / NodeDeselected modified event.

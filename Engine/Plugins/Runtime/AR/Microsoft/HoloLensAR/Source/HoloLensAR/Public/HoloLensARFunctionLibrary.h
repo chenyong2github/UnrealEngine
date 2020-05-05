@@ -20,7 +20,7 @@ public:
 	/**
 	 * Create an UARPin with the specified name, which will also be the name used to store it in the Windows Mixed Reality Anchor Store.
 	 *
-	 * @param Name						The name of the anchor.  If the Name is already in use creation will fail.  A leading "_" is reserved for automatically named anchors. Do not start your names with an underscore.
+	 * @param Name						The name of the anchor.  If the Name is already in use creation will fail.  A leading "_" is reserved for automatically named anchors. Do not start your names with an underscore.  The name 'None' is illegal.
 	 * @param PinToWorldTransform		The Pin which the component will be updated by.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HoloLensAR|ARPin", meta = (Keywords = "hololensar wmr pin ar all"))

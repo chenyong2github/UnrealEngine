@@ -106,6 +106,16 @@ public:
 	// Generate a formatted text file for this cache.
 	FString DebugPrint();
 
+	void IncrementCacheOverflowCounter()
+	{
+		CacheOverflowCount.Increment();
+	}
+
+	int32 GetNumberOfCacheOverflows() const
+	{
+		return CacheOverflowCount.GetValue();
+	}
+
 private:
 
 #if DEBUG_STREAM_CACHE
@@ -127,6 +137,7 @@ private:
 
 		// Note the loading behavior of the sound wave that inserted this element into the cache
 		ESoundWaveLoadingBehavior LoadingBehavior;
+		bool bLoadingBehaviorExternallyOverriden;
 
 		// if true, 
 		bool bWasCacheMiss;
@@ -155,6 +166,11 @@ private:
 	};
 #endif
 
+
+	// counter for the number of times this cache has overflown
+	FThreadSafeCounter CacheOverflowCount;
+
+
 	// Struct containing a single element in our LRU Cache.  
 	struct FCacheElement
 	{
@@ -175,7 +191,7 @@ private:
 #endif
 
 		// Handle to our async read request operation.
-		TUniquePtr<IBulkDataIORequest> ReadRequest;
+		IBulkDataIORequest* ReadRequest;
 
 #if DEBUG_STREAM_CACHE
 		FCacheElementDebugInfo DebugInfo;
@@ -188,6 +204,7 @@ private:
 			, LessRecentElement(nullptr)
 			, CacheLookupID(InCacheIndex)
 			, bIsLoaded(false)
+			, ReadRequest(nullptr)
 		{
 		}
 
@@ -205,15 +222,21 @@ private:
 			}
 #endif
 
-			if (ReadRequest.IsValid())
+			IBulkDataIORequest* LocalReadRequest = nullptr;
+			if (ReadRequest)
+			{
+				LocalReadRequest = (IBulkDataIORequest*)FPlatformAtomics::InterlockedExchangePtr((void* volatile*)&ReadRequest, nullptr);
+			}
+
+			if (LocalReadRequest)
 			{
 				if (bCancel)
 				{
-					ReadRequest->Cancel();
+					LocalReadRequest->Cancel();
 				}
 				
-				ReadRequest->WaitCompletion();
-				ReadRequest.Reset();
+				LocalReadRequest->WaitCompletion();
+				delete LocalReadRequest;
 			}
 		}
 

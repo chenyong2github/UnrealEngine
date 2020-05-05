@@ -22,7 +22,7 @@ public:
 	FPointerTableBase& GetPointerTable() const;
 	const FPointerTableBase* TryGetPrevPointerTable() const;
 
-	inline bool Is32BitTarget() const { return GetTargetLayoutParams().b32Bit; }
+	inline bool Is32BitTarget() const { return GetTargetLayoutParams().Is32Bit(); }
 	inline bool Is64BitTarget() const { return !Is32BitTarget(); }
 
 	void AddDependency(const FTypeLayoutDesc& TypeDesc);

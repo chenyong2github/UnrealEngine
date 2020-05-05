@@ -168,7 +168,8 @@ private:
 		TArray<FSearchWorkItem>& TraversedArray);
 	bool ItemMatchesSearchCriteria(UNiagaraStackEntry::FStackSearchItem SearchItem);
 	void GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath) const;
-	void RestoreStackEntryExpansionPreSearch();
+
+	void InvalidateSearchResults();
 
 private:
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
@@ -189,7 +190,6 @@ private:
 	int CurrentFocusedSearchMatchIndex;
 	FOnSearchCompleted SearchCompletedDelegate;
 	TArray<FSearchWorkItem> ItemsToSearch;
-	TArray<FSearchWorkItem> ItemsToRestoreExpansionState;
 	TArray<FSearchResult> CurrentSearchResults;
 	static const double MaxSearchTime;
 	bool bRestartSearch;

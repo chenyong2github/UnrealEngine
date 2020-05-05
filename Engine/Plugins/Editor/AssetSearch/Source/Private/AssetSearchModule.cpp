@@ -34,7 +34,7 @@ public:
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SearchTabName, FOnSpawnTab::CreateRaw(this, &FAssetSearchModule::HandleSpawnSettingsTab))
 			.SetDisplayName(LOCTEXT("Search", "Search"))
-			.SetTooltipText(LOCTEXT("Search", "Search Tab"))
+			.SetTooltipText(LOCTEXT("SearchTab", "Search Tab"))
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.SearchGlass"))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
 	}

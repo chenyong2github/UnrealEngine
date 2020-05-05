@@ -9,12 +9,14 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/Material.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Chaos/TriangleMesh.h"
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Cylinder.h"
 #include "Chaos/ImplicitObjectIntersection.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/Levelset.h"
+#include "Chaos/PBDEvolution.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/PBDBendingConstraints.h"
@@ -40,11 +42,14 @@
 #include "Chaos/XPBDSpringConstraints.h"
 #include "Chaos/XPBDAxialSpringConstraints.h"
 
-#include "Chaos/PBDEvolution.h"
-#include "Chaos/TriangleMesh.h"
-
 #if PHYSICS_INTERFACE_PHYSX && !PLATFORM_LUMIN && !PLATFORM_ANDROID
 #include "PhysXIncludes.h"
+#endif
+
+#if WITH_EDITOR
+#include "Engine/Canvas.h"  // For debug draw text
+#include "CanvasItem.h"     //
+#include "Engine/Engine.h"  //
 #endif
 
 #if CHAOS_DEBUG_DRAW
@@ -81,6 +86,7 @@ namespace ChaosClothingSimulationDefault
 {
 	static const FVector Gravity(0.f, 0.f, -980.665f);
 	static const int32 NumIterations = 1;
+	static const int32 NumSubsteps = 1;
 	static const float SelfCollisionThickness = 2.f;
 	static const float CollisionThickness = 1.2f;
 	static const float FrictionCoefficient = 0.2f;
@@ -91,16 +97,15 @@ namespace ChaosClothingSimulationDefault
 ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
-	, NumSubsteps(1)
-	, bOverrideGravity(false)
-	, bUseConfigGravity(false)
-	, GravityScale(1.f)
-	, Gravity(ChaosClothingSimulationDefault::Gravity)
-	, ConfigGravity(ChaosClothingSimulationDefault::Gravity)
-	, WindVelocity(FVector::ZeroVector)
+	, NumIterations(ChaosClothingSimulationDefault::NumIterations)
+	, NumSubsteps(ChaosClothingSimulationDefault::NumSubsteps)
+	, bUseGravityOverride(false)
+	, GravityOverride(ChaosClothingSimulationDefault::Gravity)
 	, bUseLocalSpaceSimulation(false)
 	, LocalSpaceLocation(FVector::ZeroVector)
 {
+	ResetStats();
+
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 	DebugClothMaterialVertex = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/WidgetVertexColorMaterial"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
@@ -126,7 +131,6 @@ void ClothingSimulation::Initialize()
 			ChaosClothingSimulationDefault::DampingCoefficient));
     Evolution->CollisionParticles().AddArray(&BoneIndices);
 	Evolution->CollisionParticles().AddArray(&BaseTransforms);
-    Evolution->GetGravityForces().SetAcceleration(Gravity);
 
     Evolution->SetKinematicUpdateFunction(
 		[this](Chaos::TPBDParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index)
@@ -186,6 +190,12 @@ void ClothingSimulation::Shutdown()
 	ExternalCollisionsOffset = 0;
 	ClothSharedSimConfig = nullptr;
 	LongRangeConstraints.Reset();
+	bUseGravityConfigs.Reset();
+	GravityScales.Reset();
+	GravityConfigs.Reset();
+	WindVelocities.Reset();
+
+	ResetStats();
 }
 
 void ClothingSimulation::DestroyActors()
@@ -198,10 +208,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 {
 	UE_LOG(LogChaosCloth, Verbose, TEXT("Adding Cloth LOD asset to %s in sim slot %d"), InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"), InSimDataIndex);
 
-	//Evolution->SetCCD(ChaosClothSimConfig->bUseContinuousCollisionDetection);
-	//Evolution->SetCCD(true); // ryan!!!
-
-	UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(InAsset);
+	UClothingAssetCommon* const Asset = Cast<UClothingAssetCommon>(InAsset);
 	const UChaosClothConfig* const ChaosClothSimConfig = Asset->GetClothConfig<UChaosClothConfig>();
 	if (!ChaosClothSimConfig)
 	{
@@ -234,6 +241,11 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		AngularDeltaRatios.SetNum(NumAssets);
 
 		CollisionsRangeMap.SetNumZeroed(NumAssets);
+
+		GravityScales.SetNum(NumAssets);
+		bUseGravityConfigs.SetNum(NumAssets);
+		GravityConfigs.SetNum(NumAssets);
+		WindVelocities.SetNum(NumAssets);
 	}
 	Assets[InSimDataIndex] = Asset;
 
@@ -312,20 +324,26 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	Evolution->SetCoefficientOfFriction(ChaosClothSimConfig->FrictionCoefficient, InSimDataIndex);
 
 	// Add velocity field
-	auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
+	auto GetVelocity = [this, InSimDataIndex](const TVector<float, 3>&)->TVector<float, 3>
 	{
-		return WindVelocity;
+		return WindVelocities[InSimDataIndex];
 	};
-	Evolution->GetVelocityFields().Emplace(
+	Evolution->GetVelocityField(InSimDataIndex) = MakeUnique<TVelocityField<float, 3>>(
 		*Meshes[InSimDataIndex],
 		GetVelocity,
 		/*bInIsUniform =*/ true,
 		ChaosClothSimConfig->DragCoefficient);
 
+	// Update gravity related config values
+	GravityScales[InSimDataIndex] = ChaosClothSimConfig->GravityScale;
+	bUseGravityConfigs[InSimDataIndex] = ChaosClothSimConfig->bUseGravityOverride;
+	GravityConfigs[InSimDataIndex] = ChaosClothSimConfig->Gravity;
+
 	// Add Self Collisions
 	if (ChaosClothSimConfig->bUseSelfCollisions)
 	{
 		AddSelfCollisions(InSimDataIndex);
+		Evolution->SetSelfCollisionThickness(ChaosClothSimConfig->SelfCollisionThickness, InSimDataIndex);
 	}
 
 	// Warn about legacy apex collisions
@@ -351,6 +369,44 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 
 	// Update collision transforms, including initial state for particles' X & R
 	UpdateCollisionTransforms(Context, InSimDataIndex);
+
+	// Update stats
+	UpdateStats(InSimDataIndex);
+}
+
+void ClothingSimulation::ResetStats()
+{
+	NumCloths = 0;
+	NumKinemamicParticles = 0;
+	NumDynamicParticles = 0;
+	SimulationTime = 0.f;
+}
+
+void ClothingSimulation::UpdateStats(int32 InSimDataIndex)
+{
+	const uint32 Offset = IndexToRangeMap[InSimDataIndex][0];
+	const uint32 Range = IndexToRangeMap[InSimDataIndex][1];
+	if (const int32 AddedParticleCount = Range - Offset)
+	{
+		++NumCloths;
+	}
+
+	TPBDParticles<float, 3>& Particles = Evolution->Particles();
+	int32 NumAddedKinenamicParticles = 0;
+	int32 NumAddedDynamicParticles = 0;
+	for (uint32 i = Offset; i < Range; ++i)
+	{
+		if (Particles.InvM(i) == 0.f)
+		{
+			++NumAddedKinenamicParticles;
+		}
+		else
+		{
+			++NumAddedDynamicParticles;
+		}
+	}
+	NumKinemamicParticles += NumAddedKinenamicParticles;
+	NumDynamicParticles += NumAddedDynamicParticles;
 }
 
 void ClothingSimulation::ExtractCollisions(const UClothingAssetCommon* Asset, int32 InSimDataIndex)
@@ -379,15 +435,10 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		// Update local space simulation switch
 		bUseLocalSpaceSimulation = ClothSharedSimConfig->bUseLocalSpaceSimulation;
 
-		// Update gravity related config values
-		ConfigGravity = ClothSharedSimConfig->Gravity;
-		GravityScale = ClothSharedSimConfig->GravityScale;
-		bUseConfigGravity = ClothSharedSimConfig->bUseGravityOverride;
-
 		// Now set all the common parameters on the simulation
 		NumSubsteps = ClothSharedSimConfig->SubdivisionCount;
+		NumIterations = ClothSharedSimConfig->IterationCount;
 		Evolution->SetIterations(ClothSharedSimConfig->IterationCount);
-		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 	}
 }
 
@@ -487,7 +538,7 @@ void ClothingSimulation::SetParticleMasses(const UChaosClothConfig* ChaosClothCo
 	const uint32 Range = IndexToRangeMap[InSimDataIndex][1];
 
 	check(Particles.Size() >= Range);
-	for (uint32 i = Offset; i < Range; i++)
+	for (uint32 i = Offset; i < Range; ++i)
 	{
 		Particles.M(i) = FMath::Max(Particles.M(i), ChaosClothConfig->MinPerParticleMass);
 		Particles.InvM(i) = MaxDistances.IsBelowThreshold(i - Offset) ? 0.f : 1.f / Particles.M(i);
@@ -1291,18 +1342,11 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		return;
 	}
 
+	const double StartTime = FPlatformTime::Seconds();
+
 	// Filter delta time to smoothen time variations and prevent unwanted vibrations
-	static const float Decay = 0.1f;
-	DeltaTime = DeltaTime + (Context->DeltaSeconds - DeltaTime) * Decay;
-
-	// Set gravity, using the legacy priority: 1) game override, 2) config override, 3) world gravity
-	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
-		bOverrideGravity ? Gravity * GravityScale :
-		bUseConfigGravity ? ConfigGravity :  // Config gravity is not subject to scale
-		Context->WorldGravity * GravityScale));
-
-	// Set wind velocity, used by the velocity field lambda
-	WindVelocity = Context->WindVelocity * ChaosClothingSimulationDefault::WorldScale;  // Wind speed is set in m/s and need to be converted to cm/s
+	static const float DeltaTimeDecay = 0.1f;
+	DeltaTime = DeltaTime + (Context->DeltaSeconds - DeltaTime) * DeltaTimeDecay;
 
 	// Check teleport modes
 	const bool bTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
@@ -1333,6 +1377,18 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		{
 			const UClothingAssetCommon* const Asset = Assets[Index];
 			if (!Asset) { continue; }
+
+			// Set wind velocity, used by the velocity field lambda
+			WindVelocities[Index] = Context->WindVelocity * ChaosClothingSimulationDefault::WorldScale;  // Wind speed is set in m/s and need to be converted to cm/s
+
+			// Set gravity, using the legacy priority: 1) game override, 2) config override, 3) world gravity
+			const TVector<float, 3> Gravity = TVector<float, 3>(
+				bUseGravityOverride ? GravityOverride * GravityScales[Index] :
+				bUseGravityConfigs[Index] ? GravityConfigs[Index] :  // Config gravity is not subject to scale
+				Context->WorldGravity * GravityScales[Index]);
+
+			// Update gravity
+			Evolution->GetGravityForces(Index).SetAcceleration(Gravity);
 
 			const uint32 Offset = IndexToRangeMap[Index][0];
 			const uint32 Range = IndexToRangeMap[Index][1];
@@ -1481,15 +1537,22 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	}
 
 	// Advance Sim
-	const float SubstepDeltaTime = DeltaTime / (float)NumSubsteps;
+	const int32 NumSubstepsRead = NumSubsteps;  // atomic read
+	const float SubstepDeltaTime = DeltaTime / (float)NumSubstepsRead;
 	
-	for (int32 i = 0; i < NumSubsteps; ++i)
+	for (int32 i = 0; i < NumSubstepsRead; ++i)
 	{
 		Evolution->AdvanceOneTimeStep(SubstepDeltaTime);
 	}
 
 	Time = Evolution->GetTime();
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, FilteredDeltaTime: %.6f, Time = %.6f,  MaxPhysicsDelta = %.6f"), Context->DeltaSeconds, DeltaTime, Time, FClothingSimulationCommon::MaxPhysicsDelta);
+
+	// Update simulation time in ms (and provide an instant average instead of the value in real-time)
+	const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
+	const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
+	static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
+	SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
 
 	// Debug draw
 #if CHAOS_DEBUG_DRAW
@@ -1515,31 +1578,42 @@ void ClothingSimulation::GetSimulationData(
 	USkeletalMeshComponent* InOwnerComponent,
 	USkinnedMeshComponent* InOverrideComponent) const
 {
-	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
-	for (int32 i = 0; i < IndexToRangeMap.Num(); ++i)
+	const int32 NumSimulatedCloth = IndexToRangeMap.Num();
+	if (OutData.Num() != NumSimulatedCloth)
 	{
+		OutData.Reset();
+	}
+
+	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
+	for (int32 i = 0; i < NumSimulatedCloth; ++i)
+	{
+		FClothSimulData& Data = OutData.FindOrAdd(i);
+
 		const TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[i];
 		if (!Mesh)
+		{
+			Data.Reset();
 			continue;
+		}
 		Mesh->GetFaceNormals(FaceNormals[i], Evolution->Particles().X(), false);  // No need to add a point index offset here since that is baked into the triangles
 		Mesh->GetPointNormals(PointNormals[i], FaceNormals[i], /*bReturnEmptyOnError =*/ false, /*bFillAtStartIndex =*/ false);
 
-		FClothSimulData& Data = OutData.FindOrAdd(i);
-		Data.Reset();
-
 		const UClothingAssetCommon* const Asset = Assets[i];
 		if (!Asset)
+		{
+			Data.Reset();
 			continue;
+		}
 
 		const TArray<FTransform>& ComponentSpaceTransforms = InOverrideComponent ?
 			InOverrideComponent->GetComponentSpaceTransforms() :
 			InOwnerComponent->GetComponentSpaceTransforms();
-		if (!ComponentSpaceTransforms.IsValidIndex(Asset->ReferenceBoneIndex))
+		if (!ensure(ComponentSpaceTransforms.IsValidIndex(Asset->ReferenceBoneIndex)))
 		{
 			UE_LOG(LogSkeletalMesh, Warning,
 				TEXT("Failed to write back clothing simulation data for component '%s' as bone transforms are invalid."),
 				*InOwnerComponent->GetName());
-			check(false);
+			Data.Reset();
 			continue;
 		}
 
@@ -1567,7 +1641,7 @@ FBoxSphereBounds ClothingSimulation::GetBounds(const USkeletalMeshComponent* InO
 	FBoxSphereBounds Bounds(EForceInit::ForceInit);
 
 	// Calculate simulation bounds (in world space)
-	uint32 NumCloths = 0;
+	uint32 NumBoundedCloths = 0;
 	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
 
 	for (int32 Index = 0; Index < Assets.Num(); ++Index)
@@ -1593,11 +1667,11 @@ FBoxSphereBounds ClothingSimulation::GetBounds(const USkeletalMeshComponent* InO
 
 			// Update bounds with this cloth
 			const FBoxSphereBounds ClothBounds(BoundingBox.Center(), BoundingBox.Extents() * 0.5f, FMath::Sqrt(SquaredRadius));
-			Bounds = (NumCloths++ == 0) ? ClothBounds : Bounds + ClothBounds;
+			Bounds = (NumBoundedCloths++ == 0) ? ClothBounds : Bounds + ClothBounds;
 		}
 	}
 
-	if (!bUseLocalSpaceSimulation && NumCloths && InOwnerComponent)
+	if (!bUseLocalSpaceSimulation && NumBoundedCloths && InOwnerComponent)
 	{
 		// Retrieve the master component (unlike the one passed to the context, this could be a slave component)
 		const bool bIsUsingMaster = InOwnerComponent->MasterPoseComponent.IsValid();
@@ -1691,7 +1765,9 @@ void ClothingSimulation::RefreshClothConfig()
 
 	Evolution->ResetConstraintRules();
 	Evolution->ResetSelfCollision();
-	Evolution->ResetVelocityFields();
+
+	// Reset stats
+	ResetStats();
 
 	for (int32 SimDataIndex = 0; SimDataIndex < Assets.Num(); ++SimDataIndex)
 	{
@@ -1717,21 +1793,30 @@ void ClothingSimulation::RefreshClothConfig()
 				Evolution->SetCoefficientOfFriction(ChaosClothConfig->FrictionCoefficient, SimDataIndex);
 
 				// Add Velocity field
-				auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
+				auto GetVelocity = [this, SimDataIndex](const TVector<float, 3>&)->TVector<float, 3>
 				{
-					return WindVelocity;
+					return WindVelocities[SimDataIndex];
 				};
-				Evolution->GetVelocityFields().Emplace(
+				Evolution->GetVelocityField(SimDataIndex) = MakeUnique<TVelocityField<float, 3>>(
 					*Meshes[SimDataIndex],
 					GetVelocity,
 					/*bInIsUniform =*/ true,
 					ChaosClothConfig->DragCoefficient);
 
+				// Update gravity related config values
+				GravityScales[SimDataIndex] = ChaosClothConfig->GravityScale;
+				bUseGravityConfigs[SimDataIndex] = ChaosClothConfig->bUseGravityOverride;
+				GravityConfigs[SimDataIndex] = ChaosClothConfig->Gravity;
+
 				// Add Self Collisions
 				if (ChaosClothConfig->bUseSelfCollisions)
 				{
 					AddSelfCollisions(SimDataIndex);
+					Evolution->SetSelfCollisionThickness(ChaosClothConfig->SelfCollisionThickness, SimDataIndex);
 				}
+
+				// Update stats
+				UpdateStats(SimDataIndex);
 			}
 		}
 	}
@@ -1768,13 +1853,13 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 
 void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
 {
-	bOverrideGravity = true;
-	Gravity = InGravityOverride;
+	bUseGravityOverride = true;
+	GravityOverride = InGravityOverride;
 }
 
 void ClothingSimulation::DisableGravityOverride()
 {
-	bOverrideGravity = false;
+	bUseGravityOverride = false;
 }
 
 #if WITH_EDITOR
@@ -1823,10 +1908,86 @@ void ClothingSimulation::DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerCo
 	LocalSimSpaceToWorld.SetOrigin(LocalSpaceLocation);
 	MeshBuilder.Draw(PDI, LocalSimSpaceToWorld, DebugClothMaterial->GetRenderProxy(), SDPG_World, false, false);
 }
+
+static void DrawText(FCanvas* Canvas, const FSceneView* SceneView, const FVector& Pos, const FText& Text, const FLinearColor& Color)
+{
+	FVector2D PixelLocation;
+	if (SceneView->WorldToPixel(Pos, PixelLocation))
+	{
+		FCanvasTextItem TextItem(PixelLocation, Text, GEngine->GetSmallFont(), Color);
+		TextItem.Scale = FVector2D::UnitVector;
+		TextItem.EnableShadow(FLinearColor::Black);
+		TextItem.Draw(Canvas);
+	}
+}
+
+void ClothingSimulation::DebugDrawParticleIndices(USkeletalMeshComponent* /*OwnerComponent*/, FCanvas* Canvas, const FSceneView* SceneView) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
+	static const FLinearColor DynamicColor = FColor::White;
+	static const FLinearColor KinematicColor = FColor::Purple;
+
+	for (int32 Index = 0; Index < Assets.Num(); ++Index)
+	{
+		const UClothingAssetCommon* const Asset = Assets[Index];
+		if (!Asset) { continue; }
+
+		for (uint32 ParticleIndex = IndexToRangeMap[Index][0]; ParticleIndex < IndexToRangeMap[Index][1]; ++ParticleIndex)
+		{
+			const FVector Position = Particles.X(ParticleIndex) + LocalSpaceLocation;
+
+			const FText Text = FText::AsNumber(ParticleIndex);
+			DrawText(Canvas, SceneView, Position, Text, Particles.InvM(ParticleIndex) == 0.0f ? KinematicColor : DynamicColor);
+		}
+	}
+}
+
+void ClothingSimulation::DebugDrawMaxDistanceValues(USkeletalMeshComponent* /*OwnerComponent*/, FCanvas* Canvas, const FSceneView* SceneView) const
+{
+	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
+	static const FLinearColor DynamicColor = FColor::White;
+	static const FLinearColor KinematicColor = FColor::Purple;
+
+	FNumberFormattingOptions NumberFormattingOptions;
+	NumberFormattingOptions.AlwaysSign = false;
+	NumberFormattingOptions.UseGrouping = false;
+	NumberFormattingOptions.RoundingMode = ERoundingMode::HalfFromZero;
+	NumberFormattingOptions.MinimumIntegralDigits = 1;
+	NumberFormattingOptions.MaximumIntegralDigits = 6;
+	NumberFormattingOptions.MinimumFractionalDigits = 2;
+	NumberFormattingOptions.MaximumFractionalDigits = 2;
+
+	for (int32 Index = 0; Index < Assets.Num(); ++Index)
+	{
+		const UClothingAssetCommon* const Asset = Assets[Index];
+		if (!Asset) { continue; }
+
+		// Get Maximum Distances
+		const FClothLODDataCommon& AssetLodData = Asset->LodData[0];
+		const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
+		const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
+		if (MaxDistances.Num() == 0)
+		{
+			continue;
+		}
+		
+		for (uint32 ParticleIndex = IndexToRangeMap[Index][0]; ParticleIndex < IndexToRangeMap[Index][1]; ++ParticleIndex)
+		{
+			const uint32 WeightMapIndex = ParticleIndex - IndexToRangeMap[Index][0];
+			const float Distance = MaxDistances[WeightMapIndex];
+			const FVector Position = Particles.X(ParticleIndex) + LocalSpaceLocation;
+
+			const FText Text = FText::AsNumber(Distance, &NumberFormattingOptions);
+			DrawText(Canvas, SceneView, Position, Text, Particles.InvM(ParticleIndex) == 0.0f ? KinematicColor : DynamicColor);
+		}
+	}
+}
 #endif  // #if WITH_EDITOR
 
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
-static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FLinearColor& Color, UMaterial* DebugClothMaterialVertex)  // USe color or material
+static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FLinearColor& Color, UMaterial* DebugClothMaterialVertex)  // Use color or material
 {
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
@@ -2382,12 +2543,16 @@ void ClothingSimulation::DebugDrawLongRangeConstraint(USkeletalMeshComponent* /*
 void ClothingSimulation::DebugDrawWindDragForces(USkeletalMeshComponent* /*OwnerComponent*/, FPrimitiveDrawInterface* PDI) const
 {
 	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
-	const TArray<TVelocityField<float, 3>>& VelocityFields = Evolution->GetVelocityFields();
 
-	for (const TVelocityField<float, 3>& VelocityField : VelocityFields)
+	for (int32 Index = 0; Index < Assets.Num(); ++Index)
 	{
-		const TArray<TVector<int32, 3>>& Elements = VelocityField.GetElements();
-		const TArray<TVector<float, 3>>& Forces = VelocityField.GetForces();
+		const UClothingAssetCommon* const Asset = Assets[Index];
+		if (!Asset) { continue; }
+
+		const TUniquePtr<TVelocityField<float, 3>>& VelocityField = Evolution->GetVelocityField(Index);
+
+		const TArray<TVector<int32, 3>>& Elements = VelocityField->GetElements();
+		const TArray<TVector<float, 3>>& Forces = VelocityField->GetForces();
 
 		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 		{

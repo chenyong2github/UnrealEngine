@@ -49,13 +49,6 @@ namespace OpenGLConsoleVariables
 		TEXT("If true, use glMapBuffer otherwise use glBufferSubdata.")
 		);
 
-	static FAutoConsoleVariable CVarUseEmulatedUBs(
-		TEXT("OpenGL.UseEmulatedUBs"),
-		1,
-		TEXT("If true, enable using emulated uniform buffers on ES3.1 mode."),
-		ECVF_ReadOnly
-		);
-
 	int32 bSkipCompute = 0;
 	static FAutoConsoleVariableRef CVarSkipCompute(
 		TEXT("OpenGL.SkipCompute"),

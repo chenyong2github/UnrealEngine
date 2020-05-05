@@ -277,44 +277,32 @@ const FString& UMetaData::GetValue(const UObject* Object, const TCHAR* Key)
 	return GetValue(Object, FName(Key, FNAME_Find));
 }
 
-/**
- * Return whether or not the Key is in the meta data
- * @param Object the object to lookup the metadata for
- * @param Key The key to query for existence
- * @return true if found
- */
-bool UMetaData::HasValue(const UObject* Object, FName Key)
+const FString* UMetaData::FindValue(const UObject* Object, FName Key)
 {
 	// every key needs to be valid
 	if (Key == NAME_None)
 	{
-		return false;
+		return nullptr;
 	}
 
 	// look up the existing map if we have it
 	TMap<FName, FString>* ObjectValues = ObjectMetaDataMap.Find(Object);
 
 	// if not, return false
-	if (ObjectValues == NULL)
+	if (ObjectValues == nullptr)
 	{
-		return false;
+		return nullptr;
 	}
 
 	// if we had the map, see if we had the key
-	return ObjectValues->Find(Key) != NULL;
+	return ObjectValues->Find(Key);
 }
 
-/**
- * Return whether or not the Key is in the meta data
- * @param Object the object to lookup the metadata for
- * @param Key The key to query for existence
- * @return true if found
- */
-bool UMetaData::HasValue(const UObject* Object, const TCHAR* Key)
+const FString* UMetaData::FindValue(const UObject* Object, const TCHAR* Key)
 {
 	// only find names, don't bother creating a name if it's not already there
 	// (HasValue will return false if Key is NAME_None)
-	return HasValue(Object, FName(Key, FNAME_Find));
+	return FindValue(Object, FName(Key, FNAME_Find));
 }
 
 /**
@@ -335,6 +323,16 @@ bool UMetaData::HasObjectValues(const UObject* Object)
 void UMetaData::SetObjectValues(const UObject* Object, const TMap<FName, FString>& ObjectValues)
 {
 	ObjectMetaDataMap.Add(const_cast<UObject*>(Object), ObjectValues);
+}
+
+/**
+ * Set the key/value pair in the Property's metadata
+ * @param Object the object to set the metadata for
+ * @Values The metadata key/value pairs
+ */
+void UMetaData::SetObjectValues(const UObject* Object, TMap<FName, FString>&& ObjectValues)
+{
+	ObjectMetaDataMap.Add(const_cast<UObject*>(Object), MoveTemp(ObjectValues));
 }
 
 /**

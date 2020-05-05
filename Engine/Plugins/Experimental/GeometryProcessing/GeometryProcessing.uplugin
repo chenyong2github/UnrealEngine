@@ -33,11 +33,6 @@
 			"Name": "MeshConversion",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "MeshSolverUtilities",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
 		}
 	]
 }

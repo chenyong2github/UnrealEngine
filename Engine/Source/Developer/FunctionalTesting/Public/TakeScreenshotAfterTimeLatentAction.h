@@ -31,6 +31,7 @@ private:
 	FString ScreenshotName;
 	FString Notes;
 	float SecondsRemaining;
+	bool FinishedLoading;
 	bool IssuedScreenshotCapture;
 	bool TakenScreenshot;
 	FAutomationScreenshotOptions Options;

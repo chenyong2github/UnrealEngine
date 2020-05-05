@@ -3592,6 +3592,11 @@ bool DumpPakInfo(const FString& InPakFilename, const FKeyChain& InKeyChain)
 	UE_LOG(LogPakFile, Display, TEXT("    IndexHash: %s"), *Info.IndexHash.ToString());
 	UE_LOG(LogPakFile, Display, TEXT("    bEncryptedIndex: %d"), Info.bEncryptedIndex);
 	UE_LOG(LogPakFile, Display, TEXT("    EncryptionKeyGuid: %s"), *Info.EncryptionKeyGuid.ToString());
+	UE_LOG(LogPakFile, Display, TEXT("    CompressionMethods:"));
+	for (FName Method : Info.CompressionMethods)
+	{
+		UE_LOG(LogPakFile, Display, TEXT("        %s"), *Method.ToString());
+	}
 
 	return true;
 }
@@ -3717,7 +3722,7 @@ bool DiffFilesInPaks(const FString& InPakFilename1, const FString& InPakFilename
 			FPakEntry EntryInfo2;
 			EntryInfo2.Serialize(PakReader2, PakFile2.GetInfo().Version);
 
-			if (EntryInfo2 == Entry2)
+			if (EntryInfo2.IndexDataEquals(Entry2))
 			{
 				const FString& PAK2FileName = *It.TryGetFilename();
 				FPakEntry Entry1;

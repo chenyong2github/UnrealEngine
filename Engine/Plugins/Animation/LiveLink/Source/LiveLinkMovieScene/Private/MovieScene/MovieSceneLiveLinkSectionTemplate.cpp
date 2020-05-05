@@ -13,6 +13,7 @@
 #include "MovieScene/MovieSceneLiveLinkSubSection.h"
 #include "MovieScene/MovieSceneLiveLinkTrack.h"
 #include "Roles/LiveLinkAnimationTypes.h"
+#include "Misc/App.h"
 
 static TAutoConsoleVariable<int32> CVarSequencerAlwaysSendInterpolatedLiveLink(
 	TEXT("Sequencer.AlwaysSendInterpolatedLiveLink"),

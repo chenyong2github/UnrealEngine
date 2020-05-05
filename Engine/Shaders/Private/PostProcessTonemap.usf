@@ -39,10 +39,6 @@ SCREEN_PASS_TEXTURE_VIEWPORT(Bloom)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToBloom)
 
-// 64x64 tiling noise texture, optimized to have mostly high frequency content
-Texture2D NoiseTexture;
-SamplerState NoiseSampler;
-
 Texture2D ColorTexture;
 SamplerState ColorSampler;
 
@@ -131,14 +127,6 @@ half3 ColorLookupTable( half3 LinearColor )
 #endif
 	
 	return OutDeviceColor * 1.05;
-}
-
-// xy should be a integer position (e.g. pixel position on the screen)
-// use the PseudoRandom() function if you have ALU performance left
-// and this if you have TEX performance left.
-float PseudoRandomTex(float2 xy)
-{
-	return Texture2DSample(NoiseTexture, NoiseSampler, xy / 64.0f).r;
 }
 
 float SwitchVerticalAxis;

@@ -2226,6 +2226,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 			{
 				LODWorld->ClearFlags(RF_Public | RF_Standalone);
 				LODWorld->DestroyWorld(false);
+				LODWorld->Rename(nullptr, GetTransientPackage());
 			}
 			
 			// Create a new world

@@ -719,6 +719,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
 	uint32 bUsedWithLidarPointCloud : 1;
 
+	/**
+	 * Indicates that the material and its instances can be used with Virtual Heightfield Mesh.
+	 * This will result in the shaders required to support Virtual Heightfield Mesh geometries being compiled which will increase shader compile time and memory usage.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
+	uint32 bUsedWithVirtualHeightfieldMesh : 1;
+
 	/** 
 	 * Indicates that the material and its instances can be used with Slate UI and UMG
 	 * This will result in the shaders required to support UI materials being compiled which will increase shader compile time and memory usage.
@@ -787,6 +794,10 @@ public:
 	/** Enables a wireframe view of the mesh the material is applied to.  */
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 Wireframe : 1;
+
+	/** Select what shading rate to apply for platforms that have variable rate shading */
+	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay)
+	TEnumAsByte<EMaterialShadingRate> ShadingRate;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

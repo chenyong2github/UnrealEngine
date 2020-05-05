@@ -23,6 +23,19 @@ FChaosFilterData U2CFilterData(const FCollisionFilterData& FilterData)
 }
 
 #if PHYSICS_INTERFACE_PHYSX
+FCollisionFilterData ToUnrealFilterData(const PxFilterData& FilterData)
+{
+	return P2UFilterData(FilterData);
+}
+#else
+FCollisionFilterData ToUnrealFilterData(const FChaosFilterData& FilterData)
+{
+	return C2UFilterData(FilterData);
+}
+#endif
+
+
+#if PHYSICS_INTERFACE_PHYSX
 
 FCollisionFilterData P2UFilterData(const PxFilterData& PFilterData)
 {

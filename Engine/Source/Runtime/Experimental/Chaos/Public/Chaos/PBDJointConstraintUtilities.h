@@ -152,6 +152,18 @@ namespace Chaos
 			const FReal MinParentMassRatio,
 			const FReal MaxInertiaRatio);
 
+		static bool GetSoftLinearLimitEnabled(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static bool GetSoftTwistLimitEnabled(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static bool GetSoftSwingLimitEnabled(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
 		static FReal GetLinearStiffness(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
@@ -251,11 +263,3 @@ namespace Chaos
 	};
 }
 
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bChaos_Joint_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bChaos_Joint_ISPC_Enabled = true;
-#else
-extern bool bChaos_Joint_ISPC_Enabled;
-#endif

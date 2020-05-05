@@ -154,7 +154,7 @@ void SNiagaraGraphParameterMapGetNode::CreatePinWidgets()
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding(FMargin(0, 3))
-			.OnMouseButtonDown(this, &SNiagaraGraphParameterMapGetNode::OnBorderMouseButtonDown, i)
+			//.OnMouseButtonDown(this, &SNiagaraGraphParameterMapGetNode::OnBorderMouseButtonDown, i)
 			[
 				Widget.ToSharedRef()
 			];

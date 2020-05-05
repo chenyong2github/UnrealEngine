@@ -36,6 +36,8 @@
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetEditorShared"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 // Whether to use RigidBody AnimNode for simulation preview when using Chaos since we don't have constraints in the main scene yet.
 // NOTE: The SkeletalMeshComponent simulation overrides the AnimNode simulation if enabled, so PHAT_USE_RBAN_SIMULATION switches it off.
 #define PHAT_USE_RBAN_SIMULATION WITH_CHAOS
@@ -565,15 +567,143 @@ void FPhysicsAssetEditorSharedData::ToggleSelectionType()
 
 void FPhysicsAssetEditorSharedData::ToggleShowSelected()
 {
+	bool bAllSelectedVisible = true;
+	if (bAllSelectedVisible)
+	{
+		for (const FSelection& Selection : SelectedConstraints)
+		{
+			if (HiddenConstraints.Contains(Selection.Index))
+			{
+				bAllSelectedVisible = false;
+				break;
+			}
+		}
+	}
+	if (bAllSelectedVisible)
+	{
+		for (const FSelection& Selection : SelectedBodies)
+		{
+			if (HiddenBodies.Contains(Selection.Index))
+			{
+				bAllSelectedVisible = false;
+			}
+		}
+	}
+
+	if (bAllSelectedVisible)
+	{
+		HideSelected();
+	}
+	else
+	{
+		ShowSelected();
+	}
+}
+
+void FPhysicsAssetEditorSharedData::ToggleShowOnlySelected()
+{
+	// Show only selected: make selected items visible and all others invisible.
+	// If we are already in the ShowOnlySelected state, make all visible.
+	bool bAllSelectedVisible = true;
+	if (bAllSelectedVisible)
+	{
+		for (const FSelection& Selection : SelectedConstraints)
+		{
+			if (HiddenConstraints.Contains(Selection.Index))
+			{
+				bAllSelectedVisible = false;
+				break;
+			}
+		}
+	}
+	if (bAllSelectedVisible)
+	{
+		for (const FSelection& Selection : SelectedBodies)
+		{
+			if (HiddenBodies.Contains(Selection.Index))
+			{
+				bAllSelectedVisible = false;
+			}
+		}
+	}
+
+	bool bAllNotSelectedHidden = true;
+	if (bAllNotSelectedHidden)
+	{
+		for (int32 ConstraintIndex = 0; ConstraintIndex < PhysicsAsset->ConstraintSetup.Num(); ++ConstraintIndex)
+		{
+			// Look at unselected constraints
+			if (!SelectedConstraints.ContainsByPredicate([ConstraintIndex](FSelection& V) { return V.Index == ConstraintIndex; } ))
+			{
+				// Is it hidden?
+				if (!HiddenConstraints.Contains(ConstraintIndex))
+				{
+					bAllNotSelectedHidden = false;
+					break;
+				}
+			}
+		}
+	}
+	if (bAllNotSelectedHidden)
+	{
+		for (int32 BodyIndex = 0; BodyIndex < PhysicsAsset->SkeletalBodySetups.Num(); ++BodyIndex)
+		{
+			// Look at unselected bodies
+			if (!SelectedBodies.ContainsByPredicate([BodyIndex](FSelection& V) { return V.Index == BodyIndex; }))
+			{
+				// Is it hidden?
+				if (!HiddenBodies.Contains(BodyIndex))
+				{
+					bAllNotSelectedHidden = false;
+					break;
+				}
+			}
+		}
+	}
+
+	if (bAllSelectedVisible && bAllNotSelectedHidden)
+	{
+		ShowAll();
+	}
+	else
+	{
+		HideAll();
+		ShowSelected();
+	}
+}
+
+void FPhysicsAssetEditorSharedData::ShowAll()
+{
+	HiddenConstraints.Empty();
+	HiddenBodies.Empty();
+}
+
+
+void FPhysicsAssetEditorSharedData::HideAll()
+{
+	if (PhysicsAsset != nullptr)
+	{
+		HiddenBodies.Empty();
+		for (int32 i = 0; i < PhysicsAsset->SkeletalBodySetups.Num(); ++i)
+		{
+			HiddenBodies.Add(i);
+		}
+
+		HiddenConstraints.Empty();
+		for (int32 i = 0; i < PhysicsAsset->ConstraintSetup.Num(); ++i)
+		{
+			HiddenConstraints.Add(i);
+		}
+	}
+}
+
+void FPhysicsAssetEditorSharedData::ShowSelected()
+{
 	for (const FSelection& Selection : SelectedConstraints)
 	{
 		if (HiddenConstraints.Contains(Selection.Index))
 		{
 			HiddenConstraints.Remove(Selection.Index);
-		}
-		else
-		{
-			HiddenConstraints.AddUnique(Selection.Index);
 		}
 	}
 	for (const FSelection& Selection : SelectedBodies)
@@ -582,9 +712,23 @@ void FPhysicsAssetEditorSharedData::ToggleShowSelected()
 		{
 			HiddenBodies.Remove(Selection.Index);
 		}
-		else
+	}
+}
+
+void FPhysicsAssetEditorSharedData::HideSelected()
+{
+	for (const FSelection& Selection : SelectedConstraints)
+	{
+		if (!HiddenConstraints.Contains(Selection.Index))
 		{
-			HiddenBodies.AddUnique(Selection.Index);
+			HiddenConstraints.Add(Selection.Index);
+		}
+	}
+	for (const FSelection& Selection : SelectedBodies)
+	{
+		if (!HiddenBodies.Contains(Selection.Index))
+		{
+			HiddenBodies.Add(Selection.Index);
 		}
 	}
 }
@@ -818,7 +962,7 @@ void FPhysicsAssetEditorSharedData::SetPrimitiveCollision(ECollisionEnabled::Typ
 
 	for (FSelection SelectedBody : SelectedBodies)
 	{
-		PhysicsAsset->SetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveIndex, CollisionEnabled);
+		PhysicsAsset->SetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex, CollisionEnabled);
 	}
 
 	PreviewChangedEvent.Broadcast();
@@ -838,7 +982,33 @@ bool FPhysicsAssetEditorSharedData::GetIsPrimitiveCollisionEnabled(ECollisionEna
 {
 	for (const FSelection SelectedBody : SelectedBodies)
 	{
-		if (PhysicsAsset->GetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveIndex) == CollisionEnabled)
+		if (PhysicsAsset->GetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex) == CollisionEnabled)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FPhysicsAssetEditorSharedData::SetPrimitiveContributeToMass(bool bContributeToMass)
+{
+	for (const FSelection SelectedBody : SelectedBodies)
+	{
+		PhysicsAsset->SetPrimitiveContributeToMass(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex, bContributeToMass);
+	}
+}
+
+bool FPhysicsAssetEditorSharedData::CanSetPrimitiveContributeToMass() const
+{
+	return true;
+}
+
+bool FPhysicsAssetEditorSharedData::GetPrimitiveContributeToMass() const
+{
+	for (const FSelection SelectedBody : SelectedBodies)
+	{
+		if (PhysicsAsset->GetPrimitiveContributeToMass(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex))
 		{
 			return true;
 		}

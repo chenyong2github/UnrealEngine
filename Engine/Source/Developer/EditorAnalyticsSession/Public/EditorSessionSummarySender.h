@@ -5,6 +5,7 @@
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
 #include "Misc/Optional.h"
+#include "Containers/Map.h"
 
 struct FEditorAnalyticsSession;
 class IAnalyticsProviderET;
@@ -22,6 +23,8 @@ public:
 	void Tick(float DeltaTime);
 	void Shutdown();
 
+	void SetMonitorDiagnosticLogs(TMap<uint32, FString>&& Logs);
+
 private:
 	/** Send any stored Sessions. */
 	void SendStoredSessions(const bool bForceSendCurrentSession = false) const;
@@ -32,4 +35,5 @@ private:
 	IAnalyticsProviderET& AnalyticsProvider;
 	FString Sender;
 	uint32 CurrentSessionProcessId;
+	TMap<uint32, FString> MonitorMiniLogs; // Maps Monitor Process ID/Monitor Log
 };

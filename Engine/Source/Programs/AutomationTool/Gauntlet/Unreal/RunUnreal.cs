@@ -290,7 +290,7 @@ namespace Gauntlet
 
 			if (UsedPlatforms.Contains(UnrealTargetPlatform.PS4))
 			{
-				String DevKitUtilPath = Path.Combine(Environment.CurrentDirectory, "Engine/Binaries/DotNET/PS4/PS4DevKitUtil.exe");
+				String DevKitUtilPath = Path.Combine(Environment.CurrentDirectory, "Engine/Platforms/PS4/Binaries/DotNET/PS4DevKitUtil.exe");
 				Gauntlet.Log.Verbose("PS4DevkitUtil executing 'removeall'");
 				IProcessResult BootResult = CommandUtils.Run(DevKitUtilPath, "removeall");
 			}

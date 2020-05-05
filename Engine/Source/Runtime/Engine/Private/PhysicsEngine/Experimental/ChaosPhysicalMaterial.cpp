@@ -5,12 +5,30 @@
 =============================================================================*/ 
 
 #include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Chaos/Defines.h"
 
 UChaosPhysicalMaterial::UChaosPhysicalMaterial(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Friction = 0.5f;
-	Restitution = 0.1f;
-	SleepingAngularVelocityThreshold = 1.f;
-	SleepingLinearVelocityThreshold = 1.f;
+	// Initialize values from FChaosPhysicsMaterial
+	Chaos::FChaosPhysicsMaterial TmpMat;
+
+	Friction = TmpMat.Friction;
+	StaticFriction = TmpMat.StaticFriction;
+	Restitution = TmpMat.Restitution;
+	LinearEtherDrag = TmpMat.LinearEtherDrag;
+	AngularEtherDrag = TmpMat.AngularEtherDrag;
+	SleepingAngularVelocityThreshold = TmpMat.SleepingAngularThreshold;
+	SleepingLinearVelocityThreshold = TmpMat.SleepingLinearThreshold;
+}
+
+void UChaosPhysicalMaterial::CopyTo(Chaos::FChaosPhysicsMaterial& Mat) const
+{
+	Mat.Friction = Friction;
+	Mat.StaticFriction = StaticFriction;
+	Mat.Restitution = Restitution;
+	Mat.LinearEtherDrag = LinearEtherDrag;
+	Mat.AngularEtherDrag = AngularEtherDrag;
+	Mat.SleepingLinearThreshold = SleepingLinearVelocityThreshold;
+	Mat.SleepingAngularThreshold = SleepingAngularVelocityThreshold;
 }

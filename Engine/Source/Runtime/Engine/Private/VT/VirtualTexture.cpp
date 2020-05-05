@@ -173,6 +173,11 @@ ULightMapVirtualTexture::ULightMapVirtualTexture(const FObjectInitializer& Objec
 {
 }
 
+URuntimeVirtualTextureStreamingProxy::URuntimeVirtualTextureStreamingProxy(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
 
 UVirtualTexture2D::UVirtualTexture2D(const FObjectInitializer& ObjectInitializer)
 	: UTexture2D(ObjectInitializer)

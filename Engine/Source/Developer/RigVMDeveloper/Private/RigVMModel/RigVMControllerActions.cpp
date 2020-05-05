@@ -443,7 +443,7 @@ bool FRigVMAddInjectedNodeAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	return InController->RemoveNodeByName(*NodePath, false);
+	return InController->RemoveNodeByName(*NodePath, false, true);
 }
 
 bool FRigVMAddInjectedNodeAction::Redo(URigVMController* InController)

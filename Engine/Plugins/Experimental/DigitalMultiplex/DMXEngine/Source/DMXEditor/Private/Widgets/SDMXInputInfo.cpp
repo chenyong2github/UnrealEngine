@@ -94,7 +94,7 @@ void SDMXInputInfo::UpdateChannelsValues()
 		{
 			if (IDMXProtocolUniversePtr Universe = DMXProtocolPtr->GetUniverseById(InfoSelecterPtr->GetCurrentUniverseID()))
 			{
-				if (TSharedPtr<FDMXBuffer> DMXBuffer = Universe->GetInputDMXBuffer())
+				if (FDMXBufferPtr DMXBuffer = Universe->GetInputDMXBuffer())
 				{
 					// check the sequence ID 
 					uint32 BufferSequenceID = DMXBuffer->GetSequenceID();

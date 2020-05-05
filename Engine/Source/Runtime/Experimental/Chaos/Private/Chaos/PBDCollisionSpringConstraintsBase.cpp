@@ -54,12 +54,20 @@ class FMeshBuildDataProvider
 
 template<class T, int d>
 PBDCollisionSpringConstraintsBase<T, d>::PBDCollisionSpringConstraintsBase(
-    const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const T Dt, const T Height, const T Stiffness)
-    : MH(Height), MStiffness(Stiffness)
+    const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const TArray<uint32>& DynamicGroupIds, const TArray<T>& PerGroupThicknesses, const T Dt, const T Stiffness)
+    : MDynamicGroupIds(DynamicGroupIds), MPerGroupThicknesses(PerGroupThicknesses), MStiffness(Stiffness)
 {
 	if (!Elements.Num())
 		return;
 #if PLATFORM_DESKTOP && PLATFORM_64BITS
+	// Calculate the reach of the collision line (= twice the maximum thickness)
+	T MaxThickness = 0.f;
+	for (T Thickness : MPerGroupThicknesses)
+	{
+		MaxThickness = FMath::Max(MaxThickness, Thickness);
+	}
+	const T Height = MaxThickness + MaxThickness;
+
 	TkDOPTree<const FMeshBuildDataProvider, uint32> DopTree;
 	TArray<FkDOPBuildCollisionTriangle<uint32>> BuildTraingleArray;
 	for (int32 i = 0; i < Elements.Num(); ++i)
@@ -73,7 +81,7 @@ PBDCollisionSpringConstraintsBase<T, d>::PBDCollisionSpringConstraintsBase(
 	PhysicsParallelFor(InParticles.Size(), [&](int32 Index) {
 		FkHitResult Result;
 		const auto& Start = InParticles.X(Index);
-		const auto End = Start + InParticles.V(Index) * Dt + InParticles.V(Index).GetSafeNormal() * MH;
+		const auto End = Start + InParticles.V(Index) * Dt + InParticles.V(Index).GetSafeNormal() * Height;
 		FVector4 Start4(Start.X, Start.Y, Start.Z, 0);
 		FVector4 End4(End.X, End.Y, End.Z, 0);
 		TkDOPLineCollisionCheck<const FMeshBuildDataProvider, uint32> ray(Start4, End4, true, DopDataProvider, &Result);
@@ -98,7 +106,9 @@ PBDCollisionSpringConstraintsBase<T, d>::PBDCollisionSpringConstraintsBase(
 			// TODO(mlentine): In theory this shouldn't happen as this means no collision but I'm not positive that the collision check is always correct.
 			//if (Bary.Y < 0 || Bary.Z < 0 || Bary.X < 0) return;
 			// TODO(mlentine): Incorporate history
-			TVector<T, d> Normal = TVector<T, d>::DotProduct(Result.Normal, PP0) > 0 ? Result.Normal : -Result.Normal;
+			TVector<T, d> Normal = TVector<T, d>::CrossProduct(P10, P20);
+			Normal.Normalize();
+			Normal = TVector<T, d>::DotProduct(Normal, PP0) > 0 ? Normal : -Normal;
 			CriticalSection.Lock();
 			MConstraints.Add({Index, Elem[0], Elem[1], Elem[2]});
 			MBarys.Add(Bary);
@@ -124,7 +134,8 @@ TVector<T, d> PBDCollisionSpringConstraintsBase<T, d>::GetDelta(const TPBDPartic
 	const TVector<T, d>& P2 = InParticles.P(i2);
 	const TVector<T, d>& P3 = InParticles.P(i3);
 	const TVector<T, d>& P4 = InParticles.P(i4);
-	const TVector<T, d> P = MBarys[i][0] * P2 + MBarys[i][1] * P3 + MBarys[i][2] * P4 + MH * MNormals[i];
+	const T Height = MPerGroupThicknesses[MDynamicGroupIds[i1]] + MPerGroupThicknesses[MDynamicGroupIds[i2]];  // Assume same height on each point of the constraint element
+	const TVector<T, d> P = MBarys[i][0] * P2 + MBarys[i][1] * P3 + MBarys[i][2] * P4 + Height * MNormals[i];
 	TVector<T, d> Difference = P1 - P;
 	if (TVector<T, d>::DotProduct(Difference, MNormals[i]) > 0)
 		return TVector<T, d>(0);

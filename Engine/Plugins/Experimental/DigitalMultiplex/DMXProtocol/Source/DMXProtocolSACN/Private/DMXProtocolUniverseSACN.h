@@ -29,8 +29,8 @@ public:
 
 	//~ Begin IDMXProtocolDevice implementation
 	virtual IDMXProtocolPtr GetProtocol() const override;
-	virtual TSharedPtr<FDMXBuffer> GetInputDMXBuffer() const override;
-	virtual TSharedPtr<FDMXBuffer> GetOutputDMXBuffer() const override;
+	virtual FDMXBufferPtr GetInputDMXBuffer() const override;
+	virtual FDMXBufferPtr GetOutputDMXBuffer() const override;
 	virtual bool SetDMXFragment(const IDMXFragmentMap& DMXFragment) override;
 	virtual uint8 GetPriority() const override;
 	virtual uint32 GetUniverseID() const override;
@@ -69,8 +69,8 @@ private:
 
 private:
 	IDMXProtocolPtrWeak WeakDMXProtocol;
-	TSharedPtr<FDMXBuffer> OutputDMXBuffer;
-	TSharedPtr<FDMXBuffer> InputDMXBuffer;
+	FDMXBufferPtr OutputDMXBuffer;
+	FDMXBufferPtr InputDMXBuffer;
 	uint8 Priority;
 	uint32 UniverseID;
 	bool bIsRDMSupport;

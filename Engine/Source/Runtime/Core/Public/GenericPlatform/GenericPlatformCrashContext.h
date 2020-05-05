@@ -24,6 +24,9 @@ enum ECrashExitCodes : int32
 
 	/** Used by the application when the crash handler crashed itself (crash in the __except() clause for example).*/
 	CrashHandlerCrashed = 777004,
+
+	/** Used by the application to flag when it detects that its out-of-process applicate supposed to report the bugs died (ex if CrashReportClientEditor dies before the Editor).*/
+	OutOfProcessReporterExitedUnexpectedly = 777005,
 };
 
 /** 

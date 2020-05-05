@@ -41,7 +41,7 @@ namespace Chaos
 
 		virtual void EnqueueCommandImmediate(FGlobalCommand InCommand) final override;
 		virtual void EnqueueCommandImmediate(FTaskCommand InCommand) final override;
-		virtual void EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand) final override;
+		virtual void EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand) final override;
 
 		virtual EThreadingMode GetMode() const final override { return Mode; }
 
@@ -63,7 +63,7 @@ namespace Chaos
 	////////////////////////////////////////////////////////////////////////////
 
 	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand);
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand);
 
 	template<>
 	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FTaskCommand InCommand);
@@ -80,7 +80,7 @@ namespace Chaos
 	////////////////////////////////////////////////////////////////////////////
 
 	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand);
+	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand);
 
 	template<>
 	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FTaskCommand InCommand);
@@ -97,7 +97,7 @@ namespace Chaos
 	////////////////////////////////////////////////////////////////////////////
 
 	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FPhysicsSolver* InSolver, FSolverCommand InCommand);
+	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand);
 
 	template<>
 	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FTaskCommand InCommand);

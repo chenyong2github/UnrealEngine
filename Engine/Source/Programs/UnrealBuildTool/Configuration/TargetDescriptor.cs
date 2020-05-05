@@ -34,10 +34,10 @@ namespace UnrealBuildTool
 		public HashSet<string> OnlyModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
-		/// Single file to compile
+		/// Individual file(s) to compile
 		/// </summary>
 		[CommandLine("-SingleFile=")]
-		public FileReference SingleFileToCompile = null;
+		public List<FileReference> SpecificFilesToCompile = new List<FileReference>();
 
 		/// <summary>
 		/// Whether to perform hot reload for this target

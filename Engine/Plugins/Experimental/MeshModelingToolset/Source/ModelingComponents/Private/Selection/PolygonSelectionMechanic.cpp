@@ -27,17 +27,18 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 }
 
 
-void UPolygonSelectionMechanic::Initialize(const USimpleDynamicMeshComponent* MeshComponentIn, const FGroupTopology* TopologyIn,
-	TFunction<FDynamicMeshAABBTree3*()> GetSpatialSourceFunc,
-	TFunction<bool()> GetAddToSelectionModifierStateFuncIn)
+void UPolygonSelectionMechanic::Initialize(const FDynamicMesh3* MeshIn,
+	FTransform3d TargetTransformIn,
+	const FGroupTopology* TopologyIn,
+	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn,
+	TFunction<bool(void)> GetAddToSelectionModifierStateFuncIn)
 {
-	this->MeshComponent = MeshComponentIn;
+	this->Mesh = MeshIn;
 	this->Topology = TopologyIn;
+	this->TargetTransform = TargetTransformIn;
 
-	TargetTransform = FTransform3d(MeshComponent->GetComponentTransform());
-
-	TopoSelector.Initialize(MeshComponent->GetMesh(), Topology);
-	this->GetSpatialFunc = GetSpatialSourceFunc;
+	TopoSelector.Initialize(Mesh, Topology);
+	this->GetSpatialFunc = GetSpatialSourceFuncIn;
 	TopoSelector.SetSpatialSource(GetSpatialFunc);
 	TopoSelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2) {
 		return ToolSceneQueriesUtil::PointSnapQuery(this->CameraState,
@@ -47,13 +48,23 @@ void UPolygonSelectionMechanic::Initialize(const USimpleDynamicMeshComponent* Me
 	GetAddToSelectionModifierStateFunc = GetAddToSelectionModifierStateFuncIn;
 }
 
-
+void UPolygonSelectionMechanic::Initialize(const USimpleDynamicMeshComponent* MeshComponentIn,
+	const FGroupTopology* TopologyIn,
+	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn,
+	TFunction<bool()> GetAddToSelectionModifierStateFuncIn)
+{
+	Initialize(MeshComponentIn->GetMesh(),
+		FTransform3d(MeshComponentIn->GetComponentTransform()),
+		TopologyIn,
+		GetSpatialSourceFuncIn,
+		GetAddToSelectionModifierStateFuncIn);
+}
 
 void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 
-	const FDynamicMesh3* TargetMesh = MeshComponent->GetMesh();
+	const FDynamicMesh3* TargetMesh = this->Mesh;
 	FTransform Transform = (FTransform)TargetTransform;
 
 	PolyEdgesRenderer.BeginFrame(RenderAPI, CameraState);

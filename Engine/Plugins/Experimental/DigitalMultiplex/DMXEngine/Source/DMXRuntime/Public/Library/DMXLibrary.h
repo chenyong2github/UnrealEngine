@@ -138,6 +138,8 @@ public:
 	/** Called when the list of entities is changed by either adding or removing entities */
 	FOnEntitiesUpdated& GetOnEntitiesUpdated();
 
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+
 
 private:
 	UPROPERTY()

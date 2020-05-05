@@ -1926,8 +1926,12 @@ bool DeclResultIdMapper::createStageVars(
         return true;
 
       // Negate SV_Position.y if requested
-      if (semanticKind == hlsl::Semantic::Kind::Position)
+      // UE Change Begin
+      if (semanticKind == hlsl::Semantic::Kind::Position) {
+        spvBuilder.decorateInvariant(varInstr, decl->getLocation());
         *value = invertYIfRequested(*value, thisSemantic.loc);
+      }
+      // UE Change End
 
       SpirvInstruction *ptr = varInstr;
 

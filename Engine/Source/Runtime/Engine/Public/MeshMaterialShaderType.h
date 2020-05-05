@@ -29,14 +29,13 @@ public:
 			FShaderType* InType,
 			int32 PermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
-			int32 InResourceIndex,
 			const FUniformExpressionSet& InUniformExpressionSet,
 			const FSHAHash& InMaterialShaderMapHash,
 			const FString& InDebugDescription,
 			const FShaderPipelineType* InShaderPipeline,
 			FVertexFactoryType* InVertexFactoryType
 			):
-			FMaterialShaderType::CompiledShaderInitializerType(InType,PermutationId,CompilerOutput, InResourceIndex,InUniformExpressionSet,InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType,InDebugDescription),
+			FMaterialShaderType::CompiledShaderInitializerType(InType,PermutationId,CompilerOutput,InUniformExpressionSet,InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType,InDebugDescription),
 			VertexFactoryType(InVertexFactoryType)
 		{}
 	};
@@ -113,8 +112,7 @@ public:
 		const FSHAHash& MaterialShaderMapHash,
 		const FShaderCompileJob& CurrentJob,
 		const FShaderPipelineType* ShaderPipeline,
-		const FString& InDebugDescription,
-		FShaderMapResourceBuilder& ResourceBuilder
+		const FString& InDebugDescription
 		);
 
 	/**

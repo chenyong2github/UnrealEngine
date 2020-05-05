@@ -10,6 +10,8 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
+class FLightSceneInfo;
+
 struct FHairStrandsTransmittanceMaskData
 {
 	TRefCountPtr<FPooledRDGBuffer>	TransmittanceMask;
@@ -18,11 +20,18 @@ struct FHairStrandsTransmittanceMaskData
 
 /// Write opaque hair shadow onto screen shadow mask to have fine hair details cast onto opaque geometries
 void RenderHairStrandsShadowMask(
+	FRDGBuilder& GraphBuilder,
+	const TArray<FViewInfo>& Views,
+	const FLightSceneInfo* LightSceneInfo,
+	const struct FHairStrandsDatas* HairDatas,
+	FRDGTextureRef ScreenShadowMaskTexture); 
+
+void RenderHairStrandsShadowMask(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
 	const class FLightSceneInfo* LightSceneInfo,
-	IPooledRenderTarget* ScreenShadowMaskTexture,
-	const struct FHairStrandsDatas* Hairdatas);
+	const struct FHairStrandsDatas* Hairdatas,
+	IPooledRenderTarget* ScreenShadowMaskTexture);
 
 /// Write hair transmittance onto screen shadow mask
 FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(

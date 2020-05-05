@@ -75,8 +75,8 @@ static FAutoConsoleVariableRef CAndroidLowPowerBatteryThreshold(
 	ECVF_Default
 );
 
-static TAutoConsoleVariable<int32> CVarMaliT8Bug(
-	TEXT("r.Android.MaliT8Bug"),
+static TAutoConsoleVariable<int32> CVarMaliMidgardIndexingBug(
+	TEXT("r.Android.MaliMidgardIndexingBug"),
 	0,
 	TEXT("For an indexed instance draw, the OpenGL ES driver does not handle attributes correctly. This issue only happens on Mali T8xx GPU when the difference between two adjacent index values are larger than 16.\n")
 	TEXT("  0 = off\n")
@@ -2739,5 +2739,5 @@ uint32 FAndroidMisc::GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty Co
 
 bool FAndroidMisc::Expand16BitIndicesTo32BitOnLoad()
 {
-	return  (CVarMaliT8Bug.GetValueOnAnyThread() > 0);
+	return  (CVarMaliMidgardIndexingBug.GetValueOnAnyThread() > 0);
 }

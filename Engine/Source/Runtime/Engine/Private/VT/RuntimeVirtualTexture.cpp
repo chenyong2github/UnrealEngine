@@ -2,11 +2,14 @@
 
 #include "VT/RuntimeVirtualTexture.h"
 
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 #include "EngineModule.h"
+#include "Engine/TextureLODSettings.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "RendererInterface.h"
-#include "VT/VirtualTextureBuildSettings.h"
 #include "VT/RuntimeVirtualTextureNotify.h"
-#include "VT/RuntimeVirtualTextureStreamingProxy.h"
+#include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureLevelRedirector.h"
 #include "VT/VirtualTextureScalability.h"
 #include "VT/UploadingVirtualTexture.h"
@@ -167,35 +170,6 @@ private:
 };
 
 
-URuntimeVirtualTextureStreamingProxy::URuntimeVirtualTextureStreamingProxy(const FObjectInitializer& ObjectInitializer)
-	: UTexture2D(ObjectInitializer)
-	, BuildHash(0)
-{
-}
-
-void URuntimeVirtualTextureStreamingProxy::GetVirtualTextureBuildSettings(FVirtualTextureBuildSettings& OutSettings) const
-{
-	OutSettings = Settings;
-}
-
-#if WITH_EDITOR
-
-void URuntimeVirtualTextureStreamingProxy::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
-{
-	// Even though we skip the cook of this object for non VT platforms in URuntimeVirtualTexture::Serialize()
-	// we still load the object at cook time and kick off the DDC build. This will trigger an error in the texture DDC code.
-	// Either we need to make the DDC code more robust for non VT platforms or we can skip the process here...
-	if (!UseVirtualTexturing(GMaxRHIFeatureLevel, TargetPlatform))
-	{
-		return;
-	}
-
-	Super::BeginCacheForCookedPlatformData(TargetPlatform);
-}
-
-#endif
-
-
 URuntimeVirtualTexture::URuntimeVirtualTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -214,17 +188,22 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 {
 	OutDesc.Name = GetFName();
 	OutDesc.Dimensions = 2;
-	OutDesc.TileSize = GetTileSize();
-	OutDesc.TileBorderSize = GetTileBorderSize();
 	OutDesc.DepthInTiles = 1;
 	OutDesc.WidthInBlocks = 1;
 	OutDesc.HeightInBlocks = 1;
 
-	// Apply TileCount modifier here to allow size scalability option
+	// Apply LODGroup TileSize bias here.
+	const int32 TileSizeBias = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(LODGroup).VirtualTextureTileSizeBias;
+	OutDesc.TileSize = GetTileSize(TileSize + TileSizeBias);
+
+	OutDesc.TileBorderSize = GetTileBorderSize();
+
+	// Apply runtime scalability option for TileCount bias here.
+	// We could also add a LODGroup driven bias in the future if it is useful.
 	const int32 TileCountBias = VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias();
 	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBias);
 
-	// Set width and height to best match the runtime virtual texture volume's aspect ratio
+	// Set width and height to best match the runtime virtual texture volume's aspect ratio.
 	const FVector VolumeSize = VolumeToWorld.GetScale3D();
 	const float VolumeSizeX = FMath::Max(FMath::Abs(VolumeSize.X), 0.0001f);
 	const float VolumeSizeY = FMath::Max(FMath::Abs(VolumeSize.Y), 0.0001f);
@@ -245,6 +224,8 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	OutDesc.BlockWidthInTiles = WidthInTiles;
 	OutDesc.BlockHeightInTiles = HeightInTiles;
 	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - GetRemoveLowMips(), 0);
+
+	OutDesc.bContinuousUpdate = bContinuousUpdate;
 
 	OutDesc.NumTextureLayers = GetLayerCount();
 	OutDesc.NumPhysicalGroups = bSinglePhysicalSpace ? 1 : GetLayerCount();
@@ -375,6 +356,8 @@ bool URuntimeVirtualTexture::IsLayerYCoCg(int32 LayerIndex) const
 	return false;
 }
 
+#if WITH_EDITOR
+
 int32 URuntimeVirtualTexture::GetEstimatedPageTableTextureMemoryKb() const
 {
 	//todo[vt]: Estimate memory usage
@@ -386,6 +369,8 @@ int32 URuntimeVirtualTexture::GetEstimatedPhysicalTextureMemoryKb() const
 	//todo[vt]: Estimate memory usage
 	return 0;
 }
+
+#endif
 
 FVirtualTextureProducerHandle URuntimeVirtualTexture::GetProducerHandle() const
 {
@@ -456,22 +441,6 @@ void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& Out
 	OutTags.Add(FAssetRegistryTag("TileBorderSize", FString::FromInt(GetTileBorderSize()), FAssetRegistryTag::TT_Numerical));
 }
 
-void URuntimeVirtualTexture::Serialize(FArchive& Ar)
-{
-	if (Ar.IsCooking() && Ar.IsSaving() && !UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()))
-	{
-		// Clear StreamingTexture during cook for platforms that don't support virtual texturing
-		URuntimeVirtualTextureStreamingProxy* StreamingTextureBackup = StreamingTexture;
-		StreamingTexture = nullptr;
-		Super::Serialize(Ar);
-		StreamingTexture = StreamingTextureBackup;
-	}
-	else
-	{
-		Super::Serialize(Ar);
-	}
-}
-
 void URuntimeVirtualTexture::PostLoad()
 {
 	// Convert Size_DEPRECATED to TileCount
@@ -489,6 +458,9 @@ void URuntimeVirtualTexture::PostLoad()
 		MaterialType = ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
 	}
 
+	// Remove StreamingTexture_DEPRECATED
+	StreamingTexture_DEPRECATED = nullptr;
+
 	Super::PostLoad();
 }
 
@@ -498,109 +470,51 @@ void URuntimeVirtualTexture::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	// Invalidate StreamingTexture if it is no longer compatible with this object
-	if (StreamingTexture != nullptr && StreamingTexture->BuildHash != GetStreamingTextureBuildHash())
-	{
-		StreamingTexture = nullptr;
-	}
-
 	RuntimeVirtualTexture::NotifyComponents(this);
 	RuntimeVirtualTexture::NotifyPrimitives(this);
 }
 
-uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
-{
-	union FPackedSettings
-	{
-		uint32 PackedValue;
-		struct
-		{
-			uint32 MaterialType : 3;
-			uint32 CompressTextures : 1;
-			uint32 SinglePhysicalSpace : 1;
-			uint32 TileSize : 4;
-			uint32 TileBorderSize : 4;
-			uint32 StreamLowMips : 4;
-			uint32 EnableCompressCrunch : 1;
-		};
-	};
-
-	FPackedSettings Settings;
-	Settings.PackedValue = 0;
-	Settings.MaterialType = (uint32)MaterialType;
-	Settings.CompressTextures = (uint32)bCompressTextures;
-	Settings.SinglePhysicalSpace = (uint32)bSinglePhysicalSpace;
-	Settings.TileSize = (uint32)TileSize;
-	Settings.TileBorderSize = (uint32)TileBorderSize;
-	Settings.StreamLowMips = (uint32)GetStreamLowMips();
-	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
-
-	return Settings.PackedValue;
-}
-
-void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData)
-{
-	// Release current producer. 
-	// It may reference data inside StreamingTexture which could be garbage collected any time from now.
-	InitNullResource();
-
-	StreamingTexture = NewObject<URuntimeVirtualTextureStreamingProxy>(GetOutermost(), TEXT("StreamingTexture"));
-	StreamingTexture->VirtualTextureStreaming = true;
-	StreamingTexture->bSinglePhysicalSpace = bSinglePhysicalSpace;
-
-	StreamingTexture->Settings.Init();
-	StreamingTexture->Settings.TileSize = GetTileSize();
-	StreamingTexture->Settings.TileBorderSize = GetTileBorderSize();
-	StreamingTexture->Settings.bEnableCompressCrunch = bEnableCompressCrunch;
-
-	StreamingTexture->BuildHash = GetStreamingTextureBuildHash();
-
-	const int32 LayerCount = GetLayerCount();
-	check(LayerCount <= RuntimeVirtualTexture::MaxTextureLayers);
-	ETextureSourceFormat LayerFormats[RuntimeVirtualTexture::MaxTextureLayers];
-
-	for (int32 Layer = 0; Layer < LayerCount; Layer++)
-	{
-		EPixelFormat LayerFormat = GetLayerFormat(Layer);
-		LayerFormats[Layer] = LayerFormat == PF_G16 ? TSF_G16 : TSF_BGRA8;
-
-		FTextureFormatSettings FormatSettings;
-		FormatSettings.CompressionSettings = LayerFormat == PF_BC5 ? TC_Normalmap : TC_Default;
-		FormatSettings.CompressionNone = LayerFormat == PF_B8G8R8A8 || LayerFormat == PF_G16;
-		FormatSettings.CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5;
-		FormatSettings.CompressionYCoCg = IsLayerYCoCg(Layer);
-		FormatSettings.SRGB = IsLayerSRGB(Layer);
-		
-		StreamingTexture->SetLayerFormatSettings(Layer, FormatSettings);
-	}
-
-	StreamingTexture->Source.InitLayered(InSizeX, InSizeY, 1, LayerCount, 1, LayerFormats, InData);
-
-	StreamingTexture->PostEditChange();
-}
-
 #endif
 
-IVirtualTexture* URuntimeVirtualTexture::CreateStreamingTextureProducer(IVirtualTexture* InProducer, int32 InMaxLevel, int32& OutTransitionLevel) const
+namespace RuntimeVirtualTexture
 {
-	if (StreamingTexture != nullptr)
+	IVirtualTexture* CreateStreamingTextureProducer(
+		IVirtualTexture* InProducer,
+		FVTProducerDescription const& InProducerDesc,
+		UVirtualTexture2D* InStreamingTexture,
+		int32 InMaxLevel,
+		int32& OutTransitionLevel)
 	{
-		FTexturePlatformData** StreamingTextureData = StreamingTexture->GetRunningPlatformData();
-		if (StreamingTextureData != nullptr && *StreamingTextureData != nullptr)
+		if (InProducer != nullptr && InStreamingTexture != nullptr)
 		{
-			FVirtualTextureBuiltData* VTData = (*StreamingTextureData)->VTData;
-			check(GetTileSize() == VTData->TileSize);
-			check(GetTileBorderSize() == VTData->TileBorderSize);
+			FTexturePlatformData** StreamingTextureData = InStreamingTexture->GetRunningPlatformData();
+			if (StreamingTextureData != nullptr && *StreamingTextureData != nullptr)
+			{
+				FVirtualTextureBuiltData* VTData = (*StreamingTextureData)->VTData;
 
-			// Streaming data may have mips removed during cook
-			const int32 NumStreamMips = FMath::Min(GetStreamLowMips(), (*StreamingTextureData)->GetNumVTMips());
+				ensure(InProducerDesc.TileSize == VTData->TileSize);
+				ensure(InProducerDesc.TileBorderSize == VTData->TileBorderSize);
+				if (InProducerDesc.TileSize == VTData->TileSize && InProducerDesc.TileBorderSize == VTData->TileBorderSize)
+				{
+					// Note that streaming data may have mips added/removed during cook.
+					const uint32 Size = FMath::Max(VTData->Width, VTData->Height);
+					const uint32 NumTiles = FMath::DivideAndRoundUp(Size, VTData->TileSize);
+					const uint32 NumMips = FMath::CeilLogTwo(NumTiles) + 1;
 
-			OutTransitionLevel = FMath::Max(InMaxLevel - NumStreamMips + 1, 0);
-			IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(VTData, 0);
-			return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, OutTransitionLevel);
+					// If the streaming texture is bigger then the runtime virtual texture then offset the first mip.
+					const int32 TransitionLevel = InMaxLevel - (int32)NumMips + 1;
+					const int32 FirstStreamingMip = TransitionLevel < 0 ? -TransitionLevel : 0;
+					const int32 AdjustedTransitionLevel = TransitionLevel + FirstStreamingMip;
+					OutTransitionLevel = TransitionLevel;
+
+					IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(VTData, FirstStreamingMip);
+					return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, AdjustedTransitionLevel);
+				}
+			}
 		}
+
+		// Can't create a streaming producer so return original producer.
+		OutTransitionLevel = InMaxLevel;
+		return InProducer;
 	}
-	// Can't create a streaming producer so return original producer.
-	OutTransitionLevel = InMaxLevel;
-	return InProducer;
 }

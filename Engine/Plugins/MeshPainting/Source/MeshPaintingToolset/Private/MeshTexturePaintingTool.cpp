@@ -195,10 +195,8 @@ void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 }
 
-void UMeshTexturePaintingTool::Tick(float DeltaTime)
+void UMeshTexturePaintingTool::OnTick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
-
 	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
 	{
 		if (MeshToolManager->bNeedsRecache)

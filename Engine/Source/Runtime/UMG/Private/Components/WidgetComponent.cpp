@@ -162,7 +162,7 @@ public:
 		return TArray<FWidgetAndPointer>();
 	}
 
-	virtual void ArrangeChildren( FArrangedChildren& ArrangedChildren ) const override
+	virtual void ArrangeCustomHitTestChildren( FArrangedChildren& ArrangedChildren ) const override
 	{
 		for( TWeakObjectPtr<UWidgetComponent> Component : RegisteredComponents )
 		{
@@ -177,7 +177,7 @@ public:
 		}
 	}
 
-	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateFor3DChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const override
+	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const override
 	{
 		if ( World.IsValid() && ensure(World->IsGameWorld()) )
 		{
@@ -700,7 +700,7 @@ void UWidgetComponent::UpdateMaterialInstance()
 	MaterialInstance = UMaterialInstanceDynamic::Create(BaseMaterial, this);
 	if (MaterialInstance)
 	{
-			MaterialInstance->AddToCluster(this);
+		MaterialInstance->AddToCluster(this);
 	}
 	UpdateMaterialInstanceParameters();
 }
@@ -837,6 +837,9 @@ FCollisionShape UWidgetComponent::GetCollisionShape(float Inflation) const
 
 void UWidgetComponent::OnRegister()
 {
+	// Set this prior to registering the scene component so that bounds are calculated correctly.
+	CurrentDrawSize = DrawSize;
+
 	Super::OnRegister();
 
 #if !UE_SERVER
@@ -1505,7 +1508,7 @@ void UWidgetComponent::SetSlateWidget(const TSharedPtr<SWidget>& InSlateWidget)
 void UWidgetComponent::UpdateWidget()
 {
 	// Don't do any work if Slate is not initialized
-	if ( FSlateApplication::IsInitialized() )
+	if (FSlateApplication::IsInitialized() && !IsPendingKill())
 	{
 		if ( Space != EWidgetSpace::Screen )
 		{
@@ -1541,7 +1544,7 @@ void UWidgetComponent::UpdateWidget()
 					bWidgetChanged = true;
 				}
 			}
-			else if( SlateWidget.IsValid() )
+			else if ( SlateWidget.IsValid() )
 			{
 				if ( SlateWidget != CurrentSlateWidget || bNeededNewWindow )
 				{

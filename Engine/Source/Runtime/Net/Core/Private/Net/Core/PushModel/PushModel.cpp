@@ -11,7 +11,9 @@
 #include "Types/PushModelPerObjectState.h"
 #include "Types/PushModelPerNetDriverState.h"
 #include "UObject/UObjectGlobals.h"
+#include "Stats/Stats2.h"
 
+DECLARE_CYCLE_STAT(TEXT("PushModel PostGarbageCollect"), STAT_PushModel_PostGarbageCollect, STATGROUP_Net);
 
 namespace UE4PushModelPrivate
 {
@@ -207,19 +209,19 @@ namespace UE4PushModelPrivate
 			}
 		}
 
-		const FPushModelPerNetDriverHandle AddNetworkObject(const FNetPushObjectId ObjectId, const uint16 NumReplicatedProperties)
+		const FPushModelPerNetDriverHandle AddNetworkObject(const FObjectKey ObjectKey, const uint16 NumReplicatedProperties)
 		{
-			FNetPushObjectId& InternalPushId = ObjectIdToInternalId.FindOrAdd(ObjectId, INDEX_NONE);
+			FNetPushObjectId& InternalPushId = ObjectKeyToInternalId.FindOrAdd(ObjectKey, INDEX_NONE);
 			if (INDEX_NONE == InternalPushId)
 			{
 				FSparseArrayAllocationInfo AllocationInfo = PerObjectStates.AddUninitializedAtLowestFreeIndex(NewObjectLookupPosition);
-				new (AllocationInfo.Pointer) FPushModelPerObjectState(ObjectId, NumReplicatedProperties);
+				new (AllocationInfo.Pointer) FPushModelPerObjectState(ObjectKey, NumReplicatedProperties);
 				InternalPushId = AllocationInfo.Index;
 			}
 
 			FPushModelPerObjectState& PerObjectState = PerObjectStates[InternalPushId];
 			check(PerObjectState.GetNumberOfProperties() == NumReplicatedProperties);
-			check(PerObjectState.GetObjectId() == ObjectId);
+			check(PerObjectState.GetObjectKey() == ObjectKey);
 
 			const FNetPushPerNetDriverId NetDriverId = PerObjectState.AddPerNetDriverState();
 			return FPushModelPerNetDriverHandle(NetDriverId, InternalPushId);
@@ -237,6 +239,8 @@ namespace UE4PushModelPrivate
 
 		void PostGarbageCollect()
 		{
+			SCOPE_CYCLE_COUNTER(STAT_PushModel_PostGarbageCollect);
+
 			// We can't compact PerObjectStates because we need ObjectIDs to be stable.
 			// But we can shrink it.
 
@@ -260,13 +264,17 @@ namespace UE4PushModelPrivate
 			{
 				if (!It->HasAnyNetDriverStates())
 				{
-					ObjectIdToInternalId.Remove(It->GetObjectId());
+					ObjectKeyToInternalId.Remove(It->GetObjectKey());
 					It.RemoveCurrent();
+				}
+				else
+				{
+					It->SetRecentlyCollectedGarbage();
 				}
 			}
 
 			PerObjectStates.Shrink();
-			ObjectIdToInternalId.Compact();
+			ObjectKeyToInternalId.Compact();
 			NewObjectLookupPosition = 0;
 		}
 
@@ -286,7 +294,7 @@ namespace UE4PushModelPrivate
 	private:
 
 		int32 NewObjectLookupPosition = 0;
-		TMap<FNetPushObjectId, FNetPushObjectId> ObjectIdToInternalId;
+		TMap<FObjectKey, FNetPushObjectId> ObjectKeyToInternalId;
 		TSparseArray<FPushModelPerObjectState> PerObjectStates;
 		FDelegateHandle PostGarbageCollectHandle;
 	};
@@ -324,12 +332,12 @@ namespace UE4PushModelPrivate
 	 * This may be called multiple times for a given Object if there are multiple NetDrivers, but it's expected
 	 * that each NetDriver only calls this once per object before RemoteNetworkObject is called.
 	 *
-	 * @param ObjectId						The UniqueId for the object.
+	 * @param ObjectKey						An ObjectKey to uniquely identify the object.
 	 * @param NumberOfReplicatedProperties	The number of replicated properties for this object.
 	 *
 	 * @return A Handle that can be used in other calls to uniquely identify this object per NetDriver.
 	 */
-	const FPushModelPerNetDriverHandle AddPushModelObject(const FNetPushObjectId ObjectId, const uint16 NumberOfReplicatedProperties)
+	const FPushModelPerNetDriverHandle AddPushModelObject(const FObjectKey ObjectId, const uint16 NumberOfReplicatedProperties)
 	{
 		return PushObjectManager.AddNetworkObject(ObjectId, NumberOfReplicatedProperties);
 	}

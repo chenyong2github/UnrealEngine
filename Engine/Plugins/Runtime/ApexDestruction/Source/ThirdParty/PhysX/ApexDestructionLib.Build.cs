@@ -128,10 +128,6 @@ public class ApexDestructionLib : ModuleRules
 				RuntimeDependencies.Add(Path.ChangeExtension(LibraryPath, ".debug"), StagedFileType.DebugNonUFS);
 			}
         }
-        else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-        {
-			LibraryFormatString = Path.Combine(ApexLibDir, "XboxOne", "VS2015", "{0}.lib");
-        }
 		
 		// Add the libraries needed (used for all platforms except Windows and Mac)
 		if (LibraryFormatString != null)

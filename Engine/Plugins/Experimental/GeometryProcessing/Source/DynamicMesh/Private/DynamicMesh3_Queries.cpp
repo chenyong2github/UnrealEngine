@@ -127,6 +127,23 @@ int FDynamicMesh3::GetVtxTriangleCount(int vID, bool bBruteForce) const
 }
 
 
+int FDynamicMesh3::GetVtxSingleTriangle(int VertexID) const
+{
+	if (!IsVertex(VertexID))
+	{
+		return FDynamicMesh3::InvalidID;
+	}
+
+	for (int EID : VertexEdgeLists.Values(VertexID))
+	{
+		int i = 4 * EID;
+		int T0 = Edges[i + 2];
+		return T0;
+	}
+
+	return FDynamicMesh3::InvalidID;
+}
+
 
 EMeshResult FDynamicMesh3::GetVtxTriangles(int vID, TArray<int>& TrianglesOut, bool bUseOrientation) const
 {

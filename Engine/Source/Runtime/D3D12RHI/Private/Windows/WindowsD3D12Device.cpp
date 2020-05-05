@@ -370,8 +370,8 @@ void FD3D12DynamicRHIModule::FindAdapter()
 
 				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, MaxSupportedFeatureLevel, NumNodes);
 				
-				// Requested WARP, reject all other adapters.
-				const bool bSkipRequestedWARP = bRequestedWARP && !bIsWARP;
+				// If requested WARP, then reject all other adapters. If WARP not requested, then reject the WARP device.
+				const bool bSkipRequestedWARP = (bRequestedWARP && !bIsWARP) || (!bRequestedWARP && bIsWARP);
 
 				// we don't allow the PerfHUD adapter
 				const bool bSkipPerfHUDAdapter = bIsPerfHUD && !bAllowPerfHUD;
@@ -469,7 +469,13 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
 	}
 
-	GD3D12RHI = new FD3D12DynamicRHI(ChosenAdapters);
+#if USE_PIX
+	bool bPixEventEnabled = (WindowsPixDllHandle != nullptr);
+#else
+	bool bPixEventEnabled = false;
+#endif // USE_PIX
+
+	GD3D12RHI = new FD3D12DynamicRHI(ChosenAdapters, bPixEventEnabled);
 #if ENABLE_RHI_VALIDATION
 	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
 	{
@@ -789,6 +795,11 @@ bool FD3D12DynamicRHI::IsQuadBufferStereoEnabled() const
 void FD3D12DynamicRHI::DisableQuadBufferStereo()
 {
 	bIsQuadBufferStereoEnabled = false;
+}
+
+int32 FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit()
+{
+	return INT32_MAX;
 }
 
 void FD3D12Device::Initialize()

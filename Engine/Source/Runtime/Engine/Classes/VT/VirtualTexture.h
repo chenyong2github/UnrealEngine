@@ -22,6 +22,14 @@ class ENGINE_API ULightMapVirtualTexture : public UVirtualTexture
 	GENERATED_UCLASS_BODY()
 };
 
+/** Deprecated class. */
+UCLASS(ClassGroup = Rendering)
+class URuntimeVirtualTextureStreamingProxy : public UTexture2D
+{
+	GENERATED_UCLASS_BODY()
+};
+
+
 /**
  * Virtual Texture with locally configurable build settings.
  * A raw UTexture2D can also represent a Virtual Texture but uses the one and only per-project build settings.

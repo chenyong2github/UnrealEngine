@@ -279,6 +279,10 @@ uint32 FThreadHeartBeat::Run()
 	{
 		double HangDuration;
 		uint32 ThreadThatHung = CheckHeartBeat(HangDuration);
+		if (ThreadThatHung == FThreadHeartBeat::InvalidThreadId)
+		{
+			ThreadThatHung = CheckFunctionHeartBeat(HangDuration);
+		}
 
 		if (ThreadThatHung == FThreadHeartBeat::InvalidThreadId)
 		{
@@ -398,19 +402,72 @@ void FThreadHeartBeat::PresentFrame()
 #endif
 }
 
-uint32 FThreadHeartBeat::CheckHeartBeat(double& OutHangDuration)
+void FThreadHeartBeat::MonitorFunctionStart()
 {
-	// Editor and debug builds run too slow to measure them correctly
+#if USE_HANG_DETECTION
+	// disable on platforms that don't start the thread
+	if (FPlatformMisc::AllowThreadHeartBeat() == false)
+	{
+		return;
+	}
+
+	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+	FScopeLock FunctionHeartBeatLock(&FunctionHeartBeatCritical);
+
+	FHeartBeatInfo& HeartBeatInfo = FunctionHeartBeat.FindOrAdd(ThreadId);
+	HeartBeatInfo.LastHeartBeatTime = Clock.Seconds();
+	HeartBeatInfo.HangDuration = CurrentHangDuration;
+	HeartBeatInfo.SuspendedCount = 0;
+#endif
+}
+
+void FThreadHeartBeat::MonitorFunctionEnd()
+{
+#if USE_HANG_DETECTION
+	// disable on platforms that don't start the thread
+	if (FPlatformMisc::AllowThreadHeartBeat() == false)
+	{
+		return;
+	}
+	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+	FScopeLock FunctionHeartBeatLock(&FunctionHeartBeatCritical);
+	FHeartBeatInfo* HeartBeatInfo = FunctionHeartBeat.Find(ThreadId);
+	if (HeartBeatInfo != nullptr)
+	{
+		HeartBeatInfo->SuspendedCount = 1;
+	}
+	else
+	{
+		// has to have been there otherwise the Start/End are out of order/unbalanced
+		check(0);
+	}
+#endif
+}
+
+
+bool FThreadHeartBeat::IsEnabled()
+{
+	bool CheckBeats = false;
 #if USE_HANG_DETECTION
 	static bool bForceEnabled = FParse::Param(FCommandLine::Get(), TEXT("debughangdetection"));
 	static bool bDisabled = !bForceEnabled && FParse::Param(FCommandLine::Get(), TEXT("nothreadtimeout"));
 
-	bool CheckBeats = (ConfigHangDuration > 0.0 || ConfigPresentDuration > 0.0)
+	CheckBeats = (ConfigHangDuration > 0.0 || ConfigPresentDuration > 0.0)
 		&& bReadyToCheckHeartbeat
 		&& !IsEngineExitRequested()
 		&& (bForceEnabled || !FPlatformMisc::IsDebuggerPresent())
 		&& !bDisabled
 		&& !GlobalSuspendCount.GetValue();
+#endif
+	return CheckBeats;
+}
+
+
+uint32 FThreadHeartBeat::CheckHeartBeat(double& OutHangDuration)
+{
+	// Editor and debug builds run too slow to measure them correctly
+#if USE_HANG_DETECTION
+	bool CheckBeats = IsEnabled();
 
 	if (CheckBeats)
 	{
@@ -449,6 +506,39 @@ uint32 FThreadHeartBeat::CheckHeartBeat(double& OutHangDuration)
 #endif
 	return InvalidThreadId;
 }
+
+uint32 FThreadHeartBeat::CheckFunctionHeartBeat(double& OutHangDuration)
+{
+	// Editor and debug builds run too slow to measure them correctly
+#if USE_HANG_DETECTION
+	bool CheckBeats = IsEnabled();
+
+	if (CheckBeats)
+	{
+		const double CurrentTime = Clock.Seconds();
+		FScopeLock HeartBeatLock(&FunctionHeartBeatCritical);
+		if (ConfigHangDuration > 0.0)
+		{
+			// Check heartbeat for all functions and return thread ID of the thread that was running the function when it hung.
+			// Note: We only return a thread id for a thread that has updated since the last hang, i.e. is still alive
+			// This avoids the case where a user may be in a deep and minorly varying callstack and flood us with reports
+			for (TPair<uint32, FHeartBeatInfo>& LastHeartBeat : FunctionHeartBeat)
+			{
+				FHeartBeatInfo& HeartBeatInfo = LastHeartBeat.Value;
+				if (HeartBeatInfo.SuspendedCount == 0 && (CurrentTime - HeartBeatInfo.LastHeartBeatTime) > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime)
+				{
+					HeartBeatInfo.LastHangTime = CurrentTime;
+					OutHangDuration = HeartBeatInfo.HangDuration;
+					return LastHeartBeat.Key;
+				}
+			}
+		}
+	}
+#endif
+	return InvalidThreadId;
+}
+
+
 
 void FThreadHeartBeat::KillHeartBeat()
 {

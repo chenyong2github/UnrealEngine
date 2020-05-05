@@ -182,7 +182,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;

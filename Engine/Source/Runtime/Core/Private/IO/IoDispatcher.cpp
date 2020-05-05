@@ -26,6 +26,22 @@ TUniquePtr<FIoDispatcher> GIoDispatcher;
 //PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
+/** A utility function to convert a EIoStoreResolveResult to the corresponding FIoStatus.*/
+FIoStatus ToStatus(EIoStoreResolveResult Result)
+{
+	switch (Result)
+	{
+	case IoStoreResolveResult_OK:
+		return FIoStatus(EIoErrorCode::Ok);
+
+	case IoStoreResolveResult_NotFound:
+		return FIoStatus(EIoErrorCode::NotFound);
+
+	default:
+		return FIoStatus(EIoErrorCode::Unknown);
+	}
+}
+
 template <typename T, uint32 BlockSize = 128>
 class TBlockAllocator
 {
@@ -135,7 +151,7 @@ class FIoDispatcherImpl
 public:
 	FIoDispatcherImpl(bool bInIsMultithreaded)
 		: bIsMultithreaded(bInIsMultithreaded)
-		, FileIoStore(EventQueue, bInIsMultithreaded)
+		, FileIoStore(EventQueue) 
 	{
 		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
 		{
@@ -244,12 +260,35 @@ public:
 
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
 	{
-		return FileIoStore.OpenMapped(ChunkId, Options);
+		if (ChunkId.IsValid())
+		{
+			return FileIoStore.OpenMapped(ChunkId, Options);
+		}
+		else
+		{
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("FIoChunkId is not valid"));
+		}
 	}
 
 	FIoStatus Mount(const FIoStoreEnvironment& Environment)
 	{
-		return FileIoStore.Mount(Environment);
+		TIoStatusOr<FIoContainerId> ContainerId = FileIoStore.Mount(Environment);
+
+		if (ContainerId.IsOk())
+		{
+			FIoDispatcherMountedContainer MountedContainer;
+			MountedContainer.ContainerId = ContainerId.ValueOrDie();
+			MountedContainer.Environment = Environment;
+			if (ContainerMountedEvent.IsBound())
+			{
+				ContainerMountedEvent.Broadcast(MountedContainer);
+			}
+			FScopeLock Lock(&MountedContainersCritical);
+			MountedContainers.Add(MoveTemp(MountedContainer));
+			return FIoStatus::Ok;
+		}
+
+		return ContainerId.Status();
 	}
 
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const
@@ -259,7 +298,26 @@ public:
 
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
 	{
-		return FileIoStore.GetSizeForChunk(ChunkId);
+		// Only attempt to find the size if the FIoChunkId is valid
+		if (ChunkId.IsValid())
+		{
+			return FileIoStore.GetSizeForChunk(ChunkId);
+		}
+		else
+		{
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("FIoChunkId is not valid"));
+		}	
+	}
+
+	TArray<FIoDispatcherMountedContainer> GetMountedContainers() const
+	{
+		FScopeLock Lock(&MountedContainersCritical);
+		return MountedContainers;
+	}
+
+	FIoDispatcher::FIoContainerMountedEvent& OnContainerMounted()
+	{
+		return ContainerMountedEvent;
 	}
 
 	template<typename Func>
@@ -454,11 +512,20 @@ private:
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
 
-				EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
-				if (Result == IoStoreResolveResult_NotFound)
+				// Make sure that the FIoChunkId in the request is valid before we try to do anything with it.
+				if (Request->ChunkId.IsValid())
 				{
-					Request->Status = FIoStatus(EIoErrorCode::NotFound);
+					EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
+					if (Result != IoStoreResolveResult_OK)
+					{
+						Request->Status = ToStatus(Result);
+					}
 				}
+				else
+				{
+					Request->Status = FIoStatus(EIoErrorCode::InvalidParameter, TEXT("FIoChunkId is not valid"));
+				}
+
 				if (!SubmittedRequestsTail)
 				{
 					SubmittedRequestsHead = SubmittedRequestsTail = Request;
@@ -471,7 +538,18 @@ private:
 				Request->NextRequest = nullptr;
 			}
 
-			ProcessCompletedBlocks();
+			if (!bIsMultithreaded)
+			{
+				while (FileIoStore.ReadPendingBlock())
+				{
+					FileIoStore.FlushReads();
+					ProcessCompletedBlocks();
+				}
+			}
+			else
+			{
+				ProcessCompletedBlocks();
+			}
 		}
 	}
 
@@ -530,6 +608,9 @@ private:
 	FIoRequestImpl* SubmittedRequestsHead = nullptr;
 	FIoRequestImpl* SubmittedRequestsTail = nullptr;
 	TAtomic<bool> bStopRequested { false };
+	mutable FCriticalSection MountedContainersCritical;
+	TArray<FIoDispatcherMountedContainer> MountedContainers;
+	FIoDispatcher::FIoContainerMountedEvent ContainerMountedEvent;
 };
 
 FIoDispatcher::FIoDispatcher()
@@ -583,6 +664,18 @@ TIoStatusOr<uint64>
 FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
 {
 	return Impl->GetSizeForChunk(ChunkId);
+}
+
+TArray<FIoDispatcherMountedContainer>
+FIoDispatcher::GetMountedContainers() const
+{
+	return Impl->GetMountedContainers();
+}
+
+FIoDispatcher::FIoContainerMountedEvent&
+FIoDispatcher::OnContainerMounted()
+{
+	return Impl->OnContainerMounted();
 }
 
 bool

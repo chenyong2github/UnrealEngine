@@ -276,8 +276,8 @@
 		<!-- need this if plugin enabled and supported architecture, even if not packaged for Oculus mobile -->
 		<if condition="bSupported">
 			<true>
-				<loadLibrary name="vrapi" failmsg="vrapi library not loaded and required!" />
-        		<loadLibrary name="OVRPlugin" failmsg="OVRPlugin library not loaded and required!" />
+				<loadLibrary name="vrapi" failmsg="vrapi library not loaded and may be required for Oculus VR." />
+        		<loadLibrary name="OVRPlugin" failmsg="OVRPlugin library not loaded and may be required for Oculus VR." />
       		</true>
 		</if>
 	</soLoadLibrary>

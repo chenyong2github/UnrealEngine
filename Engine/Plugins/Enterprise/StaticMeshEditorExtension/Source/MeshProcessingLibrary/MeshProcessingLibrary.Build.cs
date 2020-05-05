@@ -42,7 +42,7 @@ public class MeshProcessingLibrary : ModuleRules
 		}
 
 		// Setup MeshSimplifier
-		string MeshSimplifierPath = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Plugins/Enterprise/MeshProcessingLibrary/Source/ThirdParty/MeshSimplifier");
+		string MeshSimplifierPath = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Source/ThirdParty/Enterprise/MeshSimplifier");
 		bool bWithMeshSimplifier = Directory.Exists(MeshSimplifierPath) && Target.Platform == UnrealTargetPlatform.Win64;
 		PublicDefinitions.Add("WITH_MESH_SIMPLIFIER=" + (bWithMeshSimplifier ? '1' : '0'));
 

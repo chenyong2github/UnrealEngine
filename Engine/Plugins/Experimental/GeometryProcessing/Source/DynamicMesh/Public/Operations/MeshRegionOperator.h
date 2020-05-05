@@ -10,6 +10,8 @@
 #include "DynamicMesh3.h"
 #include "DynamicSubmesh3.h"
 #include "FaceGroupUtil.h"
+#include "MeshNormals.h"
+#include "Algo/RemoveIf.h"
 
 /**
  * This class automatically extracts a submesh from a mesh, 
@@ -30,7 +32,7 @@ public:
 	// this is only valid after BackPropagate() call!! maps submeshverts to base mesh
 	FOptionallySparseIndexMap ReinsertSubToBaseMapV;
 
-	// [RMS] computation of this is kind of a hack right now...
+	// Note computation of this is kind of a hack right now; see TODO in class comment above
 	FOptionallySparseIndexMap ReinsertSubToBaseMapT;
 
 	// handle a tricky problem...see comments for EDuplicateTriBehavior enum
@@ -180,20 +182,34 @@ public:
 		Editor.RemoveTriangles(CurrentBaseTris, true);
 
 		// insert new submesh
-		TArray<int> new_tris; new_tris.SetNum(Region.GetSubmesh().TriangleCount());
+		TArray<int> new_tris; 
+		new_tris.Reserve(Region.GetSubmesh().TriangleCount());
 		bool bOK = Editor.ReinsertSubmesh(Region, ReinsertSubToBaseMapV, &new_tris, ReinsertDuplicateTriBehavior);
 
 		// reconstruct this...hacky? TODO: have ReinsertSubmesh directly build this
 		int NT = Region.GetSubmesh().MaxTriangleID();
 		ReinsertSubToBaseMapT.Initialize(NT, Region.GetSubmesh().TriangleCount());
 		int nti = 0;
+		bool bHasInvalid = false;
 		for (int ti = 0; ti < NT; ++ti)
 		{
 			if (Region.GetSubmesh().IsTriangle(ti) == false)
 			{
 				continue;
 			}
-			ReinsertSubToBaseMapT.Set(ti, new_tris[nti++]);
+			int new_tri = new_tris[nti++];
+			// should only happen if not allowing submesh repairs and ReinsertDuplicateTriBehavior is EnsureContinue
+			if (!bAllowSubmeshRepairs && !ensure(new_tri != -2))
+			{
+				bHasInvalid = true;
+				continue;
+			}
+			ReinsertSubToBaseMapT.Set(ti, new_tri);
+		}
+		// remove invalid triangles due to insertion failures (must be kept before this point for correspondence)
+		if (bHasInvalid)
+		{
+			new_tris.SetNum(Algo::RemoveIf(new_tris, [](int id) { return id == -2; }));
 		}
 
 		// assert that new triangles are all valid (goes wrong sometimes??)

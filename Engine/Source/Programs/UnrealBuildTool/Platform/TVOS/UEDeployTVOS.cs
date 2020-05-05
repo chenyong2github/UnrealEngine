@@ -116,11 +116,9 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<key>CFBundleDisplayName</key>");
 			Text.AppendLine(string.Format("\t<string>{0}</string>", EncodeBundleName(BundleDisplayName, ProjectName)));
 			Text.AppendLine("\t<key>CFBundleExecutable</key>");
-			string BundleExecutable = bIsUE4Game ? "UE4Game" : GameName;
-			if (bIsClient)
-			{
-				BundleExecutable += "Client";
-			}
+			string BundleExecutable = bIsUE4Game ?
+				(bIsClient ? "UE4Client" : "UE4Game") :
+				(bIsClient ? GameName + "Client" : GameName);
 			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleExecutable));
 			Text.AppendLine("\t<key>CFBundleIdentifier</key>");
 			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleIdentifier.Replace("[PROJECT_NAME]", ProjectName).Replace("_","")));
@@ -361,9 +359,9 @@ namespace UnrealBuildTool
 			return GenerateTVOSPList(ProjectDirectory, bIsUE4Game, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, null, BundleID);
 		}
 
-        protected override void CopyGraphicsResources(bool bSkipDefaultPNGs, bool bSkipIcons, string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir, bool bSupportsPortrait, bool bSupportsLandscape)
-        {
-            // do nothing on TVOS
-        }
-    }
+		protected override void CopyIconResources(string InEngineDir, string AppDirectory, string BuildDirectory)
+		{
+			// do nothing on TVOS
+		}
+	}
 }

@@ -28,7 +28,7 @@ void SVisualLoggerFilters::Construct(const FArguments& InArgs, const TSharedRef<
 	ChildSlot
 		[
 			SAssignNew(FilterBox, SWrapBox)
-			.UseAllottedWidth(true)
+			.UseAllottedSize(true)
 		];
 
 	GraphsFilterCombo =

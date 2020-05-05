@@ -19,17 +19,18 @@
 
 using namespace Chaos;
 
+DECLARE_CYCLE_STAT(TEXT("FPBDConstraintColor::ComputeColors"), STAT_Constraint_ComputeColor, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("FPBDConstraintColor::ComputeContactGraph"), STAT_Constraint_ComputeContactGraph, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("FPBDConstraintColor::ComputeIslandColoring"), STAT_Constraint_ComputeIslandColoring, STATGROUP_Chaos);
+
 void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Constraint_ComputeIslandColoring);
 	const TArray<TGeometryParticleHandle<FReal, 3>*>& IslandParticles = ConstraintGraph.GetIslandParticles(Island);
 	FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = IslandData[Island].LevelToColorToConstraintListMap;
 	int32& MaxColor = IslandData[Island].MaxColor;
 
-#ifdef USE_CONTACT_LEVELS
 	const int32 MaxLevel = IslandData[Island].MaxLevel;
-#else
-	const int32 MaxLevel = 0;
-#endif
 	
 	LevelToColorToConstraintListMap.Reset();
 	LevelToColorToConstraintListMap.SetNum(MaxLevel + 1);
@@ -126,11 +127,7 @@ void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDCo
 					ColorNode.NextColor++;
 				}
 
-#ifdef USE_CONTACT_LEVELS
 				int32 Level = ColorEdge.Level;
-#else
-				int32 Level = 0;
-#endif
 
 				if ((Level < 0) || (Level >= LevelToColorToConstraintListMap.Num()))
 				{
@@ -173,10 +170,9 @@ void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDCo
 	}
 }
 
-#ifdef USE_CONTACT_LEVELS
-
 void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Constraint_ComputeContactGraph);
 	const TArray<int32>& ConstraintDataIndices = ConstraintGraph.GetIslandConstraintData(Island);
 
 	IslandData[Island].MaxLevel = ConstraintDataIndices.Num() ? 0 : -1;
@@ -261,8 +257,6 @@ void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDCons
 
 	check(IslandData[Island].MaxLevel >= 0 || !ConstraintDataIndices.Num());
 }
-#endif
-
 
 void FPBDConstraintColor::InitializeColor(const FPBDConstraintGraph& ConstraintGraph)
 {
@@ -292,9 +286,19 @@ void FPBDConstraintColor::InitializeColor(const FPBDConstraintGraph& ConstraintG
 
 void FPBDConstraintColor::ComputeColor(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId)
 {
-#ifdef USE_CONTACT_LEVELS
-	ComputeContactGraph(Island, ConstraintGraph, ContainerId);
-#endif
+	SCOPE_CYCLE_COUNTER(STAT_Constraint_ComputeColor);
+	if (bUseContactGraph)
+	{
+		ComputeContactGraph(Island, ConstraintGraph, ContainerId);
+	}
+	else
+	{
+		for (FGraphEdgeColor& Edge : Edges)
+		{
+			Edge.Level = 0;
+		}
+		IslandData[Island].MaxLevel = 0;
+	}
 	ComputeIslandColoring(Island, ConstraintGraph, ContainerId);
 }
 
@@ -320,11 +324,7 @@ int FPBDConstraintColor::GetIslandMaxLevel(int32 Island) const
 {
 	if (Island < IslandData.Num())
 	{
-#ifdef USE_CONTACT_LEVELS
 		return IslandData[Island].MaxLevel;
-#else
-		return 0;
-#endif
 	}
 	return -1;
 }

@@ -1245,7 +1245,7 @@ void AverageLuminance_MainCS(
 	half2 BufferUV;
 	float Weight;
 
-	SharedLuminance[GroupIndex] = float2(0.0f,0.0f);
+	float2 GroupLuminance = float2(0.0f, 0.0f);
 
 	LOOP for (uint y = 0; y < LOOP_SIZEY; ++y)
 	{
@@ -1261,11 +1261,13 @@ void AverageLuminance_MainCS(
 
 				Weight = max(AdaptationWeightTexture(BufferUV), 0.05f);
 
-				SharedLuminance[GroupIndex].x += Texture2DSample(InputTexture, InputSampler, BufferUV).x * Weight;
-				SharedLuminance[GroupIndex].y += Weight;
+				GroupLuminance.x += Texture2DSample(InputTexture, InputSampler, BufferUV).x * Weight;
+				GroupLuminance.y += Weight;
 			}
 		}
 	}
+
+	SharedLuminance[GroupIndex] = GroupLuminance;
 
 	GroupMemoryBarrierWithGroupSync();
 

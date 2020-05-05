@@ -304,6 +304,7 @@ FPrecomputedVolumetricLightmapData::FPrecomputedVolumetricLightmapData()
 	, BrickSize(0)
 	, BrickDataDimensions(EForceInit::ForceInitToZero)
 	, BrickDataBaseOffsetInAtlas(0)
+	, IndexInCPUSubLevelBrickDataList(INDEX_NONE)
 {}
 
 FPrecomputedVolumetricLightmapData::~FPrecomputedVolumetricLightmapData()
@@ -421,32 +422,35 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::HandleDataMovementInAtlas(in
 
 		for (FPrecomputedVolumetricLightmapData* SceneData : SceneDataAdded)
 		{
-			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GetFeatureLevel());
+			if (SceneData->IndirectionTexture.Texture.IsValid())
+			{
+				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GetFeatureLevel());
 
-			TShaderMapRef<FMoveWholeIndirectionTextureCS> ComputeShader(GlobalShaderMap);
+				TShaderMapRef<FMoveWholeIndirectionTextureCS> ComputeShader(GlobalShaderMap);
 
-			FVolumetricLightmapDataLayer NewIndirectionTexture = SceneData->IndirectionTexture;
-			NewIndirectionTexture.CreateTargetTexture(IndirectionTextureDimensions);
-			NewIndirectionTexture.CreateUAV();
+				FVolumetricLightmapDataLayer NewIndirectionTexture = SceneData->IndirectionTexture;
+				NewIndirectionTexture.CreateTargetTexture(IndirectionTextureDimensions);
+				NewIndirectionTexture.CreateUAV();
 
-			FMoveWholeIndirectionTextureCS::FParameters Parameters;
-			Parameters.NumBricks = NumBricks;
-			Parameters.StartPosInOldVolume = OldOffset;
-			Parameters.StartPosInNewVolume = BrickDataBaseOffsetInAtlas;
-			Parameters.OldIndirectionTexture = SceneData->IndirectionTexture.Texture;
-			Parameters.IndirectionTexture = NewIndirectionTexture.UAV;
+				FMoveWholeIndirectionTextureCS::FParameters Parameters;
+				Parameters.NumBricks = NumBricks;
+				Parameters.StartPosInOldVolume = OldOffset;
+				Parameters.StartPosInNewVolume = BrickDataBaseOffsetInAtlas;
+				Parameters.OldIndirectionTexture = SceneData->IndirectionTexture.Texture;
+				Parameters.IndirectionTexture = NewIndirectionTexture.UAV;
 
-			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters,
-				FIntVector(
-					FMath::DivideAndRoundUp(IndirectionTextureDimensions.X, 4),
-					FMath::DivideAndRoundUp(IndirectionTextureDimensions.Y, 4),
-					FMath::DivideAndRoundUp(IndirectionTextureDimensions.Z, 4))
-			);
+				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters,
+					FIntVector(
+						FMath::DivideAndRoundUp(IndirectionTextureDimensions.X, 4),
+						FMath::DivideAndRoundUp(IndirectionTextureDimensions.Y, 4),
+						FMath::DivideAndRoundUp(IndirectionTextureDimensions.Z, 4))
+				);
 
-			SceneData->IndirectionTexture = NewIndirectionTexture;
+				SceneData->IndirectionTexture = NewIndirectionTexture;
 
- 			FRHIUnorderedAccessView* UAV = NewIndirectionTexture.UAV;
- 			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, &UAV, 1);
+				FRHIUnorderedAccessView* UAV = NewIndirectionTexture.UAV;
+				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, &UAV, 1);
+			}
 		}
 	}
 	else
@@ -497,12 +501,12 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 		return;
 	}
 
-	SceneDataAdded.Add(SceneData);
-
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	if (IndirectionTextureDimensions.GetMax() > 0)
 	{
+		SceneDataAdded.Add(SceneData);
+
 		// Copy parameters from the persistent level VLM
 		SceneData->Bounds = Bounds;
 		SceneData->BrickSize = BrickSize;
@@ -513,6 +517,20 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 
 		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
+			// Tracking down UE-88573
+			ensureMsgf(IsInitialized(), TEXT("FPrecomputedVolumetricLightmapData is being added to a scene data without initialization"));
+
+			if (!IsInitialized())
+			{
+				InitResource();
+			}
+
+			if (!IndirectionTexture.Texture)
+			{
+				ensureMsgf(IsInitialized(), TEXT("FPrecomputedVolumetricLightmapData IndirectionTexture is still invalid after manual initialization, returning"));
+				return;
+			}
+
 			// GPU Path
 
 			const int32 PaddedBrickSize = BrickSize + 1;
@@ -558,7 +576,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 			SceneData->CPUSubLevelIndirectionTable.Empty();
 			SceneData->CPUSubLevelIndirectionTable.AddZeroed(IndirectionTextureDimensions.X * IndirectionTextureDimensions.Y * IndirectionTextureDimensions.Z);
 			SceneData->CPUSubLevelBrickDataList.Empty();
-			SceneData->CPUSubLevelBrickDataList.Add(this);
+			IndexInCPUSubLevelBrickDataList = SceneData->CPUSubLevelBrickDataList.Add(this);
 		}
 	}
 	else
@@ -568,6 +586,8 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 			// GPU Path
 			if (SceneData->IndirectionTexture.Texture.IsValid())
 			{
+				SceneDataAdded.Add(SceneData);
+
 				InitRHIForSubLevelResources();
 
 				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GetFeatureLevel());
@@ -595,9 +615,11 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 			// CPU Path
 			if (SceneData->IndirectionTexture.Data.Num() > 0)
 			{
-				int32 Index = SceneData->CPUSubLevelBrickDataList.Add(this);
-				check(Index < UINT8_MAX);
-				uint8 Value = (uint8)Index;
+				SceneDataAdded.Add(SceneData);
+
+				IndexInCPUSubLevelBrickDataList = SceneData->CPUSubLevelBrickDataList.Add(this);
+				check(IndexInCPUSubLevelBrickDataList < UINT8_MAX);
+				uint8 Value = (uint8)IndexInCPUSubLevelBrickDataList;
 
 				for (int32 BrickIndex = 0; BrickIndex < SubLevelBrickPositions.Num(); BrickIndex++)
 				{
@@ -684,28 +706,32 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::RemoveFromSceneData(FPrecomp
 			// CPU Path
 			if (SceneData->IndirectionTexture.Data.Num() > 0)
 			{
-				SceneData->CPUSubLevelBrickDataList.Remove(this);
-
-				for (int32 BrickIndex = 0; BrickIndex < SubLevelBrickPositions.Num(); BrickIndex++)
+				ensure(SceneData->CPUSubLevelBrickDataList[IndexInCPUSubLevelBrickDataList] == this);
+				if (SceneData->CPUSubLevelBrickDataList[IndexInCPUSubLevelBrickDataList] == this)
 				{
-					const FColor OriginalValue = IndirectionTextureOriginalValues[BrickIndex];
+					SceneData->CPUSubLevelBrickDataList.RemoveAt(IndexInCPUSubLevelBrickDataList);
 
-					const FIntVector IndirectionDestDataCoordinate = SubLevelBrickPositions[BrickIndex];
-					const int32 IndirectionDestDataIndex =
-						((IndirectionDestDataCoordinate.Z * SceneData->IndirectionTextureDimensions.Y) + IndirectionDestDataCoordinate.Y) *
-						SceneData->IndirectionTextureDimensions.X + IndirectionDestDataCoordinate.X;
-
+					for (int32 BrickIndex = 0; BrickIndex < SubLevelBrickPositions.Num(); BrickIndex++)
 					{
-						const int32 IndirectionTextureDataStride = GPixelFormats[SceneData->IndirectionTexture.Format].BlockBytes;
-						uint8* IndirectionVoxelPtr = (uint8*)&SceneData->IndirectionTexture.Data[IndirectionDestDataIndex * IndirectionTextureDataStride];
-						*(IndirectionVoxelPtr + 0) = OriginalValue.R;
-						*(IndirectionVoxelPtr + 1) = OriginalValue.G;
-						*(IndirectionVoxelPtr + 2) = OriginalValue.B;
-						*(IndirectionVoxelPtr + 3) = 1;
-					}
+						const FColor OriginalValue = IndirectionTextureOriginalValues[BrickIndex];
 
-					{
-						SceneData->CPUSubLevelIndirectionTable[IndirectionDestDataIndex] = 0;
+						const FIntVector IndirectionDestDataCoordinate = SubLevelBrickPositions[BrickIndex];
+						const int32 IndirectionDestDataIndex =
+							((IndirectionDestDataCoordinate.Z * SceneData->IndirectionTextureDimensions.Y) + IndirectionDestDataCoordinate.Y) *
+							SceneData->IndirectionTextureDimensions.X + IndirectionDestDataCoordinate.X;
+
+						{
+							const int32 IndirectionTextureDataStride = GPixelFormats[SceneData->IndirectionTexture.Format].BlockBytes;
+							uint8* IndirectionVoxelPtr = (uint8*)&SceneData->IndirectionTexture.Data[IndirectionDestDataIndex * IndirectionTextureDataStride];
+							*(IndirectionVoxelPtr + 0) = OriginalValue.R;
+							*(IndirectionVoxelPtr + 1) = OriginalValue.G;
+							*(IndirectionVoxelPtr + 2) = OriginalValue.B;
+							*(IndirectionVoxelPtr + 3) = 1;
+						}
+
+						{
+							SceneData->CPUSubLevelIndirectionTable[IndirectionDestDataIndex] = 0;
+						}
 					}
 				}
 			}

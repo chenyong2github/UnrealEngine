@@ -47,24 +47,6 @@ UAddPatchToolProperties::UAddPatchToolProperties()
 	Shift = 0.0;
 }
 
-void UAddPatchToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UAddPatchToolProperties* PropertyCache = GetPropertyCache<UAddPatchToolProperties>();
-	PropertyCache->Width = this->Width;
-	PropertyCache->Rotation = this->Rotation;
-	PropertyCache->Subdivisions = this->Subdivisions;
-}
-
-void UAddPatchToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UAddPatchToolProperties* PropertyCache = GetPropertyCache<UAddPatchToolProperties>();
-	this->Width = PropertyCache->Width;
-	this->Rotation = PropertyCache->Rotation;
-	this->Subdivisions = PropertyCache->Subdivisions;
-}
-
-
-
 void UAddPatchTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
@@ -176,7 +158,7 @@ void UAddPatchTool::OnEndHover()
 
 
 
-void UAddPatchTool::Tick(float DeltaTime)
+void UAddPatchTool::OnTick(float DeltaTime)
 {
 	if (bPreviewValid == false)
 	{

@@ -18,6 +18,7 @@
 
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
@@ -149,6 +150,7 @@ class SNiagaraScratchPadScriptRow : public SCompoundWidget
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
+			.AutoWidth()
 			.Padding(3, 0, 0, 0)
 			[
 				SAssignNew(NameEditableText, SInlineEditableTextBlock)
@@ -156,6 +158,21 @@ class SNiagaraScratchPadScriptRow : public SCompoundWidget
 				.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
 				.IsSelected(this, &SNiagaraScratchPadScriptRow::GetIsSelected)
 				.OnTextCommitted(this, &SNiagaraScratchPadScriptRow::OnNameTextCommitted)
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(2, 0, 0, 0)
+			[
+				SNew(STextBlock)
+				.Visibility(this, &SNiagaraScratchPadScriptRow::GetUnappliedChangesVisibility)
+				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.EditorHeaderText")
+				.Text(FText::FromString(TEXT("*")))
+				.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
+			]
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SSpacer)
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -226,6 +243,11 @@ private:
 	bool IsActive() const
 	{
 		return IsHovered();
+	}
+
+	EVisibility GetUnappliedChangesVisibility() const
+	{
+		return ScriptViewModel->HasUnappliedChanges() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
 private:
@@ -509,6 +531,17 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 					.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
 				]
 				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(0, 0, 2, 0)
+				[
+					SNew(STextBlock)
+					.Visibility(this, &SNiagaraScratchPadScriptEditor::GetUnappliedChangesVisibility)
+					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.EditorHeaderText")
+					.Text(FText::FromString(TEXT("*")))
+					.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
+				]
+				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(1)
 				[
@@ -531,6 +564,11 @@ private:
 	FText GetNameText() const
 	{
 		return ScriptViewModel->GetDisplayName();
+	}
+
+	EVisibility GetUnappliedChangesVisibility() const
+	{
+		return ScriptViewModel->HasUnappliedChanges() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
 	FReply OnApplyButtonClicked()

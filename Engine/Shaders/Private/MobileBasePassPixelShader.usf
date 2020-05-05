@@ -34,21 +34,6 @@
 	#define SIMPLE_SINGLE_LAYER_WATER 1
 #endif
 
-#include "SHCommon.ush"
-#include "MobileBasePassCommon.ush"
-#include "/Engine/Generated/Material.ush"
-#include "/Engine/Generated/VertexFactory.ush"
-#include "ReflectionEnvironmentShared.ush"
-#include "LightmapCommon.ush"  
-#include "MobileShadingModels.ush"
-#include "ShadowFilteringCommon.ush"
-#include "DynamicLightingCommon.ush"
-#include "PlanarReflectionShared.ush"
-
-#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-	#include "SingleLayerWaterShading.ush"
-#endif
-
 // Add fading CSM plane:
 #define FADE_CSM 1
 
@@ -89,6 +74,21 @@ float4 SpotLightDirectionAndSpecularScale[MAX_DYNAMIC_POINT_LIGHTS];
 #define FORCE_VERTEX_NORMAL (MOBILE_QL_DISABLE_MATERIAL_NORMAL)
 
 #define ALLOW_CUBE_REFLECTIONS 0
+
+#include "SHCommon.ush"
+#include "MobileBasePassCommon.ush"
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+#include "ReflectionEnvironmentShared.ush"
+#include "LightmapCommon.ush"  
+#include "MobileShadingModels.ush"
+#include "ShadowFilteringCommon.ush"
+#include "DynamicLightingCommon.ush"
+#include "PlanarReflectionShared.ush"
+
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	#include "SingleLayerWaterShading.ush"
+#endif
 
 /** Prenormalized capture of the scene that's closest to the object being rendered. */
 #if !FULLY_ROUGH
@@ -545,6 +545,13 @@ void Main(
 		Color += ShadingModelContext.DiffuseColor * DiffuseGI * View.IndirectLightingColorScale;
 	#endif
 #endif
+
+#if ENABLE_SKY_LIGHT
+		half3 SkyDiffuseLighting = GetSkySHDiffuseSimple(MaterialParameters.WorldNormal);
+		half3 DiffuseLookup = SkyDiffuseLighting * ResolvedView.SkyLightColor.rgb;
+		IndirectIrradiance += Luminance(DiffuseLookup);
+#endif
+
 	half MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	Color *= MaterialAO;
 	IndirectIrradiance *= MaterialAO;
@@ -728,7 +735,6 @@ void Main(
 	if (NoL == 0)
 	{
 	#endif
-		half3 SkyDiffuseLighting = GetSkySHDiffuseSimple(MaterialParameters.WorldNormal);
 
 	#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 		ShadingModelContext.WaterDiffuseIndirectLuminance += SkyDiffuseLighting;

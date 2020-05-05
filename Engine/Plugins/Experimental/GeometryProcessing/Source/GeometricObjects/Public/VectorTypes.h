@@ -4,6 +4,7 @@
 
 #include "Math/Vector.h"
 #include "MathUtil.h"
+#include <sstream>
 
 
 
@@ -286,9 +287,14 @@ struct FVector2
 
 
 
-	bool operator==(const FVector2<T>& Other) const
+	constexpr bool operator==(const FVector2<T>& Other) const
 	{
 		return X == Other.X && Y == Other.Y;
+	}
+
+	constexpr bool operator!=(const FVector2<T>& Other) const
+	{
+		return X != Other.X || Y != Other.Y;
 	}
 
 
@@ -551,6 +557,12 @@ struct FVector3
 			X * V2.Y - Y * V2.X);
 	}
 
+	FVector3<T> UnitCross(const FVector3<T>& V2) const
+	{
+		FVector3<T> N = Cross(V2);
+		return N.Normalized();
+	}
+
 	/**
 	 * Assumes this vector and V2 are both already normalized
 	 * @return the angle to vector V2 in degrees
@@ -614,6 +626,19 @@ struct FVector3
 		return TMathUtil<T>::Min3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
 	}
 
+	constexpr FVector2<T> XY() const
+	{
+		return FVector2<T>(X, Y);
+	}
+	constexpr FVector2<T> XZ() const
+	{
+		return FVector2<T>(X, Z);
+	}
+	constexpr FVector2<T> YZ() const
+	{
+		return FVector2<T>(Y, Z);
+	}
+
 	static FVector3<T> Lerp(const FVector3<T>& A, const FVector3<T>& B, T Alpha)
 	{
 		T OneMinusAlpha = (T)1 - Alpha;
@@ -625,6 +650,11 @@ struct FVector3
 	constexpr bool operator==(const FVector3<T>& Other) const
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z;
+	}
+
+	constexpr bool operator!=(const FVector3<T>& Other) const
+	{
+		return X != Other.X || Y != Other.Y || Z != Other.Z;
 	}
 };
 
@@ -639,6 +669,13 @@ template <typename RealType, typename RealType2>
 inline FVector3<RealType> operator*(RealType2 Scalar, const FVector3<RealType>& V)
 {
 	return FVector3<RealType>((RealType)Scalar * V.X, (RealType)Scalar * V.Y, (RealType)Scalar * V.Z);
+}
+
+template <typename RealType>
+std::ostream& operator<<(std::ostream& os, const FVector3<RealType>& Vec)
+{
+	os << Vec.X << " " << Vec.Y << " " << Vec.Z;
+	return os;
 }
 
 typedef FVector3<float> FVector3f;
@@ -676,6 +713,13 @@ template <typename RealType, typename RealType2>
 inline FVector2<RealType> operator*(RealType2 Scalar, const FVector2<RealType>& V)
 {
 	return FVector2<RealType>((RealType)Scalar * V.X, (RealType)Scalar * V.Y);
+}
+
+template <typename RealType>
+std::ostream& operator<<(std::ostream& os, const FVector2<RealType>& Vec)
+{
+	os << Vec.X << " " << Vec.Y;
+	return os;
 }
 
 typedef FVector2<float> FVector2f;

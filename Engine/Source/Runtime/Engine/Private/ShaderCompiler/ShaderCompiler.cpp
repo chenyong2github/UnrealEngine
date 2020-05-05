@@ -48,6 +48,7 @@
 #include "ShaderParameterMetadata.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "ShaderCore.h"
 
 #define LOCTEXT_NAMESPACE "ShaderCompiler"
 
@@ -123,6 +124,14 @@ static void ModalErrorOrLog(const FString& Text, int64 CurrentFilePos = 0, int64
 	}
 }
 
+template<class EnumType>
+constexpr auto& CastEnumToUnderlyingTypeReference(EnumType& Type)
+{
+	static_assert(TIsEnum<EnumType>::Value, "");
+	using UnderType = __underlying_type(EnumType);
+	return reinterpret_cast<UnderType&>(Type);
+}
+
 // Set to 1 to debug ShaderCompileWorker.exe. Set a breakpoint in LaunchWorker() to get the cmd-line.
 #define DEBUG_SHADERCOMPILEWORKER 0
 
@@ -131,11 +140,14 @@ static void ModalErrorOrLog(const FString& Text, int64 CurrentFilePos = 0, int64
 // For example if there are a lot of content shader compile errors you want to skip over without relaunching
 bool GRetryShaderCompilation = false;
 
-static int32 GDumpShaderDebugInfo = 0;
+static FShaderCompilingManager::EDumpShaderDebugInfo GDumpShaderDebugInfo = FShaderCompilingManager::EDumpShaderDebugInfo::Never;
 static FAutoConsoleVariableRef CVarDumpShaderDebugInfo(
 	TEXT("r.DumpShaderDebugInfo"),
-	GDumpShaderDebugInfo,
-	TEXT("When set to 1, will cause any material shaders that are then compiled to dump debug info to GameName/Saved/ShaderDebugInfo\n")
+	CastEnumToUnderlyingTypeReference(GDumpShaderDebugInfo),
+	TEXT("Dumps debug info for compiled shaders to GameName/Saved/ShaderDebugInfo\n")
+	TEXT("When set to 1, debug info is dumped for all compiled shader\n")
+	TEXT("When set to 2, it is restricted to shaders with compilation errors\n")
+	TEXT("When set to 3, it is restricted to shaders with compilation errors or warnings\n")
 	TEXT("The debug info is platform dependent, but usually includes a preprocessed version of the shader source.\n")
 	TEXT("Global shaders automatically dump debug info if r.ShaderDevelopmentMode is enabled, this cvar is not necessary.\n")
 	TEXT("On iOS, if the PowerVR graphics SDK is installed to the default path, the PowerVR shader compiler will be called and errors will be reported during the cook.")
@@ -145,7 +157,7 @@ static int32 GDumpShaderDebugInfoShort = 0;
 static FAutoConsoleVariableRef CVarDumpShaderDebugShortNames(
 	TEXT("r.DumpShaderDebugShortNames"),
 	GDumpShaderDebugInfoShort,
-	TEXT("Only valid when r.DumpShaderDebugInfo=1.\n")
+	TEXT("Only valid when r.DumpShaderDebugInfo > 0.\n")
 	TEXT("When set to 1, will shorten names factory and shader type folder names to avoid issues with long paths.")
 	);
 
@@ -153,7 +165,7 @@ static int32 GDumpShaderDebugInfoSCWCommandLine = 0;
 static FAutoConsoleVariableRef CVarDumpShaderDebugSCWCommandLine(
 	TEXT("r.DumpShaderDebugWorkerCommandLine"),
 	GDumpShaderDebugInfoSCWCommandLine,
-	TEXT("Only valid when r.DumpShaderDebugInfo=1.\n")
+	TEXT("Only valid when r.DumpShaderDebugInfo > 0.\n")
 	TEXT("When set to 1, it will generate a file that can be used with ShaderCompileWorker's -directcompile.")
 	);
 
@@ -293,7 +305,6 @@ static FAutoConsoleVariableRef CVarCreateShadersOnLoad(
 	TEXT("Whether to create shaders on load, which can reduce hitching, but use more memory.  Otherwise they will be created as needed.")
 );
 
-
 static TAutoConsoleVariable<FString> CVarShaderOverrideDebugDir(
 	TEXT("r.OverrideShaderDebugDir"),
 	"",
@@ -301,6 +312,11 @@ static TAutoConsoleVariable<FString> CVarShaderOverrideDebugDir(
 	TEXT("Empty: use default location Saved\\ShaderDebugInfo.\n"),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarShadersValidation(
+	TEXT("r.Shaders.Validation"),
+	1,
+	TEXT("Enabled shader compiler validation warnings and errors."),
+	ECVF_ReadOnly);
 
 extern bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir);
 
@@ -330,20 +346,6 @@ namespace ShaderCompilerCookStats
 // Make functions so the crash reporter can disambiguate the actual error because of the different callstacks
 namespace SCWErrorCode
 {
-	enum EErrors
-	{
-		Success,
-		GeneralCrash,
-		BadShaderFormatVersion,
-		BadInputVersion,
-		BadSingleJobHeader,
-		BadPipelineJobHeader,
-		CantDeleteInputFile,
-		CantSaveOutputFile,
-		NoTargetShaderFormatsFound,
-		CantCompileForSpecificFormat,
-	};
-
 	void HandleGeneralCrash(const TCHAR* ExceptionInfo, const TCHAR* Callstack)
 	{
 		GLog->PanicFlushThreadedLogs();
@@ -398,6 +400,11 @@ namespace SCWErrorCode
 	void HandleOutputFileCorrupted(const TCHAR* Filename, int64 ExpectedSize, int64 ActualSize)
 	{
 		ModalErrorOrLog(FString::Printf(TEXT("Output file corrupted (expected %I64d bytes, but only got %I64d): %s"), ExpectedSize, ActualSize, Filename));
+	}
+
+	void HandleCrashInsidePlatformCompiler(const TCHAR* Data)
+	{
+		ModalErrorOrLog(FString::Printf(TEXT("Crash inside the platform compiler!\n%s"), Data));
 	}
 }
 
@@ -640,7 +647,7 @@ static void ProcessErrors(const FShaderCompileJob& CurrentJob, TArray<FString>& 
 	}
 }
 
-static void ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
+static bool ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
 {
 	check(!CurrentJob->bFinalized);
 	CurrentJob->bFinalized = true;
@@ -659,6 +666,16 @@ static void ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
 		FString HashFileName = FPaths::Combine(CurrentJob->Input.DumpDebugInfoPath, TEXT("OutputHash.txt"));
 		FFileHelper::SaveStringToFile(CurrentJob->Output.OutputHash.ToString(), *HashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
 	}
+
+	// Support dumping debug info for only failed compilations or those with warnings
+	if (GShaderCompilingManager->ShouldRecompileToDumpShaderDebugInfo(*CurrentJob))
+	{
+		// Build debug info path and create the directory if it doesn't already exist
+		CurrentJob->Input.DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(CurrentJob->Input);
+		return true;
+	}
+
+	return false;
 };
 
 // Disable optimization for this crash handler to get full access to the entire stack frame when debugging a crash dump
@@ -725,7 +742,7 @@ static void HandleWorkerCrash(const TArray<TSharedRef<FShaderCommonCompileJob, E
 	switch (ErrorCode)
 	{
 	default:
-	case SCWErrorCode::GeneralCrash:
+	case (int32)ESCWErrorCode::GeneralCrash:
 	{
 		if (GDumpSCWJobInfoOnCrash != 0 || GIsBuildMachine)
 		{
@@ -767,31 +784,34 @@ static void HandleWorkerCrash(const TArray<TSharedRef<FShaderCommonCompileJob, E
 		SCWErrorCode::HandleGeneralCrash(ExceptionInfo.GetData(), Callstack.GetData());
 	}
 	break;
-	case SCWErrorCode::BadShaderFormatVersion:
+	case (int32)ESCWErrorCode::BadShaderFormatVersion:
 		SCWErrorCode::HandleBadShaderFormatVersion(ExceptionInfo.GetData());
 		break;
-	case SCWErrorCode::BadInputVersion:
+	case (int32)ESCWErrorCode::BadInputVersion:
 		SCWErrorCode::HandleBadInputVersion(ExceptionInfo.GetData());
 		break;
-	case SCWErrorCode::BadSingleJobHeader:
+	case (int32)ESCWErrorCode::BadSingleJobHeader:
 		SCWErrorCode::HandleBadSingleJobHeader(ExceptionInfo.GetData());
 		break;
-	case SCWErrorCode::BadPipelineJobHeader:
+	case (int32)ESCWErrorCode::BadPipelineJobHeader:
 		SCWErrorCode::HandleBadPipelineJobHeader(ExceptionInfo.GetData());
 		break;
-	case SCWErrorCode::CantDeleteInputFile:
+	case (int32)ESCWErrorCode::CantDeleteInputFile:
 		SCWErrorCode::HandleCantDeleteInputFile(ExceptionInfo.GetData());
 		break;
-	case SCWErrorCode::CantSaveOutputFile:
+	case (int32)ESCWErrorCode::CantSaveOutputFile:
 		SCWErrorCode::HandleCantSaveOutputFile(ExceptionInfo.GetData());
 		break;
-	case SCWErrorCode::NoTargetShaderFormatsFound:
+	case (int32)ESCWErrorCode::NoTargetShaderFormatsFound:
 		SCWErrorCode::HandleNoTargetShaderFormatsFound(ExceptionInfo.GetData());
 		break;
-	case SCWErrorCode::CantCompileForSpecificFormat:
+	case (int32)ESCWErrorCode::CantCompileForSpecificFormat:
 		SCWErrorCode::HandleCantCompileForSpecificFormat(ExceptionInfo.GetData());
 		break;
-	case SCWErrorCode::Success:
+	case (int32)ESCWErrorCode::CrashInsidePlatformCompiler:
+		SCWErrorCode::HandleCrashInsidePlatformCompiler(ExceptionInfo.GetData());
+		break;
+	case (int32)ESCWErrorCode::Success:
 		// Can't get here...
 		break;
 	}
@@ -837,7 +857,7 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<TSharedRef<FShaderC
 	OutputFile << ExceptionInfoLength;
 
 	// Worker crashed
-	if (ErrorCode != SCWErrorCode::Success)
+	if (ErrorCode != (int32)ESCWErrorCode::Success)
 	{
 		HandleWorkerCrash(QueuedJobs, OutputFile, OutputVersion, FileSize, ErrorCode, NumProcessedJobs, CallstackLength, ExceptionInfoLength);
 	}
@@ -845,6 +865,7 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<TSharedRef<FShaderC
 	TArray<FShaderCompileJob*> QueuedSingleJobs;
 	TArray<FShaderPipelineCompileJob*> QueuedPipelineJobs;
 	SplitJobsByType(QueuedJobs, QueuedSingleJobs, QueuedPipelineJobs);
+	TArray<FShaderCompileJob*> ReissueSourceJobs;
 
 	// Read single jobs
 	{
@@ -867,7 +888,10 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<TSharedRef<FShaderC
 		for (int32 JobIndex = 0; JobIndex < NumJobs; JobIndex++)
 		{
 			auto* CurrentJob = QueuedSingleJobs[JobIndex];
-			ReadSingleJob(CurrentJob, OutputFile);
+			if (ReadSingleJob(CurrentJob, OutputFile))
+			{
+				ReissueSourceJobs.Add(CurrentJob);
+			}
 		}
 	}
 
@@ -920,10 +944,31 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<TSharedRef<FShaderC
 			for (int32 Index = 0; Index < NumStageJobs; Index++)
 			{
 				auto* SingleJob = CurrentJob->StageJobs[Index]->GetSingleShaderJob();
-				ReadSingleJob(SingleJob, OutputFile);
+				if (ReadSingleJob(SingleJob, OutputFile))
+				{
+					ReissueSourceJobs.Add(SingleJob);
+				}
 				CurrentJob->bFailedRemovingUnused = CurrentJob->bFailedRemovingUnused | SingleJob->Output.bFailedRemovingUnused;
 			}
 		}
+	}
+	
+	// Requeue any jobs we wish to run again
+	if (ReissueSourceJobs.Num())
+	{
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> ReissueJobs;
+		ReissueJobs.Reserve(ReissueSourceJobs.Num());
+		const uint32 JobId = FShaderCommonCompileJob::GetNextJobId();
+		for (const FShaderCompileJob* ReissueSourceJob : ReissueSourceJobs)
+		{
+			FShaderCompileJob* ReissueJob = new FShaderCompileJob(*ReissueSourceJob);
+			ReissueJob->bFinalized = false;
+			ReissueJob->Id = JobId;
+			ReissueJob->Output = FShaderCompilerOutput();
+			ReissueJobs.Add(TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>(ReissueJob));
+		}
+
+		GShaderCompilingManager->AddJobs(ReissueJobs, true, false, FString(""), FString(""), true);
 	}
 }
 
@@ -2039,9 +2084,55 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	Thread->StartThread();
 }
 
-bool FShaderCompilingManager::GetDumpShaderDebugInfo() const
+FShaderCompilingManager::EDumpShaderDebugInfo FShaderCompilingManager::GetDumpShaderDebugInfo() const
 {
-	return GDumpShaderDebugInfo != 0;
+	if (GDumpShaderDebugInfo < EDumpShaderDebugInfo::Never || GDumpShaderDebugInfo > EDumpShaderDebugInfo::OnErrorOrWarning)
+	{
+		return EDumpShaderDebugInfo::Never;
+	}
+
+	return static_cast<FShaderCompilingManager::EDumpShaderDebugInfo>(GDumpShaderDebugInfo);
+}
+
+FString FShaderCompilingManager::CreateShaderDebugInfoPath(const FShaderCompilerInput& ShaderCompilerInput) const
+{
+	FString DumpDebugInfoPath = ShaderCompilerInput.DumpDebugInfoRootPath / ShaderCompilerInput.DebugGroupName + ShaderCompilerInput.DebugExtension;
+
+	// Sanitize the name to be used as a path
+	// List mostly comes from set of characters not allowed by windows in a path.  Just try to rename a file and type one of these for the list.
+	DumpDebugInfoPath.ReplaceInline(TEXT("<"), TEXT("("));
+	DumpDebugInfoPath.ReplaceInline(TEXT(">"), TEXT(")"));
+	DumpDebugInfoPath.ReplaceInline(TEXT("::"), TEXT("=="));
+	DumpDebugInfoPath.ReplaceInline(TEXT("|"), TEXT("_"));
+	DumpDebugInfoPath.ReplaceInline(TEXT("*"), TEXT("-"));
+	DumpDebugInfoPath.ReplaceInline(TEXT("?"), TEXT("!"));
+	DumpDebugInfoPath.ReplaceInline(TEXT("\""), TEXT("\'"));
+
+	if (!IFileManager::Get().DirectoryExists(*DumpDebugInfoPath))
+	{
+		verifyf(IFileManager::Get().MakeDirectory(*DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *DumpDebugInfoPath);
+	}
+
+	return DumpDebugInfoPath;
+}
+
+bool FShaderCompilingManager::ShouldRecompileToDumpShaderDebugInfo(const FShaderCompileJob& Job) const
+{
+	if (Job.Input.DumpDebugInfoPath.IsEmpty())
+	{
+		const EDumpShaderDebugInfo DumpShaderDebugInfo = GetDumpShaderDebugInfo();
+
+		if (DumpShaderDebugInfo == EDumpShaderDebugInfo::OnError)
+		{
+			return !Job.bSucceeded;
+		}
+		else if (DumpShaderDebugInfo == EDumpShaderDebugInfo::OnErrorOrWarning)
+		{
+			return !Job.bSucceeded || Job.Output.Errors.Num() > 0;
+		}
+	}
+
+	return false;
 }
 
 void FShaderCompilingManager::AddJobs(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, const FString PermutationString, bool bSkipResultProcessing)
@@ -3278,6 +3369,7 @@ void GlobalBeginCompileShader(
 	// asset material name or "Global"
 	Input.DebugGroupName = DebugGroupName;
 	Input.DebugDescription = DebugDescription;
+	Input.DebugExtension = DebugExtension;
 
 	if (ShaderType->GetRootParametersMetadata())
 	{
@@ -3390,24 +3482,10 @@ void GlobalBeginCompileShader(
 	}
 
 	// Setup the debug info path if requested, or if this is a global shader and shader development mode is enabled
-	if (GDumpShaderDebugInfo != 0)
+	Input.DumpDebugInfoPath.Empty();
+	if (GShaderCompilingManager->GetDumpShaderDebugInfo() == FShaderCompilingManager::EDumpShaderDebugInfo::Always)
 	{
-		Input.DumpDebugInfoPath = Input.DumpDebugInfoRootPath / Input.DebugGroupName + DebugExtension,
-		
-		// Sanitize the name to be used as a path
-		// List mostly comes from set of characters not allowed by windows in a path.  Just try to rename a file and type one of these for the list.
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("<"), TEXT("("));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT(">"), TEXT(")"));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("::"), TEXT("=="));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("|"), TEXT("_"));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("*"), TEXT("-"));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("?"), TEXT("!"));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("\""), TEXT("\'"));
-
-		if (!IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath))
-		{
-			verifyf(IFileManager::Get().MakeDirectory(*Input.DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *Input.DumpDebugInfoPath);
-		}
+		Input.DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(Input);
 	}
 
 	// Add the appropriate definitions for the shader frequency.
@@ -3534,6 +3612,14 @@ void GlobalBeginCompileShader(
 				default:
 					break;
 			}
+		}
+	}
+
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.Validation"));
+		if (CVar && CVar->GetInt() == 0)
+		{
+			Input.Environment.CompilerFlags.Add(CFLAG_SkipValidation);
 		}
 	}
 
@@ -4227,16 +4313,13 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 		EShaderPlatform Platform = CurrentJob.Input.Target.GetPlatform();
 		FGlobalShaderMapSection* Section = GGlobalShaderMap[Platform]->FindOrAddSection(ShaderType);
 
-		// Reuse an existing resource with the same key or create a new one based on the compile output
-		// This allows FShaders to share compiled bytecode and RHI shader references
-		const int32 ResourceIndex = Section->GetResourceBuilder().FindOrAddCode(CurrentJob.Output);
+		Section->GetResourceCode()->AddShaderCompilerOutput(CurrentJob.Output);
 
 		if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 		{
 			// If sharing shaders in this pipeline, remove it from the type/id so it uses the one in the shared shadermap list
 			ShaderPipelineType = nullptr;
 		}
-
 
 		// Create the global shader map hash
 		FSHAHash GlobalShaderMapHash;
@@ -4248,7 +4331,7 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 			HashState.GetHash(&GlobalShaderMapHash.Hash[0]);
 		}
 
-		Shader = ShaderType->ConstructCompiled(FGlobalShaderType::CompiledShaderInitializerType(ShaderType, CurrentJob.PermutationId, CurrentJob.Output, ResourceIndex, GlobalShaderMapHash, ShaderPipelineType, nullptr));
+		Shader = ShaderType->ConstructCompiled(FGlobalShaderType::CompiledShaderInitializerType(ShaderType, CurrentJob.PermutationId, CurrentJob.Output, GlobalShaderMapHash, ShaderPipelineType, nullptr));
 		CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(ShaderType->GetName(), CurrentJob.Output.Target, CurrentJob.VFType);
 	}
 
@@ -4491,8 +4574,7 @@ static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 		if (Section)
 		{
 			Section->FinalizeContent();
-			Section->ReleaseResourceBuilder();
-
+	
 			SaveData.Reset();
 			FMemoryWriter Ar(SaveData, true);
 			Section->Serialize(Ar);

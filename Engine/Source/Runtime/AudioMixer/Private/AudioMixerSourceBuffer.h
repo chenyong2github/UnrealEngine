@@ -6,6 +6,7 @@
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSourceManager.h"
 #include "Sound/SoundWave.h"
+#include "Sound/SoundGenerator.h"
 
 namespace Audio
 {
@@ -49,7 +50,7 @@ namespace Audio
 	class FMixerSourceBuffer : public ISoundWaveClient
 	{
 	public:		
-		static FMixerSourceBufferPtr Create(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
+		static FMixerSourceBufferPtr Create(int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
 
 		~FMixerSourceBuffer();
 
@@ -96,7 +97,7 @@ namespace Audio
 		void OnEndGenerate();
 		void ClearWave() { SoundWave = nullptr; }
 	private:
-		FMixerSourceBuffer(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
+		FMixerSourceBuffer(int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
 
 		void SubmitInitialPCMBuffers();
 		void SubmitInitialRealtimeBuffers();
@@ -114,6 +115,7 @@ namespace Audio
 		int32 CurrentBuffer;
 		// SoundWaves are only set for procedural sound waves
 		USoundWave* SoundWave;
+		ISoundGeneratorPtr SoundGenerator;
 		IAudioTask* AsyncRealtimeAudioTask;
 		ICompressedAudioInfo* DecompressionState;
 		ELoopingMode LoopingMode;

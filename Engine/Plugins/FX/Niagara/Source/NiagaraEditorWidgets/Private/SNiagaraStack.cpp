@@ -108,7 +108,7 @@ public:
 					// Name and Source Emitter Name
 					SNew(SWrapBox)
 					.Clipping(EWidgetClipping::ClipToBoundsAlways) 
-					.UseAllottedWidth(true)
+					.UseAllottedSize(true)
 					+ SWrapBox::Slot()
 					[
 				
@@ -263,7 +263,6 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 	StackViewModel->OnSearchCompleted().AddSP(this, &SNiagaraStack::OnStackSearchComplete); 
 	NameColumnWidth = .3f;
 	ContentColumnWidth = .7f;
-	bNeedsJumpToNextOccurence = false;
 	StackCommandContext = MakeShared<FNiagaraStackCommandContext>();
 
 	ChildSlot
@@ -414,7 +413,6 @@ const FSlateBrush* SNiagaraStack::GetViewOptionsIconBrush() const
 
 void SNiagaraStack::OnSearchTextChanged(const FText& SearchText)
 {
-	bNeedsJumpToNextOccurence = true;
 	StackViewModel->OnSearchTextChanged(SearchText);
 }
 
@@ -630,11 +628,7 @@ FReply SNiagaraStack::OnRowAcceptDrop(const FDragDropEvent& InDragDropEvent, EIt
 void SNiagaraStack::OnStackSearchComplete()
 {
 	ExpandSearchResults();
-	if (bNeedsJumpToNextOccurence)
-	{
-		ScrollToNextMatch();
-		bNeedsJumpToNextOccurence = false;
-	}
+	ScrollToNextMatch();
 }
 
 void SNiagaraStack::ExpandSearchResults()
@@ -654,10 +648,9 @@ void SNiagaraStack::ExpandSearchResults()
 
 void SNiagaraStack::OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
 {
-	if (bNeedsJumpToNextOccurence || CommitInfo == ETextCommit::OnEnter) // hasn't been autojumped yet or we hit enter
+	if (CommitInfo == ETextCommit::OnEnter) // hasn't been autojumped yet or we hit enter
 	{
 		AddSearchScrollOffset(+1);
-		bNeedsJumpToNextOccurence = false;
 	}
 }
 
@@ -932,9 +925,13 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	else if (Item->IsA<UNiagaraStackFunctionInput>())
 	{
 		UNiagaraStackFunctionInput* FunctionInput = CastChecked<UNiagaraStackFunctionInput>(Item);
-		return FRowWidgets(
+
+		TSharedRef<SNiagaraStackFunctionInputName> FunctionInputNameWidget =
 			SNew(SNiagaraStackFunctionInputName, FunctionInput, StackViewModel)
-			.IsSelected(Container, &SNiagaraStackTableRow::IsSelected),
+			.IsSelected(Container, &SNiagaraStackTableRow::IsSelected);
+		Container->AddFillRowContextMenuHandler(SNiagaraStackTableRow::FOnFillRowContextMenu::CreateSP(FunctionInputNameWidget, &SNiagaraStackFunctionInputName::FillRowContextMenu));
+
+		return FRowWidgets(FunctionInputNameWidget,
 			SNew(SNiagaraStackFunctionInputValue, FunctionInput));
 	}
 	else if (Item->IsA<UNiagaraStackErrorItem>())

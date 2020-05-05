@@ -265,7 +265,7 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	TArray<UBlueprint*> AnimBlueprints;
 	AnimBlueprints.Add(InAnimBlueprint);
 
-	CommonInitialization(AnimBlueprints);
+	CommonInitialization(AnimBlueprints, /*bShouldOpenInDefaultsMode=*/ false);
 
 	if(InAnimBlueprint->BlueprintType == BPTYPE_Interface)
 	{
@@ -1367,7 +1367,7 @@ void FAnimationBlueprintEditor::OnBlueprintPreCompile(UBlueprint* BlueprintToCom
 		}
 	}
 
-	if(BlueprintToCompile == GetBlueprintObj())
+	if(GetObjectsCurrentlyBeingEdited()->Num() > 0 && BlueprintToCompile == GetBlueprintObj())
 	{
 		// Grab the currently debugged object, so we can re-set it below in OnBlueprintPostCompile
 		DebuggedMeshComponent = nullptr;

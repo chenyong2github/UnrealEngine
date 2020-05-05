@@ -56,20 +56,20 @@ public:
 
 	/** Default constructor, use one of the factory functions below to make a valid description */
 	FPooledRenderTargetDesc()
-		: ClearValue(FClearValueBinding())
+		: DebugName(TEXT("UnknownTexture"))
+		, ClearValue(FClearValueBinding())
 		, Extent(0, 0)
 		, Depth(0)
 		, ArraySize(1)
-		, bIsArray(false)
-		, bIsCubemap(false)
-		, NumMips(0)
-		, NumSamples(1)
-		, Format(PF_Unknown)
 		, Flags(TexCreate_None)
 		, TargetableFlags(TexCreate_None)
+		, Format(PF_Unknown)
+		, NumMips(0)
+		, NumSamples(1)
+		, bIsArray(false)
+		, bIsCubemap(false)
 		, bForceSeparateTargetAndShaderResource(false)
 		, bForceSharedTargetAndShaderResource(false)
-		, DebugName(TEXT("UnknownTexture"))
 		, AutoWritable(true)
 		, bCreateRenderTargetWriteMask(false)
 		, bCreateRenderTargetFmask(false)
@@ -383,42 +383,40 @@ public:
 		TargetableFlags &= (~TexCreate_UAV);
 	}
 
+	/** only set a pointer to memory that never gets released */
+	const TCHAR* DebugName;
 	/** Value allowed for fast clears for this target. */
 	FClearValueBinding ClearValue;
-
 	/** In pixels, (0,0) if not set, (x,0) for cube maps, todo: make 3d int vector for volume textures */
 	FIntPoint Extent;
 	/** 0, unless it's texture array or volume texture */
 	uint32 Depth;
-	
 	/** >1 if a texture array should be used (not supported on DX9) */
 	uint32 ArraySize;
-	/** true if an array texture. Note that ArraySize still can be 1 */
-	bool bIsArray;
-	/** true if a cubemap texture */
-	bool bIsCubemap;
-	/** Number of mips */
-	uint16 NumMips;
-	/** Number of MSAA samples, default: 1  */
-	uint16 NumSamples;
-	/** Texture format e.g. PF_B8G8R8A8 */
-	EPixelFormat Format;
 	/** The flags that must be set on both the shader-resource and the targetable texture. bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV */
 	uint32 Flags;
 	/** The flags that must be set on the targetable texture. bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV */
 	uint32 TargetableFlags;
+	/** Texture format e.g. PF_B8G8R8A8 */
+	EPixelFormat Format;
+	/** Number of mips */
+	uint16 NumMips;
+	/** Number of MSAA samples, default: 1  */
+	uint16 NumSamples;
+	/** true if an array texture. Note that ArraySize still can be 1 */
+	uint8 bIsArray : 1;
+	/** true if a cubemap texture */
+	uint8 bIsCubemap : 1;
 	/** Whether the shader-resource and targetable texture must be separate textures. */
-	bool bForceSeparateTargetAndShaderResource;
+	uint8 bForceSeparateTargetAndShaderResource : 1;
 	/** Whether the shader-resource and targetable texture must be the same resource. */
-	bool bForceSharedTargetAndShaderResource;
-	/** only set a pointer to memory that never gets released */
-	const TCHAR* DebugName;
+	uint8 bForceSharedTargetAndShaderResource : 1;
 	/** automatically set to writable via barrier during */
-	bool AutoWritable;
+	uint8 AutoWritable : 1;
 	/** create render target write mask (supported only on specific platforms) */
-	bool bCreateRenderTargetWriteMask;
+	uint8 bCreateRenderTargetWriteMask : 1;
 	/** create render target fmask (supported only on specific platforms) */
-	bool bCreateRenderTargetFmask;
+	uint8 bCreateRenderTargetFmask : 1;
 };
 
 

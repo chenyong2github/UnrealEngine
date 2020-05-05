@@ -10,6 +10,10 @@
 #include "Widgets/Images/SImage.h"
 #include "ScopedTransaction.h"
 #include "Widgets/SNiagaraParameterName.h"
+#include "Widgets/SNiagaraParameterMapView.h"
+#include "NiagaraEditorSettings.h"
+#include "EditorFontGlyphs.h"
+#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapPalleteItem"
 
@@ -50,21 +54,25 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 	ParameterToolTipText.Bind(this, &SNiagaraParameterMapPalleteItem::GetItemTooltip);
 	SetToolTipText(ParameterToolTipText);
 
-	bWasCreated = ParameterAction->ReferenceCollection.ContainsByPredicate(
-		[](const FNiagaraGraphParameterReferenceCollection& ReferenceCollection) { return ReferenceCollection.WasCreated(); });
+	TArray<FName> Namespaces;
+	NiagaraParameterMapSectionID::OnGetSectionNamespaces((NiagaraParameterMapSectionID::Type)InCreateData->Action->SectionID, Namespaces);
+	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(Namespaces);
+	bool bForceReadOnly = NamespaceMetadata.IsValid() == false || NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName);
 
 	ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
-		.ParameterText(this, &SNiagaraParameterMapPalleteItem::GetDisplayText)
+		.ParameterText(FText::FromName(ParameterAction->Parameter.GetName()))
 		.HighlightText(InCreateData->HighlightText)
 		.OnTextCommitted(this, &SNiagaraParameterMapPalleteItem::OnNameTextCommitted)
 		.OnVerifyTextChanged(this, &SNiagaraParameterMapPalleteItem::OnNameTextVerifyChanged)
 		.IsSelected(InCreateData->IsRowSelectedDelegate)
-		.IsReadOnly(InCreateData->bIsReadOnly)
+		.IsReadOnly(InCreateData->bIsReadOnly || bForceReadOnly || ParameterAction->bIsExternallyReferenced)
 		.Decorator()
 		[
 			SNew(STextBlock)
-			.Visibility(bWasCreated ? EVisibility::Visible : EVisibility::Collapsed)
-			.Text(LOCTEXT("AddedText", "*"))
+			.Visibility(ParameterAction->bIsExternallyReferenced ? EVisibility::Visible : EVisibility::Collapsed)
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+			.Text(FEditorFontGlyphs::Lock)
+			.ToolTipText(LOCTEXT("LockedToolTip", "This parameter is used in a referenced external graph and can't be edited directly."))
 		];
 
 	InCreateData->OnRenameRequest->BindSP(ParameterNameTextBlock.ToSharedRef(), &SNiagaraParameterNameTextBlock::EnterEditingMode);
@@ -117,9 +125,9 @@ void SNiagaraParameterMapPalleteItem::Tick(const FGeometry& AllottedGeometry, co
 	if (ParameterNameTextBlock.IsValid())
 	{
 		TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(ActionPtr.Pin());
-		if (ParameterAction.IsValid() && ParameterAction->bNamespaceModifierRenamePending)
+		if (ParameterAction.IsValid() && ParameterAction->GetIsNamespaceModifierRenamePending())
 		{
-			ParameterAction->bNamespaceModifierRenamePending = false;
+			ParameterAction->SetIsNamespaceModifierRenamePending(false);
 			ParameterNameTextBlock->EnterNamespaceModifierEditingMode();
 		}
 	}
@@ -127,26 +135,16 @@ void SNiagaraParameterMapPalleteItem::Tick(const FGeometry& AllottedGeometry, co
 
 FText SNiagaraParameterMapPalleteItem::GetItemTooltip() const
 {
-	if (bWasCreated)
-	{
-		FText CurrentToolTip = SGraphPaletteItem::GetItemTooltip();
-		if (CurrentToolTip.IdenticalTo(ToolTipCache) == false)
-		{
-			ToolTipCache = CurrentToolTip;
-			CreatedToolTipCache = FText::Format(LOCTEXT("CreatedToolTipFormat", "{0}\n* Created through this panel."), ToolTipCache);
-		}
-		return CreatedToolTipCache;
-	}
-	else
-	{
-		return SGraphPaletteItem::GetItemTooltip();
-	}
+	return SGraphPaletteItem::GetItemTooltip();
 }
 
 void SNiagaraParameterMapPalleteItem::OnNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
 {
 	TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(ActionPtr.Pin());
-	OnItemRenamed.ExecuteIfBound(NewText, *ParameterAction.Get());
+	if (ParameterAction.IsValid())
+	{
+		OnItemRenamed.ExecuteIfBound(NewText, ParameterAction.ToSharedRef());
+	}
 }
 
 FText SNiagaraParameterMapPalleteItem::GetReferenceCount() const

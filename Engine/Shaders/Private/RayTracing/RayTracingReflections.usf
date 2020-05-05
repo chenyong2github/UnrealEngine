@@ -974,12 +974,17 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 			CurrentImaginaryReflectionGBufferData.ValidSamples = 1;
 		}
 
+		float ConfusionFactor = ComputeDenoiserConfusionFactor(
+			ClosestHitDistance != DENOISER_INVALID_HIT_DISTANCE,
+			length(WorldPosition - View.WorldCameraOrigin),
+			ClosestHitDistance);
+
 		// Accumulate output information if it has been set by the initial sample
 		if (SampleMode == SAMPLE_PHASE_ACCUM || SampleMode == SAMPLE_PHASE_RESOLVE)
 		{
 			// Read the previous sample's output information
 			float4 PreviousColor = ColorOutput[DispatchThreadId];
-			float PreviousClosestHitDistance = RayHitDistanceOutput[DispatchThreadId];
+			float PreviousConfusionFactor = RayHitDistanceOutput[DispatchThreadId];
 			FImaginaryReflectionGBufferData PreviousImaginaryReflectionGBufferData;
 
 #if DIM_RAY_TRACE_SKY_LIGHT_CONTRIBUTION
@@ -997,13 +1002,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				ReflectedColor += PreviousColor;
 				ReflectedWeight += PreviousColor.a;
 
-				if (ClosestHitDistance > 0.0 && PreviousClosestHitDistance > 0.0)
+				if (ConfusionFactor >= 0.0 && PreviousConfusionFactor >= 0.0)
 				{
-					ClosestHitDistance = min(ClosestHitDistance, PreviousClosestHitDistance);
+					ConfusionFactor = min(ConfusionFactor, PreviousConfusionFactor);
 				}
 				else
 				{
-					ClosestHitDistance = max(ClosestHitDistance, PreviousClosestHitDistance);
+					ConfusionFactor = max(ConfusionFactor, PreviousConfusionFactor);
 				}
 
 				if (DIM_RAY_TRACE_SKY_LIGHT_CONTRIBUTION)
@@ -1019,7 +1024,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				// no data this pass, use accumulated data
 				ReflectedColor = PreviousColor;
 				ReflectedWeight = PreviousColor.a;
-				ClosestHitDistance = PreviousClosestHitDistance;
+				ConfusionFactor = PreviousConfusionFactor;
 
 				if (DIM_RAY_TRACE_SKY_LIGHT_CONTRIBUTION)
 				{
@@ -1059,9 +1064,11 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		ReflectedColor.xyz *= View.PreExposure;
 	#endif
 
+		float DistanceCameraToPixel = 
+
 		// Output required information
 		ColorOutput[DispatchThreadId] = ClampToHalfFloatRange(ReflectedColor);
-		RayHitDistanceOutput[DispatchThreadId] = ClosestHitDistance;
+		RayHitDistanceOutput[DispatchThreadId] = ConfusionFactor;
 		RayImaginaryDepthOutput[DispatchThreadId] = ImaginaryClosestSVDepth; // TODO(Denoiser): shader permutation?
 
 #if DIM_RAY_TRACE_SKY_LIGHT_CONTRIBUTION

@@ -62,7 +62,7 @@ namespace Audio
 
 	void FMixerPlatformNonRealtime::RenderAudio(double NumSecondsToRender)
 	{
-		if (!bIsInitialized || !bIsDeviceOpen || OutputBuffers.Num() == 0)
+		if (!bIsInitialized || !bIsDeviceOpen)
 		{
 			return;
 		}
@@ -72,25 +72,14 @@ namespace Audio
 		// Increment how much audio time the user wants to have been rendered. 
 		TotalDesiredRender += NumSecondsToRender;
 
-		CurrentBufferWriteIndex = 0;
-		CurrentBufferReadIndex = 0;
-
 		// Keep rendering audio until we surpass their desired time, TimePerCallback may be much smaller than NumSecondsToRender.
 		while (TotalDurationRendered < TotalDesiredRender)
 		{
-			// RenderTimeAnalysis.Start();
-			if (OutputBuffers.IsValidIndex(CurrentBufferWriteIndex))
-			{
-				OutputBuffers[CurrentBufferWriteIndex].MixNextBuffer();
-			}
-			// RenderTimeAnalysis.End();
+			OutputBuffer.MixNextBuffer();
 
 			ReadNextBuffer();
 			TotalDurationRendered += TimePerCallback;
 		}
-
-		CurrentBufferReadIndex = INDEX_NONE;
-		CurrentBufferWriteIndex = INDEX_NONE;
 	}
 
 	void FMixerPlatformNonRealtime::OpenFileToWriteAudioTo(const FString& OutPath)
@@ -297,8 +286,10 @@ namespace Audio
 
 	void FMixerPlatformNonRealtime::ResumePlaybackOnNewDevice()
 	{
-		SubmitBuffer(OutputBuffers[CurrentBufferReadIndex].GetBufferData());
-		check(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels == OutputBuffers[CurrentBufferReadIndex].GetBuffer().Num());
+		int32 PoppedSampleCount;
+		TArrayView<const uint8> PoppedAudio = OutputBuffer.PopBufferData(PoppedSampleCount);
+		SubmitBuffer(PoppedAudio.GetData());
+		check(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels == OutputBuffer.GetNumSamples());
 
 		AudioRenderEvent->Trigger();
 	}

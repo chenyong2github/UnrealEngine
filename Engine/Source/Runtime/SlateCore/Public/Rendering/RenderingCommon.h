@@ -277,6 +277,11 @@ public:
 		TexCoords[3] = InTexCoords.W;
 	}
 
+	void SetPosition(const FVector2D& InPosition)
+	{
+		Position = InPosition;
+	}
+
 private:
 
 	template<ESlateVertexRounding Rounding>
@@ -352,6 +357,9 @@ struct FShortRect
 	uint16 Right;
 	uint16 Bottom;
 };
+
+template<> struct TIsPODType<FShortRect> { enum { Value = true }; };
+static_assert(TIsTriviallyDestructible<FShortRect>::Value == true, "FShortRect should be trivially destructible");
 
 #if STATS
 

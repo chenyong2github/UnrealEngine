@@ -8,6 +8,7 @@
 #include "Misc/Attribute.h"
 #include "AssetData.h"
 #include "NiagaraGraph.h"
+#include "NiagaraEditorSettings.h"
 
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
@@ -34,6 +35,7 @@ class FNiagaraEmitterViewModel;
 class FNiagaraEmitterHandleViewModel;
 enum class ECheckBoxState : uint8;
 struct FNiagaraNamespaceMetadata;
+class FNiagaraParameterHandle;
 
 namespace FNiagaraEditorUtilities
 {
@@ -293,8 +295,6 @@ namespace FNiagaraEditorUtilities
 
 	void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes);
 
-	FText FormatParameterNameForTextDisplay(FName ParameterName);
-
 	// Compare two FNiagaraVariable names for the sort priority relative to the first argument VarNameA. Sorting is ordered by namespace and then alphabetized. 
 	bool GetVariableSortPriority(const FName& VarNameA, const FName& VarNameB);
 
@@ -310,4 +310,58 @@ namespace FNiagaraEditorUtilities
 namespace FNiagaraParameterUtilities
 {
 	bool DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString);
+
+	FText FormatParameterNameForTextDisplay(FName ParameterName);
+
+	bool GetNamespaceEditData(
+		FName InParameterName,
+		FNiagaraParameterHandle& OutParameterHandle,
+		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
+		FText& OutErrorMessage);
+
+	bool GetNamespaceModifierEditData(
+		FName InParameterName,
+		FNiagaraParameterHandle& OutParameterHandle,
+		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
+		FText& OutErrorMessage);
+
+	enum class EParameterContext
+	{
+		Script,
+		System
+	};
+
+	struct FChangeNamespaceMenuData
+	{
+		bool bCanChange;
+		FText CanChangeToolTip;
+		FName NamespaceParameterName;
+		FNiagaraNamespaceMetadata Metadata;
+	};
+
+	NIAGARAEDITOR_API void GetChangeNamespaceMenuData(FName InParameterName, EParameterContext InParameterContext, TArray<FChangeNamespaceMenuData>& OutChangeNamespaceMenuData);
+
+	NIAGARAEDITOR_API TSharedRef<SWidget> CreateNamespaceMenuItemWidget(FName Namespace, FText ToolTip);
+
+	NIAGARAEDITOR_API bool TestCanChangeNamespaceWithMessage(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata, FText& OutMessage);
+
+	NIAGARAEDITOR_API FName ChangeNamespace(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata);
+
+	NIAGARAEDITOR_API int32 GetNumberOfNamePartsBeforeEditableModifier(const FNiagaraNamespaceMetadata& NamespaceMetadata);
+
+	NIAGARAEDITOR_API void GetOptionalNamespaceModifiers(FName ParameterName, EParameterContext InParameterContext, TArray<FName>& OutOptionalNamespaceModifiers);
+
+	NIAGARAEDITOR_API FName GetEditableNamespaceModifierForParameter(FName ParameterName);
+
+	NIAGARAEDITOR_API bool TestCanSetSpecificNamespaceModifierWithMessage(FName InParameterName, FName InNamespaceModifier, FText& OutMessage);
+
+	NIAGARAEDITOR_API FName SetSpecificNamespaceModifier(FName InParameterName, FName InNamespaceModifier);
+
+	NIAGARAEDITOR_API bool TestCanSetCustomNamespaceModifierWithMessage(FName InParameterName, FText& OutMessage);
+
+	NIAGARAEDITOR_API FName SetCustomNamespaceModifier(FName InParameterName);
+
+	NIAGARAEDITOR_API FName SetCustomNamespaceModifier(FName InParameterName, TSet<FName>& CurrentParameterNames);
+
+	NIAGARAEDITOR_API bool TestCanRenameWithMessage(FName ParameterName, FText& OutMessage);
 };

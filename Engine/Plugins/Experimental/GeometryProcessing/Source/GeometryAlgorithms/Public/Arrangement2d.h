@@ -431,7 +431,7 @@ protected:
 		auto FuncIgnore = [&](int VID) { return VID == IgnoreVID; };
 		TPair<int, double> found = (IgnoreVID == -1) ? PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDistSq)
 													 : PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDistSq, FuncIgnore);
-		if (found.Key == PointHash.InvalidValue())
+		if (found.Key == PointHash.GetInvalidValue())
 		{
 			return -1;
 		}
@@ -447,7 +447,7 @@ protected:
 		auto FuncIgnore = [&](int VID) { return Graph.IsBoundaryVertex(VID) == false || VID == IgnoreVID; };
 		TPair<int, double> found =
 			PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDistSq, FuncIgnore);
-		if (found.Key == PointHash.InvalidValue())
+		if (found.Key == PointHash.GetInvalidValue())
 		{
 			return -1;
 		}

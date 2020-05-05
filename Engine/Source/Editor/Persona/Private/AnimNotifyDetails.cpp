@@ -177,7 +177,7 @@ void FAnimNotifyDetails::AddBoneNameProperty(IDetailCategoryBuilder& CategoryBui
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
-						.Padding(FMargin(2, 1, 0, 1))
+						.Padding(FMargin(0, 1, 0, 1))
 						[
 							SNew(STextBlock)
 							.Text(Property->GetPropertyDisplayName())

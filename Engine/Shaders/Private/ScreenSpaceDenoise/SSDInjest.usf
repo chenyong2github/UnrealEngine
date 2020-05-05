@@ -119,7 +119,9 @@ void MainCS(
 	}
 
 	// Sample the reference sample.
-	FSSDSignalArray MultiplexedSamples = SampleMultiplexedSignals(
+	FSSDSignalArray MultiplexedSamples;
+	FSSDSignalFrequencyArray MultiplexedFrequencies;
+	SampleMultiplexedSignals(
 		SignalInput_Textures_0,
 		SignalInput_Textures_1,
 		SignalInput_Textures_2,
@@ -127,28 +129,20 @@ void MainCS(
 		GlobalPointClampedSampler,
 		CONFIG_SIGNAL_INPUT_LAYOUT,
 		/* MultiplexedSampleId = */ 0,
-		/* bNormalizeSample = */ false,
+		/* bNormalizeSample = */ true,
 		SceneBufferUV,
-		/* MipLevel = */ 0);
+		/* out */ MultiplexedSamples,
+		/* out */ MultiplexedFrequencies);
 
 	// Performs sample value precomputation.
 	UNROLL
 	for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 	{
 		const uint BatchedSignalId = MultiplexId / CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
-		MultiplexedSamples.Array[MultiplexId].WorldBluringRadius = GetSignalWorldBluringRadius(
-			MultiplexedSamples.Array[MultiplexId], RefSceneMetadata, BatchedSignalId);
+		MultiplexedFrequencies.Array[MultiplexId].WorldBluringRadius = GetSignalWorldBluringRadius(
+			MultiplexedFrequencies.Array[MultiplexId], RefSceneMetadata, BatchedSignalId);
 	}
 
-	// Whitelists computation that needs to be done.
-	const uint MultiplexCount = CONFIG_SIGNAL_BATCH_SIZE;
-	FSSDSignalArray OutputSamples = CreateSignalArrayFromScalarValue(0.0);
-	UNROLL
-	for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
-	{
-		OutputSamples.Array[MultiplexId] = MultiplexedSamples.Array[MultiplexId];
-	}
-	
 	// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the unique pixel to sample.
 	uint2 OutputPixelPostion = BufferUVToBufferPixelCoord(SceneBufferUV);
 		
@@ -160,7 +154,10 @@ void MainCS(
 			SignalOutput_UAVs_1,
 			SignalOutput_UAVs_2,
 			SignalOutput_UAVs_3,
-			CONFIG_SIGNAL_OUTPUT_LAYOUT, MultiplexCount,
-			OutputPixelPostion, OutputSamples.Array);
+			CONFIG_SIGNAL_OUTPUT_LAYOUT,
+			CONFIG_SIGNAL_BATCH_SIZE,
+			OutputPixelPostion,
+			MultiplexedSamples,
+			MultiplexedFrequencies);
 	}
 } // MainCS

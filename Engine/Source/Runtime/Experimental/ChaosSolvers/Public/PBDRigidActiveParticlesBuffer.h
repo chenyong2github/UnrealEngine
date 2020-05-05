@@ -4,11 +4,10 @@
 
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 namespace Chaos
 {
-	class FPBDRigidsSolver;
-
 	/**
 	 * Solver specific data buffered for use on Game thread
 	 */

@@ -27,6 +27,7 @@ void SRichTextBlock::Construct( const FArguments& InArgs )
 	WrapTextAt = InArgs._WrapTextAt;
 	AutoWrapText = InArgs._AutoWrapText;
 	WrappingPolicy = InArgs._WrappingPolicy;
+	TransformPolicy = InArgs._TransformPolicy;
 	Margin = InArgs._Margin;
 	LineHeightPercentage = InArgs._LineHeightPercentage;
 	Justification = InArgs._Justification;
@@ -85,7 +86,7 @@ FVector2D SRichTextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 {
 	// ComputeDesiredSize will also update the text layout cache if required
 	const FVector2D TextSize = TextLayoutCache->ComputeDesiredSize(
-		FSlateTextBlockLayout::FWidgetArgs(BoundText, HighlightText, WrapTextAt, AutoWrapText, WrappingPolicy, Margin, LineHeightPercentage, Justification),
+		FSlateTextBlockLayout::FWidgetArgs(BoundText, HighlightText, WrapTextAt, AutoWrapText, WrappingPolicy, TransformPolicy, Margin, LineHeightPercentage, Justification),
 		LayoutScaleMultiplier * TextBlockScale, TextStyle) * TextBlockScale;
 
 	return FVector2D(FMath::Max(TextSize.X, MinDesiredWidth.Get()), TextSize.Y);
@@ -144,6 +145,11 @@ void SRichTextBlock::SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& In
 	SetAttribute(WrappingPolicy, InWrappingPolicy, EInvalidateWidgetReason::Layout);
 }
 
+void SRichTextBlock::SetTransformPolicy(const TAttribute<ETextTransformPolicy>& InTransformPolicy)
+{
+	SetAttribute(TransformPolicy, InTransformPolicy, EInvalidateWidgetReason::Layout);
+}
+
 void SRichTextBlock::SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage)
 {
 	SetAttribute(LineHeightPercentage, InLineHeightPercentage, EInvalidateWidgetReason::Layout);
@@ -200,6 +206,7 @@ bool SRichTextBlock::ComputeVolatility() const
 		|| WrapTextAt.IsBound()
 		|| AutoWrapText.IsBound()
 		|| WrappingPolicy.IsBound()
+		|| TransformPolicy.IsBound()
 		|| Margin.IsBound()
 		|| Justification.IsBound()
 		|| LineHeightPercentage.IsBound()

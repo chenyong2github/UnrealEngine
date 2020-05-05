@@ -1832,6 +1832,8 @@ public:
 	 */
 	FClassMetaData* AddClassData(UStruct* Struct, FUnrealSourceFile* UnrealSourceFile);
 
+	FClassMetaData* AddInterfaceClassData(UStruct* Struct, FUnrealSourceFile* UnrealSourceFile);
+
 	/**
 	 * Find the metadata associated with the class specified
 	 * 
@@ -1868,9 +1870,12 @@ public:
 	/**
 	 * Throws an exception if a UInterface was parsed but not the corresponding IInterface.
 	 */
-	void CheckForNoIInterfaces() const;
+	void CheckForNoIInterfaces();
 
 	friend struct FCompilerMetadataManagerArchiveProxy;
+
+private:
+	TArray<TPair<UStruct*, FClassMetaData*>> InterfacesToVerify;
 };
 
 /*-----------------------------------------------------------------------------

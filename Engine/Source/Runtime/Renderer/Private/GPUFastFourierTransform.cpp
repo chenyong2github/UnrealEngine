@@ -936,7 +936,6 @@ namespace GPUFFT
 			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_CONVOLUTION_WITH_TEXTURE"), 1);
 			OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), PowRadixSignalLength);
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 		}
 
 		/** Default constructor **/

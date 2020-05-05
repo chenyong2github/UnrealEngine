@@ -228,6 +228,11 @@ public:
 	/** The compile hashes of the top level scripts the script is dependent on. */
 	LAYOUT_FIELD(TMemoryImageArray<FSHAHash>, ReferencedCompileHashes);
 
+	/*
+	 * Type layout parameters of the memory image
+	 */
+	LAYOUT_FIELD(FPlatformTypeLayoutParameters, LayoutParams);
+
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	LAYOUT_FIELD_INITIALIZED(bool, bUsesRapidIterationParams, true);
 
@@ -544,7 +549,7 @@ private:
 	/** Indicates whether the shader map should be stored in the shader cache. */
 	uint32 bIsPersistent : 1;
 
-	FShader* ProcessCompilationResultsForSingleJob(TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe> SingleJob, const FSHAHash& ShaderMapHash, FShaderMapResourceBuilder& InResourceBuilder);
+	FShader* ProcessCompilationResultsForSingleJob(TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe> SingleJob, const FSHAHash& ShaderMapHash);
 
 	bool IsNiagaraShaderComplete(const FNiagaraShaderScript* Script, const FNiagaraShaderType* ShaderType, bool bSilent);
 
@@ -584,7 +589,7 @@ public:
 	 * Caches the shaders for this script with no static parameters on the given platform.
 	 * This is used by FNiagaraShaderScript
 	 */
-	NIAGARASHADER_API  bool CacheShaders(bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
+	NIAGARASHADER_API  bool CacheShaders(bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false, const ITargetPlatform* TargetPlatform = nullptr);
 	bool CacheShaders(const FNiagaraShaderMapId& ShaderMapId, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
 
 
@@ -609,7 +614,7 @@ public:
 	NIAGARASHADER_API void ReleaseShaderMap();
 
 	void GetDependentShaderTypes(EShaderPlatform Platform, TArray<FShaderType*>& OutShaderTypes) const;
-	NIAGARASHADER_API  virtual void GetShaderMapId(EShaderPlatform Platform, FNiagaraShaderMapId& OutId) const;
+	NIAGARASHADER_API  virtual void GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FNiagaraShaderMapId& OutId) const;
 
 	NIAGARASHADER_API void Invalidate();
 

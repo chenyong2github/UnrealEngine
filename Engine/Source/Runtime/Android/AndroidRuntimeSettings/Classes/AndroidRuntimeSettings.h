@@ -205,12 +205,12 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Version Display Name (usually x.y)"))
 	FString VersionDisplayName;
 
-	// What OS version the app is allowed to be installed on (do not set this lower than 9)
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Minimum SDK Version (9=Gingerbread, 14=Ice Cream Sandwich, 21=Lollipop)"))
+	// What OS version the app is allowed to be installed on (do not set this lower than 19)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Minimum SDK Version (19=KitKat, 21=Lollipop)"))
 	int32 MinSDKVersion;
 	
-	// What OS version the app is expected to run on (do not set this lower than 9, set to 19 for Gear VR)
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Target SDK Version (9=Gingerbread, 14=Ice Cream Sandwich, 21=Lollipop)"))
+	// What OS version the app is expected to run on (do not set this lower than 19)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Target SDK Version (19=KitKat, 21=Lollipop)"))
 	int32 TargetSDKVersion;
 
 	// Preferred install location for the application
@@ -245,9 +245,13 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Allow large OBB files."))
 	bool bAllowLargeOBBFiles;
 
-	// If checked, a patch OBB is generated for files not fitting in the main OBB (requires using multiple PAK files so split up content by chunk id). 
+	// If checked, a patch OBB is generated for files not fitting in the main OBB (requires using multiple PAK files so split up content by chunk id).
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Allow patch OBB file."))
 	bool bAllowPatchOBBFile;
+
+	// If checked, up to two additional overflow OBB files are generated for files not fitting in the patch OBB (requires using multiple PAK files so split up content by chunk id).
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Allow overflow OBB files."))
+	bool bAllowOverflowOBBFiles;
 
 	// If checked, UE4Game files will be placed in ExternalFilesDir which is removed on uninstall.
 	// You should also check this if you need to save you game progress without requesting runtime WRITE_EXTERNAL_STORAGE permission in android api 23+

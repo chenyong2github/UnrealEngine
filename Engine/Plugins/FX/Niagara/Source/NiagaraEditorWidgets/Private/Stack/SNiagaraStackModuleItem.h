@@ -11,6 +11,7 @@ class UNiagaraStackModuleItem;
 class UNiagaraStackViewModel;
 class SNiagaraStackDisplayName;
 struct FGraphActionListBuilderBase;
+class SComboButton;
 
 class SNiagaraStackModuleItem : public SNiagaraStackItem
 {
@@ -50,6 +51,8 @@ private:
 
 	bool OnModuleItemAllowDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
 
+	void CollectParameterActions(FGraphActionListBuilderBase& ModuleActions);
+
 	void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions);
 
 	void ShowReassignModuleScriptMenu();
@@ -60,6 +63,8 @@ private:
 
 private:
 	UNiagaraStackModuleItem* ModuleItem;
+
+	TSharedPtr<SComboButton> AddButton;
 
 	static bool bLibraryOnly;
 };

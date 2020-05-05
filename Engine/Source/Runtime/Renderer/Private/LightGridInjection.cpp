@@ -811,7 +811,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadingShadowProjections(FRHICo
 
 					if (InHairDatas)
 					{
-						RenderHairStrandsShadowMask(RHICmdList, Views, LightSceneInfo, ForwardScreenSpaceShadowMask, InHairDatas);
+						RenderHairStrandsShadowMask(RHICmdList, Views, LightSceneInfo, InHairDatas, ForwardScreenSpaceShadowMask);
 					}
 				}
 

@@ -919,6 +919,23 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Directions are not compatible"));
 	}
 
+	// Do not allow making connections off of dynamic add pins to non parameter map associated pins 
+	auto GetPinsAreInvalidAddPinCombination = [](const UEdGraphPin* A, const UEdGraphPin* B)->bool {
+		if (A->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory)
+		{
+			if (B->PinType.PinCategory != PinCategoryType)
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+	if (GetPinsAreInvalidAddPinCombination(PinA, PinB) || GetPinsAreInvalidAddPinCombination(PinB, PinA))
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Cannot make connections to or from add pins for non-parameter types"));
+	}
+
 	// Check for a circular connection before checking any type compatibility
 	TSet<const UEdGraphNode*> VisitedNodes;
 	if (UEdGraphSchema_Niagara::CheckCircularConnection(VisitedNodes, OutputPin->GetOwningNode(), InputPin->GetOwningNode()))

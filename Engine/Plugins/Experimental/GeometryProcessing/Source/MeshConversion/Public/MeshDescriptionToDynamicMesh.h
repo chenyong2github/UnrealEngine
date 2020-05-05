@@ -27,6 +27,9 @@ public:
 	/** Should we calculate conversion index maps */
 	bool bCalculateMaps = true;
 
+	/** Ignore all mesh attributes (e.g. UV/Normal layers, material groups) */
+	bool bDisableAttributes = false;
+
 	/** map from triangle ID to (polygon,triangle) pair */
 	TArray<FIndex2i> TriToPolyTriMap;
 

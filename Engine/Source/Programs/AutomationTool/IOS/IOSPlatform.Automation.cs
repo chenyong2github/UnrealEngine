@@ -202,7 +202,6 @@ public class IOSPlatform : Platform
 		{
 			TargetReceiptFileName = TargetReceipt.GetDefaultPath(InProjectDirectory, TargetName, UnrealTargetPlatform.IOS, Config, "");
 		}
-
 		return TargetReceiptFileName;
 	}
 
@@ -213,16 +212,7 @@ public class IOSPlatform : Platform
 
 	public virtual bool DeployGeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, DirectoryReference ProjectDirectory, bool bIsUE4Game, string GameName, bool bIsClient, string ProjectName, DirectoryReference InEngineDir, DirectoryReference AppDirectory, string InExecutablePath, out bool bSupportsPortrait, out bool bSupportsLandscape, out bool bSkipIcons)
 	{
-		string TargetName = Path.GetFileNameWithoutExtension(InExecutablePath).Split("-".ToCharArray())[0];
-		FileReference TargetReceiptFileName;
-		if (bIsUE4Game)
-		{
-			TargetReceiptFileName = TargetReceipt.GetDefaultPath(InEngineDir, "UE4Game", UnrealTargetPlatform.IOS, Config, "");
-		}
-		else
-		{
-			TargetReceiptFileName = TargetReceipt.GetDefaultPath(ProjectDirectory, TargetName, UnrealTargetPlatform.IOS, Config, "");
-		}
+		FileReference TargetReceiptFileName = GetTargetReceiptFileName(Config, InExecutablePath, InEngineDir, ProjectDirectory, bIsUE4Game);
 		return IOSExports.GeneratePList(ProjectFile, Config, ProjectDirectory, bIsUE4Game, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, TargetReceiptFileName, out bSupportsPortrait, out bSupportsLandscape, out bSkipIcons);
 	}
 
@@ -375,6 +365,13 @@ public class IOSPlatform : Platform
 			}
 		}
 
+		// Stage the user defined LaunchScreen if any.
+		string BuildGraphicsDirectory = Path.GetDirectoryName(Params.RawProjectPath.FullName) + "/Build/IOS/Resources/Graphics/";
+		if (File.Exists(BuildGraphicsDirectory + "LaunchScreenIOS.png"))
+		{
+			InternalUtils.SafeCopyFile(BuildGraphicsDirectory + "LaunchScreenIOS.png", SC.StageDirectory + "/LaunchScreenIOS.png");
+		}
+
 		IOSExports.GenerateAssetCatalog(Params.RawProjectPath, new FileReference(FullExePath), new DirectoryReference(CombinePaths(Params.BaseStageDirectory, (Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"))), Platform);
 
 		bCreatedIPA = false;
@@ -457,6 +454,9 @@ public class IOSPlatform : Platform
 				string IPPArguments = "RepackageFromStage \"" + (Params.IsCodeBasedProject ? Params.RawProjectPath.FullName : "Engine") + "\"";
 				IPPArguments += " -config " + TargetConfiguration.ToString();
 				IPPArguments += " -schemename " + SchemeName + " -schemeconfig \"" + SchemeConfiguration + "\"";
+
+				// targetname will be eg FooClient for a Client Shipping build.
+				IPPArguments += " -targetname " + SC.StageExecutables[0].Split("-".ToCharArray())[0];
 
 				if (TargetConfiguration == UnrealTargetConfiguration.Shipping)
 				{
@@ -867,7 +867,7 @@ public class IOSPlatform : Platform
 							(SC.IsCodeBasedProject ? SC.ProjectRoot : DirectoryReference.Combine(SC.LocalRoot, "Engine")),
 							!SC.IsCodeBasedProject,
 							(SC.IsCodeBasedProject ? SC.StageExecutables[0] : "UE4Game"),
-							Params.Client,
+							SC.IsCodeBasedProject ? false : Params.Client, // Code based projects will have Client in their executable name already
 							SC.ShortProjectName, DirectoryReference.Combine(SC.LocalRoot, "Engine"),
 							DirectoryReference.Combine((SC.IsCodeBasedProject ? SC.ProjectRoot : DirectoryReference.Combine(SC.LocalRoot, "Engine")), "Binaries", PlatformName, "Payload", (SC.IsCodeBasedProject ? SC.ShortProjectName : "UE4Game") + ".app"),
 							SC.StageExecutables[0],

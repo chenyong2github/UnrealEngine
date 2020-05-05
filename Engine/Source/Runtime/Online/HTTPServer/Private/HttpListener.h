@@ -3,6 +3,7 @@
 
 #include "HttpConnectionTypes.h"
 #include "HttpRouter.h"
+#include "HttpServerConfig.h"
 
 struct FHttpConnection;
 struct FHttpPath;
@@ -18,9 +19,9 @@ public:
 	/**
 	 * Constructor
 	 *
-	 *  @param ListenPort The port on which to listen for incoming connections
+	 *  @param InListenPort The port on which to listen for incoming connections
 	 */
-	FHttpListener(uint32 ListenPort);
+	FHttpListener(uint32 InListenPort);
 
 	/**
 	 * Destructor
@@ -29,7 +30,7 @@ public:
 
 	/**
 	 * Starts listening for and accepting incoming connections
-	 *
+	 * 
 	 * @return true if the listener was able to start listening, false otherwise
 	 */
 	bool StartListening();
@@ -74,11 +75,9 @@ public:
 private:
 
 	/**
-	 * Accepts a single available connection
-	 * 
-	 * @param MaxConnectionsToAccept The maximum number of connections to accept
+	 * Accepts available connection(s)
 	 */
-	void AcceptConnections(uint32 MaxConnectionsToAccept);
+	void AcceptConnections();
 
 	/**
 	 * Ticks connections in reading/writing phases
@@ -112,10 +111,6 @@ private:
 	/** The total number of connections accepted by this listener */
 	uint32 NumConnectionsAccepted = 0;
 
-	/** Maximum number of connections to accept per frame */
-	static constexpr uint32 MaxConnectionsToAcceptPerFrame = 1;
-	/** Maximum number of pending connections to queue */
-	static constexpr uint32 ListenerConnectionBacklogSize = 16;
-	/** Maximum send buffer size */
-	static constexpr uint32 ListenerBufferSize = 512 * 1024;
+	/** Listener configuration data */
+	FHttpServerListenerConfig Config;
 };

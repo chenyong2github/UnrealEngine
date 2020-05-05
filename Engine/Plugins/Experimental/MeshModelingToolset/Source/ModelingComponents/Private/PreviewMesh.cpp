@@ -87,12 +87,26 @@ void UPreviewMesh::SetMaterials(const TArray<UMaterialInterface*>& Materials)
 	DynamicMeshComponent->NotifyMeshUpdated();
 }
 
+int32 UPreviewMesh::GetNumMaterials() const
+{
+	check(DynamicMeshComponent);
+	return DynamicMeshComponent->GetNumMaterials();
+}
+
 UMaterialInterface* UPreviewMesh::GetMaterial(int MaterialIndex) const
 {
 	check(DynamicMeshComponent);
 	return DynamicMeshComponent->GetMaterial(MaterialIndex);
 }
 
+void UPreviewMesh::GetMaterials(TArray<UMaterialInterface*>& OutMaterials) const
+{
+	check(DynamicMeshComponent);
+	for (int32 i = 0; i < DynamicMeshComponent->GetNumMaterials(); ++i)
+	{
+		OutMaterials.Add(DynamicMeshComponent->GetMaterial(i));
+	}
+}
 
 void UPreviewMesh::SetOverrideRenderMaterial(UMaterialInterface* Material)
 {
@@ -371,7 +385,7 @@ void UPreviewMesh::ForceRebuildSpatial()
 }
 
 
-void UPreviewMesh::NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, bool bRebuildSpatial)
+void UPreviewMesh::NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, EMeshRenderAttributeFlags ModifiedAttribs, bool bRebuildSpatial)
 {
 	if (bBuildSpatialDataStructure && bRebuildSpatial)
 	{
@@ -382,9 +396,20 @@ void UPreviewMesh::NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, boo
 	{
 		DynamicMeshComponent->NotifyMeshUpdated();
 	}
-	else
+	else if (UpdateMode == ERenderUpdateMode::FastUpdate)
 	{
-		DynamicMeshComponent->FastNotifyPositionsUpdated();
+		bool bPositions = (ModifiedAttribs & EMeshRenderAttributeFlags::Positions) != EMeshRenderAttributeFlags::None;
+		bool bNormals = (ModifiedAttribs & EMeshRenderAttributeFlags::VertexNormals) != EMeshRenderAttributeFlags::None;
+		bool bColors = (ModifiedAttribs & EMeshRenderAttributeFlags::VertexColors) != EMeshRenderAttributeFlags::None;
+		bool bUVs = (ModifiedAttribs & EMeshRenderAttributeFlags::VertexUVs) != EMeshRenderAttributeFlags::None;
+		if (bPositions)
+		{
+			DynamicMeshComponent->FastNotifyPositionsUpdated(bNormals, bColors, bUVs);
+		}
+		else
+		{
+			DynamicMeshComponent->FastNotifyVertexAttributesUpdated(bNormals, bColors, bUVs);
+		}
 	}
 }
 

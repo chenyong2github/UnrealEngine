@@ -486,7 +486,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 	.Padding(5)
 	[
 		SNew(SBox)
-		.WidthOverride(300)
+		.MinDesiredWidth(300)
 		.HeightOverride(400)
 		[
 			SNew(SVerticalBox)
@@ -592,7 +592,7 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 			const FText Tooltip = FText::Format(MapInputFormat, FText::FromName(AvailableHandle.GetParameterHandleString()));
 			TSharedPtr<FNiagaraMenuAction> LinkAction(new FNiagaraMenuAction(Category, DisplayName, Tooltip, 0, FText(),
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::ParameterHandleSelected, AvailableHandle)));
-			LinkAction->SetParamterHandle(AvailableHandle);
+			LinkAction->SetParamterVariable(FNiagaraVariable(FunctionInput->GetInputType(), AvailableHandle.GetParameterHandleString()));
 			OutAllActions.AddAction(LinkAction, RootCategoryName);
 		}
 	}
@@ -602,14 +602,14 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		const FText CategoryName = LOCTEXT("MakeCategory", "Make");
 
 		TArray<FName> AvailableNamespaces;
-		FunctionInput->GetNamespacesForNewParameters(AvailableNamespaces);
+		FunctionInput->GetNamespacesForNewReadParameters(AvailableNamespaces);
 
 		TArray<FString> InputNames;
 		for (int32 i = FunctionInput->GetInputParameterHandlePath().Num() - 1; i >= 0; i--)
 		{
 			InputNames.Add(FunctionInput->GetInputParameterHandlePath()[i].GetName().ToString());
 		}
-		FName InputName = *FString::Join(InputNames, TEXT("_"));
+		FName InputName = *FString::Join(InputNames, TEXT("_")).Replace(TEXT("."), TEXT("_"));
 
 		for (const FName AvailableNamespace : AvailableNamespaces)
 		{

@@ -154,11 +154,11 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		.Padding( 0, 0, 0, 0 )
 		[
 			SNew( SWrapBox )
-			.UseAllottedWidth( true )
+			.UseAllottedSize( true )
 			.InnerSlotPadding( FVector2D( 5, 2 ) )
 
 			+ SWrapBox::Slot()
-			.FillLineWhenWidthLessThan( 600 )
+			.FillLineWhenSizeLessThan( 600 )
 			.FillEmptySpace( true )
 			[
 				SNew( SHorizontalBox )

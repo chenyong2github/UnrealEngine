@@ -1236,7 +1236,7 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	// @Todo fix me: This is temporary fix to make sure they always have compressed data
 	if (RawAnimationData.Num() > 0 && bNeedPostProcess)
 	{
-		PostProcessSequence();
+		PostProcessSequence(false);
 	}
 
 	if (PropertyChangedEvent.Property != nullptr)
@@ -1624,7 +1624,8 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 		return;
 	}
 
-	FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock, bForceRootLock, ExtractRootTrackTransform(0.f, &RequiredBones), IsValidAdditive());
+	const bool bTreatAnimAsAdditive = (IsValidAdditive() && !bUseRawDataForPoseExtraction); // Raw data is never additive
+	FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock, bForceRootLock, ExtractRootTrackTransform(0.f, &RequiredBones), bTreatAnimAsAdditive);
 
 #if WITH_EDITOR
 	// this happens only with editor data
@@ -4832,8 +4833,8 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 					MarkerTimeOffset = SequenceLength;
 				}
 			}
-			const float NextMarkerTime = NextSyncMarker.Time + MarkerTimeOffset;
-			const float TimeToMarker = NextMarkerTime - CurrentTime;
+
+			const float TimeToMarker = NextMarker.TimeToMarker;
 
 			if (CurrentMoveDelta > TimeToMarker)
 			{
@@ -4861,6 +4862,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 						MarkerTimeOffset += SequenceLength;
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName));
+				NextMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[NextMarker.MarkerIndex].Time - CurrentTime;
 			}
 			else
 			{
@@ -4897,8 +4899,8 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 					MarkerTimeOffset = -SequenceLength;
 				}
 			}
-			const float PrevMarkerTime = PrevSyncMarker.Time + MarkerTimeOffset;
-			const float TimeToMarker = PrevMarkerTime - CurrentTime;
+
+			const float TimeToMarker = NextMarker.TimeToMarker;
 
 			if (CurrentMoveDelta < TimeToMarker)
 			{
@@ -4926,6 +4928,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 						MarkerTimeOffset -= SequenceLength;
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[PrevMarker.MarkerIndex].MarkerName));
+				PrevMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time - CurrentTime;
 			}
 			else
 			{
@@ -5224,8 +5227,15 @@ FMarkerSyncAnimPosition UAnimSequence::GetMarkerSyncPositionfromMarkerIndicies(i
 	}
 
 	// Account for looping
-	PrevTime = (PrevTime > CurrentTime) ? PrevTime - SequenceLength : PrevTime;
-	NextTime = (NextTime < CurrentTime) ? NextTime + SequenceLength : NextTime;
+	if(PrevTime > NextTime)
+	{
+		PrevTime = (PrevTime > CurrentTime) ? PrevTime - SequenceLength : PrevTime;
+		NextTime = (NextTime < CurrentTime) ? NextTime + SequenceLength : NextTime;
+	}
+	else if (PrevTime > CurrentTime)
+	{
+		CurrentTime += SequenceLength;
+	}
 
 	if (PrevTime == NextTime)
 	{

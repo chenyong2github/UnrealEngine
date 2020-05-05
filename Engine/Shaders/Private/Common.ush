@@ -1519,14 +1519,14 @@ struct FScreenVertexOutput
 // for velocity rendering, motionblur and temporal AA
 // velocity needs to support -2..2 screen space range for x and y
 // texture is 16bit 0..1 range per channel
-float2 EncodeVelocityToTexture(float2 In)
+float3 EncodeVelocityToTexture(float3 In)
 {
 	// 0.499f is a value smaller than 0.5f to avoid using the full range to use the clear color (0,0) as special value
 	// 0.5f to allow for a range of -2..2 instead of -1..1 for really fast motions for temporal AA
 	return In * (0.499f * 0.5f) + 32767.0f / 65535.0f;
 }
 // see EncodeVelocityToTexture()
-float2 DecodeVelocityFromTexture(float2 In)
+float3 DecodeVelocityFromTexture(float3 In)
 {
 	const float InvDiv = 1.0f / (0.499f * 0.5f);
 	// reference

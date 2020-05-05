@@ -168,11 +168,8 @@ struct FMallocBinned::Private
 	static bool bHasInitializedStatsMetadata;
 	
 #if USE_OS_SMALL_BLOCK_ALLOC
-	static uint64 SmallBlockStartPtr;
-	static uint64 SmallBlockEndPtr;
-	enum { SMALL_BLOCK_MAX_TOTAL_POOL_SIZE = 0x20000000 };
-
 #if USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
+	enum { SMALL_BLOCK_MAX_TOTAL_POOL_SIZE = 0x20000000 };
 	enum { SMALL_BLOCK_GRAB_ALLOC_ALIGN = 16 };
 	enum { SMALL_BLOCK_GRAB_MAX_ALLOC_SIZE = 256 };
 	enum { SMALL_BLOCK_GRAB_MIN_ALLOC_SIZE = SMALL_BLOCK_GRAB_ALLOC_ALIGN };
@@ -708,23 +705,15 @@ struct FMallocBinned::Private
 		MEM_TIME(MemTime -= FPlatformTime::Seconds());
 		BINNED_DECREMENT_STATCOUNTER(Allocator.CurrentAllocs);
 
+#if PLATFORM_IOS || PLATFORM_MAC
+		if(FPlatformMemory::PtrIsOSMalloc(Ptr))
+		{
+			SmallOSFree(Allocator, Ptr, Private::SMALL_BLOCK_POOL_SIZE);
+			return;
+		}
+#endif
 		UPTRINT BasePtr;
 		FPoolInfo* Pool = FindPoolInfo(Allocator, (UPTRINT)Ptr, BasePtr);
-#if PLATFORM_IOS || PLATFORM_MAC
-        if (Pool == nullptr)
-        {
-#if USE_OS_SMALL_BLOCK_ALLOC && !USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
-			// check the small block allocation range
-			if ((uint64)Ptr >= SmallBlockStartPtr && (uint64)Ptr < SmallBlockEndPtr)
-			{
-				SmallOSFree(Allocator, Ptr, Private::SMALL_BLOCK_POOL_SIZE);
-				return;
-			}
-#endif
-            UE_LOG(LogMemory, Warning, TEXT("Attempting to free a pointer we didn't allocate!"));
-            return;
-        }
-#endif
 		checkSlow(Pool);
 		checkSlow(Pool->GetBytes() != 0);
 		if (Pool->TableIndex < Allocator.BinnedOSTableIndex)
@@ -1019,11 +1008,6 @@ struct FMallocBinned::Private
 	}
 };
 
-#if USE_OS_SMALL_BLOCK_ALLOC
-uint64 FMallocBinned::Private::SmallBlockStartPtr = 0;
-uint64 FMallocBinned::Private::SmallBlockEndPtr = 0;
-#endif
-
 #if USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
 uint64 FMallocBinned::Private::SmallBlockGrab_FreeStartPointers[MAX_NUM_BLOCK_START_ADDRESSES];
 int FMallocBinned::Private::NumFreeSmallBlockGrabAllocations = 0;
@@ -1171,17 +1155,9 @@ FMallocBinned::FMallocBinned(uint32 InPageSize, uint64 AddressLimit)
 	check(AddressLimit > PageSize); // Check to catch 32 bit overflow in AddressLimit
 
 #if USE_OS_SMALL_BLOCK_ALLOC
-	//Do very early (very small) malloc so we can find where the initial nano malloc pool is
-	void* ptr = ::malloc(16);
 	
-	//Round back down to 00's address
-	Private::SmallBlockStartPtr = (uint64_t)ptr & ~(0x1fffffff);
+	FPlatformMemory::NanoMallocInit();
 	
-	//Add pool size to start pointer. Magic number comes from found instruments pool size of 512MB
-	Private::SmallBlockEndPtr = Private::SmallBlockStartPtr + Private::SMALL_BLOCK_MAX_TOTAL_POOL_SIZE;
-	
-	::free(ptr);
-
 #if USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
 
 	void* GrabberHelperLoc = ::malloc(sizeof(Private::FMemoryAllocationGrabberHelper));
@@ -1330,7 +1306,7 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 	FFreeMem* Free = nullptr;
 	bool bUsePools = true;
 #if USE_OS_SMALL_BLOCK_ALLOC && !USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
-	if (Size <= Private::SMALL_BLOCK_POOL_SIZE)
+	if (FPlatformMemory::IsNanoMallocAvailable() && Size <= Private::SMALL_BLOCK_POOL_SIZE)
 	{
 		//Make sure we have initialized our hash buckets even if we are using the NANO_MALLOC grabber, as otherwise we can end
 		//up making bad assumptions and trying to grab invalid data during a Realloc of this data.
@@ -1338,19 +1314,20 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 		{
 			HashBuckets = Private::CreateHashBuckets(*this);
 		}
-		
+
 		bUsePools = false;
 		UPTRINT AlignedSize = Align(Size, Alignment);
 		SIZE_T ActualPoolSize; //TODO: use this to reduce waste?
 		Free = (FFreeMem*)Private::SmallOSAlloc(*this, AlignedSize, ActualPoolSize);
+		check(FPlatformMemory::PtrIsOSMalloc(Free));
 		
-		if ((uint64)Free < Private::SmallBlockStartPtr || (uint64)Free >= Private::SmallBlockEndPtr)
+		if(!FPlatformMemory::PtrIsFromNanoMalloc(Free))
 		{
-			// if this happens then we need to fall in to the bins below
-//			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Overflowed!!! Aligned Size:%d"), AlignedSize);
+			// This means we've overflowed the nano zone's internal buckets, which are fixed
+			// So we need to fall back to UE's allocator
 			Private::SmallOSFree(*this, Free, AlignedSize);
-			Free = nullptr;
 			bUsePools = true;
+			Free = nullptr;
 		}
 	}
 #endif
@@ -1436,6 +1413,10 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 			BINNED_PEAK_STATCOUNTER(UsedPeak, BINNED_ADD_STATCOUNTER(UsedCurrent, Size));
 			BINNED_PEAK_STATCOUNTER(WastePeak, BINNED_ADD_STATCOUNTER(WasteCurrent, (int64)(AlignedSize - Size)));
 		}
+		
+#if USE_OS_SMALL_BLOCK_ALLOC
+		check(!FPlatformMemory::PtrIsOSMalloc(Free));
+#endif
 	}
 
 	MEM_TIME(MemTime += FPlatformTime::Seconds());
@@ -1462,29 +1443,25 @@ void* FMallocBinned::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 	void* NewPtr = Ptr;
 	if( Ptr && NewSize )
 	{
-		FPoolInfo* Pool = Private::FindPoolInfo(*this, (UPTRINT)Ptr, BasePtr);
-		
 #if USE_OS_SMALL_BLOCK_ALLOC && !USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
-		// special case for really small blocks
-		if ((Pool == nullptr)
-			&& ((uint64)Ptr >= Private::SmallBlockStartPtr)
-			&& ((uint64)Ptr < Private::SmallBlockEndPtr))
+		if(FPlatformMemory::PtrIsOSMalloc(Ptr))
 		{
 			NewPtr = ::realloc(Ptr, NewSize);
-
-			if ((uint64)NewPtr < Private::SmallBlockStartPtr || (uint64)NewPtr >= Private::SmallBlockEndPtr)
+			
+			if(!FPlatformMemory::PtrIsFromNanoMalloc(NewPtr))
 			{
-				// if this happens then we need to Malloc and copy
+				// We've overflowed the nano region
+				// Fall back to UE's allocator
 				Ptr = NewPtr;
 				NewPtr = Malloc(NewSizeUnmodified, Alignment);
 				FMemory::Memcpy(NewPtr, Ptr, NewSize);
-				::free( Ptr );
+				Private::SmallOSFree(*this, Ptr, NewSize);
 			}
 		}
 		else
 #endif
 		{
-			
+			FPoolInfo* Pool = Private::FindPoolInfo(*this, (UPTRINT)Ptr, BasePtr);
 
 			if( Pool->TableIndex < BinnedOSTableIndex )
 			{
@@ -1560,24 +1537,20 @@ bool FMallocBinned::GetAllocationSize(void *Original, SIZE_T &SizeOut)
 		return false;
 	}
 
-	UPTRINT BasePtr;
-	FPoolInfo* Pool = Private::FindPoolInfo(*this, (UPTRINT)Original, BasePtr);
+	
 
 #if PLATFORM_IOS || PLATFORM_MAC
-	if (Pool == nullptr)
-	{
 #if USE_OS_SMALL_BLOCK_ALLOC && !USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
-		if ((uint64)Original >= Private::SmallBlockStartPtr && (uint64)Original < Private::SmallBlockEndPtr)
-		{
-			SizeOut = Private::SMALL_BLOCK_POOL_SIZE;
-			return true;
-		}
-#endif
-		UE_LOG(LogMemory, Warning, TEXT("Attempting to access memory pool info for a pointer we didn't allocate!"));
-		return false;
+	if(FPlatformMemory::PtrIsOSMalloc(Original))
+	{
+		SizeOut = Private::SMALL_BLOCK_POOL_SIZE;
+		return true;
 	}
 #endif
-
+#endif
+	
+	UPTRINT BasePtr;
+	FPoolInfo* Pool = Private::FindPoolInfo(*this, (UPTRINT)Original, BasePtr);
 	PTRINT OffsetFromBase = (PTRINT)Original - (PTRINT)BasePtr;
 	check(OffsetFromBase >= 0);
 

@@ -127,6 +127,8 @@ public:
 	static inline RealType Max3(const RealType A, const RealType B, const RealType C);
 	static inline RealType Min(const RealType A, const RealType B);
 	static inline RealType Min3(const RealType A, const RealType B, const RealType C);
+	/** compute min and max of a,b,c with max 3 comparisons (sometimes 2) */
+	static inline void MinMax(RealType A, RealType B, RealType C, RealType& MinOut, RealType& MaxOut);
 	static inline RealType Sqrt(const RealType Value);
 	static inline RealType Atan2(const RealType ValueY, const RealType ValueX);
 	static inline RealType Sin(const RealType Value);
@@ -212,6 +214,28 @@ template<typename RealType>
 RealType TMathUtil<RealType>::Min3(const RealType A, const RealType B, const RealType C)
 {
 	return Min(Min(A, B), C);
+}
+
+// compute min and max of a,b,c with max 3 comparisons (sometimes 2)
+template<typename RealType>
+void TMathUtil<RealType>::MinMax(RealType A, RealType B, RealType C, RealType& MinOut, RealType& MaxOut)
+{
+	if (A < B) {
+		if (A < C) {
+			MinOut = A; MaxOut = TMathUtil<RealType>::Max(B, C);
+		}
+		else {
+			MinOut = C; MaxOut = B;
+		}
+	}
+	else {
+		if (A > C) {
+			MaxOut = A; MinOut = TMathUtil<RealType>::Min(B, C);
+		}
+		else {
+			MinOut = B; MaxOut = C;
+		}
+	}
 }
 
 template<typename RealType>

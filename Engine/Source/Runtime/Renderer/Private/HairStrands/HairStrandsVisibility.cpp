@@ -708,7 +708,8 @@ class FHairVelocityCS: public FGlobalShader
 
 	class FVendor : SHADER_PERMUTATION_INT("PERMUTATION_VENDOR", HairVisibilityVendorCount);
 	class FVelocity : SHADER_PERMUTATION_INT("PERMUTATION_VELOCITY", 4);
-	using FPermutationDomain = TShaderPermutationDomain<FVendor, FVelocity>;
+	class FOuputFormat : SHADER_PERMUTATION_INT("PERMUTATION_OUTPUT_FORMAT", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FVendor, FVelocity, FOuputFormat>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, ResolutionOffset)
@@ -743,7 +744,8 @@ static void AddHairVelocityPass(
 	if (!bWriteOutVelocity)
 		return;
 
-	check(OutVelocityTexture->Desc.Format == FMaterialPassOutput::VelocityFormat);
+	check(OutVelocityTexture->Desc.Format == PF_G16R16 || OutVelocityTexture->Desc.Format == PF_A16B16G16R16);
+	const bool bTwoChannelsOutput = OutVelocityTexture->Desc.Format == PF_G16R16;
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 	FSceneTexturesUniformParameters SceneTextures;
@@ -752,6 +754,7 @@ static void AddHairVelocityPass(
 	FHairVelocityCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairVelocityCS::FVendor>(GetVendor());
 	PermutationVector.Set<FHairVelocityCS::FVelocity>(bWriteOutVelocity ? FMath::Clamp(GHairVelocityType + 1, 0, 3) : 0);
+	PermutationVector.Set<FHairVelocityCS::FOuputFormat>(bTwoChannelsOutput ? 0 : 1);
 
 	FHairVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVelocityCS::FParameters>();
 	PassParameters->SceneTexturesStruct = CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleDraw);

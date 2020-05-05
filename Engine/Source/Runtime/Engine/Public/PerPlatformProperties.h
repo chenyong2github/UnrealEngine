@@ -11,6 +11,11 @@ PerPlatformProperties.h: Property types that can be overridden on a per-platform
 #include "Containers/Map.h"
 #include "Algo/Find.h"
 #include "Serialization/MemoryLayout.h"
+
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+#include "Engine/Engine.h"
+#endif
+
 #include "PerPlatformProperties.generated.h"
 
 /** TPerPlatformProperty - template parent class for per-platform properties 
@@ -59,22 +64,38 @@ struct ENGINE_API TPerPlatformProperty
 
 #endif
 
+	_ValueType GetValue() const
+	{
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+		FName PlatformGroupName, VanillaPlatformName;
+		// Lookup the override preview platform info, if any
+		if (GEngine && GEngine->GetPreviewPlatformName(PlatformGroupName, VanillaPlatformName))
+		{
+			return GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+		}
+		else		
+#endif
+		{
+			const _StructType* This = StaticCast<const _StructType*>(this);
+			return This->Default;
+		}
+	}
+
+	UE_DEPRECATED(4.26, "GetValueForFeatureLevel is not needed for platform previewing and GetValue() should be used instead.")
 	_ValueType GetValueForFeatureLevel(ERHIFeatureLevel::Type FeatureLevel) const
 	{
 #if WITH_EDITORONLY_DATA
-		/* Temporary, we should replace this with something better using editor feature level preview system */
 		FName PlatformGroupName;
 		switch (FeatureLevel)
 		{
-			case ERHIFeatureLevel::ES3_1:
-			{
-				static FName NAME_Mobile("Mobile");
-				PlatformGroupName = NAME_Mobile;
-				break;
-			}
-			default:
-				PlatformGroupName = NAME_None;
-				break;
+		    case ERHIFeatureLevel::ES3_1:
+		    {
+			    PlatformGroupName = NAME_Mobile;
+			    break;
+		    }
+		    default:
+			    PlatformGroupName = NAME_None;
+			    break;
 		}
 		return GetValueForPlatformIdentifiers(PlatformGroupName);
 #else

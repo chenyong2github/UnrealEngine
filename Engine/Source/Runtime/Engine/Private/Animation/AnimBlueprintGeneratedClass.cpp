@@ -189,6 +189,7 @@ void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, FColor Color)
 	NewAnimNodePoseWatch.NodeID = NodeID;
 	NewAnimNodePoseWatch.PoseDrawColour = Color;
 	NewAnimNodePoseWatch.PoseInfo = MakeShareable(new FCompactHeapPose());
+	NewAnimNodePoseWatch.Object = nullptr;
 }
 
 void FAnimBlueprintDebugData::RemovePoseWatch(int32 NodeID)
@@ -293,6 +294,7 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	{
 		// handle potential renames of the class package
 		Handler.ValueHandlerNodeProperty.ResolveWithRenamedStructPackage(this);
+		check(Handler.ValueHandlerNodeProperty.Get() || Handler.ValueHandlerNodeProperty.IsPathToFieldEmpty());
 	}
 #endif // WITH_EDITORONLY_DATA
 

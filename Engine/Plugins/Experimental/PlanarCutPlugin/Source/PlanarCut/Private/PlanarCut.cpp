@@ -1748,7 +1748,7 @@ void CutWithPlanarCellsHelper(
 				{
 					auto FuncDistSq = [&](int B) { return V.DistanceSquared(Arrangement.Graph.GetVertex(B)); };
 					TPair<int, double> NearestPt = NoisePointHash.FindNearestInRadius(V, PointSpacing*.99, FuncDistSq);
-					return NearestPt.Key != NoisePointHash.InvalidValue();
+					return NearestPt.Key != NoisePointHash.GetInvalidValue();
 				};
 				for (int32 VertIdx = 0; VertIdx < Arrangement.Graph.MaxVertexID(); VertIdx++)
 				{

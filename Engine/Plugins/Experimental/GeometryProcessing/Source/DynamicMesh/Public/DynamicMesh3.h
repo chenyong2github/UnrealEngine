@@ -381,6 +381,9 @@ public:
 		});
 	}
 
+	/** Call ApplyFunc for each one-ring triangle of a vertex. Currently this is significantly more efficient than VtxTrianglesItr() in many use cases. */
+	void EnumerateVertexTriangles(int32 VertexID, TFunctionRef<void(int32)> ApplyFunc) const;
+
 	//
 	// Mesh Construction
 	//
@@ -475,6 +478,43 @@ public:
 			Vertices[i + 1] = vNewPos.Y;
 			Vertices[i + 2] = vNewPos.Z;
 			UpdateTimeStamp(true, false);
+		}
+	}
+
+	/** Set vertex position. DOES NOT UPDATE TIMESTAMPS.
+	This is meant to be used in conjunction with IncrementTimeStamps, below. Set a bunch of vertex positions then 
+	increment the timestamps with the number of vertices that were moved, rather than incrementing the timestamps for
+	each vertex.
+	*/
+	void SetVertex_NoTimeStampUpdate(int VertexID, const FVector3d& vNewPos)
+	{
+		checkSlow(VectorUtil::IsFinite(vNewPos));
+		check(IsVertex(VertexID));
+
+		if (VectorUtil::IsFinite(vNewPos))
+		{
+			int i = 3 * VertexID;
+			Vertices[i] = vNewPos.X;
+			Vertices[i + 1] = vNewPos.Y;
+			Vertices[i + 2] = vNewPos.Z;
+		}
+	}
+
+	/** Increment the specified timestamps by the given amount. Thread-safe. 
+	This is meant to be used in conjunction with SetVertex_NoTimeStampUpdate, above. Set a bunch of vertex positions then
+	increment the timestamps with the number of vertices that were moved, rather than incrementing the timestamps for
+	each vertex.
+	*/
+	void IncrementTimeStamps(int Amount, bool bShapeChange, bool bTopologyChange)
+	{
+		FPlatformAtomics::InterlockedAdd(&Timestamp, Amount);
+		if (bShapeChange)
+		{
+			FPlatformAtomics::InterlockedAdd(&ShapeTimestamp, Amount);
+		}
+		if (bTopologyChange)
+		{
+			FPlatformAtomics::InterlockedAdd(&TopologyTimestamp, Amount);
 		}
 	}
 
@@ -776,6 +816,11 @@ public:
 	 * bUseOrientation is more efficient but returns incorrect result if vertex is a bowtie
 	 */
 	EMeshResult GetVtxTriangles(int VertexID, TArray<int>& TrianglesOut, bool bUseOrientation) const;
+
+	/**
+	 * @return Triangle ID for a single triangle connected to VertexID, or InvalidID if VertexID does not exist or has no attached triangles
+	 */
+	int GetVtxSingleTriangle(int VertexID) const;
 
 	/**
 	* Get triangles connected to vertex in contiguous order, with multiple groups if vertex is a bowtie.
@@ -1291,6 +1336,8 @@ protected:
 	}
 
 	int FindTriangleEdge(int TriangleID, int vA, int vB) const;
+
+	int32 FindEdgeInternal(int32 vA, int32 vB, bool& bIsBoundary) const;
 
 	inline bool EdgeHasVertex(int EdgeID, int VertexID) const
 	{

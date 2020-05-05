@@ -35,8 +35,6 @@ protected:
 	FOnJoinSessionCompleteDelegate OnJoinSessionCompleteDelegate;
 	/** Delegate for accepting session invites */
 	FOnSessionUserInviteAcceptedDelegate OnSessionUserInviteAcceptedDelegate;
-	/** Delegate for handling the play together system event */
-	FOnPlayTogetherEventReceivedDelegate OnPlayTogetherEventReceivedDelegate;
 
 	// Handles to the above delegates
 	FDelegateHandle OnSessionInviteAcceptedDelegateHandle;
@@ -44,7 +42,6 @@ protected:
 	FDelegateHandle OnDestroyForJoinSessionCompleteDelegateHandle;
 	FDelegateHandle OnDestroyForMainMenuCompleteDelegateHandle;
 	FDelegateHandle OnJoinSessionCompleteDelegateHandle;
-	FDelegateHandle OnPlayTogetherEventReceivedDelegateHandle;
 
 	/** Handle to outstanding start session call */
 	FDelegateHandle StartSessionCompleteHandle;

@@ -278,6 +278,11 @@ private:
 	UPROPERTY(EditAnywhere, Category=Custom)
 	TEnumAsByte<ECollisionEnabled::Type> CollisionEnabled;
 
+	/** When per-shape collision is changed at runtime, state is stored in an optional array of per-shape collision state.
+	*	Before this array's IsSet state is true, collision values from the BodySetup's AggGeom are used in GetShapeCollisionEnabled.
+	*/
+	TOptional<TArray<TEnumAsByte<ECollisionEnabled::Type>>> ShapeCollisionEnabled;
+
 public:
 	// Current state of the physics body for tracking deferred addition and removal.
 	BodyInstanceSceneState CurrentSceneState;
@@ -295,6 +300,10 @@ public:
 	/** If true Continuous Collision Detection (CCD) will be used for this component */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Collision)
 	uint8 bUseCCD : 1;
+
+	/** If true ignore analytic collisions and treat objects as a general implicit surface */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Collision)
+	uint8 bIgnoreAnalyticCollisions : 1;
 
 	/**	Should 'Hit' events fire when this object collides during physics simulation. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Collision, meta = (DisplayName = "Simulation Generates Hit Events"))
@@ -925,6 +934,9 @@ public:
 	/** Controls what kind of collision is enabled for this body and allows optional disable physics rebuild */
 	void SetCollisionEnabled(ECollisionEnabled::Type NewType, bool bUpdatePhysicsFilterData = true);
 
+	/** Controls what kind of collision is enabled for a particular shape */
+	void SetShapeCollisionEnabled(const int32 ShapeIndex, ECollisionEnabled::Type NewType, bool bUpdatePhysicsFilterData = true);
+
 private:
 
 	ECollisionEnabled::Type GetCollisionEnabled_CheckOwner() const;
@@ -935,6 +947,9 @@ public:
 	{
 		return (bCheckOwner ? GetCollisionEnabled_CheckOwner() : CollisionEnabled.GetValue());
 	}
+
+	/** Get the current type of collision enabled for a particular shape */
+	ECollisionEnabled::Type GetShapeCollisionEnabled(const int32 ShapeIndex) const;
 
 	/**  
 	 * Set Collision Profile Name (deferred)

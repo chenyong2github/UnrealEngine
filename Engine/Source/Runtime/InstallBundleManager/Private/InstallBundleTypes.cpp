@@ -78,6 +78,7 @@ const TCHAR* LexToString(EInstallBundleResult Result)
 		TEXT("OK"),
 		TEXT("FailedPrereqRequiresLatestClient"),
 		TEXT("FailedPrereqRequiresLatestContent"),
+		TEXT("FailedCacheReserve"),
 		TEXT("InstallError"),
 		TEXT("InstallerOutOfDiskSpaceError"),
 		TEXT("ManifestArchiveError"),

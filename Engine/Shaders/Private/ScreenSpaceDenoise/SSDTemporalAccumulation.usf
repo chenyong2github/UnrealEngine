@@ -9,17 +9,10 @@
 	#define REJECTION_INPUT_MODE_1UNNORMALIZED 0
 	#define REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS 1
 
-/** What set of sample should be used for history rejection. */
-	#define REJECTION_SAMPLE_SET_BOX 0
-	// [ Sobek 2018, "Real-time Reflections_in Mafia III" ]
-	#define REJECTION_SAMPLE_SET_SOBEK2018 1
-
-
 /** How to perform history rejection. */
 	#define HISTORY_REJECTION_DISABLED 0
 	#define HISTORY_REJECTION_MINMAX_BOUNDARIES 1
 	#define HISTORY_REJECTION_VAR_BOUNDARIES 2
-	#define HISTORY_REJECTION_ADAPTIVE_INTEGRATION 3
 
 
 //------------------------------------------------------- CONFIGS
@@ -97,21 +90,11 @@
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_TAA
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_REFLECTIONS_TAA
 
+	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3_PLUS
+
 	// Use variance based rejection.
 	#define CONFIG_HISTORY_REJECTION             HISTORY_REJECTION_VAR_BOUNDARIES
 	#define CONFIG_HISTORY_REJECTION_COLOR_SPACE REFLECTIONS_REJECTION_COLOR_SPACE
-
-	// Use pre transformed rejection buffer that contains pre transformed momment 1 & 2.
-	#if 1
-		#define CONFIG_USE_REJECTION_BUFFER               1
-		#define CONFIG_SIGNAL_HISTORY_REJECTION_LAYOUT    SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION
-		
-		#define CONFIG_REJECTION_TEXTURE_COUNT 3 
-
-		#define CONFIG_REJECTION_BUFFER_COLOR_SPACE       REFLECTIONS_REJECTION_COLOR_SPACE
-		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
-		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
-	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
 	#define MAX_SIGNAL_BATCH_SIZE 1
@@ -136,7 +119,7 @@
 		#define CONFIG_REJECTION_TEXTURE_COUNT            1
 
 		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
-		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
+		#define CONFIG_REJECTION_SAMPLE_SET               SAMPLE_SET_3X3_SOBEK2018
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
@@ -153,7 +136,6 @@
 	#define CONFIG_HISTORY_TEXTURE_COUNT 2
 
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_MINMAX_BOUNDARIES
-	//#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_ADAPTIVE_INTEGRATION
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 3
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
@@ -175,7 +157,6 @@
 	#define CONFIG_HISTORY_TEXTURE_COUNT 4
 
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_MINMAX_BOUNDARIES
-	//#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_ADAPTIVE_INTEGRATION
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 4
 
 	// Given it's a spherical harmonic that store directionality, only need position based rejection.
@@ -204,6 +185,8 @@
 
 	// Reject using variance to smooth highlights further on history rejections.
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
+
+	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3_PLUS
 
 	// Use position and normal based rejection ideal for diffuse.
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
@@ -239,7 +222,7 @@
 
 /** Sample set to use for history rejection. */
 #ifndef CONFIG_REJECTION_SAMPLE_SET
-	#define CONFIG_REJECTION_SAMPLE_SET REJECTION_SAMPLE_SET_BOX
+	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_NXN
 #endif
 
 /** The color space to use for history rejection. */
@@ -260,6 +243,11 @@
 /** Adds a multiplier on how the distance should be computed. */
 #ifndef CONFIG_BILATERAL_DISTANCE_MULTIPLIER
 	#define CONFIG_BILATERAL_DISTANCE_MULTIPLIER 1.0
+#endif
+
+/** Whether should consider the depth velocity to compute the reference scene depth. */
+#ifndef CONFIG_PATCH_PREV_SCENE_DEPTH
+	#define CONFIG_PATCH_PREV_REF_SCENE_DEPTH 0
 #endif
 
 
@@ -289,7 +277,7 @@
 #define COMPILE_MOMENT1_ACCUMULATOR 1
 
 #if CONFIG_HISTORY_REJECTION != HISTORY_REJECTION_DISABLED
-	#define COMPILE_MININVFREQ_ACCUMULATOR 1
+	#define COMPILE_MIN_FREQUENCY_ACCUMULATOR 1
 #endif
 
 #if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_MINMAX_BOUNDARIES
@@ -313,7 +301,10 @@ int bCameraCut[MAX_SIGNAL_BATCH_SIZE];
 
 float HistoryPreExposureCorrection;
 
-float4 HistoryBufferUVMinMax[CONFIG_SIGNAL_BATCH_SIZE];
+float4 ScreenPosToHistoryBufferUV;
+float4 HistoryBufferSizeAndInvSize;
+float4 HistoryBufferUVMinMax;
+float4 HistoryBufferScissorUVMinMax[CONFIG_SIGNAL_BATCH_SIZE];
 
 
 #if !defined(CONFIG_INPUT_TEXTURE_COUNT)
@@ -432,24 +423,38 @@ void TemporallyAccumulate(
 		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 
+	// Sample current frame data.
+	FSSDCompressedSceneInfos CompressedRefSceneMetadata = SampleCompressedSceneMetadata(
+		/* bPrevFrame = */ false,
+		SceneBufferUV, BufferUVToBufferPixelCoord(SceneBufferUV));
+
+	float DeviceZ;
+	{
+		FSSDSampleSceneInfos RefInfo = UncompressSampleSceneInfo(
+			CONFIG_METADATA_BUFFER_LAYOUT, /* bIsPrevFrame = */ false,
+			DenoiserBufferUVToScreenPosition(SceneBufferUV),
+			CompressedRefSceneMetadata);
+
+		DeviceZ = RefInfo.DeviceZ;
+	}
+
 	// Reproject to previous frame.
-	float2 HistoryScreenPosition = DenoiserBufferUVToScreenPosition(SceneBufferUV);
+	float3 HistoryScreenPosition = float3(DenoiserBufferUVToScreenPosition(SceneBufferUV), DeviceZ);
+	bool bIsDynamicPixel = false;
 	if (1)
 	{
-		float DeviceZ = SceneDepthBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).r;
+		float4 ThisClip = float4(HistoryScreenPosition, 1);
 
-		float4 ThisClip = float4(HistoryScreenPosition, DeviceZ, 1);
 		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-		float2 PrevScreen = PrevClip.xy / PrevClip.w;
-		float2 Velocity = HistoryScreenPosition - PrevScreen;
+		float3 PrevScreen = PrevClip.xyz * rcp(PrevClip.w);
+		float3 Velocity = HistoryScreenPosition - PrevScreen;
 
 		if (1)
 		{
-			float2 VelocityN = SceneVelocityBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).xy;
-			bool DynamicN = VelocityN.x > 0.0;
-			if (DynamicN)
+			float3 EncodedVelocity = SceneVelocityBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).xyz;
+			if (EncodedVelocity.x > 0.0)
 			{
-				Velocity = DecodeVelocityFromTexture(VelocityN);
+				Velocity = DecodeVelocityFromTexture(EncodedVelocity);
 			}
 		}
 
@@ -457,12 +462,9 @@ void TemporallyAccumulate(
 	}
 
 
-	// Sample current frame data.
-	FSSDCompressedSceneInfos CompressedRefSceneMetadata = SampleCompressedSceneMetadata(
-		/* bPrevFrame = */ false,
-		SceneBufferUV, BufferUVToBufferPixelCoord(SceneBufferUV));
-
-	FSSDSignalArray CurrentFrameSamples = SampleMultiplexedSignals(
+	FSSDSignalArray CurrentFrameSamples;
+	FSSDSignalFrequencyArray CurrentFrameFrequencies;
+	SampleMultiplexedSignals(
 		SignalInput_Textures_0,
 		SignalInput_Textures_1,
 		SignalInput_Textures_2,
@@ -472,8 +474,8 @@ void TemporallyAccumulate(
 		/* MultiplexedSampleId = */ 0,
 		/* bNormalizeSample = */ false,
 		SceneBufferUV,
-		/* MipLevel = */ 0);
-
+		/* out */ CurrentFrameSamples,
+		/* out */ CurrentFrameFrequencies);
 
 	float WorldBluringRadius;
 	float TargetedSampleCount;
@@ -488,13 +490,21 @@ void TemporallyAccumulate(
 		float PixelWorldBluringRadius = ComputeWorldBluringRadiusCausedByPixelSize(RefSceneMetadata);
 		WorldBluringRadius = WorldBluringRadiusToBilateralWorldDistance(PixelWorldBluringRadius);
 	
-		TargetedSampleCount = TARGETED_SAMPLE_COUNT;
-
 		#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 		{
-			float SignalPixelBluringRadius = ComputeInfinityBluringRadius(RefSceneMetadata) * View.ViewSizeAndInvSize.x;
+			float2 NormalizedScreenMajorAxis;
+			float InifinityMajorViewportRadius;
+			float InifinityMinorViewportRadius;
+			ProjectSpecularLobeToScreenSpace(
+				RefSceneMetadata,
+				/* out */ NormalizedScreenMajorAxis,
+				/* out */ InifinityMajorViewportRadius,
+				/* out */ InifinityMinorViewportRadius);
 
-			TargetedSampleCount = PI * SignalPixelBluringRadius * SignalPixelBluringRadius;
+			InifinityMajorViewportRadius *= View.ViewSizeAndInvSize.x;
+			InifinityMinorViewportRadius *= View.ViewSizeAndInvSize.x;
+
+			TargetedSampleCount = PI * InifinityMajorViewportRadius * InifinityMinorViewportRadius;
 
 			// TODO(Denoiser): try to make this better? * 0.125 to avoid banding caused by floating point precision.
 			TargetedSampleCount = clamp(TargetedSampleCount, 1, TARGETED_SAMPLE_COUNT);
@@ -509,8 +519,8 @@ void TemporallyAccumulate(
 	// Sample the history buffer.
 	FSSDSignalArray HistorySamples = CreateSignalArrayFromScalarValue(0.0);
 	{
-		float2 HistoryBufferUV = HistoryScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
+		float2 HistoryBufferUV = HistoryScreenPosition.xy* ScreenPosToHistoryBufferUV.xy + ScreenPosToHistoryBufferUV.zw;
+		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, HistoryBufferUVMinMax.xy, HistoryBufferUVMinMax.zw);
 		bool bIsPreviousFrameOffscreen = any(HistoryBufferUV != ClampedHistoryBufferUV);
 
 		// TODO(Denoiser): global camera cut to save perf that is going to be required for panic post filtering.
@@ -543,8 +553,8 @@ void TemporallyAccumulate(
 			SetBilateralPreset(CONFIG_HISTORY_BILATERAL_PRESET, /* inout */ KernelConfig);
 
 			// SGPR configuration of the kernel.
-			KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
-			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
+			KernelConfig.BufferSizeAndInvSize = HistoryBufferSizeAndInvSize;
+			KernelConfig.BufferBilinearUVMinMax = HistoryBufferUVMinMax;
 			
 			#if CONFIG_CLAMP_UV_PER_SIGNAL
 			{
@@ -552,18 +562,46 @@ void TemporallyAccumulate(
 				for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 				{
 					uint MultiplexId = BatchedSignalId / CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
-					KernelConfig.PerSignalUVMinMax[MultiplexId] = HistoryBufferUVMinMax[MultiplexId];
+					KernelConfig.PerSignalUVMinMax[MultiplexId] = HistoryBufferScissorUVMinMax[MultiplexId];
 				}
 			}
 			#endif
 			
 			// VGPR configuration of the kernel.
 			KernelConfig.BufferUV = HistoryBufferUV + BufferUVBilinearCorrection;
+			KernelConfig.bIsDynamicPixel = bIsDynamicPixel;
+
+			#if CONFIG_PATCH_PREV_SCENE_DEPTH
+			{
+				KernelConfig.RefBufferUV = HistoryBufferUV;
+				KernelConfig.RefSceneMetadataLayout = METADATA_BUFFER_LAYOUT_WORLD_POS_SHADINGMODEL;
+				//KernelConfig.RefSceneMetadataLayout = CONFIG_METADATA_BUFFER_LAYOUT;
+
+				FSSDSampleSceneInfos PrevRefInfo = UncompressSampleSceneInfo(
+					CONFIG_METADATA_BUFFER_LAYOUT, /* bIsPrevFrame = */ false,
+					BufferUVToBufferPixelCoord(SceneBufferUV),
+					CompressedRefSceneMetadata);
+
+				PrevRefInfo.ScreenPosition = HistoryScreenPosition.xy;
+				PrevRefInfo.DeviceZ = HistoryScreenPosition.z;
+				PrevRefInfo.WorldDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
+				
+				float4 ClipPosition = float4(HistoryScreenPosition.xy * (View.ViewToClip[3][3] < 1.0f ? PrevRefInfo.WorldDepth : 1.0f), PrevRefInfo.WorldDepth, 1);
+				
+				PrevRefInfo.TranslatedWorldPosition = mul(ClipPosition, View.PrevScreenToTranslatedWorld).xyz + (View.PreViewTranslation.xyz - View.PrevPreViewTranslation.xyz);
+				
+				KernelConfig.CompressedRefSceneMetadata = CompressSampleSceneInfo(
+					KernelConfig.RefSceneMetadataLayout,
+					PrevRefInfo);
+			}
+			#else
 			{
 				KernelConfig.CompressedRefSceneMetadata = CompressedRefSceneMetadata;
 				KernelConfig.RefBufferUV = SceneBufferUV;
 				KernelConfig.RefSceneMetadataLayout = CONFIG_METADATA_BUFFER_LAYOUT;
 			}
+			#endif
+
 
 			// Compute random signals.
 			ISOLATE
@@ -600,12 +638,6 @@ void TemporallyAccumulate(
 			{
 				FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
 				FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
-
-				// Override the previous frame's inverse frequency with the current frame's one, because don't know how much it changed.
-				HistorySamples.Array[BatchedSignalId].WorldBluringRadius = (
-					HistorySample.SampleCount *
-					CurrentFrameSample.WorldBluringRadius *
-					SafeRcp(CurrentFrameSample.SampleCount));
 
 				// Applies correction when pre exposure change happen.
 				#if COMPILE_SIGNAL_COLOR
@@ -652,23 +684,16 @@ void TemporallyAccumulate(
 				KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS;
 			KernelConfig.WorldBluringDistanceMultiplier = CONFIG_BILATERAL_DISTANCE_MULTIPLIER;
 			
-			#if CONFIG_REJECTION_SAMPLE_SET == REJECTION_SAMPLE_SET_SOBEK2018
+			#if CONFIG_REJECTION_SAMPLE_SET == SAMPLE_SET_NXN
 			{
-				KernelConfig.SampleSet = SAMPLE_SET_3X3_SOBEK2018;
-				//KernelConfig.SampleSet = SAMPLE_SET_NXN;
-				//KernelConfig.BoxKernelRadius = 3;
-				KernelConfig.bUnroll = true;
-			}
-			#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
-			{
-				KernelConfig.SampleSet = SAMPLE_SET_3X3_PLUS;
-				KernelConfig.bUnroll = true;
+				KernelConfig.SampleSet = SAMPLE_SET_NXN;
+				KernelConfig.BoxKernelRadius = 3;
+				KernelConfig.bUnroll = false;
 			}
 			#else
 			{
-				KernelConfig.SampleSet = CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK ? SAMPLE_SET_3X3 : SAMPLE_SET_NXN;
-				KernelConfig.BoxKernelRadius = 3;
-				KernelConfig.bUnroll = false;
+				KernelConfig.SampleSet = CONFIG_REJECTION_SAMPLE_SET;
+				KernelConfig.bUnroll = true;
 			}
 			#endif
 
@@ -733,13 +758,20 @@ void TemporallyAccumulate(
 			
 			FSSDCompressedSignalAccumulatorArray UnusedCompressedAccumulators = CreateUninitialisedCompressedAccumulatorArray();
 
+			FSSDSignalArray CenterSample = CurrentFrameSamples;
+			if (KernelConfig.bNormalizeSample)
+			{
+				CenterSample = NormalizeToOneSampleArray(CurrentFrameSamples);
+			}
+
 			AccumulateRefSampleAsKernelCenter(
 				KernelConfig,
 				/* inout */ SignalAccumulators,
 				/* inout */ UnusedCompressedAccumulators,
 				KernelConfig.RefBufferUV,
 				RefSceneMetadata,
-				NormalizeToOneSampleArray(CurrentFrameSamples));
+				CenterSample,
+				CurrentFrameFrequencies);
 		}
 
 		{
@@ -890,25 +922,28 @@ void TemporallyAccumulate(
 			{
 				FSSDSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;
 				FSSDSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
-		
+
+				// If no neighborhood had a sample the maximum sample count will remain 0.
+				bool bIsValid = NeighborMax.SampleCount > 0.0;
+
 				float RejectedSampleCount = 0;
 				HistorySample = MulSignal(TransformSignalForPostRejection(ClampSignal(TransformInputBufferForPreRejection(NormalizeToOneSample(HistorySample)), NeighborMin, NeighborMax)), HistorySample.SampleCount - RejectedSampleCount);
+
+				// All the clamping box was invalid, so invalidate the history sample too.
+				FLATTEN
+				if (!bIsValid)
+				{
+					HistorySample = CreateSignalSampleFromScalarValue(0.0);
+				}
 			}
 			#endif
 
 			// Dilate the smallest inv frequency.
 			if (1)
 			{
-				float NeightborMinBluringRadius = SignalAccumulators.Array[BatchedSignalId].MinInvFrequency;
-				CurrentFrameSample.WorldBluringRadius = min(CurrentFrameSample.WorldBluringRadius, NeightborMinBluringRadius * CurrentFrameSample.SampleCount); 
-			
-				#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK && 0
-					DebugOutput[DispatchThreadId] = float4(
-						NeightborMinBluringRadius,
-						NeightborMinBluringRadius == WORLD_RADIUS_MISS,
-						0,
-						0);
-				#endif
+				CurrentFrameFrequencies.Array[BatchedSignalId] = MinSignalFrequency(
+					CurrentFrameFrequencies.Array[BatchedSignalId],
+					SignalAccumulators.Array[BatchedSignalId].MinFrequency);
 			}
 			
 			HistorySamples.Array[BatchedSignalId] = HistorySample;
@@ -917,81 +952,6 @@ void TemporallyAccumulate(
 	}
 	#endif // CONFIG_HISTORY_REJECTION > 0
 	
-	// Blends the current and history together.
-	#if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_ADAPTIVE_INTEGRATION
-	{
-		#if CONFIG_SIGNAL_BATCH_SIZE != 1
-			#error Unsupported.
-		#endif
-	
-		#if !COMPILE_SIGNAL_COLOR
-			#error Need to compile signal color.
-		#endif
-
-		const uint BatchedSignalId = 0;
-	
-		FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
-		FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
-
-		// Construct the current frame sample of the temporal analysis.
-		FSSDSignalArray CurrentTemporalAnalysis = CreateSignalArrayFromScalarValue(0.0);
-		{
-			float Luma = GetSignalLuma4(CurrentFrameSample, STANDARD_BUFFER_COLOR_SPACE);
-			float SampleCount = CurrentFrameSample.SampleCount; // TODO(Denoiser): 1 instead?
-
-			CurrentTemporalAnalysis.Array[1].SampleCount = SampleCount;
-			CurrentTemporalAnalysis.Array[1].SceneColor.x = Luma * SampleCount;
-			CurrentTemporalAnalysis.Array[2].SampleCount = SampleCount;
-			CurrentTemporalAnalysis.Array[2].SceneColor.x = (Luma * Luma) * SampleCount;
-		}
-
-		// Update the temporal analysis.
-		FSSDSignalArray TemporalAnalysis;
-		{
-			const float MinimumAnalasisHisteresis = 0.3; // TODO(Denoiser): expose cvar
-
-			float PreviousFrameWeight = min(HistorySample.SampleCount, HistorySamples.Array[1].SampleCount * rcp(MinimumAnalasisHisteresis) - CurrentFrameSample.SampleCount);
-			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
-			
-			UNROLL
-			for (uint SignalMultiplexId = 1; SignalMultiplexId < 3; SignalMultiplexId++)
-			{
-				TemporalAnalysis.Array[SignalMultiplexId] = Add(Mul(HistorySamples.Array[SignalMultiplexId], PreviousFrameMultiplier), CurrentTemporalAnalysis.Array[SignalMultiplexId]);
-			}
-		}
-
-		// Compute the histeresis of the main signal.
-		float MainHisteresiss = 0;
-		{
-			float InvSampleCount = rcp(TemporalAnalysis.Array[1].SampleCount);
-
-			float AvgLuma = TemporalAnalysis.Array[2].SceneColor.x * InvSampleCount;
-			float VarianceLuma = TemporalAnalysis.Array[2].SceneColor.x * InvSampleCount - AvgLuma * AvgLuma;
-			float StdDevLuma = sqrt(VarianceLuma);
-
-			float LikelyNess = 0.5 * sqrt(StdDevLuma * HistorySample.SceneColor.x) / (StdDevLuma + HistorySample.SceneColor.x);
-
-			MainHisteresiss = 0.3 / max(LikelyNess * StdDevLuma, 0.3); 
-		}
-
-		// Accumulate the actual history.
-		{
-			float PreviousFrameWeight = min(HistorySample.SampleCount, CurrentFrameSample.SampleCount * rcp(MainHisteresiss) - CurrentFrameSample.SampleCount);
-			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
-			
-			HistorySample = AddSignal(MulSignal(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
-		}
-		
-		HistorySamples.Array[BatchedSignalId] = HistorySample;
-
-		// Copy the temporal analysis into the history sample.
-		UNROLL
-		for (uint SignalMultiplexId = 1; SignalMultiplexId < 3; SignalMultiplexId++)
-		{
-			HistorySamples.Array[SignalMultiplexId] = TemporalAnalysis.Array[SignalMultiplexId];
-		}
-	}
-	#else // CONFIG_HISTORY_REJECTION != HISTORY_REJECTION_ADAPTIVE_INTEGRATION
 	{
 		UNROLL
 		for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
@@ -1021,18 +981,11 @@ void TemporallyAccumulate(
 				HistorySample,
 				/* SrcBasis = */ CONFIG_HISTORY_BLENDING_COLOR_SPACE,
 				/* DestBasis = */ STANDARD_BUFFER_COLOR_SPACE);
-			
-			// Ignore the bluring radius of previous frame frequencies as it gets clamped anyway, just take the current frame.
-			HistorySample.WorldBluringRadius = (
-				CurrentFrameSample.WorldBluringRadius *
-				SafeRcp(CurrentFrameSample.SampleCount) *
-				HistorySample.SampleCount);
 
-			if (View.GeneralPurposeTweak > 0.5)
+			//if (View.GeneralPurposeTweak > 0.5)
 			HistorySamples.Array[BatchedSignalId] = HistorySample;
 		}
 	}
-	#endif
 
 	// Romoves NaN and negative numbers
 	// HistorySample = Minus(Min(Minus(HistorySample), CreateSignalSampleFromScalarValue(0.0)));
@@ -1040,23 +993,15 @@ void TemporallyAccumulate(
 	// Whitelists what should be outputed to ensure the compiler compiles out evreything that ends up unneeded.
 	uint MultiplexCount = 1;
 	FSSDSignalArray OutputSamples = CreateSignalArrayFromScalarValue(0.0);
+	FSSDSignalFrequencyArray OutputFrequencies = CreateInvalidSignalFrequencyArray();
 	{
-		#if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_ADAPTIVE_INTEGRATION
-		{
-			MultiplexCount = CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
-		}
-		#elif 1
-		{
-			MultiplexCount = CONFIG_SIGNAL_BATCH_SIZE;
-		}
-		#else
-			#error Unknown output mode.
-		#endif
+		MultiplexCount = CONFIG_SIGNAL_BATCH_SIZE;
 		
 		UNROLL
 		for (uint BatchedSignalId = 0; BatchedSignalId < MultiplexCount; BatchedSignalId++)
 		{
 			OutputSamples.Array[BatchedSignalId] = HistorySamples.Array[BatchedSignalId];
+			OutputFrequencies.Array[BatchedSignalId] = CurrentFrameFrequencies.Array[BatchedSignalId];
 		}
 	}
 	
@@ -1071,8 +1016,11 @@ void TemporallyAccumulate(
 			SignalHistoryOutput_UAVs_1,
 			SignalHistoryOutput_UAVs_2,
 			SignalHistoryOutput_UAVs_3,
-			CONFIG_SIGNAL_HISTORY_LAYOUT, MultiplexCount,
-			OutputPixelPostion, OutputSamples.Array);
+			CONFIG_SIGNAL_HISTORY_LAYOUT,
+			MultiplexCount,
+			OutputPixelPostion,
+			OutputSamples,
+			OutputFrequencies);
 	}
 } // TemporallyAccumulate
 

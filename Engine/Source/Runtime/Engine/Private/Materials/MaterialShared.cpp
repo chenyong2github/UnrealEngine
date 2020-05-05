@@ -42,6 +42,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "UObject/CoreRedirects.h"
 #include "RayTracingDefinitions.h"
+#include "Interfaces/ITargetPlatform.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
@@ -202,6 +203,8 @@ bool ReloadMaterialResource(
 
 	FString Filename;
 	GetReloadInfo(PackageName, &Filename);
+
+	UE_LOG(LogMaterial, VeryVerbose, TEXT("Attempting to load material resources for package %s (file name: %s)."), *PackageName, *Filename);
 
 	FMaterialResourceProxyReader Ar(*Filename, OffsetToFirstResource, FeatureLevel, QualityLevel);
 	FMaterialResource& Tmp = *InOutMaterialResource;
@@ -511,7 +514,7 @@ int32 FMaterialAttributesInput::CompileWithDefault(class FMaterialCompiler* Comp
 }
 #endif  // WITH_EDITOR
 
-void FMaterial::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
+void FMaterial::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FMaterialShaderMapId& OutId) const
 { 
 	if (bLoadedCookedShaderMapId)
 	{
@@ -543,11 +546,26 @@ void FMaterial::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& O
 		OutId.FeatureLevel = GetFeatureLevel();
 		OutId.SetShaderDependencies(ShaderTypes, ShaderPipelineTypes, VFTypes, Platform);
 		GetReferencedTexturesHash(Platform, OutId.TextureReferencesHash);
+
+		if (TargetPlatform)
+		{
+			OutId.LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
+		}
+		else
+		{
+			OutId.LayoutParams.InitializeForCurrent();
+		}
 #else
 		OutId.QualityLevel = GetQualityLevelForShaderMapId();
 		OutId.FeatureLevel = GetFeatureLevel();
 
-		UE_LOG(LogMaterial, Log, TEXT("Tried to access an uncooked shader map ID in a cooked application"));
+		if (TargetPlatform != nullptr)
+		{
+			UE_LOG(LogMaterial, Error, TEXT("FMaterial::GetShaderMapId: TargetPlatform is not null, but a cooked executable cannot target platforms other than its own."));
+		}
+		OutId.LayoutParams.InitializeForCurrent();
+
+		UE_LOG(LogMaterial, Error, TEXT("Tried to access an uncooked shader map ID in a cooked application"));
 #endif
 	}
 }
@@ -664,17 +682,17 @@ const FUniformExpressionSet& FMaterial::GetUniformExpressions() const
 	return EmptyExpressions;
 }
 
-const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& FMaterial::GetUniformTextureExpressions(EMaterialTextureParameterType Type) const
+TArrayView<const FMaterialTextureParameterInfo> FMaterial::GetUniformTextureExpressions(EMaterialTextureParameterType Type) const
 {
 	return GetUniformExpressions().UniformTextureParameters[(uint32)Type];
 }
 
-const TArray<FMaterialVectorParameterInfo, FMemoryImageAllocator>& FMaterial::GetUniformVectorParameterExpressions() const
+TArrayView<const FMaterialVectorParameterInfo> FMaterial::GetUniformVectorParameterExpressions() const
 { 
 	return GetUniformExpressions().UniformVectorParameters;
 }
 
-const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>& FMaterial::GetUniformScalarParameterExpressions() const
+TArrayView<const FMaterialScalarParameterInfo> FMaterial::GetUniformScalarParameterExpressions() const
 { 
 	return GetUniformExpressions().UniformScalarParameters;
 }
@@ -1038,6 +1056,7 @@ bool FMaterialResource::IsSpecialEngineMaterial() const { return Material->bUsed
 bool FMaterialResource::HasVertexPositionOffsetConnected() const { return HasMaterialAttributesConnected() || (!Material->bUseMaterialAttributes && Material->WorldPositionOffset.IsConnected()); }
 bool FMaterialResource::HasPixelDepthOffsetConnected() const { return HasMaterialAttributesConnected() || (!Material->bUseMaterialAttributes && Material->PixelDepthOffset.IsConnected()); }
 bool FMaterialResource::HasMaterialAttributesConnected() const { return Material->bUseMaterialAttributes && Material->MaterialAttributes.IsConnected(); }
+EMaterialShadingRate FMaterialResource::GetShadingRate() const { return Material->ShadingRate; }
 FString FMaterialResource::GetBaseMaterialPathName() const { return Material->GetPathName(); }
 FString FMaterialResource::GetDebugName() const
 {
@@ -1072,6 +1091,11 @@ bool FMaterialResource::IsUsedWithHairStrands() const
 bool FMaterialResource::IsUsedWithLidarPointCloud() const
 {
 	return Material->bUsedWithLidarPointCloud;
+}
+
+bool FMaterialResource::IsUsedWithVirtualHeightfieldMesh() const
+{
+	return Material->bUsedWithVirtualHeightfieldMesh;
 }
 
 bool FMaterialResource::IsUsedWithLandscape() const
@@ -1709,7 +1733,7 @@ bool FMaterial::CacheShaders(EShaderPlatform Platform, const ITargetPlatform* Ta
 {
 	FAllowCachingStaticParameterValues AllowCachingStaticParameterValues(*this);
 	FMaterialShaderMapId NoStaticParametersId;
-	GetShaderMapId(Platform, NoStaticParametersId);
+	GetShaderMapId(Platform, TargetPlatform, NoStaticParametersId);
 	return CacheShaders(NoStaticParametersId, Platform, TargetPlatform);
 }
 
@@ -2904,7 +2928,7 @@ bool FMaterial::GetMaterialExpressionSource( FString& OutSource )
 
 	FMaterialCompilationOutput TempOutput;
 	FMaterialShaderMapId ShaderMapID;
-	GetShaderMapId(GMaxRHIShaderPlatform, ShaderMapID);
+	GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ShaderMapID);
 	FStaticParameterSet StaticParamSet;
 	GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 
@@ -3149,6 +3173,9 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 			}
 		}
 
+#if WITH_EDITOR
+		MI->UpdateCachedLayerParameters();
+#endif
 		MI->RecacheUniformExpressions(true);
 		MI->InitStaticPermutation();//bHasStaticPermutation can change.
 		if (MI->bHasStaticPermutationResource)
@@ -3289,7 +3316,7 @@ void UMaterialInterface::AnalyzeMaterialProperty(EMaterialProperty InProperty, i
 	FMaterialCompilationOutput TempOutput;
 	FMaterialResource* MaterialResource = GetMaterialResource(GMaxRHIFeatureLevel);
 	FMaterialShaderMapId ShaderMapID;
-	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, ShaderMapID);
+	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ShaderMapID);
 	FStaticParameterSet StaticParamSet;
 	MaterialResource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 	FMaterialAnalyzer MaterialTranslator(MaterialResource, TempOutput, StaticParamSet, GMaxRHIShaderPlatform, MaterialResource->GetQualityLevel(), GMaxRHIFeatureLevel);
@@ -3327,7 +3354,7 @@ bool UMaterialInterface::IsTextureReferencedByProperty(EMaterialProperty InPrope
 	FMaterialCompilationOutput TempOutput;
 	FMaterialResource* MaterialResource = GetMaterialResource(GMaxRHIFeatureLevel);
 	FMaterialShaderMapId ShaderMapID;
-	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, ShaderMapID);
+	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ShaderMapID);
 	FStaticParameterSet StaticParamSet;
 	MaterialResource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 	FHLSLMaterialTranslator MaterialTranslator(MaterialResource, TempOutput, StaticParamSet, GMaxRHIShaderPlatform, MaterialResource->GetQualityLevel(), GMaxRHIFeatureLevel);
@@ -3929,8 +3956,7 @@ FMaterialResourceProxyReader::FMaterialResourceProxyReader(
 	ERHIFeatureLevel::Type FeatureLevel,
 	EMaterialQualityLevel::Type QualityLevel) :
 	FArchiveProxy(Ar),
-	OffsetToEnd(-1),
-	bReleaseInnerArchive(false)
+	OffsetToEnd(-1)
 {
 	check(InnerArchive.IsLoading());
 	Initialize(FeatureLevel, QualityLevel, FeatureLevel != ERHIFeatureLevel::Num);
@@ -3941,9 +3967,9 @@ FMaterialResourceProxyReader::FMaterialResourceProxyReader(
 	uint32 NameMapOffset,
 	ERHIFeatureLevel::Type FeatureLevel,
 	EMaterialQualityLevel::Type QualityLevel) :
-	FArchiveProxy(*IFileManager::Get().CreateFileReader(Filename, FILEREAD_NoFail)),
-	OffsetToEnd(-1),
-	bReleaseInnerArchive(true)
+	TUniquePtr(IFileManager::Get().CreateFileReader(Filename, FILEREAD_NoFail)), // Create and store the FileArchive
+	FArchiveProxy(*Get()), // Now link it to the archive proxy
+	OffsetToEnd(-1)
 {
 	InnerArchive.Seek(NameMapOffset);
 	Initialize(FeatureLevel, QualityLevel);
@@ -3951,11 +3977,7 @@ FMaterialResourceProxyReader::FMaterialResourceProxyReader(
 
 FMaterialResourceProxyReader::~FMaterialResourceProxyReader()
 {
-	if (bReleaseInnerArchive)
-	{
-		delete &InnerArchive;
-	}
-	else if (OffsetToEnd != -1)
+	if (OffsetToEnd != -1)
 	{
 		InnerArchive.Seek(OffsetToEnd);
 	}

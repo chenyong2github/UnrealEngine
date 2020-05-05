@@ -11,6 +11,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Sound/SoundMix.h"
+#include "AudioDeviceManager.h"
+#include "AudioDevice.h"
 
 #if WITH_EDITOR
 #include "SoundClassGraph/SoundClassGraph.h"
@@ -38,29 +40,7 @@ FSoundClassProperties::FSoundClassProperties()
 	, OutputTarget(EAudioOutputTarget::Speaker)
 	, LoadingBehavior(ESoundWaveLoadingBehavior::Inherited)
 	, DefaultSubmix(nullptr)
-	, AttenuationScaleParam(AttenuationDistanceScale)
-	, ParentAttenuationScale(1.0f)
 {
-}
-
-void FSoundClassProperties::SetAttenuationDistanceScale(float InAttenuationScale, float InTime)
-{
-	AttenuationScaleParam.Set(AttenuationDistanceScale, InTime);
-}
-
-void FSoundClassProperties::SetParentAttenuationDistanceScale(float InAttenuationDistanceScale)
-{
-	ParentAttenuationScale = InAttenuationDistanceScale;
-}
-
-float FSoundClassProperties::GetAttenuationDistanceScale() const
-{
-	return AttenuationScaleParam.GetValue() * ParentAttenuationScale;
-}
-
-void FSoundClassProperties::UpdateSoundClassProperties(float DeltaTime)
-{
-	AttenuationScaleParam.Update(DeltaTime);
 }
 
 /*-----------------------------------------------------------------------------
@@ -142,6 +122,7 @@ void USoundClass::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 		static const FName NAME_ChildClasses = GET_MEMBER_NAME_CHECKED(USoundClass, ChildClasses);
 		static const FName NAME_ParentClass = GET_MEMBER_NAME_CHECKED(USoundClass, ParentClass);
 		static const FName NAME_Properties = GET_MEMBER_NAME_CHECKED(FSoundClassProperties, LoadingBehavior);
+		static const FName NAME_AttenuationDistanceScale = GET_MEMBER_NAME_CHECKED(FSoundClassProperties, AttenuationDistanceScale);
 
 		if (PropertyChangedEvent.GetPropertyName() == NAME_ChildClasses)
 		{
@@ -218,6 +199,16 @@ void USoundClass::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 				FSlateNotificationManager::Get().AddNotification(Info);
 
 				Properties.LoadingBehavior = BackupLoadingBehavior;
+			}
+		}
+		else if (PropertyChangedEvent.GetPropertyName() == NAME_AttenuationDistanceScale)
+		{
+			if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
+			{
+				AudioDeviceManager->IterateOverAllDevices([this](Audio::FDeviceId DeviceId, FAudioDevice* InDevice)
+				{
+					InDevice->SetSoundClassDistanceScale(this, Properties.AttenuationDistanceScale, 0.2f);
+				});
 			}
 		}
 	}

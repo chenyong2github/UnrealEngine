@@ -26,7 +26,6 @@ class USoundSubmixBase;
 class USoundWave;
 class UWorld;
 class FAudioDevice;
-class FAudioDebugger;
 struct FSourceEffectChainEntry;
 
 namespace Audio
@@ -35,6 +34,8 @@ namespace Audio
 	 * Typed identifier for Audio Device Id
 	 */
 	using FDeviceId = uint32;
+
+	class FAudioDebugger;
 }
 
 enum class ESoundType : uint8
@@ -194,11 +195,17 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceDestroyed, Audio::FDeviceId /* AudioDeviceId*/);
 	static FOnAudioDeviceDestroyed OnAudioDeviceDestroyed;
 
-	// This delegate is called whenever a world is registered to an audio device. Please note that UWorlds are not guaranteed to
-	// be registered to the same audio device throughout their lifecycle,
-	// and there is no guarantee on the lifespan of both the UWorld and the Audio Device registered in this callback.
+	// Called whenever a world is registered to an audio device. UWorlds are not guaranteed to be registered to the same
+	// audio device throughout their lifecycle, and there is no guarantee on the lifespan of both the UWorld and the Audio
+	// Device registered in this callback.
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldRegisteredToAudioDevice, const UWorld* /*InWorld */, Audio::FDeviceId /* AudioDeviceId*/);
 	static FOnWorldRegisteredToAudioDevice OnWorldRegisteredToAudioDevice;
+
+	// Called whenever a world is unregistered from an audio device. UWorlds are not guaranteed to be registered to the same
+	// audio device throughout their lifecycle, and there is no guarantee on the lifespan of both the UWorld and the Audio
+	// Device registered in this callback.
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldUnregisteredWithAudioDevice, const UWorld* /*InWorld */, Audio::FDeviceId /* AudioDeviceId*/);
+	static FOnWorldUnregisteredWithAudioDevice OnWorldUnregisteredWithAudioDevice;
 };
 
 /**
@@ -297,6 +304,12 @@ public:
 	/** Unregisters the Sound Class for all active devices. */
 	void UnregisterSoundClass(USoundClass* SoundClass);
 
+	/** Registers the world with the provided device Id */
+	void RegisterWorld(UWorld* InWorld, Audio::FDeviceId DeviceId);
+
+	/** Unregisters the world from the provided device Id */
+	void UnregisterWorld(UWorld* InWorld, Audio::FDeviceId DeviceId);
+
 	/** Initializes the sound class for all active devices. */
 	void InitSoundClasses();
 
@@ -367,8 +380,8 @@ public:
 
 #if ENABLE_AUDIO_DEBUG
 	/** Get the audio debugger instance */
-	FAudioDebugger& GetDebugger();
-	const FAudioDebugger& GetDebugger() const;
+	Audio::FAudioDebugger& GetDebugger();
+	const Audio::FAudioDebugger& GetDebugger() const;
 #endif // ENABLE_AUDIO_DEBUG
 
 public:
@@ -395,7 +408,7 @@ private:
 
 #if ENABLE_AUDIO_DEBUG
 	/** Instance of audio debugger shared across audio devices */
-	TUniquePtr<FAudioDebugger> AudioDebugger;
+	TUniquePtr<Audio::FAudioDebugger> AudioDebugger;
 #endif // ENABLE_AUDIO_DEBUG
 
 	bool InitializeManager();

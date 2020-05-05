@@ -12,7 +12,6 @@
 #include "Snapping/PointPlanarSnapSolver.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Properties/MeshMaterialProperties.h"
-#include "Changes/ValueWatcher.h"
 #include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "DrawPolygonTool.generated.h"
 
@@ -117,16 +116,7 @@ public:
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	bool bShowGizmo = true;
-
-	//
-	// save/restore support
-	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
-
-
-
 
 UCLASS()
 class MESHMODELINGTOOLS_API UDrawPolygonToolSnapProperties : public UInteractiveToolPropertySet
@@ -152,7 +142,7 @@ public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
 	bool bSnapToLengths = true;
 
-	UPROPERTY(VisibleAnywhere, NonTransactional, Category = Snapping)
+	UPROPERTY(VisibleAnywhere, NonTransactional, Category = Snapping, meta = (TransientToolProperty))
 	float SegmentLength = 0.0f;
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
@@ -160,12 +150,6 @@ public:
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bHitSceneObjects"))
 	float HitNormalOffset = 0.0f;
-
-	//
-	// save/restore support
-	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -191,7 +175,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return false; }
@@ -284,7 +268,6 @@ protected:
 	// updates plane and gizmo position
 	virtual void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal);
 
-	TValueWatcher<bool> ShowGizmoWatcher;
 	void UpdateShowGizmoState(bool bNewVisibility);
 
 

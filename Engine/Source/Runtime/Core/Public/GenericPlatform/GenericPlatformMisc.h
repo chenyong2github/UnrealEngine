@@ -1051,20 +1051,20 @@ public:
 	 *
 	 * @return ensure is allowed
 	 */
-#if DO_CHECK
+#if DO_ENSURE
 	static bool IsEnsureAllowed();
 #else
 	static bool IsEnsureAllowed() { return true; }
-#endif // DO_CHECK
+#endif // DO_ENSURE
 
 	/**
 	 * Updates hotfixable ensure settings from config and commandline (config takes priority).
 	 */
-#if DO_CHECK
+#if DO_ENSURE
 	static void UpdateHotfixableEnsureSettings();
 #else
 	static void UpdateHotfixableEnsureSettings() {}
-#endif // DO_CHECK
+#endif // DO_ENSURE
 
 	/**
 	 * Ticks values that can be hotfixable in the config.

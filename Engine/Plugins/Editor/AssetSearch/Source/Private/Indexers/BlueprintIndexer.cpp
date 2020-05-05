@@ -26,6 +26,7 @@ enum class EBlueprintIndexerVersion
 	FixingPinsToSaveValues,
 	IndexingPublicEditableFieldsOnNodes,
 	DontIndexPinsUnlessItsInputWithNoConnections,
+	BetterSupportForIndexingEventNodes,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,

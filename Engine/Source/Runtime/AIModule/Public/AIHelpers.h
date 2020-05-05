@@ -2,25 +2,44 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "AITypes.h"
 
 namespace FAISystem
 {
-	FVector FindClosestLocation(const FVector& Origin, const TArray<FVector>& Locations)
-	{
-		FVector BestLocation = FAISystem::InvalidLocation;
-		float BestDistance = FLT_MAX;
+	AIMODULE_API FVector FindClosestLocation(const FVector& Origin, const TArray<FVector>& Locations);
 
-		for (const FVector& Candidate : Locations)
-		{
-			const float CurrentDistanceSq = FVector::DistSquared(Origin, Candidate);
-			if (CurrentDistanceSq < BestDistance)
-			{
-				BestDistance = CurrentDistanceSq;
-				BestLocation = Candidate;
-			}
-		}
-
-		return BestLocation;
-	}
+	//----------------------------------------------------------------------//
+	// CheckIsTargetInSightCone
+	//                     F
+	//                   *****  
+	//              *             *
+	//          *                     *
+	//       *                           *
+	//     *                               *
+	//   *                                   * 
+	//    \                                 /
+	//     \                               /
+	//      \                             /
+	//       \             X             /
+	//        \                         /
+	//         \          ***          /
+	//          \     *    N    *     /
+	//           \ *               * /
+	//            N                 N
+	//            
+	//           
+	//           
+	//           
+	//
+	// 
+	//                     B 
+	//
+	// X = StartLocation
+	// B = Backward offset
+	// N = Near Clipping Radius (from the StartLocation adjusted by Backward offset)
+	// F = Far Clipping Radius (from the StartLocation adjusted by Backward offset)
+	//----------------------------------------------------------------------//
+	AIMODULE_API bool CheckIsTargetInSightCone(const FVector& StartLocation, const FVector& ConeDirectionNormal, float PeripheralVisionAngleCos,
+		float ConeDirectionBackwardOffset, float NearClippingRadiusSq, float const FarClippingRadiusSq, const FVector& TargetLocation);
 }

@@ -1063,6 +1063,33 @@ enum EPrimitiveType
 static_assert(PT_Num <= (1 << 8), "EPrimitiveType doesn't fit in a byte");
 static_assert(PT_Num <= (1 << PT_NumBits), "PT_NumBits is too small");
 
+enum EVRSAxisShadingRate : uint8
+{
+	VRSASR_1X = 0x0,
+	VRSASR_2X = 0x1,
+	VRSASR_4X = 0x2,
+};
+
+enum EVRSShadingRate : uint8
+{
+	VRSSR_1x1  = (VRSASR_1X << 2) + VRSASR_1X,
+	VRSSR_1x2  = (VRSASR_1X << 2) + VRSASR_2X,
+	VRSSR_2x1  = (VRSASR_2X << 2) + VRSASR_1X,
+	VRSSR_2x2  = (VRSASR_2X << 2) + VRSASR_2X,
+	VRSSR_2x4  = (VRSASR_2X << 2) + VRSASR_4X,
+	VRSSR_4x2  = (VRSASR_4X << 2) + VRSASR_2X,
+	VRSSR_4x4  = (VRSASR_4X << 2) + VRSASR_4X,
+};
+
+enum EVRSRateCombiner : uint8
+{
+	VRSRB_Passthrough,
+	VRSRB_Override,
+	VRSRB_Min,
+	VRSRB_Max,
+	VRSRB_Sum,
+};
+
 /**
  *	Resource usage flags - for vertex and index buffers.
  */

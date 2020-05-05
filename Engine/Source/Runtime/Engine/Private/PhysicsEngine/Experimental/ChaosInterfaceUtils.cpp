@@ -186,11 +186,16 @@ namespace ChaosInterface
 			NewShape->SetCollisionTraceType(ConvertCollisionTraceFlag(CollisionTraceType));
 			NewShape->UpdateShapeBounds(InParams.WorldTransform);
 			NewShape->SetUserData(UserData);
-			NewShape->SetSimulate(bComplexShape ? InParams.CollisionData.CollisionFlags.bEnableSimCollisionComplex : InParams.CollisionData.CollisionFlags.bEnableSimCollisionSimple);
-#if WITH_CHAOS
-			NewShape->SetSimEnabled(ShapeCollisionEnabled == ECollisionEnabled::QueryAndPhysics || ShapeCollisionEnabled == ECollisionEnabled::PhysicsOnly);
-			NewShape->SetQueryEnabled(ShapeCollisionEnabled == ECollisionEnabled::QueryAndPhysics || ShapeCollisionEnabled == ECollisionEnabled::QueryOnly);
-#endif
+
+			// The following does nearly the same thing that happens in UpdatePhysicsFilterData.
+			// TODO: Refactor so that this code is not duplicated
+			const bool bBodyEnableSim = InParams.CollisionData.CollisionFlags.bEnableSimCollisionSimple || InParams.CollisionData.CollisionFlags.bEnableSimCollisionComplex;
+			const bool bBodyEnableQuery = InParams.CollisionData.CollisionFlags.bEnableQueryCollision;
+			const bool bShapeEnableSim = ShapeCollisionEnabled == ECollisionEnabled::QueryAndPhysics || ShapeCollisionEnabled == ECollisionEnabled::PhysicsOnly;
+			const bool bShapeEnableQuery = ShapeCollisionEnabled == ECollisionEnabled::QueryAndPhysics || ShapeCollisionEnabled == ECollisionEnabled::QueryOnly;
+			NewShape->SetSimEnabled(bBodyEnableSim && bShapeEnableSim);
+			NewShape->SetQueryEnabled(bBodyEnableQuery && bShapeEnableQuery);
+
 			return NewShape;
 		};
 

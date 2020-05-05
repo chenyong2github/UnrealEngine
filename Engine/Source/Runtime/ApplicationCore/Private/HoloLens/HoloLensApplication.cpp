@@ -78,7 +78,7 @@ void FHoloLensApplication::PollGameDeviceState( const float TimeDelta )
 {
 	// @MIXEDREALITY_CHANGE : BEGIN Mixed Reality spatial input support
 	// Initialize any externally-implemented input devices (we delay load initialize the array so any plugins have had time to load)
-	if (!bHasLoadedInputPlugins)
+	if (!bHasLoadedInputPlugins && GIsRunning)
 	{
 		TArray< IInputDeviceModule* > PluginImplementations = IModularFeatures::Get().GetModularFeatureImplementations< IInputDeviceModule >(IInputDeviceModule::GetModularFeatureName());
 		for (auto InputPluginIt = PluginImplementations.CreateIterator(); InputPluginIt; ++InputPluginIt)

@@ -36,7 +36,7 @@ namespace Chaos
 		DebugSubstep.Add(true, TEXT("Debug thread exit"));
 	}
 
-	void FDebugSolverTasks::DebugStep(FPhysicsSolver* Solver, TFunction<void()> StepFunction)
+	void FDebugSolverTasks::DebugStep(FPhysicsSolverBase* Solver, TFunction<void()> StepFunction)
 	{
 		// Retrieve debug thread pointer for this solver.
 		// It must have been already added unless the single thread mode has just been switched on.
@@ -81,7 +81,7 @@ namespace Chaos
 #endif
 	}
 
-	void FDebugSolverTasks::Add(FPhysicsSolver* Solver)
+	void FDebugSolverTasks::Add(FPhysicsSolverBase* Solver)
 	{
 		// Add solver to task map
 		SolverToTaskMap.Add(Solver, nullptr);
@@ -93,7 +93,7 @@ namespace Chaos
 #endif
 	}
 
-	void FDebugSolverTasks::Remove(FPhysicsSolver* Solver)
+	void FDebugSolverTasks::Remove(FPhysicsSolverBase* Solver)
 	{
 #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 		// Remove the debug advance task for this solver, if any was created

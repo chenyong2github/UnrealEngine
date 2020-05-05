@@ -747,17 +747,10 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts()
 
 					for(FMeshToMeshVertData& VertData : Section.ClothMappingData)
 					{
-						if(MaxDistances.AreAnyBelowThreshold(
+						VertData.SourceMeshVertIndices[3] = MaxDistances.AreAllBelowThreshold(
 							VertData.SourceMeshVertIndices[0],
 							VertData.SourceMeshVertIndices[1],
-							VertData.SourceMeshVertIndices[2]))
-						{
-							VertData.SourceMeshVertIndices[3] = 0xFFFF;
-						}
-						else
-						{
-							VertData.SourceMeshVertIndices[3] = 0;
-						}
+							VertData.SourceMeshVertIndices[2]) ? 0xFFFF : 0;
 					}
 					//We must dirty the DDC key
 					SkeletalMesh->InvalidateDeriveDataCacheGUID();

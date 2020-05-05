@@ -43,11 +43,11 @@ void UARCandidateImage::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		{
 			if (Orientation == EARCandidateImageOrientation::Landscape)
 			{
-				AspectRatio = (float)CandidateTexture->GetSizeY() / (float)CandidateTexture->GetSizeX();
+				AspectRatio = (float)CandidateTexture->GetSizeY() / (float)FMath::Max<int32>(1, CandidateTexture->GetSizeX());
 			}
 			else
 			{
-				AspectRatio = (float)CandidateTexture->GetSizeX() / (float)CandidateTexture->GetSizeY();
+				AspectRatio = (float)CandidateTexture->GetSizeX() / (float)FMath::Max<int32>(1, CandidateTexture->GetSizeY());
 			}
 		}
 		// If the texture has changed enforce the aspect ratio on the physical size

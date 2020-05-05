@@ -10,11 +10,8 @@ public class HarfBuzz : ModuleRules
 		{
 			if (Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.PS4 ||
-				Target.Platform == UnrealTargetPlatform.Switch ||
 				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64 ||
-				Target.Platform == UnrealTargetPlatform.XboxOne ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)
 				)
@@ -116,23 +113,6 @@ public class HarfBuzz : ModuleRules
 
 			LibPath = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "libharfbuzzd_fPIC.a" : "libharfbuzz_fPIC.a";
 			PublicAdditionalLibraries.Add(Path.Combine(LibHarfBuzzRootPath, "Linux", Target.Architecture, LibPath));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, BuildTypeFolderName, "libharfbuzz.a"));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			// Use reflection to allow type not to exist if console code is not present
-			System.Type XboxOnePlatformType = System.Type.GetType("UnrealBuildTool.XboxOnePlatform,UnrealBuildTool");
-			if (XboxOnePlatformType != null)
-			{
-				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-
-				string VSVersionFolderName = "VS" + VersionName.ToString();
-
-				PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, VSVersionFolderName, BuildTypeFolderName, "harfbuzz.lib"));
-			}
 		}
 	}
 }

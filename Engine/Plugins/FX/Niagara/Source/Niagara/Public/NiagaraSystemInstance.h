@@ -445,6 +445,7 @@ public:
 	uint32 TotalGPUParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
 	int32 GPUDataInterfaceInstanceDataSize = 0;
+	bool GPUParamIncludeInterpolation = false;
 
 	struct FInstanceParameters
 	{

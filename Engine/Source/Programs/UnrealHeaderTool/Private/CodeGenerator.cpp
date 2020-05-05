@@ -53,6 +53,7 @@
 #include "Algo/Copy.h"
 #include "Algo/Sort.h"
 #include "Algo/Reverse.h"
+#include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Misc/ScopeExit.h"
 #include "UnrealTypeDefinitionInfo.h"
@@ -78,6 +79,9 @@ static bool bVerifyContents = false;
 static TSharedRef<FUnrealSourceFile> PerformInitialParseOnHeader(UPackage* InParent, const TCHAR* FileName, EObjectFlags Flags, const TCHAR* Buffer);
 
 FCompilerMetadataManager GScriptHelper;
+
+// Array of all the temporary header async file tasks so we can ensure they have completed before issuing our timings
+static FGraphEventArray GAsyncFileTasks;
 
 bool HasIdentifierExactMatch(const TCHAR* StringBegin, const TCHAR* StringEnd, const FString& Find);
 
@@ -5641,9 +5645,8 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	, APIStringPrivate           (FString::Printf(TEXT("%s_API "), *API))
 	, Package                    (InPackage)
 	, bAllowSaveExportedHeaders  (InAllowSaveExportedHeaders)
-	, bFailIfGeneratedCodeChanges(FParse::Param(FCommandLine::Get(), TEXT("FailIfGeneratedCodeChanges")))
 {
-	const FString PackageName = FPackageName::GetShortName(Package);
+	FString PackageName = FPackageName::GetShortName(Package);
 
 	FManifestModule* PackageManifest = GetPackageManifest(PackageName);
 	if (!PackageManifest)
@@ -5658,18 +5661,16 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	});
 	if (bPackageHasAnyExportClasses)
 	{
-		TArray<UClass*> DefinedClasses;
 		for (FUnrealSourceFile* SourceFile : SourceFiles)
 		{
-			DefinedClasses.Reset();
-			SourceFile->AppendDefinedClasses(DefinedClasses);
-			for (UClass* Class : DefinedClasses)
+			for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 			{
+				UClass* Class = ClassDataPair.Key;
 				if (!Class->HasAnyClassFlags(CLASS_Native))
 				{
 					Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
 				}
-				else if (GTypeDefinitionInfoMap.Contains(Class) && !Class->HasAnyClassFlags(CLASS_NoExport))
+				else if (!Class->HasAnyClassFlags(CLASS_NoExport) && GTypeDefinitionInfoMap.Contains(Class))
 				{
 					bWriteClassesH = true;
 					Class->UnMark(OBJECTMARK_TagImp);
@@ -5721,8 +5722,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		// This needs to be done outside of parallel blocks because it will modify UClass memory.
 		// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
 		// they will see the memory has already been set up, and just return the parent pointer.
-		for (UClass* Class : SourceFile->GetDefinedClasses())
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			if (ClassHasReplicatedProperties(Class))
 			{
 				Class->SetUpUhtReplicationData();
@@ -5808,10 +5810,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 
 		EExportClassOutFlags ExportFlags = EExportClassOutFlags::None;
 		TSet<FString> AdditionalHeaders;
-		TArray<UClass*>	DefinedClasses;
-		SourceFile->AppendDefinedClasses(DefinedClasses);
-		for (UClass* Class : DefinedClasses)
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			if (!(Class->ClassFlags & CLASS_Intrinsic))
 			{
 				ConstThis->ExportClassFromSourceFileInner(GeneratedHeaderText, OutText, GeneratedFunctionDeclarations, ReferenceGatherers, (FClass*)Class, *SourceFile, ExportFlags);
@@ -5845,10 +5846,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 
 	for (FUnrealSourceFile* SourceFile : Exported)
 	{
-		DefinedClasses.Reset();
-		SourceFile->AppendDefinedClasses(DefinedClasses);
-		for (UClass* Class : DefinedClasses)
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			GClassToSourceFileMap.Add(Class, SourceFile);
 		}
 
@@ -5868,10 +5868,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		bool bAddedArchiveUObjectFromStructuredArchiveHeader = false;
 
 		TArray<FString>& RelativeIncludes = GeneratedCPPs[SourceFile].RelativeIncludes;
-		DefinedClasses.Reset();
-		SourceFile->AppendDefinedClasses(DefinedClasses);
-		for (UClass* Class : DefinedClasses)
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			if (Class->ClassWithin && Class->ClassWithin != UObject::StaticClass())
 			{
 				if (FUnrealSourceFile** WithinSourceFile = GClassToSourceFileMap.Find(Class->ClassWithin))
@@ -5911,12 +5910,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		ClassesHText.Log(TEXT("\r\n"));
 
 		// Fill with the rest source files from this package.
-		for (FUnrealSourceFile* SourceFile : GPublicSourceFileSet)
+		if (const TArray<FUnrealSourceFile*>* SourceFilesForPackage = GPublicSourceFileSet.FindFilesForPackage(InPackage))
 		{
-			if (SourceFile->GetPackage() == InPackage)
-			{
-				PublicHeaderGroupIncludes.Add(SourceFile);
-			}
+			PublicHeaderGroupIncludes.Append(*SourceFilesForPackage);
 		}
 
 		for (FUnrealSourceFile* SourceFile : PublicHeaderGroupIncludes)
@@ -6030,50 +6026,55 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	}
 
 	// Export all changed headers from their temp files to the .h files
-	ExportUpdatedHeaders(PackageName, TempHeaderPaths);
+	ExportUpdatedHeaders(MoveTemp(PackageName), MoveTemp(TempHeaderPaths));
 
 	// Delete stale *.generated.h files
-	DeleteUnusedGeneratedHeaders(PackageHeaderPaths);
+	DeleteUnusedGeneratedHeaders(MoveTemp(PackageHeaderPaths));
 }
 
-void FNativeClassHeaderGenerator::DeleteUnusedGeneratedHeaders(const TSet<FString>& PackageHeaderPathSet)
+void FNativeClassHeaderGenerator::DeleteUnusedGeneratedHeaders(TSet<FString>&& PackageHeaderPathSet)
 {
-	TSet<FString> AllIntermediateFolders;
-
-	for (const FString& PackageHeader : PackageHeaderPathSet)
+	auto DeleteUnusedGeneratedHeadersTask = [PackageHeaderPathSet = MoveTemp(PackageHeaderPathSet)]()
 	{
-		const FString IntermediatePath = FPaths::GetPath(PackageHeader);
+		TSet<FString> AllIntermediateFolders;
 
-		if (AllIntermediateFolders.Contains(IntermediatePath))
+		for (const FString& PackageHeader : PackageHeaderPathSet)
 		{
-			continue;
-		}
+			FString IntermediatePath = FPaths::GetPath(PackageHeader);
 
-		AllIntermediateFolders.Add( IntermediatePath );
-
-		TArray<FString> AllHeaders;
-		IFileManager::Get().FindFiles( AllHeaders, *(IntermediatePath / TEXT("*.generated.h")), true, false );
-
-		for (const FString& Header : AllHeaders)
-		{
-			const FString HeaderPath = IntermediatePath / Header;
-
-			if (PackageHeaderPathSet.Contains(HeaderPath))
+			if (AllIntermediateFolders.Contains(IntermediatePath))
 			{
 				continue;
 			}
 
-			// Check intrinsic classes. Get the class name from file name by removing .generated.h.
-			const FString HeaderFilename = FPaths::GetBaseFilename(HeaderPath);
-			const int32   GeneratedIndex = HeaderFilename.Find(TEXT(".generated"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-			const FString ClassName      = HeaderFilename.Mid(0, GeneratedIndex);
-			UClass* IntrinsicClass       = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-			if (!IntrinsicClass || !IntrinsicClass->HasAnyClassFlags(CLASS_Intrinsic))
+			TArray<FString> AllHeaders;
+			IFileManager::Get().FindFiles(AllHeaders, *(IntermediatePath / TEXT("*.generated.h")), true, false);
+
+			for (const FString& Header : AllHeaders)
 			{
-				IFileManager::Get().Delete(*HeaderPath);
+				const FString HeaderPath = IntermediatePath / Header;
+
+				if (PackageHeaderPathSet.Contains(HeaderPath))
+				{
+					continue;
+				}
+
+				// Check intrinsic classes. Get the class name from file name by removing .generated.h.
+				FString HeaderFilename = FPaths::GetBaseFilename(HeaderPath);
+				const int32   GeneratedIndex = HeaderFilename.Find(TEXT(".generated"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				const FString ClassName = MoveTemp(HeaderFilename).Mid(0, GeneratedIndex);
+				UClass* IntrinsicClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+				if (!IntrinsicClass || !IntrinsicClass->HasAnyClassFlags(CLASS_Intrinsic))
+				{
+					IFileManager::Get().Delete(*HeaderPath);
+				}
 			}
+
+			AllIntermediateFolders.Add(MoveTemp(IntermediatePath));
 		}
-	}
+	};
+
+	GAsyncFileTasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(DeleteUnusedGeneratedHeadersTask), TStatId()));
 }
 
 /**
@@ -6189,6 +6190,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 	const bool bHasChanged = OriginalHeaderLocal.Len() == 0 || FCString::Strcmp(*OriginalHeaderLocal, NewHeaderContents);
 	if (bHasChanged)
 	{
+		static const bool bFailIfGeneratedCodeChanges = FParse::Param(FCommandLine::Get(), TEXT("FailIfGeneratedCodeChanges"));
 		if (bFailIfGeneratedCodeChanges)
 		{
 			FString ConflictPath = HeaderPathStr + TEXT(".conflict");
@@ -6219,41 +6221,37 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 	return bHasChanged;
 }
 
-/**
-* Create a temp header file name from the header name
-*
-* @param	CurrentFilename		The filename off of which the current filename will be generated
-* @param	bReverseOperation	Get the header from the temp file name instead
-*
-* @return	The generated string
-*/
 FString FNativeClassHeaderGenerator::GenerateTempHeaderName( const FString& CurrentFilename, bool bReverseOperation )
 {
 	return bReverseOperation
-		? CurrentFilename.Replace(TEXT(".tmp"), TEXT(""))
+		? CurrentFilename.Replace(TEXT(".tmp"), TEXT(""), ESearchCase::CaseSensitive)
 		: CurrentFilename + TEXT(".tmp");
 }
 
-/**
-* Exports the temp header files into the .h files, then deletes the temp files.
-*
-* @param	PackageName	Name of the package being saved
-*/
-void FNativeClassHeaderGenerator::ExportUpdatedHeaders(const FString& PackageName, const TArray<FString>& TempHeaderPaths)
-{
-	ParallelFor(TempHeaderPaths.Num(), [&](int32 Index)
+void FNativeClassHeaderGenerator::ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths)
+{	
+	// Asynchronously move the headers to the correct locations
+	if (TempHeaderPaths.Num() > 0)
 	{
-		const FString& TmpFilename = TempHeaderPaths[Index];
-		FString Filename = GenerateTempHeaderName( TmpFilename, true );
-		if (!IFileManager::Get().Move(*Filename, *TmpFilename, true, true))
+		auto MoveHeadersTask = [PackageName = MoveTemp(PackageName), TempHeaderPaths = MoveTemp(TempHeaderPaths)]()
 		{
-			UE_LOG(LogCompile, Error, TEXT("Error exporting %s: couldn't write file '%s'"), *PackageName, *Filename);
-		}
-		else
-		{
-			UE_LOG(LogCompile, Log, TEXT("Exported updated C++ header: %s"), *Filename);
-		}
-	});
+			ParallelFor(TempHeaderPaths.Num(), [&](int32 Index)
+			{
+				const FString& TmpFilename = TempHeaderPaths[Index];
+				FString Filename = GenerateTempHeaderName(TmpFilename, true);
+				if (!IFileManager::Get().Move(*Filename, *TmpFilename, true, true))
+				{
+					UE_LOG(LogCompile, Error, TEXT("Error exporting %s: couldn't write file '%s'"), *PackageName, *Filename);
+				}
+				else
+				{
+					UE_LOG(LogCompile, Log, TEXT("Exported updated C++ header: %s"), *Filename);
+				}
+			});
+		};
+
+		GAsyncFileTasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(MoveHeadersTask), TStatId()));
+	}
 }
 
 /**
@@ -6505,7 +6503,6 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 
 					TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerformInitialParseOnHeader(Package, *RawFilename, RF_Public | RF_Standalone, *HeaderFile);
 					FUnrealSourceFile* UnrealSourceFilePtr = &UnrealSourceFile.Get();
-					TArray<UClass*> DefinedClasses = UnrealSourceFile->GetDefinedClasses();
 					GUnrealSourceFilesMap.Add(FPaths::GetCleanFilename(RawFilename), UnrealSourceFile);
 
 					if (CurrentlyProcessing == PublicClassesHeaders)
@@ -6753,6 +6750,9 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 
 	// Avoid TArray slack for meta data.
 	GScriptHelper.Shrink();
+
+	// Finish all async file tasks before stopping the clock
+	FTaskGraphInterface::Get().WaitUntilTasksComplete(GAsyncFileTasks);
 
 	MainTimer.Stop();
 

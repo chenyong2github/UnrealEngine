@@ -158,6 +158,8 @@ public:
 	 */
     mtlpp::RenderCommandEncoder GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder);
 	
+	void InsertTextureBarrier();
+	
 private:
 #pragma mark -
     void ConditionalSwitchToRender(void);

@@ -395,7 +395,7 @@ void UField::FormatNativeToolTip(FString& ToolTipString, bool bRemoveExtraSectio
  * @param Key The key to lookup in the metadata
  * @return true if there is a (possibly blank) value associated with this key
  */
-bool UField::HasMetaData(const TCHAR* Key) const
+const FString* UField::FindMetaData(const TCHAR* Key) const
 {
 	UPackage* Package = GetOutermost();
 	check(Package);
@@ -403,12 +403,10 @@ bool UField::HasMetaData(const TCHAR* Key) const
 	UMetaData* MetaData = Package->GetMetaData();
 	check(MetaData);
 
-	bool bHasMetaData = MetaData->HasValue(this, Key);
-		
-	return bHasMetaData;
+	return MetaData->FindValue(this, Key);
 }
 
-bool UField::HasMetaData(const FName& Key) const
+const FString* UField::FindMetaData(const FName& Key) const
 {
 	UPackage* Package = GetOutermost();
 	check(Package);
@@ -416,9 +414,7 @@ bool UField::HasMetaData(const FName& Key) const
 	UMetaData* MetaData = Package->GetMetaData();
 	check(MetaData);
 
-	bool bHasMetaData = MetaData->HasValue(this, Key);
-
-	return bHasMetaData;
+	return MetaData->FindValue(this, Key);
 }
 
 /**
@@ -457,9 +453,9 @@ FText UField::GetMetaDataText(const TCHAR* MetaDataKey, const FString Localizati
 {
 	FString DefaultMetaData;
 
-	if( HasMetaData( MetaDataKey ))
+	if(const FString* FoundMetaData = FindMetaData( MetaDataKey ))
 	{
-		DefaultMetaData = GetMetaData(MetaDataKey);
+		DefaultMetaData = *FoundMetaData;
 	}
 
 	// If attempting to grab the DisplayName metadata, we must correct the source string and output it as a DisplayString for lookup
@@ -484,9 +480,9 @@ FText UField::GetMetaDataText(const FName& MetaDataKey, const FString Localizati
 {
 	FString DefaultMetaData;
 
-	if( HasMetaData( MetaDataKey ))
+	if (const FString* FoundMetaData = FindMetaData( MetaDataKey ))
 	{
-		DefaultMetaData = GetMetaData(MetaDataKey);
+		DefaultMetaData = *FoundMetaData;
 	}
 
 	// If attempting to grab the DisplayName metadata, we must correct the source string and output it as a DisplayString for lookup
@@ -1903,9 +1899,9 @@ void UStruct::Serialize(FArchive& Ar)
 
 				{
 					FPropertyProxyArchive PropertyAr(Ar, iCode, this);
-				// now, use the linker to save the byte code, but writing to memory
-				while (iCode < ScriptBytecodeSize)
-				{
+					// now, use the linker to save the byte code, but writing to memory
+					while (iCode < ScriptBytecodeSize)
+					{
 						SerializeExpr(iCode, PropertyAr);
 					}
 				}
@@ -1967,7 +1963,7 @@ void UStruct::PostLoad()
 				FField** TargetScriptPropertyPtr = (FField**)(Script.GetData() + MissingProperty.Value);
 				*TargetScriptPropertyPtr = ResolvedProperty;
 			}
-			else if (!MissingProperty.Key.IsEmpty())
+			else if (!MissingProperty.Key.IsPathToFieldEmpty())
 			{
 				UE_LOG(LogClass, Warning, TEXT("Failed to resolve bytecode referenced field from path: %s when loading %s"), *MissingProperty.Key.ToString(), *GetFullName());
 			}
@@ -2055,11 +2051,11 @@ bool UStruct::GetStringMetaDataHierarchical(const FName& Key, FString* OutValue)
 {
 	for (const UStruct* TestStruct = this; TestStruct != nullptr; TestStruct = TestStruct->GetSuperStruct())
 	{
-		if (TestStruct->HasMetaData(Key))
+		if (const FString* FoundMetaData = TestStruct->FindMetaData(Key))
 		{
 			if (OutValue != nullptr)
 			{
-				*OutValue = TestStruct->GetMetaData(Key);
+				*OutValue = *FoundMetaData;
 			}
 
 			return true;
@@ -5266,20 +5262,18 @@ const FString UClass::GetConfigName() const
 void UClass::GetHideFunctions(TArray<FString>& OutHideFunctions) const
 {
 	static const FName NAME_HideFunctions(TEXT("HideFunctions"));
-	if (HasMetaData(NAME_HideFunctions))
+	if (const FString* HideFunctions = FindMetaData(NAME_HideFunctions))
 	{
-		const FString& HideFunctions = GetMetaData(NAME_HideFunctions);
-		HideFunctions.ParseIntoArray(OutHideFunctions, TEXT(" "), true);
+		HideFunctions->ParseIntoArray(OutHideFunctions, TEXT(" "), true);
 	}
 }
 
 bool UClass::IsFunctionHidden(const TCHAR* InFunction) const
 {
 	static const FName NAME_HideFunctions(TEXT("HideFunctions"));
-	if (HasMetaData(NAME_HideFunctions))
+	if (const FString* HideFunctions = FindMetaData(NAME_HideFunctions))
 	{
-		const FString& HideFunctions = GetMetaData(NAME_HideFunctions);
-		return !!FCString::StrfindDelim(*HideFunctions, InFunction, TEXT(" "));
+		return !!FCString::StrfindDelim(**HideFunctions, InFunction, TEXT(" "));
 	}
 	return false;
 }
@@ -5287,20 +5281,18 @@ bool UClass::IsFunctionHidden(const TCHAR* InFunction) const
 void UClass::GetAutoExpandCategories(TArray<FString>& OutAutoExpandCategories) const
 {
 	static const FName NAME_AutoExpandCategories(TEXT("AutoExpandCategories"));
-	if (HasMetaData(NAME_AutoExpandCategories))
+	if (const FString* AutoExpandCategories = FindMetaData(NAME_AutoExpandCategories))
 	{
-		const FString& AutoExpandCategories = GetMetaData(NAME_AutoExpandCategories);
-		AutoExpandCategories.ParseIntoArray(OutAutoExpandCategories, TEXT(" "), true);
+		AutoExpandCategories->ParseIntoArray(OutAutoExpandCategories, TEXT(" "), true);
 	}
 }
 
 bool UClass::IsAutoExpandCategory(const TCHAR* InCategory) const
 {
 	static const FName NAME_AutoExpandCategories(TEXT("AutoExpandCategories"));
-	if (HasMetaData(NAME_AutoExpandCategories))
+	if (const FString* AutoExpandCategories = FindMetaData(NAME_AutoExpandCategories))
 	{
-		const FString& AutoExpandCategories = GetMetaData(NAME_AutoExpandCategories);
-		return !!FCString::StrfindDelim(*AutoExpandCategories, InCategory, TEXT(" "));
+		return !!FCString::StrfindDelim(**AutoExpandCategories, InCategory, TEXT(" "));
 	}
 	return false;
 }
@@ -5308,20 +5300,18 @@ bool UClass::IsAutoExpandCategory(const TCHAR* InCategory) const
 void UClass::GetAutoCollapseCategories(TArray<FString>& OutAutoCollapseCategories) const
 {
 	static const FName NAME_AutoCollapseCategories(TEXT("AutoCollapseCategories"));
-	if (HasMetaData(NAME_AutoCollapseCategories))
+	if (const FString* AutoCollapseCategories = FindMetaData(NAME_AutoCollapseCategories))
 	{
-		const FString& AutoCollapseCategories = GetMetaData(NAME_AutoCollapseCategories);
-		AutoCollapseCategories.ParseIntoArray(OutAutoCollapseCategories, TEXT(" "), true);
+		AutoCollapseCategories->ParseIntoArray(OutAutoCollapseCategories, TEXT(" "), true);
 	}
 }
 
 bool UClass::IsAutoCollapseCategory(const TCHAR* InCategory) const
 {
 	static const FName NAME_AutoCollapseCategories(TEXT("AutoCollapseCategories"));
-	if (HasMetaData(NAME_AutoCollapseCategories))
+	if (const FString* AutoCollapseCategories = FindMetaData(NAME_AutoCollapseCategories))
 	{
-		const FString& AutoCollapseCategories = GetMetaData(NAME_AutoCollapseCategories);
-		return !!FCString::StrfindDelim(*AutoCollapseCategories, InCategory, TEXT(" "));
+		return !!FCString::StrfindDelim(**AutoCollapseCategories, InCategory, TEXT(" "));
 	}
 	return false;
 }
@@ -5329,20 +5319,18 @@ bool UClass::IsAutoCollapseCategory(const TCHAR* InCategory) const
 void UClass::GetClassGroupNames(TArray<FString>& OutClassGroupNames) const
 {
 	static const FName NAME_ClassGroupNames(TEXT("ClassGroupNames"));
-	if (HasMetaData(NAME_ClassGroupNames))
+	if (const FString* ClassGroupNames = FindMetaData(NAME_ClassGroupNames))
 	{
-		const FString& ClassGroupNames = GetMetaData(NAME_ClassGroupNames);
-		ClassGroupNames.ParseIntoArray(OutClassGroupNames, TEXT(" "), true);
+		ClassGroupNames->ParseIntoArray(OutClassGroupNames, TEXT(" "), true);
 	}
 }
 
 bool UClass::IsClassGroupName(const TCHAR* InGroupName) const
 {
 	static const FName NAME_ClassGroupNames(TEXT("ClassGroupNames"));
-	if (HasMetaData(NAME_ClassGroupNames))
+	if (const FString* ClassGroupNames = FindMetaData(NAME_ClassGroupNames))
 	{
-		const FString& ClassGroupNames = GetMetaData(NAME_ClassGroupNames);
-		return !!FCString::StrfindDelim(*ClassGroupNames, InGroupName, TEXT(" "));
+		return !!FCString::StrfindDelim(**ClassGroupNames, InGroupName, TEXT(" "));
 	}
 	return false;
 }

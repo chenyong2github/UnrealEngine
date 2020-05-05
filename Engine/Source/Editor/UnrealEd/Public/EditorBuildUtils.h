@@ -36,6 +36,8 @@ struct FBuildOptions
 	UNREALED_API static const FName BuildTextureStreaming;
 	/** Build virtual textures */
 	UNREALED_API static const FName BuildVirtualTexture;
+	/** Build grass maps */
+	UNREALED_API static const FName BuildGrassMaps;
 };
 /**
  * Result of a custom editor build.
@@ -161,6 +163,13 @@ public:
 	 * @return	true if the build completed successfully; false if it did not (or was manually canceled)
 	 */
 	static UNREALED_API bool EditorBuildVirtualTexture(UWorld* InWorld);
+
+	/**
+	 * Perform an editor build for grass maps
+	 *
+	 * @param	InWorld				WorldContext
+	 */
+	static UNREALED_API void EditorBuildGrassMaps(UWorld* InWorld);
 
 	/** 
 	* check if navigation build was was triggered from editor as user request

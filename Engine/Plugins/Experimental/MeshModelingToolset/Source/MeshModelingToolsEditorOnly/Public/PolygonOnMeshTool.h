@@ -14,7 +14,6 @@
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "Mechanics/CollectSurfacePathMechanic.h"
 #include "Polygon2.h"
-#include "Changes/ValueWatcher.h"
 #include "PolygonOnMeshTool.generated.h"
 
 
@@ -23,6 +22,7 @@ struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class UTransformGizmo;
 class UTransformProxy;
+class ULineSetComponent;
 
 
 
@@ -149,7 +149,7 @@ public:
 
 	virtual void SetWorld(UWorld* World);
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -194,6 +194,11 @@ protected:
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
 
+	UPROPERTY()
+	ULineSetComponent* DrawnLineSet;
+
+	TArray<int> EmbeddedEdges;
+	bool bEmbedSucceeded;
 
 protected:
 	UWorld* TargetWorld;
@@ -217,11 +222,13 @@ protected:
 	FPolygon2d ActivePolygon;
 	void UpdatePolygonType();
 
-	void UpdateNumPreviews();
+	void SetupPreview();
 	void UpdateDrawPlane();
 
 	void BeginDrawPolygon();
 	void CompleteDrawPolygon();
+
+	void UpdateVisualization();
 
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 };

@@ -1254,7 +1254,7 @@ void UTakeRecorderActorSource::GetSceneComponents(USceneComponent* OnSceneCompon
 	// so that each child gets added to the out array and their children recursively.
 	if (OnSceneComponent->ComponentHasTag(DoNotRecordTag))
 	{
-		UE_LOG(LogTakesCore, Warning, TEXT("Skipping record component: %s with do not record tag"), *OnSceneComponent->GetName());
+		UE_LOG(LogTakesCore, Verbose, TEXT("Skipping record component: %s with do not record tag"), *OnSceneComponent->GetName());
 		return;
 	}
 

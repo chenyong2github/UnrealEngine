@@ -8,6 +8,7 @@
 #include "GeometryCollectionSimulationTypes.h"
 #include "Chaos/ClusterCreationParameters.h"
 #include "Chaos/CollisionFilterData.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 class FGeometryCollection;
 class FGeometryDynamicCollection;
@@ -235,8 +236,6 @@ struct FSimulationParameters
 		, ClusterConnectionMethod(Chaos::FClusterCreationParameters<float>::EConnectionMethod::PointImplicit)
 		, CollisionGroup(0)
 		, CollisionSampleFraction(1.0)
-		, LinearEtherDrag(0.0)
-		, AngularEtherDrag(0.0)
 		, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_None)
 		, InitialLinearVelocity(FVector(0))
 		, InitialAngularVelocity(FVector(0))
@@ -250,9 +249,9 @@ struct FSimulationParameters
 		, UserData(nullptr)
 	{}
 
-
 	FSimulationParameters(const FSimulationParameters& Other)
-		: RestCollection(Other.RestCollection)
+		: Name(Other.Name)
+		, RestCollection(Other.RestCollection)
 		, InitializationCommands(Other.InitializationCommands)
 		, RecordedTrack(Other.RecordedTrack)
 		, bOwnsTrack(false)
@@ -265,8 +264,6 @@ struct FSimulationParameters
 		, ClusterConnectionMethod(Other.ClusterConnectionMethod)
 		, CollisionGroup(Other.CollisionGroup)
 		, CollisionSampleFraction(Other.CollisionSampleFraction)
-		, LinearEtherDrag(Other.LinearEtherDrag)
-		, AngularEtherDrag(Other.AngularEtherDrag)
 		, InitialVelocityType(Other.InitialVelocityType)
 		, InitialLinearVelocity(Other.InitialLinearVelocity)
 		, InitialAngularVelocity(Other.InitialAngularVelocity)
@@ -283,7 +280,13 @@ struct FSimulationParameters
 		, SimulationFilterData(Other.SimulationFilterData)
 		, QueryFilterData(Other.QueryFilterData)
 		, UserData(Other.UserData)
-	{}
+	{
+		// Check to make sure we're not expecting the PhyicalMaterialOwner to be copied,
+		// which we can't because it's a TUniquePtr.  We'd need a non const version of this
+		// function to move the pointer.  However, the way the code is currently, this should
+		// never need to happen.
+		check(!Other.PhysicalMaterialOwner);
+	}
 
 	~FSimulationParameters()
 	{
@@ -315,9 +318,6 @@ struct FSimulationParameters
 	int32 CollisionGroup;
 	float CollisionSampleFraction;
 
-	float LinearEtherDrag;
-	float AngularEtherDrag;
-
 	EInitialVelocityTypeEnum InitialVelocityType;
 	FVector InitialLinearVelocity;
 	FVector InitialAngularVelocity;
@@ -329,7 +329,12 @@ struct FSimulationParameters
 
 	EObjectStateTypeEnum ObjectType;
 
-	Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
+private:
+	template<typename>
+	friend class TGeometryCollectionPhysicsProxy;
+	TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterialOwner; // can be null
+public:
+	Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial; // may or may not point to PhysicalMaterialOwner
 
 	FCollisionDataSimulationParameters CollisionData;
 	FBreakingDataSimulationParameters BreakingData;

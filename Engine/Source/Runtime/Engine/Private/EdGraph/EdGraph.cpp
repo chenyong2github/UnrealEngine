@@ -147,16 +147,18 @@ void UEdGraph::PostInitProperties()
 	}
 }
 
-void UEdGraph::Serialize( FArchive& Ar )
+void UEdGraph::Serialize(FStructuredArchiveRecord Record)
 {
-	Super::Serialize(Ar);
+	Super::Serialize(Record);
+	const FArchiveState& ArchiveState = Record.GetArchiveState();
+
 	// Keep track of RF_Public
-	if( Ar.IsTransacting() )
+	if(ArchiveState.IsTransacting())
 	{
 		bool bIsPublic = HasAnyFlags(RF_Public);
-		if( Ar.IsLoading() )
+		if(ArchiveState.IsLoading())
 		{
-			Ar << bIsPublic;
+			Record << SA_VALUE(TEXT("IsPublic"), bIsPublic);
 			if (bIsPublic)
 			{
 				SetFlags( RF_Public );
@@ -166,9 +168,9 @@ void UEdGraph::Serialize( FArchive& Ar )
 				ClearFlags( RF_Public );
 			}
 		}
-		else if( Ar.IsSaving() )
+		else if( ArchiveState.IsSaving())
 		{
-			Ar << bIsPublic;
+			Record << SA_VALUE(TEXT("IsPublic"), bIsPublic);
 		}
 	}
 }

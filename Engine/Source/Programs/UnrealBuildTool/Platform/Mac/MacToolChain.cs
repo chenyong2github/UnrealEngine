@@ -11,6 +11,7 @@ using System.Linq;
 using Ionic.Zip;
 using Tools.DotNETCommon;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -537,7 +538,24 @@ namespace UnrealBuildTool
 					CompileAction.ProducedItems.Add(DependencyListFile);
 				}
 
-				string AllArgs = Arguments + FileArguments + CompileEnvironment.AdditionalArguments;
+				string EscapedAdditionalArgs = "";
+				if(!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
+				{
+					foreach(string AdditionalArg in CompileEnvironment.AdditionalArguments.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+					{
+						Match DefinitionMatch = Regex.Match(AdditionalArg, "-D\"?(?<Name>.*)=(?<Value>.*)\"?");
+						if (DefinitionMatch.Success)
+						{
+							EscapedAdditionalArgs += string.Format(" -D{0}=\"{1}\"", DefinitionMatch.Groups["Name"].Value, DefinitionMatch.Groups["Value"].Value);
+						}
+						else
+						{
+							EscapedAdditionalArgs += " " + AdditionalArg;
+						}
+					}
+				}
+
+				string AllArgs = Arguments + FileArguments + EscapedAdditionalArgs;
 				string CompilerPath = Settings.ToolchainDir + MacCompiler;
 				
 				// Analyze and then compile using the shell to perform the indirection
@@ -798,7 +816,13 @@ namespace UnrealBuildTool
 			List<string> InputFileNames = new List<string>();
 			foreach (FileItem InputFile in LinkEnvironment.InputFiles)
 			{
-				InputFileNames.Add(string.Format("\"{0}\"", InputFile.AbsolutePath));
+				string InputFilePath = InputFile.AbsolutePath;
+				if (InputFile.Location.IsUnderDirectory(UnrealBuildTool.RootDirectory))
+				{
+					InputFilePath = InputFile.Location.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+				}
+
+				InputFileNames.Add(string.Format("\"{0}\"", InputFilePath));
 				LinkAction.PrerequisiteItems.Add(InputFile);
 			}
 
@@ -1309,6 +1333,21 @@ namespace UnrealBuildTool
 			}
 		}
 
+		private List<FileItem> DebugInfoFiles = new List<FileItem>();
+
+		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
+		{
+			// Re-add any .dSYM files that may have been stripped out.
+			List<string> OutputFiles = Makefile.OutputItems.Select(Item => Path.ChangeExtension(Item.FullName, ".dSYM")).Distinct().ToList();
+			foreach (FileItem DebugItem in DebugInfoFiles)
+			{
+				if(OutputFiles.Any(Item => string.Equals(Item, DebugItem.FullName, StringComparison.InvariantCultureIgnoreCase)))
+				{
+					Makefile.OutputItems.Add(DebugItem);
+				}
+			}
+		}
+
 		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
 		{
 			ICollection<FileItem> OutputFiles = base.PostBuild(Executable, BinaryLinkEnvironment, Graph);
@@ -1332,7 +1371,7 @@ namespace UnrealBuildTool
 				// We want dsyms to be created after all dylib dependencies are fixed. If FixDylibDependencies action was not created yet, save the info for later.
 				if (FixDylibOutputFile != null)
 				{
-					OutputFiles.Add(GenerateDebugInfo(Executable, BinaryLinkEnvironment, Graph));
+					DebugInfoFiles.Add(GenerateDebugInfo(Executable, BinaryLinkEnvironment, Graph));
 				}
 				else
 				{
@@ -1357,7 +1396,7 @@ namespace UnrealBuildTool
 			// Add dsyms that we couldn't add before FixDylibDependencies action was created
 			foreach (FileItem Exe in ExecutablesThatNeedDsyms)
 			{
-				OutputFiles.Add(GenerateDebugInfo(Exe, BinaryLinkEnvironment, Graph));
+				DebugInfoFiles.Add(GenerateDebugInfo(Exe, BinaryLinkEnvironment, Graph));
 			}
 			ExecutablesThatNeedDsyms.Clear();
 

@@ -3,117 +3,160 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
-#include "DynamicMesh3.h"
-#include "MeshOpPreviewHelpers.h"
+#include "BaseTools/BaseMeshProcessingTool.h"
 #include "SmoothMeshTool.generated.h"
-
-
-// predeclarations
-struct FMeshDescription;
-class USimpleDynamicMeshComponent;
 
 
 UENUM()
 enum class ESmoothMeshToolSmoothType : uint8
 {
-	/** Fast smooth with N iterations */
-	Iterative UMETA(DisplayName = "Fast Smoothing"),
+	/** Iterative smoothing with N iterations */
+	Iterative UMETA(DisplayName = "Fast Iterative"),
 
-	/** Implicit smoothing, usually better with UV preservation */
-	BiHarmonic_Cotan UMETA(DisplayName = "Implicit Smoothing"),
+	/** Implicit smoothing, produces smoother output and does a better job at preserving UVs, but can be very slow on large meshes */
+	Implicit UMETA(DisplayName = "Fast Implicit"),
 
+	/** Iterative implicit-diffusion smoothing with N iterations */
+	Diffusion UMETA(DisplayName = "Iterative Diffusion")
 };
 
 
-/**
- *
- */
+
+/** PropertySet for properties affecting the Smoother. */
 UCLASS()
-class MESHMODELINGTOOLS_API USmoothMeshToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API USmoothMeshToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
+	/** Type of smoothing to apply */
+	UPROPERTY(EditAnywhere, Category = SmoothingType)
+	ESmoothMeshToolSmoothType SmoothingType = ESmoothMeshToolSmoothType::Iterative;
+};
 
-	IToolsContextAssetAPI* AssetAPI;
 
-	USmoothMeshToolBuilder()
-	{
-		AssetAPI = nullptr;
-	}
 
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+/** Properties for Iterative Smoothing */
+UCLASS()
+class MESHMODELINGTOOLS_API UIterativeSmoothProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Amount of smoothing allowed per step. Smaller steps will avoid things like collapse of small/thin features. */
+	UPROPERTY(EditAnywhere, Category = IterativeSmoothingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float SmoothingPerStep = 0.8f;
+
+	/** Number of Smoothing iterations */
+	UPROPERTY(EditAnywhere, Category = IterativeSmoothingOptions, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	int32 Steps = 10;
+
+	/** If this is false, the smoother will try to reshape the triangles to be more regular, which will distort UVs */
+	UPROPERTY(EditAnywhere, Category = IterativeSmoothingOptions)
+	bool bSmoothBoundary = true;
+};
+
+
+
+/** Properties for Diffusion Smoothing */
+UCLASS()
+class MESHMODELINGTOOLS_API UDiffusionSmoothProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Amount of smoothing allowed per step. Smaller steps will avoid things like collapse of small/thin features. */
+	UPROPERTY(EditAnywhere, Category = DiffusionSmoothingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float SmoothingPerStep = 0.8f;
+
+	/** Number of Smoothing iterations */
+	UPROPERTY(EditAnywhere, Category = DiffusionSmoothingOptions, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	int32 Steps = 1;
+
+	/** If this is false, the smoother will try to reshape the triangles to be more regular, which will distort UVs */
+	UPROPERTY(EditAnywhere, Category = DiffusionSmoothingOptions)
+	bool bPreserveUVs = true;
+};
+
+
+
+
+/** Properties for Implicit smoothing */
+UCLASS()
+class MESHMODELINGTOOLS_API UImplicitSmoothProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Smoothing speed */
+	//UPROPERTY(EditAnywhere, Category = ImplicitSmoothing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY()
+	float SmoothSpeed = 0.1f;
+
+	/** Desired Smoothness. This is not a linear quantity, but larger numbers produce smoother results */
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
+	float Smoothness = 0.2f;
+
+	/** If this is false, the smoother will try to reshape the triangles to be more regular, which will distort UVs */
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothingOptions)
+	bool bPreserveUVs = true;
+
+	/** Magic number that allows you to try to correct for shrinking caused by smoothing */
+	UPROPERTY(EditAnywhere, Category = ImplicitSmoothingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
+	float VolumeCorrection = 0.0f;
 };
 
 
 
 
 
+
 /**
- * Simple Mesh Smoothing Tool
+ * Mesh Smoothing Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API USmoothMeshTool : public USingleSelectionTool, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API USmoothMeshTool : public UBaseMeshProcessingTool
 {
 	GENERATED_BODY()
 
 public:
 	USmoothMeshTool() = default;
 
-	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn);
-
-	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void Tick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
-	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override;
-	virtual bool CanAccept() const override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	virtual void InitializeProperties() override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
+	virtual bool HasMeshTopologyChanged() const override;
 
-	
-protected:
-	// need to update bResultValid if these are modified, so we don't publicly expose them. 
-	// @todo setters/getters for these
-
-	/** primary brush mode */
-	UPROPERTY(EditAnywhere, Category = Options)
-	ESmoothMeshToolSmoothType SmoothType = ESmoothMeshToolSmoothType::Iterative;
-
-	/** Smoothing speed */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float SmoothSpeed = 0.1f;
-
-	/** Smoothing speed */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
-	int32 SmoothIterations = 1;
-
+	virtual FText GetToolMessageString() const override;
+	virtual FText GetAcceptTransactionName() const override;
 
 protected:
-	void UpdateResult();
-
-	bool bResultValid = false;
+	UPROPERTY()
+	USmoothMeshToolProperties* SmoothProperties = nullptr;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
-	FDynamicMesh3 SrcDynamicMesh;
+	UIterativeSmoothProperties* IterativeProperties = nullptr;
+
+	UPROPERTY()
+	UDiffusionSmoothProperties* DiffusionProperties = nullptr;
+
+	UPROPERTY()
+	UImplicitSmoothProperties* ImplicitProperties = nullptr;
+};
 
 
-	UWorld* TargetWorld = nullptr;
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+
+
+/**
+ *
+ */
+UCLASS()
+class MESHMODELINGTOOLS_API USmoothMeshToolBuilder : public UBaseMeshProcessingToolBuilder
+{
+	GENERATED_BODY()
+public:
+	virtual UBaseMeshProcessingTool* MakeNewToolInstance(UObject* Outer) const {
+		return NewObject<USmoothMeshTool>(Outer);
+	}
 };

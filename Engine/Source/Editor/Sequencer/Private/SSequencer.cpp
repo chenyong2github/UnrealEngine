@@ -576,12 +576,12 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 						.Padding(FMargin(CommonPadding, 0.f))
 						[
 							SNew(SWrapBox)
-							.UseAllottedWidth(true)
+							.UseAllottedSize(true)
 							.InnerSlotPadding(FVector2D(5, 2))
 
 							+ SWrapBox::Slot()
 							.FillEmptySpace(true)
-							.FillLineWhenWidthLessThan(600)
+							.FillLineWhenSizeLessThan(600)
 							[
 								SAssignNew(ToolbarContainer, SBox)
 							]

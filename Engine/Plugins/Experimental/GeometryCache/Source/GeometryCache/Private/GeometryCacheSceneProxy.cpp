@@ -35,6 +35,11 @@ static TAutoConsoleVariable<int32> CVarInterpolateFrames(
 	TEXT("Interpolate between geometry cache frames (if topology allows this)."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRayTracingGeometryCache(
+	TEXT("r.RayTracing.Geometry.GeometryCache"),
+	1,
+	TEXT("Include geometry cache primitives in ray tracing effects (default = 1 (geometry cache enabled in ray tracing))"));
+
 /**
 * All vertex information except the position.
 */
@@ -489,6 +494,11 @@ void FGeometryCacheSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 #if RHI_RAYTRACING
 void FGeometryCacheSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
+	if (!CVarRayTracingGeometryCache.GetValueOnRenderThread())
+	{
+		return;
+	}
+
 	for (FGeomCacheTrackProxy* TrackProxy : Tracks)
 	{
 		const FVisibilitySample& VisibilitySample = TrackProxy->GetVisibilitySample(Time, bLooping);
@@ -530,6 +540,7 @@ FPrimitiveViewRelevance FGeometryCacheSceneProxy::GetViewRelevance(const FSceneV
 	Result.bShadowRelevance = IsShadowCast(View);
 	Result.bDynamicRelevance = true;
 	Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+	Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 	MaterialRelevance.SetPrimitiveViewRelevance(Result);
 	Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
 	return Result;

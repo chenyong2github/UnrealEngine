@@ -97,9 +97,6 @@ namespace Audio
 		virtual void InitSoundEffectPresets() override;
 		virtual int32 GetNumActiveSources() const override;
 
-		// Updates the provided source's modulation control values
-		virtual void UpdateModulationControls(const uint32 InSourceId, const FSoundModulationControls& InControls) override;
-
 		// Updates the source effect chain (using unique object id). 
 		virtual void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails) override;
 		virtual bool GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries) override;
@@ -315,9 +312,6 @@ namespace Audio
 
 		/** The time delta for each callback block. */
 		double AudioClockDelta;
-
-		/** The audio clock from device initialization, updated at block rate. */
-		double AudioClock;
 
 		/** What the previous master volume was. */
 		float PreviousMasterVolume;

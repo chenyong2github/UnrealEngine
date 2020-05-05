@@ -1230,7 +1230,7 @@ FString FGenericPlatformMisc::GetTimeZoneId()
 	return FString();
 }
 
-#if DO_CHECK
+#if DO_ENSURE
 namespace GenericPlatformMisc
 {
 	/** Chances for handling an ensure (0.0 - never, 1.0 - always). */
@@ -1277,7 +1277,7 @@ void FGenericPlatformMisc::UpdateHotfixableEnsureSettings()
 
 	GenericPlatformMisc::GEnsureSettingsEverUpdated = true;
 }
-#endif // !DO_CHECK
+#endif // #if DO_ENSURE
 
 void FGenericPlatformMisc::TickHotfixables()
 {

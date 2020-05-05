@@ -48,10 +48,17 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 
-	void Initialize(const USimpleDynamicMeshComponent* MeshComponent, const FGroupTopology* Topology,
+	void Initialize(const FDynamicMesh3* Mesh, 
+		FTransform3d TargetTransform,
+		const FGroupTopology* Topology,
 		TFunction<FDynamicMeshAABBTree3*()> GetSpatialSourceFunc,
 		TFunction<bool(void)> GetAddToSelectionModifierStateFunc = []() {return false; }
 		);
+
+	void Initialize(const USimpleDynamicMeshComponent* MeshComponent, const FGroupTopology* Topology,
+		TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFunc,
+		TFunction<bool(void)> GetAddToSelectionModifierStateFunc = []() {return false; }
+	);
 
 	/**
 	 * Notify internal data structures that the associated MeshComponent has been modified.
@@ -143,7 +150,7 @@ public:
 	UPolygonSelectionMechanicProperties* Properties;
 
 protected:
-	const USimpleDynamicMeshComponent* MeshComponent;
+	const FDynamicMesh3* Mesh;
 	const FGroupTopology* Topology;
 	TFunction<FDynamicMeshAABBTree3*()> GetSpatialFunc;
 

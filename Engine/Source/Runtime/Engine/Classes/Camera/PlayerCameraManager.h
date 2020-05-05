@@ -943,6 +943,12 @@ protected:
 	 */
 	virtual void UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime);
 
+	// ClientSide camera updates prevents DoUpdateCamera from swapping PendingViewTarget in when the blend is complete, just use a timer to swap
+	UFUNCTION()
+	void SwapPendingViewTargetWhenUsingClientSideCameraUpdates();
+
+	FTimerHandle SwapPendingViewTargetWhenUsingClientSideCameraUpdatesTimerHandle;
+
 private:
 	// Buried to prevent use; use GetCameraRotation instead
 	FRotator GetActorRotation() const { return Super::GetActorRotation(); }

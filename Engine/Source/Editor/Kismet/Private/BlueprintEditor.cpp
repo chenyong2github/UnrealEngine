@@ -139,6 +139,7 @@
 #include "AnimationTransitionGraph.h"
 #include "BlueprintEditorModes.h"
 #include "BlueprintEditorSettings.h"
+#include "Settings/EditorProjectSettings.h"
 #include "K2Node_SwitchString.h"
 #include "AnimGraphNode_StateMachineBase.h"
 #include "AnimationStateMachineGraph.h"
@@ -964,9 +965,9 @@ void FBlueprintEditor::OnSelectionUpdated(const TArray<FSCSEditorTreeNodePtrType
 		{
 			if (NodePtr.IsValid())
 			{
-				if (NodePtr->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
+				if (NodePtr->IsActorNode())
 				{
-					AActor* DefaultActor = GetSCSEditorActorContext();
+					AActor* DefaultActor = NodePtr->GetEditableObjectForBlueprint<AActor>(GetBlueprintObj());
 					InspectorObjects.Add(DefaultActor);
 					
 					FString Title; 
@@ -1674,7 +1675,7 @@ struct FLoadObjectsFromAssetRegistryHelper
 	}
 };
 
-void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBlueprints)
+void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBlueprints, bool bShouldOpenInDefaultsMode)
 {
 	TSharedPtr<FBlueprintEditor> ThisPtr(SharedThis(this));
 
@@ -1700,7 +1701,10 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 	if (InitBlueprints.Num() == 1)
 	{
 		// Load blueprint libraries
-		LoadLibrariesFromAssetRegistry();
+		if (!bShouldOpenInDefaultsMode)
+		{
+			LoadLibrariesFromAssetRegistry();
+		}
 
 		FLoadObjectsFromAssetRegistryHelper::Load<UUserDefinedEnum>(UserDefinedEnumerators);
 
@@ -1732,7 +1736,7 @@ struct FBlueprintNamespaceHelper
 	FBlueprintNamespaceHelper()
 	{
 		AddNamespaces(GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude);
-		AddNamespaces(GetDefault<UBlueprintProjectSettings>()->NamespacesToAlwaysInclude);
+		AddNamespaces(GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude);
 	}
 
 	
@@ -1797,8 +1801,8 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 
 		NamespaceHelper.AddNamespace(BP->BlueprintNamespace);
 
-		// Don't allow loading blueprint macros & functions for interface & data-only blueprints
-		if ((BP->BlueprintType != BPTYPE_Interface) && (BP->BlueprintType != BPTYPE_Const))
+		// Interface blueprints don't show a node context menu anywhere so we can skip library loading
+		if (BP->BlueprintType != BPTYPE_Interface)
 		{
 			// Load the asset registry module
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -1959,7 +1963,7 @@ void FBlueprintEditor::InitBlueprintEditor(
 	const FName BlueprintEditorAppName = FName(TEXT("BlueprintEditorApp"));
 	InitAssetEditor(Mode, InitToolkitHost, BlueprintEditorAppName, DummyLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, Objects);
 	
-	CommonInitialization(InBlueprints);
+	CommonInitialization(InBlueprints, bShouldOpenInDefaultsMode);
 
 	InitalizeExtenders();
 
@@ -3891,9 +3895,12 @@ void FBlueprintEditor::JumpToPin(const UEdGraphPin* Pin)
 
 void FBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	TArray<UObject*>& LocalEditingObjects = const_cast<TArray<UObject*>&>(GetEditingObjects());
+	if (GetObjectsCurrentlyBeingEdited()->Num() > 0)
+	{
+		TArray<UObject*>& LocalEditingObjects = const_cast<TArray<UObject*>&>(GetEditingObjects());
 
-	Collector.AddReferencedObjects(LocalEditingObjects);
+		Collector.AddReferencedObjects(LocalEditingObjects);
+	}
 
 	Collector.AddReferencedObjects(StandardLibraries);
 

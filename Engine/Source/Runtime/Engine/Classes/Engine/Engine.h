@@ -1787,9 +1787,11 @@ public:
 	virtual bool IsInitialized() const { return bIsInitialized; }
 
 	/** The feature used to create new worlds, by default. Overridden for feature level preview in the editor */
-	virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const { return GMaxRHIFeatureLevel;  }
+	virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const;
 
 #if WITH_EDITOR
+	/** Return the platform group name and vanilla platform name the current preview platform, or false if there is no preview platform. */
+	virtual bool GetPreviewPlatformName(FName& PlatformGroupName, FName& VanillaPlatformName) const;
 
 	/** Editor-only event triggered when the actor list of the world has changed */
 	DECLARE_EVENT( UEngine, FLevelActorListChangedEvent );
@@ -3389,6 +3391,7 @@ private:
 	int32 RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatLevelMap(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatUnit(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	int32 RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #if !UE_BUILD_SHIPPING
 	int32 RenderStatSoundReverb(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
  	int32 RenderStatSoundMixes(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);

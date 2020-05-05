@@ -72,7 +72,10 @@ UMaterialInterface* UMaterialImportHelpers::FindExistingMaterial(const FString& 
 	TArray<FAssetData> AssetData;
 	FARFilter Filter;
 
-	AssetRegistry.SearchAllAssets(true);
+	TArray<FString> ScanPaths;
+	ScanPaths.Add(BasePath);
+	const bool bForceRescan = false;
+	AssetRegistry.ScanPathsSynchronous(ScanPaths, bForceRescan);
 
 	Filter.bRecursiveClasses = true;
 	Filter.bRecursivePaths = bRecursivePaths;

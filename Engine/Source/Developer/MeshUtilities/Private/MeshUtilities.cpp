@@ -5749,6 +5749,8 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 		const int32 NumInfluences = TargetLODModel.GetMaxBoneInfluences();
 		InOutSkinWeightOverrideData.NumWeightsPerVertex = NumInfluences;
 
+		const bool b16BitBoneIndices = TargetLODModel.DoSectionsUse16BitBoneIndex();
+		InOutSkinWeightOverrideData.b16BitBoneIndices = b16BitBoneIndices;
 
 		TArray<FRawSkinWeight> UniqueWeights;
 		for (int32 VertexIndex = 0; VertexIndex < TargetVertices.Num(); ++VertexIndex)
@@ -5793,8 +5795,18 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 					{
 						const FBoneIndexType Index = SourceSkinWeight.InfluenceBones[InfluenceIndex];
 						const uint8 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
+						
+						if (b16BitBoneIndices)
+						{
+							InOutSkinWeightOverrideData.BoneIDs.AddZeroed(2);
+							FBoneIndexType* BoneIndex = (FBoneIndexType*)&InOutSkinWeightOverrideData.BoneIDs[InOutSkinWeightOverrideData.BoneIDs.Num() - 2];
+							*BoneIndex = Index;
+						}
+						else
+						{
+							InOutSkinWeightOverrideData.BoneIDs.Add((uint8)Index);
+						}
 
-						InOutSkinWeightOverrideData.BoneIDs.Add(Index);
 						InOutSkinWeightOverrideData.BoneWeights.Add(Weight);
 					}
 

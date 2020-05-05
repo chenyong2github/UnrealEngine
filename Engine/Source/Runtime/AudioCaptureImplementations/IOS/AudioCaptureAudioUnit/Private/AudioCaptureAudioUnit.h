@@ -24,14 +24,19 @@ namespace Audio
 		virtual bool IsCapturing() const override;
 		virtual void OnAudioCapture(void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow) override;
 		virtual bool GetInputDevicesAvailable(TArray<FCaptureDeviceInfo>& OutDevices) override;
+		virtual void SetHardwareFeatureEnabled(EHardwareInputFeature FeatureType, bool bEnabled);
 
-		AudioComponentInstance AudioUnit;
+		OSStatus OnCaptureCallback( AudioUnitRenderActionFlags* ioActionFlags, const AudioTimeStamp* inTimeStamp, UInt32 inBusNumber, UInt32 inNumberFrames, AudioBufferList* ioData );
 
 	private:
+		void AllocateBuffer(int SizeInBytes);
+		
+		AudioComponentInstance IOUnit;
+		
 		FOnCaptureFunction OnCapture;
 		int32 NumChannels;
 		int32 SampleRate;
-
-		OSStatus AudioUnitStatus;
+		TArray<uint8> CaptureBuffer;
+		int BufferSize = 0;
 	};
 }

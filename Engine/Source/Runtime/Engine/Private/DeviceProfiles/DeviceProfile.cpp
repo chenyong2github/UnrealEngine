@@ -8,6 +8,14 @@
 #include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
 
+#include "DeviceProfiles/DeviceProfileFragment.h"
+
+UDeviceProfileFragment::UDeviceProfileFragment(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+
 UDeviceProfile::UDeviceProfile(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

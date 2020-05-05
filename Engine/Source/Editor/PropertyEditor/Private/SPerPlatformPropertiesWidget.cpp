@@ -40,7 +40,7 @@ void SPerPlatformPropertiesWidget::ConstructChildren()
 	.HAlign(HAlign_Fill)
 	[
 		SAssignNew(WrapBox, SWrapBox)
-		.UseAllottedWidth(true)
+		.UseAllottedSize(true)
 	];
 
 	if (OnGenerateWidget.IsBound())

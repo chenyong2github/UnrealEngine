@@ -21,6 +21,7 @@
 #include "GameFramework/PlayerState.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 #include "GameFramework/GameNetworkManager.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayerCameraManager, Log, All);
 
@@ -94,6 +95,16 @@ APlayerController* APlayerCameraManager::GetOwningPlayerController() const
 	return PCOwner;
 }
 
+void APlayerCameraManager::SwapPendingViewTargetWhenUsingClientSideCameraUpdates()
+{
+	if (PendingViewTarget.Target)
+	{
+		AssignViewTarget(PendingViewTarget.Target, ViewTarget);
+		ViewTarget.CheckViewTarget(PCOwner);
+		// remove old pending ViewTarget so we don't still try to switch to it
+		PendingViewTarget.Target = NULL;
+	}
+}
 
 void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTargetTransitionParams TransitionParams)
 {
@@ -116,6 +127,11 @@ void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTa
 		return;
 	}
 
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SwapPendingViewTargetWhenUsingClientSideCameraUpdatesTimerHandle);
+	}
+
 	// if viewtarget different then new one or we're transitioning from the same target with locked outgoing, then assign it
 	if((NewTarget != ViewTarget.Target) || (PendingViewTarget.Target && BlendParams.bLockOutgoing))
 	{
@@ -135,6 +151,14 @@ void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTa
 			
 			AssignViewTarget(NewTarget, PendingViewTarget, TransitionParams);
 			PendingViewTarget.CheckViewTarget(PCOwner);
+
+			if (bUseClientSideCameraUpdates && GetNetMode() != NM_Client)
+			{
+				if (UWorld* World = GetWorld())
+				{
+					World->GetTimerManager().SetTimer(SwapPendingViewTargetWhenUsingClientSideCameraUpdatesTimerHandle, this, &ThisClass::SwapPendingViewTargetWhenUsingClientSideCameraUpdates, TransitionParams.BlendTime, false);
+				}
+			}
 		}
 		else
 		{

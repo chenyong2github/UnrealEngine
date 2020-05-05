@@ -48,10 +48,7 @@ public:
 	
 	/** If true, render background object in the preview scene. */
 	bool bShowBackground;
-	
-	/** If true, render grid the preview scene. */
-	bool bShowGrid;
-	
+
 	TSharedRef<class FAdvancedPreviewScene> GetPreviewScene() { return AdvancedPreviewScene.ToSharedRef(); }
 
 	/** The material editor has been added to a tab */

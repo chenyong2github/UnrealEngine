@@ -220,7 +220,7 @@ uint16 FDMXProtocolSACN::GetMaxUniverses() const
 	return ACN_MAX_UNIVERSES;
 }
 
-EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const
+EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const FDMXBufferPtr& DMXBuffer) const
 {
 	// Init Packager
 	FDMXProtocolPackager Packager;

@@ -88,7 +88,7 @@ void FD3D12DynamicRHI::SetupRecursiveResources()
 // Vertex state.
 void FD3D12CommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset)
 {
-	FD3D12VertexBuffer* VertexBuffer = RetrieveObject<FD3D12VertexBuffer>(VertexBufferRHI);
+	FD3D12Buffer* VertexBuffer = RetrieveObject<FD3D12Buffer>(VertexBufferRHI);
 
 	StateCache.SetStreamSource(VertexBuffer ? &VertexBuffer->ResourceLocation : nullptr, StreamIndex, Offset);
 }
@@ -502,6 +502,11 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 	if (!GraphicsPipelineState->PipelineStateInitializer.bDepthBounds)
 	{
 		StateCache.SetDepthBounds(0.0f, 1.0f);
+	}
+
+	if (GRHISupportsVariableRateShading  )
+	{
+		StateCache.SetShadingRate(GraphicsPipelineState->PipelineStateInitializer.ShadingRate, VRSRB_Passthrough);
 	}
 
 	StateCache.SetGraphicsPipelineState(GraphicsPipelineState, bUsingTessellation != bWasUsingTessellation);
@@ -1460,7 +1465,7 @@ void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPr
 
 void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
-	FD3D12VertexBuffer* ArgumentBuffer = RetrieveObject<FD3D12VertexBuffer>(ArgumentBufferRHI);
+	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
 	numDraws++;
 	if (bTrackingEvents)
@@ -1499,8 +1504,11 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBu
 
 void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIStructuredBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
 {
-	FD3D12IndexBuffer* IndexBuffer = RetrieveObject<FD3D12IndexBuffer>(IndexBufferRHI);
-	FD3D12StructuredBuffer* ArgumentsBuffer = RetrieveObject<FD3D12StructuredBuffer>(ArgumentsBufferRHI);
+	const uint32 IndexBufferStride = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI)->GetStride();
+	const uint32 ArgumentsBufferStride = FD3D12DynamicRHI::ResourceCast(ArgumentsBufferRHI)->GetStride();
+
+	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
+	FD3D12Buffer* ArgumentsBuffer = RetrieveObject<FD3D12Buffer>(ArgumentsBufferRHI);
 
 	numDraws++;
 	if (bTrackingEvents)
@@ -1512,7 +1520,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRH
 	CommitNonComputeShaderConstants();
 
 	// determine 16bit vs 32bit indices
-	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
+	const DXGI_FORMAT Format = (IndexBufferStride == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 
 	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
 
@@ -1529,7 +1537,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRH
 		GetParentDevice()->GetParentAdapter()->GetDrawIndexedIndirectCommandSignature(),
 		1,
 		Location.GetResource()->GetResource(),
-		Location.GetOffsetFromBaseOfResource() + DrawArgumentsIndex * ArgumentsBuffer->GetStride(),
+		Location.GetOffsetFromBaseOfResource() + DrawArgumentsIndex * ArgumentsBufferStride,
 		NULL,
 		0
 		);
@@ -1558,15 +1566,17 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferR
 	CommitNonComputeShaderConstants();
 
 	uint32 IndexCount = StateCache.GetVertexCountAndIncrementStat(NumPrimitives);
-	FD3D12IndexBuffer* IndexBuffer = RetrieveObject<FD3D12IndexBuffer>(IndexBufferRHI);
+
+	FD3D12IndexBuffer* RHIIndexBuffer = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI);
+	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
 
 	// Verify that we are not trying to read outside the index buffer range
 	// test is an optimized version of: StartIndex + IndexCount <= IndexBuffer->GetSize() / IndexBuffer->GetStride() 
-	checkf((StartIndex + IndexCount) * IndexBuffer->GetStride() <= IndexBuffer->GetSize(),
-		TEXT("Start %u, Count %u, Type %u, Buffer Size %u, Buffer stride %u"), StartIndex, IndexCount, StateCache.GetGraphicsPipelinePrimitiveType(), IndexBuffer->GetSize(), IndexBuffer->GetStride());
+	checkf((StartIndex + IndexCount) * RHIIndexBuffer->GetStride() <= RHIIndexBuffer->GetSize(),
+		TEXT("Start %u, Count %u, Type %u, Buffer Size %u, Buffer stride %u"), StartIndex, IndexCount, StateCache.GetGraphicsPipelinePrimitiveType(), RHIIndexBuffer->GetSize(), RHIIndexBuffer->GetStride());
 
 	// determine 16bit vs 32bit indices
-	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
+	const DXGI_FORMAT Format = (RHIIndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
@@ -1580,8 +1590,9 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferR
 
 void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
-	FD3D12IndexBuffer* IndexBuffer = RetrieveObject<FD3D12IndexBuffer>(IndexBufferRHI);
-	FD3D12VertexBuffer* ArgumentBuffer = RetrieveObject<FD3D12VertexBuffer>(ArgumentBufferRHI);
+	const uint32 IndexBufferStride = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI)->GetStride();
+	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
+	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
 	numDraws++;
 	if (bTrackingEvents)
@@ -1593,7 +1604,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* Inde
 	CommitNonComputeShaderConstants();
 
 	// Set the index buffer.
-	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
+	const DXGI_FORMAT Format = (IndexBufferStride == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
@@ -1832,6 +1843,67 @@ void FD3D12CommandContext::SetDepthBounds(float MinDepth, float MaxDepth)
 	{
 		// This should only be called if Depth Bounds Test is supported.
 		CommandListHandle.GraphicsCommandList1()->OMSetDepthBounds(MinDepth, MaxDepth);
+	}
+#endif
+}
+
+
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+static D3D12_SHADING_RATE_COMBINER ConvertShadingRateCombiner(EVRSRateCombiner InCombiner)
+{
+	switch (InCombiner)
+	{
+	case VRSRB_Override:
+		return D3D12_SHADING_RATE_COMBINER_OVERRIDE;
+	case VRSRB_Min:
+		return D3D12_SHADING_RATE_COMBINER_MIN;
+	case VRSRB_Max:
+		return D3D12_SHADING_RATE_COMBINER_MAX;
+	case VRSRB_Sum:
+		return D3D12_SHADING_RATE_COMBINER_SUM;
+	case VRSRB_Passthrough:
+	default:
+		return D3D12_SHADING_RATE_COMBINER_PASSTHROUGH;
+	}
+	return D3D12_SHADING_RATE_COMBINER_PASSTHROUGH;
+}
+#endif
+
+void FD3D12CommandContext::RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner)
+{
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+	StateCache.SetShadingRate(ShadingRate, Combiner);
+#endif
+}
+
+ void FD3D12CommandContext::SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner)
+ {
+ #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+ 	if (GRHISupportsVariableRateShading && CommandListHandle.GraphicsCommandList5())
+ 	{
+ 		VRSCombiners[0] = ConvertShadingRateCombiner(Combiner);	// Combiner 0 is used to mix per draw and per VS/GS rates
+ 		VRSShadingRate = static_cast<D3D12_SHADING_RATE>(ShadingRate);
+ 		CommandListHandle.GraphicsCommandList5()->RSSetShadingRate(VRSShadingRate, VRSCombiners);
+ 	}
+ #endif
+}
+
+void FD3D12CommandContext::RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner)
+{
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+	if (GRHISupportsVariableRateShading && CommandListHandle.GraphicsCommandList5())
+	{
+		VRSCombiners[1] = ConvertShadingRateCombiner(Combiner); // Combiner 1 is used to mix rates from a texture and the previous combiner
+		if (RateImageTexture)
+		{
+			FD3D12Resource* Resource = RetrieveTextureBase(RateImageTexture)->GetResource();
+			CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(Resource->GetResource());
+		}
+		else
+		{
+			CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(nullptr);
+		}
+		CommandListHandle.GraphicsCommandList5()->RSSetShadingRate(VRSShadingRate, VRSCombiners);
 	}
 #endif
 }

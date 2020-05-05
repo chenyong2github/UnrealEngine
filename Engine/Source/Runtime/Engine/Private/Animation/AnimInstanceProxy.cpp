@@ -2488,6 +2488,7 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 Lin
 			if (PoseWatch.NodeID == LinkID)
 			{
 				PoseWatch.PoseInfo->CopyBonesFrom(Pose);
+				PoseWatch.Object = GetAnimInstanceObject();
 				break;
 			}
 		}
@@ -2505,6 +2506,7 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, 
 				FCompactPose TempPose;
 				FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(Pose, TempPose);
 				PoseWatch.PoseInfo->CopyBonesFrom(TempPose);
+				PoseWatch.Object = GetAnimInstanceObject();
 				break;
 			}
 		}

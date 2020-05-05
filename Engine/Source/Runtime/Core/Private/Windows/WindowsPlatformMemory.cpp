@@ -227,7 +227,11 @@ FPlatformMemoryStats FWindowsPlatformMemory::GetStats()
 	MemoryStats.TotalPhysical = MemoryStatusEx.ullTotalPhys;
 	MemoryStats.AvailablePhysical = MemoryStatusEx.ullAvailPhys;
 	MemoryStats.AvailableVirtual = MemoryStatusEx.ullAvailVirtual;
-	
+
+	// On Windows, Virtual Memory is limited per process to the address space (e.g. 47 bits (128Tb)), but is additionally limited by the sum of used virtual memory across all processes
+	// must be less than PhysicalMemory plus the Virtual Memory Page Size. The remaining virtual memory space given this system-wide limit is stored in ullAvailPageSize
+	MemoryStats.AvailableVirtual = FMath::Min(MemoryStats.AvailableVirtual, MemoryStatusEx.ullAvailPageFile);
+
 	MemoryStats.UsedPhysical = ProcessMemoryCounters.WorkingSetSize;
 	MemoryStats.PeakUsedPhysical = ProcessMemoryCounters.PeakWorkingSetSize;
 	MemoryStats.UsedVirtual = ProcessMemoryCounters.PagefileUsage;

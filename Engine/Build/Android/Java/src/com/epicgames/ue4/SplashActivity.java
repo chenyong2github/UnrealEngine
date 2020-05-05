@@ -21,6 +21,7 @@ import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.net.Uri;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.BitmapDrawable;
 
 import android.support.v4.app.ActivityCompat;
@@ -98,10 +99,10 @@ public class SplashActivity extends Activity
 		}
 
 		// Centering background image by default
-		View decorView = getWindow().getDecorView();
-		BitmapDrawable SplashBitmap = (BitmapDrawable)decorView.getBackground();
-		if (SplashBitmap != null)
+		Drawable BackgroundDrawable = getWindow().getDecorView().getBackground();
+		if (BackgroundDrawable != null && BackgroundDrawable instanceof BitmapDrawable)
 		{
+			BitmapDrawable SplashBitmap = (BitmapDrawable)BackgroundDrawable;
 			SplashBitmap.setGravity(android.view.Gravity.CENTER);
 		}
 		

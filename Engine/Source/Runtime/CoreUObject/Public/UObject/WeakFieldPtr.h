@@ -178,7 +178,7 @@ public:
 	**/
 	FORCEINLINE bool IsValid(bool bEvenIfPendingKill, bool bThreadsafeTest = false) const
 	{
-		return Owner.IsValid(bEvenIfPendingKill, bThreadsafeTest) && Field.TryToResolvePath();
+		return Owner.IsValid(bEvenIfPendingKill, bThreadsafeTest) && Field.Get();
 	}
 
 	/**
@@ -187,7 +187,7 @@ public:
 	*/
 	FORCEINLINE bool IsValid(/*bool bEvenIfPendingKill = false, bool bThreadsafeTest = false*/) const
 	{
-		return Owner.IsValid() && Field.TryToResolvePath();
+		return Owner.IsValid() && Field.Get();
 	}
 
 	/**

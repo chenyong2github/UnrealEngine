@@ -123,12 +123,12 @@ struct TMatrix3
 		return TMatrix3<RealType>(M00, M01, M02, M10, M11, M12, M20, M21, M22);
 	}
 
-	TMatrix3<RealType> operator+(const TMatrix3<RealType>& Mat2)
+	TMatrix3<RealType> operator+(const TMatrix3<RealType>& Mat2) const 
 	{
 		return TMatrix3<RealType>(Row0 + Mat2.Row0, Row1 + Mat2.Row1, Row2 + Mat2.Row2, true);
 	}
 
-	TMatrix3<RealType> operator-(const TMatrix3<RealType>& Mat2)
+	TMatrix3<RealType> operator-(const TMatrix3<RealType>& Mat2) const 
 	{
 		return TMatrix3<RealType>(Row0 - Mat2.Row0, Row1 - Mat2.Row1, Row2 - Mat2.Row2, true);
 	}
@@ -152,6 +152,11 @@ struct TMatrix3
 	RealType InnerProduct(const TMatrix3<RealType>& Mat2) const
 	{
 		return Row0.Dot(Mat2.Row0) + Row1.Dot(Mat2.Row1) + Row2.Dot(Mat2.Row2);
+	}
+
+	RealType Trace() const
+	{
+		return Row0.X + Row1.Y + Row2.Z;
 	}
 
 	RealType Determinant() const
@@ -353,6 +358,11 @@ struct TMatrix2
 		return Row0.Dot(Mat2.Row0) + Row1.Dot(Mat2.Row1);
 	}
 
+	RealType Trace() const
+	{
+		return Row0.X + Row1.Y;
+	}
+
 	RealType Determinant() const
 	{
 		return Row0.X * Row1.Y - Row0.Y * Row1.X;
@@ -417,6 +427,19 @@ inline TMatrix2<RealType> operator*(RealType Scale, const TMatrix2<RealType>& Ma
 		Mat.Row0.X * Scale, Mat.Row0.Y * Scale,
 		Mat.Row1.X * Scale, Mat.Row1.Y * Scale);
 }
+
+// Skew-Symmetric matrix such that A X B = CrossProductMatrix(A) * B;
+template <typename RealType>
+inline static TMatrix3<RealType> CrossProductMatrix(const FVector3<RealType>& A)
+{
+	RealType Zero(0);
+
+	return TMatrix3<RealType>( Zero, -A[2],  A[1],
+		                       A[2],  Zero, -A[0],
+		                      -A[1],  A[0],  Zero);
+}
+
+
 
 typedef TMatrix3<float> FMatrix3f;
 typedef TMatrix3<double> FMatrix3d;

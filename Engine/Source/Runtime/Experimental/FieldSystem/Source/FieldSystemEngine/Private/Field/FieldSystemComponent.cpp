@@ -140,7 +140,7 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 		checkSlow(PhysicsDispatcher); // Should always have one of these
 
 		// Assemble a list of compatible solvers
-		TArray<Chaos::FPhysicsSolver*> SupportedSolverList;
+		TArray<Chaos::FPhysicsSolverBase*> SupportedSolverList;
 		if(SupportedSolvers.Num() > 0)
 		{
 			for(TSoftObjectPtr<AChaosSolverActor>& SolverActorPtr : SupportedSolvers)
@@ -152,7 +152,7 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 			}
 		}
 
-		TArray<Chaos::FPhysicsSolver*> WorldSolverList = ChaosModule->GetAllSolvers();
+		TArray<Chaos::FPhysicsSolverBase*> WorldSolverList = ChaosModule->GetAllSolvers();
 
 		// #BGTODO Currently all commands will end up actually executing a frame late. That's because this command has to be logged as a global command
 		// so we don't end up with multiple solver threads writing to the proxy. We need a better way to buffer up multi-solver commands so they can be
@@ -163,14 +163,17 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 			{
 				const int32 NumFilterSolvers = SupportedSolverList.Num();
 
-				for(Chaos::FPhysicsSolver* Solver : WorldSolvers)
+				for(Chaos::FPhysicsSolverBase* Solver : WorldSolvers)
 				{
-					const bool bSolverValid = NumFilterSolvers == 0 || SupportedSolverList.Contains(Solver);
-
-					if(Solver->Enabled() && Solver->HasActiveParticles() && bSolverValid)
+					Solver->CastHelper([NumFilterSolvers, &SupportedSolverList, PhysicsProxy, &NewCommand](auto& Concrete)
 					{
-						PhysicsProxy->BufferCommand(Solver, NewCommand);
-					}
+						const bool bSolverValid = NumFilterSolvers == 0 || SupportedSolverList.Contains(&Concrete);
+
+						if(Concrete.Enabled() && Concrete.HasActiveParticles() && bSolverValid)
+						{
+							PhysicsProxy->BufferCommand(&Concrete,NewCommand);
+						}
+					});
 				}
 			});
 		}

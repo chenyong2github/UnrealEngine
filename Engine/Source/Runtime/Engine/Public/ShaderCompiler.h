@@ -578,7 +578,17 @@ public:
 		NumExternalJobs = NumJobs;
 	}
 
-	ENGINE_API bool GetDumpShaderDebugInfo() const;
+	enum class EDumpShaderDebugInfo : int32
+	{
+		Never				= 0,
+		Always				= 1,
+		OnError				= 2,
+		OnErrorOrWarning	= 3
+	};
+
+	ENGINE_API EDumpShaderDebugInfo GetDumpShaderDebugInfo() const;
+	ENGINE_API FString CreateShaderDebugInfoPath(const FShaderCompilerInput& ShaderCompilerInput) const;
+	ENGINE_API bool ShouldRecompileToDumpShaderDebugInfo(const FShaderCompileJob& Job) const;
 
 	const FString& GetAbsoluteShaderDebugInfoDirectory() const
 	{

@@ -26,7 +26,7 @@ namespace ChaosTest {
 	{
 		TPBDRigidsSOAs<T, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
+		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 		TPBDRigidClusteredParticles<T, 3>& ClusteredParticles = Particles.GetClusteredParticles();
 		
 		uint32 FirstId = ClusteredParticles.Size();
@@ -73,7 +73,7 @@ namespace ChaosTest {
 	{
 		TPBDRigidsSOAs<T, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
+		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
 
 		//create a long row of boxes - the depth 0 cluster is the entire row, the depth 1 clusters 4 boxes each, the depth 2 clusters are 1 box each
@@ -199,7 +199,7 @@ namespace ChaosTest {
 	{
 		TPBDRigidsSOAs<T, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
+		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
 
 		//create a long row of boxes - the depth 0 cluster is the entire row, the depth 1 clusters 4 boxes each, the depth 2 clusters are 1 box each

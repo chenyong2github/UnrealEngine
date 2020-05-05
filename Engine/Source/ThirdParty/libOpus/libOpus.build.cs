@@ -118,7 +118,8 @@ public class libOpus : ModuleRules
 			string[] Architectures = new string[] {
 				"ARMv7",
 				"ARM64",
-				"x64",
+				"x86",
+				"x64"
 			};
 
 			foreach(string Architecture in Architectures)
@@ -127,15 +128,5 @@ public class libOpus : ModuleRules
 				PublicAdditionalLibraries.Add(LibraryPath + "Android/" + Architecture + "/libspeex_resampler.a");
 			}
 		}
-        else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-        {
-            LibraryPath += "XboxOne/VS2015/Release/";
-
-            PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
-            PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
-            PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
-            PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
-            PublicAdditionalLibraries.Add(LibraryPath + "speex_resampler.lib");
-        }
     }
 }

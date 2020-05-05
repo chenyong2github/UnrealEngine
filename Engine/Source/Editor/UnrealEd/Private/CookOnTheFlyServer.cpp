@@ -3047,19 +3047,6 @@ bool UCookOnTheFlyServer::FinishPackageCacheForCookedPlatformData(UPackage* Pack
 		}
 	}
 
-	if (CurrentCookMode == ECookMode::CookByTheBook)
-	{
-		// For each object for which data is cached we can call FinishedCookedPlatformDataCache
-		// we can only safely call this when we are finished caching the object completely.
-		// this doesn't ever happen for cook in editor or cook on the fly mode
-		for (UObject* Obj : CurrentReentryData.CachedObjectsInOuter)
-		{
-			check(!IsCookingInEditor());
-			// this might be run multiple times for a single object
-			Obj->WillNeverCacheCookedPlatformDataAgain();
-		}
-	}
-
 	// all these objects have finished so release their async begincache back to the pool
 	for (const auto& FinishedCached : CurrentReentryData.BeginCacheCallCount )
 	{
@@ -3496,6 +3483,14 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 				for (UObject* Object : ObjectsInPackage)
 				{
 					Object->ClearAllCachedCookedPlatformData();
+					if (CurrentCookMode == ECookMode::CookByTheBook)
+					{
+						// For each object for which data is cached we can call FinishedCookedPlatformDataCache
+						// we can only safely call this when we are finished caching the object completely.
+						// this doesn't ever happen for cook in editor or cook on the fly mode
+						// this might be run multiple times for a single object
+						Object->WillNeverCacheCookedPlatformDataAgain();
+					}
 				}
 			}
 
@@ -3761,38 +3756,46 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 
 	TStringBuilder<256> TriggerMessages;
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
-	if (MinFreeMemory != 0)
+	if (MemoryMinFreeVirtual > 0 || MemoryMinFreePhysical > 0)
 	{
 		++ActiveTriggers;
-		if (MemStats.AvailablePhysical < MinFreeMemory)
+		bool bFired = false;
+		if (MemoryMinFreeVirtual > 0 && MemStats.AvailableVirtual < MemoryMinFreeVirtual)
+		{
+			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMinFreeVirtual: Available virtual memory %dMiB is less than %dMiB."),
+				static_cast<uint32>(MemStats.AvailableVirtual / 1024 / 1024), static_cast<uint32>(MemoryMinFreeVirtual / 1024 / 1024));
+			bFired = true;
+		}
+		if (MemoryMinFreePhysical > 0 && MemStats.AvailablePhysical < MemoryMinFreePhysical)
+		{
+			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMinFreePhysical: Available physical memory %dMiB is less than %dMiB."),
+				static_cast<uint32>(MemStats.AvailablePhysical / 1024 / 1024), static_cast<uint32>(MemoryMinFreePhysical / 1024 / 1024));
+			bFired = true;
+		}
+		if (bFired)
 		{
 			++FiredTriggers;
-			TriggerMessages.Appendf(TEXT("\n  CookSettings.MinFreeMemory: Available physical memory %dMiB is less than %dMiB."),
-				static_cast<uint32>(MemStats.AvailablePhysical / 1024 / 1024), static_cast<uint32>(MinFreeMemory / 1024 / 1024));
 		}
 	}
 
-	// don't gc if we haven't reached our min gc level yet
-	if (MinMemoryBeforeGC > 0)
+	if (MemoryMaxUsedVirtual > 0 || MemoryMaxUsedPhysical > 0)
 	{
 		++ActiveTriggers;
-		if (MemStats.UsedVirtual >= MinMemoryBeforeGC)
+		bool bFired = false;
+		if (MemoryMaxUsedVirtual > 0 && MemStats.UsedVirtual >= MemoryMaxUsedVirtual)
 		{
-			TriggerMessages.Appendf(TEXT("\n  CookSettings.MinMemoryBeforeGC: Used virtual memory %dMiB is greater than %dMiB."),
-				static_cast<uint32>(MemStats.UsedVirtual / 1024 / 1024), static_cast<uint32>(MinMemoryBeforeGC / 1024 / 1024));
-			++FiredTriggers;
+			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMaxUsedVirtual: Used virtual memory %dMiB is greater than %dMiB."),
+				static_cast<uint32>(MemStats.UsedVirtual / 1024 / 1024), static_cast<uint32>(MemoryMaxUsedVirtual / 1024 / 1024));
+			bFired = true;
 		}
-	}
-
-	if (MaxMemoryAllowance > 0u)
-	{
-		++ActiveTriggers;
-		//uint64 UsedMemory = MemStats.UsedVirtual; 
-		uint64 UsedMemory = MemStats.UsedPhysical; //should this be used virtual?
-		if (UsedMemory >= MaxMemoryAllowance)
+		if (MemoryMaxUsedPhysical > 0 && MemStats.UsedPhysical >= MemoryMaxUsedPhysical)
 		{
-			TriggerMessages.Appendf(TEXT("\n  CookSettings.MaxMemoryAllowance: Used physical memory %dMiB is greater than %dMiB."),
-				static_cast<uint32>(MemStats.UsedPhysical / 1024 / 1024), static_cast<uint32>(MaxMemoryAllowance / 1024 / 1024));
+			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMaxUsedPhysical: Used physical memory %dMiB is greater than %dMiB."),
+				static_cast<uint32>(MemStats.UsedPhysical / 1024 / 1024), static_cast<uint32>(MemoryMaxUsedPhysical / 1024 / 1024));
+			bFired = true;
+		}
+		if (bFired)
+		{
 			++FiredTriggers;
 		}
 	}
@@ -3952,13 +3955,19 @@ void UCookOnTheFlyServer::MarkPackageDirtyForCooker( UPackage *Package )
 			{
 				TArray<const ITargetPlatform*> CookedPlatforms;
 				// if we have already cooked this package and we have made changes then recook ;)
-				if (PackageTracker->CookedPackages.GetCookedPlatforms(PackageFFileName, CookedPlatforms) )
+				PackageTracker->CookedPackages.GetCookedPlatforms(PackageFFileName, CookedPlatforms);
+				bool bHadCookedPackages = CookedPlatforms.Num() != 0;
+				PackageTracker->CookedPackages.RemoveFile(PackageFFileName);
+				if (bHadCookedPackages)
 				{
 					if (IsCookByTheBookRunning())
 					{
 						// if this package was previously cooked and we are doing a cook by the book 
 						// we need to recook this package before finishing cook by the book
-						PackageTracker->EnqueueUniqueCookRequest(FFilePlatformRequest(PackageFFileName, CookedPlatforms));
+
+						// Note - SessionPlatforms here instead of CookedPlatforms. The lock is not needed 
+						// because we have checked IsCookByTheBook and therefore we are single threaded.
+						PackageTracker->EnqueueUniqueCookRequest(FFilePlatformRequest(PackageFFileName, PlatformManager->GetSessionPlatforms()));
 					}
 					else
 					{
@@ -4023,7 +4032,7 @@ double UCookOnTheFlyServer::GetIdleTimeToGC() const
 
 uint64 UCookOnTheFlyServer::GetMaxMemoryAllowance() const
 {
-	return MaxMemoryAllowance;
+	return MemoryMaxUsedPhysical;
 }
 
 const TArray<FName>& UCookOnTheFlyServer::GetFullPackageDependencies(const FName& PackageName ) const
@@ -4662,43 +4671,62 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	IdleTimeToGC = 20.0;
 	GConfig->GetDouble( TEXT("CookSettings"), TEXT("IdleTimeToGC"), IdleTimeToGC, GEditorIni );
 
-	int32 MaxMemoryAllowanceInMB = 8 * 1024;
-	GConfig->GetInt( TEXT("CookSettings"), TEXT("MaxMemoryAllowance"), MaxMemoryAllowanceInMB, GEditorIni );
-	MaxMemoryAllowanceInMB = FMath::Max(MaxMemoryAllowanceInMB, 0);
-	MaxMemoryAllowance = MaxMemoryAllowanceInMB * 1024LL * 1024LL;
-	
-	int32 MinMemoryBeforeGCInMB = 0; // 6 * 1024;
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinMemoryBeforeGC"), MinMemoryBeforeGCInMB, GEditorIni);
-	MinMemoryBeforeGCInMB = FMath::Max(MinMemoryBeforeGCInMB, 0);
-	MinMemoryBeforeGC = MinMemoryBeforeGCInMB * 1024LL * 1024LL;
-	MinMemoryBeforeGC = FMath::Min(MaxMemoryAllowance, MinMemoryBeforeGC);
+	auto ReadMemorySetting = [](const TCHAR* SettingName, uint64& TargetVariable)
+	{
+		int32 ValueInMB = 0;
+		if (GConfig->GetInt(TEXT("CookSettings"), SettingName, ValueInMB, GEditorIni))
+		{
+			ValueInMB = FMath::Max(ValueInMB, 0);
+			TargetVariable = ValueInMB * 1024LL * 1024LL;
+			return true;
+		}
+		return false;
+	};
+	MemoryMaxUsedVirtual = 0;
+	MemoryMaxUsedPhysical = 0;
+	MemoryMinFreeVirtual = 0;
+	MemoryMinFreePhysical = 0;
+	ReadMemorySetting(TEXT("MemoryMaxUsedVirtual"), MemoryMaxUsedVirtual);
+	ReadMemorySetting(TEXT("MemoryMaxUsedPhysical"), MemoryMaxUsedPhysical);
+	ReadMemorySetting(TEXT("MemoryMinFreeVirtual"), MemoryMinFreeVirtual);
+	ReadMemorySetting(TEXT("MemoryMinFreePhysical"), MemoryMinFreePhysical);
 
+	uint64 MaxMemoryAllowance;
+	if (ReadMemorySetting(TEXT("MaxMemoryAllowance"), MaxMemoryAllowance))
+	{ 
+		UE_LOG(LogCook, Warning, TEXT("CookSettings.MaxMemoryAllowance is deprecated. Use CookSettings.MemoryMaxUsedPhysical instead."));
+		MemoryMaxUsedPhysical = MaxMemoryAllowance;
+	}
+	uint64 MinMemoryBeforeGC;
+	if (ReadMemorySetting(TEXT("MinMemoryBeforeGC"), MinMemoryBeforeGC))
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinMemoryBeforeGC is deprecated. Use CookSettings.MemoryMaxUsedVirtual instead."));
+		MemoryMaxUsedVirtual = MinMemoryBeforeGC;
+	}
+	uint64 MinFreeMemory;
+	if (ReadMemorySetting(TEXT("MinFreeMemory"), MinFreeMemory))
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinFreeMemory is deprecated. Use CookSettings.MemoryMinFreePhysical instead."));
+		MemoryMinFreePhysical = MinFreeMemory;
+	}
+	uint64 MinReservedMemory;
+	if (ReadMemorySetting(TEXT("MinReservedMemory"), MinReservedMemory))
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinReservedMemory is deprecated. Use CookSettings.MemoryMinFreePhysical instead."));
+		MemoryMinFreePhysical = MinReservedMemory;
+	}
+	
 	MinFreeUObjectIndicesBeforeGC = 100000;
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinFreeUObjectIndicesBeforeGC"), MinFreeUObjectIndicesBeforeGC, GEditorIni);
 	MinFreeUObjectIndicesBeforeGC = FMath::Max(MinFreeUObjectIndicesBeforeGC, 0);
-
-	int32 MinFreeMemoryInMB = 0;
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinFreeMemory"), MinFreeMemoryInMB, GEditorIni);
-	MinFreeMemoryInMB = FMath::Max(MinFreeMemoryInMB, 0);
-	MinFreeMemory = MinFreeMemoryInMB * 1024LL * 1024LL;
-
-	// check the amount of OS memory and use that number minus the reserved memory number
-	int32 MinReservedMemoryInMB = 0;
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinReservedMemory"), MinReservedMemoryInMB, GEditorIni);
-	MinReservedMemoryInMB = FMath::Max(MinReservedMemoryInMB, 0);
-	int64 MinReservedMemory = MinReservedMemoryInMB * 1024LL * 1024LL;
-	if ( MinReservedMemory )
-	{
-		int64 TotalRam = FPlatformMemory::GetPhysicalGBRam() * 1024LL * 1024LL * 1024LL;
-		MaxMemoryAllowance = FMath::Min<int64>( MaxMemoryAllowance, TotalRam - MinReservedMemory );
-	}
 
 	MaxNumPackagesBeforePartialGC = 400;
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MaxNumPackagesBeforePartialGC"), MaxNumPackagesBeforePartialGC, GEditorIni);
 	
 	GConfig->GetArray(TEXT("CookSettings"), TEXT("ConfigSettingBlacklist"), ConfigSettingBlacklist, GEditorIni);
 
-	UE_LOG(LogCook, Display, TEXT("Max memory allowance for cook %dmb min free memory %dmb"), MaxMemoryAllowanceInMB, MinFreeMemoryInMB);
+	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB"),
+		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024);
 
 
 	{
@@ -6655,10 +6683,6 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
 
             if (ShaderFormats.Num() > 0)
 			{
-				if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
-				{
-					FShaderCodeLibrary::CleanDirectories(ShaderFormats);
-				}
 				FShaderCodeLibrary::CookShaderFormats(ShaderFormatsWithStableKeys);
 			}
         }
@@ -6839,8 +6863,10 @@ void UCookOnTheFlyServer::CleanShaderCodeLibraries()
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
     bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 	ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+	bool bIterativeCook = IsCookFlagSet(ECookInitializationFlags::Iterative) ||	PackageTracker->CookedPackages.Num() != 0;
+
 	// If not iterative then clean up our temporary files
-	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode && !IsCookFlagSet(ECookInitializationFlags::Iterative))
+	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode && !bIterativeCook)
 	{
 		for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 		{
@@ -7280,21 +7306,17 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 			FPlatformData* PlatformData = PlatformManager->GetPlatformData(Target);
 			const bool bIsIniSettingsOutOfDate = IniSettingsOutOfDate(Target); // needs to be executed for side effects even if non-iterative
 
-			bool bShouldClearCookedContent = false;
-			if (PlatformData->bIsSandboxInitialized)
-			{
-				// We have constructed the sandbox in an earlier cook in this process (e.g. in the editor) and should not clear it again
-				bShouldClearCookedContent = false;
-			}
-			else if (bIsDiffOnly)
+			bool bShouldClearCookedContent = true;
+			if (bIsDiffOnly)
 			{
 				// When looking for deterministic cooking differences in cooked packages, don't delete the packages on disk
 				bShouldClearCookedContent = false;
 			}
-			else if (bIsIterativeCook)
+			else if (bIsIterativeCook || PlatformData->bIsSandboxInitialized)
 			{
 				if (!bIsIniSettingsOutOfDate)
 				{
+					// We have constructed the sandbox in an earlier cook in this process (e.g. in the editor) and should not clear it again
 					bShouldClearCookedContent = false;
 				}
 				else
@@ -7352,6 +7374,7 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 	{
 		PlatformNames += Target->PlatformName() + TEXT(" ");
 	}
+	PlatformNames.TrimEndInline();
 	UE_LOG(LogCook, Display, TEXT("Sandbox cleanup took %5.3f seconds for platforms %s"), CleanSandboxTime, *PlatformNames);
 #endif
 }
@@ -7501,7 +7524,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	//force precache objects to refresh themselves before cooking anything
 	LastUpdateTick = INT_MAX;
 
-	CookByTheBookOptions->bRunning = true;
 	CookByTheBookOptions->bCancel = false;
 	CookByTheBookOptions->CookTime = 0.0f;
 	CookByTheBookOptions->CookStartTime = FPlatformTime::Seconds();
@@ -7527,6 +7549,9 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 	PlatformManager->SelectSessionPlatforms(TargetPlatforms, PackageTracker);
 	check(PlatformManager->GetSessionPlatforms().Num() == TargetPlatforms.Num());
+
+	// We want to set bRunning = true as early as possible, but it implies that session platforms have been selected so this is the earliest point we can set it
+	CookByTheBookOptions->bRunning = true;
 
 	RefreshPlatformAssetRegistries(TargetPlatforms);
 
@@ -7726,6 +7751,13 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	
 	if ( IsCookingDLC() )
 	{
+		IAssetRegistry* CacheAssetRegistry = PackageNameCache->GetAssetRegistry();
+		if (CacheAssetRegistry == nullptr)
+		{
+			UE_LOG(LogCook, Log, TEXT("Temporarily Replacing PackageNameCache Asset Registry with the CookOnTheFlyServer's AssetRegistry to initialise Cache"));
+			PackageNameCache->SetAssetRegistry(AssetRegistry);
+		}
+
 		// if we are cooking dlc we must be based on a release version cook
 		check( !BasedOnReleaseVersion.IsEmpty() );
 
@@ -7775,6 +7807,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			}
 			CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, MoveTemp(PackageList));
 		}
+
+		PackageNameCache->SetAssetRegistry(CacheAssetRegistry);
 	}
 	
 	// don't resave the global shader map files in dlc
@@ -7903,9 +7937,17 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	// this is to support canceling cooks from the editor
 	// this is required to make sure that the cooker is in a good state after cancel occurs
 	// if too many packages are being recooked after resume then we may need to figure out a different way to do this
-	for ( const FFilePlatformRequest& PreviousRequest : CookByTheBookOptions->PreviousCookRequests )
+	if (IsCookingInEditor())
 	{
-		PackageTracker->EnqueueUniqueCookRequest( PreviousRequest );
+		for (const FFilePlatformRequest& PreviousRequest : CookByTheBookOptions->PreviousCookRequests)
+		{
+			// do not queue previous requests that targeted a different platform
+			const TArray<const ITargetPlatform*>& PreviousPlatforms = PreviousRequest.GetPlatforms();
+			if (TargetPlatforms.Num() == 1 && PreviousPlatforms.Num() == TargetPlatforms.Num() && PreviousPlatforms[0] == TargetPlatforms[0])
+			{
+				PackageTracker->EnqueueUniqueCookRequest(PreviousRequest);
+			}
+		}
 	}
 	CookByTheBookOptions->PreviousCookRequests.Empty();
 
@@ -8242,31 +8284,63 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 
 bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, TArray<FName>& OutPackageFilenames ) const
 {
+	SCOPE_TIMER(GetAllPackageFilenamesFromAssetRegistry);
 	FArrayReader SerializedAssetData;
 	if (FFileHelper::LoadFileToArray(SerializedAssetData, *AssetRegistryPath))
 	{
 		FAssetRegistryState TempState;
-		FAssetRegistrySerializationOptions LoadOptions;
-		LoadOptions.bSerializeDependencies = false;
-		LoadOptions.bSerializePackageData = false;
-
-		TempState.Serialize(SerializedAssetData, LoadOptions);
+		TempState.Serialize(SerializedAssetData, FAssetRegistrySerializationOptions());
 
 		const TMap<FName, const FAssetData*>& RegistryDataMap = TempState.GetObjectPathToAssetDataMap();
 
+		check(OutPackageFilenames.Num() == 0);
+		OutPackageFilenames.SetNum(RegistryDataMap.Num());
+
+		TArray<FName> PackageNames;
+		PackageNames.Reserve(RegistryDataMap.Num());
+
 		for (const TPair<FName, const FAssetData*>& RegistryData : RegistryDataMap)
 		{
-			const FAssetData* NewAssetData = RegistryData.Value;
-			FName CachedPackageFileFName = PackageNameCache->GetCachedStandardPackageFileFName(NewAssetData->ObjectPath);
-			if (CachedPackageFileFName != NAME_None)
+			int32 AddedIndex = PackageNames.Add(RegistryData.Value->PackageName);
+			if (PackageNameCache->Contains(PackageNames.Last()))
 			{
-				OutPackageFilenames.Add(CachedPackageFileFName);
-			}
-			else
-			{
-				UE_LOG(LogCook, Warning, TEXT("Could not resolve package %s from %s"), *NewAssetData->ObjectPath.ToString(), *AssetRegistryPath);
+				OutPackageFilenames[AddedIndex] = PackageNameCache->GetCachedStandardPackageFileFName(PackageNames.Last());
 			}
 		}
+
+		TArray<TTuple<FName, FString, FString>> PackageToStandardFileNames;
+		PackageToStandardFileNames.SetNum(RegistryDataMap.Num());
+
+		ParallelFor(PackageNames.Num(), [&AssetRegistryPath, &OutPackageFilenames, &PackageToStandardFileNames, &PackageNames, this](int32 AssetIndex)
+			{
+				if (!OutPackageFilenames[AssetIndex].IsNone())
+				{
+					return;
+				}
+
+				const FName PackageName = PackageNames[AssetIndex];
+
+				FString PackageFilename;
+				FString StandardFilename;
+				FName StandardFileFName;
+				if (!PackageNameCache->CalculateCacheData(PackageName, PackageFilename, StandardFilename, StandardFileFName))
+				{
+					UE_LOG(LogCook, Warning, TEXT("Could not resolve package %s from %s"), *PackageName.ToString(), *AssetRegistryPath);
+				}
+
+				OutPackageFilenames[AssetIndex] = StandardFileFName;
+				PackageToStandardFileNames[AssetIndex] = TTuple<FName, FString, FString>(PackageName, MoveTemp(PackageFilename), MoveTemp(StandardFilename));
+			});
+
+		for (int32 Idx = OutPackageFilenames.Num() - 1; Idx >= 0; --Idx)
+		{
+			if (OutPackageFilenames[Idx] == NAME_None)
+			{
+				OutPackageFilenames.RemoveAtSwap(Idx);
+			}
+		}
+
+		PackageNameCache->AppendCacheResults(MoveTemp(PackageToStandardFileNames));
 		return true;
 	}
 

@@ -297,7 +297,7 @@ namespace
 #elif defined(MEMPRO_PLATFORM_XBOXONE)
 
 	#ifdef __UNREAL__
-		#include "XboxOne/MemProXboxOne.h"
+		#include "MemPro/MemProXboxOne.h"
 	#else
 		#include "MemProXboxOne.hpp"		// contact slynch@puredevsoftware.com for this platform
 	#endif

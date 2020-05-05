@@ -138,6 +138,8 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 			}
 		}
 
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, Layer.Texture);
+
 		// Set shader uniforms
 		VertexShader->SetParameters(
 			RHICmdList,

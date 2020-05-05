@@ -14,7 +14,11 @@
 #include "Properties/MeshStatisticsProperties.h"
 #include "Properties/MeshAnalysisProperties.h"
 
+#include "Drawing/LineSetComponent.h"
+
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
+
+#include "ToolSetupUtil.h"
 
 #define LOCTEXT_NAMESPACE "UMeshInspectorTool"
 
@@ -41,47 +45,9 @@ UInteractiveTool* UMeshInspectorToolBuilder::BuildTool(const FToolBuilderState& 
 	return NewTool;
 }
 
-
-
-/*
- * Properties
- */
-
-void UMeshInspectorProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UMeshInspectorProperties* PropertyCache = GetPropertyCache<UMeshInspectorProperties>();
-	PropertyCache->bWireframe = this->bWireframe;
-	PropertyCache->bBoundaryEdges = this->bBoundaryEdges;
-	PropertyCache->bPolygonBorders = this->bPolygonBorders;
-	PropertyCache->bUVSeams = this->bUVSeams;
-	PropertyCache->bNormalSeams = this->bNormalSeams;
-	PropertyCache->bNormalVectors = this->bNormalVectors;
-	PropertyCache->bTangentVectors = this->bTangentVectors;
-	PropertyCache->NormalLength = this->NormalLength;
-	PropertyCache->TangentLength = this->TangentLength;
-}
-
-void UMeshInspectorProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UMeshInspectorProperties* PropertyCache = GetPropertyCache<UMeshInspectorProperties>();
-	this->bWireframe = PropertyCache->bWireframe;
-	this->bBoundaryEdges = PropertyCache->bBoundaryEdges;
-	this->bPolygonBorders = PropertyCache->bPolygonBorders;
-	this->bUVSeams = PropertyCache->bUVSeams;
-	this->bNormalSeams = PropertyCache->bNormalSeams;
-	this->bNormalVectors = PropertyCache->bNormalVectors;
-	this->bTangentVectors = PropertyCache->bTangentVectors;
-	this->NormalLength = PropertyCache->NormalLength;
-	this->TangentLength = PropertyCache->TangentLength;
-}
-
-
-
-
 /*
  * Tool
  */
-
 UMeshInspectorTool::UMeshInspectorTool()
 {
 }
@@ -102,6 +68,16 @@ void UMeshInspectorTool::Setup()
 
 	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
 	PreviewMesh->InitializeMesh(ComponentTarget->GetMesh());
+
+	DrawnLineSet = NewObject<ULineSetComponent>(PreviewMesh->GetRootComponent(), "MeshInspectorToolLineSet");
+
+	DrawnLineSet->SetupAttachment(PreviewMesh->GetRootComponent());
+
+	// Note: at the moment, the material we use for the line set supports the use of a depth bias. If we ever need 
+	// extra speedup from the line set, we can disable depth bias support and set blend mode within the material to
+	// translucent, which gives a variable amount of speedup under heavy load.
+	DrawnLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager()));
+	DrawnLineSet->RegisterComponent();
 
 	Precompute();
 
@@ -183,105 +159,7 @@ void UMeshInspectorTool::Precompute()
 
 void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	FTransform3d Transform(ComponentTarget->GetWorldTransform());
-
-	FColor BoundaryEdgeColor(240, 15, 15);
-	float BoundaryEdgeThickness = LineWidthMultiplier * 4.0;
-	FColor UVSeamColor(15, 240, 15);
-	float UVSeamThickness = LineWidthMultiplier * 2.0;
-	FColor NormalSeamColor(15, 240, 240);
-	float NormalSeamThickness = LineWidthMultiplier * 2.0;
-	FColor PolygonBorderColor(240, 15, 240);
-	float PolygonBorderThickness = LineWidthMultiplier * 2.0;
-	FColor NormalColor(15, 15, 240);
-	float NormalThickness = LineWidthMultiplier * 2.0f;
-	FColor TangentColor(240, 15, 15);
-	FColor BinormalColor(15, 240, 15);
-	float TangentThickness = LineWidthMultiplier * 2.0f;
-
-	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
-	FVector3d A, B;
-
-	if (Settings->bBoundaryEdges)
-	{
-		for (int eid : BoundaryEdges)
-		{
-			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine((FVector)Transform.TransformPosition(A), (FVector)Transform.TransformPosition(B),
-				BoundaryEdgeColor, 0, BoundaryEdgeThickness, 2.0f, true);
-		}
-	}
-
-	if (Settings->bUVSeams)
-	{
-		for (int eid : UVSeamEdges)
-		{
-			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine((FVector)Transform.TransformPosition(A), (FVector)Transform.TransformPosition(B),
-				UVSeamColor, 0, UVSeamThickness, 3.0f, true);
-		}
-	}
-
-	if (Settings->bNormalSeams)
-	{
-		for (int eid : NormalSeamEdges)
-		{
-			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine((FVector)Transform.TransformPosition(A), (FVector)Transform.TransformPosition(B),
-				NormalSeamColor, 0, NormalSeamThickness, 3.0f, true);
-		}
-	}
-
-	if (Settings->bPolygonBorders)
-	{
-		for (int eid : GroupBoundaryEdges)
-		{
-			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine((FVector)Transform.TransformPosition(A), (FVector)Transform.TransformPosition(B),
-				PolygonBorderColor, 0, PolygonBorderThickness, 2.0f, true);
-		}
-	}
-
-	if (Settings->bNormalVectors && TargetMesh->HasAttributes() && TargetMesh->Attributes()->PrimaryNormals() != nullptr)
-	{
-		const FDynamicMeshNormalOverlay* NormalOverlay = TargetMesh->Attributes()->PrimaryNormals();
-		FVector3d TriV[3];
-		FVector3f TriN[3];
-		for (int tid : TargetMesh->TriangleIndicesItr())
-		{
-			TargetMesh->GetTriVertices(tid, TriV[0], TriV[1], TriV[2]);
-			NormalOverlay->GetTriElements(tid, TriN[0], TriN[1], TriN[2]);
-			for (int j = 0; j < 3; ++j)
-			{
-				TriV[j] = Transform.TransformPosition(TriV[j]);
-				PDI->DrawLine((FVector)TriV[j], (FVector)((FVector3f)TriV[j] + Settings->NormalLength * Transform.TransformVectorNoScale(TriN[j])),
-					NormalColor, SDPG_World, NormalThickness, 0.0f, true);
-			}
-		}
-	}
-
-	if (Settings->bTangentVectors && PreviewMesh->GetTangents() != nullptr)
-	{
-		const FMeshTangentsf* Tangents = PreviewMesh->GetTangents();
-		for (int TID : TargetMesh->TriangleIndicesItr())
-		{
-			FVector3d TriV[3];
-			TargetMesh->GetTriVertices(TID, TriV[0], TriV[1], TriV[2]);
-			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
-			{
-				FVector3f Vert(Transform.TransformPosition(TriV[SubIdx]));
-				FVector3f Tangent, Bitangent;
-				Tangents->GetPerTriangleTangent(TID, SubIdx, Tangent, Bitangent);
-				PDI->DrawLine((FVector)Vert, (FVector)(Vert + Settings->TangentLength * Transform.TransformVectorNoScale(Tangent)),
-					TangentColor, SDPG_World, TangentThickness, 3.5f, true);
-				PDI->DrawLine((FVector)Vert, (FVector)(Vert + Settings->TangentLength * Transform.TransformVectorNoScale(Bitangent)),
-					BinormalColor, SDPG_World, TangentThickness, 3.5f, true);
-			}
-		}
-	}
-
-
+	
 }
 
 
@@ -304,6 +182,117 @@ void UMeshInspectorTool::UpdateVisualization()
 	else
 	{
 		PreviewMesh->SetOverrideRenderMaterial(OverrideMaterial);
+	}
+
+	FColor BoundaryEdgeColor(240, 15, 15);
+	float BoundaryEdgeThickness = LineWidthMultiplier * 2.0;
+	FColor UVSeamColor(15, 240, 15);
+	float UVSeamThickness = LineWidthMultiplier * 1.0;
+	FColor NormalSeamColor(15, 240, 240);
+	float NormalSeamThickness = LineWidthMultiplier * 1.0;
+	FColor PolygonBorderColor(240, 15, 240);
+	float PolygonBorderThickness = LineWidthMultiplier * 1.0;
+	FColor NormalColor(15, 15, 240);
+	float NormalThickness = LineWidthMultiplier * 1.0f;
+	FColor TangentColor(240, 15, 15);
+	FColor BinormalColor(15, 240, 15);
+	float TangentThickness = LineWidthMultiplier * 1.0f;
+
+	float BoundaryEdgeDepthBias = 2.0f;
+	float UVSeamDepthBias = 3.0f;
+	float NormalSeamDepthBias = 3.0f;
+	float PolygonBorderDepthBias = 2.0f;
+	float NormalDepthBias = 0.0f;
+	float TangentDepthBias = 3.5f;
+
+	// Used to scale normals and tangents appropriately
+	FVector ComponentScale = DrawnLineSet->GetComponentTransform().GetScale3D();
+	FVector3f InverseScale(1 / ComponentScale.X, 1 / ComponentScale.Y, 1 / ComponentScale.Z);
+
+	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
+	FVector3d A, B;
+
+	DrawnLineSet->Clear();
+	if (Settings->bBoundaryEdges)
+	{
+		for (int eid : BoundaryEdges)
+		{
+			TargetMesh->GetEdgeV(eid, A, B);
+			DrawnLineSet->AddLine((FVector)A, (FVector)B, BoundaryEdgeColor, BoundaryEdgeThickness, BoundaryEdgeDepthBias);
+		}
+	}
+
+	if (Settings->bUVSeams)
+	{
+		for (int eid : UVSeamEdges)
+		{
+			TargetMesh->GetEdgeV(eid, A, B);
+			DrawnLineSet->AddLine((FVector)A, (FVector)B, UVSeamColor, UVSeamThickness, UVSeamDepthBias);
+		}
+	}
+
+	if (Settings->bNormalSeams)
+	{
+		for (int eid : NormalSeamEdges)
+		{
+			TargetMesh->GetEdgeV(eid, A, B);
+			DrawnLineSet->AddLine((FVector)A, (FVector)B, NormalSeamColor, NormalSeamThickness, NormalSeamDepthBias);
+		}
+	}
+
+	if (Settings->bPolygonBorders)
+	{
+		for (int eid : GroupBoundaryEdges)
+		{
+			TargetMesh->GetEdgeV(eid, A, B);
+			DrawnLineSet->AddLine((FVector)A, (FVector)B, PolygonBorderColor, PolygonBorderThickness, PolygonBorderDepthBias);
+		}
+	}
+
+	if (Settings->bNormalVectors && TargetMesh->HasAttributes() && TargetMesh->Attributes()->PrimaryNormals() != nullptr)
+	{
+		// Note that for normals and tangent vectors, we want to allow the origin of the vector to undergo the full
+		// transform of the component, but the direction we travel along the vector has to be inversely scaled
+		// to end up with the original length in the end (and to reflect the fact that Unreal does not consider
+		// the scale transform when adjusting normals for an object).
+		FVector3f NormalScaling = Settings->NormalLength * InverseScale;
+
+		const FDynamicMeshNormalOverlay* NormalOverlay = TargetMesh->Attributes()->PrimaryNormals();
+		FVector3d TriV[3];
+		FVector3f TriN[3];
+		for (int tid : TargetMesh->TriangleIndicesItr())
+		{
+			TargetMesh->GetTriVertices(tid, TriV[0], TriV[1], TriV[2]);
+			NormalOverlay->GetTriElements(tid, TriN[0], TriN[1], TriN[2]);
+			for (int j = 0; j < 3; ++j)
+			{
+				DrawnLineSet->AddLine((FVector)TriV[j], (FVector)((FVector3f)TriV[j] + NormalScaling * TriN[j]),
+					NormalColor, NormalThickness, NormalDepthBias);
+			}
+		}
+	}
+
+	if (Settings->bTangentVectors && PreviewMesh->GetTangents() != nullptr)
+	{
+		// See note in normals about scaling
+		FVector3f TangentScaling = Settings->TangentLength * InverseScale;
+
+		const FMeshTangentsf* Tangents = PreviewMesh->GetTangents();
+		for (int TID : TargetMesh->TriangleIndicesItr())
+		{
+			FVector3d TriV[3];
+			TargetMesh->GetTriVertices(TID, TriV[0], TriV[1], TriV[2]);
+			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+			{
+				FVector3f Vert(TriV[SubIdx]);
+				FVector3f Tangent, Bitangent;
+				Tangents->GetPerTriangleTangent(TID, SubIdx, Tangent, Bitangent);
+				DrawnLineSet->AddLine((FVector)Vert, (FVector)(Vert + TangentScaling * Tangent),
+					TangentColor, TangentThickness, TangentDepthBias);
+				DrawnLineSet->AddLine((FVector)Vert, (FVector)(Vert + TangentScaling * Bitangent),
+					BinormalColor, TangentThickness, TangentDepthBias);
+			}
+		}
 	}
 }
 

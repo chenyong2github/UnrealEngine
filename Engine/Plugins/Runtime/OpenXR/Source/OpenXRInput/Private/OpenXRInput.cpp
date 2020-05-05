@@ -364,6 +364,12 @@ int32 FOpenXRInputPlugin::FOpenXRInput::SuggestBindings(XrInstance Instance, FOp
 			}
 			else if (Component == "click")
 			{
+				if (Identifier == "trackpad" && Tokens[0] == "ValveIndex")
+				{
+					// TODO: Remove click action for trackpad on Valve Index controller
+					continue;
+				}
+
 				if (Identifier != "trigger" && Identifier != "squeeze")
 				{
 					Path += "/click";

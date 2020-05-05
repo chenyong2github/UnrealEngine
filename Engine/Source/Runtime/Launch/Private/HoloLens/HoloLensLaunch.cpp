@@ -56,6 +56,8 @@ using namespace Windows::System;
 using namespace Windows::UI::Core;
 using namespace Windows::Graphics::Holographic;
 
+static bool GSeparateCoreWindowVisible = false;
+
 DEFINE_LOG_CATEGORY_STATIC(LogLaunchHoloLens, Log, All);
 
 void appHoloLensEarlyInit();
@@ -582,7 +584,9 @@ void ViewProvider::ProcessEvents()
 
 		if (nullptr != Dispatcher)
 		{
-			if (bVisible)
+			// OpenXR uses a separate CoreWindow which will have visibility instead of the CoreWindow created by HoloLensLaunch and in this
+			// case ProcessOneAndAllPending cannot be used because it will block indefinitely once there are no more events to process.
+			if (bVisible || GSeparateCoreWindowVisible)
 			{
 				Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
 			}
@@ -1231,6 +1235,9 @@ int32 GuardedMain( const TCHAR* CmdLine, HINSTANCE hInInstance, HINSTANCE hPrevI
 
 	// Game without wxWindows.
 	ErrorLevel = EngineInit();
+
+	static const FName OpenXRSystemName(TEXT("OpenXR"));
+	GSeparateCoreWindowVisible = GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetSystemName() == OpenXRSystemName);
 
 	uint64 GameThreadAffinity = FPlatformAffinity::GetMainGameMask();
 	FPlatformProcess::SetThreadAffinityMask((DWORD_PTR)GameThreadAffinity);

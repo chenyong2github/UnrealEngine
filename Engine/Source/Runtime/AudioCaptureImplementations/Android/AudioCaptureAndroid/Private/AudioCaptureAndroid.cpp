@@ -115,7 +115,7 @@ bool Audio::FAudioCaptureAndroidStream::IsCapturing() const
 void Audio::FAudioCaptureAndroidStream::OnAudioCapture(void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow)
 {
 	const float* FloatBuffer = static_cast<float*>(InBuffer);
-	OnCapture(FloatBuffer, InBufferFrames, NumChannels, StreamTime, bOverflow);
+	OnCapture(FloatBuffer, InBufferFrames, NumChannels, SampleRate, StreamTime, bOverflow);
 }
 
 bool Audio::FAudioCaptureAndroidStream::GetInputDevicesAvailable(TArray<FCaptureDeviceInfo>& OutDevices)

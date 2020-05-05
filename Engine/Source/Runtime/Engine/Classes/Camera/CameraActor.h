@@ -62,9 +62,10 @@ private:
 public:
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
 
 #if WITH_EDITOR
+	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 

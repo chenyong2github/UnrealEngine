@@ -44,6 +44,7 @@
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Engine/Font.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Engine/SubsurfaceProfile.h"
@@ -64,6 +65,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "RenderCore/Public/RenderUtils.h"
 #include "Materials/MaterialStaticParameterValueResolver.h"
+#include "Engine/Font.h"
 
 #if WITH_EDITOR
 #include "Logging/TokenizedMessage.h"
@@ -263,9 +265,9 @@ void FMaterialResource::EndAllowCachingStaticParameterValues()
 }
 #endif // WITH_EDITOR
 
-void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
+void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FMaterialShaderMapId& OutId) const
 {
-	FMaterial::GetShaderMapId(Platform, OutId);
+	FMaterial::GetShaderMapId(Platform, TargetPlatform, OutId);
 #if WITH_EDITOR
 	Material->AppendReferencedFunctionIdsTo(OutId.ReferencedFunctions);
 	Material->AppendReferencedParameterCollectionIdsTo(OutId.ReferencedParameterCollections);
@@ -1031,14 +1033,14 @@ void UMaterial::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQuality
 				if (MaterialInstance)
 				{
 					// Also look for any scalar parameters that are acting as lookups for an atlas texture, and store the atlas texture
-					const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>* AtlasExpressions[1] =
+					const TArrayView<const FMaterialScalarParameterInfo> AtlasExpressions[1] =
 					{
-						&CurrentResource->GetUniformScalarParameterExpressions()
+						CurrentResource->GetUniformScalarParameterExpressions()
 					};
 					for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(AtlasExpressions); TypeIndex++)
 					{
 						// Iterate over each of the material's texture expressions.
-						for (const FMaterialScalarParameterInfo& Parameter : *AtlasExpressions[TypeIndex])
+						for (const FMaterialScalarParameterInfo& Parameter : AtlasExpressions[TypeIndex])
 						{
 							bool bIsUsedAsAtlasPosition;
 							TSoftObjectPtr<class UCurveLinearColor> Curve;
@@ -1071,12 +1073,12 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 
 		if (CurrentResource)
 		{
-			const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>* ExpressionsByType[NumMaterialTextureParameterTypes];
+			TArrayView<const FMaterialTextureParameterInfo> ExpressionsByType[NumMaterialTextureParameterTypes];
 			uint32 NumTextures = 0u;
 			for (uint32 TypeIndex = 0u; TypeIndex < NumMaterialTextureParameterTypes; ++TypeIndex)
 			{
-				ExpressionsByType[TypeIndex] = &CurrentResource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
-				NumTextures += ExpressionsByType[TypeIndex]->Num();
+				ExpressionsByType[TypeIndex] = CurrentResource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
+				NumTextures += ExpressionsByType[TypeIndex].Num();
 			}
 
 			// Try to prevent resizing since this would be expensive.
@@ -1085,7 +1087,7 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 			for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(ExpressionsByType); TypeIndex++)
 			{
 				// Iterate over each of the material's texture expressions.
-				for (const FMaterialTextureParameterInfo& Parameter : *ExpressionsByType[TypeIndex])
+				for (const FMaterialTextureParameterInfo& Parameter : ExpressionsByType[TypeIndex])
 				{
 					UTexture* Texture = NULL;
 					Parameter.GetGameThreadTextureValue(this, *CurrentResource, Texture);
@@ -1176,7 +1178,7 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 		// Iterate over both the 2D textures and cube texture expressions.
 		for(int32 TypeIndex = 0;TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
 		{
-			const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& Parameters = Resource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
+			const TArrayView<const FMaterialTextureParameterInfo> Parameters = Resource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
 			// Iterate over each of the material's texture expressions.
 			for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ++ParameterIndex)
 			{
@@ -1208,7 +1210,7 @@ void UMaterial::OverrideVectorParameterDefault(const FHashedMaterialParameterInf
 	bool bShouldRecacheMaterialExpressions = false;
 
 	FMaterialResource* Resource = GetMaterialResource(InFeatureLevel);
-	const TArray<FMaterialVectorParameterInfo, FMemoryImageAllocator>& Parameters = Resource->GetUniformVectorParameterExpressions();
+	const TArrayView<const FMaterialVectorParameterInfo> Parameters = Resource->GetUniformVectorParameterExpressions();
 
 	// Iterate over each of the material's vector expressions.
 	for (int32 i = 0; i < Parameters.Num(); ++i)
@@ -1234,7 +1236,7 @@ void UMaterial::OverrideScalarParameterDefault(const FHashedMaterialParameterInf
 	bool bShouldRecacheMaterialExpressions = false;
 
 	FMaterialResource* Resource = GetMaterialResource(InFeatureLevel);
-	const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>& Parameters = Resource->GetUniformScalarParameterExpressions();
+	const TArrayView<const FMaterialScalarParameterInfo> Parameters = Resource->GetUniformScalarParameterExpressions();
 
 	// Iterate over each of the material's vector expressions.
 	for (int32 i = 0; i < Parameters.Num(); ++i)
@@ -2090,8 +2092,8 @@ bool UMaterial::GetScalarParameterValue(const FHashedMaterialParameterInfo& Para
 		float OldValue = 0.0f;
 		const bool bOldResult = GetScalarParameterValue_Legacy(ParameterInfo, OldValue, bOveriddenOnly);
 
-		check(bOldResult == bResult);
-		check(!bResult || OutValue == OldValue);
+		ensureMsgf(bOldResult == bResult, TEXT("UMaterial::GetScalarParameterValue() mismatch, bOldResult: %d, bResult: %d"), bOldResult, bResult);
+		ensureMsgf(!bResult || OutValue == OldValue, TEXT("UMaterial::GetScalarParameterValue() mismatch, OutValue: %g, OldValue: %g"), OutValue, OldValue);
 	}
 #endif
 	return bResult;
@@ -2234,8 +2236,8 @@ bool UMaterial::GetVectorParameterValue(const FHashedMaterialParameterInfo& Para
 		FLinearColor OldValue(ForceInitToZero);
 		const bool bOldResult = GetVectorParameterValue_Legacy(ParameterInfo, OldValue, bOveriddenOnly);
 
-		check(bOldResult == bResult);
-		check(!bResult || OutValue == OldValue);
+		ensureMsgf(bOldResult == bResult, TEXT("UMaterial::GetVectorParameterValue() mismatch, bOldResult: %d, bResult: %d"), bOldResult, bResult);
+		ensureMsgf(!bResult || OutValue == OldValue, TEXT("UMaterial::GetVectorParameterValue() mismatch, OutValue: %s, OldValue: %s"), *OutValue.ToString(), *OldValue.ToString());
 	}
 #endif
 	return bResult;
@@ -2362,8 +2364,10 @@ bool UMaterial::GetTextureParameterValue(const FHashedMaterialParameterInfo& Par
 		UTexture* OldValue = nullptr;
 		const bool bOldResult = GetTextureParameterValue_Legacy(ParameterInfo, OldValue, bOveriddenOnly);
 
-		check(bOldResult == bResult);
-		check(!bOldResult || OutValue == OldValue); // if result is false, texture value is undefined
+		ensureMsgf(bOldResult == bResult, TEXT("UMaterial::GetTextureParameterValue() mismatch, bOldResult: %d, bResult: %d"), bOldResult, bResult);
+		ensureMsgf(!bResult || OutValue == OldValue, TEXT("UMaterial::GetTextureParameterValue() mismatch, OutValue: %s, OldValue: %s"),
+			OutValue ? *OutValue->GetName() : TEXT("nullptr"),
+			OldValue ? *OldValue->GetName() : TEXT("nullptr"));
 	}
 #endif
 	return bResult;
@@ -2462,8 +2466,10 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue(const FHashedMaterialPara
 		URuntimeVirtualTexture* OldValue = nullptr;
 		const bool bOldResult = GetRuntimeVirtualTextureParameterValue_Legacy(ParameterInfo, OldValue, bOveriddenOnly);
 
-		check(bOldResult == bResult);
-		check(!bResult || OutValue == OldValue);
+		ensureMsgf(bOldResult == bResult, TEXT("UMaterial::GetRuntimeVirtualTextureParameterValue() mismatch, bOldResult: %d, bResult: %d"), bOldResult, bResult);
+		ensureMsgf(!bResult || OutValue == OldValue, TEXT("UMaterial::GetRuntimeVirtualTextureParameterValue() mismatch, OutValue: %s, OldValue: %s"),
+			OutValue ? *OutValue->GetName() : TEXT("nullptr"),
+			OldValue ? *OldValue->GetName() : TEXT("nullptr"));
 	}
 #endif
 	return bResult;
@@ -2576,8 +2582,10 @@ bool UMaterial::GetFontParameterValue(const FHashedMaterialParameterInfo& Parame
 		int32 OldPage = INDEX_NONE;
 		const bool bOldResult = GetFontParameterValue_Legacy(ParameterInfo, OldValue, OldPage, bOveriddenOnly);
 
-		check(bOldResult == bResult);
-		check(!bResult || (OutFontValue == OldValue && OldPage == OutFontPage));
+		ensureMsgf(bOldResult == bResult, TEXT("UMaterial::GetFontParameterValue() mismatch, bOldResult: %d, bResult: %d"), bOldResult, bResult);
+		ensureMsgf(!bResult || (OutFontValue == OldValue && OldPage == OutFontPage), TEXT("UMaterial::GetFontParameterValue() mismatch, OutValue: %s, OutPage: %d OldValue: %s, OldPage: %d"),
+			OutFontValue ? *OutFontValue->GetName() : TEXT("nullptr"), OutFontPage,
+			OldValue ? *OldValue->GetName() : TEXT("nullptr"), OldPage);
 	}
 #endif
 	return bResult;

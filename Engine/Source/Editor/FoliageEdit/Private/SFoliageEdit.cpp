@@ -289,7 +289,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 						.Padding(StandardPadding)
 						[
 							SNew(SWrapBox)
-							.UseAllottedWidth(true)
+							.UseAllottedSize(true)
 							.InnerSlotPadding({6, 5})
 
 							+ SWrapBox::Slot()
@@ -338,7 +338,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 						.Padding(StandardPadding)
 						[
 							SNew(SWrapBox)
-							.UseAllottedWidth(true)
+							.UseAllottedSize(true)
 							.InnerSlotPadding({6, 5})
 
 							+ SWrapBox::Slot()
@@ -454,7 +454,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SWrapBox)
-						.UseAllottedWidth(true)
+						.UseAllottedSize(true)
 						.Visibility(this, &SFoliageEdit::GetVisibility_SelectionOptions)
 
 						// Select all instances

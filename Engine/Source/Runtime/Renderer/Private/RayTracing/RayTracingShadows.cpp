@@ -229,7 +229,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		if (bUseHairLighting)
 		{
 			const bool bUseHairVoxel = CVarRayTracingShadowsEnableHairVoxel.GetValueOnRenderThread() > 0;
-			PassParameters->bUseHairVoxel = (bUseHairVoxel && !IsHairRayTracingEnabled()) ? 1 : 0;
+			PassParameters->bUseHairVoxel = (HairResources->bUseHairVoxel && bUseHairVoxel && !IsHairRayTracingEnabled()) ? 1 : 0;
 			PassParameters->HairCategorizationTexture = HairResources->CategorizationTexture;
 			PassParameters->HairLightChannelMaskTexture = HairResources->LightChannelMaskTexture;
 			PassParameters->VirtualVoxel = HairResources->VoxelResources->UniformBuffer;

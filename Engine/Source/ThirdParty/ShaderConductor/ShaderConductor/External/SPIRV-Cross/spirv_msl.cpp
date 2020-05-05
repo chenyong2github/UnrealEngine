@@ -11011,14 +11011,12 @@ string CompilerMSL::builtin_qualifier(BuiltIn builtin)
 	case BuiltInPointSize:
 		return "point_size";
 	case BuiltInPosition:
-		if (position_invariant)
-		{
-			if (!msl_options.supports_msl_version(2, 1))
-				SPIRV_CROSS_THROW("Invariant position is only supported on MSL 2.1 and up.");
+		// UE Change Begin: Ignore invariant for unsupported version as SV_Position in HLSL is always implicitly invariant
+		if (position_invariant && msl_options.supports_msl_version(2, 1))
 			return "position, invariant";
-		}
 		else
 			return "position";
+		// UE Change End: Ignore invariant for unsupported version as SV_Position in HLSL is always implicitly invariant
 	case BuiltInLayer:
 		return "render_target_array_index";
 	case BuiltInViewportIndex:

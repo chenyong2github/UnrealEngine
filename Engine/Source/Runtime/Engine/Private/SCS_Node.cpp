@@ -501,7 +501,7 @@ void USCS_Node::SetParent(USCS_Node* InParentNode)
 	}
 }
 
-void USCS_Node::SetParent(USceneComponent* InParentComponent)
+void USCS_Node::SetParent(const USceneComponent* InParentComponent)
 {
 	check(InParentComponent != NULL);
 

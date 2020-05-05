@@ -2013,6 +2013,13 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 		ConfigureBufferVisualizationSettings();
 	}
 
+#if !(UE_BUILD_SHIPPING)
+	if (Family->EngineShowFlags.IsVisualizeCalibrationEnabled())
+	{
+		ConfigureVisualizeCalibrationSettings();
+	}
+#endif
+
 #if WITH_EDITOR
 	FHighResScreenshotConfig& Config = GetHighResScreenshotConfig();
 
@@ -2123,6 +2130,47 @@ void FSceneView::ConfigureBufferVisualizationSettings()
 		}
 	}
 }
+
+#if !(UE_BUILD_SHIPPING)
+
+void FSceneView::ConfigureVisualizeCalibrationSettings()
+{
+	const URendererSettings* Settings = GetDefault<URendererSettings>();
+	check(Settings);
+	
+	auto ConfigureCalibrationSettings = [](const FSoftObjectPath& InPath, UMaterialInterface*& OutMaterialInterface, FName& OutMaterialName)
+	{
+		if (InPath.IsValid())
+		{
+			if (UMaterial* Material = Cast<UMaterial>(InPath.TryLoad()))
+			{
+				OutMaterialInterface = Material;
+				OutMaterialName = *Material->GetPathName();
+			}
+			else
+			{
+				UE_LOG(LogBufferVisualization, Warning, TEXT("Error loading material '%s'"), *InPath.ToString());
+				OutMaterialInterface = nullptr;
+				OutMaterialName = NAME_None;
+			}
+		}
+	};
+
+	if (Family->EngineShowFlags.VisualizeCalibrationColor)
+	{
+		ConfigureCalibrationSettings(Settings->VisualizeCalibrationColorMaterialPath, FinalPostProcessSettings.VisualizeCalibrationColorMaterial, CurrentVisualizeCalibrationColorMaterialName);
+	}
+	else if (Family->EngineShowFlags.VisualizeCalibrationGrayscale)
+	{
+		ConfigureCalibrationSettings(Settings->VisualizeCalibrationGrayscaleMaterialPath, FinalPostProcessSettings.VisualizeCalibrationGrayscaleMaterial, CurrentVisualizeCalibrationGrayscaleMaterialName);
+	}
+	else if (Family->EngineShowFlags.VisualizeCalibrationCustom)
+	{
+		ConfigureCalibrationSettings(Settings->VisualizeCalibrationCustomMaterialPath, FinalPostProcessSettings.VisualizeCalibrationCustomMaterial, CurrentVisualizeCalibrationCustomMaterialName);
+	}
+}
+
+#endif // #if !(UE_BUILD_SHIPPING)
 
 EShaderPlatform FSceneView::GetShaderPlatform() const
 {
@@ -2608,7 +2656,10 @@ EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const
 	{
 		return DVSM_RayTracingDebug;
 	}
-
+	else if (EngineShowFlags.LODColoration)
+	{
+		return DVSM_LODColoration;
+	}
 	return DVSM_None;
 }
 

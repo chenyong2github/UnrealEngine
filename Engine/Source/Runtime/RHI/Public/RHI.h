@@ -572,6 +572,15 @@ extern RHI_API bool GRHIIsHDREnabled;
 /** Whether the present adapter/display offers HDR output capabilities. */
 extern RHI_API bool GRHISupportsHDROutput;
 
+/** Whether or not the RHI can support Variable Rate Shading. */
+extern RHI_API bool GRHISupportsVariableRateShading;
+
+/** Size of the tiles in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GVariableRateShadingImageTileSize;
+
+/** What tier of Variable Rate Shading the HW supports */
+extern RHI_API int32 GVariableRateShadingTier;
+
 /** Format used for the backbuffer when outputting to a HDR display. */
 extern RHI_API EPixelFormat GRHIHDRDisplayOutputFormat;
 
@@ -1670,6 +1679,7 @@ struct RHI_API FDrawCallCategoryName
 
 	static constexpr int32 MAX_DRAWCALL_CATEGORY = 256;
 	static FDrawCallCategoryName* Array[MAX_DRAWCALL_CATEGORY];
+	static int32 DisplayCounts[MAX_DRAWCALL_CATEGORY]; // A backup of the counts that can be used to display on screen to avoid flickering.
 	static int32 NumCategory;
 };
 

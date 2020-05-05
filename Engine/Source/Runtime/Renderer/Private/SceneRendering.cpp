@@ -3716,9 +3716,13 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 
 		SceneRenderer->ViewFamily.DisplayInternalsData.Setup(World);
 
+		const uint32 DrawSceneEnqueue = FPlatformTime::Cycles();
 		ENQUEUE_RENDER_COMMAND(FDrawSceneCommand)(
-			[SceneRenderer](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, DrawSceneEnqueue](FRHICommandListImmediate& RHICmdList)
 			{
+				const float StartDelayMillisec = FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - DrawSceneEnqueue);
+				CSV_CUSTOM_STAT_GLOBAL(DrawSceneCommand_StartDelay, StartDelayMillisec, ECsvCustomStatOp::Set);
+
 				RenderViewFamily_RenderThread(RHICmdList, SceneRenderer);
 				FlushPendingDeleteRHIResources_RenderThread();
 			});

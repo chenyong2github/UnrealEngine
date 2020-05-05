@@ -268,7 +268,7 @@ bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunc
 
 	// Exclude comments from the expression list, as well as the base parameter expression, as it should not be used directly
 	const bool bSharedAllowed = Class != UMaterialExpressionComment::StaticClass() 
-		&& Class != UMaterialExpressionParameter::StaticClass() && Class != UMaterialExpressionTextureSampleParameterVolume::StaticClass()
+		&& Class != UMaterialExpressionParameter::StaticClass()
 		&& (Class != UMaterialExpressionTextureSampleParameter2DArray::StaticClass() || AllowTextureArrayAssetCreationVar->GetValueOnGameThread() != 0);
 
 	if (bMaterialFunction)

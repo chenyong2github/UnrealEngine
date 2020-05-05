@@ -4,21 +4,18 @@
 #include "HttpConnection.h"
 #include "HttpRequestHandler.h"
 #include "HttpRouter.h"
+#include "HttpServerConfig.h"
 
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
 
-constexpr uint32 FHttpListener::MaxConnectionsToAcceptPerFrame;
-constexpr uint32 FHttpListener::ListenerConnectionBacklogSize;
-constexpr uint32 FHttpListener::ListenerBufferSize;
-
 DEFINE_LOG_CATEGORY(LogHttpListener)
 
-FHttpListener::FHttpListener(uint32 Port)
+FHttpListener::FHttpListener(uint32 InListenPort)
 { 
-	check(Port > 0);
-	ListenPort = Port;
+	check(InListenPort > 0);
+	ListenPort = InListenPort;
 	Router = MakeShared<FHttpRouter>();
 }
 
@@ -61,28 +58,45 @@ bool FHttpListener::StartListening()
 	}
 	ListenSocket->SetNonBlocking(true);
 
-	// Bind to Localhost/Caller-defined port
-	TSharedRef<FInternetAddr> LocalhostAddr = SocketSubsystem->CreateInternetAddr();
-	LocalhostAddr->SetAnyAddress();
-	LocalhostAddr->SetPort(ListenPort);
-	if (!ListenSocket->Bind(*LocalhostAddr))
+	// Bind to config-driven address
+	TSharedRef<FInternetAddr> BindAddress = SocketSubsystem->CreateInternetAddr();
+	Config = FHttpServerConfig::GetListenerConfig(ListenPort);
+	if (0 == Config.BindAddress.Compare(TEXT("any"), ESearchCase::IgnoreCase))
+	{
+		BindAddress->SetAnyAddress();
+	}
+	else
+	{
+		bool bIsValidAddress = false;
+		BindAddress->SetIp(*(Config.BindAddress), bIsValidAddress);
+		if (!bIsValidAddress)
+		{
+			UE_LOG(LogHttpListener, Error,
+				TEXT("HttpListener detected invalid bind address (%s:%u)"),
+				*Config.BindAddress, ListenPort);
+			return false;
+		}
+	}
+
+	BindAddress->SetPort(ListenPort);
+	if (!ListenSocket->Bind(*BindAddress))
 	{
 		UE_LOG(LogHttpListener, Error, 
-			TEXT("HttpListener unable to bind to %s"), 
-			*LocalhostAddr->ToString(true));
+			TEXT("HttpListener unable to bind to %s:%u"),
+			*BindAddress->ToString(true), ListenPort);
 		return false;
 	}
 
 	int32 ActualBufferSize;
-	ListenSocket->SetSendBufferSize(ListenerBufferSize, ActualBufferSize);
-	if (ActualBufferSize != ListenerBufferSize)
+	ListenSocket->SetSendBufferSize(Config.BufferSize, ActualBufferSize);
+	if (ActualBufferSize != Config.BufferSize)
 	{
 		UE_LOG(LogHttpListener, Warning, 
 			TEXT("HttpListener unable to set desired buffer size (%d): Limited to %d"),
-			ListenerBufferSize, ActualBufferSize);
+			Config.BufferSize, ActualBufferSize);
 	}
 
-	if (!ListenSocket->Listen(ListenerConnectionBacklogSize))
+	if (!ListenSocket->Listen(Config.ConnectionsBacklogSize))
 	{
 		UE_LOG(LogHttpListener, Error, 
 			TEXT("HttpListener unable to listen on socket"));
@@ -90,7 +104,8 @@ bool FHttpListener::StartListening()
 	}
 
 	UE_LOG(LogHttpListener, Log, 
-		TEXT("Created new HttpListener on port %u"), ListenPort);
+		TEXT("Created new HttpListener on %s:%u"), 
+		*BindAddress->ToString(true), ListenPort);
 	return true;
 }
 
@@ -123,7 +138,7 @@ void FHttpListener::StopListening()
 void FHttpListener::Tick(float DeltaTime)
 {
 	// Accept new connections
-	AcceptConnections(MaxConnectionsToAcceptPerFrame);
+	AcceptConnections();
 
 	// Tick Connections
 	TickConnections(DeltaTime);
@@ -150,11 +165,11 @@ bool FHttpListener::HasPendingConnections() const
 // --------------------------------------------------------------------------------------------
 // Private Implementation
 // --------------------------------------------------------------------------------------------
-void FHttpListener::AcceptConnections(uint32 MaxConnectionsToAccept)
+void FHttpListener::AcceptConnections()
 {
 	check(ListenSocket);
 
-	for (uint32 i = 0; i < MaxConnectionsToAccept; ++i)
+	for (int32 i = 0; i < Config.MaxConnectionsAcceptPerFrame; ++i)
 	{
 		// Check pending prior to Accept()ing
 		bool bHasPendingConnection = false;

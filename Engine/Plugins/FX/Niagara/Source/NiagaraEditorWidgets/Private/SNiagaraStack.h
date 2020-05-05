@@ -130,7 +130,6 @@ private:
 
 	// ~ search stuff
 	TSharedPtr<SSearchBox> SearchBox;
-	bool bNeedsJumpToNextOccurence;
 
 	TSharedPtr<FNiagaraStackCommandContext> StackCommandContext;
 };

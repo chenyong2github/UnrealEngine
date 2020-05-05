@@ -135,7 +135,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayName = "Sub UV Blending Enabled"))
 	uint32 bSubImageBlend : 1;
 
-	/** Determines how the mesh orients itself relative to the camera.*/
+	/** Determines how the mesh orients itself relative to the camera. */
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
 	ENiagaraMeshFacingMode FacingMode;
 
@@ -150,6 +150,24 @@ public:
 	/** Specifies what space the locked axis is in */
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
+	
+	/** Enables frustum culling of individual mesh particles */
+	UPROPERTY(EditAnywhere, Category = "Visibility")
+	uint32 bEnableFrustumCulling : 1;
+
+	/** Enables frustum culling of individual mesh particles */
+	UPROPERTY(EditAnywhere, Category = "Visibility")
+	uint32 bEnableCameraDistanceCulling : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f))
+	float MinCameraDistance;
+	
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f))
+	float MaxCameraDistance = 1000.0f;
+
+	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
+	UPROPERTY(EditAnywhere, Category = "Visibility")
+	uint32 RendererVisibility = 0;
 	
 	/** Which attribute should we use for position when generating instanced meshes?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
@@ -207,6 +225,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding CameraOffsetBinding;
 
+	/** Which attribute should we use for the renderer visibility tag? */
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
 
 protected:
 	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials);

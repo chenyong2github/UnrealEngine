@@ -1,6 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "HAL/Platform.h"
+
+#ifndef CHAOS_TEMPLATE_API
+#if PLATFORM_MAC || PLATFORM_LINUX
+#define CHAOS_TEMPLATE_API CHAOS_API
+#else
+#define CHAOS_TEMPLATE_API
+#endif
+#endif
+
+#ifndef CHAOSSOLVERS_TEMPLATE_API
+#if PLATFORM_MAC || PLATFORM_LINUX
+#define CHAOSSOLVERS_TEMPLATE_API CHAOSSOLVERS_API
+#else
+#define CHAOSSOLVERS_TEMPLATE_API
+#endif
+#endif
+
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
 	#include <stdint.h>
 #else
@@ -37,7 +55,10 @@ namespace Chaos
 		};
 
 		FReal Friction;
+		FReal StaticFriction;
 		FReal Restitution;
+		FReal LinearEtherDrag;
+		FReal AngularEtherDrag;
 		FReal SleepingLinearThreshold;
 		FReal SleepingAngularThreshold;
 		FReal DisabledLinearThreshold;
@@ -45,13 +66,17 @@ namespace Chaos
 		int32 SleepCounterThreshold;
 		void* UserData;
 
+		/** Variable defaults are used for \c UChaosPhysicalMaterial \c UPROPERTY defaults. */
 		ECombineMode FrictionCombineMode;
 		ECombineMode RestitutionCombineMode;
 
 
 		FChaosPhysicsMaterial()
 			: Friction(0.5)
+			, StaticFriction(0.0)
 			, Restitution(0.1)
+			, LinearEtherDrag(0.0)
+			, AngularEtherDrag(0.0)
 			, SleepingLinearThreshold(1)
 			, SleepingAngularThreshold(1)
 			, DisabledLinearThreshold(0)
@@ -102,7 +127,7 @@ namespace Chaos
 		{
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 
-			Ar << Friction << Restitution << SleepingLinearThreshold << SleepingAngularThreshold << DisabledLinearThreshold << DisabledAngularThreshold;
+			Ar << Friction << StaticFriction << Restitution << LinearEtherDrag << AngularEtherDrag << SleepingLinearThreshold << SleepingAngularThreshold << DisabledLinearThreshold << DisabledAngularThreshold;
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::PhysicsMaterialSleepCounterThreshold)
 			{

@@ -9,7 +9,7 @@
 class MODELINGOPERATORS_API  FIterativeSmoothingOp : public FSmoothingOpBase
 {
 public:
-	FIterativeSmoothingOp(const FDynamicMesh3* Mesh, float Speed, int32 Iterations);
+	FIterativeSmoothingOp(const FDynamicMesh3* Mesh, const FSmoothingOpBase::FOptions& OptionsIn);
 
 	~FIterativeSmoothingOp() override {};
 
@@ -18,9 +18,15 @@ public:
 
 private:
 
-	// Does the actual interative smoothign. 
-	void Smooth();
-	
+	// uniform iterative smoothing
+	void Smooth_Forward(bool bUniform);
+
+	// cotan smoothing iterations
+	void Smooth_Implicit_Cotan();
+
+	// mean value smoothing iterations
+	void Smooth_MeanValue();
+
 private:
 	TArray<FVector3d> SmoothedBuffer;
 };

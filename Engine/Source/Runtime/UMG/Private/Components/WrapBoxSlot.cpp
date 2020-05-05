@@ -31,7 +31,7 @@ void UWrapBoxSlot::BuildSlot(TSharedRef<SWrapBox> WrapBox)
 		.HAlign(HorizontalAlignment)
 		.VAlign(VerticalAlignment)
 		.FillEmptySpace(bFillEmptySpace)
-		.FillLineWhenWidthLessThan(FillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(FillSpanWhenLessThan))
+		.FillLineWhenSizeLessThan(FillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(FillSpanWhenLessThan))
 		[
 			Content == NULL ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
@@ -60,7 +60,7 @@ void UWrapBoxSlot::SetFillSpanWhenLessThan(float InFillSpanWhenLessThan)
 	FillSpanWhenLessThan = InFillSpanWhenLessThan;
 	if ( Slot )
 	{
-		Slot->FillLineWhenWidthLessThan(InFillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(InFillSpanWhenLessThan));
+		Slot->FillLineWhenSizeLessThan(InFillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(InFillSpanWhenLessThan));
 	}
 }
 

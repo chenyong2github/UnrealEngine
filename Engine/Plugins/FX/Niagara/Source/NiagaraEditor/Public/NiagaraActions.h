@@ -39,11 +39,11 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 
 	bool IsExperimental = false;
 
-	TOptional<FNiagaraParameterHandle> GetParameterHandle() const;
-	void SetParamterHandle(const FNiagaraParameterHandle& InParameterHandle);
+	TOptional<FNiagaraVariable> GetParameterVariable() const;
+	void SetParamterVariable(const FNiagaraVariable& InParameterVariable);
 
 private:
-	TOptional<FNiagaraParameterHandle> ParameterHandle;
+	TOptional<FNiagaraVariable> ParameterVariable;
 	FOnExecuteStackAction Action;
 	FCanExecuteStackAction CanPerformAction;
 };
@@ -61,23 +61,35 @@ struct NIAGARAEDITOR_API FNiagaraScriptVarAndViewInfoAction : public FEdGraphSch
 struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 {
 	FNiagaraParameterAction()
-		: bNamespaceModifierRenamePending(false)
+		: bIsExternallyReferenced(false)
 	{
 	}
 
 	FNiagaraParameterAction(const FNiagaraVariable& InParameter,
 		const TArray<FNiagaraGraphParameterReferenceCollection>& InReferenceCollection,
-		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
+		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
+		TSharedPtr<TArray<FName>> ParameterWithNamespaceModifierRenamePending,
+		int32 InSectionID = 0);
+
 	FNiagaraParameterAction(const FNiagaraVariable& InParameter, 
-		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
+		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
+		TSharedPtr<TArray<FName>> ParameterWithNamespaceModifierRenamePending,
+		int32 InSectionID = 0);
 
 	const FNiagaraVariable& GetParameter() const { return Parameter; }
+
+	bool GetIsNamespaceModifierRenamePending() const;
+
+	void SetIsNamespaceModifierRenamePending(bool bIsNamespaceModifierRenamePending);
 
 	FNiagaraVariable Parameter;
 
 	TArray<FNiagaraGraphParameterReferenceCollection> ReferenceCollection;
 
-	bool bNamespaceModifierRenamePending;
+	bool bIsExternallyReferenced;
+
+private:
+	TWeakPtr<TArray<FName>> ParameterWithNamespaceModifierRenamePendingWeak;
 };
 
 struct NIAGARAEDITOR_API FNiagaraScriptParameterAction : public FEdGraphSchemaAction

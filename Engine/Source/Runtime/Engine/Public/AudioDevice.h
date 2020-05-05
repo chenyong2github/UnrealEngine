@@ -27,7 +27,6 @@
  */
 
 class FArchive;
-class FAudioDebugger;
 class FAudioDevice;
 class FAudioEffectsManager;
 class FCanvas;
@@ -57,6 +56,10 @@ struct FAudioQualitySettings;
 struct FRotator;
 struct FWaveInstance;
 
+namespace Audio
+{
+	class FAudioDebugger;
+}
 
 /**
  * Debug state of the audio system
@@ -466,7 +469,7 @@ private:
 	bool HandleSetDynamicSoundCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 
 	/** Handles all argument parsing for the solo commands in one place */
-	using FToggleSoloPtr = void (FAudioDebugger::*)(FName InName, bool bExclusive);
+	using FToggleSoloPtr = void (Audio::FAudioDebugger::*)(FName InName, bool bExclusive);
 	void HandleAudioSoloCommon(const TCHAR* Cmd, FOutputDevice& Ar, FToggleSoloPtr Funct);
 
 	/**
@@ -858,6 +861,11 @@ public:
 	* @return	sound class properties if it exists
 	*/
 	FSoundClassProperties* GetSoundClassCurrentProperties(USoundClass* InSoundClass);
+
+	/** 
+	* Returns the parameters which are dynamic from the given sound class. 
+	*/
+	FSoundClassDynamicProperties* GetSoundClassDynamicProperties(USoundClass* InSoundClass);
 
 	/**
 	* Checks to see if a coordinate is within a distance of any listener
@@ -1636,12 +1644,6 @@ public:
 		LastUpdateTime = CurrTime;
 	}
 
-	/** Update the audio clock to be based off the update delta time */
-	virtual void UpdateAudioClock()
-	{
-		AudioClock += GetDeviceDeltaTime();
-	}
-
 private:
 	/** Processes the set of pending sounds that need to be stopped */
 	void ProcessingPendingActiveSoundStops(bool bForceDelete = false);
@@ -1807,6 +1809,7 @@ private:
 
 	/** Current properties of all sound classes */
 	TMap<USoundClass*, FSoundClassProperties> SoundClasses;
+	TMap<USoundClass*, FSoundClassDynamicProperties> DynamicSoundClassProperties;
 
 	/** The Base SoundMix that's currently active */
 	USoundMix* BaseSoundMix;

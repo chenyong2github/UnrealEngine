@@ -51,7 +51,8 @@ public:
 
 	FPBDCollisionConstraints(const TPBDRigidsSOAs<FReal, 3>& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
-		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, 
+		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, 
+		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials, 
 		const int32 ApplyPairIterations = 1, const int32 ApplyPushOutPairIterations = 1, const FReal CullDistance = (FReal)0, const FReal ShapePadding = (FReal)0);
 
 	virtual ~FPBDCollisionConstraints() {}
@@ -140,7 +141,7 @@ public:
 
 	void UnprepareTick() {}
 
-	void PrepareIteration(FReal Dt) {}
+	void PrepareIteration(FReal Dt);
 
 	void UnprepareIteration(FReal Dt) {}
 
@@ -282,11 +283,11 @@ private:
 
 	TArrayCollectionArray<bool>& MCollided;
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
+	const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& MPerParticlePhysicsMaterials;
 	int32 MApplyPairIterations;
 	int32 MApplyPushOutPairIterations;
 	FReal MCullDistance;
 	FReal MShapePadding;
-	FReal MAngularFriction;
 	bool bUseCCD;
 	bool bEnableCollisions;
 	bool bHandlesEnabled;

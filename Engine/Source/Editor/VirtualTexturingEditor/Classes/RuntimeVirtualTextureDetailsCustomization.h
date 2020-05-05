@@ -45,10 +45,6 @@ public:
 protected:
 	FRuntimeVirtualTextureComponentDetailsCustomization();
 
-	/** Callback for Copy Rotation button */
-	FReply SetRotation();
-	/** Callback for Copy Bounds button */
-	FReply SetTransformToBounds();
 	/** Callback for Build button */
 	FReply BuildStreamedMips();
 	/** Callback for Build Debug button */

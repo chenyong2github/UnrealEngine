@@ -21,6 +21,7 @@
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonSerializer.h"
 #include "Containers/Ticker.h"
+#include "Engine/GameEngine.h"
 
 //Private Helper Class Definitions
 class FAutomationUtilsGameplayViewExtension : public FSceneViewExtensionBase
@@ -341,6 +342,17 @@ void UAutomationUtilsBlueprintLibrary::TakeGameplayAutomationScreenshot(const FS
 	{
 		//Finish Compiling all shaders
 		GShaderCompilingManager->FinishAllCompilation();
+	}
+
+	FlushAsyncLoading();
+
+	// Make sure we finish all level streaming
+	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	{
+		if (UWorld* GameWorld = GameEngine->GetGameWorld())
+		{
+			GameWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
+		}
 	}
 
 	//Stream in everything

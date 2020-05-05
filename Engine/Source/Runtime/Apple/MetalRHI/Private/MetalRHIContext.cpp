@@ -223,6 +223,17 @@ void FMetalRHICommandContext::RHIEndRenderPass()
 	}
 }
 
+void FMetalRHICommandContext::RHINextSubpass()
+{
+#if PLATFORM_MAC
+	if (RenderPassInfo.SubpassHint == ESubpassHint::DepthReadSubpass)
+	{
+		FMetalRenderPass& RP = Context->GetCurrentRenderPass();
+		RP.InsertTextureBarrier();
+	}
+#endif
+}
+
 void FMetalRHICommandContext::RHIBeginComputePass(const TCHAR* InName)
 {
 	RHISetRenderTargets(0, nullptr, nullptr);

@@ -52,6 +52,8 @@ public:
 UNiagaraDataInterfaceExport::UNiagaraDataInterfaceExport(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	FNiagaraTypeDefinition Def(UObject::StaticClass());
+	CallbackHandlerParameter.Parameter.SetType(Def);
 }
 
 void UNiagaraDataInterfaceExport::PostInitProperties()

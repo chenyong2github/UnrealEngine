@@ -59,6 +59,10 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllo
 	bOuterOcclusionQuerySubmitted(false),
 	bDiscardSharedConstants(false),
 	bUsingTessellation(false),
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+	VRSCombiners{ D3D12_SHADING_RATE_COMBINER_PASSTHROUGH, D3D12_SHADING_RATE_COMBINER_PASSTHROUGH } ,
+	VRSShadingRate(D3D12_SHADING_RATE_1X1),
+#endif
 	SkipFastClearEliminateState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	bNeedFlushTextureCache(false),
@@ -182,7 +186,10 @@ void FD3D12CommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 #endif
 
 #if USE_PIX
-	PIXBeginEvent(CommandListHandle.GraphicsCommandList(), PIX_COLOR(Color.R, Color.G, Color.B), Name);
+	if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
+	{
+		PIXBeginEvent(CommandListHandle.GraphicsCommandList(), PIX_COLOR(Color.R, Color.G, Color.B), Name);
+	}
 #endif // USE_PIX
 }
 
@@ -215,7 +222,10 @@ void FD3D12CommandContext::RHIPopEvent()
 #endif
 
 #if USE_PIX
-	PIXEndEvent(CommandListHandle.GraphicsCommandList());
+	if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
+	{
+		PIXEndEvent(CommandListHandle.GraphicsCommandList());
+	}
 #endif
 }
 

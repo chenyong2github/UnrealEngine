@@ -605,7 +605,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bMultiView : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = VR, meta=(
-		ConsoleVariable="r.MobileHDR",DisplayName="Mobile Post-Processing",
+		ConsoleVariable="r.MobileHDR", DisplayName="Mobile HDR",
 		ToolTip="If true, mobile pipelines include a full post-processing pass with tonemapping. Disable this setting for a performance boost and to enable stereoscopic rendering optimizations. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
 	uint32 bMobilePostProcessing:1;
@@ -617,7 +617,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bMobileMultiView : 1;
 	
-	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
+	UPROPERTY(config, meta = (
 		EditCondition = "!bMobilePostProcessing",
 		ConsoleVariable = "r.Mobile.UseHWsRGBEncoding", DisplayName = "Single-pass linear rendering",
 		ToolTip = "If true then mobile single-pass (without post-processing) rendering will use HW accelerated sRGB encoding/decoding. Available only on Oculus for now."))
@@ -820,6 +820,27 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		DisplayName="Discard optional LODs",
 		ToolTip="Whether to discard skeletal mesh LODs below minimum LOD levels at cook time."))
 	FPerPlatformBool bDiscardSkeletalMeshOptionalLODs;
+
+	/**
+	" Visualize calibration material settings for post process calibration materials, used for setting full-screen images used for monitor calibration."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = PostProcessCalibrationMaterials, meta = (AllowedClasses = "Material",
+		DisplayName = "Visualize Calibration Color Material Path",
+		ToolTip = "When the VisualizeCalibrationColor show flag is enabled, this path will be used as the post-process material to render.",
+		ConfigRestartRequired = true))
+	FSoftObjectPath VisualizeCalibrationColorMaterialPath;
+
+	UPROPERTY(config, EditAnywhere, Category = PostProcessCalibrationMaterials, meta = (AllowedClasses = "Material",
+		DisplayName = "Visualize Calibration Grayscale Material Path",
+		ToolTip = "When the VisualizeCalibrationGrayscale show flag is enabled, this path will be used as the post-process material to render.",
+		ConfigRestartRequired = true))
+	FSoftObjectPath VisualizeCalibrationGrayscaleMaterialPath;
+
+	UPROPERTY(config, EditAnywhere, Category = PostProcessCalibrationMaterials, meta = (AllowedClasses = "Material",
+		DisplayName = "Visualize Calibration Custom Material Path",
+		ToolTip = "When the VisualizeCalibrationCustom show flag is enabled, this path will be used as the post-process material to render.",
+		ConfigRestartRequired = true))
+	FSoftObjectPath VisualizeCalibrationCustomMaterialPath;
 
 public:
 

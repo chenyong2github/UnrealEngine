@@ -598,3 +598,104 @@ struct FNDIRandomHelper
 
 	FNiagaraRandInfo RandInfo;
 };
+
+//Helper to deal with types with potentially several output registers.
+template<typename T>
+struct FNDIOutputParam
+{
+	VectorVM::FExternalFuncRegisterHandler<T> Data;
+	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE void SetAndAdvance(T Val) { *Data.GetDestAndAdvance() = Val; }
+};
+
+template<>
+struct FNDIOutputParam<FVector2D>
+{
+	VectorVM::FExternalFuncRegisterHandler<float> X;
+	VectorVM::FExternalFuncRegisterHandler<float> Y;
+	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context) {}
+	FORCEINLINE void SetAndAdvance(FVector2D Val)
+	{
+		*X.GetDestAndAdvance() = Val.X;
+		*Y.GetDestAndAdvance() = Val.Y;
+	}
+};
+
+template<>
+struct FNDIOutputParam<FVector>
+{
+	VectorVM::FExternalFuncRegisterHandler<float> X;
+	VectorVM::FExternalFuncRegisterHandler<float> Y;
+	VectorVM::FExternalFuncRegisterHandler<float> Z;
+	FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context) {}
+	FORCEINLINE void SetAndAdvance(FVector Val)
+	{
+		*X.GetDestAndAdvance() = Val.X;
+		*Y.GetDestAndAdvance() = Val.Y;
+		*Z.GetDestAndAdvance() = Val.Z;
+	}
+};
+
+template<>
+struct FNDIOutputParam<FVector4>
+{
+	VectorVM::FExternalFuncRegisterHandler<float> X;
+	VectorVM::FExternalFuncRegisterHandler<float> Y;
+	VectorVM::FExternalFuncRegisterHandler<float> Z;
+	VectorVM::FExternalFuncRegisterHandler<float> W;
+	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
+	FORCEINLINE void SetAndAdvance(FVector4 Val)
+	{
+		*X.GetDestAndAdvance() = Val.X;
+		*Y.GetDestAndAdvance() = Val.Y;
+		*Z.GetDestAndAdvance() = Val.Z;
+		*W.GetDestAndAdvance() = Val.W;
+	}
+};
+
+template<>
+struct FNDIOutputParam<FQuat>
+{
+	VectorVM::FExternalFuncRegisterHandler<float> X;
+	VectorVM::FExternalFuncRegisterHandler<float> Y;
+	VectorVM::FExternalFuncRegisterHandler<float> Z;
+	VectorVM::FExternalFuncRegisterHandler<float> W;
+	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
+	FORCEINLINE void SetAndAdvance(FQuat Val)
+	{
+		*X.GetDestAndAdvance() = Val.X;
+		*Y.GetDestAndAdvance() = Val.Y;
+		*Z.GetDestAndAdvance() = Val.Z;
+		*W.GetDestAndAdvance() = Val.W;
+	}
+};
+
+template<>
+struct FNDIOutputParam<FLinearColor>
+{
+	VectorVM::FExternalFuncRegisterHandler<float> R;
+	VectorVM::FExternalFuncRegisterHandler<float> G;
+	VectorVM::FExternalFuncRegisterHandler<float> B;
+	VectorVM::FExternalFuncRegisterHandler<float> A;
+	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : R(Context), G(Context), B(Context), A(Context) {}
+	FORCEINLINE void SetAndAdvance(FLinearColor Val)
+	{
+		*R.GetDestAndAdvance() = Val.R;
+		*G.GetDestAndAdvance() = Val.G;
+		*B.GetDestAndAdvance() = Val.B;
+		*A.GetDestAndAdvance() = Val.A;
+	}
+};
+
+template<>
+struct FNDIOutputParam<FNiagaraID>
+{
+	VectorVM::FExternalFuncRegisterHandler<int32> Index;
+	VectorVM::FExternalFuncRegisterHandler<int32> AcquireTag;
+	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Index(Context), AcquireTag(Context) {}
+	FORCEINLINE void SetAndAdvance(FNiagaraID Val)
+	{
+		*Index.GetDestAndAdvance() = Val.Index;
+		*AcquireTag.GetDestAndAdvance() = Val.AcquireTag;
+	}
+};

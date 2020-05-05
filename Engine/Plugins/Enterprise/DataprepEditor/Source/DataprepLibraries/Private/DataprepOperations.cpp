@@ -486,4 +486,14 @@ void FDataprepSetOutputFolderDetails::FolderName_TextChanged(const FText& Text)
 	bValidFolderName = ErrorMessage.IsEmpty();
 }
 
+void UDataprepAddToLayerOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("AddToLayer"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	// Execute operation
+	UDataprepOperationsLibrary::AddToLayer(InContext.Objects, LayerName);
+}
+
 #undef LOCTEXT_NAMESPACE

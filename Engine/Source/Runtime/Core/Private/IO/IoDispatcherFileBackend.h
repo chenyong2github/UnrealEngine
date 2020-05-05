@@ -9,6 +9,7 @@
 #include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/Runnable.h"
+#include "Misc/AES.h"
 
 class IMappedFileHandle;
 
@@ -18,9 +19,12 @@ struct FFileIoStoreContainerFile
 	uint64 FileSize = 0;
 	uint64 CompressionBlockSize = 0;
 	TArray<FName> CompressionMethods;
-	TArray<FIoStoreCompressedBlockEntry> CompressionBlocks;
+	TArray<FIoStoreTocCompressedBlockEntry> CompressionBlocks;
 	FString FilePath;
 	TUniquePtr<IMappedFileHandle> MappedFileHandle;
+	FGuid EncryptionKeyGuid;
+	FAES::FAESKey EncryptionKey;
+	bool bIsEncrypted = false;
 };
 
 struct FFileIoStoreBuffer
@@ -88,10 +92,17 @@ struct FFileIoStoreCompressedBlock
 	TArray<FFileIoStoreBlockScatter, TInlineAllocator<16>> ScatterList;
 	FFileIoStoreCompressionContext* CompressionContext = nullptr;
 	uint8* CompressedDataBuffer = nullptr;
+	FAES::FAESKey EncryptionKey;
 };
 
 struct FFileIoStoreRawBlock
 {
+	enum EFlags
+	{
+		None = 0,
+		Cacheable = 1
+	};
+
 	FFileIoStoreRawBlock* Next = nullptr;
 	FFileIoStoreBlockKey Key;
 	uint64 Offset;
@@ -101,6 +112,7 @@ struct FFileIoStoreRawBlock
 	uint32 RefCount = 0;
 	FIoRequestImpl* DirectToRequest = nullptr;
 	uint64 DirectToRequestOffset = 0;
+	uint8 Flags = None;
 };
 
 struct FFileIoStoreResolvedRequest
@@ -108,6 +120,26 @@ struct FFileIoStoreResolvedRequest
 	FIoRequestImpl* Request;
 	uint64 ResolvedOffset;
 	uint64 ResolvedSize;
+};
+
+class FFileIoStoreEncryptionKeys
+{
+public:
+	using FKeyRegisteredCallback = TFunction<void(const FGuid&, const FAES::FAESKey&)>;
+
+	FFileIoStoreEncryptionKeys();
+	bool GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const;
+	void SetKeyRegisteredCallback(FKeyRegisteredCallback&& Callback)
+	{
+		KeyRegisteredCallback = Callback;
+	}
+
+private:
+	void RegisterEncryptionKey(const FGuid& Guid, const FAES::FAESKey& Key);
+
+	TMap<FGuid, FAES::FAESKey> EncryptionKeysByGuid;
+	mutable FCriticalSection EncryptionKeysCritical;
+	FKeyRegisteredCallback KeyRegisteredCallback;
 };
 
 class FFileIoStoreReader
@@ -118,28 +150,41 @@ public:
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	const FIoOffsetAndLength* Resolve(const FIoChunkId& ChunkId) const;
-	const FFileIoStoreContainerFile& GetContainerFile() { return ContainerFile; }
+	const FFileIoStoreContainerFile& GetContainerFile() const { return ContainerFile; }
 	IMappedFileHandle* GetMappedContainerFileHandle();
+	const FIoContainerId& GetContainerId() const { return ContainerId; }
+	int32 GetOrder() const { return Order; }
+	bool IsEncrypted() const { return ContainerFile.bIsEncrypted; }
+	const FGuid& GetEncryptionKeyGuid() const { return ContainerFile.EncryptionKeyGuid; }
+	void SetEncryptionKey(const FAES::FAESKey& Key) { ContainerFile.EncryptionKey = Key; }
+	const FAES::FAESKey& GetEncryptionKey() const { return ContainerFile.EncryptionKey; }
 
 private:
 	FFileIoStoreImpl& PlatformImpl;
 
 	TMap<FIoChunkId, FIoOffsetAndLength> Toc;
 	FFileIoStoreContainerFile ContainerFile;
+	FIoContainerId ContainerId;
+	int32 Order;
 };
 
 class FFileIoStore
 	: public FRunnable
 {
 public:
-	FFileIoStore(FIoDispatcherEventQueue& InEventQueue, bool bInIsMultithreaded);
+	FFileIoStore(FIoDispatcherEventQueue& InEventQueue);
 	~FFileIoStore();
-	FIoStatus Mount(const FIoStoreEnvironment& Environment);
+	TIoStatusOr<FIoContainerId> Mount(const FIoStoreEnvironment& Environment);
 	EIoStoreResolveResult Resolve(FIoRequestImpl* Request);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
+	bool ReadPendingBlock();
 	void ProcessCompletedBlocks();
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
+	void FlushReads()
+	{ 
+		PlatformImpl.FlushReads();
+	}
 
 	static bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 
@@ -181,8 +226,7 @@ private:
 	};
 
 	void InitCache();
-	void ReadBlockAndScatter(uint32 ReaderIndex, uint32 BlockIndex, const FFileIoStoreResolvedRequest& ResolvedRequest);
-	void ReadNoScatter(uint32 ReaderIndex, uint64 Offset, uint64 Size, const FFileIoStoreResolvedRequest& ResolvedRequest);
+	void ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequest& ResolvedRequest);
 	FFileIoStoreBuffer* AllocBuffer();
 	void FreeBuffer(FFileIoStoreBuffer* Buffer);
 	FFileIoStoreCompressionContext* AllocCompressionContext();
@@ -190,11 +234,9 @@ private:
 	void ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync);
 	void AllocMemoryForRequest(FIoRequestImpl* Request);
 	void FinalizeCompressedBlock(FFileIoStoreCompressedBlock* CompressedBlock);
-	void ReadPendingBlocks();
 
 	const uint64 ReadBufferSize;
 	FIoDispatcherEventQueue& EventQueue;
-	bool bIsMultithreaded;
 	FFileIoStoreImpl PlatformImpl;
 
 	FRunnableThread* Thread;
@@ -218,4 +260,5 @@ private:
 	FFileIoStoreRawBlock* ScheduledBlocksTail = nullptr;
 	FCriticalSection DecompressedBlocksCritical;
 	FFileIoStoreCompressedBlock* FirstDecompressedBlock = nullptr;
+	FFileIoStoreEncryptionKeys EncryptionKeys;
 };

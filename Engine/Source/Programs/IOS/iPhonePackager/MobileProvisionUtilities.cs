@@ -207,8 +207,9 @@ namespace iPhonePackager
 
                     if (Config.bForDistribution)
                     {
-                        // check to see if this is a distribution provision
-                        bool bDistroProv = (TestProvision.ProvisionedDeviceIDs.Count == 0) && !TestProvision.bDebug;
+						// Check to see if this is a distribution provision. get-task-allow must be false for distro profiles.
+						// TestProvision.ProvisionedDeviceIDs.Count==0 is not a valid check as ad-hoc distro profiles do list devices.
+						bool bDistroProv = !TestProvision.bDebug;
                         if (!bDistroProv)
                         {
                             Program.LogVerbose("  .. Failed distribution check (mode={0}, get-task-allow={1}, #devices={2})", Config.bForDistribution, TestProvision.bDebug, TestProvision.ProvisionedDeviceIDs.Count);

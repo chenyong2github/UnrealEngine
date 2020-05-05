@@ -6,6 +6,9 @@
 
 namespace Chaos
 {
+	extern float LinearEtherDragOverride;
+	extern float AngularEtherDragOverride;
+
 	template<class T, int d>
 	class TPerParticleEtherDrag : public TPerParticleRule<T, d>
 	{
@@ -15,10 +18,12 @@ namespace Chaos
 
 		inline void ApplyHelper(FVec3& V, FVec3& W, FReal LinearDamp, FReal AngularDamp, T Dt) const
 		{
-			const FReal LinearMultiplier = FMath::Max(FReal(0), FReal(1) - (LinearDamp * Dt));
+			const FReal LinearDrag = LinearEtherDragOverride >= 0 ? LinearEtherDragOverride : LinearDamp * Dt;
+			const FReal LinearMultiplier = FMath::Max(FReal(0), FReal(1) - LinearDrag);
 			V *= LinearMultiplier;
 
-			const FReal AngularMultiplier = FMath::Max(FReal(0), FReal(1) - (AngularDamp * Dt));
+			const FReal AngularDrag = AngularEtherDragOverride >= 0 ? AngularEtherDragOverride : AngularDamp * Dt;
+			const FReal AngularMultiplier = FMath::Max(FReal(0), FReal(1) - AngularDrag);
 			W *= AngularMultiplier;
 		}
 

@@ -247,7 +247,7 @@ TSharedRef<SWidget> FDefaultsEditorSummoner::CreateOptionalDataOnlyMessage() con
 				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SWrapBox)
-					.UseAllottedWidth(true)
+					.UseAllottedSize(true)
 
 					+ SWrapBox::Slot()
 					[

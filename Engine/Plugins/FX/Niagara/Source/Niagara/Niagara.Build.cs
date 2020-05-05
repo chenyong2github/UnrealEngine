@@ -17,10 +17,11 @@ public class Niagara : ModuleRules
                 "TimeManagement",
                 "Renderer",
                 "JsonUtilities",
-		"Json",
-		"AudioPlatformConfiguration",
-		"SignalProcessing",
-		"ApplicationCore"
+				"Landscape",
+				"Json",
+				"AudioPlatformConfiguration",
+				"SignalProcessing",
+				"ApplicationCore"
             }
         );
 

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "HoleFiller.h"
 #include "MathUtil.h"
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
@@ -17,7 +18,7 @@ class FDynamicMesh3;
  * Fill an EdgeLoop hole with triangles.
  * Supports two fill modes, either a fan connected to a new central vertex, or a triangulation of the boundary polygon
  */
-class DYNAMICMESH_API FSimpleHoleFiller
+class DYNAMICMESH_API FSimpleHoleFiller : public IHoleFiller
 {
 public:
 	enum class EFillType
@@ -37,15 +38,18 @@ public:
 	// Outputs
 	//
 	int32 NewVertex = IndexConstants::InvalidID;
-	TArray<int32> NewTriangles;
 
 public:
 	/**
 	 *  Construct simple hole filler (just adds a central vertex and a triangle fan)
 	 */
-	FSimpleHoleFiller(FDynamicMesh3* Mesh, FEdgeLoop Loop) : Mesh(Mesh), Loop(Loop)
+	FSimpleHoleFiller(FDynamicMesh3* Mesh, FEdgeLoop Loop, EFillType InFillType = EFillType::TriangleFan) : 
+		Mesh(Mesh), 
+		Loop(Loop), 
+		FillType(InFillType)
 	{
 	}
+
 	virtual ~FSimpleHoleFiller() {}
 	
 	
@@ -62,7 +66,7 @@ public:
 		return EOperationValidationResult::Ok;
 	}
 
-	virtual bool Fill(int32 GroupID = -1);	
+	bool Fill(int32 GroupID = -1) override;	
 
 
 protected:

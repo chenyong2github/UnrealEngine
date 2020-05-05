@@ -162,7 +162,6 @@ FRHIShaderResourceView* FNiagaraRenderer::GetDummyHalfBuffer()
 	return DummyHalfBuffer.SRV;
 }
 
-
 bool FNiagaraRenderer::SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, const FNiagaraVariable& Var, int32 VFVarOffset)
 {
 	// use the DataSetVariable to figure out the information about the data that we'll be sending to the renderer
@@ -349,7 +348,7 @@ FNiagaraRenderer::~FNiagaraRenderer()
 
 void FNiagaraRenderer::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) 
 {
-	if (Batcher && SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	if (Batcher)
 	{
 		NumRegisteredGPURenderers = Batcher->GetGPUInstanceCounterManager().GetGPURendererCount();
 		if (NumRegisteredGPURenderers)

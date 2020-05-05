@@ -150,13 +150,10 @@ public:
 	uint8 bClampLinearTranslationLimitToRefPose : 1;
 
 	/**
-	 * Solver iteration settings overrides (defaults are set in the Physics Asset).
-	 * These can be varied in the runtime and set through blueprint (e.g., to increase
-	 * iterations during difficult movements).
-	 * Set to -1 to leave an individual iteration value at its Physics Asset value.
-	 */
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
-	FSolverIterations OverrideSolverIterations;
+		For world-space simulations, if the magnitude of the component's 3D scale is less than WorldSpaceMinimumScale, do not update the node.
+	*/
+	UPROPERTY(EditAnywhere, Category = Settings)
+	float WorldSpaceMinimumScale;
 
 private:
 	uint8 bEnabled : 1;

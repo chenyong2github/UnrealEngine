@@ -40,17 +40,12 @@ public:
 	float BrushFalloffAmount;
 
 	/** If false, then BrushStrength will not be shown in DetailsView panels (otherwise no effect) */
-	UPROPERTY()
+	UPROPERTY( meta = (TransientToolProperty))
 	bool bShowStrength = true;
 
 	/** If false, then BrushFalloffAmount will not be shown in DetailsView panels (otherwise no effect) */
-	UPROPERTY()
+	UPROPERTY(meta = (TransientToolProperty))
 	bool bShowFalloff = true;
-
-	//
-	// save/restore support
-	//
-	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
 };
 
 
@@ -98,7 +93,6 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
@@ -136,6 +130,8 @@ public:
 	virtual void DecreaseBrushFalloffAction();
 
 	virtual bool IsInBrushStroke() const { return bInBrushStroke; }
+
+	virtual double GetCurrentBrushRadius() const { return CurrentBrushRadius; }
 
 protected:
 

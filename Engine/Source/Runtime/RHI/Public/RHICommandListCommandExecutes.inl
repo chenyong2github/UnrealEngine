@@ -360,6 +360,18 @@ void FRHICommandDrawIndexedPrimitiveIndirect::Execute(FRHICommandListBase& CmdLi
 	INTERNAL_DECORATOR(RHIDrawIndexedPrimitiveIndirect)(IndexBuffer, ArgumentsBuffer, ArgumentOffset);
 }
 
+void FRHICommandSetShadingRate::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(SetShadingRate);
+	INTERNAL_DECORATOR(RHISetShadingRate)(ShadingRate, Combiner);
+}
+
+void FRHICommandSetShadingRateImage::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(SetShadingRateImage);
+	INTERNAL_DECORATOR(RHISetShadingRateImage)(RateImageTexture, Combiner);
+}
+
 void FRHICommandSetDepthBounds::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(EnableDepthBoundsTest);

@@ -706,6 +706,8 @@ protected:
 	FDelegateHandle ChunkInstallDelegateHandle;
 
 private:
+	/** Provide proper reentrancy for AssetRegistry temporary caching */
+	bool bOldTemporaryCachingMode = false;
 
 #if WITH_EDITOR
 	/** Recursive handler for InitializeAssetBundlesFromMetadata */

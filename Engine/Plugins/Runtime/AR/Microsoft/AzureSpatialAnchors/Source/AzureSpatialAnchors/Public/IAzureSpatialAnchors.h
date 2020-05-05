@@ -161,25 +161,21 @@ public:
 		FASASessionUpdatedTask(float InReadyForCreateProgress, float InRecommendedForCreateProgress, int InSessionCreateHash, int InSessionLocateHash, EAzureSpatialAnchorsSessionUserFeedback InFeedback)
 			: ReadyForCreateProgress(InReadyForCreateProgress), RecommendedForCreateProgress(InRecommendedForCreateProgress), SessionCreateHash(InSessionCreateHash), SessionLocateHash(InSessionLocateHash), Feedback(InFeedback)
 		{
-			UE_LOG(LogAzureSpatialAnchors, Log, TEXT("FASASessionUpdatedTask created"));
 		}
 
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 		{
-			UE_LOG(LogAzureSpatialAnchors, Log, TEXT("FASASessionUpdatedTask DoTask"));
 			checkf(CurrentThread == ENamedThreads::GameThread, TEXT("This task can only safely be run on the game thread"));
 			IAzureSpatialAnchors::ASASessionUpdatedDelegate.Broadcast(ReadyForCreateProgress, RecommendedForCreateProgress, SessionCreateHash, SessionLocateHash, Feedback);
 		}
 
 		static FORCEINLINE TStatId GetStatId()
 		{
-			UE_LOG(LogAzureSpatialAnchors, Log, TEXT("FASASessionUpdatedTask GetStatId"));
 			RETURN_QUICK_DECLARE_CYCLE_STAT(ASASessionUpdatedTask, STATGROUP_TaskGraphTasks);
 		}
 
 		static FORCEINLINE ENamedThreads::Type GetDesiredThread()
 		{
-			UE_LOG(LogAzureSpatialAnchors, Log, TEXT("FASASessionUpdatedTask GetDesiredThread"));
 			return ENamedThreads::GameThread;
 		}
 

@@ -159,31 +159,9 @@ UInteractiveTool* UDrawPolyPathToolBuilder::BuildTool(const FToolBuilderState& S
 	return NewTool;
 }
 
-
-void UDrawPolyPathProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
-{
-	UDrawPolyPathProperties* PropertyCache = GetPropertyCache<UDrawPolyPathProperties>();
-	SaveRestoreProperty(PropertyCache->OutputType, this->OutputType, bSaving);
-	SaveRestoreProperty(PropertyCache->WidthMode, this->WidthMode, bSaving);
-	SaveRestoreProperty(PropertyCache->Width, this->Width, bSaving);
-	SaveRestoreProperty(PropertyCache->HeightMode, this->HeightMode, bSaving);
-	SaveRestoreProperty(PropertyCache->Height, this->Height, bSaving);
-	SaveRestoreProperty(PropertyCache->RampStartRatio, this->RampStartRatio, bSaving);
-	SaveRestoreProperty(PropertyCache->bSnapToWorldGrid, this->bSnapToWorldGrid, bSaving);
-}
-
-
-
-
-
 /*
 * Tool methods
 */
-
-UDrawPolyPathTool::UDrawPolyPathTool()
-{
-}
-
 void UDrawPolyPathTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
@@ -396,10 +374,8 @@ bool UDrawPolyPathTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 
 
 
-void UDrawPolyPathTool::Tick(float DeltaTime)
+void UDrawPolyPathTool::OnTick(float DeltaTime)
 {
-	UInteractiveTool::Tick(DeltaTime);
-
 	if (PlaneMechanic != nullptr)
 	{
 		PlaneMechanic->SetEnableGridSnaping(TransformProps->bSnapToWorldGrid);

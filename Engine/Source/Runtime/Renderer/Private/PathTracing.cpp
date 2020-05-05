@@ -194,8 +194,11 @@ public:
 			// Prepend SkyLight to light buffer
 			// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
 			uint32 SkyLightIndex = 0;
+			uint8 SkyLightLightingChannelMask = 0xFF;
 			LightData.Type[SkyLightIndex] = 0;
 			LightData.Color[SkyLightIndex] = FVector(SkyLightData.Color);
+			LightData.Flags[SkyLightIndex] = SkyLightData.bTransmission & 0x01;
+			LightData.Flags[SkyLightIndex] |= (SkyLightLightingChannelMask & 0x7) << 1;
 			LightData.Count++;
 
 			for (auto Light : Lights)
@@ -206,6 +209,10 @@ public:
 
 				FLightShaderParameters LightParameters;
 				Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
+				uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
+				uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
+				LightData.Flags[LightData.Count] = Transmission & 0x01;
+				LightData.Flags[LightData.Count] |= (LightingChannelMask & 0x7) << 1;
 
 				ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 				switch (LightComponentType)

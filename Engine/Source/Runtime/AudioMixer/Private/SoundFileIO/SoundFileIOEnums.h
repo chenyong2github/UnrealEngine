@@ -165,7 +165,8 @@ namespace Audio
 	 */
 	namespace ESoundFileChannelMap
 	{
-		enum class Type : uint8
+		// this is used to populate an array which is passed into a sound file API call so must be uint32
+		enum class Type : uint32
 		{
 			INVALID = 0,
 			MONO,

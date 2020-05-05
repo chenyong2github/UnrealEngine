@@ -127,8 +127,8 @@ FEvaluateOutput Evaluate(
 		const float4 ScreenPos		= mul(float4(Velocity_World_P.xyz, 1), ResolvedView.TranslatedWorldToClip);
 		const float4 PrevScreenPos	= mul(float4(Velocity_World_P_Prev.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
 
-		const float2 Velocity	= Calculate2DVelocity(ScreenPos, PrevScreenPos);
-		EncodedVelocity			= EncodeVelocityToTexture(Velocity);
+		const float2 Velocity	= Calculate3DVelocity(ScreenPos, PrevScreenPos).xy;
+		EncodedVelocity			= EncodeVelocityToTexture(float3(Velocity, 0.0)).xy;
 	}
 	#endif
 

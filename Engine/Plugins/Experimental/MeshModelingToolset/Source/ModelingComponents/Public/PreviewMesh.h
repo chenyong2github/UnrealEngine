@@ -107,9 +107,19 @@ public:
 	void SetMaterials(const TArray<UMaterialInterface*>& Materials);
 
 	/**
+	* Get number of materials in the preview mesh (base materials, i.e., not including override material)
+	*/
+	int32 GetNumMaterials() const;
+
+	/**
 	* Get material from the preview mesh
 	*/
 	UMaterialInterface* GetMaterial(int MaterialIndex = 0) const;
+
+	/**
+	* Get the entire materials array from the preview mesh. Appends to OutMaterials without clearing it.
+	*/
+	void GetMaterials(TArray<UMaterialInterface*>& OutMaterials) const;
 
 	/**
 	 * Set an override material for the preview mesh. This material will override all the given materials.
@@ -314,9 +324,10 @@ public:
 	/**
 	 * Notify that a DeferredEditMesh sequence is complete and cause update of rendering data structures.
 	 * @param UpdateMode type of rendering update required for the applied mesh edits
+	 * @param ModifiedAttribs which mesh attributes have been modified and need to be updated
 	 * @param bRebuildSpatial if true, and internal spatial data structure is enabled, rebuild it for updated mesh
 	 */
-	void NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, bool bRebuildSpatial);
+	void NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, EMeshRenderAttributeFlags ModifiedAttribs, bool bRebuildSpatial);
 
 
 	/**

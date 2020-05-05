@@ -138,7 +138,7 @@ public:
 	* resolution which may help with gpu timeouts. Requires at least 1 tile. Tiling is applied evenly to
 	* both X and Y.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1, UIMax = 16), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", ClampMin = "1", UIMax = "16"), Category = "Movie Pipeline")
 	int32 TileCount;
 	
 	/**
@@ -147,7 +147,7 @@ public:
 	* (up to the detail resolution of your texture). Too much sharpness will cause visual grain/noise in the
 	* resulting image, but this can be mitigated with more spatial samples.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = -1, UIMax = 0), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "-1", UIMax = "0"), Category = "Movie Pipeline")
 	float TextureSharpnessBias;
 	
 	/**
@@ -155,7 +155,7 @@ public:
 	* tiles (which means faster renders) but increases the likelyhood of edge-of-screen artifacts showing up which
 	* will become visible in the final image as a "grid" of repeated problem areas.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 0.5, ClampMax=1), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0", ClampMin = "0", UIMax = "0.5", ClampMax = "1"), Category = "Movie Pipeline")
 	float OverlapRatio;
 
 	/**
@@ -168,7 +168,7 @@ public:
 	/*
 	* How many samples should the Burley Sub Surface Scattering use?
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 64, ClampMin = 0, UIMax = 1024, EditCondition="bOverrideSubSurfaceScattering"), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "64", ClampMin = "0", UIMax = "1024", EditCondition="bOverrideSubSurfaceScattering"), Category = "Movie Pipeline")
 	int32 BurleySampleCount;
 	
 	/**

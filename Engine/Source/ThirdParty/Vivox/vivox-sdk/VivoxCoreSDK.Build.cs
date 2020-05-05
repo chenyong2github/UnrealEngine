@@ -32,18 +32,6 @@ namespace UnrealBuildTool.Rules
 				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "ortp.dll"), Path.Combine(VivoxLibPath, "ortp.dll"));
 				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "vivoxsdk.dll"), Path.Combine(VivoxLibPath, "vivoxsdk.dll"));
 			}
-			else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-			{
-				PublicAdditionalLibraries.Add(VivoxLibPath + "vivoxsdk.lib");
-			}
-			else if (Target.Platform == UnrealTargetPlatform.PS4)
-			{
-				PublicAdditionalLibraries.Add(VivoxLibPath + "libvivoxsdk.a");
-				PublicSystemLibraries.Add("SceSha1");
-				PublicSystemLibraries.Add("SceAudioIn_stub_weak");
-				PublicSystemLibraries.Add("SceHmac");
-				PublicSystemLibraries.Add("SceSecure");
-			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				PublicDelayLoadDLLs.Add(Path.Combine(VivoxLibPath, "libortp.dylib"));

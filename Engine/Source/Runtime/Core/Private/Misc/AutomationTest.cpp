@@ -656,6 +656,11 @@ FOnTestScreenshotCaptured& FAutomationTestFramework::OnScreenshotCaptured()
 	return TestScreenshotCapturedDelegate;
 }
 
+FOnTestScreenshotAndTraceCaptured& FAutomationTestFramework::OnScreenshotAndTraceCaptured()
+{
+	return TestScreenshotAndTraceCapturedDelegate;
+}
+
 void FAutomationTestFramework::PrepForAutomationTests()
 {
 	check(!GIsAutomationTesting);

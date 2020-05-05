@@ -2632,6 +2632,7 @@ private:
 
 		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TArray&, void* Dst) { new(Dst) TArray(); }
 		static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher) {}
+		static void ToString(const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext, const TArray& Object) {}
 	};
 
 	template<typename Dummy>
@@ -2653,6 +2654,10 @@ private:
 		{
 			Freeze::AppendHash(StaticGetTypeLayoutDesc<ElementType>(), LayoutParams, Hasher);
 		}
+		static void ToString(const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext, const TArray& Object)
+		{
+			Object.AllocatorInstance.ToString(StaticGetTypeLayoutDesc<ElementType>(), Object.ArrayNum, LayoutParams, OutContext);
+		}
 	};
 
 public:
@@ -2672,6 +2677,12 @@ public:
 	{
 		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<ElementType>::Value;
 		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::AppendHash(LayoutParams, Hasher);
+	}
+
+	void ToString(const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) const
+	{
+		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<ElementType>::Value;
+		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::ToString(LayoutParams, OutContext, *this);
 	}
 
 	/**
@@ -2986,6 +2997,12 @@ namespace Freeze
 	{
 		// Assume alignment of array is drive by pointer
 		return FMath::Min(LayoutParams.GetMemoryImagePointerSize(), LayoutParams.MaxFieldAlignment);
+	}
+
+	template<typename T, typename AllocatorType>
+	void IntrinsicToString(const TArray<T, AllocatorType>& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+	{
+		Object.ToString(LayoutParams, OutContext);
 	}
 }
 

@@ -743,7 +743,7 @@ ULuminARCandidateImage* FLuminARImplementation::AddLuminRuntimeCandidateImage(UA
 {
 	if (OnAddRuntimeCandidateImage(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth))
 	{
-		float PhysicalHeight = PhysicalWidth / CandidateTexture->GetSizeX() * CandidateTexture->GetSizeY();
+		float PhysicalHeight = PhysicalWidth / FMath::Max<int32>(1, CandidateTexture->GetSizeX()) * CandidateTexture->GetSizeY();
 		ULuminARCandidateImage* NewCandidateImage = ULuminARCandidateImage::CreateNewLuminARCandidateImage(CandidateTexture, FriendlyName, PhysicalWidth, PhysicalHeight, EARCandidateImageOrientation::Landscape, bUseUnreliablePose, bImageIsStationary);
 		SessionConfig->AddCandidateImage(NewCandidateImage);
 		return NewCandidateImage;

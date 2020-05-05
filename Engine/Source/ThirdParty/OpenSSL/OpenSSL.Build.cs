@@ -25,14 +25,6 @@ public class OpenSSL : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			string IncludePath = Target.UEThirdPartySourceDirectory + "OpenSSL/1.0.2g" + "/" + "include/PS4";
-			string LibraryPath = Target.UEThirdPartySourceDirectory + "OpenSSL/1.0.2g" + "/" + "lib/PS4/release";
-			PublicIncludePaths.Add(IncludePath);
-			PublicAdditionalLibraries.Add(LibraryPath + "/" + "libssl.a");
-			PublicAdditionalLibraries.Add(LibraryPath + "/" + "libcrypto.a");
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.HoloLens)
 		{

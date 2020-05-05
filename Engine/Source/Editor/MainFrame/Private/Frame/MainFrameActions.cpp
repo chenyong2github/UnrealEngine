@@ -783,7 +783,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 			// Check if the receipt is for a matching promoted target
 			FString PlatformName = Platform->GetPlatformInfo().UBTTargetId.ToString();
 
-			extern UNREALED_API bool HasPromotedTarget(const TCHAR* BaseDir, const TCHAR* TargetName, const TCHAR* Platform, EBuildConfiguration Configuration, const TCHAR* Architecture);
+			extern LAUNCHERSERVICES_API bool HasPromotedTarget(const TCHAR* BaseDir, const TCHAR* TargetName, const TCHAR* Platform, EBuildConfiguration Configuration, const TCHAR* Architecture);
 			if (HasPromotedTarget(*BaseDir, *TargetName, *PlatformName, ConfigurationInfo.Configuration, nullptr))
 			{
 				bBuild = false;

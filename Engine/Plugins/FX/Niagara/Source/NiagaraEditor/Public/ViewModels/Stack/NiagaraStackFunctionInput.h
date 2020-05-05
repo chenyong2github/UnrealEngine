@@ -199,7 +199,10 @@ public:
 	void DeleteInput();
 
 	/** Gets the namespaces which new parameters for this input can be read from. */
-	void GetNamespacesForNewParameters(TArray<FName>& OutNamespacesForNewParameters) const;
+	void GetNamespacesForNewReadParameters(TArray<FName>& OutNamespacesForNewParameters) const;
+
+	/** Gets the namespaces which new parameters for this input can write to. */
+	void GetNamespacesForNewWriteParameters(TArray<FName>& OutNamespacesForNewParameters) const;
 
 	/** Gets a multicast delegate which is called whenever the value on this input changes. */
 	FOnValueChanged& OnValueChanged();

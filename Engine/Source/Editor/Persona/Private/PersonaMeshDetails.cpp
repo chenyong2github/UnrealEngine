@@ -342,7 +342,7 @@ void SSkeletalLODActions::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot()
 			[
 				SAssignNew(WrapBox, SWrapBox)
-				.UseAllottedWidth(true)
+				.UseAllottedSize(true)
 			]
 		];
 

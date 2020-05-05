@@ -61,19 +61,9 @@ namespace ENamedThreads
 	CORE_API int32 bHasHighPriorityThreads = CREATE_HIPRI_TASK_THREADS;
 }
 
-static bool GDoRenderThreadWakeupTrigger = true;
-static FAutoConsoleVariableRef CVarDoRenderThreadWakeupTrigger(
-	TEXT("TaskGraph.DoRenderThreadWakeupTrigger"),
-	GDoRenderThreadWakeupTrigger,
-	TEXT("If true, task graph tasks sent to the render thread trigger a wakeup. See TaskGraph.RenderThreadPollPeriodMs.")
-);
-
-static int32 GRenderThreadPollPeriodMs = (int32)MAX_uint32;
-static FAutoConsoleVariableRef CVarRenderThreadPollPeriodMs(
-	TEXT("TaskGraph.RenderThreadPollPeriodMs"),
-	GRenderThreadPollPeriodMs,
-	TEXT("Render thread polling period in milliseconds.")
-);
+// RenderingThread.cpp sets these values if needed
+CORE_API TAtomic<bool> GDoRenderThreadWakeupTrigger(true);	// Accessed by any thread, modified by GT/RT.
+CORE_API int32 GRenderThreadPollPeriodMs = -1;				// Accessed/Modified by RT only.
 
 static int32 GIgnoreThreadToDoGatherOn = 0;
 static FAutoConsoleVariableRef CVarIgnoreThreadToDoGatherOn(
@@ -680,9 +670,11 @@ public:
 			ProcessingTasks.Start(StatName);
 		}
 #endif
+		const bool bIsRenderThread = (ENamedThreads::GetThreadIndex(ThreadId) == ENamedThreads::GetRenderThread());
 		while (!Queue(QueueIndex).QuitForReturn)
 		{
-			FBaseGraphTask* Task = Queue(QueueIndex).StallQueue.Pop(0, bAllowStall);
+			const bool bStallQueueAllowStall = bAllowStall && (!bIsRenderThread || GDoRenderThreadWakeupTrigger);
+			FBaseGraphTask* Task = Queue(QueueIndex).StallQueue.Pop(0, bStallQueueAllowStall);
 			TestRandomizedThreads();
 			if (!Task)
 			{
@@ -697,7 +689,7 @@ public:
 				{
 					{
 						FScopeCycleCounter Scope(StallStatId);
-						Queue(QueueIndex).StallRestartEvent->Wait(IsInRenderingThread() ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);
+						Queue(QueueIndex).StallRestartEvent->Wait(bIsRenderThread ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);
 						if (Queue(QueueIndex).QuitForShutdown)
 						{
 							return ProcessedTasks;
@@ -777,7 +769,8 @@ public:
 		if (ThreadToStart >= 0)
 		{
 			checkThreadGraph(ThreadToStart == 0);
-			if ((ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) != ENamedThreads::GetRenderThread()) || GDoRenderThreadWakeupTrigger)
+			const bool bExecuteOnRenderThread = (ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) == ENamedThreads::GetRenderThread());
+			if (!bExecuteOnRenderThread || GDoRenderThreadWakeupTrigger)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
 				TASKGRAPH_SCOPE_CYCLE_COUNTER(1, STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
@@ -1512,7 +1505,8 @@ public:
 				bool bAnyPending = false;
 				for (int32 Index = 0; Index < Tasks.Num(); Index++)
 				{
-					if (!Tasks[Index]->IsComplete())
+					FGraphEvent* Task = Tasks[Index].GetReference();
+					if (Task && !Task->IsComplete())
 					{
 						bAnyPending = true;
 						break;
@@ -1534,7 +1528,8 @@ public:
 				bool bAnyPending = false;
 				for (int32 Index = 0; Index < Tasks.Num(); Index++)
 				{
-					if (!Tasks[Index]->IsComplete())
+					FGraphEvent* Task = Tasks[Index].GetReference();
+					if (Task && !Task->IsComplete())
 					{
 						bAnyPending = true;
 						break;
@@ -1561,7 +1556,8 @@ public:
 			bAnyPending = false;
 			for (int32 Index = 0; Index < Tasks.Num(); Index++)
 			{
-				if (!Tasks[Index]->IsComplete())
+				FGraphEvent* Task = Tasks[Index].GetReference();
+				if (Task && !Task->IsComplete())
 				{
 					bAnyPending = true;
 					break;

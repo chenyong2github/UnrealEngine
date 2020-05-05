@@ -12,7 +12,6 @@
 #include "NiagaraDataInterfaceAudio.h"
 #include "NiagaraDataInterfaceAudioOscilloscope.generated.h"
 
-
 struct FNiagaraDataInterfaceProxyOscilloscope : public FNiagaraDataInterfaceProxy
 {
 	FNiagaraDataInterfaceProxyOscilloscope(int32 InResolution, float InScopeInMillseconds);
@@ -99,12 +98,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Oscilloscope")
 	USoundSubmix* Submix;
 
+	static const int32 MaxBufferResolution = 8192;
+
 	// The number of samples of audio to pass to the GPU. Audio will be resampled to fit this resolution.
-	UPROPERTY(EditAnywhere, Category = "Oscilloscope")
+	// Increasing this number will increase the resolution of the waveform, but will also increase usage of the GPU memory bus,
+	// potentially causing issues across the application.
+	UPROPERTY(EditAnywhere, Category = "Oscilloscope", AdvancedDisplay, meta = (ClampMin = "64", ClampMax = "8192"))
 	int32 Resolution;
 
 	// The number of milliseconds of audio to show.
-	UPROPERTY(EditAnywhere, Category = "Oscilloscope")
+	UPROPERTY(EditAnywhere, Category = "Oscilloscope", meta = (ClampMin = "5.0", ClampMax = "400.0"))
 	float ScopeInMilliseconds;
 
 	//VM function overrides:

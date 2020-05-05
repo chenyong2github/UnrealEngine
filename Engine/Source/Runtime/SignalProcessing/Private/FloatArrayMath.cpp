@@ -3,7 +3,6 @@
 #include "DSP/FloatArrayMath.h"
 #include "CoreMinimal.h"
 
-
 namespace Audio
 {
 	namespace MathIntrinsics
@@ -352,6 +351,8 @@ namespace Audio
 
 	void ArrayMultiplyInPlace(TArrayView<const float> InValues1, TArrayView<float> InValues2)
 	{
+		check(InValues1.Num() == InValues2.Num());
+
 		const int32 Num = InValues1.Num();
 
 		const float* InData1 = InValues1.GetData();
@@ -385,6 +386,68 @@ namespace Audio
 			TArrayView<float> ValuesView2(&InData2[NumToSimd],  NumNotToSimd);
 
 			ArrayMultiplyInPlace(ValuesView1, ValuesView2);
+		}
+	}
+
+	void ArrayComplexMultiplyInPlace(TArrayView<const float> InValues1, TArrayView<float> InValues2)
+	{
+		check(InValues1.Num() == InValues2.Num());
+
+		const int32 Num = InValues1.Num();
+
+		// Needs to be in interleaved format.
+		check((Num % 2) == 0);
+
+		const float* InData1 = InValues1.GetData();
+		float* InData2 = InValues2.GetData();
+
+		for (int32 i = 0; i < Num; i += 2)
+		{
+			float Real = (InData1[i] * InData2[i]) - (InData1[i + 1] * InData2[i + 1]);
+			float Imag = (InData1[i] * InData2[i + 1]) + (InData1[i + 1] * InData2[i]);
+			InData2[i] = Real;
+			InData2[i + 1] = Imag;
+		}
+	}
+
+	void ArrayComplexMultiplyInPlace(const AlignedFloatBuffer& InValues1, AlignedFloatBuffer& InValues2)
+	{
+		check(InValues1.Num() == InValues2.Num());
+
+		const int32 Num = InValues1.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const float* InData1 = InValues1.GetData();
+		float* InData2 = InValues2.GetData();
+
+		if (NumToSimd)
+		{
+			const VectorRegister RealSignFlip = MakeVectorRegister(-1.f, 1.f, -1.f, 1.f);
+
+			for (int32 i = 0; i < NumToSimd; i += 4)
+			{
+				VectorRegister VectorData1 = VectorLoadAligned(&InData1[i]);
+				VectorRegister VectorData2 = VectorLoadAligned(&InData2[i]);
+
+				VectorRegister VectorData1Real = VectorSwizzle(VectorData1, 0, 0, 2, 2);
+				VectorRegister VectorData1Imag = VectorSwizzle(VectorData1, 1, 1, 3, 3);
+				VectorRegister VectorData2Swizzle = VectorSwizzle(VectorData2, 1, 0, 3, 2);
+
+				VectorRegister Result = VectorMultiply(VectorData1Imag, VectorData2Swizzle);
+				Result = VectorMultiply(Result, RealSignFlip);
+				Result = VectorMultiplyAdd(VectorData1Real, VectorData2, Result);
+
+				VectorStoreAligned(Result, &InData2[i]);
+			}
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<const float> ValuesView1(&InData1[NumToSimd],  NumNotToSimd);
+			TArrayView<float> ValuesView2(&InData2[NumToSimd],  NumNotToSimd);
+
+			ArrayComplexMultiplyInPlace(ValuesView1, ValuesView2);
 		}
 	}
 
@@ -531,6 +594,95 @@ namespace Audio
 		for (int32 i = 0; i < Num; i++)
 		{
 			InValues[i] = FMath::Sqrt(InValues[i]);
+		}
+	}
+
+	void ArrayComplexConjugate(TArrayView<const float> InValues, TArrayView<float> OutValues)
+	{
+		check(OutValues.Num() == InValues.Num());
+		check((InValues.Num() % 2) == 0);
+
+		int32 Num = InValues.Num();
+
+		const float* InData = InValues.GetData();
+		float* OutData = OutValues.GetData();
+		
+		for (int32 i = 0; i < Num; i+= 2)
+		{
+			OutData[i] = InData[i];
+			OutData[i + 1] = -InData[i + 1];
+		}
+	}
+
+	void ArrayComplexConjugate(const AlignedFloatBuffer& InValues, AlignedFloatBuffer& OutValues)
+	{
+		check(OutValues.Num() == InValues.Num());
+
+		const int32 Num = InValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const float* InData = InValues.GetData();
+		float* OutData = OutValues.GetData();
+
+		const VectorRegister ConjugateMult = MakeVectorRegister(1.f, -1.f, 1.f, -1.f);
+
+		for (int32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
+			
+			VectorData = VectorMultiply(VectorData, ConjugateMult);
+
+			VectorStoreAligned(VectorData, &OutData[i]);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<const float> InView(&InData[NumToSimd], NumNotToSimd);
+			TArrayView<float> OutView(&OutData[NumToSimd], NumNotToSimd);
+
+			ArrayComplexConjugate(InView, OutView);
+		}
+	}
+
+	void ArrayComplexConjugateInPlace(TArrayView<float> InValues)
+	{
+		check((InValues.Num() % 2) == 0);
+
+		int32 Num = InValues.Num();
+
+		float* InData = InValues.GetData();
+		
+		for (int32 i = 1; i < Num; i+= 2)
+		{
+			InData[i] *= -1.f;
+		}
+	}
+
+	void ArrayComplexConjugateInPlace(AlignedFloatBuffer& InValues)
+	{
+		const int32 Num = InValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		float* InData = InValues.GetData();
+
+		const VectorRegister ConjugateMult = MakeVectorRegister(1.f, -1.f, 1.f, -1.f);
+
+		for (int32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
+			
+			VectorData = VectorMultiply(VectorData, ConjugateMult);
+
+			VectorStoreAligned(VectorData, &InData[i]);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<float> InView(&InData[NumToSimd], NumNotToSimd);
+
+			ArrayComplexConjugateInPlace(InView);
 		}
 	}
 

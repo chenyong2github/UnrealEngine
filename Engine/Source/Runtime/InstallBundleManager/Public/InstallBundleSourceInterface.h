@@ -13,8 +13,9 @@ DECLARE_DELEGATE_TwoParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstall
 DECLARE_DELEGATE_TwoParams(FInstallBundleSourceQueryBundleInfoDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceBundleInfoQueryResultInfo /*Result*/);
 DECLARE_DELEGATE_RetVal_TwoParams(EInstallBundleSourceUpdateBundleInfoResult, FInstallBundleSourceUpdateBundleInfoDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceBundleInfoQueryResultInfo /*Result*/);
 
-DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceRequestResultInfo /*Result*/);
+DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceUpdateContentResultInfo /*Result*/);
 DECLARE_DELEGATE_OneParam(FInstallBundlePausedDelegate, FInstallBundleSourcePauseInfo /*PauseInfo*/);
+DECLARE_DELEGATE_OneParam(FInstallBundleRemovedDelegate, FInstallBundleSourceRemoveContentResultInfo /*Result*/);
 
 DECLARE_DELEGATE_TwoParams(FInstallBundleSourceContentPatchResultDelegate, TSharedRef<IInstallBundleSource> /*Source*/, bool /*bContentPatchRequired*/);
 
@@ -76,6 +77,22 @@ public:
 	// Updates content on disk if necessary
 	// BundleContexts contains all dependencies and has been deduped
 	virtual void RequestUpdateContent(FRequestUpdateContentBundleContext BundleContext) = 0;
+
+	struct FRequestRemoveContentBundleContext
+	{
+		FName BundleName;
+		FInstallBundleRemovedDelegate CompleteCallback;
+	};
+
+	// Removes content from disk if present
+	// BundleContexts contains all dependencies and has been deduped
+	// Bundle manager will not schedule removes at the same time as updates for the same bundle
+	virtual void RequestRemoveContent(FRequestRemoveContentBundleContext BundleContext)
+	{
+		FInstallBundleSourceRemoveContentResultInfo ResultInfo;
+		ResultInfo.BundleName = BundleContext.BundleName;
+		BundleContext.CompleteCallback.Execute(MoveTemp(ResultInfo));
+	}
 
 	// Returns true if content is scheduled to be removed the next time the source is initialized
 	// BundleNames contains all dependencies and has been deduped

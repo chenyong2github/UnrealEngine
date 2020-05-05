@@ -21,6 +21,19 @@ void MeshTransforms::Translate(FDynamicMesh3& Mesh, const FVector3d& Translation
 }
 
 
+void MeshTransforms::Scale(FDynamicMesh3& Mesh, const FVector3d& Scale, const FVector3d& Origin)
+{
+	int NumVertices = Mesh.MaxVertexID();
+	ParallelFor(NumVertices, [&](int32 vid)
+	{
+		if (Mesh.IsVertex(vid))
+		{
+			Mesh.SetVertex(vid, (Mesh.GetVertex(vid) - Origin) * Scale + Origin);
+		}
+	});
+}
+
+
 
 void MeshTransforms::WorldToFrameCoords(FDynamicMesh3& Mesh, const FFrame3d& Frame)
 {

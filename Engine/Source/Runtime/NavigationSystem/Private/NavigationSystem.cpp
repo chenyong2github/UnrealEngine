@@ -2698,7 +2698,7 @@ void UNavigationSystemV1::UnregisterNavOctreeElement(UObject* ElementOwner, INav
 	}
 }
 
-void UNavigationSystemV1::RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags)
+void UNavigationSystemV1::RemoveNavOctreeElementId(const FOctreeElementId2& ElementId, int32 UpdateFlags)
 {
 	FNavigationDataHandler(DefaultOctreeController, DefaultDirtyAreasController).RemoveNavOctreeElementId(ElementId, UpdateFlags);
 }

@@ -20,6 +20,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
@@ -33,6 +34,7 @@
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 #include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 #include "NiagaraEditorModule.h"
+#include "SNiagaraGraphActionWidget.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackModuleItem"
 
@@ -108,7 +110,7 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 	.VAlign(VAlign_Center)
 	.AutoWidth()
 	[
-		SNew(SComboButton)
+		SAssignNew(AddButton, SComboButton)
 		.HasDownArrow(false)
 		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 		.ForegroundColor(FSlateColor::UseForeground())
@@ -189,35 +191,48 @@ FReply SNiagaraStackModuleItem::ScratchButtonPressed() const
 	return FReply::Unhandled();
 }
 
+void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedActions, ESelectInfo::Type InSelectionType)
+{
+	if (SelectedActions.Num() == 1 && (InSelectionType == ESelectInfo::OnKeyPress || InSelectionType == ESelectInfo::OnMouseClick))
+	{
+		TSharedPtr<FNiagaraMenuAction> Action = StaticCastSharedPtr<FNiagaraMenuAction>(SelectedActions[0]);
+		if (Action.IsValid())
+		{
+			FSlateApplication::Get().DismissAllMenus();
+			Action->ExecuteAction();
+		}
+	}
+}
+
 TSharedRef<SWidget> SNiagaraStackModuleItem::RaiseActionMenuClicked()
 {
 	if (CanRaiseActionMenu())
 	{
-		UNiagaraNodeAssignment* AssignmentNode = Cast<UNiagaraNodeAssignment>(&ModuleItem->GetModuleNode());
-		if (AssignmentNode != nullptr)
-		{
-			UNiagaraNodeOutput* OutputNode = ModuleItem->GetOutputNode();
-			if (OutputNode)
-			{
-				FMenuBuilder MenuBuilder(true, nullptr);
-				MenuBuilder.AddSubMenu(LOCTEXT("AddVariables", "Add Variable"), 
-					LOCTEXT("AddVariablesTooltip", "Add another variable to the end of the list"),
-					FNewMenuDelegate::CreateLambda([OutputNode, AssignmentNode](FMenuBuilder& SubMenuBuilder)
-				{
-					AssignmentNode->BuildAddParameterMenu(SubMenuBuilder, OutputNode->GetUsage(), OutputNode);
-				}));
-				MenuBuilder.AddSubMenu(LOCTEXT("CreateVariables", "Create New Variable"),
-					LOCTEXT("CreateVariablesTooltip", "Create a new variable and set its value"),
-					FNewMenuDelegate::CreateLambda([OutputNode, AssignmentNode](FMenuBuilder& SubMenuBuilder)
-				{
-					AssignmentNode->BuildCreateParameterMenu(SubMenuBuilder, OutputNode->GetUsage(), OutputNode);
-				}));
+		TSharedPtr<SGraphActionMenu> GraphActionMenu;
 
-				return MenuBuilder.MakeWidget();
-			}
-		}
+		TSharedRef<SBorder> MenuWidget = SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.Padding(5)
+		[
+			SNew(SBox)
+			.MinDesiredWidth(300)
+			.HeightOverride(400)
+			[
+				SAssignNew(GraphActionMenu, SGraphActionMenu)
+				.OnActionSelected_Static(OnActionSelected)
+				.OnCollectAllActions(this, &SNiagaraStackModuleItem::CollectParameterActions)
+				.AutoExpandActionMenu(false)
+				.ShowFilterTextBox(true)
+				.OnCreateWidgetForAction_Lambda([](const FCreateWidgetForActionData* InData)
+				{
+					return SNew(SNiagaraGraphActionWidget, InData);
+				})
+			]
+		];
+
+		AddButton->SetMenuContentWidgetToFocus(GraphActionMenu->GetFilterTextBox()->AsShared());
+		return MenuWidget;
 	}
-
 	return SNullWidget::NullWidget;
 }
 
@@ -269,15 +284,22 @@ void ReassignModuleScript(UNiagaraStackModuleItem* ModuleItem, FAssetData NewMod
 	}
 }
 
-void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedActions, ESelectInfo::Type InSelectionType)
+void SNiagaraStackModuleItem::CollectParameterActions(FGraphActionListBuilderBase& ModuleActions)
 {
-	if (SelectedActions.Num() == 1 && (InSelectionType == ESelectInfo::OnKeyPress || InSelectionType == ESelectInfo::OnMouseClick))
+	UNiagaraNodeAssignment* AssignmentNode = Cast<UNiagaraNodeAssignment>(&ModuleItem->GetModuleNode());
+	if (AssignmentNode != nullptr)
 	{
-		TSharedPtr<FNiagaraMenuAction> Action = StaticCastSharedPtr<FNiagaraMenuAction>(SelectedActions[0]);
-		if (Action.IsValid())
+		UNiagaraNodeOutput* OutputNode = ModuleItem->GetOutputNode();
+		if (OutputNode != nullptr)
 		{
-			FSlateApplication::Get().DismissAllMenus();
-			Action->ExecuteAction();
+			TArray<TSharedPtr<FNiagaraMenuAction>> AllActions;
+			AssignmentNode->CollectAddExistingActions(OutputNode->GetUsage(), OutputNode, AllActions);
+			AssignmentNode->CollectCreateNewActions(OutputNode->GetUsage(), OutputNode, AllActions);
+			
+			for (TSharedPtr<FNiagaraMenuAction> Action : AllActions)
+			{
+				ModuleActions.AddAction(Action);
+			}
 		}
 	}
 }

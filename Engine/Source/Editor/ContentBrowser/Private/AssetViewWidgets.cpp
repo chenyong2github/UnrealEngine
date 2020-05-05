@@ -943,7 +943,7 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 				if (CollectionsContainingObject.Num() > 0)
 				{
 					TSharedRef<SWrapBox> CollectionPipsWrapBox = SNew(SWrapBox)
-						.PreferredWidth(700.0f);
+						.PreferredSize(700.0f);
 
 					for (const FCollectionNameType& CollectionContainingObject : CollectionsContainingObject)
 					{

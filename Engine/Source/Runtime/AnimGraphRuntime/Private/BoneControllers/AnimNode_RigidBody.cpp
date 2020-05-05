@@ -13,6 +13,7 @@
 #include "Physics/ImmediatePhysics/ImmediatePhysicsStats.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Logging/MessageLog.h"
+#include "Logging/LogMacros.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -24,6 +25,13 @@
 DEFINE_STAT(STAT_RigidBodyNodeInitTime);
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
+
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+DECLARE_LOG_CATEGORY_EXTERN(LogRBAN, Log, Warning);
+#else
+DECLARE_LOG_CATEGORY_EXTERN(LogRBAN, Log, All);
+#endif
+DEFINE_LOG_CATEGORY(LogRBAN);
 
 TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_Default);
 TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold(TEXT("p.RigidBodyLODThreshold"), -1, TEXT("Max LOD that rigid body node is allowed to run on. Provides a global threshold that overrides per-node the LODThreshold property. -1 means no override."), ECVF_Scalability);
@@ -60,13 +68,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	bTransferBoneVelocities = false;
 	bFreezeIncomingPoseOnStart = false;
 	bClampLinearTranslationLimitToRefPose = false;
-
-	OverrideSolverIterations.SolverIterations = -1;
-	OverrideSolverIterations.JointIterations = -1;
-	OverrideSolverIterations.CollisionIterations = -1;
-	OverrideSolverIterations.SolverPushOutIterations = -1;
-	OverrideSolverIterations.JointPushOutIterations = -1;
-	OverrideSolverIterations.CollisionPushOutIterations = -1;
+	WorldSpaceMinimumScale = 0.01f;
 
 	PreviousTransform = CurrentTransform = FTransform::Identity;
 	PreviousComponentLinearVelocity = FVector::ZeroVector;	
@@ -233,7 +235,7 @@ void FAnimNode_RigidBody::InitializeNewBodyTransformsDuringSimulation(FComponent
 				}
 
 				const FTransform WSBodyTM = BodyRelativeTransform * Bodies[OutputData.ParentBodyIndex]->GetWorldTransform();
-				Bodies[BodyIndex]->SetWorldTransform(WSBodyTM);
+				Bodies[BodyIndex]->InitWorldTransform(WSBodyTM);
 				BodyAnimData[BodyIndex].RefPoseLength = BodyRelativeTransform.GetLocation().Size();
 			}
 			// If we don't have a parent body, then we can just grab the incoming pose in component space.
@@ -242,7 +244,7 @@ void FAnimNode_RigidBody::InitializeNewBodyTransformsDuringSimulation(FComponent
 				const FTransform& ComponentSpaceTM = Output.Pose.GetComponentSpaceTransform(OutputData.CompactPoseBoneIndex);
 				const FTransform BodyTM = ConvertCSTransformToSimSpace(SimulationSpace, ComponentSpaceTM, ComponentTransform, BaseBoneTM);
 
-				Bodies[BodyIndex]->SetWorldTransform(BodyTM);
+				Bodies[BodyIndex]->InitWorldTransform(BodyTM);
 			}
 		}
 	}
@@ -268,6 +270,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 		EvalCounter.SetMaxSkippedFrames(Output.AnimInstanceProxy->GetEvaluationCounter().GetMaxSkippedFrames());
 		if(!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter())  && bRBAN_EnableTimeBasedReset)
 		{
+			UE_LOG(LogRBAN, Verbose, TEXT("%s Time-Based Reset"), *Output.AnimInstanceProxy->GetAnimInstanceName());
+
 			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
 		}
 	}
@@ -284,8 +288,14 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 		{
 			PreviousCompWorldSpaceTM = CompWorldSpaceTM;
 		}
-		const FTransform BaseBoneTM = Output.Pose.GetComponentSpaceTransform(BaseBoneRef.GetCompactPoseIndex(BoneContainer));
 
+		// Disable simulation below minimum scale in world space mode. World space sim doesn't play nice with scale anyway - we do not scale joint offets or collision shapes.
+		if ((SimulationSpace == ESimulationSpace::WorldSpace) && (CompWorldSpaceTM.GetScale3D().SizeSquared() < WorldSpaceMinimumScale * WorldSpaceMinimumScale))
+		{
+			return;
+		}
+
+		const FTransform BaseBoneTM = Output.Pose.GetComponentSpaceTransform(BaseBoneRef.GetCompactPoseIndex(BoneContainer));
 		PhysicsSimulation->SetSimulationSpaceTransform(SpaceToWorldTransform(SimulationSpace, CompWorldSpaceTM, BaseBoneTM));
 
 		// Initialize potential new bodies because of LOD change.
@@ -349,6 +359,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			{
 				case ETeleportType::TeleportPhysics:
 				{
+					UE_LOG(LogRBAN, Verbose, TEXT("%s TeleportPhysics (Scale: %f %f %f)"), *Output.AnimInstanceProxy->GetAnimInstanceName(), CompWorldSpaceTM.GetScale3D().X, CompWorldSpaceTM.GetScale3D().Y, CompWorldSpaceTM.GetScale3D().Z);
+
 					// Teleport bodies.
 					for (const FOutputBoneData& OutputData : OutputBoneData)
 					{
@@ -378,6 +390,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 				case ETeleportType::ResetPhysics:
 				{
+					UE_LOG(LogRBAN, Verbose, TEXT("%s ResetPhysics (Scale: %f %f %f)"), *Output.AnimInstanceProxy->GetAnimInstanceName(), CompWorldSpaceTM.GetScale3D().X, CompWorldSpaceTM.GetScale3D().Y, CompWorldSpaceTM.GetScale3D().Z);
+
 					// Completely reset bodies.
 					for (const FOutputBoneData& OutputData : OutputBoneData)
 					{
@@ -386,7 +400,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 						const FTransform& ComponentSpaceTM = Output.Pose.GetComponentSpaceTransform(OutputData.CompactPoseBoneIndex);
 						const FTransform BodyTM = ConvertCSTransformToSimSpace(SimulationSpace, ComponentSpaceTM, CompWorldSpaceTM, BaseBoneTM);
-						Bodies[BodyIndex]->SetWorldTransform(BodyTM);
+						Bodies[BodyIndex]->InitWorldTransform(BodyTM);
 						if (OutputData.ParentBodyIndex != INDEX_NONE)
 						{
 							BodyAnimData[BodyIndex].RefPoseLength = BodyTM.GetRelativeTransform(Bodies[OutputData.ParentBodyIndex]->GetWorldTransform()).GetLocation().Size();
@@ -509,14 +523,6 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SolverIterations.JointPushOutIterations,
 				SolverIterations.CollisionPushOutIterations
 			);
-			PhysicsSimulation->SetSolverIterations(
-				SolverIterations.FixedTimeStep,
-				OverrideSolverIterations.SolverIterations,
-				OverrideSolverIterations.JointIterations, 
-				OverrideSolverIterations.CollisionIterations, 
-				OverrideSolverIterations.SolverPushOutIterations, 
-				OverrideSolverIterations.JointPushOutIterations, 
-				OverrideSolverIterations.CollisionPushOutIterations);
 
 			PhysicsSimulation->Simulate_AssumesLocked(DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
 #endif
@@ -532,6 +538,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 				// if we clamp translation, we only do this when all linear translation are locked
 				// 
+				// @todo(ccaulfield): this shouldn't be required with Chaos - projection should be handling it...
 				if (bClampLinearTranslationLimitToRefPose
 					&&BodyAnimData[BodyIndex].LinearXMotion == ELinearConstraintMotion::LCM_Locked
 					&& BodyAnimData[BodyIndex].LinearYMotion == ELinearConstraintMotion::LCM_Locked
@@ -800,6 +807,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		});
 
 
+		TArray<ImmediatePhysics::FSimulation::FIgnorePair> IgnorePairs;
 		if(NamesToHandles.Num() > 0)
 		{
 			//constraints
@@ -837,6 +845,14 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 							FTransform Body2Transform = Body2Handle->GetWorldTransform();
 							BodyAnimData[BodyIndex].RefPoseLength = Body1Transform.GetRelativeTransform(Body2Transform).GetLocation().Size();
 						}
+
+						if (CI->IsCollisionDisabled())
+						{
+							ImmediatePhysics::FSimulation::FIgnorePair Pair;
+							Pair.A = Body1Handle;
+							Pair.B = Body2Handle;
+							IgnorePairs.Add(Pair);
+						}
 					}
 				}
 
@@ -861,7 +877,6 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		HighLevelBodyInstances.Empty();
 		BodiesSorted.Empty();
 
-		TArray<ImmediatePhysics::FSimulation::FIgnorePair> IgnorePairs;
 		const TMap<FRigidBodyIndexPair, bool>& DisableTable = UsePhysicsAsset->CollisionDisableTable;
 		for(auto ConstItr = DisableTable.CreateConstIterator(); ConstItr; ++ConstItr)
 		{

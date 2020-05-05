@@ -68,6 +68,11 @@ static FAutoConsoleVariableRef CVarEnableNiagaraRibbonRendering(
 	ECVF_Default
 );
 
+static TAutoConsoleVariable<int32> CVarRayTracingNiagaraRibbons(
+	TEXT("r.RayTracing.Geometry.NiagaraRibbons"),
+	1,
+	TEXT("Include Niagara ribbons in ray tracing effects (default = 1 (Niagara ribbons enabled in ray tracing))"));
+
 // max absolute error 9.0x10^-3
 // Eberly's polynomial degree 1 - respect bounds
 // input [-1, 1] and output [0, PI]
@@ -401,7 +406,7 @@ int FNiagaraRendererRibbons::GetDynamicDataSize()const
 }
 
 void CalculateUVScaleAndOffsets(
-	const FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>& SortKeyData, const TArray<int32>& RibbonIndices,
+	const FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>& SortKeyData, const TArray<int32>& RibbonIndices,
 	bool bSortKeyIsAge, int32 StartIndex, int32 EndIndex, int32 NumSegments,
 	float InUTilingDistance, float InUScale, float InUOffset, ENiagaraRibbonAgeOffsetMode InAgeOffsetMode,
 	float& OutUScale, float& OutUOffset)
@@ -467,48 +472,48 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProperties);
 
 	bool bSortKeyIsAge = false;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> SortKeyData;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> SortKeyData;
 	if (Data.HasVariable(Properties->RibbonLinkOrderBinding.DataSetVariable.GetName()))
 	{
-		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->RibbonLinkOrderBinding.DataSetVariable.GetName());
+		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->RibbonLinkOrderBinding.DataSetVariable.GetName());
 	}
 	else
 	{
-		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->NormalizedAgeBinding.DataSetVariable.GetName());
+		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->NormalizedAgeBinding.DataSetVariable.GetName());
 		bSortKeyIsAge = true;
 	}
 
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> PosData(Data, Properties->PositionBinding.DataSetVariable.GetName());
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> SizeData(Data, Properties->RibbonWidthBinding.DataSetVariable.GetName());
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> TwistData;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> PosData(Data, Properties->PositionBinding.DataSetVariable.GetName());
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> SizeData(Data, Properties->RibbonWidthBinding.DataSetVariable.GetName());
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> TwistData;
 	if (Data.HasVariable(Properties->RibbonTwistBinding.DataSetVariable.GetName()))
 	{
-		TwistData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->RibbonTwistBinding.DataSetVariable.GetName());
+		TwistData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->RibbonTwistBinding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> FacingData;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> FacingData;
 	if (Data.HasVariable(Properties->RibbonFacingBinding.DataSetVariable.GetName()))
 	{
-		FacingData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>(Data, Properties->RibbonFacingBinding.DataSetVariable.GetName());
+		FacingData = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>(Data, Properties->RibbonFacingBinding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> MaterialParamData;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParamData;
 	if (Data.HasVariable(Properties->DynamicMaterialBinding.DataSetVariable.GetName()))
 	{
-		MaterialParamData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>(Data, Properties->DynamicMaterialBinding.DataSetVariable.GetName());
+		MaterialParamData = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterialBinding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> MaterialParam1Data;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam1Data;
 	if (Data.HasVariable(Properties->DynamicMaterial1Binding.DataSetVariable.GetName()))
 	{
-		MaterialParam1Data = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>(Data, Properties->DynamicMaterial1Binding.DataSetVariable.GetName());
+		MaterialParam1Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial1Binding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> MaterialParam2Data;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam2Data;
 	if (Data.HasVariable(Properties->DynamicMaterial2Binding.DataSetVariable.GetName()))
 	{
-		MaterialParam2Data = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>(Data, Properties->DynamicMaterial2Binding.DataSetVariable.GetName());
+		MaterialParam2Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial2Binding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> MaterialParam3Data;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam3Data;
 	if (Data.HasVariable(Properties->DynamicMaterial3Binding.DataSetVariable.GetName()))
 	{
-		MaterialParam3Data = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>(Data, Properties->DynamicMaterial3Binding.DataSetVariable.GetName());
+		MaterialParam3Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial3Binding.DataSetVariable.GetName());
 	}
 
 	FNiagaraDataSetAccessor<int32> RibbonIdData;
@@ -702,6 +707,10 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 
 			DynamicData->PackPerRibbonData(U0Scale, U0Offset, U1Scale, U1Offset, NumSegments, StartIndex);
 		}
+		else
+		{
+			DynamicData->PackPerRibbonData(0, 0, 0, 0, 0, 0);
+		}
 	};
 
 	DynamicData->MultiRibbonInfos.Reset();
@@ -735,6 +744,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			}
 			DynamicData->MultiRibbonInfos.AddZeroed(MultiRibbonSortedIndices.Num());
 
+			// Sort the ribbons by ID so that the draw order stays consistent.
+			MultiRibbonSortedIndices.KeySort(TLess<FNiagaraID>());
+
 			uint32 RibbonIndex = 0;
 			for (TPair<FNiagaraID, TArray<int32>>& Pair : MultiRibbonSortedIndices)
 			{
@@ -758,6 +770,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 				Indices.Add(i);
 			}
 			DynamicData->MultiRibbonInfos.AddZeroed(MultiRibbonSortedIndices.Num());
+
+			// Sort the ribbons by ID so that the draw order stays consistent.
+			MultiRibbonSortedIndices.KeySort(TLess<int32>());
 
 			uint32 RibbonIndex = 0;
 			for (TPair<int32, TArray<int32>>& Pair : MultiRibbonSortedIndices)
@@ -1093,6 +1108,11 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 #if RHI_RAYTRACING
 void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* SceneProxy)
 {
+	if (!CVarRayTracingNiagaraRibbons.GetValueOnRenderThread())
+	{
+		return;
+	}
+
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbons);
 	check(SceneProxy);
@@ -1120,42 +1140,45 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		return;
 	}
 
+	auto& View = Context.ReferenceView;
+	auto& ViewFamily = Context.ReferenceViewFamily;
+	// Setup material for our ray tracing instance
+	FNiagaraMeshCollectorResourcesRibbon& CollectorResources = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FNiagaraMeshCollectorResourcesRibbon>();
+
+	FGlobalDynamicIndexBuffer::FAllocationEx DynamicIndexAllocation;
+	CreatePerViewResources(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, Context.RayTracingMeshResourceCollector, CollectorResources.UniformBuffer, DynamicIndexAllocation);
+
+	if (DynamicIndexAllocation.MaxUsedIndex <= 0)
+	{
+		return;
+	}
+
 	FRayTracingInstance RayTracingInstance;
 	RayTracingInstance.Geometry = &RayTracingGeometry;
 	RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
 
-	{
-		auto& View = Context.ReferenceView;
-		auto& ViewFamily = Context.ReferenceViewFamily;
-		// Setup material for our ray tracing instance
-		FNiagaraMeshCollectorResourcesRibbon& CollectorResources = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FNiagaraMeshCollectorResourcesRibbon>();
+	RayTracingGeometry.Initializer.IndexBuffer = DynamicIndexAllocation.IndexBuffer->IndexBufferRHI;
+	RayTracingGeometry.Initializer.IndexBufferOffset = DynamicIndexAllocation.FirstIndex * DynamicIndexAllocation.IndexStride;
 
-		FGlobalDynamicIndexBuffer::FAllocationEx DynamicIndexAllocation;
-		CreatePerViewResources(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, Context.RayTracingMeshResourceCollector, CollectorResources.UniformBuffer, DynamicIndexAllocation);
+	FMeshBatch MeshBatch;
 
-		RayTracingGeometry.Initializer.IndexBuffer = DynamicIndexAllocation.IndexBuffer->IndexBufferRHI;
-		RayTracingGeometry.Initializer.IndexBufferOffset = DynamicIndexAllocation.FirstIndex * DynamicIndexAllocation.IndexStride;
+	SetupMeshBatchAndCollectorResourceForView(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, Context.RayTracingMeshResourceCollector, DynamicDataRibbon, DynamicIndexAllocation, MeshBatch, CollectorResources);
 
-		FMeshBatch MeshBatch;
+	RayTracingInstance.Materials.Add(MeshBatch);
 
-		SetupMeshBatchAndCollectorResourceForView(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, Context.RayTracingMeshResourceCollector, DynamicDataRibbon, DynamicIndexAllocation, MeshBatch, CollectorResources);
-
-		RayTracingInstance.Materials.Add(MeshBatch);
-
-		const uint32 VertexCount = DynamicIndexAllocation.MaxUsedIndex;
-		Context.DynamicRayTracingGeometriesToUpdate.Add(
-			FRayTracingDynamicGeometryUpdateParams
-			{
-				RayTracingInstance.Materials,
-				false,
-				VertexCount,
-				VertexCount * (uint32)sizeof(FVector),
-				MeshBatch.Elements[0].NumPrimitives,
-				&RayTracingGeometry,
-				&RayTracingDynamicVertexBuffer,
-			}
-		);
-	}
+	const uint32 VertexCount = DynamicIndexAllocation.MaxUsedIndex;
+	Context.DynamicRayTracingGeometriesToUpdate.Add(
+		FRayTracingDynamicGeometryUpdateParams
+		{
+			RayTracingInstance.Materials,
+			false,
+			VertexCount,
+			VertexCount * (uint32)sizeof(FVector),
+			MeshBatch.Elements[0].NumPrimitives,
+			&RayTracingGeometry,
+			&RayTracingDynamicVertexBuffer,
+		}
+	);
 
 	RayTracingInstance.BuildInstanceMaskAndFlags();
 

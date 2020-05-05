@@ -269,8 +269,8 @@ public:
 				ComputeShaderRHI,
 				TextureParam,
 				SamplerParam,
-				GBlackTexture->SamplerStateRHI,
-				GBlackTexture->TextureRHI
+				GBlackVolumeTexture->SamplerStateRHI,
+				GBlackVolumeTexture->TextureRHI
 			);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector::ZeroVector);
 		}

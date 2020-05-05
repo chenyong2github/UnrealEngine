@@ -792,7 +792,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 		// Create a texture for the velocity imaginary reflection g-buffer.
 		FRDGTextureRef ImaginaryReflectionGBufferVelocityTexture;
 		{
-			FRDGTextureDesc Desc(FRDGTextureDesc::Create2DDesc(RayTracingBufferSize, FVelocityRendering::GetFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
+			FRDGTextureDesc Desc(FRDGTextureDesc::Create2DDesc(RayTracingBufferSize, FVelocityRendering::GetFormat(View.GetShaderPlatform()), FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
 			ImaginaryReflectionGBufferVelocityTexture = GraphBuilder.CreateTexture(Desc, TEXT("ImaginaryReflectionGBufferVelocity"));
 		}
 

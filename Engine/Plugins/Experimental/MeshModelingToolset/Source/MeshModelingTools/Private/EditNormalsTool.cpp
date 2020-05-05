@@ -206,7 +206,7 @@ void UEditNormalsTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
-void UEditNormalsTool::Tick(float DeltaTime)
+void UEditNormalsTool::OnTick(float DeltaTime)
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{

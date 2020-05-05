@@ -764,7 +764,7 @@ void FRuntimeSkinWeightProfileData::ApplyOverrides(FSkinWeightVertexBuffer* Over
 				const uint32 InfluenceOffset = VertexIndexOverridePair.Value;
 				
 				const uint8* BoneData = TargetSkinWeightData + (VertexIndex * VertexStride);
-				const uint8* WeightData = BoneData + WeightDataOffset;				
+				const uint8* WeightData = BoneData + WeightDataOffset;
 
 #if !UE_BUILD_SHIPPING
 				uint32 VertexOffset = 0;
@@ -772,8 +772,10 @@ void FRuntimeSkinWeightProfileData::ApplyOverrides(FSkinWeightVertexBuffer* Over
 				OverrideBuffer->GetVertexInfluenceOffsetCount(VertexIndex, VertexOffset, VertexInfluenceCount);
 				check(NumWeightsPerVertex <= VertexInfluenceCount);
 				check((void*)(((uint8*)TargetSkinWeightData) + VertexOffset) == (void*)BoneData);
-#endif				
-				FMemory::Memcpy((void*)BoneData, &BoneIDs[InfluenceOffset * NumWeightsPerVertex], sizeof(FBoneIndexType) * NumWeightsPerVertex);
+				check(b16BitBoneIndices == OverrideBuffer->Use16BitBoneIndex());
+#endif
+				// BoneIDs either contains FBoneIndexType entries spanning (2) uint8 values, or single uint8 bone indices (1)
+				FMemory::Memcpy((void*)BoneData, &BoneIDs[InfluenceOffset * NumWeightsPerVertex * OverrideBuffer->GetBoneIndexByteSize()], OverrideBuffer->GetBoneIndexByteSize() * NumWeightsPerVertex);
 				FMemory::Memcpy((void*)WeightData, &BoneWeights[InfluenceOffset * NumWeightsPerVertex], sizeof(uint8) * NumWeightsPerVertex);
 			}
 		}
@@ -806,9 +808,10 @@ void FRuntimeSkinWeightProfileData::ApplyDefaultOverride(FSkinWeightVertexBuffer
 				Buffer->GetVertexInfluenceOffsetCount(VertexIndex, VertexOffset, VertexInfluenceCount);
 				check(NumWeightsPerVertex <= VertexInfluenceCount);
 				check((void*)(((uint8*)TargetSkinWeightData) + VertexOffset) == (void*)BoneData);
+				check(b16BitBoneIndices == Buffer->Use16BitBoneIndex());
 #endif
-				
-				FMemory::Memcpy((void*)BoneData, &BoneIDs[InfluenceOffset * NumWeightsPerVertex], sizeof(FBoneIndexType) * NumWeightsPerVertex);
+				// BoneIDs either contains FBoneIndexType entries spanning (2) uint8 values, or single uint8 bone indices (1)
+				FMemory::Memcpy((void*)BoneData, &BoneIDs[InfluenceOffset * NumWeightsPerVertex * Buffer->GetBoneIndexByteSize()], Buffer->GetBoneIndexByteSize() * NumWeightsPerVertex);
 				FMemory::Memcpy((void*)WeightData, &BoneWeights[InfluenceOffset * NumWeightsPerVertex], sizeof(uint8) * NumWeightsPerVertex);
 			}
 		}

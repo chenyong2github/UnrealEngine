@@ -7,10 +7,6 @@
 #include "Async/Async.h"
 #include "DerivedDataCacheInterface.h"
 
-#include "Indexers/DataAssetIndexer.h"
-#include "Indexers/DataTableIndexer.h"
-#include "Indexers/BlueprintIndexer.h"
-#include "Indexers/WidgetBlueprintIndexer.h"
 #include "Containers/StringConv.h"
 #include "Containers/Ticker.h"
 #include "Misc/Paths.h"
@@ -22,12 +18,9 @@
 #include "Engine/Blueprint.h"
 #include "Engine/DataTable.h"
 #include "Engine/DataAsset.h"
-#include "Indexers/DialogueWaveIndexer.h"
 #include "Sound/DialogueWave.h"
-#include "Indexers/LevelIndexer.h"
 #include "Settings/SearchProjectSettings.h"
 #include "Settings/SearchUserSettings.h"
-#include "Indexers/SoundCueIndexer.h"
 #include "Sound/SoundCue.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/StringBuilder.h"
@@ -39,6 +32,16 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "FileHelpers.h"
 #include "Misc/MessageDialog.h"
+#include "Engine/CurveTable.h"
+
+#include "Indexers/DataAssetIndexer.h"
+#include "Indexers/DataTableIndexer.h"
+#include "Indexers/BlueprintIndexer.h"
+#include "Indexers/WidgetBlueprintIndexer.h"
+#include "Indexers/CurveTableIndexer.h"
+#include "Indexers/DialogueWaveIndexer.h"
+#include "Indexers/LevelIndexer.h"
+#include "Indexers/SoundCueIndexer.h"
 
 #define LOCTEXT_NAMESPACE "FAssetSearchManager"
 
@@ -56,22 +59,40 @@ FAutoConsoleVariableRef CVarTryIndexAssetsOnLoad(
 	TEXT("Tries to index assets on load.")
 );
 
+static bool bTryToGCDuringMissingIndexing = false;
+FAutoConsoleVariableRef CVarTryToGCDuringMissingIndexing(
+	TEXT("Search.TryToGCDuringMissingIndexing"),
+	bTryToGCDuringMissingIndexing,
+	TEXT("Tries to GC occasionally while indexing missing items.")
+);
+
 class FUnloadPackageScope
 {
 public:
 	FUnloadPackageScope()
 	{
-		FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FUnloadPackageScope::OnAssetLoaded);
+		if (bTryToGCDuringMissingIndexing)
+		{
+			FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FUnloadPackageScope::OnAssetLoaded);
+		}
 	}
 
 	~FUnloadPackageScope()
 	{
-		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
-		TryUnload(true);
+		if (bTryToGCDuringMissingIndexing)
+		{
+			FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+			TryUnload(true);
+		}
 	}
 
 	int32 TryUnload(bool bResetTrackedObjects)
 	{
+		if (!bTryToGCDuringMissingIndexing)
+		{
+			return 0;
+		}
+
 		TArray<TWeakObjectPtr<UObject>> PackageObjectPtrs;
 
 		for (const FObjectKey& LoadedObjectKey : ObjectsLoaded)
@@ -181,6 +202,7 @@ void FAssetSearchManager::Start()
 {
 	RegisterAssetIndexer(UDataAsset::StaticClass(), MakeUnique<FDataAssetIndexer>());
 	RegisterAssetIndexer(UDataTable::StaticClass(), MakeUnique<FDataTableIndexer>());
+	RegisterAssetIndexer(UCurveTable::StaticClass(), MakeUnique<FCurveTableIndexer>());
 	RegisterAssetIndexer(UBlueprint::StaticClass(), MakeUnique<FBlueprintIndexer>());
 	RegisterAssetIndexer(UWidgetBlueprint::StaticClass(), MakeUnique<FWidgetBlueprintIndexer>());
 	RegisterAssetIndexer(UDialogueWave::StaticClass(), MakeUnique<FDialogueWaveIndexer>());
@@ -777,6 +799,8 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 			break;
 		}
 
+		IndexingTask.EnterProgressFrame(1, FText::Format(LOCTEXT("ForceIndexOnAssetsMissingIndexFormat", "Indexing Asset ({0} of {1})"), RemovedCount + 1, FailedDDCRequests.Num()));
+
 		if (IncludeMaps != EAppReturnType::Yes)
 		{
 			if (Request.AssetData.GetClass() == UWorld::StaticClass())
@@ -788,7 +812,6 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 
 		ProcessGameThreadTasks();
 
-		IndexingTask.EnterProgressFrame(1, FText::Format(LOCTEXT("ForceIndexOnAssetsMissingIndexFormat", "Indexing Asset ({0} of {1})"), RemovedCount + 1, FailedDDCRequests.Num()));
 		if (UObject* AssetToIndex = Request.AssetData.GetAsset())
 		{
 			// This object's metadata incorrectly labled it as something other than a redirector.  We need to resave it

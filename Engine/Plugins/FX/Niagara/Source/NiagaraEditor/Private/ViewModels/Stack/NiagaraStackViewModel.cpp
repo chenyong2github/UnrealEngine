@@ -192,8 +192,8 @@ void UNiagaraStackViewModel::Tick()
 		if (bRefreshPending)
 		{
 			RootEntry->RefreshChildren();
-			OnSearchTextChanged(CurrentSearchText);
 			bRefreshPending = false;
+			InvalidateSearchResults();
 		}
 
 		SearchTick();
@@ -205,7 +205,6 @@ void UNiagaraStackViewModel::OnSearchTextChanged(const FText& SearchText)
 	if (RootEntry && !CurrentSearchText.EqualTo(SearchText))
 	{
 		CurrentSearchText = SearchText;
-		RestoreStackEntryExpansionPreSearch();
 		// postpone searching until next tick; protects against crashes from the GC
 		// also this can be triggered by multiple events, so better wait
 		bRestartSearch = true;
@@ -469,26 +468,9 @@ void UNiagaraStackViewModel::GeneratePathForEntry(UNiagaraStackEntry* Root, UNia
 	}
 }
 
-void UNiagaraStackViewModel::RestoreStackEntryExpansionPreSearch()
+void UNiagaraStackViewModel::InvalidateSearchResults()
 {
-	GenerateTraversalEntries(RootEntry, TArray<UNiagaraStackEntry*>(), ItemsToRestoreExpansionState);
-
-	while (ItemsToRestoreExpansionState.Num() != 0)
-	{
-		UNiagaraStackEntry* EntryToProcess = ItemsToRestoreExpansionState[0].GetEntry();
-		if (EntryToProcess->GetIsSearchResult() && !EntryToProcess->IsA<UNiagaraStackRoot>())
-		{
-			for (UNiagaraStackEntry* EntryToExpand : ItemsToRestoreExpansionState[0].EntryPath)
-			{
-				if (!EntryToExpand->IsA<UNiagaraStackRoot>())
-				{
-					UNiagaraStackEditorData& StackEditorData = EntryToExpand->GetStackEditorData();
-					EntryToExpand->SetIsExpanded(StackEditorData.GetStackEntryWasExpandedPreSearch(EntryToExpand->GetStackEditorDataKey(), false));
-				}
-			}
-		}
-		ItemsToRestoreExpansionState.RemoveAtSwap(0);
-	}
+	bRestartSearch = true;
 }
 
 UNiagaraStackEntry* UNiagaraStackViewModel::GetRootEntry()
@@ -538,7 +520,7 @@ void UNiagaraStackViewModel::SetShowAllAdvanced(bool bInShowAllAdvanced)
 		}
 	}
 
-	OnSearchTextChanged(CurrentSearchText);
+	InvalidateSearchResults();
 	StructureChangedDelegate.Broadcast();
 }
 
@@ -565,7 +547,7 @@ void UNiagaraStackViewModel::SetShowOutputs(bool bInShowOutputs)
 	}
 	
 	// Showing outputs changes indenting so a full refresh is needed.
-	OnSearchTextChanged(CurrentSearchText);
+	InvalidateSearchResults();
 	RootEntry->RefreshChildren();
 }
 
@@ -592,7 +574,7 @@ void UNiagaraStackViewModel::SetShowLinkedInputs(bool bInShowLinkedInputs)
 	}
 
 	// Showing linked inputs changes indenting so a full refresh is needed.
-	OnSearchTextChanged(CurrentSearchText);
+	InvalidateSearchResults();
 	RootEntry->RefreshChildren();
 }
 
@@ -618,7 +600,7 @@ void UNiagaraStackViewModel::SetShowOnlyIssues(bool bInShowOnlyIssues)
 		}
 	}
 
-	OnSearchTextChanged(CurrentSearchText);
+	InvalidateSearchResults();
 	RootEntry->RefreshChildren();
 }
 
@@ -654,7 +636,7 @@ void UNiagaraStackViewModel::EntryStructureChanged()
 	}
 	RefreshHasIssues();
 	StructureChangedDelegate.Broadcast();
-	OnSearchTextChanged(CurrentSearchText);
+	InvalidateSearchResults();
 }
 
 void UNiagaraStackViewModel::EntryDataObjectModified(UObject* ChangedObject)
@@ -663,7 +645,7 @@ void UNiagaraStackViewModel::EntryDataObjectModified(UObject* ChangedObject)
 	{
 		SystemViewModel.Pin()->NotifyDataObjectChanged(ChangedObject);
 	}
-	OnSearchTextChanged(CurrentSearchText);
+	InvalidateSearchResults();
 	DataObjectChangedDelegate.Broadcast(ChangedObject);
 }
 

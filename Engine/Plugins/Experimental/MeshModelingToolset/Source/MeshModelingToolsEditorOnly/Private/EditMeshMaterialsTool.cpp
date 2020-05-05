@@ -55,9 +55,9 @@ void UEditMeshMaterialsTool::Setup()
 	CurrentMaterials = MaterialProps->Materials;
 	InitialMaterialKey = GetMaterialKey();
 
-	MaterialSetWatcher.Initialize(
-		[this]() { return GetMaterialKey(); },
-		[this](FMaterialSetKey NewKey) { OnMaterialSetChanged(); }, GetMaterialKey());
+	MaterialProps->WatchProperty<FMaterialSetKey>(
+		[this](){ return GetMaterialKey(); },
+		[this](FMaterialSetKey NewKey) { OnMaterialSetChanged(); });
 
 	FComponentMaterialSet ComponentMaterials;
 	ComponentTarget->GetMaterialSet(ComponentMaterials, false);
@@ -101,11 +101,9 @@ void UEditMeshMaterialsTool::RequestMaterialAction(EEditMeshMaterialsToolActions
 
 
 
-void UEditMeshMaterialsTool::Tick(float DeltaTime)
+void UEditMeshMaterialsTool::OnTick(float DeltaTime)
 {
-	UMeshSelectionTool::Tick(DeltaTime);
-
-	MaterialSetWatcher.CheckAndUpdate();
+	UMeshSelectionTool::OnTick(DeltaTime);
 
 	if (bHavePendingSubAction)
 	{
@@ -147,7 +145,7 @@ void UEditMeshMaterialsTool::AssignMaterialToSelectedTriangles()
 		ActiveSelectionChange->Add(tid);
 	}
 	Selection->RemoveIndices(EMeshSelectionElementType::Face, SelectedFaces);
-	TUniquePtr<FMeshSelectionChange> SelectionChange = EndChange();
+	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 	ChangeSeq->AppendChange(Selection, MoveTemp(SelectionChange));
 
 	int32 SetMaterialID = MaterialProps->SelectedMaterial;
@@ -198,8 +196,10 @@ void UEditMeshMaterialsTool::OnMaterialSetChanged()
 
 void UEditMeshMaterialsTool::ExternalUpdateMaterialSet(const TArray<UMaterialInterface*>& NewMaterialSet)
 {
+	// Disable props so they don't update
+	SetToolPropertySourceEnabled(MaterialProps, false);
 	MaterialProps->Materials = NewMaterialSet;
-	MaterialSetWatcher.SilentUpdate();
+	SetToolPropertySourceEnabled(MaterialProps, true);
 	PreviewMesh->SetMaterials(MaterialProps->Materials);
 	CurrentMaterials = MaterialProps->Materials;
 }

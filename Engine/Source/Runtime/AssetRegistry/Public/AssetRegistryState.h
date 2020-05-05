@@ -332,7 +332,7 @@ private:
 	FDependsNode* ResolveRedirector(FDependsNode* InDependency, TMap<FName, FAssetData*>& InAllowedAssets, TMap<FDependsNode*, FDependsNode*>& InCache);
 
 	/** Finds an existing node for the given package and returns it, or returns null if one isn't found */
-	FDependsNode* FindDependsNode(const FAssetIdentifier& Identifier);
+	FDependsNode* FindDependsNode(const FAssetIdentifier& Identifier) const;
 
 	/** Creates a node in the CachedDependsNodes map or finds the existing node and returns it */
 	FDependsNode* CreateOrFindDependsNode(const FAssetIdentifier& Identifier);

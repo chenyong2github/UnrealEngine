@@ -10,12 +10,18 @@
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Misc/VarArgs.h"
 
-#if DO_CHECK || DO_GUARD_SLOW
+#if (DO_CHECK || DO_GUARD_SLOW || DO_ENSURE) && !PLATFORM_CPU_ARM_FAMILY
 	// We'll put all assert implementation code into a separate section in the linked
 	// executable. This code should never execute so using a separate section keeps
 	// it well off the hot path and hopefully out of the instruction cache. It also
 	// facilitates reasoning about the makeup of a compiled/linked binary.
 	#define UE_DEBUG_SECTION PLATFORM_CODE_SECTION(".uedbg")
+#else
+	// On ARM we can't do this because the executable will require jumps larger
+	// than the branch instruction can handle. Clang will only generate
+	// the trampolines in the .text segment of the binary. If the uedbg segment
+	// is present it will generate code that it cannot link.
+	#define UE_DEBUG_SECTION
 #endif // DO_CHECK || DO_GUARD_SLOW
 
 namespace ELogVerbosity
@@ -56,7 +62,7 @@ struct CORE_API FDebug
 	/** Dumps the stack trace into the log with a custom heading, meant to be used for debugging purposes. */
 	static void DumpStackTraceToLog(const TCHAR* Heading);
 
-#if DO_CHECK || DO_GUARD_SLOW
+#if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 private:
 	static void VARARGS CheckVerifyFailedImpl(const ANSICHAR* Expr, const char* File, int32 Line, const TCHAR* Format, ...);
 	static void VARARGS LogAssertFailedMessageImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Fmt, ...);
@@ -135,7 +141,7 @@ public:
 // "verify" expressions are always evaluated, but only cause an error if enabled.
 //
 
-#if DO_CHECK || DO_GUARD_SLOW
+#if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 	template <typename FmtType, typename... Types>
 	void FORCENOINLINE UE_DEBUG_SECTION FDebug::CheckVerifyFailed(
 		const ANSICHAR* Expr,
@@ -311,7 +317,7 @@ public:
  * ensure is hit in a session; ensureAlways can be used instead if you want to handle every failure
  */
 
-#if DO_CHECK && !USING_CODE_ANALYSIS // The Visual Studio 2013 analyzer doesn't understand these complex conditionals
+#if DO_ENSURE && !USING_CODE_ANALYSIS // The Visual Studio 2013 analyzer doesn't understand these complex conditionals
 
 	#define UE_ENSURE_IMPL(Capture, Always, InExpression, ...) \
 		(LIKELY(!!(InExpression)) || (DispatchCheckVerify<bool>([Capture] () FORCENOINLINE UE_DEBUG_SECTION \
@@ -336,7 +342,7 @@ public:
 	#define ensureAlways(     InExpression                ) UE_ENSURE_IMPL( , true,  InExpression, TEXT(""))
 	#define ensureAlwaysMsgf( InExpression, InFormat, ... ) UE_ENSURE_IMPL(&, true,  InExpression, InFormat, ##__VA_ARGS__)
 
-#else	// DO_CHECK
+#else	// DO_ENSURE
 
 	#define ensure(           InExpression                ) (!!(InExpression))
 	#define ensureMsgf(       InExpression, InFormat, ... ) (!!(InExpression))

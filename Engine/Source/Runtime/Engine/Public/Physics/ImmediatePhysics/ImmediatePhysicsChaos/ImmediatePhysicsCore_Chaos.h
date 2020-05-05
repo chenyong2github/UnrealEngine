@@ -7,6 +7,7 @@
 
 #include "Chaos/Core.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 
 namespace Chaos
 {
@@ -16,7 +17,6 @@ namespace Chaos
 	class FParticlePairCollisionDetector;
 	class FPBDJointConstraintHandle;
 	class FPBDJointConstraints;
-	class FPBDRigidsEvolutionGBF;
 	class FPerShapeData;
 	template<class T> class TArrayCollectionArray;
 	template<typename T, int D> struct TKinematicGeometryParticleParameters;

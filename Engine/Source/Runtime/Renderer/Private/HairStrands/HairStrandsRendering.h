@@ -45,6 +45,13 @@ void RunHairStrandsInterpolation(
 	EHairStrandsInterpolationType Type,
 	FHairStrandClusterData* ClusterData);
 
+void RenderHairPrePass(
+	FRHICommandListImmediate& RHICmdList,
+	FScene* Scene,
+	TArray<FViewInfo>& Views,
+	FHairStrandClusterData HairClusterData,
+	FHairStrandsDatas& OutHairDatas);
+
 void RenderHairBasePass(
 	FRHICommandListImmediate& RHICmdList,
 	FScene* Scene,

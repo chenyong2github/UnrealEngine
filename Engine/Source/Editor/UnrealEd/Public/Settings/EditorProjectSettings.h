@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Engine/DeveloperSettings.h"
 #include "Math/UnitConversion.h"
+#include "Components/ChildActorComponent.h"
 
 #include "EditorProjectSettings.generated.h"
 
@@ -158,7 +159,7 @@ public:
 };
 
 
-UCLASS(config=Editor, meta=(DisplayName="Blueprints"), defaultconfig)
+UCLASS(config=Editor, meta=(DisplayName="Blueprint Project Settings"), defaultconfig)
 class UNREALED_API UBlueprintEditorProjectSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
@@ -191,5 +192,26 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category= Blueprints, DisplayName = "Compiler Messages Disabled Entirely")
 	TArray<FName> DisabledCompilerMessages;
+
+	// The list of namespaces to always expose in any Blueprint (for all users of the game/project)
+	UPROPERTY(EditAnywhere, config, Category=Experimental)
+	TArray<FString> NamespacesToAlwaysInclude;
+	
+	/**
+	 * Enable the option to expand child actor components within component tree views (experimental).
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Experimental)
+	bool bEnableChildActorExpansionInTreeView;
+	
+	/**
+	 * Default view mode to use for child actor components in a Blueprint actor's component tree hierarchy (experimental).
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Experimental, meta=(EditCondition="bEnableChildActorExpansionInTreeView"))
+	EChildActorComponentTreeViewVisualizationMode DefaultChildActorTreeViewMode;
+
+public:
+	// UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
 };
 

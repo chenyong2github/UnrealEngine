@@ -58,6 +58,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraEditorSettings.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1482,10 +1483,10 @@ FText FNiagaraEditorUtilities::FormatVariableDescription(FText Description, FTex
 {
 	if (Description.IsEmptyOrWhitespace() == false)
 	{
-		return FText::Format(LOCTEXT("VariableDescriptionFormat", "{0}\nName: \"{1}\"\nType: {2}"), Description, Name, Type);
+		return FText::Format(LOCTEXT("VariableDescriptionFormat", "{0}\n\nName: {1}\n\nType: {2}"), Description, Name, Type);
 	}
 
-	return FText::Format(LOCTEXT("VariableDescriptionFormat_NoDesc", "Name: \"{0}\"\nType: {1}"), Name, Type);
+	return FText::Format(LOCTEXT("VariableDescriptionFormat_NoDesc", "Name: {0}\n\nType: {1}"), Name, Type);
 }
 
 void FNiagaraEditorUtilities::ResetSystemsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel)
@@ -2433,19 +2434,6 @@ void FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(UNiagaraScript* Sc
 	}
 }
 
-FText FNiagaraEditorUtilities::FormatParameterNameForTextDisplay(FName ParameterName)
-{
-	FNiagaraParameterHandle ParameterHandle(ParameterName);
-	TArray<FName> HandleParts = ParameterHandle.GetHandleParts();
-	FString DisplayString;
-	for (int32 HandlePartIndex = 0; HandlePartIndex < HandleParts.Num() - 1; HandlePartIndex++)
-	{
-		DisplayString += TEXT("(") + HandleParts[HandlePartIndex].ToString().ToUpper() + TEXT(") ");
-	}
-	DisplayString += HandleParts[HandleParts.Num() - 1].ToString();
-	return FText::FromString(DisplayString);
-}
-
 bool FNiagaraEditorUtilities::GetVariableSortPriority(const FName& VarNameA, const FName& VarNameB)
 {
 	const FNiagaraNamespaceMetadata& NamespaceMetaDataA = GetNamespaceMetaDataForVariableName(VarNameA);
@@ -2537,10 +2525,10 @@ bool FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(FName Paramete
 			return true;
 		}
 
-		// Check the namespace modifier if it has one
-		if (HandleParts.Num() - NamespaceMetadata.Namespaces.Num() > 1)
+		// Check the namespace modifiers if it has them
+		for(int HandlePartIndex = NamespaceMetadata.Namespaces.Num(); HandlePartIndex < HandleParts.Num() - 2; HandlePartIndex++)
 		{
-			FNiagaraNamespaceMetadata NamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(HandleParts[NamespaceMetadata.Namespaces.Num()]);
+			FNiagaraNamespaceMetadata NamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(HandleParts[HandlePartIndex]);
 			if (NamespaceModifierMetadata.IsValid())
 			{
 				// Check first by modifier metadata display name.
@@ -2552,7 +2540,7 @@ bool FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(FName Paramete
 			else
 			{
 				// Otherwise just check the string.
-				if (HandleParts[NamespaceMetadata.Namespaces.Num()].ToString().Contains(SearchTextString))
+				if (HandleParts[HandlePartIndex].ToString().Contains(SearchTextString))
 				{
 					return true;
 				}
@@ -2569,6 +2557,416 @@ bool FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(FName Paramete
 	{
 		// Otherwise if it's not in a valid namespace, just check all name parts.
 		return true;
+	}
+	return false;
+}
+
+FText FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(FName ParameterName)
+{
+	FNiagaraParameterHandle ParameterHandle(ParameterName);
+	TArray<FName> HandleParts = ParameterHandle.GetHandleParts();
+
+	if (HandleParts.Num() == 0)
+	{
+		return FText();
+	}
+	else if (HandleParts.Num() == 1)
+	{
+		return FText::FromName(HandleParts[0]);
+	}
+
+	FText NamespaceFormat = LOCTEXT("NamespaceFormat", "({0})");
+	TArray<FText> ParameterNameTextParts;
+	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(HandleParts);
+	if (NamespaceMetadata.IsValid() && NamespaceMetadata.DisplayName.IsEmptyOrWhitespace() == false)
+	{
+		ParameterNameTextParts.Add(FText::Format(NamespaceFormat, NamespaceMetadata.DisplayName.ToUpper()));
+		HandleParts.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
+	}
+	else
+	{
+		ParameterNameTextParts.Add(FText::FromName(HandleParts[0]).ToUpper());
+		HandleParts.RemoveAt(0);
+	}
+
+	for(int32 HandlePartIndex = 0; HandlePartIndex < HandleParts.Num() - 1; HandlePartIndex++)
+	{
+		FNiagaraNamespaceMetadata NamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(HandleParts[HandlePartIndex]);
+		if (NamespaceModifierMetadata.IsValid() && NamespaceModifierMetadata.DisplayName.IsEmptyOrWhitespace() == false)
+		{
+			ParameterNameTextParts.Add(FText::Format(NamespaceFormat, NamespaceModifierMetadata.DisplayName.ToUpper()));
+		}
+		else
+		{
+			ParameterNameTextParts.Add(FText::Format(NamespaceFormat, FText::FromName(HandleParts[0]).ToUpper()));
+		}
+	}
+
+	if (HandleParts.Num() == 0)
+	{
+		ParameterNameTextParts.Add(FText::FromName(NAME_None));
+	}
+	else
+	{
+		ParameterNameTextParts.Add(FText::FromName(HandleParts.Last()));
+	}
+
+	return FText::Join(FText::FromString(TEXT(" ")), ParameterNameTextParts);
+}
+
+FName NamePartsToName(const TArray<FName>& NameParts)
+{
+	TArray<FString> NamePartStrings;
+	for (FName NamePart : NameParts)
+	{
+		NamePartStrings.Add(NamePart.ToString());
+	}
+	return *FString::Join(NamePartStrings, TEXT("."));
+}
+
+bool FNiagaraParameterUtilities::GetNamespaceEditData(
+	FName InParameterName, 
+	FNiagaraParameterHandle& OutParameterHandle,
+	FNiagaraNamespaceMetadata& OutNamespaceMetadata,
+	FText& OutErrorMessage)
+{
+	OutParameterHandle = FNiagaraParameterHandle(InParameterName);
+	TArray<FName> NameParts = OutParameterHandle.GetHandleParts();
+	OutNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(NameParts);
+	if (OutNamespaceMetadata.IsValid() == false)
+	{
+		OutErrorMessage = LOCTEXT("NoMetadataForNamespace", "This parameter doesn't support editing.");
+		return false;
+	}
+
+	return true;
+}
+
+bool FNiagaraParameterUtilities::GetNamespaceModifierEditData(
+	FName InParameterName,
+	FNiagaraParameterHandle& OutParameterHandle,
+	FNiagaraNamespaceMetadata& OutNamespaceMetadata,
+	FText& OutErrorMessage)
+{
+	if (GetNamespaceEditData(InParameterName, OutParameterHandle, OutNamespaceMetadata, OutErrorMessage))
+	{
+		if (OutNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier))
+		{
+			OutErrorMessage = LOCTEXT("NotSupportedForThisNamespace", "This parameter doesn't support namespace modifiers.");
+			return false;
+		}
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void FNiagaraParameterUtilities::GetChangeNamespaceMenuData(FName InParameterName, EParameterContext InParameterContext, TArray<FChangeNamespaceMenuData>& OutChangeNamespaceMenuData)
+{
+	TArray<FNiagaraNamespaceMetadata> NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetAllNamespaceMetadata();
+	NamespaceMetadata.Sort([](const FNiagaraNamespaceMetadata& MetadataA, const FNiagaraNamespaceMetadata& MetadataB)
+		{ return MetadataA.SortId < MetadataB.SortId; });
+
+	FNiagaraParameterHandle ParameterHandle(InParameterName);
+	FNiagaraNamespaceMetadata CurrentMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(ParameterHandle.GetHandleParts());
+	for (const FNiagaraNamespaceMetadata& Metadata : NamespaceMetadata)
+	{
+		if (Metadata.IsValid() == false ||
+			Metadata == CurrentMetadata ||
+			Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) ||
+			(InParameterContext == EParameterContext::Script && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript)) ||
+			(InParameterContext == EParameterContext::System && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInSystem)))
+		{
+			continue;
+		}
+
+		FChangeNamespaceMenuData& MenuData = OutChangeNamespaceMenuData.AddDefaulted_GetRef();
+		MenuData.Metadata = Metadata;
+
+		FText CanChangeMessage;
+		MenuData.bCanChange = FNiagaraParameterUtilities::TestCanChangeNamespaceWithMessage(InParameterName, Metadata, CanChangeMessage);
+
+		if (MenuData.bCanChange)
+		{
+			MenuData.CanChangeToolTip = FText::Format(LOCTEXT("ChangeNamespaceToolTipFormat", "{0}\n\nDescription:\n{1}"), CanChangeMessage, Metadata.Description);
+		}
+		else
+		{
+			MenuData.CanChangeToolTip = CanChangeMessage;
+		}
+
+		FString NamespaceNameString = Metadata.Namespaces[0].ToString();
+		for (int32 i = 1; i < Metadata.Namespaces.Num(); i++)
+		{
+			NamespaceNameString += TEXT(".") + Metadata.Namespaces[i].ToString();
+		}
+
+		MenuData.NamespaceParameterName = *NamespaceNameString;
+	}
+}
+
+TSharedRef<SWidget> FNiagaraParameterUtilities::CreateNamespaceMenuItemWidget(FName Namespace, FText ToolTipText)
+{
+	return SNew(SBox)
+		.Padding(FMargin(7, 2, 7, 2))
+		[
+			SNew(SNiagaraParameterName)
+			.ParameterName(Namespace)
+			.IsReadOnly(true)
+			.SingleNameDisplayMode(SNiagaraParameterName::ESingleNameDisplayMode::Namespace)
+			.ToolTipText(ToolTipText)
+		];
+}
+
+bool FNiagaraParameterUtilities::TestCanChangeNamespaceWithMessage(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata, FText& OutMessage)
+{
+	if (NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace))
+	{
+		OutMessage = LOCTEXT("NewNamespaceNotSupported", "The new namespace does not support editing so it can not be assigned.");
+		return false;
+	}
+
+	FNiagaraParameterHandle ParameterHandle;
+	FNiagaraNamespaceMetadata NamespaceMetadata;
+	if (GetNamespaceEditData(ParameterName, ParameterHandle, NamespaceMetadata, OutMessage))
+	{
+		if (NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace))
+		{
+			OutMessage = LOCTEXT("ParameterDoesntSupportChangingNamespace", "This parameter doesn't support changing its namespace.");
+			return false;
+		}
+		else
+		{
+			OutMessage = FText::Format(LOCTEXT("ChagneNamespaceFormat", "Change this parameters namespace to {0}"), NewNamespaceMetadata.DisplayName);
+			return true;
+		}
+	}
+	return false;
+}
+
+FName FNiagaraParameterUtilities::ChangeNamespace(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata)
+{
+	FNiagaraParameterHandle ParameterHandle;
+	FNiagaraNamespaceMetadata NamespaceMetadata;
+	FText Unused;
+	if (NewNamespaceMetadata.IsValid() &&
+		NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) == false &&
+		GetNamespaceEditData(ParameterName, ParameterHandle, NamespaceMetadata, Unused))
+	{
+		TArray<FName> NameParts = ParameterHandle.GetHandleParts();
+		NameParts.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
+		int32 NumberOfNamespaceModifiers = NameParts.Num() - 1;
+		if (NumberOfNamespaceModifiers > 0)
+		{
+			bool bNewNamespaceCanHaveNamespaceModifier =
+				NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier) == false;
+			if (bNewNamespaceCanHaveNamespaceModifier == false)
+			{
+				// Remove all modifiers.
+				NameParts.RemoveAt(0, NumberOfNamespaceModifiers);
+			}
+			else 
+			{
+				// Remove all but the last modifier.
+				NameParts.RemoveAt(0, NumberOfNamespaceModifiers - 1);
+			}
+		}
+		if (NewNamespaceMetadata.RequiredNamespaceModifier != NAME_None && NameParts.Num() > 1 && NameParts[0] != NewNamespaceMetadata.RequiredNamespaceModifier)
+		{
+			NameParts.Insert(NewNamespaceMetadata.RequiredNamespaceModifier, 0);
+		}
+		NameParts.Insert(NewNamespaceMetadata.Namespaces, 0);
+		return NamePartsToName(NameParts);
+	}
+	return NAME_None;
+}
+
+int32 FNiagaraParameterUtilities::GetNumberOfNamePartsBeforeEditableModifier(const FNiagaraNamespaceMetadata& NamespaceMetadata)
+{
+	if (NamespaceMetadata.IsValid() && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier) == false)
+	{
+		// If the namespace has a required modifier then we can add and edit a modifier after the required one.
+		return NamespaceMetadata.RequiredNamespaceModifier != NAME_None ? NamespaceMetadata.Namespaces.Num() + 1 : NamespaceMetadata.Namespaces.Num();
+	}
+	else
+	{
+		return INDEX_NONE;
+	}
+}
+
+void FNiagaraParameterUtilities::GetOptionalNamespaceModifiers(FName ParameterName, EParameterContext InParameterContext, TArray<FName>& OutOptionalNamespaceModifiers)
+{
+	FNiagaraParameterHandle ParameterHandle;
+	FNiagaraNamespaceMetadata NamespaceMetadata;
+	FText Unused;
+	if (GetNamespaceModifierEditData(ParameterName, ParameterHandle, NamespaceMetadata, Unused))
+	{
+		for (FName OptionalNamespaceModifier : NamespaceMetadata.OptionalNamespaceModifiers)
+		{
+			FNiagaraNamespaceMetadata NamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(OptionalNamespaceModifier);
+			if (NamespaceModifierMetadata.IsValid())
+			{
+				bool bShouldHideInContext =
+					(InParameterContext == EParameterContext::Script && NamespaceModifierMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript)) ||
+					(InParameterContext == EParameterContext::System && NamespaceModifierMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInSystem));
+
+				if(bShouldHideInContext == false)
+				{
+					OutOptionalNamespaceModifiers.Add(OptionalNamespaceModifier);
+				}
+			}
+		}
+	}
+}
+
+FName FNiagaraParameterUtilities::GetEditableNamespaceModifierForParameter(FName InParameterName)
+{
+	FNiagaraParameterHandle ParameterHandle;
+	FNiagaraNamespaceMetadata NamespaceMetadata;
+	FText Unused;
+	if (GetNamespaceModifierEditData(InParameterName, ParameterHandle, NamespaceMetadata, Unused))
+	{
+		TArray<FName> NameParts = ParameterHandle.GetHandleParts();
+		int32 NumberOfNamePartsBeforeEditableModifier = GetNumberOfNamePartsBeforeEditableModifier(NamespaceMetadata);
+		if (NameParts.Num() - NumberOfNamePartsBeforeEditableModifier == 2)
+		{
+			return NameParts[NumberOfNamePartsBeforeEditableModifier];
+		}
+	}
+	return NAME_None;
+}
+
+bool FNiagaraParameterUtilities::TestCanSetSpecificNamespaceModifierWithMessage(FName InParameterName, FName InNamespaceModifier, FText& OutMessage)
+{
+	FNiagaraParameterHandle ParameterHandle;
+	FNiagaraNamespaceMetadata NamespaceMetadata;
+	if (GetNamespaceModifierEditData(InParameterName, ParameterHandle, NamespaceMetadata, OutMessage))
+	{
+		FNiagaraNamespaceMetadata ModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(InNamespaceModifier);
+		if (ModifierMetadata.IsValid() && ModifierMetadata.Description.IsEmptyOrWhitespace() == false)
+		{
+			OutMessage = FText::Format(LOCTEXT("SetNamespaceModifierWithDescriptionFormat", "Set the namespace modifier for this parameter to {0}.\n\nDescription: {1}"),
+				FText::FromName(InNamespaceModifier), ModifierMetadata.Description);
+		}
+		else
+		{
+			if(InNamespaceModifier == NAME_None)
+			{ 
+				OutMessage = LOCTEXT("ClearNamespaceModifier", "Clears the namespace modifier on this parameter.");
+			}
+			else 
+			{
+				OutMessage = FText::Format(LOCTEXT("SetNamespaceModifierFormat", "Set the namespace modifier for this parameter to {0}."), FText::FromName(InNamespaceModifier));
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
+FName FNiagaraParameterUtilities::SetSpecificNamespaceModifier(FName InParameterName, FName InNamespaceModifier)
+{
+	FNiagaraParameterHandle ParameterHandle;
+	FNiagaraNamespaceMetadata NamespaceMetadata;
+	FText Unused;
+	if (GetNamespaceModifierEditData(InParameterName, ParameterHandle, NamespaceMetadata, Unused))
+	{
+		TArray<FName> NameParts = ParameterHandle.GetHandleParts();
+		int32 NumberOfNamePartsBeforeEditableModifier = GetNumberOfNamePartsBeforeEditableModifier(NamespaceMetadata);
+		if (NumberOfNamePartsBeforeEditableModifier != INDEX_NONE)
+		{
+			if (NameParts.Num() == NumberOfNamePartsBeforeEditableModifier + 1)
+			{
+				// Doesn't have a modifier.  Insert the supplied modifier if it's not none
+				if (InNamespaceModifier != NAME_None)
+				{
+					NameParts.Insert(InNamespaceModifier, NumberOfNamePartsBeforeEditableModifier);
+				}
+				return NamePartsToName(NameParts);
+			}
+			else if (NameParts.Num() == NumberOfNamePartsBeforeEditableModifier + 2)
+			{
+				// Already has a namespace modifier.
+				if (InNamespaceModifier == NAME_None || InNamespaceModifier.ToString().IsEmpty())
+				{
+					// If the name was none or it was empty, remove the modifier.
+					NameParts.RemoveAt(NumberOfNamePartsBeforeEditableModifier);
+				}
+				else
+				{
+					NameParts[NumberOfNamePartsBeforeEditableModifier] = InNamespaceModifier;
+				}
+				return NamePartsToName(NameParts);
+			}
+		}
+	}
+	return NAME_None;
+}
+
+bool FNiagaraParameterUtilities::TestCanSetCustomNamespaceModifierWithMessage(FName InParameterName, FText& OutMessage)
+{
+	FNiagaraParameterHandle ParameterHandle;
+	FNiagaraNamespaceMetadata NamespaceMetadata;
+	if (GetNamespaceModifierEditData(InParameterName, ParameterHandle, NamespaceMetadata, OutMessage))
+	{
+		FName CurrentModifier = GetEditableNamespaceModifierForParameter(InParameterName);
+		if (CurrentModifier == NAME_None)
+		{
+			OutMessage = LOCTEXT("SetCustomNamespaceModifier", "Add a new custom modifier to this parameter.");
+		}
+		else
+		{
+			OutMessage = LOCTEXT("EditCurrentNamespaceModifier", "Edit the current custom modifier on this parameter.");
+		}
+		return true;
+	}
+	return false;
+}
+
+FName FNiagaraParameterUtilities::SetCustomNamespaceModifier(FName InParameterName)
+{
+	TSet<FName> CurrentParameterNames;
+	return SetCustomNamespaceModifier(InParameterName, CurrentParameterNames);
+}
+
+FName FNiagaraParameterUtilities::SetCustomNamespaceModifier(FName InParameterName, TSet<FName>& CurrentParameterNames)
+{
+	FName CurrentModifier = GetEditableNamespaceModifierForParameter(InParameterName);
+	if (CurrentModifier == NAME_None)
+	{
+		FName ParameterNameWithCustomModifier = SetSpecificNamespaceModifier(InParameterName, "Custom");
+		int32 CustomIndex = 1;
+		while(CurrentParameterNames.Contains(ParameterNameWithCustomModifier))
+		{
+			ParameterNameWithCustomModifier = SetSpecificNamespaceModifier(InParameterName, *FString::Printf(TEXT("Custom%02i"), CustomIndex));
+			CustomIndex++;
+		}
+		return ParameterNameWithCustomModifier;
+	}
+	else
+	{
+		return InParameterName;
+	}
+}
+
+bool FNiagaraParameterUtilities::TestCanRenameWithMessage(FName ParameterName, FText& OutMessage)
+{
+	FNiagaraParameterHandle ParameterHandle;
+	FNiagaraNamespaceMetadata NamespaceMetadata;
+	if (GetNamespaceEditData(ParameterName, ParameterHandle, NamespaceMetadata, OutMessage))
+	{
+		if (NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName))
+		{
+			OutMessage = LOCTEXT("ParameterDoesntSupportChangingName", "This parameter doesn't support changing its name.");
+			return false;
+		}
+		else
+		{
+			OutMessage = LOCTEXT("ChangeParameterName", "Edit this parameter's name.");
+			return true;
+		}
 	}
 	return false;
 }

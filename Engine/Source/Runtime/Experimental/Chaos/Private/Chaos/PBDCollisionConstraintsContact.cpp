@@ -29,6 +29,10 @@ namespace Chaos
 		int32 Chaos_Collision_ForceApplyType = 0;
 		FAutoConsoleVariableRef CVarChaosCollisionAlternativeApply(TEXT("p.Chaos.Collision.ForceApplyType"), Chaos_Collision_ForceApplyType, TEXT("Force Apply step to use Velocity(1) or Position(2) modes"));
 
+		float Chaos_Collision_ContactMovementAllowance = 0.05f;
+		FAutoConsoleVariableRef CVarChaosCollisionContactMovementAllowance(TEXT("p.Chaos.Collision.AntiJitterContactMovementAllowance"), Chaos_Collision_ContactMovementAllowance, 
+			TEXT("If a contact is close to where it was during a previous iteration, we will assume it is the same contact that moved (to reduce jitter). Expressed as the fraction of movement distance and Centre of Mass distance to the contact point"));
+
 		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FCollisionContext& Context)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
@@ -87,14 +91,14 @@ namespace Chaos
 			FVec3 Delta = FinalAngularVelocity - RelativeAngularVelocity;
 			if (!bIsRigidDynamic0 && bIsRigidDynamic1)
 			{
-				FMatrix33 WorldSpaceI2 = (Q1 * FMatrix::Identity) * PBDRigid1->I() * (Q1 * FMatrix::Identity).GetTransposed();
+				FMatrix33 WorldSpaceI2 = Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->I());
 				FVec3 ImpulseDelta = PBDRigid1->M() * FVec3::CrossProduct(VectorToPoint2, Delta);
 				Impulse += ImpulseDelta;
 				AngularImpulse += WorldSpaceI2 * Delta - FVec3::CrossProduct(VectorToPoint2, ImpulseDelta);
 			}
 			else if (bIsRigidDynamic0 && !bIsRigidDynamic1)
 			{
-				FMatrix33 WorldSpaceI1 = (Q0 * FMatrix::Identity) * PBDRigid0->I() * (Q0 * FMatrix::Identity).GetTransposed();
+				FMatrix33 WorldSpaceI1 = Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->I());
 				FVec3 ImpulseDelta = PBDRigid0->M() * FVec3::CrossProduct(VectorToPoint1, Delta);
 				Impulse += ImpulseDelta;
 				AngularImpulse += WorldSpaceI1 * Delta - FVec3::CrossProduct(VectorToPoint1, ImpulseDelta);
@@ -118,12 +122,12 @@ namespace Chaos
 			}
 		}
 		
-		FVec3 ApplyContactAccImpulse(FCollisionContact& Contact,
+		void ApplyContactAccImpulse(FCollisionContact& Contact,
 			TGenericParticleHandle<FReal, 3> Particle0,
 			TGenericParticleHandle<FReal, 3> Particle1,
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters,
-			FVec3& AccumulatedImpulse)
+			FVec3& AccumulatedImpulse)  // InOut
 		{
 
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
@@ -145,12 +149,11 @@ namespace Chaos
 			const FVec3 RelativeVelocity = Body1Velocity - Body2Velocity;  // Do not early out on negative normal velocity since there can still be an accumulated impulse
 			*IterationParameters.NeedsAnotherIteration = true;
 
-			const FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : FMatrix33(0);
-			const FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : FMatrix33(0);
+			const FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+			const FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 			const FMatrix33 Factor =
 				(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
 				(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
-			FVec3 Impulse;
 			FVec3 AngularImpulse(0);
 
 			// Resting contact if very close to the surface
@@ -162,31 +165,38 @@ namespace Chaos
 			const FVec3 VelocityTarget = (-Restitution*FVec3::DotProduct(RelativeVelocity, Contact.Normal)) * Contact.Normal;
 			const FVec3 VelocityChange = VelocityTarget - RelativeVelocity;
 			const FMatrix33 FactorInverse = Factor.Inverse();
-			Impulse = FactorInverse * VelocityChange;  // Delta Impulse = (J.M^(-1).J^(T))^(-1).(ContactVelocityError)
+			FVec3 Impulse = FactorInverse * VelocityChange;  // Delta Impulse = (J.M^(-1).J^(T))^(-1).(ContactVelocityError)
 
 			// clip the impulse so that the accumulated impulse is not in the wrong direction and in the friction cone
 			// Clipping the accumulated impulse instead of the delta impulse (for the current iteration) is very important for jitter
+			// Use a zero vector for the accumulated impulse if we are not allowed to use it (when the contact moves significantly between calls).
+			const FReal RelativeScale = FMath::Min(VectorToPoint1.SizeSquared(), VectorToPoint2.SizeSquared()); // Use this as a scale to avoid absolute distances
+			bool bUseAccumalatedImpulseInSolve = Contact.bUseAccumalatedImpulseInSolve && 
+				((Contact.ContactMoveSQRDistance == (FReal)0) || (RelativeScale > (FReal)0 && Contact.ContactMoveSQRDistance / RelativeScale < Chaos_Collision_ContactMovementAllowance * Chaos_Collision_ContactMovementAllowance));
+			Contact.bUseAccumalatedImpulseInSolve = bUseAccumalatedImpulseInSolve; // Once disabled, disabled until the end of the frame
+			const FVec3 AccImp = Contact.bUseAccumalatedImpulseInSolve ? AccumulatedImpulse: FVec3((FReal)0);
+			const FVec3 NewUnclippedAccumulatedImpulse = AccImp + Impulse;
+			FVec3 ClippedAccumulatedImpulse(0.0f);  // To be calculated
 			{
-				const FVec3 OldAccumulatedImpulse = AccumulatedImpulse;
-				const FVec3 NewAccumulatedImpulse = AccumulatedImpulse + Impulse;
-				FVec3 ClippedAccumulatedImpulse(0.0f);
 				//Project to normal
-				const float NewAccImpNormalSize = FVec3::DotProduct(NewAccumulatedImpulse, Contact.Normal);
-				if (NewAccImpNormalSize > 0) // Clipping impulses to be positive
+				const FReal NewAccImpNormalSize = FVec3::DotProduct(NewUnclippedAccumulatedImpulse, Contact.Normal);
+				// Clipping impulses to be positive and contacts to be penetrating or touching
+				// ToDo: PenetrationBuffer avoids a lot of jitter added by the ApplypushOut function. Set this to 0 when that is fixed
+				const FReal PenetrationBuffer = 0.5;
+				if (NewAccImpNormalSize > 0 && Contact.Phi <= PenetrationBuffer)
 				{
 					if (Friction <= 0)
 					{
 						ClippedAccumulatedImpulse = NewAccImpNormalSize * Contact.Normal;
-						Impulse = ClippedAccumulatedImpulse - OldAccumulatedImpulse;
 					}
 					else
 					{
-						const FVec3 ImpulseTangential = NewAccumulatedImpulse - NewAccImpNormalSize * Contact.Normal;
+						const FVec3 ImpulseTangential = NewUnclippedAccumulatedImpulse - NewAccImpNormalSize * Contact.Normal;
 						const FReal ImpulseTangentialSize = ImpulseTangential.Size();
 						const FReal MaximumImpulseTangential = Friction * NewAccImpNormalSize;
 						if (ImpulseTangentialSize <= MaximumImpulseTangential)
 						{
-							//Static friction case. We are done Impulse is correct, unless we need to add Angular friction:
+							//Static friction case.
 							if (AngularFriction)
 							{
 								ApplyAngularFriction(
@@ -207,27 +217,36 @@ namespace Chaos
 									WorldSpaceInvI1,
 									WorldSpaceInvI2);
 							}
+							ClippedAccumulatedImpulse = Impulse + AccImp;
 						}
 						else
 						{
 							ClippedAccumulatedImpulse = (MaximumImpulseTangential / ImpulseTangentialSize) * ImpulseTangential + NewAccImpNormalSize * Contact.Normal;
-							Impulse = ClippedAccumulatedImpulse - OldAccumulatedImpulse;
 						}
 					}
 				}
 				else
 				{
 					// Clipped Impulse is 0
-					Impulse = -OldAccumulatedImpulse; // Important case: the delta impulse (Impulse) should remove the accumulated impulse
+					ClippedAccumulatedImpulse = FVec3(0); // Important case: the delta impulse should remove the accumulated impulse
 				}
 			}
-				
-			AccumulatedImpulse += Impulse;
+
+			FVec3 OutDeltaImpulse = ClippedAccumulatedImpulse - AccImp;
+			if (Chaos_Collision_EnergyClampEnabled != 0)
+			{
+				// Clamp the delta impulse to make sure we don't gain kinetic energy (ignore potential energy)
+				// Todo: Investigate Energy clamping to work with accumulated impulses
+				// else this might introduce a small amount of jitter, since we are clamping delta impulses instead of accumulated ones
+				// Disable this until then
+				//OutDeltaImpulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), OutDeltaImpulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
+			}
+
 			if (bIsRigidDynamic0)
 			{
 				// Velocity update for next step
-				const FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint1, Impulse) + AngularImpulse;
-				const FVec3 DV = PBDRigid0->InvM() * Impulse;
+				const FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint1, OutDeltaImpulse) + AngularImpulse;
+				const FVec3 DV = PBDRigid0->InvM() * OutDeltaImpulse;
 				const FVec3 DW = WorldSpaceInvI1 * NetAngularImpulse;
 				PBDRigid0->V() += DV;
 				PBDRigid0->W() += DW;
@@ -240,8 +259,8 @@ namespace Chaos
 			if (bIsRigidDynamic1)
 			{
 				// Velocity update for next step
-				const FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint2, -Impulse) - AngularImpulse;
-				const FVec3 DV = -PBDRigid1->InvM() * Impulse;
+				const FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint2, -OutDeltaImpulse) - AngularImpulse;
+				const FVec3 DV = -PBDRigid1->InvM() * OutDeltaImpulse;
 				const FVec3 DW = WorldSpaceInvI2 * NetAngularImpulse;
 				PBDRigid1->V() += DV;
 				PBDRigid1->W() += DW;
@@ -251,8 +270,9 @@ namespace Chaos
 				Q1.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(PBDRigid1, P1, Q1);
 			}
+
+			AccumulatedImpulse += OutDeltaImpulse; // Now update the accumulated Impulse (we need to keep track of this even if it is not used by the contact solver)
 			
-			return AccumulatedImpulse;
 		}
 
 		// Apply contacts, impulse clipping is done on delta impulses as apposed to Accumulated impulses
@@ -307,9 +327,8 @@ namespace Chaos
 					FReal NormalVelocityChange = FVec3::DotProduct(VelocityChange, Contact.Normal);
 					FMatrix33 FactorInverse = Factor.Inverse();
 					FVec3 MinimalImpulse = FactorInverse * VelocityChange;
-					const FReal MinimalImpulseDotNormal = FVec3::DotProduct(MinimalImpulse, Contact.Normal);
-					const FReal TangentialSize = (MinimalImpulse - MinimalImpulseDotNormal * Contact.Normal).Size();
-					if (TangentialSize <= Friction * MinimalImpulseDotNormal)
+					const FReal TangentialSize = (VelocityChange - NormalVelocityChange * Contact.Normal).Size();
+					if (TangentialSize <= Friction * NormalVelocityChange)
 					{
 						//within friction cone so just solve for static friction stopping the object
 						Impulse = MinimalImpulse;

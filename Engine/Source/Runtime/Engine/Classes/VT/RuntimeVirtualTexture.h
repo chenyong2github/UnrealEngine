@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/TextureDefines.h"
 #include "UObject/ObjectMacros.h"
 #include "VirtualTexturing.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
@@ -32,6 +33,10 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable clear before render"))
 	bool bClearTextures = true;
 
+	/** Enable continuous update of the virtual texture pages. This round-robin updates already mapped pages and can help fix pages that are mapped before dependent textures are fully streamed in.  */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable continuous page updates"))
+	bool bContinuousUpdate = false;
+
 	/** Enable page table channel packing. This reduces page table memory and update cost but can reduce the ability to share physical memory with other virtual textures.  */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable packed page table"))
 	bool bSinglePhysicalSpace = true;
@@ -40,9 +45,9 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable private page table"))
 	bool bPrivateSpace = true;
 
-	/** Enable device scalability settings to modify the TileCount of the virtual texture. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout)
-	bool bEnableScalability = false;
+	/** Number of low mips to cut from the virtual texture. This can reduce peak virtual texture update cost but will also increase the probability of mip shimmering. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (UIMin = "0", UIMax = "6", DisplayName = "Number of low mips to remove from the virtual texture"))
+	int32 RemoveLowMips = 0;
 
 	/** Size of virtual texture along the largest axis. (Actual values increase in powers of 2) */
 	UPROPERTY()
@@ -64,21 +69,13 @@ protected:
 	UPROPERTY(EditAnywhere, BluePrintGetter = GetTileBorderSize, Category = Size, meta = (UIMin = "0", UIMax = "4", DisplayName = "Border padding for each virtual texture tile"))
 	int32 TileBorderSize = 2; // 4
 
-	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
-	UPROPERTY(EditAnywhere, Category = LowMips, meta = (UIMin = "0", UIMax = "6", DisplayName = "Number of low mips to stream to the virtual texture"))
-	int32 StreamLowMips = 0;
+	/** Texture group this texture belongs to */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelOfDetail, meta = (DisplayName = "Texture Group"), AssetRegistrySearchable)
+	TEnumAsByte<enum TextureGroup> LODGroup;
 
-	/** Texture object containing streamed low mips. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = LowMips, meta = (DisplayName = "Streaming low mip texture"))
-	class URuntimeVirtualTextureStreamingProxy* StreamingTexture;
-
-	/** Enable Crunch compression of streamed low mips. ZLib compression is used when Crunch is disabled. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = LowMips, meta = (DisplayName = "Enable Crunch compression"))
-	bool bEnableCompressCrunch = false;
-
-	/** Number of low mips to cut from the virtual texture. This can reduce peak virtual texture update cost but will also increase the probability of mip shimmering. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = LowMips, meta = (UIMin = "0", UIMax = "6", DisplayName = "Number of low mips to remove from the virtual texture"))
-	int32 RemoveLowMips = 0;
+	/** Deprecated texture object containing streamed low mips. */
+	UPROPERTY()
+	class URuntimeVirtualTextureStreamingProxy* StreamingTexture_DEPRECATED = nullptr;
 
 public:
 	/** Public getter for enabled status */
@@ -96,22 +93,28 @@ public:
 	static int32 GetTileCount(int32 InTileCount) { return 1 << FMath::Clamp(InTileCount, 0, 12); }
 	/** Public getter for virtual texture tile size */
 	UFUNCTION(BlueprintGetter)
-	int32 GetTileSize() const { return 1 << FMath::Clamp(TileSize + 6, 6, 10); }
+	int32 GetTileSize() const { return GetTileSize(TileSize); }
+	static int32 GetTileSize(int32 InTileSize) { return 1 << FMath::Clamp(InTileSize + 6, 6, 10); }
 	/** Public getter for virtual texture tile border size */
 	UFUNCTION(BlueprintGetter)
 	int32 GetTileBorderSize() const { return 2 * FMath::Clamp(TileBorderSize, 0, 4); }
 	
+	/** Public getter for texture LOD Group */
+	TEnumAsByte<enum TextureGroup> GetLODGroup() const { return LODGroup; }
+
+	/** Get if this virtual texture uses compressed texture formats. */
+	bool GetCompressTextures() const { return bCompressTextures; }
 	/** Public getter for virtual texture removed low mips */
 	int32 GetRemoveLowMips() const { return FMath::Clamp(RemoveLowMips, 0, 5); }
-	/** Public getter for virtual texture streaming low mips */
-	int32 GetStreamLowMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
 	/** Public getter for virtual texture using single physical space flag. */
 	bool GetSinglePhysicalSpace() const { return bSinglePhysicalSpace; }
 
+#if WITH_EDITOR
 	/** Returns an approximate estimated value for the memory used by the page table texture. */
 	int32 GetEstimatedPageTableTextureMemoryKb() const;
 	/** Returns an approximate estimated value for the memory used by the physical texture. */
 	int32 GetEstimatedPhysicalTextureMemoryKb() const;
+#endif
 
 	/** Get virtual texture description based on the properties of this object and the passed in volume transform. */
 	void GetProducerDescription(FVTProducerDescription& OutDesc, FTransform const& VolumeToWorld) const;
@@ -143,18 +146,6 @@ public:
 	/** Getter for the shader uniform parameters. */
 	FVector4 GetUniformParameter(int32 Index) const;
 
-#if WITH_EDITOR
-	/** Get the streaming texture */
-	URuntimeVirtualTextureStreamingProxy* GetStreamingTexture() const { return StreamingTexture; }
-	/** Get a hash of the current state to use for streaming texture invalidation. */
-	uint32 GetStreamingTextureBuildHash() const;
-	/** Initialize the low mip streaming texture with the passed in size and data. */
-	void InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData);
-#endif
-
-	/** Create the streaming texture producer to wrap an existing producer. */
-	IVirtualTexture* CreateStreamingTextureProducer(IVirtualTexture* InProducer, int32 InMaxLevel, int32& OutTransitionLevel) const;
-
 protected:
 	/** Initialize the render resources. This kicks off render thread work. */
 	void InitResource(IVirtualTexture* InProducer, FTransform const& VolumeToWorld);
@@ -163,7 +154,6 @@ protected:
 
 	//~ Begin UObject Interface.
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -179,3 +169,16 @@ private:
 	/** Material uniform parameter used to pack world height. */
 	FVector4 WorldHeightUnpackParameter;
 };
+
+class UVirtualTexture2D;
+
+namespace RuntimeVirtualTexture
+{
+	/** Helper function to wrap a runtime virtual texture producer with a streaming producer. */
+	ENGINE_API IVirtualTexture* CreateStreamingTextureProducer(
+		IVirtualTexture* InProducer,
+		FVTProducerDescription const& InProducerDesc,
+		UVirtualTexture2D* InStreamingTexture,
+		int32 InMaxLevel,
+		int32& OutTransitionLevel);
+}

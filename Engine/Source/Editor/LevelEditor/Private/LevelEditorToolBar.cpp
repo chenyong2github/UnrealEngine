@@ -1873,6 +1873,11 @@ void FLevelEditorToolBar::RegisterBuildMenu()
 		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildVirtualTextureOnly);
 	}
 
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorGrass", LOCTEXT("GrassHeading", "Grass Maps"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildGrassMapsOnly);
+	}
+
 	
 	{
 		FToolMenuSection& Section = Menu->AddSection("LevelEditorAutomation", LOCTEXT( "AutomationHeading", "Automation" ) );

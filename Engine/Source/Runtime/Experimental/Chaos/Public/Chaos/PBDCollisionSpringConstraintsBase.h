@@ -14,7 +14,7 @@ template<class T, int d>
 class PBDCollisionSpringConstraintsBase
 {
   public:
-	PBDCollisionSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const T Dt, const T Height = (T)0, const T Stiffness = (T)1);
+	PBDCollisionSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const TArray<uint32>& DynamicGroupIds, const TArray<T>& PerGroupThicknesses, const T Dt, const T Stiffness = (T)1);
 	virtual ~PBDCollisionSpringConstraintsBase() {}
 
 	TVector<T, d> GetDelta(const TPBDParticles<T, d>& InParticles, const int32 i) const;
@@ -22,9 +22,10 @@ class PBDCollisionSpringConstraintsBase
   protected:
 	TArray<TVector<int32, 4>> MConstraints;
 	TArray<TVector<T, 3>> MBarys;
-	T MH;
 
   private:
+	const TArray<uint32>& MDynamicGroupIds;
+	const TArray<T>& MPerGroupThicknesses;
 	TArray<TVector<T, d>> MNormals; // per constraint, sign changes depending on orientation of colliding particle
 	T MStiffness;
 };

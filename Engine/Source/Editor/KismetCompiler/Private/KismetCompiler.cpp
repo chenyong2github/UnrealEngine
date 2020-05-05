@@ -247,7 +247,7 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 	}
 	TransientClass->ClassAddReferencedObjects = ParentClass->AddReferencedObjects;
 	TransientClass->ClassGeneratedBy = Blueprint;
-	TransientClass->ClassFlags |= CLASS_CompiledFromBlueprint;
+	TransientClass->ClassFlags |= CLASS_CompiledFromBlueprint|CLASS_NewerVersionExists;
 
 	SetNewClass( ClassToClean );
 	InOldCDO = ClassToClean->ClassDefaultObject; // we don't need to create the CDO at this point

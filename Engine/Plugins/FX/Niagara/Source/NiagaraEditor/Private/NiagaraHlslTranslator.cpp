@@ -279,12 +279,13 @@ bool FHlslNiagaraTranslator::ValidateTypePins(UNiagaraNode* NodeToValidate)
 
 
 void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage ScriptUsage, FString InName, const FString& InFullName, UNiagaraGraph* FuncGraph, TArray<int32>& Inputs,
-	bool bHadNumericInputs, bool bHasParameterMapParameters, TArray<UEdGraphPin*> StaticSwitchValues, FNiagaraFunctionSignature& OutSig)const
+	bool bHasNumericInputs, bool bHasParameterMapParameters, TArray<UEdGraphPin*> StaticSwitchValues, FNiagaraFunctionSignature& OutSig)const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_GenerateFunctionSignature);
 
 	TArray<FNiagaraVariable> InputVars;
 	TArray<UNiagaraNodeInput*> InputsNodes;
+	bool bHasDIParameters = false;
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_GenerateFunctionSignature_FindInputNodes);
@@ -319,21 +320,25 @@ void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage Scrip
 			//Only add to the signature if the caller has provided it, otherwise we use a local default.
 			if (Inputs[i] != INDEX_NONE)
 			{
-				FNiagaraVariable LiteralConstant = InputsNodes[i]->Input;
-				if (GetLiteralConstantVariable(LiteralConstant))
+				FNiagaraVariable InputVar = InputsNodes[i]->Input;
+				if (GetLiteralConstantVariable(InputVar))
 				{
-					checkf(LiteralConstant.GetType() == FNiagaraTypeDefinition::GetBoolDef(), TEXT("Only boolean types are currently supported for literal constants."));
-					FString LiteralConstantAlias = LiteralConstant.GetName().ToString() + TEXT("_") + (LiteralConstant.GetValue<bool>() ? TEXT("true") : TEXT("false"));
+					checkf(InputVar.GetType() == FNiagaraTypeDefinition::GetBoolDef(), TEXT("Only boolean types are currently supported for literal constants."));
+					FString LiteralConstantAlias = InputVar.GetName().ToString() + TEXT("_") + (InputVar.GetValue<bool>() ? TEXT("true") : TEXT("false"));
 					InName += TEXT("_") + GetSanitizedSymbolName(LiteralConstantAlias.Replace(TEXT("."), TEXT("_")));
 					ConstantInputIndicesToRemove.Add(i);
 				}
 				else
 				{
-					InputVars.Add(InputsNodes[i]->Input);
-					if (bHadNumericInputs)
+					InputVars.Add(InputVar);
+					if (InputVar.GetType().IsDataInterface())
+					{
+						bHasDIParameters = true;
+					}
+					else if (bHasNumericInputs)
 					{
 						InName += TEXT("_In");
-						InName += InputsNodes[i]->Input.GetType().GetName();
+						InName += InputVar.GetType().GetName();
 					}
 				}
 			}
@@ -359,7 +364,7 @@ void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage Scrip
 		for (int32 i = 0; i < OutputVars.Num(); ++i)
 		{
 			//Only add to the signature if the caller has provided it, otherwise we use a local default.
-			if (bHadNumericInputs)
+			if (bHasNumericInputs)
 			{
 				InName += TEXT("_Out");
 				InName += OutputVars[i].GetType().GetName();
@@ -373,7 +378,7 @@ void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage Scrip
 	// to be written within each call.
 	if ((ScriptUsage == ENiagaraScriptUsage::Module || ScriptUsage == ENiagaraScriptUsage::DynamicInput ||
 		ScriptUsage == ENiagaraScriptUsage::EmitterSpawnScript || ScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript
-		|| bHasParameterMapParameters)
+		|| bHasParameterMapParameters || bHasDIParameters)
 		&& (ModuleAliasStr != nullptr || EmitterAliasStr != nullptr))
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_GenerateFunctionSignature_UniqueDueToMaps);
@@ -2501,6 +2506,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	}\n"
 			"	*/\n"
 			"	\n"
+			"   // The CPU code will set UpdateStartInstance to 0 and ReadInstanceCountOffset to -1 for stages.\n"
 			"	const uint InstanceID = UpdateStartInstance + DispatchThreadId.x; \n"
 			"	if (ReadInstanceCountOffset == 0xFFFFFFFF)\n"
 			"	{\n"
@@ -2510,19 +2516,21 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	{\n"
 			"		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];				// needed by ExecIndex()\n"
 			"	}\n"
-			"	const int MaxInstances = GSpawnStartInstance + SpawnedInstances; \n"
-			"		\n"
-			"	bool bRunUpdateLogic = InstanceID < GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances; \n"
-			"	bool bRunSpawnLogic = InstanceID >= GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances; \n"
-			"		\n"
+			"	bool bRunUpdateLogic, bRunSpawnLogic;\n"
 			"	#if USE_SIMULATION_STAGES\n"
 			"	if (IterationInterfaceCount > 0)\n"
 			"	{\n"
-			"		bRunUpdateLogic = InstanceID < IterationInterfaceCount && GSimStart != 1; \n"
-			"		bRunSpawnLogic = InstanceID < IterationInterfaceCount && GSimStart == 1; \n"
+			"		bRunUpdateLogic = InstanceID < IterationInterfaceCount && GSimStart != 1;\n"
+			"		bRunSpawnLogic = InstanceID < IterationInterfaceCount && GSimStart == 1;\n"
 			"	}\n"
+			"	else\n"
 			"	#endif // USE_SIMULATION_STAGES\n"
-			"		\n"
+			"	{\n"
+			"	    const int MaxInstances = GSpawnStartInstance + SpawnedInstances;\n"
+			"		bRunUpdateLogic = InstanceID < GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances;\n"
+			"		bRunSpawnLogic = InstanceID >= GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances;\n"
+			"	}\n"
+			"	\n"
 			"	const float RandomSeedInitialisation = NiagaraInternalNoise(InstanceID * 16384, 0 * 8196, (bRunUpdateLogic ? 4096 : 0) + EmitterTickCounter);	// initialise the random state seed\n"
 			"	\n"
 			"	FSimulationContext Context = (FSimulationContext)0; \n"
@@ -2544,7 +2552,17 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	else if (bRunSpawnLogic)\n"
 			"	{\n"
 			"		GCurrentPhase = GSpawnPhase; \n"
-			"		SetupExecIndexAndSpawnInfoForGPU(); \n"
+			"	#if USE_SIMULATION_STAGES\n"
+			"		// Only process the spawn info for particle-based stages. Stages with an iteration interface expect the exec index to simply be the thread index.\n"
+			"		if (IterationInterfaceCount > 0)\n"
+			"		{\n"
+			"			SetupExecIndexForGPU();\n"
+			"		}\n"
+			"		else\n"
+			"	#endif\n"
+			"		{\n"
+			"			SetupExecIndexAndSpawnInfoForGPU();\n"
+			"		}\n"
 			"		InitConstants(Context); \n"
 			"		InitSpawnVariables(Context); \n"
 			"		ReadDataSets(Context); \n"
@@ -6891,7 +6909,7 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 			}
 			else
 			{
-				Error(LOCTEXT("IncorrectNumOutputsError", "Incorect number of outputs. Can possibly be fixed with a graph refresh."), Node, nullptr);
+				Error(LOCTEXT("IncorrectNumOutputsError", "Incorrect number of outputs. Can possibly be fixed with a graph refresh."), Node, nullptr);
 			}
 		}
 	}

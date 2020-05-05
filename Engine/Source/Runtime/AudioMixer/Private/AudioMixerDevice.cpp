@@ -46,7 +46,6 @@ namespace Audio
 	FMixerDevice::FMixerDevice(IAudioMixerPlatformInterface* InAudioMixerPlatform)
 		: AudioMixerPlatform(InAudioMixerPlatform)
 		, AudioClockDelta(0.0)
-		, AudioClock(0.0)
 		, PreviousMasterVolume((float)INDEX_NONE)
 		, GameOrAudioThreadId(INDEX_NONE)
 		, AudioPlatformThreadId(INDEX_NONE)
@@ -997,11 +996,6 @@ namespace Audio
 		{
 			MixerSubmixPtr->ClearSoundEffectSubmixes();
 		});
-	}
-
-	void FMixerDevice::UpdateModulationControls(const uint32 InSourceId, const FSoundModulationControls& InControls)
-	{
-		SourceManager->UpdateModulationControls(InSourceId, InControls);
 	}
 
 	void FMixerDevice::UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails)

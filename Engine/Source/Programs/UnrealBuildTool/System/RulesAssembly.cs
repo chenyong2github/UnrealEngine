@@ -491,6 +491,9 @@ namespace UnrealBuildTool
 				Rules.DefaultBuildSettings = DefaultBuildSettings.Value;
 			}
 
+			// Return the target file name to the caller
+			Rules.File = TargetNameToTargetFile[TargetInfo.Name];
+
 			// Find the constructor
 			ConstructorInfo Constructor = RulesType.GetConstructor(new Type[] { typeof(TargetInfo) });
 			if(Constructor == null)
@@ -507,9 +510,6 @@ namespace UnrealBuildTool
 			{
 				throw new BuildException(Ex, "Unable to instantiate instance of '{0}' object type from compiled assembly '{1}'.  Unreal Build Tool creates an instance of your module's 'Rules' object in order to find out about your module's requirements.  The CLR exception details may provide more information:  {2}", TypeName, Path.GetFileNameWithoutExtension(CompiledAssembly.Location), Ex.ToString());
 			}
-
-			// Return the target file name to the caller
-			Rules.File = TargetNameToTargetFile[TargetInfo.Name];
 
 			// Set the default overriddes for the configured target type
 			Rules.SetOverridesForTargetType();

@@ -14,14 +14,6 @@
 #include "RemoveOccludedTrianglesTool.generated.h"
 
 
-// predeclarations
-struct FMeshDescription;
-class USimpleDynamicMeshComponent;
-
-
-
-
-
 /**
  *
  */
@@ -154,8 +146,7 @@ public:
 	virtual void SetWorld(UWorld* World);
 	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
-	virtual void Tick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override;

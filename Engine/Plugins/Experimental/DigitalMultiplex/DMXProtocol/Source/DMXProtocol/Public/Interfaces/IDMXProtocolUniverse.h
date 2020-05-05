@@ -10,8 +10,8 @@ public:
 	virtual ~IDMXProtocolUniverse() {}
 
 	virtual IDMXProtocolPtr GetProtocol() const = 0;
-	virtual TSharedPtr<FDMXBuffer> GetInputDMXBuffer() const = 0;
-	virtual TSharedPtr<FDMXBuffer> GetOutputDMXBuffer() const = 0;
+	virtual FDMXBufferPtr GetInputDMXBuffer() const = 0;
+	virtual FDMXBufferPtr GetOutputDMXBuffer() const = 0;
 	virtual bool SetDMXFragment(const IDMXFragmentMap& DMXFragment) = 0;
 	virtual uint8 GetPriority() const = 0;
 	virtual uint32 GetUniverseID() const = 0;

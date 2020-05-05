@@ -70,7 +70,7 @@ void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 			if (ResultMesh->IsVertex(VID))
 			{
 				FVector2f UV = ProjAxis(TransformedVertices[VID], 0, 1, 1, 1);
-				UVLayer->InsertElement(VID, (float*)UV, VID, true);
+				UVLayer->InsertElement(VID, (float*)UV, true);
 			}
 		}
 		UVLayer->EndUnsafeElementsInsert();
@@ -129,7 +129,7 @@ void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 					if (!ElementIdx)
 					{
 						FVector3d LocalV = TransformedVertices[SourceTri[SubIdx]];
-						int NewElementIdx = UVLayer->AppendElement(ProjAxis(LocalV, Minor1, Minor2, MajorAxisSign*Minor1Flip[MajorAxis], Minor2Flip[MajorAxis]), ElementKey.A);
+						int NewElementIdx = UVLayer->AppendElement(ProjAxis(LocalV, Minor1, Minor2, MajorAxisSign*Minor1Flip[MajorAxis], Minor2Flip[MajorAxis]));
 						VertIdxAndBucketIDToElementID.Add(ElementKey, NewElementIdx);
 						OverlayTri[SubIdx] = NewElementIdx;
 					}
@@ -170,7 +170,7 @@ void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 						if (!ElementIdx)
 						{
 							FVector3d LocalV = TransformedVertices[SourceTri[SubIdx]];
-							int NewElementIdx = UVLayer->AppendElement(ProjAxis(LocalV, Minor1, Minor2, MajorAxisSign, 1), ElementKey.A);
+							int NewElementIdx = UVLayer->AppendElement(ProjAxis(LocalV, Minor1, Minor2, MajorAxisSign, 1));
 							VertIdxAndBucketIDToElementID.Add(ElementKey, NewElementIdx);
 							OverlayTri[SubIdx] = NewElementIdx;
 						}
@@ -208,7 +208,7 @@ void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 						if (!ElementIdx)
 						{
 							FVector2f UV(-(float(VAngle)*FMathf::InvPi - 1.0f)*Scale.X + Offset.X, -float(LocalV.Z)*Scale.Y + Offset.Y);
-							int NewElementIdx = UVLayer->AppendElement(UV, ElementKey.A);
+							int NewElementIdx = UVLayer->AppendElement(UV);
 							VertIdxAndBucketIDToElementID.Add(ElementKey, NewElementIdx);
 							OverlayTri[SubIdx] = NewElementIdx;
 						}

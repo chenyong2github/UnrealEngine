@@ -24,14 +24,10 @@ struct FJointSolverGaussSeidel
 
 	// World-space constraint state
 	FVector Xs[MaxConstrainedBodies];			// World-space joint connector positions
-	float LinearSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float LinearDriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
 	FVector4 Rs[MaxConstrainedBodies];			// World-space joint connector rotations
 
 	// World-space body state
 	FVector Ps[MaxConstrainedBodies];			// World-space particle CoM positions
-	float TwistSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float SwingSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
 	FVector4 Qs[MaxConstrainedBodies];			// World-space particle CoM rotations
 	FVector Vs[MaxConstrainedBodies];			// World-space particle CoM velocities
 	FVector Ws[MaxConstrainedBodies];			// World-space particle CoM angular velocities
@@ -39,13 +35,28 @@ struct FJointSolverGaussSeidel
 
 	// XPBD Previous iteration world-space body state
 	FVector PrevPs[MaxConstrainedBodies];		// World-space particle CoM positions
-	float TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float SwingDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
 	FVector4 PrevQs[MaxConstrainedBodies];		// World-space particle CoM rotations
 	FVector PrevXs[MaxConstrainedBodies];		// World-space joint connector positions
+
+	// Accumulated Impulse and AngularImpulse (Impulse * Dt since they are mass multiplied position corrections)
+	FVector NetLinearImpulse;
+	FVector NetAngularImpulse;
+
+	// XPBD Accumulators (net impulse for each soft constraint/drive)
+	float LinearSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+	float TwistSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+	float SwingSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+	float LinearDriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
+	float TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
+	float Swing1DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
+	float Swing2DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
 	
+	// Tolerances below which we stop solving
 	float PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 	float AngleTolerance;						// Angle error below which we consider a constraint or drive solved
+
+	float ProjectionInvMassScale;
+	float VelProjectionInvMassScale;
 };
 
 export uniform int32 SizeofFJointSolverGaussSeidel()
@@ -272,9 +283,11 @@ export void ApplyPositionConstraintSoft(
 	const uniform FVector DR0 = DLambda * Multiply(M->InvIs[0], AngularAxis0);
 	const uniform FVector DR1 = -DLambda * Multiply(M->InvIs[1], AngularAxis1);
 
-	Lambda += DLambda;
 	ApplyPositionDelta(M, 1.0f, DP0, DP1);
 	ApplyRotationDelta(M, 1.0f, DR0, DR1);
+
+	Lambda += DLambda;
+	M->NetLinearImpulse = M->NetLinearImpulse + DLambda * Axis;
 }
 
 // See "XPBD: Position-Based Simulation of Compliant Constrained Dynamics"
@@ -315,8 +328,10 @@ export void ApplyRotationConstraintSoftKD(
 	//const FVec3 DR1 = IA1 * -DLambda;
 	const uniform FVector DR1 = Axis * -(DLambda * II1);
 
-	Lambda += DLambda;
 	ApplyRotationDelta(M, DIndex, 1.0f, DR1);
+
+	Lambda += DLambda;
+	M->NetAngularImpulse = M->NetAngularImpulse + DLambda * Axis;
 }
 
 export void ApplyRotationConstraintSoftDD(
@@ -358,8 +373,10 @@ export void ApplyRotationConstraintSoftDD(
 	const uniform FVector DR0 = Axis * (DLambda * II0);
 	const uniform FVector DR1 = Axis * -(DLambda * II1);
 
-	Lambda += DLambda;
 	ApplyRotationDelta(M, 1.0f, DR0, DR1);
+
+	Lambda += DLambda;
+	M->NetAngularImpulse = M->NetAngularImpulse + DLambda * Axis;
 }
 
 
@@ -381,6 +398,8 @@ export void ApplyPointPositionConstraintKD(
 	const uniform FVector DR1 = Multiply(M->InvIs[DIndex], VectorCross(M->Xs[DIndex] - M->Ps[DIndex], VectorNegate(DX)));
 
 	ApplyDelta(M, DIndex, LinearStiffness, DP1, DR1);
+
+	M->NetLinearImpulse = M->NetLinearImpulse + LinearStiffness * DX;
 }
 
 export void ApplyPointPositionConstraintDD(
@@ -402,6 +421,8 @@ export void ApplyPointPositionConstraintDD(
 
 	ApplyPositionDelta(M, LinearStiffness, DP0, DP1);
 	ApplyRotationDelta(M, LinearStiffness, DR0, DR1);
+
+	M->NetLinearImpulse = M->NetLinearImpulse + LinearStiffness * DX;
 }
 
 export void ApplyPointPositionProjection(
@@ -411,25 +432,36 @@ export void ApplyPointPositionProjection(
 {
 	// Apply a position correction with the parent body set to infinite mass
 	{
-		const uniform FMatrix33 J = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]);
+		const uniform float InvM0 = M->InvMs[0] * M->ProjectionInvMassScale;
+		const uniform FMatrix33 InvI0 = Multiply(M->InvIs[0], M->ProjectionInvMassScale);
+
+		uniform FMatrix33 J = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]);
 		const uniform FMatrix33 IJ = MatrixInverse(J);
-		const uniform FVector DX = VectorNegate(Multiply(IJ, CX));
-		const uniform FVector DP1 = M->InvMs[1] * DX;
-		const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], DX));
+		const uniform FVector DX = Multiply(IJ, CX);
+		const uniform FVector NDX = VectorNegate(DX);
+		const uniform FVector DP1 = M->InvMs[1] * NDX;
+		const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], NDX));
 		ApplyDelta(M, 1, LinearProjection, DP1, DR1);
 	}
 
-	// Apply a velocity correction to set the relative velocity at the joint to zero
-	// NOTE: No parent mass scale here - velocity correction is shared between bodies normally
-	// (if we don't do this, velocity tends to accumulate down chains leading to whip-like behaviour)
+	// Final position correction to fix errors from rotation in above
 	{
+		const uniform FVector NCX2 = VectorNegate(M->Xs[1] - M->Xs[0]);
+		ApplyPositionDelta(M, 1, LinearProjection, NCX2);
+	}
+
+	// Apply a velocity correction to set the relative velocity at the joint to zero
+	{
+		const uniform float InvM0 = M->VelProjectionInvMassScale * M->InvMs[0];
+		const uniform FMatrix33 InvI0 = Multiply(M->InvIs[0], M->VelProjectionInvMassScale);
+
 		// Calculate joint-space mass
 		uniform FMatrix33 J = SetMatrix33(0, 0, 0);
-		if (M->InvMs[0] > 0)
+		if (InvM0 > SMALL_NUMBER)
 		{
-			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], M->InvMs[0]));
+			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], InvI0, InvM0));
 		}
-		if (M->InvMs[1] > 0)
+		if (M->InvMs[1] > SMALL_NUMBER)
 		{
 			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]));
 		}
@@ -438,16 +470,15 @@ export void ApplyPointPositionProjection(
 		// Velocity correction
 		const uniform FVector V0 = M->Vs[0] + VectorCross(M->Ws[0], M->Xs[0] - M->Ps[0]);
 		const uniform FVector V1 = M->Vs[1] + VectorCross(M->Ws[1], M->Xs[1] - M->Ps[1]);
-		const uniform FVector CV = V1 - V0;
-		const uniform FVector DV = Multiply(IJ, CV);
+		const uniform FVector DV = Multiply(IJ, V1 - V0);
 
-		if (M->InvMs[0] > 0)
+		if (InvM0 > SMALL_NUMBER)
 		{
-			const uniform FVector DV0 = M->InvMs[0] * DV;
-			const uniform FVector DW0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DV));
+			const uniform FVector DV0 = InvM0 * DV;
+			const uniform FVector DW0 = Multiply(InvI0, VectorCross(M->Xs[0] - M->Ps[0], DV));
 			ApplyVelocityDelta(M, 0, LinearProjection, DV0, DW0);
 		}
-		if (M->InvMs[1] > 0)
+		if (M->InvMs[1] > SMALL_NUMBER)
 		{
 			const uniform FVector DV1 = M->InvMs[1] * VectorNegate(DV);
 			const uniform FVector DW1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DV)));

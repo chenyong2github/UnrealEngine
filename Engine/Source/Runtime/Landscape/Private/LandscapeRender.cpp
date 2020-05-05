@@ -130,20 +130,20 @@ FAutoConsoleVariableRef CVarLandscapeDebugViewMode(
 
 #if RHI_RAYTRACING
 static TAutoConsoleVariable<int32> CVarRayTracingLandscape(
-	TEXT("r.RayTracing.Landscape"),
+	TEXT("r.RayTracing.Geometry.Landscape"),
 	1,
 	TEXT("Include landscapes in ray tracing effects (default = 1 (landscape enabled in ray tracing))"));
 
 int32 GLandscapeRayTracingGeometryLODsThatUpdateEveryFrame = 0;
 static FAutoConsoleVariableRef CVarLandscapeRayTracingGeometryLODsThatUpdateEveryFrame(
-	TEXT("r.RayTracing.Landscape.LODsUpdateEveryFrame"),
+	TEXT("r.RayTracing.Geometry.Landscape.LODsUpdateEveryFrame"),
 	GLandscapeRayTracingGeometryLODsThatUpdateEveryFrame,
 	TEXT("If on, LODs that are lower than the specified level will be updated every frame, which can be used to workaround some artifacts caused by texture streaming if you're using WorldPositionOffset on the landscape")
 );
 
 int32 GLandscapeRayTracingGeometryDetectTextureStreaming = 1;
 static FAutoConsoleVariableRef CVarLandscapeRayTracingGeometryDetectTextureStreaming(
-	TEXT("r.RayTracing.Landscape.DetectTextureStreaming"),
+	TEXT("r.RayTracing.Geometry.Landscape.DetectTextureStreaming"),
 	GLandscapeRayTracingGeometryDetectTextureStreaming,
 	TEXT("If on, update ray tracing geometry when texture streaming state changes. Useful when WorldPositionOffset is used in the landscape material")
 );
@@ -1281,8 +1281,8 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 	else
 	{
-		HeightmapSubsectionOffsetU = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)HeightmapTexture->GetSizeX());
-		HeightmapSubsectionOffsetV = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)HeightmapTexture->GetSizeY());
+		HeightmapSubsectionOffsetU = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)FMath::Max<int32>(1, HeightmapTexture->GetSizeX()));
+		HeightmapSubsectionOffsetV = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)FMath::Max<int32>(1, HeightmapTexture->GetSizeY()));
 	}
 
 	float ScreenSizeRatioDivider = FMath::Max(InComponent->GetLandscapeProxy()->LOD0DistributionSetting * GLandscapeLOD0DistributionScale, 1.01f);
@@ -1644,21 +1644,16 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 			{
 				const int8 SubSectionIdx = SubX + SubY * NumSubsections;
 
-				int32 LodSubsectionSizeVerts = (SubsectionSizeVerts >> 0);
-				uint32 NumPrimitives = FMath::Square((LodSubsectionSizeVerts - 1)) * 2;
-
 				FRayTracingGeometryInitializer Initializer;
 				FRHIResourceCreateInfo CreateInfo;
 				Initializer.IndexBuffer = nullptr;
-				Initializer.TotalPrimitiveCount = NumPrimitives;
 				Initializer.GeometryType = RTGT_Triangles;
 				Initializer.bFastBuild = true;
 				Initializer.bAllowUpdate = true;
 				FRayTracingGeometrySegment Segment;
-				Segment.VertexBuffer = RHICreateVertexBuffer(sizeof(FVector4) * NumPrimitives * 3, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
+				Segment.VertexBuffer = nullptr;
 				Segment.VertexBufferStride = sizeof(FVector);
 				Segment.VertexBufferElementType = VET_Float3;
-				Segment.NumPrimitives = NumPrimitives;
 				Initializer.Segments.Add(Segment);
 				SectionRayTracingStates[SubSectionIdx].Geometry.SetInitializer(Initializer);
 				SectionRayTracingStates[SubSectionIdx].Geometry.InitResource();
@@ -2655,7 +2650,8 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 	ForcedLODLevel = ViewLodOveride >= 0 ? ViewLodOveride : ForcedLODLevel;
 
 	float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *Context.ReferenceView);
-	int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, Context.ReferenceView->LODDistanceFactor);
+	float LODScale = Context.ReferenceView->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
+	int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
 	
 	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
 	ParameterArray.ElementParams.AddDefaulted(NumSubsections * NumSubsections);
@@ -3635,9 +3631,9 @@ public:
 	{
 	}
 
-	void GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const override
+	void GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FMaterialShaderMapId& OutId) const override
 	{
-		FMaterialResource::GetShaderMapId(Platform, OutId);
+		FMaterialResource::GetShaderMapId(Platform, TargetPlatform, OutId);
 
 #if WITH_EDITOR
 		if (bIsLayerThumbnail || bDisableTessellation)

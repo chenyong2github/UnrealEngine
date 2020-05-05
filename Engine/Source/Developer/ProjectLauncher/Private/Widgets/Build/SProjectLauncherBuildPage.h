@@ -8,6 +8,7 @@
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Models/ProjectLauncherModel.h"
+#include "ILauncherProfile.h"
 
 class Error;
 enum class ECheckBoxState : uint8;
@@ -51,11 +52,11 @@ protected:
 
 private:
 
-	/** Callback for changing the checked state of a platform menu check box. */
-	void HandleBuildCheckedStateChanged( ECheckBoxState CheckState );
+	// Callback for getting the content text of the 'Build Mode' combo button.
+	FText HandleBuildModeComboButtonContentText() const;
 
-	/** Callback for determining whether a platform menu entry is checked. */
-	ECheckBoxState HandleBuildIsChecked() const;
+	// Callback for clicking an item in the 'Build Mode' menu.
+	void HandleBuildModeMenuEntryClicked(ELauncherProfileBuildModes::Type BuildMode);
 
 	/** Callback for changing the selected profile in the profile manager. */
 	void HandleProfileManagerProfileSelected( const ILauncherProfilePtr& SelectedProfile, const ILauncherProfilePtr& PreviousProfile );

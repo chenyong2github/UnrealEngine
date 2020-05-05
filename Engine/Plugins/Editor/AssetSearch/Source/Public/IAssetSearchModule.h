@@ -47,6 +47,11 @@ struct FSearchStats
 	int32 AssetsMissingIndex = 0;
 
 	int64 TotalRecords = 0;
+
+	bool IsUpdating() const
+	{
+		return (Scanning + Processing + Updating) > 0;
+	}
 };
 
 class IAssetIndexer

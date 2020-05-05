@@ -39,7 +39,7 @@ class BLUEPRINTGRAPH_API UK2Node_ConstructObjectFromClass : public UK2Node
 	//~ End UK2Node Interface
 
 	/** Create new pins to show properties on archetype */
-	void CreatePinsForClass(UClass* InClass, TArray<UEdGraphPin*>* OutClassPins = nullptr);
+	virtual void CreatePinsForClass(UClass* InClass, TArray<UEdGraphPin*>* OutClassPins = nullptr);
 
 	/** See if this is a spawn variable pin, or a 'default' pin */
 	virtual bool IsSpawnVarPin(UEdGraphPin* Pin) const;
@@ -65,8 +65,10 @@ class BLUEPRINTGRAPH_API UK2Node_ConstructObjectFromClass : public UK2Node
 	virtual bool UseOuter() const { return false; }
 
 protected:
-	/** Gets the default node title when no class is selected */
+	/** Gets the node for use in lists and menus */
 	virtual FText GetBaseNodeTitle() const;
+	/** Gets the default node title when no class is selected */
+	virtual FText GetDefaultNodeTitle() const;
 	/** Gets the node title when a class has been selected. */
 	virtual FText GetNodeTitleFormat() const;
 	/** Gets base class to use for the 'class' pin.  UObject by default. */

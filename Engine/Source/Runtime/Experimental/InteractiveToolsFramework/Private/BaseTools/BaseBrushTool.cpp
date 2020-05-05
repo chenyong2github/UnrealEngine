@@ -21,18 +21,6 @@ UBrushBaseProperties::UBrushBaseProperties()
 	BrushFalloffAmount = 1.0f;
 }
 
-void UBrushBaseProperties::SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving)
-{
-	UBrushBaseProperties* PropertyCache = GetPropertyCache<UBrushBaseProperties>();
-	SaveRestoreProperty(PropertyCache->BrushSize, this->BrushSize, bSaving);
-	SaveRestoreProperty(PropertyCache->bSpecifyRadius, this->bSpecifyRadius, bSaving);
-	SaveRestoreProperty(PropertyCache->BrushRadius, this->BrushRadius, bSaving);
-	SaveRestoreProperty(PropertyCache->BrushFalloffAmount, this->BrushFalloffAmount, bSaving);
-	SaveRestoreProperty(PropertyCache->BrushStrength, this->BrushStrength, bSaving);
-}
-
-
-
 UBaseBrushTool::UBaseBrushTool()
 {
 	PropertyClass = UBrushBaseProperties::StaticClass();
@@ -238,14 +226,6 @@ void UBaseBrushTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	UpdateBrushStampIndicator();
 }
-
-void UBaseBrushTool::Tick(float DeltaTime)
-{
-	UMeshSurfacePointTool::Tick(DeltaTime);
-}
-
-
-
 
 const FString BaseBrushIndicatorGizmoType = TEXT("BrushIndicatorGizmoType");
 

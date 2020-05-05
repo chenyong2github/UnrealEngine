@@ -32,6 +32,7 @@ public:
 		, BytecodeIndex(InBytecodeIndex)
 		, Container(InContainer)
 	{
+		ArIsFilterEditorOnly = InnerArchive.ArIsFilterEditorOnly;
 	}
 	virtual FArchive& operator<<(FField*& Value) override
 	{
@@ -47,7 +48,7 @@ public:
 		if (IsLoading())
 		{
 			Value = PropertyPath.Get(Container);
-			if (!Value && !PropertyPath.IsEmpty())
+			if (!Value && !PropertyPath.IsPathToFieldEmpty())
 			{
 				// Store the field path for deferred resolving
 				UnresolvedProperties.Add(TPair<TFieldPath<FField>, int32>(PropertyPath, BytecodeIndex));

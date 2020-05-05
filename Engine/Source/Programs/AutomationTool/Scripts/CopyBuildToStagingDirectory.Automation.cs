@@ -165,26 +165,48 @@ public partial class Project : CommandUtils
 
 	static private string GetIoStoreCommandArguments(
 		Dictionary<string, string> UnrealPakResponseFile,
-		StagedFileReference ContainerRelativePath,
-		FileReference PakOrderFileLocation,
-		string PlatformOptions,
-		bool Compressed,
+		string ContainerName,
+		FileReference PakOutputLocation,
+		bool bCompressed,
 		EncryptionAndSigning.CryptoSettings CryptoSettings,
 		string EncryptionKeyGuid,
-		FileReference SecondaryPakOrderFileLocation=null)
+		string PatchSourceContentPath,
+		bool bGenerateDiffPatch)
 	{
 		StringBuilder CmdLine = new StringBuilder();
-		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(ContainerRelativePath.Name));
+		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
+		CmdLine.AppendFormat("-ContainerName={0}", ContainerName);
+		if (!String.IsNullOrEmpty(PatchSourceContentPath))
+		{
+			CmdLine.AppendFormat(" -PatchSource={0}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath));
+		}
+		if (bGenerateDiffPatch)
+		{
+			CmdLine.Append(" -GenerateDiffPatch");
+		}
 
 		// Force encryption of ALL files if we're using specific encryption key. This should be made an option per encryption key in the settings, but for our initial
 		// implementation we will just assume that we require maximum security for this data.
 		bool bForceEncryption = !string.IsNullOrEmpty(EncryptionKeyGuid);
-		string ContainerName = Path.GetFileNameWithoutExtension(ContainerRelativePath.Name);
 		string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakListIoStore_" + ContainerName + ".txt");
-		WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, Compressed, CryptoSettings, bForceEncryption);
+		WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, bCompressed, CryptoSettings, bForceEncryption);
 		CmdLine.AppendFormat(" -ResponseFile={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakResponseFileName));
 
-		CmdLine.Append(PlatformOptions);
+		if (CryptoSettings != null && CryptoSettings.bDataCryptoRequired)
+		{
+			if (CryptoSettings.bEnablePakIndexEncryption)
+			{
+				CmdLine.AppendFormat(" -encryptindex");
+			}
+			if (!string.IsNullOrEmpty(EncryptionKeyGuid))
+			{
+				CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
+			}
+			if (CryptoSettings.bDataCryptoRequired && CryptoSettings.bEnablePakSigning && CryptoSettings.SigningKey.IsValid())
+			{
+				CmdLine.AppendFormat(" -sign");
+			}
+		}
 
 		return CmdLine.ToString();
 	}
@@ -1862,7 +1884,11 @@ public partial class Project : CommandUtils
 		List<string> Blacklist = null;
 		if (SC.StageTargetConfigurations.Count == 1)
 		{
-			FileReference PakBlacklistFilename = FileReference.Combine(SC.ProjectRoot, "Build", SC.PlatformDir, string.Format("PakBlacklist-{0}.txt", SC.StageTargetConfigurations[0].ToString()));
+			FileReference PakBlacklistFilename = FileReference.Combine(SC.ProjectRoot, "Platforms", SC.PlatformDir, "Build", string.Format("PakBlacklist-{0}.txt", SC.StageTargetConfigurations[0].ToString()));
+			if (!FileReference.Exists(PakBlacklistFilename))
+			{
+				PakBlacklistFilename = FileReference.Combine(SC.ProjectRoot, "Build", SC.PlatformDir, string.Format("PakBlacklist-{0}.txt", SC.StageTargetConfigurations[0].ToString()));
+			}
 			if (FileReference.Exists(PakBlacklistFilename))
 			{
 				LogInformation("Applying PAK blacklist file {0}. This is deprecated in favor of DefaultPakFileRules.ini", PakBlacklistFilename);
@@ -2187,7 +2213,11 @@ public partial class Project : CommandUtils
 				foreach (string OrderLocation in OrderLocations)
 				{
 					// Add input file to control order of file within the pak
-					DirectoryReference PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+					DirectoryReference PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
+					if (!DirectoryReference.Exists(PakOrderFileLocationBase))
+					{
+						PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+					}
 
 					FileReference FileLocation = FileReference.Combine(PakOrderFileLocationBase, OrderFileName);
 
@@ -2336,31 +2366,22 @@ public partial class Project : CommandUtils
 							}
 						}
 
-						string ContainerName = PakParams.PakName + "-" + SC.FinalCookPlatform;
-						StagedFileReference ContainerRelativeLocation;
-						if (Params.HasDLCName)
+						string ContainerPatchSourcePath = null;
+						if (Params.HasBasedOnReleaseVersion)
 						{
-							ContainerRelativeLocation = StagedFileReference.Combine(Params.DLCFile.Directory.MakeRelativeTo(SC.ProjectRoot), "Content", "Paks", SC.FinalCookPlatform, Params.DLCFile.GetFileNameWithoutExtension() + ContainerName);
+							string ContainerWildcard = PakParams.PakName + "-" + SC.FinalCookPlatform + "*.utoc";
+							ContainerPatchSourcePath = CombinePaths(Params.GetBasedOnReleaseVersionPath(SC, Params.Client), ContainerWildcard);
 						}
-						else
-						{
-							ContainerRelativeLocation = StagedFileReference.Combine("Content", "Paks", ContainerName);
-						}
-						if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
-						{
-							ContainerRelativeLocation = ContainerRelativeLocation.ToLowerInvariant();
-						}
-						ContainerRelativeLocation = SC.StageTargetPlatform.Remap(ContainerRelativeLocation);
-
+						bool bGenerateDiffPatch = bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName);
 						IoStoreCommands.Add(GetIoStoreCommandArguments(
 							IoStoreResponseFile,
-							ContainerRelativeLocation,
-							PrimaryOrderFile,
-							AdditionalArgs,
+							PakParams.PakName,
+							OutputLocation,
 							PakParams.bCompressed,
 							CryptoSettings,
 							PakParams.EncryptionKeyGuid,
-							SecondaryOrderFile));
+							ContainerPatchSourcePath,
+							bGenerateDiffPatch));
 					}
 
 					Commands.Add(GetUnrealPakArguments(
@@ -2407,7 +2428,11 @@ public partial class Project : CommandUtils
 
 			foreach (string OrderLocation in OrderLocations.Reverse())
 			{
-				DirectoryReference IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+				DirectoryReference IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
+				if (!DirectoryReference.Exists(IoStoreOrderFileLocationBase))
+				{
+					IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+				}
 				FileReference FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "GameOpenOrder.log");
 				if (FileExists_NoExceptions(FileLocation.FullName))
 				{
@@ -2426,6 +2451,11 @@ public partial class Project : CommandUtils
 				+ CompressionFormats
 				+ " " + AdditionalCompressionOptionsOnCommandLine
 				+ " " + Params.AdditionalPakOptions;
+
+			if (CryptoKeysCacheFilename != null)
+			{
+				AdditionalArgs += String.Format(" -cryptokeys={0}", CommandUtils.MakePathSafeToUseWithCommandLine(CryptoKeysCacheFilename.FullName));
+			}
 
 			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
 		}
@@ -2446,6 +2476,11 @@ public partial class Project : CommandUtils
 
 				InternalUtils.SafeCreateDirectory(Path.GetDirectoryName(ReleaseVersionPath));
 				InternalUtils.SafeCopyFile(OutputLocation.FullName, ReleaseVersionPath);
+				if (ShouldCreateIoStoreContainerFiles(Params, SC))
+				{
+					InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".utoc"), Path.ChangeExtension(ReleaseVersionPath, ".utoc"));
+					InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".ucas"), Path.ChangeExtension(ReleaseVersionPath, ".ucas"));
+				}
 			}
 
 			if (Params.CreateChunkInstall)
@@ -2549,9 +2584,20 @@ public partial class Project : CommandUtils
 					string ExistingPatchSearchPath = SC.StageTargetPlatform.GetReleasePakFilePath(SC, Params, null);
 					if (Directory.Exists(ExistingPatchSearchPath))
 					{
-						IEnumerable<string> PakFileSet = Directory.EnumerateFiles(ExistingPatchSearchPath, PakName + "-" + SC.FinalCookPlatform + "*" + OutputFilenameExtension);
+						HashSet<string> IncludedExtensions = new HashSet<string>();
+						IncludedExtensions.Add(OutputFilenameExtension);
+						if (ShouldCreateIoStoreContainerFiles(Params, SC))
+						{
+							IncludedExtensions.Add(".ucas");
+							IncludedExtensions.Add(".utoc");
+						}
+						IEnumerable<string> PakFileSet = Directory.EnumerateFiles(ExistingPatchSearchPath, PakName + "-" + SC.FinalCookPlatform + "*.*");
 						foreach (string PakFilePath in PakFileSet)
 						{
+							if (!IncludedExtensions.Contains(Path.GetExtension(PakFilePath).ToLower()))
+							{
+								continue;
+							}
 							FileReference OutputDestinationPath = FileReference.Combine(OutputLocation.Directory, Path.GetFileName(PakFilePath));
 							if (!File.Exists(OutputDestinationPath.FullName))
 							{
@@ -2573,9 +2619,16 @@ public partial class Project : CommandUtils
 
 	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference GameOpenOrderFileLocation, FileReference CookerOpenOrderFileLocation, string AdditionalArgs)
 	{
-		DirectoryReference OutputLocation = SC.StageTargetPlatform.GetProjectRootForStage(SC.RuntimeRootDir, SC.RelativeProjectRootForStage);
+		StagedFileReference GlobalContainerOutputRelativeLocation;
+		GlobalContainerOutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content", "Paks", "global.utoc");
+		if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+		{
+			GlobalContainerOutputRelativeLocation = GlobalContainerOutputRelativeLocation.ToLowerInvariant();
+		}
+		GlobalContainerOutputRelativeLocation = SC.StageTargetPlatform.Remap(GlobalContainerOutputRelativeLocation);
+		FileReference GlobalContainerOutputLocation = FileReference.Combine(SC.RuntimeRootDir, GlobalContainerOutputRelativeLocation.Name);
 
-		string CommandletParams = String.Format("-OutputDirectory={0} -CookedDirectory={1} -Commands={2}", MakePathSafeToUseWithCommandLine(OutputLocation.FullName), MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
+		string CommandletParams = String.Format("-CreateGlobalContainer={0} -CookedDirectory={1} -Commands={2}", MakePathSafeToUseWithCommandLine(GlobalContainerOutputLocation.FullName), MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
 		if (GameOpenOrderFileLocation != null)
 		{
 			CommandletParams += String.Format(" -GameOrder={0}", MakePathSafeToUseWithCommandLine(GameOpenOrderFileLocation.FullName));
@@ -2597,6 +2650,7 @@ public partial class Project : CommandUtils
 		{
 			CommandletParams += String.Format(" -BasedOnReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetBasedOnReleaseVersionPath(SC, Params.Client)));
 		}
+		CommandletParams += String.Format(" -TargetPlatform={0}", SC.StageTargetPlatform.GetCookPlatform(Params.DedicatedServer, Params.Client));
 
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
 		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
@@ -3177,6 +3231,8 @@ public partial class Project : CommandUtils
 	{
 		var StagedFilesDir = new DirectoryInfo(StagingDirectory);
 		StagedFilesDir.GetFiles("*.pak", SearchOption.AllDirectories).ToList().ForEach(File => File.Delete());
+		StagedFilesDir.GetFiles("*.ucas", SearchOption.AllDirectories).ToList().ForEach(File => File.Delete());
+		StagedFilesDir.GetFiles("*.utoc", SearchOption.AllDirectories).ToList().ForEach(File => File.Delete());
 	}
 
 	protected static void CleanDirectoryExcludingPakFiles(DirectoryInfo StagingDirectory)

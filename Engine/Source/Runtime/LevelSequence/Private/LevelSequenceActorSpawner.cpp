@@ -72,10 +72,6 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 	// @todo sequencer actors: We need to make sure puppet objects aren't copied into PIE/SIE sessions!  They should be omitted from that duplication!
 
 	UWorld* WorldContext = Cast<UWorld>(Player.GetPlaybackContext());
-	if(WorldContext == nullptr)
-	{
-		WorldContext = GWorld;
-	}
 
 	FName DesiredLevelName = Spawnable.GetLevelName();
 	if (DesiredLevelName != NAME_None)
@@ -87,8 +83,25 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		}
 		else
 		{
-			UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into"), *DesiredLevelName.ToString(), *Spawnable.GetName());
+			// Avoid spamming output, warning only once per level
+			if (!ErrorLevels.Contains(DesiredLevelName))
+			{
+				UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into."), *DesiredLevelName.ToString(), *Spawnable.GetName());
+				ErrorLevels.Add(DesiredLevelName);
+			}
+			return nullptr;
 		}
+	}
+
+	if (WorldContext == nullptr)
+	{
+		if (!ErrorLevels.Contains(DesiredLevelName))
+		{
+			UE_LOG(LogMovieScene, Warning, TEXT("Can't find world to spawn '%s' into."), *Spawnable.GetName());
+			ErrorLevels.Add(DesiredLevelName);
+		}
+
+		return nullptr;
 	}
 
 	// Construct the object with the same name that we will set later on the actor to avoid renaming it inside SetActorLabel

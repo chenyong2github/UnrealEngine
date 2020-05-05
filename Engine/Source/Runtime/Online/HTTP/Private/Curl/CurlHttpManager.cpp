@@ -11,6 +11,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/LocalTimestampDirectoryVisitor.h"
 #include "Misc/Paths.h"
+#include "Misc/Fork.h"
 
 #include "Curl/CurlHttpThread.h"
 #include "Curl/CurlHttp.h"
@@ -105,9 +106,14 @@ namespace LibCryptoMemHooks
 	}
 }
 
+bool FCurlHttpManager::IsInit()
+{
+	return GMultiHandle != nullptr;
+}
+
 void FCurlHttpManager::InitCurl()
 {
-	if (GMultiHandle != NULL)
+	if (IsInit())
 	{
 		UE_LOG(LogInit, Warning, TEXT("Already initialized multi handle"));
 		return;
@@ -346,9 +352,26 @@ void FCurlHttpManager::OnBeforeFork()
 void FCurlHttpManager::OnAfterFork()
 {
 	InitCurl();
-	Thread->StartThread();
+
+	if (FForkProcessHelper::IsForkedChildProcess() == false || FForkProcessHelper::SupportsMultithreadingPostFork() == false)
+	{
+		// Since this will create a fake thread its safe to create it immediately here
+		Thread->StartThread();
+	}
 
 	FHttpManager::OnAfterFork();
+}
+
+void FCurlHttpManager::OnEndFramePostFork()
+{
+	if (FForkProcessHelper::SupportsMultithreadingPostFork())
+	{
+		// We forked and the frame is done, time to start the autonomous thread
+		check(FForkProcessHelper::IsForkedMultithreadInstance());
+		Thread->StartThread();
+	}
+
+	FHttpManager::OnEndFramePostFork();
 }
 
 void FCurlHttpManager::UpdateConfigs()

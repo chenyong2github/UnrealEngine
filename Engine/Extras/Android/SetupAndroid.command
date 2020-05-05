@@ -12,10 +12,7 @@ fi
 echo Android Studio Path: $STUDIO_PATH
 
 if [ "$STUDIO_SDK_PATH" == "" ]; then
-	STUDIO_SDK_PATH=$ANDROID_HOME
-	if [ "$STUDIO_SDK_PATH" == "" ]; then
-		STUDIO_SDK_PATH=~/Library/Android/sdk
-	fi
+	STUDIO_SDK_PATH=~/Library/Android/sdk
 fi
 if [ "$1" != "" ]; then
 	STUDIO_SDK_PATH=$1
@@ -31,24 +28,37 @@ echo Android Studio SDK Path: $STUDIO_SDK_PATH
 
 if ! grep -q "export ANDROID_HOME=\"$STUDIO_SDK_PATH\"" ~/.bash_profile 
 then
+	echo >> ~/.bash_profile
 	echo "export ANDROID_HOME=\"$STUDIO_SDK_PATH\"" >>~/.bash_profile
 fi
 
 export JAVA_HOME="$STUDIO_PATH/Contents/jre/jdk/Contents/Home"
 if ! grep -q "export JAVA_HOME=\"$JAVA_HOME\"" ~/.bash_profile
 then
+	echo >> ~/.bash_profile
 	echo "export JAVA_HOME=\"$JAVA_HOME\"" >>~/.bash_profile
 fi
-NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.0.6113669"
+NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.1.6352462"
 PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/28.0.3:$%STUDIO_SDK_PATH/tools/bin"
 
 retVal=$(type -P "adb")
 if [ $retVal == "" ]; then
+	echo >> ~/.bash_profile
 	echo export PATH="\"\$PATH:$PLATFORMTOOLS\"" >>~/.bash_profile
 	echo Added $PLATFORMTOOLS to path
 fi
 
-"$STUDIO_SDK_PATH/tools/bin/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.0.6113669"
+SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
+if [ ! -d "$SDKMANAGERPATH" ]; then
+	SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
+	if [ ! -d "$SDKMANAGERPATH" ]; then
+		echo Unable to locate sdkmanager. Did you run Android Studio and install cmdline-tools after installing?
+		read -rsp $'Press any key to continue...\n' -n1 key
+		exit 1
+	fi
+fi
+
+"$SDKMANAGERPATH/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
 
 retVal=$?
 if [ $retVal -ne 0 ]; then
@@ -80,7 +90,9 @@ echo Success!
 
 if ! grep -q "export NDKROOT=\"$NDKINSTALLPATH\"" ~/.bash_profile
 then
+	echo >> ~/.bash_profile
 	echo "export NDKROOT=\"$NDKINSTALLPATH\"" >>~/.bash_profile
+	echo "export NDK_ROOT=\"$NDKINSTALLPATH\"" >>~/.bash_profile
 fi
 
 exit 0

@@ -20,6 +20,7 @@
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
+#include "Chaos/CastingUtilities.h"
 #include "ChaosLog.h"
 #include "ChaosStats.h"
 #include "Containers/Queue.h"
@@ -49,6 +50,9 @@ namespace Chaos
 
 	float CollisionRestitutionOverride = -1.0f;
 	FAutoConsoleVariableRef CVarCollisionRestitutionOverride(TEXT("p.CollisionRestitution"), CollisionRestitutionOverride, TEXT("Collision restitution for all contacts if >= 0"));
+	
+	float CollisionAngularFrictionOverride = -1.0f;
+	FAutoConsoleVariableRef CVarCollisionAngularFrictionOverride(TEXT("p.CollisionAngularFriction"), CollisionAngularFrictionOverride, TEXT("Collision angular friction for all contacts if >= 0"));
 
 	CHAOS_API int32 EnableCollisions = 1;
 	FAutoConsoleVariableRef CVarEnableCollisions(TEXT("p.EnableCollisions"), EnableCollisions, TEXT("Enable/Disable collisions on the Chaos solver."));
@@ -81,7 +85,8 @@ namespace Chaos
 	FPBDCollisionConstraints::FPBDCollisionConstraints(
 		const TPBDRigidsSOAs<FReal, 3>& InParticles,
 		TArrayCollectionArray<bool>& Collided,
-		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPerParticleMaterials,
+		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPhysicsMaterials,
+		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& InPerParticlePhysicsMaterials,
 		const int32 InApplyPairIterations /*= 1*/,
 		const int32 InApplyPushOutPairIterations /*= 1*/,
 		const FReal CullDistance /*= (FReal)0*/,
@@ -91,12 +96,12 @@ namespace Chaos
 		, NumActiveSweptPointConstraints(0)
 		, NumActiveIterativeConstraints(0)
 		, MCollided(Collided)
-		, MPhysicsMaterials(InPerParticleMaterials)
+		, MPhysicsMaterials(InPhysicsMaterials)
+		, MPerParticlePhysicsMaterials(InPerParticlePhysicsMaterials)
 		, MApplyPairIterations(InApplyPairIterations)
 		, MApplyPushOutPairIterations(InApplyPushOutPairIterations)
 		, MCullDistance(CullDistance)
 		, MShapePadding(ShapePadding)
-		, MAngularFriction(0)
 		, bUseCCD(false)
 		, bEnableCollisions(true)
 		, bHandlesEnabled(true)
@@ -140,36 +145,49 @@ namespace Chaos
 		PostApplyPushOutCallback = nullptr;
 	}
 
-	const FChaosPhysicsMaterial* GetPhysicsMaterial(const TGeometryParticleHandle<FReal, 3>* Particle, const FImplicitObject* Geom, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials)
+	const FChaosPhysicsMaterial* GetPhysicsMaterial(const TGeometryParticleHandle<FReal, 3>* Particle, const FImplicitObject* Geom, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials)
 	{
 		// Use the per-particle material if it exists
+		const FChaosPhysicsMaterial* UniquePhysicsMaterial = Particle->AuxilaryValue(PerParticlePhysicsMaterials).Get();
+		if (UniquePhysicsMaterial != nullptr)
+		{
+			return UniquePhysicsMaterial;
+		}
 		const FChaosPhysicsMaterial* PhysicsMaterial = Particle->AuxilaryValue(PhysicsMaterials).Get();
+		if (PhysicsMaterial != nullptr)
+		{
+			return PhysicsMaterial;
+		}
 
 		// If no particle material, see if the shape has one
-		if (PhysicsMaterial == nullptr)
+		// @todo(chaos): handle materials for meshes etc
+		for (const TUniquePtr<FPerShapeData>& ShapeData : Particle->ShapesArray())
 		{
-			// @todo(chaos): handle materials for meshes etc
-		
-			for (const TUniquePtr<FPerShapeData>& ShapeData : Particle->ShapesArray())
+			const FImplicitObject* OuterShapeGeom = ShapeData->GetGeometry().Get();
+			const FImplicitObject* InnerShapeGeom = Utilities::ImplicitChildHelper(OuterShapeGeom);
+			if (Geom == OuterShapeGeom || Geom == InnerShapeGeom)
 			{
-				if (Geom == ShapeData->GetGeometry().Get())
+				if (ShapeData->GetMaterials().Num() > 0)
 				{
-					if (ShapeData->GetMaterials().Num() > 0)
-					{
-						PhysicsMaterial = ShapeData->GetMaterials()[0].Get();
-					}
-					break;
+					return ShapeData->GetMaterials()[0].Get();
+				}
+				else
+				{
+					// This shape doesn't have a material assigned
+					return nullptr;
 				}
 			}
 		}
 
-		return PhysicsMaterial;
+		// The geometry used for this particle does not belong to the particle.
+		// This can happen in the case of fracture.
+		return nullptr;
 	}
 
 	void FPBDCollisionConstraints::UpdateConstraintMaterialProperties(FCollisionConstraintBase& Constraint)
 	{
-		const FChaosPhysicsMaterial* PhysicsMaterial0 = GetPhysicsMaterial(Constraint.Particle[0], Constraint.Manifold.Implicit[0], MPhysicsMaterials);
-		const FChaosPhysicsMaterial* PhysicsMaterial1 = GetPhysicsMaterial(Constraint.Particle[1], Constraint.Manifold.Implicit[1], MPhysicsMaterials);
+		const FChaosPhysicsMaterial* PhysicsMaterial0 = GetPhysicsMaterial(Constraint.Particle[0], Constraint.Manifold.Implicit[0], MPhysicsMaterials, MPerParticlePhysicsMaterials);
+		const FChaosPhysicsMaterial* PhysicsMaterial1 = GetPhysicsMaterial(Constraint.Particle[1], Constraint.Manifold.Implicit[1], MPhysicsMaterials, MPerParticlePhysicsMaterials);
 
 		FCollisionContact& Contact = Constraint.Manifold;
 		if (PhysicsMaterial0 && PhysicsMaterial1)
@@ -179,23 +197,26 @@ namespace Chaos
 
 			const FChaosPhysicsMaterial::ECombineMode FrictionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->FrictionCombineMode,PhysicsMaterial1->FrictionCombineMode);
 			Contact.Friction = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Friction,PhysicsMaterial1->Friction, FrictionCombineMode);
+			Contact.AngularFriction = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->StaticFriction, PhysicsMaterial1->StaticFriction, FrictionCombineMode);
 		}
 		else if (PhysicsMaterial0)
 		{
 			Contact.Restitution = PhysicsMaterial0->Restitution;
 			Contact.Friction = PhysicsMaterial0->Friction;
+			Contact.AngularFriction = PhysicsMaterial0->StaticFriction;
 		}
 		else if (PhysicsMaterial1)
 		{
 			Contact.Restitution = PhysicsMaterial1->Restitution;
 			Contact.Friction = PhysicsMaterial1->Friction;
+			Contact.AngularFriction = PhysicsMaterial1->StaticFriction;
 		}
 		else
 		{
 			Contact.Friction = DefaultCollisionFriction;
+			Contact.AngularFriction = 0;
 			Contact.Restitution = DefaultCollisionRestitution;
 		}
-		Contact.AngularFriction = MAngularFriction;
 
 		// Overrides for testing
 		if (CollisionFrictionOverride >= 0)
@@ -205,6 +226,10 @@ namespace Chaos
 		if (CollisionRestitutionOverride >= 0)
 		{
 			Contact.Restitution = CollisionRestitutionOverride;
+		}
+		if (CollisionAngularFrictionOverride >= 0)
+		{
+			Contact.AngularFriction = CollisionAngularFrictionOverride;
 		}
 	}
 
@@ -227,8 +252,6 @@ namespace Chaos
 			Manifolds.Add(Handle->GetKey(), Handle);
 #endif
 		}
-
-		UpdateConstraintMaterialProperties(Constraints.SinglePointConstraints[Idx]);
 	}
 
 	void FPBDCollisionConstraints::AddConstraint(const FRigidBodySweptPointContactConstraint& InConstraint)
@@ -252,8 +275,6 @@ namespace Chaos
 #endif
 			}
 		}
-
-		UpdateConstraintMaterialProperties(Constraints.SinglePointSweptConstraints[Idx]);
 	}
 
 
@@ -276,8 +297,28 @@ namespace Chaos
 			Manifolds.Add(Handle->GetKey(), Handle);
 #endif
 		}
+	}
 
-		UpdateConstraintMaterialProperties(Constraints.MultiPointConstraints[Idx]);
+	void FPBDCollisionConstraints::PrepareIteration(float dt)
+	{
+		// NOTE: We could set material properties as we add constraints, but the ParticlePairBroadphase
+		// skips the call to AddConstraint and writes directly to the constraint array, so we
+		// need to do it after all constraints are added.
+
+		for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
+		{
+			UpdateConstraintMaterialProperties(Contact);
+		}
+
+		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
+		{
+			UpdateConstraintMaterialProperties(Contact);
+		}
+
+		for (FRigidBodySweptPointContactConstraint& Contact : Constraints.SinglePointSweptConstraints)
+		{
+			UpdateConstraintMaterialProperties(Contact);
+		}
 	}
 
 	void FPBDCollisionConstraints::UpdatePositionBasedState(const FReal Dt)
@@ -311,7 +352,6 @@ namespace Chaos
 		Handles.Reset();
 #endif
 
-		MAngularFriction = 0;
 		bUseCCD = false;
 	}
 

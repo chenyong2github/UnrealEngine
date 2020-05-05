@@ -1395,10 +1395,12 @@ int32 UNiagaraComponent::GetNumMaterials() const
 		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
 		{
 			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
-			UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
-			for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
+			if ( UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter() )
 			{
-				Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
+				for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
+				{
+					Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
+				}
 			}
 		}
 	}
@@ -1616,9 +1618,10 @@ void UNiagaraComponent::SetNiagaraVariableInt(const FString& InVariableName, int
 void UNiagaraComponent::SetVariableBool(FName InVariableName, bool InValue)
 {
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetBoolDef(), InVariableName);
-	OverrideParameters.SetParameterValue(InValue ? FNiagaraBool::True : FNiagaraBool::False, VariableDesc, true);
+	const FNiagaraBool BoolValue(InValue);
+	OverrideParameters.SetParameterValue(BoolValue, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(bool)));
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&BoolValue, sizeof(FNiagaraBool)));
 #endif
 }
 
@@ -1718,7 +1721,7 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 				FNiagaraDataBuffer& ParticleData = Sim->GetData().GetCurrentDataChecked();
 				int32 NumParticles = ParticleData.GetNumInstances();
 				Values.SetNum(NumParticles);
-				FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> ValueData(Sim->GetData(), *InValueName);
+				FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> ValueData(Sim->GetData(), *InValueName);
 				for (int32 i = 0; i < NumParticles; ++i)
 				{
 					float Value;

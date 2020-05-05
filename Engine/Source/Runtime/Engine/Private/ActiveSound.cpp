@@ -495,8 +495,6 @@ bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
 
 void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, const float DeltaTime)
 {
-	check(AudioDevice);
-
 	// Reset whether or not the active sound is playing audio.
 	bIsPlayingAudio = false;
 
@@ -504,7 +502,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	MinCurrentPitch = 1.0f;
 
 	// Early outs.
-	if (Sound == nullptr || !Sound->IsPlayable())
+	if (!AudioDevice || Sound == nullptr || !Sound->IsPlayable())
 	{
 		return;
 	}
@@ -717,7 +715,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	{
 		DebugColor = FColor::MakeRandomColor();
 	}
-	FAudioDebugger::DrawDebugInfo(*this, ThisSoundsWaveInstances, DeltaTime);
+	Audio::FAudioDebugger::DrawDebugInfo(*this, ThisSoundsWaveInstances, DeltaTime);
 #endif // ENABLE_AUDIO_DEBUG
 
 	InWaveInstances.Append(ThisSoundsWaveInstances);
@@ -1652,6 +1650,14 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 	// The old audio engine will scale this together when the wave instance is queried for GetActualVolume.
 	if (Settings->bAttenuate)
 	{
+		// Apply the sound-class-based distance scale
+		if (ParseParams.SoundClass)
+		{
+			FSoundClassDynamicProperties* DynamicSoundClassProperties = AudioDevice->GetSoundClassDynamicProperties(ParseParams.SoundClass);
+
+			FocusDataToApply.DistanceScale *= FMath::Max(DynamicSoundClassProperties->AttenuationScaleParam.GetValue(), 0.0f);
+		}
+
 		if (Settings->AttenuationShape == EAttenuationShape::Sphere)
 		{
 			// Update attenuation data in-case it hasn't been updated

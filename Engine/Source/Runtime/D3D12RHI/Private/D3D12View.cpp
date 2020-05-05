@@ -377,15 +377,16 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetVertexBufferSRVDesc(VBD3D12, Stride, Format, 0, UINT32_MAX);
 
 		// Rename the SRV to view on the new vertex buffer
-		while (VBD3D12)
+		FD3D12Buffer* Buffer = VBD3D12;
+		while (Buffer)
 		{
-			FD3D12Device* ParentDevice = VBD3D12->GetParentDevice();
-			SRVD3D12->Initialize(ParentDevice, SRVDesc, VBD3D12->ResourceLocation, Stride);
-			VBD3D12->AddDynamicSRV(SRVD3D12);
-			VBD3D12 = VBD3D12->GetNextObject();
-			if (VBD3D12 && !SRVD3D12->GetNextObject())
+			FD3D12Device* ParentDevice = Buffer->GetParentDevice();
+			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer->ResourceLocation, Stride);
+			Buffer->AddDynamicSRV(SRVD3D12);
+			Buffer = Buffer->GetNextObject();
+			if (Buffer && !SRVD3D12->GetNextObject())
 			{
-				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(VBD3D12->GetParentDevice()));
+				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(Buffer->GetParentDevice()));
 			}
 			SRVD3D12 = SRVD3D12->GetNextObject();
 		}
@@ -403,14 +404,15 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 		const uint32 Stride = IBD3D12->GetStride();
 
 		// Rename the SRV to view on the new index buffer
-		while (IBD3D12)
+		FD3D12Buffer* Buffer = IBD3D12;
+		while (Buffer)
 		{
-			FD3D12Device* ParentDevice = IBD3D12->GetParentDevice();
-			SRVD3D12->Initialize(ParentDevice, SRVDesc, IBD3D12->ResourceLocation, Stride);
-			IBD3D12 = IBD3D12->GetNextObject();
-			if (IBD3D12 && !SRVD3D12->GetNextObject())
+			FD3D12Device* ParentDevice = Buffer->GetParentDevice();
+			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer->ResourceLocation, Stride);
+			Buffer = Buffer->GetNextObject();
+			if (Buffer && !SRVD3D12->GetNextObject())
 			{
-				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(IBD3D12->GetParentDevice()));
+				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(Buffer->GetParentDevice()));
 			}
 			SRVD3D12 = SRVD3D12->GetNextObject();
 		}

@@ -66,9 +66,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 
 	// Cull based on shading model
 	uint ShadingModelID = GBufferData.ShadingModelID;
-	if (ShadingModelID == SHADINGMODELID_UNLIT
-		|| ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE
-		)
+	if (ShadingModelID == SHADINGMODELID_UNLIT)
 	{
 		return;
 	}

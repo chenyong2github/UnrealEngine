@@ -308,7 +308,14 @@ void FArchiveFromStructuredArchiveImpl::OpenArchive()
 
 FArchive* FArchiveFromStructuredArchiveImpl::GetCacheableArchive()
 {
-	return IsTextFormat() ? nullptr : Pimpl->Root->GetUnderlyingArchive().GetCacheableArchive();
+	if (IsTextFormat())
+	{
+		return nullptr;
+	}
+	else
+	{
+		return InnerArchive.GetCacheableArchive();
+	}
 }
 
 bool FArchiveFromStructuredArchiveImpl::ContainsData() const

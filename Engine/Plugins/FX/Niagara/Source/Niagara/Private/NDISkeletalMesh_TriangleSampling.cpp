@@ -253,7 +253,7 @@ void UNiagaraDataInterfaceSkeletalMesh::BindTriangleSamplingFunction(const FVMEx
 		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 15);
 		if (InstanceData->bAllowCPUMeshDataAccess)
 		{
-			TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandlerNoop, TVertexAccessorBinder<TNDIExplicitBinder<TInterpOff, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordSkinnedData)>>>>::Bind(this, BindingInfo, InstanceData, OutFunc);
+			TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandlerNoop, TVertexAccessorBinder<TNDIExplicitBinder<TInterpOff, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordSkinnedData)>>>>::BindIgnoreCPUAccess(this, BindingInfo, InstanceData, OutFunc);
 		}
 		else
 		{
@@ -265,7 +265,7 @@ void UNiagaraDataInterfaceSkeletalMesh::BindTriangleSamplingFunction(const FVMEx
 		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 15);
 		if (InstanceData->bAllowCPUMeshDataAccess)
 		{
-			TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandler, TVertexAccessorBinder<TNDIExplicitBinder<TIntegralConstant<bool, false>, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordSkinnedData)>>>>::Bind(this, BindingInfo, InstanceData, OutFunc);
+			TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandler, TVertexAccessorBinder<TNDIExplicitBinder<TIntegralConstant<bool, false>, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordSkinnedData)>>>>::BindIgnoreCPUAccess(this, BindingInfo, InstanceData, OutFunc);
 		}
 		else
 		{
@@ -277,7 +277,7 @@ void UNiagaraDataInterfaceSkeletalMesh::BindTriangleSamplingFunction(const FVMEx
 		check(BindingInfo.GetNumInputs() == 6 && BindingInfo.GetNumOutputs() == 15);
 		if (InstanceData->bAllowCPUMeshDataAccess)
 		{
-			TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandlerNoop, TVertexAccessorBinder<TNDIExplicitBinder<TInterpOn, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordSkinnedData)>>>>::Bind(this, BindingInfo, InstanceData, OutFunc);
+			TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandlerNoop, TVertexAccessorBinder<TNDIExplicitBinder<TInterpOn, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordSkinnedData)>>>>::BindIgnoreCPUAccess(this, BindingInfo, InstanceData, OutFunc);
 		}
 		else
 		{
@@ -289,7 +289,7 @@ void UNiagaraDataInterfaceSkeletalMesh::BindTriangleSamplingFunction(const FVMEx
 		check(BindingInfo.GetNumInputs() == 6 && BindingInfo.GetNumOutputs() == 15);
 		if (InstanceData->bAllowCPUMeshDataAccess)
 		{
-			TSkinningModeBinder<TNDIExplicitBinder< FNDITransformHandler, TVertexAccessorBinder<TNDIExplicitBinder<TIntegralConstant<bool, true>, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordSkinnedData)>>>>::Bind(this, BindingInfo, InstanceData, OutFunc);
+			TSkinningModeBinder<TNDIExplicitBinder< FNDITransformHandler, TVertexAccessorBinder<TNDIExplicitBinder<TIntegralConstant<bool, true>, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordSkinnedData)>>>>::BindIgnoreCPUAccess(this, BindingInfo, InstanceData, OutFunc);
 		}
 		else
 		{
@@ -316,7 +316,7 @@ void UNiagaraDataInterfaceSkeletalMesh::BindTriangleSamplingFunction(const FVMEx
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetTriCoordVerticesName)
 	{
 		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3);
-		TSkinningModeBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordVertices)>::Bind(this, BindingInfo, InstanceData, OutFunc);		
+		TSkinningModeBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordVertices)>::BindCheckCPUAccess(this, BindingInfo, InstanceData, OutFunc);		
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::RandomTriangleName)
 	{
@@ -358,7 +358,7 @@ FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::RandomTriIndex<TNDISkelMesh
 {
 	int32 SecIdx = RandHelper.RandRange(InstanceIndex, 0, Accessor.LODData->RenderSections.Num() - 1);
 	//int32 SecIdx = RandStream.RandRange(0, Accessor.LODData->RenderSections.Num() - 1);
-	FSkelMeshRenderSection& Sec = Accessor.LODData->RenderSections[SecIdx];
+	const FSkelMeshRenderSection& Sec = Accessor.LODData->RenderSections[SecIdx];
 	int32 Tri = RandHelper.RandRange(InstanceIndex, 0, Sec.NumTriangles - 1);
 	return (Sec.BaseIndex / 3) + Tri;
 }
@@ -702,7 +702,7 @@ FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredTriangleAt<TNDIS
 	{
 		if (Accessor.LODData->RenderSections[i].NumTriangles > (uint32)FilteredIndex)
 		{
-			FSkelMeshRenderSection& Sec = Accessor.LODData->RenderSections[i];
+			const FSkelMeshRenderSection& Sec = Accessor.LODData->RenderSections[i];
 			return Sec.BaseIndex + FilteredIndex;
 		}
 		FilteredIndex -= Accessor.LODData->RenderSections[i].NumTriangles;
@@ -837,14 +837,12 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordColor(FVectorVMContext& Conte
 	VectorVM::FExternalFuncRegisterHandler<float> OutColorA(Context);
 
 	USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(InstData->Component.Get());
-	FSkinWeightVertexBuffer* SkinWeightBuffer;
-	FSkeletalMeshLODRenderData* LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
+	const FSkeletalMeshLODRenderData* LODData = InstData->CachedLODData;
 	check(LODData);
-
 	const FColorVertexBuffer& Colors = LODData->StaticVertexBuffers.ColorVertexBuffer;
 	checkfSlow(Colors.GetNumVertices() != 0, TEXT("Trying to access vertex colors from mesh without any."));
 
-	FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
+	const FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
 	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
 	const int32 TriMax = (IndexBuffer->Num() / 3) - 1;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -913,12 +911,11 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordUV(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> OutUVX(Context);	VectorVM::FExternalFuncRegisterHandler<float> OutUVY(Context);
 
 	USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(InstData->Component.Get());
-	FSkinWeightVertexBuffer* SkinWeightBuffer;
-	FSkeletalMeshLODRenderData* LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
+	const FSkeletalMeshLODRenderData* LODData = InstData->CachedLODData;
 	check(LODData);
 
-	FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
-	FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
+	const FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
+	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
 	const int32 TriMax = (IndexBuffer->Num() / 3) - 1;
 	const int32 UVSetMax = LODData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() - 1;
 	const float InvDt = 1.0f / InstData->DeltaSeconds;
@@ -1070,7 +1067,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedData(FVectorVMContext&
 
 	check(Accessor.IsSkinAccessible()); // supposed to use the fallback for invalid mesh
 
-	FSkeletalMeshLODRenderData* LODData = Accessor.LODData;
+	const FSkeletalMeshLODRenderData* LODData = Accessor.LODData;
 
 	const int32 TriMax = (Accessor.IndexBuffer->Num() / 3) - 1;
 	const float InvDt = 1.0f / InstData->DeltaSeconds;

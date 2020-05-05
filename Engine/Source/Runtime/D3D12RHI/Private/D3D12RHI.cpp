@@ -44,8 +44,9 @@ FD3D12DynamicRHI* FD3D12DynamicRHI::SingleD3DRHI = nullptr;
 
 using namespace D3D12RHI;
 
-FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn) :
+FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn, bool bInPixEventEnabled) :
 	ChosenAdapters(ChosenAdaptersIn),
+	bPixEventEnabled(bInPixEventEnabled),
 	AmdAgsContext(nullptr),
 	AmdSupportedExtensionFlags(0),
 	FlipEvent(INVALID_HANDLE_VALUE),

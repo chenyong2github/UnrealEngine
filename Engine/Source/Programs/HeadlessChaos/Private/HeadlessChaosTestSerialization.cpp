@@ -426,7 +426,7 @@ namespace ChaosTest
 				TPBDRigidsSOAs<float, 3> Particles;
 
 				THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-				FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
+				FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 
 				Evolution.Serialize(ChaosAr);
 				Evolution.AdvanceOneTimeStep(1 / 60.f);

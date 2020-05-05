@@ -482,6 +482,9 @@ void FAnimationViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& Vi
 		{
 			DrawUVsForMesh(Viewport, &Canvas, 1.0f);
 		}
+
+		// Debug draw clothing texts
+		PreviewMeshComponent->DebugDrawClothingTexts(&Canvas, &View);
 	}
 }
 
@@ -968,6 +971,35 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 		}
 	}
 
+	if (const IClothingSimulation* const ClothingSimulation = PreviewMeshComponent->GetClothingSimulation())
+	{
+		// Cloth stats
+		if (const int32 NumActiveCloths = ClothingSimulation->GetNumCloths())
+		{
+			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("NumActiveCloths", "Active Cloths: {0}"), NumActiveCloths));
+		}
+		if (const int32 NumKinematicParticles = ClothingSimulation->GetNumKinematicParticles())
+		{
+			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("NumKinematicParticles", "Kinematic Particles: {0}"), NumKinematicParticles));
+		}
+		if (const int32 NumDynamicParticles = ClothingSimulation->GetNumDynamicParticles())
+		{
+			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("NumDynamicParticles", "Dynamic Particles: {0}"), NumDynamicParticles));
+		}
+		if (const float SimulationTime = ClothingSimulation->GetSimulationTime())
+		{
+			FNumberFormattingOptions NumberFormatOptions;
+			NumberFormatOptions.AlwaysSign = false;
+			NumberFormatOptions.UseGrouping = false;
+			NumberFormatOptions.RoundingMode = ERoundingMode::HalfFromZero;
+			NumberFormatOptions.MinimumIntegralDigits = 1;
+			NumberFormatOptions.MaximumIntegralDigits = 6;
+			NumberFormatOptions.MinimumFractionalDigits = 2;
+			NumberFormatOptions.MaximumFractionalDigits = 2;
+			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("SimulationTime", "Simulation Time: {0}ms"), FText::AsNumber(SimulationTime, &NumberFormatOptions)));
+		}
+	}
+
 	if (PreviewMeshComponent->GetSectionPreview() != INDEX_NONE)
 	{
 		// Notify the user if they are isolating a mesh section.
@@ -1247,7 +1279,10 @@ void FAnimationViewportClient::DrawWatchedPoses(UDebugSkelMeshComponent * MeshCo
 			{
 				for (const FAnimNodePoseWatch& AnimNodePoseWatch : AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData().AnimNodePoseWatch)
 				{
-					DrawBonesFromCompactPose(*AnimNodePoseWatch.PoseInfo.Get(), MeshComponent, PDI, AnimNodePoseWatch.PoseDrawColour);
+					if(AnimNodePoseWatch.Object.Get() != nullptr)
+					{
+						DrawBonesFromCompactPose(*AnimNodePoseWatch.PoseInfo.Get(), MeshComponent, PDI, AnimNodePoseWatch.PoseDrawColour);
+					}
 				}
 			}
 		}

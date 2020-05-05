@@ -131,16 +131,6 @@ void UBakeTransformTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 
 
 
-void UBakeTransformTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-}
-
-void UBakeTransformTool::Tick(float DeltaTime)
-{
-}
-
-
-
 bool UBakeTransformTool::HasAccept() const
 {
 	return true;

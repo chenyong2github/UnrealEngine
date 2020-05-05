@@ -30,10 +30,13 @@ struct FNiagaraNewAssetDialogConfig
 UENUM()
 enum class ENiagaraNamespaceMetadataOptions
 {
+	HideInScript,
+	HideInSystem,
 	AdvancedInScript,
 	AdvancedInSystem,
-	PreventRenaming,
-	CanChangeNamespaceModifier,
+	PreventEditingNamespace,
+	PreventEditingNamespaceModifier,
+	PreventEditingName,
 	PreventCreatingInSystemEditor
 };
 
@@ -44,10 +47,28 @@ struct FNiagaraNamespaceMetadata
 
 	FNiagaraNamespaceMetadata();
 
-	FNiagaraNamespaceMetadata(TArray<FName> InNamespaces);
+	FNiagaraNamespaceMetadata(TArray<FName> InNamespaces, FName InRequiredNamespaceModifier = NAME_None);
+
+	bool operator==(const FNiagaraNamespaceMetadata& Other) const
+	{
+		return
+			Namespaces == Other.Namespaces &&
+			RequiredNamespaceModifier == Other.RequiredNamespaceModifier &&
+			DisplayName.IdenticalTo(Other.DisplayName) &&
+			DisplayNameLong.IdenticalTo(Other.DisplayNameLong) &&
+			Description.IdenticalTo(Other.Description) &&
+			BackgroundColor == Other.BackgroundColor &&
+			ForegroundStyle == Other.ForegroundStyle &&
+			SortId == Other.SortId &&
+			OptionalNamespaceModifiers == Other.OptionalNamespaceModifiers &&
+			Options == Other.Options;
+	}
 
 	UPROPERTY()
 	TArray<FName> Namespaces;
+
+	UPROPERTY()
+	FName RequiredNamespaceModifier;
 
 	UPROPERTY()
 	FText DisplayName;
@@ -63,6 +84,12 @@ struct FNiagaraNamespaceMetadata
 
 	UPROPERTY()
 	FName ForegroundStyle;
+
+	UPROPERTY()
+	int32 SortId;
+
+	UPROPERTY()
+	TArray<FName> OptionalNamespaceModifiers;
 
 	UPROPERTY()
 	TArray<ENiagaraNamespaceMetadataOptions> Options;
@@ -94,6 +121,18 @@ struct FNiagaraNamespaceMetadata
 	FNiagaraNamespaceMetadata& SetForegroundStyle(FName InForegroundStyle)
 	{
 		ForegroundStyle = InForegroundStyle;
+		return *this;
+	}
+
+	FNiagaraNamespaceMetadata& SetSortId(int32 InSortId)
+	{
+		SortId = InSortId;
+		return *this;
+	}
+
+	FNiagaraNamespaceMetadata& AddOptionalNamespaceModifier(FName InOptionalNamespaceModifier)
+	{
+		OptionalNamespaceModifiers.Add(InOptionalNamespaceModifier);
 		return *this;
 	}
 
@@ -176,8 +215,13 @@ public:
 
 	void SetNewAssetDialogConfig(FName InDialogConfigKey, const FNiagaraNewAssetDialogConfig& InNewAssetDialogConfig);
 
+	FNiagaraNamespaceMetadata GetDefaultNamespaceMetadata() const;
 	FNiagaraNamespaceMetadata GetMetaDataForNamespaces(TArray<FName> Namespaces) const;
+	const TArray<FNiagaraNamespaceMetadata>& GetAllNamespaceMetadata() const;
+
+	FNiagaraNamespaceMetadata GetDefaultNamespaceModifierMetadata() const;
 	FNiagaraNamespaceMetadata GetMetaDataForNamespaceModifier(FName NamespaceModifier) const;
+	const TArray<FNiagaraNamespaceMetadata>& GetAllNamespaceModifierMetadata() const;
 	
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
@@ -197,7 +241,7 @@ private:
 	void SetupNamespaceMetadata();
 
 protected:
-	static FOnNiagaraEditorSettingsChanged SettingsChangedDelegate;
+	FOnNiagaraEditorSettingsChanged SettingsChangedDelegate;
 
 private:
 	/** Whether or not auto-compile is enabled in the editors. */
@@ -235,4 +279,10 @@ private:
 
 	UPROPERTY()
 	TArray<FNiagaraNamespaceMetadata> NamespaceModifierMetadata;
+
+	UPROPERTY()
+	FNiagaraNamespaceMetadata DefaultNamespaceMetadata;
+
+	UPROPERTY()
+	FNiagaraNamespaceMetadata DefaultNamespaceModifierMetadata;
 };

@@ -15,7 +15,18 @@ public:
 	FModelingToolsManagerCommands();
 
 
-	TSharedPtr<FUICommandInfo> BeginAddPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddBoxPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddCylinderPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddConePrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddArrowPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddRectanglePrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddRoundedRectanglePrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddDiscPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddPuncturedDiscPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddTorusPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddSphericalBoxPrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddSpherePrimitiveTool;
+
 	TSharedPtr<FUICommandInfo> BeginAddPatchTool;
 	TSharedPtr<FUICommandInfo> BeginDrawPolygonTool;
 	TSharedPtr<FUICommandInfo> BeginDrawPolyPathTool;
@@ -43,10 +54,14 @@ public:
 	TSharedPtr<FUICommandInfo> BeginUVProjectionTool;
 	TSharedPtr<FUICommandInfo> BeginUVLayoutTool;
 	TSharedPtr<FUICommandInfo> BeginPlaneCutTool;
+	TSharedPtr<FUICommandInfo> BeginHoleFillTool;
 	TSharedPtr<FUICommandInfo> BeginPolygonCutTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelMergeTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelBooleanTool;
+	TSharedPtr<FUICommandInfo> BeginSelfUnionTool;
+	TSharedPtr<FUICommandInfo> BeginMeshBooleanTool;
 	TSharedPtr<FUICommandInfo> BeginMeshSelectionTool;
+	TSharedPtr<FUICommandInfo> BeginBspConversionTool;
 
 	TSharedPtr<FUICommandInfo> BeginMeshInspectorTool;
 	TSharedPtr<FUICommandInfo> BeginGlobalUVGenerateTool;
@@ -55,6 +70,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginPolyGroupsTool;
 	TSharedPtr<FUICommandInfo> BeginEditMeshMaterialsTool;
 	TSharedPtr<FUICommandInfo> BeginTransformUVIslandsTool;
+	TSharedPtr<FUICommandInfo> BeginMeshAttributePaintTool;
 	TSharedPtr<FUICommandInfo> BeginAttributeEditorTool;
 
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;

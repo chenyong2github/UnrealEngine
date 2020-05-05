@@ -85,7 +85,7 @@ void Main(
 		Output.PackedVelocityA			= INVARIANT(ScreenPos);
 		Output.PackedVelocityC			= INVARIANT(PrevScreenPosObj);
 
-		const float2 ScreenVelocity = Calculate2DVelocity(Output.PackedVelocityA, Output.PackedVelocityC);
+		const float2 ScreenVelocity = Calculate3DVelocity(Output.PackedVelocityA, Output.PackedVelocityC).xy;
 		VelocityScale = saturate(max(abs(ScreenVelocity.x), abs(ScreenVelocity.y)) / HairRenderInfo.VelocityMagnitudeScale);
 	}
 	#endif

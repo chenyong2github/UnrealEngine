@@ -22,6 +22,7 @@
 #include "Animation/AnimationStreaming.h"
 #include "AudioStreamingCache.h"
 #include "AudioCompressionSettingsUtils.h"
+#include "VT/VirtualTextureChunkManager.h"
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -779,10 +780,17 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 
 	AnimationStreamingManager = new FAnimationStreamingManager();
 	AddStreamingManager(AnimationStreamingManager);
+
+	VirtualTextureStreamingManager = new FVirtualTextureChunkStreamingManager();
+	AddStreamingManager(VirtualTextureStreamingManager);
 }
 
 FStreamingManagerCollection::~FStreamingManagerCollection()
 {
+	RemoveStreamingManager(VirtualTextureStreamingManager);
+	delete VirtualTextureStreamingManager;
+	VirtualTextureStreamingManager = nullptr;
+
 	RemoveStreamingManager(AnimationStreamingManager);
 	delete AnimationStreamingManager;
 	AnimationStreamingManager = nullptr;
@@ -1017,6 +1025,12 @@ IAnimationStreamingManager& FStreamingManagerCollection::GetAnimationStreamingMa
 {
 	check(AnimationStreamingManager);
 	return *AnimationStreamingManager;
+}
+
+FVirtualTextureChunkStreamingManager& FStreamingManagerCollection::GetVirtualTextureStreamingManager() const
+{
+	check(VirtualTextureStreamingManager);
+	return *VirtualTextureStreamingManager;
 }
 
 /** Don't stream world resources for the next NumFrames. */
@@ -1267,6 +1281,8 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 		//Add the texture streaming manager if it's needed.
 		if( !TextureStreamingManager )
 		{
+			FlushRenderingCommands();
+
 			GConfig->GetFloat( TEXT("TextureStreaming"), TEXT("LoadMapTimeLimit"), LoadMapTimeLimit, GEngineIni );
 			// Create the streaming manager and add the default streamers.
 			TextureStreamingManager = new FRenderAssetStreamingManager();
@@ -1309,6 +1325,7 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 		//Remove the texture streaming manager if needed.
 		if( TextureStreamingManager )
 		{
+			FlushRenderingCommands();
 			TextureStreamingManager->BlockTillAllRequestsFinished();
 
 			RemoveStreamingManager(TextureStreamingManager);

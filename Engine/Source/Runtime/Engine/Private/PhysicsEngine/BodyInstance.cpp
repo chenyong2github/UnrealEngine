@@ -99,13 +99,19 @@ FAutoConsoleVariableRef CVarEnableDeferredPhysicsCreation(
 	ECVF_Default
 );
 
+TAutoConsoleVariable<int32> CVarIgnoreAnalyticCollisionsOverride(
+	TEXT("p.IgnoreAnalyticCollisionsOverride"), 
+	0, 
+	TEXT("Overrides the default for ignroing analytic collsions."),
+	ECVF_ReadOnly
+);
+
 bool FBodyInstance::UseDeferredPhysicsBodyCreation()
 {
 	// @todo: this could be improved by tracking all oustanding delayed creations, and return true if there are any at all. 
 	// or maybe keep a list of instances that have them, so we don't loop over all actors, etc
 	return GUseDeferredPhysicsBodyCreation != 0;
 }
-
 
 using namespace PhysicsInterfaceTypes;
 
@@ -342,6 +348,7 @@ FBodyInstance::FBodyInstance()
 	, SleepFamily(ESleepFamily::Normal)
 	, DOFMode(0)
 	, bUseCCD(false)
+	, bIgnoreAnalyticCollisions(false)
 	, bNotifyRigidBodyCollision(false)
 	, bSimulatePhysics(false)
 	, bOverrideMass(false)
@@ -463,7 +470,7 @@ int32 FBodyInstance::GetAllShapes_AssumesLocked(TArray<FPhysicsShapeHandle>& Out
 void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 {
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-	ensure(false);
+	CHAOS_ENSURE(false);
 #else
 #if PHYSICS_INTERFACE_PHYSX
 	if (BodySetup.IsValid())
@@ -656,6 +663,42 @@ void FBodyInstance::SetCollisionEnabled(ECollisionEnabled::Type NewType, bool bU
 	}
 }
 
+void FBodyInstance::SetShapeCollisionEnabled(const int32 ShapeIndex, ECollisionEnabled::Type NewType, bool bUpdatePhysicsFilterData)
+{
+	if (ensureAlways(BodySetup.IsValid()))
+	{
+		const ECollisionEnabled::Type OldType = GetShapeCollisionEnabled(ShapeIndex);
+		if (OldType != NewType)
+		{
+			// If ShapeCollisionEnabled wasn't set up yet, copy values from BodySetup into it
+			if (!ShapeCollisionEnabled.IsSet())
+			{
+				const int32 ShapeCount = BodySetup->AggGeom.GetElementCount();
+				ShapeCollisionEnabled = TArray<TEnumAsByte<ECollisionEnabled::Type>>();
+				ShapeCollisionEnabled.GetValue().SetNum(ShapeCount);
+				for (int32 OptionalShapeIndex = 0; OptionalShapeIndex < ShapeCount; ++OptionalShapeIndex)
+				{
+					ShapeCollisionEnabled.GetValue()[OptionalShapeIndex] = BodySetup->AggGeom.GetElement(OptionalShapeIndex)->GetCollisionEnabled();
+				}
+			}
+			ShapeCollisionEnabled.GetValue()[ShapeIndex] = NewType;
+
+			if (bUpdatePhysicsFilterData)
+			{
+				UpdatePhysicsFilterData();
+			}
+
+			if (CollisionEnabledHasPhysics(OldType) != CollisionEnabledHasPhysics(NewType))
+			{
+				if(UPrimitiveComponent* PrimComponent = OwnerComponent.Get())
+				{
+					PrimComponent->RecreatePhysicsState();
+				}
+			}
+		}
+	}
+}
+
 EDOFMode::Type FBodyInstance::ResolveDOFMode(EDOFMode::Type DOFMode)
 {
 	EDOFMode::Type ResultDOF = DOFMode;
@@ -801,6 +844,32 @@ ECollisionEnabled::Type FBodyInstance::GetCollisionEnabled_CheckOwner() const
 	}
 }
 
+ECollisionEnabled::Type FBodyInstance::GetShapeCollisionEnabled(const int32 ShapeIndex) const
+{
+	// If any runtime shape collision overrides have been set, return that.
+	// Otherwise, get it from the bodysetup.
+	if (ShapeCollisionEnabled.IsSet())
+	{
+		if (ensure(ShapeCollisionEnabled.GetValue().IsValidIndex(ShapeIndex)))
+		{
+			return ShapeCollisionEnabled.GetValue()[ShapeIndex];
+		}
+	}
+
+	if (!ensureAlways(BodySetup.IsValid()))
+	{
+		return ECollisionEnabled::NoCollision;
+	}	
+
+	FKShapeElem* Shape = BodySetup->AggGeom.GetElement(ShapeIndex);
+	if (!ensure(Shape))
+	{
+		return ECollisionEnabled::NoCollision;
+	}
+
+	return Shape->GetCollisionEnabled();
+}
+
 void FBodyInstance::SetMaskFilter(FMaskFilter InMaskFilter)
 {
 	if (MaskFilter == InMaskFilter)
@@ -865,25 +934,49 @@ void FBodyInstance::UpdatePhysicsFilterData()
 
 		bool bUpdateMassProperties = false;
 
+		// We use these to determine the original shape index of an element.
+		// TODO: If we stored ShapeIndex in FKShapeElem this wouldn't be necessary.
+		int32 ShapeIndexBase = 0;
+		const FBodyInstance* PrevBI = this;
+
 		for(int32 ShapeIndex = 0; ShapeIndex < NumTotalShapes; ++ShapeIndex)
 		{
 			FPhysicsShapeHandle& Shape = AllShapes[ShapeIndex];
 			const FBodyInstance* BI = GetOriginalBodyInstance(Shape);
 
+			if (BI != PrevBI)
+			{
+				ShapeIndexBase = ShapeIndex;
+				PrevBI = BI;
+			}
+			const int32 SetupShapeIndex = ShapeIndex - ShapeIndexBase;
+
 			// If the BodyInstance that owns this shape is not 'this' BodyInstance (ie in the case of welding)
 			// we need to generate new filter data using the owning original instance (and its BodySetup) 
 			FBodyCollisionData PerShapeCollisionData;
 			if(BI != this)
-	{
+			{
 				BI->BuildBodyFilterData(PerShapeCollisionData.CollisionFilterData);
-
-				const bool bInstanceComplexAsSimple = BI->BodySetup.IsValid() ? (BI->BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple) : false;
-				BuildBodyCollisionFlags(PerShapeCollisionData.CollisionFlags, BI->GetCollisionEnabled(), bInstanceComplexAsSimple);
 			}
 			else
 			{
 				PerShapeCollisionData = BodyCollisionData;
-		}
+			}
+
+			const bool bInstanceComplexAsSimple = BI->BodySetup.IsValid() ? (BI->BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple) : false;
+			if (SetupShapeIndex < BI->BodySetup->AggGeom.GetElementCount())
+			{
+				// Get the shape's CollisionEnabled masked with the body's CollisionEnabled and compute the shape's collisionflags.
+				const ECollisionEnabled::Type FilteredShapeCollision = CollisionEnabledIntersection(BI->GetCollisionEnabled(), BI->GetShapeCollisionEnabled(SetupShapeIndex));
+				BuildBodyCollisionFlags(PerShapeCollisionData.CollisionFlags, FilteredShapeCollision, bInstanceComplexAsSimple);
+			}
+			else
+			{
+				// This case may occur for trimeshes, which do not have toggleable shape collision. The assumption is made that
+				// trimesh (complex) shapes are always created after all of the simple shapes.
+				BuildBodyCollisionFlags(PerShapeCollisionData.CollisionFlags, BI->GetCollisionEnabled(), bInstanceComplexAsSimple);
+			}
+
 
 			FPhysicsCommand::ExecuteShapeWrite(this, Shape, [&](const FPhysicsShapeHandle& InnerShape)
 			{
@@ -902,21 +995,16 @@ void FBodyInstance::UpdatePhysicsFilterData()
 				FPhysicsInterface::SetIsSimulationShape(InnerShape, bNewSimShape);
 
 				// If we changed 'simulation collision' on a shape, we need to recalc mass properties
-				if(bWasSimulationShape != bNewSimShape)
-		{
+				if (bWasSimulationShape != bNewSimShape)
+				{
 					bUpdateMassProperties = true;
-		}
-
-#if WITH_CHAOS
-				// If this shape shouldn't collide in the sim we disable it here until we have more support.
-				Shape.Shape->SetSimEnabled(CollisionEnabledHasPhysics(GetCollisionEnabled()));
-#endif
+				}
 
 				// Apply new collision settings to this shape
 				FPhysicsInterface::SetSimulationFilter(InnerShape, FilterData.SimFilter);
 				FPhysicsInterface::SetQueryFilter(InnerShape, bIsTrimesh ? FilterData.QueryComplexFilter : FilterData.QuerySimpleFilter);
 			});
-	}
+		}
 
 		if(bUpdateMassProperties)
 		{
@@ -1052,7 +1140,6 @@ void FInitBodiesHelperBase::CreateActor_AssumesLocked(FBodyInstance* Instance, c
 	else
 	{
 		FPhysicsInterface::CreateActor(ActorParams, Instance->ActorHandle);
-
 		FPhysicsInterface::SetCcdEnabled_AssumesLocked(Instance->ActorHandle, Instance->bUseCCD);
 		FPhysicsInterface::SetIsKinematic_AssumesLocked(Instance->ActorHandle, !Instance->ShouldInstanceSimulatingPhysics());
 
@@ -1076,16 +1163,19 @@ bool FInitBodiesHelperBase::CreateShapes_AssumesLocked(FBodyInstance* Instance) 
 
 	FBodyCollisionData BodyCollisionData;
 	Instance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
-	Instance->BuildBodyCollisionFlags(BodyCollisionData.CollisionFlags, Instance->GetCollisionEnabled(), BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple);
+	FBodyInstance::BuildBodyCollisionFlags(BodyCollisionData.CollisionFlags, Instance->GetCollisionEnabled(), BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple);
 
 	bool bInitFail = false;
 
 	// #PHYS2 Call interface AddGeometry
 	BodySetup->AddShapesToRigidActor_AssumesLocked(Instance, Instance->Scale3D, SimplePhysMat, ComplexPhysMats, ComplexPhysMatMasks, BodyCollisionData, FTransform::Identity);
 
+#if WITH_CHAOS
+	FPhysicsInterface::SetIgnoreAnalyticCollisions_AssumesLocked(Instance->ActorHandle, CVarIgnoreAnalyticCollisionsOverride.GetValueOnGameThread() ? true : Instance->bIgnoreAnalyticCollisions);
+#endif
+
 	const int32 NumShapes = FPhysicsInterface::GetNumShapes(Instance->ActorHandle);
 	bInitFail |= NumShapes == 0;
-
 
 	return bInitFail;
 }
@@ -4070,7 +4160,7 @@ void FBodyInstance::InitDynamicProperties_AssumesLocked()
 }
 
 void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData) const
-	{
+{
 	// this can happen in landscape height field collision component
 	if(!BodySetup.IsValid())
 	{
@@ -4209,7 +4299,11 @@ int32 SimCollisionEnabled = 1;
 FAutoConsoleVariableRef CVarSimCollisionEnabled(TEXT("p.SimCollisionEnabled"), SimCollisionEnabled, TEXT("If 0 no sim collision will be used"));
 
 void FBodyInstance::BuildBodyCollisionFlags(FBodyCollisionFlags& OutFlags, ECollisionEnabled::Type UseCollisionEnabled, bool bUseComplexAsSimple)
-	{
+{
+	OutFlags.bEnableQueryCollision = false;
+	OutFlags.bEnableSimCollisionSimple = false;
+	OutFlags.bEnableSimCollisionComplex = false;
+
 	if(UseCollisionEnabled != ECollisionEnabled::NoCollision)
 	{
 		// Query collision
@@ -4229,8 +4323,8 @@ void FBodyInstance::BuildBodyCollisionFlags(FBodyCollisionFlags& OutFlags, EColl
 				OutFlags.bEnableSimCollisionComplex = true;
 			}
 		}
-			}
-		}
+	}
+}
 
 void FBodyInstance::UpdateInterpolateWhenSubStepping()
 {

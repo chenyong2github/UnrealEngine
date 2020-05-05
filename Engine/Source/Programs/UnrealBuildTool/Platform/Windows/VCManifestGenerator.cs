@@ -20,7 +20,6 @@ namespace UnrealBuildTool
 
 		protected virtual string IniSection_PlatformTargetSettings { get { return string.Format( "/Script/{0}PlatformEditor.{0}TargetSettings", Platform.ToString() ); } }
 		protected virtual string IniSection_GeneralProjectSettings { get { return "/Script/EngineSettings.GeneralProjectSettings"; } }
-		protected virtual string BuildResourceProjectRelativePath { get { return "Build\\" + Platform.ToString(); } }
 
 		protected const string BuildResourceSubPath = "Resources";
 		protected const string EngineResourceSubPath = "DefaultImages";
@@ -278,23 +277,29 @@ namespace UnrealBuildTool
         protected bool CopyAndReplaceBinaryIntermediate(string ResourceFileName, bool AllowEngineFallback = true)
 		{
 			string TargetPath = Path.Combine(IntermediatePath, BuildResourceSubPath);
-			string SourcePath = Path.Combine(ProjectPath, BuildResourceProjectRelativePath, BuildResourceSubPath);
 
-			// Try falling back to the engine defaults if requested
+			// look in project normal Build location
+			string SourcePath = Path.Combine(ProjectPath, "Build", Platform.ToString(), BuildResourceSubPath);
 			bool bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
+
+			// look in Platform Extensions next
 			if (!bFileExists)
 			{
-				if (AllowEngineFallback)
-				{
-					SourcePath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, BuildResourceProjectRelativePath, EngineResourceSubPath);
-					bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
+				SourcePath = Path.Combine(ProjectPath, "Platforms", Platform.ToString(), "Build", BuildResourceSubPath);
+				bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
+			}
 
-					// look in Platform extensions too
-					if (!bFileExists)
-					{
-						SourcePath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Platforms", Platform.ToString(), "Build", EngineResourceSubPath);
-						bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
-					}
+			// look in Engine, if allowed
+			if (!bFileExists && AllowEngineFallback)
+			{
+				SourcePath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Build", Platform.ToString(), EngineResourceSubPath);
+				bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
+
+				// look in Platform extensions too
+				if (!bFileExists)
+				{
+					SourcePath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Platforms", Platform.ToString(), "Build", EngineResourceSubPath);
+					bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 				}
 			}
 
@@ -454,7 +459,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-        protected void AddResourceEntry(string ResourceEntryName, string ConfigKey, string GenericINISection, string GenericINIKey, string DefaultValue, string ValueSuffix = "")
+        protected string AddResourceEntry(string ResourceEntryName, string ConfigKey, string GenericINISection, string GenericINIKey, string DefaultValue, string ValueSuffix = "")
 		{
 			string ConfigScratchValue = null;
 
@@ -466,7 +471,7 @@ namespace UnrealBuildTool
 				if (!ConfigHierarchy.TryParse(DefaultCultureScratchValue, out Values))
 				{
 					Log.TraceError("Invalid default culture string resources: \"{0}\". Unable to add resource entry.", DefaultCultureScratchValue);
-					return;
+					return "";
 				}
 
 				ConfigScratchValue = Values[ConfigKey];
@@ -515,9 +520,24 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+
+			return "ms-resource:" + ResourceEntryName;
 		}
 
-        protected virtual XName GetName( string BaseName, string SchemaName )
+		protected string AddDebugResourceString(string ResourceEntryName, string Value)
+		{
+			DefaultResourceWriter.AddResource(ResourceEntryName, Value);
+
+			foreach (var CultureId in CulturesToStage)
+			{
+				var Writer = PerCultureResourceWriters[CultureId];
+				Writer.AddResource(ResourceEntryName, Value);
+			}
+
+			return "ms-resource:" + ResourceEntryName;
+		}
+
+		protected virtual XName GetName( string BaseName, string SchemaName )
 		{
 			return XName.Get(BaseName);
 		}

@@ -7,6 +7,10 @@
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
 
+#if !defined(UE_WITH_SAVEPACKAGE)
+#	define UE_WITH_SAVEPACKAGE 1
+#endif
+
 class FArchive;
 class FIoBuffer;
 class FLinkerLoad;

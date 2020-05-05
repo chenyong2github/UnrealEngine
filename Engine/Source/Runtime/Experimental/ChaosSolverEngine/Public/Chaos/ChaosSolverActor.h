@@ -160,6 +160,12 @@ public:
 	float MassScale;
 
 	/*
+	* 
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics", meta = (DisplayName = "Generate Contact Graph"))
+	bool bGenerateContactGraph;
+
+	/*
 	* Control to pause/step/substep the solver to the next synchronization point.
 	*/
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Debug")

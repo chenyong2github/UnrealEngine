@@ -85,7 +85,7 @@ public:
 	/** Set to true to profile various passes @todo re-enable this! */
 	bool ENABLE_PROFILING = false;
 
-	/** 0 = no checking, 1 = check constraints and validity each pass, 2 = check validity after every mesh change (v slow but best for debugging) */
+	/** 0 = no checking, 1 = check constraints each pass, 2 = and check validity each pass, 3 = and check validity after every mesh change (v slow but best for debugging) */
 	int DEBUG_CHECK_LEVEL = 0;
 
 

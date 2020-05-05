@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/AsyncPackageLoader.h"
+#include "HAL/IConsoleManager.h"
 #include "Serialization/AsyncLoadingThread.h"
 #include "Serialization/AsyncLoading2.h"
 #include "UObject/GCObject.h"
@@ -665,6 +666,11 @@ void NotifyRegistrationComplete()
 void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject)
 {
 	GetAsyncPackageLoader().NotifyConstructedDuringAsyncLoading(Object, bSubObject);
+}
+
+void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects)
+{
+	GetAsyncPackageLoader().NotifyUnreachableObjects(UnreachableObjects);
 }
 
 double GFlushAsyncLoadingTime = 0.0;

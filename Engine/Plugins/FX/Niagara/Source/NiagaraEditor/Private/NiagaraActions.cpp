@@ -28,14 +28,14 @@ FNiagaraMenuAction::FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, F
 	, CanPerformAction(InCanPerformAction)
 {}
 
-TOptional<FNiagaraParameterHandle> FNiagaraMenuAction::GetParameterHandle() const
+TOptional<FNiagaraVariable> FNiagaraMenuAction::GetParameterVariable() const
 {
-	return ParameterHandle;
+	return ParameterVariable;
 }
 
-void FNiagaraMenuAction::SetParamterHandle(const FNiagaraParameterHandle& InParameterHandle)
+void FNiagaraMenuAction::SetParamterVariable(const FNiagaraVariable& InParameterVariable)
 {
-	ParameterHandle = InParameterHandle;
+	ParameterVariable = InParameterVariable;
 }
 
 /************************************************************************/
@@ -43,20 +43,52 @@ void FNiagaraMenuAction::SetParamterHandle(const FNiagaraParameterHandle& InPara
 /************************************************************************/
 FNiagaraParameterAction::FNiagaraParameterAction(const FNiagaraVariable& InParameter,
 	const TArray<FNiagaraGraphParameterReferenceCollection>& InReferenceCollection,
-	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID)
+	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
+	TSharedPtr<TArray<FName>> ParameterWithNamespaceModifierRenamePending, 
+	int32 InSectionID)
 	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords), InSectionID)
 	, Parameter(InParameter)
 	, ReferenceCollection(InReferenceCollection)
-	, bNamespaceModifierRenamePending(false)
+	, bIsExternallyReferenced(false)
+	, ParameterWithNamespaceModifierRenamePendingWeak(ParameterWithNamespaceModifierRenamePending)
 {
 }
 
 FNiagaraParameterAction::FNiagaraParameterAction(const FNiagaraVariable& InParameter,
-	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID)
+	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
+	TSharedPtr<TArray<FName>> ParameterWithNamespaceModifierRenamePending, 
+	int32 InSectionID)
 	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords), InSectionID)
 	, Parameter(InParameter)
-	, bNamespaceModifierRenamePending(false)
+	, bIsExternallyReferenced(false)
+	, ParameterWithNamespaceModifierRenamePendingWeak(ParameterWithNamespaceModifierRenamePending)
 {
+}
+
+bool FNiagaraParameterAction::GetIsNamespaceModifierRenamePending() const
+{
+	TSharedPtr<TArray<FName>> ParameterNamesWithNamespaceModifierRenamePending = ParameterWithNamespaceModifierRenamePendingWeak.Pin();
+	if (ParameterNamesWithNamespaceModifierRenamePending.IsValid())
+	{
+		return ParameterNamesWithNamespaceModifierRenamePending->Contains(Parameter.GetName());
+	}
+	return false;
+}
+
+void FNiagaraParameterAction::SetIsNamespaceModifierRenamePending(bool bIsNamespaceModifierRenamePending)
+{
+	TSharedPtr<TArray<FName>> ParameterNamesWithNamespaceModifierRenamePending = ParameterWithNamespaceModifierRenamePendingWeak.Pin();
+	if (ParameterNamesWithNamespaceModifierRenamePending.IsValid())
+	{
+		if (bIsNamespaceModifierRenamePending)
+		{
+			ParameterNamesWithNamespaceModifierRenamePending->AddUnique(Parameter.GetName());
+		}
+		else
+		{
+			ParameterNamesWithNamespaceModifierRenamePending->Remove(Parameter.GetName());
+		}
+	}
 }
 
 /************************************************************************/

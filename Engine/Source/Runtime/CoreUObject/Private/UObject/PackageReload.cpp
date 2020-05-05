@@ -580,9 +580,16 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 
 				// Mutating the old versions of classes can result in us replacing the SuperStruct pointer, which results
 				// in class layout change and subsequently crashes because instances will not match this new class layout:
-				if(UClass* AsClass = Cast<UClass>(PotentialReferencer))
+				UClass* AsClass = Cast<UClass>(PotentialReferencer);
+				if (!AsClass)
 				{
-					if(AsClass->HasAnyClassFlags(CLASS_NewerVersionExists) || AsClass->HasAnyFlags(RF_NewerVersionExists))
+					AsClass = PotentialReferencer->GetTypedOuter<UClass>();
+				}
+
+				if(AsClass)
+				{
+					if( AsClass->HasAnyClassFlags(CLASS_NewerVersionExists) || 
+						AsClass->HasAnyFlags(RF_NewerVersionExists))
 					{
 						continue;
 					}

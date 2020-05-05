@@ -89,7 +89,7 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 	ESubmixEffectDynamicsChannelLinkMode LinkMode;
 
 	// The input gain of the dynamics processor
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, meta = (DisplayName = "Input Gain (dB)", ClampMin = "-12.0", ClampMax = "20.0", UIMin = "-12.0", UIMax = "20.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, meta = (DisplayName = "Input Gain (dB)", UIMin = "-12.0", UIMax = "20.0"))
 	float InputGainDb;
 
 	// The threshold at which to perform a dynamics processing operation
@@ -133,12 +133,12 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Audition"))
 	uint8 bKeyAudition : 1;
 
-	// Gain to apply to key signal (external signal if supplied or input signal if disabled)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Gain (dB)", ClampMin = "-60.0", ClampMax = "20.0", UIMin = "-60.0", UIMax = "20.0"))
+	// Gain to apply to key signal if external input is supplied
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "External Input Gain (dB)", EditCondition = "ExternalSubmix != nullptr", UIMin = "-60.0", UIMax = "30.0"))
 	float KeyGainDb;
 
 	// The output gain of the dynamics processor
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (DisplayName = "Output Gain (dB)", ClampMin = "-60.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "20.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (DisplayName = "Output Gain (dB)", UIMin = "-60.0", UIMax = "30.0"))
 	float OutputGainDb;
 
 	// High Shelf filter settings for key signal (external signal if supplied or input signal if not)

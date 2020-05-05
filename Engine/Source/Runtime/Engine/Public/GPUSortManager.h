@@ -156,7 +156,7 @@ ENUM_CLASS_FLAGS(EGPUSortFlags)
  * @param KeysUAV - The UAV that holds all the initial keys used to sort the values.
  * @param ValuesUAV - The UAV that holds the initial values to be sorted accordingly to the keys.
  */
- DECLARE_DELEGATE_SixParams(FGPUSortKeyGenDelegate, FRHICommandListImmediate&, int32, int32, EGPUSortFlags, FRHIUnorderedAccessView*, FRHIUnorderedAccessView*);
+DECLARE_DELEGATE_SixParams(FGPUSortKeyGenDelegate, FRHICommandListImmediate&, int32, int32, EGPUSortFlags, FRHIUnorderedAccessView*, FRHIUnorderedAccessView*);
 
 /**
  * A manager that handles different GPU sort tasks. 
@@ -412,7 +412,7 @@ public:
 	 * @param UsedFlags - The possibly used flags for each of the client system tasks, used to perform some optimizations.
 	 * @param InName - A name defining this client system, used for GPU markers.
 	 */
-	void Register(const FGPUSortKeyGenDelegate& CallbackDelegate, EGPUSortFlags UsedFlags, const FName& InName);
+	void Register(const FGPUSortKeyGenDelegate& CallbackDelegate, EGPUSortFlags UsedFlags, const FName& InName);	
 
 	/**
 	 * Add a GPU sort task to process this frame. Tasks are expected to be created before OnPreRender() gets called.
@@ -445,6 +445,12 @@ public:
 	 * @param RHICmdList - The command list to be used.
 	 */
 	void OnPostRenderOpaque(FRHICommandListImmediate& RHICmdList);
+
+	/**
+	 * Event to register and receive post-prerender notification.
+	 */	
+	DECLARE_EVENT_OneParam(FGPUSortManager, FPostPreRenderEvent, FRHICommandListImmediate&);
+	FPostPreRenderEvent PostPreRenderEvent;
 
 private:
 

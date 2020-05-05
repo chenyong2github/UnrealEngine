@@ -52,12 +52,6 @@ static FAutoConsoleVariableRef CVarStrandHairWidth(TEXT("r.HairStrands.StrandWid
 static int32 GStrandHairInterpolationDebug = 0;
 static FAutoConsoleVariableRef CVarStrandHairInterpolationDebug(TEXT("r.HairStrands.Interpolation.Debug"), GStrandHairInterpolationDebug, TEXT("Enable debug rendering for hair interpolation"));
 
-static int32 GStrandHairInterpolationGlobal = 0;
-static FAutoConsoleVariableRef CVarStrandHairInterpolationGlobal(TEXT("r.HairStrands.Interpolation.Global"), GStrandHairInterpolationGlobal, TEXT("Enable global radial basis function based hair interpolation"));
-
-static int32 GStrandHairInterpolationTarget = 0;
-static FAutoConsoleVariableRef CVarStrandHairInterpolationTarget(TEXT("r.HairStrands.Interpolation.Target"), GStrandHairInterpolationTarget, TEXT("Set the global interpolation as the kinematics target if simulation is enabled"));
-
 static FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
 {
 	const uint32 BatchCount = FMath::DivideAndRoundUp(ItemCount, GroupSize);
@@ -171,7 +165,8 @@ static void AddDeformSimHairStrandsPass(
 	FRHIUnorderedAccessView* OutSimDeformedPositionBuffer,
 	FVector& SimRestOffset,
 	FVector& SimDeformedOffset,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FBufferTransitionQueue& OutTransitionQueue,
+	const bool bHasGlobalInterpolation)
 {
 	static uint32 IterationCount = 0;
 	++IterationCount;
@@ -222,7 +217,7 @@ static void AddDeformSimHairStrandsPass(
 		bool bSupportGlobalInterpolation = false;
 		if (bSupportDynamicMesh)
 		{
-			bSupportGlobalInterpolation = (GStrandHairInterpolationGlobal == 1) && (InSimHairData.RestLODDatas[LODIndex].SampleCount > 0);
+			bSupportGlobalInterpolation = bHasGlobalInterpolation && (InSimHairData.RestLODDatas[LODIndex].SampleCount > 0);
 			if (!bSupportGlobalInterpolation) 
 			{
 				InternalDeformationType = 4;
@@ -283,7 +278,7 @@ class FHairInterpolationCS : public FGlobalShader
 
 	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
 	class FDebug : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 2);
-	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 3);
+	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 5);
 	class FSimulation : SHADER_PERMUTATION_INT("PERMUTATION_SIMULATION", 2);
 	class FScaleAndClip : SHADER_PERMUTATION_INT("PERMUTATION_SCALE_AND_CLIP", 2);
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry, FSimulation, FScaleAndClip>;
@@ -378,7 +373,9 @@ static void AddHairStrandsInterpolationPass(
 	const FUnorderedAccessViewRHIRef& OutRenderAttributeBuffer,
 	const FShaderResourceViewRHIRef& VertexToClusterIdBuffer,
 	const FShaderResourceViewRHIRef& SimRootPointIndexBuffer,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FBufferTransitionQueue& OutTransitionQueue,
+	const bool bHasGlobalInterpolation,
+	const uint32 HairInterpolationType)
 {
 	const uint32 GroupSize = ComputeGroupSize();
 	const FIntVector DispatchCount = ComputeDispatchCount(VertexCount, GroupSize);
@@ -476,7 +473,7 @@ static void AddHairStrandsInterpolationPass(
 	bool bSupportGlobalInterpolation = false;
 	if (bSupportDynamicMesh)
 	{
-		bSupportGlobalInterpolation = (GStrandHairInterpolationGlobal == 1) && (InSimHairData.RestLODDatas[LODIndex].SampleCount > 0);
+		bSupportGlobalInterpolation = bHasGlobalInterpolation && (InSimHairData.RestLODDatas[LODIndex].SampleCount > 0);
 		{
 			Parameters->RestPosition0Buffer = InRenHairData.RestLODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
 			Parameters->RestPosition1Buffer = InRenHairData.RestLODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
@@ -511,7 +508,7 @@ static void AddHairStrandsInterpolationPass(
 	FHairInterpolationCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairInterpolationCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 	PermutationVector.Set<FHairInterpolationCS::FDebug>(Parameters->HairDebugMode > 0 ? 1 : 0);
-	PermutationVector.Set<FHairInterpolationCS::FDynamicGeometry>((bSupportDynamicMesh && bHasLocalDeformation) ? 2 :
+	PermutationVector.Set<FHairInterpolationCS::FDynamicGeometry>((bSupportDynamicMesh && bHasLocalDeformation) ? HairInterpolationType+1 :
 							(bSupportDynamicMesh && !bHasLocalDeformation) ? 1 : 0);
 	PermutationVector.Set<FHairInterpolationCS::FSimulation>(bHasLocalDeformation ? 1 : 0);
 	PermutationVector.Set<FHairInterpolationCS::FScaleAndClip>(bNeedScaleOrClip ? 1 : 0);
@@ -885,7 +882,8 @@ void ComputeHairStrandsInterpolation(
 				Input.SimRootPointIndexBuffer ? Input.SimRootPointIndexBuffer->SRV : nullptr,
 				Output.SimDeformedPositionBuffer[CurrIndex]->UAV, Input.InSimHairPositionOffset,
 				Input.OutHairPositionOffset,
-				TransitionQueue);
+				TransitionQueue,
+				Input.bHasGlobalInterpolation);
 		}
 		GraphBuilder.Execute();
 		TransitBufferToReadable(RHICmdList, TransitionQueue);
@@ -1016,7 +1014,9 @@ void ComputeHairStrandsInterpolation(
 					Output.RenderPatchedAttributeBuffer.UAV,
 					Input.VertexToClusterIdBuffer->SRV,
 					Input.SimRootPointIndexBuffer->SRV,
-					TransitionQueue);
+					TransitionQueue,
+					Input.bHasGlobalInterpolation,
+					Input.HairInterpolationType);
 
 			}
 			GraphBuilder.Execute();
@@ -1225,7 +1225,8 @@ void ResetHairStrandsInterpolation(
 				Input.SimRootPointIndexBuffer ? Input.SimRootPointIndexBuffer->SRV : nullptr,
 				Output.SimDeformedPositionBuffer[CurrIndex]->UAV, Input.InSimHairPositionOffset,
 				Input.OutHairPositionOffset, 
-				TransitionQueue);
+				TransitionQueue,
+				Input.bHasGlobalInterpolation);
 			GraphBuilder.Execute();
 			TransitBufferToReadable(RHICmdList, TransitionQueue);
 		}

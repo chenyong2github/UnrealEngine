@@ -42,7 +42,6 @@ public:
 	virtual bool CanSetWidgetMode(FWidget::EWidgetMode NewMode) const override { return false; }
 	virtual bool CanCycleWidgetMode() const override { return false; }
 
-	void SetShowGrid(bool bShowGrid);
 
 	virtual void SetIsSimulateInEditorViewport(bool bInIsSimulateInEditorViewport)override;
 
@@ -256,11 +255,6 @@ FSceneView* FNiagaraSystemViewportClient::CalcSceneView(FSceneViewFamily* ViewFa
 	return SceneView;
 }
 
-void FNiagaraSystemViewportClient::SetShowGrid(bool bShowGrid)
-{
-	DrawHelper.bDrawGrid = bShowGrid;
-}
-
 void FNiagaraSystemViewportClient::SetIsSimulateInEditorViewport(bool bInIsSimulateInEditorViewport)
 {
 	bIsSimulateInEditorViewport = bInIsSimulateInEditorViewport;
@@ -281,7 +275,6 @@ void FNiagaraSystemViewportClient::SetIsSimulateInEditorViewport(bool bInIsSimul
 void SNiagaraSystemViewport::Construct(const FArguments& InArgs)
 {
 	DrawFlags = 0;
-	bShowGrid = false;
 	bShowBackground = false;
 	PreviewComponent = nullptr;
 	AdvancedPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
@@ -456,14 +449,13 @@ void SNiagaraSystemViewport::OnFocusViewportToSelection()
 
 void SNiagaraSystemViewport::TogglePreviewGrid()
 {
-	bShowGrid = !bShowGrid;
-	SystemViewportClient->SetShowGrid(bShowGrid);
+	SystemViewportClient->SetShowGrid();
 	RefreshViewport();
 }
 
 bool SNiagaraSystemViewport::IsTogglePreviewGridChecked() const
 {
-	return bShowGrid;
+	return SystemViewportClient->IsSetShowGridChecked();
 }
 
 void SNiagaraSystemViewport::TogglePreviewBackground()

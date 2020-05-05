@@ -35,6 +35,14 @@ void UChaosClothingSimulationInteractor::Sync(IClothingSimulation* InSimulation,
 		Command.Execute(ChaosSim, ChaosContext);
 	}
 	Commands.Reset();
+
+	NumCloths = InSimulation->GetNumCloths();
+	NumKinematicParticles = InSimulation->GetNumKinematicParticles();
+	NumDynamicParticles = InSimulation->GetNumDynamicParticles();
+	NumIterations = InSimulation->GetNumIterations();
+	NumSubsteps = InSimulation->GetNumSubsteps();
+	SimulationTime = InSimulation->GetSimulationTime();
+
 	bDirty = false;
 }
 

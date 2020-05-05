@@ -449,7 +449,7 @@ public:
 	ENGINE_API void GetNonClothVertices(TArray<FSoftSkinVertex>& OutVertices) const;
 
 	ENGINE_API int32 GetMaxBoneInfluences() const;
-	bool DoSectionsUse16BitBoneIndex() const;
+	ENGINE_API bool DoSectionsUse16BitBoneIndex() const;
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 

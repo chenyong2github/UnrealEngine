@@ -204,8 +204,8 @@ void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI()
 		for (uint32 i = 0; i < AllSectionCount; ++i)
 		{
 			FStaticMeshSectionAreaWeightedTriangleSampler& sampler = (*Samplers)[i];
-			const TArray<float, FMemoryImageAllocator>& ProbTris = sampler.GetProb();
-			const TArray<int32, FMemoryImageAllocator>& AliasTris = sampler.GetAlias();
+			TArrayView<const float> ProbTris = sampler.GetProb();
+			TArrayView<const int32> AliasTris = sampler.GetAlias();
 			const uint32 NumTriangle = sampler.GetNumEntries();
 
 			for (uint32 t = 0; t < NumTriangle; ++t)
@@ -2158,7 +2158,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.                                       
+// and set this new GUID as the version.
 #define STATICMESH_DERIVEDDATA_VER TEXT("F9378A28F161444987BACE79B2590E57")
 
 static const FString& GetStaticMeshDerivedDataVersion()
@@ -2698,13 +2698,6 @@ void UStaticMesh::InitResources()
 	{
 		LinkStreaming();
 	}
-	
-	// Make sure the first LOD is actually the lowest LOD.
-	if (RenderData)
-	{
-		RenderData->CurrentFirstLODIdx = RenderData->GetFirstValidLODIdx(0);
-		SetCachedNumResidentLODs(RenderData->LODResources.Num() - RenderData->CurrentFirstLODIdx);
-	}
 
 #if	STATS
 	UStaticMesh* This = this;
@@ -2810,7 +2803,7 @@ bool UStaticMesh::HasValidRenderData(bool bCheckLODForVerts, int32 LODIndex) con
 		{
 		    if (LODIndex == INDEX_NONE)
 		    {
-			    LODIndex = FMath::Clamp<int32>(MinLOD.GetValueForFeatureLevel(GMaxRHIFeatureLevel), 0, RenderData->LODResources.Num() - 1);
+			    LODIndex = FMath::Clamp<int32>(MinLOD.GetValue(), 0, RenderData->LODResources.Num() - 1);
 		    }
 			return (RenderData->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0);
 		}

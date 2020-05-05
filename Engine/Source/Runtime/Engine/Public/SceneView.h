@@ -931,6 +931,15 @@ public:
 	/** Current buffer visualization mode */
 	FName CurrentBufferVisualizationMode;
 
+	/** Current visualize calibration color material name */
+	FName CurrentVisualizeCalibrationColorMaterialName;
+
+	/** Current visualize calibration grayscale material name */
+	FName CurrentVisualizeCalibrationGrayscaleMaterialName;
+
+	/** Current visualize calibration custom material name */
+	FName CurrentVisualizeCalibrationCustomMaterialName;
+
 #if WITH_EDITOR
 	/* Whether to use the pixel inspector */
 	bool bUsePixelInspector;
@@ -1261,6 +1270,11 @@ public:
 
 	/** Configure post process settings for the buffer visualization system */
 	void ConfigureBufferVisualizationSettings();
+
+#if !(UE_BUILD_SHIPPING)
+	/** Configure post process settings for calibration material */
+	void ConfigureVisualizeCalibrationSettings();
+#endif
 
 	/** Get the feature level for this view (cached from the scene so this is not different per view) **/
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }

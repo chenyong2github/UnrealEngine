@@ -166,14 +166,14 @@ float DirectionalPCSS(FPCSSSamplerSettings Settings, float2 ShadowPosition, floa
 
 	float MinorAnisotropyFactor = clamp(MinorAnisotropy / SearchRadius, 1, 7);
 	float MajorAnisotropyFactor = clamp(MajorAnisotropy / SearchRadius, 1, 7);
-	if (View.GeneralPurposeTweak < 1.5) {
-		MajorAnisotropyFactor = 1;
-		MinorAnisotropyFactor = 1;
-	}
-	if (View.GeneralPurposeTweak < 2.5) {
-		MajorAnisotropyFactor = clamp(length(ShadowAnisotropicVector) / SearchRadius, 1, 7);
-		MinorAnisotropyFactor = 1;
-	}
+	//if (View.GeneralPurposeTweak < 1.5) {
+	//	MajorAnisotropyFactor = 1;
+	//	MinorAnisotropyFactor = 1;
+	//}
+	//if (View.GeneralPurposeTweak < 2.5) {
+	//	MajorAnisotropyFactor = clamp(length(ShadowAnisotropicVector) / SearchRadius, 1, 7);
+	//	MinorAnisotropyFactor = 1;
+	//}
 	//return MajorAnisotropyFactor - MinorAnisotropyFactor;
 	//return (MinorAnisotropyFactor - 1);
 

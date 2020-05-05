@@ -144,13 +144,18 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 
 	// Draw the background checkerboard pattern in the same size/position as the render texture so it will show up anywhere
 	// the texture has transparency
-	if (Settings.Background == TextureEditorBackground_CheckeredFill)
+	if (Viewport && CheckerboardTexture)
 	{
-		Canvas->DrawTile( 0.0f, 0.0f, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y, 0.0f, 0.0f, (Viewport->GetSizeXY().X / CheckerboardTexture->GetSizeX()), (Viewport->GetSizeXY().Y / CheckerboardTexture->GetSizeY()), FLinearColor::White, CheckerboardTexture->Resource);
-	}
-	else if (Settings.Background == TextureEditorBackground_Checkered)
-	{
-		Canvas->DrawTile( XPos, YPos, Width, Height, 0.0f, 0.0f, (Width / CheckerboardTexture->GetSizeX()), (Height / CheckerboardTexture->GetSizeY()), FLinearColor::White, CheckerboardTexture->Resource);
+		const int32 CheckerboardSizeX = FMath::Max<int32>(1, CheckerboardTexture->GetSizeX());
+		const int32 CheckerboardSizeY = FMath::Max<int32>(1, CheckerboardTexture->GetSizeY());
+		if (Settings.Background == TextureEditorBackground_CheckeredFill)
+		{
+			Canvas->DrawTile( 0.0f, 0.0f, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y, 0.0f, 0.0f, Viewport->GetSizeXY().X / CheckerboardSizeX, Viewport->GetSizeXY().Y / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->Resource);
+		}
+		else if (Settings.Background == TextureEditorBackground_Checkered)
+		{
+			Canvas->DrawTile( XPos, YPos, Width, Height, 0.0f, 0.0f, Width / CheckerboardSizeX, Height / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->Resource);
+		}
 	}
 
 	float Exposure = FMath::Pow(2.0f, (float)TextureEditorViewportPtr.Pin()->GetExposureBias());

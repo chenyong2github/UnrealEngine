@@ -14,6 +14,10 @@ UChildActorComponent::UChildActorComponent(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	bAllowReregistration = false;
+
+#if WITH_EDITORONLY_DATA
+	EditorTreeViewVisualizationMode = EChildActorComponentTreeViewVisualizationMode::UseDefault;
+#endif
 }
 
 void UChildActorComponent::OnRegister()
@@ -389,7 +393,14 @@ void UChildActorComponent::ApplyComponentInstanceData(FChildActorComponentInstan
 {
 	check(ChildActorInstanceData);
 
-	if (ChildActorClass == ChildActorInstanceData->ChildActorClass)
+	bool bCreatedChildActor = false;
+	if (!ChildActor ||
+		ChildActor->GetClass() != ChildActorClass)
+	{
+		bCreatedChildActor = true;
+		CreateChildActor();
+	}
+	else if (ChildActorClass == ChildActorInstanceData->ChildActorClass)
 	{
 		ChildActorName = ChildActorInstanceData->ChildActorName;
 	}
@@ -397,7 +408,7 @@ void UChildActorComponent::ApplyComponentInstanceData(FChildActorComponentInstan
 	if (ChildActor)
 	{
 		// Only rename if it is safe to
-		if(ChildActorName != NAME_None)
+		if(!bCreatedChildActor && ChildActorName != NAME_None)
 		{
 			const FString ChildActorNameString = ChildActorName.ToString();
 			if (ChildActor->Rename(*ChildActorNameString, nullptr, REN_Test))
@@ -724,3 +735,12 @@ void UChildActorComponent::BeginPlay()
 		ChildActor->DispatchBeginPlay(bFromLevelStreaming);
 	}
 }
+
+#if WITH_EDITOR
+void UChildActorComponent::SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode InMode)
+{
+	Modify();
+
+	EditorTreeViewVisualizationMode = InMode;
+}
+#endif

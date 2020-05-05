@@ -1476,7 +1476,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 		
 	for (int32 TypeIndex = 0; TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
 	{
-		const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& Parameters = SourceMaterialResource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
+		const TArrayView<const FMaterialTextureParameterInfo> Parameters = SourceMaterialResource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
 		// Iterate over each of the material's texture expressions.
 		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
@@ -1508,7 +1508,7 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FHashedMaterialPara
 	if (bHasStaticPermutationResource)
 	{
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
-		const TArray<FMaterialVectorParameterInfo, FMemoryImageAllocator>& Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
+		const TArrayView<const FMaterialVectorParameterInfo> Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
 
 		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
@@ -1535,7 +1535,7 @@ void UMaterialInstance::OverrideScalarParameterDefault(const FHashedMaterialPara
 	if (bHasStaticPermutationResource)
 	{
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
-		const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>& Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
+		const TArrayView<const FMaterialScalarParameterInfo> Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
 
 		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
@@ -1666,7 +1666,7 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 
 		// scalar
 		{
-			const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>& Array = MaterialResource->GetUniformScalarParameterExpressions();
+			TArrayView<const FMaterialScalarParameterInfo> Array = MaterialResource->GetUniformScalarParameterExpressions();
 
 			for (int32 i = 0, Count = Array.Num(); i < Count; ++i)
 			{
@@ -1688,7 +1688,7 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 
 		// vector
 		{
-			const TArray<FMaterialVectorParameterInfo, FMemoryImageAllocator>& Array = MaterialResource->GetUniformVectorParameterExpressions();
+			TArrayView<const FMaterialVectorParameterInfo> Array = MaterialResource->GetUniformVectorParameterExpressions();
 
 			for (int32 i = 0, Count = Array.Num(); i < Count; ++i)
 			{
@@ -4904,7 +4904,7 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 				if (MaterialResource)
 				{
 					// Scalars
-					const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>& ScalarExpressions = MaterialResource->GetUniformScalarParameterExpressions();
+					TArrayView<const FMaterialScalarParameterInfo> ScalarExpressions = MaterialResource->GetUniformScalarParameterExpressions();
 					for (const FMaterialScalarParameterInfo& Parameter : ScalarExpressions)
 					{
 						FScalarParameterValue* ParameterValue = new(ScalarParameterValues) FScalarParameterValue;
@@ -4913,7 +4913,7 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 					}
 
 					// Vectors
-					const TArray<FMaterialVectorParameterInfo, FMemoryImageAllocator>& VectorExpressions = MaterialResource->GetUniformVectorParameterExpressions();
+					TArrayView<const FMaterialVectorParameterInfo> VectorExpressions = MaterialResource->GetUniformVectorParameterExpressions();
 					for (const FMaterialVectorParameterInfo& Parameter : VectorExpressions)
 					{
 						FVectorParameterValue* ParameterValue = new(VectorParameterValues) FVectorParameterValue;

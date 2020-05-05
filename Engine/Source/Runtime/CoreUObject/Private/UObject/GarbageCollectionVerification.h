@@ -8,11 +8,12 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
+#include "UObject/GarbageCollection.h"	// Needed for UE_WITH_GC definition
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Class.h"
 
 // UE_BUILD_SHIPPING has GShouldVerifyGCAssumptions=false by default
-#define VERIFY_DISREGARD_GC_ASSUMPTIONS			!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define VERIFY_DISREGARD_GC_ASSUMPTIONS			!(UE_BUILD_SHIPPING || UE_BUILD_TEST || !UE_WITH_GC)
 
 #if VERIFY_DISREGARD_GC_ASSUMPTIONS
 

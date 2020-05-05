@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StringView.h"
 
 class FFreeTypeAdvanceCache;
 class FFreeTypeFace;
@@ -38,10 +39,10 @@ namespace HarfBuzzUtils
 #if WITH_HARFBUZZ
 
 /** Utility function to append an FString into a hb_buffer_t in the most efficient way based on the string encoding method of the current platform */
-void AppendStringToBuffer(const FString& InString, hb_buffer_t* InHarfBuzzTextBuffer);
+void AppendStringToBuffer(const FStringView InString, hb_buffer_t* InHarfBuzzTextBuffer);
 
 /** Utility function to append an FString into a hb_buffer_t in the most efficient way based on the string encoding method of the current platform */
-void AppendStringToBuffer(const FString& InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer);
+void AppendStringToBuffer(const FStringView InString, const int32 InStartIndex, const int32 InLength, hb_buffer_t* InHarfBuzzTextBuffer);
 
 #endif // #if WITH_HARFBUZZ
 

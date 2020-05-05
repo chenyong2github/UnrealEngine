@@ -28,7 +28,12 @@ struct FPreloadFileRegistry
 #endif
 
 FPreLoadFile::FPreLoadFile(const TCHAR* InPath)
-	: FDelayedAutoRegisterHelper(STATS ? EDelayedRegisterRunPhase::StatSystemReady : EDelayedRegisterRunPhase::FileSystemReady, [this] { bSystemNoLongerTakingRequests = false; KickOffRead(); })
+	: FDelayedAutoRegisterHelper(STATS ? EDelayedRegisterRunPhase::StatSystemReady : EDelayedRegisterRunPhase::FileSystemReady, [this] {
+		bSystemNoLongerTakingRequests = false;
+#if PLATFORM_CAN_ASYNC_PRELOAD_FILES
+		KickOffRead();
+#endif
+	})
 	, bIsComplete(false)
 	, bFailedToOpenInKickOff(false)
 	, Data(nullptr)
@@ -98,7 +103,7 @@ void FPreLoadFile::KickOffRead()
 	else
 	{
 		// if we are failing a second time, then just mark the event complete, we have exhausted attempts
-		if (bFailedToOpenInKickOff)
+//		if (bFailedToOpenInKickOff)
 		{
 			CompletionEvent->Trigger();
 		}

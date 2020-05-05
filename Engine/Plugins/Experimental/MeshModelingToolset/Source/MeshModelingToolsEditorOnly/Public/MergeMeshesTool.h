@@ -8,6 +8,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "ProxyLODVolume.h"
 #include "Properties/MeshStatisticsProperties.h"
+#include "Properties/OnAcceptProperties.h"
 #include "MergeMeshesTool.generated.h"
 
 
@@ -57,10 +58,6 @@ public:
 	/** Automatically simplify the result of voxel-based merge.*/
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bAutoSimplify = false;
-
-	/** Delete the source Actors/Components when accepting results of tool.*/
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bDeleteInputActors = true;
 };
 
 /**
@@ -80,8 +77,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Tick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override;
@@ -98,6 +94,9 @@ protected:
 
 	UPROPERTY()
 	UMeshStatisticsProperties* MeshStatisticsProperties;
+
+	UPROPERTY()
+	UOnAcceptHandleSourcesProperties* HandleSourcesProperties;
 
 
 	UPROPERTY()

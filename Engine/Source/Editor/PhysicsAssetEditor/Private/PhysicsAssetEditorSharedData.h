@@ -145,6 +145,11 @@ public:
 	bool IsBodySelected(const FSelection& Body) const;
 	void ToggleSelectionType();
 	void ToggleShowSelected();
+	void ShowAll();
+	void HideAll();
+	void ToggleShowOnlySelected();
+	void ShowSelected();
+	void HideSelected();
 	void SetSelectedBodyAnyPrim(int32 BodyIndex, bool bSelected);
 	void DeleteCurrentPrim();
 	void DeleteBody(int32 DelBodyIndex, bool bRefreshComponent=true);
@@ -189,6 +194,9 @@ public:
 	void SetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled);
 	bool CanSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled) const;
 	bool GetIsPrimitiveCollisionEnabled(ECollisionEnabled::Type CollisionEnabled) const;
+	void SetPrimitiveContributeToMass(bool bContributeToMass);
+	bool CanSetPrimitiveContributeToMass() const;
+	bool GetPrimitiveContributeToMass() const;
 
 	/** Prevents GC from collecting our objects */
 	void AddReferencedObjects(FReferenceCollector& Collector);

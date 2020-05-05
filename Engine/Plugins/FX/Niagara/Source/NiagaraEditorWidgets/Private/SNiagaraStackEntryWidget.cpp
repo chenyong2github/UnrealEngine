@@ -107,7 +107,7 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 	if(NameWidgets.Num() > 1)
 	{
 		TSharedRef<SWrapBox> NamesWrapBox = SNew(SWrapBox)
-			.UseAllottedWidth(true);
+			.UseAllottedSize(true);
 		for (TSharedRef<SWidget> NameWidget : NameWidgets)
 		{
 			NamesWrapBox->AddSlot()

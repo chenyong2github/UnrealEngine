@@ -32,7 +32,17 @@ StructuredBuffer<FNodeVis> NodeVis;
 #define VELOCITY_TYPE_CLOSEST 2
 #define VELOCITY_TYPE_MAX 3
 #if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
+  #if PERMUTATION_OUTPUT_FORMAT == 0
 	RWTexture2D<float2> OutVelocityTexture;
+  #else
+	RWTexture2D<float4> OutVelocityTexture;
+  #endif
+#endif
+
+#if PERMUTATION_OUTPUT_FORMAT == 0
+float2 ToOutput(float2 In) { return In; }
+#else
+float4 ToOutput(float2 In) { return float4(In, 0, 0); }
 #endif
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
@@ -63,7 +73,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			const float2 EncodedVelocity = NodeVelocity[SampleIndex];
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-			AverageVelocity += DecodeVelocityFromTexture(EncodedVelocity);
+			AverageVelocity += DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
 			#endif			
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
@@ -76,7 +86,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			#endif
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
-			const float2 CurrentVelocity = DecodeVelocityFromTexture(EncodedVelocity);
+			const float2 CurrentVelocity = DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
 			const float CurrentVelocityMagnitude2 = dot(CurrentVelocity, CurrentVelocity);
 			if (CurrentVelocityMagnitude2 > MaxVelocityMagnitude2)
 			{
@@ -87,15 +97,15 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		}
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-		OutVelocityTexture[PixelCoord] = EncodeVelocityToTexture(AverageVelocity / max(NodeDesc.Count, 1));
+		OutVelocityTexture[PixelCoord] = ToOutput(EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1), 0.0)).xy);
 		#endif		
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
-		OutVelocityTexture[PixelCoord] = ClosestEncodedVelocity;
+		OutVelocityTexture[PixelCoord] = ToOutput(ClosestEncodedVelocity);
 		#endif		
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
-		OutVelocityTexture[PixelCoord] = MaxEncodedVelocity;
+		OutVelocityTexture[PixelCoord] = ToOutput(MaxEncodedVelocity);
 		#endif		
 	}
 }

@@ -76,6 +76,9 @@ struct FPrimaryAssetData
 
 	/** Pending state of this asset, will be copied to CurrentState when load finishes */
 	FPrimaryAssetLoadState PendingState;
+
+	/** The set of primary asset names used to initiate the request */
+	TSharedPtr<const TArray<FName>> PendingPrimaryAssetNames;
 	
 	/** Asset is considered loaded at all if there is an active handle for it */
 	bool IsLoaded() const { return CurrentState.IsValid(); }
@@ -86,6 +89,8 @@ struct FPrimaryAssetData
 		Swap(PendingState.Handle, CurrentState.Handle);
 
 		PendingState.Reset(/* don't cancel handle */ false);	
+
+		PendingPrimaryAssetNames = nullptr;
 	}
 };
 
@@ -380,6 +385,7 @@ bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, 
 
 int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const TArray<FString>& Paths, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly, bool bForceSynchronousScan)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetManager::ScanPathsForPrimaryAssets)
 	TArray<FString> Directories, PackageNames;
 	TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetType);
 
@@ -484,21 +490,36 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 		}
 	}
 
+	const bool bBothDirectoriesAndPackageNames = (Directories.Num() > 0 && PackageNames.Num() > 0);
 	for (const FString& Directory : Directories)
 	{
 		ARFilter.PackagePaths.Add(FName(*Directory));
 	}
 
-	for (const FString& PackageName : PackageNames)
+	if (!bBothDirectoriesAndPackageNames)
 	{
-		ARFilter.PackageNames.Add(FName(*PackageName));
+		// To get both the directories and package names we have to do two queries, since putting both in the same query only returns assets of those package names AND are in those directories.
+		for (const FString& PackageName : PackageNames)
+		{
+			ARFilter.PackageNames.Add(FName(*PackageName));
+		}
 	}
 
 	ARFilter.bRecursivePaths = true;
 	ARFilter.bIncludeOnlyOnDiskAssets = !GIsEditor; // In editor check in memory, otherwise don't
 
 	TArray<FAssetData> AssetDataList;
+	if (bBothDirectoriesAndPackageNames)
+	{
+		// To get both the directories and package names we have to do two queries, since putting both in the same query only returns assets of those package names AND are in those directories.
+		AssetRegistry.GetAssets(ARFilter, AssetDataList);
 
+		for (const FString& PackageName : PackageNames)
+		{
+			ARFilter.PackageNames.Add(FName(*PackageName));
+		}
+		ARFilter.PackagePaths.Empty();
+	}
 	AssetRegistry.GetAssets(ARFilter, AssetDataList);
 
 	int32 NumAdded = 0;
@@ -566,12 +587,9 @@ void UAssetManager::StartBulkScanning()
 	{
 		bIsBulkScanning = true;
 		NumberOfSpawnedNotifications = 0;
-
-		if (!WITH_EDITOR)
-		{
-			// Go into temporary caching mode to speed up class queries, not guaranteed safe in editor builds
-			GetAssetRegistry().SetTemporaryCachingMode(true);
-		}
+		bOldTemporaryCachingMode = GetAssetRegistry().GetTemporaryCachingMode();
+		// Go into temporary caching mode to speed up class queries
+		GetAssetRegistry().SetTemporaryCachingMode(true);
 	}
 }
 
@@ -580,12 +598,9 @@ void UAssetManager::StopBulkScanning()
 	if (ensure(bIsBulkScanning))
 	{
 		bIsBulkScanning = false;
-	}
 
-	if (!WITH_EDITOR)
-	{
 		// Leave temporary caching mode
-		GetAssetRegistry().SetTemporaryCachingMode(false);
+		GetAssetRegistry().SetTemporaryCachingMode(bOldTemporaryCachingMode);
 	}
 	
 	RebuildObjectReferenceList();
@@ -1131,6 +1146,19 @@ void UAssetManager::GetPrimaryAssetTypeInfoList(TArray<FPrimaryAssetTypeInfo>& A
 	}
 }
 
+static TArray<FName>* ExtractNames(const TArray<FPrimaryAssetId>& Ids)
+{
+	TArray<FName>* Out = new TArray<FName>();
+	Out->Reserve(Ids.Num());
+	for (const FPrimaryAssetId& Id : Ids)
+	{
+		Out->Add(Id.PrimaryAssetName);
+	}
+	Out->Sort(FNameFastLess());
+
+	return Out;
+}
+
 TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(const TArray<FPrimaryAssetId>& AssetsToChange, const TArray<FName>& AddBundles, const TArray<FName>& RemoveBundles, bool bRemoveAllBundles, FStreamableDelegate DelegateToCall, TAsyncLoadPriority Priority)
 {
 	// ExistingHandles are both primary and secondary assets who are already being loaded.
@@ -1152,6 +1180,8 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 	TArray<FPrimaryAssetData*> NameDatasToLoad;
 	NameDatasToLoad.Reserve(AssetsToChange.Num());
 	TBitArray<> IdsToLoad(false, AssetsToChange.Num());
+
+	TSharedPtr<const TArray<FName>> PrimaryAssetNames(ExtractNames(AssetsToChange));
 
 	for (const FPrimaryAssetId& PrimaryAssetId : AssetsToChange)
 	{
@@ -1206,8 +1236,23 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 					continue;
 				}
 
+				// Only cancel previous handle if the same set of assets was requested
+				bool bCancelPreviousHandle = true;
+				if (PrimaryAssetNames.Get() != NameData->PendingPrimaryAssetNames.Get())
+				{
+					if (*PrimaryAssetNames.Get() != *NameData->PendingPrimaryAssetNames.Get())
+					{
+						bCancelPreviousHandle = false;
+					}
+					else
+					{
+						// Re-use old array to avoid O(N^2) comparisons
+						PrimaryAssetNames = NameData->PendingPrimaryAssetNames;
+					}
+				}
+
 				// Clear pending state
-				NameData->PendingState.Reset(true);
+				NameData->PendingState.Reset(bCancelPreviousHandle);
 			}
 			else if (NameData->CurrentState.IsValid() && NameData->CurrentState.BundleNames == *NewBundles)
 			{
@@ -1249,6 +1294,7 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 
 			NameDatasToLoad.Add(NameData);
 			NameData->PendingState.BundleNames = *NewBundles;
+			NameData->PendingPrimaryAssetNames = PrimaryAssetNames;
 			IdsToLoad[&PrimaryAssetId - &AssetsToChange[0]] = true;
 		}
 	}

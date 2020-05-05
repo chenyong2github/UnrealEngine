@@ -489,10 +489,6 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0.0"))
 	float AgentHeight;
 
-	UE_DEPRECATED(4.24, "ARecastNavMesh.AgentMaxHeight has been deprecated as it has no use. Use AgentHeight instead.")
-	UPROPERTY(VisibleAnywhere, Category=Generation, config, meta=(ClampMin = "0.0", DisplayName="DEPRECATED_AgentMaxHeight"))
-	float AgentMaxHeight;
-
 	/* The maximum slope (angle) that the agent can move on. */ 
 	UPROPERTY(EditAnywhere, Category=Generation, config, meta=(ClampMin = "0.0", ClampMax = "89.0", UIMin = "0.0", UIMax = "89.0" ))
 	float AgentMaxSlope;
@@ -715,6 +711,7 @@ public:
 	virtual bool GetRandomReachablePointInRadius(const FVector& Origin, float Radius, FNavLocation& OutResult, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const override;
 	virtual bool GetRandomPointInNavigableRadius(const FVector& Origin, float Radius, FNavLocation& OutResult, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const override;
 
+	virtual bool FindMoveAlongSurface(const FNavLocation& StartLocation, const FVector& TargetPosition, FNavLocation& OutLocation, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const override;
 	virtual bool ProjectPoint(const FVector& Point, FNavLocation& OutLocation, const FVector& Extent, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const override;
 	virtual bool IsNodeRefValid(NavNodeRef NodeRef) const override;
 

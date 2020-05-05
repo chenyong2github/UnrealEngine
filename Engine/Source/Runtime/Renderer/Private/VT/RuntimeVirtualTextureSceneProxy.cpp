@@ -6,6 +6,8 @@
 #include "VirtualTextureSystem.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureProducer.h"
+#include "VT/VirtualTexture.h"
+#include "VT/VirtualTextureBuilder.h"
 
 int32 FRuntimeVirtualTextureSceneProxy::ProducerIdGenerator = 1;
 
@@ -38,15 +40,16 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		// The Producer object created here will be passed into the virtual texture system which will take ownership.
 		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, bClearTextures, InComponent->GetScene(), Transform, Bounds);
 
-		if (InComponent->IsStreamingLowMips() && VirtualTexture->GetStreamLowMips() > 0)
+		if (InComponent->IsStreamingLowMips())
 		{
+			UVirtualTexture2D* StreamingTexture = InComponent->GetStreamingTexture()->Texture;
 			// Streaming mips start from the MaxLevel before taking into account the RemoveLowMips
 			const int32 MaxLevel = FMath::CeilLogTwo(FMath::Max(Desc.BlockWidthInTiles, Desc.BlockHeightInTiles));
 			// Wrap our producer to use a streaming producer for low mips
 			int32 StreamingTransitionLevel;
-			Producer = VirtualTexture->CreateStreamingTextureProducer(Producer, MaxLevel, StreamingTransitionLevel);
+			Producer = RuntimeVirtualTexture::CreateStreamingTextureProducer(Producer, Desc, StreamingTexture, MaxLevel, StreamingTransitionLevel);
 			// Any dirty flushes don't need to flush the streaming mips (they only change with a build step).
-			MaxDirtyLevel = FMath::Min(MaxDirtyLevel, StreamingTransitionLevel);
+			MaxDirtyLevel = FMath::Clamp(StreamingTransitionLevel, 0, MaxDirtyLevel);
 		}
 
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.

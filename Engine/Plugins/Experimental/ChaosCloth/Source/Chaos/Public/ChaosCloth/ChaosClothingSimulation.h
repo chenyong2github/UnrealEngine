@@ -11,15 +11,10 @@
 
 namespace Chaos
 {
-
-	template <typename T>
-	class TTriangleMesh;
-
-	template <typename T, int d>
-	class TPBDEvolution;
-
 	typedef FClothingSimulationContextCommon ClothingSimulationContext;
 	template<class T, int d> class TPBDLongRangeConstraintsBase;
+	template<typename T> class TTriangleMesh;
+	template<typename T, int d> class TPBDEvolution;
 
 	class ClothingSimulation : public FClothingSimulationCommon
 #if WITH_EDITOR
@@ -42,6 +37,15 @@ namespace Chaos
 		// bFullClothRefresh set to false during changes created using the viewport manipulators.
 		void RefreshPhysicsAsset();
 
+		// IClothingSimulation interface
+		virtual int32 GetNumCloths() const { return NumCloths; }
+		virtual int32 GetNumKinematicParticles() const { return NumKinemamicParticles; }
+		virtual int32 GetNumDynamicParticles() const { return NumDynamicParticles; }
+		virtual int32 GetNumIterations() const { return NumIterations; }
+		virtual int32 GetNumSubsteps() const { return NumSubsteps; }
+		virtual float GetSimulationTime() const { return SimulationTime; }
+		// End of IClothingSimulation interface
+
 #if WITH_EDITOR
 		// FGCObject interface
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -49,6 +53,8 @@ namespace Chaos
 
 		// Editor only debug draw function
 		CHAOSCLOTH_API void DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
+		CHAOSCLOTH_API void DebugDrawParticleIndices(USkeletalMeshComponent* OwnerComponent, FCanvas* Canvas, const FSceneView* SceneView) const;
+		CHAOSCLOTH_API void DebugDrawMaxDistanceValues(USkeletalMeshComponent* OwnerComponent, FCanvas* Canvas, const FSceneView* SceneView) const;
 #endif  // #if WITH_EDITOR
 
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
@@ -89,6 +95,9 @@ namespace Chaos
 		// End of IClothingSimulation interface
 
 	private:
+		void ResetStats();
+		void UpdateStats(int32 InSimDataIndex);
+
 #if CHAOS_DEBUG_DRAW
 		// Runtime only debug draw functions
 		void DebugDrawBounds() const;
@@ -163,14 +172,21 @@ namespace Chaos
 
 		float Time;
 		float DeltaTime;
-		int32 NumSubsteps;
 
-		bool bOverrideGravity;
-		bool bUseConfigGravity;
-		float GravityScale;
-		FVector Gravity;
-		FVector ConfigGravity;
-		FVector WindVelocity;
+		// Properties that must be readable from all threads
+		TAtomic<int32> NumCloths;
+		TAtomic<int32> NumKinemamicParticles;
+		TAtomic<int32> NumDynamicParticles;
+		TAtomic<int32> NumIterations;
+		TAtomic<int32> NumSubsteps;
+		TAtomic<float> SimulationTime;
+
+		bool bUseGravityOverride;
+		FVector GravityOverride;
+		TArray<float> GravityScales;
+		TArray<bool> bUseGravityConfigs; 
+		TArray<FVector> GravityConfigs;
+		TArray<FVector> WindVelocities;
 
 		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
 

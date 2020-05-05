@@ -119,6 +119,9 @@ public:
 		return true;
 	}
 
+	// Returns the drylevel of the effect
+	virtual float GetDryLevel() const override { return CurrentWetDry.DryLevel; }
+
 private:
 
 	static const float MinWetness;

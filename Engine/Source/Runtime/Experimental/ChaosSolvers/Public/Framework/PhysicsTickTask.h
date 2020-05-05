@@ -11,6 +11,7 @@ class FChaosSolversModule;
 namespace Chaos
 {
 	class IDispatcher;
+	class FPhysicsSolverBase;
 }
 
 /**
@@ -27,7 +28,7 @@ public:
 	/** Construct a task that will tick the provided solver (or all solvers in the module if nullptr passed) */
 	FPhysicsTickTask(FGraphEventRef& InCompletionEvent, Chaos::FPhysicsSolver* InPhysicsSolver, float InDt);
 	/** Construct a task to tick the provided list of solvers */
-	FPhysicsTickTask(FGraphEventRef& InCompletionEvent, const TArray<Chaos::FPhysicsSolver*>& InSolverList, float InDt);
+	FPhysicsTickTask(FGraphEventRef& InCompletionEvent, const TArray<Chaos::FPhysicsSolverBase*>& InSolverList, float InDt);
 
 	/** Task API */
 	TStatId GetStatId() const;
@@ -48,7 +49,7 @@ private:
 	FChaosSolversModule* Module;
 
 	/** The solvers this task will tick */
-	TArray<Chaos::FPhysicsSolver*> SolverList;
+	TArray<Chaos::FPhysicsSolverBase*> SolverList;
 
 	/** Delta time for the solver tick */
 	float Dt;
@@ -83,7 +84,7 @@ class CHAOSSOLVERS_API FPhysicsSolverAdvanceTask
 {
 public:
 
-	FPhysicsSolverAdvanceTask(Chaos::FPhysicsSolver* InSolver, float InDt);
+	FPhysicsSolverAdvanceTask(Chaos::FPhysicsSolverBase* InSolver, float InDt);
 
 	TStatId GetStatId() const;
 	static ENamedThreads::Type GetDesiredThread();
@@ -92,9 +93,10 @@ public:
 
 private:
 
-	void StepSolver(Chaos::FPhysicsSolver* InSolver, float InDt);
+	template <typename TSolver>
+	static void StepSolver(TSolver* InSolver, float InDt);
 
-	Chaos::FPhysicsSolver* Solver;
+	Chaos::FPhysicsSolverBase* Solver;
 	float Dt;
 };
 

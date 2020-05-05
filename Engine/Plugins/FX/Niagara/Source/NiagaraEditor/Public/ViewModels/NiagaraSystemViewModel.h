@@ -436,6 +436,9 @@ private:
 	/** builds stack module data for use in module dependencies */
 	void BuildStackModuleData(UNiagaraScript* Script, FGuid InEmitterHandleId, TArray<FNiagaraStackModuleData>& OutStackModuleData);
 
+	/** Returns true if our system has scripts pending compilation (including GPU compute scripts) */
+	bool WaitingOnCompilation() const;
+
 	/** Called when a property on the System is changed. */
 	void SystemChanged(UNiagaraSystem* ChangedSystem);
 

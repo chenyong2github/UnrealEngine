@@ -115,12 +115,14 @@ void FOpenColorIOShaderCompilationManager::RunCompileJobs()
 
 				UE_LOG(LogOpenColorIOShaderCompiler, Log, TEXT("Compile Job processing... %s"), *CurrentJob.Input.DebugGroupName);
 
-				FString AbsoluteDebugInfoDirectory = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*(FPaths::ProjectSavedDir() / TEXT("ShaderDebugInfo")));
-				FPaths::NormalizeDirectoryName(AbsoluteDebugInfoDirectory);
-				CurrentJob.Input.DumpDebugInfoPath = AbsoluteDebugInfoDirectory / Format.ToString() / CurrentJob.Input.DebugGroupName;
-				if (!IFileManager::Get().DirectoryExists(*CurrentJob.Input.DumpDebugInfoPath))
+				CurrentJob.Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / Format.ToString();
+				FPaths::NormalizeDirectoryName(CurrentJob.Input.DumpDebugInfoRootPath);
+				const FShaderCompilingManager::EDumpShaderDebugInfo DumpShaderDebugInfo = GShaderCompilingManager->GetDumpShaderDebugInfo();
+				CurrentJob.Input.DebugExtension.Empty();
+				CurrentJob.Input.DumpDebugInfoRootPath.Empty();
+				if (DumpShaderDebugInfo == FShaderCompilingManager::EDumpShaderDebugInfo::Always)
 				{
-					verifyf(IFileManager::Get().MakeDirectory(*CurrentJob.Input.DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *CurrentJob.Input.DumpDebugInfoPath);
+					CurrentJob.Input.DumpDebugInfoRootPath = GShaderCompilingManager->CreateShaderDebugInfoPath(CurrentJob.Input);
 				}
 
 				if (IsValidRef(CurrentJob.Input.SharedEnvironment))
@@ -134,6 +136,13 @@ void FOpenColorIOShaderCompilationManager::RunCompileJobs()
 				Compiler->CompileShader(Format, CurrentJob.Input, CurrentJob.Output, FString(FPlatformProcess::ShaderDir()));
 
 				CurrentJob.bSucceeded = CurrentJob.Output.bSucceeded;
+
+				// Recompile the shader to dump debug info if desired
+				if (GShaderCompilingManager->ShouldRecompileToDumpShaderDebugInfo(CurrentJob))
+				{
+					CurrentJob.Input.DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(CurrentJob.Input);
+					Compiler->CompileShader(Format, CurrentJob.Input, CurrentJob.Output, FString(FPlatformProcess::ShaderDir()));
+				}
 
 				if (CurrentJob.Output.bSucceeded)
 				{

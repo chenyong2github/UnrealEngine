@@ -21,6 +21,7 @@
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
+#include "Chaos/EvolutionTraits.h"
 #include "CoreMinimal.h"
 
 namespace Chaos
@@ -34,8 +35,8 @@ namespace Chaos
 	int32 UseConnectivity = 1;
 	FAutoConsoleVariableRef CVarUseConnectivity(TEXT("p.UseConnectivity"), UseConnectivity, TEXT("Whether to use connectivity graph when breaking up clusters"));
 
-	float ChildrenInheritVelocity = 1.f;
-	FAutoConsoleVariableRef CVarChildrenInheritVelocity(TEXT("p.ChildrenInheritVelocity"), ChildrenInheritVelocity, TEXT("Whether children inherit parent collision velocity when declustering. 0 has no impact velocity like glass, 1 has full impact velocity like brick"));
+	CHAOS_API float ChaosClusteringChildrenInheritVelocity = 1.f;
+	FAutoConsoleVariableRef CVarChildrenInheritVelocity(TEXT("p.ChildrenInheritVelocity"), ChaosClusteringChildrenInheritVelocity, TEXT("Whether children inherit parent collision velocity when declustering. 0 has no impact velocity like glass, 1 has full impact velocity like brick"));
 
 	int32 ComputeClusterCollisionStrains = 1;
 	FAutoConsoleVariableRef CVarComputeClusterCollisionStrains(TEXT("p.ComputeClusterCollisionStrains"), ComputeClusterCollisionStrains, TEXT("Whether to use collision constraints when processing clustering."));
@@ -113,9 +114,9 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RewindAndEvolve<BGF>()"), STAT_RewindAndEvolve_BGF, STATGROUP_Chaos);
-	template<class T, int d>
+	template<typename Traits, typename T, int d>
 	void RewindAndEvolve(
-		FPBDRigidsEvolutionGBF& Evolution, 
+		TPBDRigidsEvolutionGBF<Traits>& Evolution, 
 		TPBDRigidClusteredParticles<T, d>& InParticles, 
 		const TSet<int32>& IslandsToRecollide, 
 		const TSet<TPBDRigidParticleHandle<T, d>*> AllActivatedChildren,
@@ -168,7 +169,7 @@ namespace Chaos
 			}
 		}
 
-		const bool bRewindOnDeclusterSolve = ChildrenInheritVelocity < 1.f;
+		const bool bRewindOnDeclusterSolve = ChaosClusteringChildrenInheritVelocity < 1.f;
 		if (bRewindOnDeclusterSolve)
 		{
 			// @todo(mlentine): We can precompute internal constraints which can filter some from the narrow phase tests but may not help much
@@ -405,9 +406,7 @@ namespace Chaos
 	//==========================================================================
 
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint, class T, int d>
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::TPBDRigidClustering(
-		T_FPBDRigidsEvolution& InEvolution, 
-		TPBDRigidClusteredParticles<T, d>& InParticles)
+	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::TPBDRigidClustering(T_FPBDRigidsEvolution& InEvolution, TPBDRigidClusteredParticles<T, d>& InParticles)
 		: MEvolution(InEvolution)
 		, MParticles(InParticles)
 		, MCollisionImpulseArrayDirty(true)
@@ -422,13 +421,7 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::CreateClusterParticle"), STAT_CreateClusterParticle, STATGROUP_Chaos);
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint, class T, int d>
-	Chaos::TPBDRigidClusteredParticleHandle<float, 3>* 
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::CreateClusterParticle(
-		const int32 ClusterGroupIndex,
-		TArray<Chaos::TPBDRigidParticleHandle<T,d>*>&& Children,
-		const FClusterCreationParameters<T>& Parameters,
-		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
-		const TRigidTransform<T, d>* ForceMassOrientation)
+	Chaos::TPBDRigidClusteredParticleHandle<float, 3>* TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::CreateClusterParticle(const int32 ClusterGroupIndex, TArray<Chaos::TPBDRigidParticleHandle<T,d>*>&& Children, const FClusterCreationParameters<T>& Parameters, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry, const TRigidTransform<T, d>* ForceMassOrientation)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CreateClusterParticle);
 
@@ -454,10 +447,7 @@ namespace Chaos
 		NewParticle->SetClusterGroupIndex(ClusterGroupIndex);
 		NewParticle->SetStrains(0.0);
 
-		//
 		// Update clustering data structures.
-		//
-
 		if (MChildren.Contains(NewParticle))
 		{
 			MChildren[NewParticle] = MoveTemp(Children);
@@ -466,6 +456,7 @@ namespace Chaos
 		{
 			MChildren.Add(NewParticle, MoveTemp(Children));
 		}
+
 		const TArray<TPBDRigidParticleHandle<T, d>*>& ChildrenArray = MChildren[NewParticle];
 		TSet<TPBDRigidParticleHandle<T, d>*> ChildrenSet(ChildrenArray);
 
@@ -487,8 +478,7 @@ namespace Chaos
 				ClusteredChild->ClusterIds().Id = NewParticle;
 				NewParticle->Strains() += ClusteredChild->Strains();
 
-				NewParticle->SetCollisionImpulses(
-					FMath::Max(NewParticle->CollisionImpulses(), ClusteredChild->CollisionImpulses()));
+				NewParticle->SetCollisionImpulses(FMath::Max(NewParticle->CollisionImpulses(), ClusteredChild->CollisionImpulses()));
 
 				const int32 NewCG = NewParticle->CollisionGroup();
 				const int32 ChildCG = ClusteredChild->CollisionGroup();
@@ -505,12 +495,18 @@ namespace Chaos
 		UpdateMassProperties(NewParticle, ChildrenSet, ForceMassOrientation);
 		UpdateGeometry(NewParticle, ChildrenSet, ProxyGeometry, Parameters);
 		GenerateConnectionGraph(NewParticle, Parameters);
+
 		NewParticle->SetSleeping(bClusterIsAsleep);
-		if (ClusterGroupIndex) AddToClusterUnion(ClusterGroupIndex, NewParticle);
+
+		if(ClusterGroupIndex)
+		{
+			AddToClusterUnion(ClusterGroupIndex, NewParticle);
+		}
+
 		return NewParticle;
 	}
 
-	int32 UnionsHaveCollisionParticles = 0;
+	int32 UnionsHaveCollisionParticles = 1;
 	FAutoConsoleVariableRef CVarUnionsHaveCollisionParticles(TEXT("p.UnionsHaveCollisionParticles"), UnionsHaveCollisionParticles, TEXT(""));
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::CreateClusterParticleFromClusterChildren"), STAT_CreateClusterParticleFromClusterChildren, STATGROUP_Chaos);
@@ -601,38 +597,64 @@ namespace Chaos
 	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::UnionClusterGroups()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UnionClusterGroups);
-		if (ClusterUnionMap.Num())
+
+		if(ClusterUnionMap.Num())
 		{
-			TMap < TPBDRigidParticleHandle<T, 3>*, TPBDRigidParticleHandle<T, 3>*> ClusterParents;
-			TMap < int32, TArray< TPBDRigidParticleHandle<T, 3>*>> NewClusterGroups;
-			for (TTuple<int32, TArray<TPBDRigidClusteredParticleHandle<T, 3>* >>& Group : ClusterUnionMap)
+			TMap<TPBDRigidParticleHandle<T, 3>*, TPBDRigidParticleHandle<T, 3>*> ChildToParentMap;
+			TMap<int32, TArray<TPBDRigidParticleHandle<T, 3>*>> NewClusterGroups;
+
+			// Walk the list of registered cluster groups
+			for(TTuple<int32, TArray<TPBDRigidClusteredParticleHandle<T, 3>* >>& Group : ClusterUnionMap)
 			{
 				int32 ClusterGroupID = Group.Key;
-				TArray<TPBDRigidClusteredParticleHandle<T, 3>* > Handles = Group.Value;
+				TArray<TPBDRigidClusteredParticleHandle<T, 3>*> Handles = Group.Value;
 
-				if (Handles.Num() > 1)
+				if(Handles.Num() > 1)
 				{
-					if (!NewClusterGroups.Contains(ClusterGroupID))
+					// First see if this is a new group
+					if(!NewClusterGroups.Contains(ClusterGroupID))
+					{
 						NewClusterGroups.Add(ClusterGroupID, TArray < TPBDRigidParticleHandle<T, 3>*>());
+					}
 
 					TArray<TPBDRigidParticleHandle<T, 3>*> ClusterBodies;
-					for (TPBDRigidClusteredParticleHandle<T, 3>* ActiveCluster : Handles)
+					for(TPBDRigidClusteredParticleHandle<T, 3>* ActiveCluster : Handles)
 					{
-						TSet<TPBDRigidParticleHandle<T, 3>*> Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
-						NewClusterGroups[ClusterGroupID].Append(Children.Array());
-						for (auto& Child : Children) ClusterParents.Add(Child, ActiveCluster);
+						if(!ActiveCluster->Disabled())
+						{
+							// If this is an external cluster (from the rest collection) we release its children and append them to the current group
+							TSet<TPBDRigidParticleHandle<T, 3>*> Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
+							NewClusterGroups[ClusterGroupID].Append(Children.Array());
+							
+							for(TPBDRigidParticleHandle<T, 3>* Child : Children)
+							{
+								ChildToParentMap.Add(Child, ActiveCluster);
+							}
+						}
 					}
 				}
 			}
 
-			for (TTuple<int32, TArray<TPBDRigidParticleHandle<T, 3>* >>& Group : NewClusterGroups)
+			// For new cluster groups, create an internal cluster parent.
+			for(TTuple<int32, TArray<TPBDRigidParticleHandle<T, 3>* >>& Group : NewClusterGroups)
 			{
-				int32 ClusterGroupID = Group.Key;
-				TArray< TPBDRigidParticleHandle<T, 3> *> ActiveCluster = Group.Value;
-				TPBDRigidClusteredParticleHandle<T, 3>* NewCluster = CreateClusterParticle(-FMath::Abs(ClusterGroupID), MoveTemp(Group.Value));
-				NewCluster->SetInternalCluster(true);
-				for (auto& Constituent : ActiveCluster) MEvolution.DoInternalParticleInitilization( ClusterParents[Constituent], NewCluster);
+				int32 ClusterGroupID = FMath::Abs(Group.Key);
+
+				TArray<TPBDRigidParticleHandle<T, 3>*> ActiveCluster = Group.Value;
+
+				FClusterCreationParameters<T> Parameters(0.3, 100, false, !!UnionsHaveCollisionParticles);
+				Parameters.ConnectionMethod = MClusterUnionConnectionType;
+				TPBDRigidClusteredParticleHandleImp<float, 3, true>* Handle = CreateClusterParticle(-ClusterGroupID, MoveTemp(Group.Value), Parameters, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>());
+				Handle->SetInternalCluster(true);
+
+				MEvolution.SetPhysicsMaterial(Handle, MEvolution.GetPhysicsMaterial(ActiveCluster[0]));
+
+				for(TPBDRigidParticleHandle<T, 3>* Constituent : ActiveCluster)
+				{
+					MEvolution.DoInternalParticleInitilization(ChildToParentMap[Constituent], Handle);
+				}
 			}
+
 			ClusterUnionMap.Empty();
 		}
 	}
@@ -672,7 +694,7 @@ namespace Chaos
 		TArray<TPBDRigidParticleHandle<T, d>*>& Children = MChildren[ClusteredParticle];
 
 		bool bChildrenChanged = false;
-		const bool bRewindOnDecluster = ChildrenInheritVelocity < 1;
+		const bool bRewindOnDecluster = ChaosClusteringChildrenInheritVelocity < 1;
 		const TRigidTransform<T, d> PreSolveTM = 
 			bRewindOnDecluster ? 
 			TRigidTransform<T, d>(ClusteredParticle->X(), ClusteredParticle->R()) : 
@@ -724,12 +746,28 @@ namespace Chaos
 		for (int32 ChildIdx = Children.Num() - 1; ChildIdx >= 0; --ChildIdx)
 		{
 			TPBDRigidClusteredParticleHandle<T, d>* Child = Children[ChildIdx]->CastToClustered();
+			
 			if (!Child)
-				continue;
-			if ((ExternalStrainMap && (ExternalStrainMap->Find(Child))) ||
-			   (!ExternalStrainMap && Child->CollisionImpulses() >= Child->Strain()) ||
-				bForceRelease)
 			{
+				continue;
+			}
+
+			Chaos::FReal ChildStrain = 0.0;
+
+			if(ExternalStrainMap)
+			{
+				const Chaos::FReal* MapStrain = ExternalStrainMap->Find(Child);
+				ChildStrain = MapStrain ? *MapStrain : Child->CollisionImpulses();
+			}
+			else
+			{
+				ChildStrain = Child->CollisionImpulses();
+			}
+
+			if (ChildStrain >= Child->Strain() || bForceRelease)
+			{
+				//UE_LOG(LogTemp, Warning, TEXT("Releasing child %d from parent %p due to strain %.5f Exceeding internal strain %.5f (Source: %s)"), ChildIdx, ClusteredParticle, ChildStrain, Child->Strain(), bForceRelease ? TEXT("Forced by caller") : ExternalStrainMap ? TEXT("External") : TEXT("Collision"));
+
 				// The piece that hits just breaks off - we may want more control 
 				// by looking at the edges of this piece which would give us cleaner 
 				// breaks (this approach produces more rubble)
@@ -1021,7 +1059,7 @@ namespace Chaos
 					AllActivatedChildren.Append(ActivatedChildren);
 				}
 
-				const bool bRewindOnDecluster = ChildrenInheritVelocity < 1.f;
+				const bool bRewindOnDecluster = ChaosClusteringChildrenInheritVelocity < 1.f;
 				if (bRewindOnDecluster && AllActivatedChildren.Num())
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ClusterRewind);
@@ -1031,7 +1069,7 @@ namespace Chaos
 						RewindAndEvolve(MEvolution, MParticles, IslandsToRecollide, AllActivatedChildren, Dt, CollisionRule);
 					}
 
-					if (ChildrenInheritVelocity > 0.f)
+					if (ChaosClusteringChildrenInheritVelocity > 0.f)
 					{
 						for (auto Itr : ClusterToActivatedChildren)
 						{
@@ -1040,9 +1078,9 @@ namespace Chaos
 							for (TPBDRigidParticleHandle<T, d>* ActiveChild : ActivatedChildren)
 							{
 								ActiveChild->SetV(
-									ActiveChild->V() * (1.f - ChildrenInheritVelocity) + ClusteredParticle->V() * ChildrenInheritVelocity);
+									ActiveChild->V() * (1.f - ChaosClusteringChildrenInheritVelocity) + ClusteredParticle->V() * ChaosClusteringChildrenInheritVelocity);
 								ActiveChild->SetW(
-									ActiveChild->W() * (1.f - ChildrenInheritVelocity) + ClusteredParticle->W() * ChildrenInheritVelocity);
+									ActiveChild->W() * (1.f - ChaosClusteringChildrenInheritVelocity) + ClusteredParticle->W() * ChaosClusteringChildrenInheritVelocity);
 							}
 						}
 					}
@@ -1318,6 +1356,32 @@ namespace Chaos
 		bool bUseParticleImplicit = false;
 		bool bUsingMultiChildProxy = false;
 
+		// Need to extract a filter off one of the cluster children 
+		FCollisionFilterData Filter;
+		for(TPBDRigidParticleHandle<T, d>* Child : Children)
+		{
+			bool bFilterValid = false;
+			for(const TUniquePtr<FPerShapeData>& Shape : Child->ShapesArray())
+			{
+				if(Shape)
+				{
+					Filter = Shape->GetSimData();
+					bFilterValid = Filter.Word0 != 0 || Filter.Word1 != 0 || Filter.Word2 != 0 || Filter.Word3 != 0;
+				}
+
+				if(bFilterValid)
+				{
+					break;
+				}
+			}
+
+			// Bail once we've found one
+			if(bFilterValid)
+			{
+				break;
+			}
+		}
+
 		{ // STAT_UpdateGeometry_GatherObjects
 			SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry_GatherObjects);
 
@@ -1422,7 +1486,7 @@ namespace Chaos
 			{
 				ensureMsgf(false, TEXT("Checking usage with no proxy and multiple ojects with levelsets"));
 
-				FImplicitObjectUnion UnionObject(MoveTemp(Objects));
+				FImplicitObjectUnionClustered UnionObject(MoveTemp(Objects));
 				TAABB<T, d> Bounds = UnionObject.BoundingBox();
 				const TVector<T, d> BoundsExtents = Bounds.Extents();
 				if (BoundsExtents.Min() >= MinLevelsetSize) //make sure the object is not too small
@@ -1509,6 +1573,23 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry_PointsBVH);
 				Parent->CollisionParticles()->UpdateAccelerationStructures();
 			}
+		}
+
+		if (TSerializablePtr<FImplicitObject> Implicit = Parent->Geometry())
+		{
+			// strange hacked initilization that seems misplaced and ill thought
+			Parent->SetHasBounds(true);
+			Parent->SetLocalBounds(Implicit->BoundingBox());
+			const Chaos::TAABB<float, 3>& LocalBounds = Parent->LocalBounds();
+			const Chaos::TRigidTransform<float, 3> Xf(Parent->X(), Parent->R());
+			const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
+			Parent->SetWorldSpaceInflatedBounds(TransformedBBox);
+		}
+
+		// Set the captured filter to our new shapes
+		for(const TUniquePtr<FPerShapeData>& Shape : Parent->ShapesArray())
+		{
+			Shape->SetSimData(Filter);
 		}
 	}
 
@@ -1881,9 +1962,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingDelaunayTriangulation"), STAT_UpdateConnectivityGraphUsingDelaunayTriangulation, STATGROUP_Chaos);
 
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint, class T, int d>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::UpdateConnectivityGraphUsingDelaunayTriangulation(
-		Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Parent,
-		const FClusterCreationParameters<T>& Parameters)
+	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::UpdateConnectivityGraphUsingDelaunayTriangulation(Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Parent, const FClusterCreationParameters<T>& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateConnectivityGraphUsingDelaunayTriangulation);
 
@@ -2006,7 +2085,10 @@ namespace Chaos
 } // namespace Chaos
 
 using namespace Chaos;
-template class CHAOS_API Chaos::TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints, float, 3>;
+
+#define EVOLUTION_TRAIT(Trait) template class CHAOS_API Chaos::TPBDRigidClustering<Chaos::TPBDRigidsEvolutionGBF<Trait>, FPBDCollisionConstraints, float, 3>;
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
 
 
 template CHAOS_API void Chaos::UpdateClusterMassProperties<float, 3>(

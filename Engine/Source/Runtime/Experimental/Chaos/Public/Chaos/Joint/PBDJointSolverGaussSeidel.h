@@ -60,6 +60,16 @@ namespace Chaos
 			return Ws[Index];
 		}
 
+		FORCEINLINE const FVec3& GetNetLinearImpulse() const
+		{
+			return NetLinearImpulse;
+		}
+
+		FORCEINLINE const FVec3& GetNetAngularImpulse() const
+		{
+			return NetAngularImpulse;
+		}
+
 		FJointSolverGaussSeidel();
 
 		void Init(
@@ -130,16 +140,6 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		int32 ApplyPositionProjections(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		int32 ApplyRotationProjections(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
 
 		void ApplyPositionDelta(
 			const int32 BodyIndex,
@@ -199,6 +199,18 @@ namespace Chaos
 			const FVec3& Axis,
 			const FReal Angle);
 
+		void ApplyRotationConstraintKD(
+			const int32 KIndex,
+			const int32 DIndex,
+			const FReal Stiffness,
+			const FVec3& Axis,
+			const FReal Angle);
+
+		void ApplyRotationConstraintDD(
+			const FReal Stiffness,
+			const FVec3& Axis,
+			const FReal Angle);
+
 		void ApplyRotationConstraintSoft(
 			const FReal Dt,
 			const FReal Stiffness,
@@ -241,11 +253,6 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings,
 			const bool bUseSoftLimit);
 
-		int32 ApplyTwistDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
 		int32 ApplyTwistProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
@@ -256,11 +263,6 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const bool bUseSoftLimit);
-
-		int32 ApplyConeDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
 
 		int32 ApplyConeProjection(
 			const FReal Dt,
@@ -291,17 +293,19 @@ namespace Chaos
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const bool bUseSoftLimit);
 
-		int32 ApplySwingDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex);
-
 		int32 ApplySwingProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex);
+
+		int32 ApplySwingTwistDrives(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const bool bTwistDriveEnabled,
+			const bool bSwing1DriveEnabled,
+			const bool bSwing2DriveEnabled);
 
 		int32 ApplySLerpDrive(
 			const FReal Dt,
@@ -357,10 +361,30 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		int32 ApplyPointPositionProjection(
+		int32 ApplyPointConeTwistProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			bool bApplyPositionCorrection,
+			bool bApplySwingCorrection,
+			bool bApplyTwistCorrection);
+
+		int32 ApplySphereConeTwistProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			bool bApplyPositionCorrection,
+			bool bApplySwingCorrection,
+			bool bApplyTwistCorrection);
+
+		int32 ApplyPointDoubleSwingLockProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			bool bApplyPositionCorrection,
+			bool bApplySwingCorrection,
+			bool bApplyTwistCorrection);
+
 
 
 		// Local-space constraint settings
@@ -370,14 +394,10 @@ namespace Chaos
 
 		// World-space constraint state
 		FVec3 Xs[MaxConstrainedBodies];				// World-space joint connector positions
-		FReal LinearSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-		FReal LinearDriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
 		FRotation3 Rs[MaxConstrainedBodies];		// World-space joint connector rotations
 
 		// World-space body state
 		FVec3 Ps[MaxConstrainedBodies];				// World-space particle CoM positions
-		FReal TwistSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-		FReal SwingSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
 		FRotation3 Qs[MaxConstrainedBodies];		// World-space particle CoM rotations
 		FVec3 Vs[MaxConstrainedBodies];				// World-space particle CoM velocities
 		FVec3 Ws[MaxConstrainedBodies];				// World-space particle CoM angular velocities
@@ -385,13 +405,28 @@ namespace Chaos
 
 		// XPBD Previous iteration world-space body state
 		FVec3 PrevPs[MaxConstrainedBodies];			// World-space particle CoM positions
-		FReal TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-		FReal SwingDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
 		FRotation3 PrevQs[MaxConstrainedBodies];	// World-space particle CoM rotations
 		FVec3 PrevXs[MaxConstrainedBodies];			// World-space joint connector positions
 
+		// Accumulated Impulse and AngularImpulse (Impulse * Dt since they are mass multiplied position corrections)
+		FVec3 NetLinearImpulse;
+		FVec3 NetAngularImpulse;
+
+		// XPBD Accumulators (net impulse for each soft constraint/drive)
+		FReal LinearSoftLambda;
+		FReal TwistSoftLambda;
+		FReal SwingSoftLambda;
+		FReal LinearDriveLambda;
+		FReal TwistDriveLambda;
+		FReal Swing1DriveLambda;
+		FReal Swing2DriveLambda;
+
+		// Tolerances below which we stop solving
 		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 		FReal AngleTolerance;						// Angle error below which we consider a constraint or drive solved
+	
+		FReal ProjectionInvMassScale;
+		FReal VelProjectionInvMassScale;
 	};
 
 }

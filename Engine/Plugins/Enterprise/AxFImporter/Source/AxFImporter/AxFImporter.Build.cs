@@ -10,7 +10,7 @@ namespace UnrealBuildTool.Rules
     {
         private string ThirdPartyPath
         {
-            get { return Path.GetFullPath(Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Plugins/Enterprise/AxFImporter/Source/ThirdParty")); }
+            get { return Path.GetFullPath(Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Source/ThirdParty/Enterprise")); }
         }
 
         public AxFImporter(ReadOnlyTargetRules Target) : base(Target)

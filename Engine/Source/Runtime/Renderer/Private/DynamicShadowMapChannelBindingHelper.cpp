@@ -108,7 +108,7 @@ int32 FDynamicShadowMapChannelBindingHelper::GetPriority(const FLightSceneInfo* 
 {
 	check(Light);
 	const FLightSceneProxy* Proxy = Light->Proxy;
-	if (Proxy && Proxy->CastsDynamicShadow())
+	if (Proxy && (Proxy->CastsDynamicShadow() || Proxy->GetLightFunctionMaterial()))
 	{
 		if (Proxy->HasStaticShadowing())
 		{

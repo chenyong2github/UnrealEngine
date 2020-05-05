@@ -44,10 +44,12 @@
 #include "Engine/LevelStreaming.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "Containers/Ticker.h"
 
 #if WITH_EDITOR
 #include "SLevelViewport.h"
 #endif
+
 
 #define LOCTEXT_NAMESPACE "Automation"
 
@@ -357,6 +359,7 @@ public:
 		, Notes(InNotes)
 		, Options(InOptions)
 		, bNeedsViewportSizeRestore(false)
+		, bDeleteQueued(false)
 	{
 		EnvSetup.Setup(InWorld, Options);
 
@@ -407,14 +410,26 @@ public:
 		{
 			if (GEngine->GameViewport)
 			{
-			FSceneViewport* GameViewport = GEngine->GameViewport->GetGameViewport();
-			GameViewport->SetViewportSize(ViewportRestoreSize.X, ViewportRestoreSize.Y);
-		}
+				FSceneViewport* GameViewport = GEngine->GameViewport->GetGameViewport();
+				GameViewport->SetViewportSize(ViewportRestoreSize.X, ViewportRestoreSize.Y);
+			}
 		}
 
 		EnvSetup.Restore();
 
 		FAutomationTestFramework::Get().NotifyScreenshotTakenAndCompared();
+	}
+
+	void DeleteSelfNextFrame()
+	{
+		if (!bDeleteQueued)
+		{
+			FTicker::GetCoreTicker().AddTicker(TEXT("ScreenshotCleanup"), 0.1, [this](float) {
+				delete this;
+				return false;
+				});
+			bDeleteQueued = true;
+		}
 	}
 
 	void GrabScreenShot(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData)
@@ -445,24 +460,23 @@ public:
 
 			UE_LOG(AutomationFunctionLibrary, Log, TEXT("Screenshot captured as %s"), *Data.ScreenshotName);
 
-			if ( GIsAutomationTesting )
+			if (GIsAutomationTesting)
 			{
 				FAutomationTestFramework::Get().OnScreenshotCompared.AddRaw(this, &FAutomationScreenshotTaker::OnComparisonComplete);
 				FScreenshotRequest::OnScreenshotRequestProcessed().RemoveAll(this);
 				return;
 			}
 		}
-		
-		delete this;
-		}
+
+		DeleteSelfNextFrame();
+	}
 
 	void OnScreenshotProcessed()
-		{
+	{
 		UE_LOG(AutomationFunctionLibrary, Log, TEXT("Screenshot processed, but not compared."));
 
-		// If it's done being processed 
-			delete this;
-		}
+		DeleteSelfNextFrame();
+	}
 
 	void OnComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults)
 	{
@@ -473,19 +487,19 @@ public:
 			CurrentTest->AddEvent(CompareResults.ToAutomationEvent(Name));
 		}
 
-		delete this;
-			}
+		DeleteSelfNextFrame();
+	}
 
 	void WorldDestroyed(ULevel* InLevel, UWorld* InWorld)
-			{
+	{
 		// If the InLevel is null, it's a signal that the entire world is about to disappear, so
 		// go ahead and remove this widget from the viewport, it could be holding onto too many
 		// dangerous actor references that won't carry over into the next world.
 		if (InLevel == nullptr && InWorld == World.Get())
-				{
+		{
 			delete this;
-				}
-			}
+		}
+	}
 
 private:
 
@@ -498,6 +512,7 @@ private:
 	FAutomationTestScreenshotEnvSetup EnvSetup;
 	FIntPoint ViewportRestoreSize;
 	bool bNeedsViewportSizeRestore;
+	bool bDeleteQueued;
 };
 
 class FAutomationHighResScreenshotGrabber

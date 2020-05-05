@@ -374,7 +374,7 @@ FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, i
 	GFrameProEnabled = true;
 
 	// Enable named events as well
-	GCycleStatsShouldEmitNamedEvents = true;
+	GCycleStatsShouldEmitNamedEvents += 1;
 
 	// Set recording flag
 	GFrameProIsRecording = true;
@@ -390,10 +390,15 @@ static FAutoConsoleCommand StartFrameProRecordCommand(
 
 void FFrameProProfiler::StopFrameProRecording()
 {
+	if (!GFrameProIsRecording)
+	{
+		return;
+	}
+
 	FramePro::StopRecording();
 
 	// Disable named events
-	GCycleStatsShouldEmitNamedEvents = false;
+	GCycleStatsShouldEmitNamedEvents -= 1;
 
 	// Clear recording flag
 	GFrameProIsRecording = false;

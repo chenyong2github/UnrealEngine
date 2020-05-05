@@ -7,6 +7,7 @@
 #include "Chaos/CollisionFilterData.h"
 
 struct FBodyInstance;
+struct FChaosQueryFlag;
 
 struct FActorCreationParams
 {
@@ -202,8 +203,10 @@ public:
 
 #if PHYSICS_INTERFACE_PHYSX
 using FUserData = FPhysxUserData;
+using FPhysicsQueryFlag = physx::PxQueryFlag;
 #else
 using FUserData = FChaosUserData;
+using FPhysicsQueryFlag = FChaosQueryFlag;
 #endif
 
 

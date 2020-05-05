@@ -142,16 +142,20 @@ void FPreLoadScreenManager::HandleEarlyStartupPlay()
     if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen), TEXT("Invalid Active PreLoadScreen!")))
     {
         IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
-        if (PreLoadScreen && MainWindow.IsValid())
+        if (PreLoadScreen)
         {
 			SCOPED_BOOT_TIMING("FPreLoadScreenManager::HandleEarlyStartupPlay()");
 
-            PreLoadScreen->OnPlay(MainWindow.Pin());
+			PreLoadScreen->OnPlay(MainWindow);
 
-            if (PreLoadScreen->GetWidget().IsValid())
-            {
-                MainWindow.Pin()->SetContent(PreLoadScreen->GetWidget().ToSharedRef());
-            }
+			{
+				TSharedPtr<SWindow> MainWindowPtr = MainWindow.IsValid() ? MainWindow.Pin() : TSharedPtr<SWindow>();
+
+				if (MainWindowPtr.IsValid() && PreLoadScreen->GetWidget().IsValid())
+				{
+					MainWindowPtr->SetContent(PreLoadScreen->GetWidget().ToSharedRef());
+				}
+			}
 
 			bool bDidDisableScreensaver = false;
 			if (FPlatformApplicationMisc::IsScreensaverEnabled())

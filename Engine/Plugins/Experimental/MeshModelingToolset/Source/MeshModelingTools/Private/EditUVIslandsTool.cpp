@@ -411,9 +411,8 @@ void UEditUVIslandsTool::ComputeUpdate_Gizmo()
 
 
 
-void UEditUVIslandsTool::Tick(float DeltaTime)
+void UEditUVIslandsTool::OnTick(float DeltaTime)
 {
-	UMeshSurfacePointTool::Tick(DeltaTime);
 	MultiTransformer->Tick(DeltaTime);
 
 	if (bSelectionStateDirty)
@@ -481,9 +480,8 @@ void FUVGroupTopology::CalculateIslandGroups()
 FFrame3d FUVGroupTopology::GetIslandFrame(int32 GroupID, FDynamicMeshAABBTree3& AABBTree)
 {
 	FFrame3d Frame = GetGroupFrame(GroupID);
-	AABBTree.TriangleFilterF = [&](int32 TriangleID) { return GetGroupID(TriangleID) == GroupID; };
-	Frame.Origin = AABBTree.FindNearestPoint(Frame.Origin);
-	AABBTree.TriangleFilterF = nullptr;
+	IMeshSpatial::FQueryOptions QueryOptions([&](int32 TriangleID) { return GetGroupID(TriangleID) == GroupID; });
+	Frame.Origin = AABBTree.FindNearestPoint(Frame.Origin, QueryOptions);
 
 	const TArray<int32>& Triangles = GetGroupTriangles(GroupID);
 

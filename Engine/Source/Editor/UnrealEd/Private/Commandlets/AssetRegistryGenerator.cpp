@@ -26,6 +26,7 @@
 #include "Stats/StatsMisc.h"
 #include "Templates/UniquePtr.h"
 #include "Engine/AssetManager.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonReader.h"
@@ -1366,7 +1367,15 @@ bool FAssetRegistryGenerator::WriteCookerOpenOrder()
 
 	if (CookerFileOrderString.Len())
 	{
-		FString OpenOrderFilename = FString::Printf(TEXT("%sBuild/%s/FileOpenOrder/CookerOpenOrder.log"), *FPaths::ProjectDir(), *TargetPlatform->PlatformName());
+		FString OpenOrderFilename;
+		if (FDataDrivenPlatformInfoRegistry::GetPlatformInfo(TargetPlatform->PlatformName()).bIsConfidential)
+		{
+			OpenOrderFilename = FString::Printf(TEXT("%sPlatforms/%s/Build/FileOpenOrder/CookerOpenOrder.log"), *FPaths::ProjectDir(), *TargetPlatform->PlatformName());
+		}
+		else
+		{
+			OpenOrderFilename = FString::Printf(TEXT("%sBuild/%s/FileOpenOrder/CookerOpenOrder.log"), *FPaths::ProjectDir(), *TargetPlatform->PlatformName());
+		}
 		FFileHelper::SaveStringToFile(CookerFileOrderString, *OpenOrderFilename);
 	}
 

@@ -41,6 +41,7 @@ public class MainFrame : ModuleRules
 				"UndoHistory",
 				"Analytics",
 				"ToolMenus",
+				"LauncherServices"
 			}
 		);
 

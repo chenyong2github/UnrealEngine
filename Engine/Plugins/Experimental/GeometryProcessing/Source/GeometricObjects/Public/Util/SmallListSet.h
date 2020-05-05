@@ -158,6 +158,11 @@ public:
 	bool Replace(int32 ListIndex, const TFunction<bool(int32)>& PredicateFunc, int32 NewValue);
 
 
+	/**
+	 * Call ApplyFunc on each element of the list at ListIndex
+	 */
+	void Enumerate(int32 ListIndex, TFunctionRef<void(int32)> ApplyFunc) const;
+
 
 	//
 	// iterator support

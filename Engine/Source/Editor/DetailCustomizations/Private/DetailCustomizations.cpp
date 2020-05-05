@@ -139,8 +139,9 @@
 #include "SkeletonDetails.h"
 #include "MaterialShadingModelCustomization.h"
 #include "DebugCameraControllerSettingsCustomization.h"
-IMPLEMENT_MODULE( FDetailCustomizationsModule, DetailCustomizations );
+#include "BoundsCopyComponentDetails.h"
 
+IMPLEMENT_MODULE( FDetailCustomizationsModule, DetailCustomizations );
 
 void FDetailCustomizationsModule::StartupModule()
 {
@@ -388,6 +389,8 @@ void FDetailCustomizationsModule::RegisterObjectCustomizations()
 
 	RegisterCustomClassLayout("Landscape", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeUIDetails::MakeInstance));
 	RegisterCustomClassLayout("LandscapeProxy", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeProxyUIDetails::MakeInstance));
+
+	RegisterCustomClassLayout("BoundsCopyComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FBoundsCopyComponentDetailsCustomization::MakeInstance));
 }
 
 

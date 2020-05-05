@@ -1282,6 +1282,17 @@ TRefCountPtr<FMetalFence> const& FMetalRenderPass::EndRenderPass(void)
 	return CurrentEncoderFence;
 }
 
+void FMetalRenderPass::InsertTextureBarrier()
+{
+#if PLATFORM_MAC
+	check(CurrentEncoder.IsRenderCommandEncoderActive());
+	
+	id <MTLRenderCommandEncoder> RenderEncoder = CurrentEncoder.GetRenderCommandEncoder().GetPtr();
+	check(RenderEncoder);
+	[RenderEncoder textureBarrier];
+#endif
+}
+
 void FMetalRenderPass::CopyFromTextureToBuffer(FMetalTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FMetalBuffer const& toBuffer, uint32 destinationOffset, uint32 destinationBytesPerRow, uint32 destinationBytesPerImage, mtlpp::BlitOption options)
 {
 	ConditionalSwitchToBlit();

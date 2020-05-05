@@ -6,34 +6,39 @@
 
 namespace Chaos
 {
-	class FEventDefaults
+	template <typename Traits>
+	class TEventDefaults
 	{
 	public:
 
 		/**
 		 * Register default event types
 		 */
-		static void RegisterSystemEvents(FEventManager& EventManager);
+		static void RegisterSystemEvents(TEventManager<Traits>& EventManager);
 
 	private:
 
 		/**
 		 * Register collision event gathering function & data type
 		 */
-		static void RegisterCollisionEvent(FEventManager& EventManager);
+		static void RegisterCollisionEvent(TEventManager<Traits>& EventManager);
 
 		/**
 		 * Register breaking event gathering function & data type
 		 */
-		static void RegisterBreakingEvent(FEventManager& EventManager);
+		static void RegisterBreakingEvent(TEventManager<Traits>& EventManager);
 
 		/**
 		 * Register trailing event gathering function & data type
 		 */
-		static void RegisterTrailingEvent(FEventManager& EventManager);
+		static void RegisterTrailingEvent(TEventManager<Traits>& EventManager);
 
 
-		static void RegisterSleepingEvent(FEventManager& EventManager);
+		static void RegisterSleepingEvent(TEventManager<Traits>& EventManager);
 
 	};
+
+#define EVOLUTION_TRAIT(Trait) extern template class CHAOSSOLVERS_TEMPLATE_API TEventDefaults<Trait>;
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
 }

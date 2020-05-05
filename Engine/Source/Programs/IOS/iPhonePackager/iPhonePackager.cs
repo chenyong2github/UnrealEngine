@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright Epic Games, Inc. All Rights Reserved.
  */
 
@@ -507,8 +507,20 @@ namespace iPhonePackager
                                 return false;
                             }
                         }
-                    }
-                    else
+						else if (Arg == "-targetname")
+						{
+							// make sure there's at least one more arg
+							if (Arguments.Length > ArgIndex + 1)
+							{
+								Config.TargetName = Arguments[++ArgIndex];
+							}
+							else
+							{
+								return false;
+							}
+						}
+					}
+					else
                     {
                         // RPC command
                         MainRPCCommand = Arguments[ArgIndex];

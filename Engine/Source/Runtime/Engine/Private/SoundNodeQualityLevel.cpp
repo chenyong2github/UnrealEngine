@@ -16,12 +16,37 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #endif
 
+static int32 CullSoundWaveHardReferencesCvar = 1;
+FAutoConsoleVariableRef CVarCullSoundWaveHardReferences(
+	TEXT("au.CullSoundWaveHardReferences"),
+	CullSoundWaveHardReferencesCvar,
+	TEXT("When set to 1, this deliberately removes USoundWave hard references from currently unselected quality nodes.\n")
+	TEXT("0: Cull soundwaves, 1: do not cull sound waves."),
+	ECVF_Default);
+
 #if WITH_EDITOR
 void USoundNodeQualityLevel::PostLoad()
 {
 	Super::PostLoad();
 
 	ReconcileNode(false);
+
+	uint32 CachedQualityLevel = USoundCue::GetCachedQualityLevel();
+	if (CullSoundWaveHardReferencesCvar && ChildNodes.IsValidIndex(CachedQualityLevel))
+	{
+		// go through any waveplayers on an unselcted quality level and null out their soundwave references.
+		for (int32 Index = 0; Index < ChildNodes.Num(); Index++)
+		{
+			if (Index == CachedQualityLevel)
+			{
+				continue;
+			}
+			else if(ChildNodes[Index] != nullptr)
+			{
+				ChildNodes[Index]->RemoveSoundWaveOnChildWavePlayers();
+			}
+		}
+	}
 }
 
 void USoundNodeQualityLevel::ReconcileNode(bool bReconstructNode)

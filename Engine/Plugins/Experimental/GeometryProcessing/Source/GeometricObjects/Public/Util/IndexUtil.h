@@ -273,6 +273,20 @@ namespace IndexUtil
 		return true;
 	}
 
+	/**
+	 * integer indices offsets in x/y directions
+	 */
+	extern GEOMETRICOBJECTS_API const FVector2i GridOffsets4[4];
+
+	/**
+	 * integer indices offsets in x/y directions and diagonals
+	 */
+	extern GEOMETRICOBJECTS_API const FVector2i GridOffsets8[8];
+
+	/**
+	 * integer indices offsets in x/y/z directions, corresponds w/ BoxFaces directions
+	 */
+	extern GEOMETRICOBJECTS_API const FVector3i GridOffsets6[6];
 
 	/**
 	 * all permutations of (+-1, +-1, +-1), can be used to iterate over connected face/edge/corner neighbours of a grid cell

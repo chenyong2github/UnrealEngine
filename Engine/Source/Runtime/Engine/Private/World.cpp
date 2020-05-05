@@ -4239,7 +4239,6 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		return;
 	}
 	bool bWorldChanged = NewWorld != this && NewWorld != nullptr;
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("XYXYXY XYXYXY Clearnupworld %p -> %p\n"), this, NewWorld);
 	CleanupWorldTag = CleanupWorldGlobalTag;
 
 	UE_LOG(LogWorld, Log, TEXT("UWorld::CleanupWorld for %s, bSessionEnded=%s, bCleanupResources=%s"), *GetName(), bSessionEnded ? TEXT("true") : TEXT("false"), bCleanupResources ? TEXT("true") : TEXT("false"));
@@ -4372,7 +4371,10 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 	FWorldDelegates::OnPostWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
 
-	SubsystemCollection.Deinitialize();
+	if (bCleanupResources)
+	{
+		SubsystemCollection.Deinitialize();
+	}
 
 	if(FXSystem && bWorldChanged)
 	{
@@ -7582,7 +7584,23 @@ void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneVi
 
 void UWorld::SetAudioDevice(FAudioDeviceHandle& InHandle)
 {
+	if (InHandle.GetDeviceID() == AudioDeviceHandle.GetDeviceID())
+	{
+		return;
+	}
+
+	FAudioDeviceManager* DeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
+	if (DeviceManager && InHandle.IsValid())
+	{
+		GEngine->GetAudioDeviceManager()->UnregisterWorld(this, InHandle.GetDeviceID());
+	}
+
 	AudioDeviceHandle = InHandle;
+
+	if (DeviceManager)
+	{
+		GEngine->GetAudioDeviceManager()->RegisterWorld(this, InHandle.GetDeviceID());
+	}
 }
 
 FAudioDeviceHandle UWorld::GetAudioDevice()

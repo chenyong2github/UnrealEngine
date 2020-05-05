@@ -1,0 +1,563 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+// Port of geometry3Sharp MeshMeshCut
+
+#include "Operations/MeshMeshCut.h"
+
+#include "Operations/EmbedSurfacePath.h"
+
+namespace MeshCut
+{
+	enum class EVertexType
+	{
+		Unknown = -1,
+		Vertex = 0,
+		Edge = 1,
+		Face = 2
+	};
+
+	/**
+	 * An intersection point + where it maps to on the surface
+	 */
+	struct FPtOnMesh
+	{
+		FVector3d Pos;
+		EVertexType Type = EVertexType::Unknown;
+		int ElemID = IndexConstants::InvalidID;
+	};
+
+	/**
+	 * Mapping from intersection segments to source triangle and intersection points
+	 */
+	struct FSegmentToElements
+	{
+		int BaseTID; // triangle ID that the segment was on *before* mesh was cut
+		int PtOnMeshIdx[2]; // indices into IntersectionVerts array for the two endpoints of the segment 
+	};
+
+	/**
+	 * Per mesh info about an in-progress cut.  Only stored temporarily while cut is performed; not retained
+	 */
+	struct FCutWorkingInfo
+	{
+		FCutWorkingInfo(FDynamicMesh3* WorkingMesh, double SnapTolerance) : Mesh(WorkingMesh), SnapToleranceSq(SnapTolerance*SnapTolerance)
+		{
+			Init(WorkingMesh);
+		}
+
+		void Init(FDynamicMesh3* WorkingMesh)
+		{
+			BaseFaceNormals.SetNumUninitialized(WorkingMesh->MaxTriangleID());
+			double area = 0;
+			for (int TID : WorkingMesh->TriangleIndicesItr())
+			{
+				BaseFaceNormals[TID] = WorkingMesh->GetTriNormal(TID);
+			}
+
+			FaceVertices.Reset();
+			EdgeVertices.Reset();
+			IntersectionVerts.Reset();
+			Segments.Reset();
+		}
+
+		// mesh to operate on
+		FDynamicMesh3* Mesh;
+
+		// snapping tolerance squared
+		double SnapToleranceSq;
+
+
+		// triangle ID -> IntersectionVerts index for intersection pts that we still have to insert
+		TMultiMap<int, int> FaceVertices;
+
+		// edge ID -> IntersectionVerts index for intersection pts that we still have to insert
+		TMultiMap<int, int> EdgeVertices;
+
+		// Normals of original triangles (before cut is performed)
+		// only needed for walking mesh, in more-expensive fallback case that just inserting segment vertices doesn't make a connected path
+		TArray<FVector3d> BaseFaceNormals;
+
+		// points on the mesh -- after cut, these will all correspond to mesh vertices
+		TArray<FPtOnMesh> IntersectionVerts;
+
+		// Stores the mapping of intersection segments to original mesh triangles and IntersectionVerts
+		TArray<FSegmentToElements> Segments;
+
+
+		void AddSegments(const MeshIntersection::FIntersectionsQueryResult& Intersections, TMap<FVector3d, int>& SegVtxMap, int WhichSide)
+		{
+			int SegStart = Segments.Num();
+			Segments.SetNum(SegStart + Intersections.Segments.Num());
+			
+			// classify the points of each intersection segment as on-vertex, on-edge, or on-face
+			for (int SegIdx = 0, SegCount = Intersections.Segments.Num(); SegIdx < SegCount; SegIdx++)
+			{
+				const MeshIntersection::FSegmentIntersection& Seg = Intersections.Segments[SegIdx];
+				FSegmentToElements& SegToEls = Segments[SegStart+SegIdx];
+				SegToEls.BaseTID = Seg.TriangleID[WhichSide];
+				for (int SegPtIdx = 0; SegPtIdx < 2; SegPtIdx++)
+				{
+					// re-use intersection vertices for exact position matches
+					int* ExistingSegVertexIdx = SegVtxMap.Find(Seg.Point[SegPtIdx]);
+					if (ExistingSegVertexIdx)
+					{
+						SegToEls.PtOnMeshIdx[SegPtIdx] = *ExistingSegVertexIdx;
+					}
+
+					int NewPtIdx = IntersectionVerts.Num();
+					FPtOnMesh& PtOnMesh = IntersectionVerts.Emplace_GetRef();
+					PtOnMesh.Pos = Seg.Point[SegPtIdx];
+					SegToEls.PtOnMeshIdx[SegPtIdx] = NewPtIdx;
+					SegVtxMap.Add(Seg.Point[SegPtIdx], NewPtIdx);
+
+					// decide whether the point is on a vertex, edge or triangle
+
+					FTriangle3d Tri;
+					Mesh->GetTriVertices(SegToEls.BaseTID, Tri.V[0], Tri.V[1], Tri.V[2]);
+					FIndex3i TriVIDs = Mesh->GetTriangle(SegToEls.BaseTID);
+
+					int OnVertexIdx = OnVertex(Tri, PtOnMesh.Pos);
+					if (OnVertexIdx > -1)
+					{
+						PtOnMesh.Type = EVertexType::Vertex;
+						PtOnMesh.ElemID = TriVIDs[OnVertexIdx];
+						continue;
+					}
+
+					// check  for an edge match
+					int OnEdgeIdx = OnEdge(Tri, PtOnMesh.Pos);
+					if (OnEdgeIdx > -1)
+					{
+						PtOnMesh.Type = EVertexType::Edge;
+						PtOnMesh.ElemID = Mesh->GetTriEdge(SegToEls.BaseTID, OnEdgeIdx);
+
+						check(PtOnMesh.ElemID != IndexConstants::InvalidID);
+						EdgeVertices.Add(PtOnMesh.ElemID, NewPtIdx);
+
+						continue;
+					}
+
+					// wasn't vertex or edge, so it's a face vertex
+					PtOnMesh.Type = EVertexType::Face;
+					PtOnMesh.ElemID = SegToEls.BaseTID;
+					FaceVertices.Add(PtOnMesh.ElemID, NewPtIdx);
+				}
+			}
+		}
+
+		void InsertFaceVertices()
+		{
+			FTriangle3d Tri;
+			TArray<int> PtIndices;
+
+			while (FaceVertices.Num() > 0)
+			{
+				int TID = -1, PtIdx = -1;
+				// hacky way to pop one element -- TODO: this seems gross!? do it better?
+				for (TPair<int, int> TIDToPtIdx : FaceVertices)
+				{
+					TID = TIDToPtIdx.Key;
+					PtIdx = TIDToPtIdx.Value;
+					break;
+				}
+				PtIndices.Reset();
+				FaceVertices.MultiFind(TID, PtIndices);
+
+				FPtOnMesh& Pt = IntersectionVerts[PtIdx];
+
+				Mesh->GetTriVertices(TID, Tri.V[0], Tri.V[1], Tri.V[2]);
+				// TODO: I think it should be ok to use this fn for BarycentricCoords even though it's not robust to degenerate triangles
+				//       because in degenerate tri cases we would have snapped the point to a vertex or edge.
+				//       This won't be the case however if vertex or edge snapping tolerances are too low!
+				FVector3d BaryCoords = VectorUtil::BarycentricCoords(Pt.Pos, Tri.V[0], Tri.V[1], Tri.V[2]);
+				DynamicMeshInfo::FPokeTriangleInfo PokeInfo;
+				EMeshResult Result = Mesh->PokeTriangle(TID, BaryCoords, PokeInfo);
+				checkf(Result == EMeshResult::Ok, TEXT("Failed to add vertex on Triangle ID %d"), TID); // should never happen unless TID is invalid?
+				int PokeVID = PokeInfo.NewVertex;
+				// set vertex position to intersection pos (even though it should already be close) so that new vertices on both meshes have matching positions
+				Mesh->SetVertex(PokeVID, Pt.Pos);
+				//WorkingInfo[MeshIdx].AddPokeSubFaces(PokeInfo); // TODO: add this back if we have a reason to track subface; otherwise delete it
+				Pt.ElemID = PokeVID;
+				Pt.Type = EVertexType::Vertex;
+
+				FaceVertices.Remove(TID);
+				FIndex3i PokeTriangles(TID, PokeInfo.NewTriangles.A, PokeInfo.NewTriangles.B);
+				// if there were other points on the face, redistribute them among the newly created triangles
+				if (PtIndices.Num() > 1)
+				{
+					for (int RelocatePtIdx : PtIndices)
+					{
+						if (PtIdx == RelocatePtIdx) // skip the pt we've already handled
+						{
+							continue;
+						}
+
+						FPtOnMesh& RelocatePt = IntersectionVerts[RelocatePtIdx];
+						UpdateFromPoke(RelocatePt, PokeInfo.NewVertex, PokeInfo.NewEdges, PokeTriangles);
+						if (RelocatePt.Type == EVertexType::Edge)
+						{
+							EdgeVertices.Add(RelocatePt.ElemID, RelocatePtIdx);
+						}
+						else if (RelocatePt.Type == EVertexType::Face)
+						{
+							FaceVertices.Add(RelocatePt.ElemID, RelocatePtIdx);
+						}
+					}
+				}
+			}
+		}
+
+		void InsertEdgeVertices()
+		{
+			FTriangle3d Tri;
+			TArray<int> PtIndices;
+				
+			while (EdgeVertices.Num() > 0)
+			{
+				int EID = -1, PtIdx = -1;
+				// hacky way to pop one element -- TODO: this seems gross!? do it better?
+				for (TPair<int, int> EIDToPtIdx : EdgeVertices)
+				{
+					EID = EIDToPtIdx.Key;
+					PtIdx = EIDToPtIdx.Value;
+					break;
+				}
+				PtIndices.Reset();
+				EdgeVertices.MultiFind(EID, PtIndices);
+
+				FPtOnMesh& Pt = IntersectionVerts[PtIdx];
+
+				FVector3d EA, EB;
+				Mesh->GetEdgeV(EID, EA, EB);
+				FSegment3d Seg(EA, EB);
+				double SplitParam = Seg.ProjectUnitRange(Pt.Pos);
+
+				FIndex2i SplitTris = Mesh->GetEdgeT(EID);
+				DynamicMeshInfo::FEdgeSplitInfo SplitInfo;
+				EMeshResult Result = Mesh->SplitEdge(EID, SplitInfo, SplitParam);
+				checkf(Result == EMeshResult::Ok, TEXT("Failed to add vertex on Edge ID %d"), EID); // should never happen unless EID is invalid or the mesh has broken topology?
+
+				Mesh->SetVertex(SplitInfo.NewVertex, Pt.Pos);
+				//WorkingInfo[MeshIdx].AddSplitSubfaces(SplitInfo);  // TODO: add this back if we have a reason to track subfaces; otherwise delete it
+				Pt.ElemID = SplitInfo.NewVertex;
+				Pt.Type = EVertexType::Vertex;
+
+				EdgeVertices.Remove(EID);
+				// if there were other points on the edge, redistribute them to the newly created edges
+				if (PtIndices.Num() > 1)
+				{
+					FIndex2i SplitEdges{ SplitInfo.OriginalEdge, SplitInfo.NewEdges.A };
+					for (int RelocatePtIdx : PtIndices)
+					{
+						if (PtIdx == RelocatePtIdx)
+						{
+							continue;
+						}
+
+						FPtOnMesh& RelocatePt = IntersectionVerts[RelocatePtIdx];
+						UpdateFromSplit(RelocatePt, SplitInfo.NewVertex, SplitEdges);
+						if (RelocatePt.Type == EVertexType::Edge)
+						{
+							EdgeVertices.Add(RelocatePt.ElemID, RelocatePtIdx);
+						}
+					}
+				}
+			}
+		}
+
+		/**
+		 * @param VertexChains Optional packed storage of chains of vertices inserted by mesh cutting, to allow downstream to track what was cut
+		 * @param SegmentToChain Optional mapping of VertexChains to the segments that created them; useful for corresponding insertions across meshes
+		 */
+		bool ConnectEdges(TArray<int> *VertexChains = nullptr, TArray<int> *SegmentToChain = nullptr)
+		{
+			TArray<int> EmbeddedPath;
+
+			bool bSuccess = true; // remains true if we successfully connect all edges
+
+			checkf(VertexChains || !SegmentToChain, TEXT("If SegmentToChain isn't null, VertexChains must not be null"));
+
+			if (SegmentToChain)
+			{
+				SegmentToChain->SetNumUninitialized(Segments.Num());
+				for (int& ChainIdx : *SegmentToChain)
+				{
+					ChainIdx = IndexConstants::InvalidID;
+				}
+			}
+
+			for (int SegIdx = 0, NumSegs = Segments.Num(); SegIdx < NumSegs; SegIdx++)
+			{
+				FSegmentToElements& Seg = Segments[SegIdx];
+				if (Seg.PtOnMeshIdx[0] == Seg.PtOnMeshIdx[1])
+				{
+					continue; // degenerate case, but OK
+				}
+				FPtOnMesh& PtA = IntersectionVerts[Seg.PtOnMeshIdx[0]];
+				FPtOnMesh& PtB = IntersectionVerts[Seg.PtOnMeshIdx[1]];
+				if (!ensureMsgf(
+					PtA.Type == EVertexType::Vertex
+					&& PtB.Type == EVertexType::Vertex
+					&& PtA.ElemID != IndexConstants::InvalidID
+					&& PtB.ElemID != IndexConstants::InvalidID, TEXT("Point insertion failed during mesh mesh cut!")))
+				{
+					bSuccess = false;
+					continue; // shouldn't happen!
+				}
+				if (PtA.ElemID == PtB.ElemID)
+				{
+					if (VertexChains)
+					{
+						if (SegmentToChain)
+						{
+							(*SegmentToChain)[SegIdx] = VertexChains->Num();
+						}
+						VertexChains->Add(1);
+						VertexChains->Add(PtA.ElemID);
+					}
+					continue; // degenerate case, but OK
+				}
+
+
+				int EID = Mesh->FindEdge(PtA.ElemID, PtB.ElemID);
+				if (EID != FDynamicMesh3::InvalidID)
+				{
+					if (VertexChains)
+					{
+						if (SegmentToChain)
+						{
+							(*SegmentToChain)[SegIdx] = VertexChains->Num();
+						}
+						VertexChains->Add(2);
+						VertexChains->Add(PtA.ElemID);
+						VertexChains->Add(PtB.ElemID);
+					}
+					continue; // already connected
+				}
+
+				FMeshSurfacePath SurfacePath(Mesh);
+				int StartTID = Mesh->GetVtxSingleTriangle(PtA.ElemID); // TODO: would be faster to have a PlanarWalk call that takes a start vertex ID !
+				FVector3d WalkPlaneNormal = BaseFaceNormals[Seg.BaseTID].Cross(PtB.Pos - PtA.Pos);
+				if (ensure(WalkPlaneNormal.Normalize() > 0))
+				{
+					bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(StartTID,
+						Mesh->GetVertex(PtA.ElemID), -1, PtB.ElemID,
+						Mesh->GetVertex(PtB.ElemID), WalkPlaneNormal, nullptr /*TODO: transform fn goes here?*/, false);
+					if (!bWalkSuccess)
+					{
+						bSuccess = false;
+					}
+					else
+					{
+						EmbeddedPath.Reset();
+						if (SurfacePath.EmbedSimplePath(false, EmbeddedPath, false, SnapToleranceSq))
+						{
+							ensure(EmbeddedPath[0] == PtA.ElemID);
+							if (VertexChains)
+							{
+								if (SegmentToChain)
+								{
+									(*SegmentToChain)[SegIdx] = VertexChains->Num();
+								}
+								VertexChains->Add(EmbeddedPath.Num());
+								VertexChains->Append(EmbeddedPath);
+							}
+						}
+						else
+						{
+							bSuccess = false;
+						}
+					}
+				}
+				else
+				{
+					bSuccess = false;
+				}
+			}
+			
+
+			return bSuccess;
+		}
+
+		void UpdateFromSplit(FPtOnMesh& Pt, int SplitVertex, const FIndex2i& SplitEdges)
+		{
+			// check if within tolerance of the new vtx
+			if (Pt.Pos.DistanceSquared(Mesh->GetVertex(SplitVertex)) < SnapToleranceSq)
+			{
+				Pt.Type = EVertexType::Vertex;
+				Pt.ElemID = SplitVertex;
+				return;
+			}
+
+			// it was already on the edge, so it must be on the sub-edges after split -- just pick the closest
+			int EdgeIdx = ClosestEdge(SplitEdges, Pt.Pos);
+			Pt.Type = EVertexType::Edge;
+			Pt.ElemID = SplitEdges[EdgeIdx];
+		}
+
+
+
+		void UpdateFromPoke(FPtOnMesh& Pt, int PokeVertex, const FIndex3i& PokeEdges, const FIndex3i& PokeTris)
+		{
+			// check if within tolerance of the new vtx
+			if (Pt.Pos.DistanceSquared(Mesh->GetVertex(PokeVertex)) < SnapToleranceSq)
+			{
+				Pt.Type = EVertexType::Vertex;
+				Pt.ElemID = PokeVertex;
+				return;
+			}
+
+			int EdgeIdx = OnEdge(PokeEdges, Pt.Pos);
+			if (EdgeIdx > -1)
+			{
+				Pt.Type = EVertexType::Edge;
+				Pt.ElemID = PokeEdges[EdgeIdx];
+				return;
+			}
+
+			for (int j = 0; j < 3; ++j) {
+
+				if (IsInTriangle(PokeTris[j], Pt.Pos))
+				{
+					check(Pt.Type == EVertexType::Face); // how would it be anything else?
+					Pt.ElemID = PokeTris[j];
+					return;
+				}
+			}
+
+			ensureMsgf(false, TEXT("Vertex on original tri didn't map to any triangle created by poking that triangle; consider switching to (or falling back to) a more robust 'closest triangle' metric?"));
+			// for now, just pick the first triangle
+			Pt.ElemID = PokeTris.A;
+		}
+
+		int OnVertex(const FTriangle3d& Tri, const FVector3d& V)
+		{
+			double BestDSq = SnapToleranceSq;
+			int BestIdx = -1;
+			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+			{
+				double DSq = Tri.V[SubIdx].DistanceSquared(V);
+				if (DSq < BestDSq)
+				{
+					BestIdx = SubIdx;
+					BestDSq = DSq;
+				}
+			}
+			return BestIdx;
+		}
+
+		int OnEdge(const FTriangle3d& Tri, const FVector3d& V)
+		{
+			double BestDSq = SnapToleranceSq;
+			int BestIdx = -1;
+			for (int Idx = 0; Idx < 3; Idx++)
+			{
+				FSegment3d Seg{ Tri.V[Idx], Tri.V[(Idx + 1) % 3] };
+				double DSq = Seg.DistanceSquared(V);
+				if (DSq < BestDSq)
+				{
+					BestDSq = DSq;
+					BestIdx = Idx;
+				}
+			}
+			return BestIdx;
+		}
+
+		int ClosestEdge(FIndex2i EIDs, const FVector3d& Pos)
+		{
+			double BestIdx = -1;
+			double BestDSq = SnapToleranceSq;
+			for (int Idx = 0; Idx < 2; Idx++)
+			{
+				int EID = EIDs[Idx];
+				FIndex2i EVIDs = Mesh->GetEdgeV(EID);
+				FSegment3d Seg(Mesh->GetVertex(EVIDs.A), Mesh->GetVertex(EVIDs.B));
+				double DSq = Seg.DistanceSquared(Pos);
+				if (DSq < BestDSq)
+				{
+					BestDSq = DSq;
+					BestIdx = Idx;
+				}
+			}
+			return BestIdx;
+		}
+
+		int OnEdge(FIndex3i EIDs, const FVector3d& Pos)
+		{
+			double BestIdx = -1;
+			double BestDSq = SnapToleranceSq;
+			for (int Idx = 0; Idx < 3; Idx++)
+			{
+				int EID = EIDs[Idx];
+				FIndex2i EVIDs = Mesh->GetEdgeV(EID);
+				FSegment3d Seg(Mesh->GetVertex(EVIDs.A), Mesh->GetVertex(EVIDs.B));
+				double DSq = Seg.DistanceSquared(Pos);
+				if (DSq < BestDSq)
+				{
+					BestDSq = DSq;
+					BestIdx = Idx;
+				}
+			}
+			return BestIdx;
+		}
+
+		bool IsInTriangle(int TID, const FVector3d& Pos)
+		{
+			FTriangle3d Tri;
+			Mesh->GetTriVertices(TID, Tri.V[0], Tri.V[1], Tri.V[2]);
+			FVector3d bary = VectorUtil::BarycentricCoords(Pos, Tri.V[0], Tri.V[1], Tri.V[2]);
+			return (bary.X >= 0 && bary.Y >= 0 && bary.Z >= 0
+				&& bary.X < 1 && bary.Y <= 1 && bary.Z <= 1);
+
+		}
+
+
+	};
+}
+
+bool FMeshSelfCut::Cut(const MeshIntersection::FIntersectionsQueryResult& Intersections)
+{
+	check(!bCutCoplanar); // not implemented yet
+
+	ResetOutputs();
+
+	MeshCut::FCutWorkingInfo WorkingInfo(Mesh, SnapTolerance);
+	TMap<FVector3d, int> SegVtxMap;
+	WorkingInfo.AddSegments(Intersections, SegVtxMap, 0);
+	WorkingInfo.AddSegments(Intersections, SegVtxMap, 1);
+	WorkingInfo.InsertFaceVertices();
+	WorkingInfo.InsertEdgeVertices();
+	return WorkingInfo.ConnectEdges(bTrackInsertedVertices ? &VertexChains : nullptr);
+}
+
+
+bool FMeshMeshCut::Cut(const MeshIntersection::FIntersectionsQueryResult& Intersections)
+{
+	check(!bCutCoplanar); // not implemented yet
+
+	ResetOutputs();
+
+	bool bSuccess = true;
+
+	int MeshesToProcess = bMutuallyCut ? 2 : 1;
+	for (int MeshIdx = 0; MeshIdx < MeshesToProcess; MeshIdx++)
+	{
+		MeshCut::FCutWorkingInfo WWorkingInfo(Mesh[MeshIdx], SnapTolerance);
+		TMap<FVector3d, int> SegVtxMap;
+		WWorkingInfo.AddSegments(Intersections, SegVtxMap, MeshIdx); // add intersection segments
+		WWorkingInfo.InsertFaceVertices(); // insert vertices for intersection segments w/ endpoints on faces
+		WWorkingInfo.InsertEdgeVertices(); // insert vertices for intersection segments w/ endpoints on edges
+
+		// ensure that intersection segment endpoints are connected by direct edge paths
+		bool bConnected = WWorkingInfo.ConnectEdges(
+			bTrackInsertedVertices ? &VertexChains[MeshIdx] : nullptr,
+			bTrackInsertedVertices ? &SegmentToChain[MeshIdx] : nullptr
+		);
+		if (!bConnected)
+		{
+			bSuccess = false;
+		}
+	}
+
+	return bSuccess;
+}

@@ -37,53 +37,20 @@ FD3D12IndexBuffer::~FD3D12IndexBuffer()
 	}
 }
 
-void FD3D12IndexBuffer::Rename(FD3D12ResourceLocation& NewLocation)
-{
-	FD3D12ResourceLocation::TransferOwnership(ResourceLocation, NewLocation);
-}
-
-void FD3D12IndexBuffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
-{
-	// Dynamic buffers use cross-node resources.
-	ensure(GetUsage() & BUF_AnyDynamic);
-	Rename(NewLocation);
-
-	if (GNumExplicitGPUsForRendering > 1)
-	{
-		// This currently crashes at exit time because NewLocation isn't tracked in the right allocator.
-		ensure(IsHeadLink());
-		ensure(GetParentDevice() == NewLocation.GetParentDevice());
-
-		// Update all of the resources in the LDA chain to reference this cross-node resource
-		for (FD3D12IndexBuffer* NextBuffer = GetNextObject(); NextBuffer; NextBuffer = NextBuffer->GetNextObject())
-		{
-			FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
-		}
-	}
-}
-
 void FD3D12IndexBuffer::Swap(FD3D12IndexBuffer& Other)
 {
 	check(!LockedData.bLocked && !Other.LockedData.bLocked);
 	FRHIIndexBuffer::Swap(Other);
 	FD3D12BaseShaderResource::Swap(Other);
 	FD3D12TransientResource::Swap(Other);
-	FD3D12LinkedAdapterObject<FD3D12IndexBuffer>::Swap(Other);
+	FD3D12LinkedAdapterObject<FD3D12Buffer>::Swap(Other);
 }
 
 void FD3D12IndexBuffer::ReleaseUnderlyingResource()
 {
-	check(!LockedData.bLocked && ResourceLocation.IsValid());
 	UpdateBufferStats<FD3D12IndexBuffer>(&ResourceLocation, false);
-	ResourceLocation.Clear();
 	FRHIIndexBuffer::ReleaseUnderlyingResource();
-	RemoveAllDynamicSRVs();
-
-	FD3D12IndexBuffer* NextIB = GetNextObject();
-	if (NextIB)
-	{
-		NextIB->ReleaseUnderlyingResource();
-	}
+	FD3D12Buffer::ReleaseUnderlyingResource();
 }
 
 FIndexBufferRHIRef FD3D12DynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
@@ -108,12 +75,14 @@ FIndexBufferRHIRef FD3D12DynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 
 void* FD3D12DynamicRHI::RHILockIndexBuffer(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
-	return LockBuffer(&RHICmdList, FD3D12DynamicRHI::ResourceCast(IndexBufferRHI), Offset, Size, LockMode);
+	FD3D12IndexBuffer* Buffer = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI);
+	return LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), Offset, Size, LockMode);
 }
 
 void FD3D12DynamicRHI::RHIUnlockIndexBuffer(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
 {
-	UnlockBuffer(&RHICmdList, FD3D12DynamicRHI::ResourceCast(IndexBufferRHI));
+	FD3D12IndexBuffer* Buffer = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI);
+	UnlockBuffer(&RHICmdList, Buffer, Buffer->GetUsage());
 }
 
 void FD3D12DynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
@@ -163,7 +132,7 @@ FIndexBufferRHIRef FD3D12DynamicRHI::CreateAndLockIndexBuffer_RenderThread(class
 		Buffer->SetCommitted(false);
 	}
 
-	OutDataBuffer = LockBuffer(&RHICmdList, Buffer, 0, Size, RLM_WriteOnly);
+	OutDataBuffer = LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), 0, Size, RLM_WriteOnly);
 
 	return Buffer;
 }

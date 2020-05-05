@@ -9,16 +9,33 @@
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 #include "Changes/MeshReplacementChange.h"
-
+#include "MeshConversionOptions.h"
 #include "DynamicMesh3.h"
 
 #include "BaseDynamicMeshComponent.generated.h"
 
-
 // predecl
+struct FMeshDescription;
 class FMeshVertexChange;
 class FMeshChange;
 
+
+
+/**
+ * EMeshRenderAttributeFlags is used to identify different mesh rendering attributes, for things
+ * like fast-update functions
+ */
+enum class EMeshRenderAttributeFlags : uint8
+{
+	None = 0,
+	Positions = 0x1,
+	VertexColors = 0x2,
+	VertexNormals = 0x4,
+	VertexUVs = 0x8,
+
+	All = 0xFF
+};
+ENUM_CLASS_FLAGS(EMeshRenderAttributeFlags);
 
 
 
@@ -47,6 +64,32 @@ class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, 
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	/**
+	 * initialize the internal mesh from a MeshDescription
+	 */
+	virtual void InitializeMesh(FMeshDescription* MeshDescription)
+	{
+		unimplemented();
+	}
+
+	/**
+	 * @return pointer to internal mesh
+	 */
+	virtual FDynamicMesh3* GetMesh()
+	{
+		unimplemented();
+		return nullptr;
+	}
+
+	/**
+	 * @return pointer to internal mesh
+	 */
+	virtual const FDynamicMesh3* GetMesh() const
+	{
+		unimplemented();
+		return nullptr;
+	}
 
 	/**
 	 * Call this if you update the mesh via GetMesh()
@@ -82,6 +125,28 @@ public:
 	}
 
 
+	//
+	// Modification support
+	//
+public:
+
+	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert)
+	{
+		unimplemented();
+	}
+
+	/**
+	 * Write the internal mesh to a MeshDescription
+	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
+	 * @param ConversionOptions struct of additional options for the conversion
+	 */
+	virtual void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
+	{
+		unimplemented();
+	}
+
+
+
 protected:
 	/**
 	 * Subclass must implement this to notify allocated proxies of updated materials
@@ -94,6 +159,11 @@ protected:
 
 
 public:
+
+	/**
+	 * Configure whether wireframe rendering is enabled or not
+	 */
+	virtual void SetEnableWireframeRenderPass(bool bEnable) { check(false); }
 
 	/**
 	 * @return true if wireframe rendering pass is enabled (default false)

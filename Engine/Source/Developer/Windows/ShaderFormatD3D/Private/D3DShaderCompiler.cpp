@@ -61,6 +61,7 @@ static uint32 TranslateCompilerFlagD3D11(ECompilerFlags CompilerFlag)
 	{
 	case CFLAG_PreferFlowControl: return D3D10_SHADER_PREFER_FLOW_CONTROL;
 	case CFLAG_AvoidFlowControl: return D3D10_SHADER_AVOID_FLOW_CONTROL;
+	case CFLAG_SkipValidation: return D3D10_SHADER_SKIP_VALIDATION;
 	default: return 0;
 	};
 }
@@ -458,6 +459,7 @@ static HRESULT D3DCompileWrapper(
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__except( EXCEPTION_EXECUTE_HANDLER )
 	{
+		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
 		bException = true;
 		return E_FAIL;
 	}
@@ -496,6 +498,42 @@ static FString DxcBlobEncodingToFString(TRefCountPtr<IDxcBlobEncoding> DxcBlob)
 	return OutString;
 }
 
+
+static HRESULT DXCCompileWrapper(
+	TRefCountPtr<IDxcCompiler>& Compiler,
+	TRefCountPtr<IDxcBlobEncoding>& TextBlob,
+	LPCWSTR EntryPoint,
+	LPCWSTR TargetProfile,
+	LPCWSTR* Arguments,
+	uint32 NumArguments,
+	TRefCountPtr<IDxcOperationResult>& OutCompileResult)
+{
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__try
+#endif
+	{
+		return Compiler->Compile(
+			TextBlob,							// source text to compile
+			nullptr,							// optional file name for pSource. Used in errors and include handlers.
+			EntryPoint,							// entry point name
+			TargetProfile,						// shader profile to compile
+			Arguments,							// array of pointers to arguments
+			NumArguments,						// number of arguments
+			nullptr,							// array of defines
+			0,									// number of defines
+			nullptr,							// user-provided interface to handle #include directives (optional)
+			OutCompileResult.GetInitReference()	// compiler output status, buffer, and errors
+		);
+	}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+		return E_FAIL;
+	}
+#endif
+}
+
 static HRESULT D3DCompileToDxil(const char* SourceText, LPCWSTR EntryPoint, LPCWSTR TargetProfile, LPCWSTR* Arguments, uint32 NumArguments, 
 	const FString& DisasmFilename, TRefCountPtr<ID3DBlob>& OutDxilBlob, TRefCountPtr<IDxcBlobEncoding>& OutErrorBlob)
 {
@@ -511,19 +549,7 @@ static HRESULT D3DCompileToDxil(const char* SourceText, LPCWSTR EntryPoint, LPCW
 	VERIFYHRESULT(Library->CreateBlobWithEncodingFromPinned((LPBYTE)SourceText, FCStringAnsi::Strlen(SourceText), CP_UTF8, TextBlob.GetInitReference()));
 
 	TRefCountPtr<IDxcOperationResult> CompileResult;
-
-	VERIFYHRESULT(Compiler->Compile(
-		TextBlob,							// source text to compile
-		nullptr,							// optional file name for pSource. Used in errors and include handlers.
-		EntryPoint,							// entry point name
-		TargetProfile,						// shader profile to compile
-		Arguments,							// array of pointers to arguments
-		NumArguments,						// number of arguments
-		nullptr,							// array of defines
-		0,									// number of defines
-		nullptr,							// user-provided interface to handle #include directives (optional)
-		CompileResult.GetInitReference()	// compiler output status, buffer, and errors
-	));
+	VERIFYHRESULT(DXCCompileWrapper(Compiler, TextBlob, EntryPoint, TargetProfile, Arguments, NumArguments, CompileResult));
 
 	HRESULT CompileResultCode;
 	CompileResult->GetStatus(&CompileResultCode);
@@ -1057,11 +1083,6 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 		FString Filename = Input.GetSourceFilename();
 		if (bUseDXC)
 		{
-			if (Input.Environment.CompilerFlags.Contains(CFLAG_SkipOptimizationsDXC))
-			{
-				CompileFlags |= D3D10_SHADER_SKIP_OPTIMIZATION;
-			}
-
 			BatchFileContents = D3DCreateDXCCompileBatchFile(Filename, *EntryPointName, *RayTracingExports, ShaderProfile, CompileFlags, Output, AutoBindingSpace);
 		}
 		else
@@ -1102,11 +1123,6 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 		// Ignore backwards compatibility flag (/Gec) as it is deprecated.
 		// #dxr_todo: this flag should not be even passed into this function from the higher level.
 		uint32 DXCFlags = CompileFlags & (~D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY);
-
-		if (Input.Environment.CompilerFlags.Contains(CFLAG_SkipOptimizationsDXC))
-		{
-			DXCFlags |= D3D10_SHADER_SKIP_OPTIMIZATION;
-		}
 
 		D3DCreateDXCArguments(Args, *RayTracingExports, DXCFlags, Output, AutoBindingSpace);
 
@@ -1627,7 +1643,9 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 			// Check for resource limits for feature level 11.0
 			if (NumUAVs > GD3DMaximumNumUAVs)
 			{
-				UE_LOG(LogD3D11ShaderCompiler, Fatal, TEXT("Number of UAVs in \"%s\" exceeded limit: %d slots used, but limit is %d due to maximum feature level 11.0"), *Input.VirtualSourceFilePath, NumUAVs, GD3DMaximumNumUAVs);
+				FilteredErrors.Add(FString::Printf(TEXT("Number of UAVs in \"%s\" exceeded limit: %d slots used, but limit is %d due to maximum feature level 11.0"), *Input.VirtualSourceFilePath, NumUAVs, GD3DMaximumNumUAVs));
+				Result = E_FAIL;
+				Output.bSucceeded = false;
 			}
 
 			// Set the number of instructions.

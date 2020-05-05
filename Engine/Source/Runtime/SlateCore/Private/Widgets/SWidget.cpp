@@ -553,7 +553,7 @@ FPopupMethodReply SWidget::OnQueryPopupMethod() const
 	return FPopupMethodReply::Unhandled();
 }
 
-TSharedPtr<struct FVirtualPointerPosition> SWidget::TranslateMouseCoordinateFor3DChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& MyGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const
+TSharedPtr<struct FVirtualPointerPosition> SWidget::TranslateMouseCoordinateForCustomHitTestChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& MyGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const
 {
 	return nullptr;
 }

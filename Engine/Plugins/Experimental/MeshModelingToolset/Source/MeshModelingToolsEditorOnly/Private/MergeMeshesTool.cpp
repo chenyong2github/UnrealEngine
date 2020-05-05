@@ -79,10 +79,15 @@ void UMergeMeshesTool::Setup()
 	UInteractiveTool::Setup();
 
 	MergeProps = NewObject<UMergeMeshesToolProperties>();
+	MergeProps->RestoreProperties(this);
 	AddToolPropertySource(MergeProps);
 
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 	AddToolPropertySource(MeshStatisticsProperties);
+
+	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
+	HandleSourcesProperties->RestoreProperties(this);
+	AddToolPropertySource(HandleSourcesProperties);
 
 	// Hide the source meshes
 	for (auto& ComponentTarget : ComponentTargets)
@@ -118,7 +123,15 @@ void UMergeMeshesTool::Setup()
 
 void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	MergeProps->SaveProperties(this);
+	HandleSourcesProperties->SaveProperties(this);
+
 	FDynamicMeshOpResult Result = Preview->Shutdown();
+	// Restore (unhide) the source meshes
+	for (auto& ComponentTarget : ComponentTargets)
+	{
+		ComponentTarget->SetOwnerVisibility(true);
+	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		// Generate the result
@@ -130,54 +143,21 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			GetToolManager()->EndUndoTransaction();
 		}
 
-		// Hide or destroy the sources
-		{
-			if (MergeProps->bDeleteInputActors) 
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
-			
-			for (auto& ComponentTarget : ComponentTargets)
-			{
-				ComponentTarget->SetOwnerVisibility(true);
-				AActor* Actor = ComponentTarget->GetOwnerActor();
-				if (MergeProps->bDeleteInputActors)
-				{
-					Actor->Destroy();
-				}
-				else
-				{
-					// just hide the result.
-					Actor->SetIsTemporarilyHiddenInEditor(true);
-				}
-			}
-
-			if (MergeProps->bDeleteInputActors) 
-				GetToolManager()->EndUndoTransaction();
-		}
-		
-
-	}
-	else
-	{
-		// Restore (unhide) the source meshes
+		TArray<AActor*> Actors;
 		for (auto& ComponentTarget : ComponentTargets)
 		{
-			ComponentTarget->SetOwnerVisibility(true);
+			Actors.Add(ComponentTarget->GetOwnerActor());
 		}
+		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
 	}
 }
 
 
 
-void UMergeMeshesTool::Tick(float DeltaTime)
+void UMergeMeshesTool::OnTick(float DeltaTime)
 {
 	Preview->Tick(DeltaTime);
 }
-
-
-void UMergeMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-}
-
 
 bool UMergeMeshesTool::HasAccept() const
 {

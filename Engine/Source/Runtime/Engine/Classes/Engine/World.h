@@ -62,7 +62,7 @@ class FSceneView;
 struct FUniqueNetIdRepl;
 struct FEncryptionKeyResponse;
 
-template<typename,typename> class TOctree;
+template<typename,typename> class TOctree2;
 
 /**
  * Misc. Iterator types

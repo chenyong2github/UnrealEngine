@@ -14,6 +14,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Engine/GameViewportClient.h"
 #include "RenderCaptureInterface.h"
+#include "Misc/AutomationTest.h"
 
 #if WITH_EDITOR
 #include "UnrealClient.h"
@@ -99,23 +100,71 @@ public:
 		return Device;
 
 	}
+
 	static void BeginCapture(HWND WindowHandle, FRenderDocPluginLoader::RENDERDOC_API_CONTEXT* RenderDocAPI, FRenderDocPluginModule* Plugin)
 	{
 		UE4_GEmitDrawEvents_BeforeCapture = GetEmitDrawEvents();
 		SetEmitDrawEvents(true);
 		RenderDocAPI->StartFrameCapture(GetRenderdocDevicePointer(), WindowHandle);
 	}
-	static void EndCapture(HWND WindowHandle, FRenderDocPluginLoader::RENDERDOC_API_CONTEXT* RenderDocAPI, FRenderDocPluginModule* Plugin)
+
+	static void EndCapture(HWND WindowHandle, FRenderDocPluginLoader::RENDERDOC_API_CONTEXT* RenderDocAPI, FRenderDocPluginModule* Plugin, const FString& DestPath, FRenderDocPluginModule::ELaunchAfterCapture LaunchOption)
 	{
 		FRHICommandListExecutor::GetImmediateCommandList().SubmitCommandsAndFlushGPU();
 		RenderDocAPI->EndFrameCapture(GetRenderdocDevicePointer(), WindowHandle);
 
 		SetEmitDrawEvents(UE4_GEmitDrawEvents_BeforeCapture);
 
-		TGraphTask<FRenderDocAsyncGraphTask>::CreateTask().ConstructAndDispatchWhenReady(ENamedThreads::GameThread, [Plugin]()
+		bool bLaunchDestPath = false;
+		if (!DestPath.IsEmpty())
 		{
-			Plugin->StartRenderDoc(FPaths::Combine(*FPaths::ProjectSavedDir(), *FString("RenderDocCaptures")));
-		});
+			IPlatformFile& PlatformFileSystem = IPlatformFile::GetPlatformPhysical();
+
+			FString NewestCapturePath = Plugin->GetNewestCapture();
+			UE_LOG(RenderDocPlugin, Log, TEXT("Copying: %s to %s"), *NewestCapturePath, *DestPath);
+
+			if (PlatformFileSystem.FileExists(*DestPath))
+			{
+				PlatformFileSystem.DeleteFile(*DestPath);
+			}
+
+			if (PlatformFileSystem.CreateDirectoryTree(*FPaths::GetPath(DestPath)))
+			{
+				if (PlatformFileSystem.MoveFile(*DestPath, *NewestCapturePath))
+				{
+					bLaunchDestPath = true;
+				}
+				else
+				{
+					uint32 WriteErrorCode = FPlatformMisc::GetLastError();
+					TCHAR WriteErrorBuffer[2048];
+					FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
+					UE_LOG(RenderDocPlugin, Warning, TEXT("Failed to move: %s to %s. WriteError: %u (%s)"), *NewestCapturePath, *DestPath, WriteErrorCode, WriteErrorBuffer);
+				}
+			}
+			else
+			{
+				uint32 WriteErrorCode = FPlatformMisc::GetLastError();
+				TCHAR WriteErrorBuffer[2048];
+				FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
+				UE_LOG(RenderDocPlugin, Warning, TEXT("Failed to create directory tree for: %s. WriteError: %u (%s)"), *DestPath, WriteErrorCode, WriteErrorBuffer);
+			}
+		}
+
+		if (LaunchOption == FRenderDocPluginModule::ELaunchAfterCapture::Yes)
+		{	
+			TGraphTask<FRenderDocAsyncGraphTask>::CreateTask().ConstructAndDispatchWhenReady(ENamedThreads::GameThread, [Plugin, DestPath, bLaunchDestPath]()
+			{
+				if (bLaunchDestPath)
+				{
+					Plugin->StartRenderDoc(DestPath);
+				}
+				else
+				{
+					Plugin->StartRenderDoc(FString());
+				}
+			});
+		}
 	}
 
 private:
@@ -202,7 +251,7 @@ void FRenderDocPluginModule::StartupModule()
 	bShouldCaptureAllActivity = false;
 
 	// Setup RenderDoc settings
-	FString RenderDocCapturePath = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("RenderDocCaptures"));
+	FString RenderDocCapturePath = FPaths::ProjectSavedDir() / TEXT("RenderDocCaptures");
 	if (!IFileManager::Get().DirectoryExists(*RenderDocCapturePath))
 	{
 		IFileManager::Get().MakeDirectory(*RenderDocCapturePath, true);
@@ -303,17 +352,17 @@ void FRenderDocPluginModule::InjectDebugExecKeybind()
 	}
 }
 
-void FRenderDocPluginModule::EndCapture()
+void FRenderDocPluginModule::EndCapture(void* HWnd, const FString& DestPath, ELaunchAfterCapture LaunchOption)
 {
-	HWND WindowHandle = GetActiveWindow();
+	HWND WindowHandle = (HWnd) ? reinterpret_cast<HWND>(HWnd) : GetActiveWindow();
 
 	typedef FRenderDocPluginLoader::RENDERDOC_API_CONTEXT RENDERDOC_API_CONTEXT;
 	FRenderDocPluginModule* Plugin = this;
 	FRenderDocPluginLoader::RENDERDOC_API_CONTEXT* RenderDocAPILocal = RenderDocAPI;
 	ENQUEUE_RENDER_COMMAND(EndRenderDocCapture)(
-		[WindowHandle, RenderDocAPILocal, Plugin](FRHICommandListImmediate& RHICmdList)
+		[WindowHandle, RenderDocAPILocal, Plugin, DestPath, LaunchOption](FRHICommandListImmediate& RHICmdList)
 		{
-			FRenderDocFrameCapturer::EndCapture(WindowHandle, RenderDocAPILocal, Plugin);
+			FRenderDocFrameCapturer::EndCapture(WindowHandle, RenderDocAPILocal, Plugin, DestPath, LaunchOption);
 		});
 
 	DelayedCaptureTick = 0;
@@ -324,22 +373,29 @@ void FRenderDocPluginModule::EndCapture()
 	bCaptureInProgress = false;
 }
 
-void FRenderDocPluginModule::CaptureFrame()
+void FRenderDocPluginModule::CaptureFrame(FViewport* InViewport, const FString& DestPath, ELaunchAfterCapture LaunchOption)
 {
 	int32 FrameDelay = CVarRenderDocCaptureDelay.GetValueOnAnyThread();
 
 	// Don't do anything if we're currently already waiting for a capture to end : 
 	if (bCaptureInProgress)
+	{
 		return;
+	}
 
 	// in case there's no delay and we capture the current viewport, we can trigger the capture immediately : 
 	bShouldCaptureAllActivity = ShouldCaptureAllActivity();
 	if ((FrameDelay == 0) && !bShouldCaptureAllActivity)
 	{
-		DoCaptureCurrentViewport();
+		DoCaptureCurrentViewport(InViewport, DestPath, LaunchOption);
 	}
 	else
 	{
+		if (InViewport || !DestPath.IsEmpty() || LaunchOption != ELaunchAfterCapture::Yes)
+		{
+			UE_LOG(RenderDocPlugin, Warning, TEXT("Deferred captures only support default params. Passed in params will be ignored."));
+		}
+
 		// store all CVars at beginning of capture in case they change while the capture is occuring : 
 		CaptureFrameCount = CVarRenderDocCaptureFrameCount.GetValueOnAnyThread();
 		bCaptureDelayInSeconds = CVarRenderDocCaptureDelayInSeconds.GetValueOnAnyThread() > 0;
@@ -388,19 +444,23 @@ void FRenderDocPluginModule::CapturePIE(const TArray<FString>& Args)
 	StartPIEDelayFrames = 1;
 }
 
-void FRenderDocPluginModule::DoCaptureCurrentViewport()
+void FRenderDocPluginModule::DoCaptureCurrentViewport(FViewport* InViewport, const FString& DestPath, ELaunchAfterCapture LaunchOption)
 {
 	BeginCapture();
 
 	// infer the intended viewport to intercept/capture:
-	FViewport* Viewport (nullptr);
+	FViewport* Viewport = InViewport;
+
 	check(GEngine);
-	if (GEngine->GameViewport)
+	if (!Viewport && GEngine->GameViewport)
 	{
 		check(GEngine->GameViewport->Viewport);
 		if (GEngine->GameViewport->Viewport->HasFocus())
+		{
 			Viewport = GEngine->GameViewport->Viewport;
+		}
 	}
+
 #if WITH_EDITOR
 	if (!Viewport && GEditor)
 	{
@@ -411,10 +471,11 @@ void FRenderDocPluginModule::DoCaptureCurrentViewport()
 		Viewport = GEditor->GetActiveViewport();
 	}
 #endif
+
 	check(Viewport);
 	Viewport->Draw(true);
 
-	EndCapture();
+	EndCapture(Viewport->GetWindow(), DestPath, LaunchOption);
 }
 
 void FRenderDocPluginModule::Tick(float DeltaTime)
@@ -458,7 +519,7 @@ void FRenderDocPluginModule::Tick(float DeltaTime)
 			// are we capturing only the current viewport?
 			if (!bShouldCaptureAllActivity)
 			{
-				DoCaptureCurrentViewport();
+				DoCaptureCurrentViewport(nullptr, FString(), ELaunchAfterCapture::Yes);
 				check(!bCaptureInProgress && !bPendingCapture); // EndCapture must have been called
 			}
 			else
@@ -486,7 +547,7 @@ void FRenderDocPluginModule::Tick(float DeltaTime)
 
 		if (GFrameCounter == CaptureEndTick)
 		{
-			EndCapture();
+			EndCapture(nullptr, FString(), ELaunchAfterCapture::Yes);
 		}
 		else
 		{
@@ -496,14 +557,18 @@ void FRenderDocPluginModule::Tick(float DeltaTime)
 	}
 }
 
-void FRenderDocPluginModule::StartRenderDoc(FString FrameCaptureBaseDirectory)
+void FRenderDocPluginModule::StartRenderDoc(FString LaunchPath)
 {
 	ShowNotification(LOCTEXT("RenderDocLaunchRenderDocNotification", "Launching RenderDoc GUI"), true);
 
-	FString NewestCapture = GetNewestCapture(FrameCaptureBaseDirectory);
-	FString ArgumentString = FString::Printf(TEXT("\"%s\""), *FPaths::ConvertRelativePathToFull(NewestCapture).Append(TEXT(".log")));
+	if (LaunchPath.IsEmpty())
+	{
+		LaunchPath = GetNewestCapture();
+	}
 
-	if (!NewestCapture.IsEmpty())
+	FString ArgumentString = FString::Printf(TEXT("\"%s\""), *LaunchPath);
+
+	if (!LaunchPath.IsEmpty())
 	{
 		if (!RenderDocAPI->IsRemoteAccessConnected())
 		{
@@ -520,7 +585,7 @@ void FRenderDocPluginModule::StartRenderDoc(FString FrameCaptureBaseDirectory)
 	ShowNotification(LOCTEXT("RenderDocLaunchRenderDocNotificationCompleted", "RenderDoc GUI Launched!"), true);
 }
 
-FString FRenderDocPluginModule::GetNewestCapture(FString BaseDirectory)
+FString FRenderDocPluginModule::GetNewestCapture()
 {
 	char LogFile[512];
 	uint64_t Timestamp;
@@ -535,7 +600,7 @@ FString FRenderDocPluginModule::GetNewestCapture(FString BaseDirectory)
 		Index++;
 	}
 	
-	return OutString;
+	return FPaths::ConvertRelativePathToFull(OutString);
 }
 
 void FRenderDocPluginModule::ShutdownModule()
@@ -575,7 +640,7 @@ void FRenderDocPluginModule::EndCaptureBracket(FRHICommandListImmediate* RHIComm
 		{
 			TGraphTask<FRenderDocAsyncGraphTask>::CreateTask().ConstructAndDispatchWhenReady(ENamedThreads::GameThread, [this]()
 			{
-				StartRenderDoc(FPaths::Combine(*FPaths::ProjectSavedDir(), *FString("RenderDocCaptures")));
+				StartRenderDoc(FString());
 			});
 		}
 	});
@@ -593,6 +658,20 @@ void FRenderDocPluginModule::BindCaptureCallbacks()
 			EndCaptureBracket(RHICommandList);
 		})
 	);
+
+	if (FAutomationTestFramework::Get().OnCaptureFrameTrace.IsBound())
+	{
+		UE_LOG(RenderDocPlugin, Warning, TEXT("Automation OnCaptureFrameTrace delegate already bound. RenderDoc capture will not be bound."));
+	}
+	else
+	{
+		FAutomationTestFramework::Get().OnCaptureFrameTrace.BindLambda(
+			[](const FString& DestPath, FViewport* InViewport)
+			{
+				FRenderDocPluginModule& PluginModule = FModuleManager::GetModuleChecked<FRenderDocPluginModule>("RenderDocPlugin");
+				PluginModule.CaptureFrame(InViewport, DestPath, ELaunchAfterCapture::No);
+			});
+	}
 }
 
 void FRenderDocPluginModule::UnBindCaptureCallbacks()

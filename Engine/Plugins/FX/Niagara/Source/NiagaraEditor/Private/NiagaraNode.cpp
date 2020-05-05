@@ -372,6 +372,23 @@ bool UNiagaraNode::ConvertNumericPinToType(UEdGraphPin* InGraphPin, FNiagaraType
 	return true;
 }
 
+bool UNiagaraNode::GetIsPinRenamePending(const UEdGraphPin* Pin)
+{
+	return PinsGuidsWithRenamePending.Contains(Pin->PersistentGuid);
+}
+
+void UNiagaraNode::SetIsPinRenamePending(const UEdGraphPin* Pin, bool bInIsRenamePending)
+{
+	if (bInIsRenamePending)
+	{
+		PinsGuidsWithRenamePending.AddUnique(Pin->PersistentGuid);
+	}
+	else
+	{
+		PinsGuidsWithRenamePending.Remove(Pin->PersistentGuid);
+	}
+}
+
 TSharedPtr<SGraphNode> UNiagaraNode::CreateVisualWidget() 
 {
 	return SNew(SNiagaraGraphNode, this);

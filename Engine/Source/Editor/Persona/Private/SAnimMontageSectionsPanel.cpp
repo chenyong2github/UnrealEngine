@@ -275,7 +275,7 @@ void SAnimMontageSectionsPanel::Update()
 					.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 					[
 						SAssignNew(WrapBox, SWrapBox)
-						.UseAllottedWidth(true)
+						.UseAllottedSize(true)
 					]
 				];
 			

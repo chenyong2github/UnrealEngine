@@ -76,7 +76,7 @@ public:
 	static TSharedPtr<FInternetAddr> GetUniverseAddr(uint16 InUniverseID);
 
 private:
-	EDMXSendResult SendDMXInternal(uint16 UniverseID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const;
+	EDMXSendResult SendDMXInternal(uint16 UniverseID, const FDMXBufferPtr& DMXBuffer) const;
 
 	/** Called each tick in LaunchEngineLoop */
 	void OnEndFrame();

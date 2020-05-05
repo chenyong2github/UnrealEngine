@@ -139,7 +139,7 @@ public:
 			return (Result == EIntersectionResult::Intersects);
 		}
 
-		// [RMS] if either segment direction is not a normalized vector, 
+		// if either segment direction is not a normalized vector, 
 		//   results are garbage, so fail query
 		if (Segment1.Direction.IsNormalized() == false || Segment2.Direction.IsNormalized() == false)
 		{
@@ -210,7 +210,7 @@ public:
 		Result = (Type != EIntersectionType::Empty) ?
 			EIntersectionResult::Intersects : EIntersectionResult::NoIntersection;
 
-		// [RMS] for debugging...
+		// for debugging...
 		//SanityCheck();
 
 		return (Result == EIntersectionResult::Intersects);

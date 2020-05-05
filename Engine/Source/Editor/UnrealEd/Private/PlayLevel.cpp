@@ -1467,16 +1467,17 @@ void UEditorEngine::OnLoginPIEComplete_Deferred(int32 LocalUserNum, bool bWasSuc
 		return;
 	}
 
-	// Create a new Game Instance for this.
-	UGameInstance* GameInstance = CreateInnerProcessPIEGameInstance(PlayInEditorSessionInfo->OriginalRequestParams, DataStruct.GameInstancePIEParameters, DataStruct.PIEInstanceIndex);
+	// Detect success based on override
+	bool bPIELoginSucceeded = IsLoginPIESuccessful(LocalUserNum, bWasSuccessful, ErrorString, DataStruct);
 
-	bool bAnyPIELoginFailed = false;
+	// Create a new Game Instance for this.
+	UGameInstance* GameInstance = CreateInnerProcessPIEGameInstance(PlayInEditorSessionInfo->OriginalRequestParams, DataStruct.GameInstancePIEParameters, DataStruct.PIEInstanceIndex);	
 	if (GameInstance)
 	{
 		GameInstance->GetWorldContext()->bWaitingOnOnlineSubsystem = false;
 
 		// Logging after the create so a new MessageLog Page is created
-		if (bWasSuccessful)
+		if (bPIELoginSucceeded)
 		{
 			if (DataStruct.GameInstancePIEParameters.NetMode != EPlayNetMode::PIE_Client )
 			{
@@ -1489,7 +1490,6 @@ void UEditorEngine::OnLoginPIEComplete_Deferred(int32 LocalUserNum, bool bWasSuc
 		}
 		else
 		{
-			bAnyPIELoginFailed = true;
 			if (DataStruct.GameInstancePIEParameters.NetMode != EPlayNetMode::PIE_Client)
 			{
 				FMessageLog(NAME_CategoryPIE).Error(FText::Format(LOCTEXT("LoggedInServerFailure", "Server failed to login. {0}"), FText::FromString(ErrorString)));
@@ -1513,7 +1513,7 @@ void UEditorEngine::OnLoginPIEComplete_Deferred(int32 LocalUserNum, bool bWasSuc
 		// If there are no more instances waiting to log-in then we can do post-launch notifications.
 		if (PlayInEditorSessionInfo->NumOutstandingPIELogins == 0)
 		{
-			if (bAnyPIELoginFailed)
+			if (!bPIELoginSucceeded)
 			{
 				UE_LOG(LogPlayLevel, Warning, TEXT("At least one of the requested PIE instances failed to start, ending PIE session."));
 				EndPlayMap();

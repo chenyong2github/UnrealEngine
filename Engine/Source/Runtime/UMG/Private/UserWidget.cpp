@@ -1231,11 +1231,21 @@ void UUserWidget::SetOwningPlayer(APlayerController* LocalPlayerController)
 	}
 }
 
-class APawn* UUserWidget::GetOwningPlayerPawn() const
+APawn* UUserWidget::GetOwningPlayerPawn() const
 {
-	if ( APlayerController* PC = GetOwningPlayer() )
+	if (APlayerController* PC = GetOwningPlayer())
 	{
 		return PC->GetPawn();
+	}
+
+	return nullptr;
+}
+
+APlayerCameraManager* UUserWidget::GetOwningPlayerCameraManager() const
+{
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		return PC->PlayerCameraManager;
 	}
 
 	return nullptr;

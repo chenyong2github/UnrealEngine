@@ -63,7 +63,7 @@ public:
 		UDatasmithFileProducer::LoadDefaultSettings();
 
 		// Disable any UI feature if running in command mode
-		if (!IsRunningCommandlet())
+		if (UToolMenus::IsToolMenuUIEnabled())
 		{
 			FDatasmithUIManager::Initialize();
 
@@ -90,7 +90,7 @@ public:
 	virtual void ShutdownModule() override
 	{
 		// Disable any UI feature if running in command mode
-		if (!IsRunningCommandlet())
+		if (UToolMenus::IsToolMenuUIEnabled())
 		{
 			RemoveDataprepMenuEntryForDatasmithSceneAsset();
 

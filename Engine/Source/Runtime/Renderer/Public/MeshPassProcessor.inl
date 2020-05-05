@@ -6,6 +6,23 @@ MeshPassProcessor.inl:
 
 #pragma once
 
+static EVRSShadingRate GetShadingRateFromMaterial(EMaterialShadingRate MaterialShadingRate)
+{
+	if (GRHISupportsVariableRateShading)
+	{
+		switch (MaterialShadingRate)
+		{
+		case MSR_1x2:
+			return EVRSShadingRate::VRSSR_1x2;
+		case MSR_2x1:
+			return EVRSShadingRate::VRSSR_2x1;
+		case MSR_2x2:
+			return EVRSShadingRate::VRSSR_2x2;
+		}
+	}
+	return EVRSShadingRate::VRSSR_1x1;
+}
+
 template<typename PassShadersType, typename ShaderElementDataType>
 void FMeshPassProcessor::BuildMeshDrawCommands(
 	const FMeshBatch& RESTRICT MeshBatch,
@@ -50,6 +67,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 
 	PipelineState.BlendState = DrawRenderState.GetBlendState();
 	PipelineState.DepthStencilState = DrawRenderState.GetDepthStencilState();
+	PipelineState.DrawShadingRate = GetShadingRateFromMaterial(MaterialResource.GetShadingRate());
 
 	check(VertexFactory && VertexFactory->IsInitialized());
 	VertexFactory->GetStreams(FeatureLevel, InputStreamType, SharedMeshDrawCommand.VertexStreams);

@@ -7,6 +7,7 @@
 
 #include "Operations/SimpleHoleFiller.h"
 #include "Operations/PlanarHoleFiller.h"
+#include "Operations/MinimalHoleFiller.h"
 #include "MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "MathUtil.h"
@@ -537,7 +538,7 @@ bool FMeshPlaneCut::SimpleHoleFill(int ConstantGroupID)
 	HoleFillTriangles.Empty();
 	for (FOpenBoundary& Boundary : OpenBoundaries)
 	{
-		TArray<int> BoundaryFillTriangles = HoleFillTriangles.Emplace_GetRef();
+		TArray<int>& BoundaryFillTriangles = HoleFillTriangles.Emplace_GetRef();
 		FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal);
 
 		for (const FEdgeLoop& Loop : Boundary.CutLoops)
@@ -559,6 +560,39 @@ bool FMeshPlaneCut::SimpleHoleFill(int ConstantGroupID)
 
 	return bAllOk;
 }
+
+
+
+bool FMeshPlaneCut::MinimalHoleFill(int ConstantGroupID)
+{
+	bool bAllOk = true;
+
+	HoleFillTriangles.Empty();
+	for (FOpenBoundary& Boundary : OpenBoundaries)
+	{
+		TArray<int>& BoundaryFillTriangles = HoleFillTriangles.Emplace_GetRef();
+		FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal);
+
+		for (const FEdgeLoop& Loop : Boundary.CutLoops)
+		{
+			FMinimalHoleFiller Filler(Mesh, Loop);
+			int GID = ConstantGroupID >= 0 ? ConstantGroupID : Mesh->AllocateTriangleGroup();
+			bAllOk = Filler.Fill(GID) && bAllOk;
+
+			BoundaryFillTriangles.Append(Filler.NewTriangles);
+
+			if (Mesh->HasAttributes())
+			{
+				FDynamicMeshEditor Editor(Mesh);
+				Editor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)PlaneNormal * Boundary.NormalSign);
+				Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor);
+			}
+		}
+	}
+
+	return bAllOk;
+}
+
 
 
 bool FMeshPlaneCut::HoleFill(TFunction<TArray<FIndex3i>(const FGeneralPolygon2d&)> PlanarTriangulationFunc, bool bFillSpans, int ConstantGroupID)

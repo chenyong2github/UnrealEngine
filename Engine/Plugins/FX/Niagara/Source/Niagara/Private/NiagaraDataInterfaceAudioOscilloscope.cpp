@@ -38,7 +38,7 @@ FNiagaraDataInterfaceProxyOscilloscope::FNiagaraDataInterfaceProxyOscilloscope(i
 	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FNiagaraDataInterfaceProxyOscilloscope::OnDeviceDestroyed);
 
 	VectorVMReadBuffer.Reset();
-	VectorVMReadBuffer.AddZeroed(Resolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+	VectorVMReadBuffer.AddZeroed(UNiagaraDataInterfaceAudioOscilloscope::MaxBufferResolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 }
 
 FNiagaraDataInterfaceProxyOscilloscope::~FNiagaraDataInterfaceProxyOscilloscope()
@@ -99,8 +99,14 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnNewDeviceCreated(Audio::FDeviceId
 	if (bIsSubmixListenerRegistered)
 	{
 		check(!SubmixListeners.Contains(InID));
-		SubmixListeners.Emplace(InID, new FNiagaraSubmixListener(PatchMixer, Resolution * 2, InID, SubmixRegisteredTo));
-		SubmixListeners[InID]->RegisterToSubmix();
+
+		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(InID);
+		if (ensure(DeviceHandle))
+		{
+			const int32 NumSamplesToPop = Align(FMath::FloorToInt(ScopeInMilliseconds / 1000.0f * DeviceHandle->GetSampleRate()) * AUDIO_MIXER_MAX_OUTPUT_CHANNELS, 4);
+			SubmixListeners.Emplace(InID, new FNiagaraSubmixListener(PatchMixer, NumSamplesToPop, InID, SubmixRegisteredTo));
+			SubmixListeners[InID]->RegisterToSubmix();
+		}
 	}
 }
 
@@ -357,7 +363,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResoluti
 			GPUDownsampledBuffer.Initialize(sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		});
 
-		VectorVMReadBuffer.SetNumZeroed(Resolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+		VectorVMReadBuffer.SetNumZeroed(UNiagaraDataInterfaceAudioOscilloscope::MaxBufferResolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 	}
 }
 
@@ -551,7 +557,7 @@ int32 FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
 	DownsampledBuffer.SetNumZeroed(Resolution * NumChannels);
 
 	check(DownsampledBuffer.Num() <= VectorVMReadBuffer.Num());
-	FMemory::Memcpy(VectorVMReadBuffer.GetData(), DownsampledBuffer.GetData(), VectorVMReadBuffer.Num());
+	FMemory::Memcpy(VectorVMReadBuffer.GetData(), DownsampledBuffer.GetData(), DownsampledBuffer.Num());
 
 	return Resolution;
 }

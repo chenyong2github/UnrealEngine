@@ -989,6 +989,15 @@ void SpirvBuilder::decorateNoContraction(SpirvInstruction *target,
   module->addDecoration(decor);
 }
 
+// UE Change Begin
+void SpirvBuilder::decorateInvariant(SpirvInstruction *target,
+                                     SourceLocation srcLoc) {
+  auto *decor = new (context)
+      SpirvDecoration(srcLoc, target, spv::Decoration::Invariant);
+  module->addDecoration(decor);
+}
+// UE Change End
+
 SpirvConstant *SpirvBuilder::getConstantInt(QualType type, llvm::APInt value,
                                             bool specConst) {
   // We do not reuse existing constant integers. Just create a new one.

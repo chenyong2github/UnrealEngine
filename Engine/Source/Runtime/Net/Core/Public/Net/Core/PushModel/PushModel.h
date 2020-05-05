@@ -7,6 +7,7 @@
 #if WITH_PUSH_MODEL
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectKey.h"
 
 /**
  * Push Model Support for networking.
@@ -341,7 +342,7 @@ namespace UE4PushModelPrivate
 	NETCORE_API void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 StartRepIndex, const int32 EndRepIndex);
 
 
-	NETCORE_API const FPushModelPerNetDriverHandle AddPushModelObject(const FNetPushObjectId ObjectId, const uint16 NumberOfReplicatedProperties);
+	NETCORE_API const FPushModelPerNetDriverHandle AddPushModelObject(const FObjectKey ObjectId, const uint16 NumberOfReplicatedProperties);
 	NETCORE_API void RemovePushModelObject(const FPushModelPerNetDriverHandle Handle);
 
 	NETCORE_API class FPushModelPerNetDriverState* GetPerNetDriverState(const FPushModelPerNetDriverHandle Handle);

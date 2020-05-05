@@ -3,9 +3,9 @@
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleManagerModule.h"
 
-FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleCompleteDelegate;
+FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleUpdatedDelegate;
 
-FInstallBundleCompleteMultiDelegate IInstallBundleManager::RemoveBundleCompleteDelegate;
+FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleCompleteDelegate;
 
 FInstallBundlePausedMultiDelegate IInstallBundleManager::PausedBundleDelegate;
 
@@ -23,7 +23,11 @@ IInstallBundleManager* IInstallBundleManager::GetPlatformInstallBundleManager()
 	{
 		FString ModuleName;
 		IInstallBundleManagerModule* Module = nullptr;
+#if WITH_EDITOR
+		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("EditorModuleName"), ModuleName, GEngineIni);
+#else
 		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
+#endif // WITH_EDITOR
 
 		if (FModuleManager::Get().ModuleExists(*ModuleName))
 		{

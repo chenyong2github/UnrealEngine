@@ -317,6 +317,27 @@ namespace Freeze
 	{
 		return FMath::Min(LayoutParams.GetMemoryImagePointerSize(), LayoutParams.MaxFieldAlignment);
 	}
+
+	template<typename T>
+	void IntrinsicToString(const TMemoryImagePtr<T>& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)
+	{
+		T* RawPtr = Object.Get();
+		if (RawPtr)
+		{
+			// Compile-time type of the thing we're pointing to
+			const FTypeLayoutDesc& StaticTypeDesc = StaticGetTypeLayoutDesc<T>();
+			// Actual run-time type of the thing we're pointing to
+			const FTypeLayoutDesc& DerivedTypeDesc = GetTypeLayoutDesc(OutContext.TryGetPrevPointerTable(), *RawPtr);
+			// 'this' offset to adjust from the compile-time type to the run-time type
+			const uint32 OffsetToBase = DerivedTypeDesc.GetOffsetToBase(StaticTypeDesc);
+
+			DerivedTypeDesc.ToStringFunc((uint8*)RawPtr - OffsetToBase, DerivedTypeDesc, LayoutParams, OutContext);
+		}
+		else
+		{
+			OutContext.AppendNullptr();
+		}
+	}
 }
 
 DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<typename T>, TMemoryImagePtr<T>);
@@ -396,6 +417,7 @@ public:
 
 	void ResizeAllocation(int32 PreviousNumElements, int32 NumElements, SIZE_T NumBytesPerElement, uint32 Alignment);
 	void WriteMemoryImage(FMemoryImageWriter& Writer, const FTypeLayoutDesc& TypeDesc, int32 NumAllocatedElements, uint32 Alignment) const;
+	void ToString(const FTypeLayoutDesc& TypeDesc, int32 NumAllocatedElements, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) const;
 	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const FTypeLayoutDesc& TypeDesc, int32 NumAllocatedElements, void* Dst) const;
 
 private:
@@ -488,7 +510,10 @@ class FMemoryImageString
 private:
 	/** Array holding the character data */
 	using DataType = TMemoryImageArray<TCHAR>;
-	LAYOUT_FIELD(DataType, Data)
+	LAYOUT_FIELD(DataType, Data);
+
+	CORE_API void ToString(FMemoryToStringContext& OutContext) const;
+	LAYOUT_TOSTRING(ToString);
 public:
 	using ElementType = TCHAR;
 
@@ -603,6 +628,12 @@ public:
 private:
 	uint64 Hash;
 };
+
+namespace Freeze
+{
+	CORE_API void IntrinsicToString(const FHashedName& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
+}
+
 DECLARE_INTRINSIC_TYPE_LAYOUT(FHashedName);
 
 class CORE_API FPtrTableBase

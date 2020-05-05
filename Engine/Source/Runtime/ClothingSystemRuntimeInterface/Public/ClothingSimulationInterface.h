@@ -139,6 +139,26 @@ public:
 	 * This can be called on any thread, so derived implementations should make sure the gather is
 	 * safe
 	 */
-	virtual void GatherStats() const
-	{}
+	virtual void GatherStats() const {}
+
+	/** Return the number of simulated cloths. Implementation must be thread safe. */
+	virtual int32 GetNumCloths() const { return 0;  }
+	/** Return the number of kinematic (fixed) particles. Implementation must be thread safe. */
+	virtual int32 GetNumKinematicParticles() const { return 0; }
+	/** Return the number of dynamic (simulated) particles. Implementation must be thread safe. */
+	virtual int32 GetNumDynamicParticles() const { return 0; }
+	/**
+	 * Return the number of iterations used by the solver.
+	 * This is the maximum used as an indicative value only, as this could vary between cloths.
+	 * Implementation must be thread safe.
+	 */
+	virtual int32 GetNumIterations() const { return 0; }
+	/**
+	 * Return the number of substeps used by the solver.
+	 * This is the maximum used as an indicative value only, as this could vary between cloths.
+	 * Implementation must be thread safe.
+	 */
+	virtual int32 GetNumSubsteps() const { return 0; }
+	/** Return the simulation time in ms. Implementation must be thread safe. */
+	virtual float GetSimulationTime() const { return 0.f; }
 };

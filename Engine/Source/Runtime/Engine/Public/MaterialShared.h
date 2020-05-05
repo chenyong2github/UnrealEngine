@@ -789,7 +789,12 @@ public:
 	/** A hash of the base property overrides for this material instance. */
 	FSHAHash BasePropertyOverridesHash;
 #endif // WITH_EDITOR
-	
+
+	/*
+	 * Type layout parameters of the memory image
+	 */
+	FPlatformTypeLayoutParameters LayoutParams;
+
 	FMaterialShaderMapId()
 		: QualityLevel(EMaterialQualityLevel::High)
 		, FeatureLevel(ERHIFeatureLevel::SM5)
@@ -875,7 +880,7 @@ public:
 	void UpdateFromParameterSet(const FStaticParameterSet& StaticParameters);
 
 	/** Appends string representations of this Id to a key string. */
-	void AppendKeyString(const FPlatformTypeLayoutParameters& LayoutParameters, FString& KeyString) const;
+	void AppendKeyString(FString& KeyString) const;
 
 	const TArray<FStaticSwitchParameter> &GetStaticSwitchParameters() const 					{ return StaticSwitchParameters; }
 	const TArray<FStaticComponentMaskParameter> &GetStaticComponentMaskParameters() const 		{ return StaticComponentMaskParameters; }
@@ -1028,7 +1033,7 @@ public:
 
 	/**
 	 * Finds the shader map for a material.
-	 * @param StaticParameterSet - The static parameter set identifying the shader map
+	 * @param ShaderMapId - The static parameter set and other properties identifying the shader map
 	 * @param Platform - The platform to lookup for
 	 * @return NULL if no cached shader map was found.
 	 */
@@ -1271,7 +1276,7 @@ private:
 	float CompileTime;
 #endif
 
-	/** The static parameter set that this shader map was compiled with */
+	/** The static parameter set that this shader map was compiled with and other parameters unique to this shadermap */
 	FMaterialShaderMapId ShaderMapId;
 
 	/** The platform being compiled, or nullptr for current platform */
@@ -1302,7 +1307,7 @@ private:
 	/** Indicates whether the shader map should be stored in the shader cache. */
 	uint32 bIsPersistent : 1;
 
-	FShader* ProcessCompilationResultsForSingleJob(class FShaderCompileJob* SingleJob, const FShaderPipelineType* ShaderPipeline, const FSHAHash& MaterialShaderMapHash, FShaderMapResourceBuilder& ResourceBuilder);
+	FShader* ProcessCompilationResultsForSingleJob(class FShaderCompileJob* SingleJob, const FShaderPipelineType* ShaderPipeline, const FSHAHash& MaterialShaderMapHash);
 
 	friend ENGINE_API void DumpMaterialStats( EShaderPlatform Platform );
 	friend class FShaderCompilingManager;
@@ -1507,7 +1512,7 @@ public:
 	void DiscardShaderMap();
 
 	// Material properties.
-	ENGINE_API virtual void GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const;
+	ENGINE_API virtual void GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FMaterialShaderMapId& OutId) const;
 #if WITH_EDITORONLY_DATA
 	ENGINE_API virtual void GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const;
 #endif // WITH_EDITORONLY_DATA
@@ -1552,6 +1557,7 @@ public:
 	virtual bool IsUsedWithWater() const { return false; }
 	virtual bool IsUsedWithHairStrands() const { return false; }
 	virtual bool IsUsedWithLidarPointCloud() const { return false; }
+	virtual bool IsUsedWithVirtualHeightfieldMesh() const { return false; }
 	ENGINE_API virtual enum EMaterialTessellationMode GetTessellationMode() const;
 	virtual bool IsCrackFreeDisplacementEnabled() const { return false; }
 	virtual bool IsAdaptiveTessellationEnabled() const { return false; }
@@ -1611,7 +1617,7 @@ public:
 	virtual uint32 GetStencilCompare() const { return 0; }
 	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
 	virtual bool CastsRayTracedShadows() const { return true; }
-
+	virtual EMaterialShadingRate GetShadingRate() const { return MSR_1x1; }
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
@@ -1670,15 +1676,15 @@ public:
 
 	// Accessors.
 	ENGINE_API const FUniformExpressionSet& GetUniformExpressions() const;
-	ENGINE_API const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& GetUniformTextureExpressions(EMaterialTextureParameterType Type) const;
-	ENGINE_API const TArray<FMaterialVectorParameterInfo, FMemoryImageAllocator>& GetUniformVectorParameterExpressions() const;
-	ENGINE_API const TArray<FMaterialScalarParameterInfo, FMemoryImageAllocator>& GetUniformScalarParameterExpressions() const;
+	ENGINE_API TArrayView<const FMaterialTextureParameterInfo> GetUniformTextureExpressions(EMaterialTextureParameterType Type) const;
+	ENGINE_API TArrayView<const FMaterialVectorParameterInfo> GetUniformVectorParameterExpressions() const;
+	ENGINE_API TArrayView<const FMaterialScalarParameterInfo> GetUniformScalarParameterExpressions() const;
 
-	inline const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& GetUniform2DTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Standard2D); }
-	inline const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& GetUniformCubeTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Cube); }
-	inline const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& GetUniform2DArrayTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Array2D); }
-	inline const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& GetUniformVolumeTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Volume); }
-	inline const TArray<FMaterialTextureParameterInfo, FMemoryImageAllocator>& GetUniformVirtualTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Virtual); }
+	inline TArrayView<const FMaterialTextureParameterInfo> GetUniform2DTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Standard2D); }
+	inline TArrayView<const FMaterialTextureParameterInfo> GetUniformCubeTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Cube); }
+	inline TArrayView<const FMaterialTextureParameterInfo> GetUniform2DArrayTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Array2D); }
+	inline TArrayView<const FMaterialTextureParameterInfo> GetUniformVolumeTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Volume); }
+	inline TArrayView<const FMaterialTextureParameterInfo> GetUniformVirtualTextureExpressions() const { return GetUniformTextureExpressions(EMaterialTextureParameterType::Virtual); }
 
 #if WITH_EDITOR
 	const TArray<FString>& GetCompileErrors() const { return CompileErrors; }
@@ -2313,7 +2319,7 @@ public:
 	ENGINE_API virtual FString GetMaterialUsageDescription() const override;
 
 	// FMaterial interface.
-	ENGINE_API virtual void GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const override;
+	ENGINE_API virtual void GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, FMaterialShaderMapId& OutId) const override;
 #if WITH_EDITORONLY_DATA
 	ENGINE_API virtual void GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const override;
 #endif
@@ -2340,6 +2346,7 @@ public:
 	ENGINE_API virtual bool IsDeferredDecal() const override;
 	ENGINE_API virtual bool IsVolumetricPrimitive() const override;
 	ENGINE_API virtual bool IsWireframe() const override;
+	ENGINE_API virtual EMaterialShadingRate  GetShadingRate() const override;
 	ENGINE_API virtual bool IsUIMaterial() const override;
 	ENGINE_API virtual bool IsSpecialEngineMaterial() const override;
 	ENGINE_API virtual bool IsUsedWithSkeletalMesh() const override;
@@ -2361,6 +2368,7 @@ public:
 	ENGINE_API virtual bool IsUsedWithWater() const override;
 	ENGINE_API virtual bool IsUsedWithHairStrands() const override;
 	ENGINE_API virtual bool IsUsedWithLidarPointCloud() const override;
+	ENGINE_API virtual bool IsUsedWithVirtualHeightfieldMesh() const override;
 	ENGINE_API virtual enum EMaterialTessellationMode GetTessellationMode() const override;
 	ENGINE_API virtual bool IsCrackFreeDisplacementEnabled() const override;
 	ENGINE_API virtual bool IsAdaptiveTessellationEnabled() const override;
@@ -2844,7 +2852,7 @@ private:
 	const FMaterialResource& Resource;
 };
 
-class FMaterialResourceProxyReader final : public FArchiveProxy
+class FMaterialResourceProxyReader final : private TUniquePtr<FArchive>, public FArchiveProxy
 {
 public:
 	FMaterialResourceProxyReader(
@@ -2883,7 +2891,6 @@ private:
 	TArray<FName> Names;
 	int64 OffsetToFirstResource;
 	int64 OffsetToEnd;
-	bool bReleaseInnerArchive;
 
 	void Initialize(
 		ERHIFeatureLevel::Type FeatureLevel,
@@ -2975,7 +2982,9 @@ struct FMaterialShaderParameters
 			uint64 bMaterialIsPrimitiveDistanceAccuracy : 1;
 			uint64 bMaterialIsRequiredTextureResolution : 1;
 			uint64 bMaterialIsComplexityAccumulate : 1;
+			uint64 bMaterialIsLODColoration : 1;
 			uint64 bIsUsedWithLidarPointCloud : 1;
+			uint64 bIsUsedWithVirtualHeightfieldMesh : 1;
 			uint64 bIsStencilTestEnabled : 1;
 		};
 	};
@@ -3032,6 +3041,7 @@ struct FMaterialShaderParameters
 		bIsUsedWithInstancedStaticMeshes = InMaterial->IsUsedWithInstancedStaticMeshes();
 		bHasRuntimeVirtualTextureOutput = InMaterial->HasRuntimeVirtualTextureOutput();
 		bIsUsedWithLidarPointCloud = InMaterial->IsUsedWithLidarPointCloud();
+		bIsUsedWithVirtualHeightfieldMesh = InMaterial->IsUsedWithVirtualHeightfieldMesh();
 		bIsStencilTestEnabled = InMaterial->IsStencilTestEnabled();
 
 		// See FDebugViewModeMaterialProxy::GetFriendlyName()
@@ -3043,6 +3053,7 @@ struct FMaterialShaderParameters
 		bMaterialIsPrimitiveDistanceAccuracy = FriendlyName.Contains(TEXT("PrimitiveDistanceAccuracy"));
 		bMaterialIsRequiredTextureResolution = FriendlyName.Contains(TEXT("RequiredTextureResolution"));
 		bMaterialIsComplexityAccumulate = FriendlyName.Contains(TEXT("ComplexityAccumulate"));
+		bMaterialIsLODColoration = FriendlyName.Contains(TEXT("LODColoration"));
 	}
 };
 
