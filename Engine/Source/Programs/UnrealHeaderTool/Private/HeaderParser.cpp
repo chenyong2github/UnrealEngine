@@ -8511,16 +8511,17 @@ ECompilationResult::Type FHeaderParser::ParseHeader(FClasses& AllClasses, FUnrea
 
 ECompilationResult::Type FHeaderParser::ParseRestOfModulesSourceFiles(FClasses& AllClasses, UPackage* ModulePackage, FHeaderParser& HeaderParser)
 {
-	for (auto& Pair : GUnrealSourceFilesMap)
+	if (const TArray<FUnrealSourceFile*>* SourceFiles = GUnrealSourceFilesMap.FindFilesForPackage(ModulePackage))
 	{
-		FUnrealSourceFile* SourceFile = &Pair.Value.Get();
-
-		if (SourceFile->GetPackage() == ModulePackage && (!SourceFile->IsParsed() || SourceFile->GetDefinedClassesCount() == 0))
+		for (FUnrealSourceFile* SourceFile : *SourceFiles)
 		{
-			ECompilationResult::Type Result;
-			if ((Result = ParseHeaders(AllClasses, HeaderParser, SourceFile)) != ECompilationResult::Succeeded)
+			if (!SourceFile->IsParsed() || SourceFile->GetDefinedClassesCount() == 0)
 			{
-				return Result;
+				ECompilationResult::Type Result;
+				if ((Result = ParseHeaders(AllClasses, HeaderParser, SourceFile)) != ECompilationResult::Succeeded)
+				{
+					return Result;
+				}
 			}
 		}
 	}
@@ -8644,14 +8645,14 @@ TSet<FUnrealSourceFile*> GetSourceFilesWithInheritanceOrdering(UPackage* Current
 	}
 
 	// Then add the rest.
-	for (auto& Pair : GUnrealSourceFilesMap)
+	if (const TArray<FUnrealSourceFile*>* SourceFilesForPackage = GUnrealSourceFilesMap.FindFilesForPackage(CurrentPackage))
 	{
-		auto& SourceFile = Pair.Value.Get();
-
-		if (SourceFile.GetPackage() == CurrentPackage
-			&& SourceFile.GetScope()->ContainsTypes())
+		for (FUnrealSourceFile* SourceFile : *SourceFilesForPackage)
 		{
-			SourceFiles.Add(&SourceFile);
+			if (SourceFile->GetScope()->ContainsTypes())
+			{
+				SourceFiles.Add(SourceFile);
+			}
 		}
 	}
 
@@ -8865,14 +8866,17 @@ ECompilationResult::Type FHeaderParser::ParseAllHeadersInside(
 
 		HeaderParser.Filename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*RootFilename);
 
-		for (FUnrealSourceFile* SourceFile : GPublicSourceFileSet)
+		if (const TArray<FUnrealSourceFile*>* SourceFiles = GPublicSourceFileSet.FindFilesForPackage(CurrentPackage))
 		{
-			if (SourceFile->GetPackage() == CurrentPackage && (!SourceFile->IsParsed() || SourceFile->GetDefinedClassesCount() == 0))
+			for (FUnrealSourceFile* SourceFile : *SourceFiles)
 			{
-				Result = ParseHeaders(ModuleClasses, HeaderParser, SourceFile);
-				if (Result != ECompilationResult::Succeeded)
+				if ((!SourceFile->IsParsed() || SourceFile->GetDefinedClassesCount() == 0))
 				{
-					return Result;
+					Result = ParseHeaders(ModuleClasses, HeaderParser, SourceFile);
+					if (Result != ECompilationResult::Succeeded)
+					{
+						return Result;
+					}
 				}
 			}
 		}
