@@ -10029,6 +10029,7 @@ void FSequencer::SetKey()
 					ModifiedSections.Add(Section);
 				}
 
+				Section->ExpandToFrame(AddKeyTime);
 
 				KeyArea->AddOrUpdateKey(AddKeyTime, ObjectBinding, *this);
 			}
