@@ -336,7 +336,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 #endif	//USE_DYNAMIC_PARAMETERS
 
 	float4x4 ParticleTransform = GetParticleTransform(Input);
-	Result.InstanceLocalToWorld = Primitive_LocalToWorld;
+	Result.InstanceLocalToWorld = ParticleTransform;
 
 #if NEEDS_PARTICLE_LOCAL_TO_WORLD
 	Result.Particle.ParticleToWorld = ParticleTransform;
