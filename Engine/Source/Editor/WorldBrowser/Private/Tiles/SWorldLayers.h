@@ -85,6 +85,13 @@ public:
 	
 private:
 	FReply OnClickedCreate();
+
+	void OnNameCommitted(const FText& InText, ETextCommit::Type CommitType);
+	void OnDistanceCommitted(int32 InValue, ETextCommit::Type CommitType);
+
+	/** Try to create a new streaming layer */
+	FReply TryCreateLayer();
+
 	bool CanCreateLayer() const;
 
 	void SetLayerName(const FText& InText)
