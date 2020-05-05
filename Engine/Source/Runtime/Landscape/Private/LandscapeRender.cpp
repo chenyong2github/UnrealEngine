@@ -130,20 +130,20 @@ FAutoConsoleVariableRef CVarLandscapeDebugViewMode(
 
 #if RHI_RAYTRACING
 static TAutoConsoleVariable<int32> CVarRayTracingLandscape(
-	TEXT("r.RayTracing.Landscape"),
+	TEXT("r.RayTracing.Geometry.Landscape"),
 	1,
 	TEXT("Include landscapes in ray tracing effects (default = 1 (landscape enabled in ray tracing))"));
 
 int32 GLandscapeRayTracingGeometryLODsThatUpdateEveryFrame = 0;
 static FAutoConsoleVariableRef CVarLandscapeRayTracingGeometryLODsThatUpdateEveryFrame(
-	TEXT("r.RayTracing.Landscape.LODsUpdateEveryFrame"),
+	TEXT("r.RayTracing.Geometry.Landscape.LODsUpdateEveryFrame"),
 	GLandscapeRayTracingGeometryLODsThatUpdateEveryFrame,
 	TEXT("If on, LODs that are lower than the specified level will be updated every frame, which can be used to workaround some artifacts caused by texture streaming if you're using WorldPositionOffset on the landscape")
 );
 
 int32 GLandscapeRayTracingGeometryDetectTextureStreaming = 1;
 static FAutoConsoleVariableRef CVarLandscapeRayTracingGeometryDetectTextureStreaming(
-	TEXT("r.RayTracing.Landscape.DetectTextureStreaming"),
+	TEXT("r.RayTracing.Geometry.Landscape.DetectTextureStreaming"),
 	GLandscapeRayTracingGeometryDetectTextureStreaming,
 	TEXT("If on, update ray tracing geometry when texture streaming state changes. Useful when WorldPositionOffset is used in the landscape material")
 );

@@ -30,6 +30,11 @@ DECLARE_CYCLE_STAT(TEXT("Update Collision"), STAT_ProcMesh_UpdateCollision, STAT
 
 DEFINE_LOG_CATEGORY_STATIC(LogProceduralComponent, Log, All);
 
+static TAutoConsoleVariable<int32> CVarRayTracingProceduralMesh(
+	TEXT("r.RayTracing.Geometry.ProceduralMeshes"),
+	1,
+	TEXT("Include procedural meshes in ray tracing effects (default = 1 (procedural meshes enabled in ray tracing))"));
+
 /** Resource array to pass  */
 class FProcMeshVertexResourceArray : public FResourceArrayInterface
 {
@@ -427,6 +432,11 @@ public:
 
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override final
 	{
+		if (!CVarRayTracingProceduralMesh.GetValueOnRenderThread())
+		{
+			return;
+		}
+
 		for (const FProcMeshProxySection* Section : Sections)
 		{
 			if (Section != nullptr && Section->bSectionVisible)

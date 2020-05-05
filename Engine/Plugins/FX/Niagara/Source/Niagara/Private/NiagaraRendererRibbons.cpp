@@ -68,6 +68,11 @@ static FAutoConsoleVariableRef CVarEnableNiagaraRibbonRendering(
 	ECVF_Default
 );
 
+static TAutoConsoleVariable<int32> CVarRayTracingNiagaraRibbons(
+	TEXT("r.RayTracing.Geometry.NiagaraRibbons"),
+	1,
+	TEXT("Include Niagara ribbons in ray tracing effects (default = 1 (Niagara ribbons enabled in ray tracing))"));
+
 // max absolute error 9.0x10^-3
 // Eberly's polynomial degree 1 - respect bounds
 // input [-1, 1] and output [0, PI]
@@ -1103,6 +1108,11 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 #if RHI_RAYTRACING
 void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* SceneProxy)
 {
+	if (!CVarRayTracingNiagaraRibbons.GetValueOnRenderThread())
+	{
+		return;
+	}
+
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbons);
 	check(SceneProxy);

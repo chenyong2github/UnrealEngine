@@ -62,32 +62,32 @@ TAutoConsoleVariable<int32> CVarMinLOD(
 	ECVF_Scalability | ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarRayTracingRenderInstances(
-	TEXT("r.RayTracing.InstancedStaticMeshes"),
+	TEXT("r.RayTracing.Geometry.InstancedStaticMeshes"),
 	1,
 	TEXT("Include static mesh instances in ray tracing effects (default = 1 (Instances enabled in ray tracing))"));
 
 static TAutoConsoleVariable<int32> CVarRayTracingRenderInstancesCulling(
-	TEXT("r.RayTracing.InstancedStaticMeshes.Culling"),
+	TEXT("r.RayTracing.Geometry.InstancedStaticMeshes.Culling"),
 	1,
 	TEXT("Enable culling for instances in ray tracing (default = 1 (Culling enabled))"));
 
 static TAutoConsoleVariable<float> CVarRayTracingInstancesCullClusterMaxRadiusMultiplier(
-	TEXT("r.RayTracing.InstancedStaticMeshes.CullClusterMaxRadiusMultiplier"),
+	TEXT("r.RayTracing.Geometry.InstancedStaticMeshes.CullClusterMaxRadiusMultiplier"),
 	20.0f, 
 	TEXT("Multiplier for the maximum instance size (default = 20)"));
 
 static TAutoConsoleVariable<float> CVarRayTracingInstancesCullClusterRadius(
-	TEXT("r.RayTracing.InstancedStaticMeshes.CullClusterRadius"),
+	TEXT("r.RayTracing.Geometry.InstancedStaticMeshes.CullClusterRadius"),
 	10000.0f, // 100 m
 	TEXT("Ignore instances outside of this radius in ray tracing effects (default = 10000 (100m))"));
 
 static TAutoConsoleVariable<float> CVarRayTracingInstancesLowScaleThreshold(
-	TEXT("r.RayTracing.InstancedStaticMeshes.LowScaleRadiusThreshold"),
+	TEXT("r.RayTracing.Geometry.InstancedStaticMeshes.LowScaleRadiusThreshold"),
 	50.0f, // Instances with a radius smaller than this threshold get culled after CVarRayTracingInstancesLowScaleCullRadius
 	TEXT("Threshold that classifies instances as small (default = 50cm))"));
 
 static TAutoConsoleVariable<float> CVarRayTracingInstancesLowScaleCullRadius(
-	TEXT("r.RayTracing.InstancedStaticMeshes.LowScaleCullRadius"),
+	TEXT("r.RayTracing.Geometry.InstancedStaticMeshes.LowScaleCullRadius"),
 	1000.0f, 
 	TEXT("Cull radius for small instances (default = 1000 (10m))"));
 
