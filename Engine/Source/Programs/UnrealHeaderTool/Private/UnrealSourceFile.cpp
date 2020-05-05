@@ -5,53 +5,63 @@
 #include "Misc/PackageName.h"
 #include "HeaderParser.h"
 
-void FUnrealSourceFile::AddDefinedClass(UClass* Class, FSimplifiedParsingClassInfo ParsingInfo)
+void FUnrealSourceFile::AddDefinedClass(UClass* Class, FSimplifiedParsingClassInfo&& ParsingInfo)
 {
 	DefinedClasses.Add(Class, MoveTemp(ParsingInfo));
 }
 
-FString FUnrealSourceFile::GetFileId() const
+const FString& FUnrealSourceFile::GetFileId() const
 {
-	FString StdFilename = Filename;
-
-	FPaths::MakeStandardFilename(StdFilename);
-
-	bool RelativePath = FPaths::IsRelative(StdFilename);
-
-	if (!RelativePath)
+	if (FileId.Len() == 0)
 	{
-		// If path is still absolute that means MakeStandardFilename has failed
-		// In this case make it relative to the current project. 
-		RelativePath = FPaths::MakePathRelativeTo(StdFilename, *FPaths::GetPath(FPaths::GetProjectFilePath()));
-	}
+		FString StdFilename = Filename;
 
-	// If the path has passed either MakeStandardFilename or MakePathRelativeTo it should be using internal path seperators
-	if (RelativePath)
-	{
-		// Remove any preceding parent directory paths
-		while (StdFilename.RemoveFromStart(TEXT("../")));
-	}
+		FPaths::MakeStandardFilename(StdFilename);
 
-	FStringOutputDevice Out;
+		bool bRelativePath = FPaths::IsRelative(StdFilename);
 
-	for (auto Char : StdFilename)
-	{
-		if (FChar::IsAlnum(Char))
+		if (!bRelativePath)
 		{
-			Out.AppendChar(Char);
+			// If path is still absolute that means MakeStandardFilename has failed
+			// In this case make it relative to the current project. 
+			bRelativePath = FPaths::MakePathRelativeTo(StdFilename, *FPaths::GetPath(FPaths::GetProjectFilePath()));
 		}
-		else
+
+		// If the path has passed either MakeStandardFilename or MakePathRelativeTo it should be using internal path seperators
+		if (bRelativePath)
 		{
-			Out.AppendChar('_');
+			// Remove any preceding parent directory paths
+			while (StdFilename.RemoveFromStart(TEXT("../")));
 		}
+
+		FStringOutputDevice Out;
+
+		for (TCHAR Char : StdFilename)
+		{
+			if (FChar::IsAlnum(Char))
+			{
+				Out.AppendChar(Char);
+			}
+			else
+			{
+				Out.AppendChar('_');
+			}
+		}
+
+		FileId = MoveTemp(Out);
 	}
 
-	return MoveTemp(Out);
+	return FileId;
 }
 
-FString FUnrealSourceFile::GetStrippedFilename() const
+const FString& FUnrealSourceFile::GetStrippedFilename() const
 {
-	return FPaths::GetBaseFilename(Filename);
+	if (StrippedFilename.Len() == 0)
+	{
+		StrippedFilename = FPaths::GetBaseFilename(Filename);
+	}
+
+	return StrippedFilename;
 }
 
 FString FUnrealSourceFile::GetGeneratedMacroName(FClassMetaData* ClassData, const TCHAR* Suffix) const
@@ -74,7 +84,7 @@ FString FUnrealSourceFile::GetGeneratedBodyMacroName(int32 LineNumber, bool bLeg
 	return GetGeneratedMacroName(LineNumber, *FString::Printf(TEXT("%s%s"), TEXT("_GENERATED_BODY"), bLegacy ? TEXT("_LEGACY") : TEXT("")));
 }
 
-void FUnrealSourceFile::SetGeneratedFilename(FString InGeneratedFilename)
+void FUnrealSourceFile::SetGeneratedFilename(FString&& InGeneratedFilename)
 {
 	GeneratedFilename = MoveTemp(InGeneratedFilename);
 }
@@ -84,12 +94,12 @@ void FUnrealSourceFile::SetHasChanged(bool bInHasChanged)
 	bHasChanged = bInHasChanged;
 }
 
-void FUnrealSourceFile::SetModuleRelativePath(FString InModuleRelativePath)
+void FUnrealSourceFile::SetModuleRelativePath(FString&& InModuleRelativePath)
 {
 	ModuleRelativePath = MoveTemp(InModuleRelativePath);
 }
 
-void FUnrealSourceFile::SetIncludePath(FString InIncludePath)
+void FUnrealSourceFile::SetIncludePath(FString&& InIncludePath)
 {
 	IncludePath = MoveTemp(InIncludePath);
 }
@@ -147,12 +157,8 @@ bool FUnrealSourceFile::HasChanged() const
 	return bHasChanged;
 }
 
-FString FUnrealSourceFile::GetAPI() const
-{
-	return FPackageName::GetShortName(Package).ToUpper();
-}
-
 FString FUnrealSourceFile::GetFileDefineName() const
 {
-	return FString::Printf(TEXT("%s_%s_generated_h"), *GetAPI(), *GetStrippedFilename());
+	const FString API = FPackageName::GetShortName(Package).ToUpper();
+	return FString::Printf(TEXT("%s_%s_generated_h"), *API, *GetStrippedFilename());
 }

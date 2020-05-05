@@ -8455,8 +8455,9 @@ ECompilationResult::Type FHeaderParser::ParseHeader(FClasses& AllClasses, FUnrea
 		// First-pass success.
 		Result = ECompilationResult::Succeeded;
 
-		for (UClass* Class : CurrentSrcFile->GetDefinedClasses())
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : CurrentSrcFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			PostParsingClassSetup(Class);
 
 			// Clean up and exit.
@@ -8556,10 +8557,9 @@ ECompilationResult::Type FHeaderParser::ParseHeaders(FClasses& AllClasses, FHead
 		}
 	}
 
-	const TArray<UClass*>& Classes = SourceFile->GetDefinedClasses();
-
-	for (UClass* Class : Classes)
+	for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 	{
+		UClass* Class = ClassDataPair.Key;
 		for (UClass* ParentClass = Class->GetSuperClass(); ParentClass && !ParentClass->HasAnyClassFlags(CLASS_Parsed | CLASS_Intrinsic); ParentClass = ParentClass->GetSuperClass())
 		{
 			SourceFilesRequired.Add(&GTypeDefinitionInfoMap[ParentClass]->GetUnrealSourceFile());
@@ -8582,8 +8582,9 @@ ECompilationResult::Type FHeaderParser::ParseHeaders(FClasses& AllClasses, FHead
 	{
 		ECompilationResult::Type OneFileResult = HeaderParser.ParseHeader(AllClasses, SourceFile);
 
-		for (UClass* Class : Classes)
+		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
+			UClass* Class = ClassDataPair.Key;
 			Class->ClassFlags |= CLASS_Parsed;
 		}
 
