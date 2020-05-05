@@ -178,10 +178,15 @@ namespace ClothingMeshUtils
 		float MinimumDistanceSq = MAX_flt;
 		int32 ClosestBaseIndex = INDEX_NONE;
 
-		const int32 NumTriangles = Mesh.Indices.Num() / 3;
-		for(int32 TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
+		const TArray<int32> Tris = const_cast<ClothMeshDesc&>(Mesh).FindCandidateTriangles(Position);
+		int32 NumTriangles = Tris.Num();
+		if (!NumTriangles)
 		{
-			int32 TriBaseIdx = TriIdx * 3;
+			NumTriangles = Mesh.Indices.Num() / 3;
+		}
+		for (int32 TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
+		{
+			int32 TriBaseIdx = (Tris.Num() ? Tris[TriIdx] : TriIdx) * 3;
 
 			const uint32 IA = Mesh.Indices[TriBaseIdx + 0];
 			const uint32 IB = Mesh.Indices[TriBaseIdx + 1];
@@ -194,7 +199,7 @@ namespace ClothingMeshUtils
 			FVector PointOnTri = FMath::ClosestPointOnTriangleToPoint(Position, A, B, C);
 			float DistSq = (PointOnTri - Position).SizeSquared();
 
-			if(DistSq < MinimumDistanceSq)
+			if (DistSq < MinimumDistanceSq)
 			{
 				MinimumDistanceSq = DistSq;
 				ClosestBaseIndex = TriBaseIdx;
