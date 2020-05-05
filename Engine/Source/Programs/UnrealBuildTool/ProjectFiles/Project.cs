@@ -236,6 +236,11 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <summary>
+		/// Set of all files that have been added
+		/// </summary>
+		HashSet<FileReference> AliasedFilesSet = new HashSet<FileReference>();
+
 		/// Aliased (i.e. files is custom filter tree) in this project
 		public readonly List<AliasedFile> AliasedFiles = new List<AliasedFile>();
 
@@ -245,7 +250,10 @@ namespace UnrealBuildTool
 		/// <param name="File">Aliased file.</param>
 		public void AddAliasedFileToProject(AliasedFile File)
 		{
-			AliasedFiles.Add(File);
+			if (AliasedFilesSet.Add(File.Location))
+			{
+				AliasedFiles.Add(File);
+			}
 		}
 
 		/// <summary>
@@ -255,6 +263,12 @@ namespace UnrealBuildTool
 		/// <param name="BaseFolder">The directory the path within the project will be relative to</param>
 		public void AddFileToProject(FileReference FilePath, DirectoryReference BaseFolder)
 		{
+			// Check if hasn't already been added as an aliased file
+			if (AliasedFilesSet.Contains(FilePath))
+			{
+				return;
+			}
+
 			// Don't add duplicates
 			SourceFile ExistingFile = null;
 			if (SourceFileMap.TryGetValue(FilePath, out ExistingFile))
