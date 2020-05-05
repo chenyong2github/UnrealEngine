@@ -5910,12 +5910,9 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		ClassesHText.Log(TEXT("\r\n"));
 
 		// Fill with the rest source files from this package.
-		for (FUnrealSourceFile* SourceFile : GPublicSourceFileSet)
+		if (const TArray<FUnrealSourceFile*>* SourceFilesForPackage = GPublicSourceFileSet.FindFilesForPackage(InPackage))
 		{
-			if (SourceFile->GetPackage() == InPackage)
-			{
-				PublicHeaderGroupIncludes.Add(SourceFile);
-			}
+			PublicHeaderGroupIncludes.Append(*SourceFilesForPackage);
 		}
 
 		for (FUnrealSourceFile* SourceFile : PublicHeaderGroupIncludes)

@@ -19,14 +19,10 @@ FUnrealSourceFile* FHeaderProvider::Resolve()
 	{
 		if (Type == EHeaderProviderSourceType::ClassName)
 		{
-			FName IdName(*Id);
-			for (const auto& Pair : GTypeDefinitionInfoMap)
+			FName IdName(*Id, FNAME_Find);
+			if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
 			{
-				if (Pair.Key->GetFName() == IdName)
-				{
-					Cache = &Pair.Value->GetUnrealSourceFile();
-					break;
-				}
+				Cache = &(*Source)->GetUnrealSourceFile();
 			}
 		}
 		else if (const TSharedRef<FUnrealSourceFile>* Source = GUnrealSourceFilesMap.Find(Id))
