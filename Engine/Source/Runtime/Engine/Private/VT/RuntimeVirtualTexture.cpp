@@ -225,6 +225,8 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	OutDesc.BlockHeightInTiles = HeightInTiles;
 	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - GetRemoveLowMips(), 0);
 
+	OutDesc.bContinuousUpdate = bContinuousUpdate;
+
 	OutDesc.NumTextureLayers = GetLayerCount();
 	OutDesc.NumPhysicalGroups = bSinglePhysicalSpace ? 1 : GetLayerCount();
 

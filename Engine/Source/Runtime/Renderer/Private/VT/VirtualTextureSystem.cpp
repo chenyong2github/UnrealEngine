@@ -42,6 +42,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible resident"), STAT_NumPageVisibl
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible not resident"), STAT_NumPageVisibleNotResident, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page prefetch"), STAT_NumPagePrefetch, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page update"), STAT_NumPageUpdate, STATGROUP_VirtualTexturing);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Num mapped page update"), STAT_NumMappedPageUpdate, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num continuous page update"), STAT_NumContinuousPageUpdate, STATGROUP_VirtualTexturing);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num stacks requested"), STAT_NumStacksRequested, STATGROUP_VirtualTexturing);
@@ -1101,6 +1102,14 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		MergedRequestList->SortRequests(Producers, MemStack, MaxRequestUploads);
 	}
 
+	{
+		// After sorting and clamping the load requests, if we still have unused upload bandwidth then use it to add some continous updates
+		const int32 MaxNumUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
+		const int32 MaxTilesToProduce = FMath::Max(MaxNumUploads - MappedTilesToProduce.Num() - (int32)MergedRequestList->GetNumLoadRequests(), 0);
+
+		GetContinuousUpdatesToProduce(MergedRequestList, MaxTilesToProduce);
+	}
+
 	// Submit the requests to produce pages that are already mapped
 	SubmitPreMappedRequests(RHICmdList, FeatureLevel);
 	// Submit the merged requests
@@ -1255,10 +1264,6 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 	uint32 NumNonResidentPages = 0u;
 	uint32 NumPrefetchPages = 0u;
 
-#if WITH_EDITOR
-	TSet<FVirtualTextureLocalTile> ContinuousUpdateTilesToProduceThreadLocal;
-#endif
-
 	for (uint32 i = Parameters.PageStartIndex; i < PageEndIndex; ++i)
 	{
 		const uint32 PageEncoded = UniquePageList->GetPage(i);
@@ -1303,16 +1308,14 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 					// Page is already resident, just need to update LRU free list
 					AddPageUpdate(PageUpdateBuffers, PageUpdateFlushCount, PhysicalSpaceIDAndAddress.PhysicalSpaceID, PhysicalSpaceIDAndAddress.pAddress);
 
-				#if WITH_EDITOR
+					// If continuous update flag is set then add this to pages which can be potentially updated if we have spare upload bandwidth
+					//todo[vt]: Would be better to test continuous update flag *per producer*, but this would require extra indirection so need to profile first
+					if (GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetDescription().bContinuousUpdate)
 					{
-						if (GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetDescription().bContinuousUpdate)
-						{
-							FTexturePagePool& RESTRICT PagePool = GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetPagePool();
-
-							ContinuousUpdateTilesToProduceThreadLocal.Add(PagePool.GetLocalTileFromPhysicalAddress(PhysicalSpaceIDAndAddress.pAddress));
-						}
+						FTexturePagePool& RESTRICT PagePool = GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetPagePool();
+						const FVirtualTextureLocalTile LocalTile = PagePool.GetLocalTileFromPhysicalAddress(PhysicalSpaceIDAndAddress.pAddress);
+						RequestList->AddContinuousUpdateRequest(LocalTile);
 					}
-				#endif
 
 					++PageUpdateBuffers[PhysicalSpaceIDAndAddress.PhysicalSpaceID].WorkingSetSize;
 					++NumResidentPages;
@@ -1630,14 +1633,6 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			{
 				PagePool.UpdateUsage(Frame, Buffer.PhysicalAddresses[i]);
 			}
-
-		#if WITH_EDITOR
-			if (PhysicalSpace->GetDescription().bContinuousUpdate)
-			{
-				FScopeLock ScopeLock(&ContinuousUpdateTilesToProduceCS);
-				ContinuousUpdateTilesToProduce.Append(ContinuousUpdateTilesToProduceThreadLocal);
-			}
-		#endif
 		}
 		
 		INC_DWORD_STAT_BY(STAT_NumPageUpdate, Buffer.NumPageUpdates);
@@ -1649,6 +1644,21 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 	INC_DWORD_STAT_BY(STAT_NumPagePrefetch, NumPrefetchPages);
 }
 
+void FVirtualTextureSystem::GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce)
+{
+	const int32 NumContinuousUpdateRequests = (int32)RequestList->GetNumContinuousUpdateRequests();
+	const int32 MaxContinousUpdates = FMath::Min(VirtualTextureScalability::GetMaxContinuousUpdatesPerFrame(), NumContinuousUpdateRequests);
+
+	int32 NumContinuousUpdates = 0;
+	while (NumContinuousUpdates < MaxContinousUpdates && ContinuousUpdateTilesToProduce.Num() < MaxTilesToProduce)
+	{
+		// Note it's possible that we add a duplicate value to the TSet here, and so MappedTilesToProduce doesn't grow.
+		// But ending up with fewer continuous updates then the maximum is OK.
+		int32 RandomIndex = FMath::Rand() % NumContinuousUpdateRequests;
+		ContinuousUpdateTilesToProduce.Add(RequestList->GetContinuousUpdateRequest(RandomIndex));
+		NumContinuousUpdates++;
+	}
+}
 
 void FVirtualTextureSystem::UpdateCSVStats() const
 {
@@ -1743,6 +1753,7 @@ void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualT
 void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
 	{
+		INC_DWORD_STAT_BY(STAT_NumMappedPageUpdate, MappedTilesToProduce.Num());
 		SubmitRequestsFromLocalTileList(MappedTilesToProduce, EVTProducePageFlags::None, RHICmdList, FeatureLevel);
 		MappedTilesToProduce.Reset();
 	}

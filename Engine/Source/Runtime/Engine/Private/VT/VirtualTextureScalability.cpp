@@ -27,6 +27,13 @@ namespace VirtualTextureScalability
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
+	static TAutoConsoleVariable<int32> CVarVTMaxContinuousUpdatesPerFrame(
+		TEXT("r.VT.MaxContinuousUpdatesPerFrame"),
+		1,
+		TEXT("Max number of page uploads for pages that are already mapped."),
+		ECVF_RenderThreadSafe | ECVF_Scalability
+	);
+
 	static TAutoConsoleVariable<float> CVarVTPoolSizeScale(
 		TEXT("r.VT.PoolSizeScale"),
 		1.f,
@@ -122,6 +129,11 @@ namespace VirtualTextureScalability
 #else
 		return CVarVTMaxUploadsPerFrame.GetValueOnAnyThread();
 #endif
+	}
+
+	int32 GetMaxContinuousUpdatesPerFrame()
+	{
+		return CVarVTMaxContinuousUpdatesPerFrame.GetValueOnAnyThread();
 	}
 
 	float GetPoolSizeScale()
