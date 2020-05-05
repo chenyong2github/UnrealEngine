@@ -1096,7 +1096,7 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 }
 
 /** Creates a property named PropertyName of type PropertyType in the Scope or returns NULL if the type is unknown, but does *not* link that property in */
-FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const FName& PropertyName, const FEdGraphPinType& Type, UClass* SelfClass, EPropertyFlags PropertyFlags, const UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog)
+FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const FName& PropertyName, const FEdGraphPinType& Type, UClass* SelfClass, EPropertyFlags PropertyFlags, const UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog, UEdGraphPin* SourcePin)
 {
 	// When creating properties that depend on other properties (e.g. FDelegateProperty/FMulticastDelegateProperty::SignatureFunction)
 	// you may need to update fixup logic in the compilation manager.
@@ -1199,14 +1199,19 @@ FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 		{
 			if (!NewProperty->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 			{
-				MessageLog.Error(
-					*FText::Format(
-						LOCTEXT("MapKeyTypeUnhashable_ErrorFmt", "Map Property @@ has key type of {0} which cannot be hashed and is therefore invalid"),
-						Schema->GetCategoryText(Type.PinCategory)
-					).ToString(),
-					NewMapProperty
-				);
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("BadType"), Schema->GetCategoryText(Type.PinCategory));
+
+				if (SourcePin && SourcePin->GetOwningNode())
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("MapKeyTypeUnhashable_Node_ErrorFmt", "@@ has key type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), SourcePin->GetOwningNode());
+				}
+				else
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("MapKeyTypeUnhashable_ErrorFmt", "Map Property @@ has key type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), NewMapProperty);
+				}
 			}
+
 			// make the value property:
 			// not feeling good about myself..
 			// Fix up the array property to have the new type-specific property as its inner, and return the new FArrayProperty
@@ -1242,13 +1247,17 @@ FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 		{
 			if (!NewProperty->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 			{
-				MessageLog.Error(
-					*FText::Format(
-						LOCTEXT("SetKeyTypeUnhashable_ErrorFmt", "Set Property @@ has contained type of {0} which cannot be hashed and is therefore invalid"),
-						Schema->GetCategoryText(Type.PinCategory)
-					).ToString(),
-					NewSetProperty
-				);
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("BadType"), Schema->GetCategoryText(Type.PinCategory));
+
+				if(SourcePin && SourcePin->GetOwningNode())
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("SetKeyTypeUnhashable_Node_ErrorFmt", "@@ has container type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), SourcePin->GetOwningNode());
+				}
+				else
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("SetKeyTypeUnhashable_ErrorFmt", "Set Property @@ has container type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), NewSetProperty);
+				}
 
 				// We need to be able to serialize (for CPFUO to migrate data), so force the 
 				// property to hash:

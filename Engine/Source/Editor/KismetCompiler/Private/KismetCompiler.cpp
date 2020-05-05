@@ -923,7 +923,7 @@ void FKismetCompilerContext::CreatePropertiesFromList(UStruct* Scope, FField**& 
 			);
 		}
 
-		if (FProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(Scope, FName(*Term.Name), Term.Type, NewClass, PropertyFlags, Schema, MessageLog))
+		if (FProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(Scope, FName(*Term.Name), Term.Type, NewClass, PropertyFlags, Schema, MessageLog, Term.SourcePin))
 		{
 			if (bPropertiesAreParameters && Term.Type.bIsConst)
 			{
