@@ -37,17 +37,19 @@ namespace Chaos
 		// bFullClothRefresh set to false during changes created using the viewport manipulators.
 		void RefreshPhysicsAsset();
 
-#if WITH_EDITOR
-		// FGCObject interface
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-		// End of FGCObject interface
-
 		// IClothingSimulation interface
 		virtual int32 GetNumCloths() const { return NumCloths; }
 		virtual int32 GetNumKinematicParticles() const { return NumKinemamicParticles; }
 		virtual int32 GetNumDynamicParticles() const { return NumDynamicParticles; }
+		virtual int32 GetNumIterations() const { return NumIterations; }
+		virtual int32 GetNumSubsteps() const { return NumSubsteps; }
 		virtual float GetSimulationTime() const { return SimulationTime; }
 		// End of IClothingSimulation interface
+
+#if WITH_EDITOR
+		// FGCObject interface
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		// End of FGCObject interface
 
 		// Editor only debug draw function
 		CHAOSCLOTH_API void DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
@@ -170,7 +172,14 @@ namespace Chaos
 
 		float Time;
 		float DeltaTime;
-		int32 NumSubsteps;
+
+		// Properties that must be readable from all threads
+		TAtomic<int32> NumCloths;
+		TAtomic<int32> NumKinemamicParticles;
+		TAtomic<int32> NumDynamicParticles;
+		TAtomic<int32> NumIterations;
+		TAtomic<int32> NumSubsteps;
+		TAtomic<float> SimulationTime;
 
 		bool bUseGravityOverride;
 		FVector GravityOverride;
@@ -188,12 +197,6 @@ namespace Chaos
 		TArray<float> AngularDeltaRatios;  // Angular ratios factor applied to the reference bone transforms
 
 #if WITH_EDITOR
-		// Stats
-		TAtomic<int32> NumCloths;
-		TAtomic<int32> NumKinemamicParticles;
-		TAtomic<int32> NumDynamicParticles;
-		TAtomic<float> SimulationTime;
-
 		// Visualization material
 		UMaterial* DebugClothMaterial;
 		UMaterial* DebugClothMaterialVertex;

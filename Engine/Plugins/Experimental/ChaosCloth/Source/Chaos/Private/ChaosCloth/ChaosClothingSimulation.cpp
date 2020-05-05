@@ -86,6 +86,7 @@ namespace ChaosClothingSimulationDefault
 {
 	static const FVector Gravity(0.f, 0.f, -980.665f);
 	static const int32 NumIterations = 1;
+	static const int32 NumSubsteps = 1;
 	static const float SelfCollisionThickness = 2.f;
 	static const float CollisionThickness = 1.2f;
 	static const float FrictionCoefficient = 0.2f;
@@ -96,7 +97,8 @@ namespace ChaosClothingSimulationDefault
 ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
-	, NumSubsteps(1)
+	, NumIterations(ChaosClothingSimulationDefault::NumIterations)
+	, NumSubsteps(ChaosClothingSimulationDefault::NumSubsteps)
 	, bUseGravityOverride(false)
 	, GravityOverride(ChaosClothingSimulationDefault::Gravity)
 	, bUseLocalSpaceSimulation(false)
@@ -374,17 +376,14 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 
 void ClothingSimulation::ResetStats()
 {
-#if WITH_EDITOR
 	NumCloths = 0;
 	NumKinemamicParticles = 0;
 	NumDynamicParticles = 0;
 	SimulationTime = 0.f;
-#endif  // #if WITH_EDITOR
 }
 
 void ClothingSimulation::UpdateStats(int32 InSimDataIndex)
 {
-#if WITH_EDITOR
 	const uint32 Offset = IndexToRangeMap[InSimDataIndex][0];
 	const uint32 Range = IndexToRangeMap[InSimDataIndex][1];
 	if (const int32 AddedParticleCount = Range - Offset)
@@ -408,7 +407,6 @@ void ClothingSimulation::UpdateStats(int32 InSimDataIndex)
 	}
 	NumKinemamicParticles += NumAddedKinenamicParticles;
 	NumDynamicParticles += NumAddedDynamicParticles;
-#endif  // #if WITH_EDITOR
 }
 
 void ClothingSimulation::ExtractCollisions(const UClothingAssetCommon* Asset, int32 InSimDataIndex)
@@ -439,6 +437,7 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 
 		// Now set all the common parameters on the simulation
 		NumSubsteps = ClothSharedSimConfig->SubdivisionCount;
+		NumIterations = ClothSharedSimConfig->IterationCount;
 		Evolution->SetIterations(ClothSharedSimConfig->IterationCount);
 	}
 }
@@ -1343,9 +1342,7 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		return;
 	}
 
-#if WITH_EDITOR
 	const double StartTime = FPlatformTime::Seconds();
-#endif 
 
 	// Filter delta time to smoothen time variations and prevent unwanted vibrations
 	static const float DeltaTimeDecay = 0.1f;
@@ -1540,9 +1537,10 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	}
 
 	// Advance Sim
-	const float SubstepDeltaTime = DeltaTime / (float)NumSubsteps;
+	const int32 NumSubstepsRead = NumSubsteps;  // atomic read
+	const float SubstepDeltaTime = DeltaTime / (float)NumSubstepsRead;
 	
-	for (int32 i = 0; i < NumSubsteps; ++i)
+	for (int32 i = 0; i < NumSubstepsRead; ++i)
 	{
 		Evolution->AdvanceOneTimeStep(SubstepDeltaTime);
 	}
@@ -1550,13 +1548,11 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	Time = Evolution->GetTime();
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, FilteredDeltaTime: %.6f, Time = %.6f,  MaxPhysicsDelta = %.6f"), Context->DeltaSeconds, DeltaTime, Time, FClothingSimulationCommon::MaxPhysicsDelta);
 
-#if WITH_EDITOR
 	// Update simulation time in ms (and provide an instant average instead of the value in real-time)
 	const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
 	const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
 	static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
 	SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
-#endif  // #if WITH_EDITOR
 
 	// Debug draw
 #if CHAOS_DEBUG_DRAW
