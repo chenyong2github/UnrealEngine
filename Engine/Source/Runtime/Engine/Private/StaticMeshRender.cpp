@@ -108,6 +108,16 @@ static FAutoConsoleCommand GToggleForceDefaultMaterialCmd(
 	FConsoleCommandDelegate::CreateStatic(ToggleForceDefaultMaterial)
 	);
 
+static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshes(
+	TEXT("r.RayTracing.Geometry.StaticMeshes"),
+	1,
+	TEXT("Include static meshes in ray tracing effects (default = 1 (static meshes enabled in ray tracing))"));
+
+static TAutoConsoleVariable<int32> CVarRayTracingWPOStaticMeshes(
+	TEXT("r.RayTracing.Geometry.WPOStaticMeshes"),
+	1,
+	TEXT("Include static meshes with world position offset in ray tracing effects (default = 1 (static meshes with world position offset enabled in ray tracing))"));
+
 /** Initialization constructor. */
 FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, bool bForceLODsShareStaticLighting)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetStaticMesh()->GetFName())
@@ -1637,7 +1647,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 #if RHI_RAYTRACING
 void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances )
 {
-	if (DynamicRayTracingGeometries.Num() <= 0)
+	if (DynamicRayTracingGeometries.Num() <= 0 || !CVarRayTracingStaticMeshes.GetValueOnRenderThread() || !CVarRayTracingWPOStaticMeshes.GetValueOnRenderThread())
 	{
 		return;
 	}
