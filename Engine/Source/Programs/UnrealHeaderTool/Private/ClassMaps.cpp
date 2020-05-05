@@ -4,11 +4,11 @@
 #include "UnrealHeaderTool.h"
 #include "UnrealTypeDefinitionInfo.h"
 
-TMap<FString, TSharedRef<FUnrealSourceFile> > GUnrealSourceFilesMap;
-TMap<UField*, TSharedRef<FUnrealTypeDefinitionInfo> > GTypeDefinitionInfoMap;
+FUnrealSourceFiles GUnrealSourceFilesMap;
+FTypeDefinitionInfoMap GTypeDefinitionInfoMap;
 TMap<const UPackage*, TArray<UField*>> GPackageSingletons;
 FCriticalSection GPackageSingletonsCriticalSection;
-TSet<FUnrealSourceFile*> GPublicSourceFileSet;
+FPublicSourceFileSet GPublicSourceFileSet;
 TMap<FProperty*, FString> GArrayDimensions;
 TMap<UPackage*,  const FManifestModule*> GPackageToManifestModuleMap;
 TMap<void*, uint32> GGeneratedCodeHashes;
