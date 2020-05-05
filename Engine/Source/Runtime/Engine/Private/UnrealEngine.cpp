@@ -1109,11 +1109,12 @@ void FWorldContext::SetCurrentWorld(UWorld* World)
 {
 	if (World != nullptr && AudioDeviceID != INDEX_NONE)
 	{
-		// Set the world's audio device handle so that audio components playing in the 
-		// world will use the correct audio device instance.
-		FAudioDeviceHandle AudioDevice = FAudioDeviceManager::Get()->GetAudioDevice(AudioDeviceID);
-
-		World->SetAudioDevice(AudioDevice);
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		{
+			// Set the world's audio device handle so that audio components playing in the 
+			// world will use the correct audio device instance.
+			FAudioDeviceManager::Get()->SetAudioDevice(*World, AudioDeviceID);
+		}
 	}
 
 	for (int32 idx = 0; idx < ExternalReferences.Num(); ++idx)
