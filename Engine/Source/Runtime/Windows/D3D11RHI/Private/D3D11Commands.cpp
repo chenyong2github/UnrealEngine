@@ -1538,7 +1538,6 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 		
 		check(BufferIndex < Shader->ShaderResourceTable.ResourceTableLayoutHashes.Num());
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (!Buffer)
 		{
 			UE_LOG(LogD3D11RHI, Fatal, TEXT("Shader expected a uniform buffer of struct type %s at slot %u but got null instead.  Rendering code needs to set a valid uniform buffer for this slot."), 
@@ -1546,6 +1545,7 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 				BufferIndex);
 		}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// to track down OR-7159 CRASH: Client crashed at start of match in D3D11Commands.cpp
 		{
 			const uint32 LayoutHash = Buffer->GetLayout().GetHash();
