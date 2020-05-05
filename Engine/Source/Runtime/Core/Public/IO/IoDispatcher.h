@@ -12,6 +12,7 @@
 #include "Templates/TypeCompatibleBytes.h"
 #include "HAL/PlatformAtomics.h"
 #include "Misc/SecureHash.h"
+#include "Misc/AES.h"
 
 #if __cplusplus >= 201703L
 #	define UE_NODISCARD		[[nodiscard]]
@@ -952,6 +953,7 @@ struct FIoStoreWriterResult
 	int64 UncompressedContainerSize = 0;
 	int64 CompressedContainerSize = 0;
 	FName CompressionMethod = NAME_None;
+	bool bIsEncrypted = false;
 };
 
 struct FIoWriteOptions
@@ -975,6 +977,12 @@ private:
 	FIoStoreWriterContextImpl* Impl;
 };
 
+struct FIoEncryptionKey
+{
+	FGuid Guid;
+	FAES::FAESKey Key;
+};
+
 class FIoStoreWriter
 {
 public:
@@ -984,7 +992,7 @@ public:
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
-	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed);
+	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed, const FIoEncryptionKey& EncryptionKey);
 	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API FIoStatus	AppendPadding(uint64 Count);
@@ -1026,7 +1034,7 @@ public:
 	CORE_API FIoStoreReader();
 	CORE_API ~FIoStoreReader();
 
-	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment);
+	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment, const FIoEncryptionKey& EncryptionKey);
 	CORE_API void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const;
 	CORE_API void EnumeratePartialChunks(TFunction<bool(const FIoStoreTocPartialChunkInfo&)>&& Callback) const;
 	CORE_API TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
