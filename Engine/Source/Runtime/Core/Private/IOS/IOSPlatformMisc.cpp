@@ -387,6 +387,8 @@ const TCHAR* FIOSPlatformMisc::GetDefaultDeviceProfileName()
 		TEXT("IPodTouch7"),
 		TEXT("IPad7"),
 		TEXT("IPhoneSE2"),
+		TEXT("IPadPro2_11"),
+		TEXT("IPadPro4_129"),
 		TEXT("NewIDevice1"),
 		TEXT("NewIDevice2"),
 		TEXT("NewIDevice3"),
@@ -558,9 +560,17 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 			{
 				DeviceType = IOS_IPadPro_11;
 			}
-			else
+			else if (Minor <= 8)
 			{
 				DeviceType = IOS_IPadPro3_129;
+			}
+			else if (Minor <= 10)
+			{
+				DeviceType = IOS_IPadPro2_11;
+			}
+			else
+			{
+				DeviceType = IOS_IPadPro4_129;
 			}
 		}
         else if (Major == 11)
@@ -577,7 +587,7 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 		// Default to highest settings currently available for any future device
 		else if (Major >= 9)
 		{
-			DeviceType = IOS_IPadPro3_129;
+			DeviceType = IOS_IPadPro4_129;
 		}
 	}
 	// iPhones
