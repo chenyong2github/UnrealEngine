@@ -80,31 +80,28 @@ FString FSlateInvalidationRoot::GetReferencerName() const
 
 void FSlateInvalidationRoot::InvalidateChildOrder()
 {
-	//if (GSlateEnableGlobalInvalidation)
+	if(!bNeedsSlowPath && !bChildOrderInvalidated)
 	{
-		if(!bNeedsSlowPath && !bChildOrderInvalidated)
+		//UE_LOG(LogSlate, Log, TEXT("Child order invalidated, Slow path needed"));
+		//bNeedsSlowPath = true;
+		bChildOrderInvalidated = true;
+		if(!InvalidationRootWidget->Advanced_IsWindow())
 		{
-			//UE_LOG(LogSlate, Log, TEXT("Child order invalidated, Slow path needed"));
-			//bNeedsSlowPath = true;
-			bChildOrderInvalidated = true;
-			if(!InvalidationRootWidget->Advanced_IsWindow())
-			{
-				InvalidationRootWidget->InvalidatePrepass();
-			}
+			InvalidationRootWidget->InvalidatePrepass();
+		}
 
-			if (!GSlateEnableGlobalInvalidation  && !InvalidationRootWidget->Advanced_IsWindow())
-			{
-				//InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::ChildOrder);
-				InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Layout);
-			}
+		if (!GSlateEnableGlobalInvalidation && !InvalidationRootWidget->Advanced_IsWindow())
+		{
+			//InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Layout);
+		}
 
 #if WITH_SLATE_DEBUGGING
-			if (GSlateInvalidationDebugging && FastWidgetPathList.Num())
-			{
-				FSlateDebugging::WidgetInvalidated(*this, FastWidgetPathList[0], &FLinearColor::Red);
-			}
-#endif
+		if (GSlateInvalidationDebugging && FastWidgetPathList.Num())
+		{
+			FSlateDebugging::WidgetInvalidated(*this, FastWidgetPathList[0], &FLinearColor::Red);
 		}
+#endif
 	}
 }
 
