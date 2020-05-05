@@ -122,12 +122,12 @@ struct FFileIoStoreResolvedRequest
 	uint64 ResolvedSize;
 };
 
-class FEncryptionKeyCache
+class FFileIoStoreEncryptionKeys
 {
 public:
 	using FKeyRegisteredCallback = TFunction<void(const FGuid&, const FAES::FAESKey&)>;
 
-	FEncryptionKeyCache();
+	FFileIoStoreEncryptionKeys();
 	bool GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const;
 	void SetKeyRegisteredCallback(FKeyRegisteredCallback&& Callback)
 	{
@@ -260,5 +260,5 @@ private:
 	FFileIoStoreRawBlock* ScheduledBlocksTail = nullptr;
 	FCriticalSection DecompressedBlocksCritical;
 	FFileIoStoreCompressedBlock* FirstDecompressedBlock = nullptr;
-	FEncryptionKeyCache EncryptionKeys;
+	FFileIoStoreEncryptionKeys EncryptionKeys;
 };

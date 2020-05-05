@@ -67,12 +67,12 @@ private:
 	IMappedFileHandle* SharedMappedFileHandle;
 };
 
-FEncryptionKeyCache::FEncryptionKeyCache()
+FFileIoStoreEncryptionKeys::FFileIoStoreEncryptionKeys()
 {
-	FCoreDelegates::GetRegisterEncryptionKeyDelegate().BindRaw(this, &FEncryptionKeyCache::RegisterEncryptionKey);
+	FCoreDelegates::GetRegisterEncryptionKeyDelegate().BindRaw(this, &FFileIoStoreEncryptionKeys::RegisterEncryptionKey);
 }
 
-bool FEncryptionKeyCache::GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const
+bool FFileIoStoreEncryptionKeys::GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const
 {
 	OutKey.Reset();
 
@@ -94,7 +94,7 @@ bool FEncryptionKeyCache::GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& Out
 	return false;
 }
 
-void FEncryptionKeyCache::RegisterEncryptionKey(const FGuid& Guid, const FAES::FAESKey& Key)
+void FFileIoStoreEncryptionKeys::RegisterEncryptionKey(const FGuid& Guid, const FAES::FAESKey& Key)
 {
 	{
 		FScopeLock _(&EncryptionKeysCritical);
@@ -615,7 +615,7 @@ void FFileIoStore::ProcessCompletedBlocks()
 		{
 			AllocMemoryForRequest(Scatter.Request);
 		}
-		if (BlockToDecompress->CompressionMethod.IsNone())
+		if (BlockToDecompress->CompressionMethod.IsNone() && !BlockToDecompress->EncryptionKey.IsValid())
 		{
 			ScatterBlock(BlockToDecompress, false);
 			FinalizeCompressedBlock(BlockToDecompress);
