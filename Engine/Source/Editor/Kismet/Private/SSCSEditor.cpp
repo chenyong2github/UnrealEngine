@@ -4150,7 +4150,7 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 								if (UActorComponent* ComponentTemplate = TreeNode->GetComponentTemplate())
 								{
 									// If the component is native then we need to ensure it can actually be edited before we display it
-									if (!TreeNode->IsNative() || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ComponentTemplate))
+									if (!TreeNode->IsNativeComponent() || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ComponentTemplate))
 									{
 										SelectionClasses.Add(ComponentTemplate->GetClass());
 									}
