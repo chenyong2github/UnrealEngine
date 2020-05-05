@@ -211,8 +211,8 @@ namespace Chaos
 		if (bAngularSLerpPositionDriveEnabled || bAngularSLerpVelocityDriveEnabled)
 		{
 			if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
-				|| (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
-				|| (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked))
+				|| (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Locked)
+				|| (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Locked))
 			{
 				bAngularSLerpPositionDriveEnabled = false;
 				bAngularSLerpVelocityDriveEnabled = false;
