@@ -1330,7 +1330,7 @@ private:
 		}
 
 		auto* GTUnsafeParticle = PTParticle.GTGeometryParticle();
-		ensure(GTUnsafeParticle != nullptr);
+		check(GTUnsafeParticle != nullptr);
 		const int32 DirtyIdx = AllDirtyParticles.Add(FDirtyParticleInfo(*GTUnsafeParticle, PTParticle,UniqueIdx,CurFrame,Managers.Capacity()));
 		ParticleToAllDirtyIdx.Add(UniqueIdx,DirtyIdx);
 
