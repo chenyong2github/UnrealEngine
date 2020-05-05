@@ -109,6 +109,12 @@ void FHttpManager::OnAfterFork()
 
 }
 
+void FHttpManager::OnEndFramePostFork()
+{
+	// nothing
+}
+
+
 void FHttpManager::UpdateConfigs()
 {
 	// empty
@@ -147,6 +153,7 @@ void FHttpManager::Flush(bool bShutdown)
 	// block until all active requests have completed
 	double BeginWaitTime = FPlatformTime::Seconds();
 	double LastTime = BeginWaitTime;
+	double StallWarnTime = BeginWaitTime + 0.5;
 	while (Requests.Num() > 0)
 	{
 		const double AppTime = FPlatformTime::Seconds();
@@ -168,14 +175,22 @@ void FHttpManager::Flush(bool bShutdown)
 		LastTime = AppTime;
 		if (Requests.Num() > 0)
 		{
-			if (FPlatformProcess::SupportsMultithreading())
+			if (Thread)
 			{
-				UE_LOG(LogHttp, Display, TEXT("Sleeping 0.5s to wait for %d outstanding Http requests."), Requests.Num());
-				FPlatformProcess::Sleep(0.5f);
-			}
-			else if (Thread)
-			{
-				Thread->Tick();
+				if( Thread->NeedsSingleThreadTick() )
+				{
+					if (AppTime >= StallWarnTime)
+					{
+						UE_LOG(LogHttp, Display, TEXT("Ticking HTTPThread for %d outstanding Http requests."), Requests.Num());
+						StallWarnTime = AppTime + 0.5;
+					}
+					Thread->Tick();
+				}
+				else
+				{
+					UE_LOG(LogHttp, Display, TEXT("Sleeping 0.5s to wait for %d outstanding Http requests."), Requests.Num());
+					FPlatformProcess::Sleep(0.5f);
+				}
 			}
 			else
 			{
