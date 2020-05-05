@@ -7,6 +7,7 @@
 // Back up some preprocessor identifiers.
 __pragma(push_macro("PI"))
 __pragma(push_macro("BYTE_MAX"))
+__pragma(push_macro("_HAS_EXCEPTIONS"))
 
 #undef PI
 
