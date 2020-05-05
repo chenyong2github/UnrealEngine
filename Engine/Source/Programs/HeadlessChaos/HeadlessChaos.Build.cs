@@ -19,8 +19,14 @@ public class HeadlessChaos : ModuleRules
                 "GoogleTest",
 				"Chaos",
 				"ChaosSolvers",
-            }
-        );
+				"GeometricObjects",
+				"GeometryCollectionCore",
+				"GeometryCollectionSimulationCore",
+				"FieldSystemCore",
+				"FieldSystemSimulationCore"
+
+			}
+		);
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
