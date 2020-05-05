@@ -227,7 +227,7 @@ public:
 	{
 		if (WaitEvent)
 		{
-			FPlatformProcess::ReturnSynchEventToPool(WaitEvent);
+			delete WaitEvent;
 			WaitEvent = nullptr;
 		}
 	}
@@ -303,7 +303,7 @@ private:
 		// Wait event can't be initialized with the singleton, because it will crash when initialized to early
 		if (WaitEvent == nullptr)
 		{
-			WaitEvent = FPlatformProcess::GetSynchEventFromPool(false);
+			WaitEvent = FPlatformProcess::CreateSynchEvent(true);
 		}
 		return WaitEvent;
 	}

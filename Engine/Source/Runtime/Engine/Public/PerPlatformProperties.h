@@ -6,6 +6,7 @@ PerPlatformProperties.h: Property types that can be overridden on a per-platform
 
 #pragma once
 
+#include "Engine/Engine.h"
 #include "Serialization/Archive.h"
 #include "RHIDefinitions.h"
 #include "Containers/Map.h"

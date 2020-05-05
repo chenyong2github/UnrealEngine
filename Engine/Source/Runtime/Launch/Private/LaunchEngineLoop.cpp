@@ -2559,7 +2559,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		// If we're not creating the slate application there is some basic initialization
 		// that it does that still must be done
 		EKeys::Initialize();
-		FCoreStyle::ResetToDefault();
+		FSlateApplication::InitializeCoreStyle();
 	}
 
 	if (GIsEditor)

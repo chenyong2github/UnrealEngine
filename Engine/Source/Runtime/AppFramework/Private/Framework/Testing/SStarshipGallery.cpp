@@ -1,0 +1,1644 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Framework/Testing/SStarshipGallery.h"
+
+#include "HAL/FileManager.h"
+
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+#include "Animation/CurveSequence.h"
+#include "Widgets/SBoxPanel.h"
+#include "Styling/SlateTypes.h"
+#include "Styling/CoreStyle.h"
+
+#include "Types/SlateEnums.h"
+#include "UObject/ReflectedTypeAccessors.h"
+// #include "Types/SlateEnums.h"
+
+// #include "SlateCore.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
+
+
+#include "Layout/WidgetPath.h"
+#include "SlateOptMacros.h"
+#include "Framework/Application/MenuStack.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/Testing/SWidgetGallery.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SFxWidget.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SSpinningImage.h"
+#include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SHeader.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Layout/SUniformWrapPanel.h"
+#include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Text/SMultiLineEditableText.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Input/SSlider.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+
+
+#include "Brushes/SlateImageBrush.h"
+
+#if !UE_BUILD_SHIPPING
+
+
+#define LOCTEXT_NAMESPACE "StarshipGallery"
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+/**
+ * Implements a widget gallery to develop the UE5 Slate 
+ *
+ * The widget gallery demonstrates the widgets available in the core of the Slate.
+ * Update the PopulateGallery() method to add your new widgets.
+ */
+
+
+class SStarshipGallery
+    : public SCompoundWidget
+
+
+{
+
+public:
+
+    SLATE_BEGIN_ARGS( SStarshipGallery ) { }
+    SLATE_END_ARGS()
+        
+public:
+
+    /**
+     * Constructs the widget gallery.
+     *
+     * @param InArgs - Construction arguments.
+     */
+
+
+    void Construct( const FArguments& InArgs )
+    {
+
+        TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("StarshipStyleGallery")
+        ->AddArea
+        (
+            FTabManager::NewPrimaryArea()
+            ->Split
+            (
+                FTabManager::NewStack()
+                ->AddTab("Colors", ETabState::OpenedTab)
+                ->AddTab("Text", ETabState::OpenedTab)
+                ->AddTab("Icons", ETabState::OpenedTab)
+                ->AddTab("Starship Widgets", ETabState::OpenedTab)
+                // ->AddTab("SLATE WIDGETS", ETabState::OpenedTab)
+                ->SetForegroundTab(FName("Starship Widgets"))
+            )
+        );
+
+        FGlobalTabmanager::Get()->RegisterNomadTabSpawner("Colors", 
+            FOnSpawnTab::CreateLambda( 
+                [this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+                {
+                    return SNew(SDockTab)
+                    .TabRole(ETabRole::PanelTab)
+                    .ContentPadding(0)
+                    // .Icon(DynamicBrushes.Add_GetRef(TUniquePtr<FSlateDynamicImageBrush>(new FSlateDynamicImageBrush(FName("../../Content/Slate/Starship/Icons/Quixel/DesignTools/layer-liquid_32x.png"), FVector2D(16.f, 16.f)))).Get())
+                    [
+                        ConstructColorsGallery()
+                    ];
+                }
+            )
+        );
+
+        FGlobalTabmanager::Get()->RegisterNomadTabSpawner("Text", 
+            FOnSpawnTab::CreateLambda( 
+                [this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+                {
+                    return SNew(SDockTab)
+                    .TabRole(ETabRole::PanelTab)
+                    .ContentPadding(0)
+                    // .Icon(DynamicBrushes.Add_GetRef(TUniquePtr<FSlateDynamicImageBrush>(new FSlateDynamicImageBrush(FName("../../Content/Slate/Starship/Icons/Quixel/Common/tile_32x.png"), FVector2D(16.f, 16.f)))).Get())
+                     [
+                        ConstructTextGallery()
+                    ];
+                }
+            )
+        );
+
+
+        FGlobalTabmanager::Get()->RegisterNomadTabSpawner("Icons", 
+            FOnSpawnTab::CreateLambda( 
+                [this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+                {
+                    return SNew(SDockTab)
+                    .TabRole(ETabRole::PanelTab)
+                    .ContentPadding(0)
+                    // .Icon(DynamicBrushes.Add_GetRef(TUniquePtr<FSlateDynamicImageBrush>(new FSlateDynamicImageBrush(FName("../../Content/Slate/Starship/Icons/Quixel/Common/tile_32x.png"), FVector2D(16.f, 16.f)))).Get())
+                     [
+                        ConstructIconsGallery()
+                    ];
+                }
+            )
+        );
+
+
+        FGlobalTabmanager::Get()->RegisterNomadTabSpawner("Starship Widgets", 
+            FOnSpawnTab::CreateLambda( 
+                [this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+                {
+                    return SNew(SDockTab)
+                    .TabRole(ETabRole::PanelTab)
+                    .ContentPadding(0) 
+                    .ForegroundColor(FSlateColor::UseStyle())
+                    // .Icon(DynamicBrushes.Add_GetRef(TUniquePtr<FSlateDynamicImageBrush>(new FSlateDynamicImageBrush(FName("../../Content/Slate/Starship/Icons/Quixel/Common/gift_32x.png"), FVector2D(16.f, 16.f)))).Get())
+                    [
+                        ConstructWidgetGallery()
+                    ];
+                }
+            )
+        );
+
+
+        /*
+        FGlobalTabmanager::Get()->RegisterTabSpawner("SLATE WIDGETS", 
+            FOnSpawnTab::CreateLambda( 
+                [this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+                {
+                    return SNew(SDockTab) .TabRole(ETabRole::NomadTab) [
+                        MakeWidgetGallery()
+                    ];
+                }
+            )
+        );*/
+
+
+        // FOnSpawnTab::CreateLambda(SpawnTableViewTesting));
+        ChildSlot
+        [
+            FGlobalTabmanager::Get()->RestoreFrom(Layout, TSharedPtr<SWindow>() ).ToSharedRef()
+        ];
+    };
+
+    TSharedRef<SWidget> ConstructColorsGallery()
+    {
+
+        auto GenerateColorButton = [] (FText InTitle, FName StyleColorName, bool Inverted = false, bool Outline = false) -> TSharedRef<SWidget> 
+        {
+
+            FSlateColor InSlateColor = FAppStyle::Get().GetSlateColor( StyleColorName );
+            FSlateColor OutlineColor = FAppStyle::Get().GetSlateColor("Colors.Foldout");
+            // TSharedRef<SButton> ColorButton;
+            // = SNew(SButton)
+            return SNew(SBox)
+            .Padding(12)
+            .WidthOverride(128)
+            .HeightOverride(128)
+            [
+                    SNew(SOverlay)
+
+                    +SOverlay::Slot()
+                    [
+                        SNew(SBorder)
+                        .BorderImage(Outline ? new FSlateRoundedBoxBrush(InSlateColor, 6.f, OutlineColor, 1.0f) : new FSlateRoundedBoxBrush(InSlateColor, 6.0f))
+                        // .Color(InSlateColor.GetSpecifiedColor())
+                    ]
+
+                    +SOverlay::Slot()
+                    .Padding(12)
+                    [
+                        SNew(SVerticalBox)
+                        +SVerticalBox::Slot()
+                        .FillHeight(1)
+                        .VAlign(VAlign_Bottom)
+                        [
+                            SNew(STextBlock)
+                            .Font(FAppStyle::Get().GetFontStyle("SmallFontBold"))
+                            .ColorAndOpacity( FAppStyle::Get().GetSlateColor( Inverted ? "Colors.Background": "Colors.White" ) )
+                            .Text(InTitle)
+                        ]
+
+                        +SVerticalBox::Slot()
+                        .VAlign(VAlign_Bottom)
+                        .AutoHeight()
+                        [
+                            SNew(STextBlock)
+                            .Font(FAppStyle::Get().GetFontStyle("SmallFont"))
+                            .ColorAndOpacity( FAppStyle::Get().GetSlateColor( Inverted ? "Colors.Background" : "Colors.White" ) )
+                            .Text( FText::FromString( InSlateColor.GetSpecifiedColor().ToFColor(true).ToHex() ) )
+                        ]
+                    ]
+            ];
+        };
+
+        FSlateColor LabelColor = FAppStyle::Get().GetSlateColor("Colors.White50");
+
+        return SNew(SBorder)
+        .Padding(48)
+        [
+            SNew(SHorizontalBox)
+
+            +SHorizontalBox::Slot()
+            .FillWidth(1.0)
+            [
+                SNew(SVerticalBox)
+
+                +SVerticalBox::Slot()
+                .AutoHeight()
+                .Padding(8.f, 0.f, 8.f, 12.f)
+                [
+                    SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "BaseColors", "BASE COLORS"))
+                ]
+
+                +SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SNew(SUniformWrapPanel)
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BLACK"),           "Colors.Black")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOLDOUT"),         "Colors.Foldout")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("INPUT"),           "Colors.Input")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BACKGROUND"),      "Colors.Background", false, true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HEADER"),          "Colors.Header")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("DROPDOWN"),        "Colors.Dropdown")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HOVER"),           "Colors.Hover")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HOVER2"),          "Colors.Hover2")]
+
+                ]
+
+                +SVerticalBox::Slot()
+                .AutoHeight()
+                .Padding(8.f, 48.f, 8.f, 12.f)
+                [
+                    SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "TextIconColors", "TEXT & ICON COLORS"))
+                ]
+
+                +SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SNew(SUniformWrapPanel)
+
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE"),           "Colors.White", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE25"),         "Colors.White25")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE50"),         "Colors.White50")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HIGHLIGHT"),       "Colors.HIGHLIGHT")]
+                ]
+
+                +SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SNew(SUniformWrapPanel)
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY"),         "Colors.Primary", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY\nHOVER"),  "Colors.PrimaryHover", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY\nPRESS"),  "Colors.PrimaryPress", true)]
+                ]
+
+
+            ]
+
+            +SHorizontalBox::Slot()
+            .FillWidth(1.0)
+            .Padding(48.0, 0.0)
+            [
+                SNew(SVerticalBox)
+
+                +SVerticalBox::Slot()
+                .Padding(8.f, 0.f, 8.f, 12.f)
+                .AutoHeight()
+                [
+                    SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "AccentColors", "ACCENT COLORS"))
+                ]
+
+                +SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SNew(SUniformWrapPanel)
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BLUE"),      "Colors.AccentBlue", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PURPLE"),    "Colors.AccentPurple")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PINK"),      "Colors.AccentPink", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("RED"),       "Colors.AccentRed", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("ORANGE"),    "Colors.AccentOrange", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("YELLOW"),    "Colors.AccentYellow", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("GREEN"),     "Colors.AccentGreen", true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BROWN"),     "Colors.AccentBrown")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BLACK"),     "Colors.AccentBlack", false, true)]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("GRAY"),      "Colors.AccentGray")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE"),     "Colors.AccentWhite", true)]
+                ]
+
+
+            ]
+        ];
+    };
+
+    TArray< TUniquePtr< FSlateDynamicImageBrush > > DynamicBrushes;
+    TSharedRef<SWidget> ConstructIconsGallery()
+    {
+        // auto GenerateColorButton = [] (FTex      t InTitle, FName StyleColorName, bool Inverted = false) -> TSharedRef<SWidget> 
+
+        auto GenerateIconLibrary = [this] (FText InTitle, FString InPath) -> TSharedRef<SWidget>
+        {
+            const FVector2D IconSize(20.f, 20.f);
+            TSharedPtr<SUniformWrapPanel> UniformWrapPanel = SNew(SUniformWrapPanel)
+            .HAlign(HAlign_Left)
+            .SlotPadding( FMargin(12.f, 12.f) );
+
+            TArray<FString> FoundIcons;
+            FString SearchDirectory = FPaths::EngineDir() /  InPath;// TEXT("Editor/Slate/Icons/GeneralTools");
+            // IFileManager::Get().FindFiles(FoundIcons, *SearchDirectory, TEXT(".png"));//, true, true, false);
+            IFileManager::Get().FindFilesRecursive(FoundIcons, *SearchDirectory, TEXT("*.png"), true, false);
+            for (const FString& Filename : FoundIcons)
+            {
+                // FString IconPath = SearchDirectory / Filename;
+                FString IconPath = Filename;
+
+                DynamicBrushes.Add( TUniquePtr<FSlateDynamicImageBrush>(new FSlateDynamicImageBrush( FName(*IconPath), IconSize )));
+
+                UniformWrapPanel->AddSlot()
+                [
+                    SNew(SImage)
+                    .Image(DynamicBrushes.Last().Get())
+                    .ToolTipText( FText::FromString( IconPath ) )
+                ];
+            }
+
+            return SNew(SVerticalBox)
+            +SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(STextBlock).Text(InTitle)
+            ]
+
+            +SVerticalBox::Slot(        )
+            [
+                UniformWrapPanel.ToSharedRef()
+            ];
+        };
+
+        return SNew(SBorder)
+        .Padding(48)
+        [
+            SNew(SVerticalBox)
+            +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "GeneralIconTitle", "General"), "Content/Editor/Slate/Icons/GeneralTools")]
+            +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "PaintIconTitle", "Paint"), "Content/Editor/Slate/Icons/Paint")]
+            +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "LandscapeIconTitle", "Landscape"), "Content/Editor/Slate/Icons/Landscape")]
+            +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "ModelingIconTitle", "Modeling"), "/Plugins/Experimental/ModelingToolsEditorMode/Content/Icons")]
+            +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "FractureIconTitle", "Fracture"), "/Plugins/Experimental/ChaosEditor/Content")]
+            +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "CurveEditorIconTitle", "CurveEditor"), "Content/Editor/Slate/GenericCurveEditor/Icons")]
+            +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "QuixelIconTitle", "Quixel"), "Content/Slate/Starship/Icons/Quixel")]
+        ];
+    }
+
+    TSharedRef<SWidget> ConstructTextGallery()
+    {
+
+        FSlateColor LabelColor = FAppStyle::Get().GetSlateColor("Colors.White50");
+
+        return SNew(SBorder)
+        .Padding(48.f)
+        [
+            SNew(SHorizontalBox)
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(48.f, 0.0f)
+            [
+
+                SNew(SVerticalBox)
+
+                // Normal 
+                +SVerticalBox::Slot().Padding(0.f, 32.f, 0.f, 4.f).AutoHeight() [ SNew(STextBlock).ColorAndOpacity(LabelColor).Text( NSLOCTEXT("StarshipGallery", "NormalBodyTextDesc", "ROBOTO 10 SLATE    [ ROBOTO 13 FIGMA ]") ) ]
+                +SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight() [ 
+                    SNew(STextBlock)
+                    .Text(NSLOCTEXT("StarshipGallery", "NormalBodyText", "Normal Text\n\nThe quick brown fox jumps over the lazy dog.\n\nNORMAL TEXT CAPITAL") ) 
+                ]
+
+                // Small 
+                +SVerticalBox::Slot().Padding(0.f, 32.f, 0.f, 4.f).AutoHeight()[ SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "SmallBodyTextDesc", "ROBOTO 8 SLATE   [ ROBOTO 11 FIGMA ]" ) ) ]
+                +SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight()[ 
+                    SNew(STextBlock)
+                    .Font(FAppStyle::Get().GetFontStyle("SmallFont"))
+                    .Text(NSLOCTEXT("StarshipGallery", "SmallBodyText", "Small Text\n\nThe quick brown fox jumps over the lazy dog.\n\nSMALL TEXT CAPITAL") ) 
+                ]
+            ]
+
+            /*
+            // Extra Large
+            +SVerticalBox::Slot().Padding(0.f, 32.f, 0.f, 4.f).AutoHeight()[ SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "ExtraLargeBodyTextDesc", "ROBOTO 14") ) ]
+            +SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight()[ 
+                SNew(STextBlock)
+                .Font(FAppStyle::Get().GetFontStyle("ExtraLargeFont"))
+                .Text(NSLOCTEXT("StarshipGallery", "ExtraLargeBodyText", "Extra Large Body Text\n\nThe quick brown fox jumps over the lazy dog.\n\nEXTRA LARGE TEXT CAPITAL") ) 
+            ]
+
+            // Large
+            +SVerticalBox::Slot().Padding(0.f, 32.f, 0.f, 4.f).AutoHeight()[ SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "LargeBodyTextDesc", "ROBOTO 11") ) ]
+            +SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight()[ 
+                SNew(STextBlock)
+                .Font(FAppStyle::Get().GetFontStyle("LargeFont"))
+                .Text(NSLOCTEXT("StarshipGallery", "LargeBodyText", "Large Text\n\nThe quick brown fox jumps over the lazy dog.\n\nLARGE TEXT CAPITAL") ) 
+            ]
+            */
+
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(48.f, 0.0f)
+            [
+                SNew(SVerticalBox)
+
+                // Normal Bold
+                +SVerticalBox::Slot().Padding(0.f, 32.f, 0.f, 4.f).AutoHeight() [ SNew(STextBlock).ColorAndOpacity(LabelColor).Text( NSLOCTEXT("StarshipGallery", "NormalBoldTextDesc", "ROBOTO BOLD 10 SLATE   [ ROBOTO 13 FIGMA ]") ) ]
+                +SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight() [ 
+                    SNew(STextBlock)
+                    .Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+                    .Text(NSLOCTEXT("StarshipGallery", "NormalBodyBoldText", "Normal Text Bold \n\nThe quick brown fox jumps over the lazy dog.\n\nNORMAL TEXT BOLD CAPITAL") ) 
+                ]
+
+                // Small Bold
+                +SVerticalBox::Slot().Padding(0.f, 32.f, 0.f, 4.f).AutoHeight()[ SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "SmallBoldTextDesc", "ROBOTO BOLD 8 SLATE   [ ROBOTO 11 FIGMA ]") ) ]
+                +SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight()[ 
+                    SNew(STextBlock)
+                    .Font(FAppStyle::Get().GetFontStyle("SmallFontBold"))
+                    .Text(NSLOCTEXT("StarshipGallery", "SmallBodyBoldText", "Small Text Bold \n\nThe quick brown fox jumps over the lazy dog.\n\nSMALL TEXT BOLD CAPITAL") ) 
+                ]
+            ]
+
+        ];
+    }
+
+    // State Variables 
+    int RadioChoice;
+    int SegmentedBoxChoice;
+    TArray< TSharedPtr< FString > > ComboItems;
+
+    float NumericEntryBoxChoice;
+
+    TSharedRef<SWidget> ConstructWidgetGallery()
+    {
+
+        // initialize state variables
+        RadioChoice = 3;
+
+        SegmentedBoxChoice = 2;
+
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A One"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Two"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Three"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Four"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Five"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Six"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Seven"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Eight"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Nine"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Ten"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Eleven"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Twelve"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Thirteen"))));
+        ComboItems.Add(MakeShareable(new FString(TEXT("Option A Fourteen"))));
+        
+
+        TSharedPtr<SGridPanel> WidgetGrid = SNew(SGridPanel);
+
+        int WidgetNum = 0, RowCount = 11, Cols = 3;
+        auto NextSlot = [WidgetNum, RowCount, Cols](TSharedPtr<SGridPanel> Grid, const FText& InLabel) mutable -> SHorizontalBox::FSlot&
+        {
+
+            SHorizontalBox::FSlot* ContentsSlot;    
+            TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox)+SHorizontalBox::Slot().Expose(ContentsSlot).VAlign(VAlign_Center).HAlign(HAlign_Fill).AutoWidth();
+
+            // Checkbox to show disabled state
+            Grid->AddSlot((WidgetNum / RowCount)*Cols, WidgetNum % RowCount)
+            .Padding(12.f)
+            .HAlign(HAlign_Left)
+            .VAlign(VAlign_Center)
+            [
+                SNew(SCheckBox)
+                .Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SimplifiedCheckbox"))
+                .IsChecked_Lambda( [HBox] { return HBox->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
+                .OnCheckStateChanged_Lambda( [HBox] (ECheckBoxState NewState) { HBox->SetEnabled( NewState == ECheckBoxState::Checked); })
+            ];
+
+            // Add the Label
+            Grid->AddSlot((WidgetNum / RowCount)*Cols + 1, WidgetNum % RowCount )
+            .Padding(24.f, 16.f, 12.f, 16.f)
+            .VAlign(VAlign_Center)
+            .HAlign(HAlign_Right)
+            [
+                SNew(STextBlock)
+                .Font(FAppStyle::Get().GetFontStyle("NormalFont"))
+                .ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.White50"))
+                .Text(InLabel)
+            ];
+
+            //auto& Ret = Grid->AddSlot((WidgetNum / RowCount)*2 + 1, WidgetNum % RowCount)
+            Grid->AddSlot((WidgetNum / RowCount)*Cols + 2, WidgetNum % RowCount)
+            .Padding(12.f, 16.f, 12.f, 16.f)
+            .VAlign(VAlign_Center)
+            .HAlign(HAlign_Fill)
+            [
+
+                HBox
+            ];
+
+            ++WidgetNum;
+            return *ContentsSlot;
+        };
+
+
+        auto LeftRightLabel = [](const FName& InIconName = FName(), const FText& InLabel = FText::GetEmpty()) -> TSharedRef<SWidget>
+        {
+        	TSharedPtr<SHorizontalBox> HBox = SNew(SHorizontalBox);
+            float Space = InIconName.IsNone() ? 0.0f : 8.f;
+
+        	if (!InIconName.IsNone())
+        	{
+        		HBox->AddSlot()	
+	        	.AutoWidth()
+	            .VAlign(VAlign_Center)
+	            [
+	                SNew(SImage)
+	                .ColorAndOpacity(FSlateColor::UseForeground())
+	                .Image(FAppStyle::Get().GetBrush(InIconName))
+	            ];
+        	}
+
+        	if (!InLabel.IsEmpty())
+        	{
+        		HBox->AddSlot()	
+        		 .VAlign(VAlign_Center)
+	            .Padding(Space, 0.5f, 0.f, 0.f)  // Compensate down for the baseline since we're using all caps
+	            .AutoWidth()
+	            [
+	                SNew(STextBlock)
+	                .TextStyle( &FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >( "ButtonText" ))
+	                .Justification(ETextJustify::Center)
+	                .Text(InLabel)
+	            ];
+        	}
+
+        	return SNew(SBox).HeightOverride(16.f)[ HBox.ToSharedRef() ];
+        };
+
+        /*
+        // SBorder
+        NextSlot(WidgetGrid, LOCTEXT("SBorderLabel", "SBorder"))
+        [
+            SNew(SBorder)
+            [
+                SNew(SSpacer)
+                .Size(FVector2D(100.0f, 50.0f))
+            ]   
+        ];
+        :w
+        */
+
+
+        // SBorder
+        /*
+        NextSlot(WidgetGrid, LOCTEXT("RectTest", "FSlateRoundedBoxBrush(AccentColor, 24.0)"))// Test Rounded Box Brush"))
+        .Padding(20)
+        [
+            SNew(SBox).WidthOverride(200.0f).HeightOverride(48.0f)
+            [
+                SNew(SBorder).BorderImage(FAppStyle::Get().GetBrush( "RectTestBorder"))
+            ]
+        ];
+
+
+        NextSlot(WidgetGrid, LOCTEXT("RectTest2", "FSlateRoundedBoxBrush(FLinearColor::Transparent, 24.0f, FLinearColor::White, 2.0f)"))// Test Rounded Box Brush 2"))
+        .Padding(20)
+        [
+            SNew(SBox).WidthOverride(200.0f).HeightOverride(48.0f)
+            [
+                SNew(SImage).Image(FAppStyle::Get().GetBrush( "RectTestBorder2"))
+            ]
+        ];
+
+
+        NextSlot(WidgetGrid, LOCTEXT("RectTest3", "FSlateRoundedBoxBrush(FLinearColor::Transparent, 8.0f,  AccentColor, 8.0f)"))// Test Rounded Box Brush 3 "))
+        .Padding(20)
+        [
+            SNew(SBox).WidthOverride(200.0f).HeightOverride(48.0f)
+            [
+                SNew(SBorder).BorderImage(FAppStyle::Get().GetBrush( "RectTestBorder3"))
+            ]
+        ];
+    */
+
+        // SButton Primary Rounded
+        NextSlot(WidgetGrid, LOCTEXT("SButtonPrimaryExampleLabelRounded", "Primary Button"))
+        [
+            SNew(SHorizontalBox)
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            .VAlign(VAlign_Center)
+            [
+
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
+                [
+                    LeftRightLabel(NAME_None, LOCTEXT("PrimaryButtonExampleLabel", "PRIMARY BUTTON"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
+                [
+                    LeftRightLabel("PerspectiveBox", LOCTEXT("PrimaryButtonExampleLabel", "PRIMARY BUTTON"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
+                .VAlign(VAlign_Center)
+                [
+                    LeftRightLabel("PerspectiveBox")
+                ]
+            ]
+        ];
+
+        // SButton Rounded
+        NextSlot(WidgetGrid, LOCTEXT("SButtonLabelRounded", "Button"))
+        [
+
+            SNew(SHorizontalBox)
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            .VAlign(VAlign_Center)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
+                [
+                    LeftRightLabel(NAME_None, LOCTEXT("ButtonExampleLabel", "NORMAL BUTTON"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
+                [
+                    LeftRightLabel(("PerspectiveBox"), LOCTEXT("ButtonExampleLabel", "NORMAL BUTTON"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
+                .VAlign(VAlign_Center)
+                [
+                    LeftRightLabel("PerspectiveBox")
+                ]
+            ]
+
+        ];
+
+
+        // NoBorder Button Button 
+        NextSlot(WidgetGrid, LOCTEXT("TextButton", "Simple Button"))
+        [
+
+            SNew(SHorizontalBox)
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            .VAlign(VAlign_Center)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "SimpleButton" ) )
+                [
+                    LeftRightLabel(NAME_None, LOCTEXT("TextButtonExampleLabel", "SIMPLE BUTTON"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "SimpleButton" ) )
+                [
+                    LeftRightLabel("PerspectiveBox", LOCTEXT("TextButtonExampleLabel", "SIMPLE BUTTON")) 
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "SimpleButton" ) )
+                [
+                    LeftRightLabel("PerspectiveBox")
+                ]
+            ]
+
+        ];
+
+
+        // Toggle Button 
+        NextSlot(WidgetGrid, LOCTEXT("ToggleButtonAlt", "Toggle Button Alt"))
+        [
+
+            SNew(SHorizontalBox)
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
+                [
+                    LeftRightLabel("PerspectiveBox")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
+                .IsChecked(true)
+                [
+                    LeftRightLabel("Pyramid")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
+                [
+                    LeftRightLabel("Cylinder")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
+                .IsChecked(true)
+                [
+                    LeftRightLabel("Sphere")
+                ]
+            ]
+
+        ];
+
+        // Toggle Button with Words
+        NextSlot(WidgetGrid, LOCTEXT("ToggleButton", "Toggle Button"))
+        [
+            SNew(SHorizontalBox)
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBox"))
+                .IsChecked(true)
+                [
+                    LeftRightLabel("PerspectiveBox", LOCTEXT("Box", "BOX"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBox"))
+                .IsChecked(true)
+                [
+                    LeftRightLabel("Pyramid", LOCTEXT("Pyramid", "PYRAMID"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBox"))
+                [
+                    LeftRightLabel("Cylinder", LOCTEXT("Cylinder", "CYLINDER"))
+                ]
+            ]
+
+
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBox"))
+                [
+                    LeftRightLabel("Sphere", LOCTEXT("Sphere", "SPHERE"))
+                ]
+            ]
+
+        ];
+
+        // Segmented Control
+        NextSlot(WidgetGrid, LOCTEXT("SegmentedControl", "SegmentedControl")) 
+        [
+            SNew(SHorizontalBox)
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxLeft"))
+                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 0 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 0; } )
+                [
+                    LeftRightLabel("PerspectiveBox")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxCenter"))
+                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 1; } )
+                [
+                    LeftRightLabel("Cylinder")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxCenter"))
+                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 2 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 2; } )
+                [
+                    LeftRightLabel("Pyramid")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxRight"))
+                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 3 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 3; } )
+                [
+                    LeftRightLabel("Sphere")
+                ]
+            ]
+        ];
+
+        // Segmented Control
+        NextSlot(WidgetGrid, LOCTEXT("SegmentedControl", "SegmentedControl")) 
+        [
+            SNew(SHorizontalBox)
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxLeft"))
+                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 0 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 0; } )
+                [
+                    LeftRightLabel("PerspectiveBox", LOCTEXT("Box", "BOX"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxCenter"))
+                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 1; } )
+                [
+                    LeftRightLabel("Cylinder", LOCTEXT("Cylinder", "CYLINDER"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxCenter"))
+                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 2 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 2; } )
+                [
+                    LeftRightLabel("Pyramid", LOCTEXT("Pyramid", "PYRAMID"))
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            [
+                SNew(SCheckBox)
+                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxRight"))
+                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 3 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 3; } )
+                [
+                    LeftRightLabel("Sphere", LOCTEXT("Sphere", "SPHERE"))
+                ]
+            ]
+        ];
+
+
+        // SCheckBox
+        NextSlot(WidgetGrid, LOCTEXT("SCheckBoxLabel", "Check Box"))
+        [
+            SNew(SVerticalBox)
+
+            +SVerticalBox::Slot()
+            [
+                SNew(SHorizontalBox)
+                + SHorizontalBox::Slot().Padding(8.f) [ SNew(SCheckBox).IsChecked(ECheckBoxState::Unchecked) ]
+                + SHorizontalBox::Slot().Padding(8.f) [ SNew(SCheckBox).IsChecked(ECheckBoxState::Unchecked) ]
+                + SHorizontalBox::Slot().Padding(8.f) [ SNew(SCheckBox).IsChecked(ECheckBoxState::Checked) ]
+                + SHorizontalBox::Slot().Padding(8.f) [ SNew(SCheckBox).IsChecked(ECheckBoxState::Undetermined) ]
+            ]
+
+        ];
+
+
+        // SCheckBox Simplified
+        NextSlot(WidgetGrid, LOCTEXT("SCheckBoxSimplifiedLabel", "Check Box Simple"))
+        [
+            SNew(SVerticalBox)
+
+            +SVerticalBox::Slot()
+            [
+                SNew(SHorizontalBox)
+                + SHorizontalBox::Slot().Padding(8.f) [ SNew(SCheckBox).Style( &FAppStyle::Get().GetWidgetStyle< FCheckBoxStyle > ("SimplifiedCheckbox")).IsChecked(ECheckBoxState::Unchecked) ]
+                + SHorizontalBox::Slot().Padding(8.f) [ SNew(SCheckBox).Style( &FAppStyle::Get().GetWidgetStyle< FCheckBoxStyle > ("SimplifiedCheckbox")).IsChecked(ECheckBoxState::Unchecked) ]
+                + SHorizontalBox::Slot().Padding(8.f) [ SNew(SCheckBox).Style( &FAppStyle::Get().GetWidgetStyle< FCheckBoxStyle > ("SimplifiedCheckbox")).IsChecked(ECheckBoxState::Checked) ]
+                + SHorizontalBox::Slot().Padding(8.f) [ SNew(SCheckBox).Style( &FAppStyle::Get().GetWidgetStyle< FCheckBoxStyle > ("SimplifiedCheckbox")).IsChecked(ECheckBoxState::Undetermined) ]
+            ]
+
+        ];
+
+
+        // SCheckBox (as radio button)
+        TSharedPtr<SHorizontalBox> RadioBox = SNew(SHorizontalBox);
+        for (int i = 0; i < 5; i++)
+        {
+            RadioBox->AddSlot()
+            .Padding(8.f)
+            [
+                SNew(SCheckBox).Style(FAppStyle::Get(), "RadioButton")
+                .IsChecked_Lambda( [this, i] () -> ECheckBoxState { return RadioChoice == i ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda( [this, i] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) RadioChoice = i; } )
+            ];
+        }
+
+        RadioBox->AddSlot()
+        .Padding(8.f)
+        [
+            SNew(STextBlock).Text_Lambda( [this] () { return FText::AsNumber(RadioChoice); } )
+        ];
+
+        NextSlot(WidgetGrid, LOCTEXT("SRadioButtonLabel", "Radio Button"))
+        [
+            SNew(SVerticalBox)
+
+            +SVerticalBox::Slot()
+            [
+                RadioBox.ToSharedRef()
+            ]
+        ];
+
+
+        // SComboButton
+        /*
+        NextSlot(WidgetGrid, LOCTEXT("SComboButtonLabel", "SComboButton"))
+        .FillWidth(1.0)
+        [
+            SNew(SComboButton)
+            .ButtonContent()
+            [
+                SNew(STextBlock)
+                .Margin(FMargin(0.f, 0.f, 4.f, 0.f))
+                .Text(LOCTEXT("ComboButtonLabel", "Combo Button"))
+            ]
+            .MenuContent()
+            [
+                SNew(SVerticalBox)
+
+                + SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(LOCTEXT("ComboButtonItemLabel01", "Apple"))]
+                + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill)
+                [
+                    SNew(SButton)
+                    [
+                        SNew(STextBlock)
+                        .Text(LOCTEXT("ComboButtonItemLabel02", "Banana"))
+                    ]
+                ]
+
+                + SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(LOCTEXT("ComboButtonItemLabel03", "Carrot"))]
+                + SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(LOCTEXT("ComboButtonItemLabel06", "Diakon"))]
+
+            ]
+        ];*/
+
+         // SComboBox Simple Icon Only version 
+        NextSlot(WidgetGrid, LOCTEXT("SComboBoxIconLabel", "SimpleComboBox"))
+        [
+            SNew(SComboBox<TSharedPtr<FString> >)
+            .ComboBoxStyle( &FAppStyle::Get().GetWidgetStyle< FComboBoxStyle >("SimpleComboBox"))
+            .OptionsSource(&ComboItems)
+            .OnGenerateWidget_Lambda([](TSharedPtr<FString> Item) 
+            { 
+                return SNew(STextBlock).Text( FText::FromString(*Item));
+            } )
+            [
+                SNew(SImage)
+                .ColorAndOpacity(FSlateColor::UseForeground())
+                .Image(FAppStyle::Get().GetBrush("PerspectiveBox"))
+            ]
+
+        ];
+
+
+        // SComboBox
+        TSharedPtr<STextBlock> ComboBoxTitleBlock;
+        NextSlot(WidgetGrid, LOCTEXT("SComboBoxLabel", "ComboBox"))
+        .AutoWidth()
+        // .FillWidth(1.0)
+        [
+            SNew(SComboBox<TSharedPtr<FString> >)
+            .OptionsSource(&ComboItems)
+            .OnGenerateWidget_Lambda([](TSharedPtr<FString> Item) 
+            { 
+                return SNew(STextBlock).Text( FText::FromString(*Item));
+            } )
+            .OnSelectionChanged_Lambda([ComboBoxTitleBlock] (TSharedPtr<FString> InSelection, ESelectInfo::Type InSelectInfo) 
+            {
+                if (InSelection.IsValid())
+                {
+                    ComboBoxTitleBlock->SetText( FText::FromString(*InSelection));
+                }
+            } )
+            [
+                SAssignNew(ComboBoxTitleBlock, STextBlock).Text(LOCTEXT("ComboLabel", "Choose your Item"))  
+            ]
+
+        ];
+
+       
+     
+        /*
+        // SHeader
+        NextSlot(WidgetGrid, LOCTEXT("SHeaderLabel", "SHeader"))
+        [
+            SNew(SHeader)
+                .Content()
+                [
+                    SNew(STextBlock)
+                        .Text(LOCTEXT("HeaderContentLabel", "Header Content"))
+                ]
+        ];
+
+        // SHyperlink
+        NextSlot(WidgetGrid, LOCTEXT("SHyperlinkLabel", "SHyperlink"))
+        [
+            SNew(SHyperlink)
+                .Text(LOCTEXT("SHyperlinkText", "Text to appear in the Hyperlink widget."))
+
+        ];
+
+        /// SBreadcrumbTrailLabel
+        NextSlot(WidgetGrid, LOCTEXT("SBreadcrumbTrailLabel", "SBreadcrumbTrail"))
+        [
+            SNew(SHorizontalBox)
+            + SHorizontalBox::Slot()
+                .FillWidth(1.0f)
+                [
+                    SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<int32>)
+
+                ]
+
+            + SHorizontalBox::Slot()
+                .AutoWidth()
+                [
+                    SNew(SButton)
+                        .Text(LOCTEXT("AddBreadCrumbLabel", "Add"))
+                        .HAlign(HAlign_Center)
+                        .VAlign(VAlign_Center)
+                        .OnClicked(this, &SWidgetGallery::HandleBreadcrumbTrailAddButtonClicked)
+                ]
+        ];
+
+
+        // SCircularThrobber
+        NextSlot(WidgetGrid, LOCTEXT("SCircularThrobberLabel", "SCircularThrobber"))
+        [
+            SNew(SCircularThrobber)
+        ];
+
+        // SColorBlock
+        NextSlot(WidgetGrid, LOCTEXT("SColorBlockLabel", "SColorBlock"))
+        [
+            SNew(SColorBlock)
+                .Color(FLinearColor(1.0f, 0.0f, 0.0f))
+        ];
+        */
+
+        /*
+        // SImage
+        WidgetGrid->AddSlot(0, 16)
+            [
+                SNew(STextBlock)
+                    .Text(LOCTEXT("SImageLabel", "SImage"))
+            ]
+
+        WidgetGrid->AddSlot(1, 16)
+            .Padding(0.0f, 5.0f)
+            [
+                SNew(SImage)
+                    .Image(FTestStyle::Get().GetBrush(TEXT("NewLevelBlank")))           
+            ]
+            */
+/*
+        // SProgressBar
+        NextSlot(WidgetGrid, LOCTEXT("SProgressBarLabel", "SProgressBar"))
+        [
+            SNew(SVerticalBox)
+
+            + SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SNew(SProgressBar)
+                        .Percent(this, &SWidgetGallery::HandleProgressBarPercent)
+                ]
+
+            + SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SNew(SProgressBar)
+                ]
+        ];
+    */
+/*
+        // SRotatorInputBox
+        WidgetGrid->AddSlot(0, 19)
+            [
+                SNew(STextBlock)
+                    .Text(LOCTEXT("SRotatorInputBoxLabel", "SRotatorInputBox"))
+            ]
+
+        WidgetGrid->AddSlot(1, 19)
+            .Padding(0.0f, 5.0f)
+            [
+                SNew(SRotatorInputBox)
+                    .Roll(0.5f)
+                    .Pitch(0.0f)
+                    .Yaw(1.0f)          
+            ]
+
+       // SSeparator
+        NextSlot(WidgetGrid, LOCTEXT("SSeparatorLabel", "SSeparator"))
+        [
+            SNew(SBox)
+                .HeightOverride(100.0f)
+                .WidthOverride(150.0f)
+                [
+                    SNew(SHorizontalBox)
+
+                    + SHorizontalBox::Slot()
+                        .VAlign(VAlign_Center)
+                        .FillWidth(0.75f)
+                        [
+                            SNew(SSeparator)
+                                .Orientation(Orient_Horizontal)
+                        ]
+
+                    + SHorizontalBox::Slot()
+                        .HAlign(HAlign_Center)
+                        .FillWidth(0.25f)
+                        [
+                            SNew(SSeparator)
+                                .Orientation(Orient_Vertical)
+                        ]
+                ]           
+        ];
+        */
+
+        // SSlider
+        NextSlot(WidgetGrid, LOCTEXT("SSliderLabel", "SSlider"))
+        .FillWidth(1.0)
+        [
+            SNew(SSlider)
+            // .IndentHandle(false)
+            .Orientation(Orient_Horizontal)
+            .Value(0.5f)
+
+                /*
+            + SHorizontalBox::Slot()
+                .HAlign(HAlign_Center)
+                .FillWidth(0.25f)
+                [
+                    SNew(SSlider)
+                        .Orientation(Orient_Vertical)
+                        .Value(0.5f)
+                ]
+            */
+        ];
+
+            /*
+        // SSlider (no indentation)
+        NextSlot(WidgetGrid, LOCTEXT("SSliderNoIndentLabel", "SSlider (no indentation)"))
+        .FillWidth(1.0)
+        [
+            SNew(SSlider)
+            .IndentHandle(false)
+            .Orientation(Orient_Horizontal)
+            .Value(0.5f)
+        ];
+
+        // SSpacer
+        NextSlot(WidgetGrid, LOCTEXT("SSpacerLabel", "SSpacer"))
+        [
+            SNew(SSpacer)
+                .Size(FVector2D(100, 100))      
+        ];
+
+        // SSpinningImage
+        WidgetGrid->AddSlot(0, 25)
+            [
+                SNew(STextBlock)
+                    .Text(LOCTEXT("SSpinningImageLabel", "SSpinningImage"))
+            ]
+
+        WidgetGrid->AddSlot(1, 25)
+            .HAlign(HAlign_Left)
+            .Padding(0.0f, 5.0f)
+            [
+                SNew(SSpinningImage)
+                    .Image(FTestStyle::Get().GetBrush("TestRotation16px"))
+            ]
+        */
+
+        // SSpinBox
+        NextSlot(WidgetGrid, LOCTEXT("SSpinBoxLabel", "SSpinBox"))
+        .FillWidth(1.0)
+        [
+            SNew(SBox)
+            .MinDesiredWidth(220)
+            [
+                SNew(SSpinBox<float>)
+                .MinValue(0.0f)
+                .MaxValue(500.0f)
+                .MinSliderValue(TAttribute< TOptional<float> >(-500.0f))
+                .MaxSliderValue(TAttribute< TOptional<float> >(500.0f))
+                .Value(123.0456789)
+                .Delta(0.5f)
+            ]
+        ];
+
+        // SNumericEntrySpinBox
+        NextSlot(WidgetGrid, LOCTEXT("SNumericEntryBoxLabel", "SNumericEntryBox"))
+        .FillWidth(1.0)
+        [
+
+            SNew(SNumericEntryBox<float>)
+            .MinValue(-1000.0f)
+            .MaxValue(1000.0f)
+            .MinSliderValue(TAttribute< TOptional<float> >(-500.0f))
+            .MaxSliderValue(TAttribute< TOptional<float> >(500.0f))
+            .Delta(0.5f)
+            .Value(500.0f)
+            .AllowSpin(true)
+
+            .OnValueChanged_Lambda( [this] (float InValue) { NumericEntryBoxChoice = InValue; } )
+            .OnValueCommitted_Lambda( [this] (float InValue, ETextCommit::Type CommitInfo) { NumericEntryBoxChoice = InValue; } )
+            .Value_Lambda( [this] { return TOptional<float>(NumericEntryBoxChoice); } )
+        ];
+
+        // SNumericEntrySpinBox
+        NextSlot(WidgetGrid, LOCTEXT("SNumericEntryBoxNoSpinLabel", "SNumericEntryBox (No Spin)"))
+        .FillWidth(1.0)
+        [
+
+            SNew(SNumericEntryBox<float>)
+            .MinValue(-1000.0f)
+            .MaxValue(1000.0f)
+            .MinSliderValue(TAttribute< TOptional<float> >(-500.0f))
+            .MaxSliderValue(TAttribute< TOptional<float> >(500.0f))
+            .Delta(0.5f)
+            .Value(500.0f)
+
+            .OnValueChanged_Lambda( [this] (float InValue) { NumericEntryBoxChoice = InValue; } )
+            .OnValueCommitted_Lambda( [this] (float InValue, ETextCommit::Type CommitInfo) { NumericEntryBoxChoice = InValue; } )
+            .Value_Lambda( [this] { return TOptional<float>(NumericEntryBoxChoice); } )
+        ];
+
+
+        /*
+        // STextBlock
+        NextSlot(WidgetGrid, LOCTEXT("STextBlockLabel", "STextBlock"))
+        [
+            SNew(SVerticalBox)
+        
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(STextBlock)
+                    .Text(LOCTEXT("STextBlockLeftExampleLabel", "This is a left-justified text block"))
+                    .Justification(ETextJustify::Left)
+            ]
+
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(STextBlock)
+                    .Text(LOCTEXT("STextBlockCenterExampleLabel", "This is a center-justified text block"))
+                    .Justification(ETextJustify::Center)
+            ]
+
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(STextBlock)
+                    .Text(LOCTEXT("STextBlockRightExampleLabel", "This is a right-justified text block"))
+                    .Justification(ETextJustify::Right)
+            ]
+
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(STextBlock)
+                    .TextStyle(FAppStyle::Get(), "NormalUnderlinedText")
+                    .Text(LOCTEXT("STextBlockUnderlineLabel", "This is text is underlined using a line highlighter!"))
+            ]
+        ];
+
+        // STextComboBox
+        NextSlot(WidgetGrid, LOCTEXT("STextComboBoxLabel", "STextComboBox"))
+        [
+            SAssignNew(TextComboBox, STextComboBox)
+                .OptionsSource(&TextComboBoxOptions)
+                .OnSelectionChanged(this, &SWidgetGallery::HandleTextComboBoxSelectionChanged)
+                .OnGetTextLabelForItem(this, &SWidgetGallery::HandleTextComboBoxGetTextLabelForItem)
+                .InitiallySelectedItem(TextComboBoxSelectedItem)            
+        ];
+
+        // STextComboPopup
+        NextSlot(WidgetGrid, LOCTEXT("STextComboPopupLabel", "STextComboPopup"))
+        [
+            SNew(SButton)
+                .Text(LOCTEXT("ButtonTestLabel", "Test"))
+                .OnClicked(this, &SWidgetGallery::HandleTextComboPopupClicked)
+        ];
+
+    */
+            /*
+        // SThrobber
+        WidgetGrid->AddSlot(0, 30)
+            [
+                SNew(STextBlock)
+                    .Text(LOCTEXT("SThrobberLabel", "SThrobber"))
+            ]
+
+        WidgetGrid->AddSlot(1, 30)
+            .Padding(0.0f, 5.0f)
+            [
+                SNew(SVerticalBox)
+
+                + SVerticalBox::Slot()
+                    .AutoHeight()
+                    [
+                        SNew(SThrobber)
+                            .Animate(SThrobber::Horizontal)
+                    ]
+
+                + SVerticalBox::Slot()
+                    .AutoHeight()
+                    [
+                        SNew(SThrobber)
+                            .Animate(SThrobber::Opacity)
+                    ]
+
+                + SVerticalBox::Slot()
+                    .AutoHeight()
+                    [
+                        SNew(SThrobber)
+                            .Animate(SThrobber::VerticalAndOpacity) .NumPieces(5)
+                    ]
+            ]
+        */
+/*
+        // SVectorInputBox
+        WidgetGrid->AddSlot(0, 31)
+            [
+                SNew(STextBlock)
+                    .Text(LOCTEXT("SVectorInputBoxLabel", "SVectorInputBox"))
+            ]
+
+        WidgetGrid->AddSlot(1, 31)
+            .Padding(0.0f, 5.0f)
+            [
+                SNew(SVectorInputBox)
+                    .X(-5)
+                    .Y(0)
+                    .Z(5)           
+            ]
+        // SVolumeControl
+        NextSlot(WidgetGrid, LOCTEXT("SVolumeControlLabel", "SVolumeControl"))
+        [
+            SNew(SBox)
+            .WidthOverride(150.0f)
+            [
+                SNew(SVolumeControl)
+                    .Volume(0.6f)
+            ]
+        ];
+
+        NextSlot(WidgetGrid, LOCTEXT("SUserWidgetLabel", "SUserWidgetExample"))
+        [
+            SNew(SUserWidgetExample)
+            .Title( LOCTEXT("SUserWidgetTest", "UserWidgetTest.cpp") )
+        ];
+
+        // Menu anchors that don't use the menu stack
+        NextSlot(WidgetGrid, LOCTEXT("StacklessAnchorLabel", "SMenuAnchor with UseApplicationMenuStack=false"))
+        [
+            SNew(SButton)
+            .OnClicked(this, &SWidgetGallery::OnClickStacklessAnchor, StacklessAnchor1)
+            [
+                SAssignNew(StacklessAnchor1, SMenuAnchor)
+                .Placement(MenuPlacement_BelowAnchor)
+                .Method(EPopupMethod::UseCurrentWindow)
+                .UseApplicationMenuStack(false)
+                .OnGetMenuContent(this, &SWidgetGallery::MakeAnchorMenuContent, LOCTEXT("StacklessContentLabel1", "Stackless Content 1"))
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("ClickMeLabel", "Click Me!"))
+                ]
+            ]
+        ];
+
+        // Menu anchors that don't use the menu stack
+        NextSlot(WidgetGrid, LOCTEXT("StacklessAnchorLabel", "SMenuAnchor with UseApplicationMenuStack=false"))
+        [
+            SNew(SButton)
+            .OnClicked(this, &SWidgetGallery::OnClickStacklessAnchor, StacklessAnchor2)
+            [
+                SAssignNew(StacklessAnchor2, SMenuAnchor)
+                .Placement(MenuPlacement_BelowAnchor)
+                .Method(EPopupMethod::CreateNewWindow)
+                .UseApplicationMenuStack(false)
+                .OnGetMenuContent(this, &SWidgetGallery::MakeAnchorMenuContent, LOCTEXT("StacklessContentLabel2", "Stackless Content 2"))
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("ClickMeLabel", "Click Me!"))
+                ]
+            ]
+        ];
+        */
+
+        // SEditableText
+        NextSlot(WidgetGrid, LOCTEXT("SEditableTextLabel", "SEditableText"))
+        .FillWidth(1.0)
+        [
+            SNew(SEditableText)
+            .HintText(LOCTEXT("SEditableTextHint", "This is editable text"))
+        ];
+
+        // SEditableTextBox
+        NextSlot(WidgetGrid, LOCTEXT("SEditableTextBoxLabel", "SEditableTextBox"))
+        .FillWidth(1.0)
+        [
+            SNew(SEditableTextBox)
+            // .SetColorAndOpacity(FLinearColor::White)
+            // .ForegroundColor(FLinearColor::White)
+            // .BackgroundColor(FLinearColor::White)
+            // .SetTextBoxForegroundColor(FLinearColor::White)
+            // .SetTextBoxBackgroundColor(FLinearColor::White)
+            // .(FLinearColor::White)
+            .HintText(LOCTEXT("SEditableTextBoxHint", "This is an editable text box"))
+        ];
+
+
+        // SMultiLineEditableText
+        NextSlot(WidgetGrid, LOCTEXT("SMultiLineEditableTextLabel", "SMultiLineEditableText"))
+        .FillWidth(1.0)
+        [
+            SNew(SBox).MinDesiredHeight(48.f).MinDesiredWidth(200.f)
+            [
+                SNew(SMultiLineEditableText)
+                .HintText(LOCTEXT("SMultiLineEditableTextHint", "This is multi-line \n\t\t\t editable text"))
+            ]
+        ];
+
+        // SMultiLineEditableTextBox
+        NextSlot(WidgetGrid, LOCTEXT("SMultiLineEditableTextBoxLabel", "SMultiLineEditableTextBox"))
+        .FillWidth(1.0)
+        [
+            SNew(SBox).MinDesiredHeight(48.f).MinDesiredWidth(200.f)
+            [
+                SNew(SMultiLineEditableTextBox)
+                .HintText(LOCTEXT("SMultiLineEditableTextBoxHint", "This is a multi-line editable text box"))
+            ]    
+        ];
+
+
+        // SSearchBox
+        NextSlot(WidgetGrid, LOCTEXT("SSearchBoxLabel", "SSearchBox"))
+        .FillWidth(1.0)
+        [
+            SNew(SSearchBox)
+        ];
+
+ 
+
+
+        /*
+        NextSlot(WidgetGrid, LOCTEXT("WindowFlashAction", "Window Flash Button"))
+        [
+
+            SNew(SButton)
+            .Text(LOCTEXT("WindowFlashLabel", "Window Flash"))
+            .OnClicked_Lambda( [] () -> FReply { FSlateApplication::Get().GetActiveTopLevelWindow()->FlashWindow(); return FReply::Handled(); } )
+
+        ];*/
+
+
+        return SNew(SBorder)
+        .Padding(48.f)
+        .BorderImage( FAppStyle::Get().GetBrush("ToolPanel.GroupBorder") )
+        [
+            SNew(SScrollBox)
+
+            + SScrollBox::Slot()
+            .Padding(5.0f)
+            [
+                WidgetGrid.ToSharedRef()
+            ]
+        ];
+
+    };
+
+    TArray< TSharedPtr<EHorizontalAlignment> > HorizontalAlignmentComboItems;
+
+}; // class SStarshipGallery
+
+    
+/**
+ * Creates a new widget gallery.
+ *
+ * @return The new gallery widget.
+ */
+TSharedRef<SWidget> MakeStarshipGallery()
+{
+    return SNew(SStarshipGallery);
+};
+
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+#undef LOCTEXT_NAMESPACE
+
+#endif // #if !UE_BUILD_SHIPPING

@@ -1,0 +1,136 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/AppStyle.h"
+
+struct FSlateDynamicImageBrush;
+
+/**
+ * Core slate style
+ */
+class SLATECORE_API FStarshipCoreStyle
+{
+public:
+
+	static TSharedRef<class ISlateStyle> Create();
+
+	/** 
+	* @return the Application Style 
+	*
+	* NOTE: Until the Editor can be fully updated, calling FStarshipCoreStyle::Get() will
+	* return the AppStyle instead of the style defined in this class.  
+	*
+	* Using the AppStyle is preferred in most cases as it allows the style to be changed 
+	* and restyled more easily.
+	*
+	* In cases requiring explicit use of the CoreStyle where a Slate Widget should not take on
+	* the appearance of the rest of the application, use FStarshipCoreStyle::GetCoreStyle().
+	*
+	*/
+	static const ISlateStyle& Get( )
+	{
+		return FAppStyle::Get();
+	}
+
+	/** @return the singleton instance of the style created in . */
+	static const ISlateStyle& GetCoreStyle()
+	{
+		return *(Instance.Get());
+	}
+
+	/** Get the default font for Slate */
+	static TSharedRef<const FCompositeFont> GetDefaultFont();
+
+	/** Get a font style using the default for for Slate */
+	static FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
+
+	static void ResetToDefault( );
+
+	/** Used to override the default selection colors */
+	static void SetSelectorColor( const FLinearColor& NewColor );
+	static void SetSelectionColor( const FLinearColor& NewColor );
+	static void SetInactiveSelectionColor( const FLinearColor& NewColor );
+	static void SetPressedSelectionColor( const FLinearColor& NewColor );
+	static void SetFocusBrush(FSlateBrush* NewBrush);
+
+	// todo: jdale - These are only here because of UTouchInterface::Activate and the fact that GetDynamicImageBrush is non-const
+	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, FName TextureName, const ANSICHAR* Specifier = nullptr );
+	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, const ANSICHAR* Specifier, class UTexture2D* TextureResource, FName TextureName );
+	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, class UTexture2D* TextureResource, FName TextureName );
+
+	static const int32 RegularTextSize = 10;
+	static const int32 SmallTextSize = 8;
+
+private:
+
+	static void SetStyle( const TSharedRef< class ISlateStyle >& NewStyle );
+
+private:
+
+	/** Singleton instances of this style. */
+	static TSharedPtr< class ISlateStyle > Instance;
+
+};
+
+
+struct SLATECORE_API FStyleColors
+{
+	static const FLinearColor Black;
+	static const FLinearColor Title;
+	static const FLinearColor Foldout;
+	static const FLinearColor Input;
+	static const FLinearColor Background;
+	static const FLinearColor Header;
+	static const FLinearColor Dropdown;
+	static const FLinearColor Hover;
+	static const FLinearColor Hover2;
+	static const FLinearColor White;
+	static const FLinearColor White25;
+	static const FLinearColor Highlight; 
+	static const FLinearColor Foreground;
+	static const FLinearColor ForegroundHover;
+	static const FLinearColor Primary;
+	static const FLinearColor PrimaryHover;
+	static const FLinearColor PrimaryPress;
+	static const FLinearColor AccentBlue;
+	static const FLinearColor AccentPurple;
+	static const FLinearColor AccentPink;
+	static const FLinearColor AccentRed;
+	static const FLinearColor AccentOrange;
+	static const FLinearColor AccentYellow;
+	static const FLinearColor AccentGreen;
+	static const FLinearColor AccentBrown;
+	static const FLinearColor AccentBlack;
+	static const FLinearColor AccentGray;
+	static const FLinearColor AccentWhite;
+
+
+};
+
+struct SLATECORE_API FStyleFonts
+{
+
+  public:
+	static const FStyleFonts& Get()
+	{
+		if (Instance == nullptr)
+		{
+			Instance = MakeShared<FStyleFonts>(FStyleFonts());
+		}
+		return *(Instance.Get());
+	}
+
+	const FSlateFontInfo Normal;
+	const FSlateFontInfo NormalBold;
+	const FSlateFontInfo Small;
+	const FSlateFontInfo SmallBold;
+
+
+  private: 
+  	FStyleFonts();
+  	static TSharedPtr< struct FStyleFonts > Instance;
+};
+
