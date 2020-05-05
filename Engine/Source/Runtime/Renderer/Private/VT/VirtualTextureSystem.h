@@ -91,6 +91,8 @@ private:
 	void GatherRequestsTask(const FGatherRequestsParameters& Parameters);
 	void FeedbackAnalysisTask(const FFeedbackAnalysisParameters& Parameters);
 
+	void GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce);
+
 	void UpdateCSVStats() const;
 
 	uint32	Frame;
@@ -122,7 +124,6 @@ private:
 	TArray<FVirtualTextureLocalTile> TilesToLock;
 	FTexturePageLocks TileLocks;
 
-	FCriticalSection ContinuousUpdateTilesToProduceCS;
 	TSet<FVirtualTextureLocalTile> ContinuousUpdateTilesToProduce;
 	TSet<FVirtualTextureLocalTile> MappedTilesToProduce;
 	TArray<FVirtualTextureLocalTile> TransientCollectedPages;
