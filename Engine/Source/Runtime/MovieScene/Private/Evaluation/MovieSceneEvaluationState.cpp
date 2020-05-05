@@ -7,6 +7,7 @@
 #include "IMovieScenePlaybackClient.h"
 
 DECLARE_CYCLE_STAT(TEXT("Find Bound Objects"), MovieSceneEval_FindBoundObjects, STATGROUP_MovieSceneEval);
+DECLARE_CYCLE_STAT(TEXT("Iterate Bound Objects"), MovieSceneEval_IterateBoundObjects, STATGROUP_MovieSceneEval);
 
 FMovieSceneSharedDataId FMovieSceneSharedDataId::Allocate()
 {
