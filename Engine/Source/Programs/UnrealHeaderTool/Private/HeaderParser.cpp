@@ -9581,14 +9581,18 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 
 	FString ClassNameWithoutPrefixStr = GetClassNameWithPrefixRemoved(out_ClassName);
 	out_StrippedClassName = *ClassNameWithoutPrefixStr;
-	TSharedRef<FClassDeclarationMetaData>* DeclarationDataPtr = GClassDeclarations.Find(out_StrippedClassName);
-	if (!DeclarationDataPtr)
+
 	{
-		// Add class declaration meta data so that we can access class flags before the class is fully parsed
-		TSharedRef<FClassDeclarationMetaData> DeclarationData = MakeShareable(new FClassDeclarationMetaData());
-		DeclarationData->MetaData = MoveTemp(MetaData);
-		DeclarationData->ParseClassProperties(MoveTemp(SpecifiersFound), RequiredAPIMacroIfPresent);
-		GClassDeclarations.Add(out_StrippedClassName, DeclarationData);
+		auto ConstructDeclarationData = [MetaData = MoveTemp(MetaData), SpecifiersFound = MoveTemp(SpecifiersFound), &RequiredAPIMacroIfPresent]() mutable
+		{
+			// Add class declaration meta data so that we can access class flags before the class is fully parsed
+			TSharedRef<FClassDeclarationMetaData> DeclarationData = MakeShareable(new FClassDeclarationMetaData());
+			DeclarationData->MetaData = MoveTemp(MetaData);
+			DeclarationData->ParseClassProperties(MoveTemp(SpecifiersFound), RequiredAPIMacroIfPresent);
+			return DeclarationData;
+		};
+
+		GClassDeclarations.AddIfMissing(out_StrippedClassName, MoveTemp(ConstructDeclarationData));
 	}
 
 	// Skip optional final keyword
