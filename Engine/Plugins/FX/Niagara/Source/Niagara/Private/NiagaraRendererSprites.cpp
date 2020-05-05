@@ -39,6 +39,11 @@ static FAutoConsoleVariableRef CVarbEnableMinimalGPUBuffers(
 	ECVF_Default
 );
 
+static TAutoConsoleVariable<int32> CVarRayTracingNiagaraSprites(
+	TEXT("r.RayTracing.Geometry.NiagaraSprites"),
+	1,
+	TEXT("Include Niagara sprites in ray tracing effects (default = 1 (Niagara sprites enabled in ray tracing))"));
+
 
 /** Dynamic data for sprite renderers. */
 struct FNiagaraDynamicDataSprites : public FNiagaraDynamicDataBase
@@ -604,6 +609,11 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 #if RHI_RAYTRACING
 void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* SceneProxy)
 {
+	if (!CVarRayTracingNiagaraSprites.GetValueOnRenderThread())
+	{
+		return;
+	}
+
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	check(SceneProxy);
