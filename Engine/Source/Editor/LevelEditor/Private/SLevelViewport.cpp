@@ -73,6 +73,7 @@
 #include "EditorLevelUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
+#include "ToolMenus.h"
 
 static const FName LevelEditorName("LevelEditor");
 
@@ -3934,6 +3935,7 @@ void SLevelViewport::OnSetViewportConfiguration(FName ConfigurationName)
 			GCurrentLevelEditingViewportClient = nullptr;
 			ViewportTabPinned->SetViewportConfiguration(ConfigurationName);
 			FSlateApplication::Get().DismissAllMenus();
+			UToolMenus::Get()->CleanupStaleWidgetsNextTick(true);
 		}
 	}
 }

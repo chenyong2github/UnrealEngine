@@ -322,6 +322,7 @@ UToolMenus::UToolMenus() :
 	bNextTickTimerIsSet(false),
 	bRefreshWidgetsNextTick(false),
 	bCleanupStaleWidgetsNextTick(false),
+	bCleanupStaleWidgetsNextTickGC(false),
 	bEditMenusMode(false)
 {
 }
@@ -1852,9 +1853,15 @@ void UToolMenus::SetNextTickTimer()
 	}
 }
 
-void UToolMenus::CleanupStaleWidgetsNextTick()
+void UToolMenus::CleanupStaleWidgetsNextTick(bool bGarbageCollect)
 {
 	bCleanupStaleWidgetsNextTick = true;
+
+	if (bGarbageCollect)
+	{
+		bCleanupStaleWidgetsNextTickGC = true;
+	}
+
 	SetNextTickTimer();
 }
 
@@ -1870,6 +1877,7 @@ void UToolMenus::HandleNextTick()
 	{
 		CleanupStaleWidgets();
 		bCleanupStaleWidgetsNextTick = false;
+		bCleanupStaleWidgetsNextTickGC = false;
 
 		if (bRefreshWidgetsNextTick)
 		{
@@ -1894,6 +1902,7 @@ void UToolMenus::HandleNextTick()
 
 void UToolMenus::CleanupStaleWidgets()
 {
+	bool bModified = false;
 	for (auto WidgetsForMenuNameIt = GeneratedMenuWidgets.CreateIterator(); WidgetsForMenuNameIt; ++WidgetsForMenuNameIt)
 	{
 		FGeneratedToolMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;
@@ -1902,14 +1911,21 @@ void UToolMenus::CleanupStaleWidgets()
 		{
 			if (!Instance->Widget.IsValid())
 			{
+				bModified = true;
 				Instance.RemoveCurrent();
 			}
 		}
 
 		if (WidgetsForMenuName.Instances.Num() == 0)
 		{
+			bModified = true;
 			WidgetsForMenuNameIt.RemoveCurrent();
 		}
+	}
+
+	if (bModified && bCleanupStaleWidgetsNextTickGC && !IsAsyncLoading())
+	{
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}
 }
 
