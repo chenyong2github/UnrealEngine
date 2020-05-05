@@ -920,8 +920,8 @@ private:
 		{
 			for (int32 Index = 0; Index < Prerequisites->Num(); Index++)
 			{
-				check((*Prerequisites)[Index]);
-				if (!(*Prerequisites)[Index]->AddSubsequent(this))
+				FGraphEvent* Prerequisite = (*Prerequisites)[Index];
+				if (Prerequisite == nullptr || !Prerequisite->AddSubsequent(this))
 				{
 					AlreadyCompletedPrerequisites++;
 				}
