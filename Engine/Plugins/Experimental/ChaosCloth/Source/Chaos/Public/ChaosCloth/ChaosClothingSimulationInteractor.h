@@ -15,17 +15,32 @@ class CHAOSCLOTH_API UChaosClothingSimulationInteractor : public UClothingSimula
 	GENERATED_BODY()
 public:
 
-	// UClothingSimulationInteractor Interface
+	// UClothingSimulationInteractor interface
 	virtual void PhysicsAssetUpdated() override;
 	virtual void ClothConfigUpdated() override;
 	virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext) override;
 	virtual void SetAnimDriveSpringStiffness(float InStiffness) override;
 	virtual void EnableGravityOverride(const FVector& InVector) override;
 	virtual void DisableGravityOverride() override;
-	//////////////////////////////////////////////////////////////////////////
+
+	virtual int32 GetNumCloths() const override { return NumCloths; }
+	virtual int32 GetNumKinematicParticles() const override { return NumKinematicParticles; }
+	virtual int32 GetNumDynamicParticles() const override { return NumDynamicParticles; }
+	virtual int32 GetNumIterations() const override { return NumIterations; }
+	virtual int32 GetNumSubsteps() const override { return NumSubsteps; }
+	virtual float GetSimulationTime() const override { return SimulationTime; }
+	// End of UClothingSimulationInteractor interface
 
 private:
 
 	// Command queue processed when we hit a sync
 	TArray<ChaosClothInteractorCommand> Commands;
+
+	// Simulation infos updated during the sync
+	int32 NumCloths;
+	int32 NumKinematicParticles;
+	int32 NumDynamicParticles;
+	int32 NumIterations;
+	int32 NumSubsteps;
+	float SimulationTime;
 };
