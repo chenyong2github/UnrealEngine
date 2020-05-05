@@ -27,6 +27,10 @@ class UMG_API URetainerBox : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
+protected:
+	UPROPERTY(EditAnywhere, Category = RenderRules)
+	bool bRetainRender = true;
+
 public:
 	/**
 	 * Should this widget redraw the contents it has every time it receives an invalidation request
@@ -93,6 +97,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer|Effect")
 	void SetTextureParameter(FName TextureParameter);
+	/**
+	* Set the flag for if we retain the render or pass-through
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Retainer")
+	void SetRetainRendering(bool bInRetainRendering);
 
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
