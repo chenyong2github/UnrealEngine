@@ -2250,6 +2250,7 @@ static void FindImportFullName(
 }
 
 static FPackageObjectIndex FindAndVerifyGlobalImport(
+	const FPackage* Package,
 	FGlobalPackageData& GlobalPackageData,
 	FObjectImport& Import,
 	FString& FullName)
@@ -2263,7 +2264,10 @@ static FPackageObjectIndex FindAndVerifyGlobalImport(
 		{
 			if (bIsScript)
 			{
-				UE_LOG(LogIoStore, Warning, TEXT("Missing import script package '%s'. Editor only?"), *FullName);
+				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import script package '%s'. Editor only?"),
+					*Package->Name.ToString(),
+					Package->GlobalPackageId.ToIndexForDebugging(),
+					*FullName);
 			}
 			else
 			{
@@ -2274,11 +2278,17 @@ static FPackageObjectIndex FindAndVerifyGlobalImport(
 		{
 			if (bIsScript)
 			{
-				UE_LOG(LogIoStore, Warning, TEXT("Missing import script object '%s'. Editor only?"), *FullName);
+				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import script object '%s'. Editor only?"),
+					*Package->Name.ToString(),
+					Package->GlobalPackageId.ToIndexForDebugging(),
+					*FullName);
 			}
 			else
 			{
-				UE_LOG(LogIoStore, Warning, TEXT("Missing import object '%s' due to missing public export. Editor only?"), *FullName);
+				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import object '%s' due to missing public export. Editor only?"),
+					*Package->Name.ToString(),
+					Package->GlobalPackageId.ToIndexForDebugging(),
+					*FullName);
 			}
 		}
 	}
@@ -3494,6 +3504,7 @@ static void CreateGlobalImportsAndExports(
 			FindImportFullName(TempFullNames, ImportMap, ImportIndex);
 
 			FPackageObjectIndex GlobalImportIndex = FindAndVerifyGlobalImport(
+				Package,
 				GlobalPackageData,
 				ImportMap[ImportIndex],
 				TempFullNames[ImportIndex]);
