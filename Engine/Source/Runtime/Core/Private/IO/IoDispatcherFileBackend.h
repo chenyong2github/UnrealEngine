@@ -9,6 +9,7 @@
 #include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/Runnable.h"
+#include "Misc/AES.h"
 
 class IMappedFileHandle;
 
@@ -21,6 +22,9 @@ struct FFileIoStoreContainerFile
 	TArray<FIoStoreTocCompressedBlockEntry> CompressionBlocks;
 	FString FilePath;
 	TUniquePtr<IMappedFileHandle> MappedFileHandle;
+	FGuid EncryptionKeyGuid;
+	FAES::FAESKey EncryptionKey;
+	bool bIsEncrypted = false;
 };
 
 struct FFileIoStoreBuffer
@@ -88,6 +92,7 @@ struct FFileIoStoreCompressedBlock
 	TArray<FFileIoStoreBlockScatter, TInlineAllocator<16>> ScatterList;
 	FFileIoStoreCompressionContext* CompressionContext = nullptr;
 	uint8* CompressedDataBuffer = nullptr;
+	FAES::FAESKey EncryptionKey;
 };
 
 struct FFileIoStoreRawBlock
@@ -117,6 +122,26 @@ struct FFileIoStoreResolvedRequest
 	uint64 ResolvedSize;
 };
 
+class FEncryptionKeyCache
+{
+public:
+	using FKeyRegisteredCallback = TFunction<void(const FGuid&, const FAES::FAESKey&)>;
+
+	FEncryptionKeyCache();
+	bool GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const;
+	void SetKeyRegisteredCallback(FKeyRegisteredCallback&& Callback)
+	{
+		KeyRegisteredCallback = Callback;
+	}
+
+private:
+	void RegisterEncryptionKey(const FGuid& Guid, const FAES::FAESKey& Key);
+
+	TMap<FGuid, FAES::FAESKey> EncryptionKeysByGuid;
+	mutable FCriticalSection EncryptionKeysCritical;
+	FKeyRegisteredCallback KeyRegisteredCallback;
+};
+
 class FFileIoStoreReader
 {
 public:
@@ -125,10 +150,14 @@ public:
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	const FIoOffsetAndLength* Resolve(const FIoChunkId& ChunkId) const;
-	const FFileIoStoreContainerFile& GetContainerFile() { return ContainerFile; }
+	const FFileIoStoreContainerFile& GetContainerFile() const { return ContainerFile; }
 	IMappedFileHandle* GetMappedContainerFileHandle();
 	const FIoContainerId& GetContainerId() const { return ContainerId; }
 	int32 GetOrder() const { return Order; }
+	bool IsEncrypted() const { return ContainerFile.bIsEncrypted; }
+	const FGuid& GetEncryptionKeyGuid() const { return ContainerFile.EncryptionKeyGuid; }
+	void SetEncryptionKey(const FAES::FAESKey& Key) { ContainerFile.EncryptionKey = Key; }
+	const FAES::FAESKey& GetEncryptionKey() const { return ContainerFile.EncryptionKey; }
 
 private:
 	FFileIoStoreImpl& PlatformImpl;
@@ -231,4 +260,5 @@ private:
 	FFileIoStoreRawBlock* ScheduledBlocksTail = nullptr;
 	FCriticalSection DecompressedBlocksCritical;
 	FFileIoStoreCompressedBlock* FirstDecompressedBlock = nullptr;
+	FEncryptionKeyCache EncryptionKeys;
 };

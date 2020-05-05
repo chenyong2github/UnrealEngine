@@ -192,6 +192,22 @@ public partial class Project : CommandUtils
 		WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, bCompressed, CryptoSettings, bForceEncryption);
 		CmdLine.AppendFormat(" -ResponseFile={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakResponseFileName));
 
+		if (CryptoSettings != null && CryptoSettings.bDataCryptoRequired)
+		{
+			if (CryptoSettings.bEnablePakIndexEncryption)
+			{
+				CmdLine.AppendFormat(" -encryptindex");
+			}
+			if (!string.IsNullOrEmpty(EncryptionKeyGuid))
+			{
+				CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
+			}
+			if (CryptoSettings.bDataCryptoRequired && CryptoSettings.bEnablePakSigning && CryptoSettings.SigningKey.IsValid())
+			{
+				CmdLine.AppendFormat(" -sign");
+			}
+		}
+
 		return CmdLine.ToString();
 	}
 
@@ -2435,6 +2451,11 @@ public partial class Project : CommandUtils
 				+ CompressionFormats
 				+ " " + AdditionalCompressionOptionsOnCommandLine
 				+ " " + Params.AdditionalPakOptions;
+
+			if (CryptoKeysCacheFilename != null)
+			{
+				AdditionalArgs += String.Format(" -cryptokeys={0}", CommandUtils.MakePathSafeToUseWithCommandLine(CryptoKeysCacheFilename.FullName));
+			}
 
 			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
 		}

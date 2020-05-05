@@ -82,7 +82,7 @@ struct FIoStoreWriterBlock
 	uint64 Alignment = 0;
 	FIoBuffer UncompressedData;
 	FIoBuffer CompressedData;
-	FGraphEventRef CompressionTask;
+	FGraphEventRef CompressionEncryptionTask;
 	bool bForceUncompressed = false;
 };
 
@@ -201,11 +201,13 @@ public:
 		}
 	}
 
-	FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, const TCHAR* InFileName, bool bInIsContainerCompressed)
+	FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, const TCHAR* InFileName, bool bInIsContainerCompressed, const FAES::FAESKey& InEncryptionKey)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(InitializeChunkWriter);
 		WriterContext = &InContext;
 		bIsContainerCompressed = bInIsContainerCompressed;
+		bIsContainerEncrypted = InEncryptionKey.IsValid();
+		EncryptionKey = InEncryptionKey;
 		check(WriterContext->Settings().CompressionBlockSize > 0);
 		CompressionInfo.BlockSize = WriterContext->Settings().CompressionBlockSize;
 
@@ -237,9 +239,10 @@ public:
 					FIoStoreWriterBlock* CurrentWriteQueueItem = NextWriteQueueItem;
 					NextWriteQueueItem = NextWriteQueueItem->Next;
 
-					if (bIsContainerCompressed && !CurrentWriteQueueItem->bForceUncompressed)
+					const bool bIsCompressed = bIsContainerCompressed && !CurrentWriteQueueItem->bForceUncompressed;
+					if (bIsCompressed || bIsContainerEncrypted)
 					{
-						FTaskGraphInterface::Get().WaitUntilTaskCompletes(CurrentWriteQueueItem->CompressionTask);
+						FTaskGraphInterface::Get().WaitUntilTaskCompletes(CurrentWriteQueueItem->CompressionEncryptionTask);
 					}
 					if (CurrentWriteQueueItem->Alignment > 0)
 					{
@@ -398,28 +401,56 @@ public:
 	}
 
 private:
-	void CompressBlock(FIoStoreWriterBlock* Block)
+	void CompressEncryptBlock(FIoStoreWriterBlock* Block)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(CompressBlock);
-		int32 CompressedSize = int32(Block->CompressedData.DataSize());
-		const bool bCompressed = FCompression::CompressMemory(
-			WriterContext->Settings().CompressionMethod,
-			Block->CompressedData.Data(),
-			CompressedSize,
-			Block->UncompressedData.Data(),
-			int32(Block->UncompressedData.DataSize()));
-		check(bCompressed);
-		check(CompressedSize > 0);
+		if (bIsContainerCompressed)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(CompressBlock);
+			int32 CompressedSize = int32(Block->CompressedData.DataSize());
+			const bool bCompressed = FCompression::CompressMemory(
+				WriterContext->Settings().CompressionMethod,
+				Block->CompressedData.Data(),
+				CompressedSize,
+				Block->UncompressedData.Data(),
+				int32(Block->UncompressedData.DataSize()));
+			check(bCompressed);
+			check(CompressedSize > 0);
 
-		if (CompressedSize > Block->UncompressedData.DataSize())
-		{
-			Block->CompressionMethod = NAME_None;
-			Block->CompressedSize = Block->UncompressedData.DataSize();
+			if (bIsContainerEncrypted)
+			{
+				// Fill the trailing buffer with bytes from the block. Note that this is now from a fixed location
+				// rather than a random one so that we produce deterministic results (PakFileUtilities.cpp)
+				const int32 EncryptedSize = Align(CompressedSize, FAES::AESBlockSize);
+				for (int32 FillIndex = CompressedSize; FillIndex < EncryptedSize; ++FillIndex)
+				{
+					Block->CompressedData.Data()[FillIndex] = Block->CompressedData.Data()[(FillIndex - CompressedSize) % CompressedSize];
+				}
+				CompressedSize = EncryptedSize;
+			}
+
+			if (CompressedSize > Block->UncompressedData.DataSize())
+			{
+				Block->CompressionMethod = NAME_None;
+				Block->CompressedSize = Block->UncompressedData.DataSize();
+			}
+			else
+			{
+				Block->CompressionMethod = WriterContext->Settings().CompressionMethod;
+				Block->CompressedSize = CompressedSize;
+			}
 		}
-		else
+
+		if (bIsContainerEncrypted)
 		{
-			Block->CompressionMethod = WriterContext->Settings().CompressionMethod;
-			Block->CompressedSize = CompressedSize;
+			TRACE_CPUPROFILER_EVENT_SCOPE(EncryptBlock);
+			if (Block->CompressionMethod == NAME_None)
+			{
+				FAES::EncryptData(Block->UncompressedData.Data(), static_cast<uint32>(Block->UncompressedData.DataSize()), EncryptionKey);
+			}
+			else
+			{
+				FAES::EncryptData(Block->CompressedData.Data(), static_cast<uint32>(Block->CompressedSize), EncryptionKey);
+			}
 		}
 	}
 
@@ -429,18 +460,33 @@ private:
 		{
 			return;
 		}
-		if (CurrentBlockOffset < CurrentBlock->UncompressedData.DataSize())
+		const bool bIsCompressed = bIsContainerCompressed && !CurrentBlock->bForceUncompressed;
+		uint8* UncompressedData = CurrentBlock->UncompressedData.Data();
+		const uint64 UncompressedDataSize = CurrentBlock->UncompressedData.DataSize();
+		if (CurrentBlockOffset < UncompressedDataSize)
 		{
-			uint64 PadCount = CurrentBlock->UncompressedData.DataSize() - CurrentBlockOffset;
-			FMemory::Memzero(CurrentBlock->UncompressedData.Data() + CurrentBlockOffset, PadCount);
+			uint64 PadCount = UncompressedDataSize - CurrentBlockOffset;
+			if (bIsContainerEncrypted && !bIsCompressed)
+			{
+				// When the block is encrypted but NOT compressed we fill the trailing bytes
+				// with data from the block. When the block IS compressed the trailing bytes
+				// will get filled after compression.
+				for (uint64 FillIndex = CurrentBlockOffset; FillIndex < UncompressedDataSize; ++FillIndex)
+				{
+					UncompressedData[FillIndex] = UncompressedData[FillIndex - CurrentBlockOffset];
+				}
+			}
+			else
+			{
+				FMemory::Memzero(UncompressedData + CurrentBlockOffset, PadCount);
+			}
 			UncompressedOffset += PadCount;
 		}
-		if (bIsContainerCompressed && !CurrentBlock->bForceUncompressed)
+		if (bIsCompressed || bIsContainerEncrypted)
 		{
-			FIoStoreWriterBlock* ReadyToCompressBlock = CurrentBlock;
-			CurrentBlock->CompressionTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, ReadyToCompressBlock]()
+			CurrentBlock->CompressionEncryptionTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, Block = CurrentBlock]()
 			{
-				CompressBlock(ReadyToCompressBlock);
+				CompressEncryptBlock(Block);
 			}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
 		}
 		else
@@ -480,7 +526,9 @@ private:
 	FEvent* WriteQueueEvent = nullptr;
 	TAtomic<bool> bAllScheduled{ false };
 	TArray<uint8> AlignmentPaddingBuffer;
+	FAES::FAESKey EncryptionKey;
 	bool bIsContainerCompressed = false;
+	bool bIsContainerEncrypted = false;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -494,21 +542,24 @@ public:
 	{
 	}
 
-	UE_NODISCARD FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, bool bInIsContainerCompressed)
+	UE_NODISCARD FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, bool bInIsContainerCompressed, const FIoEncryptionKey& InEncryptionKey)
 	{
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
+
+		EncryptionKey = InEncryptionKey;
 
 		FString TocFilePath = Environment.GetPath() + TEXT(".utoc");
 		FString ContainerFilePath = Environment.GetPath() + TEXT(".ucas");
 
 		Result.ContainerId = ContainerId;
 		Result.ContainerName = FPaths::GetBaseFilename(Environment.GetPath());
-		Result.CompressionMethod = InContext.Settings().CompressionMethod;
+		Result.CompressionMethod = bInIsContainerCompressed ? InContext.Settings().CompressionMethod : NAME_None;
+		Result.bIsEncrypted = InEncryptionKey.Key.IsValid();
 
 		Ipf.CreateDirectoryTree(*FPaths::GetPath(ContainerFilePath));
 
 		ChunkWriter = MakeUnique<FChunkWriter>();
-		FIoStatus Status = ChunkWriter->Initialize(InContext, *ContainerFilePath, bInIsContainerCompressed);
+		FIoStatus Status = ChunkWriter->Initialize(InContext, *ContainerFilePath, bInIsContainerCompressed, InEncryptionKey.Key);
 
 		if (!Status.IsOk())
 		{ 
@@ -664,6 +715,8 @@ public:
 		TocHeader.CompressionMethodNameCount = CompressionInfo.CompressionMethods.Num();
 		TocHeader.CompressionMethodNameLength = FIoStoreCompressionInfo::CompressionMethodNameLen;
 		TocHeader.ContainerId = ContainerId;
+		TocHeader.EncryptionKeyGuid = EncryptionKey.Guid;
+		TocHeader.bIsEncrypted = EncryptionKey.Key.IsValid();
 
 		TocFileHandle->Seek(0);
 		if (!TocFileHandle->Write(reinterpret_cast<const uint8*>(&TocHeader), sizeof(TocHeader)))
@@ -734,6 +787,7 @@ private:
 	TUniquePtr<FArchive>				CsvArchive;
 	FIoStoreWriterResult				Result;
 	FIoContainerId						ContainerId;
+	FIoEncryptionKey					EncryptionKey;
 	bool								IsMetadataDirty = true;
 };
 
@@ -747,9 +801,9 @@ FIoStoreWriter::~FIoStoreWriter()
 	(void)Impl->Flush();
 }
 
-FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed)
+FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed, const FIoEncryptionKey& EncryptionKey)
 {
-	return Impl->Initialize(*Context.Impl, bIsContainerCompressed);
+	return Impl->Initialize(*Context.Impl, bIsContainerCompressed, EncryptionKey);
 }
 
 FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
@@ -785,12 +839,14 @@ public:
 
 	}
 
-	UE_NODISCARD FIoStatus Initialize(const FIoStoreEnvironment& Environment)
+	UE_NODISCARD FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment, const FIoEncryptionKey& InEncryptionKey)
 	{
+		EncryptionKey = InEncryptionKey;
+
 		IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 		TStringBuilder<256> ContainerFilePath;
-		ContainerFilePath.Append(Environment.GetPath());
+		ContainerFilePath.Append(InEnvironment.GetPath());
 
 		TStringBuilder<256> TocFilePath;
 		TocFilePath.Append(ContainerFilePath);
@@ -850,6 +906,9 @@ public:
 			CompressionBlock.CompressionMethod = CompressionMethodNames[CompressedBlockEntry->CompressionMethodIndex];
 			++CompressedBlockEntry;
 		}
+
+		bIsEncrypted = TocReader.IsContainerEncrypted();
+		check(!bIsEncrypted || EncryptionKey.Guid == TocReader.GetEncryptionKeyGuid());
 
 		return FIoStatus::Ok;
 	}
@@ -923,6 +982,10 @@ public:
 			}
 			ContainerFileHandle->Seek(CompressionBlock.OffsetAndLength.GetOffset());
 			ContainerFileHandle->Read(CompressedBuffer.GetData(), CompressionBlock.OffsetAndLength.GetLength());
+			if (bIsEncrypted)
+			{
+				FAES::DecryptData(CompressedBuffer.GetData(), static_cast<uint32>(CompressionBlock.OffsetAndLength.GetLength()), EncryptionKey.Key);
+			}
 			if (CompressionBlock.CompressionMethod.IsNone())
 			{
 				Src = CompressedBuffer.GetData();
@@ -961,6 +1024,8 @@ private:
 	TUniquePtr<IFileHandle> ContainerFileHandle;
 	mutable TArray<uint8> CompressedBuffer;
 	mutable TArray<uint8> UncompressedBuffer;
+	FIoEncryptionKey EncryptionKey;
+	bool bIsEncrypted;
 };
 
 
@@ -974,9 +1039,9 @@ FIoStoreReader::~FIoStoreReader()
 	delete Impl;
 }
 
-FIoStatus FIoStoreReader::Initialize(const FIoStoreEnvironment& InEnvironment)
+FIoStatus FIoStoreReader::Initialize(const FIoStoreEnvironment& InEnvironment, const FIoEncryptionKey& EncryptionKey)
 {
-	return Impl->Initialize(InEnvironment);
+	return Impl->Initialize(InEnvironment, EncryptionKey);
 }
 
 void FIoStoreReader::EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
