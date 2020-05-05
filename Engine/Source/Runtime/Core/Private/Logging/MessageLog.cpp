@@ -218,7 +218,7 @@ ELogVerbosity::Type FMessageLog::GetLogVerbosity( EMessageSeverity::Type InSever
 
 const TCHAR* const FMessageLog::GetLogColor( EMessageSeverity::Type InSeverity )
 {
-#if !PLATFORM_DESKTOP
+#if !PLATFORM_SUPPORTS_COLORIZED_OUTPUT_DEVICE
 	return NULL;
 #else
 	switch(InSeverity)
