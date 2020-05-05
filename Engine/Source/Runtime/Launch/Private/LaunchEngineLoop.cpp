@@ -5444,19 +5444,28 @@ bool FEngineLoop::AppInit( )
 
 		// Find the editor target
 		FString EditorTargetFileName;
-		for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForProject(FPaths::GetProjectFilePath()))
+
+		// Config files can specify the default editor target
+		if (GConfig->GetString(TEXT("/Script/BuildSettings.BuildSettings"), TEXT("DefaultEditorTarget"), EditorTargetFileName, GEngineIni))
 		{
-			if (Target.Type == EBuildTargetType::Editor)
+			EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *EditorTargetFileName, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+		}
+		else
+		{
+			for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForProject(FPaths::GetProjectFilePath()))
 			{
-				if(FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+				if (Target.Type == EBuildTargetType::Editor)
 				{
-					EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+					if (FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+					{
+						EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+					}
+					else if (FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
+					{
+						EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+					}
+					break;
 				}
-				else if(FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
-				{
-					EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
-				}
-				break;
 			}
 		}
 
