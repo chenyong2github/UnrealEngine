@@ -547,6 +547,11 @@ bool FScalableFloat::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStruct
 
 		return true;
 	}
+	else if (Tag.Type == NAME_BoolProperty)
+	{
+		*this = FScalableFloat(Tag.BoolVal ? 1.f : 0.f);
+		return true; 
+	}
 	return false;
 }
 
