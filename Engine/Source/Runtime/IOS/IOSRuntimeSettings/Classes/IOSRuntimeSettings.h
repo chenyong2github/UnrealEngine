@@ -51,6 +51,9 @@ UENUM()
 	/** iOS 12 */
 	IOS_12 = 12 UMETA(DisplayName = "12.0"),
 
+	/** iOS 13 */
+	IOS_13 = 13 UMETA(DisplayName = "13.0"),
+
 };
 
 UENUM()
