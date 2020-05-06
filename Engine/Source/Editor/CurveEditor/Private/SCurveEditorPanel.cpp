@@ -446,24 +446,9 @@ void SCurveEditorPanel::RemoveCurveFromViews(FCurveModelID InCurveID)
 	}
 }
 
-void SCurveEditorPanel::InvalidateCurve(FCurveModelID InvalidCurveModelID, FKeyHandle InvalidKeyHandle)
+void SCurveEditorPanel::PostUndo()
 {
-	// If key handle is invalidate, remove all 
-	if (InvalidKeyHandle == FKeyHandle::Invalid())
-	{
-		EditObjects->CurveIDToKeyProxies.Remove(InvalidCurveModelID);
-	}
-	else
-	{
-		for (TTuple<FCurveModelID, TMap<FKeyHandle, UObject*>>& OuterPair : EditObjects->CurveIDToKeyProxies)
-		{
-			if (OuterPair.Key == InvalidCurveModelID)
-			{
-				OuterPair.Value.Remove(InvalidKeyHandle);
-				break;
-			}
-		}
-	}
+	EditObjects->CurveIDToKeyProxies.Empty();
 }
 
 void SCurveEditorPanel::AddView(TSharedRef<SCurveEditorView> ViewToAdd)
