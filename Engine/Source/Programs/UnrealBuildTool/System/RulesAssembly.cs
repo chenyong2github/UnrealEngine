@@ -201,9 +201,13 @@ namespace UnrealBuildTool
 			BuildVersion Version;
 			if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out Version))
 			{
-				for(int MinorVersion = 17; MinorVersion <= Version.MinorVersion; MinorVersion++)
+				for(int MinorVersion = 17; MinorVersion <= 30; MinorVersion++)
 				{
 					PreprocessorDefines.Add(String.Format("UE_4_{0}_OR_LATER", MinorVersion));
+				}
+				for (int MinorVersion = 0; MinorVersion <= 0; MinorVersion++)
+				{
+					PreprocessorDefines.Add(String.Format("UE_5_{0}_OR_LATER", MinorVersion));
 				}
 			}
 			return PreprocessorDefines;
