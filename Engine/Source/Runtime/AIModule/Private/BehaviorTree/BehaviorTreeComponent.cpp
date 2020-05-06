@@ -1315,7 +1315,10 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	SCOPE_CYCLE_COUNTER(STAT_AI_Overall);
 	SCOPE_CYCLE_COUNTER(STAT_AI_BehaviorTree_Tick);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(BehaviorTreeTick);
+#if CSV_PROFILER
+	// Configurable CSV_SCOPED_TIMING_STAT_EXCLUSIVE(BehaviorTreeTick);
+	FScopedCsvStatExclusive _ScopedCsvStatExclusive_BehaviorTreeTick(CSVTickStatName);
+#endif
 
 	check(this != nullptr && this->IsPendingKill() == false);
 	float NextNeededDeltaTime = FLT_MAX;
