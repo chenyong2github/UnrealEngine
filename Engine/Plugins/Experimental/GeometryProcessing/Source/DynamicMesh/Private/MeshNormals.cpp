@@ -321,7 +321,7 @@ void FMeshNormals::InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalO
 	TSet<int32> TriangleSet(Triangles);
 	TArray<int32> Vertices;
 	MeshIndexUtil::TriangleToVertexIDs(Mesh, Triangles, Vertices);
-	auto TriangleSetFunc = [&](int32 tid) { return TriangleSet.Contains(tid); };
+	TFunctionRef<bool(int32)> TriangleSetFunc = [&](int32 tid) { return TriangleSet.Contains(tid); };
 	int32 NumVertices = Vertices.Num();
 	TMap<int32, int32> TriangleMap;
 	TriangleMap.Reserve(NumVertices);
@@ -331,7 +331,7 @@ void FMeshNormals::InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalO
 	for ( int32 i = 0; i < NumVertices; ++i)
 	{
 		int32 vid = Vertices[i];
-		FVector3d Normal = FMeshNormals::ComputeVertexNormal(*Mesh, vid, TriangleSetFunc);
+		FVector3d Normal = FMeshNormals::ComputeVertexNormal(*Mesh, vid, TriangleSetFunc, true, true);
 		int32 nid = NormalOverlay->AppendElement((FVector3f)Normal);
 		VertNormals[i] = nid;
 
