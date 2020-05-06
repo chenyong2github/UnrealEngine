@@ -6,6 +6,7 @@
 #include "AudioDefines.h"
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
+#include "Engine/World.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundWave.h"
 #include "GameFramework/GameUserSettings.h"
@@ -75,6 +76,57 @@ static FAutoConsoleCommand GReportAudioDevicesCommand(
 		FAudioDeviceManager::Get()->LogListOfAudioDevices();
 	})
 );
+
+namespace AudioDeviceManagerUtils
+{
+	FString PrintDeviceInfo(const Audio::FDeviceId InDeviceId, const EAudioDeviceScope InScope, const bool bInIsNonRealtime, const int32* NumHandles = nullptr, const TMap<uint32, FString>* InStackWalk = nullptr)
+	{
+		FString ScopeStr;
+		switch (InScope)
+		{
+			case EAudioDeviceScope::Shared:
+				ScopeStr = TEXT("Shared");
+				break;
+
+			case EAudioDeviceScope::Unique:
+				ScopeStr = TEXT("Unique");
+				break;
+
+			case EAudioDeviceScope::Default:
+			default:
+				ScopeStr = TEXT("Default");
+				break;
+		}
+
+		FString DeviceInfo = FString::Printf(
+			TEXT("                Id: %d, Scope: %s, Realtime: %s"),
+			InDeviceId,
+			*ScopeStr,
+			bInIsNonRealtime ? TEXT("False") : TEXT("True"));
+
+		if (!NumHandles)
+		{
+			return DeviceInfo;
+		}
+
+		DeviceInfo += FString::Printf(TEXT(", Num Handles: %d"), *NumHandles);
+
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+		if (InStackWalk)
+		{
+			DeviceInfo += TEXT("\n            Active Handles:\n\n");
+			for (const TPair<uint32, FString>& StackWalkPairs : *InStackWalk)
+			{
+				DeviceInfo += StackWalkPairs.Value;
+				DeviceInfo += TEXT("\n\n");
+			}
+		}
+#endif
+
+		return DeviceInfo;
+	}
+}
+
 
 FAudioDeviceManager* FAudioDeviceManager::Singleton = nullptr;
 
@@ -148,20 +200,34 @@ FAudioDeviceManager::FAudioDeviceManager()
 
 FAudioDeviceManager::~FAudioDeviceManager()
 {
-	FAudioCommandFence Fence;
-	Fence.BeginFence();
-	Fence.Wait();
-	FAudioThread::StopAudioThread();
+	UE_LOG(LogAudio, Display, TEXT("Beginning Audio Device Manager Shutdown (Module: %s)..."), *AudioMixerModuleName);
 
-	MainAudioDeviceHandle.Reset();
-
-	// Notify anyone listening to the device manager that we are about to destroy the audio device.
-	for (auto& Device : Devices)
+	TArray<Audio::FDeviceId> DeviceIds;
 	{
-		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(Device.Key);
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
+		Devices.GetKeys(DeviceIds);
 	}
 
-	Devices.Reset();
+	if (DeviceIds.Num() > 0)
+	{
+		UE_LOG(LogAudio, Display, TEXT("Destroying %d Remaining Audio Device(s)..."), DeviceIds.Num());
+
+		// Notify anyone listening to the device manager that we are about to destroy the audio device.
+		for (Audio::FDeviceId DeviceId : DeviceIds)
+		{
+			FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceId);
+		}
+	}
+
+	FAudioThread::StopAudioThread();
+
+	{
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
+		MainAudioDeviceHandle.Reset();
+		Devices.Reset();
+	}
+
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
 
 	// Release any loaded buffers - this calls stop on any sources that need it
 	for (int32 Index = Buffers.Num() - 1; Index >= 0; Index--)
@@ -347,8 +413,6 @@ IAudioDeviceModule* FAudioDeviceManager::GetAudioDeviceModule()
 	return AudioDeviceModule;
 }
 
-
-
 FAudioDeviceParams FAudioDeviceManager::GetDefaultParamsForNewWorld()
 {
 	bool bCreateNewAudioDeviceForPlayInEditor = false;
@@ -402,8 +466,9 @@ void FAudioDeviceManager::RegisterWorld(UWorld* InWorld, Audio::FDeviceId Device
 	{
 		if (!DeviceContainer->WorldsUsingThisDevice.Contains(InWorld))
 		{
+			UE_LOG(LogAudio, Display, TEXT("Audio Device (ID: %d) registered with world '%s'."), DeviceId, *InWorld->GetName());
 			DeviceContainer->WorldsUsingThisDevice.AddUnique(InWorld);
-			FAudioDeviceManagerDelegates::OnWorldRegisteredToAudioDevice.Broadcast(InWorld, DeviceId);
+			FAudioDeviceWorldDelegates::OnWorldRegisteredToAudioDevice.Broadcast(InWorld, DeviceId);
 		}
 	}
 }
@@ -419,8 +484,9 @@ void FAudioDeviceManager::UnregisterWorld(UWorld* InWorld, Audio::FDeviceId Devi
 	{
 		if (DeviceContainer->WorldsUsingThisDevice.Contains(InWorld))
 		{
+			UE_LOG(LogAudio, Display, TEXT("Audio Device unregistered from world '%s'."), *InWorld->GetName());
 			DeviceContainer->WorldsUsingThisDevice.Remove(InWorld);
-			FAudioDeviceManagerDelegates::OnWorldUnregisteredWithAudioDevice.Broadcast(InWorld, DeviceId);
+			FAudioDeviceWorldDelegates::OnWorldUnregisteredWithAudioDevice.Broadcast(InWorld, DeviceId);
 		}
 	}
 }
@@ -455,7 +521,7 @@ bool FAudioDeviceManager::InitializeManager()
 		
 		if (!MainAudioDeviceHandle)
 		{
-			UE_LOG(LogAudio, Display, TEXT("Audio device could not be initialized. Please check the value for AudioDeviceModuleName and AudioMixerModuleName in [Platform]Engine.ini."));
+			UE_LOG(LogAudio, Display, TEXT("Main audio device could not be initialized. Please check the value for AudioDeviceModuleName and AudioMixerModuleName in [Platform]Engine.ini."));
 			return false;
 		}
 
@@ -545,13 +611,17 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 
 FAudioDeviceHandle FAudioDeviceManager::CreateNewDevice(const FAudioDeviceParams& InParams)
 {
-	Audio::FDeviceId DeviceID = GetNewDeviceID();
+	const Audio::FDeviceId DeviceID = GetNewDeviceID();
+
+	FString DeviceInfo = AudioDeviceManagerUtils::PrintDeviceInfo(DeviceID, InParams.Scope, InParams.bIsNonRealtime);
+	UE_LOG(LogAudio, Display, TEXT("Creating Audio Device: %s"), *DeviceInfo);
 	Devices.Emplace(DeviceID, FAudioDeviceContainer(InParams, DeviceID, this));
+
 	FAudioDeviceContainer* ContainerPtr = Devices.Find(DeviceID);
 	check(ContainerPtr);
 	if (!ContainerPtr->Device)
 	{
-		UE_LOG(LogAudio, Display, TEXT("Audio device could not be initialized. Please check the value for AudioDeviceModuleName and AudioMixerModuleName in [Platform]Engine.ini."));
+		UE_LOG(LogAudio, Display, TEXT("Destroying Audio Device %d: could not be initialized. Check AudioDeviceModuleName and AudioMixerModuleName in [Platform]Engine.ini."), DeviceID);
 
 		// Initializing the audio device failed. Remove the device container and return an empty handle.
 		Devices.Remove(DeviceID);
@@ -569,14 +639,10 @@ FAudioDeviceHandle FAudioDeviceManager::CreateNewDevice(const FAudioDeviceParams
 
 bool FAudioDeviceManager::IsValidAudioDevice(Audio::FDeviceId Handle) const
 {
-	return Devices.Contains(Handle);
-}
+	FCriticalSection* ConstCastCritSection = const_cast<FCriticalSection*>(&DeviceMapCriticalSection);
+	FScopeLock ScopeLock(ConstCastCritSection);
 
-bool FAudioDeviceManager::ShutdownAudioDevice(Audio::FDeviceId Handle)
-{
-	// Make sure we have a non-null device ptr in the index slot, then delete it
-	Devices.Remove(Handle);
-	return true;
+	return Devices.Contains(Handle);
 }
 
 void FAudioDeviceManager::IncrementDevice(Audio::FDeviceId DeviceID)
@@ -611,19 +677,12 @@ void FAudioDeviceManager::DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InW
 		}
 
 		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
+
+		UnregisterWorld(InWorld, DeviceID);
+
+		UE_LOG(LogAudio, Display, TEXT("Destroying Audio Device %d: All handles released."), DeviceID);
 		Devices.Remove(DeviceID);
-
-	UnregisterWorld(InWorld, DeviceID);
-}
-
-bool FAudioDeviceManager::ShutdownAllAudioDevices()
-{
-	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
-
-	MainAudioDeviceHandle.Reset();
-
-	Devices.Reset();
-	return true;
+	}
 }
 
 FAudioDeviceHandle FAudioDeviceManager::BuildNewHandle(FAudioDeviceContainer&Container, Audio::FDeviceId DeviceID, const FAudioDeviceParams &InParams)
@@ -647,14 +706,14 @@ uint32 FAudioDeviceManager::CreateUniqueStackWalkID()
 }
 #endif
 
-FAudioDeviceHandle FAudioDeviceManager::GetAudioDevice(Audio::FDeviceId Handle)
+FAudioDeviceHandle FAudioDeviceManager::GetAudioDevice(Audio::FDeviceId InDeviceID)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
-	FAudioDeviceContainer* Container = Devices.Find(Handle);
+	FAudioDeviceContainer* Container = Devices.Find(InDeviceID);
 	if (Container)
 	{
 		FAudioDeviceParams Params = FAudioDeviceParams();
-		return BuildNewHandle(*Container, Handle, Params);
+		return BuildNewHandle(*Container, InDeviceID, Params);
 	}
 	else
 	{
@@ -662,18 +721,37 @@ FAudioDeviceHandle FAudioDeviceManager::GetAudioDevice(Audio::FDeviceId Handle)
 	}
 }
 
-FAudioDevice* FAudioDeviceManager::GetAudioDeviceRaw(Audio::FDeviceId Handle)
+FAudioDevice* FAudioDeviceManager::GetAudioDeviceRaw(Audio::FDeviceId InDeviceID)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
-	if (!IsValidAudioDevice(Handle))
+	if (!IsValidAudioDevice(InDeviceID))
 	{
 		return nullptr;
 	}
 
-	FAudioDevice* AudioDevice = Devices[Handle].Device;
+	FAudioDevice* AudioDevice = Devices[InDeviceID].Device;
 	check(AudioDevice != nullptr);
 
 	return AudioDevice;
+}
+
+void FAudioDeviceManager::SetAudioDevice(UWorld& InWorld, Audio::FDeviceId InDeviceID)
+{
+	FScopeLock ScopeLock(&DeviceMapCriticalSection);
+	{
+		if (FAudioDeviceContainer* Container = Devices.Find(InDeviceID))
+		{
+			FAudioDeviceParams Params = FAudioDeviceParams();
+			Params.AssociatedWorld = &InWorld;
+			FAudioDeviceHandle Handle = BuildNewHandle(*Container, InDeviceID, Params);
+			InWorld.SetAudioDevice(Handle);
+		}
+		else
+		{
+			static const FAudioDeviceHandle InvalidHandle;
+			InWorld.SetAudioDevice(InvalidHandle);
+		}
+	}
 }
 
 bool FAudioDeviceManager::Initialize()
@@ -695,11 +773,16 @@ bool FAudioDeviceManager::Initialize()
 
 		if (bUseSound)
 		{
+			UE_LOG(LogAudio, Display, TEXT("Initializing Audio Device Manager..."));
 			Singleton = new FAudioDeviceManager();
 
-			if (!Singleton->InitializeManager())
+			if (Singleton->InitializeManager())
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Initializing the Audio Device Manager Failed!"));
+				UE_LOG(LogAudio, Display, TEXT("Audio Device Manager Initialized"));
+			}
+			else
+			{
+				UE_LOG(LogAudio, Warning, TEXT("Audio Device Manager Initialization Failed!"));
 				delete Singleton;
 				Singleton = nullptr;
 			}
@@ -720,6 +803,8 @@ void FAudioDeviceManager::Shutdown()
 	{
 		delete Singleton;
 		Singleton = nullptr;
+
+		UE_LOG(LogAudio, Display, TEXT("Audio Device Manager Shutdown"));
 	}
 }
 
@@ -729,7 +814,8 @@ FAudioDeviceHandle FAudioDeviceManager::GetActiveAudioDevice()
 	{
 		return GetAudioDevice(ActiveAudioDeviceID);
 	}
-	return GEngine->GetMainAudioDevice();
+
+	return MainAudioDeviceHandle;
 }
 
 void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
@@ -1042,32 +1128,20 @@ void FAudioDeviceManager::LogListOfAudioDevices()
 {
 	FString ListOfDevices;
 
-	for (auto& DeviceContainer : Devices)
+	for (const TPair<Audio::FDeviceId, FAudioDeviceContainer>& DevicePair : Devices)
 	{
-		FString DeviceInfo = FString::Printf(TEXT(R"(
-					Device %d:
-					Scope: %s 
-					Realtime: %s
-					Number Of Owners: %d 
-		)"),
-			DeviceContainer.Key,
-			DeviceContainer.Value.Scope == EAudioDeviceScope::Unique ? TEXT("Unique") : TEXT("Shared"),
-			DeviceContainer.Value.bIsNonRealtime ? TEXT("No") : TEXT("Yes"),
-			DeviceContainer.Value.NumberOfHandlesToThisDevice);
-
+		ListOfDevices += AudioDeviceManagerUtils::PrintDeviceInfo(
+			DevicePair.Key,
+			DevicePair.Value.Scope,
+			DevicePair.Value.bIsNonRealtime,
+			&DevicePair.Value.NumberOfHandlesToThisDevice
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		for (auto& StackWalkString : DeviceContainer.Value.HandleCreationStackWalks)
-		{
-			DeviceInfo += TEXT("Handle Created here still alive:\n");
-			DeviceInfo += StackWalkString.Value;
-			DeviceInfo += TEXT("\n\n");
-		}
+			, &DevicePair.Value.HandleCreationStackWalks
 #endif
-
-		ListOfDevices += DeviceInfo;
+		);
 	}
 
-	UE_LOG(LogAudio, Display, TEXT("List of devices: \n%s"), *ListOfDevices);
+	UE_LOG(LogAudio, Display, TEXT("Active Audio Devices:\n%s"), *ListOfDevices);
 }
 
 uint32 FAudioDeviceManager::GetNewDeviceID()
@@ -1306,14 +1380,14 @@ void FAudioDeviceManager::AppWillEnterBackground()
 	// Flush all commands to the audio thread and the audio render thread:
 	if (GCVarFlushAudioRenderCommandsOnSuspend)
 	{
-		if (GEngine && GEngine->GetMainAudioDevice())
+		if (MainAudioDeviceHandle.IsValid())
 		{
-			FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
-
-			FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+			FAudioThread::RunCommandOnAudioThread([this]()
 			{
-				FAudioDevice* AudioDevicePtr = const_cast<FAudioDevice*>(AudioDevice.GetAudioDevice());
-				AudioDevicePtr->FlushAudioRenderingCommands(true);
+				if (MainAudioDeviceHandle.IsValid())
+				{
+					MainAudioDeviceHandle->FlushAudioRenderingCommands(true);
+				}
 			}, TStatId());
 		}
 
@@ -1384,7 +1458,7 @@ FAudioDeviceHandle::~FAudioDeviceHandle()
 	if (IsValid())
 	{
 		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
-		if (AudioDeviceManager)
+		if (ensure(AudioDeviceManager))
 		{
 			AudioDeviceManager->DecrementDevice(DeviceId, World);
 
@@ -1399,6 +1473,11 @@ FAudioDeviceHandle::~FAudioDeviceHandle()
 FAudioDevice* FAudioDeviceHandle::GetAudioDevice() const
 {
 	return Device;
+}
+
+UWorld* FAudioDeviceHandle::GetWorld() const
+{
+	return World;
 }
 
 Audio::FDeviceId FAudioDeviceHandle::GetDeviceID() const
@@ -1418,26 +1497,37 @@ void FAudioDeviceHandle::Reset()
 
 FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Other)
 {
-	if (IsValid())
-	{
-		check(FAudioDeviceManager::Get());
-		FAudioDeviceManager::Get()->DecrementDevice(DeviceId, World);
-	}
+	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+
+	const bool bWasValid = IsValid();
+	const Audio::FDeviceId OldDeviceId = DeviceId;
+	UWorld* OldWorld = World;
+
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+	const uint32 OldStackWalkID = StackWalkID;
+#endif
 
 	Device = Other.Device;
 	DeviceId = Other.DeviceId;
+	World = Other.World;
 
-	if (IsValid())
+	if (AudioDeviceManager && IsValid())
 	{
-		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
-		if (AudioDeviceManager)
-		{
-			AudioDeviceManager->IncrementDevice(DeviceId);
+		AudioDeviceManager->IncrementDevice(DeviceId);
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-			AddStackDumpToAudioDeviceContainer();
+		AddStackDumpToAudioDeviceContainer();
 #endif
-		}
+	}
+
+	if (AudioDeviceManager && bWasValid)
+	{
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+		check(OldStackWalkID != INDEX_NONE);
+		AudioDeviceManager->RemoveStackWalkForContainer(OldDeviceId, OldStackWalkID);
+#endif
+
+		AudioDeviceManager->DecrementDevice(OldDeviceId, OldWorld);
 	}
 
 	return *this;
@@ -1445,28 +1535,50 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Othe
 
 FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 {
-	if (FAudioDeviceManager::Get() && IsValid())
-	{
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		check(StackWalkID != INDEX_NONE);
-		GEngine->GetAudioDeviceManager()->RemoveStackWalkForContainer(DeviceId, StackWalkID);
+	const uint32 OldStackWalkID = StackWalkID;
 #endif
 
-		FAudioDeviceManager::Get()->DecrementDevice(DeviceId, World);
-	}
+	const bool bWasValid = IsValid();
+	const Audio::FDeviceId OldDeviceId = DeviceId;
+	UWorld* OldWorld = World;
 
 	Device = Other.Device;
 	DeviceId = Other.DeviceId;
+	World = Other.World;
+
+	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+	if (AudioDeviceManager && IsValid())
+	{
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+		AddStackDumpToAudioDeviceContainer();
+#endif
+	}
+
+	if (AudioDeviceManager && bWasValid)
+	{
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+		check(OldStackWalkID != INDEX_NONE);
+		AudioDeviceManager->RemoveStackWalkForContainer(OldDeviceId, OldStackWalkID);
+#endif
+
+		AudioDeviceManager->DecrementDevice(OldDeviceId, OldWorld);
+	}
+
+	if (AudioDeviceManager && Other.IsValid())
+	{
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+		check(Other.StackWalkID != INDEX_NONE);
+		AudioDeviceManager->RemoveStackWalkForContainer(Other.DeviceId, Other.StackWalkID);
+#endif
+	}
 
 	Other.Device = nullptr;
 	Other.DeviceId = INDEX_NONE;
+	Other.World = nullptr;
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-	if (IsValid())
-	{
-
-		AddStackDumpToAudioDeviceContainer();
-	}
+	Other.StackWalkID = INDEX_NONE;
 #endif
 
 	return *this;
@@ -1581,5 +1693,3 @@ FAudioDeviceManager::FAudioDeviceContainer::~FAudioDeviceContainer()
 
 FAudioDeviceManagerDelegates::FOnAudioDeviceCreated FAudioDeviceManagerDelegates::OnAudioDeviceCreated;
 FAudioDeviceManagerDelegates::FOnAudioDeviceDestroyed FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed;
-FAudioDeviceManagerDelegates::FOnWorldRegisteredToAudioDevice FAudioDeviceManagerDelegates::OnWorldRegisteredToAudioDevice;
-FAudioDeviceManagerDelegates::FOnWorldUnregisteredWithAudioDevice FAudioDeviceManagerDelegates::OnWorldUnregisteredWithAudioDevice;
