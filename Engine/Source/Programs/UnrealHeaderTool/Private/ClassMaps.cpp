@@ -14,9 +14,31 @@ TMap<UPackage*,  const FManifestModule*> GPackageToManifestModuleMap;
 TMap<void*, uint32> GGeneratedCodeHashes;
 FRWLock GGeneratedCodeHashesLock;
 TMap<UEnum*,  EUnderlyingEnumType> GEnumUnderlyingTypes;
-TMap<FName, TSharedRef<FClassDeclarationMetaData> > GClassDeclarations;
+FClassDeclarations GClassDeclarations;
 TSet<FProperty*> GUnsizedProperties;
 TSet<UField*> GEditorOnlyDataTypes;
 TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
 TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;
 TSet<FProperty*> GPropertyUsesMemoryImageAllocator;
+
+void FClassDeclarations::AddIfMissing(FName Name, TUniqueFunction<TSharedRef<FClassDeclarationMetaData>()>&& DeclConstructFunc)
+{
+	FRWScopeLock Lock(ClassDeclLock, SLT_Write);
+	if (!ClassDeclarations.Contains(Name))
+	{
+		TSharedRef<FClassDeclarationMetaData> ClassDecl = DeclConstructFunc();
+		ClassDeclarations.Add(Name, MoveTemp(ClassDecl));
+	}
+}
+
+TSharedRef<FClassDeclarationMetaData>* FClassDeclarations::Find(FName Name)
+{
+	FRWScopeLock Lock(ClassDeclLock, SLT_ReadOnly);
+	return ClassDeclarations.Find(Name);
+}
+
+TSharedRef<FClassDeclarationMetaData>& FClassDeclarations::FindChecked(FName Name)
+{
+	FRWScopeLock Lock(ClassDeclLock, SLT_ReadOnly);
+	return ClassDeclarations.FindChecked(Name);
+}
