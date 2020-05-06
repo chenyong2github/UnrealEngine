@@ -13,6 +13,7 @@
 #include "Framework/Commands/Commands.h"
 #include "Widgets/Input/SComboButton.h"
 #include "EditorStyleSet.h"
+#include "FileHelpers.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 
@@ -492,3 +493,5 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 
 	return StatusBar;
 }
+
+#undef LOCTEXT_NAMESPACE
