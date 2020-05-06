@@ -242,24 +242,35 @@ abort_collapse:
 	if (bEnableFlips && constraint.CanFlip() && bIsBoundaryEdge == false) 
 	{
 		// can we do this more efficiently somehow?
-		bool a_is_boundary_vtx = (bMeshIsClosed) ? false : (bIsBoundaryEdge || Mesh->IsBoundaryVertex(a));
-		bool b_is_boundary_vtx = (bMeshIsClosed) ? false : (bIsBoundaryEdge || Mesh->IsBoundaryVertex(b));
-		bool c_is_boundary_vtx = (bMeshIsClosed) ? false : Mesh->IsBoundaryVertex(c);
-		bool d_is_boundary_vtx = (bMeshIsClosed) ? false : Mesh->IsBoundaryVertex(d);
-		int valence_a = Mesh->GetVtxEdgeCount(a), valence_b = Mesh->GetVtxEdgeCount(b);
-		int valence_c = Mesh->GetVtxEdgeCount(c), valence_d = Mesh->GetVtxEdgeCount(d);
-		int valence_a_target = (a_is_boundary_vtx) ? valence_a : 6;
-		int valence_b_target = (b_is_boundary_vtx) ? valence_b : 6;
-		int valence_c_target = (c_is_boundary_vtx) ? valence_c : 6;
-		int valence_d_target = (d_is_boundary_vtx) ? valence_d : 6;
+		bool bTryFlip = false;
+		if (FlipMetric == EFlipMetric::OptimalValence)
+		{
+			bool a_is_boundary_vtx = (bMeshIsClosed) ? false : (bIsBoundaryEdge || Mesh->IsBoundaryVertex(a));
+			bool b_is_boundary_vtx = (bMeshIsClosed) ? false : (bIsBoundaryEdge || Mesh->IsBoundaryVertex(b));
+			bool c_is_boundary_vtx = (bMeshIsClosed) ? false : Mesh->IsBoundaryVertex(c);
+			bool d_is_boundary_vtx = (bMeshIsClosed) ? false : Mesh->IsBoundaryVertex(d);
+			int valence_a = Mesh->GetVtxEdgeCount(a), valence_b = Mesh->GetVtxEdgeCount(b);
+			int valence_c = Mesh->GetVtxEdgeCount(c), valence_d = Mesh->GetVtxEdgeCount(d);
+			int valence_a_target = (a_is_boundary_vtx) ? valence_a : 6;
+			int valence_b_target = (b_is_boundary_vtx) ? valence_b : 6;
+			int valence_c_target = (c_is_boundary_vtx) ? valence_c : 6;
+			int valence_d_target = (d_is_boundary_vtx) ? valence_d : 6;
 
-		// if total valence error improves by flip, we want to do it
-		int curr_err = abs(valence_a - valence_a_target) + abs(valence_b - valence_b_target)
-			+ abs(valence_c - valence_c_target) + abs(valence_d - valence_d_target);
-		int flip_err = abs((valence_a - 1) - valence_a_target) + abs((valence_b - 1) - valence_b_target)
-			+ abs((valence_c + 1) - valence_c_target) + abs((valence_d + 1) - valence_d_target);
+			// if total valence error improves by flip, we want to do it
+			int curr_err = abs(valence_a - valence_a_target) + abs(valence_b - valence_b_target)
+				+ abs(valence_c - valence_c_target) + abs(valence_d - valence_d_target);
+			int flip_err = abs((valence_a - 1) - valence_a_target) + abs((valence_b - 1) - valence_b_target)
+				+ abs((valence_c + 1) - valence_c_target) + abs((valence_d + 1) - valence_d_target);
 
-		bool bTryFlip = flip_err < curr_err;
+			bTryFlip = flip_err < curr_err;
+		}
+		else
+		{
+			double CurDistSqr = Mesh->GetVertex(a).DistanceSquared(Mesh->GetVertex(b));
+			double FlipDistSqr = Mesh->GetVertex(c).DistanceSquared(Mesh->GetVertex(d));
+			bTryFlip = (FlipDistSqr < MinLengthFlipThresh*MinLengthFlipThresh * CurDistSqr);
+		}
+
 		if (bTryFlip && bPreventNormalFlips && CheckIfFlipInvertsNormals(a, b, c, d, t0))
 		{
 			bTryFlip = false;
