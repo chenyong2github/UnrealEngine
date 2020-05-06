@@ -2644,7 +2644,7 @@ dtStatus dtNavMeshQuery::moveAlongSurface(dtPolyRef startRef, const float* start
 	
 	float bestPos[3];
 	float bestDist = FLT_MAX;
-	dtNode* bestNode = 0;
+	dtNode* bestNode = startNode;
 	dtVcopy(bestPos, startPos);
 	
 	// Search constraints
@@ -2809,6 +2809,11 @@ dtStatus dtNavMeshQuery::moveAlongSurface(dtPolyRef startRef, const float* start
 	
 	*visitedCount = n;
 	
+	if (n == 0)
+	{
+		status |= DT_FAILURE;
+	}
+
 	return status;
 }
 
