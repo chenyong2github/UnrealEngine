@@ -16,6 +16,10 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "IDocumentation.h"
 #include "ToolMenus.h"
+#include "LevelEditorMenuContext.h"
+#include "Widgets/Input/SSpinBox.h"
+
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditorMenu"
 
@@ -184,18 +188,20 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 		static void ExtendEditMenu()
 		{
 			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Edit", "MainFrame.MainMenu.Edit");
-			// Edit Actor
 			{
-				FToolMenuSection& Section = Menu->AddSection("EditMain", LOCTEXT("MainHeading", "Edit"), FToolMenuInsert("EditHistory", EToolMenuInsertType::After));
-				{		
-					Section.AddMenuEntry( FGenericCommands::Get().Cut );
-					Section.AddMenuEntry( FGenericCommands::Get().Copy );
-					Section.AddMenuEntry( FGenericCommands::Get().Paste );
+				// Edit Actor
+				{
+					FToolMenuSection& Section = Menu->AddSection("EditMain", LOCTEXT("MainHeading", "Edit"), FToolMenuInsert("EditHistory", EToolMenuInsertType::After));
 
-					Section.AddMenuEntry( FGenericCommands::Get().Duplicate );
-					Section.AddMenuEntry( FGenericCommands::Get().Delete );
+					Section.AddMenuEntry(FGenericCommands::Get().Cut);
+					Section.AddMenuEntry(FGenericCommands::Get().Copy);
+					Section.AddMenuEntry(FGenericCommands::Get().Paste);
+
+					Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+					Section.AddMenuEntry(FGenericCommands::Get().Delete);
 				}
 			}
+
 		}
 
 		static void ExtendHelpMenu()
@@ -214,12 +220,31 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseViewportControls );
 			}
 		}
+
+		static void ExtendMenuBar()
+		{
+			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu");
+
+			FToolMenuSection& Section = Menu->FindOrAddSection(NAME_None);
+
+			FToolMenuEntry& Entry =
+				Section.AddSubMenu(
+					"Build",
+					LOCTEXT("BuildMenu", "Build"),
+					LOCTEXT("BuildMenu_ToolTip", "Level Build Options"),
+					FNewToolMenuChoice()
+				);
+
+			Entry.InsertPosition = FToolMenuInsert("Help", EToolMenuInsertType::Before);
+		}
 	};
 
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	ToolMenus->RegisterMenu("LevelEditor.MainMenu", "MainFrame.MainMenu", EMultiBoxType::MenuBar);
 	ToolMenus->RegisterMenu("LevelEditor.MainMenu.File", "MainFrame.MainTabMenu.File");
 	ToolMenus->RegisterMenu("LevelEditor.MainMenu.Window", "MainFrame.MainMenu.Window");
+
+	Local::ExtendMenuBar();
 
 	// Add level loading and saving menu items
 	Local::RegisterFileLoadAndSaveItems();
@@ -232,6 +257,9 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 	// Extend the Help menu
 	Local::ExtendHelpMenu();
+
+	RegisterBuildMenu();
+
 }
 
 TSharedRef< SWidget > FLevelEditorMenu::MakeLevelEditorMenu( const TSharedPtr<FUICommandList>& CommandList, TSharedPtr<class SLevelEditor> LevelEditor )
@@ -241,7 +269,7 @@ TSharedRef< SWidget > FLevelEditorMenu::MakeLevelEditorMenu( const TSharedPtr<FU
 	FToolMenuContext ToolMenuContext(CommandList, Extenders.ToSharedRef());
 
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
-	TSharedRef< SWidget > MenuBarWidget = MainFrameModule.MakeMainTabMenu( LevelEditor->GetTabManager(), "LevelEditor.MainMenu", ToolMenuContext );
+	TSharedRef< SWidget > MenuBarWidget = MainFrameModule.MakeMainMenu( LevelEditor->GetTabManager(), "LevelEditor.MainMenu", ToolMenuContext );
 
 	return MenuBarWidget;
 }
@@ -251,7 +279,7 @@ TSharedRef< SWidget > FLevelEditorMenu::MakeNotificationBar( const TSharedPtr<FU
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor");
 	const TSharedPtr<FExtender> NotificationBarExtenders = LevelEditorModule.GetNotificationBarExtensibilityManager()->GetAllExtenders();
 
-	FToolBarBuilder NotificationBarBuilder( CommandList, FMultiBoxCustomization::None, NotificationBarExtenders, Orient_Horizontal );
+	FToolBarBuilder NotificationBarBuilder( CommandList, FMultiBoxCustomization::None, NotificationBarExtenders );
 	NotificationBarBuilder.SetStyle(&FEditorStyle::Get(), "NotificationBar");
 	{
 		NotificationBarBuilder.BeginSection("Start");
@@ -261,4 +289,321 @@ TSharedRef< SWidget > FLevelEditorMenu::MakeNotificationBar( const TSharedPtr<FU
 	return NotificationBarBuilder.MakeWidget();
 }
 
+void FLevelEditorMenu::RegisterBuildMenu()
+{
+	static const FName BaseMenuName = "LevelEditor.MainMenu.Build";
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(BaseMenuName);
+
+	struct FLightingMenus
+	{
+	public:
+
+		static void RegisterMenus(const FName InBaseMenuName)
+		{
+			FLightingMenus::RegisterLightingQualityMenu(InBaseMenuName);
+			FLightingMenus::RegisterLightingInfoMenu(InBaseMenuName);
+		}
+
+	private:
+
+		/** Generates a lighting quality sub-menu */
+		static void RegisterLightingQualityMenu(const FName InBaseMenuName)
+		{
+			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingQuality"));
+
+			{
+				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingQuality", LOCTEXT("LightingQualityHeading", "Quality Level"));
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingQuality_Production);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingQuality_High);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingQuality_Medium);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingQuality_Preview);
+			}
+		}
+
+		/** Generates a lighting density sub-menu */
+		static void RegisterLightingDensityMenu(const FName InBaseMenuName)
+		{
+			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingDensity"));
+
+			{
+				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingDensity", LOCTEXT("LightingDensityHeading", "Density Rendering"));
+				TSharedRef<SWidget> Ideal = SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(27.0f, 0.0f, 0.0f, 0.0f))
+					.FillWidth(1.0f)
+					[
+						SNew(SSpinBox<float>)
+						.MinValue(0.f)
+						.MaxValue(100.f)
+						.Value(FLevelEditorActionCallbacks::GetLightingDensityIdeal())
+						.OnValueChanged_Static(&FLevelEditorActionCallbacks::SetLightingDensityIdeal)
+					];
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("Ideal", Ideal, LOCTEXT("LightingDensity_Ideal", "Ideal Density")));
+
+				TSharedRef<SWidget> Maximum = SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						SNew(SSpinBox<float>)
+						.MinValue(0.01f)
+						.MaxValue(100.01f)
+						.Value(FLevelEditorActionCallbacks::GetLightingDensityMaximum())
+						.OnValueChanged_Static(&FLevelEditorActionCallbacks::SetLightingDensityMaximum)
+					];
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("Maximum", Maximum, LOCTEXT("LightingDensity_Maximum", "Maximum Density")));
+
+				TSharedRef<SWidget> ClrScale = SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(35.0f, 0.0f, 0.0f, 0.0f))
+					.FillWidth(1.0f)
+					[
+						SNew(SSpinBox<float>)
+						.MinValue(0.f)
+						.MaxValue(10.f)
+						.Value(FLevelEditorActionCallbacks::GetLightingDensityColorScale())
+						.OnValueChanged_Static(&FLevelEditorActionCallbacks::SetLightingDensityColorScale)
+					];
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("ColorScale", ClrScale, LOCTEXT("LightingDensity_ColorScale", "Color Scale")));
+
+				TSharedRef<SWidget> GrayScale = SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(11.0f, 0.0f, 0.0f, 0.0f))
+					.FillWidth(1.0f)
+					[
+						SNew(SSpinBox<float>)
+						.MinValue(0.f)
+						.MaxValue(10.f)
+						.Value(FLevelEditorActionCallbacks::GetLightingDensityGrayscaleScale())
+						.OnValueChanged_Static(&FLevelEditorActionCallbacks::SetLightingDensityGrayscaleScale)
+					];
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("GrayscaleScale", GrayScale, LOCTEXT("LightingDensity_GrayscaleScale", "Grayscale Scale")));
+
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingDensity_RenderGrayscale);
+			}
+		}
+
+		/** Generates a lighting resolution sub-menu */
+		static void RegisterLightingResolutionMenu(const FName InBaseMenuName)
+		{
+			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingResolution"));
+
+			{
+				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingResolution1", LOCTEXT("LightingResolutionHeading1", "Primitive Types"));
+				TSharedRef<SWidget> Meshes = SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SCheckBox)
+						.Style(FEditorStyle::Get(), "Menu.CheckBox")
+						.ToolTipText(LOCTEXT("StaticMeshesToolTip", "Static Meshes will be adjusted if checked."))
+						.IsChecked_Static(&FLevelEditorActionCallbacks::IsLightingResolutionStaticMeshesChecked)
+						.OnCheckStateChanged_Static(&FLevelEditorActionCallbacks::SetLightingResolutionStaticMeshes)
+						.Content()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("StaticMeshes", "Static Meshes"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(FMargin(4.0f, 0.0f, 11.0f, 0.0f))
+					[
+						SNew(SSpinBox<float>)
+						.MinValue(4.f)
+						.MaxValue(4096.f)
+						.ToolTipText(LOCTEXT("LightingResolutionStaticMeshesMinToolTip", "The minimum lightmap resolution for static mesh adjustments. Anything outside of Min/Max range will not be touched when adjusting."))
+						.Value(FLevelEditorActionCallbacks::GetLightingResolutionMinSMs())
+						.OnValueChanged_Static(&FLevelEditorActionCallbacks::SetLightingResolutionMinSMs)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SSpinBox<float>)
+						.MinValue(4.f)
+					.MaxValue(4096.f)
+					.ToolTipText(LOCTEXT("LightingResolutionStaticMeshesMaxToolTip", "The maximum lightmap resolution for static mesh adjustments. Anything outside of Min/Max range will not be touched when adjusting."))
+					.Value(FLevelEditorActionCallbacks::GetLightingResolutionMaxSMs())
+					.OnValueChanged_Static(&FLevelEditorActionCallbacks::SetLightingResolutionMaxSMs)
+					];
+				Section.AddEntry(FToolMenuEntry::InitWidget("Meshes", Meshes, FText::GetEmpty(), true));
+
+				TSharedRef<SWidget> BSPs = SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.Style(FEditorStyle::Get(), "Menu.CheckBox")
+					.ToolTipText(LOCTEXT("BSPSurfacesToolTip", "BSP Surfaces will be adjusted if checked."))
+					.IsChecked_Static(&FLevelEditorActionCallbacks::IsLightingResolutionBSPSurfacesChecked)
+					.OnCheckStateChanged_Static(&FLevelEditorActionCallbacks::SetLightingResolutionBSPSurfaces)
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("BSPSurfaces", "BSP Surfaces"))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(6.0f, 0.0f, 4.0f, 0.0f))
+				[
+					SNew(SSpinBox<float>)
+					.MinValue(1.f)
+					.MaxValue(63556.f)
+					.ToolTipText(LOCTEXT("LightingResolutionBSPsMinToolTip", "The minimum lightmap resolution of a BSP surface to adjust. When outside of the Min/Max range, the BSP surface will no be altered."))
+					.Value(FLevelEditorActionCallbacks::GetLightingResolutionMinBSPs())
+					.OnValueChanged_Static(&FLevelEditorActionCallbacks::SetLightingResolutionMinBSPs)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SSpinBox<float>)
+					.MinValue(1.f)
+					.MaxValue(63556.f)
+					.ToolTipText(LOCTEXT("LightingResolutionBSPsMaxToolTip", "The maximum lightmap resolution of a BSP surface to adjust. When outside of the Min/Max range, the BSP surface will no be altered."))
+					.Value(FLevelEditorActionCallbacks::GetLightingResolutionMaxBSPs())
+					.OnValueChanged_Static(&FLevelEditorActionCallbacks::SetLightingResolutionMaxBSPs)
+				];
+				Section.AddEntry(FToolMenuEntry::InitWidget("BSPs", BSPs, FText::GetEmpty(), true));
+			}
+
+			{
+				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingResolution2", LOCTEXT("LightingResolutionHeading2", "Select Options"));
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingResolution_CurrentLevel);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingResolution_SelectedLevels);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingResolution_AllLoadedLevels);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingResolution_SelectedObjectsOnly);
+			}
+
+			{
+				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingResolution3", LOCTEXT("LightingResolutionHeading3", "Ratio"));
+				TSharedRef<SWidget> Ratio = SNew(SSpinBox<int32>)
+					.MinValue(0)
+					.MaxValue(400)
+					.ToolTipText(LOCTEXT("LightingResolutionRatioToolTip", "Ratio to apply (New Resolution = Ratio / 100.0f * CurrentResolution)."))
+					.Value(FLevelEditorActionCallbacks::GetLightingResolutionRatio())
+					.OnEndSliderMovement_Static(&FLevelEditorActionCallbacks::SetLightingResolutionRatio)
+					.OnValueCommitted_Static(&FLevelEditorActionCallbacks::SetLightingResolutionRatioCommit);
+				Section.AddEntry(FToolMenuEntry::InitWidget("Ratio", Ratio, LOCTEXT("LightingResolutionRatio", "Ratio")));
+			}
+		}
+
+		/** Generates a lighting info dialogs sub-menu */
+		static void RegisterLightingInfoMenu(const FName InBaseMenuName)
+		{
+			RegisterLightingDensityMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingInfo"));
+			RegisterLightingResolutionMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingInfo"));
+
+			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingInfo"));
+
+			{
+				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingInfo", LOCTEXT("LightingInfoHeading", "Lighting Info Dialogs"));
+				Section.AddSubMenu(
+					"LightingDensity",
+					LOCTEXT("LightingDensityRenderingSubMenu", "LightMap Density Rendering Options"),
+					LOCTEXT("LightingDensityRenderingSubMenu_ToolTip", "Shows the LightMap Density Rendering viewmode options."),
+					FNewToolMenuChoice());
+
+				Section.AddSubMenu(
+					"LightingResolution",
+					LOCTEXT("LightingResolutionAdjustmentSubMenu", "LightMap Resolution Adjustment"),
+					LOCTEXT("LightingResolutionAdjustmentSubMenu_ToolTip", "Shows the LightMap Resolution Adjustment options."),
+					FNewToolMenuChoice());
+
+				Section.AddMenuEntry(FLevelEditorCommands::Get().LightingStaticMeshInfo, LOCTEXT("BuildLightingInfo_LightingStaticMeshInfo", "Lighting StaticMesh Info..."));
+			}
+		}
+	};
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("Level", LOCTEXT("LevelHeading", "Level"));
+
+		Section.AddMenuEntry(FLevelEditorCommands::Get().Build, LOCTEXT("Build", "Build All Levels"));
+	}
+
+	FLightingMenus::RegisterMenus(BaseMenuName);
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLighting", LOCTEXT("LightingHeading", "Lighting"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildLightingOnly, LOCTEXT("BuildLightingOnlyHeading", "Build Lighting Only"));
+
+		Section.AddSubMenu(
+			"LightingQuality",
+			LOCTEXT("LightingQualitySubMenu", "Lighting Quality"),
+			LOCTEXT("LightingQualitySubMenu_ToolTip", "Allows you to select the quality level for precomputed lighting"),
+			FNewToolMenuChoice());
+
+		Section.AddSubMenu(
+			"LightingInfo",
+			LOCTEXT("BuildLightingInfoSubMenu", "Lighting Info"),
+			LOCTEXT("BuildLightingInfoSubMenu_ToolTip", "Access the lighting info dialogs"),
+			FNewToolMenuChoice());
+
+		Section.AddMenuEntry(FLevelEditorCommands::Get().LightingBuildOptions_UseErrorColoring);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().LightingBuildOptions_ShowLightingStats);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorReflections", LOCTEXT("ReflectionHeading", "Reflections"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildReflectionCapturesOnly);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorVisibility", LOCTEXT("VisibilityHeading", "Visibility"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildLightingOnly_VisibilityOnly);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorGeometry", LOCTEXT("GeometryHeading", "Geometry"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildGeometryOnly);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildGeometryOnly_OnlyCurrentLevel);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorNavigation", LOCTEXT("NavigationHeading", "Navigation"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildPathsOnly);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLOD", LOCTEXT("LODHeading", "Hierarchical LOD"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildLODsOnly);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorTextureStreaming", LOCTEXT("TextureStreamingHeading", "Texture Streaming"));
+		Section.AddDynamicEntry("BuildTextureStreamingOnly", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			{
+				if (CVarStreamingUseNewMetrics.GetValueOnAnyThread() != 0) // There is no point of in building texture streaming data with the old system.
+				{
+					InSection.AddMenuEntry(FLevelEditorCommands::Get().BuildTextureStreamingOnly);
+				}
+			}));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildVirtualTextureOnly);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorGrass", LOCTEXT("GrassHeading", "Grass Maps"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildGrassMapsOnly);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorAutomation", LOCTEXT("AutomationHeading", "Automation"));
+		Section.AddMenuEntry(
+			FLevelEditorCommands::Get().BuildAndSubmitToSourceControl,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.BuildAndSubmit")
+		);
+	}
+
+	// Map Check
+	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorVerification", LOCTEXT("VerificationHeading", "Verification"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().MapCheck, LOCTEXT("OpenMapCheck", "Map Check"));
+	}
+
+}
 #undef LOCTEXT_NAMESPACE

@@ -136,6 +136,7 @@ public:
 	/** Returns current scene outliner associated with level editor's scene outliner tab, if it exists */
 	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const override { return SceneOutlinerPtr.Pin();  }
 
+	TSharedRef<SWidget> GetTitleBarMessageWidget() const { return TtileBarMessageBox.ToSharedRef(); }
 private:
 	
 	TSharedRef<SDockTab> SpawnLevelEditorTab(const FSpawnTabArgs& Args, FName TabIdentifier, FString InitializationPayload);
@@ -194,8 +195,8 @@ private:
 	/** Callback for when the level editor layout has changed */
 	void OnLayoutHasChanged();
 	
-	/** Constructs the NotificationBar widgets */
-	void ConstructNotificationBar();
+	/** Constructs the title bar message widget */
+	void ConstructTitleBarMessages();
 
 	/** Builds a viewport tab. */
 	TSharedRef<SDockTab> BuildViewportTab( const FText& Label, const FString LayoutId, const FString& InitializationPayload );
@@ -248,8 +249,8 @@ private:
 	// The UWorld that this level editor is viewing and allowing the user to interact with through.
 	UWorld* World;
 
-	// The box that holds the notification bar.
-	TSharedPtr< SHorizontalBox > NotificationBarBox;
+	// The box that holds the title bar messages.
+	TSharedPtr<SHorizontalBox> TtileBarMessageBox;
 
 	// Holds the world settings details view.
 	TSharedPtr<IDetailsView> WorldSettingsView;

@@ -1142,53 +1142,6 @@ void FLevelEditorActionCallbacks::LiveCoding_Settings_Clicked()
 }
 #endif
 
-void FLevelEditorActionCallbacks::ConnectToSourceControl_Clicked()
-{
-	// Show login window regardless of current status - its useful as a shortcut to change settings.
-	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	SourceControlModule.ShowLoginDialog(FSourceControlLoginClosed(), ELoginWindowMode::Modeless, EOnLoginWindowStartup::PreserveProvider);
-}
-
-bool FLevelEditorActionCallbacks::CheckOutModifiedFiles_CanExecute()
-{
-	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	if (ISourceControlModule::Get().IsEnabled() &&
-		ISourceControlModule::Get().GetProvider().IsAvailable())
-	{
-		TArray<UPackage*> PackagesToSave;
-		FEditorFileUtils::GetDirtyWorldPackages(PackagesToSave);
-		FEditorFileUtils::GetDirtyContentPackages(PackagesToSave);
-
-		return PackagesToSave.Num() > 0;
-	}
-
-	return false;
-}
-
-void FLevelEditorActionCallbacks::CheckOutModifiedFiles_Clicked()
-{
-	TArray<UPackage*> PackagesToSave;
-	FEditorFileUtils::GetDirtyWorldPackages(PackagesToSave);
-	FEditorFileUtils::GetDirtyContentPackages(PackagesToSave);
-
-	const bool bCheckDirty = true;
-	const bool bPromptUserToSave = false;
-	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptUserToSave);
-}
-
-bool FLevelEditorActionCallbacks::SubmitToSourceControl_CanExecute()
-{
-	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	return ISourceControlModule::Get().IsEnabled() &&
-		   ISourceControlModule::Get().GetProvider().IsAvailable() &&
-		   FSourceControlWindows::CanChoosePackagesToCheckIn();
-}
-
-void FLevelEditorActionCallbacks::SubmitToSourceControl_Clicked()
-{
-	FSourceControlWindows::ChoosePackagesToCheckIn();
-}
-
 
 void FLevelEditorActionCallbacks::GoToCodeForActor_Clicked()
 {
@@ -3346,11 +3299,6 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND(PreviewPlatformOverride_AndroidVulkanES31, "Android Vulkan", "Mobile preview using Android Vulkan quality settings.", EUserInterfaceActionType::Check, FInputChord());
 	UI_COMMAND(PreviewPlatformOverride_AndroidVulkanSM5, "Android Vulkan SM5", "Mobile preview using Android Vulkan SM5 quality settings.", EUserInterfaceActionType::Check, FInputChord());
 	UI_COMMAND(PreviewPlatformOverride_IOSMetalES31, "iOS", "Mobile preview using iOS material quality settings.", EUserInterfaceActionType::Check, FInputChord());
-
-	UI_COMMAND( ConnectToSourceControl, "Connect to Source Control...", "Opens a dialog to connect to source control.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND( ChangeSourceControlSettings, "Change Source Control Settings...", "Opens a dialog to change source control settings.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND( CheckOutModifiedFiles, "Check Out Modified Files...", "Opens a dialog to check out any assets which have been modified.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND( SubmitToSourceControl, "Submit to Source Control...", "Opens a dialog with check in options for content and levels.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(GeometryCollectionSelectAllGeometry, "Select All Geometry In Hierarchy", "Select all geometry in hierarchy", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(GeometryCollectionSelectNone, "Deselect All Geometry In Hierarchy", "Deselect all geometry in hierarchy", EUserInterfaceActionType::Button, FInputChord());

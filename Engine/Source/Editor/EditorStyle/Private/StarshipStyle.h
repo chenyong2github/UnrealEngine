@@ -53,8 +53,7 @@ public:
 			SettingsModule->UnregisterSettings("Editor", "General", "Appearance");
 		}
 
-		ResetToDefault();
-		ensure(StyleInstance.IsUnique());
+		//FEditorStyle::SetStyle()
 		StyleInstance.Reset();
 	}
 
@@ -98,6 +97,7 @@ public:
 		void SetupAutomationStyles();
 		void SetupUMGEditorStyles();
 		void SetupMyBlueprintStyles();
+		void SetupStatusBarStyle();
 
 		void SettingsChanged(UObject* ChangedObject, FPropertyChangedEvent& PropertyChangedEvent);
 		void SyncSettings();

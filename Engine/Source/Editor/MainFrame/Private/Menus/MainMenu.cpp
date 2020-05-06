@@ -118,7 +118,7 @@ void FMainMenu::RegisterEditMenu()
 	}
 
 	{
-		FToolMenuSection& Section = EditMenu->AddSection("EditLocalTabSpawners", LOCTEXT("ConfigurationHeading", "Configuration"));
+		FToolMenuSection& Section = EditMenu->AddSection("Configuration", LOCTEXT("ConfigurationHeading", "Configuration"));
 		if (GetDefault<UEditorStyleSettings>()->bExpandConfigurationMenus)
 		{
 			Section.AddSubMenu(
@@ -315,6 +315,7 @@ void FMainMenu::RegisterHelpMenu()
 		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitWiki);
 
 
+
 		const FText SupportWebSiteLabel = NSLOCTEXT("MainHelpMenu", "VisitUnrealEngineSupportWebSite", "Unreal Engine Support Web Site...");
 
 		HelpOnlineSection.AddSeparator("EpicGamesHelp");
@@ -355,7 +356,7 @@ TSharedRef<SWidget> FMainMenu::MakeMainMenu(const TSharedPtr<FTabManager>& TabMa
 	{
 		// Tell tab-manager about the multi-box for platforms with a global menu bar
 		TSharedRef<SMultiBoxWidget> MultiBoxWidget = StaticCastSharedRef<SMultiBoxWidget>(MenuBarWidget);
-		TabManager->SetMenuMultiBox(ConstCastSharedRef<FMultiBox>(MultiBoxWidget->GetMultiBox()));
+		TabManager->SetMenuMultiBox(ConstCastSharedRef<FMultiBox>(MultiBoxWidget->GetMultiBox()), MultiBoxWidget);
 	}
 
 	return MenuBarWidget;
@@ -378,6 +379,10 @@ void FMainMenu::RegisterMainMenu()
 	RegisterHelpMenu();
 
 	UToolMenu* MenuBar = ToolMenus->RegisterMenu(MainMenuName, NAME_None, EMultiBoxType::MenuBar);
+
+	static const FName MainMenuStyleName("WindowMenuBar");
+
+	MenuBar->StyleName = MainMenuStyleName;
 
 	MenuBar->AddSubMenu(
 		"MainMenu",

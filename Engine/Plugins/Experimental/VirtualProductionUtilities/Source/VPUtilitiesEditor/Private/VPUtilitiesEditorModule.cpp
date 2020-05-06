@@ -88,11 +88,11 @@ public:
 		FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
 		if (LevelEditorModule != nullptr)
 		{
-			FLevelEditorModule::FStatusBarItem Item;
+			FLevelEditorModule::FTitleBarItem Item;
 			Item.Label = LOCTEXT("VPRolesLabel", "VP Roles: ");
 			Item.Value = MakeAttributeLambda([]() { return FText::FromString(GetMutableDefault<UVPSettings>()->GetRoles().ToStringSimple()); });
 			Item.Visibility = MakeAttributeLambda([]() { return GetMutableDefault<UVPSettings>()->bShowRoleInEditor ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; });
-			LevelEditorModule->AddStatusBarItem(VPRoleNotificationBarIdentifier, Item);
+			LevelEditorModule->AddTitleBarItem(VPRoleNotificationBarIdentifier, Item);
 		}
 	}
 
@@ -109,7 +109,7 @@ public:
 		FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
 		if (LevelEditorModule != nullptr)
 		{
-			LevelEditorModule->RemoveStatusBarItem(VPRoleNotificationBarIdentifier);
+			LevelEditorModule->RemoveTitleBarItem(VPRoleNotificationBarIdentifier);
 		}
 	}
 };

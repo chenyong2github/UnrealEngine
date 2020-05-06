@@ -28,7 +28,6 @@
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "ISlateReflectorModule.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "IIntroTutorials.h"
 #include "Interfaces/IProjectManager.h"
 #include "LevelViewportLayoutEntity.h"
 #include "PixelInspectorModule.h"
@@ -55,7 +54,6 @@ const FName LevelEditorTabIds::LevelEditorViewport_Clone1(TEXT("LevelEditorViewp
 const FName LevelEditorTabIds::LevelEditorViewport_Clone2(TEXT("LevelEditorViewport_Clone2"));
 const FName LevelEditorTabIds::LevelEditorViewport_Clone3(TEXT("LevelEditorViewport_Clone3"));
 const FName LevelEditorTabIds::LevelEditorViewport_Clone4(TEXT("LevelEditorViewport_Clone4"));
-const FName LevelEditorTabIds::LevelEditorToolBar(TEXT("LevelEditorToolBar"));
 const FName LevelEditorTabIds::LevelEditorToolBox(TEXT("LevelEditorToolBox"));
 const FName LevelEditorTabIds::LevelEditorSelectionDetails(TEXT("LevelEditorSelectionDetails"));
 const FName LevelEditorTabIds::LevelEditorSelectionDetails2(TEXT("LevelEditorSelectionDetails2"));
@@ -95,8 +93,13 @@ public:
 		FString ProjectNameWatermarkPrefix;
 		GConfig->GetString(TEXT("LevelEditor"), TEXT("ProjectNameWatermarkPrefix"), /*out*/ ProjectNameWatermarkPrefix, GEditorPerProjectIni);
 
-		FColor BadgeBackgroundColor = FColor::Black;
-		GConfig->GetColor(TEXT("LevelEditor"), TEXT("ProjectBadgeBackgroundColor"), /*out*/ BadgeBackgroundColor, GEditorPerProjectIni);
+		FLinearColor BadgeBackgroundColor = FAppStyle::Get().GetColor("Colors.Foldout");
+
+		FColor ConfigColor;
+		if (GConfig->GetColor(TEXT("LevelEditor"), TEXT("ProjectBadgeBackgroundColor"), /*out*/ ConfigColor, GEditorPerProjectIni))
+		{
+			BadgeBackgroundColor = ConfigColor;
+		}
 
 		FColor BadgeTextColor = FColor(128,128,128,255);
 		GConfig->GetColor(TEXT("LevelEditor"), TEXT("ProjectBadgeTextColor"), /*out*/ BadgeTextColor, GEditorPerProjectIni);
@@ -150,7 +153,7 @@ public:
 			[
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("SProjectBadge.BadgeShape"))
-				.Padding(FMargin(10.0f, 2.5f))
+				.Padding(FAppStyle::Get().GetMargin("SProjectBadge.BadgePadding"))
 				.BorderBackgroundColor(BadgeBackgroundColor)
 				.VAlign(VAlign_Top)
 				[
@@ -177,10 +180,7 @@ private:
 	FGeometry CachedGeometry;
 };
 
-static FMargin GetRoomForBadge(TWeakPtr<SProjectBadge> ProjBadge)
-{
-	return FMargin(8.0f, 0.0f, ProjBadge.Pin()->GetSizeLastFrame().X + 8.0f, 0.0f);
-}
+
 
 TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& InArgs )
 {
@@ -197,12 +197,13 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		OwnerWindow = MainFrameModule.GetParentWindow();
 	}
 
-	if ( OwnerWindow.IsValid() )
+	TSharedPtr<SLevelEditor> LevelEditorTmp;
+	if (OwnerWindow.IsValid())
 	{
-		TSharedPtr<SLevelEditor> LevelEditorTmp;
-		LevelEditorTab->SetContent( SAssignNew(LevelEditorTmp, SLevelEditor ) );
+
+		LevelEditorTab->SetContent(SAssignNew(LevelEditorTmp, SLevelEditor));
 		SetLevelEditorInstance(LevelEditorTmp);
-		LevelEditorTmp->Initialize( LevelEditorTab, OwnerWindow.ToSharedRef() );
+		LevelEditorTmp->Initialize(LevelEditorTab, OwnerWindow.ToSharedRef());
 
 		if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 		{
@@ -225,46 +226,33 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 			if (PlacementBrowserTab.IsValid())
 			{
 				PlacementBrowserTab->RequestCloseTab();
+
 			}
 		}
 
 		LevelEditorCreatedEvent.Broadcast(LevelEditorTmp);
+
+		TSharedRef<SProjectBadge> ProjectBadge = SNew(SProjectBadge);
+
+		TSharedPtr< SWidget > RightContent =
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(8.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				LevelEditorTmp->GetTitleBarMessageWidget()
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
+			[
+				ProjectBadge
+			];
+
+
+		LevelEditorTab->SetTitleBarRightContent(RightContent.ToSharedRef());
 	}
-
-	IIntroTutorials& IntroTutorials = FModuleManager::LoadModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
-	TSharedRef<SWidget> TutorialWidget = IntroTutorials.CreateTutorialsWidget(TEXT("LevelEditor"), OwnerWindow);
-
-	TSharedRef<SProjectBadge> ProjectBadge = SNew(SProjectBadge);
-	TAttribute<FMargin> BadgeSizeGetter = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateStatic(&GetRoomForBadge, TWeakPtr<SProjectBadge>(ProjectBadge)));
-		
-	TSharedPtr< SWidget > RightContent=
-		SNew( SHorizontalBox )
-
-// Put the level editor stats/notification widgets on the main window title bar since we don't have a menu bar on OS X
-#if PLATFORM_MAC
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(8.0f, 0.0f, 0.0f, 0.0f)
-		.VAlign(VAlign_Center)
-		[
-			LevelEditorTab->GetRightContent()
-		]
-#endif
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(BadgeSizeGetter)
-		.VAlign(VAlign_Center)
-		[
-			TutorialWidget
-		];
-
-	LevelEditorTab->SetRightContent( RightContent.ToSharedRef() );
-
-	LevelEditorTab->SetBackgroundContent(
-		ProjectBadge
-	);
-	
 	
 	return LevelEditorTab;
 }
@@ -280,13 +268,10 @@ void FLevelEditorModule::StartupModule()
 
 	FModuleManager::LoadModuleChecked<FCommonMenuExtensionsModule>(CommonMenuExtensionsName);
 
-	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
-	
-	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
-
-	ModeBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
-
-	NotificationBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
+	MenuExtensibilityManager = MakeShared<FExtensibilityManager>();
+	ToolBarExtensibilityManager = MakeShared<FExtensibilityManager>();
+	ModeBarExtensibilityManager = MakeShared<FExtensibilityManager>();
+	NotificationBarExtensibilityManager = MakeShared<FExtensibilityManager>();
 
 	// Note this must come before any tab spawning because that can create the SLevelEditor and attempt to map commands
 	FEditorViewportCommands::Register();
@@ -519,6 +504,7 @@ void FLevelEditorModule::SetLevelEditorTabManager( const TSharedPtr<SDockTab>& O
 	{
 		LevelEditorTabManager = FGlobalTabmanager::Get()->NewTabManager(OwnerTab.ToSharedRef());
 		LevelEditorTabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateRaw(this, &FLevelEditorModule::HandleTabManagerPersistLayout));
+		LevelEditorTabManager->SetAllowWindowMenuBar(true);
 
 		TabManagerChangedEvent.Broadcast();
 	}
@@ -606,16 +592,16 @@ TSharedPtr<SDockTab> FLevelEditorModule::GetLevelEditorTab() const
 	return LevelEditorInstanceTabPtr.Pin();
 }
 
-void FLevelEditorModule::AddStatusBarItem(FName InStatusBarIdentifier, const FStatusBarItem& InStatusBarItem)
+void FLevelEditorModule::AddTitleBarItem(FName InTitleBarIdentifier, const FTitleBarItem& InTitleBarItem)
 {
-	StatusBarItems.FindOrAdd(InStatusBarIdentifier) = InStatusBarItem;
-	BroadcastNotificationBarChanged();
+	TitleBarItems.FindOrAdd(InTitleBarIdentifier) = InTitleBarItem;
+	BroadcastTitleBarMessagesChanged();
 }
 
-void FLevelEditorModule::RemoveStatusBarItem(FName InStatusBarIdentifier)
+void FLevelEditorModule::RemoveTitleBarItem(FName InTitleBarIdentifier)
 {
-	StatusBarItems.Remove(InStatusBarIdentifier);
-	BroadcastNotificationBarChanged();
+	TitleBarItems.Remove(InTitleBarIdentifier);
+	BroadcastTitleBarMessagesChanged();
 }
 
 TSharedRef<ILevelViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const
@@ -695,28 +681,7 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Build_Execute ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Build_CanExecute ) );
 
-	ActionList.MapAction(
-		Commands.ConnectToSourceControl,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ConnectToSourceControl_Clicked)
-		);
-
-	ActionList.MapAction(
-		Commands.ChangeSourceControlSettings,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ConnectToSourceControl_Clicked)
-		);
-
-	ActionList.MapAction(
-		Commands.CheckOutModifiedFiles,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CheckOutModifiedFiles_Clicked),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CheckOutModifiedFiles_CanExecute)
-		);
-
-	ActionList.MapAction(
-		Commands.SubmitToSourceControl,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SubmitToSourceControl_Clicked),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SubmitToSourceControl_CanExecute)
-		);
-
+	
 	ActionList.MapAction(Commands.RecompileGameCode,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::RecompileGameCode_Clicked ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Recompile_CanExecute )

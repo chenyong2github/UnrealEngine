@@ -33,7 +33,6 @@ public:
 	static const FName LevelEditorViewport_Clone2;
 	static const FName LevelEditorViewport_Clone3;
 	static const FName LevelEditorViewport_Clone4;
-	static const FName LevelEditorToolBar;
 	static const FName LevelEditorToolBox;
 	static const FName LevelEditorSelectionDetails;
 	static const FName LevelEditorSelectionDetails2;
@@ -280,25 +279,25 @@ public:
 	DECLARE_EVENT_OneParam(ILevelEditor, FOnRegisterLayoutExtensions, FLayoutExtender&);
 	FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() { return RegisterLayoutExtensions; }
 
-	/** Add / Remove status bar item */
-	struct FStatusBarItem
+	/** Add / Remove title bar item */
+	struct FTitleBarItem
 	{
-		/* Visiblility of the status bar item. */
+		/* Visiblility of the title bar item. */
 		TAttribute<EVisibility> Visibility;
-		/* Label of the status bar item. */
+		/* Label of the title bar item. */
 		TAttribute<FText> Label;
-		/* Value of the status bar item. */
+		/* Value of the title bar item. */
 		TAttribute<FText> Value;
 	};
-	const TMap<FName, FStatusBarItem>& GetStatusBarItems() const { return StatusBarItems; }
-	virtual void AddStatusBarItem(FName InStatusBarIdentifier, const FStatusBarItem& InStatusBarItem);
-	virtual void RemoveStatusBarItem(FName InStatusBarIdentifier);
+	const TMap<FName, FTitleBarItem>& GetTitleBarItems() const { return TitleBarItems; }
+	virtual void AddTitleBarItem(FName InTitleBarIdentifier, const FTitleBarItem& InTitleBarITem);
+	virtual void RemoveTitleBarItem(FName InTitleBarIdentifier);
 
 	/** Called when a new map is loaded */
-	DECLARE_EVENT( FLevelEditorModule, FNotificationBarChanged );
-	virtual FNotificationBarChanged& OnNotificationBarChanged() { return NotificationBarChangedEvent; }
+	DECLARE_EVENT( FLevelEditorModule, FTitleBarMessagesChanged );
+	virtual FTitleBarMessagesChanged& OnTitleBarMessagesChanged() { return TitleBarMessagesChangedEvent; }
 
-	virtual void BroadcastNotificationBarChanged() { NotificationBarChangedEvent.Broadcast(); }
+	virtual void BroadcastTitleBarMessagesChanged() { TitleBarMessagesChangedEvent.Broadcast(); }
 
 	/** Called when a high res screenshot is requested. */
 	DECLARE_EVENT( FLevelEditorModule, FTakeHighResScreenShotsEvent );
@@ -386,8 +385,8 @@ private:
 	TSharedPtr<FExtensibilityManager> ModeBarExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> NotificationBarExtensibilityManager;
 
-	TMap<FName, FStatusBarItem> StatusBarItems;
-	FNotificationBarChanged NotificationBarChangedEvent;
+	TMap<FName, FTitleBarItem> TitleBarItems;
+	FTitleBarMessagesChanged TitleBarMessagesChangedEvent;
 
 	/** 
 	 * A command list that can be passed around and isn't bound to an instance of a level editor. 

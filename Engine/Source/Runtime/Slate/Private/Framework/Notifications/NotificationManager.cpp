@@ -37,9 +37,12 @@ void FSlateNotificationManager::FRegionalNotificationList::RemoveDeadNotificatio
 
 void FSlateNotificationManager::FRegionalNotificationList::Arrange()
 {
+	// If the app has a status bar push up notifications so that they don't overlap the status bar
+	static const float StausBarHeight = FAppStyle::Get().GetFloat("StatusBar.Height", nullptr, 0.0f);
+
 	FVector2D AnchorPoint(
 		Region.Right - NotificationManagerConstants::NotificationOffset.X,
-		Region.Bottom - NotificationManagerConstants::NotificationOffset.Y );
+		Region.Bottom - (NotificationManagerConstants::NotificationOffset.Y + StausBarHeight));
 
 	for (int32 ListIndex = Notifications.Num() - 1; ListIndex >= 0; --ListIndex)
 	{
@@ -141,7 +144,7 @@ TSharedPtr<SNotificationItem> FSlateNotificationManager::AddNotification(const F
 	if( FSlateApplication::IsInitialized() )
 	{
 		FSlateRect PreferredWorkArea;
-		// Retrieve the main editor window to display the notication in, otherwise use the preferred work area
+		// Retrieve the main editor window to display the notification in, otherwise use the preferred work area
 		if (RootWindowPtr.IsValid())
 		{
 			PreferredWorkArea = FSlateApplication::Get().GetWorkArea(RootWindowPtr.Pin()->GetRectInScreen());

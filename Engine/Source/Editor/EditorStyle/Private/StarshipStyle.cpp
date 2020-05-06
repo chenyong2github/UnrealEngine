@@ -245,6 +245,7 @@ void FStarshipEditorStyle::FStyle::Initialize()
 	SetupAutomationStyles();
 	SetupUMGEditorStyles();
 	SetupMyBlueprintStyles();
+	SetupStatusBarStyle();
 
 //	LogUnusedBrushResources();
 
@@ -4340,17 +4341,6 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "LevelEditor.Recompile", new IMAGE_BRUSH( "Icons/icon_compile_40x", Icon40x40 ) );
 		Set( "LevelEditor.Recompile.Small", new IMAGE_BRUSH( "Icons/icon_compile_40x", Icon20x20 ) );
 
-		Set("LevelEditor.SourceControl", new IMAGE_BRUSH("Icons/icon_source_control_40x", Icon40x40));
-		Set("LevelEditor.SourceControl.Small", new IMAGE_BRUSH("Icons/icon_source_control_40x", Icon20x20));
-		Set("LevelEditor.SourceControl.On", new IMAGE_BRUSH("Icons/icon_source_control_40x_on", Icon40x40));
-		Set("LevelEditor.SourceControl.On.Small", new IMAGE_BRUSH("Icons/icon_source_control_40x_on", Icon20x20));
-		Set("LevelEditor.SourceControl.Off", new IMAGE_BRUSH("Icons/icon_source_control_40x_off", Icon40x40));
-		Set("LevelEditor.SourceControl.Off.Small", new IMAGE_BRUSH("Icons/icon_source_control_40x_off", Icon20x20));
-		Set("LevelEditor.SourceControl.Unknown", new IMAGE_BRUSH("Icons/icon_source_control_40x_unknown", Icon40x40));
-		Set("LevelEditor.SourceControl.Unknown.Small", new IMAGE_BRUSH("Icons/icon_source_control_40x_unknown", Icon20x20));
-		Set("LevelEditor.SourceControl.Problem", new IMAGE_BRUSH("Icons/icon_source_control_40x_problem", Icon40x40));
-		Set("LevelEditor.SourceControl.Problem.Small", new IMAGE_BRUSH("Icons/icon_source_control_40x_problem", Icon20x20));
-
 		Set("LevelEditor.PreviewMode.Enabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM5_Enabled_40x", Icon40x40));
 		Set("LevelEditor.PreviewMode.Enabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM5_Enabled_40x", Icon20x20));
 		Set("LevelEditor.PreviewMode.Disabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM5_Disabled_40x", Icon40x40));
@@ -7331,6 +7321,11 @@ void FStarshipEditorStyle::FStyle::SetupSourceControlStyles()
 	//Source Control
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 	{
+		Set("SourceControl.StatusIcon.On", new CORE_IMAGE_BRUSH_SVG("Starship/Common/check-circle", Icon16x16, FStyleColors::AccentGreen));
+		Set("SourceControl.StatusIcon.Error", new CORE_IMAGE_BRUSH_SVG("Starship/Common/alert-circle", Icon16x16, FStyleColors::AccentYellow));
+		Set("SourceControl.StatusIcon.Off", new CORE_IMAGE_BRUSH_SVG("Starship/Common/reject", Icon16x16, FStyleColors::Foreground));
+		Set("SourceControl.StatusIcon.Unknown", new CORE_IMAGE_BRUSH_SVG("Starship/Common/help", Icon16x16, FStyleColors::AccentYellow));
+
 		Set( "SourceControl.Add", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Add",Icon10x10));
 		Set( "SourceControl.Edit", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Edit",Icon10x10));
 		Set( "SourceControl.Delete", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Delete",Icon10x10));
@@ -7338,10 +7333,7 @@ void FStarshipEditorStyle::FStyle::SetupSourceControlStyles()
 		Set( "SourceControl.Integrate", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Integrate",Icon10x10));
 		Set( "SourceControl.Settings.StatusBorder", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f), FLinearColor(0.5f,0.5f,0.5f,1.0f)  ) );
 		Set( "SourceControl.Settings.StatusFont", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT( "Bold", 12 ) ));
-		Set( "SourceControl.StatusIcon.On", new IMAGE_BRUSH( "Icons/SourceControlOn_16x", Icon16x16 ) );
-		Set( "SourceControl.StatusIcon.Error", new IMAGE_BRUSH( "Icons/SourceControlProblem_16x", Icon16x16 ) );
-		Set( "SourceControl.StatusIcon.Off", new IMAGE_BRUSH( "Icons/SourceControlOff_16x", Icon16x16 ) );
-		Set( "SourceControl.StatusIcon.Unknown", new IMAGE_BRUSH( "Icons/SourceControlUnknown_16x", Icon16x16 ) );
+
 		Set( "SourceControl.LoginWindow.Font", DEFAULT_FONT( "Regular", 8 ) );
 		Set( "SourceControl.ProgressWindow.Warning", new IMAGE_BRUSH( "Icons/alert", Icon32x32) );
 
@@ -7889,6 +7881,68 @@ void FStarshipEditorStyle::FStyle::SetupLocalizationDashboardStyles()
 void FStarshipEditorStyle::FStyle::SetupMyBlueprintStyles()
 {
 	Set("MyBlueprint.DeleteEntry", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Delete_40x", Icon16x16));
+}
+
+void FStarshipEditorStyle::FStyle::SetupStatusBarStyle()
+{
+	const FButtonStyle StatusBarButton = FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("NoBorder"))
+		.SetNormalForeground(FStyleColors::Foreground)
+		.SetNormalPadding(FMargin(2, 2, 2, 2))
+		.SetPressedPadding(FMargin(2, 3, 2, 1));
+
+	const FComboButtonStyle StatusBarComboButton = FComboButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+		.SetDownArrowImage(FSlateNoResource())
+		.SetButtonStyle(StatusBarButton);
+		
+	Set("StatusBar.StatusBarButton", StatusBarButton);
+	Set("StatusBar.StatusBarComboButton", StatusBarComboButton);
+
+	Set("StatusBar.ContentBrowserIcon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/tile", Icon16x16));
+	Set("StatusBar.ContentBrowserUp", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-up", Icon16x16));
+	Set("StatusBar.ContentBrowserDown", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16));
+	Set("StatusBar.Height", 32.0f);
+	Set("StatusBar.Background", new FSlateColorBrush(FStyleColors::Background));
+
+	const FButtonStyle SlimToolBarButton = FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("SlimToolBar.Button"));
+
+	Set("StatusBarToolBar.Background", new FSlateNoResource());
+	Set("StatusBarToolBar.Expand", new IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16));
+	Set("StatusBarToolBar.SubMenuIndicator", new IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8));
+	Set("StatusBarToolBar.SToolBarComboButtonBlock.Padding", FMargin(6.0f, 0.0f));
+	Set("StatusBarToolBar.SToolBarButtonBlock.Padding", FMargin(4.0f, 0.0f));
+	Set("StatusBarToolBar.SToolBarButtonBlock.CheckBox.Padding", FMargin(10.0f, 0.0f));
+
+	Set("StatusBarToolBar.Separator", new FSlateColorBrush(FStyleColors::Input));
+	Set("StatusBarToolBar.Separator.Padding", FMargin(8.f, 0));
+
+	Set("StatusBarToolBar.Label", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT("Regular", 10)));
+	Set("StatusBarToolBar.Label.Padding", FMargin(5, 5, 0, 5));
+	Set("StatusBarToolBar.Label.DropShadowSize", FVector2D::ZeroVector);
+
+	Set("StatusBarToolBar.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle).SetFont(DEFAULT_FONT("Regular", 9)));
+
+	//	Style->Set("SlimToolBar.CheckBox", ToolBarCheckBoxStyle);
+
+	const FCheckBoxStyle SlimToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle()
+		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+		.SetUncheckedImage(FSlateNoResource())
+		.SetUncheckedPressedImage(FSlateNoResource())
+		.SetUncheckedHoveredImage(FSlateNoResource())
+		.SetCheckedImage(FSlateNoResource())
+		.SetCheckedHoveredImage(FSlateNoResource())
+		.SetCheckedPressedImage(FSlateNoResource())
+		.SetForegroundColor(FStyleColors::Foreground)
+		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedForegroundColor(FStyleColors::Primary)
+		.SetCheckedPressedForegroundColor(FStyleColors::PrimaryPress)
+		.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover);
+
+	Set("StatusBarToolBar.ToggleButton", SlimToolBarToggleButtonCheckBoxStyle);
+	Set("StatusBarToolBar.Button", SlimToolBarButton);
+
+	Set("StatusBarToolBar.SimpleComboButton", FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("StatusBarToolBar.SimpleComboButton"));
+	Set("StatusBarToolBar.IconSize", Icon16x16);
 }
 
 #undef IMAGE_BRUSH

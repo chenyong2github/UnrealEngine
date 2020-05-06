@@ -52,6 +52,7 @@
 #include "EditorViewportCommands.h"
 #include "IPlacementModeModule.h"
 #include "Classes/EditorStyleSettings.h"
+#include "Subsystems/StatusBarSubsystem.h"
 
 static const FName MainFrameModuleName("MainFrame");
 static const FName LevelEditorModuleName("LevelEditor");
@@ -64,7 +65,8 @@ namespace LevelEditorConstants
 }
 
 SLevelEditor::SLevelEditor()
-	: World(NULL), bNeedsRefresh(false)
+	: World(nullptr)
+	, bNeedsRefresh(false)
 {
 	const bool bAreRealTimeThumbnailsAllowed = false;
 	ThumbnailPool = MakeShareable(new FAssetThumbnailPool(LevelEditorConstants::ThumbnailPoolSize, bAreRealTimeThumbnailsAllowed));
@@ -152,11 +154,15 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	// It's imperative that our delegate is removed in the destructor for the level editor module to play nicely with reloading.
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( LevelEditorModuleName );
-	LevelEditorModule.OnNotificationBarChanged().AddRaw( this, &SLevelEditor::ConstructNotificationBar );
+	LevelEditorModule.OnTitleBarMessagesChanged().AddRaw( this, &SLevelEditor::ConstructTitleBarMessages );
 
 	GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddRaw(this, &SLevelEditor::HandleExperimentalSettingChanged);
 
 	BindCommands();
+
+	// Rebuild the editor mode commands and their tab spawners before we restore the layout,
+	// or there wont be any tab spawners for the modes.
+	RefreshEditorModeCommands();
 
 	RegisterMenus();
 
@@ -193,91 +199,63 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 
 	LevelEditorModule.OnActorSelectionChanged().AddSP(this, &SLevelEditor::OnActorSelectionChanged);
 
-	TSharedRef<SWidget> Widget2 = RestoreContentArea( OwnerTab, OwnerWindow );
-	TSharedRef<SWidget> Widget1 = FLevelEditorMenu::MakeLevelEditorMenu( LevelEditorCommands, SharedThis(this) );
-
+	TSharedRef<SWidget> ContentArea = RestoreContentArea( OwnerTab, OwnerWindow );
+	TSharedRef<SWidget> MenuBar =
+		SNew(SBox)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("MainMenu")))
+		[
+			FLevelEditorMenu::MakeLevelEditorMenu(LevelEditorCommands, SharedThis(this))
+		];
+		
 	ChildSlot
 	[
-		SNew( SVerticalBox )
+		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
+		.Padding(FMargin(0.0f,0.0f,0.0f,2.0f))
 		.AutoHeight()
 		[
-			SNew( SOverlay )
-
-			+SOverlay::Slot()
-			[
-				SNew( SBox )
-				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("MainMenu")))
-				[
-					Widget1
-				]
-			]
-		 
-// For platforms without a global menu bar we can put the perf. tools in the editor window's menu bar
-#if !PLATFORM_MAC
-			+ SOverlay::Slot()
-			.HAlign( HAlign_Right )
-			.VAlign( VAlign_Center )
-			[
-				SAssignNew( NotificationBarBox, SHorizontalBox )
-				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("PerformanceTools")))
-			]
-#endif
+			FLevelEditorToolBar::MakeLevelEditorToolBar(LevelEditorCommands.ToSharedRef(), SharedThis(this))
 		]
-
-#if PLATFORM_MAC
-		// Without the in-window menu bar, we need some space between the tab bar and tab contents
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew( SBox )
-			.HeightOverride( 1.0f )
-		]
-#endif
-
 		+SVerticalBox::Slot()
 		.FillHeight( 1.0f )
 		[
-			Widget2
+			ContentArea
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(TEXT("LevelEditor.StatusBar"))
 		]
 	];
 	
-// For OS X we need to put it into the window's title bar since there's no per-window menu bar
-#if PLATFORM_MAC	
-	OwnerTab->SetRightContent(
-		SAssignNew( NotificationBarBox, SHorizontalBox )
-		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("PerformanceTools")))
-		);
-#endif
+	TtileBarMessageBox = SNew(SHorizontalBox);
 
-	ConstructNotificationBar();
+	ConstructTitleBarMessages();
 
 	OnLayoutHasChanged();
 }
 
-void SLevelEditor::ConstructNotificationBar()
+void SLevelEditor::ConstructTitleBarMessages()
 {
-	NotificationBarBox->ClearChildren();
+	TtileBarMessageBox->ClearChildren();
 
-	// level editor commands
-	NotificationBarBox->AddSlot()
+	TtileBarMessageBox->AddSlot()
 		.AutoWidth()
 		.Padding(5.0f, 0.0f, 0.0f, 0.0f)
 		[
 			FLevelEditorMenu::MakeNotificationBar( LevelEditorCommands, SharedThis(this ) )
 		];
 
-	// developer tools
 	const IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(MainFrameModuleName);
 	const FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >(LevelEditorModuleName);
 	
 	TArray<FMainFrameDeveloperTool> Tools;
-	for (const TTuple<FName, FLevelEditorModule::FStatusBarItem>& Item : LevelEditorModule.GetStatusBarItems())
+	for (const TPair<FName, FLevelEditorModule::FTitleBarItem>& Item : LevelEditorModule.GetTitleBarItems())
 	{
 		Tools.Add({Item.Value.Visibility, Item.Value.Label, Item.Value.Value});
 	}
 
-	NotificationBarBox->AddSlot()
+	TtileBarMessageBox->AddSlot()
 		.AutoWidth()
 		.Padding(5.0f, 0.0f, 0.0f, 0.0f)
 		[
@@ -293,7 +271,7 @@ SLevelEditor::~SLevelEditor()
 	HostedToolkits.Reset();
 	
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( LevelEditorModuleName );
-	LevelEditorModule.OnNotificationBarChanged().RemoveAll( this );
+	LevelEditorModule.OnTitleBarMessagesChanged().RemoveAll( this );
 	
 	if(UObjectInitialized())
 	{
@@ -631,25 +609,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	else if( TabIdentifier == LevelEditorTabIds::LevelEditorViewport_Clone3)
 	{
 		return this->BuildViewportTab( NSLOCTEXT("LevelViewportTypes", "LevelEditorViewport_Clone3", "Viewport 4"), TEXT("Viewport 4"), InitializationPayload );
-	}
-	else if( TabIdentifier == LevelEditorTabIds::LevelEditorToolBar)
-	{
-		return SNew( SDockTab )
-			.Label( NSLOCTEXT("LevelEditor", "ToolBarTabTitle", "Toolbar") )
-			.ShouldAutosize(true)
-			.Icon( FEditorStyle::GetBrush("ToolBar.Icon") )
-			[
-				SNew(SHorizontalBox)
-				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("LevelEditorToolbar")))
-				+SHorizontalBox::Slot()
-				.FillWidth(1)
-				.VAlign(VAlign_Bottom)
-				.HAlign(HAlign_Left)
-				[
-					FLevelEditorToolBar::MakeLevelEditorToolBar( LevelEditorCommands.ToSharedRef(), SharedThis(this) )
-				]
-			];
-
 	}
 	else if (TabIdentifier == FEditorModeTools::EditorModeToolbarTabName)
 	{
@@ -1113,16 +1072,6 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				.SetGroup( MenuStructure.GetLevelEditorViewportsCategory() )
 				.SetIcon(ViewportIcon);
 		}
-
-		{
-			const FSlateIcon ToolbarIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Toolbar");
-			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorToolBar, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorToolBar, FString()))
-				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorToolBar", "Toolbar"))
-				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorToolBarTooltipText", "Open the Toolbar tab, which provides access to the most common / important actions."))
-				.SetGroup( MenuStructure.GetLevelEditorCategory() )
-				.SetIcon( ToolbarIcon );
-		}
-
 		{
 			const FText DetailsTooltip = NSLOCTEXT("LevelEditorTabs", "LevelEditorSelectionDetailsTooltip", "Open a Details tab. Use this to view and edit properties of the selected object(s).");
 			const FSlateIcon DetailsIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details");
@@ -1269,9 +1218,6 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 		LevelEditorModule.OnRegisterTabs().Broadcast(LevelEditorTabManager);
 	}
 
-	// Rebuild the editor mode commands and their tab spawners before we restore the layout,
-	// or there wont be any tab spawners for the modes.
-	RefreshEditorModeCommands();
 
 	// IMPORTANT: If you want to change the default value of "LevelEditor_Layout_v1.1" or "UnrealEd_Layout_v1.4" (even if you only change their version numbers), these are the steps to follow:
 	// 1. Check out Engine\Config\Layouts\DefaultLayout.ini in Perforce.
@@ -1288,7 +1234,7 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	// 10. Push the new "DefaultLayout.ini" together with your new code.
 	// 11. Also update these instructions if you change the version number (e.g., from "UnrealEd_Layout_v1.4" to "UnrealEd_Layout_v1.5").
 	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni,
-		FTabManager::NewLayout( "LevelEditor_Layout_v1.2" )
+		FTabManager::NewLayout( "LevelEditor_Layout_v1.3" )
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -1317,12 +1263,6 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 						FTabManager::NewSplitter()
 						->SetOrientation(Orient_Vertical)
 						->SetSizeCoefficient( 1.15f )
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetHideTabWell(true)
-							->AddTab(LevelEditorTabIds::LevelEditorToolBar, ETabState::OpenedTab)
-						)
 						->Split
 						(
 							FTabManager::NewStack()
@@ -1384,7 +1324,7 @@ void SLevelEditor::HandleExperimentalSettingChanged(FName PropertyName)
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-	LevelEditorTabManager->UpdateMainMenu(true);
+	LevelEditorTabManager->UpdateMainMenu(nullptr, true);
 }
 
 FName SLevelEditor::GetEditorModeTabId( FEditorModeID ModeID )

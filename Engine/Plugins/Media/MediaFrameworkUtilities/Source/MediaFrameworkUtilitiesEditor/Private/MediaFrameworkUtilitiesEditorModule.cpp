@@ -92,11 +92,11 @@ public:
 				FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
 				if (LevelEditorModule != nullptr)
 				{
-					FLevelEditorModule::FStatusBarItem Item;
+					FLevelEditorModule::FTitleBarItem Item;
 					Item.Label = LOCTEXT("MediaProfileLabel", "MediaProfile: ");
 					Item.Value = MakeAttributeLambda([]() { UObject* MediaProfile = UMediaProfileBlueprintLibrary::GetMediaProfile(); return MediaProfile ? FText::FromName(MediaProfile->GetFName()) : FText::GetEmpty(); });
 					Item.Visibility = MakeAttributeLambda([]() { return GetDefault<UMediaProfileEditorSettings>()->bDisplayInMainEditor ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; });
-					LevelEditorModule->AddStatusBarItem(NotificationBarIdentifier, Item);
+					LevelEditorModule->AddTitleBarItem(NotificationBarIdentifier, Item);
 				}
 			}
 		}
@@ -109,7 +109,7 @@ public:
 			FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
 			if (LevelEditorModule != nullptr)
 			{
-				LevelEditorModule->RemoveStatusBarItem(NotificationBarIdentifier);
+				LevelEditorModule->RemoveTitleBarItem(NotificationBarIdentifier);
 			}
 
 			FMediaProfileMenuEntry::Unregister();

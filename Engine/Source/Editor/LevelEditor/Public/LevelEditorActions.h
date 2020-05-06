@@ -606,14 +606,6 @@ public:
 	//TSharedPtr< FUICommandInfo > FoliageMode;
 
 	/**
-	 * Source Control Commands
-	 */
-	TSharedPtr< FUICommandInfo > ConnectToSourceControl;
-	TSharedPtr< FUICommandInfo > ChangeSourceControlSettings;
-	TSharedPtr< FUICommandInfo > CheckOutModifiedFiles;
-	TSharedPtr< FUICommandInfo > SubmitToSourceControl;
-
-	/**
 	 * Misc Commands
 	 */
 	TSharedPtr< FUICommandInfo > ShowSelectedDetails;
