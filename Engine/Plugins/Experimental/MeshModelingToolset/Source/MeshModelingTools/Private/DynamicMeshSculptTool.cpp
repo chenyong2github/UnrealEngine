@@ -1651,8 +1651,16 @@ void UDynamicMeshSculptTool::ConfigureRemesher(FSubRegionRemesher& Remesher)
 	}
 
 
-	Remesher.SmoothType = (SculptProperties->bPreserveUVFlow) ?
-		FRemesher::ESmoothTypes::MeanValue : FRemesher::ESmoothTypes::Uniform;
+	if (SculptProperties->bPreserveUVFlow)
+	{
+		Remesher.SmoothType = FRemesher::ESmoothTypes::MeanValue;
+		Remesher.FlipMetric = FRemesher::EFlipMetric::MinEdgeLength;
+	}
+	else
+	{
+		Remesher.SmoothType = FRemesher::ESmoothTypes::Uniform;
+		Remesher.FlipMetric = FRemesher::EFlipMetric::OptimalValence;
+	}
 	Remesher.bEnableCollapses = RemeshProperties->bCollapses;
 	Remesher.bEnableFlips = RemeshProperties->bFlips;
 	Remesher.bEnableSplits = RemeshProperties->bSplits;
