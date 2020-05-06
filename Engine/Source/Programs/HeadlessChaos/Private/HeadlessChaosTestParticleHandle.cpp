@@ -340,6 +340,23 @@ namespace ChaosTest {
 		}
 	}
 
+	GTEST_TEST(WeakParticleHandle,BasicTest)
+	{
+		FWeakParticleHandle WeakHandle;
+		{
+			TPBDRigidsSOAs<FReal,3> SOAs;
+			SOAs.CreateStaticParticles(1);
+			for(auto& Particle : SOAs.GetAllParticlesView())
+			{
+				WeakHandle = Particle.WeakParticleHandle();
+				EXPECT_EQ(WeakHandle.GetHandleUnsafe(),Particle.Handle());
+			}
+		}
+
+		//weak handle properly updated
+		EXPECT_EQ(WeakHandle.GetHandleUnsafe(),nullptr);
+	}
+
 	template<class T>
 	void ParticleHandleTest()
 	{
