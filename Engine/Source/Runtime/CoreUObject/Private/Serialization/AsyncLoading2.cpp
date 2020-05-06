@@ -94,14 +94,6 @@ FArchive& operator<<(FArchive& Ar, FExportBundleHeader& ExportBundleHeader)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FExportBundleMetaEntry& ExportBundleMetaEntry)
-{
-	Ar << ExportBundleMetaEntry.LoadOrder;
-	Ar << ExportBundleMetaEntry.PayloadSize;
-
-	return Ar;
-}
-
 FArchive& operator<<(FArchive& Ar, FScriptObjectEntry& ScriptObjectEntry)
 {
 	Ar << ScriptObjectEntry.ObjectName.Index << ScriptObjectEntry.ObjectName.Number;
@@ -1796,7 +1788,9 @@ private:
 	FIoBuffer IoBuffer;
 	const uint8* CurrentExportDataPtr = nullptr;
 	const uint8* AllExportDataPtr = nullptr;
+	uint64 ExportBundlesSize = 0;
 	uint32 CookedHeaderSize = 0;
+	uint32 LoadOrder = 0;
 
 	// FZenLinkerLoad
 	TArray<FExternalReadCallback> ExternalReadDependencies;
@@ -1831,6 +1825,7 @@ public:
 	bool bAllExportsSerialized;
 
 	static EAsyncPackageState::Type Event_ProcessExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex);
+	static EAsyncPackageState::Type Event_ProcessPackageSummary(FAsyncPackage2* Package, int32);
 	static EAsyncPackageState::Type Event_ExportsDone(FAsyncPackage2* Package, int32);
 	static EAsyncPackageState::Type Event_PostLoad(FAsyncPackage2* Package, int32);
 	static EAsyncPackageState::Type Event_Delete(FAsyncPackage2* Package, int32);
@@ -2071,12 +2066,10 @@ private:
 	{
 		bool operator<(const FBundleIoRequest& Other) const
 		{
-			return BundeOrder < Other.BundeOrder;
+			return Package->LoadOrder < Other.Package->LoadOrder;
 		}
 
 		FAsyncPackage2* Package;
-		uint32 BundeOrder;
-		uint32 BundleSize;
 	};
 	TArray<FBundleIoRequest> WaitingIoRequests;
 	uint64 PendingBundleIoRequestsTotalSize = 0;
@@ -2347,8 +2340,8 @@ private:
 	EAsyncPackageState::Type ProcessLoadedPackagesFromGameThread(bool& bDidSomething, int32 FlushRequestID = INDEX_NONE);
 
 	bool CreateAsyncPackagesFromQueue();
-	void AddBundleIoRequest(FAsyncPackage2* Package, const FExportBundleMetaEntry& BundleMetaEntry);
-	void BundleIoRequestCompleted(const FExportBundleMetaEntry& BundleMetaEntry);
+	void AddBundleIoRequest(FAsyncPackage2* Package);
+	void BundleIoRequestCompleted(FAsyncPackage2* Package);
 	void StartBundleIoRequests();
 
 	FAsyncPackage2* CreateAsyncPackage(const FAsyncPackageDesc2& Desc)
@@ -2575,16 +2568,16 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue()
 	return bPackagesCreated;
 }
 
-void FAsyncLoadingThread2::AddBundleIoRequest(FAsyncPackage2* Package, const FExportBundleMetaEntry& BundleMetaEntry)
+void FAsyncLoadingThread2::AddBundleIoRequest(FAsyncPackage2* Package)
 {
 	WaitingForIoBundleCounter.Increment();
-	WaitingIoRequests.HeapPush({ Package, BundleMetaEntry.LoadOrder, BundleMetaEntry.PayloadSize });
+	WaitingIoRequests.HeapPush({ Package });
 }
 
-void FAsyncLoadingThread2::BundleIoRequestCompleted(const FExportBundleMetaEntry& BundleMetaEntry)
+void FAsyncLoadingThread2::BundleIoRequestCompleted(FAsyncPackage2* Package)
 {
-	check(PendingBundleIoRequestsTotalSize >= BundleMetaEntry.PayloadSize)
-	PendingBundleIoRequestsTotalSize -= BundleMetaEntry.PayloadSize;
+	check(PendingBundleIoRequestsTotalSize >= Package->ExportBundlesSize)
+	PendingBundleIoRequestsTotalSize -= Package->ExportBundlesSize;
 	if (WaitingIoRequests.Num())
 	{
 		StartBundleIoRequests();
@@ -2595,24 +2588,16 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StartBundleIoRequests);
 	constexpr uint64 MaxPendingRequestsSize = 256 << 20;
-	FAsyncPackage2* PreviousPackage = nullptr;
 	while (WaitingIoRequests.Num())
 	{
 		FBundleIoRequest& BundleIoRequest = WaitingIoRequests.HeapTop();
 		FAsyncPackage2* Package = BundleIoRequest.Package;
-		check(Package);
-		if (PendingBundleIoRequestsTotalSize > 0 && PendingBundleIoRequestsTotalSize + BundleIoRequest.BundleSize > MaxPendingRequestsSize)
+		if (PendingBundleIoRequestsTotalSize > 0 && PendingBundleIoRequestsTotalSize + Package->ExportBundlesSize > MaxPendingRequestsSize)
 		{
 			break;
 		}
-		PendingBundleIoRequestsTotalSize += BundleIoRequest.BundleSize;
+		PendingBundleIoRequestsTotalSize += Package->ExportBundlesSize;
 		WaitingIoRequests.HeapPop(BundleIoRequest, false);
-
-		if (GIsInitialLoad && PreviousPackage)
-		{
-			Package->GetExportBundleNode(ExportBundle_Process, 0)->DependsOn(PreviousPackage->GetExportBundleNode(ExportBundle_Process, 0));
-		}
-		PreviousPackage = Package;
 
 		FIoReadOptions ReadOptions;
 		IoDispatcher.ReadWithCallback(CreateIoChunkId(Package->Desc.PackageIdToLoad.ToIndex(), 0, EIoChunkType::ExportBundleData),
@@ -2628,7 +2613,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 				UE_LOG(LogStreaming, Error, TEXT("Failed reading chunk for package %s [%s]"), *Package->Desc.NameToLoad.ToString(), *Result.Status().ToString());
 				Package->bLoadHasFailed = true;
 			}
-			Package->GetExportBundleNode(EEventLoadNode2::ExportBundle_Process, 0)->ReleaseBarrier();
+			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary)->ReleaseBarrier();
 			Package->AsyncLoadingThread.WaitingForIoBundleCounter.Decrement();
 		});
 		TRACE_COUNTER_DECREMENT(PendingBundleIoRequests);
@@ -3144,9 +3129,46 @@ void FAsyncPackage2::StartLoading()
 
 	LoadStartTime = FPlatformTime::Seconds();
 
-	check(ExportBundleCount > 0);
-	const FExportBundleMetaEntry& BundleMetaEntry = StoreEntry.ExportBundles[0];
-	AsyncLoadingThread.AddBundleIoRequest(this, BundleMetaEntry);
+	AsyncLoadingThread.AddBundleIoRequest(this);
+}
+
+EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPackage2* Package, int32)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ProcessPackageSummary);
+
+	FScopedAsyncPackageEvent2 Scope(Package);
+
+	if (!Package->bLoadHasFailed)
+	{
+		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::WaitingForSummary);
+		check(Package->ExportBundleEntryIndex == 0);
+
+		const uint8* PackageSummaryData = Package->IoBuffer.Data();
+		const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
+		const uint8* GraphData = PackageSummaryData + PackageSummary->GraphDataOffset;
+		const uint64 PackageSummarySize = GraphData + PackageSummary->GraphDataSize - PackageSummaryData;
+
+		Package->CookedHeaderSize = PackageSummary->CookedHeaderSize;
+		Package->NameMap = &Package->AsyncLoadingThread.GlobalPackageStore.GetPackageNameMap(PackageSummary->NameMapIndex);
+		Package->PackageNameMap = reinterpret_cast<const int32*>(PackageSummaryData + PackageSummary->NameMapOffset);
+		Package->ImportStore.ImportMap = reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset);
+		Package->ImportStore.ImportMapCount = (PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(int32);
+		Package->ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
+		Package->ExportBundles = reinterpret_cast<const FExportBundleHeader*>(PackageSummaryData + PackageSummary->ExportBundlesOffset);
+		Package->ExportBundleEntries = reinterpret_cast<const FExportBundleEntry*>(Package->ExportBundles + Package->ExportBundleCount);
+
+		Package->CreateUPackage(PackageSummary);
+		Package->SetupSerializedArcs(GraphData, PackageSummary->GraphDataSize);
+
+		Package->AllExportDataPtr = PackageSummaryData + PackageSummarySize;
+		Package->CurrentExportDataPtr = Package->AllExportDataPtr;
+
+		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, PackageSummarySize, Package->ImportStore.ImportMapCount, Package->ExportCount);
+	}
+	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessNewImportsAndExports;
+	Package->GetExportBundleNode(ExportBundle_Process, 0)->ReleaseBarrier();
+
+	return EAsyncPackageState::Complete;
 }
 
 EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex)
@@ -3183,37 +3205,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 	
 	if (!Package->bLoadHasFailed)
 	{
-		if (Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::WaitingForSummary)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessPackageSummary);
-
-			check(ExportBundleIndex == 0);
-			check(Package->ExportBundleEntryIndex == 0);
-
-			const uint8* PackageSummaryData = Package->IoBuffer.Data();
-			const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
-			const uint8* GraphData = PackageSummaryData + PackageSummary->GraphDataOffset;
-			const uint64 PackageSummarySize = GraphData + PackageSummary->GraphDataSize - PackageSummaryData;
-
-			Package->CookedHeaderSize = PackageSummary->CookedHeaderSize;
-			Package->NameMap = &Package->AsyncLoadingThread.GlobalPackageStore.GetPackageNameMap(PackageSummary->NameMapIndex);
-			Package->PackageNameMap = reinterpret_cast<const int32*>(PackageSummaryData + PackageSummary->NameMapOffset);
-			Package->ImportStore.ImportMap = reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset);
-			Package->ImportStore.ImportMapCount = (PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(int32);
-			Package->ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
-			Package->ExportBundles = reinterpret_cast<const FExportBundleHeader*>(PackageSummaryData + PackageSummary->ExportBundlesOffset);
-			Package->ExportBundleEntries = reinterpret_cast<const FExportBundleEntry*>(Package->ExportBundles + Package->ExportBundleCount);
-
-			Package->CreateUPackage(PackageSummary);
-			Package->SetupSerializedArcs(GraphData, PackageSummary->GraphDataSize);
-
-			Package->AllExportDataPtr = PackageSummaryData + PackageSummarySize;
-			Package->CurrentExportDataPtr = Package->AllExportDataPtr;
-			Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessNewImportsAndExports;
-
-			TRACE_LOADTIME_PACKAGE_SUMMARY(Package, PackageSummarySize, Package->ImportStore.ImportMapCount, Package->ExportCount);
-		}
-
 		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessNewImportsAndExports);
 
 		const uint64 AllExportDataSize = Package->IoBuffer.DataSize() - (Package->AllExportDataPtr - Package->IoBuffer.Data());
@@ -3326,9 +3317,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 
 	if (ExportBundleIndex == 0)
 	{
-		check(Package->ExportBundleCount > 0);
-		const FExportBundleMetaEntry& BundleMetaEntry = Package->StoreEntry.ExportBundles[0];
-		Package->AsyncLoadingThread.BundleIoRequestCompleted(BundleMetaEntry);
+		Package->AsyncLoadingThread.BundleIoRequestCompleted(Package);
 	}
 
 	return EAsyncPackageState::Complete;
@@ -4163,6 +4152,7 @@ FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher)
 	}
 
 	EventSpecs.AddDefaulted(EEventLoadNode2::Package_NumPhases + EEventLoadNode2::ExportBundle_NumPhases);
+	EventSpecs[EEventLoadNode2::Package_ProcessSummary] = { &FAsyncPackage2::Event_ProcessPackageSummary, &AsyncEventQueue, false };
 	EventSpecs[EEventLoadNode2::Package_ExportsSerialized] = { &FAsyncPackage2::Event_ExportsDone, &AsyncEventQueue, true };
 	EventSpecs[EEventLoadNode2::Package_PostLoad] = { &FAsyncPackage2::Event_PostLoad, &AsyncEventQueue, true };
 	EventSpecs[EEventLoadNode2::Package_Delete] = { &FAsyncPackage2::Event_Delete, &AsyncEventQueue, false };
@@ -4693,7 +4683,9 @@ FAsyncPackage2::FAsyncPackage2(
 	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this, InDesc.NameToLoad);
 	AddRequestID(InDesc.RequestID);
 
-	ExportBundleCount = StoreEntry.ExportBundles.Num();
+	ExportBundlesSize = StoreEntry.ExportBundlesSize;
+	ExportBundleCount = StoreEntry.ExportBundleCount;
+	LoadOrder = StoreEntry.LoadOrder;
 	ExportCount = StoreEntry.ExportCount;
 	Exports.AddDefaulted(ExportCount);
 	OwnedObjects.Reserve(ExportCount + 1); // +1 for UPackage
@@ -4713,6 +4705,8 @@ void FAsyncPackage2::CreateNodes(const FAsyncLoadEventSpec* EventSpecs)
 			new (PackageNodes + Phase) FEventLoadNode2(EventSpecs + Phase, this, -1);
 		}
 
+		FEventLoadNode2* ProcessSummaryNode = PackageNodes + EEventLoadNode2::Package_ProcessSummary;
+		ProcessSummaryNode->AddBarrier();
 		FEventLoadNode2* ExportsSerializedNode = PackageNodes + EEventLoadNode2::Package_ExportsSerialized;
 		FEventLoadNode2* StartPostLoadNode = PackageNodes + EEventLoadNode2::Package_PostLoad;
 
