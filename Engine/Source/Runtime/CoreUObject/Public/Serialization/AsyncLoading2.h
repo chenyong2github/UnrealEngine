@@ -212,6 +212,7 @@ public:
  */
 enum EEventLoadNode2 : uint8
 {
+	Package_ProcessSummary,
 	Package_ExportsSerialized,
 	Package_PostLoad,
 	Package_Delete,
@@ -264,17 +265,6 @@ struct FExportBundleEntry
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleEntry& ExportBundleEntry);
 };
 
-/**
- * Export bundle meta entry.
- */
-struct FExportBundleMetaEntry
-{
-	uint32 LoadOrder = ~uint32(0);
-	uint32 PayloadSize = ~uint32(0);
-
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleMetaEntry& ExportBundleMetaEntry);
-};
-
 template<typename T>
 class TPackageStoreEntryCArrayView
 {
@@ -299,12 +289,14 @@ public:
 
 struct FPackageStoreEntry
 {
+	uint64 ExportBundlesSize;
 	FMinimalName Name;
 	FPackageId SourcePackageId;
 	int32 ExportCount;
+	int32 ExportBundleCount;
+	uint32 LoadOrder;
 	TPackageStoreEntryCArrayView<FPackageId> ImportedPackages;
 	TPackageStoreEntryCArrayView<FPackageObjectIndex> PublicExports;
-	TPackageStoreEntryCArrayView<FExportBundleMetaEntry> ExportBundles;
 };
 
 /**
