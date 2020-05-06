@@ -1611,6 +1611,10 @@ void FCurveEditor::PostUndo(bool bSuccess)
 		if (!CurveModel)
 		{
 			Selection.Remove(Set.Key);
+			if (WeakPanel.IsValid())
+			{
+				WeakPanel.Pin()->InvalidateCurve(Set.Key);
+			}
 			continue;
 		}
 		// Get all of the key handles from this curve.
@@ -1627,6 +1631,10 @@ void FCurveEditor::PostUndo(bool bSuccess)
 			if (!KeyHandles.Contains(Handle))
 			{
 				Selection.Remove(Set.Key, ECurvePointType::Key, Handle);
+				if (WeakPanel.IsValid())
+				{
+					WeakPanel.Pin()->InvalidateCurve(Set.Key, Handle);
+				}
 			}
 		}
 	}
