@@ -310,3 +310,42 @@ void FMeshNormals::InitializeOverlayToPerVertexNormals(FDynamicMeshNormalOverlay
 		NormalOverlay->SetTriangle(tid, Tri);
 	}
 }
+
+
+void FMeshNormals::InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, const TArray<int32>& Triangles)
+{
+	const FDynamicMesh3* Mesh = NormalOverlay->GetParentMesh();
+
+	// should we remove existing elements that may become unreferenced?
+
+	TSet<int32> TriangleSet(Triangles);
+	TArray<int32> Vertices;
+	MeshIndexUtil::TriangleToVertexIDs(Mesh, Triangles, Vertices);
+	auto TriangleSetFunc = [&](int32 tid) { return TriangleSet.Contains(tid); };
+	int32 NumVertices = Vertices.Num();
+	TMap<int32, int32> TriangleMap;
+	TriangleMap.Reserve(NumVertices);
+
+	TArray<int32> VertNormals;
+	VertNormals.SetNum(NumVertices);
+	for ( int32 i = 0; i < NumVertices; ++i)
+	{
+		int32 vid = Vertices[i];
+		FVector3d Normal = FMeshNormals::ComputeVertexNormal(*Mesh, vid, TriangleSetFunc);
+		int32 nid = NormalOverlay->AppendElement((FVector3f)Normal);
+		VertNormals[i] = nid;
+
+		TriangleMap.Add(vid, i);
+	}
+
+	for (int32 tid : Triangles)
+	{
+		FIndex3i Tri = Mesh->GetTriangle(tid);
+		Tri.A = VertNormals[ TriangleMap[Tri.A] ];
+		Tri.B = VertNormals[ TriangleMap[Tri.B] ];
+		Tri.C = VertNormals[ TriangleMap[Tri.C] ];
+		NormalOverlay->SetTriangle(tid, Tri);
+	}
+}
+
+
