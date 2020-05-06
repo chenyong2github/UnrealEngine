@@ -123,6 +123,11 @@ struct FNDIStaticMesh_InstanceData
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;
 
+	/** Velocity set by the physics body of the mesh component */
+	FVector PhysicsVelocity;
+	/** True if velocity should not be calculated via the transforms, but rather read the physics data from the mesh component */
+	uint32 bUsePhysicsVelocity : 1;
+
 	/** True if the mesh allows CPU access. Use to reset the instance in the editor*/
 	uint32 bMeshAllowsCpuAccess : 1;
 	/** True if the mesh we're using allows area weighted sampling on CPU. */
@@ -207,6 +212,10 @@ public:
 	/** Array of filters the can be used to limit sampling to certain sections of the mesh. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	FNDIStaticMeshSectionFilter SectionFilter;
+
+	/** If true then the mesh velocity is taken from the mesh component's physics data. Otherwise it will be calculated by diffing the component transforms between ticks, which is more reliable but won't work on the first frame. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Mesh")
+    bool bUsePhysicsBodyVelocity;
 
     /** Changed within the editor on PostEditChangeProperty. Should be changed whenever a refresh is desired.*/
 	uint32 ChangeId;
