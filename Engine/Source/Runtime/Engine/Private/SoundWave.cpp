@@ -387,7 +387,7 @@ void USoundWave::Serialize( FArchive& Ar )
 				{
 					// for now we only support one format per wav
 					FName Format = CookingTarget->GetWaveFormat(this);
-					const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*CookingTarget->IniPlatformName());
+					const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides();
 
 					GetCompressedData(Format, CompressionOverrides); // Get the data from the DDC or build it
 					if (CompressionOverrides)
@@ -551,7 +551,7 @@ bool USoundWave::HasCompressedData(FName Format, ITargetPlatform* TargetPlatform
 	{
 		if (TargetPlatform)
 		{
-			CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
+			CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides();
 		}
 	}
 	else
@@ -870,7 +870,7 @@ void USoundWave::PostLoad()
 		{
 			if (!Platform->IsServerOnly())
 			{
-				BeginGetCompressedData(Platform->GetWaveFormat(this), FPlatformCompressionUtilities::GetCookOverrides(*Platform->IniPlatformName()));
+				BeginGetCompressedData(Platform->GetWaveFormat(this), FPlatformCompressionUtilities::GetCookOverrides());
 			}
 		}
 	}
@@ -1134,7 +1134,7 @@ void USoundWave::InvalidateSoundWaveIfNeccessary()
 
 float USoundWave::GetSampleRateForTargetPlatform(const ITargetPlatform* TargetPlatform)
 {
-	const FPlatformAudioCookOverrides* Overrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
+	const FPlatformAudioCookOverrides* Overrides = FPlatformCompressionUtilities::GetCookOverrides();
 	if (Overrides)
 	{
 		return GetSampleRateForCompressionOverrides(Overrides);
@@ -2036,7 +2036,7 @@ bool USoundWave::IsStreaming(const TCHAR* PlatformName/* = nullptr */) const
 		return false;
 	}
 
-	return IsStreaming(*FPlatformCompressionUtilities::GetCookOverrides(PlatformName));
+	return IsStreaming(*FPlatformCompressionUtilities::GetCookOverrides());
 }
 
 bool USoundWave::IsStreaming(const FPlatformAudioCookOverrides& Overrides) const
