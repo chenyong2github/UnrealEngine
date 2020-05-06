@@ -82,6 +82,10 @@ class AIMODULE_API UBehaviorTreeComponent : public UBrainComponent
 {
 	GENERATED_UCLASS_BODY()
 
+	// UActorComponent overrides
+	virtual void RegisterComponentTickFunctions(bool bRegister) override;
+	virtual void SetComponentTickEnabled(bool bEnabled) override;
+
 	// Begin UBrainComponent overrides
 	virtual void StartLogic() override;
 	virtual void RestartLogic() override;
@@ -99,6 +103,7 @@ public:
 	virtual bool IsRunning() const override;
 	virtual bool IsPaused() const override;
 	virtual void Cleanup() override;
+	virtual void HandleMessage(const FAIMessage& Message) override;
 	// End UBrainComponent overrides
 
 	// Begin UActorComponent overrides
@@ -154,6 +159,9 @@ public:
 	/** BEGIN UActorComponent overrides */
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	/** END UActorComponent overrides */
+
+	/** Schedule when will be the next tick, 0.0f means next frame, FLT_MAX means never */
+	void ScheduleNextTick(float NextDeltaTime);
 
 	/** process execution flow */
 	void ProcessExecutionRequest();
@@ -397,6 +405,16 @@ protected:
 	/** data asset defining the tree */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AI)
 	UBehaviorTree* DefaultBehaviorTreeAsset;
+
+private:
+	/** Used to tell tickmanager that we want interval ticking */
+	bool bTickedOnce = false;
+	/** Predicted next DeltaTime*/
+	float NextTickDeltaTime = 0.0f;
+	/** Accumulated DeltaTime if ticked more than predicted next delta time */
+	float AccumulatedTickDeltaTime = 0.0f;
+	/** GameTime of the last DeltaTime request, used for debugging to output warnings about ticking */
+	float LastRequestedDeltaTimeGameTime = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////
