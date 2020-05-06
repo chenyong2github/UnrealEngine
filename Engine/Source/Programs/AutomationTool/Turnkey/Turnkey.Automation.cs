@@ -56,6 +56,13 @@ namespace Turnkey
 			{
 				TurnkeyUtils.CleanupPaths();
 			}
+
+			if (Environment.ExitCode != 0)
+			{
+				// @todo turnkey - would be nice to return a failure, without an exception in UAT, which looks violent
+				AutomationTool.ExitCode ExitCode = (AutomationTool.ExitCode)Environment.ExitCode;
+				throw new AutomationException(ExitCode, ExitCode.ToString());
+			}
 		}
 	}
 }

@@ -96,18 +96,16 @@ namespace Turnkey
 
 			try
 			{
+				TurnkeyUtils.Log("");
+
 				// run the command!
 				Command.Execute(CommandOptions);
+
+				TurnkeyUtils.Log("");
 			}
 			catch (System.Exception)
 			{
 				throw;
-			}
-			finally
-			{
-// 				// cleanup any paths we need to, now that the command is complete
-// 				TurnkeyUtils.Log("Cleaning up paths....");
-// 				TurnkeyUtils.CleanupPaths();
 			}
 
 			// true if we should keep going

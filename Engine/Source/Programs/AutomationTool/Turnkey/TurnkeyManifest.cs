@@ -108,7 +108,7 @@ namespace Turnkey
 						continue;
 					}
 
-					string ThisManifestDir = Path.GetDirectoryName(Source);
+					string ThisManifestDir = Path.GetDirectoryName(Source).Replace("\\", "/");
 
 					// if a directory is returned, look for the standardized manifest name, as we have not much else we can do with a directory
 					if (LocalManifestPath.EndsWith("/") || LocalManifestPath.EndsWith("\\"))

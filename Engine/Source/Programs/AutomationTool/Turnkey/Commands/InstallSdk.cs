@@ -24,7 +24,6 @@ namespace Turnkey.Commands
 
 		protected override void Execute(string[] CommandOptions)
 		{
-			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
 			string DeviceName = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
 
 			bool bBestAvailable = TurnkeyUtils.ParseParam("BestAvailable", CommandOptions);
@@ -50,39 +49,10 @@ namespace Turnkey.Commands
 				}
 			}
 
-			List<UnrealTargetPlatform> PlatformsLeftToInstall = new List<UnrealTargetPlatform>();
-			// prompt user for a platform
-			if (PlatformString == null)
+			// get the platforms to install either from user or from commandline
+			List<UnrealTargetPlatform> PlatformsLeftToInstall = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, PlatformsWithSdks);
+			if (PlatformsLeftToInstall == null)
 			{
-				List<string> PlatformOptions = PlatformsWithSdks.ConvertAll(x => x.ToString());
-				PlatformOptions.Add("All Possible");
-				int PlatformChoice = TurnkeyUtils.ReadInputInt("Choose a platform:", PlatformOptions, true);
-
-				if (PlatformChoice == 0)
-				{
-					return;
-				}
-				// All platforms means to install every platform with an installer
-				if (PlatformChoice == PlatformOptions.Count - 1)
-				{
-					PlatformsLeftToInstall = PlatformsWithSdks;
-				}
-				else
-				{
-					PlatformsLeftToInstall.Add(PlatformsWithSdks[PlatformChoice - 1]);
-				}
-			}
-			else if (PlatformString == "All")
-			{
-				PlatformsLeftToInstall = PlatformsWithSdks;
-			}
-			else if (UnrealTargetPlatform.IsValidName(PlatformString))
-			{
-				PlatformsLeftToInstall.Add(UnrealTargetPlatform.Parse(PlatformString));
-			}
-			else
-			{
-				TurnkeyUtils.Log("Unknown platform {0}", PlatformString);
 				return;
 			}
 
@@ -145,7 +115,7 @@ namespace Turnkey.Commands
 									BestMiscSdk = Sdk;
 								}
 							}
-							else if (Sdk.Type == SdkInfo.SdkType.Full)
+							else if (Sdk.Type == SdkInfo.SdkType.Full || Sdk.Type == SdkInfo.SdkType.RunOnly || Sdk.Type == SdkInfo.SdkType.BuildOnly)
 							{
 								if (BestNormalSdk == null || string.Compare(Sdk.Version, BestNormalSdk.Version, true) > 0)
 								{
@@ -268,6 +238,7 @@ namespace Turnkey.Commands
 
 					// standard variables
 					TurnkeyUtils.SetVariable("Platform", Platform.ToString());
+					TurnkeyUtils.SetVariable("Version", Sdk.Version);
 
 					Sdk.Install(Platform);
 				}

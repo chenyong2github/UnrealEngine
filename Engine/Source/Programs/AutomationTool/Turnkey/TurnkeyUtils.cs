@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Globalization;
 using Tools.DotNETCommon;
 using AutomationTool;
+using UnrealBuildTool;
 
 namespace Turnkey
 {
@@ -26,14 +27,14 @@ namespace Turnkey
 
 		public static string SetVariable(string Key, string Value)
 		{
-			string Previous = null;
+			string Previous;
 			TurnkeyVariables.TryGetValue(Key, out Previous);
 			TurnkeyVariables[Key] = Value;
 			return Previous;
 		}
 		public static string GetVariableValue(string Key)
 		{
-			string Value = null;
+			string Value;
 			TurnkeyVariables.TryGetValue(Key, out Value);
 			return Value;
 		}
@@ -79,6 +80,59 @@ namespace Turnkey
 			return Value == null ? Default : Value;
 		}
 
+		public static List<UnrealTargetPlatform> GetPlatformsFromCommandLineOrUser(string[] CommandOptions, List<UnrealTargetPlatform> PossiblePlatforms)
+		{
+			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
+
+			List<UnrealTargetPlatform> Platforms = new List<UnrealTargetPlatform>();
+			// prompt user for a platform
+			if (PlatformString == null)
+			{
+				List<string> PlatformOptions = PossiblePlatforms.ConvertAll(x => x.ToString());
+				PlatformOptions.Add("All of the Above");
+				int PlatformChoice = TurnkeyUtils.ReadInputInt("Choose a platform:", PlatformOptions, true);
+
+				if (PlatformChoice == 0)
+				{
+					return null;
+				}
+				// All platforms means to install every platform with an installer
+				if (PlatformChoice == PlatformOptions.Count)
+				{
+					Platforms = PossiblePlatforms;
+				}
+				else
+				{
+					Platforms.Add(PossiblePlatforms[PlatformChoice - 1]);
+				}
+			}
+			else if (PlatformString == "All")
+			{
+				Platforms = PossiblePlatforms;
+			}
+			else
+			{
+				string[] Tokens = PlatformString.Split("+".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+
+				foreach (string Token in Tokens)
+				{
+					UnrealTargetPlatform Platform;
+					if (!UnrealTargetPlatform.TryParse(Token, out Platform))
+					{
+						TurnkeyUtils.Log("Platform {0} is unknown", Token);
+						return null;
+					}
+
+					// if the platform isn't in the possible list, then don't add it
+					if (PossiblePlatforms.Contains(Platform))
+					{
+						Platforms.Add(Platform);
+					}
+				}
+			}
+
+			return Platforms;
+		}
 
 
 		private static IDictionary[] SavedEnvVars = new System.Collections.IDictionary[2];
