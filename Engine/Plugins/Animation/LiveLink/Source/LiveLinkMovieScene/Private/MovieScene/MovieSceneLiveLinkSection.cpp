@@ -17,6 +17,58 @@
 #include "Roles/LiveLinkAnimationTypes.h" //When loading old data
 #include "UObject/UObjectIterator.h"
 
+namespace LiveLinkSectionUtils
+{
+	void SetupDefaultValues(UMovieSceneLiveLinkSubSection* SubSection)
+	{
+		//Go through all possible channels of supported types and setup default value based on the first one
+		for (FLiveLinkPropertyData& Data : SubSection->SubSectionData.Properties)
+		{
+			for (FMovieSceneFloatChannel& Channel : Data.FloatChannel)
+			{
+				if (Channel.GetNumKeys() > 0 && !Channel.GetDefault().IsSet())
+				{
+					Channel.SetDefault(Channel.GetValues()[0].Value);
+				}
+			}
+
+			for (FMovieSceneStringChannel& Channel : Data.StringChannel)
+			{
+				if (Channel.GetNumKeys() > 0 && !Channel.GetDefault().IsSet())
+				{
+					TMovieSceneChannelData<const FString> StringData = Channel.GetData();
+					Channel.SetDefault(StringData.GetValues()[0]);
+				}
+			}
+
+			for (FMovieSceneIntegerChannel& Channel : Data.IntegerChannel)
+			{
+				if (Channel.GetNumKeys() > 0 && !Channel.GetDefault().IsSet())
+				{
+					Channel.SetDefault(Channel.GetValues()[0]);
+				}
+			}
+
+			for (FMovieSceneBoolChannel& Channel : Data.BoolChannel)
+			{
+				if (Channel.GetNumKeys() > 0 && !Channel.GetDefault().IsSet())
+				{
+					Channel.SetDefault(Channel.GetValues()[0]);
+				}
+			}
+
+			for (FMovieSceneByteChannel& Channel : Data.ByteChannel)
+			{
+				if (Channel.GetNumKeys() > 0 && !Channel.GetDefault().IsSet())
+				{
+					Channel.SetDefault(Channel.GetValues()[0]);
+				}
+			}
+		}
+	}
+}
+
+
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UMovieSceneLiveLinkSection::UMovieSceneLiveLinkSection(const FObjectInitializer& ObjectInitializer)
@@ -48,6 +100,7 @@ void UMovieSceneLiveLinkSection::FinalizeSection(bool bInReduceKeys, const FKeyD
 	for (UMovieSceneLiveLinkSubSection* SubSection : SubSections)
 	{
 		SubSection->FinalizeSection(bInReduceKeys, InOptimizationParams);
+		LiveLinkSectionUtils::SetupDefaultValues(SubSection);
 	}
 }
 
@@ -164,6 +217,15 @@ void UMovieSceneLiveLinkSection::PostLoad()
 	}
 
 	UpdateChannelProxy();
+
+	//Fixup default values
+	//Note: Once out of point update, add verification of custom object
+	//To avoid doing it all the time. For now, this fixups previously recorded
+	//LiveLink tracks. New ones will have default values.
+	for (UMovieSceneLiveLinkSubSection* SubSection : SubSections)
+	{
+		LiveLinkSectionUtils::SetupDefaultValues(SubSection);
+	}
 }
 
 #if WITH_EDITOR
