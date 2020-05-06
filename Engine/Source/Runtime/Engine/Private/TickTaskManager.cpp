@@ -802,10 +802,9 @@ public:
 				CumulativeCooldown += TickFunction->InternalData->RelativeTickCooldown;
 
 				TickFunction->TickState = FTickFunction::ETickState::Enabled;
-				TickFunction->InternalData->bWasInterval = true;
 				AllTickFunctions.Add(TickFunction);
 
-				TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, TickFunction->TickInterval - (Context.DeltaSeconds - CumulativeCooldown))); // Give credit for any overrun
+				RescheduleForInterval(TickFunction, TickFunction->TickInterval - (Context.DeltaSeconds - CumulativeCooldown)); // Give credit for any overrun
 
 				AllCoolingDownTickFunctions.Head = TickFunction->InternalData->Next;
 				TickFunction = TickFunction->InternalData->Next;
@@ -826,9 +825,32 @@ public:
 		bool bDeferredRemove;
 	};
 
+	/** Returns true if found in reschedule list and interval was updated */
+	bool UpdateRescheduleInterval(FTickFunction* TickFunction, float InInterval)
+	{
+		auto FindTickFunctionInRescheduleList = [TickFunction](const FTickScheduleDetails& TSD)
+		{
+			return (TSD.TickFunction == TickFunction);
+		};
+		FTickScheduleDetails* TickDetails = TickFunctionsToReschedule.FindByPredicate(FindTickFunctionInRescheduleList);
+		if (TickDetails)
+		{
+			TickDetails->Cooldown = InInterval;
+			return true;
+		}
+		return false;
+	}
+
+	void RescheduleForInterval(FTickFunction* TickFunction, float InInterval)
+	{
+		TickFunction->InternalData->bWasInterval = true;
+		TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, InInterval));
+	}
+
 	void RescheduleForIntervalParallel(FTickFunction* TickFunction)
 	{
 		// note we do the remove later!
+		TickFunction->InternalData->bWasInterval = true;
 		TickFunctionsToReschedule.AddThreadsafe(FTickScheduleDetails(TickFunction, TickFunction->TickInterval, true));
 	}
 	/* Helper to presize reschedule array */
@@ -858,6 +880,7 @@ public:
 				if ((CumulativeCooldown + ComparisonTickFunction->InternalData->RelativeTickCooldown) > CooldownTime)
 				{
 					FTickFunction* TickFunction = TickFunctionsToReschedule[RescheduleIndex].TickFunction;
+					check(TickFunction->InternalData->bWasInterval);
 					if (TickFunction->TickState != FTickFunction::ETickState::Disabled)
 					{
 						if (TickFunctionsToReschedule[RescheduleIndex].bDeferredRemove)
@@ -936,7 +959,7 @@ public:
 			if (TickFunction->TickInterval > 0.f)
 			{
 				It.RemoveCurrent();
-				TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, TickFunction->TickInterval));
+				RescheduleForInterval(TickFunction, TickFunction->TickInterval);
 			}
 		}
 		int32 EnabledCooldownTicks = 0;
@@ -947,7 +970,7 @@ public:
 			{
 				CumulativeCooldown += TickFunction->InternalData->RelativeTickCooldown;
 				TickFunction->QueueTickFunction(TTS, Context);
-				TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, TickFunction->TickInterval - (Context.DeltaSeconds - CumulativeCooldown))); // Give credit for any overrun
+				RescheduleForInterval(TickFunction, TickFunction->TickInterval - (Context.DeltaSeconds - CumulativeCooldown)); // Give credit for any overrun
 				AllCoolingDownTickFunctions.Head = TickFunction->InternalData->Next;
 			}
 			else
@@ -955,8 +978,6 @@ public:
 				break;
 			}
 		}
-
-		ScheduleTickFunctionCooldowns();
 	}
 	/**
 	 * Queues the newly spawned ticks for this level
@@ -976,10 +997,9 @@ public:
 			if (TickFunction->TickInterval > 0.f)
 			{
 				AllEnabledTickFunctions.Remove(TickFunction);
-				TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, TickFunction->TickInterval));
+				RescheduleForInterval(TickFunction, TickFunction->TickInterval);
 			}
 		}
-		ScheduleTickFunctionCooldowns();
 		NewlySpawnedTickFunctions.Empty();
 		return Num;
 	}
@@ -998,10 +1018,9 @@ public:
 			if (TickFunction->TickInterval > 0.f)
 			{
 				AllEnabledTickFunctions.Remove(TickFunction);
-				TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, TickFunction->TickInterval));
+				RescheduleForInterval(TickFunction, TickFunction->TickInterval);
 			}
 		}
-		ScheduleTickFunctionCooldowns();
 		NewlySpawnedTickFunctions.Empty();
 	}
 
@@ -1029,11 +1048,11 @@ public:
 					TickFunction->InternalData->TickQueuedGFrameCounter = GFrameCounter;
 					TickFunction->ExecuteTick(TickFunction->CalculateDeltaTime(InContext), InContext.TickType, ENamedThreads::GameThread, FGraphEventRef());
 
-					TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, TickFunction->TickInterval - (InContext.DeltaSeconds - CumulativeCooldown))); // Give credit for any overrun
+					RescheduleForInterval(TickFunction, TickFunction->TickInterval - (InContext.DeltaSeconds - CumulativeCooldown)); // Give credit for any overrun
 				}
 				else
 				{
-					TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, CumulativeCooldown - InContext.DeltaSeconds));
+					RescheduleForInterval(TickFunction, CumulativeCooldown - InContext.DeltaSeconds);
 				}
 				if (PrevTickFunction)
 				{
@@ -1070,12 +1089,10 @@ public:
 				if (TickFunction->TickInterval > 0.f)
 				{
 					It.RemoveCurrent();
-					TickFunctionsToReschedule.Add(FTickScheduleDetails(TickFunction, TickFunction->TickInterval));
+					RescheduleForInterval(TickFunction, TickFunction->TickInterval);
 				}
 			}
 		}
-
-		ScheduleTickFunctionCooldowns();
 
 		check(!NewlySpawnedTickFunctions.Num()); // We don't support new spawns during pause ticks
 	}
@@ -1083,6 +1100,8 @@ public:
 	/** End a tick frame **/
 	void EndFrame()
 	{
+		ScheduleTickFunctionCooldowns();
+
 		bTickNewlySpawned = false;
 #if DO_CHECK
 		// hmmm, this might be ok, but basically anything that was added this late cannot be ticked until the next frame
@@ -1233,14 +1252,23 @@ public:
 		switch(TickFunction->TickState)
 		{
 		case FTickFunction::ETickState::Enabled:
-			if (TickFunction->TickInterval > 0.f)
+			if (TickFunction->InternalData->bWasInterval)
 			{
 				// An enabled function with a tick interval could be in either the enabled or cooling down list
 				if (AllEnabledTickFunctions.Remove(TickFunction) == 0)
 				{
+					auto FindTickFunctionInRescheduleList = [TickFunction](const FTickScheduleDetails& TSD)
+					{
+						return (TSD.TickFunction == TickFunction);
+					};
+					int32 Index = TickFunctionsToReschedule.IndexOfByPredicate(FindTickFunctionInRescheduleList);
+					bool bFound = Index != INDEX_NONE;
+					if (bFound)
+					{
+						TickFunctionsToReschedule.RemoveAtSwap(Index);
+					}
 					FTickFunction* PrevComparisionFunction = nullptr;
 					FTickFunction* ComparisonFunction = AllCoolingDownTickFunctions.Head;
-					bool bFound = false;
 					while (ComparisonFunction && !bFound)
 					{
 						if (ComparisonFunction == TickFunction)
@@ -1277,14 +1305,16 @@ public:
 			break;
 
 		case FTickFunction::ETickState::CoolingDown:
-			// If a cooling function is in the reschedule list then we must be in a pause frame and it has already been set for
-			// reschedule and removed from the cooldown list so we won't find it there. This is fine as the reschedule will see
-			// the tick function is disabled and not reschedule it.
 			auto FindTickFunctionInRescheduleList = [TickFunction](const FTickScheduleDetails& TSD)
 			{
 				return (TSD.TickFunction == TickFunction);
 			};
-			bool bFound = TickFunctionsToReschedule.ContainsByPredicate(FindTickFunctionInRescheduleList);
+			int32 Index = TickFunctionsToReschedule.IndexOfByPredicate(FindTickFunctionInRescheduleList);
+			bool bFound = Index != INDEX_NONE;
+			if (bFound)
+			{
+				TickFunctionsToReschedule.RemoveAtSwap(Index);
+			}
 			FTickFunction* PrevComparisonFunction = nullptr;
 			FTickFunction* ComparisonFunction = AllCoolingDownTickFunctions.Head;
 			while (ComparisonFunction && !bFound)
@@ -1483,10 +1513,6 @@ public:
 					TickFunction->QueueTickFunctionParallel(Context, StackForCycleDetection);
 				}
 			);
-			for( int32 LevelIndex = 0; LevelIndex < LevelList.Num(); LevelIndex++ )
-			{
-				LevelList[LevelIndex]->ScheduleTickFunctionCooldowns();
-			}
 			AllTickFunctions.Reset();
 		}
 	}
@@ -1840,6 +1866,24 @@ void FTickFunction::SetTickFunctionEnable(bool bInEnabled)
 	}
 }
 
+void FTickFunction::UpdateTickIntervalAndCoolDown(float NewTickInterval)
+{
+	TickInterval = NewTickInterval;
+	if(IsTickFunctionRegistered() && TickState != ETickState::Disabled && InternalData->bWasInterval)
+	{
+		FTickTaskLevel* TickTaskLevel = InternalData->TickTaskLevel;
+		check(TickTaskLevel);
+
+		// Try to update the interval from the reschedule list
+		if (!TickTaskLevel->UpdateRescheduleInterval(this, TickInterval))
+		{
+			// If is was not in the reschedule list means it needs to be removed from the cooldown list and rescheduled.
+			TickTaskLevel->RemoveTickFunction(this);
+			TickTaskLevel->RescheduleForInterval(this, TickInterval);
+		}
+	}
+}
+
 void FTickFunction::AddPrerequisite(UObject* TargetObject, struct FTickFunction& TargetTickFunction)
 {
 	const bool bThisCanTick = (bCanEverTick || IsTickFunctionRegistered());
@@ -2058,7 +2102,6 @@ void FTickFunction::QueueTickFunctionParallel(const struct FTickContext& TickCon
 				}
 			}
 		}
-		InternalData->bWasInterval = false;
 		
 		TSAN_BEFORE(&InternalData->TickQueuedGFrameCounter);
 		FPlatformMisc::MemoryBarrier();
@@ -2086,7 +2129,7 @@ float FTickFunction::CalculateDeltaTime(const FTickContext& TickContext)
 {
 	float DeltaTimeForFunction = TickContext.DeltaSeconds;
 
-	if (TickInterval == 0.f)
+	if (!InternalData->bWasInterval)
 	{
 		// No tick interval. Return the world delta seconds, and make sure to mark that
 		// we're not tracking last-tick-time for this object.

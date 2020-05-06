@@ -309,6 +309,9 @@ public:
 	bool IsTickFunctionEnabled() const { return TickState != ETickState::Disabled; }
 	/** Returns whether it is valid to access this tick function's completion handle */
 	bool IsCompletionHandleValid() const { return (InternalData && InternalData->TaskPointer); }
+	/** Update tick interval in the system and overwrite the current cooldown if any. */
+	void UpdateTickIntervalAndCoolDown(float NewTickInterval);
+
 	/**
 	* Gets the current completion handle of this tick function, so it can be delayed until a later point when some additional
 	* tasks have been completed.  Only valid after TG_PreAsyncWork has started and then only until the TickFunction finishes

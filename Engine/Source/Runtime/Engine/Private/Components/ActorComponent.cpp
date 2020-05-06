@@ -1046,6 +1046,11 @@ void UActorComponent::SetComponentTickInterval(float TickInterval)
 	PrimaryComponentTick.TickInterval = TickInterval;
 }
 
+void UActorComponent::SetComponentTickIntervalAndCooldown(float TickInterval)
+{
+	PrimaryComponentTick.UpdateTickIntervalAndCoolDown(TickInterval);
+}
+
 float UActorComponent::GetComponentTickInterval() const
 {
 	return PrimaryComponentTick.TickInterval;
