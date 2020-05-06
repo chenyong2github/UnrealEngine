@@ -383,6 +383,7 @@ public:
 	{
 		if (bPersistent)
 		{
+			GeometryParticles->ResetWeakParticleHandle(ParticleIdx);
 			GeometryParticles->DestroyParticle(ParticleIdx);
 			if (static_cast<uint32>(ParticleIdx) < GeometryParticles->Size())
 			{
@@ -551,6 +552,11 @@ public:
 	const FPerShapeData* GetImplicitShape(const FImplicitObject* InObject)
 	{
 		return GeometryParticles->GetImplicitShape(ParticleIdx, InObject);
+	}
+
+	FWeakParticleHandle& WeakParticleHandle()
+	{
+		return GeometryParticles->WeakParticleHandle(ParticleIdx);
 	}
 
 protected:

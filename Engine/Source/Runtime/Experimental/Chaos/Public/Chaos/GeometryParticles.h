@@ -247,6 +247,44 @@ namespace Chaos
 		GeometryCollection
 	};
 
+	//Holds the data for getting back at the real handle if it's still valid
+	//Systems should not use this unless clean-up of direct handle is slow, this uses thread safe shared ptr which is not cheap
+	class FWeakParticleHandle
+	{
+	public:
+
+		FWeakParticleHandle() = default;
+		FWeakParticleHandle(TGeometryParticleHandle<FReal,3>* InHandle) : SharedData(MakeShared<FData, ESPMode::ThreadSafe>(FData{InHandle})){}
+
+		//Assumes the weak particle handle has been initialized so SharedData must exist
+		TGeometryParticleHandle<FReal,3>* GetHandleUnsafe() const
+		{
+			check(SharedData);
+			return SharedData->Handle;
+		}
+
+		TGeometryParticleHandle<FReal,3>* GetHandle() const { return SharedData ? SharedData->Handle : nullptr; }
+		void ResetHandle()
+		{
+			if(SharedData)
+			{
+				SharedData->Handle = nullptr;
+			}
+		}
+
+		bool IsInitialized()
+		{
+			return SharedData != nullptr;
+		}
+
+	private:
+
+		struct FData
+		{
+			TGeometryParticleHandle<FReal,3>* Handle;
+		};
+		TSharedPtr<FData,ESPMode::ThreadSafe> SharedData;
+	};
 	
 	template<class T, int d, EGeometryParticlesSimType SimType>
 	class TGeometryParticlesImp : public TParticles<T, d>
@@ -276,6 +314,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSpatialIdx);
 			TArrayCollection::AddArray(&MUserData);
 			TArrayCollection::AddArray(&MSyncState);
+			TArrayCollection::AddArray(&MWeakParticleHandle);
 #if CHAOS_CHECKED
 			TArrayCollection::AddArray(&MDebugName);
 #endif
@@ -305,6 +344,7 @@ namespace Chaos
 			, MSpatialIdx(MoveTemp(Other.MSpatialIdx))
 			, MUserData(MoveTemp(Other.MUserData))
 			, MSyncState(MoveTemp(Other.MSyncState))
+			, MWeakParticleHandle(MoveTemp(Other.MWeakParticleHandle))
 #if CHAOS_DETERMINISTIC
 			, MParticleIDs(MoveTemp(Other.MParticleIDs))
 #endif
@@ -323,6 +363,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSpatialIdx);
 			TArrayCollection::AddArray(&MUserData);
 			TArrayCollection::AddArray(&MSyncState);
+			TArrayCollection::AddArray(&MWeakParticleHandle);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -356,6 +397,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSpatialIdx);
 			TArrayCollection::AddArray(&MUserData);
 			TArrayCollection::AddArray(&MSyncState);
+			TArrayCollection::AddArray(&MWeakParticleHandle);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
@@ -498,6 +540,29 @@ namespace Chaos
 		CHAOS_API TGeometryParticle<T, d>* GTGeometryParticle(const int32 Index) const { return MGeometryParticle[Index]; }
 		CHAOS_API TGeometryParticle<T, d>*& GTGeometryParticle(const int32 Index) { return MGeometryParticle[Index]; }
 
+		CHAOS_API FWeakParticleHandle& WeakParticleHandle(const int32 Index)
+		{
+			FWeakParticleHandle& WeakHandle = MWeakParticleHandle[Index];
+			if(WeakHandle.IsInitialized())
+			{
+				return WeakHandle;
+			}
+
+			WeakHandle = FWeakParticleHandle(Handle(Index));
+			return WeakHandle;
+		}
+private:
+		friend THandleType;
+		CHAOS_API void ResetWeakParticleHandle(const int32 Index)
+		{
+			FWeakParticleHandle& WeakHandle = MWeakParticleHandle[Index];
+			if(WeakHandle.IsInitialized())
+			{
+				return WeakHandle.ResetHandle();
+			}
+		}
+public:
+
 		FString ToString(int32 index) const
 		{
 			FString BaseString = TParticles<T, d>::ToString(index);
@@ -612,6 +677,7 @@ namespace Chaos
 		TArrayCollectionArray<FSpatialAccelerationIdx> MSpatialIdx;
 		TArrayCollectionArray<void*> MUserData;
 		TArrayCollectionArray<FSyncState> MSyncState;
+		TArrayCollectionArray<FWeakParticleHandle> MWeakParticleHandle;
 
 		void UpdateShapesArray(const int32 Index)
 		{
