@@ -1609,6 +1609,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		double CurrentTime = FPlatformTime::Seconds();
 		if (CurrentTime - LastTimeLogsFlushed > static_cast<double>(ServerFlushLogInterval))
 		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(LogFlush);
 			GLog->Flush();
 
 			LastTimeLogsFlushed = FPlatformTime::Seconds();
