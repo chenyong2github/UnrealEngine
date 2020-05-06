@@ -560,6 +560,12 @@ float3x3 GetFacingMatrix(in float3 ParticlePosition, in float4 ParticleVelocity)
 			// Transform the local-space axis to world space
 			LockedAxis = RotateLocalToWorld(LockedAxis);
 		}
+		
+		if (abs(dot(FacingDir, LockedAxis)) > 0.99f)
+		{
+			// The facing dir and locked axis are too similar, choose a reference direction for the facing dir
+			FacingDir = abs(LockedAxis.z) > 0.99f ? float3(1, 0, 0) : float3(0, 0, 1);
+		}
 
 		ZAxis = LockedAxis;
 		YAxis = normalize(cross(ZAxis, FacingDir));
