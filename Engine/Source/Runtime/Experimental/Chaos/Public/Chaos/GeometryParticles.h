@@ -259,7 +259,7 @@ namespace Chaos
 		//Assumes the weak particle handle has been initialized so SharedData must exist
 		TGeometryParticleHandle<FReal,3>* GetHandleUnsafe() const
 		{
-			check(SharedData);
+			UE_ASSUME(SharedData);
 			return SharedData->Handle;
 		}
 
