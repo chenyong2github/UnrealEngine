@@ -109,20 +109,20 @@ void APlayerCameraManager::SwapPendingViewTargetWhenUsingClientSideCameraUpdates
 void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTargetTransitionParams TransitionParams)
 {
 	// Make sure view target is valid
-	if( NewTarget == NULL )
+	if (NewTarget == NULL)
 	{
 		NewTarget = PCOwner;
 	}
 
 	// Update current ViewTargets
 	ViewTarget.CheckViewTarget(PCOwner);
-	if( PendingViewTarget.Target )
+	if (PendingViewTarget.Target)
 	{
 		PendingViewTarget.CheckViewTarget(PCOwner);
 	}
 
 	// If we're already transitioning to this new target, don't interrupt.
-	if( PendingViewTarget.Target != NULL && NewTarget == PendingViewTarget.Target )
+	if (PendingViewTarget.Target != NULL && NewTarget == PendingViewTarget.Target)
 	{
 		return;
 	}
@@ -133,10 +133,10 @@ void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTa
 	}
 
 	// if viewtarget different then new one or we're transitioning from the same target with locked outgoing, then assign it
-	if((NewTarget != ViewTarget.Target) || (PendingViewTarget.Target && BlendParams.bLockOutgoing))
+	if ((NewTarget != ViewTarget.Target) || (PendingViewTarget.Target && BlendParams.bLockOutgoing))
 	{
 		// if a transition time is specified, then set pending view target accordingly
-		if( TransitionParams.BlendTime > 0 )
+		if (TransitionParams.BlendTime > 0)
 		{
 			// band-aid fix so that EndViewTarget() gets called properly in this case
 			if (PendingViewTarget.Target == NULL)
@@ -148,7 +148,7 @@ void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTa
 			ViewTarget.POV = GetLastFrameCameraCachePOV();
 			BlendParams = TransitionParams;
 			BlendTimeToGo = TransitionParams.BlendTime;
-			
+
 			AssignViewTarget(NewTarget, PendingViewTarget, TransitionParams);
 			PendingViewTarget.CheckViewTarget(PCOwner);
 
@@ -189,7 +189,13 @@ void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTa
 
 void APlayerCameraManager::AssignViewTarget(AActor* NewTarget, FTViewTarget& VT, struct FViewTargetTransitionParams TransitionParams)
 {
-	if( !NewTarget || (NewTarget == VT.Target) )
+	if (!NewTarget)
+	{
+		return;
+	}
+
+	// Skip assigning to the same target unless we have a pending view target that's bLockOutgoing
+	if (NewTarget == VT.Target && !(PendingViewTarget.Target && BlendParams.bLockOutgoing))
 	{
 		return;
 	}
