@@ -31,6 +31,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_MovingGeomChange)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(0),FVec3(1)));
 		auto Box2 = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(2),FVec3(3)));
@@ -115,6 +116,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_AddForce)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -159,6 +161,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_IntermittentForce)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -222,6 +225,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_IntermittentGeomChange)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(0),FVec3(1)));
 		auto Box2 = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(2),FVec3(3)));
@@ -296,6 +300,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_FallingObjectWithTeleport)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -352,6 +357,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_ApplyRewind)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -423,6 +429,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_Remove)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -474,6 +481,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_BufferLimit)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -538,6 +546,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_NumDirty)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -598,6 +607,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_Resim)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -720,6 +730,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_ResimDesyncAfterMissingTeleport)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -795,6 +806,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_ResimDesyncAfterChangingMass)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -863,6 +875,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, DISABLED_RewindTest_DesyncFromPT)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		//We want to detect when sim results change
 		//Detecting output of position and velocity is expensive and hard to track
 		//Instead we need to rely on fast forward mechanism, this is still in progress
@@ -929,6 +942,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_DeltaTimeRecord)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -975,6 +989,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_ResimDesyncFromChangeForce)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -1048,6 +1063,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits,RewindTest_ResimAsSlave)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<FReal,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-100,-100,-100),FVec3(100,100,0)));
 
@@ -1115,6 +1131,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits,RewindTest_FullResimFallSeeCollisionCorrection)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<FReal,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-100,-100,-100),FVec3(100,100,0)));
 
@@ -1180,6 +1197,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits,RewindTest_ResimAsSlaveFallIgnoreCollision)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<FReal,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-100,-100,-100),FVec3(100,100,0)));
 
@@ -1247,6 +1265,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits,RewindTest_ResimAsSlaveWithForces)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -1310,6 +1329,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits,RewindTest_ResimAsSlaveWokenUp)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -1380,6 +1400,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits,RewindTest_ResimAsSlaveWokenUpNoHistory)
 	{
+		if(TypeParam::IsRewindable() == false){ return; }
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
