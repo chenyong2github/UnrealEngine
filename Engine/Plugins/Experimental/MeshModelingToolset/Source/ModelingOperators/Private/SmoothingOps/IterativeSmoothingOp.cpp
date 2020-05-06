@@ -106,13 +106,19 @@ void FIterativeSmoothingOp::Smooth_Forward(bool bUniform)
 			}
 			else
 			{
-				FVector3d Uniform = FMeshWeights::UniformCentroid(*ResultMesh, vid, [&](int32 nbrvid) { return PositionBuffer[nbrvid]; });
-				FVector3d MeanCurvNorm = UE::MeshCurvature::MeanCurvatureNormal(*ResultMesh, vid, [&](int32 nbrvid) { return PositionBuffer[nbrvid]; });
-				Centroid = PositionBuffer[vid] - 0.5*MeanCurvNorm;
-				if (Centroid.DistanceSquared(PositionBuffer[vid]) > Uniform.DistanceSquared(PositionBuffer[vid]))
-				{
-					Centroid = Uniform;
-				}
+				Centroid = FMeshWeights::CotanCentroidSafe(*ResultMesh, vid, [&](int32 nbrvid) { return PositionBuffer[nbrvid]; }, 1.0);
+
+				// This code does not work because the mean curvature increases as things get smaller. Need to normalize it,
+				// however that *also* doesn't really work because there is a maximum step size based on edge length, and as edges
+				// collapse to nearly zero length, progress stops. Need to refine while smoothing.
+
+				//FVector3d Uniform = FMeshWeights::UniformCentroid(*ResultMesh, vid, [&](int32 nbrvid) { return PositionBuffer[nbrvid]; });
+				//FVector3d MeanCurvNorm = UE::MeshCurvature::MeanCurvatureNormal(*ResultMesh, vid, [&](int32 nbrvid) { return PositionBuffer[nbrvid]; });
+				//Centroid = PositionBuffer[vid] - 0.5*MeanCurvNorm;
+				//if (Centroid.DistanceSquared(PositionBuffer[vid]) > Uniform.DistanceSquared(PositionBuffer[vid]))
+				//{
+				//	Centroid = Uniform;
+				//}
 			}
 
 			SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, SmoothOptions.SmoothAlpha);
@@ -125,17 +131,9 @@ void FIterativeSmoothingOp::Smooth_Forward(bool bUniform)
 			ParallelFor(BoundaryVerts.Num(), [=](int32 idx)
 			{
 				int32 vid = BoundaryVerts[idx];
-				FVector3d Centroid(0, 0, 0);
-				int32 NumNbrs = 0;
-				for (int32 nbrvid : ResultMesh->VtxVerticesItr(vid))
-				{
-					if (bIsBoundary[nbrvid])
-					{
-						Centroid += PositionBuffer[nbrvid];
-						NumNbrs++;
-					}
-				}
-				Centroid = (NumNbrs > 0) ? (Centroid / (double)NumNbrs) : PositionBuffer[vid];
+				FVector3d Centroid = FMeshWeights::FilteredUniformCentroid(*ResultMesh, vid,
+					[&](int32 nbrvid) { return PositionBuffer[nbrvid]; },
+					[&](int32 nbrvid) { return bIsBoundary[nbrvid]; });
 				SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, ClampedBoundaryAlpha);
 			});
 		}
