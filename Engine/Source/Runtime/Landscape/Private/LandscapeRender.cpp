@@ -1645,6 +1645,10 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 				const int8 SubSectionIdx = SubX + SubY * NumSubsections;
 
 				FRayTracingGeometryInitializer Initializer;
+				static const FName DebugName("FLandscapeComponentSceneProxy");
+				static int32 DebugNumber = 0;
+				Initializer.DebugName = FName(DebugName, DebugNumber++);
+
 				FRHIResourceCreateInfo CreateInfo;
 				Initializer.IndexBuffer = nullptr;
 				Initializer.GeometryType = RTGT_Triangles;

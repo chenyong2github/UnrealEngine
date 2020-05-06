@@ -166,6 +166,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 					if (Section != nullptr)
 					{
 						FRayTracingGeometryInitializer Initializer;
+						Initializer.DebugName = Component->GetFName();
 						const int PositionBufferIndex = Section->CurrentPositionBufferIndex != -1 ? Section->CurrentPositionBufferIndex % 2 : 0;
 						Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
 						Initializer.TotalPrimitiveCount = 0;

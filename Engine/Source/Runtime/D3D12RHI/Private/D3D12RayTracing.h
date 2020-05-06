@@ -66,6 +66,8 @@ public:
 
 	// Hit shader parameters per geometry segment
 	TArray<FHitGroupSystemParameters> HitGroupSystemParameters[MAX_NUM_GPUS];
+
+	FName DebugName;
 };
 
 class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterChild
@@ -117,6 +119,8 @@ public:
 
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 	uint64 CreatedFrameFenceValue = 0;
+
+	FName DebugName;
 };
 
 #endif // D3D12_RHI_RAYTRACING
