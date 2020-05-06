@@ -164,4 +164,8 @@ private:
 #if PLATFORM_IOS
 	void IOS_PlatformSpecificGameLogicFrameTick();
 #endif //PLATFORM_IOS
+
+#if PLATFORM_XBOXONE
+	void XboxOne_PlatformSpecificGameLogicFrameTick();
+#endif //PLATFORM_XBOXONE
 };
