@@ -10,6 +10,9 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "SourceControlWindows.h"
+#include "Framework/Commands/Commands.h"
+#include "Widgets/Input/SComboButton.h"
+#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 

@@ -7,6 +7,7 @@
 
 #include "StatusBarSubsystem.generated.h"
 
+class SWidget;
 class SStatusBar;
 
 UCLASS()
