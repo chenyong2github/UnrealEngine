@@ -988,6 +988,9 @@ public:
 	/** Recreate all components rendering and collision states */
 	LANDSCAPE_API void RecreateComponentsState();
 
+	/** Recreate all component rendering states after applying a given function to each*/
+	LANDSCAPE_API void RecreateComponentsRenderState(TFunctionRef<void(ULandscapeComponent*)> Fn);
+
 	/** Recreate all collision components based on render component */
 	LANDSCAPE_API void RecreateCollisionComponents();
 
