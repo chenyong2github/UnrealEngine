@@ -23,6 +23,7 @@ UAnimNotify_PlayNiagaraEffect::UAnimNotify_PlayNiagaraEffect()
 {
 	Attached = true;
 	Scale = FVector(1.f);
+	bAbsoluteScale = false;
 
 #if WITH_EDITORONLY_DATA
 	NotifyColor = FColor(192, 255, 99, 255);
@@ -119,6 +120,7 @@ UFXSystemComponent* UAnimNotify_PlayNiagaraEffect::SpawnEffect(USkeletalMeshComp
 
 		if (ReturnComp != nullptr)
 		{
+			ReturnComp->SetUsingAbsoluteScale(bAbsoluteScale);
 			ReturnComp->SetRelativeScale3D_Direct(Scale);
 		}
 	}
