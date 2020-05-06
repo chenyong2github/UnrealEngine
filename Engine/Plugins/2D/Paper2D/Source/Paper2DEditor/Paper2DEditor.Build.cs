@@ -13,7 +13,6 @@ public class Paper2DEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"ApplicationCore",
-				"Json",
 				"Slate",
 				"SlateCore",
 				"Engine",
@@ -34,6 +33,11 @@ public class Paper2DEditor : ModuleRules
 				"ToolMenus",
                 "IntroTutorials"
             });
+
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"Json",
+			});
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
