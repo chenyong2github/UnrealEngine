@@ -1598,6 +1598,11 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 
 void FCurveEditor::PostUndo(bool bSuccess)
 {
+	if (WeakPanel.IsValid())
+	{
+		WeakPanel.Pin()->PostUndo();
+	}
+
 	// If you create keys and then undo them the selection set still thinks there's keys selected.
 	// This presents issues with context menus and other things that are activated when there is a selection set.
 	// To fix this, we have to loop through all of our curve models, and re-select only the key handles that were
@@ -1611,10 +1616,6 @@ void FCurveEditor::PostUndo(bool bSuccess)
 		if (!CurveModel)
 		{
 			Selection.Remove(Set.Key);
-			if (WeakPanel.IsValid())
-			{
-				WeakPanel.Pin()->InvalidateCurve(Set.Key);
-			}
 			continue;
 		}
 		// Get all of the key handles from this curve.
@@ -1631,10 +1632,6 @@ void FCurveEditor::PostUndo(bool bSuccess)
 			if (!KeyHandles.Contains(Handle))
 			{
 				Selection.Remove(Set.Key, ECurvePointType::Key, Handle);
-				if (WeakPanel.IsValid())
-				{
-					WeakPanel.Pin()->InvalidateCurve(Set.Key, Handle);
-				}
 			}
 		}
 	}
