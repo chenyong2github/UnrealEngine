@@ -2,7 +2,7 @@
 
 #include "GenericErrorReport.h"
 #include "HAL/PlatformProcess.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "UObject/NameTypes.h"
 #include "Logging/LogMacros.h"
 #include "Misc/EngineBuildSettings.h"

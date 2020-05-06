@@ -2,7 +2,7 @@
 
 #include "Sound/SampleBufferIO.h"
 #include "AudioMixer.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "AssetRegistryModule.h"
 #include "Sound/SoundWave.h"

@@ -9,7 +9,7 @@
 #include "PhononCommon.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
 #include "Engine/World.h"

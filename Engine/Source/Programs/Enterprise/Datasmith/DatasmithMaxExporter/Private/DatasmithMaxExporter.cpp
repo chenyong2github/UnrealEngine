@@ -4,7 +4,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"

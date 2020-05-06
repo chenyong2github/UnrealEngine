@@ -8,7 +8,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/PackageName.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Modules/ModuleManager.h"
 
 #include "ISourceControlState.h"

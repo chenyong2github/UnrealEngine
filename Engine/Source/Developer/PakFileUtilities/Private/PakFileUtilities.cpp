@@ -17,7 +17,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Async/ParallelFor.h"
 #include "Async/AsyncWork.h"
 #include "Modules/ModuleManager.h"

@@ -10,7 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/FileHelper.h"
 #include "Misc/AssertionMacros.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "RenderUtils.h"

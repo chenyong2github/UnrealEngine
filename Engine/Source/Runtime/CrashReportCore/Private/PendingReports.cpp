@@ -2,7 +2,7 @@
 
 #include "PendingReports.h"
 #include "CrashReportCoreModule.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Logging/LogMacros.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"

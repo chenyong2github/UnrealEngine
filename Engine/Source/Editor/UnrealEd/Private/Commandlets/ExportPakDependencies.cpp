@@ -10,7 +10,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "HAL/FileManager.h"
 #include "IPlatformFilePak.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/App.h"

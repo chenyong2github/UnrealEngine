@@ -8,7 +8,7 @@
 #include "ProfilingDebugging/ScopedDebugInfo.h"
 #include "Serialization/MemoryWriter.h"
 #include "Misc/App.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/Paths.h"

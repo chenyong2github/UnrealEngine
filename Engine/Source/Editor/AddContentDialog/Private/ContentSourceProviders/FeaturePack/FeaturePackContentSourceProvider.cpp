@@ -2,7 +2,7 @@
 
 #include "ContentSourceProviders/FeaturePack/FeaturePackContentSourceProvider.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Modules/ModuleManager.h"
 

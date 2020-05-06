@@ -8,7 +8,7 @@
 #include "UObject/UnrealType.h"
 #include "HAL/PlatformStackWalk.h"
 #include "Serialization/AsyncLoading.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/OutputDeviceHelper.h"

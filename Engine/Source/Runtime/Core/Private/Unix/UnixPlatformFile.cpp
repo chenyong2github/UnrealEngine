@@ -10,7 +10,7 @@
 #include <sys/file.h>
 
 #include "HAL/PlatformFileCommon.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnixPlatformFile, Log, All);
 

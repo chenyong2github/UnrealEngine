@@ -11,7 +11,7 @@
 #include "GameProjectGenerationModule.h"
 #include "GameProjectUtils.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HardwareTargetingModule.h"
 #include "IDocumentation.h"
 #include "Interfaces/IPluginManager.h"

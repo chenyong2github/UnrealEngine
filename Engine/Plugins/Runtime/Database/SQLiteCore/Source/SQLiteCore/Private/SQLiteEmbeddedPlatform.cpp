@@ -6,7 +6,7 @@
 #include "Misc/Paths.h"
 #include "Math/RandomStream.h"
 #include "HAL/PlatformProcess.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformFile.h"
 #include "Templates/Atomic.h"
 

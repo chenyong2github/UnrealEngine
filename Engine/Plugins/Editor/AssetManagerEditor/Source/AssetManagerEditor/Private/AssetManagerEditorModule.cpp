@@ -43,7 +43,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "IPlatformFileSandboxWrapper.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Serialization/ArrayReader.h"
 #include "EdGraphUtilities.h"
 #include "EdGraphSchema_K2.h"

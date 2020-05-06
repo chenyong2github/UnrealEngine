@@ -7,7 +7,7 @@
 
 #include "BuildPatchInstaller.h"
 #include "IBuildManifestSet.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/Paths.h"

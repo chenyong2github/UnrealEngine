@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SoundControlBusMix.h"

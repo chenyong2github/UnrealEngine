@@ -3,7 +3,7 @@
 #include "Serialization/BulkData2.h"
 
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"

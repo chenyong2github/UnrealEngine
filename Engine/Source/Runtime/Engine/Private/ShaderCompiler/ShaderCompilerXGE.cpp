@@ -2,7 +2,7 @@
 
 #include "ShaderCompiler.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
 

@@ -17,7 +17,7 @@
 #include "Editor.h"
 #include "FileHelpers.h"
 #include "Misc/FeedbackContext.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "GameFramework/WorldSettings.h"
 
 void UImportAssetsCommandlet::PrintUsage()

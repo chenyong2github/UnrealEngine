@@ -3,7 +3,7 @@
 #include "ReferenceViewer/EdGraphNode_Reference.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "EdGraph/EdGraphPin.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 #define LOCTEXT_NAMESPACE "ReferenceViewer"
 

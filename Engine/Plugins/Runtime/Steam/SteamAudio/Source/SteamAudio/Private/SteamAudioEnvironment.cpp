@@ -20,7 +20,7 @@
 #include "PhononScene.h"
 #include "SteamAudioSettings.h"
 #include "PhononProbeVolume.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"

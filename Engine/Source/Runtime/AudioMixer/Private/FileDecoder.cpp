@@ -3,7 +3,7 @@
 #include "FileDecoder.h"
 #include "OpusAudioInfo.h"
 #include "VorbisAudioInfo.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 FAudioFileReader::FAudioFileReader(const FString& InPath)
 {

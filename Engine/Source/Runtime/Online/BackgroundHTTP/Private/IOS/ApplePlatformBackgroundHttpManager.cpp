@@ -5,7 +5,7 @@
 #include "IOS/ApplePlatformBackgroundHttpRequest.h"
 #include "IOS/ApplePlatformBackgroundHttpResponse.h"
 
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformAtomics.h"
 
 #include "Misc/ConfigCacheIni.h"

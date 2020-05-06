@@ -22,7 +22,7 @@
 #include "Factories/TextureFactory.h"
 
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 #include "Logging/LogMacros.h"
 

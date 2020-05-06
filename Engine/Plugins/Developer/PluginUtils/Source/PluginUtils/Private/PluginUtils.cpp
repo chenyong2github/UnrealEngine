@@ -13,7 +13,7 @@
 #include "AssetToolsModule.h"
 #include "DesktopPlatformModule.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"

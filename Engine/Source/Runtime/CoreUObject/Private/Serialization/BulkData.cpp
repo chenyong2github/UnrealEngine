@@ -18,7 +18,7 @@
 #include "UObject/DebugSerializationFlags.h"
 #include "Serialization/AsyncLoadingPrivate.h"
 #include "Async/MappedFileHandle.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "UObject/UObjectThreadContext.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 

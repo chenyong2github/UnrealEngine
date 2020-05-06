@@ -17,7 +17,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "ExternalTexture.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "IPlatformFilePak.h"
 
 #include "Android/AndroidJavaMediaPlayer.h"

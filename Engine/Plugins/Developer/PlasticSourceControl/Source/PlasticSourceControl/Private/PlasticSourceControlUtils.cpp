@@ -5,7 +5,7 @@
 #include "PlasticSourceControlModule.h"
 #include "PlasticSourceControlSettings.h"
 #include "PlasticSourceControlState.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"

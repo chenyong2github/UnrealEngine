@@ -5,7 +5,7 @@
 #include "Factories/Factory.h"
 #include "Animation/AnimSequence.h"
 #include "Components/LightComponent.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/App.h"

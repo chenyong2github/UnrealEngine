@@ -4,7 +4,7 @@
 	GenericPlatformFile.cpp: Generic implementations of platform file I/O functions
 =============================================================================*/
 
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/AssertionMacros.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Modules/ModuleManager.h"

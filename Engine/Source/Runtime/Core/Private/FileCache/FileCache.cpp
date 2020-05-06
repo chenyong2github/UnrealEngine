@@ -11,7 +11,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/IConsoleManager.h"
 
 DECLARE_STATS_GROUP(TEXT("Streaming File Cache"), STATGROUP_SFC, STATCAT_Advanced);

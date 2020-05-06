@@ -11,7 +11,7 @@
 #include "DetailCategoryBuilder.h"
 #include "AssetViewerSettings.h"
 
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
 #include "ScopedTransaction.h"

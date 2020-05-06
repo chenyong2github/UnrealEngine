@@ -5,7 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"

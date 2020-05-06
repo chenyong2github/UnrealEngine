@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SModuleUI.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FeedbackContext.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Modules/ModuleManager.h"

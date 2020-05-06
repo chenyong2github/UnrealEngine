@@ -34,7 +34,7 @@
 #include "AssetRegistryModule.h"
 #include "Misc/FeedbackContext.h"
 #include "EdGraphSchema_Niagara.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "EdGraph/EdGraphPin.h"
 #include "NiagaraNodeWriteDataSet.h"

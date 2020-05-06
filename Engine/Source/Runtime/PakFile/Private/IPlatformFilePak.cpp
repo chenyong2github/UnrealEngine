@@ -25,7 +25,7 @@
 #include "Misc/Base64.h"
 #include "HAL/DiskUtilizationTracker.h"
 #include "Stats/StatsMisc.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/ThreadHeartBeat.h"
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "Misc/ConfigCacheIni.h"

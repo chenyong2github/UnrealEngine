@@ -30,7 +30,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/Runnable.h"
 #include "DesktopPlatformModule.h"
 #include "Misc/ConfigCacheIni.h"

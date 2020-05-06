@@ -9,7 +9,7 @@
 
 #include "Containers/LockFreeList.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/Guid.h"
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"

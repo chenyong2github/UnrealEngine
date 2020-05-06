@@ -7,7 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Misc/DateTime.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Templates/UniquePtr.h"
 

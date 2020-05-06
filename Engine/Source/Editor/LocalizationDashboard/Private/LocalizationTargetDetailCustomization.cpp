@@ -2,7 +2,7 @@
 
 #include "LocalizationTargetDetailCustomization.h"
 #include "LocalizationTargetTypes.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
 #include "Internationalization/Culture.h"
 #include "Misc/ConfigCacheIni.h"

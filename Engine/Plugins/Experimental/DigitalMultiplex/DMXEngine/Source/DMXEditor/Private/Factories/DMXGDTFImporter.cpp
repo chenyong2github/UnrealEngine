@@ -10,7 +10,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManagerGeneric.h"
 #include "Misc/FileHelper.h"
 #include "PackageTools.h"

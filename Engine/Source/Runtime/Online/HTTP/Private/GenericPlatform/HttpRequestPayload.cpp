@@ -3,7 +3,7 @@
 #include "GenericPlatform/HttpRequestPayload.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 bool FGenericPlatformHttp::IsURLEncoded(const TArray<uint8>& Payload)
 {

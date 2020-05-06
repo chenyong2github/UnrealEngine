@@ -3,7 +3,7 @@
 #include "FileCache.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/RunnableThread.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "HAL/Runnable.h"
 #include "Misc/ScopeLock.h"

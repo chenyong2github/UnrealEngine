@@ -9,7 +9,7 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 
 namespace LocalizationConfigSCC

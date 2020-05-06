@@ -6,7 +6,7 @@
 
 #include "ShaderCompiler.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "HAL/ExceptionHandling.h"

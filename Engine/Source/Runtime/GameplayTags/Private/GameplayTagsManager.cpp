@@ -2,7 +2,7 @@
 
 #include "GameplayTagsManager.h"
 #include "Engine/Engine.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"

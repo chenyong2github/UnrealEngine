@@ -4,7 +4,7 @@
 	AVIWriter.cpp: AVI creation implementation.
 =============================================================================*/
 #include "AVIWriter.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
 #include "Async/Async.h"

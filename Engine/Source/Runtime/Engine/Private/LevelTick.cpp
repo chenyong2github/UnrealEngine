@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/CoreMisc.h"
 #include "Stats/Stats.h"
 #include "Misc/TimeGuard.h"

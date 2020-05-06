@@ -5,7 +5,7 @@
 #include "ISettingsCategory.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SButton.h"

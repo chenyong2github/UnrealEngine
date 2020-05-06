@@ -3,7 +3,7 @@
 #include "MovieSceneCapture.h"
 #include "Dom/JsonValue.h"
 #include "Dom/JsonObject.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"

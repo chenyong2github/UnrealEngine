@@ -2,7 +2,7 @@
 
 #include "LauncherChunkInstaller.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "IPlatformFilePak.h"
 #include "Misc/CommandLine.h"
 #include "Modules/ModuleManager.h"

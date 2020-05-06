@@ -9,7 +9,7 @@
 #include "Misc/MessageDialog.h"
 #include "UnrealEdMisc.h"
 #include "Misc/ConfigCacheIni.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 /** The editor object. */
 extern UNREALED_API class UEditorEngine* GEditor;

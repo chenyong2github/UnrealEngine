@@ -21,7 +21,7 @@
 
 #include "FbxImporter.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "LevelSequence.h"
 #include "MeshAttributes.h"
 #include "Misc/Paths.h"

@@ -2,7 +2,7 @@
 
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "Misc/AssertionMacros.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeRWLock.h"
 #include "Math/UnrealMathUtility.h"
@@ -1451,19 +1451,14 @@ FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& Rel
 {
 	FString Path = RootDir() / RelativePath;
 	FString Result;
-	if (FFileHelper::LoadFileToString(Result, &IPlatformFile::GetPlatformPhysical(), *Path))
-	{
-		return Result;
-	}
-
-	Result.Empty();
+	FFileHelper::LoadFileToString(Result, *Path);
 	return Result;
 }
 
 bool FGenericPlatformMisc::FileExistsInPlatformPackage(const FString& RelativePath)
 {
 	FString Path = RootDir() / RelativePath;
-	return IPlatformFile::GetPlatformPhysical().FileExists(*Path);
+	return IFileManager::Get().FileExists(*Path);
 }
 
 void FGenericPlatformMisc::TearDown()

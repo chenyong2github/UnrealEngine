@@ -121,7 +121,7 @@
 
 #include "Editor.h"
 #include "Factories/Factory.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Modules/ModuleManager.h"
 #include "Containers/ArrayView.h"

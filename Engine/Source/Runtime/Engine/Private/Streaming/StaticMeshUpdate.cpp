@@ -8,7 +8,7 @@ StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
 #include "RenderUtils.h"
 #include "Containers/ResourceArray.h"
 #include "Streaming/TextureStreamingHelpers.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Serialization/MemoryReader.h"
 #include "Streaming/RenderAssetUpdate.inl"
 

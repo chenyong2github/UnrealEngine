@@ -5,7 +5,7 @@
 #include "Misc/ScopeLock.h"
 #include "Async/Async.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManagerGeneric.h"
 #include "Serialization/ArchiveProxy.h"
 #include "Serialization/CustomVersion.h"

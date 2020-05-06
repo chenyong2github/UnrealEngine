@@ -50,7 +50,7 @@
 #include "Modules/ModuleManager.h"
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "NiagaraMessageLogViewModel.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"

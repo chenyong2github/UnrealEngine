@@ -11,7 +11,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"

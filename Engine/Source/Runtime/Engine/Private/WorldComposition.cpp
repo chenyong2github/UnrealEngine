@@ -5,7 +5,7 @@
 =============================================================================*/
 #include "Engine/WorldComposition.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"

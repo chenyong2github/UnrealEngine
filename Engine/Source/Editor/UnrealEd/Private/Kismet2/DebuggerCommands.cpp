@@ -63,7 +63,7 @@
 #include "IAndroidDeviceDetectionModule.h"
 #include "IAndroidDeviceDetection.h"
 #include "CookerSettings.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "SourceControlHelpers.h"
 #include "ISourceControlModule.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -610,28 +610,35 @@ void FPlayWorldCommands::AddPIEPreviewDeviceActions(const FPlayWorldCommands &Co
 
 void FPlayWorldCommands::BuildToolbar(FToolMenuSection& InSection, bool bIncludeLaunchButtonAndOptions)
 {
+	FToolMenuEntry PlayMenuEntry =
+		FToolMenuEntry::InitToolBarButton(
+			FPlayWorldCommands::Get().RepeatLastPlay,
+			LOCTEXT("RepeatLastPlay", "Play"),
+			TAttribute< FText >::Create(TAttribute< FText >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayToolTip)),
+			TAttribute< FSlateIcon >::Create(TAttribute< FSlateIcon >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayIcon)),
+			FName(TEXT("LevelToolbarPlay")));
+
+	PlayMenuEntry.StyleNameOverride = FName("PlayToolbar");
+
 	// Play
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
-		FPlayWorldCommands::Get().RepeatLastPlay,
-		LOCTEXT("RepeatLastPlay", "Play"),
-		TAttribute< FText >::Create( TAttribute< FText >::FGetter::CreateStatic( &FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayToolTip ) ),
-		TAttribute< FSlateIcon >::Create(TAttribute< FSlateIcon >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayIcon)),
-		FName(TEXT("LevelToolbarPlay"))
-	));
+	InSection.AddEntry(PlayMenuEntry);
 
 	// Play combo box
 	FUIAction SpecialPIEOptionsMenuAction;
 	SpecialPIEOptionsMenuAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions);
 
-	InSection.AddEntry(FToolMenuEntry::InitComboButton(
+
+	FToolMenuEntry PlayMenuCombo = FToolMenuEntry::InitComboButton(
 		"PlayCombo",
 		SpecialPIEOptionsMenuAction,
 		FOnGetContent::CreateStatic(&GeneratePlayMenuContent, GlobalPlayWorldActions.ToSharedRef()),
 		LOCTEXT("PlayCombo_Label", "Active Play Mode"),
 		LOCTEXT("PIEComboToolTip", "Change Play Mode and Play Settings"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.RepeatLastPlay"),
-		true
-	));
+		true);
+
+	PlayMenuCombo.StyleNameOverride = FName("PlayToolbar");
+	InSection.AddEntry(PlayMenuCombo);
 
 	if (bIncludeLaunchButtonAndOptions)
 	{

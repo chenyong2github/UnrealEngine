@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "IOSCustomIconProjectBuildMutatorFeature.h"
 #include "CoreMinimal.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "PlatformInfo.h"
 #include "Interfaces/ITargetPlatform.h"

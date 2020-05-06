@@ -4,7 +4,7 @@
 #include "IO/IoDispatcherFileBackend.h"
 #include "Async/AsyncFileHandle.h"
 #include "HAL/Event.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/IConsoleManager.h"

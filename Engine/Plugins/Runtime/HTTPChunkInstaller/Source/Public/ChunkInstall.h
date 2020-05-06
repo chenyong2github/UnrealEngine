@@ -10,7 +10,7 @@
 #include "HAL/Event.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/CoreDelegates.h"
 #include "HAL/FileManager.h"
 #include "Stats/Stats.h"

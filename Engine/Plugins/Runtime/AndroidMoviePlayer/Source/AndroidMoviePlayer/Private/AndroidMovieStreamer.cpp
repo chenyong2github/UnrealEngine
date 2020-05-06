@@ -16,7 +16,7 @@
 #include "Misc/Paths.h"
 
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "IPlatformFilePak.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAndroidMediaPlayerStreamer, Log, All);

@@ -15,7 +15,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/PackageName.h"
 
 #define LOCTEXT_NAMESPACE "SFacialAnimationBulkImporter"

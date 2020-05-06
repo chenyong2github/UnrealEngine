@@ -16,7 +16,7 @@
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryReader.h"
 #include "AssetRegistryState.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "IPlatformFilePak.h"
 #include "Stats/StatsMisc.h"
 #include "Internationalization/PackageLocalizationManager.h"

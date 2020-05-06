@@ -2,7 +2,7 @@
 
 #include "IoStoreUtilities.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Hash/CityHash.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"

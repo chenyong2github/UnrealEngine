@@ -2,7 +2,7 @@
 
 #include "GeometryCacheStreamingManager.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"
 #include "GeometryCacheComponent.h"

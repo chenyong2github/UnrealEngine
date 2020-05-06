@@ -3,7 +3,7 @@
 #include "Fonts/FontCacheFreeType.h"
 #include "SlateGlobals.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/IConsoleManager.h"
 

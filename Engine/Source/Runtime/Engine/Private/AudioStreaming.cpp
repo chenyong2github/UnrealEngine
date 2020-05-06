@@ -11,7 +11,7 @@ AudioStreaming.cpp: Implementation of audio streaming classes.
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Async/AsyncFileHandle.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"

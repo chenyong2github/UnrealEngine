@@ -8,7 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/Blueprint.h"
 #include "Exporters/Exporter.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"

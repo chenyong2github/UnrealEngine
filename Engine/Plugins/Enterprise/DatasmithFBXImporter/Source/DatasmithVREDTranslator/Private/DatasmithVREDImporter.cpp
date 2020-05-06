@@ -24,7 +24,7 @@
 #include "Curves/CurveFloat.h"
 #include "FbxImporter.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "LevelSequence.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"

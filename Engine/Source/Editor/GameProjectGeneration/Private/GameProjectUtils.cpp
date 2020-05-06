@@ -6,7 +6,7 @@
 #include "UObject/Class.h"
 #include "FeaturePackContentSource.h"
 #include "TemplateProjectDefs.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"

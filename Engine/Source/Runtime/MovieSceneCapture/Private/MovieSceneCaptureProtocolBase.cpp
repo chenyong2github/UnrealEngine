@@ -5,7 +5,7 @@
 #include "HAL/FileManager.h"
 #include "Slate/SceneViewport.h"
 #include "Misc/Paths.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "UnrealEngine.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneCaptureProtocol"

@@ -3,7 +3,7 @@
 #include "Mac/MacErrorReport.h"
 #include "../CrashReportUtil.h"
 #include "Misc/FileHelper.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Modules/ModuleManager.h"
 #include "CrashReportCoreConfig.h"
 

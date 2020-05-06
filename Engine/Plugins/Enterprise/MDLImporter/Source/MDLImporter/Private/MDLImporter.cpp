@@ -15,7 +15,7 @@
 #include "mdl/Utility.h"
 
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Logging/LogMacros.h"
 #include "Materials/Material.h"
 #include "Misc/Paths.h"

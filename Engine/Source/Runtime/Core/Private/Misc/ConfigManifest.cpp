@@ -4,7 +4,7 @@
 #include "Misc/EngineVersionBase.h"
 #include "Containers/UnrealString.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Containers/StringConv.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"

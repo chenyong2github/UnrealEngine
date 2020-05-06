@@ -4,7 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Async/AsyncWork.h"

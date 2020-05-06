@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
@@ -580,12 +580,8 @@ public:
 				// Don't create the file system if shared data cache directory is not mounted
 				bool bShared = FCString::Stricmp(NodeName, TEXT("Shared")) == 0;
 				
-				// parameters we read here from the ini file
 				FString WriteAccessLog;
-				bool bPromptIfMissing = false;
-
-				FParse::Value( Entry, TEXT("WriteAccessLog="), WriteAccessLog );		
-				FParse::Bool(Entry, TEXT("PromptIfMissing="), bPromptIfMissing);
+				FParse::Value( Entry, TEXT("WriteAccessLog="), WriteAccessLog );				
 
 				if (!bShared || IFileManager::Get().DirectoryExists(*Path))
 				{
@@ -607,7 +603,7 @@ public:
 					UE_LOG(LogDerivedDataCache, Warning, TEXT("%s"), *Message);
 
 					// Give the user a chance to retry incase they need to connect a network drive or something.
-					if (bPromptIfMissing && !FApp::IsUnattended() && !IS_PROGRAM)
+					if (!FApp::IsUnattended() && !IS_PROGRAM)
 					{
 						Message += FString::Printf(TEXT("\n\nRetry connection to %s?"), *Path);
 						EAppReturnType::Type MessageReturn = FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *Message, TEXT("Could not access DDC"));

@@ -10,7 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "TestPALLog.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
 
 struct FChangeDetector

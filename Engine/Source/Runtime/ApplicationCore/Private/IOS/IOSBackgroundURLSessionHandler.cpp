@@ -5,7 +5,7 @@
 #include "Misc/CoreDelegates.h"
 
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 
 #include "IOS/IOSAppDelegate.h"
 

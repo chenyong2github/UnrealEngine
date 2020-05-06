@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformAffinity.h"
 #include "Misc/LocalTimestampDirectoryVisitor.h"
 

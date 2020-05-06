@@ -21,7 +21,7 @@
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/SSettingsSectionHeader.h"
 #include "SSettingsEditorCheckoutNotice.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformFile.h"
 
 #define LOCTEXT_NAMESPACE "SSettingsEditor"

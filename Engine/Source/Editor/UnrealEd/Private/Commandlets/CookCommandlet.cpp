@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "Commandlets/CookCommandlet.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"

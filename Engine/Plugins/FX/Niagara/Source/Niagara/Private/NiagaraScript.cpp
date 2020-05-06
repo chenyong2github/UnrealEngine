@@ -16,7 +16,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
 #include "UObject/Linker.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"

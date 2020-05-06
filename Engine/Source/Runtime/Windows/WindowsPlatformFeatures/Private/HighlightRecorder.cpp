@@ -12,7 +12,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 
 #include "HAL/PlatformTime.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/Thread.h"
 #include "UnrealEngine.h"
 #include "VideoRecordingSystem.h"

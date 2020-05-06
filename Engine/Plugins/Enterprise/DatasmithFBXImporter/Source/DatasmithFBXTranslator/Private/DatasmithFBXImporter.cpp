@@ -19,7 +19,7 @@
 #include "Engine/StaticMesh.h"
 #include "FbxImporter.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Materials/MaterialInterface.h"
 #include "MeshDescription.h"
 #include "Misc/FileHelper.h"

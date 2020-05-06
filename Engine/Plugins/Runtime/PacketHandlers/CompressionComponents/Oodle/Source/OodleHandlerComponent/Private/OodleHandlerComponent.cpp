@@ -3,7 +3,7 @@
 #include "OodleHandlerComponent.h"
 #include "Misc/CoreMisc.h"
 #include "Modules/ModuleManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"

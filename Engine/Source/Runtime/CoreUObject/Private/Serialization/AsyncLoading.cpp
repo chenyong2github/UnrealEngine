@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "Serialization/AsyncLoading.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "HAL/Event.h"
 #include "HAL/RunnableThread.h"

@@ -41,7 +41,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AssetRegistryModule.h"
 #include "EditorModeManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
 

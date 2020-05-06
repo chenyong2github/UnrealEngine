@@ -3,7 +3,7 @@
 #include "SPropertyEditorLevelPackage.h"
 #include "Misc/TextFilter.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Widgets/Views/SListView.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SSearchBox.h"

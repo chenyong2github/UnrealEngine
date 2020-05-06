@@ -10,7 +10,7 @@
 #include "Async/Async.h"
 #include "Async/Future.h"
 #include "Async/ParallelFor.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/StringBuilder.h"
 
 //////////////////////////////////////////////////////////////////////////

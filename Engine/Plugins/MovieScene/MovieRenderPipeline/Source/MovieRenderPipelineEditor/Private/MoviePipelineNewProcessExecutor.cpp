@@ -13,7 +13,7 @@
 #include "MovieRenderPipelineSettings.h"
 #include "PackageHelperFunctions.h"
 #include "UnrealEdMisc.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 

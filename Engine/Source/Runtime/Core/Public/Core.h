@@ -57,7 +57,7 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "GenericPlatform/GenericPlatformAffinity.h"
 #include "HAL/PlatformAffinity.h"
 #include "HAL/PlatformIncludes.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/UnrealMemory.h"
 #include "Templates/PointerIsConvertibleFromTo.h"

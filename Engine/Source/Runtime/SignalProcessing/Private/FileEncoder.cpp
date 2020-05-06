@@ -4,7 +4,7 @@
 #include "DSP/Encoders/OggVorbisEncoder.h"
 #include "DSP/Encoders/OpusEncoder.h"
 #include "DSP/Encoders/WavEncoder.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformFile.h"
 
 namespace Audio

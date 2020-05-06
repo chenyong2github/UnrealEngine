@@ -10,7 +10,7 @@
 #include "MaterialUtilities.h"
 
 #include "Dom/JsonObject.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/Base64.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"

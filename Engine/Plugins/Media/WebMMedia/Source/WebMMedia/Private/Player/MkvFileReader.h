@@ -5,7 +5,7 @@
 #if WITH_WEBM_LIBS
 
 #include "CoreMinimal.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
 THIRD_PARTY_INCLUDES_START

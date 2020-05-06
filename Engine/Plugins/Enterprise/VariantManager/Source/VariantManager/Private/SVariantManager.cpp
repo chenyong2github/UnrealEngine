@@ -46,7 +46,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "GameFramework/Actor.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "IContentBrowserSingleton.h"
 #include "ImageUtils.h"
 #include "LevelEditor.h"

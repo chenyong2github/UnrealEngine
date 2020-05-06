@@ -14,7 +14,7 @@
 #include "Engine/StaticMesh.h"
 #include "StaticMeshResources.h"
 #include "SteamAudioSettings.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
 #include "Async/Async.h"

@@ -16,7 +16,7 @@ PipelineFileCache.cpp: Pipeline state cache implementation.
 #include "Misc/ScopeRWLock.h"
 #include "Misc/Paths.h"
 #include "Async/AsyncFileHandle.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "String/LexFromString.h"

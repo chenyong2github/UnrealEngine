@@ -26,7 +26,7 @@
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
 #include "HAL/PlatformFile.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Stats/StatsMisc.h"
 #include "GameplayTagReferenceHelperDetails.h"
 #include "UObject/UObjectHash.h"

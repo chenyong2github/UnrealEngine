@@ -2,7 +2,7 @@
 
 #include "IFCReader.h"
 
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Base64.h"
 #include "Misc/FileHelper.h"

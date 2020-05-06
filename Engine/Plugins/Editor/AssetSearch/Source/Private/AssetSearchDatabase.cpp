@@ -14,7 +14,7 @@
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
 #include "Engine/World.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/StringBuilder.h"
 
 DECLARE_LOG_CATEGORY_CLASS(LogAssetSearch, Log, All);
