@@ -287,13 +287,6 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 		}
 #endif
 
-		AudioDeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddLambda([this](const Audio::FDeviceId InDeviceId)
-		{
-			if (InDeviceId == AudioDevice.GetDeviceID())
-			{
-				AudioDevice.Reset();
-			}
-		});
 	}
 }
 
@@ -351,7 +344,6 @@ void UGameViewportClient::PostInitProperties()
 
 void UGameViewportClient::BeginDestroy()
 {
-	AudioDeviceDestroyedHandle.Reset();
 	AudioDevice.Reset();
 
 	RemoveAllViewportWidgets();
