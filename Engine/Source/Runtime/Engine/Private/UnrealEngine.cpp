@@ -1113,7 +1113,7 @@ void FWorldContext::SetCurrentWorld(UWorld* World)
 		{
 			// Set the world's audio device handle so that audio components playing in the 
 			// world will use the correct audio device instance.
-			FAudioDeviceManager::Get()->SetAudioDevice(*World, AudioDeviceID);
+			DeviceManager->SetAudioDevice(*World, AudioDeviceID);
 		}
 	}
 
