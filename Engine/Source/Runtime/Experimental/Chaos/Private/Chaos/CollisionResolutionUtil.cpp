@@ -66,11 +66,11 @@ namespace Chaos
 				ImpulseRatioDenom1 = ImpulseSize / PBDRigid1->M() + FVec3::DotProduct(Jr1, IInvJr1);
 			}
 			FReal Numerator = -2 * (ImpulseRatioNumerator0 - ImpulseRatioNumerator1);
-			if (Numerator < 0)
+			if (Numerator <= 0)
 			{
 				return FVec3(0);
 			}
-			check(Numerator >= 0);
+			check(Numerator > 0);
 			FReal Denominator = ImpulseRatioDenom0 + ImpulseRatioDenom1;
 			return Numerator < Denominator ? (Impulse * Numerator / Denominator) : Impulse;
 		}
