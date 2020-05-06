@@ -2640,8 +2640,8 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 
 		{
 			check(ClassAddReferencedObjects != NULL);
-			const bool bKeepOuter = GetFName() != NAME_Package;
-			const bool bKeepClass = !HasAnyInternalFlags(EInternalObjectFlags::Native) || IsA(UDynamicClass::StaticClass());
+			const bool bKeepOuter = true;//GetFName() != NAME_Package;
+			const bool bKeepClass = true;//!HasAnyInternalFlags(EInternalObjectFlags::Native) || IsA(UDynamicClass::StaticClass());
 
 			ClassAddReferencedObjectsType AddReferencedObjectsFn = nullptr;
 #if !WITH_EDITOR
