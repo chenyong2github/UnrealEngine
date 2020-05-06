@@ -13,7 +13,7 @@ static FAutoConsoleVariableRef ParticleSystemPoolKillUnusedTime(
 	TEXT("How long a pooled particle component needs to be unused for before it is destroyed.")
 );
 
-static int32 GbEnableParticleSystemPooling = 1;
+static int32 GbEnableParticleSystemPooling = 0;
 static FAutoConsoleVariableRef bEnableParticleSystemPooling(
 	TEXT("FX.NiagaraComponentPool.Enable"),
 	GbEnableParticleSystemPooling,
