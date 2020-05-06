@@ -8,6 +8,7 @@
 
 #include "Common.ush"
 #include "BCCompressionCommon.ush"
+#include "ETCCompressionCommon.ush"
 
 uint4 DestRect;
 Texture2D<float4> RenderTexture0;
@@ -21,6 +22,10 @@ RWTexture2D<uint4> OutCompressTexture0_u4;
 RWTexture2D<uint4> OutCompressTexture1;
 RWTexture2D<uint2> OutCompressTexture2_u2;
 RWTexture2D<uint4> OutCompressTexture2_u4;
+
+#ifndef ETC_PROFILE
+#define ETC_PROFILE 0
+#endif
 
 /** Trivial vertex shader for copy shaders. */
 void CopyVS(in uint VertexId : SV_VertexID, out float4 OutPosition : SV_POSITION, out float2 OutTexCoord : TEXCOORD0)
@@ -173,8 +178,12 @@ void CompressBaseColorCS(
 
 	float3 BlockBaseColor[16];
 	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, TexelUVSize, BlockBaseColor);
-
+#if ETC_PROFILE
+	OutCompressTexture0_u2[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_SRGB(BlockBaseColor);
+#else
 	OutCompressTexture0_u2[ThreadId.xy + DestRect.xy] = CompressBC1Block_SRGB(BlockBaseColor);
+#endif
+
 }
 
 /** Simple copy of base color used for thumbnails. */
@@ -214,9 +223,14 @@ void CompressBaseColorNormalSpecularCS(
 	{
 		BlockSpecular[i].z = round(BlockSpecular[i].z);
 	}
-
+#if ETC_PROFILE
+	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGBA(BlockBaseColor, BlockNormalX);
+	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGBA(BlockSpecular, BlockNormalY);
+#else
 	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockNormalX);
 	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockNormalY);
+#endif
+
 }
 
 /** Copy path used when we disable texture compression, because we need to keep the same final channel layout. */
@@ -264,9 +278,15 @@ void CompressBaseColorNormalSpecularYCoCgCS(
 		BlockSpecular[i].z = round(BlockSpecular[i].z);
 	}
 
+#if ETC_PROFILE
+	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_YCoCg(BlockBaseColor);
+	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RG(BlockNormalX, BlockNormalY);
+	OutCompressTexture2_u2[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGB(BlockSpecular);
+#else
 	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3BlockYCoCg(BlockBaseColor);
 	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
 	OutCompressTexture2_u2[ThreadId.xy + DestRect.xy] = CompressBC1Block(BlockSpecular);
+#endif
 }
 
 /** Copy path used when we disable texture compression, because we need to keep the same final channel layout. */
@@ -317,9 +337,15 @@ void CompressBaseColorNormalSpecularMaskYCoCgCS(
 		BlockSpecular[i].z = round(BlockSpecular[i].z);
 	}
 
+#if ETC_PROFILE
+	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_YCoCg(BlockBaseColor);
+	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RG(BlockNormalX, BlockNormalY);
+	OutCompressTexture2_u4[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGBA(BlockSpecular, BlockMask);
+#else
 	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3BlockYCoCg(BlockBaseColor);
 	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
 	OutCompressTexture2_u4[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockMask);
+#endif
 }
 
 /** Copy path used when we disable texture compression, because we need to keep the same final channel layout. */
