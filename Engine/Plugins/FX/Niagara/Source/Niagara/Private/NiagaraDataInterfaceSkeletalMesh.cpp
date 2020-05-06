@@ -1510,9 +1510,13 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	CachedAttachParent = Component->GetAttachParent();
 
 #if WITH_EDITOR
-	if (MeshSafe.IsValid())
+	if (Mesh != nullptr)
 	{
-		MeshSafe->GetOnMeshChanged().AddUObject(SystemInstance->GetComponent(), &UNiagaraComponent::ReinitializeSystem);
+		Mesh->GetOnMeshChanged().AddUObject(SystemInstance->GetComponent(), &UNiagaraComponent::ReinitializeSystem);
+		if (USkeleton* Skeleton = Mesh->Skeleton)
+		{
+			Skeleton->RegisterOnSkeletonHierarchyChanged(USkeleton::FOnSkeletonHierarchyChanged::CreateUObject(SystemInstance->GetComponent(), &UNiagaraComponent::ReinitializeSystem));
+		}
 	}
 #endif
 
@@ -2099,9 +2103,13 @@ void UNiagaraDataInterfaceSkeletalMesh::DestroyPerInstanceData(void* PerInstance
 	FNDISkeletalMesh_InstanceData* Inst = (FNDISkeletalMesh_InstanceData*)PerInstanceData;
 
 #if WITH_EDITOR
-	if(Inst->MeshSafe.IsValid())
+	if(USkeletalMesh* SkeletalMesh = Inst->MeshSafe.Get())
 	{
-		Inst->MeshSafe.Get()->GetOnMeshChanged().RemoveAll(SystemInstance->GetComponent());
+		SkeletalMesh->GetOnMeshChanged().RemoveAll(SystemInstance->GetComponent());
+		if (USkeleton* Skeleton = SkeletalMesh->Skeleton)
+		{
+			Skeleton->UnregisterOnSkeletonHierarchyChanged(SystemInstance->GetComponent());
+		}
 	}
 #endif
 
