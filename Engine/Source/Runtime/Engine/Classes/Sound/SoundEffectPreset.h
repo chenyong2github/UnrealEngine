@@ -104,6 +104,7 @@ public:
 
 	static void UnregisterInstance(TSoundEffectPtr InEffectPtr)
 	{
+		ensure(IsInAudioThread());
 		if (InEffectPtr.IsValid())
 		{
 			if (USoundEffectPreset* Preset = InEffectPtr->GetPreset())
@@ -117,6 +118,7 @@ public:
 
 	static void RegisterInstance(USoundEffectPreset& InPreset, TSoundEffectPtr InEffectPtr)
 	{
+		ensure(IsInAudioThread());
 		if (!InEffectPtr.IsValid())
 		{
 			return;
