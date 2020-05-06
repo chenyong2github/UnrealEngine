@@ -2779,12 +2779,14 @@ void FMetalRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHI
 						// format mismatch (like linear vs. sRGB), then we must
 						// achieve the copy by going through a buffer object.
 						//
+						const bool BlockSizeMatch = (GPixelFormats[MetalSrcTexture->PixelFormat].BlockSizeX == GPixelFormats[MetalDestTexture->PixelFormat].BlockSizeX);
 						const uint32 BytesPerPixel = (MetalSrcTexture->PixelFormat != PF_DepthStencil) ? GPixelFormats[MetalSrcTexture->PixelFormat].BlockBytes : 1;
 						const uint32 Stride = BytesPerPixel * SourceSize.width;
 #if PLATFORM_MAC
 						const uint32 Alignment = 1u;
 #else
-						const uint32 Alignment = 64u;
+						// don't mess with alignment if we copying between formats with a different block size
+						const uint32 Alignment = BlockSizeMatch ? 64u : 1u;
 #endif
 						const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 						const uint32 BytesPerImage = AlignedStride *  SourceSize.height;
