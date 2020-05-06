@@ -101,6 +101,12 @@ public:
 	/** Returns a random location on the navmesh within cluster */
 	bool GetRandomPointInCluster(NavNodeRef ClusterRef, FNavLocation& OutLocation) const;
 
+	/**	Tries to move current nav location towards target constrained to navigable area. Faster than ProjectPointToNavmesh.
+	 *	@param OutLocation if successful this variable will be filed with result
+	 *	@return true if successful, false otherwise
+	 */
+	bool FindMoveAlongSurface(const FNavLocation& StartLocation, const FVector& TargetPosition, FNavLocation& OutLocation, const FNavigationQueryFilter& Filter, const UObject* Owner) const;
+
 	bool ProjectPointToNavMesh(const FVector& Point, FNavLocation& Result, const FVector& Extent, const FNavigationQueryFilter& Filter, const UObject* Owner) const;
 	
 	/** Project single point and grab all vertical intersections */
