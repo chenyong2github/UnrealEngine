@@ -35,6 +35,11 @@ void USmoothMeshTool::InitializeProperties()
 
 	ImplicitProperties = AddOptionalPropertySet<UImplicitSmoothProperties>(
 		[&]() { return SmoothProperties->SmoothingType == ESmoothMeshToolSmoothType::Implicit; });
+
+	WeightMapProperties = AddWeightMapPropertySet<USmoothWeightMapSetProperties>(
+		[&]() { return SmoothProperties->SmoothingType != ESmoothMeshToolSmoothType::Diffusion; });
+	WeightMapProperties->WatchProperty(WeightMapProperties->MinSmoothMultiplier,
+		[&](float) { InvalidateResult(); });
 }
 
 
@@ -68,13 +73,21 @@ TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 	const FDynamicMesh3* Mesh = &GetInitialMesh();
 
 	FSmoothingOpBase::FOptions Options;
-	Options.BaseNormals = this->GetBaseNormals();
+	Options.BaseNormals = this->GetInitialVtxNormals();
+
+	if (HasActiveWeightMap())
+	{
+		Options.bUseWeightMap = true;
+		Options.WeightMap = GetActiveWeightMap();
+		Options.WeightMapMinMultiplier = WeightMapProperties->MinSmoothMultiplier;
+	}
 
 	switch (SmoothProperties->SmoothingType)
 	{
 	default:
 	case ESmoothMeshToolSmoothType::Iterative:
 		Options.SmoothAlpha = IterativeProperties->SmoothingPerStep;
+		Options.BoundarySmoothAlpha = FMathd::Lerp(0.0, 0.9, IterativeProperties->SmoothingPerStep);
 		Options.Iterations = IterativeProperties->Steps;
 		Options.bSmoothBoundary = IterativeProperties->bSmoothBoundary;
 		Options.bUniform = true;
@@ -84,6 +97,7 @@ TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 
 	case ESmoothMeshToolSmoothType::Diffusion:
 		Options.SmoothAlpha = DiffusionProperties->SmoothingPerStep;
+		Options.BoundarySmoothAlpha = FMathd::Lerp(0.0, 0.9, IterativeProperties->SmoothingPerStep);
 		Options.Iterations = DiffusionProperties->Steps;
 		Options.bUniform = DiffusionProperties->bPreserveUVs == false;
 		Options.bUseImplicit = true;
@@ -93,6 +107,7 @@ TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 	case ESmoothMeshToolSmoothType::Implicit:
 		{	
 		Options.SmoothAlpha = ImplicitProperties->SmoothSpeed;
+		Options.BoundarySmoothAlpha = 0.0;
 		double NonlinearT = FMathd::Pow(ImplicitProperties->Smoothness, 2.0);
 		// this is an empirically-determined hack that seems to work OK to normalize the smoothing result for variable vertex count...
 		double ScaledPower = (NonlinearT/50.0) * Mesh->VertexCount();

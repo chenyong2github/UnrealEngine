@@ -36,6 +36,19 @@ void FIterativeSmoothingOp::CalculateResult(FProgressCancel* Progress)
 
 }
 
+
+double FIterativeSmoothingOp::GetSmoothAlpha(int32 VertexID, bool bIsBoundary)
+{
+	double UseAlpha = (bIsBoundary) ? SmoothOptions.BoundarySmoothAlpha : SmoothOptions.SmoothAlpha;
+	if (SmoothOptions.bUseWeightMap)
+	{
+		double t = FMathd::Clamp(SmoothOptions.WeightMap->GetValue(VertexID), 0.0, 1.0);
+		UseAlpha = FMathd::Lerp(SmoothOptions.WeightMapMinMultiplier * UseAlpha, UseAlpha, t);
+	}
+	return UseAlpha;
+}
+
+
 void FIterativeSmoothingOp::Smooth_Implicit_Cotan()
 {
 	double Intensity = 1.;
@@ -84,9 +97,6 @@ void FIterativeSmoothingOp::Smooth_Forward(bool bUniform)
 			BoundaryVerts.Add(vid);
 		}
 	}
-	// have to limit boundary alpha to avoid oscillations because there are usually only 2 nbrs
-	double ClampedBoundaryAlpha = FMathd::Lerp(0.0, 0.9, SmoothOptions.SmoothAlpha);
-
 
 	for (int32 k = 0; k < SmoothOptions.Iterations; ++k)
 	{
@@ -121,7 +131,8 @@ void FIterativeSmoothingOp::Smooth_Forward(bool bUniform)
 				//}
 			}
 
-			SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, SmoothOptions.SmoothAlpha);
+			double UseAlpha = GetSmoothAlpha(vid, false);
+			SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, UseAlpha);
 
 		} /*, EParallelForFlags::ForceSingleThread*/ );
 
@@ -134,7 +145,8 @@ void FIterativeSmoothingOp::Smooth_Forward(bool bUniform)
 				FVector3d Centroid = FMeshWeights::FilteredUniformCentroid(*ResultMesh, vid,
 					[&](int32 nbrvid) { return PositionBuffer[nbrvid]; },
 					[&](int32 nbrvid) { return bIsBoundary[nbrvid]; });
-				SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, ClampedBoundaryAlpha);
+				double UseAlpha = GetSmoothAlpha(vid, true);
+				SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, UseAlpha);
 			});
 		}
 
