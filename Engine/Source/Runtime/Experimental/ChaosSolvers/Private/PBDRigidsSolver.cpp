@@ -1051,6 +1051,7 @@ namespace Chaos
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::EnableRewindCapture(int32 NumFrames)
 	{
+		check(Traits::IsRewindable());
 		MRewindData = MakeUnique<FRewindData>(NumFrames);
 	}
 
