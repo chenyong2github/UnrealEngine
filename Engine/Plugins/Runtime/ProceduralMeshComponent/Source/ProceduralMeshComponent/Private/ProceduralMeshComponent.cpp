@@ -178,9 +178,10 @@ public:
 				if (IsRayTracingEnabled())
 				{
 					ENQUEUE_RENDER_COMMAND(InitProceduralMeshRayTracingGeometry)(
-						[this, NewSection/*, VertexBufferRHI, IndexBufferRHI, VertexBufferStride, TrianglesCount, RenderSections*/](FRHICommandListImmediate& RHICmdList)
+						[this, DebugName = Component->GetFName(), NewSection](FRHICommandListImmediate& RHICmdList)
 					{
 						FRayTracingGeometryInitializer Initializer;
+						Initializer.DebugName = DebugName;
 						Initializer.IndexBuffer = nullptr;
 						Initializer.TotalPrimitiveCount = 0;
 						Initializer.GeometryType = RTGT_Triangles;

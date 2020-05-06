@@ -178,6 +178,8 @@ public:
 
 	LAYOUT_FIELD_INITIALIZED(bool, bFastBuild, false);
 	LAYOUT_FIELD_INITIALIZED(bool, bAllowUpdate, false);
+
+	LAYOUT_FIELD(FName, DebugName);
 };
 
 enum ERayTracingSceneLifetime
@@ -212,6 +214,8 @@ struct FRayTracingSceneInitializer
 	// Defines whether data in this scene should persist between frames.
 	// Currently only single-frame lifetime is supported.
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
+
+	FName DebugName;
 };
 
 struct FShaderResourceViewInitializer
