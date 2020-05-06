@@ -798,9 +798,7 @@ public:
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
 	void GetSkinnedBoneData(FVectorVMContext& Context);	
-	template<typename TransformHandlerType, typename bInterpolated>
-	void GetSkinnedBoneDataFallback(FVectorVMContext& Context);
-	
+
 	void IsValidBone(FVectorVMContext& Context);
 	void RandomBone(FVectorVMContext& Context);
 	void GetBoneCount(FVectorVMContext& Context);
