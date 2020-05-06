@@ -256,7 +256,7 @@ import com.google.android.play.core.tasks.Task;
 			Log.debug("Found obbassets asset pack");
 			AssetLocation obbLocation = assetPackManager.getAssetLocation("obbassets", "main.obb.png");
 			if (obbLocation != null) {
-				String mainpngPath = obbLocation.path()
+				String mainpngPath = obbLocation.path();
 				Log.debug("Found main.obb.png asset: " + mainpngPath);
 				if (mainpngPath.endsWith(".apk"))
 				{
