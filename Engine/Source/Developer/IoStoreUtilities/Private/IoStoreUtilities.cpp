@@ -1362,10 +1362,7 @@ static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Pac
 		{
 			uint32* FindDependentBundleIndex = ExternalDependency->Package->ExportBundleMap.Find(ExternalDependency);
 			check(FindDependentBundleIndex);
-			if (BundleIndex > 0)
-			{
-				AddUniqueExternalBundleArc(*ExternalDependency->Package, *FindDependentBundleIndex, *Package, BundleIndex);
-			}
+			AddUniqueExternalBundleArc(*ExternalDependency->Package, *FindDependentBundleIndex, *Package, BundleIndex);
 		}
 		Bundle->Nodes.Add(Node);
 		Package->ExportBundleMap.Add(Node, BundleIndex);
@@ -2909,10 +2906,16 @@ void SerializePackageStoreEntries(
 
 	for (FPackage* Package : Packages)
 	{
+		uint64 ExportBundlesSize = Package->HeaderSerialSize + Package->ExportsSerialSize;
+		StoreTocArchive << ExportBundlesSize;
 		FMappedName PackageName;
 		StoreTocArchive << PackageName;
 		StoreTocArchive << Package->SourceGlobalPackageId;
 		StoreTocArchive << Package->ExportCount;
+		int32 ExportBundleCount = Package->ExportBundles.Num();
+		StoreTocArchive << ExportBundleCount;
+		uint32 LoadOrder = Package->ExportBundles.Num() > 0 ? Package->ExportBundles[0].LoadOrder : 0;
+		StoreTocArchive << LoadOrder;
 
 		// Global imported packages meta data
 		{
@@ -2930,22 +2933,6 @@ void SerializePackageStoreEntries(
 			for (FPackageObjectIndex ObjectIndex : Package->PublicExports)
 			{
 				StoreDataArchive << ObjectIndex;
-			}
-		}
-
-		// Global export bundle meta data
-		{
-			// TODO: Request IO for each package export bundle individually in the loader,
-			//       or just store the data for the first entry directly on the package entry itself
-			SerializePackageEntryCArrayHeader(Package->ExportBundles.Num());
-			FExportBundleMetaEntry ExportBundleMetaEntry;
-			ExportBundleMetaEntry.PayloadSize = Package->HeaderSerialSize + Package->ExportsSerialSize;
-			for (const FExportBundle& ExportBundle : Package->ExportBundles)
-			{
-				ExportBundleMetaEntry.LoadOrder = ExportBundle.LoadOrder;
-				StoreDataArchive << ExportBundleMetaEntry;
-
-				ExportBundleMetaEntry.PayloadSize = 0; // currently only specified for the first entry
 			}
 		}
 	}
