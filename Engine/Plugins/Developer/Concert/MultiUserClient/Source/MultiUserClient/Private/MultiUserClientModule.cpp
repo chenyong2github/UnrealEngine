@@ -1194,30 +1194,26 @@ private:
 			);
 
 			TSharedPtr<FExtender> ToolbarExtender = MakeShared<FExtender>();
-			ToolbarExtender->AddToolBarExtension("Game", EExtensionHook::After, CommandList, FToolBarExtensionDelegate::CreateLambda([this, CommandList](FToolBarBuilder& ToolbarBuilder)
+			ToolbarExtender->AddToolBarExtension("Play", EExtensionHook::Before, CommandList, FToolBarExtensionDelegate::CreateLambda([this, CommandList](FToolBarBuilder& ToolbarBuilder)
 			{
-				ToolbarBuilder.BeginSection("Concert");
-				{
-					ToolbarBuilder.AddToolBarButton
-					(
-						FConcertUICommands::Get().TriggerToolbarButtonCmd,
-						NAME_None,
-						TAttribute<FText>::Create([this]() { return GetToolbarButtonIconTitle(); }),
-						TAttribute<FText>::Create([this]() { return GetToolbarButtonTooltip(); }),
-						TAttribute<FSlateIcon>::Create([this]() { return GetToolbarButtonIcon(); })
-					);
+				ToolbarBuilder.AddToolBarButton
+				(
+					FConcertUICommands::Get().TriggerToolbarButtonCmd,
+					NAME_None,
+					TAttribute<FText>::Create([this]() { return GetToolbarButtonIconTitle(); }),
+					TAttribute<FText>::Create([this]() { return GetToolbarButtonTooltip(); }),
+					TAttribute<FSlateIcon>::Create([this]() { return GetToolbarButtonIcon(); })
+				);
 
-					// Add a simple drop-down menu (no label, no icon for the drop-down button itself) to list
-					ToolbarBuilder.AddComboButton(
-						FUIAction(),
-						FOnGetContent::CreateStatic(&GenerateConcertMenuContent, CommandList.ToSharedRef()),
-						LOCTEXT("ConcertToolbarMenu_Label", "Multi-User Utilities"),
-						LOCTEXT("ConcertToolbarMenu_Tooltip", "Multi-User Commands"),
-						FSlateIcon(),
-						true
-					);
-				}
-				ToolbarBuilder.EndSection();
+				// Add a simple drop-down menu (no label, no icon for the drop-down button itself) to list
+				ToolbarBuilder.AddComboButton(
+					FUIAction(),
+					FOnGetContent::CreateStatic(&GenerateConcertMenuContent, CommandList.ToSharedRef()),
+					LOCTEXT("ConcertToolbarMenu_Label", "Multi-User Utilities"),
+					LOCTEXT("ConcertToolbarMenu_Tooltip", "Multi-User Commands"),
+					FSlateIcon(),
+					true
+				);
 			}));
 
 			LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
