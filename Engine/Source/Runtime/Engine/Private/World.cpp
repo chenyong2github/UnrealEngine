@@ -63,6 +63,7 @@
 #include "TickTaskManagerInterface.h"
 #include "FXSystem.h"
 #include "AudioDevice.h"
+#include "AudioDeviceManager.h"
 #include "VisualLogger/VisualLogger.h"
 #include "LevelUtils.h"
 #include "Physics/PhysicsInterfaceCore.h"
@@ -302,7 +303,9 @@ FScopedLevelCollectionContextSwitch::~FScopedLevelCollectionContextSwitch()
 	}
 }
 
+FAudioDeviceWorldDelegates::FOnWorldRegisteredToAudioDevice FAudioDeviceWorldDelegates::OnWorldRegisteredToAudioDevice;
 
+FAudioDeviceWorldDelegates::FOnWorldUnregisteredWithAudioDevice FAudioDeviceWorldDelegates::OnWorldUnregisteredWithAudioDevice;
 
 /*-----------------------------------------------------------------------------
 	UWorld implementation.
@@ -366,6 +369,15 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 	FWorldDelegates::OnPostWorldCreation.Broadcast(this);
 
 	PerfTrackers = new FWorldInGamePerformanceTrackers();
+
+	AudioDeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddLambda([this](const Audio::FDeviceId InDeviceId)
+	{
+		if (InDeviceId == AudioDeviceHandle.GetDeviceID())
+		{
+			FAudioDeviceHandle EmptyHandle;
+			SetAudioDevice(EmptyHandle);
+		}
+	});
 }
 
 UWorld::~UWorld()
@@ -848,7 +860,9 @@ void UWorld::BeginDestroy()
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
 	}
 
-	AudioDeviceHandle.Reset();
+	AudioDeviceDestroyedHandle.Reset();
+	FAudioDeviceHandle EmptyHandle;
+	SetAudioDevice(EmptyHandle);
 }
 
 void UWorld::ReleasePhysicsScene()
@@ -7568,7 +7582,7 @@ void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneVi
 	}
 }
 
-void UWorld::SetAudioDevice(FAudioDeviceHandle& InHandle)
+void UWorld::SetAudioDevice(const FAudioDeviceHandle& InHandle)
 {
 	if (InHandle.GetDeviceID() == AudioDeviceHandle.GetDeviceID())
 	{
@@ -7576,16 +7590,22 @@ void UWorld::SetAudioDevice(FAudioDeviceHandle& InHandle)
 	}
 
 	FAudioDeviceManager* DeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
+
+	// Register new world with incoming device first to avoid premature reporting due to no handles being valid...
 	if (DeviceManager && InHandle.IsValid())
 	{
-		GEngine->GetAudioDeviceManager()->UnregisterWorld(this, InHandle.GetDeviceID());
+		check(InHandle.GetWorld() == this);
+		DeviceManager->RegisterWorld(this, InHandle.GetDeviceID());
 	}
+
+	const Audio::FDeviceId OldDeviceId = AudioDeviceHandle.GetDeviceID();
+	const bool bUnregister = AudioDeviceHandle.IsValid();
 
 	AudioDeviceHandle = InHandle;
 
-	if (DeviceManager)
+	if (DeviceManager && bUnregister)
 	{
-		GEngine->GetAudioDeviceManager()->RegisterWorld(this, InHandle.GetDeviceID());
+		DeviceManager->UnregisterWorld(this, OldDeviceId);
 	}
 }
 
