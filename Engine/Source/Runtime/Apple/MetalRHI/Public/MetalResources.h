@@ -472,7 +472,7 @@ public:
 
 	FMetalSurface(FMetalSurface& Source, NSRange MipRange);
 	
-	FMetalSurface(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format);
+	FMetalSurface(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format, bool bSRGBForceDisable);
 	
 	/**
 	 * Destructor
@@ -581,7 +581,7 @@ public:
 private:
 	void Init(FMetalSurface& Source, NSRange MipRange);
 	
-	void Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format);
+	void Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format, bool bSRGBForceDisable);
 	
 private:
 	// The movie playback IOSurface/CVTexture wrapper to avoid page-off
@@ -1063,7 +1063,9 @@ public:
 	
 	FMetalSurface* TextureView;
 	uint32 Offset;
-	uint8 MipLevel;
+	uint8 MipLevel          : 4;
+	uint8 bSRGBForceDisable : 1;
+	uint8 Reserved          : 3;
 	uint8 NumMips;
 	uint8 Format;
 	uint8 Stride;
