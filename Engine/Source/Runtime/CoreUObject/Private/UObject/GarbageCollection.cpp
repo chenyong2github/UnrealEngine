@@ -1447,6 +1447,7 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, float TimeLimit)
 
 	if (!bTimeLimitReached)
 	{
+		FConditionalGCLock ScopedGCLock;
 		bCompleted = IncrementalDestroyGarbage(bUseTimeLimit, TimeLimit);
 	}
 #endif // !UE_WITH_GC
