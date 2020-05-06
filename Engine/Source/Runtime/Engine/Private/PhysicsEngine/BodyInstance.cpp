@@ -687,14 +687,6 @@ void FBodyInstance::SetShapeCollisionEnabled(const int32 ShapeIndex, ECollisionE
 			{
 				UpdatePhysicsFilterData();
 			}
-
-			if (CollisionEnabledHasPhysics(OldType) != CollisionEnabledHasPhysics(NewType))
-			{
-				if(UPrimitiveComponent* PrimComponent = OwnerComponent.Get())
-				{
-					PrimComponent->RecreatePhysicsState();
-				}
-			}
 		}
 	}
 }
