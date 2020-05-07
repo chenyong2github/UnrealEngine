@@ -108,8 +108,11 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// FFieldPath will serialize the owner struct reference and only a short path to its property
 		FFieldPathOwnerSerialization,
 
-		// Simplified WaterBody post process material handling : 
+		// Simplified WaterBody post process material handling 
 		FixUpUnderwaterPostProcessMaterial,
+
+		// A single water exclusion volume can now exclude N water bodies
+		SupportMultipleWaterBodiesPerExclusionVolume,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
