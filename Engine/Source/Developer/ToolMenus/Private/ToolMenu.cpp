@@ -506,3 +506,11 @@ void UToolMenu::SetExtendersEnabled(bool bEnabled)
 {
 	bExtendersEnabled = bEnabled;
 }
+
+void UToolMenu::Empty()
+{
+	Context.Empty();
+	Sections.Empty();
+	SubMenuParent = nullptr;
+	ModifyBlockWidgetAfterMake.Unbind();
+}

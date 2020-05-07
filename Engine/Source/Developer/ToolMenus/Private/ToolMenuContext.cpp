@@ -141,3 +141,11 @@ void FToolMenuContext::AddObject(UObject* InObject)
 {
 	ContextObjects.AddUnique(InObject);
 }
+
+void FToolMenuContext::Empty()
+{
+	ContextObjects.Empty();
+	CommandLists.Empty();
+	CommandList.Reset();
+	Extenders.Empty();
+}

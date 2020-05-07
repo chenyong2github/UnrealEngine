@@ -362,6 +362,8 @@ private:
 
 	static void ModifyEntryForEditDialog(FToolMenuEntry& Entry);
 
+	UToolMenu* NewToolMenuObject(const FName NewBaseName, const FName InMenuName);
+
 private:
 
 	UPROPERTY(EditAnywhere, Category = Misc)
