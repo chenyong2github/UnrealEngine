@@ -1058,6 +1058,8 @@ public:
 	FMaterialShaderMap();
 	virtual ~FMaterialShaderMap();
 
+	virtual void OnReleased() override;
+
 	// ShaderMap interface
 	TShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId = 0) const
 	{
@@ -1136,10 +1138,6 @@ public:
 
 	/** Registers a material shader map in the global map so it can be used by materials. */
 	void Register(EShaderPlatform InShaderPlatform);
-
-	// Reference counting.
-	ENGINE_API void AddRef();
-	ENGINE_API void Release();
 
 	/**
 	 * Removes all entries in the cache with exceptions based on a shader type
@@ -1236,9 +1234,6 @@ public:
 
 	const FUniformExpressionSet& GetUniformExpressionSet() const { return GetContent()->MaterialCompilationOutput.UniformExpressionSet; }
 
-	int32 GetNumRefs() const { return NumRefs; }
-	int32 GetRefCount() const { return NumRefs; }
-
 	void CountNumShaders(int32& NumShaders, int32& NumPipelines) const
 	{
 		NumShaders = GetContent()->GetNumShaders();
@@ -1287,8 +1282,6 @@ private:
 
 	/** Uniquely identifies this shader map during compilation, needed for deferred compilation where shaders from multiple shader maps are compiled together. */
 	uint32 CompilingId;
-
-	mutable int32 NumRefs;
 
 	/** Used to catch errors where the shader map is deleted directly. */
 	bool bDeletedThroughDeferredCleanup;
