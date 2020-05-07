@@ -2108,7 +2108,7 @@ void TransformPlanes(const FTransform& Transform, const FPlanarCells& Ref, TArra
 	FTransform NormalTransform = Transform;
 	FVector3d ScaleVec(NormalTransform.GetScale3D());
 	double ScaleDetSign = FMathd::SignNonZero(ScaleVec.X) * FMathd::SignNonZero(ScaleVec.Y) * FMathd::SignNonZero(ScaleVec.Z);
-	double ScaleMaxAbs = ScaleVec.MaxAbs();
+	double ScaleMaxAbs = ScaleVec.MaxAbsElement();
 	if (ScaleMaxAbs > DBL_MIN)
 	{
 		ScaleVec /= ScaleMaxAbs;

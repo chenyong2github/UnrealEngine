@@ -61,6 +61,9 @@ FEditorModeTools::FEditorModeTools()
 	, CoordSystem(COORD_World)
 	, bIsTracking(false)
 {
+	GizmoManager = NewObject<UInteractiveGizmoManager>();
+	InputRouter = NewObject<UInputRouter>();
+
 	DefaultModeIDs.Add( FBuiltinEditorModes::EM_Default );
 
 	// Load the last used settings
@@ -2088,6 +2091,9 @@ void FEditorModeTools::AddReferencedObjects( FReferenceCollector& Collector )
 
 	Collector.AddReferencedObjects(ActiveScriptableModes);
 	Collector.AddReferencedObjects(RecycledScriptableModes);
+
+	Collector.AddReferencedObject(GizmoManager);
+	Collector.AddReferencedObject(InputRouter);
 }
 
 FEdMode* FEditorModeTools::GetActiveMode( FEditorModeID InID )

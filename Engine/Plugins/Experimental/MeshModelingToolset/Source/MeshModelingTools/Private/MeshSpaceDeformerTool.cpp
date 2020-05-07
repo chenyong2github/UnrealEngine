@@ -466,7 +466,7 @@ void UMeshSpaceDeformerTool::UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceD
 	*/
 
 	// Set half axis length to be 1/2 the major axis of the bbox.
-	double LengthScale = FMath::Max( AABBHalfExtents.MaxAbs(), 1.e-3);
+	double LengthScale = FMath::Max( AABBHalfExtents.MaxAbsElement(), 1.e-3);
 	MeshSpaceDeformerOp.AxesHalfLength = LengthScale;
 
 	// set the bound range
