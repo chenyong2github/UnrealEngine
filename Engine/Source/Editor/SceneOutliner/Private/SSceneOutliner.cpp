@@ -284,10 +284,6 @@ namespace SceneOutliner
 		// @todo outliner: Should probably save this in layout!
 		// @todo outliner: Should save spacing for list view in layout
 
-		NoBorder = FEditorStyle::GetBrush( "LevelViewport.NoViewportBorder" );
-		PlayInEditorBorder = FEditorStyle::GetBrush( "LevelViewport.StartingPlayInEditorBorder" );
-		SimulateBorder = FEditorStyle::GetBrush( "LevelViewport.StartingSimulateBorder" );
-
 		//Setup the SearchBox filter
 		{
 			auto Delegate = TreeItemTextFilter::FItemToStringArray::CreateSP( this, &SSceneOutliner::PopulateSearchStrings );
@@ -330,13 +326,7 @@ namespace SceneOutliner
 
 		ChildSlot
 		[
-			SNew( SBorder )
-			.BorderImage( this, &SSceneOutliner::OnGetBorderBrush )
-			.BorderBackgroundColor( this, &SSceneOutliner::OnGetBorderColorAndOpacity )
-			.ShowEffectWhenDisabled( false )
-			[
-				VerticalBox
-			]
+			VerticalBox
 		];
 
 		auto Toolbar = SNew(SHorizontalBox);
@@ -360,19 +350,42 @@ namespace SceneOutliner
 				.Padding(4.f, 0.f, 0.f, 0.f)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 					.ToolTipText(LOCTEXT("CreateFolderToolTip", "Create a new folder containing the current actor selection"))
 					.OnClicked(this, &SSceneOutliner::OnCreateFolderClicked)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("SceneOutliner.NewFolderIcon"))
+	                	.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("SceneOutliner.NewFolderIcon"))
 					]
 				];
 		}
 
+
+		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
+		{
+			// View mode combo button
+			Toolbar->AddSlot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SAssignNew( ViewOptionsComboButton, SComboButton )
+				.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButton" ) // Use the tool bar item style for this button
+				.OnGetMenuContent( this, &SSceneOutliner::GetViewButtonContent, false, !InInitOptions.SpecifiedWorldToDisplay)
+				.HasDownArrow(false)
+				.ButtonContent()
+				[
+					SNew(SImage)
+	                .ColorAndOpacity(FSlateColor::UseForeground())
+					.Image( FAppStyle::Get().GetBrush("Icons.cogwheel") )
+				]
+			];
+		}
+
+
 		VerticalBox->AddSlot()
 		.AutoHeight()
-		.Padding( 0.0f, 0.0f, 0.0f, 4.0f )
+		.Padding( 8.0f, 4.0f, 4.0f, 2.0f )
 		[
 			Toolbar
 		];
@@ -388,6 +401,11 @@ namespace SceneOutliner
 				.Visibility( this, &SSceneOutliner::GetEmptyLabelVisibility )
 				.Text( LOCTEXT( "EmptyLabel", "Empty" ) )
 				.ColorAndOpacity( FLinearColor( 0.4f, 1.0f, 0.4f ) )
+			]
+
+			+SOverlay::Slot()
+			[
+				SNew(SBorder).BorderImage( FAppStyle::Get().GetBrush("InputBrush") )
 			]
 
 			+SOverlay::Slot()
@@ -433,17 +451,6 @@ namespace SceneOutliner
 			]
 		];
 
-		// Separator
-		if ( SharedData->Mode == ESceneOutlinerMode::ActorBrowsing || !InInitOptions.SpecifiedWorldToDisplay )
-		{
-			VerticalBox->AddSlot()
-			.AutoHeight()
-			.Padding(0, 0, 0, 1)
-			[
-				SNew(SSeparator)
-			];
-		}
-
 		if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
 			// Bottom panel
@@ -456,43 +463,14 @@ namespace SceneOutliner
 				+SHorizontalBox::Slot()
 				.FillWidth(1.f)
 				.VAlign(VAlign_Center)
-				.Padding(8, 0)
+				.Padding(14, 9)
 				[
 					SNew( STextBlock )
 					.Text( this, &SSceneOutliner::GetFilterStatusText )
 					.ColorAndOpacity( this, &SSceneOutliner::GetFilterStatusTextColor )
 				]
 
-				// View mode combo button
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SAssignNew( ViewOptionsComboButton, SComboButton )
-					.ContentPadding(0)
-					.ForegroundColor( this, &SSceneOutliner::GetViewButtonForegroundColor )
-					.ButtonStyle( FEditorStyle::Get(), "ToggleButton" ) // Use the tool bar item style for this button
-					.OnGetMenuContent( this, &SSceneOutliner::GetViewButtonContent, false, !InInitOptions.SpecifiedWorldToDisplay)
-					.ButtonContent()
-					[
-						SNew(SHorizontalBox)
-
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						[
-							SNew(SImage).Image( FEditorStyle::GetBrush("GenericViewButton") )
-						]
-
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(2, 0, 0, 0)
-						.VAlign(VAlign_Center)
-						[
-							SNew(STextBlock).Text( LOCTEXT("ViewButton", "View Options") )
-						]
-					]
-				]
-			];
+		];
 		} //end if (SharedData->Mode == ESceneOutlinerMode::ActorBrowsing)
 		else if ( !InInitOptions.SpecifiedWorldToDisplay )
 		{
@@ -1095,24 +1073,6 @@ namespace SceneOutliner
 
 	/** END FILTERS */
 
-
-	const FSlateBrush* SSceneOutliner::OnGetBorderBrush() const
-	{
-		if (SharedData->bRepresentingPlayWorld)
-		{
-			return GEditor->bIsSimulatingInEditor ? SimulateBorder : PlayInEditorBorder;
-		}
-		else
-		{
-			return NoBorder;
-		}
-	}
-
-	FSlateColor SSceneOutliner::OnGetBorderColorAndOpacity() const
-	{
-		return SharedData->bRepresentingPlayWorld	? FLinearColor(1.0f, 1.0f, 1.0f, 0.6f)
-									   				: FLinearColor::Transparent;
-	}
 
 	ESelectionMode::Type SSceneOutliner::GetSelectionMode() const
 	{
@@ -3835,18 +3795,15 @@ namespace SceneOutliner
 	{
 		if ( !IsFilterActive() )
 		{
-			// White = no text filter
-			return FLinearColor( 1.0f, 1.0f, 1.0f );
+			 return FAppStyle::Get().GetColor("Colors.Foreground");
 		}
 		else if( FilteredActorCount == 0 )
 		{
-			// Red = no matching actors
-			return FLinearColor( 1.0f, 0.4f, 0.4f );
+			return FAppStyle::Get().GetColor("Colors.AccentRed");
 		}
 		else
 		{
-			// Green = found at least one match!
-			return FLinearColor( 0.4f, 1.0f, 0.4f );
+			return FAppStyle::Get().GetColor("Colors.AccentGreen");
 		}
 	}
 

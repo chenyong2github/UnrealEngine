@@ -682,12 +682,6 @@ namespace SceneOutliner
 		/**	Returns the current visibility of the Empty label */
 		EVisibility GetEmptyLabelVisibility() const;
 
-		/** @return the border brush */
-		const FSlateBrush* OnGetBorderBrush() const;
-
-		/** @return the the color and opacity of the border brush; green if in PIE/SIE mode */
-		FSlateColor OnGetBorderColorAndOpacity() const;
-
 		/** @return the selection mode; disabled entirely if in PIE/SIE mode */
 		ESelectionMode::Type GetSelectionMode() const;
 
@@ -702,13 +696,6 @@ namespace SceneOutliner
 
 		/** @return the foreground color for the world picker button */
 		FSlateColor GetWorldPickerForegroundColor() const;
-
-		/** The brush to use when in Editor mode */
-		const FSlateBrush* NoBorder;
-		/** The brush to use when in PIE mode */
-		const FSlateBrush* PlayInEditorBorder;
-		/** The brush to use when in SIE mode */
-		const FSlateBrush* SimulateBorder;
 
 	private:
 

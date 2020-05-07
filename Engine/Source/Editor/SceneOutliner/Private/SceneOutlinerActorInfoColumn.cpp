@@ -160,7 +160,7 @@ SHeaderRow::FColumn::FArguments FActorInfoColumn::ConstructHeaderRowColumn()
 	/** Customizable actor data column */
 	return SHeaderRow::Column( GetColumnID() )
 		.FillWidth(2)
-		.HeaderComboVisibility(EHeaderComboVisibility::Ghosted)
+		.HeaderComboVisibility(EHeaderComboVisibility::OnHover)
 		.MenuContent()
 		[
 			SNew(SBorder)
@@ -182,6 +182,8 @@ SHeaderRow::FColumn::FArguments FActorInfoColumn::ConstructHeaderRowColumn()
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
+				.TextStyle(FAppStyle::Get(), "ButtonText")
+				.TransformPolicy(ETextTransformPolicy::ToUpper)
 				.Text( this, &FActorInfoColumn::GetSelectedMode )
 			]
 		];
@@ -434,6 +436,7 @@ TSharedRef< ITableRow > FActorInfoColumn::MakeComboButtonItemWidget( TSharedPtr<
 {
 	return
 		SNew( STableRow< TSharedPtr<ECustomColumnMode::Type> >, Owner )
+		.Style(FAppStyle::Get(), "ComboBox.Row")
 		[
 			SNew( STextBlock )
 			.Text( MakeComboText( *Mode ) )

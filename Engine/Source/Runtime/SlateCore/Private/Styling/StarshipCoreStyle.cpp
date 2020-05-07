@@ -39,12 +39,18 @@ const FLinearColor FStyleColors::White				= COLOR("#FFFFFFFF");
 const FLinearColor FStyleColors::White25			= COLOR("#FFFFFF40");
 const FLinearColor FStyleColors::Highlight			= COLOR("#0078D7FF");
 
-const FLinearColor FStyleColors::Foreground			= COLOR("#A6A6A6FF");
-const FLinearColor FStyleColors::ForegroundHover	= COLOR("#FFFFFFFF");
-
 const FLinearColor FStyleColors::Primary			= COLOR("#26BBFFFF");
 const FLinearColor FStyleColors::PrimaryHover		= COLOR("#6FD2FFFF");
 const FLinearColor FStyleColors::PrimaryPress		= COLOR("#1989BCFF");
+
+const FLinearColor FStyleColors::Foreground			= COLOR("#A6A6A6FF");
+const FLinearColor FStyleColors::ForegroundHover	= COLOR("#FFFFFFFF");
+const FLinearColor FStyleColors::ForegroundInverted	= FStyleColors::Input;
+
+const FLinearColor FStyleColors::Select             = FStyleColors::Primary;
+const FLinearColor FStyleColors::SelectInactive     = COLOR("#99B3BFFF");
+const FLinearColor FStyleColors::SelectParent       = COLOR("#2C323AFF"); 
+const FLinearColor FStyleColors::SelectHover        = FStyleColors::Background;
 
 const FLinearColor FStyleColors::AccentBlue			= COLOR("#26BBFFFF");
 const FLinearColor FStyleColors::AccentPurple		= COLOR("#A139BFFF");
@@ -223,7 +229,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	const float InputFocusThickness = 2.0f;
 
 	// These are the Slate colors which reference the dynamic colors in the style;
-	const FSlateColor DefaultForeground(Style->DefaultForeground_LinearRef);
+	const FSlateColor DefaultForeground(FStyleColors::Foreground);
 	const FSlateColor InvertedForeground(Style->InvertedForeground_LinearRef);
 	const FSlateColor SelectorColor(Style->SelectorColor_LinearRef);
 	const FSlateColor SelectionColor(Style->SelectionColor_LinearRef);
@@ -244,9 +250,18 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	Style->Set("Colors.Hover2", FStyleColors::Hover2);
 	Style->Set("Colors.White", FStyleColors::White);
 	Style->Set("Colors.White25", FStyleColors::White25);
+	Style->Set("Colors.Highlight", FStyleColors::Highlight);
+
 	Style->Set("Colors.Foreground", FStyleColors::Foreground);
 	Style->Set("Colors.ForegroundHover", FStyleColors::ForegroundHover);
-	Style->Set("Colors.Highlight", FStyleColors::Highlight);
+	Style->Set("Colors.ForegroundInverted", FStyleColors::ForegroundInverted);
+
+	Style->Set("Colors.Select", FStyleColors::Select);
+	Style->Set("Colors.SelectInactive", FStyleColors::SelectInactive);
+	Style->Set("Colors.SelectParent", FStyleColors::SelectParent);
+	Style->Set("Colors.SelectHover", FStyleColors::SelectHover);
+	
+
 	Style->Set("Colors.Primary", FStyleColors::Primary);
 	Style->Set("Colors.PrimaryHover", FStyleColors::PrimaryHover);
 	Style->Set("Colors.PrimaryPress", FStyleColors::PrimaryPress);
@@ -284,10 +299,11 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 
 	// Common Brushes
-	Style->Set("PerspectiveBox", new IMAGE_BRUSH_SVG("Starship/Common/box-perspective", Icon16x16));
-	Style->Set("Cylinder", new IMAGE_BRUSH_SVG("Starship/Common/cylinder", Icon16x16));
-	Style->Set("Pyramid", new IMAGE_BRUSH_SVG("Starship/Common/pyriamid", Icon16x16));
-	Style->Set("Sphere", new IMAGE_BRUSH_SVG("Starship/Common/sphere", Icon16x16));
+	Style->Set("Icons.box-perspective", new IMAGE_BRUSH_SVG("Starship/Common/box-perspective", Icon16x16));
+	Style->Set("Icons.cylinder", new IMAGE_BRUSH_SVG("Starship/Common/cylinder", Icon16x16));
+	Style->Set("Icons.pyramid", new IMAGE_BRUSH_SVG("Starship/Common/pyriamid", Icon16x16));
+	Style->Set("Icons.sphere", new IMAGE_BRUSH_SVG("Starship/Common/sphere", Icon16x16));
+	Style->Set("Icons.cogwheel", new IMAGE_BRUSH_SVG("Starship/Common/cogwheel", Icon16x16));
 
 
 	// Common Margins
@@ -380,6 +396,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("NoBorder.Pressed", new FSlateNoResource());
 
 		Style->Set("NoBorder", NoBorder);
+
+		Style->Set("InputBrush", new FSlateColorBrush(FStyleColors::Input));
 	}
 
 
@@ -1068,19 +1086,26 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	// TableView defaults...
 	{
 		const FTableRowStyle DefaultTableRowStyle = FTableRowStyle()
-			.SetEvenRowBackgroundBrush(FSlateNoResource())
-			.SetEvenRowBackgroundHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
-			.SetOddRowBackgroundBrush(FSlateNoResource())
-			.SetOddRowBackgroundHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
+			.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Input))
+			.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::SelectHover))
+
+			.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Input))
+			.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::SelectHover))
+
 			.SetSelectorFocusedBrush(BORDER_BRUSH("Common/Selector", FMargin(4.f / 16.f), SelectorColor))
-			.SetActiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-			.SetActiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-			.SetInactiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
-			.SetInactiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
-			.SetActiveHighlightedBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, HighlightColor))
-			.SetInactiveHighlightedBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FSlateColor(FLinearColor(.1f, .1f, .1f))))
-			.SetTextColor(DefaultForeground)
-			.SetSelectedTextColor(InvertedForeground)
+
+			.SetActiveBrush(         FSlateColorBrush(FStyleColors::Select))
+			.SetActiveHoveredBrush(  FSlateColorBrush(FStyleColors::Select))
+
+			.SetInactiveBrush(       FSlateColorBrush(FStyleColors::SelectInactive))
+			.SetInactiveHoveredBrush(FSlateColorBrush(FStyleColors::SelectHover))
+
+			.SetActiveHighlightedBrush(  FSlateColorBrush(FStyleColors::SelectParent)) // This is the parent hightlight
+			.SetInactiveHighlightedBrush(FSlateColorBrush(FStyleColors::SelectParent))// This is the parent highlight
+
+			.SetTextColor(FStyleColors::Foreground)
+			.SetSelectedTextColor(FStyleColors::ForegroundInverted)
+
 			.SetDropIndicator_Above(BOX_BRUSH("Common/DropZoneIndicator_Above", FMargin(10.0f / 16.0f, 10.0f / 16.0f, 0, 0), SelectionColor))
 			.SetDropIndicator_Onto(BOX_BRUSH("Common/DropZoneIndicator_Onto", FMargin(4.0f / 16.0f), SelectionColor))
 			.SetDropIndicator_Below(BOX_BRUSH("Common/DropZoneIndicator_Below", FMargin(10.0f / 16.0f, 0, 0, 10.0f / 16.0f), SelectionColor));
@@ -1092,33 +1117,37 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetOddRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.0f, 0.0f, 0.0f, 0.1f)));
 		Style->Set("TableView.DarkRow", DarkTableRowStyle);
 
-		Style->Set("TreeArrow_Collapsed", new IMAGE_BRUSH("Common/TreeArrow_Collapsed", Icon10x10, DefaultForeground));
-		Style->Set("TreeArrow_Collapsed_Hovered", new IMAGE_BRUSH("Common/TreeArrow_Collapsed_Hovered", Icon10x10, DefaultForeground));
-		Style->Set("TreeArrow_Expanded", new IMAGE_BRUSH("Common/TreeArrow_Expanded", Icon10x10, DefaultForeground));
-		Style->Set("TreeArrow_Expanded_Hovered", new IMAGE_BRUSH("Common/TreeArrow_Expanded_Hovered", Icon10x10, DefaultForeground));
+		Style->Set("TreeArrow_Collapsed",         new IMAGE_BRUSH_SVG("Starship/Common/chevron-right", Icon16x16, FStyleColors::Foreground));
+		Style->Set("TreeArrow_Collapsed_Hovered", new IMAGE_BRUSH_SVG("Starship/Common/chevron-right", Icon16x16, FStyleColors::ForegroundHover));
+		Style->Set("TreeArrow_Expanded",          new IMAGE_BRUSH_SVG("Starship/Common/chevron-down",  Icon16x16, FStyleColors::Foreground));
+		Style->Set("TreeArrow_Expanded_Hovered",  new IMAGE_BRUSH_SVG("Starship/Common/chevron-down",  Icon16x16, FStyleColors::ForegroundHover));
+
 
 		const FTableColumnHeaderStyle TableColumnHeaderStyle = FTableColumnHeaderStyle()
-			.SetSortPrimaryAscendingImage(IMAGE_BRUSH("Common/SortUpArrow", Icon8x4))
-			.SetSortPrimaryDescendingImage(IMAGE_BRUSH("Common/SortDownArrow", Icon8x4))
-			.SetSortSecondaryAscendingImage(IMAGE_BRUSH("Common/SortUpArrows", Icon16x4))
-			.SetSortSecondaryDescendingImage(IMAGE_BRUSH("Common/SortDownArrows", Icon16x4))
-			.SetNormalBrush(BOX_BRUSH("Common/ColumnHeader", 4.f / 32.f))
-			.SetHoveredBrush(BOX_BRUSH("Common/ColumnHeader_Hovered", 4.f / 32.f))
-			.SetMenuDropdownImage(IMAGE_BRUSH("Common/ColumnHeader_Arrow", Icon8x8))
-			.SetMenuDropdownNormalBorderBrush(BOX_BRUSH("Common/ColumnHeaderMenuButton_Normal", 4.f / 32.f))
-			.SetMenuDropdownHoveredBorderBrush(BOX_BRUSH("Common/ColumnHeaderMenuButton_Hovered", 4.f / 32.f));
+			.SetSortPrimaryAscendingImage(   IMAGE_BRUSH_SVG("Starship/CoreWidgets/TableView/sort-up-arrow",    Icon12x12))
+			.SetSortPrimaryDescendingImage(  IMAGE_BRUSH_SVG("Starship/CoreWidgets/TableView/sort-down-arrow",  Icon12x12))
+			.SetSortSecondaryAscendingImage( IMAGE_BRUSH_SVG("Starship/CoreWidgets/TableView/sort-up-arrows",   Icon12x12))
+			.SetSortSecondaryDescendingImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/TableView/sort-down-arrows", Icon12x12))
+			.SetNormalBrush( FSlateColorBrush(FStyleColors::Background))
+			.SetHoveredBrush(FSlateColorBrush(FStyleColors::Dropdown))
+
+			.SetMenuDropdownImage(IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6.f, 24.f)))
+			.SetMenuDropdownNormalBorderBrush(FSlateNoResource())
+			.SetMenuDropdownHoveredBorderBrush(FSlateNoResource());
+
 		Style->Set("TableView.Header.Column", TableColumnHeaderStyle);
 
 		const FTableColumnHeaderStyle TableLastColumnHeaderStyle = FTableColumnHeaderStyle()
-			.SetSortPrimaryAscendingImage(IMAGE_BRUSH("Common/SortUpArrow", Icon8x4))
-			.SetSortPrimaryDescendingImage(IMAGE_BRUSH("Common/SortDownArrow", Icon8x4))
-			.SetSortSecondaryAscendingImage(IMAGE_BRUSH("Common/SortUpArrows", Icon16x4))
-			.SetSortSecondaryDescendingImage(IMAGE_BRUSH("Common/SortDownArrows", Icon16x4))
+			.SetSortPrimaryAscendingImage(   IMAGE_BRUSH_SVG("Starship/CoreWidgets/TableView/sort-up-arrow",    Icon12x12))
+			.SetSortPrimaryDescendingImage(  IMAGE_BRUSH_SVG("Starship/CoreWidgets/TableView/sort-down-arrow",  Icon12x12))
+			.SetSortSecondaryAscendingImage( IMAGE_BRUSH_SVG("Starship/CoreWidgets/TableView/sort-up-arrows",   Icon12x12))
+			.SetSortSecondaryDescendingImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/TableView/sort-down-arrows", Icon12x12))
 			.SetNormalBrush(FSlateNoResource())
-			.SetHoveredBrush(BOX_BRUSH("Common/LastColumnHeader_Hovered", 4.f / 32.f))
-			.SetMenuDropdownImage(IMAGE_BRUSH("Common/ColumnHeader_Arrow", Icon8x8))
-			.SetMenuDropdownNormalBorderBrush(BOX_BRUSH("Common/ColumnHeaderMenuButton_Normal", 4.f / 32.f))
-			.SetMenuDropdownHoveredBorderBrush(BOX_BRUSH("Common/ColumnHeaderMenuButton_Hovered", 4.f / 32.f));
+			.SetHoveredBrush(FSlateNoResource())
+
+			.SetMenuDropdownImage(IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6.f, 24.f)))
+			.SetMenuDropdownNormalBorderBrush(FSlateNoResource())
+			.SetMenuDropdownHoveredBorderBrush(FSlateNoResource());
 
 		const FSplitterStyle TableHeaderSplitterStyle = FSplitterStyle()
 			.SetHandleNormalBrush(FSlateNoResource())
@@ -1128,7 +1157,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetColumnStyle(TableColumnHeaderStyle)
 			.SetLastColumnStyle(TableLastColumnHeaderStyle)
 			.SetColumnSplitterStyle(TableHeaderSplitterStyle)
-			.SetBackgroundBrush(BOX_BRUSH("Common/TableViewHeader", 4.f / 32.f))
+			.SetBackgroundBrush(FSlateColorBrush(FStyleColors::Background))
 			.SetForegroundColor(DefaultForeground)
 		);
 	}

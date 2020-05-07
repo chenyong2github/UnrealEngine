@@ -174,6 +174,7 @@ public:
 
 		SImage::Construct(
 			SImage::FArguments()
+			.ColorAndOpacity(FSlateColor::UseForeground())
 			.Image(this, &SVisibilityWidget::GetBrush)
 		);
 	}
@@ -357,9 +358,15 @@ FName FSceneOutlinerGutter::GetColumnID()
 SHeaderRow::FColumn::FArguments FSceneOutlinerGutter::ConstructHeaderRowColumn()
 {
 	return SHeaderRow::Column(GetColumnID())
-		.FixedWidth(16.f)
+		.FixedWidth(24.f)
+		.HAlignHeader(HAlign_Right)
+		.VAlignHeader(VAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.VAlignCell(VAlign_Center)
 		[
-			SNew(SSpacer)
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::Get().GetBrush("Level.VisibleIcon16x"))
 		];
 }
 

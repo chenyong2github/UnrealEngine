@@ -65,8 +65,7 @@ public:
 		: _Content()
 		, _TabWellContentLeft()
 		, _TabWellContentRight()
-		, _TabWellContentBackground()
-		, _ContentPadding( FMargin( 2 ) )
+		, _ContentPadding(0)
 		, _TabRole(ETabRole::PanelTab)
 		, _Label()
 		, _LabelSuffix()
@@ -77,12 +76,12 @@ public:
 		, _OnCanCloseTab()
 		, _OnPersistVisualState()
 		, _TabColorScale(FLinearColor::Transparent)
+		, _ForegroundColor(FSlateColor::UseStyle())
 		{}
 
 		SLATE_DEFAULT_SLOT( FArguments, Content )
 		SLATE_NAMED_SLOT( FArguments, TabWellContentLeft )
 		SLATE_NAMED_SLOT( FArguments, TabWellContentRight )
-		SLATE_NAMED_SLOT(FArguments, TabWellContentBackground)
 		SLATE_ATTRIBUTE( FMargin, ContentPadding )
 		SLATE_ARGUMENT( ETabRole, TabRole )
 		SLATE_ATTRIBUTE( FText, Label )
@@ -94,6 +93,7 @@ public:
 		SLATE_EVENT( FCanCloseTab, OnCanCloseTab )
 		SLATE_EVENT( FOnPersistVisualState, OnPersistVisualState )
 		SLATE_ATTRIBUTE( FLinearColor, TabColorScale )
+		SLATE_ATTRIBUTE( FSlateColor, ForegroundColor )
 	SLATE_END_ARGS()
 
 	/** Construct the widget from the declaration. */
@@ -116,17 +116,20 @@ public:
 	// End of SBorder interface
 
 	/** Content that appears in the TabWell to the left of the tabs */
-	void SetLeftContent( TSharedRef<SWidget> InContent );
+	void SetLeftContent(TSharedRef<SWidget> InContent);
 	/** Content that appears in the TabWell to the right of the tabs */
-	void SetRightContent( TSharedRef<SWidget> InContent );
-	/** Content that appears in the TabWell behind the tabs */
-	void SetBackgroundContent( TSharedRef<SWidget> InContent );
+	void SetRightContent(TSharedRef<SWidget> InContent);
+	/** Content that appears on the right side of the title bar in the window this stack is in */
+	void SetTitleBarRightContent(TSharedRef<SWidget> InContent);
 
 	/** @return True if this tab is currently focused */
 	bool IsActive() const;
 
 	/** @return True if this tab appears active; False otherwise */
 	bool IsForeground() const;
+
+	/** @return the Foreground color that this widget sets; unset options if the widget does not set a foreground color */
+	virtual FSlateColor GetForegroundColor() const;
 
 	/** Is this an MajorTab? A tool panel tab? */
 	ETabRole GetTabRole() const;
@@ -147,7 +150,7 @@ public:
 	TSharedRef<SWidget> GetContent();
 	TSharedRef<SWidget> GetLeftContent();
 	TSharedRef<SWidget> GetRightContent();
-	TSharedRef<SWidget> GetBackgrounfContent();
+	TSharedRef<SWidget> GetTitleBarRightContent();
 
 	/** Padding around the content when it is presented by the SDockingTabStack */
 	FMargin GetContentPadding() const;
@@ -316,13 +319,22 @@ protected:
 	/** @return if the close button should be visible. */
 	EVisibility HandleIsCloseButtonVisible() const;
 
+	/** @return the size the tab icon should be */
+	TOptional<FVector2D> GetTabIconSize() const;
+
 private:
 	/** Activates the tab in its tab well */
 	EActiveTimerReturnType TriggerActivateTab( double InCurrentTime, float InDeltaTime );
 
-	/** The handle to the active tab activation tick */
-	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
+	EActiveTimerReturnType OnHandleUpdateStyle(double InCurrentTime, float InDeltaTime);
 
+	void OnParentSet();
+
+	void UpdateTabStyle();
+
+	/** The handle to the active tab activation tick */
+	TWeakPtr<FActiveTimerHandle> DragDropTimerHandle;
+	TWeakPtr<FActiveTimerHandle> UpdateStyleTimerHandle;
 protected:
 
 	/** The tab manager that created this tab. */
@@ -332,8 +344,7 @@ protected:
 	TSharedRef<SWidget> Content;
 	TSharedRef<SWidget> TabWellContentLeft;
 	TSharedRef<SWidget> TabWellContentRight;
-	TSharedRef<SWidget> TabWellContentBackground;
-
+	TSharedRef<SWidget> TitleBarContentRight;
 	
 	/** The tab's layout identifier */
 	FTabId LayoutIdentifier;
@@ -397,7 +408,8 @@ protected:
 
 	/** Widget used to show the label on the tab */
 	TSharedPtr<STextBlock> LabelWidget;
-	
+	TSharedPtr<STextBlock> LabelSuffix;
+
 	/** Widget used to show the icon on the tab */
 	TSharedPtr<SImage> IconWidget;
 	

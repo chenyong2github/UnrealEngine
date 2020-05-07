@@ -720,7 +720,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 			.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/LevelEditor", "SceneOutlinerTab" ) )
 			[
 				SNew(SBorder)
-				.Padding(4)
+				.Padding( 0 )
 				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
 				.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("SceneOutliner"), TEXT("LevelEditorSceneOutliner")))
 				[

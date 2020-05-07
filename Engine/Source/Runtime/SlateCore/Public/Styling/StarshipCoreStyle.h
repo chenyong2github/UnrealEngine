@@ -90,11 +90,21 @@ struct SLATECORE_API FStyleColors
 	static const FLinearColor White;
 	static const FLinearColor White25;
 	static const FLinearColor Highlight; 
-	static const FLinearColor Foreground;
-	static const FLinearColor ForegroundHover;
+
 	static const FLinearColor Primary;
 	static const FLinearColor PrimaryHover;
 	static const FLinearColor PrimaryPress;
+
+
+	static const FLinearColor Foreground;
+	static const FLinearColor ForegroundHover;
+	static const FLinearColor ForegroundInverted;
+
+	static const FLinearColor Select;
+	static const FLinearColor SelectInactive;
+	static const FLinearColor SelectParent;
+	static const FLinearColor SelectHover;
+
 	static const FLinearColor AccentBlue;
 	static const FLinearColor AccentPurple;
 	static const FLinearColor AccentPink;

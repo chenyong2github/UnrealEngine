@@ -22,7 +22,7 @@ class STableColumnHeader : public SCompoundWidget
 public:
 	 
 	SLATE_BEGIN_ARGS(STableColumnHeader)
-		: _Style( &FCoreStyle::Get().GetWidgetStyle<FTableColumnHeaderStyle>("TableView.Header.Column") )
+		: _Style( &FAppStyle::Get().GetWidgetStyle<FTableColumnHeaderStyle>("TableView.Header.Column") )
 		{}
 		SLATE_STYLE_ARGUMENT( FTableColumnHeaderStyle, Style )
 
@@ -96,6 +96,8 @@ public:
 				.VAlign( VAlign_Center )
 				[
 					SNew(STextBlock)
+					.TextStyle(FAppStyle::Get(), "ButtonText")
+					.TransformPolicy(ETextTransformPolicy::ToUpper)
 					.Text( LabelText )
 					.ToolTipText( TooltipText )
 				];
@@ -104,14 +106,35 @@ public:
 		if ( OnSortModeChanged.IsBound() )
 		{
 			//optional main button with the column's title. Used to toggle sorting modes.
-			PrimaryContent = SNew(SButton)
-			.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
+
+			TSharedRef<SButton> SortButton = SNew(SButton)
+			.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 			.ForegroundColor( FSlateColor::UseForeground() )
-			.ContentPadding( FMargin( 0, 2, 0, 2 ) )
 			.OnClicked(this, &STableColumnHeader::OnTitleClicked)
 			[
-				PrimaryContent
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding( FMargin( 0, 2, 0, 2 ) )
+				[
+					PrimaryContent
+				]
+
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.HAlign(HAlign_Left)
+				.VAlign( VAlign_Center)
+				.Padding( FMargin( 4, 0, 0, 0 ) )
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image( this, &STableColumnHeader::GetSortingBrush )
+					.Visibility( this, &STableColumnHeader::GetSortModeVisibility )
+				]
+
 			];
+
+			PrimaryContent = SortButton;
 		}
 		
 		Box->AddSlot()
@@ -135,7 +158,6 @@ public:
 				]
 
 				+SOverlay::Slot()
-				.Padding(FMargin(0,1,0,1))
 				[
 					SNew( SBorder )
 					.Padding( FMargin( 0, 0, AdjustedDefaultHeaderContentPadding.Right, 0 ) )
@@ -143,7 +165,7 @@ public:
 					[
 						SAssignNew( ComboButton, SComboButton)
 						.HasDownArrow(false)
-						.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
+						.ButtonStyle( FAppStyle::Get(), "NoBorder")
 						.ContentPadding( FMargin(0) )
 						.ButtonContent()
 						[
@@ -158,9 +180,8 @@ public:
 				]
 
 				+SOverlay::Slot()
-				.Padding(FMargin(0,0,0,2))
 				.HAlign( HAlign_Center )
-				.VAlign( VAlign_Bottom )
+				.VAlign( VAlign_Center)
 				[
 					SNew(SImage)
 					.Image( &Style->MenuDropdownImage )
@@ -171,16 +192,6 @@ public:
 
 			AdjustedDefaultHeaderContentPadding.Right = 0;
 		}
-
-		Overlay->AddSlot( 1 )
-			.HAlign(HAlign_Center)
-			.VAlign( VAlign_Top )
-			.Padding( FMargin( 0, 2, 0, 0 ) )
-			[
-				SNew(SImage)
-				.Image( this, &STableColumnHeader::GetSortingBrush )
-				.Visibility( this, &STableColumnHeader::GetSortModeVisibility )
-			];
 
 		this->ChildSlot
 		[
@@ -665,7 +676,7 @@ void SHeaderRow::RegenerateWidgets()
 					const float GripSize = 5.0f;
 					TSharedRef<SBorder> SizingGrip = SNew(SBorder)
 						.Padding(0.0f)
-						.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
+						.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 						.Cursor(EMouseCursor::ResizeLeftRight)
 						.Content()
 						[
