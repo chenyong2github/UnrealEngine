@@ -24,9 +24,6 @@
 #include "InteractiveToolObjects.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 
-//#include "PhysicsEngine/BodySetup.h"
-//#include "Interfaces/Interface_CollisionDataProvider.h"
-
 //#define ENABLE_DEBUG_PRINTING
 
 class HHitProxy;
@@ -71,6 +68,8 @@ public:
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
 		CachedViewState.bIsOrthographic = ViewportClient->IsOrtho();
 		CachedViewState.Position = ViewTransform.GetLocation();
+		CachedViewState.HorizontalFOVDegrees = ViewportClient->ViewFOV;
+		CachedViewState.AspectRatio = ViewportClient->AspectRatio;
 
 		// ViewTransform rotation is only initialized for perspective!
 		if (CachedViewState.bIsOrthographic == false)
@@ -572,15 +571,72 @@ void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 
 
 
-class TempRenderContext : public IToolsContextRenderAPI
+class FEdModeTempRenderContext : public IToolsContextRenderAPI
 {
 public:
 	FPrimitiveDrawInterface* PDI;
+	FViewCameraState ViewCameraState;
+
+	FEdModeTempRenderContext(const FSceneView* View, FViewport* Viewport, FEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* DrawInterface)
+	{
+		PDI = DrawInterface;
+		CacheCurrentViewState(View, Viewport, ViewportClient);
+	}
 
 	virtual FPrimitiveDrawInterface* GetPrimitiveDrawInterface() override
 	{
 		return PDI;
 	}
+
+	virtual FViewCameraState GetCameraState() override
+	{
+		return ViewCameraState;
+	}
+
+	void CacheCurrentViewState(const FSceneView* View, FViewport* Viewport, FEditorViewportClient* ViewportClient)
+	{
+		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
+		ViewCameraState.bIsOrthographic = ViewportClient->IsOrtho();
+		ViewCameraState.Position = ViewTransform.GetLocation();
+		ViewCameraState.HorizontalFOVDegrees = ViewportClient->ViewFOV;
+		ViewCameraState.AspectRatio = ViewportClient->AspectRatio;
+
+		// ViewTransform rotation is only initialized for perspective!
+		if (ViewCameraState.bIsOrthographic == false)
+		{
+			ViewCameraState.Orientation = ViewTransform.GetRotation().Quaternion();
+		}
+		else
+		{
+			// These rotations are based on hardcoded values in EditorViewportClient.cpp, see switches in FEditorViewportClient::CalcSceneView and FEditorViewportClient::Draw
+			switch (ViewportClient->ViewportType)
+			{
+			case LVT_OrthoXY:
+				ViewCameraState.Orientation = FQuat(FRotator(-90.0f, -90.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeXY:
+				ViewCameraState.Orientation = FQuat(FRotator(90.0f, 90.0f, 0.0f));
+				break;
+			case LVT_OrthoXZ:
+				ViewCameraState.Orientation = FQuat(FRotator(0.0f, -90.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeXZ:
+				ViewCameraState.Orientation = FQuat(FRotator(0.0f, 90.0f, 0.0f));
+				break;
+			case LVT_OrthoYZ:
+				ViewCameraState.Orientation = FQuat(FRotator(0.0f, 0.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeYZ:
+				ViewCameraState.Orientation = FQuat(FRotator(0.0f, 180.0f, 0.0f));
+				break;
+			default:
+				ViewCameraState.Orientation = FQuat::Identity;
+			}
+		}
+
+		ViewCameraState.bIsVR = false;
+	}
+
 };
 
 
@@ -592,8 +648,12 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 		return;
 	}
 
-	TempRenderContext RenderContext;
-	RenderContext.PDI = PDI;
+	// THIS IS NOT SAFE!! However it appears that (1) it is only possible to get certain info from the EditorViewportClient,
+	// but (2) there is no way to know if a FViewportClient is an FEditorViewportClient. Currently this ::Render() function
+	// is only intended to be called by FEdMode/UEdMode::Render(), and their ::Render() calls are only called by the
+	// FEditorViewportClient, which passes it's own Viewport down. So, this cast should be valid (for now)
+	FEditorViewportClient* ViewportClient = static_cast<FEditorViewportClient*>(Viewport->GetClient());
+	FEdModeTempRenderContext RenderContext(View, Viewport, ViewportClient, PDI);
 	ToolManager->Render(&RenderContext);
 	GizmoManager->Render(&RenderContext);
 }

@@ -52,6 +52,10 @@ struct INTERACTIVETOOLSFRAMEWORK_API FViewCameraState
 	FVector Position;
 	/** Current camera/head orientation */
 	FQuat Orientation;
+	/** Current Horizontal Field of View Angle in Degrees */
+	float HorizontalFOVDegrees;
+	/** Current Aspect Ratio */
+	float AspectRatio;
 	/** Is current view an orthographic view */
 	bool bIsOrthographic;
 	/** Is current view a VR view */
@@ -63,6 +67,13 @@ struct INTERACTIVETOOLSFRAMEWORK_API FViewCameraState
 	FVector Up() const { return Orientation.GetAxisZ(); }
 	/** @return forward camera direction */
 	FVector Forward() const { return Orientation.GetAxisX(); }
+
+	/** @return scaling factor that should be applied to PDI thickness/size */
+	float GetPDIScalingFactor() const { return HorizontalFOVDegrees / 90.0f; }
+
+	/** @return FOV normalization factor that should be applied when comparing angles */
+	float GetFOVAngleNormalizationFactor() const { return HorizontalFOVDegrees / 90.0f; }
+
 };
 
 
@@ -327,6 +338,9 @@ public:
 
 	/** @return Current PDI */
 	virtual FPrimitiveDrawInterface* GetPrimitiveDrawInterface() = 0;
+
+	/** @return Current Camera State for this Render API */
+	virtual FViewCameraState GetCameraState() = 0;
 };
 
 

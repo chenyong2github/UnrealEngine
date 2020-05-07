@@ -223,6 +223,10 @@ protected:
 	FViewCameraState CameraState;
 	bool bHaveCameraState;
 
+	// screen-space line thicknesses and point sizes are multiplied by this value to try to normalize for variable thickness
+	// that occurs at different FOVs. 
+	float PDISizeScale = 1.0;
+
 
 	TArray<FTransform> TransformStack;
 	FTransform TotalTransform;
