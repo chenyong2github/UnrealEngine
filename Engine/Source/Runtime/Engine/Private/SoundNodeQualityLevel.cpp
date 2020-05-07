@@ -24,15 +24,17 @@ FAutoConsoleVariableRef CVarCullSoundWaveHardReferences(
 	TEXT("0: Cull soundwaves, 1: do not cull sound waves."),
 	ECVF_Default);
 
-#if WITH_EDITOR
+
 void USoundNodeQualityLevel::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITOR
 	ReconcileNode(false);
+#endif
 
 	uint32 CachedQualityLevel = USoundCue::GetCachedQualityLevel();
-	if (CullSoundWaveHardReferencesCvar && ChildNodes.IsValidIndex(CachedQualityLevel))
+	if (!GIsEditor && CullSoundWaveHardReferencesCvar && ChildNodes.IsValidIndex(CachedQualityLevel))
 	{
 		// go through any waveplayers on an unselcted quality level and null out their soundwave references.
 		for (int32 Index = 0; Index < ChildNodes.Num(); Index++)
@@ -49,6 +51,7 @@ void USoundNodeQualityLevel::PostLoad()
 	}
 }
 
+#if WITH_EDITOR
 void USoundNodeQualityLevel::ReconcileNode(bool bReconstructNode)
 {
 	while (ChildNodes.Num() > GetMinChildNodes())
