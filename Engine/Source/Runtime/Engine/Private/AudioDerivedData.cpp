@@ -402,7 +402,14 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 						// Zero pad the reallocation if the chunk isn't precisely the max chunk size to keep the reads aligned to MaxChunkSize
 						const int32 AudioDataSize = ChunkBuffers[ChunkIndex].Num();
 						check(AudioDataSize != 0 && AudioDataSize <= MaxChunkSize);
-						const int32 ZeroPadBytes = FMath::Max(MaxChunkSize - AudioDataSize, 0);
+
+						int32 ZeroPadBytes = 0;
+
+						if (!bUseStreamCaching || bForceLegacyStreamChunking)
+						{
+							// padding when stream caching is enabled will waste a large amout of memory
+							ZeroPadBytes = FMath::Max(MaxChunkSize - AudioDataSize, 0);
+						}
 
 						FStreamedAudioChunk* NewChunk = new FStreamedAudioChunk();
 						DerivedData->Chunks.Add(NewChunk);
@@ -422,7 +429,13 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 
 						void* NewChunkData = NewChunk->BulkData.Realloc(NewChunk->DataSize);
 						FMemory::Memcpy(NewChunkData, ChunkBuffers[ChunkIndex].GetData(), AudioDataSize);
-						FMemory::Memzero((uint8*)NewChunkData + AudioDataSize, ZeroPadBytes);
+
+						// if we are padding,
+						if (ZeroPadBytes > 0)
+						{
+							// zero out the end of ChunkData (after the audio data ends).
+							FMemory::Memzero((uint8*)NewChunkData + AudioDataSize, ZeroPadBytes);
+						}
 
 						NewChunk->BulkData.Unlock();
 					}
