@@ -139,7 +139,14 @@ namespace Chaos
 		void EnableRewindCapture(int32 NumFrames);
 		FRewindData* GetRewindData()
 		{
-			return MRewindData.Get();
+			if(Traits::IsRewindable())
+			{
+				return MRewindData.Get();
+			}
+			else
+			{
+				return nullptr;
+			}
 		}
 
 		template<typename Lambda>
