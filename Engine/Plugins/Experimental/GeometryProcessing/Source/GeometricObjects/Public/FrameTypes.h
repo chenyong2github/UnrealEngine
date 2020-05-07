@@ -398,13 +398,13 @@ struct TFrame3
 		RealType NormalDot = RayDirection.Dot(Normal);
 		if (VectorUtil::EpsilonEqual(NormalDot, (RealType)0, TMathUtil<RealType>::ZeroTolerance))
 		{
-			HitPointOut = FVector3<RealType>::Max();
+			HitPointOut = FVector3<RealType>::MaxVector();
 			return false;
 		}
 		RealType t = -( RayOrigin.Dot(Normal) + PlaneD) / NormalDot;
 		if (t < 0)
 		{
-			HitPointOut = FVector3<RealType>::Max();
+			HitPointOut = FVector3<RealType>::MaxVector();
 			return false;
 		}
 		HitPointOut = RayOrigin + t * RayDirection;

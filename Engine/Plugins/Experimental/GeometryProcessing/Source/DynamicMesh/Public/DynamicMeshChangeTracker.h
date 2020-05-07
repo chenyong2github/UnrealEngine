@@ -333,11 +333,11 @@ protected:
 
 void FDynamicMeshChangeTracker::SaveEdge(int32 EdgeID, bool bVertices)
 {
-	FIndex4i EdgeInfo = Mesh->GetEdge(EdgeID);
-	SaveTriangle(EdgeInfo.C, bVertices);
-	if (EdgeInfo.D != FDynamicMesh3::InvalidID)
+	const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(EdgeID);
+	SaveTriangle(Edge.Tri[0], bVertices);
+	if (Edge.Tri[1] != FDynamicMesh3::InvalidID)
 	{
-		SaveTriangle(EdgeInfo.D, bVertices);
+		SaveTriangle(Edge.Tri[1], bVertices);
 	}
 }
 

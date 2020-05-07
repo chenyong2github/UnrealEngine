@@ -9,6 +9,7 @@
 #include "Editor.h"
 #include "EditorUndoClient.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "InteractiveGizmoManager.h"
 #include "EdMode.h"
 
 class FCanvas;
@@ -650,4 +651,8 @@ private:
 
 	/** Flag set between calls to StartTracking() and EndTracking() */
 	bool bIsTracking;
+
+
+	UInteractiveGizmoManager* GizmoManager;
+	UInputRouter* InputRouter;
 };

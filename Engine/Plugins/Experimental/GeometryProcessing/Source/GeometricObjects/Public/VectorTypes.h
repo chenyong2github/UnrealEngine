@@ -415,7 +415,7 @@ struct FVector3
 	{
 		return FVector3<T>((T)0, (T)0, (T)1);
 	}
-	static FVector3<T> Max()
+	static FVector3<T> MaxVector()
 	{
 		return FVector3<T>(TNumericLimits<T>::Max(), TNumericLimits<T>::Max(), TNumericLimits<T>::Max());
 	}
@@ -616,12 +616,36 @@ struct FVector3
 		return FVector3<T>((T)0, (T)0, (T)0);
 	}
 
-	constexpr T MaxAbs() const
+	constexpr T MaxElement() const
+	{
+		return TMathUtil<T>::Max3(X,Y,Z);
+	}
+
+	constexpr T MinElement() const
+	{
+		return TMathUtil<T>::Min3(X,Y,Z);
+	}
+
+	constexpr friend FVector3 Min( const FVector3& V0, const FVector3& V1 )
+	{
+		return FVector3(TMathUtil<T>::Min(V0.X, V1.X),
+						TMathUtil<T>::Min(V0.Y, V1.Y),
+						TMathUtil<T>::Min(V0.Z, V1.Z));
+	}
+
+	constexpr friend FVector3 Max( const FVector3& V0, const FVector3& V1 )
+	{
+		return FVector3(TMathUtil<T>::Max(V0.X, V1.X),
+						TMathUtil<T>::Max(V0.Y, V1.Y),
+						TMathUtil<T>::Max(V0.Z, V1.Z));
+	}
+
+	constexpr T MaxAbsElement() const
 	{
 		return TMathUtil<T>::Max3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
 	}
 
-	constexpr T MinAbs() const
+	constexpr T MinAbsElement() const
 	{
 		return TMathUtil<T>::Min3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
 	}
