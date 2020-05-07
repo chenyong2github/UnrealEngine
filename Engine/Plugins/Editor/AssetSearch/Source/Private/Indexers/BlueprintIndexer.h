@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IAssetIndexer.h"
 
+class UBlueprint;
 struct FMemberReference;
 
 class FBlueprintIndexer : public IAssetIndexer
