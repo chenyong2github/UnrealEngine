@@ -34,12 +34,17 @@ namespace Chaos
 			CollisionContainer.UpdateConstraints(Dt);
 
 			// Collision detection pipeline: BroadPhase -[parallel]-> NarrowPhase -[parallel]-> Receiver -[serial]-> Container
-			FAsyncCollisionReceiver Receiver(CollisionContainer);
-			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, Receiver, StatData);
+			FAsyncCollisionReceiver Receiver(CollisionContainer, ResimCache.Get());
+			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, Receiver, StatData, ResimCache.Get() != nullptr);
+			if(ResimCache)
+			{
+				Receiver.ReceiveCollisions(ResimCache->GetAndSanitizeConstraints());
+			}
 			Receiver.ProcessCollisions();
 		}
 
 	private:
 		FSpatialAccelerationBroadPhase& BroadPhase;
+		TUniquePtr<FCollisionResimCache> ResimCache;
 	};
 }
