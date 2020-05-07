@@ -58,36 +58,3 @@ FRigUnit_AddBoneTransform_Execute()
 	}
 }
 
-#if WITH_DEV_AUTOMATION_TESTS
-#include "Units/RigUnitTest.h"
-
-IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AddBoneTransform)
-{
-	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(1.f, 2.f, 0.f)));
-	BoneHierarchy.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
-
-	BoneHierarchy.ResetTransforms();
-	Unit.Bone = TEXT("BoneA");
-	Unit.Transform = FTransform(FVector(0.f, 0.f, 7.f));
-	Unit.bPropagateToChildren = false;
-	InitAndExecute();
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected transform"));
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 7.f)), TEXT("unexpected transform"));
-
-	Unit.Bone = TEXT("Root");
-	BoneHierarchy.ResetTransforms();
-	InitAndExecute();
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 7.f)), TEXT("unexpected transform"));
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 0.f)), TEXT("unexpected transform"));
-
-	Unit.bPropagateToChildren = true;
-	BoneHierarchy.ResetTransforms();
-	InitAndExecute();
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 7.f)), TEXT("unexpected transform"));
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 7.f)), TEXT("unexpected transform"));
-
-	return true;
-}
-#endif
