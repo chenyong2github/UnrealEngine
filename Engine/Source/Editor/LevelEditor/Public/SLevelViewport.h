@@ -370,8 +370,11 @@ public:
 	/** Actions to perform whenever the viewports floating buttons are pressed */
 	void OnFloatingButtonClicked();
 
+	/** Get the visibility for viewport toolbar */
+	EVisibility GetToolbarVisibility() const;
+
 	/** Get the visibility for items considered to be part of the 'full' viewport toolbar */
-	EVisibility GetFullToolbarVisibility() const { return bShowFullToolbar ? EVisibility::Visible : EVisibility::Collapsed; }
+	EVisibility GetFullToolbarVisibility() const { return (bShowToolbarAndControls && bShowFullToolbar) ? EVisibility::Visible : EVisibility::Collapsed; }
 
 	/** Unpin and close all actor preview windows */
 	void RemoveAllPreviews(const bool bRemoveFromDesktopViewport = true);
@@ -883,6 +886,9 @@ private:
 
 	/** The users value for allowing throttling, we restore this value when we lose focus. */
 	int32 UserAllowThrottlingValue;
+
+	/** Whether to show toolbar or buttons */
+	bool bShowToolbarAndControls;
 
 	/** Whether to show a full toolbar, or a compact one */
 	bool bShowFullToolbar;

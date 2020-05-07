@@ -533,6 +533,8 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 
 	bShowFullToolbar = ViewportInstanceSettings.bShowFullToolbar;
 
+	// Always set to true initially
+	bShowToolbarAndControls = true; 
 
 	// Disable realtime viewports by default for remote sessions
 	if (FPlatformMisc::IsRemoteSession())
@@ -1738,7 +1740,7 @@ EVisibility SLevelViewport::GetMaximizeToggleVisibility() const
 EVisibility SLevelViewport::GetCloseImmersiveButtonVisibility() const
 {
 	// Do not show the Immersive toggle button when not in immersive mode
-	return IsImmersive() ? EVisibility::Visible : EVisibility::Collapsed;
+	return (IsImmersive() && bShowToolbarAndControls) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SLevelViewport::GetTransformToolbarVisibility() const
@@ -1841,6 +1843,15 @@ void SLevelViewport::OnToggleImmersive()
 		if (!ViewportName.IsNone())
 		{
 			ParentLayout.Pin()->RequestMaximizeViewport( ViewportName, bWantMaximize, bWantImmersive, bAllowAnimation );
+		}
+
+		if (bWantImmersive && LevelViewportClient->IsVisualizeCalibrationMaterialEnabled()) 
+		{
+			bShowToolbarAndControls = false;
+		}
+		else
+		{
+			bShowToolbarAndControls = true;
 		}
 	}
 }
@@ -3920,7 +3931,7 @@ EVisibility SLevelViewport::GetViewportControlsVisibility() const
 {
 	// Do not show the controls if this viewport has a play in editor session
 	// or is not the current viewport
-	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient && !IsPlayInEditorViewportActive()) ? OnGetViewportContentVisibility() : EVisibility::Collapsed;
+	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient && !IsPlayInEditorViewportActive() && bShowToolbarAndControls) ? OnGetViewportContentVisibility() : EVisibility::Collapsed;
 }
 
 void SLevelViewport::OnSetViewportConfiguration(FName ConfigurationName)
@@ -4527,6 +4538,12 @@ void SLevelViewport::OnFloatingButtonClicked()
 {
 	// if one of the viewports floating buttons has been clicked, update the global viewport ptr
 	LevelViewportClient->SetLastKeyViewport();
+}
+
+/** Get the visibility for viewport toolbar */
+EVisibility  SLevelViewport::GetToolbarVisibility() const
+{ 
+	return bShowToolbarAndControls ? EVisibility::Visible : EVisibility::Collapsed; 
 }
 
 void SLevelViewport::RemoveAllPreviews(const bool bRemoveFromDesktopViewport /**= true*/)
