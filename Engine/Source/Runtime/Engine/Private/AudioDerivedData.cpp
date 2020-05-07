@@ -183,7 +183,7 @@ static FName GetWaveFormatForRunningPlatform(USoundWave& SoundWave)
 
 static const FPlatformAudioCookOverrides* GetCookOverridesForRunningPlatform()
 {
-	return FPlatformCompressionUtilities::GetCookOverrides(ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+	return FPlatformCompressionUtilities::GetCookOverrides(nullptr);
 }
 
 /**
@@ -407,7 +407,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 
 						if (!bUseStreamCaching || bForceLegacyStreamChunking)
 						{
-							// padding when stream caching is enabled will waste a large amout of memory
+							// padding when stream caching is enabled will significantly bloat the amount of space soundwaves take up on disk.
 							ZeroPadBytes = FMath::Max(MaxChunkSize - AudioDataSize, 0);
 						}
 
@@ -1674,7 +1674,7 @@ void USoundWave::FinishCachePlatformData()
 		const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 		GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
-		check(RunningPlatformData->DerivedDataKey == DerivedDataKey);
+		UE_CLOG(RunningPlatformData->DerivedDataKey == DerivedDataKey, LogAudio, Warning, TEXT("Audio was cooked with the DDC key %s but should've had the DDC key %s. the cook overrides/codec used may be incorrect."), *RunningPlatformData->DerivedDataKey, *DerivedDataKey);
 	}
 #endif
 }
