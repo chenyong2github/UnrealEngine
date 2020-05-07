@@ -402,6 +402,7 @@ public:
 private:
 	FIoChunkId ChunkID;
 };
+static FCriticalSection FBulkDataIoDispatcherRequestEvent;
 
 class FBulkDataIoDispatcherRequest : public IBulkDataIORequest
 {
@@ -448,6 +449,9 @@ public:
 
 		// Should be freed by the callback!
 		checkf(!IoBatch.IsValid(), TEXT("FBulkDataIoDispatcherRequest::IoBatch was not freed"));
+
+		// Make sure no other thread is waiting on this request
+		checkf(DoneEvent == nullptr, TEXT("A thread is still waiting on a FBulkDataIoDispatcherRequest that is being destroyed!"));
 	}
 
 	void StartAsyncWork()
@@ -457,32 +461,41 @@ public:
 
 		auto Callback = [this](TIoStatusOr<FIoBuffer> Result)
 		{
+			// We need to store the this pointer as a local variable as it will become invalidated by our
+			// later call to FreeBatch
+			FBulkDataIoDispatcherRequest* InRequest = this;
+
 			CHECK_IOSTATUS(Result.Status(), TEXT("FIoBatch::IssueWithCallback"));
 			FIoBuffer IoBuffer = Result.ConsumeValueOrDie();
 
-			SizeResult = IoBuffer.DataSize();
+			InRequest->SizeResult = IoBuffer.DataSize();
 
 			if (IoBuffer.IsMemoryOwned())
 			{
-				DataResult = IoBuffer.Release().ConsumeValueOrDie();
+				InRequest->DataResult = IoBuffer.Release().ConsumeValueOrDie();
 			}
 			else
 			{
-				DataResult = IoBuffer.Data();
+				InRequest->DataResult = IoBuffer.Data();
 			}
 
-			checkf(DataResult != nullptr, TEXT("Nothing was loaded!"));
+			// Note that freeing the batch will invalidate the current callback!
+			FBulkDataBase::GetIoDispatcher()->FreeBatch(InRequest->IoBatch);
 
-			FBulkDataBase::GetIoDispatcher()->FreeBatch(IoBatch);
-
-			bIsCompleted = true;
-
-			FPlatformMisc::MemoryBarrier();
-
-			if (CompleteCallback)
+			if (InRequest->CompleteCallback)
 			{
-				CompleteCallback(bIsCanceled, this);
-			}	
+				InRequest->CompleteCallback(InRequest->bIsCanceled, InRequest);
+			}
+
+			{
+				FScopeLock Lock(&FReadChunkIdRequestEvent);
+				InRequest->bIsCompleted = true;
+
+				if (InRequest->DoneEvent != nullptr)
+				{
+					InRequest->DoneEvent->Trigger();
+				}
+			}
 		};
 
 		IoBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
@@ -504,26 +517,28 @@ public:
 		return bIsCompleted;
 	}
 
-	virtual bool WaitCompletion(float TimeLimitSeconds) const override
+	virtual bool WaitCompletion(float TimeLimitSeconds) override
 	{
-		// Note that currently we do not get events from the FIoDispatcher, so we just
-		// have a basic implementation.
-		// We only have one use case for a time limited wait, every other use case is 
-		// supposed to be fully blocking so ideally we can eliminate the single use case 
-		// and just change this code entirely.
-		if (!bIsCompleted)
+		// Make sure no other thread is waiting on this request
+		checkf(DoneEvent == nullptr, TEXT("Multiple threads attempting to wait on the same FBulkDataIoDispatcherRequest"));
+
 		{
-			if (TimeLimitSeconds > 0.0f)
+			FScopeLock Lock(&FReadChunkIdRequestEvent);
+			if (!bIsCompleted)
 			{
-				FPlatformProcess::Sleep(TimeLimitSeconds);
+				checkf(DoneEvent == nullptr, TEXT("Multiple threads attempting to wait on the same FBulkDataIoDispatcherRequest"));
+				DoneEvent = FPlatformProcess::GetSynchEventFromPool(true);
 			}
-			else
-			{
-				while (!bIsCompleted)
-				{
-					FPlatformProcess::Sleep(0.0f);
-				}
-			}
+		}
+
+		if (DoneEvent != nullptr)
+		{
+			uint32 TimeLimitMilliseconds = TimeLimitSeconds <= 0.0f ? MAX_uint32 : (uint32)(TimeLimitSeconds * 1000.0f);
+			DoneEvent->Wait(TimeLimitMilliseconds);
+
+			FScopeLock Lock(&FReadChunkIdRequestEvent);
+			FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
+			DoneEvent = nullptr;
 		}
 
 		return bIsCompleted;
@@ -584,6 +599,9 @@ private:
 
 	bool bIsCompleted = false;
 	bool bIsCanceled = false;
+
+	/** Only actually gets created if WaitCompletion is called. */
+	FEvent* DoneEvent = nullptr;
 
 	FIoBatch IoBatch;
 };

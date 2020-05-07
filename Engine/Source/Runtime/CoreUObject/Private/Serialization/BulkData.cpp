@@ -1783,7 +1783,7 @@ bool FBulkDataIORequest::PollCompletion() const
 	return ReadRequest->PollCompletion();
 }
 
-bool FBulkDataIORequest::WaitCompletion(float TimeLimitSeconds) const
+bool FBulkDataIORequest::WaitCompletion(float TimeLimitSeconds)
 {
 	return ReadRequest->WaitCompletion(TimeLimitSeconds);
 }

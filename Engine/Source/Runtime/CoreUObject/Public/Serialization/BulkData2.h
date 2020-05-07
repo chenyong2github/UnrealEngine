@@ -25,7 +25,7 @@ public:
 	virtual ~IBulkDataIORequest() {}
 
 	virtual bool PollCompletion() const = 0;
-	virtual bool WaitCompletion(float TimeLimitSeconds = 0.0f) const = 0;
+	virtual bool WaitCompletion(float TimeLimitSeconds = 0.0f) = 0;
 
 	virtual uint8* GetReadResults() = 0;
 	virtual int64 GetSize() const = 0;
