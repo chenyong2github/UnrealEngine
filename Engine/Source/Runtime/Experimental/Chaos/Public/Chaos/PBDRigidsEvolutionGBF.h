@@ -18,6 +18,7 @@
 namespace Chaos
 {
 	class FChaosArchive;
+	class IResimCacheBase;
 
 	CHAOS_API extern float HackMaxAngularVelocity;
 	CHAOS_API extern float HackMaxVelocity;
@@ -235,6 +236,8 @@ namespace Chaos
 		}
 
 		CHAOS_API void Serialize(FChaosArchive& Ar);
+
+		CHAOS_API TUniquePtr<IResimCacheBase> CreateExternalResimCache() const;
 
 	protected:
 

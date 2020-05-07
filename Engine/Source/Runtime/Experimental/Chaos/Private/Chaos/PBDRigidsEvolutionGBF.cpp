@@ -14,6 +14,7 @@
 #include "Chaos/PerParticlePBDGroundConstraint.h"
 #include "Chaos/PerParticlePBDUpdateFromDeltaPosition.h"
 #include "ChaosStats.h"
+#include "Chaos/EvolutionResimCache.h"
 
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Chaos/DebugDrawQueue.h"
@@ -494,6 +495,13 @@ template <typename Traits>
 void TPBDRigidsEvolutionGBF<Traits>::Serialize(FChaosArchive& Ar)
 {
 	Base::Serialize(Ar);
+}
+
+template <typename Traits>
+TUniquePtr<IResimCacheBase> TPBDRigidsEvolutionGBF<Traits>::CreateExternalResimCache() const
+{
+	check(Traits::IsRewindable());
+	return TUniquePtr<IResimCacheBase>(new FEvolutionResimCache());
 }
 
 #define EVOLUTION_TRAIT(Trait) template class TPBDRigidsEvolutionGBF<Trait>;
