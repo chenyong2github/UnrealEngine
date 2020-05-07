@@ -3,6 +3,7 @@
 #include "CurveTableIndexer.h"
 #include "Utility/IndexerUtilities.h"
 #include "Engine/CurveTable.h"
+#include "SearchSerializer.h"
 
 enum class ECurveTableIndexerVersion
 {

@@ -14,6 +14,7 @@
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 #include "K2Node_Event.h"
+#include "SearchSerializer.h"
 
 #define LOCTEXT_NAMESPACE "FBlueprintIndexer"
 
