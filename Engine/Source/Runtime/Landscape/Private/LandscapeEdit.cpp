@@ -3000,6 +3000,10 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 			ComponentsToProcess.Append(LandscapeComponents);
 		}
 
+		check(LayerImportSettings.Num() != 0);
+		// Currently only supports reimporting heightmap data into a single edit layer, which will always be the default layer
+		ReimportDestinationLayerGuid = LayerImportSettings[0].DestinationLayerGuid;
+
 		TSet<UTexture2D*> LayersTextures;
 
 		for (const FLayerImportSettings& ImportSettings : LayerImportSettings)
