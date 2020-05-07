@@ -3364,14 +3364,19 @@ static void CreateGlobalScriptObjects(
 	{
 		if (!Package->HasAnyPackageFlags(PKG_CompiledIn))
 		{
-			UE_LOG(LogIoStore, Warning, TEXT("Skipping script package: %s"), *Package->GetName());
-			continue;
+			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s is missing the flag PKG_CompiledIn"), *Package->GetName());
 		}
-
-		if (Package->HasAnyPackageFlags(PKG_EditorOnly | PKG_Developer | PKG_UncookedOnly))
+		else if (Package->HasAnyPackageFlags(PKG_EditorOnly))
 		{
-			UE_LOG(LogIoStore, Warning, TEXT("Skipping script package: %s"), *Package->GetName());
-			continue;
+			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_EditorOnly"), *Package->GetName());
+		}
+		else if (Package->HasAnyPackageFlags(PKG_Developer))
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_Developer"), *Package->GetName());
+		}
+		else if (Package->HasAnyPackageFlags(PKG_UncookedOnly))
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_UncookedOnly"), *Package->GetName());
 		}
 
 		FName ObjectName = Package->GetFName();
