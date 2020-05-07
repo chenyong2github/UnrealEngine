@@ -184,6 +184,8 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	PrevTransform = FMatrix::Identity;
 	DeltaSeconds = 0.0f;
 	ChangeId = Interface->ChangeId;
+	bUsePhysicsVelocity = Interface->bUsePhysicsBodyVelocity;
+	PhysicsVelocity = FVector::ZeroVector;
 
 	if (Interface->SourceComponent)
 	{
@@ -275,6 +277,13 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	PrevTransform = Transform;
 	Transform = SafeComponent_GT->GetComponentToWorld().ToMatrixWithScale();
 	TransformInverseTransposed = Transform.Inverse().GetTransposed();
+	if (bUsePhysicsVelocity)
+	{
+		if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(SafeComponent_GT))
+		{
+			PhysicsVelocity = MeshComponent->GetPhysicsLinearVelocity();
+		}
+	}
 
 	if (GNiagaraFailStaticMeshDataInterface != 0)
 	{
@@ -397,12 +406,24 @@ bool FNDIStaticMesh_InstanceData::Tick(UNiagaraDataInterfaceStaticMesh* Interfac
 			PrevTransform = Transform;
 			Transform = SafeComponent_GT->GetComponentToWorld().ToMatrixWithScale();
 			TransformInverseTransposed = Transform.Inverse().GetTransposed();
+			if (bUsePhysicsVelocity)
+			{
+				if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(SafeComponent_GT))
+				{
+					PhysicsVelocity = MeshComponent->GetPhysicsLinearVelocity();
+				}
+				else
+				{
+					PhysicsVelocity = FVector::ZeroVector;
+				}
+			}
 		}
 		else
 		{
 			PrevTransform = FMatrix::Identity;
 			Transform = FMatrix::Identity;
 			TransformInverseTransposed = FMatrix::Identity;
+			PhysicsVelocity = FVector::ZeroVector;
 		}
 		return false;
 	}
@@ -703,7 +724,8 @@ UNiagaraDataInterfaceStaticMesh::UNiagaraDataInterfaceStaticMesh(FObjectInitiali
 	, PreviewMesh(nullptr)
 #endif
 	, DefaultMesh(nullptr)
-	, Source(nullptr)	
+	, Source(nullptr)
+	, bUsePhysicsBodyVelocity(false)
 	, ChangeId(0)
 	//, bSupportingVertexColorSampling(0)//Vertex color filtering needs some more work.
 	//, bFilterInitialized(false)
@@ -1210,6 +1232,7 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 #endif
 	//OtherTyped->bEnableVertexColorRangeSorting = bEnableVertexColorRangeSorting;//TODO: Vertex color filtering needs more work.
 	OtherTyped->SectionFilter = SectionFilter;
+	OtherTyped->bUsePhysicsBodyVelocity = bUsePhysicsBodyVelocity;
 	return true;
 }
 
@@ -1223,7 +1246,8 @@ bool UNiagaraDataInterfaceStaticMesh::Equals(const UNiagaraDataInterface* Other)
 	return OtherTyped->Source == Source &&
 		OtherTyped->DefaultMesh == DefaultMesh &&
 		//OtherTyped->bEnableVertexColorRangeSorting == bEnableVertexColorRangeSorting &&//TODO: Vertex color filtering needs more work.
-		OtherTyped->SectionFilter.AllowedMaterialSlots == SectionFilter.AllowedMaterialSlots;
+		OtherTyped->SectionFilter.AllowedMaterialSlots == SectionFilter.AllowedMaterialSlots &&
+		OtherTyped->bUsePhysicsBodyVelocity == bUsePhysicsBodyVelocity;
 }
 
 bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
@@ -2056,11 +2080,19 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMCo
 		const int32 Idx2 = Indices[Tri + 2];
 
 		FVector Pos = BarycentricInterpolate(BaryXParam.Get(), BaryYParam.Get(), BaryZParam.Get(), Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2));
-
-		FVector PrevWSPos = InstData->PrevTransform.TransformPosition(Pos);
 		FVector WSPos = InstData->Transform.TransformPosition(Pos);
-
-		FVector Vel = (WSPos - PrevWSPos) * InvDt;
+		
+		FVector Vel;
+		if (InstData->bUsePhysicsVelocity)
+		{
+			Vel = InstData->PhysicsVelocity;
+		}
+		else
+		{
+			FVector PrevWSPos = InstData->PrevTransform.TransformPosition(Pos);
+			Vel = (WSPos - PrevWSPos) * InvDt;
+		}
+		
 		*OutPosX.GetDest() = WSPos.X;
 		*OutPosY.GetDest() = WSPos.Y;
 		*OutPosZ.GetDest() = WSPos.Z;
@@ -2141,11 +2173,18 @@ void UNiagaraDataInterfaceStaticMesh::GetWorldVelocity(FVectorVMContext& Context
 	VectorVM::FExternalFuncRegisterHandler<float> OutVelZ(Context);
 
 	FVector Velocity(0.0f, 0.0f, 0.0f);
-	float InvDeltaTime = 1.0f / InstData->DeltaSeconds;
-	if (InstData->DeltaSeconds > 0.0f)
+	if (InstData->bUsePhysicsVelocity)
 	{
-		Velocity = (FVector(InstData->Transform.M[3][0], InstData->Transform.M[3][1], InstData->Transform.M[3][2]) - 
-			FVector(InstData->PrevTransform.M[3][0], InstData->PrevTransform.M[3][1], InstData->PrevTransform.M[3][2])) * InvDeltaTime;
+		Velocity = InstData->PhysicsVelocity;
+	}
+	else
+	{
+		float InvDeltaTime = 1.0f / InstData->DeltaSeconds;
+		if (InstData->DeltaSeconds > 0.0f)
+		{
+			Velocity = (FVector(InstData->Transform.M[3][0], InstData->Transform.M[3][1], InstData->Transform.M[3][2]) - 
+                FVector(InstData->PrevTransform.M[3][0], InstData->PrevTransform.M[3][1], InstData->PrevTransform.M[3][2])) * InvDeltaTime;
+		}
 	}
 
 	for (int32 i = 0; i < Context.NumInstances; i++)
