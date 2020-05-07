@@ -678,6 +678,7 @@ namespace Audio
 
 			// Initialize the mixer source buffer decoder with the given mixer buffer
 			SourceInfo.MixerSourceBuffer = InitParams.MixerSourceBuffer;
+			AUDIO_MIXER_CHECK(SourceInfo.MixerSourceBuffer.IsValid());
 			SourceInfo.MixerSourceBuffer->Init();
 			SourceInfo.MixerSourceBuffer->OnBeginGenerate();
 
@@ -1425,11 +1426,14 @@ namespace Audio
 					break;
 				}
 
-				SourceInfo.MixerSourceBuffer->OnBufferEnd();
+				if (ensure(SourceInfo.MixerSourceBuffer.IsValid()))
+				{
+					SourceInfo.MixerSourceBuffer->OnBufferEnd();
+				}
 			}
 
 			// If we have audio in our queue, we're still playing
-			if (SourceInfo.MixerSourceBuffer->GetNumBuffersQueued() > 0 && NumChannels > 0)
+			if (ensure(SourceInfo.MixerSourceBuffer.IsValid()) && SourceInfo.MixerSourceBuffer->GetNumBuffersQueued() > 0 && NumChannels > 0)
 			{
 				SourceInfo.CurrentPCMBuffer = SourceInfo.MixerSourceBuffer->GetNextBuffer();
 				SourceInfo.CurrentAudioChunkNumFrames = SourceInfo.CurrentPCMBuffer->AudioData.Num() / NumChannels;
