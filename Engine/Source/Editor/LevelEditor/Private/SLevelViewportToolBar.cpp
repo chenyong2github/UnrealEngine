@@ -181,6 +181,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 			[
 				SNew( SEditorViewportToolbarMenu )
 				.ParentToolBar( SharedThis( this ) )
+				.Visibility(Viewport.Pin().Get(), &SLevelViewport::GetToolbarVisibility)
 				.Cursor( EMouseCursor::Default )
 				.Image( "EditorViewportToolBar.MenuDropdown" )
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.MenuDropdown")))
