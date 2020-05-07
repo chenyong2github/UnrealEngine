@@ -2,9 +2,7 @@
 
 #include "IAnalyticsProviderET.h"
 #include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
-#include "Misc/OutputDeviceFile.h"
 #include "Stats/Stats.h"
 #include "Containers/Ticker.h"
 #include "Misc/App.h"
@@ -12,7 +10,6 @@
 
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonWriter.h"
-#include "Modules/ModuleManager.h"
 #include "AnalyticsET.h"
 #include "Analytics.h"
 #include "Interfaces/IHttpResponse.h"
@@ -22,141 +19,7 @@
 #include "Misc/EngineVersion.h"
 #include "HttpRetrySystem.h"
 
-
-/** When enabled (and -AnalyticsTrackPerf is specified on the command line, will log out analytics flush timings on a regular basis to Saved/AnalyticsTiming.csv. */
-#define ANALYTICS_PERF_TRACKING_ENABLED !UE_BUILD_SHIPPING
-#if ANALYTICS_PERF_TRACKING_ENABLED
-
-/** Measures analytics bandwidth. Only active when -AnalyticsTrackPerf is specified on the command line. */
-struct FAnalyticsPerfTracker : FTickerObjectBase
-{
-	FAnalyticsPerfTracker()
-	{
-		bEnabled = FParse::Param(FCommandLine::Get(), TEXT("ANALYTICSTRACKPERF"));
-		if (bEnabled)
-		{
-			LogFile.SetSuppressEventTag(true);
-			LogFile.Serialize(TEXT("Date,CL,RunID,Time,WindowSeconds,ProfiledSeconds,Frames,Flushes,Events,Bytes,FrameCounter"), ELogVerbosity::Log, FName());
-			LastSubmitTime = StartTime;
-			StartDate = FDateTime::UtcNow().ToIso8601();
-			CL = LexToString(FEngineVersion::Current().GetChangelist());
-		}
-	}
-
-	/** Called once per flush */
-	void RecordFlush(uint64 Bytes, uint64 NumEvents, double TimeSec)
-	{
-		if (bEnabled)
-		{
-			++FlushesThisWindow;
-			BytesThisWindow += Bytes;
-			NumEventsThisWindow += NumEvents;
-			TimeThisWindow += TimeSec;
-		}
-	}
-
-	static FAnalyticsPerfTracker& Get()
-	{
-		static FAnalyticsPerfTracker GTracker;
-		return GTracker;
-	}
-
-	bool IsEnabled() const { return bEnabled; }
-
-	void SetRunID(const FString& InRunID)
-	{
-		if (bEnabled)
-		{
-			RunID = InRunID;
-			StartDate = FDateTime::UtcNow().ToIso8601();
-		}
-	}
-
-private:
-	/** Check to see if we need to log another window of time. */
-	virtual bool Tick(float DeltaTime) override
-	{
-        QUICK_SCOPE_CYCLE_COUNTER(STAT_IAnalyticsProviderET_Tick);
-
-		if (bEnabled)
-		{
-			++FramesThisWindow;
-			double Now = FPlatformTime::Seconds();
-			if (WindowExpired(Now))
-			{
-				LogFile.Serialize(*FString::Printf(TEXT("%s,%s,%s,%f,%f,%f,%d,%d,%d,%d,%d"),
-					*StartDate,
-					*CL,
-					*RunID,
-					Now - StartTime,
-					Now - LastSubmitTime,
-					TimeThisWindow,
-					FramesThisWindow,
-					FlushesThisWindow,
-					NumEventsThisWindow,
-					BytesThisWindow,
-					(uint64)GFrameCounter),
-					ELogVerbosity::Log, FName(), Now);
-				ResetWindow(Now);
-			}
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	/** Helper to reset our window in Tick. */
-	bool WindowExpired(double Now)
-	{
-		return Now > LastSubmitTime + 60.0;
-	}
-
-	/** Helper to reset our window in Tick. */
-	void ResetWindow(double Now)
-	{
-		LastSubmitTime = Now;
-		TimeThisWindow = 0.0;
-		BytesThisWindow = 0;
-		NumEventsThisWindow = 0;
-		FlushesThisWindow = 0;
-		FramesThisWindow = 0;
-	}
-
-	/** log file to use. */
-	FOutputDeviceFile LogFile{ *FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("AnalyticsTiming.csv")) };
-	FString StartDate;
-	FString CL;
-	FString RunID = FGuid().ToString().ToLower();
-	// Window tracking data
-	double LastSubmitTime = 0.0;
-	double TimeThisWindow = 0.0;
-	uint64 BytesThisWindow = 0;
-	uint64 NumEventsThisWindow = 0;
-	int FlushesThisWindow = 0;
-	int FramesThisWindow = 0;
-	// time when the first measurement was made.
-	double StartTime = FPlatformTime::Seconds();
-	/** Controls whether metrics gathering is enabled. */
-	bool bEnabled = false;
-};
-
-/** Used to set the RunID between matches in game code. Must be carefully called only in situations where ANALYTICS_PERF_TRACKING_ENABLED = 1 */
-ANALYTICSET_API void SetAnayticsETPerfTrackingRunID(const FString& RunID)
-{
-	FAnalyticsPerfTracker::Get().SetRunID(RunID);
-}
-
-#define ANALYTICS_FLUSH_TRACKING_BEGIN() double FlushStartTime = FPlatformTime::Seconds()
-#define ANALYTICS_FLUSH_TRACKING_END(NumBytes, NumEvents) FAnalyticsPerfTracker::Get().RecordFlush(NumBytes, NumEvents, FPlatformTime::Seconds() - FlushStartTime)
-
-#else
-
-#define ANALYTICS_FLUSH_TRACKING_BEGIN(...)
-#define ANALYTICS_FLUSH_TRACKING_END(...)
-
-#endif
+#include "AnalyticsPerfTracker.h"
 
 /**
  * Implementation of analytics for Epic Telemetry.
