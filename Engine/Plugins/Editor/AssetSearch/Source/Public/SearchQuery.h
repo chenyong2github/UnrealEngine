@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeLock.h"
 
 struct FSearchRecord
 {
