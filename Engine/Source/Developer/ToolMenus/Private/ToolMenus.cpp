@@ -512,6 +512,10 @@ void UToolMenus::AssembleMenuSection(UToolMenu* GeneratedMenu, const UToolMenu* 
 		if (ConstructedEntries == nullptr)
 		{
 			ConstructedEntries = NewToolMenuObject(FName(TEXT("TempAssembleMenuSection")), NAME_None);
+			if (!ensure(ConstructedEntries))
+			{
+				break;
+			}
 			ConstructedEntries->Context = DestSection->Context;
 		}
 
@@ -627,6 +631,10 @@ void UToolMenus::AssembleMenu(UToolMenu* GeneratedMenu, const UToolMenu* Other)
 		if (ConstructedSections == nullptr)
 		{
 			ConstructedSections = NewToolMenuObject(FName(TEXT("TempAssembleMenu")), NAME_None);
+			if (!ensure(ConstructedSections))
+			{
+				break;
+			}
 			ConstructedSections->Context = GeneratedMenu->Context;
 		}
 
