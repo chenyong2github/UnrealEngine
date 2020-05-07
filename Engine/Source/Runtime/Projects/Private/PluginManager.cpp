@@ -623,28 +623,36 @@ bool FPluginManager::ConfigureEnabledPlugins()
 #if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
 			// Configure the plugins that were enabled or disabled from the target file using the target receipt file
 			FString EditorTargetFileName;
+			FString DefaultEditorTarget;
+			GConfig->GetString(TEXT("/Script/BuildSettings.BuildSettings"), TEXT("DefaultEditorTarget"), DefaultEditorTarget, GEngineIni);
+
 			for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForCurrentProject())
 			{
 				if (Target.Type == FApp::GetBuildTargetType())
 				{
-					if (FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+					bool bIsDefaultTarget = Target.Type != EBuildTargetType::Editor || (DefaultEditorTarget.Len() == 0) || (DefaultEditorTarget == Target.Name);
+
+					if (bIsDefaultTarget)
 					{
-						EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
-					}
-					else if (FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
-					{
-						EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
-					}
-					else
-					{
-						// Unknown path, possibly built on another machine. Try project first with this target name, then engine
-						EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
-						if (!FPaths::FileExists(EditorTargetFileName))
+						if (FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+						{
+							EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+						}
+						else if (FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
 						{
 							EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
 						}
+						else
+						{
+							// Unknown path, possibly built on another machine. Try project first with this target name, then engine
+							EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+							if (!FPaths::FileExists(EditorTargetFileName))
+							{
+								EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+							}
+						}
+						break;
 					}
-					break;
 				}
 			}
 
