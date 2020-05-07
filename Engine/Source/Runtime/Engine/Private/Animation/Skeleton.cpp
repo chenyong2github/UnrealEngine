@@ -1739,7 +1739,9 @@ void USkeleton::HandleVirtualBoneChanges()
 		}
 	}
 
+#if WITH_EDITOR
 	OnSkeletonHierarchyChanged.Broadcast();
+#endif
 }
 
 #if WITH_EDITOR
