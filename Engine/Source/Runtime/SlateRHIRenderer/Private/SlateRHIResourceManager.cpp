@@ -34,6 +34,12 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Num Non-Atlased Textures"), STAT_SlateNumNo
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Num Dynamic Textures"), STAT_SlateNumDynamicTextures, STATGROUP_SlateMemory);
 DECLARE_CYCLE_STAT(TEXT("GetResource Time"), STAT_SlateGetResourceTime, STATGROUP_Slate);
 
+static TAutoConsoleVariable<bool> CVarSlateRHIResourceManagerLockWhenGCing(
+	TEXT("Slate.ResourceManager.LockResourceDuringGC"),
+	false,
+	TEXT("Lock the Slate RHI Resource Manager when GCing and when the loading screen has ownership to prevent multithreaded access to the resources."));
+
+
 FDynamicResourceMap::FDynamicResourceMap()
 {
 }
@@ -184,7 +190,8 @@ void FDynamicResourceMap::RemoveExpiredMaterialResources(TArray< TSharedPtr<FSla
 }
 
 FSlateRHIResourceManager::FSlateRHIResourceManager()
-	: bExpiredResourcesNeedCleanup(false)
+	: bResourceCriticalSectionLockedForGC(false)
+	, bExpiredResourcesNeedCleanup(false)
 	, BadResourceTexture(nullptr)
 	, DeleteResourcesCommand(
 		TEXT("Slate.DeleteResources"),
@@ -192,6 +199,7 @@ FSlateRHIResourceManager::FSlateRHIResourceManager()
 		FConsoleCommandDelegate::CreateRaw(this, &FSlateRHIResourceManager::DeleteBrushResourcesCommand))
 {
 	FCoreDelegates::OnPreExit.AddRaw(this, &FSlateRHIResourceManager::OnAppExit);
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FSlateRHIResourceManager::OnPreGarbageCollect);
 	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FSlateRHIResourceManager::OnPostGarbageCollect);
 
 	MaxAltasedTextureSize = FIntPoint(256, 256);
@@ -223,6 +231,7 @@ FSlateRHIResourceManager::FSlateRHIResourceManager()
 FSlateRHIResourceManager::~FSlateRHIResourceManager()
 {
 	FCoreDelegates::OnPreExit.RemoveAll( this );
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 
 	if (GIsRHIInitialized)
@@ -233,9 +242,28 @@ FSlateRHIResourceManager::~FSlateRHIResourceManager()
 	}
 }
 
+void FSlateRHIResourceManager::OnPreGarbageCollect()
+{
+	check(bResourceCriticalSectionLockedForGC == false);
+	bResourceCriticalSectionLockedForGC = (GSlateLoadingThreadId != 0) && CVarSlateRHIResourceManagerLockWhenGCing.GetValueOnGameThread();
+	if (bResourceCriticalSectionLockedForGC)
+	{
+		ResourceCriticalSection.Lock();
+	}
+}
+
 void FSlateRHIResourceManager::OnPostGarbageCollect()
 {
-	TryToCleanupExpiredResources(true);
+	if (bResourceCriticalSectionLockedForGC)
+	{
+		CleanupExpiredResources();
+		ResourceCriticalSection.Unlock();
+		bResourceCriticalSectionLockedForGC = false;
+	}
+	else
+	{
+		TryToCleanupExpiredResources(true);
+	}
 }
 
 void FSlateRHIResourceManager::TryToCleanupExpiredResources(bool bForceCleanup)
@@ -249,11 +277,7 @@ void FSlateRHIResourceManager::TryToCleanupExpiredResources(bool bForceCleanup)
 	{
 		if (ResourceCriticalSection.TryLock())
 		{
-			bExpiredResourcesNeedCleanup = false;
-
-			DynamicResourceMap.RemoveExpiredTextureResources(UTextureFreeList);
-			DynamicResourceMap.RemoveExpiredMaterialResources(MaterialResourceFreeList);
-
+			CleanupExpiredResources();
 			ResourceCriticalSection.Unlock();
 		}
 		else
@@ -267,6 +291,14 @@ void FSlateRHIResourceManager::TryToCleanupExpiredResources(bool bForceCleanup)
 			bExpiredResourcesNeedCleanup = true;
 		}
 	}
+}
+
+void FSlateRHIResourceManager::CleanupExpiredResources()
+{
+	bExpiredResourcesNeedCleanup = false;
+
+	DynamicResourceMap.RemoveExpiredTextureResources(UTextureFreeList);
+	DynamicResourceMap.RemoveExpiredMaterialResources(MaterialResourceFreeList);
 }
 
 int32 FSlateRHIResourceManager::GetNumAtlasPages() const
