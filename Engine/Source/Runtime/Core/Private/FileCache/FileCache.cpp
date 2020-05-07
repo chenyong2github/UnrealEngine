@@ -366,6 +366,7 @@ CacheSlotID FFileCache::AcquireAndLockSlot(FFileCacheHandle* InHandle, CacheLine
 			SlotIndex = SlotInfo.AddDefaulted();
 			check(SlotIndex < CacheSlotCapacity);
 			SlotInfo[SlotIndex].NextSlotIndex = SlotInfo[SlotIndex].PrevSlotIndex = SlotIndex;
+			UE_LOG(LogStreamingFileCache, Log, TEXT("FFileCache grew to %d slots"), SlotInfo.Num());
 		}
 		else
 		{
@@ -1043,7 +1044,7 @@ void FFileCacheHandle::ReleasePreloadedData(const FFileCachePreloadEntry* Preloa
 		int64 EntryOffset = InOffset + Entry.Offset;
 		const int64 EndOffset = EntryOffset + Entry.Size;
 		const CacheLineID StartLine = GetBlock<CacheLineID>(EntryOffset);
-		const CacheLineID EndLine = GetBlock<CacheLineID>(EndOffset - 1);
+		CacheLineID EndLine = GetBlock<CacheLineID>(EndOffset - 1);
 
 		checkf(Entry.Offset > PrevOffset, TEXT("Preload entries must be sorted by Offset [%lld, %lld), %lld"),
 			Entry.Offset, Entry.Offset + Entry.Size, PrevOffset);
@@ -1052,6 +1053,14 @@ void FFileCacheHandle::ReleasePreloadedData(const FFileCachePreloadEntry* Preloa
 		int64 OffsetInSlot = EntryOffset - StartLine.Get() * CacheLineSize;
 		int64 SizeInSlot = FMath::Min<int64>(Entry.Size, CacheLineSize - OffsetInSlot);
 		CacheLineID CurrentLine = StartLine;
+
+		// Don't allow reading past the currently allocated size of the file
+		EndLine = CacheLineID(FMath::Min(EndLine.Get(), LineToSlot.Num() - 1));
+		if (CurrentLine.Get() > EndLine.Get())
+		{
+			break;
+		}
+
 		while (CurrentLine.Get() <= EndLine.Get())
 		{
 			CacheSlotID& SlotID = LineToSlot[CurrentLine.Get()];
