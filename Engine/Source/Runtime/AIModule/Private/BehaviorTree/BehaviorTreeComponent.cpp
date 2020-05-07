@@ -117,7 +117,7 @@ void UBehaviorTreeComponent::SetComponentTickEnabled(bool bEnabled)
 
 	// If enabling the component, this acts like a new component to tick in the TickTaskManager
 	// So act like the component was never ticked
-	if(!bWasEnabled && bEnabled)
+	if(!bWasEnabled && IsComponentTickEnabled())
 	{
 		bTickedOnce = false;
 		ScheduleNextTick(0.0f);
