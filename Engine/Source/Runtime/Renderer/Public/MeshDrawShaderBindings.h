@@ -14,13 +14,15 @@
 class FMeshDrawShaderBindingsLayout
 {
 protected:
+	TRefCountPtr<FShaderMapBase> ShaderMap; // Hold a strong reference to ShaderMap, which will keep FShader::ParameterMapInfo alive
 	const FShaderParameterMapInfo& ParameterMapInfo;
 	const uint64 ParameterMapHash;
 
 public:
 
 	FMeshDrawShaderBindingsLayout(const TShaderRef<FShader>& Shader)
-		: ParameterMapInfo(Shader->ParameterMapInfo)
+		: ShaderMap(const_cast<FShaderMapBase*>(&Shader.GetShaderMapChecked()))
+		, ParameterMapInfo(Shader->ParameterMapInfo)
 		, ParameterMapHash(ParameterMapInfo.Hash)
 	{
 		check(Shader.IsValid());

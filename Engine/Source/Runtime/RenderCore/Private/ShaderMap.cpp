@@ -38,11 +38,33 @@ FShaderMapBase::FShaderMapBase(const FTypeLayoutDesc& InContentTypeLayout)
 
 FShaderMapBase::~FShaderMapBase()
 {
+	check(GetNumRefs() == 0u);
 	DestroyContent();
 	if (PointerTable)
 	{
 		delete PointerTable;
 	}
+}
+
+uint32 FShaderMapBase::AddRef()
+{
+	return uint32(NumRefs.Increment());
+}
+
+uint32 FShaderMapBase::Release()
+{
+	const int32 Num = NumRefs.Decrement();
+	check(Num >= 0);
+	if (Num == 0)
+	{
+		OnReleased();
+	}
+	return uint32(Num);
+}
+
+void FShaderMapBase::OnReleased()
+{
+	delete this;
 }
 
 FShaderMapResourceCode* FShaderMapBase::GetResourceCode()
