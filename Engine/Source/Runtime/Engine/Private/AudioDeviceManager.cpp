@@ -1497,8 +1497,6 @@ void FAudioDeviceHandle::Reset()
 
 FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Other)
 {
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
-
 	const bool bWasValid = IsValid();
 	const Audio::FDeviceId OldDeviceId = DeviceId;
 	UWorld* OldWorld = World;
@@ -1511,23 +1509,26 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Othe
 	DeviceId = Other.DeviceId;
 	World = Other.World;
 
-	if (AudioDeviceManager && IsValid())
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 	{
-		AudioDeviceManager->IncrementDevice(DeviceId);
+		if (IsValid())
+		{
+			AudioDeviceManager->IncrementDevice(DeviceId);
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		AddStackDumpToAudioDeviceContainer();
+			AddStackDumpToAudioDeviceContainer();
 #endif
-	}
+		}
 
-	if (AudioDeviceManager && bWasValid)
-	{
+		if (bWasValid)
+		{
+			AudioDeviceManager->DecrementDevice(OldDeviceId, OldWorld);
+
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		check(OldStackWalkID != INDEX_NONE);
-		AudioDeviceManager->RemoveStackWalkForContainer(OldDeviceId, OldStackWalkID);
+			check(OldStackWalkID != INDEX_NONE);
+			AudioDeviceManager->RemoveStackWalkForContainer(OldDeviceId, OldStackWalkID);
 #endif
-
-		AudioDeviceManager->DecrementDevice(OldDeviceId, OldWorld);
+		}
 	}
 
 	return *this;
