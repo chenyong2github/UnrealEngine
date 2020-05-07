@@ -490,6 +490,7 @@ namespace WindowsMixedReality
 		void ConnectToLocalHoloLens();
 		void DisconnectFromDevice();
 		bool IsRemoting();
+		bool IsHololens1Remoting();
 		bool IsRemotingConnected();
 		uint32_t SubscribeConnectionEvent(ConnectionCallback callback);
 		void UnsubscribeConnectionEvent(uint32_t id);
@@ -563,6 +564,9 @@ namespace WindowsMixedReality
 
 		// Returns whether or not the spatial audio client is active
 		bool IsActive();
+
+		// Returns the number of dynamic objects supported by the audio client renderer
+		UINT32 GetMaxDynamicObjects() const;
 
 		// Activates and returns a dynamic object handle
 		ISpatialAudioObject* ActivatDynamicSpatialAudioObject();

@@ -168,6 +168,9 @@ FMicrosoftSpatialSound::FMicrosoftSpatialSound()
 {
 }
 
+//HACK: flag is static bool to avoid changing public header for 4.25.1.  It would be better as a member.
+static bool bWarnedMicrosoftSpatialSoundDynamicObjectCountIsZero = false;
+
 FMicrosoftSpatialSound::~FMicrosoftSpatialSound()
 {
 	Shutdown();
@@ -204,6 +207,8 @@ void FMicrosoftSpatialSound::Initialize(const FAudioPluginInitializationParams I
 			// Flag that we're rendering
 			bIsRendering = true;
 			bIsInitialized = true;
+
+			bWarnedMicrosoftSpatialSoundDynamicObjectCountIsZero = false;
 
 			SpatialAudioRenderThread = FRunnableThread::Create(this, TEXT("MicrosoftSpatialAudioThread"), 0, TPri_TimeCritical, FPlatformAffinity::GetAudioThreadMask());
 		}
@@ -319,6 +324,12 @@ uint32 FMicrosoftSpatialSound::Run()
 	// Wait until the SAC is active
 	while (!SAC->IsActive() && bIsRendering)
 	{
+		if (!bWarnedMicrosoftSpatialSoundDynamicObjectCountIsZero && SAC->GetMaxDynamicObjects() == 0)
+		{
+			UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Microsoft Spatial Sound has zero MaxDynamicObjects.  No sounds can play!  You need to enable Spatial Sound (Windows Sonic for Headphones) in your PC audio settings then restart UE4."));
+			bWarnedMicrosoftSpatialSoundDynamicObjectCountIsZero = true;
+		}
+
 		FPlatformProcess::Sleep(0.01f);
 	}
 
