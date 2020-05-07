@@ -125,8 +125,8 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 	/** Get the last set View Mode for this UI. Utility function for the UI. */
 	ECurveEditorViewID GetViewMode() const { return DefaultViewID; }
 
-	/** Update based on invalidated curve model and key handle */
-	void InvalidateCurve(FCurveModelID InvalidCurveModelID, FKeyHandle InvalidKeyHandle = FKeyHandle::Invalid());
+	/** Undo occurred, invalidate or update internal structures */
+	void PostUndo();
 
 private:
 	// SWidget Interface
