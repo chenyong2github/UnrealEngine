@@ -143,13 +143,13 @@ public:
 	/**
 	 * Stitch together two loops of vertices with a quad-strip of triangles.
 	 * Loops must be oriented (ordered) correctly for your use case.
+	 * If loop edges are [a,b] and [c,d], then tris added are [b,a,d] and [a,c,d]
 	 * @param Loop1 first loop of sequential vertices
 	 * @param Loop2 second loop of sequential vertices
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 * @return true if operation succeeded. If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
 	bool StitchVertexLoopsMinimal(const TArray<int>& VertexLoop1, const TArray<int>& VertexLoop2, FDynamicMeshEditResult& ResultOut);
-
 
 
 	/**
@@ -162,6 +162,15 @@ public:
 	 * @return true if operation succeeded.  If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
 	bool StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut);
+
+
+	/**
+	 * Weld together two loops of vertices. Loops must be oriented (ordered) correctly for your use case.
+	 * @param Loop1 first loop of sequential vertices
+	 * @param Loop2 second loop of sequential vertices. These vertices and their edges will not exist after the operation.
+	 * @return true if operation succeeded, false if any errors ocurred
+	 */
+	bool WeldVertexLoops(const TArray<int32>& VertexLoop1, const TArray<int32>& VertexLoop2);
 
 
 	/**
