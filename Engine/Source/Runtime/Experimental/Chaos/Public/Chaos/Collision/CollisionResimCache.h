@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+#include "Chaos/Collision/PBDCollisionConstraint.h"
+#include "Chaos/ParticleHandle.h"
 
 namespace Chaos
 {
@@ -64,6 +66,14 @@ namespace Chaos
 			CleanupArrayHelper(SavedConstraints.MultiPointConstraints, WeakMultiPointConstraints);
 
 			return SavedConstraints;
+		}
+
+		void Reset()
+		{
+			SavedConstraints.Reset();
+			WeakSinglePointConstraints.Reset();
+			WeakSinglePointSweptConstraints.Reset();
+			WeakMultiPointConstraints.Reset();
 		}
 
 	private:
