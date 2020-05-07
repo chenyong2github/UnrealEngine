@@ -128,9 +128,11 @@ void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 
 void UPlaneDistanceFromHitMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	FViewCameraState CameraState = RenderAPI->GetCameraState();
+	float PDIScale = CameraState.GetPDIScalingFactor();
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
-	float Length = 10; float Thickness = 2;
+	float Length = 10*PDIScale; float Thickness = 2*PDIScale;
 	FColor HitFrameColor(0, 128, 128);
 	PDI->DrawLine(
 		(FVector)CurrentHitPosFrameWorld.PointAt(-Length, -Length, 0), (FVector)CurrentHitPosFrameWorld.PointAt(Length, Length, 0),
@@ -146,12 +148,12 @@ void UPlaneDistanceFromHitMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 	FColor AxisColor(128, 128, 0);
 	PDI->DrawLine(
 		PreviewOrigin - 1000 * DrawPlaneNormal, PreviewOrigin + 1000 * DrawPlaneNormal,
-		AxisColor, 1, 1.0f, 0.0f, true);
+		AxisColor, 1, 1.0f*PDIScale, 0.0f, true);
 
 	FColor HeightPosColor(128, 0, 128);
 	PDI->DrawLine(
 		PreviewOrigin + CurrentHeight * DrawPlaneNormal, (FVector)CurrentHitPosFrameWorld.Origin,
-		HeightPosColor, 1, 1.0f, 0.0f, true);
+		HeightPosColor, 1, 1.0f*PDIScale, 0.0f, true);
 
 
 }

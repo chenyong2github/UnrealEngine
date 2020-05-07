@@ -62,12 +62,17 @@ void UPolygonSelectionMechanic::Initialize(const USimpleDynamicMeshComponent* Me
 
 void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	// Cache the view camera state so we can use for snapping/etc.
+	// This should not happen in Render() though...
 	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
+
+
+	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
 
 	const FDynamicMesh3* TargetMesh = this->Mesh;
 	FTransform Transform = (FTransform)TargetTransform;
 
-	PolyEdgesRenderer.BeginFrame(RenderAPI, CameraState);
+	PolyEdgesRenderer.BeginFrame(RenderAPI, RenderCameraState);
 	PolyEdgesRenderer.SetTransform(Transform);
 	for (const FGroupTopology::FGroupEdge& Edge : Topology->Edges)
 	{
@@ -80,16 +85,16 @@ void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 	PolyEdgesRenderer.EndFrame();
 
-	HilightRenderer.BeginFrame(RenderAPI, CameraState);
+	HilightRenderer.BeginFrame(RenderAPI, RenderCameraState);
 	HilightRenderer.SetTransform(Transform);
-	TopoSelector.DrawSelection(HilightSelection, &HilightRenderer, &CameraState);
+	TopoSelector.DrawSelection(HilightSelection, &HilightRenderer, &RenderCameraState);
 	HilightRenderer.EndFrame();
 
 	if (PersistentSelection.IsEmpty() == false)
 	{
-		SelectionRenderer.BeginFrame(RenderAPI, CameraState);
+		SelectionRenderer.BeginFrame(RenderAPI, RenderCameraState);
 		SelectionRenderer.SetTransform(Transform);
-		TopoSelector.DrawSelection(PersistentSelection, &SelectionRenderer, &CameraState);
+		TopoSelector.DrawSelection(PersistentSelection, &SelectionRenderer, &RenderCameraState);
 		SelectionRenderer.EndFrame();
 	}
 }
