@@ -56,6 +56,7 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 
 	FRigUnit_TransformConstraint()
 		: BaseTransformSpace(ETransformSpaceMode::GlobalSpace)
+		, bUseInitialTransforms(true)
 	{}
 
 	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
@@ -101,6 +102,10 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
 	TArray<FConstraintTarget> Targets;
+
+	// If checked the initial transform will be used for the constraint data
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, BoneName))
+	bool bUseInitialTransforms;
 
 private:
 	static void AddConstraintData(const TArrayView<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets);
