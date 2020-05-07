@@ -476,6 +476,11 @@ public:
 	virtual const FString& GetSourcePlatform() const = 0;
 
 	/**
+	 * @return the PlatformData included in the join info
+	 */
+	virtual const FString& GetPlatformData() const = 0;
+
+	/**
 	 * @return true if the join info has some form of key(does not guarantee the validity of that key)
 	 */
 	virtual bool HasKey() const = 0;
