@@ -44,7 +44,7 @@ public:
 
 				for (const auto& KeyValuePair : InAssetData.TagsAndValues)
 				{
-					if (FProperty* Field = FindProperty<FProperty>(AssetClass, KeyValuePair.Key))
+					if (FProperty* Field = FindFProperty<FProperty>(AssetClass, KeyValuePair.Key))
 					{
 						if (Field->HasMetaData(NAME_DisplayName))
 						{
