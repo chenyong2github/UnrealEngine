@@ -2265,7 +2265,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			bSetExtent = true;
 			Extent.Extent3D.width = Texture->Surface.Width;
 			Extent.Extent3D.height = Texture->Surface.Height;
-			Extent.Extent3D.depth = Texture->Surface.NumArrayLevels;
+			Extent.Extent3D.depth = Texture->Surface.Depth;
 		}
 	}
 
