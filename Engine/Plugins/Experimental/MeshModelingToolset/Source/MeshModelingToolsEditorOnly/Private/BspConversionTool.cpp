@@ -39,7 +39,9 @@ FText GetBrushGeometryErrorMessage(ABrush* Brush);
 // Element stored in CachedBrushes: the resulting dynamic mesh and the materials array
 typedef TPair<TSharedPtr<const FDynamicMesh3>, TSharedPtr<const TArray<UMaterialInterface*>>> FCachedResult;
 
-#pragma region Tool builder functions
+
+// Tool builder functions
+
 bool UBspConversionToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	// We allow the tool to be built even if nothing is selected because the tool has a "select all" option.
@@ -55,9 +57,10 @@ UInteractiveTool* UBspConversionToolBuilder::BuildTool(const FToolBuilderState& 
 
 	return NewTool;
 }
-#pragma endregion
 
-#pragma region Tool property functions
+
+// Tool property functions
+
 void UBspConversionToolActionPropertySet::PostAction(EBspConversionToolAction Action)
 {
 	if (ParentTool.IsValid())
@@ -65,9 +68,10 @@ void UBspConversionToolActionPropertySet::PostAction(EBspConversionToolAction Ac
 		ParentTool->RequestAction(Action);
 	}
 }
-#pragma endregion
 
-#pragma region Unused tool scaffolding
+
+// Tool itself
+
 UBspConversionTool::UBspConversionTool()
 {
 }
@@ -79,9 +83,7 @@ void UBspConversionTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 void UBspConversionTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
-#pragma endregion
 
-#pragma region Tool scaffolding
 bool UBspConversionTool::CanAccept() const
 {
 	// We precompute this value and update it at various editor events
@@ -250,9 +252,8 @@ void UBspConversionTool::Shutdown(EToolShutdownType ShutdownType)
 
 	Settings->SaveProperties(this);
 }
-#pragma endregion
 
-#pragma region Conversion functions
+// Conversion functions
 
 /**
  * Updates the targets that the conversion functions operate on (BrushesToConvert, BrushForPivot),
@@ -638,9 +639,10 @@ void ApplyStaticMeshBooleanOperation(
 	BooleanOperation.Compute();
 	OutputTransform = BooleanOperation.ResultTransform;
 }
-#pragma endregion
 
-#pragma region Action buttons
+
+// Button support
+
 void UBspConversionTool::RequestAction(EBspConversionToolAction ActionType)
 {
 	if (PendingAction == EBspConversionToolAction::NoAction)
@@ -721,15 +723,14 @@ void UBspConversionTool::ApplyAction(EBspConversionToolAction ActionType)
 	break;
 	}
 }
-#pragma endregion
 
-#pragma region Callback functions
 
-// We need to preserve the following:
-// - BrushesToConvert refle
-// - BrushesToConvert contains relevant brushes given settings and selection
-// - PreviewMesh is empty if bCanAccept is false, otherwise it reflects BrushesToConvert
-// - CachedBrushes does not contain any outdated conversions.
+// Callback functions
+
+// We need to keep track of the following:
+// - BrushesToConvert needs to contain relevant brushes given settings and selection
+// - PreviewMesh may need updating
+// - CachedBrushes must not contain any outdated conversions.
 
 /**
  * This is the primary event we'll be responding to. It affects whether we can accept
@@ -859,6 +860,5 @@ void UBspConversionTool::OnPropertyModified(UObject* PropertySet, FProperty* Pro
 		GetToolManager()->DisplayMessage(ErrorMessage, EToolMessageLevel::UserWarning);
 	}
 }
-#pragma endregion
 
 #undef LOCTEXT_NAMESPACE
