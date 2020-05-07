@@ -28,11 +28,7 @@ public:
 	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/Raytracing/RayTracingInstanceCopy.usf"); }	
 	static const TCHAR* GetFunctionName() { return TEXT("RayTracingInstanceCopyShaderCS"); }
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static inline void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
