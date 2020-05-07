@@ -9,6 +9,7 @@
 #include "GameplayTagContainer.h"
 #include "AITypes.h"
 #include "BrainComponent.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "BehaviorTreeComponent.generated.h"
 
 class FBehaviorTreeDebugger;
@@ -406,7 +407,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AI)
 	UBehaviorTree* DefaultBehaviorTreeAsset;
 
-private:
 	/** Used to tell tickmanager that we want interval ticking */
 	bool bTickedOnce = false;
 	/** Predicted next DeltaTime*/
@@ -415,6 +415,11 @@ private:
 	float AccumulatedTickDeltaTime = 0.0f;
 	/** GameTime of the last DeltaTime request, used for debugging to output warnings about ticking */
 	float LastRequestedDeltaTimeGameTime = 0;
+
+#if CSV_PROFILER
+	/** CSV tick stat name. Can be changed but must point to a static string */
+	const char* CSVTickStatName = "BehaviorTreeTick";
+#endif
 };
 
 //////////////////////////////////////////////////////////////////////////
