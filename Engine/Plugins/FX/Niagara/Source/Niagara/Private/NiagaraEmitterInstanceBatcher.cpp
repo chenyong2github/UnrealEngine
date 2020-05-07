@@ -262,13 +262,13 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 		return;
 	}
 
-
 	// @todo REMOVE THIS HACK
+
 	if (GFrameNumberRenderThread > LastFrameThatDrainedData + GNiagaraGpuMaxQueuedRenderFrames)
-	{
-		Tick.Destroy();
-		return;
-	}
+				{
+					Tick.Destroy();
+					return;
+				}
 
 	// Now we consume DataInterface instance data.
 	if (Tick.DIInstanceData)
