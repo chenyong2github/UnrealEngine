@@ -2172,6 +2172,12 @@ void FSequencer::BakeTransform()
 			FloatChannels[7]->SetDefault(DefaultScale.Y);
 			FloatChannels[8]->SetDefault(DefaultScale.Z);
 
+			// Euler filter
+			for (int32 Counter = 0; Counter < BakeData.Value.Rotations.Num() - 1; ++Counter)
+			{
+				BakeData.Value.Rotations[Counter+1].SetClosestToMe(BakeData.Value.Rotations[Counter]);			
+			}
+				
 			for (int32 Counter = 0; Counter < BakeData.Value.KeyTimes.Num(); ++Counter)
 			{
 				FFrameNumber KeyTime = BakeData.Value.KeyTimes[Counter];
