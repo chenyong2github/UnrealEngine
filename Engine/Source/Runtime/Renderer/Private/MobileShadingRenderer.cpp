@@ -769,8 +769,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	
 	if (!bGammaSpace || bRenderToSceneColor)
 	{
-		// transition scene color to Readable for post-processing
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneColor);
+		// Transition scene color to readable for post-processing. If MSAA is enabled, post-processing will use the resolved
+		// texture, so make sure we transition that, not the render target.
+		FRHITexture* PPColorInput = SceneColorResolve != nullptr ? SceneColorResolve : SceneColor;
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, PPColorInput);
 	}
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Post));
