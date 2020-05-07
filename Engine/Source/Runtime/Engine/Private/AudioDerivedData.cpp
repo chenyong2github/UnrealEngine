@@ -1674,7 +1674,7 @@ void USoundWave::FinishCachePlatformData()
 		const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 		GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
-		UE_CLOG(RunningPlatformData->DerivedDataKey == DerivedDataKey, LogAudio, Warning, TEXT("Audio was cooked with the DDC key %s but should've had the DDC key %s. the cook overrides/codec used may be incorrect."), *RunningPlatformData->DerivedDataKey, *DerivedDataKey);
+		UE_CLOG(RunningPlatformData->DerivedDataKey != DerivedDataKey, LogAudio, Warning, TEXT("Audio was cooked with the DDC key %s but should've had the DDC key %s. the cook overrides/codec used may be incorrect."), *RunningPlatformData->DerivedDataKey, *DerivedDataKey);
 	}
 #endif
 }
