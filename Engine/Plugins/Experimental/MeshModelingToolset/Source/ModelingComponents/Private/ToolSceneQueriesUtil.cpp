@@ -8,7 +8,6 @@
 
 static double VISUAL_ANGLE_SNAP_THRESHOLD_DEG = 1.0;
 
-
 double ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()
 {
 	return VISUAL_ANGLE_SNAP_THRESHOLD_DEG;
@@ -26,6 +25,7 @@ bool ToolSceneQueriesUtil::PointSnapQuery(const UInteractiveTool* Tool, const FV
 bool ToolSceneQueriesUtil::PointSnapQuery(const FViewCameraState& CameraState, const FVector3d& Point1, const FVector3d& Point2, double VisualAngleThreshold)
 {
 	double UseThreshold = (VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : VisualAngleThreshold;
+	UseThreshold *= CameraState.GetFOVAngleNormalizationFactor();
 	double VisualAngle = VectorUtil::OpeningAngleD(Point1, Point2, (FVector3d)CameraState.Position);
 	return FMathd::Abs(VisualAngle) < UseThreshold;
 }
@@ -46,6 +46,14 @@ double ToolSceneQueriesUtil::CalculateViewVisualAngleD(const FViewCameraState& C
 	return FMathd::Abs(VisualAngle);
 }
 
+double ToolSceneQueriesUtil::CalculateNormalizedViewVisualAngleD(const FViewCameraState& CameraState, const FVector3d& Point1, const FVector3d& Point2)
+{
+	double VisualAngle = VectorUtil::OpeningAngleD(Point1, Point2, (FVector3d)CameraState.Position);
+	double FOVNormalization = CameraState.GetFOVAngleNormalizationFactor();
+	return FMathd::Abs(VisualAngle) / FOVNormalization;
+}
+
+
 
 
 double ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(const UInteractiveTool* Tool, const FVector3d& Point, double TargetVisualAngleDeg)
@@ -59,6 +67,7 @@ double ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(const FViewCamer
 {
 	FVector3d EyePos = (FVector3d)CameraState.Position;
 	FVector3d PointVec = Point - EyePos;
+	TargetVisualAngleDeg *= CameraState.GetFOVAngleNormalizationFactor();
 	FVector3d RotPointPos = EyePos + FQuaterniond(CameraState.Up(), TargetVisualAngleDeg, true)*PointVec;
 	double ActualAngleDeg = CalculateViewVisualAngleD(CameraState, Point, RotPointPos);
 	return Point.Distance(RotPointPos) * (TargetVisualAngleDeg/ActualAngleDeg);
@@ -91,6 +100,11 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(const UInteractiveTool* Tool, cons
 	FSnapGeometry* SnapGeometry, FVector* DebugTriangleOut)
 {
 	double UseThreshold = (VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : VisualAngleThreshold;
+
+	FViewCameraState CameraState;
+	Tool->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
+	UseThreshold *= CameraState.GetFOVAngleNormalizationFactor();
+
 	IToolsContextQueriesAPI* QueryAPI = Tool->GetToolManager()->GetContextQueriesAPI();
 	FSceneSnapQueryRequest Request;
 	Request.RequestType = ESceneSnapQueryType::Position;
@@ -104,7 +118,8 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(const UInteractiveTool* Tool, cons
 		Request.TargetTypes |= ESceneSnapQueryTargetType::MeshEdge;
 	}
 	Request.Position = (FVector)Point;
-	Request.VisualAngleThresholdDegrees = VISUAL_ANGLE_SNAP_THRESHOLD_DEG;
+	Request.VisualAngleThresholdDegrees = UseThreshold;
+	
 	TArray<FSceneSnapQueryResult> Results;
 	if (QueryAPI->ExecuteSceneSnapQuery(Request, Results))
 	{

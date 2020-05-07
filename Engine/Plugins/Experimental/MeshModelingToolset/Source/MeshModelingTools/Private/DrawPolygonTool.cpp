@@ -144,7 +144,7 @@ void UDrawPolygonTool::Setup()
 	// initialize snapping engine and properties
 	SnapEngine.SnapMetricTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD();
 	SnapEngine.SnapMetricFunc = [this](const FVector3d& Position1, const FVector3d& Position2) {
-		return ToolSceneQueriesUtil::CalculateViewVisualAngleD(this->CameraState, Position1, Position2);
+		return ToolSceneQueriesUtil::CalculateNormalizedViewVisualAngleD(this->CameraState, Position1, Position2);
 	};
 	SnapEngine.Plane = FFrame3d(DrawPlaneOrigin, DrawPlaneOrientation);
 
@@ -262,7 +262,11 @@ void DrawEdgeTicks(FPrimitiveDrawInterface* PDI,
 void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
+	// Cache here for usage during interaction, should probably happen in ::Tick() or elsewhere
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
+	
+	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
+	float PDIScale = RenderCameraState.GetPDIScalingFactor();
 
 	if (bPreviewUpdatePending)
 	{
@@ -270,17 +274,17 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 		bPreviewUpdatePending = false;
 	}
 
-	double CurViewSizeFactor = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(CameraState, PreviewVertex, 1.0);
+	double CurViewSizeFactor = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(RenderCameraState, PreviewVertex, 1.0);
 
 	FColor OpenPolygonColor(240, 16, 240);
 	FColor ClosedPolygonColor(16, 240, 16);
 	FColor ErrorColor(240, 16, 16);
-	float HiddenLineThickness = 1.0f;
-	float LineThickness = 4.0f;
-	float SelfIntersectThickness = 8.0f;
+	float HiddenLineThickness = 1.0f*PDIScale;
+	float LineThickness = 4.0f*PDIScale;
+	float SelfIntersectThickness = 8.0f*PDIScale;
 	FColor GridColor(128, 128, 128, 32);
-	float GridThickness = 0.5f;
-	float GridLineSpacing = 25.0f;   // @todo should be relative to view
+	float GridThickness = 0.5f*PDIScale;
+	float GridLineSpacing = 25.0f*PDIScale;   // @todo should be relative to view
 	int NumGridLines = 21;
 	FColor SnapHighlightColor(240, 200, 16);
 	float ElementSize = CurViewSizeFactor;
@@ -290,7 +294,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	if (bInInteractiveExtrude == false)
 	{
 		FFrame3f DrawFrame((FVector3f)DrawPlaneOrigin, (FQuaternionf)DrawPlaneOrientation);
-		MeshDebugDraw::DrawSimpleGrid(DrawFrame, NumGridLines, GridLineSpacing, GridThickness, GridColor, false, PDI, FTransform::Identity);
+		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(RenderCameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 
 	if (bInFixedPolygonMode)
@@ -308,34 +312,34 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	if (SnapEngine.HaveActiveSnap())
 	{
-		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapToPoint(), ClosedPolygonColor, 10, SDPG_Foreground);
+		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapToPoint(), ClosedPolygonColor, 10.0f*PDIScale, SDPG_Foreground);
 		
-		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapFromPoint(), OpenPolygonColor, 15, SDPG_Foreground);
+		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapFromPoint(), OpenPolygonColor, 15.0f*PDIScale, SDPG_Foreground);
 		PDI->DrawLine((FVector)SnapEngine.GetActiveSnapToPoint(), (FVector)SnapEngine.GetActiveSnapFromPoint(),
-			ClosedPolygonColor, SDPG_Foreground, 0.5f, 0.0f, true);
+			ClosedPolygonColor, SDPG_Foreground, 0.5f*PDIScale, 0.0f, true);
 		if (SnapEngine.GetActiveSnapTargetID() == CurrentSceneSnapID)
 		{
 			if (LastSnapGeometry.PointCount == 1) {
-				DrawCircle(PDI, (FVector)LastSnapGeometry.Points[0], CameraState.Right(), CameraState.Up(),
-					SnapHighlightColor, ElementSize, 32, SDPG_Foreground, 1.0f, 0.0f, true);
+				DrawCircle(PDI, (FVector)LastSnapGeometry.Points[0], RenderCameraState.Right(), RenderCameraState.Up(),
+					SnapHighlightColor, ElementSize, 32, SDPG_Foreground, 1.0f*PDIScale, 0.0f, true);
 			} 
 			else
 			{
 				PDI->DrawLine((FVector)LastSnapGeometry.Points[0], (FVector)LastSnapGeometry.Points[1],
-					SnapHighlightColor, SDPG_Foreground, 1.0f, 0.0f, true);
+					SnapHighlightColor, SDPG_Foreground, 1.0f*PDIScale, 0.0f, true);
 			}
 		}
 		else if (SnapEngine.GetActiveSnapTargetID() == CurrentGridSnapID)
 		{
-			DrawCircle(PDI, (FVector)LastGridSnapPoint, CameraState.Right(), CameraState.Up(),
-				SnapHighlightColor, ElementSize, 4, SDPG_Foreground, 1.0f, 0.0f, true);
+			DrawCircle(PDI, (FVector)LastGridSnapPoint, RenderCameraState.Right(), RenderCameraState.Up(),
+				SnapHighlightColor, ElementSize, 4, SDPG_Foreground, 1.0f*PDIScale, 0.0f, true);
 		}
 
 		if (SnapEngine.HaveActiveSnapLine())
 		{
 			FLine3d SnapLine = SnapEngine.GetActiveSnapLine();
 			PDI->DrawLine((FVector)SnapLine.PointAt(-9999), (FVector)SnapLine.PointAt(9999),
-				ClosedPolygonColor, SDPG_Foreground, 0.5, 0.0f, true);
+				ClosedPolygonColor, SDPG_Foreground, 0.5*PDIScale, 0.0f, true);
 
 			if (SnapEngine.HaveActiveSnapDistance())
 			{
@@ -343,26 +347,26 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 				TArray<FVector3d>& HistoryPoints = (bInFixedPolygonMode) ? FixedPolygonClickPoints : PolygonVertices;
 				FVector3d UseNormal = DrawPlaneOrientation.AxisZ();
 				DrawEdgeTicks(PDI, FSegment3d(HistoryPoints[iSegment], HistoryPoints[iSegment+1]),
-					0.75f*ElementSize, UseNormal, SnapHighlightColor, SDPG_Foreground, 1.0f, true);
+					0.75f*ElementSize, UseNormal, SnapHighlightColor, SDPG_Foreground, 1.0f*PDIScale, true);
 				DrawEdgeTicks(PDI, FSegment3d(HistoryPoints[HistoryPoints.Num()-1], PreviewVertex),
-					0.75f*ElementSize, UseNormal, SnapHighlightColor, SDPG_Foreground, 1.0f, true);
+					0.75f*ElementSize, UseNormal, SnapHighlightColor, SDPG_Foreground, 1.0f*PDIScale, true);
 				PDI->DrawLine((FVector)HistoryPoints[iSegment], (FVector)HistoryPoints[iSegment + 1],
-					SnapHighlightColor, SDPG_Foreground, 2.0f, 0.0f, true);
+					SnapHighlightColor, SDPG_Foreground, 2.0f*PDIScale, 0.0f, true);
 			}
 		}
 	}
 
 	if (bHaveSurfaceHit)
 	{
-		PDI->DrawPoint((FVector)SurfaceHitPoint, ClosedPolygonColor, 10, SDPG_Foreground);
+		PDI->DrawPoint((FVector)SurfaceHitPoint, ClosedPolygonColor, 10*PDIScale, SDPG_Foreground);
 		if (SnapProperties->HitNormalOffset != 0)
 		{
-			PDI->DrawPoint((FVector)SurfaceOffsetPoint, OpenPolygonColor, 15, SDPG_Foreground);
+			PDI->DrawPoint((FVector)SurfaceOffsetPoint, OpenPolygonColor, 15*PDIScale, SDPG_Foreground);
 			PDI->DrawLine((FVector)SurfaceOffsetPoint, (FVector)SurfaceHitPoint,
-				ClosedPolygonColor, SDPG_Foreground, 0.5f, 0.0f, true);
+				ClosedPolygonColor, SDPG_Foreground, 0.5f*PDIScale, 0.0f, true);
 		}
 		PDI->DrawLine((FVector)SurfaceOffsetPoint, (FVector)PreviewVertex,
-			ClosedPolygonColor, SDPG_Foreground, 0.5f, 0.0f, true);
+			ClosedPolygonColor, SDPG_Foreground, 0.5f*PDIScale, 0.0f, true);
 	}
 
 
@@ -416,12 +420,12 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 		if (bHaveSelfIntersection)
 		{
-			PDI->DrawPoint((FVector)SelfIntersectionPoint, ErrorColor, 10, SDPG_Foreground);
+			PDI->DrawPoint((FVector)SelfIntersectionPoint, ErrorColor, 10*PDIScale, SDPG_Foreground);
 		}
 	}
 
 	// draw preview vertex
-	PDI->DrawPoint((FVector)PreviewVertex, ClosedPolygonColor, 10, SDPG_Foreground);
+	PDI->DrawPoint((FVector)PreviewVertex, ClosedPolygonColor, 10*PDIScale, SDPG_Foreground);
 
 	// draw height preview stuff
 	if (bInInteractiveExtrude)
