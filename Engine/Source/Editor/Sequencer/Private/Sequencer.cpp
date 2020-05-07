@@ -2172,31 +2172,40 @@ void FSequencer::BakeTransform()
 			FloatChannels[7]->SetDefault(DefaultScale.Y);
 			FloatChannels[8]->SetDefault(DefaultScale.Z);
 
-			// Euler filter
-			for (int32 Counter = 0; Counter < BakeData.Value.Rotations.Num() - 1; ++Counter)
+			TArray<FVector> LocalTranslations, LocalRotations, LocalScales;
+			LocalTranslations.SetNum(BakeData.Value.KeyTimes.Num());
+			LocalRotations.SetNum(BakeData.Value.KeyTimes.Num());
+			LocalScales.SetNum(BakeData.Value.KeyTimes.Num());
+
+			for (int32 Counter = 0; Counter < BakeData.Value.KeyTimes.Num(); ++Counter)
 			{
-				BakeData.Value.Rotations[Counter+1].SetClosestToMe(BakeData.Value.Rotations[Counter]);			
+				FTransform Transform(BakeData.Value.Rotations[Counter], BakeData.Value.Locations[Counter], BakeData.Value.Scales[Counter]);
+				FTransform LocalTransform = ParentInverseTransform * Transform;
+				LocalTranslations[Counter] = LocalTransform.GetTranslation();
+				LocalRotations[Counter] = LocalTransform.GetRotation().Euler();
+				LocalScales[Counter] = LocalTransform.GetScale3D();
+			}
+
+			// Euler filter
+			for (int32 Counter = 0; Counter < LocalRotations.Num() - 1; ++Counter)
+			{
+				FMath::WindRelativeAnglesDegrees(LocalRotations[Counter].X, LocalRotations[Counter + 1].X);
+				FMath::WindRelativeAnglesDegrees(LocalRotations[Counter].Y, LocalRotations[Counter + 1].Y);
+				FMath::WindRelativeAnglesDegrees(LocalRotations[Counter].Z, LocalRotations[Counter + 1].Z);							
 			}
 				
 			for (int32 Counter = 0; Counter < BakeData.Value.KeyTimes.Num(); ++Counter)
 			{
 				FFrameNumber KeyTime = BakeData.Value.KeyTimes[Counter];
-
-				FTransform Transform(BakeData.Value.Rotations[Counter], BakeData.Value.Locations[Counter], BakeData.Value.Scales[Counter]);
-				FTransform LocalTransform = ParentInverseTransform * Transform;
-				FVector LocalTranslation = LocalTransform.GetTranslation();
-				FVector LocalRotation = LocalTransform.GetRotation().Euler();
-				FVector LocalScale = LocalTransform.GetScale3D();
-
-				FloatChannels[0]->AddLinearKey(KeyTime, LocalTranslation.X);
-				FloatChannels[1]->AddLinearKey(KeyTime, LocalTranslation.Y);
-				FloatChannels[2]->AddLinearKey(KeyTime, LocalTranslation.Z);
-				FloatChannels[3]->AddLinearKey(KeyTime, LocalRotation.X);
-				FloatChannels[4]->AddLinearKey(KeyTime, LocalRotation.Y);
-				FloatChannels[5]->AddLinearKey(KeyTime, LocalRotation.Z);
-				FloatChannels[6]->AddLinearKey(KeyTime, LocalScale.X);
-				FloatChannels[7]->AddLinearKey(KeyTime, LocalScale.Y);
-				FloatChannels[8]->AddLinearKey(KeyTime, LocalScale.Z);
+				FloatChannels[0]->AddLinearKey(KeyTime, LocalTranslations[Counter].X);
+				FloatChannels[1]->AddLinearKey(KeyTime, LocalTranslations[Counter].Y);
+				FloatChannels[2]->AddLinearKey(KeyTime, LocalTranslations[Counter].Z);
+				FloatChannels[3]->AddLinearKey(KeyTime, LocalRotations[Counter].X);
+				FloatChannels[4]->AddLinearKey(KeyTime, LocalRotations[Counter].Y);
+				FloatChannels[5]->AddLinearKey(KeyTime, LocalRotations[Counter].Z);
+				FloatChannels[6]->AddLinearKey(KeyTime, LocalScales[Counter].X);
+				FloatChannels[7]->AddLinearKey(KeyTime, LocalScales[Counter].Y);
+				FloatChannels[8]->AddLinearKey(KeyTime, LocalScales[Counter].Z);
 			}
 		}
 	}
