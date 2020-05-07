@@ -48,7 +48,7 @@ void FDynamicMeshEditResult::GetAllTriangles(TArray<int>& TrianglesOut) const
 bool FDynamicMeshEditor::StitchVertexLoopsMinimal(const TArray<int>& Loop1, const TArray<int>& Loop2, FDynamicMeshEditResult& ResultOut)
 {
 	int N = Loop1.Num();
-	checkf(N == Loop2.Num(), TEXT("FDynamicMeshEditor::StitchLoop: loops are not the same length!"));
+	checkf(N == Loop2.Num(), TEXT("FDynamicMeshEditor::StitchVertexLoopsMinimal: loops are not the same length!"));
 	if (N != Loop2.Num())
 	{
 		return false;
@@ -96,11 +96,85 @@ operation_failed:
 		}
 		if (!RemoveTriangles(Triangles, false))
 		{
-			checkf(false, TEXT("FDynamicMeshEditor::StitchLoop: failed to add all triangles, and also failed to back out changes."));
+			checkf(false, TEXT("FDynamicMeshEditor::StitchVertexLoopsMinimal: failed to add all triangles, and also failed to back out changes."));
 		}
 	}
 	return false;
 }
+
+
+
+
+bool FDynamicMeshEditor::WeldVertexLoops(const TArray<int32>& Loop1, const TArray<int32>& Loop2)
+{
+	int32 N = Loop1.Num();
+	checkf(N == Loop2.Num(), TEXT("FDynamicMeshEditor::WeldVertexLoops: loops are not the same length!"));
+	if (N != Loop2.Num())
+	{
+		return false;
+	}
+
+	int32 FailureCount = 0;
+
+	// collect set of edges
+	TArray<int32> Edges1, Edges2;
+	Edges1.SetNum(N);
+	Edges2.SetNum(N);
+	for (int32 i = 0; i < N; ++i)
+	{
+		int32 a = Loop1[i];
+		int32 b = Loop1[(i + 1) % N];
+		Edges1[i] = Mesh->FindEdge(a, b);
+		if (Edges1[i] == FDynamicMesh3::InvalidID)
+		{
+			return false;
+		}
+
+		int32 c = Loop2[i];
+		int32 d = Loop2[(i + 1) % N];
+		Edges2[i] = Mesh->FindEdge(c, d);
+		if (Edges2[i] == FDynamicMesh3::InvalidID)
+		{
+			return false;
+		}
+	}
+
+	// merge edges. Some merges may merge multiple edges, in which case we want to 
+	// skip those when we encounter them later.
+	TArray<int32> SkipEdges;
+	for (int32 i = 0; i < N; ++i)
+	{
+		int32 Edge1 = Edges1[i];
+		int32 Edge2 = Edges2[i];
+		if (SkipEdges.Contains(Edge2))		// occurs at loop closures
+		{
+			continue;
+		}
+
+		FDynamicMesh3::FMergeEdgesInfo MergeInfo;
+		EMeshResult Result = Mesh->MergeEdges(Edge1, Edge2, MergeInfo);
+		if (Result != EMeshResult::Ok)
+		{
+			FailureCount++;
+		}
+		else
+		{
+			if (MergeInfo.ExtraRemovedEdges.A != FDynamicMesh3::InvalidID)
+			{
+				SkipEdges.Add(MergeInfo.ExtraRemovedEdges.A);
+			}
+			if (MergeInfo.ExtraRemovedEdges.B != FDynamicMesh3::InvalidID)
+			{
+				SkipEdges.Add(MergeInfo.ExtraRemovedEdges.B);
+			}
+		}
+	}
+
+	return (FailureCount > 0);
+}
+
+
+
 
 
 
