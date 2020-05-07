@@ -18,4 +18,6 @@ public:
 private:
 	// Compute the smoothed result by using Cotan Biharmonic
 	void Smooth();	
+
+	double GetSmoothPower(int32 VertexID, bool bIsBoundary);
 };
