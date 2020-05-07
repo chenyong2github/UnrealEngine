@@ -169,6 +169,22 @@ public class IOSPlatform : Platform
 		SDKName = (TargetPlatform == UnrealTargetPlatform.TVOS) ? "appletvos" : "iphoneos";
 	}
 
+
+	public override bool IsCustomVersionNeeded(string CustomVersionId, string CustomVersionParams)
+	{
+		return true;
+	}
+	public override bool CustomVersionUpdate(string CustomVersionId, string UpdateParams)
+	{
+		Console.WriteLine("UPDATING CERT FROM " + UpdateParams);
+
+		return true;
+	}
+
+
+
+
+
 	public override string GetPlatformPakCommandLine(ProjectParams Params, DeploymentContext SC)
 	{
 		string PakParams = "";
