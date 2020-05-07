@@ -3,6 +3,7 @@
 #include "DataTableIndexer.h"
 #include "Utility/IndexerUtilities.h"
 #include "Engine/DataTable.h"
+#include "SearchSerializer.h"
 
 enum class EDataTableIndexerVersion
 {
@@ -28,6 +29,7 @@ void FDataTableIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 	const TMap<FName, uint8*>& Rows = DataTable->GetRowMap();
 
 	Serializer.BeginIndexingObject(DataTable, TEXT("$self"));
+
 	for (const auto& Entry : Rows)
 	{
 		const FName& RowName = Entry.Key;

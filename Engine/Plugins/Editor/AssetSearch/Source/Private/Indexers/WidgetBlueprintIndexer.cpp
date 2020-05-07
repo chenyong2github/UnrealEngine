@@ -5,6 +5,7 @@
 #include "WidgetBlueprint.h"
 #include "Components/Widget.h"
 #include "Utility/IndexerUtilities.h"
+#include "SearchSerializer.h"
 
 #define LOCTEXT_NAMESPACE "FWidgetBlueprintIndexer"
 
@@ -41,6 +42,7 @@ void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSe
 
 		Serializer.BeginIndexingObject(Widget, Label);
 		Serializer.IndexProperty(TEXT("Name"), Label);
+		Serializer.IndexProperty(Widget->GetName() + TEXT("_Class"), Widget->GetClass()->GetName());
 
 		FIndexerUtilities::IterateIndexableProperties(Widget, [&Serializer](const FProperty* Property, const FString& Value) {
 			Serializer.IndexProperty(Property, Value);

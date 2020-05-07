@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IAssetSearchModule.h"
+#include "IAssetIndexer.h"
 
 class FDataTableIndexer : public IAssetIndexer
 {

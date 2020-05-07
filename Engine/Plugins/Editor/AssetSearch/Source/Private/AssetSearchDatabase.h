@@ -77,7 +77,7 @@ public:
 	/**
 	 * Search for some stuff.
 	 */
-	bool EnumerateSearchResults(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback);
+	bool EnumerateSearchResults(const FString& QueryText, TFunctionRef<bool(FSearchRecord&&)> InCallback);
 
 	/**
 	 * Get the total number of records.

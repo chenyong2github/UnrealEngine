@@ -33,6 +33,7 @@
 #include "FileHelpers.h"
 #include "Misc/MessageDialog.h"
 #include "Engine/CurveTable.h"
+#include "ISearchProvider.h"
 
 #include "Indexers/DataAssetIndexer.h"
 #include "Indexers/DataTableIndexer.h"
@@ -42,6 +43,7 @@
 #include "Indexers/DialogueWaveIndexer.h"
 #include "Indexers/LevelIndexer.h"
 #include "Indexers/SoundCueIndexer.h"
+#include "Providers/AssetRegistrySearchProvider.h"
 
 #define LOCTEXT_NAMESPACE "FAssetSearchManager"
 
@@ -209,6 +211,8 @@ void FAssetSearchManager::Start()
 	RegisterAssetIndexer(UWorld::StaticClass(), MakeUnique<FLevelIndexer>());
 	RegisterAssetIndexer(USoundCue::StaticClass(), MakeUnique<FSoundCueIndexer>());
 
+	RegisterSearchProvider(TEXT("AssetRegistry"), MakeUnique<FAssetRegistrySearchProvider>());
+
 	UPackage::PackageSavedEvent.AddRaw(this, &FAssetSearchManager::HandlePackageSaved);
 	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FAssetSearchManager::OnAssetLoaded);
 
@@ -318,6 +322,13 @@ void FAssetSearchManager::RegisterAssetIndexer(const UClass* AssetClass, TUnique
 	check(IsInGameThread());
 
 	Indexers.Add(AssetClass->GetFName(), MoveTemp(Indexer));
+}
+
+void FAssetSearchManager::RegisterSearchProvider(FName SearchProviderName, TUniquePtr<ISearchProvider>&& InSearchProvider)
+{
+	check(IsInGameThread());
+
+	SearchProviders.Add(SearchProviderName, MoveTemp(InSearchProvider));
 }
 
 void FAssetSearchManager::OnAssetAdded(const FAssetData& InAssetData)
@@ -860,30 +871,43 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 	FailedDDCRequests.RemoveAtSwap(0, RemovedCount);
 }
 
-void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback)
+void FAssetSearchManager::Search(FSearchQueryPtr SearchQuery)
 {
 	check(IsInGameThread());
 
 	FStudioAnalytics::RecordEvent(TEXT("AssetSearch"), {
-		FAnalyticsEventAttribute(TEXT("QueryString"), Query.Query)
+		FAnalyticsEventAttribute(TEXT("QueryString"), SearchQuery->QueryText)
 	});
 
-	ImmediateOperations.Enqueue([this, Query, InCallback]() {
+	ImmediateOperations.Enqueue([this, SearchQuery]() {
 
 		TArray<FSearchRecord> Results;
 
 		{
 			FScopeLock ScopedLock(&SearchDatabaseCS);
-			SearchDatabase.EnumerateSearchResults(Query, [&Results](FSearchRecord&& InResult) {
-				Results.Add(MoveTemp(InResult));
-				return true;
-			});
+			// This short circuits the search if it's no longer important to fulfill
+			if (SearchQuery->IsQueryStillImportant())
+			{
+				SearchDatabase.EnumerateSearchResults(SearchQuery->QueryText, [&Results](FSearchRecord&& InResult) {
+					Results.Add(MoveTemp(InResult));
+					return true;
+				});
+			}
 		}
 
-		AsyncMainThreadTask([ResultsFwd = MoveTemp(Results), InCallback]() mutable {
-			InCallback(MoveTemp(ResultsFwd));
+		AsyncMainThreadTask([ResultsFwd = MoveTemp(Results), SearchQuery]() mutable {
+			if (FSearchQuery::ResultsCallbackFunction ResultsCallback = SearchQuery->GetResultsCallback())
+			{
+				ResultsCallback(MoveTemp(ResultsFwd));
+			}
 		});
 	});
+
+	for (auto& SearchProviderEntry : SearchProviders)
+	{
+		TUniquePtr<ISearchProvider>& Provider = SearchProviderEntry.Value;
+		Provider->Search(SearchQuery);
+	}
 }
 
 void FAssetSearchManager::AsyncMainThreadTask(TFunction<void()> Task)
