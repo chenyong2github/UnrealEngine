@@ -1903,7 +1903,11 @@ void FSceneRenderTargets::ResolveSeparateTranslucency(FRHICommandList& RHICmdLis
 		);
 
 	RHICmdList.CopyToResolveTarget((*SeparateTranslucency)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucency)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
-	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
+
+	FResolveParams DepthResolveParams;
+	DepthResolveParams.DestRect = SeparateResolveRect;
+	DepthResolveParams.Rect = SeparateResolveRect;
+	ResolveDepthTexture(RHICmdList, (*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture->GetTexture2D(), (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), DepthResolveParams);
 
 	bSeparateTranslucencyPass = false;
 }
@@ -2018,7 +2022,11 @@ void FSceneRenderTargets::ResolveSeparateTranslucencyModulate(FRHICommandList& R
 		);
 
 	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyModulate)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyModulate)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
-	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
+
+	FResolveParams DepthResolveParams;
+	DepthResolveParams.DestRect = SeparateResolveRect;
+	DepthResolveParams.Rect = SeparateResolveRect;
+	ResolveDepthTexture(RHICmdList, (*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture->GetTexture2D(), (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), DepthResolveParams);
 
 	bSeparateTranslucencyPass = false;
 }
@@ -2039,6 +2047,15 @@ FResolveRect FSceneRenderTargets::GetDefaultRect(const FResolveRect& Rect, uint3
 void FSceneRenderTargets::ResolveDepthTexture(FRHICommandList& RHICmdList, const FTexture2DRHIRef& SourceTexture, const FTexture2DRHIRef& DestTexture, const FResolveParams& ResolveParams)
 {
 	check(!RHICmdList.IsInsideRenderPass());
+
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[SceneContext.GetCurrentFeatureLevel()];
+	const uint32 CurrentNumSamples = SourceTexture->GetNumSamples();
+	if (CurrentNumSamples <= 1 || !RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform) || !GAllowCustomMSAAResolves)
+	{
+		RHICmdList.CopyToResolveTarget(SourceTexture, DestTexture, ResolveParams);
+		return;
+	}
 
 	FResolveRect ResolveRect = ResolveParams.Rect;
 
@@ -2127,6 +2144,7 @@ void FSceneRenderTargets::ResolveDepthTexture(FRHICommandList& RHICmdList, const
 	// Transition the destination depth texture to readable. Ignore stencil.
 	RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthRead_StencilNop, DestTexture);
 }
+
 void FSceneRenderTargets::ResolveSceneDepthTexture(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect)
 {
 	check(RHICmdList.IsOutsideRenderPass());
@@ -2140,18 +2158,7 @@ void FSceneRenderTargets::ResolveSceneDepthTexture(FRHICommandList& RHICmdList, 
 		ResolveParams.Rect = ResolveRect;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	uint32 CurrentNumSamples = SceneDepthZ->GetDesc().NumSamples;
-
-	const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[SceneContext.GetCurrentFeatureLevel()];
-	if ((CurrentNumSamples <= 1 || !RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform)) || !GAllowCustomMSAAResolves)
-	{
-		RHICmdList.CopyToResolveTarget(GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
-	}
-	else
-	{
-		ResolveDepthTexture(RHICmdList, GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
-	}
+	ResolveDepthTexture(RHICmdList, GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
 }
 
 void FSceneRenderTargets::CleanUpEditorPrimitiveTargets()
