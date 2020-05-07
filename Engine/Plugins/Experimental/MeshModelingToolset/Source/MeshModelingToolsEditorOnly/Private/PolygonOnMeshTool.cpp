@@ -337,7 +337,7 @@ void UPolygonOnMeshTool::BeginDrawPolygon()
 	double SnapTol = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD();
 	DrawPolygonMechanic->SpatialSnapPointsFunc = [this, SnapTol](FVector3d Position1, FVector3d Position2)
 	{
-		return true && ToolSceneQueriesUtil::CalculateViewVisualAngleD(this->CameraState, Position1, Position2) < SnapTol;
+		return true && ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, Position1, Position2, SnapTol);
 	};
 	DrawPolygonMechanic->SetDrawClosedLoopMode();
 

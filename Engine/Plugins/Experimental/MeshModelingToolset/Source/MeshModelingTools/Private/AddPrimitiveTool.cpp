@@ -164,8 +164,6 @@ void UAddPrimitiveTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	//FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	//MeshDebugDraw::DrawSimpleGrid(ShapeFrame, 13, 5.0f, 1.0f, FColor::Orange, false, PDI, FTransform::Identity);
 }
 
 
