@@ -1232,10 +1232,10 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 	if (IsRayTracingEnabled())
 	{
 		ENQUEUE_RENDER_COMMAND(InitStaticMeshRayTracingGeometry)(
-			[this](FRHICommandListImmediate& RHICmdList)
+			[this, DebugName = Parent->GetFName()](FRHICommandListImmediate& RHICmdList)
 			{
 				FRayTracingGeometryInitializer Initializer;
-				
+				Initializer.DebugName = DebugName;
 				Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
 				Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
 				Initializer.GeometryType = RTGT_Triangles;

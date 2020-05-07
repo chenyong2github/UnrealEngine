@@ -417,6 +417,9 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 				}
 
 				FRayTracingGeometryInitializer Initializer;
+				static const FName DebugName("FSkeletalMeshObjectGPUSkin");
+				static int32 DebugNumber = 0;
+				Initializer.DebugName = FName(DebugName, DebugNumber++);
 
 				FRHIResourceCreateInfo CreateInfo;
 

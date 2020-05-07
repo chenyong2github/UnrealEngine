@@ -780,6 +780,9 @@ static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTra
 static void BuildHairAccelerationStructure(FRHICommandList& RHICmdList, uint32 RaytracingVertexCount, FVertexBufferRHIRef& PositionBuffer, FRayTracingGeometry* OutRayTracingGeometry)
 {
 	FRayTracingGeometryInitializer Initializer;
+	static const FName DebugName("Hair");
+	static int32 DebugNumber = 0;
+	Initializer.DebugName = FName(DebugName, DebugNumber++);
 	Initializer.IndexBuffer = nullptr;
 	Initializer.IndexBufferOffset = 0;
 	Initializer.GeometryType = RTGT_Triangles;
