@@ -98,8 +98,23 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 					.ToolTipText(LOCTEXT("TiledLandscapeImport_FlipYAxisToolTip", "Whether tile Y coordinate should be flipped (Make sure 'Flip Y-Axis Orientation' option is switched off in World Machine) "))
 				]
 
-				// Tiles origin offset
+				// Enable edit layers
 				+SUniformGridPanel::Slot(0, 2)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("TiledLandscapeImport_EnableEditLayers", "Enable Edit Layers"))
+				]
+				+SUniformGridPanel::Slot(1, 2)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SCheckBox)
+					.IsChecked(this, &STiledLandscapeImportDlg::GetEditLayersState)
+					.OnCheckStateChanged(this, &STiledLandscapeImportDlg::OnEditLayersStateChanged)
+					.ToolTipText(LOCTEXT("TiledLandscapeImport_EditLayersToolTip", "Whether landscape edit layers should be enabled"))
+				]
+				// Tiles origin offset
+				+SUniformGridPanel::Slot(0, 3)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
@@ -107,7 +122,7 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 					.Text(LOCTEXT("TiledLandscapeImport_TilesOffsetText", "Tile Coordinates Offset"))
 				]
 
-				+SUniformGridPanel::Slot(1, 2)
+				+SUniformGridPanel::Slot(1, 3)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SHorizontalBox)
@@ -142,14 +157,14 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 				]
 				
 				// Tile configuration
-				+SUniformGridPanel::Slot(0, 3)
+				+SUniformGridPanel::Slot(0, 4)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("TiledLandscapeImport_ConfigurationText", "Import Configuration"))
 				]
 
-				+SUniformGridPanel::Slot(1, 3)
+				+SUniformGridPanel::Slot(1, 4)
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(TileConfigurationComboBox, SComboBox<TSharedPtr<FTileImportConfiguration>>)
@@ -164,14 +179,14 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 				]
 
 				// Scale
-				+SUniformGridPanel::Slot(0, 4)
+				+SUniformGridPanel::Slot(0, 5)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("TiledLandscapeImport_ScaleText", "Landscape Scale"))
 				]
 			
-				+SUniformGridPanel::Slot(1, 4)
+				+SUniformGridPanel::Slot(1, 5)
 				.VAlign(VAlign_Center)
 				[
 					SNew( SVectorInputBox )
@@ -187,14 +202,14 @@ void STiledLandscapeImportDlg::Construct(const FArguments& InArgs, TSharedPtr<SW
 				]
 
 				// Landcape material
-				+SUniformGridPanel::Slot(0, 5)
+				+SUniformGridPanel::Slot(0, 6)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("TiledLandscapeImport_MaterialText", "Material"))
 				]
 			
-				+SUniformGridPanel::Slot(1, 5)
+				+SUniformGridPanel::Slot(1, 6)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SObjectPropertyEntryBox)
@@ -415,6 +430,16 @@ ECheckBoxState STiledLandscapeImportDlg::GetFlipYAxisState() const
 void STiledLandscapeImportDlg::OnFlipYAxisStateChanged(ECheckBoxState NewState)
 {
 	ImportSettings.bFlipYAxis = (NewState == ECheckBoxState::Checked);
+}
+
+ECheckBoxState STiledLandscapeImportDlg::GetEditLayersState() const
+{
+	return ImportSettings.bEditLayersEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void STiledLandscapeImportDlg::OnEditLayersStateChanged(ECheckBoxState NewState)
+{
+	ImportSettings.bEditLayersEnabled = (NewState == ECheckBoxState::Checked);
 }
 
 void STiledLandscapeImportDlg::OnSetImportConfiguration(TSharedPtr<FTileImportConfiguration> InTileConfig, ESelectInfo::Type SelectInfo)

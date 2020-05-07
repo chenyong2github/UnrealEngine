@@ -701,6 +701,10 @@ public:
 	UPROPERTY()
 	FString ReimportHeightmapFilePath;
 
+	/** Height and weightmap import destination layer guid */
+	UPROPERTY()
+	FGuid ReimportDestinationLayerGuid;
+
 	UPROPERTY()
 	TArray<FLandscapeEditorLayerSettings> EditorLayerSettings;
 
