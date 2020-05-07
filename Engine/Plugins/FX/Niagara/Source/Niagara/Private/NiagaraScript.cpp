@@ -2118,6 +2118,7 @@ NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) con
 			{
 				return false;
 			}
+
 			return !ScriptResource->IsCompilationFinished();
 		}
 	}
@@ -2145,6 +2146,14 @@ NIAGARA_API bool UNiagaraScript::DidScriptCompilationSucceed(bool bGPUScript) co
 				// If we failed compilation, it would be finished and Shader would be null.
 				return false;
 			}
+		}
+
+		// If we are on a cooked platform and we have no shader we need to check if we disabled compute shader compilation
+		// in which case we lie and say the compilation was ok otherwise the rest of the system will be disabled.
+		//-TODO: Strip these emitters on cook instead
+		if (FPlatformProperties::RequiresCookedData() && !FNiagaraUtilities::AllowComputeShaders(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]))
+		{
+			return true;
 		}
 	}
 	else if (CachedScriptVM.IsValid())
