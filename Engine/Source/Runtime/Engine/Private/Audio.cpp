@@ -171,6 +171,11 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 	return nullptr;
 }
 
+bool IsSpatializationCVarEnabled()
+{
+	return AllowAudioSpatializationCVar != 0;
+}
+
 /*-----------------------------------------------------------------------------
 	FSoundBuffer implementation.
 -----------------------------------------------------------------------------*/

@@ -181,5 +181,6 @@ namespace Audio
 		uint32 bIsVorbis : 1;
 		uint32 bIsStoppingVoicesEnabled : 1;
 		uint32 bSendingAudioToBuses : 1;
+		uint32 bPrevAllowedSpatializationSetting : 1;
 	};
 }
