@@ -325,15 +325,15 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 				{
 					double CrossingT = SignDist[TriSubIdx] / (SignDist[TriSubIdx] - SignDist[NextSubIdx]);
 					FVector3d CrossingP = (1 - CrossingT) * CurrentTri.V[TriSubIdx] + CrossingT * CurrentTri.V[NextSubIdx];
-					FIndex4i EdgeInfo = Mesh->GetEdge(CandidateEdgeID);
-					if (EdgeInfo.A != TriVertIDs[TriSubIdx]) // edge verts are stored backwards from the order in the local triangle, reverse the crossing accordingly
+					const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(CandidateEdgeID);
+					if (Edge.Vert[0] != TriVertIDs[TriSubIdx]) // edge verts are stored backwards from the order in the local triangle, reverse the crossing accordingly
 					{
 						CrossingT = 1 - CrossingT;
 					}
-					int CrossToTriID = EdgeInfo.C;
+					int CrossToTriID = Edge.Tri[0];
 					if (CrossToTriID == TriID)
 					{
-						CrossToTriID = EdgeInfo.D;
+						CrossToTriID = Edge.Tri[1];
 					}
 					if (CrossToTriID == -1)
 					{

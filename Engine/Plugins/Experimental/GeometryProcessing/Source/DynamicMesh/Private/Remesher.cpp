@@ -139,8 +139,9 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 	{
 		return EProcessResult::Failed_NotAnEdge;
 	}
-	FIndex4i edge_info = Mesh->GetEdge(edgeID);
-	int a = edge_info.A, b = edge_info.B, t0 = edge_info.C, t1 = edge_info.D;
+	const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(edgeID);
+	int a = Edge.Vert[0], b = Edge.Vert[1];
+	int t0 = Edge.Tri[0], t1 = Edge.Tri[1];
 	bool bIsBoundaryEdge = (t1 == IndexConstants::InvalidID);
 
 	// look up 'other' verts c (from t0) and d (from t1, if it exists)
