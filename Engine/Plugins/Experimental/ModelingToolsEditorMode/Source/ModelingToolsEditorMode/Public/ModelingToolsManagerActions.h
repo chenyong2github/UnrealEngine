@@ -37,6 +37,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginTriEditTool;
 	TSharedPtr<FUICommandInfo> BeginPolyDeformTool;
 	TSharedPtr<FUICommandInfo> BeginSmoothMeshTool;
+	TSharedPtr<FUICommandInfo> BeginOffsetMeshTool;
 	TSharedPtr<FUICommandInfo> BeginDisplaceMeshTool;
 	TSharedPtr<FUICommandInfo> BeginMeshSpaceDeformerTool;
 	TSharedPtr<FUICommandInfo> BeginTransformMeshesTool;
