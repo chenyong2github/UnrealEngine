@@ -958,12 +958,7 @@ void USocialParty::HandleMemberPlatformUniqueIdChanged(const FUniqueNetIdRepl& N
 	const FName MemberPlatformOssName = NewPlatformUniqueId.GetType();
 	if (FPartyPlatformSessionManager::DoesOssNeedPartySession(MemberPlatformOssName) && !GetRepData().FindSessionInfo(MemberPlatformOssName))
 	{
-		// We don't have session info yet for this platform, so make it now and establish this member as the owner
-		FPartyPlatformSessionInfo NewSessionInfo;
-		NewSessionInfo.OssName = MemberPlatformOssName;
-		NewSessionInfo.OwnerPrimaryId = Member->GetPrimaryNetId();
-
-		GetMutableRepData().UpdatePlatformSessionInfo(NewSessionInfo);
+		CreatePlatformSession(MemberPlatformOssName);
 	}
 }
 
@@ -1755,7 +1750,8 @@ void USocialParty::FinalizePartyLeave(EMemberExitedReason Reason)
 
 void USocialParty::CreatePlatformSession(FName PlatformOssName)
 {
-	if (!PlatformOssName.IsNone() && !GetRepData().FindSessionInfo(PlatformOssName))
+	if (ensure(FPartyPlatformSessionManager::DoesOssNeedPartySession(PlatformOssName) &&
+		!GetRepData().FindSessionInfo(PlatformOssName)))
 	{
 		FUniqueNetIdRepl OwnerPrimaryId;
 		for (UPartyMember* Member : GetPartyMembers())
@@ -1770,7 +1766,7 @@ void USocialParty::CreatePlatformSession(FName PlatformOssName)
 			}
 		}
 
-		if (OwnerPrimaryId.IsValid())
+		if (ensure(OwnerPrimaryId.IsValid()))
 		{
 			FPartyPlatformSessionInfo NewSessionInfo;
 			NewSessionInfo.OssName = PlatformOssName;
