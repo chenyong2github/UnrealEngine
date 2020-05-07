@@ -12,16 +12,16 @@ namespace Turnkey
 		public override string ProviderToken { get { return "googledrive"; } }
 
 
-
 		private static DriveServiceHelper ServiceHelper = null;
 		private Dictionary<string, Google.Apis.Drive.v3.Data.File> PathToFileCache = new Dictionary<string, Google.Apis.Drive.v3.Data.File>();
 
 
-
-
 		public override string Execute(string Operation, CopyExecuteSpecialMode SpecialMode, string SpecialModeHint)
 		{
-			Prepare();
+			if (!Prepare())
+			{
+				return null;
+			}
 
 			// operations that end in / must have an * appended, so the wildcard matching works properlty
 			if (Operation.EndsWith("/"))
@@ -77,19 +77,14 @@ namespace Turnkey
 				Dictionary<Google.Apis.Drive.v3.Data.File, string> NewIdsToCopyToFilename = new Dictionary<Google.Apis.Drive.v3.Data.File, string>();
 				foreach (var Pair in IdsToCopyToFilename)
 				{
-					bool bFoundOldVersion;
 					// check the cache status and version
-					string ExistingPath = LocalCache.GetCachedPathByTag(Pair.Key.Id, Pair.Key.Version.ToString(), out bFoundOldVersion);
+					// @todo turnkey: we don't have per-version files under a directory tag cache entry, so we tag each file, although it will be duplicated with the op cache tag above
+					string ExistingPath = LocalCache.GetCachedPathByTag(Pair.Key.Id, Pair.Key.Version.ToString());
 
-					if (ExistingPath == null || bFoundOldVersion)
+					if (ExistingPath == null)
 					{
 						// still need to download this one
 						NewIdsToCopyToFilename.Add(Pair.Key, Pair.Value);
-
-						if (File.Exists(ExistingPath))
-						{
-							File.Delete(ExistingPath);
-						}
 					}
 					// if we are removing our one and only file from the list to be deleted, we need to change our OutputPath to be that single file
 					// since we won't be going through the lower loop
@@ -110,6 +105,7 @@ namespace Turnkey
 				if (SpecialMode == CopyExecuteSpecialMode.UsePermanentStorage && CachedOperationLocation == null)
 				{
 					DownloadDirectory = Path.Combine(LocalCache.GetInstallCacheDirectory(), SpecialModeHint);
+					AutomationTool.InternalUtils.SafeDeleteDirectory(DownloadDirectory);
 				}
 
 				// if we didn't have a cached directory at all, then make a new one
@@ -150,13 +146,16 @@ namespace Turnkey
 
 		public override string[] Enumerate(string Operation)
 		{
-			// if we have no wildcards, there's no need to waste time touching p4, just return the spec
+			// if we have no wildcards, there's no need to waste time touching google drive, just return the spec
 			if (!Operation.Contains("*"))
 			{
 				return new string[] { ProviderToken + ":" + Operation };
 			}
 
-			Prepare();
+			if (!Prepare())
+			{
+				return null;
+			}
 
 			Dictionary<string, Google.Apis.Drive.v3.Data.File> Output = new Dictionary<string, Google.Apis.Drive.v3.Data.File>();
 
@@ -207,19 +206,27 @@ namespace Turnkey
 			return Result;
 		}
 
-		private void Prepare()
+		private bool Prepare()
 		{
 			if (ServiceHelper == null)
 			{
-				string SecretsFile = CopyProvider.ExecuteCopy(@"file:D:\SDK\credentials.json");
+				if (!TurnkeyUtils.HasVariable("GoogleDrive_Credentials"))
+				{
+					TurnkeyUtils.Log("ERROR: Unable to use GoogleDrive without GoogleDrive_Credentials being set first!");
+					return false;
+				}
+
+				string SecretsFile = CopyProvider.ExecuteCopy("$(GoogleDrive_Credentials)");
 				if (SecretsFile == null)
 				{
-					TurnkeyUtils.Log("Unable to get a secrets file");
-					return;
+					TurnkeyUtils.Log("ERROR: Unable to get GoogleDrive secrets file from {0}", TurnkeyUtils.GetVariableValue("GoogleDrive_Credentials"));
+					return false;
 				}
 
 				ServiceHelper = new DriveServiceHelper("Quickstart", SecretsFile, Path.GetDirectoryName(SecretsFile));
 			}
+
+			return true;
 		}		
 		
 // 		private string GetHighestCachedDirectoryIdForPath(string DrivePath, out string RemainingPathAfterId)

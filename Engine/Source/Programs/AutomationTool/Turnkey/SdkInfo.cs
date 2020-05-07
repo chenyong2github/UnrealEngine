@@ -19,7 +19,6 @@ namespace Turnkey
 			Full,
 			Flash,
 			Misc,
-			QuickSwitch,
 		};
 
 
@@ -46,44 +45,44 @@ namespace Turnkey
 		[XmlIgnore]
 		private Dictionary<UnrealTargetPlatform, AutomationTool.Platform> AutomationPlatforms;
 
-		private SdkInfo CloneForQuickSwitch(string LocalDirectoryForCopy)
-		{
-			SdkInfo Clone = new SdkInfo();
-			Clone.PlatformString = PlatformString;
-			Clone.Version = Version;
-			Clone.DisplayName = DisplayName;
-			Clone.AllowedFlashDeviceTypes = AllowedFlashDeviceTypes;
-			Clone.CustomSdkId = CustomSdkId;
-			Clone.CustomSdkParams = CustomSdkParams;
-			Clone.PlatformString = PlatformString;
-
-			Clone.Type = SdkType.QuickSwitch;
-
-			if (Installers != null)
-			{
-				List<CopyAndRun> NewInstallers = new List<CopyAndRun>();
-				foreach (CopyAndRun Installer in Installers)
-				{
-					// if we want to execute the installer, then copy it over
-					if (Installer.ShouldExecute())
-					{
-						CopyAndRun NewInstaller = new CopyAndRun(Installer);
-
-						// the downloaded location will be the location to install from later. if we blanked this out, the CopyOutputPath variable wouldn't get set appropriately
-						NewInstaller.Copy = "file:" + LocalDirectoryForCopy;
-						NewInstallers.Add(NewInstaller);
-					}
-				}
-				Clone.Installers = NewInstallers.ToArray();
-			}
-
-			if (CustomSdkInputFiles != null)
-			{
-				throw new AutomationException("CustomSdkInputFiles are not supported yet for QuickSwitch Sdks");
-			}
-
-			return Clone;
-		}
+// 		private SdkInfo CloneForQuickSwitch(string LocalDirectoryForCopy)
+// 		{
+// 			SdkInfo Clone = new SdkInfo();
+// 			Clone.PlatformString = PlatformString;
+// 			Clone.Version = Version;
+// 			Clone.DisplayName = DisplayName;
+// 			Clone.AllowedFlashDeviceTypes = AllowedFlashDeviceTypes;
+// 			Clone.CustomSdkId = CustomSdkId;
+// 			Clone.CustomSdkParams = CustomSdkParams;
+// 			Clone.PlatformString = PlatformString;
+// 
+// 			Clone.Type = SdkType.QuickSwitch;
+// 
+// 			if (Installers != null)
+// 			{
+// 				List<CopyAndRun> NewInstallers = new List<CopyAndRun>();
+// 				foreach (CopyAndRun Installer in Installers)
+// 				{
+// 					// if we want to execute the installer, then copy it over
+// 					if (Installer.ShouldExecute())
+// 					{
+// 						CopyAndRun NewInstaller = new CopyAndRun(Installer);
+// 
+// 						// the downloaded location will be the location to install from later. if we blanked this out, the CopyOutputPath variable wouldn't get set appropriately
+// 						NewInstaller.Copy = "file:" + LocalDirectoryForCopy;
+// 						NewInstallers.Add(NewInstaller);
+// 					}
+// 				}
+// 				Clone.Installers = NewInstallers.ToArray();
+// 			}
+// 
+// 			if (CustomSdkInputFiles != null)
+// 			{
+// 				throw new AutomationException("CustomSdkInputFiles are not supported yet for QuickSwitch Sdks");
+// 			}
+// 
+// 			return Clone;
+// 		}
 
 		#endregion
 
@@ -250,33 +249,33 @@ namespace Turnkey
 					string SubDir = string.Format("{0}/{1}", Platform.ToString(), Version);
 					Install.Execute(CopyExecuteSpecialMode.UsePermanentStorage, SubDir);
 
-					// now that we are copied, write out a manifest to the root of the output location for later quick switching,
-					// and not continue to install anything
-					string ManifestPath = TurnkeyUtils.GetVariableValue("CopyOutputPath");
-
-					// if it's a file, then get it's directory
-					if (File.Exists(ManifestPath))
-					{
-						ManifestPath = Path.GetDirectoryName(ManifestPath);
-					}
-					Directory.CreateDirectory(ManifestPath);
-					ManifestPath = Path.Combine(ManifestPath, "TurnkeyQuickSwitch.xml");
-
-					// if the manifest already existed as downloaded, then there's no need to make one, we assume it was correct
-					if (!File.Exists(ManifestPath))
-					{
-						TurnkeyManifest QuickSwitchManifest = new TurnkeyManifest();
-
-						// copy this Sdk to a new one
-						SdkInfo NewSdk = CloneForQuickSwitch(Path.GetDirectoryName(ManifestPath));
-						QuickSwitchManifest.SdkInfos = new SdkInfo[] { NewSdk };
-
-						// register the Sdk with th runtime so that we can install it without quitting
-						TurnkeyManifest.AddCreatedSdk(NewSdk);
-
-						// save out a single switch manifest
-						QuickSwitchManifest.Write(ManifestPath);
-					}
+// 					// now that we are copied, write out a manifest to the root of the output location for later quick switching,
+// 					// and not continue to install anything
+// 					string ManifestPath = TurnkeyUtils.GetVariableValue("CopyOutputPath");
+// 
+// 					// if it's a file, then get it's directory
+// 					if (File.Exists(ManifestPath))
+// 					{
+// 						ManifestPath = Path.GetDirectoryName(ManifestPath);
+// 					}
+// 					Directory.CreateDirectory(ManifestPath);
+// 					ManifestPath = Path.Combine(ManifestPath, "TurnkeyQuickSwitch.xml");
+// 
+// 					// if the manifest already existed as downloaded, then there's no need to make one, we assume it was correct
+// 					if (!File.Exists(ManifestPath))
+// 					{
+// 						TurnkeyManifest QuickSwitchManifest = new TurnkeyManifest();
+// 
+// 						// copy this Sdk to a new one
+// 						SdkInfo NewSdk = CloneForQuickSwitch(Path.GetDirectoryName(ManifestPath));
+// 						QuickSwitchManifest.SdkInfos = new SdkInfo[] { NewSdk };
+// 
+// 						// register the Sdk with th runtime so that we can install it without quitting
+// 						TurnkeyManifest.AddCreatedSdk(NewSdk);
+// 
+// 						// save out a single switch manifest
+// 						QuickSwitchManifest.Write(ManifestPath);
+//					}
 				}
 				else
 				{

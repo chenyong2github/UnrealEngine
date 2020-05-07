@@ -48,9 +48,9 @@ namespace Turnkey
 					}
 				}
 			}
-			catch (Exception)
+			catch (Exception Ex)
 			{
-
+				TurnkeyUtils.Log("Turnkey exception: {0}", Ex.ToString());
 			}
 			finally
 			{

@@ -17,7 +17,6 @@ namespace Turnkey.Commands
 			{
 				{ "Auto Install All Needed Sdks", new string[] { "-platform=All", "-NeededOnly", "-BestAvailable" } },
 				{ "Auto Update All Sdks", new string[] { "-platform=All", "-UpdateOnly", "-BestAvailable" } },
-				{ "Download QuickSwitch Sdk", new string[] { "-AllowInvalid", "-DownloadOnly" } },
 			};
 		}
 
@@ -25,6 +24,7 @@ namespace Turnkey.Commands
 		protected override void Execute(string[] CommandOptions)
 		{
 			string DeviceName = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
+			string SdkTypeString = TurnkeyUtils.ParseParamValue("SdkType", null, CommandOptions);
 
 			bool bBestAvailable = TurnkeyUtils.ParseParam("BestAvailable", CommandOptions);
 			bool bUpdateOnly = TurnkeyUtils.ParseParam("UpdateOnly", CommandOptions);
@@ -32,6 +32,17 @@ namespace Turnkey.Commands
 			// best available installation requires valid and needed Sdks
 			bool bValidOnly = bBestAvailable || !TurnkeyUtils.ParseParam("AllowInvalid", CommandOptions);
 			bool bNeededOnly = bBestAvailable || TurnkeyUtils.ParseParam("NeededOnly", CommandOptions);
+
+
+			SdkInfo.SdkType DesiredType = SdkInfo.SdkType.Misc;
+			if (SdkTypeString != null)
+			{
+				if (!Enum.TryParse(SdkTypeString, out DesiredType))
+				{
+					TurnkeyUtils.Log("Invalid SdkType given with -SdkType={0}", SdkTypeString);
+					return;
+				}
+			}
 
 			// we need all sdks we can find
 			List<SdkInfo> AllSdks = TurnkeyManifest.GetDiscoveredSdks();
@@ -95,38 +106,37 @@ namespace Turnkey.Commands
 					Sdks = Sdks.FindAll(x => x.IsNeeded(Platform, DeviceName));
 				}
 
-				if (bBestAvailable)
+				// filter on type
+				if (SdkTypeString != null && Sdks.Count > 0)
+				{
+					List<SdkInfo> TypedSdks = Sdks.FindAll(x => x.Type == DesiredType);
+					if (TypedSdks.Count == 0)
+					{
+						TurnkeyUtils.Log("No valid Sdks found of type {0}, using Full", DesiredType);
+						TypedSdks = Sdks.FindAll(x => x.Type == SdkInfo.SdkType.Full);
+					}
+					Sdks = TypedSdks;
+				}
+
+				if (bBestAvailable && Sdks.Count > 0)
 				{
 					// loop through Sdks that are left, and install the best one available
-
-					SdkInfo BestNormalSdk = null;
-					SdkInfo BestMiscSdk = null;
-					SdkInfo BestFlash = null;
+					Dictionary<SdkInfo.SdkType, SdkInfo> BestByType = new Dictionary<SdkInfo.SdkType, SdkInfo>();
 
 					foreach (SdkInfo Sdk in Sdks)
 					{
 						// always install custom Sdks since there are no versions to check, if it's valid, let it decide what to do
 						if (Sdk.CustomSdkId == null)
 						{
-							if (Sdk.Type == SdkInfo.SdkType.Misc)
+							if (!BestByType.ContainsKey(Sdk.Type))
 							{
-								if (BestMiscSdk == null || string.Compare(Sdk.Version, BestMiscSdk.Version, true) > 0)
-								{
-									BestMiscSdk = Sdk;
-								}
+								BestByType[Sdk.Type] = Sdk;
 							}
-							else if (Sdk.Type == SdkInfo.SdkType.Full || Sdk.Type == SdkInfo.SdkType.RunOnly || Sdk.Type == SdkInfo.SdkType.BuildOnly)
+							else
 							{
-								if (BestNormalSdk == null || string.Compare(Sdk.Version, BestNormalSdk.Version, true) > 0)
+								if (string.Compare(Sdk.Version, BestByType[Sdk.Type].Version, true) > 0)
 								{
-									BestNormalSdk = Sdk;
-								}
-							}
-							else if (Sdk.Type == SdkInfo.SdkType.Flash)
-							{
-								if (BestFlash == null || string.Compare(Sdk.Version, BestFlash.Version, true) > 0)
-								{
-									BestFlash = Sdk;
+									BestByType[Sdk.Type] = Sdk;
 								}
 							}
 						}
@@ -134,18 +144,29 @@ namespace Turnkey.Commands
 
 					// first, keep only custom Sdks
 					Sdks = Sdks.FindAll(x => x.CustomSdkId != null);
-					// then add the best matches above
-					if (BestNormalSdk != null)
+
+// 					// if the user chose a type, then pick that one
+// 					if (SdkTypeString != null)
+// 					{
+// 						if ((DesiredType == SdkInfo.SdkType.BuildOnly || DesiredType == SdkInfo.SdkType.RunOnly) &&
+// 							!BestByType.ContainsKey(DesiredType))
+// 						{
+// 							TurnkeyUtils.Log("No valid Sdks found of type {0}, trying for a Full",  DesiredType);
+// 							DesiredType = SdkInfo.SdkType.Flash;
+// 						}
+// 
+// 						if (!BestByType.ContainsKey(DesiredType))
+// 						{
+// 							TurnkeyUtils.Log("No valid Sdks found of type {0}, giving up.", DesiredType);
+// 							return;
+// 						}
+// 
+// 						SdkInfo Sdk = BestByType[DesiredType];
+// 					}
+// 					// otherwise, add all matches to the list
+// 					else
 					{
-						Sdks.Add(BestNormalSdk);
-					}
-					if (BestMiscSdk != null)
-					{
-						Sdks.Add(BestNormalSdk);
-					}
-					if (BestFlash != null)
-					{
-						Sdks.Add(BestNormalSdk);
+						Sdks.AddRange(BestByType.Values);
 					}
 				}
 				// if we are not doing best available Sdks, then let used choose one

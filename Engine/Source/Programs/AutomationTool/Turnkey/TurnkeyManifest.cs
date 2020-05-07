@@ -55,23 +55,8 @@ namespace Turnkey
 			{
 				DiscoveredSdks = new List<SdkInfo>();
 
-				// @todo turnkey: look in the Sdk Download directory!~
-				if (TurnkeySettings.HasSetUserSetting("User_QuickSwitchSdkLocation"))
-				{
-					DiscoveredSdks.AddRange(GetSdkInfosFromProvider("file:$(User_QuickSwitchSdkLocation)/*/*/TurnkeyQuickSwitch.xml"));
-				}
-
-
-				// some known standard locations to the chain with
-				DiscoveredSdks.AddRange(GetSdkInfosFromProvider("file:$(EngineDir)/Build/TurnkeyManifest.xml"));
-				if (Environment.GetEnvironmentVariable("UE_SDKS_ROOT") != null)
-				{
-					DiscoveredSdks.AddRange(GetSdkInfosFromProvider("file:$(UE_SDKS_ROOT)/TurnkeyManifest.xml"));
-				}
-				if (Environment.GetEnvironmentVariable("UE_STUDIO_TURNKEY_LOCATION") != null)
-				{
-					DiscoveredSdks.AddRange(GetSdkInfosFromProvider("$(UE_STUDIO_TURNKEY_LOCATION)"));
-				}
+				// known location to branch from, this will include a few other locations
+				DiscoveredSdks.AddRange(GetSdkInfosFromProvider("file:$(EngineDir)/Build/Turnkey/TurnkeyManifest.xml"));
 			}
 		}
 

@@ -6,16 +6,64 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Reflection;
+using Tools.DotNETCommon;
+
 
 namespace Turnkey
 {
+	[Serializable]
+	public class CacheData
+	{
+		public string LocalPath;
+		public string Version;
+		public bool bIsFile;
+		public Dictionary<string, long> FileToTimeCache = new Dictionary<string, long>();
+
+		public CacheData()
+		{
+
+		}
+
+		public CacheData(string LocalPath, string Version)
+		{
+			this.LocalPath = LocalPath;
+			this.Version = Version;
+
+			// check if it's a file, and if it is, add itself to the date cache
+			if (File.Exists(LocalPath))
+			{
+				bIsFile = true;
+				FileToTimeCache.Add("", File.GetLastWriteTimeUtc(LocalPath).ToFileTimeUtc());
+			}
+			else
+			{
+				bIsFile = false;
+				string PathToRemove = LocalPath + Path.DirectorySeparatorChar;
+				// gather the files under the localpath and remember dates, for later cleaning
+				foreach (string Filename in Directory.EnumerateFiles(LocalPath, "*", SearchOption.AllDirectories))
+				{
+					FileToTimeCache.Add(Filename.Replace(PathToRemove, "").Replace("\\", "/"), File.GetLastWriteTimeUtc(Filename).ToFileTimeUtc());
+				}
+			}
+		}
+
+	}
+
+	[Serializable]
+	public class SavedCache
+	{
+		public Dictionary<string, CacheData> Cache = new Dictionary<string, CacheData>();
+		public SavedCache()
+		{
+
+		}
+	}
+
+
+
 	static class LocalCache
 	{
-		// these temp files 
-		public static string TempCacheLocation = Path.Combine(Path.GetTempPath(), "Turnkey", "TempFiles");
-
-		public static string DownloadCacheLocation = Path.Combine(Path.GetTempPath(), "Turnkey", "DownloadCache");
-
 		public static string CreateTempDirectory()
 		{
 			string TempDir = Path.Combine(TempCacheLocation, Path.GetRandomFileName());
@@ -28,84 +76,53 @@ namespace Turnkey
 		}
 
 
-
-		static void SerializeObject(ISerializable Object, string Filename)
+		public static void CacheLocationByTag(string Tag, string CachePath, string VersionMatch = "")
 		{
-			using (FileStream Stream = new FileStream(Filename, FileMode.Create))
+			// Xml serialization doesn't work well with \ in strings in dictionaries
+			Tag = Tag.Replace("\\", "/");
+			if (CachePath.StartsWith(TempCacheLocation))
 			{
-				new BinaryFormatter().Serialize(Stream, Object);
+				TagToTempCache.Cache[Tag] = new CacheData(CachePath, VersionMatch);
+			}
+			else
+			{
+				TagToDownloadCache.Cache[Tag] = new CacheData(CachePath, VersionMatch);
+				SerializeObject(TagToDownloadCache, TagCacheFile);
 			}
 		}
 
-		static ISerializable DeserializeObject(string Filename)
+		public static string GetCachedPathByTag(string Tag, string VersionMatch = "")
 		{
-			try
+			// Xml serialization doesn't work well with \ in strings in dictionaries
+			Tag = Tag.Replace("\\", "/");
+
+			// @todo turnkey - this assumes a tag can't be in both
+
+			// look to see if the tag is known
+			CacheData Data;
+			if (TagToDownloadCache.Cache.TryGetValue(Tag, out Data) || TagToTempCache.Cache.TryGetValue(Tag, out Data))
 			{
-				if (File.Exists(Filename))
+				// last minute double-check before using it, that it exists
+				bool bExists = (Data.bIsFile && File.Exists(Data.LocalPath)) || (!Data.bIsFile && Directory.Exists(Data.LocalPath));
+				if (!bExists)
 				{
-					using (FileStream Stream = new FileStream(Filename, FileMode.Open))
-					{
-						return (ISerializable)new BinaryFormatter().Deserialize(Stream);
-					}
-				}
-			}
-			catch(Exception)
-			{
-			}
-
-			// for any error, just return null
-			return null;
-		}
-
-
-		// @todo turnkey - expire/cache dates/something to be able to check - likely the caller of this would need to do it, like GoogleDrive
-		// checking versions of each file, while enumerating, but only download if newer
-		static Dictionary<string, KeyValuePair<string, string>> TagToDownloadCache;
-		static string TagCacheFile = Path.Combine(DownloadCacheLocation, "TagCache.bin");
-
-		static LocalCache()
-		{
-			TagToDownloadCache = DeserializeObject(TagCacheFile) as Dictionary<string, KeyValuePair<string, string>>;
-
-			if (TagToDownloadCache == null)
-			{
-				TagToDownloadCache = new Dictionary<string, KeyValuePair<string, string>>();
-			}
-		}
-
-		public static void CacheLocationByTag(string Tag, string CachePath, string VersionMatch="")
-		{
-			TagToDownloadCache[Tag] = new KeyValuePair<string, string>(CachePath, VersionMatch);
-			SerializeObject(TagToDownloadCache, TagCacheFile);
-		}
-
-		public static string GetCachedPathByTag(string Tag, string VersionMatch, out bool bFoundOldVersion)
-		{
-			// return it if it was there
-			KeyValuePair<string, string> CachedPathWithVersion;
-			if (TagToDownloadCache.TryGetValue(Tag, out CachedPathWithVersion))
-			{
-				// make sure any referenced cache locations still exist
-				if (!File.Exists(CachedPathWithVersion.Key) && !Directory.Exists(CachedPathWithVersion.Key))
-				{
-					bFoundOldVersion = false;
-					TagToDownloadCache.Remove(Tag);
+					TagToDownloadCache.Cache.Remove(Tag);
+					TagToTempCache.Cache.Remove(Tag);
 					return null;
 				}
 
 				// if the version doesn't match, return it, but let the called know it's out of date
-				bFoundOldVersion = CachedPathWithVersion.Value != VersionMatch;
-				return CachedPathWithVersion.Key;
+				if (Data.Version != VersionMatch)
+				{
+					CleanCacheByTag(Tag);
+					return null;
+				}
+
+				// if the cersion matches, then we can use it!
+				return Data.LocalPath;
 			}
 
-			bFoundOldVersion = false;
 			return null;
-		}
-
-		// version with no version checking
-		public static string GetCachedPathByTag(string Tag)
-		{
-			return GetCachedPathByTag(Tag, "", out _);
 		}
 
 		public static string CreateDownloadCacheDirectory()
@@ -113,13 +130,131 @@ namespace Turnkey
 			return Path.Combine(DownloadCacheLocation, Path.GetRandomFileName());
 		}
 
-
-
-
 		public static string GetInstallCacheDirectory()
 		{
 			// this will prompt user if needed
 			return TurnkeySettings.GetUserSetting("User_QuickSwitchSdkLocation");
+		}
+
+
+
+
+
+		// these temp files 
+		public static string TempCacheLocation = Path.Combine(Path.GetTempPath(), "Turnkey", "TempFiles");
+
+		public static string DownloadCacheLocation = Path.Combine(Path.GetTempPath(), "Turnkey", "DownloadCache");
+
+
+
+		static void SerializeObject(SavedCache Object, string Filename)
+		{
+			string Str = Json.Serialize(Object);
+			File.WriteAllText(Filename, Str);
+
+// 			using (FileStream Stream = new FileStream(Filename, FileMode.Create))
+// 			{
+// 				new BinaryFormatter().Serialize(Stream, Object);
+// 			}
+		}
+
+		static SavedCache DeserializeObject(string Filename)
+		{
+			try
+			{
+				string Str = File.ReadAllText(Filename);
+				if (!string.IsNullOrEmpty(Str))
+				{
+					return Json.Deserialize<SavedCache>(Str);
+				}
+
+// 				if (File.Exists(Filename))
+// 				{
+// 					using (FileStream Stream = new FileStream(Filename, FileMode.Open))
+// 					{
+// 						return (SavedCache)new BinaryFormatter().Deserialize(Stream);
+// 					}
+// 				}
+			}
+			catch(Exception Ex)
+			{
+				TurnkeyUtils.Log("Exception: {0}", Ex.ToString());
+			}
+
+			// for any error, just return null
+			return null;
+		}
+
+		// @todo turnkey - expire/cache dates/something to be able to check - likely the caller of this would need to do it, like GoogleDrive
+		// checking versions of each file, while enumerating, but only download if newer
+		static SavedCache TagToDownloadCache;
+		static string TagCacheFile = Path.Combine(DownloadCacheLocation, "TagCache.xml");
+
+		// the Temp cache is for during-run temp files, we don't serialize this cache out
+		static SavedCache TagToTempCache = new SavedCache();
+
+		static LocalCache()
+		{
+			TurnkeyUtils.Log("Loading cache bin {0}", TagCacheFile);
+			TagToDownloadCache = DeserializeObject(TagCacheFile);
+			TurnkeyUtils.Log("Loadied: {0}", TagToDownloadCache);
+
+			if (TagToDownloadCache == null)
+			{
+				TagToDownloadCache = new SavedCache();
+			}
+			
+			if (TagToDownloadCache.Cache.Count > 0)
+			{
+				TurnkeyUtils.Log("Cleaning old download cache...");
+
+				List<string> EntriesToDelete = new List<string>();
+				foreach (var Pair in TagToDownloadCache.Cache)
+				{
+					CacheData Data = Pair.Value;
+					foreach (var FileWithDate in Data.FileToTimeCache)
+					{
+						string Filename = Path.Combine(Data.LocalPath, FileWithDate.Key);
+						long FileTime = File.GetLastWriteTimeUtc(Filename).ToFileTimeUtc();
+						long SavedTime = FileWithDate.Value;
+						if (!File.Exists(Filename) || FileTime != SavedTime)
+						{
+							TurnkeyUtils.Log("Cleaning old download cache...");
+							// remove this guy from the cache (delayed after the iterator)
+							EntriesToDelete.Add(Pair.Key);
+
+							break;
+						}
+					}
+				}
+
+				// clean any we deleted above (even if delete failed, we remove from the cache so we will download again)
+				EntriesToDelete.ForEach(x => CleanCacheByTag(x));
+			}
+
+			// @todo turnkey: now delete directories that aren't represented in the cache, or are too old
+		}
+
+		public static void CleanCacheByTag(string Tag)
+		{
+			// Xml serialization doesn't work well with \ in strings in dictionaries
+			Tag = Tag.Replace("\\", "/");
+
+			TurnkeyUtils.Log("Cleaning tag {0}...", Tag);
+
+			// if any files were bad, then we just delete the whole pile
+			CacheData Data = TagToDownloadCache.Cache[Tag];
+			TagToDownloadCache.Cache.Remove(Tag);
+
+			if (Data.bIsFile)
+			{
+				AutomationTool.InternalUtils.SafeDeleteFile(Data.LocalPath);
+			}
+			else
+			{
+				AutomationTool.InternalUtils.SafeDeleteDirectory(Data.LocalPath);
+			}
+			SerializeObject(TagToDownloadCache, TagCacheFile);
 		}
 	}
 }
