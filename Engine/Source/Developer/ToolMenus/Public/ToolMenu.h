@@ -110,6 +110,8 @@ private:
 
 	bool IsRegistering() const;
 
+	void Empty();
+
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")

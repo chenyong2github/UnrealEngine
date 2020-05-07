@@ -81,6 +81,7 @@ public:
 	void AddObject(UObject* InObject);
 
 	friend class UToolMenus;
+	friend class UToolMenu;
 	friend struct FToolMenuEntry;
 
 	bool IsEditing() const { return bIsEditing; }
@@ -88,6 +89,8 @@ public:
 	bool bIsEditing;
 
 private:
+
+	void Empty();
 
 	UPROPERTY()
 	TArray<UObject*> ContextObjects;
