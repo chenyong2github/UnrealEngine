@@ -11,6 +11,7 @@
 #include "DrawDebugHelpers.h"
 #include "DSP/Dsp.h"
 #include "Engine/Font.h"
+#include "Engine/World.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
@@ -509,7 +510,7 @@ namespace Audio
 	FAudioDebugger::FAudioDebugger()
 		: bVisualize3dDebug(0)
 	{
-		WorldRegisteredWithDeviceHandle = FAudioDeviceManagerDelegates::OnWorldRegisteredToAudioDevice.AddLambda([this](const UWorld* InWorld, FDeviceId InDeviceId)
+		WorldRegisteredWithDeviceHandle = FAudioDeviceWorldDelegates::OnWorldRegisteredToAudioDevice.AddLambda([this](const UWorld* InWorld, FDeviceId InDeviceId)
 		{
 			if (bAllowUsingDeprecatedDebugStats)
 			{
