@@ -132,6 +132,13 @@ public:
 	 */
 	static void InitializeOverlayToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, bool bUseMeshVertexNormalsIfAvailable = true);
 
+
+	/**
+	 * Initialize the given triangles of NormalOverlay with per-vertex normals, ie single overlay element for each mesh vertex.
+	 * Only the triangles included in the region are considered when calculating per-vertex normals.
+	 */
+	static void InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, const TArray<int32>& Triangles);
+
 	/**
 	 * Compute overlay normals for the given mesh
 	 * @param bInvert if true, normals are flipped
