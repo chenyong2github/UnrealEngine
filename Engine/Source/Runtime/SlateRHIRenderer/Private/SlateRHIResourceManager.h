@@ -222,9 +222,11 @@ public:
 	FCriticalSection* GetResourceCriticalSection() { return &ResourceCriticalSection; }
 
 private:
+	void OnPreGarbageCollect();
 	void OnPostGarbageCollect();
 
 	void TryToCleanupExpiredResources(bool bForceCleanup);
+	void CleanupExpiredResources();
 
 	/**
 	 * Deletes resources created by the manager
@@ -286,6 +288,9 @@ private:
 	 * accessed by multiple threads when loading.
 	 */
 	FCriticalSection ResourceCriticalSection;
+
+	/** Was ResourceCriticalSection lock before GC and need to be released */
+	bool bResourceCriticalSectionLockedForGC;
 
 	/** Attempt to cleanup */
 	bool bExpiredResourcesNeedCleanup;
