@@ -159,14 +159,14 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 #if RHI_RAYTRACING
 		{
 			ENQUEUE_RENDER_COMMAND(FGeometryCacheInitRayTracingGeometry)(
-				[SceneProxy](FRHICommandListImmediate& RHICmdList)
+				[SceneProxy, DebugName = Component->GetFName()](FRHICommandListImmediate& RHICmdList)
 			{
 				for (FGeomCacheTrackProxy* Section : SceneProxy->Tracks)
 				{
 					if (Section != nullptr)
 					{
 						FRayTracingGeometryInitializer Initializer;
-						Initializer.DebugName = Component->GetFName();
+						Initializer.DebugName = DebugName;
 						const int PositionBufferIndex = Section->CurrentPositionBufferIndex != -1 ? Section->CurrentPositionBufferIndex % 2 : 0;
 						Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
 						Initializer.TotalPrimitiveCount = 0;
