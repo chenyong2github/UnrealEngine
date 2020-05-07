@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_GetBoneTransform.h"
+#include "RigUnit_GetInitialBoneTransform.h"
 #include "Units/RigUnitContext.h"
 
 FString FRigUnit_GetBoneTransform::GetUnitLabel() const
@@ -18,7 +19,8 @@ FRigUnit_GetBoneTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedBoneIndex = Hierarchy->GetIndex(Bone);
+				FRigUnit_GetInitialBoneTransform::StaticExecute(RigVMOperatorName, RigVMOperatorIndex, Bone, Space, Transform, CachedBoneIndex, Context);;
+				break;
 			}
 			case EControlRigState::Update:
 			{
