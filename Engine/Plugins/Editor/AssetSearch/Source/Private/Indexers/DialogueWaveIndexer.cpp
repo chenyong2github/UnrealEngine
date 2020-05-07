@@ -4,6 +4,7 @@
 #include "Utility/IndexerUtilities.h"
 #include "Engine/DataAsset.h"
 #include "Sound/DialogueWave.h"
+#include "SearchSerializer.h"
 
 enum class EDialogueWaveIndexerVersion
 {

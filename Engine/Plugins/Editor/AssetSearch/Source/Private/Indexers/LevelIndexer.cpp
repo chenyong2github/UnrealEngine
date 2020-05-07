@@ -5,6 +5,7 @@
 #include "Engine/DataAsset.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/World.h"
+#include "SearchSerializer.h"
 
 enum class ELevelIndexerVersion
 {
