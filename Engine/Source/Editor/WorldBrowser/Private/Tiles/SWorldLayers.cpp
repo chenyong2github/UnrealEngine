@@ -151,7 +151,12 @@ FReply SNewWorldLayerPopup::TryCreateLayer()
 
 bool SNewWorldLayerPopup::CanCreateLayer() const
 {
-	return LayerData.Name.Len() > 0 && !ExistingLayerNames.Contains(LayerData.Name) && OnCreateLayer.IsBound();
+	const bool bValidStreamingDistance = LayerData.DistanceStreamingEnabled ? LayerData.StreamingDistance > 0 : true;
+
+	return (bValidStreamingDistance &&
+			LayerData.Name.Len() > 0 && 
+			!ExistingLayerNames.Contains(LayerData.Name) && 
+			OnCreateLayer.IsBound());
 }
 
 /** A class for check boxes in the layer list. 
