@@ -1582,7 +1582,6 @@ static void SetupLandscapeImportLayers(const FTiledLandscapeImportSettings& InIm
 	}
 }
 
-
 void FWorldTileCollectionModel::ImportTiledLandscape_Executed()
 {
 	/** Create the window to host widget */
@@ -1593,7 +1592,7 @@ void FWorldTileCollectionModel::ImportTiledLandscape_Executed()
 											.SupportsMaximize(false);
 
 	/** Set the content of the window */
-	TSharedRef<STiledLandcapeImportDlg> ImportDialog = SNew(STiledLandcapeImportDlg, ImportWindow);
+	TSharedRef<STiledLandscapeImportDlg> ImportDialog = SNew(STiledLandscapeImportDlg, ImportWindow);
 	ImportWindow->SetContent(ImportDialog);
 
 	/** Show the dialog window as a modal window */
@@ -1627,7 +1626,6 @@ void FWorldTileCollectionModel::ImportTiledLandscape_Executed()
 			SetupLandscapeImportLayers(ImportSettings, GetWorld()->GetOutermost()->GetName(), INDEX_NONE, ImportLayers);
 
 			// Set landscape configuration
-			Landscape->bCanHaveLayersContent = false; 
 			Landscape->LandscapeMaterial	= ImportSettings.LandscapeMaterial.Get();
 			Landscape->ComponentSizeQuads	= ImportSettings.QuadsPerSection*ImportSettings.SectionsPerComponent;
 			Landscape->NumSubsections		= ImportSettings.SectionsPerComponent;
@@ -1816,7 +1814,6 @@ void FWorldTileCollectionModel::ReimportTiledLandscape_Executed(FName TargetLaye
 		}
 	}
 }
-
 
 void FWorldTileCollectionModel::OnToggleLockTilesLocation()
 {
