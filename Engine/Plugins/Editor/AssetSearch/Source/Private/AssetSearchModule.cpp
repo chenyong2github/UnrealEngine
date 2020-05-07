@@ -64,9 +64,9 @@ public:
 		return SearchManager->GetStats();
 	}
 
-	virtual void Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback) override
+	virtual void Search(FSearchQueryPtr SearchQuery) override
 	{
-		SearchManager->Search(Query, InCallback);
+		SearchManager->Search(SearchQuery);
 	}
 
 	virtual void ForceIndexOnAssetsMissingIndex() override
@@ -77,6 +77,11 @@ public:
 	virtual void RegisterAssetIndexer(const UClass* InAssetClass, TUniquePtr<IAssetIndexer>&& Indexer) override
 	{
 		SearchManager->RegisterAssetIndexer(InAssetClass, MoveTemp(Indexer));
+	}
+
+	virtual void RegisterSearchProvider(FName SearchProviderName, TUniquePtr<ISearchProvider>&& InSearchProvider) override
+	{
+		SearchManager->RegisterSearchProvider(SearchProviderName, MoveTemp(InSearchProvider));
 	}
 
 private:
