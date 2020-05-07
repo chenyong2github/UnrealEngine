@@ -144,10 +144,9 @@ const TCHAR* FPropertyBase::GetPropertyTypeText( EPropertyType Type )
  *
  * @param	Other	the token to copy this token's properties to.
  */
-void FToken::Clone( const FToken& Other )
+FToken& FToken::operator=(const FToken& Other)
 {
-	// none of FPropertyBase's members require special handling
-	(FPropertyBase&)*this	= (FPropertyBase&)Other;
+	FPropertyBase::operator=((FPropertyBase&)Other);
 
 	TokenType = Other.TokenType;
 	TokenName = Other.TokenName;
@@ -158,6 +157,25 @@ void FToken::Clone( const FToken& Other )
 
 	FCString::Strncpy(Identifier, Other.Identifier, NAME_SIZE);
 	FMemory::Memcpy(String, Other.String, sizeof(String));
+
+	return *this;
+}
+
+FToken& FToken::operator=(FToken&& Other)
+{
+	FPropertyBase::operator=(MoveTemp(Other));
+
+	TokenType = Other.TokenType;
+	TokenName = Other.TokenName;
+	bTokenNameInitialized = Other.bTokenNameInitialized;
+	StartPos = Other.StartPos;
+	StartLine = Other.StartLine;
+	TokenProperty = Other.TokenProperty;
+
+	FCString::Strncpy(Identifier, Other.Identifier, NAME_SIZE);
+	FMemory::Memcpy(String, Other.String, sizeof(String));
+
+	return *this;
 }
 
 /////////////////////////////////////////////////////
@@ -235,9 +253,9 @@ FFunctionData* FFunctionData::Add(UFunction* Function)
 	return &Output.Get();
 }
 
-FFunctionData* FFunctionData::Add(const FFuncInfo& FunctionInfo)
+FFunctionData* FFunctionData::Add(FFuncInfo&& FunctionInfo)
 {
-	TUniqueObj<FFunctionData>& Output = FunctionDataMap.Emplace(FunctionInfo.FunctionReference, FunctionInfo);
+	TUniqueObj<FFunctionData>& Output = FunctionDataMap.Emplace(FunctionInfo.FunctionReference, MoveTemp(FunctionInfo));
 
 	return &Output.Get();
 }
@@ -274,7 +292,7 @@ FClassMetaData* FCompilerMetadataManager::AddInterfaceClassData(UStruct* Struct,
 	return ClassData;
 }
 
-FTokenData* FPropertyData::Set(FProperty* InKey, const FTokenData& InValue, FUnrealSourceFile* UnrealSourceFile)
+FTokenData* FPropertyData::Set(FProperty* InKey, FTokenData&& InValue, FUnrealSourceFile* UnrealSourceFile)
 {
 	FTokenData* Result = NULL;
 
@@ -282,11 +300,11 @@ FTokenData* FPropertyData::Set(FProperty* InKey, const FTokenData& InValue, FUnr
 	if (pResult != NULL)
 	{
 		Result = pResult->Get();
-		*Result = FTokenData(InValue);
+		*Result = MoveTemp(InValue);
 	}
 	else
 	{
-		pResult = &Super::Emplace(InKey, new FTokenData(InValue));
+		pResult = &Super::Emplace(InKey, new FTokenData(MoveTemp(InValue)));
 		Result = pResult->Get();
 	}
 
