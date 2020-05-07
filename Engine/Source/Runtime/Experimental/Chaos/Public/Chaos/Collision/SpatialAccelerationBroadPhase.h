@@ -79,7 +79,9 @@ namespace Chaos
 			FReal Dt, 
 			FNarrowPhase& NarrowPhase, 
 			FAsyncCollisionReceiver& Receiver,
-			CollisionStats::FStatData& StatData)
+			CollisionStats::FStatData& StatData,
+			bool bIsResim
+			)
 		{
 			if (!ensure(SpatialAcceleration))
 			{
@@ -89,19 +91,19 @@ namespace Chaos
 
 			if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>>())
 			{
-				ProduceOverlaps(Dt, *AABBTree, NarrowPhase, Receiver, StatData);
+				ProduceOverlaps(Dt, *AABBTree, NarrowPhase, Receiver, StatData, bIsResim);
 			}
 			else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
 			{
-				ProduceOverlaps(Dt, *BV, NarrowPhase, Receiver, StatData);
+				ProduceOverlaps(Dt, *BV, NarrowPhase, Receiver, StatData, bIsResim);
 			}
 			else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>>())
 			{
-				ProduceOverlaps(Dt, *AABBTreeBV, NarrowPhase, Receiver, StatData);
+				ProduceOverlaps(Dt, *AABBTreeBV, NarrowPhase, Receiver, StatData, bIsResim);
 			}
 			else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
 			{
-				Collection->PBDComputeConstraintsLowLevel(Dt, *this, NarrowPhase, Receiver, StatData);
+				Collection->PBDComputeConstraintsLowLevel(Dt, *this, NarrowPhase, Receiver, StatData, bIsResim);
 			}
 			else
 			{
@@ -115,14 +117,16 @@ namespace Chaos
 			const T_SPATIALACCELERATION& InSpatialAcceleration, 
 			FNarrowPhase& NarrowPhase, 
 			FAsyncCollisionReceiver& Receiver,
-			CollisionStats::FStatData& StatData)
+			CollisionStats::FStatData& StatData,
+			bool bIsResim
+			)
 		{
 			const bool bDisableParallelFor = StatData.IsEnabled() || bDisableCollisionParallelFor;
 
 			Particles.GetNonDisabledDynamicView().ParallelFor(
 				[&](auto& Particle1, int32 ActiveIdxIdx)
 				{
-					ProduceParticleOverlaps(Dt, Particle1, InSpatialAcceleration, NarrowPhase, Receiver, StatData);
+					ProduceParticleOverlaps(Dt, Particle1, InSpatialAcceleration, NarrowPhase, Receiver, StatData, bIsResim);
 				}, bDisableParallelFor);
 		}
 
@@ -134,13 +138,21 @@ namespace Chaos
 		    const T_SPATIALACCELERATION& InSpatialAcceleration,
 		    FNarrowPhase& NarrowPhase,
 		    FAsyncCollisionReceiver& Receiver,
-		    CollisionStats::FStatData& StatData)
+		    CollisionStats::FStatData& StatData,
+			bool bIsResim)
 		{
 			CHAOS_COLLISION_STAT(StatData.IncrementSimulatedParticles());
 
 			TArray<TAccelerationStructureHandle<FReal, 3>> PotentialIntersections;
 
-			if (Particle1.CastToRigidParticle() && (Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping))
+			//If we're doing a resim, we only need to run collision detection on particles that are hard desynced
+			if(bIsResim && Particle1.SyncState() != ESyncState::HardDesync)
+			{
+				return;
+			}
+
+			if ((Particle1.CastToRigidParticle() && (Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping))
+				|| Particle1.SyncState() == ESyncState::HardDesync)
 			{
 				const bool bBody1Bounded = HasBoundingBox(Particle1);
 				const FReal Box1Thickness = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
@@ -213,13 +225,15 @@ namespace Chaos
 					}
 
 
+					const bool bSecondParticleWillHaveAnswer = !bIsResim || Particle2.SyncState() == ESyncState::HardDesync;
 					// Sleeping won't collide against another sleeping and sleeping vs dynamic gets picked up by the other direction.
 					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
 						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
 							(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
 								Particle2.Geometry()->GetType() == TCapsule<float>::StaticType()));
-					if (Particle1.ObjectState() == EObjectStateType::Sleeping && !bIsParticle2Kinematic)
+					if (Particle1.ObjectState() == EObjectStateType::Sleeping && !bIsParticle2Kinematic && bSecondParticleWillHaveAnswer)
 					{
+						//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
 						continue;
 					}
 
@@ -228,8 +242,9 @@ namespace Chaos
 					if (bBody1Bounded == bBody2Bounded && bIsParticle2Dynamic)
 					{
 						//no bidirectional constraints.
-						if (Particle2.ParticleID() > Particle1.ParticleID())
+						if (Particle2.ParticleID() > Particle1.ParticleID() && bSecondParticleWillHaveAnswer)
 						{
+							//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
 							continue;
 						}
 					}

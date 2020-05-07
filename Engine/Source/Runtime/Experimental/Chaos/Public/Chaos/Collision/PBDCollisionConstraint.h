@@ -132,10 +132,12 @@ namespace Chaos
 		FVec3 AccumulatedImpulse;
 		FCollisionContact Manifold;// @todo(chaos): rename
 		int32 Timestamp;
-		FPBDCollisionConstraintHandle* ConstraintHandle;
+		
+		void SetConstraintHandle(FPBDCollisionConstraintHandle* InHandle) { ConstraintHandle = InHandle; }
+		FPBDCollisionConstraintHandle* GetConstraintHandle() const { return ConstraintHandle; }
 
 	private:
-
+		FPBDCollisionConstraintHandle* ConstraintHandle;
 		FType Type;
 	};
 
