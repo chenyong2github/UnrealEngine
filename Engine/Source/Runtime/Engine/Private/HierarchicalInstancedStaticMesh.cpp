@@ -937,16 +937,17 @@ public:
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
 		FPrimitiveViewRelevance Result;
-		if (RuntimeVirtualTextures.Num() > 0)
-		{
-			// Virtual texture items have default (static) relevance
-			Result = FInstancedStaticMeshSceneProxy::GetViewRelevance(View);
-		}
-		else if (bIsGrass ? View->Family->EngineShowFlags.InstancedGrass : View->Family->EngineShowFlags.InstancedFoliage)
+		if (bIsGrass ? View->Family->EngineShowFlags.InstancedGrass : View->Family->EngineShowFlags.InstancedFoliage)
 		{
 			Result = FStaticMeshSceneProxy::GetViewRelevance(View);
 			Result.bDynamicRelevance = true;
 			Result.bStaticRelevance = false;
+
+			// Remove relevance for primitives marked for runtime virtual texture only.
+			if (RuntimeVirtualTextures.Num() > 0 && !ShouldRenderInMainPass())
+			{
+				Result.bDynamicRelevance = false;
+			}
 		}
 		return Result;
 	}
@@ -972,8 +973,8 @@ public:
 	{
 		if (RuntimeVirtualTextures.Num() > 0)
 		{
-			// Virtual texture use not hierarchical static rendering for now
-			//todo[vt]: Build acceleration structure better suited for VT rendering. Probably hook up a different class with this to the foliage system.
+			// Create non-hierachichal static mesh batches for use by the runtime virtual texture rendering.
+			//todo[vt]: Build an acceleration structure better suited for VT rendering maybe with batches aligned to VT pages?
 			FInstancedStaticMeshSceneProxy::DrawStaticElements(PDI);
 		}
 	}
