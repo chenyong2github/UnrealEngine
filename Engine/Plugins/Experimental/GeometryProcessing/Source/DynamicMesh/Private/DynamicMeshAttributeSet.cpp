@@ -54,9 +54,9 @@ bool FDynamicMeshAttributeSet::IsMaterialBoundaryEdge(int EdgeID) const
 		return false;
 	}
 	check(ParentMesh->IsEdge(EdgeID));
-	const FIndex4i Edge = ParentMesh->GetEdge(EdgeID);
-	const int Tri0 = Edge[2];
-	const int Tri1 = Edge[3];
+	const FDynamicMesh3::FEdge Edge = ParentMesh->GetEdge(EdgeID);
+	const int Tri0 = Edge.Tri[0];
+	const int Tri1 = Edge.Tri[1];
 	if (( Tri0 == IndexConstants::InvalidID ) || (Tri1 == IndexConstants::InvalidID))
 	{
 		return false;

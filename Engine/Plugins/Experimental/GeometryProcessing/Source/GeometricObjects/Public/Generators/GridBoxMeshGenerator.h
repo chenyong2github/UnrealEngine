@@ -159,7 +159,7 @@ public:
 			}
 		}
 
-		double MaxDimension = 2.0*Box.Extents.MaxAbs();
+		double MaxDimension = 2.0*Box.Extents.MaxAbsElement();
 		float UVScale = (bScaleUVByAspectRatio) ? (1.0f / (float)MaxDimension) : 1.0f;
 
 		// create the face triangles and UVs+normals

@@ -391,19 +391,19 @@ void UE::MeshDeformation::ConstructMeanValueWeightLaplacian(const FDynamicMesh3&
 		for (int32 EdgeId : DynamicMesh.VtxEdgesItr(IVertId))
 		{
 			// [v0, v1, t0, t1]:  NB: both t0 & t1 exist since IVert isn't a boundary vert.
-			FIndex4i Edge = DynamicMesh.GetEdge(EdgeId);
+			const FDynamicMesh3::FEdge Edge = DynamicMesh.GetEdge(EdgeId);
 
 			// the other vert in the edge - identifies the matrix column
-			const int32 JVertId = (Edge[0] == IVertId) ? Edge[1] : Edge[0];  // J - the column
+			const int32 JVertId = (Edge.Vert[0] == IVertId) ? Edge.Vert[1] : Edge.Vert[0];  // J - the column
 
 			// Get the cotangents for this edge.
-			const int32 Tri0Idx = ToTriIdx[Edge[2]];
+			const int32 Tri0Idx = ToTriIdx[Edge.Tri[0]];
 			const auto& Tri0Data = TriangleDataArray[Tri0Idx];
 			double TanHalfAngleSum = Tri0Data.GetTanHalfAngle(IVertId);
 			double EdgeLength = FMathd::Max(1.e-5, Tri0Data.GetEdgeLenght(EdgeId)); // Clamp the length
 
 			// The second triangle will be invalid if this is an edge!
-			TanHalfAngleSum += (Edge[3] != FDynamicMesh3::InvalidID) ? TriangleDataArray[ToTriIdx[Edge[3]]].GetTanHalfAngle(IVertId) : 0.;
+			TanHalfAngleSum += (Edge.Tri[1] != FDynamicMesh3::InvalidID) ? TriangleDataArray[ToTriIdx[Edge.Tri[1]]].GetTanHalfAngle(IVertId) : 0.;
 
 			double WeightIJ = TanHalfAngleSum / EdgeLength;
 			WeightII += WeightIJ;
@@ -489,21 +489,21 @@ void UE::MeshDeformation::ConstructCotangentLaplacian(const FDynamicMesh3& Dynam
 		for (int32 EdgeId : DynamicMesh.VtxEdgesItr(IVertId))
 		{
 			// [v0, v1, t0, t1]:  NB: both t0 & t1 exist since IVert isn't a boundary vert.
-			FIndex4i Edge = DynamicMesh.GetEdge(EdgeId);
+			const FDynamicMesh3::FEdge Edge = DynamicMesh.GetEdge(EdgeId);
 
 
 			// the other vert in the edge - identifies the matrix column
-			const int32 JVertId = (Edge[0] == IVertId) ? Edge[1] : Edge[0];  // J - the column
+			const int32 JVertId = (Edge.Vert[0] == IVertId) ? Edge.Vert[1] : Edge.Vert[0];  // J - the column
 
 			checkSlow(JVertId != IVertId);
 
 			// Get the cotangents for this edge.
-			const int32 Tri0Idx = ToTriIdx[Edge[2]];
+			const int32 Tri0Idx = ToTriIdx[Edge.Tri[0]];
 			const CotanTriangleData& Tri0Data = CotangentTriangleDataArray[Tri0Idx];
 			const double CotanAlpha = Tri0Data.GetOpposingCotangent(EdgeId);
 
 			// The second triangle will be invalid if this is an edge!
-			const double CotanBeta = (Edge[3] != FDynamicMesh3::InvalidID) ? CotangentTriangleDataArray[ToTriIdx[Edge[3]]].GetOpposingCotangent(EdgeId) : 0.;
+			const double CotanBeta = (Edge.Tri[1] != FDynamicMesh3::InvalidID) ? CotangentTriangleDataArray[ToTriIdx[Edge.Tri[1]]].GetOpposingCotangent(EdgeId) : 0.;
 
 			double WeightIJ = 0.5 * (CotanAlpha + CotanBeta);
 			WeightII += WeightIJ;
@@ -587,19 +587,19 @@ void UE::MeshDeformation::ConstructCotangentLaplacian(const FDynamicMesh3& Dynam
 		for (int32 EdgeId : DynamicMesh.VtxEdgesItr(IVertId))
 		{
 			// [v0, v1, t0, t1]:  NB: both t0 & t1 exist since IVert isn't a boundary vert.
-			FIndex4i Edge = DynamicMesh.GetEdge(EdgeId);
+			const FDynamicMesh3::FEdge Edge = DynamicMesh.GetEdge(EdgeId);
 
 			// the other vert in the edge - identifies the matrix column
-			const int32 JVertId = (Edge[0] == IVertId) ? Edge[1] : Edge[0];  // J - the column
+			const int32 JVertId = (Edge.Vert[0] == IVertId) ? Edge.Vert[1] : Edge.Vert[0];  // J - the column
 			checkSlow(JVertId != IVertId);
 
 			// Get the cotangents for this edge.
-			const int32 Tri0Idx = ToTriIdx[Edge[2]];
+			const int32 Tri0Idx = ToTriIdx[Edge.Tri[0]];
 			const CotanTriangleData& Tri0Data = CotangentTriangleDataArray[Tri0Idx];
 			const double CotanAlpha = Tri0Data.GetOpposingCotangent(EdgeId);
 
 			// The second triangle will be invalid if this is an edge!
-			const double CotanBeta = (Edge[3] != FDynamicMesh3::InvalidID) ? CotangentTriangleDataArray[ToTriIdx[Edge[3]]].GetOpposingCotangent(EdgeId) : 0.;
+			const double CotanBeta = (Edge.Tri[1] != FDynamicMesh3::InvalidID) ? CotangentTriangleDataArray[ToTriIdx[Edge.Tri[1]]].GetOpposingCotangent(EdgeId) : 0.;
 
 			double WeightIJ = 0.5 * (CotanAlpha + CotanBeta);
 			if (bClampWeights)

@@ -318,10 +318,10 @@ void TMeshSimplification<QuadricErrorType>::UpdateNeighbours(int vid, FIndex2i r
 			// vertex quadrics will have duplicates for 
 			// the two face adjacent to the edge.
 
-			const FIndex4i edgeData = Mesh->GetEdge(eid);
-			FQuadricErrorType Q(vertQuadrics[edgeData[0]], vertQuadrics[edgeData[1]]);
+			const FDynamicMesh3::FEdge edgeData = Mesh->GetEdge(eid);
+			FQuadricErrorType Q(vertQuadrics[edgeData.Vert[0]], vertQuadrics[edgeData.Vert[1]]);
 
-			FVector3d opt = OptimalPoint(eid, Q, edgeData[0], edgeData[1]);
+			FVector3d opt = OptimalPoint(eid, Q, edgeData.Vert[0], edgeData.Vert[1]);
 			double err = Q.Evaluate(opt);
 			EdgeQuadrics[eid] = QEdge(eid, Q, opt);
 			if (EdgeQueue.Contains(eid))
@@ -621,8 +621,8 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	{
 		return ESimplificationResult::Failed_NotAnEdge;
 	}
-	FIndex4i edgeInfo = Mesh->GetEdge(edgeID);
-	int a = edgeInfo.A, b = edgeInfo.B, t0 = edgeInfo.C, t1 = edgeInfo.D;
+	const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(edgeID);
+	int a = Edge.Vert[0], b = Edge.Vert[1], t0 = Edge.Tri[0], t1 = Edge.Tri[1];
 	bool bIsBoundaryEdge = (t1 == FDynamicMesh3::InvalidID);
 
 	// look up 'other' verts c (from t0) and d (from t1, if it exists)
