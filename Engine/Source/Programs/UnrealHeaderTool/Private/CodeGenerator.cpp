@@ -6730,9 +6730,14 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	{
 		FScopedDurationTimer ParseAndCodeGenTimer(TotalParseAndCodegenTime);
 
+		TMap<UPackage*, TArray<UClass*>> ClassesByPackageMap;
+		ClassesByPackageMap.Reserve(GManifest.Modules.Num());
+
 		// Verify that all script declared superclasses exist.
-		for (const UClass* ScriptClass : TObjectRange<UClass>())
+		for (UClass* ScriptClass : TObjectRange<UClass>())
 		{
+			ClassesByPackageMap.FindOrAdd(ScriptClass->GetOutermost()).Add(ScriptClass);
+
 			const UClass* ScriptSuperClass = ScriptClass->GetSuperClass();
 
 			if (ScriptSuperClass && !ScriptSuperClass->HasAnyClassFlags(CLASS_Intrinsic) && GTypeDefinitionInfoMap.Contains(ScriptClass) && !GTypeDefinitionInfoMap.Contains(ScriptSuperClass))
@@ -6780,8 +6785,7 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 			{
 				if (UPackage* Package = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), NULL, FName(*Module.LongPackageName), false, false)))
 				{
-					// Object which represents all parsed classes
-					FClasses AllClasses(Package);
+					FClasses AllClasses(ClassesByPackageMap.Find(Package));
 					AllClasses.Validate();
 
 					Result = FHeaderParser::ParseAllHeadersInside(AllClasses, GWarn, Package, Module, ScriptPlugins);
