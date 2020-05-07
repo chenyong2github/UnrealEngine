@@ -64,6 +64,10 @@ private:
 	void OnFlipYAxisStateChanged(ECheckBoxState NewState);
 
 	/** */
+	ECheckBoxState GetEditLayersState() const;
+	void OnEditLayersStateChanged(ECheckBoxState NewState);
+
+	/** */
 	void OnSetImportConfiguration(TSharedPtr<FTileImportConfiguration> InTileConfig, ESelectInfo::Type SelectInfo);
 
 	/** */
