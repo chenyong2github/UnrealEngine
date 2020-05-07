@@ -97,7 +97,7 @@ public:
 	bool MakeReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory);
 
 	virtual bool PollCompletion() const override;
-	virtual bool WaitCompletion( float TimeLimitSeconds = 0.0f ) const override;
+	virtual bool WaitCompletion( float TimeLimitSeconds = 0.0f ) override;
 
 	virtual uint8* GetReadResults() override;
 	virtual int64 GetSize() const override;
