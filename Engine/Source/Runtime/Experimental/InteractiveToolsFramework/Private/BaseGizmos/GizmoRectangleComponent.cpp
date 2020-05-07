@@ -83,6 +83,7 @@ public:
 
 		float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
 			(HoverThicknessMultiplier*Thickness) : (Thickness);
+		UseThickness *= (GizmoControlView->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
 
 		double UseOffsetX = LengthScale * OffsetX;
 		double UseOffsetLengthX = LengthScale * (OffsetX + LengthX);
