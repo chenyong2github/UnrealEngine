@@ -175,4 +175,10 @@ FAST_DECIMAL_PARSE_FRACTIONAL_IMPL(double)
  */
 CORE_API const FDecimalNumberFormattingRules& GetCultureAgnosticFormattingRules();
 
+/**
+ * Return the value of 10^exp for the given exponent value.
+ * @note The maximum exponent supported is 10^18.
+ */
+CORE_API uint64 Pow10(const int32 InExponent);
+
 } // namespace FastDecimalFormat

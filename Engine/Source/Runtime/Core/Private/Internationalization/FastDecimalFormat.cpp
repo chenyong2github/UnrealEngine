@@ -712,4 +712,10 @@ const FDecimalNumberFormattingRules& GetCultureAgnosticFormattingRules()
 	return CultureAgnosticFormattingRules;
 }
 
+uint64 Pow10(const int32 InExponent)
+{
+	const int32 ClampedExponent = FMath::Min(InExponent, Internal::MaxFractionalPrintPrecision);
+	return Internal::Pow10Table[ClampedExponent];
+}
+
 } // namespace FastDecimalFormat
