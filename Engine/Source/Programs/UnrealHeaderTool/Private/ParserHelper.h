@@ -1091,6 +1091,7 @@ struct FFuncInfo
 
 	FFuncInfo(const FFuncInfo& Other) = default;
 	FFuncInfo(FFuncInfo&& Other) = default;
+	FFuncInfo& operator=(FFuncInfo&& Other) = default;
 
 	/** Set the internal function names based on flags **/
 	void SetFunctionNames()
