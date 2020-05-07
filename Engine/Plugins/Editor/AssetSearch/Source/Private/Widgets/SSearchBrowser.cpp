@@ -384,42 +384,53 @@ void SSearchBrowser::RefreshList()
 
 	if (!FilterText.IsEmpty())
 	{
-		FSearchQuery Query;
-		Query.Query = FilterText.ToString();
-
-		SearchesActive++;
+		{
+			FSearchQueryPtr ActiveSearch = ActiveSearchPtr.Pin();
+			if (ActiveSearch)
+			{
+				ActiveSearch->ClearResultsCallback();
+				ActiveSearchPtr.Reset();
+			}
+		}
 
 		const bool bAutoExpandAssets = GetDefault<USearchUserSettings>()->bAutoExpandAssets;
 
-		IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
-		SearchModule.Search(Query, [this, bAutoExpandAssets](TArray<FSearchRecord>&& InResults) {
+		TWeakPtr<SSearchBrowser> WeakSelf = SharedThis(this);
+
+		FSearchQueryPtr NewQuery = MakeShared<FSearchQuery, ESPMode::ThreadSafe>(FilterText.ToString());
+		NewQuery->SetResultsCallback([this, WeakSelf, bAutoExpandAssets](TArray<FSearchRecord>&& InResults) {
 			check(IsInGameThread());
 
-			SearchResults.Reset();
-			SearchResultHierarchy.Reset();
-
-			for (int32 ResultIndex = 0; ResultIndex < InResults.Num(); ResultIndex++)
+			if (WeakSelf.IsValid())
 			{
-				AppendResult(MoveTemp(InResults[ResultIndex]));
-			}
-
-			for (auto& Entry : SearchResultHierarchy)
-			{
-				SearchResults.Add(Entry.Value);
-
-				if (bAutoExpandAssets)
+				for (int32 ResultIndex = 0; ResultIndex < InResults.Num(); ResultIndex++)
 				{
-					SearchTreeView->SetItemExpansion(Entry.Value, true);
+					AppendResult(MoveTemp(InResults[ResultIndex]));
 				}
+
+				SearchResults.Reset();
+				for (auto& Entry : SearchResultHierarchy)
+				{
+					SearchResults.Add(Entry.Value);
+
+					if (bAutoExpandAssets)
+					{
+						SearchTreeView->SetItemExpansion(Entry.Value, true);
+					}
+				}
+
+				SearchResults.Sort([](const TSharedPtr<FSearchNode>& A, const TSharedPtr<FSearchNode>& B) {
+					return A->GetMaxScore() < B->GetMaxScore();
+				});
+
+				SearchTreeView->RequestListRefresh();
 			}
-
-			SearchResults.Sort([](const TSharedPtr<FSearchNode>& A, const TSharedPtr<FSearchNode>& B) {
-				return A->GetMaxScore() < B->GetMaxScore();
-			});
-
-			SearchTreeView->RequestListRefresh();
-			SearchesActive--;
 		});
+
+		IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
+		SearchModule.Search(NewQuery);
+
+		ActiveSearchPtr = NewQuery;
 	}
 }
 
@@ -485,7 +496,7 @@ void SSearchBrowser::HandleListSelectionChanged(TSharedPtr<FSearchNode> InNode, 
 
 bool SSearchBrowser::IsSearching() const
 {
-	return SearchesActive > 0;
+	return ActiveSearchPtr.IsValid();
 }
 
 #undef LOCTEXT_NAMESPACE

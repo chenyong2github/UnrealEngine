@@ -79,7 +79,7 @@ private:
 	// Filters
 	FString FilterString;
 
-	int32 SearchesActive = 0;
+	FSearchQueryWeakPtr ActiveSearchPtr;
 	
 	TMap<FString, TSharedPtr<FAssetNode>> SearchResultHierarchy;
 	TArray< TSharedPtr<FSearchNode> > SearchResults;
