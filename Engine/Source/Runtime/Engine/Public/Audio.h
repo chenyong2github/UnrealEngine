@@ -148,6 +148,9 @@ private:
 ENGINE_API bool IsAudioPluginEnabled(EAudioPlugin PluginType);
 ENGINE_API UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType);
 
+/** accessor for our Spatialization enabled CVar. */
+ENGINE_API bool IsSpatializationCVarEnabled();
+
 /** Bus send types */
 enum class EBusSendType : uint8
 {
