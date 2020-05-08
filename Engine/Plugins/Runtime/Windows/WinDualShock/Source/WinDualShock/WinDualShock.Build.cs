@@ -8,14 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public WinDualShock(ReadOnlyTargetRules Target) : base(Target)
 		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, new string[] { "LibScePad" });
-
-			PrivateIncludePathModuleNames.AddRange(new string[]
-			{
-				"ApplicationCore_Sony",
-				"ApplicationCore_PS4"
-			});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -25,15 +17,26 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"Slate",
 					"InputDevice"
-				}
-				);
+			});
 
-			if (Target.Platform != UnrealTargetPlatform.PS4)
+			// Use reflection to allow type not to exist if console code is not present
+			System.Type LibScePadType = System.Type.GetType("LibScePad");
+			bool bHasSupport = false;
+			if (LibScePadType != null)
 			{
-				String PadLibLocation;
-				bool bFoundPadLib = LibScePad.GetPadLibLocation(EngineDirectory, Target.WindowsPlatform.Compiler, out PadLibLocation);
-				PublicDefinitions.Add("DUALSHOCK4_SUPPORT=" + (bFoundPadLib ? "1" : "0"));
+				bHasSupport = (bool)LibScePadType.GetMethod("GetPadLibLocation").Invoke(null, new object[] { EngineDirectory, Target.WindowsPlatform.Compiler, null });
+				if (bHasSupport)
+				{
+					AddEngineThirdPartyPrivateStaticDependencies(Target, new string[] { "LibScePad" });
+					PrivateIncludePathModuleNames.AddRange(new string[]
+					{
+						"ApplicationCore_Sony",
+						"ApplicationCore_PS4"
+					});
+				}
 			}
+
+			PublicDefinitions.Add("DUALSHOCK4_SUPPORT=" + (bHasSupport ? "1" : "0"));
 		}
 	}
 }
