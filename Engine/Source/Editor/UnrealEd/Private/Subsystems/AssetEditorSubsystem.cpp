@@ -594,6 +594,16 @@ void UAssetEditorSubsystem::RequestRestorePreviouslyOpenAssets()
 	bRequestRestorePreviouslyOpenAssets = true;
 }
 
+void UAssetEditorSubsystem::RegisterUAssetEditor(UAssetEditor* NewAssetEditor)
+{
+	OwnedAssetEditors.Add(NewAssetEditor);
+}
+
+void UAssetEditorSubsystem::UnregisterUAssetEditor(UAssetEditor* RemovedAssetEditor)
+{
+	OwnedAssetEditors.Remove(RemovedAssetEditor);
+}
+
 void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 {
 	TArray<FString> OpenAssets;
