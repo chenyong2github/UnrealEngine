@@ -1357,6 +1357,10 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			}
 			
 			FKismetCompilerUtilities::UpdateDependentBlueprints(BP);
+			if (CompilerData.Reinstancer.IsValid())
+			{
+				FBlueprintEditorUtils::GetDependentBlueprints(BP, CompilerData.Reinstancer->Dependencies);
+			}
 
 			ensure(BPGC == nullptr || BPGC->ClassDefaultObject->GetClass() == BPGC);
 		}
