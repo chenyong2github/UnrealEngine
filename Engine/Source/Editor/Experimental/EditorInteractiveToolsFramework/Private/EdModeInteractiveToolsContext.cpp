@@ -24,6 +24,8 @@
 #include "InteractiveToolObjects.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 
+#include "BaseGizmos/GizmoRenderingUtil.h"
+
 //#define ENABLE_DEBUG_PRINTING
 
 class HHitProxy;
@@ -450,7 +452,7 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 	RightMouseBehavior->Initialize();
 	InputRouter->RegisterBehavior(RightMouseBehavior, this);
 
-	bInvalidationPending = false;
+	InvalidationTimestamp = 0;
 }
 
 void UEdModeInteractiveToolsContext::Shutdown()
@@ -535,12 +537,41 @@ void UEdModeInteractiveToolsContext::TerminateActiveToolsOnWorldTearDown()
 
 void UEdModeInteractiveToolsContext::PostInvalidation()
 {
-	bInvalidationPending = true;
+	InvalidationTimestamp++;
+}
+
+
+FEditorViewportClient* UEdModeInteractiveToolsContext::GetActiveViewportClient()
+{
+	// This is our best effort right now. However this is somewhat incorrect as if you Hover
+	// on other Viewports they get mouse events, but this value stays on the Focused viewport.
+	// Not sure what to do about this right now.
+	return GCurrentLevelEditingViewportClient;
 }
 
 
 void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
+	// invalidate this viewport if it's timestamp is not current
+	const int32* FoundTimestamp = InvalidationMap.Find(ViewportClient);
+	if (FoundTimestamp == nullptr)
+	{
+		ViewportClient->Invalidate(false, false);
+		InvalidationMap.Add(ViewportClient, InvalidationTimestamp);
+	}
+	if (FoundTimestamp != nullptr && *FoundTimestamp < InvalidationTimestamp)
+	{
+		ViewportClient->Invalidate(false, false);
+		InvalidationMap[ViewportClient] = InvalidationTimestamp;
+	}
+
+	// This Tick() is called for every ViewportClient, however we only want to Tick the ToolManager and GizmoManager
+	// once, for the 'Active'/Focused Viewport, so early-out here
+	if (ViewportClient != GetActiveViewportClient())
+	{
+		return;
+	}
+
 	// process any actions that were scheduled to execute on the next tick
 	if (NextTickExecuteActions.Num() > 0)
 	{
@@ -551,22 +582,14 @@ void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 		NextTickExecuteActions.Reset();
 	}
 
+	// Cache current camera state from this Viewport in the ContextQueries, which we will use for things like snapping/etc that 
+	// is computed by the Tool and Gizmo Tick()s
+	// (This is not necessarily correct for Hover, because we might be Hovering over a different Viewport than the Active one...)
+	((FEdModeToolsContextQueriesImpl*)this->QueriesAPI)->CacheCurrentViewState(ViewportClient);
+
+	// tick our stuff
 	ToolManager->Tick(DeltaTime);
 	GizmoManager->Tick(DeltaTime);
-
-	if (bInvalidationPending)
-	{
-		ViewportClient->Invalidate(false, false);
-		bInvalidationPending = false;
-	}
-
-	// save this view
-	// Check against GCurrentLevelEditingViewportClient is temporary and should be removed in future.
-	// Current issue is that this ::Tick() is called *per viewport*, so once for each view in a 4-up view.
-	if (ViewportClient == GCurrentLevelEditingViewportClient)
-	{
-		((FEdModeToolsContextQueriesImpl*)this->QueriesAPI)->CacheCurrentViewState(ViewportClient);
-	}
 }
 
 
@@ -653,6 +676,20 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	// is only intended to be called by FEdMode/UEdMode::Render(), and their ::Render() calls are only called by the
 	// FEditorViewportClient, which passes it's own Viewport down. So, this cast should be valid (for now)
 	FEditorViewportClient* ViewportClient = static_cast<FEditorViewportClient*>(Viewport->GetClient());
+
+	// Update the global currently-focused FSceneView variable, which GizmoArrowComponent and friends will
+	// use to know when they are seeing the SceneView they should use to recalculate their size/visibility/etc.
+	// This could go away if we could move that functionality out of the RenderProxy (tricky given that it needs
+	// to respond to each FSceneView...)
+	if (ViewportClient == GetActiveViewportClient())
+	{
+		// This locks internally and so no need to do on Render thread, and possibly better to do immediately (?)
+		//ENQUEUE_RENDER_COMMAND(BlerBlerBler)( [View](FRHICommandListImmediate& RHICmdList) {
+			GizmoRenderingUtil::SetGlobalFocusedEditorSceneView(View);
+		//});
+	}
+
+	// Render Tool and Gizmos
 	FEdModeTempRenderContext RenderContext(View, Viewport, ViewportClient, PDI);
 	ToolManager->Render(&RenderContext);
 	GizmoManager->Render(&RenderContext);
@@ -874,7 +911,7 @@ bool UEdModeInteractiveToolsContext::MouseEnter(FEditorViewportClient* ViewportC
 bool UEdModeInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
 {
 #ifdef ENABLE_DEBUG_PRINTING
-	//UE_LOG(LogTemp, Warning, TEXT("MOUSE MOVE"));
+	UE_LOG(LogTemp, Warning, TEXT("HOVER %p"), ViewportClient);
 #endif
 
 	CurrentMouseState.Mouse.Position2D = FVector2D(x, y);
@@ -916,15 +953,18 @@ bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportC
 bool UEdModeInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	// capture tracking if we have an active tool
-	return ToolManager->HasActiveTool(EToolSide::Mouse);
+	if (ToolManager->HasActiveTool(EToolSide::Mouse))
+	{
+#ifdef ENABLE_DEBUG_PRINTING
+		UE_LOG(LogTemp, Warning, TEXT("BEGIN TRACKING"));
+#endif
+		return true;
+	}
+	return false;
 }
 
 bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
 {
-#ifdef ENABLE_DEBUG_PRINTING
-	//UE_LOG(LogTemp, Warning, TEXT("CAPTURED MOUSE MOVE"));
-#endif
-
 	// if alt is down we will not allow client to see this event
 	if (InViewportClient->IsAltPressed())
 	{
@@ -937,6 +977,10 @@ bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* In
 
 	if (InputRouter->HasActiveMouseCapture())
 	{
+#ifdef ENABLE_DEBUG_PRINTING
+		UE_LOG(LogTemp, Warning, TEXT("CAPTURED MOUSE MOVE"));
+#endif
+
 		FInputDeviceState InputState = CurrentMouseState;
 		InputState.InputDevice = EInputDevices::Mouse;
 		InputState.SetModifierKeyStates(
@@ -973,12 +1017,23 @@ FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* V
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		ViewportClient->Viewport,
 		ViewportClient->GetScene(),
-		ViewportClient->EngineShowFlags)
-		.SetRealtimeUpdate(ViewportClient->IsRealtime()));
+		ViewportClient->EngineShowFlags).SetRealtimeUpdate(ViewportClient->IsRealtime()));		// why SetRealtimeUpdate here??
+	// this View is deleted by the FSceneViewFamilyContext destructor
 	FSceneView* View = ViewportClient->CalcSceneView(&ViewFamily);
 	FViewportCursorLocation MouseViewportRay(View, (FEditorViewportClient*)Viewport->GetClient(), MouseX, MouseY);
 
-	return FRay(MouseViewportRay.GetOrigin(), MouseViewportRay.GetDirection(), true);
+	FVector RayOrigin = MouseViewportRay.GetOrigin();
+	FVector RayDirection = MouseViewportRay.GetDirection();
+
+	// in Ortho views, the RayOrigin appears to be completely arbitrary, in some views it is on the view plane,
+	// others it moves back/forth with the OrthoZoom. Translate by a large amount here in hopes of getting
+	// ray origin "outside" the scene (which is a disaster for numerical precision !! ... )
+	if (ViewportClient->IsOrtho())
+	{
+		RayOrigin -= 0.1 * HALF_WORLD_MAX * RayDirection;
+	}
+
+	return FRay(RayOrigin, RayDirection, true);
 }
 
 
