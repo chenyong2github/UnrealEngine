@@ -66,18 +66,8 @@ void FVisualLoggerTestDevice::Serialize(const UObject* LogOwner, FName OwnerName
 	LastEntry = LogEntry;
 }
 
-#define CHECK_SUCCESS(__Test__) \
-if (!(__Test__)) \
-{ \
-	TestTrue(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__); \
-	return false; \
-}
-#define CHECK_FAIL(__Test__) \
-if ((__Test__)) \
-{ \
-	TestFalse(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__); \
-	return false; \
-}
+#define CHECK_SUCCESS(__Test__) UTEST_TRUE(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__)
+#define CHECK_FAIL(__Test__) UTEST_FALSE(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__)
 
 template<typename TYPE = FVisualLoggerTestDevice>
 struct FTestDeviceContext
