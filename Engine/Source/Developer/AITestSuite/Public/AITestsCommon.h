@@ -197,13 +197,13 @@ struct FAITest_SimpleComponentBasedTest : public FAITestBase
 // true doesn't crash
 //----------------------------------------------------------------------//
 #define AITEST_TRUE(What, Value)\
-	if (!GetTestRunner().TestTrue(TEXT(What), Value))\
+	if (!GetTestRunner().TestTrue(What, Value))\
 	{\
 		return false;\
 	}
 
 #define AITEST_FALSE(What, Value)\
-	if (!GetTestRunner().TestFalse(TEXT(What), Value))\
+	if (!GetTestRunner().TestFalse(What, Value))\
 	{\
 		return false;\
 	}

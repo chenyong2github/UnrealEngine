@@ -156,25 +156,25 @@ struct FAITest_HTNDomainBuilderBasics : public FAITestBase
 		for (int32 CompositeTaskIndex = 0; CompositeTaskIndex < DomainBuilder.CompositeTasks.Num(); ++CompositeTaskIndex)
 		{
 			FHTNBuilder_CompositeTask* CompositeTaskBuilder = DomainBuilder.CompositeTasks.Find(*FString::Printf(TEXT("c_%d"), CompositeTaskIndex));
-			GetTestRunner().TestTrue(FString::Printf(TEXT("Failed to find Composite task c_%d that has just been added"), CompositeTaskIndex), CompositeTaskBuilder != nullptr);
+			AITEST_TRUE(FString::Printf(TEXT("Failed to find Composite task c_%d that has just been added"), CompositeTaskIndex), CompositeTaskBuilder != nullptr);
 
 			if (CompositeTaskBuilder != nullptr)
 			{
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Method count mismatch for c_%d"), CompositeTaskIndex), CompositeTaskBuilder->Methods.Num() == (CompositeTaskIndex % 3));
+				AITEST_TRUE(FString::Printf(TEXT("Method count mismatch for c_%d"), CompositeTaskIndex), CompositeTaskBuilder->Methods.Num() == (CompositeTaskIndex % 3));
 				for (int32 MethodIndex = 0; MethodIndex < CompositeTaskBuilder->Methods.Num(); ++MethodIndex)
 				{
 					if ((CompositeTaskIndex + MethodIndex) != 0)
 					{
-						GetTestRunner().TestTrue(FString::Printf(TEXT("Condition count mismatch for c_%d[%d] method (array path)"), CompositeTaskIndex, MethodIndex)
+						AITEST_TRUE(FString::Printf(TEXT("Condition count mismatch for c_%d[%d] method (array path)"), CompositeTaskIndex, MethodIndex)
 							, CompositeTaskBuilder->Methods[MethodIndex].Conditions.Num() == (CompositeTaskIndex % 3));
 					}
 					else
 					{
-						GetTestRunner().TestTrue(FString::Printf(TEXT("Condition count mismatch for c_%d[%d] method (single instance)"), CompositeTaskIndex, MethodIndex)
+						AITEST_TRUE(FString::Printf(TEXT("Condition count mismatch for c_%d[%d] method (single instance)"), CompositeTaskIndex, MethodIndex)
 							, CompositeTaskBuilder->Methods[MethodIndex].Conditions.Num() == 1);
 					}
 
-					GetTestRunner().TestTrue(FString::Printf(TEXT("Task count mismatch for c_%d[%d] method"), CompositeTaskIndex, MethodIndex)
+					AITEST_TRUE(FString::Printf(TEXT("Task count mismatch for c_%d[%d] method"), CompositeTaskIndex, MethodIndex)
 						, CompositeTaskBuilder->Methods[MethodIndex].Tasks.Num() == (CompositeTaskIndex % 4));
 				}
 			}			
@@ -195,12 +195,12 @@ struct FAITest_HTNDomainBuilderBasics : public FAITestBase
 		for (int32 PrimitiveTaskIndex = 0; PrimitiveTaskIndex < PrimitiveTasksCount; ++PrimitiveTaskIndex)
 		{
 			FHTNBuilder_PrimitiveTask* PrimitiveTaskBuilder = DomainBuilder.PrimitiveTasks.Find(*FString::Printf(TEXT("p_%d"), PrimitiveTaskIndex));
-			GetTestRunner().TestTrue(FString::Printf(TEXT("Failed to find primitive task p_%d that has just been added"), PrimitiveTaskIndex), PrimitiveTaskBuilder != nullptr);
+			AITEST_TRUE(FString::Printf(TEXT("Failed to find primitive task p_%d that has just been added"), PrimitiveTaskIndex), PrimitiveTaskBuilder != nullptr);
 
 			if (PrimitiveTaskBuilder)
 			{
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Primitive task p_%d operator is wrong"), PrimitiveTasksCount), PrimitiveTaskBuilder->ActionID == PrimitiveTaskIndex);
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Primitive task p_%d effects count is wrong"), PrimitiveTasksCount), PrimitiveTaskBuilder->Effects.Num() == (PrimitiveTaskIndex % 3));
+				AITEST_TRUE(FString::Printf(TEXT("Primitive task p_%d operator is wrong"), PrimitiveTasksCount), PrimitiveTaskBuilder->ActionID == PrimitiveTaskIndex);
+				AITEST_TRUE(FString::Printf(TEXT("Primitive task p_%d effects count is wrong"), PrimitiveTasksCount), PrimitiveTaskBuilder->Effects.Num() == (PrimitiveTaskIndex % 3));
 			}
 		}
 
@@ -415,7 +415,7 @@ struct FAITest_HTNWorldRepresentation : public FHTNTestBase
 				}
 
 				FString Message = FString::Printf(TEXT("Testing %s on $d"), *FHTNDebug::HTNWorldStateCheckToString(OpCode), Value);
-				GetTestRunner().TestTrue(Message, WorldState.CheckCondition(FHTNCondition(WSIndex, OpCode).SetRHSAsValue(ReferenceValue)) == bExpectedResult);
+				AITEST_TRUE(Message, WorldState.CheckCondition(FHTNCondition(WSIndex, OpCode).SetRHSAsValue(ReferenceValue)) == bExpectedResult);
 			}
 		}
 		return true;
@@ -438,30 +438,30 @@ struct FAITest_HTNCondition : public FHTNTestBase
 				const FHTNPolicy::FWSValue AsValue = FHTNPolicy::FWSValue(Value);
 				const FHTNPolicy::FWSKey AsKey = FHTNPolicy::FWSKey(Value);
 
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] < %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] < %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Less).SetRHSAsValue(AsValue)) == (WSIndex < AsValue));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] <= %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] <= %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::LessOrEqual).SetRHSAsValue(AsValue)) == (WSIndex <= AsValue));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] == %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] == %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Equal).SetRHSAsValue(AsValue)) == (WSIndex == AsValue));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] != %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] != %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::NotEqual).SetRHSAsValue(AsValue)) == (WSIndex != AsValue));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] >= %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] >= %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::GreaterOrEqual).SetRHSAsValue(AsValue)) == (WSIndex >= AsValue));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] > %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] > %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Greater).SetRHSAsValue(AsValue)) == (WSIndex > AsValue));
 
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] < WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] < WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Less).SetRHSAsWSKey(AsKey)) == (WSIndex < AsKey));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] <= WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] <= WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::LessOrEqual).SetRHSAsWSKey(AsKey)) == (WSIndex <= AsKey));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] == WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] == WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Equal).SetRHSAsWSKey(AsKey)) == (WSIndex == AsKey));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] != WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] != WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::NotEqual).SetRHSAsWSKey(AsKey)) == (WSIndex != AsKey));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] >= WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] >= WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::GreaterOrEqual).SetRHSAsWSKey(AsKey)) == (WSIndex >= AsKey));
-				GetTestRunner().TestTrue(FString::Printf(TEXT("Condition WS[%d] > WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] > WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Greater).SetRHSAsWSKey(AsKey)) == (WSIndex > AsKey));
 			}
 		}
