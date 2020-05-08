@@ -99,7 +99,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 
 				if (ColorGraph.Num() <= MaxColor)
 				{
-					ColorGraph.SetNum(MaxColor);
+					ColorGraph.SetNum(MaxColor + 1);
 				}
 				ColorGraph[GraphEdge.Color].Add(EdgeIndex);
 
