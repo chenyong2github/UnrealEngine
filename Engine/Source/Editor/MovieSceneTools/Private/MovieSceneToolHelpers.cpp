@@ -1660,6 +1660,7 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 	OutParams.bConvertSceneUnitBackup = ImportOptions->bConvertSceneUnit;
 	OutParams.bForceFrontXAxisBackup = ImportOptions->bForceFrontXAxis;
 
+	ImportOptions->bIsImportCancelable = false;
 	ImportOptions->bConvertScene = true;
 	ImportOptions->bConvertSceneUnit = true;
 	ImportOptions->bForceFrontXAxis = ImportFBXSettings->bForceFrontXAxis;

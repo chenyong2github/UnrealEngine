@@ -208,12 +208,16 @@ private:
 		*/
 		int32 MaterialId;
 
+		/** material slot name, if multiple section use the same material we use the first slot name found */
+		FName SlotName;
+
 		/** Default UVChannelData for new sections. Will be recomputed if necessary */
 		FMeshUVChannelInfo UVChannelData;
 
-		FNewSectionInfo( UMaterialInterface* InMaterial, int32 InMaterialId, const FMeshUVChannelInfo& InUVChannelData )
+		FNewSectionInfo( UMaterialInterface* InMaterial, int32 InMaterialId, FName InSlotName, const FMeshUVChannelInfo& InUVChannelData )
 			:	Material(InMaterial)
 			,	MaterialId(InMaterialId)
+			,	SlotName(InSlotName)
 			,	UVChannelData(InUVChannelData)
 		{}
 	};

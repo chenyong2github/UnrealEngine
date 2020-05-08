@@ -40,6 +40,17 @@ public:
 	virtual bool FactoryCanImport(const FString& Filename);
 
 	/**
+	 * Whether the factory is checking for SlowTask::ShouldCancel()
+	 * while importing and aborting the import when appropriate.
+	 *
+	 * @return true if factory import can be canceled.
+	 */
+	virtual bool CanImportBeCanceled() const
+	{
+		return false;
+	}
+
+	/**
 	 * Whether the specified file can be imported by this factory. (Implemented in script)
 	 *
 	 * @return true if the file is supported, false otherwise.

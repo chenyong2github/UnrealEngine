@@ -1146,12 +1146,12 @@ void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateCo
 	}
 }
 
-void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMesh, int32 LodIndex)
+bool FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMesh, int32 LodIndex)
 {
 	if (!SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LodIndex) || SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->IsEmpty())
 	{
 		//There is nothing to restore
-		return;
+		return false;
 	}
 
 	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
@@ -1195,6 +1195,8 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 		//Put back the clothing for the restore LOD
 		FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings);
 	}
+
+	return true;
 }
 
 void FLODUtilities::RefreshLODChange(const USkeletalMesh* SkeletalMesh)

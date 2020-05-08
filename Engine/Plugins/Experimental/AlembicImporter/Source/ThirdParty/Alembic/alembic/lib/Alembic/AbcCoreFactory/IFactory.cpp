@@ -51,6 +51,7 @@ IFactory::IFactory()
 {
     m_cacheHierarchy = true;
     m_numStreams = 1;
+    m_readStrategy = kMemoryMappedFiles;
     m_policy = Alembic::Abc::ErrorHandler::kThrowPolicy;
 }
 
@@ -59,11 +60,13 @@ IFactory::~IFactory()
 }
 
 Alembic::Abc::IArchive IFactory::getArchive( const std::string & iFileName,
-                                            CoreType & oType )
+                                             CoreType & oType )
 {
 
     // try Ogawa first, use kQuietNoop at first in case we fail
-    Alembic::AbcCoreOgawa::ReadArchive ogawa( m_numStreams );
+    Alembic::AbcCoreOgawa::ReadArchive ogawa(
+        m_numStreams,
+        m_readStrategy == kMemoryMappedFiles);
     Alembic::Abc::IArchive archive( ogawa, iFileName,
         Alembic::Abc::ErrorHandler::kQuietNoopPolicy, m_cachePtr );
 
@@ -130,18 +133,25 @@ Alembic::Abc::IArchive IFactory::getArchive(
     Alembic::AbcCoreLayer::ArchiveReaderPtrs archives;
 
     // first read our archives, skipping over bad ones
+    CoreType coreType;
     std::vector< std::string >::const_iterator it = iFileNames.begin();
     for ( ; it != iFileNames.end(); ++it )
     {
-        Alembic::Abc::IArchive archive = getArchive( *it );
+        Alembic::Abc::IArchive archive = getArchive( *it, coreType );
         if ( archive.getPtr() )
         {
             archives.push_back( archive.getPtr() );
         }
     }
 
-
-    if ( ! archives.empty() )
+    // if we have just one, no reason to layer
+    if ( archives.size() == 1 )
+    {
+        oType = coreType;
+        return Alembic::Abc::IArchive( archives[0],
+            Alembic::Abc::kWrapExisting, m_policy );
+    }
+    else if ( ! archives.empty() )
     {
         Alembic::AbcCoreAbstract::ArchiveReaderPtr arPtr = layer( archives );
         oType = kLayer;

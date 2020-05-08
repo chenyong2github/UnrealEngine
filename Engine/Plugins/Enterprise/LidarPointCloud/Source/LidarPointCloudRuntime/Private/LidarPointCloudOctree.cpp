@@ -394,7 +394,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 			}
 			else if (bStoreInBucket)
 			{
-				const FLidarPointCloudPoint& Other = *Points[GridCell->Index];
+				const FLidarPointCloudPoint& Other = *Points[Index];
 				PointBuckets[InGridData.ChildNodeLocation].Emplace(AdjustedLocation, Other.Color, !!Other.bVisible, Other.ClassificationID);
 			}
 		}

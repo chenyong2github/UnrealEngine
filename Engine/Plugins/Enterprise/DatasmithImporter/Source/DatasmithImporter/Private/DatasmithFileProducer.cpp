@@ -15,6 +15,7 @@
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DataprepAssetProducers.h"
 #include "DatasmithTranslatorManager.h"
 #include "IDatasmithSceneElements.h"
 #include "Utility/DatasmithImporterUtils.h"
@@ -29,6 +30,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "EditorDirectories.h"
+#include "EditorFontGlyphs.h"
 #include "Engine/StaticMesh.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/FileManager.h"
@@ -46,6 +48,7 @@
 #include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -1308,14 +1311,45 @@ private:
 	TSharedPtr< SEditableText > FileName;
 };
 
-void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FDataprepContentProducerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	TArray< TWeakObjectPtr< UObject > > Objects;
-	DetailBuilder.GetObjectsBeingCustomized( Objects );
-	check( Objects.Num() > 0 );
+	DetailBuilder.GetObjectsBeingCustomized(Objects);
+	check(Objects.Num() > 0);
 
-	UDatasmithFileProducer* Producer = Cast< UDatasmithFileProducer >(Objects[0].Get());
-	check( Producer );
+	Producer = Cast< UDataprepContentProducer >(Objects[0].Get());
+	check(Producer);
+
+	AssetProducers = Cast<UDataprepAssetProducers>(Producer->GetOuter());
+	check(AssetProducers);
+
+	ProducerIndex = INDEX_NONE;
+	for (int Index = 0; Index < AssetProducers->GetProducersCount(); ++Index)
+	{
+		if (Producer == AssetProducers->GetProducer(Index))
+		{
+			ProducerIndex = Index;
+			break;
+		}
+	}
+}
+
+FSlateColor FDataprepContentProducerDetails::GetStatusColorAndOpacity() const
+{
+	return  IsProducerSuperseded() ? FLinearColor::Red : FEditorStyle::Get().GetSlateColor("DefaultForeground");
+}
+
+bool FDataprepContentProducerDetails::IsProducerSuperseded() const
+{
+	return ProducerIndex != INDEX_NONE ? AssetProducers->IsProducerSuperseded(ProducerIndex) : false;
+}
+
+void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	FDataprepContentProducerDetails::CustomizeDetails(DetailBuilder);
+
+	UDatasmithFileProducer* FileProducer = Cast< UDatasmithFileProducer >(Producer);
+	check( FileProducer );
 
 	// #ueent_todo: Remove handling of warning category when this is not considered experimental anymore
 	TArray<FName> CategoryNames;
@@ -1332,16 +1366,39 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 	FDetailWidgetRow& CustomAssetImportRow = ImportSettingsCategoryBuilder.AddCustomRow( FText::FromString( TEXT( "Import File" ) ) );
 
+	TSharedPtr<STextBlock> IconText;
+
 	CustomAssetImportRow.NameContent()
 	[
-		PropertyHandle->CreatePropertyNameWidget()
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SAssignNew(IconText, STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.Text(MakeAttributeLambda([=]
+				{
+					return IsProducerSuperseded() ? FEditorFontGlyphs::Exclamation_Triangle : FEditorFontGlyphs::File;
+				}))
+				.ColorAndOpacity(this, &FDataprepContentProducerDetails::GetStatusColorAndOpacity)
+		]
 	];
+
+	IconText->SetToolTipText(MakeAttributeLambda([=]
+	{
+		if (IsProducerSuperseded())
+		{
+			return LOCTEXT("FDatasmithFileProducerDetails_StatusTextTooltip_Superseded", "This producer is superseded by another one and will be skipped when run.");
+		}
+		return LOCTEXT("FDatasmithFileProducerDetails_StatusTextTooltip", "File input");
+	}));
 
 	CustomAssetImportRow.ValueContent()
 	.MinDesiredWidth( 2000.0f )
 	[
 		SNew( SDatasmithFileProducerFileProperty )
-		.Producer( Producer )
+		.Producer( FileProducer )
 	];
 }
 
@@ -1363,27 +1420,82 @@ public:
 
 		ChildSlot
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
 			[
-				SAssignNew(FolderName, SEditableText)
-				.IsReadOnly(true)
-				.Text( this, &SDatasmithDirProducerFolderProperty::GetFilenameText )
-				.ToolTipText( this, &SDatasmithDirProducerFolderProperty::GetFilenameText )
-				.Font( FontInfo )
-			]
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.OnClicked( this, &SDatasmithDirProducerFolderProperty::OnChangePathClicked )
-				.ToolTipText(LOCTEXT("ChangePath_Tooltip", "Browse for a new folder path"))
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("...", "..."))
-					.Font( FontInfo )
+					SAssignNew(FolderName, SEditableText)
+					.IsReadOnly(true)
+					.Text(this, &SDatasmithDirProducerFolderProperty::GetFilenameText)
+					.ToolTipText(this, &SDatasmithDirProducerFolderProperty::GetFilenameText)
+					.Font(FontInfo)
+				]
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.OnClicked( this, &SDatasmithDirProducerFolderProperty::OnChangePathClicked )
+					.ToolTipText(LOCTEXT("ChangePath_Tooltip", "Browse for a new folder path"))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("...", "..."))
+						.Font( FontInfo )
+					]
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(2, 0, 0, 0)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FileProducer_Extension", "Extension"))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(2, 0, 0, 0)
+					[
+						SNew(SBox)
+						.WidthOverride(80)
+						[
+							SNew(SEditableTextBox)
+							.Text(LOCTEXT("*.*", "*.*"))
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+							.OnTextCommitted(this, &SDatasmithDirProducerFolderProperty::OnExtensionStringChanged)
+						]
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(30, 0, 0, 0)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FileProducer_Recursive", "Recursive"))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(2, 0, 0, 0)
+					[
+						SNew(SCheckBox)
+						.IsChecked(this, &SDatasmithDirProducerFolderProperty::IsRecursiveChecked)
+						.OnCheckStateChanged(this, &SDatasmithDirProducerFolderProperty::OnRecursiveStateChanged)
+					]
 				]
 			]
 		];
@@ -1414,6 +1526,21 @@ private:
 		return ProducerPtr->FolderPath.IsEmpty() ? FText::FromString( TEXT("Select a folder") ) : FText::FromString( ProducerPtr->FolderPath );
 	}
 
+	ECheckBoxState IsRecursiveChecked() const
+	{
+		return ProducerPtr->bRecursive ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	void OnRecursiveStateChanged(ECheckBoxState NewState)
+	{
+		ProducerPtr->bRecursive = (NewState == ECheckBoxState::Checked);
+	}
+
+	void OnExtensionStringChanged( const FText &NewExtensionString, ETextCommit::Type CommitType )
+	{
+		ProducerPtr->ExtensionString = NewExtensionString.ToString();
+	}
+
 private:
 	TWeakObjectPtr< UDatasmithDirProducer > ProducerPtr;
 	TSharedPtr< SEditableText > FolderName;
@@ -1421,12 +1548,10 @@ private:
 
 void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
 {
-	TArray< TWeakObjectPtr< UObject > > Objects;
-	DetailBuilder.GetObjectsBeingCustomized( Objects );
-	check( Objects.Num() > 0 );
+	FDataprepContentProducerDetails::CustomizeDetails(DetailBuilder);
 
-	UDatasmithDirProducer* Producer = Cast< UDatasmithDirProducer >(Objects[0].Get());
-	check( Producer );
+	UDatasmithDirProducer* DirProducer = Cast< UDatasmithDirProducer >(Producer);
+	check(DirProducer);
 
 	// #ueent_todo: Remove handling of warning category when this is not considered experimental anymore
 	TArray<FName> CategoryNames;
@@ -1440,27 +1565,43 @@ void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 
 	FDetailWidgetRow& CustomAssetImportRow = ImportSettingsCategoryBuilder.AddCustomRow( FText::FromString( TEXT( "Import Folder" ) ) );
 
+	TSharedPtr<STextBlock> IconText;
+
 	CustomAssetImportRow.NameContent()
 	[
-		SNew(STextBlock)
-		.Text(LOCTEXT("DatasmithDirProducerDetails_ImportDirTitle", "Folder"))
-		.ToolTipText(LOCTEXT("DatasmithDirProducerDetails_ImportDirTooltip", "The folder which to load files from"))
-		.Font( IDetailLayoutBuilder::GetDetailFont() )
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.VAlign(VAlign_Top)
+		.Padding(0, 3, 0, 0)
+		[
+			SAssignNew(IconText, STextBlock)
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+			.Text(MakeAttributeLambda([=]
+			{
+				return IsProducerSuperseded() ? FEditorFontGlyphs::Exclamation_Triangle : FEditorFontGlyphs::Folder;
+			}))
+			.ColorAndOpacity(this, &FDataprepContentProducerDetails::GetStatusColorAndOpacity)
+		]
 	];
+
+	IconText->SetToolTipText(MakeAttributeLambda([=]
+	{
+		if (IsProducerSuperseded())
+		{
+			return LOCTEXT("FDatasmithDirProducerDetails_StatusTextTooltip_Superseded", "This producer is superseded by another one and will be skipped when run.");
+		}
+		return LOCTEXT("DatasmithDirProducerDetails_ImportDirTooltip", "The folder which to load files from");
+	}));
 
 	CustomAssetImportRow.ValueContent()
 	.MinDesiredWidth( 2000.0f )
 	[
 		SNew( SDatasmithDirProducerFolderProperty )
-		.Producer( Producer )
+		.Producer( DirProducer )
 	];
 
-	// Make sure producer is broadcasting changes on non-customized properties
-	TSharedRef< IPropertyHandle > PropertyHandle = DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED(UDatasmithDirProducer, ExtensionString) );
-	PropertyHandle->SetOnPropertyValueChanged( FSimpleDelegate::CreateUObject( Producer, &UDatasmithDirProducer::OnExtensionsChanged) );
-
-	PropertyHandle = DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED(UDatasmithDirProducer, bRecursive) );
-	PropertyHandle->SetOnPropertyValueChanged( FSimpleDelegate::CreateUObject( Producer, &UDatasmithDirProducer::OnRecursivityChanged) );
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDatasmithDirProducer, ExtensionString));
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDatasmithDirProducer, bRecursive));
 }
 
 void FDatasmithFileProducerUtils::DeletePackagePath( const FString& PathToDelete )

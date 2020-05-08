@@ -70,6 +70,10 @@ private:
 		return VersionString;
 	}
 
+	virtual void FixupMaterialSlotNames(UStaticMesh* StaticMesh) const override;
+
+	virtual void FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const override;
+
 	virtual bool BuildStaticMesh(
 		FStaticMeshRenderData& OutRenderData,
 		UStaticMesh* StaticMesh,

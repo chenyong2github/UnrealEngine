@@ -557,17 +557,17 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(FSkeletalMeshImportDat
 	FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[0];
 
 	// Process materials from import data
-	ProcessImportMeshMaterials(SkeletalMesh->Materials, SkelMeshImportData);
+	SkeletalMeshHelper::ProcessImportMeshMaterials(SkeletalMesh->Materials, SkelMeshImportData);
 
 	// Process reference skeleton from import data
 	int32 SkeletalDepth = 0;
-	if (!ProcessImportMeshSkeleton(SkeletalMesh->Skeleton, SkeletalMesh->RefSkeleton, SkeletalDepth, SkelMeshImportData))
+	if (!SkeletalMeshHelper::ProcessImportMeshSkeleton(SkeletalMesh->Skeleton, SkeletalMesh->RefSkeleton, SkeletalDepth, SkelMeshImportData))
 	{
 		return nullptr;
 	}
 
 	// Process bones influence (normalization and optimization); this is not strictly needed for SkeletalMesh to work
-	ProcessImportMeshInfluences(SkelMeshImportData);
+	SkeletalMeshHelper::ProcessImportMeshInfluences(SkelMeshImportData);
 
 	// Serialize the import data when needed
 	//LODModel.RawSkeletalMeshBulkData.SaveRawMesh(SkelMeshImportData);
