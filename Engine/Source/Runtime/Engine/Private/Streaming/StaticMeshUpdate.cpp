@@ -11,6 +11,7 @@ StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
 #include "HAL/PlatformFilemanager.h"
 #include "Serialization/MemoryReader.h"
 #include "Streaming/RenderAssetUpdate.inl"
+#include "ContentStreaming.h"
 
 int32 GStreamingMaxReferenceChecks = 2;
 static FAutoConsoleVariableRef CVarStreamingMaxReferenceChecksBeforeStreamOut(
