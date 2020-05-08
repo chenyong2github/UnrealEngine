@@ -32,13 +32,13 @@ struct FBehaviorTreeSearchData;
 
 DECLARE_STATS_GROUP(TEXT("Behavior Tree"), STATGROUP_AIBehaviorTree, STATCAT_Advanced);
 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Tick"),STAT_AI_BehaviorTree_Tick,STATGROUP_AIBehaviorTree, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Load Time"),STAT_AI_BehaviorTree_LoadTime,STATGROUP_AIBehaviorTree, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Search Time"),STAT_AI_BehaviorTree_SearchTime,STATGROUP_AIBehaviorTree, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Execution Time"),STAT_AI_BehaviorTree_ExecutionTime,STATGROUP_AIBehaviorTree, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Auxiliary Update Time"),STAT_AI_BehaviorTree_AuxUpdateTime,STATGROUP_AIBehaviorTree, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Cleanup Time"), STAT_AI_BehaviorTree_Cleanup, STATGROUP_AIBehaviorTree, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Stop Tree Time"), STAT_AI_BehaviorTree_StopTree, STATGROUP_AIBehaviorTree, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Tick"),STAT_AI_BehaviorTree_Tick,STATGROUP_AIBehaviorTree, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Load Time"),STAT_AI_BehaviorTree_LoadTime,STATGROUP_AIBehaviorTree, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Search Time"),STAT_AI_BehaviorTree_SearchTime,STATGROUP_AIBehaviorTree, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Execution Time"),STAT_AI_BehaviorTree_ExecutionTime,STATGROUP_AIBehaviorTree, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Auxiliary Update Time"),STAT_AI_BehaviorTree_AuxUpdateTime,STATGROUP_AIBehaviorTree, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Cleanup Time"), STAT_AI_BehaviorTree_Cleanup, STATGROUP_AIBehaviorTree, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Stop Tree Time"), STAT_AI_BehaviorTree_StopTree, STATGROUP_AIBehaviorTree, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num Templates"),STAT_AI_BehaviorTree_NumTemplates,STATGROUP_AIBehaviorTree, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num Instances"),STAT_AI_BehaviorTree_NumInstances,STATGROUP_AIBehaviorTree, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Instance memory"),STAT_AI_BehaviorTree_InstanceMemory,STATGROUP_AIBehaviorTree, AIMODULE_API);
