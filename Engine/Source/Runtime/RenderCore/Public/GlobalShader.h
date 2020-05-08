@@ -180,6 +180,7 @@ public:
 	bool IsEmpty() const;
 
 	void Empty();
+	void ReleaseAllSections();
 
 	FShader* FindOrAddShader(const FShaderType* ShaderType, int32 PermutationId, FShader* Shader);
 	FShaderPipeline* FindOrAddShaderPipeline(const FShaderPipelineType* ShaderPipelineType, FShaderPipeline* ShaderPipeline);
