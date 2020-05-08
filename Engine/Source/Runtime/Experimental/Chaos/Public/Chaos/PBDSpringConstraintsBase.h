@@ -24,6 +24,12 @@ namespace Chaos
 			RemoveDuplicateConstraints();
 			UpdateDistances(InParticles);
 		}
+		TPBDSpringConstraintsBase(const TRigidParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1)
+		    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
+		{
+			RemoveDuplicateConstraints();
+			UpdateDistances(InParticles);
+		}
 		TPBDSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Constraints, const T Stiffness = (T)1)
 		    : MStiffness(Stiffness)
 		{
