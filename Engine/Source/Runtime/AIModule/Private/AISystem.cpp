@@ -98,8 +98,13 @@ void UAISystem::StartPlay()
 
 void UAISystem::OnActorSpawned(AActor* SpawnedActor)
 {
+	if (PerceptionSystem == nullptr || PerceptionSystem->bHandlePawnNotification == false)
+	{
+		return;
+	}
+
 	APawn* AsPawn = Cast<APawn>(SpawnedActor);
-	if (AsPawn && PerceptionSystem)
+	if (AsPawn)
 	{
 		PerceptionSystem->OnNewPawn(*AsPawn);
 	}
