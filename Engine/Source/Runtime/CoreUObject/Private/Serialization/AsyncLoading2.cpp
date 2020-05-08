@@ -656,9 +656,7 @@ public:
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreTocFixup);
 
 			int32 PackageByteCount = 0;
-			int32 PublicExportCount = 0;
 			GlobalMetaAr << PackageCount;
-			GlobalMetaAr << PublicExportCount;
 			GlobalMetaAr << PackageByteCount;
 
 			StoreEntries = reinterpret_cast<FPackageStoreEntry*>(FMemory::Malloc(PackageByteCount));
@@ -667,8 +665,8 @@ public:
 			GlobalMetaAr.Serialize(StoreEntries, PackageByteCount);
 
 			LoadedPackageStore.Init(PackageCount);
-			ImportStore.PublicExportToObjectIndex.Reserve(FMath::Min(32768, PublicExportCount));
-			ImportStore.ObjectIndexToPublicExport.Reserve(FMath::Min(32768, PublicExportCount));
+			ImportStore.PublicExportToObjectIndex.Reserve(FMath::Min(32768, PackageCount));
+			ImportStore.ObjectIndexToPublicExport.Reserve(FMath::Min(32768, PackageCount));
 
 			// add 10% slack for temp package names
 			{
