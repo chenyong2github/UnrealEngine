@@ -1835,7 +1835,6 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	CLASS_REDIRECT("MovieSceneAudioSection", "/Script/MovieSceneTracks.MovieSceneAudioSection");
 	CLASS_REDIRECT("MovieSceneAudioTrack", "/Script/MovieSceneTracks.MovieSceneAudioTrack");
 	CLASS_REDIRECT("MovieSceneBindings", "/Script/MovieScene.MovieSceneBindings");
-	CLASS_REDIRECT("MovieSceneBoolSection", "/Script/MovieSceneTracks.MovieSceneBoolSection");
 	CLASS_REDIRECT("MovieSceneBoolTrack", "/Script/MovieSceneTracks.MovieSceneBoolTrack");
 	CLASS_REDIRECT("MovieSceneByteSection", "/Script/MovieSceneTracks.MovieSceneByteSection");
 	CLASS_REDIRECT("MovieSceneByteTrack", "/Script/MovieSceneTracks.MovieSceneByteTrack");

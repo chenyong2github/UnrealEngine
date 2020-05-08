@@ -13,7 +13,7 @@ class UMovieSceneSpawnSection;
 
 /** Spawn track eval template that evaluates a curve */
 USTRUCT()
-struct MOVIESCENETRACKS_API FMovieSceneSpawnSectionTemplate : public FMovieSceneEvalTemplate
+struct MOVIESCENE_API FMovieSceneSpawnSectionTemplate : public FMovieSceneEvalTemplate
 {
 	GENERATED_BODY()
 	
