@@ -47,11 +47,7 @@ bool FAITestCommand_WaitOneTick::Update()
 
 bool FAITestCommand_SetUpTest::Update()
 {
-	if (AITest)
-	{
-		AITest->SetUp();
-	}
-	return true;
+	return AITest && AITest->SetUp();
 }
 
 bool FAITestCommand_PerformTest::Update()
@@ -103,15 +99,6 @@ UWorld& FAITestBase::GetWorld() const
 	UWorld* World = FAITestHelpers::GetWorld();
 	check(World);
 	return *World;
-}
-
-void FAITestBase::Test(const FString& Description, bool bValue)
-{
-	check(TestRunner);
-	TestRunner->TestTrue(Description, bValue);
-#if ENSURE_FAILED_TESTS
-	ensure(bValue);
-#endif // ENSURE_FAILED_TESTS
 }
 
 void FAITestBase::TearDown()

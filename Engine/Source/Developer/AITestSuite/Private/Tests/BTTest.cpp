@@ -31,7 +31,7 @@ struct FAITest_SimpleBT : public FAITestBase
 		}
 	}
 
-	void SetUp() override
+	virtual bool SetUp() override
 	{
 		FAITestBase::SetUp();
 
@@ -43,10 +43,12 @@ struct FAITest_SimpleBT : public FAITestBase
 		{
 			AIBTUser->RunBT(*BTAsset, EBTExecutionMode::SingleRun);
 			AIBTUser->SetEnableTicking(bUseSystemTicking);
+			return true;
 		}
+		return false;
 	}
 
-	bool Update() override
+	virtual bool Update() override
 	{
 		FAITestHelpers::UpdateFrameCounter();
 
@@ -63,11 +65,10 @@ struct FAITest_SimpleBT : public FAITestBase
 			}
 		}
 
-		VerifyResults();
-		return true;
+		return VerifyResults();
 	}
 
-	void VerifyResults()
+	bool VerifyResults()
 	{
 		const bool bMatch = (ExpectedResult == UMockAI_BT::ExecutionLog);
 		//ensure(bMatch && "VerifyResults failed!");
@@ -95,6 +96,7 @@ struct FAITest_SimpleBT : public FAITestBase
 
 			UE_LOG(LogBehaviorTreeTest, Error, TEXT("Test scenario failed to produce expected results!\nExecution log: %s\nExpected values: %s"), *DescriptionResult, *DescriptionExpected);
 		}
+		return bMatch;
 	}
 };
 

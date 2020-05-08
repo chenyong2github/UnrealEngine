@@ -22,20 +22,22 @@ void FRPCTestBase::TearDown()
 	FAITestBase::TearDown();
 }
 
+//----------------------------------------------------------------------//
+// TESTS 
+//----------------------------------------------------------------------//
 
 struct FRPCTest_StartStop : public FRPCTestBase
 {
-	virtual bool Update() override
+	virtual bool InstantTest() override
 	{
 		U4MLManager::Get().StartServer(DefaultServerPort, EUE4MLServerMode::Client);
-		Test(TEXT("Is server running"), U4MLManager::Get().IsRunning() == true);
+		AITEST_TRUE("Is server running", U4MLManager::Get().IsRunning());
 		U4MLManager::Get().StopServer();
-		Test(TEXT("Is server stopped"), U4MLManager::Get().IsRunning() == false);
-
+		AITEST_FALSE("Is server stopped", U4MLManager::Get().IsRunning());
 		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FRPCTest_StartStop, "System.Engine.AI.ML.RPC.ServerStartStop")
+IMPLEMENT_AI_INSTANT_TEST(FRPCTest_StartStop, "System.Engine.AI.ML.RPC.ServerStartStop")
 
 struct FRPCTest_BasicBinds : public FRPCTestBase
 {
@@ -47,10 +49,11 @@ struct FRPCTest_BasicBinds : public FRPCTestBase
 	FRPCTest_BasicBinds() : bClientFooCalled(false), bServerFooCalled(false)
 	{}
 
-	virtual void SetUp() override
+	virtual bool SetUp() override
 	{
 		U4MLManager::Get().StartServer(DefaultServerPort, ServerMode);
 		RPCClient = new rpc::client("127.0.0.1", DefaultServerPort);
+		return RPCClient != nullptr;
 	}
 
 	// wait for any of the functions to get called checking CallCount
@@ -72,16 +75,13 @@ struct FRPCTest_BasicBinds : public FRPCTestBase
 			++CallCount;
 		});
 	}
-	virtual void TearDown() override
-	{
-		FRPCTestBase::TearDown();
-	}
 };
 
 struct FRPCTest_ClientBinds : public FRPCTest_BasicBinds
 {
-	virtual void SetUp() override
+	virtual bool SetUp() override
 	{
+		bool bSuccess = false;
 		FRPCTest_BasicBinds::SetUp();		
 		// ordering this way to make sure we first call the function that's not 
 		// likely to throw an exception. RPC client will throw one if function of 
@@ -94,26 +94,29 @@ struct FRPCTest_ClientBinds : public FRPCTest_BasicBinds
 		catch (...)
 		{
 			// this is expected if we call a function that has not been bound
+			bSuccess = true;
 		}
+		return bSuccess;
 	}
-	virtual bool Update() override
+	virtual bool InstantTest() override
 	{
 		if (CallCount)
 		{
-			Test(TEXT("Only one function should get called"), CallCount == 1);
-			Test(TEXT("Only the client function should get called"), bClientFooCalled);
-			Test(TEXT("The server function should not get called"), bServerFooCalled == false);
+			AITEST_TRUE("Only one function should get called", CallCount == 1);
+			AITEST_TRUE("Only the client function should get called", bClientFooCalled);
+			AITEST_FALSE("The server function should not get called", bServerFooCalled);
 			return true;
 		}
 		return false;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FRPCTest_ClientBinds, "System.Engine.AI.ML.RPC.ClientBinds")
+IMPLEMENT_AI_INSTANT_TEST(FRPCTest_ClientBinds, "System.Engine.AI.ML.RPC.ClientBinds")
 
 struct FRPCTest_ServerBinds : public FRPCTest_BasicBinds
 {
-	virtual void SetUp() override
+	virtual bool SetUp() override
 	{
+		bool bSuccess = false;
 		ServerMode = EUE4MLServerMode::Server;
 		FRPCTest_BasicBinds::SetUp();
 		// ordering this way to make sure we first call the function that's not 
@@ -127,22 +130,24 @@ struct FRPCTest_ServerBinds : public FRPCTest_BasicBinds
 		catch (...)
 		{
 			// this is expected if we call a function that has not been bound
+			bSuccess = true;
 		}
+		return bSuccess;
 	}
 
-	virtual bool Update() override
+	virtual bool InstantTest() override
 	{
 		if (CallCount)
 		{
-			Test(TEXT("Only one function should get called"), CallCount == 1);
-			Test(TEXT("Only the server function should get called"), bServerFooCalled);
-			Test(TEXT("The client function should not get called"), bClientFooCalled == false);
+			AITEST_TRUE("Only one function should get called", CallCount == 1);
+			AITEST_TRUE("Only the server function should get called", bServerFooCalled);
+			AITEST_FALSE("The client function should not get called", bClientFooCalled);
 			return true;
 		}
 		return false;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FRPCTest_ServerBinds, "System.Engine.AI.ML.RPC.ServerBinds")
+IMPLEMENT_AI_INSTANT_TEST(FRPCTest_ServerBinds, "System.Engine.AI.ML.RPC.ServerBinds")
 
 PRAGMA_ENABLE_OPTIMIZATION
 
