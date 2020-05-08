@@ -44,7 +44,6 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	, bNeedScreenPositionShift(false)
 {
 	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddRaw(this, &FSlateInvalidationRoot::OnInvalidateAllWidgets);
-
 }
 
 FSlateInvalidationRoot::~FSlateInvalidationRoot()
@@ -713,6 +712,11 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediatel
 
 void FSlateInvalidationRoot::OnInvalidateAllWidgets(bool bClearResourcesImmediately)
 {
+	Advanced_ResetInvalidation(bClearResourcesImmediately);
+}
+
+void FSlateInvalidationRoot::Advanced_ResetInvalidation(bool bClearResourcesImmediately)
+{
 	InvalidateChildOrder();
 
 	InvalidationRootWidget->InvalidatePrepass();
@@ -721,5 +725,6 @@ void FSlateInvalidationRoot::OnInvalidateAllWidgets(bool bClearResourcesImmediat
 	{
 		ClearAllFastPathData(true);
 	}
+
 	bNeedsSlowPath = true;
 }
