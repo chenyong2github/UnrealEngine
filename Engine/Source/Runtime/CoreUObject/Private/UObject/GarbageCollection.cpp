@@ -1428,27 +1428,30 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, float TimeLimit)
 		}
 
 	} ResetPurgeProgress(bCompleted);
-
-	// Keep track of start time to enforce time limit unless bForceFullPurge is true;
-	GCStartTime = FPlatformTime::Seconds();
-
-	bool bTimeLimitReached = false;
-	if (GUnrechableObjectIndex < GUnreachableObjects.Num())
+	
 	{
-		{
-			FConditionalGCLock ScopedGCLock;
-			bTimeLimitReached = UnhashUnreachableObjects(bUseTimeLimit, TimeLimit);
-		}
-		if (GUnrechableObjectIndex >= GUnreachableObjects.Num())
-		{
-			FScopedCBDProfile::DumpProfile();
-		}
-	}
-
-	if (!bTimeLimitReached)
-	{
+		// Lock before settting GCStartTime as it could be slow to lock if async loading is in progress
+		// but we still want to perform some GC work otherwise we'd be keeping objects in memory for a long time
 		FConditionalGCLock ScopedGCLock;
-		bCompleted = IncrementalDestroyGarbage(bUseTimeLimit, TimeLimit);
+
+		// Keep track of start time to enforce time limit unless bForceFullPurge is true;
+		GCStartTime = FPlatformTime::Seconds();
+		bool bTimeLimitReached = false;
+
+		if (GUnrechableObjectIndex < GUnreachableObjects.Num())
+		{
+			bTimeLimitReached = UnhashUnreachableObjects(bUseTimeLimit, TimeLimit);
+
+			if (GUnrechableObjectIndex >= GUnreachableObjects.Num())
+			{
+				FScopedCBDProfile::DumpProfile();
+			}
+		}
+
+		if (!bTimeLimitReached)
+		{
+			bCompleted = IncrementalDestroyGarbage(bUseTimeLimit, TimeLimit);
+		}
 	}
 #endif // !UE_WITH_GC
 }
