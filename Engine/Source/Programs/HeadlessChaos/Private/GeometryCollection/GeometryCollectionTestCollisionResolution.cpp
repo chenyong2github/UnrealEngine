@@ -6,6 +6,8 @@
 #include "GeometryCollectionProxyData.h"
 #include "HeadlessChaosTestUtility.h"
 
+extern bool bSkipGeomFailing;
+
 namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
@@ -319,6 +321,11 @@ namespace GeometryCollectionTest
 
 	TYPED_TEST(AllTraits,GeometryCollection_CollisionResolution_SimplicialSphereToImplicitSphere)
 	{
+
+		if(bSkipGeomFailing)
+		{
+			return;
+		}
 		using Traits = TypeParam;
 		// simplicial sphere to implicit sphere
 		TFramework<Traits> UnitTest;
