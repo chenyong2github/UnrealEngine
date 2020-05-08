@@ -201,8 +201,8 @@ void FGenerateMips::RenderMips(FRHICommandListImmediate& CommandList, FRHITextur
 	uint32 NumMips = InTexture->GetNumMips();
 	for (uint32 MipLevel=1; MipLevel<NumMips; ++MipLevel)
 	{
-		int32 Width = InTexture->GetSizeXYZ().X >> MipLevel;
-		int32 Height = InTexture->GetSizeXYZ().Y >> MipLevel;
+		int32 Width = FMath::Max(InTexture->GetSizeXYZ().X >> MipLevel, 1);
+		int32 Height = FMath::Max(InTexture->GetSizeXYZ().Y >> MipLevel, 1);
 
 		FRHIRenderPassInfo RPInfo(InTexture, ERenderTargetActions::DontLoad_Store, nullptr, MipLevel);
 		RPInfo.bGeneratingMips = true;
@@ -302,8 +302,8 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 	//Loop through each level of the mips that require creation and add a dispatch pass per level,.
 	for (uint8 MipLevel = 1; MipLevel < InTexture->GetNumMips(); MipLevel++)
 	{
-		int DestTextureSizeX = InTexture->GetSizeXYZ().X >> MipLevel;
-		int DestTextureSizeY = InTexture->GetSizeXYZ().Y >> MipLevel;
+		int DestTextureSizeX = FMath::Max(InTexture->GetSizeXYZ().X >> MipLevel, 1);
+		int DestTextureSizeY = FMath::Max(InTexture->GetSizeXYZ().Y >> MipLevel, 1);
 
 		//Create the RDG viewable SRV, of a complete Mip, to read from
 		FRDGTextureSRVDesc SRVDesc = FRDGTextureSRVDesc::CreateForMipLevel(GraphTexture, MipLevel - 1);
@@ -401,8 +401,8 @@ void FGenerateMips::Execute(FRDGBuilder* GraphBuilder, FRDGTextureRef InGraphTex
 	//Loop through each level of the mips that require creation and add a dispatch pass per level,.
 	for (uint8 MipLevel = 1; MipLevel < InGraphTexture->Desc.NumMips; MipLevel++)
 	{
-		int DestTextureSizeX = InGraphTexture->Desc.Extent.X >> MipLevel;
-		int DestTextureSizeY = InGraphTexture->Desc.Extent.Y >> MipLevel;
+		int DestTextureSizeX = FMath::Max(InGraphTexture->Desc.Extent.X >> MipLevel, 1);
+		int DestTextureSizeY = FMath::Max(InGraphTexture->Desc.Extent.Y >> MipLevel, 1);
 
 		//Create the RDG viewable SRV, of a complete Mip, to read from
 		FRDGTextureSRVDesc SRVDesc = FRDGTextureSRVDesc::CreateForMipLevel(InGraphTexture, MipLevel - 1);
