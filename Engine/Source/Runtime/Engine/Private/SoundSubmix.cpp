@@ -836,9 +836,7 @@ void USoundfieldSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		static const FName NAME_SoundfieldFormat(TEXT("SoundfieldEncodingFormat"));
-
-		if (PropertyChangedEvent.Property->GetFName() == NAME_SoundfieldFormat)
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundfieldSubmix, SoundfieldEncodingFormat))
 		{
 			bShouldSanitizeLinks = true;
 		}
