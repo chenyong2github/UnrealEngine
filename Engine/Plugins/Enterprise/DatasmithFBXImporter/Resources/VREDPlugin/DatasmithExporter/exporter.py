@@ -6,7 +6,7 @@ import os
 import logging
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from itertools import izip_longest, chain
+from itertools import chain
 
 import vrFileIO
 import vrFileDialog
@@ -33,7 +33,7 @@ import DatasmithExporter.sanitizer as dss
 import DatasmithExporter.mat as dsmat
 
 # Current plugin version
-exporterVersion = "3"
+exporterVersion = "4"
 
 class Light:
     def __init__(self):
@@ -121,7 +121,12 @@ class DatasmithFBXExporter():
 
             submats = mat.getSubMaterials()
             if len(submats) > 1:
-                chosenId = submats[mat.getChoice()].getID()
+                choice = mat.getChoice()
+                if choice is None or choice >= len(submats):
+                    logging.warning('Found invalid choice of submaterial "' + str(choice) + '" for material ' + str(mat.getName()))
+                    continue
+
+                chosenId = submats[choice].getID()
                 for submat in submats:
                     if submat.getID() != chosenId:
                         idsOfMatsToPreserve.append(submat.getID())
@@ -137,7 +142,11 @@ class DatasmithFBXExporter():
 
             # If its a switch material, try removing its selected variant from the list
             if len(submats) > 1:
-                chosenId = submats[mat.getChoice()].getID()
+                choice = mat.getChoice()
+                if choice is None or choice >= len(submats):
+                    continue
+                
+                chosenId = submats[choice].getID()
                 try:
                     idsOfMatsToPreserve.remove(chosenId)
                 except ValueError:
@@ -365,7 +374,7 @@ class DatasmithFBXExporter():
             # and our varset refs will end up all pointing at the same one.
             # That is fine though, since they wouldn't have worked fine in VRED anyway
             renamedAdapters = dss.renameObjectsAndKeepOriginals(adapters)
-            stateOldToNewNames = {orig: adapterDict[adId].getName() for adId, orig in renamedAdapters.iteritems()}
+            stateOldToNewNames = {orig: adapterDict[adId].getName() for adId, orig in dsutils.dict_items_gen(renamedAdapters)}
             logging.debug('\trenamed states: ' + str(stateOldToNewNames))
 
             # Keep track of renamed names so that we can update varset references
@@ -395,6 +404,21 @@ class DatasmithFBXExporter():
                     newStateName = renamedStates[oldStateName]
                     logging.debug('\tstate ' + str(oldStateName) + ' seems to have been renamed to ' + str(newStateName))
                     xmlNode.set('state', newStateName)
+
+    def fixupXmlContents(self, root):
+        """ Works around a bug in UE4 by ensuring that element contents that spans multiple lines end in a newline
+
+        Without this pass, an xml file like this:
+        <A>
+        e"</A>
+        Will not be able to be parsed by UE4's XmlParser
+
+        Args:
+            root (xml.etree.Element): Root of the xml subtree that will be fixed        
+        """
+        for element in root.iter():
+            if element.text and element.text.strip().count('\n') > 0:
+                element.text += '\n'
 
     def extractLights(self):
         """
@@ -748,7 +772,7 @@ class DatasmithFBXExporter():
         # Invert map, but consider that there might be multiple nodes with the same origName
         origNameToNodeIDs = defaultdict(list)
         logging.debug('nodeToOriginalNames:')
-        for nodeID, origName in nodeIDToOriginalNames.iteritems():
+        for nodeID, origName in dsutils.dict_items_gen(nodeIDToOriginalNames):
             logging.debug('\tnode: ' + str(vrNodePtr.vrNodePtr(nodeID).getName()) + ', origName: ' + str(origName))
             origNameToNodeIDs[origName].append(nodeID)
 
@@ -756,7 +780,7 @@ class DatasmithFBXExporter():
         origNameToNodeIDs = dict(origNameToNodeIDs)
 
         logging.debug('origNamesToNodes:')
-        for origName, nodeIDs in origNameToNodeIDs.iteritems():
+        for origName, nodeIDs in dsutils.dict_items_gen(origNameToNodeIDs):
             logging.debug('\torigName: ' + str(origName) + ', nodes: ' + str([vrNodePtr.vrNodePtr(id).getName() for id in nodeIDs]))
 
         # Ignore these states
@@ -808,12 +832,11 @@ class DatasmithFBXExporter():
                     if renamedNode.getName() in transVariants:
                         nodeTransVariants = transVariants[renamedNode.getName()]
                         nodeTransVariants = nodeTransVariants.keys()
-                        nodeTransVariants.sort()
 
                         logging.debug('\t\tcomparing against ' + str(renamedNode.getName()))
                         logging.debug('\t\tchildren: ' + str(nodeTransVariants))
 
-                        if cmp(states, nodeTransVariants) == 0:
+                        if set(states) == set(nodeTransVariants):
                             logging.debug("\t\tthat's it! they both have the same children")
                             foundNode = True
                             newName = renamedNode.getName()
@@ -856,7 +879,6 @@ class DatasmithFBXExporter():
             elif numRenamedNodes > 1:
                 states = [stateNode.get('name') for stateNode in xmlNode.iterfind('State')]
                 states = [state for state in states if state not in commandNames]
-                states.sort()
 
                 logging.debug('\tmore than one node renamed away from ' + str(parentNameVar))
                 logging.debug('\tstates: ' + str(states))
@@ -875,8 +897,7 @@ class DatasmithFBXExporter():
                     logging.debug('\t\tcomparing against ' + str(renamedNode.getName()))
                     logging.debug('\t\tchildren: ' + str(childrenOrigNames))
 
-                    childrenOrigNames.sort()
-                    if cmp(states, childrenOrigNames) == 0:
+                    if set(states) == set(childrenOrigNames):
                         logging.debug("\t\tthat's it! they both have the same children")
                         foundNode = True
                         newName = renamedNode.getName()
@@ -901,8 +922,8 @@ class DatasmithFBXExporter():
             parentName = xmlNode.get('base')
 
             # Pairs all 'Default' nodes with the 'ref' statenamekey and 'State' nodes with the 'name' statenamekey
-            for state, stateNameKey in chain(izip_longest(xmlNode.findall('Default'), [], fillvalue='ref'), \
-                                             izip_longest(xmlNode.findall('State'), [], fillvalue='name')):
+            for state, stateNameKey in chain(dsutils.zip_longest(xmlNode.findall('Default'), [], fillvalue='ref'), \
+                                             dsutils.zip_longest(xmlNode.findall('State'), [], fillvalue='name')):
                 stateName = state.get(stateNameKey)
                 logging.debug('Analyzing NodeVariant state ' + str(stateName) + ' from parent ' + str(parentName))
 
@@ -977,7 +998,7 @@ class DatasmithFBXExporter():
         # Invert map, but consider that there might be multiple nodes with the same origName
         origNameToMatIDs = defaultdict(list)
         logging.debug('matIDsToOriginalNames:')
-        for matID, origName in matIDsToOriginalNames.iteritems():
+        for matID, origName in dsutils.dict_items_gen(matIDsToOriginalNames):
             logging.debug('\tmat: ' + str(vrMaterialPtr.vrMaterialPtr(matID).getName()) + ', origName: ' + str(origName))
             origNameToMatIDs[origName].append(matID)
 
@@ -985,7 +1006,7 @@ class DatasmithFBXExporter():
         origNameToMatIDs = dict(origNameToMatIDs)
 
         logging.debug('origNamesToMatIDs:')
-        for origName, matIDs in origNameToMatIDs.iteritems():
+        for origName, matIDs in dsutils.dict_items_gen(origNameToMatIDs):
             logging.debug('\torigName: ' + str(origName) + ', mats: ' + str([vrMaterialPtr.vrMaterialPtr(matID).getName() for matID in matIDs]))
 
         # Ignore these states
@@ -1379,6 +1400,7 @@ class DatasmithFBXExporter():
                 self.sanitizeVariantNamesAndVariantSetRefs(xmlRoot)
                 self.injectTransformVariants(xmlRoot, transVariants)
                 self.sanitizeTransformVariantStateNames(xmlRoot, transVariants)
+                self.fixupXmlContents(xmlRoot)
 
                 # Write final var file
                 logging.info("Writing variants file '" + str(filenameNoExt) + ".var'...")

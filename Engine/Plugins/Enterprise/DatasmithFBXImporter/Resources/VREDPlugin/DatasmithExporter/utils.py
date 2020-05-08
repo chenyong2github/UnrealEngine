@@ -193,3 +193,19 @@ def getIsNodeFlipped(node):
         logging.warning(e.message)
 
     return False
+
+def zip_longest(list1, list2, fillvalue=''):
+    if sys.version_info > (3, 0):
+        from itertools import zip_longest
+        return zip_longest(list1, list2, fillvalue=fillvalue)
+    else:
+        from itertools import izip_longest
+        return izip_longest(list1, list2, fillvalue=fillvalue)
+
+def dict_items_gen(dictionary):
+    if sys.version_info > (3, 0):
+        for pair in dictionary.items():
+            yield pair
+    else:
+        for pair in dictionary.iteritems():
+            yield pair

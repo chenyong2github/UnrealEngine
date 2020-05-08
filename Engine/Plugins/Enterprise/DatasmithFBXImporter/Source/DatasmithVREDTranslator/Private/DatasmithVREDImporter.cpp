@@ -45,7 +45,7 @@ DEFINE_LOG_CATEGORY(LogDatasmithVREDImport);
 // these actors in reverse order (3,2,1). We're using logic which prevents this by iterating children in reverse order.
 #define REVERSE_ATTACH_ORDER 1
 
-#define MATCHING_EXPORTER_VERSION TEXT("3")
+#define MATCHING_EXPORTER_VERSION TEXT("4")
 
 struct FImportedAnim
 {
