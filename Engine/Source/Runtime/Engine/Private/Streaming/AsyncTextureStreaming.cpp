@@ -319,6 +319,39 @@ bool FRenderAssetStreamingMipCalcTask::AllowPerRenderAssetMipBiasChanges() const
 	return true;
 }
 
+void FRenderAssetStreamingMipCalcTask::ApplyPakStateChanges_Async()
+{
+	using EOptionalMipsState = FStreamingRenderAsset::EOptionalMipsState;
+	using FIoFilenameHashSet = FRenderAssetStreamingManager::FIoFilenameHashSet;
+
+	bool bRecacheAllFiles = false;
+	FIoFilenameHashSet MountedStateDirtyFiles;
+
+	// Acquire the pending file state changes from the streaming manager.
+	{
+		FScopeLock(&StreamingManager.MountedStateDirtyFilesCS);
+		FMemory::Memswap(&MountedStateDirtyFiles, &StreamingManager.MountedStateDirtyFiles, sizeof(FIoFilenameHashSet));
+		FMemory::Memswap(&bRecacheAllFiles, &StreamingManager.bRecacheAllFiles, sizeof(bool));
+	}
+
+	if (bRecacheAllFiles || MountedStateDirtyFiles.Num())
+	{
+		for (FStreamingRenderAsset& StreamingRenderAsset : StreamingManager.StreamingRenderAssets)
+		{
+			if (IsAborted()) break;
+
+			if (StreamingRenderAsset.FirstOptionalMipIndex != INDEX_NONE)
+			{
+				// If there was no valid filename, the hash will be 0, for which DoesMipDataExist() could still change.
+				if (bRecacheAllFiles || MountedStateDirtyFiles.Contains(StreamingRenderAsset.OptionalFileHash))
+				{
+					StreamingRenderAsset.OptionalMipsState = EOptionalMipsState::OMS_NotCached;
+				}
+			}
+		}
+	}
+}
+
 void FRenderAssetStreamingMipCalcTask::TryDropMaxResolutions(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget)
 {
 	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
@@ -855,14 +888,7 @@ void FRenderAssetStreamingMipCalcTask::DoWork()
 	// Update the distance and size for each bounds.
 	StreamingData.UpdateBoundSizes_Async(Settings);
 	
-	if (StreamingManager.GetAndResetNewFilesHaveLoaded())
-	{
-		for (FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
-		{
-			if (IsAborted()) break;
-			StreamingRenderAsset.ClearCachedOptionalMipsState_Async();
-		}
-	}
+	ApplyPakStateChanges_Async();
 
 	for (FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 	{

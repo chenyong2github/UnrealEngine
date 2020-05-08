@@ -22,7 +22,6 @@ void FTexture2DStreamIn_IO_AsyncReallocate::AsyncReallocate(const FContext& Cont
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FTexture2DStreamIn_IO_AsyncReallocate::AsyncReallocate"), STAT_Texture2DStreamInIOAsyncReallocate_AsyncReallocate, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Render);
 
-	SetIOFilename(Context);
 	DoAsyncReallocate(Context);
 
 	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(LockMips), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
@@ -80,4 +79,5 @@ void FTexture2DStreamIn_IO_AsyncReallocate::Cancel(const FContext& Context)
 
 	DoUnlockNewMips(Context);
 	DoFinishUpdate(Context);
+	ReportIOError(Context);
 }

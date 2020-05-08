@@ -50,6 +50,35 @@ namespace
 		return false;
 #endif
 	}
+
+	const FIoFilenameHash FALLBACK_IO_FILENAME_HASH = INVALID_IO_FILENAME_HASH - 1;
+}
+
+FIoFilenameHash MakeIoFilenameHash(const FString& Filename)
+{
+	if (!Filename.IsEmpty())
+	{
+		FString BaseFileName = FPaths::GetBaseFilename(Filename).ToLower();
+		const FIoFilenameHash Hash = FCrc::StrCrc32<TCHAR>(*BaseFileName);
+		return Hash != INVALID_IO_FILENAME_HASH ? Hash : FALLBACK_IO_FILENAME_HASH;
+	}
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
+}
+
+FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID)
+{
+	if (ChunkID.IsValid())
+	{
+		const FIoFilenameHash Hash = GetTypeHash(ChunkID);
+		return Hash != INVALID_IO_FILENAME_HASH ? Hash : FALLBACK_IO_FILENAME_HASH;
+	}
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
 }
 
 // TODO: The code in the FileTokenSystem namespace is a temporary system so that FBulkDataBase can hold
@@ -1020,8 +1049,16 @@ int64 FBulkDataBase::GetBulkDataSize() const
 {
 	if (IsUsingIODispatcher())
 	{
+		// If not available, return a size of 0 so that the high level fallbacks.
 		TIoStatusOr<uint64> Result = IoDispatcher->GetSizeForChunk(Data.ChunkID);
-		return Result.ValueOrDie(); // TODO: Consider logging errors instead of relying on ::ValueOrDie
+		if (Result.IsOk())
+		{
+			return Result.ValueOrDie();
+		}
+		else
+		{
+			return 0;
+		}
 	}
 	else
 	{
@@ -1321,6 +1358,19 @@ int64 FBulkDataBase::GetBulkDataOffsetInFile() const
 		// When using the IODispatcher the BulkData object will point directly to the correct data
 		// so we don't need to consider the offset at all.
 		return 0;
+	}
+}
+
+FIoFilenameHash FBulkDataBase::GetIoFilenameHash() const
+{
+	if (!IsUsingIODispatcher())
+	{
+		FString Filename = FileTokenSystem::GetFilename(Data.Fallback.Token);
+		return MakeIoFilenameHash(Filename);
+	}
+	else
+	{
+		return MakeIoFilenameHash(Data.ChunkID);
 	}
 }
 

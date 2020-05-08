@@ -5507,6 +5507,7 @@ int32 UStaticMesh::CalcCumulativeLODSize(int32 NumLODs) const
 	return Accum;
 }
 
+#if USE_BULKDATA_STREAMING_TOKEN
 bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
 {
 	// TODO: this is slow. Should cache the name once per mesh
@@ -5525,16 +5526,35 @@ bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataF
 	check(MipIndex < MinLOD.Default || IFileManager::Get().FileExists(*OutBulkDataFilename));
 	return true;
 }
+#endif // USE_BULKDATA_STREAMING_TOKEN
+
+FIoFilenameHash UStaticMesh::GetMipIoFilenameHash(const int32 MipIndex) const
+{
+#if USE_BULKDATA_STREAMING_TOKEN
+	FString MipFilename;
+	if (GetMipDataFilename(MipIndex, MipFilename))
+	{
+		return MakeIoFilenameHash(MipFilename);
+	}
+#else
+	if (RenderData && RenderData->LODResources.IsValidIndex(MipIndex))
+	{
+		return RenderData->LODResources[MipIndex].StreamingBulkData.GetIoFilenameHash();
+	}
+#endif
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
+}
 
 bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
 {
-	check(MipIndex < MinLOD.Default);
-
-#if !USE_BULKDATA_STREAMING_TOKEN	
-	return RenderData->LODResources[MipIndex].StreamingBulkData.DoesExist();
+#if USE_BULKDATA_STREAMING_TOKEN
+	FString MipDataFilename;
+	return GetMipDataFilename(MipIndex, MipDataFilename) && IFileManager::Get().FileExists(*MipDataFilename);
 #else
-	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
-	return false;
+	return RenderData && RenderData->LODResources.IsValidIndex(MipIndex) && RenderData->LODResources[MipIndex].StreamingBulkData.DoesExist();
 #endif
 }
 

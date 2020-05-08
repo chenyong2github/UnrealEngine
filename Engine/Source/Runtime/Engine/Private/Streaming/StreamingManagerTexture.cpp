@@ -137,7 +137,17 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FRenderAssetStreamingManager::OnPreGarbageCollect);
 
-	FCoreDelegates::OnPakFileMounted2.AddRaw(this, &FRenderAssetStreamingManager::OnPakFileMounted);
+	FCoreDelegates::OnPakFileMounted2.AddLambda([this](const IPakFile& PakFile)
+	{
+		FScopeLock ScopeLock(&MountedStateDirtyFilesCS);
+		bRecacheAllFiles = true;
+		MountedStateDirtyFiles.Empty();
+	});
+
+	FCoreDelegates::NewFileAddedDelegate.AddLambda([this](const FString& FileName)
+	{
+		MarkMountedStateDirty(MakeIoFilenameHash(FileName));
+	});
 }
 
 FRenderAssetStreamingManager::~FRenderAssetStreamingManager()
@@ -190,12 +200,13 @@ void FRenderAssetStreamingManager::OnPreGarbageCollect()
 	SetRenderAssetsRemovedTimestamp(RemovedRenderAssets);
 }
 
-
-
-void FRenderAssetStreamingManager::OnPakFileMounted(const IPakFile& PakFile)
+void FRenderAssetStreamingManager::MarkMountedStateDirty(FIoFilenameHash FilenameHash)
 {
-	// clear the cached file exists checks which failed as they may now be loaded
-	bNewFilesLoaded = true;
+	if (!bRecacheAllFiles && FilenameHash != INVALID_IO_FILENAME_HASH)
+	{
+		FScopeLock ScopeLock(&MountedStateDirtyFilesCS);
+		MountedStateDirtyFiles.Emplace(FilenameHash);
+	}
 }
 
 /**
