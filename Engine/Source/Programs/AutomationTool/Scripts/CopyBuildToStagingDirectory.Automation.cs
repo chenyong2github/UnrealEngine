@@ -2457,6 +2457,14 @@ public partial class Project : CommandUtils
 				AdditionalArgs += String.Format(" -cryptokeys={0}", CommandUtils.MakePathSafeToUseWithCommandLine(CryptoKeysCacheFilename.FullName));
 			}
 
+			if (CryptoSettings != null)
+			{
+				if (CryptoSettings.bDataCryptoRequired && CryptoSettings.bEnablePakSigning && CryptoSettings.SigningKey.IsValid())
+				{
+					AdditionalArgs += String.Format(" -sign");
+				}
+			}
+
 			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
 		}
 
