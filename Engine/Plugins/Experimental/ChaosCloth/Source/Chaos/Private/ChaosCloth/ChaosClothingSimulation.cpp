@@ -612,14 +612,14 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 			}
 			if (Attachments.Num())
 			{
-				Evolution->AddPBDConstraintFunction([AttachmentConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(Attachments), ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				Evolution->AddPBDConstraintFunction([AttachmentConstraints = Chaos::FPBDSpringConstraints(Evolution->Particles(), MoveTemp(Attachments), ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
 				{
 					AttachmentConstraints.Apply(InParticles, Dt);
 				});
 			}
 			if (DynamicSurfaceElements.Num())
 			{
-				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), DynamicSurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::FPBDSpringConstraints(Evolution->Particles(), DynamicSurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
 				{
 					SpringConstraints.Apply(InParticles, Dt);
 				});
@@ -656,7 +656,7 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 			}
 			else
 			{
-				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::FPBDSpringConstraints(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
 				{
 					SpringConstraints.Apply(InParticles, Dt);
 				});
@@ -727,7 +727,7 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 					}
 				}
 			}
-			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(DoubleBendingConstraints), ChaosClothSimConfig->VolumeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::FPBDSpringConstraints(Evolution->Particles(), MoveTemp(DoubleBendingConstraints), ChaosClothSimConfig->VolumeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
 				SpringConstraints.Apply(InParticles, Dt);
 			});
 		}
