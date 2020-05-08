@@ -94,8 +94,6 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(float, PlusWeights, [5])
 
 		SHADER_PARAMETER(FVector4, InputSceneColorSize)
-		SHADER_PARAMETER(FIntPoint, InputMinPixelCoord)
-		SHADER_PARAMETER(FIntPoint, InputMaxPixelCoord)
 		SHADER_PARAMETER(FVector4, OutputViewportSize)
 		SHADER_PARAMETER(FVector4, OutputViewportRect)
 
@@ -532,8 +530,6 @@ FTAAOutputs AddTemporalAAPass(
 				InputExtent.Y,
 				1.0f / float(InputExtent.X),
 				1.0f / float(InputExtent.Y));
-			PassParameters->InputMinPixelCoord = PracticableSrcRect.Min;
-			PassParameters->InputMaxPixelCoord = PracticableSrcRect.Max - FIntPoint(1, 1);
 			PassParameters->InputSceneColor = Inputs.SceneColorInput;
 			PassParameters->InputSceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
 			PassParameters->InputSceneMetadata = Inputs.SceneMetadataInput;
