@@ -63,6 +63,23 @@ namespace UnrealBuildTool.Rules
             {
                 PrivateDependencyModuleNames.Add("Navmesh");
                 PublicDefinitions.Add("WITH_RECAST=1");
+                if (Target.bCompileNavmeshSegmentLinks)
+                {
+                    PublicDefinitions.Add("WITH_NAVMESH_SEGMENT_LINKS=1");
+                }
+                else
+                {
+                    PublicDefinitions.Add("WITH_NAVMESH_SEGMENT_LINKS=0");
+                }
+
+                if (Target.bCompileNavmeshClusterLinks)
+                {
+                    PublicDefinitions.Add("WITH_NAVMESH_CLUSTER_LINKS=1");
+                }
+                else
+                {
+                    PublicDefinitions.Add("WITH_NAVMESH_CLUSTER_LINKS=0");
+                }
             }
             else
             {
@@ -70,6 +87,8 @@ namespace UnrealBuildTool.Rules
                 // that import us also have this definition set appropriately.  Recast is a private dependency
                 // module, so it's definitions won't propagate to modules that import Engine.
                 PublicDefinitions.Add("WITH_RECAST=0");
+                PublicDefinitions.Add("WITH_NAVMESH_CLUSTER_LINKS=0");
+                PublicDefinitions.Add("WITH_NAVMESH_SEGMENT_LINKS=0");
             }
 
             if (Target.bBuildEditor == true)

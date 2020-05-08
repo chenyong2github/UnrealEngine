@@ -44,8 +44,15 @@ NAVMESH_API void duDebugDrawNavMeshBVTree(struct duDebugDraw* dd, const dtNavMes
 NAVMESH_API void duDebugDrawNavMeshPortals(struct duDebugDraw* dd, const dtNavMesh& mesh);
 NAVMESH_API void duDebugDrawNavMeshPolysWithFlags(struct duDebugDraw* dd, const dtNavMesh& mesh, const unsigned short polyFlags, const unsigned int col);
 NAVMESH_API void duDebugDrawNavMeshPoly(struct duDebugDraw* dd, const dtNavMesh& mesh, dtPolyRef ref, const unsigned int col);
+
+//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 NAVMESH_API void duDebugDrawNavMeshClusters(struct duDebugDraw* dd, const dtNavMesh& mesh);
 NAVMESH_API void duDebugDrawNavMeshCluster(struct duDebugDraw* dd, const dtNavMesh& mesh, dtClusterRef ref, const unsigned int col);
+
+NAVMESH_API void duDebugDrawTileCacheClusters(duDebugDraw* dd, const struct dtTileCacheClusterSet& lclusters);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+//@UE4 END
 
 NAVMESH_API void duDebugDrawTileCacheLayerAreas(struct duDebugDraw* dd, const dtTileCacheLayer& layer, const float cs, const float ch);
 NAVMESH_API void duDebugDrawTileCacheLayerDistance(struct duDebugDraw* dd, const dtTileCacheLayer& layer,
@@ -53,7 +60,6 @@ NAVMESH_API void duDebugDrawTileCacheLayerDistance(struct duDebugDraw* dd, const
 NAVMESH_API void duDebugDrawTileCacheLayerRegions(struct duDebugDraw* dd, const dtTileCacheLayer& layer, const float cs, const float ch);
 NAVMESH_API void duDebugDrawTileCacheContours(duDebugDraw* dd, const struct dtTileCacheContourSet& lcset,
 								  const float* orig, const float cs, const float ch);
-NAVMESH_API void duDebugDrawTileCacheClusters(duDebugDraw* dd, const struct dtTileCacheClusterSet& lclusters);
 NAVMESH_API void duDebugDrawTileCachePolyMesh(duDebugDraw* dd, const struct dtTileCachePolyMesh& lmesh,
 								  const float* orig, const float cs, const float ch);
 NAVMESH_API void duDebugDrawTileCacheDetailMesh(duDebugDraw* dd, const struct dtTileCachePolyMeshDetail& dmesh);

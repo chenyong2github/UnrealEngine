@@ -544,6 +544,18 @@ namespace UnrealBuildTool
 		public bool bCompileRecast = true;
 
 		/// <summary>
+		/// Whether to compile with navmesh segment links.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileNavmeshSegmentLinks = true;
+
+		/// <summary>
+		/// Whether to compile with navmesh cluster links.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileNavmeshClusterLinks = true;
+
+		/// <summary>
 		/// Whether to compile SpeedTree support.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bCompileSpeedTree")]
@@ -2080,6 +2092,16 @@ namespace UnrealBuildTool
 		public bool bCompileRecast
 		{
 			get { return Inner.bCompileRecast; }
+		}
+
+		public bool bCompileNavmeshSegmentLinks
+		{
+			get { return Inner.bCompileNavmeshSegmentLinks; }
+		}
+
+		public bool bCompileNavmeshClusterLinks
+		{
+			get { return Inner.bCompileNavmeshClusterLinks; }
 		}
 
 		public bool bCompileSpeedTree
