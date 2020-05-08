@@ -226,13 +226,19 @@ void SRetainerWidget::OnRetainerModeChanged()
 		InvalidateChildRemovedFromTree(*MyWidget.Get());
 	}
 
+	// Invalidate myself
+	Advanced_ResetInvalidation(true);
+
+	// Invalidate my invalidation root, since all my children were once it's children
+	// it needs to force a generation bump just like me.
+	if (FSlateInvalidationRoot* MyInvalidationRoot = GetProxyHandle().GetInvalidationRoot())
+	{
+		MyInvalidationRoot->Advanced_ResetInvalidation(true);
+	}
+
 	RefreshRenderingMode();
 
-	// Invalidate myself 
-	InvalidateRoot();
-
-	// Nested invalidation: Invalidate whatever invalidation root I am in.
-	Invalidate(EInvalidateWidget::ChildOrder);
+	bRenderRequested = true;
 }
 
 void SRetainerWidget::OnGlobalInvalidate(bool bClearResourcesImmediately)
