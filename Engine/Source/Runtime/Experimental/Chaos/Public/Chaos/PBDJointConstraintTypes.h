@@ -108,6 +108,9 @@ namespace Chaos
 		FReal AngularProjection;
 		FReal ParentInvMassScale;
 
+		bool bProjectionEnabled;
+		bool bSoftProjectionEnabled;
+
 		TVector<EJointMotionType, 3> LinearMotionTypes;
 		FReal LinearLimit;
 
@@ -167,13 +170,6 @@ namespace Chaos
 		// Stability control
 		FReal MinParentMassRatio;
 		FReal MaxInertiaRatio;
-
-		// Angular stiffness
-		FReal AngularConstraintPositionCorrection;
-
-		// Projection settings
-		FReal ProjectionInvMassScale;
-		FReal VelProjectionInvMassScale;
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
 		bool bEnableTwistLimits;

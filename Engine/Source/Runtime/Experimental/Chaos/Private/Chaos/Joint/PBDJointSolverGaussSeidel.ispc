@@ -54,9 +54,6 @@ struct FJointSolverGaussSeidel
 	// Tolerances below which we stop solving
 	float PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 	float AngleTolerance;						// Angle error below which we consider a constraint or drive solved
-
-	float ProjectionInvMassScale;
-	float VelProjectionInvMassScale;
 };
 
 export uniform int32 SizeofFJointSolverGaussSeidel()
@@ -423,69 +420,6 @@ export void ApplyPointPositionConstraintDD(
 	ApplyRotationDelta(M, LinearStiffness, DR0, DR1);
 
 	M->NetLinearImpulse = M->NetLinearImpulse + LinearStiffness * DX;
-}
-
-export void ApplyPointPositionProjection(
-	uniform FJointSolverGaussSeidel * uniform M,
-	const uniform FVector &CX,
-	const uniform float LinearProjection)
-{
-	// Apply a position correction with the parent body set to infinite mass
-	{
-		const uniform float InvM0 = M->InvMs[0] * M->ProjectionInvMassScale;
-		const uniform FMatrix33 InvI0 = Multiply(M->InvIs[0], M->ProjectionInvMassScale);
-
-		uniform FMatrix33 J = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]);
-		const uniform FMatrix33 IJ = MatrixInverse(J);
-		const uniform FVector DX = Multiply(IJ, CX);
-		const uniform FVector NDX = VectorNegate(DX);
-		const uniform FVector DP1 = M->InvMs[1] * NDX;
-		const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], NDX));
-		ApplyDelta(M, 1, LinearProjection, DP1, DR1);
-	}
-
-	// Final position correction to fix errors from rotation in above
-	{
-		const uniform FVector NCX2 = VectorNegate(M->Xs[1] - M->Xs[0]);
-		ApplyPositionDelta(M, 1, LinearProjection, NCX2);
-	}
-
-	// Apply a velocity correction to set the relative velocity at the joint to zero
-	{
-		const uniform float InvM0 = M->VelProjectionInvMassScale * M->InvMs[0];
-		const uniform FMatrix33 InvI0 = Multiply(M->InvIs[0], M->VelProjectionInvMassScale);
-
-		// Calculate joint-space mass
-		uniform FMatrix33 J = SetMatrix33(0, 0, 0);
-		if (InvM0 > SMALL_NUMBER)
-		{
-			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], InvI0, InvM0));
-		}
-		if (M->InvMs[1] > SMALL_NUMBER)
-		{
-			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]));
-		}
-		const uniform FMatrix33 IJ = MatrixInverse(J);
-
-		// Velocity correction
-		const uniform FVector V0 = M->Vs[0] + VectorCross(M->Ws[0], M->Xs[0] - M->Ps[0]);
-		const uniform FVector V1 = M->Vs[1] + VectorCross(M->Ws[1], M->Xs[1] - M->Ps[1]);
-		const uniform FVector DV = Multiply(IJ, V1 - V0);
-
-		if (InvM0 > SMALL_NUMBER)
-		{
-			const uniform FVector DV0 = InvM0 * DV;
-			const uniform FVector DW0 = Multiply(InvI0, VectorCross(M->Xs[0] - M->Ps[0], DV));
-			ApplyVelocityDelta(M, 0, LinearProjection, DV0, DW0);
-		}
-		if (M->InvMs[1] > SMALL_NUMBER)
-		{
-			const uniform FVector DV1 = M->InvMs[1] * VectorNegate(DV);
-			const uniform FVector DW1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DV)));
-			ApplyVelocityDelta(M, 1, LinearProjection, DV1, DW1);
-		}
-	}
-
 }
 
 //
