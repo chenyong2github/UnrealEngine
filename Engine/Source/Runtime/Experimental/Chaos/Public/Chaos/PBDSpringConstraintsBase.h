@@ -2,8 +2,9 @@
 #pragma once
 
 #include "Chaos/Array.h"
-#include "Chaos/PBDParticles.h"
 #include "Chaos/Utilities.h"
+#include "Chaos/RigidParticles.h"
+#include "Chaos/DynamicParticles.h"
 
 #include "Templates/EnableIf.h"
 
