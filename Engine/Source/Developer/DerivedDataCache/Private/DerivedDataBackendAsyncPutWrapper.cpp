@@ -57,7 +57,7 @@ public:
 			InnerBackend->PutCachedData(*CacheKey, Data, false);
 			if (!InnerBackend->CachedDataProbablyExists(*CacheKey))
 			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Put failed, keeping in memory copy %s."),*InnerBackend->GetName(), *CacheKey);
+				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Put failed, keeping in memory copy %s."),*InnerBackend->GetName(), *CacheKey);
 				bOk = false;
 			}
 		}
