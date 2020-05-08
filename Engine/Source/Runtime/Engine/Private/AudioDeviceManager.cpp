@@ -488,6 +488,11 @@ void FAudioDeviceManager::UnregisterWorld(UWorld* InWorld, Audio::FDeviceId Devi
 			DeviceContainer->WorldsUsingThisDevice.Remove(InWorld);
 			FAudioDeviceWorldDelegates::OnWorldUnregisteredWithAudioDevice.Broadcast(InWorld, DeviceId);
 		}
+
+		if (MainAudioDeviceHandle.World.Get() == InWorld)
+		{
+			MainAudioDeviceHandle.World.Reset();
+		}
 	}
 }
 
@@ -1460,7 +1465,7 @@ FAudioDeviceHandle::~FAudioDeviceHandle()
 		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
 		if (ensure(AudioDeviceManager))
 		{
-			AudioDeviceManager->DecrementDevice(DeviceId, World);
+			AudioDeviceManager->DecrementDevice(DeviceId, World.Get());
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
 			check(StackWalkID != INDEX_NONE);
@@ -1475,7 +1480,7 @@ FAudioDevice* FAudioDeviceHandle::GetAudioDevice() const
 	return Device;
 }
 
-UWorld* FAudioDeviceHandle::GetWorld() const
+TWeakObjectPtr<UWorld> FAudioDeviceHandle::GetWorld() const
 {
 	return World;
 }
@@ -1499,7 +1504,7 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Othe
 {
 	const bool bWasValid = IsValid();
 	const Audio::FDeviceId OldDeviceId = DeviceId;
-	UWorld* OldWorld = World;
+	UWorld* OldWorld = World.Get();
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
 	const uint32 OldStackWalkID = StackWalkID;
@@ -1542,7 +1547,7 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 
 	const bool bWasValid = IsValid();
 	const Audio::FDeviceId OldDeviceId = DeviceId;
-	UWorld* OldWorld = World;
+	UWorld* OldWorld = World.Get();
 
 	Device = Other.Device;
 	DeviceId = Other.DeviceId;
@@ -1576,7 +1581,7 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 
 	Other.Device = nullptr;
 	Other.DeviceId = INDEX_NONE;
-	Other.World = nullptr;
+	Other.World.Reset();
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
 	Other.StackWalkID = INDEX_NONE;
