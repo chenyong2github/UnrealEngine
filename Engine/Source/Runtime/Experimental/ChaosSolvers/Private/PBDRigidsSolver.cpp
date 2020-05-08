@@ -127,6 +127,7 @@ namespace Chaos
 				const float MaxDeltaTime = MSolver->GetMaxDeltaTime();
 				int32 StepsRemaining = MSolver->GetMaxSubSteps();
 				float TimeRemaining = MDeltaTime;
+				bool bFirstStep = true;
 				while (StepsRemaining > 0 && TimeRemaining > MinDeltaTime)
 				{
 					--StepsRemaining;
@@ -147,7 +148,14 @@ namespace Chaos
 						Obj->ParameterUpdateCallback(MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles(), MSolver->GetSolverTime());
 					}
 
+					if(FRewindData* RewindData = MSolver->GetRewindData())
+					{
+						//todo: make this work with sub-stepping
+						MSolver->GetEvolution()->SetCurrentStepResimCache(bFirstStep ? RewindData->GetCurrentStepResimCache() : nullptr);
+					}
+
 					MSolver->GetEvolution()->AdvanceOneTimeStep(DeltaTime);
+					bFirstStep = false;
 				}
 
 #if CHAOS_CHECKED
