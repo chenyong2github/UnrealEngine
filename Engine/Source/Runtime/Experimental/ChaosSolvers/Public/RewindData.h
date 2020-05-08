@@ -864,6 +864,11 @@ public:
 		return EFutureQueryResult::Untracked;
 	}
 
+	IResimCacheBase* GetCurrentStepResimCache() const
+	{
+		return Managers[CurFrame].ExternalResimCache.Get();
+	}
+
 	template <typename CreateCache>
 	void AdvanceFrame(FReal DeltaTime, const CreateCache& CreateCacheFunc)
 	{

@@ -308,7 +308,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 		CollisionStats::FStatData StatData(bPendingHierarchyDump);
 
-		CollisionDetector.DetectCollisionsWithStats(Dt, StatData);
+		CollisionDetector.DetectCollisionsWithStats(Dt, StatData, GetCurrentStepResimCache());
 
 		CHAOS_COLLISION_STAT(StatData.Print());
 	}
@@ -459,6 +459,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 	, PreApplyCallback(nullptr)
 	, PostApplyCallback(nullptr)
 	, PostApplyPushOutCallback(nullptr)
+	, CurrentStepResimCacheImp(nullptr)
 {
 	SetParticleUpdateVelocityFunction([PBDUpdateRule = TPerParticlePBDUpdateFromDeltaPosition<float, 3>(), this](const TArray<TGeometryParticleHandle<FReal, 3>*>& ParticlesInput, const FReal Dt) {
 		ParticlesParallelFor(ParticlesInput, [&](auto& Particle, int32 Index) {
@@ -502,6 +503,13 @@ TUniquePtr<IResimCacheBase> TPBDRigidsEvolutionGBF<Traits>::CreateExternalResimC
 {
 	check(Traits::IsRewindable());
 	return TUniquePtr<IResimCacheBase>(new FEvolutionResimCache());
+}
+
+template <typename Traits>
+void TPBDRigidsEvolutionGBF<Traits>::SetCurrentStepResimCache(IResimCacheBase* InCurrentStepResimCache)
+{
+	check(Traits::IsRewindable());
+	CurrentStepResimCacheImp = static_cast<FEvolutionResimCache*>(InCurrentStepResimCache);
 }
 
 #define EVOLUTION_TRAIT(Trait) template class TPBDRigidsEvolutionGBF<Trait>;

@@ -19,6 +19,7 @@ namespace Chaos
 {
 	class FChaosArchive;
 	class IResimCacheBase;
+	class FEvolutionResimCache;
 
 	CHAOS_API extern float HackMaxAngularVelocity;
 	CHAOS_API extern float HackMaxVelocity;
@@ -238,10 +239,16 @@ namespace Chaos
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
 		CHAOS_API TUniquePtr<IResimCacheBase> CreateExternalResimCache() const;
+		CHAOS_API void SetCurrentStepResimCache(IResimCacheBase* InCurrentStepResimCache);
 
 	protected:
 
 		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FReal StepFraction);
+		
+		FEvolutionResimCache* GetCurrentStepResimCache()
+		{
+			return Traits::IsRewindable() ? CurrentStepResimCacheImp : nullptr; //(ternary is here to be able to compile out code that relies on cache data)
+		}
 
 		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3> Clustering;
 
@@ -259,6 +266,7 @@ namespace Chaos
 		FPBDRigidsEvolutionIslandCallback PostApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
+		FEvolutionResimCache* CurrentStepResimCacheImp;
 	};
 
 #define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsEvolutionGBF<Trait>;
