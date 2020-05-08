@@ -13,6 +13,8 @@
 #include "MetalLLM.h"
 #include <objc/runtime.h>
 
+#if PLATFORM_MAC
+
 #if STATS
 #define METAL_INC_DWORD_STAT_BY(Type, Name, Size) \
 	switch(Type)	{ \
@@ -74,23 +76,6 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalBufferData)
 	[super dealloc];
 }
 @end
-
-
-FMetalVertexBuffer::FMetalVertexBuffer(uint32 InSize, uint32 InUsage)
-	: FRHIVertexBuffer(InSize, InUsage)
-	, FMetalRHIBuffer(InSize, InUsage|EMetalBufferUsage_LinearTex, RRT_VertexBuffer)
-{
-}
-
-FMetalVertexBuffer::~FMetalVertexBuffer()
-{
-}
-
-void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
-{
-	FRHIVertexBuffer::Swap(Other);
-	FMetalRHIBuffer::Swap(Other);
-}
 
 void FMetalRHIBuffer::Swap(FMetalRHIBuffer& Other)
 {
@@ -582,100 +567,7 @@ void FMetalRHIBuffer::Unlock()
 	}
 	LockSize = 0;
 	LockOffset = 0;
-}
-
-FVertexBufferRHIRef FMetalDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
-{
-	@autoreleasepool {
-	if (CreateInfo.bWithoutNativeResource)
-	{
-		return new FMetalVertexBuffer(0, 0);
-	}
-	
-	// make the RHI object, which will allocate memory
-	FMetalVertexBuffer* VertexBuffer = new FMetalVertexBuffer(Size, InUsage);
-
-	if (CreateInfo.ResourceArray)
-	{
-		check(Size >= CreateInfo.ResourceArray->GetResourceDataSize());
-
-		// make a buffer usable by CPU
-		void* Buffer = ::RHILockVertexBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
-		
-		// copy the contents of the given data into the buffer
-		FMemory::Memcpy(Buffer, CreateInfo.ResourceArray->GetResourceData(), Size);
-		
-		::RHIUnlockVertexBuffer(VertexBuffer);
-
-		// Discard the resource array's contents.
-		CreateInfo.ResourceArray->Discard();
-	}
-	else if (VertexBuffer->Mode == mtlpp::StorageMode::Private)
-	{
-		check (!VertexBuffer->CPUBuffer);
-
-		if (GMetalBufferZeroFill && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences))
-		{
-			GetMetalDeviceContext().FillBuffer(VertexBuffer->Buffer, ns::Range(0, VertexBuffer->Buffer.GetLength()), 0);
-		}
-	}
-#if PLATFORM_MAC
-	else if (GMetalBufferZeroFill && VertexBuffer->Mode == mtlpp::StorageMode::Managed)
-	{
-		MTLPP_VALIDATE(mtlpp::Buffer, VertexBuffer->Buffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, VertexBuffer->Buffer.GetLength())));
-	}
-#endif
-
-	return VertexBuffer;
-	}
-}
-
-void* FMetalDynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
-{
-	@autoreleasepool {
-	FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
-
-	// default to vertex buffer memory
-	return (uint8*)VertexBuffer->Lock(true, LockMode, Offset, Size);
-	}
-}
-
-void FMetalDynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI)
-{
-	@autoreleasepool {
-	FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
-
-	VertexBuffer->Unlock();
-	}
-}
-
-void FMetalDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIVertexBuffer* DestBufferRHI)
-{
-	@autoreleasepool {
-		FMetalVertexBuffer* SrcVertexBuffer = ResourceCast(SourceBufferRHI);
-		FMetalVertexBuffer* DstVertexBuffer = ResourceCast(DestBufferRHI);
-	
-		if (SrcVertexBuffer->Buffer && DstVertexBuffer->Buffer)
-		{
-			GetMetalDeviceContext().CopyFromBufferToBuffer(SrcVertexBuffer->Buffer, 0, DstVertexBuffer->Buffer, 0, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
-		}
-		else if (DstVertexBuffer->Buffer)
-		{
-			FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), SrcVertexBuffer->GetSize(), BUF_Dynamic, mtlpp::StorageMode::Shared);
-			FMetalBuffer TempBuffer = GetMetalDeviceContext().CreatePooledBuffer(ArgsCPU);
-			FMemory::Memcpy(TempBuffer.GetContents(), SrcVertexBuffer->Data->Data, SrcVertexBuffer->GetSize());
-			GetMetalDeviceContext().CopyFromBufferToBuffer(TempBuffer, 0, DstVertexBuffer->Buffer, 0, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
-			SafeReleaseMetalBuffer(TempBuffer);
-		}
-		else
-		{
-			void const* SrcData = SrcVertexBuffer->Lock(true, RLM_ReadOnly, 0);
-			void* DstData = DstVertexBuffer->Lock(true, RLM_WriteOnly, 0);
-			FMemory::Memcpy(DstData, SrcData, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
-			SrcVertexBuffer->Unlock();
-			DstVertexBuffer->Unlock();
-		}
-	}
+	LastUpdate = GFrameNumberRenderThread;
 }
 
 struct FMetalRHICommandInitialiseBuffer : public FRHICommand<FMetalRHICommandInitialiseBuffer>
@@ -775,6 +667,118 @@ void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, ui
 			MTLPP_VALIDATE(mtlpp::Buffer, Buffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, Buffer.GetLength())));
 		}
 #endif
+	}
+}
+
+#endif // PLATFORM_MAC
+
+FMetalVertexBuffer::FMetalVertexBuffer(uint32 InSize, uint32 InUsage)
+	: FRHIVertexBuffer(InSize, InUsage)
+	, FMetalRHIBuffer(InSize, InUsage|EMetalBufferUsage_LinearTex, RRT_VertexBuffer)
+{
+}
+
+FMetalVertexBuffer::~FMetalVertexBuffer()
+{
+}
+
+void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
+{
+	FRHIVertexBuffer::Swap(Other);
+	FMetalRHIBuffer::Swap(Other);
+}
+
+FVertexBufferRHIRef FMetalDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+{
+	@autoreleasepool {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FMetalVertexBuffer(0, 0);
+	}
+	
+	// make the RHI object, which will allocate memory
+	FMetalVertexBuffer* VertexBuffer = new FMetalVertexBuffer(Size, InUsage);
+
+	if (CreateInfo.ResourceArray)
+	{
+		check(Size >= CreateInfo.ResourceArray->GetResourceDataSize());
+
+		// make a buffer usable by CPU
+		void* Buffer = ::RHILockVertexBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
+		
+		// copy the contents of the given data into the buffer
+		FMemory::Memcpy(Buffer, CreateInfo.ResourceArray->GetResourceData(), Size);
+		
+		::RHIUnlockVertexBuffer(VertexBuffer);
+
+		// Discard the resource array's contents.
+		CreateInfo.ResourceArray->Discard();
+	}
+	else if (VertexBuffer->Mode == mtlpp::StorageMode::Private)
+	{
+		check (!VertexBuffer->CPUBuffer);
+
+		if (GMetalBufferZeroFill && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences))
+		{
+			GetMetalDeviceContext().FillBuffer(VertexBuffer->Buffer, ns::Range(0, VertexBuffer->Buffer.GetLength()), 0);
+		}
+	}
+#if PLATFORM_MAC
+	else if (GMetalBufferZeroFill && VertexBuffer->Mode == mtlpp::StorageMode::Managed)
+	{
+		MTLPP_VALIDATE(mtlpp::Buffer, VertexBuffer->Buffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, VertexBuffer->Buffer.GetLength())));
+	}
+#endif
+
+	return VertexBuffer;
+	}
+}
+
+void* FMetalDynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+{
+	@autoreleasepool {
+	FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+
+	// default to vertex buffer memory
+	return (uint8*)VertexBuffer->Lock(true, LockMode, Offset, Size);
+	}
+}
+
+void FMetalDynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI)
+{
+	@autoreleasepool {
+	FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+
+	VertexBuffer->Unlock();
+	}
+}
+
+void FMetalDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIVertexBuffer* DestBufferRHI)
+{
+	@autoreleasepool {
+		FMetalVertexBuffer* SrcVertexBuffer = ResourceCast(SourceBufferRHI);
+		FMetalVertexBuffer* DstVertexBuffer = ResourceCast(DestBufferRHI);
+	
+		if (SrcVertexBuffer->Buffer && DstVertexBuffer->Buffer)
+		{
+			GetMetalDeviceContext().CopyFromBufferToBuffer(SrcVertexBuffer->Buffer, 0, DstVertexBuffer->Buffer, 0, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
+		}
+		else if (DstVertexBuffer->Buffer)
+		{
+			FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), SrcVertexBuffer->GetSize(), BUF_Dynamic, mtlpp::StorageMode::Shared);
+			FMetalBuffer TempBuffer = GetMetalDeviceContext().CreatePooledBuffer(ArgsCPU);
+			FMemory::Memcpy(TempBuffer.GetContents(), SrcVertexBuffer->Data->Data, SrcVertexBuffer->GetSize());
+			GetMetalDeviceContext().CopyFromBufferToBuffer(TempBuffer, 0, DstVertexBuffer->Buffer, 0, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
+			SafeReleaseMetalBuffer(TempBuffer);
+		}
+		else
+		{
+			void const* SrcData = SrcVertexBuffer->Lock(true, RLM_ReadOnly, 0);
+			void* DstData = DstVertexBuffer->Lock(true, RLM_WriteOnly, 0);
+			FMemory::Memcpy(DstData, SrcData, FMath::Min(SrcVertexBuffer->GetSize(), DstVertexBuffer->GetSize()));
+			SrcVertexBuffer->Unlock();
+			DstVertexBuffer->Unlock();
+		}
 	}
 }
 
