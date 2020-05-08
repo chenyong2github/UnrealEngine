@@ -261,7 +261,7 @@ namespace Chaos
 
 		// Twist projection
 		const bool bTwistSoft = FPBDJointUtilities::GetSoftTwistLimitEnabled(SolverSettings, JointSettings);
-		const bool bTwistProjectionEnabled = SolverSettings.bEnableTwistLimits && (bTwistSoft && JointSettings.bSoftProjectionEnabled) || (!bTwistSoft && JointSettings.bProjectionEnabled);
+		const bool bTwistProjectionEnabled = SolverSettings.bEnableTwistLimits && ((bTwistSoft && JointSettings.bSoftProjectionEnabled) || (!bTwistSoft && JointSettings.bProjectionEnabled));
 		if (bTwistProjectionEnabled && (AngularProjection > 0.0f))
 		{
 			const EJointMotionType TwistMotion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
@@ -273,7 +273,7 @@ namespace Chaos
 
 		// Swing projection
 		const bool bSwingSoft = FPBDJointUtilities::GetSoftSwingLimitEnabled(SolverSettings, JointSettings);
-		const bool bSwingProjectionEnabled = SolverSettings.bEnableSwingLimits && (bSwingSoft && JointSettings.bSoftProjectionEnabled) || (!bSwingSoft && JointSettings.bProjectionEnabled);
+		const bool bSwingProjectionEnabled = SolverSettings.bEnableSwingLimits && ((bSwingSoft && JointSettings.bSoftProjectionEnabled) || (!bSwingSoft && JointSettings.bProjectionEnabled));
 		if (bSwingProjectionEnabled && (AngularProjection > 0.0f))
 		{
 			const EJointMotionType Swing1Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
