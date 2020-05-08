@@ -76,7 +76,7 @@
 const FText DatasmithConsumerLabel( LOCTEXT( "DatasmithConsumerLabel", "Datasmith writer" ) );
 const FText DatasmithConsumerDescription( LOCTEXT( "DatasmithConsumerDesc", "Writes data prep world's current level and assets to current level" ) );
 
-constexpr TCHAR* DatasmithSceneSuffix = TEXT("_Scene");
+const TCHAR* DatasmithSceneSuffix = TEXT("_Scene");
 
 namespace DatasmithConsumerUtils
 {
