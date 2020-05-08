@@ -9,6 +9,7 @@
 #include "Engine/Texture.h"
 #include "TextureResource.h"
 #include "RenderAssetUpdate.h"
+#include "Serialization/BulkData2.h"
 #include "Texture2D.generated.h"
 
 class FTexture2DResourceMem;
