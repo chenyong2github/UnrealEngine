@@ -11,7 +11,11 @@
 #include "ISourceControlModule.h"
 #include "SourceControlWindows.h"
 #include "Framework/Commands/Commands.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "EditorStyleSet.h"
 #include "FileHelpers.h"
 
