@@ -601,7 +601,7 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 				// Override the movie scene's playback range
 				Actor->SequencePlayer->SetFrameRate(Settings.GetFrameRate());
 				Actor->SequencePlayer->SetFrameRange(PlaybackStartFrame.Value, (PlaybackEndFrame - PlaybackStartFrame).Value);
-				Actor->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(PlaybackStartFrame.Value, EUpdatePositionMethod::Jump));
+				Actor->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(FFrameTime(PlaybackStartFrame), EUpdatePositionMethod::Jump));
 
 				Actor->SequencePlayer->SetSnapshotOffsetFrames(WarmUpFrameCount);
 			}
