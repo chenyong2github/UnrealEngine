@@ -49,10 +49,10 @@ public:
 		return -1;
 	}
 
-	virtual bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
+	virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const
 	{
-		STREAMABLERENDERASSET_NODEFAULT(GetMipDataFilename);
-		return false;
+		STREAMABLERENDERASSET_NODEFAULT(GetMipIoFilenameHash);
+		return INVALID_IO_FILENAME_HASH;
 	}
 
 	virtual bool DoesMipDataExist(const int32 MipIndex) const

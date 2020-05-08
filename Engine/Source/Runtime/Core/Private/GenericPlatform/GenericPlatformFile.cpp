@@ -391,6 +391,7 @@ void FGenericReadRequest::PerformRequest()
 			bMemoryHasBeenAcquired = true;
 		}
 		IFileHandle* Handle = Owner->GetHandle();
+		bCanceled = (Handle == nullptr);
 		if (Handle)
 		{
 			if (BytesToRead == MAX_int64)

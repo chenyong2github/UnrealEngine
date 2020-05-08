@@ -13,6 +13,14 @@ class IMappedFileHandle;
 class IMappedFileRegion;
 class FBulkDataBase;
 
+/** A loose hash value that can be created from either a filenames or a FIoChunkId */
+using FIoFilenameHash = uint32;
+const FIoFilenameHash INVALID_IO_FILENAME_HASH = 0;
+/** Helpers to create the hash from a filename. Returns IOFILENAMEHASH_NONE if and only if the filename is empty. */
+COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FString& Filename);
+/** Helpers to create the hash from a chunk id. Returns IOFILENAMEHASH_NONE if and only if the chunk id is invalid. */
+COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID);
+
 /**
  * Represents an IO request from the BulkData streaming API.
  *
@@ -209,7 +217,16 @@ public:
 
 	// Added for compatibility with the older BulkData system
 	int64 GetBulkDataOffsetInFile() const;
+
 	FString GetFilename() const;
+
+	/** 
+	 * Returns the io filename hash associated with this bulk data.
+	 *
+	 * @return Hash or INVALID_IO_FILENAME_HASH if invalid.
+	 **/
+	FIoFilenameHash GetIoFilenameHash() const;
+
 
 public:
 	// The following methods are for compatibility with SoundWave.cpp which assumes memory mapping.

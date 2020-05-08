@@ -499,6 +499,13 @@ public:
 	 **/
 	const FString& GetFilename() const { return Filename; }
 
+	/** 
+	 * Returns the io filename hash associated with this bulk data.
+	 *
+	 * @return Hash or INVALID_IO_FILENAME_HASH if invalid.
+	 **/
+	FIoFilenameHash GetIoFilenameHash() const { return MakeIoFilenameHash(Filename); }
+
 	/*-----------------------------------------------------------------------------
 		Data retrieval and manipulation.
 	-----------------------------------------------------------------------------*/
