@@ -113,6 +113,8 @@
 #include "StudioAnalytics.h"
 #include "UObject/SoftObjectPath.h"
 #include "IAssetViewport.h"
+#include "IPIEAuthorizer.h"
+#include "Features/IModularFeatures.h"
 
 DEFINE_LOG_CATEGORY(LogPlayLevel);
 
@@ -2353,6 +2355,20 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	{
 		CancelRequestPlaySession();
 		return;
+	}
+
+	TArray<IPIEAuthorizer*> PlayAuthorizers = IModularFeatures::Get().GetModularFeatureImplementations<IPIEAuthorizer>(IPIEAuthorizer::GetModularFeatureName());
+	for (const IPIEAuthorizer* Authority : PlayAuthorizers)
+	{
+		FString DeniedReason;
+		if (!Authority->RequestPIEPermission(InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor, DeniedReason))
+		{
+			// In case the authorizer didn't notify the user as to why this was blocked.
+			UE_LOG(LogPlayLevel, Warning, TEXT("Play-In-Editor canceled by plugin: %s"), *DeniedReason);
+
+			CancelRequestPlaySession();
+			return;
+		}
 	}
 
 	// Make sure there's no outstanding load requests
