@@ -104,10 +104,21 @@ public:
 	void GetWorldBBoxSize(FVectorVMContext& Context);
 	void GetCellSize(FVectorVMContext& Context);
 
+	static const FString NumTilesName;
+
+	static const FString GridName;
+	static const FString OutputGridName;
+	static const FString SamplerName;
+
+	static const FName SetValueFunctionName;
+	static const FName GetValueFunctionName;
+	static const FName SampleGridFunctionName;
+
 protected:
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	//~ UNiagaraDataInterface interface END
 
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_GameThread*> SystemInstancesToProxyData_GT;
+	
 };
