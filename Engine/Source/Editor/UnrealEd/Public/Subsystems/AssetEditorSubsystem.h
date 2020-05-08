@@ -15,6 +15,8 @@
 #include "Containers/Ticker.h"
 #include "AssetEditorSubsystem.generated.h"
 
+class UAssetEditor;
+
 
 /**
  * This class keeps track of a currently open asset editor; allowing it to be
@@ -137,6 +139,9 @@ public:
 	/** Request notification to restore the assets that were previously open when the editor was last closed */
 	void RequestRestorePreviouslyOpenAssets();
 
+	void RegisterUAssetEditor(UAssetEditor* NewAssetEditor);
+	void UnregisterUAssetEditor(UAssetEditor* RemovedAssetEditor);
+
 private:
 
 	/** Handles FAssetEditorRequestOpenAsset messages. */
@@ -228,5 +233,8 @@ private:
 
 	/** A pointer to the notification used by RestorePreviouslyOpenAssets */
 	TWeakPtr<SNotificationItem> RestorePreviouslyOpenAssetsNotificationPtr;
+
+	UPROPERTY(Transient)
+	TArray<UAssetEditor*> OwnedAssetEditors;
 
 };
