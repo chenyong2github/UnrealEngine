@@ -12,6 +12,7 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Streaming/TextureStreamingHelpers.h"
+#include "ContentStreaming.h"
 
 
 FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest)
