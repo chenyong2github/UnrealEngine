@@ -76,7 +76,7 @@ void FMacGraphicsSwitchingModule::Initialize( TSharedPtr<SWindow> InRootWindow, 
 			
 			FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 			LevelEditorModule.GetNotificationBarExtensibilityManager()->AddExtender( NotificationBarExtender );
-			LevelEditorModule.BroadcastNotificationBarChanged();
+			LevelEditorModule.BroadcastTitleBarMessagesChanged();
 		}
 	}
 }
