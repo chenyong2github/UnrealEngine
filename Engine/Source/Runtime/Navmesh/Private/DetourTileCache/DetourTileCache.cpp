@@ -733,7 +733,7 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
 	status = dtBuildTileCacheClusters(m_talloc, *bc.lclusters, *bc.lmesh);
 	if (dtStatusFailed(status))
 		return status;
-#endif WITH_NAVMESH_CLUSTER_LINKS
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 	//@UE4 END
 	
 	dtNavMeshCreateParams params;
