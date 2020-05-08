@@ -17,6 +17,7 @@
 #include "FunctionCaller.h"
 #include "LevelVariantSets.h"
 #include "PropertyValue.h"
+#include "PropertyValueOption.h"
 #include "SVariantManagerActorListView.h"
 #include "SVariantManagerNodeTreeView.h"
 #include "SVariantManagerTableRow.h"
@@ -2747,12 +2748,16 @@ bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FSt
 		FilterProperty = ArrayProp->Inner;
 	}
 
+	// Exception for switch actor, as FilterProperty will be nullptr because the "Selected Option" property doesn't really exist
+	bool bIsSelectedOption = Cast<ASwitchActor>(TargetActor) && PropertyPath == TEXT( "Selected Option" );
+
 	// Update property captures
 	for (UVariantObjectBinding* Binding : Bindings)
 	{
 		for (UPropertyValue* PropertyValue : Binding->GetCapturedProperties())
 		{
-			if (FilterProperty && PropertyValue->ContainsProperty(FilterProperty))
+			if ((FilterProperty && PropertyValue->ContainsProperty(FilterProperty)) ||
+				(Cast<UPropertyValueOption>(PropertyValue) && bIsSelectedOption))
 			{
 				PropertyValue->RecordDataFromResolvedObject();
 			}
