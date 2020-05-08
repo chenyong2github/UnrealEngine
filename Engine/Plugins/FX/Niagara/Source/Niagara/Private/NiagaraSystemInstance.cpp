@@ -2322,4 +2322,4 @@ const FString& FNiagaraSystemInstance::GetCrashReporterTag()const
 		CrashReporterTag = FString::Printf(TEXT("SystemInstance | System: %s | bSolo: %s | Component: %s | AttachedTo: %s |"), *AssetName, IsSolo() ? TEXT("true") : TEXT("false"), *CompName, *AttachName);
 	}
 	return CrashReporterTag;
-}                                                                                                          
+}
