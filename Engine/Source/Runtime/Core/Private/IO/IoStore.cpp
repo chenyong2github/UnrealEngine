@@ -12,12 +12,119 @@
 #include "Async/ParallelFor.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/StringBuilder.h"
+#include "Features/IModularFeatures.h"
+#include "Modules/ModuleManager.h"
+#include "Misc/CoreDelegates.h"
 
 //////////////////////////////////////////////////////////////////////////
 
 constexpr char FIoStoreTocHeader::TocMagicImg[];
 
 //////////////////////////////////////////////////////////////////////////
+
+static IEngineCrypto* GetEngineCrypto()
+{
+	static TArray<IEngineCrypto*> Features = IModularFeatures::Get().GetModularFeatureImplementations<IEngineCrypto>(IEngineCrypto::GetFeatureName());
+	checkf(Features.Num() > 0, TEXT("RSA functionality was used but no modular feature was registered to provide it. Please make sure your project has the PlatformCrypto plugin enabled!"));
+	return Features[0];
+}
+
+static bool IsSigningEnabled()
+{
+	return FCoreDelegates::GetPakSigningKeysDelegate().IsBound();
+}
+
+static FRSAKeyHandle GetPublicSigningKey()
+{
+	static FRSAKeyHandle PublicKey = InvalidRSAKeyHandle;
+	static bool bInitializedPublicKey = false;
+	if (!bInitializedPublicKey)
+	{
+		FCoreDelegates::FPakSigningKeysDelegate& Delegate = FCoreDelegates::GetPakSigningKeysDelegate();
+		if (Delegate.IsBound())
+		{
+			TArray<uint8> Exponent;
+			TArray<uint8> Modulus;
+			Delegate.Execute(Exponent, Modulus);
+			PublicKey = GetEngineCrypto()->CreateRSAKey(Exponent, TArray<uint8>(), Modulus);
+		}
+		bInitializedPublicKey = true;
+	}
+
+	return PublicKey;
+}
+
+static FIoStatus CreateContainerSignature(
+	const FRSAKeyHandle PrivateKey,
+	const FIoStoreTocHeader& TocHeader,
+	TArrayView<const FSHAHash> BlockSignatureHashes,
+	TArray<uint8>& OutTocSignature,
+	TArray<uint8>& OutBlockSignature)
+{
+	if (PrivateKey == InvalidRSAKeyHandle)
+	{
+		return FIoStatus(EIoErrorCode::SignatureError, TEXT("Invalid signing key"));
+	}
+
+	FSHAHash TocHash, BlocksHash;
+
+	FSHA1::HashBuffer(reinterpret_cast<const uint8*>(&TocHeader), sizeof(FIoStoreTocHeader), TocHash.Hash);
+	FSHA1::HashBuffer(BlockSignatureHashes.GetData(), BlockSignatureHashes.Num() * sizeof(FSHAHash), BlocksHash.Hash);
+
+	int32 BytesEncrypted = GetEngineCrypto()->EncryptPrivate(TArrayView<const uint8>(TocHash.Hash, UE_ARRAY_COUNT(FSHAHash::Hash)), OutTocSignature, PrivateKey);
+
+	if (BytesEncrypted < 1)
+	{
+		return FIoStatus(EIoErrorCode::SignatureError, TEXT("Failed to encrypt TOC signature"));
+	}
+
+	BytesEncrypted = GetEngineCrypto()->EncryptPrivate(TArrayView<const uint8>(BlocksHash.Hash, UE_ARRAY_COUNT(FSHAHash::Hash)), OutBlockSignature, PrivateKey);
+
+	return BytesEncrypted > 0 ? FIoStatus::Ok : FIoStatus(EIoErrorCode::SignatureError, TEXT("Failed to encrypt block signature"));
+}
+
+static FIoStatus ValidateContainerSignature(
+	const FRSAKeyHandle PublicKey,
+	const FIoStoreTocHeader& TocHeader,
+	TArrayView<const FSHAHash> BlockSignatureHashes,
+	TArrayView<const uint8> TocSignature,
+	TArrayView<const uint8> BlockSignature)
+{
+	if (PublicKey == InvalidRSAKeyHandle)
+	{
+		return FIoStatus(EIoErrorCode::SignatureError, TEXT("Invalid signing key"));
+	}
+
+	TArray<uint8> DecryptedTocHash, DecryptedBlocksHash;
+
+	int32 BytesDecrypted = GetEngineCrypto()->DecryptPublic(TocSignature, DecryptedTocHash, PublicKey);
+	if (BytesDecrypted != UE_ARRAY_COUNT(FSHAHash::Hash))
+	{
+		return FIoStatus(EIoErrorCode::SignatureError, TEXT("Failed to decrypt TOC signature"));
+	}
+
+	BytesDecrypted = GetEngineCrypto()->DecryptPublic(BlockSignature, DecryptedBlocksHash, PublicKey);
+	if (BytesDecrypted != UE_ARRAY_COUNT(FSHAHash::Hash))
+	{
+		return FIoStatus(EIoErrorCode::SignatureError, TEXT("Failed to decrypt block signature"));
+	}
+
+	FSHAHash TocHash, BlocksHash;
+	FSHA1::HashBuffer(reinterpret_cast<const uint8*>(&TocHeader), sizeof(FIoStoreTocHeader), TocHash.Hash);
+	FSHA1::HashBuffer(BlockSignatureHashes.GetData(), BlockSignatureHashes.Num() * sizeof(FSHAHash), BlocksHash.Hash);
+
+	if (FMemory::Memcmp(DecryptedTocHash.GetData(), TocHash.Hash, DecryptedTocHash.Num()) != 0)
+	{
+		return FIoStatus(EIoErrorCode::SignatureError, TEXT("Invalid TOC signature"));
+	}
+
+	if (FMemory::Memcmp(DecryptedBlocksHash.GetData(), BlocksHash.Hash, DecryptedBlocksHash.Num()) != 0)
+	{
+		return FIoStatus(EIoErrorCode::SignatureError, TEXT("Invalid block signature"));
+	}
+
+	return FIoStatus::Ok;
+}
 
 /**
  * I/O store compresssion info.
@@ -151,6 +258,7 @@ public:
 
 	void FreeBlock(FIoStoreWriterBlock* Block)
 	{
+		Block->CompressionEncryptionTask = FGraphEventRef(); 
 		{
 			FScopeLock Lock(&FreeBlocksCritical);
 			Block->Next = FirstFreeBlock;
@@ -201,13 +309,11 @@ public:
 		}
 	}
 
-	FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, const TCHAR* InFileName, bool bInIsContainerCompressed, const FAES::FAESKey& InEncryptionKey)
+	FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, const TCHAR* InFileName, const FIoContainerSettings& InContainerSettings)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(InitializeChunkWriter);
 		WriterContext = &InContext;
-		bIsContainerCompressed = bInIsContainerCompressed;
-		bIsContainerEncrypted = InEncryptionKey.IsValid();
-		EncryptionKey = InEncryptionKey;
+		ContainerSettings = InContainerSettings;
 		check(WriterContext->Settings().CompressionBlockSize > 0);
 		CompressionInfo.BlockSize = WriterContext->Settings().CompressionBlockSize;
 
@@ -239,8 +345,7 @@ public:
 					FIoStoreWriterBlock* CurrentWriteQueueItem = NextWriteQueueItem;
 					NextWriteQueueItem = NextWriteQueueItem->Next;
 
-					const bool bIsCompressed = bIsContainerCompressed && !CurrentWriteQueueItem->bForceUncompressed;
-					if (bIsCompressed || bIsContainerEncrypted)
+					if (CurrentWriteQueueItem->CompressionEncryptionTask.IsValid())
 					{
 						FTaskGraphInterface::Get().WaitUntilTaskCompletes(CurrentWriteQueueItem->CompressionEncryptionTask);
 					}
@@ -270,7 +375,11 @@ public:
 						SourceData = CurrentWriteQueueItem->CompressedData.Data();
 						SourceDataSize = CurrentWriteQueueItem->CompressedSize;
 					}
-
+					if (ContainerSettings.IsSigned())
+					{
+						FSHAHash& BlockHash = BlockSignatureHashes.AddDefaulted_GetRef();
+						FSHA1::HashBuffer(SourceData, SourceDataSize, BlockHash.Hash);
+					}
 					CompressedBlockEntry.OffsetAndLength.SetLength(SourceDataSize);
 					CompressedBlockEntry.CompressionMethodIndex = CompressionInfo.GetCompressionMethodIndex(CurrentWriteQueueItem->CompressionMethod);
 					{
@@ -304,7 +413,7 @@ public:
 			CurrentBlock->Alignment = WriteOptions.Alignment;
 		}
 
-		if (bIsContainerCompressed && WriteOptions.bForceUncompressed)
+		if (ContainerSettings.IsCompressed() && WriteOptions.bForceUncompressed)
 		{
 			if (CurrentBlockOffset > 0 && CurrentBlock && !CurrentBlock->bForceUncompressed)
 			{
@@ -400,10 +509,15 @@ public:
 		return PaddingSize;
 	}
 
+	TArrayView<const FSHAHash> GetBlockSignatureHashes()
+	{
+		return BlockSignatureHashes;
+	}
+
 private:
 	void CompressEncryptBlock(FIoStoreWriterBlock* Block)
 	{
-		if (bIsContainerCompressed)
+		if (ContainerSettings.IsCompressed())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(CompressBlock);
 			int32 CompressedSize = int32(Block->CompressedData.DataSize());
@@ -416,7 +530,7 @@ private:
 			check(bCompressed);
 			check(CompressedSize > 0);
 
-			if (bIsContainerEncrypted)
+			if (ContainerSettings.IsEncrypted())
 			{
 				// Fill the trailing buffer with bytes from the block. Note that this is now from a fixed location
 				// rather than a random one so that we produce deterministic results (PakFileUtilities.cpp)
@@ -440,16 +554,16 @@ private:
 			}
 		}
 
-		if (bIsContainerEncrypted)
+		if (ContainerSettings.IsEncrypted())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(EncryptBlock);
 			if (Block->CompressionMethod == NAME_None)
 			{
-				FAES::EncryptData(Block->UncompressedData.Data(), static_cast<uint32>(Block->UncompressedData.DataSize()), EncryptionKey);
+				FAES::EncryptData(Block->UncompressedData.Data(), static_cast<uint32>(Block->UncompressedData.DataSize()), ContainerSettings.EncryptionKey);
 			}
 			else
 			{
-				FAES::EncryptData(Block->CompressedData.Data(), static_cast<uint32>(Block->CompressedSize), EncryptionKey);
+				FAES::EncryptData(Block->CompressedData.Data(), static_cast<uint32>(Block->CompressedSize), ContainerSettings.EncryptionKey);
 			}
 		}
 	}
@@ -460,13 +574,13 @@ private:
 		{
 			return;
 		}
-		const bool bIsCompressed = bIsContainerCompressed && !CurrentBlock->bForceUncompressed;
+		const bool bIsCompressed = ContainerSettings.IsCompressed() && !CurrentBlock->bForceUncompressed;
 		uint8* UncompressedData = CurrentBlock->UncompressedData.Data();
 		const uint64 UncompressedDataSize = CurrentBlock->UncompressedData.DataSize();
 		if (CurrentBlockOffset < UncompressedDataSize)
 		{
 			uint64 PadCount = UncompressedDataSize - CurrentBlockOffset;
-			if (bIsContainerEncrypted && !bIsCompressed)
+			if (ContainerSettings.IsEncrypted() && !bIsCompressed)
 			{
 				// When the block is encrypted but NOT compressed we fill the trailing bytes
 				// with data from the block. When the block IS compressed the trailing bytes
@@ -482,7 +596,7 @@ private:
 			}
 			UncompressedOffset += PadCount;
 		}
-		if (bIsCompressed || bIsContainerEncrypted)
+		if (bIsCompressed || ContainerSettings.IsEncrypted())
 		{
 			CurrentBlock->CompressionEncryptionTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, Block = CurrentBlock]()
 			{
@@ -513,6 +627,7 @@ private:
 	}
 
 	FIoStoreWriterContextImpl* WriterContext = nullptr;
+	FIoContainerSettings ContainerSettings;
 	FIoStoreCompressionInfo CompressionInfo;
 	int64 PaddingSize = 0;
 	TUniquePtr<IFileHandle> FileHandle;
@@ -526,9 +641,7 @@ private:
 	FEvent* WriteQueueEvent = nullptr;
 	TAtomic<bool> bAllScheduled{ false };
 	TArray<uint8> AlignmentPaddingBuffer;
-	FAES::FAESKey EncryptionKey;
-	bool bIsContainerCompressed = false;
-	bool bIsContainerEncrypted = false;
+	TArray<FSHAHash> BlockSignatureHashes;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -542,24 +655,25 @@ public:
 	{
 	}
 
-	UE_NODISCARD FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, bool bInIsContainerCompressed, const FIoEncryptionKey& InEncryptionKey)
+	UE_NODISCARD FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, const FIoContainerSettings& InContainerSettings)
 	{
-		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
-
-		EncryptionKey = InEncryptionKey;
+		ContainerSettings = InContainerSettings;
 
 		FString TocFilePath = Environment.GetPath() + TEXT(".utoc");
 		FString ContainerFilePath = Environment.GetPath() + TEXT(".ucas");
 
 		Result.ContainerId = ContainerId;
 		Result.ContainerName = FPaths::GetBaseFilename(Environment.GetPath());
-		Result.CompressionMethod = bInIsContainerCompressed ? InContext.Settings().CompressionMethod : NAME_None;
-		Result.bIsEncrypted = InEncryptionKey.Key.IsValid();
+		Result.ContainerFlags = InContainerSettings.ContainerFlags;
+		Result.CompressionMethod = EnumHasAnyFlags(InContainerSettings.ContainerFlags, EIoContainerFlags::Compressed)
+			? InContext.Settings().CompressionMethod
+			: NAME_None;
 
+		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 		Ipf.CreateDirectoryTree(*FPaths::GetPath(ContainerFilePath));
 
 		ChunkWriter = MakeUnique<FChunkWriter>();
-		FIoStatus Status = ChunkWriter->Initialize(InContext, *ContainerFilePath, bInIsContainerCompressed, InEncryptionKey.Key);
+		FIoStatus Status = ChunkWriter->Initialize(InContext, *ContainerFilePath, InContainerSettings);
 
 		if (!Status.IsOk())
 		{ 
@@ -715,8 +829,8 @@ public:
 		TocHeader.CompressionMethodNameCount = CompressionInfo.CompressionMethods.Num();
 		TocHeader.CompressionMethodNameLength = FIoStoreCompressionInfo::CompressionMethodNameLen;
 		TocHeader.ContainerId = ContainerId;
-		TocHeader.EncryptionKeyGuid = EncryptionKey.Guid;
-		TocHeader.bIsEncrypted = EncryptionKey.Key.IsValid();
+		TocHeader.EncryptionKeyGuid = ContainerSettings.EncryptionKeyGuid;
+		TocHeader.ContainerFlags = ContainerSettings.ContainerFlags;
 
 		TocFileHandle->Seek(0);
 		if (!TocFileHandle->Write(reinterpret_cast<const uint8*>(&TocHeader), sizeof(TocHeader)))
@@ -768,6 +882,33 @@ public:
 			}
 		}
 
+		if (EnumHasAnyFlags(TocHeader.ContainerFlags, EIoContainerFlags::Signed))
+		{
+			TArray<uint8> TocSignature, BlockSignature;
+			TArrayView<const FSHAHash> BlockSignatureHashes = ChunkWriter->GetBlockSignatureHashes();
+			check(BlockSignatureHashes.Num() == CompressionInfo.BlockEntries.Num());
+
+			FIoStatus SignatureStatus = CreateContainerSignature(
+				ContainerSettings.SigningKey,
+				TocHeader,
+				BlockSignatureHashes,
+				TocSignature,
+				BlockSignature);
+
+			if (!SignatureStatus .IsOk())
+			{
+				return SignatureStatus;
+			}
+
+			check(TocSignature.Num() == BlockSignature.Num());
+
+			const int32 HashSize = TocSignature.Num();
+			TocFileHandle->Write(reinterpret_cast<const uint8*>(&HashSize), sizeof(int32));
+			TocFileHandle->Write(TocSignature.GetData(), TocSignature.Num());
+			TocFileHandle->Write(BlockSignature.GetData(), BlockSignature.Num());
+			TocFileHandle->Write(reinterpret_cast<const uint8*>(BlockSignatureHashes.GetData()), BlockSignatureHashes.Num() * sizeof(FSHAHash));
+		}
+
 		Result.TocSize = TocFileHandle->Tell();
 		Result.TocEntryCount = TocHeader.TocEntryCount + TocHeader.TocPartialEntryCount;
 		Result.PaddingSize = ChunkWriter->GetPaddingSize();
@@ -787,7 +928,7 @@ private:
 	TUniquePtr<FArchive>				CsvArchive;
 	FIoStoreWriterResult				Result;
 	FIoContainerId						ContainerId;
-	FIoEncryptionKey					EncryptionKey;
+	FIoContainerSettings				ContainerSettings;
 	bool								IsMetadataDirty = true;
 };
 
@@ -801,9 +942,9 @@ FIoStoreWriter::~FIoStoreWriter()
 	(void)Impl->Flush();
 }
 
-FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed, const FIoEncryptionKey& EncryptionKey)
+FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings)
 {
-	return Impl->Initialize(*Context.Impl, bIsContainerCompressed, EncryptionKey);
+	return Impl->Initialize(*Context.Impl, ContainerSettings);
 }
 
 FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
@@ -839,11 +980,9 @@ public:
 
 	}
 
-	UE_NODISCARD FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment, const FIoEncryptionKey& InEncryptionKey)
+	UE_NODISCARD FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment, const FIoContainerSettings& InContainerSettings)
 	{
-		EncryptionKey = InEncryptionKey;
-
-		IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
+		ContainerSettings = InContainerSettings;
 
 		TStringBuilder<256> ContainerFilePath;
 		ContainerFilePath.Append(InEnvironment.GetPath());
@@ -854,6 +993,7 @@ public:
 		ContainerFilePath.Append(TEXT(".ucas"));
 		TocFilePath.Append(TEXT(".utoc"));
 
+		IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 		ContainerFileHandle.Reset(Ipf.OpenRead(*ContainerFilePath, /* allowwrite */ false));
 		if (!ContainerFileHandle)
 		{
@@ -907,8 +1047,8 @@ public:
 			++CompressedBlockEntry;
 		}
 
-		bIsEncrypted = TocReader.IsContainerEncrypted();
-		check(!bIsEncrypted || EncryptionKey.Guid == TocReader.GetEncryptionKeyGuid());
+		ContainerFlags = TocReader.GetContainerFlags();
+		check(!EnumHasAnyFlags(ContainerSettings.ContainerFlags, EIoContainerFlags::Encrypted) || ContainerSettings.EncryptionKeyGuid == TocReader.GetEncryptionKeyGuid());
 
 		return FIoStatus::Ok;
 	}
@@ -982,9 +1122,9 @@ public:
 			}
 			ContainerFileHandle->Seek(CompressionBlock.OffsetAndLength.GetOffset());
 			ContainerFileHandle->Read(CompressedBuffer.GetData(), CompressionBlock.OffsetAndLength.GetLength());
-			if (bIsEncrypted)
+			if (EnumHasAnyFlags(ContainerSettings.ContainerFlags, EIoContainerFlags::Encrypted))
 			{
-				FAES::DecryptData(CompressedBuffer.GetData(), static_cast<uint32>(CompressionBlock.OffsetAndLength.GetLength()), EncryptionKey.Key);
+				FAES::DecryptData(CompressedBuffer.GetData(), static_cast<uint32>(CompressionBlock.OffsetAndLength.GetLength()), ContainerSettings.EncryptionKey);
 			}
 			if (CompressionBlock.CompressionMethod.IsNone())
 			{
@@ -1015,7 +1155,8 @@ private:
 		FIoOffsetAndLength OffsetAndLength;
 		FName CompressionMethod;
 	};
-
+	
+	FIoContainerSettings ContainerSettings;
 	TArray<FIoStoreTocEntry> TocEntries;
 	TArray<FIoStoreTocPartialEntry> TocPartialEntries;
 	TMap<FIoChunkId, int32> TocMap;
@@ -1024,10 +1165,8 @@ private:
 	TUniquePtr<IFileHandle> ContainerFileHandle;
 	mutable TArray<uint8> CompressedBuffer;
 	mutable TArray<uint8> UncompressedBuffer;
-	FIoEncryptionKey EncryptionKey;
-	bool bIsEncrypted;
+	EIoContainerFlags ContainerFlags;
 };
-
 
 FIoStoreReader::FIoStoreReader()
 	: Impl(new FIoStoreReaderImpl())
@@ -1039,9 +1178,9 @@ FIoStoreReader::~FIoStoreReader()
 	delete Impl;
 }
 
-FIoStatus FIoStoreReader::Initialize(const FIoStoreEnvironment& InEnvironment, const FIoEncryptionKey& EncryptionKey)
+FIoStatus FIoStoreReader::Initialize(const FIoStoreEnvironment& InEnvironment, const FIoContainerSettings& InContainerSettings)
 {
-	return Impl->Initialize(InEnvironment, EncryptionKey);
+	return Impl->Initialize(InEnvironment, InContainerSettings);
 }
 
 void FIoStoreReader::EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
@@ -1124,6 +1263,22 @@ FIoStatus FIoStoreTocReader::Initialize(const TCHAR* TocFilePath)
 	{
 		const ANSICHAR* AnsiCompressionMethodName = AnsiCompressionMethodNames + CompressonNameIndex * Header->CompressionMethodNameLength;
 		CompressionMethodNames.Add(FName(AnsiCompressionMethodName));
+	}
+	
+	if (IsSigningEnabled())
+	{
+		if (!EnumHasAnyFlags(Header->ContainerFlags, EIoContainerFlags::Signed))
+		{
+			return FIoStatus(EIoErrorCode::SignatureError, TEXT("Missing signature"));
+		}
+
+		const uint8* SignatureBuffer = reinterpret_cast<const uint8*>(AnsiCompressionMethodNames + Header->CompressionMethodNameCount * Header->CompressionMethodNameLength);
+		const int32* HashSize = reinterpret_cast<const int32*>(SignatureBuffer);
+		TArrayView<const uint8> TocSignature = MakeArrayView<const uint8>(reinterpret_cast<const uint8*>(HashSize + 1), *HashSize);
+		TArrayView<const uint8> BlockSignature = MakeArrayView<const uint8>(TocSignature.GetData() + *HashSize, *HashSize);
+		BlockSignatureHashes = MakeArrayView<const FSHAHash>(reinterpret_cast<const FSHAHash*>(BlockSignature.GetData() + *HashSize), CompressedBlockEntryCount);
+
+		return ValidateContainerSignature(GetPublicSigningKey(), *Header, BlockSignatureHashes, TocSignature, BlockSignature);
 	}
 
 	return FIoStatus::Ok;
