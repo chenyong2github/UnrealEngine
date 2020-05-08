@@ -15,7 +15,7 @@ public:
 	~FAudioPluginWidgetManager();
 
 	/* Builds out the audio category for a specific audio section for a platform settings page. */
-	void BuildAudioCategory(IDetailLayoutBuilder& DetailLayout, const FString& PlatformName);
+	void BuildAudioCategory(IDetailLayoutBuilder& DetailLayout, const FString& PlatformName, const UStruct* ClassOuterMost = nullptr);
 
 	/** Creates widget from a scan of loaded audio plugins for an individual plugin type. */
 	TSharedRef<SWidget> MakeAudioPluginSelectorWidget(const TSharedPtr<IPropertyHandle>& PropertyHandle, EAudioPlugin AudioPluginType, const FString& PlatformName);
