@@ -3320,16 +3320,12 @@ bool FEdModeLandscape::IsSelectionAllowed(AActor* InActor, bool bInSelection) co
 	{
 		return true;
 	}
-	else if (InActor->IsA(ALight::StaticClass()))
-	{
-		return true;
-	}
 	else if (InActor->IsA(ALandscapeBlueprintBrushBase::StaticClass()))
 	{
 		return true;
 	}
 
-	return true;
+	return false;
 }
 
 /** FEdMode: Called when the currently selected actor has changed */
