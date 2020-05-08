@@ -94,7 +94,14 @@ struct FCustomStructureParamHelper
 			}
 			else
 			{
+				// constness and refness are controlled by our declaration
+				// but everything else needs to be reset to default wildcard:
+				const bool bWasRef = Pin->PinType.bIsReference;
+				const bool bWasConst = Pin->PinType.bIsConst;
+
 				Pin->PinType = FEdGraphPinType();
+				Pin->PinType.bIsReference = bWasRef;
+				Pin->PinType.bIsConst = bWasConst;
 				Pin->PinType.PinCategory = UEdGraphSchema_K2::PC_Wildcard;
 				Pin->PinType.PinSubCategory = NAME_None;
 				Pin->PinType.PinSubCategoryObject = nullptr;
