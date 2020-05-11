@@ -14,6 +14,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Toolkits/SGlobalOpenAssetDialog.h"
 #include "Toolkits/SGlobalTabSwitchingDialog.h"
+#include "Subsystems/StatusBarSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "GlobalEditorCommonCommands"
 
@@ -131,13 +132,17 @@ void FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox()
 	if( ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal )
 	{
 		TSharedRef<SWindow> WindowRef = ParentWindow.ToSharedRef();
-		FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked< FOutputLogModule >(TEXT("OutputLog"));
+		FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked<FOutputLogModule>(TEXT("OutputLog"));
 
-		FDebugConsoleDelegates Delegates;
-		Delegates.OnConsoleCommandExecuted = FSimpleDelegate::CreateStatic( &CloseDebugConsole );
-		Delegates.OnCloseConsole = FSimpleDelegate::CreateStatic( &CloseDebugConsole );
+		if (!GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->FocusDebugConsole(ParentWindow.ToSharedRef()))
+		{
+			// A status bar was not found, pop open a floating window instead
+			FDebugConsoleDelegates Delegates;
+			Delegates.OnConsoleCommandExecuted = FSimpleDelegate::CreateStatic(&CloseDebugConsole);
+			Delegates.OnCloseConsole = FSimpleDelegate::CreateStatic(&CloseDebugConsole);
 
-		OutputLogModule.ToggleDebugConsoleForWindow(WindowRef, EDebugConsoleStyle::Compact, Delegates);
+			OutputLogModule.ToggleDebugConsoleForWindow(WindowRef, EDebugConsoleStyle::Compact, Delegates);
+		}
 	}
 }
 

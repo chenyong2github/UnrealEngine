@@ -17,6 +17,7 @@
 #include "EdMode.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Subsystems/StatusBarSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
 
@@ -162,6 +163,8 @@ EVisibility SLevelEditorToolBox::GetNoToolSelectedTextVisibility() const
 
 void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolkit, TSharedPtr<SWidget> InlineContent) 
 {
+	static const FName LevelEditorStatusBarName = "LevelEditor.StatusBar";
+
 	if (Toolkit.IsValid())
 	{
 		if(Toolkit->GetEditorMode() || Toolkit->GetScriptableEditorMode())
@@ -195,11 +198,21 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 					.Font(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
 				]
 			);
-		}
 
+			if (StatusBarMessageHandle.IsValid())
+			{
+				GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(LevelEditorStatusBarName, StatusBarMessageHandle);
+			}
+
+			StatusBarMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(LevelEditorStatusBarName, TAttribute<FText>::Create(
+				TAttribute<FText>::FGetter::CreateSP(ModeToolkit.Get(), &FModeToolkit::GetActiveToolDisplayName))
+			);
+		}
 	}
 	else
 	{
+		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(LevelEditorStatusBarName, StatusBarMessageHandle);
+		StatusBarMessageHandle.Reset();
 
 		TabName = NSLOCTEXT("LevelEditor", "ToolsTabTitle", "Toolbox");
 		TabIcon = FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Modes");

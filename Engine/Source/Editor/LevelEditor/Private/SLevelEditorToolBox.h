@@ -11,6 +11,7 @@
 #include "Editor.h"
 #include "ILevelEditor.h"
 #include "Misc/NotifyHook.h"
+#include "Subsystems/StatusBarSubsystem.h"
 
 class FExtender;
 class SBorder;
@@ -80,4 +81,7 @@ private:
 
 	/** The icon that should be displayed in the parent tab */
 	const FSlateBrush* TabIcon;
+
+	/** Handle to status bar messages for removing them later */
+	FStatusBarMessageHandle StatusBarMessageHandle;
 };

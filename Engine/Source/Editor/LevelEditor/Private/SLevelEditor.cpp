@@ -217,14 +217,16 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 			FLevelEditorToolBar::MakeLevelEditorToolBar(LevelEditorCommands.ToSharedRef(), SharedThis(this))
 		]
 		+SVerticalBox::Slot()
+		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
 		.FillHeight( 1.0f )
 		[
 			ContentArea
 		]
 		+SVerticalBox::Slot()
+		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
 		.AutoHeight()
 		[
-			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(TEXT("LevelEditor.StatusBar"))
+			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(TEXT("LevelEditor.StatusBar"), OwnerTab)
 		]
 	];
 	

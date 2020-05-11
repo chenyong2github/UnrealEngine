@@ -930,7 +930,19 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetBackgroundColor( LogColor_Background )
 			);
 
-		Set("DebugConsole.Background", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));
+		Set("DebugConsole.Background", new FSlateNoResource());
+
+		const FButtonStyle DebugConsoleButton = FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("NoBorder"))
+			.SetNormalForeground(FStyleColors::Foreground)
+			.SetNormalPadding(FMargin(2, 2, 2, 2))
+			.SetPressedPadding(FMargin(2, 3, 2, 1));
+
+		const FComboButtonStyle DebugConsoleComboButton = FComboButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+			.SetDownArrowImage(FSlateNoResource())
+			.SetButtonStyle(DebugConsoleButton);
+
+		Set("DebugConsole.ComboButton", DebugConsoleComboButton);
+		Set("DebugConsole.Icon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/layout-header-body", Icon16x16));
 
 		Set("OutputLog.OpenSourceLocation", new IMAGE_BRUSH("Icons/icon_Asset_Open_Source_Location_16x", Icon16x16));
 		Set("OutputLog.OpenInExternalEditor", new IMAGE_BRUSH("Icons/icon_Asset_Open_In_External_Editor_16x", Icon16x16));
@@ -7902,6 +7914,7 @@ void FStarshipEditorStyle::FStyle::SetupStatusBarStyle()
 	Set("StatusBar.ContentBrowserDown", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16));
 	Set("StatusBar.Height", 32.0f);
 	Set("StatusBar.Background", new FSlateColorBrush(FStyleColors::Background));
+	Set("StatusBar.HelpIcon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/help", Icon16x16, FStyleColors::Foreground));
 
 	const FButtonStyle SlimToolBarButton = FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("SlimToolBar.Button"));
 
@@ -7943,6 +7956,14 @@ void FStarshipEditorStyle::FStyle::SetupStatusBarStyle()
 
 	Set("StatusBarToolBar.SimpleComboButton", FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("StatusBarToolBar.SimpleComboButton"));
 	Set("StatusBarToolBar.IconSize", Icon16x16);
+
+	Set("StatusBar.Message.MessageText",
+		FTextBlockStyle(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		.SetColorAndOpacity(FStyleColors::Foreground));
+
+	Set("StatusBar.Message.HintText",
+		FTextBlockStyle(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		.SetColorAndOpacity(FStyleColors::Primary));
 }
 
 #undef IMAGE_BRUSH

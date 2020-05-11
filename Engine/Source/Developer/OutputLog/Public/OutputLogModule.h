@@ -38,11 +38,11 @@ public:
 	virtual void ShutdownModule();
 
 	/** Generates a console input box widget.  Remember, this widget will become invalid if the
-	    output log DLL is unloaded on the fly. */
-	virtual TSharedRef< SWidget > MakeConsoleInputBox( TSharedPtr< SMultiLineEditableTextBox >& OutExposedEditableTextBox ) const;
+		output log DLL is unloaded on the fly. */
+	virtual TSharedRef<SWidget> MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole) const;
 
 	/** Opens a debug console in the specified window, if not already open */
-	virtual void ToggleDebugConsoleForWindow( const TSharedRef< SWindow >& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates );
+	virtual void ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates);
 
 	/** Closes the debug console for the specified window */
 	virtual void CloseDebugConsole();

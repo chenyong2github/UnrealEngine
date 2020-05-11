@@ -82,21 +82,35 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 		.Placement( InArgs._SuggestionListPlacement )
 		[
 			SNew(SHorizontalBox)
-
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
 			[
 				SNew(SComboButton)
 				.IsEnabled(this, &SConsoleInputBox::IsCommandExecutorMenuEnabled)
-				.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
-				.ForegroundColor(FLinearColor::White)
+				.ComboButtonStyle(FAppStyle::Get(), "DebugConsole.ComboButton")
 				.ContentPadding(0)
 				.OnGetMenuContent(this, &SConsoleInputBox::GetCommandExecutorMenuContent)
 				.ButtonContent()
 				[
-					SNew(STextBlock)
-					.Text(this, &SConsoleInputBox::GetActiveCommandExecutorDisplayName)
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.Padding(2.0f)
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("DebugConsole.Icon"))
+					]
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(2.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &SConsoleInputBox::GetActiveCommandExecutorDisplayName)
+					]
 				]
 			]
 

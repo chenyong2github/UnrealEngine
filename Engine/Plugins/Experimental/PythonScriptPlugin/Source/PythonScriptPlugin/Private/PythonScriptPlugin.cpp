@@ -112,7 +112,7 @@ FText FPythonCommandExecutor::GetDescription() const
 
 FText FPythonCommandExecutor::GetHintText() const
 {
-	return LOCTEXT("PythonCommandExecutorHintText", "Enter Python script or a filename to execute");
+	return LOCTEXT("PythonCommandExecutorHintText", "Enter Python script or a filename");
 }
 
 void FPythonCommandExecutor::GetAutoCompleteSuggestions(const TCHAR* Input, TArray<FString>& Out)
@@ -173,7 +173,7 @@ FText FPythonREPLCommandExecutor::GetDescription() const
 
 FText FPythonREPLCommandExecutor::GetHintText() const
 {
-	return LOCTEXT("PythonREPLCommandExecutorHintText", "Enter a single Python statement");
+	return LOCTEXT("PythonREPLCommandExecutorHintText", "Enter a Python statement");
 }
 
 void FPythonREPLCommandExecutor::GetAutoCompleteSuggestions(const TCHAR* Input, TArray<FString>& Out)

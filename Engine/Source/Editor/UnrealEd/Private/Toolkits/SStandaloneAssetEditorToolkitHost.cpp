@@ -12,8 +12,9 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "UObject/Package.h"
-
+#include "Subsystems/StatusBarSubsystem.h"
 #include "ToolMenus.h"
+#include "IIntroTutorials.h"
 
 #define LOCTEXT_NAMESPACE "StandaloneAssetEditorToolkit"
 
@@ -58,8 +59,34 @@ void SStandaloneAssetEditorToolkitHost::SetupInitialContent( const TSharedRef<FT
 
 	HostTabPtr = InHostTab;
 
+	MenuOverlayWidgetContent = SNew(SBox);
+
 	RestoreFromLayout(DefaultLayout);
 	GenerateMenus(bCreateDefaultStandaloneMenu);
+
+	if (InHostTab)
+	{
+		IIntroTutorials& IntroTutorials = FModuleManager::LoadModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
+		TSharedRef<SWidget> TutorialWidget = IntroTutorials.CreateTutorialsWidget(HostedAssetEditorToolkit->GetToolkitContextFName(), InHostTab->GetParentWindow());
+
+		InHostTab->SetRightContent(
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(8.0f, 0.0f, 8.0f, 0.0f)
+			[
+				MenuOverlayWidgetContent.ToSharedRef()
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(8.0f, 0.0f, 8.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				TutorialWidget
+			]
+		);
+	}
+
 }
 
 void SStandaloneAssetEditorToolkitHost::CreateDefaultStandaloneMenuBar(UToolMenu* MenuBar)
@@ -135,49 +162,22 @@ void SStandaloneAssetEditorToolkitHost::RestoreFromLayout( const TSharedRef<FTab
 	TSharedPtr<SWidget> RestoredUI = MyTabManager->RestoreFrom( NewLayout, ParentWindow );
 
 	checkf(RestoredUI.IsValid(), TEXT("The layout must have a primary dock area") );
-	
-	MenuOverlayWidgetContent.Reset();
-	MenuWidgetContent.Reset();
+
 	this->ChildSlot
 	[
-		SNew( SVerticalBox )
-			// Menu bar area
-			+SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SOverlay)
-					// The menu bar
-					+SOverlay::Slot()
-					[
-						SAssignNew(MenuWidgetContent, SBorder)
-						.Padding(0)
-						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-						[
-							DefaultMenuWidget.ToSharedRef()
-						]
-					]
-					// The menu bar overlay
-					+SOverlay::Slot()
-					.HAlign(HAlign_Right)
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						[
-							SAssignNew(MenuOverlayWidgetContent, SBorder)
-							.Padding(0)
-							.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-						]				
-					]
-				]
-			// Viewport/Document/Docking area
-			+SVerticalBox::Slot()
-				.Padding( 1.0f )
-				
-				// Fills all leftover space
-				.FillHeight( 1.0f )
-				[
-					RestoredUI.ToSharedRef()
-				]
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
+		.FillHeight(1.0f)
+		[
+			RestoredUI.ToSharedRef()
+		]
+		+ SVerticalBox::Slot()
+		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
+		.AutoHeight()
+		[
+			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(GetMenuName(), HostTab)
+		]
 	];
 }
 
@@ -208,8 +208,6 @@ void SStandaloneAssetEditorToolkitHost::GenerateMenus(bool bForceCreateMenu)
 		HostedAssetEditorToolkit->InitToolMenuContext(ToolMenuContext);
 		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
 		DefaultMenuWidget = MainFrameModule.MakeMainMenu( MyTabManager, AssetEditorMenuName, ToolMenuContext );
-
-		MenuWidgetContent->SetContent(DefaultMenuWidget.ToSharedRef());
 	}
 }
 
@@ -365,7 +363,7 @@ void SStandaloneAssetEditorToolkitHost::OnTabClosed(TSharedRef<SDockTab> TabClos
 {
 	check(TabClosed == HostTabPtr.Pin());
 
-	MyTabManager->SetMenuMultiBox(nullptr);
+	MyTabManager->SetMenuMultiBox(nullptr, nullptr);
 	
 	if(HostedAssetEditorToolkit.IsValid())
 	{

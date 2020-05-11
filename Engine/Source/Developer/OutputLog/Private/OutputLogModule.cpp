@@ -19,7 +19,7 @@
 #include "Editor.h"
 #endif
 
-IMPLEMENT_MODULE( FOutputLogModule, OutputLog );
+IMPLEMENT_MODULE(FOutputLogModule, OutputLog);
 
 namespace OutputLogModule
 {
@@ -41,7 +41,7 @@ public:
 	~FOutputLogHistory()
 	{
 		// At shutdown, GLog may already be null
-		if( GLog != NULL )
+		if (GLog != NULL)
 		{
 			GLog->RemoveOutputDevice(this);
 		}
@@ -55,7 +55,7 @@ public:
 
 protected:
 
-	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
 	{
 		// Capture all incoming messages and store them in history
 		SOutputLog::CreateLogMessages(V, Verbosity, Category, Messages);
@@ -73,23 +73,23 @@ static TSharedPtr<FOutputLogHistory> OutputLogHistory;
 /** Our global active output log */
 static TWeakPtr<SOutputLog> OutputLog;
 
-TSharedRef<SDockTab> SpawnOutputLog( const FSpawnTabArgs& Args )
+TSharedRef<SDockTab> SpawnOutputLog(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("Log.TabIcon"))
-		.TabRole( ETabRole::NomadTab )
-		.Label( NSLOCTEXT("OutputLog", "TabTitle", "Output Log") )
+		.TabRole(ETabRole::NomadTab)
+		.Label(NSLOCTEXT("OutputLog", "TabTitle", "Output Log"))
 		[
-			SAssignNew(OutputLog, SOutputLog).Messages( OutputLogHistory->GetMessages() )
+			SAssignNew(OutputLog, SOutputLog).Messages(OutputLogHistory->GetMessages())
 		];
 }
 
-TSharedRef<SDockTab> SpawnDeviceOutputLog( const FSpawnTabArgs& Args )
+TSharedRef<SDockTab> SpawnDeviceOutputLog(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("Log.TabIcon"))
-		.TabRole( ETabRole::NomadTab )
-		.Label( NSLOCTEXT("OutputLog", "DeviceTabTitle", "Device Output Log") )
+		.TabRole(ETabRole::NomadTab)
+		.Label(NSLOCTEXT("OutputLog", "DeviceTabTitle", "Device Output Log"))
 		[
 			SNew(SDeviceOutputLog)
 		];
@@ -97,17 +97,17 @@ TSharedRef<SDockTab> SpawnDeviceOutputLog( const FSpawnTabArgs& Args )
 
 void FOutputLogModule::StartupModule()
 {
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::OutputLogTabName, FOnSpawnTab::CreateStatic( &SpawnOutputLog ) )
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::OutputLogTabName, FOnSpawnTab::CreateStatic(&SpawnOutputLog))
 		.SetDisplayName(NSLOCTEXT("UnrealEditor", "OutputLogTab", "Output Log"))
 		.SetTooltipText(NSLOCTEXT("UnrealEditor", "OutputLogTooltipText", "Open the Output Log tab."))
-		.SetGroup( WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory() )
-		.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "Log.TabIcon") );
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory())
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Log.TabIcon"));
 
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName, FOnSpawnTab::CreateStatic( &SpawnDeviceOutputLog ) )
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName, FOnSpawnTab::CreateStatic(&SpawnDeviceOutputLog))
 		.SetDisplayName(NSLOCTEXT("UnrealEditor", "DeviceOutputLogTab", "Device Output Log"))
 		.SetTooltipText(NSLOCTEXT("UnrealEditor", "DeviceOutputLogTooltipText", "Open the Device Output Log tab."))
-		.SetGroup( WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory() )
-		.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "Log.TabIcon") );
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory())
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Log.TabIcon"));
 
 #if WITH_EDITOR
 	FEditorDelegates::BeginPIE.AddRaw(this, &FOutputLogModule::ClearOnPIE);
@@ -131,19 +131,22 @@ void FOutputLogModule::ShutdownModule()
 	OutputLogHistory.Reset();
 }
 
-TSharedRef< SWidget > FOutputLogModule::MakeConsoleInputBox( TSharedPtr< SMultiLineEditableTextBox >& OutExposedEditableTextBox ) const
+TSharedRef< SWidget > FOutputLogModule::MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole) const
 {
-	TSharedRef< SConsoleInputBox > NewConsoleInputBox = SNew( SConsoleInputBox );
+	TSharedRef< SConsoleInputBox > NewConsoleInputBox =
+		SNew(SConsoleInputBox)
+		.OnCloseConsole(OnCloseConsole);
+
 	OutExposedEditableTextBox = NewConsoleInputBox->GetEditableTextBox();
 	return NewConsoleInputBox;
 }
 
-void FOutputLogModule::ToggleDebugConsoleForWindow( const TSharedRef< SWindow >& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates )
+void FOutputLogModule::ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates)
 {
 	bool bShouldOpen = true;
 	// Close an existing console box, if there is one
-	TSharedPtr< SWidget > PinnedDebugConsole( DebugConsole.Pin() );
-	if( PinnedDebugConsole.IsValid() )
+	TSharedPtr< SWidget > PinnedDebugConsole(DebugConsole.Pin());
+	if (PinnedDebugConsole.IsValid())
 	{
 		// If the console is already open close it unless it is in a different window.  In that case reopen it on that window
 		bShouldOpen = false;
@@ -154,13 +157,13 @@ void FOutputLogModule::ToggleDebugConsoleForWindow( const TSharedRef< SWindow >&
 			DebugConsole.Reset();
 		}
 
-		if( WindowForExistingConsole != Window )
+		if (WindowForExistingConsole != Window)
 		{
 			// Console is being opened on another window
 			bShouldOpen = true;
 		}
 	}
-	
+
 	TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab();
 	if (ActiveTab.IsValid() && ActiveTab->GetLayoutIdentifier() == FTabId(OutputLogModule::OutputLogTabName))
 	{
@@ -168,20 +171,20 @@ void FOutputLogModule::ToggleDebugConsoleForWindow( const TSharedRef< SWindow >&
 		bShouldOpen = false;
 	}
 
-	if( bShouldOpen )
+	if (bShouldOpen)
 	{
 		const EDebugConsoleStyle::Type DebugConsoleStyle = InStyle;
-		TSharedRef< SDebugConsole > DebugConsoleRef = SNew( SDebugConsole, DebugConsoleStyle, this, &DebugConsoleDelegates );
+		TSharedRef< SDebugConsole > DebugConsoleRef = SNew(SDebugConsole, DebugConsoleStyle, this, &DebugConsoleDelegates);
 		DebugConsole = DebugConsoleRef;
 
 		const int32 MaximumZOrder = MAX_int32;
-		Window->AddOverlaySlot( MaximumZOrder )
-		.VAlign(VAlign_Bottom)
-		.HAlign(HAlign_Center)
-		.Padding( 10.0f )
-		[
-			DebugConsoleRef
-		];
+		Window->AddOverlaySlot(MaximumZOrder)
+			.VAlign(VAlign_Bottom)
+			.HAlign(HAlign_Center)
+			.Padding(10.0f)
+			[
+				DebugConsoleRef
+			];
 
 		// Force keyboard focus
 		DebugConsoleRef->SetFocusToEditableText();
@@ -190,14 +193,14 @@ void FOutputLogModule::ToggleDebugConsoleForWindow( const TSharedRef< SWindow >&
 
 void FOutputLogModule::CloseDebugConsole()
 {
-	TSharedPtr< SWidget > PinnedDebugConsole( DebugConsole.Pin() );
+	TSharedPtr< SWidget > PinnedDebugConsole(DebugConsole.Pin());
 
-	if( PinnedDebugConsole.IsValid() )
+	if (PinnedDebugConsole.IsValid())
 	{
 		TSharedPtr< SWindow > WindowForExistingConsole = FSlateApplication::Get().FindWidgetWindow(PinnedDebugConsole.ToSharedRef());
 		if (WindowForExistingConsole.IsValid())
 		{
-			WindowForExistingConsole->RemoveOverlaySlot( PinnedDebugConsole.ToSharedRef() );
+			WindowForExistingConsole->RemoveOverlaySlot(PinnedDebugConsole.ToSharedRef());
 			DebugConsole.Reset();
 		}
 	}
