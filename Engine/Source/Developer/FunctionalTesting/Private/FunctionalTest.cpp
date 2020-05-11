@@ -587,7 +587,7 @@ UBillboardComponent* AFunctionalTest::GetSpriteComponent()
 
 //////////////////////////////////////////////////////////////////////////
 
-bool AFunctionalTest::AssertTrue(bool Condition, FString Message, const UObject* ContextObject)
+bool AFunctionalTest::AssertTrue(bool Condition, const FString& Message, const UObject* ContextObject)
 {
 	if ( !Condition )
 	{
@@ -601,12 +601,12 @@ bool AFunctionalTest::AssertTrue(bool Condition, FString Message, const UObject*
 	}
 }
 
-bool AFunctionalTest::AssertFalse(bool Condition, FString Message, const UObject* ContextObject)
+bool AFunctionalTest::AssertFalse(bool Condition, const FString& Message, const UObject* ContextObject)
 {
 	return AssertTrue(!Condition, Message, ContextObject);
 }
 
-bool AFunctionalTest::AssertIsValid(UObject* Object, FString Message, const UObject* ContextObject)
+bool AFunctionalTest::AssertIsValid(UObject* Object, const FString& Message, const UObject* ContextObject)
 {
 	if ( !IsValid(Object) )
 	{
@@ -718,6 +718,19 @@ bool AFunctionalTest::AssertEqual_Name(const FName Actual, const FName Expected,
 	}
 }
 
+bool AFunctionalTest::AssertEqual_Object(UObject* Actual, UObject* Expected, const FString& What, const UObject* ContextObject)
+{
+	if (Actual != Expected)
+	{
+		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' to be {%s}, but it was {%s} for context '%s'"), *What, *GetNameSafe(Expected), *GetNameSafe(Actual), ContextObject ? *ContextObject->GetName() : TEXT("")));
+		return false;
+	}
+	else
+	{
+		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Object assertion passed (%s)"), *What));
+		return true;
+	}
+}
 
 bool AFunctionalTest::AssertEqual_Transform(const FTransform& Actual, const FTransform& Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
 {
@@ -836,12 +849,12 @@ bool AFunctionalTest::AssertEqual_TraceQueryResults(const UTraceQueryTestResults
 	return Actual->AssertEqual(Expected, What, ContextObject, *this);
 }
 
-void AFunctionalTest::AddWarning(const FString Message)
+void AFunctionalTest::AddWarning(const FString& Message)
 {
 	LogStep(ELogVerbosity::Warning, Message);
 }
 
-void AFunctionalTest::AddError(const FString Message)
+void AFunctionalTest::AddError(const FString& Message)
 {
 	LogStep(ELogVerbosity::Error, Message);
 }
