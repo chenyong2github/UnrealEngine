@@ -644,7 +644,9 @@ static NSVGparser* nsvg__createParser()
 	// Init style
 	nsvg__xformIdentity(p->attr[0].xform);
 	memset(p->attr[0].id, 0, sizeof p->attr[0].id);
-	p->attr[0].fillColor = NSVG_RGB(0, 0, 0);
+	// BEGIN EPIC - Default the fill color to white. We want to treat no color as white so it is tintable
+	p->attr[0].fillColor = NSVG_RGB(255, 255, 255);
+	// END EPIC
 	p->attr[0].strokeColor = NSVG_RGB(0, 0, 0);
 	p->attr[0].opacity = 1;
 	p->attr[0].fillOpacity = 1;
