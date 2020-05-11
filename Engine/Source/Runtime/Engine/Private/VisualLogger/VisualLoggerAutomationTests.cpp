@@ -66,8 +66,10 @@ void FVisualLoggerTestDevice::Serialize(const UObject* LogOwner, FName OwnerName
 	LastEntry = LogEntry;
 }
 
-#define CHECK_SUCCESS(__Test__) UTEST_TRUE(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__)
-#define CHECK_FAIL(__Test__) UTEST_FALSE(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__)
+#define CHECK_SUCCESS(__Test__) CA_SUPPRESS(6011); \
+	UTEST_TRUE(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__)
+#define CHECK_FAIL(__Test__) CA_SUPPRESS(6011); \
+	UTEST_FALSE(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__)
 
 template<typename TYPE = FVisualLoggerTestDevice>
 struct FTestDeviceContext
@@ -110,6 +112,7 @@ bool FVisualLogTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GetSimpleEngineAutomationTestWorld(GetTestFlags());
 	CHECK_SUCCESS(World != nullptr);
+	CA_ASSUME(World);
 
 	FTestDeviceContext<FVisualLoggerTestDevice> Context;
 
@@ -224,6 +227,7 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GetSimpleEngineAutomationTestWorld(GetTestFlags());
 	CHECK_SUCCESS(World != nullptr);
+	CA_ASSUME(World);
 
 	FTestDeviceContext<FVisualLoggerTestDevice> Context;
 	FVisualLogger::Get().SetIsRecording(true);
