@@ -932,6 +932,14 @@ void UGroomComponent::OnChildAttached(USceneComponent* ChildComponent)
 
 }
 
+// TODO clean up: 
+// This functions is defined in HairInterface.h/.cpp. However since this if made for a patch, the public interface can't change. 
+// So we redefine the function/value here.
+inline uint32 GetHairStrandsMaxSectionCount()
+{
+	return 20;
+}
+
 void UGroomComponent::InitResources(bool bIsBindingReloading)
 {
 	ReleaseResources();
@@ -950,7 +958,21 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
 	USkeletalMeshComponent* SkeletalMeshComponent = bBindGroomToSkeletalMesh && GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
-	const bool bHasValidSketalMesh = SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshRenderData();
+	const bool bHasValidSectionCount = SkeletalMeshComponent && SkeletalMeshComponent->GetNumMaterials() < int32(GetHairStrandsMaxSectionCount());
+	const bool bHasValidSketalMesh = SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshRenderData() && bHasValidSectionCount;
+
+	// Report warning if the skeletal section count is larger than the supported count
+	if (bBindGroomToSkeletalMesh && SkeletalMeshComponent && !bHasValidSectionCount)
+	{
+		FString Name = "";
+		if (GetOwner())
+		{
+			Name += GetOwner()->GetName() + "/";
+		}
+		Name += GetName() + "/" + GroomAsset->GetName();
+
+		UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom is bound to a skeletal mesh which has too many sections (%d), which is higher than the maximum supported for hair binding (%d). The groom binding will be disbled on this component."), *Name, SkeletalMeshComponent->GetNumMaterials(), GetHairStrandsMaxSectionCount());
+	}
 
 	uint32 SkeletalComponentId = ~0;
 	if (bHasValidSketalMesh)
