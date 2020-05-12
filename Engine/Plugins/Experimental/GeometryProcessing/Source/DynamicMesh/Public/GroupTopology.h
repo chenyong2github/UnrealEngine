@@ -335,7 +335,7 @@ FIndex2i FGroupTopology::MakeEdgeID(int MeshEdgeID) const
 
 	if (EdgeTris.B == FDynamicMesh3::InvalidID)
 	{
-		return FIndex2i(GetGroupID(EdgeTris.A), FDynamicMesh3::InvalidGroupID);
+		return FIndex2i(GetGroupID(EdgeTris.A), FDynamicMesh3::InvalidID);
 	}
 	else
 	{
