@@ -60,15 +60,6 @@ void UMeshClickTool::Setup()
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartMeshSelectTool", "Select a mesh. Switch tools to paint vertex colors, blend between textures, or paint directly onto a texture file."),
 		EToolMessageLevel::UserNotification);
-
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelection", "Select Mesh"));
-
-
-	FSelectedOjectsChangeList NewSelection;
-	// TODO add CTRL handling
-	NewSelection.ModificationType = ESelectedObjectsModificationType::Clear;
-	GetToolManager()->RequestSelectionChange(NewSelection);
-	GetToolManager()->EndUndoTransaction();
 }
 
 void UMeshClickTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
