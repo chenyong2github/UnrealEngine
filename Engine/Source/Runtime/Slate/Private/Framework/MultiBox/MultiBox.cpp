@@ -23,6 +23,7 @@
 #include "Framework/MultiBox/SClippingHorizontalBox.h"
 #include "Framework/Commands/UICommandDragDropOp.h"
 #include "SUniformToolbarPanel.h"
+#include "Styling/ToolBarStyle.h"
 
 
 TAttribute<bool> FMultiBoxSettings::UseSmallToolBarIcons;
@@ -150,7 +151,7 @@ TSharedRef< IMultiBlockBaseWidget > FMultiBlock::MakeWidget( TSharedRef< SMultiB
 
 	// Work out what style the widget should be using
 	const ISlateStyle* const StyleSet = InOwnerMultiBoxWidget->GetStyleSet();
-	const FName& StyleName = InOwnerMultiBoxWidget->GetStyleName();
+	FName StyleName = StyleNameOverride != NAME_None ? StyleNameOverride : InOwnerMultiBoxWidget->GetStyleName();
 
 	// Build up the widget
 	NewMultiBlockWidget->BuildMultiBlockWidget(StyleSet, StyleName);
@@ -181,6 +182,11 @@ FMultiBox::FMultiBox( const EMultiBoxType InType, FMultiBoxCustomization InCusto
 	, Type( InType )
 	, bShouldCloseWindowAfterMenuSelection( bInShouldCloseWindowAfterMenuSelection )
 {
+
+	if (InType == EMultiBoxType::SlimHorizontalToolBar && FCoreStyle::IsStarshipStyle())
+	{
+		StyleName = "SlimToolBar";
+	}
 }
 
 FMultiBox::~FMultiBox()
@@ -414,6 +420,7 @@ TSharedPtr<FMultiBlock> FMultiBox::MakeMultiBlockFromCommand( TSharedPtr<const F
 		switch ( Type )
 		{
 		case EMultiBoxType::ToolBar:
+		case EMultiBoxType::UniformToolBar:
 			{
 				NewBlock = MakeShareable( new FToolBarButtonBlock( CommandInfo, CommandList ) );
 			}
@@ -598,30 +605,39 @@ void SMultiBoxWidget::AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHori
 	{
 		FinalWidget = BlockWidget;
 	}
+	
+	TSharedRef<SWidget> FinalWidgetWithHook = SNullWidget::NullWidget;
 
-	TSharedRef<SWidget> FinalWidgetWithHook = 
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.HAlign(HAlign_Center)
-		.AutoHeight()
-		[
-			SNew(STextBlock)
-			.Visibility(bDisplayExtensionHooks ? EVisibility::Visible : EVisibility::Collapsed)
-			.ColorAndOpacity(StyleSet->GetColor("MultiboxHookColor"))
-			.Text(FText::FromName(Block.GetExtensionHook()))
-		]
-		+ SVerticalBox::Slot()
-		[
-			FinalWidget.ToSharedRef()
-		];
+	if (bDisplayExtensionHooks)
+	{
+		FinalWidgetWithHook =
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Center)
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Visibility(bDisplayExtensionHooks ? EVisibility::Visible : EVisibility::Collapsed)
+				.ColorAndOpacity(StyleSet->GetColor("MultiboxHookColor"))
+				.Text(FText::FromName(Block.GetExtensionHook()))
+			]
+			+ SVerticalBox::Slot()
+			[
+				FinalWidget.ToSharedRef()
+			];
+	}
+	else
+	{
+		FinalWidgetWithHook = FinalWidget.ToSharedRef();
+	}
+	
 
 	switch (MultiBox->GetType())
 	{
 	case EMultiBoxType::MenuBar:
-	case EMultiBoxType::ToolMenuBar:
 	case EMultiBoxType::ToolBar:
+	case EMultiBoxType::SlimHorizontalToolBar:
 		{
-
 			HorizontalBox->AddSlot()
 			.AutoWidth()
 			.Padding(0)
@@ -667,7 +683,7 @@ void SMultiBoxWidget::AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHori
 		{
 			VerticalBox->AddSlot()
 			.AutoHeight()
-			.Padding( 1.0f, 0.0f, 1.0f, 0.0f )
+			.Padding( 0.0f, 0.0f, 0.0f, 0.0f )
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -715,7 +731,16 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	// Select background brush based on the type of multibox.
 	const ISlateStyle* const StyleSet = MultiBox->GetStyleSet();
 	const FName& StyleName = MultiBox->GetStyleName();
-	const FSlateBrush* BackgroundBrush = StyleSet->GetBrush( StyleName, ".Background" );
+
+	const FSlateBrush* BackgroundBrush = nullptr;
+	if (StyleSet->HasWidgetStyle<FToolBarStyle>(StyleName))
+	{
+		BackgroundBrush = &StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName).BackgroundBrush;
+	}
+	else
+	{
+		BackgroundBrush = StyleSet->GetOptionalBrush(StyleName, ".Background", FStyleDefaults::GetNoBrush());
+	}
 
 	// Create a box panel that the various multiblocks will resides within
 	// @todo Slate MultiBox: Expose margins and other useful bits
@@ -732,11 +757,12 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	switch (MultiBox->GetType())
 	{
 	case EMultiBoxType::MenuBar:
+		MainWidget = HorizontalBox = SNew(SHorizontalBox);
+		break;
 	case EMultiBoxType::ToolBar:
-	case EMultiBoxType::ToolMenuBar:
+	case EMultiBoxType::SlimHorizontalToolBar:
 		{
 			MainWidget = HorizontalBox = ClippedHorizontalBox = SNew(SClippingHorizontalBox)
-				.BackgroundBrush(BackgroundBrush)
 				.OnWrapButtonClicked(FOnGetContent::CreateSP(this, &SMultiBoxWidget::OnWrapButtonClicked))
 				.StyleSet(StyleSet)
 				.StyleName(StyleName);
@@ -909,38 +935,37 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 		ClippedHorizontalBox->AddWrapButton();
 	}
 
+	FMargin BorderPadding(0);
+	const FSlateBrush* BorderBrush = FStyleDefaults::GetNoBrush();
+	FSlateColor BorderForegroundColor = FSlateColor::UseForeground();
+
 	// Setup the root border widget
-	TSharedPtr< SBorder > RootBorder;
+	TSharedPtr<SWidget> RootBorder;
+
 	switch (MultiBox->GetType())
 	{
-	case EMultiBoxType::MenuBar:
-	case EMultiBoxType::ToolBar:
-	case EMultiBoxType::ToolMenuBar:
+	case EMultiBoxType::Menu:
 		{
-			RootBorder =
-				SNew( SBorder )
-				.Padding(0)
-				.BorderImage( FCoreStyle::Get().GetBrush("NoBorder") )
-				// Assign the box panel as the child
-				[
-					MainWidget.ToSharedRef()
-				];
+			BorderPadding = FMargin(0, 0, 0, 7);
 		}
 		break;
 	default:
-		{
-			RootBorder =
-				SNew( SBorder )
-				.Padding(0)
-				.BorderImage( BackgroundBrush )
-				.ForegroundColor( FCoreStyle::Get().GetSlateColor("DefaultForeground") )
-				// Assign the box panel as the child
-				[
-					MainWidget.ToSharedRef()
-				];
+		{ 
+			BorderBrush = BackgroundBrush;
+			BorderForegroundColor = FCoreStyle::Get().GetSlateColor("DefaultForeground");
 		}
 		break;
 	}
+
+	RootBorder =
+		SNew(SBorder)
+		.Padding(BorderPadding)
+		.BorderImage(BorderBrush)
+		.ForegroundColor(BorderForegroundColor)
+		// Assign the box panel as the child
+		[
+			MainWidget.ToSharedRef()
+		];
 
 	// Prevent tool-tips spawned by child widgets from drawing on top of our main widget
 	RootBorder->EnableToolTipForceField( true );

@@ -12,6 +12,7 @@
 #include "Styling/SlateTypes.h"
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Styling/ToolBarStyle.h"
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but Style->RootToContentDir is how the core style is set up
 #define RootToContentDir Style->RootToContentDir
@@ -1172,72 +1173,21 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 	// ToolBar
 	{
-		Style->Set("ToolBar.Background", new FSlateRoundedBoxBrush(FStyleColors::Background, 4) );
-		Style->Set("ToolBar.Icon", new IMAGE_BRUSH("Icons/icon_tab_toolbar_16px", Icon16x16));
-		Style->Set("ToolBar.Expand", new IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16));
-		Style->Set("ToolBar.SubMenuIndicator", new IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8));
-		Style->Set("ToolBar.SToolBarComboButtonBlock.Padding", FMargin(4.0f, 0.0f));
-		Style->Set("ToolBar.SToolBarButtonBlock.Padding", FMargin(2.0f,0.f));
-		Style->Set("ToolBar.SToolBarCheckComboButtonBlock.Padding", FMargin(4.0f, 0.f));
-		Style->Set("ToolBar.SToolBarButtonBlock.CheckBox.Padding", FMargin(4.0f, 0.f));
-		Style->Set("ToolBar.SToolBarComboButtonBlock.ComboButton.Color", DefaultForeground);
+		FToolBarStyle NormalToolbarStyle =
+			FToolBarStyle()
+			.SetBackground(FSlateColorBrush(FStyleColors::Background))
+			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16))
+			.SetSubMenuIndicator(IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8))
+			.SetComboButtonPadding(FMargin(4.0f, 0.0f))
+			.SetButtonPadding(FMargin(2.0f, 0.f))
+			.SetCheckBoxPadding(FMargin(4.0f, 0.f))
+			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Input))
+			.SetSeparatorPadding(FMargin(1.f, 0.f, 1.f, 0.f))
+			.SetLabelStyle(FTextBlockStyle(NormalText).SetFont(StyleFonts.Normal))
+			.SetEditableTextStyle(FEditableTextBoxStyle(NormalEditableTextBoxStyle).SetFont(StyleFonts.Normal))
+			.SetBlockPadding(FMargin(2.0f, 2.0f, 4.0f, 4.0f))
+			.SetIndentedBlockPadding(FMargin(18.0f, 2.0f, 4.0f, 4.0f));
 
-		Style->Set("ToolBar.Block.IndentedPadding", FMargin(18.0f, 2.0f, 4.0f, 4.0f));
-		Style->Set("ToolBar.Block.Padding", FMargin(2.0f, 2.0f, 4.0f, 4.0f));
-
-		Style->Set("ToolBar.Separator", new FSlateColorBrush(FStyleColors::Input));
-		Style->Set("ToolBar.Separator.Padding", FMargin(8.f, 0.f, 8.f, 0.f));
-
-		Style->Set("ToolBar.Label", FTextBlockStyle(NormalText).SetFont(StyleFonts.Normal));
-		Style->Set("ToolBar.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle).SetFont(StyleFonts.Normal));
-		Style->Set("ToolBar.Keybinding", FTextBlockStyle(NormalText).SetFont(StyleFonts.Small));
-		Style->Set("ToolBar.Label.DropShadowSize", FVector2D::ZeroVector);
-
-		Style->Set("ToolBar.Heading", FTextBlockStyle(NormalText)
-			.SetFont(StyleFonts.Small)
-			.SetColorAndOpacity(FLinearColor(0.4f, 0.4, 0.4f, 1.0f)));
-
-		/* Create style for "ToolBar.CheckBox" widget ... */
-
-/*
-		const FCheckBoxStyle ToolBarCheckBoxStyle = FCheckBoxStyle()
-			.SetUncheckedImage(IMAGE_BRUSH("Common/SmallCheckBox", Icon14x14))
-			.SetCheckedImage(IMAGE_BRUSH("Common/SmallCheckBox_Checked", Icon14x14))
-			.SetUncheckedHoveredImage(IMAGE_BRUSH("Common/SmallCheckBox_Hovered", Icon14x14))
-			.SetCheckedImage(IMAGE_BRUSH("Common/SmallCheckBox_Checked_Hovered", Icon14x14))
-			.SetUncheckedPressedImage(IMAGE_BRUSH("Common/SmallCheckBox_Hovered", Icon14x14, FLinearColor(0.5f, 0.5f, 0.5f)))
-			.SetCheckedPressedImage(IMAGE_BRUSH("Common/SmallCheckBox_Checked_Hovered", Icon14x14, FLinearColor(0.5f, 0.5f, 0.5f)))
-			.SetUndeterminedImage(IMAGE_BRUSH("Common/CheckBox_Undetermined", Icon14x14))
-			.SetUndeterminedHoveredImage(IMAGE_BRUSH("Common/CheckBox_Undetermined_Hovered", Icon14x14))
-			.SetUndeterminedPressedImage(IMAGE_BRUSH("Common/CheckBox_Undetermined_Hovered", Icon14x14, FLinearColor(0.5f, 0.5f, 0.5f)));
-		/ * ... and add new style * /
-		Style->Set("ToolBar.CheckBox", ToolBarCheckBoxStyle);*/
-
-		/* Read-only checkbox that appears next to a menu item */
-		/* Set images for various SCheckBox states associated with read-only toolbar check box items... */
-		const FCheckBoxStyle BasicToolBarCheckStyle = FCheckBoxStyle()
-			.SetUncheckedImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUncheckedHoveredImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUncheckedPressedImage(IMAGE_BRUSH("Common/SmallCheckBox_Hovered", Icon14x14))
-			.SetCheckedImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetCheckedHoveredImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetCheckedPressedImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetUndeterminedImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUndeterminedHoveredImage(FSlateNoResource())
-			.SetUndeterminedPressedImage(FSlateNoResource());
-		Style->Set("ToolBar.Check", BasicToolBarCheckStyle);
-
-		// This radio button is actually just a check box with different images
-		/* Create style for "ToolBar.RadioButton" widget ... */
-		const FCheckBoxStyle ToolbarRadioButtonCheckBoxStyle = FCheckBoxStyle()
-			.SetUncheckedImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16))
-			.SetCheckedImage(IMAGE_BRUSH("Common/RadioButton_Selected_16x", Icon16x16))
-			.SetUncheckedHoveredImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16, SelectionColor))
-			.SetCheckedHoveredImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16, SelectionColor))
-			.SetUncheckedPressedImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16, SelectionColor_Pressed))
-			.SetCheckedPressedImage(IMAGE_BRUSH("Common/RadioButton_Selected_16x", Icon16x16, SelectionColor_Pressed));
-		/* ... and add new style */
-		Style->Set("ToolBar.RadioButton", ToolbarRadioButtonCheckBoxStyle);
 
 		/* Create style for "ToolBar.ToggleButton" widget ... */
 		const FCheckBoxStyle ToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle()
@@ -1248,8 +1198,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetCheckedImage(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
 			.SetCheckedHoveredImage(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
 			.SetCheckedPressedImage(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor));
-		/* ... and add new style */
-		Style->Set("ToolBar.ToggleButton", ToolBarToggleButtonCheckBoxStyle);
+
+		NormalToolbarStyle.SetToggleButtonStyle(ToolBarToggleButtonCheckBoxStyle);
 
 		const FButtonStyle ToolbarButton = FButtonStyle()
 			.SetNormal(FSlateNoResource())
@@ -1262,19 +1212,12 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetHoveredForeground(FSlateColor::UseForeground())
 			.SetDisabledForeground(FSlateColor::UseForeground());
 
+		NormalToolbarStyle.SetButtonStyle(ToolbarButton);
 
-		Style->Set("ToolBar.Button", ToolbarButton);
+		NormalToolbarStyle.SetSettingsComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"));
+		NormalToolbarStyle.SetIconSize(Icon40x40);
 
-		//Style->Set("ToolBar.Button.Normal", new FSlateNoResource());
-		//Style->Set("ToolBar.Button.Pressed", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed));
-		//Style->Set("ToolBar.Button.Hovered", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor));
-
-		Style->Set("ToolBar.Button.Checked", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed));
-		Style->Set("ToolBar.Button.Checked_Hovered", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed));
-		Style->Set("ToolBar.Button.Checked_Pressed", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor));
-
-		Style->Set("ToolBar.SimpleComboButton", Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"));
-		Style->Set("ToolBar.IconSize", Icon40x40);
+		Style->Set("ToolBar", NormalToolbarStyle);
 
 		// Slim Toolbar
 
@@ -1286,23 +1229,19 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetHoveredForeground(FStyleColors::ForegroundHover)
 			.SetDisabledForeground(FStyleColors::Foreground);
 
-		Style->Set("SlimToolBar.Background", new FSlateColorBrush(FStyleColors::Background));
-		Style->Set("SlimToolBar.Expand", new IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16));
-		Style->Set("SlimToolBar.SubMenuIndicator", new IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8));
-		Style->Set("SlimToolBar.SToolBarComboButtonBlock.Padding", FMargin(6.0f, 0.0f));
-		Style->Set("SlimToolBar.SToolBarButtonBlock.Padding", FMargin(4.0f, 0.0f));
-		Style->Set("SlimToolBar.SToolBarButtonBlock.CheckBox.Padding", FMargin(10.0f, 0.0f));
-
-		Style->Set("SlimToolBar.Separator", new FSlateColorBrush(FStyleColors::Input));
-		Style->Set("SlimToolBar.Separator.Padding", FMargin(8.f, 0));
-
-		Style->Set("SlimToolBar.Label", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT("Regular", 10)));
-		Style->Set("SlimToolBar.Label.Padding", FMargin(5,9,0,9));
-		Style->Set("SlimToolBar.Label.DropShadowSize", FVector2D::ZeroVector);
-
-		Style->Set("SlimToolBar.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle).SetFont(DEFAULT_FONT("Regular", 9)));
-
-	//	Style->Set("SlimToolBar.CheckBox", ToolBarCheckBoxStyle);
+		FToolBarStyle SlimToolbarStyle =
+			FToolBarStyle()
+			.SetBackground(FSlateColorBrush(FStyleColors::Background))
+			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16))
+			.SetSubMenuIndicator(IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8))
+			.SetComboButtonPadding(FMargin(6.0f, 0.0f))
+			.SetButtonPadding(FMargin(4.0f, 0.0f))
+			.SetCheckBoxPadding(FMargin(10.0f, 0.0f))
+			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Input))
+			.SetSeparatorPadding(FMargin(8.f, 0))
+			.SetLabelStyle(FTextBlockStyle(NormalText))
+			.SetLabelPadding(FMargin(5, 9, 0, 9))
+			.SetEditableTextStyle(FEditableTextBoxStyle(NormalEditableTextBoxStyle));
 
 		const FCheckBoxStyle SlimToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
@@ -1319,16 +1258,18 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetCheckedPressedForegroundColor(FStyleColors::PrimaryPress)
 			.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover);
 
-		Style->Set("SlimToolBar.ToggleButton", SlimToolBarToggleButtonCheckBoxStyle);
-		Style->Set("SlimToolBar.Button", SlimToolBarButton);
+		SlimToolbarStyle.SetToggleButtonStyle(SlimToolBarToggleButtonCheckBoxStyle);
+		SlimToolbarStyle.SetButtonStyle(SlimToolBarButton);
 
 		FComboButtonStyle SlimToolBarComboButton = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
 			.SetContentPadding(0)
 			.SetButtonStyle(SlimToolBarButton)
 			.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6,24)));
 
-		Style->Set("SlimToolBar.SimpleComboButton", SlimToolBarComboButton);
-		Style->Set("SlimToolBar.IconSize", Icon20x20);
+		SlimToolbarStyle.SetSettingsComboButtonStyle(SlimToolBarComboButton);
+		SlimToolbarStyle.SetIconSize(Icon20x20);
+
+		Style->Set("SlimToolBar", SlimToolbarStyle);
 	}
 
 	// MenuBar

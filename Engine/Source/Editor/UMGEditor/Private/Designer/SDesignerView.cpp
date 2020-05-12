@@ -71,6 +71,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/DPICustomScalingRule.h"
 #include "UMGEditorModule.h"
+#include "Styling/ToolBarStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -537,6 +538,8 @@ EActiveTimerReturnType SDesignerView::EnsureTick(double InCurrentTime, float InD
 
 TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 {
+	const FToolBarStyle& ToolBarStyle = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("ViewportMenu");
+
 	return SNew(SOverlay)
 
 	// Outline and text for important state.
@@ -623,7 +626,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
+				.ButtonStyle(&ToolBarStyle.ButtonStyle)
 				.ToolTipText(LOCTEXT("ZoomToFit_ToolTip", "Zoom To Fit"))
 				.OnClicked(this, &SDesignerView::HandleZoomToFitClicked)
 				.ContentPadding(FEditorStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))
@@ -638,7 +641,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
+				.ButtonStyle(&ToolBarStyle.ButtonStyle)
 				.ToolTipText(LOCTEXT("SwapAspectRatio_ToolTip", "Switch between Landscape and Portrait"))
 				.OnClicked(this, &SDesignerView::HandleSwapAspectRatioClicked)
 				.ContentPadding(FEditorStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))
@@ -653,7 +656,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
+				.ButtonStyle(&ToolBarStyle.ButtonStyle)
 				.ToolTipText(LOCTEXT("Mirror_ToolTip", "Flip the current safe zones"))
 				.OnClicked(this, &SDesignerView::HandleFlipSafeZonesClicked)
 				.ContentPadding(FEditorStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))	
@@ -670,7 +673,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SComboButton)
-			.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
+			.ButtonStyle(&ToolBarStyle.ButtonStyle)
 			.ForegroundColor(FLinearColor::Black)
 			.OnGetMenuContent(this, &SDesignerView::GetResolutionsMenu)
 			.ContentPadding(FEditorStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))
@@ -688,7 +691,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SComboButton)
-			.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
+			.ButtonStyle(&ToolBarStyle.ButtonStyle)
 			.ForegroundColor(FLinearColor::Black)
 			.OnGetMenuContent(this, &SDesignerView::GetScreenSizingFillMenu)
 			.ContentPadding(FEditorStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))

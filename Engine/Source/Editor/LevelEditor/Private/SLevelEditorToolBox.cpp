@@ -103,7 +103,6 @@ void SLevelEditorToolBox::UpdateModeLegacyToolBar()
 
 	FToolBarBuilder EditorModeTools( CommandList, FMultiBoxCustomization::None, ModeBarExtenders );
 	{
-		EditorModeTools.SetStyle(&FEditorStyle::Get(), "EditorModesToolbar");
 		EditorModeTools.SetLabelVisibility( EVisibility::Collapsed );
 
 		const FLevelEditorModesCommands& Commands = LevelEditorModule.GetLevelEditorModesCommands();

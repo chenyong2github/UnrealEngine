@@ -22,7 +22,6 @@
 #include "CollectionManagerModule.h"
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
-#include "IIntroTutorials.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
@@ -183,23 +182,9 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 			}
 		}
 
-		IIntroTutorials& IntroTutorials = FModuleManager::LoadModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
-		TSharedRef<SWidget> TutorialWidget = IntroTutorials.CreateTutorialsWidget(GetToolkitContextFName(), NewMajorTab->GetParentWindow());
-
-		NewMajorTab->SetRightContent(
-				SNew(SHorizontalBox)
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(8.0f, 0.0f, 8.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					TutorialWidget
-				]	
-			);
-
 		const TSharedRef<FTabManager> NewTabManager = FGlobalTabmanager::Get()->NewTabManager( NewMajorTab.ToSharedRef() );		
 		NewTabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateRaw(this, &FAssetEditorToolkit::HandleTabManagerPersistLayout));
+		NewTabManager->SetAllowWindowMenuBar(true);
 		this->TabManager = NewTabManager;
 
 		NewMajorTab->SetContent
@@ -1066,17 +1051,24 @@ void FAssetEditorToolkit::GenerateToolbar()
 	GeneratedToolbar->bToolBarForceSmallIcons = bIsToolbarUsingSmallIcons;
 	TSharedRef< class SWidget > ToolBarWidget = ToolMenus->GenerateWidget(GeneratedToolbar);
 
-	TSharedRef<SHorizontalBox> MiscWidgets = SNew(SHorizontalBox);
+	TSharedRef<SWidget> MiscWidgets = SNullWidget::NullWidget;
 
-	for (int32 WidgetIdx = 0; WidgetIdx < ToolbarWidgets.Num(); ++WidgetIdx)
+	if(ToolbarWidgets.Num() > 0)
 	{
-		MiscWidgets->AddSlot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.Padding(0.0f, 2.0f, 0.0f, 2.0f)
-		[
-			ToolbarWidgets[WidgetIdx]
-		];
+		TSharedRef<SHorizontalBox> MiscWidgetsHBox = SNew(SHorizontalBox);
+
+		for (int32 WidgetIdx = 0; WidgetIdx < ToolbarWidgets.Num(); ++WidgetIdx)
+		{
+			MiscWidgetsHBox->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+				[
+					ToolbarWidgets[WidgetIdx]
+				];
+		}
+
+		MiscWidgets = MiscWidgetsHBox;
 	}
 	
 	Toolbar = 
@@ -1103,12 +1095,7 @@ void FAssetEditorToolkit::GenerateToolbar()
 			.AutoHeight()
 			.VAlign(VAlign_Bottom)
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Toolbar.Background")))
-				.Visibility(ToolbarWidgets.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed)
-				[
-					MiscWidgets
-				]
+				MiscWidgets
 			]
 		];
 

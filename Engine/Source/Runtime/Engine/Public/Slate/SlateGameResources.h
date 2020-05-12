@@ -45,7 +45,7 @@ public:
 
 	virtual void SetContentRoot( const FString& InContentRootDir ) override;
 
-	virtual const FSlateBrush* GetBrush( const FName PropertyName, const ANSICHAR* Specifier = NULL ) const override;
+	virtual const FSlateBrush* GetBrush( const FName PropertyName, const ANSICHAR* Specifier = NULL, const ISlateStyle* RequestingStyle = nullptr ) const override;
 	virtual const FSlateBrush* GetOptionalBrush(const FName PropertyName, const ANSICHAR* Specifier = NULL, const FSlateBrush* const DefaultBrush = FStyleDefaults::GetNoBrush()) const override;
 
 	UCurveFloat* GetCurveFloat( const FName AssetName ) const;
@@ -54,7 +54,7 @@ public:
 
 protected:
 
-	virtual const FSlateWidgetStyle* GetWidgetStyleInternal( const FName DesiredTypeName, const FName StyleName ) const override;
+	virtual const FSlateWidgetStyle* GetWidgetStyleInternal( const FName DesiredTypeName, const FName StyleName, const FSlateWidgetStyle* DefaultStyle, bool bWarnIfNotFound) const override;
 
 	virtual void Log( ISlateStyle::EStyleMessageSeverity Severity, const FText& Message ) const override;
 

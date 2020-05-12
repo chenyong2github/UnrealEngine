@@ -21,6 +21,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Misc/Timecode.h"
+#include "Styling/ToolBarStyle.h"
 
 #define LOCTEXT_NAMESPACE "SSequencerPlayRateCombo"
 
@@ -29,8 +30,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 	WeakSequencer = InWeakSequencer;
 	WeakSequencerWidget = InWeakSequencerWidget;
 
-	FName BlockStyle = EMultiBlockLocation::ToName(ISlateStyle::Join( InArgs._StyleName, ".Button" ), InArgs._BlockLocation);
-	FName ColorStyle = ISlateStyle::Join( InArgs._StyleName, ".SToolBarComboButtonBlock.ComboButton.Color" );
+	const FToolBarStyle& SequencerToolBarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>(InArgs._StyleName);
 
 	SetToolTipText(MakeAttributeSP(this, &SSequencerPlayRateCombo::GetToolTipText));
 
@@ -40,8 +40,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 		SNew(SComboButton)
 		.ContentPadding(FMargin(2.f, 1.0f))
 		.VAlign(VAlign_Fill)
-		.ButtonStyle( InArgs._StyleSet, BlockStyle )
-		.ForegroundColor( InArgs._StyleSet->GetSlateColor( ColorStyle ) )
+		.ButtonStyle(&SequencerToolBarStyle.ButtonStyle)
 		.OnGetMenuContent(this, &SSequencerPlayRateCombo::OnCreateMenu)
 		.ButtonContent()
 		[
@@ -54,7 +53,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 			[
 				SNew(STextBlock)
 				.Text(this, &SSequencerPlayRateCombo::GetFrameRateText)
-				.TextStyle( InArgs._StyleSet, ISlateStyle::Join( InArgs._StyleName, ".Label" ) )
+				.TextStyle(&SequencerToolBarStyle.LabelStyle)
 			]
 
 			+ SHorizontalBox::Slot()
@@ -64,7 +63,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 			[
 				SNew(STextBlock)
 				.Visibility(this, &SSequencerPlayRateCombo::GetFrameLockedVisibility)
-				.TextStyle( InArgs._StyleSet, ISlateStyle::Join( InArgs._StyleName, ".Label" ) )
+				.TextStyle(&SequencerToolBarStyle.LabelStyle)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FEditorFontGlyphs::Lock)
 			]
@@ -77,7 +76,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 				SNew(STextBlock)
 				.ToolTipText(this, &SSequencerPlayRateCombo::GetFrameRateIsMultipleOfErrorDescription)
 				.Visibility(this, &SSequencerPlayRateCombo::GetFrameRateIsMultipleOfErrorVisibility)
-				.TextStyle( InArgs._StyleSet, ISlateStyle::Join( InArgs._StyleName, ".Label" ) )
+				.TextStyle(&SequencerToolBarStyle.LabelStyle)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FEditorFontGlyphs::Exclamation_Triangle)
 			]
@@ -90,7 +89,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 				SNew(STextBlock)
 				.ToolTipText(this, &SSequencerPlayRateCombo::GetFrameRateMismatchErrorDescription)
 				.Visibility(this, &SSequencerPlayRateCombo::GetFrameRateMismatchErrorVisibility)
-				.TextStyle(InArgs._StyleSet, ISlateStyle::Join(InArgs._StyleName, ".Label"))
+				.TextStyle(&SequencerToolBarStyle.LabelStyle)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
 				.Text(FEditorFontGlyphs::Exclamation_Triangle)
 			]

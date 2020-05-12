@@ -9,11 +9,21 @@
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Input/SButton.h"
 #include "EditorStyleSet.h"
+#include "Styling/ToolBarStyle.h"
 
 void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 {
-	FName ButtonStyle = FEditorStyle::Join(InArgs._Style.Get(), ".Button");
-	FName CheckboxStyle = FEditorStyle::Join(InArgs._Style.Get(), ".ToggleButton");
+	const FToolBarStyle& ToolBarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>(InArgs._Style.Get());
+
+	EMultiBlockLocation::Type BlockLocation = InArgs._BlockLocation;
+
+	FName ButtonBlockStyle = EMultiBlockLocation::ToName(FEditorStyle::Join(InArgs._Style.Get(), ".Button"), BlockLocation);
+	const FButtonStyle& ButtonStyle = BlockLocation == EMultiBlockLocation::None ? ToolBarStyle.ButtonStyle : FAppStyle::Get().GetWidgetStyle<FButtonStyle>(ButtonBlockStyle);
+
+	FName CheckBoxBlockStyle = EMultiBlockLocation::ToName(FEditorStyle::Join(InArgs._Style.Get(), ".ToggleButton"), BlockLocation);
+	const FCheckBoxStyle& CheckBoxStyle = BlockLocation == EMultiBlockLocation::None ? ToolBarStyle.ToggleButton : FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>(CheckBoxBlockStyle);
+
+	const FTextBlockStyle& LabelStyle = ToolBarStyle.LabelStyle;
 
 	const FSlateIcon& Icon = InArgs._Icon.Get();
 
@@ -24,7 +34,7 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 		ToggleControl = SNew(SCheckBox)
 		.Cursor( EMouseCursor::Default )
 		.Padding(FMargin( 4.0f ))
-		.Style(FEditorStyle::Get(), EMultiBlockLocation::ToName(CheckboxStyle, InArgs._BlockLocation))
+		.Style(&CheckBoxStyle)
 		.OnCheckStateChanged(InArgs._OnCheckStateChanged)
 		.ToolTipText(InArgs._ToggleButtonToolTip)
 		.IsChecked(InArgs._IsChecked)
@@ -45,7 +55,7 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 	{
 		TSharedRef<SWidget> ButtonContents =
 			SNew(SButton)
-			.ButtonStyle( FEditorStyle::Get(), EMultiBlockLocation::ToName(ButtonStyle,EMultiBlockLocation::End) )
+			.ButtonStyle(&ButtonStyle)
 			.ContentPadding( FMargin( 5.0f, 0.0f ) )
 			.ToolTipText(InArgs._MenuButtonToolTip)
 			.OnClicked(this, &SViewportToolBarComboMenu::OnMenuClicked)
@@ -57,7 +67,7 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 				.VAlign(VAlign_Top)
 				[
 					SNew(STextBlock)
-					.TextStyle( FEditorStyle::Get(), FEditorStyle::Join( InArgs._Style.Get(), ".Label" ) )
+					.TextStyle(&LabelStyle)
 					.Text(InArgs._Label)
 				]
 				+SVerticalBox::Slot()

@@ -241,13 +241,6 @@ void SLevelEditor::ConstructTitleBarMessages()
 {
 	TtileBarMessageBox->ClearChildren();
 
-	TtileBarMessageBox->AddSlot()
-		.AutoWidth()
-		.Padding(5.0f, 0.0f, 0.0f, 0.0f)
-		[
-			FLevelEditorMenu::MakeNotificationBar( LevelEditorCommands, SharedThis(this ) )
-		];
-
 	const IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(MainFrameModuleName);
 	const FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >(LevelEditorModuleName);
 	

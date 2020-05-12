@@ -1006,7 +1006,7 @@ void SLevelViewportToolBar::GenerateViewportConfigsMenu(UToolMenu* Menu) const
 	{
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportOnePaneConfigs", LOCTEXT("OnePaneConfigHeader", "One Pane"));
 
-		FToolBarBuilder OnePaneButton(CommandList, FMultiBoxCustomization::None);
+		FSlimHorizontalToolBarBuilder OnePaneButton(CommandList, FMultiBoxCustomization::None);
 		OnePaneButton.SetLabelVisibility(EVisibility::Collapsed);
 		OnePaneButton.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
 
@@ -1031,7 +1031,7 @@ void SLevelViewportToolBar::GenerateViewportConfigsMenu(UToolMenu* Menu) const
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportTwoPaneConfigs", LOCTEXT("TwoPaneConfigHeader", "Two Panes"));
-		FToolBarBuilder TwoPaneButtons(CommandList, FMultiBoxCustomization::None);
+		FSlimHorizontalToolBarBuilder TwoPaneButtons(CommandList, FMultiBoxCustomization::None);
 		TwoPaneButtons.SetLabelVisibility(EVisibility::Collapsed);
 		TwoPaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
 
@@ -1057,7 +1057,7 @@ void SLevelViewportToolBar::GenerateViewportConfigsMenu(UToolMenu* Menu) const
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportThreePaneConfigs", LOCTEXT("ThreePaneConfigHeader", "Three Panes"));
-		FToolBarBuilder ThreePaneButtons(CommandList, FMultiBoxCustomization::None);
+		FSlimHorizontalToolBarBuilder ThreePaneButtons(CommandList, FMultiBoxCustomization::None);
 		ThreePaneButtons.SetLabelVisibility(EVisibility::Collapsed);
 		ThreePaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
 
@@ -1085,7 +1085,7 @@ void SLevelViewportToolBar::GenerateViewportConfigsMenu(UToolMenu* Menu) const
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportFourPaneConfigs", LOCTEXT("FourPaneConfigHeader", "Four Panes"));
-		FToolBarBuilder FourPaneButtons(CommandList, FMultiBoxCustomization::None);
+		FSlimHorizontalToolBarBuilder FourPaneButtons(CommandList, FMultiBoxCustomization::None);
 		FourPaneButtons.SetLabelVisibility(EVisibility::Collapsed);
 		FourPaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
 

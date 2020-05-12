@@ -68,7 +68,8 @@ void FMacGraphicsSwitchingModule::Initialize( TSharedPtr<SWindow> InRootWindow, 
 		bool MacUseAutomaticGraphicsSwitching = false;
 		if ( GConfig->GetBool(TEXT("/Script/MacGraphicsSwitching.MacGraphicsSwitchingSettings"), TEXT("bShowGraphicsSwitching"), MacUseAutomaticGraphicsSwitching, GEditorSettingsIni) && MacUseAutomaticGraphicsSwitching )
 		{
-			NotificationBarExtender = MakeShareable( new FExtender() );
+			// Switch to status bar
+			/*NotificationBarExtender = MakeShareable( new FExtender() );
 			NotificationBarExtender->AddToolBarExtension("Start",
 														 EExtensionHook::After,
 														 nullptr,
@@ -76,7 +77,7 @@ void FMacGraphicsSwitchingModule::Initialize( TSharedPtr<SWindow> InRootWindow, 
 			
 			FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 			LevelEditorModule.GetNotificationBarExtensibilityManager()->AddExtender( NotificationBarExtender );
-			LevelEditorModule.BroadcastTitleBarMessagesChanged();
+			LevelEditorModule.BroadcastTitleBarMessagesChanged();*/
 		}
 	}
 }
@@ -98,7 +99,8 @@ void FMacGraphicsSwitchingModule::ShutdownModule()
 	if ( FModuleManager::Get().IsModuleLoaded("LevelEditor") && NotificationBarExtender.IsValid() )
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditorModule.GetNotificationBarExtensibilityManager()->RemoveExtender( NotificationBarExtender );
+		// Switch to status bar
+		//LevelEditorModule.GetNotificationBarExtensibilityManager()->RemoveExtender( NotificationBarExtender );
 	}
 	
 	if ( FModuleManager::Get().IsModuleLoaded("MainFrame") )

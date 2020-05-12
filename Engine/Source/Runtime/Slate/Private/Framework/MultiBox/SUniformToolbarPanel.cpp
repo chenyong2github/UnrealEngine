@@ -4,6 +4,7 @@
 #include "Layout/LayoutUtils.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
+#include "Styling/ToolBarStyle.h"
 
 SUniformToolbarPanel::SUniformToolbarPanel()
 : Children(this)
@@ -31,6 +32,8 @@ void SUniformToolbarPanel::Construct( const FArguments& InArgs )
 		Children.Add( ChildSlot );
 	}
 
+	const FToolBarStyle& ToolBarStyle = StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName);
+	
 	// Add the optional dropdown arrow as a child.  
 	FSlot& NewSlot = *(new FSlot());
 
@@ -38,7 +41,7 @@ void SUniformToolbarPanel::Construct( const FArguments& InArgs )
 	[
 		SAssignNew(Dropdown, SComboButton)
 		.HasDownArrow(false)
-		.ButtonStyle(StyleSet, ISlateStyle::Join(StyleName, ".Button"))
+		.ButtonStyle(&ToolBarStyle.ButtonStyle)
 		.ContentPadding(0)
 		.ToolTipText(NSLOCTEXT("Slate", "ExpandToolbar", "Click to expand toolbar"))
 		.OnGetMenuContent(InArgs._OnDropdownOpened)
@@ -46,7 +49,7 @@ void SUniformToolbarPanel::Construct( const FArguments& InArgs )
 		.ButtonContent()
 		[
 			SNew(SImage)
-			.Image(StyleSet->GetBrush(StyleName, ".Expand"))
+			.Image(&ToolBarStyle.ExpandBrush)
 		]
 	];
 

@@ -24,6 +24,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Styling/ToolBarStyle.h"
 
 #define LOCTEXT_NAMESPACE "SAssetFamilyShortcutBar"
 
@@ -66,13 +67,15 @@ public:
 		bMultipleAssetsExist = Assets.Num() > 1;
 		AssetDirtyBrush = FEditorStyle::GetBrush("ContentBrowser.ContentDirty");
 
+		const FToolBarStyle& ToolBarStyle = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("ToolBar");
+
 		ChildSlot
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			[
 				SAssignNew(CheckBox, SCheckBox)
-				.Style(FEditorStyle::Get(), "ToolBar.ToggleButton")
+				.Style(&ToolBarStyle.ToggleButton)
 				.ForegroundColor(FSlateColor::UseForeground())
 				.Padding(0.0f)
 				.OnCheckStateChanged(this, &SAssetShortcut::HandleOpenAssetShortcut)
@@ -85,10 +88,10 @@ public:
 					.VAlign(VAlign_Center)
 					.AutoWidth()
 					[
-						SNew(SBorder)
-						.Padding(4.0f)
-						.BorderImage(FEditorStyle::GetBrush("PropertyEditor.AssetThumbnailShadow"))
-						[
+						//SNew(SBorder)
+						//.Padding(4.0f)
+						//.BorderImage(FEditorStyle::GetBrush("PropertyEditor.AssetThumbnailShadow"))
+						//[
 							SNew(SHorizontalBox)
 							+SHorizontalBox::Slot()
 							[
@@ -132,7 +135,7 @@ public:
 									]
 								]
 							]
-						]
+						//]
 					]
 					+SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
@@ -146,8 +149,7 @@ public:
 						[
 							SNew(STextBlock)
 							.Text(this, &SAssetShortcut::GetAssetText)
-							.TextStyle(FEditorStyle::Get(), "Toolbar.Label")
-							.ShadowOffset(FVector2D::UnitVector)
+							.TextStyle(&ToolBarStyle.LabelStyle)
 						]
 					]
 				]
@@ -161,7 +163,7 @@ public:
 				.Visibility(this, &SAssetShortcut::GetComboVisibility)
 				.ContentPadding(0)
 				.ForegroundColor(FSlateColor::UseForeground())
-				.ButtonStyle(FEditorStyle::Get(), "Toolbar.Button")
+				.ButtonStyle(&ToolBarStyle.ButtonStyle)
 				.OnGetMenuContent(this, &SAssetShortcut::HandleGetMenuContent)
 				.ToolTipText(LOCTEXT("AssetComboTooltip", "Find other assets of this type and perform asset operations./nShift-Click to open in new window."))
 			]

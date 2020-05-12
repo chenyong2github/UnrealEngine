@@ -90,7 +90,7 @@ void FDataprepEditorStyle::Initialize()
 			TilteTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
 			StyleSet->Set("DataprepAction.TitleTextStyle", TilteTextStyle);
 
-			FEditableTextBoxStyle TitleEditableText = FEditorStyle::GetWidgetStyle< FEditableTextBoxStyle >("ViewportMenu.EditableText");
+			FEditableTextBoxStyle TitleEditableText = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("ViewportMenu").EditableTextStyle;
 			TitleEditableText.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
 
 			StyleSet->Set( "DataprepAction.TitleInlineEditableText", FInlineEditableTextBlockStyle()

@@ -73,7 +73,6 @@ public:
 		void SetupWorldBrowserStyles();
 		void SetupSequencerStyles();
 		void SetupViewportStyles();
-		void SetupNotificationBarStyles();
 		void SetupMenuBarStyles();
 		void SetupGeneralIcons();
 		void SetupWindowStyles();

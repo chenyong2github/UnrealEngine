@@ -12,6 +12,7 @@
 #include "Styling/StyleDefaults.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 
 
 FSlateStyleSet::FSlateStyleSet(const FName& InStyleSetName)
@@ -33,7 +34,6 @@ FSlateStyleSet::~FSlateStyleSet()
 		}
 	}
 }
-
 
 const FName& FSlateStyleSet::GetStyleSetName() const
 {
@@ -164,96 +164,131 @@ FString FSlateStyleSet::RootToCoreContentDir(const FString& RelativePath)
 	return ( CoreContentRootDir / RelativePath );
 }
 
-float FSlateStyleSet::GetFloat(const FName PropertyName, const ANSICHAR* Specifier, float DefaultValue) const
+void FSlateStyleSet::SetParentStyleName(const FName& InParentStyleName)
+{
+	ParentStyleName = InParentStyleName;	
+}
+
+const ISlateStyle* FSlateStyleSet::GetParentStyle() const
+{
+	return ParentStyleName.IsNone() ? nullptr : FSlateStyleRegistry::FindSlateStyle(ParentStyleName);
+}
+
+float FSlateStyleSet::GetFloat(const FName PropertyName, const ANSICHAR* Specifier, float DefaultValue, const ISlateStyle* RequestingStyle) const
 {
 	const float* Result = FloatValues.Find(Join(PropertyName, Specifier));
 
-#if DO_GUARD_SLOW
-	if ((Result == nullptr) && !MissingResources.Contains(PropertyName))
+	if (Result == nullptr) 
 	{
-		MissingResources.Add(PropertyName);
-		Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSlateFloat", "Unable to find float property '{0}' in style."), FText::FromName(PropertyName)));
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetFloat(PropertyName, Specifier, DefaultValue, RequestingStyle ? RequestingStyle : this);
+		}
 	}
-#endif
+
+	if (Result == nullptr) 
+	{
+		const ISlateStyle* ReportingStyle = RequestingStyle != nullptr ? RequestingStyle : this;
+		ReportingStyle->LogMissingResource(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSlateFloat", "Unable to find float property '{0}' in style."), FText::FromName(PropertyName)), PropertyName);
+	}
 
 	return Result ? *Result : DefaultValue;
 }
 
-FVector2D FSlateStyleSet::GetVector(const FName PropertyName, const ANSICHAR* Specifier, FVector2D DefaultValue) const
+FVector2D FSlateStyleSet::GetVector(const FName PropertyName, const ANSICHAR* Specifier, FVector2D DefaultValue, const ISlateStyle* RequestingStyle) const
 {
 	const FVector2D* const Result = Vector2DValues.Find(Join(PropertyName, Specifier));
 
-#if DO_GUARD_SLOW
-	if ((Result == nullptr) && !MissingResources.Contains(PropertyName))
+	if (Result == nullptr) 
 	{
-		MissingResources.Add(PropertyName);
-		Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSlateVector", "Unable to find vector property '{0}' in style."), FText::FromName(PropertyName)));
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetVector(PropertyName, Specifier, DefaultValue);
+		}
 	}
-#endif
+
+	if (Result == nullptr)
+	{
+		const ISlateStyle* ReportingStyle = RequestingStyle != nullptr ? RequestingStyle : this;
+		ReportingStyle->LogMissingResource(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSlateVector", "Unable to find vector property '{0}' in style."), FText::FromName(PropertyName)), PropertyName);
+	}
 
 	return Result ? *Result : DefaultValue;
 }
 
-const FLinearColor& FSlateStyleSet::GetColor(const FName PropertyName, const ANSICHAR* Specifier, const FLinearColor& DefaultValue) const
+const FLinearColor& FSlateStyleSet::GetColor(const FName PropertyName, const ANSICHAR* Specifier, const FLinearColor& DefaultValue, const ISlateStyle* RequestingStyle) const
 {
 	const FName LookupName(Join(PropertyName, Specifier));
 	const FLinearColor* Result = ColorValues.Find(LookupName);
 
-#if DO_GUARD_SLOW
-	if ( Result == nullptr && !MissingResources.Contains(LookupName) )
+	if (Result == nullptr) 
 	{
-		MissingResources.Add(LookupName);
-		Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownColor", "Unable to find Color '{0}'."), FText::FromName(LookupName)));
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetColor(PropertyName, Specifier, DefaultValue);
+		}
 	}
-#endif
+
+	if ( Result == nullptr) 
+	{
+		const ISlateStyle* ReportingStyle = RequestingStyle != nullptr ? RequestingStyle : this;
+		ReportingStyle->LogMissingResource(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownColor", "Unable to find Color '{0}'."), FText::FromName(LookupName)), LookupName);
+	}
 
 	return Result ? *Result : DefaultValue;
 }
 
-const FSlateColor FSlateStyleSet::GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier, const FSlateColor& DefaultValue) const
+const FSlateColor FSlateStyleSet::GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier, const FSlateColor& DefaultValue, const ISlateStyle* RequestingStyle) const
 {
 	const FName StyleName(Join(PropertyName, Specifier));
 	const FSlateColor* Result = SlateColorValues.Find(StyleName);
+	const FLinearColor* LinearResult = nullptr;
 
 	if ( Result == nullptr )
 	{
-		const FLinearColor* LinearColorLookup = ColorValues.Find(StyleName);
-		if ( LinearColorLookup == nullptr )
-		{
-			return DefaultValue;
-		}
-
-		return *LinearColorLookup;
+		LinearResult = ColorValues.Find(StyleName);
 	}
 
-#if DO_GUARD_SLOW
-	if ( Result == nullptr && !MissingResources.Contains(StyleName) )
+	if ( Result == nullptr && LinearResult == nullptr) 
 	{
-		MissingResources.Add(StyleName);
-		Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSlateColor", "Unable to find SlateColor '{0}'."), FText::FromName(StyleName)));
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetSlateColor(PropertyName, Specifier, DefaultValue);
+		}
 	}
-#endif
 
-	return *Result;
+	if ( Result == nullptr && LinearResult == nullptr)
+	{
+		const ISlateStyle* ReportingStyle = RequestingStyle != nullptr ? RequestingStyle : this;
+		ReportingStyle->LogMissingResource(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSlateColor", "Unable to find SlateColor '{0}'."), FText::FromName(StyleName)), StyleName);
+	}
+
+	return Result ? *Result : LinearResult ? *LinearResult : DefaultValue;
 }
 
-const FMargin& FSlateStyleSet::GetMargin(const FName PropertyName, const ANSICHAR* Specifier, const FMargin& DefaultValue) const
+const FMargin& FSlateStyleSet::GetMargin(const FName PropertyName, const ANSICHAR* Specifier, const FMargin& DefaultValue, const ISlateStyle* RequestingStyle) const
 {
 	const FName StyleName(Join(PropertyName, Specifier));
 	const FMargin* const Result = MarginValues.Find(StyleName);
 
-#if DO_GUARD_SLOW
-	if ( Result == nullptr && !MissingResources.Contains(StyleName) )
+	if (Result == nullptr) 
 	{
-		MissingResources.Add(StyleName);
-		Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownMargin", "Unable to find Margin '{0}'."), FText::FromName(StyleName)));
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetMargin(PropertyName, Specifier, DefaultValue);
+		}
 	}
-#endif
+
+	if ( Result == nullptr )
+	{
+		const ISlateStyle* ReportingStyle = RequestingStyle != nullptr ? RequestingStyle : this;
+		ReportingStyle->LogMissingResource(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownMargin", "Unable to find Margin '{0}'."), FText::FromName(StyleName)), StyleName);
+	}
 
 	return Result ? *Result : DefaultValue;
 }
 
-const FSlateBrush* FSlateStyleSet::GetBrush(const FName PropertyName, const ANSICHAR* Specifier) const
+const FSlateBrush* FSlateStyleSet::GetBrush(const FName PropertyName, const ANSICHAR* Specifier, const ISlateStyle* RequestingStyle) const
 {
 	const FName StyleName = Join(PropertyName, Specifier);
 	const FSlateBrush* Result = BrushResources.FindRef(StyleName);
@@ -269,13 +304,19 @@ const FSlateBrush* FSlateStyleSet::GetBrush(const FName PropertyName, const ANSI
 		}
 	}
 
-#if DO_GUARD_SLOW
-	if ( Result == nullptr && !MissingResources.Contains(StyleName))
+	if (Result == nullptr) 
 	{
-		MissingResources.Add(StyleName);
-		Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownBrush", "Unable to find Brush '{0}'."), FText::FromName(StyleName)));
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetBrush(PropertyName, Specifier);
+		}
 	}
-#endif
+
+	if ( Result == nullptr )
+	{
+		const ISlateStyle* ReportingStyle = RequestingStyle != nullptr ? RequestingStyle : this;
+		ReportingStyle->LogMissingResource(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownBrush", "Unable to find Brush '{0}'."), FText::FromName(StyleName)), StyleName);
+	}
 
 	return Result ? Result : GetDefaultBrush();
 }
@@ -296,20 +337,28 @@ const FSlateBrush* FSlateStyleSet::GetOptionalBrush(const FName PropertyName, co
 		}
 	}
 
+	if (Result == nullptr) 
+	{
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetOptionalBrush(PropertyName, Specifier, InDefaultBrush);
+		}
+	}
+
 	return Result ? Result : InDefaultBrush;
 }
 
-const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::GetDynamicImageBrush(const FName BrushTemplate, const FName TextureName, const ANSICHAR* Specifier)
+const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::GetDynamicImageBrush(const FName BrushTemplate, const FName TextureName, const ANSICHAR* Specifier, const ISlateStyle* RequestingStyle) const
 {
 	return GetDynamicImageBrush(BrushTemplate, Specifier, nullptr, TextureName);
 }
 
-const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::GetDynamicImageBrush(const FName BrushTemplate, const ANSICHAR* Specifier, UTexture2D* TextureResource, const FName TextureName)
+const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::GetDynamicImageBrush(const FName BrushTemplate, const ANSICHAR* Specifier, UTexture2D* TextureResource, const FName TextureName, const ISlateStyle* RequestingStyle) const
 {
 	return GetDynamicImageBrush(Join(BrushTemplate, Specifier), TextureResource, TextureName);
 }
 
-const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::GetDynamicImageBrush(const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName)
+const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::GetDynamicImageBrush(const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName, const ISlateStyle* RequestingStyle) const
 {
 	//create a resource name
 	FName ResourceName;
@@ -317,24 +366,24 @@ const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::GetDynamicImageBrush
 
 	//see if we already have that brush
 	TWeakPtr< FSlateDynamicImageBrush > WeakImageBrush = DynamicBrushes.FindRef(ResourceName);
-
-	//if we don't have the image brush, then make it
 	TSharedPtr< FSlateDynamicImageBrush > ReturnBrush = WeakImageBrush.Pin();
 
+	// if no brush was found, check referenced styles
+	if (!ReturnBrush.IsValid()) 
+	{
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetDynamicImageBrush(BrushTemplate, TextureResource, TextureName);
+		}
+	}
+
+	// If no DynamicImageBrush was found and this style has no more referenced styles to check, 
+	// then notify the RequestingStyle to make the DynamicImageBrush.
+	// This is to avoid all DynamicImageBrushes being made on the RootStyle (usually CoreStyle)
 	if ( !ReturnBrush.IsValid() )
 	{
-		const FSlateBrush* Result = BrushResources.FindRef(Join(BrushTemplate, nullptr));
-
-		if ( Result == nullptr )
-		{
-			Result = GetDefaultBrush();
-		}
-
-		//create the new brush
-		ReturnBrush = MakeShareable(new FSlateDynamicImageBrush(TextureResource, Result->ImageSize, ResourceName));
-
-		//add it to the dynamic brush list
-		DynamicBrushes.Add(ResourceName, ReturnBrush);
+		const ISlateStyle* ReportingStyle = RequestingStyle != nullptr ? RequestingStyle : this;
+		ReportingStyle->MakeDynamicImageBrush(BrushTemplate, TextureResource, TextureName);
 	}
 
 	return ReturnBrush;
@@ -345,18 +394,24 @@ FSlateBrush* FSlateStyleSet::GetDefaultBrush() const
 	return DefaultBrush;
 }
 
-const FSlateSound& FSlateStyleSet::GetSound(const FName PropertyName, const ANSICHAR* Specifier) const
+const FSlateSound& FSlateStyleSet::GetSound(const FName PropertyName, const ANSICHAR* Specifier, const ISlateStyle* RequestingStyle) const
 {
 	const FName StyleName = Join(PropertyName, Specifier);
 	const FSlateSound* Result = Sounds.Find(StyleName);
 
-#if DO_GUARD_SLOW
-	if ( Result == nullptr && !MissingResources.Contains(StyleName) )
+	if (Result == nullptr) 
 	{
-		MissingResources.Add(StyleName);
-		Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSound", "Unable to find Sound '{0}'."), FText::FromName(StyleName)));
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetSound(PropertyName, Specifier);
+		}
 	}
-#endif
+
+	if ( Result == nullptr )
+	{
+		const ISlateStyle* ReportingStyle = RequestingStyle != nullptr ? RequestingStyle : this;
+		ReportingStyle->LogMissingResource(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSound", "Unable to find Sound '{0}'."), FText::FromName(StyleName)), StyleName);
+	}
 
 	return Result ? *Result : FStyleDefaults::GetSound();
 }
@@ -365,29 +420,119 @@ FSlateFontInfo FSlateStyleSet::GetFontStyle(const FName PropertyName, const ANSI
 {
 	const FSlateFontInfo* Result = FontInfoResources.Find(Join(PropertyName, Specifier));
 
+	if (Result == nullptr) 
+	{
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			return ParentStyle->GetFontStyle(PropertyName, Specifier);
+		}
+	}
+
 	return Result ? *Result : FStyleDefaults::GetFontInfo();
 }
 
-const FSlateWidgetStyle* FSlateStyleSet::GetWidgetStyleInternal(const FName DesiredTypeName, const FName StyleName) const
+const FSlateWidgetStyle* FSlateStyleSet::GetWidgetStyleInternal(const FName DesiredTypeName, const FName StyleName, const FSlateWidgetStyle* DefaultStyle, bool bWarnIfNotFound) const
 {
 	const TSharedRef< struct FSlateWidgetStyle >* StylePtr = WidgetStyleValues.Find(StyleName);
 
+	if (StylePtr == nullptr) 
+	{
+		if (const ISlateStyle* ParentStyle = GetParentStyle())
+		{
+			if (const FSlateWidgetStyle* Result = ParentStyle->GetWidgetStyleInternal(DesiredTypeName, StyleName, DefaultStyle, bWarnIfNotFound))
+			{
+				return Result;
+			}
+		}
+	}
+
 	if ( StylePtr == nullptr )
 	{
-		Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UnknownWidgetStyle", "Unable to find Slate Widget Style '{0}'. Using {1} defaults instead."), FText::FromName(StyleName), FText::FromName(DesiredTypeName)));
-		return nullptr;
+		if (bWarnIfNotFound)
+		{
+			Log(ISlateStyle::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UnknownWidgetStyle", "Unable to find Slate Widget Style '{0}'. Using {1} defaults instead."), FText::FromName(StyleName), FText::FromName(DesiredTypeName)));
+		}
+
+		return DefaultStyle;
 	}
 
 	const TSharedRef< struct FSlateWidgetStyle > Style = *StylePtr;
 
 	if ( Style->GetTypeName() != DesiredTypeName )
 	{
-		Log(ISlateStyle::Error, FText::Format(NSLOCTEXT("SlateStyleSet", "WrongWidgetStyleType", "The Slate Widget Style '{0}' is not of the desired type. Desired: '{1}', Actual: '{2}'"), FText::FromName(StyleName), FText::FromName(DesiredTypeName), FText::FromName(Style->GetTypeName())));
+		if (bWarnIfNotFound)
+		{
+			Log(ISlateStyle::Error, FText::Format(NSLOCTEXT("SlateStyleSet", "WrongWidgetStyleType", "The Slate Widget Style '{0}' is not of the desired type. Desired: '{1}', Actual: '{2}'"), FText::FromName(StyleName), FText::FromName(DesiredTypeName), FText::FromName(Style->GetTypeName())));
+		}
+
 		return nullptr;
 	}
 
 	return &Style.Get();
 }
+
+TSet<FName> FSlateStyleSet::GetStyleKeys() const
+{
+	TSet<FName> AllKeys;
+
+	{
+		TArray<FName> Keys;
+		WidgetStyleValues.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	{
+		TArray<FName> Keys;
+		FloatValues.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	{
+		TArray<FName> Keys;
+		Vector2DValues.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	{
+		TArray<FName> Keys;
+		ColorValues.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	{
+		TArray<FName> Keys;
+		SlateColorValues.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	{
+		TArray<FName> Keys;
+		MarginValues.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	{
+		TArray<FName> Keys;
+		BrushResources.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	{
+		TArray<FName> Keys;
+		Sounds.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	{
+		TArray<FName> Keys;
+		FontInfoResources.GenerateKeyArray(Keys);
+		AllKeys.Append(Keys);
+	}
+
+	return AllKeys;
+
+}
+
 
 void FSlateStyleSet::Log(ISlateStyle::EStyleMessageSeverity Severity, const FText& Message) const
 {
@@ -411,6 +556,42 @@ void FSlateStyleSet::Log(ISlateStyle::EStyleMessageSeverity Severity, const FTex
 	{
 		UE_LOG(LogSlateStyle, Fatal, TEXT("%s"), *Message.ToString());
 	}
+}
+
+void FSlateStyleSet::LogMissingResource(EStyleMessageSeverity Severity, const FText& Message, const FName& MissingResource) const
+{
+	if (!MissingResources.Contains(MissingResource))
+	{
+		FText StyleAndMessage = FText::Format(NSLOCTEXT("SlateStyleSet", "SlateSetResourceMissing", "Missing Resource from '{0}' Style: '{1}'"), FText::FromName(GetStyleSetName()), Message);
+
+		MissingResources.Add(MissingResource);
+		Log(Severity, StyleAndMessage);
+
+		ensure(false);
+	}
+}
+
+const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::MakeDynamicImageBrush( const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName ) const
+{
+	// Double check we don't have this brush already defined
+	FName ResourceName = (TextureName == NAME_None) ? BrushTemplate : FName(*( BrushTemplate.ToString() + TextureName.ToString() ));
+	TWeakPtr< FSlateDynamicImageBrush > WeakImageBrush = DynamicBrushes.FindRef(ResourceName);
+	TSharedPtr< FSlateDynamicImageBrush > ReturnBrush = WeakImageBrush.Pin();
+	if (ReturnBrush.IsValid())
+	{
+		return ReturnBrush;
+	}
+
+	const FSlateBrush* TemplateResult = GetOptionalBrush(BrushTemplate, nullptr, GetDefaultBrush());
+
+	// create the new brush
+	ReturnBrush = MakeShareable(new FSlateDynamicImageBrush(TextureResource, TemplateResult->ImageSize, ResourceName));
+
+	// add it to the dynamic brush list
+	DynamicBrushes.Add(ResourceName, ReturnBrush);
+
+	return ReturnBrush;
+
 }
 
 void FSlateStyleSet::LogUnusedBrushResources()
@@ -464,6 +645,7 @@ bool FSlateStyleSet::IsBrushFromFile(const FString& FilePath, const FSlateBrush*
 {
 	FString Path = Brush->GetResourceName().ToString();
 	FPaths::MakeStandardFilename(Path);
+
 	if ( Path.Compare(FilePath, ESearchCase::IgnoreCase) == 0 )
 	{
 		return true;

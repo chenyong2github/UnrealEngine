@@ -3,6 +3,7 @@
 #include "Framework/MultiBox/SWidgetBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/ToolBarStyle.h"
 
 
 /**
@@ -56,17 +57,43 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 {
 	TSharedRef< const FWidgetBlock > WidgetBlock = StaticCastSharedRef< const FWidgetBlock >( MultiBlock.ToSharedRef() );
 
+	// Support menus which do not have a defined widget style yet
 	bool bHasLabel = !WidgetBlock->Label.IsEmpty();
-	FMargin Padding = WidgetBlock->bNoIndent ? StyleSet->GetMargin( StyleName, ".Block.Padding" ) : StyleSet->GetMargin( StyleName, ".Block.IndentedPadding" );
+	FMargin Padding;
+	const FTextBlockStyle* LabelStyle = nullptr;
+	if(StyleSet->HasWidgetStyle<FToolBarStyle>(StyleName))
+	{
+		const FToolBarStyle& ToolBarStyle = StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName);
+
+		Padding = WidgetBlock->bNoIndent ? ToolBarStyle.BlockPadding : ToolBarStyle.IndentedBlockPadding;
+		LabelStyle = &ToolBarStyle.LabelStyle;
+
+	}
+	else
+	{
+		Padding = WidgetBlock->bNoIndent ? StyleSet->GetMargin(StyleName, ".Block.Padding") : StyleSet->GetMargin(StyleName, ".Block.IndentedPadding");
+
+		LabelStyle = &StyleSet->GetWidgetStyle<FTextBlockStyle>(ISlateStyle::Join(StyleName, ".Label"));
+	}
+
+	TSharedPtr<SMultiBoxWidget> OwnerMultiBoxWidgetPinned = OwnerMultiBoxWidget.Pin();
+
+	if(OwnerMultiBoxWidgetPinned->GetMultiBox()->GetType() == EMultiBoxType::Menu)
+	{
+		// Account for checkmark used in other menu blocks but not used in for widget rows
+		Padding = Padding + FMargin(12, 0, 8, 0);
+	}
 
 	// Add this widget to the search list of the multibox
 	if (MultiBlock->GetSearchable())
-		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), WidgetBlock->Label);
+	{
+		OwnerMultiBoxWidgetPinned->AddSearchElement(this->AsWidget(), WidgetBlock->Label);
+	}
 
 	// This widget holds the search text, set it as the search block widget
-	if (OwnerMultiBoxWidget.Pin()->GetSearchTextWidget() == WidgetBlock->ContentWidget)
+	if (OwnerMultiBoxWidgetPinned->GetSearchTextWidget() == WidgetBlock->ContentWidget)
 	{
-		OwnerMultiBoxWidget.Pin()->SetSearchBlockWidget(this->AsWidget());
+		OwnerMultiBoxWidgetPinned->SetSearchBlockWidget(this->AsWidget());
 		this->AsWidget()->SetVisibility(EVisibility::Collapsed);
 	}
 
@@ -85,8 +112,8 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 			.VAlign( VAlign_Center )
 			[
 				SNew( STextBlock )
-				.TextStyle( StyleSet, ISlateStyle::Join( StyleName, ".Label" ) )
-				.Text( WidgetBlock->Label )
+				.TextStyle(LabelStyle)
+				.Text(WidgetBlock->Label)
 			]
 		]
 		+SHorizontalBox::Slot()

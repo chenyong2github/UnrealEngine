@@ -32,13 +32,12 @@ public:
 	void Construct(const FArguments& Args)
 	{
 		FSlateIcon IconBrush = FSlateIcon(FRenderDocPluginStyle::Get()->GetStyleSetName(), "RenderDocPlugin.CaptureFrameIcon");
-		
+	
 		ChildSlot
 		[
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Bottom)
-			.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
 			.ContentPadding(FMargin(1.0f))
 			.ToolTipText(FRenderDocPluginCommands::Get().CaptureFrameCommand->GetDescription())
 			.OnClicked_Lambda([this]() 

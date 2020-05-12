@@ -5,6 +5,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Styling/ToolBarStyle.h"
 
 
 FToolBarComboButtonBlock::FToolBarComboButtonBlock( const FUIAction& InAction, const FOnGetContent& InMenuContentGenerator, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, bool bInSimpleComboBox )
@@ -67,46 +69,35 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 	
 	TSharedRef< const FToolBarComboButtonBlock > ToolBarComboButtonBlock = StaticCastSharedRef< const FToolBarComboButtonBlock >( MultiBlock.ToSharedRef() );
 
+	//TSharedPtr< const FUICommandInfo > UICommand = ToolBarComboButtonBlock->GetAction();
+
 	TAttribute<FText> Label;
 
-	// If we were supplied an image than go ahead and use that, otherwise we use a null widget
-	TSharedRef< SWidget > IconWidget = SNullWidget::NullWidget;
-	TSharedRef< SWidget > SmallIconWidget = SNullWidget::NullWidget;
+	const FToolBarStyle& ToolBarStyle = StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName);
+
+	TSharedRef<SWidget> IconWidget = SNullWidget::NullWidget;
 	if (!ToolBarComboButtonBlock->bSimpleComboBox)
 	{
-		if( !HasDynamicIcon() )
+		if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
 		{
-			// Not dynamic, so resolve the icons now
-			const FSlateBrush* IconBrush = GetIcon();
-			const FSlateBrush* SmallIconBrush = GetSmallIcon();
+			const FVector2D IconSize = ToolBarStyle.IconSize;
 
-			if( IconBrush->GetResourceName() != NAME_None )
-			{
-				IconWidget =
-					SNew( SImage )
-					.Visibility( this, &SToolBarComboButtonBlock::GetIconVisibility, false )
-					.Image( IconBrush );
-			}
-			if( SmallIconBrush->GetResourceName() != NAME_None )
-			{
-				SmallIconWidget =
-					SNew( SImage )
-					.Visibility( this, &SToolBarComboButtonBlock::GetIconVisibility, true )
-					.Image( SmallIconBrush );
-			}
-		}
-		else 
-		{
-			// Dynamic, so we need to preserve the callback used
 			IconWidget =
-				SNew( SImage )
-				.Visibility( this, &SToolBarComboButtonBlock::GetIconVisibility, false )
-				.Image( this, &SToolBarComboButtonBlock::GetIcon );
-
-			SmallIconWidget =
-				SNew( SImage )
-				.Visibility( this, &SToolBarComboButtonBlock::GetIconVisibility, true )
-				.Image( this, &SToolBarComboButtonBlock::GetSmallIcon );
+				SNew(SBox)
+				.WidthOverride(IconSize.X)
+				.HeightOverride(IconSize.Y)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(this, &SToolBarComboButtonBlock::GetIconBrush)
+				];
+		}
+		else
+		{
+			IconWidget = 
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(this, &SToolBarComboButtonBlock::GetIconBrush);
 		}
 
 		Label = ToolBarComboButtonBlock->Label;
@@ -114,7 +105,9 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 
 	// Add this widget to the search list of the multibox
 	if (MultiBlock->GetSearchable())
+	{
 		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), Label.Get());
+	}
 
 	// Setup the string for the metatag
 	FName TagName;
@@ -128,66 +121,96 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 	}
 	
 	// Create the content for our button
-	TSharedRef< SWidget > ButtonContent =
-		SNew( SVerticalBox )
-		.AddMetaData<FTagMetaData>(FTagMetaData(TagName))
-		// Icon image
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Center)
-		// Center the icon horizontally, so that large labels don't stretch out the artwork
-		[
-			IconWidget
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SmallIconWidget
-		]
-
-		// Label text
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(StyleSet->GetMargin(ISlateStyle::Join( StyleName, ".Label.Padding" )))
-		.HAlign( HAlign_Center )	// Center the label text horizontally
-		[
-			SNew( STextBlock )
-				.Visibility( LabelVisibility )
-				.Text( Label )
-
+	TSharedRef<SWidget> ButtonContent = SNullWidget::NullWidget;
+	if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
+	{
+		ButtonContent =
+			SNew(SHorizontalBox)
+			// Icon image
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			[
+				IconWidget
+			]
+			// Label text
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(ToolBarStyle.LabelPadding)
+			.VAlign(VAlign_Center)	// Center the label text horizontally
+			[
+				SNew(STextBlock)
+				.Visibility(ToolBarComboButtonBlock->bSimpleComboBox ? EVisibility::Collapsed : LabelVisibility)
+				.Text(Label)
 				// Smaller font for tool tip labels
-				.TextStyle( StyleSet, ISlateStyle::Join( StyleName, ".Label" ) )
-				.ShadowOffset(FVector2D::UnitVector)
-		]
-		;
+				.TextStyle(&ToolBarStyle.LabelStyle)
+			];
+
+	}
+	else
+	{
+		ButtonContent =
+			SNew(SVerticalBox)
+			// Icon image
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Center)	// Center the icon horizontally, so that large labels don't stretch out the artwork
+			[
+				IconWidget
+			]
+			// Label text
+			+ SVerticalBox::Slot().AutoHeight()
+			.Padding(ToolBarStyle.LabelPadding)
+			.AutoHeight()
+			.HAlign(HAlign_Center)	// Center the label text horizontally
+			[
+				SNew(STextBlock)
+				.Visibility(LabelVisibility)
+				.Text(Label)
+				.TextStyle(&ToolBarStyle.LabelStyle)
+			];
+	}
+	
 		
 	EMultiBlockLocation::Type BlockLocation = GetMultiBlockLocation();
-	FName BlockStyle = EMultiBlockLocation::ToName(ISlateStyle::Join( StyleName, ".Button" ), BlockLocation);
-	FName ColorStyle = ISlateStyle::Join( StyleName, ".SToolBarComboButtonBlock.ComboButton.Color" );
+	FName BlockStyle = EMultiBlockLocation::ToName(ISlateStyle::Join(StyleName, ".Button"), BlockLocation);
+	const FButtonStyle& ButtonStyle = BlockLocation == EMultiBlockLocation::None ? ToolBarStyle.ButtonStyle : StyleSet->GetWidgetStyle<FButtonStyle>(BlockStyle);
+
+	OpenForegroundColor = ButtonStyle.HoveredForeground;
+
+	const FComboButtonStyle* ComboStyle = &FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton");
+	if (ToolBarComboButtonBlock->bSimpleComboBox)
+	{
+		ComboStyle = &ToolBarStyle.SettingsComboButton;
+	}
 
 	ChildSlot
 	[
-		SNew( SComboButton )
-			.ContentPadding(0)
-
-			// Use the tool bar item style for this button
-			.ButtonStyle( StyleSet, BlockStyle )
-
-			// Pass along the block's tool-tip string
-			.ToolTipText( ToolBarComboButtonBlock->ToolTip )
-
-			.ForegroundColor( StyleSet->GetSlateColor( ColorStyle ) )
-
-			.ButtonContent()
-			[
-				ButtonContent
-			]
-
-			// Route the content generator event
-			.OnGetMenuContent( this, &SToolBarComboButtonBlock::OnGetMenuContent )
+		SAssignNew(ComboButtonWidget, SComboButton)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TagName))
+		.ContentPadding(0)
+		.ComboButtonStyle(ComboStyle)
+		.ButtonStyle(&ButtonStyle)
+		.ToolTipText(ToolBarComboButtonBlock->ToolTip)
+		.ForegroundColor(this, &SToolBarComboButtonBlock::OnGetForegroundColor)
+		// Route the content generator event
+		.OnGetMenuContent(this, &SToolBarComboButtonBlock::OnGetMenuContent)
+		.ButtonContent()
+		[
+			ButtonContent
+		]
 	];
 
-	ChildSlot.Padding(StyleSet->GetMargin(ISlateStyle::Join( StyleName, ".SToolBarComboButtonBlock.Padding" )));
+
+	FMargin Padding = ToolBarStyle.ComboButtonPadding;
+	if (ToolBarComboButtonBlock->bSimpleComboBox)
+	{
+		Padding.Left = 0;
+		Padding.Right = 10;
+	}
+
+	ChildSlot.Padding(Padding);
 	// Bind our widget's enabled state to whether or not our action can execute
 	SetEnabled( TAttribute< bool >( this, &SToolBarComboButtonBlock::IsEnabled ) );
 
@@ -228,13 +251,18 @@ bool SToolBarComboButtonBlock::HasDynamicIcon() const
 	return Icon.IsBound();
 }
 
-const FSlateBrush* SToolBarComboButtonBlock::GetIcon() const
+const FSlateBrush* SToolBarComboButtonBlock::GetIconBrush() const
+{
+	return bForceSmallIcons || FMultiBoxSettings::UseSmallToolBarIcons.Get() ? GetSmallIconBrush() : GetNormalIconBrush();
+}
+
+const FSlateBrush* SToolBarComboButtonBlock::GetNormalIconBrush() const
 {
 	const FSlateIcon& ActualIcon = Icon.Get();
 	return ActualIcon.GetIcon();
 }
 
-const FSlateBrush* SToolBarComboButtonBlock::GetSmallIcon() const
+const FSlateBrush* SToolBarComboButtonBlock::GetSmallIconBrush() const
 {
 	const FSlateIcon& ActualIcon = Icon.Get();
 	return ActualIcon.GetSmallIcon();
@@ -243,4 +271,16 @@ const FSlateBrush* SToolBarComboButtonBlock::GetSmallIcon() const
 EVisibility SToolBarComboButtonBlock::GetIconVisibility(bool bIsASmallIcon) const
 {
 	return ((bForceSmallIcons || FMultiBoxSettings::UseSmallToolBarIcons.Get()) ^ bIsASmallIcon) ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+FSlateColor SToolBarComboButtonBlock::OnGetForegroundColor() const
+{
+	if (ComboButtonWidget->IsOpen())
+	{
+		return OpenForegroundColor;
+	}
+	else
+	{
+		return FSlateColor::UseStyle();
+	}
 }

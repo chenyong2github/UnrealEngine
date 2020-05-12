@@ -61,6 +61,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "LevelEditorModesActions.h"
 #include "ISourceControlModule.h"
+#include "Styling/ToolBarStyle.h"
 
 static TAutoConsoleVariable<int32> CVarAllowMatineeActors(
 	TEXT("Matinee.AllowMatineeActors"),
@@ -1479,7 +1480,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 		+SOverlay::Slot()
 		[
 			SNew(SImage)
-			.Image(FCoreStyle::IsStarshipStyle() ? FCoreStyle::Get().GetBrush("SlimToolBar.Background") : FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.Image(&FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("SlimToolBar").BackgroundBrush)
 		]
 		+ SOverlay::Slot()
 		[

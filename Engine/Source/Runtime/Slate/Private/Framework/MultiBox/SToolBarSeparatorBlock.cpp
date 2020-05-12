@@ -4,6 +4,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/ToolBarStyle.h"
 
 
 /**
@@ -50,17 +51,19 @@ void SToolBarSeparatorBlock::Construct( const FArguments& InArgs )
  */
 void SToolBarSeparatorBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName)
 {
+	const FToolBarStyle& ToolBarStyle = StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName);
+	
 	ChildSlot
 	[
 		SNew( SHorizontalBox )
 		+SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding( StyleSet->GetMargin( ISlateStyle::Join( StyleName, ".Separator.Padding" ) ) )
+		.Padding(ToolBarStyle.SeparatorPadding)
 		[
 			SNew(SSeparator)
 				.Orientation(Orient_Vertical)
 				.Thickness(2.0f)
-				.SeparatorImage( StyleSet->GetBrush( ISlateStyle::Join( StyleName, ".Separator" ) ) )
+				.SeparatorImage(&ToolBarStyle.SeparatorBrush)
 		]
 	];
 

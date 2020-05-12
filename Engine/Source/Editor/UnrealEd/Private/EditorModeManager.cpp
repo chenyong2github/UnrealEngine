@@ -954,7 +954,7 @@ TSharedRef<SDockTab> FEditorModeTools::MakeModeToolbarTab()
 		.Label(NSLOCTEXT("EditorModes", "EditorModesToolbarTitle", "Mode Toolbar"))
 		.ShouldAutosize(true)
 		.ContentPadding(0.0f)
-		.Icon(FEditorStyle::GetBrush("ToolBar.Icon"))
+		.Icon(FStyleDefaults::GetNoBrush())
 		[
 			SAssignNew(ModeToolbarBox, SVerticalBox)	
 		];
@@ -1100,7 +1100,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				for(auto Palette : PaletteNames)
 				{
 					const bool bUniform = true;
-					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false, bUniform);
+					FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName));
 					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
@@ -1175,8 +1175,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				Toolkit->GetToolPaletteNames(PaletteNames);
 				for(auto Palette : PaletteNames)
 				{
-					const bool bUniform = true;
-					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false, bUniform);
+					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName));
 					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 

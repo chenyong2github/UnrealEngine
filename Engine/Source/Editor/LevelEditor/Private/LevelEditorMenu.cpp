@@ -274,21 +274,6 @@ TSharedRef< SWidget > FLevelEditorMenu::MakeLevelEditorMenu( const TSharedPtr<FU
 	return MenuBarWidget;
 }
 
-TSharedRef< SWidget > FLevelEditorMenu::MakeNotificationBar( const TSharedPtr<FUICommandList>& CommandList, TSharedPtr<class SLevelEditor> LevelEditor )
-{
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor");
-	const TSharedPtr<FExtender> NotificationBarExtenders = LevelEditorModule.GetNotificationBarExtensibilityManager()->GetAllExtenders();
-
-	FToolBarBuilder NotificationBarBuilder( CommandList, FMultiBoxCustomization::None, NotificationBarExtenders );
-	NotificationBarBuilder.SetStyle(&FEditorStyle::Get(), "NotificationBar");
-	{
-		NotificationBarBuilder.BeginSection("Start");
-		NotificationBarBuilder.EndSection();
-	}
-
-	return NotificationBarBuilder.MakeWidget();
-}
-
 void FLevelEditorMenu::RegisterBuildMenu()
 {
 	static const FName BaseMenuName = "LevelEditor.MainMenu.Build";

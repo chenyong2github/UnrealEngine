@@ -19,6 +19,7 @@
 #include "IDocumentation.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "Styling/ToolBarStyle.h"
 
 #define LOCTEXT_NAMESPACE "SMergeActorsToolbar"
 
@@ -196,19 +197,21 @@ void SMergeActorsToolbar::UpdateToolbar()
 	TSharedRef<SHorizontalBox> HorizontalBox =
 		SNew(SHorizontalBox);
 
+	const FToolBarStyle& BaseToolBarStyle = StyleSet.GetWidgetStyle<FToolBarStyle>("ToolBar");
+
 	for (int32 ToolIndex = 0; ToolIndex < RegisteredTools.Num(); ToolIndex++)
 	{
 		const IMergeActorsTool* Tool = RegisteredTools[ToolIndex];
 
 		HorizontalBox->AddSlot()
-		.Padding(StyleSet.GetMargin("EditorModesToolbar.SToolBarButtonBlock.Padding"))
+		.Padding(BaseToolBarStyle.ButtonPadding)
 		.AutoWidth()
 		[
 			SNew(SCheckBox)
-			.Style(&StyleSet, "EditorModesToolbar.ToggleButton")
+			.Style(&BaseToolBarStyle.ToggleButton)
 			.OnCheckStateChanged(this, &SMergeActorsToolbar::OnToolSelectionChanged, ToolIndex)
 			.IsChecked(this, &SMergeActorsToolbar::OnIsToolSelected, ToolIndex)
-			.Padding(StyleSet.GetMargin("EditorModesToolbar.SToolBarButtonBlock.CheckBox.Padding"))
+			.Padding(BaseToolBarStyle.CheckBoxPadding)
 			.ToolTip(IDocumentation::Get()->CreateToolTip(Tool->GetTooltipText(), nullptr, FString(), FString()))
 			[
 				SNew(SImage)

@@ -33,6 +33,7 @@ public:
 	 * @param OutResources - the array to populate.
 	 */
 	virtual void GetResources( TArray< const FSlateBrush* >& OutResources ) const = 0;
+	virtual FString GetContentRootDir() const = 0;
 
 	/**
 	 * Gets the names of every style entry using a brush in this style
@@ -44,9 +45,10 @@ public:
 	virtual TArray<FName> GetEntriesUsingBrush(const FName BrushName) const = 0;
 
 	template< typename WidgetStyleType >            
-	const WidgetStyleType& GetWidgetStyle( FName PropertyName, const ANSICHAR* Specifier = nullptr ) const 
+	const WidgetStyleType& GetWidgetStyle( FName PropertyName, const ANSICHAR* Specifier = nullptr, const WidgetStyleType* DefaultValue = nullptr ) const 
 	{
-		const FSlateWidgetStyle* ExistingStyle = GetWidgetStyleInternal( WidgetStyleType::TypeName, Join( PropertyName, Specifier ) );
+		const bool bWarnIfNotFound = true;
+		const FSlateWidgetStyle* ExistingStyle = GetWidgetStyleInternal(WidgetStyleType::TypeName, Join( PropertyName, Specifier ), DefaultValue, bWarnIfNotFound);
 
 		if ( ExistingStyle == nullptr )
 		{
@@ -59,7 +61,8 @@ public:
 	template< typename WidgetStyleType >            
 	bool HasWidgetStyle( FName PropertyName, const ANSICHAR* Specifier = nullptr ) const
 	{
-		return GetWidgetStyleInternal( WidgetStyleType::TypeName, Join( PropertyName, Specifier ) ) != nullptr;
+		const bool bWarnIfNotFound = false;
+		return GetWidgetStyleInternal( WidgetStyleType::TypeName, Join( PropertyName, Specifier ), nullptr, bWarnIfNotFound) != nullptr;
 	}
 
 	/**
@@ -69,7 +72,7 @@ public:
 	 *
 	 * @return a float property.
 	 */
-	virtual float GetFloat(const FName PropertyName, const ANSICHAR* Specifier = nullptr, float DefaultValue = FStyleDefaults::GetFloat()) const = 0;
+	virtual float GetFloat(const FName PropertyName, const ANSICHAR* Specifier = nullptr, float DefaultValue = FStyleDefaults::GetFloat(), const ISlateStyle* RequestingStyle = nullptr) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
@@ -78,7 +81,7 @@ public:
 	 *
 	 * @return a FVector2D property.
 	 */
-	virtual FVector2D GetVector(const FName PropertyName, const ANSICHAR* Specifier = nullptr, FVector2D DefaultValue = FStyleDefaults::GetVector2D()) const = 0;
+	virtual FVector2D GetVector(const FName PropertyName, const ANSICHAR* Specifier = nullptr, FVector2D DefaultValue = FStyleDefaults::GetVector2D(), const ISlateStyle* RequestingStyle = nullptr) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
@@ -87,7 +90,7 @@ public:
 	 *
 	 * @return a FLinearColor property.
 	 */
-	virtual const FLinearColor& GetColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FLinearColor& DefaultValue = FStyleDefaults::GetColor()) const = 0;
+	virtual const FLinearColor& GetColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FLinearColor& DefaultValue = FStyleDefaults::GetColor(), const ISlateStyle* RequestingStyle = nullptr) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
@@ -96,7 +99,7 @@ public:
 	 *
 	 * @return a FLinearColor property.
 	 */
-	virtual const FSlateColor GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateColor& DefaultValue = FStyleDefaults::GetSlateColor()) const = 0;
+	virtual const FSlateColor GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateColor& DefaultValue = FStyleDefaults::GetSlateColor(), const ISlateStyle* RequestingStyle = nullptr) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
@@ -105,7 +108,7 @@ public:
 	 *
 	 * @return a FMargin property.
 	 */
-	virtual const FMargin& GetMargin(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FMargin& DefaultValue = FStyleDefaults::GetMargin()) const = 0;
+	virtual const FMargin& GetMargin(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FMargin& DefaultValue = FStyleDefaults::GetMargin(), const ISlateStyle* RequestingStyle = nullptr) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
@@ -113,7 +116,7 @@ public:
 	 *
 	 * @return an FSlateBrush property.
 	 */		
-	virtual const FSlateBrush* GetBrush( const FName PropertyName, const ANSICHAR* Specifier = nullptr ) const = 0;
+	virtual const FSlateBrush* GetBrush( const FName PropertyName, const ANSICHAR* Specifier = nullptr, const ISlateStyle* RequestingStyle = nullptr) const = 0;
 
 	/**
 	 * Just like GetBrush, but returns DefaultBrush instead of the
@@ -124,13 +127,13 @@ public:
 	 *
 	 * @return an FSlateBrush property.
 	 */		
-	virtual const FSlateBrush* GetOptionalBrush( const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateBrush* const DefaultBrush = FStyleDefaults::GetNoBrush() ) const = 0;
+	virtual const FSlateBrush* GetOptionalBrush( const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateBrush* const DefaultBrush = FStyleDefaults::GetNoBrush()) const = 0;
 
-	virtual const TSharedPtr< FSlateDynamicImageBrush > GetDynamicImageBrush( const FName BrushTemplate, const FName TextureName, const ANSICHAR* Specifier = nullptr ) = 0;
+	virtual const TSharedPtr< FSlateDynamicImageBrush > GetDynamicImageBrush( const FName BrushTemplate, const FName TextureName, const ANSICHAR* Specifier = nullptr, const ISlateStyle* RequestingStyle = nullptr ) const = 0;
 
-	virtual const TSharedPtr< FSlateDynamicImageBrush > GetDynamicImageBrush( const FName BrushTemplate, const ANSICHAR* Specifier, UTexture2D* TextureResource, const FName TextureName ) = 0;
+	virtual const TSharedPtr< FSlateDynamicImageBrush > GetDynamicImageBrush( const FName BrushTemplate, const ANSICHAR* Specifier, UTexture2D* TextureResource, const FName TextureName, const ISlateStyle* RequestingStyle = nullptr ) const = 0;
 
-	virtual const TSharedPtr< FSlateDynamicImageBrush > GetDynamicImageBrush( const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName ) = 0;
+	virtual const TSharedPtr< FSlateDynamicImageBrush > GetDynamicImageBrush( const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName, const ISlateStyle* RequestingStyle = nullptr ) const = 0;
 
 	/**
 	 * Get default FSlateBrush.
@@ -139,7 +142,7 @@ public:
 	virtual FSlateBrush* GetDefaultBrush() const = 0;
 
 	/** Look up a sound property specified by PropertyName and optional Specifier. */
-	virtual const FSlateSound& GetSound( const FName PropertyName, const ANSICHAR* Specifier = nullptr ) const = 0;
+	virtual const FSlateSound& GetSound( const FName PropertyName, const ANSICHAR* Specifier = nullptr , const ISlateStyle* RequestingStyle = nullptr) const = 0;
 
 	/**
 	 * @param Propertyname   Name of the property to get
@@ -161,6 +164,7 @@ public:
 		}
 	}
 
+	virtual TSet<FName> GetStyleKeys() const = 0;
 protected:
 
 	/** 
@@ -179,13 +183,20 @@ protected:
 
 protected:
 
+	friend class FSlateStyleSet;
+	friend class ISlateStyle;
+
 	/**
 	 * 
 	 */
-	virtual const FSlateWidgetStyle* GetWidgetStyleInternal( const FName DesiredTypeName, const FName StyleName ) const = 0;
+	virtual const FSlateWidgetStyle* GetWidgetStyleInternal( const FName DesiredTypeName, const FName StyleName, const FSlateWidgetStyle* DefaultStyle, bool bWarnIfNotFound) const = 0;
 
 	/**
 	 * 
 	 */
 	virtual void Log( EStyleMessageSeverity Severity, const FText& Message ) const = 0;
+	
+	virtual void LogMissingResource(EStyleMessageSeverity Severity, const FText& Message, const FName& MissingResource) const = 0;
+
+	virtual const TSharedPtr< FSlateDynamicImageBrush > MakeDynamicImageBrush( const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName ) const = 0;
 };

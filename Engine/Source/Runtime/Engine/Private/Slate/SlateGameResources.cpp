@@ -47,7 +47,7 @@ void FSlateGameResources::SetContentRoot( const FString& InContentRootDir )
 	ContentRootDir = InContentRootDir;
 }
 
-const FSlateBrush* FSlateGameResources::GetBrush( const FName PropertyName, const ANSICHAR* Specifier ) const
+const FSlateBrush* FSlateGameResources::GetBrush( const FName PropertyName, const ANSICHAR* Specifier, const ISlateStyle* RequestingStyle ) const
 {
 	ensureMsgf(Specifier == NULL, TEXT("Attempting to look up resource (%s, %s). \n Specifiers not supported by Slate Resource Sets loaded from content browser."), *PropertyName.ToString(), Specifier);
 	FName CleanName = GetCleanName(PropertyName);
@@ -58,7 +58,7 @@ const FSlateBrush* FSlateGameResources::GetBrush( const FName PropertyName, cons
 		ensureMsgf(BrushAsset, TEXT("Could not find resource '%s'"), *CleanName.ToString());
 		return BrushAsset ? &BrushAsset->Brush : GetDefaultBrush();
 	}
-	return FSlateStyleSet::GetBrush(PropertyName, Specifier);
+	return FSlateStyleSet::GetBrush(PropertyName, Specifier, RequestingStyle);
 }
 
 const FSlateBrush* FSlateGameResources::GetOptionalBrush(const FName PropertyName, const ANSICHAR* Specifier, const FSlateBrush* const InDefaultBrush) const
@@ -125,14 +125,14 @@ void FSlateGameResources::GetResources( TArray< const FSlateBrush* >& OutResourc
 	}
 }
 
-const FSlateWidgetStyle* FSlateGameResources::GetWidgetStyleInternal( const FName DesiredTypeName, const FName StyleName ) const
+const FSlateWidgetStyle* FSlateGameResources::GetWidgetStyleInternal(const FName DesiredTypeName, const FName StyleName, const FSlateWidgetStyle* DefaultStyle, bool bWarnIfNotFound) const
 {
 	UObject* const* UIResourcePtr = UIResources.Find( StyleName );
 	USlateWidgetStyleAsset* StyleAsset = UIResourcePtr ? Cast<USlateWidgetStyleAsset>(*UIResourcePtr) : NULL;
 
 	if ( StyleAsset == NULL )
 	{
-		return FSlateStyleSet::GetWidgetStyleInternal( DesiredTypeName, StyleName );
+		return FSlateStyleSet::GetWidgetStyleInternal( DesiredTypeName, StyleName, DefaultStyle, bWarnIfNotFound);
 	}
 
 	const FSlateWidgetStyle* Style = StyleAsset->GetStyleChecked( DesiredTypeName );
@@ -141,7 +141,8 @@ const FSlateWidgetStyle* FSlateGameResources::GetWidgetStyleInternal( const FNam
 	{
 		TSharedRef< FTokenizedMessage > Message = FTokenizedMessage::Create( EMessageSeverity::Error, FText::Format( NSLOCTEXT("SlateStyleSet", "WrongWidgetStyleType", "The Slate Widget Style '{0}' is not of the desired type. Desired: '{1}', Actual: '{2}'"), FText::FromName( StyleName ), FText::FromName( DesiredTypeName ), FText::FromName( StyleAsset->CustomStyle->GetStyle()->GetTypeName() ) ) );
 		Message->AddToken( FAssetNameToken::Create( StyleAsset->GetPathName(), FText::FromString( StyleAsset->GetName() ) ) );
-		Log( Message );
+	
+		Log(Message);
 	}
 
 	return Style;
