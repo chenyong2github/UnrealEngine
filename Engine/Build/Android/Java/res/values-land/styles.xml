@@ -4,7 +4,7 @@
     <style name="UE4BaseTheme" parent = "@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
     <style name="UE4SplashTheme" parent = "UE4BaseTheme">
-        <item name="android:windowBackground">@drawable/splashscreen_landscape</item>
+        <item name="android:windowBackground">@drawable/splashscreen_l</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
     </style>

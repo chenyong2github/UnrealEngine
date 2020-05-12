@@ -203,8 +203,6 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputConnectionWrapper;
 import android.util.AttributeSet;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.BitmapDrawable;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.content.BroadcastReceiver;
@@ -2266,15 +2264,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 														| View.SYSTEM_UI_FLAG_IMMERSIVE);  // NOT sticky.. will be set to sticky later! 
 						}
 					}
-					
-					// Centering background image by default
-					Drawable BackgroundDrawable = mSplashDialog.getWindow().getDecorView().getBackground();
-					if (BackgroundDrawable != null && BackgroundDrawable instanceof BitmapDrawable)
-					{
-						BitmapDrawable SplashBitmap = (BitmapDrawable)BackgroundDrawable;
-						SplashBitmap.setGravity(android.view.Gravity.CENTER);
-					}
-					
 					mSplashDialog.show();
 				}
 				catch (Exception e) {
