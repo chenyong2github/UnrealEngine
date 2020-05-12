@@ -275,12 +275,16 @@ private:
 	void AudioQualityChanged();
 	void OnPostEngineInit();
 	void EvaluateNodes(bool bAddToRoot);
+
 	float FindMaxDistanceInternal() const;
 
 	FDelegateHandle OnPostEngineInitHandle;
 	static int32 CachedQualityLevel;
 
 public:
+
+	// This is used to cache the quality level if it has not been cached yet.
+	static void CacheQualityLevel();
 
 	/**
 	 * Instantiate certain functions to work around a linker issue

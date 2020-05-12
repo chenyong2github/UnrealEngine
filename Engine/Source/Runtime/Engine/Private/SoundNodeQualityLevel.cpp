@@ -33,7 +33,11 @@ void USoundNodeQualityLevel::PostLoad()
 	ReconcileNode(false);
 #endif
 
+	USoundCue::CacheQualityLevel();
 	uint32 CachedQualityLevel = USoundCue::GetCachedQualityLevel();
+	
+	ensure(CachedQualityLevel != INDEX_NONE);
+
 	if (!GIsEditor && CullSoundWaveHardReferencesCvar && ChildNodes.IsValidIndex(CachedQualityLevel))
 	{
 		// go through any waveplayers on an unselcted quality level and null out their soundwave references.
@@ -81,7 +85,10 @@ void USoundNodeQualityLevel::PrimeChildWavePlayers(bool bRecurse)
 {
 	// If we're able to retrieve a valid cached quality level for this sound cue,
 	// only prime that quality level.
-	int32 QualityLevel = USoundCue::GetCachedQualityLevel();
+	USoundCue::CacheQualityLevel();
+	uint32 QualityLevel = USoundCue::GetCachedQualityLevel();
+
+	ensure(QualityLevel != INDEX_NONE);
 
 #if WITH_EDITOR
 	if (GIsEditor && QualityLevel < 0)
@@ -100,7 +107,10 @@ void USoundNodeQualityLevel::RetainChildWavePlayers(bool bRecurse)
 {
 	// If we're able to retrieve a valid cached quality level for this sound cue,
 	// only retain that quality level.
-	int32 QualityLevel = USoundCue::GetCachedQualityLevel();
+	USoundCue::CacheQualityLevel();
+	uint32 QualityLevel = USoundCue::GetCachedQualityLevel();
+
+	ensure(QualityLevel != INDEX_NONE);
 
 #if WITH_EDITOR
 	if (GIsEditor && QualityLevel < 0)
