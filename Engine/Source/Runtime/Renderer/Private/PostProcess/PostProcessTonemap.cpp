@@ -869,12 +869,13 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 //////////////////////////////////////////////////////////////////////////
 //! DEPRECATED: This is only used by mobile until fully ported to RDG.
 
-FRCPassPostProcessTonemap::FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bInDoEyeAdaptation, bool bInHDROutput, bool bInMetalMSAAHDRDecode)
+FRCPassPostProcessTonemap::FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bInDoEyeAdaptation, bool bInHDROutput, bool bInMetalMSAAHDRDecode, bool bInIsMobileDof)
 	: bDoGammaOnly(bInDoGammaOnly)
 	, bDoScreenPercentageInTonemapper(false)
 	, bDoEyeAdaptation(bInDoEyeAdaptation)
 	, bHDROutput(bInHDROutput)
 	, bMetalMSAAHDRDecode(bInMetalMSAAHDRDecode)
+	, bIsMobileDof(bInIsMobileDof)
 {}
 
 void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
@@ -940,9 +941,18 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 		}
 
 		OutputTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("Tonemap"));
-		OutputLoadAction = View.GetOverwriteLoadAction();
+		// Alpha is used for mobile TAA and needs to always be initialized
+		if ((View.GetFeatureLevel() <= ERHIFeatureLevel::ES3_1))
+		{
+			OutputLoadAction = ERenderTargetLoadAction::EClear;
+		}
+		else
+		{
+			OutputLoadAction = View.GetOverwriteLoadAction();
+		}
 		OutputViewRect = SceneColorViewRect;
 	}
+
 
 	FTonemapInputs Inputs;
 	Inputs.SceneColor.Texture = SceneColorTexture;
@@ -954,7 +964,7 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 	Inputs.OverrideOutput.Texture = OutputTexture;
 	Inputs.OverrideOutput.ViewRect = OutputViewRect;
 	Inputs.OverrideOutput.LoadAction = OutputLoadAction;
-	Inputs.bWriteAlphaChannel = View.AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported();
+	Inputs.bWriteAlphaChannel = View.AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported() || bIsMobileDof;
 	Inputs.bFlipYAxis = ShouldMobilePassFlipVerticalAxis(Context, this);
 	Inputs.bGammaOnly = bDoGammaOnly;
 	Inputs.bMetalMSAAHDRDecode = bMetalMSAAHDRDecode;

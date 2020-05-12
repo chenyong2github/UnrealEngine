@@ -1272,7 +1272,8 @@ static FRCPassPostProcessTonemap* AddTonemapper(
 	const EAutoExposureMethod& EyeAdapationMethodId,
 	const bool bDoGammaOnly,
 	const bool bHDRTonemapperOutput,
-	const bool bMetalMSAAHDRDecode)
+	const bool bMetalMSAAHDRDecode,
+	const bool bIsMobileDof)
 {
 	const FViewInfo& View = Context.View;
 	const EStereoscopicPass StereoPass = View.StereoPass;
@@ -1284,7 +1285,7 @@ static FRCPassPostProcessTonemap* AddTonemapper(
 	}
 
 	const bool bDoEyeAdaptation = IsAutoExposureMethodSupported(View.GetFeatureLevel(), EyeAdapationMethodId) && EyeAdaptation.IsValid();
-	FRCPassPostProcessTonemap* PostProcessTonemap = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTonemap(bDoGammaOnly, bDoEyeAdaptation, bHDRTonemapperOutput, bMetalMSAAHDRDecode));
+	FRCPassPostProcessTonemap* PostProcessTonemap = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTonemap(bDoGammaOnly, bDoEyeAdaptation, bHDRTonemapperOutput, bMetalMSAAHDRDecode, bIsMobileDof));
 
 	PostProcessTonemap->SetInput(ePId_Input0, Context.FinalOutput);
 	PostProcessTonemap->SetInput(ePId_Input1, BloomOutputCombined);
@@ -1298,7 +1299,7 @@ static FRCPassPostProcessTonemap* AddTonemapper(
 
 void FPostProcessing::AddGammaOnlyTonemapper(FPostprocessContext& Context)
 {
-	FRenderingCompositePass* PostProcessTonemap = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTonemap(true, false/*eye*/, false, false));
+	FRenderingCompositePass* PostProcessTonemap = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTonemap(true, false/*eye*/, false, false, false));
 
 	PostProcessTonemap->SetInput(ePId_Input0, Context.FinalOutput);
 
@@ -1376,13 +1377,19 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 
 		// add the passes we want to add to the graph (commenting a line means the pass is not inserted into the graph) ---------
 		FRenderingCompositeOutputRef PostProcessEyeAdaptation;
+
+		// Use original mobile Dof on ES2 devices regardless of bMobileHQGaussian.
+		// HQ gaussian 
+		bool bUseDof = GetMobileDepthOfFieldScale(View) > 0.0f && !Context.View.Family->EngineShowFlags.VisualizeDOF;
+		bool bUseMobileDof = bUseDof && (!View.FinalPostProcessSettings.bMobileHQGaussian || (Context.View.GetFeatureLevel() < ERHIFeatureLevel::ES3_1));
+
 		if( View.Family->EngineShowFlags.PostProcessing && bAllowFullPostProcess)
 		{
 			const EMobileHDRMode HDRMode = GetMobileHDRMode();
 			bool bHDRModeAllowsPost = HDRMode == EMobileHDRMode::EnabledFloat16;
 
 			bool bUseSun = View.bLightShaftUse;
-			bool bUseDof = GetMobileDepthOfFieldScale(View) > 0.0f && !Context.View.Family->EngineShowFlags.VisualizeDOF;
+			
 			bool bUseBloom = View.FinalPostProcessSettings.BloomIntensity > 0.0f;
 			bool bUseVignette = View.FinalPostProcessSettings.VignetteIntensity > 0.0f;
 
@@ -1393,10 +1400,6 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			bool bUseHistogramEyeAdaptation = bUseEyeAdaptation && (AutoExposureMethod == EAutoExposureMethod::AEM_Histogram) &&
 				// Skip if we don't have any exposure range to generate (eye adaptation will clamp).
 				View.FinalPostProcessSettings.AutoExposureMinBrightness < View.FinalPostProcessSettings.AutoExposureMaxBrightness;
-
-			// Use original mobile Dof on ES2 devices regardless of bMobileHQGaussian.
-			// HQ gaussian 
-			bool bUseMobileDof = bUseDof && (!View.FinalPostProcessSettings.bMobileHQGaussian || (Context.View.GetFeatureLevel() < ERHIFeatureLevel::ES3_1));
 
 			bool bUsePost = bHDRModeAllowsPost && IsMobileHDR();
 			
@@ -1727,7 +1730,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			if (bUseTonemapperFilm)
 			{
 				//@todo Ronin Set to EAutoExposureMethod::AEM_Basic for PC vk crash.
-				FRCPassPostProcessTonemap* PostProcessTonemap = AddTonemapper(Context, BloomOutput, PostProcessEyeAdaptation, AutoExposureMethod, false, false, bMetalMSAAHDRDecode);
+				FRCPassPostProcessTonemap* PostProcessTonemap = AddTonemapper(Context, BloomOutput, PostProcessEyeAdaptation, AutoExposureMethod, false, false, bMetalMSAAHDRDecode, bUseMobileDof);
 				// remember the tonemapper pass so we can check if it's last
 				TonemapperPass = PostProcessTonemap;
 
