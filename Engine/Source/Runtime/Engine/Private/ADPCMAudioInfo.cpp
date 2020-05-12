@@ -854,6 +854,22 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 					++CurrentChunkIndex;
 				}
 
+				// Check for the end of the audio samples and loop if needed
+				if (CurrentChunkIndex >= StreamingSoundWave->GetNumChunks())
+				{
+					ReachedEndOfSamples = true;
+					CurrentChunkIndex = FirstChunkSampleDataIndex;
+					CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
+					TotalSamplesStreamed = 0;
+					CurCompressedChunkData = nullptr;
+					if (!bLooping)
+					{
+						// Set the remaining buffer to 0
+						FMemory::Memset(OutData, 0, BufferSize);
+						return true;
+					}
+				}
+
 				// Request the next chunk of data from the streaming engine
 				CurCompressedChunkData = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, CurrentChunkDataSize);
 
@@ -916,7 +932,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 			{
 				ReachedEndOfSamples = true;
 				CurrentChunkIndex = FirstChunkSampleDataIndex;
-				CurrentChunkBufferOffset = 0;
+				CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
 				TotalSamplesStreamed = 0;
 				CurCompressedChunkData = nullptr;
 				if(!bLooping)
