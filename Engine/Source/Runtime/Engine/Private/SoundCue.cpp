@@ -243,15 +243,8 @@ void USoundCue::OnPostEngineInit()
 
 void USoundCue::EvaluateNodes(bool bAddToRoot)
 {
-	if (CachedQualityLevel == -1)
-	{
-		// Use per-platform quality index override if one exists, otherwise use the quality level from the game settings.
-		CachedQualityLevel = FPlatformCompressionUtilities::GetQualityIndexOverrideForCurrentPlatform();
-		if (CachedQualityLevel < 0)
-		{
-			CachedQualityLevel = GEngine->GetGameUserSettings()->GetAudioQualityLevel();
-		}
-	}
+	CacheQualityLevel();
+
 
 	TFunction<void(USoundNode*)> EvaluateNodes_Internal = [&](USoundNode* SoundNode)
 	{
@@ -280,6 +273,19 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 	};
 
 	EvaluateNodes_Internal(FirstNode);
+}
+
+void USoundCue::CacheQualityLevel()
+{
+	if (CachedQualityLevel == -1)
+	{
+		// Use per-platform quality index override if one exists, otherwise use the quality level from the game settings.
+		CachedQualityLevel = FPlatformCompressionUtilities::GetQualityIndexOverrideForCurrentPlatform();
+		if (CachedQualityLevel < 0)
+		{
+			CachedQualityLevel = GEngine->GetGameUserSettings()->GetAudioQualityLevel();
+		}
+	}
 }
 
 float USoundCue::FindMaxDistanceInternal() const
