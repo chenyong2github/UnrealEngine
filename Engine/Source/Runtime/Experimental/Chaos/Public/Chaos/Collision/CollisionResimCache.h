@@ -16,7 +16,7 @@ namespace Chaos
 			//Create weak handles so we can make sure everything is alive later
 			auto SaveArrayHelper = [](auto& Constraints, auto& WeakPairs)
 			{
-				WeakPairs.Reserve(Constraints.Num());
+				WeakPairs.Empty(Constraints.Num());
 				for(FCollisionConstraintBase& Constraint : Constraints)
 				{
 					WeakPairs.Add(FWeakConstraintPair{Constraint.Particle[0]->WeakParticleHandle(),Constraint.Particle[1]->WeakParticleHandle()});
@@ -68,7 +68,7 @@ namespace Chaos
 			return SavedConstraints;
 		}
 
-		void Reset()
+		void ResetCache()
 		{
 			SavedConstraints.Reset();
 			WeakSinglePointConstraints.Reset();

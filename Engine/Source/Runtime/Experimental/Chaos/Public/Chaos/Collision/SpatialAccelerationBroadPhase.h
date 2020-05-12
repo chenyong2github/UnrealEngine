@@ -10,6 +10,8 @@
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/Capsule.h"
 #include "ChaosStats.h"
+#include "Chaos/EvolutionResimCache.h"
+
 
 namespace Chaos
 {
@@ -18,6 +20,8 @@ namespace Chaos
 	
 	template <typename TPayloadType, typename T, int d>
 	class ISpatialAcceleration;
+
+	class IResimCacheBase;
 
 	/**
 	 *
@@ -80,7 +84,7 @@ namespace Chaos
 			FNarrowPhase& NarrowPhase, 
 			FAsyncCollisionReceiver& Receiver,
 			CollisionStats::FStatData& StatData,
-			bool bIsResim
+			IResimCacheBase* ResimCache
 			)
 		{
 			if (!ensure(SpatialAcceleration))
@@ -91,19 +95,19 @@ namespace Chaos
 
 			if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>>())
 			{
-				ProduceOverlaps(Dt, *AABBTree, NarrowPhase, Receiver, StatData, bIsResim);
+				ProduceOverlaps(Dt, *AABBTree, NarrowPhase, Receiver, StatData, ResimCache);
 			}
 			else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
 			{
-				ProduceOverlaps(Dt, *BV, NarrowPhase, Receiver, StatData, bIsResim);
+				ProduceOverlaps(Dt, *BV, NarrowPhase, Receiver, StatData, ResimCache);
 			}
 			else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>>())
 			{
-				ProduceOverlaps(Dt, *AABBTreeBV, NarrowPhase, Receiver, StatData, bIsResim);
+				ProduceOverlaps(Dt, *AABBTreeBV, NarrowPhase, Receiver, StatData, ResimCache);
 			}
 			else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
 			{
-				Collection->PBDComputeConstraintsLowLevel(Dt, *this, NarrowPhase, Receiver, StatData, bIsResim);
+				Collection->PBDComputeConstraintsLowLevel(Dt, *this, NarrowPhase, Receiver, StatData, ResimCache);
 			}
 			else
 			{
@@ -118,41 +122,50 @@ namespace Chaos
 			FNarrowPhase& NarrowPhase, 
 			FAsyncCollisionReceiver& Receiver,
 			CollisionStats::FStatData& StatData,
-			bool bIsResim
+			IResimCacheBase* ResimCache
 			)
 		{
 			const bool bDisableParallelFor = StatData.IsEnabled() || bDisableCollisionParallelFor;
-
-			Particles.GetNonDisabledDynamicView().ParallelFor(
-				[&](auto& Particle1, int32 ActiveIdxIdx)
+			auto* EvolutionResimCache = static_cast<FEvolutionResimCache*>(ResimCache);
+			const bool bResimSkipCollision = ResimCache && ResimCache->IsResimming() && EvolutionResimCache->GetCollisionResimCache();
+			if(!bResimSkipCollision)
+			{
+				Particles.GetNonDisabledDynamicView().ParallelFor(
+					[&](auto& Particle1,int32 ActiveIdxIdx)
 				{
-					ProduceParticleOverlaps(Dt, Particle1, InSpatialAcceleration, NarrowPhase, Receiver, StatData, bIsResim);
-				}, bDisableParallelFor);
+					ProduceParticleOverlaps</*bResimming=*/false>(Dt,Particle1,InSpatialAcceleration,NarrowPhase,Receiver,StatData);
+				},bDisableParallelFor);
+			}
+			else
+			{
+				ResimCache->GetDesyncedView().ParallelFor(
+					[&](auto& Particle1,int32 ActiveIdxIdx)
+				{
+					//TODO: use transient handle
+					TGenericParticleHandleHandleImp<FReal,3> GenericHandle(Particle1.Handle());
+					ProduceParticleOverlaps</*bResimming=*/true>(Dt,GenericHandle,InSpatialAcceleration,NarrowPhase,Receiver,StatData);
+				},bDisableParallelFor);
+			}
 		}
 
 	private:
-		template<typename T_SPATIALACCELERATION>
+		template<bool bIsResimming, typename THandle, typename T_SPATIALACCELERATION>
 		void ProduceParticleOverlaps(
 		    FReal Dt,
-		    TTransientPBDRigidParticleHandle<FReal, 3>& Particle1,
+		    THandle& Particle1,
 		    const T_SPATIALACCELERATION& InSpatialAcceleration,
 		    FNarrowPhase& NarrowPhase,
 		    FAsyncCollisionReceiver& Receiver,
-		    CollisionStats::FStatData& StatData,
-			bool bIsResim)
+		    CollisionStats::FStatData& StatData)
 		{
 			CHAOS_COLLISION_STAT(StatData.IncrementSimulatedParticles());
 
+			//Durning non-resim we must pass rigid particles
+			static_assert(bIsResimming || THandle::StaticType() == EParticleType::Rigid, "During non-resim we expect rigid particles");
+
 			TArray<TAccelerationStructureHandle<FReal, 3>> PotentialIntersections;
 
-			//If we're doing a resim, we only need to run collision detection on particles that are hard desynced
-			if(bIsResim && Particle1.SyncState() != ESyncState::HardDesync)
-			{
-				return;
-			}
-
-			if ((Particle1.CastToRigidParticle() && (Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping))
-				|| Particle1.SyncState() == ESyncState::HardDesync)
+			if (bIsResimming || (Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping))
 			{
 				const bool bBody1Bounded = HasBoundingBox(Particle1);
 				const FReal Box1Thickness = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
@@ -165,7 +178,7 @@ namespace Chaos
 #if CHAOS_PARTICLEHANDLE_TODO
 						const TAABB<FReal, 3> Box1 = InSpatialAcceleration.GetWorldSpaceBoundingBox(Particle1);
 #else
-						const TAABB<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox(Particle1); // NOTE: this ignores the velocity expansion which is wrong
+						const TAABB<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox<FReal>(Particle1); // NOTE: this ignores the velocity expansion which is wrong
 #endif
 
 						CHAOS_COLLISION_STAT(StatData.RecordBoundsData(Box1));
@@ -199,6 +212,15 @@ namespace Chaos
 					// CollisionGroup == INDEX_NONE : Disabled collisions
 					// CollisionGroup_A != CollisionGroup_B : Skip Check
 
+					if(bIsResimming)
+					{
+						//during resim we allow particle 1 to be kinematic, in that case make sure we don't create any kinematic-kinematic constraints
+						if(Particle1.CastToRigidParticle() == nullptr && Particle2.CastToRigidParticle() == nullptr)
+						{
+							continue;
+						}
+					}
+
 					if (Particle1.CollisionGroup() == INDEX_NONE || Particle2Generic->CollisionGroup() == INDEX_NONE)
 					{
 						continue;
@@ -225,7 +247,7 @@ namespace Chaos
 					}
 
 
-					const bool bSecondParticleWillHaveAnswer = !bIsResim || Particle2.SyncState() == ESyncState::HardDesync;
+					const bool bSecondParticleWillHaveAnswer = !bIsResimming || Particle2.SyncState() == ESyncState::HardDesync;
 					// Sleeping won't collide against another sleeping and sleeping vs dynamic gets picked up by the other direction.
 					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
 						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
