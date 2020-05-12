@@ -127,6 +127,7 @@ DECLARE_CYCLE_STAT(TEXT("Batch Time"),STAT_FoliageBatchTime,STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Foliage Create Proxy"), STAT_FoliageCreateProxy, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Foliage Post Load"), STAT_FoliagePostLoad, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("HISMC_AddInstance"), STAT_HISMCAddInstance, STATGROUP_Foliage);
+DECLARE_CYCLE_STAT(TEXT("HISMC_AddInstances"), STAT_HISMCAddInstances, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("HISMC_RemoveInstance"), STAT_HISMCRemoveInstance, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("HISMC_GetDynamicMeshElement"), STAT_HISMCGetDynamicMeshElement, STATGROUP_Foliage);
 
@@ -2409,6 +2410,50 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 	}
 
 	return InstanceIndex;
+}
+
+TArray<int32> UHierarchicalInstancedStaticMeshComponent::AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices)
+{
+	SCOPE_CYCLE_COUNTER(STAT_HISMCAddInstances);
+
+	int32 BaseIndex = PerInstanceSMData.Num();
+
+	TArray<int32> InstanceIndices = UInstancedStaticMeshComponent::AddInstances(InstanceTransforms, true);
+
+	if (InstanceIndices.Num() > 0 && GetStaticMesh() && GetStaticMesh()->HasValidRenderData())
+	{
+		bIsOutOfDate = true;
+		bConcurrentChanges |= IsAsyncBuilding();
+
+		const int32 Count = InstanceIndices.Num();
+		
+		InstanceReorderTable.Reserve(InstanceReorderTable.Num() + Count);
+		UnbuiltInstanceBoundsList.Reserve(UnbuiltInstanceBoundsList.Num() + Count);
+
+		int32 TransformIndexOffset = BaseIndex;
+
+		const int32 InitialBufferOffset = InstanceCountToRender - InstanceReorderTable.Num();
+
+		for (const int32 InstanceIndex : InstanceIndices)
+		{
+			TransformIndexOffset = InstanceIndex - BaseIndex;
+
+			InstanceReorderTable.Add(InitialBufferOffset + InstanceIndex);
+
+			InstanceUpdateCmdBuffer.AddInstance(InstanceTransforms[TransformIndexOffset].ToMatrixWithScale());
+
+			const FBox NewInstanceBounds = GetStaticMesh()->GetBounds().GetBox().TransformBy(InstanceTransforms[TransformIndexOffset]);
+			UnbuiltInstanceBounds += NewInstanceBounds;
+			UnbuiltInstanceBoundsList.Add(NewInstanceBounds);
+		}
+
+		if (bAutoRebuildTreeOnInstanceChanges)
+		{
+			BuildTreeIfOutdated(PerInstanceSMData.Num() > 1, false);
+		}
+	}
+
+	return bShouldReturnIndices ? InstanceIndices : TArray<int32>();
 }
 
 void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
