@@ -30,6 +30,7 @@
 #include "MergeMeshesTool.h"
 #include "VoxelCSGMeshesTool.h"
 #include "PlaneCutTool.h"
+#include "MirrorTool.h"
 #include "SelfUnionMeshesTool.h"
 #include "CSGMeshesTool.h"
 #include "BspConversionTool.h"
@@ -613,6 +614,10 @@ void FModelingToolsEditorMode::Enter()
 	auto PlaneCutToolBuilder = NewObject<UPlaneCutToolBuilder>();
 	PlaneCutToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginPlaneCutTool, TEXT("PlaneCutTool"), PlaneCutToolBuilder);
+
+	auto MirrorToolBuilder = NewObject<UMirrorToolBuilder>();
+	MirrorToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginMirrorTool, TEXT("MirrorTool"), MirrorToolBuilder);
 
 	auto PolygonCutToolBuilder = NewObject<UPolygonOnMeshToolBuilder>();
 	RegisterToolFunc(ToolManagerCommands.BeginPolygonCutTool, TEXT("PolyCutTool"), PolygonCutToolBuilder);
