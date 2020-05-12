@@ -77,6 +77,16 @@ namespace Chaos
 		return ConstraintContainer->GetConstraintBatch(ConstraintIndex);
 	}
 
+	FVec3 FPBDJointConstraintHandle::GetLinearImpulse() const
+	{
+		return ConstraintContainer->GetConstraintLinearImpulse(ConstraintIndex);
+	}
+
+	FVec3 FPBDJointConstraintHandle::GetAngularImpulse() const
+	{
+		return ConstraintContainer->GetConstraintAngularImpulse(ConstraintIndex);
+	}
+
 	
 	const FPBDJointSettings& FPBDJointConstraintHandle::GetSettings() const
 	{
@@ -230,6 +240,8 @@ namespace Chaos
 		, Color(INDEX_NONE)
 		, IslandSize(0)
 		, bDisabled(false)
+		, LinearImpulse(FVec3(0))
+		, AngularImpulse(FVec3(0))
 	{
 	}
 
@@ -569,6 +581,16 @@ namespace Chaos
 		return ConstraintStates[ConstraintIndex].Batch;
 	}
 
+	FVec3 FPBDJointConstraints::GetConstraintLinearImpulse(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].LinearImpulse;
+	}
+
+	FVec3 FPBDJointConstraints::GetConstraintAngularImpulse(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].AngularImpulse;
+	}
+
 
 	void FPBDJointConstraints::UpdatePositionBasedState(const FReal Dt)
 	{
@@ -689,6 +711,36 @@ namespace Chaos
 	void FPBDJointConstraints::UnprepareIteration(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_UnprepareIteration);
+
+		if (!bChaos_Joint_Batching)
+		{
+			for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
+			{
+				FPBDJointState& JointState = ConstraintStates[JointIndex];
+				FJointSolverGaussSeidel& Solver = ConstraintSolvers[JointIndex];
+
+				int32 Index0, Index1;
+				GetConstrainedParticleIndices(JointIndex, Index0, Index1);
+
+				// NOTE: LinearImpulse/AngularImpulse in the solver are not really impulses - they are mass-weighted position/rotation delta, or (impulse x dt).
+				if (Dt > SMALL_NUMBER)
+				{
+					JointState.LinearImpulse = Solver.GetNetLinearImpulse() / Dt;
+					JointState.AngularImpulse = Solver.GetNetAngularImpulse() / Dt;
+					if (Index0 != 0)
+					{
+						// Particles were flipped in the solver...
+						JointState.LinearImpulse = -JointState.LinearImpulse;
+						JointState.AngularImpulse = -JointState.AngularImpulse;
+					}
+				}
+				else
+				{
+					JointState.LinearImpulse = FVec3(0);
+					JointState.AngularImpulse = FVec3(0);
+				}
+			}
+		}
 	}
 
 	
@@ -1222,7 +1274,7 @@ namespace Chaos
 	{
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
 
-		// NOTE: LinearImpulse/AngularImpulse are not really an impulses - it is a mass-weighted position/rotation delta, or (impulse x dt).
+		// NOTE: LinearImpulse/AngularImpulse are not really impulses - they are mass-weighted position/rotation delta, or (impulse x dt).
 		// The Threshold is a force limit, so we need to convert it to a position delta caused by that force in one timestep
 
 		bool bBreak = false;
