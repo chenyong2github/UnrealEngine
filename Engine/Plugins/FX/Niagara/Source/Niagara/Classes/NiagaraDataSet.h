@@ -216,8 +216,6 @@ private:
 	// GPU Data
 	/** The buffer offset where the instance count is accumulated. */
 	uint32 GPUInstanceCountBufferOffset;
-	/** The num of allocated instances, which is aligned to ALLOC_CHUNKSIZE and usually larger than the needed number to amortize allocation cost. */
-	uint32 NumInstancesAllocatedForGPU;
 	/** GPU Buffer containing floating point values for GPU simulations. */
 	FRWBuffer GPUBufferFloat;
 	/** GPU Buffer containing integer values for GPU simulations. */
