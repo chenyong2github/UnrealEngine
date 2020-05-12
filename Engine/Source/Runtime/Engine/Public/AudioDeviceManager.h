@@ -287,8 +287,8 @@ public:
 	/** Updates all active audio devices */
 	void UpdateActiveAudioDevices(bool bGameTicking);
 
-	void IterateOverAllDevices(TFunction<void(Audio::FDeviceId, FAudioDevice*)> ForEachDevice);
-	void IterateOverAllDevices(TFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const;
+	void IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, FAudioDevice*)> ForEachDevice);
+	void IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const;
 
 	/** Tracks objects in the active audio devices. */
 	void AddReferencedObjects(FReferenceCollector& Collector);

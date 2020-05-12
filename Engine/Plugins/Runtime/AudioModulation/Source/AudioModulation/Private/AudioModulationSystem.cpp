@@ -130,6 +130,11 @@ namespace AudioModulation
 			const uint32 SoundId = InSound.GetObjectId();
 			check(SoundId != INDEX_NONE);
 
+			if (InSound.IsPreviewSound())
+			{
+				DeactivateAllBusMixes();
+			}
+
 			RunCommandOnProcessingThread([this, SoundId]()
 			{
 				SoundSettings.Remove(SoundId);

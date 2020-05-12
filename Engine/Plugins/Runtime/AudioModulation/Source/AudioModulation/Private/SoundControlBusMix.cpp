@@ -19,6 +19,25 @@
 
 #define LOCTEXT_NAMESPACE "AudioModulation"
 
+namespace AudioModulation
+{
+	void IterateModSystems(TUniqueFunction<void(FAudioModulationSystem&)> InFunction)
+	{
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		{
+			TArray<FAudioDevice*> Devices = DeviceManager->GetAudioDevices();
+			DeviceManager->IterateOverAllDevices([ModFunction = MoveTemp(InFunction)](Audio::FDeviceId DeviceId, FAudioDevice* AudioDevice)
+			{
+				if (AudioDevice && AudioDevice->IsModulationPluginEnabled() && AudioDevice->ModulationInterface.IsValid())
+				{
+					auto ModulationInterface = static_cast<AudioModulation::FAudioModulation*>(AudioDevice->ModulationInterface.Get());
+					ModFunction(*ModulationInterface->GetModulationSystem());
+				}
+			});
+		}
+	}
+} // namespace AudioModulation
+
 FSoundControlBusMixChannel::FSoundControlBusMixChannel()
 	: Bus(nullptr)
 {
@@ -46,18 +65,45 @@ void USoundControlBusMix::BeginDestroy()
 	{
 		if (FAudioDeviceHandle AudioDevice = World->GetAudioDevice())
 		{
-			check(AudioDevice->IsModulationPluginEnabled());
-			if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+			if (AudioDevice->IsModulationPluginEnabled())
 			{
-				auto ModSystem = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetModulationSystem();
-				check(ModSystem);
-				ModSystem->DeactivateBusMix(*this);
+				if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+				{
+					auto ModSystem = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetModulationSystem();
+					check(ModSystem);
+					ModSystem->DeactivateBusMix(*this);
+				}
 			}
 		}
 	}
 }
 
 #if WITH_EDITOR
+
+void USoundControlBusMix::ActivateMix()
+{
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	{
+		OutModSystem.ActivateBusMix(*this);
+	});
+}
+
+void USoundControlBusMix::DeactivateMix()
+{
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	{
+		OutModSystem.DeactivateBusMix(*this);
+	});
+}
+
+void USoundControlBusMix::DeactivateAllMixes()
+{
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	{
+		OutModSystem.DeactivateAllBusMixes();
+	});
+}
+
 void USoundControlBusMix::LoadMixFromProfile()
 {
 	if (AudioModulation::FProfileSerializer::Deserialize(ProfileIndex, *this))
@@ -110,18 +156,24 @@ void USoundControlBusMix::SaveMixToProfile()
 {
 	if (AudioModulation::FProfileSerializer::Serialize(*this, ProfileIndex))
 	{
-		{
-			FNotificationInfo Info(FText::Format(
-				LOCTEXT("SoundControlBusMix_SaveSucceeded", "'Control Bus Mix '{0}' profile {1} saved successfully."),
-					FText::FromName(GetFName()),
-					FText::AsNumber(ProfileIndex)
-			));
-			Info.bFireAndForget = true;
-			Info.ExpireDuration = 2.0f;
-			Info.bUseThrobber = true;
-			FSlateNotificationManager::Get().AddNotification(Info);
-		}
+		FNotificationInfo Info(FText::Format(
+			LOCTEXT("SoundControlBusMix_SaveSucceeded", "'Control Bus Mix '{0}' profile {1} saved successfully."),
+			FText::FromName(GetFName()),
+			FText::AsNumber(ProfileIndex)
+		));
+		Info.bFireAndForget = true;
+		Info.ExpireDuration = 2.0f;
+		Info.bUseThrobber = true;
+		FSlateNotificationManager::Get().AddNotification(Info);
 	}
+}
+
+void USoundControlBusMix::SoloMix()
+{
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	{
+		OutModSystem.SoloBusMix(*this);
+	});
 }
 #endif // WITH_EDITOR
 
