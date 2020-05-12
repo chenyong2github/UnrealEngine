@@ -151,9 +151,12 @@ FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry)
 
 static TSet<FName> GAsyncLoading2_VerbosePackageNames;
 
+// The ELogVerbosity::VerbosityMask is used to silence PVS,
+// using constexpr gave the same warning, and the disable comment can can't be used in a macro: //-V501 
+// warning V501: There are identical sub-expressions 'ELogVerbosity::Verbose' to the left and to the right of the '<' operator.
 #define UE_ASYNC_PACKAGE_LOG(Verbosity, PackageDesc, LogDesc, Format, ...) \
 if (GAsyncLoading2_VerbosePackageNames.Num() == 0 || \
-	ELogVerbosity::Verbosity < ELogVerbosity::Verbose || \
+	(ELogVerbosity::Type(ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) < ELogVerbosity::Verbose) || \
 	GAsyncLoading2_VerbosePackageNames.Contains((PackageDesc).Name) || \
 	GAsyncLoading2_VerbosePackageNames.Contains((PackageDesc).NameToLoad)) \
 { \
