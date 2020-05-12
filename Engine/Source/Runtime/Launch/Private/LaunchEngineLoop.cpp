@@ -4998,7 +4998,7 @@ void FEngineLoop::Tick()
 
 		if (ConcurrentTask.GetReference())
 		{
-			CSV_SCOPED_TIMING_STAT(Basic, ConcurrentWithSlateTickTasks_Wait);
+			CSV_SCOPED_SET_WAIT_STAT(Slate);
 
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_ConcurrentWithSlateTickTasks_Wait);
 			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTask);
