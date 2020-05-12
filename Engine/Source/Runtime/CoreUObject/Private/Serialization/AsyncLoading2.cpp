@@ -491,100 +491,159 @@ struct FGlobalImportStore
 	void FindAllScriptObjects();
 };
 
+class FLoadedPackageRef
+{
+	UPackage* Package = nullptr;
+	int32 RefCount = 0;
+	bool bIsLoaded = false;
+	bool bIsMissing = false;
+
+public:
+	inline int32 GetRefCount() const
+	{
+		return RefCount;
+	}
+
+	inline bool AddRef()
+	{
+		++RefCount;
+		// is this the first reference to an already fully loaded package?
+		return RefCount == 1 && bIsLoaded;
+	}
+
+	inline bool ReleaseRef()
+	{
+		check(RefCount > 0);
+		--RefCount;
+#if DO_CHECK
+		check(bIsLoaded || bIsMissing);
+		if (bIsLoaded)
+		{
+			check(!bIsMissing);
+		}
+		if (bIsMissing)
+		{
+			check(!bIsLoaded);
+		}
+#endif
+		// is this the last reference to a fully loaded package?
+		return RefCount == 0 && bIsLoaded;
+	}
+
+	inline UPackage* GetPackage() const
+	{
+#if DO_CHECK
+		if (Package)
+		{
+			check(!bIsMissing);
+			check(!Package->IsUnreachable());
+		}
+		else
+		{
+			check(!bIsLoaded);
+		}
+#endif
+		return Package;
+	}
+
+	inline void SetPackage(UPackage* InPackage)
+	{
+		check(!bIsLoaded);
+		check(!bIsMissing);
+		check(!Package);
+		Package = InPackage;
+	}
+
+	inline bool AreAllPublicExportsLoaded() const
+	{
+		return bIsLoaded;
+	}
+
+	inline void SetAllPublicExportsLoaded()
+	{
+		check(!bIsMissing);
+		check(Package);
+		bIsMissing = false;
+		bIsLoaded = true;
+	}
+
+	inline void ClearAllPublicExportsLoaded()
+	{
+		check(!bIsMissing);
+		check(Package);
+		bIsMissing = false;
+		bIsLoaded = false;
+	}
+
+	inline bool IsMissingPackage() const
+	{
+		return bIsMissing;
+	}
+
+	inline void SetIsMissingPackage()
+	{
+		check(!bIsLoaded);
+		check(!Package);
+		bIsMissing = true;
+		bIsLoaded = false;
+	}
+
+	inline void ClearIsMissingPackage()
+	{
+		check(!bIsLoaded);
+		check(!Package);
+		bIsMissing = false;
+		bIsLoaded = false;
+	}
+};
+
 class FLoadedPackageStore
 {
 private:
-	TMap<FPackageId, int32> RefCounts;
-	TBitArray<>	IsLoaded;
+	TMap<FPackageId, FLoadedPackageRef> Packages;
 
 public:
 	void Init(int32 SerializedPackageCount)
 	{
-		IsLoaded.Init(false, SerializedPackageCount);
+		Packages.Reserve(FMath::Min(32768, SerializedPackageCount));
 	}
 
-	int32 NumTracked()
+	int32 NumTracked() const
 	{
-		return RefCounts.Num();
+		return Packages.Num();
+	}
+
+	inline FLoadedPackageRef* FindPackageRef(FPackageId PackageId)
+	{
+		return Packages.Find(PackageId);
+	}
+
+	inline FLoadedPackageRef& GetPackageRef(FPackageId PackageId)
+	{
+		return Packages.FindOrAdd(PackageId);
 	}
 
 	inline void Remove(FPackageId PackageId)
 	{
 #if DO_CHECK
-		int32* RefCount = RefCounts.Find(PackageId);
-		check(RefCount && *RefCount == 0);
-		ClearAllPublicExportsLoaded(PackageId);
+		FLoadedPackageRef* Ref = Packages.Find(PackageId);
+		check(Ref && Ref->GetRefCount() == 0);
 #endif
-		RefCounts.Remove(PackageId);
-	}
-
-	inline bool AddRef(FPackageId PackageId)
-	{
-		int32& RefCount = RefCounts.FindOrAdd(PackageId);
-		++RefCount;
-		
-		// is this the first new reference to a fully loaded package?
-		return RefCount == 1 && IsLoaded[PackageId.ToIndex()];
-	}
-
-	inline bool ReleaseRef(FPackageId PackageId)
-	{
-		int32* RefCountPtr = RefCounts.Find(PackageId);
-		check(RefCountPtr);
-		int32& RefCount = *RefCountPtr;
-		check(RefCount > 0);
-		--RefCount;
-
-		check(IsLoaded[PackageId.ToIndex()]);
-		// is this the last reference to a package?
-		return RefCount == 0;
-	}
-
-	inline int32 GetRefCount(FPackageId PackageId)
-	{
-		int32* RefCount = RefCounts.Find(PackageId);
-		return RefCount ? *RefCount : 0;
-	}
-
-	inline bool AreAllPublicExportsLoaded(FPackageId PackageId)
-	{
-		return IsLoaded[PackageId.ToIndex()];
-	}
-
-	inline void SetAllPublicExportsLoaded(FPackageId PackageId)
-	{
-		IsLoaded[PackageId.ToIndex()] = true;
-	}
-
-	inline void ClearAllPublicExportsLoaded(FPackageId PackageId)
-	{
-		IsLoaded[PackageId.ToIndex()] = false;
+		Packages.Remove(PackageId);
 	}
 
 #if ALT2_VERIFY_ASYNC_FLAGS
 	void VerifyLoadedPackages()
 	{
-		for (TPair<FPackageId, int32>& Pair : RefCounts)
+		for (TPair<FPackageId, FLoadedPackageRef>& Pair : Packages)
 		{
 			FPackageId& PackageId = Pair.Key;
-			int32& RefCount = Pair.Value;
-			UE_CLOG(RefCount > 0, LogStreaming, Warning,
+			FLoadedPackageRef& Ref = Pair.Value;
+			UE_CLOG(Ref.GetRefCount() > 0, LogStreaming, Warning,
 				TEXT("PackageId '%d' with ref count %d should not have a ref count now")
 				TEXT(", or this check is incorrectly reached during active loading."),
 				PackageId.ToIndex(),
-				RefCount);
-		}
-		for (int32 I = 0; I < IsLoaded.Num(); ++I)
-		{
-			if (IsLoaded[I])
-			{
-				FPackageId PackageId = FPackageId::FromIndex(I);
-				UE_CLOG(!RefCounts.Contains(PackageId), LogStreaming, Warning,
-					TEXT("PackageId '%d' is marked as loaded, then it should also exist with RefCount 0 in the map")
-					TEXT(", or this check is incorrectly reached during active loading."),
-					PackageId.ToIndex());
-				;
-			}
+				Ref.GetRefCount());
 		}
 	}
 #endif
@@ -937,7 +996,11 @@ public:
 		if (PackageId.IsValid())
 		{
 			check(IsSerializedPackageId(PackageId));
-			LoadedPackageStore.ClearAllPublicExportsLoaded(PackageId);
+			FLoadedPackageRef* PackageRef = LoadedPackageStore.FindPackageRef(PackageId);
+			if (PackageRef)
+			{
+				PackageRef->ClearAllPublicExportsLoaded();
+			}
 		}
 	}
 
@@ -1065,10 +1128,10 @@ struct FPackageImportStore
 	}
 
 private:
-	void AddAsyncFlags(FPackageId InPackageId)
+	void AddAsyncFlags(UPackage* ImportedPackage)
 	{
-		const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(InPackageId);
-		UObject* ImportedPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(ImportEntry.Name), true);
+		// const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(InPackageId);
+		// UObject* ImportedPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(ImportEntry.Name), true);
 		
 		if (GUObjectArray.IsDisregardForGC(ImportedPackage))
 		{
@@ -1085,10 +1148,10 @@ private:
 		}, /* bIncludeNestedObjects*/ true);
 	}
 
-	void ClearAsyncFlags(FPackageId InPackageId)
+	void ClearAsyncFlags(UPackage* ImportedPackage)
 	{
-		const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(InPackageId);
-		UObject* ImportedPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(ImportEntry.Name), true);
+		// const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(InPackageId);
+		// UObject* ImportedPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(ImportEntry.Name), true);
 
 		if (GUObjectArray.IsDisregardForGC(ImportedPackage))
 		{
@@ -1109,15 +1172,17 @@ private:
 	{
 		for (const FPackageId& ImportedPackageId : StoreEntry.ImportedPackages)
 		{
-			if (GlobalPackageStore.LoadedPackageStore.AddRef(ImportedPackageId))
+			FLoadedPackageRef& PackageRef = GlobalPackageStore.LoadedPackageStore.GetPackageRef(ImportedPackageId);
+			if (PackageRef.AddRef())
 			{
-				AddAsyncFlags(ImportedPackageId);
+				AddAsyncFlags(PackageRef.GetPackage());
 			}
 		}
 		// don't track public exports in temp packages, nothing is importing them
 		if (GlobalPackageStore.IsSerializedPackageId(PackageId))
 		{
-			if (GlobalPackageStore.LoadedPackageStore.AddRef(PackageIdToLoad))
+			FLoadedPackageRef& PackageRef = GlobalPackageStore.LoadedPackageStore.GetPackageRef(PackageIdToLoad);
+			if (PackageRef.AddRef())
 			{
 				// should only happen if someone from outside call LoadPackage with an already loaded package
 				// this could be detected already in CreatePackagesFromQueue,
@@ -1133,18 +1198,20 @@ private:
 	{
 		for (const FPackageId& ImportedPackageId : StoreEntry.ImportedPackages)
 		{
-			if (GlobalPackageStore.LoadedPackageStore.ReleaseRef(ImportedPackageId))
+			FLoadedPackageRef& PackageRef = GlobalPackageStore.LoadedPackageStore.GetPackageRef(ImportedPackageId);
+			if (PackageRef.ReleaseRef())
 			{
-				ClearAsyncFlags(ImportedPackageId);
+				ClearAsyncFlags(PackageRef.GetPackage());
 			}
 		}
 		// don't track public exports in temp packages, nothing is importing them
 		if (GlobalPackageStore.IsSerializedPackageId(PackageId))
 		{
 			// clear own reference, and possible all async flags if no remaining ref count
-			if (GlobalPackageStore.LoadedPackageStore.ReleaseRef(PackageIdToLoad))
+			FLoadedPackageRef& PackageRef = GlobalPackageStore.LoadedPackageStore.GetPackageRef(PackageIdToLoad);
+			if (PackageRef.ReleaseRef())
 			{
-				ClearAsyncFlags(PackageIdToLoad);
+				ClearAsyncFlags(PackageRef.GetPackage());
 			}
 		}
 	}
@@ -3090,19 +3157,27 @@ void FAsyncPackage2::ImportPackagesRecursive()
 	FPackageStore& GlobalPackageStore = AsyncLoadingThread.GlobalPackageStore;
 	for (const FPackageId& ImportedPackageId : StoreEntry.ImportedPackages)
 	{
-		if (GlobalPackageStore.LoadedPackageStore.AreAllPublicExportsLoaded(ImportedPackageId))
+		FLoadedPackageRef& PackageRef = GlobalPackageStore.LoadedPackageStore.GetPackageRef(ImportedPackageId);
+		if (PackageRef.AreAllPublicExportsLoaded())
 		{
 			continue;
 		}
 
 		const FPackageStoreEntry& ImportedPackageEntry = GlobalPackageStore.GetStoreEntry(ImportedPackageId);
 		const FPackageId PackageIdToLoad = ImportedPackageId;
-#if DO_CHECK
-		UE_CLOG(!FMappedName::IsResolvedToMinimalName(ImportedPackageEntry.Name), LogStreaming, Warning,
-			TEXT("Package '%s' is trying to import non mounted package ID '%d'"),
-			*Desc.Name.ToString(),
-			ImportedPackageId.ToIndex());
-#endif
+
+		if (!FMappedName::IsResolvedToMinimalName(ImportedPackageEntry.Name))
+		{
+			UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("ImportPackages: SkipPackage"),
+				TEXT("Skipping non mounted imported package with id '%d'"), ImportedPackageId.ToIndex());
+			PackageRef.SetIsMissingPackage();
+			continue;
+		}
+		else if (PackageRef.IsMissingPackage())
+		{
+			PackageRef.ClearIsMissingPackage();
+		}
+
 		const FName NameToLoad = MinimalNameToName(ImportedPackageEntry.Name);
 		const FName SourceName =
 			ImportedPackageEntry.SourcePackageId.IsValid() ?
@@ -3700,7 +3775,8 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Packa
 	if (Package->AsyncLoadingThread.GlobalPackageStore.IsSerializedPackageId(Package->Desc.PackageId))
 	{
 		// for serialized packages, store the package to load, since that is what is imported
-		Package->AsyncLoadingThread.GlobalPackageStore.LoadedPackageStore.SetAllPublicExportsLoaded(Package->Desc.PackageIdToLoad);
+		FLoadedPackageRef& PackageRef = Package->AsyncLoadingThread.GlobalPackageStore.LoadedPackageStore.GetPackageRef(Package->Desc.PackageIdToLoad);
+		PackageRef.SetAllPublicExportsLoaded();
 	}
 
 	Package->GetNode(EEventLoadNode2::Package_PostLoad)->ReleaseBarrier();
@@ -4927,10 +5003,24 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 {
 	check(!LinkerRoot);
 
+	// temp packages are never stored and never found
+	const bool bIsTempPackage = !ImportStore.GlobalPackageStore.IsSerializedPackageId(Desc.PackageId);
+	FLoadedPackageRef* PackageRef = nullptr;
+
 	// Try to find existing package or create it if not already present.
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPackageFind);
-		LinkerRoot = FindObjectFast<UPackage>(nullptr, Desc.Name);
+		if (bIsTempPackage)
+		{
+			LinkerRoot = FindObjectFast<UPackage>(nullptr, Desc.Name);
+		}
+		else
+		{
+			PackageRef = ImportStore.GlobalPackageStore.LoadedPackageStore.FindPackageRef(Desc.PackageIdToLoad);
+			check(PackageRef);
+			LinkerRoot = PackageRef->GetPackage();
+			check(LinkerRoot == FindObjectFast<UPackage>(nullptr, Desc.Name));
+		}
 	}
 	if (!LinkerRoot)
 	{
@@ -4943,6 +5033,10 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		LinkerRoot->LinkerLicenseeVersion = GPackageFileLicenseeUE4Version;
 		// LinkerRoot->LinkerCustomVersion = PackageSummaryVersions; // only if (!bCustomVersionIsLatest)
 		LinkerRoot->SetFlags(RF_WasLoaded);
+		if (PackageRef)
+		{
+			PackageRef->SetPackage(LinkerRoot);
+		}
 		bCreatedLinkerRoot = true;
 	}
 	else
