@@ -244,7 +244,8 @@ namespace Chaos
 		Clustered,	//only applicable on physics thread side
 		StaticMesh,
 		SkeletalMesh,
-		GeometryCollection
+		GeometryCollection,
+		Unknown
 	};
 
 	//Holds the data for getting back at the real handle if it's still valid

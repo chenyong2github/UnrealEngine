@@ -1048,47 +1048,50 @@ template <typename T, int d>
 class TGenericParticleHandleHandleImp
 {
 public:
-	TGenericParticleHandleHandleImp(TGeometryParticleHandle<T, d>* InHandle) { Handle = InHandle; }
+	TGenericParticleHandleHandleImp(TGeometryParticleHandle<T, d>* InHandle) { MHandle = InHandle; }
 
 	// Check for the exact type of particle (see also AsKinematic etc, which will work on derived types)
-	bool IsStatic() const { return (Handle->ObjectState() == EObjectStateType::Static); }
-	bool IsKinematic() const { return (Handle->ObjectState() == EObjectStateType::Kinematic); }
-	bool IsDynamic() const { return (Handle->ObjectState() == EObjectStateType::Dynamic) || (Handle->ObjectState() == EObjectStateType::Sleeping); }
+	bool IsStatic() const { return (MHandle->ObjectState() == EObjectStateType::Static); }
+	bool IsKinematic() const { return (MHandle->ObjectState() == EObjectStateType::Kinematic); }
+	bool IsDynamic() const { return (MHandle->ObjectState() == EObjectStateType::Dynamic) || (MHandle->ObjectState() == EObjectStateType::Sleeping); }
 
-	const TKinematicGeometryParticleHandle<T, d>* CastToKinematicParticle() const { return Handle->CastToKinematicParticle(); }
-	TKinematicGeometryParticleHandle<T, d>* CastToKinematicParticle() { return Handle->CastToKinematicParticle(); }
-	const TPBDRigidParticleHandle<T, d>* CastToRigidParticle() const { return Handle->CastToRigidParticle(); }
-	TPBDRigidParticleHandle<T, d>* CastToRigidParticle() { return Handle->CastToRigidParticle(); }
-	const TGeometryParticleHandle<T, d>* GeometryParticleHandle() const { return Handle; }
-	TGeometryParticleHandle<T, d>* GeometryParticleHandle() { return Handle; }
+	const TKinematicGeometryParticleHandle<T, d>* CastToKinematicParticle() const { return MHandle->CastToKinematicParticle(); }
+	TKinematicGeometryParticleHandle<T, d>* CastToKinematicParticle() { return MHandle->CastToKinematicParticle(); }
+	const TPBDRigidParticleHandle<T, d>* CastToRigidParticle() const { return MHandle->CastToRigidParticle(); }
+	TPBDRigidParticleHandle<T, d>* CastToRigidParticle() { return MHandle->CastToRigidParticle(); }
+	const TGeometryParticleHandle<T, d>* GeometryParticleHandle() const { return MHandle; }
+	TGeometryParticleHandle<T, d>* GeometryParticleHandle() { return MHandle; }
+	//Needed for templated code to be the same
+	const TGeometryParticleHandle<T, d>* Handle() const { return MHandle; }
+	TGeometryParticleHandle<T, d>* Handle() { return MHandle; }
 
 	// Static Particles
-	TVector<T, d>& X() { return Handle->X(); }
-	const TVector<T, d>& X() const { return Handle->X(); }
-	TRotation<T, d>& R() { return Handle->R(); }
-	const TRotation<T, d>& R() const { return Handle->R(); }
-	TSerializablePtr<FImplicitObject> Geometry() const { return Handle->Geometry(); }
-	const TUniquePtr<FImplicitObject>& DynamicGeometry() const { return Handle->DynamicGeometry(); }
-	bool Sleeping() const { return Handle->Sleeping(); }
-	FString ToString() const { return Handle->ToString(); }
+	TVector<T, d>& X() { return MHandle->X(); }
+	const TVector<T, d>& X() const { return MHandle->X(); }
+	TRotation<T, d>& R() { return MHandle->R(); }
+	const TRotation<T, d>& R() const { return MHandle->R(); }
+	TSerializablePtr<FImplicitObject> Geometry() const { return MHandle->Geometry(); }
+	const TUniquePtr<FImplicitObject>& DynamicGeometry() const { return MHandle->DynamicGeometry(); }
+	bool Sleeping() const { return MHandle->Sleeping(); }
+	FString ToString() const { return MHandle->ToString(); }
 
 	template <typename Container>
-	const auto& AuxilaryValue(const Container& AuxContainer) const { return Handle->AuxilaryValue(AuxContainer); }
+	const auto& AuxilaryValue(const Container& AuxContainer) const { return MHandle->AuxilaryValue(AuxContainer); }
 	template <typename Container>
-	auto& AuxilaryValue(Container& AuxContainer) { return Handle->AuxilaryValue(AuxContainer); }
+	auto& AuxilaryValue(Container& AuxContainer) { return MHandle->AuxilaryValue(AuxContainer); }
 
 	// Kinematic Particles
-	const TVector<T, d>& V() const { return (Handle->CastToKinematicParticle()) ? Handle->CastToKinematicParticle()->V() : ZeroVector; }
-	const TVector<T, d>& W() const { return (Handle->CastToKinematicParticle()) ? Handle->CastToKinematicParticle()->W() : ZeroVector; }
+	const TVector<T, d>& V() const { return (MHandle->CastToKinematicParticle()) ? MHandle->CastToKinematicParticle()->V() : ZeroVector; }
+	const TVector<T, d>& W() const { return (MHandle->CastToKinematicParticle()) ? MHandle->CastToKinematicParticle()->W() : ZeroVector; }
 
 	// Dynamic Particles
 
 	// TODO: Make all of these check ObjectState to maintain current functionality
 	int32 CollisionParticlesSize() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->CollisionParticlesSize();
+			return MHandle->CastToRigidParticle()->CollisionParticlesSize();
 		}
 
 		return 0;
@@ -1096,9 +1099,9 @@ public:
 
 	const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->CollisionParticles();
+			return MHandle->CastToRigidParticle()->CollisionParticles();
 		}
 
 		return NullBVHParticles;
@@ -1106,9 +1109,9 @@ public:
 
 	int32 CollisionGroup() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->CollisionGroup();
+			return MHandle->CastToRigidParticle()->CollisionGroup();
 		}
 
 		return 0;
@@ -1117,9 +1120,9 @@ public:
 	// @todo(ccaulfield): should be available on all types?
 	bool Disabled() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->Disabled();
+			return MHandle->CastToRigidParticle()->Disabled();
 		}
 
 		return false;
@@ -1128,9 +1131,9 @@ public:
 	// @todo(ccaulfield): should be available on kinematics?
 	const TVector<T, d>& PreV() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->PreV();
+			return MHandle->CastToRigidParticle()->PreV();
 		}
 
 		return ZeroVector;
@@ -1139,18 +1142,18 @@ public:
 	// @todo(ccaulfield): should be available on kinematics?
 	const TVector<T, d>& PreW() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->PreW();
+			return MHandle->CastToRigidParticle()->PreW();
 		}
 		return ZeroVector;
 	}
 
 	TVector<T, d>& P()
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->P();
+			return MHandle->CastToRigidParticle()->P();
 		}
 
 		return X();
@@ -1158,9 +1161,9 @@ public:
 
 	const TVector<T, d>& P() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->P();
+			return MHandle->CastToRigidParticle()->P();
 		}
 
 		return X();
@@ -1168,9 +1171,9 @@ public:
 
 	TRotation<T, d>& Q()
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->Q();
+			return MHandle->CastToRigidParticle()->Q();
 		}
 
 		return R();
@@ -1178,9 +1181,9 @@ public:
 
 	const TRotation<T, d>& Q() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->Q();
+			return MHandle->CastToRigidParticle()->Q();
 		}
 
 		return R();
@@ -1188,28 +1191,50 @@ public:
 
 	const TVector<T, d>& F() const 
 	{ 
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->F();
+			return MHandle->CastToRigidParticle()->F();
 		}
 
 		return ZeroVector;
 	}
 	const TVector<T, d>& Torque() const 
 	{ 
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->Torque();
+			return MHandle->CastToRigidParticle()->Torque();
 		}
 
 		return ZeroVector;
 	}
 
+	const EObjectStateType ObjectState()  const
+	{
+		return MHandle->ObjectState();
+	}
+
+	FParticleID ParticleID() const
+	{
+		return MHandle->ParticleID();
+	}
+
+	//Named this way for templated code
+	bool HasBoundingBox() const
+	{
+		return MHandle->HasBounds();
+	}
+
+	//Named this way for templated code
+	const TAABB<T,d>& BoundingBox() const
+	{
+		return MHandle->WorldSpaceInflatedBounds();
+	}
+
 	const PMatrix<T, d, d>& I() const 
 	{ 
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->I();
+			return MHandle->CastToRigidParticle()->I();
 		}
 
 		return ZeroMatrix;
@@ -1217,9 +1242,9 @@ public:
 
 	const PMatrix<T, d, d>& InvI() const 
 	{ 
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->InvI();
+			return MHandle->CastToRigidParticle()->InvI();
 		}
 
 		return ZeroMatrix;
@@ -1227,9 +1252,9 @@ public:
 
 	T M() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->M();
+			return MHandle->CastToRigidParticle()->M();
 		}
 
 		return (T)0;
@@ -1237,9 +1262,9 @@ public:
 
 	T InvM() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->InvM();
+			return MHandle->CastToRigidParticle()->InvM();
 		}
 
 		return (T)0;
@@ -1247,7 +1272,7 @@ public:
 
 	TVector<T, d> CenterOfMass() const
 	{
-		if (auto RigidHandle = Handle->CastToRigidParticle())
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
 			return RigidHandle->CenterOfMass();
 		}
@@ -1257,7 +1282,7 @@ public:
 
 	TRotation<T, d> RotationOfMass() const
 	{
-		if (auto RigidHandle = Handle->CastToRigidParticle())
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
 			return RigidHandle->RotationOfMass();
 		}
@@ -1267,7 +1292,7 @@ public:
 
 	T LinearEtherDrag() const
 	{
-		if (auto RigidHandle = Handle->CastToRigidParticle())
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
 			return RigidHandle->LinearEtherDrag();
 		}
@@ -1276,7 +1301,7 @@ public:
 
 	T AngularEtherDrag() const
 	{
-		if (auto RigidHandle = Handle->CastToRigidParticle())
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
 			return RigidHandle->AngularEtherDrag();
 		}
@@ -1287,15 +1312,15 @@ public:
 #if CHAOS_CHECKED
 	const FName& DebugName() const
 	{
-		return Handle->DebugName();
+		return MHandle->DebugName();
 	}
 #endif
 
 	int32 Island() const
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->Island();
+			return MHandle->CastToRigidParticle()->Island();
 		}
 
 		return INDEX_NONE;
@@ -1303,16 +1328,21 @@ public:
 
 	bool ToBeRemovedOnFracture() const 
 	{
-		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return Handle->CastToRigidParticle()->ToBeRemovedOnFracture();
+			return MHandle->CastToRigidParticle()->ToBeRemovedOnFracture();
 		}
 
 		return false;
 	}
 
+	static constexpr EParticleType StaticType()
+	{
+		return EParticleType::Unknown;
+	}
+
 private:
-	TGeometryParticleHandle<T, d>* Handle;
+	TGeometryParticleHandle<T, d>* MHandle;
 
 	static const TVector<T, d> ZeroVector;
 	static const TRotation<T, d> IdentityRotation;

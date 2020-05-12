@@ -37,8 +37,7 @@ namespace Chaos
 			// Collision detection pipeline: BroadPhase -[parallel]-> NarrowPhase -[parallel]-> Receiver -[serial]-> Container
 			FCollisionResimCache* CollisionResimCache = ResimCache ? ResimCache->GetCollisionResimCache() : nullptr;
 			FAsyncCollisionReceiver Receiver(CollisionContainer, CollisionResimCache);
-			const bool bIsResimming = ResimCache && ResimCache->IsResimming();
-			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, Receiver, StatData, bIsResimming);
+			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, Receiver, StatData, ResimCache);
 			if(CollisionResimCache)
 			{
 				Receiver.ReceiveCollisions(CollisionResimCache->GetAndSanitizeConstraints());
