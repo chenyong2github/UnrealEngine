@@ -386,7 +386,7 @@ void UMotoSynthSource::BuildGrainTableByRPMEstimation()
 			float PreviousValue = 1.0f;
 
 			int32 CurrentSearchIndex = DesiredSourceIndex;
-			while (CurrentValue > 0.0f && PreviousValue > 0.0f || CurrentValue < 0.0f && PreviousValue < 0.0f)
+			while ((CurrentValue > 0.0f && PreviousValue > 0.0f) || (CurrentValue < 0.0f && PreviousValue < 0.0f))
 			{
 				CurrentValue = SourceData[CurrentSearchIndex];
 				PreviousValue = SourceData[CurrentSearchIndex - 1];
@@ -397,7 +397,7 @@ void UMotoSynthSource::BuildGrainTableByRPMEstimation()
 			CurrentValue = 1.0f;
 			PreviousValue = 1.0f;
 			CurrentSearchIndex = DesiredSourceIndex;
-			while (CurrentValue > 0.0f && PreviousValue > 0.0f || CurrentValue < 0.0f && PreviousValue < 0.0f)
+			while ((CurrentValue > 0.0f && PreviousValue > 0.0f) || (CurrentValue < 0.0f && PreviousValue < 0.0f))
 			{
 				CurrentValue = SourceData[CurrentSearchIndex];
 				PreviousValue = SourceData[CurrentSearchIndex - 1];
