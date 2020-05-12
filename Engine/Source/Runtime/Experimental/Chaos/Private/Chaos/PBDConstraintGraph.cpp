@@ -348,13 +348,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 		}
 
 		TSet<TGeometryParticleHandle<FReal, 3>*> SingleIslandParticles;
-		TSet<TGeometryParticleHandle<FReal, 3>*> SingleIslandStaticParticles;
-		ComputeIsland(Idx, NextIsland, SingleIslandParticles, SingleIslandStaticParticles);
-
-		for (TGeometryParticleHandle<FReal, 3>* StaticParticle : SingleIslandStaticParticles)
-		{
-			SingleIslandParticles.Add(StaticParticle);
-		}
+		ComputeIsland(Idx, NextIsland, SingleIslandParticles);
 
 		if (SingleIslandParticles.Num())
 		{
@@ -569,8 +563,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 }
 
 
-void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, TSet<TGeometryParticleHandle<FReal, 3> *>& DynamicParticlesInIsland,
-	TSet<TGeometryParticleHandle<FReal, 3> *>& StaticParticlesInIsland)
+void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, TSet<TGeometryParticleHandle<FReal, 3> *>& ParticlesInIsland)
 {
 	TQueue<int32> NodeQueue;
 	NodeQueue.Enqueue(InNode);
@@ -589,12 +582,9 @@ void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 		TPBDRigidParticleHandle<FReal, 3>* RigidHandle = Node.Particle->CastToRigidParticle();
 		const bool isRigidDynamic = RigidHandle && RigidHandle->ObjectState() != EObjectStateType::Kinematic;  //??
 
+		ParticlesInIsland.Add(Node.Particle);
 		if (isRigidDynamic == false)
 		{
-			if (!StaticParticlesInIsland.Contains(Node.Particle))
-			{
-				StaticParticlesInIsland.Add(Node.Particle);
-			}
 			continue;
 		}
 
@@ -604,7 +594,6 @@ void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 		//	continue;
 		//}
 
-		DynamicParticlesInIsland.Add(Node.Particle);
 		Node.Island = Island;
 		Visited[NodeIndex] = VisitToken;
 

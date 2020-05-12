@@ -215,8 +215,7 @@ namespace Chaos
 		};
 
 		void ComputeIslands(const TParticleView<TPBDRigidParticles<FReal, 3>>& PBDRigids, TPBDRigidsSOAs<FReal, 3>& Particles);
-		void ComputeIsland(const int32 Node, const int32 Island,
-			TSet<TGeometryParticleHandle<FReal, 3>*>& DynamicParticlesInIsland, TSet<TGeometryParticleHandle<FReal, 3>*>& StaticParticlesInIsland);
+		void ComputeIsland(const int32 Node, const int32 Island, TSet<TGeometryParticleHandle<FReal, 3>*>& ParticlesInIsland);
 		bool CheckIslands(const TArray<TGeometryParticleHandle<FReal, 3>*>& Particles);
 		
 		void ParticleAdd(TGeometryParticleHandle<FReal, 3>* AddedParticle);
