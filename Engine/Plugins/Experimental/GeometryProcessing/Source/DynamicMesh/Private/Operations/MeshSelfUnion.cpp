@@ -173,9 +173,9 @@ bool FMeshSelfUnion::Compute()
 			}
 			FVector3d Centroid = Mesh->GetTriCentroid(TID);
 
-			double WindingNum = Winding.FastWindingNumber(Centroid + Normals[TID] * NormalOffset) > WindingThreshold;
 			
-			if (WindingNum > -.0001 && WindingNum < 1.0001) // TODO tune these / don't hardcode?
+			
+			// first check for the coplanar case
 			{
 				double DSq;
 				int MyComponentID = TriToComponentID[TID];
@@ -221,7 +221,14 @@ bool FMeshSelfUnion::Compute()
 				}
 			}
 
-			KeepTri[TID] = WindingNum < WindingThreshold;
+			// didn't already return a coplanar result; use the winding number
+			double WindingNum = Winding.FastWindingNumber(Centroid + Normals[TID] * NormalOffset);
+			bool bKeep = WindingNum < WindingThreshold;
+			if (bTrimOuterFlaps && bKeep)
+			{
+				bKeep = Winding.FastWindingNumber(Centroid - Normals[TID] * NormalOffset) > WindingThreshold;
+			}
+			KeepTri[TID] = bKeep;
 		});
 
 		// track where we will create new boundary edges
