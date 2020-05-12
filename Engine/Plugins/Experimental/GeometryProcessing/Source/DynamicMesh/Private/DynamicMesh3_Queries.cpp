@@ -349,7 +349,7 @@ bool FDynamicMesh3::IsGroupBoundaryVertex(int vID) const
 	check(IsVertex(vID));
 	check(HasTriangleGroups());
 
-	int group_id = InvalidGroupID;
+	int group_id = InvalidID;
 	for (int eID : VertexEdgeLists.Values(vID))
 	{
 		const FEdge Edge = Edges[eID];
@@ -357,7 +357,7 @@ bool FDynamicMesh3::IsGroupBoundaryVertex(int vID) const
 		int g0 = TriangleGroups.GetValue()[et0];
 		if (group_id != g0)
 		{
-			if (group_id == InvalidGroupID)
+			if (group_id == InvalidID)
 			{
 				group_id = g0;
 			}
@@ -386,7 +386,7 @@ bool FDynamicMesh3::IsGroupJunctionVertex(int vID) const
 	check(IsVertex(vID));
 	check(HasTriangleGroups());
 
-	FIndex2i groups(InvalidGroupID, InvalidGroupID);
+	FIndex2i groups(InvalidID, InvalidID);
 	for (int eID : VertexEdgeLists.Values(vID))
 	{
 		const FEdge Edge = Edges[eID];
@@ -400,11 +400,11 @@ bool FDynamicMesh3::IsGroupJunctionVertex(int vID) const
 			int g0 = TriangleGroups.GetValue()[et[k]];
 			if (g0 != groups[0] && g0 != groups[1])
 			{
-				if (groups[0] != InvalidGroupID && groups[1] != InvalidGroupID)
+				if (groups[0] != InvalidID && groups[1] != InvalidID)
 				{
 					return true;
 				}
-				if (groups[0] == InvalidGroupID)
+				if (groups[0] == InvalidID)
 				{
 					groups[0] = g0;
 				}
@@ -424,7 +424,7 @@ bool FDynamicMesh3::GetVertexGroups(int vID, FIndex4i& groups) const
 	check(IsVertex(vID));
 	check(HasTriangleGroups());
 
-	groups = FIndex4i(InvalidGroupID, InvalidGroupID, InvalidGroupID, InvalidGroupID);
+	groups = FIndex4i(InvalidID, InvalidID, InvalidID, InvalidID);
 	int ng = 0;
 
 	for (int eID : VertexEdgeLists.Values(vID))
