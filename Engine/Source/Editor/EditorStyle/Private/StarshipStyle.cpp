@@ -2320,7 +2320,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 		const FLinearColor NormalColor(1, 1, 1, 0.75f);
 		const FLinearColor PressedColor(1, 1, 1, 1.f);
 
-		/* Create style for "ViewportMenu.ToggleButton" ... */
+		/* Create style for "LegacyViewportMenu.ToggleButton" ... */
 		const FCheckBoxStyle ViewportMenuToggleButtonStyle = FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(BOX_BRUSH(*SmallRoundedButton, FMargin(7.f / 16.f), NormalColor))
@@ -2332,7 +2332,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 		/* ... and add new style */
 		ViewportToolbarStyle.SetToggleButtonStyle(ViewportMenuToggleButtonStyle);
 
-		/* Create style for "ViewportMenu.ToggleButton.Start" ... */
+		/* Create style for "LegacyViewportMenu.ToggleButton.Start" ... */
 		const FCheckBoxStyle ViewportMenuToggleStartButtonStyle = FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(BOX_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), NormalColor))
@@ -2342,9 +2342,9 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 			.SetCheckedPressedImage(BOX_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), SelectionColor_Pressed))
 			.SetCheckedImage(BOX_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), SelectionColor_Pressed));
 		/* ... and add new style */
-		Set("ViewportMenu.ToggleButton.Start", ViewportMenuToggleStartButtonStyle);
+		Set("LegacyViewportMenu.ToggleButton.Start", ViewportMenuToggleStartButtonStyle);
 
-		/* Create style for "ViewportMenu.ToggleButton.Middle" ... */
+		/* Create style for "LegacyViewportMenu.ToggleButton.Middle" ... */
 		const FCheckBoxStyle ViewportMenuToggleMiddleButtonStyle = FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(BOX_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), NormalColor))
@@ -2354,9 +2354,9 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 			.SetCheckedPressedImage(BOX_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), SelectionColor_Pressed))
 			.SetCheckedImage(BOX_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), SelectionColor_Pressed));
 		/* ... and add new style */
-		Set("ViewportMenu.ToggleButton.Middle", ViewportMenuToggleMiddleButtonStyle);
+		Set("LegacyViewportMenu.ToggleButton.Middle", ViewportMenuToggleMiddleButtonStyle);
 
-		/* Create style for "ViewportMenu.ToggleButton.End" ... */
+		/* Create style for "LegacyViewportMenu.ToggleButton.End" ... */
 		const FCheckBoxStyle ViewportMenuToggleEndButtonStyle = FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(BOX_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), NormalColor))
@@ -2366,7 +2366,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 			.SetCheckedPressedImage(BOX_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), SelectionColor_Pressed))
 			.SetCheckedImage(BOX_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), SelectionColor_Pressed));
 		/* ... and add new style */
-		Set("ViewportMenu.ToggleButton.End", ViewportMenuToggleEndButtonStyle);
+		Set("LegacyViewportMenu.ToggleButton.End", ViewportMenuToggleEndButtonStyle);
 
 		const FMargin NormalPadding = FMargin(4.0f, 4.0f, 4.0f, 4.0f);
 		const FMargin PressedPadding = FMargin(4.0f, 4.0f, 4.0f, 4.0f);
@@ -2380,25 +2380,25 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 
 		ViewportToolbarStyle.SetButtonStyle(ViewportMenuButton);
 
-		Set("ViewportMenu.Button.Start", FButtonStyle(ViewportMenuButton)
+		Set("LegacyViewportMenu.Button.Start", FButtonStyle(ViewportMenuButton)
 			.SetNormal(BOX_BRUSH(*SmallRoundedButtonStart, 7.0f / 16.0f, NormalColor))
 			.SetPressed(BOX_BRUSH(*SmallRoundedButtonStart, 7.0f / 16.0f, PressedColor))
 			.SetHovered(BOX_BRUSH(*SmallRoundedButtonStart, 7.0f / 16.0f, PressedColor))
 		);
 
-		Set("ViewportMenu.Button.Middle", FButtonStyle(ViewportMenuButton)
+		Set("LegacyViewportMenu.Button.Middle", FButtonStyle(ViewportMenuButton)
 			.SetNormal(BOX_BRUSH(*SmallRoundedButtonMiddle, 7.0f / 16.0f, NormalColor))
 			.SetPressed(BOX_BRUSH(*SmallRoundedButtonMiddle, 7.0f / 16.0f, PressedColor))
 			.SetHovered(BOX_BRUSH(*SmallRoundedButtonMiddle, 7.0f / 16.0f, PressedColor))
 		);
 
-		Set("ViewportMenu.Button.End", FButtonStyle(ViewportMenuButton)
+		Set("LegacyViewportMenu.Button.End", FButtonStyle(ViewportMenuButton)
 			.SetNormal(BOX_BRUSH(*SmallRoundedButtonEnd, 7.0f / 16.0f, NormalColor))
 			.SetPressed(BOX_BRUSH(*SmallRoundedButtonEnd, 7.0f / 16.0f, PressedColor))
 			.SetHovered(BOX_BRUSH(*SmallRoundedButtonEnd, 7.0f / 16.0f, PressedColor))
 		);
 
-		Set("ViewportMenu", ViewportToolbarStyle);
+		Set("LegacyViewportMenu", ViewportToolbarStyle);
 	}
 
 	// Viewport actor preview's pin/unpin and attach/detach buttons

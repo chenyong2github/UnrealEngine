@@ -61,10 +61,10 @@ public:
 
 		auto& ViewportCommands = FLevelViewportCommands::Get();
 
-		FToolBarBuilder ToolbarBuilder(InArgs._Viewport->GetCommandList(), FMultiBoxCustomization::None, nullptr/*InExtenders*/);
+		FToolBarBuilder ToolbarBuilder(InArgs._Viewport->GetCommandList(), FMultiBoxCustomization::None);
 
 		// Use a custom style
-		FName ToolBarStyle = "ViewportMenu";
+		FName ToolBarStyle = "LegacyViewportMenu";
 		ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
 		ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
 		ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);

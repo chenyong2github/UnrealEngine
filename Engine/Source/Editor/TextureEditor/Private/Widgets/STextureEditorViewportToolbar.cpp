@@ -39,7 +39,7 @@ void STextureEditorViewportToolbar::Construct( const FArguments& InArgs, const T
 							.ClickMethod(EButtonClickMethod::MouseDown)
 							.ContentPadding(FMargin(5.0f, 2.0f))
 							.VAlign(VAlign_Center)
-							.ButtonStyle(FEditorStyle::Get(), "ViewPortMenu.Button")
+							.ButtonStyle(FEditorStyle::Get(), "LegacyViewportMenu.Button")
 							.OnClicked(this, &STextureEditorViewportToolbar::HandleViewOptionsMenuButtonClicked)
 							[
 								SNew(SHorizontalBox)
@@ -49,7 +49,7 @@ void STextureEditorViewportToolbar::Construct( const FArguments& InArgs, const T
 									[
 										SNew(STextBlock)
 										.Text(LOCTEXT("ViewButtonText", "View"))
-										.TextStyle(FEditorStyle::Get(), "ViewportMenu.Label")
+										.TextStyle(FEditorStyle::Get(), "LegacyViewportMenu.Label")
 									]
 
 								+ SHorizontalBox::Slot()
