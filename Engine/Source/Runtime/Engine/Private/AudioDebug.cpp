@@ -1399,6 +1399,7 @@ namespace Audio
 
 		const int32 FontHeight = GetStatsFont()->GetMaxCharHeight() + 2;
 		Canvas->DrawShadowedString(X, Y, TEXT("Active Sound Modulation:"), GetStatsFont(), HeaderColor);
+		Y += FontHeight;
 
 		bool bDisplayedSoundModulationInfo = false;
 		if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
