@@ -8,18 +8,55 @@
 #include "Particles.h"
 #include "ChaosLog.h"
 
+#define DEBUG_HULL_GENERATION 0
+
 namespace Chaos
 {
 	// When encountering a triangle or quad in hull generation (3-points or 4 coplanar points) we will instead generate
 	// a prism with a small thickness to emulate the desired result as a hull. Otherwise hull generation will fail on
 	// these cases. Verbose logging on LogChaos will point out when this path is taken for further scrutiny about
 	// the geometry
-static constexpr float TriQuadPrismInflation() { return 0.1f; }
+	static constexpr float TriQuadPrismInflation() { return 0.1f; }
 
 	class FConvexBuilder
 	{
 	public:
 
+		class Params
+		{
+		public:
+			Params()
+				: HorizonEpsilon(0.1f)
+			{}
+
+			FReal HorizonEpsilon;
+		};
+
+		static FReal SuggestEpsilon(const TParticles<FReal, 3>& InParticles)
+		{
+			// Create a scaled epsilon for our input data set. FLT_EPSILON is the distance between 1.0 and the next value
+			// above 1.0 such that 1.0 + FLT_EPSILON != 1.0. Floats aren't equally disanced though so big or small numbers
+			// don't work well with it. Here we take the max absolute of each axis and scale that for a wider margin and
+			// use that to scale FLT_EPSILON to get a more relevant value.
+			TVector<FReal, 3> MaxAxes(TNumericLimits<FReal>::Lowest());
+			const int32 NumParticles = InParticles.Size();
+
+			if(NumParticles <= 1)
+			{
+				return FLT_EPSILON;
+			}
+
+			for(int32 Index = 0; Index < NumParticles; ++Index)
+			{
+				TVector<FReal, 3> PositionAbs = InParticles.X(Index).GetAbs();
+
+				MaxAxes[0] = FMath::Max(MaxAxes[0], PositionAbs[0]);
+				MaxAxes[1] = FMath::Max(MaxAxes[1], PositionAbs[1]);
+				MaxAxes[2] = FMath::Max(MaxAxes[2], PositionAbs[2]);
+			}
+
+			return 3.0f * (MaxAxes[0] + MaxAxes[1] + MaxAxes[2]) * FLT_EPSILON;
+		}
 
 		static bool IsValidTriangle(const FVec3& A, const FVec3& B, const FVec3& C, FVec3& OutNormal)
 		{
@@ -174,7 +211,7 @@ static constexpr float TriQuadPrismInflation() { return 0.1f; }
 			UE_CLOG(OutSurfaceParticles.Size() == 0, LogChaos, Warning, TEXT("Convex hull generation produced zero convex particles, collision will fail for this primitive."));
 		}
 
-		static void BuildConvexHull(const TParticles<FReal, 3>& InParticles, TArray<TVector<int32, 3>>& OutIndices)
+		static void BuildConvexHull(const TParticles<FReal, 3>& InParticles, TArray<TVector<int32, 3>>& OutIndices, const Params& InParams = Params())
 		{
 			OutIndices.Reset();
 			FConvexFace* Faces = BuildInitialHull(InParticles);
@@ -182,6 +219,18 @@ static constexpr float TriQuadPrismInflation() { return 0.1f; }
 			{
 				return;
 			}
+
+#if DEBUG_HULL_GENERATION
+			FString InitialFacesString(TEXT("Generated Initial Hull: "));
+			FConvexFace* Current = Faces;
+			while(Current)
+			{
+				InitialFacesString += FString::Printf(TEXT("(%d %d %d) "), Current->FirstEdge->Vertex, Current->FirstEdge->Next->Vertex, Current->FirstEdge->Prev->Vertex);
+				Current = Current->Next;
+			}
+			UE_LOG(LogChaos, VeryVerbose, TEXT("%s"), *InitialFacesString);
+#endif
+
 			FConvexFace DummyFace(Faces->Plane);
 			DummyFace.Prev = nullptr;
 			DummyFace.Next = Faces;
@@ -190,7 +239,7 @@ static constexpr float TriQuadPrismInflation() { return 0.1f; }
 			FHalfEdge* ConflictV = FindConflictVertex(InParticles, DummyFace.Next);
 			while(ConflictV)
 			{
-				AddVertex(InParticles, ConflictV);
+				AddVertex(InParticles, ConflictV, InParams);
 				ConflictV = FindConflictVertex(InParticles, DummyFace.Next);
 			}
 
@@ -609,8 +658,12 @@ static constexpr float TriQuadPrismInflation() { return 0.1f; }
 
 		static FHalfEdge* FindConflictVertex(const TParticles<FReal, 3>& InParticles, FConvexFace* FaceList)
 		{
+			UE_CLOG(DEBUG_HULL_GENERATION, LogChaos, VeryVerbose, TEXT("Finding conflict vertex"));
+
 			for(FConvexFace* CurFace = FaceList; CurFace; CurFace = CurFace->Next)
 			{
+				UE_CLOG(DEBUG_HULL_GENERATION, LogChaos, VeryVerbose, TEXT("\tTesting Face (%d %d %d)"), CurFace->FirstEdge->Vertex, CurFace->FirstEdge->Next->Vertex, CurFace->FirstEdge->Prev->Vertex);
+
 				FReal MaxD = TNumericLimits<FReal>::Lowest();
 				FHalfEdge* MaxV = nullptr;
 				for(FHalfEdge* CurFaceVertex = CurFace->ConflictList; CurFaceVertex; CurFaceVertex = CurFaceVertex->Next)
@@ -623,6 +676,10 @@ static constexpr float TriQuadPrismInflation() { return 0.1f; }
 						MaxV = CurFaceVertex;
 					}
 				}
+
+				UE_CLOG((DEBUG_HULL_GENERATION && !MaxV), LogChaos, VeryVerbose, TEXT("\t\tNo Conflict List"));
+				UE_CLOG((DEBUG_HULL_GENERATION && MaxV), LogChaos, VeryVerbose, TEXT("\t\tFound %d at distance %f"), MaxV->Vertex, MaxD);
+
 				check(CurFace->ConflictList == nullptr || MaxV);
 				if(MaxV)
 				{
@@ -646,12 +703,12 @@ static constexpr float TriQuadPrismInflation() { return 0.1f; }
 			return nullptr;
 		}
 
-		static void BuildHorizon(const TParticles<FReal, 3>& InParticles, FHalfEdge* ConflictV, TArray<FHalfEdge*>& HorizonEdges, TArray<FConvexFace*>& FacesToDelete)
+		static void BuildHorizon(const TParticles<FReal, 3>& InParticles, FHalfEdge* ConflictV, TArray<FHalfEdge*>& HorizonEdges, TArray<FConvexFace*>& FacesToDelete, const Params& InParams)
 		{
 			//We must flood fill from the initial face and mark edges of faces the conflict vertex cannot see
 			//In order to return a CCW ordering we must traverse each face in CCW order from the edge we crossed over
 			//This should already be the ordering in the half edge
-			const FReal Epsilon = 1e-1;
+			const FReal Epsilon = InParams.HorizonEpsilon;
 			const FVec3 V = InParticles.X(ConflictV->Vertex);
 			TSet<FConvexFace*> Processed;
 			TArray<FHalfEdge*> Queue;
@@ -744,14 +801,42 @@ static constexpr float TriQuadPrismInflation() { return 0.1f; }
 			StartFace->Prev = OldFace;
 		}
 
-		static void AddVertex(const TParticles<FReal, 3>& InParticles, FHalfEdge* ConflictV)
+		static void AddVertex(const TParticles<FReal, 3>& InParticles, FHalfEdge* ConflictV, const Params& InParams)
 		{
+			UE_CLOG(DEBUG_HULL_GENERATION, LogChaos, VeryVerbose, TEXT("Adding Vertex %d"), ConflictV->Vertex);
+
 			TArray<FHalfEdge*> HorizonEdges;
 			TArray<FConvexFace*> FacesToDelete;
-			BuildHorizon(InParticles, ConflictV, HorizonEdges, FacesToDelete);
+			BuildHorizon(InParticles, ConflictV, HorizonEdges, FacesToDelete, InParams);
+
+#if DEBUG_HULL_GENERATION
+			FString HorizonString(TEXT("\tHorizon: ("));
+			for(const FHalfEdge* HorizonEdge : HorizonEdges)
+			{
+				HorizonString += FString::Printf(TEXT("%d "), HorizonEdge->Vertex);
+			}
+			HorizonString += TEXT(")");
+			UE_LOG(LogChaos, VeryVerbose, TEXT("%s"), *HorizonString);
+#endif
 
 			TArray<FConvexFace*> NewFaces;
 			BuildFaces(InParticles, ConflictV, HorizonEdges, FacesToDelete, NewFaces);
+
+#if DEBUG_HULL_GENERATION
+			FString NewFaceString(TEXT("\tNew Faces: "));
+			for(const FConvexFace* Face : NewFaces)
+			{
+				NewFaceString += FString::Printf(TEXT("(%d %d %d) "), Face->FirstEdge->Vertex, Face->FirstEdge->Next->Vertex, Face->FirstEdge->Prev->Vertex);
+			}
+			UE_LOG(LogChaos, VeryVerbose, TEXT("%s"), *NewFaceString);
+
+			FString DeleteFaceString(TEXT("\tDelete Faces: "));
+			for(const FConvexFace* Face : FacesToDelete)
+			{
+				DeleteFaceString += FString::Printf(TEXT("(%d %d %d) "), Face->FirstEdge->Vertex, Face->FirstEdge->Next->Vertex, Face->FirstEdge->Prev->Vertex);
+			}
+			UE_LOG(LogChaos, VeryVerbose, TEXT("%s"), *DeleteFaceString);
+#endif
 
 			for(FConvexFace* Face : FacesToDelete)
 			{
