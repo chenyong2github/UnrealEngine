@@ -541,6 +541,12 @@ public:
 
 	void Swap(FD3D12ResourceLocation& Other);
 
+	/**  Get an address used by LLM to track the GPU allocation that this location represents. */
+	void* GetAddressForLLMTracking() const
+	{
+		return (uint8*)this + 1;
+	}
+
 private:
 
 	template<bool bReleaseResource>

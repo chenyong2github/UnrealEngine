@@ -529,7 +529,7 @@ void FD3D12ResourceLocation::TransferOwnership(FD3D12ResourceLocation& Destinati
 #if !PLATFORM_WINDOWS && ENABLE_LOW_LEVEL_MEM_TRACKER
 	if (Source.GetType() == ResourceLocationType::eSubAllocation && Source.AllocatorType != AT_SegList)
 	{
-		FLowLevelMemTracker::Get().OnLowLevelAllocMoved( ELLMTracker::Default, &Destination, &Source );
+		FLowLevelMemTracker::Get().OnLowLevelAllocMoved(ELLMTracker::Default, Destination.GetAddressForLLMTracking(), Source.GetAddressForLLMTracking());
 	}
 #endif
 
@@ -546,15 +546,15 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 
 	if (bRequiresManualTracking)
 	{
-		FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, this);
+		FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, GetAddressForLLMTracking());
 	}
 	if (bOtherRequiresManualTracking)
 	{
-		FLowLevelMemTracker::Get().OnLowLevelAllocMoved(ELLMTracker::Default, this, &Other);
+		FLowLevelMemTracker::Get().OnLowLevelAllocMoved(ELLMTracker::Default, GetAddressForLLMTracking(), Other.GetAddressForLLMTracking());
 	}
 	if (bRequiresManualTracking)
 	{
-		FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, &Other, GetSize());
+		FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, Other.GetAddressForLLMTracking(), GetSize());
 	}
 #endif
 
