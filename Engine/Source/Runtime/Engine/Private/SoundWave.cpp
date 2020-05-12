@@ -443,7 +443,7 @@ void USoundWave::Serialize( FArchive& Ar )
 		}
 
 #if WITH_EDITORONLY_DATA
-		if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
+		if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker) && FApp::CanEverRenderAudio())
 		{
 			CachePlatformData(false);
 			bBuiltStreamedAudio = true;
@@ -980,7 +980,7 @@ uint32 USoundWave::GetNumChunks() const
 	{
 		return 0;
 	}
-	else if (GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
+	else if (GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker) || !FApp::CanEverRenderAudio())
 	{
 		UE_LOG(LogAudio, Warning, TEXT("USoundWave::GetNumChunks called in the cook commandlet."))
 		return 0;
@@ -2603,11 +2603,11 @@ void USoundWave::OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBeha
 	CachedSoundWaveLoadingBehavior = InLoadingBehavior;
 	bLoadingBehaviorOverridden = true;
 
-	// If we're reloading for the cook commandlet, we don't have streamed audio chunks to load.
-	const bool bReloadingForCooker = GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker);
+	// If we're loading for the cook commandlet, we don't have streamed audio chunks to load.
+	const bool bHasBuiltStreamedAudio = !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker) && FApp::CanEverRenderAudio();
 
 	// Manually perform prime/retain on already loaded sound waves
-	if (!bReloadingForCooker && bAlreadyLoaded && IsStreaming())
+	if (bHasBuiltStreamedAudio && bAlreadyLoaded && IsStreaming())
 	{
 		if (InLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 		{
