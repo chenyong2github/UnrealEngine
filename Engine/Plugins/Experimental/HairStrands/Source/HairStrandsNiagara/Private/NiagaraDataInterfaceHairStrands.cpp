@@ -407,19 +407,33 @@ void FNDIHairStrandsBuffer::Initialize(
 	const FHairStrandsDeformedResource*  HairStrandsDeformedResource, 
 	const FHairStrandsRestRootResource* HairStrandsRestRootResource,
 	const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource,
-	const FNDIHairStrandsData* NDIStrandsDatas)
+	const TStaticArray<float, 32 * NumScales>& InParamsScale)
 {
 	SourceDatas = HairStrandsDatas;
 	SourceRestResources = HairStrandsRestResource;
 	SourceDeformedResources = HairStrandsDeformedResource;
 	SourceRestRootResources = HairStrandsRestRootResource;
 	SourceDeformedRootResources = HairStrandsDeformedRootResource;
-	NDIDatas = NDIStrandsDatas;
+	ParamsScale = InParamsScale;
+}
+
+void FNDIHairStrandsBuffer::Update(
+	const FHairStrandsDatas* HairStrandsDatas,
+	const FHairStrandsRestResource* HairStrandsRestResource,
+	const FHairStrandsDeformedResource* HairStrandsDeformedResource,
+	const FHairStrandsRestRootResource* HairStrandsRestRootResource,
+	const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource)
+{
+	SourceDatas = HairStrandsDatas;
+	SourceRestResources = HairStrandsRestResource;
+	SourceDeformedResources = HairStrandsDeformedResource;
+	SourceRestRootResources = HairStrandsRestRootResource;
+	SourceDeformedRootResources = HairStrandsDeformedRootResource;
 }
 
 void FNDIHairStrandsBuffer::InitRHI()
 {
-	if (SourceDatas != nullptr && SourceRestResources != nullptr && NDIDatas != nullptr)
+	if (SourceDatas != nullptr && SourceRestResources != nullptr)
 	{
 		{
 			const uint32 OffsetCount = SourceDatas->GetNumCurves() + 1;
@@ -457,12 +471,12 @@ void FNDIHairStrandsBuffer::InitRHI()
 		}
 		{
 			const uint32 ScaleCount = 32 * NumScales;
-			const uint32 ScaleBytes = sizeof(float) * ScaleCount;
+			const uint32 ScaleBytes = sizeof(float) * ScaleCount;  
 
 			ParamsScaleBuffer.Initialize(sizeof(float), ScaleCount, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 			void* ScaleBufferData = RHILockVertexBuffer(ParamsScaleBuffer.Buffer, 0, ScaleBytes, RLM_WriteOnly);
 
-			FMemory::Memcpy(ScaleBufferData, NDIDatas->ParamsScale.GetData(), ScaleBytes);
+			FMemory::Memcpy(ScaleBufferData, ParamsScale.GetData(), ScaleBytes);
 			RHIUnlockVertexBuffer(ParamsScaleBuffer.Buffer);
 		}
 		if (SourceDeformedResources == nullptr)
@@ -585,7 +599,7 @@ bool FNDIHairStrandsData::Init(UNiagaraDataInterfaceHairStrands* Interface, FNia
 			Update(Interface, SystemInstance, StrandsDatas, GroomAsset, GroupIndex);
 
 			HairStrandsBuffer = new FNDIHairStrandsBuffer();
-			HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, this);
+			HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, ParamsScale);
 
 			BeginInitResource(HairStrandsBuffer);
 		
@@ -612,7 +626,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 		NumStrands.Bind(ParameterMap, *ParamNames.NumStrandsName);
 		StrandSize.Bind(ParameterMap, *ParamNames.StrandSizeName);
 		BoxCenter.Bind(ParameterMap, *ParamNames.BoxCenterName);
-		BoxExtent.Bind(ParameterMap, *ParamNames.BoxExtentName);
+		BoxExtent.Bind(ParameterMap, *ParamNames.BoxExtentName);  
 
 		DeformedPositionBuffer.Bind(ParameterMap, *ParamNames.DeformedPositionBufferName);
 		CurvesOffsetsBuffer.Bind(ParameterMap, *ParamNames.CurvesOffsetsBufferName);
@@ -1089,7 +1103,7 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 	InstanceData->TickCount = FMath::Min(MaxDelay+1,InstanceData->TickCount+1);
 
 	ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex);
-	InstanceData->HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, InstanceData);
+	InstanceData->HairStrandsBuffer->Update(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource);
 
 	if (SourceComponent != nullptr)
 	{
