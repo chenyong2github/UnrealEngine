@@ -23,8 +23,7 @@
 
 bool UMeshColorPaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
-	return ActorComponent != nullptr;
+	return true;
 }
 
 UInteractiveTool* UMeshColorPaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -35,8 +34,7 @@ UInteractiveTool* UMeshColorPaintingToolBuilder::BuildTool(const FToolBuilderSta
 
 bool UMeshWeightPaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
-	return ActorComponent != nullptr;
+	return true;
 }
 
 UInteractiveTool* UMeshWeightPaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -85,6 +83,10 @@ UMeshVertexPaintingTool::UMeshVertexPaintingTool()
 	PropertyClass = UMeshVertexPaintingToolProperties::StaticClass();
 }
 
+bool UMeshVertexPaintingTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) const
+{
+	return MeshAdapter.IsValid() ? MeshAdapter->SupportsVertexPaint() : false;
+}
 
 void UMeshVertexPaintingTool::Setup()
 {
@@ -94,6 +96,10 @@ void UMeshVertexPaintingTool::Setup()
 	bStampPending = false;
 	BrushProperties->RestoreProperties(this);
 	BrushStampIndicator->LineColor = FLinearColor::Green;
+	// Set up selection mechanic to find and select edges
+	SelectionMechanic = NewObject<UMeshPaintSelectionMechanic>(this);
+	SelectionMechanic->Setup(this);
+	
 }
 
 
@@ -456,6 +462,26 @@ bool UMeshVertexPaintingTool::CanAccept() const
 	return false;
 }
 
+FInputRayHit UMeshVertexPaintingTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	FHitResult OutHit;
+	if (!HitTest(PressPos.WorldRay, OutHit))
+	{
+		if (SelectionMechanic->IsHitByClick(PressPos).bHit)
+		{
+			return FInputRayHit(0.0);
+		}
+	}
+	return Super::CanBeginClickDragSequence(PressPos);
+}
+
+void UMeshVertexPaintingTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
+{
+	Super::OnUpdateModifierState(ModifierID, bIsOn);
+	SelectionMechanic->SetAddToSelectionSet(bShiftToggle);
+}
+
+
 void UMeshVertexPaintingTool::OnBeginDrag(const FRay& Ray)
 {
 	Super::OnBeginDrag(Ray);
@@ -467,6 +493,15 @@ void UMeshVertexPaintingTool::OnBeginDrag(const FRay& Ray)
 		// apply initial stamp
 		PendingStampRay = Ray;
 		bStampPending = true;
+	}
+	else
+	{
+		FInputDeviceRay InputRay = FInputDeviceRay(Ray);
+		SelectionMechanic->SetAddToSelectionSet(bShiftToggle);
+		if (SelectionMechanic->IsHitByClick(InputRay).bHit)
+		{
+			SelectionMechanic->OnClicked(InputRay);
+		}
 	}
 }
 
