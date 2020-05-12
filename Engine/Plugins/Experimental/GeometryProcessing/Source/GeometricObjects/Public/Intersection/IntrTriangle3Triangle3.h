@@ -27,6 +27,7 @@ class TIntrTriangle3Triangle3
 protected:
 	// Input
 	TTriangle3<Real> Triangle0, Triangle1;
+	double Tolerance = TMathUtil<Real>::ZeroTolerance;
 
 	// If true, will return intersection polygons for co-planar triangles.
 	// This is somewhat expensive, default is false.
@@ -37,12 +38,12 @@ public:
 	// Output
 
 	// result flags
-	int Quantity = 0;
 	EIntersectionResult Result = EIntersectionResult::NotComputed;
 	EIntersectionType Type = EIntersectionType::Empty;
 
 	// intersection points (for point, line, polygon)
 	// only first Quantity elements are relevant
+	int Quantity = 0;
 	FVector3<Real> Points[6];
 
 	TIntrTriangle3Triangle3()
@@ -51,6 +52,38 @@ public:
 	{
 		Triangle0 = T0;
 		Triangle1 = T1;
+	}
+
+	/**
+	 * Store an externally-computed segment intersection result
+	 */
+	inline void SetResult(const FVector3d& A, const FVector3d& B)
+	{
+		Result = EIntersectionResult::Intersects;
+		Type = EIntersectionType::Segment;
+		Points[0] = A;
+		Points[1] = B;
+		Quantity = 2;
+	}
+
+	/**
+	 * Store an externally-computed no-intersection result
+	 */
+	inline void SetResultNone()
+	{
+		Result = EIntersectionResult::NoIntersection;
+		Type = EIntersectionType::Empty;
+		Quantity = 0;
+	}
+
+	/**
+	 * Store an externally-computed binary yes/no result
+	 */
+	inline void SetResult(bool IsIntersecting)
+	{
+		Result = IsIntersecting ? EIntersectionResult::Intersects : EIntersectionResult::NoIntersection;
+		Type = IsIntersecting ? EIntersectionType::Unknown : EIntersectionType::Empty;
+		Quantity = 0;
 	}
 
 	TTriangle3<Real> GetTriangle0() const
@@ -64,6 +97,10 @@ public:
 	bool GetReportCoplanarIntersection() const
 	{
 		return bReportCoplanarIntersection;
+	}
+	double GetTolerance() const
+	{
+		return Tolerance;
 	}
 	void SetTriangle0(const TTriangle3<Real>& Triangle0In)
 	{
@@ -79,6 +116,11 @@ public:
 	{
 		Result = EIntersectionResult::NotComputed;
 		bReportCoplanarIntersection = bReportCoplanarIntersectionIn;
+	}
+	void SetTolerance(double ToleranceIn)
+	{
+		Result = EIntersectionResult::NotComputed;
+		Tolerance = ToleranceIn;
 	}
 
 	TIntrTriangle3Triangle3* Compute()
@@ -111,7 +153,7 @@ public:
 		int pos1, neg1, zero1;
 		FIndex3i sign1;
 		FVector3<Real> dist1;
-		TrianglePlaneRelations(Triangle1, Plane0, dist1, sign1, pos1, neg1, zero1);
+		TrianglePlaneRelations(Triangle1, Plane0, dist1, sign1, pos1, neg1, zero1, Tolerance);
 
 		if (pos1 == 3 || neg1 == 3)
 		{
@@ -215,7 +257,7 @@ public:
 		double N0dT0V0 = N0.Dot(Triangle0.V[0]);
 		double min1, max1;
 		ProjectOntoAxis(Triangle1, N0, min1, max1);
-		if (N0dT0V0 < min1 || N0dT0V0 > max1)
+		if (N0dT0V0 < min1 - Tolerance || N0dT0V0 > max1 + Tolerance)
 		{
 			return false;
 		}
@@ -234,7 +276,7 @@ public:
 		int i0, i1;
 
 		FVector3<Real> N0xN1 = N0.UnitCross(N1);
-		if (N0xN1.Dot(N0xN1) >= TMathUtil<Real>::ZeroTolerance)
+		if (N0xN1.Dot(N0xN1) >= Tolerance)
 		{
 			// Triangles are not parallel.
 
@@ -242,7 +284,7 @@ public:
 			// separation.
 			double N1dT1V0 = N1.Dot(Triangle1.V[0]);
 			ProjectOntoAxis(Triangle0, N1, min0, max0);
-			if (N1dT1V0 < min0 || N1dT1V0 > max0)
+			if (N1dT1V0 < min0 - Tolerance || N1dT1V0 > max0 + Tolerance)
 			{
 				return false;
 			}
@@ -255,7 +297,7 @@ public:
 					dir = E0[i0].UnitCross(E1[i1]);
 					ProjectOntoAxis(Triangle0, dir, min0, max0);
 					ProjectOntoAxis(Triangle1, dir, min1, max1);
-					if (max0 < min1 || max1 < min0)
+					if (max0 < min1 - Tolerance || max1 < min0 - Tolerance)
 					{
 						return false;
 					}
@@ -272,7 +314,7 @@ public:
 				dir = N0.UnitCross(E0[i0]);
 				ProjectOntoAxis(Triangle0, dir, min0, max0);
 				ProjectOntoAxis(Triangle1, dir, min1, max1);
-				if (max0 < min1 || max1 < min0)
+				if (max0 < min1 - Tolerance || max1 < min0 - Tolerance)
 				{
 					return false;
 				}
@@ -284,7 +326,7 @@ public:
 				dir = N1.UnitCross(E1[i1]);
 				ProjectOntoAxis(Triangle0, dir, min0, max0);
 				ProjectOntoAxis(Triangle1, dir, min1, max1);
-				if (max0 < min1 || max1 < min0)
+				if (max0 < min1 - Tolerance || max1 < min0 - Tolerance)
 				{
 					return false;
 				}
@@ -299,7 +341,7 @@ public:
 
 
 
-	static bool Intersects(const TTriangle3<Real>& Triangle0, const TTriangle3<Real>& Triangle1)
+	static bool Intersects(const TTriangle3<Real>& Triangle0, const TTriangle3<Real>& Triangle1, Real Tolerance = TMathUtil<Real>::ZeroTolerance)
 	{
 		// Get edge vectors for Triangle0.
 		FVector3<Real> E0[3];
@@ -314,7 +356,7 @@ public:
 		double N0dT0V0 = N0.Dot(Triangle0.V[0]);
 		double min1, max1;
 		ProjectOntoAxis(Triangle1, N0, min1, max1);
-		if (N0dT0V0 < min1 || N0dT0V0 > max1) {
+		if (N0dT0V0 < min1-Tolerance || N0dT0V0 > max1+Tolerance) {
 			return false;
 		}
 
@@ -332,14 +374,14 @@ public:
 		int i0, i1;
 
 		FVector3<Real> N0xN1 = N0.UnitCross(N1);
-		if (N0xN1.Dot(N0xN1) >= TMathUtil<Real>::ZeroTolerance) {
+		if (N0xN1.Dot(N0xN1) >= Tolerance) {
 			// Triangles are not parallel.
 
 			// Project Triangle0 onto normal line of Triangle1, test for
 			// separation.
 			double N1dT1V0 = N1.Dot(Triangle1.V[0]);
 			ProjectOntoAxis(Triangle0, N1, min0, max0);
-			if (N1dT1V0 < min0 || N1dT1V0 > max0) {
+			if (N1dT1V0 < min0 - Tolerance || N1dT1V0 > max0 + Tolerance) {
 				return false;
 			}
 
@@ -349,7 +391,7 @@ public:
 					dir = E0[i0].UnitCross(E1[i1]);
 					ProjectOntoAxis(Triangle0, dir, min0, max0);
 					ProjectOntoAxis(Triangle1, dir, min1, max1);
-					if (max0 < min1 || max1 < min0) {
+					if (max0 < min1 - Tolerance || max1 < min0 - Tolerance) {
 						return false;
 					}
 				}
@@ -362,7 +404,7 @@ public:
 				dir = N0.UnitCross(E0[i0]);
 				ProjectOntoAxis(Triangle0, dir, min0, max0);
 				ProjectOntoAxis(Triangle1, dir, min1, max1);
-				if (max0 < min1 || max1 < min0) {
+				if (max0 < min1 - Tolerance || max1 < min0 - Tolerance) {
 					return false;
 				}
 			}
@@ -372,7 +414,7 @@ public:
 				dir = N1.UnitCross(E1[i1]);
 				ProjectOntoAxis(Triangle0, dir, min0, max0);
 				ProjectOntoAxis(Triangle1, dir, min1, max1);
-				if (max0 < min1 || max1 < min0) {
+				if (max0 < min1 - Tolerance || max1 < min0 - Tolerance) {
 					return false;
 				}
 			}
@@ -415,7 +457,8 @@ public:
 
 
 	static void TrianglePlaneRelations(const TTriangle3<Real>& triangle, const TPlane3<Real>& plane,
-									   FVector3<Real>& distance, FIndex3i& sign, int& positive, int& negative, int& zero)
+									   FVector3<Real>& distance, FIndex3i& sign, int& positive, int& negative, int& zero,
+									   Real Tolerance)
 	{
 		// Compute the signed distances of triangle vertices to the plane.  Use
 		// an epsilon-thick plane test.
@@ -425,19 +468,18 @@ public:
 		for (int i = 0; i < 3; ++i)
 		{
 			distance[i] = plane.DistanceTo(triangle.V[i]);
-			if (distance[i] > TMathUtil<Real>::ZeroTolerance)
+			if (distance[i] > Tolerance)
 			{
 				sign[i] = 1;
 				positive++;
 			}
-			else if (distance[i] < -TMathUtil<Real>::ZeroTolerance)
+			else if (distance[i] < -Tolerance)
 			{
 				sign[i] = -1;
 				negative++;
 			}
 			else
 			{
-				distance[i] = (double)0;
 				sign[i] = 0;
 				zero++;
 			}
@@ -445,51 +487,22 @@ public:
 	}
 
 
-
-
-	bool ContainsPoint(const TTriangle3<Real>& triangle, const TPlane3<Real>& plane, const FVector3<Real>& point)
-	{
-		// Generate a coordinate system for the plane.  The incoming triangle has
-		// vertices <V0,V1,V2>.  The incoming plane has unit-length normal N.
-		// The incoming point is P.  V0 is chosen as the origin for the plane. The
-		// coordinate axis directions are two unit-length vectors, U0 and U1,
-		// constructed so that {U0,U1,N} is an orthonormal set.  Any point Q
-		// in the plane may be written as Q = V0 + x0*U0 + x1*U1.  The coordinates
-		// are computed as x0 = Dot(U0,Q-V0) and x1 = Dot(U1,Q-V0).
-		FVector3<Real> U0, U1;
-		VectorUtil::MakePerpVectors(plane.Normal, U0, U1);
-
-		// Compute the planar coordinates for the points P, V1, and V2.  To
-		// simplify matters, the origin is subtracted from the points, in which
-		// case the planar coordinates are for P-V0, V1-V0, and V2-V0.
-		FVector3<Real> PmV0 = point - triangle.V[0];
-		FVector3<Real> V1mV0 = triangle.V[1] - triangle.V[0];
-		FVector3<Real> V2mV0 = triangle.V[2] - triangle.V[0];
-
-		// The planar representation of P-V0.
-		FVector2<Real> ProjP(U0.Dot(PmV0), U1.Dot(PmV0));
-
-		// The planar representation of the triangle <V0-V0,V1-V0,V2-V0>.
-		TTriangle2<Real> ProjT(FVector2<Real>::Zero(), FVector2<Real>(U0.Dot(V1mV0), U1.Dot(V1mV0)), FVector2<Real>(U0.Dot(V2mV0), U1.Dot(V2mV0)));
-
-		// Test whether P-V0 is in the triangle <0,V1-V0,V2-V0>.
-		if (ProjT.IsInsideOrOn_Oriented(ProjP) <= 0)
-		{
-			Result = EIntersectionResult::Intersects;
-			Type = EIntersectionType::Point;
-			Quantity = 1;
-			Points[0] = point;
-			return true;
-		}
-
-		return false;
-	}
-
-
-
-
-
-	bool IntersectsSegment(const TPlane3<Real>& plane, const TTriangle3<Real>& triangle, const FVector3<Real>& end0, const FVector3<Real>& end1)
+	/**
+	 * Solve a common sub-problem for triangle-triangle intersection --
+	 *   find the sub-segment (or point) where a triangle intersects a coplanar segment
+	 *
+	 * @param plane The plane the triangle is on
+	 * @param triangle The triangle to intersect
+	 * @param end0 First point of line segment
+	 * @param end1 Second point of line segment
+	 * @param OutA First point of intersection between line segment and triangle (if any)
+	 * @param OutB Second point of intersection between line segment and triangle (if any)
+	 * @param Tolerance Tolerance to use for segment-triangle intersection
+	 * @return Number of points representing the intersection result (0 for none, 1 for point, 2 for segment)
+	 */
+	static int IntersectTriangleWithCoplanarSegment(
+		const TPlane3<Real>& plane, const TTriangle3<Real>& triangle, const FVector3<Real>& end0, const FVector3<Real>& end1,
+		FVector3<Real>& OutA, FVector3<Real>& OutB, Real Tolerance)
 	{
 		// Compute the 2D representations of the triangle vertices and the
 		// segment endpoints relative to the plane of the triangle.  Then
@@ -553,29 +566,29 @@ public:
 
 		TSegment2<Real> projSeg(projEnd0, projEnd1);
 		TIntrSegment2Triangle2<Real> calc(projSeg, projTri);
-		if (!calc.Find())
+		if (!calc.Find(Tolerance))
 		{
-			return false;
+			return 0;
 		}
+
+		int Quantity = 0;
 
 		FVector2<Real> intr[2];
 		if (calc.Type == EIntersectionType::Segment)
 		{
-			Result = EIntersectionResult::Intersects;
-			Type = EIntersectionType::Segment;
 			Quantity = 2;
 			intr[0] = calc.Point0;
 			intr[1] = calc.Point1;
 		}
 		else
 		{
-			check(calc.Type == EIntersectionType::Point);
+			checkSlow(calc.Type == EIntersectionType::Point);
 			//"Intersection must be a point\n";
-			Result = EIntersectionResult::Intersects;
-			Type = EIntersectionType::Point;
 			Quantity = 1;
 			intr[0] = calc.Point0;
 		}
+
+		FVector3d* OutPts[2]{ &OutA, &OutB };
 
 		// Unproject the segment of intersection.
 		if (maxNormal == 0)
@@ -586,7 +599,7 @@ public:
 				double y = intr[i].X;
 				double z = intr[i].Y;
 				double x = invNX * (plane.Constant - plane.Normal.Y * y - plane.Normal.Z * z);
-				Points[i] = FVector3<Real>(x, y, z);
+				*OutPts[i] = FVector3<Real>(x, y, z);
 			}
 		}
 		else if (maxNormal == 1)
@@ -597,7 +610,7 @@ public:
 				double x = intr[i].X;
 				double z = intr[i].Y;
 				double y = invNY * (plane.Constant - plane.Normal.X * x - plane.Normal.Z * z);
-				Points[i] = FVector3<Real>(x, y, z);
+				*OutPts[i] = FVector3<Real>(x, y, z);
 			}
 		}
 		else
@@ -608,11 +621,71 @@ public:
 				double x = intr[i].X;
 				double y = intr[i].Y;
 				double z = invNZ * (plane.Constant - plane.Normal.X * x - plane.Normal.Y * y);
-				Points[i] = FVector3<Real>(x, y, z);
+				*OutPts[i] = FVector3<Real>(x, y, z);
 			}
 		}
 
-		return true;
+		return Quantity;
+	}
+
+
+protected:
+
+
+	bool ContainsPoint(const TTriangle3<Real>& triangle, const TPlane3<Real>& plane, const FVector3<Real>& point)
+	{
+		// Generate a coordinate system for the plane.  The incoming triangle has
+		// vertices <V0,V1,V2>.  The incoming plane has unit-length normal N.
+		// The incoming point is P.  V0 is chosen as the origin for the plane. The
+		// coordinate axis directions are two unit-length vectors, U0 and U1,
+		// constructed so that {U0,U1,N} is an orthonormal set.  Any point Q
+		// in the plane may be written as Q = V0 + x0*U0 + x1*U1.  The coordinates
+		// are computed as x0 = Dot(U0,Q-V0) and x1 = Dot(U1,Q-V0).
+		FVector3<Real> U0, U1;
+		VectorUtil::MakePerpVectors(plane.Normal, U0, U1);
+
+		// Compute the planar coordinates for the points P, V1, and V2.  To
+		// simplify matters, the origin is subtracted from the points, in which
+		// case the planar coordinates are for P-V0, V1-V0, and V2-V0.
+		FVector3<Real> PmV0 = point - triangle.V[0];
+		FVector3<Real> V1mV0 = triangle.V[1] - triangle.V[0];
+		FVector3<Real> V2mV0 = triangle.V[2] - triangle.V[0];
+
+		// The planar representation of P-V0.
+		FVector2<Real> ProjP(U0.Dot(PmV0), U1.Dot(PmV0));
+
+		// The planar representation of the triangle <V0-V0,V1-V0,V2-V0>.
+		TTriangle2<Real> ProjT(FVector2<Real>::Zero(), FVector2<Real>(U0.Dot(V1mV0), U1.Dot(V1mV0)), FVector2<Real>(U0.Dot(V2mV0), U1.Dot(V2mV0)));
+
+		// Test whether P-V0 is in the triangle <0,V1-V0,V2-V0>.
+		if (ProjT.IsInsideOrOn_Oriented(ProjP) <= 0)
+		{
+			Result = EIntersectionResult::Intersects;
+			Type = EIntersectionType::Point;
+			Quantity = 1;
+			Points[0] = point;
+			return true;
+		}
+
+		return false;
+	}
+
+
+	bool IntersectsSegment(const TPlane3<Real>& plane, const TTriangle3<Real>& triangle, const FVector3<Real>& end0, const FVector3<Real>& end1)
+	{
+		Quantity = IntersectTriangleWithCoplanarSegment(plane, triangle, end0, end1, Points[0], Points[1], Tolerance);
+		if (Quantity > 0)
+		{
+			Result = EIntersectionResult::Intersects;
+			Type = Quantity == 2 ? EIntersectionType::Segment : EIntersectionType::Point;
+			return true;
+		}
+		else
+		{
+			Result = EIntersectionResult::NoIntersection;
+			Type = EIntersectionType::Empty;
+			return false;
+		}
 	}
 
 
@@ -690,7 +763,7 @@ public:
 		}
 
 		TIntrTriangle2Triangle2<Real> intr(projTri0, projTri1);
-		if (!intr.Find())
+		if (!intr.Find()) // TODO: pass tolerance through?  note this is sos'd currently so it doesn't have a tolerance concept
 		{
 			return false;
 		}

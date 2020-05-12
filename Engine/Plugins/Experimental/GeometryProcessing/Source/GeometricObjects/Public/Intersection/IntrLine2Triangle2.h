@@ -139,7 +139,7 @@ public:
 
 	static void TriangleLineRelations(
 		const FVector2<Real>& Origin, const FVector2<Real>& Direction, const TTriangle2<Real>& Tri,
-		FVector3<Real>& Dist, FVector3i& Sign, int& Positive, int& Negative, int& Zero)
+		FVector3<Real>& Dist, FVector3i& Sign, int& Positive, int& Negative, int& Zero, Real Tolerance = TMathUtil<Real>::ZeroTolerance)
 	{
 		Positive = 0;
 		Negative = 0;
@@ -148,12 +148,12 @@ public:
 		{
 			FVector2<Real> diff = Tri.V[i] - Origin;
 			Dist[i] = diff.DotPerp(Direction);
-			if (Dist[i] > TMathUtil<Real>::ZeroTolerance)
+			if (Dist[i] > Tolerance)
 			{
 				Sign[i] = 1;
 				++Positive;
 			}
-			else if (Dist[i] < -TMathUtil<Real>::ZeroTolerance)
+			else if (Dist[i] < -Tolerance)
 			{
 				Sign[i] = -1;
 				++Negative;
