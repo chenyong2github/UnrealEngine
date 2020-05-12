@@ -948,11 +948,27 @@ public:
 					ResimType = Rigid->ResimType();
 				}
 
-				//During a resim it's possible the user will not dirty a particle that was previously dirty.
-				//If this happens we need to mark the particle as desynced
-				if(ResimType == EResimType::FullResim && !Info.bDesync && Info.GTDirtyOnFrame[CurFrame].MissingWrite(CurFrame, CurWave))
+				if(ResimType == EResimType::FullResim && !Info.bDesync)
 				{
-					Info.Desync(CurFrame, LatestFrame);
+					//During a resim it's possible the user will not dirty a particle that was previously dirty.
+					//If this happens we need to mark the particle as desynced
+					if(Info.GTDirtyOnFrame[CurFrame].MissingWrite(CurFrame, CurWave))
+					{
+						Info.Desync(CurFrame, LatestFrame);
+					}
+					else if(auto Rigid = Info.GetPTParticle()->CastToRigidParticle())
+					{
+						//If we have a simulated particle, make sure its sim-writable properties are still in sync
+						const FGeometryParticleStateBase* ExpectedState = GetStateAtFrameImp(Info,CurFrame);
+						if(ensure(ExpectedState))
+						{
+							if(ExpectedState->IsSimWritableDesynced(*Rigid))
+							{
+								Info.Desync(CurFrame,LatestFrame);
+							}
+						}
+						
+					}
 				}
 
 				if(Info.bDesync)
@@ -989,22 +1005,13 @@ public:
 			{
 				if(auto* Rigid = Info.GetPTParticle()->CastToRigidParticle())
 				{
-					const FGeometryParticleStateBase* FutureState = GetStateAtFrameImp(Info,CurFrame+1);
-
 					if(Rigid->ResimType() == EResimType::ResimAsSlave)
 					{
+						const FGeometryParticleStateBase* FutureState = GetStateAtFrameImp(Info,CurFrame+1);
 						ensure(!Info.bDesync);	
 						if(ensure(FutureState != nullptr))
 						{
 							FutureState->SyncToParticle(*Rigid);
-						}
-					}
-					else if(!Info.bDesync)
-					{
-						if(FutureState->IsSimWritableDesynced(*Rigid))
-						{
-							Info.Desync(CurFrame,LatestFrame);
-							Info.GetPTParticle()->SetSyncState(ESyncState::HardDesync);
 						}
 					}
 				}
