@@ -6,12 +6,6 @@
 #include "Containers/Queue.h"
 #include "Templates/Function.h"
 
-enum class EGeneratorState : uint8
-{
-	IsIdle,
-	IsGenerating,
-};
-
 class ENGINE_API ISoundGenerator
 {
 public:
@@ -33,9 +27,6 @@ public:
 	// Retrieves the next buffer of audio from the generator, called from the audio mixer
 	int32 GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples = false);
 
-	// Returns the current state of the sound generator
-	EGeneratorState GetGeneratorState() const { return GeneratorState; }
-
 protected:
 
 	// Protected method to execute lambda in audio render thread
@@ -46,13 +37,20 @@ private:
 
 	void PumpPendingMessages();
 
-	// The current state of the generator
-	EGeneratorState GeneratorState;
-
 	// The command queue used to convey commands from game thread to generator thread 
 	TQueue<TUniqueFunction<void()>> CommandQueue;
 
 	friend class USynthComponent;
+};
+
+// Null implementation of ISoundGenerator which no-ops audio generation
+class ENGINE_API FSoundGeneratorNull : public ISoundGenerator
+{
+public:
+	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override
+	{
+		return NumSamples;
+	}
 };
 
 typedef TSharedPtr<ISoundGenerator, ESPMode::ThreadSafe> ISoundGeneratorPtr;

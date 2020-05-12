@@ -36,7 +36,6 @@ void USynthComponentMoto::GetRPMRange(float& OutMinRPM, float& OutMaxRPM)
 	OutMaxRPM = RPMRange.Y;
 }
 
-
 void USynthComponentMoto::SetSynthToneEnabled(bool bInEnabled)
 {
 	bEnableSynthTone = bInEnabled;
@@ -87,6 +86,11 @@ void USynthComponentMoto::SetGranularEngineVolume(float Volume)
 
 ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels)
 {
+	if (!FMotoSynthEngine::IsMotoSynthEngineEnabled())
+	{
+		return ISoundGeneratorPtr(new FSoundGeneratorNull());
+	}
+
 	if (AccelerationSource && DecelerationSource)
 	{
 		MotoSynthEngine = ISoundGeneratorPtr(new FMotoSynthEngine());
@@ -116,6 +120,7 @@ ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate,
 	else
 	{
 		UE_LOG(LogSynthesis, Warning, TEXT("Can't play moto synth without an acceleration source or without a deceleration source."));
+		return ISoundGeneratorPtr(new FSoundGeneratorNull());
 	}
 
 	return nullptr;
