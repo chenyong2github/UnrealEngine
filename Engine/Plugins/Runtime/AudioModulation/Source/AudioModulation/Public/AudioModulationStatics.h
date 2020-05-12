@@ -3,18 +3,15 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "SoundControlBus.h"
+#include "SoundControlBusMix.h"
+#include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "SoundControlBusMix.h"
-#include "SoundControlBus.h"
+
 #include "AudioModulationStatics.generated.h"
 
 // Forward Declarations
-class USoundControlBus;
-class USoundControlBusMix;
-
-
 namespace AudioModulation
 {
 	class FAudioModulationSystem;
