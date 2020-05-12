@@ -3,6 +3,8 @@
 #pragma once
 #include "Chaos/PBDJointConstraintTypes.h"
 #include "Chaos/ParticleDirtyFlags.h"
+#include "Chaos/Framework/PhysicsProxyBase.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 
 namespace Chaos
 {
