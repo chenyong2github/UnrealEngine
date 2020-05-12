@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 		protected bool bGdbIndexSection = true;
 
 		/** Allows you to override the maximum binary size allowed to be passed to objcopy.exe when cross building on Windows. */
-		protected UInt64 MaxBinarySizeOverrideForObjcopy = 0;
+		protected UInt64 MaxBinarySizeOverrideForObjcopy = 4294967296;
 
 		/** Platform SDK to use */
 		protected LinuxPlatformSDK PlatformSDK;
