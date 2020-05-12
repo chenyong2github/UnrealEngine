@@ -42,12 +42,15 @@ public:
 	};
 	EBooleanOp Operation;
 	
-	/** Whether to do additional processing to try to remove degenerate edges */
-	bool bCollapseDegenerateEdgesOnCut = true;
-	double DegenerateEdgeTol = FMathd::ZeroTolerance * 10;
+	
 
 	/** Tolerance distance for considering a point to be on a vertex or edge, especially during mesh-mesh cutting */
-	double SnapTolerance = FMathf::ZeroTolerance * 10.0;
+	double SnapTolerance = FMathf::ZeroTolerance * 300.0;
+
+	/** Whether to do additional processing to try to remove degenerate edges */
+	bool bCollapseDegenerateEdgesOnCut = true;
+	/** Tolerance factor (multiplied by SnapTolerance) for removing short edges created by the cutting process; should be no more than 2 */
+	double DegenerateEdgeTolFactor = 1.5;
 
 	/** Threshold to determine whether triangle in one mesh is inside or outside of the other */
 	double WindingThreshold = .5;
