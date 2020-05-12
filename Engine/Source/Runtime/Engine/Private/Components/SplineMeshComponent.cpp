@@ -240,7 +240,7 @@ FVector USplineMeshComponent::GetEndTangent() const
 
 void USplineMeshComponent::SetEndTangent(FVector EndTangent, bool bUpdateMesh)
 {
-	SplineParams.EndTangent = ClampVector(EndTangent, FVector(-WORLD_MAX), FVector(WORLD_MAX));
+	SplineParams.EndTangent = EndTangent;
 	bMeshDirty = true;
 	if (bUpdateMesh)
 	{
