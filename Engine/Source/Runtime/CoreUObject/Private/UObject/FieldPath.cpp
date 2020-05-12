@@ -221,15 +221,7 @@ UStruct* FFieldPath::TryToResolveOwnerFromStruct(UStruct* InCurrentStruct /*= nu
 	int32 LastOuterIndex = -1;
 	for (int32 PathIndex = Path.Num() - 1; PathIndex > 0; --PathIndex)
 	{
-		UObject* Outer = nullptr;
-		
-		// Simulate half of what StaticFindObjectSafe does without using StaticFindObjectSafe which deals with strings instead of FNames
-		// StaticFindObjectSafe is what's used internally by object properties when importing text values to make sure they don't crash on save		
-		if (!GIsSavingPackage)
-		{
-			// @todo Add StaticFindObjectSafeFast
-			Outer = StaticFindObjectFast(UObject::StaticClass(), LastOuter, Path[PathIndex]);
-		}
+		UObject* Outer = StaticFindObjectFastSafe(UObject::StaticClass(), LastOuter, Path[PathIndex]);
 
 		if (InCurrentStruct && PathIndex == (Path.Num() - 1))
 		{
