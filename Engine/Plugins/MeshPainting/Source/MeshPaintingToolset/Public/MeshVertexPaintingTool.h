@@ -228,7 +228,9 @@ protected:
 	bool bStampPending;
 	bool bInDrag;
 	FRay PendingStampRay;
-
+	FRay PendingClickRay;
+	FVector2D PendingClickScreenPosition;
+	bool bCachedClickRay;
 
 	UPROPERTY(Transient)
 	UMeshPaintSelectionMechanic* SelectionMechanic;
