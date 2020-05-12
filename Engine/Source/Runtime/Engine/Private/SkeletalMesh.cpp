@@ -1142,7 +1142,7 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 		{
 			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
 			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
-			TickThread = FRenderAssetUpdate::TT_Async;
+			TickThread = FRenderAssetUpdate::TT_GameRunningAsync;
 		}
 		PendingUpdate->Tick(TickThread);
 
