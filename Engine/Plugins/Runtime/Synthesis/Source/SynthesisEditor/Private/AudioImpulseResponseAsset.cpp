@@ -75,7 +75,7 @@ UAudioImpulseResponseFactory::UAudioImpulseResponseFactory(const FObjectInitiali
 {
 	SupportedClass = UAudioImpulseResponse::StaticClass();
 
-	bCreateNew = true;
+	bCreateNew = false;
 	bEditorImport = false;
 	bEditAfterNew = true;
 }
