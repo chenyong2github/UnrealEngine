@@ -155,8 +155,6 @@ void SRetainerWidget::UpdateWidgetRenderer()
 
 void SRetainerWidget::Construct(const FArguments& InArgs)
 {
-	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddSP(this, &SRetainerWidget::OnGlobalInvalidate);
-
 	STAT(MyStatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Slate>(InArgs._StatId);)
 
 	UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
@@ -241,13 +239,8 @@ void SRetainerWidget::OnRetainerModeChanged()
 	bRenderRequested = true;
 }
 
-void SRetainerWidget::OnGlobalInvalidate(bool bClearResourcesImmediately)
+void SRetainerWidget::OnRootInvalidated()
 {
-	if (bClearResourcesImmediately)
-	{
-		ClearAllFastPathData(false);
-	}
-
 	RequestRender();
 }
 
