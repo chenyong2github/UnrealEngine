@@ -20,7 +20,7 @@ const TArray<FText>& FAssetTypeActions_AudioImpulseResponse::GetSubMenus() const
 {
 	static const TArray<FText> SubMenus
 	{
-		FText(LOCTEXT("AssetConvolutionReverbSubmenu", "Convolution Reverb"))
+		FText(LOCTEXT("AssetConvolutionReverbSubmenu", "Effects"))
 	};
 
 	return SubMenus;
