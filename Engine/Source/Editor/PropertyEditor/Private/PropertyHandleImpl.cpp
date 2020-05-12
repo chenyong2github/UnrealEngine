@@ -18,6 +18,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Engine/Selection.h"
 #include "ItemPropertyNode.h"
+#include "Algo/Transform.h"
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -2880,21 +2881,49 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 
 			if (OutObjects.Num() > 0)
 			{
-				FString GetOptionsFunctionName = Property->GetMetaData(TEXT("GetOptions"));
-
-				UObject* Target = OutObjects[0];
-
-				TArray<FString> Options;
+				const FString GetOptionsFunctionName = Property->GetMetaData(TEXT("GetOptions"));
 				FCachedPropertyPath Path(GetOptionsFunctionName);
-				const bool bSuccess = PropertyPathHelpers::GetPropertyValue(Target, Path, Options);
-				if (ensure(bSuccess))
+				
+				TArray<FString> OptionIntersection;
+				TSet<FString> OptionIntersectionSet;
+
+				for (UObject* Target : OutObjects)
 				{
-					for (const FString& Option : Options)
+					TArray<FString> StringOptions;
+					if (PropertyPathHelpers::GetPropertyValue(Target, Path, StringOptions))
 					{
-						OutOptionStrings.Add(MakeShared<FString>(Option));
-						OutToolTips.Add(FText());
+						// No-Op
+					}
+					else
+					{
+						TArray<FName> NameOptions;
+						if (PropertyPathHelpers::GetPropertyValue(Target, Path, NameOptions))
+						{
+							Algo::Transform(NameOptions, StringOptions, [](const FName& InName) { return InName.ToString(); });
+						}
+					}
+
+					// If this is the first time there won't be any options.
+					if (OptionIntersection.Num() == 0)
+					{
+						OptionIntersection = StringOptions;
+						OptionIntersectionSet = TSet<FString>(StringOptions);
+					}
+					else
+					{
+						TSet<FString> StringOptionsSet(StringOptions);
+						OptionIntersectionSet = StringOptionsSet.Intersect(OptionIntersectionSet);
+						OptionIntersection.RemoveAll([&OptionIntersectionSet](const FString& Option){ return !OptionIntersectionSet.Contains(Option); });
+					}
+
+					// If we're out of possible intersected options, we can stop.
+					if (OptionIntersection.Num() == 0)
+					{
+						break;
 					}
 				}
+
+				Algo::Transform(OptionIntersection, OutOptionStrings, [](const FString& InString) { return MakeShared<FString>(InString); });
 			}
 		}
 	}
