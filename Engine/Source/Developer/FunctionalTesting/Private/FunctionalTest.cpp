@@ -59,7 +59,7 @@ namespace
 	FString GetComparisonAsString(EComparisonMethod comparison)
 	{
 		UEnum* Enum = StaticEnum<EComparisonMethod>();
-		return Enum->GetNameStringByValue((uint8)comparison).ToLower().Replace(TEXT("_"), TEXT(" "));
+		return Enum->GetNameStringByValue((uint8)comparison).ToLower().Replace(TEXT("_"), TEXT(" "), ESearchCase::CaseSensitive);
 	}
 
 	FString TransformToString(const FTransform &transform)
@@ -193,7 +193,8 @@ void AFunctionalTest::OnConstruction(const FTransform& Transform)
 
 bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 {
-	ensure(GetWorld()->HasBegunPlay());
+	UWorld* World = GetWorld();
+	ensure(World->HasBegunPlay());
 
 	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
 
@@ -223,7 +224,7 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 	//GEngine->DelayGarbageCollection();
 
 	RunFrame = GFrameNumber;
-	RunTime = GetWorld()->GetTimeSeconds();
+	RunTime = World->GetTimeSeconds();
 
 	TotalTime = 0.f;
 	if (TimeLimit >= 0)
