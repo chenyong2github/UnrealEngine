@@ -224,7 +224,7 @@ bool FMeshSelfUnion::Compute()
 			// didn't already return a coplanar result; use the winding number
 			double WindingNum = Winding.FastWindingNumber(Centroid + Normals[TID] * NormalOffset);
 			bool bKeep = WindingNum < WindingThreshold;
-			if (bTrimOuterFlaps && bKeep)
+			if (bTrimFlaps && bKeep)
 			{
 				bKeep = Winding.FastWindingNumber(Centroid - Normals[TID] * NormalOffset) > WindingThreshold;
 			}
