@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundEffectBase.h"
+
+#include "Audio.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Templates/SharedPointer.h"
 
