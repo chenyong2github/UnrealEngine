@@ -23,7 +23,15 @@ void FSoundEffectBase::SetEnabled(const bool bInIsEnabled)
 
 USoundEffectPreset* FSoundEffectBase::GetPreset()
 {
-	return Preset.Get();
+	if (Preset.IsValid())
+	{
+		return Preset.Get();
+	}
+	else
+	{
+		UE_LOG(LogAudio, Display, TEXT("A USoundEffectPreset was GC'd prior to unregistering its corresponding source effect instance."));
+		return nullptr;
+	}
 }
 
 void FSoundEffectBase::ClearPreset()
