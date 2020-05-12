@@ -51,7 +51,7 @@ public:
 
 	/** If true, remove open, visible geometry */
 	UPROPERTY(EditAnywhere, Category = Options)
-	bool bTrimOuterFlaps = false;
+	bool bTrimFlaps = false;
 
 	/** Winding number threshold to determine what is consider inside the mesh */
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
