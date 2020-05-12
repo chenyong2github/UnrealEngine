@@ -206,7 +206,7 @@ struct FInstallBundleSourceBundleInfo
 	uint64 CurrentInstallSize = 0; // Disk footprint of the bundle in it's current state
 	bool bIsStartup = false; // Only one startup bundle allowed.  All sources must agree on this.
 	bool bDoPatchCheck = false; // This bundle should do a patch check and fail if it doesn't pass
-	bool bBundleUpToDate = false; // Whether this bundle is up to date
+	EInstallBundleContentState BundleContentState = EInstallBundleContentState::NotInstalled; // Whether this bundle is up to date
 	bool bIsCached = false;
 };
 
