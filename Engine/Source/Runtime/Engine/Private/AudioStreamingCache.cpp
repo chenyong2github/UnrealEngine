@@ -327,7 +327,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 		TArrayView<uint8> LoadedChunk = Cache->GetChunk(ChunkKey, bBlockForLoad, (bForImmediatePlayback || bBlockForLoad), LookupIDForChunk);
 		
 		// Ensure that, if we requested a synchronous load of this chunk, we didn't fail to load said chunk.
-		ensureAlwaysMsgf(!bBlockForLoad || LoadedChunk.GetData(), TEXT("Synchronous load of chunk index %d for SoundWave %s failed to return any data."), ChunkIndex, *SoundWave->GetName());
+		UE_CLOG(bBlockForLoad && !LoadedChunk.GetData(), LogAudio, Display, TEXT("Synchronous load of chunk index %d for SoundWave %s failed to return any data. Likely because the cache was blown."), ChunkIndex, *SoundWave->GetName());
 
 		// Set the updated cache offset for this chunk index.
 		ChunkKey.SoundWave->SetCacheLookupIDForChunk(ChunkIndex, LookupIDForChunk);
@@ -666,6 +666,7 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 		if (!FoundElement)
 		{
 			OutCacheOffset = InvalidAudioStreamCacheLookupID;
+			UE_LOG(LogAudio, Display, TEXT("GetChunk failed to find an available chunk slot in the cache, likely because the cache is blown."));
 			return TArrayView<uint8>();
 		}
 		
@@ -1114,6 +1115,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::InsertChunk(const FChunkKey& 
 
 			if (!CacheElement)
 			{
+				UE_LOG(LogAudio, Display, TEXT("Failed to find an available chunk slot in the audio streaming manager, likely because the cache was blown."));
 				return nullptr;
 			}
 		}
@@ -1284,7 +1286,8 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 
 		if (CacheElement->DDCTask.IsValid())
 		{
-			check(CacheElement->DDCTask->IsDone());
+			UE_CLOG(!CacheElement->DDCTask->IsDone(), LogAudio, Display, TEXT("DDC work was not finished for a requested audio streaming chunk slot berfore reuse; This may cause a hitch."));
+			CacheElement->DDCTask->EnsureCompletion();
 		}
 
 #if DEBUG_STREAM_CACHE
