@@ -80,6 +80,11 @@ public:
 	virtual const FString& GetName() const = 0;
 
 	/**
+	 * Return plugin friendly name if available or the same name as GetName() otherwise.
+	 */
+	virtual const FString& GetFriendlyName() const = 0;
+
+	/**
 	 * Get a path to the plugin's descriptor
 	 *
 	 * @return Path to the plugin's descriptor.
@@ -284,8 +289,14 @@ public:
 	 * 
 	 * @param  ExtraDiscoveryPath	The path you want searched for additional plugins.
 	 * @param  bRefresh				Signals the function to refresh the plugin database after the new path has been added
+	 * @return Whether the plugin search path was modified
 	 */
-	virtual void AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh = true) = 0;
+	virtual bool AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh = true) = 0;
+
+	/**
+	 * Returns the list of extra directories that are recursively searched for plugins (aside from the engine and project plugin directories).
+	 */
+	virtual const TSet<FString>& GetAdditionalPluginSearchPaths() const = 0;
 
 	/**
 	 * Gets an array of plugins that loaded their own content pak file
