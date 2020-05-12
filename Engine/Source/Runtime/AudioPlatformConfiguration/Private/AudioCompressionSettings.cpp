@@ -12,3 +12,11 @@ FPlatformRuntimeAudioCompressionOverrides::FPlatformRuntimeAudioCompressionOverr
 }
 
 FPlatformRuntimeAudioCompressionOverrides* FPlatformRuntimeAudioCompressionOverrides::DefaultCompressionOverrides = nullptr;
+
+// Increment this return value to force a recook on all Stream Caching assets.
+// For testing, it's useful to set this to either a negative number or
+// absurdly large number, to ensure you do not pollute the DDC.
+int32 FPlatformAudioCookOverrides::GetStreamCachingVersion()
+{
+	return 5027;
+}
