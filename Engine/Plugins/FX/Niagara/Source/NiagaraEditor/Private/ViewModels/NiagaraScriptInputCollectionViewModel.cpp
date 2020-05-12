@@ -312,6 +312,11 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 
 bool FNiagaraScriptInputCollectionViewModel::SupportsType(const FNiagaraTypeDefinition& Type) const
 {
+	if (Type.IsInternalType())
+	{
+		return false;
+	}
+
 	if (Scripts.Num() == 1 && Scripts[0] != nullptr)
 	{
 		// We only support parameter map inputs for dynamic inputs and modules, with the ability to create data interfaces as needed for defaults.

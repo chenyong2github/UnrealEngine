@@ -447,8 +447,13 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 	{
 		const FText MenuCat = LOCTEXT("NiagaraEventMenuCat", "Events");
 		const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredPayloadTypes();
-		for (FNiagaraTypeDefinition Type : RegisteredTypes)
+		for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
 		{
+			if (Type.IsInternalType())
+			{
+				continue;
+			}
+
 			if (Type.GetStruct() && !Type.GetStruct()->IsA(UNiagaraDataInterface::StaticClass()))
 			{
 				{
@@ -562,8 +567,13 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 				if (bAddMakes)
 				{
 					const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredTypes();
-					for (FNiagaraTypeDefinition Type : RegisteredTypes)
+					for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
 					{
+						if (Type.IsInternalType())
+						{
+							continue;
+						}
+
 						// Data interfaces can't be made.
 						if (!UNiagaraDataInterface::IsDataInterfaceType(Type))
 						{
@@ -575,8 +585,13 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 				if (bAddBreaks)
 				{
 					const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredTypes();
-					for (FNiagaraTypeDefinition Type : RegisteredTypes)
+					for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
 					{
+						if (Type.IsInternalType())
+						{
+							continue;
+						}
+
 						//Don't break scalars. Allow makes for now as a convenient method of getting internal script constants when dealing with numeric pins.
 						// Data interfaces can't be broken.
 						if (!FNiagaraTypeDefinition::IsScalarDefinition(Type) && !UNiagaraDataInterface::IsDataInterfaceType(Type))
