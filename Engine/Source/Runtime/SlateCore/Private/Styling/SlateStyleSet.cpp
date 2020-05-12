@@ -566,8 +566,6 @@ void FSlateStyleSet::LogMissingResource(EStyleMessageSeverity Severity, const FT
 
 		MissingResources.Add(MissingResource);
 		Log(Severity, StyleAndMessage);
-
-		ensure(false);
 	}
 }
 
