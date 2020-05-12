@@ -62,10 +62,10 @@ FRDGTextureRef GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FViewInf
 {
 	if (View.HasValidEyeAdaptation())
 	{
-		return GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptation(GraphBuilder.RHICmdList), TEXT("ViewEyeAdaptation"));
+		if (IPooledRenderTarget* EyeAdaptationTarget = View.GetEyeAdaptation(GraphBuilder.RHICmdList))
+		{
+			return GraphBuilder.RegisterExternalTexture(EyeAdaptationTarget, TEXT("ViewEyeAdaptation"));
+		}
 	}
-	else
-	{
-		return GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy, TEXT("DefaultViewEyeAdaptation"));
-	}
+	return GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy, TEXT("DefaultViewEyeAdaptation"));
 }
