@@ -174,9 +174,6 @@ struct ENGINE_API FWaveInstance
 	/** Sound class */
 	USoundClass* SoundClass;
 
-	/** Modulation controls */
-	FSoundModulationControls SoundModulationControls;
-
 	/** Sound submix object to send audio to for mixing in audio mixer.  */
 	USoundSubmixBase* SoundSubmix;
 
