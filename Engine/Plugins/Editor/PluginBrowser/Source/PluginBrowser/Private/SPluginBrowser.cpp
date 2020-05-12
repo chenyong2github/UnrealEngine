@@ -83,10 +83,10 @@ void SPluginBrowser::Construct( const FArguments& Args )
 
 	struct Local
 	{
-		static void PluginToStringArray( const IPlugin* Plugin, OUT TArray< FString >& StringArray )
+		static void PluginToStringArray(const IPlugin* Plugin, OUT TArray< FString >& StringArray)
 		{
 			const FPluginDescriptor& Descriptor = Plugin->GetDescriptor();
-			StringArray.Add(SPluginTile::GetPluginDisplayName(Plugin));
+			StringArray.Add(Plugin->GetFriendlyName());
 			StringArray.Add(Descriptor.Description);
 		}
 	};

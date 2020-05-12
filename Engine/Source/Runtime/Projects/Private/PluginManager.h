@@ -39,10 +39,15 @@ public:
 	 */
 	virtual ~FPlugin();
 
-	/* IPluginInfo interface */
+	/* IPlugin interface */
 	virtual const FString& GetName() const override
 	{
 		return Name;
+	}
+
+	virtual const FString& GetFriendlyName() const override
+	{
+		return GetDescriptor().FriendlyName.IsEmpty() ? GetName() : GetDescriptor().FriendlyName;
 	}
 
 	virtual const FString& GetDescriptorFileName() const override
@@ -110,7 +115,8 @@ public:
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContent() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetDiscoveredPlugins() override;
 	virtual TArray< FPluginStatus > QueryStatusForAllPlugins() const override;
-	virtual void AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh = true) override;
+	virtual bool AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh = true) override;
+	const TSet<FString>& GetAdditionalPluginSearchPaths() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetPluginsWithPakFile() const override;
 	virtual FNewPluginMountedEvent& OnNewPluginCreated() override;
 	virtual FNewPluginMountedEvent& OnNewPluginMounted() override;
