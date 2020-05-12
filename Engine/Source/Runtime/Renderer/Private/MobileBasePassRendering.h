@@ -25,6 +25,7 @@
 #include "SkyAtmosphereRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileBasePassUniformParameters, )
+	SHADER_PARAMETER(int32, UseCSM)
 	SHADER_PARAMETER_STRUCT(FFogUniformParameters, Fog)
 	SHADER_PARAMETER_STRUCT(FPlanarReflectionUniformParameters, PlanarReflection) // Single global planar reflection for the forward pass.
 	SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, SceneTextures)
@@ -36,12 +37,14 @@ extern void SetupMobileBasePassUniformParameters(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
 	bool bTranslucentPass,
+	bool bCanUseCSM,
 	FMobileBasePassUniformParameters& BasePassParameters);
 
 extern void CreateMobileBasePassUniformBuffer(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
 	bool bTranslucentPass,
+	bool bCanUseCSM,
 	TUniformBufferRef<FMobileBasePassUniformParameters>& BasePassUniformBuffer);
 
 extern void SetupMobileDirectionalLightUniformParameters(
