@@ -465,12 +465,17 @@ void USoundWave::Serialize( FArchive& Ar )
 
 			//EnsureZerothChunkIsLoaded();
 			const bool bHasFirstChunk = GetNumChunks() > 1;
+			
+			if (!bHasFirstChunk)
+			{
+				return;
+			}
 
-			if (!GIsEditor && CurrentLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad && bHasFirstChunk)
+			if (!GIsEditor && CurrentLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 			{
 				RetainCompressedAudio(true);
 			}
-			else if ((CurrentLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad && bHasFirstChunk)
+			else if ((CurrentLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad)
 				|| (GIsEditor && CurrentLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad))
 			{
 				// Prime first chunk of audio.
@@ -842,8 +847,10 @@ void USoundWave::PostLoad()
 			// if a sound class defined our loading behavior as something other than Retain and our cvar default is to retain, we need to release our handle.
 			ReleaseCompressedAudio();
 
-			if ((ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad && GetNumChunks() > 1)
-				|| (GIsEditor && ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad))
+			const bool bHasMultipleChunks = GetNumChunks() > 1;
+
+			if ((ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad && bHasMultipleChunks)
+				|| (GIsEditor && ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad) && bHasMultipleChunks)
 			{
 				IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});
 			}
@@ -855,8 +862,11 @@ void USoundWave::PostLoad()
 			ReleaseCompressedAudio();
 		}
 
-		// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
-		bStreaming = IsStreaming(nullptr);
+		if (!GIsEditor)
+		{
+			// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
+			bStreaming = IsStreaming(nullptr);
+		}
 	}
 
 	// Compress to whatever formats the active target platforms want
