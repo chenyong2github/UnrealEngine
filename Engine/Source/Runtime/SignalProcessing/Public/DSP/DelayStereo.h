@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DSP/Delay.h"
+#include "DSP/Filter.h"
 
 namespace Audio
 {
@@ -56,33 +57,55 @@ namespace Audio
 		// Sets the amount of the effect to mix in the output
 		void SetWetLevel(const float InWetLevel);
 
+		// Sets the amount of the effect to mix in the output
+		void SetDryLevel(const float InDryLevel);
+
+		// Sets whether or not the filter is enabled
+		void SetFilterEnabled(bool bInEnabled);
+
+		// Sets the filter settings
+		void SetFilterSettings(EBiquadFilter::Type InFilterType, const float InCutoffFrequency, const float InQ);
+
 	protected:
 		// Updates the delays based on recent parameters
 		void UpdateDelays();
 
-		// Left channel delay line
+		// Delay lines per channel
 		TArray<FDelay> Delays;
 
+		// Biquad filter per channel to feed the delay output through
+		TArray<FBiquadFilter> BiquadFilters;
+
 		// What mode the stereo delay is in
-		EStereoDelayMode::Type DelayMode;
+		EStereoDelayMode::Type DelayMode  = EStereoDelayMode::Normal;
 
 		// Amount of delay time in msec	
-		float DelayTimeMsec;
+		float DelayTimeMsec = 0.0f;
 
 		// How much delay feedback to use
-		float Feedback;
+		float Feedback = 0.0f;
 
 		// How much to shift the delays from each other
-		float DelayRatio;
+		float DelayRatio = 0.0f;
 
 		// The amount of wet level on the output
-		float WetLevel;
+		float WetLevel = 0.0f;
+
+		// The amount of dry level on the output
+		float DryLevel = 1.0f;
+
+		// Filter data
+		float FilterFreq = 20000.0f;
+		float FilterQ = 2.0f;
+		EBiquadFilter::Type FilterType = EBiquadFilter::Lowpass;
 
 		// The number of channels to use (will sum mono)
-		int32 NumChannels;
+		int32 NumChannels = 0;
 
 		// If the delay has started processing yet
-		bool bIsInit;
+		bool bIsInit = true;
+
+		bool bIsFilterEnabled = false;
 	};
 
 }
