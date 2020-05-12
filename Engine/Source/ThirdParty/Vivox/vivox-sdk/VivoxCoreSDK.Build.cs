@@ -37,8 +37,8 @@ namespace UnrealBuildTool.Rules
 				string TargetDir = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Vivox", "Mac");
 				PublicDelayLoadDLLs.Add(Path.Combine(TargetDir, "libortp.dylib"));
 				PublicDelayLoadDLLs.Add(Path.Combine(TargetDir, "libvivoxsdk.dylib"));
-				RuntimeDependencies.Add(Path.Combine(TargetDir, "libortp.dylib"), Path.Combine(VivoxLibPath, "libortp.dylib"));
-				RuntimeDependencies.Add(Path.Combine(TargetDir, "libvivoxsdk.dylib"), Path.Combine(VivoxLibPath, "libvivoxsdk.dylib"));
+				RuntimeDependencies.Add(Path.Combine(TargetDir, "libortp.dylib"));
+				RuntimeDependencies.Add(Path.Combine(TargetDir, "libvivoxsdk.dylib"));
 			}
 			else if (Target.Platform == UnrealTargetPlatform.IOS)
 			{
