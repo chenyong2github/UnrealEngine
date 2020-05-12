@@ -229,9 +229,12 @@ double UMeshVertexPaintingTool::EstimateMaximumTargetDimension()
 			}
 
 			bFirstItem = false;
+			bFoundComponentToUse = true;
 		}
-
-		return Extents.BoxExtent.GetAbsMax();
+		if (bFoundComponentToUse)
+		{
+			return Extents.BoxExtent.GetAbsMax();
+		}
 	}
 
 	return Super::EstimateMaximumTargetDimension();
@@ -465,10 +468,14 @@ bool UMeshVertexPaintingTool::CanAccept() const
 FInputRayHit UMeshVertexPaintingTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
 	FHitResult OutHit;
+	bCachedClickRay = false;
 	if (!HitTest(PressPos.WorldRay, OutHit))
 	{
 		if (SelectionMechanic->IsHitByClick(PressPos).bHit)
 		{
+			bCachedClickRay = true;
+			PendingClickRay = PressPos.WorldRay;
+			PendingClickScreenPosition = PressPos.ScreenPosition;
 			return FInputRayHit(0.0);
 		}
 	}
@@ -494,14 +501,13 @@ void UMeshVertexPaintingTool::OnBeginDrag(const FRay& Ray)
 		PendingStampRay = Ray;
 		bStampPending = true;
 	}
-	else
+	else if (bCachedClickRay)
 	{
-		FInputDeviceRay InputRay = FInputDeviceRay(Ray);
+		FInputDeviceRay InputDeviceRay = FInputDeviceRay(PendingClickRay, PendingClickScreenPosition);
 		SelectionMechanic->SetAddToSelectionSet(bShiftToggle);
-		if (SelectionMechanic->IsHitByClick(InputRay).bHit)
-		{
-			SelectionMechanic->OnClicked(InputRay);
-		}
+		SelectionMechanic->OnClicked(InputDeviceRay);
+		bCachedClickRay = false;
+		RecalculateBrushRadius();
 	}
 }
 
