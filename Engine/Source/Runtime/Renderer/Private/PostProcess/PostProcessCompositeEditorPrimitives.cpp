@@ -343,7 +343,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 			}
 			else
 			{
-				CreateMobileBasePassUniformBuffer(RHICmdList, *EditorView, true, MobileBasePassUniformBuffer);
+				CreateMobileBasePassUniformBuffer(RHICmdList, *EditorView, true, false, MobileBasePassUniformBuffer);
 				BasePassUniformBuffer = MobileBasePassUniformBuffer;
 			}
 

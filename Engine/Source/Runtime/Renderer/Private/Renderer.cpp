@@ -257,7 +257,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 			else // Mobile
 			{
 				TUniformBufferRef<FMobileBasePassUniformParameters> MobileBasePassUniformBuffer;
-				CreateMobileBasePassUniformBuffer(RHICmdList, View, true, MobileBasePassUniformBuffer);
+				CreateMobileBasePassUniformBuffer(RHICmdList, View, true, false, MobileBasePassUniformBuffer);
 				BasePassUniformBuffer = MobileBasePassUniformBuffer;
 				
 				DrawRenderState.SetPassUniformBuffer(BasePassUniformBuffer);
@@ -336,7 +336,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				else // Mobile
 				{
 					TUniformBufferRef<FMobileBasePassUniformParameters> MobileBasePassUniformBuffer;
-					CreateMobileBasePassUniformBuffer(RHICmdList, View, false, MobileBasePassUniformBuffer);
+					CreateMobileBasePassUniformBuffer(RHICmdList, View, false, true, MobileBasePassUniformBuffer);
 					BasePassUniformBuffer = MobileBasePassUniformBuffer;
 					
 					DrawRenderState.SetPassUniformBuffer(BasePassUniformBuffer);

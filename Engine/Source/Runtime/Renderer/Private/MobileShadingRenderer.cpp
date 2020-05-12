@@ -1060,14 +1060,16 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate
 void FMobileSceneRenderer::UpdateOpaqueBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FMobileBasePassUniformParameters Parameters;
-	SetupMobileBasePassUniformParameters(RHICmdList, View, false, Parameters);
+	SetupMobileBasePassUniformParameters(RHICmdList, View, false, false, Parameters);
 	Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	SetupMobileBasePassUniformParameters(RHICmdList, View, false, true, Parameters);
+	Scene->UniformBuffers.MobileCSMOpaqueBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);	
 }
 
 void FMobileSceneRenderer::UpdateTranslucentBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FMobileBasePassUniformParameters Parameters;
-	SetupMobileBasePassUniformParameters(RHICmdList, View, true, Parameters);
+	SetupMobileBasePassUniformParameters(RHICmdList, View, true, false, Parameters);
 	Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
 }
 
