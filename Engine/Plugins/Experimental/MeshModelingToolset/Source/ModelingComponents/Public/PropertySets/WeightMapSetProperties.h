@@ -27,7 +27,7 @@ public:
 	TArray<FString> GetWeightMapsFunc();
 
 	// internal list used to implement above
-	UPROPERTY()
+	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> WeightMapsList;
 
 	UPROPERTY(EditAnywhere, Category = WeightMap)
