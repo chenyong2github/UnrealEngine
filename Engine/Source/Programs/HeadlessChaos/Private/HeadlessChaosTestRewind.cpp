@@ -1469,4 +1469,85 @@ namespace ChaosTest {
 
 		Module->DestroySolver(Solver);
 	}
+
+	TYPED_TEST(AllTraits,RewindTest_DesyncSimOutOfCollision)
+	{
+		if(TypeParam::IsRewindable() == false){ return; }
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<FReal,3>(TVector<float,3>(0),10));
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-100,-100,-100),FVec3(100,100,0)));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+		Solver->EnableRewindCapture(100);
+
+		// Make particles
+		auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+		auto Kinematic = TKinematicGeometryParticle<float,3>::CreateParticle();
+
+		Dynamic->SetGeometry(Sphere);
+		Dynamic->SetGravityEnabled(true);
+		Solver->RegisterObject(Dynamic.Get());
+		Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+
+		Kinematic->SetGeometry(Box);
+		Solver->RegisterObject(Kinematic.Get());
+
+		Dynamic->SetX(FVec3(0,0,17));
+		Dynamic->SetGravityEnabled(true);
+		Dynamic->SetObjectState(EObjectStateType::Dynamic);
+
+		Kinematic->SetX(FVec3(0,0,0));
+
+		ChaosTest::SetParticleSimDataToCollide({Dynamic.Get(),Kinematic.Get()});
+
+		const int32 LastStep = 11;
+
+		TArray<FVec3> Xs;
+
+		for(int Step = 0; Step <= LastStep; ++Step)
+		{
+			TickSolverHelper(Module,Solver);
+			Xs.Add(Dynamic->X());
+		}
+
+		EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+
+		const int RewindStep = 8;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		//remove from collision, should wakeup entire island and force a soft desync
+		Kinematic->SetX(FVec3(0,0,-10000));
+
+		auto PTDynamic = static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<FReal,3>>*>(Dynamic->GetProxy())->GetHandle();
+		auto PTKinematic = static_cast<FSingleParticlePhysicsProxy<TKinematicGeometryParticle<FReal,3>>*>(Kinematic->GetProxy())->GetHandle();
+
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
+		{
+			//Resim sees collision since it's ResimAsFull
+
+			TickSolverHelper(Module,Solver);
+			EXPECT_LT(Dynamic->X()[2],10);
+			
+			if(Step < LastStep)
+			{
+				EXPECT_EQ(PTKinematic->SyncState(),ESyncState::HardDesync);
+				EXPECT_EQ(PTDynamic->SyncState(),ESyncState::HardDesync);
+			}
+			else
+			{
+				EXPECT_EQ(PTKinematic->SyncState(),ESyncState::InSync);
+				EXPECT_EQ(PTDynamic->SyncState(),ESyncState::InSync);
+			}
+		}
+
+		EXPECT_FLOAT_EQ(Dynamic->X()[2],0);
+
+		Module->DestroySolver(Solver);
+	}
 }

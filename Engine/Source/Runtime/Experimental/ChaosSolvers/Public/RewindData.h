@@ -325,6 +325,33 @@ public:
 		});
 	}
 
+	bool IsSimWritableDesynced(TPBDRigidParticleHandle<FReal,3>& Particle) const
+	{
+		const FParticlePositionRotation& XR = ParticlePositionRotation.Read();
+		if(XR.X() != Particle.X())
+		{
+			return true;
+		}
+
+		if(XR.R() != Particle.R())
+		{
+			return true;
+		}
+
+		const FParticleVelocities& Vels = Velocities.Read();
+		if(Vels.V() != Particle.V())
+		{
+			return true;
+		}
+
+		if(Vels.W() != Particle.W())
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	template <typename TParticle>
 	void SyncToParticle(TParticle& Particle) const
 	{
@@ -962,13 +989,22 @@ public:
 			{
 				if(auto* Rigid = Info.GetPTParticle()->CastToRigidParticle())
 				{
+					const FGeometryParticleStateBase* FutureState = GetStateAtFrameImp(Info,CurFrame+1);
+
 					if(Rigid->ResimType() == EResimType::ResimAsSlave)
 					{
-						ensure(!Info.bDesync);
-						const FGeometryParticleStateBase* State = GetStateAtFrameImp(Info,CurFrame+1);
-						if(ensure(State != nullptr))
+						ensure(!Info.bDesync);	
+						if(ensure(FutureState != nullptr))
 						{
-							State->SyncToParticle(*Rigid);
+							FutureState->SyncToParticle(*Rigid);
+						}
+					}
+					else if(!Info.bDesync)
+					{
+						if(FutureState->IsSimWritableDesynced(*Rigid))
+						{
+							Info.Desync(CurFrame,LatestFrame);
+							Info.GetPTParticle()->SetSyncState(ESyncState::HardDesync);
 						}
 					}
 				}
