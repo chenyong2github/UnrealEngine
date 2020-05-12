@@ -119,6 +119,7 @@ enum class EInstallBundleRequestFlags : uint32
 	ForceNoPatching = (1 << 3),
 	TrackPersistentBundleStats = (1 << 4),
 	SkipMount = (1 << 5),
+	AsyncMount = (1 << 6),
 	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
