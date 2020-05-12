@@ -637,6 +637,16 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 #endif
 }
 
+bool FNiagaraTypeDefinition::IsInternalType() const
+{
+	if (const UScriptStruct* ScriptStruct = GetScriptStruct())
+	{
+		return ScriptStruct->GetBoolMetaData(TEXT("NiagaraInternalType"));
+	}
+
+	return false;
+}
+
 #if WITH_EDITOR
 void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 {
