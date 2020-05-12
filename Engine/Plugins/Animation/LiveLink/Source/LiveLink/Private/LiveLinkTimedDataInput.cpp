@@ -131,7 +131,7 @@ double FLiveLinkTimedDataInput::GetEvaluationOffsetInSeconds() const
 		case ELiveLinkSourceMode::EngineTime:
 			return Settings->BufferSettings.EngineTimeOffset;
 		case ELiveLinkSourceMode::Timecode:
-			return ITimedDataInput::ConvertFrameOffsetInSecondOffset(Settings->BufferSettings.TimecodeFrameOffset, Settings->BufferSettings.TimecodeFrameRate);
+			return ITimedDataInput::ConvertFrameOffsetInSecondOffset(Settings->BufferSettings.TimecodeFrameOffset, Settings->BufferSettings.DetectedFrameRate);
 		case ELiveLinkSourceMode::Latest:
 		default:
 			return Settings->BufferSettings.LatestOffset;
@@ -153,7 +153,7 @@ void FLiveLinkTimedDataInput::SetEvaluationOffsetInSeconds(double OffsetInSecond
 			Settings->BufferSettings.EngineTimeOffset = (float)OffsetInSeconds;
 			break;
 		case ELiveLinkSourceMode::Timecode:
-			float OffsetInFrame = (float)ITimedDataInput::ConvertSecondOffsetInFrameOffset(OffsetInSeconds, Settings->BufferSettings.TimecodeFrameRate);
+			float OffsetInFrame = (float)ITimedDataInput::ConvertSecondOffsetInFrameOffset(OffsetInSeconds, Settings->BufferSettings.DetectedFrameRate);
 			Settings->BufferSettings.TimecodeFrameOffset = OffsetInFrame;
 			break;
 		}
@@ -166,7 +166,7 @@ FFrameRate FLiveLinkTimedDataInput::GetFrameRate() const
 	{
 		if (Settings->Mode == ELiveLinkSourceMode::Timecode)
 		{
-			return Settings->BufferSettings.TimecodeFrameRate;
+			return Settings->BufferSettings.DetectedFrameRate;
 		}
 	}
 	return ITimedDataInput::UnknownFrameRate;

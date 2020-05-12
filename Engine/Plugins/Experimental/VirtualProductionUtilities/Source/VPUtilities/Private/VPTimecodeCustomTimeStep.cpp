@@ -50,6 +50,9 @@ bool UVPTimecodeCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 		return true; // run the engine's default time step code
 	}
 
+	// Updates logical last time to match logical current time from last tick
+	UpdateApplicationLastTime();
+
 	// Loop until we have a new timecode value
 	MaxDeltaTime = FMath::Max(0.f, MaxDeltaTime);
 

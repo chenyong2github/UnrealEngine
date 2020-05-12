@@ -13,11 +13,11 @@
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
-
-#include "pxr/usd/usd/editContext.h"
-#include "pxr/usd/usd/modelAPI.h"
-#include "pxr/usd/usdGeom/xform.h"
-
+	#include "pxr/usd/sdf/layer.h"
+	#include "pxr/usd/usd/editContext.h"
+	#include "pxr/usd/usd/modelAPI.h"
+	#include "pxr/usd/usd/stage.h"
+	#include "pxr/usd/usdGeom/xform.h"
 #include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "USDLayerUtils"

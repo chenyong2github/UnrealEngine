@@ -28,6 +28,13 @@ public:
 
 	void TryRouteTouchMessageToWidget(bool bRouteMessageToWidget);
 
+	/**
+	 * Delegate that fires when routing a touch message to the widget did not work.
+	 * @note Only useful during playback.
+	 * @return Null when recording, Pointer to delegate during playback.
+	 */
+	FOnRouteTouchDownToWidgetFailedDelegate* GetOnRouteTouchDownToWidgetFailedDelegate();
+
 	static const TCHAR* StaticType() { return TEXT("FRemoteSessionInputChannel"); }
 	virtual const TCHAR* GetType() const override { return StaticType(); }
 

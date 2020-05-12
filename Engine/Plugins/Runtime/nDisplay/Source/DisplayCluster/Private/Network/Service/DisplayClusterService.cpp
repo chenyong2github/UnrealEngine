@@ -7,7 +7,7 @@
 #include "Config/DisplayClusterConfigTypes.h"
 
 #include "Misc/DisplayClusterAppExit.h"
-#include "DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterGlobals.h"
 
 
 FDisplayClusterService::FDisplayClusterService(const FString& InName, const FString& InAddr, const int32 InPort) :
@@ -23,12 +23,12 @@ bool FDisplayClusterService::IsClusterIP(const FIPv4Endpoint& InEP)
 		return false;
 	}
 
-	TArray<FDisplayClusterConfigClusterNode> nodes = ConfigMgr->GetClusterNodes();
-	const FString addr = InEP.Address.ToString();
+	TArray<FDisplayClusterConfigClusterNode> Nodes = ConfigMgr->GetClusterNodes();
+	const FString Addr = InEP.Address.ToString();
 	
-	return nullptr != nodes.FindByPredicate([addr](const FDisplayClusterConfigClusterNode& node)
+	return nullptr != Nodes.FindByPredicate([Addr](const FDisplayClusterConfigClusterNode& Node)
 	{
-		return addr == node.Addr;
+		return Addr == Node.Addr;
 	});
 }
 

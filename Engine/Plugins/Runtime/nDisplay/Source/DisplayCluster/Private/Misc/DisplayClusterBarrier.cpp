@@ -2,24 +2,24 @@
 
 #include "Misc/DisplayClusterBarrier.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 #include "Engine/EngineTypes.h"
 #include <chrono>
 
 
-FDisplayClusterBarrier::FDisplayClusterBarrier(uint32 threadsAmount, const FString& name, uint32 timeout) :
-	Name(name),
-	ThreadsAmount(threadsAmount),
-	ThreadsLeft(threadsAmount),
+FDisplayClusterBarrier::FDisplayClusterBarrier(uint32 InThreadsAmount, const FString& InName, uint32 InTimeout) :
+	Name(InName),
+	ThreadsAmount(InThreadsAmount),
+	ThreadsLeft(InThreadsAmount),
 	IterationCounter(0),
-	Timeout(timeout)
+	Timeout(InTimeout)
 {
 	UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Initialized barrier %s with timeout %u for threads count: %u"), *Name, Timeout, ThreadsAmount);
 }
 
-FDisplayClusterBarrier::FDisplayClusterBarrier(uint32 threadsAmount, uint32 timeout) :
-	FDisplayClusterBarrier(threadsAmount, FString("noname_barrier"), timeout)
+FDisplayClusterBarrier::FDisplayClusterBarrier(uint32 ThreadsAmount, uint32 Timeout) :
+	FDisplayClusterBarrier(ThreadsAmount, FString("noname_barrier"), Timeout)
 {
 }
 
@@ -30,7 +30,7 @@ FDisplayClusterBarrier::~FDisplayClusterBarrier()
 	Deactivate();
 }
 
-FDisplayClusterBarrier::WaitResult FDisplayClusterBarrier::Wait(double* pThreadWaitTime /*= nullptr*/, double* pBarrierWaitTime /*= nullptr*/)
+FDisplayClusterBarrier::WaitResult FDisplayClusterBarrier::Wait(double* ThreadWaitTime /*= nullptr*/, double* BarrierWaitTime /*= nullptr*/)
 {
 	if (bEnabled == false)
 	{
@@ -38,7 +38,7 @@ FDisplayClusterBarrier::WaitResult FDisplayClusterBarrier::Wait(double* pThreadW
 		return WaitResult::NotActive;
 	}
 
-	const double threadWaitTimeStart = FPlatformTime::Seconds();
+	const double ThreadWaitTimeStart = FPlatformTime::Seconds();
 
 	{
 		std::unique_lock<std::mutex> lock{ Mutex };
@@ -80,13 +80,13 @@ FDisplayClusterBarrier::WaitResult FDisplayClusterBarrier::Wait(double* pThreadW
 		}
 	}
 
-	const double threadWaitTimeFinish = FPlatformTime::Seconds();
+	const double ThreadWaitTimeFinish = FPlatformTime::Seconds();
 
-	if (pBarrierWaitTime)
-		*pBarrierWaitTime = WaitTimeOverall;
+	if (BarrierWaitTime)
+		*BarrierWaitTime = WaitTimeOverall;
 
-	if (pThreadWaitTime)
-		*pThreadWaitTime = threadWaitTimeFinish - threadWaitTimeStart;
+	if (ThreadWaitTime)
+		*ThreadWaitTime = ThreadWaitTimeFinish - ThreadWaitTimeStart;
 
 	// Go ahead
 	return WaitResult::Ok;
@@ -109,4 +109,3 @@ void FDisplayClusterBarrier::Deactivate()
 	bEnabled = false;
 	CondVar.notify_all();
 }
-

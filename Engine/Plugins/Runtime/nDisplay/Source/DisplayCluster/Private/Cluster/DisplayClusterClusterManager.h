@@ -29,9 +29,9 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const FString& configPath, const FString& nodeId) override;
+	virtual bool StartSession(const FString& ConfigPath, const FString& NodeID) override;
 	virtual void EndSession() override;
-	virtual bool StartScene(UWorld* pWorld) override;
+	virtual bool StartScene(UWorld* World) override;
 	virtual void EndScene() override;
 	virtual void EndFrame(uint64 FrameNum) override;
 	virtual void PreTick(float DeltaSeconds) override;
@@ -53,8 +53,8 @@ public:
 	virtual uint32 GetNodesAmount() const override
 	{ return NodesAmount; }
 
-	virtual void RegisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj) override;
+	virtual void RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj, EDisplayClusterSyncGroup SyncGroup) override;
+	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj) override;
 
 	virtual void AddClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener>) override;
 	virtual void RemoveClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener>) override;
@@ -84,7 +84,7 @@ public:
 	virtual void SyncNativeInput(TMap<FString, FString>& NativeInputData) override;
 
 private:
-	bool GetResolvedNodeId(FString& id) const;
+	bool GetResolvedNodeId(FString& NodeID) const;
 
 	typedef TUniquePtr<IPDisplayClusterNodeController> TController;
 

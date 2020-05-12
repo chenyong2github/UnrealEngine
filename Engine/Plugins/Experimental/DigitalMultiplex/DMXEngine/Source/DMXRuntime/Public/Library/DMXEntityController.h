@@ -69,6 +69,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostLoad() override;
 #endif // WITH_EDITOR
 	virtual void PostInitProperties() override;

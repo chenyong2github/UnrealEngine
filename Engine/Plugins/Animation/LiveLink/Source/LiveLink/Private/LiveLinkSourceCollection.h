@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "ILiveLinkSubject.h"
+#include "LiveLinkClient.h"
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSubject.h"
 #include "LiveLinkSubjectSettings.h"
@@ -88,6 +89,8 @@ public:
 	//~ End FGCObject implementation
 
 public:
+
+	
 	TArray<FLiveLinkCollectionSourceItem>& GetSources() { return Sources; }
 	const TArray<FLiveLinkCollectionSourceItem>& GetSources() const { return Sources; }
 	const TArray<FLiveLinkCollectionSubjectItem>& GetSubjects() const { return Subjects; }

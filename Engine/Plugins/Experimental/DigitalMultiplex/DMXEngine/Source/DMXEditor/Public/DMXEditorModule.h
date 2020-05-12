@@ -107,4 +107,7 @@ private:
 	/** List of registered class that we must unregister when the module shuts down */
 	TSet< FName > RegisteredClassNames;
 	TSet< FName > RegisteredPropertyTypes;
+
+	/** Custom DMX Library Sequencer track registering */
+	FDelegateHandle DMXLibraryTrackCreateHandle;
 };

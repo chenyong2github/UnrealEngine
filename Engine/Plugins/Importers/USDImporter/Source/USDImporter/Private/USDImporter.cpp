@@ -34,16 +34,6 @@
 #include "USDSceneImportFactory.h"
 #include "USDTypesConversion.h"
 
-#if USE_USD_SDK
-#include "USDIncludesStart.h"
-
-#include "pxr/base/tf/token.h"
-#include "pxr/usd/usd/modelAPI.h"
-#include "pxr/usd/usd/stage.h"
-#include "pxr/usd/usd/variantSets.h"
-
-#include "USDIncludesEnd.h"
-#endif // #if USE_USD_SDK
 
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
 
@@ -159,19 +149,19 @@ private:
 };
 
 
-UUSDImporter::UUSDImporter(const FObjectInitializer& Initializer)
+UDEPRECATED_UUSDImporter::UDEPRECATED_UUSDImporter(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {
 }
 
 #if USE_USD_SDK
-TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, const TArray<FUsdAssetPrimToImport>& PrimsToImport)
+TArray<UObject*> UDEPRECATED_UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, const TArray<FUsdAssetPrimToImport>& PrimsToImport)
 {
 	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ImportingUSDMeshes", "Importing USD Meshes"));
 	SlowTask.Visibility = ESlowTaskVisibility::ForceVisible;
 	int32 MeshCount = 0;
 
-	EUsdMeshImportType MeshImportType = ImportContext.ImportOptions->MeshImportType;
+	EUsdMeshImportType MeshImportType = ImportContext.ImportOptions_DEPRECATED->MeshImportType;
 
 	// Make unique names
 	TMap<FString, int> ExistingNamesToCount;
@@ -182,7 +172,7 @@ TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, co
 
 	const FString& ContentDirectoryLocation = ImportContext.ImportPathName;
 
-	const FString RootPrimName = UsdToUnreal::ConvertString( ImportContext.Stage.Get()->GetDefaultPrim().GetName().GetString().c_str() );
+	const FString RootPrimName = ImportContext.Stage.GetDefaultPrim().GetName().ToString();
 	const FString RootPrimDirectoryLocation = RootPrimName + TEXT("/");
 
 	for (const FUsdAssetPrimToImport& PrimToImport : PrimsToImport)
@@ -198,79 +188,11 @@ TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, co
 		{
 			FScopedUsdAllocs UsdAllocs;
 			{
-				const pxr::UsdPrim& Prim = PrimToImport.Prim.Get();
+				const UE::FUsdPrim& Prim = PrimToImport.Prim;
 
-				auto GetEnclosingModelPrim = []( const pxr::UsdPrim& Prim ) -> pxr::UsdPrim
+				if (ImportContext.ImportOptions_DEPRECATED->bGenerateUniquePathPerUSDPrim)
 				{
-					pxr::UsdPrim ModelPrim = Prim.GetParent();
-
-					while ( ModelPrim )
-					{
-						if ( IUsdPrim::IsKindChildOf( ModelPrim, "model" ) )
-						{
-							break;
-						}
-						else
-						{
-							ModelPrim = ModelPrim.GetParent();
-						}
-					}
-
-					return ModelPrim.IsValid() ? ModelPrim : Prim;
-				};
-
-				const pxr::UsdPrim& ModelPrim = GetEnclosingModelPrim( Prim );
-
-				const FString RawPrimName = UsdToUnreal::ConvertString(Prim.GetName().GetString());
-
-				pxr::UsdModelAPI ModelApi = pxr::UsdModelAPI( ModelPrim );
-
-				std::string RawAssetName;
-				ModelApi.GetAssetName( &RawAssetName );
-
-				FString AssetName = UsdToUnreal::ConvertString( RawAssetName );
-				FString MeshName = ObjectTools::SanitizeObjectName(RawPrimName);
-
-				if (ImportContext.ImportOptions->bGenerateUniquePathPerUSDPrim)
-				{
-					FString USDPath = UsdToUnreal::ConvertString(Prim.GetPrimPath().GetString().c_str());
-
-					pxr::SdfAssetPath AssetPath;
-					if ( ModelApi.GetAssetIdentifier( &AssetPath ) )
-					{
-						std::string AssetIdentifier = AssetPath.GetAssetPath();
-						USDPath = UsdToUnreal::ConvertString(AssetIdentifier.c_str());
-
-						USDPath = FPaths::ConvertRelativePathToFull( RootPrimDirectoryLocation, USDPath );
-
-						FPackageName::TryConvertFilenameToLongPackageName( USDPath, USDPath );
-						USDPath.RemoveFromEnd( AssetName );
-					}
-
-					FString VariantName;
-
-					if ( ModelPrim.HasVariantSets() )
-					{
-						pxr::UsdVariantSet ModelVariantSet = ModelPrim.GetVariantSet( "modelingVariant" );
-						if ( ModelVariantSet.IsValid() )
-						{
-							std::string VariantSelection = ModelVariantSet.GetVariantSelection();
-
-							if ( VariantSelection.length() > 0 )
-							{
-								VariantName = UsdToUnreal::ConvertString( VariantSelection.c_str() );
-							}
-						}
-					}
-
-					if ( !VariantName.IsEmpty() )
-					{
-						USDPath = USDPath / VariantName;
-					}
-
-					USDPath.RemoveFromStart(TEXT("/"));
-					USDPath.RemoveFromEnd(RawPrimName);
-					FinalPackagePathName /= (USDPath / MeshName);
+					FinalPackagePathName = UsdUtils::GetAssetPathFromPrimPath( RootPrimDirectoryLocation, Prim );
 				}
 				else if (FPackageName::IsValidObjectPath(PrimToImport.AssetPath))
 				{
@@ -282,6 +204,8 @@ TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, co
 				}
 				else
 				{
+					FString MeshName = ObjectTools::SanitizeObjectName( Prim.GetName().ToString() );
+
 					// Make unique names
 					int* ExistingCount = ExistingNamesToCount.Find(MeshName);
 					if (ExistingCount)
@@ -339,7 +263,7 @@ TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, co
 	return ImportedAssets;
 }
 
-UObject* UUSDImporter::ImportSingleMesh(FUsdImportContext& ImportContext, EUsdMeshImportType ImportType, const FUsdAssetPrimToImport& PrimToImport)
+UObject* UDEPRECATED_UUSDImporter::ImportSingleMesh(FUsdImportContext& ImportContext, EUsdMeshImportType ImportType, const FUsdAssetPrimToImport& PrimToImport)
 {
 	UObject* NewMesh = nullptr;
 
@@ -351,7 +275,7 @@ UObject* UUSDImporter::ImportSingleMesh(FUsdImportContext& ImportContext, EUsdMe
 	return NewMesh;
 }
 
-void UUSDImporter::SpawnActors(FUSDSceneImportContext& ImportContext, const TArray<FActorSpawnData>& SpawnDatas, FScopedSlowTask& SlowTask)
+void UDEPRECATED_UUSDImporter::SpawnActors(FUSDSceneImportContext& ImportContext, const TArray<FActorSpawnData>& SpawnDatas, FScopedSlowTask& SlowTask)
 {
 	if (SpawnDatas.Num() > 0)
 	{
@@ -366,16 +290,16 @@ void UUSDImporter::SpawnActors(FUSDSceneImportContext& ImportContext, const TArr
 			++SpawnCount;
 			SlowTask.EnterProgressFrame(WorkAmount, FText::Format(LOCTEXT("SpawningActor", "SpawningActor {0}/{1}"), FText::AsNumber(SpawnCount), NumActorsToSpawn));
 
-			AActor* SpawnedActor = ImportContext.PrimResolver->SpawnActor(ImportContext, SpawnData);
+			AActor* SpawnedActor = ImportContext.PrimResolver_DEPRECATED->SpawnActor(ImportContext, SpawnData);
 
 			OnActorSpawned( ImportContext, SpawnedActor, SpawnData );
 		}
 	}
 }
 
-void UUSDImporter::RemoveExistingActors(FUSDSceneImportContext& ImportContext)
+void UDEPRECATED_UUSDImporter::RemoveExistingActors(FUSDSceneImportContext& ImportContext)
 {
-	UUSDSceneImportOptions* ImportOptions = Cast< UUSDSceneImportOptions >( ImportContext.ImportOptions );
+	UDEPRECATED_UUSDSceneImportOptions* ImportOptions = Cast< UDEPRECATED_UUSDSceneImportOptions >( ImportContext.ImportOptions_DEPRECATED );
 
 	if ( !ImportOptions )
 	{
@@ -435,24 +359,24 @@ void UUSDImporter::RemoveExistingActors(FUSDSceneImportContext& ImportContext)
 	}
 }
 
-void UUSDImporter::OnActorSpawned(FUsdImportContext& ImportContext, AActor* SpawnedActor, const FActorSpawnData& SpawnData)
+void UDEPRECATED_UUSDImporter::OnActorSpawned(FUsdImportContext& ImportContext, AActor* SpawnedActor, const FActorSpawnData& SpawnData)
 {
-	UUSDSceneImportOptions* ImportOptions = Cast<UUSDSceneImportOptions>( ImportContext.ImportOptions );
+	UDEPRECATED_UUSDSceneImportOptions* ImportOptions = Cast<UDEPRECATED_UUSDSceneImportOptions>( ImportContext.ImportOptions_DEPRECATED );
 	if ( ImportOptions && ImportOptions->bImportProperties )
 	{
 		FUSDPropertySetter PropertySetter(ImportContext);
 
-		PropertySetter.ApplyPropertiesToActor(SpawnedActor, SpawnData.ActorPrim.Get(), TEXT(""));
+		PropertySetter.ApplyPropertiesToActor(SpawnedActor, SpawnData.ActorPrim, TEXT(""));
 	}
 }
 #endif // #if USE_USD_SDK
 
-bool UUSDImporter::ShowImportOptions(FUsdImportContext& ImportContext)
+bool UDEPRECATED_UUSDImporter::ShowImportOptions(FUsdImportContext& ImportContext)
 {
-	return ShowImportOptions( *ImportContext.ImportOptions );
+	return ShowImportOptions( *ImportContext.ImportOptions_DEPRECATED );
 }
 
-bool UUSDImporter::ShowImportOptions(UObject& ImportOptions)
+bool UDEPRECATED_UUSDImporter::ShowImportOptions(UObject& ImportOptions)
 {
 	TSharedPtr<SWindow> ParentWindow;
 
@@ -481,7 +405,7 @@ bool UUSDImporter::ShowImportOptions(UObject& ImportOptions)
 }
 
 #if USE_USD_SDK
-TUsdStore< pxr::UsdStageRefPtr > UUSDImporter::ReadUsdFile(FUsdImportContext& ImportContext, const FString& Filename)
+UE::FUsdStage UDEPRECATED_UUSDImporter::ReadUsdFile(FUsdImportContext& ImportContext, const FString& Filename)
 {
 	FString FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Filename);
 	FilePath = FPaths::GetPath(FilePath) + TEXT("/");
@@ -489,7 +413,7 @@ TUsdStore< pxr::UsdStageRefPtr > UUSDImporter::ReadUsdFile(FUsdImportContext& Im
 
 	UsdUtils::StartMonitoringErrors();
 
-	TUsdStore< pxr::UsdStageRefPtr > Stage = UnrealUSDWrapper::OpenUsdStage(TCHAR_TO_ANSI(*FilePath), TCHAR_TO_ANSI(*CleanFilename));
+	UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *FPaths::Combine( FilePath, CleanFilename ), EUsdInitialLoadSet::LoadAll );
 
 	TArray<FString> ErrorStrings = UsdUtils::GetErrorsAndStopMonitoring();
 	FString Error = FString::Join(ErrorStrings, TEXT("\n"));
@@ -501,13 +425,13 @@ TUsdStore< pxr::UsdStageRefPtr > UUSDImporter::ReadUsdFile(FUsdImportContext& Im
 	return Stage;
 }
 
-void UUSDImporter::ImportUsdStage( FUSDSceneImportContext& ImportContext )
+void UDEPRECATED_UUSDImporter::ImportUsdStage( FUSDSceneImportContext& ImportContext )
 {
-	UUSDSceneImportOptions* ImportOptions = Cast<UUSDSceneImportOptions>( ImportContext.ImportOptions );
+	UDEPRECATED_UUSDSceneImportOptions* ImportOptions = Cast<UDEPRECATED_UUSDSceneImportOptions>( ImportContext.ImportOptions_DEPRECATED );
 
-	if ( ImportContext.Stage.Get() && ImportOptions )
+	if ( ImportContext.Stage && ImportOptions )
 	{
-		UUSDPrimResolver* PrimResolver = ImportContext.PrimResolver;
+		UDEPRECATED_UUSDPrimResolver* PrimResolver = ImportContext.PrimResolver_DEPRECATED;
 
 		EExistingActorPolicy ExistingActorPolicy = ImportOptions->ExistingActorPolicy;
 
@@ -532,40 +456,41 @@ void UUSDImporter::ImportUsdStage( FUSDSceneImportContext& ImportContext )
 		}
 	}
 }
+#endif // #if USE_USD_SDK
 
-void FUsdImportContext::Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage)
+void FUsdImportContext::Init(UObject* InParent, const FString& InName, const UE::FUsdStage& InStage)
 {
 	Parent = InParent;
 	ObjectName = InName;
 	ImportPathName = InParent->GetOutermost()->GetName();
-	ImportOptions = NewObject< UUSDImportOptions >();
+	ImportOptions_DEPRECATED = NewObject< UDEPRECATED_UUSDImportOptions >();
 
 	// Path should not include the filename
 	ImportPathName.RemoveFromEnd(FString(TEXT("/"))+InName);
 
 	ImportObjectFlags = RF_Public | RF_Standalone | RF_Transactional;
 
-	TSubclassOf<UUSDPrimResolver> ResolverClass = GetDefault<UUSDImporterProjectSettings>()->CustomPrimResolver;
+	TSubclassOf<UDEPRECATED_UUSDPrimResolver> ResolverClass = GetDefault<UDEPRECATED_UUSDImporterProjectSettings>()->CustomPrimResolver_DEPRECATED;
 	if (!ResolverClass)
 	{
-		ResolverClass = UUSDPrimResolverKind::StaticClass();
+		ResolverClass = UDEPRECATED_UUSDPrimResolverKind::StaticClass();
 	}
 
-	PrimResolver = NewObject<UUSDPrimResolver>(GetTransientPackage(), ResolverClass);
-	PrimResolver->Init();
+	PrimResolver_DEPRECATED = NewObject<UDEPRECATED_UUSDPrimResolver>(GetTransientPackage(), ResolverClass);
+	PrimResolver_DEPRECATED->Init();
 
 	Stage = InStage;
-	RootPrim = (*InStage)->GetPseudoRoot();
+	RootPrim = InStage.GetPseudoRoot();
 
 	bApplyWorldTransformToGeometry = false;
 	bFindUnrealAssetReferences = false;
 	bIsAutomated = false;
 }
 
-void FUSDSceneImportContext::Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage)
+void FUSDSceneImportContext::Init(UObject* InParent, const FString& InName, const UE::FUsdStage& InStage)
 {
 	FUsdImportContext::Init(InParent, InName, InStage);
-	ImportOptions = NewObject< UUSDSceneImportOptions >();
+	ImportOptions_DEPRECATED = NewObject< UDEPRECATED_UUSDSceneImportOptions >();
 
 	World = GEditor->GetEditorWorldContext().World();
 
@@ -589,7 +514,6 @@ void FUSDSceneImportContext::Init(UObject* InParent, const FString& InName, cons
 
 	bFindUnrealAssetReferences = true;
 }
-#endif // #if USE_USD_SDK
 
 void FUsdImportContext::AddErrorMessage(EMessageSeverity::Type MessageSeverity, FText ErrorMessage)
 {

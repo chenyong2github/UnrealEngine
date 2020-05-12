@@ -35,7 +35,7 @@ struct FUsdTestStruct
 
 	UPROPERTY(EditAnywhere, Category = "UsdTestStruct")
 	int32 IntProperty;
-	
+
 	UPROPERTY(EditAnywhere, Category = "UsdTestStruct")
 	EUsdTestEnum EnumProperty;
 
@@ -49,13 +49,13 @@ struct FUsdTestStruct
 	FUsdTestStruct2 InnerStruct;
 };
 
-UCLASS()
-class UUsdTestComponent : public USceneComponent
+UCLASS(Deprecated)
+class UDEPRECATED_UUsdTestComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
 public:
-	UUsdTestComponent() {};
+	UDEPRECATED_UUsdTestComponent() {};
 
 	// Basic properties
 	UPROPERTY(EditAnywhere, Category = "Component|BasicProperties")
@@ -194,12 +194,12 @@ public:
 };
 
 
-UCLASS(Blueprintable)
-class AUsdTestActor : public AActor
+UCLASS(Blueprintable, Deprecated)
+class ADEPRECATED_AUsdTestActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
-	
-public:	
+
+public:
 	// Basic properties
 	UPROPERTY(EditAnywhere, Category = BasicProperties)
 	int8 Int8Property;
@@ -343,8 +343,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = ArrayDeepNesting)
 	TArray<FUsdTestStruct> TestStructPropertyArray2;
 
-	UPROPERTY(VisibleAnywhere, Category = InnerComponent)
-	UUsdTestComponent* TestComponent;
-public:	
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the new USDStageImporter module instead"))
+	UDEPRECATED_UUsdTestComponent* TestComponent_DEPRECATED;
+public:
 
 };

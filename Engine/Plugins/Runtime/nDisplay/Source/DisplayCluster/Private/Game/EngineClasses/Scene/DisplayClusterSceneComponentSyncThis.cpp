@@ -5,25 +5,22 @@
 #include "GameFramework/Actor.h"
 
 
-UDisplayClusterSceneComponentSyncThis::UDisplayClusterSceneComponentSyncThis(const FObjectInitializer& ObjectInitializer) :
-	UDisplayClusterSceneComponentSync(ObjectInitializer)
+UDisplayClusterSceneComponentSyncThis::UDisplayClusterSceneComponentSyncThis(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
+	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
 void UDisplayClusterSceneComponentSyncThis::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// ...
 }
 
 
 void UDisplayClusterSceneComponentSyncThis::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
 {
 	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
-
-	// ...
 }
 
 

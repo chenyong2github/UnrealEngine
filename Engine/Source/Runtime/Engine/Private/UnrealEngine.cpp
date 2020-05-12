@@ -1735,6 +1735,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Hitches"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatHitches, &UEngine::ToggleStatHitches, bIsRHS));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AI"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatAI, NULL, bIsRHS));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Timecode"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatTimecode, NULL, bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_FrameCounter"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatFrameCounter, NULL, bIsRHS));
 
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ColorList"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatColorList, NULL));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Levels"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatLevels, NULL));
@@ -16097,6 +16098,18 @@ int32 UEngine::RenderStatTimecode(UWorld* World, FViewport* Viewport, FCanvas* C
 	}
 	Y += RowHeight;
 	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("TC: %s"), *FApp::GetTimecode().ToString()), Font, FColor::Green);
+	Y += RowHeight;
+
+	return Y;
+}
+
+// FRAMECOUNTER
+int32 UEngine::RenderStatFrameCounter(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
+{
+	UFont* Font = FPlatformProperties::SupportsWindowedMode() ? GetSmallFont() : GetMediumFont();
+	const int32 RowHeight = FMath::TruncToInt(Font->GetMaxCharHeight() * 1.1f);
+
+	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("FC: %d"), GFrameCounter), Font, FColor::Green);
 	Y += RowHeight;
 
 	return Y;

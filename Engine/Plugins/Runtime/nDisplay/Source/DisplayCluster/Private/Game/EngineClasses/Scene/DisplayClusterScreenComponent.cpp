@@ -11,13 +11,14 @@
 #include "DisplayClusterRootActor.h"
 
 #include "Game/IPDisplayClusterGameManager.h"
-#include "DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterGlobals.h"
 #include "EngineDefines.h"
 
 
-UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer) :
-	UDisplayClusterSceneComponent(ObjectInitializer)
+UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
+	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 
 	ScreenGeometryComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
@@ -77,6 +78,7 @@ bool UDisplayClusterScreenComponent::ApplySettings()
 	Super::ApplySettings();
 
 	SetRelativeScale3D(FVector(0.005f, Size.X, Size.Y));
+
 	if (ScreenGeometryComponent)
 	{
 		ScreenGeometryComponent->RegisterComponent();

@@ -5,7 +5,7 @@
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
 
-#include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
+#include "Misc/DisplayClusterCommonHelpers.h"
 
 #include "IDisplayCluster.h"
 #include "Config/IDisplayClusterConfigManager.h"

@@ -3,8 +3,9 @@
 #include "Config/Parser/DisplayClusterConfigParserText.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 FDisplayClusterConfigParserText::FDisplayClusterConfigParserText(IDisplayClusterConfigParserListener* pListener) :

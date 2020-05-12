@@ -5,13 +5,14 @@
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolTypes.h"
+#include "DMXProtocolTransportSACN.h"
 #include "DMXProtocolSettings.h"
-#include "DMXProtocolSACNUtils.h"
 
 #include "Common/UdpSocketBuilder.h"
-#include "IPAddress.h"
 #include "Serialization/ArrayReader.h"
 #include "SocketSubsystem.h"
+
+#include "DMXProtocolSACNUtils.h"
 
 const double FDMXProtocolUniverseSACN::TimeWithoutInputBufferRequest = 5.0;
 
@@ -23,23 +24,19 @@ FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol
 	// Not ticking by default
 	TimeWithoutInputBufferRequestEnd = TimeWithoutInputBufferRequestStart = FPlatformTime::Seconds();
 	bIsTicking = false;
-
 	// Set online subsustem
 	SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	check(SocketSubsystem);
-
 	// Set listener address
 	ListenerInternetAddr = SocketSubsystem->CreateInternetAddr();
 
-	// Sets the settings
-	Settings = MakeShared<FJsonObject>(InSettings);
+	UpdateSettings(InSettings);
+
 	checkf(WeakDMXProtocol.IsValid(), TEXT("DMXProtocol pointer is not valid"));
-	checkf(Settings->HasField(TEXT("UniverseID")), TEXT("DMXProtocol UniverseID is not valid"));
-	UniverseID = Settings->GetNumberField(TEXT("UniverseID"));
 
 	// Allocate new buffers
-	OutputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
-	InputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
+	OutputDMXBuffer = MakeShared<FDMXBuffer>();
+	InputDMXBuffer = MakeShared<FDMXBuffer>();
 
 	// Set default IP address
 	InterfaceIPAddress = GetDefault<UDMXProtocolSettings>()->InterfaceIPAddress;
@@ -66,12 +63,12 @@ IDMXProtocolPtr FDMXProtocolUniverseSACN::GetProtocol() const
 	return WeakDMXProtocol.Pin();
 }
 
-FDMXBufferPtr FDMXProtocolUniverseSACN::GetOutputDMXBuffer() const
+TSharedPtr<FDMXBuffer> FDMXProtocolUniverseSACN::GetOutputDMXBuffer() const
 {
 	return OutputDMXBuffer;
 }
 
-FDMXBufferPtr FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
+TSharedPtr<FDMXBuffer> FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
 {
 	TimeWithoutInputBufferRequestStart = FPlatformTime::Seconds();
 	TimeWithoutInputBufferRequestEnd = TimeWithoutInputBufferRequestStart + TimeWithoutInputBufferRequest;
@@ -100,48 +97,20 @@ TSharedPtr<FJsonObject> FDMXProtocolUniverseSACN::GetSettings() const
 	return Settings;
 }
 
+void FDMXProtocolUniverseSACN::UpdateSettings(const FJsonObject& InSettings)
+{
+	Settings = MakeShared<FJsonObject>(InSettings);
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXUniverseID), TEXT("DMXProtocol UniverseID is not valid"));
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXEthernetPort), TEXT("DMXProtocol EthernPort is not valid"));
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXIpAddress), TEXT("DMXProtocol IPAddress  is not valid"));
+	UniverseID = Settings->GetNumberField(DMXJsonFieldNames::DMXUniverseID);
+	EthernetPort = Settings->GetNumberField(DMXJsonFieldNames::DMXEthernetPort);
+	IpAddress = Settings->GetNumberField(DMXJsonFieldNames::DMXIpAddress);
+}
+
 bool FDMXProtocolUniverseSACN::IsSupportRDM() const
 {
 	return true;
-}
-
-bool FDMXProtocolUniverseSACN::ReceiveDMXBuffer()
-{
-	if (FSocket* Socket = GetOrCreateListeningSocket())
-	{
-		uint32 Size = 0;
-		int32 Read = 0;
-		FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
-
-		// Atempt to read if there is any incoming data
-		while (Socket->HasPendingData(Size))
-		{
-			Reader->SetNumUninitialized(FMath::Min(Size, DMX_MAX_PACKET_SIZE));
-
-			// Read buffer from socket
-			if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *ListenerInternetAddr))
-			{
-				Reader->RemoveAt(Read, Reader->Num() - Read, false);
-
-				return OnDataReceived(Reader);
-			}
-			else
-			{
-				ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
-
-				UE_LOG_DMXPROTOCOL(Error, TEXT("Error recieving the packet Universe ID %d, error is %d"), 
-					GetUniverseID(),
-					(uint8)RecvFromError);
-			}
-		}
-	}
-	else
-	{
-		UE_LOG_DMXPROTOCOL(Error, TEXT("Error recieving. No valid socket for universe %d"), GetUniverseID());
-	}
-
-
-	return false;
 }
 
 void FDMXProtocolUniverseSACN::Tick(float DeltaTime)
@@ -229,26 +198,62 @@ bool FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr& Buffer)
 
 	// Access the buffer thread-safety
 	InputDMXBuffer->AccessDMXData([this, &bCopySuccessful](TArray<uint8>& InData)
-	{
-		// Make sure we copy same amount of data
-		if (InData.Num() == ACN_DMX_SIZE)
 		{
-			InputDMXBuffer->SetDMXBuffer(IncomingDMXDMPLayer.DMX, ACN_DMX_SIZE);
-
-			GetProtocol()->GetOnUniverseInputUpdate().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, InData);
-			bCopySuccessful = true;
-		}
-		else
-		{
-			UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong! Expected: %d; Found: %d")
-				, NetworkErrorMessagePrefix
-				, ACN_DMX_SIZE
-				, InData.Num());
-			bCopySuccessful = false;
-		}
-	});
+			// Make sure we copy same amount of data
+			if (InData.Num() == ACN_DMX_SIZE)
+			{
+				InputDMXBuffer->SetDMXBuffer(IncomingDMXDMPLayer.DMX, ACN_DMX_SIZE);
+				GetProtocol()->GetOnUniverseInputUpdate().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, InData);
+				bCopySuccessful = true;
+			}
+			else
+			{
+				UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong! Expected: %d; Found: %d")
+					, NetworkErrorMessagePrefix
+					, ACN_DMX_SIZE
+					, InData.Num());
+				bCopySuccessful = false;
+			}
+		});
 
 	return bCopySuccessful;
+}
+
+bool FDMXProtocolUniverseSACN::ReceiveDMXBuffer()
+{
+	if (FSocket* Socket = GetOrCreateListeningSocket())
+	{
+		uint32 Size = 0;
+		int32 Read = 0;
+		FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
+
+		// Atempt to read if there is any incoming data
+		while (Socket->HasPendingData(Size))
+		{
+			Reader->SetNumUninitialized(FMath::Min(Size, DMX_MAX_PACKET_SIZE));
+
+			// Read buffer from socket
+			if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *ListenerInternetAddr))
+
+			{
+				Reader->RemoveAt(Read, Reader->Num() - Read, false);
+				return OnDataReceived(Reader);
+
+			}
+			else
+			{
+				ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
+				UE_LOG_DMXPROTOCOL(Error, TEXT("Error recieving the packet Universe ID %d, error is %d"),
+					GetUniverseID(),
+					(uint8)RecvFromError);
+			}
+		}
+	}
+	else
+	{
+		UE_LOG_DMXPROTOCOL(Error, TEXT("Error recieving. No valid socket for universe %d"), GetUniverseID());
+	}
+	return false;
 }
 
 FSocket* FDMXProtocolUniverseSACN::GetOrCreateListeningSocket()
@@ -258,25 +263,26 @@ FSocket* FDMXProtocolUniverseSACN::GetOrCreateListeningSocket()
 	{
 		return ListeningSocket;
 	}
-
 	// Try to create IP address at the first
 	TSharedPtr<FInternetAddr> InterfaceAddr = SocketSubsystem->CreateInternetAddr();
+
 	bool bIsValid = false;
 	InterfaceAddr->SetIp(*InterfaceIPAddress, bIsValid);
 	InterfaceAddr->SetPort(ACN_PORT);
+
 	if (!bIsValid)
 	{
 		UE_LOG_DMXPROTOCOL(Error, TEXT("Wrong IP address: %s"), *InterfaceIPAddress);
 		return nullptr;
 	}
-
 	FIPv4Endpoint InterfaceEndpoint = FIPv4Endpoint(InterfaceAddr);
-	TSharedPtr<FInternetAddr> ListeningAddr = FDMXProtocolSACN::GetUniverseAddr(UniverseID);
-	FIPv4Endpoint ListeningEndpoint = FIPv4Endpoint(ListeningAddr);
 
+	TSharedPtr<FInternetAddr> ListeningAddr = SocketSubsystem->CreateInternetAddr();
+	ListeningAddr->SetIp(FDMXProtocolSACN::GetUniverseAddrByID(UniverseID));
+	ListeningAddr->SetPort(ACN_PORT);
+	FIPv4Endpoint ListeningEndpoint = FIPv4Endpoint(ListeningAddr);
 	FSocket* NewListeningSocket = FUdpSocketBuilder(FString::Printf(TEXT("SACNListeningSocket_Universe_%d"), UniverseID))
 		.AsNonBlocking()
-
 #if PLATFORM_WINDOWS
 		// For 0.0.0.0, Windows will pick the default interface instead of all
 		// interfaces. Here we allow to specify which interface to bind to. 
@@ -294,7 +300,6 @@ FSocket* FDMXProtocolUniverseSACN::GetOrCreateListeningSocket()
 #endif
 		.AsReusable()
 		.WithReceiveBufferSize(ACN_DMX_SIZE * 4);
-
 	if (NewListeningSocket == nullptr)
 	{
 		UE_LOG_DMXPROTOCOL(Error, TEXT("Error create ListeningSocket: %s"), *InterfaceIPAddress);
@@ -303,6 +308,5 @@ FSocket* FDMXProtocolUniverseSACN::GetOrCreateListeningSocket()
 
 	// Save New socket;
 	ListeningSocket = NewListeningSocket;
-
 	return ListeningSocket;
 }

@@ -53,9 +53,9 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const FString& configPath, const FString& nodeId) override;
+	virtual bool StartSession(const FString& ConfigPath, const FString& NodeId) override;
 	virtual void EndSession() override;
-	virtual bool StartScene(UWorld* pWorld) override;
+	virtual bool StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
 	virtual void StartFrame(uint64 FrameNum) override;
 	virtual void PreTick(float DeltaSeconds) override;

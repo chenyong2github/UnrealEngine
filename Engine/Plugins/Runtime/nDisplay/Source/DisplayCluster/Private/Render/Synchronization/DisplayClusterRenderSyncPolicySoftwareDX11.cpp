@@ -2,7 +2,7 @@
 
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareDX11.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"

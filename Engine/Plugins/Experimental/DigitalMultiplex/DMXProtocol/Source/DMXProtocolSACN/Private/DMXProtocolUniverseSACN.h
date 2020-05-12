@@ -6,10 +6,9 @@
 
 #include "DMXProtocolCommon.h"
 #include "Packets/DMXProtocolE131PDUPacket.h"
+#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
 #include "Interfaces/IDMXNetworkInterface.h"
-
-#include "Tickable.h"
 
 class FInternetAddr;
 class FSocket;
@@ -29,12 +28,13 @@ public:
 
 	//~ Begin IDMXProtocolDevice implementation
 	virtual IDMXProtocolPtr GetProtocol() const override;
-	virtual FDMXBufferPtr GetInputDMXBuffer() const override;
-	virtual FDMXBufferPtr GetOutputDMXBuffer() const override;
+	virtual TSharedPtr<FDMXBuffer> GetInputDMXBuffer() const override;
+	virtual TSharedPtr<FDMXBuffer> GetOutputDMXBuffer() const override;
 	virtual bool SetDMXFragment(const IDMXFragmentMap& DMXFragment) override;
 	virtual uint8 GetPriority() const override;
 	virtual uint32 GetUniverseID() const override;
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
+	virtual void UpdateSettings(const FJsonObject& InSettings) override;
 	virtual bool IsSupportRDM() const override;
 
 	virtual void Tick(float DeltaTime) override;
@@ -51,26 +51,28 @@ public:
 	const FDMXProtocolE131FramingLayerPacket& GetIncomingDMXFramingLayer() const { return IncomingDMXFramingLayer; }
 	const FDMXProtocolE131DMPLayerPacket& GetIncomingDMXDMPLayer() const { return IncomingDMXDMPLayer; }
 
+	// Returns current IP Address broadcast or unicast
+	uint32 GetIpAddress() const { return IpAddress; }
+
+	// Returns SACN Protocol Ethernet port
+	uint16 GetPort() const { return EthernetPort; }
+
 private:
 	/** Called when new DMX packet is coming */
 	bool OnDataReceived(const FArrayReaderPtr& Buffer);
-
 	/** Handle and broadcasting incoming DMX packet */
 	bool HandleReplyPacket(const FArrayReaderPtr& Buffer);
-
 	/** Ask to read DMX from the Socket */
 	bool ReceiveDMXBuffer();
-
 	/** Parse incoming DMX packet into the SACN layers */
 	void SetLayerPackets(const FArrayReaderPtr& Buffer);
-
 	/** Checks if the socket exists, otherwise create a new one */
 	FSocket* GetOrCreateListeningSocket();
 
 private:
 	IDMXProtocolPtrWeak WeakDMXProtocol;
-	FDMXBufferPtr OutputDMXBuffer;
-	FDMXBufferPtr InputDMXBuffer;
+	TSharedPtr<FDMXBuffer> OutputDMXBuffer;
+	TSharedPtr<FDMXBuffer> InputDMXBuffer;
 	uint8 Priority;
 	uint32 UniverseID;
 	bool bIsRDMSupport;
@@ -81,7 +83,6 @@ private:
 
 	/** The universe socket listening Addr */
 	TSharedPtr<FInternetAddr> ListenerInternetAddr;
-
 	/**
 	 * Current number of ticks without DMX input buffer request.
 	 * It the amount as same as MaxNumTicks the socket will be destroyed, which will save the resources.
@@ -91,15 +92,10 @@ private:
 	 * If (NumTicksWithoutInputBufferRequest == MaxNumTicksWithoutInputBufferRequest) there is no socket will be destoyed
 	 */
 	mutable double TimeWithoutInputBufferRequestStart;
-
 	/** Max number of ticks without DMX input buffer request. The socket will be destroyed after this point */
 	mutable double TimeWithoutInputBufferRequestEnd;
-
 	mutable bool bIsTicking;
-
 	static const double TimeWithoutInputBufferRequest;
-
-
 	/** Pointer to the socket sub-system. */
 	ISocketSubsystem* SocketSubsystem;
 
@@ -112,4 +108,10 @@ private:
 	FDelegateHandle NetworkInterfaceChangedHandle;
 
 	const TCHAR* NetworkErrorMessagePrefix;
+
+	/** Universe IP Address */
+	uint32 IpAddress;
+
+	/** Universe Ethernet Port*/
+	uint16 EthernetPort;
 };

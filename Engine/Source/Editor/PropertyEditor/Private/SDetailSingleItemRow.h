@@ -104,7 +104,8 @@ private:
 	FReply OnArrayDrop(const FDragDropEvent& DragDropEvent);
 	FReply OnArrayHeaderDrop(const FDragDropEvent& DragDropEvent);
 
-	TSharedPtr<FPropertyNode> GetCopyPastePropertyNode() const;
+	TSharedPtr<FPropertyNode> GetPropertyNode() const;
+	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 private:
 	TWeakPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Customization for this widget */

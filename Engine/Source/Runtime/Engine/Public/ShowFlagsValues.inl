@@ -94,6 +94,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(1, Refraction, SFG_Developer, NSLOCTEXT("UnrealEd", "
 SHOWFLAG_ALWAYS_ACCESSIBLE(CameraInterpolation, SFG_Hidden, NSLOCTEXT("UnrealEd", "CameraInterpolationSF", "Camera Interpolation"))
 /** Post processing color fringe (chromatic aberration) */
 SHOWFLAG_FIXED_IN_SHIPPING(1, SceneColorFringe, SFG_PostProcess, NSLOCTEXT("UnrealEd", "SceneColorFringeSF", "Scene Color Fringe"))
+/** Post processing filmic tone curve and expand gamut */
+SHOWFLAG_ALWAYS_ACCESSIBLE(ToneCurve, SFG_PostProcess, NSLOCTEXT("UnrealEd", "ToneCurveSF", "Tone Curve"))
 /** If Translucency should be rendered into a separate RT and composited without DepthOfField, can be disabled in the materials (affects sorting), SHOWFLAG_ALWAYS_ACCESSIBLE for now because USceneCaptureComponent needs that */
 SHOWFLAG_ALWAYS_ACCESSIBLE(SeparateTranslucency, SFG_Advanced, NSLOCTEXT("UnrealEd", "SeparateTranslucencySF", "Separate Translucency"))
 /** If Screen Percentage should be applied.  */

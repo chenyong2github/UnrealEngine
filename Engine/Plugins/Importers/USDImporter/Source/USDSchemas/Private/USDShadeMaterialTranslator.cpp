@@ -2,8 +2,11 @@
 
 #include "USDShadeMaterialTranslator.h"
 
+#include "USDAssetImportData.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
+
+#include "UsdWrappers/SdfPath.h"
 
 #include "Materials/Material.h"
 #include "Misc/SecureHash.h"
@@ -17,19 +20,24 @@
 
 void FUsdShadeMaterialTranslator::CreateAssets()
 {
-	pxr::UsdShadeMaterial ShadeMaterial( Schema.Get() );
+	pxr::UsdShadeMaterial ShadeMaterial( Schema );
 
 	if ( !ShadeMaterial )
 	{
 		return;
 	}
 
-	FSHAHash MaterialHash = UsdToUnreal::HashShadeMaterial( ShadeMaterial );
-	UObject*& CachedMaterial = Context->AssetsCache.FindOrAdd( MaterialHash.ToString() );
+	FString MaterialHashString = UsdUtils::HashShadeMaterial( ShadeMaterial ).ToString();
+
+	UObject*& CachedMaterial = Context->AssetsCache.FindOrAdd( MaterialHashString );
 
 	if ( !CachedMaterial )
 	{
-		UMaterial* NewMaterial = NewObject< UMaterial >();
+		UMaterial* NewMaterial = NewObject< UMaterial >( GetTransientPackage(), NAME_None, Context->ObjectFlags );
+
+		UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( NewMaterial, TEXT("USDAssetImportData") );
+		ImportData->PrimPath = Schema.GetPath().GetString();
+		NewMaterial->AssetImportData = ImportData;
 
 		if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetsCache ) )
 		{
@@ -41,12 +49,13 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			NewMaterial = nullptr;
 		}
 
-		CachedMaterial = NewMaterial;
+		// ConvertMaterial may have added other items to AssetsCache, so lets update the reference to make sure its ok
+		CachedMaterial = Context->AssetsCache.Add( MaterialHashString, NewMaterial );
 	}
 
 	FScopeLock Lock( &Context->CriticalSection );
 	{
-		Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ), CachedMaterial );
+		Context->PrimPathsToAssets.Add( Schema.GetPath().GetString(), CachedMaterial );
 	}
 }
 

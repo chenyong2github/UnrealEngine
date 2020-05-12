@@ -67,7 +67,7 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 	if (bJointTransformsComputed)
 	{
 		UsdStageWeakPtr Stage = SkeletonQuery.GetSkeleton().GetPrim().GetStage();
-		const UsdToUnreal::FUsdStageInfo StageInfo(Stage);
+		const FUsdStageInfo StageInfo(Stage);
 
 		for (uint32 Index = 0; Index < UsdBoneTransforms.size(); ++Index)
 		{
@@ -128,7 +128,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 		GeomBindingAttribute.Get(&GeomBindingTransform, UsdTimeCode::Default());
 	}
 
-	const UsdToUnreal::FUsdStageInfo StageInfo( SkinningPrim.GetStage() );
+	const FUsdStageInfo StageInfo( SkinningPrim.GetStage() );
 
 	FTransform GeomTransform = UsdToUnreal::ConvertMatrix(StageInfo, GeomBindingTransform);
 

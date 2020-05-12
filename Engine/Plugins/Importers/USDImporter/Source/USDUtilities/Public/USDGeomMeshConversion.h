@@ -14,7 +14,9 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 	class UsdGeomMesh;
+	class UsdPrim;
 	class UsdShadeMaterial;
+	class UsdTyped;
 PXR_NAMESPACE_CLOSE_SCOPE
 
 struct FMeshDescription;
@@ -24,8 +26,8 @@ class UStaticMesh;
 
 namespace UsdToUnreal
 {
-	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
-	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
+	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
+	USDUTILITIES_API bool ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
 
 	/** Reads the first display color and opacity value and assigns it as the base color and opacity of the material */
 	USDUTILITIES_API bool ConvertDisplayColor( const pxr::UsdGeomMesh& UsdMesh, UMaterialInstanceConstant& MaterialInstance, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
@@ -34,6 +36,7 @@ namespace UsdToUnreal
 namespace UnrealToUsd
 {
 	USDUTILITIES_API bool ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default() );
+	USDUTILITIES_API bool ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default() );
 }
 
 #endif // #if USE_USD_SDK

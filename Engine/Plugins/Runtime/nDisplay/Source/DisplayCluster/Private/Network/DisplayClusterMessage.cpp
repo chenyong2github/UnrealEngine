@@ -2,7 +2,7 @@
 
 #include "Network/DisplayClusterMessage.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterMessage::FDisplayClusterMessage()
