@@ -256,7 +256,7 @@ void SDeviceProfileSelectionPanel::Construct( const FArguments& InArgs, TWeakObj
 			+ SScrollBox::Slot()
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "ToolBar.Background" ) )
+				.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 				[
 					SAssignNew( ListWidget, SVerticalBox )
 				]

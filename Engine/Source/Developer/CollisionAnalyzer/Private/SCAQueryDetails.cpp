@@ -161,7 +161,7 @@ void SCAQueryDetails::Construct(const FArguments& InArgs, TSharedPtr<SCollisionA
 		.AutoHeight()
 		[
 			SNew( SBorder )
-			.BorderImage(FCollisionAnalyzerStyle::Get()->GetBrush("ToolBar.Background"))
+			.BorderImage(FCollisionAnalyzerStyle::Get()->GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SHorizontalBox)
 				// Left is start/end locations

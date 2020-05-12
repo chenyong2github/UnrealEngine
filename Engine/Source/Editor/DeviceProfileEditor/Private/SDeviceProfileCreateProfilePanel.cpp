@@ -69,7 +69,7 @@ void SDeviceProfileCreateProfilePanel::Construct( const FArguments& InArgs, TWea
 		.FillHeight(1.0f)
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "ToolBar.Background" ) )
+			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				// Name entry
 				SNew( SVerticalBox )

@@ -108,7 +108,7 @@ void SDeviceProfileDetailsPanel::RefreshUI()
 		DetailsViewBox->AddSlot()
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "ToolBar.Background" ) )
+			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				SNew( SVerticalBox )
 				+ SVerticalBox::Slot()
@@ -168,7 +168,7 @@ void SDeviceProfileDetailsPanel::RefreshUI()
 		DetailsViewBox->AddSlot()
 			[
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush( "ToolBar.Background" ) )
+				.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 				[
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()

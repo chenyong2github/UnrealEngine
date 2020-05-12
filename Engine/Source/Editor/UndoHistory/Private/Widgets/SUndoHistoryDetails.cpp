@@ -240,7 +240,7 @@ void SUndoHistoryDetails::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolBar.Background"))
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4.0f, 1.0f))
 				[
 					SNew(SVerticalBox)
@@ -252,7 +252,7 @@ void SUndoHistoryDetails::Construct(const FArguments& InArgs)
 						.AutoHeight()
 						[
 							SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("ToolBar.Background"))
+								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 								.Padding(FMargin(0.0f, 1.0f))
 								[
 									SNew(SGridPanel)

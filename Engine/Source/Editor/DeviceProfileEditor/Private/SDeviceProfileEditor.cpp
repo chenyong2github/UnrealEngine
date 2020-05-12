@@ -381,7 +381,7 @@ TSharedRef<SDockTab> SDeviceProfileEditor::HandleTabManagerSpawnTab( const FSpaw
 	if( TabIdentifier == DeviceProfileEditorTabName )
 	{
 		TabWidget = SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolBar.Background"))
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SOverlay)
 				+ SOverlay::Slot()
@@ -408,7 +408,7 @@ TSharedRef<SDockTab> SDeviceProfileEditor::HandleTabManagerSpawnTab( const FSpaw
 					+ SVerticalBox::Slot()
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolBar.Background"))
+						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 						[
 							SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()

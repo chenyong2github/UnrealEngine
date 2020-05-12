@@ -78,7 +78,7 @@ void FGameplayTagReferenceHelperDetails::CustomizeHeader( TSharedRef<IPropertyHa
 	.NameContent()
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolBar.Background"))
+		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SGameplayTagReferenceTree)
 			.ItemHeight(24)

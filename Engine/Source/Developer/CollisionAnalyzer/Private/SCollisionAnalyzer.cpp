@@ -49,7 +49,7 @@ void SCollisionAnalyzer::Construct(const FArguments& InArgs, FCollisionAnalyzer*
 		.AutoHeight()
 		[
 			SNew( SBorder )
-			.BorderImage( FCollisionAnalyzerStyle::Get()->GetBrush( "ToolBar.Background" ) )
+			.BorderImage( FCollisionAnalyzerStyle::Get()->GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				SNew(SHorizontalBox)
 				// Record button
@@ -341,7 +341,7 @@ void SCollisionAnalyzer::Construct(const FArguments& InArgs, FCollisionAnalyzer*
 		.AutoHeight()
 		[
 			SNew( SBorder )
-			.BorderImage(FCollisionAnalyzerStyle::Get()->GetBrush("ToolBar.Background"))
+			.BorderImage(FCollisionAnalyzerStyle::Get()->GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(STextBlock)
 				.Text(this, &SCollisionAnalyzer::GetStatusText)

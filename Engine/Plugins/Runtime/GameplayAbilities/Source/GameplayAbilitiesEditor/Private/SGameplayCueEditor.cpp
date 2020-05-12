@@ -1312,7 +1312,7 @@ void SGameplayCueEditorImpl::Construct(const FArguments& InArgs)
 		.FillHeight(1.0f)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolBar.Background"))
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SAssignNew(GameplayCueTreeView, SGameplayCueTreeView)
 				.ItemHeight(24)

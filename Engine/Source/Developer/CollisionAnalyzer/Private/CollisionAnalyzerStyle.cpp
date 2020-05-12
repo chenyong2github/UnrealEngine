@@ -45,7 +45,6 @@ void FCollisionAnalyzerStyle::FStyle::Initialize()
 		.SetPressed(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed));
 	StyleInstance->Set("CommonButton", CommonButtonStyle);
 
-	StyleInstance->Set("ToolBar.Background", new BOX_BRUSH("Common/GroupBorder", FMargin(4.0f / 16.0f)));
 	StyleInstance->Set("CollisionAnalyzer.TabIcon", new IMAGE_BRUSH("Icons/icon_tab_CollisionAnalyser_16x", Icon16x16));
 	StyleInstance->Set("CollisionAnalyzer.Record", new IMAGE_BRUSH("Icons/CA_Record", Icon24x24));
 	StyleInstance->Set("CollisionAnalyzer.Stop", new IMAGE_BRUSH("Icons/CA_Stop", Icon24x24));
@@ -54,10 +53,10 @@ void FCollisionAnalyzerStyle::FStyle::Initialize()
 	StyleInstance->Set("CollisionAnalyzer.GroupBackground", new BOX_BRUSH("Icons/CA_GroupBackground", FMargin(4.f / 16.f)));
 	StyleInstance->Set("CollisionAnalyzer.Save", new IMAGE_BRUSH("Icons/icon_file_save_40x", Icon24x24));
 	StyleInstance->Set("CollisionAnalyzer.Load", new IMAGE_BRUSH("Icons/icon_file_open_40x", Icon24x24));
-	StyleInstance->Set("Menu.Background", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));
-	StyleInstance->Set("BoldFont", DEFAULT_FONT("Bold", 9));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleInstance.Get());
+
+	SetParentStyleName(FEditorStyle::GetStyleSetName());
 }
 
 
