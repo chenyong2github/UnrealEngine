@@ -6,6 +6,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/Engine.h"
 #include "PrimitiveSceneProxy.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "HairStrandsRendering.h"
 #include "RayTracingInstanceUtils.h"
 #include "HairStrandsInterface.h"
@@ -452,6 +453,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bIsGroomBindingAssetCallbackRegistered = false;
 	SourceSkeletalMesh = nullptr; 
 	NiagaraComponents.Empty();
+	PhysicsAsset = nullptr;
 
 	SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 
@@ -549,7 +551,7 @@ void UGroomComponent::UpdateHairSimulation()
 			if (!NiagaraComponent)
 			{
 				NiagaraComponent = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
-				if (GetWorld())
+				if (GetOwner() && GetOwner()->GetWorld())
 				{
 					NiagaraComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 					NiagaraComponent->RegisterComponent();
@@ -572,7 +574,7 @@ void UGroomComponent::UpdateHairSimulation()
 			{
 				NiagaraComponent->SetAsset(GroomAsset->HairGroupsPhysics[i].SolverSettings.CustomSystem.LoadSynchronous());
 			}
-			NiagaraComponent->Activate(true);
+			NiagaraComponent->ReinitializeSystem();
 			if (NiagaraComponent->GetSystemInstance())
 			{
 				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
@@ -581,16 +583,9 @@ void UGroomComponent::UpdateHairSimulation()
 		}
 		else if (NiagaraComponent && !NiagaraComponent->IsBeingDestroyed())
 		{
-			if (GetWorld())
-			{
-				NiagaraComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-				NiagaraComponent->UnregisterComponent();
-			}
-			NiagaraComponent->DestroyComponent();
-			NiagaraComponent = nullptr;
+			NiagaraComponent->Deactivate();
 		}
 	}
-	NiagaraComponents.SetNum(NumGroups);
 	UpdateSimulatedGroups();
 }
 

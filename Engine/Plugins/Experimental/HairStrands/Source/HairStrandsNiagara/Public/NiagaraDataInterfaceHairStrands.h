@@ -28,7 +28,14 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, 
 		const FHairStrandsRestRootResource* HairStrandsRestRootResource, 
 		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource,
-		const FNDIHairStrandsData* NDIStrandsDatas);
+		const TStaticArray<float, 32 * NumScales>& InParamsScale);  
+
+	/** Set the asset that will be used to affect the buffer */
+	void Update(const FHairStrandsDatas* HairStrandsDatas,
+		const FHairStrandsRestResource* HairStrandsRestResource,
+		const FHairStrandsDeformedResource* HairStrandsDeformedResource,
+		const FHairStrandsRestRootResource* HairStrandsRestRootResource,
+		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -69,8 +76,8 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** The strand root resource to write into */
 	const FHairStrandsDeformedRootResource* SourceDeformedRootResources;
 
-	/** Niagara datas interface datas */
-	const FNDIHairStrandsData* NDIDatas;
+	/** Scales along the strand */
+	TStaticArray<float, 32 * NumScales> ParamsScale;
 };
 
 /** Data stored per strand base instance*/
