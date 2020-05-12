@@ -49,15 +49,15 @@ public:
 		CheckFormat(Format);
 		if (Format == NAME_PCD3D_SM5)
 		{
-			CompileShader_Windows_SM5(Input, Output, WorkingDirectory);
+			CompileShader_Windows(Input, Output, WorkingDirectory, ELanguage::SM5);
 		}
 		else if (Format == NAME_PCD3D_ES3_1)
 		{
-			CompileShader_Windows_ES3_1(Input, Output, WorkingDirectory);
+			CompileShader_Windows(Input, Output, WorkingDirectory, ELanguage::ES3_1);
 		}
 		else
 		{
-			check(0);
+			checkf(0, TEXT("Unknown format %s"), *Format.ToString());
 		}
 	}
 	virtual const TCHAR* GetPlatformIncludeDirectory() const
