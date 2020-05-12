@@ -17,6 +17,11 @@ USynthComponentMoto::~USynthComponentMoto()
 {
 }
 
+bool USynthComponentMoto::IsEnabled() const
+{
+	return FMotoSynthEngine::IsMotoSynthEngineEnabled();
+}
+
 void USynthComponentMoto::SetRPM(float InRPM, float InTimeSec)
 {
 	RPM = InRPM;
