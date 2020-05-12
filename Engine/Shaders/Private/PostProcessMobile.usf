@@ -818,7 +818,7 @@ void IntegrateDOFPS_ES2(
 	OutColor.rgb = lerp(SceneColor.rgb, DofFine.rgb, DofAmountFine);
 	// Blend in coarse DOF.
 	OutColor.rgb = lerp(OutColor.rgb, Dof.rgb, DofAmount);
-	OutColor.a = DofCoc;
+	OutColor.a = SceneColor.a;
 }
 
 //
