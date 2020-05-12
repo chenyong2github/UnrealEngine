@@ -305,7 +305,7 @@ public:
 
 	static SIZE_T GetResourceSizeEx(const FPhysicsActorHandle& InActorRef);
 	
-    static FPhysicsConstraintReference_Chaos CreateConstraint(const FPhysicsActorHandle& InActorRef1, const FPhysicsActorHandle& InActorRef2, const FTransform& InLocalFrame1, const FTransform& InLocalFrame2, FPhysScene* InScene = nullptr);
+    static FPhysicsConstraintReference_Chaos CreateConstraint(const FPhysicsActorHandle& InActorRef1, const FPhysicsActorHandle& InActorRef2, const FTransform& InLocalFrame1, const FTransform& InLocalFrame2);
 	static void SetConstraintUserData(const FPhysicsConstraintReference_Chaos& InConstraintRef, void* InUserData);
 	static void ReleaseConstraint(FPhysicsConstraintReference_Chaos& InConstraintRef);
 
