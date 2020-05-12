@@ -84,6 +84,11 @@ void FCameraShakePreviewer::RegisterViewModifier()
 
 void FCameraShakePreviewer::UnRegisterViewModifier()
 {
+	if (GEditor == nullptr)
+	{
+		return;
+	}
+
 	GEditor->OnLevelViewportClientListChanged().RemoveAll(this);
 
 	for (FLevelEditorViewportClient* ViewportClient : RegisteredViewportClients)
