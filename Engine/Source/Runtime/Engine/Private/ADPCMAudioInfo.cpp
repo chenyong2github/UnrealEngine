@@ -30,11 +30,18 @@ FAutoConsoleVariableRef CVarADPCMReadFailiureTimeout(
 	TEXT("Sets the number of ADPCM decode attempts we'll try before stopping the sound wave altogether.\n"),
 	ECVF_Default);
 
-static int32 ADPCMDisableSeekForwardOnChunkMissesCVar = 0;
+static int32 ADPCMDisableSeekForwardOnChunkMissesCVar = 1;
 FAutoConsoleVariableRef CVarADPCMDisableSeekForwardOnChunkMisses(
 	TEXT("au.adpcm.DisableSeekForwardOnReadMisses"),
 	ADPCMDisableSeekForwardOnChunkMissesCVar,
 	TEXT("When there is a seek pending and this CVar is set to 0, we will scan forward in the file.\n"),
+	ECVF_Default);
+
+static int32 ADPCMOnlySeekForwardOneChunkCVar = 1;
+FAutoConsoleVariableRef CVarADPCMOnlySeekForwardOneChunk(
+	TEXT("au.adpcm.OnlySeekForwardOneChunk"),
+	ADPCMOnlySeekForwardOneChunkCVar,
+	TEXT("When set to 1, we will not continue to seek forward after failing to load two chunks in a row.\n"),
 	ECVF_Default);
 
 static float ChanceForIntentionalChunkMissCVar = 0.0f;
@@ -683,7 +690,9 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 						}
 
 						// If we have a seek pending, or we're in the middle of playing back the file, seek forward in the chunk offset to where we would have been.
-						const bool bShouldSeekForwardOnMissedChunk = !ADPCMDisableSeekForwardOnChunkMissesCVar && (bSeekPending || CurrentChunkIndex > FirstChunkSampleDataIndex);
+						// If we've already seeked forward one chunk and haven't loaded the next chunk in time and are skipping to the next one, we stop seeking to prevent snowballing chunk load requests.
+						const bool bAlreadySeekedFowardOneChunk = ADPCMOnlySeekForwardOneChunkCVar && bSeekedFowardToNextChunk;
+						const bool bShouldSeekForwardOnMissedChunk = !ADPCMDisableSeekForwardOnChunkMissesCVar && !bAlreadySeekedFowardOneChunk && (bSeekPending || CurrentChunkIndex > FirstChunkSampleDataIndex);
 
 						if (bShouldSeekForwardOnMissedChunk)
 						{
