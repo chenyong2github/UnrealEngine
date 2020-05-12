@@ -6479,26 +6479,40 @@ void FChildActorComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 		// Ensure ordering is what we want by adding class in first
 		CategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UChildActorComponent, ChildActorClass));
 
-		IDetailPropertyRow& CATRow = CategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UChildActorComponent, ChildActorTemplate));
-		CATRow.Visibility(TAttribute<EVisibility>::Create([ObjectsBeingCustomized]()
+		// Hide the child actor template property from the details view in these situations:
+		// a) Template is invalid (NULL)
+		// b) Template is set to be shown/expanded as an actor subtree in the components tree view
+		// c) Multiple CACs have been selected with one or more entries that meet the above criteria
+		bool bHideChildActorTemplateProperty = false;
+		for (const TWeakObjectPtr<UObject>& ObjectBeingCustomized : ObjectsBeingCustomized)
 		{
-			for (const TWeakObjectPtr<UObject>& ObjectBeingCustomized : ObjectsBeingCustomized)
+			if (UChildActorComponent* CAC = Cast<UChildActorComponent>(ObjectBeingCustomized.Get()))
 			{
-				if (UChildActorComponent* CAC = Cast<UChildActorComponent>(ObjectBeingCustomized.Get()))
+				if (CAC->ChildActorTemplate)
 				{
-					if (CAC->ChildActorTemplate == nullptr || FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(CAC))
+					if (FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(CAC))
 					{
-						return EVisibility::Hidden;
+						// Template is shown/expanded as a subtree with an explicit child actor node as the root
+						bHideChildActorTemplateProperty = true;
 					}
 				}
 				else
 				{
-					return EVisibility::Hidden;
+					// Template is invalid or not set
+					bHideChildActorTemplateProperty = true;
 				}
 			}
 
-			return EVisibility::Visible;
-		}));
+			// Exit the loop if we've met any of the above criteria for hiding the template property
+			if (bHideChildActorTemplateProperty)
+			{
+				break;
+			}
+		}
+
+		// Add a custom row to expose the child actor template for editing based on its visibility
+		CategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UChildActorComponent, ChildActorTemplate))
+			.Visibility(bHideChildActorTemplateProperty ? EVisibility::Hidden : EVisibility::Visible);
 	}
 }
 
