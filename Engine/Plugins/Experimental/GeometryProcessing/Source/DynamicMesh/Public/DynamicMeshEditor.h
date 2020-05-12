@@ -102,6 +102,9 @@ struct DYNAMICMESH_API FDynamicMeshEditResult
 	/** New triangle groups created by an edit */
 	TArray<int> NewGroups;
 
+	/** New normal overlay elements */
+	TArray<TArray<int32>> NewNormalOverlayElements;
+
 	/** clear this data structure */
 	void Reset()
 	{
@@ -110,6 +113,7 @@ struct DYNAMICMESH_API FDynamicMeshEditResult
 		NewQuads.Reset();
 		NewPolygons.Reset();
 		NewGroups.Reset();
+		NewNormalOverlayElements.Reset();
 	}
 
 	/** Flatten the triangle/quad/polygon lists into a single list of all triangles */
@@ -433,9 +437,11 @@ public:
 	 * @param ElementID the source normal we want a duplicate of
 	 * @param NormalLayerIndex which normal layer to consider
 	 * @param IndexMaps source/destination mapping of already-duplicated normals
+	 * @param ResultOut any newly created element indices are stored in NewNormalOverlayElements here. Note that
+	 *   NewNormalOverlayElements must have size > NormalLayerIndex.
 	 * @return index of duplicate normal in given normal layer
 	 */
-	int FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps);
+	int FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut = nullptr);
 
 
 	/**
@@ -443,7 +449,7 @@ public:
 	 * @param FromTriangleID source triangle
 	 * @param ToTriangleID destination triangle
 	 * @param IndexMaps mappings passed to FindOrCreateDuplicateX functions to track already-created attributes
-	 * @param ResultOut information about new attributes is stored here (@todo populate this, at time of writing there are no attribute fields)
+	 * @param ResultOut information about new attributes is stored here (@todo finish populating this, at time of writing only normal overlay elements get tracked)
 	 */
 	void CopyAttributes(int FromTriangleID, int ToTriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
 
