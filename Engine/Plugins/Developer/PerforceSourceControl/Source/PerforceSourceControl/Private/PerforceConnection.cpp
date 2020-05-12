@@ -792,7 +792,10 @@ FScopedPerforceConnection::FScopedPerforceConnection( FPerforceSourceControlComm
 	, Concurrency(InCommand.Concurrency)
 {
 	Initialize(InCommand.ConnectionInfo);
-	InCommand.MarkConnectionAsSuccessful();
+	if (IsValid())
+	{
+		InCommand.MarkConnectionAsSuccessful();
+	}
 }
 
 FScopedPerforceConnection::FScopedPerforceConnection( EConcurrency::Type InConcurrency, const FPerforceConnectionInfo& InConnectionInfo )

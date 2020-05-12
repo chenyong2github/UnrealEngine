@@ -417,7 +417,7 @@ void FPerforceSourceControlProvider::Tick()
 			CommandQueue.RemoveAt(CommandIndex);
 
 			// update connection state
-			bServerAvailable = !Command.bConnectionDropped || Command.bCancelled;
+			bServerAvailable = Command.bConnectionWasSuccessful && (!Command.bConnectionDropped || Command.bCancelled);
 
 			// let command update the states of any files
 			bStatesUpdated |= Command.Worker->UpdateStates();
