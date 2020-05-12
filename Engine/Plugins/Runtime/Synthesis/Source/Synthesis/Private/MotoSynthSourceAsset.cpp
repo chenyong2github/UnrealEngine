@@ -12,6 +12,15 @@
 #include "DSP/Granulator.h"
 #endif
 
+static int32 MotosynthDisabledCVar = 0;
+FAutoConsoleVariableRef CVarDisableFiltering(
+	TEXT("au.DisableMotoSynth"),
+	MotosynthDisabledCVar,
+	TEXT("Disables the moto synth.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
+
 ///////////////////////////////////////////////////////////
 // RPM estimation implementation
 ///////////////////////////////////////////////////////////
@@ -844,6 +853,12 @@ void FMotoSynthEnginePreviewer::Reset()
 #endif // WITH_EDITOR
 
 
+bool FMotoSynthEngine::IsMotoSynthEngineEnabled()
+{
+	return MotosynthDisabledCVar == 0;
+}
+
+
 FMotoSynthEngine::FMotoSynthEngine()
 {
 }
@@ -854,6 +869,11 @@ FMotoSynthEngine::~FMotoSynthEngine()
 
 void FMotoSynthEngine::Init(int32 InSampleRate)
 {
+	if (!IsMotoSynthEngineEnabled())
+	{
+		return;
+	}
+
 	RendererSampleRate = InSampleRate;
 	CurrentRPM = 0.0f;
 
@@ -1215,6 +1235,12 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 
 int32 FMotoSynthEngine::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 {
+	// Don't do anything if we're not enabled
+	if (!IsMotoSynthEngineEnabled())
+	{
+		return NumSamples;
+	}
+
 	GenerateGranularEngine(OutAudio, NumSamples);
 
 	return NumSamples;
