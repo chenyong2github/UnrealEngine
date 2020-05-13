@@ -292,7 +292,7 @@ public:
 	 *
 	 * @param OutputDeviceId Device Id from GetAvailableOutputDeviceInfos. If empty, will use the default output device
 	 */
-	virtual void SetOutputDeviceId(const FString& InputDeviceId) = 0;
+	virtual void SetOutputDeviceId(const FString& OutputDeviceId) = 0;
 
 	/**
 	 * Get the display name of the audio input device that is being used
