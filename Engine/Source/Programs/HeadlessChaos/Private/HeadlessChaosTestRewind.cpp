@@ -1828,6 +1828,7 @@ namespace ChaosTest {
 		auto PTDynamic = static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<FReal,3>>*>(Dynamic->GetProxy())->GetHandle();
 		auto PTKinematic = static_cast<FSingleParticlePhysicsProxy<TKinematicGeometryParticle<FReal,3>>*>(Kinematic->GetProxy())->GetHandle();
 		PTKinematic->SetSyncState(ESyncState::HardDesync);
+		bool bEverSoft = false;
 
 		for(int Step = RewindStep; Step <= LastStep; ++Step)
 		{
@@ -1838,14 +1839,11 @@ namespace ChaosTest {
 			{
 				EXPECT_EQ(PTKinematic->SyncState(),ESyncState::HardDesync);
 
-				//islands merge at step 5
-				if(Step < 5)
+				//islands merge and split depending on internal solve
+				//but we should see dynamic being soft desync at least once when islands merge
+				if(PTDynamic->SyncState() == ESyncState::SoftDesync)
 				{
-					EXPECT_EQ(PTDynamic->SyncState(),ESyncState::InSync);
-				}
-				else
-				{
-					EXPECT_EQ(PTDynamic->SyncState(),ESyncState::SoftDesync);
+					bEverSoft = true;
 				}
 			}
 			else
@@ -1857,7 +1855,104 @@ namespace ChaosTest {
 
 		}
 
+		EXPECT_TRUE(bEverSoft);
 		EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+
+		Module->DestroySolver(Solver);
+	}
+
+	TYPED_TEST(AllTraits,RewindTest_SoftDesyncFromSameIslandThenBackToInSync)
+	{
+		if(TypeParam::IsRewindable() == false){ return; }
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<FReal,3>(TVector<float,3>(0),10));
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-100,-100,-10),FVec3(100,100,0)));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
+
+		// Make particles
+		auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+		auto Kinematic = TKinematicGeometryParticle<float,3>::CreateParticle();
+
+		Dynamic->SetGeometry(Sphere);
+		Dynamic->SetGravityEnabled(true);
+		Solver->RegisterObject(Dynamic.Get());
+		Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0,0,-1));
+
+		Kinematic->SetGeometry(Box);
+		Solver->RegisterObject(Kinematic.Get());
+
+		Dynamic->SetX(FVec3(1000,0,37));
+		Dynamic->SetGravityEnabled(true);
+		Dynamic->SetObjectState(EObjectStateType::Dynamic);
+
+		Kinematic->SetX(FVec3(0,0,0));
+
+		ChaosTest::SetParticleSimDataToCollide({Dynamic.Get(),Kinematic.Get()});
+
+		const int32 LastStep = 15;
+
+		TArray<FVec3> Xs;
+
+		for(int Step = 0; Step <= LastStep; ++Step)
+		{
+			TickSolverHelper(Module,Solver);
+			Xs.Add(Dynamic->X());
+		}
+
+		const int RewindStep = 0;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		//move kinematic very close but do not alter dynamic
+		//should be soft desync while in island and then get back to in sync
+
+		auto PTDynamic = static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<FReal,3>>*>(Dynamic->GetProxy())->GetHandle();
+		auto PTKinematic = static_cast<FSingleParticlePhysicsProxy<TKinematicGeometryParticle<FReal,3>>*>(Kinematic->GetProxy())->GetHandle();
+		Kinematic->SetX(FVec3(1000-110,0,0));
+
+		bool bEverSoft = false;
+
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
+		{
+			TickSolverHelper(Module,Solver);
+
+			//kinematic desync will be known at end of frame because the simulation doesn't write results (so we know right away it's a desync)
+			if(Step < LastStep)
+			{
+				EXPECT_EQ(PTKinematic->SyncState(),ESyncState::HardDesync);
+
+				//islands merge and split depending on internal solve
+				//but we should see dynamic being soft desync at least once when islands merge
+				if(PTDynamic->SyncState() == ESyncState::SoftDesync)
+				{
+					bEverSoft = true;
+				}
+
+				//by end should be in sync because islands should definitely be split at this point
+				if(Step == LastStep - 1)
+				{
+					EXPECT_EQ(PTDynamic->SyncState(),ESyncState::InSync);
+				}
+				
+			}
+			else
+			{
+				//everything in sync after last step
+				EXPECT_EQ(PTKinematic->SyncState(),ESyncState::InSync);
+				EXPECT_EQ(PTDynamic->SyncState(),ESyncState::InSync);
+			}
+
+		}
+
+		//no collision so just kept falling
+		EXPECT_LT(Dynamic->X()[2], 10);
 
 		Module->DestroySolver(Solver);
 	}
