@@ -165,7 +165,10 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	GLevelEditorModeTools().OnEditorModeIDChanged().AddSP(this, &SLevelEditor::OnEditorModeIdChanged);
 
 	// @todo This is a hack to get this working for now. This won't work with multiple worlds
-	GEditor->GetEditorWorldContext(true).AddRef(World);
+	if (GEditor != nullptr)
+	{
+		GEditor->GetEditorWorldContext(true).AddRef(World);
+	}
 
 	// Set the initial preview feature level.
 	UEditorEngine* Editor = (UEditorEngine*)GEngine;
