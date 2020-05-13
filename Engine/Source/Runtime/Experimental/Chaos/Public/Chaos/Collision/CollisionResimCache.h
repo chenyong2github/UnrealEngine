@@ -20,6 +20,12 @@ namespace Chaos
 				for(FCollisionConstraintBase& Constraint : Constraints)
 				{
 					WeakPairs.Add(FWeakConstraintPair{Constraint.Particle[0]->WeakParticleHandle(),Constraint.Particle[1]->WeakParticleHandle()});
+
+					auto* A = Constraint.Particle[0];
+					auto* B = Constraint.Particle[1];
+
+					//Need to do this on save for any new constraints
+					MarkSoftIfDesync(*A,*B);
 				}
 				check(Constraints.Num() == WeakPairs.Num());
 			};
@@ -46,11 +52,8 @@ namespace Chaos
 					bool bValidConstraint = A != nullptr && B != nullptr;
 					if(bValidConstraint)
 					{
-						//Should we desync constrained particle here? Leaving as is for now but might be cheapest place to do it
-						if(A->SyncState() == ESyncState::HardDesync || B->SyncState() == ESyncState::HardDesync )
-						{
-							bValidConstraint = false;
-						}
+						//must do this on get in case particles are no longer constrained (means we won't see them during save above)
+						bValidConstraint = !MarkSoftIfDesync(*A,*B);
 					}
 
 					if(!bValidConstraint)
@@ -78,6 +81,28 @@ namespace Chaos
 
 	private:
 		
+		static bool MarkSoftIfDesync(TGeometryParticleHandle<FReal,3>& A, TGeometryParticleHandle<FReal,3>& B)
+		{
+			if(A.SyncState() == ESyncState::HardDesync || B.SyncState() == ESyncState::HardDesync)
+			{
+				if(A.SyncState() != ESyncState::HardDesync)
+				{
+					//Need to resim, but may end up still in sync
+					A.SetSyncState(ESyncState::SoftDesync);
+				}
+
+				if(B.SyncState() != ESyncState::HardDesync)
+				{
+					//Need to resim, but may end up still in sync
+					B.SetSyncState(ESyncState::SoftDesync);
+				}
+
+				return true;
+			}
+
+			return false;
+		}
+
 		//NOTE: You must sanitize this before using. This can contain dangling pointers or invalid constraints
 		FCollisionConstraintsArray SavedConstraints;
 
