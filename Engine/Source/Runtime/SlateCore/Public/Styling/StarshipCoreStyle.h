@@ -116,6 +116,7 @@ struct SLATECORE_API FStyleColors
 	static const FLinearColor AccentBlack;
 	static const FLinearColor AccentGray;
 	static const FLinearColor AccentWhite;
+	static const FLinearColor AccentFolder;
 
 
 };

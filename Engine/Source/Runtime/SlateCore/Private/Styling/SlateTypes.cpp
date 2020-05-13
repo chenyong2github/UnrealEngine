@@ -26,7 +26,16 @@ FCheckBoxStyle::FCheckBoxStyle()
 , UndeterminedHoveredImage()
 , UndeterminedPressedImage()
 , Padding(FMargin(2,0,0,0))
+, BackgroundImage(FSlateNoResource())
+, BackgroundHoveredImage(FSlateNoResource())
+, BackgroundPressedImage(FSlateNoResource())
 , ForegroundColor(FSlateColor::UseForeground())
+, HoveredForeground(FSlateColor::UseForeground())
+, PressedForeground(FSlateColor::UseForeground())
+, CheckedForeground(FSlateColor::UseForeground())
+, CheckedHoveredForeground(FSlateColor::UseForeground())
+, CheckedPressedForeground(FSlateColor::UseForeground())
+, UndeterminedForeground(FSlateColor::UseForeground())
 , BorderBackgroundColor(FLinearColor::White)
 {
 }
@@ -50,6 +59,9 @@ void FCheckBoxStyle::GetResources( TArray< const FSlateBrush* > & OutBrushes ) c
 	OutBrushes.Add( &UndeterminedImage );
 	OutBrushes.Add( &UndeterminedHoveredImage );
 	OutBrushes.Add( &UndeterminedPressedImage );
+	OutBrushes.Add( &BackgroundImage );
+	OutBrushes.Add( &BackgroundHoveredImage );
+	OutBrushes.Add( &BackgroundPressedImage );
 }
 
 #if WITH_EDITORONLY_DATA
@@ -99,6 +111,10 @@ FButtonStyle::FButtonStyle()
 : Normal()
 , Hovered()
 , Pressed()
+, NormalForeground(FSlateColor::UseForeground()) 
+, HoveredForeground(FSlateColor::UseForeground())
+, PressedForeground(FSlateColor::UseForeground())
+, DisabledForeground(FSlateColor::UseForeground())
 , NormalPadding()
 , PressedPadding()
 {
@@ -137,6 +153,7 @@ FComboButtonStyle::FComboButtonStyle()
 	: ShadowOffset(FVector2D::ZeroVector)
 	, ShadowColorAndOpacity(FLinearColor::Black)
 	, MenuBorderPadding(FMargin(0.0f))
+	, ContentPadding(FMargin(5.0f))
 {
 }
 
@@ -156,6 +173,8 @@ const FComboButtonStyle& FComboButtonStyle::GetDefault()
 }
 
 FComboBoxStyle::FComboBoxStyle()
+	: ContentPadding(FMargin(4.f, 2.f))
+	, MenuRowPadding(FMargin(0.f))
 {
 	ComboButtonStyle.SetMenuBorderPadding(FMargin(1.0));
 }
@@ -313,6 +332,7 @@ FScrollBarStyle::FScrollBarStyle()
 	, NormalThumbImage(FSlateNoResource())
 	, HoveredThumbImage(FSlateNoResource())
 	, DraggedThumbImage(FSlateNoResource())
+	, Thickness(16.0f)
 {
 }
 
@@ -577,7 +597,13 @@ const FHeaderRowStyle& FHeaderRowStyle::GetDefault()
 
 
 FDockTabStyle::FDockTabStyle()
-	: OverlapWidth(0.0f)
+	: TabTextStyle( FTextBlockStyle::GetDefault() )
+	, IconSize(16,16)
+	, OverlapWidth(0.0f)
+	, NormalForegroundColor(FSlateColor::UseForeground())
+	, HoveredForegroundColor(FSlateColor::UseForeground())
+	, ActiveForegroundColor(FSlateColor::UseForeground())
+	, ForegroundForegroundColor(FSlateColor::UseForeground())
 {
 }
 
@@ -604,6 +630,7 @@ const FDockTabStyle& FDockTabStyle::GetDefault()
 
 
 FScrollBoxStyle::FScrollBoxStyle()
+	: BarThickness(9.0f)
 {
 }
 
@@ -644,12 +671,15 @@ const FScrollBorderStyle& FScrollBorderStyle::GetDefault()
 
 
 FWindowStyle::FWindowStyle()
-	: BackgroundColor( FLinearColor::White )
-	, OutlineColor( FLinearColor(0.1f, 0.1f, 0.1f, 1.0f) )
+	: BackgroundColor(FLinearColor::White)
+	, OutlineColor(FLinearColor(0.1f, 0.1f, 0.1f, 1.0f))
+	, BorderColor(FLinearColor::White)
+	, WindowCornerRadius(0)
+	, BorderPadding(FMargin(5, 5, 5, 5))
 {
 }
 
-void FWindowStyle::GetResources( TArray< const FSlateBrush* >& OutBrushes ) const
+void FWindowStyle::GetResources(TArray< const FSlateBrush* >& OutBrushes) const
 {
 	MinimizeButtonStyle.GetResources(OutBrushes);
 	MaximizeButtonStyle.GetResources(OutBrushes);

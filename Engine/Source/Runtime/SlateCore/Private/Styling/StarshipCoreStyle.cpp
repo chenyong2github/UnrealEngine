@@ -64,6 +64,7 @@ const FLinearColor FStyleColors::AccentBrown		= COLOR("#804D39FF");
 const FLinearColor FStyleColors::AccentBlack		= COLOR("#242424FF");
 const FLinearColor FStyleColors::AccentGray			= COLOR("#808080FF");
 const FLinearColor FStyleColors::AccentWhite		= COLOR("#FFFFFFFF");
+const FLinearColor FStyleColors::AccentFolder       = COLOR("#B68F55FF");
 
 #define FONT(...) FSlateFontInfo(FLegacySlateFontInfoCache::Get().GetDefaultFont(), __VA_ARGS__)
 
@@ -277,6 +278,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	Style->Set("Colors.AccentBlack", FStyleColors::AccentBlack);
 	Style->Set("Colors.AccentGray", FStyleColors::AccentGray);
 	Style->Set("Colors.AccentWhite", FStyleColors::AccentWhite);
+	Style->Set("Colors.AccentFolder", FStyleColors::AccentFolder);
 
 	Style->Set("AppIcon", new IMAGE_BRUSH_SVG("Starship/Common/unreal", FVector2D(36,36), FStyleColors::Foreground));
 	Style->Set("AppIcon.Small", new IMAGE_BRUSH_SVG("Starship/Common/unreal-small", Icon24x24, FStyleColors::Foreground));
@@ -290,7 +292,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		.SetFont(StyleFonts.Normal)
 		.SetColorAndOpacity(FSlateColor::UseForeground())
 		.SetShadowOffset(FVector2D::ZeroVector)
-		.SetHighlightColor(FStyleColors::Highlight)
+		.SetSelectedBackgroundColor(FStyleColors::Highlight)
 		.SetHighlightShape(FSlateColorBrush(FStyleColors::White));
 
 	Style->Set("NormalFont",     StyleFonts.Normal);
@@ -304,7 +306,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	Style->Set("Icons.cylinder", new IMAGE_BRUSH_SVG("Starship/Common/cylinder", Icon16x16));
 	Style->Set("Icons.pyramid", new IMAGE_BRUSH_SVG("Starship/Common/pyriamid", Icon16x16));
 	Style->Set("Icons.sphere", new IMAGE_BRUSH_SVG("Starship/Common/sphere", Icon16x16));
-	Style->Set("Icons.cogwheel", new IMAGE_BRUSH_SVG("Starship/Common/cogwheel", Icon16x16));
+
+	Style->Set("Icons.Settings", new IMAGE_BRUSH_SVG("Starship/SceneOutliner/Settings", Icon16x16));
 
 
 	// Common Margins
@@ -472,13 +475,11 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	Style->Set("VerticalBoxDragIndicatorShort", new IMAGE_BRUSH("Common/VerticalBoxDragIndicatorShort", FVector2D(6, 15)));
 	// SScrollBar defaults...
 	const FScrollBarStyle ScrollBar = FScrollBarStyle()
-		.SetVerticalTopSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Vertical", FVector2D(8, 8)))
-		.SetVerticalBottomSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Vertical", FVector2D(8, 8)))
-		.SetHorizontalTopSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Horizontal", FVector2D(8, 8)))
-		.SetHorizontalBottomSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Horizontal", FVector2D(8, 8)))
-		.SetNormalThumbImage(BOX_BRUSH("Common/Scrollbar_Thumb", FMargin(4.f / 16.f)))
-		.SetDraggedThumbImage(BOX_BRUSH("Common/Scrollbar_Thumb", FMargin(4.f / 16.f)))
-		.SetHoveredThumbImage(BOX_BRUSH("Common/Scrollbar_Thumb", FMargin(4.f / 16.f)));
+		.SetNormalThumbImage( FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f))
+		.SetDraggedThumbImage(FSlateRoundedBoxBrush(FStyleColors::Hover2, 4.0f))
+		.SetHoveredThumbImage(FSlateRoundedBoxBrush(FStyleColors::Hover2, 4.0f))
+		.SetThickness(8.0f);
+	;
 	{
 		Style->Set("Scrollbar", ScrollBar);
 	}
@@ -834,7 +835,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		.SetBackgroundImageReadOnly(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius))
 		.SetFont(StyleFonts.Normal)
 		.SetPadding(FMargin(12.f, 4.0f, 12.f, 5.0f)) // The padding should be 4 top, 5 bottom
-		.SetForegroundColor(FSlateColor::UseForeground())
+		.SetForegroundColor(FStyleColors::White)
 		.SetBackgroundColor(FStyleColors::White)
 		.SetReadOnlyForegroundColor(FSlateColor::UseForeground())
 		.SetScrollBarStyle(ScrollBar);
@@ -865,30 +866,24 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 	// SInlineEditableTextBlock
 	{
-		FTextBlockStyle InlineEditableTextBlockReadOnly = FTextBlockStyle(NormalText)
-			.SetColorAndOpacity(FSlateColor::UseForeground())
-			.SetShadowOffset(FVector2D::ZeroVector)
-			.SetShadowColorAndOpacity(FLinearColor::Black);
+		// Normal Editable Text 
+		FTextBlockStyle InlineEditableTextBlockReadOnly = FTextBlockStyle(NormalText);
 
-		FTextBlockStyle InlineEditableTextBlockSmallReadOnly = FTextBlockStyle(InlineEditableTextBlockReadOnly)
-			.SetFont(SmallText.Font);
-
-		FEditableTextBoxStyle InlineEditableTextBlockEditable = FEditableTextBoxStyle()
-			.SetFont(NormalText.Font)
-			.SetBackgroundImageNormal(BOX_BRUSH("Common/TextBox", FMargin(4.0f / 16.0f)))
-			.SetBackgroundImageHovered(BOX_BRUSH("Common/TextBox_Hovered", FMargin(4.0f / 16.0f)))
-			.SetBackgroundImageFocused(BOX_BRUSH("Common/TextBox_Hovered", FMargin(4.0f / 16.0f)))
-			.SetBackgroundImageReadOnly(BOX_BRUSH("Common/TextBox_ReadOnly", FMargin(4.0f / 16.0f)))
-			.SetScrollBarStyle(ScrollBar);
-
-		FEditableTextBoxStyle InlineEditableTextBlockSmallEditable = FEditableTextBoxStyle(InlineEditableTextBlockEditable)
-			.SetFont(SmallText.Font);
+		FEditableTextBoxStyle InlineEditableTextBlockEditable = FEditableTextBoxStyle(NormalEditableTextBoxStyle)
+		.SetPadding(FMargin(6.f, 4.5f, 6.f, 4.5f));
 
 		FInlineEditableTextBlockStyle InlineEditableTextBlockStyle = FInlineEditableTextBlockStyle()
 			.SetTextStyle(InlineEditableTextBlockReadOnly)
 			.SetEditableTextBoxStyle(InlineEditableTextBlockEditable);
 
 		Style->Set("InlineEditableTextBlockStyle", InlineEditableTextBlockStyle);
+
+		// Small Editable Text 
+		FTextBlockStyle InlineEditableTextBlockSmallReadOnly = FTextBlockStyle(InlineEditableTextBlockReadOnly)
+			.SetFont(StyleFonts.Small);
+
+		FEditableTextBoxStyle InlineEditableTextBlockSmallEditable = FEditableTextBoxStyle(InlineEditableTextBlockEditable)
+			.SetFont(StyleFonts.Small);
 
 		FInlineEditableTextBlockStyle InlineEditableTextBlockSmallStyle = FInlineEditableTextBlockStyle()
 			.SetTextStyle(InlineEditableTextBlockSmallReadOnly)
@@ -1548,6 +1543,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetBottomShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowBottom", FVector2D(16, 8), FMargin(0.5, 0, 0.5, 1)))
 			.SetLeftShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowLeft", FVector2D(8, 16), FMargin(1, 0.5, 0, 0.5)))
 			.SetRightShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowRight", FVector2D(8, 16), FMargin(0, 0.5, 1, 0.5)))
+			.SetBarThickness(8.0)
 		);
 	}
 

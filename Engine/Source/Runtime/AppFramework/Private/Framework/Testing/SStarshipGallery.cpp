@@ -41,6 +41,7 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SUniformWrapPanel.h"
 #include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -293,11 +294,6 @@ public:
                     +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY\nHOVER"),  "Colors.PrimaryHover", true)]
                     +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY\nPRESS"),  "Colors.PrimaryPress", true)]
                 ]
-
-
-               
-
-
             ]
 
             +SHorizontalBox::Slot()
@@ -356,6 +352,7 @@ public:
                     +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("YELLOW"),    "Colors.AccentYellow", true)]
                     +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("GREEN"),     "Colors.AccentGreen", true)]
                     +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BROWN"),     "Colors.AccentBrown")]
+                    +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOLDER"),    "Colors.AccentFolder")]
                     +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BLACK"),     "Colors.AccentBlack", false, true)]
                     +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("GRAY"),      "Colors.AccentGray")]
                     +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE"),     "Colors.AccentWhite", true)]
@@ -366,7 +363,7 @@ public:
         ];
     };
 
-    TArray< TUniquePtr< FSlateDynamicImageBrush > > DynamicBrushes;
+    TArray< TUniquePtr< FSlateBrush > > DynamicBrushes;
     TSharedRef<SWidget> ConstructIconsGallery()
     {
         // auto GenerateColorButton = [] (FTex      t InTitle, FName StyleColorName, bool Inverted = false) -> TSharedRef<SWidget> 
@@ -410,6 +407,46 @@ public:
             ];
         };
 
+        auto GenerateIconLibrarySVG = [this] (FText InTitle, FString InPath) -> TSharedRef<SWidget>
+        {
+            const FVector2D IconSize(20.f, 20.f);
+            TSharedPtr<SUniformWrapPanel> UniformWrapPanel = SNew(SUniformWrapPanel)
+            .HAlign(HAlign_Left)
+            .SlotPadding( FMargin(12.f, 12.f) );
+
+            TArray<FString> FoundIcons;
+            FString SearchDirectory = FPaths::EngineDir() /  InPath;// TEXT("Editor/Slate/Icons/GeneralTools");
+            // IFileManager::Get().FindFiles(FoundIcons, *SearchDirectory, TEXT(".png"));//, true, true, false);
+            IFileManager::Get().FindFilesRecursive(FoundIcons, *SearchDirectory, TEXT("*.svg"), true, false);
+            for (const FString& Filename : FoundIcons)
+            {
+                // FString IconPath = SearchDirectory / Filename;
+                FString IconPath = Filename;
+
+                DynamicBrushes.Add( TUniquePtr<FSlateVectorImageBrush>(new FSlateVectorImageBrush( IconPath, IconSize )));
+
+                UniformWrapPanel->AddSlot()
+                [
+                    SNew(SImage)
+                    .Image(DynamicBrushes.Last().Get())
+                    .ToolTipText( FText::FromString( IconPath ) )
+                ];
+            }
+
+            return SNew(SVerticalBox)
+            +SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(STextBlock).Text(InTitle)
+            ]
+
+            +SVerticalBox::Slot(        )
+            [
+                UniformWrapPanel.ToSharedRef()
+            ];
+        };
+
+
 
         return SNew(SBorder)
         .BorderImage( FAppStyle::Get().GetBrush("ToolPanel.GroupBorder") )
@@ -425,7 +462,9 @@ public:
                 +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "ModelingIconTitle", "Modeling"), "/Plugins/Experimental/ModelingToolsEditorMode/Content/Icons")]
                 +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "FractureIconTitle", "Fracture"), "/Plugins/Experimental/ChaosEditor/Content")]
                 +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "CurveEditorIconTitle", "CurveEditor"), "Content/Editor/Slate/GenericCurveEditor/Icons")]
-                +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "QuixelIconTitle", "Quixel"), "Content/Slate/Starship/Icons/Quixel")]
+                // +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrary(NSLOCTEXT("StarshipGallery", "QuixelIconTitle", "Quixel"), "Content/Slate/Starship/Icons/Quixel")]
+                +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrarySVG(NSLOCTEXT("StarshipGallery", "QuixelIcons", "Quixel"), "Content/Slate/Starship/Common")]
+                +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrarySVG(NSLOCTEXT("StarshipGallery", "SceneOutliner", "SceneOutliner"), "Content/Slate/Starship/SceneOutliner")]
             ]
         ];
     }
@@ -1608,6 +1647,15 @@ public:
                 SNew(SMultiLineEditableTextBox)
                 .HintText(LOCTEXT("SMultiLineEditableTextBoxHint", "This is a multi-line editable text box"))
             ]    
+        ];
+
+
+        // SInlineEditableTextBlock
+        NextSlot(WidgetGrid, LOCTEXT("SInlineLineEditableTextLabel", "SInlineEditableText"))
+        .FillWidth(1.0)
+        [
+            SNew(SInlineEditableTextBlock)
+            .Text(LOCTEXT("SInlineEditableTextHint", "Inline Editable Text"))
         ];
 
 

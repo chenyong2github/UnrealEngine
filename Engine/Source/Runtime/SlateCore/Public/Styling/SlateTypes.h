@@ -143,10 +143,55 @@ struct SLATECORE_API FCheckBoxStyle : public FSlateWidgetStyle
 	FMargin Padding;
 	FCheckBoxStyle& SetPadding( const FMargin& InPadding ){ Padding = InPadding; return *this; }
 
-	/** The foreground color */
+	/** Background appearance */
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
+	FSlateBrush BackgroundImage;
+	FCheckBoxStyle & SetBackgroundImage( const FSlateBrush& InBackgroundImage ){ BackgroundImage = InBackgroundImage; return *this; }
+
+	/** Background appearance when hovered */
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
+	FSlateBrush BackgroundHoveredImage;
+	FCheckBoxStyle & SetBackgroundHoveredImage( const FSlateBrush& InBackgroundHoveredImage ){ BackgroundHoveredImage = InBackgroundHoveredImage; return *this; }
+
+	/** Background appearance when pressed */
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
+	FSlateBrush BackgroundPressedImage;
+	FCheckBoxStyle & SetBackgroundPressedImage( const FSlateBrush& InBackgroundPressedImage ){ BackgroundPressedImage = InBackgroundPressedImage; return *this; }
+
+	/** The normal unchecked foreground color */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateColor ForegroundColor;
 	FCheckBoxStyle& SetForegroundColor(const FSlateColor& InForegroundColor) { ForegroundColor = InForegroundColor; return *this; }
+
+	/** Foreground Color when hovered */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Appearance)
+	FSlateColor HoveredForeground;
+	FCheckBoxStyle& SetHoveredForegroundColor(const FSlateColor& InHoveredForeground) { HoveredForeground = InHoveredForeground; return *this; }
+
+	/** Foreground Color when pressed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Appearance)
+	FSlateColor PressedForeground;
+	FCheckBoxStyle& SetPressedForegroundColor(const FSlateColor& InPressedForeground) { PressedForeground = InPressedForeground; return *this; }
+
+	/** Foreground Color when checked */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Appearance)
+	FSlateColor CheckedForeground;
+	FCheckBoxStyle& SetCheckedForegroundColor(const FSlateColor& InCheckedForeground) { CheckedForeground = InCheckedForeground; return *this; }
+
+	/** Foreground Color when checked and pressed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Appearance)
+	FSlateColor CheckedHoveredForeground;
+	FCheckBoxStyle& SetCheckedHoveredForegroundColor(const FSlateColor& InCheckedHoveredForeground) { CheckedHoveredForeground = InCheckedHoveredForeground; return *this; }
+
+	/** Foreground Color when checked and pressed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Appearance)
+	FSlateColor CheckedPressedForeground;
+	FCheckBoxStyle& SetCheckedPressedForegroundColor(const FSlateColor& InCheckedPressedForeground) { CheckedPressedForeground = InCheckedPressedForeground; return *this; }
+
+	/** Foreground Color when the check state is indeterminate */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Appearance)
+	FSlateColor UndeterminedForeground;
+	FCheckBoxStyle& SetUndeterminedForegroundColor(const FSlateColor& InUndeterminedForeground) { UndeterminedForeground = InUndeterminedForeground; return *this; }
 
 	/** BorderBackgroundColor refers to the actual color and opacity of the supplied border image on toggle buttons */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -348,6 +393,27 @@ struct SLATECORE_API FButtonStyle : public FSlateWidgetStyle
 	FSlateBrush Disabled;
 	FButtonStyle& SetDisabled( const FSlateBrush& InDisabled ){ Disabled = InDisabled; return *this; }
 
+	/** Foreground Color when the button is not hovered or pressed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=Appearance)
+	FSlateColor NormalForeground;
+	FButtonStyle& SetNormalForeground( const FSlateColor& InNormalForeground ){ NormalForeground = InNormalForeground; return *this; }
+
+	/** Foreground Color when hovered */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=Appearance)
+	FSlateColor HoveredForeground;
+	FButtonStyle& SetHoveredForeground( const FSlateColor& InHoveredForeground){ HoveredForeground = InHoveredForeground; return *this; }
+
+	/** Foreground Color when pressed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=Appearance)
+	FSlateColor PressedForeground;
+	FButtonStyle& SetPressedForeground( const FSlateColor& InPressedForeground ){ PressedForeground = InPressedForeground; return *this; }
+
+	/** Foreground Color when disabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=Appearance)
+	FSlateColor DisabledForeground;
+	FButtonStyle& SetDisabledForeground( const FSlateColor& InDisabledForeground ){ DisabledForeground = InDisabledForeground; return *this; }
+
+
 	/**
 	 * Padding that accounts for the border in the button's background image.
 	 * When this is applied, the content of the button should appear flush
@@ -479,6 +545,13 @@ struct SLATECORE_API FComboButtonStyle : public FSlateWidgetStyle
 	FMargin MenuBorderPadding;
 	FComboButtonStyle& SetMenuBorderPadding( const FMargin& InMenuBorderPadding ){ MenuBorderPadding = InMenuBorderPadding; return *this; }
 
+	/*
+	 * Button Content Padding 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FMargin ContentPadding;
+	FComboButtonStyle& SetContentPadding( const FMargin& InContentPadding ) { ContentPadding = InContentPadding; return *this; }
+
 	/**
 	* Unlinks all colors in this style.
 	* @see FSlateColor::Unlink
@@ -531,6 +604,22 @@ struct SLATECORE_API FComboBoxStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound, meta=( DisplayName="Selection Change Sound" ))
 	FSlateSound SelectionChangeSlateSound;
 	FComboBoxStyle& SetSelectionChangeSound( const FSlateSound& InSelectionChangeSound ){ SelectionChangeSlateSound = InSelectionChangeSound; return *this; }
+
+	/*
+	 * Button Content Padding 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FMargin ContentPadding;
+	FComboBoxStyle& SetContentPadding( const FMargin& InContentPadding ) { ContentPadding = InContentPadding; return *this; }
+
+	/*
+	 * Menu Row Padding 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FMargin MenuRowPadding;
+	FComboBoxStyle& SetMenuRowPadding( const FMargin& InMenuRowPadding ) { MenuRowPadding = InMenuRowPadding; return *this; }
+
+
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -723,6 +812,10 @@ struct SLATECORE_API FScrollBarStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush DraggedThumbImage;
 	FScrollBarStyle& SetDraggedThumbImage( const FSlateBrush& InDraggedThumbImage ){ DraggedThumbImage = InDraggedThumbImage; return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	float Thickness;
+	FScrollBarStyle& SetThickness(float InThickness) { Thickness = InThickness; return *this; }
 
 	/**
 	 * Unlinks all colors in this style.
@@ -1555,7 +1648,6 @@ struct SLATECORE_API FDockTabStyle : public FSlateWidgetStyle
 	FSlateBrush ColorOverlayIconBrush;
 	FDockTabStyle& SetColorOverlayIconBrush(const FSlateBrush& InColorOverlayBrush) { ColorOverlayIconBrush = InColorOverlayBrush; return *this; }
 
-
 	/** Brush used when this tab is in the foreground */
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	FSlateBrush ForegroundBrush;
@@ -1576,10 +1668,20 @@ struct SLATECORE_API FDockTabStyle : public FSlateWidgetStyle
 	FSlateBrush TabWellBrush;
 	FDockTabStyle& SetTabWellBrush( const FSlateBrush& InTabWellBrush ){ TabWellBrush = InTabWellBrush; return *this; }
 
+	/** Tab Text Style */
+	UPROPERTY(EditAnywhere, Category=Appearance)
+	FTextBlockStyle TabTextStyle;
+	FDockTabStyle& SetTabTextStyle( const FTextBlockStyle& InTabTextStyle ){ TabTextStyle = InTabTextStyle; return *this; }
+
 	/** Padding used around this tab */
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	FMargin TabPadding;
 	FDockTabStyle& SetTabPadding( const FMargin& InTabPadding ){ TabPadding = InTabPadding; return *this; }
+
+	/** Icon size for icons in this tab */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	FVector2D IconSize;
+	FDockTabStyle& SetIconSize(const FVector2D& InIconSize) { IconSize = InIconSize; return *this; }
 
 	/** The width that this tab will overlap with side-by-side tabs */
 	UPROPERTY(EditAnywhere, Category=Appearance)
@@ -1590,6 +1692,27 @@ struct SLATECORE_API FDockTabStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	FSlateColor FlashColor;
 	FDockTabStyle& SetFlashColor( const FSlateColor& InFlashColor ){ FlashColor = InFlashColor; return *this; }
+
+	/** Foreground Color when the tab is not hovered, pressed, active or in the foreground */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Appearance)
+	FSlateColor NormalForegroundColor;
+	FDockTabStyle& SetNormalForegroundColor( const FSlateColor& InNormalForegroundColor ){ NormalForegroundColor = InNormalForegroundColor; return *this; }
+
+	/** Foreground Color when hovered */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Appearance)
+	FSlateColor HoveredForegroundColor;
+	FDockTabStyle& SetHoveredForegroundColor( const FSlateColor& InHoveredForegroundColor){ HoveredForegroundColor = InHoveredForegroundColor; return *this; }
+
+	/** Foreground Color when Active */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Appearance)
+	FSlateColor ActiveForegroundColor;
+	FDockTabStyle& SetActiveForegroundColor( const FSlateColor& InActiveForegroundColor ){ ActiveForegroundColor = InActiveForegroundColor; return *this; }
+
+	/** Foreground Color when this tab is the Foreground tab */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Appearance)
+	FSlateColor ForegroundForegroundColor;
+	FDockTabStyle& SetForegroundForegroundColor( const FSlateColor& InForegroundForegroundColor ){ ForegroundForegroundColor = InForegroundForegroundColor; return *this; }
+
 };
 
 
@@ -1611,6 +1734,10 @@ struct SLATECORE_API FScrollBoxStyle : public FSlateWidgetStyle
 	virtual const FName GetTypeName() const override { return TypeName; };
 
 	static const FScrollBoxStyle& GetDefault();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	float BarThickness;
+	FScrollBoxStyle& SetBarThickness(float InBarThickness) { BarThickness = InBarThickness; return *this; }
 
 	/** Brush used to draw the top shadow of a scrollbox */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1764,6 +1891,11 @@ struct SLATECORE_API FWindowStyle : public FSlateWidgetStyle
 	FSlateBrush BorderBrush;
 	FWindowStyle& SetBorderBrush( const FSlateBrush& InBorderBrush ){ BorderBrush = InBorderBrush; return *this; }
 
+	/** Color used to draw the window border */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateColor BorderColor;
+	FWindowStyle& SetBorderColor(const FSlateColor& InBorderColor) { BorderColor = InBorderColor; return *this; }
+
 	/** Brush used to draw the window background */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush BackgroundBrush;
@@ -1773,6 +1905,17 @@ struct SLATECORE_API FWindowStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush ChildBackgroundBrush;
 	FWindowStyle& SetChildBackgroundBrush( const FSlateBrush& InChildBackgroundBrush ){ ChildBackgroundBrush = InChildBackgroundBrush; return *this; }
+
+	/** Window corner rounding.  If this value is <= 0 no rounding will occur.   Used for regular, non-maximized windows only (not tool-tips or decorators.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	float WindowCornerRadius;
+	FWindowStyle& SetCornerRadius(float InCornerRadius) { WindowCornerRadius = InCornerRadius; return *this; }
+
+	/** Window corner rounding.  If this value is <= 0 no rounding will occur.   Used for regular, non-maximized windows only (not tool-tips or decorators.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FMargin BorderPadding;
+	FWindowStyle& SetBorderPadding(FMargin InBorderPadding) { BorderPadding = InBorderPadding; return *this; }
+
 };
 
 

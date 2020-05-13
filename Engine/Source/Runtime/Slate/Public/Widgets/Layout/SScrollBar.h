@@ -28,7 +28,7 @@ class SLATE_API SScrollBar : public SBorder
 public:
 
 	SLATE_BEGIN_ARGS( SScrollBar )
-		: _Style( &FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar") )
+		: _Style( &FAppStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar") )
 		, _OnUserScrolled()
 		, _AlwaysShowScrollbar(false)
 		, _AlwaysShowScrollbarTrack(true)
@@ -39,7 +39,7 @@ public:
 #endif
 		, _Orientation( Orient_Vertical )
 		, _DragFocusCause( EFocusCause::Mouse )
-		, _Thickness( FVector2D(16.0f, 16.0f) )
+		, _Thickness( FVector2D( _Style->Thickness, _Style->Thickness ) )
 		, _Padding( 2.0f )
 		{}
 
