@@ -222,11 +222,12 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 	CompileResult->GetStatus(&CompileResultCode);
 	if (SUCCEEDED(CompileResultCode))
 	{
+		TRefCountPtr<IDxcBlobUtf16> Dummy;
 		checkf(CompileResult->HasOutput(DXC_OUT_OBJECT), TEXT("No object code found!"));
-		VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(OutDxilBlob.GetInitReference()), nullptr));
+		VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(OutDxilBlob.GetInitReference()), Dummy.GetInitReference()));
 
 		checkf(CompileResult->HasOutput(DXC_OUT_REFLECTION), TEXT("No reflection found!"));
-		VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(OutReflectionBlob.GetInitReference()), nullptr));
+		VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(OutReflectionBlob.GetInitReference()), Dummy.GetInitReference()));
 
 		const auto BlobSize = OutDxilBlob->GetBufferSize();
 		const auto ReflectionBlobSize = OutReflectionBlob->GetBufferSize();
@@ -249,7 +250,7 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 				{
 					checkf(DisasmResult->HasOutput(DXC_OUT_DISASSEMBLY), TEXT("Disasm part missing but container said it has one!"));
 					TRefCountPtr<IDxcBlobEncoding> DisasmBlob;
-					VERIFYHRESULT(DisasmResult->GetOutput(DXC_OUT_DISASSEMBLY, IID_PPV_ARGS(DisasmBlob.GetInitReference()), nullptr));
+					VERIFYHRESULT(DisasmResult->GetOutput(DXC_OUT_DISASSEMBLY, IID_PPV_ARGS(DisasmBlob.GetInitReference()), Dummy.GetInitReference()));
 					FString String = DxcBlobEncodingToFString(DisasmBlob);
 					FFileHelper::SaveStringToFile(String, *DisasmFilename);
 				}
@@ -262,10 +263,10 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 			if (CompileResult->HasOutput(DXC_OUT_PDB) && CompileResult->HasOutput(DXC_OUT_SHADER_HASH))
 			{
 				TRefCountPtr<IDxcBlob> PdbBlob;
-				VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(PdbBlob.GetInitReference()), nullptr));
+				VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(PdbBlob.GetInitReference()), Dummy.GetInitReference()));
 
 				TRefCountPtr<IDxcBlob> HashBlob;
-				VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(HashBlob.GetInitReference()), nullptr));
+				VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(HashBlob.GetInitReference()), Dummy.GetInitReference()));
 
 				check(sizeof(DxcShaderHash) == HashBlob->GetBufferSize());
 				const DxcShaderHash* ShaderHash = (DxcShaderHash*)HashBlob->GetBufferPointer();
