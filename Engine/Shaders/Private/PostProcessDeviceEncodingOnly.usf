@@ -168,8 +168,7 @@ float4 DeviceEncodingOnlyCommonPS(
 		OutDeviceColor = pow( OutputGamutColor, InverseGamma.z );
 	}
 
-	// Better to saturate(lerp(a,b,t)) than lerp(saturate(a),saturate(b),t)
-	OutColor.rgb = OutDeviceColor / 1.05;
+	OutColor.rgb = OutDeviceColor;
 	OutColor.a = 1;
 
 	return OutColor;
