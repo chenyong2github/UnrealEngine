@@ -1062,8 +1062,8 @@ namespace UnrealBuildTool
 		{
 			MetadataCache = SourceFileMetadataCache.CreateHierarchy(InDescriptor.ProjectFile);
 			ProjectFile = InDescriptor.ProjectFile;
-			AppName = InDescriptor.Name;
-			TargetName = InDescriptor.Name;
+			TargetName = InRules.Name;
+			AppName = InRules.Name;
 			Platform = InDescriptor.Platform;
 			Configuration = InDescriptor.Configuration;
 			Architecture = InDescriptor.Architecture;
