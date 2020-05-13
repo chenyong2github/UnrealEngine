@@ -4,15 +4,12 @@
 
 namespace Chaos
 {
-	int32 UseCollisionResimCache = 0;
-	FAutoConsoleVariableRef CVarUseCollisionResimCache(TEXT("p.UseCollisionResimCache"),UseCollisionResimCache,TEXT("Whether to skip collision detection during resim"));
-
 	FEvolutionResimCache::~FEvolutionResimCache() = default;
 	
-	FEvolutionResimCache::FEvolutionResimCache()
+	FEvolutionResimCache::FEvolutionResimCache(bool bUseCollisionResimCache)
 	: CollisionResimCache(nullptr)
 	{
-		if(UseCollisionResimCache)
+		if(bUseCollisionResimCache)
 		{
 			CollisionResimCache = MakeUnique<FCollisionResimCache>();
 		}

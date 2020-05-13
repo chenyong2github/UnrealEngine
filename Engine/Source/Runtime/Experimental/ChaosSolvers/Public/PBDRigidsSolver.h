@@ -140,7 +140,7 @@ namespace Chaos
 
 		bool IsSimulating() const;
 
-		void EnableRewindCapture(int32 NumFrames);
+		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache);
 		FRewindData* GetRewindData()
 		{
 			if(Traits::IsRewindable())
@@ -379,6 +379,7 @@ namespace Chaos
 		void SyncQueryMaterials();
 
 		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles);
+		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
 
 	private:
 
@@ -452,6 +453,7 @@ namespace Chaos
 		TArray< TGeometryCollectionPhysicsProxy<Traits>* > GeometryCollectionPhysicsProxies;
 		TArray< FFieldSystemPhysicsProxy* > FieldSystemPhysicsProxies;
 		TArray< FJointConstraintPhysicsProxy*> JointConstraintPhysicsProxies;
+		bool bUseCollisionResimCache;
 
 		// Physics material mirrors for the solver. These should generally stay in sync with the global material list from
 		// the game thread. This data is read only in the solver as we should never need to update it here. External threads can

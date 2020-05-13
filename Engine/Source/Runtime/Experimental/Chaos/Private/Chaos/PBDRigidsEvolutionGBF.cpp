@@ -499,10 +499,10 @@ void TPBDRigidsEvolutionGBF<Traits>::Serialize(FChaosArchive& Ar)
 }
 
 template <typename Traits>
-TUniquePtr<IResimCacheBase> TPBDRigidsEvolutionGBF<Traits>::CreateExternalResimCache() const
+TUniquePtr<IResimCacheBase> TPBDRigidsEvolutionGBF<Traits>::CreateExternalResimCache(bool bUseCollisionResimCache) const
 {
 	check(Traits::IsRewindable());
-	return TUniquePtr<IResimCacheBase>(new FEvolutionResimCache());
+	return TUniquePtr<IResimCacheBase>(new FEvolutionResimCache(bUseCollisionResimCache));
 }
 
 template <typename Traits>

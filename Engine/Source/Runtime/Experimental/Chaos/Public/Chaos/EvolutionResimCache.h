@@ -11,7 +11,7 @@ namespace Chaos
 	class FEvolutionResimCache : public IResimCacheBase
 	{
 	public:
-		FEvolutionResimCache();
+		FEvolutionResimCache(bool bUseCollisionResimCache);
 		virtual ~FEvolutionResimCache();
 		FCollisionResimCache* GetCollisionResimCache(){ return CollisionResimCache.Get(); }
 
