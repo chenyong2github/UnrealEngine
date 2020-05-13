@@ -306,32 +306,7 @@ UCameraComponent* MovieSceneHelpers::CameraComponentFromRuntimeObject(UObject* R
 
 float MovieSceneHelpers::GetSoundDuration(USoundBase* Sound)
 {
-	USoundWave* SoundWave = nullptr;
-
-	if (Sound->IsA<USoundWave>())
-	{
-		SoundWave = Cast<USoundWave>(Sound);
-	}
-	else if (Sound->IsA<USoundCue>())
-	{
-#if WITH_EDITORONLY_DATA
-		USoundCue* SoundCue = Cast<USoundCue>(Sound);
-
-		// @todo Sequencer - Right now for sound cues, we just use the first sound wave in the cue
-		// In the future, it would be better to properly generate the sound cue's data after forcing determinism
-		const TArray<USoundNode*>& AllNodes = SoundCue->AllNodes;
-		for (int32 i = 0; i < AllNodes.Num() && SoundWave == nullptr; ++i)
-		{
-			if (AllNodes[i]->IsA<USoundNodeWavePlayer>())
-			{
-				SoundWave = Cast<USoundNodeWavePlayer>(AllNodes[i])->GetSoundWave();
-			}
-		}
-#endif
-	}
-
-	const float Duration = (SoundWave ? SoundWave->GetDuration() : 0.f);
-	return Duration == INDEFINITELY_LOOPING_DURATION ? SoundWave->Duration : Duration;
+	return Sound ? Sound->GetDuration() : 0.0f;
 }
 
 
