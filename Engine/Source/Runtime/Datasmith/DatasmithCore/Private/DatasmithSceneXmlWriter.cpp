@@ -503,7 +503,7 @@ void FDatasmithSceneXmlWriterImpl::WriteBeginOfMeshActorElement(const TSharedPtr
 
 	if (!FString(MeshActorElement->GetStaticMeshPathName()).IsEmpty())
 	{
-		XmlString += TEXT(" name=\"") + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(MeshActorElement->GetStaticMeshPathName())) + TEXT("\"");
+		XmlString += TEXT(" name=\"") + SanitizeXMLText(MeshActorElement->GetStaticMeshPathName()) + TEXT("\"");
 	}
 	XmlString += FString(TEXT("/>")) + LINE_TERMINATOR;
 
