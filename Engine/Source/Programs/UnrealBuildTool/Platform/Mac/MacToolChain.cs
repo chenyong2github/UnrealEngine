@@ -17,13 +17,6 @@ namespace UnrealBuildTool
 {
 	class MacToolChainSettings : AppleToolChainSettings
 	{
-		/***********************************************************************
-		 * NOTE:
-		 *  Do NOT change the defaults to set your values, instead you should set the environment variables
-		 *  properly in your system, as other tools make use of them to work properly!
-		 *  The defaults are there simply for examples so you know what to put in your env vars...
-		 ***********************************************************************/
-
 		/// <summary>
 		/// Which version of the Mac OS SDK to target at build time
 		/// </summary>
