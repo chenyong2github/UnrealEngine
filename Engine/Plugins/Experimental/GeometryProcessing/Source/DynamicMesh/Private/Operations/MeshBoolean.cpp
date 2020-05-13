@@ -213,13 +213,20 @@ bool FMeshBoolean::Compute()
 	FAxisAlignedBox3d CombinedAABB(CutMesh[0]->GetCachedBounds(), Transforms[0]);
 	FAxisAlignedBox3d MeshB_AABB(CutMesh[1]->GetCachedBounds(), Transforms[1]);
 	CombinedAABB.Contain(MeshB_AABB);
+	double ScaleFactor = 1.0 / FMath::Clamp(CombinedAABB.MaxDim(), 0.01, 1000000.0);
 	for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
 	{
 		FTransform3d CenteredTransform = Transforms[MeshIdx];
-		CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() - CombinedAABB.Center());
+		CenteredTransform.SetTranslation(ScaleFactor*(CenteredTransform.GetTranslation() - CombinedAABB.Center()));
+		CenteredTransform.SetScale(ScaleFactor*CenteredTransform.GetScale());
 		MeshTransforms::ApplyTransform(*CutMesh[MeshIdx], CenteredTransform);
+		if (CenteredTransform.GetDeterminant() < 0)
+		{
+			CutMesh[MeshIdx]->ReverseOrientation(false);
+		}
 	}
 	ResultTransform = FTransform3d(CombinedAABB.Center());
+	ResultTransform.SetScale(FVector3d::One() * (1.0 / ScaleFactor));
 
 	if (Cancelled())
 	{
@@ -581,6 +588,12 @@ bool FMeshBoolean::Compute()
 	else
 	{
 		CreatedBoundaryEdges = CutBoundaryEdges[0];
+	}
+
+	if (bPutResultInInputSpace)
+	{
+		MeshTransforms::ApplyTransform(*Result, ResultTransform);
+		ResultTransform = FTransform3d::Identity();
 	}
 
 	return bSuccess;
