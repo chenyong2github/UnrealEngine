@@ -1013,12 +1013,16 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 						}
 					}
 				}
-
-				CI->TermConstraint();
-				delete CI;
 			}
 
 			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
+		}
+
+		// Terminate all the constraint instances
+		for (FConstraintInstance* CI : HighLevelConstraintInstances)
+		{
+			CI->TermConstraint();
+			delete CI;
 		}
 
 		// Terminate all of the instances, cannot be done during insert or we may break constraint chains
@@ -1032,6 +1036,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 			delete Instance;
 		}
 
+		HighLevelConstraintInstances.Empty();
 		HighLevelBodyInstances.Empty();
 		BodiesSorted.Empty();
 
