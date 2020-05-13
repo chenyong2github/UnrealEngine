@@ -346,6 +346,10 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 		for (auto& Pair : InSystemInstance->DataInterfaceInstanceDataOffsets)
 		{
 			UNiagaraDataInterface* Interface = Pair.Key.Get();
+			if (Interface == nullptr)
+			{
+				continue;
+			}
 
 			FNiagaraDataInterfaceProxy* Proxy = Interface->GetProxy();
 			int32 Offset = Pair.Value;
