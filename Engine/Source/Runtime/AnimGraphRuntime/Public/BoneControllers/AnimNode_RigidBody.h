@@ -26,7 +26,7 @@ enum class ESimulationSpace : uint8
 };
 
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 {
 	GENERATED_USTRUCT_BODY()
@@ -34,27 +34,27 @@ struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 	FSimSpaceSettings();
 
 	// Global multipler on the effects of simulation space movement
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float MasterAlpha;
 
 	// Multiplier on the Z-component of velocity and acceleration that is passed to the solver
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0"))
 	float VelocityScaleZ;
 
 	// A clamp on the effective simulation-space velocity that is passed to the solver
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0"))
 	float MaxLinearVelocity;
 
 	// A clamp on the effective simulation-space angular velocity that is passed to the solver
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0"))
 	float MaxAngularVelocity;
 	
 	// A clamp on the effective simulation-space acceleration that is passed to the solver
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0"))
 	float MaxLinearAcceleration;
 	
 	// A clamp on the effective simulation-space angular accleration that is passed to the solver
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0"))
 	float MaxAngularAcceleration;
 };
 
