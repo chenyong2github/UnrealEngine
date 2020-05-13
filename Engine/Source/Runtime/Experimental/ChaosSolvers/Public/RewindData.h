@@ -967,6 +967,11 @@ public:
 							{
 								Info.Desync(CurFrame,LatestFrame);
 							}
+							else if(!Info.bDesync)
+							{
+								//Particle may have been marked as soft desync "may desync", but we see it's in sync so mark it as such
+								Rigid->SetSyncState(ESyncState::InSync);
+							}
 						}
 					}
 				}
