@@ -618,7 +618,7 @@ public:
 	}
 #endif
 
-	NIAGARA_API void GenerateStatScopeIDs();
+	NIAGARA_API void GenerateStatIDs();
 
 	NIAGARA_API bool IsScriptCompilationPending(bool bGPUScript) const;
 	NIAGARA_API bool DidScriptCompilationSucceed(bool bGPUScript) const;
@@ -691,7 +691,9 @@ public:
 	TArray<FNiagaraScriptDataInterfaceInfo>& GetCachedDefaultDataInterfaces() { return CachedDefaultDataInterfaces; }
 
 #if STATS
-	const TArray<TStatId>& GetStatScopeIDs()const { return StatScopesIDs; }
+	TArrayView<const TStatId> GetStatScopeIDs() const { return MakeArrayView(StatScopesIDs); }
+#elif ENABLE_STATNAMEDEVENTS
+	TArrayView<const FString> GetStatNamedEvents() const { return MakeArrayView(StatNamedEvents); }
 #endif
 
 	bool UsesCollection(const class UNiagaraParameterCollection* Collection)const;
@@ -774,6 +776,8 @@ private:
 	/** Runtime stat IDs generated from StatScopes. */
 #if STATS
 	TArray<TStatId> StatScopesIDs;
+#elif ENABLE_STATNAMEDEVENTS
+	TArray<FString> StatNamedEvents;
 #endif
 
 #if WITH_EDITORONLY_DATA
