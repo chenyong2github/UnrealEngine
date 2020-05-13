@@ -419,6 +419,11 @@ FCustomizedToolMenuHierarchy UToolMenu::GetMenuCustomizationHierarchy() const
 		{
 			Result.Hierarchy.Add(Found);
 		}
+
+		if (FCustomizedToolMenu* FoundRuntime = ToolMenus->FindRuntimeMenuCustomization(ItName))
+		{
+			Result.RuntimeHierarchy.Add(FoundRuntime);
+		}
 	}
 
 	return Result;

@@ -100,6 +100,7 @@ struct SLATE_API FCustomizedToolMenuHierarchy
 	FCustomizedToolMenu GenerateFlattened() const;
 
 	TArray<const FCustomizedToolMenu*> Hierarchy;
+	TArray<const FCustomizedToolMenu*> RuntimeHierarchy;
 };
 
 UCLASS(Abstract)
