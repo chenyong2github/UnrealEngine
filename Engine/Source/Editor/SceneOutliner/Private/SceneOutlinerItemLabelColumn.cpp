@@ -99,6 +99,7 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 
 			// Main actor label
 			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			[
 				SAssignNew(InlineTextBlock, SInlineEditableTextBlock)
 				.Text(this, &SActorTreeLabel::GetDisplayText)
@@ -115,6 +116,7 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 			]
 
 			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding( 0.0f, 0.f, 3.0f, 0.0f )
 			[
@@ -176,7 +178,7 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
-			.Padding(0.0f, 2.0f)
+			.Padding(0.0f, 0.0f)
 			[
 				MainContent
 			]

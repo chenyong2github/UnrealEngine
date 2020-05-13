@@ -377,7 +377,7 @@ namespace SceneOutliner
 				[
 					SNew(SImage)
 	                .ColorAndOpacity(FSlateColor::UseForeground())
-					.Image( FAppStyle::Get().GetBrush("Icons.cogwheel") )
+					.Image( FAppStyle::Get().GetBrush("Icons.Settings") )
 				]
 			];
 		}
