@@ -254,7 +254,7 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=( DisplayName = "Is Mouse Button Down" ), Category="Utilities|PointerEvent")
 	static bool PointerEvent_IsMouseButtonDown(const FPointerEvent& Input, FKey MouseButton);
 
-	/** Mouse button that caused this event to be raised (possibly EB_None) */
+	/** Mouse button that caused this event to be raised (possibly FKey::Invalid) */
 	UFUNCTION(BlueprintPure, meta=( DisplayName = "Get Effecting Button" ), Category="Utilities|PointerEvent")
 	static FKey PointerEvent_GetEffectingButton(const FPointerEvent& Input);
 

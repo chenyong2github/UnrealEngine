@@ -821,7 +821,7 @@ public:
 	/** Mouse buttons that are currently pressed */
 	bool IsMouseButtonDown( FKey MouseButton ) const { return PressedButtons.Contains( MouseButton ); }
 
-	/** Mouse button that caused this event to be raised (possibly EB_None) */
+	/** Mouse button that caused this event to be raised (possibly FKey::Invalid) */
 	FKey GetEffectingButton() const { return EffectingButton; }
 	
 	/** How much did the mouse wheel turn since the last mouse event */
