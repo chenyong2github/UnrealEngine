@@ -251,6 +251,12 @@ public:
 	/** Find index of customization settings for a menu */
 	int32 FindMenuCustomizationIndex(const FName InName);
 
+	/** Find runtime customization settings for a menu */
+	FCustomizedToolMenu* FindRuntimeMenuCustomization(const FName InName);
+
+	/** Find or add runtime customization settings for a menu */
+	FCustomizedToolMenu* AddRuntimeMenuCustomization(const FName InName);
+
 	/** Generates sub menu by entry name in the given generated menu parent */
 	UToolMenu* GenerateSubMenu(const UToolMenu* InGeneratedParent, const FName InBlockName);
 
@@ -383,6 +389,9 @@ private:
 	TArray<FToolMenuOwner> OwnerStack;
 
 	TMap<FName, FToolMenuExecuteString> StringCommandHandlers;
+
+	/** Transient customizations made during runtime that will not be saved */
+	TArray<FCustomizedToolMenu> RuntimeCustomizedMenus;
 
 	FSimpleDelegate SetTimerForNextTickDelegate;
 
