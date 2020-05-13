@@ -316,11 +316,16 @@ UNiagaraComponent* UNiagaraComponentPool::CreateWorldParticleSystem(UNiagaraSyst
 
 	if(Component == nullptr)
 	{
-		//Create a new auto destroy system if we're not pooling.
+		// Create a new component as a fallback if we're not pooling
 		Component = NewObject<UNiagaraComponent>(World);
 		Component->SetAutoDestroy(true);
 		Component->bAutoActivate = false;
 		Component->SetAsset(Template);
+
+		// even though we're not actually using the pooling system we need to ensure that the PoolingMethod
+		// is preserved so that the component can be properly cleaned up (see UNiagaraComponent::ReleaseToPool()
+		// and UNiagaraComponent::OnSystemComplete()).
+		Component->PoolingMethod = PoolingMethod;
 	}
 
 	check(Component);
