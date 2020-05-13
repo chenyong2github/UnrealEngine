@@ -269,6 +269,15 @@ void SPluginBrowser::Construct( const FArguments& Args )
 	];
 }
 
+void SPluginBrowser::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (!bInitialFocusTaken)
+	{
+		bInitialFocusTaken = FSlateApplication::Get().SetKeyboardFocus(SearchBoxPtr);
+	}
+}
 
 EVisibility SPluginBrowser::HandleRestartEditorNoticeVisibility() const
 {
