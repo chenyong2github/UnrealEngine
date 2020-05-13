@@ -29,6 +29,10 @@
 void FHoudiniNiagaraModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+
+#if WITH_EDITOR
+	UE_LOG(LogTemp, Warning, TEXT("You are using an old version of the Houdini plugin! Please visit https://github.com/sideeffects/HoudiniNiagara to get the newest version."));
+#endif
 }
 
 void FHoudiniNiagaraModule::ShutdownModule()
