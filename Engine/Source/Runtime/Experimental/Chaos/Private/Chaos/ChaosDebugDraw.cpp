@@ -5,6 +5,7 @@
 #include "Chaos/Convex.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/DebugDrawQueue.h"
+#include "Chaos/Evolution/SimulationSpace.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ImplicitObjectUnion.h"
@@ -503,6 +504,21 @@ namespace Chaos
 			}
 		}
 
+		void DrawSimulationSpaceImpl(const FSimulationSpace& SimSpace)
+		{
+			const FVec3 Pos = SimSpace.Transform.GetLocation();
+			const FRotation3& Rot = SimSpace.Transform.GetRotation();
+			const FMatrix33 Rotm = Rot.ToMatrix();
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(0), DrawScale * ArrowSize, FColor::Red, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(1), DrawScale * ArrowSize, FColor::Green, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(2), DrawScale * ArrowSize, FColor::Blue, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + VelScale * SimSpace.LinearVelocity, FColor::Cyan, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + AngVelScale * SimSpace.AngularVelocity, FColor::Cyan, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * VelScale * SimSpace.LinearAcceleration, FColor::Yellow, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * AngVelScale * SimSpace.AngularAcceleration, FColor::Orange, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+		}
+
 #endif
 
 		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FColor& Color)
@@ -715,5 +731,14 @@ namespace Chaos
 #endif
 		}
 
+		void DrawSimulationSpace(const FSimulationSpace& SimSpace)
+		{
+#if CHAOS_DEBUG_DRAW
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				DrawSimulationSpaceImpl(SimSpace);
+			}
+#endif
+		}
 	}
 }

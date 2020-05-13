@@ -57,10 +57,28 @@ namespace ImmediatePhysics_Chaos
 		void Simulate(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity);
 		void Simulate_AssumesLocked(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxStepTime, MaxSubSteps, InGravity); }
 
-		void SetSimulationSpaceTransform(const FTransform& Transform);
+		void InitSimulationSpace(
+			const FTransform& Transform);
+
+		void UpdateSimulationSpace(
+			const FTransform& Transform,
+			const FVector& LinearVel,
+			const FVector& AngularVel,
+			const FVector& LinearAcc,
+			const FVector& AngularAcc);
+
+		void SetSimulationSpaceSettings(const FReal MasterAlpha);
+
 
 		/** Set new iteration counts. A negative value with leave that iteration count unchanged */
-		void SetSolverIterations(const FReal FixedDt, const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
+		void SetSolverIterations(
+			const FReal FixedDt,
+			const int32 SolverIts,
+			const int32 JointIts,
+			const int32 CollisionIts,
+			const int32 SolverPushOutIts,
+			const int32 JointPushOutIts,
+			const int32 CollisionPushOutIts);
 
 	private:
 		void UpdateActivePotentiallyCollidingPairs();
@@ -69,6 +87,7 @@ namespace ImmediatePhysics_Chaos
 		void DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawDynamicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawConstraints(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
+		void DebugDrawSimulationSpace();
 
 		struct FImplementation;
 		TUniquePtr<FImplementation> Implementation;
