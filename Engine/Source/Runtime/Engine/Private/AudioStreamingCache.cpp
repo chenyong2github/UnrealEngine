@@ -361,12 +361,12 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 					UE_LOG(LogAudio, Warning, TEXT("Cache overflow!!! couldn't load chunk %d for sound %s!"), ChunkIndex, *SoundWave->GetName());
 					AsyncTask(ENamedThreads::GameThread, []()
 					{
-#if !UE_BUILD_SHIPPING && !UE_BUILDTEST
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 						if (GEngine && GEngine->GetMainAudioDevice())
 						{
 							GEngine->GetMainAudioDevice()->Exec(nullptr, TEXT("audiomemreport"));
 						}
-#endif // !UE_BUILD_SHIPPING && !UE_BUILDTEST
+#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 						int32 NumChunksReleased = 0;
 						for (TObjectIterator<USoundWave> It; It; ++It)
 						{
