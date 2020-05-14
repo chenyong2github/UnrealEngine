@@ -747,7 +747,7 @@ enum class EFutureQueryResult
 class FRewindData
 {
 public:
-	FRewindData(int32 NumFrames)
+	FRewindData(int32 NumFrames, bool InResimOptimization)
 	: Managers(NumFrames+1)	//give 1 extra for saving at head
 	, CurFrame(0)
 	, LatestFrame(-1)
@@ -755,6 +755,7 @@ public:
 	, FramesSaved(0)
 	, DataIdxOffset(0)
 	, bNeedsSave(false)
+	, bResimOptimization(InResimOptimization)
 	{
 	}
 
@@ -893,7 +894,7 @@ public:
 
 	IResimCacheBase* GetCurrentStepResimCache() const
 	{
-		return Managers[CurFrame].ExternalResimCache.Get();
+		return bResimOptimization ? Managers[CurFrame].ExternalResimCache.Get() : nullptr;
 	}
 
 	template <typename CreateCache>
@@ -903,24 +904,32 @@ public:
 		Managers[CurFrame].DeltaTime = DeltaTime;
 		TUniquePtr<IResimCacheBase>& ResimCache = Managers[CurFrame].ExternalResimCache;
 
-		if(IsResim())
+		if(bResimOptimization)
 		{
-			if(ResimCache)
+			if(IsResim())
 			{
-				ResimCache->SetResimming(true);
+				if(ResimCache)
+				{
+					ResimCache->SetResimming(true);
+				}
+			}
+			else
+			{
+				if(ResimCache)
+				{
+					ResimCache->ResetCache();
+				} else
+				{
+					ResimCache = CreateCacheFunc();
+				}
+				ResimCache->SetResimming(false);
 			}
 		}
 		else
 		{
-			if(ResimCache)
-			{
-				ResimCache->ResetCache();
-			} else
-			{
-				ResimCache = CreateCacheFunc();
-			}
-			ResimCache->SetResimming(false);
+			ResimCache.Reset();
 		}
+		
 
 		FramesSaved = FMath::Min(FramesSaved+1,static_cast<int32>(Managers.Capacity()));
 		
@@ -1022,7 +1031,8 @@ public:
 			{
 				if(auto* Rigid = Info.GetPTParticle()->CastToRigidParticle())
 				{
-					if(Rigid->ResimType() == EResimType::ResimAsSlave)
+					const bool bSnapFromCache = bResimOptimization && Rigid->SyncState() == ESyncState::InSync;
+					if(Rigid->ResimType() == EResimType::ResimAsSlave || bSnapFromCache)
 					{
 						//Resim as slave means we snap everything as it was regardless of divergence
 						//We do this in FinishFrame and AdvanceFrame because the state must be preserved before and after
@@ -1187,18 +1197,25 @@ public:
 		const int32 DestDataIdx = SrcDataIdx + DataIdxOffset;
 
 		//during resim only full resim objects should modify future
-		if(bResim && Rigid.ResimType() != EResimType::FullResim)
+		if(bResim)
 		{
-			if(FindParticle(Rigid.UniqueIdx()) == nullptr)
+			if(Rigid.ResimType() != EResimType::FullResim)
 			{
-				//no history but collision moved/woke us up so snap back manually (if history exists we'll snap in FinishFrame
-				Rigid.SetP(Rigid.X());
-				Rigid.SetQ(Rigid.R());
-				Rigid.SetV(Rigid.PreV());
-				Rigid.SetW(Rigid.PreW());
+				if(FindParticle(Rigid.UniqueIdx()) == nullptr)
+				{
+					//no history but collision moved/woke us up so snap back manually (if history exists we'll snap in FinishFrame
+					Rigid.SetP(Rigid.X());
+					Rigid.SetQ(Rigid.R());
+					Rigid.SetV(Rigid.PreV());
+					Rigid.SetW(Rigid.PreW());
+				}
+				return;
 			}
-			
-			return;
+			else if(bResimOptimization && Rigid.SyncState() == ESyncState::InSync)
+			{
+				//fully in sync means no sim was done - don't write current intermediate values since we snap later anyway
+				return;
+			}
 		}
 
 		//todo: is this check needed? why do we pass sleeping rigids into this function?
@@ -1516,5 +1533,6 @@ private:
 	int32 FramesSaved;
 	int32 DataIdxOffset;
 	bool bNeedsSave;	//Indicates that some data is pointing at head and requires saving before a rewind
+	bool bResimOptimization;
 };
 }
