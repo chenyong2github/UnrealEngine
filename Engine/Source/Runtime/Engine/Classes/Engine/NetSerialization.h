@@ -31,6 +31,55 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("NetSerializeFast Array Delta Struct"), STAT_NetS
 extern ENGINE_API TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
 
 /**
+ * Helper to optionally serialize a value (using operator<< on Archive).
+ * A single signal bit is indicates whether to serialize, or whether to just use the default value.
+ * Returns true if the value was not the default and needed to be serialized.
+ */
+template<typename ValueType>
+bool SerializeOptionalValue(const bool bIsSaving, FArchive& Ar, ValueType& Value, const ValueType& DefaultValue)
+{
+	bool bNotDefault = (bIsSaving && (Value != DefaultValue));
+	Ar.SerializeBits(&bNotDefault, 1);
+	if (bNotDefault)
+	{
+		// Non-default value, need to save or load it.
+		Ar << Value;
+	}
+	else if (!bIsSaving)
+	{
+		// Loading, and should use default
+		Value = DefaultValue;
+	}
+
+	return bNotDefault;
+}
+
+/**
+ * Helper to optionally serialize a value (using the NetSerialize function).
+ * A single signal bit indicates whether to serialize, or whether to just use the default value.
+ * Returns true if the value was not the default and needed to be serialized.
+ */
+template<typename ValueType>
+bool NetSerializeOptionalValue(const bool bIsSaving, FArchive& Ar, ValueType& Value, const ValueType& DefaultValue, class UPackageMap* PackageMap)
+{
+	bool bNotDefault = (bIsSaving && (Value != DefaultValue));
+	Ar.SerializeBits(&bNotDefault, 1);
+	if (bNotDefault)
+	{
+		// Non-default value, need to save or load it.
+		bool bLocalSuccess = true;
+		Value.NetSerialize(Ar, PackageMap, bLocalSuccess);
+	}
+	else if (!bIsSaving)
+	{
+		// Loading, and should use default
+		Value = DefaultValue;
+	}
+
+	return bNotDefault;
+}
+
+/**
  *	===================== NetSerialize and NetDeltaSerialize customization. =====================
  *
  *	The main purpose of this file it to hold custom methods for NetSerialization and NetDeltaSerialization. A longer explanation on how this all works is
