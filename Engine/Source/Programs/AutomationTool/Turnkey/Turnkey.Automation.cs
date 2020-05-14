@@ -11,9 +11,14 @@ namespace Turnkey
 {
 	class Turnkey : BuildCommand
 	{
-		public override void ExecuteBuild()
+		public override ExitCode Execute()
 		{
-			TurnkeyUtils.Initialize(new ConsoleIOProvider(), this);
+			return Turnkey.Execute(new ConsoleIOProvider(), this);
+		}
+
+		public static AutomationTool.ExitCode Execute(IOProvider IOProvider, BuildCommand CommandUtilHelper)
+		{
+			TurnkeyUtils.Initialize(IOProvider, CommandUtilHelper);
 			TurnkeySettings.Initialize();
 
 			// cache some settings for other classes
@@ -28,7 +33,7 @@ namespace Turnkey
 				TurnkeyUtils.Log("");
 				TurnkeyUtils.Log("If you installed an SDK, you should NOT \"Terminate batch job\"!");
 				TurnkeyUtils.Log("");
-				Environment.ExitCode = 0;
+				TurnkeyUtils.ExitCode = ExitCode.Success;
 			};
 
 			try
@@ -57,12 +62,7 @@ namespace Turnkey
 				TurnkeyUtils.CleanupPaths();
 			}
 
-			if (Environment.ExitCode != 0)
-			{
-				// @todo turnkey - would be nice to return a failure, without an exception in UAT, which looks violent
-				AutomationTool.ExitCode ExitCode = (AutomationTool.ExitCode)Environment.ExitCode;
-				throw new AutomationException(ExitCode, ExitCode.ToString());
-			}
+			return TurnkeyUtils.ExitCode;
 		}
 	}
 }

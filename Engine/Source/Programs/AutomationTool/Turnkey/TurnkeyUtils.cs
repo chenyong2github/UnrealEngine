@@ -16,11 +16,16 @@ namespace Turnkey
 		// object that commands, etc can use to access UAT functionality
 		static public BuildCommand CommandUtilHelper;
 
+		// replacement for Environment.ExitCode
+		static public AutomationTool.ExitCode ExitCode = ExitCode.Success;
+
 		static private IOProvider IOProvider;
 		static public void Initialize(IOProvider InIOProvider, BuildCommand InCommandUtilHelper)
 		{
 			IOProvider = InIOProvider;
 			CommandUtilHelper = InCommandUtilHelper;
+
+			SetVariable("HOST_PLATFORM_NAME", HostPlatform.Current.HostEditorPlatform.ToString());
 		}
 
 		static Dictionary<string, string> TurnkeyVariables = new Dictionary<string, string>();
@@ -83,11 +88,18 @@ namespace Turnkey
 		public static List<UnrealTargetPlatform> GetPlatformsFromCommandLineOrUser(string[] CommandOptions, List<UnrealTargetPlatform> PossiblePlatforms)
 		{
 			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
+			bool bUnattended = TurnkeyUtils.ParseParam("Unattended", CommandOptions);
 
 			List<UnrealTargetPlatform> Platforms = new List<UnrealTargetPlatform>();
 			// prompt user for a platform
 			if (PlatformString == null)
 			{
+				if (bUnattended)
+				{
+					// can't ask
+					return null;
+				}
+
 				List<string> PlatformOptions = PossiblePlatforms.ConvertAll(x => x.ToString());
 				PlatformOptions.Add("All of the Above");
 				int PlatformChoice = TurnkeyUtils.ReadInputInt("Choose a platform:", PlatformOptions, true);
@@ -132,6 +144,45 @@ namespace Turnkey
 			}
 
 			return Platforms;
+		}
+
+		public static DeviceInfo GetDeviceFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)
+		{
+			string DeviceName = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
+
+			AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.Platforms[new TargetPlatformDescriptor(Platform)];
+			
+			if (DeviceName == null)
+			{
+				List<string> Options = new List<string>();
+				// @todo turnkey: filter devices that have valid flash versions
+				//				DeviceInfo[] PossibleDevices = Array.FindAll(AutomationPlatform.GetDevices(), x => TurnkeyUtils.IsValueValid(x.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions()));
+				DeviceInfo[] PossibleDevices = AutomationPlatform.GetDevices();
+				if (PossibleDevices == null)
+				{
+					return null;
+				}
+
+				foreach (DeviceInfo Device in PossibleDevices)
+				{
+					Options.Add(string.Format("[{0} {1}] {2}", Platform, Device.Type, Device.Name));
+				}
+
+				// get the choice
+				int Choice = TurnkeyUtils.ReadInputInt("Select the number of a device to flash:", Options, true);
+
+				if (Choice == 0)
+				{
+					return null;
+				}
+
+				// get the name of the device chosen
+				DeviceName = PossibleDevices[Choice - 1].Name;
+			}
+
+			// get device info of the chosen or supplied device
+			DeviceInfo InstallDevice = Array.Find(AutomationPlatform.GetDevices(), x => string.Compare(x.Name, DeviceName, true) == 0);
+			return InstallDevice;
 		}
 
 

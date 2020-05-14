@@ -39,6 +39,8 @@
     <Compile Include="..\..\DotNETCommon\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
+    <Compile Include="BuildInfo.cs" />
+    <Compile Include="Commands\InstallBuild.cs" />
     <Compile Include="Commands\InstallSdk.cs" />
     <Compile Include="Commands\ListPlatforms.cs" />
     <Compile Include="Commands\ListSdks.cs" />
@@ -61,10 +63,6 @@
     <Compile Include="TurnkeyUtils.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Restricted\NotForLicensees\Source\Programs\AutomationTool\GauntletExtras\GauntletExtras.Automation.csproj">
-      <Project>{ad48925a-1c54-46fd-8a4f-45d87115e18d}</Project>
-      <Name>GauntletExtras.Automation</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj">
       <Project>{5d7d66e8-8c76-4af9-b3ec-2ef03421d730}</Project>
       <Name>DotNETUtilities</Name>
@@ -79,6 +77,10 @@
       <Project>{2c96a7f2-b1a3-4258-8e0a-e588ff41a53e}</Project>
       <Name>AutomationUtils.Automation</Name>
       <Private>False</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Gauntlet\Gauntlet.Automation.csproj">
+      <Project>{767b4f85-ab56-4b00-a033-04c7600acc3d}</Project>
+      <Name>Gauntlet.Automation</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

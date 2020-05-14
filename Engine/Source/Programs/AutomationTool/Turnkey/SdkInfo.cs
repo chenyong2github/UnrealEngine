@@ -15,6 +15,7 @@ namespace Turnkey
 		public enum SdkType
 		{
 			BuildOnly,
+			AutoSdk,
 			RunOnly,
 			Full,
 			Flash,
@@ -34,6 +35,7 @@ namespace Turnkey
 		public string CustomSdkId = null;
 		public string CustomSdkParams = null;
 		public CopyAndRun[] CustomSdkInputFiles = null;
+		public CopyAndRun[] Expansion = null;
 
 		[XmlIgnore]
 		// if there are custom files, we copy them once, then cache the location for $(CustomSdkInputFiles) on a later execution
@@ -45,44 +47,48 @@ namespace Turnkey
 		[XmlIgnore]
 		private Dictionary<UnrealTargetPlatform, AutomationTool.Platform> AutomationPlatforms;
 
-// 		private SdkInfo CloneForQuickSwitch(string LocalDirectoryForCopy)
-// 		{
-// 			SdkInfo Clone = new SdkInfo();
-// 			Clone.PlatformString = PlatformString;
-// 			Clone.Version = Version;
-// 			Clone.DisplayName = DisplayName;
-// 			Clone.AllowedFlashDeviceTypes = AllowedFlashDeviceTypes;
-// 			Clone.CustomSdkId = CustomSdkId;
-// 			Clone.CustomSdkParams = CustomSdkParams;
-// 			Clone.PlatformString = PlatformString;
-// 
-// 			Clone.Type = SdkType.QuickSwitch;
-// 
-// 			if (Installers != null)
-// 			{
-// 				List<CopyAndRun> NewInstallers = new List<CopyAndRun>();
-// 				foreach (CopyAndRun Installer in Installers)
-// 				{
-// 					// if we want to execute the installer, then copy it over
-// 					if (Installer.ShouldExecute())
-// 					{
-// 						CopyAndRun NewInstaller = new CopyAndRun(Installer);
-// 
-// 						// the downloaded location will be the location to install from later. if we blanked this out, the CopyOutputPath variable wouldn't get set appropriately
-// 						NewInstaller.Copy = "file:" + LocalDirectoryForCopy;
-// 						NewInstallers.Add(NewInstaller);
-// 					}
-// 				}
-// 				Clone.Installers = NewInstallers.ToArray();
-// 			}
-// 
-// 			if (CustomSdkInputFiles != null)
-// 			{
-// 				throw new AutomationException("CustomSdkInputFiles are not supported yet for QuickSwitch Sdks");
-// 			}
-// 
-// 			return Clone;
-// 		}
+		public SdkInfo CloneForExpansion()
+		{
+			SdkInfo Clone = new SdkInfo();
+			Clone.PlatformString = PlatformString;
+			Clone.Version = Version;
+			Clone.DisplayName = DisplayName;
+			Clone.AllowedFlashDeviceTypes = AllowedFlashDeviceTypes;
+			Clone.CustomSdkId = CustomSdkId;
+			Clone.CustomSdkParams = CustomSdkParams;
+			Clone.Type = Type;
+
+			if (Installers != null)
+			{
+				List<CopyAndRun> NewInstallers = new List<CopyAndRun>();
+				foreach (CopyAndRun Installer in Installers)
+				{
+					// if we want to execute the installer, then copy it over
+					if (Installer.ShouldExecute())
+					{
+						NewInstallers.Add(new CopyAndRun(Installer));
+					}
+				}
+				Clone.Installers = NewInstallers.ToArray();
+			}
+			if (CustomSdkInputFiles != null)
+			{
+				List<CopyAndRun> NewInstallers = new List<CopyAndRun>();
+				foreach (CopyAndRun Installer in CustomSdkInputFiles)
+				{
+					// if we want to execute the installer, then copy it over
+					if (Installer.ShouldExecute())
+					{
+						NewInstallers.Add(new CopyAndRun(Installer));
+					}
+				}
+				Clone.CustomSdkInputFiles = NewInstallers.ToArray();
+			}
+
+			Clone.PostDeserialize();
+
+			return Clone;
+		}
 
 		#endregion
 
@@ -91,6 +97,96 @@ namespace Turnkey
 		{
 			"Project",
 		};
+
+
+		[Flags]
+		public enum LocalAvailability
+		{
+			None = 0,
+			AutoSdk_VariableExists = 1,
+			AutoSdk_PlatformExists = 2,
+			// InstalledSdk_BuildOnlyWasInstalled = 4,
+			InstalledSdk_ValidVersionExists = 8,
+			InstalledSdk_InvalidVersionExists = 16,
+		}
+
+		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform)
+		{
+			LocalAvailability Result = LocalAvailability.None;
+
+			// if we have the variable at all, 
+			string AutoSdkVar = Environment.GetEnvironmentVariable("UE_SDKS_ROOT");
+			if (AutoSdkVar != null)
+			{
+				Result |= LocalAvailability.AutoSdk_VariableExists;
+
+				// get platform subdirectory
+				string AutoSubdir = string.Format("Host{0}/{1}", HostPlatform.Current.HostEditorPlatform.ToString(), AutomationPlatform.GetAutoSdkPlatformName());
+				DirectoryInfo PlatformDir = new DirectoryInfo(Path.Combine(AutoSdkVar, AutoSubdir));
+				if (PlatformDir.Exists)
+				{
+					foreach (DirectoryInfo Dir in PlatformDir.EnumerateDirectories())
+					{
+						// check for valid version number
+						if (TurnkeyUtils.IsValueValid(Dir.Name, AutomationPlatform.GetAllowedSdks()))
+						{
+							// make sure it actually has bits in it
+							if (File.Exists(Path.Combine(Dir.FullName, "setup.bat")))
+							{
+								Result |= LocalAvailability.AutoSdk_PlatformExists;
+							}
+							break;
+						}
+					}
+				}
+			}
+
+			// if anything is installed, this will return a value
+			string InstalledVersion = AutomationPlatform.GetInstalledSdk();
+			if (!string.IsNullOrEmpty(InstalledVersion))
+			{
+				if (TurnkeyUtils.IsValueValid(InstalledVersion, AutomationPlatform.GetAllowedSdks()))
+				{
+					Result |= LocalAvailability.InstalledSdk_ValidVersionExists;
+				}
+				else
+				{
+					Result |= LocalAvailability.InstalledSdk_InvalidVersionExists;
+				}
+			}
+
+
+			return Result;
+		}
+
+		static public List<SdkInfo> FindMatchingSdks(AutomationTool.Platform Platform, SdkType Type, bool bSelectSingleBest)
+		{
+
+			List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks().FindAll(x => 
+				x.SupportsPlatform(Platform.IniPlatformType) && 
+				x.Type == Type && 
+				TurnkeyUtils.IsValueValid(x.Version, Platform.GetAllowedSdks())
+				);
+
+			// handle easy cases
+			if (Sdks.Count <= 1 || !bSelectSingleBest)
+			{
+				return Sdks;
+			}
+
+			// find best one
+			SdkInfo Best = null;
+			foreach (SdkInfo Sdk in Sdks)
+			{
+				// @todo turnkey: let platform decide what's best
+				if (Best == null || string.Compare(Sdk.Version, Best.Version, true) > 0)
+				{
+					Best = Sdk;
+				}
+			}
+
+			return new List<SdkInfo> { Best };
+		}
 
 
 
@@ -230,6 +326,24 @@ namespace Turnkey
 			// custom sdk installation is enabled if ChosenSdk.CustomVersionId is !null
 			if (CustomSdkId != null)
 			{
+				// copy files down, which are needed to check if whatever is installed is up to date (only do it once)
+				if (CustomVersionLocalFiles == null && CustomSdkInputFiles != null)
+				{
+					foreach (CopyAndRun CustomCopy in CustomSdkInputFiles)
+					{
+						if (CustomCopy.ShouldExecute())
+						{
+							if (CustomVersionLocalFiles != null)
+							{
+								throw new AutomationTool.AutomationException("CustomSdkInputFiles specified multiple locations to be copied for this platform, which is not supported (only one value of $(CustomVersionLocalFiles) allowed)");
+							}
+
+							CustomCopy.Execute();
+							CustomVersionLocalFiles = TurnkeyUtils.GetVariableValue("CopyOutputPath");
+						}
+					}
+				}
+
 				// in case the custom sdk modifies global env vars, make sure we capture them
 				TurnkeyUtils.StartTrackingExternalEnvVarChanges();
 
@@ -241,49 +355,52 @@ namespace Turnkey
 			}
 
 			// now run any installers
-			foreach (CopyAndRun Install in Installers)
+			if (Installers != null)
 			{
-				if (Type == SdkType.BuildOnly)
+				foreach (CopyAndRun Install in Installers)
 				{
-					// download subdir is based on platform 
-					string SubDir = string.Format("{0}/{1}", Platform.ToString(), Version);
-					Install.Execute(CopyExecuteSpecialMode.UsePermanentStorage, SubDir);
+					if (Type == SdkType.BuildOnly)
+					{
+						// download subdir is based on platform 
+						string SubDir = string.Format("{0}/{1}", Platform.ToString(), Version);
+						Install.Execute(CopyExecuteSpecialMode.UsePermanentStorage, SubDir);
 
-// 					// now that we are copied, write out a manifest to the root of the output location for later quick switching,
-// 					// and not continue to install anything
-// 					string ManifestPath = TurnkeyUtils.GetVariableValue("CopyOutputPath");
-// 
-// 					// if it's a file, then get it's directory
-// 					if (File.Exists(ManifestPath))
-// 					{
-// 						ManifestPath = Path.GetDirectoryName(ManifestPath);
-// 					}
-// 					Directory.CreateDirectory(ManifestPath);
-// 					ManifestPath = Path.Combine(ManifestPath, "TurnkeyQuickSwitch.xml");
-// 
-// 					// if the manifest already existed as downloaded, then there's no need to make one, we assume it was correct
-// 					if (!File.Exists(ManifestPath))
-// 					{
-// 						TurnkeyManifest QuickSwitchManifest = new TurnkeyManifest();
-// 
-// 						// copy this Sdk to a new one
-// 						SdkInfo NewSdk = CloneForQuickSwitch(Path.GetDirectoryName(ManifestPath));
-// 						QuickSwitchManifest.SdkInfos = new SdkInfo[] { NewSdk };
-// 
-// 						// register the Sdk with th runtime so that we can install it without quitting
-// 						TurnkeyManifest.AddCreatedSdk(NewSdk);
-// 
-// 						// save out a single switch manifest
-// 						QuickSwitchManifest.Write(ManifestPath);
-//					}
+						// 					// now that we are copied, write out a manifest to the root of the output location for later quick switching,
+						// 					// and not continue to install anything
+						// 					string ManifestPath = TurnkeyUtils.GetVariableValue("CopyOutputPath");
+						// 
+						// 					// if it's a file, then get it's directory
+						// 					if (File.Exists(ManifestPath))
+						// 					{
+						// 						ManifestPath = Path.GetDirectoryName(ManifestPath);
+						// 					}
+						// 					Directory.CreateDirectory(ManifestPath);
+						// 					ManifestPath = Path.Combine(ManifestPath, "TurnkeyQuickSwitch.xml");
+						// 
+						// 					// if the manifest already existed as downloaded, then there's no need to make one, we assume it was correct
+						// 					if (!File.Exists(ManifestPath))
+						// 					{
+						// 						TurnkeyManifest QuickSwitchManifest = new TurnkeyManifest();
+						// 
+						// 						// copy this Sdk to a new one
+						// 						SdkInfo NewSdk = CloneForQuickSwitch(Path.GetDirectoryName(ManifestPath));
+						// 						QuickSwitchManifest.SdkInfos = new SdkInfo[] { NewSdk };
+						// 
+						// 						// register the Sdk with th runtime so that we can install it without quitting
+						// 						TurnkeyManifest.AddCreatedSdk(NewSdk);
+						// 
+						// 						// save out a single switch manifest
+						// 						QuickSwitchManifest.Write(ManifestPath);
+						//					}
+					}
+					else
+					{
+						Install.Execute();
+					}
+
+					// grab where the Install copied the files
+
 				}
-				else
-				{
-					Install.Execute();
-				}
-
-				// grab where the Install copied the files
-
 			}
 		}
 
@@ -340,6 +457,7 @@ namespace Turnkey
 				{
 					foreach (CopyAndRun CustomInput in CustomSdkInputFiles)
 					{
+						bContainsVar = bContainsVar || (CustomInput.Copy != null && CustomInput.Copy.Contains(Format));
 						bContainsVar = bContainsVar || (CustomInput.CommandPath != null && CustomInput.CommandPath.Contains(Format));
 						bContainsVar = bContainsVar || (CustomInput.CommandLine != null && CustomInput.CommandLine.Contains(Format));
 					}
@@ -349,6 +467,7 @@ namespace Turnkey
 			{
 				foreach (CopyAndRun Installer in Installers)
 				{
+					bContainsVar = bContainsVar || (Installer.Copy != null && Installer.Copy.Contains(Format));
 					bContainsVar = bContainsVar || (Installer.CommandPath != null && Installer.CommandPath.Contains(Format));
 					bContainsVar = bContainsVar || (Installer.CommandLine != null && Installer.CommandLine.Contains(Format));
 				}
@@ -365,9 +484,10 @@ namespace Turnkey
 			// validate
 			if (Version == null && CustomSdkId == null)
 			{
-				throw new AutomationTool.AutomationException("SdkInfo {0} needs to have either Version or CustomSdkId specified");
+				throw new AutomationTool.AutomationException("SdkInfo {0} needs to have either Version or CustomSdkId specified", DisplayName);
 			}
 
+			PlatformString = TurnkeyUtils.ExpandVariables(PlatformString, true);
 			string[] PlatformStrings = PlatformString.Split(",".ToCharArray());
 			Platforms = new List<UnrealTargetPlatform>();
 			AutomationPlatforms = new Dictionary<UnrealTargetPlatform, Platform>();
@@ -382,6 +502,12 @@ namespace Turnkey
 				}
 			}
 
+			Version = TurnkeyUtils.ExpandVariables(Version, true);
+			DisplayName = TurnkeyUtils.ExpandVariables(DisplayName, true);
+			AllowedFlashDeviceTypes = TurnkeyUtils.ExpandVariables(AllowedFlashDeviceTypes, true);
+			CustomSdkId = TurnkeyUtils.ExpandVariables(CustomSdkId, true);
+			CustomSdkParams = TurnkeyUtils.ExpandVariables(CustomSdkParams, true);
+
 			if (CustomSdkInputFiles != null)
 			{
 				Array.ForEach(CustomSdkInputFiles, x => x.PostDeserialize());
@@ -390,6 +516,14 @@ namespace Turnkey
 			if (Installers != null)
 			{
 				Array.ForEach(Installers, x => x.PostDeserialize());
+			}
+
+			if (Expansion != null)
+			{
+				Array.ForEach(Expansion, x => x.PostDeserialize());
+
+				// remove installers that don't match this host platform
+				Expansion = Array.FindAll(Expansion, x => x.ShouldExecute());
 			}
 		}
 

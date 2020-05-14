@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Tools.DotNETCommon;
 using AutomationTool;
 using System.Text.RegularExpressions;
+using System.IO;
 
 namespace Turnkey
 {
@@ -23,19 +22,13 @@ namespace Turnkey
 
 
 			// calculate the output path
-			string OutputPath = Operation.Replace(ConnectedStream, PerforceClient.RootPath);
-			// find the first wildcard and that's the lowest down outputpath we can use
-			int DotsLocation = OutputPath.IndexOf("...");
-			int StarLocation = OutputPath.IndexOf("*");
-			// hjandle various combos of -1 and non -1
-			int WildcardLocation = (DotsLocation >= 0 && StarLocation >= 0) ? Math.Min(DotsLocation, StarLocation) : Math.Max(DotsLocation, StarLocation);
-			if (WildcardLocation != -1)
-			{
-				// chop down to the last / before the wildcard
-				int LastSlashLocation = OutputPath.Substring(0, WildcardLocation).LastIndexOf("/");
-				OutputPath = OutputPath.Substring(0, LastSlashLocation);
-			}
-			OutputPath.Replace('/', System.IO.Path.DirectorySeparatorChar);
+			// @todo turnkey: use p4 where, because a depot mapping could be strange and make this invlalid
+			string OutputPath = Operation.Replace(ConnectedRoot, PerforceClient.RootPath);
+
+			// turn //a/b/c/foo*/... to //a/b/c
+			OutputPath = GetDirectoryBeforeWildcard(OutputPath);
+
+			OutputPath = OutputPath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
 
 			TurnkeyUtils.Log("Syncing '{0}' to '{1}'", Operation, OutputPath);
 
@@ -45,7 +38,7 @@ namespace Turnkey
 			return OutputPath;
 		}
 
-		public override string[] Enumerate(string Operation)
+		public override string[] Enumerate(string Operation, List<List<string>> Expansions)
 		{
 			// if we have no wildcards, there's no need to waste time touching p4, just return the spec
 			if (!Operation.Contains("*") && !Operation.Contains("..."))
@@ -62,16 +55,53 @@ namespace Turnkey
 			// now get the file list that matches
 			List<string> Results = PerforceConnection.Files(Operation);
 
+			if (Expansions != null)
+			{
+				// figure out what the *'s turned into
+				Regex Expression = new Regex(Operation.Replace("/", "\\/").Replace("*", "([^\\/]*)").Replace("...", ".*"));
+
+				// run the regex on each result
+				foreach (string Result in Results)
+				{
+					List<string> ResultExpansions = new List<string>();
+					Expansions.Add(ResultExpansions);
+
+					Match ResultMatch = Expression.Match(Result);
+					for (int Index = 1; Index < ResultMatch.Groups.Count; Index++)
+					{
+						ResultExpansions.Add(ResultMatch.Groups[Index].Value);
+					}
+				}
+			}
+
 			return Results.Select(x => ProviderToken + ":" + x).ToArray();
 		}
 
 
 
 
+		private string GetDirectoryBeforeWildcard(string Input)
+		{
+			// find the first wildcard and that's the lowest down outputpath we can use
+			int DotsLocation = Input.IndexOf("...");
+			int StarLocation = Input.IndexOf("*");
+			// hjandle various combos of -1 and non -1
+			int WildcardLocation = (DotsLocation >= 0 && StarLocation >= 0) ? Math.Min(DotsLocation, StarLocation) : Math.Max(DotsLocation, StarLocation);
+			if (WildcardLocation != -1)
+			{
+				// chop down to the last / before the wildcard
+				int LastSlashLocation = Input.Substring(0, WildcardLocation).Replace("\\", "/").LastIndexOf("/");
+				Input = Input.Substring(0, LastSlashLocation);
+			}
+
+			return Input;
+		}
+
+
 		static private P4Connection PerforceConnection = null;
 		static private P4ClientInfo PerforceClient = null;
 		// only non-null if we are connected
-		static private string ConnectedStream = null;
+		static private string ConnectedRoot = null;
 
 		private P4ClientInfo DetectClientForStream(string Stream, string Username, string Hostname)
 		{
@@ -92,6 +122,74 @@ namespace Turnkey
 			return null;
 		}
 
+		private P4ClientInfo CanClientHandleOperation(string ClientName, string Operation, string Hostname)
+		{
+			// make sure the Operation can be supported by the client (Tokens[1] is the clientspec name)
+			IProcessResult P4Result = PerforceConnection.P4(string.Format("-c {0} where {1}", ClientName, Operation), AllowSpew: false, WithClient: false);
+
+			if (P4Result.ExitCode == 0)
+			{
+				// sadly, this doesn't set an ExitCode, so we have to look at output
+				if (!P4Result.Output.Trim().EndsWith("not in client view."))
+				{
+					P4ClientInfo ClientInfo = PerforceConnection.GetClientInfo(ClientName, true);
+					// make sure it's usable on this computer
+					if (string.IsNullOrEmpty(ClientInfo.Host) || string.Compare(ClientInfo.Host, Hostname) == 0)
+					{
+						return ClientInfo;
+					}
+				}
+			}
+
+			return null;
+		}
+
+		private P4ClientInfo DetectClientForDepot(string Operation, string Username, string Hostname)
+		{
+			// use the bits up to a wildcard
+			Operation = GetDirectoryBeforeWildcard(Operation);
+
+			P4ClientInfo Client;
+			if (TurnkeySettings.HasSetUserSetting("User_LastPerforceClient"))
+			{
+				Client = CanClientHandleOperation(TurnkeySettings.GetUserSetting("User_LastPerforceClient"), Operation, Hostname);
+				if (Client != null)
+				{
+					return Client;
+				}
+			}
+
+			// Get all clients for this user
+			string P4Command = String.Format("clients -u {0}", Username);
+
+			var P4Result = PerforceConnection.P4(string.Format("clients -u {0}", Username), AllowSpew: false, WithClient: false);
+			if (P4Result.ExitCode != 0)
+			{
+				return null;
+			}
+
+			// Parse output.
+			var Lines = P4Result.Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+			foreach (string Line in Lines)
+			{
+				var Tokens = Line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+				if (Tokens[0] == "Client")
+				{
+					Client = CanClientHandleOperation(Tokens[1], Operation, Hostname);
+					if (Client != null)
+					{
+						// remember this for next time
+						TurnkeySettings.SetUserSetting("User_LastPerforceClient", Tokens[1]);
+
+						return Client;
+					}
+				}
+			}
+
+			// if no clients at all, return null
+			return null;
+		}
+
 		private bool PrepareForOperation(string Operation)
 		{
 			Match StreamMatch = new Regex(@"(\/\/\w*\/\w*)\/.*").Match(Operation);
@@ -100,19 +198,32 @@ namespace Turnkey
 				throw new AutomationException("Unable to find stream spec in perforce operation {0}", Operation);
 			}
 
-			string Stream = StreamMatch.Groups[1].ToString();
+			string SpecRoot = StreamMatch.Groups[1].ToString();
+			string DepotName = SpecRoot.Substring(0, SpecRoot.LastIndexOf('/'));
 			string Hostname = System.Net.Dns.GetHostName();
 
-			TurnkeyUtils.Log("Stream: {0}", Stream);
-
-			if (ConnectedStream != Stream || PerforceConnection == null)
+			// @todo turnkey - for depot types, we can't totally safely check DepotName, we need to make sure the recent Client can handle the Operation - which we could with tricky View parsing
+			if (ConnectedRoot != SpecRoot || PerforceConnection == null)
 			{
+				TurnkeyUtils.Log("Finding clientspec usable with {0}...", Operation);
+
 				PerforceConnection = new P4Connection(null, null);
 				string Username = P4Environment.DetectUserName(PerforceConnection);
-				PerforceClient = DetectClientForStream(Stream, Username, Hostname);
-				if (PerforceClient == null)
+
+				// make sure it's a stream
+				var P4Result = PerforceConnection.P4("stream -o " + SpecRoot, AllowSpew: false);
+				bool bIsStream = P4Result.ExitCode == 0;
+
+				// hunt down a client that can be used
+				PerforceClient = bIsStream ? DetectClientForStream(SpecRoot, Username, Hostname) : DetectClientForDepot(Operation, Username, Hostname);
+
+				if (PerforceClient != null)
 				{
-					TurnkeyUtils.Log("Unable to find a clientspec for the perforce stream {0}", Stream);
+					TurnkeyUtils.Log("Using client {0}", PerforceClient.Name);
+				}
+				else
+				{
+					TurnkeyUtils.Log("Unable to find a clientspec for the perforce operation {0}, looking for a depot client", Operation);
 
 					string Response = TurnkeyUtils.ReadInput("Would you like to create one? [y/N]", "N");
 					if (string.Compare(Response, "Y", true) != 0)
@@ -127,7 +238,7 @@ namespace Turnkey
 					string ClientName = TurnkeyUtils.ReadInput("Enter clientspec name:", string.Format("{0}_sdks", Username));
 
 					// get local pathname
-					string LocalPath = TurnkeyUtils.ReadInput("Enter local path:", @"C:\Sdks");
+					string LocalPath = TurnkeyUtils.ReadInput(string.Format("Enter where to map {0} on your computer:", bIsStream ? SpecRoot : DepotName), @"D:\Sdks");
 
 					// create a client from the input settings
 					P4ClientInfo NewClient = new P4ClientInfo();
@@ -135,7 +246,18 @@ namespace Turnkey
 					NewClient.Owner = Username;
 					NewClient.Host = Hostname;
 					NewClient.RootPath = LocalPath;
-					NewClient.Stream = Stream;
+					// @todo turnkey handle depot type :|
+					if (bIsStream)
+					{
+						NewClient.Stream = SpecRoot;
+					}
+					else
+					{
+						// set up mapping
+						string DepotPath = SpecRoot + "/...";
+						string ClientPath = DepotPath.Replace("//" + DepotName + "/", "//" + ClientName + "/");
+						NewClient.View.Add(new KeyValuePair<string, string>(DepotPath, ClientPath));
+					}
 
 					PerforceClient = PerforceConnection.CreateClient(NewClient);
 				}
@@ -151,7 +273,7 @@ namespace Turnkey
 
 				// @todo turnkey: how to check that for errors?
 
-				ConnectedStream = Stream;
+				ConnectedRoot = bIsStream ? SpecRoot : DepotName;
 			}
 
 			return true;

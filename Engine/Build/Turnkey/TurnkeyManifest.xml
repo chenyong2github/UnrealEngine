@@ -3,7 +3,6 @@
 	<AdditionalManifests>
 		<Manifest>$(ThisManifestDir)/StudioTurnkeyManifest.xml</Manifest>
 		<Manifest>file:$(EngineDir)/Restricted/NoRedist/Build/Turnkey/TurnkeyManifest.xml</Manifest>
-		<Manifest>file:$(UE_SDKS_ROOT)/TurnkeyManifest.xml</Manifest>
 		<Manifest>$(UE_STUDIO_TURNKEY_LOCATION)</Manifest>
 	</AdditionalManifests>
 </TurnkeyManifest>

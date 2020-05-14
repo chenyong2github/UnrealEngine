@@ -35,6 +35,7 @@ namespace Turnkey
 		public static UserSetting[] AllUserSettings = 
 		{
 			new UserSetting("User_QuickSwitchSdkLocation", null, "Location for downloaded Sdks to be stored (currently just for Google Drive, perforce will sync per clientspec)"),
+			new UserSetting("User_LastPerforceClient", null, "Perforce depot clientspec to look at first for finding matching clientspecs. Will be set automatically when one is found, but this can be used to force a particular client"),
 		};
 
 		// basically same as Turnkey variables, but this only contains ones that were loaded so we can write them back out `

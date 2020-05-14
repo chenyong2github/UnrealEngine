@@ -13,7 +13,7 @@ namespace Turnkey
 
 
 		private static DriveServiceHelper ServiceHelper = null;
-		private Dictionary<string, Google.Apis.Drive.v3.Data.File> PathToFileCache = new Dictionary<string, Google.Apis.Drive.v3.Data.File>();
+		private Dictionary<string, Google.Apis.Drive.v3.Data.File> PathToFileCache;// = new Dictionary<string, Google.Apis.Drive.v3.Data.File>();
 
 
 		public override string Execute(string Operation, CopyExecuteSpecialMode SpecialMode, string SpecialModeHint)
@@ -41,12 +41,12 @@ namespace Turnkey
 				int PrevSlash = Operation.LastIndexOf('/', StarLocation);
 				PathBeforeFirstStar = Operation.Substring(0, PrevSlash + 1);
 
-				Dictionary<string, Google.Apis.Drive.v3.Data.File> Output = new Dictionary<string, Google.Apis.Drive.v3.Data.File>();
-				ExpandWildcards("", Operation, Output);
+				Dictionary<string, Tuple<Google.Apis.Drive.v3.Data.File, List<string>>> Output = new Dictionary<string, Tuple<Google.Apis.Drive.v3.Data.File, List<string>>>();
+				ExpandWildcards("", Operation, Output, null);
 
 				foreach (var Pair in Output)
 				{
-					IdsToCopyToFilename.Add(Pair.Value, Pair.Key.Replace(PathBeforeFirstStar, ""));
+					IdsToCopyToFilename.Add(Pair.Value.Item1, Pair.Key.Replace(PathBeforeFirstStar, ""));
 				}
 			}
 			else
@@ -144,7 +144,7 @@ namespace Turnkey
 		}
 
 
-		public override string[] Enumerate(string Operation)
+		public override string[] Enumerate(string Operation, List<List<string>> Expansions)
 		{
 			// if we have no wildcards, there's no need to waste time touching google drive, just return the spec
 			if (!Operation.Contains("*"))
@@ -157,35 +157,40 @@ namespace Turnkey
 				return null;
 			}
 
-			Dictionary<string, Google.Apis.Drive.v3.Data.File> Output = new Dictionary<string, Google.Apis.Drive.v3.Data.File>();
+			Dictionary<string, Tuple<Google.Apis.Drive.v3.Data.File, List<string>>> Output = new Dictionary<string, Tuple<Google.Apis.Drive.v3.Data.File, List<string>>>();
 
-			ExpandWildcards("", Operation, Output);
+			List<string> ExpansionSet = new List<string>();
+			ExpandWildcards("", Operation, Output, ExpansionSet);
 
 			// convert them into a nicer-for-Turnkey "'ParentId'/Filename" format
 			List<string> FixedPaths = new List<string>();
 			foreach (var Pair in Output)
 			{
-				if (Pair.Value.Parents.Count != 1)
+				if (Pair.Value.Item1.Parents.Count != 1)
 				{
 					TurnkeyUtils.Log("File {0} did not have 1 parent as expected. GoogleDriveCopyProvider.ExpandWildcards will probably have to change to remember the parent for each object as it goes down");
 					continue;
 				}
 
-				string FixedPath = string.Format("'{0}'/{1}", Pair.Value.Parents[0], Pair.Value.Name);
+				string FixedPath = string.Format("'{0}'/{1}", Pair.Value.Item1.Parents[0], Pair.Value.Item1.Name);
 
 				// cache this new path for faster Execute, etc
 				if (!PathToFileCache.ContainsKey(FixedPath))
 				{
-					PathToFileCache.Add(FixedPath, Pair.Value);
+					PathToFileCache.Add(FixedPath, Pair.Value.Item1);
 				}
 
 				// if it's a directory, then append a slash
-				if (Pair.Value.MimeType == MIMETypes.GoogleDriveFolder.ToMimeString())
+				if (Pair.Value.Item1.MimeType == MIMETypes.GoogleDriveFolder.ToMimeString())
 				{
 					FixedPath += "/";
 				}
 
 				FixedPaths.Add(ProviderToken + ":" + FixedPath);
+				if (Expansions != null)
+				{
+					Expansions.Add(Pair.Value.Item2);
+				}
 			}
 
 			return FixedPaths.ToArray();
@@ -224,6 +229,8 @@ namespace Turnkey
 				}
 
 				ServiceHelper = new DriveServiceHelper("Quickstart", SecretsFile, Path.GetDirectoryName(SecretsFile));
+
+				PathToFileCache = new Dictionary<string, Google.Apis.Drive.v3.Data.File>();
 			}
 
 			return true;
@@ -393,7 +400,7 @@ namespace Turnkey
 			}
 		}
 
-		private void ExpandWildcards(string Prefix, string PathString, Dictionary<string, Google.Apis.Drive.v3.Data.File> Output)
+		private void ExpandWildcards(string Prefix, string PathString, Dictionary<string, Tuple<Google.Apis.Drive.v3.Data.File, List<string>>> Output, List<string> ExpansionSet)
 		{
 			char Slash = '/';
 
@@ -407,7 +414,7 @@ namespace Turnkey
 				Google.Apis.Drive.v3.Data.File FinalFile = GetFileForPath(Prefix + PathString);
 				if (FinalFile != null)
 				{
-					Output.Add(Prefix + PathString, FinalFile);
+					Output.Add(Prefix + PathString, new Tuple<Google.Apis.Drive.v3.Data.File, List<string>>(FinalFile, ExpansionSet));
 				}
 				return;
 			}
@@ -441,8 +448,9 @@ namespace Turnkey
 				{
 					Match = Wildcard.Substring(1);
 					// we can only do contains, not endswith, but it will reduce the results
-					Query += string.Format(" and name contains '{0}'", Match);
+//					Query += string.Format(" and name contains '{0}'", Match);
 				}
+
 				List<Google.Apis.Drive.v3.Data.File> Results = ServiceHelper.SearchFiles(Query);
 
 				foreach (Google.Apis.Drive.v3.Data.File Result in Results)
@@ -451,6 +459,14 @@ namespace Turnkey
 					if (!Result.Name.EndsWith(Match))
 					{
 						continue;
+					}
+
+					List<string> NewExpansionSet = null;
+					if (ExpansionSet != null)
+					{
+						NewExpansionSet = new List<string>(ExpansionSet);
+						// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
+						NewExpansionSet.Add(Result.Name.Replace(Match, ""));
 					}
 
 					// cache the file (it may have already been cached tho from a previous test)
@@ -465,7 +481,7 @@ namespace Turnkey
 						// always add directories, but only add files if the path didn't end in / (/Sdks/*/ would only want to return directories)
 						if (Result.MimeType == MIMETypes.GoogleDriveFolder.ToMimeString() || NextSlash == -1)
 						{
-							Output.Add(PathToFile, Result);
+							Output.Add(PathToFile, new Tuple<Google.Apis.Drive.v3.Data.File, List<string>>(Result, NewExpansionSet));
 						}
 					}
 					else
@@ -473,7 +489,7 @@ namespace Turnkey
 						// recurse with parts after the wildcard component
 						// @todo turnkey
 						string NewPrefix = (FullPathBeforeWildcard != "" ? (FullPathBeforeWildcard + Slash) : "") + Result.Name + Slash;
-						ExpandWildcards(NewPrefix, PathString.Substring(NextSlash + 1), Output);
+						ExpandWildcards(NewPrefix, PathString.Substring(NextSlash + 1), Output, NewExpansionSet);
 					}
 				}
 			}

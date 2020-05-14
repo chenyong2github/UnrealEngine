@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text;
 using System.Xml.Serialization;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 using UnrealBuildTool;
 using AutomationTool;
@@ -14,6 +16,7 @@ namespace Turnkey
 		static private string StandardManifestName = "TurnkeyManifest.xml";
 
 		public SdkInfo[] SdkInfos = null;
+		public BuildSource[] BuildSources = null;
 
 		[XmlArrayItem(ElementName = "Manifest")]
 		public string[] AdditionalManifests = null;
@@ -22,19 +25,80 @@ namespace Turnkey
 
 		internal void PostDeserialize()
 		{
-			if (SdkInfos != null)
-			{
-				Array.ForEach(SdkInfos, x => x.PostDeserialize());
-			}
-
 			// load any settings set in the xml
 			if (SavedSettings != null)
 			{
 				Array.ForEach(SavedSettings, x => TurnkeyUtils.SetVariable(x.Variable, x.Value));
 			}
+
+			if (BuildSources != null)
+			{
+				Array.ForEach(BuildSources, x => x.PostDeserialize());
+			}
+
+			if (SdkInfos != null)
+			{
+				Array.ForEach(SdkInfos, x => x.PostDeserialize());
+
+				SdkInfo[] ExpandedSdks = Array.FindAll(SdkInfos, x => x.Expansion != null && x.Expansion.Length > 0);
+
+				if (ExpandedSdks.Length > 0)
+				{
+					// we will only have one active Expansion
+					List<SdkInfo> NewSdks = SdkInfos.Where(x => !ExpandedSdks.Contains(x)).ToList();
+
+					// now expand
+					foreach (SdkInfo Sdk in ExpandedSdks)
+					{
+						// we only allow one expansion active
+						if (Sdk.Expansion.Length > 1)
+						{
+							throw new AutomationTool.AutomationException("SdkInfo {0} had multiple expansions active on this platform. THat is not allowed", Sdk.DisplayName);
+						}
+
+						// now enumerate and get the values
+						List<List<string>> Expansions = new List<List<string>>();
+						string[] ExpandedInstallerResults = CopyProvider.ExecuteEnumerate(Sdk.Expansion[0].Copy, Expansions);
+
+						if (Expansions.Count != ExpandedInstallerResults.Length)
+						{
+							throw new AutomationException("Bad expansions output from CopyProvider");
+						}
+
+						// @todo turnkey: this will be uysed in Builds also, make it a function with a lambda
+						// make a new SdkInfo for each expansion
+						int MaxIndex = 0;
+						for (int ResultIndex=0; ResultIndex < ExpandedInstallerResults.Length; ResultIndex++)
+						{
+							// set temp variables potentially used somewhere in the Sdks
+							TurnkeyUtils.SetVariable("Expansion", ExpandedInstallerResults[ResultIndex]);
+							for (int ExpansionIndex = 0; ExpansionIndex < Expansions[ResultIndex].Count; ExpansionIndex++)
+							{
+								TurnkeyUtils.SetVariable(ExpansionIndex.ToString(), Expansions[ResultIndex][ExpansionIndex]);
+							}
+
+							// remember how many we beed to unset
+							MaxIndex = Math.Max(MaxIndex, Expansions[ResultIndex].Count);
+
+							// make a new Sdk for each result in the expansion
+							NewSdks.Add(Sdk.CloneForExpansion());
+						}
+
+						// clear temp variables
+						TurnkeyUtils.ClearVariable("Expansion");
+						for (int Index = 0; Index <= MaxIndex; Index++)
+						{
+							TurnkeyUtils.ClearVariable(Index.ToString());
+						}
+					}
+
+					SdkInfos = NewSdks.ToArray();
+				}
+			}
 		}
 
 		static List<SdkInfo> DiscoveredSdks = null;
+		static List<BuildSource> DiscoveredBuildSources = null;
 
 		public static List<SdkInfo> GetDiscoveredSdks()
 		{
@@ -43,6 +107,15 @@ namespace Turnkey
 
 			return DiscoveredSdks;
 		}
+
+		public static List<BuildSource> GetDiscoveredBuildSources()
+		{
+			// hunt down manifests if needed
+			DiscoverManifests();
+
+			return DiscoveredBuildSources;
+		}
+
 		public static void AddCreatedSdk(SdkInfo Sdk)
 		{
 			DiscoveredSdks.Add(Sdk);
@@ -54,25 +127,23 @@ namespace Turnkey
 			if (DiscoveredSdks == null)
 			{
 				DiscoveredSdks = new List<SdkInfo>();
+				DiscoveredBuildSources = new List<BuildSource>();
 
 				// known location to branch from, this will include a few other locations
-				DiscoveredSdks.AddRange(GetSdkInfosFromProvider("file:$(EngineDir)/Build/Turnkey/TurnkeyManifest.xml"));
-			}
-		}
+				string RootOperation = "file:$(EngineDir)/Build/Turnkey/TurnkeyManifest.xml";
 
-		public static List<SdkInfo> GetSdkInfosFromProvider(string EnumerationOperation)
-		{
-			// gather the 
-			List<SdkInfo> Sdks = new List<SdkInfo>();
-			LoadManifestsFromProvider(EnumerationOperation).ForEach(x =>
-			{
-				if (x.SdkInfos != null)
+				LoadManifestsFromProvider(RootOperation).ForEach(x =>
 				{
-					Sdks.AddRange(x.SdkInfos);
-				}
-			});
-
-			return Sdks;
+					if (x.SdkInfos != null)
+					{
+						DiscoveredSdks.AddRange(x.SdkInfos);
+					}
+					if (x.BuildSources != null)
+					{
+						DiscoveredBuildSources.AddRange(x.BuildSources);
+					}
+				});
+			}
 		}
 
 		public static List<TurnkeyManifest> LoadManifestsFromProvider(string EnumerationOperation)

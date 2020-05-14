@@ -11,6 +11,15 @@ using Tools.DotNETCommon;
 
 namespace AutomationTool
 {
+	public class DeviceInfo
+	{
+		public string Name;
+		public string Id;
+		public string SoftwareVersion;
+		public string Type;
+		public bool bIsDefault = false;
+	}
+
 	/// <summary>
 	/// Holds information for targeting specific platform (platform type + cook flavor)
 	/// </summary>
@@ -140,6 +149,39 @@ namespace AutomationTool
 		{
 			return new TargetPlatformDescriptor(TargetPlatformType, "");
 		}
+
+		public virtual string GetInstalledSdk()
+		{
+			return "";
+		}
+
+		public virtual string GetAllowedSdks()
+		{
+			return "";
+		}
+		public virtual string GetAutoSdkPlatformName()
+		{
+			return IniPlatformType.ToString();
+		}
+
+		public virtual DeviceInfo[] GetDevices()
+		{
+			return null;
+		}
+
+		public virtual string GetAllowedSoftwareVersions()
+		{
+			return "";
+		}
+		public virtual bool IsCustomVersionNeeded(string CustomVersionId, string CustomVersionParams)
+		{
+			return true;
+		}
+		public virtual bool CustomVersionUpdate(string CustomVersionId, string UpdateParams)
+		{
+			return true;
+		}
+
 
 		/// <summary>
 		/// Package files for the current platform.

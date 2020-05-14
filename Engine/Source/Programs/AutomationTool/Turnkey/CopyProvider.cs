@@ -37,8 +37,9 @@ namespace Turnkey
 		/// we can't test locally what type it is
 		/// </summary>
 		/// <param name="Operation">Description for the operation, including a ProviderToken</param>
+		/// <param name="Expansions">A list of what *'s expanded to, one entry for each result</param>
 		/// <returns></returns>
-		public abstract string[] Enumerate(string Operation);
+		public abstract string[] Enumerate(string Operation, List<List<string>> Expansions);
 
 
 
@@ -95,7 +96,7 @@ namespace Turnkey
 		/// </summary>
 		/// <param name="CopyOperation"></param>
 		/// <returns>Output path, which could then be used as $(OutputPath) in later operations</returns>
-		public static string ExecuteCopy(string CopyOperation, CopyExecuteSpecialMode SpecialMode=CopyExecuteSpecialMode.None, string SpecialModeHint=null)
+		public static string ExecuteCopy(string CopyOperation, CopyExecuteSpecialMode SpecialMode = CopyExecuteSpecialMode.None, string SpecialModeHint = null)
 		{
 			CopyProvider Provider;
 			string ProviderParam;
@@ -189,7 +190,7 @@ namespace Turnkey
 			return OutputPath;
 		}
 
-		public static string[] ExecuteEnumerate(string CopyOperation)
+		public static string[] ExecuteEnumerate(string CopyOperation, List<List<string>> Expansions=null)
 		{
 			CopyProvider Provider;
 			string ProviderParam;
@@ -200,7 +201,7 @@ namespace Turnkey
 				return null;
 			}
 
-			return Provider.Enumerate(ProviderParam);
+			return Provider.Enumerate(ProviderParam, Expansions);
 		}
 	}
 }

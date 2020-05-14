@@ -35,6 +35,10 @@ namespace Turnkey
 		{
 			return null;
 		}
+		internal void InternalExecute(string[] CommandOptions)
+		{
+			Execute(CommandOptions);
+		}
 
 
 		// cached commands

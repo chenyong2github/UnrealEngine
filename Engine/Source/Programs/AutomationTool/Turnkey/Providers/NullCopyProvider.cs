@@ -1,5 +1,6 @@
 using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Turnkey
 {
@@ -12,20 +13,26 @@ namespace Turnkey
 			Operation = Operation.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
 
 			// this provider can use the file directly, so just return the input after expanding variables, if it exists
-			string FinalPath = TurnkeyUtils.ExpandVariables(Operation);
+			string OutputPath = TurnkeyUtils.ExpandVariables(Operation);
 
-			if (File.Exists(FinalPath) == false && Directory.Exists(FinalPath) == false)
+			int WildcardLocation = OutputPath.IndexOf('*');
+			if (WildcardLocation >= 0)
 			{
-				TurnkeyUtils.Log("Reqeusted local path {0} does not exist!", FinalPath);
-				return null;
+				// chop down to the last / before the wildcard
+				int LastSlashLocation = OutputPath.Substring(0, WildcardLocation).LastIndexOf(Path.DirectorySeparatorChar);
+				OutputPath = OutputPath.Substring(0, LastSlashLocation);
 			}
 
-			// @todo turnkey : if wildcard, do like p4 does
+			if (File.Exists(OutputPath) == false && Directory.Exists(OutputPath) == false)
+			{
+				TurnkeyUtils.Log("Reqeusted local path {0} does not exist!", OutputPath);
+				return null;
+			}
 			
-			return FinalPath ;
+			return OutputPath;
 		}
 
-		private void ExpandWildcards(string Prefix, string PathString, List<string> Output)
+		private void ExpandWildcards(string Prefix, string PathString, Dictionary<string, List<string>> Output, List<string> ExpansionSet)
 		{
 			char Slash = Path.DirectorySeparatorChar;
 
@@ -39,11 +46,11 @@ namespace Turnkey
 				if (Directory.Exists(PathString))
 				{
 					// make sure we end with a single slash
-					Output.Add(ProviderToken + ":" + PathString.TrimEnd("/\\".ToCharArray()) + Slash);
+					Output.Add(ProviderToken + ":" + PathString.TrimEnd("/\\".ToCharArray()) + Slash, ExpansionSet);
 				}
 				else if (File.Exists(PathString))
 				{
-					Output.Add(ProviderToken + ":" + PathString);
+					Output.Add(ProviderToken + ":" + PathString, ExpansionSet);
 				}
 				return;
 			}
@@ -62,18 +69,33 @@ namespace Turnkey
 
 			if (Directory.Exists(FullPathBeforeWildcard))
 			{
+				// get the path component that has a wildcard
 				string Wildcard = (NextSlash == -1) ? PathString.Substring(PrevSlash + 1) : PathString.Substring(PrevSlash + 1, (NextSlash - PrevSlash) - 1);
+
+				// track what's before and after the * to return what it expanded to
+				int StarLoc = Wildcard.IndexOf('*');
+				int PrefixLen = StarLoc;
+				int SuffixLen = Wildcard.Length - (StarLoc + 1);
 				foreach (string Dirname in Directory.EnumerateDirectories(FullPathBeforeWildcard, Wildcard))
 				{
+					List<string> NewExpansionSet = null;
+					if (ExpansionSet != null)
+					{
+						NewExpansionSet = new List<string>(ExpansionSet);
+						string PathComponent = Path.GetFileName(Dirname);
+						// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
+						NewExpansionSet.Add(PathComponent.Substring(PrefixLen, PathComponent.Length - (PrefixLen + SuffixLen)));
+					}
+
 					if (bIsLastComponent)
 					{
 						// indicate directories with a slash at the end
-						Output.Add(ProviderToken + ":" + Dirname + Slash);
+						Output.Add(ProviderToken + ":" + Dirname + Slash, NewExpansionSet);
 					}
 					// recurse
 					else
 					{
-						ExpandWildcards(Dirname + Slash, PathString.Substring(NextSlash + 1), Output);
+						ExpandWildcards(Dirname + Slash, PathString.Substring(NextSlash + 1), Output, NewExpansionSet);
 					}
 				}
 
@@ -82,22 +104,35 @@ namespace Turnkey
 				{
 					foreach (string Filename in Directory.EnumerateFiles(FullPathBeforeWildcard, Wildcard))
 					{
-						Output.Add(ProviderToken + ":" + Filename);
+						List<string> NewExpansionSet = null;
+						if (ExpansionSet != null)
+						{
+							NewExpansionSet = new List<string>(ExpansionSet);
+							string PathComponent = Path.GetFileName(Filename);
+							// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
+							NewExpansionSet.Add(PathComponent.Substring(PrefixLen, PathComponent.Length - (PrefixLen + SuffixLen)));
+						}
+
+						Output.Add(ProviderToken + ":" + Filename, NewExpansionSet);
 					}
 				}
 			}
 		}
 
-		public override string[] Enumerate(string Operation)
+		public override string[] Enumerate(string Operation, List<List<string>> Expansions)
 		{
-			List<string> Output = new List<string>();
+			Dictionary<string, List<string>> Output = new Dictionary<string, List<string>>();
 
 			// we want consistent slashes
 			Operation = Operation.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
 
-			ExpandWildcards("", Operation, Output);
+			ExpandWildcards("", Operation, Output, Expansions == null ? null : new List<string>());
 
-			return Output.ToArray();
+			if (Expansions != null)
+			{
+				Expansions.AddRange(Output.Values);
+			}
+			return Output.Keys.ToArray();
 		}
 	}
 }
