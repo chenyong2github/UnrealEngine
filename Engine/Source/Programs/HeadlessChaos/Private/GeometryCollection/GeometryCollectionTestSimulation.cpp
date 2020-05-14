@@ -31,7 +31,7 @@ namespace GeometryCollectionTest
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SingleFallingUnderGravity)
 	{
 		using Traits = TypeParam;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>()->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>()->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(Collection);
@@ -51,8 +51,8 @@ namespace GeometryCollectionTest
 	{
 		using Traits = TypeParam;
 		CreationParameters Params; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(Collection);
@@ -76,9 +76,9 @@ namespace GeometryCollectionTest
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere; 
 		Params.GeomTransform.SetScale3D(Scale); // Sphere radius
 		TGeometryCollectionWrapper<Traits>* Collection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		RigidBodyWrapper* Floor = 
-			TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+			TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(Collection);
@@ -102,8 +102,8 @@ namespace GeometryCollectionTest
 		CreationParameters Params; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
 		Params.GeomTransform.SetScale3D(Scale); // Sphere radius
 
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(Collection);
@@ -124,7 +124,7 @@ namespace GeometryCollectionTest
 	{
 		using Traits = TypeParam;
 		CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Kinematic;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(Collection);
@@ -151,7 +151,7 @@ namespace GeometryCollectionTest
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
 		float InitialStartHeight = 5.0f;
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, InitialStartHeight));
-		TGeometryCollectionWrapper<Traits>* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(SleepingCollection);
@@ -183,12 +183,12 @@ namespace GeometryCollectionTest
 
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, 15.f));
-		TGeometryCollectionWrapper<Traits>* MovingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* MovingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		float InitialStartHeight = 5.0f;
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Sleeping;
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, InitialStartHeight));
-		TGeometryCollectionWrapper<Traits>* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(SleepingCollection);
@@ -322,7 +322,7 @@ namespace GeometryCollectionTest
 
 		TGeometryCollectionWrapper<Traits>* Collection =
 			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(
-				Params)->As<TGeometryCollectionWrapper<Traits>>();
+				Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		const TManagedArray<TUniquePtr<Chaos::TBVHParticles<float,3>>>& Simplicials =
 			Collection->RestCollection->template GetAttribute<TUniquePtr<Chaos::TBVHParticles<float,3>>>(
