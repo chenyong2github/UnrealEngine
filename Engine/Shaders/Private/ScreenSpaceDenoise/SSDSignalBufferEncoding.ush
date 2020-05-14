@@ -139,15 +139,15 @@ void DecodeMultiplexedSignalsFromFloat4(
 			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (Channels.g == -1 ? WORLD_RADIUS_MISS : Channels.g);
 			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = Channels.g;
 			
-			FLATTEN
-			if (OutSamples.Array[MultiplexId].SampleCount == 0)
-			{
-				OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_INVALID;
-			}
-			else if (OutSamples.Array[MultiplexId].MissCount != 0)
-			{
-				OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_MISS;
-			}
+			//FLATTEN
+			//if (OutSamples.Array[MultiplexId].SampleCount == 0)
+			//{
+			//	OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_INVALID;
+			//}
+			//else if (OutSamples.Array[MultiplexId].MissCount != 0)
+			//{
+			//	OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_MISS;
+			//}
 		}
 	}
 	//else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
@@ -185,15 +185,15 @@ void DecodeMultiplexedSignalsFromFloat4(
 			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (Channels.b == DENOISER_MISS_HIT_DISTANCE ? WORLD_RADIUS_MISS : Channels.b);
 			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = Channels.b;
 
-			FLATTEN
-			if (OutSamples.Array[MultiplexId].SampleCount == 0)
-			{
-				OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_INVALID;
-			}
-			else if (OutSamples.Array[MultiplexId].MissCount != 0)
-			{
-				OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_MISS;
-			}
+			//FLATTEN
+			//if (OutSamples.Array[MultiplexId].SampleCount == 0)
+			//{
+			//	OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_INVALID;
+			//}
+			//else if (OutSamples.Array[MultiplexId].MissCount != 0)
+			//{
+			//	OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_MISS;
+			//}
 		}
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION)
