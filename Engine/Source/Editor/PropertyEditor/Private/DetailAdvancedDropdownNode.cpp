@@ -124,7 +124,7 @@ public:
 
 			ContentWidget =
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryBottom") )
+				.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryMiddle") )
 				.Padding( FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 2.0f ) )
 				[
 					SplitterArea.ToSharedRef()	
@@ -133,7 +133,21 @@ public:
 		
 		ChildSlot
 		[
-			ContentWidget.ToSharedRef()
+			SNew( SVerticalBox)
+			+ SVerticalBox::Slot()
+			[
+				ContentWidget.ToSharedRef()
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+        		SNew(SBox)
+        		.HeightOverride(2.f)
+        		[ 
+					SNew( SBorder )
+					.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryBottom") )
+				]
+			]
 		];
 
 		STableRow< TSharedPtr< FDetailTreeNode > >::ConstructInternal(

@@ -666,6 +666,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 		.AutoWidth()
 		.Padding( 0.0f, 0.0f )
 		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
 		[
 			SNew( SEditConditionWidget, PropertyEditor )
 			.CustomEditCondition( CustomEditCondition.IsValid() ? *CustomEditCondition : FCustomEditCondition() )
@@ -702,6 +703,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 	}
 
 	SHorizontalBox::FSlot& Slot = NameHorizontalBox->AddSlot()
+	.HAlign(HAlign_Right)
 	[
 		NameWidget.ToSharedRef()
 	];
@@ -721,7 +723,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 	}
 
 	Row.NameContent()
-	.HAlign( HorizontalAlignment )
+	.HAlign( HAlign_Right )
 	.VAlign( VerticalAlignment )
 	[
 		NameHorizontalBox

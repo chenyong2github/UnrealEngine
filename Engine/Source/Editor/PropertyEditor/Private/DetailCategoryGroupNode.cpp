@@ -44,9 +44,10 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 			.AutoWidth()
 			[
 				SNew(STextBlock)
+				.TransformPolicy(ETextTransformPolicy::ToUpper)
 				.Text(InArgs._DisplayName)
-				.Font(FEditorStyle::GetFontStyle(bIsInnerCategory ? "PropertyWindow.NormalFont" : "DetailsView.CategoryFontStyle"))
-				.ShadowOffset(bIsInnerCategory ? FVector2D::ZeroVector : FVector2D(1.0f, 1.0f))
+				.Font(FAppStyle::Get().GetFontStyle(bIsInnerCategory ? "PropertyWindow.NormalFont" : "DetailsView.CategoryFontStyle"))
+				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			];
 
 	// If column size data was specified, add a separator
@@ -86,7 +87,6 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 		SNew( SBorder )
 		.BorderImage( this, &SDetailCategoryTableRow::GetBackgroundImage )
 		.Padding( FMargin( 0.0f, BorderVerticalPadding, SDetailTableRowBase::ScrollbarPaddingSize, BorderVerticalPadding ) )
-		.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
 		[
 			Widget.ToSharedRef()
 		]
