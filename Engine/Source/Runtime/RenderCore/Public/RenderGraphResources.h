@@ -728,11 +728,7 @@ struct FPooledRDGBuffer
 
 		if (RefCount == 0)
 		{
-			VertexBuffer.SafeRelease();
-			IndexBuffer.SafeRelease();
-			StructuredBuffer.SafeRelease();
-			UAVs.Empty();
-			SRVs.Empty();
+			delete this;
 		}
 
 		return RefCount;
