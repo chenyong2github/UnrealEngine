@@ -42,14 +42,6 @@ void WriteToSliceMainVS(
 	Output.LayerIndex = LayerIndex + MinZ;
 }
 
-void CopySceneAlphaMain(
-	FScreenVertexOutput Input,
-	out float OutAlpha : SV_Target0
-	)
-{
-    OutAlpha = Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, Input.UV).a;
-}
-
 /** Encodes HDR linear scene color for storage in the 8 bit light attenuation texture. */
 MaterialFloat3 EncodeSceneColorForMaterialNode(MaterialFloat3 LinearSceneColor)
 {
