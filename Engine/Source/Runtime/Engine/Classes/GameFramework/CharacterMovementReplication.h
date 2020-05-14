@@ -120,6 +120,10 @@ public:
 
 	// Default constructor. Sets data storage (NewMoveData, PendingMoveData, OldMoveData) to point to default data members. Override those pointers to point to custom data if you want to use derived classes.
 	FCharacterNetworkMoveDataContainer()
+		: bHasPendingMove(false)
+		, bIsDualHybridRootMotionMove(false)
+		, bHasOldMove(false)
+		, bDisableCombinedScopedMove(false)
 	{
 		NewMoveData		= &BaseDefaultMoveData[0];
 		PendingMoveData	= &BaseDefaultMoveData[1];
@@ -150,6 +154,9 @@ public:
 	
 	// Optional "old move" data, for redundant important old moves not yet ack'd.
 	bool bHasOldMove;
+
+	// True if we want to disable a scoped move around both dual moves (optional from bEnableServerDualMoveScopedMovementUpdates), typically set if bForceNoCombine was true which can indicate an important change in moves.
+	bool bDisableCombinedScopedMove;
 	
 protected:
 
