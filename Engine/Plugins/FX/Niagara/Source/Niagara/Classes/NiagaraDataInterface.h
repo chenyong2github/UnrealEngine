@@ -235,6 +235,7 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 
 	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}	
 	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}
+	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}
 };
 
 //////////////////////////////////////////////////////////////////////////

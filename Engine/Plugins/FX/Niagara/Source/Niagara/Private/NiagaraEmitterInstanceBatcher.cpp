@@ -405,6 +405,25 @@ void NiagaraEmitterInstanceBatcher::PostStageInterface(const FNiagaraGPUSystemTi
 	}
 }
 
+void NiagaraEmitterInstanceBatcher::PostSimulateInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const FNiagaraShaderRef& ComputeShader) const
+{
+	uint32 InterfaceIndex = 0;
+	for (FNiagaraDataInterfaceProxy* Interface : Instance->DataInterfaceProxies)
+	{
+		const FNiagaraDataInterfaceParamRef& DIParam = ComputeShader->GetDIParameters()[InterfaceIndex];
+		if (DIParam.Parameters.IsValid())
+		{
+			FNiagaraDataInterfaceSetArgs TmpContext;
+			TmpContext.Shader = ComputeShader;
+			TmpContext.DataInterface = Interface;
+			TmpContext.SystemInstance = Tick.SystemInstanceID;
+			TmpContext.Batcher = this;			
+			Interface->PostSimulate(RHICmdList, TmpContext);
+		}
+		InterfaceIndex++;
+	}
+}
+
 void NiagaraEmitterInstanceBatcher::TransitionBuffers(FRHICommandList& RHICmdList, const FNiagaraShaderRef& ComputeShader, FNiagaraComputeInstanceData* Instance, uint32 SimulationStageIndex, const FNiagaraDataBuffer*& LastSource, bool& bFreeIDTableTransitioned)
 {
 	FNiagaraComputeExecutionContext* Context = Instance->Context;
@@ -518,6 +537,8 @@ void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSyst
 				RHICmdList.SubmitCommandsHint();
 			}
 		}
+
+		PostSimulateInterface(Tick, Instance, RHICmdList, ComputeShader);
 	}
 	else
 	{

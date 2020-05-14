@@ -135,6 +135,9 @@ UNiagaraDataInterfaceGrid2DCollection::UNiagaraDataInterfaceGrid2DCollection(FOb
 	: Super(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyGrid2DCollectionProxy());
+
+	FNiagaraTypeDefinition Def(UObject::StaticClass());
+	RenderTargetUserParameter.Parameter.SetType(Def);
 }
 
 
@@ -237,7 +240,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::Equals(const UNiagaraDataInterface* 
 	}
 	const UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<const UNiagaraDataInterfaceGrid2DCollection>(Other);
 
-	return OtherTyped != nullptr;		
+	return OtherTyped != nullptr && OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter;		
 }
 
 void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -357,7 +360,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::CopyToInternal(UNiagaraDataInterface
 	}
 
 	UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid2DCollection>(Destination);
-
+	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
 
 	return true;
 }
@@ -417,10 +420,34 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 
 	InstanceData->CellSize = InstanceData->WorldBBoxSize / FVector2D(InstanceData->NumCells.X, InstanceData->NumCells.Y);
 
+	FTextureResource* RT_Resource = NULL;
+
+	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
+	{
+		if (UTextureRenderTarget2D* TargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
+		{
+			// resize RT to match what we need for the output
+			TargetTexture->RenderTargetFormat = RTF_R32f;
+			TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
+			TargetTexture->bAutoGenerateMips = false;
+			TargetTexture->InitAutoFormat(NumCellsX * NumTilesX, NumCellsY * NumTilesY);
+			TargetTexture->UpdateResourceImmediate(true);
+			
+			if (TargetTexture->Resource)
+			{				
+				RT_Resource = TargetTexture->Resource;
+			}			
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Only UTextureRenderTarget2D are valid on %s"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()));
+		}
+	}
+
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyGrid2DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[RT_Proxy, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_OutputShaderStages=OutputShaderStages, RT_IterationShaderStages= IterationShaderStages](FRHICommandListImmediate& RHICmdList)
+		[RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_OutputShaderStages=OutputShaderStages, RT_IterationShaderStages= IterationShaderStages](FRHICommandListImmediate& RHICmdList)
 	{
 		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
 		FGrid2DCollectionRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
@@ -434,6 +461,16 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 
 		RT_Proxy->SetElementCount(TargetData->NumCells.X * TargetData->NumCells.Y);
+
+		
+		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
+		{
+			TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
+		}	
+		else
+		{
+			TargetData->RenderTargetToCopyTo = nullptr;
+		}
 	});
 
 	return true;
@@ -456,6 +493,64 @@ void UNiagaraDataInterfaceGrid2DCollection::DestroyPerInstanceData(void* PerInst
 			RT_Proxy->SystemInstancesToProxyData_RT.Remove(InstanceID);
 		}
 	);
+}
+
+bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+{	
+	FGrid2DCollectionRWInstanceData_GameThread* InstanceData = SystemInstancesToProxyData_GT.FindRef(SystemInstance->GetId());
+
+	FTextureResource* RT_Resource = nullptr;
+
+	bool NeedsReset = false;
+	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
+	{
+		if (UTextureRenderTarget2D* TargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
+		{
+			int32 RTSizeX = InstanceData->NumCells.X * InstanceData->NumTiles.X;
+			int32 RTSizeY = InstanceData->NumCells.Y * InstanceData->NumTiles.Y;
+
+			if (TargetTexture->SizeX != RTSizeX || TargetTexture->SizeY != RTSizeY)
+			{
+				// resize RT to match what we need for the output
+				TargetTexture->RenderTargetFormat = RTF_R32f;
+				TargetTexture->ClearColor = FLinearColor(0,0,0,0);
+				TargetTexture->bAutoGenerateMips = false;
+				TargetTexture->InitAutoFormat(RTSizeX, RTSizeY);
+				TargetTexture->UpdateResourceImmediate(true);
+				//TargetTexture->InitCustomFormat(InstanceData->NumCells.X * InstanceData->NumTiles.X, InstanceData->NumCells.Y * InstanceData->NumTiles.Y, PF_R32_FLOAT, false);
+
+				if (TargetTexture->Resource)
+				{
+					NeedsReset = true;					
+				}				
+			}
+
+			RT_Resource = TargetTexture->Resource;
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Only UTextureRenderTarget2D are valid on %s"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()));
+		}
+	}
+
+	FNiagaraDataInterfaceProxyGrid2DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>();
+	ENQUEUE_RENDER_COMMAND(FUpdateData)(
+		[RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
+	{
+		FGrid2DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
+
+		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
+		{
+			TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
+		}
+		else
+		{
+			TargetData->RenderTargetToCopyTo = nullptr;
+		}
+
+	});
+
+	return NeedsReset;
 }
 
 UFUNCTION(BlueprintCallable, Category = Niagara)
@@ -705,26 +800,32 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PreStage(FRHICommandList& 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);
 			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);
-		}			
-		/*
-		#todo(dmp): try this
-		else if (ProxyData->CurrentData != NULL && ProxyData->DestinationData != NULL)
-		{
-			// in iteration stages we copy the source to destination
-			FRHICopyTextureInfo CopyInfo;
-			RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->DestinationData->GridBuffer.Buffer, CopyInfo);
-		}
-		*/
+		}		
 	}
 }
 
 void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
-	
+{	
 	if (Context.IsOutputStage)
 	{
 		FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
 		ProxyData->EndSimulate();
+	}
+}
+
+void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
+	FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+
+	if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->GridBuffer.Buffer != nullptr)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->CurrentData->GridBuffer.Buffer);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProxyData->RenderTargetToCopyTo);
+
+		FRHICopyTextureInfo CopyInfo;
+		RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->RenderTargetToCopyTo, CopyInfo);
+
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->RenderTargetToCopyTo);
 	}
 }
 
