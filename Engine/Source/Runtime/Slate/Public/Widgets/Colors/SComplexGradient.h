@@ -13,7 +13,7 @@ class FSlateWindowElementList;
 /**
  * Implements a Slate widget that renders a color gradient consisting of multiple stops.
  */
-class APPFRAMEWORK_API SComplexGradient
+class SLATE_API SComplexGradient
 	: public SCompoundWidget
 {
 public:

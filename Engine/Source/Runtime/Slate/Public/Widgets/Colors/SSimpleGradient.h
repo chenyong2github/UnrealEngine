@@ -13,7 +13,7 @@ class FSlateWindowElementList;
 /**
  * Implements a Slate widget that renders a simple color gradient.
  */
-class APPFRAMEWORK_API SSimpleGradient
+class SLATE_API SSimpleGradient
 	: public SCompoundWidget
 {
 public:
