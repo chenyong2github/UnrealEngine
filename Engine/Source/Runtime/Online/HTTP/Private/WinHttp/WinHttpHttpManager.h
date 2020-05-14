@@ -13,7 +13,7 @@ DECLARE_DELEGATE_OneParam(FWinHttpQuerySessionComplete, FWinHttpSession* /*HttpS
 
 class IWinHttpConnection;
 
-class FWinHttpHttpManager
+class HTTP_API FWinHttpHttpManager
 	: public FHttpManager
 {
 public:
