@@ -527,7 +527,10 @@ void USceneComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	const bool bLocationChanged = (PropertyName == LocationName || MemberPropertyName == LocationName);
 	if (bLocationChanged || (PropertyName == RotationName || MemberPropertyName == RotationName) || (PropertyName == ScaleName || MemberPropertyName == ScaleName))
 	{
+		TransformUpdated.Broadcast(this, EUpdateTransformFlags::None, ETeleportType::ResetPhysics);
+
 		FNavigationSystem::UpdateComponentData(*this);
+
 		if (!GIsDemoMode)
 		{
 			InvalidateLightingCacheDetailed(true, bLocationChanged);
