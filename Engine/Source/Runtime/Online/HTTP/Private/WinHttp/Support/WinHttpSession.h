@@ -11,7 +11,7 @@ class IWinHttpConnection;
 
 using HINTERNET = void*;
 
-class FWinHttpSession
+class HTTP_API FWinHttpSession
 {
 public:
 	/**
