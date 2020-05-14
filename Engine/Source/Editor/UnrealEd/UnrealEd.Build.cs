@@ -184,6 +184,7 @@ public class UnrealEd : ModuleRules
 				"ToolMenus",
 				"FreeImage",
 				"IoStoreUtilities",
+				"TraceLog",
             }
 		);
 

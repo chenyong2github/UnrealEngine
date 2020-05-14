@@ -48,10 +48,22 @@ public:
 	{
 		if (InValue.IsSet())
 		{
-			if (InValue.GetValue().TextPtr.IsValid())
-			{
-				return *InValue.GetValue().TextPtr;
-			}
+			return InValue.GetValue().GetText();
+		}
+		return FText::GetEmpty();
+	}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FAsTextValueFormatter : public FTableCellValueFormatter
+{
+public:
+	virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) const override
+	{
+		if (InValue.IsSet())
+		{
+			return InValue.GetValue().AsText();
 		}
 		return FText::GetEmpty();
 	}

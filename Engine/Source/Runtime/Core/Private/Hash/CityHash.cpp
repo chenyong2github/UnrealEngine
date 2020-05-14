@@ -116,14 +116,17 @@ static uint32 Fetch32(const char *p) {
 	return uint32_in_expected_order(UNALIGNED_LOAD32(p));
 }
 
-// Some primes between 2^63 and 2^64 for various uses.
-static const uint64 k0 = 0xc3a5c85c97cb3127ULL;
-static const uint64 k1 = 0xb492b66fbe98f273ULL;
-static const uint64 k2 = 0x9ae16a3b2f90404fULL;
+namespace CityHash_Internal 
+{
+	// Some primes between 2^63 and 2^64 for various uses.
+	static const uint64 k0 = 0xc3a5c85c97cb3127ULL;
+	static const uint64 k1 = 0xb492b66fbe98f273ULL;
+	static const uint64 k2 = 0x9ae16a3b2f90404fULL;
 
-// Magic numbers for 32-bit hashing.  Copied from Murmur3.
-static const uint32 c1 = 0xcc9e2d51;
-static const uint32 c2 = 0x1b873593;
+	// Magic numbers for 32-bit hashing.  Copied from Murmur3.
+	static const uint32 c1 = 0xcc9e2d51;
+	static const uint32 c2 = 0x1b873593;
+}
 
 // A 32-bit to 32-bit integer hash copied from Murmur3.
 static uint32 fmix(uint32 h)
@@ -153,6 +156,8 @@ void SwapValues(T& a, T& b)
 #define PERMUTE3(a, b, c) do { SwapValues(a, b); SwapValues(a, c); } while (0)
 
 static uint32 Mur(uint32 a, uint32 h) {
+	using namespace CityHash_Internal;
+
 	// Helper from Murmur3 for combining two 32-bit values.
 	a *= c1;
 	a = Rotate32(a, 17);
@@ -175,6 +180,8 @@ static uint32 Hash32Len13to24(const char *s, uint32 len) {
 }
 
 static uint32 Hash32Len0to4(const char *s, uint32 len) {
+	using namespace CityHash_Internal;
+
 	uint32 b = 0;
 	uint32 c = 9;
 	for (uint32 i = 0; i < len; i++) {
@@ -194,6 +201,8 @@ static uint32 Hash32Len5to12(const char *s, uint32 len) {
 }
 
 uint32 CityHash32(const char *s, uint32 len) {
+	using namespace CityHash_Internal;
+
 	if (len <= 24) {
 		return len <= 12 ?
 			(len <= 4 ? Hash32Len0to4(s, len) : Hash32Len5to12(s, len)) :
@@ -288,6 +297,8 @@ static uint64 HashLen16(uint64 u, uint64 v, uint64 mul) {
 }
 
 static uint64 HashLen0to16(const char *s, uint32 len) {
+	using namespace CityHash_Internal;
+
 	if (len >= 8) {
 		uint64 mul = k2 + len * 2;
 		uint64 a = Fetch64(s) + k2;
@@ -315,6 +326,8 @@ static uint64 HashLen0to16(const char *s, uint32 len) {
 // This probably works well for 16-byte strings as well, but it may be overkill
 // in that case.
 static uint64 HashLen17to32(const char *s, uint32 len) {
+	using namespace CityHash_Internal;
+
 	uint64 mul = k2 + len * 2;
 	uint64 a = Fetch64(s) * k1;
 	uint64 b = Fetch64(s + 8);
@@ -350,6 +363,8 @@ static Uint128_64 WeakHashLen32WithSeeds(
 
 // Return an 8-byte hash for 33 to 64 bytes.
 static uint64 HashLen33to64(const char *s, uint32 len) {
+	using namespace CityHash_Internal;
+
 	uint64 mul = k2 + len * 2;
 	uint64 a = Fetch64(s) * k2;
 	uint64 b = Fetch64(s + 8);
@@ -371,6 +386,8 @@ static uint64 HashLen33to64(const char *s, uint32 len) {
 }
 
 uint64 CityHash64(const char *s, uint32 len) {
+	using namespace CityHash_Internal;
+
 	if (len <= 32) {
 		if (len <= 16) {
 			return HashLen0to16(s, len);
@@ -411,10 +428,13 @@ uint64 CityHash64(const char *s, uint32 len) {
 }
 
 uint64 CityHash64WithSeed(const char *s, uint32 len, uint64 seed) {
+	using namespace CityHash_Internal;
+
 	return CityHash64WithSeeds(s, len, k2, seed);
 }
 
-uint64 CityHash64WithSeeds(const char *s, uint32 len,
-	uint64 seed0, uint64 seed1) {
+uint64 CityHash64WithSeeds(const char *s, uint32 len, uint64 seed0, uint64 seed1) {
+	using namespace CityHash_Internal;
+
 	return HashLen16(CityHash64(s, len) - seed0, seed1);
 }

@@ -163,6 +163,7 @@ private:
 	void ContextMenu_AutoZoom_Execute();
 	bool ContextMenu_AutoZoom_CanExecute();
 	bool ContextMenu_AutoZoom_IsChecked();
+	void AutoZoom();
 
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
@@ -192,6 +193,9 @@ private:
 	bool bIsStateDirty;
 
 	bool bIsAutoZoomEnabled;
+	float AutoZoomViewportPos;
+	float AutoZoomViewportScale;
+	float AutoZoomViewportSize;
 
 	uint64 AnalysisSyncNextTimestamp;
 	uint32 ConnectionChangeCount;

@@ -69,7 +69,7 @@ uint32 FNetTraceAnalyzer::GetTracedEventTypeIndex(uint16 NameIndex, uint8 Level)
 	}
 }
 
-bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -85,7 +85,7 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		case RouteId_InitEvent:
 		{
 			const uint64 TimestampCycles = EventData.GetValue<uint64>("Timestamp");
-			LastTimeStamp = Context.SessionContext.TimestampFromCycle(TimestampCycles);
+			LastTimeStamp = Context.EventTime.AsSeconds(TimestampCycles);
 
 			// we always trace the version so that we make sure that we are backwards compatible with older trace stream
 			NetTraceVersion = EventData.GetValue<uint32>("NetTraceVersion");
@@ -423,7 +423,7 @@ void FNetTraceAnalyzer::HandlePacketEvent(const FOnEventContext& Context, const 
 	const Trace::ENetProfilerConnectionMode ConnectionMode = Trace::ENetProfilerConnectionMode(PacketType);
 
 	// Update LastTimestamp, later on we will be able to get timestamps piggybacked from other analyzers
-	LastTimeStamp = Context.SessionContext.TimestampFromCycle(TimestampCycles);
+	LastTimeStamp = Context.EventTime.AsSeconds(TimestampCycles);
 
 	FNetTraceConnectionState* ConnectionState = GetActiveConnectionState(GameInstanceId, ConnectionId);
 	if (!ConnectionState)
@@ -466,7 +466,7 @@ void FNetTraceAnalyzer::HandlePacketDroppedEvent(const FOnEventContext& Context,
 	const uint8 PacketType = EventData.GetValue<uint8>("PacketType");
 
 	// Update LastTimestamp, later on we will be able to get timestamps piggybacked from other analyzers
-	LastTimeStamp = Context.SessionContext.TimestampFromCycle(TimestampCycles);
+	LastTimeStamp = Context.EventTime.AsSeconds(TimestampCycles);
 
 	FNetTraceConnectionState* ConnectionState = GetActiveConnectionState(GameInstanceId, ConnectionId);
 	if (!ConnectionState)

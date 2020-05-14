@@ -488,7 +488,7 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 			true, false, false,
 			CrashReportClientProcessId, 0,
 			nullptr,
-			nullptr,
+			PipeChildInRead, //Pass this to allow inherit handles in child proc
 			nullptr
 		);
 	}

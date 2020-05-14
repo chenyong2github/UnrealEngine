@@ -45,6 +45,10 @@ class FGameplayGraphTrack : public TGameplayTrackMixin<FGraphTrack>
 	INSIGHTS_DECLARE_RTTI(FGameplayGraphTrack, TGameplayTrackMixin<FGraphTrack>)
 
 public:
+	/** Whether to draw labels */
+	static constexpr EGraphOptions ShowLabelsOption = EGraphOptions::FirstCustomOption;
+
+public:
 	FGameplayGraphTrack(const FGameplaySharedData& InGameplaySharedData, uint64 InObjectID, const FText& InName);
 
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
@@ -96,7 +100,4 @@ protected:
 
 	/** The current series layout */
 	EGameplayGraphLayout Layout;
-
-	/** Whether to draw labels */
-	bool bDrawLabels;
 };

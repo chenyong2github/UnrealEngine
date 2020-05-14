@@ -15,13 +15,16 @@
 #include "Templates/Casts.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/UObjectThreadContext.h"
+#include "UObject/LinkerInstancingContext.h"
 #include "Templates/RefCounting.h"
 #include "Serialization/AsyncPackageLoader.h"
+
 #include "Async/AsyncFileHandle.h"
 
 struct FAsyncPackage;
 struct FFlushTree;
 class FAsyncLoadingThread;
+
 
 /** [EDL] Async Package Loading State */
 enum class EAsyncPackageLoadingState : uint8
@@ -923,6 +926,15 @@ private:
 	 * @param FlushTree Package dependency tree to be flushed
 	 */
 	void AddImportDependency(const FName& PendingImport, FFlushTree* FlushTree);
+	/**
+	 * Adds a package to the list of pending import packages.
+	 *
+	 * @param PendingImport Name of the package imported either directly or by one of the imported packages
+	 * @param PackageToLoad Name of the package to load into PendingImport
+	 * @param FlushTree Package dependency tree to be flushed
+	 */
+	void AddImportDependency(const FName& PendingImport, const FName& PackageToLoad, FFlushTree* FlushTree, FLinkerInstancingContext InstancingContext);
+
 	/**
 	 * Removes references to any imported packages.
 	 */

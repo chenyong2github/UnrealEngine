@@ -42,7 +42,7 @@ struct BaseKeyFuncs
 template<typename ElementType,bool bInAllowDuplicateKeys /*= false*/>
 struct DefaultKeyFuncs : BaseKeyFuncs<ElementType,ElementType,bInAllowDuplicateKeys>
 {
-	typedef typename TCallTraits<ElementType>::ParamType KeyInitType;
+	typedef typename TTypeTraits<ElementType>::ConstPointerType KeyInitType;
 	typedef typename TCallTraits<ElementType>::ParamType ElementInitType;
 
 	/**

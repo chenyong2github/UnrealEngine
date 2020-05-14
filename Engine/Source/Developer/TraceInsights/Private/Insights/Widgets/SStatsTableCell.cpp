@@ -14,8 +14,8 @@
 
 // Insights
 #include "Insights/InsightsStyle.h"
-#include "Insights/ViewModels/StatsViewColumn.h"
-#include "Insights/ViewModels/StatsViewColumnFactory.h"
+#include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Widgets/SStatsTableRow.h"
 
 #define LOCTEXT_NAMESPACE "SStatsView"
@@ -26,12 +26,15 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SStatsTableCell::Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
+	TablePtr = InArgs._TablePtr;
+	ColumnPtr = InArgs._ColumnPtr;
 	StatsNodePtr = InArgs._StatsNodePtr;
-	ColumnId = InArgs._ColumnId;
 
+	ensure(TablePtr.IsValid());
+	ensure(ColumnPtr.IsValid());
 	ensure(StatsNodePtr.IsValid());
 
-	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
+	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	ChildSlot
 		[
@@ -57,8 +60,6 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForColumn(const FArguments& I
 
 TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	const FStatsViewColumn& Column = *FStatsViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
-
 	return
 		SNew(SHorizontalBox)
 
@@ -89,13 +90,13 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBox)
-			.Visibility(this, &SStatsTableCell::GetColorBoxVisibility)
+			.Visibility(this, &SStatsTableCell::GetBoxVisibility)
 			.WidthOverride(14.0f)
 			.HeightOverride(14.0f)
 			[
 				SNew(SBorder)
 				.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(this, &SStatsTableCell::GetStatsBoxColorAndOpacity)
+				.BorderBackgroundColor(this, &SStatsTableCell::GetBoxColorAndOpacity)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 			]
@@ -105,7 +106,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.HAlign(Column.HorizontalAlignment)
+		.HAlign(ColumnPtr->GetHorizontalAlignment())
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
@@ -130,16 +131,13 @@ TSharedPtr<IToolTip> SStatsTableCell::GetRowToolTip(const TSharedRef<ITableRow>&
 
 FText SStatsTableCell::GetValueAsText() const
 {
-	const FStatsViewColumn& Column = *FStatsViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
-	return Column.GetFormattedValue(*StatsNodePtr);
+	return ColumnPtr->GetValueAsText(*StatsNodePtr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	const FStatsViewColumn& Column = *FStatsViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
-
 	return
 		SNew(SHorizontalBox)
 
@@ -147,7 +145,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForStatsColumn(const FArgumen
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		.VAlign(VAlign_Center)
-		.HAlign(Column.HorizontalAlignment)
+		.HAlign(ColumnPtr->GetHorizontalAlignment())
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)

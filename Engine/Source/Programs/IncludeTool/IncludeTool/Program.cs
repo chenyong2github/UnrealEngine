@@ -1016,7 +1016,7 @@ namespace IncludeTool
 					}
 					catch(PreprocessorException Ex)
 					{
-						Log.WriteLine("{0}({1}): error: {2}", File.Location, Markup.Location.LineIdx, Ex.Message);
+						Log.WriteLine("{0}({1}): error: {2}", File.Location, Markup.Location.LineIdx + 1, Ex.Message);
 						return;
 					}
 				}

@@ -3839,6 +3839,16 @@ int InfiniteRecursionFunction(int B)
 	return GInfiniteRecursionCount;
 }
 
+// used to test CRT invalid parameter handling
+void CauseCrtError()
+{
+#if PLATFORM_WINDOWS
+	CA_SUPPRESS(6387);	// Suppress the warning about nullptr not being valid for printf as we are trying
+						// to invoke this exact error for testing purposes.
+	printf((const char*)nullptr); //-V575
+#endif
+}
+
 #if defined (__clang__) 
 #pragma clang diagnostic pop
 #endif
@@ -8596,8 +8606,8 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	}
 	else if (FParse::Command(&Cmd, TEXT("CRTINVALID")))
 	{
-	FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
-		FString::Printf(TEXT("%s"), (const char*)nullptr);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		CauseCrtError();
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("HITCH")))

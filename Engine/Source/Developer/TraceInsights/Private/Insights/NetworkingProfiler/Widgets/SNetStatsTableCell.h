@@ -17,7 +17,7 @@ namespace Insights
 	class FTableColumn;
 }
 
-DECLARE_DELEGATE_ThreeParams(FSetHoveredNetStatsTableCell, TSharedPtr<Insights::FTable> /*TablePtr*/, TSharedPtr<Insights::FTableColumn> /*ColumnPtr*/, const FNetEventNodePtr /*NetEventNodePtr*/);
+DECLARE_DELEGATE_ThreeParams(FSetHoveredNetStatsTableCell, TSharedPtr<Insights::FTable> /*TablePtr*/, TSharedPtr<Insights::FTableColumn> /*ColumnPtr*/, FNetEventNodePtr /*NetEventNodePtr*/);
 
 class SNetStatsTableCell : public SCompoundWidget
 {

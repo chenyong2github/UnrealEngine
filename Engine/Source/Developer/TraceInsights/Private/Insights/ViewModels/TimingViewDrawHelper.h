@@ -112,9 +112,12 @@ public:
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }
 
 	virtual void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) override;
+	virtual void AddEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, uint32  InEventColor, GetEventNameCallback InGetEventNameCallback) override;
 	void Flush();
 
 	int32 GetMaxDepth() const { return MaxDepth; }
+
+	static void AppendDurationToEventName(FString& InOutEventName, const double InDuration);
 
 private:
 	void FlushBox(const FBoxData& Box, const int32 Depth);
@@ -183,7 +186,8 @@ public:
 
 	void DrawMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity) const;
 
-	void DrawTrackHeader(const FTimingEventsTrack& Track) const;
+	void DrawTrackHeader(const FBaseTimingTrack& Track) const;
+	void DrawTrackHeader(const FBaseTimingTrack& Track, const int32 HeaderLayerId, const int32 HeaderTextLayerId) const;
 
 	void EndDrawTracks() const;
 

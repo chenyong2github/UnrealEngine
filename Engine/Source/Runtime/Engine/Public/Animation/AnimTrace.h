@@ -11,7 +11,7 @@
 
 #if ANIM_TRACE_ENABLED
 
-ENGINE_API UE_TRACE_CHANNEL_EXTERN(AnimationChannel);
+UE_TRACE_CHANNEL_EXTERN(AnimationChannel, ENGINE_API);
 
 struct FAnimInstanceProxy;
 struct FAnimTickRecord;

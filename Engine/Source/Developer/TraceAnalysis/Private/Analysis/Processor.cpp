@@ -57,13 +57,14 @@ uint32 FAnalysisProcessor::FImpl::Run()
 	}
 
 	AnalysisEngine.End();
+	bComplete = true;
 	return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisProcessor::FImpl::IsActive() const
 {
-	return (Thread != nullptr);
+	return !bComplete;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -117,10 +117,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateTypeColumn(
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FNetEventTypeValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FNetEventTypeValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FTextValueFormatter>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FTextValueFormatter>();
 	Column.SetValueFormatter(Formatter);
 
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValue>(ColumnRef);
@@ -163,10 +163,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateLevelColumn
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FLevelValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FLevelValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
 	Column.SetValueFormatter(Formatter);
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
@@ -208,10 +208,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateInstanceCou
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FInstanceCountValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FInstanceCountValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
 	Column.SetValueFormatter(Formatter);
 
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
@@ -257,10 +257,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateTotalInclus
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FTotalInclusiveValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTotalInclusiveValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
 	Column.SetValueFormatter(Formatter);
 
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
@@ -303,10 +303,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateMaxInclusiv
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FMaxInclusiveValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMaxInclusiveValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
 	Column.SetValueFormatter(Formatter);
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
@@ -348,10 +348,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateAverageIncl
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FAverageInclusiveValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FAverageInclusiveValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
 	Column.SetValueFormatter(Formatter);
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
@@ -396,10 +396,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateTotalExclus
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FTotalExclusiveValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTotalExclusiveValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
 	Column.SetValueFormatter(Formatter);
 
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value(ColumnRef));
@@ -420,7 +420,7 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateMaxExclusiv
 
 	Column.SetShortName(LOCTEXT("MaxExclusive_ColumnName", "E.Max"));
 	Column.SetTitleName(LOCTEXT("MaxExclusive_ColumnTitle", "Max Exclusive Size"));
-	Column.SetDescription(LOCTEXT("MaxExclusive_ColumnDesc", "Maximum exclusive size of selected net event instances"));
+	Column.SetDescription(LOCTEXT("MaxExclusive_ColumnDesc", "Maximum exclusive size (bits) of selected net event instances"));
 
 	Column.SetFlags(ETableColumnFlags::CanBeHidden |
 					//ETableColumnFlags::ShouldBeVisible |
@@ -442,10 +442,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateMaxExclusiv
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FMaxExclusiveValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMaxExclusiveValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
 	Column.SetValueFormatter(Formatter);
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
@@ -463,9 +463,9 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateAverageExcl
 	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FNetStatsViewColumns::AverageExclusiveSizeColumnID);
 	FTableColumn& Column = *ColumnRef;
 
-	Column.SetShortName(LOCTEXT("AvgExclusiveName", "E.Avg"));
-	Column.SetTitleName(LOCTEXT("AvgExclusiveTitle", "Average Exclusive  (ms)"));
-	Column.SetDescription(LOCTEXT("AvgExclusiveDesc", "Average exclusive size of selected net event instances"));
+	Column.SetShortName(LOCTEXT("AvgExclusive_ColumnName", "E.Avg"));
+	Column.SetTitleName(LOCTEXT("AvgExclusive_ColumnTitle", "Average Exclusive Size)"));
+	Column.SetDescription(LOCTEXT("AvgExclusive_ColumnDesc", "Average exclusive size (bits) of selected net event instances"));
 
 	Column.SetFlags(ETableColumnFlags::CanBeHidden |
 					//ETableColumnFlags::ShouldBeVisible |
@@ -488,10 +488,10 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateAverageExcl
 		}
 	};
 
-	TSharedRef<FTableCellValueGetter> Getter = MakeShared<FAverageExclusiveValueGetter>();
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FAverageExclusiveValueGetter>();
 	Column.SetValueGetter(Getter);
 
-	TSharedRef<FTableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
 	Column.SetValueFormatter(Formatter);
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);

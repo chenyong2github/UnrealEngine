@@ -1,42 +1,68 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DiagnosticsSessionAnalyzer.h"
+#include "TraceServices/Model/Diagnostics.h"
 
 namespace Insights
 {
 
 void FDiagnosticsSessionAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
-	Context.InterfaceBuilder.RouteEvent(0, "Diagnostics", "Session");
+	auto& Builder = Context.InterfaceBuilder;
+
+	Builder.RouteEvent(RouteId_Session, "Diagnostics", "Session");
+	Builder.RouteEvent(RouteId_Session2, "Diagnostics", "Session2");
 }
 
-bool FDiagnosticsSessionAnalyzer::OnEvent(uint16, const FOnEventContext& Context)
+bool FDiagnosticsSessionAnalyzer::OnEvent(uint16 RouteId, EStyle, const FOnEventContext& Context)
 {
 	const FEventData& EventData = Context.EventData;
 
-	const uint8* Attachment = EventData.GetAttachment();
-	if (Attachment == nullptr)
+	switch (RouteId)
 	{
+	case RouteId_Session:
+	{
+		const uint8* Attachment = EventData.GetAttachment();
+		if (Attachment == nullptr)
+		{
+			return false;
+		}
+
+		uint8 AppNameOffset = EventData.GetValue<uint8>("AppNameOffset");
+		uint8 CommandLineOffset = EventData.GetValue<uint8>("CommandLineOffset");
+
+		Platform = FString(AppNameOffset, (const ANSICHAR*)Attachment);
+
+		Attachment += AppNameOffset;
+		int32 AppNameLength = CommandLineOffset - AppNameOffset;
+		AppName = FString(AppNameLength, (const ANSICHAR*)Attachment);
+
+		Attachment += AppNameLength;
+		int32 CommandLineLength = EventData.GetAttachmentSize() - CommandLineOffset;
+		CommandLine = FString(CommandLineLength, (const ANSICHAR*)Attachment);
+
+		ConfigurationType = (EBuildConfiguration) EventData.GetValue<uint8>("ConfigurationType");
+		TargetType = (EBuildTargetType) EventData.GetValue<uint8>("TargetType");
+
 		return false;
 	}
+	case RouteId_Session2:
+	{
+		Trace::FSessionInfo SessionInfo;
 
-	uint8 AppNameOffset = EventData.GetValue<uint8>("AppNameOffset");
-	uint8 CommandLineOffset = EventData.GetValue<uint8>("CommandLineOffset");
+		EventData.GetString("Platform", Platform);
+		EventData.GetString("AppName", AppName);
+		EventData.GetString("CommandLine", CommandLine);
 
-	Platform = FString(AppNameOffset, (const ANSICHAR*)Attachment);
+		ConfigurationType = (EBuildConfiguration) EventData.GetValue<uint8>("ConfigurationType");
+		TargetType = (EBuildTargetType) EventData.GetValue<uint8>("TargetType");
 
-	Attachment += AppNameOffset;
-	int32 AppNameLength = CommandLineOffset - AppNameOffset;
-	AppName = FString(AppNameLength, (const ANSICHAR*)Attachment);
+		return false;
+	};
+	break;
+	}
 
-	Attachment += AppNameLength;
-	int32 CommandLineLength = EventData.GetAttachmentSize() - CommandLineOffset;
-	CommandLine = FString(CommandLineLength, (const ANSICHAR*)Attachment);
-
-	ConfigurationType = EventData.GetValue<int8>("ConfigurationType");
-	TargetType = EventData.GetValue<int8>("TargetType");
-
-	return false;
+	return true;
 }
 
 } // namespace Insights

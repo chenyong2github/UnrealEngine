@@ -11,8 +11,16 @@
 #include "Templates/UnrealTemplate.h"
 #include "Writer.inl"
 
-namespace Trace
-{
+namespace Trace {
+namespace Private {
+
+////////////////////////////////////////////////////////////////////////////////
+UE_TRACE_API void Field_WriteAuxData(uint32, const uint8*, int32);
+UE_TRACE_API void Field_WriteStringAnsi(uint32, const ANSICHAR*, int32);
+UE_TRACE_API void Field_WriteStringAnsi(uint32, const TCHAR*, int32);
+UE_TRACE_API void Field_WriteStringWide(uint32, const TCHAR*, int32);
+
+} // namespace Private
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename Type> struct TFieldType;
@@ -51,6 +59,9 @@ struct TFieldType<T[N]>
 	};
 };
 #endif // 0
+
+template <> struct TFieldType<Trace::AnsiString> { enum { Tid  = int(EFieldType::AnsiString), Size = 0, }; };
+template <> struct TFieldType<Trace::WideString> { enum { Tid  = int(EFieldType::WideString), Size = 0, }; };
 
 
 
@@ -123,74 +134,12 @@ struct TField<InIndex, InOffset, Type[]>
 {
 	TRACE_PRIVATE_FIELD(InIndex|int(EIndexPack::MaybeHasAux), InOffset, Type[]);
 
-	static_assert(sizeof(Private::FWriteBuffer::Overflow) >= sizeof(FAuxHeader), "FWriteBuffer::Overflow is not large enough");
-
-	struct FActionable
-	{
-		void Write(uint8* __restrict) const {}
-	};
-
-	const FActionable operator () (Type const* Data, int32 Count) const
+	static void Set(uint8*, Type const* Data, int32 Count)
 	{
 		if (Count > 0)
 		{
 			int32 Size = (Count * sizeof(Type)) & (FAuxHeader::SizeLimit - 1) & ~(sizeof(Type) - 1);
-			Impl((const uint8*)Data, Size);
-		}
-		return {};
-	}
-
-private:
-	FORCENOINLINE void Impl(const uint8* Data, int32 Size) const
-	{
-		using namespace Private;
-
-		// Header
-		const int bMaybeHasAux = true;
-		FWriteBuffer* Buffer = Writer_GetBuffer();
-		Buffer->Cursor += sizeof(FAuxHeader) - bMaybeHasAux;
-
-		auto* Header = (FAuxHeader*)(Buffer->Cursor - sizeof(FAuxHeader));
-		Header->Size = Size << 8;
-		Header->FieldIndex = uint8(0x80 | (Index & int(EIndexPack::FieldCountMask)));
-
-		bool bCommit = ((uint8*)Header + bMaybeHasAux == Buffer->Committed);
-
-		// Array data
-		while (true)
-		{
-			if (Buffer->Cursor >= (uint8*)Buffer)
-			{
-				if (bCommit)
-				{
-					AtomicStoreRelease(&(uint8* volatile&)(Buffer->Committed), Buffer->Cursor);
-				}
-
-				Buffer = Writer_NextBuffer(0);
-				bCommit = true;
-			}
-
-			int32 Remaining = int32((uint8*)Buffer - Buffer->Cursor);
-			int32 SegmentSize = (Remaining < Size) ? Remaining : Size;
-			memcpy(Buffer->Cursor, Data, SegmentSize);
-			Buffer->Cursor += SegmentSize;
-
-			Size -= SegmentSize;
-			if (Size <= 0)
-			{
-				break;
-			}
-
-			Data += SegmentSize;
-		}
-
-		// The auxilary data null terminator.
-		Buffer->Cursor[0] = 0;
-		Buffer->Cursor++;
-
-		if (bCommit)
-		{
-			AtomicStoreRelease(&(uint8* volatile&)(Buffer->Committed), Buffer->Cursor);
+			Private::Field_WriteAuxData(Index, (const uint8*)Data, Size);
 		}
 	}
 };
@@ -202,16 +151,63 @@ struct TField<InIndex, InOffset, Type[Count]>
 {
 	TRACE_PRIVATE_FIELD(InIndex, InOffset, Type[Count]);
 
-	struct FActionable
-	{
-		void Write(uint8* __restrict) const {}
-	};
-
-	const FActionable operator () (Type const* Data, int Count) const
+	static void Set(uint8*, Type const* Data, int Count)
 	{
 	}
 };
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+template <int InIndex, int InOffset>
+struct TField<InIndex, InOffset, Trace::AnsiString>
+{
+	TRACE_PRIVATE_FIELD(InIndex|int(EIndexPack::MaybeHasAux), InOffset, Trace::AnsiString);
+
+	FORCENOINLINE static void Set(uint8*, const TCHAR* String, int32 Length=-1)
+	{
+		if (Length < 0)
+		{
+			Length = 0;
+			for (const TCHAR* c = String; *c; ++c, ++Length);
+		}
+
+		Private::Field_WriteStringAnsi(Index, String, Length);
+	}
+
+	FORCENOINLINE static void Set(uint8*, const ANSICHAR* String, int32 Length=-1)
+	{
+		if (Length < 0)
+		{
+			Length = int32(strlen(String));
+		}
+
+		if (Length)
+		{
+			Private::Field_WriteStringAnsi(Index, String, Length);
+		}
+	}
+};
+
+////////////////////////////////////////////////////////////////////////////////
+template <int InIndex, int InOffset>
+struct TField<InIndex, InOffset, Trace::WideString>
+{
+	TRACE_PRIVATE_FIELD(InIndex|int(EIndexPack::MaybeHasAux), InOffset, Trace::WideString);
+
+	FORCENOINLINE static void Set(uint8*, const TCHAR* String, int32 Length=-1)
+	{
+		if (Length < 0)
+		{
+			Length = 0;
+			for (const TCHAR* c = String; *c; ++c, ++Length);
+		}
+
+		if (Length)
+		{
+			Private::Field_WriteStringWide(Index, String, Length);
+		}
+	}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int InIndex, int InOffset, typename Type>
@@ -219,18 +215,9 @@ struct TField
 {
 	TRACE_PRIVATE_FIELD(InIndex, InOffset, Type);
 
-	struct FActionable
+	static void Set(uint8* Dest, const Type& __restrict Value)
 	{
-		Type Value;
-		void Write(uint8* __restrict Ptr) const
-		{
-			::memcpy(Ptr + Offset, &Value, Size);
-		}
-	};
-
-	const FActionable operator () (const Type& __restrict Value) const
-	{
-		return { Value };
+		::memcpy(Dest + Offset, &Value, Size);
 	}
 };
 
@@ -259,34 +246,14 @@ template <int InOffset>
 struct TField<0, InOffset, Attachment>
 {
 	template <typename LambdaType>
-	struct FActionableLambda
+	static void Set(uint8* Dest, LambdaType&& Lambda)
 	{
-		LambdaType& Value;
-		void Write(uint8* __restrict Ptr) const
-		{
-			Value(Ptr + InOffset);
-		}
-	};
-
-	template <typename LambdaType>
-	const FActionableLambda<LambdaType> operator () (LambdaType&& Lambda) const
-	{
-		return { Forward<LambdaType>(Lambda) };
+		Lambda(Dest + InOffset);
 	}
 
-	struct FActionableMemcpy
+	static void Set(uint8* Dest, const void* Data, uint32 Size)
 	{
-		const void* Data;
-		uint32 Size;
-		void Write(uint8* __restrict Ptr) const
-		{
-			::memcpy(Ptr + InOffset, Data, Size);
-		}
-	};
-
-	const FActionableMemcpy operator () (const void* Data, uint32 Size) const
-	{
-		return { Data, Size };
+		::memcpy(Dest + InOffset, Data, Size);
 	}
 };
 

@@ -172,7 +172,6 @@ public:
 	UVPFullScreenUserWidget(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin UObject interface
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 	virtual void BeginDestroy() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

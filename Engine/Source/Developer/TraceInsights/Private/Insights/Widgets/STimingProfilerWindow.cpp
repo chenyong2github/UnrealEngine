@@ -176,6 +176,8 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 			SAssignNew(TimingView, STimingView)
 		];
 
+	TimingView->Reset(true);
+
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnTimingViewTabClosed));
 
 	return DockTab;

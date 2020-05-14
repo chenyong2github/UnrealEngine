@@ -53,14 +53,19 @@ public:
 	virtual void Reset() override;
 
 	bool IsCollapsed() const { return Header.IsCollapsed(); }
+	void Expand() { Header.SetIsCollapsed(false); }
+	void Collapse() { Header.SetIsCollapsed(true); }
 	void ToggleCollapsed() { Header.ToggleCollapsed(); }
 
 	bool IsBookmarksTrack() const { return bUseOnlyBookmarks; }
+	bool IsLogsTrack() const { return !bUseOnlyBookmarks; }
 	void SetBookmarksTrackFlag(bool bInUseOnlyBookmarks)
 	{
 		bUseOnlyBookmarks = bInUseOnlyBookmarks;
 		UpdateTrackNameAndHeight();
 	}
+	void SetBookmarksTrack() { SetBookmarksTrackFlag(true); }
+	void SetLogsTrack() { SetBookmarksTrackFlag(false); }
 
 	// Stats
 	int32 GetNumLogMessages() const { return NumLogMessages; }
@@ -74,6 +79,7 @@ public:
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 private:
 	void ResetCache()

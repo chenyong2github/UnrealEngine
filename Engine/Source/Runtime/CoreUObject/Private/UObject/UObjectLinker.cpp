@@ -109,7 +109,7 @@ void UObject::SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShoul
 	if( Existing.Linker && bShouldDetachExisting )
 	{
 		checkf(!HasAnyFlags(RF_NeedLoad|RF_NeedPostLoad), TEXT("Detaching from existing linker for %s while object %s needs loaded"), *Existing.Linker->GetArchiveName(), *GetFullName());
-		check(Existing.Linker->ExportMap[Existing.LinkerIndex].Object!=NULL);
+		check(Existing.Linker->ExportMap[Existing.LinkerIndex].Object!=nullptr);
 		check(Existing.Linker->ExportMap[Existing.LinkerIndex].Object==this);
 		Existing.Linker->ExportMap[Existing.LinkerIndex].ResetObject();
 	}
@@ -117,6 +117,11 @@ void UObject::SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShoul
 	if (Existing.Linker == LinkerLoad)
 	{
 		bShouldDetachExisting = false; // no change so don't call notify
+	}
+	// if we have a valid annotation and are setting a new valid linker, remove the annotation first
+	else if (!Existing.IsDefault() && LinkerLoad != nullptr)
+	{
+		LinkerAnnotation.RemoveAnnotation(this);
 	}
 	if (Existing.Linker != LinkerLoad || Existing.LinkerIndex != LinkerIndex)
 	{

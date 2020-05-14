@@ -681,9 +681,10 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				}
 
 				// Object Path
+				const FString ObjectPathStr = Obj->GetPathName();
 				if (InFilter.ObjectPaths.Num() > 0)
 				{
-					const FName ObjectPath = FName(*Obj->GetPathName(), FNAME_Find);
+					const FName ObjectPath = FName(*ObjectPathStr, FNAME_Find);
 					if (!InFilter.ObjectPaths.Contains(ObjectPath))
 					{
 						return;
@@ -691,7 +692,8 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				}
 
 				// Package path
-				const FName PackagePath = FName(*FPackageName::GetLongPackagePath(InMemoryPackage->GetName()));
+				const FString PackageNameStr = InMemoryPackage->GetName();
+				const FName PackagePath = FName(*FPackageName::GetLongPackagePath(PackageNameStr));
 				if (InFilter.PackagePaths.Num() > 0 && !InFilter.PackagePaths.Contains(PackagePath))
 				{
 					return;
@@ -746,7 +748,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				ObjectTags.Reset();
 
 				// This asset is in memory and passes all filters
-				OutContinue = Callback(FAssetData(PackageName, PackagePath, Obj->GetFName(), Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
+				OutContinue = Callback(FAssetData(PackageNameStr, ObjectPathStr, Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
 			}
 		};
 

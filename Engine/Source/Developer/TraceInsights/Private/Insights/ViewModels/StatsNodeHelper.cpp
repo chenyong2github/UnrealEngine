@@ -9,7 +9,7 @@
 // StatsNode Type Helper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText StatsNodeTypeHelper::ToName(const EStatsNodeType NodeType)
+FText StatsNodeTypeHelper::ToText(const EStatsNodeType NodeType)
 {
 	static_assert(static_cast<int>(EStatsNodeType::InvalidOrMax) == 3, "Not all cases are handled in switch below!?");
 	switch (NodeType)
@@ -74,15 +74,16 @@ const FSlateBrush* StatsNodeTypeHelper::GetIconForStatsNodeType(const EStatsNode
 // StatsNode Grouping Helper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText StatsNodeGroupingHelper::ToName(const EStatsGroupingMode GroupingMode)
+FText StatsNodeGroupingHelper::ToText(const EStatsGroupingMode GroupingMode)
 {
-	static_assert(static_cast<int>(EStatsGroupingMode::InvalidOrMax) == 4, "Not all cases are handled in switch below!?");
+	static_assert(static_cast<int>(EStatsGroupingMode::InvalidOrMax) == 5, "Not all cases are handled in switch below!?");
 	switch (GroupingMode)
 	{
 		case EStatsGroupingMode::Flat:				return LOCTEXT("Grouping_Name_Flat",			"Flat");
 		case EStatsGroupingMode::ByName:			return LOCTEXT("Grouping_Name_ByName",			"Stats Name");
 		case EStatsGroupingMode::ByMetaGroupName:	return LOCTEXT("Grouping_Name_MetaGroupName",	"Meta Group Name");
 		case EStatsGroupingMode::ByType:			return LOCTEXT("Grouping_Name_Type",			"Stats Type");
+		case EStatsGroupingMode::ByCount:			return LOCTEXT("Grouping_Name_Count",			"Count");
 		default:									return LOCTEXT("InvalidOrMax", "InvalidOrMax");
 	}
 }
@@ -91,13 +92,14 @@ FText StatsNodeGroupingHelper::ToName(const EStatsGroupingMode GroupingMode)
 
 FText StatsNodeGroupingHelper::ToDescription(const EStatsGroupingMode GroupingMode)
 {
-	static_assert(static_cast<int>(EStatsGroupingMode::InvalidOrMax) == 4, "Not all cases are handled in switch below!?");
+	static_assert(static_cast<int>(EStatsGroupingMode::InvalidOrMax) == 5, "Not all cases are handled in switch below!?");
 	switch (GroupingMode)
 	{
 		case EStatsGroupingMode::Flat:				return LOCTEXT("Grouping_Desc_Flat",			"Creates a single group. Includes all stats.");
 		case EStatsGroupingMode::ByName:			return LOCTEXT("Grouping_Desc_ByName",			"Creates one group for one letter.");
 		case EStatsGroupingMode::ByMetaGroupName:	return LOCTEXT("Grouping_Desc_MetaGroupName",	"Creates groups based on metadata group names of stats.");
 		case EStatsGroupingMode::ByType:			return LOCTEXT("Grouping_Desc_Type",			"Creates one group for each stats type.");
+		case EStatsGroupingMode::ByCount:			return LOCTEXT("Grouping_Desc_Count",			"Creates one group for each logarithmic range ie. 0, [1 .. 10), [10 .. 100), [100 .. 1K), etc.");
 		default:									return LOCTEXT("InvalidOrMax", "InvalidOrMax");
 	}
 }
@@ -106,14 +108,14 @@ FText StatsNodeGroupingHelper::ToDescription(const EStatsGroupingMode GroupingMo
 
 FName StatsNodeGroupingHelper::ToBrushName(const EStatsGroupingMode GroupingMode)
 {
-	static_assert(static_cast<int>(EStatsGroupingMode::InvalidOrMax) == 4, "Not all cases are handled in switch below!?");
+	static_assert(static_cast<int>(EStatsGroupingMode::InvalidOrMax) == 5, "Not all cases are handled in switch below!?");
 	switch (GroupingMode)
 	{
-		//TODO: "UnrealProfiler.*Icon"
 		case EStatsGroupingMode::Flat:				return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO: "Icons.Grouping.Flat"
-		case EStatsGroupingMode::ByName:			return TEXT("Profiler.FiltersAndPresets.Group1NameIcon"); //TODO: "Icons.Grouping.ByName"
+		case EStatsGroupingMode::ByName:			return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO: "Icons.Grouping.ByName"
 		case EStatsGroupingMode::ByMetaGroupName:	return TEXT("Profiler.FiltersAndPresets.StatNameIcon"); //TODO
 		case EStatsGroupingMode::ByType:			return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO
+		case EStatsGroupingMode::ByCount:			return TEXT("Profiler.FiltersAndPresets.StatValueIcon"); //TODO
 		default:									return NAME_None;
 	}
 }
