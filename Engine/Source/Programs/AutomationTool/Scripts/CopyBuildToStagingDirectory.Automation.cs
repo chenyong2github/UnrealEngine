@@ -2874,7 +2874,10 @@ public partial class Project : CommandUtils
 
 		bool bShouldGenerateEarlyDownloaderPakFile = false, bForceOneChunkPerFile = false;
 		string EarlyDownloaderPakFilePrefix = string.Empty;
-		PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "GenerateEarlyDownloaderPakFile", out bShouldGenerateEarlyDownloaderPakFile);
+		if (!Params.HasDLCName)
+		{
+			PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "GenerateEarlyDownloaderPakFile", out bShouldGenerateEarlyDownloaderPakFile);
+		}
 		PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bForceOneChunkPerFile", out bForceOneChunkPerFile);
 		PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "EarlyDownloaderPakFilePrefix", out EarlyDownloaderPakFilePrefix);
 
