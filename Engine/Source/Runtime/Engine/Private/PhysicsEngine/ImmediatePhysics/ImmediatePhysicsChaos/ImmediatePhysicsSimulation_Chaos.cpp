@@ -132,6 +132,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysUsePositionSolver(TEXT("p.Chaos.ImmPhys.
 #if UE_BUILD_DEBUG
 int32 ChaosImmediate_DebugDrawParticles = 0;
 int32 ChaosImmediate_DebugDrawShapes = 1;
+int32 ChaosImmediate_DebugDrawShowStatics = 1;
 int32 ChaosImmediate_DebugDrawShowKinematics = 1;
 int32 ChaosImmediate_DebugDrawShowDynamics = 1;
 int32 ChaosImmediate_DebugDrawBounds = 0;
@@ -141,6 +142,7 @@ int32 ChaosImmediate_DebugDrawSimulationSpace = 0;
 #else
 int32 ChaosImmediate_DebugDrawParticles = 0;
 int32 ChaosImmediate_DebugDrawShapes = 0;
+int32 ChaosImmediate_DebugDrawShowStatics = 1;
 int32 ChaosImmediate_DebugDrawShowKinematics = 1;
 int32 ChaosImmediate_DebugDrawShowDynamics = 1;
 int32 ChaosImmediate_DebugDrawBounds = 0;
@@ -157,6 +159,7 @@ int32 ChaosImmediate_DebugDrawJointFeatures = 0;
 
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawParticles(TEXT("p.Chaos.ImmPhys.DebugDrawParticles"), ChaosImmediate_DebugDrawParticles, TEXT("Draw Particle Transforms (0 = never; 1 = end of frame; 2 = begin and end of frame; 3 = post-integate, post-apply and post-applypushout;)."));
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawShapes(TEXT("p.Chaos.ImmPhys.DebugDrawShapes"), ChaosImmediate_DebugDrawShapes, TEXT("Draw Shapes (0 = never; 1 = end of frame; 2 = begin and end of frame; 3 = post-integate, post-apply and post-applypushout;"));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawShowStatics(TEXT("p.Chaos.ImmPhys.DebugDrawShowStatics"), ChaosImmediate_DebugDrawShowStatics, TEXT("Show statics if shape debug draw is enabled"));
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawShowKinematics(TEXT("p.Chaos.ImmPhys.DebugDrawShowKinematics"), ChaosImmediate_DebugDrawShowKinematics, TEXT("Show kinematics if shape debug draw is enabled"));
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawShowDynamics(TEXT("p.Chaos.ImmPhys.DebugDrawShowDynamics"), ChaosImmediate_DebugDrawShowDynamics, TEXT("Show dynamics if shape debug draw is enabled"));
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawBounds(TEXT("p.Chaos.ImmPhys.DebugDrawBounds"), ChaosImmediate_DebugDrawBounds, TEXT("Draw Particle Bounds (0 = never; 1 = end of frame; 2 = begin and end of frame; 3 = post-integate, post-apply and post-applypushout;)."));
@@ -180,7 +183,7 @@ namespace ImmediatePhysics_Chaos
 			: Particles()
 			, Joints()
 			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
-			, BroadPhase(ActivePotentiallyCollidingPairs, ChaosImmediate_Collision_CullDistance)
+			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr, ChaosImmediate_Collision_CullDistance)
 			, NarrowPhase()
 			, CollisionDetector(BroadPhase, NarrowPhase, Collisions)
 			, JointsRule(0, Joints)
@@ -209,6 +212,7 @@ namespace ImmediatePhysics_Chaos
 
 		// @todo(ccaulfield): Look into these...
 		TArray<FParticlePair> ActivePotentiallyCollidingPairs;
+		TArray<FActorHandle*> StaticParticles;
 		Chaos::TArrayCollectionArray<bool> CollidedParticles;
 		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
 		Chaos::TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
@@ -415,6 +419,8 @@ namespace ImmediatePhysics_Chaos
 		// @todo(ccaulfield): FActorHandle could remember its index to optimize this
 		// @todo(ccaulfield): Remove colliding particle pairs
 
+		RemoveFromCollidingPairs(ActorHandle);
+
 		int32 Index = Implementation->ActorHandles.Remove(ActorHandle);
 		delete ActorHandle;
 
@@ -465,6 +471,60 @@ namespace ImmediatePhysics_Chaos
 		}
 
 		Implementation->bActorsDirty = true;
+	}
+
+	// Currently sets up potential collision with ActorHandle and all dynamics
+	void FSimulation::AddToCollidingPairs(FActorHandle* ActorHandle)
+	{
+		using namespace Chaos;
+		TGeometryParticleHandle<FReal, 3>* Particle0 = ActorHandle->GetParticle();
+		for (FActorHandle* OtherActorHandle : Implementation->ActorHandles)
+		{
+			TGeometryParticleHandle<FReal, 3>* Particle1 = OtherActorHandle->GetParticle();
+			if ((OtherActorHandle != ActorHandle) && OtherActorHandle->IsSimulated())
+			{
+				Implementation->PotentiallyCollidingPairs.Emplace(typename FImplementation::FParticlePair(Particle0, Particle1));
+			}
+		}
+		Implementation->bActorsDirty = true;
+	}
+
+	void FSimulation::RemoveFromCollidingPairs(FActorHandle* ActorHandle)
+	{
+		for (typename FImplementation::FParticlePair& ParticlePair : Implementation->PotentiallyCollidingPairs)
+		{
+			if ((ParticlePair[0] == ActorHandle->GetParticle()) || (ParticlePair[1] == ActorHandle->GetParticle()))
+			{
+				ParticlePair[0] = nullptr;
+				ParticlePair[1] = nullptr;
+			}
+		}
+		Implementation->bActorsDirty = true;
+	}
+
+	void FSimulation::PackCollidingPairs()
+	{
+		int32 NextValidPairIndex = 0;
+		for (int32 PairIndex = 0; PairIndex < Implementation->PotentiallyCollidingPairs.Num(); ++PairIndex)
+		{
+			if (Implementation->PotentiallyCollidingPairs[PairIndex][0] == nullptr)
+			{
+				NextValidPairIndex = FMath::Max(NextValidPairIndex, PairIndex + 1);
+				while ((NextValidPairIndex < Implementation->PotentiallyCollidingPairs.Num()) && (Implementation->PotentiallyCollidingPairs[NextValidPairIndex][0] == nullptr))
+				{
+					++NextValidPairIndex;
+				}
+				if (NextValidPairIndex >= Implementation->PotentiallyCollidingPairs.Num())
+				{
+					Implementation->PotentiallyCollidingPairs.SetNum(PairIndex);
+					break;
+				}
+				Implementation->PotentiallyCollidingPairs[PairIndex] = Implementation->PotentiallyCollidingPairs[NextValidPairIndex];
+				Implementation->PotentiallyCollidingPairs[NextValidPairIndex][0] = nullptr;
+				Implementation->PotentiallyCollidingPairs[NextValidPairIndex][1] = nullptr;
+				++NextValidPairIndex;
+			}
+		}
 	}
 
 	void FSimulation::SetIgnoreCollisionPairTable(const TArray<FIgnorePair>& InIgnoreCollisionPairTable)
@@ -536,11 +596,14 @@ namespace ImmediatePhysics_Chaos
 		Implementation->ActivePotentiallyCollidingPairs.Reset();
 		for (const typename FImplementation::FParticlePair& ParticlePair : Implementation->PotentiallyCollidingPairs)
 		{
-			bool bAnyDisabled = TGenericParticleHandle<FReal, 3>(ParticlePair[0])->Disabled() || TGenericParticleHandle<FReal, 3>(ParticlePair[1])->Disabled();
-			bool bAnyDynamic = TGenericParticleHandle<FReal, 3>(ParticlePair[0])->IsDynamic() || TGenericParticleHandle<FReal, 3>(ParticlePair[1])->IsDynamic();
-			if (bAnyDynamic && !bAnyDisabled)
+			if ((ParticlePair[0] != nullptr) && (ParticlePair[1] != nullptr))
 			{
-				Implementation->ActivePotentiallyCollidingPairs.Add(ParticlePair);
+				bool bAnyDisabled = TGenericParticleHandle<FReal, 3>(ParticlePair[0])->Disabled() || TGenericParticleHandle<FReal, 3>(ParticlePair[1])->Disabled();
+				bool bAnyDynamic = TGenericParticleHandle<FReal, 3>(ParticlePair[0])->IsDynamic() || TGenericParticleHandle<FReal, 3>(ParticlePair[1])->IsDynamic();
+				if (bAnyDynamic && !bAnyDisabled)
+				{
+					Implementation->ActivePotentiallyCollidingPairs.Add(ParticlePair);
+				}
 			}
 		}
 	}
@@ -730,6 +793,7 @@ namespace ImmediatePhysics_Chaos
 		// Handle new or deleted particles
 		if (Implementation->bActorsDirty)
 		{
+			PackCollidingPairs();
 			UpdateActivePotentiallyCollidingPairs();
 			Implementation->bActorsDirty = false;
 		}
@@ -739,10 +803,37 @@ namespace ImmediatePhysics_Chaos
 		Implementation->Evolution.SetSimulationSpace(Implementation->SimulationSpace);
 		Implementation->Evolution.Advance(StepTime, NumSteps, RewindTime);
 
-		DebugDrawKinematicParticles(1, 4, FColor(128, 0, 0));
+		DebugDrawStaticParticles(1, 4, FColor(128, 0, 0));
+		DebugDrawKinematicParticles(1, 4, FColor(64, 32, 0));
 		DebugDrawDynamicParticles(1, 3, FColor(255, 255, 0));
 		DebugDrawConstraints(1, 2, 1.0f);
 		DebugDrawSimulationSpace();
+	}
+
+	void FSimulation::DebugDrawStaticParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color)
+	{
+#if CHAOS_DEBUG_DRAW
+		using namespace Chaos;
+		if (FDebugDrawQueue::IsDebugDrawingEnabled())
+		{
+			if (!ChaosImmediate_DebugDrawShowStatics)
+			{
+				return;
+			}
+			if ((ChaosImmediate_DebugDrawParticles >= MinDebugLevel) && (ChaosImmediate_DebugDrawParticles <= MaxDebugLevel))
+			{
+				DebugDraw::DrawParticleTransforms(Implementation->SimulationSpace.Transform, Implementation->Particles.GetActiveStaticParticlesView());
+			}
+			if ((ChaosImmediate_DebugDrawShapes >= MinDebugLevel) && (ChaosImmediate_DebugDrawShapes <= MaxDebugLevel))
+			{
+				DebugDraw::DrawParticleShapes(Implementation->SimulationSpace.Transform, Implementation->Particles.GetActiveStaticParticlesView(), Color);
+			}
+			if ((ChaosImmediate_DebugDrawBounds >= MinDebugLevel) && (ChaosImmediate_DebugDrawBounds <= MaxDebugLevel))
+			{
+				DebugDraw::DrawParticleBounds(Implementation->SimulationSpace.Transform, Implementation->Particles.GetActiveStaticParticlesView(), Color);
+			}
+		}
+#endif
 	}
 
 	void FSimulation::DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color)
@@ -770,7 +861,6 @@ namespace ImmediatePhysics_Chaos
 		}
 #endif
 	}
-
 
 	void FSimulation::DebugDrawDynamicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color)
 	{

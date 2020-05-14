@@ -562,6 +562,9 @@ public:
 	const TParticleView<TKinematicGeometryParticles<T, d>>& GetActiveKinematicParticlesView() const { return ActiveKinematicParticlesView; }
 	TParticleView<TKinematicGeometryParticles<T, d>>& GetActiveKinematicParticlesView() { return ActiveKinematicParticlesView; }
 
+	const TParticleView<TGeometryParticles<T, d>>& GetActiveStaticParticlesView() const { return ActiveStaticParticlesView; }
+	TParticleView<TGeometryParticles<T, d>>& GetActiveStaticParticlesView() { return ActiveStaticParticlesView; }
+
 	const TGeometryParticleHandles<T, d>& GetParticleHandles() const { return ParticleHandles; }
 	TGeometryParticleHandles<T, d>& GetParticleHandles() { return ParticleHandles; }
 
@@ -874,6 +877,13 @@ private:
 			ActiveKinematicParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
+			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray =
+			{
+				StaticParticles.Get(),
+			};
+			ActiveStaticParticlesView = MakeParticleView(MoveTemp(TmpArray));
+		}
+		{
 			TArray<TSOAView<TPBDGeometryCollectionParticles<T, d>>> TmpArray = 
 			{ 
 				{&StaticGeometryCollectionArray},
@@ -923,6 +933,7 @@ private:
 	TParticleView<TPBDRigidParticles<T, d>> ActiveParticlesView;						//all particles that are active
 	TParticleView<TGeometryParticles<T, d>> AllParticlesView;							//all particles
 	TParticleView<TKinematicGeometryParticles<T, d>> ActiveKinematicParticlesView;		//all kinematic particles that are not disabled
+	TParticleView<TGeometryParticles<T, d>> ActiveStaticParticlesView;					//all static particles that are not disabled
 	TParticleView<TPBDGeometryCollectionParticles<T, d>> ActiveGeometryCollectionParticlesView; // all geom collection particles that are not disabled
 
 	//Auxiliary data synced with particle handles

@@ -663,6 +663,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SimulationLinearAcceleration,
 				SimulationAngularAcceleration);
 
+			UpdateWorldObjects(SimulationTransform);
+
 			PhysicsSimulation->UpdateSimulationSpace(
 				SimulationTransform, 
 				SimulationLinearVelocity,
@@ -830,6 +832,9 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 
 	PreviousTransform = SkeletalMeshComp->GetComponentToWorld();
 
+	ComponentsInSim.Reset();
+	ComponentsInSimTick = 0;
+
 	if (UPhysicsSettings* Settings = UPhysicsSettings::Get())
 	{
 		AnimPhysicsMinDeltaTime = Settings->AnimPhysicsMinDeltaTime;
@@ -847,7 +852,6 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		PhysicsSimulation = new ImmediatePhysics::FSimulation();
 		const int32 NumBodies = UsePhysicsAsset->SkeletalBodySetups.Num();
 		Bodies.Empty(NumBodies);
-		ComponentsInSim.Reset();
 		BodyAnimData.Reset(NumBodies);
 		BodyAnimData.AddDefaulted(NumBodies);
 		TotalMass = 0.f;
@@ -1093,18 +1097,31 @@ void FAnimNode_RigidBody::UpdateWorldGeometry(const UWorld& World, const USkelet
 		QueryParams.MobilityType = EQueryMobilityType::Static;	//We only want static actors
 	}
 
-	Bounds = SKC.CalcBounds(SKC.GetComponentToWorld()).GetSphere();
+	// Check for deleted world objects and flag for removal (later in anim task)
+	ExpireWorldObjects();
 
+	// If we have moved outside of the bounds we checked for world objects we need to gather new world objects
+	Bounds = SKC.CalcBounds(SKC.GetComponentToWorld()).GetSphere();
 	if (!Bounds.IsInside(CachedBounds))
 	{
 		// Since the cached bounds are no longer valid, update them.
-		
 		CachedBounds = Bounds;
 		CachedBounds.W *= CachedBoundsScale;
 
-		// Cache the PhysScene and World for use in UpdateWorldForces.
+		// Cache the PhysScene and World for use in UpdateWorldForces 
+		// [and CollectWorldObjects in PhysX].
 		PhysScene = World.GetPhysicsScene();
 		UnsafeWorld = &World;
+
+#if WITH_CHAOS
+		// Needs to be on game thread for now.
+		// - GetPhysicsMaterial may access the render material, which will assert if in a task
+		// - We cannot get the SkelMesh Owner in the task and we need it to filter out self-collisions
+		CollectWorldObjects(&World, &SKC);
+#endif
+
+		// Remove objects we haven't detected in a while
+		++ComponentsInSimTick;
 	}
 }
 
@@ -1183,7 +1200,7 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 	APawn* PawnOwner = InAnimInstance->TryGetPawnOwner();
 	UPawnMovementComponent* MovementComp = PawnOwner ? PawnOwner->GetMovementComponent() : nullptr;
 
-#if WITH_EDITOR
+#if WITH_EDITOR && !WITH_CHAOS
 	if (bEnableWorldGeometry && SimulationSpace != ESimulationSpace::WorldSpace)
 	{
 		FMessageLog("PIE").Warning(FText::Format(LOCTEXT("WorldCollisionComponentSpace", "Trying to use world collision without world space simulation for ''{0}''. This is not supported, please change SimulationSpace to WorldSpace"),
@@ -1197,7 +1214,7 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 		WorldSpaceGravity = bOverrideWorldGravity ? OverrideWorldGravity : (MovementComp ? FVector(0.f, 0.f, MovementComp->GetGravityZ()) : FVector(0.f, 0.f, World->GetGravityZ()));
 		if(SKC)
 		{
-			if (PhysicsSimulation && bEnableWorldGeometry && SimulationSpace == ESimulationSpace::WorldSpace)
+			if (PhysicsSimulation && bEnableWorldGeometry)
 			{
 				UpdateWorldGeometry(*World, *SKC);
 			}
@@ -1246,12 +1263,30 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 	AccumulatedDeltaTime += Context.AnimInstanceProxy->GetDeltaSeconds();
 
 	if (UnsafeWorld != nullptr)
-	{		
+	{
 		// Node is valid to evaluate. Simulation is starting.
 		bSimulationStarted = true;
+	}
 
+	// Remove expired objects from the sim
+	PurgeExpiredWorldObjects();
+
+#if !WITH_CHAOS
+	CollectWorldObjects(UnsafeWorld, nullptr);
+#endif
+
+	// These get set again if our bounds change. Subsequent calls to CollectWorldObjects will early-out until then
+	UnsafeWorld = nullptr;
+	PhysScene = nullptr;
+}
+
+void FAnimNode_RigidBody::CollectWorldObjects(const UWorld* World, const USkeletalMeshComponent* SKC)
+{
+	if ((World != nullptr) && (PhysScene != nullptr))
+	{
+		// @todo(ccaulfield): should this use CachedBounds?
 		TArray<FOverlapResult> Overlaps;
-		UnsafeWorld->OverlapMultiByChannel(Overlaps, Bounds.Center, FQuat::Identity, OverlapChannel, FCollisionShape::MakeSphere(Bounds.W), QueryParams, FCollisionResponseParams(ECR_Overlap));
+		World->OverlapMultiByChannel(Overlaps, Bounds.Center, FQuat::Identity, OverlapChannel, FCollisionShape::MakeSphere(Bounds.W), QueryParams, FCollisionResponseParams(ECR_Overlap));
 
 		// @todo(ccaulfield): is there an engine-independent way to do this?
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
@@ -1262,21 +1297,120 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 		{
 			if (UPrimitiveComponent* OverlapComp = Overlap.GetComponent())
 			{
-				if (ComponentsInSim.Contains(OverlapComp) == false)
+				FWorldObject* WorldObject = ComponentsInSim.Find(OverlapComp);
+				if (WorldObject != nullptr)
 				{
-					ComponentsInSim.Add(OverlapComp);
-
-					// Not sure why this happens, adding check to fix crash in CheckRBN engine test.
-					if (OverlapComp->BodyInstance.BodySetup != nullptr)
+					// Existing object - reset its age
+					WorldObject->LastSeenTick = ComponentsInSimTick;
+				}
+				else
+				{
+					// New object - add it to the sim
+					// @todo(ccaulfield): Not sure how we can get invalid body setups (see crash in CheckRBN engine test and fix it!)
+					bool bIsValidBody = (OverlapComp->BodyInstance.BodySetup != nullptr);
+					bool bIsSelf = (SKC != nullptr) && (SKC->GetOwner() == OverlapComp->GetOwner());
+					if (bIsValidBody && !bIsSelf)
 					{
-						PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::StaticActor, &OverlapComp->BodyInstance, OverlapComp->BodyInstance.GetUnrealWorldTransform());
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+						ImmediatePhysics::FActorHandle* ActorHandle = PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::StaticActor, &OverlapComp->BodyInstance, OverlapComp->BodyInstance.GetUnrealWorldTransform());
+#elif WITH_CHAOS
+						// Create a kinematic actor. Not using Static as world-static objects may move in the simulation's frame of reference
+						ImmediatePhysics::FActorHandle* ActorHandle = PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::KinematicActor, &OverlapComp->BodyInstance, OverlapComp->BodyInstance.GetUnrealWorldTransform());
+						PhysicsSimulation->AddToCollidingPairs(ActorHandle);
+#endif
+
+						ComponentsInSim.Add(OverlapComp, FWorldObject(ActorHandle, ComponentsInSimTick));
 					}
 				}
 			}
 		}
-		UnsafeWorld = nullptr;
-		PhysScene = nullptr;
 	}
+}
+
+// Flag invalid objects for purging
+void FAnimNode_RigidBody::ExpireWorldObjects()
+{
+#if WITH_CHAOS
+	const int32 ExpireTickCount = 4;
+
+	// Invalidate deleted and expired world objects
+	TArray<const UPrimitiveComponent*> PrunedEntries;
+	for (auto& WorldEntry : ComponentsInSim)
+	{
+		const UPrimitiveComponent* WorldComp = WorldEntry.Key;
+		FWorldObject& WorldObject = WorldEntry.Value;
+
+		// Do we need to expire this object?
+		bool bIsInvalid = 
+			((ComponentsInSimTick - WorldObject.LastSeenTick) > ExpireTickCount)	// Haven't seen this object for a while
+			|| (WorldComp == nullptr)
+			|| (WorldComp->IsPendingKill())
+			|| (WorldComp->GetBodyInstance() == nullptr)
+			|| (!WorldComp->GetBodyInstance()->IsValidBodyInstance());
+
+		// Remove from sim if necessary
+		if (bIsInvalid)
+		{
+			WorldObject.bExpired = true;
+		}
+	}
+#endif
+}
+
+void FAnimNode_RigidBody::PurgeExpiredWorldObjects()
+{
+#if WITH_CHAOS
+	// Destroy expired simulated objects
+	TArray<const UPrimitiveComponent*> PurgedEntries;
+	for (auto& WorldEntry : ComponentsInSim)
+	{
+		FWorldObject& WorldObject = WorldEntry.Value;
+
+		if (WorldObject.bExpired)
+		{
+			PhysicsSimulation->DestroyActor(WorldObject.ActorHandle);
+			WorldObject.ActorHandle = nullptr;
+
+			PurgedEntries.Add(WorldEntry.Key);
+		}
+	}
+
+	// Remove purged map entries
+	for (const UPrimitiveComponent* PurgedEntry : PurgedEntries)
+	{
+		ComponentsInSim.Remove(PurgedEntry);
+	}
+#endif
+}
+
+// Update the transforms of the world objects we added to the sim. This is required
+// if we have a component- or bone-space simulation as even world-static objects
+// will be moving in the simulation's frame of reference.
+void FAnimNode_RigidBody::UpdateWorldObjects(const FTransform& SpaceTransform)
+{
+#if WITH_CHAOS
+	if (SimulationSpace != ESimulationSpace::WorldSpace)
+	{
+		for (const auto& WorldEntry : ComponentsInSim)
+		{ 
+			const UPrimitiveComponent* OverlapComp = WorldEntry.Key;
+			if (OverlapComp != nullptr)
+			{
+				ImmediatePhysics::FActorHandle* ActorHandle = WorldEntry.Value.ActorHandle;
+
+				// Calculate the sim-space transform of this object
+				const FTransform CompWorldTransform = OverlapComp->BodyInstance.GetUnrealWorldTransform();
+				FTransform CompSpaceTransform;
+				CompSpaceTransform.SetTranslation(SpaceTransform.InverseTransformPosition(CompWorldTransform.GetLocation()));
+				CompSpaceTransform.SetRotation(SpaceTransform.InverseTransformRotation(CompWorldTransform.GetRotation()));
+				CompSpaceTransform.SetScale3D(FVector::OneVector);	// TODO - sort out scale for world objects in local sim
+
+				// Update the sim's copy of the world object
+				ActorHandle->SetWorldTransform(CompSpaceTransform);
+			}
+		}
+	}
+#endif
 }
 
 void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& RequiredBones) 
