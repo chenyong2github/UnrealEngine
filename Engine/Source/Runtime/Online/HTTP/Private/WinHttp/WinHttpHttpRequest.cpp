@@ -1,0 +1,444 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#if WITH_WINHTTP
+
+#include "WinHttp/WinHttpHttpRequest.h"
+#include "WinHttp/WinHttpHttpManager.h"
+#include "WinHttp/WinHttpHttpResponse.h"
+#include "WinHttp/Support/WinHttpConnectionHttp.h"
+#include "GenericPlatform/HttpRequestPayload.h"
+#include "Http.h"
+#include "HAL/PlatformTime.h"
+
+#include "Containers/StringView.h"
+#include "HAL/FileManager.h"
+
+FWinHttpHttpRequest::FWinHttpHttpRequest()
+{
+
+}
+
+FWinHttpHttpRequest::~FWinHttpHttpRequest()
+{
+	// Make sure we either didn't start, or we finished before destructing
+	check(!RequestStartTimeSeconds.IsSet() || RequestFinishTimeSeconds.IsSet());
+}
+
+FString FWinHttpHttpRequest::GetURL() const
+{
+	return RequestData.Url;
+}
+
+FString FWinHttpHttpRequest::GetURLParameter(const FString& ParameterName) const
+{
+	FString ReturnValue;
+
+	if (TOptional<FString> OptionalParameterValue = FGenericPlatformHttp::GetUrlParameter(RequestData.Url, ParameterName))
+	{
+		ReturnValue = MoveTemp(OptionalParameterValue.GetValue());
+	}
+
+	return ReturnValue;
+}
+
+FString FWinHttpHttpRequest::GetHeader(const FString& HeaderName) const
+{
+	const FString* const ExistingHeader = RequestData.Headers.Find(HeaderName);
+	return ExistingHeader ? *ExistingHeader : FString();
+}
+
+TArray<FString> FWinHttpHttpRequest::GetAllHeaders() const
+{
+	TArray<FString> AllHeaders;
+
+	for (const TPair<FString, FString>& Header : RequestData.Headers)
+	{
+		AllHeaders.Add(FString::Printf(TEXT("%s: %s"), *Header.Key, *Header.Value));
+	}
+
+	return AllHeaders;
+}
+	
+FString FWinHttpHttpRequest::GetContentType() const
+{
+	return GetHeader(TEXT("Content-Type"));
+}
+
+int32 FWinHttpHttpRequest::GetContentLength() const
+{
+	return RequestData.Payload.IsValid() ? RequestData.Payload->GetContentLength() : 0;
+}
+
+const TArray<uint8>& FWinHttpHttpRequest::GetContent() const
+{
+	static const TArray<uint8> EmptyContent;
+	return RequestData.Payload.IsValid() ? RequestData.Payload->GetContent() : EmptyContent;
+}
+
+FString FWinHttpHttpRequest::GetVerb() const
+{
+	return RequestData.Verb;
+}
+
+void FWinHttpHttpRequest::SetVerb(const FString& InVerb)
+{
+	if (State != EHttpRequestStatus::NotStarted)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to set verb on a request that is inflight"));
+		return;
+	}
+
+	RequestData.Verb = InVerb.ToUpper();
+}
+
+void FWinHttpHttpRequest::SetURL(const FString& InURL)
+{
+	if (State != EHttpRequestStatus::NotStarted)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to set URL on a request that is inflight"));
+		return;
+	}
+
+	RequestData.Url = InURL;
+}
+
+void FWinHttpHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
+{
+	if (State != EHttpRequestStatus::NotStarted)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
+		return;
+	}
+
+	RequestData.Payload = MakeShared<FRequestPayloadInMemory, ESPMode::ThreadSafe>(ContentPayload);
+}
+
+void FWinHttpHttpRequest::SetContentAsString(const FString& ContentString)
+{
+	if (State != EHttpRequestStatus::NotStarted)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
+		return;
+	}
+
+	const FTCHARToUTF8 Converter(*ContentString, ContentString.Len());
+
+	TArray<uint8> Content;
+	Content.Append(reinterpret_cast<const uint8*>(Converter.Get()), Converter.Length());
+
+	RequestData.Payload = MakeShared<FRequestPayloadInMemory, ESPMode::ThreadSafe>(MoveTemp(Content));
+}
+
+bool FWinHttpHttpRequest::SetContentAsStreamedFile(const FString& Filename)
+{
+	if (State != EHttpRequestStatus::NotStarted)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
+		return false;
+	}
+
+	if (FArchive* File = IFileManager::Get().CreateFileReader(*Filename))
+	{
+		RequestData.Payload = MakeShared<FRequestPayloadInFileStream, ESPMode::ThreadSafe>(MakeShareable(File));
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Failed to open '%s' for reading"), *Filename);
+		RequestData.Payload.Reset();
+		return false;
+	}
+}
+
+bool FWinHttpHttpRequest::SetContentFromStream(TSharedRef<FArchive, ESPMode::ThreadSafe> Stream)
+{
+	if (State != EHttpRequestStatus::NotStarted)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
+		return false;
+	}
+
+	RequestData.Payload = MakeShared<FRequestPayloadInFileStream, ESPMode::ThreadSafe>(Stream);
+	return true;
+}
+
+void FWinHttpHttpRequest::SetHeader(const FString& HeaderName, const FString& HeaderValue)
+{
+	if (State != EHttpRequestStatus::NotStarted)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to set a header on a request that is inflight"));
+		return;
+	}
+
+	if (HeaderName.IsEmpty())
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to set an empty header name"));
+		return;
+	}
+
+	RequestData.Headers.Add(HeaderName, HeaderValue);
+}
+
+void FWinHttpHttpRequest::AppendToHeader(const FString& HeaderName, const FString& AdditionalHeaderValue)
+{
+	if (State != EHttpRequestStatus::NotStarted)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to append a header on a request that is inflight"));
+		return;
+	}
+	
+	if (HeaderName.IsEmpty())
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to append an empty header name"));
+		return;
+	}
+
+	if (const FString* ExistingHeaderValue = RequestData.Headers.Find(HeaderName))
+	{
+		RequestData.Headers.Add(HeaderName, FString::Printf(TEXT("%s, %s"), **ExistingHeaderValue, *AdditionalHeaderValue));
+	}
+	else
+	{
+		RequestData.Headers.Add(HeaderName, AdditionalHeaderValue);
+	}
+}
+
+bool FWinHttpHttpRequest::ProcessRequest()
+{
+	UE_LOG(LogHttp, Verbose, TEXT("FWinHttpHttpRequest::ProcessRequest() FWinHttpHttpRequest=[%p]"), this);
+
+	if (State == EHttpRequestStatus::Processing)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to start request while it is still in inflight"));
+		return false;
+	}
+
+	FWinHttpHttpManager* HttpManager = FWinHttpHttpManager::GetManager();
+	if (!HttpManager)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to start request with no HTTP manager"));
+		return false;
+	}
+
+	Response.Reset();
+	TotalBytesSent = 0;
+	TotalBytesReceived = 0;
+	RequestStartTimeSeconds.Reset();
+	bRequestCancelled = false;
+
+	State = EHttpRequestStatus::Processing;
+
+	TWeakPtr<FWinHttpHttpRequest> LocalWeakThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared());
+	HttpManager->QuerySessionForUrl(RequestData.Url, FWinHttpQuerySessionComplete::CreateLambda([LocalWeakThis](FWinHttpSession* SessionPtr)
+	{
+		// Validate state
+		TSharedPtr<FWinHttpHttpRequest> StrongThis = LocalWeakThis.Pin();
+		if (!StrongThis.IsValid())
+		{
+			// We went away
+			return;
+		}
+		if (StrongThis->bRequestCancelled)
+		{
+			UE_LOG(LogHttp, Warning, TEXT("WinHttp Request Cancelled"));
+			StrongThis->FinishRequest();
+			return;
+		}
+		if (!SessionPtr)
+		{
+			// Could not create session
+			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Session, failing request"));
+			StrongThis->FinishRequest();
+			return;
+		}
+
+		FWinHttpHttpRequestData& RequestData = StrongThis->RequestData;
+
+		// Create connection object
+		const bool bIsSecure = FGenericPlatformHttp::IsSecureProtocol(RequestData.Url).Get(false);
+		const FString Domain = FGenericPlatformHttp::GetUrlDomain(RequestData.Url);
+		TOptional<uint16> Port = FGenericPlatformHttp::GetUrlPort(RequestData.Url);
+		const FString PathAndQuery = FGenericPlatformHttp::GetUrlPath(RequestData.Url, true, false);
+		TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection = FWinHttpConnectionHttp::CreateHttpConnection(*SessionPtr, RequestData.Verb, bIsSecure, Domain, Port, PathAndQuery, RequestData.Headers, RequestData.Payload);
+		if (!Connection.IsValid())
+		{
+			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Session, failing request"));
+			StrongThis->FinishRequest();
+			return;
+		}
+
+		// Bind listeners
+		TSharedRef<FWinHttpHttpRequest> StrongThisRef = StrongThis.ToSharedRef();
+		Connection->SetDataTransferredHandler(FWinHttpConnectionHttpOnDataTransferred::CreateSP(StrongThisRef, &FWinHttpHttpRequest::HandleDataTransferred));
+		Connection->SetHeaderReceivedHandler(FWinHttpConnectionHttpOnHeaderReceived::CreateSP(StrongThisRef, &FWinHttpHttpRequest::HandleHeaderReceived));
+		Connection->SetRequestCompletedHandler(FWinHttpConnectionHttpOnRequestComplete::CreateSP(StrongThisRef, &FWinHttpHttpRequest::HandleRequestComplete));
+
+		// Start request!
+		StrongThis->RequestStartTimeSeconds = FPlatformTime::Seconds();
+		if (!Connection->StartRequest())
+		{
+			UE_LOG(LogHttp, Warning, TEXT("Unable to start WinHttp Connection, failing request"));
+			StrongThis->FinishRequest();
+			return;
+		}
+
+		// Save object
+		StrongThis->Connection = MoveTemp(Connection);
+		FHttpModule::Get().GetHttpManager().AddRequest(StrongThisRef);
+	}));
+	return true;
+}
+
+FHttpRequestCompleteDelegate& FWinHttpHttpRequest::OnProcessRequestComplete()
+{
+	return RequestCompleteDelegate;
+}
+
+FHttpRequestProgressDelegate& FWinHttpHttpRequest::OnRequestProgress()
+{
+	return RequestProgressDelegate;
+}
+
+FHttpRequestHeaderReceivedDelegate& FWinHttpHttpRequest::OnHeaderReceived()
+{
+	return HeaderReceivedDelegate;
+}
+
+FHttpRequestWillRetryDelegate& FWinHttpHttpRequest::OnRequestWillRetry()
+{
+	return RequestWillRetryDelegate;
+}
+
+void FWinHttpHttpRequest::CancelRequest()
+{
+	UE_LOG(LogHttp, Log, TEXT("FWinHttpHttpRequest::CancelRequest() FWinHttpHttpRequest=[%p]"), this);
+	
+	if (RequestFinishTimeSeconds.IsSet())
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to cancel a request that was already finished"));
+		return;
+	}
+	if (bRequestCancelled)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("Attempted to cancel a request that was already cancelled"));
+		return;
+	}
+
+	bRequestCancelled = true;
+	if (Connection.IsValid())
+	{
+		if (!Connection->IsComplete())
+		{
+			Connection->CancelRequest();
+		}
+	}
+	else if (State == EHttpRequestStatus::NotStarted)
+	{
+		FinishRequest();
+	}
+}
+
+EHttpRequestStatus::Type FWinHttpHttpRequest::GetStatus() const
+{
+	return State;
+}
+
+const FHttpResponsePtr FWinHttpHttpRequest::GetResponse() const
+{
+	return Response;
+}
+
+void FWinHttpHttpRequest::Tick(float DeltaSeconds)
+{
+	if (Connection.IsValid())
+	{
+		Connection->PumpMessages();
+		// Connection is not gaurenteed to be valid anymore here, be sure to check again if it gets used again below
+	}
+}
+
+float FWinHttpHttpRequest::GetElapsedTime() const
+{
+	if (!RequestStartTimeSeconds.IsSet())
+	{
+		// Request hasn't started
+		return 0.0f;
+	}
+
+	if (RequestFinishTimeSeconds.IsSet())
+	{
+		// Request finished
+		return RequestFinishTimeSeconds.GetValue() - RequestStartTimeSeconds.GetValue();
+	}
+
+	// Request still in progress
+	return FPlatformTime::Seconds() - RequestStartTimeSeconds.GetValue();
+}
+
+void FWinHttpHttpRequest::HandleDataTransferred(int32 BytesSent, int32 BytesReceived)
+{
+	check(IsInGameThread());
+
+	if (BytesSent > 0 || BytesReceived > 0)
+	{
+		TotalBytesSent += BytesSent;
+		TotalBytesReceived += BytesReceived;
+		TSharedRef<IHttpRequest> KeepAlive = AsShared();
+		OnRequestProgress().ExecuteIfBound(AsShared(), TotalBytesSent, TotalBytesReceived);
+	}
+}
+
+void FWinHttpHttpRequest::HandleHeaderReceived(const FString& HeaderKey, const FString& HeaderValue)
+{
+	check(IsInGameThread());
+
+	TSharedRef<IHttpRequest> KeepAlive = AsShared();
+	OnHeaderReceived().ExecuteIfBound(AsShared(), HeaderKey, HeaderValue);
+}
+
+void FWinHttpHttpRequest::HandleRequestComplete(EHttpRequestStatus::Type CompletionStatus, EHttpResponseCodes::Type HttpStatusCode, FStringKeyValueMap& InHeaders, TArray<uint8>& InContents)
+{
+	check(IsInGameThread());
+	check(EHttpRequestStatus::IsFinished(CompletionStatus));
+
+	State = CompletionStatus;
+
+	if (CompletionStatus == EHttpRequestStatus::Succeeded)
+	{
+		Response = MakeShared<FWinHttpHttpResponse, ESPMode::ThreadSafe>(RequestData.Url, HttpStatusCode, MoveTemp(InHeaders), MoveTemp(InContents));
+	}
+
+	FinishRequest();
+}
+
+void FWinHttpHttpRequest::FinishRequest()
+{
+	if (RequestFinishTimeSeconds.IsSet())
+	{
+		// Already finished
+		return;
+	}
+	RequestFinishTimeSeconds = FPlatformTime::Seconds();
+
+	// Set our final state if it's not set yet
+	if (!EHttpRequestStatus::IsFinished(State))
+	{
+		State = EHttpRequestStatus::Failed;
+	}
+
+	// Shutdown our connection
+	if (Connection.IsValid())
+	{
+		if (!Connection->IsComplete())
+		{
+			Connection->CancelRequest();
+		}
+		Connection.Reset();
+	}
+	
+	TSharedRef<IHttpRequest> KeepAlive = AsShared();
+	FHttpModule::Get().GetHttpManager().RemoveRequest(KeepAlive);
+	OnProcessRequestComplete().ExecuteIfBound(KeepAlive, Response, Response.IsValid()); 
+}
+
+#endif // WITH_WINHTTP
