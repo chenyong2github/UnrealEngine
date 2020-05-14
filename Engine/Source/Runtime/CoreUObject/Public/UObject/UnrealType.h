@@ -3698,7 +3698,7 @@ public:
 	 */
 	int32 FindMapIndexWithKey(const void* PairWithKeyToFind, int32 IndexHint = 0) const
 	{
-		return WithScriptMap([this, PairWithKeyToFind, IndexHint](auto* Map) -> int32
+		return WithScriptMap([this, PairWithKeyToFind, &IndexHint](auto* Map) -> int32
 		{
 			int32 MapMax = Map->GetMaxIndex();
 			if (MapMax == 0)
@@ -3706,7 +3706,12 @@ public:
 				return INDEX_NONE;
 			}
 
-			check(IndexHint >= 0 && IndexHint < MapMax);
+			if (IndexHint >= MapMax)
+			{
+				IndexHint = 0;
+			}
+
+			check(IndexHint >= 0);
 
 			FProperty* LocalKeyProp = this->KeyProp; // prevent aliasing in loop below
 
@@ -4388,7 +4393,12 @@ public:
 			return INDEX_NONE;
 		}
 
-		check(IndexHint >= 0 && IndexHint < SetMax);
+		if (IndexHint >= SetMax)
+		{
+			IndexHint = 0;
+		}
+
+		check(IndexHint >= 0);
 
 		FProperty* LocalKeyProp = this->ElementProp; // prevent aliasing in loop below
 
