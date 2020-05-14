@@ -484,7 +484,7 @@ void USkyLightComponent::UpdateImportanceSamplingData()
 	check(IsInGameThread());
 
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingEnabled() && ProcessedSkyTexture)
 	{
 		if (!ImportanceSamplingData.IsValid())
 		{
