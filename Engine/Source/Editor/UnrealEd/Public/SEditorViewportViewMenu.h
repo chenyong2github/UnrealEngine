@@ -25,7 +25,6 @@ public:
 
 private:
 	FText GetViewMenuLabel() const;
-	const FSlateBrush* GetViewMenuLabelIcon() const;
 	void FillViewMenu(UToolMenu* Menu) const;
 
 protected:

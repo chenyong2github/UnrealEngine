@@ -30,17 +30,12 @@
 #include "Settings/EditorProjectSettings.h"
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
+#include "Styling/ToolBarStyle.h"
+#include "SEditorViewportToolBarMenu.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "TransformToolBar"
 
-namespace TransformViewportToolbarDefs
-{
-	/** Size of the arrow shown on SGridSnapSettings Menu button */
-	const float DownArrowSize = 4.0f;
-
-	/** Size of the icon displayed on the toggle button of SGridSnapSettings */
-	const float ToggleImageScale = 16.0f;
-}
 
 void STransformViewportToolBar::Construct( const FArguments& InArgs )
 {
@@ -55,14 +50,27 @@ void STransformViewportToolBar::Construct( const FArguments& InArgs )
 	SViewportToolBar::Construct(SViewportToolBar::FArguments());
 }
 
-TSharedRef< SWidget > STransformViewportToolBar::MakeSurfaceSnappingButton( FName ToolBarStyle )
+TSharedRef< SWidget > STransformViewportToolBar::MakeSurfaceSnappingButton()
 {
-	auto IsSnappingEnabled = []{
+	check(!SurfaceSnappingMenu.IsValid());
+	SurfaceSnappingMenu = 
+		SNew(SEditorViewportToolbarMenu)
+		.ParentToolBar(SharedThis(this))
+		.Image("EditorViewport.ToggleSurfaceSnapping")
+		.OnGetMenuContent(this, &STransformViewportToolBar::GenerateSurfaceSnappingMenu)
+		.ForegroundColor(this, &STransformViewportToolBar::GetSurfaceSnappingForegroundColor);
+
+	return SurfaceSnappingMenu.ToSharedRef();
+}
+
+TSharedRef<SWidget> STransformViewportToolBar::GenerateSurfaceSnappingMenu()
+{
+	auto IsSnappingEnabled = [] {
 		return GetDefault<ULevelEditorViewportSettings>()->SnapToSurface.bEnabled;
 	};
 
 	const bool bCloseAfterSelection = true;
-	FMenuBuilder MenuBuilder( bCloseAfterSelection, CommandList );
+	FMenuBuilder MenuBuilder(bCloseAfterSelection, CommandList);
 
 	MenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().SurfaceSnapping);
 
@@ -73,17 +81,16 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeSurfaceSnappingButton( FNam
 			LOCTEXT("SnapToSurfaceSettings_RotationTip", "When checked, snapping an object to a surface will also rotate the object to align to the surface normal"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateStatic( []{
+				FExecuteAction::CreateStatic([] {
 					auto& Settings = GetMutableDefault<ULevelEditorViewportSettings>()->SnapToSurface;
 					Settings.bSnapRotation = !Settings.bSnapRotation;
-				}),
-				FCanExecuteAction::CreateStatic( IsSnappingEnabled ),
-				FIsActionChecked::CreateStatic( []{
+					}),
+				FCanExecuteAction::CreateStatic(IsSnappingEnabled),
+				FIsActionChecked::CreateStatic([] {
 					const auto& Settings = GetDefault<ULevelEditorViewportSettings>()->SnapToSurface;
 					return Settings.bSnapRotation;
-				})
-			),
-			NAME_None,
+					})),
+				NAME_None,
 			EUserInterfaceActionType::RadioButton);
 
 		MenuBuilder.AddWidget(
@@ -94,29 +101,28 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeSurfaceSnappingButton( FNam
 			.AutoWidth()
 			.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
 			[
-				SNew( STextBlock )
-				.Text( LOCTEXT("SnapToSurfaceSettings_Offset", "Surface Offset") )
+				SNew(STextBlock)
+				.Text(LOCTEXT("SnapToSurfaceSettings_Offset", "Surface Offset"))
 			]
-			+SHorizontalBox::Slot()
-			.VAlign( VAlign_Bottom )
-			.FillWidth( 1.f )
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Bottom)
+			.FillWidth(1.f)
 			[
-				SNew( SNumericEntryBox<float> )
-				.Value( 
-					TAttribute<TOptional<float>>::Create(TAttribute<TOptional<float>>::FGetter::CreateStatic([]{
+				SNew(SNumericEntryBox<float>)
+				.Value(
+					TAttribute<TOptional<float>>::Create(TAttribute<TOptional<float>>::FGetter::CreateStatic([] {
 						const auto& Settings = GetDefault<ULevelEditorViewportSettings>()->SnapToSurface;
 						return TOptional<float>(Settings.SnapOffsetExtent);
-					}))
+						}))
 				)
 				.OnValueChanged(
-					SNumericEntryBox<float>::FOnValueChanged::CreateStatic([](float Val){
-						GetMutableDefault<ULevelEditorViewportSettings>()->SnapToSurface.SnapOffsetExtent = Val;
-					})
-				)
-				.MinValue(0.f)
-				.MaxValue(HALF_WORLD_MAX)
-				.MaxSliderValue(1000.f) // 'Sensible' range for the slider (10m)
-				.AllowSpin(true)
+				SNumericEntryBox<float>::FOnValueChanged::CreateStatic([](float Val) {
+					GetMutableDefault<ULevelEditorViewportSettings>()->SnapToSurface.SnapOffsetExtent = Val;
+					}))
+					.MinValue(0.f)
+					.MaxValue(HALF_WORLD_MAX)
+					.MaxSliderValue(1000.f) // 'Sensible' range for the slider (10m)
+					.AllowSpin(true)
 			],
 			FText::GetEmpty()
 		);
@@ -124,82 +130,44 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeSurfaceSnappingButton( FNam
 	}
 	MenuBuilder.EndSection();
 
-	// Have to use a custom widget here to make the checkbox work with the subsequent widget :(
-	return 
-		SNew(SHorizontalBox)
+	return MenuBuilder.MakeWidget();
+}
 
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SCheckBox)
-			.Cursor( EMouseCursor::Default )
-			.Style( FEditorStyle::Get(), EMultiBlockLocation::ToName(FEditorStyle::Join(ToolBarStyle, ".ToggleButton"), EMultiBlockLocation::Start) )
-			.Padding( 0 )
-			.ToolTipText( LOCTEXT("SurfaceSnappingCheckboxDescription", "Open editor surface snapping options") )
-			.IsChecked_Static( []{ return GetDefault<ULevelEditorViewportSettings>()->SnapToSurface.bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-			.Content()
-			[
-				SNew( SComboButton )
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
-				.HasDownArrow( false )
-				.ContentPadding( 0 )
-				.ButtonContent()
-				[
-					SNew( SVerticalBox )
+FSlateColor STransformViewportToolBar::GetSurfaceSnappingForegroundColor() const
+{
+	static const FCheckBoxStyle& ViewportToolbarCheckStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar").ToggleButton;
 
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(FMargin(5.f, 2.f, 3.f, 0.f))
-					[
-						SNew( SBox )
-						.WidthOverride( TransformViewportToolbarDefs::ToggleImageScale )
-						.HeightOverride( TransformViewportToolbarDefs::ToggleImageScale )
-						.HAlign( HAlign_Center )
-						.VAlign( VAlign_Center )
-						[
-							SNew( SImage )
-							.Image( FEditorStyle::GetBrush("EditorViewport.ToggleSurfaceSnapping") )
-						]
-					]
+	const bool bSurfaceSnappingEnabled = GetDefault<ULevelEditorViewportSettings>()->SnapToSurface.bEnabled;
 
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.HAlign( HAlign_Center )
-					.Padding(FMargin(0.f, 0.f, 0.f, 3.f))
-					[
-						SNew( SBox )
-						.WidthOverride( TransformViewportToolbarDefs::DownArrowSize )
-						.HeightOverride( TransformViewportToolbarDefs::DownArrowSize )
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("ComboButton.Arrow"))
-							.ColorAndOpacity(FLinearColor::Black)
-						]
-					]
-				]
-				.MenuContent()
-				[
-					MenuBuilder.MakeWidget()
-				]
-			]
-		]
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SBorder)
-			.Padding(FMargin(1.0f, 0.0f, 0.0f, 0.0f))
-			.BorderImage(FEditorStyle::GetDefaultBrush())
-			.BorderBackgroundColor(FLinearColor::Black)
-		];
+	bool bShouldAppearHovered = SurfaceSnappingMenu->IsHovered() || SurfaceSnappingMenu->IsMenuOpen();
+	// Hovered and checked
+	if (bShouldAppearHovered && bSurfaceSnappingEnabled)
+	{
+		return ViewportToolbarCheckStyle.CheckedHoveredForeground;
+	}
+	// Not hovered and checked
+	else if (bSurfaceSnappingEnabled)
+	{
+		return ViewportToolbarCheckStyle.CheckedForeground;
+	}
+	// Hovered not checked
+	else if (bShouldAppearHovered)
+	{
+		return ViewportToolbarCheckStyle.HoveredForeground;
+	}
+	// Not hovered not checked
+	else
+	{
+		return ViewportToolbarCheckStyle.ForegroundColor;
+	}
 }
 
 TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSharedPtr< FExtender > InExtenders )
 {
-	FToolBarBuilder ToolbarBuilder( CommandList, FMultiBoxCustomization::None, InExtenders );
+	FSlimHorizontalToolBarBuilder ToolbarBuilder( CommandList, FMultiBoxCustomization::None, InExtenders );
 
 	// Use a custom style
-	FName ToolBarStyle = "LegacyViewportMenu";
+	FName ToolBarStyle = "EditorViewportToolBar";
 	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
@@ -207,7 +175,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 	ToolbarBuilder.SetIsFocusable( false );
 
 	ToolbarBuilder.BeginSection("Transform");
-	ToolbarBuilder.BeginBlockGroup();
 	{
 		// Move Mode
 		static FName TranslateModeName = FName(TEXT("TranslateMode"));
@@ -229,16 +196,11 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 		static FName ScaleModeName = FName(TEXT("ScaleMode"));
 		ToolbarBuilder.AddToolBarButton( FEditorViewportCommands::Get().ScaleMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), ScaleModeName );
 
-	}
-	ToolbarBuilder.EndBlockGroup();
-	ToolbarBuilder.EndSection();
-	
-	ToolbarBuilder.SetIsFocusable( true );
-	
-	ToolbarBuilder.BeginSection("LocalToWorld");
-	ToolbarBuilder.BeginBlockGroup();
-	{
-		// Move Mode
+
+		ToolbarBuilder.AddSeparator();
+
+		ToolbarBuilder.SetIsFocusable( true );
+
 		ToolbarBuilder.AddToolBarButton( FEditorViewportCommands::Get().CycleTransformGizmoCoordSystem,
 										NAME_None,
 										TAttribute<FText>(),
@@ -247,13 +209,18 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 										FName(TEXT("CycleTransformGizmoCoordSystem"))
 										);
 	}
-	ToolbarBuilder.EndBlockGroup();
+
+	// Add a bit of spacing before the snapping section
+	ToolbarBuilder.AddWidget(SNew(SSpacer).Size(FVector2D(15.0f, 1.0f)));
+
 	ToolbarBuilder.EndSection();
-	
+
 	ToolbarBuilder.BeginSection("LocationGridSnap");
 	{
 		static FName SurfaceSnapName = FName(TEXT("SurfaceSnap"));
-		ToolbarBuilder.AddWidget( MakeSurfaceSnappingButton( ToolBarStyle ), SurfaceSnapName );
+		ToolbarBuilder.AddWidget( MakeSurfaceSnappingButton(), SurfaceSnapName );
+
+		ToolbarBuilder.AddSeparator();
 
 		// Grab the existing UICommand 
 		FUICommandInfo* Command = FEditorViewportCommands::Get().LocationGridSnap.Get();
@@ -263,8 +230,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 		// Setup a GridSnapSetting with the UICommand
 		ToolbarBuilder.AddWidget(	SNew(SViewportToolBarComboMenu)
 									.Style(ToolBarStyle)
-									.BlockLocation(EMultiBlockLocation::Middle)
-									.Cursor( EMouseCursor::Default )
 									.IsChecked(this, &STransformViewportToolBar::IsLocationGridSnapChecked)
 									.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleLocationGridSnap)
 									.Label(this, &STransformViewportToolBar::GetLocationGridLabel)
@@ -273,7 +238,7 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 									.MenuButtonToolTip(LOCTEXT("LocationGridSnap_ToolTip", "Set the Position Grid Snap value"))
 									.Icon(Command->GetIcon())
 									.ParentToolBar(SharedThis(this))
-									, PositionSnapName );
+									,PositionSnapName );
 	}
 	ToolbarBuilder.EndSection();
 
@@ -286,7 +251,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 
 		// Setup a GridSnapSetting with the UICommand
 		ToolbarBuilder.AddWidget(	SNew(SViewportToolBarComboMenu)
-									.Cursor( EMouseCursor::Default )
 									.Style(ToolBarStyle)
 									.IsChecked(this, &STransformViewportToolBar::IsRotationGridSnapChecked)
 									.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleRotationGridSnap)
@@ -309,7 +273,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 
 		TSharedRef<SWidget> SnapLayerPickerWidget =
 			SNew(SViewportToolBarComboMenu)
-			.Cursor(EMouseCursor::Default)
 			.Style(ToolBarStyle)
 			.Visibility(this, &STransformViewportToolBar::IsLayer2DSnapVisible)
 			.IsChecked(this, &STransformViewportToolBar::IsLayer2DSnapChecked)
@@ -352,21 +315,17 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 	ToolbarBuilder.EndSection();
 
 	ToolbarBuilder.BeginSection("CameraSpeed");
-	ToolbarBuilder.BeginBlockGroup();
 	{
 		// Camera speed 
-		ToolbarBuilder.AddWidget(	SNew(SViewportToolBarIconMenu)
-									.Cursor(EMouseCursor::Default)
-									.Style(ToolBarStyle)
-									.Label(this, &STransformViewportToolBar::GetCameraSpeedLabel)
-									.OnGetMenuContent(this, &STransformViewportToolBar::FillCameraSpeedMenu)
-									.ToolTipText(LOCTEXT("CameraSpeed_ToolTip","Camera Speed"))
-									.Icon(FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.CamSpeedSetting"))
-									.ParentToolBar(SharedThis(this))
-									.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("CameraSpeedButton")))
-									);
+		ToolbarBuilder.AddWidget(	
+			SNew(SEditorViewportToolbarMenu)
+			.ParentToolBar(SharedThis(this))
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("CameraSpeedButton")))
+			.ToolTipText(LOCTEXT("CameraSpeed_ToolTip", "Camera Speed"))
+			.LabelIcon(FAppStyle::Get().GetBrush("EditorViewport.CamSpeedSetting"))
+			.Label(this, &STransformViewportToolBar::GetCameraSpeedLabel)
+			.OnGetMenuContent(this, &STransformViewportToolBar::FillCameraSpeedMenu));
 	}
-	ToolbarBuilder.EndBlockGroup();
 	ToolbarBuilder.EndSection();
 
 	return ToolbarBuilder.MakeWidget();

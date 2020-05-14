@@ -73,7 +73,6 @@
 #include "EditorLevelUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
-#include "ToolMenus.h"
 
 static const FName LevelEditorName("LevelEditor");
 
@@ -2909,10 +2908,8 @@ void SActorPreview::Construct( const FArguments& InArgs )
 			[
 				SNew( SBorder )
 					.Visibility(BorderVisibility)
-
 					.Padding( 16.0f )
 					.BorderImage( FEditorStyle::GetBrush( "UniformShadow_Tint" ) )
-
 					.BorderBackgroundColor( this, &SActorPreview::GetBorderColorAndOpacity )
 					.ColorAndOpacity( this, &SActorPreview::GetColorAndOpacity )
 
@@ -3935,7 +3932,6 @@ void SLevelViewport::OnSetViewportConfiguration(FName ConfigurationName)
 			GCurrentLevelEditingViewportClient = nullptr;
 			ViewportTabPinned->SetViewportConfiguration(ConfigurationName);
 			FSlateApplication::Get().DismissAllMenus();
-			UToolMenus::Get()->CleanupStaleWidgetsNextTick(true);
 		}
 	}
 }

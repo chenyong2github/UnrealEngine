@@ -37,6 +37,7 @@
 #include "SScalabilitySettings.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "SEditorViewportViewMenuContext.h"
+#include "ToolMenu.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportToolBar"
 
@@ -159,48 +160,39 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 	Viewport = InArgs._Viewport;
 	TSharedRef<SLevelViewport> ViewportRef = Viewport.Pin().ToSharedRef();
 
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor");
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
-	const FMargin ToolbarSlotPadding( 2.0f, 2.0f );
-	const FMargin ToolbarButtonPadding( 2.0f, 0.0f );
-
-	static const FName DefaultForegroundName("DefaultForeground");
+	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
+	const FMargin ToolbarButtonPadding(4.0f, 0.0f);
 
 	ChildSlot
 	[
-		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-		// Color and opacity is changed based on whether or not the mouse cursor is hovering over the toolbar area
-		.ColorAndOpacity( this, &SViewportToolBar::OnGetColorAndOpacity )
-		.ForegroundColor( FEditorStyle::GetSlateColor(DefaultForegroundName) )
+		SNew(SBorder)
+		.BorderImage(FAppStyle::Get().GetBrush("EditorViewportToolBar.Background"))
+		.Cursor(EMouseCursor::Default)
 		[
 			SNew( SHorizontalBox )
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding( ToolbarSlotPadding )
+			.Padding(ToolbarSlotPadding)
 			[
 				SNew( SEditorViewportToolbarMenu )
 				.ParentToolBar( SharedThis( this ) )
-				.Cursor( EMouseCursor::Default )
-				.Image( "EditorViewportToolBar.MenuDropdown" )
+				.Image("EditorViewportToolBar.OptionsDropdown")
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.MenuDropdown")))
 				.OnGetMenuContent( this, &SLevelViewportToolBar::GenerateOptionsMenu )
 			]
-
 			+ SHorizontalBox::Slot()
 			[
 				SNew( SHorizontalBox )
 				.Visibility(Viewport.Pin().Get(), &SLevelViewport::GetFullToolbarVisibility)
-
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding( ToolbarSlotPadding )
 				[
 					SNew( SEditorViewportToolbarMenu )
 					.ParentToolBar( SharedThis( this ) )
-					.Cursor( EMouseCursor::Default )
 					.Label( this, &SLevelViewportToolBar::GetCameraMenuLabel )
-					.LabelIcon( this, &SLevelViewportToolBar::GetCameraMenuLabelIcon )
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.CameraMenu")))
 					.OnGetMenuContent( this, &SLevelViewportToolBar::GenerateCameraMenu ) 
 				]
@@ -209,8 +201,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				.Padding( ToolbarSlotPadding )
 				[
 					SNew( SLevelEditorViewportViewMenu, ViewportRef, SharedThis(this) )
-					.Cursor( EMouseCursor::Default )
-					.MenuExtenders( GetViewMenuExtender() )
+					.MenuExtenders(GetViewMenuExtender())
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewMenuButton")))
 				]
 				+ SHorizontalBox::Slot()
@@ -219,7 +210,6 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				[
 					SNew( SEditorViewportToolbarMenu )
 					.Label( LOCTEXT("ShowMenuTitle", "Show") )
-					.Cursor( EMouseCursor::Default )
 					.ParentToolBar( SharedThis( this ) )
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.ShowMenu")))
 					.OnGetMenuContent( this, &SLevelViewportToolBar::GenerateShowMenu ) 
@@ -228,10 +218,8 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				.AutoWidth()
 				.Padding( ToolbarSlotPadding )
 				[
-
 					SNew( SEditorViewportToolbarMenu )
 					.Label( this, &SLevelViewportToolBar::GetViewModeOptionsMenuLabel )
-					.Cursor( EMouseCursor::Default )
 					.ParentToolBar( SharedThis( this ) )
 					.Visibility( this, &SLevelViewportToolBar::GetViewModeOptionsVisibility )
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.ViewModeOptions")))
@@ -243,7 +231,6 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				[
 					SNew( SEditorViewportToolbarMenu )
 					.ParentToolBar( SharedThis( this ) )
-					.Cursor( EMouseCursor::Default )
 					.Label( this, &SLevelViewportToolBar::GetDevicePreviewMenuLabel )
 					.LabelIcon( this, &SLevelViewportToolBar::GetDevicePreviewMenuLabelIcon )
 					.OnGetMenuContent( this, &SLevelViewportToolBar::GenerateDevicePreviewMenu )
@@ -256,18 +243,16 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				[
 					// Button to show that realtime is off
 					SNew(SEditorViewportToolBarButton)	
-					.Cursor(EMouseCursor::Default)
 					.ButtonType(EUserInterfaceActionType::Button)
-					.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.MenuButtonWarning"))
+					.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
 					.OnClicked(this, &SLevelViewportToolBar::OnRealtimeWarningClicked)
 					.Visibility(this, &SLevelViewportToolBar::GetRealtimeWarningVisibility)
 					.ToolTipText(LOCTEXT("RealtimeOff_ToolTip", "This viewport is not updating in realtime.  Click to turn on realtime mode."))
 					.Content()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("EditorViewportToolBar.Font"))
-						.Text(LOCTEXT("RealtimeOff", "Realtime: Off"))
-						.ColorAndOpacity(FLinearColor::Black)
+						.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+						.Text(LOCTEXT("RealtimeOff", "Realtime Off"))
 					]
 				]
 				+ SHorizontalBox::Slot()
@@ -277,16 +262,15 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 					// Button to show scalability warnings
 					SNew(SEditorViewportToolbarMenu)
 					.ParentToolBar(SharedThis(this))
-					.Cursor(EMouseCursor::Default)
 					.Label(this, &SLevelViewportToolBar::GetScalabilityWarningLabel)
-					.MenuStyle(FEditorStyle::Get(), "EditorViewportToolBar.MenuButtonWarning")
+					.MenuStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
 					.OnGetMenuContent(this, &SLevelViewportToolBar::GetScalabilityWarningMenuContent)
 					.Visibility(this, &SLevelViewportToolBar::GetScalabilityWarningVisibility)
 					.ToolTipText(LOCTEXT("ScalabilityWarning_ToolTip", "Non-default scalability settings could be affecting what is shown in this viewport.\nFor example you may experience lower visual quality, reduced particle counts, and other artifacts that don't match what the scene would look like when running outside of the editor. Click to make changes."))
 				]
 				+ SHorizontalBox::Slot()
-				.Padding( ToolbarSlotPadding )
-				.HAlign( HAlign_Right )
+				.Padding(ToolbarSlotPadding)
+				.HAlign(HAlign_Right)
 				[
 					SNew(STransformViewportToolBar)
 					.Viewport(ViewportRef)
@@ -295,33 +279,32 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 					.Visibility(ViewportRef, &SLevelViewport::GetTransformToolbarVisibility)
 				]
 				+ SHorizontalBox::Slot()
-				.HAlign( HAlign_Right )
+				.HAlign(HAlign_Right)
 				.AutoWidth()
-				.Padding( ToolbarButtonPadding )
+				.Padding(ToolbarButtonPadding)
 				[
 					//The Maximize/Minimize button is only displayed when not in Immersive mode.
-					SNew( SEditorViewportToolBarButton )
-					.Cursor( EMouseCursor::Default )
-					.ButtonType( EUserInterfaceActionType::ToggleButton )
-					.IsChecked( ViewportRef, &SLevelViewport::IsMaximized )
-					.OnClicked( ViewportRef, &SLevelViewport::OnToggleMaximize )
-					.Visibility( ViewportRef, &SLevelViewport::GetMaximizeToggleVisibility )
-					.Image( "LevelViewportToolBar.Maximize" )
-					.ToolTipText( LOCTEXT("Maximize_ToolTip", "Maximizes or restores this viewport") )
+					SNew(SEditorViewportToolBarButton)
+					.ButtonType(EUserInterfaceActionType::ToggleButton)
+					.CheckBoxStyle(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("EditorViewportToolBar.MaximizeRestoreButton"))
+					.IsChecked(ViewportRef, &SLevelViewport::IsMaximized)
+					.OnClicked(ViewportRef, &SLevelViewport::OnToggleMaximize)
+					.Visibility(ViewportRef, &SLevelViewport::GetMaximizeToggleVisibility)
+					.Image("EditorViewportToolBar.Maximize")
+					.ToolTipText(LOCTEXT("Maximize_ToolTip", "Maximizes or restores this viewport"))
 				]
 				+ SHorizontalBox::Slot()
-				.HAlign( HAlign_Right )
+				.HAlign(HAlign_Right)
 				.AutoWidth()
-				.Padding( ToolbarButtonPadding )
+				.Padding(ToolbarButtonPadding)
 				[
 					//The Restore from Immersive' button is only displayed when the editor is in Immersive mode.
-					SNew( SEditorViewportToolBarButton )
-					.Cursor( EMouseCursor::Default )
-					.ButtonType( EUserInterfaceActionType::Button )
-					.OnClicked( ViewportRef, &SLevelViewport::OnToggleMaximize )
-					.Visibility( ViewportRef, &SLevelViewport::GetCloseImmersiveButtonVisibility )
-					.Image( "LevelViewportToolBar.RestoreFromImmersive.Normal" )
-					.ToolTipText( LOCTEXT("RestoreFromImmersive_ToolTip", "Restore from Immersive") )
+					SNew(SEditorViewportToolBarButton)
+					.ButtonType(EUserInterfaceActionType::Button)
+					.OnClicked(ViewportRef, &SLevelViewport::OnToggleMaximize)
+					.Visibility(ViewportRef, &SLevelViewport::GetCloseImmersiveButtonVisibility)
+					.Image("EditorViewportToolBar.RestoreFromImmersive.Normal")
+					.ToolTipText(LOCTEXT("RestoreFromImmersive_ToolTip", "Restore from Immersive"))
 				]
 			]
 		]
@@ -390,18 +373,7 @@ const FSlateBrush* SLevelViewportToolBar::GetDevicePreviewMenuLabelIcon() const
 		return FEditorStyle::GetOptionalBrush( PlatformIcon );
 	}
 
-	return NULL;
-}
-
-const FSlateBrush* SLevelViewportToolBar::GetCameraMenuLabelIcon() const
-{
-	TSharedPtr< SLevelViewport > PinnedViewport( Viewport.Pin() );
-	if( PinnedViewport.IsValid() )
-	{
-		return GetCameraMenuLabelIconFromViewportType(PinnedViewport->GetLevelViewportClient().ViewportType);
-	}
-
-	return FEditorStyle::GetBrush(NAME_None);
+	return nullptr;
 }
 
 bool SLevelViewportToolBar::IsCurrentLevelViewport() const
@@ -1609,7 +1581,7 @@ EVisibility SLevelViewportToolBar::GetRealtimeWarningVisibility() const
 {
 	FLevelEditorViewportClient& ViewportClient = Viewport.Pin()->GetLevelViewportClient();
 	// If the viewport is not realtime and there is no override then realtime is off
-	return !ViewportClient.IsRealtime() && !ViewportClient.IsRealtimeOverrideSet() ? EVisibility::Visible : EVisibility::Collapsed;
+	return !ViewportClient.IsRealtime() && !ViewportClient.IsRealtimeOverrideSet() && ViewportClient.IsPerspective() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FText SLevelViewportToolBar::GetScalabilityWarningLabel() const

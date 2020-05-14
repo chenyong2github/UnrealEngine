@@ -58,15 +58,6 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 			.ViewportSize(InArgs._ViewportSize)
 			[
 				SAssignNew(ViewportOverlay, SOverlay)
-				+ SOverlay::Slot()
-				[
-					SNew(SBorder)
-					.BorderImage(this, &SEditorViewport::OnGetViewportBorderBrush)
-					.BorderBackgroundColor(this, &SEditorViewport::OnGetViewportBorderColorAndOpacity)
-					.Visibility(this, &SEditorViewport::OnGetViewportContentVisibility)
-					.Padding(0.0f)
-					.ShowEffectWhenDisabled(false)
-				]
 			]
 		]
 	];
@@ -95,7 +86,7 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 
 	TSharedPtr<SWidget> ViewportToolbar = MakeViewportToolbar();
 
-	if( ViewportToolbar.IsValid() )
+	if(ViewportToolbar.IsValid())
 	{
 		ViewportOverlay->AddSlot()
 			.VAlign(VAlign_Top)
@@ -103,6 +94,16 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 				ViewportToolbar.ToSharedRef()
 			];
 	}
+
+	ViewportOverlay->AddSlot()
+	[
+		SNew(SBorder)
+		.BorderImage(this, &SEditorViewport::OnGetViewportBorderBrush)
+		.BorderBackgroundColor(this, &SEditorViewport::OnGetViewportBorderColorAndOpacity)
+		.Visibility(this, &SEditorViewport::GetActiveBorderVisibility)
+		.Padding(0.0f)
+		.ShowEffectWhenDisabled(false)
+	];
 
 	PopulateViewportOverlays(ViewportOverlay.ToSharedRef());
 }
@@ -703,6 +704,18 @@ EActiveTimerReturnType SEditorViewport::EnsureTick( double InCurrentTime, float 
 	const bool bShouldContinue = Client->IsRealtime() || bInvalidated;
 	bInvalidated = false;
 	return bShouldContinue ? EActiveTimerReturnType::Continue : EActiveTimerReturnType::Stop;
+}
+
+EVisibility SEditorViewport::GetActiveBorderVisibility() const
+{
+	EVisibility BaseVisibility = OnGetViewportContentVisibility();
+	if (BaseVisibility != EVisibility::Collapsed)
+	{
+		// The active border should never be hit testable as it overlays viewport UI but is for display purposes only
+		return EVisibility::HitTestInvisible;
+	}
+
+	return BaseVisibility;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

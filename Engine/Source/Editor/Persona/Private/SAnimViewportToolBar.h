@@ -132,7 +132,6 @@ private:
 	 * @return	Label to use for this Menu
 	 */
 	FText GetCameraMenuLabel() const;
-	const FSlateBrush* GetCameraMenuLabelIcon() const;
 
 	/** Called by the FOV slider in the perspective viewport to get the FOV value */
 	TOptional<float> OnGetFOVValue() const;

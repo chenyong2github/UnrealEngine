@@ -44,12 +44,6 @@ private:
 	 */
 	FText GetCameraMenuLabel() const;
 
-	/**
-	 * Returns the label icon for the "Camera" tool bar menu, which changes depending on the viewport type
-	 *
-	 * @return	Label icon to use for this menu label
-	 */
-	const FSlateBrush* GetCameraMenuLabelIcon() const;
 
 	/**
 	 * Returns the label for the "View" tool bar menu, which changes depending on viewport show flags

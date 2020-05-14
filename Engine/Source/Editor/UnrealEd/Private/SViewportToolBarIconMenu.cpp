@@ -63,30 +63,6 @@ void SViewportToolBarIconMenu::Construct( const FArguments& InArgs )
 					.TextStyle(&ViewportToolbarStyle.LabelStyle)
 					.Text(InArgs._Label)
 				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Bottom)
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew( SBox )
-						.WidthOverride( 4 )
-						.HeightOverride( 4 )
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("ComboButton.Arrow"))
-							.ColorAndOpacity(FLinearColor::Black)
-						]
-					]
-
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-				]
 			]
 		]
 	];

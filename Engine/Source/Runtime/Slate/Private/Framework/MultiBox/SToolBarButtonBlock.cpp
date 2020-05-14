@@ -179,7 +179,6 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	TSharedRef<SWidget> ButtonContent = SNullWidget::NullWidget;
 	if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
 	{
-
 		const FVector2D IconSize = ToolBarStyle.IconSize;
 
 		ButtonContent =

@@ -2283,7 +2283,82 @@ void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
 
 void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 {
-	// Viewport ToolbarBar
+	{
+		FToolBarStyle ViewportToolbarStyle = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+
+		FButtonStyle ViewportMenuButton = FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("NoBorder"))
+			.SetNormalForeground(FStyleColors::Foreground)
+			.SetHoveredForeground(FStyleColors::ForegroundHover)
+			.SetPressedForeground(FStyleColors::ForegroundHover)
+			.SetDisabledForeground(FStyleColors::Foreground)
+			.SetNormalPadding(FMargin(0, 2, 0, 2))
+			.SetPressedPadding(FMargin(0, 3, 0, 1));
+
+
+		Set("EditorViewportToolBar.Button", ViewportMenuButton);
+
+
+		FCheckBoxStyle MaximizeRestoreButton = FCheckBoxStyle(ViewportToolbarStyle.ToggleButton)
+			.SetForegroundColor(FStyleColors::Foreground)
+			.SetPressedForegroundColor(FStyleColors::ForegroundHover)
+			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+			.SetCheckedForegroundColor(FStyleColors::Foreground)
+			.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
+			.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover);
+
+		Set("EditorViewportToolBar.MaximizeRestoreButton", MaximizeRestoreButton);
+
+		ViewportToolbarStyle
+			.SetBackground(FSlateNoResource())
+			.SetIconSize(Icon16x16)
+			.SetLabelPadding(FMargin(0))
+			.SetComboButtonPadding(FMargin(0))
+			.SetBlockPadding(FMargin(2.0f,0.0f))
+			.SetIndentedBlockPadding(FMargin(0))
+			.SetButtonPadding(FMargin(0))
+			.SetSubMenuIndicator(FSlateNoResource())
+			.SetCheckBoxPadding(FMargin(3.0f, 0.0f))
+			.SetButtonStyle(ViewportMenuButton)
+			.SetSeparatorBrush(FSlateNoResource())
+			.SetSeparatorPadding(FMargin(4.0f, 0.0f))
+			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon8x8));
+
+		Set("EditorViewportToolBar", ViewportToolbarStyle);
+
+		FButtonStyle ViewportMenuWarningButton = FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("NoBorder"))
+			.SetNormalForeground(FStyleColors::AccentYellow)
+			.SetHoveredForeground(FStyleColors::ForegroundHover)
+			.SetPressedForeground(FStyleColors::ForegroundHover)
+			.SetDisabledForeground(FStyleColors::AccentYellow)
+			.SetNormalPadding(FMargin(0, 2, 0, 2))
+			.SetPressedPadding(FMargin(0, 3, 0, 1));
+
+		Set("EditorViewportToolBar.WarningButton", ViewportMenuWarningButton);
+
+		FLinearColor ToolbarBackgroundColor = FStyleColors::Foldout;
+		ToolbarBackgroundColor.A = .75f;
+
+		Set("EditorViewportToolBar.Background", new FSlateColorBrush(ToolbarBackgroundColor));
+		Set("EditorViewportToolBar.OptionsDropdown", new CORE_IMAGE_BRUSH_SVG("Starship/Common/hamburger", FVector2D(13,8)));
+
+		Set("EditorViewportToolBar.Font", FStyleFonts::Get().Normal);
+
+		Set("EditorViewportToolBar.MenuButton", FButtonStyle(Button)
+			.SetNormal(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f), FLinearColor(1, 1, 1, 0.75f)))
+			.SetHovered(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f), FLinearColor(1, 1, 1, 1.0f)))
+			.SetPressed(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f)))
+		);
+
+		
+		Set("EditorViewportToolBar.Button", HoverHintOnly);
+
+		Set("EditorViewportToolBar.MenuDropdown", new IMAGE_BRUSH("Common/ComboArrow", Icon8x8));
+		Set("EditorViewportToolBar.Maximize.Normal", new IMAGE_BRUSH_SVG("Starship/EditorViewport/maximize", Icon16x16));
+		Set("EditorViewportToolBar.Maximize.Checked", new IMAGE_BRUSH_SVG("Starship/EditorViewport/restore", Icon16x16));
+		Set("EditorViewportToolBar.RestoreFromImmersive.Normal", new IMAGE_BRUSH("Icons/icon_RestoreFromImmersive_16px", Icon16x16));
+	}
+
+	// Legacy Viewport ToolbarBar
 	{
 		FToolBarStyle ViewportToolbarStyle =
 			FToolBarStyle()
@@ -2292,7 +2367,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 			.SetSubMenuIndicator(IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8))
 			.SetComboButtonPadding(FMargin(0))
 			.SetButtonPadding(FMargin(0))
-			.SetCheckBoxPadding(FMargin(0))
+			.SetCheckBoxPadding(FMargin(4))
 			.SetSeparatorBrush(BOX_BRUSH("Old/Button", 8.0f / 32.0f, FLinearColor::Transparent))
 			.SetSeparatorPadding(FMargin(1.f, 0.f, 0.f, 0.f))
 			.SetIconSize(Icon16x16)
@@ -4040,29 +4115,28 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set("MainFrame.AboutUnrealEd", new IMAGE_BRUSH("Icons/Help/icon_Help_unreal_16x", Icon16x16));
 		Set("MainFrame.CreditsUnrealEd", new IMAGE_BRUSH("Icons/Help/icon_Help_credits_16x", Icon16x16));
 
-		const FLinearColor IconColor = FLinearColor::Black;
-		Set( "EditorViewport.TranslateMode", new IMAGE_BRUSH( "Icons/icon_translateb_16x", Icon16x16 ) );
-		Set( "EditorViewport.TranslateMode.Small", new IMAGE_BRUSH( "Icons/icon_translateb_16x", Icon16x16 ) );
-		Set( "EditorViewport.RotateMode", new IMAGE_BRUSH( "Icons/icon_rotateb_16x", Icon16x16 ) );
-		Set( "EditorViewport.RotateMode.Small", new IMAGE_BRUSH( "Icons/icon_rotateb_16x", Icon16x16 ) );
-		Set( "EditorViewport.ScaleMode", new IMAGE_BRUSH( "Icons/icon_scaleb_16x", Icon16x16 ) );
-		Set( "EditorViewport.ScaleMode.Small", new IMAGE_BRUSH( "Icons/icon_scaleb_16x", Icon16x16 ) );
+		Set( "EditorViewport.TranslateMode", new IMAGE_BRUSH_SVG( "Starship/EditorViewport/translate", Icon16x16 ) );
+		Set( "EditorViewport.RotateMode", new IMAGE_BRUSH_SVG("Starship/EditorViewport/rotate", Icon16x16 ) );
+		Set( "EditorViewport.ScaleMode", new IMAGE_BRUSH_SVG( "Starship/EditorViewport/scale", Icon16x16 ) );
+
 		Set( "EditorViewport.TranslateRotateMode", new IMAGE_BRUSH( "Icons/icon_translate_rotate_40x", Icon20x20 ) );
-		Set( "EditorViewport.TranslateRotateMode.Small", new IMAGE_BRUSH( "Icons/icon_translate_rotate_40x", Icon20x20 ) );
 		Set( "EditorViewport.TranslateRotate2DMode", new IMAGE_BRUSH("Icons/icon_translate_rotate_2d_40x", Icon20x20));
-		Set( "EditorViewport.TranslateRotate2DMode.Small", new IMAGE_BRUSH("Icons/icon_translate_rotate_2d_40x", Icon20x20));
-		Set("EditorViewport.ToggleRealTime", new IMAGE_BRUSH("Icons/icon_MatEd_Realtime_40x", Icon40x40));
-		Set( "EditorViewport.ToggleRealTime.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Realtime_40x", Icon20x20 ) );
-		Set( "EditorViewport.LocationGridSnap", new IMAGE_BRUSH( "Old/LevelEditor/LocationGridSnap", Icon14x14, IconColor) );
-		Set( "EditorViewport.RotationGridSnap", new IMAGE_BRUSH( "Old/LevelEditor/RotationGridSnap", Icon14x14, IconColor ) );
-		Set( "EditorViewport.Layer2DSnap", new IMAGE_BRUSH("Old/LevelEditor/Layer2DSnap", Icon14x14, IconColor));
-		Set( "EditorViewport.ScaleGridSnap", new IMAGE_BRUSH( "Old/LevelEditor/ScaleGridSnap", Icon14x14, IconColor ) );
-		Set( "EditorViewport.ToggleSurfaceSnapping", new IMAGE_BRUSH( "Icons/icon_surface_snapping_14px", Icon14x14 ) );
-		Set( "EditorViewport.RelativeCoordinateSystem_Local", new IMAGE_BRUSH( "Icons/icon_axis_local_16px", Icon16x16, IconColor ) );
-		Set( "EditorViewport.RelativeCoordinateSystem_Local.Small", new IMAGE_BRUSH( "Icons/icon_axis_local_16px", Icon16x16, IconColor ) );
-		Set( "EditorViewport.RelativeCoordinateSystem_World", new IMAGE_BRUSH( "Icons/icon_axis_world_16px", Icon16x16, IconColor ) );
-		Set( "EditorViewport.RelativeCoordinateSystem_World.Small", new IMAGE_BRUSH( "Icons/icon_axis_world_16px", Icon16x16, IconColor ) );
-		Set( "EditorViewport.CamSpeedSetting", new IMAGE_BRUSH( "Icons/icon_CameraSpeed_24x16px", FVector2D( 24, 16 ), IconColor ) );
+
+		Set( "EditorViewport.ToggleRealTime", new IMAGE_BRUSH("Icons/icon_MatEd_Realtime_40x", Icon40x40));
+
+		Set( "EditorViewport.LocationGridSnap", new IMAGE_BRUSH_SVG("Starship/EditorViewport/location-grid-snap", Icon16x16));
+		Set( "EditorViewport.RotationGridSnap", new IMAGE_BRUSH_SVG("Starship/EditorViewport/rotation-grid-snap", Icon16x16));
+
+		Set( "EditorViewport.Layer2DSnap", new IMAGE_BRUSH("Old/LevelEditor/Layer2DSnap", Icon14x14));
+
+		Set("EditorViewport.ScaleGridSnap", new IMAGE_BRUSH( "Old/LevelEditor/ScaleGridSnap", Icon14x14 ) );
+		Set("EditorViewport.ToggleSurfaceSnapping", new IMAGE_BRUSH_SVG( "Starship/EditorViewport/surface-snap", Icon16x16 ) );
+		Set("EditorViewport.ToggleSurfaceSnapping", new IMAGE_BRUSH_SVG("Starship/EditorViewport/surface-snap", Icon16x16));
+
+		Set( "EditorViewport.RelativeCoordinateSystem_Local", new IMAGE_BRUSH_SVG( "Starship/EditorViewport/transform-local", Icon16x16 ) );
+		Set( "EditorViewport.RelativeCoordinateSystem_World", new IMAGE_BRUSH_SVG( "Starship/EditorViewport/transform-world", Icon16x16 ) );
+
+		Set( "EditorViewport.CamSpeedSetting", new IMAGE_BRUSH_SVG( "Starship/EditorViewport/camera", Icon16x16) );
 		
 		Set( "EditorViewport.LitMode", new IMAGE_BRUSH( "Icons/icon_ViewMode_Lit_16px", Icon16x16 ) );
 		Set( "EditorViewport.UnlitMode", new IMAGE_BRUSH( "Icons/icon_ViewMode_Unlit_16px", Icon16x16 ) );
@@ -4396,7 +4470,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 	// Level viewport 
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 	{
-		Set( "LevelViewport.ActiveViewportBorder", new BORDER_BRUSH( "Old/White", FMargin(1), SelectionColor ) ); 
+		Set("LevelViewport.ActiveViewportBorder", new CORE_BORDER_BRUSH("Starship/Common/White", FMargin(1), FStyleColors::Primary));
 		Set( "LevelViewport.NoViewportBorder", new FSlateNoResource() );
 		Set( "LevelViewport.DebugBorder", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f, FLinearColor(.7,0,0,.5) ) );
 		Set( "LevelViewport.BlackBackground", new FSlateColorBrush( FLinearColor::Black ) ); 
@@ -4423,41 +4497,6 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "LevelEditor.HideSelected", new IMAGE_BRUSH( "Old/SelectionDetails/HideSelected", FVector2D(32,32) ) );
 	}
 
-	// Level viewport toolbar
-	{
-		Set( "EditorViewportToolBar.Font", DEFAULT_FONT( "Bold", 9 ) );
-
-		Set( "EditorViewportToolBar.MenuButton", FButtonStyle(Button)
-			.SetNormal(BOX_BRUSH( "Common/SmallRoundedButton", FMargin(7.f/16.f), FLinearColor(1,1,1,0.75f)))
-			.SetHovered(BOX_BRUSH( "Common/SmallRoundedButton", FMargin(7.f/16.f), FLinearColor(1,1,1, 1.0f)))
-			.SetPressed(BOX_BRUSH( "Common/SmallRoundedButton", FMargin(7.f/16.f) ))
-		);
-
-		Set("EditorViewportToolBar.MenuButtonWarning", FButtonStyle(Button)
-			.SetNormal(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f), LogColor_Warning_LinearRef))
-			.SetHovered(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f), *LogColor_Warning_LinearRef*FLinearColor(1.1, 1.1, 1.1, 1)))
-			.SetPressed(BOX_BRUSH("Common/SmallRoundedButton", FMargin(7.f / 16.f), LogColor_Warning_LinearRef))
-		);
-
-		Set( "EditorViewportToolBar.Button", HoverHintOnly );
-
-		/* Set style structure for "EditorViewportToolBar.Button" ... */
-		const FCheckBoxStyle EditorViewportToolBarButton = FCheckBoxStyle()
-			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-			.SetUncheckedImage( FSlateNoResource() )
-			.SetUncheckedPressedImage( BOX_BRUSH( "Old/LevelViewportToolBar/MenuButton_Pressed", 4.0f/16.0f ) )
-			.SetUncheckedHoveredImage( BOX_BRUSH( "Old/Border", 4.0f/16.0f ) )
-			.SetCheckedImage( FSlateNoResource() )
-			.SetCheckedHoveredImage( BOX_BRUSH( "Old/Border", 4.0f/16.0f ) )
-			.SetCheckedPressedImage( BOX_BRUSH( "Old/LevelViewportToolBar/MenuButton_Pressed", 4.0f/16.0f ) );
-		/* ... and set new style */
-		Set( "LevelViewportToolBar.CheckBoxButton", EditorViewportToolBarButton );
-
-		Set( "EditorViewportToolBar.MenuDropdown", new IMAGE_BRUSH( "Common/ComboArrow", Icon8x8 ) );
-		Set( "LevelViewportToolBar.Maximize.Normal", new IMAGE_BRUSH( "Old/LevelViewportToolBar/Maximized_Unchecked", Icon16x16 ) );
-		Set( "LevelViewportToolBar.Maximize.Checked", new IMAGE_BRUSH( "Old/LevelViewportToolBar/Maximized_Checked", Icon16x16 ) );
-		Set( "LevelViewportToolBar.RestoreFromImmersive.Normal", new IMAGE_BRUSH( "Icons/icon_RestoreFromImmersive_16px", Icon16x16 ) );
-	}
 	// Show flags menus
 	{
 		Set( "ShowFlagsMenu.AntiAliasing", new IMAGE_BRUSH( "Icons/icon_ShowAnti-aliasing_16x", Icon16x16 ) );

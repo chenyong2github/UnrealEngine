@@ -629,7 +629,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				.ButtonStyle(&ToolBarStyle.ButtonStyle)
 				.ToolTipText(LOCTEXT("ZoomToFit_ToolTip", "Zoom To Fit"))
 				.OnClicked(this, &SDesignerView::HandleZoomToFitClicked)
-				.ContentPadding(FEditorStyle::Get().GetMargin("LegacyViewportMenu.SToolBarButtonBlock.Button.Padding"))
+				.ContentPadding(ToolBarStyle.ButtonPadding)
 				[
 					SNew(SImage)
 					.Image(FEditorStyle::GetBrush("UMGEditor.ZoomToFit"))
@@ -644,7 +644,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				.ButtonStyle(&ToolBarStyle.ButtonStyle)
 				.ToolTipText(LOCTEXT("SwapAspectRatio_ToolTip", "Switch between Landscape and Portrait"))
 				.OnClicked(this, &SDesignerView::HandleSwapAspectRatioClicked)
-				.ContentPadding(FEditorStyle::Get().GetMargin("LegacyViewportMenu.SToolBarButtonBlock.Button.Padding"))
+				.ContentPadding(ToolBarStyle.ButtonPadding)
 				.IsEnabled(this, &SDesignerView::GetAspectRatioSwitchEnabled)
 				[
 					SNew(SImage)
@@ -659,7 +659,7 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				.ButtonStyle(&ToolBarStyle.ButtonStyle)
 				.ToolTipText(LOCTEXT("Mirror_ToolTip", "Flip the current safe zones"))
 				.OnClicked(this, &SDesignerView::HandleFlipSafeZonesClicked)
-				.ContentPadding(FEditorStyle::Get().GetMargin("LegacyViewportMenu.SToolBarButtonBlock.Button.Padding"))	
+				.ContentPadding(ToolBarStyle.ButtonPadding)
 				.IsEnabled(this, &SDesignerView::GetFlipDeviceEnabled)
 				[
 					SNew(SImage)
@@ -676,12 +676,12 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.ButtonStyle(&ToolBarStyle.ButtonStyle)
 			.ForegroundColor(FLinearColor::Black)
 			.OnGetMenuContent(this, &SDesignerView::GetResolutionsMenu)
-			.ContentPadding(FEditorStyle::Get().GetMargin("LegacyViewportMenu.SToolBarButtonBlock.Button.Padding"))
+			.ContentPadding(ToolBarStyle.ButtonPadding)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("ScreenSize", "Screen Size"))
-				.TextStyle(FEditorStyle::Get(), "LegacyViewportMenu.Label")
+				.TextStyle(&ToolBarStyle.LabelStyle)
 			]
 		]
 
@@ -694,12 +694,12 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.ButtonStyle(&ToolBarStyle.ButtonStyle)
 			.ForegroundColor(FLinearColor::Black)
 			.OnGetMenuContent(this, &SDesignerView::GetScreenSizingFillMenu)
-			.ContentPadding(FEditorStyle::Get().GetMargin("LegacyViewportMenu.SToolBarButtonBlock.Button.Padding"))
+			.ContentPadding(ToolBarStyle.ButtonPadding)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
 				.Text(this, &SDesignerView::GetScreenSizingFillText)
-				.TextStyle(FEditorStyle::Get(), "LegacyViewportMenu.Label")
+				.TextStyle(&ToolBarStyle.LabelStyle)
 			]
 		]
 

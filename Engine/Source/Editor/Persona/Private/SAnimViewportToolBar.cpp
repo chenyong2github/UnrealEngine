@@ -179,11 +179,8 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 		Extenders.Add(MakeShared<FExtender>());
 	}
 
-	const FMargin ToolbarSlotPadding(2.0f, 2.0f);
-	const FMargin ToolbarButtonPadding(2.0f, 0.0f);
-
-	static const FName DefaultForegroundName("DefaultForeground");
-
+	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
+	const FMargin ToolbarButtonPadding(4.0f, 0.0f);
 
 	TSharedRef<SHorizontalBox> LeftToolbar = SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
@@ -194,7 +191,7 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 			.ToolTipText(LOCTEXT("ViewMenuTooltip", "View Options.\nShift-clicking items will 'pin' them to the toolbar."))
 			.ParentToolBar(SharedThis(this))
 			.Cursor(EMouseCursor::Default)
-			.Image("EditorViewportToolBar.MenuDropdown")
+			.Image("EditorViewportToolBar.OptionsDropdown")
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.MenuDropdown")))
 			.OnGetMenuContent(this, &SAnimViewportToolBar::GenerateViewMenu)
 		]
@@ -207,7 +204,6 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 			.ParentToolBar(SharedThis(this))
 			.Cursor(EMouseCursor::Default)
 			.Label(this, &SAnimViewportToolBar::GetCameraMenuLabel)
-			.LabelIcon(this, &SAnimViewportToolBar::GetCameraMenuLabelIcon)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.CameraMenu")))
 			.OnGetMenuContent(this, &SAnimViewportToolBar::GenerateViewportTypeMenu)
 		]
@@ -296,32 +292,30 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 
 	ChildSlot
 	[
-		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-		// Color and opacity is changed based on whether or not the mouse cursor is hovering over the toolbar area
-		.ColorAndOpacity( this, &SViewportToolBar::OnGetColorAndOpacity )
-		.ForegroundColor( FEditorStyle::GetSlateColor(DefaultForegroundName) )
+		SNew( SVerticalBox )
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew( SVerticalBox )
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("EditorViewportToolBar.Background"))
+			.Cursor(EMouseCursor::Default)
 			[
 				LeftToolbar
 			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				PinnedCommands.ToSharedRef()
-			]
-			+SVerticalBox::Slot()
-			.Padding(FMargin(4.0f, 3.0f, 0.0f, 0.0f))
-			[
-				// Display text (e.g., item being previewed)
-				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FEditorStyle::Get())
-				.Text(InViewport.Get(), &SAnimationEditorViewportTabBody::GetDisplayString)
-				.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimViewport.MessageText"))
-			]
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			PinnedCommands.ToSharedRef()
+		]
+		+SVerticalBox::Slot()
+		.Padding(FMargin(4.0f, 3.0f, 0.0f, 0.0f))
+		[
+			// Display text (e.g., item being previewed)
+			SNew(SRichTextBlock)
+			.DecoratorStyleSet(&FEditorStyle::Get())
+			.Text(InViewport.Get(), &SAnimationEditorViewportTabBody::GetDisplayString)
+			.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("AnimViewport.MessageText"))
 		]
 	];
 	
@@ -1068,17 +1062,6 @@ FText SAnimViewportToolBar::GetCameraMenuLabel() const
 	}
 
 	return LOCTEXT("Viewport_Default", "Camera");
-}
-
-const FSlateBrush* SAnimViewportToolBar::GetCameraMenuLabelIcon() const
-{
-	TSharedPtr< SAnimationEditorViewportTabBody > PinnedViewport(Viewport.Pin());
-	if (PinnedViewport.IsValid())
-	{
-		return GetCameraMenuLabelIconFromViewportType( PinnedViewport->GetLevelViewportClient().ViewportType );
-	}
-
-	return FEditorStyle::GetBrush(NAME_None);
 }
 
 TOptional<float> SAnimViewportToolBar::OnGetFOVValue() const

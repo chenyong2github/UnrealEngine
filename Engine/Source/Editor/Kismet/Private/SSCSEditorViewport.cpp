@@ -31,50 +31,46 @@ public:
 	{
 		EditorViewport = InArgs._EditorViewport;
 
-		static const FName DefaultForegroundName("DefaultForeground");
+		const FMargin ToolbarSlotPadding(4.0f, 1.0f);
 
 		this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.ColorAndOpacity(this, &SViewportToolBar::OnGetColorAndOpacity)
-			.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
+			.BorderImage(FAppStyle::Get().GetBrush("EditorViewportToolBar.Background"))
+			.Cursor(EMouseCursor::Default)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2.0f, 2.0f)
+				.Padding(ToolbarSlotPadding)
 				[
 					SNew(SEditorViewportToolbarMenu)
 					.ParentToolBar(SharedThis(this))
 					.Cursor(EMouseCursor::Default)
-					.Image("EditorViewportToolBar.MenuDropdown")
+					.Image("EditorViewportToolBar.OptionsDropdown")
 					.OnGetMenuContent(this, &SSCSEditorViewportToolBar::GeneratePreviewMenu)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2.0f, 2.0f)
+				.Padding(ToolbarSlotPadding)
 				[
 					SNew( SEditorViewportToolbarMenu )
 					.ParentToolBar( SharedThis( this ) )
-					.Cursor( EMouseCursor::Default )
 					.Label(this, &SSCSEditorViewportToolBar::GetCameraMenuLabel)
-					.LabelIcon(this, &SSCSEditorViewportToolBar::GetCameraMenuLabelIcon)
 					.OnGetMenuContent(this, &SSCSEditorViewportToolBar::GenerateCameraMenu)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2.0f, 2.0f)
+				.Padding(ToolbarSlotPadding)
 				[
 					SNew( SEditorViewportToolbarMenu )
 					.ParentToolBar( SharedThis( this ) )
 					.Cursor( EMouseCursor::Default )
 					.Label(this, &SSCSEditorViewportToolBar::GetViewMenuLabel)
-					.LabelIcon(this, &SSCSEditorViewportToolBar::GetViewMenuLabelIcon)
 					.OnGetMenuContent(this, &SSCSEditorViewportToolBar::GenerateViewMenu)
 				]
 				+ SHorizontalBox::Slot()
-				.Padding( 3.0f, 1.0f )
+				.Padding(ToolbarSlotPadding)
 				.HAlign( HAlign_Right )
 				[
 					SNew(STransformViewportToolBar)
@@ -117,16 +113,6 @@ public:
 		}
 
 		return NSLOCTEXT("BlueprintEditor", "CameraMenuTitle_Default", "Camera");
-	}
-
-	const FSlateBrush* GetCameraMenuLabelIcon() const
-	{
-		if(EditorViewport.IsValid())
-		{
-			return GetCameraMenuLabelIconFromViewportType( EditorViewport.Pin()->GetViewportClient()->GetViewportType() );
-		}
-
-		return FEditorStyle::GetBrush(NAME_None);
 	}
 
 	TSharedRef<SWidget> GenerateCameraMenu() const
@@ -173,35 +159,6 @@ public:
 		}
 
 		return Label;
-	}
-
-	const FSlateBrush* GetViewMenuLabelIcon() const
-	{
-		static FName LitModeIconName("EditorViewport.LitMode");
-		static FName UnlitModeIconName("EditorViewport.UnlitMode");
-		static FName WireframeModeIconName("EditorViewport.WireframeMode");
-
-		FName Icon = NAME_None;
-
-		if (EditorViewport.IsValid())
-		{
-			switch (EditorViewport.Pin()->GetViewportClient()->GetViewMode())
-			{
-			case VMI_Lit:
-				Icon = LitModeIconName;
-				break;
-
-			case VMI_Unlit:
-				Icon = UnlitModeIconName;
-				break;
-
-			case VMI_BrushWireframe:
-				Icon = WireframeModeIconName;
-				break;
-			}
-		}
-
-		return FEditorStyle::GetBrush(Icon);
 	}
 
 	TSharedRef<SWidget> GenerateViewMenu() const

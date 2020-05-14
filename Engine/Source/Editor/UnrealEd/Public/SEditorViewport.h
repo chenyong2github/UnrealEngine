@@ -251,6 +251,9 @@ private:
 	/** Ensures a Slate tick/paint pass when the viewport is realtime or was invalidated this frame */
 	EActiveTimerReturnType EnsureTick( double InCurrentTime, float InDeltaTime );
 
+	/** Gets the visibility of the active viewport border */
+	EVisibility GetActiveBorderVisibility() const;
+private:
 	/** The handle to the active timer */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 

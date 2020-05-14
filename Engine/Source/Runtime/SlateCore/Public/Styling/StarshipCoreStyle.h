@@ -129,7 +129,7 @@ struct SLATECORE_API FStyleFonts
 	{
 		if (Instance == nullptr)
 		{
-			Instance = MakeShared<FStyleFonts>(FStyleFonts());
+			Instance = MakeUnique<FStyleFonts>(FStyleFonts());
 		}
 		return *(Instance.Get());
 	}
@@ -142,6 +142,6 @@ struct SLATECORE_API FStyleFonts
 
   private: 
   	FStyleFonts();
-  	static TSharedPtr< struct FStyleFonts > Instance;
+  	static TUniquePtr<struct FStyleFonts> Instance;
 };
 

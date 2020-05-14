@@ -12,6 +12,7 @@
 #include "Styling/SlateTypes.h"
 #include "EditorStyleSet.h"
 #include "Styling/SlateWidgetStyleAsset.h"
+#include "Styling/ToolBarStyle.h"
 
 struct FSlateBrush;
 enum class ECheckBoxState : uint8;
@@ -22,10 +23,10 @@ enum class ECheckBoxState : uint8;
 class UNREALED_API SEditorViewportToolBarButton : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS( SEditorViewportToolBarButton )
+	SLATE_BEGIN_ARGS(SEditorViewportToolBarButton)
 		: _ButtonType(EUserInterfaceActionType::Button)
-		, _ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.Button"))
-		, _CheckBoxStyle(&FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("LevelViewportToolBar.CheckBoxButton"))
+		, _ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar").ButtonStyle)
+		, _CheckBoxStyle(&FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar").ToggleButton)
 		, _IsChecked(false)
 		{}
 

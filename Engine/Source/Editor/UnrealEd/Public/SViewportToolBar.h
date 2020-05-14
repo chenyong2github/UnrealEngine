@@ -35,30 +35,9 @@ public:
 	 */
 	void SetOpenMenu( TSharedPtr< SMenuAnchor >& NewMenu );
 
-	/**
-	 * @return The color and opacity of this viewport. 
-	 */ 
-	FLinearColor OnGetColorAndOpacity() const;
 
 	/** @return Whether the given viewmode is supported. */ 
 	virtual bool IsViewModeSupported(EViewModeIndex ViewModeIndex) const;
-
-private:
-	
-	/**
-	 * Called when the mouse enters the toolbar area.  We fade in the toolbar when this happens
-	 *
-	 * @param MyGeometry	Information about the size of the toolbar
-	 * @param MouseEvent	The mouse event that triggered this function
-	 */
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-
-	/**
-	 * Called when the mouse leaves the toolbar area.  We fade out the toolbar when this happens
-	 *
-	 * @param MouseEvent	The mouse event that triggered this function
-	 */
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
 
 protected:
 	/**
@@ -80,10 +59,6 @@ protected:
 	virtual const FSlateBrush* GetCameraMenuLabelIconFromViewportType(const ELevelViewportType ViewportType) const;
 
 private:
-	/** Curve sequence for fading out the toolbar */
-	FCurveSequence FadeOutSequence;
-	/** Curve sequence for fading in the toolbar */
-	FCurveSequence FadeInSequence;
 	/** The pulldown menu that is open if any */
 	TWeakPtr< SMenuAnchor > OpenedMenu;
 	/** True if the mouse is inside the toolbar */

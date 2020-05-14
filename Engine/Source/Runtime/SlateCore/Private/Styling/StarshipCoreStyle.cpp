@@ -68,7 +68,8 @@ const FLinearColor FStyleColors::AccentFolder       = COLOR("#B68F55FF");
 
 #define FONT(...) FSlateFontInfo(FLegacySlateFontInfoCache::Get().GetDefaultFont(), __VA_ARGS__)
 
-TSharedPtr< FStyleFonts > FStyleFonts::Instance = nullptr;
+TUniquePtr<FStyleFonts> FStyleFonts::Instance = nullptr;
+
 FStyleFonts::FStyleFonts()
 	: Normal(FONT(10, "Regular"))
 	, NormalBold(FONT(10, "Bold"))
@@ -1180,6 +1181,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetSeparatorPadding(FMargin(1.f, 0.f, 1.f, 0.f))
 			.SetLabelStyle(FTextBlockStyle(NormalText).SetFont(StyleFonts.Normal))
 			.SetEditableTextStyle(FEditableTextBoxStyle(NormalEditableTextBoxStyle).SetFont(StyleFonts.Normal))
+			.SetComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
 			.SetBlockPadding(FMargin(2.0f, 2.0f, 4.0f, 4.0f))
 			.SetIndentedBlockPadding(FMargin(18.0f, 2.0f, 4.0f, 4.0f));
 
@@ -1235,6 +1237,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Input))
 			.SetSeparatorPadding(FMargin(8.f, 0))
 			.SetLabelStyle(FTextBlockStyle(NormalText))
+			.SetComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
 			.SetLabelPadding(FMargin(5, 9, 0, 9))
 			.SetEditableTextStyle(FEditableTextBoxStyle(NormalEditableTextBoxStyle));
 
@@ -1440,9 +1443,9 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Docking.Border", new FSlateRoundedBoxBrush(FStyleColors::Background, 4) );
 
 		Style->Set("Docking.UnhideTabwellButton", FButtonStyle(Button)
-			.SetNormal(IMAGE_BRUSH("/Docking/ShowTabwellButton_Normal", FVector2D(10, 10)))
-			.SetPressed(IMAGE_BRUSH("/Docking/ShowTabwellButton_Pressed", FVector2D(10, 10)))
-			.SetHovered(IMAGE_BRUSH("/Docking/ShowTabwellButton_Hovered", FVector2D(10, 10)))
+			.SetNormal(IMAGE_BRUSH_SVG("Starship/Docking/show-tab-well", Icon8x8, FStyleColors::Primary))
+			.SetPressed(IMAGE_BRUSH_SVG("Starship/Docking/show-tab-well", Icon8x8, FStyleColors::PrimaryPress))
+			.SetHovered(IMAGE_BRUSH_SVG("Starship/Docking/show-tab-well", Icon8x8, FStyleColors::PrimaryHover))
 			.SetNormalPadding(0)
 			.SetPressedPadding(0)
 		);

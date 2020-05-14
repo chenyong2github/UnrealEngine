@@ -179,7 +179,7 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 
 	OpenForegroundColor = ButtonStyle.HoveredForeground;
 
-	const FComboButtonStyle* ComboStyle = &FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton");
+	const FComboButtonStyle* ComboStyle = &ToolBarStyle.ComboButtonStyle;
 	if (ToolBarComboButtonBlock->bSimpleComboBox)
 	{
 		ComboStyle = &ToolBarStyle.SettingsComboButton;

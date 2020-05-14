@@ -116,8 +116,6 @@ public:
 			SNew( SBorder )
 			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
 			.Padding(FMargin(4.f, 0.f))
-			// Color and opacity is changed based on whether or not the mouse cursor is hovering over the toolbar area
-			.ColorAndOpacity( this, &SViewportToolBar::OnGetColorAndOpacity )
 			[
 				ToolbarBuilder.MakeWidget()
 			]

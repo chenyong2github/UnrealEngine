@@ -35,21 +35,24 @@ namespace EMenuItemType
 class UNREALED_API SEditorViewportToolbarMenu : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS( SEditorViewportToolbarMenu )
-		: _MenuStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.MenuButton"))
+	SLATE_BEGIN_ARGS(SEditorViewportToolbarMenu)
+		: _MenuStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.Button"))
+		, _ForegroundColor(FSlateColor::UseStyle())
 	{}
 		/** We need to know about the toolbar we are in */
-		SLATE_ARGUMENT( TSharedPtr<class SViewportToolBar>, ParentToolBar );
+		SLATE_ARGUMENT(TSharedPtr<class SViewportToolBar>, ParentToolBar);
 		/** Style to use */
 		SLATE_STYLE_ARGUMENT(FButtonStyle, MenuStyle)
 		/** The label to show in the menu */
-		SLATE_ATTRIBUTE( FText, Label )
+		SLATE_ATTRIBUTE(FText, Label)
 		/** Optional icon to display next to the label */
-		SLATE_ATTRIBUTE( const FSlateBrush*, LabelIcon )
+		SLATE_ATTRIBUTE(const FSlateBrush*, LabelIcon)
 		/** The image to show in the menu.  If both the label and image are valid, the button image is used.  Note that if this image is used, the label icon will not be displayed. */
-		SLATE_ARGUMENT( FName, Image )
+		SLATE_ARGUMENT(FName, Image)
 		/** Content to show in the menu */
-		SLATE_EVENT( FOnGetContent, OnGetMenuContent )
+		SLATE_EVENT(FOnGetContent, OnGetMenuContent)
+		/** The foreground color of the content */
+		SLATE_ATTRIBUTE(FSlateColor, ForegroundColor)
 	SLATE_END_ARGS()
 
 	/**
@@ -61,6 +64,11 @@ public:
 	 * Returns parent tool bar
 	 */
 	TWeakPtr<class SViewportToolBar> GetParentToolBar() const;
+
+	/**
+	 * @return true if this menu is open
+	 */
+	bool IsMenuOpen() const;
 
 private:
 	/**

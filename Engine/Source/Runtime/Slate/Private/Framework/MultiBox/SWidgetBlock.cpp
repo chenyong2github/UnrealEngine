@@ -117,7 +117,7 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 			]
 		]
 		+SHorizontalBox::Slot()
-		.VAlign( VAlign_Bottom )
+		.VAlign(bHasLabel ? VAlign_Bottom : VAlign_Fill)
 		.FillWidth(1.f)
 		[
 			WidgetBlock->ContentWidget

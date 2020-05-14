@@ -32,25 +32,16 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
  	TSharedRef<SEditorViewport> ViewportRef = GetInfoProvider().GetViewportWidget();
 	TSharedPtr<SHorizontalBox> MainBoxPtr;
 
-	const FMargin ToolbarSlotPadding( 2.0f, 2.0f );
-	const FMargin ToolbarButtonPadding( 2.0f, 0.0f );
-
-	static const FName DefaultForegroundName("DefaultForeground");
+	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
+	const FMargin ToolbarButtonPadding(4.0f, 0.0f);
 
 	ChildSlot
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-		// Color and opacity is changed based on whether or not the mouse cursor is hovering over the toolbar area
-		.ColorAndOpacity( this, &SViewportToolBar::OnGetColorAndOpacity )
-		.ForegroundColor( FEditorStyle::GetSlateColor(DefaultForegroundName) )
+		.BorderImage(FAppStyle::Get().GetBrush("EditorViewportToolBar.Background"))
+		.Cursor(EMouseCursor::Default)
 		[
-			SNew( SVerticalBox )
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SAssignNew( MainBoxPtr, SHorizontalBox )
-			]
+			SAssignNew( MainBoxPtr, SHorizontalBox )
 		]
 	];
 
@@ -62,7 +53,7 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
 			SNew(SEditorViewportToolbarMenu)
 			.ParentToolBar(SharedThis(this))
 			.Cursor(EMouseCursor::Default)
-			.Image("EditorViewportToolBar.MenuDropdown")
+			.Image("EditorViewportToolBar.OptionsDropdown")
 			.OnGetMenuContent(this, &SCommonEditorViewportToolbarBase::GenerateOptionsMenu)
 		];
 
@@ -75,7 +66,6 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
 			.ParentToolBar(SharedThis(this))
 			.Cursor(EMouseCursor::Default)
 			.Label(this, &SCommonEditorViewportToolbarBase::GetCameraMenuLabel)
-			.LabelIcon(this, &SCommonEditorViewportToolbarBase::GetCameraMenuLabelIcon)
 			.OnGetMenuContent(this, &SCommonEditorViewportToolbarBase::GenerateCameraMenu)
 		];
 
@@ -109,16 +99,15 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
 				SNew(SEditorViewportToolBarButton)
 				.Cursor(EMouseCursor::Default)
 				.ButtonType(EUserInterfaceActionType::Button)
-				.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.MenuButtonWarning"))
+				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
 				.OnClicked(this, &SCommonEditorViewportToolbarBase::OnRealtimeWarningClicked)
 				.Visibility(this, &SCommonEditorViewportToolbarBase::GetRealtimeWarningVisibility)
 				.ToolTipText(LOCTEXT("RealtimeOff_ToolTip", "This viewport is not updating in realtime.  Click to turn on realtime mode."))
 				.Content()
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("EditorViewportToolBar.Font"))
-					.Text(LOCTEXT("RealtimeOff", "Realtime: Off"))
-					.ColorAndOpacity(FLinearColor::Black)
+					.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+					.Text(LOCTEXT("RealtimeOff", "Realtime Off"))
 				]
 			];
 	}
@@ -142,13 +131,12 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
 			// Button to show scalability warnings
 			SNew(SEditorViewportToolbarMenu)
 			.ParentToolBar(SharedThis(this))
-			.Cursor(EMouseCursor::Default)
 			.Label(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningLabel)
 			.MenuStyle(FEditorStyle::Get(), "EditorViewportToolBar.MenuButtonWarning")
 			.OnGetMenuContent(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningMenuContent)
 			.Visibility(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningVisibility)
 			.ToolTipText(LOCTEXT("ScalabilityWarning_ToolTip", "Non-default scalability settings could be affecting what is shown in this viewport.\nFor example you may experience lower visual quality, reduced particle counts, and other artifacts that don't match what the scene would look like when running outside of the editor. Click to make changes."))
-			];
+		];
 
 	// Add optional toolbar slots to be added by child classes inherited from this common viewport toolbar
 	ExtendLeftAlignedToolbarSlots(MainBoxPtr, SharedThis(this));
@@ -173,10 +161,6 @@ FText SCommonEditorViewportToolbarBase::GetCameraMenuLabel() const
 	return GetCameraMenuLabelFromViewportType( GetViewportClient().GetViewportType() );
 }
 
-const FSlateBrush* SCommonEditorViewportToolbarBase::GetCameraMenuLabelIcon() const
-{
-	return GetCameraMenuLabelIconFromViewportType( GetViewportClient().GetViewportType() );
-}
 
 EVisibility SCommonEditorViewportToolbarBase::GetViewModeOptionsVisibility() const
 {
