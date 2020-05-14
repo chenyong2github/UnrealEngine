@@ -425,6 +425,7 @@ protected:
 	virtual const FSlateBrush* OnGetViewportBorderBrush() const override;
 	virtual FSlateColor OnGetViewportBorderColorAndOpacity() const override;
 	virtual EVisibility OnGetViewportContentVisibility() const override;
+	virtual EVisibility OnGetFocusedViewportIndicatorVisibility() const override;
 	virtual void BindCommands() override;
 private:
 	/** Flag to know if we need to update the previews which is handled in the tick. */
@@ -757,10 +758,6 @@ private:
 	/** Level viewport client */
 	TSharedPtr<FLevelEditorViewportClient> LevelViewportClient;
 
-	/** The brush to use if this viewport is the active viewport */
-	const FSlateBrush* ActiveBorder;
-	/** The brush to use if this viewport is an inactive viewport or not showing a border */
-	const FSlateBrush* NoBorder;
 	/** The brush to use if this viewport is in debug mode */
 	const FSlateBrush* DebuggingBorder;
 	/** The brush to use for a black background */

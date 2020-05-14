@@ -22,6 +22,7 @@
 #include "MaterialShaderQualitySettings.h"
 #include "RHIShaderPlatformDefinitions.inl"
 #include "RayTracingDebugVisualizationMenuCommands.h"
+#include "Widgets/Colors/SComplexGradient.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewport"
 
@@ -94,7 +95,7 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 				ViewportToolbar.ToSharedRef()
 			];
 	}
-
+	
 	ViewportOverlay->AddSlot()
 	[
 		SNew(SBorder)
@@ -103,6 +104,27 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 		.Visibility(this, &SEditorViewport::GetActiveBorderVisibility)
 		.Padding(0.0f)
 		.ShowEffectWhenDisabled(false)
+	];
+
+	// This makes a gradient that displays whether or not a viewport is active
+	FLinearColor ActiveBorderColor = FAppStyle::Get().GetColor("EditorViewport.ActiveBorderColor");
+	FLinearColor ActiveBorderColorTransparent = ActiveBorderColor;
+	ActiveBorderColorTransparent.A = 0.0f;
+
+	static TArray<FLinearColor> GradientStops{ ActiveBorderColorTransparent, ActiveBorderColor, ActiveBorderColorTransparent };
+
+	ViewportOverlay->AddSlot()
+	.VAlign(VAlign_Top)
+	[
+		SNew(SBox)
+		.Visibility(this, &SEditorViewport::OnGetFocusedViewportIndicatorVisibility)
+		.MaxDesiredHeight(1.0f)
+		.MinDesiredHeight(1.0f)
+		[
+			SNew(SComplexGradient)
+			.GradientColors(GradientStops)
+			.Orientation(EOrientation::Orient_Vertical)
+		]
 	];
 
 	PopulateViewportOverlays(ViewportOverlay.ToSharedRef());

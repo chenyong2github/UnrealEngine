@@ -136,6 +136,11 @@ protected:
 	 */
 	virtual EVisibility OnGetViewportContentVisibility() const;
 
+	/**
+	 * @return The visibility of the viewport focus indicator.                                                             
+	 */
+	virtual EVisibility OnGetFocusedViewportIndicatorVisibility() const { return EVisibility::Collapsed; }
+
 	/** UI Command delegate bindings */
 	void OnToggleStats();
 

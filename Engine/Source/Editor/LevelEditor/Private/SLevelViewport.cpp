@@ -175,9 +175,6 @@ void SLevelViewport::Construct(const FArguments& InArgs)
 	ParentLevelEditor = StaticCastSharedRef<SLevelEditor>( InArgs._ParentLevelEditor.Pin().ToSharedRef() );
 	ConfigKey = InArgs._ConfigKey;
 
-	// Store border brushes for differentiating between active and inactive viewports
-	ActiveBorder = FEditorStyle::GetBrush( "LevelViewport.ActiveViewportBorder" );
-	NoBorder = FEditorStyle::GetBrush( "LevelViewport.NoViewportBorder" );
 	DebuggingBorder = FEditorStyle::GetBrush( "LevelViewport.DebugBorder" );
 	BlackBackground = FEditorStyle::GetBrush( "LevelViewport.BlackBackground" );
 	StartingPlayInEditorBorder = FEditorStyle::GetBrush( "LevelViewport.StartingPlayInEditorBorder" );
@@ -1646,16 +1643,6 @@ const FSlateBrush* SLevelViewport::OnGetViewportBorderBrush() const
 	const FSlateBrush* BorderBrush = nullptr;
 	if( FSlateApplication::Get().IsNormalExecution() )
 	{
-		// Only show the active border if we have a valid client, its the current client being edited and we arent in immersive (in immersive there is only one visible viewport)
-		if( LevelViewportClient.IsValid() && LevelViewportClient.Get() == GCurrentLevelEditingViewportClient && !IsImmersive() )
-		{
-			BorderBrush = ActiveBorder;
-		}
-		else
-		{
-			BorderBrush = NoBorder;
-		}
-
 		// If a PIE/SIE/Editor transition just completed, then we'll draw a border effect to draw attention to it
 		if( ViewTransitionAnim.IsPlaying() )
 		{
@@ -1685,6 +1672,25 @@ const FSlateBrush* SLevelViewport::OnGetViewportBorderBrush() const
 	}
 
 	return BorderBrush;
+}
+
+EVisibility SLevelViewport::OnGetFocusedViewportIndicatorVisibility() const
+{
+	EVisibility BaseVisibility = OnGetViewportContentVisibility();
+	if (BaseVisibility != EVisibility::Collapsed)
+	{
+		// Only show the active border if we have a valid client, its the current client being edited and we arent in immersive (in immersive there is only one visible viewport)
+		if (LevelViewportClient.IsValid() && LevelViewportClient.Get() == GCurrentLevelEditingViewportClient && !IsImmersive())
+		{
+			return EVisibility::HitTestInvisible;
+		}
+		else
+		{
+			return EVisibility::Collapsed;
+		}
+	}
+
+	return BaseVisibility;
 }
 
 FSlateColor SLevelViewport::OnGetViewportBorderColorAndOpacity() const

@@ -4170,6 +4170,9 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "EditorViewport.Bottom", new IMAGE_BRUSH("Icons/icon_ViewMode_ViewBottom_16px", Icon16x16 ) );
 		Set( "EditorViewport.Right", new IMAGE_BRUSH("Icons/icon_ViewMode_ViewRight_16px", Icon16x16 ) );
 		Set( "EditorViewport.Back", new IMAGE_BRUSH("Icons/icon_ViewMode_ViewBack_16px", Icon16x16 ) );
+
+		Set("EditorViewport.ActiveBorderColor", FStyleColors::PrimaryHover);
+
 #endif
 
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
@@ -4470,8 +4473,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 	// Level viewport 
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 	{
-		Set("LevelViewport.ActiveViewportBorder", new CORE_BORDER_BRUSH("Starship/Common/White", FMargin(1), FStyleColors::Primary));
-		Set( "LevelViewport.NoViewportBorder", new FSlateNoResource() );
+
 		Set( "LevelViewport.DebugBorder", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f, FLinearColor(.7,0,0,.5) ) );
 		Set( "LevelViewport.BlackBackground", new FSlateColorBrush( FLinearColor::Black ) ); 
 		Set( "LevelViewport.StartingPlayInEditorBorder", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f, FLinearColor(0.1f,1.0f,0.1f,1.0f) ) );
