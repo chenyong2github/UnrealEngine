@@ -3351,7 +3351,7 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 				ralloc_asprintf_append(buffer, "	vec4 FramebufferFetchES2() { return gl_LastFragColorARM; }\n");
 				ralloc_asprintf_append(buffer, "#else\n");
 				ralloc_asprintf_append(buffer, "	#define %sout\n", ES31FrameBufferFetchStorageQualifier);
-				ralloc_asprintf_append(buffer, "	vec4 FramebufferFetchES2() { return vec4(65000.0, 65000.0, 65000.0, 65000.0); }\n");
+				ralloc_asprintf_append(buffer, "	vec4 FramebufferFetchES2() { return vec4(0.0, 0.0, 0.0, 0.0); }\n");
 				ralloc_asprintf_append(buffer, "#endif\n\n");
 			}
 			else // ES3, ES2
@@ -3367,7 +3367,7 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 				//ralloc_asprintf_append(buffer, "		highp vec4 gl_LastFragColorARM;\n"); Does not work on S7 MALI
 				ralloc_asprintf_append(buffer, "		vec4 FramebufferFetchES2() { return gl_LastFragColorARM; }\n");
 				ralloc_asprintf_append(buffer, "	#else\n");
-				ralloc_asprintf_append(buffer, "		vec4 FramebufferFetchES2() { return vec4(65000.0, 65000.0, 65000.0, 65000.0); }\n");
+				ralloc_asprintf_append(buffer, "		vec4 FramebufferFetchES2() { return vec4(0.0, 0.0, 0.0, 0.0); }\n");
 				ralloc_asprintf_append(buffer, "	#endif\n");
 				ralloc_asprintf_append(buffer, "#endif\n\n");
 			}
@@ -3378,9 +3378,9 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 		if (bUsesDepthbufferFetch)
 		{
 			ralloc_asprintf_append(buffer, "\n#ifdef GL_ARM_shader_framebuffer_fetch_depth_stencil\n");
-			ralloc_asprintf_append(buffer, "float DepthbufferFetchES2(float OptionalDepth, float C1, float C2) { float w = 1.0/(gl_LastFragDepthARM*C1-C2); return clamp(w, 0.0, 65000.0); }\n");
+			ralloc_asprintf_append(buffer, "float DepthbufferFetchES2() { return gl_LastFragDepthARM; }\n");
 			ralloc_asprintf_append(buffer, "#else\n");
-			ralloc_asprintf_append(buffer, "float DepthbufferFetchES2(float OptionalDepth, float C1, float C2) { return OptionalDepth; }\n");
+			ralloc_asprintf_append(buffer, "float DepthbufferFetchES2() { return 0.0; }\n");
 			ralloc_asprintf_append(buffer, "#endif\n\n");
 		}
 

@@ -29,79 +29,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
 #include "MeshPassProcessor.inl"
-
-/** Pixel shader used to copy scene color into another texture so that materials can read from scene color with a node. */
-class FMobileCopySceneAlphaPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FMobileCopySceneAlphaPS,Global);
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsMobilePlatform(Parameters.Platform); }
-
-	FMobileCopySceneAlphaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FGlobalShader(Initializer)
-	{
-		SceneTextureParameters.Bind(Initializer);
-	}
-	FMobileCopySceneAlphaPS() {}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
-	{
-		SceneTextureParameters.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
-	}
-
-private:
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters)
-};
-
-IMPLEMENT_SHADER_TYPE(,FMobileCopySceneAlphaPS,TEXT("/Engine/Private/TranslucentLightingShaders.usf"),TEXT("CopySceneAlphaMain"),SF_Pixel);
-
-void FMobileSceneRenderer::CopySceneAlpha(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
-{
-	SCOPED_DRAW_EVENTF(RHICmdList, EventCopy, TEXT("CopySceneAlpha"));
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	RHICmdList.CopyToResolveTarget(SceneContext.GetSceneColorSurface(), SceneContext.GetSceneColorTexture(), FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
-
-	SceneContext.BeginRenderingSceneAlphaCopy(RHICmdList);
-
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false,CF_Always>::GetRHI();
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-
-	int X = SceneContext.GetBufferSizeXY().X;
-	int Y = SceneContext.GetBufferSizeXY().Y;
-
-	RHICmdList.SetViewport(0, 0, 0.0f, X, Y, 1.0f);
-
-	TShaderMapRef<FScreenVS> ScreenVertexShader(View.ShaderMap);
-	TShaderMapRef<FMobileCopySceneAlphaPS> PixelShader(View.ShaderMap);
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-	PixelShader->SetParameters(RHICmdList, View);
-
-	DrawRectangle( 
-		RHICmdList,
-		0, 0, 
-		X, Y, 
-		0, 0, 
-		X, Y,
-		FIntPoint(X, Y),
-		SceneContext.GetBufferSizeXY(),
-		ScreenVertexShader,
-		EDRF_UseTriangleOptimization);
-
-	SceneContext.FinishRenderingSceneAlphaCopy(RHICmdList);
-}
+#include "ClearQuad.h"
 
 void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews, bool bRenderToSceneColor)
 {
@@ -221,23 +149,20 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 
 	SceneContext.AllocSceneColor(RHICmdList);
 
+	if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+	{
+		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+	}
+
 	const bool bMobileMSAA = SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
 	
 	FRHITexture* SceneColorResolve = bMobileMSAA ? SceneContext.GetSceneColorTexture() : nullptr;
 	ERenderTargetActions ColorTargetAction = bMobileMSAA ? ERenderTargetActions::Clear_Resolve : ERenderTargetActions::Clear_Store;
-	FRHIRenderPassInfo RPInfo(
-		SceneContext.GetSceneColorSurface(), 
-		ColorTargetAction,
-		SceneColorResolve,
-		SceneContext.GetSceneDepthSurface(),
-		EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil,
-		nullptr,
-		FExclusiveDepthStencil::DepthWrite_StencilWrite
-	);
+	FRHIRenderPassInfo RPInfo(SceneContext.GetSceneColorSurface(), ColorTargetAction, SceneColorResolve);
 
 	// make sure targets are writable
 	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneColorSurface());
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneDepthSurface());
 	if (SceneColorResolve)
 	{
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColorResolve);
@@ -249,16 +174,19 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
 	}
 	
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderInverseOpacity"));
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("InverseOpacity"));
 
-	if (ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency))
+	// Mobile multi-view is not side by side stereo
+	const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
+	RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
+		
+	// Default clear value for a SceneColor is (0,0,0,0), after this passs will blend inverse opacity into final render target with an 1-SrcAlpha op
+	// to make this blending work untouched pixels must have alpha = 1
+	DrawClearQuad(RHICmdList, FLinearColor(0,0,0,1));
+	
+	if (ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency) && View.ShouldRenderView())
 	{		
-		// Mobile multi-view is not side by side stereo
-		const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
-		RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
-
 		View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].DispatchDraw(nullptr, RHICmdList);
-				
 		bDirty |= View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].HasAnyDraw();
 	}
 	
@@ -347,8 +275,8 @@ private:
 FMeshPassProcessor* CreateMobileInverseOpacityPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer, Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer);
-	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-	PassDrawRenderState.SetBlendState(TStaticBlendState<CW_ALPHA, BO_Add, BF_DestColor, BF_Zero, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI());
+	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+	PassDrawRenderState.SetBlendState(TStaticBlendState<CW_ALPHA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI());
 
 	return new(FMemStack::Get()) FMobileInverseOpacityMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext);
 }
