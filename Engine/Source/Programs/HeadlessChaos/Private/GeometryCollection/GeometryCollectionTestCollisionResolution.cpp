@@ -22,13 +22,13 @@ namespace GeometryCollectionTest
 			CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
 			Params.RootTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity, FTransform::Identity };
-			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 			EXPECT_EQ(Collection->DynamicCollection->Parent[0], 1); // is a child of index one
 			EXPECT_TRUE(Collection->DynamicCollection->MassToLocal[0].Equals(FTransform::Identity)); // we are not testing MassToLocal in this test
 			UnitTest.AddSimulationObject(Collection);
 		}
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		UnitTest.Initialize();
@@ -61,14 +61,14 @@ namespace GeometryCollectionTest
 			CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 			Params.RootTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity, FTransform::Identity };
-			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 			EXPECT_EQ(Collection->DynamicCollection->Parent[0], 1); // is a child of index one
 			EXPECT_TRUE(Collection->DynamicCollection->MassToLocal[0].Equals(FTransform::Identity)); // we are not testing MassToLocal in this test
 
 			UnitTest.AddSimulationObject(Collection);
 		}
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		UnitTest.Initialize();
@@ -116,7 +116,7 @@ namespace GeometryCollectionTest
 		Params.RootTransform =
 			FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 3.0));
 		TGeometryCollectionWrapper<Traits>* SimplicialSphereCollection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(SimplicialSphereCollection);
 
 		// Make a kinematic implicit sphere
@@ -127,20 +127,20 @@ namespace GeometryCollectionTest
 		Params.RootTransform =
 			FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0));
 		TGeometryCollectionWrapper<Traits>* ImplicitSphereCollection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(ImplicitSphereCollection);
 
 		// Hard code masstolocal on rest collection to identity
 		{
 			TManagedArray<FTransform>& MassToLocal =
-				SimplicialSphereCollection->RestCollection->GetAttribute<FTransform>(
+				SimplicialSphereCollection->RestCollection->template GetAttribute<FTransform>(
 					TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
 		}
 		{
 			TManagedArray<FTransform>& MassToLocal =
-				ImplicitSphereCollection->RestCollection->GetAttribute<FTransform>(
+				ImplicitSphereCollection->RestCollection->template GetAttribute<FTransform>(
 					TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
@@ -173,7 +173,7 @@ namespace GeometryCollectionTest
 		}
 	}
 
-	TYPED_TEST(AllTraits,DISABLED_GeometryCollection_CollisionResolution_AnalyticCubeToAnalyticCube)
+	TYPED_TEST(AllTraits, DISABLED_GeometryCollection_CollisionResolution_AnalyticCubeToAnalyticCube)
 	{
 		using Traits = TypeParam;
 
@@ -190,21 +190,23 @@ namespace GeometryCollectionTest
 		// Make a dynamic box
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
+		Params.CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
 
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		Params.RootTransform = FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 3.0));
 		TGeometryCollectionWrapper<Traits>* BoxCollection0 =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(BoxCollection0);
 
 		// Make a kinematic box
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
+		Params.CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
 
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Kinematic;
 		Params.RootTransform = FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0));
 		TGeometryCollectionWrapper<Traits>* BoxCollection1 =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(BoxCollection1);
 /*
 		// Hard code masstolocal on rest collection to identity
@@ -267,11 +269,20 @@ namespace GeometryCollectionTest
 
 		TGeometryCollectionWrapper<Traits>* Collection = nullptr;
 		{
-			FVector GlobalTranslation(0, 0, 10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
-			CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
-			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
-			Params.RootTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity, FTransform::Identity };
-			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			FVector GlobalTranslation(0, 0, 10); 
+			FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
+
+			CreationParameters Params; 
+			Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; 
+			Params.EnableClustering = false;
+			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;
+			Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere;
+			Params.CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
+			Params.RootTransform = FTransform(GlobalRotation, GlobalTranslation); 
+			Params.NestedTransforms = { FTransform::Identity, FTransform::Identity, FTransform::Identity };
+
+			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+			
 			EXPECT_EQ(Collection->DynamicCollection->Parent[0], 1); // is a child of index one
 			EXPECT_TRUE(Collection->DynamicCollection->MassToLocal[0].Equals(FTransform::Identity)); // we are not testing MassToLocal in this test
 
@@ -280,11 +291,16 @@ namespace GeometryCollectionTest
 
 		TGeometryCollectionWrapper<Traits>* CollectionStaticSphere = nullptr;
 		{
-			FVector GlobalTranslation(0, 0, 0); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
-			CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Static; Params.EnableClustering = false;
-			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
+			FVector GlobalTranslation(0, 0, 0);
+			FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
+			CreationParameters Params;
+			Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Static; 
+			Params.EnableClustering = false;
+			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
+			Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere;
+			Params.CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
 			Params.RootTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity, FTransform::Identity };
-			CollectionStaticSphere = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			CollectionStaticSphere = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 			EXPECT_EQ(CollectionStaticSphere->DynamicCollection->Parent[0], 1); // is a child of index one
 			EXPECT_TRUE(CollectionStaticSphere->DynamicCollection->MassToLocal[0].Equals(FTransform::Identity)); // we are not testing MassToLocal in this test
 
@@ -314,7 +330,7 @@ namespace GeometryCollectionTest
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z) - 10.f, KINDA_SMALL_NUMBER);
 			EXPECT_TRUE(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().X) < KINDA_SMALL_NUMBER); // No deflection
 			EXPECT_TRUE(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Y) < KINDA_SMALL_NUMBER); // No deflection
-			EXPECT_LT(Collection->DynamicCollection->Transform[0].GetTranslation().Z, 0.f); // ball fell
+			EXPECT_LT(Collection->DynamicCollection->Transform[0].GetTranslation().Z, 1.f); // ball fell
 		}
 	}
 
@@ -346,7 +362,7 @@ namespace GeometryCollectionTest
 		Params.RootTransform =
 			FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 3.0));
 		TGeometryCollectionWrapper<Traits>* SimplicialSphereCollection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(SimplicialSphereCollection);
 
 		// Make a kinematic implicit sphere
@@ -357,20 +373,20 @@ namespace GeometryCollectionTest
 		Params.RootTransform =
 			FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0));
 		TGeometryCollectionWrapper<Traits>* ImplicitSphereCollection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(ImplicitSphereCollection);
 
 		// Hard code masstolocal on rest collection to identity
 		{
 			TManagedArray<FTransform>& MassToLocal =
-				SimplicialSphereCollection->RestCollection->GetAttribute<FTransform>(
+				SimplicialSphereCollection->RestCollection->template GetAttribute<FTransform>(
 					TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
 		}
 		{
 			TManagedArray<FTransform>& MassToLocal =
-				ImplicitSphereCollection->RestCollection->GetAttribute<FTransform>(
+				ImplicitSphereCollection->RestCollection->template GetAttribute<FTransform>(
 					TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
@@ -425,7 +441,7 @@ namespace GeometryCollectionTest
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		Params.RootTransform = FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 3.0));
 		TGeometryCollectionWrapper<Traits>* BoxCollection0 =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(BoxCollection0);
 
 		// Make a kinematic box
@@ -435,7 +451,7 @@ namespace GeometryCollectionTest
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Kinematic;
 		Params.RootTransform = FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0));
 		TGeometryCollectionWrapper<Traits>* BoxCollection1 =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(BoxCollection1);
 /*
 		// Hard code masstolocal on rest collection to identity
@@ -496,14 +512,14 @@ namespace GeometryCollectionTest
 			CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Tetrahedron; Params.CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 			Params.GeomTransform = FTransform(GlobalRotation, GlobalTranslation);
-			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 			EXPECT_EQ(Collection->DynamicCollection->Parent[0], -1); // is a child of index one
 			EXPECT_NEAR((Collection->DynamicCollection->MassToLocal[0].GetTranslation()-FVector(0,0,10)).Size(),0,KINDA_SMALL_NUMBER);
 
 			UnitTest.AddSimulationObject(Collection);
 		}
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		UnitTest.Initialize();
