@@ -174,7 +174,10 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	UEditorEngine* Editor = (UEditorEngine*)GEngine;
 	World->ChangeFeatureLevel(Editor->GetActiveFeatureLevelPreviewType());
 
-	LevelActorOuterChangedHandle = GEditor->OnLevelActorOuterChanged().AddSP(this, &SLevelEditor::OnLevelActorOuterChanged);
+	if (GEditor != nullptr)
+	{
+		LevelActorOuterChangedHandle = GEditor->OnLevelActorOuterChanged().AddSP(this, &SLevelEditor::OnLevelActorOuterChanged);
+	}
 
 	// Patch into the OnPreviewFeatureLevelChanged() delegate to swap out the current feature level with a user selection.
 	PreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([this](ERHIFeatureLevel::Type NewFeatureLevel)
