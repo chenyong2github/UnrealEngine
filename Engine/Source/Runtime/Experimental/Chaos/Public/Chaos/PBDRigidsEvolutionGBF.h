@@ -238,7 +238,7 @@ namespace Chaos
 
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
-		CHAOS_API TUniquePtr<IResimCacheBase> CreateExternalResimCache(bool bUseCollisionResimCache) const;
+		CHAOS_API TUniquePtr<IResimCacheBase> CreateExternalResimCache() const;
 		CHAOS_API void SetCurrentStepResimCache(IResimCacheBase* InCurrentStepResimCache);
 
 	protected:

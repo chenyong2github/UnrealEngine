@@ -4,7 +4,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidsSOAs.h"
-#include "CollisionResimCache.h"
+#include "Chaos/EvolutionResimCache.h"
 
 namespace Chaos
 {
@@ -15,7 +15,7 @@ namespace Chaos
 	class FAsyncCollisionReceiver
 	{
 	public:
-		FAsyncCollisionReceiver(FPBDCollisionConstraints& InCollisionConstraints, FCollisionResimCache* InResimCache)
+		FAsyncCollisionReceiver(FPBDCollisionConstraints& InCollisionConstraints, FEvolutionResimCache* InResimCache)
 			: CollisionConstraints(InCollisionConstraints)
 			, ResimCache(InResimCache)
 		{
@@ -89,7 +89,7 @@ namespace Chaos
 		TQueue<FRigidBodySweptPointContactConstraint, EQueueMode::Mpsc> SingleSweptPointQueue;
 		TQueue<FRigidBodyMultiPointContactConstraint, EQueueMode::Mpsc> MultiPointQueue;
 		FPBDCollisionConstraints& CollisionConstraints;
-		FCollisionResimCache* ResimCache;
+		FEvolutionResimCache* ResimCache;
 	};
 
 
