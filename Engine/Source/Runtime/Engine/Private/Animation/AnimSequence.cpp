@@ -604,10 +604,7 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	CompressionErrorThresholdScale = 1.f;
 #endif
 
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		InitCurveCompressionScheme();
-	}
+	InitCurveCompressionScheme();
 }
 
 void UAnimSequence::PostInitProperties()
