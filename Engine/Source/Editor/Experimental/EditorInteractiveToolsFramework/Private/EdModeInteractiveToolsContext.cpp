@@ -787,9 +787,19 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 		}
 	}
 
+	// This is true if we are using the fly camera controls (ie right-mouse possibly + WASD). 
+	// Those controls do *not* capture the mouse and so we still get the events, and we need to ignore them.
+	// Note that it is possible to enter fly camera by holding right-mouse, then hold another button and release right-mouse,
+	// and that stays in fly mode, so we cannot rely on right-mouse state alone.
 	if (ViewportClient->IsMovingCamera())
 	{
-		return false;
+		// We are still in this state when user releases right-mouse button but is still holding down left-mouse.
+		// In that state we need to allow the InputRouter to see the event, so that the right-mouse-capture behavior can release
+		bool bIsReleaseRightNavButton = Key.IsMouseButton() && (Key == EKeys::RightMouseButton) && (Event == IE_Released);
+		if (bIsReleaseRightNavButton == false)
+		{
+			return false;
+		}
 	}
 
 	// convert doubleclick events to pressed, for now...this is a hack!
