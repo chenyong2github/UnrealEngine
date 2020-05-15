@@ -85,6 +85,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	CachedBounds.W = 0;
 	PhysScene = nullptr;
 	UnsafeWorld = nullptr;
+	UnsafeOwner = nullptr;
 	bSimulationStarted = false;
 	bCheckForBodyTransformInit = false;
 	OverlapChannel = ECC_WorldStatic;
@@ -1108,16 +1109,16 @@ void FAnimNode_RigidBody::UpdateWorldGeometry(const UWorld& World, const USkelet
 		CachedBounds = Bounds;
 		CachedBounds.W *= CachedBoundsScale;
 
-		// Cache the PhysScene and World for use in UpdateWorldForces 
-		// [and CollectWorldObjects in PhysX].
+		// Cache the PhysScene and World for use in UpdateWorldForces and CollectWorldObjects
 		PhysScene = World.GetPhysicsScene();
 		UnsafeWorld = &World;
+		UnsafeOwner = SKC.GetOwner();
 
 #if WITH_CHAOS
 		// Needs to be on game thread for now.
 		// - GetPhysicsMaterial may access the render material, which will assert if in a task
 		// - We cannot get the SkelMesh Owner in the task and we need it to filter out self-collisions
-		CollectWorldObjects(&World, &SKC);
+		CollectWorldObjects();
 #endif
 
 		// Remove objects we haven't detected in a while
@@ -1272,21 +1273,22 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 	PurgeExpiredWorldObjects();
 
 #if !WITH_CHAOS
-	CollectWorldObjects(UnsafeWorld, nullptr);
+	CollectWorldObjects(UnsafeWorld, UnsafeOwner);
 #endif
 
 	// These get set again if our bounds change. Subsequent calls to CollectWorldObjects will early-out until then
 	UnsafeWorld = nullptr;
+	UnsafeOwner = nullptr;
 	PhysScene = nullptr;
 }
 
-void FAnimNode_RigidBody::CollectWorldObjects(const UWorld* World, const USkeletalMeshComponent* SKC)
+void FAnimNode_RigidBody::CollectWorldObjects()
 {
-	if ((World != nullptr) && (PhysScene != nullptr))
+	if ((UnsafeWorld != nullptr) && (PhysScene != nullptr))
 	{
 		// @todo(ccaulfield): should this use CachedBounds?
 		TArray<FOverlapResult> Overlaps;
-		World->OverlapMultiByChannel(Overlaps, Bounds.Center, FQuat::Identity, OverlapChannel, FCollisionShape::MakeSphere(Bounds.W), QueryParams, FCollisionResponseParams(ECR_Overlap));
+		UnsafeWorld->OverlapMultiByChannel(Overlaps, Bounds.Center, FQuat::Identity, OverlapChannel, FCollisionShape::MakeSphere(Bounds.W), QueryParams, FCollisionResponseParams(ECR_Overlap));
 
 		// @todo(ccaulfield): is there an engine-independent way to do this?
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
@@ -1305,22 +1307,24 @@ void FAnimNode_RigidBody::CollectWorldObjects(const UWorld* World, const USkelet
 				}
 				else
 				{
-					// New object - add it to the sim
-					// @todo(ccaulfield): Not sure how we can get invalid body setups (see crash in CheckRBN engine test and fix it!)
-					bool bIsValidBody = (OverlapComp->BodyInstance.BodySetup != nullptr);
-					bool bIsSelf = (SKC != nullptr) && (SKC->GetOwner() == OverlapComp->GetOwner());
-					if (bIsValidBody && !bIsSelf)
-					{
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-						ImmediatePhysics::FActorHandle* ActorHandle = PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::StaticActor, &OverlapComp->BodyInstance, OverlapComp->BodyInstance.GetUnrealWorldTransform());
+					ComponentsInSim.Add(OverlapComp);
+					// Not sure why this happens, adding check to fix crash in CheckRBN engine test.
+					if (OverlapComp->BodyInstance.BodySetup != nullptr)
+					{
+						PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::StaticActor, &OverlapComp->BodyInstance, OverlapComp->BodyInstance.GetUnrealWorldTransform());
+					}
 #elif WITH_CHAOS
+					// New object - add it to the sim
+					const bool bIsSelf = (UnsafeOwner == OverlapComp->GetOwner());
+					if (!bIsSelf)
+					{
 						// Create a kinematic actor. Not using Static as world-static objects may move in the simulation's frame of reference
 						ImmediatePhysics::FActorHandle* ActorHandle = PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::KinematicActor, &OverlapComp->BodyInstance, OverlapComp->BodyInstance.GetUnrealWorldTransform());
 						PhysicsSimulation->AddToCollidingPairs(ActorHandle);
-#endif
-
 						ComponentsInSim.Add(OverlapComp, FWorldObject(ActorHandle, ComponentsInSimTick));
 					}
+#endif
 				}
 			}
 		}
