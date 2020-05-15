@@ -923,7 +923,7 @@ void FMapProperty::InstanceSubobjects(void* Data, void const* DefaultData, UObje
 			if (MapHelper.IsValidIndex(Index))
 			{
 				uint8* PairPtr        = MapHelper.GetPairPtr(Index);
-				uint8* DefaultPairPtr = DefaultMapHelper.FindMapPairPtrWithKey(PairPtr, FMath::Min(DefaultMapHelper.GetMaxIndex() - 1, Index));
+				uint8* DefaultPairPtr = DefaultMapHelper.FindMapPairPtrWithKey(PairPtr, Index);
 
 				if (bInstancedKey)
 				{
