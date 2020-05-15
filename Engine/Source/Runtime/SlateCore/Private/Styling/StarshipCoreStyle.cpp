@@ -1378,7 +1378,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("WindowMenuBar.Expand", new IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16));
 		Style->Set("WindowMenuBar.Button", MenuBarButton);
 		Style->Set("WindowMenuBar.Button.SubMenuOpen", new FSlateColorBrush(FStyleColors::Primary));
-		Style->Set("WindowMenuBar.MenuBar.Padding", FMargin(12,2));
+		Style->Set("WindowMenuBar.MenuBar.Padding", FMargin(12,4));
 
 	}
 

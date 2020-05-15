@@ -220,6 +220,7 @@ TSharedRef< SWidget> SMenuEntryBlock::BuildMenuBarWidget( const FMenuEntryBuildP
 		[
 			SNew(SBorder)
 			.BorderImage(this, &SMenuEntryBlock::GetMenuBarButtonBorder)
+			.Padding(0.0f)
 			[
 				// Create a button
 				SNew(SButton)
