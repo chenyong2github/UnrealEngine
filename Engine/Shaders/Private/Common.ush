@@ -79,6 +79,9 @@
 #define POSITIVE_INFINITY (asfloat(0x7F800000))
 #define NEGATIVE_INFINITY (asfloat(0xFF800000))
 
+#define NearDepthValue (HAS_INVERTED_Z_BUFFER ? 1.0f : 0.0f)
+#define FarDepthValue  (HAS_INVERTED_Z_BUFFER ? 0.0f : 1.0f)
+
 const static MaterialFloat PI = 3.1415926535897932f;
 const static float MaxHalfFloat = 65504.0f;
 const static float Max10BitsFloat = 64512.0f;

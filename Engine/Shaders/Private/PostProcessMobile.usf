@@ -108,7 +108,7 @@ void SunMaskPS_ES2(
 	#if ES2_USE_DEPTHTEXTURE
 		half InDepth = CalcSceneDepth(InUVPos.xy);
 	#else
-		half InDepth = SceneColor.a;
+		half InDepth = ConvertFromDeviceZ(SceneColor.a);
 	#endif
 	
 	#if ES2_USE_SUN
