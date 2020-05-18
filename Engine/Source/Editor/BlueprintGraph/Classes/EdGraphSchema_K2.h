@@ -211,6 +211,7 @@ public:
 	/** Metadata that flags make/break functions for specific struct types. */
 	static const FName MD_NativeMakeFunction;
 	static const FName MD_NativeBreakFunction;
+	static const FName MD_NativeDisableSplitPin;
 
 	/** Metadata that flags function params that govern what type of object the function returns */
 	static const FName MD_DynamicOutputType;

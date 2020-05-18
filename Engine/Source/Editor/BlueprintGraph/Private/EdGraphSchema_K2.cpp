@@ -167,6 +167,7 @@ const FName FBlueprintMetadata::MD_DataTablePin(TEXT("DataTablePin"));
 
 const FName FBlueprintMetadata::MD_NativeMakeFunction(TEXT("HasNativeMake"));
 const FName FBlueprintMetadata::MD_NativeBreakFunction(TEXT("HasNativeBreak"));
+const FName FBlueprintMetadata::MD_NativeDisableSplitPin(TEXT("DisableSplitPin"));
 
 const FName FBlueprintMetadata::MD_DynamicOutputType(TEXT("DeterminesOutputType"));
 const FName FBlueprintMetadata::MD_DynamicOutputParam(TEXT("DynamicOutputParam"));
@@ -1313,7 +1314,12 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 
 	if (bCanSplit)
 	{
-		if (UScriptStruct* StructType = Cast<UScriptStruct>(InGraphPin->PinType.PinSubCategoryObject.Get()))
+		UScriptStruct* StructType = Cast<UScriptStruct>(InGraphPin->PinType.PinSubCategoryObject.Get());
+
+		// Check if the user has explicitly disabled split pins
+		const bool bDisableSplit = StructType ? StructType->HasMetaData(FBlueprintMetadata::MD_NativeDisableSplitPin) : false;
+
+		if (StructType && !bDisableSplit)
 		{
 			if (InGraphPin->Direction == EGPD_Input)
 			{
@@ -1321,8 +1327,8 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				if (!bCanSplit)
 				{
 					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);
-					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
-					bCanSplit = (Function != NULL);
+					UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
+					bCanSplit = (Function != nullptr);
 				}
 			}
 			else
@@ -1331,8 +1337,8 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				if (!bCanSplit)
 				{
 					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeBreakFunction);
-					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
-					bCanSplit = (Function != NULL);
+					UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
+					bCanSplit = (Function != nullptr);
 				}
 			}
 		}

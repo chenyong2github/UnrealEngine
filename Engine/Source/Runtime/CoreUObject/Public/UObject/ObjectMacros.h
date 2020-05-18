@@ -1102,6 +1102,9 @@ namespace UM
 
 		/// [StructMetadata] Pins in Make and Break nodes are hidden by default.
 		HiddenByDefault,
+
+		/// [StructMetadata] Indicates that node pins of this struct type cannot be split
+		DisableSplitPin,
 	};
 
 	// Metadata usable in UPROPERTY
