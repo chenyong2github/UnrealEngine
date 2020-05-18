@@ -2459,7 +2459,8 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			string AdditionalArgs = " " 
+			string AdditionalArgs =
+				SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC)
 				+ SC.StageTargetPlatform.GetPlatformIoStoreCommandLine(Params, SC)
 				+ BulkOption
 				+ CompressionFormats
