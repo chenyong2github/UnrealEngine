@@ -5946,7 +5946,7 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 			FPreloadHeaderFileInfo& FileInfo = PreloadedFiles[Index];
 			bool bHasChanged = ConstThis->WriteHeader(FileInfo, GeneratedHeaderText, AdditionalHeaders, ReferenceGatherers, TempSaveTasks[Index]);
 
-			SourceFile->SetGeneratedFilename(MoveTemp(HeaderPath));
+			SourceFile->SetGeneratedFilename(MoveTemp(FileInfo.GetHeaderPath()));
 			SourceFile->SetHasChanged(bHasChanged);
 #if !PLATFORM_EXCEPTIONS_DISABLED
 		}
