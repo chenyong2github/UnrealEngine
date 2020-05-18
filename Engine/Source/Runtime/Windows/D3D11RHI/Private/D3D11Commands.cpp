@@ -821,14 +821,27 @@ void FD3D11DynamicRHI::CommitRenderTargetsAndUAVs()
 	CommitUAVs();
 
 }
-void FD3D11DynamicRHI::CommitRenderTargets(bool bClearUAVs)
+void FD3D11DynamicRHI::CommitRenderTargets(bool bClearUAVs, uint32 InRTVMask)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D11RenderTargetCommits);
 	ID3D11RenderTargetView* RTArray[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	uint32 Bit = 1;
+	uint32 RTVMask = 0;
 	for (uint32 RenderTargetIndex = 0; RenderTargetIndex < NumSimultaneousRenderTargets; ++RenderTargetIndex)
 	{
 		RTArray[RenderTargetIndex] = CurrentRenderTargets[RenderTargetIndex];
+		RTVMask |= Bit;
+		Bit <<= 1;
 	}
+	if(InRTVMask)
+	{
+		CurrentRTVMask = InRTVMask;
+	}
+	else
+	{
+		CurrentRTVMask = RTVMask;
+	}
+	
 
 	
 	Direct3DDeviceIMContext->OMSetRenderTargets(
@@ -1592,12 +1605,13 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 }
 
 template <class ShaderType>
-int32 FD3D11DynamicRHI::SetUAVPSResourcesFromTables(const ShaderType* RESTRICT Shader)
+int32 FD3D11DynamicRHI::SetUAVPSResourcesFromTables(const ShaderType* RESTRICT Shader, bool bForceInvalidate)
 {
 	checkSlow(Shader);
 	int32 NumChanged = 0;
 	// Mask the dirty bits by those buffers from which the shader has bound resources.
-	uint32 DirtyBits = Shader->ShaderResourceTable.ResourceTableBits & DirtyUniformBuffers[ShaderType::StaticFrequency];
+	uint16 DirtyMask = bForceInvalidate ? 0xffff : DirtyUniformBuffers[ShaderType::StaticFrequency];
+	uint32 DirtyBits = Shader->ShaderResourceTable.ResourceTableBits & DirtyMask;
 	while (DirtyBits)
 	{
 		// Scan for the lowest set bit, compute its index, clear it in the set of dirty bits.
@@ -1626,7 +1640,15 @@ void FD3D11DynamicRHI::CommitGraphicsResourceTables()
 	auto* PixelShader = CurrentBoundShaderState->GetPixelShader();
 	if(PixelShader)
 	{
-		if(SetUAVPSResourcesFromTables(PixelShader)|| UAVSChanged)
+		//because d3d11 binding uses the same slots for UAVS and RTVS, we have to rebind, when two shaders with different sets of rendertargets are bound
+		//as they can potentially be used by UAVS, which can cause them to unbind RTVs used by subsequent shaders.
+		bool bRTVInvalidate = CurrentRTVMask != PixelShader->OutputMask;
+		if(bRTVInvalidate)
+		{
+			CommitRenderTargets(true, PixelShader->OutputMask);
+		}
+
+		if(SetUAVPSResourcesFromTables(PixelShader, bRTVInvalidate) || UAVSChanged)
 		{
 			CommitUAVs();
 		}
