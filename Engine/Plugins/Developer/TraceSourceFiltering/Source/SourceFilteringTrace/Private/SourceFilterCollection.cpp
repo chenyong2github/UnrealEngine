@@ -15,6 +15,46 @@ T* USourceFilterCollection::CreateNewFilter(UClass* Class /*= T::StaticClass()*/
 	return NewFilter;
 }
 
+void USourceFilterCollection::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	for (int32 FilterIndex = 0; FilterIndex < Filters.Num(); ++FilterIndex)
+	{
+		UDataSourceFilter* Filter = Filters[FilterIndex];
+		if (UObject* const * NewObjectPtr = OldToNewInstanceMap.Find(Filter))
+		{
+			Filters.Insert(Cast<UDataSourceFilter>(*NewObjectPtr), FilterIndex);
+			Filters.Remove(Filter);
+		}
+	}
+
+	TArray<UDataSourceFilter*> KeyFilters;
+	ChildToParent.GenerateKeyArray(KeyFilters);
+
+	for (UDataSourceFilter* Filter : KeyFilters)
+	{
+		if (UObject* const * NewObjectPtr = OldToNewInstanceMap.Find(Filter))
+		{
+			UDataSourceFilterSet* ParentFilterSet = nullptr;			
+			ChildToParent.RemoveAndCopyValue(Filter, ParentFilterSet);
+
+			ChildToParent.Add(Cast<UDataSourceFilter>(*NewObjectPtr), ParentFilterSet);
+		}
+	}
+
+	TArray<FObjectKey> Keys;
+	FilterClassMap.GenerateKeyArray(Keys);
+
+	for (const FObjectKey& ObjectKey : Keys)
+	{
+		if (UObject* const* NewObjectPtr = OldToNewInstanceMap.Find(ObjectKey.ResolveObjectPtr()))
+		{
+			FString ClassName;
+			FilterClassMap.RemoveAndCopyValue(ObjectKey, ClassName);
+			FilterClassMap.Add(*NewObjectPtr, ClassName);
+		}
+	}
+}
+
 void USourceFilterCollection::AddClassFilter(TSubclassOf<AActor> InClass)
 {
 	ClassFilters.AddUnique({ FSoftClassPath(InClass), false });
