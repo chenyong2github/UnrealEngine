@@ -65,6 +65,7 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "K2Node_SetFieldsInStruct.h"
+#include "K2Node_Knot.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/Breakpoint.h"
 #include "ScopedTransaction.h"
@@ -6257,28 +6258,44 @@ void FBlueprintEditor::DeleteSelectedNodes()
 
 void FBlueprintEditor::ReconnectExecPins(UK2Node* Node)
 {
-	// Only do this on impure nodes
-	if (Node && !Node->IsNodePure())
+	if(!Node)
 	{
-		// Are there exec/then connections?
-		UEdGraphPin* const ExecPin = Node->GetExecPin();
-		UEdGraphPin* const ThenPin = Node->FindPin(UEdGraphSchema_K2::PN_Then);
+		return;
+	}
+
+	UEdGraphPin* ExecPin = nullptr;
+	UEdGraphPin* ThenPin = nullptr;
+
+	// Get pins for knot nodes or impure nodes only
+	if(UK2Node_Knot* KnotNode = Cast<UK2Node_Knot>(Node))
+	{
+		ExecPin = KnotNode->GetInputPin();
+		ThenPin = KnotNode->GetOutputPin();
+	}
+	else if(!Node->IsNodePure())
+	{
+		ExecPin = Node->GetExecPin();
+
 		// Nodes with multiple "then" pins (branch, sequence, foreach, etc) will actually have the FindPin return nullptr
-		if (ExecPin && ThenPin)
+		ThenPin = Node->FindPin(UEdGraphSchema_K2::PN_Then);
+	}
+
+	// We don't want to try and auto connect nodes with multiple outputs, 	
+	// because it's likely the user will not want those connections anyway
+	if (ExecPin && ThenPin)
+	{
+		// Make a connection from every incoming exec pin to every outgoing then pin
+		for (UEdGraphPin* const IncomingConnectionPin : ExecPin->LinkedTo)
 		{
-			// Make a connection from every incoming exec pin to every outgoing then pin
-			for (UEdGraphPin* const IncomingConnectionPin : ExecPin->LinkedTo)
+			if (IncomingConnectionPin)
 			{
-				if (IncomingConnectionPin)
+				for (UEdGraphPin* const ConnectedCompletePin : ThenPin->LinkedTo)
 				{
-					for (UEdGraphPin* const ConnectedCompletePin : ThenPin->LinkedTo)
-					{
-						IncomingConnectionPin->MakeLinkTo(ConnectedCompletePin);
-					}
+					IncomingConnectionPin->MakeLinkTo(ConnectedCompletePin);
 				}
 			}
 		}
-	}
+	}	
 }
 
 bool FBlueprintEditor::CanDeleteNodes() const
