@@ -12,11 +12,13 @@
 #include "Modules/ModuleManager.h"
 #include "Framework/PhysicsTickTask.h"
 #include "RewindData.h"
+#include "GeometryCollection/GeometryCollectionTestFramework.h"
 
 
 namespace ChaosTest {
 
     using namespace Chaos;
+	using namespace GeometryCollectionTest;
 
 	template <typename TSolver>
 	void TickSolverHelper(FChaosSolversModule* Module, TSolver* Solver, FReal Dt = 1.0)
@@ -1955,5 +1957,45 @@ namespace ChaosTest {
 		EXPECT_LT(Dynamic->X()[2], 10);
 
 		Module->DestroySolver(Solver);
+	}
+
+	TYPED_TEST(AllTraits, RewindTest_SoftDesyncFromSameIslandThenBackToInSync_GeometryCollection_SingleFallingUnderGravity)
+	{
+		if(TypeParam::IsRewindable() == false){ return; }
+
+		for(int Optimization = 0; Optimization < 2; ++Optimization)
+		{
+			using Traits = TypeParam;
+			TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>()->As<TGeometryCollectionWrapper<Traits>>();
+
+			TFramework<Traits> UnitTest;
+			UnitTest.Solver->EnableRewindCapture(100,!!Optimization);
+			UnitTest.AddSimulationObject(Collection);
+			UnitTest.Initialize();
+
+			TArray<FReal> Xs;
+			const int32 LastStep = 10;
+			for(int Step = 0; Step <= LastStep; ++Step)
+			{
+				UnitTest.Advance();
+				Xs.Add(Collection->DynamicCollection->Transform[0].GetTranslation()[2]);
+			}
+
+			const int32 RewindStep = 3;
+
+			FRewindData* RewindData = UnitTest.Solver->GetRewindData();
+			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+			//GC doesn't marshal data from GT to PT so at the moment all we get is the GT data immediately after rewind, but it doesn't make it over to PT or collection
+			//Not sure if I can even access GT particle so can't verify that, but saw it in debugger at least
+			
+			for(int Step = RewindStep; Step <= LastStep; ++Step)
+			{
+				UnitTest.Advance();
+
+				//TODO: turn this on when we find a way to marshal data from GT to PT
+				//EXPECT_EQ(Collection->DynamicCollection->Transform[0].GetTranslation()[2],Xs[Step]);
+			}			
+		}
 	}
 }
