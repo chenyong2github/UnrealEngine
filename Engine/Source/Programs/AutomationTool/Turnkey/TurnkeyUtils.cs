@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -19,7 +21,6 @@ namespace Turnkey
 		// replacement for Environment.ExitCode
 		static public AutomationTool.ExitCode ExitCode = ExitCode.Success;
 
-		static private IOProvider IOProvider;
 		static public void Initialize(IOProvider InIOProvider, BuildCommand InCommandUtilHelper)
 		{
 			IOProvider = InIOProvider;
@@ -27,6 +28,8 @@ namespace Turnkey
 
 			SetVariable("HOST_PLATFORM_NAME", HostPlatform.Current.HostEditorPlatform.ToString());
 		}
+
+		#region Turnkey Variables
 
 		static Dictionary<string, string> TurnkeyVariables = new Dictionary<string, string>();
 
@@ -65,7 +68,9 @@ namespace Turnkey
 			return UnrealBuildTool.Utils.ExpandVariables(ExpandedUserVariables, TurnkeyVariables, bUseOnlyTurnkeyVariables);
 		}
 
+		#endregion
 
+		#region Commandline Handling
 
 		public static bool ParseParam(string Param, string[] ExtraOptions)
 		{
@@ -132,7 +137,7 @@ namespace Turnkey
 					if (!UnrealTargetPlatform.TryParse(Token, out Platform))
 					{
 						TurnkeyUtils.Log("Platform {0} is unknown", Token);
-						return null;
+						continue;
 					}
 
 					// if the platform isn't in the possible list, then don't add it
@@ -184,7 +189,9 @@ namespace Turnkey
 			DeviceInfo InstallDevice = Array.Find(AutomationPlatform.GetDevices(), x => string.Compare(x.Name, DeviceName, true) == 0);
 			return InstallDevice;
 		}
+		#endregion
 
+		#region Env vars
 
 		private static IDictionary[] SavedEnvVars = new System.Collections.IDictionary[2];
 		private static Dictionary<string, string> EnvVarsToSaveToBatchFile = new Dictionary<string, string>();
@@ -244,6 +251,10 @@ namespace Turnkey
 				File.WriteAllText(BatchPath, BatchContents.ToString());
 			}
 		}
+
+		#endregion
+
+		#region Regex Matching
 
 		static bool TryConvertToUint64(string InValue, out UInt64 OutValue)
 		{ 
@@ -311,6 +322,11 @@ namespace Turnkey
 			return string.Compare(Value, AllowedValues, true) == 0;
 		}
 
+		#endregion
+
+		#region IO
+		static private IOProvider IOProvider;
+
 		public static void Log(string Message)
 		{
 			IOProvider.Log(Message, bAppendNewLine: true);
@@ -323,6 +339,20 @@ namespace Turnkey
 		public static void Log(string Message, params object[] Params)
 		{
 			IOProvider.Log(string.Format(Message, Params), bAppendNewLine: true);
+		}
+
+		public static void Report(string Message)
+		{
+			IOProvider.Report(Message, bAppendNewLine: true);
+		}
+		public static void Report(ref StringBuilder Message)
+		{
+			IOProvider.Report(Message.ToString(), bAppendNewLine: false);
+			Message.Clear();
+		}
+		public static void Report(string Message, params object[] Params)
+		{
+			IOProvider.Report(string.Format(Message, Params), bAppendNewLine: true);
 		}
 
 		public static string ReadInput(string Prompt, string Default = "")
@@ -339,7 +369,9 @@ namespace Turnkey
 		{
 			return IOProvider.ReadInputInt(Prompt, Options, bIsCancellable, DefaultValue, bAppendNewLine: true);
 		}
+		#endregion
 
+		#region Temp files [move to LocalCache]
 		static List<string> PathsToCleanup = new List<string>();
 		public static void AddPathToCleanup(string Path)
 		{
@@ -365,5 +397,6 @@ namespace Turnkey
 
 			PathsToCleanup.Clear();
 		}
+		#endregion
 	}
 }

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using AutomationTool;
 using System;
 using System.Collections.Generic;
@@ -33,14 +35,14 @@ namespace Turnkey.Commands
 
 				SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
 
-				if ((LocalState & (SdkInfo.LocalAvailability.AutoSdk_PlatformExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
+				if ((LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
 				{
-					TurnkeyUtils.Log("{0}: No AutoSdk or Installed Sdk found matching {1}", Platform, AutomationPlatform.GetAllowedSdks());
+					TurnkeyUtils.Report("[{0}]: Invalid [No AutoSdk or Installed Sdk found matching {1}]", Platform, AutomationPlatform.GetAllowedSdks());
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 				}
 				else
 				{
-					TurnkeyUtils.Log("{0}: Valid! [{1}]", Platform, (LocalState & (SdkInfo.LocalAvailability.AutoSdk_PlatformExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)).ToString());
+					TurnkeyUtils.Report("[{0}]: Valid [{1}]", Platform, (LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)).ToString());
 					//					TurnkeyUtils.Log("{0}: Valid [Installed: '{1}', Required: '{2}']", Platform, PlatformObject.GetInstalledSdk(), PlatformObject.GetAllowedSdks());
 				}
 

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -104,7 +106,7 @@ namespace Turnkey
 			string PreviousValue = null;
 
 			SetUserSettings.TryGetValue(VariableName, out PreviousValue);
-			SetUserSettings.Add(VariableName, Value);
+			SetUserSettings[VariableName] = Value;
 			Save();
 
 			return PreviousValue;

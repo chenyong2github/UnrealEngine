@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -59,6 +61,12 @@ namespace Turnkey
 						// now enumerate and get the values
 						List<List<string>> Expansions = new List<List<string>>();
 						string[] ExpandedInstallerResults = CopyProvider.ExecuteEnumerate(Sdk.Expansion[0].Copy, Expansions);
+
+						// expansion may not work
+						if (ExpandedInstallerResults == null)
+						{
+							continue;
+						}
 
 						if (Expansions.Count != ExpandedInstallerResults.Length)
 						{

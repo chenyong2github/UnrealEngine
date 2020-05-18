@@ -1,4 +1,3 @@
-
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
@@ -13,7 +12,25 @@ namespace Turnkey
 	{
 		public override ExitCode Execute()
 		{
-			return Turnkey.Execute(new ConsoleIOProvider(), this);
+			IOProvider IOProvider;
+			if (ParseParam("EditorIO"))
+			{
+				IOProvider = new HybridIOProvider();
+			}
+			else
+			{
+				string ReportFilename = ParseParamValue("ReportFilename");
+				if (!string.IsNullOrEmpty(ReportFilename))
+				{
+					IOProvider = new ReportIOProvider(ReportFilename);
+				}
+				else
+				{
+					IOProvider = new ConsoleIOProvider();
+				}
+			}
+
+			return Turnkey.Execute(IOProvider, this);
 		}
 
 		public static AutomationTool.ExitCode Execute(IOProvider IOProvider, BuildCommand CommandUtilHelper)

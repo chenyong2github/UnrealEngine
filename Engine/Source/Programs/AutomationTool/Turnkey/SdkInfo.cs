@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -104,10 +106,11 @@ namespace Turnkey
 		{
 			None = 0,
 			AutoSdk_VariableExists = 1,
-			AutoSdk_PlatformExists = 2,
-			// InstalledSdk_BuildOnlyWasInstalled = 4,
-			InstalledSdk_ValidVersionExists = 8,
-			InstalledSdk_InvalidVersionExists = 16,
+			AutoSdk_ValidVersionExists = 2,
+			AutoSdk_InvalidVersionExists = 4,
+			// InstalledSdk_BuildOnlyWasInstalled = 8,
+			InstalledSdk_ValidVersionExists = 16,
+			InstalledSdk_InvalidVersionExists = 32,
 		}
 
 		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform)
@@ -125,6 +128,7 @@ namespace Turnkey
 				DirectoryInfo PlatformDir = new DirectoryInfo(Path.Combine(AutoSdkVar, AutoSubdir));
 				if (PlatformDir.Exists)
 				{
+					bool bValidVersionFound = false;
 					foreach (DirectoryInfo Dir in PlatformDir.EnumerateDirectories())
 					{
 						// check for valid version number
@@ -133,11 +137,14 @@ namespace Turnkey
 							// make sure it actually has bits in it
 							if (File.Exists(Path.Combine(Dir.FullName, "setup.bat")))
 							{
-								Result |= LocalAvailability.AutoSdk_PlatformExists;
+								bValidVersionFound = true;
+								break;
 							}
-							break;
 						}
 					}
+
+					// if we had a platform directory, but no valid versions, note that
+					Result |= bValidVersionFound ? LocalAvailability.AutoSdk_ValidVersionExists : LocalAvailability.AutoSdk_InvalidVersionExists;
 				}
 			}
 

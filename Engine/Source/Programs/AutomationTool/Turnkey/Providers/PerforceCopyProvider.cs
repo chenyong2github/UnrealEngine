@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,7 +21,6 @@ namespace Turnkey
 			{
 				return null;
 			}
-
 
 			// calculate the output path
 			// @todo turnkey: use p4 where, because a depot mapping could be strange and make this invlalid
@@ -162,6 +163,7 @@ namespace Turnkey
 			// Get all clients for this user
 			string P4Command = String.Format("clients -u {0}", Username);
 
+			// @todo turnkey: sort the results on third token (date)
 			var P4Result = PerforceConnection.P4(string.Format("clients -u {0}", Username), AllowSpew: false, WithClient: false);
 			if (P4Result.ExitCode != 0)
 			{
@@ -238,7 +240,15 @@ namespace Turnkey
 					string ClientName = TurnkeyUtils.ReadInput("Enter clientspec name:", string.Format("{0}_sdks", Username));
 
 					// get local pathname
-					string LocalPath = TurnkeyUtils.ReadInput(string.Format("Enter where to map {0} on your computer:", bIsStream ? SpecRoot : DepotName), @"D:\Sdks");
+					// if we had UE_SDKS_ROOT already set, we use it as a default
+					string AutoSdksDir = Environment.GetEnvironmentVariable("UE_SDKS_ROOT");
+					string DefaultDir = @"D:\Sdks";
+					if (!string.IsNullOrEmpty(AutoSdksDir))
+					{
+						// @todo turnkey - for a deeper directory structure, we should match directory names to the perforce Operation, to figure it out properly
+						DefaultDir = Path.GetDirectoryName(AutoSdksDir);
+					}
+					string LocalPath = TurnkeyUtils.ReadInput(string.Format("Enter where to map {0} on your computer:", bIsStream ? SpecRoot : DepotName), DefaultDir);
 
 					// create a client from the input settings
 					P4ClientInfo NewClient = new P4ClientInfo();
@@ -246,17 +256,15 @@ namespace Turnkey
 					NewClient.Owner = Username;
 					NewClient.Host = Hostname;
 					NewClient.RootPath = LocalPath;
-					// @todo turnkey handle depot type :|
+					NewClient.Options |= P4ClientOption.RmDir;
 					if (bIsStream)
 					{
 						NewClient.Stream = SpecRoot;
 					}
 					else
 					{
-						// set up mapping
-						string DepotPath = SpecRoot + "/...";
-						string ClientPath = DepotPath.Replace("//" + DepotName + "/", "//" + ClientName + "/");
-						NewClient.View.Add(new KeyValuePair<string, string>(DepotPath, ClientPath));
+						// set up mapping (CreateClient prepends the Key with //<clientname>)
+						NewClient.View.Add(new KeyValuePair<string, string>(DepotName + "/...", "/..."));
 					}
 
 					PerforceClient = PerforceConnection.CreateClient(NewClient);
