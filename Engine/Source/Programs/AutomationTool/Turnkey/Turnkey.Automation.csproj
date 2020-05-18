@@ -51,6 +51,8 @@
     <Compile Include="IOProvider.cs" />
     <Compile Include="LocalCache.cs" />
     <Compile Include="Providers\ConsoleIOProvider.cs" />
+    <Compile Include="Providers\HybridIOProvider.cs" />
+    <Compile Include="Providers\ReportIOProvider.cs" />
     <Compile Include="SdkInfo.cs" />
     <Compile Include="TurnkeyCommand.cs" />
     <Compile Include="CopyProvider.cs" />
@@ -97,6 +99,8 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Serialization" />
   </ItemGroup>
