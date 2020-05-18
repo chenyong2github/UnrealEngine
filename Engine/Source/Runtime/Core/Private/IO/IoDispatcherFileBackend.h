@@ -182,7 +182,7 @@ public:
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	bool ReadPendingBlock();
-	void ProcessCompletedBlocks();
+	void ProcessCompletedBlocks(const bool bIsMultithreaded);
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
 	void FlushReads()
 	{ 
