@@ -46,6 +46,7 @@ FEditorSessionSourceFilterService::FEditorSessionSourceFilterService()
 	FilterCollection = FTraceSourceFiltering::Get().GetFilterCollection();
 	if (GEditor)
 	{
+		GEditor->OnObjectsReplaced().AddRaw(this, &FEditorSessionSourceFilterService::OnObjectsReplaced);
 		GEditor->RegisterForUndo(this);
 	}
 
@@ -67,6 +68,7 @@ FEditorSessionSourceFilterService::~FEditorSessionSourceFilterService()
 	if (GEditor)
 	{
 		GEditor->UnregisterForUndo(this);
+		GEditor->OnObjectsReplaced().RemoveAll(this);
 	}
 	
 	FTraceWorldFiltering::OnFilterStateChanged().RemoveAll(this);
@@ -680,6 +682,14 @@ void FEditorSessionSourceFilterService::OnBlueprintCompiled(UBlueprint* InBluepr
 			Blueprint->OnCompiled().RemoveAll(this);
 		}
 		DelegateRegisteredBlueprints.Empty();
+	}
+}
+
+void FEditorSessionSourceFilterService::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementsMap)
+{
+	if (FilterCollection)
+	{
+		FilterCollection->OnObjectsReplaced(ReplacementsMap);
 	}
 }
 
