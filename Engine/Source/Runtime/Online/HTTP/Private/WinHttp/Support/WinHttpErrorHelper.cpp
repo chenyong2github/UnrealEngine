@@ -7,7 +7,6 @@
 #include "Http.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
 
 void FWinHttpErrorHelper::LogWinHttpOpenFailure(const uint32 ErrorCode)
 {

@@ -4,12 +4,9 @@
 
 #include "WinHttp/WinHttpHttpManager.h"
 #include "WinHttp/Support/WinHttpSession.h"
+#include "WinHttp/Support/WinHttpTypes.h"
 #include "Http.h"
 #include "Misc/CoreDelegates.h"
-
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
-#include "Windows/HideWindowsPlatformTypes.h"
 
 namespace
 {
