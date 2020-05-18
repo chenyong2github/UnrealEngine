@@ -90,20 +90,13 @@ void SWorldTraceFilteringWidget::Construct(const FArguments& InArgs)
 
 void SWorldTraceFilteringWidget::SetSessionFilterService(TSharedPtr<ISessionSourceFilterService> InSessionFilterService)
 {
-	SessionFilterService = InSessionFilterService;
-	RefreshWorldData();
-}
-
-void SWorldTraceFilteringWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
 	if (SessionFilterService.IsValid())
 	{
-		if (SessionFilterService->GetTimestamp() > TimeStamp)
-		{
-			RefreshWorldData();
-			TimeStamp = SessionFilterService->GetTimestamp();
-		}
+		SessionFilterService->GetOnSessionStateChanged().RemoveAll(this);
 	}
+	SessionFilterService = InSessionFilterService;
+	SessionFilterService->GetOnSessionStateChanged().AddSP(this, &SWorldTraceFilteringWidget::RefreshWorldData);
+	RefreshWorldData();
 }
 
 void SWorldTraceFilteringWidget::RefreshWorldData()

@@ -21,7 +21,6 @@ public:
 
 private:
 	static FSlateBrush* FilterBrush;
-	static FSlateBrush* FilterSetOperationBrush;
 	static FSlateBrush* FilterSetBrush;
 	/** Singleton instances of this style. */
 	static TSharedPtr< class FSlateStyleSet > StyleSet;	

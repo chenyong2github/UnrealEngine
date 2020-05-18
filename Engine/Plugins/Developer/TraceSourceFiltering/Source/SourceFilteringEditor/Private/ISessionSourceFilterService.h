@@ -20,6 +20,8 @@ class FWorldObject;
 
 DECLARE_DELEGATE_OneParam(FOnFilterClassPicked, FString /*ClassName*/);
 
+DECLARE_MULTICAST_DELEGATE(FOnSessionStateChanged);
+
 /** Interface for implementing a World filter, setting whether or not a specific UWorld and its contained objects can Trace out data (events) */
 class IWorldTraceFilter : public TSharedFromThis<IWorldTraceFilter>
 {
@@ -36,8 +38,8 @@ class ISessionSourceFilterService : public TSharedFromThis<ISessionSourceFilterS
 public:
 	virtual ~ISessionSourceFilterService() {}
 
-	/** Returns timestamp representing last point of update */
-	virtual const FDateTime& GetTimestamp() const = 0;
+	/** Delegate which gets broadcast-ed whenever the contained data (state) changes */
+	virtual FOnSessionStateChanged& GetOnSessionStateChanged() = 0;
 
 	/** Returns whether or not a request action is pending complete */
 	virtual bool IsActionPending() const = 0;

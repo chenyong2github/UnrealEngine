@@ -42,7 +42,7 @@ public:
 	virtual void SetFilterSetMode(TSharedRef<const IFilterObject> InFilter, EFilterSetMode Mode) override;
 	virtual void SetFilterState(TSharedRef<const IFilterObject> InFilter, bool bState) override;
 	virtual void ResetFilters() override;	
-	virtual const FDateTime& GetTimestamp() const override { return Timestamp; }	
+	virtual FOnSessionStateChanged& GetOnSessionStateChanged() override { return OnSessionStateChanged; }
 	virtual void UpdateFilterSettings(UTraceSourceFilteringSettings* InSettings) override {}
 	virtual UTraceSourceFilteringSettings* GetFilterSettings() override;
 	virtual bool IsActionPending() const override;
@@ -63,8 +63,8 @@ public:
 	/** End FGCObject overrides */
 
 protected:
-	/** Updates the timestamp provided through GetTimestamp, indicating that the contained data has changed  */
-	void UpdateTimeStamp();
+	/** Fires the OnSessionStateChanged delegate, indicating that the contained data has changed  */
+	void StateChanged();
 
 	/** Callback for whenever the user opts to save the current filtering state as a preset */
 	void OnSaveAsPreset();
@@ -83,8 +83,8 @@ protected:
 	/** Filter collection this session represents, retrieved from FTraceSourceFiltering */
 	USourceFilterCollection* FilterCollection;
 
-	/** Timestamp used to rely data updates to anyone polling against GetTimeStamp */
-	FDateTime Timestamp;
+	/** Delegate used to rely data updates to notify anyone interested */
+	FOnSessionStateChanged OnSessionStateChanged;
 	
 	/** UI extender, used to insert preset functionality into STraceSourceFilteringWindow */
 	TSharedPtr<FExtender> Extender;
