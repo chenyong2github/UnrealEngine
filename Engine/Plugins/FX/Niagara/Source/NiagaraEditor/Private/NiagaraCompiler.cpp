@@ -631,7 +631,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		LogPackage = Script->GetOutermost();
 	}
 
-	if (!Script && !System)
+	if (!LogPackage || (!Script && !System))
 	{
 		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> InvalidPtr;
 		return InvalidPtr;
