@@ -160,6 +160,11 @@ FRigBone FRigBoneHierarchy::Remove(const FName& InNameToRemove)
 	}
 
 	int32 IndexToDelete = GetIndex(InNameToRemove);
+	if (IndexToDelete == INDEX_NONE)
+	{
+		return FRigBone();
+	}
+
 #if WITH_EDITOR
 	Select(InNameToRemove, false);
 #endif
