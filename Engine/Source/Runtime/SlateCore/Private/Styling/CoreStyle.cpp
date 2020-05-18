@@ -10,6 +10,7 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Fonts/LegacySlateFontInfoCache.h"
+#include "Misc/CommandLine.h"
 
 
 /* Static initialization
@@ -178,7 +179,11 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 	const FSlateColor SelectionColor_Pressed( Style->SelectionColor_Pressed_LinearRef );
 	const FSlateColor HighlightColor( Style->HighlightColor_LinearRef );
 
-	Style->Set("DefaultAppIcon", new IMAGE_BRUSH("Icons/DefaultAppIcon", Icon24x24));
+	Style->Set("AppIcon", new IMAGE_BRUSH("Icons/DefaultAppIcon", Icon24x24));
+	Style->Set("AppIcon.Small", new IMAGE_BRUSH("Icons/DefaultAppIcon", Icon24x24));
+
+	Style->Set("AppIconPadding", FMargin(4, 4, 0, 0));
+	Style->Set("AppIconPadding.Small", FMargin(4, 4, 0, 0));
 
 	Style->Set("NormalFont", DEFAULT_FONT("Regular", RegularTextSize));
 
@@ -354,11 +359,15 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 
 	// SButton defaults...
 	const FButtonStyle Button = FButtonStyle()
-		.SetNormal( BOX_BRUSH( "Common/Button", FVector2D(32,32), 8.0f/32.0f ) )
-		.SetHovered( BOX_BRUSH( "Common/Button_Hovered", FVector2D(32,32), 8.0f/32.0f ) )
-		.SetPressed( BOX_BRUSH( "Common/Button_Pressed", FVector2D(32,32), 8.0f/32.0f ) )
-		.SetNormalPadding( FMargin( 2,2,2,2 ) )
-		.SetPressedPadding( FMargin( 2,3,2,1 ) );
+		.SetNormal(BOX_BRUSH("Common/Button", FVector2D(32, 32), 8.0f / 32.0f))
+		.SetHovered(BOX_BRUSH("Common/Button_Hovered", FVector2D(32, 32), 8.0f / 32.0f))
+		.SetPressed(BOX_BRUSH("Common/Button_Pressed", FVector2D(32, 32), 8.0f / 32.0f))
+		.SetNormalPadding(FMargin(2, 2, 2, 2))
+		.SetPressedPadding(FMargin(2, 3, 2, 1))
+		.SetNormalForeground(InvertedForeground)
+		.SetPressedForeground(InvertedForeground)
+		.SetHoveredForeground(InvertedForeground)
+		.SetDisabledForeground(InvertedForeground);
 	{
 		Style->Set( "Button", Button );
 
@@ -772,6 +781,9 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 			.SetDropIndicator_Below(BOX_BRUSH("Common/DropZoneIndicator_Below", FMargin(10.0f / 16.0f, 0, 0, 10.0f / 16.0f), SelectionColor));
 		Style->Set("TableView.Row", DefaultTableRowStyle);
 
+		// Make this the default for the ComboBox rows also
+		Style->Set("ComboBox.Row", DefaultTableRowStyle);  
+
 		const FTableRowStyle DarkTableRowStyle = FTableRowStyle(DefaultTableRowStyle)
 			.SetEvenRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.0f, 0.0f, 0.0f, 0.1f)))
 			.SetOddRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.0f, 0.0f, 0.0f, 0.1f)));
@@ -913,16 +925,24 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 		Style->Set( "ToolBar.Button", FButtonStyle(Button)
 			.SetNormal ( FSlateNoResource() )
 			.SetPressed( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) )
-			.SetHovered( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ) )
+			.SetHovered( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ))
+			.SetNormalForeground(FSlateColor::UseForeground())
+			.SetPressedForeground(FSlateColor::UseForeground())
+			.SetHoveredForeground(FSlateColor::UseForeground())
+			.SetDisabledForeground(FSlateColor::UseForeground())
 		);
 
-		Style->Set( "ToolBar.Button.Normal", new FSlateNoResource() );
+	/*	Style->Set( "ToolBar.Button.Normal", new FSlateNoResource() );
 		Style->Set( "ToolBar.Button.Pressed", new BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) );
 		Style->Set( "ToolBar.Button.Hovered", new BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ) );
+*/
 
 		Style->Set( "ToolBar.Button.Checked", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
 		Style->Set( "ToolBar.Button.Checked_Hovered", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
 		Style->Set( "ToolBar.Button.Checked_Pressed", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor ) );
+
+		Style->Set("ToolBar.SimpleComboButton", Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"));
+		Style->Set("ToolBar.IconSize", Icon20x20);
 	}
 
 	// MenuBar
@@ -937,6 +957,7 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 		Style->Set( "Menu.SToolBarButtonBlock.CheckBox.Padding", FMargin(0.0f) );
 		Style->Set( "Menu.SToolBarComboButtonBlock.ComboButton.Color", DefaultForeground );
 
+
 		Style->Set( "Menu.Block.IndentedPadding", FMargin( 18.0f, 2.0f, 4.0f, 4.0f ) );
 		Style->Set( "Menu.Block.Padding", FMargin( 2.0f, 2.0f, 4.0f, 4.0f ) );
 
@@ -950,6 +971,9 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 		Style->Set( "Menu.Heading", FTextBlockStyle(NormalText)
 			.SetFont( DEFAULT_FONT( "Regular", 8 ) )
 			.SetColorAndOpacity( FLinearColor( 0.4f, 0.4, 0.4f, 1.0f ) ) );
+
+		const FMargin MenuBlockPadding(10.0f, 3.0f, 5.0f, 2.0f);
+		Style->Set("Menu.Heading.Padding", MenuBlockPadding + FMargin(0, 10, 0, 0));
 
 		/* Set images for various SCheckBox states associated with menu check box items... */
 		const FCheckBoxStyle BasicMenuCheckBoxStyle = FCheckBoxStyle()
@@ -1010,13 +1034,16 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 		/* ... and add new style */
 		Style->Set( "Menu.ToggleButton", MenuToggleButtonCheckBoxStyle );
 
-		Style->Set( "Menu.Button", FButtonStyle( NoBorder )
-			.SetNormal ( FSlateNoResource() )
-			.SetPressed( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) )
-			.SetHovered( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ) )
-			.SetNormalPadding( FMargin(0,1) )
-			.SetPressedPadding( FMargin(0,2,0,0) )
-		);
+
+		FButtonStyle MenuButton =
+			FButtonStyle(NoBorder)
+			.SetNormal(FSlateNoResource())
+			.SetPressed(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
+			.SetHovered(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor))
+			.SetNormalPadding(FMargin(0, 1))
+			.SetPressedPadding(FMargin(0, 2, 0, 0));
+
+		Style->Set("Menu.Button", MenuButton);
 
 		Style->Set( "Menu.Button.Checked", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
 		Style->Set( "Menu.Button.Checked_Hovered", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
@@ -1024,6 +1051,14 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 
 		/* The style of a menu bar button when it has a sub menu open */
 		Style->Set( "Menu.Button.SubMenuOpen", new BORDER_BRUSH( "Common/Selection", FMargin(4.f/16.f), FLinearColor(0.10f, 0.10f, 0.10f) ) );
+
+		Style->Set("WindowMenuBar.Background", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));
+		Style->Set("WindowMenuBar.Label", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT("Regular", 9)));
+		Style->Set("WindowMenuBar.Expand", new IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16));
+		Style->Set("WindowMenuBar.Button", MenuButton);
+		Style->Set("WindowMenuBar.Button.SubMenuOpen", new BORDER_BRUSH("Common/Selection", FMargin(4.f / 16.f), FLinearColor(0.10f, 0.10f, 0.10f)));
+
+		Style->Set("WindowMenuBar.MenuBar.Padding", FMargin(12, 2));
 	}
 
 	// SExpandableButton defaults...
@@ -1086,12 +1121,11 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 		Style->Set( "Docking.Background", new BOX_BRUSH( "Old/Menu_Background", FMargin(8.0f/64.0f) ) );
 		Style->Set( "Docking.Border", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ) );
 
-		Style->Set( "Docking.TabFont", FTextBlockStyle(NormalText)
+		FTextBlockStyle DockingTabFont = FTextBlockStyle(NormalText)
 			.SetFont( DEFAULT_FONT( "Regular", 9 ) )
 			.SetColorAndOpacity( FLinearColor(0.72f, 0.72f, 0.72f, 1.f) )
 			.SetShadowOffset( FVector2D( 1,1 ) )
-			.SetShadowColorAndOpacity( FLinearColor::Black )
-			);
+			.SetShadowColorAndOpacity( FLinearColor::Black ) ;
 
 		Style->Set( "Docking.UnhideTabwellButton", FButtonStyle(Button)
 			.SetNormal ( IMAGE_BRUSH( "/Docking/ShowTabwellButton_Normal", FVector2D(10,10) ) )
@@ -1120,7 +1154,6 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 			.SetNormalBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, DockColor_Inactive ) )
 			.SetHoveredBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, DockColor_Hovered ) )
 			.SetForegroundBrush( BOX_BRUSH( "/Docking/Tab_Shape", 2.f /8.0f, DockColor_Active ) )
-			.SetActiveBrush( BOX_BRUSH( "/Docking/Tab_Active", 4./8.0f) ) // 
 			.SetColorOverlayTabBrush( BOX_BRUSH( "/Docking/Tab_ColorOverlay", 4 / 16.0f))
 			.SetColorOverlayIconBrush( BOX_BRUSH( "/Docking/Tab_ColorOverlayIcon", 4/16.0f ) )
 			.SetContentAreaBrush( FSlateColorBrush( DockColor_Active ) )
@@ -1128,13 +1161,13 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 			.SetTabPadding( FMargin(5, 2, 5, 2) )
 			.SetOverlapWidth( -1.0f )
 			.SetFlashColor( TabFlashColor )
+			.SetTabTextStyle(DockingTabFont)
 			);
 
 		// App Tab
 		Style->Set( "Docking.MajorTab", FDockTabStyle()
 			.SetCloseButtonStyle( CloseButton )
 			.SetNormalBrush( BOX_BRUSH( "/Docking/AppTab_Inactive", FMargin(24.0f/64.0f, 4/32.0f) ) )
-			.SetActiveBrush( BOX_BRUSH( "/Docking/AppTab_Active", FMargin(24.0f/64.0f, 4/32.0f) ) )
 			.SetColorOverlayTabBrush(BOX_BRUSH("/Docking/AppTab_ColorOverlay", FMargin(24.0f / 64.0f, 4 / 32.0f)))
 			.SetColorOverlayIconBrush( BOX_BRUSH( "/Docking/AppTab_ColorOverlayIcon", FMargin(24.0f/64.0f, 4/32.0f) ) )
 			.SetForegroundBrush( BOX_BRUSH( "/Docking/AppTab_Foreground", FMargin(24.0f/64.0f, 4/32.0f) ) )
@@ -1144,6 +1177,7 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 			.SetTabPadding( FMargin(17, 4, 15, 4) )
 			.SetOverlapWidth( 21.0f )
 			.SetFlashColor( TabFlashColor )
+			.SetTabTextStyle(DockingTabFont)
 			);
 
 		// Dock Cross
@@ -1325,6 +1359,10 @@ const TSharedPtr<FSlateDynamicImageBrush> FCoreStyle::GetDynamicImageBrush( FNam
 	return Instance->GetDynamicImageBrush(BrushTemplate, TextureResource, TextureName);
 }
 
+bool FCoreStyle::IsStarshipStyle()
+{
+	return !FParse::Param(FCommandLine::Get(), TEXT("oldeditorstyle"));
+}
 
 /* FSlateThrottleManager implementation
  *****************************************************************************/

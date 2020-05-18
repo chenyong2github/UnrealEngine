@@ -1453,7 +1453,6 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		// Flash using the selection color for consistency with the rest of the UI scheme
 		const FSlateColor& TabFlashColor = SelectionColor;
 
-		Style->Set("Quixel.PerspectiveBox", new IMAGE_BRUSH("Starship/Icons/Quixel/3DShapes/box-perspective_32x", Icon16x16));
 		const FButtonStyle CloseButton = FButtonStyle()
 			.SetNormal( IMAGE_BRUSH("Starship/Icons/Quixel/Common/cross_32x", Icon16x16, FStyleColors::Foreground))
 			.SetPressed(IMAGE_BRUSH("Starship/Icons/Quixel/Common/cross_32x", Icon16x16, FStyleColors::Foreground))
@@ -1470,7 +1469,6 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetNormalBrush(	FSlateNoResource())
 			.SetHoveredBrush(   BOX_BRUSH("/Starship/Docking/DockTab_Hover", 	  4.0f / 20.0f, FStyleColors::Background))
 			.SetForegroundBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Background))
-			.SetActiveBrush(    BOX_BRUSH("/Starship/Docking/DockTab_Active",     4.0f / 20.0f, FStyleColors::Primary))
 
 			.SetColorOverlayTabBrush(FSlateNoResource())
 			.SetColorOverlayIconBrush(FSlateNoResource())
@@ -1485,7 +1483,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetActiveForegroundColor(FStyleColors::ForegroundHover)
 			.SetForegroundForegroundColor(FStyleColors::ForegroundHover)
 			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
-			.SetTabTextStyle(SmallText)
+			.SetTabTextStyle(NormalText)
 		);
 
 		// App Tab
@@ -1494,7 +1492,6 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetNormalBrush(	FSlateNoResource())
 			.SetHoveredBrush(   BOX_BRUSH("/Starship/Docking/DockTab_Hover", 	  4.0f / 20.0f, FStyleColors::Background))
 			.SetForegroundBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Background))
-			.SetActiveBrush(    BOX_BRUSH("/Starship/Docking/DockTab_Active",     4.0f / 20.0f, FStyleColors::Primary))
 
 			.SetColorOverlayTabBrush(FSlateNoResource())
 			.SetColorOverlayIconBrush(FSlateNoResource())
@@ -1515,6 +1512,9 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Docking.Tab.ContentAreaBrush", new FSlateNoResource());
 
 		Style->Set("Docking.Tab.InactiveTabSeparator", new FSlateColorBrush(FStyleColors::Hover));
+
+		Style->Set("Docking.Tab.ActiveTabIndicatorColor", FStyleColors::Primary);
+
 
 		// Dock Cross
 		Style->Set("Docking.Cross.DockLeft", new IMAGE_BRUSH("/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f)));

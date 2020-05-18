@@ -6,7 +6,7 @@
 #include "Framework/Docking/FDockingDragOperation.h"
 #include "HAL/PlatformApplicationMisc.h"
 
-const FVector2D FDockingConstants::MaxMinorTabSize(150.f, 50.0f);
+const FVector2D FDockingConstants::MaxMinorTabSize(160.f, 50.0f);
 const FVector2D FDockingConstants::MaxMajorTabSize(210.f, 50.f);
 
 const FVector2D FDockingConstants::GetMaxTabSizeFor( ETabRole TabRole )
@@ -28,6 +28,8 @@ void SDockingTabWell::Construct( const FArguments& InArgs )
 	ChildBeingDraggedOffset = 0.0f;
 	TabGrabOffsetFraction = FVector2D::ZeroVector;
 		
+	SeparatorBrush = FAppStyle::Get().GetBrush("Docking.Tab.InactiveTabSeparator");
+
 	// We need a valid parent here. TabPanels must exist in a SDockingNode
 	check( InArgs._ParentStackNode.Get().IsValid() );
 	ParentTabStackPtr = InArgs._ParentStackNode.Get();
@@ -45,6 +47,8 @@ int32 SDockingTabWell::GetNumTabs() const
 
 void SDockingTabWell::AddTab( const TSharedRef<SDockTab>& InTab, int32 AtIndex )
 {
+	InTab->SetParent(SharedThis(this));
+
 	// Add the tab and implicitly activate it.
 	if (AtIndex == INDEX_NONE)
 	{
@@ -58,7 +62,6 @@ void SDockingTabWell::AddTab( const TSharedRef<SDockTab>& InTab, int32 AtIndex )
 		BringTabToFront( AtIndex );
 	}
 
-	InTab->SetParent(SharedThis(this));
 
 	const TSharedPtr<SDockingTabStack> ParentTabStack = ParentTabStackPtr.Pin();
 	if (ParentTabStack.IsValid() && ParentTabStack->GetDockArea().IsValid())
@@ -119,7 +122,6 @@ void SDockingTabWell::OnArrangeChildren( const FGeometry& AllottedGeometry, FArr
 	}
 }
 	
-
 int32 SDockingTabWell::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
 	// When we are dragging a tab, it must be painted on top of the other tabs, so we cannot
@@ -148,8 +150,39 @@ int32 SDockingTabWell::OnPaint( const FPaintArgs& Args, const FGeometry& Allotte
 		}
 		else
 		{
+			bool bShouldDrawSeparator = false;
+			if (SeparatorBrush && SeparatorBrush->DrawAs != ESlateBrushDrawType::NoDrawType && ArrangedChildren.IsValidIndex(ChildIndex + 1))
+			{
+				const FArrangedWidget& PrevWidget = ArrangedChildren[ChildIndex + 1];
+				bShouldDrawSeparator = !CurWidget.Widget->IsHovered() && !PrevWidget.Widget->IsHovered() && PrevWidget.Widget != ForegroundTab;
+			}
+
 			FSlateRect ChildClipRect = MyCullingRect.IntersectionWith( CurWidget.Geometry.GetLayoutBoundingRect() );
 			const int32 CurWidgetsMaxLayerId = CurWidget.Widget->Paint( Args.WithNewParent(this), CurWidget.Geometry, ChildClipRect, OutDrawElements, MaxLayerId, InWidgetStyle, ShouldBeEnabled( bParentEnabled ) );
+		
+			if(bShouldDrawSeparator)
+			{
+				const float SeparatorHeight = CurWidget.Geometry.GetLocalSize().Y * .65f;
+
+				// Center the separator
+				float Offset = (CurWidget.Geometry.GetLocalSize().Y - SeparatorHeight) / 2.0f;
+				FPaintGeometry Geometry = CurWidget.Geometry.ToPaintGeometry(FVector2D(CurWidget.Geometry.GetLocalSize().X + 1.0f, Offset), FVector2D(1.0f, SeparatorHeight));
+		
+				// This code rounds the position of the widget so we don't end up on half a pixel and end up with a larger size separator than we want
+				FSlateRenderTransform NewTransform = Geometry.GetAccumulatedRenderTransform();
+				NewTransform.SetTranslation(NewTransform.GetTranslation().RoundToVector());
+				Geometry.SetRenderTransform(NewTransform);
+
+				FSlateDrawElement::MakeBox(
+					OutDrawElements,
+					MaxLayerId,
+					Geometry,
+					SeparatorBrush,
+					ESlateDrawEffect::None,
+					SeparatorBrush->GetTint(InWidgetStyle)
+				);
+			}
+
 			MaxLayerId = FMath::Max( MaxLayerId, CurWidgetsMaxLayerId );
 		}
 	}
@@ -165,7 +198,6 @@ int32 SDockingTabWell::OnPaint( const FPaintArgs& Args, const FGeometry& Allotte
 
 	return MaxLayerId;
 }
-
 
 FVector2D SDockingTabWell::ComputeDesiredSize( float ) const
 {
@@ -324,7 +356,7 @@ void SDockingTabWell::OnDragEnter( const FGeometry& MyGeometry, const FDragDropE
 			this->TabGrabOffsetFraction = DragDropOperation->GetTabGrabOffsetFraction();
 			
 			// The user should see the contents of the tab that we're dragging.
-			ParentTabStackPtr.Pin()->SetNodeContent(DragDropOperation->GetTabBeingDragged()->GetContent(), SNullWidget::NullWidget, SNullWidget::NullWidget, SNullWidget::NullWidget);
+			ParentTabStackPtr.Pin()->SetNodeContent(DragDropOperation->GetTabBeingDragged()->GetContent(), FDockingStackOptionalContent());
 		}
 	}
 }
@@ -480,6 +512,7 @@ FReply SDockingTabWell::OnMouseMove( const FGeometry& MyGeometry, const FPointer
 void SDockingTabWell::BringTabToFront( int32 TabIndexToActivate )
 {
 	const bool bActiveIndexChanging = TabIndexToActivate != ForegroundTabIndex;
+	
 	if ( bActiveIndexChanging )
 	{
 		const int32 LastForegroundTabIndex = FMath::Min(ForegroundTabIndex, Tabs.Num()-1);
@@ -517,7 +550,7 @@ void SDockingTabWell::BringTabToFront( int32 TabIndexToActivate )
 		}
 		else
 		{
-			TabManager->UpdateMainMenu(false);
+			TabManager->UpdateMainMenu(Tabs[ForegroundTabIndex], false);
 		}
 	}
 }
@@ -629,11 +662,18 @@ void SDockingTabWell::RefreshParentContent()
 			ParentWindowPtr->SetTitle( ForegroundTab->GetTabLabel() );
 		}
 
-		ParentTabStackPtr.Pin()->SetNodeContent( ForegroundTab->GetContent(), ForegroundTab->GetLeftContent(), ForegroundTab->GetRightContent(), ForegroundTab->GetBackgrounfContent() );
+		TSharedPtr<SDockingTabStack> ParentTabStack = ParentTabStackPtr.Pin();
+
+		FDockingStackOptionalContent OptionalContent;
+		OptionalContent.ContentLeft = ForegroundTab->GetLeftContent();
+		OptionalContent.ContentRight = ForegroundTab->GetRightContent();
+		OptionalContent.TitleBarContentRight = ForegroundTab->GetTitleBarRightContent();
+
+		ParentTabStack->SetNodeContent(ForegroundTab->GetContent(), OptionalContent);
 	}
 	else
 	{
-		ParentTabStackPtr.Pin()->SetNodeContent(SNullWidget::NullWidget, SNullWidget::NullWidget, SNullWidget::NullWidget, SNullWidget::NullWidget);
+		ParentTabStackPtr.Pin()->SetNodeContent(SNullWidget::NullWidget, FDockingStackOptionalContent());
 	}
 }
 

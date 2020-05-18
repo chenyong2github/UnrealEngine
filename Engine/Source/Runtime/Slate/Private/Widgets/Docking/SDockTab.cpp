@@ -11,6 +11,8 @@
 #include "Framework/Docking/SDockingTabWell.h"
 #include "Framework/Docking/TabCommands.h"
 #include "Framework/Docking/SDockingArea.h"
+#include "Widgets/Colors/SComplexGradient.h"
+#include "Widgets/Layout/SBox.h"
 
 namespace SDockTabDefs
 {
@@ -124,10 +126,12 @@ FReply SDockTab::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEve
 void SDockTab::OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
 	// Register to activate the tab after a delay
-	if ( !ActiveTimerHandle.IsValid() )
+	if ( !DragDropTimerHandle.IsValid() )
 	{
-		ActiveTimerHandle = RegisterActiveTimer( SDockTabDefs::DragTimerActivate, FWidgetActiveTimerDelegate::CreateSP( this, &SDockTab::TriggerActivateTab ) );
+		DragDropTimerHandle = RegisterActiveTimer( SDockTabDefs::DragTimerActivate, FWidgetActiveTimerDelegate::CreateSP( this, &SDockTab::TriggerActivateTab ) );
 	}
+
+	UpdateTabStyle();
 
 	SBorder::OnDragEnter( MyGeometry, DragDropEvent );
 }
@@ -135,9 +139,9 @@ void SDockTab::OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& D
 void SDockTab::OnDragLeave( const FDragDropEvent& DragDropEvent )
 {
 	// Unregister the activation timer if it hasn't fired yet
-	if ( ActiveTimerHandle.IsValid() )
+	if ( DragDropTimerHandle.IsValid() )
 	{
-		UnRegisterActiveTimer( ActiveTimerHandle.Pin().ToSharedRef() );
+		UnRegisterActiveTimer( DragDropTimerHandle.Pin().ToSharedRef() );
 	}
 
 	SBorder::OnDragLeave( DragDropEvent );
@@ -146,9 +150,9 @@ void SDockTab::OnDragLeave( const FDragDropEvent& DragDropEvent )
 FReply SDockTab::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
 	// Unregister the activation timer if it hasn't fired yet
-	if ( ActiveTimerHandle.IsValid() )
+	if ( DragDropTimerHandle.IsValid() )
 	{
-		UnRegisterActiveTimer( ActiveTimerHandle.Pin().ToSharedRef() );
+		UnRegisterActiveTimer( DragDropTimerHandle.Pin().ToSharedRef() );
 	}
 
 	return SBorder::OnDrop( MyGeometry, DragDropEvent );
@@ -205,15 +209,15 @@ void SDockTab::SetRightContent( TSharedRef<SWidget> InContent )
 	}
 }
 
-void SDockTab::SetBackgroundContent(TSharedRef<SWidget> InContent)
+void SDockTab::SetTitleBarRightContent(TSharedRef<SWidget> InContent)
 {
-	this->TabWellContentBackground = InContent;
+	this->TitleBarContentRight = InContent;
 	if (ParentPtr.IsValid())
 	{
+		// This is critical to do, otherwise the content might remain if currently active even if expected to be destroyed
 		ParentPtr.Pin()->RefreshParentContent();
 	}
 }
-
 
 bool SDockTab::IsActive() const
 {
@@ -223,6 +227,30 @@ bool SDockTab::IsActive() const
 bool SDockTab::IsForeground() const
 {
 	return ParentPtr.IsValid() ? (ParentPtr.Pin()->GetForegroundTab() == SharedThis(this)) : true;
+}
+
+FSlateColor SDockTab::GetForegroundColor() const
+{
+	if (ForegroundColor.IsBound() || ForegroundColor.Get() != FSlateColor::UseStyle())
+	{
+		return ForegroundColor.Get();
+	}
+	else if (IsForeground())
+	{
+		return GetCurrentStyle().ForegroundForegroundColor;
+	}
+	else if (IsActive())
+	{
+		return GetCurrentStyle().ActiveForegroundColor;
+	}
+	else if (IsHovered())
+	{
+		return GetCurrentStyle().HoveredForegroundColor;
+	}
+	else
+	{
+		return GetCurrentStyle().NormalForegroundColor;
+	}
 }
 
 ETabRole SDockTab::GetTabRole() const
@@ -285,9 +313,9 @@ TSharedRef<SWidget> SDockTab::GetRightContent()
 	return TabWellContentRight;
 }
 
-TSharedRef<SWidget> SDockTab::GetBackgrounfContent()
+TSharedRef<SWidget> SDockTab::GetTitleBarRightContent()
 {
-	return TabWellContentBackground;
+	return TitleBarContentRight;
 }
 
 FMargin SDockTab::GetContentPadding() const
@@ -308,6 +336,7 @@ const FTabId& SDockTab::GetLayoutIdentifier() const
 void SDockTab::SetParent(TSharedPtr<SDockingTabWell> Parent)
 {
 	ParentPtr = Parent;
+	OnParentSet();
 }
 
 TSharedPtr<SDockingTabWell> SDockTab::GetParent() const
@@ -349,7 +378,7 @@ SDockTab::SDockTab()
 	: Content(SNew(SSpacer))
 	, TabWellContentLeft(SNullWidget::NullWidget)
 	, TabWellContentRight(SNullWidget::NullWidget)
-	, TabWellContentBackground(SNullWidget::NullWidget)
+	, TitleBarContentRight(SNullWidget::NullWidget)
 	, LayoutIdentifier(NAME_None)
 	, TabRole(ETabRole::PanelTab)
 	, ParentPtr()
@@ -487,18 +516,24 @@ void SDockTab::Construct( const FArguments& InArgs )
 	this->bShouldAutosize = InArgs._ShouldAutosize;
 	this->TabColorScale = InArgs._TabColorScale;
 
-	MajorTabStyle = &FCoreStyle::Get().GetWidgetStyle<FDockTabStyle>("Docking.MajorTab");
-	GenericTabStyle = &FCoreStyle::Get().GetWidgetStyle<FDockTabStyle>("Docking.Tab");
+	MajorTabStyle = &FAppStyle::Get().GetWidgetStyle<FDockTabStyle>("Docking.MajorTab");
+	GenericTabStyle = &FAppStyle::Get().GetWidgetStyle<FDockTabStyle>("Docking.Tab");
 
 	ContentAreaPadding = InArgs._ContentPadding;
 
 	const FButtonStyle* const CloseButtonStyle = &GetCurrentStyle().CloseButtonStyle;
+	const FTextBlockStyle* const TabTextStyle = &GetCurrentStyle().TabTextStyle;
+
+	// This makes a gradient that displays whether or not a viewport is active
+	static FLinearColor ActiveBorderColor = FAppStyle::Get().GetColor("Docking.Tab.ActiveTabIndicatorColor");
+	static FLinearColor ActiveBorderColorTransparent = FLinearColor(ActiveBorderColor.R, ActiveBorderColor.G, ActiveBorderColor.B, 0.0f);
+	static TArray<FLinearColor> GradientStops{ ActiveBorderColorTransparent, ActiveBorderColor, ActiveBorderColorTransparent };
 
 	SBorder::Construct( SBorder::FArguments()
 		.BorderImage( FStyleDefaults::GetNoBrush() )
-		.ContentScale( this, &SDockTab::GetAnimatedScale )
 		.VAlign(VAlign_Bottom)
 		.Padding( 0.0f )
+		.ForegroundColor(InArgs._ForegroundColor)
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
@@ -509,12 +544,14 @@ void SDockTab::Construct( const FArguments& InArgs )
 
 			// Overlay for active tab indication.
 			+ SOverlay::Slot()
+			.VAlign(VAlign_Top)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SBorder)
-				// Don't allow active tab overlay to absorb mouse clicks
-				.Visibility( EVisibility::HitTestInvisible )
-				.Padding( this, &SDockTab::GetTabPadding )
-				.BorderImage( this, &SDockTab::GetActiveTabOverlayImageBrush )
+				SNew(SComplexGradient)
+				.Visibility(this, &SDockTab::GetActiveTabIndicatorVisibility)
+				.DesiredSizeOverride(FVector2D(1.0f, 1.0f))
+				.GradientColors(GradientStops)
+				.Orientation(EOrientation::Orient_Vertical)
 			]
 
 			// Overlay for flashing a tab for attention
@@ -553,7 +590,9 @@ void SDockTab::Construct( const FArguments& InArgs )
 					.BorderBackgroundColor(this, &SDockTab::GetTabColor)
 					[
 						SAssignNew(IconWidget, SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
 						.Image(this, &SDockTab::GetTabIcon)
+						.DesiredSizeOverride(this, &SDockTab::GetTabIconSize)
 					]
 				]
 
@@ -565,7 +604,6 @@ void SDockTab::Construct( const FArguments& InArgs )
 				[
 					// Label sub HBox
 					SNew(SHorizontalBox)
-					.Visibility(EVisibility::Visible)
 					.ToolTip(InArgs._ToolTip)
 
 					// Tab Label
@@ -575,7 +613,7 @@ void SDockTab::Construct( const FArguments& InArgs )
 					.VAlign(VAlign_Center)
 					[
 						SAssignNew(LabelWidget, STextBlock)
-						.TextStyle(FCoreStyle::Get(), "Docking.TabFont")
+						.TextStyle(&GetCurrentStyle().TabTextStyle)
 						.Text(this, &SDockTab::GetTabLabel)
 					]
 
@@ -585,8 +623,8 @@ void SDockTab::Construct( const FArguments& InArgs )
 					.Padding(0.0f, 1.0f)
 					.VAlign(VAlign_Center)
 					[
-						SAssignNew(LabelWidget, STextBlock)
-						.TextStyle(FCoreStyle::Get(), "Docking.TabFont")					
+						SAssignNew(LabelSuffix, STextBlock)
+						.TextStyle(&GetCurrentStyle().TabTextStyle)
 						.Text(this, &SDockTab::GetTabLabelSuffix)
 					]
 				]
@@ -620,6 +658,33 @@ EActiveTimerReturnType SDockTab::TriggerActivateTab( double InCurrentTime, float
 	return EActiveTimerReturnType::Stop;
 }
 
+EActiveTimerReturnType SDockTab::OnHandleUpdateStyle(double InCurrentTime, float InDeltaTime)
+{
+	if (GetParent().IsValid() && GetParent()->GetDockArea().IsValid())
+	{
+		UpdateTabStyle();
+		return EActiveTimerReturnType::Stop;
+	}
+
+	return EActiveTimerReturnType::Continue;
+}
+
+void SDockTab::OnParentSet()
+{
+	// Update the style once the parent is set as it could change the way things look for certian tab types.
+	if (!UpdateStyleTimerHandle.IsValid())
+	{
+		UpdateStyleTimerHandle = RegisterActiveTimer(0, FWidgetActiveTimerDelegate::CreateSP(this, &SDockTab::OnHandleUpdateStyle));
+	}
+}
+
+void SDockTab::UpdateTabStyle()
+{
+	const FTextBlockStyle& TabTextStyle = GetCurrentStyle().TabTextStyle;
+	LabelSuffix->SetTextStyle(&TabTextStyle);
+	LabelWidget->SetTextStyle(&TabTextStyle);
+}
+
 const FDockTabStyle& SDockTab::GetCurrentStyle() const
 {
 	if ( GetVisualTabRole() == ETabRole::MajorTab )
@@ -650,11 +715,8 @@ const FSlateBrush* SDockTab::GetImageBrush() const
 FMargin SDockTab::GetTabPadding() const
 {
 	FMargin NewPadding = GetCurrentStyle().TabPadding;
-	if (TabIcon.Get() != FStyleDefaults::GetNoBrush())
-	{
-		NewPadding.Top *= SDockTabDefs::TabVerticalPaddingScaleOverride;
-		NewPadding.Bottom *= SDockTabDefs::TabVerticalPaddingScaleOverride;
-	}
+	NewPadding.Top *= SDockTabDefs::TabVerticalPaddingScaleOverride;
+	NewPadding.Bottom *= SDockTabDefs::TabVerticalPaddingScaleOverride;
 	return NewPadding;
 }
 
@@ -667,16 +729,10 @@ const FSlateBrush* SDockTab::GetColorOverlayImageBrush() const
 	return FStyleDefaults::GetNoBrush();
 }
 
-
-const FSlateBrush* SDockTab::GetActiveTabOverlayImageBrush() const
+EVisibility SDockTab::GetActiveTabIndicatorVisibility() const
 {
-	if (this->IsActive())
-	{
-		return &GetCurrentStyle().ActiveBrush;
-	}
-	return FStyleDefaults::GetNoBrush();
+	return IsActive() ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
 }
-
 
 FSlateColor SDockTab::GetTabColor() const
 {
@@ -786,7 +842,12 @@ FText SDockTab::GetCloseButtonToolTipText() const
 
 EVisibility SDockTab::HandleIsCloseButtonVisible() const
 {
-	return MyTabManager.Pin()->IsTabCloseable(SharedThis(this)) ? EVisibility::Visible : EVisibility::Hidden;
+	return ((IsHovered() || IsForeground()) && MyTabManager.Pin()->IsTabCloseable(SharedThis(this))) ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+TOptional<FVector2D> SDockTab::GetTabIconSize() const
+{
+	return GetCurrentStyle().IconSize;
 }
 
 bool SDockTab::CanCloseTab() const

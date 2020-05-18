@@ -4169,7 +4169,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "EditorViewport.Right", new IMAGE_BRUSH("Icons/icon_ViewMode_ViewRight_16px", Icon16x16 ) );
 		Set( "EditorViewport.Back", new IMAGE_BRUSH("Icons/icon_ViewMode_ViewBack_16px", Icon16x16 ) );
 
-		Set("EditorViewport.ActiveBorderColor", FStyleColors::PrimaryHover);
+		Set("EditorViewport.ActiveBorderColor", FStyleColors::Primary);
 
 #endif
 

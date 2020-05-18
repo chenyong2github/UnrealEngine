@@ -295,8 +295,8 @@ protected:
 	/** @return the image brush for the tab's color overlay */
 	const FSlateBrush* GetColorOverlayImageBrush() const;
 
-	/** @return the image brush for the tab's active state overlay */
-	const FSlateBrush* GetActiveTabOverlayImageBrush() const;
+	/** @return The visibility of the active tab indicator */
+	EVisibility GetActiveTabIndicatorVisibility() const;
 
 	/** @return Returns a color to scale the background of this tab by */
 	FSlateColor GetTabColor() const;
