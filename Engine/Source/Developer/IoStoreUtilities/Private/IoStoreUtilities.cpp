@@ -56,8 +56,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 #define OUTPUT_DEBUG_PACKAGE_HASHES 0
 
 static const FName DefaultCompressionMethod = NAME_Zlib;
-static const int64 DefaultCompressionBlockSize = 64 << 10;
-const int64 DefaultMemoryMappingAlignment = 16 << 10;
+static const uint64 DefaultCompressionBlockSize = 64 << 10;
+static const uint64 DefaultCompressionBlockAlignment = 64 << 10;
+static const uint64 DefaultMemoryMappingAlignment = 16 << 10;
 
 struct FNamedAESKey
 {
@@ -561,6 +562,7 @@ struct FContainerSourceSpec
 	FString OutputPath;
 	TArray<FContainerSourceFile> SourceFiles;
 	TArray<FString> PatchSourceContainerFiles;
+	FGuid EncryptionKeyOverrideGuid;
 	bool bGenerateDiffPatch = false;
 };
 
@@ -619,7 +621,7 @@ struct FIoStoreArguments
 	FCookedFileStatMap CookedFileStatMap;
 	TMap<FName, uint64> GameOrderMap;
 	TMap<FName, uint64> CookerOrderMap;
-	int64 MemoryMappingAlignment = 0;
+	uint64 MemoryMappingAlignment = 0;
 	FKeyChain KeyChain;
 	FKeyChain PatchKeyChain;
 	bool bSign = false;
@@ -1496,32 +1498,12 @@ static void CreateDiskLayout(
 
 	struct FLayoutEntry
 	{
-		enum ELayoutEntryType
-		{
-			Invalid,
-			File,
-			FreeSpace,
-			BlockBoundary,
-		};
 		FLayoutEntry* Prev = nullptr;
 		FLayoutEntry* Next = nullptr;
-		int32 BeginBlockIndex = -1;
-		int32 EndBlockIndex = -1;
-		ELayoutEntryType Type = Invalid;
 		uint64 Size = 0;
-		uint64 PreviousBuildOffset = 0;
 		uint64 IdealOrder = 0;
+		FIoChunkHash Hash;
 		FContainerTargetFile* TargetFile = nullptr;
-		bool bHasPreviousBuildOffset = false;
-		bool bModified = false;
-		bool bLocked = false;
-	};
-
-	struct FLayoutBlock
-	{
-		FLayoutEntry* FirstEntry = nullptr;
-		FLayoutEntry* LastEntry = nullptr;
-		bool bModified = false;
 	};
 
 	AssignPackagesDiskOrder(Packages, PackageOrderMap, CookerOrderMap);
@@ -1529,82 +1511,34 @@ static void CreateDiskLayout(
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
 		TArray<FLayoutEntry*> Entries;
-
 		FLayoutEntry* EntriesHead = new FLayoutEntry();
 		Entries.Add(EntriesHead);
-
 		TMap<int64, FLayoutEntry*> EntriesByOrderMap;
 		FLayoutEntry* LastAddedEntry = EntriesHead;
-
-		TMap<FIoChunkHash, TArray<FLayoutEntry*>> PreviousBuildFileByHash;
-		TMap<FIoChunkId, FIoChunkHash> PreviousBuildHashByChunkId;
-		uint64 CurrentOffset = 0;
+		TMap<FIoChunkId, FLayoutEntry*> PreviousBuildFileByChunkId;
 		FLayoutEntry* PrevEntryLink = EntriesHead;
 		
-		if (ContainerTarget->bGenerateDiffPatch)
+		for (const TUniquePtr<FIoStoreReader>& PatchSourceReader : ContainerTarget->PatchSourceReaders)
 		{
-			for (const TUniquePtr<FIoStoreReader>& PatchSourceReader : ContainerTarget->PatchSourceReaders)
+			PatchSourceReader->EnumerateChunks([&PrevEntryLink, &Entries, &PreviousBuildFileByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
 			{
-				PatchSourceReader->EnumerateChunks([&PreviousBuildHashByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
-				{
-					PreviousBuildHashByChunkId.Add(ChunkInfo.Id, ChunkInfo.Hash);
-					return true;
-				});
+				FLayoutEntry* FileEntry = new FLayoutEntry();
+				FileEntry->Size = ChunkInfo.Size;
+				FileEntry->Hash = ChunkInfo.Hash;
+				PrevEntryLink->Next = FileEntry;
+				FileEntry->Prev = PrevEntryLink;
+				PrevEntryLink = FileEntry;
+				Entries.Add(FileEntry);
+				PreviousBuildFileByChunkId.Add(ChunkInfo.Id, FileEntry);
+				return true;
+			});
+
+			if (!ContainerTarget->bGenerateDiffPatch)
+			{
+				break;
 			}
 		}
-		else
-		{
-			if (ContainerTarget->PatchSourceReaders.Num())
-			{
-				ContainerTarget->PatchSourceReaders[0]->EnumerateChunks([&CurrentOffset, &PrevEntryLink, &Entries, &PreviousBuildFileByHash, &PreviousBuildHashByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
-				{
-					if (CurrentOffset < ChunkInfo.Offset)
-					{
-						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
-						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
-						FreeSpaceEntry->Size = ChunkInfo.Offset - CurrentOffset;
-						FreeSpaceEntry->PreviousBuildOffset = CurrentOffset;
-						FreeSpaceEntry->bHasPreviousBuildOffset = true;
-						CurrentOffset = ChunkInfo.Offset;
-						PrevEntryLink->Next = FreeSpaceEntry;
-						FreeSpaceEntry->Prev = PrevEntryLink;
-						PrevEntryLink = FreeSpaceEntry;
-						Entries.Add(FreeSpaceEntry);
-					}
-					FLayoutEntry* FileEntry = new FLayoutEntry();
-					FileEntry->Type = FLayoutEntry::File;
-					FileEntry->Size = ChunkInfo.Size;
-					FileEntry->PreviousBuildOffset = ChunkInfo.Offset;
-					FileEntry->bHasPreviousBuildOffset = true;
-
-					PrevEntryLink->Next = FileEntry;
-					FileEntry->Prev = PrevEntryLink;
-					PrevEntryLink = FileEntry;
-
-					CurrentOffset += ChunkInfo.Size;
-
-					Entries.Add(FileEntry);
-
-					TArray<FLayoutEntry*>& PreviousBuildFileHashesArray = PreviousBuildFileByHash.FindOrAdd(ChunkInfo.Hash);
-					PreviousBuildFileHashesArray.Push(FileEntry);
-					PreviousBuildHashByChunkId.Add(ChunkInfo.Id, ChunkInfo.Hash);
-
-					return true;
-				});
-			}
-		}
-		if (CurrentOffset % CompressionBlockSize != 0)
-		{
-			FLayoutEntry* LastFreeSpace = new FLayoutEntry();
-			LastFreeSpace->Type = FLayoutEntry::FreeSpace;
-			LastFreeSpace->Size = Align(CurrentOffset, CompressionBlockSize) - CurrentOffset;
-			LastFreeSpace->Prev = PrevEntryLink;
-			PrevEntryLink->Next = LastFreeSpace;
-			PrevEntryLink = LastFreeSpace;
-			Entries.Add(LastFreeSpace);
-			CurrentOffset += LastFreeSpace->Size;
-		}
-
+	
 		FLayoutEntry* EntriesTail = new FLayoutEntry();
 		Entries.Add(EntriesTail);
 		PrevEntryLink->Next = EntriesTail;
@@ -1633,15 +1567,20 @@ static void CreateDiskLayout(
 		for (FContainerTargetFile& ContainerTargetFile : ContainerTarget->TargetFiles)
 		{
 			bool bIsAddedOrModified = false;
-			const FIoChunkHash* FindPreviousHashByChunkId = PreviousBuildHashByChunkId.Find(ContainerTargetFile.ChunkId);
-			if (FindPreviousHashByChunkId)
+			FLayoutEntry* FindPreviousEntry = PreviousBuildFileByChunkId.FindRef(ContainerTargetFile.ChunkId);
+			if (FindPreviousEntry)
 			{
-				if (*FindPreviousHashByChunkId != ContainerTargetFile.ChunkHash)
+				if (FindPreviousEntry->Hash != ContainerTargetFile.ChunkHash)
 				{
 					//UE_LOG(LogIoStore, Display, TEXT("Diffing: %s"), *ContainerTargetFile.TargetPath);
 					++DiffFileCount;
 					DiffFileSize += ContainerTargetFile.TargetSize;
 					bIsAddedOrModified = true;
+				}
+				else
+				{
+					FindPreviousEntry->TargetFile = &ContainerTargetFile;
+					FindPreviousEntry->IdealOrder = IdealOrder;
 				}
 			}
 			else
@@ -1651,40 +1590,12 @@ static void CreateDiskLayout(
 				AddedFileSize += ContainerTargetFile.TargetSize;
 				bIsAddedOrModified = true;
 			}
-
-			bool bAddToUnassignedPool = true;
-			if (ContainerTarget->bGenerateDiffPatch)
-			{
-				if (!bIsAddedOrModified)
-				{
-					bAddToUnassignedPool = false;
-				}
-			}
-			else
-			{
-				FLayoutEntry* FindPreviousFileEntry = nullptr;
-				TArray<FLayoutEntry*>* FindPreviousBuildFileHashesArray = PreviousBuildFileByHash.Find(ContainerTargetFile.ChunkHash);
-				if (FindPreviousBuildFileHashesArray && FindPreviousBuildFileHashesArray->Num())
-				{
-					FindPreviousFileEntry = FindPreviousBuildFileHashesArray->Pop(false);
-				}
-
-				if (FindPreviousFileEntry && !FindPreviousFileEntry->TargetFile && ContainerTargetFile.TargetSize == FindPreviousFileEntry->Size)
-				{
-					FindPreviousFileEntry->TargetFile = &ContainerTargetFile;
-					FindPreviousFileEntry->IdealOrder = IdealOrder;
-					EntriesByOrderMap.Add(IdealOrder, FindPreviousFileEntry);
-					bAddToUnassignedPool = false;
-				}
-			}
-			if (bAddToUnassignedPool)
+			if (bIsAddedOrModified)
 			{
 				FLayoutEntry* NewEntry = new FLayoutEntry();
-				NewEntry->Type = FLayoutEntry::File;
 				NewEntry->Size = ContainerTargetFile.TargetSize;
 				NewEntry->TargetFile = &ContainerTargetFile;
 				NewEntry->IdealOrder = IdealOrder;
-				NewEntry->bModified = true;
 				Entries.Add(NewEntry);
 				UnassignedEntries.Add(NewEntry);
 			}
@@ -1693,327 +1604,49 @@ static void CreateDiskLayout(
 		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d modified entries (%fMB)"), *ContainerTarget->Name.ToString(), DiffFileCount, ContainerTarget->TargetFiles.Num(), DiffFileSize / 1024.0 / 1024.0);
 		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d added entries (%fMB)"), *ContainerTarget->Name.ToString(), AddedFileCount, ContainerTarget->TargetFiles.Num(), AddedFileSize / 1024.0 / 1024.0);
 
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		if (ContainerTarget->bGenerateDiffPatch)
 		{
-			if (EntryIt->Type == FLayoutEntry::File && !EntryIt->TargetFile)
-			{
-				EntryIt->Type = FLayoutEntry::FreeSpace;
-				EntryIt->bModified = true;
-			}
+			EntriesHead->Next = EntriesTail;
+			EntriesTail->Prev = EntriesHead;
 		}
-
-		// Assign entries to blocks
-		TArray<FLayoutBlock> Blocks;
-		Blocks.SetNum(CurrentOffset / CompressionBlockSize);
-		CurrentOffset = 0;
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		else
 		{
-			EntryIt->BeginBlockIndex = int32(CurrentOffset / CompressionBlockSize);
-			EntryIt->EndBlockIndex = int32(Align(CurrentOffset + EntryIt->Size, CompressionBlockSize) / CompressionBlockSize);
-			CurrentOffset += EntryIt->Size;
-			for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
+			for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
 			{
-				FLayoutBlock& Block = Blocks[BlockIndex];
-				Block.bModified |= EntryIt->bModified;
-				if (!Block.FirstEntry)
+				if (!EntryIt->TargetFile)
 				{
-					Block.FirstEntry = EntryIt;
+					EntryIt->Prev->Next = EntryIt->Next;
+					EntryIt->Next->Prev = EntryIt->Prev;
 				}
-				Block.LastEntry = EntryIt;
-			}
-		}
-		// Put all file entries that only touch already modified blocks back to the unassigned pool
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			if (EntryIt->Type == FLayoutEntry::File)
-			{
-				bool bAllBlocksTouchedByEntryModified = true;
-				for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
+				else
 				{
-					FLayoutBlock& Block = Blocks[BlockIndex];
-					if (!Block.bModified)
-					{
-						bAllBlocksTouchedByEntryModified = false;
-						break;
-					}
-				}
-				if (bAllBlocksTouchedByEntryModified)
-				{
-					FLayoutEntry* ReleasedEntry = new FLayoutEntry();
-					ReleasedEntry->Type = FLayoutEntry::File;
-					ReleasedEntry->Size = EntryIt->Size;
-					ReleasedEntry->TargetFile = EntryIt->TargetFile;
-					ReleasedEntry->IdealOrder = EntryIt->IdealOrder;
-					ReleasedEntry->bModified = true;
-					Entries.Add(ReleasedEntry);
-					UnassignedEntries.Add(ReleasedEntry);
-
-					EntryIt->Type = FLayoutEntry::FreeSpace;
-					EntryIt->TargetFile = nullptr;
-					EntryIt->bModified = true;
+					EntriesByOrderMap.Add(EntryIt->IdealOrder, EntryIt);
 				}
 			}
 		}
-		uint64 UnmodifiedBlocksCount = 0;
-		for (const FLayoutBlock& Block : Blocks)
-		{
-			if (!Block.bModified)
-			{
-				++UnmodifiedBlocksCount;
-			}
-		}
-
-		// Split all free space entries so that they don't cross any block boundaries
-		CurrentOffset = 0;
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			uint64 NextOffset = CurrentOffset + EntryIt->Size;
-			if (EntryIt->Type == FLayoutEntry::FreeSpace)
-			{
-				if (EntryIt->BeginBlockIndex != EntryIt->EndBlockIndex - 1)
-				{
-					uint64 SizeInFirstBlock = Align(CurrentOffset, CompressionBlockSize) - CurrentOffset;
-					if (SizeInFirstBlock)
-					{
-						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
-						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
-						FreeSpaceEntry->Size = SizeInFirstBlock;
-						FreeSpaceEntry->bModified = EntryIt->bModified;
-						EntryIt->Size -= SizeInFirstBlock;
-						FreeSpaceEntry->Prev = EntryIt->Prev;
-						FreeSpaceEntry->Next = EntryIt;
-						EntryIt->Prev->Next = FreeSpaceEntry;
-						EntryIt->Prev = FreeSpaceEntry;
-						Entries.Add(FreeSpaceEntry);
-					}
-					uint64 SizeInLastBlock = EntryIt->Size % CompressionBlockSize;
-					if (SizeInLastBlock != EntryIt->Size)
-					{
-						uint64 SizeInMiddleBlocks = EntryIt->Size - SizeInLastBlock;
-						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
-						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
-						FreeSpaceEntry->Size = SizeInMiddleBlocks;
-						FreeSpaceEntry->bModified = EntryIt->bModified;
-						EntryIt->Size -= SizeInMiddleBlocks;
-						FreeSpaceEntry->Prev = EntryIt->Prev;
-						FreeSpaceEntry->Next = EntryIt;
-						EntryIt->Prev->Next = FreeSpaceEntry;
-						EntryIt->Prev = FreeSpaceEntry;
-						Entries.Add(FreeSpaceEntry);
-					}
-				}
-			}
-			CurrentOffset = NextOffset;
-		}
-		// Update entry block assignment
-		// Lock all file entries
-		CurrentOffset = 0;
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			EntryIt->BeginBlockIndex = int32(CurrentOffset / CompressionBlockSize);
-			EntryIt->EndBlockIndex = int32(Align(CurrentOffset + EntryIt->Size, CompressionBlockSize) / CompressionBlockSize);
-			CurrentOffset += EntryIt->Size;
-			for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
-			{
-				FLayoutBlock& Block = Blocks[BlockIndex];
-				check(!EntryIt->bModified || Block.bModified);
-				if (!Block.FirstEntry)
-				{
-					Block.FirstEntry = EntryIt;
-				}
-				Block.LastEntry = EntryIt;
-			}
-			if (EntryIt->Type == FLayoutEntry::File)
-			{
-				check(!EntryIt->bModified);
-				EntryIt->bLocked = true;
-			}
-		}
-		// Lock all free space entries in unmodified blocks
-		for (FLayoutBlock& Block : Blocks)
-		{
-			if (!Block.bModified)
-			{
-				for (FLayoutEntry* EntryIt = Block.FirstEntry; EntryIt != Block.LastEntry->Next; EntryIt = EntryIt->Next)
-				{
-					if (EntryIt->Type == FLayoutEntry::FreeSpace)
-					{
-						EntryIt->bLocked = true;
-					}
-				}
-			}
-		}
-		// Merge and shrink all unlocked free space
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			if (EntryIt->Type == FLayoutEntry::FreeSpace && !EntryIt->bLocked)
-			{
-				if (EntryIt->Prev->Type == FLayoutEntry::FreeSpace && !EntryIt->Prev->bLocked)
-				{
-					FLayoutEntry* MergeWithFreeSpace = EntryIt->Prev;
-					EntryIt->Size += MergeWithFreeSpace->Size;
-					MergeWithFreeSpace->Prev->Next = EntryIt;
-					EntryIt->Prev = MergeWithFreeSpace->Prev;
-				}
-				EntryIt->Size %= CompressionBlockSize;
-			}
-		}
-		// Insert block boundaries
-		CurrentOffset = 0;
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			if (CurrentOffset % CompressionBlockSize == 0)
-			{
-				FLayoutEntry* BlockBoundaryEntry = new FLayoutEntry();
-				BlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
-				BlockBoundaryEntry->Prev = EntryIt->Prev;
-				BlockBoundaryEntry->Next = EntryIt;
-				EntryIt->Prev->Next = BlockBoundaryEntry;
-				EntryIt->Prev = BlockBoundaryEntry;
-				Entries.Add(BlockBoundaryEntry);
-			}
-			
-			CurrentOffset += EntryIt->Size;
-		}
-		check(CurrentOffset % CompressionBlockSize == 0);
-		FLayoutEntry* LastBlockBoundaryEntry = new FLayoutEntry();
-		LastBlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
-		LastBlockBoundaryEntry->Prev = EntriesTail->Prev;
-		LastBlockBoundaryEntry->Next = EntriesTail;
-		EntriesTail->Prev->Next = LastBlockBoundaryEntry;
-		EntriesTail->Prev = LastBlockBoundaryEntry;
-		Entries.Add(LastBlockBoundaryEntry);
-
-		FLayoutEntry* MemoryMappedFilesTarget = new FLayoutEntry();
-		MemoryMappedFilesTarget->Type = FLayoutEntry::BlockBoundary;
-		MemoryMappedFilesTarget->Prev = LastBlockBoundaryEntry;
-		LastBlockBoundaryEntry->Next = MemoryMappedFilesTarget;
-		EntriesTail->Prev = MemoryMappedFilesTarget;
-		MemoryMappedFilesTarget->Next = EntriesTail;
-		Entries.Add(MemoryMappedFilesTarget);
-
-		// Insert new/modified entries according to their ideal order
-		Algo::Sort(UnassignedEntries, [](const FLayoutEntry* A, const FLayoutEntry* B)
-		{
-			return A->IdealOrder < B->IdealOrder;
-		});
 		for (FLayoutEntry* UnassignedEntry : UnassignedEntries)
 		{
 			check(UnassignedEntry->TargetFile);
-			if (UnassignedEntry->TargetFile->bIsMemoryMappedBulkData)
+			FLayoutEntry* PutAfterEntry = EntriesByOrderMap.FindRef(UnassignedEntry->IdealOrder - 1);
+			if (!PutAfterEntry)
 			{
-				UnassignedEntry->Prev = MemoryMappedFilesTarget->Prev;
-				UnassignedEntry->Next = MemoryMappedFilesTarget;
-				MemoryMappedFilesTarget->Prev->Next = UnassignedEntry;
-				MemoryMappedFilesTarget->Prev = UnassignedEntry;
-
-				uint64 AlignedSize = Align(UnassignedEntry->Size, MemoryMappingAlignment);
-				uint64 MemoryMapPadding = AlignedSize - UnassignedEntry->Size;
-				if (MemoryMapPadding)
-				{
-					FLayoutEntry* PaddingEntry = new FLayoutEntry();
-					PaddingEntry->Type = FLayoutEntry::FreeSpace;
-					PaddingEntry->Size = MemoryMapPadding;
-
-					PaddingEntry->Prev = UnassignedEntry;
-					PaddingEntry->Next = UnassignedEntry->Next;
-					UnassignedEntry->Next->Prev = PaddingEntry;
-					UnassignedEntry->Next = PaddingEntry;
-					Entries.Add(PaddingEntry);
-				}
+				PutAfterEntry = LastAddedEntry;
 			}
-			else
-			{
-				FLayoutEntry* PutAfterEntry = EntriesByOrderMap.FindRef(UnassignedEntry->IdealOrder - 1);
-				if (!PutAfterEntry)
-				{
-					PutAfterEntry = LastAddedEntry;
-				}
 				
-				FLayoutEntry* TargetFreeSpace = nullptr;
-				FLayoutEntry* CandidateTarget = PutAfterEntry->Next;
-				if (CandidateTarget->Type == FLayoutEntry::FreeSpace && !CandidateTarget->bLocked)
-				{
-					TargetFreeSpace = CandidateTarget;
-					if (TargetFreeSpace->Size < UnassignedEntry->Size)
-					{
-						uint64 SizeExtension = Align(UnassignedEntry->Size - TargetFreeSpace->Size, CompressionBlockSize);
-						TargetFreeSpace->Size += SizeExtension;
-					}
-				}
-
-				if (!TargetFreeSpace)
-				{
-					FLayoutEntry* NextBlockBoundary = PutAfterEntry->Next;
-					check(NextBlockBoundary);
-					while (NextBlockBoundary->Type != FLayoutEntry::BlockBoundary)
-					{
-						NextBlockBoundary = NextBlockBoundary->Next;
-					}
-					FLayoutEntry* NewFreeSpaceEntry = new FLayoutEntry();
-					NewFreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
-					NewFreeSpaceEntry->Size = Align(UnassignedEntry->Size, CompressionBlockSize);
-					Entries.Add(NewFreeSpaceEntry);
-					FLayoutEntry* NewBlockBoundaryEntry = new FLayoutEntry();
-					NewBlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
-					Entries.Add(NewBlockBoundaryEntry);
-
-					NewFreeSpaceEntry->Prev = NextBlockBoundary;
-					NewFreeSpaceEntry->Next = NewBlockBoundaryEntry;
-					NewBlockBoundaryEntry->Prev = NewFreeSpaceEntry;
-					NewBlockBoundaryEntry->Next = NextBlockBoundary->Next;
-					NextBlockBoundary->Next->Prev = NewBlockBoundaryEntry;
-					NextBlockBoundary->Next = NewFreeSpaceEntry;
-					TargetFreeSpace = NewFreeSpaceEntry;
-				}
-
-				check(TargetFreeSpace->Type == FLayoutEntry::FreeSpace);
-				check(TargetFreeSpace->Size >= UnassignedEntry->Size);
-				check(!TargetFreeSpace->bLocked);
-				UnassignedEntry->Prev = TargetFreeSpace->Prev;
-				UnassignedEntry->Next = TargetFreeSpace;
-				TargetFreeSpace->Prev->Next = UnassignedEntry;
-				TargetFreeSpace->Prev = UnassignedEntry;
-				TargetFreeSpace->Size -= UnassignedEntry->Size;
-
-				EntriesByOrderMap.Add(UnassignedEntry->IdealOrder, UnassignedEntry);
-				LastAddedEntry = UnassignedEntry;
-			}
+			UnassignedEntry->Prev = PutAfterEntry;
+			UnassignedEntry->Next = PutAfterEntry->Next;
+			PutAfterEntry->Next->Prev = UnassignedEntry;
+			PutAfterEntry->Next = UnassignedEntry;
+			EntriesByOrderMap.Add(UnassignedEntry->IdealOrder, UnassignedEntry);
+			LastAddedEntry = UnassignedEntry;
 		}
+
 		TArray<FContainerTargetFile> IncludedContainerTargetFiles;
-		CurrentOffset = 0;
-		uint64 PaddingBytes = 0;
-		uint64 TotalChunkPaddingSize = 0;
 		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
 		{
-			if (EntryIt->Type == FLayoutEntry::FreeSpace)
-			{
-				PaddingBytes += EntryIt->Size;
-			}
-			else if (EntryIt->Type == FLayoutEntry::File)
-			{
-				check(EntryIt->TargetFile);
-				EntryIt->TargetFile->Padding = PaddingBytes;
-				TotalChunkPaddingSize += PaddingBytes;
-				PaddingBytes = 0;
-				EntryIt->TargetFile->Offset = CurrentOffset;
-
-				if (EntryIt->bHasPreviousBuildOffset && EntryIt->bLocked)
-				{
-					check(EntryIt->PreviousBuildOffset % CompressionBlockSize == EntryIt->TargetFile->Offset % CompressionBlockSize);
-				}
-				if (EntryIt->TargetFile->bIsMemoryMappedBulkData)
-				{
-					check(IsAligned(CurrentOffset, MemoryMappingAlignment));
-				}
-				IncludedContainerTargetFiles.Add(*EntryIt->TargetFile);
-			}
-			CurrentOffset += EntryIt->Size;
+			check(EntryIt->TargetFile);
+			IncludedContainerTargetFiles.Add(*EntryIt->TargetFile);
 		}
-		uint64 TotalBlockCount = Align(CurrentOffset, CompressionBlockSize) / CompressionBlockSize;
-		uint64 ModifiedBlocksCount = TotalBlockCount - UnmodifiedBlocksCount;
-		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d modified blocks (%fMB)"), *ContainerTarget->Name.ToString(), ModifiedBlocksCount, TotalBlockCount, (ModifiedBlocksCount * CompressionBlockSize) / 1024.0 / 1024.0);
-		UE_LOG(LogIoStore, Display, TEXT("%s: Total chunk padding %fMB"), *ContainerTarget->Name.ToString(), TotalChunkPaddingSize / 1024.0 / 1024.0);
 
 		for (FLayoutEntry* Entry : Entries)
 		{
@@ -3890,6 +3523,11 @@ void InitializeContainerTargetsAndPackages(
 			ContainerTarget->ContainerFlags |= EIoContainerFlags::Signed;
 		}
 
+		if (!ContainerTarget->EncryptionKeyGuid.IsValid())
+		{
+			ContainerTarget->EncryptionKeyGuid = ContainerSource.EncryptionKeyOverrideGuid;
+		}
+
 		for (const FString& PatchSourceContainerFile : ContainerSource.PatchSourceContainerFiles)
 		{
 			FIoStoreEnvironment PatchSourceEnvironment;
@@ -4973,6 +4611,28 @@ public:
 	}
 };
 
+static bool ParseSizeArgument(const TCHAR* CmdLine, const TCHAR* Argument, uint64& OutSize, uint64 DefaultSize = 0)
+{
+	FString SizeString;
+	if (FParse::Value(CmdLine, Argument, SizeString) && FParse::Value(CmdLine, Argument, OutSize))
+	{
+		if (SizeString.EndsWith(TEXT("MB")))
+		{
+			OutSize *= 1024*1024;
+		}
+		else if (SizeString.EndsWith(TEXT("KB")))
+		{
+			OutSize *= 1024;
+		}
+		return true;
+	}
+	else
+	{
+		OutSize = DefaultSize;
+		return false;
+	}
+}
+
 int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 {
 	IOSTORE_CPU_SCOPE(CreateIoStoreContainerFiles);
@@ -5018,12 +4678,6 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	FIoStoreWriterSettings GeneralIoWriterSettings { DefaultCompressionMethod, DefaultCompressionBlockSize, false };
 	GeneralIoWriterSettings.bEnableCsvOutput = FParse::Param(CmdLine, TEXT("-csvoutput"));
 
-	if (!FParse::Value(CmdLine, TEXT("-AlignForMemoryMapping="), Arguments.MemoryMappingAlignment))
-	{
-		Arguments.MemoryMappingAlignment = DefaultMemoryMappingAlignment;
-	}
-	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), Arguments.MemoryMappingAlignment);
-	
 	TArray<FName> CompressionFormats;
 	FString DesiredCompressionFormats;
 	if (FParse::Value(CmdLine, TEXT("-compressionformats="), DesiredCompressionFormats) ||
@@ -5054,23 +4708,25 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
-	FString CompressionBlockSizeString;
-	if (FParse::Value(CmdLine, TEXT("-compressionblocksize="), CompressionBlockSizeString))
-	{
-		FParse::Value(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize);
+	ParseSizeArgument(CmdLine, TEXT("-alignformemorymapping="), Arguments.MemoryMappingAlignment, DefaultMemoryMappingAlignment);
+	ParseSizeArgument(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize, DefaultCompressionBlockSize);
+	ParseSizeArgument(CmdLine, TEXT("-blocksize="), GeneralIoWriterSettings.CompressionBlockAlignment);
 
-		if (CompressionBlockSizeString.EndsWith(TEXT("MB")))
+	uint64 PatchPaddingAlignment = 0;
+	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign"), PatchPaddingAlignment))
+	{
+		if (!GeneralIoWriterSettings.CompressionBlockAlignment || PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
 		{
-			GeneralIoWriterSettings.CompressionBlockSize *= 1024 * 1024;
-		}
-		else if (CompressionBlockSizeString.EndsWith(TEXT("KB")))
-		{
-			GeneralIoWriterSettings.CompressionBlockSize *= 1024;
+			GeneralIoWriterSettings.CompressionBlockAlignment = PatchPaddingAlignment;
 		}
 	}
-	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
+	if (!GeneralIoWriterSettings.CompressionBlockAlignment)
+	{
+		GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
+	}
 
-	FParse::Value(CmdLine, TEXT("-compressionblockalignment="), GeneralIoWriterSettings.CompressionBlockAlignment);
+	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), Arguments.MemoryMappingAlignment);
+	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block alignment '%ld'"), GeneralIoWriterSettings.CompressionBlockAlignment);
 
 	FParse::Value(CmdLine, TEXT("-CreateReleaseVersionDirectory="), Arguments.OutputReleaseVersionDir);
@@ -5161,6 +4817,12 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 				{
 					UE_LOG(LogIoStore, Error, TEXT("Failed to parse Pak response file '%s'"), *ResponseFilePath);
 					return -1;
+				}
+
+				FString EncryptionKeyOverrideGuidString;
+				if (FParse::Value(*Command, TEXT("EncryptionKeyOverrideGuid="), EncryptionKeyOverrideGuidString))
+				{
+					FGuid::Parse(EncryptionKeyOverrideGuidString, ContainerSpec.EncryptionKeyOverrideGuid);
 				}
 			}
 		}
