@@ -1488,6 +1488,15 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 	SectionOrder.Reserve(InSectionOrder.Num() + this->Num());
 	SectionOrder.Append(InSectionOrder);
 
+	bool bIsADefaultIniWrite = false;
+	{
+		// If we are writing to a default config file and this property is an array, we need to be careful to remove those from higher up the hierarchy
+		const FString AbsoluteFilename = FPaths::ConvertRelativePathToFull(Filename);
+		const FString AbsoluteGameGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::GeneratedConfigDir());
+		const FString AbsoluteGameAgnosticGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::GameAgnosticSavedDir(), TEXT("Config")) + TEXT("/"));
+		bIsADefaultIniWrite = !AbsoluteFilename.Contains(AbsoluteGameGeneratedConfigDir) && !AbsoluteFilename.Contains(AbsoluteGameAgnosticGeneratedConfigDir);
+	}
+
 	for( TIterator SectionIterator(*this); SectionIterator; ++SectionIterator )
 	{
 		const FString& SectionName = SectionIterator.Key();
@@ -1529,12 +1538,6 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 				// check whether the option we are attempting to write out, came from the commandline as a temporary override.
 				const bool bOptionIsFromCommandline = PropertySetFromCommandlineOption(this, SectionName, PropertyName, PropertyValue);
 
-				// If we are writing to a default config file and this property is an array, we need to be careful to remove those from higher up the hierarchy
-				const FString AbsoluteFilename = FPaths::ConvertRelativePathToFull(Filename);
-				const FString AbsoluteGameGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::GeneratedConfigDir());
-				const FString AbsoluteGameAgnosticGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::GameAgnosticSavedDir(), TEXT("Config")) + TEXT("/"));
-				const bool bIsADefaultIniWrite = !AbsoluteFilename.Contains(AbsoluteGameGeneratedConfigDir) && !AbsoluteFilename.Contains(AbsoluteGameAgnosticGeneratedConfigDir);
-				
 				// We ALWAYS want to write CurrentIniVersion.
 				const bool bIsCurrentIniVersion = (SectionName == CurrentIniVersionString);
 
