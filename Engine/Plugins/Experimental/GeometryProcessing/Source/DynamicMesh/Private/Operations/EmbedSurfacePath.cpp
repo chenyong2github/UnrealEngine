@@ -363,9 +363,6 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 			}
 		}
 
-		int BestCandidate = -1;
-		double BestCandidateDistSq = FMathd::MaxReal;
-
 		for (int32 NewComputedPtIdx = InitialComputedPointsNum; NewComputedPtIdx < ComputedPointsAndSources.Num(); NewComputedPtIdx++)
 		{
 			double DistSq = EndPt.DistanceSquared(ComputedPointsAndSources[NewComputedPtIdx].Value.Position);
@@ -387,8 +384,6 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 		{
 			return false; // failed to find
 		}
-		
-		CurrentEnd = BestCandidate;
 	}
 
 
