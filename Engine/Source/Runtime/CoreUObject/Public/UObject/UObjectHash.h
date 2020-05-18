@@ -86,14 +86,24 @@ COREUOBJECT_API class UObjectBase* FindObjectWithOuter(const class UObjectBase* 
 COREUOBJECT_API void GetObjectsOfClass(const UClass* ClassToLookFor, TArray<UObject *>& Results, bool bIncludeDerivedClasses = true, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
 
 /**
- * Performs an operation on all objects with a given outer
+ * Performs an operation on all objects of the provided class
  *
- * @param	Outer						Outer to search for
+ * @param	Outer						UObject class to loop over instances of
  * @param	Operation					Function to be called for each object
  * @param	bIncludeDerivedClasses		If true, the results will include objects of child classes as well.
  * @param	AdditionalExcludeFlags		Objects with any of these flags will be excluded from the results.
  */
 COREUOBJECT_API void ForEachObjectOfClass(const UClass* ClassToLookFor, TFunctionRef<void(UObject*)> Operation, bool bIncludeDerivedClasses = true, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
+
+/**
+ * Performs an operation on all objects of the provided classes
+ *
+ * @param	Classes						UObject Classes to loop over instances of
+ * @param	Operation					Function to be called for each object
+ * @param	bIncludeDerivedClasses		If true, the results will include objects of child classes as well.
+ * @param	AdditionalExcludeFlags		Objects with any of these flags will be excluded from the results.
+ */
+COREUOBJECT_API void ForEachObjectOfClasses(TArrayView<const UClass*> ClassesToLookFor, TFunctionRef<void(UObject*)> Operation, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
 
 /**
  * Returns an array of classes that were derived from the specified class.
