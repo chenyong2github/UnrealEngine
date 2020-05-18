@@ -4468,7 +4468,7 @@ FReply FSequencer::SetPlaybackEnd()
 		TRange<FFrameNumber> CurrentRange = FocusedSequence->GetMovieScene()->GetPlaybackRange();
 		if (CurrentFrame >= MovieScene::DiscreteInclusiveLower(CurrentRange))
 		{
-			CurrentRange.SetUpperBound(CurrentFrame);
+			CurrentRange.SetUpperBoundValue(CurrentFrame);
 			SetPlaybackRange(CurrentRange);
 		}
 	}
