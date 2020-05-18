@@ -16,6 +16,7 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 {
 	auto PackedResourceCounts = InShaderCode.FindOptionalData<FShaderCodePackedResourceCounts>();
 	check(PackedResourceCounts);
+	OutShader.OutputMask = PackedResourceCounts->OutputMask;
 	OutShader.bShaderNeedsGlobalConstantBuffer = PackedResourceCounts->bGlobalUniformBufferUsed;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	OutShader.ShaderName = InShaderCode.FindOptionalData('n');
