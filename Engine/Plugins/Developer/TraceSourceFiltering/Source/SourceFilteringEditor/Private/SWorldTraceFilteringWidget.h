@@ -25,8 +25,6 @@ public:
 	void SetSessionFilterService(TSharedPtr<ISessionSourceFilterService> InSessionFilterService);
 protected:
 	void RefreshWorldData();
-	TSharedRef<SWidget> OnGetMenuContextMenu();
-
 protected:
 	/** Session service used to retrieve state and request filtering changes */
 	TSharedPtr<ISessionSourceFilterService> SessionFilterService;
@@ -37,5 +35,7 @@ protected:
 	/** Listview widget used to display WorldObjects  */
 	TSharedPtr<SListView<TSharedPtr<FWorldObject>>> WorldListView;
 
-	TSharedPtr<SComboButton> OptionsComboBox;
+	TSharedPtr<SHorizontalBox> FiltersContainerBox;
+	TSharedPtr<SVerticalBox> FiltersLabelBox;
+	TSharedPtr<SVerticalBox> FiltersWidgetBox;
 };

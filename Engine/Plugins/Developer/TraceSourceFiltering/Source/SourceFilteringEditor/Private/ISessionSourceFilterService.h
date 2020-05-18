@@ -29,7 +29,7 @@ public:
 	virtual ~IWorldTraceFilter() {}
 	virtual FText GetDisplayText() = 0;
 	virtual FText GetToolTipText() = 0;
-	virtual void PopulateMenuBuilder(FMenuBuilder& InBuilder) = 0;
+	virtual TSharedRef<SWidget> GenerateWidget() = 0;
 };
 
 /** Interface providing interaction with an running instance's its Trace and World Filtering systems */
