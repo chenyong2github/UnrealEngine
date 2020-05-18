@@ -10,6 +10,7 @@
 #include "EngineGlobals.h"
 #include "EditorModeRegistry.h"
 #include "Tools/UEdMode.h"
+#include "Templates/SharedPointer.h"
 
 class FCanvas;
 class FEditorModeTools;
@@ -168,7 +169,7 @@ public:
 
 	virtual void Enter();
 	virtual void Exit();
-	virtual UTexture2D* GetVertexTexture() { return GEngine->DefaultBSPVertexTexture; }
+	virtual UTexture2D* GetVertexTexture();
 	
 	/**
 	 * Lets each tool determine if it wants to use the editor widget or not.  If the tool doesn't want to use it,

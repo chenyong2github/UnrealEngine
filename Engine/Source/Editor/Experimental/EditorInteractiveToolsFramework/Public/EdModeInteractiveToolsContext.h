@@ -2,11 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdMode.h"
 #include "InteractiveToolsContext.h"
 #include "Delegates/Delegate.h"
+#include "InputCoreTypes.h"
+#include "Engine/EngineBaseTypes.h"
+
 #include "EdModeInteractiveToolsContext.generated.h"
+
+class FEdMode;
+class FEditorModeTools;
+class FEditorViewportClient;
+class FSceneView;
+class FViewport;
+class UMaterialInterface;
+class FPrimitiveDrawInterface;
 
 /**
  * EdModeInteractiveToolsContext is an extension/adapter of an InteractiveToolsContext which 
@@ -23,7 +32,9 @@ public:
 	UEdModeInteractiveToolsContext();
 
 
-	virtual void InitializeContextFromEdMode(FEdMode* EditorMode, 
+	virtual void InitializeContextFromEdMode(FEdMode* EditorModeIn,
+		IToolsContextAssetAPI* UseAssetAPI = nullptr);
+	virtual void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,
 		IToolsContextAssetAPI* UseAssetAPI = nullptr);
 	virtual void ShutdownContext();
 
@@ -90,8 +101,6 @@ public:
 	UMaterialInterface* StandardVertexColorMaterial;
 
 protected:
-	FEdMode* EditorMode;
-
 	// called when PIE is about to start, shuts down active tools
 	FDelegateHandle BeginPIEDelegateHandle;
 	// called before a Save starts. This currently shuts down active tools.

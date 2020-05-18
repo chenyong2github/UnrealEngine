@@ -13,6 +13,7 @@ class FSceneView;
 class FViewport;
 struct FViewportClick;
 struct FSelectedSocketInfo;
+class FViewportClient;
 
 class FSkeletonSelectionEditMode : public IPersonaEditMode
 {
