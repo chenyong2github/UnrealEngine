@@ -27,6 +27,7 @@
 #include "TraceSourceFilteringSettings.h"
 
 #include "SWorldTraceFilteringWidget.h"
+#include "SClassTraceFilteringWidget.h"
 #include "SUserTraceFilteringWidget.h"
 
 #define LOCTEXT_NAMESPACE "STraceSourceFilteringWidget"
@@ -78,7 +79,8 @@ void STraceSourceFilteringWidget::Construct(const FArguments& InArgs)
 		]
 	];
 
-	AddExpandableArea(LOCTEXT("UserFilterHeaderText", "User Filters"), SAssignNew(UserFilterWidget, SUserTraceFilteringWidget));	
+	AddExpandableArea(LOCTEXT("UserFilterHeaderText", "User Filters"), SAssignNew(UserFilterWidget, SUserTraceFilteringWidget));
+	AddExpandableArea(LOCTEXT("ClassFilterHeaderText", "Class Filters"), SAssignNew(ClassFilterWidget, SClassTraceFilteringWidget));
 	AddExpandableArea(LOCTEXT("WorldFilterHeaderText", "World Filters"), SAssignNew(WorldFilterWidget, SWorldTraceFilteringWidget));
 
 	TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &STraceSourceFilteringWidget::ShouldWidgetsBeEnabled));	
@@ -135,7 +137,9 @@ void STraceSourceFilteringWidget::SetCurrentAnalysisSession(uint32 SessionHandle
 	SessionFilterService = FSourceFilterService::GetFilterServiceForSession(SessionHandle, AnalysisSession);
 
 	SessionFilterService->GetOnSessionStateChanged().AddSP(this, &STraceSourceFilteringWidget::RefreshFilteringData);
+
 	WorldFilterWidget->SetSessionFilterService(SessionFilterService);
+	ClassFilterWidget->SetSessionFilterService(SessionFilterService);
 	UserFilterWidget->SetSessionFilterService(SessionFilterService);
 
 	RefreshFilteringData();

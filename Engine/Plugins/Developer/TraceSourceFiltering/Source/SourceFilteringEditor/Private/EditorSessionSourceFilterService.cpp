@@ -14,6 +14,7 @@
 #include "IFilterObject.h"
 #include "FilterObject.h"
 #include "FilterSetObject.h"
+#include "ClassFilterObject.h"
 
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
@@ -196,6 +197,69 @@ TSharedRef<SWidget> FEditorSessionSourceFilterService::GetFilterPickerWidget(FOn
 	Options.bShowUnloadedBlueprints = true;
 	Options.bShowNoneOption = false;
 	TSharedPtr<FFilterClassFilter> ClassFilter = MakeShareable(new FFilterClassFilter);
+	Options.ClassFilter = ClassFilter;
+
+	FOnClassPicked ClassPicked = FOnClassPicked::CreateLambda([InFilterClassPicked](UClass* Class)
+	{
+		InFilterClassPicked.ExecuteIfBound(Class->GetPathName());
+	});
+
+	return SNew(SBox)
+		.WidthOverride(280)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.MaxHeight(500)
+			[
+				FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, ClassPicked)
+			]
+		];
+}
+
+TSharedRef<SWidget> FEditorSessionSourceFilterService::GetClassFilterPickerWidget(FOnFilterClassPicked InFilterClassPicked)
+{
+	/** Class filter implementation, ensuring we only show valid UDataSourceFilter (sub)classes */
+	class FFilterClassFilter : public IClassViewerFilter
+	{
+	public:
+		FFilterClassFilter(const TArray<TSharedPtr<FClassFilterObject>>& InExistingClasses) : ExistingClasses(InExistingClasses) {}
+
+		bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
+		{
+			if (InClass->HasAnyClassFlags(CLASS_Abstract | CLASS_HideDropDown | CLASS_Deprecated))
+			{
+				return false;
+			}
+
+			if (ExistingClasses.ContainsByPredicate([InClass](TSharedPtr<FClassFilterObject> Object)
+			{
+				return Object->GetClass() == InClass;
+			}))
+			{
+				return false;
+			}
+
+			return InClass->IsChildOf(AActor::StaticClass());
+		}
+
+		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const IUnloadedBlueprintData > InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
+		{
+			return InClass->IsChildOf(AActor::StaticClass());
+		}
+
+	protected:
+		const TArray<TSharedPtr<FClassFilterObject>> ExistingClasses;
+	};
+
+	FClassViewerInitializationOptions Options;
+	Options.bShowUnloadedBlueprints = true;
+	Options.bShowNoneOption = false;
+
+	TArray<TSharedPtr<FClassFilterObject>> ExistingClasses;
+	GetClassFilters(ExistingClasses);
+
+	TSharedPtr<FFilterClassFilter> ClassFilter = MakeShared<FFilterClassFilter>(ExistingClasses);
 	Options.ClassFilter = ClassFilter;
 
 	FOnClassPicked ClassPicked = FOnClassPicked::CreateLambda([InFilterClassPicked](UClass* Class)
@@ -444,6 +508,43 @@ void FEditorSessionSourceFilterService::SetWorldTraceability(TSharedRef<FWorldOb
 const TArray<TSharedPtr<IWorldTraceFilter>>& FEditorSessionSourceFilterService::GetWorldFilters()
 {
 	return WorldFilters;
+}
+
+void FEditorSessionSourceFilterService::AddClassFilter(const FString& ActorClassName)
+{
+	FSoftClassPath ClassPath(ActorClassName);
+	if (UClass* Class = ClassPath.TryLoadClass<AActor>())
+	{
+		const FScopedTransaction Transaction(*FEditorSessionSourceFilterService::TransactionContext, LOCTEXT("AddClassFilter", "Adding Class Filter"), FilterCollection);
+
+		FilterCollection->AddClassFilter(Class);
+
+		StateChanged();
+	}
+}
+
+void FEditorSessionSourceFilterService::RemoveClassFilter(TSharedRef<FClassFilterObject> ClassFilterObject)
+{
+	const FScopedTransaction Transaction(*FEditorSessionSourceFilterService::TransactionContext, LOCTEXT("RemoveClassFilter", "Removing Class Filter"), FilterCollection);
+
+	FilterCollection->RemoveClassFilter(ClassFilterObject->GetClass());
+	StateChanged();
+}
+
+void FEditorSessionSourceFilterService::GetClassFilters(TArray<TSharedPtr<FClassFilterObject>>& OutClasses) const
+{
+	for (const FActorClassFilter& FilterClass : FilterCollection->GetClassFilters())
+	{
+		OutClasses.Add(MakeShared<FClassFilterObject>(FilterClass.ActorClass.TryLoadClass<AActor>(), FilterClass.bIncludeDerivedClasses));
+	}
+}
+
+void FEditorSessionSourceFilterService::SetIncludeDerivedClasses(TSharedRef<FClassFilterObject> ClassFilterObject, bool bIncluded)
+{
+	const FScopedTransaction Transaction(*FEditorSessionSourceFilterService::TransactionContext, LOCTEXT("AddClassFilter", "Adding Class Filter"), FilterCollection);
+
+	FilterCollection->UpdateClassFilter(ClassFilterObject->GetClass(), bIncluded);
+	StateChanged();
 }
 
 void FEditorSessionSourceFilterService::PostUndo(bool bSuccess)
