@@ -1136,24 +1136,14 @@ namespace Chaos
 			int32 DataIdx = 0;
 			for(TPBDRigidParticleHandleImp<float,3,false>& ActiveObject : ActiveParticles)
 			{
-				if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(ActiveObject.Handle()))
+				//may want to remove branch using templates outside loop
+				if (MRewindData->IsResim())
 				{
-					for (IPhysicsProxyBase* Proxy : *Proxies)
-					{
-
-						if (ActiveObject.GetParticleType() == EParticleType::Rigid)
-						{
-							//may want to remove branch using templates outside loop
-							if (MRewindData->IsResim())
-							{
-									MRewindData->PushPTDirtyData<true>(*static_cast<FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(), DataIdx++);
-							}
-							else
-							{
-								MRewindData->PushPTDirtyData<false>(*static_cast<FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(), DataIdx++);
-							}
-						}
-					}
+					MRewindData->PushPTDirtyData<true>(*ActiveObject.Handle(), DataIdx++);
+				}
+				else
+				{
+					MRewindData->PushPTDirtyData<false>(*ActiveObject.Handle(), DataIdx++);
 				}
 			}
 		}
