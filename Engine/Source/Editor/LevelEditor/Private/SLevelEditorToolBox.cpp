@@ -5,7 +5,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/InputBindingManager.h"
-#include "EditorModeRegistry.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBorder.h"
 #include "EditorStyleSet.h"
@@ -107,7 +107,7 @@ void SLevelEditorToolBox::UpdateModeLegacyToolBar()
 
 		const FLevelEditorModesCommands& Commands = LevelEditorModule.GetLevelEditorModesCommands();
 
-		for ( const FEditorModeInfo& Mode : FEditorModeRegistry::Get().GetSortedModeInfo() )
+		for ( const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
 		{
 			// If the mode isn't visible don't create a menu option for it.
 			if ( !Mode.bVisible )

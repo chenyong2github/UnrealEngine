@@ -161,7 +161,10 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	RegisterMenus();
 
 	// We need to register when modes list changes so that we can refresh the auto generated commands.
-	FEditorModeRegistry::Get().OnRegisteredModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
+	if (GEditor != nullptr)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
+	}
 	GLevelEditorModeTools().OnEditorModeIDChanged().AddSP(this, &SLevelEditor::OnEditorModeIdChanged);
 
 	// @todo This is a hack to get this working for now. This won't work with multiple worlds
@@ -313,7 +316,7 @@ SLevelEditor::~SLevelEditor()
 		GetMutableDefault<UEditorPerProjectUserSettings>()->OnUserSettingChanged().RemoveAll(this);
 	}
 
-	FEditorModeRegistry::Get().OnRegisteredModesChanged().RemoveAll( this );
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll( this );
 
 	FEditorDelegates::MapChange.RemoveAll(this);
 
@@ -1412,7 +1415,8 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 		FEdMode* MatineeMode = GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
 		if (MatineeMode && !MatineeMode->IsCompatibleWith(ModeID))
 		{
-			FEditorModeInfo MatineeModeInfo = FEditorModeRegistry::Get().GetModeInfo(ModeID);
+			FEditorModeInfo MatineeModeInfo;
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorModeInfo(ModeID, MatineeModeInfo);
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("ModeName"), MatineeModeInfo.Name);
 			FText Msg = FText::Format(NSLOCTEXT("LevelEditor", "ModeSwitchCloseMatineeQ", "Activating '{ModeName}' editor mode will close UnrealMatinee.  Continue?"), Args);
@@ -1492,7 +1496,7 @@ void SLevelEditor::RefreshEditorModeCommands()
 	const FLevelEditorModesCommands& Commands = FLevelEditorModesCommands::Get();
 
 	int32 CommandIndex = 0;
-	for( const FEditorModeInfo& Mode : FEditorModeRegistry::Get().GetSortedModeInfo() )
+	for( const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority() )
 	{
 		// If the mode isn't visible don't create a menu option for it.
 		if( !Mode.bVisible )

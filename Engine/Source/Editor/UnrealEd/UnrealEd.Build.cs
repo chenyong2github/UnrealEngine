@@ -184,7 +184,8 @@ public class UnrealEd : ModuleRules
 				"ToolMenus",
 				"FreeImage",
 				"IoStoreUtilities",
-            }
+				"EditorInteractiveToolsFramework",
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -245,7 +246,6 @@ public class UnrealEd : ModuleRules
 				"Media",
 				"TimeManagementEditor",
 				"VirtualTexturingEditor",
-				"EditorInteractiveToolsFramework",
 				"TraceInsights",
 			}
 		);

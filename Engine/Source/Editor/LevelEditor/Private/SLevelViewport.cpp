@@ -73,6 +73,7 @@
 #include "EditorLevelUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
+#include "Bookmarks/IBookmarkTypeTools.h"
 #include "ToolMenus.h"
 
 static const FName LevelEditorName("LevelEditor");
@@ -2320,40 +2321,28 @@ FLevelEditorViewportInstanceSettings SLevelViewport::LoadLegacyConfigFromIni(con
 
 void SLevelViewport::OnSetBookmark( int32 BookmarkIndex )
 {
-	GLevelEditorModeTools().SetBookmark( BookmarkIndex, LevelViewportClient.Get() );
+	IBookmarkTypeTools::Get().CreateOrSetBookmark( BookmarkIndex, LevelViewportClient.Get() );
 }
 
 void SLevelViewport::OnJumpToBookmark( int32 BookmarkIndex )
 {
-	GLevelEditorModeTools().JumpToBookmark( BookmarkIndex, TSharedPtr<struct FBookmarkBaseJumpToSettings>(), LevelViewportClient.Get() );
+	IBookmarkTypeTools::Get().JumpToBookmark( BookmarkIndex, TSharedPtr<struct FBookmarkBaseJumpToSettings>(), LevelViewportClient.Get() );
 }
 
 void SLevelViewport::OnClearBookmark(int32 BookmarkIndex)
 {
-	GLevelEditorModeTools().ClearBookmark(BookmarkIndex, LevelViewportClient.Get());
+	IBookmarkTypeTools::Get().ClearBookmark(BookmarkIndex, LevelViewportClient.Get());
 }
 
 void SLevelViewport::OnClearAllBookmarks()
 {
-	GLevelEditorModeTools().ClearAllBookmarks(LevelViewportClient.Get());
+	IBookmarkTypeTools::Get().ClearAllBookmarks(LevelViewportClient.Get());
 }
 
 void SLevelViewport::OnCompactBookmarks()
 {
-	GLevelEditorModeTools().CompactBookmarks(LevelViewportClient.Get());
+	IBookmarkTypeTools::Get().CompactBookmarks(LevelViewportClient.Get());
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void SLevelViewport::OnClearBookMark( int32 BookmarkIndex )
-{
-	OnClearBookmark(BookmarkIndex);
-}
-
-void SLevelViewport::OnClearAllBookMarks()
-{
-	OnClearAllBookmarks();
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void SLevelViewport::OnToggleAllowCinematicPreview()
 {

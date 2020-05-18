@@ -9,7 +9,7 @@
 #include "Framework/Commands/Commands.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolManager.h"
-#include "InteractiveToolsContext.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "Components/MeshComponent.h"
 #include "Dialogs/Dialogs.h"
 #include "Components/StaticMeshComponent.h"
@@ -113,11 +113,19 @@ UMeshPaintMode* UMeshPaintMode::GetMeshPaintMode()
 }
 
 UMeshPaintMode::UMeshPaintMode()
-	:Super()
+	: Super()
 {
 	SettingsClass = UMeshPaintModeSettings::StaticClass();
 	ToolsContextClass = UMeshToolsContext::StaticClass();
 	CurrentPaletteName = MeshPaintMode_Color;
+
+	Info = FEditorModeInfo(
+		FName(TEXT("MeshPaintMode")),
+		LOCTEXT("ModeName", "Mesh Paint"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode", "LevelEditor.MeshPaintMode.Small"),
+		true,
+		600
+	);
 }
 
 void UMeshPaintMode::Enter()
@@ -169,7 +177,7 @@ void UMeshPaintMode::CreateToolkit()
 		Toolkit = MakeShareable(PaintToolkit);
 		Toolkit->Init(Owner->GetToolkitHost());
 
-		OnToolNotificationMessage.AddSP(PaintToolkit, &FMeshPaintModeToolkit::SetActiveToolMessage);
+		ToolsContext->OnToolNotificationMessage.AddSP(PaintToolkit, &FMeshPaintModeToolkit::SetActiveToolMessage);
 	}
 
 	// Register UI commands
@@ -779,15 +787,15 @@ void UMeshPaintMode::ActivateDefaultTool()
 {
 	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Color)
 	{
-		ToolsContext->StartTool(EToolSide::Mouse, VertexSelectToolName);
+		ToolsContext->StartTool(VertexSelectToolName);
 	}
 	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Weights)
 	{
-		ToolsContext->StartTool(EToolSide::Mouse, VertexSelectToolName);
+		ToolsContext->StartTool(VertexSelectToolName);
 	}
 	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Texture)
 	{
-		ToolsContext->StartTool(EToolSide::Mouse, TextureSelectToolName);
+		ToolsContext->StartTool(TextureSelectToolName);
 	}
 }
 
@@ -815,7 +823,7 @@ void UMeshPaintMode::UpdateOnPaletteChange()
 	// change to new tool if it is different
 	if (SwitchToTool.IsEmpty() == false && SwitchToTool != ActiveTool)
 	{
-		ToolsContext->StartTool(EToolSide::Mouse, SwitchToTool);
+		ToolsContext->StartTool(SwitchToTool);
 	}
 }
 

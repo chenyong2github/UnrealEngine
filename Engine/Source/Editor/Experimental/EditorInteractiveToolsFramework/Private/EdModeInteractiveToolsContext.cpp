@@ -23,13 +23,12 @@
 #include "Tools/EditorComponentSourceFactory.h"
 #include "InteractiveToolObjects.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
+#include "EditorModeManager.h"
+#include "EdMode.h"
 
 #include "BaseGizmos/GizmoRenderingUtil.h"
 
 //#define ENABLE_DEBUG_PRINTING
-
-class HHitProxy;
-
 
 static float SnapToIncrement(float fValue, float fIncrement, float offset = 0)
 {
@@ -49,24 +48,24 @@ static float SnapToIncrement(float fValue, float fIncrement, float offset = 0)
 	return sign * (float)nInc * fIncrement + offset;
 }
 
-
-
 class FEdModeToolsContextQueriesImpl : public IToolsContextQueriesAPI
 {
 public:
 	UEdModeInteractiveToolsContext* ToolsContext;
-	FEdMode* EditorMode;
+	FEditorModeTools* EditorModeManager;
 	
 	FViewCameraState CachedViewState;
+	FEditorViewportClient* CachedViewportClient;
 
-	FEdModeToolsContextQueriesImpl(UEdModeInteractiveToolsContext* Context, FEdMode* EditorModeIn)
+	FEdModeToolsContextQueriesImpl(UEdModeInteractiveToolsContext* Context, FEditorModeTools* InEditorModeManager)
 	{
 		ToolsContext = Context;
-		EditorMode = EditorModeIn;
+		EditorModeManager = InEditorModeManager;
 	}
 
 	void CacheCurrentViewState(FEditorViewportClient* ViewportClient)
 	{
+		CachedViewportClient = ViewportClient;
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
 		CachedViewState.bIsOrthographic = ViewportClient->IsOrtho();
 		CachedViewState.Position = ViewTransform.GetLocation();
@@ -113,24 +112,21 @@ public:
 	{
 		StateOut.ToolManager = ToolsContext->ToolManager;
 		StateOut.GizmoManager = ToolsContext->GizmoManager;
-		StateOut.World = EditorMode->GetWorld();
-		EditorMode->GetModeManager()->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);
-		EditorMode->GetModeManager()->GetSelectedComponents()->GetSelectedObjects(StateOut.SelectedComponents);
+		StateOut.World = EditorModeManager->GetWorld();
+		EditorModeManager->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);
+		EditorModeManager->GetSelectedComponents()->GetSelectedObjects(StateOut.SelectedComponents);
 	}
-
 
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const override
 	{
 		StateOut = CachedViewState;
 	}
 
-
 	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const override
 	{
-		ECoordSystem CoordSys = EditorMode->GetModeManager()->GetCoordSystem();
+		ECoordSystem CoordSys = EditorModeManager->GetCoordSystem();
 		return (CoordSys == COORD_World) ? EToolContextCoordinateSystem::World : EToolContextCoordinateSystem::Local;
 	}
-
 
 	virtual bool ExecuteSceneSnapQuery(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results) const override
 	{
@@ -167,7 +163,7 @@ public:
 		QueryParams.bTraceComplex = true;
 		QueryParams.bReturnFaceIndex = true;
 		FHitResult HitResult;
-		bool bHitWorld = EditorMode->GetWorld()->LineTraceSingleByObjectType(HitResult, RayStart, RayEnd, ObjectQueryParams, QueryParams);
+		bool bHitWorld = EditorModeManager->GetWorld()->LineTraceSingleByObjectType(HitResult, RayStart, RayEnd, ObjectQueryParams, QueryParams);
 		if (bHitWorld && HitResult.FaceIndex >= 0) 
 		{
 			float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);
@@ -262,7 +258,6 @@ public:
 		return (FoundResultCount > 0);
 	}
 
-
 	//@ todo this are mirrored from GeometryProcessing, which is still experimental...replace w/ direct calls once GP component is standardized
 	static float OpeningAngleDeg(FVector A, FVector B, const FVector& P)
 	{
@@ -273,6 +268,7 @@ public:
 		float Dot = FMath::Clamp(FVector::DotProduct(A,B), -1.0f, 1.0f);
 		return acos(Dot) * (180.0f / 3.141592653589f);
 	}
+
 	static FVector NearestSegmentPt(FVector A, FVector B, const FVector& P)
 	{
 		FVector Direction = (B - A); 
@@ -290,8 +286,6 @@ public:
 		return A + t * Direction;
 	}
 
-
-
 	virtual UMaterialInterface* GetStandardMaterial(EStandardToolContextMaterials MaterialType) const
 	{
 		if (MaterialType == EStandardToolContextMaterials::VertexColorMaterial)
@@ -302,23 +296,26 @@ public:
 		return nullptr;
 	}
 
-	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const { return nullptr;  }
-
+	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const
+	{
+		if (CachedViewportClient && CachedViewportClient->Viewport)
+		{
+			return CachedViewportClient->Viewport->GetHitProxy(X, Y);
+		}
+		return nullptr;
+	}
 };
-
-
-
 
 class FEdModeToolsContextTransactionImpl : public IToolsContextTransactionsAPI
 {
 public:
 	UEdModeInteractiveToolsContext* ToolsContext;
-	FEdMode* EditorMode;
+	FEditorModeTools* EditorModeManager;
 
-	FEdModeToolsContextTransactionImpl(UEdModeInteractiveToolsContext* Context, FEdMode* EditorModeIn)
+	FEdModeToolsContextTransactionImpl(UEdModeInteractiveToolsContext* Context, FEditorModeTools* InEditorModeManager)
 	{
 		ToolsContext = Context;
-		EditorMode = EditorModeIn;
+		EditorModeManager = InEditorModeManager;
 	}
 
 
@@ -396,7 +393,6 @@ public:
 
 UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 {
-	EditorMode = nullptr;
 	QueriesAPI = nullptr;
 	TransactionAPI = nullptr;
 	AssetAPI = nullptr;
@@ -457,7 +453,6 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 
 void UEdModeInteractiveToolsContext::Shutdown()
 {
-
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditor.OnMapChanged().Remove(WorldTearDownDelegateHandle);
 	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
@@ -470,16 +465,18 @@ void UEdModeInteractiveToolsContext::Shutdown()
 	UInteractiveToolsContext::Shutdown();
 }
 
+void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* EditorModeIn, IToolsContextAssetAPI* UseAssetAPI)
+{
+	check(EditorModeIn);
+	InitializeContextWithEditorModeManager(EditorModeIn->GetModeManager(), UseAssetAPI);
+}
 
-
-
-void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* EditorModeIn,
+void UEdModeInteractiveToolsContext::InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,
 	IToolsContextAssetAPI* UseAssetAPI)
 {
-	this->EditorMode = EditorModeIn;
-
-	this->TransactionAPI = new FEdModeToolsContextTransactionImpl(this, EditorModeIn);
-	this->QueriesAPI = new FEdModeToolsContextQueriesImpl(this, EditorModeIn);
+	check(InEditorModeManager);
+	this->TransactionAPI = new FEdModeToolsContextTransactionImpl(this, InEditorModeManager);
+	this->QueriesAPI = new FEdModeToolsContextQueriesImpl(this, InEditorModeManager);
 	this->AssetAPI = (UseAssetAPI != nullptr) ? UseAssetAPI: new FEditorToolAssetAPI();
 
 	Initialize(QueriesAPI, TransactionAPI);
@@ -487,7 +484,6 @@ void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* Editor
 	// enable auto invalidation in Editor, because invalidating for all hover and capture events is unpleasant
 	this->InputRouter->bAutoInvalidateOnHover = true;
 	this->InputRouter->bAutoInvalidateOnCapture = true;
-
 
 	// set up standard materials
 	StandardVertexColorMaterial = GEngine->VertexColorMaterial;
@@ -499,6 +495,7 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 	Shutdown();
 
 	OnToolNotificationMessage.Clear();
+	OnToolWarningMessage.Clear();
 
 	if (QueriesAPI != nullptr)
 	{
@@ -517,8 +514,6 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 		delete AssetAPI;
 		AssetAPI = nullptr;
 	}
-
-	this->EditorMode = nullptr;
 }
 
 
@@ -539,7 +534,6 @@ void UEdModeInteractiveToolsContext::PostInvalidation()
 {
 	InvalidationTimestamp++;
 }
-
 
 FEditorViewportClient* UEdModeInteractiveToolsContext::GetActiveViewportClient()
 {
@@ -1004,7 +998,6 @@ bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* In
 	return false;
 }
 
-
 bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 #ifdef ENABLE_DEBUG_PRINTING
@@ -1016,11 +1009,6 @@ bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewpo
 
 	return true;
 }
-
-
-
-
-
 
 FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY)
 {
@@ -1046,14 +1034,10 @@ FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* V
 	return FRay(RayOrigin, RayDirection, true);
 }
 
-
-
 FRay UEdModeInteractiveToolsContext::GetLastWorldRay() const
 {
 	return CurrentMouseState.Mouse.WorldRay;
 }
-
-
 
 bool UEdModeInteractiveToolsContext::CanStartTool(const FString& ToolTypeIdentifier) const
 {
