@@ -1319,6 +1319,16 @@ bool FVulkanCommandListContext::FPendingTransition::GatherBarriers(FTransitionAn
 		}
 		else if (UAV->SourceTexture)
 		{
+			auto UpdateAccessFromLayout = [](VkAccessFlags Flags, VkImageLayout Layout) -> VkAccessFlags
+			{
+				switch(Layout)
+				{
+				case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+					return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT|VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+				default:
+					return Flags;
+				}
+			};
 			VkImageMemoryBarrier& Barrier = OutImageBarriers[OutImageBarriers.AddUninitialized()];
 			FVulkanTextureBase* VulkanTexture = FVulkanTextureBase::Cast(UAV->SourceTexture);
 			VkImageLayout DestLayout = (TransitionPipeline == EResourceTransitionPipeline::EComputeToGfx || TransitionPipeline == EResourceTransitionPipeline::EGfxToGfx)
@@ -1326,6 +1336,10 @@ bool FVulkanCommandListContext::FPendingTransition::GatherBarriers(FTransitionAn
 				: VK_IMAGE_LAYOUT_GENERAL;
 
 			VkImageLayout& Layout = InTransitionAndLayoutManager.FindOrAddLayoutRW(VulkanTexture->Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
+			SrcAccess = UpdateAccessFromLayout(SrcAccess, Layout);
+			DestAccess = UpdateAccessFromLayout(DestAccess, Layout);
+
+
 			VulkanRHI::SetupAndZeroImageBarrierOLD(Barrier, VulkanTexture->Surface, SrcAccess, Layout, DestAccess, DestLayout);
 			Layout = DestLayout;
 			bEmpty = false;
