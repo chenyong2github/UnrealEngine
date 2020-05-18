@@ -6,11 +6,17 @@
 #include "Application/SlateWindowHelper.h"
 
 
+SComplexGradient::SComplexGradient()
+{
+	SetCanTick(false);
+}
+
 /* SComplexGradient interface
  *****************************************************************************/
 
 void SComplexGradient::Construct( const FArguments& InArgs )
 {
+	DesiredSizeOverride = InArgs._DesiredSizeOverride;
 	GradientColors = InArgs._GradientColors;
 	bHasAlphaBackground = InArgs._HasAlphaBackground.Get();
 	Orientation = InArgs._Orientation.Get();
@@ -60,4 +66,15 @@ int32 SComplexGradient::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 	}
 
 	return LayerId + 1;
+}
+
+FVector2D SComplexGradient::ComputeDesiredSize(float LayoutScaleMultiplier) const
+{
+	const TOptional<FVector2D>& CurrentSizeOverride = DesiredSizeOverride.Get();
+	if (CurrentSizeOverride.IsSet())
+	{
+		return CurrentSizeOverride.GetValue();
+	}
+	
+	return SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
 }
