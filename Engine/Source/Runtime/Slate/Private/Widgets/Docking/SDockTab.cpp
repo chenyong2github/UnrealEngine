@@ -731,7 +731,7 @@ const FSlateBrush* SDockTab::GetColorOverlayImageBrush() const
 
 EVisibility SDockTab::GetActiveTabIndicatorVisibility() const
 {
-	return IsActive() ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
+	return IsActive() && GetVisualTabRole() != ETabRole::MajorTab ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
 }
 
 FSlateColor SDockTab::GetTabColor() const
