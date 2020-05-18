@@ -16,6 +16,7 @@ class FSceneView;
 class FViewport;
 class UMaterialInterface;
 class FPrimitiveDrawInterface;
+class FViewportClient;
 
 /**
  * EdModeInteractiveToolsContext is an extension/adapter of an InteractiveToolsContext which 
