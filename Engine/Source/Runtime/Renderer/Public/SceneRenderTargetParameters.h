@@ -110,8 +110,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDE
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, SceneDepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthTextureSampler)
-	SHADER_PARAMETER_TEXTURE(Texture2D, SceneAlphaCopyTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, SceneAlphaCopyTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, CustomDepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, CustomDepthTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, MobileCustomStencilTexture)
