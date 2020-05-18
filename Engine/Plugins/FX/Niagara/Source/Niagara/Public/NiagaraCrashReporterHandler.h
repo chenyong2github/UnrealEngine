@@ -8,6 +8,7 @@
 
 class FNiagaraSystemInstance;
 class FNiagaraSystemSimulation;
+class UNiagaraSystem;
 
 /** Manages Niagara's integration with the Crash Reporter. Allows Niagara code to add information to a crash report which can help track down rare bugs. */
 class FNiagaraCrashReporterHandler : public TThreadSingleton<FNiagaraCrashReporterHandler>
@@ -43,6 +44,8 @@ public:
 	void PushInfo(FNiagaraSystemInstance* Inst);
 	/** Push info on a system simulation to the info stack and set as Niagara's current CR info for this thread. */
 	void PushInfo(FNiagaraSystemSimulation* SystemSim);
+	/** Push info on a Niagara System to the info stack and set as Niagara's current CR info for this thread. */
+	void PushInfo(UNiagaraSystem* System);
 	/** Pop the current info from the stack and set the previous info as Niagara's current CR info for this thread. */
 	void PopInfo();
 
@@ -58,5 +61,6 @@ private:
 public:
 	FNiagaraCrashReporterScope(FNiagaraSystemInstance* Inst);
 	FNiagaraCrashReporterScope(FNiagaraSystemSimulation* Sim);
+	FNiagaraCrashReporterScope(UNiagaraSystem* System);
 	~FNiagaraCrashReporterScope();
 };

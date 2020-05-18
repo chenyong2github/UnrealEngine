@@ -885,19 +885,19 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		UnregisterWithScalabilityManager();
 	}
 
-	if (!bIsScalabilityCull && bIsCulledByScalability)
+	if (!bIsScalabilityCull && bIsCulledByScalability && ScalabilityManagerHandle != INDEX_NONE)
 	{
-		check(ScalabilityManagerHandle != INDEX_NONE);
 		//If this is a non scalability activate call and we're still registered with the manager.
 		//If we reach this point then we must have been previously culled by scalability so bail here.
 		return;
 	}
 
-	bIsCulledByScalability = false;
+	bIsCulledByScalability = false; 
 	if (ShouldPreCull())
 	{
 		//We have decided to pre cull the system.
 		bIsCulledByScalability = true;
+		OnSystemComplete();
 		return;
 	}
 
@@ -1249,13 +1249,17 @@ void UNiagaraComponent::OnUnregister()
 
 		SystemInstance->Deactivate(true);
 
-		// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
-		// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
-		FNiagaraSystemInstance::DeallocateSystemInstance(SystemInstance); // System Instance will be nullptr after this.
-		check(SystemInstance.Get() == nullptr);
-#if WITH_EDITORONLY_DATA
-		OnSystemInstanceChangedDelegate.Broadcast();
-#endif
+		//TODO: Don't destroy the instance for pooled systems. This is removing half or more of the gains of pooling in the first place.
+		//if (PoolingMethod == ENCPoolMethod::None)
+		{
+			// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
+			// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
+			FNiagaraSystemInstance::DeallocateSystemInstance(SystemInstance); // System Instance will be nullptr after this.
+			check(SystemInstance.Get() == nullptr);
+	#if WITH_EDITORONLY_DATA
+			OnSystemInstanceChangedDelegate.Broadcast();
+	#endif
+		}
 	}
 }
 

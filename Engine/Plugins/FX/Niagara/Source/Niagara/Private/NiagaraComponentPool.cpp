@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "NiagaraComponent.h"
 #include "NiagaraWorldManager.h"
+#include "NiagaraCrashReporterHandler.h"
 
 static float GNiagaraSystemPoolKillUnusedTime = 180.0f;
 static FAutoConsoleVariableRef NiagaraSystemPoolKillUnusedTime(
@@ -13,7 +14,7 @@ static FAutoConsoleVariableRef NiagaraSystemPoolKillUnusedTime(
 	TEXT("How long a pooled particle component needs to be unused for before it is destroyed.")
 );
 
-static int32 GbEnableNiagaraSystemPooling = 0;
+static int32 GbEnableNiagaraSystemPooling = 1;
 static FAutoConsoleVariableRef bEnableNiagaraSystemPooling(
 	TEXT("FX.NiagaraComponentPool.Enable"),
 	GbEnableNiagaraSystemPooling,
@@ -278,6 +279,7 @@ void UNiagaraComponentPool::Cleanup()
 {
 	for (TPair<UNiagaraSystem*, FNCPool>& Pool : WorldParticleSystemPools)
 	{
+		FNiagaraCrashReporterScope CRScope(Pool.Key);//In practice this may be null by now :(
 		Pool.Value.Cleanup();
 	}
 
@@ -299,6 +301,8 @@ UNiagaraComponent* UNiagaraComponentPool::CreateWorldParticleSystem(UNiagaraSyst
 		UE_LOG(LogNiagara, Warning, TEXT("Failed to create pooled particle system as we are tearing the world down."));
 		return nullptr;
 	}
+
+	FNiagaraCrashReporterScope CRScope(Template);
 
 	UNiagaraComponent* Component = nullptr;
 	if (GbEnableNiagaraSystemPooling != 0)
@@ -336,6 +340,8 @@ UNiagaraComponent* UNiagaraComponentPool::CreateWorldParticleSystem(UNiagaraSyst
 void UNiagaraComponentPool::ReclaimWorldParticleSystem(UNiagaraComponent* Component)
 {
 	check(IsInGameThread());
+
+	FNiagaraCrashReporterScope CRScope(Component ? Component->GetAsset() : nullptr);
 	
 	//If this component has been already destroyed we don't add it back to the pool. Just warn so users can fix it.
 	if (Component->IsPendingKill())

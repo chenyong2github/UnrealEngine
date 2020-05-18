@@ -1639,6 +1639,15 @@ void UNiagaraSystem::OnQualityLevelChanged()
 	UpdateCtx.Add(this, true);
 }
 
+const FString& UNiagaraSystem::GetCrashReporterTag()const
+{
+	if (CrashReporterTag.IsEmpty())
+	{
+		CrashReporterTag = FString::Printf(TEXT("| System: %s |"), *GetFullName());
+	}
+	return CrashReporterTag;
+}
+
 FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 {
 	EmitterSpawnIntervalVar = SYS_PARAM_EMITTER_SPAWN_INTERVAL;
