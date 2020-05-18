@@ -242,7 +242,7 @@ private:
 		FVector& SpaceAngularAcc);
 
 	// Gather nearby world objects and add them to the sim
-	void CollectWorldObjects(const UWorld* World, const USkeletalMeshComponent* SKC);
+	void CollectWorldObjects();
 
 	// Flag invalid world objects to be removed from the sim
 	void ExpireWorldObjects();
@@ -344,9 +344,14 @@ private:
 	// Evaluation counter, to detect when we haven't be evaluated in a while.
 	FGraphTraversalCounter EvalCounter;
 
+	// Used by CollectWorldObjects and UpdateWorldGeometry in Task Thread
 	// Typically, World should never be accessed off the Game Thread.
 	// However, since we're just doing overlaps this should be OK.
 	const UWorld* UnsafeWorld;
+
+	// Used by CollectWorldObjects and UpdateWorldGeometry in Task Thread
+	// Only used for a pointer comparison.
+	const AActor* UnsafeOwner;
 
 	FBoneContainer CapturedBoneVelocityBoneContainer;
 	FCSPose<FCompactHeapPose> CapturedBoneVelocityPose;
