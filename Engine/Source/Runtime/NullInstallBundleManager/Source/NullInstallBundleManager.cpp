@@ -49,6 +49,21 @@ class FNullInstallBundleManager : public IInstallBundleManager
 	{
 	}
 
+	virtual void GetInstallState(TArrayView<const FName> BundleNames, bool bAddDependencies, FInstallBundleGetInstallStateDelegate Callback, FName RequestTag = NAME_None) override
+	{
+		FInstallBundleCombinedInstallState State;
+		Callback.ExecuteIfBound(State);
+	}
+
+	virtual TOptional<FInstallBundleCombinedInstallState> GetInstallStateSynchronous(TArrayView<const FName> BundleNames, bool bAddDependencies) const override
+	{
+		return TOptional<FInstallBundleCombinedInstallState>();
+	}
+
+	virtual void CancelAllGetInstallStateRequestsForTag(FName RequestTag) override
+	{
+	}
+
 	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) override
 	{
 	}

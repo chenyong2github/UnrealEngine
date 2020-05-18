@@ -101,7 +101,7 @@ void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(const 
 		if (ensureAlwaysMsgf(BundleState, TEXT("Trying to track unknown bundle %s"), *Bundle.ToString()))
 		{
 			//Track if we need any kind of bundle updates
-			if (BundleState->State == EInstallBundleContentState::NotInstalled || BundleState->State == EInstallBundleContentState::NeedsUpdate)
+			if (BundleState->State == EInstallBundleInstallState::NotInstalled || BundleState->State == EInstallBundleInstallState::NeedsUpdate)
 			{
 				bBundleNeedsUpdate = true;
 			}
