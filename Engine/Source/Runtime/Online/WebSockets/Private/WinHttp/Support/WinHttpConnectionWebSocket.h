@@ -27,12 +27,10 @@ public:
 		const TMap<FString, FString>& UpgradeHeaders);
 
 	virtual ~FWinHttpConnectionWebSocket() = default;
-
-	// Class is move-only
 	FWinHttpConnectionWebSocket(const FWinHttpConnectionWebSocket& Other) = delete;
-	FWinHttpConnectionWebSocket(FWinHttpConnectionWebSocket&& Other) = default;
+	FWinHttpConnectionWebSocket(FWinHttpConnectionWebSocket&& Other) = delete;
 	FWinHttpConnectionWebSocket& operator=(const FWinHttpConnectionWebSocket& Other) = delete;
-	FWinHttpConnectionWebSocket& operator=(FWinHttpConnectionWebSocket&& Other) = default;
+	FWinHttpConnectionWebSocket& operator=(FWinHttpConnectionWebSocket&& Other) = delete;
 
 	//~ Begin FWinHttpConnectionHttp Public Interface
 	virtual bool IsValid() const override;
