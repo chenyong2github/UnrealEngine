@@ -2544,7 +2544,7 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	else if (bForceSync)
 	{
 		FirstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(this, 1, true);
-		ensureAlwaysMsgf(FirstChunk.IsValid(), TEXT("First chunk was invalid after synchronous load in RetainCompressedAudio()!"));
+		UE_CLOG(!FirstChunk.IsValid(), LogAudio, Display, TEXT("First chunk was invalid after synchronous load in RetainCompressedAudio(). This was likely because the cache was blown. Sound: %s"), *GetFullName());
 	}
 	else
 	{
