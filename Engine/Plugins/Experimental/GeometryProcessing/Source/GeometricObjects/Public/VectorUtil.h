@@ -22,6 +22,7 @@ enum class EIntersectionType
 	Line,
 	Polygon,
 	Plane,
+	MultiSegment,
 	Unknown
 };
 
