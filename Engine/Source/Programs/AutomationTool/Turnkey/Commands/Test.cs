@@ -15,6 +15,7 @@ namespace Turnkey.Commands
 			TurnkeyUtils.Log("Testing:");
 			TurnkeyUtils.Log("");
 
+
 			string[] TestEnumerates =
 			{
 				@"googledrive:/SdkInstalls/*/DummyInstall.zip",
