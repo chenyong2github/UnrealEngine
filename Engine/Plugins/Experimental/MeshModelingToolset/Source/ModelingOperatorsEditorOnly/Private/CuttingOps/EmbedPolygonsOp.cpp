@@ -10,6 +10,8 @@
 
 #include "Engine/StaticMesh.h"
 
+#include "Algo/RemoveIf.h"
+
 #include "MeshDescriptionToDynamicMesh.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
@@ -238,7 +240,8 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 
 		TArray<int> PathVertIDs2, PathVertCorrespond2;
 		bool bCutSide2 = CutHole(*ResultMesh, Frame, SortedHitTriangles[SecondHit].Value, Polygon, bDeleteInside, PathVertIDs2, PathVertCorrespond2, bCollapseDegenerateEdges);
-		RecordEmbeddedEdges(PathVertIDs1);
+		EmbeddedEdges.SetNum(Algo::RemoveIf(EmbeddedEdges, [this](int EID) {return !ResultMesh->IsEdge(EID);})); // remove any now-deleted recorded edges from the first hole
+		RecordEmbeddedEdges(PathVertIDs2); // record the edges of the second hole
 		if (!bCutSide2 || PathVertIDs2.Num() < 2)
 		{
 			return;
@@ -298,10 +301,10 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 
 void FEmbedPolygonsOp::RecordEmbeddedEdges(TArray<int>& PathVertIDs)
 {
-	for (int Idx = 0; Idx + 1 < PathVertIDs.Num(); Idx++)
+	for (int LastIdx = PathVertIDs.Num() - 1, Idx = 0; Idx < PathVertIDs.Num(); LastIdx = Idx++)
 	{
-		int EID = ResultMesh->FindEdge(PathVertIDs[Idx], PathVertIDs[Idx + 1]);
-		if (ensure(ResultMesh->IsEdge(EID)))
+		int EID = ResultMesh->FindEdge(PathVertIDs[LastIdx], PathVertIDs[Idx]);
+		if (ResultMesh->IsEdge(EID))
 		{
 			EmbeddedEdges.Add(EID);
 		}

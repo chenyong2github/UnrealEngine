@@ -1621,13 +1621,17 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 		FIndex3i Tri = SourceMesh->GetTriangle(SourceTriangleID);
 
 		// FindOrCreateDuplicateGroup
-		int SourceGroupID = SourceMesh->GetTriangleGroup(SourceTriangleID);
-		int NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
-		if (NewGroupID == IndexMaps.InvalidID())
+		int NewGroupID = FDynamicMesh3::InvalidID;
+		if (SourceMesh->HasTriangleGroups())
 		{
-			NewGroupID = Mesh->AllocateTriangleGroup();
-			IndexMaps.SetGroup(SourceGroupID, NewGroupID);
-			ResultOut.NewGroups.Add(NewGroupID);
+			int SourceGroupID = SourceMesh->GetTriangleGroup(SourceTriangleID);
+			NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
+			if (NewGroupID == IndexMaps.InvalidID())
+			{
+				NewGroupID = Mesh->AllocateTriangleGroup();
+				IndexMaps.SetGroup(SourceGroupID, NewGroupID);
+				ResultOut.NewGroups.Add(NewGroupID);
+			}
 		}
 
 		// FindOrCreateDuplicateVertex
@@ -1722,8 +1726,9 @@ bool FDynamicMeshEditor::SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDyna
 		FIndex3i Tri = SourceMesh->GetTriangle(SourceTID);
 
 		// FindOrCreateDuplicateGroup
-		int SourceGID = SourceMesh->GetTriangleGroup(SourceTID);
-		int NewGID = IndexMaps.GetNewGroup(SourceGID);
+		// TODO: despite the FindOrCreateDuplicateGroup comment, this code does not create?  check about intent!
+		int NewGID = SourceMesh->HasTriangleGroups() ?
+			IndexMaps.GetNewGroup(SourceMesh->GetTriangleGroup(SourceTID)) : FDynamicMesh3::InvalidID;
 
 		FIndex3i NewTri;
 		for (int j = 0; j < 3; ++j)

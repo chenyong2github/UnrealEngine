@@ -46,7 +46,10 @@ struct DYNAMICMESH_API FMeshSurfacePoint
 /**
  * Walk the surface of an FDynamicMesh to try find a planar path connecting two points.  Paths include every vertex and edge they need to cross.  Greedy algorithm will only return one path if there are multiple.
  */
-bool DYNAMICMESH_API WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, int EndVertID, FVector3d StartPt, int EndTri, FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn, bool bAllowBackwardsSearch, double AcceptEndPtOutsideDist, double PtOnPlaneThreshold, TArray<TPair<FMeshSurfacePoint, int>>& WalkedPath);
+bool DYNAMICMESH_API WalkMeshPlanar(
+	const FDynamicMesh3* Mesh, int StartTri, int EndVertID, FVector3d StartPt, int EndTri, FVector3d EndPt, FVector3d WalkPlaneNormal, 
+	TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn, bool bAllowBackwardsSearch, double AcceptEndPtOutsideDist,
+	double PtOnPlaneThreshold, TArray<TPair<FMeshSurfacePoint, int>>& WalkedPath, double BackwardsTolerance = FMathd::ZeroTolerance * 10);
 
 
 /**
@@ -88,7 +91,10 @@ public:
 		bIsClosed = false;
 	}
 
-	bool AddViaPlanarWalk(int StartTri, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn = nullptr, bool bAllowBackwardsSearch = true, double AcceptEndPtOutsideDist = FMathd::ZeroTolerance, double PtOnPlaneThresholdSq = FMathf::ZeroTolerance*100);
+	bool AddViaPlanarWalk(int StartTri, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt,
+		FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn = nullptr,
+		bool bAllowBackwardsSearch = true, double AcceptEndPtOutsideDist = FMathd::ZeroTolerance, 
+		double PtOnPlaneThresholdSq = FMathf::ZeroTolerance*100, double BackwardsTolerance = FMathd::ZeroTolerance*10);
 	// TODO: Also support geodesic walks, other alternatives?
 
 	/**

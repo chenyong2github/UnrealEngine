@@ -142,6 +142,7 @@ void USelfUnionMeshesTool::ConfigurePreviewMaterials()
 
 	CombinedSourceMeshes = MakeShared<FDynamicMesh3>();
 	CombinedSourceMeshes->EnableAttributes();
+	CombinedSourceMeshes->EnableTriangleGroups(0);
 	CombinedSourceMeshes->Attributes()->EnableMaterialID();
 	FDynamicMeshEditor AppendEditor(CombinedSourceMeshes.Get());
 

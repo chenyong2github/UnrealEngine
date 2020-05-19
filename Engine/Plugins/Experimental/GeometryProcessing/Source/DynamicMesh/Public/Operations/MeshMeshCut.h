@@ -25,7 +25,7 @@ public:
 	FDynamicMesh3* Mesh;
 
 	/** Tolerance distance for considering a point to be on a vertex, edge or plane */
-	double SnapTolerance = FMathf::ZeroTolerance * 10.0;
+	double SnapTolerance = FMathf::ZeroTolerance * 100.0;
 
 	/** If true, detect coplanar faces and re-triangulate so that the triangulations match 1:1 (TODO: not implemented!) */
 	bool bCutCoplanar = false;
@@ -89,7 +89,7 @@ public:
 	FDynamicMesh3* Mesh[2];
 
 	/** Tolerance distance for considering a point to be on a vertex, edge or plane */
-	double SnapTolerance = FMathf::ZeroTolerance * 10.0;
+	double SnapTolerance = FMathf::ZeroTolerance * 100.0;
 
 	/** If true, modify both meshes to split at crossing points; otherwise only modify MeshA */
 	bool bMutuallyCut = true;
