@@ -44,6 +44,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
 	class UGroomBindingAsset* BindingAsset;
 
+	/** Physics asset to be used for hair simulation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	class UPhysicsAsset* PhysicsAsset;
+
 	UPROPERTY()
 	UMaterialInterface* HairDebugMaterial;
 
