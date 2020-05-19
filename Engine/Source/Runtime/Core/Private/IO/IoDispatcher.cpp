@@ -411,7 +411,7 @@ private:
 
 	void ProcessCompletedBlocks()
 	{
-		FileIoStore.ProcessCompletedBlocks();
+		FileIoStore.ProcessCompletedBlocks(bIsMultithreaded);
 		ProcessCompletedRequests();
 	}
 
