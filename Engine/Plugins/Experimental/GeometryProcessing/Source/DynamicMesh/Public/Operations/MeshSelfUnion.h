@@ -44,6 +44,9 @@ public:
 	/** Threshold to determine whether triangle in one mesh is inside or outside of the other */
 	double WindingThreshold = .5;
 
+	/** Whether to remove visible "open" geometry */
+	bool bTrimOuterFlaps = false;
+
 
 	/** Set this to be able to cancel running operation */
 	FProgressCancel* Progress = nullptr;

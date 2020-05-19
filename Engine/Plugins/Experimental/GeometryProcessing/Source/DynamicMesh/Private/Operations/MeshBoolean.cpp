@@ -363,9 +363,10 @@ bool FMeshBoolean::Compute()
 					{
 						return;
 					}
+					
 					FVector3d Centroid = ProcessMesh.GetTriCentroid(TID);
-					double WindingNum = Winding.FastWindingNumber(Centroid) > WindingThreshold;
-					if (WindingNum > -.0001 && WindingNum < 1.0001) // TODO tune these / don't hardcode?
+
+					// first check for the coplanar case
 					{
 						double DSq;
 						double OnPlaneTolerance = SnapTolerance;
@@ -408,6 +409,8 @@ bool FMeshBoolean::Compute()
 						}
 					}
 
+					// didn't already return a coplanar result; use the winding number
+					double WindingNum = Winding.FastWindingNumber(Centroid);
 					KeepTri[MeshIdx][TID] = (WindingNum > WindingThreshold) != bRemoveInside;
 				});
 			for (int EID : ProcessMesh.EdgeIndicesItr())
