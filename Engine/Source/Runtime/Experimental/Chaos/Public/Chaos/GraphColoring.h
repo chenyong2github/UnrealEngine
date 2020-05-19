@@ -39,8 +39,19 @@ class FGraphColoring
 		int32 Color;
 	};
 
+	struct FGraph3dEdge : FGraphEdge
+	{
+		FGraph3dEdge()
+			: ThirdNode(INDEX_NONE)
+		{
+		}
+
+		int32 ThirdNode;
+	};
+
   public:
 	CHAOS_API static TArray<TArray<int32>> ComputeGraphColoring(const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles);
+	CHAOS_API static TArray<TArray<int32>> ComputeGraphColoring(const TArray<TVector<int32, 3>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles);
 };
 
 }
