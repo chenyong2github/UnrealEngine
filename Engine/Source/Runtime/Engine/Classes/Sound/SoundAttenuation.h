@@ -6,7 +6,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "SoundAttenuation.generated.h"
 
-class USoundSubmix;
+class USoundSubmixBase;
 
 // This enumeration is deprecated
 UENUM()
@@ -106,7 +106,7 @@ struct ENGINE_API FAttenuationSubmixSendSettings
 
 	/** Submix to send audio to based on distance. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSubmixSend)
-	USoundSubmix* Submix = nullptr;
+	USoundSubmixBase* Submix = nullptr;
 
 	/** What method to use to use for submix sends. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend)

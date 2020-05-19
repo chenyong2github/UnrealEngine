@@ -2,6 +2,8 @@
 
 #include "IAudioEndpoint.h"
 
+DEFINE_LOG_CATEGORY(LogAudioEndpoints);
+
 Audio::FPatchInput IAudioEndpoint::PatchNewInput(float ExpectedDurationPerRender, float& OutSampleRate, int32& OutNumChannels)
 {
 	OutSampleRate = GetSampleRate();
