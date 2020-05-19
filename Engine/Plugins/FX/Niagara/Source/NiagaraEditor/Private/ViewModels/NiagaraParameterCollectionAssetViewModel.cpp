@@ -273,7 +273,7 @@ void FNiagaraParameterCollectionAssetViewModel::RefreshParameterViewModels()
 
 bool FNiagaraParameterCollectionAssetViewModel::SupportsType(const FNiagaraTypeDefinition& Type) const
 {
-	return Type != FNiagaraTypeDefinition::GetGenericNumericDef();
+	return Type != FNiagaraTypeDefinition::GetGenericNumericDef() && !Type.IsInternalType();
 }
 
 void FNiagaraParameterCollectionAssetViewModel::OnParameterNameChanged(FName OldName, FName NewName, FNiagaraVariable ParameterVariable)
