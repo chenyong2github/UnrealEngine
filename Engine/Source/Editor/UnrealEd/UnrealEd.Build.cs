@@ -334,11 +334,30 @@ public class UnrealEd : ModuleRules
 		if (Target.bCompileRecast)
 		{
 			PrivateDependencyModuleNames.Add("Navmesh");
-			PublicDefinitions.Add( "WITH_RECAST=1" );
+			PublicDefinitions.Add("WITH_RECAST=1");
+			if (Target.bCompileNavmeshSegmentLinks)
+			{
+				PublicDefinitions.Add("WITH_NAVMESH_SEGMENT_LINKS=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_NAVMESH_SEGMENT_LINKS=0");
+			}
+
+			if (Target.bCompileNavmeshClusterLinks)
+			{
+				PublicDefinitions.Add("WITH_NAVMESH_CLUSTER_LINKS=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_NAVMESH_CLUSTER_LINKS=0");
+			}
 		}
 		else
 		{
-			PublicDefinitions.Add( "WITH_RECAST=0" );
+			PublicDefinitions.Add("WITH_RECAST=0");
+			PublicDefinitions.Add("WITH_NAVMESH_CLUSTER_LINKS=0");
+			PublicDefinitions.Add("WITH_NAVMESH_SEGMENT_LINKS=0");
 		}
 
 		if (Target.bWithLiveCoding)
