@@ -128,6 +128,9 @@ public:
 	FMotoSynthEngine();
 	~FMotoSynthEngine();
 
+	// Queries if the engine is enabled at all. Checks a cvar.
+	static bool IsMotoSynthEngineEnabled();
+
 	void Init(int32 InSampleRate);
 	void Reset();
 
