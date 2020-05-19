@@ -9,6 +9,7 @@
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
+#include "GroomComponent.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "ShaderParameterUtils.h"
@@ -611,11 +612,31 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 						break;
 					}
 				}
-
 			}
 		}
 	}
-	PhysicsAsset = (SourceComponent != nullptr) ? SourceComponent->GetPhysicsAsset() : (DefaultSource != nullptr) ? DefaultSource : nullptr;
+	UPhysicsAsset* GroomPhysicsAsset = nullptr;
+	if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
+	{
+		TArray<USceneComponent*> SceneComponents;
+		SimComp->GetParentComponents(SceneComponents);
+
+		for (USceneComponent* ActorComp : SceneComponents)
+		{
+			UGroomComponent* SourceComp = Cast<UGroomComponent>(ActorComp);
+			if (SourceComp && SourceComp->PhysicsAsset)
+			{
+				GroomPhysicsAsset = SourceComp->PhysicsAsset;
+				break;
+			}
+		}
+	}
+	const bool IsAssetMatching = (SourceComponent != nullptr) && (GroomPhysicsAsset != nullptr) &&
+		(GroomPhysicsAsset->GetPreviewMesh() == SourceComponent->SkeletalMesh);
+
+	PhysicsAsset = (SourceComponent != nullptr) ? ( IsAssetMatching ? GroomPhysicsAsset : SourceComponent->GetPhysicsAsset() ) :
+												  ( (GroomPhysicsAsset != nullptr) ? GroomPhysicsAsset : 
+													( (DefaultSource != nullptr) ? DefaultSource : nullptr) );
 }
 
 bool UNiagaraDataInterfacePhysicsAsset::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
