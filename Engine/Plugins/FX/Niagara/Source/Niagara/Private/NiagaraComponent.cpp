@@ -1734,6 +1734,91 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 	return Values;
 }
 
+void FixInvalidUserParameters(FNiagaraUserRedirectionParameterStore& ParameterStore)
+{
+	static const FString UserPrefix = FNiagaraConstants::UserNamespace.ToString() + TEXT(".");
+
+	TArray<FNiagaraVariable> Parameters;
+	ParameterStore.GetParameters(Parameters);
+	TArray<FNiagaraVariable> IncorrectlyNamedParameters;
+	for (FNiagaraVariable& Parameter : Parameters)
+	{
+		if (Parameter.GetName().ToString().StartsWith(UserPrefix) == false)
+		{
+			IncorrectlyNamedParameters.Add(Parameter);
+		}
+	}
+
+	bool bParameterRenamed = false;
+	for(FNiagaraVariable& IncorrectlyNamedParameter : IncorrectlyNamedParameters)
+	{
+		FString FixedNameString = UserPrefix + IncorrectlyNamedParameter.GetName().ToString();
+		FName FixedName = *FixedNameString;
+		FNiagaraVariable FixedParameter(IncorrectlyNamedParameter.GetType(), FixedName);
+		if (Parameters.Contains(FixedParameter))
+		{
+			// If the correctly named parameter is also in the collection then both parameters need to be removed and the 
+			// correct one re-added.  First we need to cache the value of the parameter so that it's not lost on removal.
+			UNiagaraDataInterface* DataInterfaceValue = nullptr;
+			UObject* ObjectValue = nullptr;
+			TArray<uint8> DataValue;
+			int32 ValueIndex = ParameterStore.IndexOf(IncorrectlyNamedParameter);
+			if (IncorrectlyNamedParameter.IsDataInterface())
+			{
+				DataInterfaceValue = ParameterStore.GetDataInterface(IncorrectlyNamedParameter);
+			}
+			else if (IncorrectlyNamedParameter.IsUObject())
+			{
+				ObjectValue = ParameterStore.GetUObject(IncorrectlyNamedParameter);
+			}
+			else
+			{
+				const uint8* DataValuePtr = ParameterStore.GetParameterData(IncorrectlyNamedParameter);
+				if (DataValuePtr != nullptr)
+				{
+					DataValue.AddUninitialized(IncorrectlyNamedParameter.GetSizeInBytes());
+					FMemory::Memcpy(DataValue.GetData(), DataValuePtr, IncorrectlyNamedParameter.GetSizeInBytes());
+				}
+			}
+
+			// Next we remove the parameter twice because the first removal of the incorrect parameter will actually remove
+			// the correct version due to the user redirection table.
+			ParameterStore.RemoveParameter(IncorrectlyNamedParameter);
+			ParameterStore.RemoveParameter(IncorrectlyNamedParameter);
+
+			// Last we add back the fixed parameter and set the value.
+			ParameterStore.AddParameter(FixedParameter, false);
+			if (DataInterfaceValue != nullptr)
+			{
+				ParameterStore.SetDataInterface(DataInterfaceValue, FixedParameter);
+			}
+			else if (ObjectValue != nullptr)
+			{
+				ParameterStore.SetUObject(ObjectValue, FixedParameter);
+			}
+			else
+			{
+				if (DataValue.Num() == FixedParameter.GetSizeInBytes())
+				{
+					ParameterStore.SetParameterData(DataValue.GetData(), FixedParameter);
+				}
+			}
+		}
+		else 
+		{
+			// If the correctly named parameter was not in the collection already we can just rename the incorrect parameter
+			// to the correct one.
+			ParameterStore.RenameParameter(IncorrectlyNamedParameter, FixedName);
+			bParameterRenamed = true;
+		}
+	}
+
+	if (bParameterRenamed)
+	{
+		ParameterStore.RecreateRedirections();
+	}
+}
+
 void UNiagaraComponent::PostLoad()
 {
 	Super::PostLoad();
@@ -1744,6 +1829,8 @@ void UNiagaraComponent::PostLoad()
 	if (Asset != nullptr)
 	{
 		Asset->ConditionalPostLoad();
+
+		FixInvalidUserParameters(OverrideParameters);
 		
 		UpgradeDeprecatedParameterOverrides();
 		SynchronizeWithSourceSystem();
