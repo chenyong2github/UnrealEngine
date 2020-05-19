@@ -61,6 +61,7 @@ namespace LiveLinkEditorModuleUtils
 }
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( LiveLinkEditorModuleUtils::InPluginContent( RelativePath, ".png" ), __VA_ARGS__ )
+#define IMAGE_PLUGIN_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush( LiveLinkEditorModuleUtils::InPluginContent( RelativePath, ".svg" ), __VA_ARGS__ )
 
 
 class FLiveLinkEditorModule : public IModuleInterface
@@ -94,15 +95,15 @@ public:
 		StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 		StyleSet->Set("LiveLinkClient.Common.Icon", new IMAGE_PLUGIN_BRUSH(TEXT("LiveLink_40x"), Icon40x40));
-		StyleSet->Set("LiveLinkClient.Common.Icon.Small", new IMAGE_PLUGIN_BRUSH(TEXT("LiveLink_16x"), Icon16x16));
+		StyleSet->Set("LiveLinkClient.Common.Icon.Small", new IMAGE_PLUGIN_BRUSH_SVG("Starship/LiveLink", Icon16x16));
 
-		StyleSet->Set("ClassIcon.LiveLinkPreset", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
-		StyleSet->Set("ClassIcon.LiveLinkFrameInterpolationProcessor", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
-		StyleSet->Set("ClassIcon.LiveLinkFramePreProcessor", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
-		StyleSet->Set("ClassIcon.LiveLinkFrameTranslator", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
-		StyleSet->Set("ClassIcon.LiveLinkPreset", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
-		StyleSet->Set("ClassIcon.LiveLinkRole", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
-		StyleSet->Set("ClassIcon.LiveLinkVirtualSubject", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkPreset",                      new IMAGE_PLUGIN_BRUSH_SVG("Starship/LiveLink", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkFrameInterpolationProcessor", new IMAGE_PLUGIN_BRUSH_SVG("Starship/LiveLink", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkFramePreProcessor",           new IMAGE_PLUGIN_BRUSH_SVG("Starship/LiveLink", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkFrameTranslator",             new IMAGE_PLUGIN_BRUSH_SVG("Starship/LiveLink", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkPreset",                      new IMAGE_PLUGIN_BRUSH_SVG("Starship/LiveLink", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkRole",                        new IMAGE_PLUGIN_BRUSH_SVG("Starship/LiveLink", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkVirtualSubject",              new IMAGE_PLUGIN_BRUSH_SVG("Starship/LiveLink", Icon16x16));
 
 		StyleSet->Set("ClassThumbnail.LiveLinkPreset", new IMAGE_PLUGIN_BRUSH("LiveLink_40x", Icon40x40));
 

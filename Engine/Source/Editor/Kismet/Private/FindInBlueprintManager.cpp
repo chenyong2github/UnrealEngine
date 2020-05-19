@@ -3480,7 +3480,7 @@ void FFindInBlueprintSearchManager::EnableGlobalFindResults(bool bEnable)
 	if (bEnable)
 	{
 		// Register the spawners for all global Find Results tabs
-		const FSlateIcon GlobalFindResultsIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.FindResults");
+		const FSlateIcon GlobalFindResultsIcon(FEditorStyle::GetStyleSetName(), "BlueprintEditor.FindInBlueprints.MenuIcon");
 		GlobalFindResultsMenuItem = WorkspaceMenu::GetMenuStructure().GetToolsCategory()->AddGroup(
 			LOCTEXT("WorkspaceMenu_GlobalFindResultsCategory", "Find in Blueprints"),
 			LOCTEXT("GlobalFindResultsMenuTooltipText", "Find references to functions, events and variables in all Blueprints."),
