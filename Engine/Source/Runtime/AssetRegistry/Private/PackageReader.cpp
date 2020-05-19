@@ -106,6 +106,8 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	Loader->SetLicenseeUE4Ver(PackageFileSummary.GetFileVersionLicenseeUE4());
 	Loader->SetEngineVer(PackageFileSummary.SavedByEngineVersion);
 
+	SetByteSwapping(Loader->ForceByteSwapping());
+
 	const FCustomVersionContainer& PackageFileSummaryVersions = PackageFileSummary.GetCustomVersionContainer();
 	SetCustomVersions(PackageFileSummaryVersions);
 	Loader->SetCustomVersions(PackageFileSummaryVersions);
@@ -115,7 +117,6 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	SetPackageErrorCode(EOpenPackageResult::Success);
 	return true;
 }
-
 bool FPackageReader::ReadAssetRegistryData (TArray<FAssetData*>& AssetDataList)
 {
 	check(Loader);
