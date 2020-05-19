@@ -1914,7 +1914,8 @@ void ARecastNavMesh::OnNavMeshGenerationFinished()
 							Level->NavDataChunks.Add(NavDataChunk);
 						}
 
-						NavDataChunk->GatherTiles(RecastNavMeshImpl, LevelTiles);
+						const EGatherTilesCopyMode CopyMode = RecastNavMeshImpl->NavMeshOwner->SupportsRuntimeGeneration() ? EGatherTilesCopyMode::CopyDataAndCacheData  : EGatherTilesCopyMode::CopyData;
+						NavDataChunk->GetTiles(RecastNavMeshImpl, LevelTiles, CopyMode);
 						NavDataChunk->MarkPackageDirty();
 						continue;
 					}
