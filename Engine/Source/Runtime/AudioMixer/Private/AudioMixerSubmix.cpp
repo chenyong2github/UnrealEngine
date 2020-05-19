@@ -1044,9 +1044,9 @@ namespace Audio
 					{
 						Audio::MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
 					}
-				}
 
-				FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float) * NumSamples);
+					FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float)* NumSamples);
+				}
 			}
 		}
 
