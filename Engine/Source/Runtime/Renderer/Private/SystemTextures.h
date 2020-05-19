@@ -77,8 +77,6 @@ public:
 	/** Linearly Transformed Cosines LUTs */
 	TRefCountPtr<IPooledRenderTarget> LTCMat;
 	TRefCountPtr<IPooledRenderTarget> LTCAmp;
-	/** Texture that holds a single value containing the maximum depth that can be stored as FP16. */
-	TRefCountPtr<IPooledRenderTarget> MaxFP16Depth;
 	/** Depth texture that holds a single depth value */
 	TRefCountPtr<IPooledRenderTarget> DepthDummy;
 	/** Stencil texture that holds a single stencil value. */
@@ -113,7 +111,6 @@ public:
 	FRDGTextureRef GetPreintegratedGF(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetLTCMat(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetLTCAmp(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetMaxFP16Depth(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetDepthDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetStencilDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetGreenDummy(FRDGBuilder& GraphBuilder) const;
