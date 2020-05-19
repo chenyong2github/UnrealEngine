@@ -109,7 +109,7 @@ namespace Chaos
 
 			if(FRewindData* RewindData = MSolver->GetRewindData())
 			{
-				RewindData->AdvanceFrame(MDeltaTime);
+				RewindData->AdvanceFrame(MDeltaTime,[Evolution = MSolver->GetEvolution()](){ return Evolution->CreateExternalResimCache();});
 			}
 
 			{

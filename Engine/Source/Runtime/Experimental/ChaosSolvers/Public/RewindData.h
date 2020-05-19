@@ -6,6 +6,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Containers/CircularBuffer.h"
+#include "Chaos/ResimCacheBase.h"
 
 namespace Chaos
 {
@@ -863,10 +864,19 @@ public:
 		return EFutureQueryResult::Untracked;
 	}
 
-	void AdvanceFrame(FReal DeltaTime)
+	template <typename CreateCache>
+	void AdvanceFrame(FReal DeltaTime, const CreateCache& CreateCacheFunc)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(RewindDataAdvance);
 		Managers[CurFrame].DeltaTime = DeltaTime;
+		if(Managers[CurFrame].ExternalResimCache)
+		{
+			Managers[CurFrame].ExternalResimCache->Reset();
+		}
+		else
+		{
+			Managers[CurFrame].ExternalResimCache = CreateCacheFunc();
+		}
 
 		FramesSaved = FMath::Min(FramesSaved+1,static_cast<int32>(Managers.Capacity()));
 		
@@ -1202,6 +1212,7 @@ private:
 	struct FFrameManagerInfo
 	{
 		TUniquePtr<FDirtyPropertiesManager> Manager;
+		TUniquePtr<IResimCacheBase> ExternalResimCache;
 
 		//Note that this is not exactly the same as which frame this manager represents. 
 		//A manager can have data for two frames at once, the important part is just knowing which frame it was created on so we know whether the physics data can rely on it
