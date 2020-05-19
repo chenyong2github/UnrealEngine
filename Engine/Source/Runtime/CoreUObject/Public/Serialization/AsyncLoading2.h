@@ -215,7 +215,6 @@ enum EEventLoadNode2 : uint8
 	Package_ProcessSummary,
 	Package_ExportsSerialized,
 	Package_PostLoad,
-	Package_Delete,
 	Package_NumPhases,
 
 	ExportBundle_Process = 0,
@@ -296,7 +295,6 @@ struct FPackageStoreEntry
 	int32 ExportBundleCount;
 	uint32 LoadOrder;
 	TPackageStoreEntryCArrayView<FPackageId> ImportedPackages;
-	TPackageStoreEntryCArrayView<FPackageObjectIndex> PublicExports;
 };
 
 /**
