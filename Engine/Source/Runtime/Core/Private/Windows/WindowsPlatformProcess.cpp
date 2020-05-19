@@ -1684,6 +1684,11 @@ static bool ReadLibraryImportsFromMemory(const IMAGE_DOS_HEADER *Header, TArray<
 			for(size_t ImportIdx = 0; ImportIdx * sizeof(IMAGE_IMPORT_DESCRIPTOR) < ImportDirectoryEntry->Size; ImportIdx++)
 			{
 				IMAGE_IMPORT_DESCRIPTOR *ImportDescriptor = ImportDescriptors + ImportIdx;
+				
+				// "The end of the IMAGE_IMPORT_DESCRIPTOR array is indicated by an entry with fields all set to 0." -- https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2
+				if(ImportDescriptor->Characteristics == 0 && ImportDescriptor->TimeDateStamp == 0 && ImportDescriptor->ForwarderChain == 0 && ImportDescriptor->Name == 0 && ImportDescriptor->FirstThunk == 0)
+					break;
+
 				if(ImportDescriptor->Name != 0)
 				{
 					const char *ImportName = (const char*)MapRvaToPointer(Header, NtHeader, ImportDescriptor->Name);
