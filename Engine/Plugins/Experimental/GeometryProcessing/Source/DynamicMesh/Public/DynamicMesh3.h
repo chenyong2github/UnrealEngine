@@ -108,8 +108,6 @@ public:
 	constexpr static int NonManifoldID = -2;
 	/** DuplicateTriangleID is returned by AppendTriangle() to indicate that the added triangle already exists in the mesh, and was ignored because we do not support duplicate triangles */
 	constexpr static int DuplicateTriangleID = -3;
-	/** InvalidGroupID indicates that a group ID is invalid */
-	constexpr static int InvalidGroupID = IndexConstants::InvalidID;
 
 	constexpr static FVector3d InvalidVertex{TNumericLimits<double>::Max(), 0.0, 0.0};
 	constexpr static FIndex3i InvalidTriangle{InvalidID, InvalidID, InvalidID};

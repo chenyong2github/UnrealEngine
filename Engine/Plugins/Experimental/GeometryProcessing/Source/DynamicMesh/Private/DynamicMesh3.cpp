@@ -9,7 +9,6 @@
 constexpr int       FDynamicMesh3::InvalidID;
 constexpr int       FDynamicMesh3::NonManifoldID;
 constexpr int       FDynamicMesh3::DuplicateTriangleID;
-constexpr int       FDynamicMesh3::InvalidGroupID;
 constexpr FVector3d FDynamicMesh3::InvalidVertex;
 constexpr FIndex3i  FDynamicMesh3::InvalidTriangle;
 constexpr FIndex2i  FDynamicMesh3::InvalidEdge;
