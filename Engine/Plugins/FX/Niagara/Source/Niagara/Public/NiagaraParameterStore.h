@@ -223,6 +223,8 @@ public:
 	void Bind(FNiagaraParameterStore* DestStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
 	/** Unbinds this store form one it's bound to. */
 	void Unbind(FNiagaraParameterStore* DestStore);
+	/** Unbinds this store from all source and destination stores. */
+	void UnbindAll();
 	/** Recreates any bindings to reflect a layout change etc. */
 	void Rebind();
 	/** Recreates any bindings to reflect a layout change etc. */
@@ -625,6 +627,7 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Empty(FNiagaraParamet
 {
 	if (DestStore)
 	{
+		//UE_LOG(LogNiagara, Log, TEXT("Remove Src Binding: Src: 0x%p - Dst: 0x%p"), SrcStore, DestStore);
 		DestStore->GetSourceParameterStores().RemoveSingleSwap(SrcStore, false);
 	}
 	DestStore = nullptr;
@@ -640,6 +643,7 @@ FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::Initialize(FNiagaraPa
 
 	if (BindParameters(DestStore, SrcStore, BoundParameters))
 	{
+		//UE_LOG(LogNiagara, Log, TEXT("Add Src Binding: Src: 0x%p - Dst: 0x%p"), SrcStore, DestStore);
 		DestStore->GetSourceParameterStores().AddUnique(SrcStore);
 		return true;
 	}
@@ -659,6 +663,11 @@ FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::VerifyBinding(const F
 		const FNiagaraVariable& Parameter = ParamWithOffset;
 		int32 DestOffset = ParamWithOffset.Offset;
 		int32 SrcOffset = SrcStore->IndexOf(Parameter);
+
+		if (SrcOffset == INDEX_NONE)
+		{
+			continue;//Parameter is not present in SrcStore so shouldn't/cant be bound.
+		}
 
 		if (Parameter.IsDataInterface())
 		{
@@ -686,10 +695,13 @@ FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::VerifyBinding(const F
 		}
 	}
 
-	UE_LOG(LogNiagara, Warning, TEXT("Invalid ParameterStore Binding: Parameters missing from binding between %s and %s. Stores should have been rebound when one changed!"), *SrcStore->DebugName, *DestStore->DebugName);
-	for (FName MissingParam : MissingParameterNames)
+	if(MissingParameterNames.Num())
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("%s"), *MissingParam.ToString());
+		UE_LOG(LogNiagara, Warning, TEXT("Invalid ParameterStore Binding: Parameters missing from binding between %s and %s. Stores should have been rebound when one changed!"), *SrcStore->DebugName, *DestStore->DebugName);
+		for (FName MissingParam : MissingParameterNames)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("%s"), *MissingParam.ToString());
+		}
 	}
 #endif
 	return bBindingValid;

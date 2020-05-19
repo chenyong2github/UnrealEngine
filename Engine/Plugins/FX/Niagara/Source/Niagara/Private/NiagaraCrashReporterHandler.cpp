@@ -9,6 +9,7 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemSimulation.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 
 static int32 GbEnableNiagaraCRHandler = 0;
 static FAutoConsoleVariableRef CVarEnableNiagaraCRHandler(
@@ -105,6 +106,19 @@ void FNiagaraCrashReporterHandler::PushInfo(FNiagaraSystemSimulation* SystemSim)
 	}
 }
 
+void FNiagaraCrashReporterHandler::PushInfo(UNiagaraSystem* System)
+{
+	FScopeLock ScopeLock(&CritSec);
+	if (System)
+	{
+		PushInfo_Internal(System->GetCrashReporterTag());
+	}
+	else
+	{
+		PushInfo_Internal(NullStr);
+	}
+}
+
 void FNiagaraCrashReporterHandler::PushInfo_Internal(const FString& Info)
 {
 	ScopeInfoStack.Push(Info);
@@ -142,6 +156,15 @@ FNiagaraCrashReporterScope::FNiagaraCrashReporterScope(FNiagaraSystemSimulation*
 	if (GbEnableNiagaraCRHandler)
 	{
 		FNiagaraCrashReporterHandler::Get().PushInfo(Sim);
+	}
+}
+
+FNiagaraCrashReporterScope::FNiagaraCrashReporterScope(UNiagaraSystem* System)
+{
+	bWasEnabled = GbEnableNiagaraCRHandler != 0;
+	if (GbEnableNiagaraCRHandler)
+	{
+		FNiagaraCrashReporterHandler::Get().PushInfo(System);
 	}
 }
 
