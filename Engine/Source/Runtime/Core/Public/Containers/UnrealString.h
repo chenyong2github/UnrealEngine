@@ -2148,7 +2148,8 @@ template<typename T>
 typename TEnableIf<TIsArithmetic<T>::Value, FString>::Type
 LexToString(const T& Value)
 {
-	return FString::Printf( TFormatSpecifier<T>::GetFormatSpecifier(), Value );
+	// TRemoveCV to remove potential volatile decorations. Removing const is pointless, but harmless because it's specified in the param declaration.
+	return FString::Printf( TFormatSpecifier<TRemoveCV<T>::Type>::GetFormatSpecifier(), Value );
 }
 
 template<typename CharType>
