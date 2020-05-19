@@ -8,6 +8,8 @@
 #include "EditorAnalyticsSession.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/EngineVersion.h"
+#include "Internationalization/Regex.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorSessionSummary, Verbose, All);
 
@@ -207,31 +209,52 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("IsInVRMode"), Session.bIsInVRMode);
 	AnalyticsAttributes.Emplace(TEXT("IsLowDriveSpace"), Session.bIsLowDriveSpace);
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
+	AnalyticsAttributes.Emplace(TEXT("MonitorPid"), Session.MonitorProcessID); // For out-of-process monitoring, if this is 0, this will mean CRC failed to launch or crashed very early.
 
-	bool bErrorDetected = (ShutdownTypeString != EditorSessionSenderDefs::ShutdownSessionToken && ShutdownTypeString != EditorSessionSenderDefs::TerminatedSessionToken);
+	bool bShouldAttachMonitorLog = (ShutdownTypeString != EditorSessionSenderDefs::ShutdownSessionToken && ShutdownTypeString != EditorSessionSenderDefs::TerminatedSessionToken);
 
 	// Add the exit code to the report if it was set by out-of-process monitor (CrashReportClientEditor).
 	if (Session.ExitCode.IsSet())
 	{
 		AnalyticsAttributes.Emplace(TEXT("ExitCode"), Session.ExitCode.GetValue());
-		bErrorDetected |= Session.ExitCode.GetValue() != 0;
+		bShouldAttachMonitorLog |= Session.ExitCode.GetValue() != 0;
+	}
+	else
+	{
+		bShouldAttachMonitorLog = true; // Try to figure out why exit code could not be set.
 	}
 
 	// Add the monitor exception code in case the out-of-process monitor (CrashReportClientEditor) crashed itself, caught the exception and was able to store it in the session before dying.
-	if (Session.MonitorExceptCode.IsSet())
-	{
-		AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), Session.MonitorExceptCode.GetValue());
-		bErrorDetected = true;
-	}
+	TOptional<int32> MonitorExceptCode = Session.MonitorExceptCode;
+	bShouldAttachMonitorLog |= MonitorExceptCode.IsSet();
 
 	// If the session did not end normally, try to attache the mini-log created for that session to help diagnose abnormal terminations.
-	if (bErrorDetected && !Session.bWasEverDebugger)
+	if (bShouldAttachMonitorLog && !Session.bWasEverDebugger)
 	{
 		// Check if a monitor log is available. (Set by CrashReportClientEditor before sending the summary events).
 		if (const FString* MonitorLog = MonitorMiniLogs.Find(Session.MonitorProcessID))
 		{
 			AnalyticsAttributes.Emplace(TEXT("MonitorLog"), *MonitorLog);
+
+			// If no monitor exception code is set, check in the log if one exists. The exception may have occurred before the session was created or
+			// the out of process might not have been able to acquire the session lock.
+			if (!MonitorExceptCode.IsSet() || MonitorExceptCode.GetValue() == ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly)
+			{
+				// Find the first entry in the log that match an exception reported like: "CRC/Crash:-1073741819"
+				FRegexPattern Pattern(TEXT(R"(CRC.Crash:([-0-9]+).*)")); // Need help with regex? Try https://regex101.com/
+				FRegexMatcher Matcher(Pattern, *MonitorLog);
+				if (Matcher.FindNext())
+				{
+					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), Matcher.GetCaptureGroup(1)); // Report the first exception code found in the log.
+					MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
+				}
+			}
 		}
+	}
+
+	if (MonitorExceptCode.IsSet())
+	{
+		AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), MonitorExceptCode.GetValue());
 	}
 
 	// Was this summary produced by another process than itself or the out-of-process monitor for that run?
