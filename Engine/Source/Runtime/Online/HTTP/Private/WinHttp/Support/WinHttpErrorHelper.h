@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 
-class FWinHttpErrorHelper
+class HTTP_API FWinHttpErrorHelper
 {
 public:
 	/**
