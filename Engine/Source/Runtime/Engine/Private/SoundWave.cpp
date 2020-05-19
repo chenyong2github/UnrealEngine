@@ -848,9 +848,10 @@ void USoundWave::PostLoad()
 			ReleaseCompressedAudio();
 
 			const bool bHasMultipleChunks = GetNumChunks() > 1;
-
-			if (((ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad) && bHasMultipleChunks)
-				|| (GIsEditor && (ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)) && bHasMultipleChunks)
+			bool bShouldPrime = (ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad);
+			bShouldPrime |= (GIsEditor && (ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)); // treat this scenario like PrimeOnLoad
+			
+			if (bShouldPrime && bHasMultipleChunks)
 			{
 				IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});
 			}
