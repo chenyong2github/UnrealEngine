@@ -8,6 +8,7 @@ namespace Chaos
 {
 	class FPBDCollisionConstraints;
 	class FNarrowPhase;
+	class FEvolutionResimCache;
 
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Detect"), STAT_Collisions_Detect, STATGROUP_ChaosCollision, CHAOS_API);
 
@@ -25,12 +26,12 @@ namespace Chaos
 		FPBDCollisionConstraints& GetCollisionContainer() { return CollisionContainer; }
 		FNarrowPhase& GetNarrowPhase() { return NarrowPhase; }
 
-		virtual void DetectCollisionsWithStats(const FReal Dt, CollisionStats::FStatData& StatData) = 0;
+		virtual void DetectCollisionsWithStats(const FReal Dt, CollisionStats::FStatData& StatData, FEvolutionResimCache* ResimCache) = 0;
 
 		void DetectCollisions(const FReal Dt)
 		{
 			CollisionStats::FStatData StatData(false);
-			DetectCollisionsWithStats(Dt, StatData);
+			DetectCollisionsWithStats(Dt, StatData, nullptr);
 		}
 
 	protected:

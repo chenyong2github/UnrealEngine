@@ -6,11 +6,20 @@
 namespace Chaos
 {
 
-	class IResimCacheBase
+class IResimCacheBase
+{
+public:
+	IResimCacheBase()
+	: bIsResimming(false)
 	{
-	public:
-		virtual ~IResimCacheBase() = default;
-		virtual void Reset() = 0;
-	};
+	}
+
+	virtual ~IResimCacheBase() = default;
+	virtual void Reset() = 0;
+	bool IsResimming() const { return bIsResimming; }
+	void SetResimming(bool bInResimming) { bIsResimming = bInResimming; }
+private:
+	bool bIsResimming;
+};
 
 } // namespace Chaos
