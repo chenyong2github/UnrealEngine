@@ -37,7 +37,7 @@ struct FAITest_PawnActions_Push : public FAITest_SimpleActionsTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_Push, "System.Engine.AI.Pawn Actions.Pushing Single Action")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_Push, "System.AI.Pawn Actions.Pushing Single Action")
 
 //----------------------------------------------------------------------//
 // 
@@ -66,7 +66,7 @@ struct FAITest_PawnActions_PushingSameActionWithDelay : public FAITest_SimpleAct
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_PushingSameActionWithDelay, "System.Engine.AI.Pawn Actions.Pusihng action that has already been pushed should fail")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_PushingSameActionWithDelay, "System.AI.Pawn Actions.Pusihng action that has already been pushed should fail")
 
 
 //----------------------------------------------------------------------//
@@ -106,7 +106,7 @@ struct FAITest_PawnActions_Pause : public FAITest_SimpleActionsTest
 		return true; 
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_Pause, "System.Engine.AI.Pawn Actions.Pausing Action by younger Action of same priority")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_Pause, "System.AI.Pawn Actions.Pausing Action by younger Action of same priority")
 
 //----------------------------------------------------------------------//
 // 
@@ -138,7 +138,7 @@ struct FAITest_PawnActions_SamePriorityOrder : public FAITest_SimpleActionsTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_SamePriorityOrder, "System.Engine.AI.Pawn Actions.Respecting push order")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_SamePriorityOrder, "System.AI.Pawn Actions.Respecting push order")
 
 //----------------------------------------------------------------------//
 // 
@@ -164,7 +164,7 @@ struct FAITest_PawnActions_DoublePushingAction : public FAITest_SimpleActionsTes
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_DoublePushingAction, "System.Engine.AI.Pawn Actions.Pushing same action twice")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_DoublePushingAction, "System.AI.Pawn Actions.Pushing same action twice")
 
 //----------------------------------------------------------------------//
 // 
@@ -194,7 +194,7 @@ struct FAITest_PawnActions_SimplePriority : public FAITest_SimpleActionsTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_SimplePriority, "System.Engine.AI.Pawn Actions.Pushing different priority actions")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_SimplePriority, "System.AI.Pawn Actions.Pushing different priority actions")
 
 //----------------------------------------------------------------------//
 // 
@@ -223,7 +223,7 @@ struct FAITest_PawnActions_HighPriorityKeepRunning : public FAITest_SimpleAction
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_HighPriorityKeepRunning, "System.Engine.AI.Pawn Actions.High priority action still running after pushing lower priority action")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_HighPriorityKeepRunning, "System.AI.Pawn Actions.High priority action still running after pushing lower priority action")
 
 //----------------------------------------------------------------------//
 // 
@@ -250,7 +250,7 @@ struct FAITest_PawnActions_SamePriorityActionsPushing : public FAITest_SimpleAct
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_SamePriorityActionsPushing, "System.Engine.AI.Pawn Actions.Pushing multiple actions of same priority")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_SamePriorityActionsPushing, "System.AI.Pawn Actions.Pushing multiple actions of same priority")
 
 //----------------------------------------------------------------------//
 // 
@@ -276,7 +276,7 @@ struct FAITest_PawnActions_Aborting : public FAITest_SimpleActionsTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_Aborting, "System.Engine.AI.Pawn Actions.Basic aborting mechanics")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_Aborting, "System.AI.Pawn Actions.Basic aborting mechanics")
 
 //----------------------------------------------------------------------//
 // 
@@ -299,7 +299,7 @@ struct FAITest_PawnActions_PushAndAbort : public FAITest_SimpleActionsTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_PushAndAbort, "System.Engine.AI.Pawn Actions.Push and Abort same frame")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_PushAndAbort, "System.AI.Pawn Actions.Push and Abort same frame")
 
 //----------------------------------------------------------------------//
 // 
@@ -329,7 +329,7 @@ struct FAITest_PawnActions_AbortAfterPushingNewAction : public FAITest_SimpleAct
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_AbortAfterPushingNewAction, "System.Engine.AI.Pawn Actions.Abort action after a newer action has been pushed")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_AbortAfterPushingNewAction, "System.AI.Pawn Actions.Abort action after a newer action has been pushed")
 
 //----------------------------------------------------------------------//
 // 
@@ -370,7 +370,7 @@ struct FAITest_PawnActions_ActionPushingActions : public FAITest_SimpleActionsTe
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_ActionPushingActions, "System.Engine.AI.Pawn Actions.Action pushing Actions")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_ActionPushingActions, "System.AI.Pawn Actions.Action pushing Actions")
 
 // scenarios to test
 // * Push, wait for Start and Abort instantly. Implement a special action that will finish in X tick with result Y

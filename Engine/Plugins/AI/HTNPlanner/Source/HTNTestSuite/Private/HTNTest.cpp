@@ -207,7 +207,7 @@ struct FAITest_HTNDomainBuilderBasics : public FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDomainBuilderBasics, "System.Engine.AI.HTN.DomainBuilderBasics")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDomainBuilderBasics, "System.AI.HTN.DomainBuilderBasics")
 
 struct FAITest_HTNBuildDomain : public FHTNTestBase
 {
@@ -233,7 +233,7 @@ struct FAITest_HTNBuildDomain : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNBuildDomain, "System.Engine.AI.HTN.BuildDomain")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNBuildDomain, "System.AI.HTN.BuildDomain")
 
 struct FAITest_HTNPlanning : public FHTNTestBase
 {
@@ -270,7 +270,7 @@ struct FAITest_HTNPlanning : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNPlanning, "System.Engine.AI.HTN.Planning")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNPlanning, "System.AI.HTN.Planning")
 
 struct FAITest_HTNPlanningRollback : public FHTNTestBase
 {
@@ -320,7 +320,7 @@ struct FAITest_HTNPlanningRollback : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNPlanningRollback, "System.Engine.AI.HTN.PlanningRollback")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNPlanningRollback, "System.AI.HTN.PlanningRollback")
 
 struct FAITest_HTNDecompileDomain : public FHTNTestBase
 {
@@ -339,7 +339,7 @@ struct FAITest_HTNDecompileDomain : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDecompileDomain, "System.Engine.AI.HTN.DomainDecompilation")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDecompileDomain, "System.AI.HTN.DomainDecompilation")
 
 struct FAITest_HTNDomainCompilationIssues : public FHTNTestBase
 {
@@ -362,7 +362,7 @@ struct FAITest_HTNDomainCompilationIssues : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDomainCompilationIssues, "System.Engine.AI.HTN.DomainDecompilationIssues")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDomainCompilationIssues, "System.AI.HTN.DomainDecompilationIssues")
 
 struct FAITest_HTNWorldRepresentation : public FHTNTestBase
 {
@@ -421,7 +421,7 @@ struct FAITest_HTNWorldRepresentation : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNWorldRepresentation, "System.Engine.AI.HTN.WorldRepresentation")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNWorldRepresentation, "System.AI.HTN.WorldRepresentation")
 
 struct FAITest_HTNCondition : public FHTNTestBase
 {
@@ -468,7 +468,7 @@ struct FAITest_HTNCondition : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCondition, "System.Engine.AI.HTN.Condition")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCondition, "System.AI.HTN.Condition")
 
 struct FAITest_HTNMethodSelection : public FAITestBase 
 {
@@ -483,7 +483,7 @@ struct FAITest_HTNMethodSelection : public FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNMethodSelection, "System.Engine.AI.HTN.MethodSelection")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNMethodSelection, "System.AI.HTN.MethodSelection")
 
 struct FAITest_HTNTrivialPlanning : public FHTNTestBase 
 {
@@ -500,7 +500,7 @@ struct FAITest_HTNTrivialPlanning : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNTrivialPlanning, "System.Engine.AI.HTN.TrivialPlanning")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNTrivialPlanning, "System.AI.HTN.TrivialPlanning")
 
 struct FAITest_HTNExtendingDomain : public FAITestBase
 {
@@ -515,7 +515,7 @@ struct FAITest_HTNExtendingDomain : public FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNExtendingDomain, "System.Engine.AI.HTN.ExtendingDomain")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNExtendingDomain, "System.AI.HTN.ExtendingDomain")
 
 struct FAITest_HTNCustomWSCheck : public FHTNTestBase
 {
@@ -549,7 +549,7 @@ struct FAITest_HTNCustomWSCheck : public FHTNTestBase
 	}
 };
 bool FAITest_HTNCustomWSCheck::bCheckFunctionRun = false;
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCustomWSCheck, "System.Engine.AI.HTN.CustomWSCheck")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCustomWSCheck, "System.AI.HTN.CustomWSCheck")
 
 struct FAITest_HTNCustomWSOperation : public FHTNTestBase
 {
@@ -586,7 +586,7 @@ struct FAITest_HTNCustomWSOperation : public FHTNTestBase
 	}
 };
 uint32 FAITest_HTNCustomWSOperation::StaticValue = 0;
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCustomWSOperation, "System.Engine.AI.HTN.CustomWSOperation")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCustomWSOperation, "System.AI.HTN.CustomWSOperation")
 
 //	compare contents of TaskIDs in HTNResult to the operators it contains
 struct FAITest_HTNOperatorsOfGeneratedPlan : public FHTNTestBase
@@ -624,7 +624,7 @@ struct FAITest_HTNOperatorsOfGeneratedPlan : public FHTNTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNOperatorsOfGeneratedPlan, "System.Engine.AI.HTN.OperatorsOfGeneratedPlan")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNOperatorsOfGeneratedPlan, "System.AI.HTN.OperatorsOfGeneratedPlan")
 
 //----------------------------------------------------------------------//
 // Component tests

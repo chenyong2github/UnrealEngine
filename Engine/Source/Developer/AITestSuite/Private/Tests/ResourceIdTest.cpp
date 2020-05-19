@@ -21,7 +21,7 @@ struct FAITest_ResourceIDBasic : public FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceIDBasic, "System.Engine.AI.Resource ID.Basic operations")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceIDBasic, "System.AI.Resource ID.Basic operations")
 
 //----------------------------------------------------------------------//
 // 
@@ -71,7 +71,7 @@ struct FAITest_ResourceLock : public FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceLock, "System.Engine.AI.Resource ID.Resource locking")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceLock, "System.AI.Resource ID.Resource locking")
 
 //----------------------------------------------------------------------//
 // 
@@ -130,7 +130,7 @@ struct FAITest_ResourceSet : public FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceSet, "System.Engine.AI.Resource ID.Resource locking")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceSet, "System.AI.Resource ID.Resource locking")
 
 //----------------------------------------------------------------------//
 // 
@@ -161,7 +161,7 @@ struct FAITest_PawnActions_PausingActionsOfSameResource : public FAITest_SimpleC
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_PausingActionsOfSameResource, "System.Engine.AI.Pawn Actions.Pausing actions of same resource")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_PausingActionsOfSameResource, "System.AI.Pawn Actions.Pausing actions of same resource")
 
 //----------------------------------------------------------------------//
 // 
@@ -193,4 +193,4 @@ struct FAITest_PawnActions_NotPausingActionsOfDifferentResources : public FAITes
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_NotPausingActionsOfDifferentResources, "System.Engine.AI.Pawn Actions.Not pausing actions of different resources")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_NotPausingActionsOfDifferentResources, "System.AI.Pawn Actions.Not pausing actions of different resources")

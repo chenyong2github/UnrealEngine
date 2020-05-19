@@ -4,9 +4,6 @@
 #include "GameplayTask.h"
 #include "AITestsCommon.h"
 #include "MockGameplayTasks.h"
-//#include "MockAI_BT.h"
-//#include "BehaviorTree/TestBTDecorator_CantExecute.h"
-//#include "Actions/TestPawnAction_CallFunction.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_GameplayTasksTest"
 
@@ -34,7 +31,7 @@ struct FAITest_GameplayTask_ComponentState : public FAITest_GameplayTasksTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ComponentState, "System.Engine.AI.Gameplay Tasks.Component\'s basic behavior")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ComponentState, "System.AI.Gameplay Tasks.Component\'s basic behavior")
 
 //----------------------------------------------------------------------//
 // 
@@ -72,7 +69,7 @@ struct FAITest_GameplayTask_ExternalCancelWithTick : public FAITest_GameplayTask
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ExternalCancelWithTick, "System.Engine.AI.Gameplay Tasks.External Cancel with Tick")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ExternalCancelWithTick, "System.AI.Gameplay Tasks.External Cancel with Tick")
 
 //----------------------------------------------------------------------//
 // In this test the task should get properly created, acticated and end 
@@ -102,7 +99,7 @@ struct FAITest_GameplayTask_SelfEnd : public FAITest_GameplayTasksTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_SelfEnd, "System.Engine.AI.Gameplay Tasks.Self End")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_SelfEnd, "System.AI.Gameplay Tasks.Self End")
 
 //----------------------------------------------------------------------//
 // Testing multiple simultaneously ticking tasks
@@ -149,7 +146,7 @@ struct FAITest_GameplayTask_SimulatanousTick : public FAITest_GameplayTasksTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_SimulatanousTick, "System.Engine.AI.Gameplay Tasks.Simultanously ticking tasks")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_SimulatanousTick, "System.AI.Gameplay Tasks.Simultanously ticking tasks")
 
 //----------------------------------------------------------------------//
 // Testing multiple simultaneously ticking tasks UGameplayTaskResource
@@ -183,7 +180,7 @@ struct FAITest_GameplayTask_ResourceSet : public FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ResourceSet, "System.Engine.AI.Gameplay Tasks.Resource Set")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ResourceSet, "System.AI.Gameplay Tasks.Resource Set")
 
 //----------------------------------------------------------------------//
 // Running tasks requiring non-overlapping resources
@@ -215,7 +212,7 @@ struct FAITest_GameplayTask_NonOverlappingResources : public FAITest_GameplayTas
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_NonOverlappingResources, "System.Engine.AI.Gameplay Tasks.Non-overlapping resources")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_NonOverlappingResources, "System.AI.Gameplay Tasks.Non-overlapping resources")
 
 //----------------------------------------------------------------------//
 // Running tasks requiring overlapping resources
@@ -246,7 +243,7 @@ struct FAITest_GameplayTask_OverlappingResources : public FAITest_GameplayTasksT
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_OverlappingResources, "System.Engine.AI.Gameplay Tasks.Overlapping resources")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_OverlappingResources, "System.AI.Gameplay Tasks.Overlapping resources")
 
 //----------------------------------------------------------------------//
 // Pausing a task overlapping a lower priority task should not resume the low priority task
@@ -280,7 +277,7 @@ struct FAITest_GameplayTask_PausingTasksBlockingOtherTasks : public FAITest_Game
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_PausingTasksBlockingOtherTasks, "System.Engine.AI.Gameplay Tasks.Pausing tasks blocking other tasks")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_PausingTasksBlockingOtherTasks, "System.AI.Gameplay Tasks.Pausing tasks blocking other tasks")
 
 //----------------------------------------------------------------------//
 // Priority handling
@@ -326,7 +323,7 @@ struct FAITest_GameplayTask_Priorities : public FAITest_GameplayTasksTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_Priorities, "System.Engine.AI.Gameplay Tasks.Priorities")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_Priorities, "System.AI.Gameplay Tasks.Priorities")
 
 //----------------------------------------------------------------------//
 // Internal ending, by task ending itself or owner finishing 
@@ -377,7 +374,7 @@ struct FAITest_GameplayTask_InternalEnding : public FAITest_GameplayTasksTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_InternalEnding, "System.Engine.AI.Gameplay Tasks.Self and Owner ending")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_InternalEnding, "System.AI.Gameplay Tasks.Self and Owner ending")
 
 //----------------------------------------------------------------------//
 // 
@@ -420,7 +417,7 @@ struct FAITest_GameplayTask_MultipleOwners : public FAITest_GameplayTasksTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_MultipleOwners, "System.Engine.AI.Gameplay Tasks.Handling multiple task owners")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_MultipleOwners, "System.AI.Gameplay Tasks.Handling multiple task owners")
 
 //----------------------------------------------------------------------//
 // Claimed vs Required resources test
@@ -468,7 +465,7 @@ struct FAITest_GameplayTask_ClaimedResources : public FAITest_GameplayTasksTest
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ClaimedResources, "System.Engine.AI.Gameplay Tasks.Claimed resources")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ClaimedResources, "System.AI.Gameplay Tasks.Claimed resources")
 
 //----------------------------------------------------------------------//
 // 
@@ -492,7 +489,7 @@ struct FAITest_GameplayTask_ClaimedResourcesAndInstantFinish : public FAITest_Ga
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ClaimedResourcesAndInstantFinish, "System.Engine.AI.Gameplay Tasks.Claimed resources vs Insta-finish tasks")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_GameplayTask_ClaimedResourcesAndInstantFinish, "System.AI.Gameplay Tasks.Claimed resources vs Insta-finish tasks")
 
 // add tests if component wants ticking at while aborting/reactivating tasks
 // add test for re-adding/re-activating a finished task
