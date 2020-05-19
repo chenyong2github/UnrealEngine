@@ -833,6 +833,7 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 
 void ClothingSimulation::AddSelfCollisions(int32 InSimDataIndex) 
 {
+#ifdef CHAOS_CLOTH_MUST_IMPROVE_SELF_COLLISION  // TODO: Improve self-collision until it can run in engine tests without crashing the simulation.
 	// TODO(mlentine): Parallelize these for multiple meshes
 	const Chaos::TTriangleMesh<float>& Mesh = *Meshes[InSimDataIndex];
 	Evolution->CollisionTriangles().Append(Mesh.GetSurfaceElements());
@@ -849,6 +850,7 @@ void ClothingSimulation::AddSelfCollisions(int32 InSimDataIndex)
 			Evolution->DisabledCollisionElements().Add(Chaos::TVector<int32, 2>(Element, i));
 		}
 	}
+#endif  // #ifdef CHAOS_CLOTH_MUST_IMPROVE_SELF_COLLISION
 }
 
 void ClothingSimulation::ForAllCollisions(TFunction<void(TGeometryClothParticles<float, 3>&, uint32)> CollisionFunction, int32 SimDataIndex)
