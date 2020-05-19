@@ -15,9 +15,10 @@
 UENUM()
 enum class EEmbeddedPolygonOpMethod : uint8
 {
-	CutAndFill,
+	TrimOutside,
+	TrimInside,
+	InsertPolygon,
 	CutThrough
-	//, Extrude  // TODO: extrude(/intrude?) would also be easy/natural to support here
 };
 
 
