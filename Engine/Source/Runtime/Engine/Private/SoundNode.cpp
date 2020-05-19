@@ -188,7 +188,7 @@ void USoundNode::RemoveSoundWaveOnChildWavePlayers()
 				USoundWave* SoundWave = WavePlayer->GetSoundWave();
 				if (SoundWave && !WavePlayer->IsCurrentlyAsyncLoadingAsset())
 				{
-					WavePlayer->SetSoundWave(nullptr);
+					WavePlayer->ClearAssetReferences();
 				}
 			}
 		}
