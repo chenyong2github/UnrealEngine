@@ -8790,9 +8790,12 @@ bool FCharacterNetworkSerializationPackedBits::NetSerialize(FArchive& Ar, class 
 
 void FCharacterNetworkMoveDataContainer::ClientFillNetworkMoveData(const FSavedMove_Character* ClientNewMove, const FSavedMove_Character* ClientPendingMove, const FSavedMove_Character* ClientOldMove)
 {
+	bDisableCombinedScopedMove = false;
+
 	if (ensure(ClientNewMove))
 	{
 		NewMoveData->ClientFillNetworkMoveData(*ClientNewMove, FCharacterNetworkMoveData::ENetworkMoveType::NewMove);
+		bDisableCombinedScopedMove |= ClientNewMove->bForceNoCombine;
 	}
 
 	bHasPendingMove = (ClientPendingMove != nullptr);
@@ -8800,6 +8803,7 @@ void FCharacterNetworkMoveDataContainer::ClientFillNetworkMoveData(const FSavedM
 	{
 		PendingMoveData->ClientFillNetworkMoveData(*ClientPendingMove, FCharacterNetworkMoveData::ENetworkMoveType::PendingMove);
 		bIsDualHybridRootMotionMove = (ClientPendingMove->RootMotionMontage == nullptr) && (ClientNewMove && ClientNewMove->RootMotionMontage != nullptr);
+		bDisableCombinedScopedMove |= ClientPendingMove->bForceNoCombine;
 	}
 	else
 	{
@@ -8845,6 +8849,8 @@ bool FCharacterNetworkMoveDataContainer::Serialize(UCharacterMovementComponent& 
 			return false;
 		}
 	}
+
+	Ar.SerializeBits(&bDisableCombinedScopedMove, 1);
 
 	return !Ar.IsError();
 }
@@ -8962,7 +8968,8 @@ void UCharacterMovementComponent::ServerMove_HandleMoveData(const FCharacterNetw
 	}
 
 	// Optional scoped movement update for dual moves to combine moves for cheaper performance on the server.
-	FScopedMovementUpdate ScopedMovementUpdate(UpdatedComponent, (MoveDataContainer.bHasPendingMove && bEnableServerDualMoveScopedMovementUpdates) ? EScopedUpdate::DeferredUpdates : EScopedUpdate::ImmediateUpdates);
+	const bool bMoveAllowsScopedDualMove = MoveDataContainer.bHasPendingMove && !MoveDataContainer.bDisableCombinedScopedMove;
+	FScopedMovementUpdate ScopedMovementUpdate(UpdatedComponent, (bMoveAllowsScopedDualMove && bEnableServerDualMoveScopedMovementUpdates && bEnableScopedMovementUpdates) ? EScopedUpdate::DeferredUpdates : EScopedUpdate::ImmediateUpdates);
 
 	// Optional pending move as part of "dual move"
 	if (MoveDataContainer.bHasPendingMove)
