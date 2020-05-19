@@ -655,6 +655,9 @@ private:
 		/** Initialize this data, immediately starting an asset load if required and possible */
 		void Initialize(uint16* InRevisionPtr, FName InTableId, FString&& InKey, const EStringTableLoadingPolicy InLoadingPolicy);
 
+		/** Update (or clear) the revision pointer (called when moving this data to a new owner instance) */
+		void SetRevisionPtr(uint16* InRevisionPtr);
+
 		/** Get the string table ID being referenced */
 		FName GetTableId() const;
 
