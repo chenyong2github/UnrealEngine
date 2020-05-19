@@ -637,6 +637,7 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
 bool FNiagaraTypeDefinition::IsInternalType() const
 {
 	if (const UScriptStruct* ScriptStruct = GetScriptStruct())
@@ -646,6 +647,7 @@ bool FNiagaraTypeDefinition::IsInternalType() const
 
 	return false;
 }
+#endif
 
 #if WITH_EDITOR
 void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()

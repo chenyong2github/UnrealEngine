@@ -968,7 +968,9 @@ public:
 
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
+#if WITH_EDITORONLY_DATA
 	bool IsInternalType() const;
+#endif
 
 	/*
 	Underlying type for this variable, use FUnderlyingType to determine type without casting
