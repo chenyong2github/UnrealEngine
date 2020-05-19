@@ -70,14 +70,24 @@ static inline void ConvertRawR8G8B8A8DataToFColor(uint32 Width, uint32 Height, u
 
 static inline void ConvertRawB8G8R8A8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
-	// todo: check if the source and dst pitch is the same to avoid loop below.
-	for (uint32 Y = 0; Y < Height; Y++)
-	{
-		FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
-		FColor* DestPtr = Out + Y * Width;
+	const uint32 DstPitch = Width * sizeof(FColor);
 
-		// Need to copy row wise since the Pitch might not match the Width.
-		FMemory::Memcpy(DestPtr, SrcPtr, sizeof(FColor) * Width);
+	// If source & dest pitch matches, perform a single memcpy.
+	if (DstPitch == SrcPitch)
+	{
+		FPlatformMemory::Memcpy(Out, In, Width * Height * sizeof(FColor));
+	}
+	else
+	{
+		check(SrcPitch > DstPitch);
+
+		// Need to copy row wise since the Pitch does not match the Width.
+		for (uint32 Y = 0; Y < Height; Y++)
+		{
+			FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
+			FColor* DestPtr = Out + Y * Width;
+			FMemory::Memcpy(DestPtr, SrcPtr, DstPitch);
+		}
 	}
 }
 
