@@ -243,6 +243,8 @@ static void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMesh
 		}
 		dd->end();
 
+//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 		dd->begin(DU_DRAW_LINES, 4.0f);
 		for (int i = 0; i < tile->header->polyCount; ++i)
 		{
@@ -281,6 +283,8 @@ static void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMesh
 			duAppendArcSegment(dd, vA0[0], vA0[1], vA0[2], vA1[0], vA1[1], vA1[2], vB0[0], vB0[1], vB0[2], vB1[0], vB1[1], vB1[2], 0.25f, col);
 		}
 		dd->end();
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+//@UE4 END
 	}
 	
 	const unsigned int vcol = duRGBA(0,0,0,196);
@@ -523,6 +527,8 @@ void duDebugDrawNavMeshPoly(duDebugDraw* dd, const dtNavMesh& mesh, dtPolyRef re
 		
 		dd->end();
 	}
+//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	else if (poly->getType() == DT_POLYTYPE_OFFMESH_SEGMENT)
 	{
 		dd->begin(DU_DRAW_QUADS);
@@ -533,6 +539,8 @@ void duDebugDrawNavMeshPoly(duDebugDraw* dd, const dtNavMesh& mesh, dtPolyRef re
 		duAppendArcSegment(dd, vA0[0], vA0[1], vA0[2], vA1[0], vA1[1], vA1[2], vB0[0], vB0[1], vB0[2], vB1[0], vB1[1], vB1[2], 0.25f, c);
 		dd->end();
 	}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+//@UE4 END
 	else if (poly->getType() == DT_POLYTYPE_GROUND)
 	{
 		const dtPolyDetail* pd = &tile->detailMeshes[ip];
@@ -556,6 +564,8 @@ void duDebugDrawNavMeshPoly(duDebugDraw* dd, const dtNavMesh& mesh, dtPolyRef re
 
 }
 
+//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 void duDebugDrawNavMeshClusters(struct duDebugDraw* dd, const dtNavMesh& mesh)
 {
 	if (!dd) return;
@@ -590,6 +600,8 @@ void duDebugDrawNavMeshCluster(struct duDebugDraw* dd, const dtNavMesh& mesh, dt
 		}
 	}
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+//@UE4 END
 
 static void debugDrawTileCachePortals(struct duDebugDraw* dd, const dtTileCacheLayer& layer, const float cs, const float ch)
 {

@@ -75,11 +75,15 @@ struct dtNavMeshCreateParams
 	int polyCount;							///< Number of polygons in the mesh. [Limit: >= 1]
 	int nvp;								///< Number maximum number of vertices per polygon. [Limit: >= 3]
 
+	// @UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 	/// @}
 	/// @name Cluster Attributes
 	/// @{
 	unsigned short* polyClusters;			///< Cluster Id for each polygon [Size: #polyCount]
 	unsigned short clusterCount;			///< Number of unique clusters
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	// @UE4 END
 
 	/// @}
 	/// @name Height Detail Attributes (Optional)

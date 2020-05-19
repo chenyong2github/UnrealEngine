@@ -507,8 +507,16 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVer
 		detailTriCount = H->detailTriCount;
 		bvNodeCount = H->bvNodeCount;
 		offMeshConCount = H->offMeshConCount;
+#if WITH_NAVMESH_SEGMENT_LINKS
 		offMeshSegConCount = H->offMeshSegConCount;
+#else
+		offMeshSegConCount = 0;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+#if WITH_NAVMESH_CLUSTER_LINKS
 		clusterCount = H->clusterCount;
+#else
+		clusterCount = 0;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 	}
 
 	Ar << totVertCount << totPolyCount << maxLinkCount;
@@ -528,9 +536,20 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVer
 	const int32 detailTrisSize = dtAlign4(sizeof(unsigned char)*4*detailTriCount);
 	const int32 bvTreeSize = dtAlign4(sizeof(dtBVNode)*bvNodeCount);
 	const int32 offMeshConsSize = dtAlign4(sizeof(dtOffMeshConnection)*offMeshConCount);
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 	const int32 offMeshSegsSize = dtAlign4(sizeof(dtOffMeshSegmentConnection)*offMeshSegConCount);
+#else
+	const int32 offMeshSegsSize = 0;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	const int32 clusterSize = dtAlign4(sizeof(dtCluster)*clusterCount);
 	const int32 polyClustersSize = dtAlign4(sizeof(unsigned short)*polyClusterCount);
+#else
+	const int32 clusterSize = 0;
+	const int32 polyClustersSize = 0;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	if (Ar.IsLoading())
 	{
@@ -567,9 +586,15 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVer
 		unsigned char* DetailTris = (unsigned char*)d; d += detailTrisSize;
 		dtBVNode* BVTree = (dtBVNode*)d; d += bvTreeSize;
 		dtOffMeshConnection* OffMeshCons = (dtOffMeshConnection*)d; d += offMeshConsSize;
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 		dtOffMeshSegmentConnection* OffMeshSegs = (dtOffMeshSegmentConnection*)d; d += offMeshSegsSize;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 		dtCluster* Clusters = (dtCluster*)d; d += clusterSize;
 		unsigned short* PolyClusters = (unsigned short*)d; d += polyClustersSize;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 		check(d==(TileData + TileDataSize));
 
@@ -584,8 +609,19 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVer
 		Ar << Header->bmin[0] << Header->bmin[1] << Header->bmin[2];
 		Ar << Header->bmax[0] << Header->bmax[1] << Header->bmax[2];
 		Ar << Header->bvQuantFactor;
+#if WITH_NAVMESH_CLUSTER_LINKS
 		Ar << Header->clusterCount;
+#else
+		int DummyClusterCount = 0;
+		Ar << DummyClusterCount;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 		Ar << Header->offMeshSegConCount << Header->offMeshSegPolyBase << Header->offMeshSegVertBase;
+#else
+		int DummySegmentInt = 0;
+		Ar << DummySegmentInt << DummySegmentInt << DummySegmentInt;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 		// mesh and offmesh connection vertices, just an array of floats (one float triplet per vert)
 		{
@@ -673,28 +709,53 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVer
 
 		for (int32 SegIdx=0; SegIdx < offMeshSegConCount; ++SegIdx)
 		{
+#if WITH_NAVMESH_SEGMENT_LINKS
 			dtOffMeshSegmentConnection& Seg = OffMeshSegs[SegIdx];
 			Ar << Seg.startA[0] << Seg.startA[1] << Seg.startA[2];
 			Ar << Seg.startB[0] << Seg.startB[1] << Seg.startB[2];
 			Ar << Seg.endA[0] << Seg.endA[1] << Seg.endA[2];
 			Ar << Seg.endB[0] << Seg.endB[1] << Seg.endB[2];
 			Ar << Seg.rad << Seg.firstPoly << Seg.npolys << Seg.flags << Seg.userId;
+#else
+			float DummySegmentConFloat;
+			int DummySegmentConInt;
+			short DummySegmentConShort;
+			char DummySegmentConChar;
+			Ar << DummySegmentConFloat << DummySegmentConFloat << DummySegmentConFloat; // float startA[3];	///< Start point of segment A
+			Ar << DummySegmentConFloat << DummySegmentConFloat << DummySegmentConFloat; // float endA[3];	///< End point of segment A
+			Ar << DummySegmentConFloat << DummySegmentConFloat << DummySegmentConFloat; // float startB[3];	///< Start point of segment B
+			Ar << DummySegmentConFloat << DummySegmentConFloat << DummySegmentConFloat; // float endB[3];	///< End point of segment B
+			Ar << DummySegmentConFloat << DummySegmentConShort << DummySegmentConChar << DummySegmentConChar << DummySegmentConInt; // float rad, short firstPoly, char npolys, char flags, int userId
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 		}
 
 		// serialize clusters
 		for (int32 CIdx = 0; CIdx < clusterCount; ++CIdx)
 		{
-			dtCluster& cluster = Clusters[CIdx];
-			Ar << cluster.center[0] << cluster.center[1] << cluster.center[2];
+#if WITH_NAVMESH_CLUSTER_LINKS
+			dtCluster& Cluster = Clusters[CIdx];
+			Ar << Cluster.center[0] << Cluster.center[1] << Cluster.center[2];
+#else
+			float DummyCluster[3];
+			Ar << DummyCluster[0] << DummyCluster[1] << DummyCluster[2];
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 		}
 
 		// serialize poly clusters map
 		{
+#if WITH_NAVMESH_CLUSTER_LINKS
 			unsigned short* C = PolyClusters;
 			for (int32 PolyClusterIdx = 0; PolyClusterIdx < polyClusterCount; ++PolyClusterIdx)
 			{
 				Ar << *C; C++;
 			}
+#else
+			unsigned short DummyPolyCluster = 0;
+			for (int32 PolyClusterIdx = 0; PolyClusterIdx < polyClusterCount; ++PolyClusterIdx)
+			{
+				Ar << DummyPolyCluster;
+			}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 		}
 	}
 }
@@ -915,6 +976,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::TestPath(const FVector& StartL
 	return DTStatusToNavQueryResult(FindPathStatus);
 }
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 ENavigationQueryResult::Type FPImplRecastNavMesh::TestClusterPath(const FVector& StartLoc, const FVector& EndLoc, int32* NumVisitedNodes) const
 {
 	FVector RecastStartPos, RecastEndPos;
@@ -937,6 +999,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::TestClusterPath(const FVector&
 
 	return DTStatusToNavQueryResult(status);
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 bool FPImplRecastNavMesh::InitPathfinding(const FVector& UnrealStart, const FVector& UnrealEnd,
 	const dtNavMeshQuery& Query, const dtQueryFilter* Filter,
@@ -1322,6 +1385,7 @@ int32 FPImplRecastNavMesh::DebugPathfinding(const FVector& StartLoc, const FVect
 	return NumSteps;
 }
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 NavNodeRef FPImplRecastNavMesh::GetClusterRefFromPolyRef(const NavNodeRef PolyRef) const
 {
 	if (DetourNavMesh)
@@ -1336,6 +1400,7 @@ NavNodeRef FPImplRecastNavMesh::GetClusterRefFromPolyRef(const NavNodeRef PolyRe
 
 	return 0;
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 FNavLocation FPImplRecastNavMesh::GetRandomPoint(const FNavigationQueryFilter& Filter, const UObject* Owner) const
 {
@@ -1367,6 +1432,7 @@ FNavLocation FPImplRecastNavMesh::GetRandomPoint(const FNavigationQueryFilter& F
 	return OutLocation;
 }
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 bool FPImplRecastNavMesh::GetRandomPointInCluster(NavNodeRef ClusterRef, FNavLocation& OutLocation) const
 {
 	if (DetourNavMesh == NULL || ClusterRef == 0)
@@ -1388,6 +1454,7 @@ bool FPImplRecastNavMesh::GetRandomPointInCluster(NavNodeRef ClusterRef, FNavLoc
 
 	return false;
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 bool FPImplRecastNavMesh::FindMoveAlongSurface(const FNavLocation& StartLocation, const FVector& TargetPosition, FNavLocation& OutLocation, const FNavigationQueryFilter& Filter, const UObject* Owner) const
 {
@@ -1635,6 +1702,7 @@ void FPImplRecastNavMesh::UpdateNavigationLinkArea(int32 UserId, uint8 AreaType,
 	}
 }
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 void FPImplRecastNavMesh::UpdateSegmentLinkArea(int32 UserId, uint8 AreaType, uint16 PolyFlags) const
 {
 	if (DetourNavMesh)
@@ -1642,6 +1710,7 @@ void FPImplRecastNavMesh::UpdateSegmentLinkArea(int32 UserId, uint8 AreaType, ui
 		DetourNavMesh->updateOffMeshSegmentConnectionByUserId(UserId, AreaType, PolyFlags);
 	}
 }
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 bool FPImplRecastNavMesh::GetPolyCenter(NavNodeRef PolyID, FVector& OutCenter) const
 {
@@ -1935,6 +2004,7 @@ bool FPImplRecastNavMesh::IsCustomLink(NavNodeRef PolyRef) const
 	return false;
 }
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 bool FPImplRecastNavMesh::GetClusterBounds(NavNodeRef ClusterRef, FBox& OutBounds) const
 {
 	if (DetourNavMesh == NULL || !ClusterRef)
@@ -1966,6 +2036,7 @@ bool FPImplRecastNavMesh::GetClusterBounds(NavNodeRef ClusterRef, FBox& OutBound
 
 	return NumPolys > 0;
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 FORCEINLINE void FPImplRecastNavMesh::GetEdgesForPathCorridorImpl(const TArray<NavNodeRef>* PathCorridor, TArray<FNavigationPortalEdge>* PathCorridorEdges, const dtNavMeshQuery& NavQuery) const
 {
@@ -2391,6 +2462,7 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 				Indices->Add(TriVertIndices[1]);
 				Indices->Add(TriVertIndices[2]);
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 				if (Tile.polyClusters)
 				{
 					const uint16 ClusterId = Tile.polyClusters[PolyIdx];
@@ -2407,6 +2479,7 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 						ClusterIndices.Add(TriVertIndices[2]);
 					}
 				}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 			}
 		}
 	}
@@ -2436,6 +2509,7 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 		}
 	}
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 	for (int32 i = 0; i < Header->offMeshSegConCount; ++i)
 	{
 		const dtOffMeshSegmentConnection* OffMeshSeg = &Tile.offMeshSeg[i];
@@ -2461,7 +2535,9 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 			}
 		}
 	}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 	for (int32 i = 0; i < Header->clusterCount; i++)
 	{
 		const dtCluster& c0 = Tile.clusters[i];
@@ -2494,6 +2570,7 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 			}
 		}
 	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	// Get tile edges and navmesh edges
 	if (OutGeometry.bGatherPolyEdges || OutGeometry.bGatherNavMeshEdges)
