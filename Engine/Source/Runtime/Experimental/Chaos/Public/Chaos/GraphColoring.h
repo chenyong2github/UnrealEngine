@@ -40,7 +40,7 @@ class FGraphColoring
 	};
 
   public:
-	static TArray<TArray<int32>> ComputeGraphColoring(const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles);
+	CHAOS_API static TArray<TArray<int32>> ComputeGraphColoring(const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles);
 };
 
 }

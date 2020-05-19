@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDSpringConstraints.h"
+#include "Chaos/PBDParticles.h"
+#include "Chaos/PBDRigidParticles.h"
+#include "Chaos/Framework/Parallel.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spring Constraint"), STAT_PBD_Spring, STATGROUP_Chaos);
 
 using namespace Chaos;
 
-void FPBDSpringConstriants::Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt, const int32 InConstraintIndex)
+template<class T_PARTICLES>
+void FPBDSpringConstraints::Apply(T_PARTICLES& InParticles, const FReal Dt, const int32 InConstraintIndex) const
 {
 	const int32 i = InConstraintIndex;
 	{
@@ -25,17 +29,17 @@ void FPBDSpringConstriants::Apply(TPBDParticles<FReal, 3>& InParticles, const FR
 	}
 }
 
-void FPBDSpringConstriants::Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt)
+void FPBDSpringConstraints::Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 	if (MConstraintsPerColor.Num())
 	{
-		PhysicsParallelFor(MConstraintsPerColor.Num(), [&](const int32 Color){
-			for (int32 i = 0; i < MConstraintsPerColor[Color].Num(); ++i)
-			{
-				Apply(InParticles, Dt, MConstraintsPerColor[Color][i]);
-			}
-		});
+		for (const auto& Constraints : MConstraintsPerColor)
+		{
+			PhysicsParallelFor(Constraints.Num(), [&](const int32 Index) {
+				Apply(InParticles, Dt, Constraints[Index]);
+			});
+		}
 	}
 	else
 	{
@@ -46,7 +50,7 @@ void FPBDSpringConstriants::Apply(TPBDParticles<FReal, 3>& InParticles, const FR
 	}
 }
 
-void FPBDSpringConstriants::Apply(TPBDRigidParticles<FReal, 3>& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices)
+void FPBDSpringConstraints::Apply(TPBDRigidParticles<FReal, 3>& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 	for (int32 i : InConstraintIndices)
