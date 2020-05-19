@@ -235,6 +235,11 @@ public:
 	virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const override;
 #endif
 
+#if CSV_PROFILER
+	/** Set a custom CSV tick stat name, must point to a static string */
+	void SetCSVTickStatName(const char* InCSVTickStatName) { CSVTickStatName = InCSVTickStatName; }
+#endif
+
 protected:
 	/** stack of behavior tree instances */
 	TArray<FBehaviorTreeInstance> InstanceStack;
