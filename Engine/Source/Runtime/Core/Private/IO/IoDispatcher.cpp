@@ -603,6 +603,7 @@ private:
 	bool bIsMultithreaded;
 	FIoDispatcherEventQueue EventQueue;
 
+	FIoSignatureErrorEvent SignatureErrorEvent;
 	FFileIoStore FileIoStore;
 	FRequestAllocator RequestAllocator;
 	FBatchAllocator BatchAllocator;
@@ -616,7 +617,6 @@ private:
 	mutable FCriticalSection MountedContainersCritical;
 	TArray<FIoDispatcherMountedContainer> MountedContainers;
 	FIoDispatcher::FIoContainerMountedEvent ContainerMountedEvent;
-	FIoSignatureErrorEvent SignatureErrorEvent;
 };
 
 FIoDispatcher::FIoDispatcher()
