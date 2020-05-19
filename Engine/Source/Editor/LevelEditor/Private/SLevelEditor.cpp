@@ -176,6 +176,12 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	// Patch into the OnPreviewFeatureLevelChanged() delegate to swap out the current feature level with a user selection.
 	PreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([this](ERHIFeatureLevel::Type NewFeatureLevel)
 		{
+			// Do one recapture if atleast one ReflectionComponent is dirty
+			// BuildReflectionCapturesOnly_Execute in LevelEditorActions relies on this happening on toggle between SM5->ES31. If you remove this, update that code!
+			if (World->NumUnbuiltReflectionCaptures >= 1 && NewFeatureLevel == ERHIFeatureLevel::ES3_1 && GEditor != nullptr)
+			{
+				GEditor->BuildReflectionCaptures();
+			}
 			World->ChangeFeatureLevel(NewFeatureLevel);
 		});
 
