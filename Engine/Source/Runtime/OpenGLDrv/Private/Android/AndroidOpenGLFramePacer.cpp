@@ -108,8 +108,7 @@ static int32 NumRecordedFrameInterval = 0;
 
 extern float AndroidThunkCpp_GetMetaDataFloat(const FString& Key);
 
-
-bool FAndroidOpenGLFramePacer::SupportsFramePace(int32 QueryFramePace)
+bool FAndroidOpenGLFramePacer::SupportsFramePaceInternal(int32 QueryFramePace, int32& OutRefreshRate, int32& OutSyncInterval)
 {
 #if USE_ANDROID_OPENGL_SWAPPY
 	if (FAndroidPlatformRHIFramePacer::CVarUseSwappyForFramePacing.GetValueOnAnyThread() == 1)
@@ -132,17 +131,43 @@ bool FAndroidOpenGLFramePacer::SupportsFramePace(int32 QueryFramePace)
 		}
 		UE_LOG(LogRHI, Log, TEXT("%s"), *DebugString);
 
-		for (uint64 Rate : RefreshRates)
+		for (int32 Rate : RefreshRates)
 		{
 			if ((Rate % QueryFramePace) == 0)
 			{
-				UE_LOG(LogRHI, Log, TEXT("Using Refresh rate %d with sync interval %d"), Rate, Rate / QueryFramePace);
+				UE_LOG(LogRHI, Log, TEXT("Supports %d using refresh rate %d and sync interval %d"), QueryFramePace, Rate, Rate / QueryFramePace);
+				OutRefreshRate = Rate;
+				OutSyncInterval = Rate / QueryFramePace;
 				return true;
+			}
+		}
+
+		// check if we want to use naive frame pacing at less than a multiple of supported refresh rate
+		if (FAndroidPlatformRHIFramePacer::CVarSupportNonVSyncMultipleFrameRates.GetValueOnAnyThread() == 1)
+		{
+			RefreshRates.Sort();
+			for (int32 Rate : RefreshRates)
+			{
+				if (Rate > QueryFramePace)
+				{
+					UE_LOG(LogRHI, Log, TEXT("Supports %d using refresh rate %d with naive frame pacing"), QueryFramePace, Rate);
+					OutRefreshRate = Rate;
+					OutSyncInterval = 0;
+					return true;
+				}
 			}
 		}
 	}
 #endif
+	OutRefreshRate = QueryFramePace;
+	OutSyncInterval = 0;
 	return FGenericPlatformRHIFramePacer::SupportsFramePace(QueryFramePace);
+}
+
+bool FAndroidOpenGLFramePacer::SupportsFramePace(int32 QueryFramePace)
+{
+	int32 TempRefreshRate, TempSyncInterval;
+	return SupportsFramePaceInternal(QueryFramePace, TempRefreshRate, TempSyncInterval);
 }
 
 bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
@@ -164,12 +189,38 @@ bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
 	bool bPrintMethod = false;
 
 #if USE_ANDROID_OPENGL_SWAPPY
-	if (FAndroidPlatformRHIFramePacer::CVarUseSwappyForFramePacing.GetValueOnRenderThread() != 0 && bSwappyInit)
+	int32 CurrentFramePace = 0;
+	if (FAndroidPlatformRHIFramePacer::CVarUseSwappyForFramePacing.GetValueOnRenderThread() != 0 && (CurrentFramePace = FAndroidPlatformRHIFramePacer::GetFramePace()) != 0 && ensure(bSwappyInit))
 	{
-		int64 DesiredFrameNS = (1000000000L) / (int64)FAndroidPlatformRHIFramePacer::GetFramePace();
-		SwappyGL_setSwapIntervalNS(DesiredFrameNS);
+		// cache refresh rate and sync interval
+		if (CurrentFramePace != CachedFramePace)
+		{
+			CachedFramePace = CurrentFramePace;
+			SupportsFramePaceInternal(CurrentFramePace, CachedRefreshRate, CachedSyncInterval);
+		}
+
 		SwappyGL_setAutoSwapInterval(false);
+		if (CachedSyncInterval != 0)
+		{
+			// Multiple of sync interval, use swappy directly
+			SwappyGL_setSwapIntervalNS((1000000000L) / (int64)CurrentFramePace);
+		}
+		else
+		{
+			// Unsupported frame rate. Set to higher refresh rate
+			SwappyGL_setSwapIntervalNS((1000000000L) / (int64)CachedRefreshRate);
+
+			// use naive frame pacing to limit the frame rate
+			float MinTimeBetweenFrames = (1.f / CurrentFramePace);
+			float ThisTime = FPlatformTime::Seconds() - LastTimeEmulatedSync;
+			if (ThisTime > 0 && ThisTime < MinTimeBetweenFrames)
+			{
+				FPlatformProcess::Sleep(MinTimeBetweenFrames - ThisTime);
+			}
+		}
+
 		SwappyGL_swap(eglDisplay, eglSurface);
+		LastTimeEmulatedSync = FPlatformTime::Seconds();
 	}
 	else
 #endif
