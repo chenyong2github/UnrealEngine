@@ -175,7 +175,7 @@ protected:
 		}
 
 	private:
-		FSkeletalMeshStreamIn_IO* PendingUpdate;
+		TRefCountPtr<FSkeletalMeshStreamIn_IO> PendingUpdate;
 	};
 
 	typedef FAutoDeleteAsyncTask<FCancelIORequestsTask> FAsyncCancelIORequestsTask;
