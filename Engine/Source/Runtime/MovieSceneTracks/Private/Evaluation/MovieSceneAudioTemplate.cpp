@@ -16,6 +16,7 @@
 #include "MovieScene.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"
+#include "GameFramework/WorldSettings.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Audio Track Evaluate"), MovieSceneEval_AudioTrack_Evaluate, STATGROUP_MovieSceneEval);
@@ -27,6 +28,13 @@ FAutoConsoleVariableRef CVarMaxSequenceAudioDesyncTolerance(
 	TEXT("Sequencer.Audio.MaxDesyncTolerance"),
 	MaxSequenceAudioDesyncToleranceCVar,
 	TEXT("Controls how many seconds an audio track can be out of sync in a Sequence before we attempt a time correction.\n"),
+	ECVF_Default);
+
+static bool bIgnoreAudioSyncDuringWorldTimeDilationCVar = true;
+FAutoConsoleVariableRef CVarIgnoreAudioSyncDuringWorldTimeDilation(
+	TEXT("Sequencer.Audio.IgnoreAudioSyncDuringWorldTimeDilation"),
+	bIgnoreAudioSyncDuringWorldTimeDilationCVar,
+	TEXT("Ignore correcting audio if there is world time dilation.\n"),
 	ECVF_Default);
 
 static int32 UseAudioClockForSequencerDesyncCVar = 0;
@@ -420,7 +428,14 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 		bool bSoundNeedsStateChange = !AudioComponent.IsPlaying() || AudioComponent.Sound != Sound;
 		bool bSoundNeedsTimeSync = false;
 
-		if (Player.GetPlaybackContext()->GetWorld())
+		// Sync only if there is no time dilation because otherwise the system will constantly resync because audio 
+		// playback is not dilated and will never match the expected playback time.
+		const bool bDoTimeSync = 
+			Player.GetPlaybackContext()->GetWorld() && 
+			(FMath::IsNearlyEqual(Player.GetPlaybackContext()->GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation(), 1.f) ||
+			 !bIgnoreAudioSyncDuringWorldTimeDilationCVar);
+
+		if (bDoTimeSync)
 		{
 			float CurrentGameTime = 0.0f;
 
