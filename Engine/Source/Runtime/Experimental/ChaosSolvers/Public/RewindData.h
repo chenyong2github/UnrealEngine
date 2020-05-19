@@ -943,7 +943,8 @@ public:
 			else if(IsResim())
 			{
 				EResimType ResimType = EResimType::FullResim;
-				if(auto* Rigid = Info.GetPTParticle()->CastToRigidParticle())
+				auto* Rigid = Info.GetPTParticle()->CastToRigidParticle();
+				if(Rigid)
 				{
 					ResimType = Rigid->ResimType();
 				}
@@ -956,7 +957,7 @@ public:
 					{
 						Info.Desync(CurFrame, LatestFrame);
 					}
-					else if(auto Rigid = Info.GetPTParticle()->CastToRigidParticle())
+					else if(Rigid)
 					{
 						//If we have a simulated particle, make sure its sim-writable properties are still in sync
 						const FGeometryParticleStateBase* ExpectedState = GetStateAtFrameImp(Info,CurFrame);
@@ -967,7 +968,18 @@ public:
 								Info.Desync(CurFrame,LatestFrame);
 							}
 						}
-						
+					}
+				}
+				else if(ResimType == EResimType::ResimAsSlave)
+				{
+					//Resim as slave means we snap everything as it was regardless of divergence
+					//We do this in FinishFrame and AdvanceFrame because the state must be preserved before and after 
+					//This is because gameplay code could modify state before or after
+					const FGeometryParticleStateBase* ExpectedState = GetStateAtFrameImp(Info,CurFrame);
+					ensure(!Info.bDesync);
+					if(ensure(ExpectedState != nullptr))
+					{
+						ExpectedState->SyncToParticle(*Rigid);
 					}
 				}
 
@@ -1007,11 +1019,13 @@ public:
 				{
 					if(Rigid->ResimType() == EResimType::ResimAsSlave)
 					{
-						const FGeometryParticleStateBase* FutureState = GetStateAtFrameImp(Info,CurFrame+1);
+						//Resim as slave means we snap everything as it was regardless of divergence
+						//We do this in FinishFrame and AdvanceFrame because the state must be preserved before and after
+						//This is because gameplay code could modify state before or after
 						ensure(!Info.bDesync);	
-						if(ensure(FutureState != nullptr))
+						if(const FSimWritableState* SimWritableState = GetSimWritableStateAtFrame(Info, CurFrame))
 						{
-							FutureState->SyncToParticle(*Rigid);
+							SimWritableState->SyncToParticle(*Rigid);
 						}
 					}
 				}
@@ -1195,12 +1209,45 @@ public:
 			FGeometryParticleStateBase& LatestState = Info.AddFrame(CurFrame);
 			LatestState.SyncSimWritablePropsFromSim(DestManagerWrapper,Rigid);
 
+			//copy results of end of frame in case user changes inputs of next frame (for example they can teleport at start frame)
+			Info.Frames[CurFrame].GetSimWritableStateChecked(CurFrame).SyncSimWritablePropsFromSim(Rigid);
+
 			//update any previous frames that were pointing at head
 			CoalesceBack(Info.Frames,CurFrame);
 		}
 	}
 
 private:
+
+	struct FSimWritableState
+	{
+		void SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid)
+		{
+			MX = Rigid.P();
+			MR = Rigid.Q();
+			MV = Rigid.V();
+			MW = Rigid.W();
+		}
+
+		void SyncToParticle(TPBDRigidParticleHandle<FReal,3>& Rigid) const
+		{
+			Rigid.SetX(MX);
+			Rigid.SetR(MR);
+			Rigid.SetV(MV);
+			Rigid.SetW(MW);
+		}
+
+		const FVec3& X() const { return MX; }
+		const FQuat& R() const { return MR; }
+		const FVec3& V() const { return MV; }
+		const FVec3& W() const { return MW; }
+
+	private:
+		FVec3 MX;
+		FQuat MR;
+		FVec3 MV;
+		FVec3 MW;
+	};
 
 	struct FDirtyFrameInfo
 	{
@@ -1251,6 +1298,28 @@ private:
 			return State;
 		}
 
+		FSimWritableState* GetSimWritableState(int32 Frame)
+		{
+			return (bSet && Frame == RecordedFrame) ? &SimWritableState : nullptr;
+		}
+
+		const FSimWritableState* GetSimWritableState(int32 Frame) const
+		{
+			return (bSet && Frame == RecordedFrame) ? &SimWritableState : nullptr;
+		}
+
+		FSimWritableState& GetSimWritableStateChecked(int32 Frame)
+		{
+			check(bSet && Frame == RecordedFrame);
+			return SimWritableState;
+		}
+
+		const FSimWritableState& GetSimWritableStateChecked(int32 Frame) const
+		{
+			check(bSet && Frame == RecordedFrame);
+			return SimWritableState;
+		}
+
 		FGeometryParticleStateBase& NewState(int32 Frame)
 		{
 			RecordedFrame = Frame;
@@ -1266,6 +1335,7 @@ private:
 
 	private:
 		FGeometryParticleStateBase State;
+		FSimWritableState SimWritableState;
 		int32 RecordedFrame;
 		bool bSet;
 	};
@@ -1354,6 +1424,12 @@ private:
 			}
 		}
 	};
+
+	const FSimWritableState* GetSimWritableStateAtFrame(const FDirtyParticleInfo& Info, int32 Frame) const
+	{
+		const TCircularBuffer<FFrameInfo>& Frames = Info.Frames;
+		return Frames[Frame].GetSimWritableState(Frame);
+	}
 
 	const FGeometryParticleStateBase* GetStateAtFrameImp(const FDirtyParticleInfo& Info,int32 Frame) const
 	{

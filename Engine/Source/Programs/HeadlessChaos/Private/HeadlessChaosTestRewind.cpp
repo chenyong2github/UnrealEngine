@@ -355,6 +355,149 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
+	TYPED_TEST(AllTraits,RewindTest_ResimFallingObjectWithTeleport)
+	{
+		if(TypeParam::IsRewindable() == false){ return; }
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		Solver->EnableRewindCapture(20);
+
+
+		// Make particles
+		auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+
+		Particle->SetGeometry(Sphere);
+		Solver->RegisterObject(Particle.Get());
+		Particle->SetGravityEnabled(true);
+		Particle->SetX(FVec3(0,0,100));
+
+		TArray<FVec3> XPre;
+		TArray<FVec3> VPre;
+		TArray<FVec3> XPost;
+		TArray<FVec3> VPost;
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			//teleport from GT
+			if(Step == 5)
+			{
+				Particle->SetX(FVec3(0,0,10));
+				Particle->SetV(FVec3(0,0,1));
+			}
+
+			XPre.Add(Particle->X());
+			VPre.Add(Particle->V());
+
+			TickSolverHelper(Module,Solver);
+
+			XPost.Add(Particle->X());
+			VPost.Add(Particle->V());
+		}
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		RewindData->RewindToFrame(0);
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			//teleport from GT
+			if(Step == 5)
+			{
+				Particle->SetX(FVec3(0,0,10));
+				Particle->SetV(FVec3(0,0,1));
+			}
+
+			EXPECT_EQ(Particle->X()[2],XPre[Step][2]);
+			EXPECT_EQ(Particle->V()[2],VPre[Step][2]);
+			TickSolverHelper(Module,Solver);
+			EXPECT_EQ(Particle->X()[2],XPost[Step][2]);
+			EXPECT_EQ(Particle->V()[2],VPost[Step][2]);
+		}
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
+
+		Module->DestroySolver(Solver);
+	}
+
+	TYPED_TEST(AllTraits,RewindTest_ResimFallingObjectWithTeleportAsSlave)
+	{
+		if(TypeParam::IsRewindable() == false){ return; }
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		Solver->EnableRewindCapture(20);
+
+
+		// Make particles
+		auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+
+		Particle->SetGeometry(Sphere);
+		Solver->RegisterObject(Particle.Get());
+		Particle->SetGravityEnabled(true);
+		Particle->SetX(FVec3(0,0,100));
+		Particle->SetResimType(EResimType::ResimAsSlave);
+
+		TArray<FVec3> XPre;
+		TArray<FVec3> VPre;
+		TArray<FVec3> XPost;
+		TArray<FVec3> VPost;
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			//teleport from GT
+			if(Step == 5)
+			{
+				Particle->SetX(FVec3(0,0,10));
+				Particle->SetV(FVec3(0,0,1));
+			}
+
+			XPre.Add(Particle->X());
+			VPre.Add(Particle->V());
+
+			TickSolverHelper(Module,Solver);
+
+			XPost.Add(Particle->X());
+			VPost.Add(Particle->V());
+		}
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		RewindData->RewindToFrame(0);
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			//teleport done automatically, but inside the solve
+			if(Step != 5)
+			{
+				EXPECT_EQ(Particle->X()[2],XPre[Step][2]);
+				EXPECT_EQ(Particle->V()[2],VPre[Step][2]);
+			}
+
+			TickSolverHelper(Module,Solver);
+			
+			//Make sure sets particle to end of sim at this frame, not beginning of next frame
+			EXPECT_EQ(Particle->X()[2],XPost[Step][2]);
+			EXPECT_EQ(Particle->V()[2],VPost[Step][2]);
+		}
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
+
+		Module->DestroySolver(Solver);
+	}
+
 	TYPED_TEST(AllTraits, RewindTest_ApplyRewind)
 	{
 		if(TypeParam::IsRewindable() == false){ return; }
