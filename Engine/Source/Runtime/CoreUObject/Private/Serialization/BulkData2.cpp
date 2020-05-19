@@ -1332,12 +1332,12 @@ FIoFilenameHash FBulkDataBase::GetIoFilenameHash() const
 {
 	if (!IsUsingIODispatcher())
 	{
-		FString Filename = FileTokenSystem::GetFilename(Data.Fallback.Token);
+		FString Filename = FileTokenSystem::GetFilename(Data.Token);
 		return MakeIoFilenameHash(Filename);
 	}
 	else
 	{
-		return MakeIoFilenameHash(Data.ChunkID);
+		return MakeIoFilenameHash(CreateChunkId());
 	}
 }
 
