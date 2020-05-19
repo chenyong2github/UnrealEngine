@@ -775,6 +775,11 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	ZeroVulkanStruct(PhysicalDeviceProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR);
 #endif
 
+#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
+	VkImageViewASTCDecodeModeEXT GpuImageViewASTCDecodeModeProps;
+	ZeroVulkanStruct(GpuImageViewASTCDecodeModeProps, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
+#endif
+
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
@@ -783,10 +788,21 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 		GpuProps2.pNext = &GpuIdProps;
 		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
 
+		void** NextPropsAddr = nullptr;
+		NextPropsAddr = &GpuIdProps.pNext;
+
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 		if (GetOptionalExtensions().HasDriverProperties)
 		{
-			GpuIdProps.pNext = &PhysicalDeviceProperties;
+			*NextPropsAddr = &PhysicalDeviceProperties;
+			NextPropsAddr = &PhysicalDeviceProperties.pNext;
+		}
+#endif
+
+#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
+		if (GetOptionalExtensions().HasEXTASTCDecodeMode)
+		{
+			*NextPropsAddr = &GpuImageViewASTCDecodeModeProps;
 		}
 #endif
 
