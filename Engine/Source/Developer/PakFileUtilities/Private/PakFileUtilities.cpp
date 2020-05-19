@@ -1762,7 +1762,13 @@ void ApplyEncryptionKeys(const FKeyChain& KeyChain)
 	{
 		if (Key.Key.IsValid())
 		{
+			// Deprecated version
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::GetRegisterEncryptionKeyDelegate().ExecuteIfBound(Key.Key, Key.Value.Key);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			// New version
+			FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(Key.Key, Key.Value.Key);
 		}
 	}
 }
