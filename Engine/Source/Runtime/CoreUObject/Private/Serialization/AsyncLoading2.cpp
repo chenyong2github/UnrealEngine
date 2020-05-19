@@ -1058,29 +1058,41 @@ private:
 	void AddAsyncFlags(FPackageId InPackageId)
 	{
 		const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(InPackageId);
-		for (const FPackageObjectIndex& GlobalIndex : ImportEntry.PublicExports)
+		UObject* ImportedPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(ImportEntry.Name), true);
+		
+		if (GUObjectArray.IsDisregardForGC(ImportedPackage))
 		{
-			UObject* Object = GlobalImportStore.GetPublicExportObject(GlobalIndex);
-			if (Object)
+			// UE_LOG(LogStreaming, Display, TEXT("Skipping AddAsyncFlags for persistent package: %s"), *ImportedPackage->GetPathName());
+			return;
+		}
+		ForEachObjectWithOuter(ImportedPackage, [](UObject* Object)
+		{
+			if (Object->HasAnyFlags(RF_Public))
 			{
 				check(!Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
 				Object->SetInternalFlags(EInternalObjectFlags::Async);
 			}
-		}
+		}, /* bIncludeNestedObjects*/ true);
 	}
 
 	void ClearAsyncFlags(FPackageId InPackageId)
 	{
 		const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(InPackageId);
-		for (const FPackageObjectIndex& GlobalIndex : ImportEntry.PublicExports)
+		UObject* ImportedPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(ImportEntry.Name), true);
+
+		if (GUObjectArray.IsDisregardForGC(ImportedPackage))
 		{
-			UObject* Object = GlobalImportStore.GetPublicExportObject(GlobalIndex);
-			if (Object)
+			// UE_LOG(LogStreaming, Display, TEXT("Skipping ClearAsyncFlags for persistent package: %s"), *ImportedPackage->GetPathName());
+			return;
+		}
+		ForEachObjectWithOuter(ImportedPackage, [](UObject* Object)
+		{
+			if (Object->HasAnyFlags(RF_Public))
 			{
 				check(Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
 				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
 			}
-		}
+		}, /* bIncludeNestedObjects*/ true);
 	}
 
 	void AddPackageReferences()
@@ -1511,16 +1523,16 @@ struct FAsyncLoadingThreadState2
 
 	}
 
+	bool HasDeferredFrees() const
+	{
+		return DeferredFreeArcs.Num() > 0;
+	}
+
 	void ProcessDeferredFrees()
 	{
-		if (DeferredFreeNodes.Num() || DeferredFreeArcs.Num())
+		if (DeferredFreeArcs.Num() > 0)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessDeferredFrees);
-			for (TTuple<FEventLoadNode2*, uint32>& DeferredFreeNode : DeferredFreeNodes)
-			{
-				GraphAllocator.FreeNodes(DeferredFreeNode.Get<0>(), DeferredFreeNode.Get<1>());
-			}
-			DeferredFreeNodes.Reset();
 			for (TTuple<FEventLoadNode2**, uint32>& DeferredFreeArc : DeferredFreeArcs)
 			{
 				GraphAllocator.FreeArcs(DeferredFreeArc.Get<0>(), DeferredFreeArc.Get<1>());
@@ -1568,7 +1580,6 @@ struct FAsyncLoadingThreadState2
 	}
 
 	FAsyncLoadEventGraphAllocator& GraphAllocator;
-	TArray<TTuple<FEventLoadNode2*, uint32>> DeferredFreeNodes;
 	TArray<TTuple<FEventLoadNode2**, uint32>> DeferredFreeArcs;
 	TArray<FEventLoadNode2*> NodesToFire;
 	FEventLoadNode2* CurrentEventNode = nullptr;
@@ -1598,21 +1609,14 @@ struct FAsyncPackage2
 	virtual ~FAsyncPackage2();
 
 
-	bool bAddedForDelete = false;
+	bool bCompleted = false;
 
 	void AddRef()
 	{
 		++RefCount;
 	}
 
-	void ReleaseRef()
-	{
-		check(RefCount > 0);
-		if (--RefCount == 0)
-		{
-			GetPackageNode(EEventLoadNode2::Package_Delete)->ReleaseBarrier();
-		}
-	}
+	void ReleaseRef();
 
 	void ClearImportedPackages();
 
@@ -1828,7 +1832,6 @@ public:
 	static EAsyncPackageState::Type Event_ProcessPackageSummary(FAsyncPackage2* Package, int32);
 	static EAsyncPackageState::Type Event_ExportsDone(FAsyncPackage2* Package, int32);
 	static EAsyncPackageState::Type Event_PostLoad(FAsyncPackage2* Package, int32);
-	static EAsyncPackageState::Type Event_Delete(FAsyncPackage2* Package, int32);
 
 	void EventDrivenCreateExport(int32 LocalExportIndex);
 	bool EventDrivenSerializeExport(int32 LocalExportIndex, FExportArchive& Ar);
@@ -2018,7 +2021,10 @@ private:
 	/** [ASYNC/GAME THREAD] Critical section for LoadedPackages list */
 	FCriticalSection LoadedPackagesCritical;
 	TArray<FAsyncPackage2*> LoadedPackagesToProcess;
-	TArray<FAsyncPackage2*> PackagesToDelete;
+	/** [GAME THREAD] Game thread CompletedPackages list */
+	TArray<FAsyncPackage2*> CompletedPackages;
+	/** [ASYNC/GAME THREAD] Packages to be deleted from async thread */
+	TQueue<FAsyncPackage2*, EQueueMode::Spsc> DeferredDeletePackages;
 	
 	struct FQueuedFailedPackageCallback
 	{
@@ -2123,7 +2129,7 @@ public:
 	inline virtual bool IsAsyncLoadingPackages() override
 	{
 		FPlatformMisc::MemoryBarrier();
-		return QueuedPackagesCounter != 0 || ExistingAsyncPackagesCounter.GetValue() != 0;
+		return QueuedPackagesCounter != 0 || ExistingAsyncPackagesCounter.GetValue() != 0 || !DeferredDeletePackages.IsEmpty();
 	}
 
 	/** Returns true this codes runs on the async loading thread */
@@ -3738,15 +3744,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoad(FAsyncPackage2* Package,
 	return EAsyncPackageState::Complete;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::Event_Delete(FAsyncPackage2* Package, int32)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(Event_Delete);
-	UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("AsyncThread: Deleted"), TEXT("Package deleted."));
-	delete Package;
-	return EAsyncPackageState::Complete;
-}
-
-
 FEventLoadNode2* FAsyncPackage2::GetPackageNode(EEventLoadNode2 Phase)
 {
 	check(Phase < EEventLoadNode2::Package_NumPhases);
@@ -3815,8 +3812,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 	{
 		do 
 		{
-			ThreadState.ProcessDeferredFrees();
-
 			if (bNeedsHeartbeatTick && (++LoopIterations) % 32 == 31)
 			{
 				// Update heartbeat after 32 events
@@ -3831,20 +3826,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 			if (IsAsyncLoadingSuspended())
 			{
 				return EAsyncPackageState::TimeOut;
-			}
-
-			if (!ExternalReadQueue.IsEmpty())
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(ProcessExternalReads);
-
-				FAsyncPackage2* Package = nullptr;
-				ExternalReadQueue.Dequeue(Package);
-
-				EAsyncPackageState::Type Result = Package->ProcessExternalReads(FAsyncPackage2::ExternalReadAction_Wait);
-				check(Result == EAsyncPackageState::Complete);
-
-				OutPackagesProcessed++;
-				break;
 			}
 
 			if (QueuedPackagesCounter)
@@ -3865,6 +3846,32 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 			}
 			if (bPopped)
 			{
+				OutPackagesProcessed++;
+				break;
+			}
+
+			if (!ExternalReadQueue.IsEmpty())
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ProcessExternalReads);
+
+				FAsyncPackage2* Package = nullptr;
+				ExternalReadQueue.Dequeue(Package);
+
+				EAsyncPackageState::Type Result = Package->ProcessExternalReads(FAsyncPackage2::ExternalReadAction_Wait);
+				check(Result == EAsyncPackageState::Complete);
+
+				OutPackagesProcessed++;
+				break;
+			}
+
+			ThreadState.ProcessDeferredFrees();
+
+			if (!DeferredDeletePackages.IsEmpty())
+			{
+				FAsyncPackage2* Package = nullptr;
+				DeferredDeletePackages.Dequeue(Package);
+				TRACE_CPUPROFILER_EVENT_SCOPE(DeleteAsyncPackage);
+				delete Package;
 				OutPackagesProcessed++;
 				break;
 			}
@@ -3988,10 +3995,10 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			}
 
 			// We don't need the package anymore
-			check(!Package->bAddedForDelete);
-			check(!PackagesToDelete.Contains(Package));
-			PackagesToDelete.Add(Package);
-			Package->bAddedForDelete = true;
+			check(!Package->bCompleted);
+			check(!CompletedPackages.Contains(Package));
+			CompletedPackages.Add(Package);
+			Package->bCompleted = true;
 			Package->MarkRequestIDsAsComplete();
 
 			UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("GameThread: LoadCompleted"),
@@ -4008,7 +4015,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			break;
 		}
 	}
-	bDidSomething = bDidSomething || PackagesToDelete.Num() > 0;
+	bDidSomething = bDidSomething || CompletedPackages.Num() > 0;
 
 	// Delete packages we're done processing and are no longer dependencies of anything else
 	if (Result != EAsyncPackageState::TimeOut)
@@ -4016,9 +4023,9 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 		// For performance reasons this set is created here and reset inside of AreAllDependenciesFullyLoaded
 		TSet<FPackageId> VisistedPackages;
 
-		for (int32 PackageIndex = 0; PackageIndex < PackagesToDelete.Num(); ++PackageIndex)
+		for (int32 PackageIndex = 0; PackageIndex < CompletedPackages.Num(); ++PackageIndex)
 		{
-			FAsyncPackage2* Package = PackagesToDelete[PackageIndex];
+			FAsyncPackage2* Package = CompletedPackages[PackageIndex];
 			{
 				bool bSafeToDelete = false;
 				if (Package->HasClusterObjects())
@@ -4047,7 +4054,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 				if (bSafeToDelete)
 				{
-					PackagesToDelete.RemoveAtSwap(PackageIndex--);
+					CompletedPackages.RemoveAtSwap(PackageIndex--);
 					Package->ClearImportedPackages();
 					Package->AsyncLoadingThread.WaitingForPostLoadCounter.Decrement();
 					Package->ReleaseRef();
@@ -4062,7 +4069,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 	if (Result == EAsyncPackageState::Complete)
 	{
 		// We're not done until all packages have been deleted
-		Result = PackagesToDelete.Num() ? EAsyncPackageState::PendingImports : EAsyncPackageState::Complete;
+		Result = CompletedPackages.Num() ? EAsyncPackageState::PendingImports : EAsyncPackageState::Complete;
 	}
 
 	return Result;
@@ -4087,14 +4094,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(bo
 	if (!bLoadingSuspended)
 	{
 		FAsyncLoadingThreadState2::Get()->SetTimeLimit(bUseTimeLimit, TimeLimit);
-
-		// First make sure there's no objects pending to be unhashed. This is important in uncooked builds since we don't 
-		// detach linkers immediately there and we may end up in getting unreachable objects from Linkers in CreateImports
-		if (FPlatformProperties::RequiresCookedData() == false && IsIncrementalUnhashPending() && IsAsyncLoadingPackages())
-		{
-			// Call ConditionalBeginDestroy on all pending objects. CBD is where linkers get detached from objects.
-			UnhashUnreachableObjects(false);
-		}
 
 		const bool bIsMultithreaded = FAsyncLoadingThread2::IsMultithreaded();
 		double TickStartTime = FPlatformTime::Seconds();
@@ -4155,7 +4154,6 @@ FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher)
 	EventSpecs[EEventLoadNode2::Package_ProcessSummary] = { &FAsyncPackage2::Event_ProcessPackageSummary, &AsyncEventQueue, false };
 	EventSpecs[EEventLoadNode2::Package_ExportsSerialized] = { &FAsyncPackage2::Event_ExportsDone, &AsyncEventQueue, true };
 	EventSpecs[EEventLoadNode2::Package_PostLoad] = { &FAsyncPackage2::Event_PostLoad, &AsyncEventQueue, true };
-	EventSpecs[EEventLoadNode2::Package_Delete] = { &FAsyncPackage2::Event_Delete, &AsyncEventQueue, false };
 
 	EventSpecs[EEventLoadNode2::Package_NumPhases + EEventLoadNode2::ExportBundle_Process] = { &FAsyncPackage2::Event_ProcessExportBundle, &ProcessExportBundlesEventQueue, false };
 
@@ -4401,26 +4399,42 @@ uint32 FAsyncLoadingThread2::Run()
 				} while (bDidSomething);
 			}
 
-			const bool bWaitingForIo = WaitingForIoBundleCounter.GetValue() > 0;
-			const bool bWaitingForPostLoad = WaitingForPostLoadCounter.GetValue() > 0;
-			const bool bIsLoadingAndWaiting = bWaitingForIo || bWaitingForPostLoad;
 			if (!bDidSomething)
 			{
-				if (bIsLoadingAndWaiting)
+				if (ThreadState.HasDeferredFrees())
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
 					ThreadState.ProcessDeferredFrees();
+					bDidSomething = true;
+				}
 
-					if (bWaitingForIo)
+				if (!DeferredDeletePackages.IsEmpty())
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
+					FAsyncPackage2* Package = nullptr;
+					int32 Count = 0;
+					while (++Count <= 100 && DeferredDeletePackages.Dequeue(Package))
 					{
-						TRACE_CPUPROFILER_EVENT_SCOPE(WaitingForIo);
-						Waiter.Wait();
+						TRACE_CPUPROFILER_EVENT_SCOPE(DeleteAsyncPackage);
+						delete Package;
 					}
-					else// if (bWaitingForPostLoad)
-					{
-						TRACE_CPUPROFILER_EVENT_SCOPE(WaitingForPostLoad);
-						Waiter.Wait();
-					}
+					bDidSomething = true;
+				}
+			}
+
+			if (!bDidSomething)
+			{
+				if (WaitingForIoBundleCounter.GetValue() > 0)
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
+					TRACE_CPUPROFILER_EVENT_SCOPE(WaitingForIo);
+					Waiter.Wait();
+				}
+				else if (WaitingForPostLoadCounter.GetValue() > 0)
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
+					TRACE_CPUPROFILER_EVENT_SCOPE(WaitingForPostLoad);
+					Waiter.Wait();
 				}
 				else
 				{
@@ -4712,9 +4726,6 @@ void FAsyncPackage2::CreateNodes(const FAsyncLoadEventSpec* EventSpecs)
 
 		StartPostLoadNode->AddBarrier();
 
-		FEventLoadNode2* DeleteNode = PackageNodes + EEventLoadNode2::Package_Delete;
-		DeleteNode->AddBarrier();
-
 		ExportBundleNodes = PackageNodes + EEventLoadNode2::Package_NumPhases;
 		for (int32 ExportBundleIndex = 0; ExportBundleIndex < ExportBundleCount; ++ExportBundleIndex)
 		{
@@ -4729,17 +4740,29 @@ void FAsyncPackage2::CreateNodes(const FAsyncLoadEventSpec* EventSpecs)
 
 FAsyncPackage2::~FAsyncPackage2()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(DeleteAsyncPackage);
-
-	check(RefCount == 0);
-
-	FAsyncLoadingThreadState2::Get()->DeferredFreeNodes.Add(MakeTuple(PackageNodes, EEventLoadNode2::Package_NumPhases + ExportBundleNodeCount));
-
 	TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(this);
+	UE_ASYNC_PACKAGE_LOG(Verbose, Desc, TEXT("AsyncThread: Deleted"), TEXT("Package deleted."));
 
-	MarkRequestIDsAsComplete();
+	checkf(RefCount == 0, TEXT("RefCount is not 0 when deleting package %s"),
+		*Desc.NameToLoad.ToString());
+
+	checkf(RequestIDs.Num() == 0, TEXT("MarkRequestIDsAsComplete() has not been called for package %s"),
+		*Desc.NameToLoad.ToString());
 	
-	check(OwnedObjects.Num() == 0);
+	checkf(OwnedObjects.Num() == 0, TEXT("ClearOwnedObjects() has not been called for package %s"),
+		*Desc.NameToLoad.ToString());
+
+	GraphAllocator.FreeNodes(PackageNodes, EEventLoadNode2::Package_NumPhases + ExportBundleNodeCount);
+}
+
+void FAsyncPackage2::ReleaseRef()
+{
+	check(RefCount > 0);
+	if (--RefCount == 0)
+	{
+		AsyncLoadingThread.DeferredDeletePackages.Enqueue(this);
+		AsyncLoadingThread.AltZenaphore.NotifyOne();
+	}
 }
 
 void FAsyncPackage2::ClearImportedPackages()
@@ -4783,9 +4806,10 @@ void FAsyncPackage2::ClearOwnedObjects()
 		const bool bAsync = !!(InternalFlags & EInternalObjectFlags::Async);
 		const bool bPrivate = !(Flags & RF_Public);
 		const bool bPackage = !Object->GetOuter();
+		const bool bIsDisregardForGC = GUObjectArray.IsDisregardForGC(Object);
 
-		// the async flag of all public export objects are handled by FGlobalImportStore
-		const bool bShouldClearAsync = bAsync && (bPackage || bPrivate);
+		// the async flag of all garbage collectable public export objects are handled by FGlobalImportStore
+		const bool bShouldClearAsync = bAsync && (bPackage || bPrivate || bIsDisregardForGC);
 
 		EInternalObjectFlags InternalFlagsToClear = EInternalObjectFlags::None;
 
@@ -4804,7 +4828,7 @@ void FAsyncPackage2::ClearOwnedObjects()
 
 		if (!!InternalFlagsToClear)
 		{
-			Object->ClearInternalFlags(InternalFlagsToClear);
+			Object->AtomicallyClearInternalFlags(InternalFlagsToClear);
 		}
 	}
 	OwnedObjects.Empty();
@@ -5190,7 +5214,7 @@ EAsyncPackageState::Type FAsyncPackage2::FinishObjects()
 	{
 		if (!Object->HasAnyFlags(RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
 		{
-			Object->ClearInternalFlags(EInternalObjectFlags::AsyncLoading);
+			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 		}
 	}
 
