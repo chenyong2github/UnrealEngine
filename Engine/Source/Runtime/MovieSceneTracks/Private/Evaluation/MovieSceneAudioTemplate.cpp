@@ -22,7 +22,7 @@ DECLARE_CYCLE_STAT(TEXT("Audio Track Evaluate"), MovieSceneEval_AudioTrack_Evalu
 DECLARE_CYCLE_STAT(TEXT("Audio Track Tear Down"), MovieSceneEval_AudioTrack_TearDown, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Audio Track Token Execute"), MovieSceneEval_AudioTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
-static float MaxSequenceAudioDesyncToleranceCVar = 0.2f;
+static float MaxSequenceAudioDesyncToleranceCVar = 0.5f;
 FAutoConsoleVariableRef CVarMaxSequenceAudioDesyncTolerance(
 	TEXT("Sequencer.Audio.MaxDesyncTolerance"),
 	MaxSequenceAudioDesyncToleranceCVar,
