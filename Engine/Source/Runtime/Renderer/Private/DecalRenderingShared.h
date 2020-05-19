@@ -47,4 +47,5 @@ struct FDecalRendering
 	// Set common compilation environment parameters for decal shaders (FDeferredDecalPS, FMeshDecalsPS, etc.)
 	static void SetDecalCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static void SetEmissiveDBufferDecalCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static FRHIBlendState* GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal);
 };
