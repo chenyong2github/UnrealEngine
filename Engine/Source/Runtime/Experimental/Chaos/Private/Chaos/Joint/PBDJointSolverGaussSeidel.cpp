@@ -315,7 +315,7 @@ namespace Chaos
 		}
 
 		// Final position fixup
-		if (LinearProjection > 0)
+		if (bLinearProjectionEnabled && (LinearProjection > 0))
 		{
 			NumActive += ApplyTranslateProjection(Dt, SolverSettings, JointSettings, LinearProjection, DP1, DR1);
 		}
