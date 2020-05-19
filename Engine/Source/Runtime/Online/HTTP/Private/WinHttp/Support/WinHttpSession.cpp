@@ -5,11 +5,11 @@
 #include "WinHttp/Support/WinHttpSession.h"
 #include "WinHttp/Support/WinHttpErrorHelper.h"
 #include "WinHttp/Support/WinHttpConnection.h"
+#include "WinHttp/Support/WinHttpTypes.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
 #include "Http.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
 #include <errhandlingapi.h>
 
 // Check if we support HTTP2

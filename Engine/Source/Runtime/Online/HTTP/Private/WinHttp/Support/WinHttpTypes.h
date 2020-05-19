@@ -6,11 +6,14 @@
 
 #include "CoreMinimal.h"
 
+#pragma warning(push)
+#pragma warning(disable : 28285) // Disable static analysis syntax error in WinHttpSetHeaders macros
 #include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
-#include "winhttp.h"
+#include <winhttp.h>
 THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
+#pragma warning(pop)
 
 enum class EWinHttpCallbackStatus : uint32
 {
