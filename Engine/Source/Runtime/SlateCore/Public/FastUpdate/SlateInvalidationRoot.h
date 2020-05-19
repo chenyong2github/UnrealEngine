@@ -52,6 +52,7 @@ class FSlateInvalidationRoot : public FGCObject, public FNoncopyable
 	friend class FSlateUpdateFastWidgetPathTask;
 	friend class FSlateUpdateFastPathAndHitTestGridTask;
 	friend class FWidgetProxyHandle;
+
 public:
 	SLATECORE_API FSlateInvalidationRoot();
 	SLATECORE_API virtual ~FSlateInvalidationRoot();
@@ -61,7 +62,6 @@ public:
 	/** FGCObject interface */
 	SLATECORE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	SLATECORE_API virtual FString GetReferencerName() const override;
-
 
 	SLATECORE_API void InvalidateRoot();
 
@@ -86,6 +86,8 @@ public:
 
 	void OnWidgetDestroyed(const SWidget* Widget);
 
+	SLATECORE_API void Advanced_ResetInvalidation(bool bClearResourcesImmediately);
+
 	SLATECORE_API static void ClearAllWidgetUpdatesPending();
 
 protected:
@@ -99,7 +101,6 @@ protected:
 	SLATECORE_API void ClearAllFastPathData(bool bClearResourcesImmediately);
 
 private:
-
 	void OnInvalidateAllWidgets(bool bClearResourcesImmediately);
 
 	bool PaintFastPath(const FSlateInvalidationContext& Context);
@@ -108,6 +109,7 @@ private:
 	bool BuildNewFastPathList_Recursive(FSlateInvalidationRoot& Root, FWidgetProxy& Proxy, int32 ParentIndex, int32& NextTreeIndex, TArray<FWidgetProxy>& CurrentFastPathList, TArray<FWidgetProxy, TMemStackAllocator<>>& NewFastPathList);
 
 	void AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform);
+
 private:
 	TArray<FWidgetProxy> FastWidgetPathList;
 	/** Index to widgets which are dirty, volatile, or need some sort of per frame update (such as a tick or timer) */
