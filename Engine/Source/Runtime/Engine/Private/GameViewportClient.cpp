@@ -351,7 +351,11 @@ void UGameViewportClient::PostInitProperties()
 
 void UGameViewportClient::BeginDestroy()
 {
-	AudioDeviceDestroyedHandle.Reset();
+	if (AudioDeviceDestroyedHandle.IsValid())
+	{
+		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(AudioDeviceDestroyedHandle);
+		AudioDeviceDestroyedHandle.Reset();
+	}
 	AudioDevice.Reset();
 
 	RemoveAllViewportWidgets();
