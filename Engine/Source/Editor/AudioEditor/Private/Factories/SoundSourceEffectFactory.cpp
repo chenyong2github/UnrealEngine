@@ -62,7 +62,7 @@ UObject* USoundSourceEffectFactory::FactoryCreateNew(UClass* InClass, UObject* I
 
 bool USoundSourceEffectFactory::CanCreateNew() const
 {
-	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+	return true;
 }
 
 USoundSourceEffectChainFactory::USoundSourceEffectChainFactory(const FObjectInitializer& ObjectInitializer)
@@ -81,7 +81,7 @@ UObject* USoundSourceEffectChainFactory::FactoryCreateNew(UClass* Class, UObject
 
 bool USoundSourceEffectChainFactory::CanCreateNew() const
 {
-	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE
