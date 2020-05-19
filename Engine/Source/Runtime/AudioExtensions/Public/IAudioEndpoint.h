@@ -10,6 +10,7 @@
 #include "DSP/MultithreadedPatching.h"
 #include "IAudioEndpoint.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogAudioEndpoints, Display, All);
 
 /**
  * Interfaces for Endpoints
@@ -222,7 +223,7 @@ public:
 			}
 		}
 
-		ensureMsgf(false, TEXT("Soundfield Format %s not found!"), *InName.ToString());
+		UE_LOG(LogAudioEndpoints, Display, TEXT("No endpoint implementation for %s found for this platform. Endpoint Submixes set to this type will not do anything."), *InName.ToString());
 		return nullptr;
 	}
 
