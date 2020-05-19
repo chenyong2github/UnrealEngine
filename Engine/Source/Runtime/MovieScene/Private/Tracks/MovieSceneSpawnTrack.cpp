@@ -10,7 +10,7 @@
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 #include "MovieScene.h"
-#include "IMovieSceneTracksModule.h"
+#include "MovieSceneTimeHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSpawnTrack"
 
@@ -51,6 +51,81 @@ void UMovieSceneSpawnTrack::PostLoad()
 
 /* UMovieSceneTrack interface
  *****************************************************************************/
+
+void UMovieSceneSpawnTrack::PopulateSpawnedRangeMask(const TRange<FFrameNumber>& InOverlap, TArray<TRange<FFrameNumber>, TInlineAllocator<1>>& OutRanges) const
+{
+	if (Sections.Num() > 1)
+	{
+		// Multiple sections - can't optimize this
+		OutRanges.Add(InOverlap);
+		return;
+	}
+	else if (Sections.Num() == 0 || !Sections[0]->IsActive())
+	{
+		// No active sections - mask out everything
+		return;
+	}
+
+	const UMovieSceneSpawnSection* SpawnSection = Cast<const UMovieSceneSpawnSection>(Sections[0]);
+	const FMovieSceneBoolChannel&  BoolCurve    = SpawnSection->GetChannel();
+	const TRange<FFrameNumber>     SectionRange = SpawnSection->GetTrueRange();
+	const TRange<FFrameNumber>     MaskedRange = TRange<FFrameNumber>::Intersection(InOverlap, SectionRange);
+	if (MaskedRange.IsEmpty())
+	{
+		return;
+	}
+
+	// Only add the valid section ranges to the tree
+	TArrayView<const FFrameNumber> Times  = BoolCurve.GetTimes();
+	TArrayView<const bool>         Values = BoolCurve.GetValues();
+
+	if (Times.Num() == 0)
+	{
+		if (BoolCurve.GetDefault().Get(false))
+		{
+			OutRanges.Add(MaskedRange);
+		}
+	}
+	else
+	{
+
+		TRangeBound<FFrameNumber> StartBound = MaskedRange.GetLowerBound();
+
+		// Find the effective key
+		int32 Index = FMath::Min(StartBound.IsOpen() ? 0 : Algo::UpperBound(Times, MovieScene::DiscreteInclusiveLower(StartBound)), Times.Num()-1);
+		
+		bool bIsSpawned = Values[StartBound.IsOpen() ? 0 : FMath::Max(0, Algo::UpperBound(Times, MovieScene::DiscreteInclusiveLower(StartBound))-1)];
+		for ( ; Index < Times.Num(); ++Index)
+		{
+			if (!MaskedRange.Contains(Times[Index]))
+			{
+				break;
+			}
+
+			if (bIsSpawned != Values[Index])
+			{
+				if (bIsSpawned)
+				{
+					TRange<FFrameNumber> LastRange(StartBound, TRangeBound<FFrameNumber>::Exclusive(Times[Index]));
+					OutRanges.Add(LastRange);
+				}
+
+				bIsSpawned = Values[Index];
+
+				if (bIsSpawned)
+				{
+					StartBound = TRangeBound<FFrameNumber>::Inclusive(Times[Index]);
+				}
+			}
+		}
+
+		TRange<FFrameNumber> TailRange(StartBound, MaskedRange.GetUpperBound());
+		if (!TailRange.IsEmpty() && bIsSpawned)
+		{
+			OutRanges.Add(TailRange);
+		}
+	}
+}
 
 bool UMovieSceneSpawnTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
@@ -121,8 +196,11 @@ void UMovieSceneSpawnTrack::GenerateTemplate(const FMovieSceneTrackCompilerArgs&
 
 void UMovieSceneSpawnTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
 {
+	// Must match the name returned from IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::SpawnObjects)
+	FName BuiltInEvaluationGroup_SpawnObjects = "SpawnObjects";
+
 	// All objects must be spawned/destroyed before the sequence continues
-	OutTrack.SetEvaluationGroup(IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::SpawnObjects));
+	OutTrack.SetEvaluationGroup(BuiltInEvaluationGroup_SpawnObjects);
 	// Set priority to highest possible
 	OutTrack.SetEvaluationPriority(GetEvaluationPriority());
 

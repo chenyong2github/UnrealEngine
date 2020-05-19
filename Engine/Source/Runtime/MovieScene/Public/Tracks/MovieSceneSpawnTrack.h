@@ -15,7 +15,7 @@ struct FMovieSceneEvaluationTrack;
  * Handles when a spawnable should be spawned and destroyed
  */
 UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneSpawnTrack
+class MOVIESCENE_API UMovieSceneSpawnTrack
 	: public UMovieSceneTrack
 {
 public:
@@ -38,6 +38,8 @@ public:
 	}
 
 	static uint16 GetEvaluationPriority() { return uint16(0xFFF); }
+
+	void PopulateSpawnedRangeMask(const TRange<FFrameNumber>& InOverlap, TArray<TRange<FFrameNumber>, TInlineAllocator<1>>& OutRanges) const;
 
 public:
 
