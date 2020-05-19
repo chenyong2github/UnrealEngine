@@ -4617,13 +4617,13 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 		{
 			if (Object->GetOuter())
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePublicExport);
+				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePublicExport);
 				GlobalPackageStore.RemovePublicExport(Object);
 				++RemovedExportCount;
 			}
 			else
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePackage);
+				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePackage);
 				UPackage* Package = static_cast<UPackage*>(Object);
 				GlobalPackageStore.RemovePackage(Package);
 				++RemovedPackageCount;
