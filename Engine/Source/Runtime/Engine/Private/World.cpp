@@ -860,7 +860,12 @@ void UWorld::BeginDestroy()
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
 	}
 
-	AudioDeviceDestroyedHandle.Reset();
+	if (AudioDeviceDestroyedHandle.IsValid())
+	{
+		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(AudioDeviceDestroyedHandle);
+		AudioDeviceDestroyedHandle.Reset();
+	}
+
 	FAudioDeviceHandle EmptyHandle;
 	SetAudioDevice(EmptyHandle);
 }
@@ -7589,23 +7594,28 @@ void UWorld::SetAudioDevice(const FAudioDeviceHandle& InHandle)
 		return;
 	}
 
-	FAudioDeviceManager* DeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
-
-	// Register new world with incoming device first to avoid premature reporting due to no handles being valid...
-	if (DeviceManager && InHandle.IsValid())
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 	{
-		check(InHandle.GetWorld() == this);
-		DeviceManager->RegisterWorld(this, InHandle.GetDeviceID());
+		// Register new world with incoming device first to avoid premature reporting due to no handles being valid...
+		if (InHandle.IsValid())
+		{
+			check(InHandle.GetWorld() == this);
+			DeviceManager->RegisterWorld(this, InHandle.GetDeviceID());
+		}
+
+		const Audio::FDeviceId OldDeviceId = AudioDeviceHandle.GetDeviceID();
+		const bool bUnregister = AudioDeviceHandle.IsValid();
+
+		AudioDeviceHandle = InHandle;
+
+		if (bUnregister)
+		{
+			DeviceManager->UnregisterWorld(this, OldDeviceId);
+		}
 	}
-
-	const Audio::FDeviceId OldDeviceId = AudioDeviceHandle.GetDeviceID();
-	const bool bUnregister = AudioDeviceHandle.IsValid();
-
-	AudioDeviceHandle = InHandle;
-
-	if (DeviceManager && bUnregister)
+	else
 	{
-		DeviceManager->UnregisterWorld(this, OldDeviceId);
+		AudioDeviceHandle.Reset();
 	}
 }
 
