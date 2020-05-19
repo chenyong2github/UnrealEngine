@@ -24,6 +24,7 @@
 #include "Classes/EditorStyleSettings.h"
 #include "DetailLayoutHelpers.h"
 #include "EditConditionParser.h"
+#include "Editor.h"
 
 SDetailsViewBase::~SDetailsViewBase()
 {
