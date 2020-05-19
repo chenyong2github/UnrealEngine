@@ -69,6 +69,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MotoSynth")
 	void SetGranularEngineVolume(float Volume);
 
+	/** Returns if the moto synth is enabled. */
+	UFUNCTION(BlueprintCallable, Category = "MotoSynth")
+	bool IsEnabled() const;
+
 	virtual ISoundGeneratorPtr CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels) override;
 
 private:
