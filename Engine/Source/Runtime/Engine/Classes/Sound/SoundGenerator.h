@@ -21,6 +21,9 @@ public:
 	// Called when a new buffer is required. 
 	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) = 0;
 
+	// Returns the number of samples to render per callback
+	virtual int32 GetDesiredNumSamplesToRenderPerCallback() const { return 1024; }
+
 	// Optional. Called on audio generator thread right when the generator begins generating.
 	virtual void OnBeginGenerate() {}
 
@@ -28,7 +31,7 @@ public:
 	virtual void OnEndGenerate() {}
 
 	// Retrieves the next buffer of audio from the generator, called from the audio mixer
-	int32 GetNextBuffer(float* OutAudio, int32 NumSamples);
+	int32 GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples = false);
 
 	// Returns the current state of the sound generator
 	EGeneratorState GetGeneratorState() const { return GeneratorState; }
