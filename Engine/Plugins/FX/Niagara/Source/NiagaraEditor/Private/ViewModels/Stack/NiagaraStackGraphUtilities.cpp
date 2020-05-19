@@ -1528,6 +1528,11 @@ void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraT
 			continue;
 		}
 
+		if (RegisteredParameterType.IsInternalType())
+		{
+			continue;
+		}
+
 		if (RegisteredParameterType != FNiagaraTypeDefinition::GetGenericNumericDef() && RegisteredParameterType != FNiagaraTypeDefinition::GetParameterMapDef())
 		{
 			OutAvailableTypes.Add(RegisteredParameterType);

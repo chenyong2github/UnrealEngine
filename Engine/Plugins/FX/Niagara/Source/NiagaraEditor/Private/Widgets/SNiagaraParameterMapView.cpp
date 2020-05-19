@@ -483,12 +483,14 @@ TSharedRef<SWidget> SNiagaraParameterMapView::GetViewOptionsMenu()
 
 bool SNiagaraParameterMapView::AllowMakeTypeGeneric(const FNiagaraTypeDefinition& InType) const
 {
-	return InType != FNiagaraTypeDefinition::GetParameterMapDef();
+	return InType != FNiagaraTypeDefinition::GetParameterMapDef() && !InType.IsInternalType();
 }
 
 bool SNiagaraParameterMapView::AllowMakeTypeAttribute(const FNiagaraTypeDefinition& InType) const
 {
-	return InType != FNiagaraTypeDefinition::GetParameterMapDef() && InType != FNiagaraTypeDefinition::GetGenericNumericDef();
+	return InType != FNiagaraTypeDefinition::GetParameterMapDef()
+		&& InType != FNiagaraTypeDefinition::GetGenericNumericDef()
+		&& !InType.IsInternalType();
 }
 
 void SNiagaraParameterMapView::OnFilterTextChanged(const FText& InFilterText)
