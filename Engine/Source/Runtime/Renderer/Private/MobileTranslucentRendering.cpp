@@ -232,7 +232,7 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 		SceneContext.GetSceneDepthSurface(),
 		EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil,
 		nullptr,
-		FExclusiveDepthStencil::DepthRead_StencilRead
+		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
 
 	// make sure targets are writable
