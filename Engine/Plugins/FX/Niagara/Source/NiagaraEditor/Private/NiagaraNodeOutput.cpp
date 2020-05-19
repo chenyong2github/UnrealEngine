@@ -48,7 +48,8 @@ void UNiagaraNodeOutput::RemoveOutputPin(UEdGraphPin* Pin)
 	{
 		Modify();
 		Outputs.RemoveAt(Index);
-		ReallocatePins();
+		// Remove the pin directly here instead of using the built in reallocate to prevent the old pin from being kept as orphaned.
+		RemovePin(Pin);
 		MarkNodeRequiresSynchronization(__FUNCTION__, true);
 	}
 }
