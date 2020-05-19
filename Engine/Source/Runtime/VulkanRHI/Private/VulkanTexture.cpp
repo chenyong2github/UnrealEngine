@@ -1580,6 +1580,17 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 	ViewInfo.image = InImage;
 	ViewInfo.viewType = ViewType;
 	ViewInfo.format = Format;
+
+#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
+	VkImageViewASTCDecodeModeEXT decodeMode;
+	if (Device.GetOptionalExtensions().HasEXTASTCDecodeMode && Format == VK_FORMAT_R8G8B8A8_UNORM)
+	{
+		ZeroVulkanStruct(decodeMode, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
+		decodeMode.decodeMode = VK_FORMAT_R8G8B8A8_UNORM;
+		ViewInfo.pNext = &decodeMode;
+	}
+#endif
+
 	if (bUseIdentitySwizzle)
 	{
 		// VK_COMPONENT_SWIZZLE_IDENTITY == 0 and this was memzero'd already

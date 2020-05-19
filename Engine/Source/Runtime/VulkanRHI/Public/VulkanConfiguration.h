@@ -224,6 +224,13 @@
 	#endif
 #endif
 
+#ifndef VULKAN_SUPPORTS_ASTC_DECODE_MODE
+	#ifdef VK_EXT_astc_decode_mode
+		#define VULKAN_SUPPORTS_ASTC_DECODE_MODE				(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
+	#else
+		#define VULKAN_SUPPORTS_ASTC_DECODE_MODE				0
+	#endif
+#endif
 
 #ifndef VULKAN_OBJECT_TRACKING 
 #define VULKAN_OBJECT_TRACKING 0 //Track objects created and memory used. use r.vulkan.dumpmemory to dump to console
