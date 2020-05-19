@@ -236,10 +236,8 @@ namespace Chaos
 			if (Chaos_Collision_EnergyClampEnabled != 0)
 			{
 				// Clamp the delta impulse to make sure we don't gain kinetic energy (ignore potential energy)
-				// Todo: Investigate Energy clamping to work with accumulated impulses
-				// else this might introduce a small amount of jitter, since we are clamping delta impulses instead of accumulated ones
-				// Disable this until then
-				//OutDeltaImpulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), OutDeltaImpulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
+				// This should not modify the output impulses very often
+				OutDeltaImpulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), OutDeltaImpulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
 			}
 
 			if (bIsRigidDynamic0)
