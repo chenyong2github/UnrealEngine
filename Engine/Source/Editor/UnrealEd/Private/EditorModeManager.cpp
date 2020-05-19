@@ -321,7 +321,8 @@ EEditAction::Type FEditorModeTools::GetActionEditPaste()
 
 void FEditorModeTools::DeactivateOtherVisibleModes(FEditorModeID InMode)
 {
-	for (const UEdMode* Mode : ActiveScriptableModes)
+	TArray<UEdMode*> TempModes(ActiveScriptableModes);
+	for (const UEdMode* Mode : TempModes)
 	{
 		if (Mode->GetID() != InMode && Mode->GetModeInfo().bVisible)
 		{

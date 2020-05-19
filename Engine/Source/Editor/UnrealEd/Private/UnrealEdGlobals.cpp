@@ -37,7 +37,7 @@
 
 #include "IVREditorModule.h"
 
-UUnrealEdEngine* GUnrealEd;
+UUnrealEdEngine* GUnrealEd = nullptr;
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEd, Log, All);
 
