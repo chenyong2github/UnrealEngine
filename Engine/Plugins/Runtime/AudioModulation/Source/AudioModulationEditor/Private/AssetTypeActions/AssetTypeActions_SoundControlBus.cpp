@@ -10,7 +10,7 @@ namespace Modulation
 {
 	static const TArray<FText> SubMenus
 	{
-		FText(LOCTEXT("AssetSoundMixSubMenu", "Mix"))
+		LOCTEXT("AssetSoundMixSubMenu", "Modulation")
 	};
 } // namespace <>
 
