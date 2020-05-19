@@ -19,10 +19,10 @@ class NeighborGrid3DRWInstanceData
 {
 public:
 
-	FIntVector NumVoxels;
-	float VoxelSize;
-	bool SetGridFromVoxelSize;
-	uint32 MaxNeighborsPerVoxel;	
+	FIntVector NumCells;
+	float CellSize;
+	bool SetGridFromCellSize;
+	uint32 MaxNeighborsPerCell;	
 	FVector WorldBBoxSize;
 
 	FRWBuffer NeighborhoodBuffer;
@@ -48,7 +48,7 @@ class NIAGARA_API UNiagaraDataInterfaceNeighborGrid3D : public UNiagaraDataInter
 public:	
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
-		uint32 MaxNeighborsPerVoxel;
+		uint32 MaxNeighborsPerCell;
 
 public:
 
