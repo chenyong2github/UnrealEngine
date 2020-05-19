@@ -6716,10 +6716,23 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 		FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
 		if (IoDispatcherInitStatus.IsOk())
 		{
-			FIoStatus IoDispatcherMountStatus = FIoDispatcher::Get().Mount(IoStoreGlobalEnvironment);
+			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+			FIoStatus IoDispatcherMountStatus = IoDispatcher.Mount(IoStoreGlobalEnvironment);
 			if (IoDispatcherMountStatus.IsOk())
 			{
 				UE_LOG(LogPakFile, Display, TEXT("Initialized I/O dispatcher"));
+
+				FIoSignatureErrorEvent& SignatureErrorEvent = IoDispatcher.GetSignatureErrorEvent();
+				FScopeLock _(&SignatureErrorEvent.CriticalSection);
+				SignatureErrorEvent.SignatureErrorDelegate.AddLambda([](const FIoSignatureError& Error)
+				{
+					FPakChunkSignatureCheckFailedData FailedData(Error.ContainerName, TPakChunkHash(), TPakChunkHash(), Error.BlockIndex);
+#if !PAKHASH_USE_CRC
+					FailedData.ExpectedHash = Error.ExpectedHash;
+					FailedData.ReceivedHash = Error.ActualHash;
+#endif
+					FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(FailedData);
+				});
 			}
 			else
 			{

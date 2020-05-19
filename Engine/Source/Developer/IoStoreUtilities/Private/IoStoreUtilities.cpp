@@ -561,7 +561,7 @@ struct FContainerSourceSpec
 	FString OutputPath;
 	TArray<FContainerSourceFile> SourceFiles;
 	TArray<FString> PatchSourceContainerFiles;
-	bool bGenerateDiffPatch;
+	bool bGenerateDiffPatch = false;
 };
 
 struct FCookedFileStatData
@@ -622,6 +622,7 @@ struct FIoStoreArguments
 	int64 MemoryMappingAlignment = 0;
 	FKeyChain KeyChain;
 	FKeyChain PatchKeyChain;
+	bool bSign = false;
 };
 
 struct FContainerMeta
@@ -630,7 +631,7 @@ struct FContainerMeta
 	FIoContainerId ContainerId;
 	FGuid EncryptionKeyGuid;
 	FNameMapBuilder NameMapBuilder;
-	bool bIsEncrypted;
+	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
 
 	friend FArchive& operator<<(FArchive& Ar, FContainerMeta& ContainerMeta)
 	{
@@ -638,7 +639,7 @@ struct FContainerMeta
 		Ar << ContainerMeta.ContainerId;
 		Ar << ContainerMeta.EncryptionKeyGuid;
 		Ar << ContainerMeta.NameMapBuilder;
-		Ar << ContainerMeta.bIsEncrypted;
+		Ar << ContainerMeta.ContainerFlags;
 		return Ar;
 	}
 };
@@ -655,10 +656,9 @@ struct FContainerTargetSpec
 	TArray<TUniquePtr<FIoStoreReader>> PatchSourceReaders;
 	FNameMapBuilder LocalNameMapBuilder;
 	FNameMapBuilder* NameMapBuilder = nullptr;
-	bool bIsCompressed = false;
+	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
 	bool bUseLocalNameMap = false;
 	bool bGenerateDiffPatch = false;
-	bool bIsEncrypted = false;
 };
 
 struct FPackageAssetData
@@ -3282,7 +3282,7 @@ static void FindScriptObjectsRecursive(
 		return;
 	}
 
-	const UObject* ObjectForExclusion = Object->HasAnyFlags(RF_ClassDefaultObject) ? Object->GetClass() : Object;
+	const UObject* ObjectForExclusion = Object->HasAnyFlags(RF_ClassDefaultObject) ? (const UObject*)Object->GetClass() : Object;
 	const EObjectMark ObjectMarks = GetExcludedObjectMarksForObject(ObjectForExclusion, TargetPlatform);
 
 	if (ObjectMarks & ExcludedObjectMarks)
@@ -3740,7 +3740,7 @@ static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const F
 		ContainerMeta.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
 		// Should be safe now as all container(s) has been saved.
 		ContainerMeta.NameMapBuilder = MoveTemp(ContainerTarget->LocalNameMapBuilder);
-		ContainerMeta.bIsEncrypted = ContainerTarget->bIsEncrypted;
+		ContainerMeta.ContainerFlags = ContainerTarget->ContainerFlags;
 
 		FString MetaOutputPath = FPaths::Combine(ReleaseVersionOutputDir, ContainerTarget->Name.ToString() + TEXT(".ucontainermeta"));
 		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*MetaOutputPath));
@@ -3814,7 +3814,7 @@ static void LoadReleaseVersionMeta(
 			FContainerTargetSpec* ContainerTarget = AddContainer(FName(ContainerMeta.ContainerName), ContainerMeta.ContainerId, ContainerTargets, ContainerTargetMap);
 			ContainerTarget->EncryptionKeyGuid = ContainerMeta.EncryptionKeyGuid;
 			ContainerTarget->LocalNameMapBuilder = MoveTemp(ContainerMeta.NameMapBuilder);
-			ContainerTarget->bIsEncrypted = ContainerMeta.bIsEncrypted;
+			ContainerTarget->ContainerFlags = ContainerMeta.ContainerFlags;
 
 			UE_LOG(LogIoStore, Display,
 				TEXT("Loaded container release meta '%s' with container ID '%d' and '%d' names"),
@@ -3873,6 +3873,10 @@ void InitializeContainerTargetsAndPackages(
 		FContainerTargetSpec* ContainerTarget = FindOrAddContainer(ContainerSource.Name, ContainerTargets, ContainerTargetMap);
 		ContainerTarget->OutputPath = ContainerSource.OutputPath;
 		ContainerTarget->bGenerateDiffPatch = ContainerSource.bGenerateDiffPatch;
+		if (Arguments.bSign)
+		{
+			ContainerTarget->ContainerFlags |= EIoContainerFlags::Signed;
+		}
 
 		for (const FString& PatchSourceContainerFile : ContainerSource.PatchSourceContainerFiles)
 		{
@@ -3880,8 +3884,8 @@ void InitializeContainerTargetsAndPackages(
 			PatchSourceEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(PatchSourceContainerFile, TEXT("")));
 			TUniquePtr<FIoStoreReader> PatchSourceReader(new FIoStoreReader());
 
-			FIoEncryptionKey EncryptionKey;
-			if (ContainerTarget->bIsEncrypted)
+			FIoContainerSettings ContainerSettings;
+			if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
 			{
 				const FNamedAESKey* PatchKey = Arguments.PatchKeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
 				if (!PatchKey)
@@ -3889,9 +3893,10 @@ void InitializeContainerTargetsAndPackages(
 					PatchKey = Arguments.KeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
 				}
 				UE_CLOG(!PatchKey, LogIoStore, Fatal, TEXT("Failed to find encryption key '%s' for container '%s'"), *ContainerTarget->EncryptionKeyGuid.ToString(), *ContainerTarget->Name.ToString());
-				EncryptionKey = FIoEncryptionKey { ContainerTarget->EncryptionKeyGuid, PatchKey->Key };
+				ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
+				ContainerSettings.EncryptionKey = PatchKey->Key; 
 			}
-			FIoStatus Status = PatchSourceReader->Initialize(PatchSourceEnvironment, EncryptionKey);
+			FIoStatus Status = PatchSourceReader->Initialize(PatchSourceEnvironment, ContainerSettings);
 			if (Status.IsOk())
 			{
 				UE_LOG(LogIoStore, Display, TEXT("Loaded patch source container '%s'"), *PatchSourceContainerFile);
@@ -3951,7 +3956,7 @@ void InitializeContainerTargetsAndPackages(
 					TargetFile.Package = Package;
 					if (SourceFile.bNeedsCompression)
 					{
-						ContainerTarget->bIsCompressed = true;
+						ContainerTarget->ContainerFlags |= EIoContainerFlags::Compressed;
 					}
 					else
 					{
@@ -3959,7 +3964,7 @@ void InitializeContainerTargetsAndPackages(
 					}
 					if (SourceFile.bNeedsEncryption)
 					{
-						ContainerTarget->bIsEncrypted = true;
+						ContainerTarget->ContainerFlags |= EIoContainerFlags::Encrypted;
 						ContainerTarget->bUseLocalNameMap = true;
 					}
 
@@ -4305,20 +4310,34 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		}
 		FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
 		check(IoStatus.IsOk());
-		IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, /* bIsCompressed */ false, FIoEncryptionKey());
+
+		FIoContainerSettings GlobalContainerSettings;
+		if (Arguments.bSign)
+		{
+			GlobalContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+			GlobalContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+		}
+		IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, GlobalContainerSettings);
 		check(IoStatus.IsOk());
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
 			if (ContainerTarget->IoStoreWriter && ContainerTarget->IoStoreWriter != GlobalIoStoreWriter)
 			{
-				FIoEncryptionKey EncryptionKey;
-				if (ContainerTarget->bIsEncrypted)
+				FIoContainerSettings ContainerSettings;
+				ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags;
+				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
 				{
 					const FNamedAESKey* Key = Arguments.KeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
 					check(Key);
-					EncryptionKey = FIoEncryptionKey { Key->Guid, Key->Key };
+					ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
+					ContainerSettings.EncryptionKey = Key->Key;
 				}
-				IoStatus = ContainerTarget->IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerTarget->bIsCompressed, EncryptionKey);
+				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Signed))
+				{
+					ContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+					ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+				}
+				IoStatus = ContainerTarget->IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerSettings);
 				check(IoStatus.IsOk());
 			}
 		}
@@ -4689,7 +4708,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- IoStore Summary -----------------------------------------------------"));
 
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %10s %15s %15s %15s %25s"), TEXT("ID"), TEXT("Container"), TEXT("Encrypted"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
+	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %10s %15s %15s %15s %25s"), TEXT("ID"), TEXT("Container"), TEXT("Flags"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
 	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
 	int64 TotalPaddingSize = 0;
 	for (const FIoStoreWriterResult& Result : IoStoreWriterResults)
@@ -4705,16 +4724,23 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				*Result.CompressionMethod.ToString());
 		}
 
+		FString ContainerSettings = FString::Printf(TEXT("%s/%s/%s"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Compressed) ? TEXT("C") : TEXT("-"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Encrypted) ? TEXT("E") : TEXT("-"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"));
+	
 		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %10s %15.2lf %15d %15.2lf %25s"),
 			Result.ContainerId.ToIndex(),
 			*Result.ContainerName,
-			Result.bIsEncrypted ? TEXT("Yes") : TEXT("No"),
+			*ContainerSettings ,
 			(double)Result.TocSize / 1024.0,
 			Result.TocEntryCount,
 			(double)Result.UncompressedContainerSize / 1024.0 / 1024.0,
 			*CompressionInfo);
 		TotalPaddingSize += Result.PaddingSize;
 	}
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) **"));
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2f MB"), TotalPaddingSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT(""));
@@ -4944,6 +4970,13 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	FIoStoreArguments Arguments;
 
 	LoadKeyChain(FCommandLine::Get(), Arguments.KeyChain);
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("sign")))
+	{
+		Arguments.bSign = true;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Container signing - %s"), Arguments.bSign ? TEXT("ENABLED") : TEXT("DISABLED"));
 
 	FString PatchReferenceCryptoKeysFilename;
 	FKeyChain PatchKeyChain;

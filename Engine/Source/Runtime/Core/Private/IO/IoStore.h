@@ -24,7 +24,7 @@ struct FIoStoreTocHeader
 	uint32	CompressionBlockSize;
 	FIoContainerId ContainerId;
 	FGuid	EncryptionKeyGuid;
-	uint8	bIsEncrypted;
+	EIoContainerFlags ContainerFlags;
 	uint8	Pad[53];
 
 	void MakeMagic()
@@ -200,9 +200,14 @@ public:
 		return Header->EncryptionKeyGuid;
 	}
 
-	bool IsContainerEncrypted() const
+	EIoContainerFlags GetContainerFlags() const
 	{
-		return Header->bIsEncrypted > 0;
+		return Header->ContainerFlags;
+	}
+
+	TArrayView<const FSHAHash> GetBlockSignatureHashes()
+	{
+		return BlockSignatureHashes;
 	}
 
 private:
@@ -215,5 +220,6 @@ private:
 	uint32 EntryCount = 0;
 	uint32 PartialEntryCount = 0;
 	uint32 CompressedBlockEntryCount = 0;
+	TArrayView<const FSHAHash> BlockSignatureHashes;
 };
 
