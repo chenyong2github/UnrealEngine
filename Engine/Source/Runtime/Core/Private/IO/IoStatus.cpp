@@ -18,7 +18,8 @@ static const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
 		TEXT("Not Found"),
 		TEXT("Corrupt Toc"),
 		TEXT("Unknown ChunkID"),
-		TEXT("Invalid Parameter")
+		TEXT("Invalid Parameter"),
+		TEXT("SignatureError")
 	};
 
 	return ErrorCodeText[static_cast<uint32>(ErrorCode)];

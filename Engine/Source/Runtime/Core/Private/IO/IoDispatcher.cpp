@@ -151,7 +151,7 @@ class FIoDispatcherImpl
 public:
 	FIoDispatcherImpl(bool bInIsMultithreaded)
 		: bIsMultithreaded(bInIsMultithreaded)
-		, FileIoStore(EventQueue) 
+		, FileIoStore(EventQueue, SignatureErrorEvent) 
 	{
 		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
 		{
@@ -318,6 +318,11 @@ public:
 	FIoDispatcher::FIoContainerMountedEvent& OnContainerMounted()
 	{
 		return ContainerMountedEvent;
+	}
+
+	FIoSignatureErrorEvent& GetSignatureErrorEvent()
+	{
+		return SignatureErrorEvent;
 	}
 
 	template<typename Func>
@@ -611,6 +616,7 @@ private:
 	mutable FCriticalSection MountedContainersCritical;
 	TArray<FIoDispatcherMountedContainer> MountedContainers;
 	FIoDispatcher::FIoContainerMountedEvent ContainerMountedEvent;
+	FIoSignatureErrorEvent SignatureErrorEvent;
 };
 
 FIoDispatcher::FIoDispatcher()
@@ -676,6 +682,12 @@ FIoDispatcher::FIoContainerMountedEvent&
 FIoDispatcher::OnContainerMounted()
 {
 	return Impl->OnContainerMounted();
+}
+
+FIoSignatureErrorEvent&
+FIoDispatcher::GetSignatureErrorEvent()
+{
+	return Impl->GetSignatureErrorEvent();
 }
 
 bool
