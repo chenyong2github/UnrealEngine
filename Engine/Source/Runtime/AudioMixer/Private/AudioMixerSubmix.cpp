@@ -524,14 +524,23 @@ namespace Audio
 	{
 		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 
+		TArray<TSoundEffectSubmixPtr> SubmixEffectsToReset;
 		for (FSubmixEffectInfo& Info : EffectSubmixChain)
 		{
 			if (Info.EffectInstance.IsValid())
 			{
-				USoundEffectPreset::UnregisterInstance(Info.EffectInstance);
-				Info.EffectInstance.Reset();
+				SubmixEffectsToReset.Add(Info.EffectInstance);
 			}
 		}
+
+		// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
+		AsyncTask(ENamedThreads::AudioThread, [SubmixEffects = MoveTemp(SubmixEffectsToReset)]() mutable
+		{
+			for (TSoundEffectSubmixPtr& SubmixPtr : SubmixEffects)
+			{
+				USoundEffectPreset::UnregisterInstance(SubmixPtr);
+			}
+		});
 
 		NumSubmixEffects = 0;
 		EffectSubmixChain.Reset();
