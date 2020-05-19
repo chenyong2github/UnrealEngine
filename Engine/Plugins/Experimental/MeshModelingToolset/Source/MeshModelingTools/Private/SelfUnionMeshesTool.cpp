@@ -162,6 +162,10 @@ void USelfUnionMeshesTool::ConfigurePreviewMaterials()
 		}
 		// TODO: center the meshes
 		FTransform3d WorldTransform = (FTransform3d)ComponentTargets[ComponentIdx]->GetWorldTransform();
+		if (WorldTransform.GetDeterminant() < 0)
+		{
+			ComponentMesh.ReverseOrientation(false);
+		}
 		FMeshIndexMappings IndexMaps;
 		AppendEditor.AppendMesh(&ComponentMesh, IndexMaps,
 			[WorldTransform](int VID, const FVector3d& Pos)
