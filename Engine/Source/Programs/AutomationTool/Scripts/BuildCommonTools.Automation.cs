@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.IO;
@@ -136,24 +136,6 @@ public class BuildCommonTools : BuildCommand
 
 			Agenda.DotNetProjects.Add(@"Engine/Source/Programs/iOS/MobileDeviceInterface/MobileDeviceInterface.csproj");
 			ExtraBuildProducts.Add(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Binaries/DotNET/iOS/MobileDeviceInterface.dll"));
-		}
-
-		// PS4 binaries
-		if(Platforms.Contains(UnrealBuildTool.UnrealTargetPlatform.PS4))
-		{
-			Agenda.AddTarget("PS4MapFileUtil", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
-
-			Agenda.DotNetProjects.Add(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Platforms/PS4/Source/Programs/PS4DevKitUtil/PS4DevKitUtil.csproj"));
-			ExtraBuildProducts.Add(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Platforms/PS4/Binaries/DotNETPS4DevKitUtil.exe"));
-
-			Agenda.DotNetProjects.Add(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Platforms/PS4/Source/Programs/PS4SymbolTools/PS4SymbolTool.csproj"));
-			ExtraBuildProducts.Add(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine/Platforms/PS4/Binaries/DotNET/PS4SymbolTool.exe"));
-		}
-
-		// Xbox One binaries
-		if(Platforms.Contains(UnrealBuildTool.UnrealTargetPlatform.XboxOne))
-		{
-			Agenda.AddTarget("XboxOnePDBFileUtil", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
 		}
 
 		// Platform extensions
