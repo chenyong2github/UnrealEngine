@@ -18,6 +18,8 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsEngine/BodySetup.h"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 extern int32 ImmediatePhysicsDisableCollisions;
 
 namespace ImmediatePhysics_Chaos
@@ -187,14 +189,56 @@ namespace ImmediatePhysics_Chaos
 		return true;
 	}
 
+#if WITH_CHAOS
+	// Intended for use with Tri Mesh and Hieghtfields
+	TUniquePtr<Chaos::FImplicitObject> CloneGeometry(const Chaos::FImplicitObject* Geom, TArray<TUniquePtr<Chaos::FPerShapeData>>& OutShapes)
+	{
+		using namespace Chaos;
+
+		if (Geom->GetType() == ImplicitObjectType::Transformed)
+		{
+			const TImplicitObjectTransformed<FReal, 3>* SrcTransformed = Geom->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
+			if (SrcTransformed->GetTransformedObject()->GetType() == ImplicitObjectType::HeightField)
+			{
+				FImplicitObject* InnerGeom = const_cast<FImplicitObject*>(SrcTransformed->GetTransformedObject());
+				TUniquePtr<TImplicitObjectTransformed<FReal, 3, false>> Transformed = MakeUnique<Chaos::TImplicitObjectTransformed<FReal, 3, false>>(InnerGeom, SrcTransformed->GetTransform());
+				return Transformed;
+			}
+		}
+
+		return nullptr;
+	}
+#endif
+
+	bool CloneGeometry(FBodyInstance* BodyInstance, EActorType ActorType, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::FPerShapeData>>& OutShapes)
+	{
+#if WITH_CHAOS
+		// We should only get non-simulated objects through this path, but you never know...
+		if ((BodyInstance != nullptr) && !BodyInstance->bSimulatePhysics)
+		{
+			OutMass = 0.0f;
+			OutInertia = FVector::ZeroVector;
+			OutCoMTransform = FTransform::Identity;
+			OutGeom = CloneGeometry(BodyInstance->ActorHandle->Geometry().Get(), OutShapes);
+			if (OutGeom != nullptr)
+			{
+				return true;
+			}
+		}
+#endif
+
+		return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
+	}
+
 	bool CreateGeometry(FBodyInstance* BodyInstance, EActorType ActorType, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::FPerShapeData>>& OutShapes)
 	{
 		using namespace Chaos;
 
+		// If there's no BodySetup, we may be cloning an in-world object and probably have a TriMesh or HieghtField so try to just copy references
+		// @todo(ccaulfield): clean this up
 		if ((BodyInstance == nullptr) || (BodyInstance->BodySetup == nullptr))
 		{
-			// @todo(ccaulfield): fix this path
-			return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
+			return CloneGeometry(BodyInstance, ActorType, Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
 		}
 
 		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();
