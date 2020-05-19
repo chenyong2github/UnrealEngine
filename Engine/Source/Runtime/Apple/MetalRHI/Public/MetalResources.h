@@ -832,6 +832,8 @@ public:
 	uint32 BytesPerElement;
 };
 
+#if PLATFORM_MAC
+
 class FMetalRHIBuffer
 {
 public:
@@ -931,6 +933,12 @@ public:
 	// Resource type
 	ERHIResourceType Type;
 };
+
+#else
+
+#include "MetalBufferMobile.h"
+
+#endif
 
 /** Index buffer resource class that stores stride information. */
 class FMetalIndexBuffer : public FRHIIndexBuffer, public FMetalRHIBuffer
