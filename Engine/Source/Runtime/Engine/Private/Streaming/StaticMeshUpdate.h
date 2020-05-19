@@ -1,3 +1,4 @@
+
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
@@ -172,20 +173,23 @@ protected:
 	typedef FAutoDeleteAsyncTask<FCancelIORequestsTask> FAsyncCancelIORequestsTask;
 	friend class FCancelIORequestsTask;
 
-	/** Figure out the full name of the .bulk file */
-	FString GetIOFilename(const FContext& Context);
-
-	/** Set a callback called when IORequest is completed or cancelled */
+		/** Set a callback called when IORequest is completed or cancelled */
 	void SetAsyncFileCallback(const FContext& Context);
 
 	/** Create a new async IO request to read in LOD data */
-	void SetIORequest(const FContext& Context, const FString& IOFilename);
+	void SetIORequest(const FContext& Context);
 
 	/** Release IORequest and IOFileHandle. IORequest will be cancelled if still inflight */
 	void ClearIORequest(const FContext& Context);
 
+	/** Report IO errors if any. */
+	void ReportIOError(const FContext& Context);
+
 	/** Serialize data of new LODs to corresponding FStaticMeshLODResources */
 	void SerializeLODData(const FContext& Context);
+
+	/** Cancel and report IO error */
+	void Cancel(const FContext& Context);
 
 	/** Called by FAsyncCancelIORequestsTask to cancel inflight IO request if any */
 	void CancelIORequest();
@@ -193,6 +197,9 @@ protected:
 	class IBulkDataIORequest* IORequest;
 	FBulkDataIORequestCallBack AsyncFileCallback;
 	bool bHighPrioIORequest;
+
+	// Whether an IO error was detected (when files do not exists).
+	bool bFailedOnIOError = false;
 };
 
 template <bool bRenderThread>
