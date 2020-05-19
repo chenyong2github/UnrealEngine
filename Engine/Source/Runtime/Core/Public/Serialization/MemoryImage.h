@@ -590,18 +590,38 @@ FORCEINLINE uint32 GetTypeHash(const FMemoryImageString& S)
 	return FCrc::Strihash_DEPRECATED(*S);
 }
 
+#if WITH_EDITORONLY_DATA
+struct FHashedNameDebugString
+{
+	TMemoryImagePtr<const char> String;
+};
+
+namespace Freeze
+{
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FHashedNameDebugString& Object, const FTypeLayoutDesc&);
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FHashedNameDebugString& Object, void* OutDst);
+}
+
+DECLARE_INTRINSIC_TYPE_LAYOUT(FHashedNameDebugString);
+
+#endif // WITH_EDITORONLY_DATA
 
 class FHashedName
 {
+	DECLARE_EXPORTED_TYPE_LAYOUT(FHashedName, CORE_API, NonVirtual);
 public:
 	inline FHashedName() : Hash(0u) {}
-	inline explicit FHashedName(uint64 InHash) : Hash(InHash) {}
+	CORE_API explicit FHashedName(uint64 InHash);
 	CORE_API FHashedName(const TCHAR* InString);
 	CORE_API FHashedName(const FString& InString);
 	CORE_API FHashedName(const FName& InName);
 
 	inline uint64 GetHash() const { return Hash; }
 	inline bool IsNone() const { return Hash == 0u; }
+
+#if WITH_EDITORONLY_DATA
+	const FHashedNameDebugString& GetDebugString() const { return DebugString; }
+#endif
 
 	friend inline bool operator==(const FHashedName& Lhs, const FHashedName& Rhs) { return Lhs.Hash == Rhs.Hash; }
 	friend inline bool operator!=(const FHashedName& Lhs, const FHashedName& Rhs) { return Lhs.Hash != Rhs.Hash; }
@@ -626,7 +646,8 @@ public:
 	}*/
 
 private:
-	uint64 Hash;
+	LAYOUT_FIELD(uint64, Hash);
+	LAYOUT_FIELD_EDITORONLY(FHashedNameDebugString, DebugString);
 };
 
 namespace Freeze
@@ -634,7 +655,6 @@ namespace Freeze
 	CORE_API void IntrinsicToString(const FHashedName& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
 }
 
-DECLARE_INTRINSIC_TYPE_LAYOUT(FHashedName);
 
 class CORE_API FPtrTableBase
 {
