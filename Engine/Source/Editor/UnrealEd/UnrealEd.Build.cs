@@ -184,6 +184,7 @@ public class UnrealEd : ModuleRules
 				"ToolMenus",
 				"FreeImage",
 				"IoStoreUtilities",
+				"EditorInteractiveToolsFramework",
 				"TraceLog",
             }
 		);
@@ -246,7 +247,6 @@ public class UnrealEd : ModuleRules
 				"Media",
 				"TimeManagementEditor",
 				"VirtualTexturingEditor",
-				"EditorInteractiveToolsFramework",
 				"TraceInsights",
 			}
 		);

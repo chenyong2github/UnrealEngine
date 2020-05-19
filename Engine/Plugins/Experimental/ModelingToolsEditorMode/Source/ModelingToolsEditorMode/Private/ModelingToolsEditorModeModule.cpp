@@ -10,6 +10,7 @@
 
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeModule"
 

@@ -13,6 +13,7 @@
 #include "ActorPlacementInfo.h"
 #include "IPlacementMode.h"
 #include "GameFramework/Volume.h"
+#include "Editor.h"
 
 /**
  * Struct that defines an identifier for a particular placeable item in this module.

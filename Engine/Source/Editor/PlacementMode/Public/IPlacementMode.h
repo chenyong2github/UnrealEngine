@@ -5,6 +5,7 @@
 #include "EdMode.h"
 
 class UActorFactory;
+class SWidget;
 
 class IPlacementMode : public FEdMode
 {

@@ -292,7 +292,6 @@ void FLevelEditorModule::StartupModule()
 	FEditorViewportCommands::Register();
 	FLevelViewportCommands::Register();
 	FLevelEditorCommands::Register();
-	FLevelEditorModesCommands::Register();
 
 	// Bind level editor commands shared across an instance
 	BindGlobalLevelEditorCommands();
