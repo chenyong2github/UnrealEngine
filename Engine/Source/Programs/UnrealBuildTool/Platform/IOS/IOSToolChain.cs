@@ -1298,8 +1298,6 @@ namespace UnrealBuildTool
 					new string []{ "TopShelfWide-1920x720.png", "App Icon & Top Shelf Image.brandassets/Top Shelf Image Wide.imageset" },
 					new string []{ "TopShelf.png", "App Icon & Top Shelf Image.brandassets/Top Shelf Image.imageset" },
 					new string []{ "TopShelf@2x.png", "App Icon & Top Shelf Image.brandassets/Top Shelf Image.imageset" },
-					new string []{ "Launch.png", "Launch Image.launchimage" },
-					new string []{ "Launch@2x.png", "Launch Image.launchimage" },
 				};
 				Dir = Path.Combine(IntermediateDir, "Resources", "Assets.xcassets");
 
