@@ -1572,11 +1572,11 @@ void FPaths::CombineInternal(FString& OutPath, const TCHAR** Pathes, int32 NumPa
 
 bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 {
-	FString TmpA = PathA;
-	FString TmpB = PathB;
+	FString TmpA = FPaths::ConvertRelativePathToFull(PathA);
+	FString TmpB = FPaths::ConvertRelativePathToFull(PathB);
 
-	MakeStandardFilename(TmpA);
-	MakeStandardFilename(TmpB);
+	FPaths::RemoveDuplicateSlashes(TmpA);
+	FPaths::RemoveDuplicateSlashes(TmpB);
 
 #if PLATFORM_MICROSOFT
 	return FCString::Stricmp(*TmpA, *TmpB) == 0;
