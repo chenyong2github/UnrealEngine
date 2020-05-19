@@ -763,18 +763,7 @@ bool FAudioDeviceManager::Initialize()
 {
 	if (!Singleton)
 	{
-		bool bUseSound = true;
-
-		// If dedicated server, the -nosound, or -benchmark parameters are used, disable sound.
-		if (FParse::Param(FCommandLine::Get(), TEXT("nosound")) || FApp::IsBenchmarking() || IsRunningDedicatedServer() || (IsRunningCommandlet() && !IsAllowCommandletAudio()))
-		{
-			bUseSound = false;
-		}
-
-		if (FParse::Param(FCommandLine::Get(), TEXT("enablesound")))
-		{
-			bUseSound = true;
-		}
+		bool bUseSound = FApp::CanEverRenderAudio();
 
 		if (bUseSound)
 		{
