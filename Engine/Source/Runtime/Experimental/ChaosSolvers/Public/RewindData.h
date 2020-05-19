@@ -874,22 +874,41 @@ public:
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(RewindDataAdvance);
 		Managers[CurFrame].DeltaTime = DeltaTime;
-		if(Managers[CurFrame].ExternalResimCache)
+		TUniquePtr<IResimCacheBase>& ResimCache = Managers[CurFrame].ExternalResimCache;
+
+		if(IsResim())
 		{
-			Managers[CurFrame].ExternalResimCache->Reset();
+			if(ResimCache)
+			{
+				ResimCache->SetResimming(true);
+			}
 		}
 		else
 		{
-			Managers[CurFrame].ExternalResimCache = CreateCacheFunc();
+			if(ResimCache)
+			{
+				ResimCache->ResetCache();
+			} else
+			{
+				ResimCache = CreateCacheFunc();
+			}
+			ResimCache->SetResimming(false);
 		}
 
 		FramesSaved = FMath::Min(FramesSaved+1,static_cast<int32>(Managers.Capacity()));
 		
 		const int32 EarliestFrame = CurFrame - 1 - FramesSaved;
-		//remove any old dirty particles
+		
+		TArray<TGeometryParticleHandle<FReal,3>*> DesyncedParticles;
+		if(IsResim() && ResimCache)
+		{
+			DesyncedParticles.Reserve(AllDirtyParticles.Num());
+		}
+
 		for(int32 DirtyIdx = AllDirtyParticles.Num() - 1; DirtyIdx >= 0; --DirtyIdx)
 		{
 			FDirtyParticleInfo& Info = AllDirtyParticles[DirtyIdx];
+			//if hasn't changed in a while stop tracking
 			if(Info.LastDirtyFrame < EarliestFrame)
 			{
 				RemoveParticle(AllDirtyParticles[DirtyIdx].CachedUniqueIdx);
@@ -913,9 +932,20 @@ public:
 				{
 					//Any desync from GT is considered a hard desync - in theory we could make this more fine grained
 					Info.GetPTParticle()->SetSyncState(ESyncState::HardDesync);
+
+					if(ResimCache)
+					{
+						DesyncedParticles.Add(Info.GetPTParticle());
+					}
 				}
 			}
 		}
+
+		if(IsResim() && ResimCache)
+		{
+			ResimCache->SetDesyncedParticles(MoveTemp(DesyncedParticles));
+		}
+
 	}
 
 	void FinishFrame()

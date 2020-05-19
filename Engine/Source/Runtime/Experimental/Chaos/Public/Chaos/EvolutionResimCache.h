@@ -15,7 +15,7 @@ namespace Chaos
 		virtual ~FEvolutionResimCache();
 		FCollisionResimCache* GetCollisionResimCache(){ return CollisionResimCache.Get(); }
 
-		void Reset();
+		void ResetCache();
 
 	private:
 		TUniquePtr<FCollisionResimCache> CollisionResimCache;

@@ -18,11 +18,11 @@ namespace Chaos
 		}
 	}
 
-	void FEvolutionResimCache::Reset()
+	void FEvolutionResimCache::ResetCache()
 	{
 		if(CollisionResimCache)
 		{
-			CollisionResimCache->Reset();
+			CollisionResimCache->ResetCache();
 		}
 	}
 }
