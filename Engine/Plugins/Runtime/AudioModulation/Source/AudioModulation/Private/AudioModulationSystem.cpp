@@ -2,6 +2,7 @@
 #include "AudioModulationSystem.h"
 
 #if WITH_AUDIOMODULATION
+#include "Async/Async.h"
 #include "Audio/AudioAddressPattern.h"
 #include "AudioModulationLogging.h"
 #include "AudioModulationProfileSerializer.h"
