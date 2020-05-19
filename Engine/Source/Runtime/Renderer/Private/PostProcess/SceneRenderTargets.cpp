@@ -3444,8 +3444,13 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.SceneColorTexture = bSceneTexturesValid ? SceneContext.GetSceneColorTexture().GetReference() : BlackDefault2D;
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	const FTexture2DRHIRef& SceneDepthTexture = SceneContext.GetSceneDepthTexture();
-	SceneTextureParameters.SceneDepthTexture = bSceneTexturesValid && SceneDepthTexture ? SceneDepthTexture.GetReference() : DepthDefault;
+	FRHITexture* SceneDepth = DepthDefault;
+	const FTexture2DRHIRef& SceneDepthTextureRef = SceneContext.GetSceneDepthTexture();
+	if (bSceneTexturesValid && SceneDepthTextureRef && (SceneDepthTextureRef->GetFlags() & TexCreate_Memoryless) == 0)
+	{
+		SceneDepth = SceneDepthTextureRef.GetReference();
+	}
+	SceneTextureParameters.SceneDepthTexture = SceneDepth;
 	SceneTextureParameters.SceneDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	SceneTextureParameters.SceneAlphaCopyTexture = bSceneTexturesValid && SceneContext.HasSceneAlphaCopyTexture() ? SceneContext.GetSceneAlphaCopyTexture() : BlackDefault2D;
