@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "Tools/UEdMode.h"
 #include "Tools/Modes.h"
 #include "Engine/EngineBaseTypes.h"
