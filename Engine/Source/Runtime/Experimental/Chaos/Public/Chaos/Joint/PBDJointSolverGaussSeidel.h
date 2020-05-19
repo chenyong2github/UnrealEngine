@@ -253,21 +253,11 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings,
 			const bool bUseSoftLimit);
 
-		int32 ApplyTwistProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
 		int32 ApplyConeConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const bool bUseSoftLimit);
-
-		int32 ApplyConeProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
 
 		// One Swing axis is free, and the other locked. This applies the lock: Body1 Twist axis is confined to a plane.
 		int32 ApplySingleLockedSwingConstraint(
@@ -292,12 +282,6 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const bool bUseSoftLimit);
-
-		int32 ApplySwingProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex);
 
 		int32 ApplySwingTwistDrives(
 			const FReal Dt,
@@ -361,29 +345,95 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		int32 ApplyPointConeTwistProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			bool bApplyPositionCorrection,
-			bool bApplySwingCorrection,
-			bool bApplyTwistCorrection);
 
-		int32 ApplySphereConeTwistProjection(
+		int32 ApplyPointProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			bool bApplyPositionCorrection,
-			bool bApplySwingCorrection,
-			bool bApplyTwistCorrection);
+			const float Alpha,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
 
-		int32 ApplyPointDoubleSwingLockProjection(
+		int32 ApplySphereProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			bool bApplyPositionCorrection,
-			bool bApplySwingCorrection,
-			bool bApplyTwistCorrection);
+			const float Alpha,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
+
+		int32 ApplyTranslateProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const float Alpha,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
+
+		int32 ApplyConeProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const float Alpha,
+			const bool bPositionLocked,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
+
+		int32 ApplySwingProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const float Alpha,
+			const bool bPositionLocked,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
+
+		int32 ApplySingleLockedSwingProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const float Alpha,
+			const bool bPositionLocked,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
+
+		int32 ApplyDoubleLockedSwingProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const float Alpha,
+			const bool bPositionLocked,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
+
+		int32 ApplyDualConeSwingProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const float Alpha,
+			const bool bPositionLocked,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
+
+		int32 ApplyTwistProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const float Alpha,
+			const bool bPositionLocked,
+			FVec3& NetDP1,
+			FVec3& NetDR1);
+
+		void ApplyVelocityProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const float Alpha,
+			const FVec3& DP1,
+			const FVec3& DR1);
 
 
 
@@ -424,9 +474,6 @@ namespace Chaos
 		// Tolerances below which we stop solving
 		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 		FReal AngleTolerance;						// Angle error below which we consider a constraint or drive solved
-	
-		FReal ProjectionInvMassScale;
-		FReal VelProjectionInvMassScale;
 	};
 
 }
