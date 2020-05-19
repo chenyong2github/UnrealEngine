@@ -18,7 +18,7 @@
 #include "TraceSourceFilteringSettings.h"
 #include "SourceFilterCollection.h"
 
-FSourceFilterManager::FSourceFilterManager(UWorld* InWorld) : World(InWorld)
+FSourceFilterManager::FSourceFilterManager(UWorld* InWorld) : World(InWorld), FilterCollection(FTraceSourceFiltering::Get().GetFilterCollection()), ActorCollector(InWorld, FilterCollection->GetClassFilters())
 {
 	ActorSpawningDelegateHandle = World->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateLambda([this](AActor* InActor) 
 	{ 
@@ -29,7 +29,6 @@ FSourceFilterManager::FSourceFilterManager(UWorld* InWorld) : World(InWorld)
 	}));
 
 	Settings = FTraceSourceFiltering::Get().GetSettings();
-	FilterCollection = FTraceSourceFiltering::Get().GetFilterCollection();
 }
 
 FSourceFilterManager::~FSourceFilterManager()
@@ -45,7 +44,10 @@ void FSourceFilterManager::Tick(float DeltaTime)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceFilterManager::Tick);
 	if (CAN_TRACE_OBJECT(World))
 	{		
-		for (TActorIterator<AActor> It(World); It; ++It)
+		ActorCollector.UpdateFilterClasses(FilterCollection->GetClassFilters());
+		ActorCollector.CollectActors();
+
+		for (FFilteredActorIterator It = ActorCollector.GetIterator(); It; ++It)
 		{
 			if (const AActor* Actor = *It)
 			{

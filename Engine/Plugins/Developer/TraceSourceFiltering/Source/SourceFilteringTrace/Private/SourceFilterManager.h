@@ -9,6 +9,8 @@
 #include "Containers/Map.h"
 #include "Delegates/IDelegateInstance.h"
 
+#include "ActorFiltering.h"
+
 class UDataSourceFilter;
 class UWorld;
 class AActor;
@@ -37,11 +39,14 @@ protected:
 	/** Registered delegate for whenever an AActor is spawned within World */
 	FDelegateHandle ActorSpawningDelegateHandle;
 
+	/** UWorld instance that this instance corresponds to */
+	UWorld* World;
+	
 	/** Filtering settings for the running instance */
 	const UTraceSourceFilteringSettings* Settings;
 	/** Filter collection, containing the UDataSourceFilters, for the running instance */
 	const USourceFilterCollection* FilterCollection;
 
-	/** UWorld instance that this instance corresponds to */
-	UWorld* World;
+	/** Actor collector, applies high-level AActor class filtering when retrieving instances for UWorld */
+	FFilteredActorCollector ActorCollector;
 };

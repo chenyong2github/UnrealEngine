@@ -47,10 +47,15 @@ public:
 	virtual UTraceSourceFilteringSettings* GetFilterSettings() override;
 	virtual bool IsActionPending() const override;
 	virtual TSharedRef<SWidget> GetFilterPickerWidget(FOnFilterClassPicked InFilterClassPicked) override;
+	virtual TSharedRef<SWidget> GetClassFilterPickerWidget(FOnFilterClassPicked InFilterClassPicked) override;
 	virtual TSharedPtr<FExtender> GetExtender() override;
 	virtual void GetWorldObjects(TArray<TSharedPtr<FWorldObject>>& OutWorldObjects) override;
 	virtual void SetWorldTraceability(TSharedRef<FWorldObject> InWorldObject, bool bState) override;
 	virtual const TArray<TSharedPtr<IWorldTraceFilter>>& GetWorldFilters() override;
+	virtual void AddClassFilter(const FString& ActorClassName) override;
+	virtual void RemoveClassFilter(TSharedRef<FClassFilterObject> ClassFilterObject) override;
+	virtual void GetClassFilters(TArray<TSharedPtr<FClassFilterObject>>& OutClasses) const override;
+	virtual void SetIncludeDerivedClasses(TSharedRef<FClassFilterObject> ClassFilterObject, bool bIncluded) override;
 	/** End ISessionSourceFilterService overrides */	
 
 	/** Begin FEditorUndoClient overrides*/

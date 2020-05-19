@@ -1155,7 +1155,7 @@ void GetObjectsOfClass(const UClass* ClassToLookFor, TArray<UObject *>& Results,
 	check(Results.Num() <= GUObjectArray.GetObjectArrayNum()); // otherwise we have a cycle in the outer chain, which should not be possible
 }
 
-void ForEachObjectOfClass(const UClass* ClassToLookFor, TFunctionRef<void(UObject*)> Operation, bool bIncludeDerivedClasses, EObjectFlags ExclusionFlags, EInternalObjectFlags ExclusionInternalFlags)
+FORCEINLINE void ForEachObjectOfClasses_Implementation(FUObjectHashTables& ThreadHash, TArrayView<const UClass*> ClassesToLookFor, TFunctionRef<void(UObject*)> Operation, EObjectFlags ExcludeFlags /*= RF_ClassDefaultObject*/, EInternalObjectFlags ExclusionInternalFlags /*= EInternalObjectFlags::None*/)
 {
 	// We don't want to return any objects that are currently being background loaded unless we're using the object iterator during async loading.
 	ExclusionInternalFlags |= EInternalObjectFlags::Unreachable;
@@ -1164,6 +1164,25 @@ void ForEachObjectOfClass(const UClass* ClassToLookFor, TFunctionRef<void(UObjec
 		ExclusionInternalFlags |= EInternalObjectFlags::AsyncLoading;
 	}
 
+	for (const UClass* SearchClass : ClassesToLookFor)
+	{
+		FHashBucket* List = ThreadHash.ClassToObjectListMap.Find(SearchClass);
+		if (List)
+		{
+			for (FHashBucketIterator ObjectIt(*List); ObjectIt; ++ObjectIt)
+			{
+				UObject* Object = static_cast<UObject*>(*ObjectIt);
+				if (!Object->HasAnyFlags(ExcludeFlags) && !Object->HasAnyInternalFlags(ExclusionInternalFlags))
+				{
+					Operation(Object);
+				}
+			}
+		}
+	}
+}
+
+void ForEachObjectOfClass(const UClass* ClassToLookFor, TFunctionRef<void(UObject*)> Operation, bool bIncludeDerivedClasses, EObjectFlags ExclusionFlags, EInternalObjectFlags ExclusionInternalFlags)
+{
 	// Most classes searched for have around 10 subclasses, some have hundreds
 	TArray<const UClass*, TInlineAllocator<16>> ClassesToSearch;
 	ClassesToSearch.Add(ClassToLookFor);
@@ -1176,21 +1195,15 @@ void ForEachObjectOfClass(const UClass* ClassToLookFor, TFunctionRef<void(UObjec
 		RecursivelyPopulateDerivedClasses(ThreadHash, ClassToLookFor, ClassesToSearch);
 	}
 
-	for (const UClass* SearchClass : ClassesToSearch)
-	{
-		FHashBucket* List = ThreadHash.ClassToObjectListMap.Find(SearchClass);
-		if (List)
-		{
-			for (FHashBucketIterator ObjectIt(*List); ObjectIt; ++ObjectIt)
-			{
-				UObject *Object = static_cast<UObject*>(*ObjectIt);
-				if (!Object->HasAnyFlags(ExclusionFlags) && !Object->HasAnyInternalFlags(ExclusionInternalFlags))
-				{
-					Operation(Object);
-				}
-			}
-		}
-	}
+	ForEachObjectOfClasses_Implementation(ThreadHash, ClassesToSearch, Operation, ExclusionFlags, ExclusionInternalFlags);
+}
+
+void ForEachObjectOfClasses(TArrayView<const UClass*> ClassesToLookFor, TFunctionRef<void(UObject*)> Operation, EObjectFlags ExcludeFlags /*= RF_ClassDefaultObject*/, EInternalObjectFlags ExclusionInternalFlags /*= EInternalObjectFlags::None*/)
+{
+	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
+	FHashTableLock HashLock(ThreadHash);
+
+	ForEachObjectOfClasses_Implementation(ThreadHash, ClassesToLookFor, Operation, ExcludeFlags, ExclusionInternalFlags);
 }
 
 void GetDerivedClasses(const UClass* ClassToLookFor, TArray<UClass*>& Results, bool bRecursive)

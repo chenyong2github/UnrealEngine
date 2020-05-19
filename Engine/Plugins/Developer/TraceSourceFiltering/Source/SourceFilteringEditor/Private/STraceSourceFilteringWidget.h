@@ -12,6 +12,7 @@
 #endif // WITH_EDITOR
 
 class SWorldTraceFilteringWidget;
+class SClassTraceFilteringWidget;
 class SUserTraceFilteringWidget;
 class SComboButton;
 class SHorizontalBox;
@@ -73,6 +74,8 @@ protected:
 	/** Widget used for filtering UWorld's traceability on the connected filter session */
 	TSharedPtr<SWorldTraceFilteringWidget> WorldFilterWidget;
 
+	/** Widget used for filtering AActors when applying user filters for a given UWorld */
+	TSharedPtr<SClassTraceFilteringWidget> ClassFilterWidget;
 	/** Widget used for setting up User Filters applied to actor within a given UWorld */
 	TSharedPtr<SUserTraceFilteringWidget> UserFilterWidget;
 	   
