@@ -2385,6 +2385,10 @@ FTextHistory_StringTableEntry::FTextHistory_StringTableEntry(FTextHistory_String
 	: FTextHistory(MoveTemp(Other))
 	, StringTableReferenceData(MoveTemp(Other.StringTableReferenceData))
 {
+	if (StringTableReferenceData)
+	{
+		StringTableReferenceData->SetRevisionPtr(&Revision);
+	}
 	Other.StringTableReferenceData.Reset();
 }
 
@@ -2394,6 +2398,10 @@ FTextHistory_StringTableEntry& FTextHistory_StringTableEntry::operator=(FTextHis
 	if (this != &Other)
 	{
 		StringTableReferenceData = MoveTemp(Other.StringTableReferenceData);
+		if (StringTableReferenceData)
+		{
+			StringTableReferenceData->SetRevisionPtr(&Revision);
+		}
 		Other.StringTableReferenceData.Reset();
 	}
 	return *this;
@@ -2592,6 +2600,12 @@ void FTextHistory_StringTableEntry::FStringTableReferenceData::Initialize(uint16
 		LoadingPhase = EStringTableLoadingPhase::PendingLoad;
 		ConditionalBeginAssetLoad();
 	}
+}
+
+void FTextHistory_StringTableEntry::FStringTableReferenceData::SetRevisionPtr(uint16* InRevisionPtr)
+{
+	FScopeLock ScopeLock(&DataCS);
+	RevisionPtr = InRevisionPtr;
 }
 
 FName FTextHistory_StringTableEntry::FStringTableReferenceData::GetTableId() const
