@@ -45,6 +45,7 @@
 #include "Chaos/Box.h"
 #include "ChaosSolvers/Public/EventsData.h"
 #include "ChaosSolvers/Public/EventManager.h"
+#include "ChaosSolvers/Public/RewindData.h"
 
 
 #if !UE_BUILD_SHIPPING
@@ -2351,6 +2352,33 @@ FPhysScene_ChaosInterface::AddSpringConstraint(const TArray< TPair<FPhysicsActor
 void FPhysScene_ChaosInterface::RemoveSpringConstraint(const FPhysicsConstraintReference_Chaos& Constraint)
 {
 	// #todo : Implement
+}
+
+void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
+{
+	using namespace Chaos;
+	auto Solver = GetSolver();
+	if(FRewindData* RewindData = Solver->GetRewindData())
+	{
+		const int32 FramesSaved = RewindData->GetFramesSaved() - 2;	//give 2 frames buffer because right at edge we have a hard time
+		const int32 NumFrames = FMath::Min(NumFramesRequested,FramesSaved);
+		if(NumFrames > 0)
+		{
+			const int32 LatestFrame = RewindData->CurrentFrame();
+			const int32 FirstFrame = LatestFrame - NumFrames;
+			Solver->GetRewindData()->RewindToFrame(FirstFrame);
+
+			for(int Frame = FirstFrame; Frame < LatestFrame; ++Frame)
+			{
+				Solver->PushPhysicsState();
+				FPhysicsSolverAdvanceTask AdvanceTask(Solver,RewindData->GetDeltaTimeForFrame(Frame));
+				AdvanceTask.DoTask(ENamedThreads::GameThread,FGraphEventRef());
+				Solver->BufferPhysicsResults();
+				Solver->FlipBuffers();
+				Solver->UpdateGameThreadStructures();
+			}
+		}
+	}
 }
 
 void FPhysScene_ChaosInterface::CompleteSceneSimulation(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)

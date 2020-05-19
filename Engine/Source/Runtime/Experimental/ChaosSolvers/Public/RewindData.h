@@ -327,26 +327,32 @@ public:
 
 	bool IsSimWritableDesynced(TPBDRigidParticleHandle<FReal,3>& Particle) const
 	{
-		const FParticlePositionRotation& XR = ParticlePositionRotation.Read();
-		if(XR.X() != Particle.X())
+		if(ParticlePositionRotation.IsSet())
 		{
-			return true;
+			const FParticlePositionRotation& XR = ParticlePositionRotation.Read();
+			if(XR.X() != Particle.X())
+			{
+				return true;
+			}
+
+			if(XR.R() != Particle.R())
+			{
+				return true;
+			}
 		}
 
-		if(XR.R() != Particle.R())
+		if(Velocities.IsSet())
 		{
-			return true;
-		}
+			const FParticleVelocities& Vels = Velocities.Read();
+			if(Vels.V() != Particle.V())
+			{
+				return true;
+			}
 
-		const FParticleVelocities& Vels = Velocities.Read();
-		if(Vels.V() != Particle.V())
-		{
-			return true;
-		}
-
-		if(Vels.W() != Particle.W())
-		{
-			return true;
+			if(Vels.W() != Particle.W())
+			{
+				return true;
+			}
 		}
 
 		return false;
@@ -761,6 +767,7 @@ public:
 
 	int32 Capacity() const { return Managers.Capacity(); }
 	int32 CurrentFrame() const { return CurFrame; }
+	int32 GetFramesSaved() const { return FramesSaved; }
 
 	FReal GetDeltaTimeForFrame(int32 Frame) const
 	{
@@ -798,29 +805,36 @@ public:
 		{
 			DirtyParticleInfo.bDesync = false;	//after rewind particle is pristine
 
+			const auto ObjectState = DirtyParticleInfo.GetGTParticle()->ObjectState();
+			//don't sync kinematics
+			const bool bAllowSync = ObjectState == EObjectStateType::Sleeping || ObjectState == EObjectStateType::Dynamic;
 			if(bNeedsSave)
 			{
 				//GetStateAtFrameImp returns a pointer from the TArray that holds state data
 				//But it's possible that we'll need to save state from head, which would grow that TArray
 				//So preallocate just in case
 				FGeometryParticleStateBase& LatestState = DirtyParticleInfo.AddFrame(CurFrame);
-			
-				if(const FGeometryParticleStateBase* RewindState = GetStateAtFrameImp(DirtyParticleInfo, Frame))
+
+				if(const FGeometryParticleStateBase* RewindState = GetStateAtFrameImp(DirtyParticleInfo,Frame))
 				{
 
 					LatestState.SyncIfDirty(FDirtyPropData(DestManager,DataIdx++),*DirtyParticleInfo.GetGTParticle(),*RewindState);
-					CoalesceBack(DirtyParticleInfo.Frames, CurFrame);
+					CoalesceBack(DirtyParticleInfo.Frames,CurFrame);
 
-					RewindState->SyncToParticle(*DirtyParticleInfo.GetGTParticle());
+					if(bAllowSync)
+					{
+						RewindState->SyncToParticle(*DirtyParticleInfo.GetGTParticle());
+					}
 				}
 			}
-			else
+			else if(bAllowSync)
 			{
 				if(const FGeometryParticleStateBase* RewindState = GetStateAtFrameImp(DirtyParticleInfo,Frame))
 				{
 					RewindState->SyncToParticle(*DirtyParticleInfo.GetGTParticle());
 				}
 			}
+			
 		}
 
 		CurFrame = Frame;
@@ -970,7 +984,7 @@ public:
 					{
 						//If we have a simulated particle, make sure its sim-writable properties are still in sync
 						const FGeometryParticleStateBase* ExpectedState = GetStateAtFrameImp(Info,CurFrame);
-						if(ensure(ExpectedState))
+						if(ExpectedState)	//this if is here because dynamics can be set up as kinematics, in that case we might have no state
 						{
 							if(ExpectedState->IsSimWritableDesynced(*Rigid))
 							{
