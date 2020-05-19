@@ -1630,6 +1630,18 @@ void ACharacter::RootMotionDebugClientPrintOnScreen_Implementation(const FString
 }
 
 
+// ServerMovePacked
+void ACharacter::ServerMovePacked_Implementation(const FCharacterServerMovePackedBits& PackedBits)
+{
+	GetCharacterMovement()->ServerMovePacked_ServerReceive(PackedBits);
+}
+
+bool ACharacter::ServerMovePacked_Validate(const FCharacterServerMovePackedBits& PackedBits)
+{
+	// Can't really validate the bit stream without unpacking, and that is done in ServerMovePacked_ServerReceive() and can be rejected after unpacking.
+	return true;
+}
+
 // ServerMove
 void ACharacter::ServerMove_Implementation(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 CompressedMoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
 {
@@ -1694,6 +1706,18 @@ void ACharacter::ServerMoveOld_Implementation(float OldTimeStamp, FVector_NetQua
 bool ACharacter::ServerMoveOld_Validate(float OldTimeStamp, FVector_NetQuantize10 OldAccel, uint8 OldMoveFlags)
 {
 	return GetCharacterMovement()->ServerMoveOld_Validate(OldTimeStamp, OldAccel, OldMoveFlags);
+}
+
+// ClientMoveResponsePacked
+void ACharacter::ClientMoveResponsePacked_Implementation(const FCharacterMoveResponsePackedBits& PackedBits)
+{
+	GetCharacterMovement()->MoveResponsePacked_ClientReceive(PackedBits);
+}
+
+bool ACharacter::ClientMoveResponsePacked_Validate(const FCharacterMoveResponsePackedBits& PackedBits)
+{
+	// Can't really validate the bit stream without unpacking, and that is done in MoveResponsePacked_ClientReceive() and can be rejected after unpacking.
+	return true;
 }
 
 // ClientAckGoodMove
