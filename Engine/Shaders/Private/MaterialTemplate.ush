@@ -200,6 +200,11 @@ float4 GetDynamicParameter(FMaterialParticleParameters Parameters, float4 Defaul
 
 }
 
+struct FMaterialAttributes
+{
+%s
+};
+
 /** 
  * Parameters calculated from the pixel material inputs.
  */
