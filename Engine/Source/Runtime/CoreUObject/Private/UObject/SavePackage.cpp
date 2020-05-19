@@ -6233,7 +6233,20 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 
 			const int64 BulkStartOffset = TargetArchive->Tell();
 
-			int64 StoredBulkStartOffset = BulkStartOffset - StartOfBulkDataArea;
+			int64 StoredBulkStartOffset = 0;
+			if (SavePackageContext == nullptr || SavePackageContext->bAllowBulkDataInIoStore || !bShouldUseSeparateBulkFile)
+			{
+				StoredBulkStartOffset = BulkStartOffset - StartOfBulkDataArea;
+			}
+			else
+			{
+				// If we are not allowing BulkData to go to the IoStore and we will be saving the BulkData to a separate file then 
+				// we cannot manipulate the offset as we cannot 'fix' it at runtime with the AsyncLoader2
+				// 
+				// We should remove the manipulated offset entirely, at least for separate files but for now we need to leave it to
+				// prevent larger patching sizes.
+				StoredBulkStartOffset = BulkStartOffset;
+			}
 
 			BulkDataStorageInfo.BulkData->SerializeBulkData(*TargetArchive, BulkDataStorageInfo.BulkData->Lock(LOCK_READ_ONLY));
 

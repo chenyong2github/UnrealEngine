@@ -7396,11 +7396,18 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
-		// just leak all memory for now
 		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedProjectPath);
 		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
-		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest);
+		bool bAllowBulkDataInIoStore = true;
+		{
+			FConfigFile PlatformEngineIni;
+			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
+	
+			PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("AllowBulkDataInIoStore"), bAllowBulkDataInIoStore);
+		}
+
+		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest, bAllowBulkDataInIoStore);
 		SavePackageContexts.Add(SavePackageContext);
 	}
 }

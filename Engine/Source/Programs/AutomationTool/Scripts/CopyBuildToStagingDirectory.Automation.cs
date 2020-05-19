@@ -2330,7 +2330,7 @@ public partial class Project : CommandUtils
 					}
 
 					ConfigHierarchy PlatformEngineConfig;
-                    if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))					
+					if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))					
 					{
 						// if the runtime will want to reduce memory usage, we have to disable the pak index freezing
 						bool bUnloadPakEntries = false;
@@ -2349,21 +2349,35 @@ public partial class Project : CommandUtils
 					Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 					if (ShouldCreateIoStoreContainerFiles(Params, SC))
 					{
+						bool bAllowBulkDataInIoStore = false;
+						PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore);
+
 						UnrealPakResponseFile = new Dictionary<string, string>();
 						Dictionary<string, string> IoStoreResponseFile = new Dictionary<string, string>();
 						foreach (var Entry in PakParams.UnrealPakResponseFile)
 						{
 							if (Path.GetExtension(Entry.Key).Contains(".uasset") ||
-								Path.GetExtension(Entry.Key).Contains(".umap") ||
-								Path.GetExtension(Entry.Key).Contains(".ubulk") ||
-								Path.GetExtension(Entry.Key).Contains(".uptnl"))
+								Path.GetExtension(Entry.Key).Contains(".umap"))
 							{
 								IoStoreResponseFile.Add(Entry.Key, Entry.Value);
+							}
+							else if(Path.GetExtension(Entry.Key).Contains(".ubulk") ||
+									Path.GetExtension(Entry.Key).Contains(".uptnl"))
+							{
+								if(bAllowBulkDataInIoStore)
+								{
+									IoStoreResponseFile.Add(Entry.Key, Entry.Value);
+								}
+								else
+								{
+									UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
+								}
 							}
 							else if (!Path.GetExtension(Entry.Key).Contains(".uexp"))
 							{
 								UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
 							}
+
 						}
 
 						string ContainerPatchSourcePath = null;
