@@ -241,6 +241,18 @@ private:
 		FVector& SpaceLinearAcc,
 		FVector& SpaceAngularAcc);
 
+	// Gather nearby world objects and add them to the sim
+	void CollectWorldObjects(const UWorld* World, const USkeletalMeshComponent* SKC);
+
+	// Flag invalid world objects to be removed from the sim
+	void ExpireWorldObjects();
+
+	// Remove simulation objects that are flagged as expired
+	void PurgeExpiredWorldObjects();
+
+	// Update sim-space transforms of world objects
+	void UpdateWorldObjects(const FTransform& SpaceTransform);
+
 private:
 
 	float AccumulatedDeltaTime;
@@ -295,6 +307,16 @@ private:
 		bool bBodyTransformInitialized : 1;
 	};
 
+	struct FWorldObject
+	{
+		FWorldObject() : ActorHandle(nullptr), LastSeenTick(0), bExpired(false) {}
+		FWorldObject(ImmediatePhysics::FActorHandle* InActorHandle, int32 InLastSeenTick) : ActorHandle(InActorHandle), LastSeenTick(InLastSeenTick), bExpired(false) {}
+
+		ImmediatePhysics::FActorHandle* ActorHandle;
+		int32 LastSeenTick;
+		bool bExpired;
+	};
+
 	TArray<FOutputBoneData> OutputBoneData;
 	TArray<ImmediatePhysics::FActorHandle*> Bodies;
 	TArray<int32> SkeletonBoneIndexToBodyIndex;
@@ -303,7 +325,8 @@ private:
 	TArray<FPhysicsConstraintHandle*> Constraints;
 	TArray<USkeletalMeshComponent::FPendingRadialForces> PendingRadialForces;
 
-	TSet<UPrimitiveComponent*> ComponentsInSim;
+	TMap<const UPrimitiveComponent*, FWorldObject> ComponentsInSim;
+	int32 ComponentsInSimTick;
 
 	FVector WorldSpaceGravity;
 
@@ -311,6 +334,7 @@ private:
 
 	float TotalMass;
 
+	// Bounds used to gather world objects copied into the simulation
 	FSphere CachedBounds;
 
 	FCollisionQueryParams QueryParams;

@@ -41,6 +41,9 @@ namespace ImmediatePhysics_Chaos
 		/** Does this actor have a kinematic target (next kinematic transform to be applied) */
 		bool HasKinematicTarget() const;
 
+		/** Whether the body is static */
+		bool IsStatic() const;
+
 		/** Whether the body is simulating */
 		bool IsSimulated() const;
 
