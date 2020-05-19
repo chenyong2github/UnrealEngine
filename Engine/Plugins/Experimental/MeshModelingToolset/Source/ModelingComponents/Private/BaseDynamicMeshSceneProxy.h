@@ -811,13 +811,14 @@ public:
 						}
 					}
 
-					// draw secondary buffer if we have it, and have secondary material
-					if (bDrawSecondaryBuffers && BufferSet->SecondaryIndexBuffer.Indices.Num() > 0 && SecondaryMaterialProxy != nullptr)
+					// draw secondary buffer if we have it, falling back to base material if we don't have the Secondary material
+					FMaterialRenderProxy* UseSecondaryMaterialProxy = (SecondaryMaterialProxy != nullptr) ? SecondaryMaterialProxy : MaterialProxy;
+					if (bDrawSecondaryBuffers && BufferSet->SecondaryIndexBuffer.Indices.Num() > 0 && UseSecondaryMaterialProxy != nullptr)
 					{
-						DrawBatch(Collector, *BufferSet, BufferSet->SecondaryIndexBuffer, SecondaryMaterialProxy, false, DepthPriority, ViewIndex, DynamicPrimitiveUniformBuffer);
+						DrawBatch(Collector, *BufferSet, BufferSet->SecondaryIndexBuffer, UseSecondaryMaterialProxy, false, DepthPriority, ViewIndex, DynamicPrimitiveUniformBuffer);
 						if (bWireframe)
 						{
-							DrawBatch(Collector, *BufferSet, BufferSet->SecondaryIndexBuffer, WireframeMaterialProxy, true, DepthPriority, ViewIndex, DynamicPrimitiveUniformBuffer);
+							DrawBatch(Collector, *BufferSet, BufferSet->SecondaryIndexBuffer, UseSecondaryMaterialProxy, true, DepthPriority, ViewIndex, DynamicPrimitiveUniformBuffer);
 						}
 					}
 				}
