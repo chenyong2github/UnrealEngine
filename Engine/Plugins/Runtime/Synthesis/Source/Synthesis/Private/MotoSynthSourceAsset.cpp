@@ -13,7 +13,7 @@
 #endif
 
 static int32 MotosynthDisabledCVar = 0;
-FAutoConsoleVariableRef CVarDisableFiltering(
+FAutoConsoleVariableRef CVarDisableMotoSynth(
 	TEXT("au.DisableMotoSynth"),
 	MotosynthDisabledCVar,
 	TEXT("Disables the moto synth.\n")
