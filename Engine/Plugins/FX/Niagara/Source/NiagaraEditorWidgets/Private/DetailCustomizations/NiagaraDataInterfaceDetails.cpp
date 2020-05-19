@@ -227,6 +227,7 @@ public:
 	{
 		DataInterface = &InDataInterface;
 		DataInterface->OnChanged().AddSP(this, &FNiagaraDataInterfaceCustomNodeBuilder::OnDataInterfaceChanged);
+		DataInterface->OnErrorsRefreshed().AddSP(this, &FNiagaraDataInterfaceCustomNodeBuilder::OnRefreshErrorsRequested);
 	}
 
 	~FNiagaraDataInterfaceCustomNodeBuilder()
@@ -234,6 +235,7 @@ public:
 		if (DataInterface.IsValid())
 		{
 			DataInterface->OnChanged().RemoveAll(this);
+			DataInterface->OnErrorsRefreshed().RemoveAll(this);
 		}
 	}
 
@@ -305,6 +307,11 @@ public:
 	}
 private:
 	void OnDataInterfaceChanged()
+	{
+		OnRebuildChildren.ExecuteIfBound();
+	}
+
+	void OnRefreshErrorsRequested()
 	{
 		OnRebuildChildren.ExecuteIfBound();
 	}
