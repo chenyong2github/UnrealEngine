@@ -2248,6 +2248,60 @@ int32 UInstancedStaticMeshComponent::AddInstance(const FTransform& InstanceTrans
 	return AddInstanceInternal(PerInstanceSMData.Num(), nullptr, InstanceTransform);
 }
 
+TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(int32 Count, const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices)
+{
+	TArray<int32> NewInstanceIndices;
+
+	if (bShouldReturnIndices)
+	{
+		NewInstanceIndices.Reserve(Count);
+	}
+
+	int32 InstanceIndex = PerInstanceSMData.Num();
+
+	PerInstanceSMCustomData.AddZeroed(NumCustomDataFloats * Count);
+
+#if WITH_EDITOR
+	SelectedInstances.Add(false, Count);
+#endif
+
+	for (int32 i = 0; i < Count; ++i)
+	{
+		FInstancedStaticMeshInstanceData* NewInstanceData = new(PerInstanceSMData) FInstancedStaticMeshInstanceData();
+
+		SetupNewInstanceData(*NewInstanceData, InstanceIndex, InstanceTransforms[i]);
+
+		if (bShouldReturnIndices)
+		{
+			NewInstanceIndices.Add(InstanceIndex);
+		}
+
+		if (SupportsPartialNavigationUpdate())
+		{
+			PartialNavigationUpdate(InstanceIndex);
+		}
+
+		++InstanceIndex;
+	}
+
+	if (!SupportsPartialNavigationUpdate())
+	{
+		// Index parameter is ignored if partial navigation updates are not supported
+		PartialNavigationUpdate(0);
+	}
+
+	// Batch update the render state after all instances are finished building
+	InstanceUpdateCmdBuffer.Edit();
+	MarkRenderStateDirty();
+
+	return NewInstanceIndices;
+}
+
+TArray<int32> UInstancedStaticMeshComponent::AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices)
+{
+	return AddInstancesInternal(InstanceTransforms.Num(), InstanceTransforms, bShouldReturnIndices);
+}
+
 int32 UInstancedStaticMeshComponent::AddInstanceWorldSpace(const FTransform& WorldTransform)
  {
 	// Transform from world space to local space
