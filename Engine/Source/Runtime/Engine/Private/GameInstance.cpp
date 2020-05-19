@@ -340,6 +340,11 @@ bool UGameInstance::InitializePIE(bool bAnyBlueprintErrors, int32 PIEInstance, b
 
 FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer* LocalPlayer, const FGameInstancePIEParameters& Params)
 {
+	if (!Params.EditorPlaySettings)
+	{
+		return FGameInstancePIEResult::Failure(NSLOCTEXT("UnrealEd", "Error_InvalidEditorPlaySettings", "Invalid Editor Play Settings!"));
+	}
+
 	if (PIEStartTime == 0)
 	{
 		PIEStartTime = Params.PIEStartTime;
