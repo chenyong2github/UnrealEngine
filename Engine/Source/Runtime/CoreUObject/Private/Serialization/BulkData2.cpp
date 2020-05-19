@@ -531,6 +531,8 @@ public:
 				InRequest->DataResult = IoBuffer.Data();
 			}
 
+			bDataIsReady = true;
+
 			// Note that freeing the batch will invalidate the current callback!
 			FBulkDataBase::GetIoDispatcher()->FreeBatch(InRequest->IoBatch);
 
@@ -598,7 +600,7 @@ public:
 
 	virtual uint8* GetReadResults() override
 	{
-		if (bIsCompleted && !bIsCanceled)
+		if (bDataIsReady && !bIsCanceled)
 		{
 			uint8* Result = DataResult;
 			DataResult = nullptr;
@@ -613,7 +615,7 @@ public:
 
 	virtual int64 GetSize() const override
 	{
-		if (bIsCompleted && !bIsCanceled)
+		if (bDataIsReady && !bIsCanceled)
 		{
 			return SizeResult;
 		}
@@ -648,6 +650,8 @@ private:
 
 	uint8* DataResult = nullptr;
 	int64 SizeResult = 0;
+
+	bool bDataIsReady = false;
 
 	bool bIsCompleted = false;
 	bool bIsCanceled = false;
