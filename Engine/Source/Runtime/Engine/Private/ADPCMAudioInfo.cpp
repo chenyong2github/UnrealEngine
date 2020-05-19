@@ -9,7 +9,7 @@
 #include "Audio.h"
 #include "ContentStreaming.h"
 
-static int32 bDisableADPCMSeekLockCVar = 1;
+static int32 bDisableADPCMSeekLockCVar = 0;
 FAutoConsoleVariableRef CVarDisableADPCMSeekLock(
 	TEXT("au.DisableADPCMSeekLock"),
 	bDisableADPCMSeekLockCVar,
