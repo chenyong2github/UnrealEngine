@@ -6,7 +6,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/CString.h"
 #include "ProfilingDebugging/MiscTrace.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "UObject/NameTypes.h"
 
 #if GPUPROFILERTRACE_ENABLED
@@ -98,7 +98,7 @@ void FGpuProfilerTrace::BeginEventByName(const FName& Name, uint32 FrameNumber, 
 		return;
 	}
 
-	if (GCurrentFrame.EventBufferSize >= MaxEventBufferSize - 17) // 9 + 8
+	if (GCurrentFrame.EventBufferSize >= MaxEventBufferSize - 18) // 10 + 8
 	{
 		return;
 	}

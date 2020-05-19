@@ -295,6 +295,7 @@ namespace IncludeTool
 			AddSingleTokenMacro("__LINE__", TokenType.NumericLiteral, "-1");
 			AddSingleTokenMacro("__COUNTER__", TokenType.NumericLiteral, "-1");
 			AddSingleTokenMacro("CHAR_BIT", TokenType.NumericLiteral, "8"); // Workaround for #include_next not being supported on Linux for limit.h
+            AddMacro("__has_cpp_attribute", new List<string> { "_" }, new List<Token> { new Token("1", TokenType.NumericLiteral, TokenFlags.None) }); // Workaround for `__has_cpp_attribute` (a core C++ feature) being defined by a 3rd-party library
 
 			if(PreludeFile != null)
 			{

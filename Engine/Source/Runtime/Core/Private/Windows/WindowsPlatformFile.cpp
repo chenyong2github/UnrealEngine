@@ -1182,7 +1182,7 @@ public:
 		bool Result = false;
 		WIN32_FIND_DATAW Data;
 		FString SearchWildcard = FString(Directory) / TEXT("*.*");
-		HANDLE Handle = FindFirstFileW(*(WindowsNormalizedDirname(*SearchWildcard)), &Data);
+		HANDLE Handle = FindFirstFileW(*(WindowsNormalizedFilename(*SearchWildcard)), &Data);
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
 			Result = true;

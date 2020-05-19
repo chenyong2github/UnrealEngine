@@ -77,9 +77,11 @@ void FFrameSharedState::Tick(Insights::ITimingViewSession& InSession, const Trac
 
 	{
 		bool bTracksOrderChanged = false;
-		int32 Order = 10;
+		int32 Order = FTimingTrackOrder::First + 100;
+		constexpr int32 OrderIncrement = 10;
+		static_assert(FTimingTrackOrder::GroupRange > 100 + OrderIncrement * TraceFrameType_Count, "Order group range too small");
 
-		// Iterate through frame types.
+		// Create a track for each available frame type.
 		for (uint32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 		{
 			TSharedPtr<FFrameTimingTrack>* TrackPtrPtr = FrameTracks.Find(FrameType);
@@ -102,7 +104,7 @@ void FFrameSharedState::Tick(Insights::ITimingViewSession& InSession, const Trac
 				}
 			}
 
-			Order += 10;
+			Order += OrderIncrement;
 		}
 
 		if (bTracksOrderChanged)
@@ -128,10 +130,10 @@ void FFrameSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession
 			LOCTEXT("ShowAllFrameTracks", "Frame Tracks - R"),
 			LOCTEXT("ShowAllFrameTracks_Tooltip", "Show/hide all Frame tracks"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FFrameSharedState::ShowHideAllFrameTracks_Execute),
+			FUIAction(FExecuteAction::CreateSP(this, &FFrameSharedState::ShowHideAllFrameTracks),
 					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FFrameSharedState::ShowHideAllFrameTracks_IsChecked)),
-			NAME_None,
+					  FIsActionChecked::CreateSP(this, &FFrameSharedState::IsAllFrameTracksToggleOn)),
+			NAME_None, //"QuickFilterSeparator",
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -140,16 +142,9 @@ void FFrameSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FFrameSharedState::ShowHideAllFrameTracks_IsChecked() const
+void FFrameSharedState::SetAllFrameTracksToggle(bool bOnOff)
 {
-	return bShowHideAllFrameTracks;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FFrameSharedState::ShowHideAllFrameTracks_Execute()
-{
-	bShowHideAllFrameTracks = !bShowHideAllFrameTracks;
+	bShowHideAllFrameTracks = bOnOff;
 
 	for (const auto& KV : FrameTracks)
 	{
@@ -414,16 +409,17 @@ void FFrameTimingTrack::OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent
 
 void FFrameTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	FText SectionTitle = FText::FromString(GetName());
-	MenuBuilder.BeginSection(TEXT("Empty"), SectionTitle);
+	MenuBuilder.BeginSection(TEXT("Misc"));
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ContextMenu_NA", "N/A"),
-			LOCTEXT("ContextMenu_NA_Desc", "No actions available."),
+			LOCTEXT("ContextMenu_ToggleCollapsed", "Collapsed"),
+			LOCTEXT("ContextMenu_ToggleCollapsed_Desc", "Whether the vertical marker lines (the start and the end of each frame) are collapsed or expanded."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([](){ return false; })),
+			FUIAction(FExecuteAction::CreateSP(this, &FFrameTimingTrack::ToggleCollapsed),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FFrameTimingTrack::IsCollapsed)),
 			NAME_None,
-			EUserInterfaceActionType::Button
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 	MenuBuilder.EndSection();

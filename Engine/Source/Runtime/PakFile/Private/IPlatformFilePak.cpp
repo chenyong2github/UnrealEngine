@@ -4944,6 +4944,7 @@ void FPakFile::Initialize(FArchive* Reader, bool bLoadIndex)
 		if (FileInfoPos >= 0)
 		{
 			Reader->Seek(FileInfoPos);
+			Reader->Precache(FileInfoPos, 0); // Inform the archive that we're going to repeatedly serialize from the current location
 
 			SCOPED_BOOT_TIMING("PakFile_SerilizeTrailer");
 

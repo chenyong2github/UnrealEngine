@@ -513,10 +513,11 @@ enum EObjectFlags
 	RF_NonPIEDuplicateTransient	=0x02000000,	///< Object should not be included for duplication unless it's being duplicated for a PIE session
 	RF_Dynamic					=0x04000000,	///< Field Only. Dynamic field - doesn't get constructed during static initialization, can be constructed multiple times
 	RF_WillBeLoaded				=0x08000000,	///< This object was constructed during load and will be loaded shortly
+	RF_HasExternalPackage		=0x10000000,	///< This object has an external package assigned and should look it up when getting the outermost package
 };
 
 /** Mask for all object flags */
-#define RF_AllFlags				(EObjectFlags)0x0fffffff	///< All flags, used mainly for error checking
+#define RF_AllFlags				(EObjectFlags)0x1fffffff	///< All flags, used mainly for error checking
 
 /** Flags to load from unreal asset files */
 #define RF_Load						((EObjectFlags)(RF_Public | RF_Standalone | RF_Transactional | RF_ClassDefaultObject | RF_ArchetypeObject | RF_DefaultSubObject | RF_TextExportTransient | RF_InheritableComponentTemplate | RF_DuplicateTransient | RF_NonPIEDuplicateTransient)) 

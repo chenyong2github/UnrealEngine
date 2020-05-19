@@ -7,13 +7,19 @@
 namespace Trace
 {
 
+enum class EEventEnumerate
+{
+	Continue,
+	Stop,
+};
+
 template<typename InEventType>
 class ITimeline
 {
 public:
 	typedef InEventType EventType;
-	typedef TFunctionRef<void(bool /*bStart*/, double /*Time*/, const EventType& /*Event*/)> EventCallback;
-	typedef TFunctionRef<void(double /*StartTime*/, double /*EndTime*/, uint32 /*Depth*/, const EventType&/*Event*/)> EventRangeCallback;
+	typedef TFunctionRef<EEventEnumerate(bool /*bStart*/, double /*Time*/, const EventType& /*Event*/)> EventCallback;
+	typedef TFunctionRef<EEventEnumerate(double /*StartTime*/, double /*EndTime*/, uint32 /*Depth*/, const EventType&/*Event*/)> EventRangeCallback;
 
 	virtual ~ITimeline() = default;
 	virtual uint64 GetModCount() const = 0;

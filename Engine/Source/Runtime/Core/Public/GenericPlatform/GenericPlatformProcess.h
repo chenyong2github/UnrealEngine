@@ -6,6 +6,21 @@
 #include "Containers/UnrealString.h"
 #include "Templates/Function.h"
 
+////////////////////////////////////////////////////////////////////////////////
+#if PLATFORM_CPU_X86_FAMILY
+#include <emmintrin.h>
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+#if !defined(__clang__)
+#	include <intrin.h>
+#	if defined(_M_ARM)
+#		include <armintr.h>
+#	elif defined(_M_ARM64)
+#		include <arm64intr.h>
+#	endif
+#endif
+
 class Error;
 struct FProcHandle;
 
@@ -666,6 +681,24 @@ struct CORE_API FGenericPlatformProcess
 	 */
 	static void ModifyThreadAssignmentForUObjectReferenceCollector( int32& NumThreads, int32& NumBackgroundThreads, ENamedThreads::Type& NormalThreadName, ENamedThreads::Type& BackgroundThreadName );
 
+	/**
+	 * Tells the processor to pause for implementation-specific amount of time. Is used for spin-loops to improve the speed at 
+	 * which the code detects the release of the lock and power-consumption.
+	 */
+	static FORCEINLINE void Yield()
+	{
+#if PLATFORM_CPU_X86_FAMILY
+		_mm_pause();
+#elif PLATFORM_CPU_ARM_FAMILY
+#	if !defined(__clang__)
+		__yield(); // MSVC
+#	else
+		__builtin_arm_yield();
+#	endif
+#else
+#	error Unsupported architecture!
+#endif
+	}
 };
 
 

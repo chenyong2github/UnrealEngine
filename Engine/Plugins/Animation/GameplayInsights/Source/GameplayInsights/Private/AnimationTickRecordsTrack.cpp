@@ -63,7 +63,7 @@ FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedDat
 	: FGameplayGraphTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("AnimationTickRecordsTrackName", "Blend Weights - {0}"), FText::FromString(InName)))
 	, SharedData(InSharedData)
 {
-	bDrawLabels = true;
+	EnableOptions(ShowLabelsOption);
 	Layout = EGameplayGraphLayout::Stack;
 
 #if WITH_EDITOR
@@ -220,6 +220,7 @@ bool FAnimationTickRecordsTrack::UpdateSeriesBoundsHelper(FTickRecordSeries& InS
 					InSeries.CurrentMax = FMath::Max(InSeries.CurrentMax, Value);
 					bFoundEvents = true;
 				}
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -253,6 +254,7 @@ void FAnimationTickRecordsTrack::UpdateSeriesHelper(FTickRecordSeries& InSeries,
 
 					LastFrameWithTickRecord = InMessage.FrameCounter;
 				}
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -370,6 +372,7 @@ void FAnimationTickRecordsTrack::FindTickRecordMessage(const FTimingEventSearchP
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FTickRecordMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+						return Trace::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -463,6 +466,7 @@ void FAnimationTickRecordsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame
 						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionY", "Blend Space Position Y"), InMessage.BlendSpacePositionY));
 					}
 				}
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}

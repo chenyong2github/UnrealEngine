@@ -26,7 +26,7 @@ public:
 	virtual ~FAsyncLoadingTraceAnalyzer();
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
+	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 	
 private:
 	struct FRequestState;
@@ -77,6 +77,7 @@ private:
 
 		void EnterExportScope(double Time, const Trace::FPackageExportInfo* ExportInfo, Trace::ELoadTimeProfilerObjectEventType EventType);
 		void LeaveExportScope(double Time);
+		Trace::ELoadTimeProfilerObjectEventType GetCurrentExportScopeEventType();
 		Trace::FPackageExportInfo* GetCurrentExportScope();
 	};
 
@@ -109,6 +110,11 @@ private:
 		RouteId_ClassInfo,
 		RouteId_BatchIssued,
 		RouteId_BatchResolved,
+
+		// Backwards compatibility
+		RouteId_BeginObjectScope,
+		RouteId_EndObjectScope,
+		RouteId_AsyncPackageLinkerAssociation,
 	};
 
 	enum
@@ -155,4 +161,7 @@ private:
 	TPointerMap<uint64> ActiveBatchesMap;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
 	TPointerMap<const Trace::FClassInfo*> ClassInfosMap;
+
+	// Backwards compatibility
+	TPointerMap<FAsyncPackageState*> LinkerToAsyncPackageMap;
 };

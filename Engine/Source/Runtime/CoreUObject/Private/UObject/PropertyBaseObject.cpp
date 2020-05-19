@@ -430,7 +430,7 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 		if (Dot && AttemptNonQualifiedSearch)
 		{
 			// search with just the object name
-			Result = FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Dot + 1, 0, InSerializeContext);
+			Result = FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Dot + 1, 0);
 		}
 		FString NewText(Text);
 		// if it didn't have a dot, then maybe they just gave a uasset package name
@@ -467,7 +467,7 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 				const uint32 LoadFlags = LOAD_NoWarn | LOAD_FindIfFail;		
 
 				UE_LOG(LogProperty, Verbose, TEXT("FindImportedObject is attempting to import [%s] (class = %s) with StaticLoadObject"), Text, *GetFullNameSafe(ObjectClass));
-				Result = StaticLoadObject(ObjectClass, nullptr, Text, nullptr, LoadFlags, nullptr, true, InSerializeContext);
+				Result = StaticLoadObject(ObjectClass, nullptr, Text, nullptr, LoadFlags, nullptr, true);
 
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 				check(!bDeferAssetImports || !Result || !FBlueprintSupport::IsInBlueprintPackage(Result));

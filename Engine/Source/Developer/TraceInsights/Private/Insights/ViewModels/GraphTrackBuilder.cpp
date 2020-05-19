@@ -40,22 +40,22 @@ void FGraphTrackBuilder::AddEvent(double Time, double Duration, double Value, bo
 
 	bool bKeepEvent = (Viewport.GetViewportDXForDuration(Duration) > 1.0f); // always keep the events wider than 1px
 
-	//if (Track.bDrawPoints)
+	//if (Track.IsAnyOptionEnabled(EGraphOptions::ShowPoints))
 	{
 		bKeepEvent |= AddPoint(Time, Value);
 	}
 
-	if (Track.bDrawLines || Track.bDrawPolygon)
+	if (Track.IsAnyOptionEnabled(EGraphOptions::ShowLines | EGraphOptions::ShowPolygon))
 	{
 		AddConnectedLine(Time, Value, !bConnected);
 
-		if (Track.bUseEventDuration && Duration != 0.0)
+		if (Track.IsAnyOptionEnabled(EGraphOptions::UseEventDuration) && Duration != 0.0)
 		{
 			AddConnectedLine(Time + Duration, Value, false);
 		}
 	}
 
-	if (Track.bDrawBoxes)
+	if (Track.IsAnyOptionEnabled(EGraphOptions::ShowBars))
 	{
 		AddBox(Time, Duration, Value);
 	}
@@ -206,8 +206,8 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value, bool bNewBa
 			{
 				FlushConnectedLine();
 
-				Series.LinePoints.Last().Add(FVector2D(LinesCurrentX, LinesLastY));
-				Series.LinePoints.Last().Add(FVector2D(X, Y));
+				AddConnectedLinePoint(LinesCurrentX, LinesLastY);
+				AddConnectedLinePoint(X, Y);
 			}
 
 			// Reset the "reduction line" so last FlushConnectedLine() call will do nothing.
@@ -223,8 +223,8 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value, bool bNewBa
 		{
 			FlushConnectedLine();
 
-			Series.LinePoints.Last().Add(FVector2D(LinesCurrentX, LinesLastY));
-			Series.LinePoints.Last().Add(FVector2D(X, Y));
+			AddConnectedLinePoint(LinesCurrentX, LinesLastY);
+			AddConnectedLinePoint(X, Y);
 		}
 
 		// Advance the "reduction line".
@@ -255,9 +255,27 @@ void FGraphTrackBuilder::FlushConnectedLine()
 {
 	if (LinesCurrentX >= 0.0f && LinesMinY != LinesMaxY)
 	{
-		Series.LinePoints.Last().Add(FVector2D(LinesCurrentX, LinesMaxY));
-		Series.LinePoints.Last().Add(FVector2D(LinesCurrentX, LinesMinY));
+		AddConnectedLinePoint(LinesCurrentX, LinesMaxY);
+		AddConnectedLinePoint(LinesCurrentX, LinesMinY);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrackBuilder::AddConnectedLinePoint(float X, float Y)
+{
+	TArray<FVector2D>& LinePoints = Series.LinePoints.Last();
+
+	if (LinePoints.Num() > 0)
+	{
+		const FVector2D& LastPoint = LinePoints.Last();
+		if (X == LastPoint.X && Y == LastPoint.Y)
+		{
+			return;
+		}
+	}
+
+	LinePoints.Add(FVector2D(X, Y));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

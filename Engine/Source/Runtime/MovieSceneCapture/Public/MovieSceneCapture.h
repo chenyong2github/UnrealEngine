@@ -57,10 +57,6 @@ public:
 	const int32 GetFrameNumberOffset() const override { return FrameNumberOffset; }
 	// End IMovieSceneCaptureInterface
 
-	/*~ Begin UObject interface */
-	virtual bool IsDestructionThreadSafe() const override { return false; }
-	/*~ End UObject interface */
-
 	/** Load save from config helpers */
 	virtual void LoadFromConfig();
 	virtual void SaveToConfig();

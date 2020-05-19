@@ -8,7 +8,7 @@ class SScrollBar;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FAxisViewportDouble
+class TRACEINSIGHTS_API FAxisViewportDouble
 {
 private:
 	static constexpr float SLATE_UNITS_TOLERANCE = 0.1f;
@@ -92,35 +92,37 @@ public:
 		return FMath::RoundToFloat(static_cast<float>(Value * Scale) - Position);
 	}
 
-	void ScrollAtPos(const float Pos)
+	bool ScrollAtPos(const float Pos)
 	{
-		Position = Pos;
-		OnPositionChanged();
+		if (Position != Pos)
+		{
+			Position = Pos;
+			OnPositionChanged();
+			return true;
+		}
+		return false;
 	}
 
-	void ScrollAtValue(const double Value)
+	bool ScrollAtValue(const double Value)
 	{
-		Position = GetPosForValue(Value);
-		OnPositionChanged();
+		return ScrollAtPos(GetPosForValue(Value));
 	}
 
-	void CenterOnValue(const double Value)
+	bool CenterOnValue(const double Value)
 	{
-		Position = static_cast<float>(Value * Scale) - Size / 2.0f;
-		OnPositionChanged();
+		return ScrollAtPos(static_cast<float>(Value * Scale) - Size / 2.0f);
 	}
 
-	void CenterOnValueInterval(const double IntervalStartValue, const double IntervalEndValue)
+	bool CenterOnValueInterval(const double IntervalStartValue, const double IntervalEndValue)
 	{
 		const float IntervalSize = static_cast<float>(Scale * (IntervalEndValue- IntervalStartValue));
 		if (IntervalSize > Size)
 		{
-			ScrollAtValue(IntervalStartValue);
+			return ScrollAtValue(IntervalStartValue);
 		}
 		else
 		{
-			Position = static_cast<float>(IntervalStartValue * Scale) - (Size - IntervalSize) / 2.0f;
-			OnPositionChanged();
+			return ScrollAtPos(static_cast<float>(IntervalStartValue * Scale) - (Size - IntervalSize) / 2.0f);
 		}
 	}
 
@@ -134,6 +136,8 @@ public:
 	bool ZoomWithFixedOffset(const double NewScale, const float Offset);
 	bool RelativeZoomWithFixedOffset(const float Delta, const float Offset);
 
+	void GetScrollLimits(float& OutMinPos, float& OutMaxPos);
+	bool EnforceScrollLimits(const float InMinPos, const float InMaxPos, const float InterpolationFactor);
 	bool UpdatePosWithinLimits();
 
 	void OnUserScrolled(TSharedPtr<SScrollBar> ScrollBar, float ScrollOffset);

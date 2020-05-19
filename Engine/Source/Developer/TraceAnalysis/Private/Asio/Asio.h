@@ -36,6 +36,11 @@ void throw_exception(const ExceptionType& Exception)
 #	include "asio/windows/object_handle.hpp"
 #endif
 
+#if PLATFORM_WINDOWS
+#	include <winsock2.h>
+#	pragma comment(lib, "ws2_32.lib")
+#endif
+
 THIRD_PARTY_INCLUDES_END
 
 #if PLATFORM_WINDOWS

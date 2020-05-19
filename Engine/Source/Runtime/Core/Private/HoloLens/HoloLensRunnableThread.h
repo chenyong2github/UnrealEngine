@@ -6,6 +6,7 @@
 #include "HAL/RunnableThread.h"
 #include "HAL/Runnable.h"
 #include "HAL/Event.h"
+#include "HAL/ThreadManager.h"
 #include "Containers/StringConv.h"
 #include "HoloLens/WindowsHWrapper.h"
 #include "HoloLens/HoloLensPlatformProcess.h"
@@ -80,7 +81,9 @@ class FRunnableThreadHoloLens
 	static DWORD STDCALL _ThreadProc(LPVOID pThis)
 	{
 		check(pThis);
-		return ((FRunnableThreadHoloLens*)pThis)->GuardedRun();
+		auto* ThisThread = (FRunnableThreadHoloLens*)pThis;
+		FThreadManager::Get().AddThread(ThisThread->GetThreadID(), ThisThread);
+		return ThisThread->GuardedRun();
 	}
 
 	/** Guarding works only if debugger is not attached or GAlwaysReportCrash is true. */
@@ -181,6 +184,8 @@ protected:
 		check(InRunnable);
 		Runnable = InRunnable;
 		ThreadAffintyMask = InThreadAffinityMask;
+		ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
+		ThreadPriority = InThreadPri;
 
 		// Create a sync event to guarantee the Init() function is called first
 		ThreadInitSyncEvent = FPlatformProcess::CreateSynchEvent(true);
@@ -197,8 +202,9 @@ protected:
 		{
 			// Let the thread start up, then set the name for debug purposes.
 			ThreadInitSyncEvent->Wait(INFINITE);
-			ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
 			SetThreadName(ThreadID, TCHAR_TO_ANSI(*ThreadName));
+
+			ThreadPriority = TPri_Normal;
 			SetThreadPriority(InThreadPri);
 		}
 

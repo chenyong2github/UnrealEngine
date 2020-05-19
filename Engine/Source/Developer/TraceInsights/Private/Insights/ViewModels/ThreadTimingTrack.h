@@ -53,17 +53,20 @@ public:
 
 	//////////////////////////////////////////////////
 
-	void ShowHideAllGpuTracks() { ShowHideAllGpuTracks_Execute(); }
-	void ShowHideAllCpuTracks() { ShowHideAllCpuTracks_Execute(); }
+	bool IsAllGpuTracksToggleOn() const { return bShowHideAllGpuTracks; }
+	void SetAllGpuTracksToggle(bool bOnOff);
+	void ShowAllGpuTracks() { SetAllGpuTracksToggle(true); }
+	void HideAllGpuTracks() { SetAllGpuTracksToggle(false); }
+	void ShowHideAllGpuTracks() { SetAllGpuTracksToggle(!IsAllGpuTracksToggleOn()); }
+
+	bool IsAllCpuTracksToggleOn() const { return bShowHideAllCpuTracks; }
+	void SetAllCpuTracksToggle(bool bOnOff);
+	void ShowAllCpuTracks() { SetAllCpuTracksToggle(true); }
+	void HideAllCpuTracks() { SetAllCpuTracksToggle(false); }
+	void ShowHideAllCpuTracks() { SetAllCpuTracksToggle(!IsAllCpuTracksToggleOn()); }
 
 private:
 	void CreateThreadGroupsMenu(FMenuBuilder& MenuBuilder);
-
-	bool ShowHideAllGpuTracks_IsChecked() const;
-	void ShowHideAllGpuTracks_Execute();
-
-	bool ShowHideAllCpuTracks_IsChecked() const;
-	void ShowHideAllCpuTracks_Execute();
 
 	bool ToggleTrackVisibilityByGroup_IsChecked(const TCHAR* InGroupName) const;
 	void ToggleTrackVisibilityByGroup_Execute(const TCHAR* InGroupName);

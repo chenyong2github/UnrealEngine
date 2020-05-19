@@ -32,7 +32,9 @@ class FRunnableThreadWin
 	static ::DWORD STDCALL _ThreadProc( LPVOID pThis )
 	{
 		check(pThis);
-		return ((FRunnableThreadWin*)pThis)->GuardedRun();
+		auto* ThisThread = (FRunnableThreadWin*)pThis;
+		FThreadManager::Get().AddThread(ThisThread->GetThreadID(), ThisThread);
+		return ThisThread->GuardedRun();
 	}
 
 	/** Guarding works only if debugger is not attached or GAlwaysReportCrash is true. */
@@ -151,6 +153,7 @@ protected:
 		ThreadInitSyncEvent	= FPlatformProcess::GetSynchEventFromPool(true);
 
 		ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
+		ThreadPriority = InThreadPri;
 
 		// Create the new thread
 		{
@@ -171,12 +174,12 @@ protected:
 		}
 		else
 		{
-			FThreadManager::Get().AddThread(ThreadID, this);
 			ResumeThread(Thread);
 
 			// Let the thread start up
 			ThreadInitSyncEvent->Wait(INFINITE);
 
+			ThreadPriority = TPri_Normal; // Set back to default in case any SetThreadPrio() impls compare against current value to reduce syscalls
 			SetThreadPriority(InThreadPri);
 		}
 

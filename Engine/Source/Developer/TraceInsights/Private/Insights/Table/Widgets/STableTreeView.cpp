@@ -26,6 +26,7 @@
 #include "Insights/Table/ViewModels/TreeNodeSorting.h"
 #include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 #include "Insights/Table/Widgets/STableTreeViewRow.h"
+#include "Insights/TimingProfilerCommon.h"
 
 #define LOCTEXT_NAMESPACE "STableTreeView"
 
@@ -48,7 +49,6 @@ STableTreeView::STableTreeView()
 	, Root(MakeShared<FTableTreeNode>(RootNodeName, Table))
 	, TableTreeNodes()
 	, FilteredGroupNodes()
-	, TableTreeNodesIdMap()
 	, ExpandedNodes()
 	, bExpansionSaved(false)
 	, SearchBox(nullptr)
@@ -109,10 +109,10 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 				.AutoHeight()
 				[
 					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
+					.HintText(LOCTEXT("SearchBoxHint", "Search"))
 					.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
 					.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search the tree hierarchy by item or group name"))
 				]
 
 				// Group by
@@ -243,7 +243,13 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			PropertyName = HoveredColumnPtr->GetShortName();
 			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
 		}
-		SelectionStr = FText::FromName(SelectedNode->GetName());
+		FString ItemName = SelectedNode->GetName().ToString();
+		const int32 MaxStringLen = 64;
+		if (ItemName.Len() > MaxStringLen)
+		{
+			ItemName = ItemName.Left(MaxStringLen) + TEXT("...");
+		}
+		SelectionStr = FText::FromString(ItemName);
 	}
 	else
 	{
@@ -738,7 +744,14 @@ TSharedRef<ITableRow> STableTreeView::TreeView_OnGenerateRow(FTableTreeNodePtr N
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::TableRow_SetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, const FTableTreeNodePtr InNodePtr)
+bool STableTreeView::TableRow_ShouldBeEnabled(FTableTreeNodePtr NodePtr) const
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::TableRow_SetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, FTableTreeNodePtr InNodePtr)
 {
 	HoveredColumnId = InColumnPtr ? InColumnPtr->GetId() : FName();
 
@@ -784,13 +797,6 @@ FText STableTreeView::TableRow_GetHighlightText() const
 FName STableTreeView::TableRow_GetHighlightedNodeName() const
 {
 	return HighlightedNodeName;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STableTreeView::TableRow_ShouldBeEnabled(const uint32 TimerId) const
-{
-	return true;//im:TODO: Session->GetAggregatedStat(TimerId) != nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1853,67 +1859,83 @@ void STableTreeView::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTa
 
 void STableTreeView::RebuildTree(bool bResync)
 {
-	bool bListHasChanged = false;
+	FStopwatch SyncStopwatch;
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
 
 	if (bResync)
 	{
-		const int32 PreviousNodeCount = TableTreeNodes.Num();
-		TableTreeNodes.Empty(PreviousNodeCount);
-		TableTreeNodesIdMap.Empty(PreviousNodeCount);
-		bListHasChanged = true;
+		TableTreeNodes.Empty();
 	}
+
+	const int32 PreviousNodeCount = TableTreeNodes.Num();
 
 	TSharedPtr<Trace::IUntypedTable> SourceTable = Table->GetSourceTable();
 	TSharedPtr<Trace::IUntypedTableReader> TableReader = Table->GetTableReader();
 
+	SyncStopwatch.Start();
 	if (Session.IsValid() && SourceTable.IsValid() && TableReader.IsValid())
 	{
-		int32 TotalRowCount = SourceTable->GetRowCount();
-
+		const int32 TotalRowCount = SourceTable->GetRowCount();
 		if (TotalRowCount != TableTreeNodes.Num())
 		{
-			bResync = true;
-		}
-
-		if (bResync)
-		{
-			const int32 PreviousNodeCount = TableTreeNodes.Num();
-			TableTreeNodes.Empty(PreviousNodeCount);
-			TableTreeNodesIdMap.Empty(PreviousNodeCount);
-			bListHasChanged = true;
-
+			TableTreeNodes.Empty(TotalRowCount);
+			FName BaseNodeName(TEXT("row"));
 			for (int32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
 			{
 				TableReader->SetRowIndex(RowIndex);
-				uint64 NodeId = static_cast<uint64>(RowIndex);
-				FName NodeName(*FString::Printf(TEXT("row %d"), RowIndex));
-				FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(NodeId, NodeName, Table, RowIndex);
+				FName NodeName(BaseNodeName, RowIndex + 1);
+				FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(NodeName, Table, RowIndex);
+				NodePtr->SetDefaultSortOrder(RowIndex + 1);
 				TableTreeNodes.Add(NodePtr);
-				TableTreeNodesIdMap.Add(NodeId, NodePtr);
+			}
+			ensure(TableTreeNodes.Num() == TotalRowCount);
+		}
+	}
+	SyncStopwatch.Stop();
+
+	if (bResync || TableTreeNodes.Num() != PreviousNodeCount)
+	{
+		// Save selection.
+		TArray<FTableTreeNodePtr> SelectedItems;
+		TreeView->GetSelectedItems(SelectedItems);
+
+		UpdateTree();
+
+		TreeView->RebuildList();
+
+		// Restore selection.
+		if (SelectedItems.Num() > 0)
+		{
+			TreeView->ClearSelection();
+			for (FTableTreeNodePtr& NodePtr : SelectedItems)
+			{
+				NodePtr = GetNodeByTableRowIndex(NodePtr->GetRowIndex());
+			}
+			SelectedItems.RemoveAll([](const FTableTreeNodePtr& NodePtr) { return !NodePtr.IsValid(); });
+			if (SelectedItems.Num() > 0)
+			{
+				TreeView->SetItemSelection(SelectedItems, true);
+				TreeView->RequestScrollIntoView(SelectedItems.Last());
 			}
 		}
 	}
 
-	if (bListHasChanged)
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.01)
 	{
-		UpdateTree();
-
-		TreeView->RebuildList();
+		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
+		UE_LOG(TimingProfiler, Log, TEXT("[Table] Tree view rebuilt in %.3fs (%.3fs + %.3fs) --> %d rows (%d added)"),
+			TotalTime, SyncTime, TotalTime - SyncTime, TableTreeNodes.Num(), TableTreeNodes.Num() - PreviousNodeCount);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::SelectNodeByNodeId(uint64 Id)
+FTableTreeNodePtr STableTreeView::GetNodeByTableRowIndex(int32 RowIndex) const
 {
-	FTableTreeNodePtr* NodePtrPtr = TableTreeNodesIdMap.Find(Id);
-	if (NodePtrPtr != nullptr)
-	{
-		FTableTreeNodePtr NodePtr = *NodePtrPtr;
-
-		TreeView->SetSelection(NodePtr);
-		TreeView->RequestScrollIntoView(NodePtr);
-	}
+	return (RowIndex >= 0 && RowIndex < TableTreeNodes.Num()) ? TableTreeNodes[RowIndex] : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1923,9 +1945,11 @@ void STableTreeView::SelectNodeByTableRowIndex(int32 RowIndex)
 	if (RowIndex >= 0 && RowIndex < TableTreeNodes.Num())
 	{
 		FTableTreeNodePtr NodePtr = TableTreeNodes[RowIndex];
-
-		TreeView->SetSelection(NodePtr);
-		TreeView->RequestScrollIntoView(NodePtr);
+		if (ensure(NodePtr))
+		{
+			TreeView->SetSelection(NodePtr);
+			TreeView->RequestScrollIntoView(NodePtr);
+		}
 	}
 }
 

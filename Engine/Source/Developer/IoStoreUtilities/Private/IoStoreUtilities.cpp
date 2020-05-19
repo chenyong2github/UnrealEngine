@@ -4446,15 +4446,17 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					ReadFileTask.IoBuffer = CreateExportBundleBuffer(TargetFile, ObjectExports, ReadFileTask.IoBuffer);
 				}
 
+				FIoStatus Status;
 				if (TargetFile.Padding)
 				{
-					ReadFileTask.IoStoreWriter->AppendPadding(TargetFile.Padding);
+					Status = ReadFileTask.IoStoreWriter->AppendPadding(TargetFile.Padding);
+					UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append padding to container file due to '%s'"), *Status.ToString());
 				}
 				FIoWriteOptions WriteOptions;
 				WriteOptions.DebugName = *TargetFile.TargetPath;
 				WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
 				WriteOptions.Alignment = TargetFile.Alignment;
-				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions);
+				Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions);
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
 
 				for (const FContainerTargetFilePartialMapping& PartialMapping : TargetFile.PartialMappings)
