@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSubmix.h"
+
+#include "Async/Async.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
 #include "Sound/SoundEffectPreset.h"
@@ -8,6 +10,7 @@
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
