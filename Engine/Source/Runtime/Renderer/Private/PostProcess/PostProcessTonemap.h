@@ -96,7 +96,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 class FRCPassPostProcessTonemap : public TRenderingCompositePassBase<4, 1>
 {
 public:
-	FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bDoEyeAdaptation, bool bHDROutput, bool bMetalMSAAHDRDecode);
+	FRCPassPostProcessTonemap(bool bInDoGammaOnly, bool bDoEyeAdaptation, bool bHDROutput, bool bMetalMSAAHDRDecode, bool bIsMobileDof);
 
 	virtual void Process(FRenderingCompositePassContext& Context) override;
 	virtual void Release() override { delete this; }
@@ -108,6 +108,7 @@ private:
 	bool bDoEyeAdaptation;
 	bool bHDROutput;
 	bool bMetalMSAAHDRDecode;
+	bool bIsMobileDof;
 };
 
 // derives from TRenderingCompositePassBase<InputCount, OutputCount>
