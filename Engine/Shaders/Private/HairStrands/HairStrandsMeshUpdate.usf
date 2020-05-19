@@ -7,8 +7,8 @@
 #error MAX_SECTION_COUNT needs to be defined
 #endif
 
-uint MaxSectionCount;
-uint MeshMaxIndexCount		[MAX_SECTION_COUNT];
+uint MaxSectionCount; 
+uint MeshMaxIndexCount		[MAX_SECTION_COUNT]; 
 uint MeshMaxVertexCount		[MAX_SECTION_COUNT];
 uint MeshIndexOffset		[MAX_SECTION_COUNT];
 uint MeshUVsChannelOffset	[MAX_SECTION_COUNT];
