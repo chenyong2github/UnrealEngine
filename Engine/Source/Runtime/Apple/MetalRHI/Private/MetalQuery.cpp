@@ -8,6 +8,7 @@
 #include "MetalProfiler.h"
 #include "MetalLLM.h"
 #include "MetalCommandBuffer.h"
+#include "HAL/PThreadEvent.h"
 
 #if METAL_STATISTICS
 extern int32 GMetalProfilerStatisticsTiming;
@@ -242,6 +243,9 @@ void FMetalRenderQuery::End(FMetalContext* Context)
 			Result = 0;
 			bAvailable = false;
 			
+			QueryWrittenEvent = MakeShareable(new FPThreadEvent());
+			QueryWrittenEvent->Create(true);
+			
 #if METAL_STATISTICS
 			class IMetalStatistics* Stats = Context->GetCommandQueue().GetStatistics();
 			if (Stats && GMetalProfilerStatisticsTiming)
@@ -263,6 +267,8 @@ void FMetalRenderQuery::End(FMetalContext* Context)
 						Result = (FPlatformTime::ToMilliseconds64(StatSample.Array[0]) * 1000.0);
 					}
 					[StatSample release];
+					
+					QueryWrittenEvent->Trigger();
 					this->Release();
 				});
 			}
@@ -270,9 +276,26 @@ void FMetalRenderQuery::End(FMetalContext* Context)
 #endif
 			{
 				// Insert the fence to wait on the current command buffer
-				Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this](mtlpp::CommandBuffer const&)
+				Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this](mtlpp::CommandBuffer const& CmdBuffer)
 				{
-					Result = (FPlatformTime::ToMilliseconds64(mach_absolute_time()) * 1000.0);
+					Result = 0;
+					
+#if PLATFORM_MAC
+					if(FPlatformMisc::MacOSXVersionCompare(10,15,0) >= 0)
+#endif
+					{
+						// If there are no commands in the command buffer then this can be zero
+						// In this case GPU start time is also not correct - we need to fall back standard behaviour
+						// Only seen empty command buffers at the very end of a frame
+						Result = uint64((CmdBuffer.GetGpuEndTime() / 1000.0) / FPlatformTime::GetSecondsPerCycle64());
+					}
+					
+					if(Result == 0)
+					{
+						Result = (FPlatformTime::ToMilliseconds64(mach_absolute_time()) * 1000.0);
+					}
+
+					QueryWrittenEvent->Trigger();
 					this->Release();
 				});
 				
@@ -305,7 +328,7 @@ FRenderQueryRHIRef FMetalDynamicRHI::RHICreateRenderQuery(ERenderQueryType Query
 	}
 }
 
-bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutNumPixels, bool bWait, uint32 GPUIndex)
+bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutResult, bool bWait, uint32 GPUIndex)
 {
 	@autoreleasepool {
 	check(IsInRenderingThread());
@@ -320,7 +343,7 @@ bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 		bool const bCmdBufferIncomplete = !Query->Buffer.bCompleted;
 		
 		// timer queries are used for Benchmarks which can stall a bit more
-		uint64 WaitMS = (Query->Type == RQT_AbsoluteTime) ? 2000 : 500;
+		uint64 WaitMS = (Query->Type == RQT_AbsoluteTime) ? 30000 : 500;
 		if (bWait)
 		{
 			// RHI thread *must* be flushed at this point if the internal handles we rely upon are not yet valid.
@@ -334,6 +357,14 @@ bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 			uint32 IdleStart = FPlatformTime::Cycles();
 		
 			bOK = Query->Buffer.Wait(WaitMS);
+			
+			// Result is written in one of potentially many command buffer completion handlers
+			// But the command buffer wait above may return before the query completion handler fires
+			// We need to wait here until that has happenned, also make sure the command buffer actually completed due to timeout
+			if(bOK && Query->Type == RQT_AbsoluteTime && Query->QueryWrittenEvent.IsValid())
+			{
+				Query->QueryWrittenEvent->Wait();
+			}
 			
 			if (IsInRHIThread())
 			{
@@ -355,7 +386,7 @@ bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 		
         if (bOK == false)
         {
-			OutNumPixels = 0;
+			OutResult = 0;
 			UE_CLOG(bWait, LogMetal, Display, TEXT("Timed out while waiting for GPU to catch up. (%llu ms)"), WaitMS);
 			return false;
         }
@@ -369,7 +400,7 @@ bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
     }
 
 	// at this point, we are ready to read the value!
-	OutNumPixels = Query->Result;
+	OutResult = Query->Result;
     return true;
 	}
 }
