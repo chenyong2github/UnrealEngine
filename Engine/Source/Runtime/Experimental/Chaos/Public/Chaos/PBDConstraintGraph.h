@@ -135,6 +135,14 @@ namespace Chaos
 		}
 
 		/**
+		 * When resim is used, tells us whether we need to resolve island
+		 */
+		bool IslandNeedsResim(const int32 Island) const
+		{
+			return IslandToData[Island].bNeedsResim;
+		}
+
+		/**
 		 * Information mapping the edge back to a rule's constraint
 		 */
 		const FConstraintData& GetConstraintData(int32 ConstraintDataIndex) const;
@@ -208,14 +216,16 @@ namespace Chaos
 		{
 			FIslandData()
 			    : bIsIslandPersistant(false)
+				, bNeedsResim(true)
 			{
 			}
 
 			bool bIsIslandPersistant;
+			bool bNeedsResim;
 		};
 
 		void ComputeIslands(const TParticleView<TPBDRigidParticles<FReal, 3>>& PBDRigids, TPBDRigidsSOAs<FReal, 3>& Particles);
-		void ComputeIsland(const int32 Node, const int32 Island, TSet<TGeometryParticleHandle<FReal, 3>*>& ParticlesInIsland);
+		bool ComputeIsland(const int32 Node, const int32 Island, TSet<TGeometryParticleHandle<FReal, 3>*>& ParticlesInIsland);
 		bool CheckIslands(const TArray<TGeometryParticleHandle<FReal, 3>*>& Particles);
 		
 		void ParticleAdd(TGeometryParticleHandle<FReal, 3>* AddedParticle);

@@ -127,7 +127,7 @@ namespace Chaos
 		{
 			const bool bDisableParallelFor = StatData.IsEnabled() || bDisableCollisionParallelFor;
 			auto* EvolutionResimCache = static_cast<FEvolutionResimCache*>(ResimCache);
-			const bool bResimSkipCollision = ResimCache && ResimCache->IsResimming() && EvolutionResimCache->GetCollisionResimCache();
+			const bool bResimSkipCollision = ResimCache && ResimCache->IsResimming();
 			if(!bResimSkipCollision)
 			{
 				Particles.GetNonDisabledDynamicView().ParallelFor(
