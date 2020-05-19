@@ -845,12 +845,12 @@ namespace Chaos
 		const FVec3& Axis,
 		const FReal Angle)
 	{
-		// NOTE: May be called with non-normalized axis (and similarly scaled angle), hence the divide by 
-		// length squared which is already handled by the joint mass calc in ApplyRotationConstraintDD
-		const FVec3 DR1 = (-Angle / Axis.SizeSquared()) * Axis;
+		const FVec3 IA1 = Utilities::Multiply(InvIs[1], Axis);
+		const FReal II1 = FVec3::DotProduct(Axis, IA1);
+		const FVec3 DR1 = IA1 * -(Angle / II1);
 		ApplyRotationDelta(DIndex, Stiffness, DR1);
 
-		NetAngularImpulse += (-Stiffness / InvMs[DIndex]) * DR1;
+		NetAngularImpulse += Axis * (Stiffness * Angle / II1);
 	}
 
 
