@@ -1185,7 +1185,7 @@ namespace ChaosTest {
 
 		for(int Step = RewindStep; Step <= LastStep; ++Step)
 		{
-			//Resim ignores collision since it's ResimAsSlave
+			//Resim sees collision since it's ResimAsFull
 			TickSolverHelper(Module,Solver);
 			EXPECT_GE(Dynamic->X()[2],10);
 		}
