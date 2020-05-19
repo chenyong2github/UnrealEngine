@@ -292,6 +292,13 @@ struct FLongPackagePathsSingleton
 		}
 	}
 
+	// Checks whether the specific root path is a valid mount point.
+	bool MountPointExists(const FString& RootPath)
+	{
+		FReadScopeLock ScopeLock(ContentMountPointCriticalSection);
+		return MountPointRootPaths.Contains(RootPath);
+	}
+
 private:
 	FLongPackagePathsSingleton()
 	{
@@ -779,14 +786,17 @@ bool FPackageName::IsValidObjectPath(const FString& InObjectPath, FText* OutReas
 
 void FPackageName::RegisterMountPoint(const FString& RootPath, const FString& ContentPath)
 {
-	FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
-	Paths.InsertMountPoint(RootPath, ContentPath);
+	FLongPackagePathsSingleton::Get().InsertMountPoint(RootPath, ContentPath);
 }
 
 void FPackageName::UnRegisterMountPoint(const FString& RootPath, const FString& ContentPath)
 {
-	FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
-	Paths.RemoveMountPoint(RootPath, ContentPath);
+	FLongPackagePathsSingleton::Get().RemoveMountPoint(RootPath, ContentPath);
+}
+
+bool FPackageName::MountPointExists(const FString& RootPath)
+{
+	return FLongPackagePathsSingleton::Get().MountPointExists(RootPath);
 }
 
 FName FPackageName::GetPackageMountPoint(const FString& InPackagePath)

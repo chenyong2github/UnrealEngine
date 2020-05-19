@@ -191,6 +191,11 @@ public:
 	static void UnRegisterMountPoint(const FString& RootPath, const FString& ContentPath);
 
 	/**
+	 * Returns whether the specific logical root path is a valid mount point.
+	 */
+	static bool MountPointExists(const FString& RootPath);
+
+	/**
 	 * Get the mount point for a given package path
 	 * 
 	 * @param InPackagePath The package path to get the mount point for

@@ -190,12 +190,14 @@ public:
 	virtual bool HasDefaultPluginSettings() const = 0;
 
 	/**
-	 * Sets whether a plugin is enabled, and updates the current project descriptor. Does not save to disk and may require restarting to load it.
+	 * Sets whether a plugin is enabled for the current project configuration.
+	 * Potentially updates the current project descriptor, but does not save to disk and may require restarting to load it.
+	 * @note Use IsCurrentProjectDirty() to tell whether the project was actually modified.
 	 * 
 	 * @param	PluginName		Name of the plugin
 	 * @param	bEnabled		Whether to enable or disable the plugin
 	 * @param	OutFailReason	On failure, gives an error message
-	 * @return	True if the plugin has been marked as enabled, and the project descriptor has been updated.
+	 * @return	False on failure to update the current project descriptor.
 	 */
 	virtual bool SetPluginEnabled(const FString& PluginName, bool bEnabled, FText& OutFailReason) = 0;
 
@@ -209,8 +211,12 @@ public:
 	 *
 	 * @param Dir the directory to scan
 	 * @param bAddOrRemove whether to add or remove the directory
+	 * @return Whether the plugin directory list was changed.
 	 */
-	virtual void UpdateAdditionalPluginDirectory(const FString& Dir, const bool bAddOrRemove) = 0;
+	virtual bool UpdateAdditionalPluginDirectory(const FString& Dir, const bool bAddOrRemove) = 0;
+
+	/** Returns the list of additional directories to be scanned for plugins (aside from the engine and project plugin directories). */
+	virtual const TArray<FString>& GetAdditionalPluginDirectories() const = 0;
 
 	/**
 	 * Checks whether the current loaded project has been modified but not saved to disk
