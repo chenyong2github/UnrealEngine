@@ -121,6 +121,11 @@ void FSubmixEffectFilter::SetFilterAlgorithm(ESubmixFilterAlgorithm InAlgorithm)
 
 void FSubmixEffectFilter::SetFilterCutoffFrequency(float InFrequency)
 {
+	// Ensure that we are always below the nyquist frequency:
+	const float MaxCutoffFrequency = (SampleRate / 2.0f) * 0.99f;
+
+	InFrequency = FMath::Clamp(InFrequency, 0.0f, MaxCutoffFrequency);
+
 	if (!FMath::IsNearlyEqual(InFrequency, FilterFrequency))
 	{
 		FilterFrequency = InFrequency;
