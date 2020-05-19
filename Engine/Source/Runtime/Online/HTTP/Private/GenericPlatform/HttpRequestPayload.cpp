@@ -62,18 +62,22 @@ bool FRequestPayloadInFileStream::IsURLEncoded() const
 
 size_t FRequestPayloadInFileStream::FillOutputBuffer(void* OutputBuffer, size_t MaxOutputBufferSize, size_t SizeAlreadySent)
 {
-	size_t ContentLength = static_cast<size_t>(GetContentLength());
+	return FillOutputBuffer(TArrayView<uint8>(static_cast<uint8*>(OutputBuffer), MaxOutputBufferSize), SizeAlreadySent);
+}
+
+size_t FRequestPayloadInFileStream::FillOutputBuffer(TArrayView<uint8> OutputBuffer, size_t SizeAlreadySent)
+{
+	const size_t ContentLength = static_cast<size_t>(GetContentLength());
 	check(SizeAlreadySent <= ContentLength);
-	size_t SizeToSend = ContentLength - SizeAlreadySent;
-	size_t SizeToSendThisTime = 0;
-	SizeToSendThisTime = FMath::Min(SizeToSend, MaxOutputBufferSize);
+	const size_t SizeToSend = ContentLength - SizeAlreadySent;
+	const size_t SizeToSendThisTime = FMath::Min(SizeToSend, static_cast<size_t>(OutputBuffer.Num()));
 	if (SizeToSendThisTime != 0)
 	{
-		if(File->Tell() != SizeAlreadySent)
+		if (File->Tell() != SizeAlreadySent)
 		{
 			File->Seek(SizeAlreadySent);
 		}
-		File->Serialize(OutputBuffer, static_cast<int64>(SizeToSendThisTime));
+		File->Serialize(OutputBuffer.GetData(), static_cast<int64>(SizeToSendThisTime));
 	}
 	return SizeToSendThisTime;
 }
@@ -107,15 +111,18 @@ bool FRequestPayloadInMemory::IsURLEncoded() const
 
 size_t FRequestPayloadInMemory::FillOutputBuffer(void* OutputBuffer, size_t MaxOutputBufferSize, size_t SizeAlreadySent)
 {
-	size_t ContentLength = static_cast<size_t>(Buffer.Num());
+	return FillOutputBuffer(TArrayView<uint8>(static_cast<uint8*>(OutputBuffer), MaxOutputBufferSize), SizeAlreadySent);
+}
+
+size_t FRequestPayloadInMemory::FillOutputBuffer(TArrayView<uint8> OutputBuffer, size_t SizeAlreadySent)
+{
+	const size_t ContentLength = static_cast<size_t>(Buffer.Num());
 	check(SizeAlreadySent <= ContentLength);
-	size_t SizeToSend = ContentLength - SizeAlreadySent;
-	size_t SizeToSendThisTime = 0;
-	SizeToSendThisTime = FMath::Min(SizeToSend, MaxOutputBufferSize);
+	const size_t SizeToSend = ContentLength - SizeAlreadySent;
+	const size_t SizeToSendThisTime = FMath::Min(SizeToSend, static_cast<size_t>(OutputBuffer.Num()));
 	if (SizeToSendThisTime != 0)
 	{
-		// static cast just ensures that this is uint8* in fact
-		FMemory::Memcpy(OutputBuffer, static_cast<uint8*>(Buffer.GetData()) + SizeAlreadySent, SizeToSendThisTime);
+		FMemory::Memcpy(OutputBuffer.GetData(), Buffer.GetData() + SizeAlreadySent, SizeToSendThisTime);
 	}
 	return SizeToSendThisTime;
 }
