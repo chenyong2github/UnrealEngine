@@ -152,13 +152,8 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 		{
 			int32 LevelToIterateCount = FMath::Min(StreamingRenderAsset.LevelIndexUsage.Num(), StaticInstancesViewLevelIndices.Num());
 			
-			for (TBitArray<>::FIterator LevelUsageIterator(StreamingRenderAsset.LevelIndexUsage); LevelUsageIterator.GetIndex() < LevelToIterateCount; ++LevelUsageIterator)
+			for (TConstSetBitIterator<> LevelUsageIterator(StreamingRenderAsset.LevelIndexUsage); LevelUsageIterator.GetIndex() < LevelToIterateCount; ++LevelUsageIterator)
 			{
-				if (!LevelUsageIterator.GetValue())
-				{
-					continue;
-				}
-
 				int32 ViewIndex = StaticInstancesViewLevelIndices[LevelUsageIterator.GetIndex()];
 
 				if (ViewIndex==INDEX_NONE)
