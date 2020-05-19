@@ -158,9 +158,33 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// The name of this target.
+		/// The name of this target
 		/// </summary>
-		public readonly string Name;
+		public string Name
+		{
+			get
+			{
+				if (!String.IsNullOrEmpty(NameOverride))
+				{
+					return NameOverride;
+				}
+
+				return DefaultName;
+			}
+			set
+			{
+				NameOverride = value;
+			}
+		}
+
+		/// <summary>
+		/// If the Name of this target has been overriden
+		/// </summary>
+		public bool IsNameOverriden() { return !String.IsNullOrEmpty(NameOverride); }
+
+		private string NameOverride;
+
+		private readonly string DefaultName;
 
 		/// <summary>
 		/// File containing this target
@@ -1497,7 +1521,7 @@ namespace UnrealBuildTool
 		/// <param name="Target">Information about the target being built</param>
 		public TargetRules(TargetInfo Target)
 		{
-			this.Name = Target.Name;
+			this.DefaultName = Target.Name;
 			this.Platform = Target.Platform;
 			this.Configuration = Target.Configuration;
 			this.Architecture = Target.Architecture;

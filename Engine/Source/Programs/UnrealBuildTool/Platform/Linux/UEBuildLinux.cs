@@ -221,6 +221,33 @@ namespace UnrealBuildTool
 				Target.bAllowLTCG = true;
 			}
 
+			if (!Target.IsNameOverriden())
+			{
+				string SanitizerSuffix = null;
+
+				if (Target.LinuxPlatform.bEnableAddressSanitizer)
+				{
+					SanitizerSuffix = "ASan";
+				}
+				else if (Target.LinuxPlatform.bEnableThreadSanitizer)
+				{
+					SanitizerSuffix = "TSan";
+				}
+				else if (Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
+				{
+					SanitizerSuffix = "UBSan";
+				}
+				else if (Target.LinuxPlatform.bEnableMemorySanitizer)
+				{
+					SanitizerSuffix = "MSan";
+				}
+
+				if (!String.IsNullOrEmpty(SanitizerSuffix))
+				{
+					Target.Name = Target.Name + "-" + SanitizerSuffix;
+				}
+			}
+
 			if (Target.bAllowLTCG && Target.LinkType != TargetLinkType.Monolithic)
 			{
 				throw new BuildException("LTO (LTCG) for modular builds is not supported (lld is not currently used for dynamic libraries).");
@@ -529,46 +556,6 @@ namespace UnrealBuildTool
 				default:
 					return true;
 			};
-		}
-
-		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference ProjectFile, ReadOnlyTargetRules Target)
-		{
-			List<FileReference> FinalBinaryPath = new List<FileReference>();
-
-			string SanitizerSuffix = null;
-
-			// Only append these for monolithic builds. non-monolithic runs into issues dealing with target/modules files
-			if (Target.LinkType == TargetLinkType.Monolithic)
-			{
-				if(Target.LinuxPlatform.bEnableAddressSanitizer)
-				{
-					SanitizerSuffix = "ASan";
-				}
-				else if(Target.LinuxPlatform.bEnableThreadSanitizer)
-				{
-					SanitizerSuffix = "TSan";
-				}
-				else if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
-				{
-					SanitizerSuffix = "UBSan";
-				}
-				else if(Target.LinuxPlatform.bEnableMemorySanitizer)
-				{
-					SanitizerSuffix = "MSan";
-				}
-			}
-
-			if (String.IsNullOrEmpty(SanitizerSuffix))
-			{
-				FinalBinaryPath.Add(BinaryName);
-			}
-			else
-			{
-				// Append the sanitizer suffix to the binary name but before the extension type
-				FinalBinaryPath.Add(new FileReference(Path.Combine(BinaryName.Directory.FullName, BinaryName.GetFileNameWithoutExtension() + "-" + SanitizerSuffix + BinaryName.GetExtension())));
-			}
-
-			return FinalBinaryPath;
 		}
 
 		/// <summary>
