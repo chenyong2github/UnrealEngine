@@ -140,7 +140,15 @@ void FRenderDocPluginLoader::Initialize()
 	// 4) All bets are off; aborting...
 	if (RenderDocDLL == nullptr)
 	{
-		UE_LOG(RenderDocPlugin, Warning, TEXT("unable to initialize the plugin because no RenderDoc libray has been located."));
+		if (FApp::IsUnattended())
+		{
+			UE_LOG(RenderDocPlugin, Display, TEXT("Unable to initialize the plugin because no RenderDoc libray has been located."));
+		}
+		else
+		{
+			UE_LOG(RenderDocPlugin, Warning, TEXT("Unable to initialize the plugin because no RenderDoc libray has been located."));
+		}
+
 		return;
 	}
 
