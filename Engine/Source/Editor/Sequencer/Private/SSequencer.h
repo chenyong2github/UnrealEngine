@@ -497,11 +497,6 @@ private:
 	/** Called when a breadcrumb is clicked on in the sequencer */
 	void OnCrumbClicked(const FSequencerBreadcrumb& Item);
 
-	void OnBreadcrumbPickerContentClicked(const FSequencerBreadcrumb& Breadcrumb);
-
-	/** Called when the user opens the breadcrumb dropdown */
-	TSharedRef<SWidget> GetBreadcrumbPickerContent();
-
 	/** Gets the root movie scene name */
 	FText GetRootAnimationName() const;
 
@@ -516,8 +511,6 @@ private:
 
 	/** Gets whether or not the breadcrumb trail should be visible. */
 	EVisibility GetBreadcrumbTrailVisibility() const;
-
-
 
 	/** Gets whether or not the bottom time slider should be visible. */
 	EVisibility GetBottomTimeSliderVisibility() const;
