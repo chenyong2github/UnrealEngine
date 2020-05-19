@@ -2102,6 +2102,27 @@ static void EstablishVulkanDeviceSupport()
 	}
 }
 
+bool IsDesktopVulkanAvailable()
+{
+	static int CachedDesktopVulkanAvailable = -1;
+
+	if (CachedDesktopVulkanAvailable == -1)
+	{
+		CachedDesktopVulkanAvailable = 0;
+
+		bool bSupportsVulkanSM5 = false;
+
+		GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsVulkanSM5"), bSupportsVulkanSM5, GEngineIni);
+
+		if (bSupportsVulkanSM5)
+		{
+			CachedDesktopVulkanAvailable = 1;
+		}
+	}
+
+	return CachedDesktopVulkanAvailable == 1;
+}
+
 bool FAndroidMisc::IsVulkanAvailable()
 {
 	check(VulkanSupport != EDeviceVulkanSupportStatus::Uninitialized);
@@ -2121,7 +2142,7 @@ bool FAndroidMisc::IsVulkanAvailable()
 			const bool bDetectVulkanCmdLine = FParse::Param(FCommandLine::Get(), TEXT("detectvulkan"));
 
 			// @todo Lumin: Double check all this stuff after merging general android Vulkan SM5 from main
-			const bool bSupportsVulkanSM5 = ShouldUseDesktopVulkan();
+			const bool bSupportsVulkanSM5 = IsDesktopVulkanAvailable();
 
 			const bool bVulkanDisabledCmdLine = FParse::Param(FCommandLine::Get(), TEXT("GL")) || FParse::Param(FCommandLine::Get(), TEXT("OpenGL"));
 
@@ -2197,10 +2218,7 @@ bool FAndroidMisc::ShouldUseDesktopVulkan()
 	{
 		CachedShouldUseDesktopVulkan = 0;
 
-		bool bSupportsVulkanSM5 = false;
-		GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsVulkanSM5"), bSupportsVulkanSM5, GEngineIni);
-
-		const bool bVulkanSM5Enabled = bSupportsVulkanSM5;
+		const bool bVulkanSM5Enabled = IsDesktopVulkanAvailable();
 
 		static const auto CVarDisableVulkanSM5 = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Android.DisableVulkanSM5Support"));
 		const bool bVulkanSM5Disabled = CVarDisableVulkanSM5->GetValueOnAnyThread() == 1;
