@@ -728,8 +728,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	//TODO: the problem is we detect desync at end of frame, but it really needs to be at start to handle teleport case
-	TYPED_TEST(AllTraits, DISABLED_RewindTest_ResimDesyncAfterMissingTeleport)
+	TYPED_TEST(AllTraits, RewindTest_ResimDesyncAfterMissingTeleport)
 	{
 		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
@@ -1530,21 +1529,27 @@ namespace ChaosTest {
 
 		for(int Step = RewindStep; Step <= LastStep; ++Step)
 		{
-			//Resim sees collision since it's ResimAsFull
+			//physics sim desync will not be known until the next frame because we can only compare inputs (teleport overwrites result of end of frame for example)
+			if(Step > RewindStep+1)
+			{
+				EXPECT_EQ(PTDynamic->SyncState(),ESyncState::HardDesync);
+			}
 
 			TickSolverHelper(Module,Solver);
 			EXPECT_LT(Dynamic->X()[2],10);
-			
+
+			//kinematic desync will be known at end of frame because the simulation doesn't write results (so we know right away it's a desync)
 			if(Step < LastStep)
 			{
 				EXPECT_EQ(PTKinematic->SyncState(),ESyncState::HardDesync);
-				EXPECT_EQ(PTDynamic->SyncState(),ESyncState::HardDesync);
 			}
 			else
 			{
+				//everything in sync after last step
 				EXPECT_EQ(PTKinematic->SyncState(),ESyncState::InSync);
 				EXPECT_EQ(PTDynamic->SyncState(),ESyncState::InSync);
 			}
+			
 		}
 
 		EXPECT_FLOAT_EQ(Dynamic->X()[2],0);
