@@ -50,7 +50,7 @@ public:
 
 	virtual ~FWinDualShock()
 	{
-		scePadTerminate();
+		WindowsCleanup();
 	}
 
 	virtual void Tick( float DeltaTime ) override
