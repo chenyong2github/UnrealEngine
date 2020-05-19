@@ -8,17 +8,11 @@
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRW"
 
 // Global HLSL variable base names, used by HLSL.
-NIAGARA_API extern const FString NumVoxelsName(TEXT("NumVoxels_"));
-NIAGARA_API extern const FString VoxelSizeName(TEXT("VoxelSize_"));
-NIAGARA_API extern const FString WorldBBoxSizeName(TEXT("WorldBBoxSize_"));
-
 NIAGARA_API extern const FString NumCellsName(TEXT("NumCells_"));
 NIAGARA_API extern const FString CellSizeName(TEXT("CellSize_"));
+NIAGARA_API extern const FString WorldBBoxSizeName(TEXT("WorldBBoxSize_"));
 
 // Global VM function names, also used by the shaders code generation methods.
-NIAGARA_API extern const FName NumVoxelsFunctionName("GetNumVoxels");
-NIAGARA_API extern const FName VoxelSizeFunctionName("GetVoxelSize");
-
 NIAGARA_API extern const FName NumCellsFunctionName("GetNumCells");
 NIAGARA_API extern const FName CellSizeFunctionName("GetCellSize");
 
@@ -72,13 +66,13 @@ bool UNiagaraDataInterfaceRWBase::CopyToInternal(UNiagaraDataInterface* Destinat
 
 UNiagaraDataInterfaceGrid3D::UNiagaraDataInterfaceGrid3D(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, NumVoxels(3, 3, 3)
-	, VoxelSize(1.)
-	, SetGridFromVoxelSize(false)	
+	, NumCells(3, 3, 3)
+	, CellSize(1.)
+	, NumCellsMaxAxis(10)
+	, SetResolutionMethod(ESetResolutionMethod::Independent)	
 	, WorldBBoxSize(100., 100., 100.)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());
-	PushToRenderThread();
 }
 
 
@@ -98,11 +92,11 @@ void UNiagaraDataInterfaceGrid3D::GetFunctions(TArray<FNiagaraFunctionSignature>
 
 	{
 		FNiagaraFunctionSignature Sig;
-		Sig.Name = NumVoxelsFunctionName;
+		Sig.Name = NumCellsFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumVoxelsX")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumVoxelsY")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumVoxelsZ")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsX")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsY")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsZ")));
 
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -116,6 +110,19 @@ void UNiagaraDataInterfaceGrid3D::GetFunctions(TArray<FNiagaraFunctionSignature>
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Simulation")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("SimulationToUnitTransform")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
+
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = UnitToSimulationFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("UnitToSimulationTransform")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Simulation")));
 
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -138,6 +145,20 @@ void UNiagaraDataInterfaceGrid3D::GetFunctions(TArray<FNiagaraFunctionSignature>
 
 	{
 		FNiagaraFunctionSignature Sig;
+		Sig.Name = IndexToUnitFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("IndexX")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("IndexY")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("IndexZ")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
+
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
 		Sig.Name = IndexToLinearFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
@@ -152,11 +173,12 @@ void UNiagaraDataInterfaceGrid3D::GetFunctions(TArray<FNiagaraFunctionSignature>
 
 	{
 		FNiagaraFunctionSignature Sig;
-		Sig.Name = NumVoxelsFunctionName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));		
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumVoxelsX")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumVoxelsY")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumVoxelsZ")));
+		Sig.Name = LinearToIndexFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Linear")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -165,9 +187,22 @@ void UNiagaraDataInterfaceGrid3D::GetFunctions(TArray<FNiagaraFunctionSignature>
 
 	{
 		FNiagaraFunctionSignature Sig;
-		Sig.Name = VoxelSizeFunctionName;
+		Sig.Name = NumCellsFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));		
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsX")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsY")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsZ")));
+
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = CellSizeFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("VoxelSize")));		
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CellSize")));		
 
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -178,11 +213,14 @@ void UNiagaraDataInterfaceGrid3D::GetFunctions(TArray<FNiagaraFunctionSignature>
 void UNiagaraDataInterfaceGrid3D::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	if (BindingInfo.Name == WorldBBoxSizeFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
-	else if (BindingInfo.Name == NumVoxelsFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }	
+	else if (BindingInfo.Name == NumCellsFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }	
 	else if (BindingInfo.Name == SimulationToUnitFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
+	else if (BindingInfo.Name == UnitToSimulationFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	else if (BindingInfo.Name == UnitToIndexFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
+	else if (BindingInfo.Name == IndexToUnitFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	else if (BindingInfo.Name == IndexToLinearFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
-	else if (BindingInfo.Name == VoxelSizeFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
+	else if (BindingInfo.Name == LinearToIndexFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
+	else if (BindingInfo.Name == CellSizeFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 }
 
 bool UNiagaraDataInterfaceGrid3D::Equals(const UNiagaraDataInterface* Other) const
@@ -193,21 +231,23 @@ bool UNiagaraDataInterfaceGrid3D::Equals(const UNiagaraDataInterface* Other) con
 	}
 	const UNiagaraDataInterfaceGrid3D* OtherTyped = CastChecked<const UNiagaraDataInterfaceGrid3D>(Other);
 
-	return OtherTyped->NumVoxels == NumVoxels &&
-		FMath::IsNearlyEqual(OtherTyped->VoxelSize, VoxelSize) &&		
-		OtherTyped->WorldBBoxSize.Equals(WorldBBoxSize);
+	return OtherTyped->NumCells == NumCells &&
+		FMath::IsNearlyEqual(OtherTyped->CellSize, CellSize) &&		
+		OtherTyped->WorldBBoxSize.Equals(WorldBBoxSize) && 
+		OtherTyped->SetResolutionMethod == SetResolutionMethod && 
+		OtherTyped->NumCellsMaxAxis == NumCellsMaxAxis;
 }
 
 void UNiagaraDataInterfaceGrid3D::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	static const TCHAR *FormatDeclarations = TEXT(R"(
-		int3 {NumVoxelsName};
-		float3 {VoxelSizeName};		
+		int3 {NumCellsName};
+		float3 {CellSizeName};		
 		float3 {WorldBBoxSizeName};
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {
-		{ TEXT("NumVoxelsName"), NumVoxelsName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("VoxelSizeName"), VoxelSizeName + ParamInfo.DataInterfaceHLSLSymbol },		
+		{ TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("CellSizeName"), CellSizeName + ParamInfo.DataInterfaceHLSLSymbol },		
 		{ TEXT("WorldBBoxSizeName"),    WorldBBoxSizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
@@ -217,8 +257,8 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 {
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {
 		{ TEXT("FunctionName"), FunctionInfo.InstanceName},
-		{ TEXT("NumVoxelsName"), NumVoxelsName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("VoxelSizeName"), VoxelSizeName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("CellSizeName"), CellSizeName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("WorldBBoxSizeName"),    WorldBBoxSizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 
@@ -234,14 +274,14 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (FunctionInfo.DefinitionName == NumVoxelsFunctionName)
+	else if (FunctionInfo.DefinitionName == NumCellsFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out int Out_NumVoxelsX, out int Out_NumVoxelsY, out int Out_NumVoxelsZ)
+			void {FunctionName}(out int Out_NumCellsX, out int Out_NumCellsY, out int Out_NumCellsZ)
 			{
-				Out_NumVoxelsX = {NumVoxelsName}.x;
-				Out_NumVoxelsY = {NumVoxelsName}.y;
-				Out_NumVoxelsZ = {NumVoxelsName}.z;
+				Out_NumCellsX = {NumCellsName}.x;
+				Out_NumCellsY = {NumCellsName}.y;
+				Out_NumCellsZ = {NumCellsName}.z;
 			}
 		)");
 
@@ -260,15 +300,39 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
+	else if (FunctionInfo.DefinitionName == UnitToSimulationFunctionName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+			void {FunctionName}(float3 In_Unit, float4x4 In_UnitToSimulationTransform, out float3 Out_Simulation)
+			{
+				Out_Simulation = mul(float4(In_Unit, 1.0), In_UnitToSimulationTransform).xyz;
+			}
+		)");
+
+		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
+		return true;
+	}
 	else if (FunctionInfo.DefinitionName == UnitToIndexFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(float3 In_Unit, out int Out_IndexX, out int Out_IndexY, out int Out_IndexZ)
 			{
-				int3 Out_IndexTmp = round(In_Unit * {NumVoxelsName} - .5);
+				int3 Out_IndexTmp = round(In_Unit * {NumCellsName} - .5);
 				Out_IndexX = Out_IndexTmp.x;
 				Out_IndexY = Out_IndexTmp.y;
 				Out_IndexZ = Out_IndexTmp.z;
+			}
+		)");
+
+		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == IndexToUnitFunctionName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+			void {FunctionName}(float In_IndexX, float In_IndexY, float In_IndexZ, out float3 Out_Unit)
+			{
+				Out_Unit = (float3(In_IndexX, In_IndexY, In_IndexZ) + .5) / {NumCellsName};
 			}
 		)");
 
@@ -280,19 +344,33 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, out int Out_Linear)
 			{
-				Out_Linear = In_IndexX + In_IndexY * {NumVoxelsName}.x + In_IndexZ * {NumVoxelsName}.x * {NumVoxelsName}.y;
+				Out_Linear = In_IndexX + In_IndexY * {NumCellsName}.x + In_IndexZ * {NumCellsName}.x * {NumCellsName}.y;
 			}
 		)");
 
 		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
 		return true;
 	}
-	else if (FunctionInfo.DefinitionName == VoxelSizeFunctionName)
+	else if (FunctionInfo.DefinitionName == LinearToIndexFunctionName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+			void {FunctionName}(int In_Linear, out int Out_IndexX, out int Out_IndexY, out int Out_IndexZ)
+			{
+				Out_IndexX = In_Linear % {NumCellsName}.x;
+				Out_IndexY = (In_Linear / {NumCellsName}.x) % {NumCellsName}.y;
+				Out_IndexZ = In_Linear / ({NumCellsName}.x * {NumCellsName}.y);
+			}
+		)");
+
+		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == CellSizeFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out float3 Out_VoxelSize)
+			void {FunctionName}(out float3 Out_CellSize)
 			{
-				Out_VoxelSize = {VoxelSizeName};
+				Out_CellSize = {CellSizeName};
 			}
 		)");
 
@@ -315,18 +393,13 @@ bool UNiagaraDataInterfaceGrid3D::CopyToInternal(UNiagaraDataInterface* Destinat
 	UNiagaraDataInterfaceGrid3D* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid3D>(Destination);
 
 
-	OtherTyped->NumVoxels = NumVoxels;
-	OtherTyped->VoxelSize = VoxelSize;
-	OtherTyped->SetGridFromVoxelSize = SetGridFromVoxelSize;		
+	OtherTyped->NumCells = NumCells;
+	OtherTyped->CellSize = CellSize;
+	OtherTyped->SetResolutionMethod = SetResolutionMethod;
 	OtherTyped->WorldBBoxSize = WorldBBoxSize;
+	OtherTyped->NumCellsMaxAxis = NumCellsMaxAxis;
 
 	return true;
-}
-
-void UNiagaraDataInterfaceGrid3D::PushToRenderThread()
-{
-
-
 }
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
@@ -340,8 +413,7 @@ UNiagaraDataInterfaceGrid2D::UNiagaraDataInterfaceGrid2D(FObjectInitializer cons
 	, SetGridFromMaxAxis(false)	
 	, WorldBBoxSize(100., 100.)
 {
-	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());
-	PushToRenderThread();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());	
 }
 
 
@@ -716,12 +788,5 @@ bool UNiagaraDataInterfaceGrid2D::CopyToInternal(UNiagaraDataInterface* Destinat
 
 	return true;
 }
-
-void UNiagaraDataInterfaceGrid2D::PushToRenderThread()
-{
-
-
-}
-
 
 #undef LOCTEXT_NAMESPACE

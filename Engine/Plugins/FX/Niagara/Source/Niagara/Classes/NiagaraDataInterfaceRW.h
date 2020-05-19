@@ -7,17 +7,14 @@
 class FNiagaraSystemInstance;
 
 // Global HLSL variable base names, used by HLSL.
-extern NIAGARA_API const FString NumVoxelsName;
-extern NIAGARA_API const FString VoxelSizeName;
+extern NIAGARA_API const FString NumCellsName;
+extern NIAGARA_API const FString CellSizeName;
 extern NIAGARA_API const FString WorldBBoxSizeName;
 
 extern NIAGARA_API const FString NumCellsName;
 extern NIAGARA_API const FString CellSizeName;
 
 // Global VM function names, also used by the shaders code generation methods.
-extern NIAGARA_API const FName NumVoxelsFunctionName;
-extern NIAGARA_API const FName VoxelSizeFunctionName;
-
 extern NIAGARA_API const FName NumCellsFunctionName;
 extern NIAGARA_API const FName CellSizeFunctionName;
 
@@ -33,6 +30,13 @@ extern NIAGARA_API const FName IndexToUnitStaggeredYFunctionName;
 extern NIAGARA_API const FName IndexToLinearFunctionName;
 extern NIAGARA_API const FName LinearToIndexFunctionName;
 
+UENUM()
+enum class ESetResolutionMethod
+{
+	Independent,
+	MaxAxis,
+	CellSize
+};
 
 
 // #todo(dmp): some of the stuff we'd expect to see here is on FNiagaraDataInterfaceProxy - refactor?
@@ -68,16 +72,12 @@ public:
 	virtual void PostLoad() override
 	{
 		Super::PostLoad();
-
-		PushToRenderThread();
 	}
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override
 	{
-		Super::PostEditChangeProperty(PropertyChangedEvent);
-
-		PushToRenderThread();
+		Super::PostEditChangeProperty(PropertyChangedEvent);		
 	}	
 	
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override
@@ -115,9 +115,7 @@ public:
 
 
 protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
-	virtual void PushToRenderThread() {};
-
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;	
 };
 
 
@@ -127,18 +125,20 @@ class NIAGARA_API UNiagaraDataInterfaceGrid3D : public UNiagaraDataInterfaceRWBa
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromVoxelSize"))
-	FIntVector NumVoxels;
-
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromVoxelSize"))
-	float VoxelSize;
+	UPROPERTY(EditAnywhere, Category = "Grid")
+	FIntVector NumCells;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
-	bool SetGridFromVoxelSize;		
+	float CellSize;
 
+	UPROPERTY(EditAnywhere, Category = "Grid")
+	int32 NumCellsMaxAxis;
+
+	UPROPERTY(EditAnywhere, Category = "Grid")
+	ESetResolutionMethod SetResolutionMethod;
+	
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FVector WorldBBoxSize;
-
 
 public:
 
@@ -155,13 +155,31 @@ public:
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	//~ UNiagaraDataInterface interface END
 
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override
+	{
+		const bool ParentVal = Super::CanEditChange(InProperty);
 
+		if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, NumCells))
+		{
+			return SetResolutionMethod == ESetResolutionMethod::Independent;
+		}
+		else if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, CellSize))
+		{
+			return SetResolutionMethod == ESetResolutionMethod::CellSize;
+		}
+		else if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, NumCellsMaxAxis))
+		{
+			return SetResolutionMethod == ESetResolutionMethod::MaxAxis;
+		}
+
+		return ParentVal;
+	}
+#endif
 protected:
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
-	//~ UNiagaraDataInterface interface END
-
-	virtual void PushToRenderThread() override;
+	//~ UNiagaraDataInterface interface END	
 };
 
 
@@ -180,6 +198,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromMaxAxis"))
 	int32 NumCellsMaxAxis;
 
+	// #todo(dmp): maybe this should be on child classes since not all grids have arbitrary numbers of attributes
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumAttributes;
 
@@ -207,7 +226,5 @@ public:
 protected:
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
-	//~ UNiagaraDataInterface interface END
-
-	virtual void PushToRenderThread() override;
+	//~ UNiagaraDataInterface interface END	
 };
