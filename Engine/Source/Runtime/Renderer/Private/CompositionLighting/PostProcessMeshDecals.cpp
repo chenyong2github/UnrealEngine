@@ -33,7 +33,7 @@ class FMeshDecalAccumulatePolicy
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal;
 	}
 };
 
@@ -211,7 +211,14 @@ FMeshDecalMeshProcessor::FMeshDecalMeshProcessor(const FScene* Scene,
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
 	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
-	PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MeshDecalPassUniformBuffer);
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer);
+	}
+	else
+	{
+		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MeshDecalPassUniformBuffer);
+	}
 }
 
 void FMeshDecalMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
@@ -235,6 +242,7 @@ void FMeshDecalMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 				ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
 
 				bool bShouldRender = FDecalRenderingCommon::IsCompatibleWithRenderStage(
+					ShaderPlatform,
 					PassDecalStage,
 					LocalDecalRenderStage,
 					FinalDecalBlendMode,
@@ -282,7 +290,7 @@ void FMeshDecalMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 						}
 						else
 						{
-							PassDrawRenderState.SetBlendState(GetDecalBlendState(FeatureLevel, PassDecalStage, DecalBlendMode, bHasNormal));
+							PassDrawRenderState.SetBlendState(FDecalRendering::GetDecalBlendState(FeatureLevel, PassDecalStage, DecalBlendMode, bHasNormal));
 						}
 
 						Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *MaterialRenderProxy, *Material, MeshFillMode, MeshCullMode);
@@ -439,4 +447,28 @@ void RenderMeshDecals(FRenderingCompositePassContext& Context, EDecalRenderStage
 			break;
 		}
 	}
+}
+
+void RenderMeshDecalsMobile(FRHICommandList& RHICmdList, const FViewInfo& View)
+{
+	SCOPED_DRAW_EVENT(RHICmdList, MeshDecals);
+
+	DrawDynamicMeshPass(View, RHICmdList, [&View](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+	{
+		FMeshDecalMeshProcessor PassMeshProcessor(
+			View.Family->Scene->GetRenderScene(),
+			&View,
+			DRS_Mobile,
+			FDecalRenderingCommon::RTM_SceneColor,
+			DynamicMeshPassContext);
+
+		for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.MeshDecalBatches.Num(); ++MeshBatchIndex)
+		{
+			const FMeshBatch* Mesh = View.MeshDecalBatches[MeshBatchIndex].Mesh;
+			const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.MeshDecalBatches[MeshBatchIndex].Proxy;
+			const uint64 DefaultBatchElementMask = ~0ull;
+
+			PassMeshProcessor.AddMeshBatch(*Mesh, DefaultBatchElementMask, PrimitiveSceneProxy);
+		}
+	}, true);
 }
