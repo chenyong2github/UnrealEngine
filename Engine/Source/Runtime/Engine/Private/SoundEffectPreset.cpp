@@ -16,6 +16,7 @@ USoundEffectPreset::USoundEffectPreset(const FObjectInitializer& ObjectInitializ
 
 void USoundEffectPreset::Update()
 {
+	FScopeLock ScopeLock(&InstancesMutationCriticalSection);
 	for (int32 i = Instances.Num() - 1; i >= 0; --i)
 	{
 		TSoundEffectPtr EffectSharedPtr = Instances[i].Pin();
@@ -41,6 +42,7 @@ void USoundEffectPreset::AddEffectInstance(TSoundEffectPtr& InEffectPtr)
 		OnInit();
 	}
 
+	FScopeLock ScopeLock(&InstancesMutationCriticalSection);
 	Instances.AddUnique(TSoundEffectWeakPtr(InEffectPtr));
 }
 
@@ -58,6 +60,7 @@ void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& InCollector)
 
 void USoundEffectPreset::BeginDestroy()
 {
+	FScopeLock ScopeLock(&InstancesMutationCriticalSection);
 	IterateEffects<FSoundEffectBase>([](FSoundEffectBase& Instance)
 	{
 		Instance.ClearPreset();
@@ -69,6 +72,7 @@ void USoundEffectPreset::BeginDestroy()
 
 void USoundEffectPreset::RemoveEffectInstance(TSoundEffectPtr& InEffectPtr)
 {
+	FScopeLock ScopeLock(&InstancesMutationCriticalSection);
 	Instances.RemoveSwap(TSoundEffectWeakPtr(InEffectPtr));
 }
 
