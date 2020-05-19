@@ -30,7 +30,7 @@ UObject* USoundSubmixFactory::FactoryCreateNew(UClass* InClass, UObject* InParen
 
 bool USoundSubmixFactory::CanCreateNew() const
 {
-	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+	return true;
 }
 
 // Soundfield Submix Factory: 
@@ -59,7 +59,7 @@ UObject* USoundfieldSubmixFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 
 bool USoundfieldSubmixFactory::CanCreateNew() const
 {
-	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+	return true;
 }
 
 // Endpoint Submix Factory:
@@ -88,7 +88,7 @@ UObject* UEndpointSubmixFactory::FactoryCreateNew(UClass* Class, UObject* InPare
 
 bool UEndpointSubmixFactory::CanCreateNew() const
 {
-	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+	return true;
 }
 
 
@@ -118,5 +118,5 @@ UObject* USoundfieldEndpointSubmixFactory::FactoryCreateNew(UClass* Class, UObje
 
 bool USoundfieldEndpointSubmixFactory::CanCreateNew() const
 {
-	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+	return true;
 }
