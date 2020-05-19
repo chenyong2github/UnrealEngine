@@ -49,9 +49,19 @@ FInstallBundleRequestInfo IInstallBundleManager::RequestUpdateContent(FName Bund
 	return RequestUpdateContent(MakeArrayView(&BundleName, 1), Flags);
 }
 
-void IInstallBundleManager::GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag /*= TEXT("None")*/)
+void IInstallBundleManager::GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag /*= NAME_None*/)
 {
 	return GetContentState(MakeArrayView(&BundleName, 1), Flags, bAddDependencies, MoveTemp(Callback), RequestTag);
+}
+
+void IInstallBundleManager::GetInstallState(FName BundleName, bool bAddDependencies, FInstallBundleGetInstallStateDelegate Callback, FName RequestTag /*= NAME_None*/)
+{
+	return GetInstallState(MakeArrayView(&BundleName, 1), bAddDependencies, MoveTemp(Callback), RequestTag);
+}
+
+TOptional<FInstallBundleCombinedInstallState> IInstallBundleManager::GetInstallStateSynchronous(FName BundleName, bool bAddDependencies) const
+{
+	return GetInstallStateSynchronous(MakeArrayView(&BundleName, 1), bAddDependencies);
 }
 
 void IInstallBundleManager::RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<const FName> KeepNames /*= TArrayView<const FName>()*/)
