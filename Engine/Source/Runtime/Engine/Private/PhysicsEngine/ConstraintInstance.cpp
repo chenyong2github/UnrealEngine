@@ -371,12 +371,7 @@ bool FConstraintInstance::CreateJoint_AssumesLocked(const FPhysicsActorHandle& I
 	
 	checkf(Local2.IsValid() && !Local2.ContainsNaN(), TEXT("%s"), *Local2.ToString());
 
-
-#if WITH_CHAOS
-	ConstraintHandle = FPhysicsInterface::CreateConstraint(InActorRef1, InActorRef2, Local1, Local2, PhysScene);
-#else
 	ConstraintHandle = FPhysicsInterface::CreateConstraint(InActorRef1, InActorRef2, Local1, Local2);
-#endif
 
 	if(!ConstraintHandle.IsValid())
 	{
