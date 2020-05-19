@@ -303,6 +303,24 @@ UObject* StaticFindObjectFast(UClass* ObjectClass, UObject* ObjectPackage, FName
 	return FoundObject;
 }
 
+UObject* StaticFindObjectFastSafe(UClass* ObjectClass, UObject* ObjectPackage, FName ObjectName, bool ExactClass, bool AnyPackage, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	UObject* FoundObject = nullptr;
+	
+	if (!GIsSavingPackage && !IsGarbageCollectingOnGameThread())
+	{
+		// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
+		ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;
+		FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, ExactClass, AnyPackage, ExclusiveFlags, ExclusiveInternalFlags);
+		if (!FoundObject)
+		{
+			FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, ExactClass);
+		}
+	}
+
+	return FoundObject;
+}
+
 //
 // Find an optional object.
 //
