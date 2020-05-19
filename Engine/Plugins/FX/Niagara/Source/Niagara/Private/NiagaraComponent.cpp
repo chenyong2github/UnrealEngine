@@ -525,13 +525,17 @@ void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState
 	}
 }
 
+extern int32 GbEnableParticleSystemPooling;
 void UNiagaraComponent::ReleaseToPool()
 {
 	if (PoolingMethod != ENCPoolMethod::ManualRelease)
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Manually releasing a PSC to the pool that was not spawned with ENCPoolMethod::ManualRelease. Asset=%s Component=%s"),
-			Asset ? *Asset->GetPathName() : TEXT("NULL"), *GetPathName()
-		);
+	{		
+		if (GbEnableParticleSystemPooling)//Only emit this warning if pooling is enabled. If it's not, all components will have PoolingMethod none.
+		{	
+			UE_LOG(LogNiagara, Warning, TEXT("Manually releasing a PSC to the pool that was not spawned with ENCPoolMethod::ManualRelease. Asset=%s Component=%s"),
+				Asset ? *Asset->GetPathName() : TEXT("NULL"), *GetPathName()
+			);
+		}
 		return;
 	}
 
