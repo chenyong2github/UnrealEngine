@@ -3573,21 +3573,20 @@ void UCookOnTheFlyServer::PostLoadPackageFixup(UPackage* Package)
 	{
 		return;
 	}
-
-	// Ensure we only process the package once
-
-	if (PackageTracker->PostLoadFixupPackages.Find(Package) != nullptr)
+	UWorld* World = UWorld::FindWorldInPackage(Package);
+	if (!World)
 	{
 		return;
 	}
 
+	// Ensure we only process the package once
+	if (PackageTracker->PostLoadFixupPackages.Find(Package) != nullptr)
+	{
+		return;
+	}
 	PackageTracker->PostLoadFixupPackages.Add(Package);
 
 	// Perform special processing for UWorld
-
-	UWorld* World = UWorld::FindWorldInPackage(Package);
-	check(World);
-
 	World->PersistentLevel->HandleLegacyMapBuildData();
 
 	if (IsCookByTheBookMode() == false)
