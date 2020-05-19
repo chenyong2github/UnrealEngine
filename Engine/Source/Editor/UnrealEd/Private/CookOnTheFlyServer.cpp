@@ -3532,6 +3532,7 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 				else
 				{
 					PackageTracker->UncookedEditorOnlyPackages.AddUnique(Package->GetFName());
+					PackageTracker->RemovePendingSavePackage(Package);
 				}
 			}
 			else
