@@ -154,7 +154,7 @@ private:
 		// If shift is down, update the alignment/pivot point to match the anchor position.
 		if ( FSlateApplication::Get().GetModifierKeys().IsShiftDown() )
 		{
-			const FString Value = FString::Printf(TEXT("(X=%f,Y=%f)"), Anchors.IsStretchedHorizontal() ? 0 : Anchors.Minimum.X, Anchors.IsStretchedVertical() ? 0 : Anchors.Minimum.Y);
+			const FString Value = FString::Printf(TEXT("(X=%f,Y=%f)"), Anchors.IsStretchedHorizontal() ? 0.0f : Anchors.Minimum.X, Anchors.IsStretchedVertical() ? 0.0f : Anchors.Minimum.Y);
 			AlignmentHandle->SetValueFromFormattedString(Value);
 		}
 
@@ -165,7 +165,7 @@ private:
 			OffsetsHandle->AccessRawData(RawOffsetData);
 			FMargin* Offsets = reinterpret_cast<FMargin*>( RawOffsetData[0] );
 
-			const FString Value = FString::Printf(TEXT("(Left=%f,Top=%f,Right=%f,Bottom=%f)"), 0, 0, Anchors.IsStretchedHorizontal() ? 0 : Offsets->Right, Anchors.IsStretchedVertical() ? 0 : Offsets->Bottom);
+			const FString Value = FString::Printf(TEXT("(Left=%f,Top=%f,Right=%f,Bottom=%f)"), 0.0f, 0.0f, Anchors.IsStretchedHorizontal() ? 0.0f : Offsets->Right, Anchors.IsStretchedVertical() ? 0.0f : Offsets->Bottom);
 			OffsetsHandle->SetValueFromFormattedString(Value);
 		}
 
