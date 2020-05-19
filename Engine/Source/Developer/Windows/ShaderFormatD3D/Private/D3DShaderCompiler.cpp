@@ -629,6 +629,8 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 		uint32 NumSRVs = 0;
 		uint32 NumCBs = 0;
 		uint32 NumUAVs = 0;
+		uint32 OutputMask = 0;
+
 		TArray<FString> UniformBufferNames;
 		TArray<FString> ShaderOutputs;
 
@@ -676,6 +678,15 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				{
 					// Handy place for a breakpoint for debugging...
 					++GBreakpoint;
+				}
+				for(uint32 Index = 0; Index < ShaderDesc.OutputParameters; ++Index)
+				{
+					// VC++ horrible hack: Runtime ESP checks get confused and fail for some reason calling Reflector->GetInputParameterDesc() (because it comes from another DLL?)
+					// so "guard it" using the middle of an array; it's been confirmed NO corruption is really happening.
+					D3D11_SIGNATURE_PARAMETER_DESC ParamDescs[3];
+					D3D11_SIGNATURE_PARAMETER_DESC& ParamDesc = ParamDescs[1];
+					Reflector->GetOutputParameterDesc(Index, &ParamDesc);
+					OutputMask |= (1 << ParamDesc.Register);
 				}
 
 				bool bFoundUnused = false;
