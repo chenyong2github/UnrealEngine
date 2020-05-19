@@ -5,6 +5,8 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -19,9 +21,6 @@
 DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
 
 IMPLEMENT_TYPE_LAYOUT(FBulkDataBase);
-
-// If set to 0 then the loose file fallback will be used even if the -ZenLoader command line flag is present.
-#define ENABLE_IO_DISPATCHER 1
 
 // If set to 0 then we will pretend that optional data does not exist, useful for testing.
 #define ALLOW_OPTIONAL_DATA 1
@@ -42,13 +41,36 @@ namespace
 {
 	const uint16 InvalidBulkDataIndex = ~uint16(0);
 
+	bool ShouldAllowBulkDataInIoStore()
+	{
+		static struct FAllowBulkDataInIoStore
+		{
+			bool bEnabled = false;
+
+			FAllowBulkDataInIoStore()
+			{
+				FConfigFile PlatformEngineIni;
+				FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+
+				PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("AllowBulkDataInIoStore"), bEnabled);
+		
+				UE_LOG(LogSerialization, Display, TEXT("AllowBulkDataInIoStore: '%s'"), bEnabled ?  TEXT("true") :  TEXT("false"));
+			}
+		} AllowBulkDataInIoStore;
+
+		return AllowBulkDataInIoStore.bEnabled;
+	}
+
 	FORCEINLINE bool IsIoDispatcherEnabled()
 	{
-#if ENABLE_IO_DISPATCHER
-		return FIoDispatcher::IsInitialized();
-#else
-		return false;
-#endif
+		if (ShouldAllowBulkDataInIoStore())
+		{
+			return FIoDispatcher::IsInitialized();
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	const FIoFilenameHash FALLBACK_IO_FILENAME_HASH = INVALID_IO_FILENAME_HASH - 1;
@@ -118,6 +140,7 @@ namespace FileTokenSystem
 				if (StringData* ExistingEntry = Table.Find(PackageName))
 				{
 					ExistingEntry->RefCount++;
+					checkf(ExistingEntry->Filename == Filename, TEXT("Filename mismatch!"));
 				}
 				else
 				{
@@ -796,6 +819,8 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		const FString* Filename = nullptr;
 		const FLinkerLoad* Linker = nullptr;
 
+		FString FallbackFilename;
+
 		if (bUseIoDispatcher == false)
 		{
 			Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
@@ -803,6 +828,12 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			if (Linker != nullptr)
 			{
 				Filename = &Linker->Filename;
+			}
+			else if(!::ShouldAllowBulkDataInIoStore() && !IsInlined()) // IoDispatcher only allows reloading from non inlined data
+			{
+				Package->GetName(FallbackFilename);
+				FallbackFilename = FPackageName::LongPackageNameToFilename(FallbackFilename, TEXT(".uasset"));
+				Filename = &FallbackFilename;
 			}
 		}
 
@@ -813,7 +844,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		if (IsInlined())
 		{
-			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *Package->FileName.ToString());
+			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *Package->GetFName().ToString());
 			
 			// Inline data is already in the archive so serialize it immediately
 			void* DataBuffer = AllocateData(BulkDataSize);
@@ -825,9 +856,9 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				ProcessDuplicateData(Ar, Package, Filename, BulkDataSizeOnDisk, BulkDataOffsetInFile);
 			}
-			 
+		
 			// Fix up the file offset if we have a linker (if we do not then we will be loading via FIoDispatcher anyway)
-			if (Linker != nullptr)
+			if (::ShouldAllowBulkDataInIoStore() && Linker != nullptr)
 			{
 				BulkDataOffsetInFile += Linker->Summary.BulkDataStartOffset;
 			}
@@ -876,7 +907,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		// If we are not using the FIoDispatcher and we have a filename then we need to make sure we can retrieve it later!
 		if (bUseIoDispatcher == false && Filename != nullptr)
 		{
-			Data.Fallback.Token = FileTokenSystem::RegisterFileToken(Package->FileName, *Filename, BulkDataOffsetInFile);
+			Data.Fallback.Token = FileTokenSystem::RegisterFileToken(Package->GetFName(), *Filename, BulkDataOffsetInFile);
 		}
 
 		if (bShouldForceLoad)
