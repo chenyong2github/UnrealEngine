@@ -6641,17 +6641,41 @@ void FSequencer::OnSelectedNodesOnlyChanged()
 	SynchronizeSequencerSelectionWithExternalSelection();
 }
 
-void FSequencer::ZoomToSelectedSections()
+void FSequencer::ZoomToFit()
 {
 	FFrameRate TickResolution = GetFocusedTickResolution();
 
-	TRange<FFrameNumber> BoundsHull = TRange<FFrameNumber>::Empty();
-	for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : Selection.GetSelectedSections())
+	TRange<FFrameNumber> BoundsHull = TRange<FFrameNumber>::All();
+	
+	for ( const FSequencerSelectedKey& Key : Selection.GetSelectedKeys().Array() )
 	{
-		BoundsHull = TRange<FFrameNumber>::Hull(SelectedSection->GetRange(), BoundsHull);
+		if (Key.IsValid())
+		{
+			FFrameNumber KeyTime = Key.KeyArea->GetKeyTime(Key.KeyHandle.GetValue());
+			if (!BoundsHull.HasLowerBound() || BoundsHull.GetLowerBoundValue() > KeyTime)
+			{
+				BoundsHull.SetLowerBound(TRange<FFrameNumber>::BoundsType::Inclusive(KeyTime));
+			}
+			if (!BoundsHull.HasUpperBound() || BoundsHull.GetUpperBoundValue() < KeyTime)
+			{
+				BoundsHull.SetUpperBound(TRange<FFrameNumber>::BoundsType::Inclusive(KeyTime));
+			}
+		}
 	}
 
-	if (BoundsHull.IsEmpty())
+	for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : Selection.GetSelectedSections())
+	{
+		if (BoundsHull == TRange<FFrameNumber>::All())
+		{
+			BoundsHull = SelectedSection->GetRange();
+		}
+		else
+		{
+			BoundsHull = TRange<FFrameNumber>::Hull(SelectedSection->GetRange(), BoundsHull);
+		}
+	}
+	
+	if (BoundsHull.IsEmpty() || BoundsHull == TRange<FFrameNumber>::All())
 	{
 		BoundsHull = GetTimeBounds();
 	}
@@ -6671,11 +6695,19 @@ void FSequencer::ZoomToSelectedSections()
 		{
 			ViewRangeBeforeZoom = GetViewRange();
 
-			SetViewRange(BoundsHull / TickResolution, EViewRangeInterpolation::Animated);
+			TRange<double> BoundsHullSeconds = BoundsHull / TickResolution;
+			const double OutputViewSize = BoundsHullSeconds.Size<double>();
+			const double OutputChange = OutputViewSize * 0.1f;
+
+			if (OutputChange > 0)
+			{
+				BoundsHullSeconds = MovieScene::ExpandRange(BoundsHullSeconds, OutputChange);
+	
+				SetViewRange(BoundsHullSeconds, EViewRangeInterpolation::Animated);
+			}
 		}
 	}
 }
-
 
 bool FSequencer::CanKeyProperty(FCanKeyPropertyParams CanKeyPropertyParams) const
 {
@@ -12171,6 +12203,10 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ResetViewRange,
 		FExecuteAction::CreateSP( this, &FSequencer::ResetViewRange ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.ZoomToFit,
+		FExecuteAction::CreateSP( this, &FSequencer::ZoomToFit ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ZoomInViewRange,
