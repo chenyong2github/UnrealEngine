@@ -2,8 +2,6 @@
 #pragma once
 
 #include "Chaos/Array.h"
-#include "Chaos/PBDParticles.h"
-#include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDSpringConstraintsBase.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/GraphColoring.h"
@@ -11,7 +9,19 @@
 namespace Chaos
 {
 
-class FPBDSpringConstraints : public TPBDSpringConstraintsBase<FReal, 3>, public FPBDConstraintContainer
+template<class T, int d>
+class TDynamicParticles;
+
+template<class T, int d>
+class TPBDParticles;
+
+template<class T, int d>
+class TRigidParticles;
+
+template<class T, int d>
+class TPBDRigidParticles;
+
+class CHAOS_API FPBDSpringConstraints : public TPBDSpringConstraintsBase<FReal, 3>, public FPBDConstraintContainer
 {
 	typedef TPBDSpringConstraintsBase<FReal, 3> Base;
 	using Base::MConstraints;
@@ -48,7 +58,8 @@ class FPBDSpringConstraints : public TPBDSpringConstraintsBase<FReal, 3>, public
 	TArray<TVector<int32, 2>>& GetConstraints() { return MConstraints; }
 	TArray<TVector<int32, 2>>& Constraints() { return MConstraints; }
 
-	void Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt, const int32 InConstraintIndex) const;
+	template<class T_PARTICLES>
+	void Apply(T_PARTICLES& InParticles, const FReal Dt, const int32 InConstraintIndex) const;
 	void Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const;
 	void Apply(TPBDRigidParticles<FReal, 3>& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices) const;
 
