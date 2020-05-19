@@ -810,8 +810,7 @@ void Main(
 		OutColor.a = 0.0;
 
 		#if OUTPUT_MOBILE_HDR 
-			// Store depth in FP16 alpha. This depth value can be fetched during translucency or sampled in post-processing
-			OutColor.a = SvPosition.z;
+			OutColor.a = min(BasePassInterpolants.PixelPosition.w, 65500);
 		#endif
 	#endif
 
