@@ -4792,7 +4792,7 @@ ENGINE_API const FString GetMapNameStatic()
 		}
 	}
 
-	if( ContextToUse != NULL )
+	if( ContextToUse != NULL && ContextToUse->World() != NULL )
 	{
 		Retval = ContextToUse->World()->GetMapName();
 	}
