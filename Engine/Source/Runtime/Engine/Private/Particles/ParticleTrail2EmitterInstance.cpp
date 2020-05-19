@@ -1554,10 +1554,11 @@ float FParticleRibbonEmitterInstance::Spawn(float DeltaTime)
 				check(TEXT("Failed to add particle to trail!!!!"));
 			}
 
-			INC_DWORD_STAT_BY(STAT_TrailParticles, ActiveParticles);
 			INC_DWORD_STAT(STAT_SpriteParticlesSpawned);
 		}
 	}
+	INC_DWORD_STAT_BY(STAT_TrailParticles, ActiveParticles);
+
 
 //TickCount++;
 	return SpawnFraction;
@@ -1986,8 +1987,6 @@ bool FParticleRibbonEmitterInstance::Spawn_Source(float DeltaTime)
 				{
 					check(TEXT("Failed to add particle to trail!!!!"));
 				}
-
-				INC_DWORD_STAT_BY(STAT_TrailParticles, ActiveParticles);
 			}
 
 			// Update the last position
@@ -2008,6 +2007,8 @@ bool FParticleRibbonEmitterInstance::Spawn_Source(float DeltaTime)
 			}
 		}
 	}
+
+	INC_DWORD_STAT_BY(STAT_TrailParticles, ActiveParticles);
 
 	return bProcessSpawnRate;
 }
