@@ -1344,6 +1344,46 @@ namespace ChaosTest {
 			EXPECT_EQ(Indices.Num(), 8);
 		}
 		{
+			// This is a specific case where without coplaner face merging and
+			// a large enough epsilon for building horizons in hull generation
+			// (tested to fail with 1e-1) we will generate a non-convex hull
+			// Using a scaled epsilon resolves this case
+			Chaos::TParticles<T, 3> Particles;
+			Particles.AddParticles(9);
+			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
+			Particles.X(1) = TVector<float, 3>(-1, -1, 1);
+			Particles.X(2) = TVector<float, 3>(-1, 1, -1);
+			Particles.X(3) = TVector<float, 3>(-1, 1, 1);
+			Particles.X(4) = TVector<float, 3>(1, -1, -1);
+			Particles.X(5) = TVector<float, 3>(1, -1, 1);
+			Particles.X(6) = TVector<float, 3>(1, 1, -1);
+			Particles.X(7) = TVector<float, 3>(1, 1, 1);
+			Particles.X(8) = TVector<float, 3>(0.966962576, -0.0577232838, 0.959515572);
+			
+			TArray<TVector<int32, 3>> Indices;
+			Chaos::FConvexBuilder::Params BuildParams;
+			BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(Particles);
+
+			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices, BuildParams);
+
+			EXPECT_EQ(Indices.Num(), 12);
+
+			for (const TVector<int32, 3>& Tri : Indices)
+			{
+				for (int32 i = 0; i < 3; ++i)
+				{
+					TVector<T, 3> V = Particles.X(Tri[i]);
+					TVector<T, 3> VAbs = V.GetAbs();
+					T Max = VAbs.GetMax();
+					EXPECT_GE(Max, 1 - 1e-2);
+				}
+			}
+		}
+		{
+			// Build a box and fill it with many other points. Correct hull generation should produce
+			// only the original box - ignoring all interior and coplanar points.
+			// Note: If hull generation is changed to support non-triangular faces the conditions here
+			// will need to change as a correct hull in that method will produce only 6 faces not 12
 			Chaos::TParticles<T, 3> Particles;
 			int32 NumParticles = 3600;
 			Particles.AddParticles(NumParticles);
@@ -1356,16 +1396,21 @@ namespace ChaosTest {
 			Particles.X(6) = TVector<float, 3>(1, 1, -1);
 			Particles.X(7) = TVector<float, 3>(1, 1, 1);
 			FRandomStream Stream(42);
-			for (int i = 8; i < NumParticles; ++i)
+			for(int i = 8; i < NumParticles; ++i)
 			{
 				Particles.X(i) = TVector<float, 3>(Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f));
 			}
 			TArray<TVector<int32, 3>> Indices;
-			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
-			//EXPECT_EQ(Indices.Num(), 12); todo(ocohen): handle coplaner verts
-			for (auto Tri : Indices)
+
+			Chaos::FConvexBuilder::Params BuildParams;
+			BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(Particles);
+
+			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices, BuildParams);
+
+			EXPECT_EQ(Indices.Num(), 12);
+			for(auto Tri : Indices)
 			{
-				for (int i = 0; i < 3; ++i)
+				for(int i = 0; i < 3; ++i)
 				{
 					TVector<T, 3> V = Particles.X(Tri[i]);
 					TVector<T, 3> VAbs = V.GetAbs();
