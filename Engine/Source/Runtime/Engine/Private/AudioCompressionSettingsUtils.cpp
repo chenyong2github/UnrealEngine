@@ -106,8 +106,12 @@ void CacheAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides, const TC
 	{
 		// Cache size:
 		int32 RetrievedCacheSize = 32 * 1024;
+		int32 RetrievedChunkSizeOverride = INDEX_NONE;
 		PlatformFile.GetInt(*CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize);
 		OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
+
+		PlatformFile.GetInt(*CategoryName, TEXT("MaxChunkSizeOverrideKB"), RetrievedChunkSizeOverride);
+		OutOverrides.StreamCachingSettings.MaxChunkSizeOverrideKB = RetrievedChunkSizeOverride;
 
 		bool bForceLegacyStreamChunking = false;
 		PlatformFile.GetBool(*CategoryName, TEXT("bForceLegacyStreamChunking"), bForceLegacyStreamChunking);
@@ -374,25 +378,18 @@ uint32 FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(const FPla
 	// If the game runs with higher than 32 voices, that means we will potentially have a larger cache than what was set in the target settings.
 	// In that case we log a warning on application launch.
 	const int32 MinimumNumChunks = 32;
-	const int32 DefaultMaxChunkSizeKB = 256;
-	
 	int32 CacheSizeKB = InCompressionOverrides->StreamCachingSettings.CacheSizeKB;
-	
-	if (CacheSizeKB == 0)
-	{
-		CacheSizeKB = FAudioStreamCachingSettings::DefaultCacheSize;
-	}
 
-	// If we won't have a large enough cache size to fit enough chunks to play 32 different sources at once, 
-	// we truncate the chunk size to fit at least that many 
+	const int32 DefaultMaxChunkSizeKB = 256;
+	const int32 MaxChunkSizeOverrideKB = InCompressionOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB;
+	int32 ChunkSizeBasedOnUtilization = 0;
+
 	if (CacheSizeKB / DefaultMaxChunkSizeKB < MinimumNumChunks)
 	{
-		return (CacheSizeKB / MinimumNumChunks) * 1024;
+		ChunkSizeBasedOnUtilization = (CacheSizeKB / MinimumNumChunks);
 	}
-	else
-	{
-		return DefaultMaxChunkSizeKB * 1024;
-	}
+
+	return FMath::Max(FMath::Max(DefaultMaxChunkSizeKB, MaxChunkSizeOverrideKB), ChunkSizeBasedOnUtilization) * 1024;
 }
 
 float FPlatformCompressionUtilities::GetCompressionDurationForCurrentPlatform()
