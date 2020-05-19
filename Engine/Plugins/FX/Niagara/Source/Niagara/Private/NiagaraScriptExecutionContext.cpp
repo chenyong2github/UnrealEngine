@@ -269,6 +269,8 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, const FScriptE
 			NumInstances
 #if STATS
 			, Script->GetStatScopeIDs()
+#elif ENABLE_STATNAMEDEVENTS
+			, Script->GetStatNamedEvents()
 #endif
 		);
 	}
