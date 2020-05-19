@@ -46,12 +46,33 @@
 	<Option Name="WithTVOS" Restrict="true|false" DefaultValue="$(DefaultWithIOS)" Description="Include the tvOS target platform"/>
 	<Option Name="WithLinux" Restrict="true|false" DefaultValue="$(DefaultWithLinux)" Description="Include the Linux target platform"/>
 	<Option Name="WithLinuxAArch64" Restrict="true|false" DefaultValue="$(DefaultWithLinuxAArch64)" Description="Include the Linux AArch64 target platform"/>
-	<Option Name="WithPS4" Restrict="true|false" DefaultValue="false" Description="Include the PS4 target platform"/>
-	<Option Name="WithXboxOne" Restrict="true|false" DefaultValue="false" Description="Include the XboxOne target platform"/>
-	<Option Name="WithSwitch" Restrict="true|false" DefaultValue="false" Description="Include the Switch target platform"/>
 	<Option Name="WithLumin" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the Lumin target platform on Windows"/>
 	<Option Name="WithLuminMac" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the Lumin target platform on Mac"/>
 	<Option Name="WithHoloLens" Restrict="true|false" DefaultValue="$(DefaultWithHoloLens)" Description="Include the HoloLens target platform"/>
+	<Option Name="WithPlatforms" DefaultValue="" Description="Which target platforms to include"/>
+
+	<Macro Name="AddPlatform" Arguments="Platform">
+		<Property Name="Found" Value="false"/>
+		<ForEach Name="Entry" Values="$(WithPlatforms)">
+			<Property Name="Found" Value="true" If="'$(Entry)' == '$(Platform)'"/>
+		</ForEach>
+		<Do If="!$(Found)">
+			<Property Name="WithPlatforms" Value="$(WithPlatforms);" If="'$(WithPlatforms)' != ''"/>
+			<Property Name="WithPlatforms" Value="$(WithPlatforms)$(Platform)"/>
+		</Do>
+	</Macro>
+
+	<Expand Name="AddPlatform" Platform="Win64" If="$(WithWin64)"/>
+	<Expand Name="AddPlatform" Platform="Win32" If="$(WithWin32)"/>
+	<Expand Name="AddPlatform" Platform="Mac" If="$(WithMac)"/>
+	<Expand Name="AddPlatform" Platform="Android" If="$(WithAndroid)"/>
+	<Expand Name="AddPlatform" Platform="IOS" If="$(WithIOS)"/>
+	<Expand Name="AddPlatform" Platform="TVOS" If="$(WithTVOS)"/>
+	<Expand Name="AddPlatform" Platform="Linux" If="$(WithLinux)"/>
+	<Expand Name="AddPlatform" Platform="LinuxAArch64" If="$(WithLinuxAArch64)"/>
+	<Expand Name="AddPlatform" Platform="Lumin" If="$(WithLumin)"/>
+	<Expand Name="AddPlatform" Platform="LuminMac" If="$(WithLuminMac)"/>
+	<Expand Name="AddPlatform" Platform="HoloLens" If="$(WithHoloLens)"/>
 
 	<!-- Set up target types -->
 	<Option Name="WithClient" Restrict="true|false" DefaultValue="false" Description="Include precompiled client targets"/>
@@ -119,6 +140,28 @@
 
 	<Property Name="OptionalServerTarget" Value=""/>
 	<Property Name="OptionalServerTarget" Value="UE4Server" If="$(WithServer)"/>
+
+	<Property Name="ExtensionPlatformDirs" Value=""/>
+	<Macro Name="AddExtensionPlatform" Arguments="PlatformDir">
+		<Property Name="Found" Value="false"/>
+		<ForEach Name="Entry" Values="$(ExtensionPlatformDirs)">
+			<Property Name="Found" Value="true" If="'$(Entry)' == '$(PlatformDir)'"/>
+		</ForEach>
+		<Do If="!$(Found)">
+			<Property Name="ExtensionPlatformDirs" Value="$(ExtensionPlatformDirs);" If="'$(ExtensionPlatformDirs)' != ''"/>
+			<Property Name="ExtensionPlatformDirs" Value="$(ExtensionPlatformDirs)$(PlatformDir)"/>
+		</Do>
+	</Macro>
+
+	<Property Name="ExtensionPlatforms" Value=""/>
+	<ForEach Name="Platform" Values="$(WithPlatforms)">
+		<Property Name="PlatformBuildScript" Value="$(RootDir)/Engine/Platforms/$(Platform)/Build/InstalledEngineBuild.xml"/>
+		<Do If="Exists('$(PlatformBuildScript)')">
+			<Include Script="$(PlatformBuildScript)"/>
+			<Property Name="ExtensionPlatforms" Value="$(ExtensionPlatforms);" If="'$(ExtensionPlatforms)' != ''"/>
+			<Property Name="ExtensionPlatforms" Value="$(ExtensionPlatforms)$(Platform)"/>
+		</Do>
+	</ForEach>
 
 	<!-- Include the script that lists files and patterns used when creating an installed build -->
 	<Include Script="InstalledEngineFilters.xml"/>
@@ -345,42 +388,10 @@
 	</Agent>
 	<Label Name="Android" Category="Target Platforms" Requires="Compile UE4Game Android"/>
 	
-	<Agent Name="Target PS4" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game PS4" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game PS4">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
-				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="PS4" Configuration="$(Configuration)" Tag="#UE4Game PS4" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="PS4" Configuration="$(Configuration)" Tag="#UE4Game PS4" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
-				</ForEach>
-			</ForEach>
-		</Node>
-	</Agent>
-	<Label Name="PS4" Category="Target Platforms" Requires="Compile UE4Game PS4"/>
+	<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+		<Expand Name="Agent_Target_$(Platform)_Win64_Licensee"/>
+	</ForEach>
 
-	<Agent Name="Target XboxOne" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game XboxOne" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game XboxOne">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
-				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="XboxOne" Configuration="$(Configuration)" Tag="#UE4Game XboxOne" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="XboxOne" Configuration="$(Configuration)" Tag="#UE4Game XboxOne" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
-				</ForEach>
-			</ForEach>
-		</Node>
-	</Agent>
-	<Label Name="XboxOne" Category="Target Platforms" Requires="Compile UE4Game XboxOne"/>
-
-	<Agent Name="Target Switch" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game Switch" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game Switch">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
-				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="Switch" Configuration="$(Configuration)" Tag="#UE4Game Switch" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="Switch" Configuration="$(Configuration)" Tag="#UE4Game Switch" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
-				</ForEach>
-			</ForEach>
-		</Node>
-	</Agent>
-	<Label Name="Switch" Category="Target Platforms" Requires="Compile UE4Game Switch"/>
-	
 	<Agent Name="Target HoloLens" Type="HoloLens">
 		<Node Name="Compile UE4Game HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game HoloLens">
 			<ForEach Name="Configuration" Values="$(GameConfigurations)">
@@ -532,10 +543,11 @@
 				<CsCompile Project="$(CsToolsDir)/Engine/Source/Editor/SwarmInterface/DotNET/SwarmInterface.csproj" Configuration="Development" Platform="AnyCPU" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
 				<CsCompile Project="$(CsToolsDir)/Engine/Source/Programs/nDisplayLauncher/nDisplayLauncher.csproj" Configuration="Development" Platform="AnyCPU" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
 				<CsCompile Project="$(CsToolsDir)/Engine/Source/Programs/nDisplayListener/nDisplayListener.csproj" Configuration="Development" Platform="AnyCPU" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
-				<CsCompile Project="$(CsToolsDir)/Engine/Platforms/PS4/Source/Programs/PS4DevKitUtil/PS4DevKitUtil.csproj" Configuration="Development" Platform="AnyCPU" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries" If="'$(WithPS4)' == true"/>
-				<CsCompile Project="$(CsToolsDir)/Engine/Platforms/PS4/Source/Programs/PS4SymbolTool/PS4SymbolTool.csproj" Configuration="Release" Platform="AnyCPU" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries" If="'$(WithPS4)' == true"/>
 				<CsCompile Project="$(CsToolsDir)/Engine/Source/Programs/UnrealControls/UnrealControls.csproj" Configuration="Development" Platform="AnyCPU" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
 				<CsCompile Project="$(CsToolsDir)/Engine/Source/Programs/IOS/iPhonePackager/iPhonePackager.csproj" Configuration="Development" Platform="AnyCPU" Arguments="/verbosity:minimal /target:Rebuild" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
+				<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+					<Expand Name="$(Platform)_Build_Tools_CS_Binaries"/>
+				</ForEach>
 			</Do>
 			
 			<!-- Compile IPP. Mac/Linux bundled versions of Mono do not have Winforms, so we just use the existing one. -->
@@ -610,12 +622,50 @@
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+TVOS" If="'$(WithTVOS)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxNoEditor" If="'$(WithLinux)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxAArch64NoEditor" If="'$(WithLinuxAArch64)' == true"/>
-		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+PS4" If="'$(WithPS4)' == true"/>
-		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+XboxOne" If="'$(WithXboxOne)' == true"/>
-		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Switch" If="'$(WithSwitch)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Lumin" If="'$(WithLumin)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+HoloLens" If="'$(WithHoloLens)' == true"/>
+		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+			<Expand Name="$(Platform)_Append_DDCPlatformsWin64"/>
+		</ForEach>
 	</Do>
+
+	<Macro Name="GenerateEngineDirList" Arguments="InList">
+		<Property Name="EngineDirList" Value=""/>
+		<ForEach Name="EngineDir" Values="$(InList)">
+			<Property Name="EngineDirList" Value="$(EngineDirList);" If="'$(EngineDirList)' != ''"/>
+			<Property Name="EngineDirList" Value="$(EngineDirList)Engine\$(EngineDir)"/>
+			<ForEach Name="ExtensionDir" Values="$(ExtensionPlatformDirs)">
+				<Property Name="EngineDirList" Value="$(EngineDirList);Engine\Platforms\$(ExtensionDir)\$(EngineDir)"/>
+			</ForEach>
+		</ForEach>
+	</Macro>
+
+	<Macro Name="TagDDCEngineFiles" Arguments="ExceptPlugins">
+		<Property Name="EngineDirList" Value=""/>
+		<Expand Name="GenerateEngineDirList" InList="$(InstalledDDCEngineContent)"/>
+		<Property Name="DDCCopyEngineContent" Value="$(EngineDirList)"/>
+		<Expand Name="GenerateEngineDirList" InList="$(InstalledDDCEngineContentExcept)"/>
+		<Property Name="DDCCopyEngineContentExcept" Value="$(EngineDirList)"/>
+		<Expand Name="GenerateEngineDirList" InList="$(InstalledDDCEngineConfig)"/>
+		<Property Name="DDCCopyEngineConfig" Value="$(EngineDirList)"/>
+		<Expand Name="GenerateEngineDirList" InList="$(InstalledDDCEngineConfigExcept)"/>
+		<Property Name="DDCCopyEngineConfigExcept" Value="$(EngineDirList)"/>
+		<Expand Name="GenerateEngineDirList" InList="$(InstalledDDCEnginePlugins);$(ExceptPlugins)"/>
+		<Property Name="DDCCopyEnginePlugins" Value="$(EngineDirList)"/>
+		<Expand Name="GenerateEngineDirList" InList="$(InstalledDDCEnginePluginsExcept)"/>
+		<Property Name="DDCCopyEnginePluginsExcept" Value="$(EngineDirList)"/>
+		<Expand Name="GenerateEngineDirList" InList="$(InstalledDDCEngineShaders)"/>
+		<Property Name="DDCCopyEngineShaders" Value="$(EngineDirList)"/>
+		<Expand Name="GenerateEngineDirList" InList="$(InstalledDDCEngineShadersExcept)"/>
+		<Property Name="DDCCopyEngineShadersExcept" Value="$(EngineDirList)"/>
+		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+			<Expand Name="$(Platform)_TagDDCFiles"/>
+		</ForEach>
+		<Tag Files="$(DDCCopyEngineContent)" Except="$(DDCCopyEngineContentExcept)" With="#ToCopy"/>
+		<Tag Files="$(DDCCopyEngineConfig)" Except="$(DDCCopyEngineConfigExcept)" With="#ToCopy"/>
+		<Tag Files="$(DDCCopyEnginePlugins)" Except="$(DDCCopyEnginePluginsExcept)" With="#ToCopy"/>
+		<Tag Files="$(DDCCopyEngineShaders)" Except="$(DDCCopyEngineShadersExcept)" With="#ToCopy"/>
+	</Macro>
 
 	<Agent Name="DDC Group Win64" Type="Win64_Licensee">
 		<Node Name="Build DDC Win64" Requires="#UE4Editor Win64;Build Tools Win64;Build Tools CS" Produces="#CompressedDDCWin64">
@@ -629,14 +679,10 @@
 			<Tag Files="#Compile UnrealHeaderTool Win64;#UE4Editor Win64;#Build Tools Win64" With="#ToCopy"/>
 			<Tag Files="#ToCopy" Filter="*.target" With="#TargetReceipts"/>
 			<TagReceipt Files="#TargetReceipts" RuntimeDependencies="true" With="#ToCopy"/>
-			<Tag Files="Engine\Content\..." Except="*.psd;*.pdn;*.fbx;*.po" With="#ToCopy"/>
-			<Tag Files="Engine\Config\..." Except="*.vdf" With="#ToCopy"/>
-			<Tag Files="Engine\Plugins\....uplugin;Engine\Plugins\...\Config\...;Engine\Plugins\...\Content\...;Engine\Plugins\...\Resources\...;Engine\Plugins\...\Shaders\...;Engine\Plugins\...\Templates\..." Except="Engine\Plugins\Runtime\TwitchLiveStreaming\...;Engine\Plugins\...\Binaries/Mac\..." With="#ToCopy"/>
-			<Tag Files="Engine\Shaders\..." With="#ToCopy"/>
 			<Tag Files="Engine\Binaries\DotNET\Ionic.Zip.Reduced.dll" With="#ToCopy"/>
 			<Tag Files="Engine\Binaries\DotNET\OneSky.dll" With="#ToCopy"/>
-			<Tag Files="Engine\Binaries\DotNET\PS4\..." With="#ToCopy" If="'$(WithPS4)' == true"/>
 			<Tag Files="Templates\TemplateResources\..." With="#ToCopy"/>
+			<Expand Name="TagDDCEngineFiles" ExceptPlugins="Plugins\...\Binaries\Mac\..."/>
 			<!-- Filter out the files not needed to build DDC. Removing confidential folders can affect DDC keys, so we want to be sure that we're making DDC with a build that can use it. -->
 			<Tag Files="#ToCopy" Except="$(ConfidentialExceptions);$(RootDir)/.../Source/...;$(RootDir)/.../Intermediate/..." With="#FilteredCopyList"/>
 			
@@ -670,14 +716,10 @@
 			<Tag Files="#Compile UnrealHeaderTool Mac;#UE4Editor Mac;#Build Tools Mac" With="#ToCopy"/>
 			<Tag Files="#ToCopy" Filter="*.target" With="#TargetReceipts"/>
 			<TagReceipt Files="#TargetReceipts" RuntimeDependencies="true" With="#ToCopy"/>
-			<Tag Files="Engine/Content/..." Except="*.psd;*.pdn;*.fbx;*.po" With="#ToCopy"/>
-			<Tag Files="Engine/Config/..." Except="*.vdf" With="#ToCopy"/>
-			<Tag Files="Engine/Plugins/....uplugin;Engine/Plugins/.../Config/...;Engine/Plugins/.../Content/...;Engine/Plugins/.../Resources/...;Engine/Plugins/.../Shaders/...;Engine/Plugins/.../Templates/..." Except="Engine/Plugins/Runtime/TwitchLiveStreaming/...;Engine/Plugins/.../Binaries/Win64/...;Engine/Plugins/.../Binaries/Win32/..." With="#ToCopy"/>
-			<Tag Files="Engine/Shaders/..." With="#ToCopy"/>
 			<Tag Files="Engine/Binaries/DotNET/Ionic.Zip.Reduced.dll" With="#ToCopy"/>
 			<Tag Files="Engine/Binaries/DotNET/OneSky.dll" With="#ToCopy"/>
-			<Tag Files="Engine/Binaries/DotNET/PS4/..." With="#ToCopy" If="'$(WithPS4)' == true"/>
 			<Tag Files="Templates/TemplateResources/..." With="#ToCopy"/>
+			<Expand Name="TagDDCEngineFiles" ExceptPlugins="Plugins/.../Binaries/Win64/...;Plugins/.../Binaries/Win32/..."/>
 			<!-- Filter out the files not needed to build DDC. Removing confidential folders can affect DDC keys, so we want to be sure that we're making DDC with a build that can use it. -->
 			<Tag Files="#ToCopy" Except="$(ConfidentialExceptions);$(RootDir)/.../Source/...;$(RootDir)/.../Intermediate/..." With="#FilteredCopyList"/>
 			
@@ -719,8 +761,8 @@
 			<Tag Files="Engine/Shaders/..." With="#ToCopy"/>
 			<Tag Files="Engine/Binaries/DotNET/Ionic.Zip.Reduced.dll" With="#ToCopy"/>
 			<Tag Files="Engine/Binaries/DotNET/OneSky.dll" With="#ToCopy"/>
-			<Tag Files="Engine/Binaries/DotNET/PS4/..." With="#ToCopy" If="'$(WithPS4)' == true"/>
 			<Tag Files="Templates/TemplateResources/..." With="#ToCopy"/>
+			<Expand Name="TagDDCEngineFiles" ExceptPlugins="Plugins/.../Binaries/Win32/...;Plugins/.../Binaries/Mac/..."/>
 			<!-- Filter out the files not needed to build DDC. Removing confidential folders can affect DDC keys, so we want to be sure that we're making DDC with a build that can use it. -->
 			<Tag Files="#ToCopy" Except="$(ConfidentialExceptions);$(RootDir)/.../Source/...;$(RootDir)/.../Intermediate/..." With="#FilteredCopyList"/>
 			
@@ -763,6 +805,9 @@
 		<!-- Build up a list of requirements as some can be optional -->
 		<Property Name="InstalledRequirements" Value="Compile UnrealHeaderTool Win64;#UE4Editor Win64 WithExceptions;#UE4Editor Win64 Unstripped;#UE4Editor Win64 Stripped;#UE4Editor Win64 Unsigned;#UE4Editor Win64 Signed;#Build Tools Win64;#Build Tools CS Binaries"/>
 		<!-- Optional Target Platform requirements -->
+		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+			<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game $(Platform)"/>
+		</ForEach>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Win64;#UE4Game Win64 Unstripped;#UE4Game Win64 Stripped;#UE4Game Win64 Unsigned;#UE4Game Win64 Signed" If="'$(WithWin64)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Win32;#UE4Game Win32 Unstripped;#UE4Game Win32 Stripped;#UE4Game Win32 Unsigned;#UE4Game Win32 Signed;#Build Tools Win32" If="'$(WithWin32)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Android;#UE4Game Android Unstripped;#UE4Game Android Stripped" If="'$(WithAndroid)' == true"/>
@@ -770,9 +815,6 @@
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game TVOS;#UE4Game TVOS Unstripped;#UE4Game TVOS Stripped" If="'$(WithTVOS)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped;#Build Tools Linux" If="'$(WithLinux)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game LinuxAArch64;#UE4Game LinuxAArch64 Unstripped;#UE4Game LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game PS4" If="'$(WithPS4)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game XboxOne" If="'$(WithXboxOne)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Switch" If="'$(WithSwitch)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Lumin" If="'$(WithLumin)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game HoloLens" If="'$(WithHoloLens)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#CompressedDDCWin64" If="'$(WithDDC)' == true"/>
@@ -850,24 +892,9 @@
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
-			<Do If="'$(WithPS4)' == true">
-				<Tag Files="#UE4Game PS4" With="#Installed Win64"/>
-				<Property Name="Platforms" Value="$(Platforms)PS4;"/>
-				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyPS4Filter)"/>
-				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyPS4Exceptions)"/>
-			</Do>
-			<Do If="'$(WithXboxOne)' == true">
-				<Tag Files="#UE4Game XboxOne" With="#Installed Win64"/>
-				<Property Name="Platforms" Value="$(Platforms)XboxOne;"/>
-				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyXboxOneFilter)"/>
-				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyXboxOneExceptions)"/>
-			</Do>
-			<Do If="'$(WithSwitch)' == true">
-				<Tag Files="#UE4Game Switch" With="#Installed Win64"/>
-				<Property Name="Platforms" Value="$(Platforms)Switch;"/>
-				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopySwitchFilter)"/>
-				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopySwitchExceptions)"/>
-			</Do>
+			<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+				<Expand Name="$(Platform)_Tag_UE4Game"/>
+			</ForEach>
 			<Do If="'$(WithLumin)' == true">
 				<Tag Files="#UE4Game Lumin" With="#Installed Win64"/>
 				<Property Name="Platforms" Value="$(Platforms)Lumin;"/>
