@@ -117,7 +117,6 @@ TSharedRef<SDockTab>  FBaseAssetToolkit::SpawnTab_Details(const FSpawnTabArgs& A
 
 void FBaseAssetToolkit::RegisterToolbar()
 {
-	throw std::logic_error("The method or operation is not implemented.");
 }
 
 TFunction<TSharedRef<SEditorViewport>(void)> FBaseAssetToolkit::GetViewportDelegate()
