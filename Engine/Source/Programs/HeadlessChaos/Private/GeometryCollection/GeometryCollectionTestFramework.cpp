@@ -338,7 +338,7 @@ namespace GeometryCollectionTest
 	void TFramework<Traits>::Advance()
 	{
 		Solver->SyncEvents_GameThread();
-
+		Solver->PushPhysicsState(Module->GetDispatcher());
 		Solver->AdvanceSolverBy(Dt);
 
 		Solver->BufferPhysicsResults();
