@@ -175,7 +175,6 @@ import java.util.Date;
 import java.util.TimeZone;
 import java.util.UUID;
 
-import com.epicgames.ue4.GooglePlayStoreHelper;
 import com.epicgames.ue4.GooglePlayLicensing;
 
 // Console commands listener, only for debug builds
@@ -458,9 +457,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	/** Whether we are in VRMode */
 	private boolean IsInVRMode = false;
 
-	/** Implement this if app wants to handle IAB activity launch. For e.g use DaydreamApi for transitions **/
-	GooglePlayStoreHelper.PurchaseLaunchCallback purchaseLaunchCallback = null;
-
 	/** Used for SurfaceHolder.setFixedSize buffer scaling workaround on early Amazon devices and some others */
 	private boolean bUseSurfaceView = false;
 	private SurfaceView MySurfaceView;
@@ -501,11 +497,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public boolean IsInVRMode()
 	{
 		return IsInVRMode;
-	}
-
-	public GooglePlayStoreHelper.PurchaseLaunchCallback getPurchaseLaunchCallback()
-	{
-		return purchaseLaunchCallback;
 	}
 
 	/** Access singleton activity for game. **/
@@ -4495,23 +4486,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	// In app purchase functionality
 	public void AndroidThunkJava_IapSetupService(String InProductKey)
 	{
-		if (getPackageManager().checkPermission("com.android.vending.BILLING", getPackageName()) == getPackageManager().PERMISSION_GRANTED)
-		{
-			IapStoreHelper = new GooglePlayStoreHelper(InProductKey, this, Log);
-			if (IapStoreHelper != null)
-			{
-				Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Setup started");
-			}
-			else
-			{
-				Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Failed to setup IAP service");
-			}
-		}
-		else
-		{
-			Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - You do not have the appropriate permission setup.");
-			Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Please ensure com.android.vending.BILLING is added to the manifest.");
-		}
+//$${gameActivityIapSetupServiceAdditions}$$
 	}
 	
 
