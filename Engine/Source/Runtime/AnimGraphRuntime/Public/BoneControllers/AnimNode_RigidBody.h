@@ -25,6 +25,39 @@ enum class ESimulationSpace : uint8
 	BaseBoneSpace,
 };
 
+
+USTRUCT()
+struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FSimSpaceSettings();
+
+	// Global multipler on the effects of simulation space movement
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0", ClampMax = "1.0"))
+	float MasterAlpha;
+
+	// Multiplier on the Z-component of velocity and acceleration that is passed to the solver
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	float VelocityScaleZ;
+
+	// A clamp on the effective simulation-space velocity that is passed to the solver
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	float MaxLinearVelocity;
+
+	// A clamp on the effective simulation-space angular velocity that is passed to the solver
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	float MaxAngularVelocity;
+	
+	// A clamp on the effective simulation-space acceleration that is passed to the solver
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	float MaxLinearAcceleration;
+	
+	// A clamp on the effective simulation-space angular accleration that is passed to the solver
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.0"))
+	float MaxAngularAcceleration;
+};
+
 /**
  *	Controller that simulates physics based on the physics asset of the skeletal mesh component
  */
@@ -91,6 +124,18 @@ public:
 	/** When using non-world-space sim, this is an overall clamp on acceleration derived from ComponentLinearAccScale and ComponentLinearVelScale, to ensure it is not too large. */
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FVector	ComponentAppliedLinearAccClamp;
+
+	/** 
+	 * Settings for the system which passes motion of the simulations space
+	 * into the simulation. This allows the simulation to pass some fraction
+	 * of the world space motion onto the bodies.
+	 * This system is a superset of the functionality provided by ComponentLinearAccScale,
+	 * ComponentLinearVelScale, and ComponentAppliedLinearAccClamp. In general
+	 * you would not have both systems enabled.
+	 */
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
+	FSimSpaceSettings SimSpaceSettings;
+
 
 	/**
 	 * Scale of cached bounds (vs. actual bounds).
@@ -180,6 +225,22 @@ private:
 
 	void InitializeNewBodyTransformsDuringSimulation(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform, const FTransform& BaseBoneTM);
 
+	void InitSimulationSpace(
+		const FTransform& ComponentToWorld,
+		const FTransform& BoneToComponent);
+
+	void CalculateSimulationSpace(
+		ESimulationSpace Space,
+		const FTransform& ComponentToWorld,
+		const FTransform& BoneToComponent,
+		const float Dt,
+		const FSimSpaceSettings& Settings,
+		FTransform& SpaceTransform,
+		FVector& SpaceLinearVel,
+		FVector& SpaceAngularVel,
+		FVector& SpaceLinearAcc,
+		FVector& SpaceAngularAcc);
+
 private:
 
 	float AccumulatedDeltaTime;
@@ -268,7 +329,13 @@ private:
 	FCSPose<FCompactHeapPose> CapturedFrozenPose;
 	FBlendedHeapCurve CapturedFrozenCurves;
 
+	// Used by the world-space to simulation-space motion transfer system in Component- or Bone-Space sims
+	FTransform PreviousComponentToWorld;
+	FTransform PreviousBoneToComponent;
 	FVector PreviousComponentLinearVelocity;
+	FVector PreviousComponentAngularVelocity;
+	FVector PreviousBoneLinearVelocity;
+	FVector PreviousBoneAngularVelocity;
 };
 
 #if WITH_EDITORONLY_DATA
