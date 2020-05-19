@@ -109,7 +109,11 @@ namespace Chaos
 
 			if(FRewindData* RewindData = MSolver->GetRewindData())
 			{
-				RewindData->AdvanceFrame(MDeltaTime,[Evolution = MSolver->GetEvolution()](){ return Evolution->CreateExternalResimCache();});
+				RewindData->AdvanceFrame(MDeltaTime,[Evolution = MSolver->GetEvolution(),
+				bUseCollisionResimCache = MSolver->RewindUsesCollisionResimCache() ]()
+				{
+					return Evolution->CreateExternalResimCache(bUseCollisionResimCache);
+				});
 			}
 
 			{
@@ -232,6 +236,7 @@ namespace Chaos
 		, MSolverEventFilters(new FSolverEventFilters())
 		, MActiveParticlesBuffer(new FActiveParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MCurrentLock(new FCriticalSection())
+		, bUseCollisionResimCache(false)
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::PBDRigidsSolver()"));
 		Reset();
@@ -616,7 +621,7 @@ namespace Chaos
 
 		if(RewindCaptureNumFrames >= 0)
 		{
-			EnableRewindCapture(20);
+			EnableRewindCapture(20, bUseCollisionResimCache);
 		}
 
 		MEvolution->SetCaptureRewindDataFunction([this](const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles)
@@ -1111,10 +1116,11 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::EnableRewindCapture(int32 NumFrames)
+	void TPBDRigidsSolver<Traits>::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache)
 	{
 		check(Traits::IsRewindable());
 		MRewindData = MakeUnique<FRewindData>(NumFrames);
+		bUseCollisionResimCache = InUseCollisionResimCache;
 	}
 
 	template <typename Traits>
