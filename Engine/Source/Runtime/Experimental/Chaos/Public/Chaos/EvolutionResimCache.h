@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ResimCacheBase.h"
+#include "Templates/UniquePtr.h"
 
 namespace Chaos
 {
