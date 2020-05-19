@@ -117,6 +117,8 @@ private:
 	float LastParticleSytemPoolCleanTime;
 public:
 
+	static bool Enabled();
+
 	~UNiagaraComponentPool();
 
 	void Cleanup();

@@ -6,28 +6,28 @@
 #include "NiagaraComponent.h"
 #include "NiagaraWorldManager.h"
 
-static float GParticleSystemPoolKillUnusedTime = 180.0f;
-static FAutoConsoleVariableRef ParticleSystemPoolKillUnusedTime(
+static float GNiagaraSystemPoolKillUnusedTime = 180.0f;
+static FAutoConsoleVariableRef NiagaraSystemPoolKillUnusedTime(
 	TEXT("FX.NiagaraComponentPool.KillUnusedTime"),
-	GParticleSystemPoolKillUnusedTime,
+	GNiagaraSystemPoolKillUnusedTime,
 	TEXT("How long a pooled particle component needs to be unused for before it is destroyed.")
 );
 
-int32 GbEnableParticleSystemPooling = 0;
-static FAutoConsoleVariableRef bEnableParticleSystemPooling(
+static int32 GbEnableNiagaraSystemPooling = 0;
+static FAutoConsoleVariableRef bEnableNiagaraSystemPooling(
 	TEXT("FX.NiagaraComponentPool.Enable"),
-	GbEnableParticleSystemPooling,
+	GbEnableNiagaraSystemPooling,
 	TEXT("How many Particle System Components to preallocate when creating new ones for the pool.")
 );
 
-static float GParticleSystemPoolingCleanTime = 30.0f;
-static FAutoConsoleVariableRef ParticleSystemPoolingCleanTime(
+static float GNiagaraSystemPoolingCleanTime = 30.0f;
+static FAutoConsoleVariableRef NiagaraSystemPoolingCleanTime(
 	TEXT("FX.NiagaraComponentPool.CleanTime"),
-	GParticleSystemPoolingCleanTime,
+	GNiagaraSystemPoolingCleanTime,
 	TEXT("How often should the pool be cleaned (in seconds).")
 );
 
-void DumpPooledWorldNiagaraParticleSystemInfo(UWorld* World)
+void DumpPooledWorldNiagaraNiagaraSystemInfo(UWorld* World)
 {
 	check(World);
 	FNiagaraWorldManager::Get(World)->GetComponentPool()->Dump();
@@ -35,8 +35,8 @@ void DumpPooledWorldNiagaraParticleSystemInfo(UWorld* World)
 
 FAutoConsoleCommandWithWorld DumpNCPoolInfoCommand(
 	TEXT("FX.DumpNCPoolInfo"),
-	TEXT("Dump Particle System Pooling Info"),
-	FConsoleCommandWithWorldDelegate::CreateStatic(&DumpPooledWorldNiagaraParticleSystemInfo)
+	TEXT("Dump Niagara System Pooling Info"),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&DumpPooledWorldNiagaraNiagaraSystemInfo)
 );
 
 FNCPool::FNCPool()
@@ -87,7 +87,7 @@ void FNCPool::Cleanup()
 
 UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod)
 {
-	check(GbEnableParticleSystemPooling);
+	check(GbEnableNiagaraSystemPooling);
 	check(PoolingMethod != ENCPoolMethod::None);
 
 	FNCPoolElement RetElem;
@@ -168,12 +168,12 @@ void FNCPool::Reclaim(UNiagaraComponent* Component, const float CurrentTimeSecon
 	
 	if(InUseIdx == INDEX_NONE)
 	{
-		UE_LOG(LogNiagara, Error, TEXT("World Particle System Pool is reclaiming a component that is not in it's InUse list!"));
+		UE_LOG(LogNiagara, Error, TEXT("World Niagara System Pool is reclaiming a component that is not in it's InUse list!"));
 	}
 #endif
 
 	//Don't add back to the pool if we're no longer pooling or we've hit our max resident pool size.
-	if (GbEnableParticleSystemPooling != 0 && FreeElements.Num() < (int32)Component->GetAsset()->MaxPoolSize)
+	if (GbEnableNiagaraSystemPooling != 0 && FreeElements.Num() < (int32)Component->GetAsset()->MaxPoolSize)
 	{
 		Component->DeactivateImmediate();
 
@@ -258,6 +258,10 @@ void FNCPool::KillUnusedComponents(float KillTime, UNiagaraSystem* Template)
 
 //////////////////////////////////////////////////////////////////////////
 
+bool UNiagaraComponentPool::Enabled()
+{
+	return GbEnableNiagaraSystemPooling != 0;
+}
 
 UNiagaraComponentPool::UNiagaraComponentPool(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -297,7 +301,7 @@ UNiagaraComponent* UNiagaraComponentPool::CreateWorldParticleSystem(UNiagaraSyst
 	}
 
 	UNiagaraComponent* Component = nullptr;
-	if (GbEnableParticleSystemPooling != 0)
+	if (GbEnableNiagaraSystemPooling != 0)
 	{
 		if (Template->MaxPoolSize > 0)
 		{
@@ -335,17 +339,17 @@ void UNiagaraComponentPool::ReclaimWorldParticleSystem(UNiagaraComponent* Compon
 		return;
 	}
 
-	if (GbEnableParticleSystemPooling)
+	if (GbEnableNiagaraSystemPooling)
 	{
 		float CurrentTime = Component->GetWorld()->GetTimeSeconds();
 
 		//Periodically clear up the pools.
-		if (CurrentTime - LastParticleSytemPoolCleanTime > GParticleSystemPoolingCleanTime)
+		if (CurrentTime - LastParticleSytemPoolCleanTime > GNiagaraSystemPoolingCleanTime)
 		{
 			LastParticleSytemPoolCleanTime = CurrentTime;
 			for (TPair<UNiagaraSystem*, FNCPool>& Pair : WorldParticleSystemPools)
 			{
-				Pair.Value.KillUnusedComponents(CurrentTime - GParticleSystemPoolKillUnusedTime, Component->GetAsset());
+				Pair.Value.KillUnusedComponents(CurrentTime - GNiagaraSystemPoolKillUnusedTime, Component->GetAsset());
 			}
 		}
 		
