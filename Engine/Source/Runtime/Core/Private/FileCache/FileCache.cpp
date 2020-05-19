@@ -366,7 +366,7 @@ CacheSlotID FFileCache::AcquireAndLockSlot(FFileCacheHandle* InHandle, CacheLine
 			SlotIndex = SlotInfo.AddDefaulted();
 			check(SlotIndex < CacheSlotCapacity);
 			SlotInfo[SlotIndex].NextSlotIndex = SlotInfo[SlotIndex].PrevSlotIndex = SlotIndex;
-			UE_LOG(LogStreamingFileCache, Log, TEXT("FFileCache grew to %d slots"), SlotInfo.Num());
+			UE_LOG(LogStreamingFileCache, VeryVerbose, TEXT("FFileCache grew to %d slots"), SlotInfo.Num());
 		}
 		else
 		{
