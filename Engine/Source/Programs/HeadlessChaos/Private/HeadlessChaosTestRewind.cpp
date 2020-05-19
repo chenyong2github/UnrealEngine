@@ -839,6 +839,7 @@ namespace ChaosTest {
 
 			//Move particle and rerun
 			Particle->SetX(FVec3(0,0,100));
+			Kinematic->SetX(FVec3(2));
 			for(int Step = RewindStep; Step <= LastStep; ++Step)
 			{
 				if(Step == 8)
