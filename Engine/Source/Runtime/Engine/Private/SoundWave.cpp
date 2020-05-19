@@ -849,8 +849,8 @@ void USoundWave::PostLoad()
 
 			const bool bHasMultipleChunks = GetNumChunks() > 1;
 
-			if ((ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad && bHasMultipleChunks)
-				|| (GIsEditor && ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad) && bHasMultipleChunks)
+			if (((ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad) && bHasMultipleChunks)
+				|| (GIsEditor && (ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)) && bHasMultipleChunks)
 			{
 				IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});
 			}
