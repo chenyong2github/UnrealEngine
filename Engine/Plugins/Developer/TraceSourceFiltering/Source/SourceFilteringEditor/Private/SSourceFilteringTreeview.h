@@ -5,13 +5,14 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/Views/STreeView.h"
 
-#include "STraceSourceFilteringWidget.h"
+class SUserTraceFilteringWidget;
+class IFilterObject;
 
 /** Simple treeview derived widget , main purpose is to implement drag-and-drop capabilities */
 class SSourceFilteringTreeView : public STreeView<TSharedPtr<IFilterObject>>
 {
 public:
-	void Construct(const FArguments& InArgs, TSharedRef<STraceSourceFilteringWidget> InOwner);
+	void Construct(const FArguments& InArgs, TSharedRef<SUserTraceFilteringWidget> InOwner);
 
 protected:
 	/** Begin STreeView<TSharedPtr<IFilterObject>> overrides */
@@ -22,5 +23,5 @@ protected:
 	/** End STreeView<TSharedPtr<IFilterObject>> overrides */
 
 protected:
-	TWeakPtr<STraceSourceFilteringWidget> Owner;
+	TWeakPtr<SUserTraceFilteringWidget> Owner;
 };
