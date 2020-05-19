@@ -803,7 +803,7 @@ void RenderScreenSpaceReflections(
 				View.ViewRect.Width(), View.ViewRect.Height()),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, &View, VertexShader, PixelShader, SSRStencilPrePass](FRHICommandList& RHICmdList)
+			[PassParameters, &View, VertexShader, PixelShader, SSRStencilPrePass, TiledScreenSpaceReflection](FRHICommandList& RHICmdList)
 		{
 			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
@@ -826,6 +826,16 @@ void RenderScreenSpaceReflections(
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
+
+#if PLATFORM_WINDOWS
+			if (IsRHIDeviceAMD())
+			{
+				// Force manual flush to readable to fix GPU crash - this will add a transition to COMMON on D3D12 RHI 'fixing' the GPU crash
+				FRHIUnorderedAccessView* UAV = TiledScreenSpaceReflection->DispatchIndirectParametersBufferUAV->GetRHI();
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, UAV);
+			}
+#endif // PLATFORM_WINDOWS
+
 			RHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
 		});
 	}
