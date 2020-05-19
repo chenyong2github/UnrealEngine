@@ -498,9 +498,9 @@ private:
 	TBitArray<>	IsLoaded;
 
 public:
-	void Init(int32 PackageCount)
+	void Init(int32 SerializedPackageCount)
 	{
-		IsLoaded.Init(false, PackageCount);
+		IsLoaded.Init(false, SerializedPackageCount);
 	}
 
 	int32 NumTracked()
@@ -617,7 +617,8 @@ public:
 	FGlobalImportStore ImportStore;
 	FLoadedPackageStore LoadedPackageStore;
 	FPackageStoreEntry* StoreEntries = nullptr;
-	int32 PackageCount = 0;
+	int32 NextNewPackageIndex = 0;
+	int32 SerializedPackageCount = 0;
 	int32 ScriptArcsCount = 0;
 
 public:
@@ -659,22 +660,24 @@ public:
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreTocFixup);
 
 			int32 PackageByteCount = 0;
-			GlobalMetaAr << PackageCount;
+			GlobalMetaAr << SerializedPackageCount;
 			GlobalMetaAr << PackageByteCount;
+
+			NextNewPackageIndex = SerializedPackageCount;
 
 			StoreEntries = reinterpret_cast<FPackageStoreEntry*>(FMemory::Malloc(PackageByteCount));
 
 			// In-place loading
 			GlobalMetaAr.Serialize(StoreEntries, PackageByteCount);
 
-			LoadedPackageStore.Init(PackageCount);
-			ImportStore.PublicExportToObjectIndex.Reserve(FMath::Min(32768, PackageCount));
-			ImportStore.ObjectIndexToPublicExport.Reserve(FMath::Min(32768, PackageCount));
+			LoadedPackageStore.Init(SerializedPackageCount);
+			ImportStore.PublicExportToObjectIndex.Reserve(FMath::Min(32768, SerializedPackageCount));
+			ImportStore.ObjectIndexToPublicExport.Reserve(FMath::Min(32768, SerializedPackageCount));
 
 			// add 10% slack for temp package names
 			{
 				FScopeLock Lock(&PackageNameToPackageIdCritical);
-				PackageNameToPackageId.Reserve(PackageCount + PackageCount / 10);
+				PackageNameToPackageId.Reserve(SerializedPackageCount + SerializedPackageCount / 10);
 			}
 		}
 
@@ -884,7 +887,7 @@ public:
 			}
 		}
 
-		for (int I = 0; I < PackageCount; ++I)
+		for (int I = 0; I < SerializedPackageCount; ++I)
 		{
 			FPackageStoreEntry& StoreEntry = StoreEntries[I];
 
@@ -921,7 +924,11 @@ public:
 	{
 		FPackageId PackageId = FindPackageId(Package->GetFName());
 		check(PackageId.IsValid());
-		LoadedPackageStore.Remove(PackageId);
+		// don't remove temp packages, they are never stored, nothing is importing them
+		if (IsSerializedPackageId(PackageId))
+		{
+			LoadedPackageStore.Remove(PackageId);
+		}
 	}
 
 	void RemovePublicExport(UObject* Object)
@@ -949,14 +956,14 @@ public:
 			return *Id;
 		}
 
-		FPackageId NewId = FPackageId::FromIndex(PackageNameToPackageId.Num());
+		FPackageId NewId = FPackageId::FromIndex(NextNewPackageIndex++);
 		PackageNameToPackageId.Add(Name, NewId);
 		return NewId;
 	}
 
 	inline bool IsSerializedPackageId(FPackageId PackageId)
 	{
-		return PackageId.ToIndex() < (uint32)PackageCount;
+		return PackageId.ToIndex() < (uint32)SerializedPackageCount;
 	}
 
 	inline FPackageStoreEntry* GetGlobalStoreEntries()
@@ -983,12 +990,14 @@ struct FPackageImportStore
 	const FPackageObjectIndex* ImportMap = nullptr;
 	int32 ImportMapCount = 0;
 	FPackageId PackageId;
+	FPackageId PackageIdToLoad;
 
-	FPackageImportStore(FPackageStore& InGlobalPackageStore, const FPackageStoreEntry& InStoreEntry, FPackageId InPackageId)
+	FPackageImportStore(FPackageStore& InGlobalPackageStore, const FPackageStoreEntry& InStoreEntry, FPackageId InPackageId, FPackageId InPackageIdToLoad)
 		: GlobalPackageStore(InGlobalPackageStore)
 		, GlobalImportStore(GlobalPackageStore.ImportStore)
 		, StoreEntry(InStoreEntry)
 		, PackageId(InPackageId)
+		, PackageIdToLoad(InPackageIdToLoad)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(NewPackageImportStore);
 		AddPackageReferences();
@@ -1105,14 +1114,18 @@ private:
 				AddAsyncFlags(ImportedPackageId);
 			}
 		}
-		if (GlobalPackageStore.LoadedPackageStore.AddRef(PackageId))
+		// don't track public exports in temp packages, nothing is importing them
+		if (GlobalPackageStore.IsSerializedPackageId(PackageId))
 		{
-			// should only happen if someone from outside call LoadPackage with an already loaded package
-			// this could be detected already in CreatePackagesFromQueue,
-			// but requires:
-			// - queuing up package callbacks
-			// - handling request ids properly
-			// - calling AddAsyncFlags(PackageId); (now this is done from create/serialize in the async package)
+			if (GlobalPackageStore.LoadedPackageStore.AddRef(PackageIdToLoad))
+			{
+				// should only happen if someone from outside call LoadPackage with an already loaded package
+				// this could be detected already in CreatePackagesFromQueue,
+				// but requires:
+				// - queuing up package callbacks
+				// - handling request ids properly
+				// - calling AddAsyncFlags(PackageId); (now this is done from create/serialize in the async package)
+			}
 		}
 	}
 
@@ -1125,10 +1138,14 @@ private:
 				ClearAsyncFlags(ImportedPackageId);
 			}
 		}
-		// clear own reference, and possible all async flags if no remaining ref count
-		if (GlobalPackageStore.LoadedPackageStore.ReleaseRef(PackageId))
+		// don't track public exports in temp packages, nothing is importing them
+		if (GlobalPackageStore.IsSerializedPackageId(PackageId))
 		{
-			ClearAsyncFlags(PackageId);
+			// clear own reference, and possible all async flags if no remaining ref count
+			if (GlobalPackageStore.LoadedPackageStore.ReleaseRef(PackageIdToLoad))
+			{
+				ClearAsyncFlags(PackageIdToLoad);
+			}
 		}
 	}
 };
@@ -2455,7 +2472,7 @@ void FAsyncLoadingThread2::InitializeLoading()
 	AsyncThreadReady.Increment();
 
 	UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - Initialized: Packages: %d, Script objects %d, FNames: %d"),
-		GlobalPackageStore.PackageCount,
+		GlobalPackageStore.SerializedPackageCount,
 		GlobalPackageStore.ImportStore.ScriptObjects.Num(),
 		GlobalNameMap.GetNameEntries().Num());
 }
@@ -4690,7 +4707,7 @@ FAsyncPackage2::FAsyncPackage2(
 , LoadPercentage(0)
 , AsyncLoadingThread(InAsyncLoadingThread)
 , GraphAllocator(InGraphAllocator)
-, ImportStore(AsyncLoadingThread.GlobalPackageStore, StoreEntry, Desc.PackageIdToLoad)
+, ImportStore(AsyncLoadingThread.GlobalPackageStore, StoreEntry, Desc.PackageId, Desc.PackageIdToLoad)
 , AsyncPackageLoadingState(EAsyncPackageLoadingState2::NewPackage)
 , bAllExportsSerialized(false)
 {
@@ -4799,6 +4816,7 @@ void FAsyncPackage2::ClearImportedPackages()
 void FAsyncPackage2::ClearOwnedObjects()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ClearOwnedObjects);
+	const bool bIsTempPackage = !AsyncLoadingThread.GlobalPackageStore.IsSerializedPackageId(Desc.PackageId);
 	for (UObject* Object : OwnedObjects)
 	{
 		const EObjectFlags Flags = Object->GetFlags();
@@ -4809,8 +4827,8 @@ void FAsyncPackage2::ClearOwnedObjects()
 		const bool bPackage = !Object->GetOuter();
 		const bool bIsDisregardForGC = GUObjectArray.IsDisregardForGC(Object);
 
-		// the async flag of all garbage collectable public export objects are handled by FGlobalImportStore
-		const bool bShouldClearAsync = bAsync && (bPackage || bPrivate || bIsDisregardForGC);
+		// the async flag of all garbage collectable public export objects in non-temp packages are handled by FGlobalImportStore
+		const bool bShouldClearAsync = bAsync && (bIsTempPackage || bPackage || bPrivate || bIsDisregardForGC);
 
 		EInternalObjectFlags InternalFlagsToClear = EInternalObjectFlags::None;
 
