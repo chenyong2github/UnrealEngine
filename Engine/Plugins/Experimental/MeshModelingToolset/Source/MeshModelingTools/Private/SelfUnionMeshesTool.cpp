@@ -271,6 +271,8 @@ TUniquePtr<FDynamicMeshOperator> USelfUnionMeshesTool::MakeNewOperator()
 	TUniquePtr<FSelfUnionMeshesOp> Op = MakeUnique<FSelfUnionMeshesOp>();
 	
 	Op->bAttemptFixHoles = Properties->bAttemptFixHoles;
+	Op->WindingNumberThreshold = Properties->WindingNumberThreshold;
+	Op->bTrimOuterFlaps = Properties->bTrimOuterFlaps;
 
 	Op->SetResultTransform(FTransform3d::Identity()); // TODO Center the combined meshes (when building them) and change this transform accordingly
 	Op->CombinedMesh = CombinedSourceMeshes;
