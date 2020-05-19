@@ -16,7 +16,7 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #endif
 
-static int32 CullSoundWaveHardReferencesCvar = 1;
+static int32 CullSoundWaveHardReferencesCvar = 0;
 FAutoConsoleVariableRef CVarCullSoundWaveHardReferences(
 	TEXT("au.CullSoundWaveHardReferences"),
 	CullSoundWaveHardReferencesCvar,
