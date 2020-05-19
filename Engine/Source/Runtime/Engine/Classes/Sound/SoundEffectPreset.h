@@ -56,12 +56,14 @@ protected:
 
 	// Array of instances which are using this preset
 	TArray<TSoundEffectWeakPtr> Instances;
+	FCriticalSection InstancesMutationCriticalSection;
 	bool bInitialized;
 
 	/* Immediately executes command for each active effect instance on the active thread */
 	template <typename T>
 	void IterateEffects(TFunction<void(T&)> InForEachEffect)
 	{
+		FScopeLock ScopeLock(&InstancesMutationCriticalSection);
 		for (TSoundEffectWeakPtr& Instance : Instances)
 		{
 			TSoundEffectPtr EffectStrongPtr = Instance.Pin();
