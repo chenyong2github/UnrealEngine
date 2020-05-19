@@ -284,6 +284,11 @@ public:
 	/** Set whether to delete keys that fall beyond the section range when trimming */
 	void SetDeleteKeysWhenTrimming(bool bInDeleteKeysWhenTrimming);
 
+	/** @return true if disable sections when baking */
+	bool GetDisableSectionsAfterBaking() const;
+	/** Set whether to disable sections when baking, as opposed to deleting */
+	void SetDisableSectionsAfterBaking(bool bInDisableSectionsAfterBaking);
+
 	/** @return Whether to playback in clean mode (game view, hide viewport UI) */
 	bool GetCleanPlaybackMode() const;
 	/** Toggle whether to playback in clean mode */
@@ -493,6 +498,10 @@ protected:
 	/** Enable or disable deleting keys that fall beyond the section range when trimming. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bDeleteKeysWhenTrimming;
+
+	/** Whether to disable sections after baking as opposed to deleting. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	bool bDisableSectionsAfterBaking;
 
 	/** When enabled, sequencer will playback in clean mode (game view, hide viewport UI) */
 	UPROPERTY(config, EditAnywhere, Category = General)
