@@ -297,7 +297,8 @@ float3 SampleAreaLightDirection(
 		}
 		else
 		{
-			GenerateSphereLightOcclusionRay(
+			//GenerateSphereLightOcclusionRayWithAreaSampling(
+			GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
 				WorldPosition, WorldNormal,
 				RandSample,
