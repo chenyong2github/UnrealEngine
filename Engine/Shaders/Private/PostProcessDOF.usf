@@ -67,7 +67,7 @@ float4 ReadFullResAndDepth(float2 UV, in out float Depth)
 {
 	float4 Color = Texture2DSampleLevel(PostprocessInput0, PostprocessInput0Sampler, UV, 0);
 #if MOBILE_SHADING
-	Depth = Color.a;
+	Depth = ConvertFromDeviceZ(Color.a);
 #endif
 	Color.a = 1.0;
 	return Color;
@@ -198,6 +198,7 @@ void MainRecombinePS(
 
 #if MOBILE_SHADING
 	float4 SceneColorAndDepth = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, FullResUV);
+	SceneColorAndDepth.a = ConvertFromDeviceZ(SceneColorAndDepth.a);
 #else
 	float4 SceneColorAndDepth = float4(Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, FullResUV).rgb, CalcSceneDepth(FullResUV));
 #endif

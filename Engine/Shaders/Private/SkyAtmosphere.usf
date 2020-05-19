@@ -315,10 +315,6 @@ void UvToSkyViewLutParams(out float3 ViewDir, in float ViewHeight, in float2 UV)
 #define ViewOneOverPreExposure 1.0f
 #endif
 
-#define NearDepthValue (HAS_INVERTED_Z_BUFFER ? 1.0f : 0.0f)
-#define FarDepthValue  (HAS_INVERTED_Z_BUFFER ? 0.0f : 1.0f)
-
-
 
 SamplerState TransmittanceLutTextureSampler;
 SamplerState MultiScatteredLuminanceLutTextureSampler;
