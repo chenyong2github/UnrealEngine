@@ -313,11 +313,6 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 		CHAOS_COLLISION_STAT(StatData.Print());
 	}
 
-	if (CollisionModifierCallback)
-	{
-		CollisionConstraints.ApplyCollisionModifier(CollisionModifierCallback);
-	}
-
 	if (PostDetectCollisionsCallback != nullptr)
 	{
 		PostDetectCollisionsCallback();
@@ -326,6 +321,11 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_PrepareConstraints);
 		PrepareIteration(Dt);
+	}
+
+	if (CollisionModifierCallback)
+	{
+		CollisionConstraints.ApplyCollisionModifier(CollisionModifierCallback);
 	}
 
 	{
