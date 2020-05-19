@@ -29,12 +29,9 @@ namespace AudioModulation
 		virtual ~FAudioModulation() = default;
 
 		//~ Begin IAudioModulation implementation
-		virtual float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) override;
-
 		virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) override;
-		virtual void OnBeginAudioRenderThreadUpdate() override;
 		virtual void OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings) override;
-		virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) override;
+		virtual void OnInitSource(const uint32 SourceId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) override;
 
 #if !UE_BUILD_SHIPPING
 		virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) override;
@@ -45,7 +42,7 @@ namespace AudioModulation
 		virtual void OnReleaseSound(ISoundModulatable& Sound) override;
 		virtual void OnReleaseSource(const uint32 SourceId) override;
 		virtual bool ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) override;
-		virtual void ProcessModulators(const float Elapsed) override;
+		virtual void ProcessModulators(const double InElapsed) override;
 
 		virtual void UpdateModulator(const USoundModulatorBase& InModulator) override;
 		//~ End IAudioModulation implementation
@@ -57,9 +54,9 @@ namespace AudioModulation
 		FAudioModulationSystem* GetModulationSystem();
 
 	protected:
-		virtual bool RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase) override;
-		virtual bool RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId) override;
-		virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) override;
+		virtual Audio::FModulatorTypeId RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase) override;
+		virtual void RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId) override;
+		virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const override;
 		virtual void UnregisterModulator(const Audio::FModulatorHandle& InHandle) override;
 
 	private:

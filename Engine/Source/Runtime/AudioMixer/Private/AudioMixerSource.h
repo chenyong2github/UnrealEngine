@@ -67,9 +67,6 @@ namespace Audio
 		/** Frees any resources for this sound source. */
 		void FreeResources();
 
-		/** Updates modulation parameters set from the modulation plugin. */
-		void UpdateModulation();
-
 		/** Updates the pitch parameter set from the game thread. */
 		void UpdatePitch();
 		

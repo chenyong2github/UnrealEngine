@@ -419,8 +419,6 @@ namespace Audio
 
 		++TickCount;
 
-		UpdateModulation();
-
 		UpdatePitch();
 
 		UpdateVolume();
@@ -811,7 +809,6 @@ namespace Audio
 		bIsDone = true;
 	}
 
-
 	void FMixerSource::OnEffectTailsDone()
 	{
 		bIsEffectTailsDone = true;
@@ -860,19 +857,6 @@ namespace Audio
 		ChannelMap.Reset();
 
 		InitializationState = EMixerSourceInitializationState::NotInitialized;
-	}
-
-	void FMixerSource::UpdateModulation()
-	{
-		check(AudioDevice);
-		check(MixerSourceVoice);
-		check(WaveInstance);
-
-		if (AudioDevice->IsModulationPluginEnabled())
-		{
-			const int32 SourceId = MixerSourceVoice->GetSourceId();
-			AudioDevice->ModulationInterface->ProcessControls(SourceId, WaveInstance->SoundModulationControls);
-		}
 	}
 
 	void FMixerSource::UpdatePitch()
