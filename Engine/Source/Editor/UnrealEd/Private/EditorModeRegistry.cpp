@@ -93,18 +93,13 @@ void FEditorModeRegistry::Initialize()
 
 	RegisterMode<FEdModeInterpEdit>(FBuiltinEditorModes::EM_InterpEdit);
 
-	// Load editor mode modules that will automatically register their editor modes, and clean themselves up on unload.
-	//@TODO: ROCKET: These are probably good plugin candidates, that shouldn't have to be force-loaded here but discovery loaded somehow
-	FCoreDelegates::OnPostEngineInit.AddLambda([]()
-	{
-		FModuleManager::LoadModuleChecked<IPlacementModeModule>(TEXT("PlacementMode"));
-		FModuleManager::LoadModuleChecked<FActorPickerModeModule>(TEXT("ActorPickerMode"));
-		FModuleManager::LoadModuleChecked<FSceneDepthPickerModeModule>(TEXT("SceneDepthPickerMode"));
-		FModuleManager::LoadModuleChecked<IMeshPaintModule>(TEXT("MeshPaintMode"));
-		FModuleManager::LoadModuleChecked<ILandscapeEditorModule>(TEXT("LandscapeEditor"));
-		FModuleManager::LoadModuleChecked<IFoliageEditModule>(TEXT("FoliageEdit"));
-		FModuleManager::LoadModuleChecked<IVirtualTexturingEditorModule>(TEXT("VirtualTexturingEditor"));
-	});
+	FModuleManager::LoadModuleChecked<IPlacementModeModule>(TEXT("PlacementMode"));
+	FModuleManager::LoadModuleChecked<FActorPickerModeModule>(TEXT("ActorPickerMode"));
+	FModuleManager::LoadModuleChecked<FSceneDepthPickerModeModule>(TEXT("SceneDepthPickerMode"));
+	FModuleManager::LoadModuleChecked<IMeshPaintModule>(TEXT("MeshPaintMode"));
+	FModuleManager::LoadModuleChecked<ILandscapeEditorModule>(TEXT("LandscapeEditor"));
+	FModuleManager::LoadModuleChecked<IFoliageEditModule>(TEXT("FoliageEdit"));
+	FModuleManager::LoadModuleChecked<IVirtualTexturingEditorModule>(TEXT("VirtualTexturingEditor"));
 
 	bInitialized = true;
 }
