@@ -8,11 +8,7 @@ public class WinHttp : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicSystemLibraries.Add("winhttp.lib");
-		}
+		PublicSystemLibraries.Add("winhttp.lib");
+		PublicDefinitions.Add("WITH_WINHTTP=1");
 	}
 }
-
