@@ -1016,19 +1016,19 @@ SIZE_T FPhysInterface_Chaos::GetResourceSizeEx(const FPhysicsActorHandle& InActo
 }
 	
 // Constraints
-FPhysicsConstraintReference_Chaos FPhysInterface_Chaos::CreateConstraint(const FPhysicsActorHandle& InActorRef1, const FPhysicsActorHandle& InActorRef2, const FTransform& InLocalFrame1, const FTransform& InLocalFrame2, FPhysScene* InScene )
+FPhysicsConstraintReference_Chaos FPhysInterface_Chaos::CreateConstraint(const FPhysicsActorHandle& InActorRef1, const FPhysicsActorHandle& InActorRef2, const FTransform& InLocalFrame1, const FTransform& InLocalFrame )
 {
 	FPhysicsConstraintReference_Chaos ConstraintRef;
 #ifdef USE_CHAOS_JOINT_CONSTRAINTS
 	{
-		check(InScene);
+		checkSlow(InActorRef1->GetProxy() != nullptr);
+		checkSlow(InActorRef2->GetProxy() != nullptr);
 
 		LLM_SCOPE(ELLMTag::Chaos);
 		ConstraintRef.ConstraintData = Chaos::FJointConstraint::CreateConstraint(Chaos::FPBDJointSettings()).Release();
 	
-		Chaos::FPhysicsSolver* Solver = InScene->Scene.GetSolver();
-		check(Solver);
-
+		Chaos::FPhysicsSolver* Solver = InActorRef1->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
+		checkSlow(Solver == InActorRef2->GetProxy()->GetSolver<Chaos::FPhysicsSolver>());
 		Solver->RegisterObject(ConstraintRef.ConstraintData);
 	}
 #endif // USE_CHAOS_JOINT_CONSTRAINTS
