@@ -106,8 +106,16 @@ protected:
 	IToolsContextTransactionsAPI* TransactionAPI;
 	IToolsContextAssetAPI* AssetAPI;
 
-	// if true, we invalidate the ViewportClient on next tick
-	bool bInvalidationPending;
+	FEditorViewportClient* GetActiveViewportClient();
+
+	// Tools need to be able to Invalidate the view, in case it is not Realtime.
+	// Currently we do this very aggressively, and also force Realtime to be on, but in general we should be able to rely on Invalidation.
+	// However there are multiple Views and we do not want to Invalidate immediately, so we store a timestamp for each
+	// ViewportClient, and invalidate it when we see it if it's timestamp is out-of-date.
+	// (In theory this map will continually grow as new Viewports are created...)
+	TMap<FViewportClient*, int32> InvalidationMap;
+	// current invalidation timestamp, incremented by invalidation calls
+	int32 InvalidationTimestamp = 0;
 
 	/** Input event instance used to keep track of various button states, etc, that we cannot directly query on-demand */
 	FInputDeviceState CurrentMouseState;
