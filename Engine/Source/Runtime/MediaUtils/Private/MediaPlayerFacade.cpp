@@ -98,6 +98,8 @@ FMediaPlayerFacade::FMediaPlayerFacade()
 	, AudioSampleAvailability(-1)
 {
 	MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
+	bIsSinkFlushPending = false;
+	bDidRecentPlayerHaveError = false;
 }
 
 
@@ -243,6 +245,7 @@ void FMediaPlayerFacade::Close()
 	VideoSampleAvailability = -1;
 	AudioSampleAvailability = -1;
 	bIsSinkFlushPending = false;
+	bDidRecentPlayerHaveError = false;
 
 	FlushSinks();
 }
@@ -567,7 +570,7 @@ bool FMediaPlayerFacade::HasError() const
 	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Player);
 	if (!CurrentPlayer.IsValid())
 	{
-		return false;
+		return bDidRecentPlayerHaveError;
 	}
 	return (CurrentPlayer->GetControls().GetState() == EMediaState::Error);
 }
@@ -1155,6 +1158,7 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event)
 			// If player allows: close it down all the way right now
 			if(Player.IsValid() && Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::AllowShutdownOnClose))
 			{
+				bDidRecentPlayerHaveError = HasError();
 				FScopeLock Lock(&CriticalSection);
 				Player.Reset();
 			}
