@@ -14,6 +14,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "GameFramework/WorldSettings.h"
 #include "GeneralProjectSettings.h"
+#include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "IAudioExtensionPlugin.h"
@@ -4241,12 +4242,6 @@ void FAudioDevice::Update(bool bGameTicking)
 
 		// Handle pause/unpause for the game and editor.
 		HandlePause(bGameTicking);
-	}
-
-	if (bModulationInterfaceEnabled)
-	{
-		SCOPED_NAMED_EVENT(FAudioDevice_ProcessModulators, FColor::Blue);
-		ModulationInterface->ProcessModulators(GetDeviceDeltaTime());
 	}
 
 	bool bHasVolumeSettings = false;

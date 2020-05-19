@@ -15,13 +15,41 @@ namespace AudioModulation
 	using FBusId = uint32;
 	extern const FBusId InvalidBusId;
 
-	class FControlBusProxy : public TModulatorProxyRefType<FBusId, FControlBusProxy, USoundControlBusBase>
+	struct FControlBusSettings : public TModulatorBase<FBusId>
+	{
+		bool bBypass;
+		float DefaultValue;
+		float Min;
+		float Max;
+
+		TArray<FModulatorLFOSettings> LFOSettings;
+		ESoundModulatorOperator Operator;
+
+		FControlBusSettings(const USoundControlBusBase& InBus)
+			: TModulatorBase<FBusId>(InBus.GetName(), InBus.GetUniqueID())
+			, bBypass()
+			, DefaultValue(InBus.DefaultValue)
+			, Min(InBus.Min)
+			, Max(InBus.Max)
+			, Operator(InBus.GetOperator())
+		{
+			for (const USoundBusModulatorBase* Modulator : InBus.Modulators)
+			{
+				if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
+				{
+					LFOSettings.Add(*LFO);
+				}
+			}
+		}
+	};
+
+	class FControlBusProxy : public TModulatorProxyRefType<FBusId, FControlBusProxy, FControlBusSettings>
 	{
 	public:
 		FControlBusProxy();
-		FControlBusProxy(const USoundControlBusBase& Bus, FAudioModulationSystem& InModSystem);
+		FControlBusProxy(const FControlBusSettings& InSettings, FAudioModulationSystem& InModSystem);
 
-		FControlBusProxy& operator =(const USoundControlBusBase& InLFO);
+		FControlBusProxy& operator =(const FControlBusSettings& InSettings);
 
 		float GetDefaultValue() const;
 		const TArray<FLFOHandle>& GetLFOHandles() const;
@@ -29,14 +57,13 @@ namespace AudioModulation
 		float GetMixValue() const;
 		FVector2D GetRange() const;
 		float GetValue() const;
-		void InitLFOs(const USoundControlBusBase& InBus);
 		bool IsBypassed() const;
 		void MixIn(const float InValue);
 		void MixLFO();
 		void Reset();
 
 	private:
-		void Init(const USoundControlBusBase& InBus);
+		void Init(const FControlBusSettings& InSettings);
 		float Mix(float ValueA) const;
 
 		float DefaultValue;
@@ -53,5 +80,5 @@ namespace AudioModulation
 	};
 
 	using FBusProxyMap = TMap<FBusId, FControlBusProxy>;
-	using FBusHandle = TProxyHandle<FBusId, FControlBusProxy, USoundControlBusBase>;
+	using FBusHandle = TProxyHandle<FBusId, FControlBusProxy, FControlBusSettings>;
 } // namespace AudioModulation

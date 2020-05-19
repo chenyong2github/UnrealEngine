@@ -10,27 +10,31 @@ namespace AudioModulation
 	const FLFOId InvalidLFOId = INDEX_NONE;
 
 	FModulatorLFOProxy::FModulatorLFOProxy()
-		: Offset(0.0f)
-		, Value(1.0f)
-		, bBypass(0)
 	{
 		LFO.SetFrequency(1.0f);
 		LFO.Start();
 	}
 
-	FModulatorLFOProxy::FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO, FAudioModulationSystem& InModSystem)
-		: TModulatorProxyRefType(InLFO.GetName(), InLFO.GetUniqueID(), InModSystem)
-		, Offset(InLFO.Offset)
-		, Value(1.0f)
-		, bBypass(InLFO.bBypass)
+	FModulatorLFOProxy::FModulatorLFOProxy(const FModulatorLFOSettings& InSettings, FAudioModulationSystem& InModSystem)
+		: TModulatorProxyRefType(InSettings.GetName(), InSettings.GetId(), InModSystem)
 	{
-		Init(InLFO);
+		Init(InSettings);
 	}
 
-	FModulatorLFOProxy& FModulatorLFOProxy::operator =(const USoundBusModulatorLFO& InLFO)
+	FModulatorLFOProxy& FModulatorLFOProxy::operator =(const FModulatorLFOSettings& InSettings)
 	{
-		Init(InLFO);
+		Init(InSettings);
 		return *this;
+	}
+
+	const Audio::FLFO& FModulatorLFOProxy::GetLFO() const
+	{
+		return LFO;
+	}
+
+	float FModulatorLFOProxy::GetOffset() const
+	{
+		return Offset;
 	}
 
 	float FModulatorLFOProxy::GetValue() const
@@ -38,7 +42,7 @@ namespace AudioModulation
 		return Value;
 	}
 
-	void FModulatorLFOProxy::Init(const USoundBusModulatorLFO& InLFO)
+	void FModulatorLFOProxy::Init(const FModulatorLFOSettings& InLFO)
 	{
 		Offset = InLFO.Offset;
 		Value = 1.0f;
@@ -58,11 +62,11 @@ namespace AudioModulation
 		return bBypass != 0;
 	}
 
-	void FModulatorLFOProxy::Update(float InElapsed)
+	void FModulatorLFOProxy::Update(double InElapsed)
 	{
 		if (InElapsed > 0.0f && LFO.GetFrequency() > 0.0f)
 		{
-			const float SampleRate = 1.0f / InElapsed;
+			const float SampleRate = static_cast<float>(1.0 / InElapsed);
 			LFO.SetSampleRate(SampleRate);
 			LFO.Update();
 			Value = LFO.Generate() + Offset;

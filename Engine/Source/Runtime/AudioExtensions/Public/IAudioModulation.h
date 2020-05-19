@@ -27,11 +27,11 @@ struct FSoundModulationControls;
 namespace Audio
 {
 	using FModulatorId = uint32;
-	using FControlModulatorValueMap = TMap<FModulatorId, float>;
+	using FModulatorTypeId = uint8;
 
 	struct AUDIOEXTENSIONS_API FModulatorHandle
 	{
-		FModulatorHandle();
+		FModulatorHandle() = default;
 		FModulatorHandle(IAudioModulation& InModulation, uint32 InParentId, const USoundModulatorBase& InModulatorBase);
 		FModulatorHandle(const FModulatorHandle& InOther);
 		FModulatorHandle(FModulatorHandle&& InOther);
@@ -42,14 +42,16 @@ namespace Audio
 		FModulatorHandle& operator=(FModulatorHandle&& InOther);
 
 		FModulatorId GetId() const;
+		FModulatorTypeId GetTypeId() const;
 		uint32 GetParentId() const;
 		float GetValue(const float InDefaultValue = 1.0f) const;
 		bool IsValid() const;
 
 	private:
-		uint32 ParentId;
-		FModulatorId ModulatorId;
-		IAudioModulation* Modulation;
+		uint32 ParentId = INDEX_NONE;
+		FModulatorTypeId ModulatorTypeId = INDEX_NONE;
+		FModulatorId ModulatorId = INDEX_NONE;
+		IAudioModulation* Modulation = nullptr;
 	};
 } // namespace Audio
 
@@ -207,9 +209,6 @@ public:
 	/** Virtual destructor */
 	virtual ~IAudioModulation() { }
 
-	/** Calculates initial volume to determine if sound is audible using base settings data */
-	virtual float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) { return 1.0f; }
-
 	/** Initialize the modulation plugin with the same rate and number of sources */
 	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }
 
@@ -217,7 +216,7 @@ public:
 	virtual void OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings) { }
 
 	/** Called when a source is assigned to a voice */
-	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) { }
+	virtual void OnInitSource(const uint32 SourceId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) { }
 
 	/** Called when a source is done playing and is released */
 	virtual void OnReleaseSource(const uint32 SourceId) { }
@@ -236,24 +235,21 @@ public:
 	virtual bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }
 #endif //!UE_BUILD_SHIPPING
 
-	/** Run on the audio render thread prior to processing audio */
-	virtual void OnBeginAudioRenderThreadUpdate() { }
-
 	/** Processes audio with the given input and output data structs.*/
 	virtual void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) { }
 
 	/** Processes modulated sound controls, returning whether or not controls were modified and an update is pending. */
 	virtual bool ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) { return false; }
 
-	/** Processes all modulators */
-	virtual void ProcessModulators(const float Elapsed) { }
+	/** Processes all modulators Run on the audio render thread prior to processing audio */
+	virtual void ProcessModulators(const double InElapsed) { }
 
 	virtual void UpdateModulator(const USoundModulatorBase& InModulator) { }
 
 protected:
-	virtual bool RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase) { return false; }
-	virtual bool RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId) { return false; }
-	virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) { return false; }
+	virtual Audio::FModulatorTypeId RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase) { return INDEX_NONE; }
+	virtual void RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId) { }
+	virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const { return false; }
 	virtual void UnregisterModulator(const Audio::FModulatorHandle& InHandle) { }
 
 	friend Audio::FModulatorHandle;
