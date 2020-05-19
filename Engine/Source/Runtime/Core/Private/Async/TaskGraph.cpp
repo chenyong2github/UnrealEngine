@@ -763,13 +763,14 @@ public:
 		TestRandomizedThreads();
 		checkThreadGraph(Task && Queue(QueueIndex).StallRestartEvent); // make sure we are started up
 
+		const bool bExecuteOnRenderThread = (ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) == ENamedThreads::GetRenderThread());
+
 		uint32 PriIndex = ENamedThreads::GetTaskPriority(Task->ThreadToExecuteOn) ? 0 : 1;
 		int32 ThreadToStart = Queue(QueueIndex).StallQueue.Push(Task, PriIndex);
 
 		if (ThreadToStart >= 0)
 		{
 			checkThreadGraph(ThreadToStart == 0);
-			const bool bExecuteOnRenderThread = (ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) == ENamedThreads::GetRenderThread());
 			if (!bExecuteOnRenderThread || GDoRenderThreadWakeupTrigger)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
