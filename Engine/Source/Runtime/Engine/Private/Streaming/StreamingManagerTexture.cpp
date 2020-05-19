@@ -573,13 +573,10 @@ void FRenderAssetStreamingManager::ProcessLevelsToReferenceToStreamedTextures()
 
 			TBitArray<>& LevelIndexUsage = StreamingRenderAsset.LevelIndexUsage;
 
-			if (LevelIndex >= LevelIndexUsage.Num())
+			if (LevelIndex >= (int)(LevelIndexUsage.Num()))
 			{
 				uint32 NumBits = LevelIndex + 1 - LevelIndexUsage.Num();
-				for (uint32 Index = 0; Index < NumBits; ++Index)
-				{
-					LevelIndexUsage.Add(false);
-				}
+				LevelIndexUsage.Add(false, NumBits);
 			}
 
 			LevelIndexUsage[LevelIndex] = true;
