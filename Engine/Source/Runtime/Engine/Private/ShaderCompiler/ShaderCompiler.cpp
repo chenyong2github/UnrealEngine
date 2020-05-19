@@ -4542,6 +4542,11 @@ static FPreLoadFile GGlobalShaderPreLoadFile(*(FString(TEXT("../../../Engine")) 
 
 static const ITargetPlatform* GGlobalShaderTargetPlatform[SP_NumPlatforms] = { nullptr };
 
+static FString GetGlobalShaderCacheOverrideFilename(EShaderPlatform Platform)
+{
+	return FString(TEXT("Engine")) / TEXT("OverrideGlobalShaderCache-") + LegacyShaderPlatformToShaderFormat(Platform).ToString() + TEXT(".bin");
+}
+
 static FString GetGlobalShaderCacheFilename(EShaderPlatform Platform)
 {
 	return FString(TEXT("Engine")) / TEXT("GlobalShaderCache-") + LegacyShaderPlatformToShaderFormat(Platform).ToString() + TEXT(".bin");
@@ -4753,9 +4758,21 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 			{
 				TArray<uint8> GlobalShaderData;
 
+				// Load from the override global shaders first, this allows us to hot reload in cooked / pak builds
+				const bool bAllowOverrideGlobalShaders = !WITH_EDITOR && !UE_BUILD_SHIPPING;
+				if (bAllowOverrideGlobalShaders)
+				{
+					FString OverrideGlobalShaderCacheFilename = GetGlobalShaderCacheOverrideFilename(Platform);
+					FPaths::MakeStandardFilename(OverrideGlobalShaderCacheFilename);
+					bLoadedFromCacheFile = FFileHelper::LoadFileToArray(GlobalShaderData, *OverrideGlobalShaderCacheFilename, FILEREAD_Silent);
+				}
+
 				FString GlobalShaderCacheFilename = FPaths::GetRelativePathToRoot() / GetGlobalShaderCacheFilename(Platform);
 				FPaths::MakeStandardFilename(GlobalShaderCacheFilename);
-				bLoadedFromCacheFile = FFileHelper::LoadFileToArray(GlobalShaderData, *GlobalShaderCacheFilename, FILEREAD_Silent);
+				if (!bLoadedFromCacheFile)
+				{
+					bLoadedFromCacheFile = FFileHelper::LoadFileToArray(GlobalShaderData, *GlobalShaderCacheFilename, FILEREAD_Silent);
+				}
 
 				if (!bLoadedFromCacheFile)
 				{
@@ -4859,6 +4876,34 @@ void CompileGlobalShaderMap(bool bRefreshShaderMap)
 {
 	CompileGlobalShaderMap(GMaxRHIFeatureLevel, bRefreshShaderMap);
 }
+
+void ReloadGlobalShaders()
+{
+	// Flush pending accesses to the existing global shaders.
+	FlushRenderingCommands();
+
+	UMaterialInterface::IterateOverActiveFeatureLevels(
+		[&](ERHIFeatureLevel::Type InFeatureLevel)
+		{
+			auto ShaderPlatform = GShaderPlatformForFeatureLevel[InFeatureLevel];
+			GetGlobalShaderMap(ShaderPlatform)->ReleaseAllSections();
+			CompileGlobalShaderMap(InFeatureLevel, true);
+			VerifyGlobalShaders(ShaderPlatform, false);
+		}
+	);
+
+	// Invalidate global bound shader states so they will be created with the new shaders the next time they are set (in SetGlobalBoundShaderState)
+	for (TLinkedList<FGlobalBoundShaderStateResource*>::TIterator It(FGlobalBoundShaderStateResource::GetGlobalBoundShaderStateList()); It; It.Next())
+	{
+		BeginUpdateResourceRHI(*It);
+	}
+}
+
+static FAutoConsoleCommand CCmdReloadGlobalShaders = FAutoConsoleCommand(
+	TEXT("ReloadGlobalShaders"),
+	TEXT("Reloads the global shaders file"),
+	FConsoleCommandDelegate::CreateStatic(ReloadGlobalShaders)
+);
 
 bool RecompileChangedShadersForPlatform(const FString& PlatformName)
 {

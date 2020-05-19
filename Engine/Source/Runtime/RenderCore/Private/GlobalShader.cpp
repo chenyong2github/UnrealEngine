@@ -360,6 +360,14 @@ void FGlobalShaderMap::Empty()
 	}
 }
 
+void FGlobalShaderMap::ReleaseAllSections()
+{
+	for (auto& It : SectionMap)
+	{
+		It.Value.SafeRelease();
+	}
+}
+
 FShader* FGlobalShaderMap::FindOrAddShader(const FShaderType* ShaderType, int32 PermutationId, FShader* Shader)
 {
 	const FHashedName HashedFilename(ShaderType->GetHashedShaderFilename());
