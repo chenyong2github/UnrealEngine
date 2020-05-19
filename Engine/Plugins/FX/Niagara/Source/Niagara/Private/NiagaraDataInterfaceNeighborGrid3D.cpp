@@ -501,14 +501,13 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 			}
 		}
 
-		InstanceData->WorldBBoxSize = FVector(RT_NumCells.X, RT_NumCells.Y, RT_NumCells.Z) * TmpCellSize;
+		RT_WorldBBoxSize = FVector(RT_NumCells.X, RT_NumCells.Y, RT_NumCells.Z) * TmpCellSize;		 
 	}
-
-
-
-	RT_NumCells = RT_NumCells;
+	
+	InstanceData->CellSize = TmpCellSize;
+	InstanceData->WorldBBoxSize = RT_WorldBBoxSize;
 	InstanceData->MaxNeighborsPerCell = RT_MaxNeighborsPerCell;	
-	RT_WorldBBoxSize = RT_WorldBBoxSize;
+	InstanceData->NumCells = RT_NumCells;
 
 	// @todo-threadsafety. This would be a race but I'm taking a ref here. Not ideal in the long term.
 	// Push Updates to Proxy.

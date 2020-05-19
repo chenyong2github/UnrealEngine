@@ -12,18 +12,18 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid2DCollection"
 
-static const FString NumTilesName(TEXT("NumTiles_"));
+const FString UNiagaraDataInterfaceGrid2DCollection::NumTilesName(TEXT("NumTiles_"));
 
-static const FString GridName(TEXT("Grid_"));
-static const FString OutputGridName(TEXT("OutputGrid_"));
-static const FString SamplerName(TEXT("Sampler_"));
+const FString UNiagaraDataInterfaceGrid2DCollection::GridName(TEXT("Grid_"));
+const FString UNiagaraDataInterfaceGrid2DCollection::OutputGridName(TEXT("OutputGrid_"));
+const FString UNiagaraDataInterfaceGrid2DCollection::SamplerName(TEXT("Sampler_"));
 
 
 // Global VM function names, also used by the shaders code generation methods.
-static const FName SetValueFunctionName("SetGridValue");
-static const FName GetValueFunctionName("GetGridValue");
+const FName UNiagaraDataInterfaceGrid2DCollection::SetValueFunctionName("SetGridValue");
+const FName UNiagaraDataInterfaceGrid2DCollection::GetValueFunctionName("GetGridValue");
 
-static const FName SampleGridFunctionName("SampleGrid");
+const FName UNiagaraDataInterfaceGrid2DCollection::SampleGridFunctionName("SampleGrid");
 
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
@@ -34,16 +34,16 @@ public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{			
 		NumCellsParam.Bind(ParameterMap, *(NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		NumTilesParam.Bind(ParameterMap, *(NumTilesName + ParameterInfo.DataInterfaceHLSLSymbol));
+		NumTilesParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid2DCollection::NumTilesName + ParameterInfo.DataInterfaceHLSLSymbol));
 
 		CellSizeParam.Bind(ParameterMap, *(CellSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
 		WorldBBoxSizeParam.Bind(ParameterMap, *(WorldBBoxSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		GridParam.Bind(ParameterMap, *(GridName + ParameterInfo.DataInterfaceHLSLSymbol));
-		OutputGridParam.Bind(ParameterMap, *(OutputGridName + ParameterInfo.DataInterfaceHLSLSymbol));
+		GridParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid2DCollection::GridName + ParameterInfo.DataInterfaceHLSLSymbol));
+		OutputGridParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid2DCollection::OutputGridName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		SamplerParam.Bind(ParameterMap, *(SamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
+		SamplerParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid2DCollection::SamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -377,7 +377,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	int MaxTilesX = floor(MaxDim / NumCellsX);
 	int MaxTilesY = floor(MaxDim / NumCellsY);
 	int32 MaxAttributes = MaxTilesX * MaxTilesY;
-	if (NumAttributes > MaxAttributes && MaxAttributes > 0)
+	if ((NumAttributes > MaxAttributes && MaxAttributes > 0) || NumAttributes == 0)
 	{
 		UE_LOG(LogNiagara, Error, TEXT("Too many attributes defined on %s... max is %i, num defined is %i"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()), MaxAttributes, NumAttributes);
 		return false;
@@ -705,9 +705,9 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PreStage(FRHICommandList& 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);
 			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);
-		}
+		}			
 		/*
-		#todo(dmp): migrate assets to use this later
+		#todo(dmp): try this
 		else if (ProxyData->CurrentData != NULL && ProxyData->DestinationData != NULL)
 		{
 			// in iteration stages we copy the source to destination

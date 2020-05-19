@@ -12,18 +12,19 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid3DCollection"
 
-static const FString NumTilesName(TEXT("NumTiles_"));
+const FString UNiagaraDataInterfaceGrid3DCollection::NumTilesName(TEXT("NumTiles_"));
 
-static const FString GridName(TEXT("Grid_"));
-static const FString OutputGridName(TEXT("OutputGrid_"));
-static const FString SamplerName(TEXT("Sampler_"));
+const FString UNiagaraDataInterfaceGrid3DCollection::GridName(TEXT("Grid_"));
+const FString UNiagaraDataInterfaceGrid3DCollection::OutputGridName(TEXT("OutputGrid_"));
+const FString UNiagaraDataInterfaceGrid3DCollection::SamplerName(TEXT("Sampler_"));
 
 
 // Global VM function names, also used by the shaders code generation methods.
-static const FName SetValueFunctionName("SetGridValue");
-static const FName GetValueFunctionName("GetGridValue");
+const FName UNiagaraDataInterfaceGrid3DCollection::SetValueFunctionName("SetGridValue");
+const FName UNiagaraDataInterfaceGrid3DCollection::GetValueFunctionName("GetGridValue");
 
-static const FName SampleGridFunctionName("SampleGrid");
+const FName UNiagaraDataInterfaceGrid3DCollection::SampleGridFunctionName("SampleGrid");
+
 
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
@@ -34,16 +35,16 @@ public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{			
 		NumCellsParam.Bind(ParameterMap, *(NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		NumTilesParam.Bind(ParameterMap, *(NumTilesName + ParameterInfo.DataInterfaceHLSLSymbol));
+		NumTilesParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid3DCollection::NumTilesName + ParameterInfo.DataInterfaceHLSLSymbol));
 
 		CellSizeParam.Bind(ParameterMap, *(CellSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
 		WorldBBoxSizeParam.Bind(ParameterMap, *(WorldBBoxSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		GridParam.Bind(ParameterMap, *(GridName + ParameterInfo.DataInterfaceHLSLSymbol));
-		OutputGridParam.Bind(ParameterMap, *(OutputGridName + ParameterInfo.DataInterfaceHLSLSymbol));
+		GridParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid3DCollection::GridName + ParameterInfo.DataInterfaceHLSLSymbol));
+		OutputGridParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid3DCollection::OutputGridName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		SamplerParam.Bind(ParameterMap, *(SamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
+		SamplerParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid3DCollection::SamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -443,7 +444,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
 	int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
 	int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
-	if (NumAttributes > MaxAttributes && MaxAttributes > 0 || NumAttributes == 0)
+	if ((NumAttributes > MaxAttributes && MaxAttributes > 0) || NumAttributes == 0)
 	{
 		UE_LOG(LogNiagara, Error, TEXT("Invalid number of attributes defined on %s... max is %i, num defined is %i"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()), MaxAttributes, NumAttributes);
 		return false;
