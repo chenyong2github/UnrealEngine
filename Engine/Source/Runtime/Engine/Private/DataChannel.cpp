@@ -2413,6 +2413,11 @@ bool UActorChannel::CanStopTicking() const
 
 bool UActorChannel::ProcessQueuedBunches()
 {
+	if (PendingGuidResolves.Num() == 0 && QueuedBunches.Num() == 0)
+	{
+		return true;
+	}
+
 	const uint32 QueueBunchStartCycles = FPlatformTime::Cycles();
 
 	// Try to resolve any guids that are holding up the network stream on this channel
