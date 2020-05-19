@@ -822,7 +822,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 	// Apply the start depth offset after moving to the top of atmosphere for consistency (and to avoid wrong out-of-atmosphere test resulting in black pixels).
 	WorldPos += WorldDir * AerialPerspectiveStartDepthKm;
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = true;
 		Sampling.MinSampleCount = SkyAtmosphere.SampleCountMin;
@@ -879,7 +879,7 @@ void RenderTransmittanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	float3 WorldPos = float3(0.0f, 0.0f, ViewHeight);
 	float3 WorldDir = float3(0.0f, sqrt(1.0f - ViewZenithCosAngle * ViewZenithCosAngle), ViewZenithCosAngle);
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = SkyAtmosphere.TransmittanceSampleCount;
@@ -927,7 +927,7 @@ void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	float3 WorldPos = float3(0.0f, 0.0f, ViewHeight);
 	float3 WorldDir = float3(0.0f, 0.0f, 1.0f);
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = SkyAtmosphere.MultiScatteringSampleCount;
@@ -1068,7 +1068,7 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	}
 
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = true;
 		Sampling.MinSampleCount = SkyAtmosphere.FastSkySampleCountMin;
@@ -1125,7 +1125,7 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	// Select a direction for this thread
 	const float3 SampleDir = UniformSphereSamplesBuffer[LinearIndex].xyz;
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = 10.0f;
@@ -1290,7 +1290,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 	}
 
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = max(1.0f, (float(ThreadId.z) + 1.0f) * SkyAtmosphere.CameraAerialPerspectiveSampleCountPerSlice);
@@ -1332,7 +1332,7 @@ void RenderSkyAtmosphereDebugPS(
 	float2 PixPos = SVPos.xy;
 
 	// Common ray marching input
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = 128.0f;
