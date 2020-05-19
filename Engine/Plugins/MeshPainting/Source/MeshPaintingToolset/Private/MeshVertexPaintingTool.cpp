@@ -93,6 +93,7 @@ void UMeshVertexPaintingTool::Setup()
 	bResultValid = false;
 	bStampPending = false;
 	BrushProperties->RestoreProperties(this);
+	BrushStampIndicator->LineColor = FLinearColor::Green;
 }
 
 
@@ -133,7 +134,7 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		{
 			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
 
-			if (MeshAdapter->IsValid() /*&& bRenderVertices*/ && MeshAdapter->SupportsVertexPaint())
+			if (MeshAdapter->IsValid() && MeshAdapter->SupportsVertexPaint())
 			{
 				const FMatrix ComponentToWorldMatrix = MeshAdapter->GetComponentToWorldMatrix();
 				FViewCameraState CameraState;
