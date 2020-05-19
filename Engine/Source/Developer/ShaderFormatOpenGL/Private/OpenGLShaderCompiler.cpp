@@ -1230,8 +1230,21 @@ FGlslCodeBackend* FOpenGLFrontend::CreateBackend(GLSLVersion Version, uint32 CCF
 	return new FGlslCodeBackend(CCFlags, HlslCompilerTarget);
 }
 
+class FGlsl430LanguageSpec : public FGlslLanguageSpec
+{
+public:
+	FGlsl430LanguageSpec(bool bInDefaultPrecisionIsHalf)
+		: FGlslLanguageSpec(bInDefaultPrecisionIsHalf)
+	{}
+	virtual bool EmulateStructuredWithTypedBuffers() const override { return false; }
+};
+
 FGlslLanguageSpec* FOpenGLFrontend::CreateLanguageSpec(GLSLVersion Version, bool bDefaultPrecisionIsHalf)
 {
+	if (Version == GLSL_430)
+	{
+		return new FGlsl430LanguageSpec(bDefaultPrecisionIsHalf);
+	}
 	return new FGlslLanguageSpec(bDefaultPrecisionIsHalf);
 }
 
