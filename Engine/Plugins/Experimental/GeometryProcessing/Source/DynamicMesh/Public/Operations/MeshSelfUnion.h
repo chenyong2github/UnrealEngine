@@ -45,7 +45,7 @@ public:
 	double WindingThreshold = .5;
 
 	/** Whether to remove visible "open" geometry */
-	bool bTrimOuterFlaps = false;
+	bool bTrimFlaps = false;
 
 
 	/** Set this to be able to cancel running operation */
