@@ -110,6 +110,9 @@ public:
 
 	void Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
+		// This sets up the materials...
+		CollisionConstraints.PrepareIteration(Dt);
+
 		CollisionConstraints.Apply(Dt, InConstraintHandles, It, NumIts);
 	}
 
