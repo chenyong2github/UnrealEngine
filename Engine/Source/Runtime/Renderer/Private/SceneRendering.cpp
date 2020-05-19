@@ -1039,6 +1039,105 @@ void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShade
 	check(ViewUniformShaderParameters.SobolSamplingTexture);
 }
 
+/*************************************************************************************************************
+ * Content copied from PrecomputedVolumetricLightmap.h for 4.25 hotfix since we can not touch public headers
+ * Please delete when merged back to Dev-Rendering
+ *************************************************************************************************************/
+struct FVolumetricLightmapBrickTextureSet
+{
+	FIntVector BrickDataDimensions;
+
+	FVolumetricLightmapDataLayer AmbientVector;
+	FVolumetricLightmapDataLayer SHCoefficients[6];
+	FVolumetricLightmapDataLayer SkyBentNormal;
+	FVolumetricLightmapDataLayer DirectionalLightShadowing;
+
+	template<class VolumetricLightmapBrickDataType> // Can be either FVolumetricLightmapBrickData or FVolumetricLightmapBrickTextureSet
+	void Initialize(FIntVector InBrickDataDimensions, VolumetricLightmapBrickDataType& BrickData)
+	{
+		BrickDataDimensions = InBrickDataDimensions;
+
+		AmbientVector.Format = BrickData.AmbientVector.Format;
+		SkyBentNormal.Format = BrickData.SkyBentNormal.Format;
+		DirectionalLightShadowing.Format = BrickData.DirectionalLightShadowing.Format;
+
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].Format = BrickData.SHCoefficients[i].Format;
+		}
+
+		AmbientVector.CreateTargetTexture(BrickDataDimensions);
+		AmbientVector.CreateUAV();
+
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].CreateTargetTexture(BrickDataDimensions);
+			SHCoefficients[i].CreateUAV();
+		}
+
+		if (BrickData.SkyBentNormal.Texture.IsValid())
+		{
+			SkyBentNormal.CreateTargetTexture(BrickDataDimensions);
+			SkyBentNormal.CreateUAV();
+		}
+
+		DirectionalLightShadowing.CreateTargetTexture(BrickDataDimensions);
+		DirectionalLightShadowing.CreateUAV();
+	}
+
+	void Release()
+	{
+		AmbientVector.Texture.SafeRelease();
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].Texture.SafeRelease();
+		}
+		SkyBentNormal.Texture.SafeRelease();
+		DirectionalLightShadowing.Texture.SafeRelease();
+
+		AmbientVector.UAV.SafeRelease();
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].UAV.SafeRelease();
+		}
+		SkyBentNormal.UAV.SafeRelease();
+		DirectionalLightShadowing.UAV.SafeRelease();
+	}
+};
+
+class ENGINE_API FVolumetricLightmapBrickAtlas : public FRenderResource
+{
+public:
+	FVolumetricLightmapBrickAtlas();
+
+	FVolumetricLightmapBrickTextureSet TextureSet;
+
+	virtual void ReleaseRHI() override;
+
+	struct Allocation
+	{
+		// The data being allocated, as an identifier for the entry
+		class FPrecomputedVolumetricLightmapData* Data = nullptr;
+
+		int32 Size = 0;
+		int32 StartOffset = 0;
+	};
+
+	TArray<Allocation> Allocations;
+
+	void Insert(int32 Index, FPrecomputedVolumetricLightmapData* Data);
+	void Remove(FPrecomputedVolumetricLightmapData* Data);
+
+private:
+	bool bInitialized;
+	int32 PaddedBrickSize;
+};
+
+extern ENGINE_API TGlobalResource<FVolumetricLightmapBrickAtlas> GVolumetricLightmapBrickAtlas;
+/*************************************************************************************************************
+ * Content copied from PrecomputedVolumetricLightmap.h end
+ *************************************************************************************************************/
+
 void SetupPrecomputedVolumetricLightmapUniformBufferParameters(const FScene* Scene, FEngineShowFlags EngineShowFlags, FViewUniformShaderParameters& ViewUniformShaderParameters)
 {
 	if (Scene && Scene->VolumetricLightmapSceneData.GetLevelVolumetricLightmap() && EngineShowFlags.VolumetricLightmap)
@@ -1046,21 +1145,21 @@ void SetupPrecomputedVolumetricLightmapUniformBufferParameters(const FScene* Sce
 		const FPrecomputedVolumetricLightmapData* VolumetricLightmapData = Scene->VolumetricLightmapSceneData.GetLevelVolumetricLightmap()->Data;
 
 		ViewUniformShaderParameters.VolumetricLightmapIndirectionTexture = OrBlack3DUintIfNull(VolumetricLightmapData->IndirectionTexture.Texture);
-		ViewUniformShaderParameters.VolumetricLightmapBrickAmbientVector = OrBlack3DIfNull(VolumetricLightmapData->BrickData.AmbientVector.Texture);
-		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients0 = OrBlack3DIfNull(VolumetricLightmapData->BrickData.SHCoefficients[0].Texture);
-		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients1 = OrBlack3DIfNull(VolumetricLightmapData->BrickData.SHCoefficients[1].Texture);
-		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients2 = OrBlack3DIfNull(VolumetricLightmapData->BrickData.SHCoefficients[2].Texture);
-		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients3 = OrBlack3DIfNull(VolumetricLightmapData->BrickData.SHCoefficients[3].Texture);
-		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients4 = OrBlack3DIfNull(VolumetricLightmapData->BrickData.SHCoefficients[4].Texture);
-		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients5 = OrBlack3DIfNull(VolumetricLightmapData->BrickData.SHCoefficients[5].Texture);
-		ViewUniformShaderParameters.SkyBentNormalBrickTexture = OrBlack3DIfNull(VolumetricLightmapData->BrickData.SkyBentNormal.Texture);
-		ViewUniformShaderParameters.DirectionalLightShadowingBrickTexture = OrBlack3DIfNull(VolumetricLightmapData->BrickData.DirectionalLightShadowing.Texture);
+		ViewUniformShaderParameters.VolumetricLightmapBrickAmbientVector = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.AmbientVector.Texture);
+		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients0 = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[0].Texture);
+		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients1 = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[1].Texture);
+		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients2 = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[2].Texture);
+		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients3 = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[3].Texture);
+		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients4 = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[4].Texture);
+		ViewUniformShaderParameters.VolumetricLightmapBrickSHCoefficients5 = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[5].Texture);
+		ViewUniformShaderParameters.SkyBentNormalBrickTexture = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.SkyBentNormal.Texture);
+		ViewUniformShaderParameters.DirectionalLightShadowingBrickTexture = OrBlack3DIfNull(GVolumetricLightmapBrickAtlas.TextureSet.DirectionalLightShadowing.Texture);
 
 		const FBox VolumeBounds = VolumetricLightmapData->GetBounds();
 		const FVector VolumeSize = VolumeBounds.GetSize();
 		const FVector InvVolumeSize = VolumeSize.Reciprocal();
 
-		const FVector BrickDimensions(VolumetricLightmapData->BrickDataDimensions);
+		const FVector BrickDimensions(GVolumetricLightmapBrickAtlas.TextureSet.BrickDataDimensions);
 		const FVector InvBrickDimensions = BrickDimensions.Reciprocal();
 
 		ViewUniformShaderParameters.VolumetricLightmapWorldToUVScale = InvVolumeSize;
