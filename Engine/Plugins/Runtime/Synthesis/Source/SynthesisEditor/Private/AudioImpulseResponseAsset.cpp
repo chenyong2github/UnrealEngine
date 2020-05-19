@@ -16,16 +16,6 @@ UClass* FAssetTypeActions_AudioImpulseResponse::GetSupportedClass() const
 	return UAudioImpulseResponse::StaticClass();
 }
 
-const TArray<FText>& FAssetTypeActions_AudioImpulseResponse::GetSubMenus() const
-{
-	static const TArray<FText> SubMenus
-	{
-		FText(LOCTEXT("AssetConvolutionReverbSubmenu", "Effects"))
-	};
-
-	return SubMenus;
-}
-
 void FAudioImpulseResponseExtension::RegisterMenus()
 {
 	if (!UToolMenus::IsToolMenuUIEnabled())
