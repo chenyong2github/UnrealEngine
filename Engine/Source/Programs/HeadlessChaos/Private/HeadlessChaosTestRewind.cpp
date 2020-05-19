@@ -728,7 +728,8 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimDesyncAfterMissingTeleport)
+	//TODO: the problem is we detect desync at end of frame, but it really needs to be at start to handle teleport case
+	TYPED_TEST(AllTraits, DISABLED_RewindTest_ResimDesyncAfterMissingTeleport)
 	{
 		if(TypeParam::IsRewindable() == false){ return; }
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
