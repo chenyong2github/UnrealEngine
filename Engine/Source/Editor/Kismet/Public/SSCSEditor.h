@@ -111,6 +111,10 @@ public:
 	 */
 	FSCSEditorActorNodePtrType GetActorRootNode() const { return ActorRootNodePtr; }
 	/**
+	 * Sets the actor root to the given node for this node along with any children.
+	 */
+	void SetActorRootNode(FSCSEditorActorNodePtrType InActorNode);
+	/**
 	 * @return Type of node
 	 */
 	ENodeType GetNodeType() const;
@@ -599,6 +603,9 @@ public:
 		SetObject(InActor);
 	}
 
+	FSCSEditorTreeNodePtrType GetOwnerNode() const;
+	void SetOwnerNode(FSCSEditorTreeNodePtrType NewOwnerNode);
+
 	FSCSEditorTreeNodePtrType GetSceneRootNode() const;
 	void SetSceneRootNode(FSCSEditorTreeNodePtrType NewSceneRootNode);
 
@@ -618,6 +625,9 @@ protected:
 	using Super = FSCSEditorTreeNode;
 
 private:
+	/** The actor's subtree owner (if valid) */
+	FSCSEditorTreeNodePtrType OwnerNodePtr;
+	/** The actor's scene root node (if valid) */
 	FSCSEditorTreeNodePtrType SceneRootNodePtr;
 	/** Root set of components (contains the root scene component and any non-scene component nodes) */
 	TArray<FSCSEditorTreeNodePtrType> ComponentNodes;
@@ -648,9 +658,8 @@ private:
 class KISMET_API FSCSEditorTreeNodeChildActor : public FSCSEditorTreeNodeActorBase
 {
 public:
-	FSCSEditorTreeNodeChildActor(FSCSEditorTreeNodePtrType InOwner, AActor* InActor)
+	FSCSEditorTreeNodeChildActor(AActor* InActor)
 		: FSCSEditorTreeNodeActorBase(FSCSEditorTreeNode::ChildActorNode, InActor)
-		, OwnerNode(InOwner)
 	{
 	}
 
@@ -658,11 +667,7 @@ public:
 	virtual bool IsFlaggedForFiltration() const override;
 	// End of FSCSEditorTreeNode public interface
 
-	bool ShouldShowInTreeView() const;
 	UChildActorComponent* GetChildActorComponent() const;
-
-private:
-	FSCSEditorTreeNodePtrType OwnerNode;
 };
 
 class KISMET_API FSCSEditorTreeNodeSeparator : public FSCSEditorTreeNode
