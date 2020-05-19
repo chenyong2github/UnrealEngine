@@ -104,6 +104,43 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 		PropertyRowGenerator->OnRowsRefreshed().AddUObject(this, &UNiagaraStackObject::PropertyRowsRefreshed);
 	}
 
+	// TODO: Handle this in a more generic way.  Maybe add error apis to UNiagaraMergable, or use a UObject interface, or create a
+	// data interface specific implementation of UNiagaraStackObject.
+	UNiagaraDataInterface* DataInterfaceObject = Cast<UNiagaraDataInterface>(Object);
+	if (DataInterfaceObject != nullptr)
+	{
+		// First we need to refresh the errors on the data interface so that the rows in the property row generator 
+		// are correct.  We need to remove the delegate handler first so that we don't cause a reentrant refresh.
+		// This can be updated to use a guard value post 4.25.
+		PropertyRowGenerator->OnRowsRefreshed().RemoveAll(this);
+		DataInterfaceObject->RefreshErrors();
+		PropertyRowGenerator->OnRowsRefreshed().AddUObject(this, &UNiagaraStackObject::PropertyRowsRefreshed);
+
+		// Generate the summary stack issue for any errors which are generated.
+		TArray<FNiagaraDataInterfaceError> Errors;
+		TArray<FNiagaraDataInterfaceFeedback> Warnings, Info;
+		UNiagaraDataInterface::GetFeedback(DataInterfaceObject, Errors, Warnings, Info);
+		if (Errors.Num() > 0)
+		{
+			NewIssues.Add(FStackIssue(
+				EStackIssueSeverity::Error,
+				NSLOCTEXT("StackObject", "ObjectErrorsShort", "Object has errors"),
+				NSLOCTEXT("StackObject", "ObjectErrorsLong", "The displayed object has errors.  Check the object properties or the message log for details."),
+				GetStackEditorDataKey(),
+				false));
+		}
+		if (Warnings.Num() > 0)
+		{
+			NewIssues.Add(FStackIssue(
+				EStackIssueSeverity::Warning,
+				NSLOCTEXT("StackObject", "ObjectWarningsShort", "Object has warnings"),
+				NSLOCTEXT("StackObject", "ObjectWarningsLong", "The displayed object has warnings.  Check the object properties or the message log for details."),
+				GetStackEditorDataKey(),
+				false));
+		}
+	}
+
+
 	TArray<TSharedRef<IDetailTreeNode>> DefaultRootTreeNodes = PropertyRowGenerator->GetRootTreeNodes();
 	TArray<TSharedRef<IDetailTreeNode>> RootTreeNodes;
 	if (OnSelectRootNodesDelegate.IsBound())
@@ -133,45 +170,11 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 
 		NewChildren.Add(ChildRow);
 	}
-
-	// TODO: Handle this in a more generic way.  Maybe add error apis to UNiagaraMergable, or use a UObject interface, or create a
-	// data interface specific implementation of UNiagaraStackObject.
-	UNiagaraDataInterface* DataInterfaceObject = Cast<UNiagaraDataInterface>(Object);
-	if (DataInterfaceObject != nullptr)
-	{
-		TArray<FNiagaraDataInterfaceError> Errors;
-		TArray<FNiagaraDataInterfaceFeedback> Warnings, Info;
-		UNiagaraDataInterface::GetFeedback(DataInterfaceObject, Errors, Warnings, Info);
-		if (Errors.Num() > 0)
-		{
-			NewIssues.Add(FStackIssue(
-				EStackIssueSeverity::Error,
-				NSLOCTEXT("StackObject", "ObjectErrorsShort", "Object has errors"),
-				NSLOCTEXT("StackObject", "ObjectErrorsLong", "The displayed object has errors.  Check the object properties or the message log for details."),
-				GetStackEditorDataKey(),
-				false));
-		}
-		if (Warnings.Num() > 0)
-		{
-			NewIssues.Add(FStackIssue(
-				EStackIssueSeverity::Warning,
-				NSLOCTEXT("StackObject", "ObjectWarningsShort", "Object has warnings"),
-				NSLOCTEXT("StackObject", "ObjectWarningsLong", "The displayed object has warnings.  Check the object properties or the message log for details."),
-				GetStackEditorDataKey(),
-				false));
-		}
-	}
 }
 
 void UNiagaraStackObject::PostRefreshChildrenInternal()
 {
 	Super::PostRefreshChildrenInternal();
-
-	UNiagaraDataInterface* DataInterfaceObject = Cast<UNiagaraDataInterface>(Object);
-	if (DataInterfaceObject != nullptr)
-	{
-		DataInterfaceObject->RefreshErrors();		
-	}
 }
 
 void UNiagaraStackObject::PropertyRowsRefreshed()
