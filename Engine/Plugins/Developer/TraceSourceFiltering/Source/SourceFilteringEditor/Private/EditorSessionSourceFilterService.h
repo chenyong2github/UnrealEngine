@@ -77,6 +77,9 @@ protected:
 	/** Callback for whenever any Filter instance blueprint class gets (re)compiled */
 	void OnBlueprintCompiled(UBlueprint* InBlueprint);
 
+	/** Callback for whenever any Filter blueprint instances are reinstanced */
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementsMap);
+
 	/** Helper function to populate FTreeViewDataBuilder with a specific FilterObject */
 	TSharedRef<IFilterObject> AddFilterObjectToDataBuilder(UDataSourceFilter* Filter, FTreeViewDataBuilder& InBuilder);
 

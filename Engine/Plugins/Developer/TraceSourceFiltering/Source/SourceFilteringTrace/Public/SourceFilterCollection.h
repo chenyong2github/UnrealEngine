@@ -66,6 +66,9 @@ public:
 	const TArray<FActorClassFilter>& GetClassFilters() const { return ClassFilters; }
 	/** Updating whether or not classes derived from the filter class should be included when applying filtering */
 	void UpdateClassFilter(TSubclassOf<AActor> InClass, bool bIncludeDerivedClasses);
+
+	/** Callback for patching up contained UDataSourceFilter blueprint instances which just got re-instanced */
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 protected:
 	/** Recursively removes filter and any contained child filters  */
 	void RemoveFilterRecursive(UDataSourceFilter* ToRemoveFilter);
