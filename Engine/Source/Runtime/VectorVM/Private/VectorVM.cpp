@@ -2501,7 +2501,7 @@ void VectorVM::Exec(
 	SCOPE_CYCLE_COUNTER(STAT_VVMExec);
 
 #if UE_BUILD_TEST
-	const bool bNumInstancesEvent = GbDetailedVMScriptStats;
+	const bool bNumInstancesEvent = GbDetailedVMScriptStats != 0;
 	if (bNumInstancesEvent)
 	{
 		FPlatformMisc::BeginNamedEvent(FColor::Red, *FString::Printf(TEXT("STAT_VVMExec - %d"), NumInstances));
