@@ -66,10 +66,11 @@ TSharedRef<SWidget> FFilterObject::MakeWidget(TSharedRef<SWrapBox> ParentWrapBox
 		SAssignNew(WidgetBox, SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(2, 0, 0, 0)
+		.Padding(0, 0, 2, 0)
 		[
 			SNew(SBorder)
 			.BorderImage(FSourceFilterStyle::GetBrush("SourceFilter.FilterBrush"))
+			.BorderBackgroundColor(FLinearColor(0.25f, 0.25f, 0.25f, 0.9f))
 			.ForegroundColor(FLinearColor::White)
 			.Padding(FMargin(4.f))
 			[

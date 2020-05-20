@@ -21,10 +21,6 @@ public:
 	SLATE_BEGIN_ARGS(SWorldTraceFilteringWidget) {}
 	SLATE_END_ARGS()
 
-	/** Begin SCompoundWidget overrides */
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-	/** End SCompoundWidget overrides */
-
 	void Construct(const FArguments& InArgs);
 	void SetSessionFilterService(TSharedPtr<ISessionSourceFilterService> InSessionFilterService);
 protected:
@@ -42,7 +38,4 @@ protected:
 	TSharedPtr<SListView<TSharedPtr<FWorldObject>>> WorldListView;
 
 	TSharedPtr<SComboButton> OptionsComboBox;
-
-	/** Cached timestamp, at which WorldObjects was last updated */
-	FDateTime TimeStamp;
 };

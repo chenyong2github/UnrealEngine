@@ -68,11 +68,11 @@ void FFilterSetObject::AddFilterSetModeWidget(TSharedRef<SWrapBox> ParentWrapBox
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(2, 0, 0, 0)
+		.Padding(0, 0, 2, 0)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SComboButton)
-			.ComboButtonStyle(FSourceFilterStyle::Get(), "GenericFilters.ComboButtonStyle")
+			.ComboButtonStyle(FSourceFilterStyle::Get(), "SourceFilter.ComboButton")
 			.ButtonStyle(FSourceFilterStyle::Get(), FName(*("SourceFilter.FilterSetOperation." + FilterSetModeEnumPtr->GetNameStringByValue((int64)WeakFilterSet->GetFilterSetMode()))))
 			.ForegroundColor(FLinearColor::White)
 			.ContentPadding(2.0f)
@@ -139,7 +139,7 @@ TSharedRef<SWidget> FFilterSetObject::MakeWidget(TSharedRef<SWrapBox> ParentWrap
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(2, 0, 0, 0)
+			.Padding(0, 0, 2, 0)
 			[
 				SNew(SBorder)
 				.BorderImage(FSourceFilterStyle::GetBrush("SourceFilter.FilterSetBrush"))
