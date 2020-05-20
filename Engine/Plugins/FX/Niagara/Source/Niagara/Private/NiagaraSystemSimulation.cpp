@@ -738,12 +738,8 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 		{
 			if (Inst->SystemInstanceIndex != INDEX_NONE)
 			{
-				checkSlow(Inst->SystemInstanceIndex == SystemIndex);
+				check(Inst->SystemInstanceIndex == SystemIndex);
 				++SystemIndex;
-			}
-			else
-			{
-				checkSlow((SystemInstances.Num() <= SystemIndex) || (Inst == SystemInstances[SystemIndex]));
 			}
 		}
 	}

@@ -399,6 +399,8 @@ public:
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
 	void AddToInstanceCountStat(int32 NumInstances, bool bSolo)const;
 
+	const FString& GetCrashReporterTag()const;
+
 private:
 #if WITH_EDITORONLY_DATA
 	/** Checks the ddc for vm execution data for the given script. Return true if the data was loaded from the ddc, false otherwise. */
@@ -529,6 +531,8 @@ protected:
 #endif
 
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;
+
+	mutable FString CrashReporterTag;
 };
 
 extern int32 GEnableNiagaraRuntimeCycleCounts;
