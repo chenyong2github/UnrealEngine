@@ -4524,17 +4524,19 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	// Cull one-shot active sounds if we've reached our max limit of one shot active sounds before we attempt to evaluate concurrency
 	// Check for debug sound name
 #if !UE_BUILD_SHIPPING
-	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-	FString DebugSound;
-	if (AudioDeviceManager->GetDebugger().GetAudioDebugSound(DebugSound))
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 	{
-		// Reject the new sound if it doesn't have the debug sound name substring
-		FString SoundName;
-		NewActiveSound.Sound->GetName(SoundName);
-		if (!SoundName.Contains(DebugSound))
+		FString DebugSound;
+		if (AudioDeviceManager->GetDebugger().GetAudioDebugSound(DebugSound))
 		{
-			ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
-			return;
+			// Reject the new sound if it doesn't have the debug sound name substring
+			FString SoundName;
+			NewActiveSound.Sound->GetName(SoundName);
+			if (!SoundName.Contains(DebugSound))
+			{
+				ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
+				return;
+			}
 		}
 	}
 #endif // !UE_BUILD_SHIPPING
