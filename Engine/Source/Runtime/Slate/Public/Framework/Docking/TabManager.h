@@ -703,7 +703,8 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		 */
 		void UnregisterAllTabSpawners();
 
-		TSharedPtr<SWidget> RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent = false, const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr = EOutputCanBeNullptr::Never);
+		TSharedPtr<SWidget> RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent = false,
+			const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr = EOutputCanBeNullptr::Never);
 
 		void PopulateLocalTabSpawnerMenu( FMenuBuilder& PopulateMe );
 
