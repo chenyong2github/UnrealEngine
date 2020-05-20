@@ -274,7 +274,7 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	virtual bool ShouldCreatePhysicsState() const override;
 
 	virtual void PostLoad() override;
-	virtual void OnComponentCreated() override;
+	virtual void OnRegister() override;
 
 public:
 	/** Render data will be initialized on PostLoad or on demand. Released on the rendering thread. */
