@@ -222,26 +222,41 @@ public:
 
 	/**
 	 * Gets the default duration for camera shakes of the given class.
+	 *
+	 * @param CameraShakeClass    The class of camera shake
+	 * @param OutDuration         Will store the default duration of the given camera shake class, if possible
+	 * @return                    Whether a valid default duration was found
 	 */
 	static bool GetCameraShakeDuration(TSubclassOf<UCameraShake> CameraShakeClass, float& OutDuration)
 	{
-		if (const UCameraShake* CDO = CameraShakeClass->GetDefaultObject<UCameraShake>())
+		if (CameraShakeClass)
 		{
-			OutDuration = CDO->GetCameraShakeDuration();
-			return true;
+			if (const UCameraShake* CDO = CameraShakeClass->GetDefaultObject<UCameraShake>())
+			{
+				OutDuration = CDO->GetCameraShakeDuration();
+				return true;
+			}
 		}
 		return false;
 	}
 
 	/**
 	 * Gets the default blend in/out durations for camera shakes of the given class.
+	 *
+	 * @param CameraShakeClass    The class of camera shake
+	 * @param OutBlendIn          Will store the default blend-in time of the given camera shake class, if possible
+	 * @param OutBlendOut         Will store the default blend-out time of the given camera shake class, if possible
+	 * @return                    Whether valid default blend in/out times were found
 	 */
 	static bool GetCameraShakeBlendTimes(TSubclassOf<UCameraShake> CameraShakeClass, float& OutBlendIn, float& OutBlendOut)
 	{
-		if (const UCameraShake* CDO = CameraShakeClass->GetDefaultObject<UCameraShake>())
+		if (CameraShakeClass)
 		{
-			CDO->GetCameraShakeBlendTimes(OutBlendIn, OutBlendOut);
-			return true;
+			if (const UCameraShake* CDO = CameraShakeClass->GetDefaultObject<UCameraShake>())
+			{
+				CDO->GetCameraShakeBlendTimes(OutBlendIn, OutBlendOut);
+				return true;
+			}
 		}
 		return false;
 	}
