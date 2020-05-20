@@ -840,6 +840,7 @@ struct FShaderCodePackedResourceCounts
 	uint8 NumSRVs;
 	uint8 NumCBs;
 	uint8 NumUAVs;
+	uint16 OutputMask; //Mask of rendertargets bound
 };
 
 struct FShaderCodeVendorExtension
