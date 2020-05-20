@@ -12,10 +12,7 @@
 	#include "WinHttp/WinHttpHttpRequest.h"
 #endif // !WITH_LIBCURL
 #include "Http.h"
-
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
-#include "Windows/HideWindowsPlatformTypes.h"
+#include "WinHttp/Support/WinHttpTypes.h" // Always include for OS proxy settings
 
 static bool IsUnsignedInteger(const FString& InString)
 {

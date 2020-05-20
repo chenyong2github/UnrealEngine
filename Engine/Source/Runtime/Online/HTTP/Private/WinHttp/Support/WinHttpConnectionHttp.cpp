@@ -13,7 +13,6 @@
 #include "Misc/ScopeLock.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
 #include <errhandlingapi.h>
 
 #define UE_WINHTTP_WRITE_BUFFER_BYTES (8*1024)

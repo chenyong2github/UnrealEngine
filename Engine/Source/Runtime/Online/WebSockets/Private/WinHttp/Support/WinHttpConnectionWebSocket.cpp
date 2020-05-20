@@ -6,10 +6,10 @@
 #include "WinHttp/Support/WinHttpSession.h"
 #include "WinHttp/Support/WinHttpErrorHelper.h"
 #include "WinHttp/Support/WinHttpWebSocketErrorHelper.h"
+#include "WinHttp/Support/WinHttpTypes.h"
 #include "Misc/ScopeLock.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
 #include <errhandlingapi.h>
 
 // MS recommends reading in 8kB chunks to match one of their buffer sizes
@@ -300,7 +300,11 @@ FWinHttpConnectionWebSocket::FWinHttpConnectionWebSocket(
 		return;
 	}
 
-	if (!WinHttpSetOption(RequestHandle.Get(), WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, nullptr, 0))
+#pragma warning(push)
+#pragma warning(disable : 6387) // Disable StaticAnalysis warning about lpBuffer being nullptr, it is required to be nullptr per the documentation
+	const bool bSetWebSocketUpgradeSuccess = WinHttpSetOption(RequestHandle.Get(), WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, nullptr, 0);
+#pragma warning(pop)
+	if (!bSetWebSocketUpgradeSuccess)
 	{
 		const DWORD ErrorCode = GetLastError();
 		FWinHttpErrorHelper::LogWinHttpSetOptionFailure(ErrorCode);
@@ -346,9 +350,11 @@ void FWinHttpConnectionWebSocket::ReadData(const int32 MaxMessagesToRead)
 		// Ask for more data
 		PVOID BufferDestination = ReceiveBuffer.GetData() + ReceiveBufferBytesWritten;
 		DWORD BufferDestinationLength = ReceiveBuffer.Num() - ReceiveBufferBytesWritten;
-		DWORD* MessageBytesReadPtr = NULL;
-		WINHTTP_WEB_SOCKET_BUFFER_TYPE* ReadMessageTypePtr = NULL;
-		const DWORD ErrorCode = WinHttpWebSocketReceive(WebSocketHandle.Get(), BufferDestination, BufferDestinationLength, MessageBytesReadPtr, ReadMessageTypePtr);
+
+#pragma warning(push)
+#pragma warning(disable : 6387) // Disable StaticAnalysis warning about pdwBytesRead and peBufferType being nullptr, they are required to be nullptr as we are in async mode
+		const DWORD ErrorCode = WinHttpWebSocketReceive(WebSocketHandle.Get(), BufferDestination, BufferDestinationLength, nullptr, nullptr);
+#pragma warning(pop)
 		if (ErrorCode != NO_ERROR)
 		{
 			// We didn't actually start the read

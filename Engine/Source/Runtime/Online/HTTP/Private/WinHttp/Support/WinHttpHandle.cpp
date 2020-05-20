@@ -4,10 +4,10 @@
 
 #include "WinHttp/Support/WinHttpHandle.h"
 #include "WinHttp/Support/WinHttpErrorHelper.h"
+#include "WinHttp/Support/WinHttpTypes.h"
 #include "Http.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
 #include <errhandlingapi.h>
 
 FWinHttpHandle::FWinHttpHandle(HINTERNET NewHandle)

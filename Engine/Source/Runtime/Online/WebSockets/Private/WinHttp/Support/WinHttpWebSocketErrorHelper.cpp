@@ -6,7 +6,6 @@
 #include "WinHttp/Support/WinHttpTypes.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
 
 void FWinHttpWebSocketErrorHelper::LogWinHttpWebSocketCompleteUpgradeFailure(const uint32 ErrorCode)
 {
