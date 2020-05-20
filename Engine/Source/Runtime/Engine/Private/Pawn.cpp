@@ -563,6 +563,11 @@ void APawn::UnPossessed()
 		ReceiveUnpossessed(OldController);
 	}
 
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		GameInstance->GetOnPawnControllerChanged().Broadcast(this, nullptr);
+	}
+
 	ConsumeMovementInputVector();
 }
 
