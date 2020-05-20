@@ -1629,7 +1629,7 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 			return;
 		}
 		Text.Append(*SectionText);
-		if (!FStringView(Text.ToString()).EndsWith(BlankLine))
+		if (!FStringView(Text.ToString(), Text.Len()).EndsWith(BlankLine, ESearchCase::CaseSensitive))
 		{
 			Text.Append(LINE_TERMINATOR);
 		}
