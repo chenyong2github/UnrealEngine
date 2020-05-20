@@ -3068,6 +3068,16 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 			BodySetup->CreatePhysicsMeshes();
 		}
 	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, bSupportPhysicalMaterialMasks))
+	{
+		if (BodySetup)
+		{
+			BodySetup->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
+			BodySetup->InvalidatePhysicsData();
+			BodySetup->CreatePhysicsMeshes();
+		}
+	}
 #endif
 
 	LightMapResolution = FMath::Max(LightMapResolution, 0);
@@ -5793,9 +5803,7 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 
 	TMap<int32, int32> MeshToCollisionVertMap; // map of static mesh verts to collision verts
 
-	// If the mesh enables physical material masks, override the physics setting since UVs are always required 
-	// bool bCopyUVs = GetEnablePhysicalMaterialMask() || UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
-	bool bCopyUVs = UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
+	bool bCopyUVs = bSupportPhysicalMaterialMasks || UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
 
 	// If copying UVs, allocate array for storing them
 	if (bCopyUVs)
@@ -5940,6 +5948,7 @@ void UStaticMesh::CreateBodySetup()
 	{
 		BodySetup = NewObject<UBodySetup>(this);
 		BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+		BodySetup->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
 	}
 }
 
