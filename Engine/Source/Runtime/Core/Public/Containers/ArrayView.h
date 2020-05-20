@@ -573,6 +573,14 @@ TArrayView<const T> MakeArrayView(std::initializer_list<T> List)
 
 //////////////////////////////////////////////////////////////////////////
 
+// Comparison of array views to each other is not implemented because it
+// is not obvious whether the caller wants an exact match of the data
+// pointer and size, or to compare the objects being pointed to.
+template <typename ElementType, typename SizeType, typename OtherElementType, typename OtherSizeType>
+bool operator==(TArrayView<ElementType, SizeType>, TArrayView<OtherElementType, OtherSizeType>) = delete;
+template <typename ElementType, typename SizeType, typename OtherElementType, typename OtherSizeType>
+bool operator!=(TArrayView<ElementType, SizeType>, TArrayView<OtherElementType, OtherSizeType>) = delete;
+
 /**
  * Equality operator.
  *
