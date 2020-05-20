@@ -41,7 +41,7 @@ protected:
 	FExportMaterialProxy* CreateMaterialProxy(UMaterialInterface* Material, const EMaterialProperty Property );
 
 	/** Helper for emissive color conversion to Output */
-	static void ProcessEmissiveOutput(const FFloat16Color* Color16, const FIntPoint& OutputSize, TArray<FColor>& Output, float& EmissiveScale);
+	static void ProcessEmissiveOutput(const FFloat16Color* Color16, int32 Color16Pitch, const FIntPoint& OutputSize, TArray<FColor>& Output, float& EmissiveScale);
 
 	/** Cleans up all cached material proxies in MaterialProxyPool */
 	void CleanupMaterialProxies();
