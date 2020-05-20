@@ -1091,9 +1091,7 @@ void UNiagaraScript::PostLoad()
 	
 	ProcessSerializedShaderMaps();
 
-#if STATS
-	GenerateStatScopeIDs();
-#endif
+	GenerateStatIDs();
 
 	// Optimize the VM script for runtime usage
 	AsyncOptimizeByteCode();
@@ -1129,19 +1127,35 @@ bool UNiagaraScript::ShouldCacheShadersForCooking() const
 	return false;
 }
 
-#if STATS
-void UNiagaraScript::GenerateStatScopeIDs()
+void UNiagaraScript::GenerateStatIDs()
 {
+#if STATS
 	StatScopesIDs.Empty();
 	if (IsReadyToRun(ENiagaraSimTarget::CPUSim))
 	{
+		StatScopesIDs.Reserve(CachedScriptVM.StatScopes.Num());
 		for (FNiagaraStatScope& StatScope : CachedScriptVM.StatScopes)
 		{
 			StatScopesIDs.Add(FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScope.FriendlyName.ToString()));
 		}
 	}
-}
+#elif ENABLE_STATNAMEDEVENTS
+	StatNamedEvents.Empty();
+
+	static const IConsoleVariable* CVarOptimizeVMDetailedStats = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
+	if (CVarOptimizeVMDetailedStats && CVarOptimizeVMDetailedStats->GetInt() != 0)
+	{
+		if (IsReadyToRun(ENiagaraSimTarget::CPUSim))
+		{
+			StatNamedEvents.Reserve(CachedScriptVM.StatScopes.Num());
+			for (FNiagaraStatScope& StatScope : CachedScriptVM.StatScopes)
+			{
+				StatNamedEvents.Add(StatScope.FriendlyName.ToString());
+			}
+		}
+	}
 #endif
+}
 
 #if WITH_EDITOR
 
@@ -1525,7 +1539,7 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		check(CachedDefaultDataInterfaces[Idx].DataInterface != nullptr);
 	}
 
-	GenerateStatScopeIDs();
+	GenerateStatIDs();
 
 	// Now go ahead and trigger the GPU script compile now that we have a compiled GPU hlsl script.
 	if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
@@ -2060,7 +2074,7 @@ bool UNiagaraScript::SynchronizeExecutablesWithMaster(const UNiagaraScript* Scri
 			CachedDefaultDataInterfaces.Add(AddInfo);
 		}
 
-		GenerateStatScopeIDs();
+		GenerateStatIDs();
 
 		//SyncAliases(RenameMap);
 

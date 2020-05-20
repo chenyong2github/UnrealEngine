@@ -23,6 +23,7 @@ DECLARE_CYCLE_STAT(TEXT("Emitter Simulate [CNC]"), STAT_NiagaraSimulate, STATGRO
 DECLARE_CYCLE_STAT(TEXT("Emitter Spawn [CNC]"), STAT_NiagaraSpawn, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Emitter Post Tick [CNC]"), STAT_NiagaraEmitterPostTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Emitter Event Handling [CNC]"), STAT_NiagaraEventHandle, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Emitter Event CopyBuffer [CNC]"), STAT_NiagaraEvent_CopyBuffer, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Emitter Error Check [CNC]"), STAT_NiagaraEmitterErrorCheck, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Init Emitters [GT]"), STAT_NiagaraEmitterInit, STATGROUP_Niagara);
 
@@ -1129,6 +1130,7 @@ FORCENOINLINE void NiagaraTestCrash()
 void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraTick);
+	FScopeCycleCounterUObject AdditionalScope(CachedEmitter, GET_STATID(STAT_NiagaraTick));
 	FNiagaraEditorOnlyCycleTimer<false> TickTime(CPUTimeCycles);
 
 #if STATS
@@ -1676,6 +1678,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		if (TotalActualEventSpawns > 0)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraEvent_CopyBuffer);
 			if (GbDumpParticleData || System->bDumpDebugEmitterInfo)
 			{
 				Data.Dump(0, INDEX_NONE, TEXT("Existing Data - Pre Event Alloc"));
