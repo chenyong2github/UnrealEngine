@@ -28,6 +28,7 @@
 #include "EngineAnalytics.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformFilemanager.h"
 #include "Toolkits/FConsoleCommandExecutor.h"
 
 DEFINE_LOG_CATEGORY(LogMainFrame);
