@@ -19,6 +19,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/OutputDeviceFile.h"
+#include "Serialization/Archive.h"
 #include "Windows/WindowsPlatformStackWalk.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -415,7 +416,7 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 /**
  * Launches crash reporter client and creates the pipes for communication.
  */
-FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uint32* CrashReportClientProcessId)
+FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uint32* OutCrashReportClientProcessId)
 {
 	TCHAR CrashReporterClientPath[CR_CLIENT_MAX_PATH_LEN] = { 0 };
 	TCHAR CrashReporterClientArgs[CR_CLIENT_MAX_ARGS_LEN] = { 0 };
@@ -468,7 +469,6 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 		}
 	}
 
-
 #if WITH_EDITOR // Disaster recovery is only enabled for the Editor. Start the server even if in -game, -server, commandlet, the client-side will not connect (its too soon here to query this executable config).
 	{
 		// Disaster recovery service command line.
@@ -479,20 +479,52 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 	}
 #endif
 
+	FProcHandle Handle;
+
 	// Launch the crash reporter if the client exists
 	if (CreateCrashReportClientPath(CrashReporterClientPath, CR_CLIENT_MAX_PATH_LEN))
 	{
-		return FPlatformProcess::CreateProc(
+		Handle = FPlatformProcess::CreateProc(
 			CrashReporterClientPath,
 			CrashReporterClientArgs,
 			true, false, false,
-			CrashReportClientProcessId, 0,
+			OutCrashReportClientProcessId, 0,
 			nullptr,
 			PipeChildInRead, //Pass this to allow inherit handles in child proc
-			nullptr
-		);
+			nullptr);
+
+#if WITH_EDITOR
+		// The CRC instance launched above will respanwn itself to sever the link with the Editor process group. This way, if the user kills the Editor
+		// process group in TaskManager, CRC will not die at the same moment and will be able to capture the Editor exit code and send the session summary.
+		if (Handle.IsValid())
+		{
+			// Wait for the intermediate CRC to respawn itself and exit.
+			::WaitForSingleObject(Handle.Get(), INFINITE);
+			
+			// The respanwned CRC process writes its own PID to a file named by this process PID (by parsing the -MONITOR={PID} arguments)
+			uint32 RepawnedCrcPid = 0;
+			FString PidFilePathname = FString::Printf(TEXT("%sue4-crc-pid-%d"), FPlatformProcess::UserTempDir(), FPlatformProcess::GetCurrentProcessId());
+			if (TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*PidFilePathname)))
+			{
+				*Ar << RepawnedCrcPid;
+			}
+
+			// The file is not required anymore.
+			IFileManager::Get().Delete(*PidFilePathname, /*RequireExist*/false, /*EvenReadOnly*/true);
+
+			// Acquire a handle on the final CRC instance responsible to handle the crash/reports.
+			Handle = RepawnedCrcPid != 0 ? FPlatformProcess::OpenProcess(RepawnedCrcPid) : FProcHandle();
+
+			// Update the PID returned to the client.
+			if (OutCrashReportClientProcessId != nullptr)
+			{
+				*OutCrashReportClientProcessId = Handle.IsValid() ? RepawnedCrcPid : 0;
+			}
+		}
+#endif
 	}
-	return FProcHandle();
+
+	return Handle;
 }
 
 /**
