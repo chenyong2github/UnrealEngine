@@ -8,10 +8,8 @@ public class UnrealRecoverySvcTarget : TargetRules
 	public UnrealRecoverySvcTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
-		LinkType = TargetLinkType.Modular;
+		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "UnrealRecoverySvc";
-		AdditionalPlugins.Add("UdpMessaging");
-		AdditionalPlugins.Add("ConcertSyncServer");
 
 		// This app compiles against Core/CoreUObject, but not the Engine or Editor, so compile out Engine and Editor references from Core/CoreUObject
 		bCompileAgainstCoreUObject = true;
