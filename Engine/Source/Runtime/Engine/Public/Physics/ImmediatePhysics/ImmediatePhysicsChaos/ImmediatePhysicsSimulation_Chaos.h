@@ -53,6 +53,9 @@ namespace ImmediatePhysics_Chaos
 		/** Set bodies that require no collision */
 		void SetIgnoreCollisionActors(const TArray<FActorHandle*>& InIgnoreCollisionActors);
 
+		/** Set up potential collisions between the actor and all other dynamic actors */
+		void AddToCollidingPairs(FActorHandle* ActorHandle);
+
 		/** Advance the simulation by DeltaTime */
 		void Simulate(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity);
 		void Simulate_AssumesLocked(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxStepTime, MaxSubSteps, InGravity); }
@@ -81,9 +84,12 @@ namespace ImmediatePhysics_Chaos
 			const int32 CollisionPushOutIts);
 
 	private:
+		void RemoveFromCollidingPairs(FActorHandle* ActorHandle);
+		void PackCollidingPairs();
 		void UpdateActivePotentiallyCollidingPairs();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
+		void DebugDrawStaticParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawDynamicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawConstraints(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
