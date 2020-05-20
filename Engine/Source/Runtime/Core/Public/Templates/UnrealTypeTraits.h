@@ -132,6 +132,8 @@ Expose_TFormatSpecifier(int64, "%lld")
 Expose_TFormatSpecifier(float, "%f")
 Expose_TFormatSpecifier(double, "%f")
 Expose_TFormatSpecifier(long double, "%f")
+Expose_TFormatSpecifier(long, "%ld")
+Expose_TFormatSpecifier(unsigned long, "%lu")
 
 
 /**
