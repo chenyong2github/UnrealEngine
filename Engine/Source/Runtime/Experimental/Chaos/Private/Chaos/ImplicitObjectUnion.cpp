@@ -234,4 +234,19 @@ FImplicitObjectUnionClustered::FindAllIntersectingChildren(const TAABB<FReal, 3>
 }
 
 
+const TPBDRigidParticleHandle<FReal, 3>* FImplicitObjectUnionClustered::FindParticleForImplicitObject(const FImplicitObject* Object) const
+{
+	typedef TPBDRigidParticleHandle<FReal, 3>* ValueType;
+
+	const TImplicitObjectTransformed<FReal, 3>* AsTransformed = Object->template GetObject<TImplicitObjectTransformed<FReal, 3>>();
+	if(AsTransformed)
+	{
+		const ValueType* Handle = MCollisionParticleLookupHack.Find(AsTransformed->GetTransformedObject());
+		return Handle ? *Handle : nullptr;
+	}
+
+	const ValueType* Handle = MCollisionParticleLookupHack.Find(Object);
+	return Handle ? *Handle : nullptr;
+}
+
 } // namespace Chaos
