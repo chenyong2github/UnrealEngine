@@ -2906,9 +2906,9 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	}
 }
 
-void UInstancedStaticMeshComponent::OnComponentCreated()
+void UInstancedStaticMeshComponent::OnRegister()
 {
-	Super::OnComponentCreated();
+	Super::OnRegister();
 
 	if (FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
