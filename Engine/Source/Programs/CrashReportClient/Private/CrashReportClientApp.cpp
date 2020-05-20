@@ -188,6 +188,11 @@ private:
 		{
 			// Ensure the Log directory exists.
 			IFileManager::Get().MakeDirectory(*GetLogDir(), /*Tree*/true);
+
+			// Delete the previous file (if any was left).
+			IFileManager::Get().Delete(*GetLogPathname(), /*bRequireExits*/false);
+
+			// Reserve the memory for the log string.
 			DiagnosticInfo.Reset(MaxLogLen);
 		}
 	}
@@ -201,13 +206,13 @@ private:
 
 	static const FString& GetLogDir()
 	{
-		static FString LogDir(FPaths::ProjectSavedDir() / TEXT("Logs"));
+		static FString LogDir(FPlatformProcess::UserTempDir()); // This folder (and API) doesn't rely on the engine being initialized and can be use very early.
 		return LogDir;
 	}
 
 	static const TCHAR* GetBaseFilename()
 	{
-		return TEXT("CrcDiagLog");
+		return TEXT("UnrealCrcDiagnosticMiniLog");
 	}
 
 	static const FString& GetLogPathname()
@@ -243,10 +248,7 @@ private:
 // It also prevent logging before the engine loop is fully initialized.
 void LogCrcEvent(const TCHAR* Event)
 {
-	if (FCommandLine::IsInitialized()) // Prevent logging before the engine has finished initializing.
-	{
-		FDiagnosticLogger::Get().LogEvent(Event);
-	}
+	FDiagnosticLogger::Get().LogEvent(Event);
 }
 
 /** If in monitor mode, pipe to read data from game. */
@@ -945,6 +947,8 @@ static bool WasAbnormalShutdown(const FEditorAnalyticsSession& AnalyticSession)
 
 void RunCrashReportClient(const TCHAR* CommandLine)
 {
+	FDiagnosticLogger::Get().LogEvent(TEXT("CRC/Init"));
+
 	// Override the stack size for the thread pool.
 	FQueuedThreadPool::OverrideStackSize = 256 * 1024;
 
@@ -959,8 +963,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	GEngineLoop.PreInit(*FinalCommandLine);
 	check(GConfig && GConfig->IsReadyForUse());
 
-	// NOTE: Don't log before GEngineLoop.PreInit(), not everything required is initialized yet.
-	FDiagnosticLogger::Get().LogEvent(TEXT("CRC/Start"));
+	FDiagnosticLogger::Get().LogEvent(TEXT("CRC/Load"));
 
 	// Make sure all UObject classes are registered and default properties have been initialized
 	ProcessNewlyLoadedUObjects();
@@ -974,12 +977,13 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	// Load Concert Sync plugins in default phase
 	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::Default);
 
+	FDiagnosticLogger::Get().LogEvent(TEXT("CRC/Config"));
+
 	// Initialize config.
 	FCrashReportCoreConfig::Get();
 
 	// Find the report to upload in the command line arguments
 	ParseCommandLine(CommandLine);
-
 	FPlatformErrorReport::Init();
 
 	if (MonitorPid == 0) // Does not monitor any process.

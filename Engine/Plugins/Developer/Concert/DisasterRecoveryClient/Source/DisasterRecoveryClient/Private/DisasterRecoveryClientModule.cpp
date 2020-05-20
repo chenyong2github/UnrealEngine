@@ -48,12 +48,18 @@ namespace DisasterRecoveryUtil
 {
 static const FName RecoveryHubTabName("RecoveryHub");
 
+bool IsRecoveryServiceHostedInCrashReporter()
+{
+	//return FGenericCrashContext::IsOutOfProcessCrashReporter();
+	return false; // In 4.25.1, this was disabled because CRC suspiciously crashes.
+}
+
 /**
  * Return the name of the executable hosting disaster recovery service, like 'UnrealRecoverySvc' without the extension.
  */
 FString GetDisasterRecoveryServiceExeName()
 {
-	if (FGenericCrashContext::IsOutOfProcessCrashReporter())
+	if (IsRecoveryServiceHostedInCrashReporter())
 	{
 		return TEXT("CrashReporterClientEditor");
 	}
@@ -318,7 +324,7 @@ private:
 	/** Spawn the disaster recovery service. To use when the 'out of process crash reporter' is not supported on the platform (Linux and Mac). */
 	bool SpawnDisasterRecoveryServer(const FString& ServerName)
 	{
-		check(!FGenericCrashContext::IsOutOfProcessCrashReporter()); // Should use the out-of-process crash reporter.
+		check(!DisasterRecoveryUtil::IsRecoveryServiceHostedInCrashReporter()); // Should use the out-of-process crash reporter.
 
 		if (DisasterRecoveryServiceHandle.IsValid())
 		{
@@ -355,7 +361,7 @@ private:
 		if (!SessionManager)
 		{
 			// If crash reporter is running out of process, it also hosts disaster recovery server as the '-ConcertServer' param is set when spawning CrashReporterClientEditor. No need to start the UnrealRecoverySvc executable.
-			if (!FGenericCrashContext::IsOutOfProcessCrashReporter() && !SpawnDisasterRecoveryServer(RecoveryService::GetRecoveryServerName()))
+			if (!DisasterRecoveryUtil::IsRecoveryServiceHostedInCrashReporter() && !SpawnDisasterRecoveryServer(RecoveryService::GetRecoveryServerName()))
 			{
 				return; // Failed to spawn the service.
 			}
