@@ -2304,6 +2304,14 @@ void UNiagaraComponent::SetMaxSimTime(float InMaxTime)
 	MaxSimTime = InMaxTime;
 }
 
+void UNiagaraComponent::SetAutoDestroy(bool bInAutoDestroy)
+{
+	if (ensureMsgf(!bInAutoDestroy || (PoolingMethod == ENCPoolMethod::None), TEXT("Attempting to set AutoDestroy on a pooled component!  Component(%s) Asset(%s)"), *GetFullName(), GetAsset() != nullptr ? *GetAsset()->GetPathName() : TEXT("None")))
+	{
+		bAutoDestroy = bInAutoDestroy;
+	}
+}
+
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance)
 {
