@@ -351,6 +351,15 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ParallelSolve);
 		PhysicsParallelFor(GetConstraintGraph().NumIslands(), [&](int32 Island) {
+			
+			if(auto* ResimCache = GetCurrentStepResimCache())
+			{
+				if(ResimCache->IsResimming() && GetConstraintGraph().IslandNeedsResim(Island) == false)
+				{
+					return;
+				}
+			}
+			
 			const TArray<TGeometryParticleHandle<FReal, 3>*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
 
 			{
@@ -499,10 +508,10 @@ void TPBDRigidsEvolutionGBF<Traits>::Serialize(FChaosArchive& Ar)
 }
 
 template <typename Traits>
-TUniquePtr<IResimCacheBase> TPBDRigidsEvolutionGBF<Traits>::CreateExternalResimCache(bool bUseCollisionResimCache) const
+TUniquePtr<IResimCacheBase> TPBDRigidsEvolutionGBF<Traits>::CreateExternalResimCache() const
 {
 	check(Traits::IsRewindable());
-	return TUniquePtr<IResimCacheBase>(new FEvolutionResimCache(bUseCollisionResimCache));
+	return TUniquePtr<IResimCacheBase>(new FEvolutionResimCache());
 }
 
 template <typename Traits>

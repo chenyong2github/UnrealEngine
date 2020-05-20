@@ -109,10 +109,9 @@ namespace Chaos
 
 			if(FRewindData* RewindData = MSolver->GetRewindData())
 			{
-				RewindData->AdvanceFrame(MDeltaTime,[Evolution = MSolver->GetEvolution(),
-				bUseCollisionResimCache = MSolver->RewindUsesCollisionResimCache() ]()
+				RewindData->AdvanceFrame(MDeltaTime,[Evolution = MSolver->GetEvolution()]()
 				{
-					return Evolution->CreateExternalResimCache(bUseCollisionResimCache);
+					return Evolution->CreateExternalResimCache();
 				});
 			}
 
@@ -1119,7 +1118,7 @@ namespace Chaos
 	void TPBDRigidsSolver<Traits>::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache)
 	{
 		check(Traits::IsRewindable());
-		MRewindData = MakeUnique<FRewindData>(NumFrames);
+		MRewindData = MakeUnique<FRewindData>(NumFrames, InUseCollisionResimCache);
 		bUseCollisionResimCache = InUseCollisionResimCache;
 	}
 
