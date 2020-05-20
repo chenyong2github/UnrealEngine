@@ -39,9 +39,9 @@ public:
 
 	virtual ~FWinHttpConnectionHttp();
 	FWinHttpConnectionHttp(const FWinHttpConnectionHttp& Other) = delete;
-	FWinHttpConnectionHttp(FWinHttpConnectionHttp&& Other) = default;
+	FWinHttpConnectionHttp(FWinHttpConnectionHttp&& Other) = delete;
 	FWinHttpConnectionHttp& operator=(const FWinHttpConnectionHttp& Other) = delete;
-	FWinHttpConnectionHttp& operator=(FWinHttpConnectionHttp&& Other) = default;
+	FWinHttpConnectionHttp& operator=(FWinHttpConnectionHttp&& Other) = delete;
 
 	//~ Begin IWinHttpConnection Interface
 	virtual bool IsValid() const override;
