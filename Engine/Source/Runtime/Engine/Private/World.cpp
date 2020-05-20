@@ -5122,7 +5122,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					// Only the options/portal for the URL should be used during join
 					const TCHAR* NewRequestURL = *RequestURL;
 
-					for (; *NewRequestURL != '\0' && *NewRequestURL != '?' && *NewRequestURL != '#'; NewRequestURL++);
+					for (; *NewRequestURL != '\0' && *NewRequestURL != '?' && *NewRequestURL != '#'; NewRequestURL++){}
 
 
 					UE_LOG(LogNet, Log, TEXT("Login request: %s userId: %s platform: %s"), NewRequestURL, UniqueIdRepl.IsValid() ? *UniqueIdRepl.ToDebugString() : TEXT("UNKNOWN"), *OnlinePlatformName);
@@ -5266,7 +5266,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					// Only the options/portal for the URL should be used during join
 					const TCHAR* NewRequestURL = *SplitRequestURL;
 
-					for (; *NewRequestURL != '\0' && *NewRequestURL != '?' && *NewRequestURL != '#'; NewRequestURL++);
+					for (; *NewRequestURL != '\0' && *NewRequestURL != '?' && *NewRequestURL != '#'; NewRequestURL++){}
 
 					UE_LOG(LogNet, Log, TEXT("Join splitscreen request: %s userId: %s parentUserId: %s"),
 						NewRequestURL,
