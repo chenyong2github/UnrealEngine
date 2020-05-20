@@ -914,9 +914,9 @@ UENUM()
 enum EViewModeIndex
 {
 	/** Wireframe w/ brushes. */
-	VMI_BrushWireframe = 0 UMETA(DisplayName = "Brush Wireframe"),
+	VMI_BrushWireframe = 0 UMETA(DisplayName = "Wireframe"),
 	/** Wireframe w/ BSP. */
-	VMI_Wireframe = 1 UMETA(DisplayName = "Wireframe"),
+	VMI_Wireframe = 1 UMETA(DisplayName = "CSG Wireframe"),
 	/** Unlit. */
 	VMI_Unlit = 2 UMETA(DisplayName = "Unlit"),
 	/** Lit. */

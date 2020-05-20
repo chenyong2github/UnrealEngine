@@ -18,12 +18,12 @@ TArray<FText> FillViewModeDisplayNames()
 		// Wireframe w/ brushes
 		if (ViewModeIndex == VMI_BrushWireframe)
 		{
-			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_BrushWireframe", "Brush Wireframe"));
+			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_BrushWireframe", "Wireframe"));
 		}
 		// Wireframe w/ BSP
 		else if (ViewModeIndex == VMI_Wireframe)
 		{
-			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_Wireframe", "Wireframe"));
+			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_Wireframe", "CSG Wireframe"));
 		}
 		// Unlit
 		else if (ViewModeIndex == VMI_Unlit)
