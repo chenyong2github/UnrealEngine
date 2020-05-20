@@ -58,7 +58,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()

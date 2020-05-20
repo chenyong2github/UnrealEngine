@@ -197,43 +197,34 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		SNew( SHorizontalBox )
 		.Visibility( this, &SDetailsView::GetFilterBoxVisibility )
 		+SHorizontalBox::Slot()
-		.FillWidth( 1 )
+		.Padding(6.f)
+		.FillWidth(1)
 		[
-			SNew(SOverlay)
-			+SOverlay::Slot()
-			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Searching.SearchActiveTab"))
-				.Visibility_Lambda([&](){ return this->bHasActiveFilter ? EVisibility::Visible : EVisibility::Collapsed; })
-			]
-			+SOverlay::Slot()
-			.Padding(2.f, 2.0f, 4.f, 2.f)
-			.VAlign( VAlign_Center )
-			[
-				// Create the search box
-				SAssignNew(SearchBox, SSearchBox)
-				.HintText(LOCTEXT("SearchDetailsHint", "Search Details"))
-				.OnTextChanged(this, &SDetailsView::OnFilterTextChanged)
-				.OnTextCommitted(this, &SDetailsView::OnFilterTextCommitted)
-				.AddMetaData<FTagMetaData>(TEXT("Details.Search"))
-			]
+			// Create the search box
+			SAssignNew(SearchBox, SSearchBox)
+			.HintText(LOCTEXT("SearchDetailsHint", "Search Details"))
+			.OnTextChanged(this, &SDetailsView::OnFilterTextChanged)
+			.OnTextCommitted(this, &SDetailsView::OnFilterTextCommitted)
+			.AddMetaData<FTagMetaData>(TEXT("Details.Search"))
 		];
 
 	if (DetailsViewArgs.bShowPropertyMatrixButton)
 	{
 		FilterRow->AddSlot()
 			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
 				// Create the property matrix button
 				SNew(SButton)
+				.ButtonStyle( FAppStyle::Get(), "SimpleButton" )
 				.OnClicked(this, &SDetailsView::OnOpenRawPropertyEditorClicked)
 				.IsEnabled(this, &SDetailsView::CanOpenRawPropertyEditor)
 				.ToolTipText(LOCTEXT("RawPropertyEditorButtonLabel", "Open Selection in Property Matrix"))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("DetailsView.EditRawProperties"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FAppStyle::Get().GetBrush("DetailsView.EditRawProperties"))
 				]
 			];
 	}
@@ -242,12 +233,14 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 	{
 		FilterRow->AddSlot()
 			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
 				SNew( SComboButton )
+				.HasDownArrow(false)
 				.ContentPadding(0)
 				.ForegroundColor( FSlateColor::UseForeground() )
-				.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+				.ButtonStyle( FAppStyle::Get(), "SimpleButton" )
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
 				.MenuContent()
 				[
@@ -256,7 +249,8 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				.ButtonContent()
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("GenericViewButton") )
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FAppStyle::Get().GetBrush("DetailsView.ViewOptions"))
 				]
 			];
 	}
@@ -289,7 +283,11 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		VerticalBox->AddSlot()
 		.AutoHeight()
 		[
-			FilterRow.ToSharedRef()
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+			[
+				FilterRow.ToSharedRef()
+			]
 		];
 	}
 

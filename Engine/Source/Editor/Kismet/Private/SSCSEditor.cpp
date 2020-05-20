@@ -3800,13 +3800,18 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						.VAlign(VAlign_Top)
+						.HAlign(HAlign_Fill)
 					[
 						SAssignNew(ButtonBox, SHorizontalBox)
-				
+
 						+ SHorizontalBox::Slot()
-						.Padding( 3.0f, 3.0f )
+						.FillWidth(1)
+						[
+							SNew(SSpacer)
+						]
+
+						+ SHorizontalBox::Slot()
 						.AutoWidth()
-						.HAlign(HAlign_Left)
 						[
 							SNew(SComponentClassCombo)
 							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.AddComponent")))
@@ -3820,83 +3825,39 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 						// horizontal slot (index) #1 => reserved for BP-editor search bar (see 'ButtonBox' usage below)
 
 						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.HAlign(HAlign_Right)
-						.Padding( 3.0f, 3.0f )
+						.AutoWidth()
 						[
 							SNew( SButton )
+							.ButtonStyle( FEditorStyle::Get(), "SimpleButton" )
 							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.ConvertToBlueprint")))
 							.Visibility( this, &SSCSEditor::GetPromoteToBlueprintButtonVisibility )
 							.OnClicked( this, &SSCSEditor::OnPromoteToBlueprintClicked )
-							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Primary")
-							.ContentPadding(FMargin(10,0))
+							.ContentPadding(FMargin(5.f))
 							.ToolTip(IDocumentation::Get()->CreateToolTip(
 								LOCTEXT("PromoteToBluerprintTooltip","Converts this actor into a reusable Blueprint Class that can have script behavior" ),
 								NULL,
 								TEXT("Shared/LevelEditor"),
 								TEXT("ConvertToBlueprint")))
 							[
-								SNew(SHorizontalBox)
-								.Clipping(EWidgetClipping::ClipToBounds)
-						
-								+ SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								.Padding(3.f)
-								.AutoWidth()
-								[
-									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-									.Font( FEditorStyle::Get().GetFontStyle( "FontAwesome.10" ) )
-									.Text( FEditorFontGlyphs::Cogs )
-								]
-
-								+ SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								.Padding(3.f)
-								.AutoWidth()
-								[
-									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-									//.Text( LOCTEXT("PromoteToBlueprint", "Add Script") )
-									.Text(LOCTEXT("PromoteToBlueprint", "Blueprint/Add Script"))
-								]
+								SNew(SImage)
+								.ColorAndOpacity(FSlateColor::UseForeground())
+								.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
 							]
 						]
 						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.Padding( 3.0f, 3.0f )
-						.HAlign(HAlign_Right)
-						.Padding(3.0f, 3.0f)
+						.AutoWidth()
 						[
 							SNew(SComboButton)
 							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.EditBlueprint")))
 							.Visibility(this, &SSCSEditor::GetEditBlueprintButtonVisibility)
-							.ContentPadding(FMargin(10, 0))
-							.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Primary")
-							.ForegroundColor(FLinearColor::White)
+							.ComboButtonStyle(FEditorStyle::Get(), "SimpleComboButton")
+							.HasDownArrow(false)
+							.ContentPadding(FMargin(5.f))
 							.ButtonContent()
 							[
-								SNew( SHorizontalBox )
-								.Clipping(EWidgetClipping::ClipToBounds)
-
-								+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.VAlign(VAlign_Center)
-								.Padding(3.f)
-								[
-									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-									.Text(FEditorFontGlyphs::Cogs)
-								]
-						
-								+ SHorizontalBox::Slot()
-								[
-									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-									.Text(LOCTEXT("EditBlueprint", "Edit Blueprint"))
-								]
+								SNew(SImage)
+								.ColorAndOpacity(FSlateColor::UseForeground())
+								.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
 							]
 							.MenuContent()
 							[

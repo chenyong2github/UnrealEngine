@@ -579,7 +579,8 @@ TSharedRef<SDockTab> SLevelEditor::SummonDetailsPanel( FName TabIdentifier )
 		.Label( Label )
 		.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/LevelEditor", "DetailsTab" ) )
 		[
-			SNew( SBox )
+			SNew( SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
 			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("ActorDetails"), TEXT("LevelEditorSelectionDetails")))
 			[
 				ActorDetails

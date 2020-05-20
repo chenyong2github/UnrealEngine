@@ -579,8 +579,8 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 	// Filtering/Searching feedback
 	{
 		const FLinearColor ActiveFilterColor = FLinearColor(1.0f,0.55f,0.0f,1.0f);
-		Set("Searching.SearchActiveTab", new BOX_BRUSH("Common/SearchPseudoTab", FVector2D(16,16), FMargin(0.49f), ActiveFilterColor));
-		Set("Searching.SearchActiveBorder", new BOX_BRUSH("Common/SearchActiveBorder", FVector2D(8,8), FMargin(0.49f), ActiveFilterColor));
+		Set("Searching.SearchActiveTab",    new FSlateNoResource());
+		Set("Searching.SearchActiveBorder", new FSlateRoundedBoxBrush(FLinearColor::Transparent, 0.0, FStyleColors::Primary, 1.f));
 	}
 
 
@@ -1117,9 +1117,9 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 	// Scene Outliner
 	{
 		Set( "SceneOutliner.NewFolderIcon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-plus", Icon16x16 ) );
-		Set( "SceneOutliner.FolderClosed",  new CORE_IMAGE_BRUSH_SVG("Starship/SceneOutliner/FolderClosed", Icon16x16, FStyleColors::AccentFolder ) );
-		Set( "SceneOutliner.FolderOpen",    new CORE_IMAGE_BRUSH_SVG("Starship/SceneOutliner/FolderOpen", Icon16x16, FStyleColors::AccentFolder ) );
-		Set( "SceneOutliner.World", 		new CORE_IMAGE_BRUSH_SVG("Starship/SceneOutliner/World", Icon16x16 ) );
+		Set( "SceneOutliner.FolderClosed",  new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-closed", Icon16x16, FStyleColors::AccentFolder ) );
+		Set( "SceneOutliner.FolderOpen",    new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-open", Icon16x16, FStyleColors::AccentFolder ) );
+		Set( "SceneOutliner.World", 		new CORE_IMAGE_BRUSH_SVG("Starship/Common/world", Icon16x16 ) );
 		Set( "SceneOutliner.ChangedItemHighlight", new FSlateRoundedBoxBrush( FStyleColors::White, 1.0) );
 
 		Set( "SceneOutliner.TableViewRow", FTableRowStyle(NormalTableRowStyle));
@@ -1878,10 +1878,10 @@ void FStarshipEditorStyle::FStyle::SetupLevelGeneralStyles()
 {
 // Levels General
 	{
-	Set("Level.VisibleIcon16x",             new CORE_IMAGE_BRUSH_SVG("Starship/SceneOutliner/Visible", Icon16x16));
-	Set("Level.VisibleHighlightIcon16x",    new CORE_IMAGE_BRUSH_SVG("Starship/SceneOutliner/Visible", Icon16x16));
-	Set("Level.NotVisibleIcon16x",          new CORE_IMAGE_BRUSH_SVG("Starship/SceneOutliner/Hidden",  Icon16x16));
-	Set("Level.NotVisibleHighlightIcon16x", new CORE_IMAGE_BRUSH_SVG("Starship/SceneOutliner/Hidden",  Icon16x16));
+	Set("Level.VisibleIcon16x",             new CORE_IMAGE_BRUSH_SVG("Starship/Common/visible", Icon16x16));
+	Set("Level.VisibleHighlightIcon16x",    new CORE_IMAGE_BRUSH_SVG("Starship/Common/visible", Icon16x16));
+	Set("Level.NotVisibleIcon16x",          new CORE_IMAGE_BRUSH_SVG("Starship/Common/hidden",  Icon16x16));
+	Set("Level.NotVisibleHighlightIcon16x", new CORE_IMAGE_BRUSH_SVG("Starship/Common/hidden",  Icon16x16));
 
 	Set("Level.LightingScenarioIcon16x", new IMAGE_BRUSH("Icons/icon_levels_LightingScenario_16px", Icon16x16));
 	Set("Level.LightingScenarioNotIcon16x", new IMAGE_BRUSH("Icons/icon_levels_LightingScenarioNot_16px", Icon16x16));
@@ -3014,8 +3014,8 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "PropertyWindow.FilterCancel", new IMAGE_BRUSH( "Old/FilterCancel", Icon16x16 ) );
 		Set( "PropertyWindow.Favorites_Enabled", new IMAGE_BRUSH( "Icons/Star_16x", Icon16x16 ) );
 		Set( "PropertyWindow.Favorites_Disabled", new IMAGE_BRUSH( "Icons/EmptyStar_16x", Icon16x16 ) );
-		Set( "PropertyWindow.Locked", new IMAGE_BRUSH( "Icons/padlock_locked_16x", Icon16x16 ) );
-		Set( "PropertyWindow.Unlocked", new IMAGE_BRUSH( "Icons/padlock_unlocked_16x", Icon16x16 ) );
+		Set( "PropertyWindow.Locked", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/lock", Icon16x16 ) );
+		Set( "PropertyWindow.Unlocked", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/lock-unlocked", Icon16x16 ) );
 		Set( "PropertyWindow.DiffersFromDefault", new IMAGE_BRUSH( "/PropertyView/DiffersFromDefault_8x8", FVector2D(8,8) ) ) ;
 		
 		Set( "PropertyWindow.NormalFont", DEFAULT_FONT("Regular", 8) );
@@ -3071,7 +3071,8 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "DetailsView.PulldownArrow.Up",          new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-up",   Icon16x16, FStyleColors::Foreground)); 
 		Set( "DetailsView.PulldownArrow.Up.Hovered",  new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-up",   Icon16x16, FStyleColors::ForegroundHover)); 
 
-		Set( "DetailsView.EditRawProperties",         new IMAGE_BRUSH("Icons/icon_PropertyMatrix_16px",  Icon16x16, FLinearColor::Black ) );
+		Set( "DetailsView.EditRawProperties",         new CORE_IMAGE_BRUSH_SVG("Starship/Common/layout-spreadsheet",  Icon16x16, FLinearColor::White) );
+		Set( "DetailsView.ViewOptions",         	  new CORE_IMAGE_BRUSH_SVG("Starship/Common/settings",  Icon16x16, FLinearColor::White) );
 		Set( "DetailsView.EditConfigProperties",      new IMAGE_BRUSH("Icons/icon_PropertyMatrix_16px",  Icon16x16, FLinearColor::White ) );
 
 		Set( "DetailsView.CollapsedCategory",         new FSlateColorBrush(FStyleColors::Background));
@@ -3097,10 +3098,10 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "DetailsView.AdvancedDropdownBorder",      new FSlateColorBrush(FStyleColors::Background));
 		Set( "DetailsView.AdvancedDropdownBorder.Open", new FSlateColorBrush(FStyleColors::Background));
 
-		Set( "DetailsView.CategoryFontStyle", FStyleFonts::Get().NormalBold);
+		Set( "DetailsView.CategoryFontStyle", FStyleFonts::Get().SmallBold);
 		Set( "DetailsView.CategoryTextStyle", FTextBlockStyle(NormalText)
 			.SetFont(GetFontStyle("DetailsView.CategoryFontStyle"))
-			.SetColorAndOpacity(FStyleColors::White)
+			.SetColorAndOpacity(FStyleColors::ForegroundHeader)
 		);
 
 		Set( "DetailsView.TreeView.TableRow", FTableRowStyle()

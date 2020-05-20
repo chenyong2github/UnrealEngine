@@ -64,28 +64,15 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 
 	// Create the Construct arguments for the parent class (SComboButton)
 	SComboButton::FArguments Args;
-	Args.ButtonContent()
+	Args.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+	.HasDownArrow(false)
+	.IsFocusable(true)
+	.OnComboBoxOpened(this, &SComponentClassCombo::ClearSelection)
+	.ButtonContent()
 	[
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(1.f,1.f)
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-			.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-		]
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(1.f)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("AddComponentButtonLabel", "Add Component"))
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Visibility(InArgs._IncludeText.Get() ? EVisibility::Visible : EVisibility::Collapsed)
-		]
+		SNew(SImage)
+		.ColorAndOpacity(FSlateColor::UseForeground())
+		.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
 	]
 	.MenuContent()
 	[
@@ -114,13 +101,7 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 				]
 			]
 		]
-	]
-	.IsFocusable(true)
-	.ContentPadding(FMargin(5, 0))
-	.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-	.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-	.ForegroundColor(FLinearColor::White)
-	.OnComboBoxOpened(this, &SComponentClassCombo::ClearSelection);
+	];
 
 	SComboButton::Construct(Args);
 

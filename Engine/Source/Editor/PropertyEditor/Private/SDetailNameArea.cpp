@@ -159,11 +159,12 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 				.FillWidth(1.0f)
 				[
 					SNew( SButton )
-					.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+					.ButtonStyle( FEditorStyle::Get(), "SimpleButton" )
 					.OnClicked(	OnLockButtonClicked )
 					.ToolTipText( LOCTEXT("LockSelectionButton_ToolTip", "Locks the current selection into the Details panel") )
 					[
 						SNew( SImage )
+						.ColorAndOpacity(FSlateColor::UseForeground())
 						.Image( this, &SDetailNameArea::OnGetLockButtonImageResource )
 					]
 				];
