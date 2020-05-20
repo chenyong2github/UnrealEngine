@@ -3,6 +3,10 @@
 #pragma once
 
 #include "StatusBarSubsystem.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Framework/SlateDelegates.h"
+#include "Animation/CurveSequence.h"
 
 class SStatusBar;
 

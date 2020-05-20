@@ -19,6 +19,8 @@
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
 #include "OutputLogModule.h"
+#include "SourceControlMenuHelpers.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 

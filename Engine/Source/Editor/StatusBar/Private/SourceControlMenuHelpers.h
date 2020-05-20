@@ -2,6 +2,12 @@
 
 #pragma once
 
+#include "Framework/Commands/Commands.h"
+#include "ISourceControlOperation.h"
+#include "ISourceControlProvider.h"
+
+class FUICommandList;
+class SWidget;
 
 class FSourceControlCommands : public TCommands<FSourceControlCommands>
 {

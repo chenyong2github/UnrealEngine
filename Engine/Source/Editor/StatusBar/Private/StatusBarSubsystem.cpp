@@ -4,13 +4,14 @@
 
 #include "StatusBarSubsystem.h"
 #include "ToolMenus.h"
-
 #include "Framework/Docking/TabManager.h"
-
 #include "Framework/Application/SlateApplication.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
-
+#include "SourceControlMenuHelpers.h"
+#include "SStatusBar.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Editor.h"
 
 
 #define LOCTEXT_NAMESPACE "StatusBar"

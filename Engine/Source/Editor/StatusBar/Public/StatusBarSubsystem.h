@@ -9,7 +9,9 @@
 
 
 class SStatusBar;
-
+class SWindow;
+class SWidget;
+class SDockTab;
 
 template<typename ObjectType> 
 class TAttribute;

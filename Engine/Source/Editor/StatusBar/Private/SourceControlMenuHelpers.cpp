@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "SourceControlMenuHelpers.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
@@ -9,6 +10,9 @@
 #include "FileHelpers.h"
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
+#include "EditorStyleSet.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlCommands"
 
