@@ -536,7 +536,7 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 	delete CompressedBlock;
 }
 
-void FFileIoStore::ProcessCompletedBlocks()
+void FFileIoStore::ProcessCompletedBlocks(const bool bIsMultithreaded)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedBlocks);
 	
@@ -644,7 +644,7 @@ void FFileIoStore::ProcessCompletedBlocks()
 			AllocMemoryForRequest(Scatter.Request);
 		}
 		// Scatter block asynchronous when the block is compressed, encrypted or signed
-		const bool bScatterAsync = !BlockToDecompress->CompressionMethod.IsNone() || BlockToDecompress->EncryptionKey.IsValid() || BlockToDecompress->SignatureHash;
+		const bool bScatterAsync = bIsMultithreaded && (!BlockToDecompress->CompressionMethod.IsNone() || BlockToDecompress->EncryptionKey.IsValid() || BlockToDecompress->SignatureHash);
 		if (bScatterAsync)
 		{
 			TGraphTask<FDecompressAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(*this, BlockToDecompress);
