@@ -185,7 +185,7 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 
 	while (CompressedBlockEntryCount--)
 	{
-		if (CompressedBlockEntry->OffsetAndLength.GetOffset() + CompressedBlockEntry->OffsetAndLength.GetLength() > ContainerFile.FileSize)
+		if (CompressedBlockEntry->GetOffset() + CompressedBlockEntry->GetSize() > ContainerFile.FileSize)
 		{
 			return (FIoStatus)(FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocCompressedBlockEntry out of container bounds while reading '") << *TocFilePath << TEXT("'"));
 		}
@@ -692,7 +692,7 @@ TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId,
 
 			int32 BlockIndex = int32(ResolvedOffset / ContainerFile.CompressionBlockSize);
 			const FIoStoreTocCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[BlockIndex];
-			const int64 BlockOffset = (int64)CompressionBlockEntry.OffsetAndLength.GetOffset();
+			const int64 BlockOffset = (int64)CompressionBlockEntry.GetOffset();
 			check(BlockOffset > 0 && IsAligned(BlockOffset, FPlatformProperties::GetMemoryMappingAlignment()));
 
 			MappedFileRegion = MappedFileHandle->MapRegion(BlockOffset + Options.GetOffset(), ResolvedSize);
@@ -745,11 +745,11 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 			bool bCacheable = OffsetInRequest > 0 || RequestRemainingBytes < CompressionBlockSize;
 
 			const FIoStoreTocCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[CompressedBlockIndex];
-			CompressedBlock->Size = ContainerFile.CompressionBlockSize;
-			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.CompressionMethodIndex];
+			CompressedBlock->Size = CompressionBlockEntry.GetUncompressedSize();
+			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.GetCompressionMethodIndex()];
 			CompressedBlock->SignatureHash = Reader.IsSigned() ? &ContainerFile.BlockSignatureHashes[CompressedBlockIndex] : nullptr;
-			uint64 RawOffset = CompressionBlockEntry.OffsetAndLength.GetOffset();
-			uint64 RawSize = CompressionBlockEntry.OffsetAndLength.GetLength();
+			uint64 RawOffset = CompressionBlockEntry.GetOffset();
+			uint64 RawSize = CompressionBlockEntry.GetSize();
 			CompressedBlock->RawOffset = RawOffset;
 			CompressedBlock->RawSize = RawSize;
 			const uint32 RawBeginBlockIndex = uint32(RawOffset / ReadBufferSize);

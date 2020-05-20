@@ -949,8 +949,9 @@ private:
 struct FIoStoreWriterSettings
 {
 	FName CompressionMethod = NAME_None;
-	int64 CompressionBlockSize = 0;
-	int64 CompressionBlockAlignment = 0;
+	uint64 CompressionBlockSize = 0;
+	uint64 CompressionBlockAlignment = 0;
+	uint64 WriterMemoryLimit = 0;
 	bool bEnableCsvOutput = false;
 };
 
@@ -1002,7 +1003,7 @@ struct FIoStoreWriterResult
 struct FIoWriteOptions
 {
 	const TCHAR* DebugName = nullptr;
-	int64 Alignment = 0;
+	uint64 Alignment = 0;
 	bool bForceUncompressed = false;
 };
 
