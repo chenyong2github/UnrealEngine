@@ -933,58 +933,8 @@ void FWidgetBlueprintEditor::DestroyPreview()
 		PreviewUserWidget->MarkPendingKill();
 		PreviewUserWidget->ReleaseSlateResources(true);
 
-		FCompilerResultsLog LogResults;
-		LogResults.bAnnotateMentionedNodes = false;
-
 		ensure(!PreviewSlateWidgetWeak.IsValid());
-
-		bool bFoundLeak = false;
-		
-		// NOTE: This doesn't explore sub UUserWidget trees, searching for leaks there.
-
-		// Verify everything is going to be garbage collected.
-		PreviewUserWidget->WidgetTree->ForEachWidget([&LogResults, &bFoundLeak] (UWidget* Widget) {
-			if ( !bFoundLeak )
-			{
-				TWeakPtr<SWidget> PreviewChildWidget = Widget->GetCachedWidget();
-				if ( PreviewChildWidget.IsValid() )
-				{
-					bFoundLeak = true;
-					if ( UPanelWidget* ParentWidget = Widget->GetParent() )
-					{
-						LogResults.Warning(
-							*FText::Format(
-								LOCTEXT("LeakingWidgetsWithParent_WarningFmt", "Leak Detected!  {0} (@@) still has living Slate widgets, it or the parent {1} (@@) is keeping them in memory.  Release all Slate resources in ReleaseSlateResources()."),
-								FText::FromString(Widget->GetName()),
-								FText::FromString(ParentWidget->GetName())
-							).ToString(),
-							Widget->GetClass(),
-							ParentWidget->GetClass()
-						);
-					}
-					else
-					{
-						LogResults.Warning(
-							*FText::Format(
-								LOCTEXT("LeakingWidgetsWithoutParent_WarningFmt", "Leak Detected!  {0} (@@) still has living Slate widgets, it or the parent widget is keeping them in memory.  Release all Slate resources in ReleaseSlateResources()."),
-								FText::FromString(Widget->GetName())
-							).ToString(),
-							Widget->GetClass()
-						);
-					}
-				}
-			}
-		});
-
-		DesignerCompilerMessages = LogResults.Messages;
 	}
-}
-
-void FWidgetBlueprintEditor::AppendExtraCompilerResults(TSharedPtr<class IMessageLogListing> ResultsListing)
-{
-	FBlueprintEditor::AppendExtraCompilerResults(ResultsListing);
-
-	ResultsListing->AddMessages(DesignerCompilerMessages);
 }
 
 void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForceFullUpdate)
