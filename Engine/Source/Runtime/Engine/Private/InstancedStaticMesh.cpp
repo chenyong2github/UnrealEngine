@@ -659,9 +659,10 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 			FVertexDeclarationElementList StreamElements;
 			StreamElements.Add(AccessPositionStreamComponent(Data.PositionComponent, 0));
 
+			bAddNormal = bAddNormal && Data.TangentBasisComponents[1].VertexBuffer != NULL;
 			if (bAddNormal)
 			{
-				StreamElements.Add(AccessPositionStreamComponent(Data.TangentBasisComponents[2], 2));
+				StreamElements.Add(AccessStreamComponent(Data.TangentBasisComponents[1], 2, InputStreamType));
 			}
 
 			if (bInstanced)
