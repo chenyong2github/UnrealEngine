@@ -97,6 +97,13 @@ void SNewPluginWizard::Construct(const FArguments& Args, TSharedPtr<SDockTab> In
 	PluginWizardDefinition->ClearTemplateSelection();
 
 	IPluginWizardDefinition* WizardDef = PluginWizardDefinition.Get();
+	
+	// Check if the Plugin Wizard is trying to make mods instead of generic plugins. This will slightly change in 4.26
+	if (PluginWizardDefinition->IsMod())
+	{
+		AbsoluteGamePluginPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*FPaths::ProjectModsDir());
+		FPaths::MakePlatformFilename(AbsoluteGamePluginPath);
+	}
 
 	LastBrowsePath = AbsoluteGamePluginPath;
 	PluginFolderPath = AbsoluteGamePluginPath;
