@@ -58,6 +58,14 @@ public:
 
 	/** Copies Filter data from other provided Filter Collection*/
 	void CopyData(USourceFilterCollection* OtherCollection);
+
+	/** Add a class filter, used to filter AActors on a high-level */
+	void AddClassFilter(TSubclassOf<AActor> InClass);	
+	void RemoveClassFilter(TSubclassOf<AActor> InClass);
+	/** Returns all class filters  */
+	const TArray<FActorClassFilter>& GetClassFilters() const { return ClassFilters; }
+	/** Updating whether or not classes derived from the filter class should be included when applying filtering */
+	void UpdateClassFilter(TSubclassOf<AActor> InClass, bool bIncludeDerivedClasses);
 protected:
 	/** Recursively removes filter and any contained child filters  */
 	void RemoveFilterRecursive(UDataSourceFilter* ToRemoveFilter);
@@ -73,6 +81,10 @@ protected:
 	/** Root-level filter instances */
 	UPROPERTY(VisibleAnywhere, Category=Filtering)
 	TArray<UDataSourceFilter*> Filters;
+
+	/** Class filters, used for high-level filtering of AActor instances inside of a UWorld */
+	UPROPERTY(VisibleAnywhere, Category = Filtering)
+	TArray<FActorClassFilter> ClassFilters;
 
 	/** Mapping from Filter Instance FObjectKeys to their class names */
 	TMap<FObjectKey, FString> FilterClassMap;
