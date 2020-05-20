@@ -342,7 +342,7 @@ void UNiagaraComponentPool::ReclaimWorldParticleSystem(UNiagaraComponent* Compon
 {
 	check(IsInGameThread());
 
-	FNiagaraCrashReporterScope CRScope(Component ? Component->GetAsset() : nullptr);
+	FNiagaraCrashReporterScope CRScope(Component->GetAsset());
 	
 	//If this component has been already destroyed we don't add it back to the pool. Just warn so users can fix it.
 	if (Component->IsPendingKill())
