@@ -791,10 +791,10 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		check(Mesh.GetNumElements() > 0);
 		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, MaxDistances.Num(), true, &AnimationPositions, &MaxDistances.Values);
 		Evolution->AddPBDConstraintFunction([
-			&SphereRadiiMultiplier = MaxDistancesMultipliers[InSimDataIndex],
+			this, InSimDataIndex,
 			SphericalContraint = MoveTemp(SphericalContraint)](TPBDParticles<float, 3>& InParticles, const float Dt) mutable
 		{
-			SphericalContraint.SetSphereRadiiMultiplier(SphereRadiiMultiplier);
+			SphericalContraint.SetSphereRadiiMultiplier(MaxDistancesMultipliers[InSimDataIndex]);
 			SphericalContraint.Apply(InParticles, Dt);
 		});
 	}
