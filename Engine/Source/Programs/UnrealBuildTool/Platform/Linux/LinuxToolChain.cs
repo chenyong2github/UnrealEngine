@@ -319,7 +319,7 @@ namespace UnrealBuildTool
 					if (MaxBinarySizeOverrideForObjcopy > 0)
 					{
 						// If we have an override size, then we need to create a dummy file if that size is exceeded
-						Out += string.Format(") ELSE (\necho DummyDebug >> {0}\n)\n",
+						Out += string.Format(") ELSE (\necho DummyDebug >> \"{0}\"\n)\n",
 							DebugFile.AbsolutePath
 						);
 					}
