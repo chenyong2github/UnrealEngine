@@ -316,8 +316,6 @@ SLevelEditor::~SLevelEditor()
 		GetMutableDefault<UEditorPerProjectUserSettings>()->OnUserSettingChanged().RemoveAll(this);
 	}
 
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll( this );
-
 	FEditorDelegates::MapChange.RemoveAll(this);
 
 	if (GEngine)
@@ -329,6 +327,8 @@ SLevelEditor::~SLevelEditor()
 	{
 		GEditor->OnLevelActorOuterChanged().Remove(LevelActorOuterChangedHandle);
 		GEditor->GetEditorWorldContext(true).RemoveRef(World);
+
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll(this);
 	}
 }
 
