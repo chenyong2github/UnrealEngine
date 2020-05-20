@@ -807,10 +807,37 @@ FCustomizedToolMenu* UToolMenus::AddMenuCustomization(const FName InName)
 	}
 }
 
+FCustomizedToolMenu* UToolMenus::FindRuntimeMenuCustomization(const FName InName)
+{
+	for (int32 i = 0; i < RuntimeCustomizedMenus.Num(); ++i)
+	{
+		if (RuntimeCustomizedMenus[i].Name == InName)
+		{
+			return &RuntimeCustomizedMenus[i];
+		}
+	}
+
+	return nullptr;
+}
+
+FCustomizedToolMenu* UToolMenus::AddRuntimeMenuCustomization(const FName InName)
+{
+	if (FCustomizedToolMenu* Found = FindRuntimeMenuCustomization(InName))
+	{
+		return Found;
+	}
+	else
+	{
+		FCustomizedToolMenu& NewCustomization = RuntimeCustomizedMenus.AddDefaulted_GetRef();
+		NewCustomization.Name = InName;
+		return &NewCustomization;
+	}
+}
+
 void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 {
 	FCustomizedToolMenuHierarchy CustomizationHierarchy = GeneratedMenu->GetMenuCustomizationHierarchy();
-	if (CustomizationHierarchy.Hierarchy.Num() == 0)
+	if (CustomizationHierarchy.Hierarchy.Num() == 0 && CustomizationHierarchy.RuntimeHierarchy.Num() == 0)
 	{
 		return;
 	}
