@@ -30,16 +30,15 @@ void MainCopyPS(
 	out float4 OutColor : SV_Target0
 	)
 {
-    float4 EncodedColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
-	OutColor = EncodedColor;
-
-	// will sample SceneColor.A
-	float SceneW = CalcSceneDepth(Input.UV);
+    float4 SceneColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
+	OutColor = SceneColor;
+	
+	float SceneW = SceneColor.a;
 
 #if SOURCE_MODE_SCENE_COLOR_AND_OPACITY
-	// Put inverse opacity in alpha channel. (determined via depth, translucency is combined with another pass.)
-	float MaxSceneDepth = 65000.0f;
-	OutColor.a = SceneW >= MaxSceneDepth ? 1.0f : 0.0f;
+	// Put inverse opacity in alpha channel. 
+	// opaque geometry writes scene depth to Alpha, if nothing was rendered Alpha will stay == 1.0
+	OutColor.a = (SceneW == 1.0 ? 1.0f : 0.0f);
 #elif SOURCE_MODE_SCENE_COLOR_NO_ALPHA
 	OutColor.a = 0;
 #elif SOURCE_MODE_SCENE_COLOR_SCENE_DEPTH

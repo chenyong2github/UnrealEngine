@@ -232,34 +232,40 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 		SceneContext.GetSceneDepthSurface(),
 		EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil,
 		nullptr,
-		FExclusiveDepthStencil::DepthWrite_StencilWrite
+		FExclusiveDepthStencil::DepthRead_StencilRead
 	);
-		
+
+	// make sure targets are writable
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneColorSurface());
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneDepthSurface());
+	if (SceneColorResolve)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColorResolve);
+	}
+
+	if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+	{
+		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+	}
+	
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderInverseOpacity"));
 
 	if (ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency))
 	{		
-		const bool bGammaSpace = !IsMobileHDR();
-		if (bGammaSpace)
-		{
-			// Mobile multi-view is not side by side stereo
-			const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
-			RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
-		}
+		// Mobile multi-view is not side by side stereo
+		const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
+		RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
 
-		if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
-		{
-			UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-			UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-		}
-		
 		View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].DispatchDraw(nullptr, RHICmdList);
 				
 		bDirty |= View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].HasAnyDraw();
 	}
 	
 	RHICmdList.EndRenderPass();
-
+	
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneColorTexture());
+	
 	return bDirty;
 }
 
