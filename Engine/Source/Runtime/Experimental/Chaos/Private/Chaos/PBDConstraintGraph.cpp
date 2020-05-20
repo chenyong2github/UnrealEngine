@@ -821,7 +821,9 @@ void FPBDConstraintGraph::EnableParticle(TGeometryParticleHandle<FReal, 3>* Part
 			{
 				const int32 Island = ParentPBDRigid->Island();
 				ChildPBDRigid->Island() = Island;
-				if (ensure(IslandToParticles.IsValidIndex(Island)))
+
+				// If our parent had a valid island, add the child to it.
+				if (IslandToParticles.IsValidIndex(Island))
 				{
 					IslandToParticles[Island].Add(Particle);
 				}

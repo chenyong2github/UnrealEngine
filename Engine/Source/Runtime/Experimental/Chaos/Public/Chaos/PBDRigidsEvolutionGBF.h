@@ -158,8 +158,8 @@ namespace Chaos
 		FGravityForces& GetGravityForces() { return GravityForces; }
 		const FGravityForces& GetGravityForces() const { return GravityForces; }
 
-		const auto& GetRigidClustering() const { return Clustering; }
-		auto& GetRigidClustering() { return Clustering; }
+		const TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() const { return Clustering; }
+		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() { return Clustering; }
 
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{

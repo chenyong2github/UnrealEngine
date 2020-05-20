@@ -328,7 +328,6 @@ namespace GeometryCollectionTest
 		for (FFieldSystemPhysicsProxy* FieldObject : FieldObjects)
 		{
 			Solver->RegisterObject(FieldObject);
-			Solver->AddDirtyProxy(FieldObject);
 		}
 
 		Solver->PushPhysicsState(Module->GetDispatcher());

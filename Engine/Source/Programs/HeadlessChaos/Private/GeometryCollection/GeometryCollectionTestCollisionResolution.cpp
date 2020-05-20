@@ -6,8 +6,6 @@
 #include "GeometryCollectionProxyData.h"
 #include "HeadlessChaosTestUtility.h"
 
-extern bool bSkipGeomFailing;
-
 namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
@@ -337,12 +335,8 @@ namespace GeometryCollectionTest
 
 	TYPED_TEST(AllTraits,GeometryCollection_CollisionResolution_SimplicialSphereToImplicitSphere)
 	{
-
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		using Traits = TypeParam;
+		
 		// simplicial sphere to implicit sphere
 		TFramework<Traits> UnitTest;
 
@@ -355,47 +349,34 @@ namespace GeometryCollectionTest
 
 		// Make a dynamic simplicial sphere
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere;
-		//Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_None; // Fails, falls right through
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
-
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
-		Params.RootTransform =
-			FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 3.0));
-		TGeometryCollectionWrapper<Traits>* SimplicialSphereCollection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		Params.RootTransform =FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 3.0));
+		TGeometryCollectionWrapper<Traits>* SimplicialSphereCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(SimplicialSphereCollection);
 
 		// Make a kinematic implicit sphere
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere;
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;
-
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Kinematic;
-		Params.RootTransform =
-			FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0));
-		TGeometryCollectionWrapper<Traits>* ImplicitSphereCollection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		Params.RootTransform = FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0));
+		TGeometryCollectionWrapper<Traits>* ImplicitSphereCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(ImplicitSphereCollection);
 
 		// Hard code masstolocal on rest collection to identity
 		{
-			TManagedArray<FTransform>& MassToLocal =
-				SimplicialSphereCollection->RestCollection->template GetAttribute<FTransform>(
-					TEXT("MassToLocal"), FTransformCollection::TransformGroup);
+			TManagedArray<FTransform>& MassToLocal = SimplicialSphereCollection->RestCollection->template GetAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
 		}
 		{
-			TManagedArray<FTransform>& MassToLocal =
-				ImplicitSphereCollection->RestCollection->template GetAttribute<FTransform>(
-					TEXT("MassToLocal"), FTransformCollection::TransformGroup);
+			TManagedArray<FTransform>& MassToLocal =ImplicitSphereCollection->RestCollection->template GetAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
 			check(MassToLocal.Num() == 1);
 			MassToLocal[0] = FTransform::Identity;
 		}
 
 		UnitTest.Initialize();
-		EXPECT_EQ(
-			SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation().Z,
-			ImplicitSphereCollection->DynamicCollection->Transform[0].GetTranslation().Z + 3);
+		EXPECT_EQ(SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation().Z, ImplicitSphereCollection->DynamicCollection->Transform[0].GetTranslation().Z + 3);
 
 		const FVector FirstX = SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation();
 		FVector PrevX = FirstX;
@@ -405,8 +386,8 @@ namespace GeometryCollectionTest
 
 			const FVector& CurrX = SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation();
 			EXPECT_NE(CurrX.Z, FirstX.Z); // moved since init
-			EXPECT_LE(FMath::Abs(CurrX.X), KINDA_SMALL_NUMBER); // straight down
-			EXPECT_LE(FMath::Abs(CurrX.Y), KINDA_SMALL_NUMBER); // straight down
+			EXPECT_LE(FMath::Abs(CurrX.X), 0.1f); // straight down
+			EXPECT_LE(FMath::Abs(CurrX.Y), 0.1f); // straight down
 			PrevX = CurrX;
 		}
 		
