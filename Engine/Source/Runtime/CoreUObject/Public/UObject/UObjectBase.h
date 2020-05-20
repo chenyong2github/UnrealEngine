@@ -138,6 +138,15 @@ public:
 		return NamePrivate;
 	}
 
+	/** Returns the external UPackage associated with this object, if any */
+	UPackage* GetExternalPackage() const;
+	
+	/** Associate an external package directly to this object. */
+	void SetExternalPackage(UPackage* InPackage);
+
+	/** Returns the external UPackage for this object, if any, NOT THREAD SAFE, used by internal gc reference collecting. */
+	UPackage* GetExternalPackageInternal() const;
+
 protected:
 	/**
 	 * Set the object flags directly
@@ -202,7 +211,7 @@ private:
 	EObjectFlags					ObjectFlags;
 
 	/** Index into GObjectArray...very private. */
-	int32								InternalIndex;
+	int32							InternalIndex;
 
 	/** Class the object belongs to. */
 	UClass*							ClassPrivate;

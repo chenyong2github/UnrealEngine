@@ -1851,40 +1851,60 @@ bool SerializePackedVector(FVector &Vector, FArchive& Ar)
 // --------------------------------------------------------------
 
 template<int32 MaxValue, int32 NumBits>
+struct TFixedCompressedFloatDetails
+{
+	                                                                // NumBits = 8:
+	static constexpr int32 MaxBitValue = (1 << (NumBits - 1)) - 1;  //   0111 1111 - Max abs value we will serialize
+	static constexpr int32 Bias = (1 << (NumBits - 1));             //   1000 0000 - Bias to pivot around (in order to support signed values)
+	static constexpr int32 SerIntMax = (1 << (NumBits - 0));        // 1 0000 0000 - What we pass into SerializeInt
+	static constexpr int32 MaxDelta = (1 << (NumBits - 0)) - 1;     //   1111 1111 - Max delta is
+
+#if !PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+	static constexpr float GetInvScale()
+	{
+		if (MaxValue > MaxBitValue)
+		{
+			// We have to scale down, scale needs to be a float:
+			return (float)MaxValue / (float)MaxBitValue;
+		}
+		else
+		{
+			int32 scale = MaxBitValue / MaxValue;
+			return 1.f / scale;
+		}
+	}
+#endif
+};
+
+template<int32 MaxValue, int32 NumBits>
 bool WriteFixedCompressedFloat(const float Value, FArchive& Ar)
 {
-	// Note: enums are used in this function to force bit shifting to be done at compile time
-
-														// NumBits = 8:
-	enum { MaxBitValue	= (1 << (NumBits - 1)) - 1 };	//   0111 1111 - Max abs value we will serialize
-	enum { Bias			= (1 << (NumBits - 1)) };		//   1000 0000 - Bias to pivot around (in order to support signed values)
-	enum { SerIntMax	= (1 << (NumBits - 0)) };		// 1 0000 0000 - What we pass into SerializeInt
-	enum { MaxDelta		= (1 << (NumBits - 0)) - 1 };	//   1111 1111 - Max delta is
+	using Details = TFixedCompressedFloatDetails<MaxValue, NumBits>;
 
 	bool clamp = false;
 	int32 ScaledValue;
-	if ( MaxValue > MaxBitValue )
+	if ( MaxValue > Details::MaxBitValue )
 	{
 		// We have to scale this down, scale needs to be a float:
-		const float scale = (float)MaxBitValue / (float)MaxValue;
+		const float scale = (float)Details::MaxBitValue / (float)MaxValue;
 		ScaledValue = FMath::TruncToInt(scale * Value);
 	}
 	else
 	{
 		// We will scale up to get extra precision. But keep is a whole number preserve whole values
-		enum { scale = MaxBitValue / MaxValue };
+		enum { scale = Details::MaxBitValue / MaxValue };
 		ScaledValue = FMath::RoundToInt( scale * Value );
 	}
 
-	uint32 Delta = static_cast<uint32>(ScaledValue + Bias);
+	uint32 Delta = static_cast<uint32>(ScaledValue + Details::Bias);
 
-	if (Delta > MaxDelta)
+	if (Delta > Details::MaxDelta)
 	{
 		clamp = true;
-		Delta = static_cast<int32>(Delta) > 0 ? MaxDelta : 0;
+		Delta = static_cast<int32>(Delta) > 0 ? Details::MaxDelta : 0;
 	}
 
-	Ar.SerializeInt( Delta, SerIntMax );
+	Ar.SerializeInt( Delta, Details::SerIntMax );
 
 	return !clamp;
 }
@@ -1892,31 +1912,30 @@ bool WriteFixedCompressedFloat(const float Value, FArchive& Ar)
 template<int32 MaxValue, int32 NumBits>
 bool ReadFixedCompressedFloat(float &Value, FArchive& Ar)
 {
-	// Note: enums are used in this function to force bit shifting to be done at compile time
+	using Details = TFixedCompressedFloatDetails<MaxValue, NumBits>;
 
-														// NumBits = 8:
-	enum { MaxBitValue	= (1 << (NumBits - 1)) - 1 };	//   0111 1111 - Max abs value we will serialize
-	enum { Bias			= (1 << (NumBits - 1)) };		//   1000 0000 - Bias to pivot around (in order to support signed values)
-	enum { SerIntMax	= (1 << (NumBits - 0)) };		// 1 0000 0000 - What we pass into SerializeInt
-	enum { MaxDelta		= (1 << (NumBits - 0)) - 1 };	//   1111 1111 - Max delta is
-	
 	uint32 Delta;
-	Ar.SerializeInt(Delta, SerIntMax);
-	float UnscaledValue = static_cast<float>( static_cast<int32>(Delta) - Bias );
+	Ar.SerializeInt(Delta, Details::SerIntMax);
+	float UnscaledValue = static_cast<float>( static_cast<int32>(Delta) - Details::Bias );
 
-	if ( MaxValue > MaxBitValue )
+#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+	if constexpr (MaxValue > Details::MaxBitValue)
 	{
 		// We have to scale down, scale needs to be a float:
-		const float InvScale = MaxValue / (float)MaxBitValue;
+		const float InvScale = MaxValue / (float)Details::MaxBitValue;
 		Value = UnscaledValue * InvScale;
 	}
 	else
 	{
-		enum { scale = MaxBitValue / MaxValue };
+		enum { scale = Details::MaxBitValue / MaxValue };
 		const float InvScale = 1.f / (float)scale;
 
 		Value = UnscaledValue * InvScale;
 	}
+#else
+	constexpr float InvScale = Details::GetInvScale();
+	Value = UnscaledValue * InvScale;
+#endif
 
 	return true;
 }

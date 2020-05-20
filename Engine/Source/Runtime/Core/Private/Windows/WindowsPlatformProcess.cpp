@@ -289,12 +289,6 @@ FProcHandle FWindowsPlatformProcess::CreateProc( const TCHAR* URL, const TCHAR* 
 {
 	//UE_LOG(LogWindows, Log,  TEXT("CreateProc %s %s"), URL, Parms );
 
-	// initialize process attributes
-	SECURITY_ATTRIBUTES Attr;
-	Attr.nLength = sizeof(SECURITY_ATTRIBUTES);
-	Attr.lpSecurityDescriptor = NULL;
-	Attr.bInheritHandle = true;
-
 	// initialize process creation flags
 	uint32 CreateFlags = NORMAL_PRIORITY_CLASS;
 	if (PriorityModifier < 0)
@@ -346,11 +340,13 @@ FProcHandle FWindowsPlatformProcess::CreateProc( const TCHAR* URL, const TCHAR* 
 		HANDLE(PipeWriteChild)
 	};
 
+	bool bInheritHandles = (dwFlags & STARTF_USESTDHANDLES) != 0;
+
 	// create the child process
 	FString CommandLine = FString::Printf(TEXT("\"%s\" %s"), URL, Parms);
 	PROCESS_INFORMATION ProcInfo;
 
-	if (!CreateProcess(NULL, CommandLine.GetCharArray().GetData(), &Attr, &Attr, true, (::DWORD)CreateFlags, NULL, OptionalWorkingDirectory, &StartupInfo, &ProcInfo))
+	if (!CreateProcess(NULL, CommandLine.GetCharArray().GetData(), nullptr, nullptr, bInheritHandles, (::DWORD)CreateFlags, NULL, OptionalWorkingDirectory, &StartupInfo, &ProcInfo))
 	{
 		DWORD ErrorCode = GetLastError();
 

@@ -15,14 +15,6 @@
 #include "Misc/AES.h"
 #include "Misc/IEngineCrypto.h"
 
-#if __cplusplus >= 201703L
-#	define UE_NODISCARD		[[nodiscard]]
-#	define UE_NORETURN		[[noreturn]]
-#else
-#	define UE_NODISCARD		
-#	define UE_NORETURN		
-#endif
-
 class FIoRequest;
 class FIoDispatcher;
 class FIoStoreWriter;

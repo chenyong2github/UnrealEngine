@@ -111,7 +111,7 @@ FAsioWriteable* FAsioFile::WriteFile(asio::io_context& IoContext, const TCHAR* P
 	}
 	return new FAsioFile(IoContext, UPTRINT(Handle));
 #else
-	int File = open(TCHAR_TO_ANSI(Path), O_WRONLY | O_CREAT, 0666);
+	int File = open(TCHAR_TO_ANSI(Path), O_WRONLY|O_CREAT, 0666);
 	if (!File)
 	{
 		return nullptr;
@@ -132,7 +132,7 @@ FAsioReadable* FAsioFile::ReadFile(asio::io_context& IoContext, const TCHAR* Pat
 	}
 	return new FAsioFile(IoContext, UPTRINT(Handle));
 #else
-	int File = open(TCHAR_TO_ANSI(Path), O_RDONLY, 0666);
+	int File = open(TCHAR_TO_ANSI(Path), O_RDONLY, 0444);
 	if (!File)
 	{
 		return nullptr;

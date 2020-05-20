@@ -169,7 +169,7 @@ uint32 FThreadProvider::GetGroupSortOrder(const TCHAR* GroupName)
 	}
 }
 
-uint32 FThreadProvider::GetPrioritySortOrder(EThreadPriority ThreadPriority)
+int32 FThreadProvider::GetPrioritySortOrder(EThreadPriority ThreadPriority)
 {
 	switch (ThreadPriority)
 	{
@@ -188,25 +188,31 @@ uint32 FThreadProvider::GetPrioritySortOrder(EThreadPriority ThreadPriority)
 	case TPri_Lowest:
 		return 6;
 	default:
-		return 7;
+		return int32(ThreadPriority);
 	}
 }
 
 bool FThreadProvider::FThreadInfoInternal::operator<(const FThreadInfoInternal& Other) const
 {
-	if (IsGameThread == Other.IsGameThread)
+	if (IsGameThread != Other.IsGameThread)
 	{
-		if (GroupSortOrder == Other.GroupSortOrder)
-		{
-			if (PrioritySortOrder == Other.PrioritySortOrder)
-			{
-				return FallbackSortOrder < Other.FallbackSortOrder;
-			}
-			return PrioritySortOrder < Other.PrioritySortOrder;
-		}
-		return GroupSortOrder < Other.GroupSortOrder;
+		return IsGameThread;
 	}
-	return IsGameThread;
+
+	if (PrioritySortOrder < 0 || Other.PrioritySortOrder < 0)
+	{
+		return PrioritySortOrder < Other.PrioritySortOrder;
+	}
+
+	if (GroupSortOrder == Other.GroupSortOrder)
+	{
+		if (PrioritySortOrder == Other.PrioritySortOrder)
+		{
+			return FallbackSortOrder < Other.FallbackSortOrder;
+		}
+		return PrioritySortOrder < Other.PrioritySortOrder;
+	}
+	return GroupSortOrder < Other.GroupSortOrder;
 }
 
 const IThreadProvider& ReadThreadProvider(const IAnalysisSession& Session)

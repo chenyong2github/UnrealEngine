@@ -24,9 +24,7 @@ class UStaticMeshComponent;
 template<class TClass> class TSubclassOf;
 /// @endcond
 
-FUNCTION_NO_RETURN_START
-	COREUOBJECT_API void CastLogError(const TCHAR* FromType, const TCHAR* ToType)
-FUNCTION_NO_RETURN_END;
+UE_NORETURN COREUOBJECT_API void CastLogError(const TCHAR* FromType, const TCHAR* ToType);
 
 /**
  * Metafunction which detects whether or not a class is an IInterface.  Rules:

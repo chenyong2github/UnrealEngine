@@ -2210,15 +2210,16 @@ struct ENGINE_API FTestStruct
 {
 	GENERATED_USTRUCT_BODY()
 
+	UObject* RawObjectPtr = nullptr;
 	TMap<int32, double> Doubles;
 	FTestStruct()
 	{
 		Doubles.Add(1, 1.5);
 		Doubles.Add(2, 2.5);
 	}
-	void AddStructReferencedObjects(class FReferenceCollector& Collector) const
+	void AddStructReferencedObjects(class FReferenceCollector& Collector)
 	{
-		Collector.AddReferencedObject(AActor::StaticClass());
+		Collector.AddReferencedObject(RawObjectPtr);
 	}
 	bool Serialize(FArchive& Ar)
 	{

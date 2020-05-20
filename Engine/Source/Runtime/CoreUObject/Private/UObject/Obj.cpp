@@ -784,6 +784,8 @@ void UObject::BeginDestroy()
 #endif // WITH_EDITORONLY_DATA
 
 	LowLevelRename(NAME_None);
+	// Remove any associated external package, at this point
+	SetExternalPackage(nullptr);
 
 	// ensure BeginDestroy has been routed back to UObject::BeginDestroy.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1065,6 +1067,9 @@ void UObject::ConditionalPostLoad()
 			}
 			else
 			{
+#if WITH_EDITOR
+				SCOPED_LOADTIMER_TEXT(*((GetClass()->IsChildOf(UDynamicClass::StaticClass()) ? UDynamicClass::StaticClass() : GetClass())->GetName() + TEXT("_PostLoad")));
+#endif
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetOutermost(), ELLMTagSet::Assets);
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetClass()->IsChildOf(UDynamicClass::StaticClass()) ? UDynamicClass::StaticClass() : GetClass(), ELLMTagSet::AssetClasses);
 

@@ -13,9 +13,7 @@ struct FFileLineException
 	int32   Line;
 
 	template <typename... Types>
-	FUNCTION_NO_RETURN_START
-		static void VARARGS Throwf(FString&& Filename, int32 Line, const TCHAR* Fmt, Types... Args)
-	FUNCTION_NO_RETURN_END
+	UE_NORETURN static void VARARGS Throwf(FString&& Filename, int32 Line, const TCHAR* Fmt, Types... Args)
 	{
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FError::Throwf");
 
@@ -23,9 +21,7 @@ struct FFileLineException
 	}
 
 private:
-	FUNCTION_NO_RETURN_START
-	static void VARARGS ThrowfImpl(FString&& Filename, int32 Line, const TCHAR* Fmt, ...)
-	FUNCTION_NO_RETURN_END;
+	UE_NORETURN static void VARARGS ThrowfImpl(FString&& Filename, int32 Line, const TCHAR* Fmt, ...);
 
 	FFileLineException(FString&& InMessage, FString&& InFilename, int32 InLine);
 };

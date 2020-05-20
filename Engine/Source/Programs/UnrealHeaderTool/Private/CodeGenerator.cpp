@@ -1784,10 +1784,8 @@ TTuple<FString, FString> FNativeClassHeaderGenerator::OutputProperties(FOutputDe
 		FMacroBlockEmitter WithEditorOnlyMacroEmitter(Out, TEXT("WITH_EDITORONLY_DATA"));
 		FMacroBlockEmitter WithEditorOnlyMacroEmitterDecl(DeclOut, TEXT("WITH_EDITORONLY_DATA"));
 
-		for (int32 Index = Properties.Num() - 1; Index >= 0; Index--)
+		for (FProperty* Prop : Properties)
 		{
-			FProperty* Prop = Properties[Index];
-
 			bool bRequiresHasEditorOnlyMacro = IsEditorOnlyDataProperty(Prop);
 			if (!bRequiresHasEditorOnlyMacro)
 			{
@@ -1864,16 +1862,49 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 	// Helper to handle the creation of the underlying properties if they're enum properties
 	auto HandleUnderlyingEnumProperty = [this, &PropertyNamesAndPointers, &DeclOut, &Out, &OutReferenceGatherers, DeclSpaces, Spaces](FProperty* LocalProp, FString&& InOuterName)
 	{
-		const FString& OuterName = PropertyNamesAndPointers.Emplace_GetRef(MoveTemp(InOuterName), LocalProp).Name;
-
 		if (FEnumProperty* EnumProp = CastField<FEnumProperty>(LocalProp))
 		{
-			FString PropVarName = OuterName + TEXT("_Underlying");
+			FString PropVarName = InOuterName + TEXT("_Underlying");
 
 			PropertyNew(DeclOut, Out, OutReferenceGatherers, EnumProp->UnderlyingProp, TEXT("0"), *PropVarName, DeclSpaces, Spaces);
 			PropertyNamesAndPointers.Emplace(MoveTemp(PropVarName), EnumProp->UnderlyingProp);
 		}
+
+		PropertyNamesAndPointers.Emplace(MoveTemp(InOuterName), LocalProp);
 	};
+
+	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop))
+	{
+		FString InnerVariableName = FString::Printf(TEXT("%sNewProp_%s_Inner"), Scope, *ArrayProperty->Inner->GetName());
+
+		HandleUnderlyingEnumProperty(ArrayProperty->Inner, CopyTemp(InnerVariableName));
+		PropertyNew(DeclOut, Out, OutReferenceGatherers, ArrayProperty->Inner, TEXT("0"), *InnerVariableName, DeclSpaces, Spaces);
+	}
+
+	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Prop))
+	{
+		FProperty* Key   = MapProperty->KeyProp;
+		FProperty* Value = MapProperty->ValueProp;
+
+		FString KeyVariableName   = FString::Printf(TEXT("%sNewProp_%s_KeyProp"), Scope, *Key->GetName());
+		FString ValueVariableName = FString::Printf(TEXT("%sNewProp_%s_ValueProp"), Scope, *Value->GetName());
+
+		HandleUnderlyingEnumProperty(Value, CopyTemp(ValueVariableName));
+		PropertyNew(DeclOut, Out, OutReferenceGatherers, Value, TEXT("1"), *ValueVariableName, DeclSpaces, Spaces);
+
+		HandleUnderlyingEnumProperty(Key, CopyTemp(KeyVariableName));
+		PropertyNew(DeclOut, Out, OutReferenceGatherers, Key, TEXT("0"), *KeyVariableName, DeclSpaces, Spaces);
+	}
+
+	else if (FSetProperty* SetProperty = CastField<FSetProperty>(Prop))
+	{
+		FProperty* Inner = SetProperty->ElementProp;
+
+		FString ElementVariableName = FString::Printf(TEXT("%sNewProp_%s_ElementProp"), Scope, *Inner->GetName());
+
+		HandleUnderlyingEnumProperty(Inner, CopyTemp(ElementVariableName));
+		PropertyNew(DeclOut, Out, OutReferenceGatherers, Inner, TEXT("0"), *ElementVariableName, DeclSpaces, Spaces);
+	}
 
 	{
 		FString SourceStruct;
@@ -1884,9 +1915,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				Function = Function->GetSuperFunction();
 			}
 			FString FunctionName = Function->GetName();
-			if( Function->HasAnyFunctionFlags( FUNC_Delegate ) )
+			if (Function->HasAnyFunctionFlags(FUNC_Delegate))
 			{
-				FunctionName.LeftChopInline(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH, false );
+				FunctionName.LeftChopInline(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH, false);
 			}
 
 			SourceStruct = GetEventStructParamsName(Function->GetOuter(), *FunctionName);
@@ -1901,46 +1932,13 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 
 		if (Prop->HasAllPropertyFlags(CPF_Deprecated))
 		{
-			 PropName += TEXT("_DEPRECATED");
+			PropName += TEXT("_DEPRECATED");
 		}
 
 		FString PropMacroOuterClass = FString::Printf(TEXT("STRUCT_OFFSET(%s, %s)"), *SourceStruct, *PropName);
 
+		HandleUnderlyingEnumProperty(Prop, CopyTemp(PropVariableName));
 		PropertyNew(DeclOut, Out, OutReferenceGatherers, Prop, *PropMacroOuterClass, *PropVariableName, DeclSpaces, Spaces, *SourceStruct);
-		HandleUnderlyingEnumProperty(Prop, MoveTemp(PropVariableName));
-	}
-
-	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop))
-	{
-		FString InnerVariableName = FString::Printf(TEXT("%sNewProp_%s_Inner"), Scope, *ArrayProperty->Inner->GetName());
-
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, ArrayProperty->Inner, TEXT("0"), *InnerVariableName, DeclSpaces, Spaces);
-		HandleUnderlyingEnumProperty(ArrayProperty->Inner, MoveTemp(InnerVariableName));
-	}
-
-	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Prop))
-	{
-		FProperty* Key   = MapProperty->KeyProp;
-		FProperty* Value = MapProperty->ValueProp;
-
-		FString KeyVariableName   = FString::Printf(TEXT("%sNewProp_%s_KeyProp"), Scope, *Key->GetName());
-		FString ValueVariableName = FString::Printf(TEXT("%sNewProp_%s_ValueProp"), Scope, *Value->GetName());
-
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, Key, TEXT("0"), *KeyVariableName, DeclSpaces, Spaces);
-		HandleUnderlyingEnumProperty(Key, MoveTemp(KeyVariableName));
-
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, Value, TEXT("1"), *ValueVariableName, DeclSpaces, Spaces);
-		HandleUnderlyingEnumProperty(Value, MoveTemp(ValueVariableName));
-	}
-
-	else if (FSetProperty* SetProperty = CastField<FSetProperty>(Prop))
-	{
-		FProperty* Inner = SetProperty->ElementProp;
-
-		FString ElementVariableName = FString::Printf(TEXT("%sNewProp_%s_ElementProp"), Scope, *Inner->GetName());
-
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, Inner, TEXT("0"), *ElementVariableName, DeclSpaces, Spaces);
-		HandleUnderlyingEnumProperty(Inner, MoveTemp(ElementVariableName));
 	}
 }
 
@@ -5428,6 +5426,8 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
 )
 {
 	FUHTStringBuilder RPCWrappers;
+
+	FMacroBlockEmitter OutCppEditorOnly(OutCpp, TEXT("WITH_EDITOR"));
 	for (UFunction* Function : CallbackFunctions)
 	{
 		// Never expecting to export delegate functions this way
@@ -5436,14 +5436,18 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
 		FFunctionData*   CompilerInfo = FFunctionData::FindForFunction(Function);
 		const FFuncInfo& FunctionData = CompilerInfo->GetFunctionData();
 		FString          FunctionName = Function->GetName();
-		UClass*          Class        = CastChecked<UClass>(Function->GetOuter());
-		const FString    ClassName    = FNameLookupCPP::GetNameCPP(Class);
+		UClass*          Class = CastChecked<UClass>(Function->GetOuter());
+		const FString    ClassName = FNameLookupCPP::GetNameCPP(Class);
 
 		if (FunctionData.FunctionFlags & FUNC_NetResponse)
 		{
 			// Net response functions don't go into the VM
 			continue;
 		}
+
+		const bool bIsEditorOnly = Function->HasAnyFunctionFlags(FUNC_EditorOnly);
+
+		OutCppEditorOnly(bIsEditorOnly);
 
 		const bool bWillBeProgrammerTyped = FunctionName == FunctionData.MarshallAndCallName;
 

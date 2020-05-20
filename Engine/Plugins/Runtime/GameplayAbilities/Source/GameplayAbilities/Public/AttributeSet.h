@@ -497,7 +497,7 @@ private:
 /**
  *	This is a helper macro that can be used in RepNotify functions to handle attributes that will be predictively modified by clients.
  *	
- *	void UMyHealthSet::OnRep_Health(const FFortGameplayAttributeData& OldValue)
+ *	void UMyHealthSet::OnRep_Health(const FGameplayAttributeData& OldValue)
  *	{
  *		GAMEPLAYATTRIBUTE_REPNOTIFY(UMyHealthSet, Health, OldValue);
  *	}

@@ -77,6 +77,28 @@ public:
 	explicit FORCEINLINE FPlane(EForceInit);
 
 	// Functions.
+	
+	/**
+	 * Checks if this plane is valid (ie: if it has a non-zero normal).
+	 *
+	 * @return true if the plane is well-defined (has a non-zero normal), otherwise false.
+	 */
+	FORCEINLINE bool IsValid() const;
+
+	/**
+	 * Get the origin of this plane.
+	 *
+	 * @return The origin (base point) of this plane.
+	 */
+	FORCEINLINE FVector GetOrigin() const;
+
+	/**
+	 * Get the normal of this plane.
+	 *
+	 * @return The normal of this plane.
+	 */
+	FORCEINLINE const FVector& GetNormal() const;
+
 
 	/**
 	 * Calculates distance between plane and a point.
@@ -411,6 +433,21 @@ FORCEINLINE FPlane::FPlane(FVector A, FVector B, FVector C)
 FORCEINLINE FPlane::FPlane(EForceInit)
 	: FVector(ForceInit), W(0.f)
 {}
+
+FORCEINLINE bool FPlane::IsValid() const
+{
+	return !IsNearlyZero();
+}
+
+FORCEINLINE const FVector& FPlane::GetNormal() const
+{
+	return *this;
+}
+
+FORCEINLINE FVector FPlane::GetOrigin() const
+{
+	return GetNormal() * W;
+}
 
 
 FORCEINLINE float FPlane::PlaneDot(const FVector &P) const

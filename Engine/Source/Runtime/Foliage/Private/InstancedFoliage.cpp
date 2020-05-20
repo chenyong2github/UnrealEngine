@@ -1751,6 +1751,12 @@ void FFoliageInfo::AddInstances(AInstancedFoliageActor* InIFA, const UFoliageTyp
 	AddInstancesImpl(InIFA, InSettings, InNewInstances, [](FFoliageImpl* Impl, AInstancedFoliageActor* LocalIFA, const FFoliageInstance& LocalInstance) { Impl->AddInstance(LocalIFA, LocalInstance); });
 }
 
+void FFoliageInfo::ReserveAdditionalInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, uint32 ReserveNum)
+{
+	Instances.Reserve(Instances.Num() + ReserveNum);
+	Implementation->PreAddInstances(InIFA, InSettings, ReserveNum);
+}
+
 void FFoliageInfo::AddInstancesImpl(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances, FFoliageInfo::FAddImplementationFunc ImplementationFunc)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliageAddInstance);

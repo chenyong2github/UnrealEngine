@@ -156,13 +156,8 @@ public:
 	* Current persistent id for this package
 	*/
 	FGuid	PersistentGuid;
-
-	/**
-	* Package persistent owner for this package
-	*/
-	FGuid	OwnerPersistentGuid;
 #endif
-	
+
 	/**
 	* Data about previous versions of this package
 	*/

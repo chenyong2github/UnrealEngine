@@ -2868,7 +2868,8 @@ bool UAssetManager::GetPackageManagers(FName PackageName, bool bRecurseToParents
 					{
 						if (!ManagerSet.Contains(Manager))
 						{
-							// Add to end of list, this will recurse again if needed
+							ManagerSet.Add(Manager);
+							// Add to end of list to recurse into the parent
 							ReferencingPrimaryAssets.Add(Manager);
 						}
 					}
@@ -3388,6 +3389,7 @@ bool UAssetManager::ShouldCookForPlatform(const UPackage* Package, const ITarget
 
 EPrimaryAssetCookRule UAssetManager::GetPackageCookRule(FName PackageName) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetManager::GetPackageCookRule);
 	FPrimaryAssetRules BestRules;
 	FPrimaryAssetId BestId;
 	TSet<FPrimaryAssetId> Managers;

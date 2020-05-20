@@ -30,6 +30,7 @@ private:
 	FEvent*				StopEvent;
 	FEvent*				UnpausedEvent;
 	FRunnableThread*	Thread = nullptr;
+	volatile bool		bComplete = false;
 };
 
 } // namespace Trace

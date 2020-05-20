@@ -167,7 +167,9 @@ public:
 	 *
 	 * @param Other The string view to create a new copy from
 	 */
-	explicit FString(const FStringView& Other);
+	
+	explicit FString(FAnsiStringView Other);
+	explicit FString(FWideStringView Other);
 
 	/**
 	 * Create an FString from a FStringView with extra space for characters at the end of the string

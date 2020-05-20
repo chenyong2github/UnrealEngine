@@ -79,9 +79,22 @@ enum class EMaterialParameterType : int32
 	Font,
 	RuntimeVirtualTexture,
 
+	RuntimeCount, // Runtime parameter types must go above here, and editor-only ones below
+
+#if WITH_EDITORONLY_DATA
+	StaticSwitch = RuntimeCount,
+	StaticComponentMask,
+	// Excluding StaticMaterialLayer due to type specific complications
+
 	Count,
+#else
+	Count = RuntimeCount,
+#endif
 };
-static const int32 NumMaterialParameterTypes = (int32)EMaterialParameterType::Count;
+static const int32 NumMaterialRuntimeParameterTypes = (int32)EMaterialParameterType::RuntimeCount;
+#if WITH_EDITORONLY_DATA
+static const int32 NumMaterialEditorOnlyParameterTypes = (int32)EMaterialParameterType::Count - (int32)EMaterialParameterType::RuntimeCount;
+#endif
 
 USTRUCT()
 struct FMaterialCachedParameterEntry
@@ -104,12 +117,35 @@ struct FMaterialCachedParameterEntry
 };
 
 USTRUCT()
+struct FStaticComponentMaskValue
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY()
+	bool R;
+	
+	UPROPERTY()
+	bool G;
+
+	UPROPERTY()
+	bool B;
+
+	UPROPERTY()
+	bool A; 
+};
+
+USTRUCT()
 struct FMaterialCachedParameters
 {
 	GENERATED_USTRUCT_BODY()
 
-	inline int32 GetNumParameters(EMaterialParameterType Type) const { return Entries[(int32)Type].ParameterInfos.Num(); }
-	inline const FName& GetParameterName(EMaterialParameterType Type, int32 Index) const { return Entries[(int32)Type].ParameterInfos[Index].Name; }
+#if WITH_EDITORONLY_DATA
+	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return Type >= EMaterialParameterType::RuntimeCount ? EditorOnlyEntries[static_cast<int32>(Type) - static_cast<int32>(EMaterialParameterType::RuntimeCount)] : RuntimeEntries[static_cast<int32>(Type)]; }
+#else
+	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return RuntimeEntries[static_cast<int32>(Type)]; }
+#endif
+	inline int32 GetNumParameters(EMaterialParameterType Type) const { return GetParameterTypeEntry(Type).ParameterInfos.Num(); }
+	inline const FName& GetParameterName(EMaterialParameterType Type, int32 Index) const { return GetParameterTypeEntry(Type).ParameterInfos[Index].Name; }
 
 	int32 FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo, bool bOveriddenOnly) const;
 	int32 FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo) const;
@@ -120,7 +156,7 @@ struct FMaterialCachedParameters
 	void Reset();
 
 	UPROPERTY()
-	FMaterialCachedParameterEntry Entries[NumMaterialParameterTypes];
+	FMaterialCachedParameterEntry RuntimeEntries[NumMaterialRuntimeParameterTypes];
 
 	UPROPERTY()
 	TArray<float> ScalarValues;
@@ -141,6 +177,15 @@ struct FMaterialCachedParameters
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextureValues;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FMaterialCachedParameterEntry EditorOnlyEntries[NumMaterialEditorOnlyParameterTypes];
+
+	UPROPERTY()
+	TArray<bool> StaticSwitchValues;
+
+	UPROPERTY()
+	TArray<FStaticComponentMaskValue> StaticComponentMaskValues;
+
 	UPROPERTY()
 	TArray<FVector2D> ScalarMinMaxValues;
 
