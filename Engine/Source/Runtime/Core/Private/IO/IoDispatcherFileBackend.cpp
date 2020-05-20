@@ -69,7 +69,12 @@ private:
 
 FFileIoStoreEncryptionKeys::FFileIoStoreEncryptionKeys()
 {
-	FCoreDelegates::GetRegisterEncryptionKeyDelegate().BindRaw(this, &FFileIoStoreEncryptionKeys::RegisterEncryptionKey);
+	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().AddRaw(this, &FFileIoStoreEncryptionKeys::RegisterEncryptionKey);
+}
+
+FFileIoStoreEncryptionKeys::~FFileIoStoreEncryptionKeys()
+{
+	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().RemoveAll(this);
 }
 
 bool FFileIoStoreEncryptionKeys::GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const

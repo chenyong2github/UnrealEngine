@@ -146,7 +146,14 @@ static void TestRegisterEncryptionKey(const TArray<FString>& Args)
 			{
 				check(KeyBytes.Num() == sizeof(FAES::FAESKey));
 				FMemory::Memcpy(EncryptionKey.Key, &KeyBytes[0], sizeof(EncryptionKey.Key));
+
+				// Deprecated version
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FCoreDelegates::GetRegisterEncryptionKeyDelegate().ExecuteIfBound(EncryptionKeyGuid, EncryptionKey);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+				// New version
+				FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(EncryptionKeyGuid, EncryptionKey);
 			}
 		}
 	}
@@ -6539,13 +6546,12 @@ FPakPlatformFile::FPakPlatformFile()
 	: LowerLevel(NULL)
 	, bSigned(false)
 {
-	FCoreDelegates::GetRegisterEncryptionKeyDelegate().BindRaw(this, &FPakPlatformFile::RegisterEncryptionKey);
+	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().AddRaw(this, &FPakPlatformFile::RegisterEncryptionKey);
 }
 
 FPakPlatformFile::~FPakPlatformFile()
 {
-	FCoreDelegates::GetRegisterEncryptionKeyDelegate().Unbind();
-
+	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().RemoveAll(this);
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 	FCoreDelegates::OnMountAllPakFiles.Unbind();
