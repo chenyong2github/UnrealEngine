@@ -2923,10 +2923,8 @@ void FVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const Vi
 	{
 		TriggerCompletionDelegates(OnVoiceChatDisconnectCompleteDelegates, FVoiceChatResult::CreateSuccess());
 	}
-	else
-	{
-		OnVoiceChatDisconnectedDelegate.Broadcast(ResultFromVivoxStatus(Status));
-	}
+
+	OnVoiceChatDisconnectedDelegate.Broadcast(ResultFromVivoxStatus(Status));
 }
 
 void FVivoxVoiceChat::onLoginCompleted(const VivoxClientApi::AccountName& AccountName)
