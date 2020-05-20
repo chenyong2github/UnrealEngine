@@ -49,30 +49,6 @@
 	<Option Name="WithLumin" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the Lumin target platform on Windows"/>
 	<Option Name="WithLuminMac" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the Lumin target platform on Mac"/>
 	<Option Name="WithHoloLens" Restrict="true|false" DefaultValue="$(DefaultWithHoloLens)" Description="Include the HoloLens target platform"/>
-	<Option Name="WithPlatforms" DefaultValue="" Description="Which target platforms to include"/>
-
-	<Macro Name="AddPlatform" Arguments="Platform">
-		<Property Name="Found" Value="false"/>
-		<ForEach Name="Entry" Values="$(WithPlatforms)">
-			<Property Name="Found" Value="true" If="'$(Entry)' == '$(Platform)'"/>
-		</ForEach>
-		<Do If="!$(Found)">
-			<Property Name="WithPlatforms" Value="$(WithPlatforms);" If="'$(WithPlatforms)' != ''"/>
-			<Property Name="WithPlatforms" Value="$(WithPlatforms)$(Platform)"/>
-		</Do>
-	</Macro>
-
-	<Expand Name="AddPlatform" Platform="Win64" If="$(WithWin64)"/>
-	<Expand Name="AddPlatform" Platform="Win32" If="$(WithWin32)"/>
-	<Expand Name="AddPlatform" Platform="Mac" If="$(WithMac)"/>
-	<Expand Name="AddPlatform" Platform="Android" If="$(WithAndroid)"/>
-	<Expand Name="AddPlatform" Platform="IOS" If="$(WithIOS)"/>
-	<Expand Name="AddPlatform" Platform="TVOS" If="$(WithTVOS)"/>
-	<Expand Name="AddPlatform" Platform="Linux" If="$(WithLinux)"/>
-	<Expand Name="AddPlatform" Platform="LinuxAArch64" If="$(WithLinuxAArch64)"/>
-	<Expand Name="AddPlatform" Platform="Lumin" If="$(WithLumin)"/>
-	<Expand Name="AddPlatform" Platform="LuminMac" If="$(WithLuminMac)"/>
-	<Expand Name="AddPlatform" Platform="HoloLens" If="$(WithHoloLens)"/>
 
 	<!-- Set up target types -->
 	<Option Name="WithClient" Restrict="true|false" DefaultValue="false" Description="Include precompiled client targets"/>
@@ -153,15 +129,18 @@
 		</Do>
 	</Macro>
 
+	<Property Name="ExtensionIncludes" Value=""/>
 	<Property Name="ExtensionPlatforms" Value=""/>
-	<ForEach Name="Platform" Values="$(WithPlatforms)">
+	<ForEach Name="Platform" Values="$(DataDrivenPlatforms)">
 		<Property Name="PlatformBuildScript" Value="$(RootDir)/Engine/Platforms/$(Platform)/Build/InstalledEngineBuild.xml"/>
 		<Do If="Exists('$(PlatformBuildScript)')">
-			<Include Script="$(PlatformBuildScript)"/>
+			<Property Name="ExtensionIncludes" Value="$(ExtensionIncludes);" If="'$(ExtensionIncludes)' != ''"/>
+			<Property Name="ExtensionIncludes" Value="$(ExtensionIncludes)$(PlatformBuildScript)"/>
 			<Property Name="ExtensionPlatforms" Value="$(ExtensionPlatforms);" If="'$(ExtensionPlatforms)' != ''"/>
 			<Property Name="ExtensionPlatforms" Value="$(ExtensionPlatforms)$(Platform)"/>
 		</Do>
 	</ForEach>
+	<Include Script="$(ExtensionIncludes)"/>
 
 	<!-- Include the script that lists files and patterns used when creating an installed build -->
 	<Include Script="InstalledEngineFilters.xml"/>
@@ -806,7 +785,7 @@
 		<Property Name="InstalledRequirements" Value="Compile UnrealHeaderTool Win64;#UE4Editor Win64 WithExceptions;#UE4Editor Win64 Unstripped;#UE4Editor Win64 Stripped;#UE4Editor Win64 Unsigned;#UE4Editor Win64 Signed;#Build Tools Win64;#Build Tools CS Binaries"/>
 		<!-- Optional Target Platform requirements -->
 		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
-			<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game $(Platform)"/>
+			<Expand Name="$(Platform)_AddInstalledRequirements"/>
 		</ForEach>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Win64;#UE4Game Win64 Unstripped;#UE4Game Win64 Stripped;#UE4Game Win64 Unsigned;#UE4Game Win64 Signed" If="'$(WithWin64)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Win32;#UE4Game Win32 Unstripped;#UE4Game Win32 Stripped;#UE4Game Win32 Unsigned;#UE4Game Win32 Signed;#Build Tools Win32" If="'$(WithWin32)' == true"/>
