@@ -5107,28 +5107,37 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 				// Admit or deny the player here.
 				FUniqueNetIdRepl UniqueIdRepl;
 				FString OnlinePlatformName;
+				FString& RequestURL = Connection->RequestURL;
 
 				// Expand the maximum string serialization size, to accommodate extremely large Fortnite join URL's.
 				Bunch.ArMaxSerializeSize += (16 * 1024 * 1024);
 
-				bool bReceived = FNetControlMessage<NMT_Login>::Receive(Bunch, Connection->ClientResponse, Connection->RequestURL,
-																		UniqueIdRepl, OnlinePlatformName);
+				bool bReceived = FNetControlMessage<NMT_Login>::Receive(Bunch, Connection->ClientResponse, RequestURL, UniqueIdRepl,
+																		OnlinePlatformName);
 
 				Bunch.ArMaxSerializeSize -= (16 * 1024 * 1024);
 
 				if (bReceived)
 				{
-					UE_LOG(LogNet, Log, TEXT("Login request: %s userId: %s platform: %s"), *Connection->RequestURL, UniqueIdRepl.IsValid() ? *UniqueIdRepl.ToDebugString() : TEXT("UNKNOWN"), *OnlinePlatformName);
+					// Only the options/portal for the URL should be used during join
+					const TCHAR* NewRequestURL = *RequestURL;
+
+					for (; *NewRequestURL != '\0' && *NewRequestURL != '?' && *NewRequestURL != '#'; NewRequestURL++);
+
+
+					UE_LOG(LogNet, Log, TEXT("Login request: %s userId: %s platform: %s"), NewRequestURL, UniqueIdRepl.IsValid() ? *UniqueIdRepl.ToDebugString() : TEXT("UNKNOWN"), *OnlinePlatformName);
 
 					// Compromise for passing splitscreen playercount through to gameplay login code,
 					// without adding a lot of extra unnecessary complexity throughout the login code.
 					// NOTE: This code differs from NMT_JoinSplit, by counting + 1 for SplitscreenCount
 					//			(since this is the primary connection, not counted in Children)
-					FURL InURL( NULL, *Connection->RequestURL, TRAVEL_Absolute );
+					FURL InURL( NULL, NewRequestURL, TRAVEL_Absolute );
 
 					if ( !InURL.Valid )
 					{
-						UE_LOG( LogNet, Error, TEXT( "NMT_Login: Invalid URL %s" ), *Connection->RequestURL );
+						RequestURL = NewRequestURL;
+
+						UE_LOG( LogNet, Error, TEXT( "NMT_Login: Invalid URL %s" ), *RequestURL );
 						Bunch.SetError();
 						break;
 					}
@@ -5139,10 +5148,10 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					InURL.RemoveOption(TEXT("SplitscreenCount"));
 					InURL.AddOption(*FString::Printf(TEXT("SplitscreenCount=%i"), SplitscreenCount));
 
-					Connection->RequestURL = InURL.ToString();
+					RequestURL = InURL.ToString();
 
 					// skip to the first option in the URL
-					const TCHAR* Tmp = *Connection->RequestURL;
+					const TCHAR* Tmp = *RequestURL;
 					for (; *Tmp && *Tmp != '?'; Tmp++);
 
 					// keep track of net id for player associated with remote connection
@@ -5177,7 +5186,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 				else
 				{
 					Connection->ClientResponse.Empty();
-					Connection->RequestURL.Empty();
+					RequestURL.Empty();
 				}
 
 				break;
@@ -5254,8 +5263,13 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 
 				if (FNetControlMessage<NMT_JoinSplit>::Receive(Bunch, SplitRequestURL, SplitRequestUniqueIdRepl))
 				{
+					// Only the options/portal for the URL should be used during join
+					const TCHAR* NewRequestURL = *SplitRequestURL;
+
+					for (; *NewRequestURL != '\0' && *NewRequestURL != '?' && *NewRequestURL != '#'; NewRequestURL++);
+
 					UE_LOG(LogNet, Log, TEXT("Join splitscreen request: %s userId: %s parentUserId: %s"),
-						*SplitRequestURL,
+						NewRequestURL,
 						SplitRequestUniqueIdRepl.IsValid() ? *SplitRequestUniqueIdRepl->ToString() : TEXT("Invalid"),
 						Connection->PlayerId.IsValid() ? *Connection->PlayerId->ToString() : TEXT("Invalid"));
 
@@ -5263,10 +5277,12 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					// without adding a lot of extra unnecessary complexity throughout the login code.
 					// NOTE: This code differs from NMT_Login, by counting + 2 for SplitscreenCount
 					//			(once for pending child connection, once for primary non-child connection)
-					FURL InURL(NULL, *SplitRequestURL, TRAVEL_Absolute);
+					FURL InURL(NULL, NewRequestURL, TRAVEL_Absolute);
 
 					if (!InURL.Valid)
 					{
+						SplitRequestURL = NewRequestURL;
+
 						UE_LOG(LogNet, Error, TEXT("NMT_JoinSplit: Invalid URL %s"), *SplitRequestURL);
 						Bunch.SetError();
 						break;
