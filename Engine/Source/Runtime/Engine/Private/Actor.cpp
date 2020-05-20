@@ -3956,9 +3956,24 @@ bool AActor::SetRootComponent(class USceneComponent* NewRootComponent)
 	/** Only components owned by this actor can be used as a its root component. */
 	if (ensure(NewRootComponent == nullptr || NewRootComponent->GetOwner() == this))
 	{
-		Modify();
+		if (RootComponent != NewRootComponent)
+		{
+			Modify();
 
-		RootComponent = NewRootComponent;
+			USceneComponent* OldRootComponent = RootComponent;
+			RootComponent = NewRootComponent;
+
+			// Notify new root first, as it probably has no delegate on it.
+			if (NewRootComponent)
+			{
+				NewRootComponent->NotifyIsRootComponentChanged(true);
+			}
+
+			if (OldRootComponent)
+			{
+				OldRootComponent->NotifyIsRootComponentChanged(false);
+			}
+		}
 		return true;
 	}
 
