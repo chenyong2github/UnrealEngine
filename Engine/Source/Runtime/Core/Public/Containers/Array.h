@@ -324,8 +324,8 @@ public:
 		CopyToEmpty(Ptr, Count, 0, 0);
 	}
 
-	template <typename OtherElementType>
-	explicit TArray(const TArrayView<OtherElementType>& Other);
+	template <typename OtherElementType, typename OtherSizeType>
+	explicit TArray(const TArrayView<OtherElementType, OtherSizeType>& Other);
 
 	/**
 	 * Initializer list constructor
@@ -419,8 +419,8 @@ public:
 		return *this;
 	}
 
-	template <typename OtherElementType>
-	TArray& operator=(const TArrayView<OtherElementType>& Other);
+	template <typename OtherElementType, typename OtherSizeType>
+	TArray& operator=(const TArrayView<OtherElementType, OtherSizeType>& Other);
 
 private:
 #if !PLATFORM_COMPILER_HAS_IF_CONSTEXPR
