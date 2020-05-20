@@ -147,6 +147,7 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 void FNCPool::Reclaim(UNiagaraComponent* Component, const float CurrentTimeSeconds)
 {
 	check(Component);
+	ensureMsgf(!Component->IsPendingKillOrUnreachable(), TEXT("Component is pending kill or unreachable when reclaimed Component(%s)"), *Component->GetFullName());
 
 #if ENABLE_NC_POOL_DEBUGGING
 	int32 InUseIdx = INDEX_NONE;
