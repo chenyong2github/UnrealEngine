@@ -601,6 +601,9 @@ namespace Chaos
 
 	int32 RewindCaptureNumFrames = -1;
 	FAutoConsoleVariableRef CVarRewindCaptureNumFrames(TEXT("p.RewindCaptureNumFrames"),RewindCaptureNumFrames,TEXT("The number of frames to capture rewind for. Requires restart of solver"));
+
+	int32 UseResimCache = 0;
+	FAutoConsoleVariableRef CVarUseResimCache(TEXT("p.UseResimCache"),UseResimCache,TEXT("Whether resim uses cache to skip work, requires recreating world to take effect"));
 	
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::Reset()
@@ -620,7 +623,7 @@ namespace Chaos
 
 		if(RewindCaptureNumFrames >= 0)
 		{
-			EnableRewindCapture(20, bUseCollisionResimCache);
+			EnableRewindCapture(RewindCaptureNumFrames, bUseCollisionResimCache || !!UseResimCache);
 		}
 
 		MEvolution->SetCaptureRewindDataFunction([this](const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles)
