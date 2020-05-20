@@ -45,7 +45,7 @@ void FMirrorOp::CalculateResult(FProgressCancel* Progress)
 	// Set up the mirror operation
 	FMeshMirror Mirrorer(ResultMesh.Get(), LocalPlaneOrigin, LocalPlaneNormal);
 	Mirrorer.bWeldAlongPlane = bWeldAlongPlane;
-	Mirrorer.bAllowBowtieVertexCreation = Mirrorer.bAllowBowtieVertexCreation;
+	Mirrorer.bAllowBowtieVertexCreation = bAllowBowtieVertexCreation;
 	Mirrorer.PlaneTolerance = PlaneTolerance;
 
 	// Run the operation
