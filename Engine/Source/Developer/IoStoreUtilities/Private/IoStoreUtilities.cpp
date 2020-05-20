@@ -2325,10 +2325,20 @@ static int32 FindExport(
 			Export->ObjectName.AppendString(FullName);
 		}
 
-		const int32 GlobalExportIndex = GlobalPackageData.ExportObjects.Num();
-		GlobalPackageData.ExportsByFullName.Add(FullName, GlobalExportIndex);
-
-		FExportObjectData& ExportData = GlobalPackageData.ExportObjects.AddDefaulted_GetRef();
+		int32 GlobalExportIndex = -1;
+		int32* FindGlobalExportIndex = GlobalPackageData.ExportsByFullName.Find(FullName);
+		if (!FindGlobalExportIndex)
+		{
+			GlobalExportIndex = GlobalPackageData.ExportObjects.Num();
+			GlobalPackageData.ExportsByFullName.Add(FullName, GlobalExportIndex);
+			GlobalPackageData.ExportObjects.AddDefaulted();
+		}
+		else
+		{
+			GlobalExportIndex = *FindGlobalExportIndex;
+		}
+		FExportObjectData& ExportData = GlobalPackageData.ExportObjects[GlobalExportIndex];
+		
 		ExportData.GlobalIndex = GlobalExportIndex;
 		ExportData.Package = Package;
 		ExportData.ObjectName = Export->ObjectName;
@@ -3462,10 +3472,21 @@ static void CreateGlobalImportsAndExports(
 		{
 			TArray<int32>& PublicExports = GlobalPackageData.PublicExportIndices;
 			FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex(FPackageObjectIndex::PackageImport, PublicExports.Num());
-			GlobalPackageData.ImportsByFullName.Add(Export.FullName, GlobalImportIndex);
-			PublicExports.Add(Export.GlobalIndex);
-			Export.GlobalImportIndex = GlobalImportIndex;
-			Export.Package->PublicExports.Add(GlobalImportIndex);
+			FPackageObjectIndex FindGlobalImportIndex = GlobalPackageData.ImportsByFullName.FindRef(Export.FullName);
+			if (FindGlobalImportIndex.IsNull())
+			{
+				GlobalPackageData.ImportsByFullName.Add(Export.FullName, GlobalImportIndex);
+				PublicExports.Add(Export.GlobalIndex);
+				Export.GlobalImportIndex = GlobalImportIndex;
+			}
+			else
+			{
+				GlobalImportIndex = FindGlobalImportIndex;
+			}
+			if (Export.Package)
+			{
+				Export.Package->PublicExports.Add(GlobalImportIndex);
+			}
 		}
 	}
 
@@ -3786,7 +3807,7 @@ static void LoadReleaseVersionMeta(
 
 	{
 		FString ImportExportOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.uimportexport"));
-		TUniquePtr<FArchive> ImportExportArchive(IFileManager::Get().CreateFileWriter(*ImportExportOutputPath));
+		TUniquePtr<FArchive> ImportExportArchive(IFileManager::Get().CreateFileReader(*ImportExportOutputPath));
 		(*ImportExportArchive) << GlobalPackageData;
 	}
 
