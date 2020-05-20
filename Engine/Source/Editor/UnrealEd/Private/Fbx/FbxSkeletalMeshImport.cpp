@@ -1671,6 +1671,34 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 
 	EARLY_RETURN_ON_CANCEL(false, CancelCleanup);
 
+	//When reimporting we must verify the import skeleton is valid before applying any modification to the skeletalmesh. For sure if we reimport only the geometry we do not need to do that
+	if (ExistingSkelMesh && !ImportOptions->bImportAsSkeletalGeometry)
+	{
+		const TArray <SkeletalMeshImportData::FBone>& RefBonesBinary = SkelMeshImportDataPtr->RefBonesBinary;
+		int32 BoneNumber = RefBonesBinary.Num();
+		TArray<FString> UniqueBoneNames;
+		UniqueBoneNames.Reserve(BoneNumber);
+		for (int32 BoneIndex = 0; BoneIndex < BoneNumber; BoneIndex++)
+		{
+			const SkeletalMeshImportData::FBone& BinaryBone = RefBonesBinary[BoneIndex];
+			const FString BoneName = FSkeletalMeshImportData::FixupBoneName(BinaryBone.Name);
+			//FString == operator and <= or >= are all case insensitive
+			//We want to check with case insensitive so this is perfect to use contains. No need to iterate
+			if (UniqueBoneNames.Contains(BoneName))
+			{
+				UnFbx::FFbxImporter* FFbxImporter = UnFbx::FFbxImporter::GetInstance();
+				FFbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("SkeletonHasDuplicateBones", "Skeleton has non-unique bone names.\nBone named '{0}' encountered more than once."), FText::FromString(BoneName))), FFbxErrors::SkeletalMesh_DuplicateBones);
+				if (SkeletalMesh)
+				{
+					SkeletalMesh->ClearFlags(RF_Standalone);
+					SkeletalMesh->Rename(NULL, GetTransientPackage(), REN_DontCreateRedirectors);
+				}
+				return nullptr;
+			}
+			UniqueBoneNames.Add(BoneName);
+		}
+	}
+
 	//Stack the PostEditChange call, it will call post edit change when it will go out of scope
 	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(ExistingSkelMesh);
 
