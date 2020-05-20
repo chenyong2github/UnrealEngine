@@ -2599,7 +2599,6 @@ void USoundWave::OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBeha
 	// record the new loading behavior
 	// (if this soundwave isn't loaded yet, 
 	// CachedSoundWaveLoadingBehavior will take precedence when it does load)
-	LoadingBehavior = InLoadingBehavior;
 	CachedSoundWaveLoadingBehavior = InLoadingBehavior;
 	bLoadingBehaviorOverridden = true;
 
@@ -2653,7 +2652,6 @@ void USoundWave::CacheInheritedLoadingBehavior()
  	else if (bLoadingBehaviorOverridden)
  	{
  		ensureMsgf(CachedSoundWaveLoadingBehavior != ESoundWaveLoadingBehavior::Inherited, TEXT("SoundCue set loading behavior to Inherited on SoudWave: %s"), *GetFullName());
- 		LoadingBehavior = CachedSoundWaveLoadingBehavior;
  	}
 	else
 	{
