@@ -76,7 +76,7 @@ void Main(
 #endif
 
 #if OUTPUT_MOBILE_COLOR_VALUE
-	OutCustomDepth = min(SvPosition.w, 65500);
+	OutCustomDepth = SvPosition.z;
 	OutCustomStencil = MobileColorValue;
 #else
 	OutColor = 0;
