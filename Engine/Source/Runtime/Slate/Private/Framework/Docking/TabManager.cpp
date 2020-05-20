@@ -880,10 +880,13 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 		}
 	}
 
-	// Sanity check, if this check occurs, something is wrong on this code (some edge case was not handled?)
-	if (RestoreAreaOutputCanBeNullptr == EOutputCanBeNullptr::Never)
+	// Sanity check
+	if (RestoreAreaOutputCanBeNullptr == EOutputCanBeNullptr::Never && !PrimaryDockArea.IsValid())
 	{
-		check(PrimaryDockArea.IsValid());
+		UE_LOG(LogSlate, Warning, TEXT("FTabManager::RestoreFrom(): RestoreAreaOutputCanBeNullptr was set to EOutputCanBeNullptr::Never but"
+			" RestoreFrom() is returning nullptr. I.e., the PrimaryDockArea could not be created. If returning nullptr is possible, set"
+			" RestoreAreaOutputCanBeNullptr to an option that could return nullptr (e.g., IfNoTabValid, IfNoOpenTabValid). This code might"
+			" ensure(false) or even check(false) in the future."));
 	}
 
 	UpdateStats();
