@@ -839,7 +839,8 @@ void FTabManager::UnregisterAllTabSpawners()
 	TabSpawner.Empty();
 }
 
-TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr)
+TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent,
+	const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr)
 {
 	ActiveLayoutName = Layout->LayoutName;
 
@@ -872,11 +873,17 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 				CollapsedDockAreas.Add(ThisArea);
 			}
 
-			if ( bIsPrimaryArea && ensure(!PrimaryDockArea.IsValid()) )
+			if (bIsPrimaryArea && RestoredDockArea.IsValid() && ensure(!PrimaryDockArea.IsValid()))
 			{
 				PrimaryDockArea	= RestoredDockArea;
 			}
 		}
+	}
+
+	// Sanity check, if this check occurs, something is wrong on this code (some edge case was not handled?)
+	if (RestoreAreaOutputCanBeNullptr == EOutputCanBeNullptr::Never)
+	{
+		check(PrimaryDockArea.IsValid());
 	}
 
 	UpdateStats();
