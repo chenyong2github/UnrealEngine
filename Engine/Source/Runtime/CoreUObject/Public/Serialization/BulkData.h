@@ -783,9 +783,6 @@ private:
 	/** Returns true if bulk data should be loaded asynchronously */
 	bool ShouldStreamBulkData();
 
-	/** Returns if the offset needs fixing when serialized */
-	bool NeedsOffsetFixup() const;
-
 	/*-----------------------------------------------------------------------------
 		Member variables.
 	-----------------------------------------------------------------------------*/

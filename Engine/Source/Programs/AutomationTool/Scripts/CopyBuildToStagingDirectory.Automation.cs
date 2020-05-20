@@ -2349,11 +2349,8 @@ public partial class Project : CommandUtils
 					Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 					if (ShouldCreateIoStoreContainerFiles(Params, SC))
 					{
-						bool bAllowBulkDataInIoStore = true;
-						if(!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
-						{
-							bAllowBulkDataInIoStore = true; // Default is to allow it in the IoStore
-						}
+						bool bAllowBulkDataInIoStore = false;
+						PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore);
 
 						UnrealPakResponseFile = new Dictionary<string, string>();
 						Dictionary<string, string> IoStoreResponseFile = new Dictionary<string, string>();

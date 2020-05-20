@@ -47,8 +47,16 @@ struct FBulkDataOrId
 
 	union
 	{
-		FileToken Token;
-		uint64 PackageID;
+		// Inline data or fallback path
+		struct
+		{
+			uint64 BulkDataSize;
+			FileToken Token;
+
+		} Fallback;
+
+		// For IODispatcher
+		FIoChunkId ChunkID;
 	}; // Note that the union will end up being 16 bytes with padding
 };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FBulkDataOrId);
@@ -114,14 +122,16 @@ public:
 	static constexpr FBulkDataOrId::FileToken InvalidToken = INDEX_NONE;
 
 	FBulkDataBase()
-	{
-		Data.Token = InvalidToken;
+	{ 
+		Data.Fallback.BulkDataSize = 0;
+		Data.Fallback.Token = InvalidToken;
 	}
-
+	
 	FBulkDataBase(const FBulkDataBase& Other)
 	{
 		// Need some partial initialization of operator= will try to release the token!
-		Data.Token = InvalidToken;
+		Data.Fallback.BulkDataSize = 0;
+		Data.Fallback.Token = InvalidToken;
 
 		*this = Other;
 	}
@@ -226,13 +236,8 @@ public:
 private:
 	friend FBulkDataAllocation;
 
-	FIoChunkId CreateChunkId() const;
-
 	void SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet);
 	void ClearRuntimeBulkDataFlags(uint32 BulkDataFlagsToClear);
-
-	/** Returns if the offset needs fixing when serialized */
-	bool NeedsOffsetFixup() const;
 
 	/**
 	 * Poll to see if it is safe to discard the data owned by the Bulkdata object
@@ -241,7 +246,7 @@ private:
 	 */
 	bool CanDiscardInternalData() const;
 
-	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutOffsetInFile);
+	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile);
 	void SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 
@@ -273,8 +278,6 @@ private:
 
 	LAYOUT_FIELD(FBulkDataOrId, Data);
 	LAYOUT_FIELD(FBulkDataAllocation, DataAllocation);
-	LAYOUT_FIELD_INITIALIZED(int64, BulkDataSize, INDEX_NONE);
-	LAYOUT_FIELD_INITIALIZED(int64, BulkDataOffset, INDEX_NONE);
 	LAYOUT_FIELD_INITIALIZED(EBulkDataFlags, BulkDataFlags, EBulkDataFlags::BULKDATA_None);
 	LAYOUT_MUTABLE_FIELD_INITIALIZED(uint8, LockStatus, 0); // Mutable so that the read only lock can be const
 };
