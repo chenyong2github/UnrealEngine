@@ -486,6 +486,13 @@ public:
 	/** Called to save the current movie scene under a new name */
 	void SaveCurrentMovieSceneAs();
 
+	FReply NavigateForward();
+	FReply NavigateBackward();
+	bool CanNavigateForward() const;
+	bool CanNavigateBackward() const;
+	FText GetNavigateForwardTooltip() const;
+	FText GetNavigateBackwardTooltip() const;
+
 	/** Called when a user executes the assign actor to track menu item */
 	void AssignActor(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
 	FGuid DoAssignActor(AActor*const* InActors, int32 NumActors, FGuid ObjectBinding);
@@ -1140,6 +1147,11 @@ private:
 
 	/** A stack of the current sequence hierarchy for keeping track of nestled sequences. */
 	TArray<FMovieSceneSequenceID> ActiveTemplateIDs;
+
+	/** A stack of sequences that have been navigated to. */
+	TArray<FMovieSceneSequenceID> TemplateIDForwardStack;
+	TArray<FMovieSceneSequenceID> TemplateIDBackwardStack;
+
 	/**
 	* The active state of each sequence. A sequence can be in another sequence multiple times
 	* and the owning subsection contains the active state of the sequence, so this stack is kept 

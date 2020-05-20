@@ -85,6 +85,12 @@ public:
 	/** Zoom out of the view range */
 	TSharedPtr< FUICommandInfo > ZoomOutViewRange;
 
+	/** Navigate backward */
+	TSharedPtr< FUICommandInfo > NavigateBackward;
+
+	/** Navigate forward */
+	TSharedPtr< FUICommandInfo > NavigateForward;
+
 	/** Set the selection range to the next shot. */
 	TSharedPtr< FUICommandInfo > SetSelectionRangeToNextShot;
 

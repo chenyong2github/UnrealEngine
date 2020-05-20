@@ -908,6 +908,9 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 {
 	RemoveNodeGroupsCollectionChangedDelegate();
 
+	TemplateIDBackwardStack.Push(ActiveTemplateIDs.Top());
+	TemplateIDForwardStack.Reset();
+
 	FMovieSceneRootOverridePath Path;
 	Path.Set(ActiveTemplateIDs.Last(), RootTemplateInstance.GetHierarchy());
 
@@ -917,6 +920,64 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 	// Ensure the hierarchy is up to date for this level
 	int32 MaxDepth = 1;
 	FMovieSceneCompiler::CompileHierarchy(*GetFocusedMovieSceneSequence(), RootTemplateInstance.GetHierarchy(), ActiveTemplateIDs.Last(), MaxDepth);
+
+	// If the sequence isn't found, reset to the root and dive in from there
+	if (!RootTemplateInstance.GetHierarchy().FindSubData(SequenceID))
+	{
+		// Pop until the root and reset breadcrumbs
+		while (MovieSceneSequenceID::Root != ActiveTemplateIDs.Last())
+		{
+			ActiveTemplateIDs.Pop();
+			ActiveTemplateStates.Pop();
+		}
+		SequencerWidget->ResetBreadcrumbs();
+
+		FMovieSceneCompiler::CompileHierarchy(*GetFocusedMovieSceneSequence(), RootTemplateInstance.GetHierarchy(), ActiveTemplateIDs.Last());
+
+		// Find the requested subsequence's sequence ID
+		SequenceID = MovieSceneSequenceID::Invalid;
+		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : RootTemplateInstance.GetHierarchy().AllSubSequenceData())
+		{
+			if (Pair.Value.DeterministicSequenceID == InSubSection.GetSequenceID())
+			{
+				SequenceID = Pair.Key;
+				break;
+			}
+		}
+
+		// Gather the parent chain's sequence IDs
+		TArray<FMovieSceneSequenceID> ParentChain;
+		const FMovieSceneSequenceHierarchyNode* SequenceNode = RootTemplateInstance.GetHierarchy().FindNode(SequenceID);
+		FMovieSceneSequenceID ParentID = SequenceNode ? SequenceNode->ParentID : MovieSceneSequenceID::Invalid;
+		while (ParentID.IsValid() && ParentID != MovieSceneSequenceID::Root)
+		{
+			ParentChain.Add(ParentID);
+
+			const FMovieSceneSequenceHierarchyNode* ParentNode = RootTemplateInstance.GetHierarchy().FindNode(ParentID);
+			ParentID = ParentNode ? ParentNode->ParentID : MovieSceneSequenceID::Invalid;
+		}
+
+		// Push each sequence ID in the parent chain, updating the breadcrumb as we go
+		for (int32 ParentIDIndex = ParentChain.Num() - 1; ParentIDIndex >= 0; --ParentIDIndex)
+		{
+			UMovieSceneSubSection* ParentSubSection = FindSubSection(ParentChain[ParentIDIndex]);
+			if (ParentSubSection)
+			{
+				ActiveTemplateIDs.Push(ParentChain[ParentIDIndex]);
+				ActiveTemplateStates.Push(ParentSubSection->IsActive());
+
+				SequencerWidget->UpdateBreadcrumbs();
+			}
+		}
+
+		Path.Set(ActiveTemplateIDs.Last(), RootTemplateInstance.GetHierarchy());
+
+		// Root out the SequenceID for the sub section
+		SequenceID = Path.Remap(InSubSection.GetSequenceID());
+
+		// Ensure the hierarchy is up to date for this level
+		FMovieSceneCompiler::CompileHierarchy(*GetFocusedMovieSceneSequence(), RootTemplateInstance.GetHierarchy(), ActiveTemplateIDs.Last());
+	}
 
 	if (!ensure(RootTemplateInstance.GetHierarchy().FindSubData(SequenceID)))
 	{
@@ -1095,6 +1156,9 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 {
 	if( ActiveTemplateIDs.Num() > 1 )
 	{
+		TemplateIDBackwardStack.Push(ActiveTemplateIDs.Top());
+		TemplateIDForwardStack.Reset();
+
 		RemoveNodeGroupsCollectionChangedDelegate();
 
 		// Pop until we find the movie scene to focus
@@ -9983,6 +10047,112 @@ void FSequencer::StepToPreviousShot()
 	SetLocalTime(SubSequenceRange.GetLowerBoundValue(), ESnapTimeMode::STM_None);
 }
 
+FReply FSequencer::NavigateForward()
+{
+	TArray<FMovieSceneSequenceID> TemplateIDForwardStackCopy = TemplateIDForwardStack;
+	TArray<FMovieSceneSequenceID> TemplateIDBackwardStackCopy = TemplateIDBackwardStack;
+
+	TemplateIDBackwardStackCopy.Push(ActiveTemplateIDs.Top());
+
+	FMovieSceneSequenceID SequenceID = TemplateIDForwardStackCopy.Pop();
+	if (SequenceID == MovieSceneSequenceID::Root)
+	{
+		PopToSequenceInstance(SequenceID);
+	}
+	else if (UMovieSceneSubSection* SubSection = FindSubSection(SequenceID))
+	{
+		FocusSequenceInstance(*SubSection);
+	}
+
+	TemplateIDForwardStack = TemplateIDForwardStackCopy;
+	TemplateIDBackwardStack = TemplateIDBackwardStackCopy;
+
+	SequencerWidget->UpdateBreadcrumbs();
+
+	return FReply::Handled();
+}
+
+FReply FSequencer::NavigateBackward()
+{
+	TArray<FMovieSceneSequenceID> TemplateIDForwardStackCopy = TemplateIDForwardStack;
+	TArray<FMovieSceneSequenceID> TemplateIDBackwardStackCopy = TemplateIDBackwardStack;
+
+	TemplateIDForwardStackCopy.Push(ActiveTemplateIDs.Top());
+
+	FMovieSceneSequenceID SequenceID = TemplateIDBackwardStackCopy.Pop();
+	if (SequenceID == MovieSceneSequenceID::Root)
+	{
+		PopToSequenceInstance(SequenceID);
+	}
+	else if (UMovieSceneSubSection* SubSection = FindSubSection(SequenceID))
+	{
+		FocusSequenceInstance(*SubSection);
+	}
+
+	TemplateIDForwardStack = TemplateIDForwardStackCopy;
+	TemplateIDBackwardStack = TemplateIDBackwardStackCopy;
+
+	SequencerWidget->UpdateBreadcrumbs();
+	return FReply::Handled();
+}
+
+bool FSequencer::CanNavigateForward() const
+{
+	return TemplateIDForwardStack.Num() > 0;
+}
+
+bool FSequencer::CanNavigateBackward() const
+{
+	return TemplateIDBackwardStack.Num() > 0;
+}
+
+FText FSequencer::GetNavigateForwardTooltip() const
+{
+	if (TemplateIDForwardStack.Num() > 0)
+	{
+		FMovieSceneSequenceID SequenceID = TemplateIDForwardStack.Last();
+
+		if (SequenceID == MovieSceneSequenceID::Root)
+		{
+			if (GetRootMovieSceneSequence())
+			{
+				return FText::Format(LOCTEXT("NavigateForwardTooltipFmt", "Forward to {0}"), GetRootMovieSceneSequence()->GetDisplayName());
+			}
+		}
+		else if (UMovieSceneSubSection* SubSection = FindSubSection(SequenceID))
+		{
+			if (SubSection->GetSequence())
+			{
+				return FText::Format(LOCTEXT("NavigateForwardTooltipFmt", "Forward to {0}"), SubSection->GetSequence()->GetDisplayName());
+			}
+		}
+	}
+	return FText::GetEmpty();
+}
+
+FText FSequencer::GetNavigateBackwardTooltip() const
+{
+	if (TemplateIDBackwardStack.Num() > 0)
+	{
+		FMovieSceneSequenceID SequenceID = TemplateIDBackwardStack.Last();
+
+		if (SequenceID == MovieSceneSequenceID::Root)
+		{
+			if (GetRootMovieSceneSequence())
+			{
+				return FText::Format( LOCTEXT("NavigateBackwardTooltipFmt", "Back to {0}"), GetRootMovieSceneSequence()->GetDisplayName());
+			}
+		}
+		else if (UMovieSceneSubSection* SubSection = FindSubSection(SequenceID))
+		{
+			if (SubSection->GetSequence())
+			{
+				return FText::Format(LOCTEXT("NavigateBackwardTooltipFmt", "Back to {0}"), SubSection->GetSequence()->GetDisplayName());
+			}
+		}
+	}
+	return FText::GetEmpty();
+}
 
 void FSequencer::ExpandAllNodesAndDescendants()
 {
@@ -11982,6 +12152,16 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.StepToPreviousShot,
 		FExecuteAction::CreateSP( this, &FSequencer::StepToPreviousShot ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.NavigateForward,
+		FExecuteAction::CreateLambda([this] { NavigateForward(); }),
+		FCanExecuteAction::CreateLambda([this] { return CanNavigateForward(); }));
+
+	SequencerCommandBindings->MapAction(
+		Commands.NavigateBackward,
+		FExecuteAction::CreateLambda([this] { NavigateBackward(); }),
+		FCanExecuteAction::CreateLambda([this] { return CanNavigateBackward(); }));
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetStartPlaybackRange,
