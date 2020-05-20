@@ -541,7 +541,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Size of the file, or -1 if not specified
 		/// </summary>
-		public readonly int FileSize;
+		public readonly long FileSize;
 
 		/// <summary>
 		/// Digest of the file, or null if not specified
@@ -572,7 +572,7 @@ namespace AutomationTool
 		/// <param name="Digest">Digest of the file, or null if not specified</param>
 		/// <param name="Description">Description of the changelist</param>
 		/// <param name="Integrations">Integrations performed to the file</param>
-		public P4RevisionRecord(int RevisionNumber, int ChangeNumber, P4Action Action, string Type, DateTime DateTime, string UserName, string ClientName, int FileSize, string Digest, string Description, P4IntegrationRecord[] Integrations)
+		public P4RevisionRecord(int RevisionNumber, int ChangeNumber, P4Action Action, string Type, DateTime DateTime, string UserName, string ClientName, long FileSize, string Digest, string Description, P4IntegrationRecord[] Integrations)
 		{
 			this.RevisionNumber = RevisionNumber;
 			this.ChangeNumber = ChangeNumber;
@@ -3752,7 +3752,7 @@ namespace AutomationTool
 					string Type = RawRecord["type" + RevisionSuffix];
 					string UserName = RawRecord["user" + RevisionSuffix];
 					string ClientName = RawRecord["client" + RevisionSuffix];
-					int FileSize = RawRecord.ContainsKey("fileSize" + RevisionSuffix)? int.Parse(RawRecord["fileSize" + RevisionSuffix]) : -1;
+					long FileSize = RawRecord.ContainsKey("fileSize" + RevisionSuffix)? long.Parse(RawRecord["fileSize" + RevisionSuffix]) : -1;
 					string Digest = RawRecord.ContainsKey("digest" + RevisionSuffix)? RawRecord["digest" + RevisionSuffix] : null;
 					string Description = RawRecord["desc" + RevisionSuffix];
 
