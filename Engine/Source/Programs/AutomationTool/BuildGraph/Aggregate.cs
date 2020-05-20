@@ -9,20 +9,19 @@ using System.Threading.Tasks;
 namespace AutomationTool
 {
 	/// <summary>
-	/// Defines a label within a graph. Labels are similar to badges, and give the combined status of one or more job steps. Unlike badges, they
-	/// separate the requirements for its status and optional nodes to be included in its status, allowing this to be handled externally.
+	/// Defines a agggregate within a graph, which give the combined status of one or more job steps, and allow building several steps at once.
 	/// </summary>
-	class Label
+	class Aggregate
 	{
-		/// <summary>
-		/// Category for this label
-		/// </summary>
-		public readonly string Category;
-
 		/// <summary>
 		/// Name of this badge
 		/// </summary>
 		public readonly string Name;
+
+		/// <summary>
+		/// Label to show for this aggregate in Horde
+		/// </summary>
+		public readonly string Label;
 
 		/// <summary>
 		/// Set of nodes that must be run for this label to be shown.
@@ -37,12 +36,12 @@ namespace AutomationTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InName">Name of this label</param>
-		/// <param name="InCategory">Type of this label</param>
-		public Label(string InName, string InCategory)
+		/// <param name="InName">Name of this aggregate</param>
+		/// <param name="InLabel">Label to show for this aggregate</param>
+		public Aggregate(string InName, string InLabel)
 		{
 			Name = InName;
-			Category = InCategory;
+			Label = InLabel;
 		}
 
 		/// <summary>
@@ -51,7 +50,7 @@ namespace AutomationTool
 		/// <returns>The name of this label</returns>
 		public override string ToString()
 		{
-			return String.Format("{0}/{1}", Category, Name);
+			return Name;
 		}
 	}
 }
