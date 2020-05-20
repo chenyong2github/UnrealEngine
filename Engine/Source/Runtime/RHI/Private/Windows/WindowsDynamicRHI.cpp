@@ -189,18 +189,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		LoadedRHIModuleName = TEXT("D3D12RHI");
 		DynamicRHIModule = FModuleManager::LoadModulePtr<IDynamicRHIModule>(LoadedRHIModuleName);
 
-#if !WITH_EDITOR
-		// Enable -psocache by default on DX12. Since RHI is selected at runtime we can't set this at compile time with PIPELINE_CACHE_DEFAULT_ENABLED.
-		auto PSOFileCacheEnabledCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.Enabled"));
-		*PSOFileCacheEnabledCVar = 1;
-
-		auto PSOFileCacheReportCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.ReportPSO"));
-		*PSOFileCacheReportCVar = 1;
-
-		auto PSOFileCacheUserCacheCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.SaveUserCache"));
-		*PSOFileCacheUserCacheCVar = UE_BUILD_SHIPPING;
-#endif
-
 		if (!DynamicRHIModule || !DynamicRHIModule->IsSupported())
 		{
 			if (bForceD3D12)
@@ -215,9 +203,24 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 			LoadedRHIModuleName = nullptr;
 		}
-		else if (FPlatformProcess::IsApplicationRunning(TEXT("fraps.exe")))
+		else
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "UseExpressionEncoder", "Fraps has been known to crash D3D12. Please use Microsoft Expression Encoder instead for capturing."));
+#if !WITH_EDITOR
+			// Enable -psocache by default on DX12. Since RHI is selected at runtime we can't set this at compile time with PIPELINE_CACHE_DEFAULT_ENABLED.
+			auto PSOFileCacheEnabledCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.Enabled"));
+			*PSOFileCacheEnabledCVar = 1;
+
+			auto PSOFileCacheReportCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.ReportPSO"));
+			*PSOFileCacheReportCVar = 1;
+
+			auto PSOFileCacheUserCacheCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.SaveUserCache"));
+			*PSOFileCacheUserCacheCVar = UE_BUILD_SHIPPING;
+#endif
+
+			if (FPlatformProcess::IsApplicationRunning(TEXT("fraps.exe")))
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "UseExpressionEncoder", "Fraps has been known to crash D3D12. Please use Microsoft Expression Encoder instead for capturing."));
+			}
 		}
 	}
 
