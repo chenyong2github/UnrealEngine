@@ -12,7 +12,6 @@ public class GeForceNOW : ModuleRules
         if (Target.Type != TargetRules.TargetType.Server
 			&& Target.Configuration != UnrealTargetConfiguration.Unknown
 			&& Target.Configuration != UnrealTargetConfiguration.Debug
-			&& Target.Configuration != UnrealTargetConfiguration.DebugGame
             && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))
 		{
             String GFNPath = Target.UEThirdPartySourceDirectory + "NVIDIA/GeForceNOW/";
