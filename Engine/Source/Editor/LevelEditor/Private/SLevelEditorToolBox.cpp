@@ -17,7 +17,7 @@
 #include "EdMode.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SExpandableArea.h"
-#include "Subsystems/StatusBarSubsystem.h"
+#include "StatusBarSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
 

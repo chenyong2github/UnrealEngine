@@ -41,6 +41,7 @@
 #include "Math/UnitConversion.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Styling/StarshipCoreStyle.h"
 
 #ifndef SLATE_HAS_WIDGET_REFLECTOR
 	#define SLATE_HAS_WIDGET_REFLECTOR !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && PLATFORM_DESKTOP
@@ -50,6 +51,7 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 #include "Debugging/SlateDebugging.h"
+
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
@@ -633,8 +635,9 @@ TSharedRef<FSlateApplication> FSlateApplication::Create(const TSharedRef<class G
 {
 	EKeys::Initialize();
 
-	FCoreStyle::ResetToDefault();
+	InitializeCoreStyle();
 
+	
 	// Note: Important to establish the static PlatformApplication property first, as the FSlateApplication ctor relies on it
 	PlatformApplication = InPlatformApplication;
 
@@ -717,7 +720,6 @@ FSlateApplication::FSlateApplication()
 	, bTouchFallbackToMouse( true )
 	, bSoftwareCursorAvailable( false )	
 	, bMenuAnimationsEnabled( false )
-	, AppIcon( FCoreStyle::Get().GetBrush("DefaultAppIcon") )
 	, VirtualDesktopRect( 0,0,0,0 )
 	, NavigationConfig(MakeShared<FNavigationConfig>())
 #if WITH_EDITOR
@@ -2069,6 +2071,11 @@ TSharedPtr<IMenu> FSlateApplication::FindMenuInWidgetPath(const FWidgetPath& InW
 TSharedPtr<SWindow> FSlateApplication::GetVisibleMenuWindow() const
 {
 	return MenuStack.GetHostWindow();
+}
+
+TSharedPtr<SWidget> FSlateApplication::GetMenuHostWidget() const
+{
+	return MenuStack.GetHostWidget();
 }
 
 void FSlateApplication::DismissAllMenus()
@@ -3621,9 +3628,15 @@ void FSlateApplication::SetAppIcon(const FSlateBrush* const InAppIcon)
 
 const FSlateBrush* FSlateApplication::GetAppIcon() const
 {
-	return AppIcon;
+	static FName AppIconName("AppIcon");
+	return FAppStyle::Get().GetBrush(AppIconName);
 }
 
+const FSlateBrush* FSlateApplication::GetAppIconSmall() const
+{
+	static FName AppIconName("AppIcon.Small");
+	return FAppStyle::Get().GetBrush(AppIconName);
+}
 
 void FSlateApplication::ShowVirtualKeyboard( bool bShow, int32 UserIndex, TSharedPtr<IVirtualKeyboardEntry> TextEntryWidget )
 {
@@ -6542,6 +6555,21 @@ TSharedRef<FSlateApplication> FSlateApplication::InitializeAsStandaloneApplicati
 	FSlateApplication::Get().SetExitRequestedHandler(FSimpleDelegate::CreateStatic(&OnRequestExit));
 
 	return Slate;
+}
+
+void FSlateApplication::InitializeCoreStyle()
+{
+	if (FCoreStyle::IsStarshipStyle())
+	{
+		FStarshipCoreStyle::ResetToDefault();
+		FAppStyle::SetAppStyleSet(FStarshipCoreStyle::GetCoreStyle());
+	}
+	else
+	{
+		FCoreStyle::ResetToDefault();
+		FAppStyle::SetAppStyleSet(FCoreStyle::GetCoreStyle());
+	}
+
 }
 
 void FSlateApplication::SetWidgetReflector(const TSharedRef<IWidgetReflector>& WidgetReflector)

@@ -14,7 +14,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Toolkits/SGlobalOpenAssetDialog.h"
 #include "Toolkits/SGlobalTabSwitchingDialog.h"
-#include "Subsystems/StatusBarSubsystem.h"
+#include "StatusBarSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "GlobalEditorCommonCommands"
 
@@ -28,32 +28,34 @@ FGlobalEditorCommonCommands::FGlobalEditorCommonCommands()
 
 void FGlobalEditorCommonCommands::RegisterCommands()
 {
-	UI_COMMAND( SummonControlTabNavigation, "Tab Navigation", "Summons a list of open assets and tabs", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Tab) );
-	UI_COMMAND( SummonControlTabNavigationAlternate, "Tab Navigation", "Summons a list of open assets and tabs", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Command, EKeys::Tab) );
+	UI_COMMAND(SummonControlTabNavigation, "Tab Navigation", "Summons a list of open assets and tabs", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Tab));
+	UI_COMMAND(SummonControlTabNavigationAlternate, "Tab Navigation", "Summons a list of open assets and tabs", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Command, EKeys::Tab));
 
-	UI_COMMAND( SummonOpenAssetDialog, "Open Asset...", "Summons an asset picker", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::P) );
-	UI_COMMAND( SummonOpenAssetDialogAlternate, "Open Asset...", "Summons an asset picker", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt | EModifierKey::Shift, EKeys::O));
-	UI_COMMAND( FindInContentBrowser, "Browse to Asset", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::B));
-	
-	UI_COMMAND( OpenConsoleCommandBox, "Open Console Command Box", "Opens an edit box where you can type in a console command", EUserInterfaceActionType::Button, FInputChord(EKeys::Tilde));
-	UI_COMMAND( OpenDocumentation, "Open Documentation...", "Opens documentation for this tool", EUserInterfaceActionType::Button, FInputChord(EKeys::F1) );
+	UI_COMMAND(SummonOpenAssetDialog, "Open Asset...", "Summons an asset picker", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::P));
+	UI_COMMAND(SummonOpenAssetDialogAlternate, "Open Asset...", "Summons an asset picker", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt | EModifierKey::Shift, EKeys::O));
+	UI_COMMAND(FindInContentBrowser, "Browse to Asset", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::B));
+
+	UI_COMMAND(OpenConsoleCommandBox, "Open Console Command Box", "Opens an edit box where you can type in a console command", EUserInterfaceActionType::Button, FInputChord(EKeys::Tilde));
+	UI_COMMAND(OpenDocumentation, "Open Documentation...", "Opens documentation for this tool", EUserInterfaceActionType::Button, FInputChord(EKeys::F1));
+
+	UI_COMMAND(OpenContentBrowserDrawer, "Open Content Browser Drawer", "Opens the content browser drawer from the status bar and focuses the search field", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::SpaceBar));
 }
 
 void FGlobalEditorCommonCommands::MapActions(TSharedRef<FUICommandList>& ToolkitCommands)
 {
 	Register();
 
- 	ToolkitCommands->MapAction(
- 		Get().SummonControlTabNavigation,
- 		FExecuteAction::CreateStatic( &FGlobalEditorCommonCommands::OnPressedCtrlTab, Get().SummonControlTabNavigation ) );
+	ToolkitCommands->MapAction(
+		Get().SummonControlTabNavigation,
+		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnPressedCtrlTab, Get().SummonControlTabNavigation));
 
- 	ToolkitCommands->MapAction(
- 		Get().SummonControlTabNavigationAlternate,
- 		FExecuteAction::CreateStatic( &FGlobalEditorCommonCommands::OnPressedCtrlTab, Get().SummonControlTabNavigationAlternate ) );
+	ToolkitCommands->MapAction(
+		Get().SummonControlTabNavigationAlternate,
+		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnPressedCtrlTab, Get().SummonControlTabNavigationAlternate));
 
 	ToolkitCommands->MapAction(
 		Get().SummonOpenAssetDialog,
-		FExecuteAction::CreateStatic( &FGlobalEditorCommonCommands::OnSummonedAssetPicker ) );
+		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnSummonedAssetPicker));
 
 	ToolkitCommands->MapAction(
 		Get().SummonOpenAssetDialogAlternate,
@@ -61,7 +63,11 @@ void FGlobalEditorCommonCommands::MapActions(TSharedRef<FUICommandList>& Toolkit
 
 	ToolkitCommands->MapAction(
 		Get().OpenConsoleCommandBox,
-		FExecuteAction::CreateStatic( &FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox ) );
+		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox));
+
+	ToolkitCommands->MapAction(
+		Get().OpenContentBrowserDrawer,
+		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnOpenContentBrowserDrawer));
 }
 
 void FGlobalEditorCommonCommands::OnPressedCtrlTab(TSharedPtr<FUICommandInfo> TriggeringCommand)
@@ -128,8 +134,8 @@ static void CloseDebugConsole()
 void FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox()
 {
 	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
-	
-	if( ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal )
+
+	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
 	{
 		TSharedRef<SWindow> WindowRef = ParentWindow.ToSharedRef();
 		FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked<FOutputLogModule>(TEXT("OutputLog"));
@@ -143,6 +149,29 @@ void FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox()
 
 			OutputLogModule.ToggleDebugConsoleForWindow(WindowRef, EDebugConsoleStyle::Compact, Delegates);
 		}
+	}
+}
+
+void FGlobalEditorCommonCommands::OnOpenContentBrowserDrawer()
+{
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
+	if (!ParentWindow.IsValid())
+	{
+		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
+		{
+			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
+			{
+				ParentWindow = ActiveMajorTab->GetParentWindow();
+			}
+		}
+	}
+
+	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
+	{
+		TSharedRef<SWindow> WindowRef = ParentWindow.ToSharedRef();
+		FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked<FOutputLogModule>(TEXT("OutputLog"));
+
+		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->OpenContentBrowser(ParentWindow.ToSharedRef());
 	}
 }
 

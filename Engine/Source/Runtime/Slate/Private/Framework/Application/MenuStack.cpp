@@ -8,6 +8,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SPopup.h"
 #include "Framework/Application/Menu.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "MenuStack"
 
@@ -103,7 +105,28 @@ namespace MenuStackInternal
 				.MinDesiredWidth(InArgs._OptionalMinMenuWidth)
 				.MaxDesiredHeight(InArgs._OptionalMinMenuHeight)
 				[
-				InArgs._MenuContent.Widget
+					// Always add a background to the menu.  This includes a small outline around the background to distinguish open menus from each other
+					SNew(SOverlay)
+					+ SOverlay::Slot()
+					[
+						SNew(SImage)
+						.Image(FCoreStyle::Get().GetBrush("Menu.Background"))
+					]
+					+ SOverlay::Slot()
+					[
+						SNew(SImage)
+						.Image(FCoreStyle::Get().GetOptionalBrush("Menu.Outline", nullptr))
+					]
+					+ SOverlay::Slot()
+					[
+						SNew(SBorder)
+						.Padding(0)
+						.BorderImage(FStyleDefaults::GetNoBrush())
+						.ForegroundColor(FCoreStyle::Get().GetSlateColor("DefaultForeground"))
+						[
+							InArgs._MenuContent.Widget
+						]
+					]
 				]
 			];
 		}
@@ -588,13 +611,15 @@ void FMenuStack::SetHostPath(const FWidgetPath& InOwnerPath)
 
 	HostWindow = InOwnerPath.IsValid() ? InOwnerPath.GetWindow() : TSharedPtr<SWindow>();
 
+	HostWidget = InOwnerPath.IsValid() ? InOwnerPath.GetLastWidget() : TWeakPtr<SWidget>();
+
 	if ( HostWindow.IsValid() && !HostWindowPopupPanel.IsValid() )
 	{
 		TSharedRef<SMenuPanel> NewHostWindowPopupPanel = SNew(SMenuPanel);
 		for ( int i = InOwnerPath.Widgets.Num() - 1; i >= 0; i-- )
 		{
-			const TSharedRef<SWidget>& HostWidget = InOwnerPath.Widgets[i].Widget;
-			HostPopupLayer = HostWidget->OnVisualizePopup(NewHostWindowPopupPanel);
+			const TSharedRef<SWidget>& CurrentWidget = InOwnerPath.Widgets[i].Widget;
+			HostPopupLayer = CurrentWidget->OnVisualizePopup(NewHostWindowPopupPanel);
 			if ( HostPopupLayer.IsValid() )
 			{
 				HostWindowPopupPanel = NewHostWindowPopupPanel;
@@ -816,6 +841,11 @@ bool FMenuStack::HasOpenSubMenus(TSharedPtr<IMenu> InMenu) const
 TSharedPtr<SWindow> FMenuStack::GetHostWindow() const
 {
 	return HostWindow;
+}
+
+TSharedPtr<SWidget> FMenuStack::GetHostWidget() const
+{
+	return HostWidget.Pin();
 }
 
 #undef LOCTEXT_NAMESPACE

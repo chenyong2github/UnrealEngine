@@ -190,6 +190,11 @@ public:
 	TSharedPtr<SWindow> GetHostWindow() const;
 
 	/**
+	 * @return	Returns the widget that is the parent widget that initially created the menu in the stack
+	 */
+	TSharedPtr<SWidget> GetHostWidget() const;
+
+	/**
 	* @return	True if the stack has one or more menus in it, false if it is empty.
 	*/
 	bool HasMenus() const;
@@ -333,6 +338,9 @@ private:
 
 	/** The parent window of the root menu in the stack. NOT the actual menu window if it's a CreateNewWindow */
 	TSharedPtr<SWindow> HostWindow;
+
+	/** The parent widget of the root menu in the stack */
+	TWeakPtr<SWidget> HostWidget;
 
 	/** The parent window of the root menu in the stack. NOT the actual menu window if it's a CreateNewWindow */
 	TSharedPtr<SMenuPanel> HostWindowPopupPanel;

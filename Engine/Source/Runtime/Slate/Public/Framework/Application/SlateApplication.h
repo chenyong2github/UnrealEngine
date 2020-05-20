@@ -202,6 +202,8 @@ public:
 	
 	static TSharedRef<FSlateApplication> InitializeAsStandaloneApplication(const TSharedRef< class FSlateRenderer >& PlatformRenderer, const TSharedRef<class GenericApplication>& InPlatformApplication);
 
+	static void InitializeCoreStyle();
+
 	/**
 	 * Returns true if a Slate application instance is currently initialized and ready
 	 *
@@ -404,6 +406,9 @@ public:
 
 	/** @return	Returns a ptr to the window that is currently the host of the menu stack or null if no menus are visible */
 	TSharedPtr<SWindow> GetVisibleMenuWindow() const;
+
+	/** @return	Returns a ptr to the widget that created the opened root menu or null if one is not opened */
+	TSharedPtr<SWidget> GetMenuHostWidget() const;
 
 	/** Dismisses all open menus */
 	void DismissAllMenus();
@@ -819,6 +824,7 @@ public:
 	void OverridePlatformApplication(TSharedPtr<class GenericApplication> InPlatformApplication);
 
 	/** Set the global application icon */
+	UE_DEPRECATED(4.26, "SetAppIcon has been deprecated.  Set \"AppIcon\" in your applications style to override the icon")
 	void SetAppIcon(const FSlateBrush* const InAppIcon);
 
 	/** Sets the display state of external UI such as Steam. */
@@ -1329,6 +1335,7 @@ public:
 
 	virtual TSharedPtr<SWindow> GetActiveTopLevelWindow() const override;
 	virtual const FSlateBrush* GetAppIcon() const override;
+	virtual const FSlateBrush* GetAppIconSmall() const override;
 
 	virtual float GetApplicationScale() const override { return Scale; }
 	virtual bool GetSoftwareCursorAvailable() const override { return bSoftwareCursorAvailable; }

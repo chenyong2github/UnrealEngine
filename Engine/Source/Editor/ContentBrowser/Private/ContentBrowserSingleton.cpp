@@ -226,6 +226,17 @@ void FContentBrowserSingleton::FocusPrimaryContentBrowser(bool bFocusSearch)
 	}
 }
 
+void FContentBrowserSingleton::FocusContentBrowserSearchField(TSharedRef<SWidget> ContentBrowserWidget)
+{
+	static FName ContentBrowserType(TEXT("SContentBrowser"));
+
+	if (ContentBrowserWidget->GetType() == ContentBrowserType)
+	{
+		TSharedRef<SContentBrowser> ContentBrowser = StaticCastSharedRef<SContentBrowser>(ContentBrowserWidget);
+		ContentBrowser->SetKeyboardFocusOnSearch();
+	}
+}
+
 void FContentBrowserSingleton::CreateNewAsset(const FString& DefaultAssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory)
 {
 	FocusPrimaryContentBrowser(false);

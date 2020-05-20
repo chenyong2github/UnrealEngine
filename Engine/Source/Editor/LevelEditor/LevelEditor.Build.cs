@@ -68,6 +68,7 @@ public class LevelEditor : ModuleRules
 				"PixelInspectorModule",
 				"CommonMenuExtensions",
 				"ToolMenus",
+				"StatusBar",
 			}
 		);
 

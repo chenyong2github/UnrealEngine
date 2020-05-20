@@ -25,6 +25,7 @@ protected:
 	static void OnPressedCtrlTab(TSharedPtr<FUICommandInfo> TriggeringCommand);
 	static void OnSummonedAssetPicker();
 	static void OnSummonedConsoleCommandBox();
+	static void OnOpenContentBrowserDrawer();
 
 	static TSharedPtr<IMenu> OpenPopupMenu(TSharedRef<SWidget> WindowContents, const FVector2D& PopupDesiredSize);
 public:
@@ -35,5 +36,6 @@ public:
 	TSharedPtr<FUICommandInfo> SummonOpenAssetDialogAlternate;
 	TSharedPtr<FUICommandInfo> OpenDocumentation;
 	TSharedPtr<FUICommandInfo> OpenConsoleCommandBox;
+	TSharedPtr<FUICommandInfo> OpenContentBrowserDrawer;
 };
 

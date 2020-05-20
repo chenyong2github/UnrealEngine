@@ -517,6 +517,9 @@ public:
 	/** Brings the primary content browser to the front or opens one if it does not exist. */
 	virtual void FocusPrimaryContentBrowser(bool bFocusSearch) = 0;
 
+	/** Focuses the search field of a content browser widget */
+	virtual void FocusContentBrowserSearchField(TSharedRef<SWidget> ContentBrowserWidget) = 0;
+
 	/** Sets up an inline-name for the creation of a new asset in the primary content browser using the specified path and the specified class and/or factory */
 	virtual void CreateNewAsset(const FString& DefaultAssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory) = 0;
 

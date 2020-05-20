@@ -212,6 +212,9 @@ private:
 	/** Called by the editable text control when the user commits a text change */
 	void OnSearchBoxCommitted(const FText& InSearchText, ETextCommit::Type CommitInfo);
 
+	/** Called by the editable text control to allow the content browser to handle specific key presses without it resulting in typing into the search box */
+	FReply OnSearchKeyDown(const FGeometry& Geometry, const FKeyEvent& InKeyEvent);
+
 	/** Should the "Save Search" button be enabled? */
 	bool IsSaveSearchButtonEnabled() const;
 

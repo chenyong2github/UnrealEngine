@@ -12,7 +12,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "UObject/Package.h"
-#include "Subsystems/StatusBarSubsystem.h"
+#include "StatusBarSubsystem.h"
 #include "ToolMenus.h"
 #include "IIntroTutorials.h"
 

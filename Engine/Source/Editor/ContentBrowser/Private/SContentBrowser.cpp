@@ -736,6 +736,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 							.HintText( this, &SContentBrowser::GetSearchAssetsHintText )
 							.OnTextChanged( this, &SContentBrowser::OnSearchBoxChanged )
 							.OnTextCommitted( this, &SContentBrowser::OnSearchBoxCommitted )
+							.OnKeyDownHandler(this, &SContentBrowser::OnSearchKeyDown)
 							.OnAssetSearchBoxSuggestionFilter( this, &SContentBrowser::OnAssetSearchSuggestionFilter )
 							.OnAssetSearchBoxSuggestionChosen( this, &SContentBrowser::OnAssetSearchSuggestionChosen )
 							.DelayChangeNotificationsWhileTyping( true )
@@ -1742,6 +1743,19 @@ void SContentBrowser::OnSearchBoxChanged(const FText& InSearchText)
 void SContentBrowser::OnSearchBoxCommitted(const FText& InSearchText, ETextCommit::Type CommitInfo)
 {
 	SetSearchBoxText(InSearchText);
+}
+
+FReply SContentBrowser::OnSearchKeyDown(const FGeometry& Geometry, const FKeyEvent& InKeyEvent)
+{
+	FInputChord CheckChord(InKeyEvent.GetKey(), EModifierKey::FromBools(InKeyEvent.IsControlDown(), InKeyEvent.IsAltDown(), InKeyEvent.IsShiftDown(), InKeyEvent.IsCommandDown()));
+
+	// Clear focus if the content browser drawer key is clicked so it will close the opened content browser
+	if (FGlobalEditorCommonCommands::Get().OpenContentBrowserDrawer->HasActiveChord(CheckChord))
+	{
+		return FReply::Handled().ClearUserFocus(EFocusCause::SetDirectly);
+	}
+
+	return FReply::Unhandled();
 }
 
 bool SContentBrowser::IsSaveSearchButtonEnabled() const

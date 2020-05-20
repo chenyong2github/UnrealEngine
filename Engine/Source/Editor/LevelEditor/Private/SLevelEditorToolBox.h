@@ -11,7 +11,7 @@
 #include "Editor.h"
 #include "ILevelEditor.h"
 #include "Misc/NotifyHook.h"
-#include "Subsystems/StatusBarSubsystem.h"
+#include "StatusBarSubsystem.h"
 
 class FExtender;
 class SBorder;

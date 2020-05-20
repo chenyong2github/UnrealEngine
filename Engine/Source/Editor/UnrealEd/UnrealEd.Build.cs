@@ -108,7 +108,8 @@ public class UnrealEd : ModuleRules
                 "EditorSubsystem",
                 "InteractiveToolsFramework",
 				"ToolMenusEditor",
-            }
+				"StatusBar",
+			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
