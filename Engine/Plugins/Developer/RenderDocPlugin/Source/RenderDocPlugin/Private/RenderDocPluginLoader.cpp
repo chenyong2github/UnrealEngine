@@ -36,7 +36,14 @@ static void* LoadAndCheckRenderDocLibrary(FRenderDocPluginLoader::RENDERDOC_API_
 	FString PathToRenderDocDLL = FPaths::Combine(*RenderdocPath, *FString("renderdoc.dll"));
 	if (!FPaths::FileExists(PathToRenderDocDLL))
 	{
-		UE_LOG(RenderDocPlugin, Warning, TEXT("unable to locate RenderDoc library at: %s"), *PathToRenderDocDLL);
+		if (FApp::IsUnattended())
+		{
+			UE_LOG(RenderDocPlugin, Display, TEXT("unable to locate RenderDoc library at: %s"), *PathToRenderDocDLL);
+		}
+		else
+		{
+			UE_LOG(RenderDocPlugin, Warning, TEXT("unable to locate RenderDoc library at: %s"), *PathToRenderDocDLL);
+		}
 		return(nullptr);
 	}
 
@@ -88,7 +95,7 @@ void FRenderDocPluginLoader::Initialize()
 		// THIS WILL NEVER TRIGGER because of a sort of chicken-and-egg problem: RenderDoc Loader is a PostConfigInit
 		// plugin, and GUsingNullRHI is only initialized properly between PostConfigInit and PreLoadingScreen phases.
 		// (nevertheless, keep this comment around for future iterations of UE4)
-		UE_LOG(RenderDocPlugin, Warning, TEXT("this plugin will not be loaded because a null RHI (Cook Server, perhaps) is being used."));
+		UE_LOG(RenderDocPlugin, Display, TEXT("this plugin will not be loaded because a null RHI (Cook Server, perhaps) is being used."));
 		return;
 	}
 	
