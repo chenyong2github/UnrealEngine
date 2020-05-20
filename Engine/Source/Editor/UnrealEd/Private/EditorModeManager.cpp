@@ -1553,9 +1553,9 @@ void FEditorModeTools::LoadWidgetSettings(void)
 
 FVector FEditorModeTools::GetWidgetLocation() const
 {
-	for (UEdMode* Mode : ActiveScriptableModes)
+	for (int Index = ActiveScriptableModes.Num() - 1; Index >= 0; Index--)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (FEdMode* LegacyMode = ActiveScriptableModes[Index]->AsLegacyMode())
 		{
 			if (LegacyMode->UsesTransformWidget())
 			{
