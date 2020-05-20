@@ -26,7 +26,8 @@ namespace UnrealBuildTool.Rules
 
                 PublicDependencyModuleNames.AddRange(
                 new string[] {
-                    "InteractiveToolsFramework",
+					"InteractiveToolsFramework",
+					"EditorInteractiveToolsFramework",
                     "GeometricObjects"
                 }
             );

@@ -27,6 +27,7 @@ struct FViewportClick;
 // Forward declarations.
 //
 class UStaticMesh;
+struct FAssetData;
 
 /** View modes supported by the foliage palette */
 namespace EFoliagePaletteViewMode

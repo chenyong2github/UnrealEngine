@@ -6,6 +6,7 @@
 #include "EngineUtils.h"
 #include "LevelEditorViewport.h"
 #include "EditorModes.h"
+#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "PropertyPicker"
 

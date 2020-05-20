@@ -816,8 +816,6 @@ public:
 	bool HandleDisasmScriptCommand( const TCHAR* Str, FOutputDevice& Ar );	
 
 	/** OnEditorModeChanged delegate which looks for Matinee editor closing */
-	UE_DEPRECATED(4.24, "Use UpdateEdModeOnMatineeClose() instead")
-	void OnMatineeEditorClosed( class FEdMode* Mode, bool IsEntering );
 	void UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering);
 
 	bool IsComponentSelected(const UPrimitiveComponent* PrimComponent);

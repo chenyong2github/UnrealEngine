@@ -597,6 +597,11 @@ void FEdMode::Exit()
 	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
 }
 
+UTexture2D* FEdMode::GetVertexTexture()
+{
+	return GEngine->DefaultBSPVertexTexture;
+}
+
 void FEdMode::SetCurrentTool( EModeTools InID )
 {
 	CurrentTool = FindTool( InID );

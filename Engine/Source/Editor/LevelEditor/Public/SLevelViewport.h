@@ -400,16 +400,10 @@ public:
 	 */
 	void OnClearBookmark( int32 BookmarkIndex );
 
-	UE_DEPRECATED(4.21, "Please use the version with corrected spelling (OnClearBookmark)")
-	void OnClearBookMark( int32 BookmarkIndex );
-
 	/**
 	 * Called to clear all bookmarks
 	 */
 	void OnClearAllBookmarks();
-
-	UE_DEPRECATED(4.21, "Please use the version with corrected spelling (OnClearAllBookmarks)")
-	void OnClearAllBookMarks();
 
 	/**
 	 * Called to Compact Bookmarks.
