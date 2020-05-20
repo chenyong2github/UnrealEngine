@@ -121,6 +121,12 @@ public:
 		}
 	}
 
+	template<typename T>
+	static bool Array_Identical(const TArray<T>& ArrayA, const TArray<T>& ArrayB)
+	{
+		return (ArrayA == ArrayB);
+	}
+
 	template<typename T, typename U>
 	static void Array_Append(const TArray<T>& TargetArray, const TArray<U>& SourceArray)
 	{
