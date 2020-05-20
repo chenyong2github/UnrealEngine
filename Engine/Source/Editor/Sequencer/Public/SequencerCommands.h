@@ -79,6 +79,9 @@ public:
 	/** Reset the view range to the playback range */
 	TSharedPtr< FUICommandInfo > ResetViewRange;
 
+	/** Zoom to fit the selected sections and keys */
+	TSharedPtr< FUICommandInfo > ZoomToFit;
+
 	/** Zoom into the view range */
 	TSharedPtr< FUICommandInfo > ZoomInViewRange;
 
