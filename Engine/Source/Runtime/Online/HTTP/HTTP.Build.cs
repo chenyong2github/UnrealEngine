@@ -1,9 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using Tools.DotNETCommon;
 
 public class HTTP : ModuleRules
 {
+	protected virtual bool bPlatformSupportsWinHttp
+	{
+		get
+		{
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows);
+		}
+	}
+
+	protected virtual bool bPlatformSupportsLibCurl
+	{
+		get
+		{
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
+				Target.Platform == UnrealTargetPlatform.Switch;
+		}
+	}
+
+	protected virtual bool bPlatformRequiresOpenSSL
+	{
+		get
+		{
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Android);
+		}
+	}
+
 	public HTTP(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDefinitions.Add("HTTP_PACKAGE=1");
@@ -14,50 +44,52 @@ public class HTTP : ModuleRules
 			}
 			);
 
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"Core"
+			}
+			);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Core",
-				"Sockets",
 				"SSL",
 			}
 			);
 
-		bool bWithCurl = false;
-
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
-		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "WinHttp");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
-
-			bWithCurl = true;
-		}
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
-				Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
+		if (bPlatformSupportsLibCurl)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"Sockets",
+				}
+			);
 
-			bWithCurl = true;
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
-
-			bWithCurl = true;
+			PublicDefinitions.Add("CURL_ENABLE_DEBUG_CALLBACK=1");
+			if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+			{
+				PublicDefinitions.Add("CURL_ENABLE_NO_TIMEOUTS_OPTION=1");
+			}
 		}
 		else
 		{
 			PublicDefinitions.Add("WITH_LIBCURL=0");
 		}
 
-		if (bWithCurl)
+		// Use Curl over WinHttp on platforms that support it (until WinHttp client security is in a good place at the least)
+		if (bPlatformSupportsWinHttp)
 		{
-			PublicDefinitions.Add("CURL_ENABLE_DEBUG_CALLBACK=1");
-			if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-			{
-				PublicDefinitions.Add("CURL_ENABLE_NO_TIMEOUTS_OPTION=1");
-			}
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "WinHttp");
+			PublicDefinitions.Add("WITH_WINHTTP=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_WINHTTP=0");
+		}
+
+		if (bPlatformRequiresOpenSSL)
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS || Target.Platform == UnrealTargetPlatform.Mac)

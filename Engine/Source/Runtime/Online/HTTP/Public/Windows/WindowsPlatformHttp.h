@@ -54,5 +54,6 @@ public:
 	static bool IsOperatingSystemProxyInformationSupported();
 };
 
-
+#if WINDOWS_USE_FEATURE_PLATFORMHTTP_CLASS
 typedef FWindowsPlatformHttp FPlatformHttp;
+#endif // WINDOWS_USE_FEATURE_PLATFORMHTTP_CLASS
