@@ -700,7 +700,7 @@ namespace ChaosTest
 			const TTriangle<FReal> Triangle({ 0.000000000, 0.000000000, 0.000000000 }, { 128.000000, 0.000000000, -114.064575 }, { 128.000000, 128.000000, 2.35327148 });
 			const TSphere<FReal, 3> Sphere({ 0.0, 0.0, 0.0 }, 4);
 			const TRigidTransform<FReal, 3> Transform({ 174.592773, -161.781250, -68.0469971 }, FQuat::Identity);
-			const FVec3 Dir({ -0.406315684, 0.913382649, -0.0252906363 });
+			const FVec3 Dir(-0.406315684, 0.913382649, -0.0252906363);
 			const FReal Length = 430.961548;
 			const FReal Thickness = 0.0f;
 			const bool bComputeMTD = true;
