@@ -567,6 +567,7 @@ struct FContainerSourceSpec
 	FName Name;
 	FString OutputPath;
 	TArray<FContainerSourceFile> SourceFiles;
+	FString PatchTargetFile;
 	TArray<FString> PatchSourceContainerFiles;
 	FGuid EncryptionKeyOverrideGuid;
 	bool bGenerateDiffPatch = false;
@@ -3412,7 +3413,10 @@ static void LoadReleaseVersionMeta(
 	{
 		FString ImportExportOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.uimportexport"));
 		TUniquePtr<FArchive> ImportExportArchive(IFileManager::Get().CreateFileReader(*ImportExportOutputPath));
-		(*ImportExportArchive) << GlobalPackageData;
+		if (ImportExportArchive)
+		{
+			(*ImportExportArchive) << GlobalPackageData;
+		}
 	}
 
 	FString ContainerMetaWildcard = FPaths::Combine(ReleaseVersionOutputDir, TEXT("*.ucontainermeta"));
@@ -3439,6 +3443,44 @@ static void LoadReleaseVersionMeta(
 				ContainerTarget->LocalNameMapBuilder.GetNameMap().Num());
 		}
 	}
+}
+
+TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const FKeyChain& KeyChain)
+{
+	FIoStoreEnvironment IoEnvironment;
+	IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Path, TEXT("")));
+	TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
+
+	TMap<FGuid, FAES::FAESKey> DecryptionKeys;
+	for (const auto& KV : KeyChain.EncryptionKeys)
+	{
+		DecryptionKeys.Add(KV.Key, KV.Value.Key);
+	}
+	FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, DecryptionKeys);
+	if (Status.IsOk())
+	{
+		return IoStoreReader;
+	}
+	else
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Failed creating IoStore reader '%s' [%s]"), *Path, *Status.ToString())
+		return nullptr;
+	}
+}
+
+TArray<TUniquePtr<FIoStoreReader>> CreatePatchSourceReaders(const TArray<FString>& Files, const FIoStoreArguments& Arguments)
+{
+	TArray<TUniquePtr<FIoStoreReader>> Readers;
+	for (const FString& PatchSourceContainerFile : Files)
+	{
+		TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*PatchSourceContainerFile, Arguments.PatchKeyChain);
+		if (Reader.IsValid())
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Loaded patch source container '%s'"), *PatchSourceContainerFile);
+			Readers.Add(MoveTemp(Reader));
+		}
+	}
+	return Readers;
 }
 
 void InitializeContainerTargetsAndPackages(
@@ -3499,36 +3541,8 @@ void InitializeContainerTargetsAndPackages(
 			ContainerTarget->EncryptionKeyGuid = ContainerSource.EncryptionKeyOverrideGuid;
 		}
 
-		for (const FString& PatchSourceContainerFile : ContainerSource.PatchSourceContainerFiles)
-		{
-			FIoStoreEnvironment PatchSourceEnvironment;
-			PatchSourceEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(PatchSourceContainerFile, TEXT("")));
-			TUniquePtr<FIoStoreReader> PatchSourceReader(new FIoStoreReader());
+		ContainerTarget->PatchSourceReaders = CreatePatchSourceReaders(ContainerSource.PatchSourceContainerFiles, Arguments);
 
-			FIoContainerSettings ContainerSettings;
-			if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
-			{
-				const FNamedAESKey* PatchKey = Arguments.PatchKeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
-				if (!PatchKey)
-				{
-					PatchKey = Arguments.KeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
-				}
-				UE_CLOG(!PatchKey, LogIoStore, Fatal, TEXT("Failed to find encryption key '%s' for container '%s'"), *ContainerTarget->EncryptionKeyGuid.ToString(), *ContainerTarget->Name.ToString());
-				ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
-				ContainerSettings.EncryptionKey = PatchKey->Key; 
-			}
-			FIoStatus Status = PatchSourceReader->Initialize(PatchSourceEnvironment, ContainerSettings);
-			if (Status.IsOk())
-			{
-				UE_LOG(LogIoStore, Display, TEXT("Loaded patch source container '%s'"), *PatchSourceContainerFile);
-				ContainerTarget->PatchSourceReaders.Add(MoveTemp(PatchSourceReader));
-			}
-			else
-			{
-				UE_LOG(LogIoStore, Warning, TEXT("Failed loading patch source container '%s' [%s]"), *PatchSourceContainerFile, *Status.ToString())
-			}
-		}
-		
 		ContainerTarget->LocalNameMapBuilder.SetNameMapType(FMappedName::EType::Container);
 		{
 			IOSTORE_CPU_SCOPE(ProcessSourceFiles);
@@ -3641,6 +3655,47 @@ void InitializeContainerTargetsAndPackages(
 		return A->GlobalPackageId < B->GlobalPackageId;
 	});
 };
+
+void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
+{
+	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %10s %15s %15s %15s %25s"),
+		TEXT("ID"), TEXT("Container"), TEXT("Flags"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
+	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
+	int64 TotalPaddingSize = 0;
+	for (const FIoStoreWriterResult& Result : Results)
+	{
+		FString CompressionInfo = TEXT("-");
+
+		if (Result.CompressionMethod != NAME_None)
+		{
+			double Procentage = (double(Result.UncompressedContainerSize - Result.CompressedContainerSize) / double(Result.UncompressedContainerSize)) * 100.0;
+			CompressionInfo = FString::Printf(TEXT("%.2lf (%.2lf%% %s)"),
+				(double)Result.CompressedContainerSize / 1024.0 / 1024.0,
+				Procentage,
+				*Result.CompressionMethod.ToString());
+		}
+
+		FString ContainerSettings = FString::Printf(TEXT("%s/%s/%s"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Compressed) ? TEXT("C") : TEXT("-"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Encrypted) ? TEXT("E") : TEXT("-"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"));
+
+		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %10s %15.2lf %15d %15.2lf %25s"),
+			Result.ContainerId.ToIndex(),
+			*Result.ContainerName,
+			*ContainerSettings,
+			(double)Result.TocSize / 1024.0,
+			Result.TocEntryCount,
+			(double)Result.UncompressedContainerSize / 1024.0 / 1024.0,
+			*CompressionInfo);
+		TotalPaddingSize += Result.PaddingSize;
+	}
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) **"));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2f MB"), TotalPaddingSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT(""));
+}
 
 int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
 {
@@ -4315,43 +4370,9 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- IoStore Summary -----------------------------------------------------"));
 
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %10s %15s %15s %15s %25s"),
-		TEXT("ID"), TEXT("Container"), TEXT("Flags"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
-	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
-	int64 TotalPaddingSize = 0;
-	for (const FIoStoreWriterResult& Result : IoStoreWriterResults)
-	{
-		FString CompressionInfo = TEXT("-");
-		
-		if (Result.CompressionMethod != NAME_None)
-		{
-			double Procentage = (double(Result.UncompressedContainerSize - Result.CompressedContainerSize) / double(Result.UncompressedContainerSize)) * 100.0;
-			CompressionInfo = FString::Printf(TEXT("%.2lf (%.2lf%% %s)"),
-				(double)Result.CompressedContainerSize / 1024.0 / 1024.0,
-				Procentage ,
-				*Result.CompressionMethod.ToString());
-		}
-
-		FString ContainerSettings = FString::Printf(TEXT("%s/%s/%s"),
-			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Compressed) ? TEXT("C") : TEXT("-"),
-			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Encrypted) ? TEXT("E") : TEXT("-"),
-			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"));
 	
-		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %10s %15.2lf %15d %15.2lf %25s"),
-			Result.ContainerId.ToIndex(),
-			*Result.ContainerName,
-			*ContainerSettings ,
-			(double)Result.TocSize / 1024.0,
-			Result.TocEntryCount,
-			(double)Result.UncompressedContainerSize / 1024.0 / 1024.0,
-			*CompressionInfo);
-		TotalPaddingSize += Result.PaddingSize;
-	}
-	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) **"));
-	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2f MB"), TotalPaddingSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT(""));
+	LogWriterResults(IoStoreWriterResults);
+	
 	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no import dependencies"),
 		PackageMap.Num(), CircularPackagesCount, PackagesWithoutImportDependenciesCount);
 	UE_LOG(LogIoStore, Display, TEXT("Bundles:  %8d total, %d entries, %d export objects (%d public)"),
@@ -4373,6 +4394,83 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageExportMap"), (double)ExportMapSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageArcs, %d internal arcs, %d external arcs, %d circular packages (%d chains)"),
 		(double)UGraphSize / 1024.0 / 1024.0, TotalInternalArcCount, TotalExternalArcCount, CircularPackagesCount, CircularChainCount);
+
+	return 0;
+}
+
+int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
+{
+	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
+	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
+	FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
+	check(IoStatus.IsOk());
+	TArray<FIoStoreWriterResult> Results;
+	for (const FContainerSourceSpec& Container : Arguments.Containers)
+	{
+		TArray<TUniquePtr<FIoStoreReader>> SourceReaders = CreatePatchSourceReaders(Container.PatchSourceContainerFiles, Arguments);
+		TUniquePtr<FIoStoreReader> TargetReader = CreateIoStoreReader(*Container.PatchTargetFile, Arguments.KeyChain);
+		if (!TargetReader.IsValid())
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed loading target container"));
+			return -1;
+		}
+
+		FIoStoreEnvironment IoStoreEnv;
+		FIoStoreWriter IoStoreWriter(IoStoreEnv, TargetReader->GetContainerId());
+		IoStoreEnv.InitializeFileEnvironment(*Container.OutputPath);
+		
+		EIoContainerFlags TargetContainerFlags = TargetReader->GetContainerFlags();
+
+		FIoContainerSettings ContainerSettings;
+		if (Arguments.bSign || EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Signed))
+		{
+			ContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+			ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+		}
+
+		if (EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Encrypted))
+		{
+			ContainerSettings.ContainerFlags |= EIoContainerFlags::Encrypted;
+			const FNamedAESKey* Key = Arguments.KeyChain.EncryptionKeys.Find(TargetReader->GetEncryptionKeyGuid());
+			if (!Key)
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Missing encryption key for target container"));
+				return -1;
+			}
+			ContainerSettings.EncryptionKeyGuid = Key->Guid;
+			ContainerSettings.EncryptionKey = Key->Key;
+		}
+
+		IoStatus = IoStoreWriter.Initialize(*IoStoreWriterContext, ContainerSettings);
+		check(IoStatus.IsOk());
+
+		TMap<FIoChunkId, FIoChunkHash> SourceHashByChunkId;
+		for (const TUniquePtr<FIoStoreReader>& SourceReader : SourceReaders)
+		{
+			SourceReader->EnumerateChunks([&SourceHashByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
+			{
+				SourceHashByChunkId.Add(ChunkInfo.Id, ChunkInfo.Hash);
+				return true;
+			});
+		}
+		TargetReader->EnumerateChunks([&TargetReader, &SourceHashByChunkId, &IoStoreWriter](const FIoStoreTocChunkInfo& ChunkInfo)
+		{
+			FIoChunkHash* FindSourceHash = SourceHashByChunkId.Find(ChunkInfo.Id);
+			if (!FindSourceHash || *FindSourceHash != ChunkInfo.Hash)
+			{
+				FIoReadOptions ReadOptions;
+				TIoStatusOr<FIoBuffer> ChunkBuffer = TargetReader->Read(ChunkInfo.Id, ReadOptions);
+				FIoWriteOptions WriteOptions;
+				IoStoreWriter.Append(ChunkInfo.Id, ChunkInfo.Hash, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
+			}
+			return true;
+		});
+
+
+		Results.Emplace(IoStoreWriter.Flush().ConsumeValueOrDie());
+	}
+
+	LogWriterResults(Results);
 
 	return 0;
 }
@@ -4689,87 +4787,54 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	FParse::Value(CmdLine, TEXT("-CreateReleaseVersionDirectory="), Arguments.OutputReleaseVersionDir);
 	FParse::Value(CmdLine, TEXT("-BasedOnReleaseVersionDirectory="), Arguments.BasedOnReleaseVersionDir);
 
-	FString TargetPlatform;
-	if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatform))
+	FString CommandListFile;
+	if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
 	{
-		UE_LOG(LogIoStore, Display, TEXT("Using target platform '%s'"), *TargetPlatform);
-		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-		Arguments.TargetPlatform = TPM.FindTargetPlatform(TargetPlatform);
-		if (!Arguments.TargetPlatform)
+		UE_LOG(LogIoStore, Display, TEXT("Using command list file: '%s'"), *CommandListFile);
+		TArray<FString> Commands;
+		if (!FFileHelper::LoadFileToStringArray(Commands, *CommandListFile))
 		{
-			UE_LOG(LogIoStore, Error, TEXT("Invalid TargetPlatform: '%s'"), *TargetPlatform);
-			return 1;
-		}
-	}
-	else
-	{
-		UE_LOG(LogIoStore, Error, TEXT("TargetPlatform must be specified"));
-		return 1;
-	}
-
-	if (FParse::Value(FCommandLine::Get(), TEXT("CreateGlobalContainer="), Arguments.GlobalContainerPath))
-	{
-		Arguments.GlobalContainerPath = FPaths::ChangeExtension(Arguments.GlobalContainerPath, TEXT(""));
-
-		if (!FParse::Value(FCommandLine::Get(), TEXT("CookedDirectory="), Arguments.CookedDir))
-		{
-			UE_LOG(LogIoStore, Error, TEXT("CookedDirectory must be specified"));
-			return 1;
+			UE_LOG(LogIoStore, Error, TEXT("Failed to read command list file '%s'."), *CommandListFile);
+			return -1;
 		}
 
-		FContainerSourceSpec* CookedFilesVisitorContainerSpec = nullptr;
-		FString CommandListFile;
-		if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
+		Arguments.Containers.Reserve(Commands.Num());
+		for (const FString& Command : Commands)
 		{
-			UE_LOG(LogIoStore, Display, TEXT("Using command list file: '%s'"), *CommandListFile);
-			TArray<FString> Commands;
-			if (!FFileHelper::LoadFileToStringArray(Commands, *CommandListFile))
+			FContainerSourceSpec& ContainerSpec = Arguments.Containers.AddDefaulted_GetRef();
+
+			if (!FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
 			{
-				UE_LOG(LogIoStore, Error, TEXT("Failed to read command list file '%s'."), *CommandListFile);
+				UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
 				return -1;
 			}
+			ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
 
-			Arguments.Containers.Reserve(Commands.Num());
-			for (const FString& Command : Commands)
+			FString ContainerName;
+			if (FParse::Value(*Command, TEXT("ContainerName="), ContainerName))
 			{
-				FContainerSourceSpec& ContainerSpec = Arguments.Containers.AddDefaulted_GetRef();
-
-				if (!FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
-				{
-					UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
-					return -1;
-				}
-				ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
-
-				FString ContainerName;
-				if (!FParse::Value(*Command, TEXT("ContainerName="), ContainerName))
-				{
-					UE_LOG(LogIoStore, Error, TEXT("ContainerName argument missing from command '%s'"), *Command);
-					return -1;
-				}
 				ContainerSpec.Name = FName(ContainerName);
+			}
 
-				FString PatchSourceWildcard;
-				if (FParse::Value(*Command, TEXT("PatchSource="), PatchSourceWildcard))
+			FString PatchSourceWildcard;
+			if (FParse::Value(*Command, TEXT("PatchSource="), PatchSourceWildcard))
+			{
+				IFileManager::Get().FindFiles(ContainerSpec.PatchSourceContainerFiles, *PatchSourceWildcard, true, false);
+				FString PatchSourceContainersDirectory = FPaths::GetPath(*PatchSourceWildcard);
+				for (FString& PatchSourceContainerFile : ContainerSpec.PatchSourceContainerFiles)
 				{
-					IFileManager::Get().FindFiles(ContainerSpec.PatchSourceContainerFiles, *PatchSourceWildcard, true, false);
-					FString PatchSourceContainersDirectory = FPaths::GetPath(*PatchSourceWildcard);
-					for (FString& PatchSourceContainerFile : ContainerSpec.PatchSourceContainerFiles)
-					{
-						PatchSourceContainerFile = PatchSourceContainersDirectory / PatchSourceContainerFile;
-						FPaths::NormalizeFilename(PatchSourceContainerFile);
-					}
+					PatchSourceContainerFile = PatchSourceContainersDirectory / PatchSourceContainerFile;
+					FPaths::NormalizeFilename(PatchSourceContainerFile);
 				}
+			}
 
-				ContainerSpec.bGenerateDiffPatch = FParse::Param(*Command, TEXT("GenerateDiffPatch"));
-				
-				FString ResponseFilePath;
-				if (!FParse::Value(*Command, TEXT("ResponseFile="), ResponseFilePath))
-				{
-					UE_LOG(LogIoStore, Error, TEXT("ResponseFile argument missing from command '%s'"), *Command);
-					return -1;
-				}
+			ContainerSpec.bGenerateDiffPatch = FParse::Param(*Command, TEXT("GenerateDiffPatch"));
 
+			FParse::Value(*Command, TEXT("PatchTarget="), ContainerSpec.PatchTargetFile);
+
+			FString ResponseFilePath;
+			if (FParse::Value(*Command, TEXT("ResponseFile="), ResponseFilePath))
+			{
 				if (!ParsePakResponseFile(*ResponseFilePath, ContainerSpec.SourceFiles))
 				{
 					UE_LOG(LogIoStore, Error, TEXT("Failed to parse Pak response file '%s'"), *ResponseFilePath);
@@ -4783,18 +4848,69 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 				}
 			}
 		}
+	}
+	
+	if (FParse::Value(FCommandLine::Get(), TEXT("CreateGlobalContainer="), Arguments.GlobalContainerPath))
+	{
+		Arguments.GlobalContainerPath = FPaths::ChangeExtension(Arguments.GlobalContainerPath, TEXT(""));
+
+		FString TargetPlatform;
+		if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatform))
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Using target platform '%s'"), *TargetPlatform);
+			ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+			Arguments.TargetPlatform = TPM.FindTargetPlatform(TargetPlatform);
+			if (!Arguments.TargetPlatform)
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Invalid TargetPlatform: '%s'"), *TargetPlatform);
+				return 1;
+			}
+		}
 		else
 		{
-			CookedFilesVisitorContainerSpec = &Arguments.Containers.AddDefaulted_GetRef();
+			UE_LOG(LogIoStore, Error, TEXT("TargetPlatform must be specified"));
+			return 1;
+		}
+
+		if (!FParse::Value(FCommandLine::Get(), TEXT("CookedDirectory="), Arguments.CookedDir))
+		{
+			UE_LOG(LogIoStore, Error, TEXT("CookedDirectory must be specified"));
+			return 1;
+		}
+
+		for (const FContainerSourceSpec& Container : Arguments.Containers)
+		{
+			if (Container.Name.IsNone())
+			{
+				UE_LOG(LogIoStore, Error, TEXT("ContainerName argument missing for container '%s'"), *Container.OutputPath);
+				return -1;
+			}
 		}
 
 		UE_LOG(LogIoStore, Display, TEXT("Searching for cooked assets in folder '%s'"), *Arguments.CookedDir);
 		FCookedFileStatMap CookedFileStatMap;
-		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, CookedFilesVisitorContainerSpec);
+		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, nullptr);
 		IFileManager::Get().IterateDirectoryStatRecursively(*Arguments.CookedDir, CookedFileVistor);
 		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), Arguments.CookedFileStatMap.Num());
 
 		int32 ReturnValue = CreateTarget(Arguments, GeneralIoWriterSettings);
+		if (ReturnValue != 0)
+		{
+			return ReturnValue;
+		}
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("CreateContentPatch")))
+	{
+		for (const FContainerSourceSpec& Container : Arguments.Containers)
+		{
+			if (Container.PatchTargetFile.IsEmpty())
+			{
+				UE_LOG(LogIoStore, Error, TEXT("PatchTarget argument missing for container '%s'"), *Container.OutputPath);
+				return -1;
+			}
+		}
+
+		int32 ReturnValue = CreateContentPatch(Arguments, GeneralIoWriterSettings);
 		if (ReturnValue != 0)
 		{
 			return ReturnValue;

@@ -922,10 +922,8 @@ public:
 
 	}
 
-	UE_NODISCARD FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment, const FIoContainerSettings& InContainerSettings)
+	UE_NODISCARD FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys)
 	{
-		ContainerSettings = InContainerSettings;
-
 		TStringBuilder<256> ContainerFilePath;
 		ContainerFilePath.Append(InEnvironment.GetPath());
 
@@ -948,6 +946,9 @@ public:
 		{
 			return Status;
 		}
+
+		ContainerId = TocReader.GetContainerId();
+		EncryptionKeyGuid = TocReader.GetEncryptionKeyGuid();
 
 		uint32 TocEntryCount;
 		const FIoStoreTocEntry* TocEntry = TocReader.GetEntries(TocEntryCount);
@@ -989,9 +990,32 @@ public:
 		}
 
 		ContainerFlags = TocReader.GetContainerFlags();
-		check(!EnumHasAnyFlags(ContainerSettings.ContainerFlags, EIoContainerFlags::Encrypted) || ContainerSettings.EncryptionKeyGuid == TocReader.GetEncryptionKeyGuid());
+		if (EnumHasAnyFlags(ContainerFlags, EIoContainerFlags::Encrypted))
+		{
+			const FAES::FAESKey* FindKey = InDecryptionKeys.Find(EncryptionKeyGuid);
+			if (!FindKey)
+			{
+				return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Missing decryption key for IoStore container file '") << *TocFilePath << TEXT("'");
+			}
+			DecryptionKey = *FindKey;
+		}
 
 		return FIoStatus::Ok;
+	}
+
+	FIoContainerId GetContainerId() const
+	{
+		return ContainerId;
+	}
+
+	EIoContainerFlags GetContainerFlags() const
+	{
+		return ContainerFlags;
+	}
+
+	FGuid GetEncryptionKeyGuid() const
+	{
+		return EncryptionKeyGuid;
 	}
 
 	void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
@@ -1063,9 +1087,9 @@ public:
 			}
 			ContainerFileHandle->Seek(CompressionBlock.GetOffset());
 			ContainerFileHandle->Read(CompressedBuffer.GetData(), CompressionBlock.GetSize());
-			if (EnumHasAnyFlags(ContainerSettings.ContainerFlags, EIoContainerFlags::Encrypted))
+			if (EnumHasAnyFlags(ContainerFlags, EIoContainerFlags::Encrypted))
 			{
-				FAES::DecryptData(CompressedBuffer.GetData(), static_cast<uint32>(CompressionBlock.GetSize()), ContainerSettings.EncryptionKey);
+				FAES::DecryptData(CompressedBuffer.GetData(), static_cast<uint32>(CompressionBlock.GetSize()), DecryptionKey);
 			}
 			if (CompressionBlock.GetCompressionMethodIndex() == 0)
 			{
@@ -1092,7 +1116,9 @@ public:
 	}
 
 private:
-	FIoContainerSettings ContainerSettings;
+	FAES::FAESKey DecryptionKey;
+	FIoContainerId ContainerId;
+	FGuid EncryptionKeyGuid;
 	TArray<FIoStoreTocEntry> TocEntries;
 	TArray<FIoStoreTocPartialEntry> TocPartialEntries;
 	TMap<FIoChunkId, int32> TocMap;
@@ -1115,9 +1141,24 @@ FIoStoreReader::~FIoStoreReader()
 	delete Impl;
 }
 
-FIoStatus FIoStoreReader::Initialize(const FIoStoreEnvironment& InEnvironment, const FIoContainerSettings& InContainerSettings)
+FIoStatus FIoStoreReader::Initialize(const FIoStoreEnvironment& InEnvironment, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys)
 {
-	return Impl->Initialize(InEnvironment, InContainerSettings);
+	return Impl->Initialize(InEnvironment, InDecryptionKeys);
+}
+
+FIoContainerId FIoStoreReader::GetContainerId() const
+{
+	return Impl->GetContainerId();
+}
+
+EIoContainerFlags FIoStoreReader::GetContainerFlags() const
+{
+	return Impl->GetContainerFlags();
+}
+
+FGuid FIoStoreReader::GetEncryptionKeyGuid() const
+{
+	return Impl->GetEncryptionKeyGuid();
 }
 
 void FIoStoreReader::EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
