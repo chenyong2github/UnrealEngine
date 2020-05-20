@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/UAssetEditor.h"
+
+#include "Framework/Docking/TabManager.h"
 #include "Tools/BaseAssetToolkit.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-
+#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
 
 #define LOCTEXT_NAMESPACE "BaseAssetEditor"
 

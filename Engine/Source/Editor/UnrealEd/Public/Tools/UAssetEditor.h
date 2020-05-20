@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
+
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Templates/SharedPointer.h"
-#include "Framework/Docking/TabManager.h"
 #include "UAssetEditor.generated.h"
 
 class FBaseAssetToolkit;
@@ -15,10 +11,12 @@ class SDockTab;
 class FSpawnTabArgs;
 class SEditorViewport;
 class FLayoutExtender;
-
+class FTabManager;
+class UObject;
+struct FTabId;
 
 /**
- * Base class for all editor modes.
+ * Base class for all asset editors.
  */
 UCLASS(Abstract)
 class UNREALED_API UAssetEditor : public UObject, public IAssetEditorInstance
@@ -35,9 +33,9 @@ public:
 	{
 		return true;
 	}
-	virtual void InvokeTab(const struct FTabId& TabId) override {}
+	virtual void InvokeTab(const FTabId& TabId) override {}
 	virtual FName GetToolbarTabId() const override;
-	virtual TSharedPtr<class FTabManager> GetAssociatedTabManager() override;
+	virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
 	virtual double GetLastActivationTime() override
 	{
 		return 0.0;
