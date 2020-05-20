@@ -73,9 +73,6 @@ void UMeshInspectorTool::Setup()
 
 	DrawnLineSet->SetupAttachment(PreviewMesh->GetRootComponent());
 
-	// Note: at the moment, the material we use for the line set supports the use of a depth bias. If we ever need 
-	// extra speedup from the line set, we can disable depth bias support and set blend mode within the material to
-	// translucent, which gives a variable amount of speedup under heavy load.
 	DrawnLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager()));
 	DrawnLineSet->RegisterComponent();
 
