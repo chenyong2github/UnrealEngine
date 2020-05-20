@@ -10861,7 +10861,7 @@ int32 UMaterialExpressionCustom::Compile(class FMaterialCompiler* Compiler, int3
 		}
 	}
 
-	return Compiler->CustomExpression(this, CompiledInputs);
+	return Compiler->CustomExpression(this, OutputIndex, CompiledInputs);
 }
 
 
@@ -10915,21 +10915,56 @@ void UMaterialExpressionCustom::PostEditChangeProperty(FPropertyChangedEvent& Pr
 		}
 	}
 
+	RebuildOutputs();
+
 	if (PropertyChangedEvent.MemberProperty && GraphNode)
 	{
 		const FName PropertyName = PropertyChangedEvent.MemberProperty->GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustom, Inputs))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustom, Inputs) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustom, AdditionalOutputs))
 		{
-				GraphNode->ReconstructNode();
-			}
+			GraphNode->ReconstructNode();
 		}
+	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void UMaterialExpressionCustom::RebuildOutputs()
+{
+	Outputs.Reset(AdditionalOutputs.Num() + 1);
+	if (AdditionalOutputs.Num() == 0)
+	{
+		bShowOutputNameOnPin = false;
+		Outputs.Add(FExpressionOutput(TEXT("")));
+	}
+	else
+	{
+		bShowOutputNameOnPin = true;
+		Outputs.Add(FExpressionOutput(TEXT("return")));
+		for (const FCustomOutput& CustomOutput : AdditionalOutputs)
+		{
+			if (!CustomOutput.OutputName.IsNone())
+			{
+				Outputs.Add(FExpressionOutput(CustomOutput.OutputName));
+			}
+		}
+	}
+}
+
 uint32 UMaterialExpressionCustom::GetOutputType(int32 OutputIndex)
 {
-	switch (OutputType)
+	ECustomMaterialOutputType Type = CMOT_MAX;
+	if (OutputIndex == 0)
+	{
+		Type = OutputType;
+	}
+	else if (OutputIndex >= 1 && OutputIndex - 1 < AdditionalOutputs.Num())
+	{
+		Type = AdditionalOutputs[OutputIndex - 1].OutputType;
+	}
+
+	switch (Type)
 	{
 	case CMOT_Float1:
 		return MCT_Float;
@@ -10939,9 +10974,16 @@ uint32 UMaterialExpressionCustom::GetOutputType(int32 OutputIndex)
 		return MCT_Float3;
 	case CMOT_Float4:
 		return MCT_Float4;
+	case CMOT_MaterialAttributes:
+		return MCT_MaterialAttributes;
 	default:
 		return MCT_Unknown;
 	}
+}
+
+bool UMaterialExpressionCustom::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	return GetOutputType(OutputIndex) == MCT_MaterialAttributes;
 }
 #endif // WITH_EDITOR
 
