@@ -124,6 +124,15 @@ struct FMaterialVTStackEntry
 	int32 CodeIndex;
 };
 
+struct FMaterialCustomExpressionEntry
+{
+	uint64 ScopeID;
+	const UMaterialExpressionCustom* Expression;
+	FString Implementation;
+	TArray<uint64> InputHash;
+	TArray<int32> OutputCodeIndex;
+};
+
 class FHLSLMaterialTranslator : public FMaterialCompiler
 {
 protected:
@@ -192,7 +201,9 @@ protected:
 	int32 NextSymbolIndex;
 
 	/** Any custom expression function implementations */
-	TArray<FString> CustomExpressionImplementations;
+	//TArray<FString> CustomExpressionImplementations;
+	//TMap<UMaterialExpressionCustom*, int32> CachedCustomExpressions;
+	TArray<FMaterialCustomExpressionEntry> CustomExpressions;
 
 	/** Any custom output function implementations */
 	TArray<FString> CustomOutputImplementations;
@@ -398,6 +409,8 @@ protected:
 
 	// AccessUniformExpression - Adds code to access the value of a uniform expression to the Code array and returns its index.
 	int32 AccessUniformExpression(int32 Index);
+
+	int32 AccessMaterialAttribute(int32 CodeIndex, const FGuid& AttributeID);
 
 	// CoerceParameter
 	FString CoerceParameter(int32 Index, EMaterialValueType DestType);
@@ -721,7 +734,7 @@ protected:
 
 	virtual int32 MapARPassthroughCameraUV(int32 UV) override;
 
-	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override;
+	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs) override;
 	virtual int32 CustomOutput(class UMaterialExpressionCustomOutput* Custom, int32 OutputIndex, int32 OutputCode) override;
 
 	virtual int32 VirtualTextureOutput(uint8 MaterialAttributeMask) override;
