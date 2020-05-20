@@ -235,10 +235,6 @@ FSlateColor SDockTab::GetForegroundColor() const
 	{
 		return ForegroundColor.Get();
 	}
-	else if (IsForeground())
-	{
-		return GetCurrentStyle().ForegroundForegroundColor;
-	}
 	else if (IsActive())
 	{
 		return GetCurrentStyle().ActiveForegroundColor;
@@ -246,6 +242,10 @@ FSlateColor SDockTab::GetForegroundColor() const
 	else if (IsHovered())
 	{
 		return GetCurrentStyle().HoveredForegroundColor;
+	}
+	else if (IsForeground())
+	{
+		return GetCurrentStyle().ForegroundForegroundColor;
 	}
 	else
 	{
