@@ -2543,11 +2543,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"		InitConstants(Context); \n"
 			"		LoadUpdateVariables(Context, InstanceID); \n"
 			"		ReadDataSets(Context); \n"
-		) + SimDoWorkString
-		+ TEXT(
-			"		//SimulateDoWork(Context); \n"
-			"		//SimulateMapUpdate(Context);\n"
-			"		WriteDataSets(Context); \n"
 			"	}\n"
 			"	else if (bRunSpawnLogic)\n"
 			"	{\n"
@@ -2575,8 +2570,10 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"		\n"
 			"		TransferAttributes(Context); \n"
 			"		\n"
-			"		//SimulateDoWork(Context); \n"
-			"		//SimulateMapUpdate(Context);\n"
+			"	}\n"
+			"\n"
+			"	if (bRunUpdateLogic || bRunSpawnLogic)\n"
+			"	{\n"
 		) + SimDoWorkString
 		+ TEXT(
 			"		WriteDataSets(Context); \n"
