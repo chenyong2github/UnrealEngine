@@ -369,8 +369,8 @@ public:
 	 */
 	virtual bool OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState );
 
-	/** Zooms to the edges of all currently selected sections. */
-	void ZoomToSelectedSections();
+	/** Zooms to the edges of all currently selected sections and keys. */
+	void ZoomToFit();
 
 	/** Gets the overlay fading animation curve lerp. */
 	float GetOverlayFadeCurve() const;
