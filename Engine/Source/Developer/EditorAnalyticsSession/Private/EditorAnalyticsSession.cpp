@@ -21,9 +21,11 @@ namespace EditorAnalyticsDefs
 	static const FString UnknownAppVersionString(TEXT("UnknownAppVersion"));
 	static const FString UnknownUserIdString(TEXT("UnknownUserID"));
 
-	// storage location
+	// The storage location is used to version the different data format. This is to prevent one version of the Editor/CRC to send sessions produced by another incompatible version.
+	//   Version 1_0 : Used from creation up to 4.25.0 release (included).
+	//   Version 1_1 : Changed for 4.25.1. To avoid public API changes, TotalUserInactivitySeconds was repurposed to contain the SessionDuration read from FPlatformTime::Seconds() to detect cases where the user system date time is unreliable.
 	static const FString StoreId(TEXT("Epic Games"));
-	static const FString SessionSummarySection(TEXT("Unreal Engine/Session Summary/1_0"));
+	static const FString SessionSummarySection(TEXT("Unreal Engine/Session Summary/1_1"));
 	static const FString GlobalLockName(TEXT("UE4_SessionSummary_Lock"));
 	static const FString SessionListStoreKey(TEXT("SessionList"));
 
@@ -141,13 +143,14 @@ namespace EditorAnalyticsUtils
 		FCString::Sprintf(TimestampStr, TFormatSpecifier<decltype(InTimestamp.ToUnixTimestamp())>::GetFormatSpecifier(), InTimestamp.ToUnixTimestamp());
 
 		TCHAR Pathname[512];
-		FCString::Sprintf(Pathname, TEXT("%s/%s_%d_%d_%d_%d_%s"), 
+		FCString::Sprintf(Pathname, TEXT("%s/%s_%d_%d_%d_%d_%d_%s"),
 			*EditorAnalyticsUtils::GetSessionEventLogDir(),
 			*Session.SessionId,
-			static_cast<int>(InEventType),
+			static_cast<int32>(InEventType),
 			FPlatformAtomics::AtomicRead(&Session.Idle1Min),
 			FPlatformAtomics::AtomicRead(&Session.Idle5Min),
 			FPlatformAtomics::AtomicRead(&Session.Idle30Min),
+			FPlatformAtomics::AtomicRead(&Session.TotalUserInactivitySeconds), // To avoid changing public API in 4.25.1, TotalUserInactivitySeconds was repurposed to holds the session duration. Should be fixed in 4.26.
 			TimestampStr);
 
 		IFileManager::Get().MakeDirectory(Pathname, /*Tree*/true);
@@ -157,7 +160,7 @@ namespace EditorAnalyticsUtils
 	static void UpdateSessionFromLogAnalysis(FEditorAnalyticsSession& Session)
 	{
 		// Read and aggregate the log events. The event data is encoded in the directory names created by the logger
-		FRegexPattern Pattern(TEXT(R"((^[a-fA-F0-9-]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+))")); // Need help with regex? Try https://regex101.com/
+		FRegexPattern Pattern(TEXT(R"((^[a-fA-F0-9-]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+))")); // Need help with regex? Try https://regex101.com/
 		IFileManager::Get().IterateDirectoryRecursively(*EditorAnalyticsUtils::GetSessionEventLogDir(), [&Session, &Pattern](const TCHAR* Pathname, bool bIsDir)
 		{
 			if (bIsDir)
@@ -175,22 +178,28 @@ namespace EditorAnalyticsUtils
 						default: break;
 					}
 
-					int32 ParsedIdle = FCString::Atoi(*Matcher.GetCaptureGroup(3)); // Idle1Min.
-					if (ParsedIdle > Session.Idle1Min)
+					int32 ParsedTime = FCString::Atoi(*Matcher.GetCaptureGroup(3)); // Idle1Min.
+					if (ParsedTime > Session.Idle1Min)
 					{
-						Session.Idle1Min = ParsedIdle; // No concurrency expected when reloading (no need for atomic compare exchange)
+						Session.Idle1Min = ParsedTime; // No concurrency expected when reloading (no need for atomic compare exchange)
 					}
 
-					ParsedIdle = FCString::Atoi(*Matcher.GetCaptureGroup(4)); // Idle5Min.
-					if (ParsedIdle > Session.Idle5Min)
+					ParsedTime = FCString::Atoi(*Matcher.GetCaptureGroup(4)); // Idle5Min.
+					if (ParsedTime > Session.Idle5Min)
 					{
-						Session.Idle5Min = ParsedIdle;
+						Session.Idle5Min = ParsedTime;
 					}
 
-					ParsedIdle = FCString::Atoi(*Matcher.GetCaptureGroup(5)); // Idle30Min.
-					if (ParsedIdle > Session.Idle30Min)
+					ParsedTime = FCString::Atoi(*Matcher.GetCaptureGroup(5)); // Idle30Min.
+					if (ParsedTime > Session.Idle30Min)
 					{
-						Session.Idle30Min = ParsedIdle;
+						Session.Idle30Min = ParsedTime;
+					}
+
+					ParsedTime = FCString::Atoi(*Matcher.GetCaptureGroup(6)); // SessionDuration. (To avoid breaking public API, TotalUserInactivitySeconds was repurposed to hold session duration in 4.25.x branch)
+					if (ParsedTime > Session.TotalUserInactivitySeconds)
+					{
+						Session.TotalUserInactivitySeconds = ParsedTime;
 					}
 
 					FDateTime ParsedTimestamp = FDateTime::FromUnixTimestamp(FCString::Atoi64(*Matcher.GetCaptureGroup(6))); // Unix timestamp (UTC)
