@@ -8,7 +8,7 @@
 
 using HINTERNET = void*;
 
-class FWinHttpHandle
+class HTTP_API FWinHttpHandle
 {
 public:
 	/**

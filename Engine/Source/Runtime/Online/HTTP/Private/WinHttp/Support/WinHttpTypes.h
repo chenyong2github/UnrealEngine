@@ -46,6 +46,6 @@ enum class EWinHttpCallbackStatus : uint32
 HTTP_API const TCHAR* LexToString(const EWinHttpCallbackStatus Status);
 HTTP_API bool IsValidStatus(const EWinHttpCallbackStatus Status);
 
-DECLARE_LOG_CATEGORY_EXTERN(LogWinHttp, Log, All);
+HTTP_API DECLARE_LOG_CATEGORY_EXTERN(LogWinHttp, Log, All);
 
 #endif // WITH_WINHTTP
