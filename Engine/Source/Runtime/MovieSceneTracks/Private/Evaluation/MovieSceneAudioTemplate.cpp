@@ -413,7 +413,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 		{
 			const float Duration = MovieSceneHelpers::GetSoundDuration(Sound);
 
-			if (!AudioSection->GetLooping() && AudioTime > Duration)
+			if (!AudioSection->GetLooping() && AudioTime > Duration && Duration != 0.f)
 			{
 				AudioComponent.Stop();
 				return;
