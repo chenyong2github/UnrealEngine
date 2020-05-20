@@ -229,11 +229,9 @@ void FreeSkeletalMeshBuffersSinkCallback()
 	if(bFreeSkeletalMeshBuffers)
 	{
 		FlushRenderingCommands();
-		(*GFlushStreamingFunc)();
-		FlushRenderingCommands();
 		for (TObjectIterator<USkeletalMesh> It;It;++It)
 		{
-			if (!It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
+			if (!It->HasPendingUpdate() && !It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
 			{
 				It->ReleaseCPUResources();
 			}
