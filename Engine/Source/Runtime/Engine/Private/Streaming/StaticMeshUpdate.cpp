@@ -267,7 +267,7 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 void FStaticMeshStreamIn::DoCancel(const FContext& Context)
 {
 	// TODO: support streaming CPU data for editor builds
-	if (!GIsEditor)
+	if (!FPlatformProperties::HasEditorOnlyData())
 	{
 		DiscardNewLODs(Context);
 	}

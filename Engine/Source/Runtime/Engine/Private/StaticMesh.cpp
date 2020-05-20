@@ -2698,7 +2698,6 @@ void UStaticMesh::InitResources()
 	{
 		LinkStreaming();
 	}
-
 #if	STATS
 	UStaticMesh* This = this;
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
