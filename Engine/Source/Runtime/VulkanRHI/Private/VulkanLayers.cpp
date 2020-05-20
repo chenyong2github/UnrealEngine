@@ -747,6 +747,12 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasMemoryPriority = 0;
 #endif
 
+#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
+	HasEXTASTCDecodeMode = HasExtension(DeviceExtensions, VK_EXT_ASTC_DECODE_MODE_EXTENSION_NAME);
+#else
+	HasEXTASTCDecodeMode = 0;
+#endif
+
 	HasEXTFragmentDensityMap = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
 
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
