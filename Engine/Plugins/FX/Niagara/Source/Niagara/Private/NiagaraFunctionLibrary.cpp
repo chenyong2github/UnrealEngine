@@ -59,15 +59,14 @@ UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* W
 			NiagaraComponent = NewObject<UNiagaraComponent>((Actor ? Actor : (UObject*)World));
 			NiagaraComponent->SetAsset(SystemTemplate);
 			NiagaraComponent->bAutoActivate = false;
+			NiagaraComponent->SetAutoDestroy(bAutoDestroy);
+			NiagaraComponent->bAllowAnyoneToDestroyMe = true;
 		}
 		else
 		{
 			UNiagaraComponentPool* ComponentPool = FNiagaraWorldManager::Get(World)->GetComponentPool();
 			NiagaraComponent = ComponentPool->CreateWorldParticleSystem(SystemTemplate, World, PoolingMethod);
 		}
-
-		NiagaraComponent->SetAutoDestroy(bAutoDestroy);
-		NiagaraComponent->bAllowAnyoneToDestroyMe = true;
 	}
 	return NiagaraComponent;
 }
