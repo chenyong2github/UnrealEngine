@@ -268,7 +268,7 @@ public:
 	void SetMaxSimTime(float InMaxTime);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Auto Destroy"))
-	void SetAutoDestroy(bool bInAutoDestroy) { bAutoDestroy = bInAutoDestroy; }
+	void SetAutoDestroy(bool bInAutoDestroy);
 
 	FNiagaraSystemInstance* GetSystemInstance() const;
 
