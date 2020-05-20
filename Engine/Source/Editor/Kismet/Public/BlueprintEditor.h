@@ -630,7 +630,8 @@ public:
 	void RemoveBookmark(const FGuid& BookmarkNodeId, bool bRefreshUI = true);
 
 protected:
-	virtual void AppendExtraCompilerResults(TSharedPtr<class IMessageLogListing> ResultsListing);
+	UE_DEPRECATED(4.26, "Please do any validation inside the UBlueprint class during compilation, extra errors during compiling only supplied by the designer can lead to design time only errors being reported and being missed during cooks/content validation.")
+	virtual void AppendExtraCompilerResults(TSharedPtr<class IMessageLogListing> ResultsListing) {}
 
 	/** Called during initialization of the blueprint editor to register commands and extenders. */
 	virtual void InitalizeExtenders();
