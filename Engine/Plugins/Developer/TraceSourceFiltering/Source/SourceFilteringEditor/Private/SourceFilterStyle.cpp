@@ -103,10 +103,21 @@ void FSourceFilterStyle::Initialize()
 	FlatButtons.Add(ButtonColor("SourceFilter.Filter", FLinearColor(0.25f, 0.25f, 0.25f, 0.9f)));
 
 	FlatButtons.Add(ButtonColor("SourceFilter.FilterSetOperation.NOT", FLinearColor(0.85f, 0.25f, 0.25f, 0.9f)));
-	FlatButtons.Add(ButtonColor("SourceFilter.FilterSetOperation.AND", FLinearColor(0.25f, 0.85f, 0.25f, 0.9f)));
+	ButtonColor ANDButtonColors("SourceFilter.FilterSetOperation.AND", FLinearColor(0.25f, 0.85f, 0.25f, 0.9f));
+	FlatButtons.Add(ANDButtonColors);
 	FlatButtons.Add(ButtonColor("SourceFilter.FilterSetOperation.OR", FLinearColor(0.25f, 0.25f, 0.85f, 0.9f)));
 
 	FlatButtons.Add(ButtonColor("SourceFilter.FilterSet", FLinearColor(0.125f, 0.125f, 0.125f, 0.9f)));
+
+	StyleSet->Set("WorldFilterToggleButton", FCheckBoxStyle()		
+		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+		.SetUncheckedImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, FLinearColor(1, 1, 1, 0.1f)))
+		.SetUncheckedHoveredImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Hovered))  
+		.SetUncheckedPressedImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Pressed)) 
+		.SetCheckedImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Normal)) 
+		.SetCheckedHoveredImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Hovered)) 
+		.SetCheckedPressedImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Pressed)) 
+	);
 	
 	for (const ButtonColor& Entry : FlatButtons)
 	{
