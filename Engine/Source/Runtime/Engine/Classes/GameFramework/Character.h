@@ -12,6 +12,7 @@
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/CharacterMovementReplication.h"
 #include "Animation/AnimationAsset.h"
 #include "GameFramework/RootMotionSource.h"
 #include "Character.generated.h"
@@ -246,6 +247,11 @@ public:
 	// eventually going to the _Implementation function (which we just pass to the CharacterMovementComponent).
 	//////////////////////////////////////////////////////////////////////////
 
+	UFUNCTION(unreliable, server, WithValidation)
+	void ServerMovePacked(const FCharacterServerMovePackedBits& PackedBits);
+	void ServerMovePacked_Implementation(const FCharacterServerMovePackedBits& PackedBits);
+	bool ServerMovePacked_Validate(const FCharacterServerMovePackedBits& PackedBits);
+
 	/** Replicated function sent by client to server - contains client movement and view info. */
 	UFUNCTION(unreliable, server, WithValidation)
 	void ServerMove(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 CompressedMoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
@@ -288,6 +294,11 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Client RPCS that pass through to CharacterMovement (avoids RPC overhead for components).
 	//////////////////////////////////////////////////////////////////////////
+
+	UFUNCTION(unreliable, client, WithValidation)
+	void ClientMoveResponsePacked(const FCharacterMoveResponsePackedBits& PackedBits);
+	void ClientMoveResponsePacked_Implementation(const FCharacterMoveResponsePackedBits& PackedBits);
+	bool ClientMoveResponsePacked_Validate(const FCharacterMoveResponsePackedBits& PackedBits);
 
 	/** If no client adjustment is needed after processing received ServerMove(), ack the good move so client can remove it from SavedMoves */
 	UFUNCTION(unreliable, client)
