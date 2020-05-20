@@ -30,10 +30,5 @@ public class UnrealRecoverySvc : ModuleRules
 			}
 		);
 
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[] {
-				"ConcertSyncServer",
-			}
-		);
 	}
 }
