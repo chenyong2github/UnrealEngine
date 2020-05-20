@@ -233,12 +233,7 @@ public:
 	}
 #endif
 
-	const TPBDRigidParticleHandle<FReal, 3>* FindParticleForImplicitObject(const FImplicitObject* Object) const
-	{ 
-		typedef TPBDRigidParticleHandle<FReal, 3>* ValueType;
-		const ValueType* Handle = MCollisionParticleLookupHack.Find(Object);
-		return Handle ? *Handle : nullptr;
-	}
+	const TPBDRigidParticleHandle<FReal, 3>* FindParticleForImplicitObject(const FImplicitObject* Object) const;
 
 private:
 	// Temp hack for finding original particles
