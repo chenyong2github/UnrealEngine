@@ -1900,15 +1900,23 @@ void FPhysScene_ChaosInterface::ApplyWorldOffset(FVector InOffset)
 	check(InOffset.Size() == 0);
 }
 
-void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/, float InMaxSubstepDeltaTime /*= 0.0f*/, int32 InMaxSubsteps)
+void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/, float InMaxSubstepDeltaTime /*= 0.0f*/, int32 InMaxSubsteps, bool bSubstepping)
 {
 	SetGravity(*NewGrav);
 	MDeltaTime = InMaxPhysicsDeltaTime > 0.f ? FMath::Min(InDeltaSeconds, InMaxPhysicsDeltaTime) : InDeltaSeconds;
 
 	if (Chaos::FPhysicsSolver* Solver = GetSolver())
 	{
-		Solver->SetMaxDeltaTime(InMaxSubstepDeltaTime);
-		Solver->SetMaxSubSteps(InMaxSubsteps);
+		if(bSubstepping)
+		{
+			Solver->SetMaxDeltaTime(InMaxSubstepDeltaTime);
+			Solver->SetMaxSubSteps(InMaxSubsteps);
+		}
+		else
+		{
+			Solver->SetMaxDeltaTime(MDeltaTime);
+			Solver->SetMaxSubSteps(1);
+		}
 	}
 }
 
@@ -2356,6 +2364,7 @@ void FPhysScene_ChaosInterface::RemoveSpringConstraint(const FPhysicsConstraintR
 
 void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(ResimNFrames);
 	using namespace Chaos;
 	auto Solver = GetSolver();
 	if(FRewindData* RewindData = Solver->GetRewindData())
@@ -2366,16 +2375,17 @@ void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
 		{
 			const int32 LatestFrame = RewindData->CurrentFrame();
 			const int32 FirstFrame = LatestFrame - NumFrames;
-			Solver->GetRewindData()->RewindToFrame(FirstFrame);
-
-			for(int Frame = FirstFrame; Frame < LatestFrame; ++Frame)
+			if(ensure(Solver->GetRewindData()->RewindToFrame(FirstFrame)))
 			{
-				Solver->PushPhysicsState();
-				FPhysicsSolverAdvanceTask AdvanceTask(Solver,RewindData->GetDeltaTimeForFrame(Frame));
-				AdvanceTask.DoTask(ENamedThreads::GameThread,FGraphEventRef());
-				Solver->BufferPhysicsResults();
-				Solver->FlipBuffers();
-				Solver->UpdateGameThreadStructures();
+				for(int Frame = FirstFrame; Frame < LatestFrame; ++Frame)
+				{
+					Solver->PushPhysicsState();
+					FPhysicsSolverAdvanceTask AdvanceTask(Solver,RewindData->GetDeltaTimeForFrame(Frame));
+					AdvanceTask.DoTask(ENamedThreads::GameThread,FGraphEventRef());
+					Solver->BufferPhysicsResults();
+					Solver->FlipBuffers();
+					Solver->UpdateGameThreadStructures();
+				}
 			}
 		}
 	}
