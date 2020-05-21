@@ -1508,16 +1508,36 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 		FResourceSizeEx ResourceSize;
 		FString SoundGroupName;
 		float Duration;
-		bool bDecompressed;
 
-		FSoundWaveInfo(USoundWave* InSoundWave, FResourceSizeEx InResourceSize, const FString& InSoundGroupName, float InDuration, bool bInDecompressed)
+		enum class ELoadingType : uint8
+		{
+			CompressedInMemory,
+			DecompressedInMemory,
+			Streaming
+		};
+
+		// Whether this audio is decompressed in memory, decompressed in realtime, or streamed.
+		ELoadingType LoadingType;
+
+		// This is the maximum amount of the cache this asset could take up at any given time,
+		// that could potentially not be removed if the sound is retained or currently playing.
+		uint32 MaxUnevictableSizeInCache;
+
+		// This is the total amount of compressed audio data that could be loaded in the cache.
+		uint32 PotentialTotalSizeInCache;
+
+		FSoundWaveInfo(USoundWave* InSoundWave, FResourceSizeEx InResourceSize, const FString& InSoundGroupName, float InDuration, ELoadingType InLoadingType, uint32 InMaxUnevictableSizeInCache, uint32 InPotentialTotalSizeInCache)
 			: SoundWave(InSoundWave)
 			, ResourceSize(InResourceSize)
 			, SoundGroupName(InSoundGroupName)
 			, Duration(InDuration)
-			, bDecompressed(bInDecompressed)
+			, LoadingType(InLoadingType)
+			, MaxUnevictableSizeInCache(InMaxUnevictableSizeInCache)
+			, PotentialTotalSizeInCache(InPotentialTotalSizeInCache)
 		{}
 	};
+
+	using ELoadingType = FSoundWaveInfo::ELoadingType;
 
 	struct FSoundWaveGroupInfo
 	{
@@ -1606,7 +1626,18 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 			const FSoundGroup& SoundGroup = GetDefault<USoundGroups>()->GetSoundGroup(SoundWave->SoundGroup);
 
 			float CompressionDurationThreshold = GetCompressionDurationThreshold(SoundGroup);
-			bool bDecompressed = ShouldUseRealtimeDecompression(false, SoundGroup, SoundWave, CompressionDurationThreshold);
+
+			// Determine whether this asset is streaming compressed data from disk, decompressed in realtime, or fully decompressed on load.
+			ELoadingType LoadType;
+
+			if (SoundWave->IsStreaming())
+			{
+				LoadType = ELoadingType::Streaming;
+			}
+			else
+			{
+				LoadType = ShouldUseRealtimeDecompression(false, SoundGroup, SoundWave, CompressionDurationThreshold) ? ELoadingType::CompressedInMemory : ELoadingType::DecompressedInMemory;
+			}
 
 			FString SoundGroupName;
 			switch (SoundWave->SoundGroup)
@@ -1636,18 +1667,30 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 					break;
 			}
 
+			uint32 MaxUnevictableSize = 0;
+			uint32 MaxSizeInCache = 0;
+
+			if (SoundWave->RunningPlatformData)
+			{
+				for (auto& Chunk : SoundWave->RunningPlatformData->Chunks)
+				{
+					MaxUnevictableSize = FMath::Max<uint32>(MaxUnevictableSize, Chunk.AudioDataSize);
+					MaxSizeInCache += Chunk.AudioDataSize;
+				}
+			}
+
 			// Add the info to the SoundWaveObjects array
-			SoundWaveObjects.Add(FSoundWaveInfo(SoundWave, TrueResourceSize, SoundGroupName, SoundWave->Duration, bDecompressed));
+			SoundWaveObjects.Add(FSoundWaveInfo(SoundWave, TrueResourceSize, SoundGroupName, SoundWave->Duration, LoadType, MaxUnevictableSize, MaxSizeInCache));
 
 			// Track total resource usage
 			TotalResourceSize += TrueResourceSize;
 
-			if (bDecompressed)
+			if (LoadType == ELoadingType::DecompressedInMemory)
 			{
 				DecompressedResourceSize += TrueResourceSize;
 				++CompressedResourceCount;
 			}
-			else
+			else if (LoadType == ELoadingType::CompressedInMemory)
 			{
 				CompressedResourceSize += TrueResourceSize;
 			}
@@ -1669,7 +1712,7 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 						if (SubDirSize)
 						{
 							SubDirSize->ResourceSize += TrueResourceSize;
-							if (bDecompressed)
+							if (LoadType == ELoadingType::CompressedInMemory)
 							{
 								SubDirSize->CompressedResourceSize += TrueResourceSize;
 							}
@@ -1724,11 +1767,28 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 			ReportAr->Log(TEXT("All Sound Wave Objects Sorted Alphebetically:"));
 			ReportAr->Log(TEXT(""));
 
-			ReportAr->Logf(TEXT("%s,%s,%s,%s,%s,%s"), TEXT("SoundWave"), TEXT("KB"), TEXT("MB"), TEXT("SoundGroup"), TEXT("Duration"), TEXT("CompressionState"));
+			ReportAr->Logf(TEXT("%s,%s,%s,%s,%s,%s,%s,%s"), TEXT("SoundWave"), TEXT("KB"), TEXT("MB"), TEXT("SoundGroup"), TEXT("Duration"), TEXT("CompressionState"), TEXT("Max Size in Cache (Unevictable, KB)"), TEXT("Max Size In Cache (Total, KB)"));
 			for (const FSoundWaveInfo& Info : SoundWaveObjects)
 			{
 				float Kbytes = Info.ResourceSize.GetTotalMemoryBytes() / 1024.0f;
-				ReportAr->Logf(TEXT("%s,%10.2f,%10.2f,%s,%10.2f,%s"), *Info.SoundWave->GetPathName(), Kbytes, Kbytes / 1024.0f, *Info.SoundGroupName, Info.Duration, Info.bDecompressed ? TEXT("Decompressed") : TEXT("Compressed"));
+
+				FString LoadingTypeString;
+
+				switch (Info.LoadingType)
+				{
+				case ELoadingType::CompressedInMemory:
+					LoadingTypeString = TEXT("Compressed");
+					break;
+				case ELoadingType::DecompressedInMemory:
+					LoadingTypeString = TEXT("Decompressed");
+					break;
+				case ELoadingType::Streaming:
+					LoadingTypeString = TEXT("Streaming");
+				default:
+					break;
+				}
+
+				ReportAr->Logf(TEXT("%s,%10.2f,%10.2f,%s,%10.2f, %s, %10.2f, %10.2f"), *Info.SoundWave->GetPathName(), Kbytes, Kbytes / 1024.0f, *Info.SoundGroupName, Info.Duration, *LoadingTypeString, Info.MaxUnevictableSizeInCache / 1024.0f, Info.PotentialTotalSizeInCache / 1024.0f);
 			}
 		}
 
