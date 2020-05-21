@@ -131,6 +131,17 @@ public class SplashActivity extends Activity
 				BlockDisplayCutout = false;
 			}
 		}
+		else if (android.os.Build.MANUFACTURER.equals("OnePlus"))
+		{
+			String model = android.os.Build.MODEL;
+			if (model.startsWith("IN2020") || model.startsWith("IN2021") || model.startsWith("IN2023") ||
+				model.startsWith("IN2025") || model.startsWith("IN2010") || model.startsWith("IN2011") ||
+				model.startsWith("IN2013") || model.startsWith("IN2015") || model.startsWith("IN2017") ||
+				model.startsWith("IN2019"))
+			{
+				BlockDisplayCutout = false;
+			}
+		}
 		if (BlockDisplayCutout)
 		{
 			UseDisplayCutout = false;
