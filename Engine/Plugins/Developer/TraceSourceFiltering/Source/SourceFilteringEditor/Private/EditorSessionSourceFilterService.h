@@ -43,7 +43,7 @@ public:
 	virtual void SetFilterState(TSharedRef<const IFilterObject> InFilter, bool bState) override;
 	virtual void ResetFilters() override;	
 	virtual FOnSessionStateChanged& GetOnSessionStateChanged() override { return OnSessionStateChanged; }
-	virtual void UpdateFilterSettings(UTraceSourceFilteringSettings* InSettings) override {}
+	virtual void UpdateFilterSettings(UTraceSourceFilteringSettings* InSettings) override;
 	virtual UTraceSourceFilteringSettings* GetFilterSettings() override;
 	virtual bool IsActionPending() const override;
 	virtual TSharedRef<SWidget> GetFilterPickerWidget(FOnFilterClassPicked InFilterClassPicked) override;
