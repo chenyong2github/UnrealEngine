@@ -27,8 +27,7 @@ int32 FWidgetBlueprintIndexer::GetVersion() const
 
 void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const UWidgetBlueprint* BP = Cast<UWidgetBlueprint>(InAssetObject);
-	check(BP);
+	const UWidgetBlueprint* BP = CastChecked<UWidgetBlueprint>(InAssetObject);
 
 	TArray<const UWidget*> AllWidgets = BP->GetAllSourceWidgets();
 
@@ -50,6 +49,8 @@ void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSe
 
 		Serializer.EndIndexingObject();
 	}
+
+	// TODO Animations
 }
 
 #undef LOCTEXT_NAMESPACE

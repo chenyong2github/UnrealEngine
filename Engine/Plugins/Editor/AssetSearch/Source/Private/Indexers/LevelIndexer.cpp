@@ -29,8 +29,7 @@ void FLevelIndexer::GetNestedAssetTypes(TArray<UClass*>& OutTypes) const
 
 void FLevelIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const UWorld* World = Cast<UWorld>(InAssetObject);
-	check(World);
+	const UWorld* World = CastChecked<UWorld>(InAssetObject);
 
 	if (const ULevel* Level = World->PersistentLevel)
 	{

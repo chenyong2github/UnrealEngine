@@ -22,8 +22,7 @@ int32 FCurveTableIndexer::GetVersion() const
 
 void FCurveTableIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const UCurveTable* DataTable = Cast<UCurveTable>(InAssetObject);
-	check(DataTable);
+	const UCurveTable* DataTable = CastChecked<UCurveTable>(InAssetObject);
 
 	const TMap<FName, FRealCurve*>& Rows = DataTable->GetRowMap();
 
