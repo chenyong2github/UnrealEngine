@@ -534,9 +534,10 @@ struct FNDISkeletalMesh_InstanceData
 
 	FORCEINLINE_DEBUGGABLE const FSkinWeightVertexBuffer* GetSkinWeights()
 	{
-		if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get()))
+		USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get());
+		if (SkelComp != nullptr && SkelComp->SkeletalMesh != nullptr)
 		{
-			return SkelComp->GetSkinWeightBuffer(CachedLODIdx);
+			return SkelComp->GetSkinWeightBuffer(CachedLODIdx);			
 		}
 		return CachedLODData ? &CachedLODData->SkinWeightVertexBuffer : nullptr;
 	}
@@ -798,7 +799,7 @@ public:
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
 	void GetSkinnedBoneData(FVectorVMContext& Context);	
-
+	
 	void IsValidBone(FVectorVMContext& Context);
 	void RandomBone(FVectorVMContext& Context);
 	void GetBoneCount(FVectorVMContext& Context);
