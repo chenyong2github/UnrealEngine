@@ -4036,6 +4036,15 @@ void UMaterialInstance::UpdateCachedLayerParameters()
 		CachedLayerParameters = MoveTemp(CachedExpressionData.Parameters);
 		CachedReferencedTextures = MoveTemp(CachedExpressionData.ReferencedTextures);
 	}
+
+	// Add the instance texture overrides.
+	for (const FTextureParameterValue& TextureParam : TextureParameterValues)
+	{
+		if (TextureParam.ParameterValue)
+		{
+			CachedReferencedTextures.AddUnique(TextureParam.ParameterValue);
+		}
+	}
 }
 
 void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewParameters, FMaterialUpdateContext* MaterialUpdateContext)
