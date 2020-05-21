@@ -1076,7 +1076,7 @@ public:
 	virtual bool SupportsGlobalVariables() const { return true; }
 
 	/**
-	 * Returns true if this blueprint supports lobal variables
+	 * Returns true if this blueprint supports global variables
 	 */
 	virtual bool SupportsLocalVariables() const { return true; }
 
