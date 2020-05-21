@@ -119,7 +119,7 @@ public:
 
 	void GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const;
 
-	FNiagaraClipboard& GetClipboard() const;
+	NIAGARAEDITOR_API FNiagaraClipboard& GetClipboard() const;
 
 	template<typename T>
 	void EnqueueObjectForDeferredDestruction(TSharedRef<T> InObjectToDestruct)
