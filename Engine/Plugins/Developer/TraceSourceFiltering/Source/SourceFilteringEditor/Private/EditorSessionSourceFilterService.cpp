@@ -52,14 +52,6 @@ FEditorSessionSourceFilterService::FEditorSessionSourceFilterService()
 	// Register delegate to catch engine-level trace filtering system changes 
 	FTraceWorldFiltering::OnFilterStateChanged().AddRaw(this, &FEditorSessionSourceFilterService::StateChanged);	
 	SetupWorldFilters();
-	
-	// Try and load the user-defined default filter preset
-	USourceFilterCollection* PresetCollection = GetDefault<UTraceSourceFilteringProjectSettings>()->DefaultFilterPreset.LoadSynchronous();
-	if (PresetCollection)
-	{
-		FilterCollection->CopyData(PresetCollection);
-		StateChanged();
-	}
 }
 
 FEditorSessionSourceFilterService::~FEditorSessionSourceFilterService()
