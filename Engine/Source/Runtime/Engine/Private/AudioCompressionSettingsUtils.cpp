@@ -35,12 +35,20 @@ FAutoConsoleVariableRef CVarCookOverrideCachingIntervalCVar(
  * The trade off is that when this is increased, we add more elements to our cache, thus linearly increasing the CPU complexity of finding a chunk.
  * A minimum cache usage of 1.0f is impossible, because it would require an infinite amount of chunks.
  */
-static float MinimumCacheUsageCvar = 0.75f;
+static float MinimumCacheUsageCvar = 0.9f;
 FAutoConsoleVariableRef CVarMinimumCacheUsage(
 	TEXT("au.streamcaching.MinimumCacheUsage"),
 	MinimumCacheUsageCvar,
 	TEXT("This value is the minimum potential usage of the stream cache we feasibly want to support. Setting this to 0.25, for example, cause us to potentially be using 25% of our cache size when we start evicting chunks, worst cast scenario.\n")
 	TEXT("0.0: limit the number of chunks to our (Cache Size / Max Chunk Size) [0.01-0.99]: Increase our number of chunks to limit disk IO when we have lots of small sounds playing."),
+	ECVF_Default);
+
+static float ChunkSlotNumScalarCvar = 15.f;
+FAutoConsoleVariableRef CVarChunkSlotNumScalar(
+	TEXT("au.streamcaching.ChunkSlotNumScalar"),
+	ChunkSlotNumScalarCvar,
+	TEXT("This allows scaling the number of chunks pre-allocated.\n")
+	TEXT("1.0: is the lower limit"),
 	ECVF_Default);
 
 const FPlatformRuntimeAudioCompressionOverrides* FPlatformCompressionUtilities::GetRuntimeCompressionOverridesForCurrentPlatform()
@@ -351,10 +359,18 @@ FCachedAudioStreamingManagerParams FPlatformCompressionUtilities::BuildCachedStr
 	const FAudioStreamCachingSettings& CacheSettings = GetStreamCachingSettingsForCurrentPlatform();
 	int32 MaxChunkSize = GetMaxChunkSizeForCookOverrides(GetCookOverrides());
 
+	const int32 MaxChunkSizeOverrideBytes = CacheSettings.MaxChunkSizeOverrideKB * 1024;
+	if (MaxChunkSizeOverrideBytes > 0)
+	{
+		MaxChunkSize = FMath::Min(MaxChunkSizeOverrideBytes, MaxChunkSize);
+	}
+
 	// Our number of elements is tweakable based on the minimum cache usage we want to support.
-	const float MinimumCacheUsage = FMath::Clamp(MinimumCacheUsageCvar, 0.0f, 0.95f);
+	const float MinimumCacheUsage = FMath::Clamp(MinimumCacheUsageCvar, 0.0f, (1.0f - KINDA_SMALL_NUMBER));
 	int32 MinChunkSize = (1.0f - MinimumCacheUsage) * MaxChunkSize;
-	int32 NumElements = (CacheSettings.CacheSizeKB * 1024) / MinChunkSize;
+	
+	uint64 TempNumElements = ((CacheSettings.CacheSizeKB * 1024) / MinChunkSize) * FMath::Max(ChunkSlotNumScalarCvar, 1.0f);
+	int32 NumElements = FMath::Min(TempNumElements, static_cast<uint64>(TNumericLimits< int32 >::Max()));
 
 	FCachedAudioStreamingManagerParams Params;
 	FCachedAudioStreamingManagerParams::FCacheDimensions CacheDimensions;
