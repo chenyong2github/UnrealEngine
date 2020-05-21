@@ -112,7 +112,7 @@ public:
 };
 
 UCLASS()
-class UNiagaraClipboardContent : public UObject
+class NIAGARAEDITOR_API UNiagaraClipboardContent : public UObject
 {
 	GENERATED_BODY()
 
@@ -132,7 +132,7 @@ public:
 	TArray<const UNiagaraScript*> Scripts;
 };
 
-class FNiagaraClipboard
+class NIAGARAEDITOR_API FNiagaraClipboard
 {
 public:
 	FNiagaraClipboard();
@@ -143,7 +143,7 @@ public:
 };
 
 UCLASS()
-class UNiagaraClipboardEditorScriptingUtilities : public UObject
+class NIAGARAEDITOR_API UNiagaraClipboardEditorScriptingUtilities : public UObject
 {
 	GENERATED_BODY()
 
@@ -180,4 +180,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Input")
 	static UNiagaraClipboardFunctionInput* CreateDynamicValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, FString InDynamicValueName, UNiagaraScript* InDynamicValue);
+
+	static FNiagaraTypeDefinition GetRegisteredTypeDefinitionByName(FName InTypeName);
 };

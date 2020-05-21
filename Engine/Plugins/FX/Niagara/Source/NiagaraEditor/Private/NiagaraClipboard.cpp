@@ -239,7 +239,7 @@ const UNiagaraClipboardFunctionInput* CreateLocalValue(UObject* InOuter, FName I
 		InLocalValueData);
 }
 
-FNiagaraTypeDefinition GetTypeByName(FName InTypeName)
+FNiagaraTypeDefinition UNiagaraClipboardEditorScriptingUtilities::GetRegisteredTypeDefinitionByName(FName InTypeName)
 {
 	for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetRegisteredTypes())
 	{
@@ -274,7 +274,7 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateLinkedValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, FName InLinkedValue)
 {
-	FNiagaraTypeDefinition InputType = GetTypeByName(InInputName);
+	FNiagaraTypeDefinition InputType = GetRegisteredTypeDefinitionByName(InInputName);
 	if (InputType.IsValid())
 	{
 		return const_cast<UNiagaraClipboardFunctionInput*>(UNiagaraClipboardFunctionInput::CreateLinkedValue(
@@ -289,7 +289,7 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateDataValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, UNiagaraDataInterface* InDataValue)
 {
-	FNiagaraTypeDefinition InputType = GetTypeByName(InInputName);
+	FNiagaraTypeDefinition InputType = GetRegisteredTypeDefinitionByName(InInputName);
 	if (InputType.IsValid())
 	{
 		return const_cast<UNiagaraClipboardFunctionInput*>(UNiagaraClipboardFunctionInput::CreateDataValue(
@@ -304,7 +304,7 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateExpressionValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, const FString& InExpressionValue)
 {
-	FNiagaraTypeDefinition InputType = GetTypeByName(InInputName);
+	FNiagaraTypeDefinition InputType = GetRegisteredTypeDefinitionByName(InInputName);
 	if (InputType.IsValid())
 	{
 		return const_cast<UNiagaraClipboardFunctionInput*>(UNiagaraClipboardFunctionInput::CreateExpressionValue(
@@ -319,7 +319,7 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateDynamicValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, FString InDynamicValueName, UNiagaraScript* InDynamicValue)
 {
-	FNiagaraTypeDefinition InputType = GetTypeByName(InInputName);
+	FNiagaraTypeDefinition InputType = GetRegisteredTypeDefinitionByName(InInputTypeName);
 	if (InputType.IsValid())
 	{
 		return const_cast<UNiagaraClipboardFunctionInput*>(UNiagaraClipboardFunctionInput::CreateDynamicValue(
