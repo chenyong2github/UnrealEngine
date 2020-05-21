@@ -6,6 +6,7 @@
 #include "DataSourceFilterSet.h"
 #include "UObject/ObjectKey.h"
 #include "Engine/DataAsset.h"
+#include "Delegates/DelegateCombinations.h"
 
 #include "SourceFilterCollection.generated.h"
 
@@ -19,6 +20,9 @@ public:
 	/** Begin UDataAsset overrides */
 	virtual void Serialize(FArchive& Ar) override;
 	/** End UDataAsset overrides */
+
+	/** Delegate which is broadcasted any of this collection's state changes */
+	FSimpleMulticastDelegate& GetSourceFiltersUpdated();
 
 	/** Add Filter instance to the collection, will be added at the root level */
 	void AddFilter(UDataSourceFilter* NewFilter);
@@ -38,11 +42,16 @@ public:
 	
 	/** Move a Filter instance to a specific Filter Set (moved to root-level if Destination = nullptr) */
 	void MoveFilter(UDataSourceFilter* Filter, UDataSourceFilterSet* Destination);
+
+	/** Sets whether or not a filter is enabled */
+	void SetFilterState(UDataSourceFilter* Filter, bool bEnabledState);
 	
 	/** Convert a Filter Instance to a Filter Set (with provided mode), this creates set containing the replace filter */
 	UDataSourceFilterSet* ConvertFilterToSet(UDataSourceFilter* ReplacedFilter, EFilterSetMode Mode);
 	/** Create a Filter set (with provided mode) containing both Filter Instances */
 	UDataSourceFilterSet* MakeFilterSet(UDataSourceFilter* FilterOne, UDataSourceFilter* FilterTwo, EFilterSetMode Mode);
+	/** Set the filtering mode for the provided filter set*/
+	void SetFilterSetMode(UDataSourceFilterSet* FilterSet, EFilterSetMode Mode);
 
 	/** Creates an empty Filter Set (with provided mode) */
 	UDataSourceFilterSet* MakeEmptyFilterSet(EFilterSetMode Mode);
@@ -100,4 +109,6 @@ protected:
 	/** Child / Parent mapping for Filter (sets) */
 	UPROPERTY()
 	TMap<UDataSourceFilter*, UDataSourceFilterSet*> ChildToParent;
+	
+	FSimpleMulticastDelegate SourceFiltersUpdatedDelegate;
 };

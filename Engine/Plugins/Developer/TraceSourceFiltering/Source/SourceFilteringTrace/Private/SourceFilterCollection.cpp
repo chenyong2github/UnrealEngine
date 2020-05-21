@@ -53,11 +53,14 @@ void USourceFilterCollection::OnObjectsReplaced(const TMap<UObject*, UObject*>& 
 			FilterClassMap.Add(*NewObjectPtr, ClassName);
 		}
 	}
+
+	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
 void USourceFilterCollection::AddClassFilter(TSubclassOf<AActor> InClass)
 {
 	ClassFilters.AddUnique({ FSoftClassPath(InClass), false });
+	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
 void USourceFilterCollection::RemoveClassFilter(TSubclassOf<AActor> InClass)
@@ -66,6 +69,7 @@ void USourceFilterCollection::RemoveClassFilter(TSubclassOf<AActor> InClass)
 	{
 		return FilteredClass.ActorClass == FSoftClassPath(InClass);
 	});
+	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
 void USourceFilterCollection::UpdateClassFilter(TSubclassOf<AActor> InClass, bool bIncludeDerivedClasses)
@@ -79,6 +83,7 @@ void USourceFilterCollection::UpdateClassFilter(TSubclassOf<AActor> InClass, boo
 	if (Class)
 	{
 		Class->bIncludeDerivedClasses = bIncludeDerivedClasses;
+		SourceFiltersUpdatedDelegate.Broadcast();
 	}
 }
 
@@ -89,6 +94,7 @@ void USourceFilterCollection::AddFilter(UDataSourceFilter* NewFilter)
 	AddClassName(NewFilter);
 
 	TRACE_FILTER_INSTANCE(NewFilter);
+	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
 UDataSourceFilter* USourceFilterCollection::AddFilterOfClass(const TSubclassOf<UDataSourceFilter>& FilterClass)
@@ -117,6 +123,7 @@ UDataSourceFilter* USourceFilterCollection::AddFilterOfClassToSet(const TSubclas
 		TRACE_FILTER_INSTANCE(NewFilter);
 
 		TRACE_FILTER_OPERATION(NewFilter, ESourceActorFilterOperation::MoveFilter, TRACE_FILTER_IDENTIFIER(FilterSet));
+		SourceFiltersUpdatedDelegate.Broadcast();
 
 		return NewFilter;
 	}
@@ -158,6 +165,19 @@ UDataSourceFilterSet* USourceFilterCollection::MakeFilterSet(UDataSourceFilter* 
 	return NewFilterSet;
 }
 
+void USourceFilterCollection::SetFilterSetMode(UDataSourceFilterSet* FilterSet, EFilterSetMode Mode)
+{
+	if (FilterSet)
+	{
+		if (FilterSet->GetFilterSetMode() != Mode)
+		{
+			FilterSet->Modify();
+			FilterSet->SetFilterMode(Mode);
+
+			SourceFiltersUpdatedDelegate.Broadcast();
+		}
+	}
+}
 
 UDataSourceFilterSet* USourceFilterCollection::MakeEmptyFilterSet(EFilterSetMode Mode)
 {
@@ -169,6 +189,8 @@ UDataSourceFilterSet* USourceFilterCollection::MakeEmptyFilterSet(EFilterSetMode
 
 	Filters.Add(NewFilterSet);
 	ChildToParent.FindOrAdd(NewFilterSet) = nullptr;
+
+	SourceFiltersUpdatedDelegate.Broadcast();
 
 	return NewFilterSet;
 }
@@ -278,6 +300,8 @@ void USourceFilterCollection::RemoveFilter(UDataSourceFilter* ToRemoveFilter)
 	{
 		Filters.RemoveSingle(ToRemoveFilter);
 	}
+
+	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
 void USourceFilterCollection::RemoveFilterFromSet(UDataSourceFilter* ToRemoveFilter, UDataSourceFilterSet* FilterSet)
@@ -325,6 +349,8 @@ void USourceFilterCollection::ReplaceFilter(UDataSourceFilter* Destination, UDat
 	}
 
 	ChildToParent.FindOrAdd(Source) = OuterFilterSet;
+
+	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
 void USourceFilterCollection::MoveFilter(UDataSourceFilter* Filter, UDataSourceFilterSet* Destination)
@@ -354,6 +380,19 @@ void USourceFilterCollection::MoveFilter(UDataSourceFilter* Filter, UDataSourceF
 	}
 
 	FilterParent = Destination;
+
+	SourceFiltersUpdatedDelegate.Broadcast();
+}
+
+void USourceFilterCollection::SetFilterState(UDataSourceFilter* Filter, bool bEnabled)
+{
+	if (Filter)
+	{
+		Filter->Modify();
+		Filter->SetEnabled(bEnabled);
+
+		SourceFiltersUpdatedDelegate.Broadcast();
+	}
 }
 
 void USourceFilterCollection::Reset()
@@ -366,6 +405,8 @@ void USourceFilterCollection::Reset()
 	FilterClasses.Empty();
 	FilterClassMap.Empty();
 	ClassFilters.Empty();
+
+	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
 void USourceFilterCollection::CopyData(USourceFilterCollection* OtherCollection)
@@ -390,6 +431,8 @@ void USourceFilterCollection::CopyData(USourceFilterCollection* OtherCollection)
 	{
 		return Filter.ActorClass.TryLoadClass<AActor>() == nullptr;
 	});
+
+	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
 UDataSourceFilter* USourceFilterCollection::RecursiveCopyFilter(UDataSourceFilter* Filter, int32& FilterOffset)
@@ -459,6 +502,11 @@ void USourceFilterCollection::Serialize(FArchive& Ar)
 void USourceFilterCollection::AddClassName(UDataSourceFilter* Filter)
 {
 	FilterClassMap.Add(Filter, Filter->GetClass()->GetName());
+}
+
+FSimpleMulticastDelegate& USourceFilterCollection::GetSourceFiltersUpdated()
+{
+	return SourceFiltersUpdatedDelegate;
 }
 
 void USourceFilterCollection::RecursiveGenerateFilterClassNames(UDataSourceFilter* Filter)
