@@ -30,7 +30,8 @@ namespace Turnkey.Commands
 
 			bool bBestAvailable = TurnkeyUtils.ParseParam("BestAvailable", CommandOptions);
 			bool bUpdateOnly = TurnkeyUtils.ParseParam("UpdateOnly", CommandOptions);
-			
+			bool bAllowAutoSdk = TurnkeyUtils.ParseParam("AllowAutoSdk", CommandOptions);
+
 			// best available installation requires valid and needed Sdks
 			bool bValidOnly = bBestAvailable || !TurnkeyUtils.ParseParam("AllowInvalid", CommandOptions);
 			bool bNeededOnly = bBestAvailable || TurnkeyUtils.ParseParam("NeededOnly", CommandOptions);
@@ -79,8 +80,25 @@ namespace Turnkey.Commands
 				// remove the platform (we may remove more later if an Sdk supports multiple platforms)
 				PlatformsLeftToInstall.RemoveAt(0);
 
+
 				// cache the automation platform object
-				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.Platforms[new TargetPlatformDescriptor(Platform)];
+				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
+
+// 				if (bAllowAutoSdk)
+// 				{
+// 					// first, attempt AutoSdk
+// 					SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
+// 					bool bWasAutoSdkSetup;
+// 					
+// 					SdkInfo.ConditionalSetupAutoSdk(Platform, ref LocalState, out bWasAutoSdkSetup, bUnattended: false);
+// 
+// 					// if we got an AutoSdk for this platform, then we don't need to continue
+// 					if (bWasAutoSdkSetup)
+// 					{
+// 						continue;
+// 					}
+// 				}
+
 
 				// filter the Sdks if a platform was given
 				List<SdkInfo> Sdks = AllSdks.FindAll(x => x.SupportsPlatform(Platform));
@@ -89,6 +107,10 @@ namespace Turnkey.Commands
 				int SdkCount = Sdks.Count;
 				Sdks = Sdks.FindAll(x => x.Type != SdkInfo.SdkType.Flash || (AutomationPlatform.GetDevices() != null && AutomationPlatform.GetDevices().Length > 0));
 				bool bStrippedDevices = Sdks.Count != SdkCount;
+
+				// we don't need to do AutoSdks, we already attempted one above if we wanted to
+				Sdks = Sdks.FindAll(x => x.Type != SdkInfo.SdkType.AutoSdk);
+
 
 				// strip out Sdks where there is no Sdk installed yet
 				if (bUpdateOnly)
@@ -220,6 +242,7 @@ namespace Turnkey.Commands
 					}
 					SdksAlreadyInstalled.Add(Sdk);
 
+					DeviceInfo InstallDevice = null;
 					// set variables
 					if (Sdk.Type == SdkInfo.SdkType.Flash)
 					{
@@ -246,24 +269,16 @@ namespace Turnkey.Commands
 						}
 
 						// get device info of the chosen or supplied device
-						DeviceInfo InstallDevice = Array.Find(AutomationPlatform.GetDevices(), x => string.Compare(x.Name, InstallDeviceName, true) == 0);
+						InstallDevice = Array.Find(AutomationPlatform.GetDevices(), x => string.Compare(x.Name, InstallDeviceName, true) == 0);
 
 						if (InstallDevice == null)
 						{
 							TurnkeyUtils.Log("Unable to find {0} device {1}", Platform, InstallDeviceName);
 							return;
 						}
-
-						TurnkeyUtils.SetVariable("DeviceName", InstallDevice.Name);
-						TurnkeyUtils.SetVariable("DeviceId", InstallDevice.Id);
-						TurnkeyUtils.SetVariable("DeviceType", InstallDevice.Type);
 					}
 
-					// standard variables
-					TurnkeyUtils.SetVariable("Platform", Platform.ToString());
-					TurnkeyUtils.SetVariable("Version", Sdk.Version);
-
-					Sdk.Install(Platform);
+					Sdk.Install(Platform, InstallDevice);
 				}
 			}
 		}

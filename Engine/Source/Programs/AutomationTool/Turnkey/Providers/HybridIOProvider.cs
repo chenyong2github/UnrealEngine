@@ -125,13 +125,17 @@ namespace Turnkey
 			// Display the form as a modal dialog box.
 			Form1.ShowDialog();
 
+			string Result = null;
+
 			// Determine if the OK button was clicked on the dialog box.
 			if (Form1.DialogResult == DialogResult.OK)
 			{
-				return TextBox.Text;
+				Result = TextBox.Text;
 			}
 
-			return null;
+			Form1.Dispose();
+
+			return Result;
 		}
 
 		public override string ReadInput(string Prompt, string Default, bool bAppendNewLine)

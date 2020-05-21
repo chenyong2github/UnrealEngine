@@ -58,8 +58,9 @@ namespace Turnkey
 
 			if (Expansions != null)
 			{
-				// figure out what the *'s turned into
-				Regex Expression = new Regex(Operation.Replace("/", "\\/").Replace("*", "([^\\/]*)").Replace("...", ".*"));
+				// figure out what the *'s turned into (note we use case-insensitive because p4 has an annoying habit of being case-preserving of directories
+				// on a per-file basis (//depot/UE4/Foo/* might return //depot/UE4/Foo/A and //Depot/ue4/FOO/B)
+				Regex Expression = new Regex(Operation.Replace("/", "\\/").Replace("*", "([^\\/]*)").Replace("...", ".*"), RegexOptions.IgnoreCase);
 
 				// run the regex on each result
 				foreach (string Result in Results)

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using AutomationTool;
+using Gauntlet;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,185 +14,213 @@ namespace Turnkey.Commands
 	{
 		protected override void Execute(string[] CommandOptions)
 		{
-			string DeviceName = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
 			bool bUpdateIfNeeded = TurnkeyUtils.ParseParam("UpdateIfNeeded", CommandOptions);
 			bool bUnattended = TurnkeyUtils.ParseParam("Unattended", CommandOptions);
+			bool bPreferFullSdk = TurnkeyUtils.ParseParam("PreferFull", CommandOptions);
+			bool bForceInstall = TurnkeyUtils.ParseParam("ForceInstall", CommandOptions);
 
-			List<UnrealTargetPlatform> ChosenPlatforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, UnrealTargetPlatform.GetValidPlatforms().ToList());
+			// track each platform to check, and 
+			Dictionary<UnrealTargetPlatform, List<string>> PlatformsAndDevices = null;
 
-			if (ChosenPlatforms == null)
+			// look at any devices on the commandline, and see if they have platforms or not
+			string DeviceList = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
+			List<string> SplitDeviceList = null;
+			if (DeviceList != null)
 			{
+				SplitDeviceList = DeviceList.Split("+".ToCharArray()).ToList();
+
+				// look if they have platform@ tags
+				bool bAnyHavePlatform = SplitDeviceList.Any(x => x.Contains("@"));
+				if (bAnyHavePlatform)
+				{
+					if (!SplitDeviceList.All(x => x.Contains("@")))
+					{
+						throw new AutomationException("If any device in -device has a platform indicator ('Platform@Device'), they must all have a platform indicator");
+					}
+
+					// now split it up for devices for each platform
+					foreach (string DeviceToken in SplitDeviceList)
+					{
+						string[] Tokens = DeviceToken.Split("@".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+						if (Tokens.Length != 2)
+						{
+							throw new AutomationException("{0} did not have the Platform@Device format", DeviceToken);
+						}
+						UnrealTargetPlatform Platform;
+						if (!UnrealTargetPlatform.TryParse(Tokens[0], out Platform))
+						{
+							TurnkeyUtils.Log("Platform indicator {0} is an invalid platform, skipping", Tokens[0]);
+							continue;
+						}
+
+						string DeviceName = Tokens[1];
+
+						// track it
+						if (PlatformsAndDevices == null)
+						{
+							PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<string>>();
+						}
+						if (!PlatformsAndDevices.ContainsKey(Platform))
+						{
+							PlatformsAndDevices[Platform] = new List<string>();
+						}
+						PlatformsAndDevices[Platform].Add(DeviceName);
+					}
+					SplitDeviceList = null;
+				}
+			}
+
+			// if we didn't get some platforms already from -device list, then get or ask the user for platforms
+			if (PlatformsAndDevices == null)
+			{
+				PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<string>>();
+				List<UnrealTargetPlatform> ChosenPlatforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, UnrealTargetPlatform.GetValidPlatforms().ToList());
+				ChosenPlatforms.ForEach(x => PlatformsAndDevices.Add(x, null));
+
+				if (ChosenPlatforms.Count > 1 && SplitDeviceList != null && !(SplitDeviceList.Count == 1 && SplitDeviceList[0].CompareTo("All") == 0))
+				{
+					throw new AutomationException("When passing -Device to VerifySdk without platform specifiers ('Platform:Device'), a single platform must be specified (unless -Device=All is used)");
+				}
+			}
+
+			if (PlatformsAndDevices.Count == 0)
+			{
+				TurnkeyUtils.Log("Platform(s) needed for VerifySdk command. Ending command.");
 				return;
 			}
+
 
 			TurnkeyUtils.Log("Installed Sdk validity:");
 			TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
 
 			// check all the platforms
-			foreach (UnrealTargetPlatform Platform in ChosenPlatforms)
+			foreach (var Pair in PlatformsAndDevices)
 			{
+				UnrealTargetPlatform Platform = Pair.Key;
+
 				// get the platform object
-				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.Platforms[new AutomationTool.TargetPlatformDescriptor(Platform)];
+				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
 
 				SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
 
 				if ((LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
 				{
-					TurnkeyUtils.Report("[{0}]: Invalid [No AutoSdk or Installed Sdk found matching {1}]", Platform, AutomationPlatform.GetAllowedSdks());
+					TurnkeyUtils.Report("{0}: Invalid: [No AutoSdk or Installed Sdk found matching {1} - {2} - '{3}']", Platform, AutomationPlatform.GetAllowedSdks(), LocalState.ToString(), Environment.GetEnvironmentVariable("UE_SDKS_ROOT"));
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 				}
 				else
 				{
-					TurnkeyUtils.Report("[{0}]: Valid [{1}]", Platform, (LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)).ToString());
+					TurnkeyUtils.Report("{0}: Valid: [{1}]", Platform, (LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)).ToString());
 					//					TurnkeyUtils.Log("{0}: Valid [Installed: '{1}', Required: '{2}']", Platform, PlatformObject.GetInstalledSdk(), PlatformObject.GetAllowedSdks());
 				}
 
-				if (bUpdateIfNeeded && (TurnkeyUtils.ExitCode != AutomationTool.ExitCode.Success))
+				// track if we installed an AutoSdk since we may need to setup autosdks before checking for devices
+				bool bAutoSdkSetupSucceeded = false;
+
+				// install if out of date, or if forcing it
+				if (bForceInstall || (bUpdateIfNeeded && TurnkeyUtils.ExitCode != AutomationTool.ExitCode.Success))
 				{
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
 
-					bool bAttemptAutoSdkSetup = false;
-					bool bSetupEnvVarAfterInstall = false;
-					if (LocalState.HasFlag(SdkInfo.LocalAvailability.AutoSdk_VariableExists))
+					// if autosdk worked, we don't need to install full sdk
+					if (!bAutoSdkSetupSucceeded)
 					{
-						bAttemptAutoSdkSetup = true;
-					}
-					else
-					{
-						if (!bUnattended)
+// 						if (!bUnattended)
+// 						{
+// 							string Response = TurnkeyUtils.ReadInput("Your Sdk installation is not up to date. Would you like to install a valid Sdk? [Y/n]", "Y");
+// 							if (string.Compare(Response, "Y", true) != 0)
+// 							{
+// 								continue;
+// 							}
+// 						}
+
+						SdkInfo BestSdk = null;
+						// find the best Sdk, prioritizing as request
+						if (bPreferFullSdk)
 						{
-							// @todo turnkey: help set up UE_SDKS_ROOT if it's not there
-							string Response = TurnkeyUtils.ReadInput("AutoSdks are not setup, but your studio has support. Would you like to set it up now? [Y/n]", "Y");
-							if (string.Compare(Response, "Y", true) == 0)
-							{
-								bAttemptAutoSdkSetup = true;
-								bSetupEnvVarAfterInstall = true;
-							}
-						}
-					}
-
-					if (bAttemptAutoSdkSetup)
-					{
-						TurnkeyUtils.Log("{0}: AutoSdk is setup on this compter, will look for available AutoSdk to download", Platform);
-
-						List<SdkInfo> MatchingAutoSdk = SdkInfo.FindMatchingSdks(AutomationPlatform, SdkInfo.SdkType.AutoSdk, bSelectSingleBest: true);
-
-						if (MatchingAutoSdk.Count == 0)
-						{
-							// no matching AutoSdk found - will fall through to look for full install
-							if (bSetupEnvVarAfterInstall)
-							{
-								TurnkeyUtils.Log("{0}: Unable to find a matching AutoSdk, skipping AutoSdk setup", Platform);
-							}
+							BestSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Full, SdkInfo.SdkType.BuildOnly, SdkInfo.SdkType.AutoSdk }, bSelectBest: bUnattended);
 						}
 						else
 						{
-							// make sure this is unset so that we can know if it worked or not after install
-							TurnkeyUtils.ClearVariable("CopyOutputPath");
-
-							// now download it (AutoSdks don't "install") on download
-							// @todo turnkey: handle errors, handle p4 going to wrong location, handle one Sdk for multiple platforms
-							MatchingAutoSdk[0].Install(Platform);
-
-							if (bSetupEnvVarAfterInstall)
-							{
-								// @todo turnkey - have studio settings 
-
-								// this is where we synced the Sdk to
-								string InstalledRoot = TurnkeyUtils.GetVariableValue("CopyOutputPath");
-
-								// failed to install, nothing we can do
-								if (string.IsNullOrEmpty(InstalledRoot))
-								{
-									TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
-									continue;
-								}
-
-								// walk up to one above Host* directory
-								DirectoryInfo AutoSdkSearch;
-								if (Directory.Exists(InstalledRoot))
-								{
-									AutoSdkSearch = new DirectoryInfo(InstalledRoot);
-								}
-								else
-								{
-									AutoSdkSearch = new FileInfo(InstalledRoot).Directory;
-								}
-								while (AutoSdkSearch.Name != "Host" + HostPlatform.Current.HostEditorPlatform.ToString())
-								{
-									AutoSdkSearch = AutoSdkSearch.Parent;
-								}
-
-								// now go one up to the parent of Host
-								AutoSdkSearch = AutoSdkSearch.Parent;
-
-								string Response = TurnkeyUtils.ReadInput("Enter directory for root of AutoSdks. Use detected value, or enter another:", AutoSdkSearch.FullName);
-								if (string.IsNullOrEmpty(Response))
-								{
-									continue;
-								}
-
-								// set the env var, globally
-								TurnkeyUtils.StartTrackingExternalEnvVarChanges();
-								Environment.SetEnvironmentVariable("UE_SDKS_ROOT", Response);
-								Environment.SetEnvironmentVariable("UE_SDKS_ROOT", Response, EnvironmentVariableTarget.User);
-								TurnkeyUtils.EndTrackingExternalEnvVarChanges();
-							}
-
-							// @todo turnkey - re-run detection again
-
-							continue;
+							BestSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.AutoSdk, SdkInfo.SdkType.BuildOnly, SdkInfo.SdkType.Full }, bSelectBest: bUnattended);
 						}
-					}
 
-					if (!bUnattended)
-					{
-						string Response = TurnkeyUtils.ReadInput("Your Sdk installation is not up to date. Would you like to install a valid Sdk? [Y/n]", "Y");
-						if (string.Compare(Response, "Y", true) != 0)
+						if (BestSdk == null)
 						{
-							continue;
-						}
-					}
-
-					// at this point, AutoSdk isn't viable, so look for a full install
-					List<SdkInfo> MatchingInstallableSdks = SdkInfo.FindMatchingSdks(AutomationPlatform, SdkInfo.SdkType.BuildOnly, bSelectSingleBest: bUnattended);
-					if (MatchingInstallableSdks.Count == 0)
-					{
-						MatchingInstallableSdks = SdkInfo.FindMatchingSdks(AutomationPlatform, SdkInfo.SdkType.Full, bSelectSingleBest: bUnattended);
-					}
-
-					if (MatchingInstallableSdks.Count == 0)
-					{
-						TurnkeyUtils.Log("ERROR: {0}: Unable top find any Sdks that could be installed");
-						TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
-					}
-
-					SdkInfo SdkToInstall = MatchingInstallableSdks[0];
-
-					// if there are multiple, ask the user
-					if (MatchingInstallableSdks.Count > 1)
-					{
-						int Choice = TurnkeyUtils.ReadInputInt("Multiple Sdks found that could be installed. Please select one:", MatchingInstallableSdks.Select(x => x.DisplayName).ToList(), true);
-						if (Choice == 0)
-						{
+							TurnkeyUtils.Log("ERROR: {0}: Unable to find any Sdks that could be installed");
 							TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 							continue;
 						}
 
-						SdkToInstall = MatchingInstallableSdks[Choice - 1];
+						TurnkeyUtils.Log("Will install {0}", BestSdk.DisplayName);
+
+//						bool bWasSdkInstalled = BestSdk.Install(Platform, null, bUnattended);
+
+						// update LocalState
+						LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
+
+						// @todo turnkey: validate!
+					}
+				}
+
+				// use the per-platform device list, unless it's not specifed, then use the global device list (which is set when not using platform specifiers)
+				List<string> DeviceNames = Pair.Value != null ? Pair.Value : SplitDeviceList;
+				if (DeviceNames != null && DeviceNames.Count > 0)
+				{
+					// if we just setup AutoSdk, then run the setup so that we have a hope of finding devices
+					if (bAutoSdkSetupSucceeded)
+					{
+						// @todo turnkey: Run the autosdk thing
+						//							AutomationPlatform.
 					}
 
-					// finall install the best or chosen Sdk
-					SdkToInstall.Install(Platform);
+					DeviceInfo[] Devices = AutomationPlatform.GetDevices();
+					if (Devices == null)
+					{
+						TurnkeyUtils.Log("Platform {0} didn't have any devices, ignoring any devices specified", Platform);
+						continue;
+					}
 
-// 					if (bInstallSdk)
-// 					{
-// 						// reset exit code
-// 						TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
-// 
-// 						InstallSdk InstallCommand = new InstallSdk();
-// 						InstallCommand.InternalExecute(new string[] { "-platform=" + Platform, "-BestAvailable" });
-// 					}
+					TurnkeyUtils.Log("Installed Device validity:");
+
+					// a single device named all means all devices
+					if (!(DeviceNames.Count == 1 && DeviceNames[0].CompareTo("All") == 0))
+					{
+						Devices = Devices.Where(x => DeviceNames.Contains(x.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
+					}
+
+					// now check software verison of each device
+					foreach (DeviceInfo Device in Devices)
+					{
+						bool bIsSoftwareValid = TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
+
+
+						if (bIsSoftwareValid)
+						{
+							TurnkeyUtils.Report("{0}@{1}: Valid: [{2}]", Platform, Device.Name, Device.SoftwareVersion);
+						}
+						else
+						{
+							TurnkeyUtils.Report("{0}@{1}: Invalid: [Has {2}, needs {3}]", Platform, Device.Name, Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
+							TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+
+							if (bUpdateIfNeeded)
+							{
+								SdkInfo MatchingInstallableSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Flash }, bSelectBest: bUnattended);
+
+								if (MatchingInstallableSdk == null)
+								{
+									TurnkeyUtils.Log("ERROR: {0}: Unable top find any Sdks that could be installed on {1}", Platform, Device.Name);
+									TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+								}
+								else
+								{
+									MatchingInstallableSdk.Install(Platform, Device, bUnattended);
+									TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
+								}
+							}
+						}
+					}
 				}
 			}
 		}

@@ -58,6 +58,10 @@ namespace Turnkey
 				{
 					IdsToCopyToFilename.Add(File, File.Name);
 				}
+				else
+				{
+					TurnkeyUtils.Log("ERROR: Unable to find GoogleDrive file {0}", Operation);
+				}
 			}
 
 

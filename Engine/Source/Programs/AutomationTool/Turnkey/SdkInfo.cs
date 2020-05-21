@@ -8,6 +8,8 @@ using System.IO;
 using Tools.DotNETCommon;
 using UnrealBuildTool;
 using AutomationTool;
+using System.Linq;
+using System.Windows.Forms;
 
 namespace Turnkey
 {
@@ -166,33 +168,65 @@ namespace Turnkey
 			return Result;
 		}
 
-		static public List<SdkInfo> FindMatchingSdks(AutomationTool.Platform Platform, SdkType Type, bool bSelectSingleBest)
+		static public SdkInfo FindMatchingSdk(AutomationTool.Platform Platform, SdkType[] TypePriority, bool bSelectBest)
 		{
-
-			List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks().FindAll(x => 
-				x.SupportsPlatform(Platform.IniPlatformType) && 
-				x.Type == Type && 
-				TurnkeyUtils.IsValueValid(x.Version, Platform.GetAllowedSdks())
-				);
-
-			// handle easy cases
-			if (Sdks.Count <= 1 || !bSelectSingleBest)
+			foreach (SdkType Type in TypePriority)
 			{
-				return Sdks;
-			}
+				List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks().FindAll(x =>
+					x.SupportsPlatform(Platform.IniPlatformType) &&
+					x.Type == Type &&
+					TurnkeyUtils.IsValueValid(x.Version, Type == SdkType.Flash ? Platform.GetAllowedSoftwareVersions() : Platform.GetAllowedSdks())
+					); ;
 
-			// find best one
-			SdkInfo Best = null;
-			foreach (SdkInfo Sdk in Sdks)
-			{
-				// @todo turnkey: let platform decide what's best
-				if (Best == null || string.Compare(Sdk.Version, Best.Version, true) > 0)
+				Sdks = TurnkeyManifest.GetDiscoveredSdks();
+				Sdks = Sdks.FindAll(x => x.SupportsPlatform(Platform.IniPlatformType));
+				Sdks = Sdks.FindAll(x => x.Type == Type);
+				Sdks = Sdks.FindAll(x => TurnkeyUtils.IsValueValid(x.Version, Type == SdkType.Flash ? Platform.GetAllowedSoftwareVersions() : Platform.GetAllowedSdks()));
+
+				// if none were found try next type
+				if (Sdks.Count == 0)
 				{
-					Best = Sdk;
+					continue;
 				}
+
+				// if one was founf return it!
+				if (Sdks.Count == 1)
+				{
+					return Sdks[0];
+				}
+
+				// if more than 1, select one automatically if requested
+				if (bSelectBest)
+				{
+					// find best one
+					SdkInfo Best = null;
+					foreach (SdkInfo Sdk in Sdks)
+					{
+						// @todo turnkey: let platform decide what's best
+						if (Best == null || string.Compare(Sdk.Version, Best.Version, true) > 0)
+						{
+							Best = Sdk;
+						}
+					}
+
+					return Best;
+				}
+
+				// if unable to pock one automatically, ask the user
+				int Choice = TurnkeyUtils.ReadInputInt("Multiple Sdks found that could be installed. Please select one:", Sdks.Select(x => x.DisplayName).ToList(), true);
+
+				// we take canceling to mean to try the next type
+				if (Choice == 0)
+				{
+					continue;
+				}
+
+				return Sdks[Choice - 1];
 			}
 
-			return new List<SdkInfo> { Best };
+
+			// if we never found anything, fail
+			return null;
 		}
 
 
@@ -322,12 +356,32 @@ namespace Turnkey
 			}
 		}
 
-		public void Install(UnrealTargetPlatform Platform)
+		public bool Install(UnrealTargetPlatform Platform, DeviceInfo Device = null, bool bUnattended = false)
 		{
+			if (Type == SdkType.AutoSdk)
+			{
+				// AutoSdk has some extra setup needed
+				if (SdkInfo.ConditionalSetupAutoSdk(Platform, bUnattended))
+				{
+					return true;
+				}
+			}
+
 			if (!CheckForExtendedVariables(true))
 			{
 				// user canceled a choice
-				return;
+				return false;
+			}
+
+			// standard variables
+			TurnkeyUtils.SetVariable("Platform", Platform.ToString());
+			TurnkeyUtils.SetVariable("Version", Version);
+
+			if (Device != null)
+			{
+				TurnkeyUtils.SetVariable("DeviceName", Device.Name);
+				TurnkeyUtils.SetVariable("DeviceId", Device.Id);
+				TurnkeyUtils.SetVariable("DeviceType", Device.Type);
 			}
 
 			// custom sdk installation is enabled if ChosenSdk.CustomVersionId is !null
@@ -362,54 +416,134 @@ namespace Turnkey
 			}
 
 			// now run any installers
-			if (Installers != null)
+			if (Installers == null)
 			{
-				foreach (CopyAndRun Install in Installers)
+				// if there were no installers, then we succeeded
+				return true;
+			}
+
+			bool bSucceeded = true;
+			foreach (CopyAndRun Install in Installers)
+			{
+				// build only types we keep in a nice directory structure in the PermanentStorage (if the copy provider allows for choosing destination)
+				if (Type == SdkType.BuildOnly)
 				{
-					if (Type == SdkType.BuildOnly)
-					{
-						// download subdir is based on platform 
-						string SubDir = string.Format("{0}/{1}", Platform.ToString(), Version);
-						Install.Execute(CopyExecuteSpecialMode.UsePermanentStorage, SubDir);
-
-						// 					// now that we are copied, write out a manifest to the root of the output location for later quick switching,
-						// 					// and not continue to install anything
-						// 					string ManifestPath = TurnkeyUtils.GetVariableValue("CopyOutputPath");
-						// 
-						// 					// if it's a file, then get it's directory
-						// 					if (File.Exists(ManifestPath))
-						// 					{
-						// 						ManifestPath = Path.GetDirectoryName(ManifestPath);
-						// 					}
-						// 					Directory.CreateDirectory(ManifestPath);
-						// 					ManifestPath = Path.Combine(ManifestPath, "TurnkeyQuickSwitch.xml");
-						// 
-						// 					// if the manifest already existed as downloaded, then there's no need to make one, we assume it was correct
-						// 					if (!File.Exists(ManifestPath))
-						// 					{
-						// 						TurnkeyManifest QuickSwitchManifest = new TurnkeyManifest();
-						// 
-						// 						// copy this Sdk to a new one
-						// 						SdkInfo NewSdk = CloneForQuickSwitch(Path.GetDirectoryName(ManifestPath));
-						// 						QuickSwitchManifest.SdkInfos = new SdkInfo[] { NewSdk };
-						// 
-						// 						// register the Sdk with th runtime so that we can install it without quitting
-						// 						TurnkeyManifest.AddCreatedSdk(NewSdk);
-						// 
-						// 						// save out a single switch manifest
-						// 						QuickSwitchManifest.Write(ManifestPath);
-						//					}
-					}
-					else
-					{
-						Install.Execute();
-					}
-
-					// grab where the Install copied the files
-
+					// download subdir is based on platform 
+					string SubDir = string.Format("{0}/{1}", Platform.ToString(), Version);
+					bSucceeded = bSucceeded && Install.Execute(CopyExecuteSpecialMode.UsePermanentStorage, SubDir);
+				}
+				else
+				{
+					// !@todo turnkey : verify it worked
+					bSucceeded = bSucceeded && Install.Execute();
 				}
 			}
+
+			return bSucceeded;
 		}
+
+		public static bool ConditionalSetupAutoSdk(UnrealTargetPlatform Platform, bool bUnattended)
+		{
+			bool bAttemptAutoSdkSetup = false;
+			bool bSetupEnvVarAfterInstall = false;
+			if (Environment.GetEnvironmentVariable("UE_SDKS_ROOT") != null)
+			{
+				bAttemptAutoSdkSetup = true;
+			}
+			else
+			{
+				if (!bUnattended)
+				{
+					// @todo turnkey - have studio settings 
+					string Response = TurnkeyUtils.ReadInput("AutoSdks are not setup, but your studio has support. Would you like to set it up now? [Y/n]", "Y");
+					if (string.Compare(Response, "Y", true) == 0)
+					{
+						bAttemptAutoSdkSetup = true;
+						bSetupEnvVarAfterInstall = true;
+					}
+				}
+			}
+
+			if (bAttemptAutoSdkSetup)
+			{
+				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
+
+				TurnkeyUtils.Log("{0}: AutoSdk is setup on this computer, will look for available AutoSdk to download", Platform);
+
+				SdkInfo MatchingAutoSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkType[] { SdkInfo.SdkType.AutoSdk } , bSelectBest: true);
+
+				if (MatchingAutoSdk == null)
+				{
+					// no matching AutoSdk found - will fall through to look for full install
+					if (bSetupEnvVarAfterInstall)
+					{
+						TurnkeyUtils.Log("{0}: Unable to find a matching AutoSdk, skipping AutoSdk setup", Platform);
+					}
+				}
+				else
+				{
+					// make sure this is unset so that we can know if it worked or not after install
+					TurnkeyUtils.ClearVariable("CopyOutputPath");
+
+					// now download it (AutoSdks don't "install") on download
+					// @todo turnkey: handle errors, handle p4 going to wrong location, handle one Sdk for multiple platforms
+					MatchingAutoSdk.Install(Platform, null, bUnattended);
+
+					if (bSetupEnvVarAfterInstall)
+					{
+
+						// this is where we synced the Sdk to
+						string InstalledRoot = TurnkeyUtils.GetVariableValue("CopyOutputPath");
+
+						// failed to install, nothing we can do
+						if (string.IsNullOrEmpty(InstalledRoot))
+						{
+							TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+							return false;
+						}
+
+						// walk up to one above Host* directory
+						DirectoryInfo AutoSdkSearch;
+						if (Directory.Exists(InstalledRoot))
+						{
+							AutoSdkSearch = new DirectoryInfo(InstalledRoot);
+						}
+						else
+						{
+							AutoSdkSearch = new FileInfo(InstalledRoot).Directory;
+						}
+						while (AutoSdkSearch.Name != "Host" + HostPlatform.Current.HostEditorPlatform.ToString())
+						{
+							AutoSdkSearch = AutoSdkSearch.Parent;
+						}
+
+						// now go one up to the parent of Host
+						AutoSdkSearch = AutoSdkSearch.Parent;
+
+						string AutoSdkDir = AutoSdkSearch.FullName;
+						if (!bUnattended)
+						{
+							string Response = TurnkeyUtils.ReadInput("Enter directory for root of AutoSdks. Use detected value, or enter another:", AutoSdkSearch.FullName);
+							if (string.IsNullOrEmpty(Response))
+							{
+								return false;
+							}
+						}
+
+						// set the env var, globally
+						TurnkeyUtils.StartTrackingExternalEnvVarChanges();
+						Environment.SetEnvironmentVariable("UE_SDKS_ROOT", AutoSdkDir);
+						Environment.SetEnvironmentVariable("UE_SDKS_ROOT", AutoSdkDir, EnvironmentVariableTarget.User);
+						TurnkeyUtils.EndTrackingExternalEnvVarChanges();
+					}
+
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 
 
 
