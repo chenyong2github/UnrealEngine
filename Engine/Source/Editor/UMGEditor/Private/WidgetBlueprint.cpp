@@ -604,7 +604,7 @@ EDataValidationResult UWidgetBlueprint::IsDataValid(TArray<FText>& ValidationErr
 {
 	EDataValidationResult Result = UBlueprint::IsDataValid(ValidationErrors);
 
-	const bool bFoundLeak = DetectSlateWidgetLeaks(ValidationErrors);
+	const bool bFoundLeak = false;//DetectSlateWidgetLeaks(ValidationErrors);
 
 	return bFoundLeak ? EDataValidationResult::Invalid : Result;
 }
