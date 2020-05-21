@@ -485,45 +485,50 @@ bool ULandscapeEditorObject::SetAlphaTexture(UTexture2D* InTexture, EColorChanne
 	if (NewAlphaTexture == NULL || (NewTextureData.Num() != NumChannels * NewAlphaTexture->Source.GetSizeX() * NewAlphaTexture->Source.GetSizeY()))
 	{
 		NewAlphaTexture = GetClass()->GetDefaultObject<ULandscapeEditorObject>()->AlphaTexture;
-		NewAlphaTexture->Source.GetMipData(NewTextureData, 0);
+		if (NewAlphaTexture)
+		{
+			NewAlphaTexture->Source.GetMipData(NewTextureData, 0);
+		}
 		Result = false;
 	}
 
-	check(NewAlphaTexture);
-	AlphaTexture = NewAlphaTexture;
-	AlphaTextureSizeX = NewAlphaTexture->Source.GetSizeX();
-	AlphaTextureSizeY = NewAlphaTexture->Source.GetSizeY();
-	AlphaTextureChannel = NumChannels == 1 ? EColorChannel::Red : InTextureChannel;
-	AlphaTextureData.Empty(AlphaTextureSizeX*AlphaTextureSizeY);
+	if (NewAlphaTexture)
+	{
+		AlphaTexture = NewAlphaTexture;
+		AlphaTextureSizeX = NewAlphaTexture->Source.GetSizeX();
+		AlphaTextureSizeY = NewAlphaTexture->Source.GetSizeY();
+		AlphaTextureChannel = NumChannels == 1 ? EColorChannel::Red : InTextureChannel;
+		AlphaTextureData.Empty(AlphaTextureSizeX * AlphaTextureSizeY);
 
-	if (NewTextureData.Num() != NumChannels * AlphaTextureSizeX * AlphaTextureSizeY)
-	{
-		// Don't crash if for some reason we couldn't load any source art
-		AlphaTextureData.AddZeroed(AlphaTextureSizeX*AlphaTextureSizeY);
-	}
-	else
-	{
-		uint8* SrcPtr;
-		switch(AlphaTextureChannel)
+		if (NewTextureData.Num() != NumChannels * AlphaTextureSizeX * AlphaTextureSizeY)
 		{
-		case 1:
-			SrcPtr = &((FColor*)NewTextureData.GetData())->G;
-			break;
-		case 2:
-			SrcPtr = &((FColor*)NewTextureData.GetData())->B;
-			break;
-		case 3:
-			SrcPtr = &((FColor*)NewTextureData.GetData())->A;
-			break;
-		default:
-			SrcPtr = &((FColor*)NewTextureData.GetData())->R;
-			break;
+			// Don't crash if for some reason we couldn't load any source art
+			AlphaTextureData.AddZeroed(AlphaTextureSizeX * AlphaTextureSizeY);
 		}
-
-		for (int32 i=0;i<AlphaTextureSizeX*AlphaTextureSizeY;i++)
+		else
 		{
-			AlphaTextureData.Add(*SrcPtr);
-			SrcPtr += NumChannels;
+			uint8* SrcPtr;
+			switch (AlphaTextureChannel)
+			{
+			case 1:
+				SrcPtr = &((FColor*)NewTextureData.GetData())->G;
+				break;
+			case 2:
+				SrcPtr = &((FColor*)NewTextureData.GetData())->B;
+				break;
+			case 3:
+				SrcPtr = &((FColor*)NewTextureData.GetData())->A;
+				break;
+			default:
+				SrcPtr = &((FColor*)NewTextureData.GetData())->R;
+				break;
+			}
+
+			for (int32 i = 0; i < AlphaTextureSizeX * AlphaTextureSizeY; i++)
+			{
+				AlphaTextureData.Add(*SrcPtr);
+				SrcPtr += NumChannels;
+			}
 		}
 	}
 
