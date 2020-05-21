@@ -604,13 +604,20 @@ EDataValidationResult UWidgetBlueprint::IsDataValid(TArray<FText>& ValidationErr
 {
 	EDataValidationResult Result = UBlueprint::IsDataValid(ValidationErrors);
 
-	const bool bFoundLeak = false;//DetectSlateWidgetLeaks(ValidationErrors);
+	const bool bFoundLeak = DetectSlateWidgetLeaks(ValidationErrors);
 
 	return bFoundLeak ? EDataValidationResult::Invalid : Result;
 }
 
 bool UWidgetBlueprint::DetectSlateWidgetLeaks(TArray<FText>& ValidationErrors)
 {
+	// We can't safely run this in anything but a running editor, since widgets
+	// rely on a functioning slate application.
+	if (IsRunningCommandlet())
+	{
+		return false;
+	}
+
 	UWorld* DummyWorld = NewObject<UWorld>();
 	UUserWidget* TempUserWidget = NewObject<UUserWidget>(DummyWorld, GeneratedClass);
 	TempUserWidget->ClearFlags(RF_Transactional);
