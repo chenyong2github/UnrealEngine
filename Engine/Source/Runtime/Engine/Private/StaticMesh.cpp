@@ -4111,7 +4111,8 @@ void UStaticMesh::ClearMeshDescriptions()
 
 void UStaticMesh::FixupMaterialSlotName()
 {
-	TArray<FName> UniqueMaterialSlotName;
+	TSet<FName> UniqueMaterialSlotName;
+	int32 UniqueIndex = 1;
 	//Make sure we have non empty imported material slot names
 	for (FStaticMaterial& Material : StaticMaterials)
 	{
@@ -4131,14 +4132,20 @@ void UStaticMesh::FixupMaterialSlotName()
 			}
 		}
 
-		FString UniqueName = Material.ImportedMaterialSlotName.ToString();
-		int32 UniqueIndex = 1;
-		while (UniqueMaterialSlotName.Contains(FName(*UniqueName)))
+		FName UniqueName = Material.ImportedMaterialSlotName;
+		if (UniqueMaterialSlotName.Contains(UniqueName))
 		{
-			UniqueName = FString::Printf(TEXT("%s_%d"), *UniqueName, UniqueIndex);
-			UniqueIndex++;
+			if (UniqueName.GetStringLength() < NAME_SIZE)
+			{
+				UniqueName = *FString::Printf(TEXT("%s_%d"), *UniqueName.ToString(), UniqueIndex);
+			}
+
+			while (UniqueMaterialSlotName.Contains(UniqueName) && UniqueIndex < MAX_int32)
+		{
+				UniqueName.SetNumber(++UniqueIndex);
+			}
 		}
-		Material.ImportedMaterialSlotName = FName(*UniqueName);
+		Material.ImportedMaterialSlotName = UniqueName;
 		UniqueMaterialSlotName.Add(Material.ImportedMaterialSlotName);
 		if (Material.MaterialSlotName == NAME_None)
 		{
