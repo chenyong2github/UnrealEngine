@@ -24,6 +24,7 @@
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Misc/ICompressionFormat.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -1074,6 +1075,10 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 			{
 				CmdLineParameters.CompressionFormats.Add(FormatName);
 				break;
+			}
+			else
+			{
+				UE_LOG(LogPakFile, Warning, TEXT("Compression format %s is not recognized"), *Format);
 			}
 		}
 	}
@@ -4719,6 +4724,29 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		}
 	}
 
+	FString ProjectArg;
+	if (FParse::Value(CmdLine, TEXT("-Project="), ProjectArg))
+	{
+		if (!IFileManager::Get().FileExists(*ProjectArg))
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Project file does not exist: %s"), *ProjectArg);
+		}
+
+		UE_LOG(LogPakFile, Error, TEXT("Project should be specified as a first unnamed argument. E.g. 'UnrealPak %s -arg1 -arg2"), *ProjectArg);
+		return false;
+	}
+
+	if (FParse::Param(CmdLine, TEXT("listformats")))
+	{
+		TArray<ICompressionFormat*> Formats = IModularFeatures::Get().GetModularFeatureImplementations<ICompressionFormat>(COMPRESSION_FORMAT_FEATURE_NAME);
+		UE_LOG(LogPakFile, Display, TEXT("Supported Pak Formats:"));
+		for (auto& Format : Formats)
+		{
+			UE_LOG(LogPakFile, Display, TEXT("\t%s %d"), *Format->GetCompressionFormatName().ToString(), Format->GetVersion());
+		}
+		return true;
+	}
+	
 	FString BatchFileName;
 	if (FParse::Value(CmdLine, TEXT("-Batch="), BatchFileName))
 	{
