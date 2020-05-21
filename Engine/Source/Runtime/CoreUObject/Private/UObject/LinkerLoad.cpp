@@ -2353,33 +2353,34 @@ UObject* FLinkerLoad::FindExistingExport(int32 ExportIndex)
 
 void FLinkerLoad::Verify()
 {
-#if WITH_EDITOR
+	if(!FApp::IsGame() || GIsEditor || IsRunningCommandlet())
 	{
 		if (!bHaveImportsBeenVerified)
 		{
+#if WITH_EDITOR
 			TOptional<FScopedSlowTask> SlowTask;
 			if (ShouldCreateThrottledSlowTask())
 			{
 				static const FText LoadingImportsText = NSLOCTEXT("Core", "LinkerLoad_Imports", "Loading Imports");
 				SlowTask.Emplace(Summary.ImportCount, LoadingImportsText);
 			}
-
+#endif
 			// Validate all imports and map them to their remote linkers.
 			for (int32 ImportIndex = 0; ImportIndex < Summary.ImportCount; ImportIndex++)
 			{
 				FObjectImport& Import = ImportMap[ImportIndex];
 
+#if WITH_EDITOR
 				if (SlowTask)
 				{
 					static const FText LoadingImportText = NSLOCTEXT("Core", "LinkerLoad_LoadingImportName", "Loading Import '{0}'");
 					SlowTask->EnterProgressFrame(1, FText::Format(LoadingImportText, FText::FromString(Import.ObjectName.ToString())));
 				}
-
+#endif
 				VerifyImport( ImportIndex );
 			}
 		}
 	}
-#endif // WITH_EDITOR
 
 	bHaveImportsBeenVerified = true;
 }
