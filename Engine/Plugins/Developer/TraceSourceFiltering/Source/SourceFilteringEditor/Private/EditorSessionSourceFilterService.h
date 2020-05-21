@@ -24,7 +24,7 @@ class UDataSourceFilter;
 class UDataSourceFilterSet;
 
 /** Editor implementation of ISessionSourceFilterService, interfaces directly with Engine level filtering systems and settings */
-class FEditorSessionSourceFilterService : public ISessionSourceFilterService, public FGCObject, public FEditorUndoClient
+class FEditorSessionSourceFilterService : public ISessionSourceFilterService, public FGCObject, public FSelfRegisteringEditorUndoClient
 {
 public:
 	FEditorSessionSourceFilterService();
@@ -61,6 +61,7 @@ public:
 	/** Begin FEditorUndoClient overrides*/
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const;
 	/** End FEditorUndoClient overrides */
 
 	/** Begin FGCObject overrides*/
