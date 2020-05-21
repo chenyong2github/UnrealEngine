@@ -163,6 +163,11 @@ void FEditorSessionSourceFilterService::StateChanged()
 	GetOnSessionStateChanged().Broadcast();
 }
 
+void FEditorSessionSourceFilterService::UpdateFilterSettings(UTraceSourceFilteringSettings* InSettings)
+{
+	InSettings->PostEditChange();
+}
+
 UTraceSourceFilteringSettings* FEditorSessionSourceFilterService::GetFilterSettings()
 {
 	return FTraceSourceFiltering::Get().GetSettings();
