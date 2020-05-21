@@ -376,7 +376,7 @@ FCachedAudioStreamingManagerParams FPlatformCompressionUtilities::BuildCachedStr
 	FCachedAudioStreamingManagerParams::FCacheDimensions CacheDimensions;
 
 	// Primary cache defined here:
-	CacheDimensions.MaxChunkSize = MaxChunkSize;
+	CacheDimensions.MaxChunkSize = 256 * 1024; // max possible chunk size (hard coded for legacy streaming path)
 	CacheDimensions.MaxMemoryInBytes = CacheSettings.CacheSizeKB * 1024;
 	CacheDimensions.NumElements = NumElements;
 	Params.Caches.Add(CacheDimensions);
