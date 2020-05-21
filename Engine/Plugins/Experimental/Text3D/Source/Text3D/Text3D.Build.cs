@@ -16,17 +16,14 @@ public class Text3D : ModuleRules
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
-			"SlateCore",
-			"RenderCore",
-			"RHI",
-			"MeshDescription",
-			"StaticMeshDescription",
-			"GeometricObjects",
+           "FreeType2",
+            "GeometricObjects",
 			"GeometryAlgorithms",
-
-			// 3rd party libraries
-			"FreeType2",
-			"HarfBuzz",
+            "HarfBuzz",
+            "ICU",
+            "MeshDescription",
+			"SlateCore",
+			"StaticMeshDescription",
 		});
 	}
 }

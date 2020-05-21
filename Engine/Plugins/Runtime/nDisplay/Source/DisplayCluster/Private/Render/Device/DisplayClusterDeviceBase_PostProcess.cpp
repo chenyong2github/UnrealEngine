@@ -3,8 +3,8 @@
 #include "Render/Device/DisplayClusterDeviceBase_PostProcess.h"
 #include "Render/Device/DisplayClusterRenderViewport.h"
 
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
 
 #include "HAL/IConsoleManager.h"
 
@@ -23,8 +23,6 @@ static TAutoConsoleVariable<int32> CVarPostprocessViewBeforeWarpBlend(
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewRect) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const bool bEnabled = (CVarPostprocessViewBeforeWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW before WarpBlend: %d"), bEnabled ? 1 : 0);
 
@@ -62,8 +60,6 @@ static TAutoConsoleVariable<int32> CVarPostprocessFrameBeforeWarpBlend(
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewRect) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const bool bEnabled = (CVarPostprocessFrameBeforeWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess FRAME before WarpBlend: %d"), bEnabled ? 1 : 0);
 
@@ -98,8 +94,6 @@ static TAutoConsoleVariable<int32> CVarPostprocessTargetBeforeWarpBlend(
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const bool bEnabled = (CVarPostprocessTargetBeforeWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET before WarpBlend: %d"), bEnabled ? 1 : 0);
 
@@ -131,8 +125,6 @@ static TAutoConsoleVariable<int32> CVarPostprocessViewAfterWarpBlend(
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& FrameRect) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const bool bEnabled = (CVarPostprocessViewAfterWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW after WarpBlend: %d"), bEnabled ? 1 : 0);
 
@@ -170,8 +162,6 @@ static TAutoConsoleVariable<int32> CVarPostprocessFrameAfterWarpBlend(
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& FrameRect) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const bool bEnabled = (CVarPostprocessFrameAfterWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW after WarpBlend: %d"), bEnabled ? 1 : 0);
 
@@ -206,8 +196,6 @@ static TAutoConsoleVariable<int32> CVarPostprocessTargetAfterWarpBlend(
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const bool bEnabled = (CVarPostprocessTargetAfterWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET after WarpBlend: %d"), bEnabled ? 1 : 0);
 

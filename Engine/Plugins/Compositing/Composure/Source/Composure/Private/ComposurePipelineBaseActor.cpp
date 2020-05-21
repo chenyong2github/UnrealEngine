@@ -80,7 +80,7 @@ bool AComposurePipelineBaseActor::IsAutoRunSuspended() const
 	UWorld* MyWorld = GetWorld();
 	const bool bIsEditorInstance = (MyWorld && MyWorld->WorldType == EWorldType::Editor);
 
-	const bool bIsPIEing = GEditor && (GEditor->PlayWorld != nullptr) && !GEditor->bIsSimulatingInEditor;
+	const bool bIsPIEing = GEditor && (GEditor->PlayWorld != nullptr);
 	return bIsEditorInstance && bIsPIEing && CVarSuspendEditorInstancesWithPIE.GetValueOnGameThread();
 }
 #endif

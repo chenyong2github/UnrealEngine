@@ -8,13 +8,18 @@
 #include "DMXEditor.h"
 #include "DMXEditorStyle.h"
 #include "DMXProtocolTypes.h"
+#include "DMXAttribute.h"
 #include "AssetTools/AssetTypeActions_DMXEditorLibrary.h"
 #include "Customizations/DMXEditorPropertyEditorCustomization.h"
+#include "Sequencer/DMXLibraryTrackEditor.h"
+#include "Sequencer/TakeRecorderDMXLibrarySource.h"
+#include "Sequencer/Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
 
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "ISequencerModule.h"
 
 const FName FDMXEditorModule::DMXEditorAppIdentifier(TEXT("DMXEditorApp"));
 EAssetTypeCategories::Type FDMXEditorModule::DMXEditorAssetCategory;
@@ -46,6 +51,10 @@ void FDMXEditorModule::StartupModule()
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	DMXEditorAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("DMX")), LOCTEXT("DmxCategory", "DMX"));
 	RegisterAssetTypeAction(AssetTools, MakeShared<FAssetTypeActions_DMXEditorLibrary>());
+	
+	// Register our custom Sequencer track
+	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
+	DMXLibraryTrackCreateHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FDMXLibraryTrackEditor::CreateTrackEditor));
 
 	PropertyModule.NotifyCustomizationModuleChanged();
 }
@@ -91,6 +100,12 @@ void FDMXEditorModule::ShutdownModule()
 
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
+
+	if (FModuleManager::Get().IsModuleLoaded("Sequencer"))
+	{
+		ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
+		SequencerModule.UnRegisterTrackEditor(DMXLibraryTrackCreateHandle);
+	}
 }
 
 void FDMXEditorModule::RegisterCustomClassLayout(FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate)
@@ -118,18 +133,22 @@ void FDMXEditorModule::RegisterCustomPropertyTypeLayout(FName PropertyTypeName, 
 
 void FDMXEditorModule::RegisterPropertyTypeCustomizations()
 {
-	RegisterCustomPropertyTypeLayout(FDMXProtocolName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXProtocolName>>, MakeAttributeLambda(&FDMXProtocolName::GetPossibleValues), (FSimpleMulticastDelegate*)nullptr));
-	RegisterCustomPropertyTypeLayout(FDMXFixtureCategory::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXFixtureCategory>>, MakeAttributeLambda(&FDMXFixtureCategory::GetPossibleValues), &FDMXFixtureCategory::OnPossibleValuesUpdated));
+	// Customizations for the name lists of our custom types, like Fixture Categories
+	RegisterCustomPropertyTypeLayout(FDMXProtocolName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXProtocolName>>));
+	RegisterCustomPropertyTypeLayout(FDMXFixtureCategory::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXFixtureCategory>>));
+	RegisterCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXAttributeName>>));
 
 	// Customizations for the Entity Reference types
 	RegisterCustomPropertyTypeLayout(FDMXEntityControllerRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
 	RegisterCustomPropertyTypeLayout(FDMXEntityFixtureTypeRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
 	RegisterCustomPropertyTypeLayout(FDMXEntityFixturePatchRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
+	
+	// DMXLibrary TakeRecorder AddAllPatchesButton customization
+	RegisterCustomPropertyTypeLayout(FAddAllPatchesButton::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXLibraryRecorderAddAllPatchesButtonCustomization>));
 }
 
 void FDMXEditorModule::RegisterObjectCustomizations()
-{
-}
+{}
 
 void FDMXEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 {

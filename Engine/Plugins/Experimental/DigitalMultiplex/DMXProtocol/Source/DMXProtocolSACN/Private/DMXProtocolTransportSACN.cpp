@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXProtocolTransportSACN.h"
+#include "DMXProtocolUniverseSACN.h"
+#include "DMXProtocolSACNConstants.h"
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolTypes.h"
+#include "Interfaces/IDMXProtocol.h"
+#include "Managers/DMXProtocolUniverseManager.h"
 
 #include "HAL/Event.h"
 #include "HAL/Runnable.h"
@@ -23,13 +27,20 @@ FDMXProtocolSenderSACN::FDMXProtocolSenderSACN(FSocket& InSocket, FDMXProtocolSA
 {
 	SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	check(SocketSubsystem);
-
+	
 	WorkEvent = MakeShareable(FPlatformProcess::GetSynchEventFromPool(), [](FEvent* EventToDelete)
 	{
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
 	});
 
 	Thread = FRunnableThread::Create(this, TEXT("FDMXProtocolSenderSACN"), 128 * 1024, TPri_BelowNormal, FPlatformAffinity::GetPoolThreadMask());
+
+	// Class
+	
+	if (SocketSubsystem != nullptr)
+	{
+		InternetAddr = SocketSubsystem->CreateInternetAddr();
+	}
 }
 
 FDMXProtocolSenderSACN::~FDMXProtocolSenderSACN()
@@ -99,7 +110,12 @@ bool FDMXProtocolSenderSACN::EnqueueOutboundPackage(FDMXPacketPtr Packet)
 
 	WorkEvent->Trigger();
 
-
+	auto& OutputEvent = Protocol->GetOnOutputSentEvent();
+	if (OutputEvent.IsBound())
+	{
+		OutputEvent.Broadcast(DMX_PROTOCOLNAME_SACN, Packet->UniverseID, Packet->Data);
+	}
+	
 	return true;
 }
 
@@ -108,15 +124,28 @@ void FDMXProtocolSenderSACN::ConsumeOutboundPackages()
 	FDMXPacketPtr Packet;
 	while (OutboundPackages.Dequeue(Packet))
 	{
-		++LastSentPackage;
-		int32 BytesSent = 0;
-		bool bIsSent = BroadcastSocket->SendTo(Packet->Data.GetData(), Packet->Data.Num(), BytesSent, *FDMXProtocolSACN::GetUniverseAddr(Packet->Settings.GetNumberField(TEXT("UniverseID"))));
-		if (!bIsSent)
+		if (Packet.IsValid())
 		{
-			ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
+			++LastSentPackage;
+			int32 BytesSent = 0;
+			if (Protocol != nullptr && Protocol->GetUniverseManager() != nullptr)
+			{
+				if (TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe> Universe = Protocol->GetUniverseManager()->GetUniverseById(Packet->UniverseID))
+				{
+					if (InternetAddr.IsValid())
+					{
+						InternetAddr->SetPort(Universe->GetPort());
+						InternetAddr->SetIp(Universe->GetIpAddress());
+						bool bIsSent = BroadcastSocket->SendTo(Packet->Data.GetData(), Packet->Data.Num(), BytesSent, *InternetAddr);
 
-			UE_LOG_DMXPROTOCOL(Error, TEXT("Error sending %d"),
-				(uint8)RecvFromError);
+						if (!bIsSent)
+						{
+							ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
+							UE_LOG_DMXPROTOCOL(Error, TEXT("Error sending %d"), (uint8)RecvFromError);
+						}
+					}
+				}
+			}
 		}
 	}
 }

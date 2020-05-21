@@ -180,7 +180,7 @@ void UVirtualCameraCineCameraComponent::SetFocusMethod(const EVirtualCameraFocus
 
 	switch (NewFocusMethod)
 	{
-	case EVirtualCameraFocusMethod::DoNotOverride:
+	case EVirtualCameraFocusMethod::None:
 		bAutoFocusEnabled = false;
 		FocusSettings.FocusMethod = ECameraFocusMethod::DoNotOverride;
 		break;
@@ -195,10 +195,6 @@ void UVirtualCameraCineCameraComponent::SetFocusMethod(const EVirtualCameraFocus
 	case EVirtualCameraFocusMethod::Tracking:
 		bAutoFocusEnabled = false;
 		FocusSettings.FocusMethod = ECameraFocusMethod::Tracking;
-		break;
-	case EVirtualCameraFocusMethod::Disable:
-		bAutoFocusEnabled = false;
-		FocusSettings.FocusMethod = ECameraFocusMethod::Disable;
 		break;
 	default:  // Should never be reached, but just in case new focus methods are added
 		UE_LOG(LogActor, Warning, TEXT("Specified focus method is not currently supported in Virtual Camera!"))

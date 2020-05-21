@@ -9,6 +9,7 @@
 #include "Materials/Material.h"
 #include "MeshCreator.h"
 #include "GlyphLoader.h"
+#include "ContourNode.h"
 #include "UObject/ConstructorHelpers.h"
 
 
@@ -223,13 +224,13 @@ UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, float Extrude, flo
 
 
 	FMeshCreator MeshCreator;
-	TSharedPtr<FContourList> Contours = GetGlyphContours(GlyphIndex);
-	if (!Contours.Get())
+	TSharedContourNode Root = GetGlyphContours(GlyphIndex);
+	if (Root->Children.Num() == 0)
 	{
 		return nullptr;
 	}
 
-	MeshCreator.CreateMeshes(Contours, Extrude, Bevel, BevelType, BevelSegments);
+	MeshCreator.CreateMeshes(Root, Extrude, Bevel, BevelType, BevelSegments);
 	MeshCreator.SetFrontAndBevelTextureCoordinates(Bevel);
 	MeshCreator.MirrorGroups(Extrude);
 
@@ -252,7 +253,7 @@ const FString& FCachedFontData::GetFontName()
 	return FontName;
 }
 
-TSharedPtr<FContourList> FCachedFontData::GetGlyphContours(uint32 GlyphIndex)
+TSharedContourNode FCachedFontData::GetGlyphContours(uint32 GlyphIndex)
 {
 	check(FreeTypeFace);
 
@@ -267,9 +268,9 @@ TSharedPtr<FContourList> FCachedFontData::GetGlyphContours(uint32 GlyphIndex)
 	}
 
 	FGlyphLoader GlyphLoader(FreeTypeFace->glyph);
-	TSharedPtr<FContourList> Contours = GlyphLoader.GetContourList();
-	//Glyphs.Add(GlyphIndex, Contours);
-	return Contours;
+	TSharedContourNode Root = GlyphLoader.GetContourList();
+	//Glyphs.Add(GlyphIndex, Root);
+	return Root;
 }
 
 bool FCachedFontData::Cleanup()

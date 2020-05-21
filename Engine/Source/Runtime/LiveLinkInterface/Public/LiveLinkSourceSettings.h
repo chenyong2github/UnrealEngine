@@ -55,12 +55,20 @@ struct FLiveLinkSourceBufferManagementSettings
 	UPROPERTY(VisibleAnywhere, Category = "Settings", AdvancedDisplay, meta = (ForceUnits = s))
 	double EngineTimeClockOffset = 0.0;
 
-	/** When evaluating with timecode: what is the expected frame rate of the timecode */
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FFrameRate TimecodeFrameRate = {24, 1};
+#if WITH_EDITORONLY_DATA
+	/** DEPRECATED: TimecodeFrameRate is now read from each individual subject from FQualifiedFrameTime. 
+	 * It is expected that all subjects under a source have the same and it will be readable in DetectedFrameRate variable
+	 */
+	UPROPERTY()
+	FFrameRate TimecodeFrameRate_DEPRECATED = {24, 1};
+#endif
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bGenerateSubFrame = false;
+
+	/** FrameRate taken from one of the subjects. It's expected that all subjects have the same FrameRate */
+	UPROPERTY(VisibleAnywhere, Category = "Settings")
+	FFrameRate DetectedFrameRate = { 24, 1 };
 
 	/** When evaluating with timecode, align source timecode using a continuous clock offset to do a smooth latest 
 	 * This means that even if engine Timecode and source Timecode are not aligned, the offset between both clocks
@@ -69,7 +77,6 @@ struct FLiveLinkSourceBufferManagementSettings
 	 */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bUseTimecodeSmoothLatest = false;
-
 	/**
 	 * What is the source frame rate.
 	 * When the refresh rate of the source is bigger than the timecode frame rate, LiveLink will try to generate sub frame numbers.

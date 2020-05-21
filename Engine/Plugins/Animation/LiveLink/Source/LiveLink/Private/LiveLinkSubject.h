@@ -109,6 +109,10 @@ public:
 
 	double GetLastPushTime() const { return LastPushTime; }
 
+	bool IsRebroadcasting() const { return bRebroadcastSubject; }
+	bool CheckRebroadcastStaticDataSentFlag() const { return bRebroadcastStaticDataSent; }
+	void SetRebroadcastStaticDataSentFlag(const bool bInSent) { bRebroadcastStaticDataSent = bInSent; }
+
 private:
 	int32 FindNewFrame_WorldTime(const FLiveLinkWorldTime& FrameTime) const;
 	int32 FindNewFrame_WorldTimeInternal(const FLiveLinkWorldTime& FrameTime) const;
@@ -208,6 +212,15 @@ private:
 	// Some stats compiled by the subject.
 	FSubjectEvaluationStatistics EvaluationStatistics;
 
+	// Last Timecode FrameRate received
+	FFrameRate LastTimecodeFrameRate;
+
+	// If enabled, rebroadcast this subject
+    bool bRebroadcastSubject = false;
+
+	// If true, static data has been sent for this rebroadcast
+	bool bRebroadcastStaticDataSent = false;
+	
 	/** 
 	 * Evaluation can be done on any thread so we need to protect statistic logging 
 	 * Some stats requires more than atomic sized vars so a critical section is used to protect when necessary

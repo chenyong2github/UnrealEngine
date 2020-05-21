@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once 
+#pragma once
 
 #include "Factories/Factory.h"
 #include "USDImporter.h"
@@ -15,12 +15,12 @@ struct FUSDAssetImportContext : public FUsdImportContext
 	GENERATED_USTRUCT_BODY()
 
 #if USE_USD_SDK
-	virtual void Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage) override;
+	virtual void Init(UObject* InParent, const FString& InName, const UE::FUsdStage& InStage) override;
 #endif // #if USE_USD_SDK
 };
 
-UCLASS(transient)
-class UUSDAssetImportFactory : public UFactory, public IImportSettingsParser, public FReimportHandler
+UCLASS(transient, Deprecated)
+class UDEPRECATED_UUSDAssetImportFactory : public UFactory, public IImportSettingsParser, public FReimportHandler
 {
 	GENERATED_UCLASS_BODY()
 
@@ -42,6 +42,6 @@ private:
 	UPROPERTY()
 	FUSDAssetImportContext ImportContext;
 
-	UPROPERTY()
-	UUSDImportOptions* ImportOptions;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the new USDStageImporter module instead"))
+	UDEPRECATED_UUSDImportOptions* ImportOptions_DEPRECATED;
 };

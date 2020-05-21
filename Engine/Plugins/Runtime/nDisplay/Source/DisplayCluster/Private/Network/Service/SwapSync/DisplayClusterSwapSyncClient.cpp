@@ -3,7 +3,7 @@
 #include "Network/Service/SwapSync/DisplayClusterSwapSyncClient.h"
 #include "Network/Service/SwapSync/DisplayClusterSwapSyncMsg.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterSwapSyncClient::FDisplayClusterSwapSyncClient() :
@@ -44,4 +44,3 @@ void FDisplayClusterSwapSyncClient::WaitForSwapSync(double* ThreadWaitTime, doub
 		}
 	}
 }
-

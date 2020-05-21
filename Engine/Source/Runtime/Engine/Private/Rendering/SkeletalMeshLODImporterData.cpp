@@ -637,7 +637,7 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 	//We now save it after the processing is done so for old version we do it here when loading
 	if (Ar.IsLoading() && Version < RAW_SKELETAL_MESH_BULKDATA_VER_AlternateInfluence)
 	{
-		ProcessImportMeshInfluences(RawMesh);
+		SkeletalMeshHelper::ProcessImportMeshInfluences(RawMesh);
 	}
 
 	
@@ -845,6 +845,10 @@ FByteBulkData& FRawSkeletalMeshBulkData::GetBulkData()
 	return BulkData;
 }
 
+const FByteBulkData& FRawSkeletalMeshBulkData::GetBulkData() const
+{
+	return BulkData;
+}
 
 /************************************************************************
 * FWedgePosition

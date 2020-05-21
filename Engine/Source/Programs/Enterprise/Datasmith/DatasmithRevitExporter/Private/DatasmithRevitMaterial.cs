@@ -1733,6 +1733,12 @@ namespace DatasmithRevitExporter
 										sourcePath = rootedSourcePath;
 									}
 								}
+								else if (!File.Exists(sourcePath))
+								{
+									// Path is absolute but file is not found there.
+									// Remove the path component, we'll try searching the extra texture paths.
+									sourcePath = Path.GetFileName(sourcePath);
+								}
 
 								// Also search a relative path in the extra texture paths.
 								if (!Path.IsPathRooted(sourcePath))
@@ -1771,8 +1777,6 @@ namespace DatasmithRevitExporter
 			float  in_defaultValue
 		)
         {
-			// DebugLog.AddLine($"Texture Distance Property {in_propertyName}");
-
 			AssetProperty textureProperty = in_asset.FindByName(in_propertyName);
 
 			if (textureProperty != null)
@@ -1781,24 +1785,11 @@ namespace DatasmithRevitExporter
 
 				if (unifiedBitmapAsset != null)
 				{
-					float scalingFactor = 1.0F;
+					AssetPropertyDistance distanceProperty = unifiedBitmapAsset.FindByName(in_distanceName) as AssetPropertyDistance;
 
-					AssetProperty versionProperty = unifiedBitmapAsset.FindByName("version");
-
-					if (versionProperty != null)
+					if (distanceProperty != null && distanceProperty.Value != 0.0)
 					{
-						// DebugLog.AddLine($"Texture version: {(versionProperty as AssetPropertyInteger).Value}");
-
-						scalingFactor = ((versionProperty as AssetPropertyInteger).Value == 4) ? 12.0F /* inches per foot */ : 1.0F;
-					}
-
-					AssetProperty distanceProperty = unifiedBitmapAsset.FindByName(in_distanceName);
-
-					if (distanceProperty != null)
-					{
-						double distance = (distanceProperty as AssetPropertyDistance).Value;
-
-						return (distance != 0.0) ? (float) distance / scalingFactor : in_defaultValue;
+					    return (float) UnitUtils.Convert(distanceProperty.Value, distanceProperty.DisplayUnitType, DisplayUnitType.DUT_DECIMAL_FEET);
 					}
 				}
 			}

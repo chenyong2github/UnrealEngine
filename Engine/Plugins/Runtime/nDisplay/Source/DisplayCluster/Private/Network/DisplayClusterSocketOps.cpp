@@ -2,8 +2,8 @@
 
 #include "Network/DisplayClusterSocketOps.h"
 
-#include "DisplayClusterConstants.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterConstants.h"
+#include "Misc/DisplayClusterLog.h"
 
 #include "Misc/ScopeLock.h"
 

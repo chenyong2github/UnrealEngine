@@ -3,6 +3,7 @@
 #include "K2Node_GetDMXActiveModeFunctionValues.h"
 
 #include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXLibrary.h"
 #include "DMXSubsystem.h"
 #include "DMXProtocolConstants.h"
 #include "DMXBlueprintGraphLog.h"
@@ -22,7 +23,7 @@ const FName UK2Node_GetDMXActiveModeFunctionValues::InputDMXFixturePatchPinName(
 const FName UK2Node_GetDMXActiveModeFunctionValues::InputDMXProtocolPinName(TEXT("InProtocol"));
 
 const FName UK2Node_GetDMXActiveModeFunctionValues::OutputFunctionsMapPinName(TEXT("OutFunctionsMap"));
-const FName UK2Node_GetDMXActiveModeFunctionValues::OutputIsSuccessPinName(TEXT("OutIsSuccessPinName"));
+const FName UK2Node_GetDMXActiveModeFunctionValues::OutputIsSuccessPinName(TEXT("IsSuccessful"));
 
 
 UK2Node_GetDMXActiveModeFunctionValues::UK2Node_GetDMXActiveModeFunctionValues()
@@ -34,7 +35,7 @@ UK2Node_GetDMXActiveModeFunctionValues::UK2Node_GetDMXActiveModeFunctionValues()
 void UK2Node_GetDMXActiveModeFunctionValues::OnFixturePatchChanged()
 {
 	// Reset fixture path nodes if we receive a notification
-	if (Pins.Num() > 0 && bIsExposed)
+	if (Pins.Num() > 0)
 	{
 		ResetFunctions();
 	}
@@ -102,9 +103,29 @@ void UK2Node_GetDMXActiveModeFunctionValues::AllocateDefaultPins()
 	Super::AllocateDefaultPins();
 }
 
+void UK2Node_GetDMXActiveModeFunctionValues::PostPasteNode()
+{
+	ResetFunctions();
+}
+
+void UK2Node_GetDMXActiveModeFunctionValues::PinConnectionListChanged(UEdGraphPin* Pin)
+{
+	if (Pin == GetInputDMXFixturePatchPin())
+	{
+		ResetFunctions();
+
+		// Ask to recompile the bplueprint
+		if (UBlueprint* BP = GetBlueprint())
+		{
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		}
+	}
+}
+
 void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
 	Super::ExpandNode(CompilerContext, SourceGraph);
+
 	const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
 
 	// First node to execute. GetDMXSubsystem
@@ -409,6 +430,10 @@ void UK2Node_GetDMXActiveModeFunctionValues::ResetFunctions()
 UDMXEntityFixturePatch* UK2Node_GetDMXActiveModeFunctionValues::GetFixturePatchFromPin() const
 {
 	UEdGraphPin* FixturePatchPin = GetInputDMXFixturePatchPin();
+	if (FixturePatchPin == nullptr)
+	{
+		return nullptr;
+	}
 
 	// Case with default object
 	if (FixturePatchPin->DefaultObject != nullptr && FixturePatchPin->LinkedTo.Num() == 0)
@@ -440,7 +465,7 @@ const FDMXFixtureMode* UK2Node_GetDMXActiveModeFunctionValues::GetActiveFixtureM
 {
 	if (UDMXEntityFixturePatch* FixturePatch = GetFixturePatchFromPin())
 	{
-		if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+		if (const UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
 		{
 			if (FixtureType->Modes.Num() && FixtureType->Modes.Num() >= FixturePatch->ActiveMode)
 			{
@@ -451,5 +476,43 @@ const FDMXFixtureMode* UK2Node_GetDMXActiveModeFunctionValues::GetActiveFixtureM
 
 	return nullptr;
 }
+
+UDMXEntityFixtureType* UK2Node_GetDMXActiveModeFunctionValues::GetParentFixtureType() const
+{
+	if (UDMXEntityFixturePatch* FixturePatch = GetFixturePatchFromPin())
+	{
+		return FixturePatch->ParentFixtureTypeTemplate;
+	}
+
+	return nullptr;
+}
+
+void UK2Node_GetDMXActiveModeFunctionValues::OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode)
+{
+	// Check if there are any pins exists
+	if (Pins.Num() == 0)
+	{
+		return;
+	}
+
+	if (const UDMXEntityFixtureType* ParentFixtureType = GetParentFixtureType())
+	{
+		if (const FDMXFixtureMode* ActiveFixtureMode = GetActiveFixtureMode())
+		{
+			// Reset functions if there is a match in fixture types objects and name of the modes
+			if (InFixtureType && (InFixtureType == ParentFixtureType) && (InMode.ModeName == ActiveFixtureMode->ModeName))
+			{
+				ResetFunctions();
+
+				// Ask to recompile the bplueprint
+				if (UBlueprint* BP = GetBlueprint())
+				{
+					FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+				}
+			}
+		}
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

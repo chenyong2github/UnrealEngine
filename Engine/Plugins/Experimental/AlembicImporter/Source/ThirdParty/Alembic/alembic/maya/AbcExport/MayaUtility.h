@@ -34,8 +34,8 @@
 //
 //-*****************************************************************************
 
-#ifndef _AlembicExport_MayaUtility_h_
-#define _AlembicExport_MayaUtility_h_
+#ifndef AlembicExport_MayaUtility_h
+#define AlembicExport_MayaUtility_h
 
 #include "Foundation.h"
 #include <Alembic/Abc/OArrayProperty.h>
@@ -138,6 +138,30 @@ MString getHelpText();
 
 } // namespace util
 
+
+#define MCHECKERROR(_status)        \
+{                                                         \
+    MStatus _maya_status = (_status);                    \
+    if ( MStatus::kSuccess != _maya_status )             \
+    {                                                    \
+        std::cout << "\nAPI error detected in " << __FILE__     \
+             <<    " at line "    << __LINE__ << std::endl;        \
+        _maya_status.perror ( "" );                        \
+        return (_status);                                \
+    }                                                    \
+}
+
+#define MCHECKERROR_NO_RET(_status)        \
+{                                                         \
+    MStatus _maya_status = (_status);                    \
+    if ( MStatus::kSuccess != _maya_status )             \
+    {                                                    \
+        std::cout << "\nAPI error detected in " << __FILE__     \
+             <<    " at line "    << __LINE__ << std::endl;        \
+        _maya_status.perror ( "" );                        \
+    }                                                    \
+}
+
 struct PlugAndObjScalar
 {
     MPlug plug;
@@ -238,4 +262,4 @@ struct FrameRangeArgs
     bool preRoll;
 };
 
-#endif  // _AlembicExport_MayaUtility_h_
+#endif  // AlembicExport_MayaUtility_h

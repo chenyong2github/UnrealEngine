@@ -610,7 +610,7 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=StaticMesh, meta=(UIMin = "0.0", UIMax = "3.0"))
 	float LpvBiasMultiplier;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = StaticMesh)
 	TArray<FStaticMaterial> StaticMaterials;
 
 	UPROPERTY()
@@ -848,11 +848,6 @@ public:
 
 	ENGINE_API void ClearMeshDescription(int32 LodIndex);
 	ENGINE_API void ClearMeshDescriptions();
-
-	/**
-	 * Internal function use to make sure all imported material slot name are unique and non empty.
-	 */
-	void FixupMaterialSlotName();
 
 	/**
 	 * Adds an empty UV channel at the end of the existing channels on the given LOD of a StaticMesh.

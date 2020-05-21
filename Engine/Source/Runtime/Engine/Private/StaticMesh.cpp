@@ -4109,44 +4109,6 @@ void UStaticMesh::ClearMeshDescriptions()
 	}
 }
 
-void UStaticMesh::FixupMaterialSlotName()
-{
-	TArray<FName> UniqueMaterialSlotName;
-	//Make sure we have non empty imported material slot names
-	for (FStaticMaterial& Material : StaticMaterials)
-	{
-		if (Material.ImportedMaterialSlotName == NAME_None)
-		{
-			if (Material.MaterialSlotName != NAME_None)
-			{
-				Material.ImportedMaterialSlotName = Material.MaterialSlotName;
-			}
-			else if (Material.MaterialInterface != nullptr)
-			{
-				Material.ImportedMaterialSlotName = Material.MaterialInterface->GetFName();
-			}
-			else
-			{
-				Material.ImportedMaterialSlotName = FName(TEXT("MaterialSlot"));
-			}
-		}
-
-		FString UniqueName = Material.ImportedMaterialSlotName.ToString();
-		int32 UniqueIndex = 1;
-		while (UniqueMaterialSlotName.Contains(FName(*UniqueName)))
-		{
-			UniqueName = FString::Printf(TEXT("%s_%d"), *UniqueName, UniqueIndex);
-			UniqueIndex++;
-		}
-		Material.ImportedMaterialSlotName = FName(*UniqueName);
-		UniqueMaterialSlotName.Add(Material.ImportedMaterialSlotName);
-		if (Material.MaterialSlotName == NAME_None)
-		{
-			Material.MaterialSlotName = Material.ImportedMaterialSlotName;
-		}
-	}
-}
-
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
@@ -4863,7 +4825,8 @@ void UStaticMesh::PostLoad()
 			SetLODGroup(LODGroup);
 		}
 
-		FixupMaterialSlotName();
+		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+		MeshUtilities.FixupMaterialSlotNames(this);
 
 		if (bIsBuiltAtRuntime)
 		{

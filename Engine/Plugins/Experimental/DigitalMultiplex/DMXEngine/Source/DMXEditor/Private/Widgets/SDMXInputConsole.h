@@ -14,6 +14,8 @@ class SDMXInputConsole
 	: public SCompoundWidget
 {
 public:
+	DECLARE_DELEGATE(FOnResetUISequanceID);
+
 	SLATE_BEGIN_ARGS(SDMXInputConsole)
 	{}
 
@@ -27,10 +29,19 @@ public:
 	const TSharedRef<SDMXInputInfo> GetInputInfo() const { return InputInfo.ToSharedRef(); }
 
 private:
+	/** Propagates changes from input universe box */
 	void OnUniverseSelectionChanged(const FName& InProtocol);
 
-private:
+	/** Propagates changes from listen for popup menu */
+	void OnListenForChanged(const FName& InListenFor);
 
+	/** Propagates Clear universe button */
+	void OnClearUniverses();
+
+	/** Propagates Clear channels view button */
+	void OnClearChannelsView();
+
+private:
 	TSharedPtr<SDMXInputInfoSelecter> InputInfoSelecter;
 
 	TSharedPtr<SDMXInputInfo> InputInfo;

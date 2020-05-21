@@ -24,6 +24,7 @@
 #include "MeshUtilities.h"
 #include "MeshUtilitiesCommon.h"
 #include "Misc/FeedbackContext.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Misc/App.h"
 #endif // #if WITH_EDITOR
 
@@ -108,23 +109,18 @@ static TAutoConsoleVariable<int32> CVarStaticMeshDisableThreadedBuild(
 void UStaticMesh::Build(bool bInSilent, TArray<FText>* OutErrors)
 {
 #if WITH_EDITOR
+	FFormatNamedArguments Args;
+	Args.Add( TEXT("Path"), FText::FromString( GetPathName() ) );
+	const FText StatusUpdate = FText::Format( LOCTEXT("BeginStaticMeshBuildingTask", "({Path}) Building"), Args );
+	FScopedSlowTask StaticMeshBuildingSlowTask(1, StatusUpdate);
 	if (!bInSilent)
 	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("Path"), FText::FromString(GetPathName()));
-		const FText StatusUpdate = FText::Format(LOCTEXT("BeginStaticMeshBuildingTask", "({Path}) Building"), Args);
-		GWarn->BeginSlowTask(StatusUpdate, true);
+		StaticMeshBuildingSlowTask.MakeDialog();
 	}
+	StaticMeshBuildingSlowTask.EnterProgressFrame(1);
 #endif // #if WITH_EDITOR
 
 	BatchBuild({ this }, bInSilent, nullptr, OutErrors);
-
-#if WITH_EDITOR
-	if (!bInSilent)
-	{
-		GWarn->EndSlowTask();
-	}
-#endif // #if WITH_EDITOR
 }
 
 void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bInSilent, TFunction<bool(UStaticMesh*)> InProgressCallback, TArray<FText>* OutErrors)
@@ -241,7 +237,6 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 			}
 		}
 	}
-
 #else
 	UE_LOG(LogStaticMesh, Fatal, TEXT("UStaticMesh::Build should not be called on non-editor builds."));
 #endif
@@ -281,6 +276,12 @@ bool UStaticMesh::BuildInternal(bool bInSilent, TArray<FText> * OutErrors)
 
 		return false;
 	}
+
+	FFormatNamedArguments Args;
+	Args.Add( TEXT("Path"), FText::FromString( GetPathName() ) );
+	const FText StatusUpdate = FText::Format( LOCTEXT("BeginStaticMeshBuildingTask", "({Path}) Building"), Args );
+	FScopedSlowTask StaticMeshBuildingSlowTask(1, StatusUpdate);
+	StaticMeshBuildingSlowTask.EnterProgressFrame(1);
 
 	// Remember the derived data key of our current render data if any.
 	FString ExistingDerivedDataKey = RenderData ? RenderData->DerivedDataKey : TEXT("");
@@ -446,7 +447,6 @@ void UStaticMesh::PostBuildInternal(const TArray<UStaticMeshComponent*> & InAffe
 }
 
 #endif // #if WITH_EDITOR
-
 /*------------------------------------------------------------------------------
 	Remapping of painted vertex colors.
 ------------------------------------------------------------------------------*/

@@ -5,6 +5,7 @@
 #include "VPUtilitiesEditorModule.h"
 #include "Editor.h"
 
+#include "Modules/ModuleManager.h"
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
@@ -13,6 +14,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "FileHelpers.h"
 #include "Engine/Texture2D.h"
+#include "OSCServer.h"
 
 AVPEditorTickableActorBase* UVPUtilitiesEditorBlueprintLibrary::SpawnVPEditorTickableActor(UObject* ContextObject, const TSubclassOf<AVPEditorTickableActorBase> ActorClass, const FVector Location, const FRotator Rotation)
 {
@@ -108,4 +110,9 @@ UTexture* UVPUtilitiesEditorBlueprintLibrary::ImportSnapshotTexture(FString File
 	}
 
 	return UnrealTexture;
+}
+
+class UOSCServer* UVPUtilitiesEditorBlueprintLibrary::GetDefaultOSCServer()
+{
+	return FVPUtilitiesEditorModule::Get().GetOSCServer();
 }

@@ -10,19 +10,17 @@
 #include "Devices/VRPN/Tracker/DisplayClusterVrpnTrackerInputDevice.h"
 #include "Devices/VRPN/Keyboard/DisplayClusterVrpnKeyboardInputDevice.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 FDisplayClusterInputManager::FDisplayClusterInputManager()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
 }
 
 FDisplayClusterInputManager::~FDisplayClusterInputManager()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
 }
 
 
@@ -31,22 +29,17 @@ FDisplayClusterInputManager::~FDisplayClusterInputManager()
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterInputManager::Init(EDisplayClusterOperationMode OperationMode)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
 	return true;
 }
 
 void FDisplayClusterInputManager::Release()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
 }
 
-bool FDisplayClusterInputManager::StartSession(const FString& configPath, const FString& nodeId)
+bool FDisplayClusterInputManager::StartSession(const FString& InConfigPath, const FString& InNodeId)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
-	ConfigPath = configPath;
-	ClusterNodeId = nodeId;
+	ConfigPath = InConfigPath;
+	ClusterNodeId = InNodeId;
 
 	if (!InitDevices())
 	{
@@ -59,42 +52,34 @@ bool FDisplayClusterInputManager::StartSession(const FString& configPath, const 
 
 void FDisplayClusterInputManager::EndSession()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
 	ConfigPath.Reset();
 	ClusterNodeId.Reset();
 
 	ReleaseDevices();
 }
 
-bool FDisplayClusterInputManager::StartScene(UWorld* pWorld)
+bool FDisplayClusterInputManager::StartScene(UWorld* InWorld)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
-	check(pWorld);
-	CurrentWorld = pWorld;
+	check(InWorld);
+	CurrentWorld = InWorld;
 
 	return true;
 }
 
 void FDisplayClusterInputManager::EndScene()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
 
 	CurrentWorld = nullptr;
 }
 
 void FDisplayClusterInputManager::StartFrame(uint64 FrameNum)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
 	// Update input state
 	Update();
 }
 
 void FDisplayClusterInputManager::PreTick(float DeltaSeconds)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
 }
 
 
@@ -143,86 +128,86 @@ uint32 FDisplayClusterInputManager::GetTrackerDeviceAmount() const
 
 
 // Access to the device lists
-bool FDisplayClusterInputManager::GetAxisDeviceIds(TArray<FString>& ids) const
+void FDisplayClusterInputManager::GetAxisDeviceIds(TArray<FString>& DeviceIDs) const
 {
 	FScopeLock ScopeLock(&InternalsSyncScope);
-	return GetDeviceIds_impl<EDisplayClusterInputDeviceType::VrpnAnalog>(ids);
+	return GetDeviceIds_impl<EDisplayClusterInputDeviceType::VrpnAnalog>(DeviceIDs);
 }
 
-bool FDisplayClusterInputManager::GetButtonDeviceIds(TArray<FString>& ids) const
+void FDisplayClusterInputManager::GetButtonDeviceIds(TArray<FString>& DeviceIDs) const
 {
 	FScopeLock ScopeLock(&InternalsSyncScope);
-	return GetDeviceIds_impl<EDisplayClusterInputDeviceType::VrpnButton>(ids);
+	return GetDeviceIds_impl<EDisplayClusterInputDeviceType::VrpnButton>(DeviceIDs);
 }
 
-bool FDisplayClusterInputManager::GetKeyboardDeviceIds(TArray<FString>& ids) const
+void FDisplayClusterInputManager::GetKeyboardDeviceIds(TArray<FString>& DeviceIDs) const
 {
 	FScopeLock ScopeLock(&InternalsSyncScope);
-	return GetDeviceIds_impl<EDisplayClusterInputDeviceType::VrpnKeyboard>(ids);
+	return GetDeviceIds_impl<EDisplayClusterInputDeviceType::VrpnKeyboard>(DeviceIDs);
 }
 
-bool FDisplayClusterInputManager::GetTrackerDeviceIds(TArray<FString>& ids) const
+void FDisplayClusterInputManager::GetTrackerDeviceIds(TArray<FString>& DeviceIDs) const
 {
 	FScopeLock ScopeLock(&InternalsSyncScope);
-	return GetDeviceIds_impl<EDisplayClusterInputDeviceType::VrpnTracker>(ids);
+	return GetDeviceIds_impl<EDisplayClusterInputDeviceType::VrpnTracker>(DeviceIDs);
 }
 
 
 // Button data access
-bool FDisplayClusterInputManager::GetButtonState(const FString& devId, const uint8 btn, bool& curState) const
+bool FDisplayClusterInputManager::GetButtonState(const FString& DeviceID, const uint8 Channel, bool& CurrentState) const
 {
-	FDisplayClusterVrpnButtonChannelData data;
-	if (GetButtonData(devId, btn, data))
+	FDisplayClusterVrpnButtonChannelData Data;
+	if (GetButtonData(DeviceID, Channel, Data))
 	{
-		curState = data.btnStateNew;
+		CurrentState = Data.BtnStateNew;
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::IsButtonPressed(const FString& devId, const uint8 btn, bool& curPressed) const
+bool FDisplayClusterInputManager::IsButtonPressed(const FString& DeviceID, const uint8 Channel, bool& IsPressedCurrently) const
 {
-	bool btnState;
-	if (GetButtonState(devId, btn, btnState))
+	bool BtnState;
+	if (GetButtonState(DeviceID, Channel, BtnState))
 	{
-		curPressed = (btnState == true);
+		IsPressedCurrently = (BtnState == true);
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::IsButtonReleased(const FString& devId, const uint8 btn, bool& curReleased) const
+bool FDisplayClusterInputManager::IsButtonReleased(const FString& DeviceID, const uint8 Channel, bool& IsReleasedCurrently) const
 {
-	bool btnState;
-	if (GetButtonState(devId, btn, btnState))
+	bool BtnState;
+	if (GetButtonState(DeviceID, Channel, BtnState))
 	{
-		curReleased = (btnState == false);
+		IsReleasedCurrently = (BtnState == false);
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::WasButtonPressed(const FString& devId, const uint8 btn, bool& wasPressed) const
+bool FDisplayClusterInputManager::WasButtonPressed(const FString& DeviceID, const uint8 Channel, bool& WasPressed) const
 {
-	FDisplayClusterVrpnButtonChannelData data;
-	if (GetButtonData(devId, btn, data))
+	FDisplayClusterVrpnButtonChannelData Data;
+	if (GetButtonData(DeviceID, Channel, Data))
 	{
-		wasPressed = (data.btnStateOld == false && data.btnStateNew == true);
+		WasPressed = (Data.BtnStateOld == false && Data.BtnStateNew == true);
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::WasButtonReleased(const FString& devId, const uint8 btn, bool& wasReleased) const
+bool FDisplayClusterInputManager::WasButtonReleased(const FString& DeviceID, const uint8 Channel, bool& WasReleased) const
 {
-	FDisplayClusterVrpnButtonChannelData data;
-	if (GetButtonData(devId, btn, data))
+	FDisplayClusterVrpnButtonChannelData Data;
+	if (GetButtonData(DeviceID, Channel, Data))
 	{
-		wasReleased = (data.btnStateOld == true && data.btnStateNew == false);
+		WasReleased = (Data.BtnStateOld == true && Data.BtnStateNew == false);
 		return true;
 	}
 
@@ -230,60 +215,60 @@ bool FDisplayClusterInputManager::WasButtonReleased(const FString& devId, const 
 }
 
 // Keyboard data access
-bool FDisplayClusterInputManager::GetKeyboardState(const FString& devId, const uint8 btn, bool& curState) const
+bool FDisplayClusterInputManager::GetKeyboardState(const FString& DeviceID, const uint8 Channel, bool& CurrentState) const
 {
-	FDisplayClusterVrpnKeyboardChannelData data;
-	if (GetKeyboardData(devId, btn, data))
+	FDisplayClusterVrpnKeyboardChannelData Data;
+	if (GetKeyboardData(DeviceID, Channel, Data))
 	{
-		curState = data.btnStateNew;
+		CurrentState = Data.BtnStateNew;
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::IsKeyboardPressed(const FString& devId, const uint8 btn, bool& curPressed) const
+bool FDisplayClusterInputManager::IsKeyboardPressed(const FString& DeviceID, const uint8 Channel, bool& IsPressedCurrently) const
 {
-	bool btnState;
-	if (GetKeyboardState(devId, btn, btnState))
+	bool BtnState;
+	if (GetKeyboardState(DeviceID, Channel, BtnState))
 	{
-		curPressed = (btnState == true);
+		IsPressedCurrently = (BtnState == true);
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::IsKeyboardReleased(const FString& devId, const uint8 btn, bool& curReleased) const
+bool FDisplayClusterInputManager::IsKeyboardReleased(const FString& DeviceID, const uint8 Channel, bool& IsReleasedCurrently) const
 {
-	bool btnState;
-	if (GetKeyboardState(devId, btn, btnState))
+	bool BtnState;
+	if (GetKeyboardState(DeviceID, Channel, BtnState))
 	{
-		curReleased = (btnState == false);
+		IsReleasedCurrently = (BtnState == false);
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::WasKeyboardPressed(const FString& devId, const uint8 btn, bool& wasPressed) const
+bool FDisplayClusterInputManager::WasKeyboardPressed(const FString& DeviceID, const uint8 Channel, bool& WasPressed) const
 {
-	FDisplayClusterVrpnKeyboardChannelData data;
-	if (GetKeyboardData(devId, btn, data))
+	FDisplayClusterVrpnKeyboardChannelData Data;
+	if (GetKeyboardData(DeviceID, Channel, Data))
 	{
-		wasPressed = (data.btnStateOld == false && data.btnStateNew == true);
+		WasPressed = (Data.BtnStateOld == false && Data.BtnStateNew == true);
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::WasKeyboardReleased(const FString& devId, const uint8 btn, bool& wasReleased) const
+bool FDisplayClusterInputManager::WasKeyboardReleased(const FString& DeviceID, const uint8 Channel, bool& WasReleased) const
 {
-	FDisplayClusterVrpnKeyboardChannelData data;
-	if (GetKeyboardData(devId, btn, data))
+	FDisplayClusterVrpnKeyboardChannelData Data;
+	if (GetKeyboardData(DeviceID, Channel, Data))
 	{
-		wasReleased = (data.btnStateOld == true && data.btnStateNew == false);
+		WasReleased = (Data.BtnStateOld == true && Data.BtnStateNew == false);
 		return true;
 	}
 
@@ -291,12 +276,12 @@ bool FDisplayClusterInputManager::WasKeyboardReleased(const FString& devId, cons
 }
 
 // Axes data access
-bool FDisplayClusterInputManager::GetAxis(const FString& devId, const uint8 axis, float& value) const
+bool FDisplayClusterInputManager::GetAxis(const FString& DeviceID, const uint8 Channel, float& Value) const
 {
-	FDisplayClusterVrpnAnalogChannelData data;
-	if (GetAxisData(devId, axis, data))
+	FDisplayClusterVrpnAnalogChannelData Data;
+	if (GetAxisData(DeviceID, Channel, Data))
 	{
-		value = data.axisValue;
+		Value = Data.AxisValue;
 		return true;
 	}
 
@@ -304,24 +289,24 @@ bool FDisplayClusterInputManager::GetAxis(const FString& devId, const uint8 axis
 }
 
 // Tracking data access
-bool FDisplayClusterInputManager::GetTrackerLocation(const FString& devId, const uint8 tr, FVector& location) const
+bool FDisplayClusterInputManager::GetTrackerLocation(const FString& DeviceID, const uint8 Channel, FVector& Location) const
 {
-	FDisplayClusterVrpnTrackerChannelData data;
-	if (GetTrackerData(devId, tr, data))
+	FDisplayClusterVrpnTrackerChannelData Data;
+	if (GetTrackerData(DeviceID, Channel, Data))
 	{
-		location = data.trLoc;
+		Location = Data.TrackerLoc;
 		return true;
 	}
 
 	return false;
 }
 
-bool FDisplayClusterInputManager::GetTrackerQuat(const FString& devId, const uint8 tr, FQuat& rotation) const
+bool FDisplayClusterInputManager::GetTrackerQuat(const FString& DeviceID, const uint8 Channel, FQuat& Rotation) const
 {
-	FDisplayClusterVrpnTrackerChannelData data;
-	if (GetTrackerData(devId, tr, data))
+	FDisplayClusterVrpnTrackerChannelData Data;
+	if (GetTrackerData(DeviceID, Channel, Data))
 	{
-		rotation = data.trQuat;
+		Rotation = Data.TrackerQuat;
 		return true;
 	}
 
@@ -333,8 +318,6 @@ bool FDisplayClusterInputManager::GetTrackerQuat(const FString& devId, const uin
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterInputManager::Update()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Disabled)
 	{
 		return;
@@ -383,8 +366,6 @@ void FDisplayClusterInputManager::Update()
 
 void FDisplayClusterInputManager::ExportInputData(FDisplayClusterMessage::DataType& InputData) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
 	FScopeLock ScopeLock(&InternalsSyncScope);
 
 	// Clear container before put some data
@@ -404,8 +385,6 @@ void FDisplayClusterInputManager::ExportInputData(FDisplayClusterMessage::DataTy
 
 void FDisplayClusterInputManager::ImportInputData(const FDisplayClusterMessage::DataType& InputData)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
 	FScopeLock ScopeLock(&InternalsSyncScope);
 
 	for (const auto& DataItem : InputData)
@@ -428,28 +407,28 @@ void FDisplayClusterInputManager::ImportInputData(const FDisplayClusterMessage::
 	}
 }
 
-bool FDisplayClusterInputManager::GetAxisData(const FString& devId, const uint8 channel, FDisplayClusterVrpnAnalogChannelData&  data) const
+bool FDisplayClusterInputManager::GetAxisData(const FString& DeviceID, const uint8 Channel, FDisplayClusterVrpnAnalogChannelData& Data) const
 {
 	FScopeLock ScopeLock(&InternalsSyncScope);
-	return GetChannelData_impl<EDisplayClusterInputDeviceType::VrpnAnalog>(devId, channel, data);
+	return GetChannelData_impl<EDisplayClusterInputDeviceType::VrpnAnalog>(DeviceID, Channel, Data);
 }
 
-bool FDisplayClusterInputManager::GetButtonData(const FString& devId, const uint8 channel, FDisplayClusterVrpnButtonChannelData&  data) const
+bool FDisplayClusterInputManager::GetButtonData(const FString& DeviceID, const uint8 Channel, FDisplayClusterVrpnButtonChannelData& Data) const
 {
 	FScopeLock ScopeLock(&InternalsSyncScope);
-	return GetChannelData_impl<EDisplayClusterInputDeviceType::VrpnButton>(devId, channel, data);
+	return GetChannelData_impl<EDisplayClusterInputDeviceType::VrpnButton>(DeviceID, Channel, Data);
 }
 
-bool FDisplayClusterInputManager::GetKeyboardData(const FString& devId, const uint8 channel, FDisplayClusterVrpnKeyboardChannelData&  data) const
+bool FDisplayClusterInputManager::GetKeyboardData(const FString& DeviceID, const uint8 Channel, FDisplayClusterVrpnKeyboardChannelData& Data) const
 {
 	FScopeLock ScopeLock(&InternalsSyncScope);
-	return GetChannelData_impl<EDisplayClusterInputDeviceType::VrpnKeyboard>(devId, channel, data);
+	return GetChannelData_impl<EDisplayClusterInputDeviceType::VrpnKeyboard>(DeviceID, Channel, Data);
 }
 
-bool FDisplayClusterInputManager::GetTrackerData(const FString& devId, const uint8 channel, FDisplayClusterVrpnTrackerChannelData& data) const
+bool FDisplayClusterInputManager::GetTrackerData(const FString& DeviceID, const uint8 Channel, FDisplayClusterVrpnTrackerChannelData& Data) const
 {
 	FScopeLock ScopeLock(&InternalsSyncScope);
-	return GetChannelData_impl<EDisplayClusterInputDeviceType::VrpnTracker>(devId, channel, data);
+	return GetChannelData_impl<EDisplayClusterInputDeviceType::VrpnTracker>(DeviceID, Channel, Data);
 }
 
 template<int DevTypeID>
@@ -464,31 +443,31 @@ uint32 FDisplayClusterInputManager::GetDeviceAmount_impl() const
 }
 
 template<int DevTypeID>
-bool FDisplayClusterInputManager::GetDeviceIds_impl(TArray<FString>& ids) const
+void FDisplayClusterInputManager::GetDeviceIds_impl(TArray<FString>& IDs) const
 {
 	if (!Devices.Contains(DevTypeID))
 	{
-		return false;
+		return;
 	}
 
-	Devices[DevTypeID].GenerateKeyArray(ids);
-	return true;
+	Devices[DevTypeID].GenerateKeyArray(IDs);
+	return;
 }
 
 template<int DevTypeID>
-bool FDisplayClusterInputManager::GetChannelData_impl(const FString& devId, const uint8 channel, typename display_cluster_input_device_traits<DevTypeID>::dev_channel_data_type& data) const
+bool FDisplayClusterInputManager::GetChannelData_impl(const FString& DeviceID, const uint8 Channel, typename display_cluster_input_device_traits<DevTypeID>::dev_channel_data_type& Data) const
 {
 	if (!Devices.Contains(DevTypeID))
 	{
 		return false;
 	}
 
-	if (!Devices[DevTypeID].Contains(devId))
+	if (!Devices[DevTypeID].Contains(DeviceID))
 	{
 		return false;
 	}
 
-	return static_cast<FDisplayClusterInputDeviceBase<DevTypeID>*>(Devices[DevTypeID][devId].Get())->GetChannelData(channel, data);
+	return static_cast<FDisplayClusterInputDeviceBase<DevTypeID>*>(Devices[DevTypeID][DeviceID].Get())->GetChannelData(Channel, Data);
 }
 
 
@@ -497,8 +476,6 @@ bool FDisplayClusterInputManager::GetChannelData_impl(const FString& devId, cons
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterInputManager::InitDevices()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Disabled)
 	{
 		return false;
@@ -595,8 +572,6 @@ bool FDisplayClusterInputManager::InitDevices()
 
 void FDisplayClusterInputManager::ReleaseDevices()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInput);
-
 	FScopeLock ScopeLock(&InternalsSyncScope);
 
 	UE_LOG(LogDisplayClusterInput, Log, TEXT("Releasing input subsystem..."));

@@ -4,7 +4,7 @@
 
 #include "Dom/JsonObject.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterSessionExternal::FDisplayClusterSessionExternal(FSocket* InSocket, IDisplayClusterSessionListener* InListener, const FString& InName) :

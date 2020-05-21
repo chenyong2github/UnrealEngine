@@ -90,8 +90,21 @@ private:
 	friend class UDatasmithDirProducer;
 };
 
+class FDataprepContentProducerDetails : public IDetailCustomization
+{
+public:
+	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+	FSlateColor GetStatusColorAndOpacity() const;
+	bool IsProducerSuperseded() const;
+
+protected:
+	class UDataprepAssetProducers* AssetProducers = nullptr;
+	UDataprepContentProducer* Producer = nullptr;
+	int32 ProducerIndex = INDEX_NONE; // This index does not change for the lifetime of the property widget
+};
+
 // Customization of the details of the Datasmith Scene for the data prep editor.
-class DATASMITHIMPORTER_API FDatasmithFileProducerDetails : public IDetailCustomization
+class DATASMITHIMPORTER_API FDatasmithFileProducerDetails : public FDataprepContentProducerDetails
 {
 public:
 	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDatasmithFileProducerDetails>(); };
@@ -196,7 +209,7 @@ private:
 };
 
 // Customization of the details of the Datasmith Scene for the data prep editor.
-class DATASMITHIMPORTER_API FDatasmithDirProducerDetails : public IDetailCustomization
+class DATASMITHIMPORTER_API FDatasmithDirProducerDetails : public FDataprepContentProducerDetails
 {
 public:
 	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDatasmithDirProducerDetails>(); };
