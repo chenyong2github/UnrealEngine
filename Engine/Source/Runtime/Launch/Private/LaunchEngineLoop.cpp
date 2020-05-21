@@ -4775,7 +4775,7 @@ void FEngineLoop::Tick()
 			// When not in editor, we emit dynamic resolution's begin frame right after RHI's.
 			GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::BeginFrame);
 		}
-		#endif
+#endif
 
 		// tick performance monitoring
 		{
@@ -4786,11 +4786,13 @@ void FEngineLoop::Tick()
 			ResetAsyncLoadingStats();
 		}
 
+#if UPDATE_MALLOC_STATS
 		// update memory allocator stats
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Malloc_UpdateStats);
 			GMalloc->UpdateStats();
 		}
+#endif
 	}
 
 	FStats::AdvanceFrame( false, FStats::FOnAdvanceRenderingThreadStats::CreateStatic( &AdvanceRenderingThreadStatsGT ) );
