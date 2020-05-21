@@ -422,14 +422,10 @@ void UTimecodeSynchronizer::Register()
 		}
 		else
 		{
-			if (FApp::UseFixedTimeStep())
-			{
-				UE_LOG(LogTimecodeSynchronizer, Warning, TEXT("The engine is already in fixed time step."));
-			}
-			PreviousFixedFrameRate = FApp::GetFixedDeltaTime();
-			bPreviousUseFixedFrameRate = FApp::UseFixedTimeStep();
-			FApp::SetFixedDeltaTime(FixedFrameRate.AsInterval());
-			FApp::SetUseFixedTimeStep(true);
+			PreviousFixedFrameRate = GEngine->FixedFrameRate;
+			bPreviousUseFixedFrameRate = GEngine->bUseFixedFrameRate;
+			GEngine->FixedFrameRate = FixedFrameRate.AsDecimal();
+			GEngine->bUseFixedFrameRate = true;
 		}
 
 		CachedPreviousTimecodeProvider = GEngine->GetTimecodeProvider();
@@ -477,8 +473,8 @@ void UTimecodeSynchronizer::Unregister()
 
 		if (RegisteredCustomTimeStep == nullptr)
 		{
-			FApp::SetFixedDeltaTime(PreviousFixedFrameRate);
-			FApp::SetUseFixedTimeStep(bPreviousUseFixedFrameRate);
+			GEngine->FixedFrameRate = PreviousFixedFrameRate;
+			GEngine->bUseFixedFrameRate = bPreviousUseFixedFrameRate;
 		}
 		RegisteredCustomTimeStep = nullptr;
 
