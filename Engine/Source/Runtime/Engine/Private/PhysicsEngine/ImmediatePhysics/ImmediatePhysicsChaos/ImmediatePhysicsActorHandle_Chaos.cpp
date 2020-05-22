@@ -5,12 +5,14 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
+#include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/MassProperties.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Utilities.h"
 
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
@@ -195,14 +197,31 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		if (Geom->GetType() == ImplicitObjectType::Transformed)
+		EImplicitObjectType GeomType = GetInnerType(Geom->GetCollisionType());
+		bool bIsInstanced = IsInstanced(Geom->GetCollisionType());
+		bool bIsScaled = IsScaled(Geom->GetCollisionType());
+
+		// Transformed HeightField
+		if (GeomType == ImplicitObjectType::Transformed)
 		{
 			const TImplicitObjectTransformed<FReal, 3>* SrcTransformed = Geom->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
-			if (SrcTransformed->GetTransformedObject()->GetType() == ImplicitObjectType::HeightField)
+			if ((SrcTransformed != nullptr) && (SrcTransformed->GetTransformedObject()->GetType() == ImplicitObjectType::HeightField))
 			{
 				FImplicitObject* InnerGeom = const_cast<FImplicitObject*>(SrcTransformed->GetTransformedObject());
-				TUniquePtr<TImplicitObjectTransformed<FReal, 3, false>> Transformed = MakeUnique<Chaos::TImplicitObjectTransformed<FReal, 3, false>>(InnerGeom, SrcTransformed->GetTransform());
-				return Transformed;
+				TUniquePtr<TImplicitObjectTransformed<FReal, 3, false>> Cloned = MakeUnique<Chaos::TImplicitObjectTransformed<FReal, 3, false>>(InnerGeom, SrcTransformed->GetTransform());
+				return Cloned;
+			}
+		}
+
+		// Instanced Trimesh
+		if (bIsInstanced && (GeomType == ImplicitObjectType::TriangleMesh))
+		{
+			const TImplicitObjectInstanced<FTriangleMeshImplicitObject>* SrcInstanced = Geom->template GetObject<const TImplicitObjectInstanced<FTriangleMeshImplicitObject>>();
+			if (SrcInstanced != nullptr)
+			{
+				const TImplicitObjectInstanced<FTriangleMeshImplicitObject>::ObjectType InnerGeom = SrcInstanced->Object();
+				TUniquePtr<TImplicitObjectInstanced<FTriangleMeshImplicitObject>> Cloned = MakeUnique<TImplicitObjectInstanced<FTriangleMeshImplicitObject>>(InnerGeom);
+				return Cloned;
 			}
 		}
 
@@ -236,7 +255,7 @@ namespace ImmediatePhysics_Chaos
 
 		// If there's no BodySetup, we may be cloning an in-world object and probably have a TriMesh or HieghtField so try to just copy references
 		// @todo(ccaulfield): clean this up
-		if ((BodyInstance == nullptr) || (BodyInstance->BodySetup == nullptr))
+		if ((BodyInstance == nullptr) || (BodyInstance->BodySetup == nullptr) || (BodyInstance->BodySetup->CollisionTraceFlag == ECollisionTraceFlag::CTF_UseComplexAsSimple))
 		{
 			return CloneGeometry(BodyInstance, ActorType, Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
 		}
