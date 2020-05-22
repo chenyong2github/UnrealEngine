@@ -722,6 +722,8 @@ void RenderScreenSpaceReflections(
 				ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
 				ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
 				BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
+				ensure(ViewportExtent.X > 0 && ViewportExtent.Y > 0);
+				ensure(BufferSize.X > 0 && BufferSize.Y > 0);
 			}
 
 			FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
