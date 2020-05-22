@@ -629,7 +629,10 @@ URigVMNode* UControlRigGraphNode::GetModelNode() const
 
 		if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
 		{
-			return MutableThis->CachedModelNode = Blueprint->Model->FindNode(ModelNodePath);
+			if (URigVMGraph* Model = Blueprint->Model)
+			{
+				return MutableThis->CachedModelNode = Model->FindNode(ModelNodePath);
+			}
 		}
 	}
 
