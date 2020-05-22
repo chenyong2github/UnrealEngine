@@ -1865,16 +1865,19 @@ private:
 			}
 		}
 
-		// Iterate over all pipeline types
-		for (FShaderPipelineType* ShaderPipelineType : SortedMaterialPipelineTypes)
+		if (RHISupportsShaderPipelines(Platform))
 		{
-			if (ShaderPipelineType->HasTessellation() == bHasTessellation &&
-				FMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters))
+			// Iterate over all pipeline types
+			for (FShaderPipelineType* ShaderPipelineType : SortedMaterialPipelineTypes)
 			{
-				Layout.ShaderPipelines.Add(ShaderPipelineType);
+				if (ShaderPipelineType->HasTessellation() == bHasTessellation &&
+					FMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters))
+				{
+					Layout.ShaderPipelines.Add(ShaderPipelineType);
 
-				const FHashedName& TypeName = ShaderPipelineType->GetHashedName();
-				Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
+					const FHashedName& TypeName = ShaderPipelineType->GetHashedName();
+					Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
+				}
 			}
 		}
 
@@ -1907,20 +1910,23 @@ private:
 				}
 			}
 
-			for (FShaderPipelineType* ShaderPipelineType : SortedMeshMaterialPipelineTypes)
+			if (RHISupportsShaderPipelines(Platform))
 			{
-				if (ShaderPipelineType->HasTessellation() == bHasTessellation &&
-					FMeshMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters, VertexFactoryType))
+				for (FShaderPipelineType* ShaderPipelineType : SortedMeshMaterialPipelineTypes)
 				{
-					// Now check the completeness of the shader map
-					if (!MeshLayout)
+					if (ShaderPipelineType->HasTessellation() == bHasTessellation &&
+						FMeshMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters, VertexFactoryType))
 					{
-						MeshLayout = new(Layout.MeshShaderMaps) FMeshMaterialShaderMapLayout(VertexFactoryType);
-					}
-					MeshLayout->ShaderPipelines.Add(ShaderPipelineType);
+						// Now check the completeness of the shader map
+						if (!MeshLayout)
+						{
+							MeshLayout = new(Layout.MeshShaderMaps) FMeshMaterialShaderMapLayout(VertexFactoryType);
+						}
+						MeshLayout->ShaderPipelines.Add(ShaderPipelineType);
 
-					const FHashedName& TypeName = ShaderPipelineType->GetHashedName();
-					Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
+						const FHashedName& TypeName = ShaderPipelineType->GetHashedName();
+						Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
+					}
 				}
 			}
 		}
