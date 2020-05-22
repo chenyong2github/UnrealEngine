@@ -396,7 +396,7 @@ public:
 
 	ENGINE_API static bool SupportsOriginShifting();
 	void ApplyWorldOffset(FVector InOffset);
-	ENGINE_API void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds = 0.0f, float InMaxPhysicsDeltaTime = 0.0f, float InMaxSubstepDeltaTime = 0.f, int32 InMaxSubsteps = 1);
+	ENGINE_API void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime, float InMaxSubstepDeltaTime, int32 InMaxSubsteps, bool bSubstepping);
 	ENGINE_API void StartFrame();
 	ENGINE_API void EndFrame(ULineBatchComponent* InLineBatcher);
 	ENGINE_API void WaitPhysScenes();
