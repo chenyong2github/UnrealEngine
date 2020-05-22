@@ -5755,11 +5755,7 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 			uint32 LinkerFlags = LOAD_None;
 			if (FApp::IsGame() && !GIsEditor)
 			{
-#if WITH_EDITOR
-				LinkerFlags |= (LOAD_Async);
-#else
 				LinkerFlags |= (LOAD_Async | LOAD_NoVerify);
-#endif
 			}
 #if WITH_EDITOR
 			else if ((Desc.PackageFlags & PKG_PlayInEditor) != 0)
