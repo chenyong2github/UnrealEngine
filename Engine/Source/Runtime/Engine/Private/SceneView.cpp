@@ -2663,7 +2663,7 @@ EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const
 	{
 		return DVSM_RayTracingDebug;
 	}
-	else if (EngineShowFlags.LODColoration)
+	else if (EngineShowFlags.LODColoration || EngineShowFlags.HLODColoration)
 	{
 		return DVSM_LODColoration;
 	}
