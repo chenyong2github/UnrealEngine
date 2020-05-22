@@ -82,14 +82,14 @@ namespace AutomationTool
 		/// <summary>
 		/// Extracts all pak files for a given project.
 		/// </summary>
-		/// <param name="ProjectFile">Path to the project file. Can be null if UnrealPak is not built with project specific options or plugins</param>
 		/// <param name="SourceDirectory">Source file to read paks from</param>
 		/// <param name="TargetDirectory">Destinaton path where the contents of the pak file will be written</param>
 		/// <param name="CryptoKeysFilename">Path to the json bloc with keys if encryption is used</param>
 		/// <param name="AdditionalArgs">Additional args to pass to UnrealPak</param>
 		/// <param name="bExtractByLayers">Extract as layers. E.g. patch paks will be extracted after the base paks and will overwrite files</param>
+		/// <param name="ProjectFile">Path to the project file. Can be null if UnrealPak is not built with project specific options or plugins</param>
 		/// <returns></returns>
-		public static void ExtractPakFiles(FileReference ProjectFile, DirectoryInfo SourceDirectory, string TargetDirectory, string CryptoKeysFilename, string AdditionalArgs, bool bExtractByLayers)
+		public static void ExtractPakFiles(DirectoryInfo SourceDirectory, string TargetDirectory, string CryptoKeysFilename, string AdditionalArgs, bool bExtractByLayers, FileReference ProjectFile=null)
 		{
 			var PakFiles = SourceDirectory.GetFiles("*.pak", SearchOption.TopDirectoryOnly);
 
