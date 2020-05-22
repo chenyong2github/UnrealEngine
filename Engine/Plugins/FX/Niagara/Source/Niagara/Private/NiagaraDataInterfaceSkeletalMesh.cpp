@@ -2841,6 +2841,13 @@ void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkelet
 	Source = ComponentToUse->GetOwner();
 }
 
+void UNiagaraDataInterfaceSkeletalMesh::SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions)
+{
+	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated. 
+	ChangeId++;
+	SamplingRegions = InSamplingRegions;
+}
+
 ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(void* PerInstanceData) const
 {
 	FNDISkeletalMesh_InstanceData* InstData = static_cast<FNDISkeletalMesh_InstanceData*>(PerInstanceData);

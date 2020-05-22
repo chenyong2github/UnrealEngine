@@ -824,6 +824,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 	void SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse);
+	void SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions);
 };
 
 
