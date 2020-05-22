@@ -47,7 +47,6 @@ FEditorSessionSourceFilterService::FEditorSessionSourceFilterService()
 	if (GEditor)
 	{
 		GEditor->OnObjectsReplaced().AddRaw(this, &FEditorSessionSourceFilterService::OnObjectsReplaced);
-		GEditor->RegisterForUndo(this);
 	}
 
 	// Register delegate to catch engine-level trace filtering system changes 
@@ -67,7 +66,6 @@ FEditorSessionSourceFilterService::~FEditorSessionSourceFilterService()
 {
 	if (GEditor)
 	{
-		GEditor->UnregisterForUndo(this);
 		GEditor->OnObjectsReplaced().RemoveAll(this);
 	}
 	
@@ -562,6 +560,19 @@ void FEditorSessionSourceFilterService::PostUndo(bool bSuccess)
 void FEditorSessionSourceFilterService::PostRedo(bool bSuccess)
 {
 	StateChanged();
+}
+
+bool FEditorSessionSourceFilterService::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const
+{
+	TArray<UClass*> MatchingClasses = { UDataSourceFilter::StaticClass(), UDataSourceFilterSet::StaticClass(), USourceFilterCollection::StaticClass() };
+
+	return TransactionObjectContexts.ContainsByPredicate([&MatchingClasses](TPair<UObject*, FTransactionObjectEvent>& Pair)
+	{
+		return MatchingClasses.ContainsByPredicate([Pair](UClass* InClass)
+		{
+			return Pair.Key->GetClass()->IsChildOf(InClass);
+		});
+	});
 }
 
 void FEditorSessionSourceFilterService::MakeFilterSet(TSharedRef<const IFilterObject> ExistingFilter, TSharedRef<const IFilterObject> ExistingFilterOther)
