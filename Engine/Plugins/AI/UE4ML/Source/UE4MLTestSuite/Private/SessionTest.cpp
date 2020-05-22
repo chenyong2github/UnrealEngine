@@ -6,6 +6,7 @@
 #include "Agents/4MLAgent.h"
 #include "AIController.h"
 #include "GameFramework/Pawn.h"
+#include "Engine/Engine.h"
 
 
 #define LOCTEXT_NAMESPACE "AITestSuite_UE4MLTest"
