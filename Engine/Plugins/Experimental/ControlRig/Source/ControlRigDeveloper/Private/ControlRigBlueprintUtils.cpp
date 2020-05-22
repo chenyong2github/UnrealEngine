@@ -96,12 +96,10 @@ void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(InBlueprint))
+	if(InBlueprint->IsA<UControlRigBlueprint>())
 	{
-		RigBlueprint->InitializeModelIfRequired();
-
 		TArray<UControlRigGraphNode*> AllNodes;
-		FBlueprintEditorUtils::GetAllNodesOfClass(RigBlueprint, AllNodes);
+		FBlueprintEditorUtils::GetAllNodesOfClass(InBlueprint, AllNodes);
 
 		for(UControlRigGraphNode* Node : AllNodes)
 		{
