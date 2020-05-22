@@ -567,7 +567,7 @@ namespace UnrealBuildTool
 		{
 			LinuxToolChainOptions Options = LinuxToolChainOptions.None;
 
-			if(Target.LinuxPlatform.bEnableAddressSanitizer)
+			if (Target.LinuxPlatform.bEnableAddressSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableAddressSanitizer;
 
@@ -576,7 +576,7 @@ namespace UnrealBuildTool
 					Options |= LinuxToolChainOptions.EnableSharedSanitizer;
 				}
 			}
-			if(Target.LinuxPlatform.bEnableThreadSanitizer)
+			if (Target.LinuxPlatform.bEnableThreadSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableThreadSanitizer;
 
@@ -585,7 +585,7 @@ namespace UnrealBuildTool
 					throw new BuildException("Thread Sanitizer (TSan) unsupported for non-monolithic builds");
 				}
 			}
-			if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
+			if (Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer;
 
@@ -594,7 +594,7 @@ namespace UnrealBuildTool
 					Options |= LinuxToolChainOptions.EnableSharedSanitizer;
 				}
 			}
-			if(Target.LinuxPlatform.bEnableMemorySanitizer)
+			if (Target.LinuxPlatform.bEnableMemorySanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableMemorySanitizer;
 
@@ -603,9 +603,19 @@ namespace UnrealBuildTool
 					throw new BuildException("Memory Sanitizer (MSan) unsupported for non-monolithic builds");
 				}
 			}
-			if(Target.LinuxPlatform.bEnableThinLTO)
+			if (Target.LinuxPlatform.bEnableThinLTO)
 			{
 				Options |= LinuxToolChainOptions.EnableThinLTO;
+			}
+
+			// When building a monolithic editor we have to avoid using objcopy.exe as it cannot handle files
+			// larger then 4GB. This is only an issue with our binutils objcopy.exe.
+			// llvm-objcopy.exe does not have this issue and once we switch over to using that in clang 10.0.1 we can remove this!
+			if ((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) &&
+				(Target.LinkType == TargetLinkType.Monolithic) &&
+				(Target.Type == TargetType.Editor))
+			{
+				Options |= LinuxToolChainOptions.DisableSplitDebugInfoWithObjCopy;
 			}
 
 			return new LinuxToolChain(Target.Architecture, SDK, Target.LinuxPlatform.bPreservePSYM, Options);
