@@ -823,144 +823,145 @@ static void MakePreviewDeviceMenu(FMenuBuilder& MenuBuilder)
 
 TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUICommandList> InCommandList)
 {
+	static const FName MenuName("UnrealEd.PlayWorldCommands.PlayMenu");
+
+	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(MenuName);
+
+		struct FLocal
+		{
+			static void AddPlayModeMenuEntry(FToolMenuSection& Section, EPlayModeType PlayMode)
+			{
+				TSharedPtr<FUICommandInfo> PlayModeCommand;
+
+				switch (PlayMode)
+				{
+				case PlayMode_InEditorFloating:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInEditorFloating;
+					break;
+
+				case PlayMode_InMobilePreview:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInMobilePreview;
+					break;
+
+				case PlayMode_InVulkanPreview:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInVulkanPreview;
+					break;
+
+				case PlayMode_InNewProcess:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInNewProcess;
+					break;
+
+				case PlayMode_InViewPort:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInViewport;
+					break;
+
+				case PlayMode_InVR:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInVR;
+					break;
+
+				case PlayMode_Simulate:
+					PlayModeCommand = FPlayWorldCommands::Get().Simulate;
+					break;
+				}
+
+				if (PlayModeCommand.IsValid())
+				{
+					Section.AddMenuEntry(PlayModeCommand);
+				}
+			}
+		};
+
+		// play in view port
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayModes", LOCTEXT("PlayButtonModesSection", "Modes"));
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InViewPort);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InMobilePreview);
+
+			if (GetDefault<UEditorExperimentalSettings>()->bMobilePIEPreviewDeviceLaunch)
+			{
+				Section.AddSubMenu(
+					"TargetedMobilePreview",
+					LOCTEXT("TargetedMobilePreviewSubMenu", "Mobile Preview (PIE)"),
+					LOCTEXT("TargetedMobilePreviewSubMenu_ToolTip", "Play this level using a specified mobile device preview (runs in its own process)"),
+					FNewMenuDelegate::CreateStatic(&MakePreviewDeviceMenu), false,
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.PlayInMobilePreview")
+				);
+			}
+
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InVulkanPreview);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InEditorFloating);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InVR);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InNewProcess);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_Simulate);
+		}
+
+		// tip section
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayTip");
+			Section.AddEntry(FToolMenuEntry::InitWidget(
+				"PlayIn",
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text(LOCTEXT("PlayInTip", "Launching a game preview with a different mode will change your default 'Play' mode in the toolbar"))
+				.WrapTextAt(250),
+				FText::GetEmpty()));
+		}
+
+		// player start selection
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayPlayerStart", LOCTEXT("PlayButtonLocationSection", "Spawn player at..."));
+			Section.AddMenuEntry(FPlayWorldCommands::Get().PlayInCameraLocation);
+			Section.AddMenuEntry(FPlayWorldCommands::Get().PlayInDefaultPlayerStart);
+		}
+
+		// Basic network options
+		const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayInWindowNetwork", LOCTEXT("LevelEditorPlayInWindowNetworkSection", "Multiplayer Options"));
+			// Num Clients
+			{
+				TSharedRef<SWidget> NumPlayers = SNew(SSpinBox<int32>)	// Copy limits from PlayNumberOfClients meta data
+					.MinValue(1)
+					.MaxValue(64)
+					.MinSliderValue(1)
+					.MaxSliderValue(4)
+					.Delta(1)
+					.ToolTipText(LOCTEXT("NumberOfClientsToolTip", "How many client instances do you want to create? The first instance respects the Play Mode location (PIE/PINW) and additional instances respect the RunUnderOneProcess setting."))
+					.Value(FInternalPlayWorldCommandCallbacks::GetNumberOfClients())
+					.OnValueCommitted_Static(&FInternalPlayWorldCommandCallbacks::SetNumberOfClients);
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("NumPlayers", NumPlayers, LOCTEXT("NumberOfClientsMenuWidget", "Number of Players")));
+			}
+			// Net Mode
+			{
+				const UEnum* PlayNetModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPlayNetMode"));
+			
+				TSharedRef<SWidget> NetMode = SNew(SEnumComboBox, PlayNetModeEnum)
+					.CurrentValue(TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetNetPlayMode)))
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+					.ContentPadding(FMargin(2, 0))
+					.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+					.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateStatic(&FInternalPlayWorldCommandCallbacks::SetNetPlayMode))
+					.ToolTipText(LOCTEXT("NetworkModeToolTip", "Which network mode should the clients launch in? A server will automatically be started if needed."));
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("NetMode", NetMode, LOCTEXT("NetworkModeMenuWidget", "Net Mode")));
+			}
+		}
+
+		// settings
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlaySettings");
+			Section.AddMenuEntry(FPlayWorldCommands::Get().PlayInSettings);
+		}
+	}
+
 	// Get all menu extenders for this context menu from the level editor module
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	TSharedPtr<FExtender> MenuExtender = LevelEditorModule.AssembleExtenders(InCommandList, LevelEditorModule.GetAllLevelEditorToolbarPlayMenuExtenders());
-
-	struct FLocal
-	{
-		static void AddPlayModeMenuEntry(FMenuBuilder& MenuBuilder, EPlayModeType PlayMode)
-		{
-			TSharedPtr<FUICommandInfo> PlayModeCommand;
-
-			switch (PlayMode)
-			{
-			case PlayMode_InEditorFloating:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInEditorFloating;
-				break;
-
-			case PlayMode_InMobilePreview:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInMobilePreview;
-				break;
-
-			case PlayMode_InVulkanPreview:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInVulkanPreview;
-				break;
-
-			case PlayMode_InNewProcess:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInNewProcess;
-				break;
-
-			case PlayMode_InViewPort:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInViewport;
-				break;
-
-			case PlayMode_InVR:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInVR;
-				break;
-
-			case PlayMode_Simulate:
-				PlayModeCommand = FPlayWorldCommands::Get().Simulate;
-				break;
-			}
-
-			if (PlayModeCommand.IsValid())
-			{
-				MenuBuilder.AddMenuEntry(PlayModeCommand);
-			}
-		}
-	};
-
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList, MenuExtender);
-
-	// play in view port
-	MenuBuilder.BeginSection("LevelEditorPlayModes", LOCTEXT("PlayButtonModesSection", "Modes"));
-	{
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InViewPort);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InMobilePreview);
-
-		if (GetDefault<UEditorExperimentalSettings>()->bMobilePIEPreviewDeviceLaunch)
-		{
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("TargetedMobilePreviewSubMenu", "Mobile Preview (PIE)"),
-				LOCTEXT("TargetedMobilePreviewSubMenu_ToolTip", "Play this level using a specified mobile device preview (runs in its own process)"),
-				FNewMenuDelegate::CreateStatic(&MakePreviewDeviceMenu), false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.PlayInMobilePreview")
-			);
-		}
-
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InVulkanPreview);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InEditorFloating);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InVR);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InNewProcess);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_Simulate);
-	}
-	MenuBuilder.EndSection();
-
-	// tip section
-	MenuBuilder.BeginSection("LevelEditorPlayTip");
-	{
-		MenuBuilder.AddWidget(
-			SNew(STextBlock)
-			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-			.Text(LOCTEXT("PlayInTip", "Launching a game preview with a different mode will change your default 'Play' mode in the toolbar"))
-			.WrapTextAt(250),
-			FText::GetEmpty());
-	}
-	MenuBuilder.EndSection();
-
-	// player start selection
-	MenuBuilder.BeginSection("LevelEditorPlayPlayerStart", LOCTEXT("PlayButtonLocationSection", "Spawn player at..."));
-	{
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().PlayInCameraLocation);
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().PlayInDefaultPlayerStart);
-	}
-	MenuBuilder.EndSection();
-
-	// Basic network options
-	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
-	{
-		MenuBuilder.BeginSection("LevelEditorPlayInWindowNetwork", LOCTEXT("LevelEditorPlayInWindowNetworkSection", "Multiplayer Options"));
-		// Num Clients
-		{
-			TSharedRef<SWidget> NumPlayers = SNew(SSpinBox<int32>)	// Copy limits from PlayNumberOfClients meta data
-				.MinValue(1)
-				.MaxValue(64)
-				.MinSliderValue(1)
-				.MaxSliderValue(4)
-				.Delta(1)
-				.ToolTipText(LOCTEXT("NumberOfClientsToolTip", "How many client instances do you want to create? The first instance respects the Play Mode location (PIE/PINW) and additional instances respect the RunUnderOneProcess setting."))
-				.Value(FInternalPlayWorldCommandCallbacks::GetNumberOfClients())
-				.OnValueCommitted_Static(&FInternalPlayWorldCommandCallbacks::SetNumberOfClients);
-
-			MenuBuilder.AddWidget(NumPlayers, LOCTEXT("NumberOfClientsMenuWidget", "Number of Players"));
-		}
-		// Net Mode
-		{
-			const UEnum* PlayNetModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPlayNetMode"));
-			
-			TSharedRef<SWidget> NetMode = SNew(SEnumComboBox, PlayNetModeEnum)
-				.CurrentValue(TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetNetPlayMode)))
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
-				.ContentPadding(FMargin(2, 0))
-				.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-				.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateStatic(&FInternalPlayWorldCommandCallbacks::SetNetPlayMode))
-				.ToolTipText(LOCTEXT("NetworkModeToolTip", "Which network mode should the clients launch in? A server will automatically be started if needed."));
-
-			MenuBuilder.AddWidget(NetMode, LOCTEXT("NetworkModeMenuWidget", "Net Mode"));
-		}
-		MenuBuilder.EndSection();
-	}
-
-	// settings
-	MenuBuilder.BeginSection("LevelEditorPlaySettings");
-	{
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().PlayInSettings);
-	}
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
+	FToolMenuContext MenuContext(InCommandList, MenuExtender);
+	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
 }
 
 /*
