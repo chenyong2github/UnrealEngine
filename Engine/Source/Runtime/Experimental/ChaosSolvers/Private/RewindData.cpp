@@ -566,11 +566,12 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 				if(Info.GTDirtyOnFrame[CurFrame].MissingWrite(CurFrame,CurWave))
 				{
 					Info.Desync(CurFrame,LatestFrame);
-				} else if(Rigid)
+				}
+				else if(Rigid && Rigid->ObjectState() != EObjectStateType::Kinematic)
 				{
 					//If we have a simulated particle, make sure its sim-writable properties are still in sync
 					const FGeometryParticleStateBase* ExpectedState = GetStateAtFrameImp(Info,CurFrame);
-					if(ExpectedState)	//this if is here because dynamics can be set up as kinematics, in that case we might have no state
+					if(ExpectedState)
 					{
 						if(ExpectedState->IsSimWritableDesynced(*Rigid))
 						{
