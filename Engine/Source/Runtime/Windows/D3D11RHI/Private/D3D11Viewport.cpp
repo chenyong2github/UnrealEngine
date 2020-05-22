@@ -350,6 +350,24 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 				Flags |= DXGI_PRESENT_ALLOW_TEARING;
 			}
 			Result = SwapChain->Present(SyncInterval, Flags);
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+			extern int32 GLogDX11RTRebinds;
+			extern FThreadSafeCounter GDX11RTRebind;
+			extern FThreadSafeCounter GDX11CommitGraphicsResourceTables;
+			if (GLogDX11RTRebinds)
+			{
+				static int Counter = 0;
+				Counter++;
+				if (Counter == 60)
+				{
+					Counter = 0;
+					int32 RTRebinds = GDX11RTRebind.Set(0);
+					int32 CommitGraphicsResourceTables = GDX11CommitGraphicsResourceTables.Set(0);
+					FGenericPlatformMisc::LowLevelOutputDebugStringf(TEXT("RT Rebind %6.2f Commit Graphics Resource Tables %6.2f\n"), RTRebinds / 60.f, CommitGraphicsResourceTables / 60.f);
+				}
+			}
+#endif
 		}
 
 		if (IsValidRef(CustomPresent))
