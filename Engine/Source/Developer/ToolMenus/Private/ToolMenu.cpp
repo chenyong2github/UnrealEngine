@@ -105,6 +105,16 @@ int32 UToolMenu::FindInsertIndex(const FToolMenuSection& InSection) const
 	if (InInsertPosition.Position == EToolMenuInsertType::After)
 	{
 		++DestIndex;
+
+		// Insert after the final entry that has the exact same InsertPosition
+		for (int32 i = DestIndex; i < Sections.Num(); ++i)
+		{
+			if (Sections[i].InsertPosition == InInsertPosition)
+			{
+				DestIndex = i + 1;
+				// Do not break because EToolMenuInsertType::Before may have been used
+			}
+		}
 	}
 
 	for (int32 i = DestIndex; i < Sections.Num(); ++i)
