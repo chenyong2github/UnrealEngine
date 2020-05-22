@@ -384,6 +384,12 @@ void USourceFilterCollection::CopyData(USourceFilterCollection* OtherCollection)
 		AddClassName(FilterCopy);
 	}
 	FilterClasses.Empty();
+
+	// Remove any filter classes that are unable to be loaded
+	ClassFilters.RemoveAll([](FActorClassFilter& Filter)
+	{
+		return Filter.ActorClass.TryLoadClass<AActor>() == nullptr;
+	});
 }
 
 UDataSourceFilter* USourceFilterCollection::RecursiveCopyFilter(UDataSourceFilter* Filter, int32& FilterOffset)
@@ -438,11 +444,34 @@ void USourceFilterCollection::Serialize(FArchive& Ar)
 	}
 
 	Super::Serialize(Ar);
+
+	if (Ar.IsLoading() && !Ar.IsTransacting())
+	{
+		FilterClassMap.Empty();
+		
+		for (UDataSourceFilter* Filter : Filters)
+		{
+			RecursiveGenerateFilterClassNames(Filter);
+		}
+	}
 }
 
 void USourceFilterCollection::AddClassName(UDataSourceFilter* Filter)
 {
 	FilterClassMap.Add(Filter, Filter->GetClass()->GetName());
+}
+
+void USourceFilterCollection::RecursiveGenerateFilterClassNames(UDataSourceFilter* Filter)
+{
+	AddClassName(Filter);
+
+	if ( UDataSourceFilterSet* FilterSet = Cast<UDataSourceFilterSet>(Filter))
+	{
+		for (UDataSourceFilter* ChildFilter : FilterSet->Filters)
+		{
+			RecursiveGenerateFilterClassNames(ChildFilter);
+		}
+	}
 }
 
 void USourceFilterCollection::RecursiveRetrieveFilterClassNames(UDataSourceFilter* Filter)
