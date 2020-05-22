@@ -46,6 +46,7 @@ struct FD3D11ShaderData
 	TArray<FShaderCodeVendorExtension>	VendorExtensions;
 	bool								bShaderNeedsGlobalConstantBuffer;
 	uint16								OutputMask;
+	uint16								UAVMask;
 };
 
 /** This represents a vertex shader that hasn't been combined with a specific declaration to create a bound shader. */

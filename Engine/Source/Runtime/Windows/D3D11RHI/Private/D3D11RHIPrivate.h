@@ -864,7 +864,8 @@ protected:
 	uint32 UAVBindFirst;
 	uint32 UAVBindCount;
 	uint32 UAVSChanged;
-	uint32 CurrentRTVMask;
+	uint32 CurrentRTVOverlapMask;
+	uint32 CurrentUAVMask;
 
 	TRefCountPtr<ID3D11DepthStencilView> CurrentDepthStencilTarget;
 	TRefCountPtr<FD3D11TextureBase> CurrentDepthTexture;
@@ -1029,7 +1030,7 @@ protected:
 	uint32 GetMaxMSAAQuality(uint32 SampleCount);
 
 	void CommitRenderTargetsAndUAVs();
-	void CommitRenderTargets(bool bClearUAVS, uint32 RTVMask = 0);
+	void CommitRenderTargets(bool bClearUAVS);
 	void CommitUAVs();
 
 	/**
