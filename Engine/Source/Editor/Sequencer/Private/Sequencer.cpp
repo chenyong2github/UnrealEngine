@@ -8168,6 +8168,7 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 	TMap<FGuid, FGuid> OldToNewGuidMap;
 	TArray<FGuid> PossessableGuids;
+	TArray<FGuid> SpawnableGuids;
 
 	TArray<FMovieSceneBinding> BindingsPasted;
 
@@ -8314,6 +8315,8 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 				OldToNewGuidMap.Add(CopyableBinding->Spawnable.GetGuid(), NewGuid);
 
 				BindingsPasted.Add(NewBinding);
+
+				SpawnableGuids.Add(NewGuid);
 			}
 		}
 	}
@@ -8375,8 +8378,29 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 
 	OnMovieSceneBindingsPastedDelegate.Broadcast(BindingsPasted);
 
+	// Temporarily spawn all spawnables so that component bindings can be fixed
+	TArray<TWeakObjectPtr<UMovieSceneSection> > SpawnSectionsToRemove;
+	for (auto SpawnableGuid : SpawnableGuids)
+	{
+		UMovieSceneSpawnTrack* SpawnTrack = MovieScene->FindTrack<UMovieSceneSpawnTrack>(SpawnableGuid);
+
+		if (SpawnTrack)
+		{
+			for (UMovieSceneSection* SpawnSection : SpawnTrack->GetAllSections())
+			{
+				SpawnSection->SetIsActive(false);
+			}
+
+			// Spawnable could have animated spawned state, so temporarily override it to spawn infinitely
+			UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->CreateNewSection());
+			SpawnSection->GetChannel().Reset();
+			SpawnSection->GetChannel().SetDefault(true);
+			SpawnSectionsToRemove.Add(SpawnSection);
+		}
+	}
+	
 	// Refresh all immediately so that spawned actors will be generated immediately
-	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshAllImmediately);
+	ForceEvaluate();
 
 	// Fix possessable component bindings
 	for (auto PossessableGuid : PossessableGuids)
@@ -8406,6 +8430,27 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 			}
 		}
 	}
+	
+	for (TWeakObjectPtr<UMovieSceneSection> SpawnSectionToRemove : SpawnSectionsToRemove)
+	{
+		if (SpawnSectionToRemove.IsValid())
+		{
+			UMovieSceneTrack* SpawnTrack = SpawnSectionToRemove->GetTypedOuter<UMovieSceneTrack>();
+			if (SpawnTrack)
+			{
+				SpawnTrack->Modify();
+				SpawnTrack->RemoveSection(*SpawnSectionToRemove);
+
+				for (UMovieSceneSection* SpawnSection : SpawnTrack->GetAllSections())
+				{
+					SpawnSection->SetIsActive(true);
+				}
+			}
+		}
+	}
+	
+	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
 	return true;
 }
 
