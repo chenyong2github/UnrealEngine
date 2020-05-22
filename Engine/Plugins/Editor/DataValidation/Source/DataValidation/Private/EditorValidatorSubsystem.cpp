@@ -207,6 +207,34 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 
 	int32 NumFilesToValidate = AssetDataList.Num();
 
+	auto AddAssetLogTokens = [&DataValidationLog](EMessageSeverity::Type Severity, const TArray<FText>& TextMessages, FName PackageName)
+	{
+		const FString PackageNameString = PackageName.ToString();
+		for (const FText& Msg : TextMessages)
+		{
+			const FString AssetLogString = FAssetMsg::GetAssetLogString(*PackageNameString, Msg.ToString());
+			FString BeforeAsset;
+			FString AfterAsset;
+			TSharedRef<FTokenizedMessage> TokenizedMessage = DataValidationLog.Message(Severity);
+			if (AssetLogString.Split(PackageNameString, &BeforeAsset, &AfterAsset))
+			{
+				if (!BeforeAsset.IsEmpty())
+				{
+					TokenizedMessage->AddToken(FTextToken::Create(FText::FromString(BeforeAsset)));
+				}
+				TokenizedMessage->AddToken(FAssetNameToken::Create(PackageNameString));
+				if (!AfterAsset.IsEmpty())
+				{
+					TokenizedMessage->AddToken(FTextToken::Create(FText::FromString(AfterAsset)));
+				}
+			}
+			else
+			{
+				TokenizedMessage->AddToken(FTextToken::Create(FText::FromString(AssetLogString)));
+			}
+		}
+	};
+
 	// Now add to map or update as needed
 	for (FAssetData& Data : AssetDataList)
 	{
@@ -227,21 +255,13 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 		EDataValidationResult Result = IsAssetValid(Data, ValidationErrors, ValidationWarnings);
 		++NumFilesChecked;
 
-		for (const FText& ErrorMsg : ValidationErrors)
-		{
-			DataValidationLog.Error()->AddToken(FAssetNameToken::Create(Data.PackageName.ToString()))
-				->AddToken(FTextToken::Create(ErrorMsg));
-		}
+		AddAssetLogTokens(EMessageSeverity::Error, ValidationErrors, Data.PackageName);
 
 		if (ValidationWarnings.Num() > 0)
 		{
 			++NumFilesWithWarnings;
 
-			for (const FText& WarningMsg : ValidationWarnings)
-			{
-				DataValidationLog.Warning()->AddToken(FAssetNameToken::Create(Data.PackageName.ToString()))
-					->AddToken(FTextToken::Create(WarningMsg));
-			}
+			AddAssetLogTokens(EMessageSeverity::Warning, ValidationWarnings, Data.PackageName);
 		}
 
 		if (Result == EDataValidationResult::Valid)
