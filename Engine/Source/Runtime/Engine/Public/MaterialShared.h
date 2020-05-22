@@ -1742,10 +1742,11 @@ public:
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 		GameThreadShaderMap = InMaterialShaderMap;
 
+		TRefCountPtr<FMaterialShaderMap> ShaderMap = GameThreadShaderMap;
 		FMaterial* Material = this;
-		ENQUEUE_RENDER_COMMAND(SetGameThreadShaderMap)([Material](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(SetGameThreadShaderMap)([Material, ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
 		{
-			Material->RenderingThreadShaderMap = Material->GameThreadShaderMap;
+			Material->RenderingThreadShaderMap = MoveTemp(ShaderMap);
 		});
 	}
 
@@ -1756,17 +1757,18 @@ public:
 		bContainsInlineShaders = true;
 		bLoadedCookedShaderMapId = true;
 
+		TRefCountPtr<FMaterialShaderMap> ShaderMap = GameThreadShaderMap;
 		FMaterial* Material = this;
-		ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material, ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
 		{
-			Material->RenderingThreadShaderMap = Material->GameThreadShaderMap;
+			Material->RenderingThreadShaderMap = MoveTemp(ShaderMap);
 		});
 	}
 
 	ENGINE_API class FMaterialShaderMap* GetRenderingThreadShaderMap() const;
 
 	/** Note: SetGameThreadShaderMap must also be called with the same value, but from the game thread. */
-	ENGINE_API void SetRenderingThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap);
+	ENGINE_API void SetRenderingThreadShaderMap(const TRefCountPtr<FMaterialShaderMap>& InMaterialShaderMap);
 
 #if WITH_EDITOR
 	void RemoveOutstandingCompileId(const int32 OldOutstandingCompileShaderMapId )
@@ -1937,7 +1939,7 @@ private:
 	 * Shader map for this material resource which is accessible by the rendering thread. 
 	 * This must be updated along with GameThreadShaderMap, but on the rendering thread.
 	 */
-	FMaterialShaderMap* RenderingThreadShaderMap;
+	TRefCountPtr<FMaterialShaderMap> RenderingThreadShaderMap;
 
 #if WITH_EDITOR
 	/** 
