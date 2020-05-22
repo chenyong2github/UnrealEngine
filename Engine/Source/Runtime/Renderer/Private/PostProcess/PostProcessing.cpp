@@ -453,6 +453,13 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				check(View.ViewState);
 				FTemporalAAHistory& OutputHistory = View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
 				GraphBuilder.QueueTextureExtraction(SceneColor.Texture, &OutputHistory.RT[0]);
+
+				// For SSR, we still fill up the rest of the OutputHistory data using shared math from FTAAPassParameters.
+				FTAAPassParameters TAAInputs(View);
+				TAAInputs.SceneColorInput = SceneColor.Texture;
+				TAAInputs.SetupViewRect(View);
+				OutputHistory.ViewportRect = TAAInputs.OutputViewRect;
+				OutputHistory.ReferenceBufferSize = TAAInputs.GetOutputExtent() * TAAInputs.ResolutionDivisor;
 			}
 		}
 
