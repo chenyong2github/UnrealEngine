@@ -22,7 +22,7 @@ public:
 
 	struct FQueueNode
 	{
-		int id;              // external id
+		int id = -1;         // external id
 
 		float priority;      // the priority of this id
 		int index;           // index in tree data structure (tree is stored as flat array)
@@ -101,6 +101,9 @@ public:
 	/** @return true if id is already in queue */
 	bool Contains(int NodeID) const
 	{
+		if (NodeID > id_to_index.Num() + 1)
+			return false;
+
 		int NodeIndex = id_to_index[NodeID];
 		if (NodeIndex <= 0 || NodeIndex > num_nodes)
 			return false;
@@ -206,7 +209,12 @@ private:
 		// node-is-last-node case
 		if (NodeIndex == num_nodes)
 		{
-			nodes[NodeIndex] = FQueueNode();
+
+			// null id_to_index entry for the node we remove.
+			int id = nodes[num_nodes].id;
+			id_to_index[id] = -1;
+
+			nodes[num_nodes] = FQueueNode();
 			num_nodes--;
 			return;
 		}
@@ -217,8 +225,13 @@ private:
 		//Swap the node with the last node
 		swap_nodes_at_indices(NodeIndex, num_nodes);
 		// after swap, NodeIndex is the one we want to keep, and numNodes is the one we discard
-		nodes[num_nodes] = FQueueNode();
-		num_nodes--;
+		{
+			int id = nodes[num_nodes].id;
+			id_to_index[id] = -1;
+
+			nodes[num_nodes] = FQueueNode();
+			num_nodes--;
+		}
 
 		//Now shift iNode (ie the former last node) up or down as appropriate
 		on_node_updated(NodeIndex);
@@ -272,7 +285,7 @@ private:
 			{
 				break;
 			}
-			move(iParent, iNode);
+			move(iParent, iNode);  
 			iNode = iParent;
 			iParent = nodes[iNode].index / 2;
 		}
@@ -379,6 +392,40 @@ public:
 		}
 		return true;
 	}
+
+	/**
+	 * Check if node ordering is correct (for debugging/testing)
+	 */
+	bool CheckIds()
+	{
+		// check that every valid node is correctly found by id_to_index
+		bool bValidNodesInSycn = true;
+		for (int i = 1; i < num_nodes + 1; ++i)
+		{
+			const FQueueNode& n = nodes[i];
+			int id = n.id;
+			int index = n.index;
+
+			bValidNodesInSycn = bValidNodesInSycn && (index == id_to_index[id]);
+			bValidNodesInSycn = bValidNodesInSycn && (index == i);		
+		}
+
+		// check that id_to_index doesn't believe that none valid nodes exist
+		bool bNoOutOfSyncNodes = true;
+		for (int id = 0; id < id_to_index.Num(); ++id)
+		{
+			
+			if (Contains(id))
+			{
+				int index = id_to_index[id];
+				const FQueueNode& n = nodes[index];
+				bNoOutOfSyncNodes = bNoOutOfSyncNodes && (n.id == id);
+			}
+		}
+
+		return bValidNodesInSycn && bNoOutOfSyncNodes;
+	}
+
 
 	//void DebugPrint() {
 	//	for (int i = 1; i <= num_nodes; ++i)
