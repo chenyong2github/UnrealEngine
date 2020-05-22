@@ -166,7 +166,7 @@ private:
 			RetryQuery--;
 			if (RetryQuery < 0 || Response < 0)
 			{
-				UE_LOG(LogTemp, Log, TEXT("IOS device listing is disabled (too many failed attempts)!"));
+				// disable for a while
 				Enable(false);
 			}
 			return;
