@@ -472,9 +472,18 @@ bool AbcImporterUtilities::GenerateAbcMeshSampleDataForFrame(const Alembic::AbcG
 				auto PropertyHeader = GeomParams.getPropertyHeader(GeomParamIndex);
 				if (Alembic::AbcGeom::IV2fGeomParam::matches(PropertyHeader))
 				{
-					UVSetProperty = Alembic::AbcGeom::IV2fGeomParam(GeomParams, PropertyHeader.getName());
-					ReadUVSetData(UVSetProperty, FrameSelector, Sample->UVs[Sample->NumUVSets], Sample->Indices, bNeedsTriangulation, FaceCounts, Sample->Vertices.Num());
-					++Sample->NumUVSets;
+					if (Sample->NumUVSets < MAX_TEXCOORDS)
+					{
+						UVSetProperty = Alembic::AbcGeom::IV2fGeomParam(GeomParams, PropertyHeader.getName());
+						ReadUVSetData(UVSetProperty, FrameSelector, Sample->UVs[Sample->NumUVSets], Sample->Indices, bNeedsTriangulation, FaceCounts, Sample->Vertices.Num());
+						++Sample->NumUVSets;
+					}
+					else
+					{
+						TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("MaxUVs", "More than 4 UV sets found. The remaining UV sets will be ignored."));
+						FAbcImportLogger::AddImportMessage(Message);
+						break;
+					}
 				}
 			}
 		}
