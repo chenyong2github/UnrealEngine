@@ -2,15 +2,11 @@
 
 using UnrealBuildTool;
 
-public class LinuxServerTargetPlatform : ModuleRules
+public class LinuxAArch64TargetPlatform : ModuleRules
 {
-    public LinuxServerTargetPlatform(ReadOnlyTargetRules Target) : base(Target)
+    public LinuxAArch64TargetPlatform(ReadOnlyTargetRules Target) : base(Target)
     {
-        BinariesSubFolder = "Linux";
-		if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
-		{
-			BinariesSubFolder += "AArch64";
-		}
+        BinariesSubFolder = "LinuxAArch64";
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
@@ -29,12 +25,12 @@ public class LinuxServerTargetPlatform : ModuleRules
             );
 
             PrivateIncludePathModuleNames.Add("TextureCompressor");
-       }
+        }
 
         PrivateIncludePaths.AddRange(
             new string[] {
 				"Developer/Linux/LinuxTargetPlatform/Private"
-		    }
+			}
         );
     }
 }

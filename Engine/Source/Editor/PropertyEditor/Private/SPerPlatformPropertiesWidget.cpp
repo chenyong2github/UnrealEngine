@@ -59,7 +59,7 @@ void SPerPlatformPropertiesWidget::ConstructChildren()
 		TMultiMap<FName, FName> GroupToPlatform;
 						
 		// Create mapping from platform to platform groups and remove postfixes and invalid platform names
-		const TArray<FString> Filters = { TEXT("NoEditor"), TEXT("Client"), TEXT("Server"), TEXT("AllDesktop") };
+		const TArray<FString> Filters = { TEXT("NoEditor"), TEXT("Client"), TEXT("Server") };
 		for (const FName& PlatformName : VanillaPlatformNameArray)
 		{
 			const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);

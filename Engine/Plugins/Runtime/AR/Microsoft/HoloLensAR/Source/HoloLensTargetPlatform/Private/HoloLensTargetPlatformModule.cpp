@@ -13,13 +13,6 @@
 #define LOCTEXT_NAMESPACE "FHoloLensTargetPlatformModule"
 
 
-
-/**
- * Holds the target platform singleton.
- */
-static ITargetPlatform* HoloLensTargetSingleton = nullptr;
-
-
 /**
  * Module for the HoloLens target platform.
  */
@@ -27,33 +20,15 @@ class FHoloLensTargetPlatformModule
 	: public ITargetPlatformModule
 {
 public:
-
-	/** Default constructor. */
-	FHoloLensTargetPlatformModule( )
-	{ }
-
-	/** Destructor. */
-	~FHoloLensTargetPlatformModule( )
+	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-	}
-
-public:
-	
-	// ITargetPlatformModule interface
-	
-	virtual ITargetPlatform* GetTargetPlatform( )
-	{
-		if (HoloLensTargetSingleton == nullptr)
+		if (FHoloLensTargetPlatform::IsUsable())
 		{
 			//@todo HoloLens: Check for SDK?
-
-			HoloLensTargetSingleton = new FHoloLensTargetPlatform();
+			TargetPlatforms.Add(new FHoloLensTargetPlatform());
 		}
-		
-		return HoloLensTargetSingleton;
 	}
 };
-
 
 #undef LOCTEXT_NAMESPACE
 

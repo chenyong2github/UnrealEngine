@@ -72,7 +72,7 @@ struct FLinuxPlatformProperties
 			return IS_AARCH64 ? "LinuxAArch64Client" : "LinuxClient";
 		}
 
-		return IS_AARCH64 ? "LinuxAArch64NoEditor" : "LinuxNoEditor";
+		return IS_AARCH64 ? "LinuxAArch64" : "LinuxNoEditor";
 	}
 
 	static FORCEINLINE bool RequiresCookedData( )

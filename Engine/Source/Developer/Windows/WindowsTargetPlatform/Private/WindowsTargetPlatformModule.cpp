@@ -11,9 +11,6 @@
 #define LOCTEXT_NAMESPACE "FWindowsTargetPlatformModule"
 
 
-/** Holds the target platform singleton. */
-static ITargetPlatform* Singleton = nullptr;
-
 
 /**
  * Implements the Windows target platform module.
@@ -21,14 +18,6 @@ static ITargetPlatform* Singleton = nullptr;
 class FWindowsTargetPlatformModule
 	: public ITargetPlatformModule
 {
-public:
-
-	/** Destructor. */
-	~FWindowsTargetPlatformModule( )
-	{
-		Singleton = nullptr;
-	}
-
 public:
 
 	// this is an example of a hotfix, declared here for no particular reason. Once we have other examples, it can be deleted.
@@ -45,16 +34,28 @@ public:
 
 public:
 
-	// ITargetPlatformModule interface
-
-	virtual ITargetPlatform* GetTargetPlatform( ) override
+	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-		if (Singleton == nullptr && TGenericWindowsTargetPlatform<true, false, false>::IsUsable())
+		// Editor TP
+		if (TGenericWindowsTargetPlatform<true, false, false>::IsUsable())
 		{
-			Singleton = new TGenericWindowsTargetPlatform<true, false, false>();
+			TargetPlatforms.Add(new TGenericWindowsTargetPlatform<true, false, false>());
 		}
-
-		return Singleton;
+		// Server TP
+		if (TGenericWindowsTargetPlatform<false, true, false>::IsUsable())
+		{
+			TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, true, false>());
+		}
+		// NoEditor TP
+		if (TGenericWindowsTargetPlatform<false, false, false>::IsUsable())
+		{
+			TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, false, false>());
+		}
+		// Client TP
+		if (TGenericWindowsTargetPlatform<false, false, true>::IsUsable())
+		{
+			TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, false, true>());
+		}
 	}
 
 public:
@@ -78,8 +79,9 @@ public:
 
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	}
-
+	
 };
+
 
 
 #undef LOCTEXT_NAMESPACE

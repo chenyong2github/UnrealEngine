@@ -262,10 +262,6 @@ public class Engine : ModuleRules
 				DynamicallyLoadedModuleNames.AddRange(
 					new string[] {
 						"WindowsTargetPlatform",
-						"WindowsNoEditorTargetPlatform",
-						"WindowsServerTargetPlatform",
-						"WindowsClientTargetPlatform",
-						"AllDesktopTargetPlatform",
 						"WindowsPlatformEditor",
 					}
 				);
@@ -275,10 +271,6 @@ public class Engine : ModuleRules
 				DynamicallyLoadedModuleNames.AddRange(
 					new string[] {
 						"MacTargetPlatform",
-						"MacNoEditorTargetPlatform",
-						"MacServerTargetPlatform",
-						"MacClientTargetPlatform",
-						"AllDesktopTargetPlatform",
 						"MacPlatformEditor",
 					}
 				);
@@ -288,13 +280,6 @@ public class Engine : ModuleRules
 				DynamicallyLoadedModuleNames.AddRange(
 					new string[] {
 						"LinuxTargetPlatform",
-						"LinuxNoEditorTargetPlatform",
-						"LinuxAArch64NoEditorTargetPlatform",
-						"LinuxServerTargetPlatform",
-						"LinuxAArch64ServerTargetPlatform",
-						"LinuxClientTargetPlatform",
-						"LinuxAArch64ClientTargetPlatform",
-						"AllDesktopTargetPlatform",
 						"LinuxPlatformEditor",
 					}
 				);

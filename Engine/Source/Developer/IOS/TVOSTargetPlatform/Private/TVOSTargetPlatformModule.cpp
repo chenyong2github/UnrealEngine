@@ -12,42 +12,16 @@ class FTVOSTargetPlatformModule	: public ITargetPlatformModule
 {
 public:
 
-	/**
-	 * Destructor.
-	 */
-	~FTVOSTargetPlatformModule()
+	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-		for (ITargetPlatform* TP : TargetPlatforms)
-		{
-			delete TP;
-		}
-		TargetPlatforms.Empty();
-	}
-
-	//~ ITargetPlatformModule interface
-
-	virtual TArray<ITargetPlatform*> GetTargetPlatforms() override
-	{
-		if (TargetPlatforms.Num() == 0 && FIOSTargetPlatform::IsUsable())
+		if (FIOSTargetPlatform::IsUsable())
 		{
 			// add Game and Client TPs
 			TargetPlatforms.Add(new FIOSTargetPlatform(true, true));
 			TargetPlatforms.Add(new FIOSTargetPlatform(true, false));
 		}
-
-		return TargetPlatforms;
 	}
 
-public:
-
-	//~ IModuleInterface interface
-
-	virtual void StartupModule() override { }
-	virtual void ShutdownModule() override { }
-
-protected:
-	/** Holds the target platforms. */
-	TArray<ITargetPlatform*> TargetPlatforms;
 };
 
 

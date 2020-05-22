@@ -352,7 +352,7 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			if ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64))
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				if (!Target.bBuildRequiresCookedData)
 				{
@@ -361,12 +361,7 @@ namespace UnrealBuildTool
 						if (Target.bBuildDeveloperTools)
 						{
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
-							Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
-							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
-							Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
-							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ClientTargetPlatform");
-							Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
-							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ServerTargetPlatform");
+							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64TargetPlatform");
 						}
 					}
 				}
@@ -375,12 +370,7 @@ namespace UnrealBuildTool
 				if (Target.bForceBuildTargetPlatforms && ModuleName == "TargetPlatform")
 				{
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ClientTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ServerTargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64TargetPlatform");
 				}
 			}
 		}
@@ -410,13 +400,7 @@ namespace UnrealBuildTool
 				if (Target.bForceBuildTargetPlatforms)
 				{
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ClientTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64ServerTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("AllDesktopTargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64TargetPlatform");
 				}
 
 				if (bBuildShaderFormats)

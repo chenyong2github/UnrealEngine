@@ -17,11 +17,6 @@
 #define LOCTEXT_NAMESPACE "FLinuxTargetPlatformModule"
 
 
-/**
- * Holds the target platform singleton.
- */
-static ITargetPlatform* Singleton = NULL;
-
 
 /**
  * Module for the Linux target platform.
@@ -30,25 +25,28 @@ class FLinuxTargetPlatformModule
 	: public ITargetPlatformModule
 {
 public:
-
-	/** Destructor. */
-	~FLinuxTargetPlatformModule( )
+	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-		Singleton = NULL;
-	}
-
-public:
-	
-	// ITargetPlatformModule interface
-
-	virtual ITargetPlatform* GetTargetPlatform( ) override
-	{
-		if (Singleton == NULL && TLinuxTargetPlatform<FLinuxPlatformProperties<true, false, false, false> >::IsUsable())
+		// Editor TP
+		if (TLinuxTargetPlatform<FLinuxPlatformProperties<true, false, false, false> >::IsUsable())
 		{
-			Singleton = new TLinuxTargetPlatform<FLinuxPlatformProperties<true, false, false, false> >();
+			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<true, false, false, false> >());
 		}
-		
-		return Singleton;
+		// Server TP
+		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, false> >::IsUsable())
+		{
+			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, false> >());
+		}
+		// NoEditor TP
+		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, false> >::IsUsable())
+		{
+			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, false> >());
+		}
+		// Client TP
+		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, false> >::IsUsable())
+		{
+			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, false> >());
+		}
 	}
 
 public:

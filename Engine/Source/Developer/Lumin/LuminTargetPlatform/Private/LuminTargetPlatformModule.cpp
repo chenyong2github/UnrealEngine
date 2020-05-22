@@ -13,50 +13,14 @@ class FLuminTargetPlatformModule : public ITargetPlatformModule
 {
 public:
 
-	/**
-	 * Destructor.
-	 */
-	virtual ~FLuminTargetPlatformModule( )
+	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-		for (ITargetPlatform* TP : TargetPlatforms)
-		{
-			delete TP;
-		}
-		TargetPlatforms.Empty();
-	}
-
-
-public:
-	
-	// Begin ITargetPlatformModule interface
-
-	virtual TArray<ITargetPlatform*> GetTargetPlatforms() override
-	{
-		if (TargetPlatforms.Num() == 0 && FLuminTargetPlatform::IsUsable())
+		if (FLuminTargetPlatform::IsUsable())
 		{
 			TargetPlatforms.Add(new FLuminTargetPlatform(false));
 			TargetPlatforms.Add(new FLuminTargetPlatform(true));
 		}
-		
-		return TargetPlatforms;
 	}
-
-	// End ITargetPlatformModule interface
-
-public:
-	// Begin IModuleInterface interface
-	virtual void StartupModule() override
-	{
-	}
-
-	virtual void ShutdownModule() override
-	{
-	}
-	// End IModuleInterface interface
-
-private:
-	/** Holds the target platforms. */
-	TArray<ITargetPlatform*> TargetPlatforms;
 };
 
 

@@ -20,27 +20,9 @@ class FAndroidTargetPlatformModule : public IAndroidTargetPlatformModule
 {
 public:
 
-	/**
-	 * Destructor.
-	 */
-	~FAndroidTargetPlatformModule( )
+	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-		for (ITargetPlatform* TP : TargetPlatforms)
-		{
-			delete TP;
-		}
-		TargetPlatforms.Empty();
-		MultiPlatforms.Empty();
-	}
-
-
-public:
-	
-	// Begin ITargetPlatformModule interface
-
-	virtual TArray<ITargetPlatform*> GetTargetPlatforms() override
-	{
-		if (TargetPlatforms.Num() == 0 && FAndroidTargetPlatform::IsUsable())
+		if (FAndroidTargetPlatform::IsUsable())
 		{
 			for (int32 Type = 0; Type < 2; Type++)
 			{
@@ -61,8 +43,6 @@ public:
 			// set up the multi platforms now that we have all the other platforms ready to go
 			NotifyMultiSelectedFormatsChanged();
 		}
-
-		return TargetPlatforms;
 	}
 
 
@@ -75,18 +55,10 @@ public:
 		// @todo multi needs to be passed this event!
 	}
 
-	// End ITargetPlatformModule interface
-
-public:
-	// Begin IModuleInterface interface
-	virtual void StartupModule() override { }
-	virtual void ShutdownModule() override { }
-	// End IModuleInterface interface
 
 private:
 
-	/** Holds the target platforms. */
-	TArray<ITargetPlatform*> TargetPlatforms;
+	/** Holds the specific types of target platforms for NotifyMultiSelectedFormatsChanged */
 	TArray<FAndroidTargetPlatform*> SinglePlatforms;
 	TArray<FAndroid_MultiTargetPlatform*> MultiPlatforms;
 };

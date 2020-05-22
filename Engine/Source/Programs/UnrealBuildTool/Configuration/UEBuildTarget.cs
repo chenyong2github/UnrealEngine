@@ -258,11 +258,6 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform LinuxAArch64 = FindOrAddByName("LinuxAArch64");
 
 		/// <summary>
-		/// All desktop platforms
-		/// </summary>
-		public static UnrealTargetPlatform AllDesktop = FindOrAddByName("AllDesktop");
-
-		/// <summary>
 		/// TVOS
 		/// </summary>
 		public static UnrealTargetPlatform TVOS = FindOrAddByName("TVOS");
@@ -532,11 +527,6 @@ namespace UnrealBuildTool
 		/// XboxCommon group
 		/// </summary>
 		public static UnrealPlatformGroup XboxCommon = FindOrAddByName("XboxCommon");
-
-		/// <summary>
-		/// Target all desktop platforms (Win64, Mac, Linux) simultaneously
-		/// </summary>
-		public static UnrealPlatformGroup AllDesktop = FindOrAddByName("AllDesktop");
 
 		/// <summary>
 		/// Desktop group - used by UnrealPlatformClass.Desktop

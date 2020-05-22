@@ -13,11 +13,6 @@
 #define LOCTEXT_NAMESPACE "FMacTargetPlatformModule"
 
 
-/**
- * Holds the target platform singleton.
- */
-static ITargetPlatform* Singleton = NULL;
-
 
 /**
  * Module for Mac as a target platform
@@ -27,30 +22,29 @@ class FMacTargetPlatformModule
 {
 public:
 
-	/**
-	 * Destructor.
-	 */
-	~FMacTargetPlatformModule()
+	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-		Singleton = NULL;
-	}
-
-
-public:
-
-	// Begin ITargetPlatformModule interface
-
-	virtual ITargetPlatform* GetTargetPlatform() override
-	{
-		if (Singleton == NULL && TGenericMacTargetPlatform<true, false, false>::IsUsable())
+		// Editor TP
+		if (TGenericMacTargetPlatform<true, false, false>::IsUsable())
 		{
-			Singleton = new TGenericMacTargetPlatform<true, false, false>();
+			TargetPlatforms.Add(new TGenericMacTargetPlatform<true, false, false>());
 		}
-
-		return Singleton;
+		// Server TP
+		if (TGenericMacTargetPlatform<false, true, false>::IsUsable())
+		{
+			TargetPlatforms.Add(new TGenericMacTargetPlatform<false, true, false>());
+		}
+		// NoEditor TP
+		if (TGenericMacTargetPlatform<false, false, false>::IsUsable())
+		{
+			TargetPlatforms.Add(new TGenericMacTargetPlatform<false, false, false>());
+		}
+		// Client TP
+		if (TGenericMacTargetPlatform<false, false, true>::IsUsable())
+		{
+			TargetPlatforms.Add(new TGenericMacTargetPlatform<false, false, true>());
+		}
 	}
-
-	// End ITargetPlatformModule interface
 
 
 public:

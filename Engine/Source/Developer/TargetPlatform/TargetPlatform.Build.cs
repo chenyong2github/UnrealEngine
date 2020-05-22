@@ -60,9 +60,6 @@ public class TargetPlatform : ModuleRules
 					DynamicallyLoadedModuleNames.Add("IOSTargetPlatform");
 					DynamicallyLoadedModuleNames.Add("TVOSTargetPlatform");
 					DynamicallyLoadedModuleNames.Add("MacTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("MacNoEditorTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("MacServerTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("MacClientTargetPlatform");
 				}
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
