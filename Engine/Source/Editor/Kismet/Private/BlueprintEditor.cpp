@@ -5723,6 +5723,40 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 			K2Schema->ReconstructNode(*NewEventNode);
 		}
 		
+		// If this function had any local scope variables, we need to convert them to global scope
+		if(SelectedCallFunctionNode->LocalVariables.Num() > 0)
+		{
+			// Find any UK2Node_Variable's that may reference a local variable
+			TArray<UK2Node_Variable*> VarNodes;
+			FunctionGraph->GetNodesOfClass<UK2Node_Variable>(VarNodes);
+
+			// Make a globally scoped version of any local variables
+			for (const FBPVariableDescription& LocalVar : SelectedCallFunctionNode->LocalVariables)
+			{
+				// If a variable already exists of this name globally, then we need to use a unique name
+				// Only use FindUniqueKismetName if one exists because otherwise it will always add a "_0" to the name
+				FName NewVarName = FBlueprintEditorUtils::FindNewVariableIndex(NodeBP, LocalVar.VarName) == INDEX_NONE ?
+					LocalVar.VarName : FBlueprintEditorUtils::FindUniqueKismetName(NodeBP, LocalVar.VarName.ToString());
+
+				if (FBlueprintEditorUtils::AddMemberVariable(NodeBP, NewVarName, LocalVar.VarType, LocalVar.DefaultValue))
+				{
+					// Upon success, update the variable node's reference members
+					const FGuid NewVarGuid = FBlueprintEditorUtils::FindMemberVariableGuidByName(NodeBP, NewVarName);
+
+					for (UK2Node_Variable* VarNode : VarNodes)
+					{
+						if (VarNode->GetVarName() == LocalVar.VarName)
+						{
+							VarNode->Modify();
+							VarNode->VariableReference.SetDirect(NewVarName, NewVarGuid, nullptr, true);
+							// Need to reconstruct the node here to update the displayed variable name
+							K2Schema->ReconstructNode(*VarNode);
+						}
+					}
+				}
+			}
+		}
+
 		// Keep track of any nodes that have been expanded out of the function graph
 		TSet<UEdGraphNode*> ExpandedNodes;
 
