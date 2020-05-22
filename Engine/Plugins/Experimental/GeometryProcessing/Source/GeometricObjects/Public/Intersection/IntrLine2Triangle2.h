@@ -182,13 +182,12 @@ public:
 
 		// Compute transverse intersections of Triangle edges with Line.
 		double numer, denom;
-		int i0, i1, i2;
+		int i0, i1;
 		int quantity = 0;
 		for (i0 = 2, i1 = 0; i1 < 3; i0 = i1++)
 		{
 			if (Sign[i0] * Sign[i1] < 0)
 			{
-				checkf(quantity < 2, TEXT("TIntrLine2Triangle2.GetInterval: too many intersections!")); // TODO: can this happen?
 				numer = Dist[i0] * proj[i1] - Dist[i1] * proj[i0];
 				denom = Dist[i0] - Dist[i1];
 				param[quantity++] = numer / denom;
@@ -198,12 +197,32 @@ public:
 		// Check for grazing contact.
 		if (quantity < 2)
 		{
-			for (i0 = 1, i1 = 2, i2 = 0; i2 < 3; i0 = i1, i1 = i2++)
+			for (i = 0; i < 3; i++)
 			{
-				if (Sign[i2] == 0)
+				if (Sign[i] == 0)
 				{
-					checkf(quantity < 2, TEXT("TIntrLine2Triangle2.GetInterval: too many intersections!")); // TODO: can this happen?
-					param[quantity++] = proj[i2];
+					if (quantity == 2) // all sign==0 case
+					{
+						// Sort
+						if (param[0] > param[1])
+						{
+							Swap(param[0], param[1]);
+						}
+						// Expand range as needed with new param
+						double extraparam = proj[i];
+						if (extraparam < param[0])
+						{
+							param[0] = extraparam;
+						}
+						else if (extraparam > param[1])
+						{
+							param[1] = extraparam;
+						}
+					}
+					else
+					{
+						param[quantity++] = proj[i];
+					}
 				}
 			}
 		}
