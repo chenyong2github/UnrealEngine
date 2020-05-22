@@ -956,7 +956,7 @@ void FBodyInstance::UpdatePhysicsFilterData()
 			}
 
 			const bool bInstanceComplexAsSimple = BI->BodySetup.IsValid() ? (BI->BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple) : false;
-			if (SetupShapeIndex < BI->BodySetup->AggGeom.GetElementCount())
+			if (BI->BodySetup.IsValid() && SetupShapeIndex < BI->BodySetup->AggGeom.GetElementCount())
 			{
 				// Get the shape's CollisionEnabled masked with the body's CollisionEnabled and compute the shape's collisionflags.
 				const ECollisionEnabled::Type FilteredShapeCollision = CollisionEnabledIntersection(BI->GetCollisionEnabled(), BI->GetShapeCollisionEnabled(SetupShapeIndex));
