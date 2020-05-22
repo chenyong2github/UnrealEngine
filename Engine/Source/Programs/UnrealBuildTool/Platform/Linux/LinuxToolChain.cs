@@ -51,6 +51,12 @@ namespace UnrealBuildTool
 		/// Enable Shared library for the Sanitizers otherwise defaults to Statically linked
 		/// </summary>
 		EnableSharedSanitizer = 0x20,
+
+		/// <summary>
+		/// If should disable using objcopy to split the debug info into its own file or now
+		/// When we support larger the 4GB files with objcopy.exe this can be removed!
+		/// </summary>
+		DisableSplitDebugInfoWithObjCopy = 0x40,
 	}
 
 	class LinuxToolChain : ISPCToolChain
@@ -276,7 +282,7 @@ namespace UnrealBuildTool
 				EncodedBinarySymbolsFile.AbsolutePath
 			);
 
-			if (LinkEnvironment.bCreateDebugInfo)
+			if (!Options.HasFlag(LinuxToolChainOptions.DisableSplitDebugInfoWithObjCopy) && LinkEnvironment.bCreateDebugInfo)
 			{
 				if (MaxBinarySizeOverrideForObjcopy > 0 && bUseCmdExe)
 				{
