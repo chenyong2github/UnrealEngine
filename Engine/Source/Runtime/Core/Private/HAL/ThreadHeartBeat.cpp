@@ -366,7 +366,7 @@ void FThreadHeartBeat::InitSettings()
 
 	// Default to 25 seconds if not overridden in config.
 	double NewHangDuration = 25.0;
-	double NewPresentDuration = 0.0;
+	double NewPresentDuration = 25.0;
 	bool bNewHangsAreFatal = !!(UE_ASSERT_ON_HANG);
 
 	if (GConfig)
