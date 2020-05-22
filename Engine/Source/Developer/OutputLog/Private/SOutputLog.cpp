@@ -627,6 +627,12 @@ FReply SConsoleInputBox::OnKeyCharHandler(const FGeometry& MyGeometry, const FCh
 		return FReply::Handled();
 	}
 
+	if (InCharacterEvent.GetModifierKeys().AnyModifiersDown() && InCharacterEvent.GetCharacter() == ' ')
+	{	
+		// Ignore space bar + a modifier key.  It should not type a space as this is used by other keyboard shortcuts
+		return FReply::Handled();
+	}
+
 	FInputChord OpenConsoleChord;
 	if (ActiveCommandExecutor && ActiveCommandExecutor->AllowHotKeyClose())
 	{

@@ -277,6 +277,14 @@ public:
 		return AllModifersDown;
 	}
 
+	/**
+	 * @return true if any modifier key is down
+	 */
+	bool AnyModifiersDown() const
+	{
+		return IsControlDown() || IsCommandDown() || IsShiftDown() || IsAltDown();
+	}
+
 private:
 
 	/** True if the left shift key was down when this event occurred. */
