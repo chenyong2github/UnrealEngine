@@ -6,6 +6,7 @@
 #include "TraceSourceFilteringSettings.h"
 #include "SourceFilterTrace.h"
 #include "TraceWorldFiltering.h"
+#include "Misc/CommandLine.h"
 
 #include "TraceSourceFilteringProjectSettings.h"
 
