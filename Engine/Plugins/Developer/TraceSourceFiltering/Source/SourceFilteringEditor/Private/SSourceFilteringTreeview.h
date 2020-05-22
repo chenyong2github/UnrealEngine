@@ -20,6 +20,7 @@ protected:
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual int32 GetNumItemsBeingObserved() const override;
 	/** End STreeView<TSharedPtr<IFilterObject>> overrides */
 
 protected:
