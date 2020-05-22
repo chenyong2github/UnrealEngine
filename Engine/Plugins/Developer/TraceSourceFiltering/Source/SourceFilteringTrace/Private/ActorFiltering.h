@@ -125,7 +125,7 @@ public:
 #if !WITH_EDITOR
 			TArray<UClass*> DerivedClasses;
 			GetDerivedClasses(AActor::StaticClass(), DerivedClasses, true);
-			AllFilteredClasses.Append(DerrivedClasses);
+			AllFilteredClasses.Append(DerivedClasses);
 #endif
 		}
 
