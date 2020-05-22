@@ -28,6 +28,26 @@ FText FFilterObject::GetDisplayText() const
 	if (GetFilter())
 	{
 		WeakInterface->Execute_GetDisplayText(WeakInterface.GetObject(), Text);
+
+		const FDataSourceFilterConfiguration& Configuration = WeakInterface->GetConfiguration();
+		FText PrefixText;
+		FText PostFixText;
+		
+		if (Configuration.bOnlyApplyDuringActorSpawn)
+		{
+			PrefixText = LOCTEXT("OnSpawnLabel", "OnSpawn: ");
+		}
+		else if (Configuration.bCanRunAsynchronously)
+		{
+			PrefixText = LOCTEXT("AsyncLabel", "Asynchronously: ");
+		}
+
+		if (Configuration.FilterApplyingTickInterval != 1)
+		{
+			PostFixText = FText::Format(LOCTEXT("PostFixConfigurationTextFormat", " [Applied every {0} frames]"), { FText::FromString(FString::FromInt(Configuration.FilterApplyingTickInterval)) });
+		}
+
+		Text = FText::Format(LOCTEXT("DisplayTextFormat", "{0}{1}{2}"), { PrefixText, Text, PostFixText } );
 	}
 	return Text;
 }
