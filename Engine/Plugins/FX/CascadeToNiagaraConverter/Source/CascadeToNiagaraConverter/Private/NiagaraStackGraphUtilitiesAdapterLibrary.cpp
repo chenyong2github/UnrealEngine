@@ -8,7 +8,6 @@
 #include "NiagaraEditorUtilities.h"
 #include "Particles/ParticleSystem.h"
 #include "Particles/Spawn/ParticleModuleSpawn.h"
-#include "Particles/ParticleModuleRequired.h"
 #include "Particles/ParticleLODLevel.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraClipboard.h"
