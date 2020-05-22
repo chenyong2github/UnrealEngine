@@ -111,20 +111,22 @@ public:
 				AllFilteredClasses.Add(FilteredClass.ActorClass.TryLoadClass<AActor>());
 				if (FilteredClass.bIncludeDerivedClasses)
 				{
-					TArray<UClass*> DerrivedClasses;
-					GetDerivedClasses(FilteredClass.ActorClass.TryLoadClass<AActor>(), DerrivedClasses, true);
+					TArray<UClass*> DerivedClasses;
+					GetDerivedClasses(FilteredClass.ActorClass.TryLoadClass<AActor>(), DerivedClasses, true);
 
-					AllFilteredClasses.Append(DerrivedClasses);
+					AllFilteredClasses.Append(DerivedClasses);
 				}
 			}
 		}
 		else
 		{
-			// In case there are not actor classes provided we use AActor and any derived class instead (heavy)
+			// In case there are not actor classes provided we use AActor and any derived class instead (heavy so non-editor only)
 			AllFilteredClasses.Add(AActor::StaticClass());
-			TArray<UClass*> DerrivedClasses;
-			GetDerivedClasses(AActor::StaticClass(), DerrivedClasses, true);
+#if !WITH_EDITOR
+			TArray<UClass*> DerivedClasses;
+			GetDerivedClasses(AActor::StaticClass(), DerivedClasses, true);
 			AllFilteredClasses.Append(DerrivedClasses);
+#endif
 		}
 
 	}
@@ -133,6 +135,36 @@ public:
 	void CollectActors()
 	{
 		ActorArray.Reset();
+
+#if WITH_EDITOR
+		// Same behaviour as FActorIteratorState to reduce editor load
+		if (AllFilteredClasses.Num() == 1 && AllFilteredClasses[0] == AActor::StaticClass())
+		{
+			// First determine the number of actors in the world to reduce reallocations when we append them to the array below.
+			int32 TotalNumActors = 0;
+			for (ULevel* Level : CurrentWorld->GetLevels())
+			{
+				if (Level)
+				{
+					TotalNumActors += Level->Actors.Num();
+				}
+			}
+
+			// Presize the array
+			ActorArray.Reserve(TotalNumActors);
+
+			// Fill the array
+			for (ULevel* Level : CurrentWorld->GetLevels())
+			{
+				if (Level)
+				{
+					ActorArray.Append(Level->Actors);
+				}
+			}
+
+			return;
+		}
+#endif 
 
 		/** Ignore CDOs and objects marked as pending kill */
 		EObjectFlags ExcludeFlags = RF_ClassDefaultObject;
