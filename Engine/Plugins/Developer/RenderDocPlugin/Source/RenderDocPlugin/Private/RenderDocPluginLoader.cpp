@@ -90,12 +90,22 @@ void FRenderDocPluginLoader::Initialize()
 	RenderDocDLL = nullptr;
 	RenderDocAPI = nullptr;
 
+	if (FApp::IsUnattended())
+	{
+		IConsoleVariable* CVarAutomationAllowFrameTraceCapture = IConsoleManager::Get().FindConsoleVariable(TEXT("AutomationAllowFrameTraceCapture"), false);
+		if (!CVarAutomationAllowFrameTraceCapture || CVarAutomationAllowFrameTraceCapture->GetInt() == 0)
+		{
+			UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because AutomationAllowFrameTraceCapture cvar is set to 0."));
+			return;
+		}
+	}
+
 	if (GUsingNullRHI)
 	{
 		// THIS WILL NEVER TRIGGER because of a sort of chicken-and-egg problem: RenderDoc Loader is a PostConfigInit
 		// plugin, and GUsingNullRHI is only initialized properly between PostConfigInit and PreLoadingScreen phases.
 		// (nevertheless, keep this comment around for future iterations of UE4)
-		UE_LOG(RenderDocPlugin, Display, TEXT("this plugin will not be loaded because a null RHI (Cook Server, perhaps) is being used."));
+		UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because a null RHI (Cook Server, perhaps) is being used."));
 		return;
 	}
 	
