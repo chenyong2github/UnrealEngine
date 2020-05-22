@@ -24,6 +24,7 @@ public:
 	virtual ~FNiagaraUserRedirectionParameterStore() = default;
 
 	void RecreateRedirections();
+	FNiagaraVariableBase FindRedirection(const FNiagaraVariableBase& InVar) const;
 
 	/** Get the list of FNiagaraVariables that are exposed to the user. Note that the values will be stale and are not to be trusted directly. Get the Values using the offset specified by IndexOf or GetParameterValue.*/
 	FORCEINLINE void GetUserParameters(TArray<FNiagaraVariable>& OutParameters) const { return UserParameterRedirects.GenerateKeyArray(OutParameters); }
