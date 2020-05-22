@@ -63,6 +63,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance,
 	FString Arguments(::GetCommandLineW());
 	if (Arguments.Contains(TEXT("-MONITOR=")) && !Arguments.Contains(TEXT("-RespawnedInstance")))
 	{
+		uint64 ChildPipe = 0;
+		FParse::Value(GetCommandLineW(), TEXT("-READ="), ChildPipe);
+
 		// Parse the process ID of the Editor that spawned this CRC.
 		uint32 MonitoredEditorPid = 0;
 		if (FParse::Value(GetCommandLineW(), TEXT("-MONITOR="), MonitoredEditorPid))
@@ -82,7 +85,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance,
 				true, false, false,
 				&RespawnPid, 0,
 				nullptr,
-				nullptr,
+				reinterpret_cast<void*>(ChildPipe), // Ensure the child process inherit this pipe handle that was previously inherited from its parent.
 				nullptr);
 
 			if (Handle.IsValid())
