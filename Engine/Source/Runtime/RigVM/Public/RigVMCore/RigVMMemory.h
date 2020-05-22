@@ -75,6 +75,13 @@ public:
 	// returns the index of the register of this argument
 	FORCEINLINE int32 GetRegisterOffset() const { return RegisterOffset == UINT16_MAX ? INDEX_NONE : (int32)RegisterOffset; }
 
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMOperand& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+
 private:
 
 	UPROPERTY()

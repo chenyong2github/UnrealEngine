@@ -114,6 +114,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// A single water exclusion volume can now exclude N water bodies
 		SupportMultipleWaterBodiesPerExclusionVolume,
 
+		// Serialize rigvm operators one by one instead of the full byte code array to ensure determinism
+		RigVMByteCodeDeterminism,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
