@@ -1738,7 +1738,7 @@ void CutWithPlanarCellsHelper(
 			if (bNoiseOnPlane)
 			{
 				const FNoiseSettings& Noise = InternalMaterials->NoiseSettings.GetValue();
-				const float MinPointSpacing = .1;
+				const float MinPointSpacing = .1 * float(ScaleF) * AverageGlobalScaleInv;
 				float PointSpacing = FMath::Max(MinPointSpacing, Noise.PointSpacing*float(ScaleF) * AverageGlobalScaleInv);
 
 				// make a new point hash for blue noise point location queries
