@@ -67,6 +67,6 @@ public class ExtractPaks : BuildCommand
 			}
 		}
 
-		PackageUtils.ExtractPakFiles(ProjectFile, SourceDirectoryInfo, TargetDirectory, CryptoKeysFile, ExtraArgs, bLayered);
+		PackageUtils.ExtractPakFiles(SourceDirectoryInfo, TargetDirectory, CryptoKeysFile, ExtraArgs, bLayered, ProjectFile);
 	}
 }
