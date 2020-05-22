@@ -37,3 +37,11 @@ enum EDMUniverseDirection
 
 
 #define DMX_K2_CATEGORY_NAME "DMX"
+
+namespace DMXJsonFieldNames
+{
+	const FString DMXPortID(TEXT("PortID"));
+	const FString DMXUniverseID(TEXT("UniverseID"));
+	const FString DMXEthernetPort(TEXT("EthernetPort"));
+	const FString DMXIpAddress(TEXT("IpAddress"));
+}

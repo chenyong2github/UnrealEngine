@@ -4,8 +4,13 @@
 
 #include "USDLog.h"
 #include "USDMemory.h"
+#include "USDProjectSettings.h"
+
+#include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "Internationalization/Regex.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "UnrealUSDWrapper"
@@ -89,7 +94,7 @@ void Log(const char* Format, ...)
 
 	GET_VARARGS_ANSI(TempStr, TempStrSize, TempStrSize - 1, Format, Format);
 
-	UE_LOG(LogTemp, Log, TEXT("%hs"), TempStr);
+	UE_LOG(LogUsd, Log, TEXT("%hs"), TempStr);
 }
 
 
@@ -659,27 +664,27 @@ std::string IUsdPrim::GetUnrealPropertyPath(const pxr::UsdPrim& Prim)
 	return {};
 }
 
-TUsdStore< std::vector<UsdAttribute> > PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
+TArray< UE::FUsdAttribute > PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
 {
 	FScopedUsdAllocs UsdAllocs;
 
 	std::vector<UsdAttribute> Attributes = Prim.GetAttributes();
 
-	std::vector<UsdAttribute> OutAttributes;
-	OutAttributes.reserve(Attributes.size());
+	TArray<UE::FUsdAttribute> OutAttributes;
+	OutAttributes.Reserve(Attributes.size());
 
 	for (UsdAttribute& Attr : Attributes)
 	{
 		if (ByMetadata.IsEmpty() || Attr.HasCustomDataKey(ByMetadata))
 		{
-			OutAttributes.push_back(Attr);
+			OutAttributes.Emplace( Attr);
 		}
 	}
 
 	return OutAttributes;
 }
 
-TUsdStore< std::vector<UsdAttribute> > IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
+TArray< UE::FUsdAttribute > IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
 {
 	return PrivateGetAttributes(Prim, UnrealIdentifiers::PropertyPath);
 }
@@ -942,7 +947,8 @@ EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mes
 }
 #endif // USE_USD_SDK
 
-
+FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPreUsdImport;
+FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPostUsdImport;
 
 DEFINE_LOG_CATEGORY( LogUsd );
 
@@ -991,43 +997,10 @@ class FUsdDiagnosticDelegate { };
 #endif // USE_USD_SDK
 
 TUniquePtr<FUsdDiagnosticDelegate> UnrealUSDWrapper::Delegate = nullptr;
+
 #if USE_USD_SDK
-bool UnrealUSDWrapper::bInitialized = false;
-
-void UnrealUSDWrapper::Initialize( const TArray< FString >& InPluginDirectories )
-{
-	{
-		TArray< FTCHARToUTF8 > ConvertedStrings;
-
-		for ( const FString& PluginDirectory : InPluginDirectories )
-		{
-			ConvertedStrings.Emplace( *PluginDirectory, PluginDirectory.Len() );
-		}
-
-		{
-			FScopedUsdAllocs UsdAllocs;
-
-			std::vector< std::string > UsdPluginDirectories;
-
-			for ( const FTCHARToUTF8& ConvertedString : ConvertedStrings )
-			{
-				UsdPluginDirectories.emplace_back( ConvertedString.Get(), ConvertedString.Length() );
-			}
-
-			PlugRegistry::GetInstance().RegisterPlugins( UsdPluginDirectories );
-		}
-	}
-
-	bInitialized = true;
-}
-
 TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::OpenUsdStage(const char* Path, const char* Filename)
 {
-	if (!bInitialized)
-	{
-		return {};
-	}
-
 	bool bImportedSuccessfully = false;
 
 	string PathAndFilename = string(Path) + string(Filename);
@@ -1036,7 +1009,7 @@ TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::OpenUsdStage(const char* Path
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdStageCacheContext UsdStageCacheContext( GetUsdStageCache() );
+	pxr::UsdStageCacheContext UsdStageCacheContext( pxr::UsdUtilsStageCache::Get() );
 	UsdStageRefPtr Stage = UsdStage::Open(PathAndFilename);
 
 	return Stage;
@@ -1046,12 +1019,67 @@ double UnrealUSDWrapper::GetDefaultTimeCode()
 {
 	return UsdTimeCode::Default().GetValue();
 }
-
-pxr::UsdStageCache& UnrealUSDWrapper::GetUsdStageCache()
-{
-	return pxr::UsdUtilsStageCache::Get();
-}
 #endif // USE_USD_SDK
+
+UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	if ( bUseStageCache )
+	{
+		pxr::UsdStageCacheContext UsdStageCacheContext( pxr::UsdUtilsStageCache::Get() );
+		return UE::FUsdStage( pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) ) );
+	}
+	else
+	{
+		return UE::FUsdStage( pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) ) );
+	}
+#else
+	return UE::FUsdStage();
+#endif // #if USE_USD_SDK
+}
+
+UE::FUsdStage UnrealUSDWrapper::NewStage( const TCHAR* FilePath )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	UE::FUsdStage UsdStage( pxr::UsdStage::CreateNew( TCHAR_TO_ANSI( FilePath ) ) );
+
+	if ( !UsdStage )
+	{
+		return UsdStage;
+	}
+
+	pxr::UsdGeomSetStageUpAxis( UsdStage, pxr::UsdGeomTokens->z );
+
+	return UsdStage;
+#else
+	return UE::FUsdStage();
+#endif // #if USE_USD_SDK
+}
+
+TArray< UE::FUsdStage > UnrealUSDWrapper::GetAllStagesFromCache()
+{
+	TArray< UE::FUsdStage > StagesInCache;
+
+#if USE_USD_SDK
+	for ( const pxr::UsdStageRefPtr& StageInCache : pxr::UsdUtilsStageCache::Get().GetAllStages() )
+	{
+		StagesInCache.Emplace( StageInCache );
+	}
+#endif // #if USE_USD_SDK
+
+	return StagesInCache;
+}
+
+void UnrealUSDWrapper::EraseStageFromCache( const UE::FUsdStage& Stage )
+{
+#if USE_USD_SDK
+	pxr::UsdUtilsStageCache::Get().Erase( Stage );
+#endif // #if USE_USD_SDK
+}
 
 void UnrealUSDWrapper::SetupDiagnosticDelegate()
 {
@@ -1090,6 +1118,36 @@ class FUnrealUSDWrapperModule : public IUnrealUSDWrapperModule
 public:
 	virtual void StartupModule() override
 	{
+#if USE_USD_SDK
+		// Path to USD base plugins
+		FString BasePluginPath = FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir() + FString(TEXT("Importers/USDImporter")));
+#if PLATFORM_WINDOWS
+		BasePluginPath /= TEXT("Resources/UsdResources/Windows/plugins");
+#elif PLATFORM_LINUX
+		BasePluginPath /= ("Resources/UsdResources/Linux/plugins");
+#elif PLATFORM_MAC
+		BasePluginPath /= ("Resources/UsdResources/Mac/plugins");
+#endif
+
+		{
+			FScopedUsdAllocs UsdAllocs;
+			std::vector< std::string > UsdPluginDirectories;
+
+			UsdPluginDirectories.push_back(TCHAR_TO_UTF8(*BasePluginPath));
+
+			// Fetch additional USD plugins the user may have set
+			for (const FDirectoryPath& Directory : GetDefault<UUsdProjectSettings>()->AdditionalPluginDirectories)
+			{
+				if (!Directory.Path.IsEmpty())
+				{
+					UsdPluginDirectories.push_back(TCHAR_TO_UTF8(*Directory.Path));
+				}
+			}
+
+			PlugRegistry::GetInstance().RegisterPlugins(UsdPluginDirectories);
+		}
+#endif // USE_USD_SDK
+
 		FUsdMemoryManager::Initialize();
 		UnrealUSDWrapper::SetupDiagnosticDelegate();
 	}
@@ -1098,13 +1156,6 @@ public:
 	{
 		UnrealUSDWrapper::ClearDiagnosticDelegate();
 		FUsdMemoryManager::Shutdown();
-	}
-
-	virtual void Initialize( const TArray< FString >& InPluginDirectories ) override
-	{
-#if USE_USD_SDK
-		UnrealUSDWrapper::Initialize( InPluginDirectories );
-#endif // USE_USD_SDK
 	}
 };
 

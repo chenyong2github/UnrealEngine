@@ -7,18 +7,13 @@
 #include "USDMemory.h"
 #include "UnrealUSDWrapper.h"
 
+#include "UsdWrappers/UsdTyped.h"
+
 #include "Async/Future.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Misc/Optional.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
-
-#if USE_USD_SDK
-
-#include "USDIncludesStart.h"
-	#include "pxr/pxr.h"
-	#include "pxr/usd/usd/typed.h"
-#include "USDIncludesEnd.h"
 
 class FRegisteredSchemaTranslator;
 struct FUsdSchemaTranslationContext;
@@ -27,14 +22,6 @@ class FUsdSchemaTranslatorTaskChain;
 class ULevel;
 class USceneComponent;
 class UStaticMesh;
-
-PXR_NAMESPACE_OPEN_SCOPE
-	class TfToken;
-	class UsdGeomPointInstancer;
-	class UsdGeomXformable;
-PXR_NAMESPACE_CLOSE_SCOPE
-
-#endif //#if USE_USD_SDK
 
 class USDSCHEMAS_API FRegisteredSchemaTranslatorHandle
 {
@@ -65,18 +52,17 @@ private:
 
 class USDSCHEMAS_API FUsdSchemaTranslatorRegistry
 {
-#if USE_USD_SDK
-	using FCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const pxr::UsdTyped& ) >;
+	using FCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const UE::FUsdTyped& ) >;
 	using FSchemaTranslatorsStack = TArray< FRegisteredSchemaTranslator, TInlineAllocator< 1 > >;
 
 public:
-	TSharedPtr< FUsdSchemaTranslator > CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const pxr::UsdTyped& InSchema );
+	TSharedPtr< FUsdSchemaTranslator > CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const UE::FUsdTyped& InSchema );
 
 	template< typename TSchemaTranslator >
 	FRegisteredSchemaTranslatorHandle Register( const FString& SchemaName )
 	{
 		auto CreateSchemaTranslator =
-		[]( TSharedRef< FUsdSchemaTranslationContext > InContext, const pxr::UsdTyped& InSchema ) -> TSharedRef< FUsdSchemaTranslator >
+		[]( TSharedRef< FUsdSchemaTranslationContext > InContext, const UE::FUsdTyped& InSchema ) -> TSharedRef< FUsdSchemaTranslator >
 		{
 			return MakeShared< TSchemaTranslator >( InContext, InSchema );
 		};
@@ -92,14 +78,11 @@ protected:
 	FSchemaTranslatorsStack* FindSchemaTranslatorStack( const FString& SchemaName );
 
 	TArray< TPair< FString, FSchemaTranslatorsStack > > RegisteredSchemaTranslators;
-#endif // #if USE_USD_SDK
 };
-
-#if USE_USD_SDK
 
 class FRegisteredSchemaTranslator
 {
-	using FCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const pxr::UsdTyped& ) >;
+	using FCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const UE::FUsdTyped& ) >;
 
 public:
 	FRegisteredSchemaTranslatorHandle Handle;
@@ -136,6 +119,8 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 
 	FCriticalSection CriticalSection;
 
+	bool bAllowCollapsing = true;
+
 	bool IsValid() const
 	{
 		return Level != nullptr;
@@ -155,7 +140,7 @@ enum class ESchemaTranslationStatus
 class USDSCHEMAS_API FUsdSchemaTranslator
 {
 public:
-	explicit FUsdSchemaTranslator( TSharedRef< FUsdSchemaTranslationContext > InContext, const pxr::UsdTyped& InSchema )
+	explicit FUsdSchemaTranslator( TSharedRef< FUsdSchemaTranslationContext > InContext, const UE::FUsdTyped& InSchema )
 		: Context( InContext )
 		, Schema( InSchema )
 	{
@@ -181,7 +166,7 @@ public:
 
 protected:
 	TSharedRef< FUsdSchemaTranslationContext > Context;
-	TUsdStore< pxr::UsdTyped > Schema;
+	UE::FUsdTyped Schema;
 };
 
 struct FSchemaTranslatorTask
@@ -229,5 +214,3 @@ public:
 private:
 	TSharedPtr< FSchemaTranslatorTask > CurrentTask;
 };
-
-#endif //#if USE_USD_SDK

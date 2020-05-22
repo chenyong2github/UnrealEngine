@@ -290,6 +290,10 @@ bool FRecordingMessageHandler::OnTouchStarted(const TSharedPtr< FGenericWindow >
 			FScopedSwitchWorldHack SwitchWorld(WidgetPath);
 			FPointerEvent PointerEvent(ControllerId, TouchIndex, Location, Location, Force, true);
 			bRouteMessageResult = FSlateApplication::Get().RoutePointerDownEvent(WidgetPath, PointerEvent).IsEventHandled();
+			if (!bRouteMessageResult && OnRouteTouchDownToWidgetFailedDelegate.IsBound())
+			{
+				OnRouteTouchDownToWidgetFailedDelegate.Broadcast(Location);
+			}
 		}
 	}
 

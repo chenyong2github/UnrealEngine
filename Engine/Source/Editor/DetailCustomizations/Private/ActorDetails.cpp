@@ -75,7 +75,7 @@ void FActorDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 	}
 
 	// These details only apply when adding an instance of the actor in a level
-	if (!DetailLayout.HasClassDefaultObject() && DetailLayout.GetDetailsView()->GetSelectedActorInfo().NumSelected > 0)
+	if (!DetailLayout.HasClassDefaultObject() && DetailLayout.GetDetailsView() && DetailLayout.GetDetailsView()->GetSelectedActorInfo().NumSelected > 0)
 	{
 		// Build up a list of unique blueprints in the selection set (recording the first actor in the set for each one)
 		TMap<UBlueprint*, UObject*> UniqueBlueprints;

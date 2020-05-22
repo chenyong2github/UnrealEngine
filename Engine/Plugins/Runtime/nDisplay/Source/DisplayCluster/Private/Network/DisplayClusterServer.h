@@ -7,7 +7,6 @@
 #include "Network/Session/DisplayClusterSessionBase.h"
 #include "Network/DisplayClusterTcpListener.h"
 
-
 struct FIPv4Endpoint;
 
 
@@ -78,4 +77,3 @@ private:
 	// Sync access
 	mutable FCriticalSection InternalsCritSec;
 };
-

@@ -162,8 +162,8 @@ void FDatasmithSceneXmlReader::ParseMesh(FXmlNode* InNode, TSharedPtr<IDatasmith
 		{
 			float Area = FCString::Atod(*MeshNodes[j]->GetAttribute(TEXT("a")));
 			float Width = FCString::Atod(*MeshNodes[j]->GetAttribute(TEXT("x")));
-			float Height = FCString::Atod(*MeshNodes[j]->GetAttribute(TEXT("y")));
-			float Depth = FCString::Atod(*MeshNodes[j]->GetAttribute(TEXT("z")));
+			float Depth = FCString::Atod(*MeshNodes[j]->GetAttribute(TEXT("y")));
+			float Height = FCString::Atod(*MeshNodes[j]->GetAttribute(TEXT("z")));
 			OutElement->SetDimensions(Area, Width, Height, Depth);
 		}
 		else if (MeshNodes[j]->GetTag().Compare(DATASMITH_LIGHTMAPCOORDINATEINDEX, ESearchCase::IgnoreCase) ==0)
@@ -1607,6 +1607,10 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 		else if ( ChildNode->GetTag() == DATASMITH_BLENDMODE )
 		{
 			OutElement->SetBlendMode( DatasmithSceneXmlReaderImpl::ValueFromString< int >( ChildNode->GetAttribute( TEXT("value") ) ) );
+		}
+		else if ( ChildNode->GetTag() == DATASMITH_OPACITYMASKCLIPVALUE )
+		{
+			OutElement->SetOpacityMaskClipValue( DatasmithSceneXmlReaderImpl::ValueFromString< float >( ChildNode->GetAttribute( TEXT("value") ) ) );
 		}
 		else if ( ChildNode->GetTag() == DATASMITH_FUNCTIONLYVALUENAME )
 		{

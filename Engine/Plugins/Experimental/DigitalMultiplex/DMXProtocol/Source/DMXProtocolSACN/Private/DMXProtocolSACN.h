@@ -40,6 +40,7 @@ public:
 	virtual bool IsEnabled() const override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override;
 	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) override;
+	virtual void UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings) override;
 	virtual bool RemoveUniverseById(uint32 InUniverseId) override;
 	virtual void RemoveAllUniverses() override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const override;
@@ -49,9 +50,14 @@ public:
 	virtual uint32 GetUniversesNum() const override;
 	virtual uint16 GetMinUniverseID() const override;
 	virtual uint16 GetMaxUniverses() const override;
+	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const override;
 	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() override
 	{
 		return OnUniverseInputUpdateEvent;
+	}
+	virtual FOnUniverseOutputSentEvent& GetOnOutputSentEvent() override
+	{
+		return OnUniverseOutputSentEvent;
 	}
 	//~ End IDMXProtocol implementation
 
@@ -69,14 +75,19 @@ public:
 	//~ sACN specific implementation
 	bool SendDiscovery(const TArray<uint16>& Universes);
 
+	//~ sACN public getters
+	const TSharedPtr<FDMXProtocolUniverseManager<FDMXProtocolUniverseSACN>>& GetUniverseManager() const { return UniverseManager; }
+
 	//~ Only the factory makes instances
 	FDMXProtocolSACN() = delete;
 
 public:
-	static TSharedPtr<FInternetAddr> GetUniverseAddr(uint16 InUniverseID);
+	static uint32 GetUniverseAddrByID(uint16 InUniverseID);
+
+	static uint32 GetUniverseAddrUnicast(FString UnicastAddress);
 
 private:
-	EDMXSendResult SendDMXInternal(uint16 UniverseID, const FDMXBufferPtr& DMXBuffer) const;
+	EDMXSendResult SendDMXInternal(uint16 UniverseID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const;
 
 	/** Called each tick in LaunchEngineLoop */
 	void OnEndFrame();
@@ -94,6 +105,8 @@ private:
 	FSocket* SenderSocket;
 
 	FOnUniverseInputUpdateEvent OnUniverseInputUpdateEvent;
+
+	FOnUniverseOutputSentEvent OnUniverseOutputSentEvent;
 
 	/** Mutex protecting access to the listening socket. */
 	mutable FCriticalSection SenderSocketCS;

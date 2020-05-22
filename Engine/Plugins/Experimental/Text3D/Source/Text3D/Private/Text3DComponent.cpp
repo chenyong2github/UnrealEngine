@@ -76,7 +76,7 @@ UText3DComponent::UText3DComponent() :
 	Text = LOCTEXT("DefaultText", "Text");
 	Extrude = 5.0f;
 	Bevel = 0.0f;
-	BevelType = EText3DBevelType::HalfCircle;
+	BevelType = EText3DBevelType::Convex;
 	BevelSegments = 8;
 
 	HorizontalAlignment = EText3DHorizontalTextAlignment::Left;
@@ -140,13 +140,22 @@ void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		switch (BevelType)
 		{
 		case EText3DBevelType::Linear:
+		case EText3DBevelType::OneStep:
+		case EText3DBevelType::TwoSteps:
+		case EText3DBevelType::Engraved:
 		{
 			BevelSegments = 1;
 			break;
 		}
-		case EText3DBevelType::HalfCircle:
+		case EText3DBevelType::Convex:
+		case EText3DBevelType::Concave:
 		{
 			BevelSegments = 8;
+			break;
+		}
+		case EText3DBevelType::HalfCircle:
+		{
+			BevelSegments = 16;
 			break;
 		}
 		}

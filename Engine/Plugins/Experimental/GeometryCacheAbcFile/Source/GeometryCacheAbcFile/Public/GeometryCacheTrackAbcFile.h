@@ -46,5 +46,9 @@ private:
 	FGeometryCacheTrackSampleInfo SampleInfo;
 	TUniquePtr<FAbcFile> AbcFile;
 	FString SourceFile;
+
+	FCriticalSection CriticalSection;
+
 	int32 EndFrameIndex;
+	int32 LastSampledIndex;
 };

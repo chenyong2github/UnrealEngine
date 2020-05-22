@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterAppExit.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 #include "Engine/GameEngine.h"
 
 #if WITH_EDITOR
@@ -11,27 +11,27 @@
 
 FCriticalSection FDisplayClusterAppExit::InternalsSyncScope;
 
-auto FDisplayClusterAppExit::ExitTypeToStr(ExitType type)
+auto FDisplayClusterAppExit::ExitTypeToStr(EExitType ExitType)
 {
-	switch (type)
+	switch (ExitType)
 	{
-	case ExitType::KillImmediately:
+	case EExitType::KillImmediately:
 		return TEXT("KILL");
-	case ExitType::NormalSoft:
+	case EExitType::NormalSoft:
 		return TEXT("UE4_soft");
-	case ExitType::NormalForce:
+	case EExitType::NormalForce:
 		return TEXT("UE4_force");
 	default:
 		return TEXT("unknown");
 	}
 }
 
-void FDisplayClusterAppExit::ExitApplication(ExitType exitType, const FString& strMsg)
+void FDisplayClusterAppExit::ExitApplication(EExitType ExitType, const FString& Msg)
 {
 	if (GEngine && GEngine->IsEditor())
 	{
 #if WITH_EDITOR
-		UE_LOG(LogDisplayClusterModule, Log, TEXT("PIE STOP: %s application quit requested: %s"), ExitTypeToStr(exitType), *strMsg);
+		UE_LOG(LogDisplayClusterModule, Log, TEXT("PIE STOP: %s application quit requested: %s"), ExitTypeToStr(ExitType), *Msg);
 		GUnrealEd->RequestEndPlayMap();
 #endif
 		return;
@@ -43,10 +43,10 @@ void FDisplayClusterAppExit::ExitApplication(ExitType exitType, const FString& s
 		// We process only first call. Thus we won't have a lot of requests from different socket threads.
 		// We also will know the first requester which may be useful in step-by-step problem solving.
 		static bool bRequestedBefore = false;
-		if (bRequestedBefore == false || exitType == ExitType::KillImmediately)
+		if (bRequestedBefore == false || ExitType == EExitType::KillImmediately)
 		{
 			bRequestedBefore = true;
-			UE_LOG(LogDisplayClusterModule, Log, TEXT("%s application quit requested: %s"), ExitTypeToStr(exitType), *strMsg);
+			UE_LOG(LogDisplayClusterModule, Log, TEXT("%s application quit requested: %s"), ExitTypeToStr(ExitType), *Msg);
 
 			GLog->Flush();
 
@@ -62,16 +62,16 @@ void FDisplayClusterAppExit::ExitApplication(ExitType exitType, const FString& s
 			}
 #endif
 
-			switch (exitType)
+			switch (ExitType)
 			{
-				case ExitType::KillImmediately:
+				case EExitType::KillImmediately:
 				{
 					FProcHandle hProc = FPlatformProcess::OpenProcess(FPlatformProcess::GetCurrentProcessId());
 					FPlatformProcess::TerminateProc(hProc, true);
 					break;
 				}
 
-				case ExitType::NormalSoft:
+				case EExitType::NormalSoft:
 				{
 //@todo: This is workaround for exit issue - crash on exit. Need to be checked on new UE versions.
 // <ErrorMessage>Assertion failed: NumRemoved == 1 [File:D:\work\UE4.12.5.build\Engine\Source\Runtime\CoreUObject\Private\UObject\UObjectHash.cpp] [Line: 905] &nl;&nl;</ErrorMessage>
@@ -80,7 +80,7 @@ void FDisplayClusterAppExit::ExitApplication(ExitType exitType, const FString& s
 					break;
 				}
 
-				case ExitType::NormalForce:
+				case EExitType::NormalForce:
 				{
 					FPlatformMisc::RequestExit(true);
 					break;

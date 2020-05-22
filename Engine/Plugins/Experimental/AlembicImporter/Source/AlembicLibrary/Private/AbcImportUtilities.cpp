@@ -472,9 +472,18 @@ bool AbcImporterUtilities::GenerateAbcMeshSampleDataForFrame(const Alembic::AbcG
 				auto PropertyHeader = GeomParams.getPropertyHeader(GeomParamIndex);
 				if (Alembic::AbcGeom::IV2fGeomParam::matches(PropertyHeader))
 				{
-					UVSetProperty = Alembic::AbcGeom::IV2fGeomParam(GeomParams, PropertyHeader.getName());
-					ReadUVSetData(UVSetProperty, FrameSelector, Sample->UVs[Sample->NumUVSets], Sample->Indices, bNeedsTriangulation, FaceCounts, Sample->Vertices.Num());
-					++Sample->NumUVSets;
+					if (Sample->NumUVSets < MAX_TEXCOORDS)
+					{
+						UVSetProperty = Alembic::AbcGeom::IV2fGeomParam(GeomParams, PropertyHeader.getName());
+						ReadUVSetData(UVSetProperty, FrameSelector, Sample->UVs[Sample->NumUVSets], Sample->Indices, bNeedsTriangulation, FaceCounts, Sample->Vertices.Num());
+						++Sample->NumUVSets;
+					}
+					else
+					{
+						TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("MaxUVs", "More than 4 UV sets found. The remaining UV sets will be ignored."));
+						FAbcImportLogger::AddImportMessage(Message);
+						break;
+					}
 				}
 			}
 		}
@@ -1508,6 +1517,7 @@ void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 Fra
 		if (PolyMesh->bShouldImport)
 		{
 			const int32 Offset = MergedSample.MaterialIndices.Num();
+			const int32 MaterialIndexOffset = MergedSample.NumMaterials;
 			bConstantTopology = bConstantTopology && PolyMesh->bConstantTopology;
 			if (PolyMesh->GetVisibility(FrameIndex))
 			{
@@ -1522,9 +1532,9 @@ void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 Fra
 					for (int32 Index = Offset; Index < MergedSample.MaterialIndices.Num(); ++Index)
 					{
 						int32& MaterialIndex = MergedSample.MaterialIndices[Index];
-						if (PolyMesh->FaceSetNames.IsValidIndex(MaterialIndex))
+						if (PolyMesh->FaceSetNames.IsValidIndex(MaterialIndex - MaterialIndexOffset))
 						{
-							int32 FaceSetMaterialIndex = UniqueFaceSetNames.IndexOfByKey(PolyMesh->FaceSetNames[MaterialIndex]);
+							int32 FaceSetMaterialIndex = UniqueFaceSetNames.IndexOfByKey(PolyMesh->FaceSetNames[MaterialIndex - MaterialIndexOffset]);
 							MaterialIndex = FaceSetMaterialIndex != INDEX_NONE ? FaceSetMaterialIndex : 0;
 						}
 						else

@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 
 #include "EditorUtilityWidget.h"
+#include "EditorUtilityObject.h"
 
 #include "VPUtilitiesEditorSettings.generated.h"
 
@@ -18,6 +19,7 @@ class VPUTILITIESEDITOR_API UVPUtilitiesEditorSettings : public UObject
 	GENERATED_BODY()
 
 public:
+	UVPUtilitiesEditorSettings();
 
 	/** The default user interface that we'll use for virtual scouting */
 	UPROPERTY(EditAnywhere, config, Category = "Virtual Production", meta = (DisplayName = "Virtual Scouting User Interface"))
@@ -51,6 +53,22 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Virtual Production", meta = (DisplayName = "Helper System Enabled"))
 	bool bIsHelperSystemEnabled = true;
 	
+	/** When enabled, an OSC server will automatically start on launch. */
+	UPROPERTY(config, EditAnywhere, Category = "OSC", DisplayName = "Start an OSC Server when the editor launches")
+	bool bStartOSCServerAtLaunch;
+
+	/** The OSC server's address. */
+	UPROPERTY(config, EditAnywhere, Category = "OSC", DisplayName = "OSC Server Address")
+	FString OSCServerAddress;
+
+	/** The OSC server's port. */
+	UPROPERTY(config, EditAnywhere, Category = "OSC", DisplayName = "OSC Server Port")
+	uint16 OSCServerPort;
+
+	/** What EditorUtilityObject should be ran on editor launch. */
+	UPROPERTY(config, EditAnywhere, Category = "OSC", meta = (AllowedClasses = "EditorUtilityBlueprint", DisplayName = "OSC Listeners"))
+	TArray<FSoftObjectPath> StartupOSCListeners;
+
 	/** ScoutingSubsystem class to use for Blueprint helpers */
 	UPROPERTY(config, meta = (MetaClass = "VPScoutingSubsystemHelpersBase"))
 	FSoftClassPath ScoutingSubsystemEditorUtilityClassPath;
@@ -62,11 +80,4 @@ public:
 	/** GestureManager class to use by the ScoutingSubsystem */
 	UPROPERTY(config)
 	TArray<FSoftClassPath> AdditionnalClassToLoad;
-
-public:
-
-	//~ UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~ End UObject interface
-
 };

@@ -47,9 +47,28 @@ void FContourList::Initialize()
 {
 	for (FContour& Contour : *this)
 	{
-		const FPartPtr First = Contour[0];
-		for (FPartPtr Point = First; ; Point = Point->Next)
+		for (int32 Index = 0; Index < Contour.Num(); Index++)
 		{
+			FPartPtr Point = Contour[Index];
+
+			Point->Prev = Contour[Contour.GetPrev(Index)];
+			Point->Next = Contour[Contour.GetNext(Index)];
+		}
+
+		for (FPartPtr Edge : Contour)
+		{
+			Edge->ComputeTangentX();
+		}
+
+		for (const FPartPtr Point : Contour)
+		{
+			Point->ComputeSmooth();
+		}
+
+		for (int32 Index = 0; Index < Contour.Num(); Index++)
+		{
+			const FPartPtr Point = Contour[Index];
+
 			if (!Point->bSmooth && Point->TangentsDotProduct() > 0.f)
 			{
 				const FPartPtr Curr = Point;
@@ -64,7 +83,7 @@ void FContourList::Initialize()
 					const float Offset = FMath::Min3(Prev->Length() / 2.f, Curr->Length() / 2.f, OffsetDefault);
 
 					const FPartPtr Added = MakeShared<FPart>();
-					Contour.Add(Added);
+					Contour.Insert(Added, Index);
 
 					Prev->Next = Added;
 					Added->Prev = Prev;
@@ -78,24 +97,15 @@ void FContourList::Initialize()
 
 					Added->ComputeTangentX();
 
-					Added->ComputeNormal();
-					Curr->ComputeNormal();
+					Added->ComputeSmooth();
+					Curr->ComputeSmooth();
 				}
-			}
-
-			if (Point == First->Prev)
-			{
-				break;
 			}
 		}
 
 		for (const FPartPtr Point : Contour)
 		{
-			if (!Point->bSmooth)
-			{
-				Point->ComputeSmooth();
-			}
-
+			Point->ComputeNormal();
 			Point->ResetInitialPosition();
 		}
 	}

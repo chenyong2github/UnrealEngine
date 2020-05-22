@@ -113,7 +113,14 @@ IF (Boost_PYTHON_LIBRARY AND ALEMBIC_PYTHON_LIBRARY)
         main.cpp
     )
 
-    LINK_LIBRARIES(${CORE_LIBS}
+    IF (1900 VERSION_EQUAL MSVC_VERSION)
+        IF ((19.00.24213.1 VERSION_LESS_EQUAL CMAKE_CXX_COMPILER_VERSION) AND
+            (19.00.24234.1 VERSION_GREATER_EQUAL CMAKE_CXX_COMPILER_VERSION))
+            list(APPEND CPP_FILES "msvc14fixes.cpp")
+        ENDIF ()
+    ENDIF ()
+
+    LINK_LIBRARIES(Alembic::Alembic
                    ${PLIBS}
                    ${ALEMBIC_PYILMBASE_PYIMATH_LIB}
     )
@@ -121,21 +128,33 @@ IF (Boost_PYTHON_LIBRARY AND ALEMBIC_PYTHON_LIBRARY)
     INCLUDE_DIRECTORIES("${PYTHON_INCLUDE_DIR}" "${CMAKE_SOURCE_DIR}/lib"
           "${CMAKE_SOURCE_DIR}/python/PyAlembic")
 
-    ADD_LIBRARY(alembic SHARED ${CPP_FILES})
+    ADD_LIBRARY(PyAlembic SHARED ${CPP_FILES})
 
-    SET_TARGET_PROPERTIES(alembic
-        PROPERTIES PREFIX "" SUFFIX ".so"
+    SET (EXT ".so")
+	SET (PYTHON_MODULE_NAME "alembic")
+    IF (WIN32)
+        SET (EXT ".pyd")
+    ENDIF ()
+
+    SET_TARGET_PROPERTIES(PyAlembic
+        PROPERTIES PREFIX "" OUTPUT_NAME ${PYTHON_MODULE_NAME} SUFFIX ${EXT}
     )
 
-    INSTALL (TARGETS alembic
-        DESTINATION lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages
+    SET( ALEMBIC_PYTHON_INSTALL_DIR
+        lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages
+        CACHE PATH
+        "Alembic's python bindings install directory"
+    )
+
+    INSTALL (TARGETS PyAlembic
+        DESTINATION ${ALEMBIC_PYTHON_INSTALL_DIR}
     )
 
     IF (USE_TESTS)
         ADD_SUBDIRECTORY(Tests)
     ENDIF()
 
-    set_target_properties(alembic PROPERTIES
+    set_target_properties(PyAlembic PROPERTIES
         INSTALL_RPATH_USE_LINK_PATH TRUE
         INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 ELSE()

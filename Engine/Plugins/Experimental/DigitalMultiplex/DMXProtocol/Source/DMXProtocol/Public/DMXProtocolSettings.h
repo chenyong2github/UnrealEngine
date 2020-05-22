@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "DMXProtocolTypes.h"
+#include "DMXAttribute.h"
+
 #include "DMXProtocolSettings.generated.h"
 
 /**  User defined protocol settings that apply to a whole protocol module */
@@ -26,12 +28,6 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "Interface IP address"))
 	FString InterfaceIPAddress;
 
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Unicast")
-	bool bShouldUseUnicast;
-
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Unicast", Meta = (EditCondition="bShouldUseUnicast"))
-	FString UnicastEndpoint;
-
 	/** Universe Remote Start for ArtNet */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Universe Settings", Meta = (DisplayName = "Global Art-Net Universe Offset", ClampMin = "0", ClampMax = "65535"))
 	int32 GlobalArtNetUniverseOffset;
@@ -44,7 +40,15 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Categories"))
 	TSet<FName> FixtureCategories;
 
+	/** Common names to map Fixture Functions to and access them easily on Blueprints */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Function Attributes"))
+	TSet<FDMXAttribute> Attributes;
+
 	//~ Properties controlled by the Input Console (SDMXInputInfoSelecter)
+
+	/** Display a single universe or listen for all */
+	UPROPERTY(Config)
+	FName InputConsoleListenFor;
 
 	/** Set the current protocol to be monitored */
 	UPROPERTY(Config)

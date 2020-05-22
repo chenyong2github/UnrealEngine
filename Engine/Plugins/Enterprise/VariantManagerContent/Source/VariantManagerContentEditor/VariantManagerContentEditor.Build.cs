@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"UnrealEd",
 				}
 			);
 
@@ -24,7 +25,6 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"ToolMenus",
-					"UnrealEd",
 					"VariantManagerContent",
 					"WorkspaceMenuStructure",
 				}

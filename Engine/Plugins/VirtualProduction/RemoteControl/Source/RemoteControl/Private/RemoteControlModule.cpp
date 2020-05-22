@@ -37,6 +37,7 @@ namespace RemoteControlUtil
 	UFunction* FindFunctionByNameOrMetaDataName(UObject* Object, const FString& FunctionName)
 	{
 		UFunction* Function = Object->FindFunction(FName(*FunctionName));
+#if WITH_EDITOR
 		// if the function wasn't found through the function map, try finding it through its `ScriptName` or `DisplayName` metadata
 		if (Function == nullptr)
 		{
@@ -54,6 +55,7 @@ namespace RemoteControlUtil
 				}
 			}
 		}
+#endif
 		return Function;
 	}
 
@@ -67,7 +69,7 @@ namespace RemoteControlUtil
 			(!InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintGetter) || !InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintSetter)) &&
 #endif
 			// it isn't private or protected
-			!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate) &&
+			!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate | CPF_DisableEditOnInstance) &&
 			// and it's either blueprint visible if in game or editable if in editor and it isn't read only if the access type is write
 			(bObjectInGamePackage ?
 				InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly)) :
@@ -108,9 +110,12 @@ public:
 					ErrorText = FString::Printf(TEXT("function: %s does not exist on object: %s"), *ObjectPath, *FunctionName);
 					bSuccess = false;
 				}
-				else if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) ||
-					Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction) ||
-					Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport))
+				else if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) 
+#if WITH_EDITOR
+					|| Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction)
+					|| Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport)
+#endif
+					)
 				{
 					ErrorText = FString::Printf(TEXT("function: %s is deprecated or unavailable remotely on object: %s"), *ObjectPath, *FunctionName);
 					bSuccess = false;
@@ -243,16 +248,18 @@ public:
 	{
 		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
 		{
-			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
-#if WITH_EDITOR
-			FScopedTransaction Transaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"), bGenerateTransaction);
-#endif
 			UObject* Object = ObjectAccess.Object.Get();
+
+#if WITH_EDITOR
+			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+			FScopedTransaction Transaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"), bGenerateTransaction);
+
 			if (bGenerateTransaction)
 			{
 				Object->Modify();
 				Object->PreEditChange(ObjectAccess.Property.Get());
 			}
+#endif
 
 			FStructDeserializerPolicies Policies;
 			if (ObjectAccess.Property.IsValid())
@@ -274,11 +281,13 @@ public:
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
+#if WITH_EDITOR
 			if (bGenerateTransaction)
 			{
 				FPropertyChangedEvent PropertyEvent(ObjectAccess.Property.Get());
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
+#endif
 			return bSuccess;
 		}
 		return false;
@@ -288,26 +297,29 @@ public:
 	{
 		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
 		{
-			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
-#if WITH_EDITOR
-			FScopedTransaction Transaction(LOCTEXT("RemoteResetPropertyTransaction", "Remote Reset Object Property"), bGenerateTransaction);
-#endif
 			UObject* Object = ObjectAccess.Object.Get();
+
+#if WITH_EDITOR
+			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+			FScopedTransaction Transaction(LOCTEXT("RemoteResetPropertyTransaction", "Remote Reset Object Property"), bGenerateTransaction);
 			if (bGenerateTransaction)
 			{
 				Object->Modify();
 				Object->PreEditChange(ObjectAccess.Property.Get());
 			}
+#endif
 					
 			ObjectAccess.Property->InitializeValue(ObjectAccess.Property->template ContainerPtrToValuePtr<void>(ObjectAccess.Object.Get()));
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
+#if WITH_EDITOR
 			if (bGenerateTransaction)
 			{
 				FPropertyChangedEvent PropertyEvent(ObjectAccess.Property.Get());
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
+#endif
 			return true;
 		}
 		return false;

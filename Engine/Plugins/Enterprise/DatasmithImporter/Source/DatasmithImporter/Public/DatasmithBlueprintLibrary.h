@@ -127,12 +127,12 @@ class UDatasmithStaticMeshBlueprintLibrary : public UBlueprintFunctionLibrary
 
 public:
 	/**
-	* Sets the proper lightmap resolution to get the desired lightmap density ratio
-	*
-	* @param	Objects					List of static meshes and static mesh actors to update.
-	* @param	bApplyChanges			Indicates if changes must be apply or not.
-	* @param	IdealRatio				The desired lightmap density ratio
-	*/
+	 * Sets the proper lightmap resolution to get the desired lightmap density ratio
+	 *
+	 * @param	Objects					List of static meshes and static mesh actors to update.
+	 * @param	bApplyChanges			Indicates if changes must be apply or not.
+	 * @param	IdealRatio				The desired lightmap density ratio
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Static Mesh")
 	static void ComputeLightmapResolution( const TArray< UObject* >& Objects, bool bApplyChanges, float IdealRatio = 0.2f );
 
@@ -152,3 +152,4 @@ private:
 
 	static int32 ComputeLightmapResolution(UStaticMesh* StaticMesh, float IdealRatio, const FVector& StaticMeshScale);
 };
+

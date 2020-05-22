@@ -2,8 +2,8 @@
 
 #include "Cluster/DisplayClusterClusterEvent.h"
 
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 FString FDisplayClusterClusterEvent::SerializeToString() const
@@ -38,7 +38,7 @@ FString FDisplayClusterClusterEvent::SerializeParametersToString() const
 
 	for (const auto& obj : Parameters)
 	{
-		Result += (obj.Key + FString(DisplayClusterStrings::strArrayValSeparator) + obj.Value + ToketSeparator);
+		Result += (obj.Key + FString(DisplayClusterStrings::common::ArrayValSeparator) + obj.Value + ToketSeparator);
 	}
 
 	return Result;
@@ -58,7 +58,7 @@ bool FDisplayClusterClusterEvent::DeserializeParametersFromString(const FString&
 		FString l;
 		FString r;
 
-		if (TempKeyValPair.Split(FString(DisplayClusterStrings::strArrayValSeparator), &l, &r, ESearchCase::IgnoreCase, ESearchDir::FromStart) == false)
+		if (TempKeyValPair.Split(FString(DisplayClusterStrings::common::ArrayValSeparator), &l, &r, ESearchCase::IgnoreCase, ESearchDir::FromStart) == false)
 		{
 			return false;
 		}

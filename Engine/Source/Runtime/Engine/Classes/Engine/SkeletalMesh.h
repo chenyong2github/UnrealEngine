@@ -970,10 +970,11 @@ public:
 	/** Adds an asset to this mesh with validation and event broadcast */
 	void AddClothingAsset(UClothingAssetBase* InNewAsset);
 
-	const FSkeletalMeshSamplingInfo& GetSamplingInfo() { return SamplingInfo; }
+	const FSkeletalMeshSamplingInfo& GetSamplingInfo() const { return SamplingInfo; }
 
 #if WITH_EDITOR
 	void SetSamplingInfo(const FSkeletalMeshSamplingInfo& InSamplingInfo) { SamplingInfo = InSamplingInfo; }
+	const FOnMeshChanged& GetOnMeshChanged() const { return OnMeshChanged; }
 	FOnMeshChanged& GetOnMeshChanged() { return OnMeshChanged; }
 #endif
 
@@ -1222,15 +1223,15 @@ public:
 
 	/** Utility for copying and converting a mirroring table from another USkeletalMesh. */
 	void CopyMirrorTableFrom(USkeletalMesh* SrcMesh);
-	void ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo);
-	void ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo);
+	void ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo) const;
+	void ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo);
 
 	/** 
 	 *	Utility for checking that the bone mirroring table of this mesh is good.
 	 *	Return true if mirror table is OK, false if there are problems.
 	 *	@param	ProblemBones	Output string containing information on bones that are currently bad.
 	 */
-	bool MirrorTableIsGood(FString& ProblemBones);
+	bool MirrorTableIsGood(FString& ProblemBones) const;
 
 	/**
 	 * Returns the mesh only socket list - this ignores any sockets in the skeleton
@@ -1438,10 +1439,16 @@ public:
 	 * Reset whole entry
 	 */
 	void ResetLODInfo();
+
 	/*
-	 * Returns whole array of LODInfo
+	 * Returns whole array of LODInfo non-const
 	 */
 	TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() { return LODInfo;  }
+
+	/*
+	 * Returns whole array of LODInfo const
+	 */
+	const TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() const { return LODInfo; }
 	
 	/* 
 	 * Get LODInfo of the given index non-const

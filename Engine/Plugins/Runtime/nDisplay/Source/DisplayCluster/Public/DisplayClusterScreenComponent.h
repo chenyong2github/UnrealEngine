@@ -10,7 +10,7 @@
 /**
  * Projection screen component
  */
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(ClassGroup = (Custom), Blueprintable, meta = (BlueprintSpawnableComponent))
 class DISPLAYCLUSTER_API UDisplayClusterScreenComponent
 	: public UDisplayClusterSceneComponent
 {

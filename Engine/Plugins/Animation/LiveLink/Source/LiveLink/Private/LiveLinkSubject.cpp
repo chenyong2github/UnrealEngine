@@ -38,6 +38,7 @@ void FLiveLinkSubject::Initialize(FLiveLinkSubjectKey InSubjectKey, TSubclassOf<
 
 	FrameData.Reset();
 	ReceivedOrderedFrames.Empty();
+	LastTimecodeFrameRate = FFrameRate(1, -1); //Initialized as invalid for first detection
 	ResetBufferStats();
 
 	if (TSharedPtr<FLiveLinkTimedDataInput> TimedDataGroupPin = TimedDataGroup.Pin())
@@ -103,10 +104,10 @@ void FLiveLinkSubject::Update()
 				FFrameTime ClockOffset;
 				if (CachedSettings.BufferSettings.bUseTimecodeSmoothLatest)
 				{
-					ClockOffset = CachedSettings.BufferSettings.TimecodeFrameRate.AsFrameTime(CachedSettings.BufferSettings.TimecodeClockOffset);
+					ClockOffset = LastTimecodeFrameRate.AsFrameTime(CachedSettings.BufferSettings.TimecodeClockOffset);
 				}
 
-				const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
+				const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(LastTimecodeFrameRate);
 				const FFrameTime FrameTimeThresholdFrameSpace = CurrentFrameTimeInFrameSpace - (ClockOffset + FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset) + CachedSettings.BufferSettings.ValidTimecodeFrame);
 				int32 FrameIndex = 0;
 				for (const FLiveLinkFrameDataStruct& SourceFrameData : FrameData)
@@ -150,7 +151,7 @@ void FLiveLinkSubject::Update()
 					ClockOffset = EngineTimecode.Rate.AsFrameTime(CachedSettings.BufferSettings.TimecodeClockOffset);
 				}
 
-				const FFrameTime FrameOffset = FQualifiedFrameTime(FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset), CachedSettings.BufferSettings.TimecodeFrameRate).ConvertTo(EngineTimecode.Rate);
+				const FFrameTime FrameOffset = FQualifiedFrameTime(FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset), LastTimecodeFrameRate).ConvertTo(EngineTimecode.Rate);
 				const FFrameTime ReadTime = EngineTimecode.Time - (ClockOffset + FrameOffset);
 				const FQualifiedFrameTime LookupQFrameTime = FQualifiedFrameTime(ReadTime, EngineTimecode.Rate);
 				bSnapshotIsValid = GetFrameAtSceneTime(LookupQFrameTime, FrameSnapshot);
@@ -297,7 +298,7 @@ bool FLiveLinkSubject::EvaluateFrameAtSceneTime(const FQualifiedFrameTime& InSce
 			ClockOffset = InSceneTime.Rate.AsFrameTime(CachedSettings.BufferSettings.TimecodeClockOffset);
 		}
 
-		const FFrameTime FrameOffset = FQualifiedFrameTime(FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset), CachedSettings.BufferSettings.TimecodeFrameRate).ConvertTo(InSceneTime.Rate);
+		const FFrameTime FrameOffset = FQualifiedFrameTime(FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset), LastTimecodeFrameRate).ConvertTo(InSceneTime.Rate);
 		const FFrameTime ReadTime = InSceneTime.Time - (ClockOffset + FrameOffset);
 		const FQualifiedFrameTime LookupQFrameTime = FQualifiedFrameTime(ReadTime, InSceneTime.Rate);
 		if (Role == InDesiredRole || Role->IsChildOf(InDesiredRole))
@@ -369,8 +370,26 @@ void FLiveLinkSubject::AddFrameData(FLiveLinkFrameDataStruct&& InFrameData)
 		FrameIndex = FindNewFrame_WorldTime(InFrameData.GetBaseData()->WorldTime);
 		break;
 	case ELiveLinkSourceMode::Timecode:
+	{
+		// Update cached FrameRate based on this new frame data
+		if (LastTimecodeFrameRate.IsValid() && InFrameData.GetBaseData()->MetaData.SceneTime.Rate != LastTimecodeFrameRate)
+		{
+			FLiveLinkLog::Warning(TEXT("Subject '%s' is added a new frame in which the timecode frame rate ('%s') is different than previous frame's frame rate ('%s')."), *SubjectKey.SubjectName.ToString(), *InFrameData.GetBaseData()->MetaData.SceneTime.Rate.ToPrettyText().ToString(), *LastTimecodeFrameRate.ToPrettyText().ToString());
+
+			// Frame Rate changed, clear our buffers to let new frames come in with new frame rate
+			FrameData.Reset();
+			ReceivedOrderedFrames.Empty();
+		}
+
+		// Stamp what frame rate we are currently expecting
+		LastTimecodeFrameRate = InFrameData.GetBaseData()->MetaData.SceneTime.Rate;
+
+		//Find an index for the new frame
 		FrameIndex = FindNewFrame_SceneTime(InFrameData.GetBaseData()->MetaData.SceneTime, InFrameData.GetBaseData()->WorldTime);
+
 		break;
+	}
+	
 	case ELiveLinkSourceMode::Latest:
 	default:
 		FrameIndex = FindNewFrame_Latest(InFrameData.GetBaseData()->WorldTime);
@@ -458,24 +477,17 @@ int32 FLiveLinkSubject::FindNewFrame_SceneTime(const FQualifiedFrameTime& Qualif
 		return INDEX_NONE;
 	}
 
-	if (QualifiedFrameTime.Rate != CachedSettings.BufferSettings.TimecodeFrameRate)
-	{
-		static const FName NAME_WrongFPS = "LiveLinkSubject_WrongFPS";
-		FLiveLinkLog::ErrorOnce(NAME_WrongFPS, SubjectKey, TEXT("Trying to add a frame in which the timecode frame rate does not match with the expected frame rate. The Subject is '%s'."), *SubjectKey.SubjectName.ToString());
-		return INDEX_NONE;
-	}
-
-	// If we do not have a TC set, keep buffering, the TC may be unresponsive for a moment. We do not want to loose data.
+	// If we do not have a TC set, keep buffering, the TC may be unresponsive for a moment. We do not want to lose data.
 	if (FApp::GetCurrentFrameTime().IsSet() && CachedSettings.BufferSettings.bValidTimecodeFrameEnabled)
 	{
 		FFrameTime TimecodeClockOffsetTime;
 		if (CachedSettings.BufferSettings.bUseTimecodeSmoothLatest)
 		{
-			TimecodeClockOffsetTime = CachedSettings.BufferSettings.TimecodeFrameRate.AsFrameTime(CachedSettings.BufferSettings.TimecodeClockOffset);
+			TimecodeClockOffsetTime = LastTimecodeFrameRate.AsFrameTime(CachedSettings.BufferSettings.TimecodeClockOffset);
 		}
 
 		const FQualifiedFrameTime CurrentSyncTime = FApp::GetCurrentFrameTime().GetValue();
-		const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
+		const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(LastTimecodeFrameRate);
 		const FFrameTime CurrentOffsetFrameTime = CurrentFrameTimeInFrameSpace - FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset) - CachedSettings.BufferSettings.ValidTimecodeFrame - TimecodeClockOffsetTime;
 		if (QualifiedFrameTime.Time.AsDecimal() < CurrentOffsetFrameTime.AsDecimal())
 		{
@@ -569,11 +581,10 @@ void FLiveLinkSubject::AdjustSubFrame_SceneTime(int32 InFrameIndex)
 	// We need to generate sub frame after because network timing could affect how the frame come in LiveLink
 
 	const double SourceFrameRate = CachedSettings.BufferSettings.SourceTimecodeFrameRate.AsDecimal(); //ie. 120
-	const double TimecodeFrameRate = CachedSettings.BufferSettings.TimecodeFrameRate.AsDecimal(); //ie. 30
-	float SubFrameIncrement = TimecodeFrameRate / SourceFrameRate;
+	const double TimecodeFrameRateDec = LastTimecodeFrameRate.AsDecimal(); //ie. 30
+	float SubFrameIncrement = TimecodeFrameRateDec / SourceFrameRate;
 
 	check(CachedSettings.BufferSettings.bGenerateSubFrame);
-	check(FrameData[InFrameIndex].GetBaseData()->MetaData.SceneTime.Rate == CachedSettings.BufferSettings.TimecodeFrameRate);
 
 	// find max and lower limit for TC with InFrameIndex
 	int32 HigherInclusiveLimit = InFrameIndex;
@@ -991,10 +1002,9 @@ void FLiveLinkSubject::CacheSettings(ULiveLinkSourceSettings* SourceSetting, ULi
 	if (SourceSetting)
 	{
 		const bool bSourceModeChanged = SourceSetting->Mode != CachedSettings.SourceMode;
-		const bool bTimecodeFrameRateChanged = SourceSetting->Mode == ELiveLinkSourceMode::Timecode && SourceSetting->BufferSettings.TimecodeFrameRate != CachedSettings.BufferSettings.TimecodeFrameRate;
 		const bool bGenerateSubFrameChanged = SourceSetting->Mode == ELiveLinkSourceMode::Timecode && SourceSetting->BufferSettings.bGenerateSubFrame != CachedSettings.BufferSettings.bGenerateSubFrame;
 		const bool bTimecodeModeChanged = SourceSetting->Mode == ELiveLinkSourceMode::Timecode && SourceSetting->BufferSettings.bUseTimecodeSmoothLatest != CachedSettings.BufferSettings.bUseTimecodeSmoothLatest;
-		if (bSourceModeChanged || bTimecodeFrameRateChanged || bGenerateSubFrameChanged || bTimecodeModeChanged)
+		if (bSourceModeChanged || bGenerateSubFrameChanged || bTimecodeModeChanged)
 		{
 			FrameData.Reset();
 			ReceivedOrderedFrames.Empty();
@@ -1009,17 +1019,25 @@ void FLiveLinkSubject::CacheSettings(ULiveLinkSourceSettings* SourceSetting, ULi
 			if (CachedSettings.BufferSettings.bGenerateSubFrame)
 			{
 				const double SourceFrameRate = CachedSettings.BufferSettings.SourceTimecodeFrameRate.AsDecimal(); //ie. 120
-				const double TimecodeFrameRate = CachedSettings.BufferSettings.TimecodeFrameRate.AsDecimal(); //ie. 30
-				if (SourceFrameRate <= TimecodeFrameRate)
+				const double TimecodeFrameRateDec = LastTimecodeFrameRate.AsDecimal(); //ie. 30
+				if (SourceFrameRate <= TimecodeFrameRateDec)
 				{
 					CachedSettings.BufferSettings.bGenerateSubFrame = false;
 
 					static const FName NAME_CanGenerateSubFrame = "LiveLinkSubject_CantGenerateSubFrame";
-					FLiveLinkLog::WarningOnce(NAME_CanGenerateSubFrame, SubjectKey, TEXT("Can't generate Sub Frame because the 'Timecode Frame Rate' is bigger or equal to the 'Source Timecode Frame Rate'"));
-
+					FLiveLinkLog::WarningOnce(NAME_CanGenerateSubFrame, SubjectKey, TEXT("Can't generate Sub Frame because the 'Subject's Timecode Frame Rate' is bigger or equal to the 'Source Timecode Frame Rate'"));
 				}
 			}
 		}
+	}
+
+	if (SubjectSetting)
+	{
+		//Stamp our frame rate estimation in settings to be visible
+		SubjectSetting->FrameRate = LastTimecodeFrameRate;
+
+		// Copy the rebroadcast flag from the incoming settings
+		bRebroadcastSubject = SubjectSetting->bRebroadcastSubject;
 
 		// Create a new or fetch the PreProcessors for this frame
 		FramePreProcessors.Reset();

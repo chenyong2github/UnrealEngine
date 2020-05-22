@@ -9,7 +9,7 @@
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
-	#include "pxr/usd/usdGeom/mesh.h"
+	#include "pxr/pxr.h"
 #include "USDIncludesEnd.h"
 
 class UStaticMesh;
@@ -22,12 +22,12 @@ PXR_NAMESPACE_CLOSE_SCOPE
 class FBuildStaticMeshTaskChain : public FUsdSchemaTranslatorTaskChain
 {
 public:
-	explicit FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema, FMeshDescription&& InMeshDescription );
+	explicit FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FUsdTyped& InSchema, FMeshDescription&& InMeshDescription );
 
 protected:
 	// Inputs
 	// When multiple meshes are collapsed together, this Schema might not be the same as the Context schema, which is the root schema
-	TUsdStore< pxr::UsdTyped > Schema;
+	UE::FUsdTyped Schema;
 	TSharedRef< FUsdSchemaTranslationContext > Context;
 	FMeshDescription MeshDescription;
 
@@ -38,7 +38,7 @@ protected:
 	TSharedPtr<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContextPtr;
 
 protected:
-	FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema )
+	FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FUsdTyped& InSchema )
 		: Schema( InSchema )
 		, Context( InContext )
 	{
@@ -50,11 +50,7 @@ protected:
 class FGeomMeshCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
 public:
-	explicit FGeomMeshCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdGeomMesh >& InGeomMesh )
-		: FBuildStaticMeshTaskChain( InContext, TUsdStore< pxr::UsdTyped >( InGeomMesh.Get() ) )
-	{
-		SetupTasks();
-	}
+	explicit FGeomMeshCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdGeomMesh >& InGeomMesh );
 
 protected:
 	virtual void SetupTasks() override;

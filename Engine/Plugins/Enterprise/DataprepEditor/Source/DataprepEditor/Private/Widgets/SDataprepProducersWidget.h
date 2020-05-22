@@ -66,10 +66,6 @@ public:
 	}
 
 private:
-	FSlateColor GetStatusColorAndOpacity() const;
-	FText GetStatusTooltipText() const;
-
-private:
 	mutable TWeakPtr<FContentProducerEntry> Node;
 };
 

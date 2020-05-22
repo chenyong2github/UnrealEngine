@@ -14,6 +14,7 @@
 #include "DMXEditor.h"
 #include "DMXProtocolTypes.h"
 #include "DMXEditorUtils.h"
+#include "DMXProtocolSettings.h"
 
 #include "Widgets/OutputFader/SDMXOutputFaderList.h"
 #include "Widgets/OutputFader/SDMXFader.h"
@@ -21,6 +22,7 @@
 #include "Widgets/SDMXInputInfoSelecter.h"
 #include "Widgets/SDMXInputInfo.h"
 #include "Widgets/Common/SSpinBoxVertical.h"
+#include "Widgets/SDMXInputInfoChannelsView.h"
 
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSpinBox.h"
@@ -52,8 +54,32 @@ struct FDMXEditorHelper
 		}
 	}
 
-	FDMXEditorHelper()
+	// This sets the Protocol name in the configuration before 
+	void InitEditor()
 	{
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+		FName SaveInputConsoleProtocol = ProtocolSettings->InputConsoleProtocol;
+		ProtocolSettings->InputConsoleProtocol = ProtocolName;
+
+		DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, DMXLibrary);
+
+		ProtocolSettings->InputConsoleProtocol = SaveInputConsoleProtocol;
+	}
+
+	void SetGlobalArtNetUniverseOffset(int InUniverseOffset, TFunction<void()>& InFunction)
+	{
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+		int32 SaveGlobalArtNetUniverseOffset = ProtocolSettings->GlobalArtNetUniverseOffset;
+		ProtocolSettings->GlobalArtNetUniverseOffset = InUniverseOffset;
+
+		InFunction();
+
+		ProtocolSettings->GlobalArtNetUniverseOffset = SaveGlobalArtNetUniverseOffset;
+	}
+
+	FDMXEditorHelper(const FName& InProtocolName)
+	{
+		this->ProtocolName = InProtocolName;
 		DMXEditor = MakeShared<FDMXEditor>();
 		UPackage* Package = GetTransientPackage();
 		UDMXEditorFactoryNew* Factory = NewObject<UDMXEditorFactoryNew>(Package, MakeUniqueObjectName(GetTransientPackage(), UDMXEditorFactoryNew::StaticClass()));
@@ -71,6 +97,7 @@ struct FDMXEditorHelper
 	UDMXLibrary* DMXLibrary;
 	UDMXEntityFader* FaderEntity;
 	UDMXEntityFader* NewFaderTemplate;
+	FName ProtocolName;
 };
 
 
@@ -87,7 +114,7 @@ bool FDMXEditorFadersArtNetTest::RunTest(const FString& Parameters)
 	FDMXEditorHelper::ResetUniverses();
 
 	// Create Helper
-	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>();
+	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>(FDMXProtocolArtNetModule::NAME_Artnet);
 
 	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
 
@@ -111,7 +138,7 @@ bool FDMXEditorFadersArtNetTest::RunTest(const FString& Parameters)
 	Helper->FaderEntity->DeviceProtocol = FDMXProtocolName(FDMXProtocolArtNetModule::NAME_Artnet);
 	Helper->FaderEntity->PostEditChange();
 
-	Helper->DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helper->DMXLibrary);
+	Helper->InitEditor();
 
 	TSharedPtr<SDMXOutputFaderList> DMXOutputFaderList = SNew(SDMXOutputFaderList)
 		.DMXEditor(Helper->DMXEditor)
@@ -159,7 +186,7 @@ bool FDMXEditorFadersSACNTest::RunTest(const FString& Parameters)
 	FDMXEditorHelper::ResetUniverses();
 
 	// Create Helper
-	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>();
+	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>(FDMXProtocolSACNModule::NAME_SACN);
 
 	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolSACNModule::NAME_SACN);
 
@@ -184,7 +211,7 @@ bool FDMXEditorFadersSACNTest::RunTest(const FString& Parameters)
 	Helper->FaderEntity->DeviceProtocol = FDMXProtocolName(FDMXProtocolSACNModule::NAME_SACN);
 	Helper->FaderEntity->PostEditChange();
 
-	Helper->DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helper->DMXLibrary);
+	Helper->InitEditor();
 
 	TSharedPtr<SDMXOutputFaderList> DMXOutputFaderList = SNew(SDMXOutputFaderList)
 		.DMXEditor(Helper->DMXEditor)
@@ -234,19 +261,19 @@ bool FDMXEditorControllersEmptyTest::RunTest(const FString& Parameters)
 
 	FDMXEditorHelper Helpers[] =
 	{
-		FDMXEditorHelper(),
-		FDMXEditorHelper()
+		FDMXEditorHelper(FDMXProtocolArtNetModule::NAME_Artnet),
+		FDMXEditorHelper(FDMXProtocolSACNModule::NAME_SACN)
 	};
 
-	Helpers[0].DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helpers[0].DMXLibrary);
-	Helpers[1].DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helpers[1].DMXLibrary);
+	Helpers[0].InitEditor();
+	Helpers[1].InitEditor();
 
 	const TMap<FName, IDMXProtocolPtr>& Protocols = IDMXProtocol::GetProtocols();
 	for (TMap<FName, IDMXProtocolPtr>::TConstIterator ProtocolIt = Protocols.CreateConstIterator(); ProtocolIt; ++ProtocolIt)
 	{
 		if (IDMXProtocolPtr ProtocolPtr = ProtocolIt->Value)
 		{
-			TestEqual(TEXT("Verify number of universes Is 0"), 0, ProtocolPtr->GetUniversesNum());
+			TestEqual(TEXT("Verify number of universes Is 0"), ProtocolPtr->GetUniversesNum(), 0 );
 		}
 	}
 
@@ -293,11 +320,18 @@ bool FDMXEditorControllersNonEmptyTest::RunTest(const FString& Parameters)
 
 	FDMXEditorHelper Helpers[] =
 	{
-		FDMXEditorHelper(),
-		FDMXEditorHelper()
+		FDMXEditorHelper(FDMXProtocolArtNetModule::NAME_Artnet),
+		FDMXEditorHelper(FDMXProtocolSACNModule::NAME_SACN)
 	};
 
-	FName DeviceProtocolName = GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol);
+	FName UniversesName = GET_MEMBER_NAME_CHECKED(UDMXEntityController, Universes);
+	TMap<FString, int32> ChangedIndex;
+	TArray<TMap<FString, int32>> ChangedIndexView;
+	ChangedIndexView.Add(ChangedIndex);
+	ChangedIndex.Add(UniversesName.ToString(), 0);
+	FProperty* UniverseProperty = FindFieldChecked<FProperty>(UDMXEntityController::StaticClass(), UniversesName);
+	FPropertyChangedEvent UniverseChange(UniverseProperty, EPropertyChangeType::ArrayAdd);
+	UniverseChange.SetArrayIndexPerObject(ChangedIndexView);
 
 	// Add one Universe for editor 0
 	{
@@ -309,8 +343,7 @@ bool FDMXEditorControllersNonEmptyTest::RunTest(const FString& Parameters)
 		Controller->UniverseLocalNum = 1;
 		Controller->RemoteOffset = 0;
 		Controller->Universes.Add(Universe);
-		FObjectEditorUtils::SetPropertyValue(Controller, DeviceProtocolName,
-			FDMXProtocolName(FDMXProtocolArtNetModule::NAME_Artnet));
+		Controller->PostEditChangeProperty(UniverseChange);
 	}
 
 	// Add same Universe for editor 0
@@ -323,8 +356,7 @@ bool FDMXEditorControllersNonEmptyTest::RunTest(const FString& Parameters)
 		Controller->UniverseLocalNum = 1;
 		Controller->RemoteOffset = 0;
 		Controller->Universes.Add(Universe);
-		FObjectEditorUtils::SetPropertyValue(Controller, DeviceProtocolName,
-			FDMXProtocolName(FDMXProtocolArtNetModule::NAME_Artnet));
+		Controller->PostEditChangeProperty(UniverseChange);
 	}
 
 	// Add Universe for editor 1
@@ -333,12 +365,11 @@ bool FDMXEditorControllersNonEmptyTest::RunTest(const FString& Parameters)
 		UDMXEntityController* Controller = Cast<UDMXEntityController>(Helpers[1].DMXLibrary->GetOrCreateEntityObject(NewLibraryName.ToString(), UDMXEntityController::StaticClass()));
 		FDMXUniverse Universe;
 		Universe.UniverseNumber = 675;
-		Controller->UniverseLocalStart = 0;
+		Controller->UniverseLocalStart = 675;
 		Controller->UniverseLocalNum = 1;
-		Controller->RemoteOffset = 1;
+		Controller->RemoteOffset = 0;
 		Controller->Universes.Add(Universe);
-		FObjectEditorUtils::SetPropertyValue(Controller, DeviceProtocolName,
-			FDMXProtocolName(FDMXProtocolArtNetModule::NAME_Artnet));
+		Controller->PostEditChangeProperty(UniverseChange);
 	}
 
 	// Add same Universe for editor 1
@@ -347,16 +378,15 @@ bool FDMXEditorControllersNonEmptyTest::RunTest(const FString& Parameters)
 		UDMXEntityController* Controller = Cast<UDMXEntityController>(Helpers[1].DMXLibrary->GetOrCreateEntityObject(NewLibraryName.ToString(), UDMXEntityController::StaticClass()));
 		FDMXUniverse Universe;
 		Universe.UniverseNumber = 675;
-		Controller->UniverseLocalStart = 0;
+		Controller->UniverseLocalStart = 675;
 		Controller->UniverseLocalNum = 1;
-		Controller->RemoteOffset = 1;
+		Controller->RemoteOffset = 0;
 		Controller->Universes.Add(Universe);
-		FObjectEditorUtils::SetPropertyValue(Controller, DeviceProtocolName,
-			FDMXProtocolName(FDMXProtocolArtNetModule::NAME_Artnet));
+		Controller->PostEditChangeProperty(UniverseChange);
 	}
 
-	Helpers[0].DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helpers[0].DMXLibrary);
-	Helpers[1].DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helpers[1].DMXLibrary);
+	Helpers[0].InitEditor();
+	Helpers[1].InitEditor();
 
 	uint32 NumUniverses = 0;
 	const TMap<FName, IDMXProtocolPtr>& Protocols = IDMXProtocol::GetProtocols();
@@ -383,44 +413,49 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDMXEditorInputConsoleArtNetExistingTest, "Virt
 
 bool FDMXEditorInputConsoleArtNetExistingTest::RunTest(const FString& Parameters)
 {
+	const uint16 TestUniverseID = 0;
+
 	// Reset Universes
 	FDMXEditorHelper::ResetUniverses();
 
 	FName DeviceProtocolName = GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol);
 	
 	// Create Helper
-	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>();
+	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>(FDMXProtocolArtNetModule::NAME_Artnet);
 
 	// 2. Create Universe
 	FName NewLibraryName = MakeUniqueObjectName(GetTransientPackage(), UDMXLibrary::StaticClass());
 	UDMXEntityController* Controller = Cast<UDMXEntityController>(Helper->DMXLibrary->GetOrCreateEntityObject(NewLibraryName.ToString(), UDMXEntityController::StaticClass()));
 	FDMXUniverse Universe;
-	Universe.UniverseNumber = ExistingUniverse;
+	Universe.UniverseNumber = TestUniverseID;
 	Controller->DeviceProtocol = FDMXProtocolName(FDMXProtocolArtNetModule::NAME_Artnet);
-	Controller->UniverseLocalStart = 0;
+	Controller->UniverseLocalStart = TestUniverseID;
 	Controller->UniverseLocalNum = 1;
-	Controller->RemoteOffset = 1;
+	Controller->RemoteOffset = 0;
 	Controller->Universes.Add(Universe);
 	FObjectEditorUtils::SetPropertyValue(Controller, DeviceProtocolName,
 		FDMXProtocolName(FDMXProtocolArtNetModule::NAME_Artnet));
 
 	// 3. Create editor
-	Helper->DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helper->DMXLibrary);
+	Helper->InitEditor();
 
 	// 4. Set Input Tab
 	TSharedRef<SDMXInputConsole> InputConsole = Helper->DMXEditor->GetInputConsoleTab();
 	const TSharedRef<SDMXInputInfo>& InputInfo = InputConsole->GetInputInfo();
+	const TSharedPtr<class SDMXInputInfoChannelsView>& ChannelsView = InputInfo->GetChannelsView();
 	const TSharedRef<SDMXInputInfoSelecter>& InfoSelecter = InputConsole->GetInputInfoSelecter();
 	const TSharedRef<SSpinBox<uint32>>& UniverseField = InfoSelecter->GetUniverseField();
-
+	InfoSelecter->SetCurrentListenFor(SDMXInputInfoSelecter::LookForAddresses);
 	InfoSelecter->SetProtocol(FDMXProtocolArtNetModule::NAME_Artnet);
-	UniverseField->SetValue(ExistingUniverse);
+	UniverseField->SetValue(TestUniverseID);
 
 	// 5. Send DMX
 	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
 	IDMXFragmentMap FragmentMap;
 	FragmentMap.Add(1, TestChannelValue);
-	EDMXSendResult SendResult = DMXProtocol->SendDMXFragment(ExistingUniverse, FragmentMap);
+	EDMXSendResult SendResult = EDMXSendResult::ErrorNoSenderInterface;
+
+	SendResult = DMXProtocol->SendDMXFragment(TestUniverseID, FragmentMap);
 	TestEqual(TEXT("SendDMXFragment failed"), SendResult, EDMXSendResult::Success);
 
 	if (SendResult == EDMXSendResult::Success)
@@ -436,7 +471,7 @@ bool FDMXEditorInputConsoleArtNetExistingTest::RunTest(const FString& Parameters
 				InputInfo->Tick(AllottedGeometry, 0.0, 0.0);
 
 				// 6. Check input console
-				const TArray<uint8>& ChannelsValues = InputInfo->GetChannelsValues();
+				const TArray<uint8>& ChannelsValues = ChannelsView->GetChannelsValues();
 				TestEqual(TEXT("Verify ChannelsValue"), TestChannelValue, ChannelsValues[0]);
 
 				FDMXEditorHelper::ResetUniverses();
@@ -455,19 +490,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDMXEditorInputConsoleArtNetNonExistingTest, "V
 
 bool FDMXEditorInputConsoleArtNetNonExistingTest::RunTest(const FString& Parameters)
 {
+	const uint16 TestUniverseID = 0;
+	
 	// Reset Universes
 	FDMXEditorHelper::ResetUniverses();
 
 	FName DeviceProtocolName = GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol);
 
 	// Create Helper
-	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>();
+	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>(FDMXProtocolArtNetModule::NAME_Artnet);
 
 	// 2. Create Universe
 	FName NewLibraryName = MakeUniqueObjectName(GetTransientPackage(), UDMXLibrary::StaticClass());
 	UDMXEntityController* Controller = Cast<UDMXEntityController>(Helper->DMXLibrary->GetOrCreateEntityObject(NewLibraryName.ToString(), UDMXEntityController::StaticClass()));
 	FDMXUniverse Universe;
-	Universe.UniverseNumber = ExistingUniverse;
+	Universe.UniverseNumber = TestUniverseID;
 	Controller->UniverseLocalStart = 0;
 	Controller->UniverseLocalNum = 1;
 	Controller->RemoteOffset = 1;
@@ -477,13 +514,14 @@ bool FDMXEditorInputConsoleArtNetNonExistingTest::RunTest(const FString& Paramet
 		FDMXProtocolName(FDMXProtocolArtNetModule::NAME_Artnet));
 
 	// 3. Create editor
-	Helper->DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helper->DMXLibrary);
+	Helper->InitEditor();
 
 	// 4. Set Input Tab
 	TSharedRef<SDMXInputConsole> InputConsole = Helper->DMXEditor->GetInputConsoleTab();
 	const TSharedRef<SDMXInputInfo>& InputInfo = InputConsole->GetInputInfo();
 	const TSharedRef<SDMXInputInfoSelecter>& InfoSelecter = InputConsole->GetInputInfoSelecter();
 	const TSharedRef<SSpinBox<uint32>>& UniverseField = InfoSelecter->GetUniverseField();
+	const TSharedPtr<class SDMXInputInfoChannelsView>& ChannelsView = InputInfo->GetChannelsView();
 
 	InfoSelecter->SetProtocol(FDMXProtocolArtNetModule::NAME_Artnet);
 	UniverseField->SetValue(NonExistingUniverse);
@@ -492,7 +530,7 @@ bool FDMXEditorInputConsoleArtNetNonExistingTest::RunTest(const FString& Paramet
 	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
 	IDMXFragmentMap FragmentMap;
 	FragmentMap.Add(1, TestChannelValue);
-	EDMXSendResult SendResult = DMXProtocol->SendDMXFragment(ExistingUniverse, FragmentMap);
+	EDMXSendResult SendResult = DMXProtocol->SendDMXFragment(TestUniverseID, FragmentMap);
 	TestEqual(TEXT("SendDMXFragment failed"), SendResult, EDMXSendResult::Success);
 
 	if (SendResult == EDMXSendResult::Success)
@@ -502,20 +540,20 @@ bool FDMXEditorInputConsoleArtNetNonExistingTest::RunTest(const FString& Paramet
 			{
 				TSharedRef<SDMXInputConsole> InputConsole = Helper->DMXEditor->GetInputConsoleTab();
 				const TSharedPtr<SDMXInputInfo>& InputInfo = InputConsole->GetInputInfo();
+				const TSharedPtr<class SDMXInputInfoChannelsView>& ChannelsView = InputInfo->GetChannelsView();
 
 				// Force Tick to allow for InputInfo to self update
 				FGeometry AllottedGeometry;
 				InputInfo->Tick(AllottedGeometry, 0.0, 0.0);
 
 				// 6. Check input console
-				const TArray<uint8>& ChannelsValues = InputInfo->GetChannelsValues();
+				const TArray<uint8>& ChannelsValues = ChannelsView->GetChannelsValues();
 				TestNotEqual(TEXT("Verify ChannelsValue"), TestChannelValue, ChannelsValues[0]);
 
 				FDMXEditorHelper::ResetUniverses();
 
 				// 7. Close the Editor
 				Helper->DMXEditor->CloseWindow();
-
 			}, 0.2f));
 	}
 
@@ -533,7 +571,7 @@ bool FDMXEditorInputConsoleSACNExistingTest::RunTest(const FString& Parameters)
 	FName DeviceProtocolName = GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol);
 
 	// Create Helper
-	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>();
+	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>(FDMXProtocolSACNModule::NAME_SACN);
 
 	// 2. Create Universe
 	FName NewLibraryName = MakeUniqueObjectName(GetTransientPackage(), UDMXLibrary::StaticClass());
@@ -549,13 +587,14 @@ bool FDMXEditorInputConsoleSACNExistingTest::RunTest(const FString& Parameters)
 		FDMXProtocolName(FDMXProtocolSACNModule::NAME_SACN));
 
 	// 3. Create editor
-	Helper->DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helper->DMXLibrary);
+	Helper->InitEditor();
 
 	// 4. Set Input Tab
 	TSharedRef<SDMXInputConsole> InputConsole = Helper->DMXEditor->GetInputConsoleTab();
 	const TSharedRef<SDMXInputInfo>& InputInfo = InputConsole->GetInputInfo();
 	const TSharedRef<SDMXInputInfoSelecter>& InfoSelecter = InputConsole->GetInputInfoSelecter();
 	const TSharedRef<SSpinBox<uint32>>& UniverseField = InfoSelecter->GetUniverseField();
+	const TSharedPtr<class SDMXInputInfoChannelsView>& ChannelsView = InputInfo->GetChannelsView();
 
 	InfoSelecter->SetProtocol(FDMXProtocolSACNModule::NAME_SACN);
 	UniverseField->SetValue(ExistingUniverse);
@@ -574,20 +613,20 @@ bool FDMXEditorInputConsoleSACNExistingTest::RunTest(const FString& Parameters)
 			{
 				TSharedRef<SDMXInputConsole> InputConsole = Helper->DMXEditor->GetInputConsoleTab();
 				const TSharedPtr<SDMXInputInfo>& InputInfo = InputConsole->GetInputInfo();
+				const TSharedPtr<class SDMXInputInfoChannelsView>& ChannelsView = InputInfo->GetChannelsView();
 
 				// Force Tick to allow for InputInfo to self update
 				FGeometry AllottedGeometry;
 				InputInfo->Tick(AllottedGeometry, 0.0, 0.0);
 
 				// 6. Check input console
-				const TArray<uint8>& ChannelsValues = InputInfo->GetChannelsValues();
+				const TArray<uint8>& ChannelsValues = ChannelsView->GetChannelsValues();
 				TestEqual(TEXT("Verify ChannelsValue"), TestChannelValue, ChannelsValues[0]);
 
 				FDMXEditorHelper::ResetUniverses();
 
 				// 7. Close the Editor
 				Helper->DMXEditor->CloseWindow();
-
 			}, 0.2f));
 	}
 
@@ -604,7 +643,7 @@ bool FDMXEditorInputConsoleSACNNonExistingTest::RunTest(const FString& Parameter
 	FName DeviceProtocolName = GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol);
 
 	// Create Helper
-	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>();
+	TSharedPtr<FDMXEditorHelper> Helper = MakeShared<FDMXEditorHelper>(FDMXProtocolSACNModule::NAME_SACN);
 
 	// 2. Create Universe
 	FName NewLibraryName = MakeUniqueObjectName(GetTransientPackage(), UDMXLibrary::StaticClass());
@@ -620,13 +659,14 @@ bool FDMXEditorInputConsoleSACNNonExistingTest::RunTest(const FString& Parameter
 		FDMXProtocolName(FDMXProtocolSACNModule::NAME_SACN));
 
 	// 3. Create editor
-	Helper->DMXEditor->InitEditor(EToolkitMode::Standalone, nullptr, Helper->DMXLibrary);
+	Helper->InitEditor();
 
 	// 4. Set Input Tab
 	TSharedRef<SDMXInputConsole> InputConsole = Helper->DMXEditor->GetInputConsoleTab();
 	const TSharedRef<SDMXInputInfo>& InputInfo = InputConsole->GetInputInfo();
 	const TSharedRef<SDMXInputInfoSelecter>& InfoSelecter = InputConsole->GetInputInfoSelecter();
 	const TSharedRef<SSpinBox<uint32>>& UniverseField = InfoSelecter->GetUniverseField();
+	const TSharedPtr<class SDMXInputInfoChannelsView>& ChannelsView = InputInfo->GetChannelsView();
 
 	InfoSelecter->SetProtocol(FDMXProtocolSACNModule::NAME_SACN);
 	UniverseField->SetValue(NonExistingUniverse);
@@ -645,20 +685,20 @@ bool FDMXEditorInputConsoleSACNNonExistingTest::RunTest(const FString& Parameter
 			{
 				TSharedRef<SDMXInputConsole> InputConsole = Helper->DMXEditor->GetInputConsoleTab();
 				const TSharedPtr<SDMXInputInfo>& InputInfo = InputConsole->GetInputInfo();
+				const TSharedPtr<class SDMXInputInfoChannelsView>& ChannelsView = InputInfo->GetChannelsView();
 
 				// Force Tick to allow for InputInfo to self update
 				FGeometry AllottedGeometry;
 				InputInfo->Tick(AllottedGeometry, 0.0, 0.0);
 
 				// 6. Check input console
-				const TArray<uint8>& ChannelsValues = InputInfo->GetChannelsValues();
+				const TArray<uint8>& ChannelsValues = ChannelsView->GetChannelsValues();
 				TestNotEqual(TEXT("Verify ChannelsValue"), TestChannelValue, ChannelsValues[0]);
 
 				FDMXEditorHelper::ResetUniverses();
 
 				// 7. Close the Editor
 				Helper->DMXEditor->CloseWindow();
-
 			}, 0.2f));
 	}
 

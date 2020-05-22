@@ -15,7 +15,7 @@ class FDisplayClusterVrpnTrackerInputDataHolder
 	: public FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnTracker>
 {
 public:
-	FDisplayClusterVrpnTrackerInputDataHolder(const FDisplayClusterConfigInput& config);
+	FDisplayClusterVrpnTrackerInputDataHolder(const FDisplayClusterConfigInput& Config);
 	virtual ~FDisplayClusterVrpnTrackerInputDataHolder();
 
 public:
@@ -29,7 +29,7 @@ public:
 	// IDisplayClusterStringSerializable
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual FString SerializeToString() const override final;
-	virtual bool    DeserializeFromString(const FString& data) override final;
+	virtual bool    DeserializeFromString(const FString& Data) override final;
 
 private:
 	// Serialization constants

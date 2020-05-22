@@ -231,6 +231,9 @@ public:
 
 	int32 UploadedSampleIndex;
 
+	/** Flag to indicate which frame mesh data was selected during the update */
+	bool bNextFrameMeshDataSelected;
+
 #if RHI_RAYTRACING
 	FRayTracingGeometry RayTracingGeometry;
 #endif

@@ -27,7 +27,6 @@ FDMXProtocolArtNet::FDMXProtocolArtNet(const FName& InProtocolName, const FJsonO
 	UniverseManager = MakeShared<FDMXProtocolUniverseManager<FDMXProtocolUniverseArtNet>>(this);
 }
 
-
 TSharedPtr<IDMXProtocolSender> FDMXProtocolArtNet::GetSenderInterface() const
 {
 	return ArtNetSender;
@@ -65,7 +64,16 @@ bool FDMXProtocolArtNet::IsEnabled() const
 
 TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolArtNet::AddUniverse(const FJsonObject& InSettings)
 {
-	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = MakeShared<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe>(SharedThis(this), InSettings);
+	checkf(InSettings.HasField(TEXT("UniverseID")), TEXT("DMXProtocol UniverseID is not valid"));
+	uint32 UniverseID = InSettings.GetNumberField(TEXT("UniverseID"));
+	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(UniverseID);
+	if (Universe.IsValid())
+	{
+		UE_LOG_DMXPROTOCOL(Error, TEXT("Universe %i exist"), UniverseID);
+		return Universe;
+	}
+
+	Universe = MakeShared<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe>(SharedThis(this), InSettings);
 	return UniverseManager->AddUniverse(Universe->GetUniverseID(), Universe);
 }
 
@@ -73,15 +81,37 @@ void FDMXProtocolArtNet::CollectUniverses(const TArray<FDMXUniverse>& Universes)
 {
 	for (const FDMXUniverse& Universe : Universes)
 	{
+		FJsonObject UniverseSettings;
+		UniverseSettings.SetNumberField(TEXT("UniverseID"), Universe.UniverseNumber);
+		UniverseSettings.SetNumberField(TEXT("PortID"), 0); // For now use port 0 for ArtNet
+		UniverseSettings.SetNumberField(TEXT("IpAddress"), GetUniverseAddr(Universe.UnicastIpAddress));
+		UniverseSettings.SetNumberField(TEXT("EthernetPort"), ARTNET_PORT);
 		if (UniverseManager->GetAllUniverses().Contains(Universe.UniverseNumber))
 		{
+			UpdateUniverse(Universe.UniverseNumber, UniverseSettings);
 			continue;
 		}
 
-		FJsonObject UniverseSettings;
-		UniverseSettings.SetNumberField(TEXT("UniverseID"), Universe.UniverseNumber);
-		UniverseSettings.SetNumberField(TEXT("PortID"), 0); // TODO get correct PortID
 		AddUniverse(UniverseSettings);
+	}
+}
+
+void FDMXProtocolArtNet::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const
+{
+	OutSettings.SetNumberField(DMXJsonFieldNames::DMXPortID, 0.0);
+	OutSettings.SetNumberField(DMXJsonFieldNames::DMXUniverseID, InUniverseID);
+	OutSettings.SetNumberField(DMXJsonFieldNames::DMXEthernetPort, ARTNET_PORT);
+	OutSettings.SetNumberField(DMXJsonFieldNames::DMXIpAddress, GetUniverseAddr(FString()));		// Broadcast IP address
+
+}
+
+
+void FDMXProtocolArtNet::UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings)
+{
+	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(InUniverseId);
+	if (Universe.IsValid())
+	{
+		Universe->UpdateSettings(InSettings);
 	}
 }
 
@@ -133,6 +163,7 @@ bool FDMXProtocolArtNet::RestartNetworkInterface(const FString& InInterfaceIPAdd
 
 	// Try to create IP address at the first
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+
 	// Create sender address
 	SenderAddr = SocketSubsystem->CreateInternetAddr();
 	bool bIsValid = false;
@@ -147,24 +178,10 @@ bool FDMXProtocolArtNet::RestartNetworkInterface(const FString& InInterfaceIPAdd
 
 	// Release old network interface
 	ReleaseNetworkInterface();
-	bool bShouldUseUnicast = GetDefault<UDMXProtocolSettings>()->bShouldUseUnicast;
 
 	BroadcastAddr = SocketSubsystem->CreateInternetAddr();
-	if (bShouldUseUnicast)
-	{
-		bool bIsUnicastIPValid = false;
-		FString UnicastEndpoint = GetDefault<UDMXProtocolSettings>()->UnicastEndpoint;
-		BroadcastAddr->SetIp(*UnicastEndpoint, bIsUnicastIPValid);
-		if (!bIsUnicastIPValid)
-		{
-			OutErrorMessage = FString::Printf(TEXT("Error Invalid Unicast Address: %s"), *UnicastEndpoint);
-		}
-	}
-	else
-	{
-		BroadcastAddr->SetBroadcastAddress();
-	}
-
+	
+	BroadcastAddr->SetBroadcastAddress();
 	BroadcastAddr->SetPort(ARTNET_PORT);
 	BroadcastEndpoint = FIPv4Endpoint(BroadcastAddr);
 
@@ -262,7 +279,7 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXFragment(uint16 InUniverseID, const ID
 {
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
-	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(GetFinalSendUniverseID(FinalSendUniverseID));
+	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
 	if (!Universe.IsValid())
 	{
 		return EDMXSendResult::ErrorGetUniverse;
@@ -303,7 +320,7 @@ bool FDMXProtocolArtNet::Tick(float DeltaTime)
 	return true;
 }
 
-EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 PortID, const FDMXBufferPtr& DMXBuffer) const
+EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 PortID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const
 {
 	// Init Packager
 	FDMXProtocolPackager Packager;
@@ -334,8 +351,9 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 Port
 	Packager.AddToPackage(&ArtNetDMXPacket);
 
 	// Sending
-	FDMXPacketPtr Packet = MakeShared<FDMXPacket, ESPMode::ThreadSafe>(Packager.GetBuffer());
-
+	FJsonObject PacketSettings;
+	PacketSettings.SetNumberField(TEXT("UniverseID"), UniverseID);
+	FDMXPacketPtr Packet = MakeShared<FDMXPacket, ESPMode::ThreadSafe>(PacketSettings, UniverseID, Packager.GetBuffer());
 	if (!GetSenderInterface())
 	{
 		return EDMXSendResult::ErrorEnqueuePackage;
@@ -620,3 +638,23 @@ bool FDMXProtocolArtNet::HandleRdm(const FArrayReaderPtr & Buffer)
 }
 
 
+uint32 FDMXProtocolArtNet::GetUniverseAddr(FString UnicastAddress) const
+{
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
+	uint32 ReturnAddress = 0;
+	if (UnicastAddress.IsEmpty())
+	{
+		GetBroadcastAddr()->GetIp(ReturnAddress);
+		return ReturnAddress;
+	}
+	else
+	{
+		bool bIsValid = false;
+		InternetAddr->SetIp(*UnicastAddress, bIsValid);
+		InternetAddr->GetIp(ReturnAddress);
+		return ReturnAddress;
+	}
+
+	return ReturnAddress;
+}

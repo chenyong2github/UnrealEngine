@@ -47,7 +47,7 @@ void UVariantSet::Serialize(FArchive& Ar)
 	}
 }
 
-bool UVariantSet::IsExpanded()
+bool UVariantSet::IsExpanded() const
 {
 	return bExpanded;
 }
@@ -69,7 +69,7 @@ FText UVariantSet::GetDisplayText() const
 	return DisplayText;
 }
 
-FString UVariantSet::GetUniqueVariantName(const FString& InPrefix)
+FString UVariantSet::GetUniqueVariantName(const FString& InPrefix) const
 {
 	TSet<FString> UniqueNames;
 	for (UVariant* Variant : Variants)
@@ -198,7 +198,7 @@ void UVariantSet::AddVariants(const TArray<UVariant*>& NewVariants, int32 Index)
 	}
 }
 
-int32 UVariantSet::GetVariantIndex(UVariant* Var)
+int32 UVariantSet::GetVariantIndex(UVariant* Var) const
 {
 	if (Var == nullptr)
 	{
@@ -223,7 +223,7 @@ void UVariantSet::RemoveVariants(const TArray<UVariant*>& InVariants)
 	}
 }
 
-int32 UVariantSet::GetNumVariants()
+int32 UVariantSet::GetNumVariants() const
 {
 	return Variants.Num();
 }

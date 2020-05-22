@@ -1,84 +1,84 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "USDAssetImportFactory.h"
-#include "USDImporter.h"
-#include "IUSDImporterModule.h"
+
 #include "ActorFactories/ActorFactoryStaticMesh.h"
-#include "ProfilingDebugging/ScopedTimers.h"
-#include "USDImportOptions.h"
-#include "Engine/StaticMesh.h"
-#include "Misc/Paths.h"
-#include "JsonObjectConverter.h"
-#include "USDAssetImportData.h"
 #include "AssetImportTask.h"
+#include "Engine/StaticMesh.h"
+#include "IUSDImporterModule.h"
+#include "JsonObjectConverter.h"
+#include "Misc/Paths.h"
+#include "ProfilingDebugging/ScopedTimers.h"
+#include "USDAssetImportData.h"
+#include "USDImporter.h"
+#include "USDImportOptions.h"
+#include "UsdWrappers/SdfPath.h"
 
 #if USE_USD_SDK
-#include "USDIncludesStart.h"
 
-#include "pxr/usd/usd/stage.h"
-
-#include "USDIncludesEnd.h"
-
-void FUSDAssetImportContext::Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage)
+void FUSDAssetImportContext::Init(UObject* InParent, const FString& InName, const UE::FUsdStage& InStage)
 {
 	FUsdImportContext::Init(InParent, InName, InStage);
 }
 #endif // #if USE_USD_SDK
 
-UUSDAssetImportFactory::UUSDAssetImportFactory(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UUSDAssetImportFactory::UDEPRECATED_UUSDAssetImportFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bCreateNew = false;
 	bEditAfterNew = true;
 	SupportedClass = UStaticMesh::StaticClass();
 
-	ImportOptions = ObjectInitializer.CreateDefaultSubobject<UUSDImportOptions>(this, TEXT("USDImportOptions"));
+	ImportOptions_DEPRECATED = ObjectInitializer.CreateDefaultSubobject<UDEPRECATED_UUSDImportOptions>(this, TEXT("USDImportOptions"));
 
 	bEditorImport = true;
 	bText = false;
+
+	// Factory is deprecated
+	ImportPriority = -1;
 
 	Formats.Add(TEXT("usd;Universal Scene Descriptor files"));
 	Formats.Add(TEXT("usda;Universal Scene Descriptor files"));
 	Formats.Add(TEXT("usdc;Universal Scene Descriptor files"));
 }
 
-UObject* UUSDAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
+UObject* UDEPRECATED_UUSDAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
 	UObject* ImportedObject = nullptr;
 	AdditionalImportedObjects.Empty();
 
 #if USE_USD_SDK
-	UUSDImporter* USDImporter = IUSDImporterModule::Get().GetImporter();
+	UDEPRECATED_UUSDImporter* USDImporter = IUSDImporterModule::Get().GetImporter();
 
-	if (IsAutomatedImport() || USDImporter->ShowImportOptions(*ImportOptions))
+	if (IsAutomatedImport() || USDImporter->ShowImportOptions(*ImportOptions_DEPRECATED))
 	{
-		TUsdStore< pxr::UsdStageRefPtr > Stage = USDImporter->ReadUsdFile(ImportContext, Filename);
-		if (*Stage)
+		UE::FUsdStage Stage = USDImporter->ReadUsdFile(ImportContext, Filename);
+		if (Stage)
 		{
 			ImportContext.Init(InParent, InName.ToString(), Stage);
-			
+
 			if (AssetImportTask && AssetImportTask->Options)
 			{
-				ImportContext.ImportOptions = Cast<UUSDImportOptions>(AssetImportTask->Options);
-			}
-			
-			if (ImportContext.ImportOptions == nullptr)
-			{
-				ImportContext.ImportOptions = ImportOptions;
+				ImportContext.ImportOptions_DEPRECATED = Cast<UDEPRECATED_UUSDImportOptions>(AssetImportTask->Options);
 			}
 
-			ImportContext.bApplyWorldTransformToGeometry = ImportContext.ImportOptions->bApplyWorldTransformToGeometry;
+			if (ImportContext.ImportOptions_DEPRECATED == nullptr)
+			{
+				ImportContext.ImportOptions_DEPRECATED = ImportOptions_DEPRECATED;
+			}
+
+			ImportContext.bApplyWorldTransformToGeometry = ImportContext.ImportOptions_DEPRECATED->bApplyWorldTransformToGeometry;
 
 			TArray<FUsdAssetPrimToImport> PrimsToImport;
-			UUSDBatchImportOptions* BatchImportOptions = Cast<UUSDBatchImportOptions>(ImportContext.ImportOptions);
+			UDEPRECATED_UUSDBatchImportOptions* BatchImportOptions = Cast<UDEPRECATED_UUSDBatchImportOptions>(ImportContext.ImportOptions_DEPRECATED);
 			if (BatchImportOptions)
 			{
-				for (UUSDBatchImportOptionsSubTask* SubTask : BatchImportOptions->SubTasks)
+				for (UDEPRECATED_UUSDBatchImportOptionsSubTask* SubTask : BatchImportOptions->SubTasks_DEPRECATED)
 				{
 					FUsdAssetPrimToImport NewTopLevelPrim;
 
-					NewTopLevelPrim.Prim = (*Stage)->GetPrimAtPath( pxr::SdfPath(TCHAR_TO_ANSI(*SubTask->SourcePath)) );
-					if (!NewTopLevelPrim.Prim.Get().IsValid())
+					NewTopLevelPrim.Prim = Stage.GetPrimAtPath( UE::FSdfPath( *SubTask->SourcePath ) );
+					if (!NewTopLevelPrim.Prim.IsValid())
 					{
 						continue;
 					}
@@ -91,9 +91,9 @@ UObject* UUSDAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 			}
 			else
 			{
-				ImportContext.PrimResolver->FindMeshAssetsToImport(ImportContext, ImportContext.RootPrim, ImportContext.RootPrim, PrimsToImport);
+				ImportContext.PrimResolver_DEPRECATED->FindMeshAssetsToImport(ImportContext, ImportContext.RootPrim, ImportContext.RootPrim, PrimsToImport);
 			}
-						
+
 			TArray<UObject*> ImportedObjects = USDImporter->ImportMeshes(ImportContext, PrimsToImport);
 
 			// Just return the first one imported
@@ -123,7 +123,7 @@ UObject* UUSDAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 	return ImportedObject;
 }
 
-bool UUSDAssetImportFactory::FactoryCanImport(const FString& Filename)
+bool UDEPRECATED_UUSDAssetImportFactory::FactoryCanImport(const FString& Filename)
 {
 	const FString Extension = FPaths::GetExtension(Filename);
 
@@ -135,18 +135,18 @@ bool UUSDAssetImportFactory::FactoryCanImport(const FString& Filename)
 	return false;
 }
 
-void UUSDAssetImportFactory::CleanUp()
+void UDEPRECATED_UUSDAssetImportFactory::CleanUp()
 {
 	ImportContext = FUSDAssetImportContext();
 	Super::CleanUp();
 }
 
-bool UUSDAssetImportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
+bool UDEPRECATED_UUSDAssetImportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
 	UStaticMesh* Mesh = Cast<UStaticMesh>(Obj);
 	if (Mesh != nullptr)
 	{
-		UUSDAssetImportData* ImportData = Cast<UUSDAssetImportData>(Mesh->AssetImportData);
+		UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>(Mesh->AssetImportData);
 		if (ImportData)
 		{
 			OutFilenames.Add(ImportData->GetFirstFilename());
@@ -156,12 +156,12 @@ bool UUSDAssetImportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilen
 	return false;
 }
 
-void UUSDAssetImportFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
+void UDEPRECATED_UUSDAssetImportFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
 {
 	UStaticMesh* Mesh = Cast<UStaticMesh>(Obj);
 	if (Mesh != nullptr && ensure(NewReimportPaths.Num() == 1))
 	{
-		UUSDAssetImportData* ImportData = Cast<UUSDAssetImportData>(Mesh->AssetImportData);
+		UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>(Mesh->AssetImportData);
 		if (ImportData)
 		{
 			ImportData->UpdateFilenameOnly(NewReimportPaths[0]);
@@ -169,12 +169,12 @@ void UUSDAssetImportFactory::SetReimportPaths(UObject* Obj, const TArray<FString
 	}
 }
 
-EReimportResult::Type UUSDAssetImportFactory::Reimport(UObject* Obj)
+EReimportResult::Type UDEPRECATED_UUSDAssetImportFactory::Reimport(UObject* Obj)
 {
 	UStaticMesh* Mesh = Cast<UStaticMesh>(Obj);
 	if (Mesh != nullptr)
 	{
-		UUSDAssetImportData* ImportData = Cast<UUSDAssetImportData>(Mesh->AssetImportData);
+		UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>(Mesh->AssetImportData);
 		if (ImportData)
 		{
 			bool bOperationCancelled = false;
@@ -193,7 +193,7 @@ EReimportResult::Type UUSDAssetImportFactory::Reimport(UObject* Obj)
 	return EReimportResult::Failed;
 }
 
-void UUSDAssetImportFactory::ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson)
+void UDEPRECATED_UUSDAssetImportFactory::ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson)
 {
-	FJsonObjectConverter::JsonObjectToUStruct(ImportSettingsJson, ImportOptions->GetClass(), ImportOptions, 0, CPF_InstancedReference);
+	FJsonObjectConverter::JsonObjectToUStruct(ImportSettingsJson, ImportOptions_DEPRECATED->GetClass(), ImportOptions_DEPRECATED, 0, CPF_InstancedReference);
 }
