@@ -421,16 +421,6 @@ void SDesignerView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepr
 					.ViewOffset(this, &SDesignerView::GetViewOffset)
 					[
 						SNew(SOverlay)
-
-						+ SOverlay::Slot()
-						[
-							SNew(SBorder)
-							[
-								SNew(SSpacer)
-								.Size(FVector2D(1, 1))
-							]
-						]
-						
 						+ SOverlay::Slot()
 						[
 							SNew(SBorder)
