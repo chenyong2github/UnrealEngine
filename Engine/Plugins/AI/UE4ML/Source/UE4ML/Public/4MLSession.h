@@ -16,7 +16,10 @@
 class AGameModeBase;
 class U4MLAgent;
 struct F4MLAgentConfig;
+class APawn;
+class AController;
 class APlayerController;
+class UGameInstance;
 
 
 enum class E4MLSimState : uint8
@@ -39,6 +42,9 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 
+	// @todo this needs further consideration.
+
+	UGameInstance* GetGameInstance() const { return CachedWorld ? CachedWorld->GetGameInstance() : nullptr; }
 	/** NewWorld might be null */
 	virtual void SetWorld(UWorld* NewWorld);
 
@@ -102,9 +108,11 @@ public:
 	 *	for given agent, as specified by F4MLAgentConfig.AvatarClass
 	 *	and confirmed by Agent->IsSuitableAvatar call. If no suitable avatar is 
 	 *	found this agent will be added to "waiting list" (AwaitingAvatar)
-	 *	
+	 *	@param bForceSearch if true will ignore whether the Agent is already waiting in 
+	 *		AwaitingAvatar and will perform the search right away. Note that the Agent 
+	 *		might still end up in AwaitingAvatar if there's no suitable avatars available 
 	 *	@return true if an avatar has been assigned. False otherwise.*/
-	virtual bool RequestAvatarForAgent(U4MLAgent& Agent, UWorld* InWorld = nullptr);
+	virtual bool RequestAvatarForAgent(U4MLAgent& Agent, UWorld* InWorld = nullptr, const bool bForceSearch = false);
 
 	bool RequestAvatarForAgent(F4ML::FAgentID& AgentID, UWorld* InWorld = nullptr);
 

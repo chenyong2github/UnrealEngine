@@ -69,6 +69,7 @@ U4MLAgent::U4MLAgent(const FObjectInitializer& ObjectInitializer)
 {
 	AgentID = F4ML::InvalidAgentID;
 	bEverHadAvatar = false;
+	bRegisteredForPawnControllerChange = false;
 
 	AgentConfig.AddSensor(TEXT("Camera"));
 	AgentConfig.AddSensor(TEXT("Movement"));
@@ -82,6 +83,19 @@ U4MLAgent::U4MLAgent(const FObjectInitializer& ObjectInitializer)
 void U4MLAgent::BeginDestroy()
 {
 	ShutDownSensorsAndActuators();
+	// forcing unhooking from all event delegates
+	SetAvatar(nullptr); 
+
+	if (bRegisteredForPawnControllerChange)
+	{
+		UGameInstance* GameInstance = GetSession().GetGameInstance();
+		if (GameInstance)
+		{
+			GameInstance->GetOnPawnControllerChanged().RemoveAll(this);
+			bRegisteredForPawnControllerChange = false;
+		}
+	}
+
 	Super::BeginDestroy();
 }
 
@@ -129,6 +143,22 @@ void U4MLAgent::OnPawnChanged(APawn* NewPawn, AController* InController)
 	}
 
 	Pawn = NewPawn;
+}
+
+void U4MLAgent::OnPawnControllerChanged(APawn* InPawn, AController* InController)
+{
+	if (InPawn == Pawn)
+	{
+		if (Pawn == Avatar)
+		{
+			Controller = InController;
+		}
+		// if controller is the main avatar we might have just lost our pawn
+		else if (Controller && Controller != InController && Controller == Avatar)
+		{
+			OnPawnChanged(Controller->GetPawn() == InPawn ? nullptr : Controller->GetPawn(), Controller);
+		}
+	}
 }
 
 void U4MLAgent::Sense(const float DeltaTime)
@@ -189,6 +219,7 @@ void U4MLAgent::Configure(const F4MLAgentConfig& NewConfig)
 {
 	ShutDownSensorsAndActuators();
 
+	TSubclassOf<AActor> PreviousAvatarClass = AgentConfig.AvatarClass;
 	AgentConfig = NewConfig;
 
 	for (const TTuple<FName, F4MLParameterMap>& KeyValue : AgentConfig.Actuators)
@@ -223,16 +254,25 @@ void U4MLAgent::Configure(const F4MLAgentConfig& NewConfig)
 	{
 		AgentConfig.AvatarClass = FindObject<UClass>(ANY_PACKAGE, *NewConfig.AvatarClassName.ToString());
 	}
+	if (!AgentConfig.AvatarClass)
+	{
+		AgentConfig.AvatarClass = AActor::StaticClass();
+	}
 
 	ensure(AgentConfig.AvatarClass || Avatar);
 
-	if (AgentConfig.AvatarClass && (Avatar == nullptr || Avatar->IsA(AgentConfig.AvatarClass) == false))
+	if (AgentConfig.AvatarClass && (Avatar == nullptr || IsSuitableAvatar(*Avatar) == false))
 	{
 		SetAvatar(nullptr);
+
+		// if avatar class changed make sure the following RequestAvatarForAgent actually tries to find an avatar
+		// rather than just ignoring the request due to the agent already being in AwaitingAvatar
+		const bool bForceUpdate = (AgentConfig.AvatarClass != PreviousAvatarClass);
+
 		// note that after this call we might not have the avatar just yet 
 		// since the world might not have any. The Session will make sure to 
 		// assign us one as soon as one's ready.
-		GetSession().RequestAvatarForAgent(*this);
+		GetSession().RequestAvatarForAgent(*this, /*World=*/nullptr, bForceUpdate);
 	}
 	else if (ensure(Avatar))
 	{
@@ -300,51 +340,35 @@ void U4MLAgent::SetAvatar(AActor* InAvatar)
 		return;
 	}
 
-	// calling just to test for infinite recursion
+	if (InAvatar != nullptr && IsSuitableAvatar(*InAvatar) == false)
+	{
+		UE_LOG(LogUE4ML, Log, TEXT("SetAvatar was called for agent %u but %s is not a valid avatar (required avatar class %s)")
+			, AgentID, *InAvatar->GetName(), *GetNameSafe(AgentConfig.AvatarClass));
+		return;
+	}
+
+	AActor* PrevAvatar = Avatar;
+	AController* PrevController = Controller;
+	APawn* PrevPawn = Pawn;
+	if (Avatar)
+	{
+		Avatar->OnDestroyed.RemoveAll(this);
+		Avatar = nullptr;
+	}
+
 	if (InAvatar == nullptr)
 	{
-		if (Avatar)
-		{
-			Avatar->OnDestroyed.RemoveAll(this);
-			if (Controller)
-			{
-				Controller->GetOnNewPawnNotifier().RemoveAll(this);
-			}
-		}
-
-		Avatar = nullptr;
 		Controller = nullptr;
 		Pawn = nullptr;
 	}
 	else
 	{
-		if (Avatar)
-		{
-			Avatar->OnDestroyed.RemoveAll(this);
-		}
+		bEverHadAvatar = true;
+		Avatar = InAvatar;
 
 		Pawn = nullptr;
-		Avatar = InAvatar;
-		bEverHadAvatar = true;
-		Controller = Cast<AController>(InAvatar);
-		if (Controller)
-		{
-			//Pawn = Controller->GetPawn();
-			Pawn = nullptr;
-			Controller->GetOnNewPawnNotifier().AddUObject(this, &U4MLAgent::OnPawnChanged, Controller);
-			// @todo what if the controller has not possessed a pawn just yet 
-			// (but will in the future?)
-			//FPawnChangedSignature& Controller->GetOnNewPawnNotifier()
-		}
-		else
-		{
-			Pawn = Cast<APawn>(InAvatar);
-			if (Pawn)
-			{
-				// @todo what if the pawn has not been possessed just yet?
-				//Controller = Pawn->GetController();
-			}
-		}
+		Controller = nullptr;
+		F4MLAgentHelpers::GetAsPawnAndController(Avatar, Controller, Pawn);
 
 		if (Avatar)
 		{
@@ -360,6 +384,31 @@ void U4MLAgent::SetAvatar(AActor* InAvatar)
 	for (U4MLActuator* Actuator : Actuators)
 	{
 		Actuator->OnAvatarSet(Avatar);
+	}
+
+	// unregister from unused notifies
+
+	if (Controller != PrevController)
+	{
+		if (PrevController && PrevController == PrevAvatar)
+		{
+			PrevController->GetOnNewPawnNotifier().RemoveAll(this);
+		}
+		// when the controller is the main avatar
+		if (Controller != nullptr && (Avatar == Controller))
+		{
+			Controller->GetOnNewPawnNotifier().AddUObject(this, &U4MLAgent::OnPawnChanged, Controller);
+		}
+	}
+
+	if ((Controller != nullptr || Pawn != nullptr) && bRegisteredForPawnControllerChange == false)
+	{
+		UGameInstance* GameInstance = GetSession().GetGameInstance();
+		if (GameInstance)
+		{
+			GameInstance->GetOnPawnControllerChanged().AddDynamic(this, &U4MLAgent::OnPawnControllerChanged);
+			bRegisteredForPawnControllerChange = true;
+		}
 	}
 }
 

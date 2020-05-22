@@ -107,15 +107,16 @@ public:
 protected:
 	UFUNCTION()
 	virtual void OnAvatarDestroyed(AActor* DestroyedActor);
+	
+	/** will be bound to UGameInstance.OnPawnControllerChanged if current avatar is a pawn or a controller */
+	UFUNCTION()
+	void OnPawnControllerChanged(APawn* InPawn, AController* InController);
 
 	virtual void OnPawnChanged(APawn* NewPawn, AController* InController);
 
 	friend U4MLSession;
 	void SetAgentID(F4ML::FAgentID NewAgentID) { AgentID = NewAgentID; }
 
-	//----------------------------------------------------------------------//
-	// NEW STUFF 
-	//----------------------------------------------------------------------//
 public:
 	void GetObservations(F4MLMemoryWriter& Ar);
 	const F4MLAgentConfig& GetConfig() const { return AgentConfig; }
@@ -133,9 +134,7 @@ public:
 
 protected:
 	virtual void ShutDownSensorsAndActuators();
-	//----------------------------------------------------------------------//
-	// NEW STUFF END
-	//----------------------------------------------------------------------//
+
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = UE4ML)
@@ -158,4 +157,5 @@ private:
 	F4MLAgentConfig AgentConfig;
 
 	uint32 bEverHadAvatar : 1;
+	uint32 bRegisteredForPawnControllerChange : 1;
 };

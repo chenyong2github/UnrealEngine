@@ -90,6 +90,7 @@ public:
 
 	virtual U4MLSession* CreateNewSession();
 	virtual void SetSession(U4MLSession* NewSession);
+	virtual void CloseSession(U4MLSession& InSession);
 
 	/** Returns current sesison. If one doesn't exist, it gets created. */
 	virtual U4MLSession& GetSession();

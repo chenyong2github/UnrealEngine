@@ -3,6 +3,7 @@
 #include "4MLSession.h"
 #include "4MLTypes.h"
 #include "EngineUtils.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/GameMode.h"
 #include "GameFramework/GameStateBase.h"
 #include "Agents/4MLAgent.h"
@@ -230,6 +231,11 @@ void U4MLSession::Close()
 		Agent->ClearInternalFlags(EInternalObjectFlags::Async);
 	}
 	Agents.Reset();
+
+	if (CachedWorld && CachedWorld->GetGameInstance())
+	{
+		CachedWorld->GetGameInstance()->GetOnPawnControllerChanged().RemoveAll(this);
+	}
 }
 
 void U4MLSession::Tick(float DeltaTime)
@@ -453,10 +459,10 @@ void U4MLSession::RemoveAvatars(UWorld* World)
 bool U4MLSession::RequestAvatarForAgent(F4ML::FAgentID& AgentID, UWorld* InWorld)
 {
 	U4MLAgent* Agent = GetAgent(AgentID);
-	return (Agent != nullptr)  && RequestAvatarForAgent(*Agent, InWorld);
+	return (Agent != nullptr) && RequestAvatarForAgent(*Agent, InWorld);
 }
 
-bool U4MLSession::RequestAvatarForAgent(U4MLAgent& Agent, UWorld* InWorld)
+bool U4MLSession::RequestAvatarForAgent(U4MLAgent& Agent, UWorld* InWorld, const bool bForceSearch)
 {
 	if (Agent.GetAvatar() != nullptr)
 	{
@@ -465,7 +471,7 @@ bool U4MLSession::RequestAvatarForAgent(U4MLAgent& Agent, UWorld* InWorld)
 			, Agent.GetAgentID(), *GetNameSafe(Agent.GetAvatar()));
 		return false;
 	}
-	if (AwaitingAvatar.Find(&Agent) != INDEX_NONE)
+	if (bForceSearch == false && AwaitingAvatar.Find(&Agent) != INDEX_NONE)
 	{
 		// already waiting, skip
 		return false;

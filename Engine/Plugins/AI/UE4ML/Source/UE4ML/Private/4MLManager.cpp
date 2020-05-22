@@ -302,6 +302,15 @@ void U4MLManager::SetSession(U4MLSession* NewSession)
 	OnCurrentSessionChanged.Broadcast();
 }
 
+void U4MLManager::CloseSession(U4MLSession& InSession)
+{
+	// @todo temporary implementation, will change with multi-session support
+	if (&InSession == Session)
+	{
+		SetSession(nullptr);
+	}
+}
+
 U4MLSession& U4MLManager::GetSession()
 {
 	if (Session == nullptr)

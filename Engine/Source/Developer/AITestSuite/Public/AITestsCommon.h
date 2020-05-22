@@ -57,7 +57,7 @@ protected:
 	}
 
 	void AddAutoDestroyObject(UObject& ObjectRef);
-	UWorld& GetWorld() const;
+	virtual UWorld& GetWorld() const;
 
 	FAutomationTestBase& GetTestRunner() const { check(TestRunner); return *TestRunner; }
 
@@ -144,12 +144,12 @@ DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(AITESTSUITE_API, FAITest
  *	}
  */
 #define IMPLEMENT_INSTANT_TEST_WITH_FIXTURE(Fixture, PrettyGroupNameString, TestExperiment) \
-	struct Fixture##Test##TestExperiment : public Fixture \
+	struct Fixture##_##TestExperiment : public Fixture \
 	{ \
 		virtual bool InstantTest() override; \
 	}; \
-	IMPLEMENT_AI_INSTANT_TEST(Fixture##Test##TestExperiment, PrettyGroupNameString ## "." # TestExperiment) \
-	bool Fixture##Test##TestExperiment::InstantTest()
+	IMPLEMENT_AI_INSTANT_TEST(Fixture##_##TestExperiment, PrettyGroupNameString "." # TestExperiment) \
+	bool Fixture##_##TestExperiment::InstantTest()
 //----------------------------------------------------------------------//
 // Specific test types
 //----------------------------------------------------------------------//
@@ -186,8 +186,6 @@ struct FAITest_SimpleComponentBasedTest : public FAITestBase
 	{
 		Component->TickComponent(FAITestHelpers::TickInterval, ELevelTick::LEVELTICK_All, nullptr);
 	}
-
-	//virtual bool Update() override;
 };
 
 //----------------------------------------------------------------------//
@@ -216,6 +214,49 @@ struct FAITest_SimpleComponentBasedTest : public FAITestBase
 
 #define AITEST_NOT_NULL(What, Pointer)\
 	if (!GetTestRunner().TestNotNull(What, Pointer))\
+	{\
+		return false;\
+	}
+
+namespace FTestHelpers
+{
+	template<typename T1, typename T2>
+	inline bool TestEqual(const FString& Description, T1 Expression, T2 Expected, FAutomationTestBase& This)
+	{
+		This.TestEqual(*Description, Expression, Expected);
+		return Expression == Expected;
+	}
+
+	template<typename T1, typename T2>
+	inline bool TestEqual(const FString& Description, T1* Expression, T2* Expected, FAutomationTestBase& This)
+	{
+		This.TestEqual(*Description, reinterpret_cast<uint64>(Expression), reinterpret_cast<uint64>(Expected));
+		return Expression == Expected;
+	}
+
+	template<typename T1, typename T2>
+	inline bool TestNotEqual(const FString& Description, T1 Expression, T2 Expected, FAutomationTestBase& This)
+	{
+		This.TestNotEqual(*Description, Expression, Expected);
+		return Expression != Expected;
+	}
+
+	template<typename T1, typename T2>
+	inline bool TestNotEqual(const FString& Description, T1* Expression, T2* Expected, FAutomationTestBase& This)
+	{
+		This.TestNotEqual(*Description, reinterpret_cast<uint64>(Expression), reinterpret_cast<uint64>(Expected));
+		return Expression != Expected;
+	}
+}
+
+#define AITEST_EQUAL(What, Actual, Expected)\
+	if (!FTestHelpers::TestEqual(What, Actual, Expected, GetTestRunner()))\
+	{\
+		return false;\
+	}
+
+#define AITEST_NOT_EQUAL(What, Actual, Expected)\
+	if (!FTestHelpers::TestNotEqual(What, Actual, Expected, GetTestRunner()))\
 	{\
 		return false;\
 	}

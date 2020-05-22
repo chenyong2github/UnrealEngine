@@ -37,7 +37,7 @@ struct FRPCTest_StartStop : public FRPCTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FRPCTest_StartStop, "System.Engine.AI.ML.RPC.ServerStartStop")
+IMPLEMENT_AI_INSTANT_TEST(FRPCTest_StartStop, "System.AI.4ML.RPC.ServerStartStop")
 
 struct FRPCTest_BasicBinds : public FRPCTestBase
 {
@@ -100,17 +100,13 @@ struct FRPCTest_ClientBinds : public FRPCTest_BasicBinds
 	}
 	virtual bool InstantTest() override
 	{
-		if (CallCount)
-		{
-			AITEST_TRUE("Only one function should get called", CallCount == 1);
-			AITEST_TRUE("Only the client function should get called", bClientFooCalled);
-			AITEST_FALSE("The server function should not get called", bServerFooCalled);
-			return true;
-		}
-		return false;
+		AITEST_TRUE("Only one function should get called", CallCount == 1);
+		AITEST_TRUE("Only the client function should get called", bClientFooCalled);
+		AITEST_FALSE("The server function should not get called", bServerFooCalled);
+		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FRPCTest_ClientBinds, "System.Engine.AI.ML.RPC.ClientBinds")
+IMPLEMENT_AI_INSTANT_TEST(FRPCTest_ClientBinds, "System.AI.4ML.RPC.ClientBinds")
 
 struct FRPCTest_ServerBinds : public FRPCTest_BasicBinds
 {
@@ -137,17 +133,13 @@ struct FRPCTest_ServerBinds : public FRPCTest_BasicBinds
 
 	virtual bool InstantTest() override
 	{
-		if (CallCount)
-		{
-			AITEST_TRUE("Only one function should get called", CallCount == 1);
-			AITEST_TRUE("Only the server function should get called", bServerFooCalled);
-			AITEST_FALSE("The client function should not get called", bClientFooCalled);
-			return true;
-		}
-		return false;
+		AITEST_TRUE("Only one function should get called", CallCount == 1);
+		AITEST_TRUE("Only the server function should get called", bServerFooCalled);
+		AITEST_FALSE("The client function should not get called", bClientFooCalled);
+		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FRPCTest_ServerBinds, "System.Engine.AI.ML.RPC.ServerBinds")
+IMPLEMENT_AI_INSTANT_TEST(FRPCTest_ServerBinds, "System.AI.4ML.RPC.ServerBinds")
 
 PRAGMA_ENABLE_OPTIMIZATION
 
