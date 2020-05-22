@@ -7,6 +7,9 @@
 #include "NiagaraEditor/Public/ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "AssetData.h"
 #include "Particles/ParticleEmitter.h"
+#include "Particles/SubUVAnimation.h"
+#include "Particles/ParticleSpriteEmitter.h"
+#include "Particles/ParticleModuleRequired.h"
 #include "NiagaraStackGraphUtilitiesAdapterLibrary.generated.h"
 
 class UNiagaraSystem;
@@ -162,7 +165,7 @@ struct FCascadeSpriteRendererProps
 	 *	PSA_FacingCameraDistanceBlend - Blends between PSA_FacingCameraPosition and PSA_Square over specified distance.
 	 */
 	UPROPERTY(EditAnywhere, Category = Emitter)
-	TEnumAsByte<enum EParticleScreenAlignment> ScreenAlignment;
+	TEnumAsByte<EParticleScreenAlignment> ScreenAlignment;
 
 
 // 	UPROPERTY(BlueprintReadWrite, Category = "Properties")
@@ -186,7 +189,7 @@ struct FCascadeSpriteRendererProps
 	 *
 	 */
 	UPROPERTY(EditAnywhere, Category = Emitter)
-	TEnumAsByte<enum EParticleSortMode> SortMode;
+	TEnumAsByte<EParticleSortMode> SortMode;
 
 	/**
 	 *	The interpolation method to used for the SubUV image selection.
@@ -228,10 +231,10 @@ struct FCascadeSpriteRendererProps
 	* and when the particles using the texture will be few and large.
 	*/
 	UPROPERTY(EditAnywhere, Category = ParticleCutout)
-	TEnumAsByte<enum ESubUVBoundingVertexCount> BoundingMode;
+	TEnumAsByte<ESubUVBoundingVertexCount> BoundingMode;
 
 	UPROPERTY(EditAnywhere, Category = ParticleCutout)
-	TEnumAsByte<enum EOpacitySourceMode> OpacitySourceMode;
+	TEnumAsByte<EOpacitySourceMode> OpacitySourceMode;
 };
 
 USTRUCT(BlueprintInternalUseOnly)
