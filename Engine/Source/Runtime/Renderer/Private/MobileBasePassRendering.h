@@ -440,7 +440,10 @@ public:
 		CanUseDepthStencil = (1 << 0),
 
 		// Informs the processor whether primitives can receive shadows from cascade shadow maps.
-		CanReceiveCSM = (1 << 1)
+		CanReceiveCSM = (1 << 1),
+
+		// Informs the processor to use PassDrawRenderState for all mesh commands
+		ForcePassDrawRenderState = (1 << 2)
 	};
 
 	FMobileBasePassMeshProcessor(
@@ -470,9 +473,8 @@ private:
 		const FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData);
 
 	const ETranslucencyPass::Type TranslucencyPassType;
+	const EFlags Flags;
 	const bool bTranslucentBasePass;
-	const bool bCanReceiveCSM;
-	const bool bEnableReceiveDecalOutput;
 };
 
 ENUM_CLASS_FLAGS(FMobileBasePassMeshProcessor::EFlags);
