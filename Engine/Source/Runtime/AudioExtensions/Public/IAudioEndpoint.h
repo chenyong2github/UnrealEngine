@@ -173,59 +173,30 @@ public:
 	virtual FName GetEndpointTypeName() = 0;
 
 	/** This is a special cased name for endpoint submixes that render directly to the default audio device in Audio::FMixerDevice::OnProcessAudioStream. */
-	static FName GetTypeNameForDefaultEndpoint()
-	{
-		static FName DefaultEndpointName = FName(TEXT("Default Endpoint"));
-		return DefaultEndpointName;
-	}
+	static FName GetTypeNameForDefaultEndpoint();
 
-	static FName GetModularFeatureName()
-	{
-		static FName ModularFeatureName = TEXT("External Audio Endpoint");
-		return ModularFeatureName;
-	}
+	/** 
+	 * This is used when calling IModularFeatures::Get().RegisterModularFeature for IAudioEndpointFactory implementations. 
+	 * It's not needed if one uses RegisterEndpointType() to register IAudioEndpointFactory implementations. 
+	 */
+	static FName GetModularFeatureName();
 
 	/** 
 	 * This needs to be called to make a soundfield format usable by the engine.
 	 * It can be called from a ISoundfieldFactory subclass' constructor
 	*/
-	static void RegisterEndpointType(IAudioEndpointFactory* InFactory)
-	{
-		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), InFactory);
-	}
+	static void RegisterEndpointType(IAudioEndpointFactory* InFactory);
 
 	/**
 	 * This needs to be called it an implementation of ISoundfieldFactory is about to be destroyed.
 	 * It can be called from the destructor of an implementation of ISoundfieldFactory.
 	 */
-	static void UnregisterEndpointType(IAudioEndpointFactory* InFactory)
-	{
-		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), InFactory);
-	}
+	static void UnregisterEndpointType(IAudioEndpointFactory* InFactory);
 
 	/**
 	 * Get a registered endpoint factory by name.
 	 */
-	static IAudioEndpointFactory* Get(const FName& InName)
-	{
-		if (InName == GetTypeNameForDefaultEndpoint() || InName == FName())
-		{
-			return nullptr;
-		}
-
-		TArray<IAudioEndpointFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioEndpointFactory>(GetModularFeatureName());
-
-		for (IAudioEndpointFactory* Factory : Factories)
-		{
-			if (Factory && InName == Factory->GetEndpointTypeName())
-			{
-				return Factory;
-			}
-		}
-
-		UE_LOG(LogAudioEndpoints, Display, TEXT("No endpoint implementation for %s found for this platform. Endpoint Submixes set to this type will not do anything."), *InName.ToString());
-		return nullptr;
-	}
+	static IAudioEndpointFactory* Get(const FName& InName);
 
 	static TArray<FName> GetAvailableEndpointTypes();
 
