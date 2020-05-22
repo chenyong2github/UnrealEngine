@@ -522,6 +522,8 @@ void FObjectPropertyBase::CheckValidObject(void* Value) const
 		// object type expected by the property...
 
 		UClass* ObjectClass = Object->GetClass();
+		UE_CLOG(!ObjectClass, LogProperty, Fatal, TEXT("Object without class referenced by %s, object: 0x%016llx %s"), *GetPathName(), (int64)(PTRINT)Object, *Object->GetPathName());
+
 		// we could be in the middle of replacing references to the 
 		// PropertyClass itself (in the middle of an FArchiveReplaceObjectRef 
 		// pass)... if this is the case, then we might have already replaced 

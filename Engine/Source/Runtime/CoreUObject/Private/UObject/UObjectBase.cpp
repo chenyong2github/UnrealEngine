@@ -310,7 +310,10 @@ void UObjectBase::EmitBaseReferences(UClass *RootClass)
 	static const FName ClassPropertyName(TEXT("Class"));
 	static const FName OuterPropertyName(TEXT("Outer"));
 
-	RootClass->EmitObjectReference(STRUCT_OFFSET(UObjectBase, ClassPrivate), ClassPropertyName, GCRT_Class);
+	// Mark UObject class reference as persistent object reference so that it (ClassPrivate) doesn't get nulled when a class
+	// is marked as pending kill. Nulling ClassPrivate may leave the object in a broken state if it doesn't get GC'd in the same
+	// GC call as its class. And even if it gets GC'd in the same call as its class it may break inside of GC (for example when traversing TMap references)
+	RootClass->EmitObjectReference(STRUCT_OFFSET(UObjectBase, ClassPrivate), ClassPropertyName, GCRT_PersistentObject);
 	RootClass->EmitObjectReference(STRUCT_OFFSET(UObjectBase, OuterPrivate), OuterPropertyName, GCRT_PersistentObject);
 }
 
