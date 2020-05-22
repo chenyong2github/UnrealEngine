@@ -1037,11 +1037,8 @@ static void MakeAllDevicesSubMenu(FMenuBuilder& InMenuBuilder, const PlatformInf
 	}
 }
 
-TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<FUICommandList> InCommandList)
+void PopulateLaunchMenu(UToolMenu* Menu)
 {
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
-
 	TArray<PlatformInfo::FVanillaPlatformEntry> VanillaPlatforms = PlatformInfo::BuildPlatformHierarchy(PlatformInfo::EPlatformFilter::All);
 
 	VanillaPlatforms.Sort([](const PlatformInfo::FVanillaPlatformEntry& One, const PlatformInfo::FVanillaPlatformEntry& Two) -> bool
@@ -1065,8 +1062,8 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 	TArray<PlatformInfo::FPlatformInfo> PlatformsToAddInstallLinksFor;
 	EProjectType ProjectType = FGameProjectGenerationModule::Get().ProjectHasCodeFiles() ? EProjectType::Code : EProjectType::Content;
 
-	MenuBuilder.BeginSection("LevelEditorLaunchDevices", LOCTEXT("LaunchButtonDevicesSection", "Devices"));
 	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchDevices", LOCTEXT("LaunchButtonDevicesSection", "Devices"));
 		for (const PlatformInfo::FVanillaPlatformEntry& VanillaPlatform : VanillaPlatforms)
 		{
 			// for the Editor we are only interested in launching standalone games
@@ -1104,7 +1101,8 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 							FString AggregateDevicedName(FString::Printf(TEXT("  %s"), *DeviceProxy->GetName())); //align with the other menu entries
 							FSlateIcon AggregateDeviceIcon(FEditorStyle::GetStyleSetName(), VanillaPlatform.PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal));
 
-							MenuBuilder.AddSubMenu(
+							Section.AddSubMenu(
+								NAME_None,
 								FText::FromString(AggregateDevicedName),
 								FText::FromString(AggregateDevicedName),
 								FNewMenuDelegate::CreateStatic(&MakeAllDevicesSubMenu, VanillaPlatform.PlatformInfo, DeviceProxy),
@@ -1157,13 +1155,13 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 						}
 
 						// ... and add a menu entry
-						MenuBuilder.AddMenuEntry(
-							LaunchDeviceAction,
-							ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform.PlatformInfo, true, Label),
+						FToolMenuEntry& Entry = Section.AddEntry(FToolMenuEntry::InitMenuEntry(
 							NAME_None,
-							Tooltip,
-							EUserInterfaceActionType::Check
-						);
+							LaunchDeviceAction,
+							ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform.PlatformInfo, true, Label)
+						));
+						Entry.ToolTip = Tooltip;
+						Entry.UserInterfaceActionType = EUserInterfaceActionType::Check;
 					}
 				}
 			}
@@ -1177,13 +1175,12 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 			}
 		}
 	}
-	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("CookerSettings");
-
-	UCookerSettings* CookerSettings = GetMutableDefault<UCookerSettings>();
+	TWeakObjectPtr<UCookerSettings> CookerSettings = GetMutableDefault<UCookerSettings>();
 
 	{
+		FToolMenuSection& Section = Menu->AddSection("CookerSettings");
+
 		FUIAction UIAction;
 		UIAction.ExecuteAction = FExecuteAction::CreateLambda([CookerSettings]
 		{
@@ -1227,22 +1224,20 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 			return CookerSettings->bCookOnTheFlyForLaunchOn ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 		});
 
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"CookOnTheFlyOnLaunch",
 			LOCTEXT("CookOnTheFlyOnLaunch", "Enable cooking on the fly"),
 			LOCTEXT("CookOnTheFlyOnLaunchDescription", "Cook on the fly instead of cooking upfront when launching"),
 			FSlateIcon(),
 			UIAction,
-			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
 
-	MenuBuilder.EndSection();
-
 	if (PlatformsWithNoDevices.Num() > 0)
 	{
-		MenuBuilder.BeginSection("NoDevices");
 		{
+			FToolMenuSection& Section = Menu->AddSection("NoDevices");
 			for (int32 PlatformIndex = 0; PlatformIndex < PlatformsWithNoDevices.Num(); PlatformIndex++)
 			{
 				const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindVanillaPlatformInfo(PlatformsWithNoDevices[PlatformIndex]);
@@ -1265,35 +1260,34 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 				FText Tooltip = FText::Format(LOCTEXT("LaunchNoDevicesToolTipText", "Found no connected devices for {DisplayName}"), TooltipArguments);
 
 				// ... and add a menu entry
-				MenuBuilder.AddMenuEntry(
-					NoDeviceAction,
-					ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*PlatformInfo, true, Label),
+				FToolMenuEntry& Entry = Section.AddEntry(FToolMenuEntry::InitMenuEntry(
 					NAME_None,
-					Tooltip,
-					EUserInterfaceActionType::Check
-				);
+					NoDeviceAction,
+					ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*PlatformInfo, true, Label)
+				));
+				Entry.ToolTip = Tooltip;
+				Entry.UserInterfaceActionType = EUserInterfaceActionType::Check;
 			}
 		}
-		MenuBuilder.EndSection();
 	}
 
 	// tip section
-	MenuBuilder.BeginSection("LevelEditorLaunchHint");
 	{
-		MenuBuilder.AddWidget(
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchHint");
+		Section.AddEntry(FToolMenuEntry::InitWidget(
+			"LevelEditorLaunchHint",
 			SNew(STextBlock)
 			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 			.Text(LOCTEXT("ZoomToFitHorizontal", "Launching a game on a different device will change your default 'Launch' device in the toolbar"))
 			.WrapTextAt(250),
 			FText::GetEmpty()
-		);
+		));
 	}
-	MenuBuilder.EndSection();
 
 	if (PlatformsToAddInstallLinksFor.Num() > 0)
 	{
-		MenuBuilder.BeginSection("SDKUninstalledTutorials");
 		{
+			FToolMenuSection& Section = Menu->AddSection("SDKUninstalledTutorials");
 			for (int32 PlatformIndex = 0; PlatformIndex < PlatformsToAddInstallLinksFor.Num(); PlatformIndex++)
 			{
 				const PlatformInfo::FPlatformInfo& Platform = PlatformsToAddInstallLinksFor[PlatformIndex];
@@ -1305,40 +1299,51 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 				FText Label = FText::Format(LOCTEXT("LaunchPlatformLabel", "{PlatformName} Support"), LabelArguments);
 
 
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					NAME_None,
 					Label,
 					LOCTEXT("PlatformSDK", "Show information on setting up the platform tools"),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BrowseDocumentation"),
 					Action,
-					NAME_None,
 					EUserInterfaceActionType::Button);
 			}
 		}
-		MenuBuilder.EndSection();
 	}
 
 	// options section
-	MenuBuilder.BeginSection("LevelEditorLaunchOptions");
 	{
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().OpenProjectLauncher,
-			NAME_None,
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchOptions");
+		Section.AddMenuEntry(FPlayWorldCommands::Get().OpenProjectLauncher,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Launcher.TabIcon")
 		);
 
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().OpenDeviceManager,
-			NAME_None,
+		Section.AddMenuEntry(FPlayWorldCommands::Get().OpenDeviceManager,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon")
 		);
 
-		ProjectTargetPlatformEditorModule.AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
+		Section.AddDynamicEntry("OpenProjectTargetPlatform", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* ToolMenu)
+		{
+			FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
+		}));
 	}
-	MenuBuilder.EndSection();
+}
 
-	return MenuBuilder.MakeWidget();
+TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<FUICommandList> InCommandList)
+{
+	static const FName MenuName("UnrealEd.PlayWorldCommands.LaunchMenu");
+
+	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(MenuName);
+		Menu->AddDynamicSection("DynamicSection", FNewToolMenuDelegate::CreateStatic(&PopulateLaunchMenu));
+	}
+
+	FToolMenuContext MenuContext(InCommandList);
+	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
 }
 
 
