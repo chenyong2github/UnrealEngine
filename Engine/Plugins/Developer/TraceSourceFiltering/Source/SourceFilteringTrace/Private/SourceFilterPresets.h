@@ -16,7 +16,6 @@ struct FSourceFilterPresets
 	/** Loading and replacing the current filtering state with a preset */
 	static void LoadPreset(const FSoftObjectPath& PresetPath);
 	
-protected:
 	/** Logs all available filter preset paths */
 	static void ListAvailablePresets();
 	/** Console command functionality for loading a preset my path or index (relative to GetPresets())*/
