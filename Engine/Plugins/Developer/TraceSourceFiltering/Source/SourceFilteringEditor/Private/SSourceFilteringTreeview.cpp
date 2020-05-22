@@ -15,6 +15,11 @@ void SSourceFilteringTreeView::Construct(const FArguments& InArgs, TSharedRef<SU
 	STreeView::Construct(InArgs);
 }
 
+int32 SSourceFilteringTreeView::GetNumItemsBeingObserved() const
+{
+	return STreeView::GetNumItemsBeingObserved() + 1;
+}
+
 FReply SSourceFilteringTreeView::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	TSharedPtr<FFilterDragDropOp> FilterDragOp = DragDropEvent.GetOperationAs<FFilterDragDropOp>();
