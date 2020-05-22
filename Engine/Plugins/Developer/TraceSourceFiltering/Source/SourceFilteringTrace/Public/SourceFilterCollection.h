@@ -76,6 +76,7 @@ protected:
 	/** Adds unique filter class name */
 	void AddClassName(UDataSourceFilter* Filter);
 	void RecursiveRetrieveFilterClassNames(UDataSourceFilter* Filter);
+	void RecursiveGenerateFilterClassNames(UDataSourceFilter* Filter);
 	UDataSourceFilter* RecursiveCopyFilter(UDataSourceFilter* Filter, int32& FilterOffset);
 	
 	template<typename T> T* CreateNewFilter(UClass* Class = T::StaticClass());
