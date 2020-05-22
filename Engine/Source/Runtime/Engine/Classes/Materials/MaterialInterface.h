@@ -60,6 +60,7 @@ enum EMaterialUsage
 	MATUSAGE_Water,
 	MATUSAGE_HairStrands,
 	MATUSAGE_LidarPointCloud,
+	MATUSAGE_VirtualHeightfieldMesh,
 
 	MATUSAGE_MAX,
 };

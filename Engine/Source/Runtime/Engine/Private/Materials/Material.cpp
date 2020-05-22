@@ -1299,6 +1299,7 @@ bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
 		case MATUSAGE_Water: UsageValue = bUsedWithWater; break;
 		case MATUSAGE_HairStrands: UsageValue = bUsedWithHairStrands; break;
 		case MATUSAGE_LidarPointCloud: UsageValue = bUsedWithLidarPointCloud; break;
+		case MATUSAGE_VirtualHeightfieldMesh: UsageValue = bUsedWithVirtualHeightfieldMesh; break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageValue;
@@ -1446,7 +1447,11 @@ void UMaterial::SetUsageByFlag(EMaterialUsage Usage, bool NewValue)
 		{
 			bUsedWithLidarPointCloud = NewValue; break;
 		}
-		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
+		case MATUSAGE_VirtualHeightfieldMesh:
+		{
+			bUsedWithVirtualHeightfieldMesh = NewValue; break;
+		}
+		default: UE_LOG(LogMaterial, Fatal, TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 #if WITH_EDITOR
 	FEditorSupportDelegates::MaterialUsageFlagsChanged.Broadcast(this, Usage);
@@ -1476,6 +1481,7 @@ FString UMaterial::GetUsageName(EMaterialUsage Usage) const
 		case MATUSAGE_Water: UsageName = TEXT("bUsedWithWater"); break;
 		case MATUSAGE_HairStrands: UsageName = TEXT("bUsedWithHairStrands"); break;
 		case MATUSAGE_LidarPointCloud: UsageName = TEXT("bUsedWithLidarPointCloud"); break;
+		case MATUSAGE_VirtualHeightfieldMesh: UsageName = TEXT("bUsedWithVirtualHeightfieldMesh"); break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageName;
