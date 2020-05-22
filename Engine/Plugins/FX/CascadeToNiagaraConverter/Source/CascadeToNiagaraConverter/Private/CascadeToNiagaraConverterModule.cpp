@@ -7,6 +7,7 @@
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleSystem.h"
 #include "IPythonScriptPlugin.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 IMPLEMENT_MODULE(ICascadeToNiagaraConverterModule, CascadeToNiagaraConverter);
 
