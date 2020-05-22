@@ -75,6 +75,9 @@ private:
 	void HandleControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey);
 	void HandleControlSelected(IControlRigManipulatable* Subject, const FRigControl& Control, bool bSelected);
 
+	/** Post Edit Delegates */
+	void OnPropagateObjectChanges(UObject* InChangedObject);
+
 	/** Handle Creattion for SkelMeshComp or Actor Owner, either may have a binding*/
 	FMovieSceneTrackEditor::FFindOrCreateHandleResult FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp);
 
@@ -114,6 +117,7 @@ public:
 private:
 	FDelegateHandle SelectionChangedHandle;
 	FDelegateHandle SequencerChangedHandle;
+	FDelegateHandle CurveChangedHandle;
 
 private:
 
