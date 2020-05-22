@@ -1000,6 +1000,15 @@ void UNiagaraScript::PostLoad()
 
 	}
 
+	// Because we might be using these cached data interfaces, we need to make sure that they are properly postloaded.
+	for (FNiagaraScriptDataInterfaceInfo& Info : CachedDefaultDataInterfaces)
+	{
+		if (Info.DataInterface)
+		{
+			Info.DataInterface->ConditionalPostLoad();
+		}
+	}
+
 	bool bNeedsRecompile = false;
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
