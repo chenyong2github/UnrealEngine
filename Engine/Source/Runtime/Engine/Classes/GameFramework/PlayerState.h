@@ -116,7 +116,7 @@ public:
 	uint8 bHasBeenWelcomed:1;
 
 	/** Means this PlayerState came from the GameMode's InactivePlayerArray */
-	UE_DEPRECATED(4.25, "This member will be made private. Use IsInative or SetIsInactive instead.")
+	UE_DEPRECATED(4.25, "This member will be made private. Use IsInactive or SetIsInactive instead.")
 	UPROPERTY(ReplicatedUsing=OnRep_bIsInactive)
 	uint8 bIsInactive:1;
 
