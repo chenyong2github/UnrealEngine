@@ -1914,7 +1914,7 @@ void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDe
 		}
 		else
 		{
-			Solver->SetMaxDeltaTime(MDeltaTime);
+			Solver->SetMaxDeltaTime(InMaxPhysicsDeltaTime);
 			Solver->SetMaxSubSteps(1);
 		}
 	}
