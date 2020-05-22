@@ -23,8 +23,7 @@ int32 FDataTableIndexer::GetVersion() const
 
 void FDataTableIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const UDataTable* DataTable = Cast<UDataTable>(InAssetObject);
-	check(DataTable);
+	const UDataTable* DataTable = CastChecked<UDataTable>(InAssetObject);
 
 	const TMap<FName, uint8*>& Rows = DataTable->GetRowMap();
 

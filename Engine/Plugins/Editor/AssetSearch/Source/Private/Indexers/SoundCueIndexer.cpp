@@ -24,8 +24,7 @@ int32 FSoundCueIndexer::GetVersion() const
 
 void FSoundCueIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const USoundCue* SoundCue = Cast<USoundCue>(InAssetObject);
-	check(SoundCue);
+	const USoundCue* SoundCue = CastChecked<USoundCue>(InAssetObject);
 
 	for (USoundNode* SoundNode : SoundCue->AllNodes)
 	{
