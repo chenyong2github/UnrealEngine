@@ -31,9 +31,9 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModePassPassUniformParameters
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, ERHIFeatureLevel::Type FeatureLevel, FDebugViewModePassPassUniformParameters& PassParameters)
+void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, const FViewInfo& ViewInfo, FDebugViewModePassPassUniformParameters& PassParameters)
 {
-	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::None, PassParameters.SceneTextures);
+	SetupSceneTextureUniformParameters(SceneContext, ViewInfo.FeatureLevel, ESceneTextureSetupMode::None, PassParameters.SceneTextures);
 
 	// Accuracy colors
 	{
@@ -48,17 +48,27 @@ void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, ERHI
 			PassParameters.AccuracyColors[ColorIndex] = FLinearColor::Black;
 		}
 	}
-	// LOD colors
+	// LOD / HLOD colors
 	{
-		const int32 NumEngineColors = FMath::Min<int32>(GEngine->LODColorationColors.Num(), NumLODColorationColors);
-		int32 ColorIndex = 0;
-		for (; ColorIndex < NumEngineColors; ++ColorIndex)
+		const TArray<FLinearColor>* Colors = nullptr;
+		if (ViewInfo.Family->EngineShowFlags.LODColoration)
 		{
-			PassParameters.LODColors[ColorIndex] = GEngine->LODColorationColors[ColorIndex];
+			Colors = &(GEngine->LODColorationColors);
+		}
+		else if (ViewInfo.Family->EngineShowFlags.HLODColoration)
+		{
+			Colors = &GEngine->HLODColorationColors;
+		}
+		
+		const int32 NumColors = Colors ? FMath::Min<int32>(NumLODColorationColors, Colors->Num()) : 0;
+		int32 ColorIndex = 0;
+		for (; ColorIndex < NumColors; ++ColorIndex)
+		{
+			PassParameters.LODColors[ColorIndex] = (*Colors)[ColorIndex];
 		}
 		for (; ColorIndex < NumLODColorationColors; ++ColorIndex)
 		{
-			PassParameters.LODColors[ColorIndex] = NumEngineColors > 0 ? GEngine->LODColorationColors.Last() : FLinearColor::Black;
+			PassParameters.LODColors[ColorIndex] = NumColors > 0 ? Colors->Last() : FLinearColor::Black;
 		}
 	}
 }
@@ -109,7 +119,7 @@ bool FDeferredShadingSceneRenderer::RenderDebugViewMode(FRHICommandListImmediate
 
 		// Some of the viewmodes use SCENE_TEXTURES_DISABLED to prevent issues when running in commandlet mode.
 		FDebugViewModePassPassUniformParameters PassParameters;
-		SetupDebugViewModePassUniformBuffer(SceneContext, View.GetFeatureLevel(), PassParameters);
+		SetupDebugViewModePassUniformBuffer(SceneContext, View, PassParameters);
 		Scene->UniformBuffers.DebugViewModePassUniformBuffer.UpdateUniformBufferImmediate(PassParameters);
 
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
@@ -273,8 +283,8 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 		*MaterialRenderProxy,
 		*Material,
 		DebugViewMode, 
-		ViewIfDynamicMeshCommand->ViewMatrices.GetViewOrigin(), 
-		MeshBatch.VisualizeLODIndex, 
+		ViewIfDynamicMeshCommand ? ViewIfDynamicMeshCommand->ViewMatrices.GetViewOrigin() : FVector::ZeroVector, 
+		(ViewIfDynamicMeshCommand && ViewIfDynamicMeshCommand->Family->EngineShowFlags.HLODColoration) ? MeshBatch.VisualizeHLODIndex : MeshBatch.VisualizeLODIndex,
 		ViewModeParam, 
 		ViewModeParamName);
 
