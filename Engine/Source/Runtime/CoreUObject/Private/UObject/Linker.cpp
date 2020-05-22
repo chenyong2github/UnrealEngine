@@ -427,7 +427,7 @@ static void LogGetPackageLinkerError(FArchive* LinkerArchive, FUObjectSerializeC
 	Arguments.Add(TEXT("LoadingFile"), FText::FromString(LoadingFile));
 	Arguments.Add(TEXT("ErrorMessage"), InErrorMessage);
 
-	FText FullErrorMessage;
+	FText FullErrorMessage = FText::Format(LOCTEXT("FailedLoad", "Failed to load '{LoadingFile}': {ErrorMessage}"), Arguments);
 	if (SerializedPackageLinker || SerializedObject)
 	{
 		FLinkerLoad* LinkerToUse = SerializedPackageLinker;
@@ -436,12 +436,7 @@ static void LogGetPackageLinkerError(FArchive* LinkerArchive, FUObjectSerializeC
 			LinkerToUse = SerializedObject->GetLinker();
 		}
 		FString LoadedByFile = LinkerToUse ? *LinkerToUse->Filename : SerializedObject->GetOutermost()->GetName();
-		Arguments.Add(TEXT("LoadedByFile"), FText::FromString(LoadedByFile));
-		FullErrorMessage = FText::Format(LOCTEXT("FailedLoadWithLoadedBy", "While loading '{LoadedByFile}' failed to load '{LoadingFile}': {ErrorMessage}"), Arguments);
-	}
-	else
-	{
-		FullErrorMessage = FText::Format(LOCTEXT("FailedLoad", "Failed to load '{LoadingFile}': {ErrorMessage}"), Arguments);
+		FullErrorMessage = FText::FromString(FAssetMsg::GetAssetLogString(*LoadedByFile, FullErrorMessage.ToString()));
 	}
 
 	FMessageLog LoadErrors(NAME_LoadErrors);

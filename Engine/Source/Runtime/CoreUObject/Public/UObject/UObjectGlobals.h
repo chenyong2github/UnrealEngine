@@ -2190,7 +2190,12 @@ struct FAssetMsg
 
 	/** If possible, finds a path to the underlying asset for the provided object and formats it for the UE_ASSET_LOG macro */
 	static COREUOBJECT_API FString FormatPathForAssetLog(const UObject* Object);
+
+	static COREUOBJECT_API FString GetAssetLogString(const TCHAR* Path, const FString& Message);
+	static COREUOBJECT_API FString GetAssetLogString(const UObject* Object, const FString& Message);
 };
+
+#define ASSET_LOG_FORMAT_STRING TEXT("[AssetLog] %s: ")
 
 #if NO_LOGGING
 	#define UE_ASSET_LOG(...)
@@ -2211,7 +2216,7 @@ struct FAssetMsg
 			UE_LOG_EXPAND_IS_FATAL(Verbosity, PREPROCESSOR_NOTHING, if (!CategoryName.IsSuppressed(ELogVerbosity::Verbosity))) \
 			{ \
 				FString FormatPath = FAssetMsg::FormatPathForAssetLog(Asset);\
-				FMsg::Logf_Internal(__FILE__, __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, TEXT("%s: ") Format, *FormatPath, ##__VA_ARGS__); \
+				FMsg::Logf_Internal(__FILE__, __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, ASSET_LOG_FORMAT_STRING Format, *FormatPath, ##__VA_ARGS__); \
 				UE_LOG_EXPAND_IS_FATAL(Verbosity, \
 					{ \
 						_DebugBreakAndPromptForRemote(); \
