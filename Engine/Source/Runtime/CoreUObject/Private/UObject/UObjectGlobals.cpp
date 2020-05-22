@@ -3878,13 +3878,13 @@ COREUOBJECT_API UFunction* FindDelegateSignature(FName DelegateSignatureName)
  */
 FString FAssetMsg::FormatPathForAssetLog(const TCHAR* InPath)
 {
-	static bool Once = false;
+	static bool ShowDiskPathOnce = false;
 	static bool ShowDiskPath = true;
 
-	if (!Once)
+	if (!ShowDiskPathOnce)
 	{
 		GConfig->GetBool(TEXT("Core.System"), TEXT("AssetLogShowsDiskPath"), ShowDiskPath, GEngineIni);
-		Once = true;
+		ShowDiskPathOnce = true;
 	}
 
 	if (FPlatformProperties::RequiresCookedData() || !ShowDiskPath)
@@ -3914,8 +3914,20 @@ FString FAssetMsg::FormatPathForAssetLog(const TCHAR* InPath)
 		return FString::Printf(TEXT("%s (no disk path found)"), InPath);
 	}
 
-	// turn this into an absolute path for error logging
-	FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FilePath);
+	static bool DiskPathAbsolueOnce = false;
+	static bool DiskPathAbsolue = true;
+
+	if (!DiskPathAbsolueOnce)
+	{
+		GConfig->GetBool(TEXT("Core.System"), TEXT("AssetLogShowsAbsolutePath"), DiskPathAbsolue, GEngineIni);
+		DiskPathAbsolueOnce = true;
+	}
+
+	if (DiskPathAbsolue)
+	{
+		// turn this into an absolute path for error logging
+		FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FilePath);
+	}
 	
 	// turn into a native platform file
 	FPaths::MakePlatformFilename(FilePath);
@@ -3927,11 +3939,18 @@ FString FAssetMsg::FormatPathForAssetLog(const TCHAR* InPath)
  */
 FString FAssetMsg::FormatPathForAssetLog(const UObject* Object)
 {
-	FString ResolvedPath;
-	ResolvedPath = FormatPathForAssetLog(*Object->GetPathName());
-	return ResolvedPath;
+	return ensure(Object) ? FormatPathForAssetLog(*Object->GetPathName()) : FString();
 }
 
+FString FAssetMsg::GetAssetLogString(const TCHAR* Path, const FString& Message)
+{
+	return FString::Printf(ASSET_LOG_FORMAT_STRING TEXT("%s"), *FAssetMsg::FormatPathForAssetLog(Path), *Message);
+}
+
+FString FAssetMsg::GetAssetLogString(const UObject* Object, const FString& Message)
+{
+	return ensure(Object) ? GetAssetLogString(*Object->GetOutermost()->GetName(), Message) : FString();
+}
 
 namespace UE4CodeGen_Private
 {
