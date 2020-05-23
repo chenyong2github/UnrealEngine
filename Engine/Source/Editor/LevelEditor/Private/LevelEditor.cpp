@@ -93,12 +93,12 @@ public:
 		FString ProjectNameWatermarkPrefix;
 		GConfig->GetString(TEXT("LevelEditor"), TEXT("ProjectNameWatermarkPrefix"), /*out*/ ProjectNameWatermarkPrefix, GEditorPerProjectIni);
 
-		FLinearColor BadgeBackgroundColor = FAppStyle::Get().GetColor("Colors.Foldout");
+		FSlateColor BadgeBackgroundColor = FAppStyle::Get().GetSlateColor("Colors.Foldout");
 
 		FColor ConfigColor;
 		if (GConfig->GetColor(TEXT("LevelEditor"), TEXT("ProjectBadgeBackgroundColor"), /*out*/ ConfigColor, GEditorPerProjectIni))
 		{
-			BadgeBackgroundColor = ConfigColor;
+			BadgeBackgroundColor = FLinearColor(ConfigColor);
 		}
 
 		FColor BadgeTextColor = FColor(128,128,128,255);

@@ -316,7 +316,7 @@ private:
 		}
 		else if (IsHovered() && !bIsSelected)
 		{
-			return FAppStyle::Get().GetColor("Colors.ForegroundHover");
+			return FAppStyle::Get().GetSlateColor("Colors.ForegroundHover");
 		}
 
 		return FSlateColor::UseForeground();

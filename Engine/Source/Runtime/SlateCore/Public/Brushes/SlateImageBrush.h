@@ -80,3 +80,15 @@ struct SLATECORE_API FSlateImageBrush
 	{ }
 
 };
+
+struct SLATECORE_API FSlateVectorImageBrush
+	: public FSlateImageBrush
+{
+	FSlateVectorImageBrush(const FString& InImageName, const FVector2D& InImageSize, const FSlateColor& InTint, ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile)
+		: FSlateImageBrush(InImageName, InImageSize, InTint, InTiling, ESlateBrushImageType::Vector)
+	{ }
+
+	FSlateVectorImageBrush(const FString& InImageName, const FVector2D& InImageSize, const FLinearColor& InTint = FLinearColor(1, 1, 1, 1), ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile)
+		: FSlateImageBrush(InImageName, InImageSize, InTint, InTiling, ESlateBrushImageType::Vector)
+	{ }
+};

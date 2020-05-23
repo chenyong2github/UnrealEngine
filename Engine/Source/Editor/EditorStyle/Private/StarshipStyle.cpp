@@ -2342,7 +2342,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 
 		Set("EditorViewportToolBar.WarningButton", ViewportMenuWarningButton);
 
-		FLinearColor ToolbarBackgroundColor = FStyleColors::Foldout;
+		FLinearColor ToolbarBackgroundColor = FStyleColors::Foldout.GetSpecifiedColor();
 		ToolbarBackgroundColor.A = .75f;
 
 		Set("EditorViewportToolBar.Background", new FSlateColorBrush(ToolbarBackgroundColor));
@@ -5131,7 +5131,7 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 	// Play in editor / play in world
 	{
-		FLinearColor GreenHSV = FStyleColors::AccentGreen.LinearRGBToHSV();
+		FLinearColor GreenHSV = FStyleColors::AccentGreen.GetSpecifiedColor().LinearRGBToHSV();
 		
 		FLinearColor GreenHover = FLinearColor(GreenHSV.R, GreenHSV.G * .5, GreenHSV.B, GreenHSV.A).HSVToLinearRGB();
 		FLinearColor GreenPress = FLinearColor(GreenHSV.R, GreenHSV.G, GreenHSV.B*.5, GreenHSV.A).HSVToLinearRGB(); 

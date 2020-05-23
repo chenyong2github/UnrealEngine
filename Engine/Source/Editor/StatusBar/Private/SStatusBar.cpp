@@ -85,7 +85,7 @@ class SContentBrowserOverlay : public SCompoundWidget
 
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
-		static FLinearColor ShadowColor = FAppStyle::Get().GetColor("Colors.Foldout");
+		static FSlateColor ShadowColor = FAppStyle::Get().GetSlateColor("Colors.Foldout");
 
 		FGeometry RenderTransformedChildGeometry = AllottedGeometry.MakeChild(FSlateRenderTransform(FVector2D(0.0f, MaxContentBrowserHeight - Height)));
 

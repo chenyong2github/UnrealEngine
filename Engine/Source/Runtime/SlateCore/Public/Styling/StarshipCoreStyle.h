@@ -78,46 +78,46 @@ private:
 
 struct SLATECORE_API FStyleColors
 {
-	static const FLinearColor Black;
-	static const FLinearColor Title;
-	static const FLinearColor Foldout;
-	static const FLinearColor Input;
-	static const FLinearColor Background;
-	static const FLinearColor Header;
-	static const FLinearColor Dropdown;
-	static const FLinearColor Hover;
-	static const FLinearColor Hover2;
-	static const FLinearColor White;
-	static const FLinearColor White25;
-	static const FLinearColor Highlight; 
+	static const FSlateColor Black;
+	static const FSlateColor Title;
+	static const FSlateColor Foldout;
+	static const FSlateColor Input;
+	static const FSlateColor Background;
+	static const FSlateColor Header;
+	static const FSlateColor Dropdown;
+	static const FSlateColor Hover;
+	static const FSlateColor Hover2;
+	static const FSlateColor White;
+	static const FSlateColor White25;
+	static const FSlateColor Highlight;
 
-	static const FLinearColor Primary;
-	static const FLinearColor PrimaryHover;
-	static const FLinearColor PrimaryPress;
+	static const FSlateColor Primary;
+	static const FSlateColor PrimaryHover;
+	static const FSlateColor PrimaryPress;
 
 
-	static const FLinearColor Foreground;
-	static const FLinearColor ForegroundHover;
-	static const FLinearColor ForegroundInverted;
-	static const FLinearColor ForegroundHeader;
+	static const FSlateColor Foreground;
+	static const FSlateColor ForegroundHover;
+	static const FSlateColor ForegroundInverted;
+	static const FSlateColor ForegroundHeader;
 
-	static const FLinearColor Select;
-	static const FLinearColor SelectInactive;
-	static const FLinearColor SelectParent;
-	static const FLinearColor SelectHover;
+	static const FSlateColor Select;
+	static const FSlateColor SelectInactive;
+	static const FSlateColor SelectParent;
+	static const FSlateColor SelectHover;
 
-	static const FLinearColor AccentBlue;
-	static const FLinearColor AccentPurple;
-	static const FLinearColor AccentPink;
-	static const FLinearColor AccentRed;
-	static const FLinearColor AccentOrange;
-	static const FLinearColor AccentYellow;
-	static const FLinearColor AccentGreen;
-	static const FLinearColor AccentBrown;
-	static const FLinearColor AccentBlack;
-	static const FLinearColor AccentGray;
-	static const FLinearColor AccentWhite;
-	static const FLinearColor AccentFolder;
+	static const FSlateColor AccentBlue;
+	static const FSlateColor AccentPurple;
+	static const FSlateColor AccentPink;
+	static const FSlateColor AccentRed;
+	static const FSlateColor AccentOrange;
+	static const FSlateColor AccentYellow;
+	static const FSlateColor AccentGreen;
+	static const FSlateColor AccentBrown;
+	static const FSlateColor AccentBlack;
+	static const FSlateColor AccentGray;
+	static const FSlateColor AccentWhite;
+	static const FSlateColor AccentFolder;
 
 
 };

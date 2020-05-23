@@ -3795,15 +3795,15 @@ namespace SceneOutliner
 	{
 		if ( !IsFilterActive() )
 		{
-			 return FAppStyle::Get().GetColor("Colors.Foreground");
+			 return FAppStyle::Get().GetSlateColor("Colors.Foreground");
 		}
 		else if( FilteredActorCount == 0 )
 		{
-			return FAppStyle::Get().GetColor("Colors.AccentRed");
+			return FAppStyle::Get().GetSlateColor("Colors.AccentRed");
 		}
 		else
 		{
-			return FAppStyle::Get().GetColor("Colors.AccentGreen");
+			return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
 		}
 	}
 
