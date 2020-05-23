@@ -1137,8 +1137,18 @@ namespace UnrealBuildTool
 									break;
 								}
 							}
-							DirectoryToForceIncludePaths[Directory] = ForceIncludePaths;
+
+							// filter here. It's a little more graceful to do it where this info is built but easier to follow if we filter 
+							// things our right before they're written.
+							if (!string.IsNullOrEmpty(ForceIncludePaths))
+							{
+								IEnumerable<string> PathList = ForceIncludePaths.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+								ForceIncludePaths = string.Join(";", PathList.Where(P => !IncludePathIsFilteredOut(new DirectoryReference(P))));
+							}
+
+							DirectoryToForceIncludePaths[Directory] = ForceIncludePaths;							
 						}
+
 
 						// Find the include search paths
 						string IncludeSearchPaths;
