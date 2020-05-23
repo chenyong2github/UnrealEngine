@@ -11,6 +11,7 @@ class UScriptableAssetEditor : public UAssetEditor
 {
 	GENERATED_BODY()
 
-public:
+private:
 	void GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit) override;
+	TSharedPtr<FBaseAssetToolkit> CreateToolkit() override;
 };
