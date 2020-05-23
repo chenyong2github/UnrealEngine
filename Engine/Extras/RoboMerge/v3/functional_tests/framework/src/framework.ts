@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import * as Path from 'path';
 import { BranchState, EdgeState } from './BranchState';
 import * as bent from 'bent'

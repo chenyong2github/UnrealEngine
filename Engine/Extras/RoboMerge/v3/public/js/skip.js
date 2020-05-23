@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 function skipVerify() {
     addOnBeforeUnload('Leaving this page will abort the skip action')
     let queryParams = processQueryParameters(['bot', 'branch', 'cl', 'edge'], ["reason"])

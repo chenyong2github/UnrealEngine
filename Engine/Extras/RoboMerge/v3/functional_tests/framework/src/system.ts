@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import * as System from 'fs'
 
 export function mkdir(path: string) {

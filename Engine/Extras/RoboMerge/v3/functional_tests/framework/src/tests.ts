@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import { DEFAULT_BOT_SETTINGS, EdgeProperties, FunctionalTest, getRootDataClient, P4Client,
 				P4Util, RobomergeBranchSpec, ROBOMERGE_DOMAIN } from './framework'
 import * as System from './system'

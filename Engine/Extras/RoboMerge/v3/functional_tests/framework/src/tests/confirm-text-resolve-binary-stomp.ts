@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import * as Path from 'path'
 import * as bent from 'bent'
 import { FunctionalTest, OPERATION_URL_TEMPLATE, P4Client, P4Util } from '../framework'
