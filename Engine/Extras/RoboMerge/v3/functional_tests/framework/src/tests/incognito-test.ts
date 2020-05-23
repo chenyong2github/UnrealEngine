@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import { FunctionalTest, P4Util, Stream } from '../framework'
 import { Change } from '../test-perforce'
 

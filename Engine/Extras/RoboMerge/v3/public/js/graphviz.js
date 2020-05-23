@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 var render = (function() {
 	var GraphViz = __graphviz_asm_Module;
 

@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import { ChildProcess, execFile, ExecFileOptions } from 'child_process'
 
 import * as ztag from './ztag'

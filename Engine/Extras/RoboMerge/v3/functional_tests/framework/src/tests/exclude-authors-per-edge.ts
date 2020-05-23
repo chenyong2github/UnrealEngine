@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import { EdgeProperties, FunctionalTest, P4Util, Stream } from '../framework'
 
 const streams: Stream[] =

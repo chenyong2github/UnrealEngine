@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import {FunctionalTest, Stream} from './framework'
 
 export const streams: Stream[] = [
