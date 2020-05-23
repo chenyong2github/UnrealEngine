@@ -3,17 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml;
-using System.Xml.Linq;
-using UnrealBuildTool;
-using AutomationTool;
 using System.Reflection;
-using System.Diagnostics;
-using System.Xml.Schema;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Schema;
 using Tools.DotNETCommon;
+using UnrealBuildTool;
 
 namespace AutomationTool
 {
@@ -953,8 +949,30 @@ namespace AutomationTool
 			string Name;
 			if (EvaluateCondition(Element) && TryReadObjectName(Element, out Name) && CheckNameIsUnique(Element, Name))
 			{
+				string Label = ReadAttribute(Element, "Label");
+
 				string[] RequiredNames = ReadListAttribute(Element, "Requires");
-				Graph.AggregateNameToNodes.Add(Name, ResolveReferences(Element, RequiredNames).ToArray());
+				string[] IncludedNames = ReadListAttribute(Element, "Include");
+				string[] ExcludedNames = ReadListAttribute(Element, "Exclude");
+
+				Aggregate NewAggregate = new Aggregate(Name, Label);
+				foreach (Node ReferencedNode in ResolveReferences(Element, RequiredNames))
+				{
+					NewAggregate.RequiredNodes.Add(ReferencedNode);
+					NewAggregate.IncludedNodes.Add(ReferencedNode);
+					NewAggregate.IncludedNodes.UnionWith(ReferencedNode.OrderDependencies);
+				}
+				foreach (Node IncludedNode in ResolveReferences(Element, IncludedNames))
+				{
+					NewAggregate.IncludedNodes.Add(IncludedNode);
+					NewAggregate.IncludedNodes.UnionWith(IncludedNode.OrderDependencies);
+				}
+				foreach (Node ExcludedNode in ResolveReferences(Element, ExcludedNames))
+				{
+					NewAggregate.IncludedNodes.Remove(ExcludedNode);
+					NewAggregate.IncludedNodes.ExceptWith(ExcludedNode.OrderDependencies);
+				}
+				Graph.NameToAggregate[Name] = NewAggregate;
 			}
 		}
 
