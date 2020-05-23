@@ -53,6 +53,8 @@ void PSMain(
 	out half4 OutColor : SV_Target0
 )
 {
+	ResolvedView = ResolveView();
+
 	float4 SvPosition = Interpolants.Position;
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants.FactoryInterpolants, SvPosition);
 
