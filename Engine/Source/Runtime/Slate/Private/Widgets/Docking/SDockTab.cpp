@@ -525,7 +525,7 @@ void SDockTab::Construct( const FArguments& InArgs )
 	const FTextBlockStyle* const TabTextStyle = &GetCurrentStyle().TabTextStyle;
 
 	// This makes a gradient that displays whether or not a viewport is active
-	static FLinearColor ActiveBorderColor = FAppStyle::Get().GetColor("Docking.Tab.ActiveTabIndicatorColor");
+	static FLinearColor ActiveBorderColor = FAppStyle::Get().GetSlateColor("Docking.Tab.ActiveTabIndicatorColor").GetSpecifiedColor();
 	static FLinearColor ActiveBorderColorTransparent = FLinearColor(ActiveBorderColor.R, ActiveBorderColor.G, ActiveBorderColor.B, 0.0f);
 	static TArray<FLinearColor> GradientStops{ ActiveBorderColorTransparent, ActiveBorderColor, ActiveBorderColorTransparent };
 

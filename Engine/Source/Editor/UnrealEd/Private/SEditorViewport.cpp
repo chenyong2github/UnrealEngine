@@ -107,7 +107,7 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 	];
 
 	// This makes a gradient that displays whether or not a viewport is active
-	FLinearColor ActiveBorderColor = FAppStyle::Get().GetColor("EditorViewport.ActiveBorderColor");
+	FLinearColor ActiveBorderColor = FAppStyle::Get().GetSlateColor("EditorViewport.ActiveBorderColor").GetSpecifiedColor();
 	FLinearColor ActiveBorderColorTransparent = ActiveBorderColor;
 	ActiveBorderColorTransparent.A = 0.0f;
 
