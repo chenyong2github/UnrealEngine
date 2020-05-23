@@ -62,6 +62,11 @@ namespace Chaos
 
 		void DrawShapesImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color);
 
+		void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color)
+		{
+			DrawShapesImpl(ShapeTransform, Shape, Color);
+		}
+
 		template <bool bInstanced>
 		void DrawShapesScaledImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color)
 		{

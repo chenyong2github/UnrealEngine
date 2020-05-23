@@ -268,7 +268,7 @@ void LowLevelOverlap(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const
 		double Time = 0.0;
 		{
 			FScopedDurationTimer Timer(Time);
-			SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback);
+			SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback, DebugParams);
 		}
 
 		if (!!SerializeSQs && !!EnableOverlapSQCapture)
