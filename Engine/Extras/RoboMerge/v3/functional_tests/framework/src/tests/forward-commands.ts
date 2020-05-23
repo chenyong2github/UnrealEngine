@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import { P4Client, P4Util } from '../framework'
 import { SimpleMainAndReleaseTestBase, streams } from '../SimpleMainAndReleaseTestBase'
 import { Change } from '../test-perforce'

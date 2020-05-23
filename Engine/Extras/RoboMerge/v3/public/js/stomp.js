@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 function stompVerify() {
     let queryParams = processQueryParameters(['bot', 'branch', 'cl', 'target'])
     if (!queryParams) return;

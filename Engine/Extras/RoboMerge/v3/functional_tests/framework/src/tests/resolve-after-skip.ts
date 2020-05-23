@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import { P4Util } from '../framework'
 import { SimpleMainAndReleaseTestBase, streams } from '../SimpleMainAndReleaseTestBase'
 

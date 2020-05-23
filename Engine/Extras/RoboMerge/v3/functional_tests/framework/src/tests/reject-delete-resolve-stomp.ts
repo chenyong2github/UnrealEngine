@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import * as Path from 'path'
 import { FunctionalTest, P4Client, P4Util } from '../framework'
 import * as System from '../system'

@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import { P4Client, P4Util } from '../framework'
 import { MultipleDevAndReleaseTestBase } from '../MultipleDevAndReleaseTestBase'
 

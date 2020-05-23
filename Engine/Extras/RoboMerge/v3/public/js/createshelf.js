@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 function shelfVerify() {
     let queryParams = processQueryParameters(['bot', 'branch', 'cl', 'target'], ['targetStream'])
     if (!queryParams) return;

@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 import { FunctionalTest, getRootDataClient, P4Client, P4Util, Stream } from '../framework'
 
 const streams: Stream[] = [
