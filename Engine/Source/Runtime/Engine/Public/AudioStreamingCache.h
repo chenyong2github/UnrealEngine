@@ -18,6 +18,7 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 #include "AudioStreaming.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundWaveLoadingBehavior.h"
+#include "UObject/ObjectKey.h"
 
 
 #define DEBUG_STREAM_CACHE !UE_BUILD_SHIPPING
@@ -31,21 +32,13 @@ public:
 		USoundWave* SoundWave = nullptr;
 		FName SoundWaveName = FName();
 		uint32 ChunkIndex = INDEX_NONE;
+		FObjectKey ObjectKey = FObjectKey();
 
 #if WITH_EDITOR
 		// This is used in the editor to invalidate stale compressed chunks.
 		uint32 ChunkRevision = INDEX_NONE;
 #endif
-
-		inline bool operator==(const FChunkKey& Other) const
-		{
-#if WITH_EDITOR
-			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex) && (ChunkRevision == Other.ChunkRevision);
-#else
-			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
-#endif
-		}
-
+		inline bool operator==(const FChunkKey& Other) const;
 		
 	};
 
