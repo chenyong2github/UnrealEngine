@@ -10,7 +10,8 @@
 USynthComponentMoto::USynthComponentMoto(const FObjectInitializer& ObjInitializer)
 	: Super(ObjInitializer)
 {
-	NumChannels = 1;
+	// Moto synth upmixes mono to stereo
+	NumChannels = 2;
 }
 
 USynthComponentMoto::~USynthComponentMoto()
@@ -24,13 +25,23 @@ bool USynthComponentMoto::IsEnabled() const
 
 void USynthComponentMoto::SetRPM(float InRPM, float InTimeSec)
 {
-	RPM = InRPM;
-	if (MotoSynthEngine.IsValid())
+	if (!FMotoSynthEngine::IsMotoSynthEngineEnabled())
 	{
-		if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
+		if (InRPM > 0.0f && !FMath::IsNaN(InRPM))
 		{
-			float NewRPM = FMath::Clamp(InRPM, RPMRange.X, RPMRange.Y);
-			MS->SetRPM(NewRPM, InTimeSec);
+			RPM = InRPM;
+			if (MotoSynthEngine.IsValid())
+			{
+				if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
+				{
+					float NewRPM = FMath::Clamp(InRPM, RPMRange.X, RPMRange.Y);
+					MS->SetRPM(NewRPM, InTimeSec);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogSynthesis, Warning, TEXT("Moto synth SetRPM was given invalid RPM value: %f."), InRPM);
 		}
 	}
 }
@@ -39,53 +50,10 @@ void USynthComponentMoto::GetRPMRange(float& OutMinRPM, float& OutMaxRPM)
 {
 	OutMinRPM = RPMRange.X;
 	OutMaxRPM = RPMRange.Y;
-}
 
-void USynthComponentMoto::SetSynthToneEnabled(bool bInEnabled)
-{
-	bEnableSynthTone = bInEnabled;
-	if (MotoSynthEngine.IsValid())
+	if (FMath::IsNearlyZero(OutMinRPM, OutMaxRPM))
 	{
-		if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
-		{
-			MS->SetSynthToneEnabled(bEnableSynthTone);
-		}
-	}
-}
-
-void USynthComponentMoto::SetSynthToneVolume(float Volume)
-{
-	SynthToneVolume = Volume;
-	if (MotoSynthEngine.IsValid())
-	{
-		if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
-		{
-			MS->SetSynthToneVolume(SynthToneVolume);
-		}
-	}
-}
-
-void USynthComponentMoto::SetGranularEngineEnabled(bool bInEnabled)
-{
-	bEnableGranularEngine = bInEnabled;
-	if (MotoSynthEngine.IsValid())
-	{
-		if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
-		{
-			MS->SetGranularEngineEnabled(bEnableGranularEngine);
-		}
-	}
-}
-
-void USynthComponentMoto::SetGranularEngineVolume(float Volume)
-{
-	GranularEngineVolume = Volume;
-	if (MotoSynthEngine.IsValid())
-	{
-		if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
-		{
-			MS->SetGranularEngineVolume(GranularEngineVolume);
-		}
+		UE_LOG(LogSynthesis, Warning, TEXT("Moto synth min and max RPMs are nearly identical. Min RPM: %f, Max RPM: %f"), OutMinRPM, OutMaxRPM);
 	}
 }
 
@@ -93,40 +61,36 @@ ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate,
 {
 	if (!FMotoSynthEngine::IsMotoSynthEngineEnabled())
 	{
+		UE_LOG(LogSynthesis, Warning, TEXT("Moto synth has been disabled by cvar."));
 		return ISoundGeneratorPtr(new FSoundGeneratorNull());
 	}
-
-	if (AccelerationSource && DecelerationSource)
+ 
+	if (MotoSynthPreset && MotoSynthPreset->Settings.AccelerationSource && MotoSynthPreset->Settings.DecelerationSource)
 	{
-		MotoSynthEngine = ISoundGeneratorPtr(new FMotoSynthEngine());
-
-		if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
-		{
-			MS->Init(InSampleRate);
-
-			FMotoSynthData AccelerationSourceData;
-			AccelerationSource->GetData(AccelerationSourceData);
-
-			FMotoSynthData DecelerationSourceData;
-			DecelerationSource->GetData(DecelerationSourceData);
-
-			MS->SetSourceData(AccelerationSourceData, DecelerationSourceData);
+ 		MotoSynthEngine = ISoundGeneratorPtr(new FMotoSynthEngine());
+ 
+ 		if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
+ 		{
+ 			MS->Init(InSampleRate);
+ 
+ 			FMotoSynthData AccelerationSourceData;
+			MotoSynthPreset->Settings.AccelerationSource->GetData(AccelerationSourceData);
+ 
+ 			FMotoSynthData DecelerationSourceData;
+			MotoSynthPreset->Settings.DecelerationSource->GetData(DecelerationSourceData);
+ 
+ 			MS->SetSourceData(AccelerationSourceData, DecelerationSourceData);
+			MS->SetSettings(MotoSynthPreset->Settings);
 			MS->GetRPMRange(RPMRange);
-			float NewRPM = FMath::Clamp(RPM, RPMRange.X, RPMRange.Y);
-			MS->SetRPM(NewRPM, 0.0f);
-			MS->SetSynthToneEnabled(bEnableSynthTone);
-			MS->SetSynthToneVolume(SynthToneVolume);
-			MS->SetGranularEngineEnabled(bEnableGranularEngine);
-			MS->SetGranularEngineVolume(GranularEngineVolume);
-		}
-
-		return MotoSynthEngine;
-	}
-	else
-	{
-		UE_LOG(LogSynthesis, Warning, TEXT("Can't play moto synth without an acceleration source or without a deceleration source."));
-		return ISoundGeneratorPtr(new FSoundGeneratorNull());
-	}
-
+ 		}
+ 
+ 		return MotoSynthEngine;
+ 	}
+ 	else
+ 	{
+ 		UE_LOG(LogSynthesis, Warning, TEXT("Can't play moto synth without a preset UMotoSynthPreset object and both acceleration source and deceleration source set."));
+ 		return ISoundGeneratorPtr(new FSoundGeneratorNull());
+ 	}
+ 
 	return nullptr;
 }
