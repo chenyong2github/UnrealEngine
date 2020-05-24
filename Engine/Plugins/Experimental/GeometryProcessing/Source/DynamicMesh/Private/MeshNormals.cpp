@@ -312,6 +312,36 @@ void FMeshNormals::InitializeOverlayToPerVertexNormals(FDynamicMeshNormalOverlay
 }
 
 
+
+void FMeshNormals::InitializeOverlayToPerTriangleNormals(FDynamicMeshNormalOverlay* NormalOverlay)
+{
+	const FDynamicMesh3* Mesh = NormalOverlay->GetParentMesh();
+
+	NormalOverlay->ClearElements();
+
+	for (int32 tid : Mesh->TriangleIndicesItr())
+	{
+		FVector3d Normal = Mesh->GetTriNormal(tid);
+		int32 e0 = NormalOverlay->AppendElement((FVector3f)Normal);
+		int32 e1 = NormalOverlay->AppendElement((FVector3f)Normal);
+		int32 e2 = NormalOverlay->AppendElement((FVector3f)Normal);
+		NormalOverlay->SetTriangle(tid, FIndex3i(e0, e1, e2));
+	}
+}
+
+
+void FMeshNormals::InitializeMeshToPerTriangleNormals(FDynamicMesh3* Mesh)
+{
+	if (Mesh->HasAttributes() == false)
+	{
+		Mesh->EnableAttributes();
+	}
+	FDynamicMeshNormalOverlay* Overlay = Mesh->Attributes()->PrimaryNormals();
+	InitializeOverlayToPerTriangleNormals(Overlay);
+}
+
+
+
 void FMeshNormals::InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, const TArray<int32>& Triangles)
 {
 	const FDynamicMesh3* Mesh = NormalOverlay->GetParentMesh();
