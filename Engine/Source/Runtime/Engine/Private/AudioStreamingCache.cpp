@@ -92,6 +92,14 @@ FAutoConsoleVariableRef CVarSaveAudiomemReportOnCacheOverflow(
 	TEXT("0: Disabled, 1: Enabled"),
 	ECVF_Default);
 
+static int32 UseObjectKeyInChunkKeyComparisonsCVar = 1;
+FAutoConsoleVariableRef CVarUseObjectKeyInChunkKeyComparisons(
+	TEXT("au.streamcaching.UseObjectKeyInChunkKeyComparisons"),
+	UseObjectKeyInChunkKeyComparisonsCVar,
+	TEXT("Enables the comparison of FObjectKeys when comparing Stream Cache Chunk Keys.  Without this FName collisions could occur if 2 SoundWaves have the same name.\n")
+	TEXT("1: (default) Compare object keys.  0: Do not compare object keys."),
+	ECVF_Default);
+
 static FAutoConsoleCommand GFlushAudioCacheCommand(
 	TEXT("au.streamcaching.FlushAudioCache"),
 	TEXT("This will flush any non retained audio from the cache when Stream Caching is enabled."),
@@ -167,6 +175,28 @@ static FAutoConsoleCommand GDisableProfilingAudioCacheCommand(
 	UE_LOG(LogAudio, Display, TEXT("Disabled profiling mode on the audio stream cache."));
 })
 );
+
+
+bool FAudioChunkCache::FChunkKey::operator==(const FChunkKey& Other) const
+{
+	if (UseObjectKeyInChunkKeyComparisonsCVar != 0)
+	{
+#if WITH_EDITOR
+	return (SoundWaveName == Other.SoundWaveName) && (ObjectKey == Other.ObjectKey) && (ChunkIndex == Other.ChunkIndex) && (ChunkRevision == Other.ChunkRevision);
+#else
+	return (SoundWaveName == Other.SoundWaveName) && (ObjectKey == Other.ObjectKey) && (ChunkIndex == Other.ChunkIndex);
+#endif
+	}
+	else
+	{
+#if WITH_EDITOR
+		return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex) && (ChunkRevision == Other.ChunkRevision);
+#else
+		return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
+#endif
+	}
+
+}
 
 FCachedAudioStreamingManager::FCachedAudioStreamingManager(const FCachedAudioStreamingManagerParams& InitParams)
 {
@@ -319,6 +349,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 			  MutableWave
 			, SoundWave->GetFName()
 			, ChunkIndex
+			, FObjectKey(MutableWave)
 #if WITH_EDITOR
 			, (uint32)SoundWave->CurrentChunkRevision.GetValue()
 #endif
@@ -352,6 +383,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 				  MutableWave 
 				, SoundWave->GetFName() 
 				, ((uint32)NextChunk) 
+				, FObjectKey(MutableWave)
 #if WITH_EDITOR
 				, (uint32)SoundWave->CurrentChunkRevision.GetValue()
 #endif
@@ -478,11 +510,13 @@ void FCachedAudioStreamingManager::AddReferenceToChunk(const FAudioChunkHandle& 
 	FAudioChunkCache* Cache = GetCacheForChunkSize(InHandle.CachedDataNumBytes);
 	check(Cache);
 
+	USoundWave* MutableWave = const_cast<USoundWave*>(InHandle.CorrespondingWave);
 	FAudioChunkCache::FChunkKey ChunkKey =
 	{
-		  const_cast<USoundWave*>(InHandle.CorrespondingWave)
+		  MutableWave
 		, InHandle.CorrespondingWaveName
 		, ((uint32) InHandle.ChunkIndex)
+		, FObjectKey(MutableWave)
 #if WITH_EDITOR
 		, InHandle.ChunkGeneration
 #endif
@@ -497,11 +531,13 @@ void FCachedAudioStreamingManager::RemoveReferenceToChunk(const FAudioChunkHandl
 	FAudioChunkCache* Cache = GetCacheForChunkSize(InHandle.CachedDataNumBytes);
 	check(Cache);
 
+	USoundWave* MutableWave = const_cast<USoundWave*>(InHandle.CorrespondingWave);
 	FAudioChunkCache::FChunkKey ChunkKey =
 	{
-		  const_cast<USoundWave*>(InHandle.CorrespondingWave)
+		  MutableWave
 		, InHandle.CorrespondingWaveName
-		, ((uint32) InHandle.ChunkIndex)
+		, ((uint32)InHandle.ChunkIndex)
+		, FObjectKey(MutableWave)
 #if WITH_EDITOR
 		, InHandle.ChunkGeneration
 #endif
@@ -521,6 +557,7 @@ bool FCachedAudioStreamingManager::RequestChunk(USoundWave* SoundWave, uint32 Ch
 			SoundWave
 		  , SoundWave->GetFName()
 		  , ChunkIndex
+		  , FObjectKey(SoundWave)
 #if WITH_EDITOR
 		  , (uint32)SoundWave->CurrentChunkRevision.GetValue()
 #endif
@@ -931,11 +968,12 @@ FString FAudioChunkCache::FlushCacheMissLog()
 
 		FChunkKey Chunk =
 		{
-			nullptr,
-			CacheMissInfo.SoundWaveName,
-			CacheMissInfo.ChunkIndex,
+			  nullptr
+			, CacheMissInfo.SoundWaveName
+			, CacheMissInfo.ChunkIndex
+			, FObjectKey()
 #if WITH_EDITOR
-			0
+			, 0
 #endif
 		};
 
