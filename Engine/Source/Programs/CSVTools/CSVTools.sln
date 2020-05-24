@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.572
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29519.87
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSVCollate", "CSVCollate\CSVCollate.csproj", "{F45423CA-3509-4FE7-9E7D-6C3241DC2852}"
 EndProject
@@ -16,6 +16,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSVFilter", "CSVFilter\CSVFilter.csproj", "{168EEE7D-7120-4056-BFF8-E737A013CC08}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsvInfo", "CsvInfo\CsvInfo.csproj", "{5110C345-5449-40E2-9728-6197B23B5B37}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsvConvert", "CsvConvert\CsvConvert.csproj", "{5110C345-5449-40E2-9728-6197B23B3B3B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +53,10 @@ Global
 		{5110C345-5449-40E2-9728-6197B23B5B37}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5110C345-5449-40E2-9728-6197B23B5B37}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5110C345-5449-40E2-9728-6197B23B5B37}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5110C345-5449-40E2-9728-6197B23B3B3B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5110C345-5449-40E2-9728-6197B23B3B3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5110C345-5449-40E2-9728-6197B23B3B3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5110C345-5449-40E2-9728-6197B23B3B3B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
