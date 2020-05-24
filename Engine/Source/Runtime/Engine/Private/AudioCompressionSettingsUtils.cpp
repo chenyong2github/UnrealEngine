@@ -43,11 +43,11 @@ FAutoConsoleVariableRef CVarMinimumCacheUsage(
 	TEXT("0.0: limit the number of chunks to our (Cache Size / Max Chunk Size) [0.01-0.99]: Increase our number of chunks to limit disk IO when we have lots of small sounds playing."),
 	ECVF_Default);
 
-static float ChunkSlotNumScalarCvar = 15.f;
+static float ChunkSlotNumScalarCvar = 1.0f;
 FAutoConsoleVariableRef CVarChunkSlotNumScalar(
 	TEXT("au.streamcaching.ChunkSlotNumScalar"),
 	ChunkSlotNumScalarCvar,
-	TEXT("This allows scaling the number of chunks pre-allocated.\n")
+	TEXT("This allows scaling the number of chunk slots pre-allocated.\n")
 	TEXT("1.0: is the lower limit"),
 	ECVF_Default);
 
