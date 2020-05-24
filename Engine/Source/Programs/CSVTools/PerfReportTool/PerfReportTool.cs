@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.03";
+        private static string VersionString = "4.04";
 
         public static string Get() { return VersionString; }
     };
@@ -219,18 +219,63 @@ namespace PerfReportTool
 
     class CachedCsvFile
     {
-        public CachedCsvFile(string inFilename)
-        {
-            lines = File.ReadAllLines(inFilename);
+		public CachedCsvFile(string inFilename, bool useCacheFiles, DerivedMetadataMappings derivedMetadataMappings)
+		{
+			string[] fileLines=null;
+
+			string cacheFilename = inFilename + ".cache";
+			if (useCacheFiles && File.Exists(cacheFilename))
+			{
+				fileLines = File.ReadAllLines(cacheFilename);
+
+				// Put the stats and metadata lines in the standard order
+				if (fileLines.Length >= 3)
+				{
+					string metadataLine = fileLines[1];
+					string statsLine = fileLines[2];
+					fileLines[1] = statsLine;
+					fileLines[2] = metadataLine;
+				}
+			}
+			else
+			{
+				fileLines = File.ReadAllLines(inFilename);
+				lines = fileLines;
+			} 
             filename = inFilename;
-            if (lines.Length >= 2)
+            if (fileLines.Length >= 2)
             {
-                // Read CSV stats without data
-                dummyCsvStats = CsvStats.ReadCSVFromLines(lines, null, 0, true);
+                dummyCsvStats = CsvStats.ReadCSVFromLines(fileLines, null, 0, true);
 				metadata = dummyCsvStats.metaData;
-            }
-        }
-        public string filename;
+				derivedMetadataMappings.ApplyMapping(metadata);
+			}
+
+		}
+
+		public void ReadCsvLines()
+		{
+			if (lines == null)
+			{
+				lines = File.ReadAllLines(filename);
+			}
+		}
+
+		public bool DoesMetadataMatchFilter(string metadataFilterString)
+		{
+			if (metadataFilterString==null || metadataFilterString=="")
+			{
+				return true;
+			}
+			if (metadata == null)
+			{
+				Console.WriteLine("CSV " + filename + " has no metadata");
+				return false;
+			}
+			return CsvStats.DoesMetadataMatchFilter(metadata, metadataFilterString);
+		}
+
+
+		public string filename;
         public string[] lines;
         public CsvStats dummyCsvStats;
         public CsvMetadata metadata;
@@ -278,12 +323,16 @@ namespace PerfReportTool
 			"       -summaryTable <name> :\n" +
 			"           Selects a custom summary table type from the list in reportTypes.xml \n"+
 			"           (if not specified, 'default' will be used)\n" +
+			"       -condensedSummaryTable <name> :\n" +
+			"           Selects a custom condensed summary table type from the list in reportTypes.xml \n"+
+			"           (if not specified, 'condensed' will be used)\n" +
 			"       -summaryTableFilename <name> : use the specified filename for the summary table (instead of SummaryTable.html)\n"+
             "       -metadataFilter <key=value,key=value...> : filters based on CSV metadata\n" +
             "       -precacheCount <n> : number of CSV files to precache in the lookahead cache (0 for no precache)\n" +
             "       -precacheThreadCount <n> : number of threads to use for the CSV lookahead cache (default 8)\n" +
 			"       -readAllStats : reads all stats so that any stat can be output to the summary table. Useful with -customtable in bulk mode (off by default)\n" +
 			"       -externalGraphs : enables external graphs (off by default)\n" +
+			"       -noCacheFiles: disables usage of .csv.cache files. Cache files are much faster if filtering on metadata\n" +
 			"";
 			/*
 			"Note on custom tables:\n" +
@@ -413,16 +462,15 @@ namespace PerfReportTool
 
 			perfLog.LogTiming("Initialization");
 
-			string metadataFilterString = GetArg("metadataFilter", "");
+			string metadataFilterString = GetArg("metadataFilter", null);
 
-			CsvFileCache csvFileCache = new CsvFileCache(csvFilenames, precacheCount, precacheThreads);
+			CsvFileCache csvFileCache = new CsvFileCache(csvFilenames, precacheCount, precacheThreads, !GetBoolArg("disableCacheFiles"), metadataFilterString, reportXML.derivedMetadataMappings);
             SummaryMetadataTable metadataTable = new SummaryMetadataTable();
             for ( int i=0; i<csvFilenames.Length; i++)
 			{
                 try
                 {
                     CachedCsvFile cachedCsvFile = csvFileCache.GetNextCachedCsvFile();
-					reportXML.ApplyDerivedMetadata(cachedCsvFile.metadata);
                     Console.WriteLine("-------------------------------------------------");
                     Console.WriteLine("CSV " + (i+1) + "/" + csvFilenames.Length ) ;
                     Console.WriteLine(csvFilenames[i] );
@@ -432,14 +480,8 @@ namespace PerfReportTool
 						metadata = new SummaryMetadata();
 					}
 
-                    bool bGenerateReport = true;
-                    if (metadataFilterString.Length > 0)
-                    {
-                        bGenerateReport = DoesCsvMetadataMatchFilter(cachedCsvFile, metadataFilterString);
-                    }
-                    perfLog.LogTiming("  CsvCacheRead");
-
-                    if (bGenerateReport)
+					perfLog.LogTiming("  CsvCacheRead");
+                    if (cachedCsvFile != null)
                     {
                         GenerateReport(cachedCsvFile, outputDir, bBulkMode, metadata, bBatchedGraphs);
                         if (metadata != null)
@@ -505,10 +547,11 @@ namespace PerfReportTool
 					}
 				}
 
-				// EmailTable is hardcoded to use the condensed report type
-				if (GetBoolArg("emailSummary") || GetBoolArg("emailTable"))
+				// EmailTable is hardcoded to use the condensed type
+				string condensedSummaryTable = GetArg("condensedSummaryTable",null);
+				if (GetBoolArg("emailSummary") || GetBoolArg("emailTable") || condensedSummaryTable != null)
 				{
-					SummaryTableInfo tableInfo = reportXML.GetSummaryTable("condensed");
+					SummaryTableInfo tableInfo = reportXML.GetSummaryTable(condensedSummaryTable == null ? "condensed" : condensedSummaryTable);
 					WriteMetadataTableReport(outputDir, summaryTableFilename+"_Email", metadataTable, tableInfo, true);
 				}
                 perfLog.LogTiming("WriteSummaryTable");
@@ -566,16 +609,6 @@ namespace PerfReportTool
 
 		static Dictionary<string, bool> UniqueHTMLFilemameLookup = new Dictionary<string, bool>();
 
-        bool DoesCsvMetadataMatchFilter(CachedCsvFile csvFile, string metadataFilterString)
-        {
-            CsvMetadata metadata = csvFile.metadata;
-            if (metadata == null)
-            {
-                Console.WriteLine("CSV " + csvFile.filename + " has no metadata");
-                return false;
-            }
-			return CsvStats.DoesMetadataMatchFilter(metadata, metadataFilterString);
-        }
         class PerfLog
         {
             public PerfLog(bool inLoggingEnabled)
@@ -1993,16 +2026,16 @@ namespace PerfReportTool
 		Dictionary<string,XElement> sharedSummaries;
 		Dictionary<string, GraphSettings> graphs;
 		Dictionary<string, string> statDisplayNameMapping;
-		DerivedMetadataMappings derivedMetadataMappings;
 		string baseXmlDirectory;
 
 		List<CsvEventStripInfo> csvEventsToStrip;
         string reportTypeXmlFilename;
+		public DerivedMetadataMappings derivedMetadataMappings;
 	}
 
-    class CsvFileCache
+	class CsvFileCache
     {
-        public CsvFileCache( string[] inCsvFilenames, int inLookaheadCount, int inThreadCount )
+        public CsvFileCache( string[] inCsvFilenames, int inLookaheadCount, int inThreadCount, bool inUseCacheFiles, string inMetadataFilterString, DerivedMetadataMappings inDerivedMetadataMappings )
         {
             csvFileInfos = new CsvFileInfo[inCsvFilenames.Length];
             for (int i = 0; i < inCsvFilenames.Length; i++)
@@ -2011,17 +2044,20 @@ namespace PerfReportTool
             }
             fileCache = this;
             writeIndex = 0;
+			useCacheFiles = inUseCacheFiles;
             readIndex = 0;
             lookaheadCount = inLookaheadCount;
             countFreedSinceLastGC = 0;
+			metadataFilterString = inMetadataFilterString;
+			derivedMetadataMappings = inDerivedMetadataMappings;
 
-            // Kick off the workers (must be done last)
-            if (inLookaheadCount > 0)
+			// Kick off the workers (must be done last)
+			if (inLookaheadCount > 0)
             {
                 precacheThreads = new Thread[inThreadCount];
                 precacheJobs = new ThreadStart[inThreadCount];
                 for (int i = 0; i < precacheThreads.Length; i++)
-                {
+                { 
                     precacheJobs[i] = new ThreadStart(PrecacheThreadRun);
                     precacheThreads[i] = new Thread(precacheJobs[i]);
                     precacheThreads[i].Start();
@@ -2037,12 +2073,18 @@ namespace PerfReportTool
                 // We're done
                 return null;
             }
-            CsvFileInfo fileInfo = csvFileInfos[readIndex];
-            if (precacheThreads == null)
+
+			// Find the next valid fileinfo
+			CsvFileInfo fileInfo = csvFileInfos[readIndex];
+			if (precacheThreads == null)
             {
-                file = new CachedCsvFile(fileInfo.filename);
-            }
-            else
+                file = new CachedCsvFile(fileInfo.filename, useCacheFiles, derivedMetadataMappings);
+				if (!file.DoesMetadataMatchFilter(metadataFilterString))
+				{
+					return null;
+				}
+			}
+			else
             {
                 while (true)
                 {
@@ -2050,9 +2092,9 @@ namespace PerfReportTool
                     {
                         if (fileInfo.isReady)
                         {
-                            file = fileInfo.cachedFile;
-                            fileInfo.cachedFile = null;
-                            countFreedSinceLastGC++;
+							file = fileInfo.cachedFile;
+							fileInfo.cachedFile = null;
+							countFreedSinceLastGC++;
                             // Periodically GC
                             if (countFreedSinceLastGC>16)
                             {
@@ -2060,7 +2102,12 @@ namespace PerfReportTool
                                 GC.WaitForPendingFinalizers();
                                 countFreedSinceLastGC = 0;
                             }
-                            break;
+							if (!file.DoesMetadataMatchFilter(metadataFilterString))
+							{
+							    Console.WriteLine("Skipping!");
+							    file = null;
+							}
+							break;
                         }
                     }
 					// The data isn't ready yet, so sleep for a bit
@@ -2097,10 +2144,17 @@ namespace PerfReportTool
                 // Process the file
                 lock (fileInfo.cs)
                 {
-                    fileInfo.cachedFile = new CachedCsvFile(fileInfo.filename);
-                    fileInfo.isReady = true;
-                }
-            }
+					CachedCsvFile file = new CachedCsvFile(fileInfo.filename, useCacheFiles, derivedMetadataMappings);
+					if (file.DoesMetadataMatchFilter(metadataFilterString))
+					{
+						// Only read the CSV lines if the metadata matches
+						file.ReadCsvLines();
+						fileInfo.isValid = true;
+					}
+					fileInfo.cachedFile = file;
+					fileInfo.isReady = true;
+				}
+			}
         }
 
 
@@ -2111,8 +2165,11 @@ namespace PerfReportTool
         int readIndex;
         int lookaheadCount;
         int countFreedSinceLastGC;
+		bool useCacheFiles;
+		string metadataFilterString;
+		DerivedMetadataMappings derivedMetadataMappings;
 
-        static CsvFileCache fileCache;
+		static CsvFileCache fileCache;
 
         class CsvFileInfo
         {
@@ -2121,12 +2178,14 @@ namespace PerfReportTool
                 filename = inFilename;
                 cachedFile = null;
                 isReady = false;
-                cs = new object();
+				isValid = false;
+				cs = new object();
             }
             public CachedCsvFile cachedFile;
             public bool isReady;
             public object cs;
             public string filename;
+			public bool isValid;
         }
         CsvFileInfo[] csvFileInfos;
 
