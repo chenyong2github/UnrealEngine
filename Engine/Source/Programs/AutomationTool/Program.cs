@@ -60,6 +60,10 @@ namespace AutomationTool
 				AssemblyUtils.InstallAssemblyResolver(PathToBinariesDotNET);
 				AssemblyUtils.InstallRecursiveAssemblyResolver(PathToBinariesDotNET);
 
+				// third party directories to look in for CopyLocal=false libs
+				string PathToBinariesThirdParty = Path.Combine(PathToBinariesDotNET, "..", "ThirdParty");
+				AssemblyUtils.InstallRecursiveAssemblyResolver(Path.Combine(PathToBinariesThirdParty, "Google"));
+
 				// Initialize the host platform layer
 				HostPlatform.Initialize();
 

@@ -46,7 +46,7 @@ namespace Tools.DotNETCommon
 
                 // Look for known assembly names we check into Binaries/DotNET/. Return null if we can't find it.
                 return (
-                    from KnownAssemblyName in new[] { "SwarmAgent.exe", "Ionic.Zip.Reduced.dll" }
+                    from KnownAssemblyName in new[] { "SwarmAgent.exe", "Ionic.Zip.Reduced.dll", "Newtonsoft/NewtonSoft.Json.dll" }
                     where AssemblyName.Equals(Path.GetFileNameWithoutExtension(KnownAssemblyName), StringComparison.InvariantCultureIgnoreCase)
                     let ResolvedAssemblyFilename = Path.Combine(PathToBinariesDotNET, KnownAssemblyName)
                     // check if the file exists first. If we just try to load it, we correctly throw an exception, but it's a generic
