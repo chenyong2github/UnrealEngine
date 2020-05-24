@@ -17,10 +17,12 @@
 #include "CoreGlobals.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "MemPro/MemPro.h"
+#include "Containers/StaticArray.h"
 
 class CORE_API FMemProProfiler
 {
 public:
+	static void Init();
 	static void PostInit();
 
 	static bool IsUsingPort( uint32 Port );
@@ -34,12 +36,12 @@ public:
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 	static inline bool IsTrackingTag( ELLMTag Tag )
 	{
-		extern ELLMTag GMemProTrackTag;
-		return IsStarted() && (GMemProTrackTag != ELLMTag::Paused) && ((Tag == GMemProTrackTag) || (GMemProTrackTag == ELLMTag::GenericTagCount));
+		extern TStaticArray<bool,LLM_TAG_COUNT> MemProLLMTagsEnabled;
+		return IsStarted() && MemProLLMTagsEnabled[(int32)Tag];
 	}
 
 	static void TrackTag( ELLMTag Tag );
-	static void TrackTagByName( const TCHAR* TagName );
+	static void TrackTagsByName( const TCHAR* TagNamesStr );
 #endif //ENABLE_LOW_LEVEL_MEM_TRACKER
 };
 
