@@ -80,6 +80,14 @@ public:
 	 */
 	virtual void SimplifyToMaxError(double MaxError);
 
+	/**
+	 * Maximally collapse mesh in a way that does not change shape at all.
+	 * This process does not invove quadric error at all.
+	 * @param AngleTolDeg two triangles are considered coplanar if their normals are within this angle tolerance
+	 */
+	virtual void SimplifyToMinimalPlanar(double CoplanarAngleTolDeg = 0.001);
+
+
 	/** 
 	 * Does N rounds of collapsing edges longer than fMinEdgeLength. Does not use Quadrics or priority queue.
 	 * This is a quick way to get triangle count down on huge meshes (eg like marching cubes output). 
@@ -229,8 +237,11 @@ protected:
 
 
 
-
-	ESimplificationResult CollapseEdge(int edgeID, FVector3d vNewPos, int& collapseToV);
+	/**
+	 * Collapse given edge. 
+	 * @param RequireCollapseToVert if >= 0 and after constraints/etc the vertex we will collapse "to" cannot be this vertex, do not collapse
+	 */
+	ESimplificationResult CollapseEdge(int edgeID, FVector3d vNewPos, int& collapseToV, int32 RequireKeepVert = -1);
 
 
 
