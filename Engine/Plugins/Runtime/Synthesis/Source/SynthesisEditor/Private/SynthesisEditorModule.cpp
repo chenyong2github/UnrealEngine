@@ -30,6 +30,7 @@ void FSynthesisEditorModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MonoWaveTableSynthPreset));
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AudioImpulseResponse));
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MotoSynthSource));
+	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MotoSynthPreset));
 
 	// Now that we've loaded this module, we need to register our effect preset actions
 	IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");

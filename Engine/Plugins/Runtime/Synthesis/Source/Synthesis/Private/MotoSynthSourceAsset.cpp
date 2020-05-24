@@ -159,6 +159,16 @@ void FRPMEstimationSynthTone::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix
 }
 #endif
 
+#if WITH_EDITOR
+void UMotoSynthPreset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (EnginePreviewer)
+	{
+		EnginePreviewer->SetSettings(Settings);
+	}
+}
+#endif
+
 UMotoSynthSource::UMotoSynthSource()
 {
 }
@@ -202,6 +212,39 @@ void UMotoSynthSource::StopToneMatch()
 {
 	MotoSynthSineToneTest.StopTestTone();
 }
+
+void UMotoSynthSource::UpdateSourceData()
+{
+	if (!SoundWaveSource)
+	{
+		return;
+	}
+
+	TArray<uint8> ImportedSoundWaveData;
+	uint32 ImportedSampleRate;
+	uint16 ImportedChannelCount;
+	SoundWaveSource->GetImportedSoundWaveData(ImportedSoundWaveData, ImportedSampleRate, ImportedChannelCount);
+
+	SourceSampleRate = ImportedSampleRate;
+
+	const int32 NumFrames = (ImportedSoundWaveData.Num() / sizeof(int16)) / ImportedChannelCount;
+
+	SourceData.Reset();
+	SourceData.AddUninitialized(NumFrames);
+
+	int16* ImportedDataPtr = (int16*)ImportedSoundWaveData.GetData();
+	float* RawSourceDataPtr = SourceData.GetData();
+
+	// Convert to float and only use the left-channel
+	for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
+	{
+		const int32 SampleIndex = FrameIndex * ImportedChannelCount;
+		float CurrSample = static_cast<float>(ImportedDataPtr[SampleIndex]) / 32768.0f;
+
+		RawSourceDataPtr[FrameIndex] = CurrSample;
+	}
+}
+
 
 void UMotoSynthSource::FilterSourceDataForAnalysis()
 {
@@ -280,6 +323,48 @@ void UMotoSynthSource::BuildGrainTableByFFT()
 
 }
 
+static void GetBufferViewFromAnalysisBuffer(const Audio::AlignedFloatBuffer& InAnalysisBuffer, int32 StartingBufferIndex, int32 BufferSize, TArrayView<const float>& OutBufferView)
+{
+	if (BufferSize > 0)
+	{
+		BufferSize = FMath::Min(BufferSize, InAnalysisBuffer.Num() - StartingBufferIndex);
+		OutBufferView = MakeArrayView(&InAnalysisBuffer[StartingBufferIndex], BufferSize);
+	}
+}
+
+static float ComputeCrossCorrelation(const TArrayView<const float>& InBufferA, const TArrayView<const float>& InBufferB)
+{
+	float SumA = 0.0f;
+	float SumB = 0.0f;
+	float SumAB = 0.0f;
+	float SquareSumA = 0.0f;
+	float SquareSumB = 0.0f;
+	int32 Num = InBufferA.Num();
+
+	for (int32 Index = 0; Index < Num; ++Index)
+	{
+		// scale the InBufferB to match InBufferA via linear sample rate conversion
+		float FractionalIndex = ((float)Index / Num) * InBufferB.Num();
+		int32 BIndexPrev = (int32)FractionalIndex;
+		int32 BIndexNext = FMath::Min(BIndexPrev + 1, InBufferB.Num() - 1);
+
+		float BufferBSample = FMath::Lerp(InBufferB[BIndexPrev], InBufferB[BIndexNext], FractionalIndex - (float)BIndexPrev);
+
+		SumA += InBufferA[Index];
+		SumB += BufferBSample;
+		SumAB += InBufferA[Index] * BufferBSample;
+
+		SquareSumA += (InBufferA[Index] * InBufferA[Index]);
+		SquareSumB += (BufferBSample * BufferBSample);
+	}
+
+	float CorrelationNumerator = (Num * SumAB - SumA * SumB);
+	float CorrelationDenomenator = FMath::Sqrt((Num * SquareSumA - SumA * SumA) * (Num * SquareSumB - SumB * SumB));
+	check(CorrelationDenomenator > 0.0f);
+	float Correlation = CorrelationNumerator / CorrelationDenomenator;
+	return Correlation;
+}
+
 void UMotoSynthSource::BuildGrainTableByRPMEstimation()
 {
 	// Reset the graintable in case this is a re-generate call
@@ -291,131 +376,56 @@ void UMotoSynthSource::BuildGrainTableByRPMEstimation()
 		return;
 	}
 
-	// start counting zero crossings (when the sign flips from negative to positive or positive to negative).
-	float* AnalysisBufferPtr = AnalysisBuffer.GetData();
-
 	// Prepare grain table for new entries
 	GrainTable.Reset();
 
-	// The following grain-table algorithm tracks zero crossings with positive slope (velocity) and positive peaks.
-	// It adds a new entry to the grain table when it finds a positive peak w/ preceding zero crossing that closest matches the expected RPM value for that grain.
-	// The expected RPM value is determined from a look up for the RPM curve.
-
-	// Immediately make a grain table entry for the beginning of the asset
-	FGrainTableEntry FirstGrain;
-	FirstGrain.RPM = GetCurrentRPMForSampleIndex(0);;
-	FirstGrain.SampleIndex = 0;
-	GrainTable.Add(FirstGrain);
-
-	// Determine the expected grain duration (in samples) given the RPM value of this grain
-	int32 ExpectedGrainDuration = (int32)((float)SourceSampleRate / (FirstGrain.RPM / 60.0f));
-
-	// Set the grain duration delta to max integer. 
-	int32 MinGrainDurationDelta = INT_MAX;
-	int32 BestGrainSampleIndex = INDEX_NONE;
-	int32 PreviousGrainStartSampleIndex = 0;
-	float PreviousSample = AnalysisBuffer[0];
-	int32 PreviousZeroCrossingSampleIndex = 0;
-
-
-	for (int32 AnalysisSampleIndex = 1; AnalysisSampleIndex < AnalysisBuffer.Num(); ++AnalysisSampleIndex)
+	if (SourceSampleRate <= 0)
 	{
-		// Check for positive-sloped zero crossings
-		float CurrentSample = AnalysisBuffer[AnalysisSampleIndex];
-		if (CurrentSample > PreviousSample && PreviousSample < 0.0f && CurrentSample >= 0.0f)
-		{
-			// Measure the delta from current grain's start
-			FGrainTableEntry& CurrentGrain = GrainTable[GrainTable.Num() - 1];
-
-			// The distance between the current sample index and our previous grain's sample index
-			int32 SampleDeltaFromPreviousGrain = AnalysisSampleIndex - CurrentGrain.SampleIndex;
-
-			// compute the absolute delta from the expected grain duration from our RPM curve
-			int32 DeltaFromExpectedDuration = FMath::Abs(ExpectedGrainDuration - SampleDeltaFromPreviousGrain);
-
-			// If this delta is less than our previous min delta, we store the current index and update our min delta
-			if (DeltaFromExpectedDuration < MinGrainDurationDelta)
-			{
-				MinGrainDurationDelta = DeltaFromExpectedDuration;
-				BestGrainSampleIndex = AnalysisSampleIndex;
-			}
-			// Otherwise we are now finding worse-matches so we've now found a grain we want to add to the table
-			else
-			{
-				check(BestGrainSampleIndex != INDEX_NONE);
-
-				// Now add a new grain starting from where the current grain left off
-				FGrainTableEntry NewGrain;
-
-				// The new grain's starting RPM is the ending BPM of the previous grain
-				NewGrain.RPM = GetCurrentRPMForSampleIndex(BestGrainSampleIndex);
-				NewGrain.AnalysisSampleIndex = BestGrainSampleIndex;
-				GrainTable.Add(NewGrain);
-
-				// Update the next expected grain duration based on the current grain's RPM
-				ExpectedGrainDuration = (int32)((float)SourceSampleRate / (NewGrain.RPM / 60.0f));
-
-				// Reset the MinGrainDurationDelta since we are now hunting for a new best-match
-				MinGrainDurationDelta = INT_MAX;
-				BestGrainSampleIndex = INDEX_NONE;
-
-				// Now set the current analysis buffer index to be the new grain sample index
-				AnalysisSampleIndex = NewGrain.AnalysisSampleIndex;
-			}
-		}
-		PreviousSample = CurrentSample;
+		UE_LOG(LogSynthesis, Error, TEXT("Unable to build grain table for moto synth soruce, source sample rate is invalid (%d)"), SourceSampleRate);
+		return;
 	}
 
-	// To store the sample index using the source file, shift all the samples to compensate for phase shift due to analysis
-	// Then do a fix up to find the nearest zero crossing in the source file to minimize clipping distortion or the need to cross-fade on new grains
-	for (FGrainTableEntry& Entry : GrainTable)
-	{
-		int32 DesiredSourceIndex = FMath::Max(Entry.AnalysisSampleIndex - SampleShiftOffset, 0);
-
-		if (DesiredSourceIndex == 0)
-		{
-			Entry.SampleIndex = DesiredSourceIndex;
-		}
-		else
-		{
-			int32 NearestZeroCrossingForward = 0;
-			int32 NearestZeroCrossingBackward = 0;
-
-			// move forward in buffer to find nearest zero crossing
-			float CurrentValue = 1.0f;
-			float PreviousValue = 1.0f;
-
-			int32 CurrentSearchIndex = DesiredSourceIndex;
-			while ((CurrentValue > 0.0f && PreviousValue > 0.0f) || (CurrentValue < 0.0f && PreviousValue < 0.0f))
-			{
-				CurrentValue = SourceData[CurrentSearchIndex];
-				PreviousValue = SourceData[CurrentSearchIndex - 1];
-				CurrentSearchIndex++;
-			}
-			NearestZeroCrossingForward = CurrentSearchIndex;
-
-			CurrentValue = 1.0f;
-			PreviousValue = 1.0f;
-			CurrentSearchIndex = DesiredSourceIndex;
-			while ((CurrentValue > 0.0f && PreviousValue > 0.0f) || (CurrentValue < 0.0f && PreviousValue < 0.0f))
-			{
-				CurrentValue = SourceData[CurrentSearchIndex];
-				PreviousValue = SourceData[CurrentSearchIndex - 1];
-				CurrentSearchIndex--;
-			}
-			NearestZeroCrossingBackward = CurrentSearchIndex;
-
-			if (FMath::Abs(DesiredSourceIndex - NearestZeroCrossingForward) < FMath::Abs(DesiredSourceIndex - NearestZeroCrossingBackward))
-			{
-				DesiredSourceIndex = NearestZeroCrossingForward;
-			}
-			else
-			{
-				DesiredSourceIndex = NearestZeroCrossingBackward;
-			}
-		}
+	float DeltaTime = 1.0f / SourceSampleRate;
+	float CurrentPhase = 1.0f;
+	int32 CurrentSampleIndex = RPMCycleCalibrationSample;
 		
-		Entry.SampleIndex = DesiredSourceIndex;
+	// Cycle back to the beginning of the file with this sample as the calibration sample
+	while (CurrentSampleIndex >= 1)
+	{
+		CurrentPhase = PI;
+		while (CurrentPhase >= 0.0f && CurrentSampleIndex >= 0)
+		{
+			float w0 = GetCurrentRPMForSampleIndex(CurrentSampleIndex) / 60.0f;
+			float w1 = GetCurrentRPMForSampleIndex(CurrentSampleIndex--) / 60.0f;
+			float Alpha = (w1 - w0) / DeltaTime;
+			float DeltaPhase = w0 * DeltaTime + 0.5f * Alpha * DeltaTime * DeltaTime;
+			CurrentPhase -= DeltaPhase;
+		}
+	}
+
+	// Now, where the 'current phase' is, we can read forward from current sample index.
+	float* AnalysisBufferPtr = AnalysisBuffer.GetData();
+	while (CurrentSampleIndex < AnalysisBuffer.Num() - 1)
+	{
+		// We read through samples accumulating phase until the phase is greater than 1.0
+		// That will indicate the need make a grain entry
+		while (CurrentPhase < PI && CurrentSampleIndex < AnalysisBuffer.Num() - 1)
+		{
+			float w0 = GetCurrentRPMForSampleIndex(CurrentSampleIndex) / 60.0f;
+			float w1 = GetCurrentRPMForSampleIndex(CurrentSampleIndex++) / 60.0f;
+			float Alpha = (w1 - w0) / DeltaTime;
+			float DeltaPhase = w0 * DeltaTime + 0.5f * Alpha * DeltaTime * DeltaTime;
+			CurrentPhase += DeltaPhase;
+		}
+
+		CurrentPhase = 0.0f;
+
+		// Immediately make a grain table entry for the beginning of the asset
+		FGrainTableEntry NewGrain;
+		NewGrain.RPM = GetCurrentRPMForSampleIndex(CurrentSampleIndex);;
+		NewGrain.AnalysisSampleIndex = CurrentSampleIndex;
+		NewGrain.SampleIndex = FMath::Max(NewGrain.AnalysisSampleIndex - SampleShiftOffset, 0);
+		GrainTable.Add(NewGrain);
 	}
 
 	UE_LOG(LogSynthesis, Log, TEXT("Grain Table Built Using RPM Estimation: %d Grains"), GrainTable.Num());
@@ -433,6 +443,7 @@ void UMotoSynthSource::WriteDebugDataToWaveFiles()
 
 void UMotoSynthSource::PerformGrainTableAnalysis()
 {
+	UpdateSourceData();
 	FilterSourceDataForAnalysis();
 	DynamicsProcessForAnalysis();
 	NormalizeForAnalysis();
@@ -556,26 +567,29 @@ float UMotoSynthSource::GetCurrentRPMForSampleIndex(int32 CurrentSampleIndex)
 
 void UMotoSynthSource::StartEnginePreview()
 {
-	// Set all the state of the previewer that needs setting
-	EnginePreviewer.SetSynthToneEnabled(bEnginePreviewSynthToneEnabled);
-	EnginePreviewer.SetSynthToneVolume(EnginePreviewSynthToneVolume);
-	EnginePreviewer.SetGranularEngineSources(AccelerationSource, DecelerationSource);
-	EnginePreviewer.SetGranularEngineEnabled(bEnginePreviewGranularEngineEnabled);
-	EnginePreviewer.SetGranularEngineVolume(EnginePreviewGranularEngineVolume);
-	EnginePreviewer.SetGranularEngineGrainCrossfade(EnginePreviewGrainCrossfade);
-	EnginePreviewer.SetGranularEngineNumLoopGrains(EnginePreviewNumLoopGrains);
-	EnginePreviewer.SetGranularEngineNumLoopJitterGrains(EnginePreviewNumLoopJitterGrains);
-
-	if (FRichCurve* RichRPMCurve = EnginePreviewRPMCurve.GetRichCurve())
+	if (MotoSynthPreset)
 	{
-		EnginePreviewer.SetPreviewRPMCurve(*RichRPMCurve);
-	}
+		FMotoSynthRuntimeSettings& Settings = MotoSynthPreset->Settings;
 
-	EnginePreviewer.StartPreviewing();
+		// Set all the state of the previewer that needs setting
+		EnginePreviewer.SetSettings(Settings);
+
+		if (FRichCurve* RichRPMCurve = EnginePreviewRPMCurve.GetRichCurve())
+		{
+			EnginePreviewer.SetPreviewRPMCurve(*RichRPMCurve);
+		}
+
+		MotoSynthPreset->EnginePreviewer = &EnginePreviewer;
+		EnginePreviewer.StartPreviewing();
+	}
 }
 
 void UMotoSynthSource::StopEnginePreview()
 {
+	if (MotoSynthPreset)
+	{
+		MotoSynthPreset->EnginePreviewer = nullptr;
+	}
 	EnginePreviewer.StopPreviewing();
 }
 
@@ -583,53 +597,12 @@ void UMotoSynthSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	static const FName bEnginePreviewSynthToneEnabledFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, bEnginePreviewSynthToneEnabled);
-	static const FName EnginePreviewSynthToneVolumeFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, EnginePreviewSynthToneVolume);
-	static const FName bEnginePreviewGranularEngineEnabledFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, bEnginePreviewGranularEngineEnabled);
-	static const FName EnginePreviewGranularEngineVolumeFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, EnginePreviewGranularEngineVolume);
-	static const FName EnginePreviewGrainCrossfadeFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, EnginePreviewGrainCrossfade);
-	static const FName EnginePreviewNumLoopGrainsFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, EnginePreviewNumLoopGrains);
-	static const FName EnginePreviewNumLoopJitterGrainsFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, EnginePreviewNumLoopJitterGrains);
-	static const FName AccelerationSourceFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, AccelerationSource);
-	static const FName DecelerationSourceFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, DecelerationSource);
-	static const FName EnginePreviewRPMCurveFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, EnginePreviewRPMCurve);
-
-	if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
-	{
-		const FName& Name = PropertyThatChanged->GetFName();
-		if (Name == bEnginePreviewSynthToneEnabledFName)
-		{
-			EnginePreviewer.SetSynthToneEnabled(bEnginePreviewSynthToneEnabled);
-		}
-		else if (Name == EnginePreviewSynthToneVolumeFName)
-		{
-			EnginePreviewer.SetSynthToneVolume(EnginePreviewSynthToneVolume);
-		}
-		else if (Name == bEnginePreviewGranularEngineEnabledFName)
-		{
-			EnginePreviewer.SetGranularEngineEnabled(bEnginePreviewGranularEngineEnabled);
-		}
-		else if (Name == EnginePreviewGranularEngineVolumeFName)
-		{
-			EnginePreviewer.SetGranularEngineVolume(EnginePreviewGranularEngineVolume);
-		}
-		else if (Name == EnginePreviewGrainCrossfadeFName)
-		{
-			EnginePreviewer.SetGranularEngineGrainCrossfade(EnginePreviewGrainCrossfade);
-		}
-		else if (Name == EnginePreviewNumLoopGrainsFName)
-		{
-			EnginePreviewer.SetGranularEngineNumLoopGrains(EnginePreviewNumLoopGrains);
-		}
-		else if (Name == EnginePreviewNumLoopJitterGrainsFName)
-		{
-			EnginePreviewer.SetGranularEngineNumLoopJitterGrains(EnginePreviewNumLoopJitterGrains);
-		}
-		else if (Name == AccelerationSourceFName || Name == DecelerationSourceFName)
-		{
-			EnginePreviewer.SetGranularEngineSources(AccelerationSource, DecelerationSource);
-		}
-		else if (Name == EnginePreviewRPMCurveFName)
+ 	static const FName EnginePreviewRPMCurveFName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, EnginePreviewRPMCurve);
+ 
+ 	if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+ 	{
+ 		const FName& Name = PropertyThatChanged->GetFName();
+ 		if (Name == EnginePreviewRPMCurveFName)
 		{
 			if (FRichCurve* RichRPMCurve = EnginePreviewRPMCurve.GetRichCurve())
 			{
@@ -639,7 +612,6 @@ void UMotoSynthSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	}
 }
 #endif // #if WITH_EDITOR
-
 
 #if WITH_EDITOR
 FMotoSynthEnginePreviewer::FMotoSynthEnginePreviewer()
@@ -651,69 +623,25 @@ FMotoSynthEnginePreviewer::~FMotoSynthEnginePreviewer()
 	StopPreviewing();
 }
 
-void FMotoSynthEnginePreviewer::SetSynthToneEnabled(bool bInEnabled)
+void FMotoSynthEnginePreviewer::SetSettings(const FMotoSynthRuntimeSettings& InSettings)
 {
 	FScopeLock Lock(&PreviewEngineCritSect);
-	bSynthToneEnabled = bInEnabled;
-	SynthEngine.SetSynthToneEnabled(bSynthToneEnabled);
-}
 
-void FMotoSynthEnginePreviewer::SetSynthToneVolume(float InVolume)
-{
-	FScopeLock Lock(&PreviewEngineCritSect);
-	SynthToneVolume = InVolume;
-	SynthEngine.SetSynthToneVolume(SynthToneVolume);
-}
-
-void FMotoSynthEnginePreviewer::SetGranularEngineEnabled(bool bInEnabled)
-{
-	FScopeLock Lock(&PreviewEngineCritSect);
-	bGrainEngineEnabled = bInEnabled;
-	SynthEngine.SetGranularEngineEnabled(bGrainEngineEnabled);
-}
-
-void FMotoSynthEnginePreviewer::SetGranularEngineVolume(float InVolume)
-{
-	FScopeLock Lock(&PreviewEngineCritSect);
-	GranularEngineVolume = InVolume;
-	SynthEngine.SetGranularEngineVolume(GranularEngineVolume);
-}
-
-void FMotoSynthEnginePreviewer::SetGranularEngineGrainCrossfade(int32 InSamples)
-{
-	FScopeLock Lock(&PreviewEngineCritSect);
-	GrainCrossfadeSamples = InSamples;
-	SynthEngine.SetGranularEngineGrainCrossfade(InSamples);
-}
-
-void FMotoSynthEnginePreviewer::SetGranularEngineNumLoopGrains(int32 InEnginePreviewNumLoopGrains)
-{
-	FScopeLock Lock(&PreviewEngineCritSect);
-	EnginePreviewNumLoopGrains = InEnginePreviewNumLoopGrains;
-	SynthEngine.SetGranularEngineNumLoopGrains(InEnginePreviewNumLoopGrains);
-}
-
-void FMotoSynthEnginePreviewer::SetGranularEngineNumLoopJitterGrains(int32 InEnginePreviewNumLoopJitterGrains)
-{
-	FScopeLock Lock(&PreviewEngineCritSect);
-	EnginePreviewNumLoopJitterGrains = InEnginePreviewNumLoopJitterGrains;
-	SynthEngine.SetGranularEngineNumLoopJitterGrains(InEnginePreviewNumLoopJitterGrains);
-}
-
-void FMotoSynthEnginePreviewer::SetGranularEngineSources(UMotoSynthSource* InAccelSynthSource, UMotoSynthSource* InDecelSynthSource)
-{
-	if (InAccelSynthSource && InDecelSynthSource)
+	// Set the accel and decel data separately
+	if (Settings.AccelerationSource != InSettings.AccelerationSource || Settings.DecelerationSource != InSettings.DecelerationSource)
 	{
 		FMotoSynthData AccelSynthData;
-		InAccelSynthSource->GetData(AccelSynthData);
+		InSettings.AccelerationSource->GetData(AccelSynthData);
 
 		FMotoSynthData DecelSynthData;
-		InDecelSynthSource->GetData(DecelSynthData);
-
+		InSettings.DecelerationSource->GetData(DecelSynthData);
 		SynthEngine.SetSourceData(AccelSynthData, DecelSynthData);
 
 		SynthEngine.GetRPMRange(RPMRange);
 	}
+
+	Settings = InSettings;
+	SynthEngine.SetSettings(InSettings);
 }
 
 void FMotoSynthEnginePreviewer::SetPreviewRPMCurve(const FRichCurve& InRPMCurve)
@@ -775,36 +703,29 @@ void FMotoSynthEnginePreviewer::OnNewSubmixBuffer(const USoundSubmix* OwningSubm
 		SynthEngine.Init(InSampleRate);
 	}
 
-	// Update the clock of the previewer. Used to look up curves. 
-	if (CurrentPreviewCurveStartTime == 0.0f)
+	float RPMCurveTime = CurrentPreviewCurveTime;
+	float MinTime = 0.0f;
+	float MaxTime = 0.0f;
+	PreviewRPMCurve.GetTimeRange(MinTime, MaxTime);
+
+	// No way to preview RPMs if curve does not have a time range
+	if (FMath::IsNearlyEqual(MinTime, MaxTime))
 	{
-		CurrentPreviewCurveStartTime = (float)AudioClock;
-		CurrentPreviewCurveTime = 0.0f;
+		return;
+	}
+
+	// Update the clock of the previewer. Used to look up curves. 
+	if (CurrentPreviewCurveStartTime == 0.0f || CurrentPreviewCurveTime >= MaxTime)
+	{
+		CurrentPreviewCurveStartTime = (float)AudioClock + MinTime;
+		CurrentPreviewCurveTime = MinTime;
 	}
 	else
 	{
 		CurrentPreviewCurveTime = (float)AudioClock - CurrentPreviewCurveStartTime;
 	}
 
-	// Update params to the synth engine from the preview controls
-
-	float RPMCurveTime = CurrentPreviewCurveTime;
-	float MinTime;
-	float MaxTime;
-	PreviewRPMCurve.GetTimeRange(MinTime, MaxTime);
-
-	// Wrap to the beginning of the curve time if our current time is less
-	if (CurrentPreviewCurveTime < MinTime)
-	{
-		// Offset the startime
-		CurrentPreviewCurveStartTime += MinTime;
-		CurrentPreviewCurveTime = MinTime;
-	}
-	else if (CurrentPreviewCurveTime >= MaxTime)
-	{
-		CurrentPreviewCurveStartTime += MaxTime;
-		CurrentPreviewCurveTime = MinTime;
-	}
+	//UE_LOG(LogTemp, Log, TEXT("RPM CURVE TIME: %.2f"), CurrentPreviewCurveTime);
 
 	// This should be a value between 0.0 and 1.0
 	float CurrentRPMCurveValue = PreviewRPMCurve.Eval(CurrentPreviewCurveTime);
@@ -828,18 +749,15 @@ void FMotoSynthEnginePreviewer::OnNewSubmixBuffer(const USoundSubmix* OwningSubm
 
 	// Generate the engine audio
 	OutputBuffer.Reset();
-	OutputBuffer.AddZeroed(NumFrames);
+	OutputBuffer.AddZeroed(NumFrames * 2);
 
-	SynthEngine.GetNextBuffer(OutputBuffer.GetData(), NumFrames, true);
+	SynthEngine.GetNextBuffer(OutputBuffer.GetData(), NumFrames * 2, true);
 
 	for (int32 FrameIndex = 0, SampleIndex = 0; FrameIndex < NumFrames; ++FrameIndex, SampleIndex += NumChannels)
 	{
-		float SampleOutput = 0.5f * OutputBuffer[FrameIndex];
-
-		// Left channel
 		for (int32 Channel = 0; Channel < 2; ++Channel)
 		{
-			AudioData[SampleIndex + Channel] += SampleOutput;
+			AudioData[SampleIndex + Channel] += OutputBuffer[2 * FrameIndex + Channel];
 		}
 	}
 }
@@ -886,9 +804,27 @@ void FMotoSynthEngine::Init(int32 InSampleRate)
 
 	SynthOsc.Start();
 
+	GrainCrossfadeSamples = 10;
+	NumGrainTableEntriesPerGrain = 3;
+	GrainTableRandomOffsetForConstantRPMs = 20;
+	GrainCrossfadeSamplesForConstantRPMs = 20;
+
+	SynthOctaveShift = 0;
+	SynthToneVolume = 1.0f;
+	SynthFilterFrequency = 500.0f;
 	SynthFilter.Init((float)InSampleRate, 1);
-	SynthFilter.SetFrequency(500.0f);
+	SynthFilter.SetFrequency(SynthFilterFrequency);
 	SynthFilter.Update();
+
+	DelayStereo.Init((float)InSampleRate, 2);
+	DelayStereo.SetDelayTimeMsec(25);
+	DelayStereo.SetFeedback(0.37f);
+	DelayStereo.SetWetLevel(0.68f);
+	DelayStereo.SetDryLevel(0.8f);
+	DelayStereo.SetDelayRatio(0.43f);
+	DelayStereo.SetMode(Audio::EStereoDelayMode::PingPong);
+	DelayStereo.SetFilterEnabled(true);
+	DelayStereo.SetFilterSettings(Audio::EBiquadFilter::Lowpass, 4000.0f, 0.5f);
 
 	constexpr int32 GrainPoolSize = 10;
 	GrainPool.Init(FMotoSynthGrainRuntime(), GrainPoolSize);
@@ -898,7 +834,6 @@ void FMotoSynthEngine::Init(int32 InSampleRate)
 	}
 
 	ActiveGrains.Reset();
-	FadingGrains.Reset();
 }
 
 void FMotoSynthEngine::Reset()
@@ -940,6 +875,35 @@ void FMotoSynthEngine::GetRPMRange(FVector2D& OutRPMRange)
 	OutRPMRange = RPMRange;
 }
 
+void FMotoSynthEngine::SetSettings(const FMotoSynthRuntimeSettings& InSettings)
+{
+	SynthCommand([this, InSettings]()
+	{
+		bSynthToneEnabled = InSettings.bSynthToneEnabled;
+		SynthToneVolume = InSettings.SynthToneVolume;
+		SynthOctaveShift = InSettings.SynthOctaveShift;
+		SynthFilterFrequency = InSettings.SynthToneFilterFrequency;
+		bGranularEngineEnabled = InSettings.bGranularEngineEnabled;
+		TargetGranularEngineVolume = InSettings.GranularEngineVolume;
+		GrainCrossfadeSamples = InSettings.NumSamplesToCrossfadeBetweenGrains;
+		NumGrainTableEntriesPerGrain = InSettings.NumGrainTableEntriesPerGrain;
+		GrainTableRandomOffsetForConstantRPMs = InSettings.GrainTableRandomOffsetForConstantRPMs;
+		GrainCrossfadeSamplesForConstantRPMs = InSettings.GrainCrossfadeSamplesForConstantRPMs;
+		bStereoWidenerEnabled = InSettings.bStereoWidenerEnabled;
+
+		SynthFilter.SetFrequency(SynthFilterFrequency);
+		SynthFilter.Update();
+
+		DelayStereo.SetDelayTimeMsec(InSettings.StereoDelayMsec);
+		DelayStereo.SetFeedback(InSettings.StereoFeedback);
+		DelayStereo.SetWetLevel(InSettings.StereoWidenerWetlevel);
+		DelayStereo.SetDryLevel(InSettings.StereoWidenerDryLevel);
+		DelayStereo.SetDelayRatio(InSettings.StereoWidenerDelayRatio);
+		DelayStereo.SetFilterEnabled(InSettings.bStereoWidenerFilterEnabled);
+		DelayStereo.SetFilterSettings(Audio::EBiquadFilter::Lowpass, InSettings.StereoWidenerFilterFrequency, InSettings.StereoWidenerFilterQ);
+	});
+}
+
 void FMotoSynthEngine::SetRPM(float InRPM, float InTimeSec)
 {
 	SynthCommand([this, InRPM, InTimeSec]()
@@ -958,65 +922,6 @@ void FMotoSynthEngine::SetRPM(float InRPM, float InTimeSec)
 			PreviousRPMSlope = 0.0f;
 			bWasAccelerating = true;
 		}
-
-	});
-}
-
-void FMotoSynthEngine::SetSynthToneEnabled(bool bInEnabled)
-{
-	SynthCommand([this, bInEnabled]()
-	{
-		bSynthToneEnabled = bInEnabled;
-	});
-}
-
-void FMotoSynthEngine::SetSynthToneVolume(float InVolume)
-{
-	SynthCommand([this, InVolume]()
-	{
-		SynthToneVolume = InVolume;
-	});
-}
-
-void FMotoSynthEngine::SetGranularEngineEnabled(bool bInEnabled)
-{
-	SynthCommand([this, bInEnabled]()
-	{
-		bGranularEngineEnabled = bInEnabled;
-	});
-}
-
-void FMotoSynthEngine::SetGranularEngineVolume(float InVolume)
-{
-	SynthCommand([this, InVolume]()
-	{
-		GranularEngineVolume = InVolume;
-	});
-}
-
-void FMotoSynthEngine::SetGranularEngineGrainCrossfade(int32 NumSamples)
-{
-	SynthCommand([this, NumSamples]() mutable
-	{
-		GrainCrossfadeSamples = NumSamples;
-	});
-}
-
-void FMotoSynthEngine::SetGranularEngineNumLoopGrains(int32 InNumLoopGrains)
-{
-	SynthCommand([this, InNumLoopGrains]() mutable
-	{
-		// store this as half this (we do a spread around the grain index that needs to loop)
-		NumGrainsToLoopOnSameRPM = FMath::Max(InNumLoopGrains / 2, 0);
-	});
-}
-
-void FMotoSynthEngine::SetGranularEngineNumLoopJitterGrains(int32 InEnginePreviewNumLoopJitterGrains)
-{
-	SynthCommand([this, InEnginePreviewNumLoopJitterGrains]() mutable
-	{
-		// store this as half this (we do a spread around the grain index that needs to loop)
-		NumGrainLoopJitterDelta = FMath::Max(InEnginePreviewNumLoopJitterGrains, 0);
 	});
 }
 
@@ -1024,21 +929,18 @@ bool FMotoSynthEngine::NeedsSpawnGrain()
 {
 	if (ActiveGrains.Num() > 0)
 	{
-		bool bGrainStartedFading = false;
-		for (int32 i = ActiveGrains.Num() - 1; i >= 0; --i)
+		if (ActiveGrains.Num() == 1)
 		{
-			int32 GrainIndex = ActiveGrains[i];
-			if (GrainPool[GrainIndex].IsFadingOut())
+			int32 GrainIndex = ActiveGrains[0];
+			if (GrainPool[GrainIndex].IsNearingEnd())
 			{
-				ActiveGrains.RemoveAtSwap(i, 1, false);
-				FadingGrains.Add(GrainIndex);
-				bGrainStartedFading = true;
+				return true;
 			}
 		}
-		// Only spawn one when we start to fade
-		return bGrainStartedFading;
+		// No grains needed spawning
+		return false;
 	}
-	// No active grains, so spawn one
+	// No active grains so return true
 	return true;
 }
 
@@ -1060,22 +962,16 @@ void FMotoSynthEngine::SpawnGrain(int32& StartingIndex, const FMotoSynthData& Sy
 			{
 				// If the grain we're picking is the exact same one, lets randomly pick a grain around here
 				int32 NumGrainEntries = NumGrainTableEntriesPerGrain;
-				int32 CrossFadeGrains = GrainCrossfadeSamples;
+				int32 NewGrainCrossfadeSamples = GrainCrossfadeSamples;
 				if (StartingIndex == GrainTableIndex)
 				{
-					//NumGrainEntries *= 4;
-					CrossFadeGrains *= 2;
+					NewGrainCrossfadeSamples = GrainCrossfadeSamplesForConstantRPMs;
 
-					GrainTableIndex += FMath::RandRange(-20, 20);
+					GrainTableIndex += FMath::RandRange(-GrainTableRandomOffsetForConstantRPMs, GrainTableRandomOffsetForConstantRPMs);
 					GrainTableIndex = FMath::Clamp(GrainTableIndex, 0, SynthData.GrainTable.Num());
 				}
 				else 
 				{
-					// Soon as we are not playing the same grain, reset the looping state
-					MaxLoopingGrainIndex = 0;
-					MinLoopingGrainIndex = 0;
-					CurrentLoopingSourceDataIndex = 0;
-
 					// Update the starting index that was passed in to optimize grain-table look up for future spawns
 					StartingIndex = GrainTableIndex;
 				}
@@ -1089,8 +985,11 @@ void FMotoSynthEngine::SpawnGrain(int32& StartingIndex, const FMotoSynthData& Sy
 				// This allows us to pitch-scale the grain more closely to the grain's RPM contour through it's lifetime
 				int32 EndingRPM = SynthData.GrainTable[NextGrainTableIndex].RPM;
 
-				int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration, SynthData.AudioSource.Num());
-				NewGrain.Init(SynthData.AudioSource.GetData(), Entry->SampleIndex, EndIndex, CrossFadeGrains, Entry->RPM, EndingRPM);
+				int32 StartIndex = FMath::Max(0, Entry->SampleIndex - NewGrainCrossfadeSamples);
+				int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration + NewGrainCrossfadeSamples, SynthData.AudioSource.Num());
+
+				TArrayView<const float> GrainArrayView = MakeArrayView(&SynthData.AudioSource[StartIndex], EndIndex - StartIndex);
+				NewGrain.Init(GrainArrayView, NewGrainCrossfadeSamples, Entry->RPM, EndingRPM, CurrentRPM);
 				NewGrain.SetRPM(CurrentRPM);
 
 				break;
@@ -1172,18 +1071,9 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 			PreviousRPMSlope = CurrentRPMSlope;
 
 			// Now render the grain sample data
-			for (int32 GrainIndex : ActiveGrains)
+			for (int32 ActiveGrainIndex = ActiveGrains.Num() - 1; ActiveGrainIndex >= 0; --ActiveGrainIndex)
 			{
-				FMotoSynthGrainRuntime& Grain = GrainPool[GrainIndex];
-				Grain.SetRPM(CurrentRPM);
-
-				OutAudio[SampleIndex] += Grain.GenerateSample();
-			}
-
-			for (int32 FadingGrainIndex = FadingGrains.Num() - 1; FadingGrainIndex >= 0; --FadingGrainIndex)
-			{
-				int32 GrainIndex = FadingGrains[FadingGrainIndex];
-
+				int32 GrainIndex = ActiveGrains[ActiveGrainIndex];
 				FMotoSynthGrainRuntime& Grain = GrainPool[GrainIndex];
 				Grain.SetRPM(CurrentRPM);
 
@@ -1191,7 +1081,7 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 
 				if (Grain.IsDone())
 				{
-					FadingGrains.RemoveAtSwap(FadingGrainIndex, 1, false);
+					ActiveGrains.RemoveAtSwap(ActiveGrainIndex, 1, false);
 					FreeGrains.Push(GrainIndex);
 				}
 			}
@@ -1203,6 +1093,7 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 			if ((SynthPitchUpdateSampleIndex & SynthPitchUpdateDeltaSamples) == 0)
 			{
 				float CurrentFrequency = CurrentRPM / 60.0f;
+				CurrentFrequency *= Audio::GetFrequencyMultiplier(12.0f * SynthOctaveShift);
 				SynthOsc.SetFrequency(CurrentFrequency);
 				SynthOsc.Update();
 			}
@@ -1212,6 +1103,16 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 
 		PreviousRPM = CurrentRPM;
 		CurrentRPM += RPMDelta;
+	}
+
+	if (!FMath::IsNearlyEqual(TargetGranularEngineVolume, GranularEngineVolume))
+	{
+		Audio::FadeBufferFast(OutAudio, NumSamples, GranularEngineVolume, TargetGranularEngineVolume);
+		GranularEngineVolume = TargetGranularEngineVolume;
+	}
+	else if (!FMath::IsNearlyEqual(GranularEngineVolume, 1.0f))
+	{
+		Audio::MultiplyBufferByConstantInPlace(OutAudio, NumSamples, GranularEngineVolume);
 	}
 
 	// Apply the filter andmix the audio intothe output buffer
@@ -1241,30 +1142,51 @@ int32 FMotoSynthEngine::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 		return NumSamples;
 	}
 
-	GenerateGranularEngine(OutAudio, NumSamples);
+	const int32 NumFrames = NumSamples / 2;
+
+	// Generate granular audio w/ our mono buffer
+	GrainEngineBuffer.Reset();
+	GrainEngineBuffer.AddZeroed(NumFrames);
+
+	GenerateGranularEngine(GrainEngineBuffer.GetData(), NumFrames);
+
+	float* GrainEngineBufferPtr = GrainEngineBuffer.GetData();
+
+	// Up-mix to dual-mono stereo
+	for (int32 Frame = 0; Frame < NumFrames; ++Frame)
+	{
+		float GrainEngineSample = GrainEngineBufferPtr[Frame];
+		for (int32 Channel = 0; Channel < 2; ++Channel)
+		{
+			OutAudio[Frame * 2 + Channel] = GrainEngineSample;
+		}
+	}
+
+	if (bStereoWidenerEnabled)
+	{
+		// Feed through the stereo delay as "stereo widener"
+		DelayStereo.ProcessAudio(OutAudio, NumSamples, OutAudio);
+	}
 
 	return NumSamples;
 }
 
-void FMotoSynthGrainRuntime::Init(const float* InAudioBuffer, int32 InStartIndex, int32 InEndIndex, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM)
+void FMotoSynthGrainRuntime::Init(const TArrayView<const float>& InGrainArrayView, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM)
 {
-	AudioBuffer = InAudioBuffer;
-	StartSampleIndex = (float)InStartIndex;
-	FadeInEndIndex = StartSampleIndex + (float)InNumSamplesCrossfade;
-	CurrentSampleIndex = StartSampleIndex;
-	EndSampleIndex = InEndIndex;
+	GrainArrayView = InGrainArrayView;
 
-	GrainDurationSamples = FMath::Max((float)(InEndIndex - InStartIndex), 1.0f);
-	FadeSamples = FMath::Clamp((float)InNumSamplesCrossfade, 0.0f, 0.5f * ((float)EndSampleIndex - CurrentSampleIndex));
-	FadeOutStartIndex = FMath::Max(EndSampleIndex - FadeSamples, 0.0f);
+	CurrentSampleIndex = 0.0f;
+	FadeSamples = (float)InNumSamplesCrossfade;
+	FadeOutStartIndex = (float)InGrainArrayView.Num() - (float)FadeSamples;
 	GrainPitchScale = 1.0f;
 	GrainRPMStart = InGrainStartRPM;
 	GrainRPMDelta = InGrainEndRPM - InGrainStartRPM;
+	StartingRPM = InStartingRPM;
 }
 
 float FMotoSynthGrainRuntime::GenerateSample()
 {
-	if (!AudioBuffer)
+	if (CurrentSampleIndex >= (float)GrainArrayView.Num())
 	{
 		return 0.0f;
 	}
@@ -1273,26 +1195,30 @@ float FMotoSynthGrainRuntime::GenerateSample()
 	int32 PreviousIndex = (int32)CurrentSampleIndex;
 	int32 NextIndex = PreviousIndex + 1;
 
-	if (NextIndex < EndSampleIndex)
+	if (NextIndex < GrainArrayView.Num())
 	{
-		float PreviousSampleValue = AudioBuffer[PreviousIndex];
-		float NextSampleValue = AudioBuffer[NextIndex];
+		float PreviousSampleValue = GrainArrayView[PreviousIndex];
+		float NextSampleValue = GrainArrayView[NextIndex];
 		float SampleAlpha = CurrentSampleIndex - (float)PreviousIndex;
 		float SampleValueInterpolated = FMath::Lerp(PreviousSampleValue, NextSampleValue, SampleAlpha);
 
 		// apply fade in or fade outs
-		if (CurrentSampleIndex < FadeInEndIndex && FadeSamples > 0.0f)
+		if (FadeSamples > 0)
 		{
-			SampleValueInterpolated *= ((CurrentSampleIndex - StartSampleIndex)/ FadeSamples);
-		}
-		else if (FadeSamples >= 0.0f && CurrentSampleIndex >= FadeOutStartIndex)
-		{
-			float FadeOutScale = FMath::Clamp(1.0f - ((CurrentSampleIndex - FadeOutStartIndex) / FadeSamples), 0.0f, 1.0f);
-			SampleValueInterpolated *= FadeOutScale;
+			if (CurrentSampleIndex < FadeSamples)
+			{
+				SampleValueInterpolated *= (CurrentSampleIndex / FadeSamples);
+			}
+			else if (CurrentSampleIndex >= FadeOutStartIndex)
+			{
+				float FadeOutScale = FMath::Clamp(1.0f - ((CurrentSampleIndex - FadeOutStartIndex) / FadeSamples), 0.0f, 1.0f);
+				SampleValueInterpolated *= FadeOutScale;
+			}
 		}
 
+
 		// Update the pitch scale based on the progress through the grain and the starting and ending grain RPMs and the current runtime RPM
-		float GrainFraction = (CurrentSampleIndex - StartSampleIndex) / GrainDurationSamples;
+		float GrainFraction = CurrentSampleIndex / GrainArrayView.Num();
 		// Expected RPM given our playback progress, linearly interpolating the start and end RPMs
 		float ExpectedRPM = GrainRPMStart + GrainFraction * GrainRPMDelta;
 		GrainPitchScale = CurrentRuntimeRPM / ExpectedRPM;
@@ -1302,20 +1228,19 @@ float FMotoSynthGrainRuntime::GenerateSample()
 	}
 	else
 	{
-		CurrentSampleIndex = (float)EndSampleIndex + 1.0f;
+		CurrentSampleIndex = (float)GrainArrayView.Num() + 1.0f;
 	}
 
 	return 0.0f;
 }
-
-bool FMotoSynthGrainRuntime::IsFadingOut() const
+bool FMotoSynthGrainRuntime::IsNearingEnd() const
 {
-	return CurrentSampleIndex >= FadeOutStartIndex;
+	return (int32)CurrentSampleIndex >= (GrainArrayView.Num() - FadeSamples);
 }
 
 bool FMotoSynthGrainRuntime::IsDone() const
 {
-	return CurrentSampleIndex >= (float)EndSampleIndex;
+	return (int32)CurrentSampleIndex >= GrainArrayView.Num();
 }
 
 void FMotoSynthGrainRuntime::SetRPM(int32 InRPM)
