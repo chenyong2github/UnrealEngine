@@ -29,7 +29,10 @@ bool FMergeCoincidentMeshEdges::Apply()
 	if (Mesh->TriangleCount() > 100000)   hashN = 128;
 	if (Mesh->TriangleCount() > 1000000)  hashN = 256;
 	FAxisAlignedBox3d bounds = Mesh->GetCachedBounds();
-	MidpointsHash.Build(bounds.MaxDim() / hashN, bounds.Min);
+	double CellSize = bounds.MaxDim() / (double)hashN;
+	MidpointsHash.Build(CellSize, bounds.Min);
+
+	UseMergeSearchTol = FMathd::Min(CellSize, UseMergeSearchTol);
 
 	// temp values and buffers
 	FVector3d A, B, C, D;
