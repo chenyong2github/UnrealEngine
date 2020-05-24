@@ -10,6 +10,7 @@ using System.Drawing;
 using System.IO;
 using System.Globalization;
 using System.Diagnostics;
+using System.Collections;
 
 namespace CSVStats
 {
@@ -128,7 +129,18 @@ namespace CSVStats
             }
         }
 
-        public void CombineAndValidate(CsvMetadata comparisonMetadata)
+		public void WriteToBinaryFile(BinaryWriter outWriter)
+		{
+			// Write metadata
+			outWriter.Write(Values.Count);
+			foreach (string key in Values.Keys)
+			{
+				outWriter.Write(key);
+				outWriter.Write(Values[key]);
+			}
+		}
+
+		public void CombineAndValidate(CsvMetadata comparisonMetadata)
         {
             List<string> valuesDontMatchKeys = new List<string>();
             foreach (KeyValuePair<string, string> pair in Values)
@@ -543,7 +555,125 @@ namespace CSVStats
             return statList;
         }
 
-        public void WriteToCSV(string filename)
+		enum SampleStorageType
+		{
+			TypeFloat,
+			TypeUint8,
+			TypeUint16,
+		}
+
+		public void WriteToBinFile(string filename)
+		{
+			System.IO.FileStream fileStream = new FileStream(filename, FileMode.Create);
+			System.IO.BinaryWriter outWriter = new System.IO.BinaryWriter(fileStream);
+
+			metaData.WriteToBinaryFile(outWriter);
+			outWriter.Write(Events.Count);
+			outWriter.Write(SampleCount);
+			outWriter.Write(Stats.Count);
+			// Write the events
+			foreach (CsvEvent ev in Events)
+			{
+				outWriter.Write(ev.Frame);
+				outWriter.Write(ev.Name);
+			}
+			// Write the stats
+			foreach (StatSamples stat in Stats.Values)
+			{
+				outWriter.Write(stat.Name);
+				outWriter.Write(stat.average);
+				outWriter.Write(stat.samples.Count);
+				List<float> uniqueValues = new List<float>();
+				BitArray statUniqueMask = new BitArray(stat.samples.Count);
+				float oldVal = float.NegativeInfinity;
+				bool storeAsFloat = false;
+				float minVal = float.MaxValue;
+				float maxVal = -float.MaxValue;
+				for ( int i=0; i<stat.samples.Count; i++)
+				{
+					float val = stat.samples[i];
+					bool unique = val != oldVal;
+					if (unique)
+					{
+						uniqueValues.Add(val);
+					}
+					statUniqueMask.Set(i, unique);
+					oldVal = val;
+
+					minVal = Math.Min(minVal, val);
+					maxVal = Math.Min(minVal, val);
+					if (storeAsFloat == false)
+					{
+						if ( (float)(int)val!=val )
+						{
+							storeAsFloat = true;
+						}
+					}
+				}
+				outWriter.Write(uniqueValues.Count);
+
+				// Determine the storage type
+				SampleStorageType storageType = SampleStorageType.TypeFloat;
+				if (!storeAsFloat && minVal >= 0)
+				{
+					if (maxVal <=256)
+					{
+						storageType = SampleStorageType.TypeUint8;
+					}
+					else if (maxVal <= 65536)
+					{
+						storageType = SampleStorageType.TypeUint16;
+					}
+				}
+				outWriter.Write((int)storageType);
+
+				// Write out the mask of unique values
+				uint numWords = (uint)((statUniqueMask.Length+31) / 32);
+				outWriter.Write(numWords);
+				int maskIndex = 0;
+				for (int i=0;i<numWords;i++)
+				{
+					uint currentWord = 0;
+					for (int j=0; j<32;j++)
+					{
+						uint intVal = 0;
+						if (maskIndex < statUniqueMask.Length)
+						{
+							intVal=(uint)(statUniqueMask.Get(maskIndex) ? 1 : 0);
+							maskIndex++;
+						}
+						currentWord |= intVal << j;
+					}
+					outWriter.Write(currentWord);
+				}
+
+				switch( storageType )
+				{
+					case SampleStorageType.TypeFloat:
+						foreach (float val in uniqueValues)
+						{
+							outWriter.Write(val);
+						}
+						break;
+					case SampleStorageType.TypeUint8:
+						foreach (float val in uniqueValues)
+						{
+							outWriter.Write((byte)val);
+						}
+						break;
+					case SampleStorageType.TypeUint16:
+						foreach (float val in uniqueValues)
+						{
+							outWriter.Write((UInt16)val);
+						}
+						break;
+				}
+			}
+
+			outWriter.Close();
+		}
+
+		public void WriteToCSV(string filename)
         {
             System.IO.StreamWriter csvOutFile;
             csvOutFile = new System.IO.StreamWriter(filename);
