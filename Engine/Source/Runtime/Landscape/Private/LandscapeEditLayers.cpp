@@ -40,6 +40,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Editor.h"
 #endif
 #include "Logging/MessageLog.h"
 
