@@ -5072,7 +5072,7 @@ void ALandscape::TickLayers(float DeltaTime)
 	check(GIsEditor);
 
 	UWorld* World = GetWorld();
-	if (World && !World->IsPlayInEditor() && GetLandscapeInfo())
+	if (World && !World->IsPlayInEditor() && GetLandscapeInfo() && GEditor->PlayWorld == nullptr)
 	{
 		if (CVarLandscapeSimulatePhysics.GetValueOnAnyThread() == 1)
 		{
