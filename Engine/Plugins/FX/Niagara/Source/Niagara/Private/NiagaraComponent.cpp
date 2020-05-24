@@ -1003,7 +1003,8 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 		SystemInstance->Deactivate();
 
 		// We are considered active until we are complete
-		SetActiveFlag(!SystemInstance->IsComplete());
+		// Note: Deactivate call can finalize -> complete the system -> release to pool -> unregister which will result in a nullptr for the SystemInstance
+		SetActiveFlag(SystemInstance ? !SystemInstance->IsComplete() : false);
 	}
 	else
 	{
@@ -1230,6 +1231,22 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	//UE_LOG(LogNiagara, Log, TEXT("OnComponentDestroyed %p %p"), this, SystemInstance.Get());
 	//DestroyInstance();//Can't do this here as we can call this from inside the system instance currently during completion 
 
+	if (PoolingMethod != ENCPoolMethod::None)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), PoolingMethod);
+			FNiagaraWorldManager::Get(World)->GetComponentPool()->PooledComponentDestroyed(this);
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), PoolingMethod);
+		}
+
+		// Set pooling method to none as we are destroyed and can not go into the pool after this point
+		PoolingMethod = ENCPoolMethod::None;
+	}
+
 	UnregisterWithScalabilityManager();
 
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
@@ -1266,6 +1283,11 @@ void UNiagaraComponent::OnUnregister()
 void UNiagaraComponent::BeginDestroy()
 {
 	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP - %d - %s\n"), this, ScalabilityManagerHandle, *GetAsset()->GetFullName());
+
+	if (PoolingMethod != ENCPoolMethod::None)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) is still pooled (%d)!\n"), this, *GetFullNameSafe(this), PoolingMethod);
+	}
 
 	//By now we will have already unregisted with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
 	ScalabilityManagerHandle = INDEX_NONE;
