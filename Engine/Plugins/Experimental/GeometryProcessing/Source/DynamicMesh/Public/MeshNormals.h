@@ -134,6 +134,17 @@ public:
 
 
 	/**
+	 * Initialize the given NormalOverlay with per-face normals, ie separate overlay element for each vertex of each triangle.
+	 */
+	static void InitializeOverlayToPerTriangleNormals(FDynamicMeshNormalOverlay* NormalOverlay);
+
+	/**
+	 * Initialize the given Mesh with per-face normals, ie separate overlay element for each vertex of each triangle.
+	 */
+	static void InitializeMeshToPerTriangleNormals(FDynamicMesh3* Mesh);
+
+
+	/**
 	 * Initialize the given triangles of NormalOverlay with per-vertex normals, ie single overlay element for each mesh vertex.
 	 * Only the triangles included in the region are considered when calculating per-vertex normals.
 	 */
