@@ -853,27 +853,10 @@ struct OutputCells
 				}
 
 
-				// Determine the transform for the child geometry -- TODO: actually compute the proper center of mass, set everything up as nicely as possible for physics
-				FVector Centroid(0);
-				float CentroidCount = 0;
-				for (int32 VertexSubIdx = 0; VertexSubIdx < NumVertices; VertexSubIdx++)
-				{
-					int32 CopyVertexIdx = CellVertexMapping[OutputCellIdx][VertexSubIdx];
-					const FGeometryCollection* CopyFromCollection = &Source;
-					if (CopyVertexIdx >= SourceVertexNumWhenCut)
-					{
-						CopyFromCollection = &AddedVertices;
-						CopyVertexIdx -= SourceVertexNumWhenCut;
-					}
-					Centroid += CopyFromCollection->Vertex[CopyVertexIdx];
-					CentroidCount++;
-				}
-				if (CentroidCount > 0)
-				{
-					Centroid /= CentroidCount;
-				}
-				Output.Transform[TransformIdx] = FTransform(FTranslationMatrix(Centroid));
-				ChildInverseTransforms.Emplace(-Centroid);
+				// Set the transform for the child geometry
+				// Note to make it easier to procedurally texture later, it's better to leave it in the same space
+				Output.Transform[TransformIdx] = FTransform::Identity;
+				ChildInverseTransforms.Emplace(FVector::ZeroVector);
 
 				GeometrySubIdx++;
 			}
