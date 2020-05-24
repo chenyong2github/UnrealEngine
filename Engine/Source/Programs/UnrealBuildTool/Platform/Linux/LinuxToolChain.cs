@@ -345,6 +345,13 @@ namespace UnrealBuildTool
 					);
 				}
 			}
+			else
+			{
+				// If we have an override size, then we need to create a dummy file if that size is exceeded
+				Out += string.Format("echo DummyDebug >> {0}\n",
+					DebugFile.AbsolutePath
+				);
+			}
 
 			return Out;
 		}
