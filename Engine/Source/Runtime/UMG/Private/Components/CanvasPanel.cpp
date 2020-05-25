@@ -40,7 +40,7 @@ void UCanvasPanel::OnSlotAdded(UPanelSlot* InSlot)
 void UCanvasPanel::OnSlotRemoved(UPanelSlot* InSlot)
 {
 	// Remove the widget from the live slot if it exists.
-	if ( MyCanvas.IsValid() )
+	if ( MyCanvas.IsValid() && InSlot->Content)
 	{
 		TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
 		if ( Widget.IsValid() )

@@ -59,7 +59,7 @@ void UWrapBox::OnSlotAdded(UPanelSlot* InSlot)
 void UWrapBox::OnSlotRemoved(UPanelSlot* InSlot)
 {
 	// Remove the widget from the live slot if it exists.
-	if ( MyWrapBox.IsValid() )
+	if ( MyWrapBox.IsValid() && InSlot->Content)
 	{
 		TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
 		if ( Widget.IsValid() )
