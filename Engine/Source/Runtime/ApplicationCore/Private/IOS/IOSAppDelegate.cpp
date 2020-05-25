@@ -445,7 +445,10 @@ static IOSAppDelegate* CachedDelegate = nil;
         [FIOSAsyncTask ProcessAsyncTasks];
 	}
 
-	[UIApplication sharedApplication].idleTimerDisabled = NO;
+    dispatch_sync(dispatch_get_main_queue(),^
+    {
+        [UIApplication sharedApplication].idleTimerDisabled = NO;
+    });
 
 	[AutoreleasePool release];
 	FAppEntry::Shutdown();
