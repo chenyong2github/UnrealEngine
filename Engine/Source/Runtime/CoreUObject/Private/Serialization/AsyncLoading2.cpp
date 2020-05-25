@@ -5025,7 +5025,7 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPackageCreate);
 		LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.Name, RF_Public);
-		// LinkerRoot->FileName = Desc.Name;
+		LinkerRoot->FileName = Desc.NameToLoad;
 		LinkerRoot->SetPackageId(Desc.PackageIdToLoad);
 		LinkerRoot->SetPackageFlagsTo(PackageSummary->PackageFlags);
 		LinkerRoot->LinkerPackageVersion = GPackageFileUE4Version;
