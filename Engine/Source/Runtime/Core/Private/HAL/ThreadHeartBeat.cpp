@@ -17,6 +17,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Misc/App.h"
+#include "Misc/Fork.h"
 
 #if PLATFORM_SWITCH
 #include "SwitchPlatformCrashContext.h"
@@ -881,9 +882,9 @@ void FGameThreadHitchHeartBeatThreaded::InitSettings()
 	}
 	
 	// Start the heart beat thread if it hasn't already been started.
-	if (Thread == nullptr && FPlatformProcess::SupportsMultithreading() && HangDuration > 0)
+	if (Thread == nullptr && (FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::SupportsMultithreadingPostFork()) && HangDuration > 0)
 	{
-		Thread = FRunnableThread::Create(this, TEXT("FGameThreadHitchHeartBeatThreaded"), 0, TPri_AboveNormal);
+		Thread = FForkProcessHelper::CreateForkableThread(this, TEXT("FGameThreadHitchHeartBeatThreaded"), 0, TPri_AboveNormal);
 	}
 #endif
 }
