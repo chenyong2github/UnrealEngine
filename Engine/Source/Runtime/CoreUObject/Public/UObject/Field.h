@@ -615,6 +615,7 @@ public:
 	void Rename(const FName& NewName);
 
 	FString GetPathName(const UObject* StopOuter = nullptr) const;
+	void GetPathName(const UObject* StopOuter, FStringBuilderBase& ResultString) const;
 	FString GetFullName() const;
 
 	/**
