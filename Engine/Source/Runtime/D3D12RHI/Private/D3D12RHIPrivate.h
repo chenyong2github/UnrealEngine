@@ -227,7 +227,7 @@ public:
 	}
 	
 	virtual FD3D12CommandContext* CreateCommandContext(FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext = false);
-	virtual ID3D12CommandQueue* CreateCommandQueue(FD3D12Device* Device, const D3D12_COMMAND_QUEUE_DESC& Desc);
+	virtual void CreateCommandQueue(FD3D12Device* Device, const D3D12_COMMAND_QUEUE_DESC& Desc, TRefCountPtr<ID3D12CommandQueue>& OutCommandQueue);
 
 	virtual bool GetHardwareGPUFrameTime(double& OutGPUFrameTime) const
 	{ 
