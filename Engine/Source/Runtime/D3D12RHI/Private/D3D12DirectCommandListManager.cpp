@@ -345,13 +345,15 @@ void FD3D12CommandListManager::Destroy()
 	// Wait for the queue to empty
 	WaitForCommandQueueFlush();
 
-	D3DCommandQueue.SafeRelease();
-
-	FD3D12CommandListHandle hList;
-	while (!ReadyLists.IsEmpty())
 	{
-		ReadyLists.Dequeue(hList);
+		FD3D12CommandListHandle hList;
+		while (!ReadyLists.IsEmpty())
+		{
+			ReadyLists.Dequeue(hList);
+		}
 	}
+
+	D3DCommandQueue.SafeRelease();
 
 	if (CommandListFence)
 	{
@@ -389,7 +391,8 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 	CommandQueueDesc.NodeMask = GetGPUMask().GetNative();
 	CommandQueueDesc.Priority = Priority;
 	CommandQueueDesc.Type = CommandListType;
-	D3DCommandQueue = Adapter->GetOwningRHI()->CreateCommandQueue(Device, CommandQueueDesc);
+	Adapter->GetOwningRHI()->CreateCommandQueue(Device, CommandQueueDesc, D3DCommandQueue);
+	
 	SetName(D3DCommandQueue.GetReference(), Name);
 
 	if (NumCommandLists > 0)
