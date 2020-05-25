@@ -508,7 +508,7 @@ export class PerforceContext {
 		setInterval(() => {
 			const now = Date.now()
 			for (const command of runningPerforceCommands) {
-				const durationMinutes = (command.start.valueOf() - now) / (60*1000)
+				const durationMinutes = (now - command.start.valueOf()) / (60*1000)
 				if (durationMinutes > 10) {
 					this.logger.info(`Command still running after ${durationMinutes} minutes: ` + command.cmd)
 				}
