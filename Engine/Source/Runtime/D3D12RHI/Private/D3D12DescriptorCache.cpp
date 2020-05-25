@@ -761,7 +761,7 @@ bool FD3D12DescriptorCache::SwitchToContextLocalViewHeap(const FD3D12CommandList
 {
 	if (LocalViewHeap == nullptr)
 	{
-		UE_LOG(LogD3D12RHI, Warning, TEXT("This should only happen in the Editor where it doesn't matter as much. If it happens in game you should increase the device global heap size!"));
+		UE_LOG(LogD3D12RHI, Log, TEXT("This should only happen in the Editor where it doesn't matter as much. If it happens in game you should increase the device global heap size!"));
 		
 		// Allocate the heap lazily
 		LocalViewHeap = new FD3D12ThreadLocalOnlineHeap(GetParentDevice(), GetGPUMask(), this);
@@ -834,7 +834,7 @@ bool FD3D12ThreadLocalOnlineHeap::RollOver()
 	}
 	else
 	{
-		UE_LOG(LogD3D12RHI, Warning, TEXT("OnlineHeap RollOver Detected. Increase the heap size to prevent creation of additional heaps"));
+		UE_LOG(LogD3D12RHI, Log, TEXT("OnlineHeap RollOver Detected. Increase the heap size to prevent creation of additional heaps"));
 
 		//LLM_SCOPE(ELLMTag::DescriptorCache);
 
@@ -1128,7 +1128,7 @@ bool FD3D12SubAllocatedOnlineHeap::RollOver()
 	{
 		// Notify parent that we have run out of sub allocations
 		// This should *never* happen but we will handle it and revert to local heaps to be safe
-		UE_LOG(LogD3D12RHI, Warning, TEXT("Descriptor cache ran out of sub allocated descriptor blocks! Moving to Context local View heap strategy"));
+		UE_LOG(LogD3D12RHI, Log, TEXT("Descriptor cache ran out of sub allocated descriptor blocks! Moving to Context local View heap strategy"));
 		return Parent->SwitchToContextLocalViewHeap(CurrentCommandList);
 	}
 
