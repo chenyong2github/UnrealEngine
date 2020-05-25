@@ -59,8 +59,8 @@ public:
 
 FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene& InPreviewScene, const TSharedRef<SNiagaraSystemViewport>& InNiagaraEditorViewport, FOnScreenShotCaptured InOnScreenShotCaptured)
 	: FEditorViewportClient(nullptr, &InPreviewScene, StaticCastSharedRef<SEditorViewport>(InNiagaraEditorViewport))
-	, OnScreenShotCaptured(InOnScreenShotCaptured)
 	, AdvancedPreviewScene(&InPreviewScene)
+	, OnScreenShotCaptured(InOnScreenShotCaptured)
 {
 	NiagaraViewportPtr = InNiagaraEditorViewport;
 
