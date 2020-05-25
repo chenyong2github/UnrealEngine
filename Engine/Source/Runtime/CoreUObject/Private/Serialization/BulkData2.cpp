@@ -833,10 +833,10 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				Filename = &Linker->Filename;
 			}
-			else if(!::ShouldAllowBulkDataInIoStore() && !IsInlined()) // IoDispatcher only allows reloading from non inlined data
+			else if(!::ShouldAllowBulkDataInIoStore() && !IsInlined()) 
 			{
-				Package->GetName(FallbackFilename);
-				FallbackFilename = FPackageName::LongPackageNameToFilename(FallbackFilename, TEXT(".uasset"));
+				// Fallback path for when the IoStore is enabled but bulkdata has been forced to the pakfiles anyway.
+				FallbackFilename = FPackageName::LongPackageNameToFilename(Package->FileName.ToString(), Package->ContainsMap() ? TEXT(".umap") : TEXT(".uasset"));
 				Filename = &FallbackFilename;
 			}
 		}
