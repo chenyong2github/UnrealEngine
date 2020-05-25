@@ -64,6 +64,8 @@ public:
 	TSharedPtr<FUICommandInfo> BeginMeshBooleanTool;
 	TSharedPtr<FUICommandInfo> BeginMeshSelectionTool;
 	TSharedPtr<FUICommandInfo> BeginBspConversionTool;
+	TSharedPtr<FUICommandInfo> BeginMeshToVolumeTool;
+	TSharedPtr<FUICommandInfo> BeginVolumeToMeshTool;
 
 	TSharedPtr<FUICommandInfo> BeginMeshInspectorTool;
 	TSharedPtr<FUICommandInfo> BeginGlobalUVGenerateTool;
