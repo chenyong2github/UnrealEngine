@@ -262,7 +262,6 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 	const bool bUAVBarrier = (TransitionType == EResourceTransitionAccess::ERWBarrier);
 	if (bUAVBarrier)
 	{
-		// UAV barrier between Dispatch() calls to ensure all R/W accesses are complete.
 		StateCache.FlushComputeShaderCache(true);
 	}
 
