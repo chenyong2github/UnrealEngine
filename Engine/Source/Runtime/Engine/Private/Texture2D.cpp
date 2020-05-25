@@ -2277,10 +2277,9 @@ FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner)
 	STAT(LODGroupStatName = TextureGroupStatFNames[InOwner->LODGroup]);
 
 	TIndirectArray<FTexture2DMipMap>& Mips = InOwner->PlatformData->Mips;
-	uint32 Slices = InOwner->GetNumSlices();
 
 	// Create empty data storage.
-	for (uint32 Slice = 0; Slice < Slices; ++Slice)
+	for (uint32 Slice = 0; Slice < NumSlices; ++Slice)
 	{
 		CachedInitialData.Add(FTextureArrayDataEntry());
 
@@ -2300,11 +2299,11 @@ FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner)
 		FTexture2DMipMap& Mip = Mips[MipIndex];
 		if (Mip.BulkData.GetBulkDataSize() > 0)
 		{
-			uint32 MipSize = Mip.BulkData.GetBulkDataSize() / Slices;
+			uint32 MipSize = Mip.BulkData.GetBulkDataSize() / NumSlices;
 
 			uint8* In = (uint8*)Mip.BulkData.Lock(LOCK_READ_ONLY);
 
-			for (uint32 Slice = 0; Slice < Slices; ++Slice)
+			for (uint32 Slice = 0; Slice < NumSlices; ++Slice)
 			{
 				FMipMapDataEntry& NewEntry = CachedInitialData[Slice].MipData[MipIndex];
 				NewEntry.SizeX = Mip.SizeX;
