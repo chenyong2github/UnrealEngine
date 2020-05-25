@@ -15,6 +15,12 @@ class UInteractiveToolManager;
 namespace ToolSetupUtil
 {
 	/**
+	 * Get the default material for surfaces
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultMaterial();
+
+
+	/**
 	 * Get the default material to use for objects in an InteractiveTool. Optionally use SourceMaterial if it is valid.
 	 * @param SourceMaterial optional material to use if available
 	 * @return default material to use for objects in a tool.
