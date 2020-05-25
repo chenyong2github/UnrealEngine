@@ -10,7 +10,7 @@
 ovrAudioContext FOculusAudioContextManager::SerializationContext = nullptr;
 UActorComponent* FOculusAudioContextManager::SerializationParent = nullptr;
 
-TMap<const FAudioDevice*, ovrAudioContext> FOculusAudioContextManager::ContextMap;
+TMap<Audio::FDeviceId, ovrAudioContext> FOculusAudioContextManager::ContextMap;
 FCriticalSection FOculusAudioContextManager::ContextCritSection;
 
 FOculusAudioContextManager::FOculusAudioContextManager()
@@ -108,8 +108,14 @@ ovrAudioContext FOculusAudioContextManager::GetOrCreateSerializationContext(UAct
 
 ovrAudioContext FOculusAudioContextManager::GetContextForAudioDevice(const FAudioDevice* InAudioDevice)
 {
+	check(InAudioDevice);
+	return GetContextForAudioDevice(InAudioDevice->DeviceID);
+}
+
+ovrAudioContext FOculusAudioContextManager::GetContextForAudioDevice(Audio::FDeviceId InAudioDeviceId)
+{
 	FScopeLock ScopeLock(&ContextCritSection);
-	ovrAudioContext* Context = ContextMap.Find(InAudioDevice);
+	ovrAudioContext* Context = ContextMap.Find(InAudioDeviceId);
 	if (Context)
 	{
 		return *Context;
@@ -122,19 +128,25 @@ ovrAudioContext FOculusAudioContextManager::GetContextForAudioDevice(const FAudi
 
 ovrAudioContext FOculusAudioContextManager::CreateContextForAudioDevice(FAudioDevice* InAudioDevice)
 {
+	check(InAudioDevice);
+	return CreateContextForAudioDevice(InAudioDevice->DeviceID, InAudioDevice->GetBufferLength(), InAudioDevice->GetMaxSources(), InAudioDevice->GetSampleRate());
+}
+
+ovrAudioContext FOculusAudioContextManager::CreateContextForAudioDevice(Audio::FDeviceId InAudioDeviceId, int32 InBufferLength, int32 InMaxNumSources, float InSampleRate)
+{
 	ovrAudioContextConfiguration ContextConfig = { 0 };
-	ContextConfig.acc_BufferLength = InAudioDevice->GetBufferLength();
-	ContextConfig.acc_MaxNumSources = InAudioDevice->GetMaxSources();
-	ContextConfig.acc_SampleRate = InAudioDevice->GetSampleRate();
+	ContextConfig.acc_BufferLength = InBufferLength;
+	ContextConfig.acc_MaxNumSources = InMaxNumSources;
+	ContextConfig.acc_SampleRate = InSampleRate;
 	ContextConfig.acc_Size = sizeof(ovrAudioContextConfiguration);
 
 	ovrAudioContext NewContext = nullptr;
 	ovrResult Result = OVRA_CALL(ovrAudio_CreateContext)(&NewContext, &ContextConfig);
 
-	if(ensure(Result == ovrSuccess))
+	if (ensure(Result == ovrSuccess))
 	{
 		FScopeLock ScopeLock(&ContextCritSection);
-		return ContextMap.Add(InAudioDevice, NewContext);
+		return ContextMap.Add(InAudioDeviceId, NewContext);
 	}
 	else
 	{
@@ -144,12 +156,18 @@ ovrAudioContext FOculusAudioContextManager::CreateContextForAudioDevice(FAudioDe
 
 void FOculusAudioContextManager::DestroyContextForAudioDevice(const FAudioDevice* InAudioDevice)
 {
+	check(InAudioDevice);
+	return DestroyContextForAudioDevice(InAudioDevice->DeviceID);
+}
+
+void FOculusAudioContextManager::DestroyContextForAudioDevice(Audio::FDeviceId InAudioDeviceId)
+{
 	FScopeLock ScopeLock(&ContextCritSection);
-	ovrAudioContext* Context = ContextMap.Find(InAudioDevice);
+	ovrAudioContext* Context = ContextMap.Find(InAudioDeviceId);
 
 	if (Context)
 	{
 		OVRA_CALL(ovrAudio_DestroyContext)(*Context);
-		ContextMap.Remove(InAudioDevice);
+		ContextMap.Remove(InAudioDeviceId);
 	}
 }
