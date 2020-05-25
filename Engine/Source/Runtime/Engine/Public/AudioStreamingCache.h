@@ -215,13 +215,10 @@ private:
 			}
 #endif
 
-			IBulkDataIORequest* LocalReadRequest = nullptr;
-			if (ReadRequest)
-			{
-				LocalReadRequest = (IBulkDataIORequest*)FPlatformAtomics::InterlockedExchangePtr((void* volatile*)&ReadRequest, nullptr);
-			}
+			// Take ownership and close the storage
+			IBulkDataIORequest* LocalReadRequest = (IBulkDataIORequest*)FPlatformAtomics::InterlockedExchangePtr((void* volatile*)&ReadRequest, (void*)0x1);
 
-			if (LocalReadRequest)
+			if (LocalReadRequest && (void*)LocalReadRequest != (void*)0x1)
 			{
 				if (bCancel)
 				{
