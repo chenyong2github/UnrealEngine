@@ -616,11 +616,11 @@ namespace CSVStats
 				SampleStorageType storageType = SampleStorageType.TypeFloat;
 				if (!storeAsFloat && minVal >= 0)
 				{
-					if (maxVal <=256)
+					if (maxVal < 256)
 					{
 						storageType = SampleStorageType.TypeUint8;
 					}
-					else if (maxVal <= 65536)
+					else if (maxVal < 65536)
 					{
 						storageType = SampleStorageType.TypeUint16;
 					}
