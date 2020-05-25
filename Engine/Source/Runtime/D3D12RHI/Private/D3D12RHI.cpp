@@ -260,11 +260,9 @@ FD3D12CommandContext* FD3D12DynamicRHI::CreateCommandContext(FD3D12Device* InPar
 	return NewContext;
 }
 
-ID3D12CommandQueue* FD3D12DynamicRHI::CreateCommandQueue(FD3D12Device* Device, const D3D12_COMMAND_QUEUE_DESC& Desc)
+void FD3D12DynamicRHI::CreateCommandQueue(FD3D12Device* Device, const D3D12_COMMAND_QUEUE_DESC& Desc, TRefCountPtr<ID3D12CommandQueue>& OutCommandQueue)
 {
-	ID3D12CommandQueue* pCommandQueue = nullptr;
-	VERIFYD3D12RESULT(Device->GetDevice()->CreateCommandQueue(&Desc, IID_PPV_ARGS(&pCommandQueue)));
-	return pCommandQueue;
+	VERIFYD3D12RESULT(Device->GetDevice()->CreateCommandQueue(&Desc, IID_PPV_ARGS(OutCommandQueue.GetInitReference())));
 }
 
 IRHICommandContext* FD3D12DynamicRHI::RHIGetDefaultContext()

@@ -371,6 +371,13 @@ void FD3D12Device::Cleanup()
 		CommandContextArray[i] = nullptr;
 	}
 
+	// Delete array index 0 last
+	for (int32 i = AsyncComputeContextArray.Num() - 1; i >= 0; i--)
+	{
+		delete AsyncComputeContextArray[i];
+		AsyncComputeContextArray[i] = nullptr;
+	}
+
 	// Flush all pending deletes before destroying the device.
 	FRHIResource::FlushPendingDeletes();
 
