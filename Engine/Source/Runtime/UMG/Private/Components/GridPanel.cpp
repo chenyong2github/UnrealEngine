@@ -41,7 +41,7 @@ void UGridPanel::OnSlotAdded(UPanelSlot* InSlot)
 void UGridPanel::OnSlotRemoved(UPanelSlot* InSlot)
 {
 	// Remove the widget from the live slot if it exists.
-	if ( MyGridPanel.IsValid() )
+	if ( MyGridPanel.IsValid() && InSlot->Content)
 	{
 		TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
 		if ( Widget.IsValid() )
