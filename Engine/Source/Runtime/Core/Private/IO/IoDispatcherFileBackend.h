@@ -130,6 +130,8 @@ public:
 	using FKeyRegisteredCallback = TFunction<void(const FGuid&, const FAES::FAESKey&)>;
 
 	FFileIoStoreEncryptionKeys();
+	~FFileIoStoreEncryptionKeys();
+
 	bool GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const;
 	void SetKeyRegisteredCallback(FKeyRegisteredCallback&& Callback)
 	{
