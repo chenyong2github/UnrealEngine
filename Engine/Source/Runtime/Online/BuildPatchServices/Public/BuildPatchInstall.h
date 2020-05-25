@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 
+#include "Interfaces/IBuildManifest.h"
+
 namespace BuildPatchServices
 {
 	/**
@@ -46,4 +48,6 @@ namespace BuildPatchServices
 			default: return InvalidOrMax;
 		}
 	}
+
+	BUILDPATCHSERVICES_API uint64 CalculateRequiredDiskSpace(const IBuildManifestPtr& CurrentManifest, const IBuildManifestRef& BuildManifest, const EInstallMode& InstallMode, const TSet<FString>& InstallTags);
 }
