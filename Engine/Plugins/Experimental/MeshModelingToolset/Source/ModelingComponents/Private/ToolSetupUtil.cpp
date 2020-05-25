@@ -8,6 +8,12 @@
 #include "Materials/MaterialInstanceDynamic.h"
 
 
+UMaterialInterface* ToolSetupUtil::GetDefaultMaterial()
+{
+	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+
 UMaterialInterface* ToolSetupUtil::GetDefaultMaterial(UInteractiveToolManager* ToolManager, UMaterialInterface* SourceMaterial)
 {
 	if (SourceMaterial == nullptr && ToolManager != nullptr)
