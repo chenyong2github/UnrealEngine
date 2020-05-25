@@ -148,18 +148,22 @@ bool FMemProProfiler::IsUsingPort( uint32 Port )
  */
 void FMemProProfiler::Init()
 {
-	//check command line for mempro options
+	if (FCommandLine::IsInitialized())
+	{
+
+		//check command line for mempro options
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-	FString LLMTagsStr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("MemProTags="), LLMTagsStr))
-	{
-		FMemProProfiler::TrackTagsByName(*LLMTagsStr);
-	}
+		FString LLMTagsStr;
+		if (FParse::Value(FCommandLine::Get(), TEXT("MemProTags="), LLMTagsStr))
+		{
+			FMemProProfiler::TrackTagsByName(*LLMTagsStr);
+		}
 #endif
-	if (FParse::Param(FCommandLine::Get(), TEXT("MemPro")))
-	{
-		UE_LOG(LogMemPro, Display, TEXT("MemPro enabled"));
-		GMemProEnabled = 1;
+		if (FParse::Param(FCommandLine::Get(), TEXT("MemPro")))
+		{
+			UE_LOG(LogMemPro, Display, TEXT("MemPro enabled"));
+			GMemProEnabled = 1;
+		}
 	}
 }
 
