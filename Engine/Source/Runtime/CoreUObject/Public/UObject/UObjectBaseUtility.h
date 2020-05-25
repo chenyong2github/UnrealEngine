@@ -324,9 +324,10 @@ public:
 	FString GetPathName( const UObject* StopOuter=NULL ) const;
 
 	/**
-	 * Version of GetPathName() that eliminates unnecessary copies.
+	 * Versions of GetPathName() that eliminates unnecessary copies and allocations.
 	 */
 	void GetPathName(const UObject* StopOuter, FString& ResultString) const;
+	void GetPathName(const UObject* StopOuter, FStringBuilderBase& ResultString) const;
 
 public:
 	/**
