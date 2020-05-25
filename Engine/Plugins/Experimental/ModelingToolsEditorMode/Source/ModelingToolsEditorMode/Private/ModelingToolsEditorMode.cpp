@@ -34,6 +34,8 @@
 #include "SelfUnionMeshesTool.h"
 #include "CSGMeshesTool.h"
 #include "BspConversionTool.h"
+#include "MeshToVolumeTool.h"
+#include "VolumeToMeshTool.h"
 #include "HoleFillTool.h"
 #include "PolygonOnMeshTool.h"
 #include "DisplaceMeshTool.h"
@@ -52,7 +54,6 @@
 #include "AlignObjectsTool.h"
 #include "EditUVIslandsTool.h"
 #include "MeshAttributePaintTool.h"
-
 #include "ParameterizeMeshTool.h"
 
 #include "EditorModeManager.h"
@@ -611,6 +612,14 @@ void FModelingToolsEditorMode::Enter()
 	BspConversionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginBspConversionTool, TEXT("BspConversionTool"), BspConversionToolBuilder);
 
+	auto MeshToVolumeToolBuilder = NewObject<UMeshToVolumeToolBuilder>();
+	MeshToVolumeToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginMeshToVolumeTool, TEXT("MeshToVolumeTool"), MeshToVolumeToolBuilder);
+
+	auto VolumeToMeshToolBuilder = NewObject<UVolumeToMeshToolBuilder>();
+	VolumeToMeshToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginVolumeToMeshTool, TEXT("VolumeToMeshTool"), VolumeToMeshToolBuilder);
+
 	auto PlaneCutToolBuilder = NewObject<UPlaneCutToolBuilder>();
 	PlaneCutToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginPlaneCutTool, TEXT("PlaneCutTool"), PlaneCutToolBuilder);
@@ -641,6 +650,7 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginEditMeshMaterialsTool, TEXT("EditMaterialsTool"), EditMeshMaterialsToolBuilder);
 	
 	RegisterToolFunc(ToolManagerCommands.BeginMeshAttributePaintTool, TEXT("MeshAttributePaintTool"), NewObject<UMeshAttributePaintToolBuilder>());
+
 
 	// analysis tools
 
