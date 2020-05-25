@@ -8,6 +8,7 @@ Field.cpp: Defines FField property system fundamentals
 #include "UObject/Class.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/StringBuilder.h"
 #include "Serialization/MemoryWriter.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceHelper.h"
@@ -562,24 +563,36 @@ void FField::AddCppProperty(FProperty* Property)
 
 FString FField::GetPathName(const UObject* StopOuter /*= nullptr*/) const
 {
-	FString PathName;
+	TStringBuilder<256> ResultString;
+	GetPathName(StopOuter, ResultString);
+	return FString(FStringView(ResultString));
+}
+
+void FField::GetPathName(const UObject* StopOuter, FStringBuilderBase& ResultString) const
+{
+	TArray<FName, TInlineAllocator<16>> ParentFields;
 	for (FFieldVariant TempOwner = Owner; TempOwner.IsValid(); TempOwner = TempOwner.GetOwnerVariant())
 	{		
 		if (!TempOwner.IsUObject())
 		{
 			FField* FieldOwner = TempOwner.ToField();
-			PathName = FieldOwner->GetName() + TEXT(".") + PathName;
+			ParentFields.Add(FieldOwner->GetFName());
 		}
 		else
 		{
 			UObject* ObjectOwner = TempOwner.ToUObject();
-			PathName += ObjectOwner->GetPathName(StopOuter);
-			PathName += SUBOBJECT_DELIMITER_CHAR;
+			ObjectOwner->GetPathName(StopOuter, ResultString);
+			ResultString << SUBOBJECT_DELIMITER_CHAR;
 			break;
 		}
 	}
-	PathName += GetName();
-	return PathName;
+
+	for (int FieldIndex = ParentFields.Num() - 1; FieldIndex >= 0; --FieldIndex)
+	{
+		ParentFields[FieldIndex].AppendString(ResultString);
+		ResultString << TEXT(".");
+	}
+	GetFName().AppendString(ResultString);
 }
 
 FString FField::GetFullName() const

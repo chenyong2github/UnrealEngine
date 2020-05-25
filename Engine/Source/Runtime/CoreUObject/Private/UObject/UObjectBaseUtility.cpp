@@ -9,6 +9,7 @@
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "UObject/Interface.h"
+#include "Misc/StringBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/MallocProfiler.h"
 
@@ -37,6 +38,13 @@ FString UObjectBaseUtility::GetPathName( const UObject* StopOuter/*=NULL*/ ) con
  */
 void UObjectBaseUtility::GetPathName(const UObject* StopOuter, FString& ResultString) const
 {
+	TStringBuilder<256> ResultBuilder;
+	GetPathName(StopOuter, ResultBuilder);
+	ResultString += FStringView(ResultBuilder);
+}
+
+void UObjectBaseUtility::GetPathName(const UObject* StopOuter, FStringBuilderBase& ResultString) const
+{
 	if(this != StopOuter && this != NULL)
 	{
 		UObject* ObjOuter = GetOuter();
@@ -48,18 +56,18 @@ void UObjectBaseUtility::GetPathName(const UObject* StopOuter, FString& ResultSt
 			if (ObjOuter->GetClass() != UPackage::StaticClass()
 			&& ObjOuter->GetOuter()->GetClass() == UPackage::StaticClass())
 			{
-				ResultString += SUBOBJECT_DELIMITER_CHAR;
+				ResultString << SUBOBJECT_DELIMITER_CHAR;
 			}
 			else
 			{
-				ResultString += TEXT('.');
+				ResultString << TEXT('.');
 			}
 		}
-		AppendName(ResultString);
+		GetFName().AppendString(ResultString);
 	}
 	else
 	{
-		ResultString += TEXT("None");
+		ResultString << TEXT("None");
 	}
 }
 
