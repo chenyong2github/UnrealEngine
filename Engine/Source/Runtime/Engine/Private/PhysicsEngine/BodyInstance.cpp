@@ -23,6 +23,7 @@
 #include "PhysicsEngine/SphereElem.h"
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/BodyUtils.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/IConsoleManager.h"
 #include "Logging/TokenizedMessage.h"
@@ -2985,128 +2986,6 @@ int32 GetNumSimShapes_AssumesLocked(const FPhysicsActorHandle& ActorRef)
 	return NumSimShapes;
 }
 
-float KgPerM3ToKgPerCm3(float KgPerM3)
-{
-	//1m = 100cm => 1m^3 = (100cm)^3 = 1000000cm^3
-	//kg/m^3 = kg/1000000cm^3
-	const float M3ToCm3Inv = 1.f / (100.f * 100.f * 100.f);
-	return KgPerM3 * M3ToCm3Inv;
-}
-
-float gPerCm3ToKgPerCm3(float gPerCm3)
-{
-	//1000g = 1kg
-	//kg/cm^3 = 1000g/cm^3 => g/cm^3 = kg/1000 cm^3
-	const float gToKG = 1.f / 1000.f;
-	return gPerCm3 * gToKG;
-}
-
-#if WITH_CHAOS
-/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
-Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform)
-{
-	// physical material - nothing can weigh less than hydrogen (0.09 kg/m^3)
-	float DensityKGPerCubicUU = 1.0f;
-	float RaiseMassToPower = 0.75f;
-	if (UPhysicalMaterial* PhysMat = OwningBodyInstance->GetSimplePhysicalMaterial())
-	{
-		DensityKGPerCubicUU = FMath::Max(KgPerM3ToKgPerCm3(0.09f), gPerCm3ToKgPerCm3(PhysMat->Density));
-		RaiseMassToPower = PhysMat->RaiseMassToPower;
-	}
-
-	Chaos::TMassProperties<float, 3> MassProps;
-	FPhysicsInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, DensityKGPerCubicUU);
-
-	float OldMass = MassProps.Mass;
-	float NewMass = 0.f;
-
-	if (OwningBodyInstance->bOverrideMass == false)
-	{
-		float UsePow = FMath::Clamp<float>(RaiseMassToPower, KINDA_SMALL_NUMBER, 1.f);
-		NewMass = FMath::Pow(OldMass, UsePow);
-
-		// Apply user-defined mass scaling.
-		NewMass = FMath::Max(OwningBodyInstance->MassScale * NewMass, 0.001f);	//min weight of 1g
-	}
-	else
-	{
-		NewMass = FMath::Max(OwningBodyInstance->GetMassOverride(), 0.001f);	//min weight of 1g
-	}
-
-	check(NewMass > 0.f);
-
-	float MassRatio = NewMass / OldMass;
-
-
-	MassProps.Mass *= MassRatio;
-	MassProps.InertiaTensor *= MassRatio;
-
-	MassProps.CenterOfMass += MassModifierTransform.TransformVector(OwningBodyInstance->COMNudge);
-
-	// Scale the inertia tensor by the owning body instance's InertiaTensorScale (see PxMassProperties::scaleInertia)
-	FVector diagonal(MassProps.InertiaTensor.M[0][0] , MassProps.InertiaTensor.M[1][1], MassProps.InertiaTensor.M[2][2]);
-
-	FVector xyz2 = FVector(FVector::DotProduct(diagonal, FVector(0.5f))) - diagonal; // original x^2, y^2, z^2
-	FVector scaledxyz2 = xyz2 * OwningBodyInstance->InertiaTensorScale * OwningBodyInstance->InertiaTensorScale;
-
-	float	xx = scaledxyz2.Y + scaledxyz2.Z,
-			yy = scaledxyz2.Z + scaledxyz2.X,
-			zz = scaledxyz2.X + scaledxyz2.Y;
-
-	float	xy = MassProps.InertiaTensor.M[0][1] * OwningBodyInstance->InertiaTensorScale.X * OwningBodyInstance->InertiaTensorScale.Y,
-			xz = MassProps.InertiaTensor.M[0][2] * OwningBodyInstance->InertiaTensorScale.X * OwningBodyInstance->InertiaTensorScale.Z,
-			yz = MassProps.InertiaTensor.M[1][2] * OwningBodyInstance->InertiaTensorScale.Y * OwningBodyInstance->InertiaTensorScale.Z;
-
-	MassProps.InertiaTensor = Chaos::PMatrix<float, 3, 3>(	FVector(xx, xy, xz),
-															FVector(xy, yy, yz),
-															FVector(xz, yz, zz));
-
-	return MassProps;
-}
-#elif PHYSICS_INTERFACE_PHYSX
-/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
-PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform)
-{
-	// physical material - nothing can weigh less than hydrogen (0.09 kg/m^3)
-	float DensityKGPerCubicUU = 1.0f;
-	float RaiseMassToPower = 0.75f;
-	if (UPhysicalMaterial* PhysMat = OwningBodyInstance->GetSimplePhysicalMaterial())
-	{
-		DensityKGPerCubicUU = FMath::Max(KgPerM3ToKgPerCm3(0.09f), gPerCm3ToKgPerCm3(PhysMat->Density));
-		RaiseMassToPower = PhysMat->RaiseMassToPower;
-	}
-
-	PxMassProperties MassProps;
-	FPhysicsInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, DensityKGPerCubicUU);
-
-	float OldMass = MassProps.mass;
-	float NewMass = 0.f;
-
-	if (OwningBodyInstance->bOverrideMass == false)
-	{
-		float UsePow = FMath::Clamp<float>(RaiseMassToPower, KINDA_SMALL_NUMBER, 1.f);
-		NewMass = FMath::Pow(OldMass, UsePow);
-
-		// Apply user-defined mass scaling.
-		NewMass = FMath::Max(OwningBodyInstance->MassScale * NewMass, 0.001f);	//min weight of 1g
-	}
-	else
-	{
-		NewMass = FMath::Max(OwningBodyInstance->GetMassOverride(), 0.001f);	//min weight of 1g
-	}
-
-	check(NewMass > 0.f);
-
-	float MassRatio = NewMass / OldMass;
-	
-	PxMassProperties FinalMassProps = MassProps * MassRatio;
-
-	FinalMassProps.centerOfMass += U2PVector(MassModifierTransform.TransformVector(OwningBodyInstance->COMNudge));
-	FinalMassProps.inertiaTensor = PxMassProperties::scaleInertia(FinalMassProps.inertiaTensor, PxQuat(PxIdentity), U2PVector(OwningBodyInstance->InertiaTensorScale));
-
-	return FinalMassProps;
-}
-#endif
 
 void FBodyInstance::UpdateMassProperties()
 {
@@ -3192,7 +3071,7 @@ void FBodyInstance::UpdateMassProperties()
 						FTransform MassModifierTransform = WeldedBatch.RelTM;
 						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
 
-						Chaos::TMassProperties<float, 3> BodyMassProperties = ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
+						Chaos::TMassProperties<float, 3> BodyMassProperties = BodyUtils::ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
 						SubMassProperties.Add(BodyMassProperties);
 					}
 
@@ -3207,7 +3086,7 @@ void FBodyInstance::UpdateMassProperties()
 						FTransform MassModifierTransform = WeldedBatch.RelTM;
 						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
 
-						PxMassProperties BodyMassProperties = ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
+						PxMassProperties BodyMassProperties = BodyUtils::ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
 						SubMassProperties.Add(BodyMassProperties);
 						MassTMs.Add(PxTransform(PxIdentity));
 					}
@@ -3222,7 +3101,7 @@ void FBodyInstance::UpdateMassProperties()
 					{
 						//No children welded so just get this body's mass properties
 						FTransform MassModifierTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
-						TotalMassProperties = ComputeMassProperties(this, Shapes, MassModifierTransform);
+						TotalMassProperties = BodyUtils::ComputeMassProperties(this, Shapes, MassModifierTransform);
 					}
 				}
 

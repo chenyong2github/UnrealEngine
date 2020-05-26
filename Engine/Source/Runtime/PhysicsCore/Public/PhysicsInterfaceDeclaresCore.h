@@ -28,6 +28,9 @@ namespace Chaos
 	template <typename T, int d>
 	class TGeometryParticle;
 
+	template<class T, int d>
+	struct TMassProperties;
+
 	class FPerShapeData;
 
 	class FPhysicalMaterial;
@@ -41,6 +44,8 @@ namespace Chaos
 
 	class FChaosPhysicsMaterial;
 	class FChaosPhysicsMaterialMask;
+
+	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 }
 
 // Temporary dummy types until SQ implemented
