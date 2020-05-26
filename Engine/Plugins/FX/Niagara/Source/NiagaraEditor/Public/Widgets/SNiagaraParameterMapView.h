@@ -29,6 +29,7 @@ class UNiagaraSystem;
 struct FNiagaraNamespaceMetadata;
 class IToolTip;
 class UNiagaraEditorSettings;
+class FMenuBuilder;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NiagaraParameterMapSectionID

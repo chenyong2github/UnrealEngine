@@ -9,6 +9,7 @@
 #include "TargetPlatformAudioCustomization.h"
 
 class SErrorHint;
+class STextComboBox;
 
 class FHoloLensTargetSettingsCustomization : public IDetailCustomization
 {

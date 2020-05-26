@@ -22,6 +22,7 @@ class FDetailWidgetRow;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class SDragAndDropVerticalBox;
+class FMenuBuilder;
 
 /**
  * Slate widgets customizer for the layers list in the Landscape Editor

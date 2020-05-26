@@ -7,7 +7,9 @@
 #include "Types/SlateEnums.h"
 #include "Widgets/Input/SComboBox.h"
 #include "PropertyCustomizationHelpers.h"
+
 class IPropertyHandle;
+class SSearchBox;
 
 /** Details customization for arrays composed of FName properties (or wrappers). The array contents are selected from a predetermined source list.*/
 class SNiagaraNamePropertySelector : public SCompoundWidget 

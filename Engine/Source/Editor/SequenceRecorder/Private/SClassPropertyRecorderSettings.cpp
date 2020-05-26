@@ -12,6 +12,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "IDetailsView.h"
 #include "Sections/MovieSceneMultiPropertyRecorder.h"
+#include "Framework/Docking/TabManager.h"
 
 #define LOCTEXT_NAMESPACE "SClassPropertyRecorderSettings"
 
