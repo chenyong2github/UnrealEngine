@@ -51,6 +51,35 @@ struct FNoPositionVertex
 	FColor Color;
 };
 
+/** Return the GeometryCacheMeshData that was selected for use during FrameUpdate, which must also be used during GetDynamicMeshElements */
+static const FGeometryCacheMeshData* GetSelectedMeshData(const FGeomCacheTrackProxy* InTrackProxy, float Time, bool bLooping, bool bIsPlayingBackwards)
+{
+	// Need to determine which MeshData was selected for use in FGeometryCacheSceneProxy::FrameUpdate
+	// so the same conditions must be checked
+	int32 ExpectedFrameIndex;
+	int32 ExpectedNextFrameIndex;
+	float ExpectedInterpolationFactor;
+	FGeomCacheTrackProxy* TrackProxy = const_cast<FGeomCacheTrackProxy*>(InTrackProxy); // the TrackProxy functions should have been const...
+	TrackProxy->FindSampleIndexesFromTime(Time, bLooping, bIsPlayingBackwards, ExpectedFrameIndex, ExpectedNextFrameIndex, ExpectedInterpolationFactor);
+
+	// The decoding status can be deduced from the state of the TrackProxy
+	const bool bCanInterpolate = TrackProxy->IsTopologyCompatible(TrackProxy->FrameIndex, TrackProxy->NextFrameIndex);
+	const bool bDecodedAnything = TrackProxy->NextFrameIndex == ExpectedNextFrameIndex;
+	const bool bDecoderError = TrackProxy->FrameIndex == -1 || TrackProxy->NextFrameIndex == -1;
+
+	bool bNextFrameSelected = false;
+	if (bCanInterpolate && !bDecoderError && CVarInterpolateFrames.GetValueOnRenderThread() != 0)
+	{
+		bNextFrameSelected = false;
+	}
+	else if (bDecodedAnything || bDecoderError)
+	{
+		bNextFrameSelected = !!FMath::RoundToInt(TrackProxy->InterpolationFactor) && TrackProxy->NextFrameMeshData->Positions.Num() > 0;
+	}
+
+	return bNextFrameSelected ? TrackProxy->NextFrameMeshData : TrackProxy->MeshData;
+}
+
 FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Component) 
 : FGeometryCacheSceneProxy(Component, [this]() { return new FGeomCacheTrackProxy(GetScene().GetFeatureLevel()); })
 {
@@ -174,7 +203,8 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 						Initializer.bFastBuild = false;
 
 						TArray<FRayTracingGeometrySegment> Segments;
-						for (FGeometryCacheMeshBatchInfo& BatchInfo : Section->MeshData->BatchesInfo)
+						const FGeometryCacheMeshData* MeshData = GetSelectedMeshData(Section, SceneProxy->Time, SceneProxy->bLooping, SceneProxy->bIsPlayingBackwards);
+						for (const FGeometryCacheMeshBatchInfo& BatchInfo : MeshData->BatchesInfo)
 						{
 							FRayTracingGeometrySegment Segment;
 							Segment.FirstPrimitive = BatchInfo.StartIndex / 3;
@@ -386,10 +416,12 @@ void FGeometryCacheSceneProxy::CreateMeshBatch(
 	DynamicPrimitiveUniformBuffer.Set(LocalToWorldTransform, LocalToWorldTransform, GetBounds(), GetLocalBounds(), true, false, DrawsVelocity(), false);
 	BatchElement.PrimitiveUniformBuffer = DynamicPrimitiveUniformBuffer.UniformBuffer.GetUniformBufferRHI();
 
+	const FGeometryCacheMeshData* MeshData = GetSelectedMeshData(TrackProxy, Time, bLooping, bIsPlayingBackwards);
+
 	BatchElement.FirstIndex = BatchInfo.StartIndex;
 	BatchElement.NumPrimitives = BatchInfo.NumTriangles;
 	BatchElement.MinVertexIndex = 0;
-	BatchElement.MaxVertexIndex = TrackProxy->MeshData->Positions.Num() - 1;
+	BatchElement.MaxVertexIndex = MeshData->Positions.Num() - 1;
 	BatchElement.VertexFactoryUserData = &UserDataWrapper.Data;
 	Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
 	Mesh.Type = PT_TriangleList;
@@ -455,11 +487,12 @@ void FGeometryCacheSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 				continue;
 			}
 
-			const int32 NumBatches = TrackProxy->MeshData->BatchesInfo.Num();
+			const FGeometryCacheMeshData* MeshData = GetSelectedMeshData(TrackProxy, Time, bLooping, bIsPlayingBackwards);
+			const int32 NumBatches = MeshData->BatchesInfo.Num();
 
 			for (int32 BatchIndex = 0; BatchIndex < NumBatches; ++BatchIndex)
 			{
-				const FGeometryCacheMeshBatchInfo BatchInfo = TrackProxy->MeshData->BatchesInfo[BatchIndex];
+				const FGeometryCacheMeshBatchInfo& BatchInfo = MeshData->BatchesInfo[BatchIndex];
 
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
@@ -512,9 +545,10 @@ void FGeometryCacheSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterial
 		RayTracingInstance.Geometry = &TrackProxy->RayTracingGeometry;
 		RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
 
-		for (int32 SegmentIndex = 0; SegmentIndex < TrackProxy->MeshData->BatchesInfo.Num(); ++SegmentIndex)
+		const FGeometryCacheMeshData* MeshData = GetSelectedMeshData(TrackProxy, Time, bLooping, bIsPlayingBackwards);
+		for (int32 SegmentIndex = 0; SegmentIndex < MeshData->BatchesInfo.Num(); ++SegmentIndex)
 		{
-			const FGeometryCacheMeshBatchInfo BatchInfo = TrackProxy->MeshData->BatchesInfo[SegmentIndex];
+			const FGeometryCacheMeshBatchInfo& BatchInfo = MeshData->BatchesInfo[SegmentIndex];
 			FMeshBatch MeshBatch;
 
 			FGeometryCacheVertexFactoryUserDataWrapper& UserDataWrapper = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FGeometryCacheVertexFactoryUserDataWrapper>();
@@ -594,7 +628,8 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 				TMemoryImageArray<FRayTracingGeometrySegment>& Segments = Section->RayTracingGeometry.Initializer.Segments;
 				Segments.Reset();
 
-				for (FGeometryCacheMeshBatchInfo& BatchInfo : Section->MeshData->BatchesInfo)
+				const FGeometryCacheMeshData* MeshData = GetSelectedMeshData(Section, Time, bLooping, bIsPlayingBackwards);
+				for (const FGeometryCacheMeshBatchInfo& BatchInfo : MeshData->BatchesInfo)
 				{
 					FRayTracingGeometrySegment Segment;
 					Segment.FirstPrimitive = BatchInfo.StartIndex / 3;
@@ -903,7 +938,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 				// Only bother uploading if anything changed or when the we failed to decode anything make sure update the gpu buffers regardless
 				if (bFrameIndicesChanged || bDifferentInterpolationFactor || bDecodedAnything || bDecoderError)
 				{
-					const bool bNextFrame = !!FMath::RoundToInt(InterpolationFactor);
+					const bool bNextFrame = !!FMath::RoundToInt(InterpolationFactor) && TrackProxy->NextFrameMeshData->Positions.Num() > 0; // use next frame only if it's valid
 					const uint32 FrameIndexToUse = bNextFrame ? TrackProxy->NextFrameIndex : TrackProxy->FrameIndex;
 					const FGeometryCacheMeshData* MeshDataToUse = bNextFrame ? TrackProxy->NextFrameMeshData : TrackProxy->MeshData;
 
