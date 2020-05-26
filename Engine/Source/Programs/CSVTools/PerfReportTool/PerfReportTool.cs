@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.04";
+        private static string VersionString = "4.10";
 
         public static string Get() { return VersionString; }
     };
@@ -221,12 +221,23 @@ namespace PerfReportTool
     {
 		public CachedCsvFile(string inFilename, bool useCacheFiles, DerivedMetadataMappings derivedMetadataMappings)
 		{
-			string[] fileLines=null;
+			if (inFilename.ToLower().EndsWith(".csv"))
+			{
+				isBinaryFile = false;
+			}
+			else if (inFilename.ToLower().EndsWith(".csv.bin"))
+			{
+				isBinaryFile = true;
+			}
+			else
+			{
+				throw new Exception("File extension not supported for file " + inFilename);
+			}
 
 			string cacheFilename = inFilename + ".cache";
 			if (useCacheFiles && File.Exists(cacheFilename))
 			{
-				fileLines = File.ReadAllLines(cacheFilename);
+				string[] fileLines = File.ReadAllLines(cacheFilename);
 
 				// Put the stats and metadata lines in the standard order
 				if (fileLines.Length >= 3)
@@ -236,29 +247,58 @@ namespace PerfReportTool
 					fileLines[1] = statsLine;
 					fileLines[2] = metadataLine;
 				}
+				dummyCsvStats = CsvStats.ReadCSVFromLines(fileLines, null, 0, true);
 			}
 			else
 			{
-				fileLines = File.ReadAllLines(inFilename);
-				lines = fileLines;
+				if (isBinaryFile)
+				{
+					dummyCsvStats = CsvStats.ReadBinFile(inFilename, null, 0, true);
+				}
+				else
+				{
+					textCsvLines = File.ReadAllLines(inFilename);
+					dummyCsvStats = CsvStats.ReadCSVFromLines(textCsvLines, null, 0, true);
+				}
 			} 
             filename = inFilename;
-            if (fileLines.Length >= 2)
+            if (dummyCsvStats.metaData != null)
             {
-                dummyCsvStats = CsvStats.ReadCSVFromLines(fileLines, null, 0, true);
 				metadata = dummyCsvStats.metaData;
 				derivedMetadataMappings.ApplyMapping(metadata);
 			}
 
 		}
 
-		public void ReadCsvLines()
+		public void PrepareCsvData()
 		{
-			if (lines == null)
+			if (isBinaryFile)
 			{
-				lines = File.ReadAllLines(filename);
+				finalCsv = CsvStats.ReadBinFile(filename);
+			}
+			else
+			{
+				if (textCsvLines == null)
+				{
+					textCsvLines = File.ReadAllLines(filename);
+				}
 			}
 		}
+
+		public CsvStats GetFinalCsv()
+		{
+			if (finalCsv != null)
+			{
+				return finalCsv;
+			}
+			if (!isBinaryFile)
+			{
+				finalCsv = CsvStats.ReadCSVFromLines(textCsvLines, null);
+				return finalCsv;
+			}
+			return null;
+		}
+
 
 		public bool DoesMetadataMatchFilter(string metadataFilterString)
 		{
@@ -276,9 +316,11 @@ namespace PerfReportTool
 
 
 		public string filename;
-        public string[] lines;
+        public string[] textCsvLines;
         public CsvStats dummyCsvStats;
-        public CsvMetadata metadata;
+		public CsvStats finalCsv;
+		public CsvMetadata metadata;
+		bool isBinaryFile;
     };
 
 
@@ -590,6 +632,12 @@ namespace PerfReportTool
 
 		string ReplaceFileExtension( string path, string newExtension )
         {
+			// Special case for .bin.csv
+			if (path.ToLower().EndsWith(".csv.bin"))
+			{
+				return path.Substring(0, path.Length - 8)+ newExtension;
+			}
+
             int lastDotIndex = path.LastIndexOf('.');
             if ( path.EndsWith("\""))
             {
@@ -776,6 +824,7 @@ namespace PerfReportTool
             int numFramesStripped = 0;
             CsvStats csvStats = ReadCsvStats(csvFile, minX, maxX);
 			CsvStats unstrippedCsvStats = csvStats;
+			perfLog.LogTiming("    ReadCsvStats");
 
 			if (!GetBoolArg("noStripEvents"))
 			{
@@ -783,7 +832,7 @@ namespace PerfReportTool
 				csvStats = strippedCsvStats;
 			}
 
-			perfLog.LogTiming("    ReadCsvStats");
+			perfLog.LogTiming("    FilterStats");
 
             if ( writeDetailedReport )
             { 
@@ -888,7 +937,7 @@ namespace PerfReportTool
 		}
 		CsvStats ReadCsvStats(CachedCsvFile csvFile, int minX, int maxX)
 		{
-			CsvStats csvStats = CsvStats.ReadCSVFromLines(csvFile.lines, null);
+			CsvStats csvStats = csvFile.GetFinalCsv();
 			reportXML.ApplyDerivedMetadata(csvStats.metaData);
 
 			if (csvStats.metaData == null)
@@ -2147,8 +2196,8 @@ namespace PerfReportTool
 					CachedCsvFile file = new CachedCsvFile(fileInfo.filename, useCacheFiles, derivedMetadataMappings);
 					if (file.DoesMetadataMatchFilter(metadataFilterString))
 					{
-						// Only read the CSV lines if the metadata matches
-						file.ReadCsvLines();
+						// Only read the full file data if the metadata matches
+						file.PrepareCsvData();
 						fileInfo.isValid = true;
 					}
 					fileInfo.cachedFile = file;
