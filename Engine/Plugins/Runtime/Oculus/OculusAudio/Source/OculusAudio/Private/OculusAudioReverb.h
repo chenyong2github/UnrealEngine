@@ -9,6 +9,7 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "AudioDeviceManager.h"
 
 #include "OculusAudioReverb.generated.h"
 
