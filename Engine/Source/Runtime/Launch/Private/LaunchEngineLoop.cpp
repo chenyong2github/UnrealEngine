@@ -2998,8 +2998,9 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 				PakFolders.Add(InstalledGameContentDir);
 				FCoreDelegates::OnMountAllPakFiles.Execute(PakFolders);
 
-				// Look for any plugins after EarlyLoadScreen
+				// Look for any plugins installed during EarlyStartupScreen
 				IPluginManager::Get().RefreshPluginsList();
+				IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PreEarlyLoadingScreen);
 			}
 
 			DumpEarlyReads(bDumpEarlyConfigReads, bDumpEarlyPakFileReads, bForceQuitAfterEarlyReads);
