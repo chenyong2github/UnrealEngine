@@ -221,7 +221,7 @@ UStruct* FFieldPath::TryToResolveOwnerFromStruct(UStruct* InCurrentStruct /*= nu
 	int32 LastOuterIndex = -1;
 	for (int32 PathIndex = Path.Num() - 1; PathIndex > 0; --PathIndex)
 	{
-		UObject* Outer = StaticFindObjectFast(UObject::StaticClass(), LastOuter, Path[PathIndex]);
+		UObject* Outer = StaticFindObjectFastSafe(UObject::StaticClass(), LastOuter, Path[PathIndex]);
 
 		if (InCurrentStruct && PathIndex == (Path.Num() - 1))
 		{

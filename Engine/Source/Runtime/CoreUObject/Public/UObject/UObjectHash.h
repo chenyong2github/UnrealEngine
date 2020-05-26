@@ -75,6 +75,28 @@ COREUOBJECT_API void ForEachObjectWithOuter(const class UObjectBase* Outer, TFun
 COREUOBJECT_API class UObjectBase* FindObjectWithOuter(const class UObjectBase* Outer, const class UClass* ClassToLookFor = nullptr, FName NameToLookFor = NAME_None);
 
 /**
+ * Returns an array of all objects found within a given package
+ *
+ * @param	Package						Package to search into
+ * @param	Results						Array to put the results
+ * @param	bIncludeNestedObjects		If true, then things whose outers directly or indirectly have Outer as an outer are included, these are the nested objects.
+ * @param	ExclusionFlags				Specifies flags to use as a filter for which objects to return
+ * @param	ExclusiveInternalFlags		Specifies internal flags to use as a filter for which objects to return
+ */
+COREUOBJECT_API void GetObjectsWithPackage(const class UPackage* Outer, TArray<UObject *>& Results, bool bIncludeNestedObjects = true, EObjectFlags ExclusionFlags = RF_NoFlags, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
+
+/**
+ * Performs an operation on all objects found within a given package
+ *
+ * @param	Package						Package to iterate into
+ * @param	Operation					Function to be called for each object, return false to break out of the iteration
+ * @param	bIncludeNestedObjects		If true, then things whose outers directly or indirectly have Outer as an outer are included, these are the nested objects.
+ * @param	ExclusionFlags				Specifies flags to use as a filter for which objects to return
+ * @param	ExclusiveInternalFlags		Specifies internal flags to use as a filter for which objects to return
+ */
+COREUOBJECT_API void ForEachObjectWithPackage(const class UPackage* Outer, TFunctionRef<bool(UObject*)> Operation, bool bIncludeNestedObjects = true, EObjectFlags ExclusionFlags = RF_NoFlags, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
+
+/**
  * Returns an array of objects of a specific class. Optionally, results can include objects of derived classes as well.
  *
  * @param	ClassToLookFor				Class of the objects to return.
@@ -86,14 +108,24 @@ COREUOBJECT_API class UObjectBase* FindObjectWithOuter(const class UObjectBase* 
 COREUOBJECT_API void GetObjectsOfClass(const UClass* ClassToLookFor, TArray<UObject *>& Results, bool bIncludeDerivedClasses = true, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
 
 /**
- * Performs an operation on all objects with a given outer
+ * Performs an operation on all objects of the provided class
  *
- * @param	Outer						Outer to search for
+ * @param	Outer						UObject class to loop over instances of
  * @param	Operation					Function to be called for each object
  * @param	bIncludeDerivedClasses		If true, the results will include objects of child classes as well.
  * @param	AdditionalExcludeFlags		Objects with any of these flags will be excluded from the results.
  */
 COREUOBJECT_API void ForEachObjectOfClass(const UClass* ClassToLookFor, TFunctionRef<void(UObject*)> Operation, bool bIncludeDerivedClasses = true, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
+
+/**
+ * Performs an operation on all objects of the provided classes
+ *
+ * @param	Classes						UObject Classes to loop over instances of
+ * @param	Operation					Function to be called for each object
+ * @param	bIncludeDerivedClasses		If true, the results will include objects of child classes as well.
+ * @param	AdditionalExcludeFlags		Objects with any of these flags will be excluded from the results.
+ */
+COREUOBJECT_API void ForEachObjectOfClasses(TArrayView<const UClass*> ClassesToLookFor, TFunctionRef<void(UObject*)> Operation, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
 
 /**
  * Returns an array of classes that were derived from the specified class.
@@ -124,6 +156,35 @@ void HashObject(class UObjectBase* Object);
  * @param	Object		Object to remove from the hash tables
  */
 void UnhashObject(class UObjectBase* Object);
+
+
+/**
+ * Assign an external package directly to an object in the hash tables
+ * @param Object	Object to assign a package to
+ * @param Package	Package to assign, null will call UnhashObjectExternalPackage
+ */
+void HashObjectExternalPackage(class UObjectBase* Object, class UPackage* Package);
+
+/**
+ * Assign an external package directly to an object in the hash tables
+ * @param Object	Object to unassign a package from
+ */
+void UnhashObjectExternalPackage(class UObjectBase* Object);
+
+/**
+ * Return the assigned external package of an object, if any
+ * @param Object	Object to get the external package of
+ * @return the assigned external package if any
+ */
+UPackage* GetObjectExternalPackageThreadSafe(const class UObjectBase* Object);
+
+/**
+ * Return the assigned external package of an object, if any
+ * @param Object	Object to get the external package of
+ * @return the assigned external package if any
+ * @note DO NOT USE, only for internal GC reference collecting
+ */
+UPackage* GetObjectExternalPackageInternal(const class UObjectBase* Object);
 
 /**
 * Shrink the UObject hash tables

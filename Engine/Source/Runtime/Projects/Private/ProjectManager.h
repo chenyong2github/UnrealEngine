@@ -34,7 +34,8 @@ public:
 	virtual bool HasDefaultPluginSettings() const override;
 	virtual bool SetPluginEnabled(const FString& PluginName, bool bEnabled, FText& OutFailReason) override;
 	virtual bool RemovePluginReference(const FString& PluginName, FText& OutFailReason) override;
-	virtual void UpdateAdditionalPluginDirectory(const FString& Dir, const bool bAddOrRemove) override;
+	virtual bool UpdateAdditionalPluginDirectory(const FString& Dir, const bool bAddOrRemove) override;
+	virtual const TArray<FString>& GetAdditionalPluginDirectories() const override;
 	virtual bool IsCurrentProjectDirty() const override;
 	virtual bool SaveCurrentProjectToDisk(FText& OutFailReason) override;
 	virtual bool IsEnterpriseProject() override;

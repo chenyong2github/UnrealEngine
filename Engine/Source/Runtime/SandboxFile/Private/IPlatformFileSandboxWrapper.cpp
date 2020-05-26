@@ -16,16 +16,29 @@ DEFINE_LOG_CATEGORY(SandboxFile);
 	#define PLATFORM_SUPPORTS_DEFAULT_SANDBOX PLATFORM_DESKTOP
 #endif
 
+#if PLATFORM_SUPPORTS_DEFAULT_SANDBOX && (UE_GAME || UE_SERVER)
+static FString GetCookedSandboxDir()
+{
+	return FPaths::Combine(*(FPaths::ProjectSavedDir()), TEXT("Cooked"), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+
+TUniquePtr<FSandboxPlatformFile> FSandboxPlatformFile::Create(bool bInEntireEngineWillUseThisSandbox)
+{
+	return TUniquePtr<FSandboxPlatformFile>(new FSandboxPlatformFile(bInEntireEngineWillUseThisSandbox));
+}
+
 FSandboxPlatformFile::FSandboxPlatformFile(bool bInEntireEngineWillUseThisSandbox)
-	: LowerLevel(NULL)
+	: LowerLevel(nullptr)
 	, bEntireEngineWillUseThisSandbox(bInEntireEngineWillUseThisSandbox)
 	, bSandboxEnabled(true)
 {
 }
 
-static FString GetCookedSandboxDir()
+FSandboxPlatformFile::~FSandboxPlatformFile()
 {
-	return FPaths::Combine(*(FPaths::ProjectSavedDir()), TEXT("Cooked"), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
 }
 
 bool FSandboxPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const
@@ -143,6 +156,16 @@ bool FSandboxPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine
 	return !!LowerLevel;
 }
 
+const FString& FSandboxPlatformFile::GetSandboxDirectory() const
+{
+	return SandboxDirectory;
+}
+
+const FString& FSandboxPlatformFile::GetAbsoluteRootDirectory() const
+{
+	return AbsoluteRootDirectory;
+}
+
 const FString& FSandboxPlatformFile::GetGameSandboxDirectoryName()
 {
 	if (GameSandboxDirectoryName.IsEmpty())
@@ -223,9 +246,6 @@ FString FSandboxPlatformFile::ConvertToSandboxPath( const TCHAR* Filename ) cons
 
 FString FSandboxPlatformFile::ConvertFromSandboxPath(const TCHAR* Filename) const
 {
-	// Mostly for the malloc profiler to flush the data.
-	//DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSandboxPlatformFile::ConvertFromSandboxPath"), STAT_SandboxPlatformFile_ConvertToSandboxPath, STATGROUP_LoadTimeVerbose);
-
 	FString FullSandboxPath = FPaths::ConvertRelativePathToFull(Filename);
 
 	FString SandboxGameDirectory = FPaths::Combine(*SandboxDirectory, FApp::GetProjectName());
@@ -373,6 +393,448 @@ const FString& FSandboxPlatformFile::GetAbsoluteGameDirectory()
 }
 
 
+bool FSandboxPlatformFile::OkForInnerAccess(const TCHAR* InFilenameOrDirectoryName, bool bIsDirectory) const
+{
+	if (DirectoryExclusionWildcards.Num() || FileExclusionWildcards.Num())
+	{
+		FString FilenameOrDirectoryName(InFilenameOrDirectoryName);
+		FPaths::MakeStandardFilename(FilenameOrDirectoryName);
+		if (bIsDirectory)
+		{
+			for (int32 Index = 0; Index < DirectoryExclusionWildcards.Num(); Index++)
+			{
+				if (FilenameOrDirectoryName.MatchesWildcard(DirectoryExclusionWildcards[Index]))
+				{
+					return false;
+				}
+			}
+		}
+		else
+		{
+			for (int32 Index = 0; Index < FileExclusionWildcards.Num(); Index++)
+			{
+				if (FilenameOrDirectoryName.MatchesWildcard(FileExclusionWildcards[Index]))
+				{
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
+void FSandboxPlatformFile::SetSandboxEnabled(bool bInEnabled)
+{
+	bSandboxEnabled = bInEnabled;
+}
+
+bool FSandboxPlatformFile::IsSandboxEnabled() const
+{
+	return bSandboxEnabled;
+}
+
+IPlatformFile* FSandboxPlatformFile::GetLowerLevel()
+{
+	return LowerLevel;
+}
+
+void FSandboxPlatformFile::SetLowerLevel(IPlatformFile* NewLowerLevel)
+{
+	LowerLevel = NewLowerLevel;
+}
+
+const TCHAR* FSandboxPlatformFile::GetName() const
+{
+	return FSandboxPlatformFile::GetTypeName();
+}
+
+void FSandboxPlatformFile::AddExclusion(const TCHAR* Wildcard, bool bIsDirectory)
+{
+	if (bIsDirectory)
+	{
+		DirectoryExclusionWildcards.AddUnique(FString(Wildcard));
+	}
+	else
+	{
+		FileExclusionWildcards.AddUnique(FString(Wildcard));
+	}
+}
+
+// IPlatformFile Interface
+
+bool FSandboxPlatformFile::FileExists(const TCHAR* Filename)
+{
+	// First look for the file in the user dir.
+	bool Result = LowerLevel->FileExists(*ConvertToSandboxPath(Filename));
+	if (Result == false && OkForInnerAccess(Filename))
+	{
+		Result = LowerLevel->FileExists(Filename);
+	}
+	return Result;
+}
+
+int64 FSandboxPlatformFile::FileSize(const TCHAR* Filename)
+{
+	// First look for the file in the user dir.
+	int64 Result = LowerLevel->FileSize(*ConvertToSandboxPath(Filename));
+	if (Result < 0 && OkForInnerAccess(Filename))
+	{
+		Result = LowerLevel->FileSize(Filename);
+	}
+	return Result;
+}
+
+bool FSandboxPlatformFile::DeleteFile(const TCHAR* Filename)
+{
+	// Delete only sandbox files. If the sendbox version doesn't exists
+	// assume the delete was successful because we only care if the sandbox version is gone.
+	bool Result = true;
+	FString SandboxFilename(*ConvertToSandboxPath(Filename));
+	if (LowerLevel->FileExists(*SandboxFilename))
+	{
+		Result = LowerLevel->DeleteFile(*ConvertToSandboxPath(Filename));
+	}
+	return Result;
+}
+
+bool FSandboxPlatformFile::IsReadOnly(const TCHAR* Filename)
+{
+	// If the file exists in the sandbox folder and is read-only return true
+	// Otherwise it can always be 'overwritten' in the sandbox
+	bool Result = false;
+	FString SandboxFilename(*ConvertToSandboxPath(Filename));
+	if (LowerLevel->FileExists(*SandboxFilename))
+	{
+		// If the file exists in sandbox dir check its read-only flag
+		Result = LowerLevel->IsReadOnly(*SandboxFilename);
+	}
+	//else
+	//{
+	//	// Fall back to normal directory
+	//	Result = LowerLevel->IsReadOnly( Filename );
+	//}
+	return Result;
+}
+
+bool FSandboxPlatformFile::MoveFile(const TCHAR* To, const TCHAR* From)
+{
+	// Only files within the sandbox dir can be moved
+	bool Result = false;
+	FString SandboxFilename(*ConvertToSandboxPath(From));
+	if (LowerLevel->FileExists(*SandboxFilename))
+	{
+		Result = LowerLevel->MoveFile(*ConvertToSandboxPath(To), *SandboxFilename);
+	}
+	return Result;
+}
+
+bool FSandboxPlatformFile::SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyValue)
+{
+	bool Result = false;
+	FString UserFilename(*ConvertToSandboxPath(Filename));
+	if (LowerLevel->FileExists(*UserFilename))
+	{
+		Result = LowerLevel->SetReadOnly(*UserFilename, bNewReadOnlyValue);
+	}
+	return Result;
+}
+
+FDateTime FSandboxPlatformFile::GetTimeStamp(const TCHAR* Filename)
+{
+	FDateTime Result = FDateTime::MinValue();
+	FString UserFilename(*ConvertToSandboxPath(Filename));
+	Result = LowerLevel->GetTimeStamp(*UserFilename);
+	if ((Result == FDateTime::MinValue()) && OkForInnerAccess(Filename))
+	{
+		Result = LowerLevel->GetTimeStamp(Filename);
+	}
+	return Result;
+}
+
+void FSandboxPlatformFile::SetTimeStamp(const TCHAR* Filename, FDateTime DateTime)
+{
+	FString UserFilename(*ConvertToSandboxPath(Filename));
+	if (LowerLevel->FileExists(*UserFilename))
+	{
+		LowerLevel->SetTimeStamp(*UserFilename, DateTime);
+	}
+	else if (OkForInnerAccess(Filename))
+	{
+		LowerLevel->SetTimeStamp(Filename, DateTime);
+	}
+}
+
+FDateTime FSandboxPlatformFile::GetAccessTimeStamp(const TCHAR* Filename)
+{
+	FDateTime Result = FDateTime::MinValue();
+	FString UserFilename(*ConvertToSandboxPath(Filename));
+	if (LowerLevel->FileExists(*UserFilename))
+	{
+		Result = LowerLevel->GetAccessTimeStamp(*UserFilename);
+	}
+	else if (OkForInnerAccess(Filename))
+	{
+		Result = LowerLevel->GetAccessTimeStamp(Filename);
+	}
+	return Result;
+}
+
+FString	FSandboxPlatformFile::GetFilenameOnDisk(const TCHAR* Filename)
+{
+	FString Result;
+	FString UserFilename(*ConvertToSandboxPath(Filename));
+	if (LowerLevel->FileExists(*UserFilename))
+	{
+		Result = LowerLevel->GetFilenameOnDisk(*UserFilename);
+	}
+	else if (OkForInnerAccess(Filename))
+	{
+		Result = LowerLevel->GetFilenameOnDisk(Filename);
+	}
+	return Result;
+}
+
+IFileHandle* FSandboxPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
+{
+	IFileHandle* Result = LowerLevel->OpenRead(*ConvertToSandboxPath(Filename), bAllowWrite);
+	if (!Result && OkForInnerAccess(Filename))
+	{
+		Result = LowerLevel->OpenRead(Filename);
+	}
+	return Result;
+}
+
+IFileHandle* FSandboxPlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, bool bAllowRead)
+{
+	// Only files from the sandbox directory can be opened for wiriting
+	return LowerLevel->OpenWrite(*ConvertToSandboxPath(Filename), bAppend, bAllowRead);
+}
+
+bool FSandboxPlatformFile::DirectoryExists(const TCHAR* Directory)
+{
+	bool Result = LowerLevel->DirectoryExists(*ConvertToSandboxPath(Directory));
+	if (Result == false && OkForInnerAccess(Directory, true))
+	{
+		Result = LowerLevel->DirectoryExists(Directory);
+	}
+	return Result;
+}
+
+bool FSandboxPlatformFile::CreateDirectory(const TCHAR* Directory)
+{
+	// Directories can be created only under the sandbox path
+	return LowerLevel->CreateDirectory(*ConvertToSandboxPath(Directory));
+}
+
+bool FSandboxPlatformFile::DeleteDirectory(const TCHAR* Directory)
+{
+	// Directories can be deleted only under the sandbox path
+	return LowerLevel->DeleteDirectory(*ConvertToSandboxPath(Directory));
+}
+
+FFileStatData FSandboxPlatformFile::GetStatData(const TCHAR* FilenameOrDirectory)
+{
+	FFileStatData Result = LowerLevel->GetStatData(*ConvertToSandboxPath(FilenameOrDirectory));
+	if (!Result.bIsValid && (OkForInnerAccess(FilenameOrDirectory, false) && OkForInnerAccess(FilenameOrDirectory, true)))
+	{
+		Result = LowerLevel->GetStatData(FilenameOrDirectory);
+	}
+	return Result;
+}
+
+class FSandboxVisitor : public IPlatformFile::FDirectoryVisitor
+{
+public:
+	FDirectoryVisitor& Visitor;
+	FSandboxPlatformFile& SandboxFile;
+	TSet<FString> VisitedSandboxFiles;
+
+	FSandboxVisitor(FDirectoryVisitor& InVisitor, FSandboxPlatformFile& InSandboxFile)
+		: Visitor(InVisitor)
+		, SandboxFile(InSandboxFile)
+	{
+	}
+	virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory) override
+	{
+		bool CanVisit = true;
+		FString LocalFilename(FilenameOrDirectory);
+
+		if (FCString::Strnicmp(*LocalFilename, *SandboxFile.GetSandboxDirectory(), SandboxFile.GetSandboxDirectory().Len()) == 0)
+		{
+			// FilenameOrDirectory is already pointing to the sandbox directory so add it to the list of sanbox files.
+			// The filename is always stored with the abslute sandbox path.
+			VisitedSandboxFiles.Add(*LocalFilename);
+			// Now convert the sandbox path back to engine path because the sandbox folder should not be exposed
+			// to the engine and remain transparent.
+			LocalFilename.MidInline(SandboxFile.GetSandboxDirectory().Len(), MAX_int32, false);
+			if (LocalFilename.StartsWith(TEXT("Engine/")) || (FCString::Stricmp(*LocalFilename, TEXT("Engine")) == 0))
+			{
+				LocalFilename = SandboxFile.GetAbsoluteRootDirectory() / LocalFilename;
+			}
+			else
+			{
+				LocalFilename.MidInline(SandboxFile.GetGameSandboxDirectoryName().Len(), MAX_int32, false);
+				LocalFilename = SandboxFile.GetAbsoluteGameDirectory() / LocalFilename;
+			}
+		}
+		else
+		{
+			// Favourize Sandbox files over normal path files.
+			CanVisit = !VisitedSandboxFiles.Contains(SandboxFile.ConvertToSandboxPath(*LocalFilename))
+				&& SandboxFile.OkForInnerAccess(*LocalFilename, bIsDirectory);
+		}
+		if (CanVisit)
+		{
+			bool Result = Visitor.Visit(*LocalFilename, bIsDirectory);
+			return Result;
+		}
+		else
+		{
+			// Continue iterating.
+			return true;
+		}
+	}
+};
+
+bool FSandboxPlatformFile::IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor)
+{
+	FSandboxVisitor SandboxVisitor(Visitor, *this);
+	bool Result = false;
+	LowerLevel->IterateDirectory(*ConvertToSandboxPath(Directory), SandboxVisitor);
+	Result = LowerLevel->IterateDirectory(Directory, SandboxVisitor);
+	return Result;
+}
+
+bool FSandboxPlatformFile::IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor)
+{
+	FSandboxVisitor SandboxVisitor(Visitor, *this);
+	bool Result = false;
+	LowerLevel->IterateDirectoryRecursively(*ConvertToSandboxPath(Directory), SandboxVisitor);
+	Result = LowerLevel->IterateDirectoryRecursively(Directory, SandboxVisitor);
+	return Result;
+}
+
+class FSandboxStatVisitor : public IPlatformFile::FDirectoryStatVisitor
+{
+public:
+	FDirectoryStatVisitor& Visitor;
+	FSandboxPlatformFile& SandboxFile;
+	TSet<FString> VisitedSandboxFiles;
+
+	FSandboxStatVisitor(FDirectoryStatVisitor& InVisitor, FSandboxPlatformFile& InSandboxFile)
+		: Visitor(InVisitor)
+		, SandboxFile(InSandboxFile)
+	{
+	}
+	virtual bool Visit(const TCHAR* FilenameOrDirectory, const FFileStatData& StatData) override
+	{
+		bool CanVisit = true;
+		FString LocalFilename(FilenameOrDirectory);
+
+		if (FCString::Strnicmp(*LocalFilename, *SandboxFile.GetSandboxDirectory(), SandboxFile.GetSandboxDirectory().Len()) == 0)
+		{
+			// FilenameOrDirectory is already pointing to the sandbox directory so add it to the list of sanbox files.
+			// The filename is always stored with the abslute sandbox path.
+			VisitedSandboxFiles.Add(*LocalFilename);
+			// Now convert the sandbox path back to engine path because the sandbox folder should not be exposed
+			// to the engine and remain transparent.
+			LocalFilename.MidInline(SandboxFile.GetSandboxDirectory().Len(), MAX_int32, false);
+			if (LocalFilename.StartsWith(TEXT("Engine/")))
+			{
+				LocalFilename = SandboxFile.GetAbsoluteRootDirectory() / LocalFilename;
+			}
+			else
+			{
+				LocalFilename = SandboxFile.GetAbsolutePathToGameDirectory() / LocalFilename;
+			}
+		}
+		else
+		{
+			// Favourize Sandbox files over normal path files.
+			CanVisit = !VisitedSandboxFiles.Contains(SandboxFile.ConvertToSandboxPath(*LocalFilename))
+				&& SandboxFile.OkForInnerAccess(*LocalFilename, StatData.bIsDirectory);
+		}
+		if (CanVisit)
+		{
+			bool Result = Visitor.Visit(*LocalFilename, StatData);
+			return Result;
+		}
+		else
+		{
+			// Continue iterating.
+			return true;
+		}
+	}
+};
+
+bool		FSandboxPlatformFile::IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor)
+{
+	FSandboxStatVisitor SandboxVisitor(Visitor, *this);
+	bool Result = false;
+	LowerLevel->IterateDirectoryStat(*ConvertToSandboxPath(Directory), SandboxVisitor);
+	Result = LowerLevel->IterateDirectoryStat(Directory, SandboxVisitor);
+	return Result;
+}
+
+bool		FSandboxPlatformFile::IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor)
+{
+	FSandboxStatVisitor SandboxVisitor(Visitor, *this);
+	bool Result = false;
+	LowerLevel->IterateDirectoryStatRecursively(*ConvertToSandboxPath(Directory), SandboxVisitor);
+	Result = LowerLevel->IterateDirectoryStatRecursively(Directory, SandboxVisitor);
+	return Result;
+}
+
+bool		FSandboxPlatformFile::DeleteDirectoryRecursively(const TCHAR* Directory)
+{
+	// Directories can be deleted only under the sandbox path
+	return LowerLevel->DeleteDirectoryRecursively(*ConvertToSandboxPath(Directory));
+}
+
+bool FSandboxPlatformFile::CreateDirectoryTree(const TCHAR* Directory)
+{
+	// Directories can only be created only under the sandbox path
+	return LowerLevel->CreateDirectoryTree(*ConvertToSandboxPath(Directory));
+}
+
+bool FSandboxPlatformFile::CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags, EPlatformFileWrite WriteFlags)
+{
+	// Files can be copied only to the sandbox directory
+	bool Result = false;
+	if (LowerLevel->FileExists(*ConvertToSandboxPath(From)))
+	{
+		Result = LowerLevel->CopyFile(*ConvertToSandboxPath(To), *ConvertToSandboxPath(From), ReadFlags, WriteFlags);
+	}
+	else
+	{
+		Result = LowerLevel->CopyFile(*ConvertToSandboxPath(To), From, ReadFlags, WriteFlags);
+	}
+	return Result;
+}
+
+IAsyncReadFileHandle* FSandboxPlatformFile::OpenAsyncRead(const TCHAR* Filename)
+{
+	FString UserFilename(*ConvertToSandboxPath(Filename));
+	if (!OkForInnerAccess(Filename) || LowerLevel->FileExists(*UserFilename))
+	{
+		return LowerLevel->OpenAsyncRead(*UserFilename);
+	}
+	return LowerLevel->OpenAsyncRead(Filename);
+}
+void FSandboxPlatformFile::SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority)
+{
+	LowerLevel->SetAsyncMinimumPriority(Priority);
+}
+IMappedFileHandle* FSandboxPlatformFile::OpenMapped(const TCHAR* Filename)
+{
+	FString UserFilename(*ConvertToSandboxPath(Filename));
+	if (!OkForInnerAccess(Filename) || LowerLevel->FileExists(*UserFilename))
+	{
+		return LowerLevel->OpenMapped(*UserFilename);
+	}
+	return LowerLevel->OpenMapped(Filename);
+}
+
 /**
  * Module for the sandbox file
  */
@@ -381,11 +843,8 @@ class FSandboxFileModule : public IPlatformFileModule
 public:
 	virtual IPlatformFile* GetPlatformFile() override
 	{
-		static TUniquePtr<IPlatformFile> AutoDestroySingleton = MakeUnique<FSandboxPlatformFile>(true);
+		static TUniquePtr<IPlatformFile> AutoDestroySingleton = FSandboxPlatformFile::Create(/* bInEntireEngineWillUseThisSandbox */ true);
 		return AutoDestroySingleton.Get();
 	}
 };
 IMPLEMENT_MODULE(FSandboxFileModule, SandboxFile);
-
-
-

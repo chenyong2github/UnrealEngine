@@ -1,0 +1,17 @@
+{
+    "Plugins": [
+        {
+            "Info": {
+                "Types": {
+                    "ArResolver": {},
+                    "ArPackageResolver": {}
+                }
+            },
+            "LibraryPath": "../../../../../Binaries/Mac/libar.dylib", 
+            "Name": "ar", 
+            "ResourcePath": "resources", 
+            "Root": "..", 
+            "Type": "library"
+        }
+    ]
+}

@@ -43,18 +43,26 @@ enum class EInstallBundleManagerInitResult : int
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleManagerInitResult Result);
 
-enum class EInstallBundleContentState : int
+enum class EInstallBundleInstallState : int
 {
 	NotInstalled,
 	NeedsUpdate,
 	UpToDate,
 	Count,
 };
-INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleContentState State);
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleInstallState State);
+
+struct INSTALLBUNDLEMANAGER_API FInstallBundleCombinedInstallState
+{
+	TMap<FName, EInstallBundleInstallState> IndividualBundleStates;
+
+	bool GetAllBundlesHaveState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
+	bool GetAnyBundleHasState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
+};
 
 struct INSTALLBUNDLEMANAGER_API FInstallBundleContentState
 {
-	EInstallBundleContentState State = EInstallBundleContentState::NotInstalled;
+	EInstallBundleInstallState State = EInstallBundleInstallState::NotInstalled;
 	float Weight = 0.0f;
 	TMap<EInstallBundleSourceType, FString> Version;
 };
@@ -68,8 +76,8 @@ struct INSTALLBUNDLEMANAGER_API FInstallBundleCombinedContentState
 	uint64 InstallOverheadSize = 0;
 	uint64 FreeSpace = 0;
 
-	bool GetAllBundlesHaveState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;	
-	bool GetAnyBundleHasState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
+	bool GetAllBundlesHaveState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;	
+	bool GetAnyBundleHasState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
 };
 
 enum class EInstallBundleGetContentStateFlags : uint32
@@ -119,6 +127,7 @@ enum class EInstallBundleRequestFlags : uint32
 	ForceNoPatching = (1 << 3),
 	TrackPersistentBundleStats = (1 << 4),
 	SkipMount = (1 << 5),
+	AsyncMount = (1 << 6),
 	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
@@ -205,7 +214,7 @@ struct FInstallBundleSourceBundleInfo
 	uint64 CurrentInstallSize = 0; // Disk footprint of the bundle in it's current state
 	bool bIsStartup = false; // Only one startup bundle allowed.  All sources must agree on this.
 	bool bDoPatchCheck = false; // This bundle should do a patch check and fail if it doesn't pass
-	bool bBundleUpToDate = false; // Whether this bundle is up to date
+	EInstallBundleInstallState BundleContentState = EInstallBundleInstallState::NotInstalled; // Whether this bundle is up to date
 	bool bIsCached = false;
 };
 

@@ -292,6 +292,13 @@ struct FLongPackagePathsSingleton
 		}
 	}
 
+	// Checks whether the specific root path is a valid mount point.
+	bool MountPointExists(const FString& RootPath)
+	{
+		FReadScopeLock ScopeLock(ContentMountPointCriticalSection);
+		return MountPointRootPaths.Contains(RootPath);
+	}
+
 private:
 	FLongPackagePathsSingleton()
 	{
@@ -606,15 +613,14 @@ FString FPackageName::GetLongPackageAssetName(const FString& InLongPackageName)
 	return GetShortName(InLongPackageName);
 }
 
-bool FPackageName::DoesPackageNameContainInvalidCharacters(const FString& InLongPackageName, FText* OutReason /*= NULL*/)
+bool FPackageName::DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, FText* OutReason /*= NULL*/)
 {
 	// See if the name contains invalid characters.
-	TCHAR CharString[] = { '\0', '\0' };
-	FString MatchedInvalidChars;
+	TStringBuilder<32> MatchedInvalidChars;
 	for (const TCHAR* InvalidCharacters = INVALID_LONGPACKAGE_CHARACTERS; *InvalidCharacters; ++InvalidCharacters)
 	{
-		CharString[0] = *InvalidCharacters;
-		if (InLongPackageName.Contains(CharString, ESearchCase::CaseSensitive))
+		FStringView::SizeType OutIndex;
+		if (InLongPackageName.FindChar(*InvalidCharacters, OutIndex))
 		{
 			MatchedInvalidChars += *InvalidCharacters;
 		}
@@ -624,7 +630,7 @@ bool FPackageName::DoesPackageNameContainInvalidCharacters(const FString& InLong
 		if (OutReason)
 		{
 			FFormatNamedArguments Args;
-			Args.Add( TEXT("IllegalNameCharacters"), FText::FromString(MatchedInvalidChars) );
+			Args.Add( TEXT("IllegalNameCharacters"), FText::FromString(FString(MatchedInvalidChars)) );
 			*OutReason = FText::Format( NSLOCTEXT("Core", "PackageNameContainsInvalidCharacters", "Name may not contain the following characters: '{IllegalNameCharacters}'"), Args );
 		}
 		return true;
@@ -779,14 +785,17 @@ bool FPackageName::IsValidObjectPath(const FString& InObjectPath, FText* OutReas
 
 void FPackageName::RegisterMountPoint(const FString& RootPath, const FString& ContentPath)
 {
-	FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
-	Paths.InsertMountPoint(RootPath, ContentPath);
+	FLongPackagePathsSingleton::Get().InsertMountPoint(RootPath, ContentPath);
 }
 
 void FPackageName::UnRegisterMountPoint(const FString& RootPath, const FString& ContentPath)
 {
-	FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
-	Paths.RemoveMountPoint(RootPath, ContentPath);
+	FLongPackagePathsSingleton::Get().RemoveMountPoint(RootPath, ContentPath);
+}
+
+bool FPackageName::MountPointExists(const FString& RootPath)
+{
+	return FLongPackagePathsSingleton::Get().MountPointExists(RootPath);
 }
 
 FName FPackageName::GetPackageMountPoint(const FString& InPackagePath)
@@ -1572,27 +1581,27 @@ FStringView FPackageName::ObjectPathToObjectName(FStringView InObjectPath)
 	return ObjectPathToObjectNameImpl(InObjectPath);
 }
 
-bool FPackageName::IsExtraPackage(const FString& InPackageName)
+bool FPackageName::IsExtraPackage(FStringView InPackageName)
 {
 	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().ExtraRootPath);
 }
 
-bool FPackageName::IsScriptPackage(const FString& InPackageName)
+bool FPackageName::IsScriptPackage(FStringView InPackageName)
 {
 	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().ScriptRootPath);
 }
 
-bool FPackageName::IsMemoryPackage(const FString& InPackageName)
+bool FPackageName::IsMemoryPackage(FStringView InPackageName)
 {
 	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().MemoryRootPath);
 }
 
-bool FPackageName::IsTempPackage(const FString& InPackageName)
+bool FPackageName::IsTempPackage(FStringView InPackageName)
 {
 	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().TempRootPath);
 }
 
-bool FPackageName::IsLocalizedPackage(const FString& InPackageName)
+bool FPackageName::IsLocalizedPackage(FStringView InPackageName)
 {
 	// Minimum valid package name length is "/A/L10N"
 	if (InPackageName.Len() < 7)
@@ -1600,25 +1609,27 @@ bool FPackageName::IsLocalizedPackage(const FString& InPackageName)
 		return false;
 	}
 
-	const TCHAR* CurChar = *InPackageName;
+	const TCHAR* CurChar = InPackageName.GetData();
+	const TCHAR* EndChar = InPackageName.GetData() + InPackageName.Len();
 
 	// Must start with a slash
-	if (*CurChar++ != TEXT('/'))
+	if (CurChar == EndChar || *CurChar++ != TEXT('/'))
 	{
 		return false;
 	}
 
 	// Find the end of the first part of the path, eg /Game/
-	while (*CurChar && *CurChar++ != TEXT('/')) {}
-	if (!*CurChar)
+	while (CurChar != EndChar && *CurChar++ != TEXT('/')) {}
+	if (CurChar == EndChar)
 	{
 		// Found end-of-string
 		return false;
 	}
 
 	// Are we part of the L10N folder?
-	return FCString::Strnicmp(CurChar, TEXT("L10N/"), 5) == 0	// StartsWith "L10N/"
-		|| FCString::Stricmp(CurChar, TEXT("L10N")) == 0;		// Is "L10N"
+	FStringView Remaining(CurChar, EndChar - CurChar);
+	// Is "L10N" or StartsWith "L10N/" 
+	return Remaining.StartsWith(TEXT("L10N"_SV), ESearchCase::IgnoreCase) && (Remaining.Len() == 4 || Remaining[4] == '/');
 }
 
 

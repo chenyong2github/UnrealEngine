@@ -7,8 +7,10 @@
 #include "UObject/UObjectBaseUtility.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectHash.h"
 #include "Templates/Casts.h"
 #include "UObject/Interface.h"
+#include "Misc/StringBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/MallocProfiler.h"
 
@@ -37,6 +39,13 @@ FString UObjectBaseUtility::GetPathName( const UObject* StopOuter/*=NULL*/ ) con
  */
 void UObjectBaseUtility::GetPathName(const UObject* StopOuter, FString& ResultString) const
 {
+	TStringBuilder<256> ResultBuilder;
+	GetPathName(StopOuter, ResultBuilder);
+	ResultString += FStringView(ResultBuilder);
+}
+
+void UObjectBaseUtility::GetPathName(const UObject* StopOuter, FStringBuilderBase& ResultString) const
+{
 	if(this != StopOuter && this != NULL)
 	{
 		UObject* ObjOuter = GetOuter();
@@ -48,18 +57,18 @@ void UObjectBaseUtility::GetPathName(const UObject* StopOuter, FString& ResultSt
 			if (ObjOuter->GetClass() != UPackage::StaticClass()
 			&& ObjOuter->GetOuter()->GetClass() == UPackage::StaticClass())
 			{
-				ResultString += SUBOBJECT_DELIMITER_CHAR;
+				ResultString << SUBOBJECT_DELIMITER_CHAR;
 			}
 			else
 			{
-				ResultString += TEXT('.');
+				ResultString << TEXT('.');
 			}
 		}
-		AppendName(ResultString);
+		GetFName().AppendString(ResultString);
 	}
 	else
 	{
-		ResultString += TEXT("None");
+		ResultString << TEXT("None");
 	}
 }
 
@@ -119,26 +128,74 @@ FString UObjectBaseUtility::GetFullGroupName( bool bStartWithOuter ) const
 
 
 /***********************/
-/******** Outer ********/
+/*** Outer & Package ***/
 /***********************/
 
-/** 
- * Walks up the list of outers until it finds the highest one.
- *
- * @return outermost non NULL Outer.
- */
-UPackage* UObjectBaseUtility::GetOutermost() const
+void UObjectBaseUtility::DetachExternalPackage()
 {
-	UObject* Top = (UObject*)this;
+	ClearFlags(RF_HasExternalPackage);
+}
+
+void UObjectBaseUtility::ReattachExternalPackage()
+{
+	// GetObjectExternalPackageThreadSafe doesn't check for the RF_OverriddenPackage before looking up the external package
+	if (!HasAnyFlags(RF_HasExternalPackage) && GetObjectExternalPackageThreadSafe(this))
+	{
+		SetFlags(RF_HasExternalPackage);
+	}
+}
+
+/**
+ * Walks up the list of outers until it finds the top-level one that isn't a package.
+ * Will return null if called on a package
+ * @return outermost non-null, non-package Outer.
+ */
+UObject* UObjectBaseUtility::GetOutermostObject() const
+{
+	UObject* Top = (UObject*)(this);
+	if (Top->IsA<UPackage>())
+	{
+		return nullptr;
+	}
 	for (;;)
 	{
 		UObject* CurrentOuter = Top->GetOuter();
-		if (!CurrentOuter)
+		if (CurrentOuter->IsA<UPackage>())
 		{
-			return CastChecked<UPackage>(Top);
+			return Top;
 		}
 		Top = CurrentOuter;
 	}
+}
+
+/**
+ * Walks up the list of outers until it finds a package directly associated with the object.
+ *
+ * @return the package the object is in.
+ */
+UPackage* UObjectBaseUtility::GetPackage() const
+{
+	const UObject* Top = static_cast<const UObject*>(this);
+	for (;;)
+	{
+		// GetExternalPackage will return itself if called on a UPackage
+		if (UPackage* Package = Top->GetExternalPackage())
+		{
+			return Package;
+		}
+		Top = Top->GetOuter();
+	}
+}
+
+/**
+ * Legacy function, has the same behavior as GetPackage
+ * use GetPackage instead.
+ * @return the package the object is in.
+ * @see GetPackage
+ */
+UPackage* UObjectBaseUtility::GetOutermost() const
+{
+	return GetPackage();
 }
 
 /** 
@@ -235,14 +292,40 @@ UObject* UObjectBaseUtility::GetTypedOuter(UClass* Target) const
  */
 bool UObjectBaseUtility::IsIn( const UObject* SomeOuter ) const
 {
-	for( UObject* It=GetOuter(); It; It=It->GetOuter() )
+	// uncomment the ensure to more easily find where IsIn should be changed to IsInPackage
+	if (!/*ensure*/(!SomeOuter->IsA<UPackage>()))
 	{
-		if( It==SomeOuter )
+		return IsInPackage(static_cast<const UPackage*>(SomeOuter));
+	}
+	return IsInOuter(SomeOuter);
+}
+
+/** Overload to determine if an object is in the specified package which can now be different than its outer chain. */
+bool UObjectBaseUtility::IsIn(const UPackage* SomePackage) const
+{
+	// uncomment the ensure to more easily find where IsIn should be changed to IsInPackage
+	//ensure(0);
+	return IsInPackage(SomePackage);
+}
+
+bool UObjectBaseUtility::IsInOuter(const UObject* SomeOuter) const
+{
+	for (UObject* It = GetOuter(); It; It = It->GetOuter())
+	{
+		if (It == SomeOuter)
 		{
 			return true;
 		}
 	}
-	return SomeOuter==NULL;
+	return SomeOuter == nullptr;
+}
+
+/**
+ * @return	true if the object is contained in the specified package.
+ */
+bool UObjectBaseUtility::IsInPackage(const UPackage* SomePackage) const
+{
+	return SomePackage != this && GetPackage() == SomePackage;
 }
 
 /**

@@ -1451,14 +1451,19 @@ FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& Rel
 {
 	FString Path = RootDir() / RelativePath;
 	FString Result;
-	FFileHelper::LoadFileToString(Result, *Path);
+	if (FFileHelper::LoadFileToString(Result, &IPlatformFile::GetPlatformPhysical(), *Path))
+	{
+		return Result;
+	}
+
+	Result.Empty();
 	return Result;
 }
 
 bool FGenericPlatformMisc::FileExistsInPlatformPackage(const FString& RelativePath)
 {
 	FString Path = RootDir() / RelativePath;
-	return IFileManager::Get().FileExists(*Path);
+	return IPlatformFile::GetPlatformPhysical().FileExists(*Path);
 }
 
 void FGenericPlatformMisc::TearDown()

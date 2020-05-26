@@ -179,7 +179,7 @@ struct FObjectResource
 	 */
 	FPackageIndex	OuterIndex;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Name of the class this object was serialized with (in case active class redirects have changed it)
 	 * If this is a class and was directly redirected, this is what it was redirected from
@@ -426,6 +426,15 @@ struct FObjectImport : public FObjectResource
 	 */
 	FName			ClassName;
 
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Package Name this import belongs to. Can be none, in that case follow the outer chain
+	 * until a set PackageName is found or until OuterIndex is null
+	 * Serialized
+	 */
+	FName			PackageName;
+#endif
+
 	/**
 	 * The UObject represented by this resource.  Assigned the first time CreateImport is called for this import.
 	 * Transient
@@ -454,6 +463,46 @@ struct FObjectImport : public FObjectResource
 	COREUOBJECT_API FObjectImport();
 	FObjectImport( UObject* InObject );
 	FObjectImport( UObject* InObject, UClass* InClass );
+
+	/**
+	 * Accessor function to check if the import has package name set
+	 * Handles editor only code.
+	 * @returns true if the import has a PackageName set
+	 */
+	bool HasPackageName() const
+	{
+#if WITH_EDITORONLY_DATA
+		return !PackageName.IsNone();
+#else
+		return false;
+#endif
+	}
+
+	/**
+	 * Accessor function to get the import package name
+	 * Handles editor only code.
+	 * @returns the import package name, if any
+	 */
+	FName GetPackageName() const
+	{
+#if WITH_EDITORONLY_DATA
+		return PackageName;
+#else
+		return NAME_None;
+#endif
+	}
+
+	/**
+	 * Accessor function to set the import PackageName
+	 * Handles editor only code.
+	 * @param InPackageName the package name to set
+	 */
+	void SetPackageName(FName InPackageName)
+	{
+#if WITH_EDITORONLY_DATA
+		PackageName = InPackageName;
+#endif
+	}
 	
 	/** I/O functions */
 	friend COREUOBJECT_API FArchive& operator<<(FArchive& Ar, FObjectImport& I);

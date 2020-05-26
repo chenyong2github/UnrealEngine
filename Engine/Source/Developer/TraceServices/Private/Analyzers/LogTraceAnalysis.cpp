@@ -20,7 +20,7 @@ void FLogTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_LogMessage, "Logging", "LogMessage");
 }
 
-bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -53,7 +53,7 @@ bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	{
 		uint64 LogPoint = EventData.GetValue<uint64>("LogPoint");
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-		LogProvider.AppendMessage(LogPoint, Context.SessionContext.TimestampFromCycle(Cycle), EventData.GetAttachment());
+		LogProvider.AppendMessage(LogPoint, Context.EventTime.AsSeconds(Cycle), EventData.GetAttachment());
 		break;
 	}
 	}

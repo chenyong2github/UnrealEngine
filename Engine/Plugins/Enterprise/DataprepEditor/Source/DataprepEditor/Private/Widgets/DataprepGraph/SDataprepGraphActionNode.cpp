@@ -667,6 +667,8 @@ FReply SDataprepGraphActionNode::OnDrop(const FGeometry& MyGeometry, const FDrag
 {
 	SetCursor(EMouseCursor::Default);
 
+	DraggedIndex = INDEX_NONE;
+
 	TSharedPtr<FDragDropActionNode> DragOperation = DragDropEvent.GetOperationAs<FDragDropActionNode>();
 	if (DragOperation.IsValid())
 	{
@@ -684,6 +686,8 @@ void SDataprepGraphActionNode::OnDragEnter(const FGeometry& MyGeometry, const FD
 	{
 		ParentTrackNodePtr.Pin()->OnDragLeave(DragDropEvent);
 	}
+
+	DraggedIndex = INDEX_NONE;
 
 	SGraphNode::OnDragEnter(MyGeometry, DragDropEvent);
 }

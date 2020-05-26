@@ -9,18 +9,23 @@
 
 
 UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInitializer& ObjectInitializer)
-	: UDisplayClusterSceneComponent(ObjectInitializer)
+	: Super(ObjectInitializer)
 	, EyeDist(0.064f)
 	, bEyeSwap(false)
 	, ForceEyeOffset(0)
 {
+	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 }
-
 
 void UDisplayClusterCameraComponent::BeginPlay()
 {
 	Super::BeginPlay();
+}
+
+void UDisplayClusterCameraComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 void UDisplayClusterCameraComponent::SetSettings(const FDisplayClusterConfigSceneNode* ConfigData)
@@ -34,7 +39,6 @@ void UDisplayClusterCameraComponent::SetSettings(const FDisplayClusterConfigScen
 		bEyeSwap       = CameraCfg->EyeSwap;
 		ForceEyeOffset = CameraCfg->ForceOffset;
 	}
-	
 
 	Super::SetSettings(ConfigData);
 }

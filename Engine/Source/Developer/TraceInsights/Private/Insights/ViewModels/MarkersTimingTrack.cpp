@@ -4,6 +4,7 @@
 
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
 
@@ -25,7 +26,7 @@ INSIGHTS_IMPLEMENT_RTTI(FMarkersTimingTrack)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FMarkersTimingTrack::FMarkersTimingTrack()
-	: FBaseTimingTrack()
+	: FBaseTimingTrack(TEXT("Markers (Bookmarks / Logs)"))
 	//, TimeMarkerBoxes()
 	//, TimeMarkerTexts()
 	, bUseOnlyBookmarks(true)
@@ -36,6 +37,8 @@ FMarkersTimingTrack::FMarkersTimingTrack()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
+	SetValidLocations(ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
+	SetOrder(FTimingTrackOrder::Markers);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,6 +237,49 @@ FReply FMarkersTimingTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const
 FReply FMarkersTimingTrack::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	return OnMouseButtonDown(MyGeometry, MouseEvent);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMarkersTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection(TEXT("Misc"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_ToggleCollapsed", "Collapsed"),
+			LOCTEXT("ContextMenu_ToggleCollapsed_Desc", "Whether the vertical marker lines are collapsed or expanded."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::ToggleCollapsed),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &FMarkersTimingTrack::IsCollapsed)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_Bookmarks", "Bookmarks"),
+			LOCTEXT("ContextMenu_Bookmarks_Desc", "Change this track to show only the bookmarks."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::SetBookmarksTrack),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &FMarkersTimingTrack::IsBookmarksTrack)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_Logs", "Logs"),
+			LOCTEXT("ContextMenu_Logs_Desc", "Change this track to show all logs."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::SetLogsTrack),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &FMarkersTimingTrack::IsLogsTrack)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+	MenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

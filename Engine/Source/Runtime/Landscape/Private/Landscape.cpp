@@ -616,10 +616,10 @@ bool ULandscapeComponent::IsLandscapeHoleMaterialValid() const
 	UMaterialInterface* HoleMaterial = GetLandscapeHoleMaterial();
 	if (!HoleMaterial)
 	{
-		return false;
+		HoleMaterial = GetLandscapeMaterial();
 	}
 
-	return HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>();
+	return HoleMaterial ? HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>() : false;
 }
 
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
@@ -2676,22 +2676,16 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	}
 }
 
-
 void ALandscapeProxy::SetAbsoluteSectionBase(FIntPoint InSectionBase)
 {
 	FIntPoint Difference = InSectionBase - LandscapeSectionOffset;
 	LandscapeSectionOffset = InSectionBase;
 
-	for (int32 CompIdx = 0; CompIdx < LandscapeComponents.Num(); CompIdx++)
+	RecreateComponentsRenderState([Difference](ULandscapeComponent* Comp)
 	{
-		ULandscapeComponent* Comp = LandscapeComponents[CompIdx];
-		if (Comp)
-		{
-			FIntPoint AbsoluteSectionBase = Comp->GetSectionBase() + Difference;
-			Comp->SetSectionBase(AbsoluteSectionBase);
-			Comp->RecreateRenderState_Concurrent();
-		}
-	}
+		FIntPoint AbsoluteSectionBase = Comp->GetSectionBase() + Difference;
+		Comp->SetSectionBase(AbsoluteSectionBase);
+	});
 
 	for (int32 CompIdx = 0; CompIdx < CollisionComponents.Num(); CompIdx++)
 	{
@@ -2706,17 +2700,12 @@ void ALandscapeProxy::SetAbsoluteSectionBase(FIntPoint InSectionBase)
 
 void ALandscapeProxy::RecreateComponentsState()
 {
-	for (int32 ComponentIndex = 0; ComponentIndex < LandscapeComponents.Num(); ComponentIndex++)
+	RecreateComponentsRenderState([](ULandscapeComponent* Comp)
 	{
-		ULandscapeComponent* Comp = LandscapeComponents[ComponentIndex];
-		if (Comp)
-		{
-			Comp->UpdateComponentToWorld();
-			Comp->UpdateCachedBounds();
-			Comp->UpdateBounds();
-			Comp->RecreateRenderState_Concurrent(); // @todo UE4 jackp just render state needs update?
-		}
-	}
+		Comp->UpdateComponentToWorld();
+		Comp->UpdateCachedBounds();
+		Comp->UpdateBounds();
+	});
 
 	for (int32 ComponentIndex = 0; ComponentIndex < CollisionComponents.Num(); ComponentIndex++)
 	{
@@ -2725,6 +2714,23 @@ void ALandscapeProxy::RecreateComponentsState()
 		{
 			Comp->UpdateComponentToWorld();
 			Comp->RecreatePhysicsState();
+		}
+	}
+}
+
+void ALandscapeProxy::RecreateComponentsRenderState(TFunctionRef<void(ULandscapeComponent*)> Fn)
+{
+	// Batch component render state recreation
+	TArray<FComponentRecreateRenderStateContext> ComponentRecreateRenderStates;
+	ComponentRecreateRenderStates.Reserve(LandscapeComponents.Num());
+
+	for (int32 ComponentIndex = 0; ComponentIndex < LandscapeComponents.Num(); ComponentIndex++)
+	{
+		ULandscapeComponent* Comp = LandscapeComponents[ComponentIndex];
+		if (Comp)
+		{
+			Fn(Comp);
+			ComponentRecreateRenderStates.Emplace(Comp);
 		}
 	}
 }
@@ -3911,6 +3917,26 @@ bool ULandscapeLODStreamingProxy::GetMipDataFilename(const int32 MipIndex, FStri
 		return true;
 	}
 	return false;
+}
+
+FIoFilenameHash ULandscapeLODStreamingProxy::GetMipIoFilenameHash(const int32 MipIndex) const
+{
+#if LANDSCAPE_LOD_STREAMING_USE_TOKEN
+	FString MipFilename;
+	if (GetMipDataFilename(MipIndex, MipFilename))
+	{
+		return MakeIoFilenameHash(MipFilename);
+	}
+#else
+	if (LandscapeComponent && LandscapeComponent->PlatformData.StreamingLODDataArray.IsValidIndex(MipIndex))
+	{
+		return LandscapeComponent->PlatformData.StreamingLODDataArray[MipIndex].GetIoFilenameHash();
+	}
+#endif
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
 }
 
 bool ULandscapeLODStreamingProxy::IsReadyForStreaming() const

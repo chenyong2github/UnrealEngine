@@ -1583,6 +1583,10 @@ void FStaticMeshEditor::GenerateKDop(const FVector* Directions, uint32 NumDirect
 
 	GEditor->BeginTransaction(LOCTEXT("FStaticMeshEditor_GenerateKDop", "Create Convex Collision"));
 	const int32 PrimIndex = GenerateKDopAsSimpleCollision(StaticMesh, DirArray);
+	if (PrimIndex != INDEX_NONE)
+	{
+		StaticMesh->BodySetup->AggGeom.ConvexElems[PrimIndex].bIsGenerated = true;
+	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
 	{
@@ -1603,6 +1607,10 @@ void FStaticMeshEditor::OnCollisionBox()
 {
 	GEditor->BeginTransaction(LOCTEXT("FStaticMeshEditor_OnCollisionBox", "Create Box Collision"));
 	const int32 PrimIndex = GenerateBoxAsSimpleCollision(StaticMesh);
+	if (PrimIndex != INDEX_NONE)
+	{
+		StaticMesh->BodySetup->AggGeom.BoxElems[PrimIndex].bIsGenerated = true;
+	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
 	{
@@ -1626,6 +1634,10 @@ void FStaticMeshEditor::OnCollisionSphere()
 {
 	GEditor->BeginTransaction(LOCTEXT("FStaticMeshEditor_OnCollisionSphere", "Create Sphere Collision"));
 	const int32 PrimIndex = GenerateSphereAsSimpleCollision(StaticMesh);
+	if (PrimIndex != INDEX_NONE)
+	{
+		StaticMesh->BodySetup->AggGeom.SphereElems[PrimIndex].bIsGenerated = true;
+	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
 	{
@@ -1649,6 +1661,10 @@ void FStaticMeshEditor::OnCollisionSphyl()
 {
 	GEditor->BeginTransaction(LOCTEXT("FStaticMeshEditor_OnCollisionSphyl", "Create Capsule Collision"));
 	const int32 PrimIndex = GenerateSphylAsSimpleCollision(StaticMesh);
+	if (PrimIndex != INDEX_NONE)
+	{
+		StaticMesh->BodySetup->AggGeom.SphylElems[PrimIndex].bIsGenerated = true;
+	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
 	{

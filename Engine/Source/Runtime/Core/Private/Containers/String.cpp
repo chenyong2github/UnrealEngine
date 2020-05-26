@@ -119,15 +119,6 @@ namespace UE4String_Private
 	}
 }
 
-FString::FString(const FStringView& Other)
-{
-	if (const FStringView::SizeType OtherLen = Other.Len())
-	{
-		Reserve(OtherLen);
-		Append(Other.GetData(), OtherLen);
-	}
-}
-
 FString::FString(const FStringView& Other, int32 ExtraSlack)
 {
 	Reserve(Other.Len() + ExtraSlack);
@@ -187,6 +178,17 @@ void AppendCharacters(TArray<TCHAR>& Out, const CharType* Str, int32 Count)
 	// (Re-)establish the null terminator
 	Dest[Count] = '\0';
 }
+
+FString::FString(FAnsiStringView View)
+{
+	AppendCharacters(Data, View.GetData(), View.Len());
+}
+
+FString::FString(FWideStringView View)
+{
+	AppendCharacters(Data, View.GetData(), View.Len());
+}
+
 
 void FString::AppendChars(const ANSICHAR* Str, int32 Count)
 {

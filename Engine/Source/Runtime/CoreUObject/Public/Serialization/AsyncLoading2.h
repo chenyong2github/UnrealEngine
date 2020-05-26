@@ -17,7 +17,7 @@ class IAsyncPackageLoader;
 class FIoDispatcher;
 class IEDLBootNotificationManager;
 
-using FSourceToLocalizedPackageIdMap = TMap<FPackageId, FPackageId>;
+using FSourceToLocalizedPackageIdMap = TArray<TPair<FPackageId, FPackageId>>;
 using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
 
 class FMappedName
@@ -86,6 +86,11 @@ public:
 		return Number;
 	}
 
+	inline bool operator!=(FMappedName Other) const
+	{
+		return Index != Other.Index || Number != Other.Number;
+	}
+
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FMappedName& MappedName);
 
 private:
@@ -100,10 +105,13 @@ private:
 struct FContainerHeader
 {
 	FIoContainerId ContainerId;
+	uint32 PackageCount = 0;
 	TArray<uint8> Names;
 	TArray<uint8> NameHashes;
 	TArray<FPackageId> PackageIds;
 	TArray<FMappedName> PackageNames;
+	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
+	FCulturePackageMap CulturePackageMap;
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader);
 };
@@ -212,9 +220,9 @@ public:
  */
 enum EEventLoadNode2 : uint8
 {
+	Package_ProcessSummary,
 	Package_ExportsSerialized,
 	Package_PostLoad,
-	Package_Delete,
 	Package_NumPhases,
 
 	ExportBundle_Process = 0,
@@ -236,6 +244,8 @@ enum class EExportFilterFlags : uint8
  */
 struct FPackageSummary
 {
+	FMappedName Name;
+	FMappedName SourceName;
 	uint32 PackageFlags;
 	uint32 CookedHeaderSize;
 	uint16 NameMapIndex;
@@ -264,17 +274,6 @@ struct FExportBundleEntry
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleEntry& ExportBundleEntry);
 };
 
-/**
- * Export bundle meta entry.
- */
-struct FExportBundleMetaEntry
-{
-	uint32 LoadOrder = ~uint32(0);
-	uint32 PayloadSize = ~uint32(0);
-
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleMetaEntry& ExportBundleMetaEntry);
-};
-
 template<typename T>
 class TPackageStoreEntryCArrayView
 {
@@ -299,12 +298,12 @@ public:
 
 struct FPackageStoreEntry
 {
-	FMinimalName Name;
-	FPackageId SourcePackageId;
+	uint64 ExportBundlesSize;
 	int32 ExportCount;
+	int32 ExportBundleCount;
+	uint32 LoadOrder;
+	uint32 Pad;
 	TPackageStoreEntryCArrayView<FPackageId> ImportedPackages;
-	TPackageStoreEntryCArrayView<FPackageObjectIndex> PublicExports;
-	TPackageStoreEntryCArrayView<FExportBundleMetaEntry> ExportBundles;
 };
 
 /**

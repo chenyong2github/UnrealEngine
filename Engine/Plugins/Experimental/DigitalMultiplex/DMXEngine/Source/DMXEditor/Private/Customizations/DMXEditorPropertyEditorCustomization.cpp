@@ -790,6 +790,8 @@ void FDMXEntityReferenceCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 			InPropertyHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
+		.MinDesiredWidth(200.0f)
+		.MaxDesiredWidth(400.0f)
 		[
 			ValueContent
 		];

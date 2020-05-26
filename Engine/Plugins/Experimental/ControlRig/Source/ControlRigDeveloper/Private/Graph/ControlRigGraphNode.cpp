@@ -603,12 +603,19 @@ UControlRigBlueprint* UControlRigGraphNode::GetBlueprint() const
 
 URigVMNode* UControlRigGraphNode::GetModelNode() const
 {
+	UControlRigGraphNode* MutableThis = (UControlRigGraphNode*)this;
 	if (CachedModelNode)
 	{
-		return CachedModelNode;
+		if (CachedModelNode->GetOuter() == GetTransientPackage())
+		{
+			MutableThis->CachedModelNode = nullptr;
+		}
+		else
+		{
+			return CachedModelNode;
+		}
 	}
 
-	UControlRigGraphNode* MutableThis = (UControlRigGraphNode*)this;
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
 	{
 #if WITH_EDITOR
@@ -622,7 +629,10 @@ URigVMNode* UControlRigGraphNode::GetModelNode() const
 
 		if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
 		{
-			return MutableThis->CachedModelNode = Blueprint->Model->FindNode(ModelNodePath);
+			if (URigVMGraph* Model = Blueprint->Model)
+			{
+				return MutableThis->CachedModelNode = Model->FindNode(ModelNodePath);
+			}
 		}
 	}
 

@@ -19,6 +19,7 @@
 #include "AddPrimitiveTool.h"
 #include "AddPatchTool.h"
 #include "SmoothMeshTool.h"
+#include "OffsetMeshTool.h"
 #include "RemeshMeshTool.h"
 #include "SimplifyMeshTool.h"
 #include "MeshInspectorTool.h"
@@ -29,9 +30,12 @@
 #include "MergeMeshesTool.h"
 #include "VoxelCSGMeshesTool.h"
 #include "PlaneCutTool.h"
+#include "MirrorTool.h"
 #include "SelfUnionMeshesTool.h"
 #include "CSGMeshesTool.h"
 #include "BspConversionTool.h"
+#include "MeshToVolumeTool.h"
+#include "VolumeToMeshTool.h"
 #include "HoleFillTool.h"
 #include "PolygonOnMeshTool.h"
 #include "DisplaceMeshTool.h"
@@ -50,7 +54,6 @@
 #include "AlignObjectsTool.h"
 #include "EditUVIslandsTool.h"
 #include "MeshAttributePaintTool.h"
-
 #include "ParameterizeMeshTool.h"
 
 #include "EditorModeManager.h"
@@ -539,6 +542,7 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginTriEditTool, TEXT("EditMeshTrianglesTool"), TriEditBuilder);
 	RegisterToolFunc(ToolManagerCommands.BeginPolyDeformTool, TEXT("DeformMeshPolygonsTool"), NewObject<UDeformMeshPolygonsToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginSmoothMeshTool, TEXT("SmoothMeshTool"), NewObject<USmoothMeshToolBuilder>());
+	RegisterToolFunc(ToolManagerCommands.BeginOffsetMeshTool, TEXT("OffsetMeshTool"), NewObject<UOffsetMeshToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginDisplaceMeshTool, TEXT("DisplaceMeshTool"), NewObject<UDisplaceMeshToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginMeshSpaceDeformerTool, TEXT("MeshSpaceDeformerTool"), NewObject<UMeshSpaceDeformerToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginTransformMeshesTool, TEXT("TransformMeshesTool"), NewObject<UTransformMeshesToolBuilder>());
@@ -608,9 +612,21 @@ void FModelingToolsEditorMode::Enter()
 	BspConversionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginBspConversionTool, TEXT("BspConversionTool"), BspConversionToolBuilder);
 
+	auto MeshToVolumeToolBuilder = NewObject<UMeshToVolumeToolBuilder>();
+	MeshToVolumeToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginMeshToVolumeTool, TEXT("MeshToVolumeTool"), MeshToVolumeToolBuilder);
+
+	auto VolumeToMeshToolBuilder = NewObject<UVolumeToMeshToolBuilder>();
+	VolumeToMeshToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginVolumeToMeshTool, TEXT("VolumeToMeshTool"), VolumeToMeshToolBuilder);
+
 	auto PlaneCutToolBuilder = NewObject<UPlaneCutToolBuilder>();
 	PlaneCutToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginPlaneCutTool, TEXT("PlaneCutTool"), PlaneCutToolBuilder);
+
+	auto MirrorToolBuilder = NewObject<UMirrorToolBuilder>();
+	MirrorToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginMirrorTool, TEXT("MirrorTool"), MirrorToolBuilder);
 
 	auto PolygonCutToolBuilder = NewObject<UPolygonOnMeshToolBuilder>();
 	RegisterToolFunc(ToolManagerCommands.BeginPolygonCutTool, TEXT("PolyCutTool"), PolygonCutToolBuilder);
@@ -634,6 +650,7 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginEditMeshMaterialsTool, TEXT("EditMaterialsTool"), EditMeshMaterialsToolBuilder);
 	
 	RegisterToolFunc(ToolManagerCommands.BeginMeshAttributePaintTool, TEXT("MeshAttributePaintTool"), NewObject<UMeshAttributePaintToolBuilder>());
+
 
 	// analysis tools
 

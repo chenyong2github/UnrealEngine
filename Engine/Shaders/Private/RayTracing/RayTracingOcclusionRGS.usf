@@ -100,7 +100,8 @@ bool GenerateOcclusionRay(
 		else
 		{
 			float RayPdf;
-			return GenerateSphereLightOcclusionRay(
+			//return GenerateSphereLightOcclusionRayWithAreaSampling(
+			return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
 				WorldPosition, WorldNormal,
 				RandSample,

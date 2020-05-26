@@ -24,7 +24,8 @@ struct FFileIoStoreContainerFile
 	TUniquePtr<IMappedFileHandle> MappedFileHandle;
 	FGuid EncryptionKeyGuid;
 	FAES::FAESKey EncryptionKey;
-	bool bIsEncrypted = false;
+	EIoContainerFlags ContainerFlags;
+	TArray<FSHAHash> BlockSignatureHashes;
 };
 
 struct FFileIoStoreBuffer
@@ -93,6 +94,7 @@ struct FFileIoStoreCompressedBlock
 	FFileIoStoreCompressionContext* CompressionContext = nullptr;
 	uint8* CompressedDataBuffer = nullptr;
 	FAES::FAESKey EncryptionKey;
+	const FSHAHash* SignatureHash = nullptr;
 };
 
 struct FFileIoStoreRawBlock
@@ -128,6 +130,8 @@ public:
 	using FKeyRegisteredCallback = TFunction<void(const FGuid&, const FAES::FAESKey&)>;
 
 	FFileIoStoreEncryptionKeys();
+	~FFileIoStoreEncryptionKeys();
+
 	bool GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const;
 	void SetKeyRegisteredCallback(FKeyRegisteredCallback&& Callback)
 	{
@@ -154,7 +158,8 @@ public:
 	IMappedFileHandle* GetMappedContainerFileHandle();
 	const FIoContainerId& GetContainerId() const { return ContainerId; }
 	int32 GetOrder() const { return Order; }
-	bool IsEncrypted() const { return ContainerFile.bIsEncrypted; }
+	bool IsEncrypted() const { return EnumHasAnyFlags(ContainerFile.ContainerFlags, EIoContainerFlags::Encrypted); }
+	bool IsSigned() const { return EnumHasAnyFlags(ContainerFile.ContainerFlags, EIoContainerFlags::Signed); }
 	const FGuid& GetEncryptionKeyGuid() const { return ContainerFile.EncryptionKeyGuid; }
 	void SetEncryptionKey(const FAES::FAESKey& Key) { ContainerFile.EncryptionKey = Key; }
 	const FAES::FAESKey& GetEncryptionKey() const { return ContainerFile.EncryptionKey; }
@@ -172,14 +177,14 @@ class FFileIoStore
 	: public FRunnable
 {
 public:
-	FFileIoStore(FIoDispatcherEventQueue& InEventQueue);
+	FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureErrorEvent& InSignatureErrorEvent);
 	~FFileIoStore();
 	TIoStatusOr<FIoContainerId> Mount(const FIoStoreEnvironment& Environment);
 	EIoStoreResolveResult Resolve(FIoRequestImpl* Request);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	bool ReadPendingBlock();
-	void ProcessCompletedBlocks();
+	void ProcessCompletedBlocks(const bool bIsMultithreaded);
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
 	void FlushReads()
 	{ 
@@ -237,6 +242,7 @@ private:
 
 	const uint64 ReadBufferSize;
 	FIoDispatcherEventQueue& EventQueue;
+	FIoSignatureErrorEvent& SignatureErrorEvent;
 	FFileIoStoreImpl PlatformImpl;
 
 	FRunnableThread* Thread;

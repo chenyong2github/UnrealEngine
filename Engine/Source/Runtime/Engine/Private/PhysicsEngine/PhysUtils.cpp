@@ -484,9 +484,10 @@ bool FPhysicsInterface::ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Output
 		return true;
 	}
 
-	if(FParse::Command(&Cmd,TEXT("ChaosRewind")))
+	uint32 NumFrames = 0;
+	if(FParse::Value(Cmd,TEXT("ChaosRewind"), NumFrames))
 	{
-		InWorld->GetPhysicsScene()->GetSolver()->GetRewindData()->RewindToFrame(0);
+		InWorld->GetPhysicsScene()->ResimNFrames(NumFrames);
 		return true;
 	}
 #if CHAOS_MEMORY_TRACKING

@@ -19,11 +19,11 @@ void Main(
 #endif
 
 #if !MATERIALBLENDING_SOLID || OUTPUT_PIXEL_DEPTH_OFFSET
-#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-	float3 PixelPositionExcludingWPO : TEXCOORD7,
-#endif
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants
-	// float4 PixelPosition : TEXCOORD6 -- Not used currently
+	, float4 PixelPosition : TEXCOORD6 //-- Not used currently
+#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+	, float3 PixelPositionExcludingWPO : TEXCOORD7
+#endif
 	OPTIONAL_IsFrontFace
 	OPTIONAL_OutDepthConservative,
 #endif
@@ -76,7 +76,7 @@ void Main(
 #endif
 
 #if OUTPUT_MOBILE_COLOR_VALUE
-	OutCustomDepth = min(SvPosition.w, 65500);
+	OutCustomDepth = SvPosition.z;
 	OutCustomStencil = MobileColorValue;
 #else
 	OutColor = 0;

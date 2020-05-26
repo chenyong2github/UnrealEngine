@@ -6,11 +6,30 @@
 #include "TraceSourceFilteringSettings.h"
 #include "SourceFilterTrace.h"
 #include "TraceWorldFiltering.h"
+#include "Misc/CommandLine.h"
+
+#include "TraceSourceFilteringProjectSettings.h"
 
 FTraceSourceFiltering::FTraceSourceFiltering()
 {
 	FilterCollection = NewObject<USourceFilterCollection>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
 	Settings = DuplicateObject(GetDefault<UTraceSourceFilteringSettings>(), nullptr);
+
+	FString DefaultPresetPath;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-TraceSourcePreset="), DefaultPresetPath))
+	{
+		// Set default preset, if valid path
+		FSoftObjectPath ObjectPath(DefaultPresetPath);
+		if (USourceFilterCollection* Collection = Cast<USourceFilterCollection>(ObjectPath.TryLoad()))
+		{
+			FilterCollection->CopyData(Collection);
+		}
+	}
+	// Try and load the user-defined default filter preset
+	else if (USourceFilterCollection* PresetCollection = GetDefault<UTraceSourceFilteringProjectSettings>()->DefaultFilterPreset.LoadSynchronous())
+	{	
+		FilterCollection->CopyData(PresetCollection);	
+	}
 
 	PopulateRemoteTraceCommands();
 }

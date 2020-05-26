@@ -16,16 +16,6 @@ UClass* FAssetTypeActions_AudioImpulseResponse::GetSupportedClass() const
 	return UAudioImpulseResponse::StaticClass();
 }
 
-const TArray<FText>& FAssetTypeActions_AudioImpulseResponse::GetSubMenus() const
-{
-	static const TArray<FText> SubMenus
-	{
-		FText(LOCTEXT("AssetConvolutionReverbSubmenu", "Convolution Reverb"))
-	};
-
-	return SubMenus;
-}
-
 void FAudioImpulseResponseExtension::RegisterMenus()
 {
 	if (!UToolMenus::IsToolMenuUIEnabled())
@@ -85,7 +75,7 @@ UAudioImpulseResponseFactory::UAudioImpulseResponseFactory(const FObjectInitiali
 {
 	SupportedClass = UAudioImpulseResponse::StaticClass();
 
-	bCreateNew = true;
+	bCreateNew = false;
 	bEditorImport = false;
 	bEditAfterNew = true;
 }

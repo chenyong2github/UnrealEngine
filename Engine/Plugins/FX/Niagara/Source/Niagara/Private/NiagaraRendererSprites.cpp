@@ -183,6 +183,9 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FNiagaraRendererSprites::RayTracingDynamicVertexBuffer"));
 
 		FRayTracingGeometryInitializer Initializer;
+		static const FName DebugName("FNiagaraRendererSprites");
+		static int32 DebugNumber = 0;
+		Initializer.DebugName = FName(DebugName, DebugNumber++);
 		Initializer.IndexBuffer = nullptr;
 		Initializer.GeometryType = RTGT_Triangles;
 		Initializer.bFastBuild = true;

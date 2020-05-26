@@ -1,0 +1,658 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "HeadlessChaosTestUtility.h"
+
+#include "AerodynamicsSystem.h"
+#include "TransmissionSystem.h"
+#include "EngineSystem.h"
+#include "WheelSystem.h"
+#include "TireSystem.h"
+#include "SuspensionSystem.h"
+
+//////////////////////////////////////////////////////////////////////////
+// These tests are mostly working in real word units rather than Unreal 
+// units as it's easier to tell if the simulations are working close to 
+// reality. i.e. Google stopping distance @ 30MPH ==> typically 15 metres
+//////////////////////////////////////////////////////////////////////////
+PRAGMA_DISABLE_OPTIMIZATION
+
+namespace ChaosTest
+{
+	using namespace Chaos;
+
+	TYPED_TEST(AllTraits, VehicleTest_SystemTemplate)
+	{
+		FSimpleTireConfig Setup;
+		{
+			Setup.Radius = 0.44f;
+		}
+
+		FSimpleTireSim Tire(&Setup);
+
+		EXPECT_LT(Tire.AccessSetup().Radius - Setup.Radius, SMALL_NUMBER);
+		EXPECT_LT(Tire.Setup().Radius - Setup.Radius, SMALL_NUMBER);
+
+	}
+
+	// Aerodynamics
+	TYPED_TEST(AllTraits, VehicleTest_Aerodynamics)
+	{
+		FSimpleAerodynamicsConfig Setup;
+		{
+			Setup.AreaMetresSquared = 1.f * 2.f; // 1x2 m
+			Setup.DragCoefficient = 0.5f;
+			Setup.DownforceCoefficient = 0.1f;
+		}
+
+		FSimpleAerodynamicsSim Aerofoil(&Setup);
+		Aerofoil.SetDensityOfMedium(RealWorldConsts::AirDensity());
+
+		float Drag = 0;
+		Drag = Aerofoil.GetDragForceFromVelocity(0.f);
+		EXPECT_LT(Drag, SMALL_NUMBER);
+
+		Drag = Aerofoil.GetDragForceFromVelocity(1.f); // 1m.s-1
+		EXPECT_LT(Drag - (RealWorldConsts::AirDensity() * 0.5f), SMALL_NUMBER);
+
+		Drag = Aerofoil.GetDragForceFromVelocity(5.f); // 5m.s-1
+		EXPECT_LT(Drag - (RealWorldConsts::AirDensity() * 0.5f * 25.f), SMALL_NUMBER);
+
+		Drag = Aerofoil.GetDragForceFromVelocity(10.f); // 10m.s-1
+		EXPECT_LT(Drag - (RealWorldConsts::AirDensity() * 0.5f * 100.f), SMALL_NUMBER);
+
+		float Lift = 0;
+		Lift = Aerofoil.GetLiftForceFromVelocity(0.f);
+		EXPECT_LT(Lift, SMALL_NUMBER);
+
+		Lift = Aerofoil.GetLiftForceFromVelocity(1.f);
+		EXPECT_LT(Lift - (RealWorldConsts::AirDensity() * 0.1f), SMALL_NUMBER);
+
+		Lift = Aerofoil.GetLiftForceFromVelocity(5.f);
+		EXPECT_LT(Lift - (RealWorldConsts::AirDensity() * 0.1f * 25.f), SMALL_NUMBER);
+
+		Lift = Aerofoil.GetLiftForceFromVelocity(10.f);
+		EXPECT_LT(Lift - (RealWorldConsts::AirDensity() * 0.1f * 100.f), SMALL_NUMBER);
+
+		// investigating Unral Units vs real world units
+		/*{
+			FSimpleAerodynamicsConfig Setup;
+			{
+				Setup.AreaMetresSquared = 1.f * 2.f; // 1x2 m
+				Setup.DragCoefficient = 0.5f;
+				Setup.DownforceCoefficient = 0.1f;
+			}
+
+			///////////////////////////////////////////////////////////////
+			FSimpleAerodynamicsSim Aerofoil(&Setup);
+			Aerofoil.SetDensityOfMedium(RealWorldConsts::AirDensity());
+
+			float Drag5 = 0;
+			Drag5 = Aerofoil.GetDragForceFromVelocity(5.f);
+
+
+			/////////////////////
+
+			FSimpleAerodynamicsConfig SetupB;
+			{
+				Setup.AreaMetresSquared = 1.f * 2.f; // 1x2 m
+				Setup.DragCoefficient = 0.5f;
+				Setup.DownforceCoefficient = 0.1f;
+			}
+
+			FSimpleAerodynamicsSim AerofoilB(&Setup);
+			Aerofoil.SetDensityOfMedium(RealWorldConsts::AirDensity());
+
+
+			////////////////////////////////////////////////////////////////////
+			// Trying to get head around standard vs unreal units.
+			// If the mass is the same between the two simulations then the
+			// the following is true.
+			float PosA = 0, PosB = 0;
+			float VelA = 100.0f;
+			float VelB = 10000.0f;
+
+			float DeltaTime = 1.f / 30.f;
+
+			for (int i = 0; i < 200; i++)
+			{
+				float DragA = Aerofoil.GetDragForceFromVelocity(VelA);
+				float DragB = (AerofoilB.GetDragForceFromVelocity(CmToM(VelB))); // no final MToCm conversion
+
+				VelA += (DragA / 1000.0f) * DeltaTime;
+				VelB += (DragB / 1000.0f) * DeltaTime;
+				PosA += VelA * DeltaTime;
+				PosB += VelB * DeltaTime;
+
+				UE_LOG(LogChaos, Warning, TEXT("Drag %f %f"), DragA, DragB);
+				UE_LOG(LogChaos, Warning, TEXT("Vel %f %f"), VelA, VelB);
+
+				UE_LOG(LogChaos, Warning, TEXT("------"));
+			}
+		}*/
+	}
+
+	// Transmission
+	TYPED_TEST(AllTraits, VehicleTest_TransmissionManualGearSelection)
+	{
+		FSimpleTransmissionConfig Setup;
+		{
+			Setup.ForwardRatios.Add(4.f);
+			Setup.ForwardRatios.Add(3.f);
+			Setup.ForwardRatios.Add(2.f);
+			Setup.ForwardRatios.Add(1.f);
+			Setup.ReverseRatios.Add(3.f);
+			Setup.FinalDriveRatio = 4.f;
+			Setup.ChangeUpRPM = 3000;
+			Setup.ChangeDownRPM = 1200;
+			Setup.GearChangeTime = 0.0f;
+			Setup.TransmissionType = ETransmissionType::Manual;
+			Setup.AutoReverse = true;
+		}
+
+		FSimpleTransmissionSim Transmission(&Setup);
+		
+		EXPECT_EQ(Transmission.GetCurrentGear(), 0);
+
+		// Immediate Gear Change, since Setup.GearChangeTime = 0.0f
+		Transmission.ChangeUp();
+
+		EXPECT_EQ(Transmission.GetCurrentGear(), 1);
+		Transmission.ChangeUp();
+		Transmission.ChangeUp();
+		Transmission.ChangeUp();
+		EXPECT_EQ(Transmission.GetCurrentGear(), 4);
+
+		Transmission.ChangeUp();
+		EXPECT_EQ(Transmission.GetCurrentGear(), 4);
+
+		Transmission.SetGear(1);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 1);
+
+		Transmission.ChangeDown();
+		EXPECT_EQ(Transmission.GetCurrentGear(), 0);
+
+		Transmission.ChangeDown();
+		EXPECT_EQ(Transmission.GetCurrentGear(), -1);
+
+		Transmission.ChangeDown();
+		EXPECT_EQ(Transmission.GetCurrentGear(), -1);
+
+		Transmission.SetGear(1);
+
+		// Now change settings so we have a delay in the gear changing
+		Transmission.AccessSetup().GearChangeTime = 0.5f;
+
+		Transmission.ChangeUp();
+		EXPECT_EQ(Transmission.GetCurrentGear(), 0);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 0);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 2);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 2);
+
+		Transmission.SetGear(4);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 0);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 0);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 4);
+
+
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_TransmissionAutoGearSelection)
+	{
+		FSimpleTransmissionConfig Setup;
+		{
+			Setup.ForwardRatios.Add(4.f);
+			Setup.ForwardRatios.Add(3.f);
+			Setup.ForwardRatios.Add(2.f);
+			Setup.ForwardRatios.Add(1.f);
+			Setup.ReverseRatios.Add(3.f);
+			Setup.FinalDriveRatio = 4.f;
+			Setup.ChangeUpRPM = 3000;
+			Setup.ChangeDownRPM = 1200;
+			Setup.GearChangeTime = 0.0f;
+			Setup.TransmissionType = ETransmissionType::Automatic;
+			Setup.AutoReverse = true;
+		}
+
+		FSimpleTransmissionSim Transmission(&Setup);
+
+		Transmission.SetGear(1, true);
+
+		Transmission.SetEngineRPM(1400);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 1);
+
+		Transmission.SetEngineRPM(2000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 1);
+
+		Transmission.SetEngineRPM(3000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 2);
+
+		Transmission.SetEngineRPM(2000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 2);
+
+		Transmission.SetEngineRPM(1000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 1);
+
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_TransmissionGearRatios)
+	{
+		FSimpleTransmissionConfig Setup;
+		{
+			Setup.ForwardRatios.Add(4.f);
+			Setup.ForwardRatios.Add(3.f);
+			Setup.ForwardRatios.Add(2.f);
+			Setup.ForwardRatios.Add(1.f);
+			Setup.ReverseRatios.Add(3.f);
+			Setup.FinalDriveRatio = 4.f;
+			Setup.ChangeUpRPM = 3000;
+			Setup.ChangeDownRPM = 1200;
+			Setup.GearChangeTime = 0.0f;
+			Setup.TransmissionType = ETransmissionType::Automatic;
+			Setup.AutoReverse = true;
+		}
+
+		FSimpleTransmissionSim Transmission(&Setup);
+
+		float Ratio = 0;
+		Ratio = Transmission.GetGearRatio(-1);
+		EXPECT_LT(-12.f - Ratio, SMALL_NUMBER); // -ve output for reverse gears
+
+		Ratio = Transmission.GetGearRatio(0);
+		EXPECT_LT(Ratio, SMALL_NUMBER);
+
+		Ratio = Transmission.GetGearRatio(1);
+		EXPECT_LT(16.f - Ratio, SMALL_NUMBER);
+
+		Ratio = Transmission.GetGearRatio(2);
+		EXPECT_LT(12.f - Ratio, SMALL_NUMBER);
+
+		Ratio = Transmission.GetGearRatio(3);
+		EXPECT_LT(8.f - Ratio, SMALL_NUMBER);
+
+		Ratio = Transmission.GetGearRatio(4);
+		EXPECT_LT(4.f - Ratio, SMALL_NUMBER);
+
+	}
+	
+	// Engine
+	TYPED_TEST(AllTraits, VehicleTest_EngineRPM)
+	{
+		// #todo: fix engine rev out of gear
+		//FSimpleEngineConfig Setup;
+		//{
+		//	Setup.MaxRPM = 5000;
+		//	Setup.EngineIdleRPM = 1000;
+		//	Setup.MaxTorque = 100.f;
+		//	//Setup.TorqueCurve;
+		//}
+
+		//FSimpleEngineSim Engine(&Setup);
+
+		//Engine.SetThrottle(0.f);
+
+		//float DeltaTime = 1.0f / 30.0f;
+		//float TOLERANCE = 0.01f;
+
+		//// engine idle - no throttle
+		//for (int i = 0; i < 300; i++)
+		//{
+		//	Engine.Simulate(DeltaTime);
+		//}
+
+		//EXPECT_LT(Engine.GetEngineRPM() - Engine.Setup().EngineIdleRPM, TOLERANCE);
+
+		//// apply half throttle
+		//Engine.SetThrottle(0.5f);
+
+		//for (int i = 0; i < 300; i++)
+		//{
+		//	Engine.Simulate(DeltaTime);
+
+		//	//UE_LOG(LogChaos, Warning, TEXT("EngineSpeed %.2f rad/sec (%.1f RPM)"), Engine.GetEngineSpeed(), Engine.GetEngineRPM());
+		//}
+
+		//EXPECT_GT(Engine.GetEngineRPM(), Engine.Setup().EngineIdleRPM);
+
+		////UE_LOG(LogChaos, Warning, TEXT(""));
+		////UE_LOG(LogChaos, Warning, TEXT("No Throttle"));
+
+		//Engine.SetThrottle(0.0f);
+
+		//// engine idle - no throttle
+		//for (int i = 0; i < 300; i++)
+		//{
+		//	Engine.Simulate(DeltaTime);
+
+		//	//UE_LOG(LogChaos, Warning, TEXT("EngineSpeed %.2f rad/sec (%.1f RPM)"), Engine.GetEngineSpeed(), Engine.GetEngineRPM());
+		//}
+
+		//EXPECT_LT(Engine.GetEngineRPM() - Engine.Setup().EngineIdleRPM, TOLERANCE);
+
+	}
+
+	// Wheel
+	void SimulateBraking(FSimpleWheelSim& Wheel
+		, float VehicleSpeedMPH
+		, float& StoppingDistanceOut
+		, float DeltaTime)
+	{
+		StoppingDistanceOut = 0.f;
+
+		const float Gravity = 9.8f;
+		float MaxSimTime = 15.0f;
+		float SimulatedTime = 0.f;
+		float VehicleMass = 1300.f;
+		float VehicleMassPerWheel = 1300.f / 4.f;
+
+		Wheel.SetWheelLoadForce(VehicleMassPerWheel * Gravity);
+
+		// Road speed
+		FVector Velocity = FVector(MPHToMS(VehicleSpeedMPH), 0.f, 0.f);
+
+		// wheel rolling speed matches road speed
+		Wheel.SetMatchingSpeed(Velocity.X);
+
+		while (SimulatedTime < MaxSimTime)
+		{
+			// rolling speed matches road speed
+			Wheel.SetVehicleGroundSpeed(Velocity);
+
+			Wheel.Simulate(DeltaTime);
+
+			// deceleration from brake, F = m * a, a = F / m, v = dt * F / m
+			Velocity += DeltaTime * Wheel.GetForceFromFriction() / VehicleMassPerWheel;
+			StoppingDistanceOut += Velocity.X * DeltaTime;
+
+			// #todo: make this better remove the 2.0f
+			if (FMath::Abs(Velocity.X) < 2.0f)
+			{
+				Velocity.X = 0.f;
+				break; // break out early if already stopped
+			}
+
+			SimulatedTime += DeltaTime;
+		}
+	}
+
+	void SimulateAccelerating(FSimpleWheelSim& Wheel
+		, const float Gravity
+		, float VehicleSpeedMPH
+		, float& DistanceTravelledOut
+		, float DeltaTime)
+	{
+		DistanceTravelledOut = 0.f;
+
+		float MaxSimTime = 15.0f;
+		float SimulatedTime = 0.f;
+		float VehicleMass = 1300.f;
+		float VehicleMassPerWheel = 1300.f / 4.f;
+
+		Wheel.SetWheelLoadForce(VehicleMassPerWheel * Gravity);
+
+		// Road speed
+		FVector Velocity = FVector(MPHToMS(VehicleSpeedMPH), 0.f, 0.f);
+
+		// wheel rolling speed matches road speed
+		Wheel.SetMatchingSpeed(Velocity.X);
+
+		while (SimulatedTime < MaxSimTime)
+		{
+			// rolling speed matches road speed
+			Wheel.SetVehicleGroundSpeed(Velocity);
+
+			Wheel.Simulate(DeltaTime);
+
+			// deceleration from brake
+			Velocity += DeltaTime * Wheel.GetForceFromFriction() / VehicleMassPerWheel;
+			DistanceTravelledOut += Velocity.X * DeltaTime;
+
+			SimulatedTime += DeltaTime;
+
+			if (SimulatedTime > 5.0f)
+			{
+				break; // break out early if already stopped
+			}
+
+		}
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_WheelBrakingLongitudinalSlip)
+	{
+		FSimpleWheelConfig Setup;
+		FSimpleWheelSim Wheel(&Setup);
+
+		// Google braking distance at 30mph says 14m (not interested in the thinking distance part)
+		// So using a range 10-20 to ensure we are in the correct ballpark.
+		// If specified more accurately in the test, then modifying the code would break the test all the time.
+
+		float Tolerance = 0.5f;
+		float DeltaTime = 1.f / 30.f;
+		float StoppingDistanceA = 0.f;
+		Wheel.SetSurfaceFriction(RealWorldConsts::DryRoadFriction());
+
+		// reasonably ideal stopping distance - traveling forwards
+		Wheel.SetBrakeTorque(450);
+		float VehicleSpeedMPH = 30.f;
+		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceA, DeltaTime);
+		//UE_LOG(LogChaos, Warning, TEXT("Braking Distance %3.2fm"), StoppingDistanceB);
+		EXPECT_GT(StoppingDistanceA, 10.f);
+		EXPECT_LT(StoppingDistanceA, 20.f);
+
+		// traveling backwards stops just the same
+		float StoppingDistanceReverseDir = 0.f;
+		Wheel.SetBrakeTorque(450);
+		VehicleSpeedMPH = -30.f;
+		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceReverseDir, DeltaTime);
+		EXPECT_GT(StoppingDistanceReverseDir, -20.f);
+		EXPECT_LT(StoppingDistanceReverseDir, -10.f);
+		EXPECT_LT(StoppingDistanceA - FMath::Abs(StoppingDistanceReverseDir), Tolerance);
+
+		// Similar results with different delta time
+		float StoppingDistanceDiffDT = 0.f;
+		VehicleSpeedMPH = 30.f;
+		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceDiffDT, DeltaTime * 0.5f);
+		EXPECT_LT(StoppingDistanceA - StoppingDistanceDiffDT, Tolerance);
+
+		// barely touching the brake - going to take longer to stop
+		float StoppingDistanceLightBraking = 0.f;
+		Wheel.SetBrakeTorque(150);
+		VehicleSpeedMPH = 30.f;
+		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceLightBraking, DeltaTime);
+		EXPECT_GT(StoppingDistanceLightBraking, StoppingDistanceA);
+
+		// locking the wheels / too much brake torque -> dynamic friction rather than static friction -> going to take longer to stop
+		float StoppingDistanceTooHeavyBreaking = 0.f;
+		Wheel.SetBrakeTorque(5000);
+		VehicleSpeedMPH = 30.f;
+		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceTooHeavyBreaking, DeltaTime);
+		EXPECT_GT(StoppingDistanceTooHeavyBreaking, StoppingDistanceA);
+
+		// lower initial speed - stops more quickly
+		float StoppingDistanceLowerSpeed = 0.f;
+		Wheel.SetBrakeTorque(450);
+		VehicleSpeedMPH = 20.f;
+		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceLowerSpeed, DeltaTime);
+		EXPECT_LT(StoppingDistanceLowerSpeed, StoppingDistanceA);
+
+		// higher initial speed - stops more slowly
+		float StoppingDistanceHigherSpeed = 0.f;
+		Wheel.SetBrakeTorque(450);
+		VehicleSpeedMPH = 60.f;
+		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceHigherSpeed, DeltaTime);
+		EXPECT_GT(StoppingDistanceHigherSpeed, StoppingDistanceA);
+
+		// slippy surface - stops more slowly
+		float StoppingDistanceLowFriction = 0.f;
+		Wheel.SetSurfaceFriction(0.3f);
+		Wheel.SetBrakeTorque(450);
+		VehicleSpeedMPH = 30.f;
+		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceLowFriction, DeltaTime);
+		EXPECT_GT(StoppingDistanceLowFriction, StoppingDistanceA);
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_WheelAcceleratingLongitudinalSlip)
+	{
+		FSimpleWheelConfig Setup;
+		FSimpleWheelSim Wheel(&Setup);
+
+		// units meters
+		float Gravity = 9.8f;
+		float DeltaTime = 1.f / 30.f;
+		float DrivingDistanceA = 0.f;
+		Wheel.SetDriveTorque(450);
+		float VehicleSpeedMPH = 0.f;
+		SimulateAccelerating(Wheel, Gravity, VehicleSpeedMPH, DrivingDistanceA, DeltaTime);
+		EXPECT_GT(DrivingDistanceA, 70.f);
+		EXPECT_LT(DrivingDistanceA, 90.f);
+
+		// units cm
+		float MtoCm = 100.0f;
+		float DrivingDistanceCM = 0.f;
+		Wheel.SetDriveTorque(450 * MtoCm);
+		VehicleSpeedMPH = 0.f;
+		SimulateAccelerating(Wheel, Gravity * MtoCm, VehicleSpeedMPH, DrivingDistanceCM, DeltaTime);
+		EXPECT_GT(DrivingDistanceCM, 70.f* MtoCm);
+		EXPECT_LT(DrivingDistanceCM, 90.f* MtoCm);
+
+
+		float DrivingDistanceWheelspin = 0.f;
+		Wheel.SetDriveTorque(1450);
+		VehicleSpeedMPH = 0.f;
+		SimulateAccelerating(Wheel, Gravity, VehicleSpeedMPH, DrivingDistanceWheelspin, DeltaTime);
+		EXPECT_LT(DrivingDistanceWheelspin, DrivingDistanceA);
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_WheelLateralSlip)
+	{
+		FSimpleWheelConfig Setup;
+		FSimpleWheelSim Wheel(&Setup);
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_WheelRolling)
+	{
+		FSimpleWheelConfig Setup;
+		FSimpleWheelSim Wheel(&Setup);
+
+		float DeltaTime = 1.f / 30.f;
+		float MaxSimTime = 10.0f;
+		float Tolerance = 0.1f; // wheel friction losses slow wheel speed
+
+		//------------------------------------------------------------------
+		// Car is moving FORWARDS - with AMPLE friction we would expect an initially 
+		// static rolling wheel to speed up and match the vehicle speed
+		FVector VehicleGroundSpeed (10.0f, 0.f, 0.f); // X is forwards
+		Wheel.SetVehicleGroundSpeed(VehicleGroundSpeed);
+		Wheel.SetSurfaceFriction(1.0f);	// Some wheel/ground friction
+		Wheel.SetWheelLoadForce(250.f); // wheel pressed into the ground, to give it grip
+		Wheel.Omega = 0.f;
+
+		// initially wheel is static
+		EXPECT_LT(Wheel.GetAngularVelocity(), SMALL_NUMBER);
+
+		// after some time, the wheel picks up speed to match the vehicle speed
+		float SimulatedTime = 0.f;
+		while (SimulatedTime < MaxSimTime)
+		{
+			Wheel.Simulate(DeltaTime);
+			SimulatedTime += DeltaTime;
+		}
+
+		// there's enough grip to cause the wheel to spin and match the vehivle speed
+		float WheelGroundSpeed = Wheel.GetAngularVelocity() * Wheel.GetEffectiveRadius();
+		EXPECT_LT(VehicleGroundSpeed.X - WheelGroundSpeed, Tolerance);
+		EXPECT_LT(VehicleGroundSpeed.X - WheelGroundSpeed, Tolerance);
+		EXPECT_GT(Wheel.GetAngularVelocity(), 0.f); // +ve spin on it
+
+		//------------------------------------------------------------------
+		// Car is moving BACKWARDS - with AMPLE friction we would expect an initially 
+		// static rolling wheel to speed up and match the vehicle speed
+		VehicleGroundSpeed.Set(-10.0f, 0.f, 0.f); // X is -ve not travelling backwards
+		Wheel.SetVehicleGroundSpeed(VehicleGroundSpeed);
+		Wheel.SetSurfaceFriction(1.0f);	// Some wheel/ground friction
+		Wheel.SetWheelLoadForce(250.f); // wheel pressed into the ground, to give it grip
+		Wheel.Omega = 0.f;
+
+		// initially wheel is static
+		EXPECT_LT(Wheel.GetAngularVelocity(), SMALL_NUMBER);
+
+		// after some time, the wheel picks up speed to match the vehicle speed
+		SimulatedTime = 0.f;
+		while (SimulatedTime < MaxSimTime)
+		{
+			Wheel.Simulate(DeltaTime);
+			SimulatedTime += DeltaTime;
+		}
+
+		// there's enough grip to cause the wheel to spin and match the vehicle speed
+		WheelGroundSpeed = Wheel.GetAngularVelocity() * Wheel.GetEffectiveRadius();
+		EXPECT_LT(VehicleGroundSpeed.X - WheelGroundSpeed, Tolerance);
+		EXPECT_LT(VehicleGroundSpeed.X - Wheel.GetWheelGroundSpeed(), Tolerance);
+		EXPECT_LT(Wheel.GetAngularVelocity(), 0.f); // -ve spin on it
+
+		//------------------------------------------------------------------
+		// Car is moving FROWARDS - with NO friction we would expect an initially 
+		// static wheel to NOT speed up to match the vehicle speed
+		Wheel.SetVehicleGroundSpeed(VehicleGroundSpeed);
+		Wheel.SetSurfaceFriction(0.0f);	// No wheel/ground friction
+		Wheel.SetWheelLoadForce(250.f); // wheel pressed into the ground, to give it grip
+		Wheel.Omega = 0.f;
+
+		// initially wheel is static
+		EXPECT_LT(Wheel.GetAngularVelocity(), SMALL_NUMBER);
+
+		// after some time, the wheel picks up speed to match the vehicle speed
+		SimulatedTime = 0.f;
+		while (SimulatedTime < MaxSimTime)
+		{
+			Wheel.Simulate(DeltaTime);
+			SimulatedTime += DeltaTime;
+		}
+
+		WheelGroundSpeed = Wheel.GetAngularVelocity() * Wheel.GetEffectiveRadius();
+
+		// wheel is just sliding there's no friction to make it spin
+		EXPECT_LT(WheelGroundSpeed, SMALL_NUMBER);
+
+	}
+
+	// Suspension
+	TYPED_TEST(AllTraits, VehicleTest_SuspensionForce)
+	{
+		float DeltaTime = 1.f / 30.f;
+
+		FSimpleSuspensionConfig Setup;
+		{
+			Setup.CompressionDamping = 0.5f;
+			Setup.ReboundDamping = 0.5f;
+		}
+		FSimpleSuspensionSim Suspension(&Setup);
+
+		Suspension.SetDesiredLength(0.2f);
+		Suspension.Simulate(DeltaTime);
+		Suspension.SetDesiredLength(0.2f);
+		Suspension.Simulate(DeltaTime);
+
+		float Length = Suspension.GetSpringLength();
+		float Force = Suspension.GetSuspensionForce();
+
+		Suspension.SetDesiredLength(0.3f);
+		Suspension.Simulate(DeltaTime);
+
+		Length = Suspension.GetSpringLength();
+		Force = Suspension.GetSuspensionForce();
+
+	}
+
+}
+
+PRAGMA_ENABLE_OPTIMIZATION

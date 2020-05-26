@@ -40,6 +40,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Editor.h"
 #endif
 #include "Logging/MessageLog.h"
 
@@ -5072,7 +5073,7 @@ void ALandscape::TickLayers(float DeltaTime)
 	check(GIsEditor);
 
 	UWorld* World = GetWorld();
-	if (World && !World->IsPlayInEditor() && GetLandscapeInfo())
+	if (World && !World->IsPlayInEditor() && GetLandscapeInfo() && GEditor->PlayWorld == nullptr)
 	{
 		if (CVarLandscapeSimulatePhysics.GetValueOnAnyThread() == 1)
 		{

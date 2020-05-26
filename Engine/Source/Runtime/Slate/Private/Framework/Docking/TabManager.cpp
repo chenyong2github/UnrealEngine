@@ -839,7 +839,8 @@ void FTabManager::UnregisterAllTabSpawners()
 	TabSpawner.Empty();
 }
 
-TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr)
+TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent,
+	const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr)
 {
 	ActiveLayoutName = Layout->LayoutName;
 
@@ -872,11 +873,20 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 				CollapsedDockAreas.Add(ThisArea);
 			}
 
-			if ( bIsPrimaryArea && ensure(!PrimaryDockArea.IsValid()) )
+			if (bIsPrimaryArea && RestoredDockArea.IsValid() && ensure(!PrimaryDockArea.IsValid()))
 			{
 				PrimaryDockArea	= RestoredDockArea;
 			}
 		}
+	}
+
+	// Sanity check
+	if (RestoreAreaOutputCanBeNullptr == EOutputCanBeNullptr::Never && !PrimaryDockArea.IsValid())
+	{
+		UE_LOG(LogSlate, Warning, TEXT("FTabManager::RestoreFrom(): RestoreAreaOutputCanBeNullptr was set to EOutputCanBeNullptr::Never but"
+			" RestoreFrom() is returning nullptr. I.e., the PrimaryDockArea could not be created. If returning nullptr is possible, set"
+			" RestoreAreaOutputCanBeNullptr to an option that could return nullptr (e.g., IfNoTabValid, IfNoOpenTabValid). This code might"
+			" ensure(false) or even check(false) in the future."));
 	}
 
 	UpdateStats();

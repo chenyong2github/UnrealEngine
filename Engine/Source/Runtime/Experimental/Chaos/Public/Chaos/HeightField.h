@@ -106,7 +106,8 @@ namespace Chaos
 			{
 				// We store per cell for materials, so change to cell index
 				int32 CellIndex = HintIndex / 2;
-				if(ensure(GeomData.MaterialIndices.IsValidIndex(CellIndex)))
+				if(ensureMsgf(GeomData.MaterialIndices.IsValidIndex(CellIndex),
+					TEXT("MaterialIndices.IsValidIndex called with index %d | Max valid index %d"),CellIndex,GeomData.MaterialIndices.Num()))
 				{
 					return GeomData.MaterialIndices[CellIndex];
 				}

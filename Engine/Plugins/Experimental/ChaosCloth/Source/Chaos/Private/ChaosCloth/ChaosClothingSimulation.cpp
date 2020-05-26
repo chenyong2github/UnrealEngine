@@ -612,14 +612,14 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 			}
 			if (Attachments.Num())
 			{
-				Evolution->AddPBDConstraintFunction([AttachmentConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(Attachments), ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				Evolution->AddPBDConstraintFunction([AttachmentConstraints = Chaos::FPBDSpringConstraints(Evolution->Particles(), MoveTemp(Attachments), ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
 				{
 					AttachmentConstraints.Apply(InParticles, Dt);
 				});
 			}
 			if (DynamicSurfaceElements.Num())
 			{
-				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), DynamicSurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::FPBDSpringConstraints(Evolution->Particles(), DynamicSurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
 				{
 					SpringConstraints.Apply(InParticles, Dt);
 				});
@@ -656,7 +656,7 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 			}
 			else
 			{
-				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::FPBDSpringConstraints(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
 				{
 					SpringConstraints.Apply(InParticles, Dt);
 				});
@@ -682,7 +682,7 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		}
 		else
 		{
-			Evolution->AddPBDConstraintFunction([AxialSpringConstraints = Chaos::TPBDAxialSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(SurfaceConstraints), ChaosClothSimConfig->AreaStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			Evolution->AddPBDConstraintFunction([AxialSpringConstraints = Chaos::FPBDAxialSpringConstraints(Evolution->Particles(), MoveTemp(SurfaceConstraints), ChaosClothSimConfig->AreaStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				AxialSpringConstraints.Apply(InParticles, Dt);
 			});
@@ -727,7 +727,7 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 					}
 				}
 			}
-			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(DoubleBendingConstraints), ChaosClothSimConfig->VolumeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::FPBDSpringConstraints(Evolution->Particles(), MoveTemp(DoubleBendingConstraints), ChaosClothSimConfig->VolumeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
 				SpringConstraints.Apply(InParticles, Dt);
 			});
 		}
@@ -791,10 +791,10 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		check(Mesh.GetNumElements() > 0);
 		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, MaxDistances.Num(), true, &AnimationPositions, &MaxDistances.Values);
 		Evolution->AddPBDConstraintFunction([
-			&SphereRadiiMultiplier = MaxDistancesMultipliers[InSimDataIndex],
+			this, InSimDataIndex,
 			SphericalContraint = MoveTemp(SphericalContraint)](TPBDParticles<float, 3>& InParticles, const float Dt) mutable
 		{
-			SphericalContraint.SetSphereRadiiMultiplier(SphereRadiiMultiplier);
+			SphericalContraint.SetSphereRadiiMultiplier(MaxDistancesMultipliers[InSimDataIndex]);
 			SphericalContraint.Apply(InParticles, Dt);
 		});
 	}
@@ -833,6 +833,7 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 
 void ClothingSimulation::AddSelfCollisions(int32 InSimDataIndex) 
 {
+#ifdef CHAOS_CLOTH_MUST_IMPROVE_SELF_COLLISION  // TODO: Improve self-collision until it can run in engine tests without crashing the simulation.
 	// TODO(mlentine): Parallelize these for multiple meshes
 	const Chaos::TTriangleMesh<float>& Mesh = *Meshes[InSimDataIndex];
 	Evolution->CollisionTriangles().Append(Mesh.GetSurfaceElements());
@@ -849,6 +850,7 @@ void ClothingSimulation::AddSelfCollisions(int32 InSimDataIndex)
 			Evolution->DisabledCollisionElements().Add(Chaos::TVector<int32, 2>(Element, i));
 		}
 	}
+#endif  // #ifdef CHAOS_CLOTH_MUST_IMPROVE_SELF_COLLISION
 }
 
 void ClothingSimulation::ForAllCollisions(TFunction<void(TGeometryClothParticles<float, 3>&, uint32)> CollisionFunction, int32 SimDataIndex)

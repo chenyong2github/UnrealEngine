@@ -14,9 +14,9 @@
 struct FAssetData;
 
 /////////////////////////////////////////////////////
-// STiledLandcapeImportDlg
+// STiledLandscapeImportDlg
 // 
-class STiledLandcapeImportDlg
+class STiledLandscapeImportDlg
 	: public SCompoundWidget
 {
 public:
@@ -29,7 +29,7 @@ public:
 		int32 NumQuadsPerSection;
 	};
 
-	SLATE_BEGIN_ARGS( STiledLandcapeImportDlg )
+	SLATE_BEGIN_ARGS( STiledLandscapeImportDlg )
 		{}
 	SLATE_END_ARGS()
 
@@ -62,6 +62,10 @@ private:
 	/** */
 	ECheckBoxState GetFlipYAxisState() const;
 	void OnFlipYAxisStateChanged(ECheckBoxState NewState);
+
+	/** */
+	ECheckBoxState GetEditLayersState() const;
+	void OnEditLayersStateChanged(ECheckBoxState NewState);
 
 	/** */
 	void OnSetImportConfiguration(TSharedPtr<FTileImportConfiguration> InTileConfig, ESelectInfo::Type SelectInfo);

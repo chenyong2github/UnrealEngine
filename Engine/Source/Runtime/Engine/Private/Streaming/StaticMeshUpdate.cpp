@@ -11,6 +11,7 @@ StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
 #include "HAL/PlatformFilemanager.h"
 #include "Serialization/MemoryReader.h"
 #include "Streaming/RenderAssetUpdate.inl"
+#include "ContentStreaming.h"
 
 int32 GStreamingMaxReferenceChecks = 2;
 static FAutoConsoleVariableRef CVarStreamingMaxReferenceChecksBeforeStreamOut(
@@ -266,7 +267,7 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 void FStaticMeshStreamIn::DoCancel(const FContext& Context)
 {
 	// TODO: support streaming CPU data for editor builds
-	if (!GIsEditor)
+	if (!FPlatformProperties::HasEditorOnlyData())
 	{
 		DiscardNewLODs(Context);
 	}
@@ -420,19 +421,6 @@ void FStaticMeshStreamIn_IO::Abort()
 	}
 }
 
-FString FStaticMeshStreamIn_IO::GetIOFilename(const FContext& Context)
-{
-	UStaticMesh* Mesh = Context.Mesh;
-	if (!IsCancelled() && Mesh)
-	{
-		FString Filename;
-		verify(Mesh->GetMipDataFilename(PendingFirstMip, Filename));
-		return Filename;
-	}
-	MarkAsCancelled();
-	return FString();
-}
-
 void FStaticMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 {
 	AsyncFileCallback = [this, Context](bool bWasCancelled, IBulkDataIORequest*)
@@ -442,6 +430,11 @@ void FStaticMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 
 		if (bWasCancelled)
 		{
+			// If IO requests was cancelled but the streaming request wasn't, this is an IO error.
+			if (!bIsCancelled)
+			{
+				bFailedOnIOError = true;
+			}
 			MarkAsCancelled();
 		}
 
@@ -459,7 +452,7 @@ void FStaticMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 	};
 }
 
-void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context, const FString& IOFilename)
+void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context)
 {
 	if (IsCancelled())
 	{
@@ -468,9 +461,15 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context, const FString
 
 	check(!IORequest && PendingFirstMip < CurrentFirstLODIdx);
 
+	UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
-	if (RenderData != nullptr)
+	if (Mesh && RenderData)
 	{
+#if USE_BULKDATA_STREAMING_TOKEN
+		FString Filename;
+		verify(Mesh->GetMipDataFilename(PendingFirstMip, Filename));
+#endif	
+
 		SetAsyncFileCallback(Context);
 
 		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
@@ -484,7 +483,7 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context, const FString
 		TaskSynchronization.Increment();
 
 		IORequest = FBulkDataInterface::CreateStreamingRequestForRange(
-			STREAMINGTOKEN_PARAM(IOFilename)
+			STREAMINGTOKEN_PARAM(Filename)
 			BulkDataArray,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);
@@ -507,6 +506,19 @@ void FStaticMeshStreamIn_IO::ClearIORequest(const FContext& Context)
 		}
 		delete IORequest;
 		IORequest = nullptr;
+	}
+}
+
+void FStaticMeshStreamIn_IO::ReportIOError(const FContext& Context)
+{
+	// Invalidate the cache state of all initial mips (note that when using FIoChunkId each mip has a different value).
+	if (bFailedOnIOError && Context.Mesh)
+	{
+		IRenderAssetStreamingManager& StreamingManager = IStreamingManager::Get().GetTextureStreamingManager();
+		for (int32 MipIndex = 0; MipIndex < CurrentFirstLODIdx; ++MipIndex)
+		{
+			StreamingManager.MarkMountedStateDirty(Context.Mesh->GetMipIoFilenameHash(MipIndex));
+		}
 	}
 }
 
@@ -538,6 +550,12 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 	}
 }
 
+void FStaticMeshStreamIn_IO::Cancel(const FContext& Context)
+{
+	DoCancel(Context);
+	ReportIOError(Context);
+}
+
 void FStaticMeshStreamIn_IO::CancelIORequest()
 {
 	if (IORequest)
@@ -560,12 +578,7 @@ void TStaticMeshStreamIn_IO<bRenderThread>::DoInitiateIO(const FContext& Context
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TStaticMeshStreamIn_IO::DoInitiateIO"), STAT_StaticMeshStreamInIO_DoInitiateIO, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Async);
 
-#if USE_BULKDATA_STREAMING_TOKEN
-	const FString IOFilename = GetIOFilename(Context);
-	SetIORequest(Context, IOFilename);
-#else
-	SetIORequest(Context, FString());
-#endif
+	SetIORequest(Context);
 
 	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(DoSerializeLODData), TT_Async, SRA_UPDATE_CALLBACK(DoCancelIO));
 }
@@ -579,7 +592,7 @@ void TStaticMeshStreamIn_IO<bRenderThread>::DoSerializeLODData(const FContext& C
 	ClearIORequest(Context);
 	const EThreadType TThread = bRenderThread ? TT_Render : TT_Async;
 	const EThreadType CThread = (EThreadType)Context.CurrentThread;
-	PushTask(Context, TThread, SRA_UPDATE_CALLBACK(DoCreateBuffers), CThread, SRA_UPDATE_CALLBACK(DoCancel));
+	PushTask(Context, TThread, SRA_UPDATE_CALLBACK(DoCreateBuffers), CThread, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 template <bool bRenderThread>
@@ -595,7 +608,7 @@ void TStaticMeshStreamIn_IO<bRenderThread>::DoCreateBuffers(const FContext& Cont
 		CreateBuffers_Async(Context);
 	}
 	check(!TaskSynchronization.GetValue());
-	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(DoFinishUpdate), (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(DoCancel));
+	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(DoFinishUpdate), (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 template <bool bRenderThread>
@@ -603,7 +616,7 @@ void TStaticMeshStreamIn_IO<bRenderThread>::DoCancelIO(const FContext& Context)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TStaticMeshStreamIn_IO::DoCancelIO"), STAT_StaticMeshStreamInIO_DoCancelIO, STATGROUP_StreamingDetails);
 	ClearIORequest(Context);
-	PushTask(Context, TT_None, nullptr, (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(DoCancel));
+	PushTask(Context, TT_None, nullptr, (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 template class TStaticMeshStreamIn_IO<true>;

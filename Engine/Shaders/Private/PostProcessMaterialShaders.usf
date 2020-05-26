@@ -309,6 +309,10 @@ void MainVS(
 #define MOBILE_STENCIL_COMPARE_NEVER			6
 #define MOBILE_STENCIL_COMPARE_ALWAYS			7
 
+#ifndef MOBILE_STENCIL_COMPARE_FUNCTION
+#define MOBILE_STENCIL_COMPARE_FUNCTION MOBILE_STENCIL_COMPARE_NEVER
+#endif
+
 void MainPS(
 	in FPostProcessMaterialVSToPS Input,
 	out half4 OutColor : SV_Target0
@@ -370,8 +374,7 @@ void MainPS(
 
 	// SceneDepth texture is not accessible during post-processing as we discard it at the end of mobile BasePass
     // instead fetch depth from SceneColor.A 
-	float Depth = Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, BufferUV).a;
-	float DeviceZ = ConvertToDeviceZ(Depth);
+	float DeviceZ = Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, BufferUV).a;
 	SvPosition.z = DeviceZ;
 	SvPosition.z = max(SvPosition.z, 1e-18);
 	// fill out other related material parameters

@@ -14,6 +14,7 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/PBDJointConstraintTypes.h"
+#include "Chaos/PBDJointConstraintData.h"
 
 namespace Chaos
 {
@@ -35,6 +36,9 @@ namespace Chaos
 		int32 GetConstraintColor() const;
 		int32 GetConstraintBatch() const;
 
+		FVec3 GetLinearImpulse() const;
+		FVec3 GetAngularImpulse() const;
+
 		const FPBDJointSettings& GetSettings() const;
 		void SetSettings(const FPBDJointSettings& Settings);
 		TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
@@ -55,6 +59,8 @@ namespace Chaos
 		int32 Color;
 		int32 IslandSize;
 		bool bDisabled;
+		FVec3 LinearImpulse;
+		FVec3 AngularImpulse;
 	};
 
 	/**
@@ -165,6 +171,9 @@ namespace Chaos
 		int32 GetConstraintLevel(int32 ConstraintIndex) const;
 		int32 GetConstraintColor(int32 ConstraintIndex) const;
 		int32 GetConstraintBatch(int32 ConstraintIndex) const;
+
+		FVec3 GetConstraintLinearImpulse(int32 ConstraintIndex) const;
+		FVec3 GetConstraintAngularImpulse(int32 ConstraintIndex) const;
 
 		//
 		// General Rule API

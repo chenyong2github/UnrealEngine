@@ -35,10 +35,14 @@ struct FAudioStreamCachingSettings
 
 	int32 ZerothChunkSizeForLegacyStreamChunkingKB;
 
+	// will be ignored if < 0
+	int32 MaxChunkSizeOverrideKB;
+
 	FAudioStreamCachingSettings()
 		: CacheSizeKB(DefaultCacheSize)
 		, bForceLegacyStreamChunking(false)
 		, ZerothChunkSizeForLegacyStreamChunkingKB(256)
+		, MaxChunkSizeOverrideKB(INDEX_NONE)
 	{
 	}
 };
@@ -50,10 +54,10 @@ struct FAudioStreamCachingSettings
 /************************************************************************/
 struct FPlatformAudioCookOverrides
 {
-	// Increment this to force a recook on all Stream Caching assets.
+	// Increment this return value to force a recook on all Stream Caching assets.
 	// For testing, it's useful to set this to either a negative number or
 	// absurdly large number, to ensure you do not pollute the DDC.
-	static const int32 StreamCachingVersion = 5021;
+	static AUDIOPLATFORMCONFIGURATION_API int32 GetStreamCachingVersion();
 
 	bool bResampleForDevice;
 
@@ -110,12 +114,14 @@ struct FPlatformAudioCookOverrides
 		if (InOverrides->bUseStreamCaching)
 		{
 			OutSuffix.Append(TEXT("_StreamCache_Ver"));
-			OutSuffix.AppendInt(StreamCachingVersion);
+			OutSuffix.AppendInt(GetStreamCachingVersion());
 			OutSuffix.AppendChar('_');
 
 			// cache info:
 			OutSuffix.Append(TEXT("MEM_"));
 			OutSuffix.AppendInt(InOverrides->StreamCachingSettings.CacheSizeKB);
+			OutSuffix.Append(TEXT("MaxChnkSize_"));
+			OutSuffix.AppendInt(InOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB);
 
 			if (InOverrides->StreamCachingSettings.bForceLegacyStreamChunking)
 			{

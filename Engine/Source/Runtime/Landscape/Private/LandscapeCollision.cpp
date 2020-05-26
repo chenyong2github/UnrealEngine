@@ -2650,17 +2650,19 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
 {
 	TOptional<float> Height;
-	ULandscapeInfo* Info = GetLandscapeInfo();
-	const FVector ActorSpaceLocation = LandscapeActorToWorld().InverseTransformPosition(Location);
-	const FIntPoint Key = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / ComponentSizeQuads));
-	ULandscapeHeightfieldCollisionComponent* Component = Info->XYtoCollisionComponentMap.FindRef(Key);
-	if (Component)
+	if (ULandscapeInfo* Info = GetLandscapeInfo())
 	{
-		const FVector ComponentSpaceLocation = Component->GetComponentToWorld().InverseTransformPosition(Location);
-		const TOptional<float> LocalHeight = Component->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y);
-		if (LocalHeight.IsSet())
+		const FVector ActorSpaceLocation = LandscapeActorToWorld().InverseTransformPosition(Location);
+		const FIntPoint Key = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / ComponentSizeQuads));
+		ULandscapeHeightfieldCollisionComponent* Component = Info->XYtoCollisionComponentMap.FindRef(Key);
+		if (Component)
 		{
-			Height = Component->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
+			const FVector ComponentSpaceLocation = Component->GetComponentToWorld().InverseTransformPosition(Location);
+			const TOptional<float> LocalHeight = Component->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y);
+			if (LocalHeight.IsSet())
+			{
+				Height = Component->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
+			}
 		}
 	}
 	return Height;

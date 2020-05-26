@@ -213,6 +213,7 @@ uint GetOutputDevice()
 
 float BlueCorrection;
 float ExpandGamut;
+float ToneCurveAmount;
 
 float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 {
@@ -326,7 +327,8 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	ColorAP1 = lerp( ColorAP1, mul( BlueCorrectAP1, ColorAP1 ), BlueCorrection );
 
 	// Tonemapped color in the AP1 gamut
-	ColorAP1 = FilmToneMap( ColorAP1 );
+	float3 ToneMappedColorAP1 = FilmToneMap( ColorAP1 );
+	ColorAP1 = lerp(ColorAP1, ToneMappedColorAP1, ToneCurveAmount);
 
 	// Uncorrect blue to maintain white point
 	ColorAP1 = lerp( ColorAP1, mul( BlueCorrectInvAP1, ColorAP1 ), BlueCorrection );

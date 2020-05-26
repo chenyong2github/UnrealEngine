@@ -229,11 +229,9 @@ void FreeSkeletalMeshBuffersSinkCallback()
 	if(bFreeSkeletalMeshBuffers)
 	{
 		FlushRenderingCommands();
-		(*GFlushStreamingFunc)();
-		FlushRenderingCommands();
 		for (TObjectIterator<USkeletalMesh> It;It;++It)
 		{
-			if (!It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
+			if (!It->HasPendingUpdate() && !It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
 			{
 				It->ReleaseCPUResources();
 			}
@@ -977,9 +975,9 @@ int32 USkeletalMesh::CalcCumulativeLODSize(int32 NumLODs) const
 	return Accum;
 }
 
+#if USE_BULKDATA_STREAMING_TOKEN
 bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
 {
-#if !WITH_EDITOR
 	// TODO: this is slow. Should cache the name once per mesh
 	FString PackageName = GetOutermost()->FileName.ToString();
 	// Handle name redirection and localization
@@ -995,20 +993,36 @@ bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDat
 	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < CalcNumOptionalMips() ? TEXT(".uptnl") : TEXT(".ubulk"));
 	check(MipIndex < CalcNumOptionalMips() || IFileManager::Get().FileExists(*OutBulkDataFilename));
 	return true;
+}
+#endif // USE_BULKDATA_STREAMING_TOKEN
+
+FIoFilenameHash USkeletalMesh::GetMipIoFilenameHash(const int32 MipIndex) const
+{
+#if USE_BULKDATA_STREAMING_TOKEN
+	FString MipFilename;
+	if (GetMipDataFilename(MipIndex, MipFilename))
+	{
+		return MakeIoFilenameHash(MipFilename);
+	}
 #else
-	return false;
+	if (SkeletalMeshRenderData && SkeletalMeshRenderData->LODRenderData.IsValidIndex(MipIndex))
+	{
+		return SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.GetIoFilenameHash();
+	}
 #endif
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
 }
 
 bool USkeletalMesh::DoesMipDataExist(const int32 MipIndex) const
 {
-	check(MipIndex < CalcNumOptionalMips());
-
-#if !USE_BULKDATA_STREAMING_TOKEN	
-	return SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.DoesExist();
+#if USE_BULKDATA_STREAMING_TOKEN
+	FString MipDataFilename;
+	return GetMipDataFilename(MipIndex, MipDataFilename) && IFileManager::Get().FileExists(*MipDataFilename);
 #else
-	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
-	return false;
+	return SkeletalMeshRenderData && SkeletalMeshRenderData->LODRenderData.IsValidIndex(MipIndex) && SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.DoesExist();
 #endif
 }
 
@@ -1126,7 +1140,7 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 		{
 			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
 			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
-			TickThread = FRenderAssetUpdate::TT_Async;
+			TickThread = FRenderAssetUpdate::TT_GameRunningAsync;
 		}
 		PendingUpdate->Tick(TickThread);
 
@@ -3631,7 +3645,7 @@ void USkeletalMesh::CopyMirrorTableFrom(USkeletalMesh* SrcMesh)
 }
 
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
-void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo)
+void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo) const
 {
 	// Do nothing if no mirror table in source mesh
 	if( SkelMirrorTable.Num() == 0 )
@@ -3657,7 +3671,7 @@ void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInf
 
 
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
-void USkeletalMesh::ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo)
+void USkeletalMesh::ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo)
 {
 	// Do nothing if no mirror table in source mesh
 	if( MirrorExportInfo.Num() == 0 )
@@ -3710,7 +3724,7 @@ void USkeletalMesh::ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInf
  *	Return true if mirror table is OK, false if there are problems.
  *	@param	ProblemBones	Output string containing information on bones that are currently bad.
  */
-bool USkeletalMesh::MirrorTableIsGood(FString& ProblemBones)
+bool USkeletalMesh::MirrorTableIsGood(FString& ProblemBones) const
 {
 	TArray<int32>	BadBoneMirror;
 

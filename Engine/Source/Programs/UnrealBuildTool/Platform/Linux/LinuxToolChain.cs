@@ -51,6 +51,12 @@ namespace UnrealBuildTool
 		/// Enable Shared library for the Sanitizers otherwise defaults to Statically linked
 		/// </summary>
 		EnableSharedSanitizer = 0x20,
+
+		/// <summary>
+		/// If should disable using objcopy to split the debug info into its own file or now
+		/// When we support larger the 4GB files with objcopy.exe this can be removed!
+		/// </summary>
+		DisableSplitDebugInfoWithObjCopy = 0x40,
 	}
 
 	class LinuxToolChain : ISPCToolChain
@@ -69,6 +75,10 @@ namespace UnrealBuildTool
 
 		/** Pass --gdb-index option to linker to generate .gdb_index section. */
 		protected bool bGdbIndexSection = true;
+
+		/** Allows you to override the maximum binary size allowed to be passed to objcopy.exe when cross building on Windows. */
+		/** Max value is 2GB, due to bat file limitation */
+		protected UInt64 MaxBinarySizeOverrideForObjcopy = 0;
 
 		/** Platform SDK to use */
 		protected LinuxPlatformSDK PlatformSDK;
@@ -272,17 +282,15 @@ namespace UnrealBuildTool
 				EncodedBinarySymbolsFile.AbsolutePath
 			);
 
-			if (LinkEnvironment.bCreateDebugInfo)
+			if (!Options.HasFlag(LinuxToolChainOptions.DisableSplitDebugInfoWithObjCopy) && LinkEnvironment.bCreateDebugInfo)
 			{
-				if (bUseCmdExe)
+				if (MaxBinarySizeOverrideForObjcopy > 0 && bUseCmdExe)
 				{
-					// Bad hack where objcopy.exe cannot handle files larger then 2GB. Its fine when building on Linux
 					Out += string.Format("for /F \"tokens=*\" %%F in (\"{0}\") DO set size=%%~zF\n",
 						OutputFile.AbsolutePath
 					);
 
-					// If we are less then 2GB create the debugging info
-					Out += "if %size% LSS 2147483648 (\n";
+					Out += string.Format("if %size% LSS {0} (\n", MaxBinarySizeOverrideForObjcopy);
 				}
 
 				// objcopy stripped file
@@ -315,10 +323,13 @@ namespace UnrealBuildTool
 						OutputFile.AbsolutePath
 					);
 
-					// If our file is greater then 4GB we'll have to create a debug file anyway
-					Out += string.Format(") ELSE (\necho DummyDebug >> {0}\n)\n",
-						DebugFile.AbsolutePath
-					);
+					if (MaxBinarySizeOverrideForObjcopy > 0)
+					{
+						// If we have an override size, then we need to create a dummy file if that size is exceeded
+						Out += string.Format(") ELSE (\necho DummyDebug >> \"{0}\"\n)\n",
+							DebugFile.AbsolutePath
+						);
+					}
 				}
 				else
 				{
@@ -333,6 +344,13 @@ namespace UnrealBuildTool
 						DebugFile.AbsolutePath
 					);
 				}
+			}
+			else
+			{
+				// If we have disabled objcopy then we need to create a dummy debug file
+				Out += string.Format("echo DummyDebug >> {0}\n",
+					DebugFile.AbsolutePath
+				);
 			}
 
 			return Out;

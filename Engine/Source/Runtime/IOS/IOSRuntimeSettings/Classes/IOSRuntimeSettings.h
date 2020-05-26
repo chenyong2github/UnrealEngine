@@ -51,6 +51,9 @@ UENUM()
 	/** iOS 12 */
 	IOS_12 = 12 UMETA(DisplayName = "12.0"),
 
+	/** iOS 13 */
+	IOS_13 = 13 UMETA(DisplayName = "13.0"),
+
 };
 
 UENUM()
@@ -544,6 +547,10 @@ public:
 	/** This determines the max amount of memory that should be used for the cache at any given time. If set low (<= 8 MB), it lowers the size of individual chunks of audio during cook. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|Stream Caching", meta = (DisplayName = "Max Cache Size (KB)"))
 	int32 CacheSizeKB;
+
+	/** This overrides the default max chunk size used when chunking audio for stream caching (ignored if < 0) */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|Stream Caching", meta = (DisplayName = "Max Chunk Size Override (KB)"))
+	int32 MaxChunkSizeOverrideKB;
 
 	UPROPERTY(config, EditAnywhere, Category = "Audio|CookOverrides")
 	bool bResampleForDevice;

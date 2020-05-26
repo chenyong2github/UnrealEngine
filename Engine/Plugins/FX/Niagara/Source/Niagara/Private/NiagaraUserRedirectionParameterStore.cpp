@@ -53,13 +53,30 @@ void FNiagaraUserRedirectionParameterStore::RecreateRedirections()
 	}
 }
 
+FNiagaraVariableBase FNiagaraUserRedirectionParameterStore::FindRedirection(const FNiagaraVariableBase& InVar) const
+{
+	if (const FNiagaraVariable* RedirectedKey = UserParameterRedirects.Find(InVar))
+	{
+		return *RedirectedKey;
+	}
+
+	return InVar;
+}
+
 bool FNiagaraUserRedirectionParameterStore::AddParameter(const FNiagaraVariable& Param, bool bInitialize /*= true*/, bool bTriggerRebind /*= true*/, int32* OutOffset /*= nullptr*/)
 {
+	FNiagaraVariable AddParam;
 	if (IsUserParameter(Param))
 	{
-		UserParameterRedirects.Add(GetUserRedirection(Param), Param);
+		AddParam = Param;
 	}
-	return Super::AddParameter(Param, bInitialize, bTriggerRebind, OutOffset);
+	else
+	{
+		AddParam = FNiagaraVariable(Param.GetType(), *(TEXT("User.") + Param.GetName().ToString()));
+	}
+
+	UserParameterRedirects.Add(GetUserRedirection(AddParam), AddParam);
+	return Super::AddParameter(AddParam, bInitialize, bTriggerRebind, OutOffset);
 }
 
 bool FNiagaraUserRedirectionParameterStore::RemoveParameter(const FNiagaraVariableBase& InVar)

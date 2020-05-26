@@ -33,7 +33,7 @@ struct AUDIOMODULATION_API FSoundModulationValue
 	/** Current value lerping toward target */
 	float GetCurrentValue() const;
 
-	void Update(float Elapsed);
+	void Update(double Elapsed);
 
 private:
 	float Value;

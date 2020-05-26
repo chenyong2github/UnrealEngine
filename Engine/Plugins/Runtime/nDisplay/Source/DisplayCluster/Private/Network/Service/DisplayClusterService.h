@@ -31,4 +31,3 @@ protected:
 	virtual void NotifySessionOpen(FDisplayClusterSessionBase* InSession) override;
 	virtual void NotifySessionClose(FDisplayClusterSessionBase* InSession) override;
 };
-

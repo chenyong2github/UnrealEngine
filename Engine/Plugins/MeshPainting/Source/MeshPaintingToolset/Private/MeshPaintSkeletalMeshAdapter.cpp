@@ -167,9 +167,8 @@ bool FMeshPaintSkeletalMeshComponentAdapter::LineTraceComponent(struct FHitResul
 	if (bHitBounds || bInsideBounds)
 	{
 		const FTransform& ComponentTransform = SkeletalMeshComponent->GetComponentTransform();
-		const FTransform InverseComponentTransform = ComponentTransform.Inverse();
-		const FVector LocalStart = InverseComponentTransform.TransformPosition(Start);
-		const FVector LocalEnd = InverseComponentTransform.TransformPosition(End);
+		const FVector LocalStart = ComponentTransform.InverseTransformPosition(Start);
+		const FVector LocalEnd = ComponentTransform.InverseTransformPosition(End);
 		float MinDistance = FLT_MAX;
 		FVector Intersect;
 		FVector Normal;
@@ -211,7 +210,7 @@ bool FMeshPaintSkeletalMeshComponentAdapter::LineTraceComponent(struct FHitResul
 		if (MinDistance != FLT_MAX)
 		{
 			OutHit.Component = SkeletalMeshComponent;
-			OutHit.Normal = Normal.GetSafeNormal();
+			OutHit.Normal = ComponentTransform.TransformVector(Normal).GetSafeNormal();
 			OutHit.ImpactNormal = OutHit.Normal;
 			OutHit.ImpactPoint = ComponentTransform.TransformPosition(Intersect);
 			OutHit.Location = OutHit.ImpactPoint;

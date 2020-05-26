@@ -610,7 +610,7 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=StaticMesh, meta=(UIMin = "0.0", UIMax = "3.0"))
 	float LpvBiasMultiplier;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = StaticMesh)
 	TArray<FStaticMaterial> StaticMaterials;
 
 	UPROPERTY()
@@ -850,11 +850,6 @@ public:
 	ENGINE_API void ClearMeshDescriptions();
 
 	/**
-	 * Internal function use to make sure all imported material slot name are unique and non empty.
-	 */
-	void FixupMaterialSlotName();
-
-	/**
 	 * Adds an empty UV channel at the end of the existing channels on the given LOD of a StaticMesh.
 	 * @param	LODIndex			Index of the StaticMesh LOD.
 	 * @return true if a UV channel was added.
@@ -987,7 +982,7 @@ public:
 	virtual int32 GetNumNonStreamingMips() const final override;
 	virtual int32 CalcNumOptionalMips() const final override;
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
-	virtual bool GetMipDataFilename(const int32 MipIndex, FString& BulkDataFilename) const final override;
+	virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
 	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
 	virtual bool IsReadyForStreaming() const final override;
 	virtual int32 GetNumResidentMips() const final override;
@@ -999,6 +994,10 @@ public:
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
 	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) final override;
 	//~ End UStreamableRenderAsset Interface
+
+#if USE_BULKDATA_STREAMING_TOKEN
+	bool GetMipDataFilename(const int32 MipIndex, FString& BulkDataFilename) const;
+#endif
 
 	void LinkStreaming();
 	void UnlinkStreaming();

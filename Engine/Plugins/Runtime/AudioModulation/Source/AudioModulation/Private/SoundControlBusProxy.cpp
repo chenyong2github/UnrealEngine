@@ -24,15 +24,15 @@ namespace AudioModulation
 	{
 	}
 
-	FControlBusProxy::FControlBusProxy(const USoundControlBusBase& InBus, FAudioModulationSystem& InModSystem)
-		: TModulatorProxyRefType(InBus.GetName(), InBus.GetUniqueID(), InModSystem)
+	FControlBusProxy::FControlBusProxy(const FControlBusSettings& InSettings, FAudioModulationSystem& InModSystem)
+		: TModulatorProxyRefType(InSettings.GetName(), InSettings.GetId(), InModSystem)
 	{
-		Init(InBus);
+		Init(InSettings);
 	}
 
-	FControlBusProxy& FControlBusProxy::operator =(const USoundControlBusBase& InBus)
+	FControlBusProxy& FControlBusProxy::operator =(const FControlBusSettings& InSettings)
 	{
-		Init(InBus);
+		Init(InSettings);
 		return *this;
 	}
 
@@ -67,34 +67,28 @@ namespace AudioModulation
 		return FMath::Clamp(DefaultMixed * LFOValue, Range.X, Range.Y);
 	}
 
-	void FControlBusProxy::Init(const USoundControlBusBase& InBus)
+	void FControlBusProxy::Init(const FControlBusSettings& InSettings)
 	{
-		DefaultValue = InBus.DefaultValue;
+		check(ModSystem);
+
+		DefaultValue = InSettings.DefaultValue;
 		LFOValue = 1.0f;
 		MixValue = NAN;
-		Operator = InBus.GetOperator();
-		Range = FVector2D(InBus.Min, InBus.Max);
-		if (InBus.Min > InBus.Max)
+		Operator = InSettings.Operator;
+		Range = FVector2D(InSettings.Min, InSettings.Max);
+		if (InSettings.Min > InSettings.Max)
 		{
-			Range.X = InBus.Max;
-			Range.Y = InBus.Min;
+			Range.X = InSettings.Max;
+			Range.Y = InSettings.Min;
 		}
 
 		DefaultValue = FMath::Clamp(DefaultValue, Range.X, Range.Y);
-		bBypass = InBus.bBypass;
-	}
+		bBypass = InSettings.bBypass;
 
-	void FControlBusProxy::InitLFOs(const USoundControlBusBase& InBus)
-	{
 		TArray<FLFOHandle> NewHandles;
-
-		for (const USoundBusModulatorBase* Modulator : InBus.Modulators)
+		for (const FModulatorLFOSettings& LFOSettings : InSettings.LFOSettings)
 		{
-			if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
-			{
-				check(ModSystem);
-				NewHandles.Add(FLFOHandle::Create(*LFO, ModSystem->RefProxies.LFOs, *ModSystem));
-			}
+			NewHandles.Add(FLFOHandle::Create(LFOSettings, ModSystem->RefProxies.LFOs, *ModSystem));
 		}
 
 		// Move vs. reset and adding to original array to avoid potentially clearing handles (and thus current LFO state)

@@ -18,12 +18,12 @@
 	"Modules": [
 		{
 			"Name": "RemoteControl",
-			"Type": "UncookedOnly",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "WebRemoteControl",
-			"Type": "UncookedOnly",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
 	]

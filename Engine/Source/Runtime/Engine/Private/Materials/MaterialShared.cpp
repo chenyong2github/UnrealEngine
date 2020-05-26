@@ -828,7 +828,7 @@ FMaterialShaderMap* FMaterial::GetRenderingThreadShaderMap() const
 	return RenderingThreadShaderMap; 
 }
 
-void FMaterial::SetRenderingThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
+void FMaterial::SetRenderingThreadShaderMap(const TRefCountPtr<FMaterialShaderMap>& InMaterialShaderMap)
 {
 	check(IsInRenderingThread());
 	RenderingThreadShaderMap = InMaterialShaderMap;
@@ -3113,7 +3113,7 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 	TArray<const FMaterial*> MaterialResourcesToUpdate;
 	TArray<UMaterialInstance*> InstancesToUpdate;
 
-	bool bUpdateStaticDrawLists = !ComponentReregisterContext && !ComponentRecreateRenderStateContext;
+	bool bUpdateStaticDrawLists = !ComponentReregisterContext && !ComponentRecreateRenderStateContext && FApp::CanEverRender();
 
 	// If static draw lists must be updated, gather material resources from all updated materials.
 	if (bUpdateStaticDrawLists)
@@ -4033,7 +4033,7 @@ void FMaterialResourceProxyReader::Initialize(
 	}
 }
 
-typedef TMap<FMaterial*, FMaterialShaderMap*> FMaterialsToUpdateMap;
+typedef TMap<FMaterial*, TRefCountPtr<FMaterialShaderMap>> FMaterialsToUpdateMap;
 
 void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHICmdList, const FMaterialsToUpdateMap& MaterialsToUpdate)
 {
@@ -4045,7 +4045,7 @@ void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHI
 	for (FMaterialsToUpdateMap::TConstIterator It(MaterialsToUpdate); It; ++It)
 	{
 		FMaterial* Material = It.Key();
-		FMaterialShaderMap* ShaderMap = It.Value();
+		const TRefCountPtr<FMaterialShaderMap>& ShaderMap = It.Value();
 		Material->SetRenderingThreadShaderMap(ShaderMap);
 		check(!ShaderMap || ShaderMap->IsValidForRendering());
 		MaterialArray.Add(Material);
@@ -4085,12 +4085,19 @@ void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHI
 	}
 }
 
-void SetShaderMapsOnMaterialResources(const TMap<FMaterial*, FMaterialShaderMap*>& MaterialsToUpdate)
+void SetShaderMapsOnMaterialResources(const TMap<FMaterial*, FMaterialShaderMap*>& InMaterialsToUpdate)
 {
-	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnMaterialResources)(
-	[InMaterialsToUpdate = MaterialsToUpdate](FRHICommandListImmediate& RHICmdList)
+	TMap<FMaterial*, TRefCountPtr<FMaterialShaderMap>> MaterialsToUpdate;
+	MaterialsToUpdate.Empty(InMaterialsToUpdate.Num());
+	for (auto It : InMaterialsToUpdate)
 	{
-		SetShaderMapsOnMaterialResources_RenderThread(RHICmdList, InMaterialsToUpdate);
+		MaterialsToUpdate.Add(It.Key, It.Value);
+	}
+
+	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnMaterialResources)(
+	[MaterialsToUpdate = MoveTemp(MaterialsToUpdate)](FRHICommandListImmediate& RHICmdList)
+	{
+		SetShaderMapsOnMaterialResources_RenderThread(RHICmdList, MaterialsToUpdate);
 	});
 }
 

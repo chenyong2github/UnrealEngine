@@ -374,33 +374,26 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 {
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		static const FName NAME_OutputVolume(TEXT("OutputVolume"));
-		static const FName NAME_WetLevel(TEXT("WetLevel"));
-		static const FName NAME_DryLevel(TEXT("DryLevel"));
-		static const FName NAME_OutputVolumeDB(TEXT("OutputVolumeDB"));
-		static const FName NAME_WetLevelDB(TEXT("WetLevelDB"));
-		static const FName NAME_DryLevelDB(TEXT("DryLevelDB"));
-
 		FName ChangedPropName = PropertyChangedEvent.Property->GetFName();
 
 		bool bUpdateSubmixGain = false;
 
-		if (ChangedPropName == NAME_OutputVolume)
+		if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolume))
 		{
 			OutputVolumeDB = Audio::ConvertToDecibels(OutputVolume);
 			bUpdateSubmixGain = true;
 		}
-		else if (ChangedPropName == NAME_WetLevel)
-		{
-			DryLevelDB = Audio::ConvertToDecibels(DryLevel);
-			bUpdateSubmixGain = true;
-		}
-		else if (ChangedPropName == NAME_DryLevel)
+		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevel))
 		{
 			WetLevelDB = Audio::ConvertToDecibels(OutputVolume);
 			bUpdateSubmixGain = true;
 		}
-		else if (ChangedPropName == NAME_OutputVolumeDB)
+		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevel))
+		{
+			DryLevelDB = Audio::ConvertToDecibels(DryLevel);
+			bUpdateSubmixGain = true;
+		}
+		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolumeDB))
 		{
 			if (OutputVolumeDB <= -120.f)
 			{
@@ -412,7 +405,7 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 			}
 			bUpdateSubmixGain = true;
 		}
-		else if (ChangedPropName == NAME_WetLevelDB)
+		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevelDB))
 		{
 			if (WetLevelDB <= -120.f)
 			{
@@ -424,7 +417,7 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 			}
 			bUpdateSubmixGain = true;
 		}
-		else if (ChangedPropName == NAME_DryLevelDB)
+		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevelDB))
 		{
 			if (DryLevelDB <= -120.0f)
 			{
@@ -438,7 +431,7 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 		}
 
 		// Force the properties to be initialized for this SoundSubmix on all active audio devices
-		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
+		if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 		{
 			if (bUpdateSubmixGain)
 			{
@@ -450,6 +443,11 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 				{
 					Device->SetSubmixWetDryLevel(SoundSubmix, NewOutputVolume, NewWetLevel, NewDryLevel);
 				});
+			}
+
+			if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundSubmix, SubmixEffectChain))
+			{
+				AudioDeviceManager->RegisterSoundSubmix(this);
 			}
 		}
 	}
@@ -530,9 +528,7 @@ void USoundSubmixBase::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 
 void USoundSubmixBase::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	static FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
-
-	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == NAME_ChildSubmixes)
+	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(USoundSubmixBase, ChildSubmixes))
 	{
 		// Take a copy of the current state of child classes
 		BackupChildSubmixes = ChildSubmixes;
@@ -548,9 +544,7 @@ void USoundSubmixBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		static const FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
-
-		if (PropertyChangedEvent.Property->GetFName() == NAME_ChildSubmixes)
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundSubmixBase, ChildSubmixes))
 		{
 			// Find child that was changed/added
 			for (int32 ChildIndex = 0; ChildIndex < ChildSubmixes.Num(); ChildIndex++)
@@ -655,11 +649,9 @@ void USoundSubmixWithParentBase::PostEditChangeProperty(struct FPropertyChangedE
 
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		static const FName NAME_ParentSubmix(TEXT("ParentSubmix"));
-
 		FName ChangedPropName = PropertyChangedEvent.Property->GetFName();
 
-		if (ChangedPropName == NAME_ParentSubmix)
+		if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmixWithParentBase, ParentSubmix))
 		{
 			// Add this sound class to the parent class if it's not already added
 			if (ParentSubmix)
@@ -840,9 +832,7 @@ void USoundfieldSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		static const FName NAME_SoundfieldFormat(TEXT("SoundfieldEncodingFormat"));
-
-		if (PropertyChangedEvent.Property->GetFName() == NAME_SoundfieldFormat)
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundfieldSubmix, SoundfieldEncodingFormat))
 		{
 			bShouldSanitizeLinks = true;
 		}

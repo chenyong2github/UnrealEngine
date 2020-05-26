@@ -105,6 +105,16 @@ int32 UToolMenu::FindInsertIndex(const FToolMenuSection& InSection) const
 	if (InInsertPosition.Position == EToolMenuInsertType::After)
 	{
 		++DestIndex;
+
+		// Insert after the final entry that has the exact same InsertPosition
+		for (int32 i = DestIndex; i < Sections.Num(); ++i)
+		{
+			if (Sections[i].InsertPosition == InInsertPosition)
+			{
+				DestIndex = i + 1;
+				// Do not break because EToolMenuInsertType::Before may have been used
+			}
+		}
 	}
 
 	for (int32 i = DestIndex; i < Sections.Num(); ++i)
@@ -419,6 +429,11 @@ FCustomizedToolMenuHierarchy UToolMenu::GetMenuCustomizationHierarchy() const
 		{
 			Result.Hierarchy.Add(Found);
 		}
+
+		if (FCustomizedToolMenu* FoundRuntime = ToolMenus->FindRuntimeMenuCustomization(ItName))
+		{
+			Result.RuntimeHierarchy.Add(FoundRuntime);
+		}
 	}
 
 	return Result;
@@ -505,4 +520,12 @@ FString UToolMenu::GetSubMenuNamePath() const
 void UToolMenu::SetExtendersEnabled(bool bEnabled)
 {
 	bExtendersEnabled = bEnabled;
+}
+
+void UToolMenu::Empty()
+{
+	Context.Empty();
+	Sections.Empty();
+	SubMenuParent = nullptr;
+	ModifyBlockWidgetAfterMake.Unbind();
 }

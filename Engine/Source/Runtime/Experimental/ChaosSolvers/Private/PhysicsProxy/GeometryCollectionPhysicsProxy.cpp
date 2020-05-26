@@ -107,7 +107,8 @@ Chaos::TTriangleMesh<float>* CreateTriangleMesh(
 	const int32 FaceStart,
 	const int32 FaceCount, 
 	const TManagedArray<bool>& Visible, 
-	const TManagedArray<FIntVector>& Indices)
+	const TManagedArray<FIntVector>& Indices,
+	bool bRotateWinding)
 {
 	TArray<Chaos::TVector<int32, 3>> Faces;
 	Faces.Reserve(FaceCount);
@@ -121,7 +122,15 @@ Chaos::TTriangleMesh<float>* CreateTriangleMesh(
 		if (Visible[Idx])
 		{
 			const FIntVector& Tri = Indices[Idx];
-			Faces.Add(Chaos::TVector<int32, 3>(Tri.Z, Tri.Y, Tri.X));
+
+			if(bRotateWinding)
+			{
+				Faces.Add(Chaos::TVector<int32, 3>(Tri.Z, Tri.Y, Tri.X));
+			}
+			else
+			{
+				Faces.Add(Chaos::TVector<int32, 3>(Tri.X, Tri.Y, Tri.Z));
+			}
 		}
 	}
 	return new Chaos::TTriangleMesh<float>(MoveTemp(Faces)); // Culls geometrically degenerate faces

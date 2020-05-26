@@ -1645,6 +1645,10 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 				const int8 SubSectionIdx = SubX + SubY * NumSubsections;
 
 				FRayTracingGeometryInitializer Initializer;
+				static const FName DebugName("FLandscapeComponentSceneProxy");
+				static int32 DebugNumber = 0;
+				Initializer.DebugName = FName(DebugName, DebugNumber++);
+
 				FRHIResourceCreateInfo CreateInfo;
 				Initializer.IndexBuffer = nullptr;
 				Initializer.GeometryType = RTGT_Triangles;
@@ -2639,7 +2643,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 #if RHI_RAYTRACING
 void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
-	if (!CVarRayTracingLandscape.GetValueOnRenderThread())
+	if (!bRegistered || !CVarRayTracingLandscape.GetValueOnRenderThread())
 	{
 		return;
 	}
@@ -3596,7 +3600,7 @@ void ULandscapeMaterialInstanceConstant::UpdateCachedTextureStreaming()
 			UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression);
 
 			// TODO: This is only works for direct Coordinate Texture Sample cases
-			if (TextureSample && TextureSample->Coordinates.IsConnected())
+			if (TextureSample && TextureSample->Texture && TextureSample->Coordinates.IsConnected())
 			{
 				if (UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(TextureSample->Coordinates.Expression))
 				{

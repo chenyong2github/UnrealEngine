@@ -221,6 +221,33 @@ namespace UnrealBuildTool
 				Target.bAllowLTCG = true;
 			}
 
+			if (!Target.IsNameOverriden())
+			{
+				string SanitizerSuffix = null;
+
+				if (Target.LinuxPlatform.bEnableAddressSanitizer)
+				{
+					SanitizerSuffix = "ASan";
+				}
+				else if (Target.LinuxPlatform.bEnableThreadSanitizer)
+				{
+					SanitizerSuffix = "TSan";
+				}
+				else if (Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
+				{
+					SanitizerSuffix = "UBSan";
+				}
+				else if (Target.LinuxPlatform.bEnableMemorySanitizer)
+				{
+					SanitizerSuffix = "MSan";
+				}
+
+				if (!String.IsNullOrEmpty(SanitizerSuffix))
+				{
+					Target.Name = Target.Name + "-" + SanitizerSuffix;
+				}
+			}
+
 			if (Target.bAllowLTCG && Target.LinkType != TargetLinkType.Monolithic)
 			{
 				throw new BuildException("LTO (LTCG) for modular builds is not supported (lld is not currently used for dynamic libraries).");
@@ -531,46 +558,6 @@ namespace UnrealBuildTool
 			};
 		}
 
-		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference ProjectFile, ReadOnlyTargetRules Target)
-		{
-			List<FileReference> FinalBinaryPath = new List<FileReference>();
-
-			string SanitizerSuffix = null;
-
-			// Only append these for monolithic builds. non-monolithic runs into issues dealing with target/modules files
-			if (Target.LinkType == TargetLinkType.Monolithic)
-			{
-				if(Target.LinuxPlatform.bEnableAddressSanitizer)
-				{
-					SanitizerSuffix = "ASan";
-				}
-				else if(Target.LinuxPlatform.bEnableThreadSanitizer)
-				{
-					SanitizerSuffix = "TSan";
-				}
-				else if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
-				{
-					SanitizerSuffix = "UBSan";
-				}
-				else if(Target.LinuxPlatform.bEnableMemorySanitizer)
-				{
-					SanitizerSuffix = "MSan";
-				}
-			}
-
-			if (String.IsNullOrEmpty(SanitizerSuffix))
-			{
-				FinalBinaryPath.Add(BinaryName);
-			}
-			else
-			{
-				// Append the sanitizer suffix to the binary name but before the extension type
-				FinalBinaryPath.Add(new FileReference(Path.Combine(BinaryName.Directory.FullName, BinaryName.GetFileNameWithoutExtension() + "-" + SanitizerSuffix + BinaryName.GetExtension())));
-			}
-
-			return FinalBinaryPath;
-		}
-
 		/// <summary>
 		/// Creates a toolchain instance for the given platform.
 		/// </summary>
@@ -580,7 +567,7 @@ namespace UnrealBuildTool
 		{
 			LinuxToolChainOptions Options = LinuxToolChainOptions.None;
 
-			if(Target.LinuxPlatform.bEnableAddressSanitizer)
+			if (Target.LinuxPlatform.bEnableAddressSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableAddressSanitizer;
 
@@ -589,7 +576,7 @@ namespace UnrealBuildTool
 					Options |= LinuxToolChainOptions.EnableSharedSanitizer;
 				}
 			}
-			if(Target.LinuxPlatform.bEnableThreadSanitizer)
+			if (Target.LinuxPlatform.bEnableThreadSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableThreadSanitizer;
 
@@ -598,7 +585,7 @@ namespace UnrealBuildTool
 					throw new BuildException("Thread Sanitizer (TSan) unsupported for non-monolithic builds");
 				}
 			}
-			if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
+			if (Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer;
 
@@ -607,7 +594,7 @@ namespace UnrealBuildTool
 					Options |= LinuxToolChainOptions.EnableSharedSanitizer;
 				}
 			}
-			if(Target.LinuxPlatform.bEnableMemorySanitizer)
+			if (Target.LinuxPlatform.bEnableMemorySanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableMemorySanitizer;
 
@@ -616,9 +603,19 @@ namespace UnrealBuildTool
 					throw new BuildException("Memory Sanitizer (MSan) unsupported for non-monolithic builds");
 				}
 			}
-			if(Target.LinuxPlatform.bEnableThinLTO)
+			if (Target.LinuxPlatform.bEnableThinLTO)
 			{
 				Options |= LinuxToolChainOptions.EnableThinLTO;
+			}
+
+			// When building a monolithic editor we have to avoid using objcopy.exe as it cannot handle files
+			// larger then 4GB. This is only an issue with our binutils objcopy.exe.
+			// llvm-objcopy.exe does not have this issue and once we switch over to using that in clang 10.0.1 we can remove this!
+			if ((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) &&
+				(Target.LinkType == TargetLinkType.Monolithic) &&
+				(Target.Type == TargetType.Editor))
+			{
+				Options |= LinuxToolChainOptions.DisableSplitDebugInfoWithObjCopy;
 			}
 
 			return new LinuxToolChain(Target.Architecture, SDK, Target.LinuxPlatform.bPreservePSYM, Options);

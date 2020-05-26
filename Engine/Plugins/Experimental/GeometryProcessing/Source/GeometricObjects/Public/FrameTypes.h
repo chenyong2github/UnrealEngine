@@ -87,6 +87,15 @@ struct TFrame3
 		Rotation = TQuaternion<RealType>(Transform.GetRotation());
 	}
 
+	/** Construct a Frame from an FPlane */
+	explicit TFrame3(const FPlane& Plane)
+	{
+		FVector Normal(Plane.X, Plane.Y, Plane.Z);
+		Origin = (RealType)Plane.W * FVector3<RealType>(Normal);
+		Rotation.SetFromTo(FVector3<RealType>::UnitZ(), Normal);
+	}
+
+
 	/** Construct a Frame from an FVector and FQuat */
 	explicit TFrame3(const FVector& OriginIn, const FQuat& RotationIn)
 	{
@@ -145,6 +154,12 @@ struct TFrame3
 	FTransform ToFTransform() const
 	{
 		return FTransform((FQuat)Rotation, (FVector)Origin);
+	}
+
+	/** @return conversion of this Frame to FPlane */
+	FPlane ToFPlane() const
+	{
+		return FPlane((FVector)Origin, (FVector)Z());
 	}
 
 	/** @return conversion of this Frame to TTransform */
@@ -398,13 +413,13 @@ struct TFrame3
 		RealType NormalDot = RayDirection.Dot(Normal);
 		if (VectorUtil::EpsilonEqual(NormalDot, (RealType)0, TMathUtil<RealType>::ZeroTolerance))
 		{
-			HitPointOut = FVector3<RealType>::Max();
+			HitPointOut = FVector3<RealType>::MaxVector();
 			return false;
 		}
 		RealType t = -( RayOrigin.Dot(Normal) + PlaneD) / NormalDot;
 		if (t < 0)
 		{
-			HitPointOut = FVector3<RealType>::Max();
+			HitPointOut = FVector3<RealType>::MaxVector();
 			return false;
 		}
 		HitPointOut = RayOrigin + t * RayDirection;

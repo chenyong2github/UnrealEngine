@@ -116,6 +116,10 @@ private:
 	uint32 BufferOffset;
 	uint32 CurrentBufferChunkOffset;
 
+	// In case Ogg Vorbis fails to return any compressed audio for an asset,
+	// we use this counter to exit out of the decoder's while loop early.
+	int32 TimesLoopedWithoutDecompressedAudio;
+
 	/** Critical section used to prevent multiple threads accessing same ogg-vorbis file handles at the same time */
 	FCriticalSection VorbisCriticalSection;
 

@@ -37,7 +37,7 @@ EBTNodeResult::Type UBTTaskNode::WrappedAbortTask(UBehaviorTreeComponent& OwnerC
 	return Result;
 }
 
-void UBTTaskNode::WrappedTickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) const
+bool UBTTaskNode::WrappedTickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds, float& NextNeededDeltaTime) const
 {
 	if (bNotifyTick)
 	{
@@ -45,8 +45,11 @@ void UBTTaskNode::WrappedTickTask(UBehaviorTreeComponent& OwnerComp, uint8* Node
 		if (NodeOb)
 		{
 			((UBTTaskNode*)NodeOb)->TickTask(OwnerComp, NodeMemory, DeltaSeconds);
+			NextNeededDeltaTime = 0.0f;
+			return true;
 		}
 	}
+	return false;
 }
 
 void UBTTaskNode::WrappedOnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) const

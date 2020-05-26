@@ -43,7 +43,7 @@ ULevelSequencePlayer* ULevelSequencePlayer::CreateLevelSequencePlayer(UObject* W
 	}
 
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (World == nullptr)
+	if (World == nullptr || World->bIsTearingDown)
 	{
 		return nullptr;
 	}

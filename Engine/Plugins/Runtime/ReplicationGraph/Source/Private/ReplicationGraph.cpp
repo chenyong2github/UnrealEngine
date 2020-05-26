@@ -541,7 +541,7 @@ void UReplicationGraph::InitializeForWorld(UWorld* World)
 
 void UReplicationGraph::AddNetworkActor(AActor* Actor)
 {
-	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_AddNetworkActor);
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_AddNetworkActor);
 
 	if (IsActorValidForReplicationGather(Actor) == false)
 	{
@@ -587,7 +587,7 @@ void UReplicationGraph::RouteAddNetworkActorToNodes(const FNewReplicatedActorInf
 
 void UReplicationGraph::RemoveNetworkActor(AActor* Actor)
 {
-	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_RemoveNetworkActor);
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_RemoveNetworkActor);
 
 	if (ActiveNetworkActors.Remove(Actor) == 0)
 	{
@@ -739,7 +739,7 @@ void UReplicationGraph::NotifyActorFullyDormantForConnection(AActor* Actor, UNet
 
 void UReplicationGraph::NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState)
 {
-	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_NotifyActorDormancyChange);
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_NotifyActorDormancyChange);
 
 	FGlobalActorReplicationInfo* GlobalInfo = GlobalActorReplicationInfoMap.Find(Actor);
 	if (!GlobalInfo)

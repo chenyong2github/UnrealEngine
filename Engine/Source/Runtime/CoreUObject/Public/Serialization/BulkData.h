@@ -97,7 +97,7 @@ public:
 	bool MakeReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory);
 
 	virtual bool PollCompletion() const override;
-	virtual bool WaitCompletion( float TimeLimitSeconds = 0.0f ) const override;
+	virtual bool WaitCompletion( float TimeLimitSeconds = 0.0f ) override;
 
 	virtual uint8* GetReadResults() override;
 	virtual int64 GetSize() const override;
@@ -498,6 +498,13 @@ public:
 	 * @return Filename where this bulkdata can be loaded from
 	 **/
 	const FString& GetFilename() const { return Filename; }
+
+	/** 
+	 * Returns the io filename hash associated with this bulk data.
+	 *
+	 * @return Hash or INVALID_IO_FILENAME_HASH if invalid.
+	 **/
+	FIoFilenameHash GetIoFilenameHash() const { return MakeIoFilenameHash(Filename); }
 
 	/*-----------------------------------------------------------------------------
 		Data retrieval and manipulation.

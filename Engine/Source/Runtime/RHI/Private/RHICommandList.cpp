@@ -11,7 +11,7 @@
 #include "Misc/ScopeLock.h"
 #include "PipelineStateCache.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 
 CSV_DEFINE_CATEGORY_MODULE(RHI_API, RHITStalls, false);
 CSV_DEFINE_CATEGORY_MODULE(RHI_API, RHITFlushes, false);
@@ -32,6 +32,10 @@ bool FScopedUniformBufferGlobalBindings::bRecursionGuard = false;
 
 #if !PLATFORM_USES_FIXED_RHI_CLASS
 #include "RHICommandListCommandExecutes.inl"
+#endif
+
+#ifndef NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+#define NEEDS_DEBUG_INFO_ON_PRESENT_HANG 0
 #endif
 
 static TAutoConsoleVariable<int32> CVarRHICmdBypass(
@@ -167,6 +171,37 @@ RHI_API FAutoConsoleTaskPriority CPrio_SceneRenderingTask(
 	ENamedThreads::NormalThreadPriority, 
 	ENamedThreads::HighTaskPriority 
 	);
+
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+static bool bRenderThreadSublistDispatchTaskClearedOnRT = false;
+static bool bRenderThreadSublistDispatchTaskClearedOnGT = false;
+static FGraphEventArray RenderThreadSublistDispatchTaskPrereqs;
+
+void GetRenderThreadSublistDispatchTaskDebugInfo(bool& bIsNull, bool& bIsComplete, bool& bClearedOnGT, bool& bClearedOnRT, int32& NumIncompletePrereqs)
+{
+	bIsNull = !RenderThreadSublistDispatchTask;
+	bIsComplete = true;
+	bClearedOnGT = bRenderThreadSublistDispatchTaskClearedOnGT;
+	bClearedOnRT = bRenderThreadSublistDispatchTaskClearedOnRT;
+	NumIncompletePrereqs = 0;
+
+	if (!bIsNull)
+	{
+		bIsComplete = RenderThreadSublistDispatchTask->IsComplete();
+		if (!bIsComplete)
+		{
+			for (int32 Idx = 0; Idx < RenderThreadSublistDispatchTaskPrereqs.Num(); ++Idx)
+			{
+				const FGraphEvent* Prereq = RenderThreadSublistDispatchTaskPrereqs[Idx];
+				if (Prereq && !Prereq->IsComplete())
+				{
+					++NumIncompletePrereqs;
+				}
+			}
+		}
+	}
+}
+#endif
 
 FRHICOMMAND_MACRO(FRHICommandStat)
 {
@@ -460,6 +495,10 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 			bAsyncSubmit = CVarRHICmdAsyncRHIThreadDispatch.GetValueOnRenderThread() > 0;
 			if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 			{
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+				bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+				bRenderThreadSublistDispatchTaskClearedOnGT = bIsInGameThread;
+#endif
 				RenderThreadSublistDispatchTask = nullptr;
 				if (bAsyncSubmit && RHIThreadTask.GetReference() && RHIThreadTask->IsComplete())
 			{
@@ -509,6 +548,9 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 				{
 					Prereq.Add(RenderThreadSublistDispatchTask);
 				}
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+				RenderThreadSublistDispatchTaskPrereqs = Prereq;
+#endif
 				RenderThreadSublistDispatchTask = TGraphTask<FDispatchRHIThreadTask>::CreateTask(&Prereq, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(SwapCmdList, bAsyncSubmit);
 			}
 			else
@@ -531,6 +573,10 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 				if (RenderThreadSublistDispatchTask.GetReference())
 				{
 					FTaskGraphInterface::Get().WaitUntilTaskCompletes(RenderThreadSublistDispatchTask, RenderThread_Local);
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+					bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+					bRenderThreadSublistDispatchTaskClearedOnGT = bIsInGameThread;
+#endif
 					RenderThreadSublistDispatchTask = nullptr;
 				}
 				while (RHIThreadTask.GetReference())
@@ -566,6 +612,10 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 					UE_LOG(LogRHI, Fatal, TEXT("Deadlock in FRHICommandListExecutor::ExecuteInner (RenderThreadSublistDispatchTask)."));
 				}
 				FTaskGraphInterface::Get().WaitUntilTaskCompletes(RenderThreadSublistDispatchTask, RenderThread_Local);
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+				bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+				bRenderThreadSublistDispatchTaskClearedOnGT = bIsInGameThread;
+#endif
 				RenderThreadSublistDispatchTask = nullptr;
 			}
 			while (RHIThreadTask.GetReference())
@@ -725,6 +775,10 @@ bool FRHICommandListExecutor::IsRHIThreadActive()
 	{
 		if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 		{
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+			bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+			bRenderThreadSublistDispatchTaskClearedOnGT = IsInGameThread();
+#endif
 			RenderThreadSublistDispatchTask = nullptr;
 		}
 		if (RenderThreadSublistDispatchTask.GetReference())
@@ -750,6 +804,10 @@ bool FRHICommandListExecutor::IsRHIThreadCompletelyFlushed()
 	}
 	if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 	{
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+		bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+		bRenderThreadSublistDispatchTaskClearedOnGT = IsInGameThread();
+#endif
 		RenderThreadSublistDispatchTask = nullptr;
 	}
 	return !RenderThreadSublistDispatchTask;
@@ -1674,6 +1732,10 @@ void FRHICommandListBase::WaitForDispatch()
 	check(!AllOutstandingTasks.Num()); // dispatch before you get here
 	if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 	{
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+		bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+		bRenderThreadSublistDispatchTaskClearedOnGT = IsInGameThread();
+#endif
 		RenderThreadSublistDispatchTask = nullptr;
 	}
 	while (RenderThreadSublistDispatchTask.GetReference())
@@ -1688,6 +1750,10 @@ void FRHICommandListBase::WaitForDispatch()
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(RenderThreadSublistDispatchTask, RenderThread_Local);
 		if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 		{
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+			bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+			bRenderThreadSublistDispatchTaskClearedOnGT = IsInGameThread();
+#endif
 			RenderThreadSublistDispatchTask = nullptr;
 		}
 	}
@@ -1736,6 +1802,10 @@ bool FRHICommandListImmediate::StallRHIThread()
 	{
 		if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 		{
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+			bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+			bRenderThreadSublistDispatchTaskClearedOnGT = IsInGameThread();
+#endif
 			RenderThreadSublistDispatchTask = nullptr;
 		}
 		if (!RenderThreadSublistDispatchTask.GetReference())
@@ -1798,6 +1868,10 @@ void FRHICommandListBase::WaitForRHIThreadTasks()
 	{
 		if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 		{
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+			bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+			bRenderThreadSublistDispatchTaskClearedOnGT = IsInGameThread();
+#endif
 			RenderThreadSublistDispatchTask = nullptr;
 		}
 		while (RenderThreadSublistDispatchTask.GetReference())
@@ -1819,6 +1893,10 @@ void FRHICommandListBase::WaitForRHIThreadTasks()
 			}
 			if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 			{
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+				bRenderThreadSublistDispatchTaskClearedOnRT = IsInActualRenderingThread();
+				bRenderThreadSublistDispatchTaskClearedOnGT = IsInGameThread();
+#endif
 				RenderThreadSublistDispatchTask = nullptr;
 			}
 		}

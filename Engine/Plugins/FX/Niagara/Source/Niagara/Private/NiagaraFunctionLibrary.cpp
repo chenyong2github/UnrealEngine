@@ -59,15 +59,14 @@ UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* W
 			NiagaraComponent = NewObject<UNiagaraComponent>((Actor ? Actor : (UObject*)World));
 			NiagaraComponent->SetAsset(SystemTemplate);
 			NiagaraComponent->bAutoActivate = false;
+			NiagaraComponent->SetAutoDestroy(bAutoDestroy);
+			NiagaraComponent->bAllowAnyoneToDestroyMe = true;
 		}
 		else
 		{
 			UNiagaraComponentPool* ComponentPool = FNiagaraWorldManager::Get(World)->GetComponentPool();
 			NiagaraComponent = ComponentPool->CreateWorldParticleSystem(SystemTemplate, World, PoolingMethod);
 		}
-
-		NiagaraComponent->SetAutoDestroy(bAutoDestroy);
-		NiagaraComponent->bAllowAnyoneToDestroyMe = true;
 	}
 	return NiagaraComponent;
 }
@@ -364,40 +363,48 @@ void UNiagaraFunctionLibrary::OverrideSystemUserVariableStaticMesh(UNiagaraCompo
 	StaticMeshInterface->SetDefaultMeshFromBlueprints(StaticMesh);
 }
 
-
-void UNiagaraFunctionLibrary::OverrideSystemUserVariableSkeletalMeshComponent(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, USkeletalMeshComponent* SkeletalMeshComponent)
+UNiagaraDataInterfaceSkeletalMesh* UNiagaraFunctionLibrary::GetSkeletalMeshDataInterface(UNiagaraComponent* NiagaraSystem, const FString& OverrideName)
 {
 	if (!NiagaraSystem)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"Set Niagara Skeletal Mesh Component\" is NULL, OverrideName \"%s\" and SkeletalMeshComponent \"%s\", skipping."), *OverrideName, SkeletalMeshComponent ? *SkeletalMeshComponent->GetName() : TEXT("NULL"));
-		return;
+		return nullptr;
 	}
 
+	const FNiagaraParameterStore& OverrideParameters = NiagaraSystem->GetOverrideParameters();
+	FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterfaceSkeletalMesh::StaticClass()), *OverrideName);
+
+	const int32 Index = OverrideParameters.IndexOf(Variable);
+	return Index != INDEX_NONE ? Cast<UNiagaraDataInterfaceSkeletalMesh>(OverrideParameters.GetDataInterface(Index)) : nullptr;
+}
+
+void UNiagaraFunctionLibrary::OverrideSystemUserVariableSkeletalMeshComponent(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, USkeletalMeshComponent* SkeletalMeshComponent)
+{
 	if (!SkeletalMeshComponent)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("SkeletalMeshComponent in \"Set Niagara Skeletal Mesh Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
 		return;
 	}
 
-	const FNiagaraParameterStore& OverrideParameters = NiagaraSystem->GetOverrideParameters();
-
-	FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterfaceSkeletalMesh::StaticClass()), *OverrideName);
-	
-	int32 Index = OverrideParameters.IndexOf(Variable);
-	if (Index == INDEX_NONE)
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
-		return;
-	}
-	
-	UNiagaraDataInterfaceSkeletalMesh* SkeletalMeshInterface = Cast<UNiagaraDataInterfaceSkeletalMesh>(OverrideParameters.GetDataInterface(Index));
+	UNiagaraDataInterfaceSkeletalMesh* SkeletalMeshInterface = GetSkeletalMeshDataInterface(NiagaraSystem, OverrideName);
 	if (!SkeletalMeshInterface)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, NiagaraSystem != nullptr ? *NiagaraSystem->GetOwner()->GetName() : TEXT("NULL"));
 		return;
 	}
 
 	SkeletalMeshInterface->SetSourceComponentFromBlueprints(SkeletalMeshComponent);
+}
+
+void UNiagaraFunctionLibrary::SetSkeletalMeshDataInterfaceSamplingRegions(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, const TArray<FName>& SamplingRegions)
+{
+	UNiagaraDataInterfaceSkeletalMesh* SkeletalMeshInterface = GetSkeletalMeshDataInterface(NiagaraSystem, OverrideName);
+	if (!SkeletalMeshInterface)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, NiagaraSystem != nullptr ? *NiagaraSystem->GetOwner()->GetName() : TEXT("NULL"));
+		return;
+	}
+
+	SkeletalMeshInterface->SetSamplingRegionsFromBlueprints(SamplingRegions);
 }
 
 void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UTexture* Texture)

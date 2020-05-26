@@ -18,12 +18,12 @@
 
 #include "DisplayClusterPlayerInput.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
-FDisplayClusterClusterNodeCtrlMaster::FDisplayClusterClusterNodeCtrlMaster(const FString& ctrlName, const FString& nodeName) :
-	FDisplayClusterClusterNodeCtrlSlave(ctrlName, nodeName)
+FDisplayClusterClusterNodeCtrlMaster::FDisplayClusterClusterNodeCtrlMaster(const FString& CtrlName, const FString& NodeName) :
+	FDisplayClusterClusterNodeCtrlSlave(CtrlName, NodeName)
 {
 	CachedSyncData.Emplace(EDisplayClusterSyncGroup::PreTick);
 	CachedSyncData.Emplace(EDisplayClusterSyncGroup::Tick);
@@ -320,4 +320,3 @@ void FDisplayClusterClusterNodeCtrlMaster::StopClients()
 	// Master clients stop
 	// ...
 }
-

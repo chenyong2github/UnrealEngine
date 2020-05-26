@@ -24,7 +24,7 @@ struct FIoStoreTocHeader
 	uint32	CompressionBlockSize;
 	FIoContainerId ContainerId;
 	FGuid	EncryptionKeyGuid;
-	uint8	bIsEncrypted;
+	EIoContainerFlags ContainerFlags;
 	uint8	Pad[53];
 
 	void MakeMagic()
@@ -150,10 +150,63 @@ struct FIoStoreTocPartialEntry
  */
 struct FIoStoreTocCompressedBlockEntry
 {
-	/** Offset and size of the compressed block. */
-	FIoOffsetAndLength OffsetAndLength;
-	/** Index into the compression methods array. */
-	uint8 CompressionMethodIndex;
+	static constexpr uint32 OffsetBits = 40;
+	static constexpr uint64 OffsetMask = (1ull << OffsetBits) - 1ull;
+	static constexpr uint32 SizeBits = 24;
+	static constexpr uint32 SizeMask = (1 << SizeBits) - 1;
+	static constexpr uint32 SizeShift = 8;
+
+	inline uint64 GetOffset() const
+	{
+		const uint64* Offset = reinterpret_cast<const uint64*>(Data);
+		return *Offset & OffsetMask;
+	}
+
+	inline void SetOffset(uint64 InOffset)
+	{
+		uint64* Offset = reinterpret_cast<uint64*>(Data);
+		*Offset = InOffset & OffsetMask;
+	}
+
+	inline uint64 GetSize() const
+	{
+		const uint32* Size = reinterpret_cast<const uint32*>(Data) + 1;
+		return (*Size >> SizeShift) & SizeMask;
+	}
+
+	inline void SetSize(uint64 InSize)
+	{
+		uint32* Size = reinterpret_cast<uint32*>(Data) + 1;
+		*Size |= (uint32(InSize) << SizeShift);
+	}
+
+	inline uint64 GetUncompressedSize() const
+	{
+		const uint32* UncompressedSize = reinterpret_cast<const uint32*>(Data) + 2;
+		return *UncompressedSize & SizeMask;
+	}
+
+	inline void SetUncompressedSize(uint64 InSize)
+	{
+		uint32* UncompressedSize = reinterpret_cast<uint32*>(Data) + 2;
+		*UncompressedSize = InSize & SizeMask;
+	}
+
+	inline uint8 GetCompressionMethodIndex() const
+	{
+		const uint32* Index = reinterpret_cast<const uint32*>(Data) + 2;
+		return static_cast<uint8>(*Index >> SizeBits);
+	}
+
+	inline void SetCompressionMethodIndex(uint8 InIndex)
+	{
+		uint32* Index = reinterpret_cast<uint32*>(Data) + 2;
+		*Index |= uint32(InIndex) << SizeBits;
+	}
+
+private:
+	/* 5 bytes offset, 3 bytes for size / uncompressed size and 1 byte for compresseion method. */
+	uint8 Data[5 + 3 + 3 + 1];
 };
 
 class FIoStoreTocReader
@@ -200,9 +253,14 @@ public:
 		return Header->EncryptionKeyGuid;
 	}
 
-	bool IsContainerEncrypted() const
+	EIoContainerFlags GetContainerFlags() const
 	{
-		return Header->bIsEncrypted > 0;
+		return Header->ContainerFlags;
+	}
+
+	TArrayView<const FSHAHash> GetBlockSignatureHashes()
+	{
+		return BlockSignatureHashes;
 	}
 
 private:
@@ -215,5 +273,6 @@ private:
 	uint32 EntryCount = 0;
 	uint32 PartialEntryCount = 0;
 	uint32 CompressedBlockEntryCount = 0;
+	TArrayView<const FSHAHash> BlockSignatureHashes;
 };
 

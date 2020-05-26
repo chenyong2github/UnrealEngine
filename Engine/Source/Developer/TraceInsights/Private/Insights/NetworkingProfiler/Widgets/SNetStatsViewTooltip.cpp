@@ -129,19 +129,19 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 				[
 					SNew(SGridPanel)
 
-					// Id: [Id]
+					// Event Type Index: [Index]
 					+ SGridPanel::Slot(0, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("TT_Id", "Id:"))
+						.Text(LOCTEXT("TT_Id", "Event Type Index:"))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.Text(FText::AsNumber(NetEventNodePtr->GetId()))
+						.Text(FText::AsNumber(NetEventNodePtr->GetEventTypeIndex()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					]
 
@@ -157,6 +157,8 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
+						.WrapTextAt(512.0f)
+						.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 						.Text(FText::FromName(NetEventNodePtr->GetName()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					]
@@ -173,6 +175,8 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					//.Padding(2.0f)
 					//[
 					//	SNew(STextBlock)
+					//	.WrapTextAt(512.0f)
+					//	.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 					//	.Text(FText::FromName(NetEventNodePtr->GetMetaGroupName()))
 					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					//]

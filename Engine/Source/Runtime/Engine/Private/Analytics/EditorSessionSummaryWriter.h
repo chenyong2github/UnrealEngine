@@ -31,26 +31,39 @@ private:
 	void OnEnterPIE(const bool /*bIsSimulating*/);
 	void OnExitPIE(const bool /*bIsSimulating*/);
 
-	static TUniquePtr<FEditorAnalyticsSession> CreateCurrentSession(uint32 OutOfProcessMonitorProcessId);
+	static TUniquePtr<FEditorAnalyticsSession> CreateCurrentSession(const FDateTime& StartupTimeUtc, uint32 OutOfProcessMonitorProcessId);
 	static FString GetUserActivityString();
-	void UpdateTimestamp(const FDateTime& InCurrTimeUtc);
-	void UpdateEditorIdleTime(const FDateTime& InActivityTimeUtc, bool bSaveSession);
-	void UpdateUserIdleTime(const FDateTime& InUserActivityTimeUtc, bool bSaveSession);
-	void UpdateLegacyIdleTimes();
-	bool TrySaveCurrentSession();
+	void UpdateSessionTimestamp(const FDateTime& InCurrTimeUtc);
+	void UpdateSessionDuration(double InCurrTimeSecs);
+	bool UpdateEditorIdleTime(double InCurrTimeSecs, bool bReset);
+	bool UpdateUserIdleTime(double InCurrTimeSecs, bool bReset);
+	bool TrySaveCurrentSession(const FDateTime& CurrTimeUtc, double CurrTimeSecs);
 
 private:
 	TUniquePtr<FEditorAnalyticsSession> CurrentSession;
-	FString CurrentSessionSectionName;
 	FCriticalSection SaveSessionLock;
 	float HeartbeatTimeElapsed;
 
-	bool bShutdown;
-	const uint32 OutOfProcessMonitorProcessId; // Non-zero if out-of process monitoring is set. To ensure one CrashReportClient(CRC) doesn't report the session of another CRC instance (race condition).
-	double LastSlateInteractionTime;
-	TAtomic<uint64> LastTickUtcTime;           // Time since the last 'Tick()' to detect when the main thread isn't ticking.
-	TAtomic<uint64> LastEditorActivityUtcTime; // Since the last user action or CPU burst usage.
-	TAtomic<uint64> LastUserActivityUtcTime;   // Since the last user input.
+	/** Last activity (user input, crash, terminate, shutdown) timestamp from FPlatformTime::Seconds() to track user inactivity. */
+	TAtomic<double> LastUserActivityTimeSecs;
+
+	/** The number of idle seconds in the current idle sequence that were accounted (saved in the session) for the user idle counters. */
+	TAtomic<double> AccountedUserIdleSecs;
+
+	/** Last activity (user input, crash, terminate, shutdown, CPU Burst) timestamp from FPlatformTime::Seconds(). */
+	TAtomic<double> LastEditorActivityTimeSecs;
+
+	/** Session timestamp from FDateTime::UtcNow(). Unreliable if user change system date/time (daylight saving or user altering it). */
+	FDateTime SessionStartTimeUtc;
+
+	/** Session timestamp from FPlatformTime::Seconds(). Lose precision when computing long time spans (+/- couple of seconds over a day). */
+	double SessionStartTimeSecs = 0.0;
+
+	/** Non-zero if out-of process monitoring is set. To ensure one CrashReportClient(CRC) doesn't report the session of another CRC instance (race condition). */
+	const uint32 OutOfProcessMonitorProcessId;
+
+	/** True once Shutdown() is called. */
+	bool bShutdown = false;
 };
 
 #endif

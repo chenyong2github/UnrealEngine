@@ -213,6 +213,7 @@ void FPropertyTag::SerializeTaggedProperty(FArchive& Ar, FProperty* Property, ui
 void FPropertyTag::SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProperty* Property, uint8* Value, uint8* Defaults) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
+	const int32 StartOfProperty = UnderlyingArchive.Tell();
 
 	if (!UnderlyingArchive.IsTextFormat() && Property->GetClass() == FBoolProperty::StaticClass())
 	{
@@ -238,5 +239,12 @@ void FPropertyTag::SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProp
 		FSerializedPropertyScope SerializedProperty(UnderlyingArchive, Property);
 
 		Property->SerializeItem(Slot, Value, Defaults);
+	}
+
+	// Ensure that we serialize what we expected to serialize.
+	const int32 EndOfProperty = UnderlyingArchive.Tell();
+	if (Size && (EndOfProperty - StartOfProperty != Size))
+	{
+		UnderlyingArchive.SetCriticalError();
 	}
 }

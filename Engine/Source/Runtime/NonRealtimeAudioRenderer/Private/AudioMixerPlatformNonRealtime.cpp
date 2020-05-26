@@ -414,6 +414,12 @@ namespace Audio
 		return true;
 	}
 
+	void FMixerPlatformNonRealtime::FadeOut()
+	{
+		bFadedOut = true;
+		FadeVolume = 0.f;
+	}
+
 	uint32 FMixerPlatformNonRealtime::RunInternal()
 	{
 		// Not used.
@@ -423,5 +429,11 @@ namespace Audio
 	bool FMixerPlatformNonRealtime::DisablePCMAudioCaching() const
 	{
 		return true;
+	}
+
+	void FMixerPlatformNonRealtime::FadeIn()
+	{
+		bFadedOut = false;
+		FadeVolume = 1.0f;
 	}
 }

@@ -4,17 +4,19 @@
 
 #include "EditorSubsystem.h"
 
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
 #include "Toolkits/IToolkit.h"
 
-#include "Templates/SubclassOf.h"
-#include "AssetEditorMessages.h"
-#include "IMessageContext.h"
-#include "MessageEndpoint.h"
 #include "Containers/Ticker.h"
+#include "Tools/Modes.h"
 #include "AssetEditorSubsystem.generated.h"
 
+class UAssetEditor;
+class UEdMode;
+class UObject;
+class UClass;
+struct FAssetEditorRequestOpenAsset;
+class FEditorModeTools;
+class IMessageContext;
 
 /**
  * This class keeps track of a currently open asset editor; allowing it to be
@@ -44,6 +46,13 @@ enum class EAssetEditorCloseReason : uint8
 	RemoveAssetFromAllEditors,
 	CloseAllAssetEditors,
 };
+
+struct UNREALED_API FRegisteredModeInfo
+{
+	TWeakObjectPtr<UClass> ModeClass;
+	FEditorModeInfo ModeInfo;
+};
+using RegisteredModeInfoMap = TMap<FEditorModeID, FRegisteredModeInfo>;
 
 /**
  * UAssetEditorSubsystem
@@ -137,6 +146,49 @@ public:
 	/** Request notification to restore the assets that were previously open when the editor was last closed */
 	void RequestRestorePreviouslyOpenAssets();
 
+	void RegisterUAssetEditor(UAssetEditor* NewAssetEditor);
+	void UnregisterUAssetEditor(UAssetEditor* RemovedAssetEditor);
+	
+	/**
+	 * Creates a scriptable editor mode based on ID name, which will be owned by the given Owner, if that name exists in the map of editor modes found at system startup.
+	 * @param ModeID	ID of the mode to create.
+	 * @param Owner		The tools ownership context that the mode should be created under.
+	 *
+	 * @return 			A pointer to the created UEdMode or nullptr, if the given ModeID does not exist in the set of known modes.
+	 */
+	UEdMode* CreateEditorModeWithToolsOwner(FEditorModeID ModeID, FEditorModeTools& Owner);
+	
+	/**
+	 * Returns information about an editor mode, based on the given ID.
+	 * @param ModeID		ID of the editor mode.
+	 * @param OutModeInfo	The out struct where the mode information should be stored.
+	 *
+	 * @return 				True if OutModeInfo was filled out successfully, otherwise false.
+	 */
+	bool FindEditorModeInfo(const FEditorModeID& InModeID, FEditorModeInfo& OutModeInfo) const;
+	
+	/**
+	 * Creates an array of all known FEditorModeInfos, sorted by their priority, from greatest to least.
+	 *
+	 * @return 			The sorted array of FEditorModeInfos.
+	 */
+	TArray<FEditorModeInfo> GetEditorModeInfoOrderedByPriority() const;
+
+	/**
+	 * Event that is triggered whenever a mode is registered or unregistered
+	 */
+	FRegisteredModesChangedEvent& OnEditorModesChanged();
+
+	/**
+	 * Event that is triggered whenever a mode is registered
+	 */
+	FOnModeRegistered& OnEditorModeRegistered();
+
+	/**
+	 * Event that is triggered whenever a mode is unregistered
+	 */
+	FOnModeUnregistered& OnEditorModeUnregistered();
+
 private:
 
 	/** Handles FAssetEditorRequestOpenAsset messages. */
@@ -165,6 +217,9 @@ private:
 
 	/** Callback for when the Editor closes, before Slate shuts down all the windows. */
 	void OnEditorClose();
+
+	void RegisterEditorModes();
+	void UnregisterEditorModes();
 
 private:
 
@@ -201,10 +256,6 @@ private:
 	TMap<FName, FAssetEditorAnalyticInfo> EditorUsageAnalytics;
 
 private:
-
-	/** Holds the messaging endpoint. */
-	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
-
 	/** Holds a delegate to be invoked when the widget ticks. */
 	FTickerDelegate TickDelegate;
 
@@ -228,5 +279,18 @@ private:
 
 	/** A pointer to the notification used by RestorePreviouslyOpenAssets */
 	TWeakPtr<SNotificationItem> RestorePreviouslyOpenAssetsNotificationPtr;
+	
+	UPROPERTY(Transient)
+	TArray<UAssetEditor*> OwnedAssetEditors;
+	
+	RegisteredModeInfoMap EditorModes;
 
+	/** Event that is triggered whenever a mode is unregistered */
+	FRegisteredModesChangedEvent OnEditorModesChangedEvent;
+
+	/** Event that is triggered whenever a mode is unregistered */
+	FOnModeRegistered OnEditorModeRegisteredEvent;
+
+	/** Event that is triggered whenever a mode is unregistered */
+	FOnModeUnregistered OnEditorModeUnregisteredEvent;
 };

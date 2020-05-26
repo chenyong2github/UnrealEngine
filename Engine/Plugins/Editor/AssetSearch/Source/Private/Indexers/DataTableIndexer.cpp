@@ -3,6 +3,7 @@
 #include "DataTableIndexer.h"
 #include "Utility/IndexerUtilities.h"
 #include "Engine/DataTable.h"
+#include "SearchSerializer.h"
 
 enum class EDataTableIndexerVersion
 {
@@ -22,12 +23,12 @@ int32 FDataTableIndexer::GetVersion() const
 
 void FDataTableIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const UDataTable* DataTable = Cast<UDataTable>(InAssetObject);
-	check(DataTable);
+	const UDataTable* DataTable = CastChecked<UDataTable>(InAssetObject);
 
 	const TMap<FName, uint8*>& Rows = DataTable->GetRowMap();
 
 	Serializer.BeginIndexingObject(DataTable, TEXT("$self"));
+
 	for (const auto& Entry : Rows)
 	{
 		const FName& RowName = Entry.Key;

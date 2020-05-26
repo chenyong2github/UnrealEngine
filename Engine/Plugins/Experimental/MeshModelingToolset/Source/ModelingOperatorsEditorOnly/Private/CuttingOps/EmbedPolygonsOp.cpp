@@ -10,6 +10,8 @@
 
 #include "Engine/StaticMesh.h"
 
+#include "Algo/RemoveIf.h"
+
 #include "MeshDescriptionToDynamicMesh.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
@@ -150,11 +152,18 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		if (SecondHit >= SortedHitTriangles.Num())
 		{
 			// failed to find a second surface to connect to
-			return;
+			SecondHit = -1;
 		}
 	}
 
-	auto CutHole = [](FDynamicMesh3& Mesh, const FFrame3d& F, int TriStart, const FPolygon2d& PolygonArg, TArray<int>& PathVertIDs, TArray<int>& PathVertCorrespond, bool bCollapseDegenerateEdges)
+	enum EDeleteMethod
+	{
+		DeleteNone,
+		DeleteInside,
+		DeleteOutside
+	};
+
+	auto CutHole = [](FDynamicMesh3& Mesh, const FFrame3d& F, int TriStart, const FPolygon2d& PolygonArg, EDeleteMethod DeleteMethod, TArray<int>& PathVertIDs, TArray<int>& PathVertCorrespond, bool bCollapseDegenerateEdges)
 	{
 		if (!Mesh.IsTriangle(TriStart))
 		{
@@ -168,10 +177,38 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		}
 
 		FDynamicMeshEditor MeshEditor(&Mesh);
-		bool bDidRemove = MeshEditor.RemoveTriangles(Selection.AsArray(), true);
-		if (!bDidRemove)
+		if (DeleteMethod != EDeleteMethod::DeleteNone)
 		{
-			return false;
+			bool bDidRemove = false;
+			if (DeleteMethod == EDeleteMethod::DeleteOutside)
+			{
+				TArray<int> InvSelection;
+				InvSelection.Reserve(Mesh.TriangleCount() - Selection.Num());
+				for (int TID : Mesh.TriangleIndicesItr())
+				{
+					if (!Selection.IsSelected(TID))
+					{
+						InvSelection.Add(TID);
+					}
+				}
+				bDidRemove = MeshEditor.RemoveTriangles(InvSelection, true);
+			}
+			else
+			{
+				bDidRemove = MeshEditor.RemoveTriangles(Selection.AsArray(), true);
+			}
+			if (!bDidRemove)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			int GID = Mesh.AllocateTriangleGroup();
+			for (int TID : Selection)
+			{
+				Mesh.SetTriangleGroup(TID, GID);
+			}
 		}
 
 		// remove triangles could have removed a path vertex entirely in weird cases; just consider that a failure
@@ -195,7 +232,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		{
 			check(Mesh.IsVertex(PathVertIDs[Idx])); // collapse shouldn't leave invalid verts in, and we check + fail out on invalid verts above that, so seeing them here should be impossible
 			int EID = Mesh.FindEdge(PathVertIDs[LastIdx], PathVertIDs[Idx]);
-			if (!Mesh.IsEdge(EID) || !Mesh.IsBoundaryEdge(EID))
+			if (!Mesh.IsEdge(EID) || (!Mesh.IsBoundaryEdge(EID) && DeleteMethod != EDeleteMethod::DeleteNone))
 			{
 				return false;
 			}
@@ -209,7 +246,17 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		return true;
 	};
 
-	bool bCutSide1 = CutHole(*ResultMesh, Frame, SortedHitTriangles[0].Value, Polygon, PathVertIDs1, PathVertCorrespond1, bCollapseDegenerateEdges);
+	EDeleteMethod DeleteMethod = EDeleteMethod::DeleteInside;
+	if (Operation == EEmbeddedPolygonOpMethod::InsertPolygon)
+	{
+		DeleteMethod = EDeleteMethod::DeleteNone;
+	}
+	else if (Operation == EEmbeddedPolygonOpMethod::TrimOutside)
+	{
+		DeleteMethod = EDeleteMethod::DeleteOutside;
+	}
+
+	bool bCutSide1 = CutHole(*ResultMesh, Frame, SortedHitTriangles[0].Value, Polygon, DeleteMethod, PathVertIDs1, PathVertCorrespond1, bCollapseDegenerateEdges);
 	RecordEmbeddedEdges(PathVertIDs1);
 	if (!bCutSide1 || PathVertIDs1.Num() < 2)
 	{
@@ -218,9 +265,15 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 
 	if (Operation == EEmbeddedPolygonOpMethod::CutThrough)
 	{
+		if (SecondHit == -1)
+		{
+			return;
+		}
+
 		TArray<int> PathVertIDs2, PathVertCorrespond2;
-		bool bCutSide2 = CutHole(*ResultMesh, Frame, SortedHitTriangles[SecondHit].Value, Polygon, PathVertIDs2, PathVertCorrespond2, bCollapseDegenerateEdges);
-		RecordEmbeddedEdges(PathVertIDs1);
+		bool bCutSide2 = CutHole(*ResultMesh, Frame, SortedHitTriangles[SecondHit].Value, Polygon, DeleteMethod, PathVertIDs2, PathVertCorrespond2, bCollapseDegenerateEdges);
+		EmbeddedEdges.SetNum(Algo::RemoveIf(EmbeddedEdges, [this](int EID) {return !ResultMesh->IsEdge(EID);})); // remove any now-deleted recorded edges from the first hole
+		RecordEmbeddedEdges(PathVertIDs2); // record the edges of the second hole
 		if (!bCutSide2 || PathVertIDs2.Num() < 2)
 		{
 			return;
@@ -250,38 +303,40 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 			}
 		}
 	}
-	else if (Operation == EEmbeddedPolygonOpMethod::CutAndFill)
-	{
-		FDynamicMeshEditor MeshEditor(ResultMesh.Get());
-		FEdgeLoop Loop(ResultMesh.Get());
-		Loop.InitializeFromVertices(PathVertIDs1);
+	// TODO: later perhaps revive this hole fill code?
+	//       But for now CutAndFill has been conceptually replaced with "embed polygon," which is much more useful
+	//else if (Operation == EEmbeddedPolygonOpMethod::CutAndFill)
+	//{
+		//FDynamicMeshEditor MeshEditor(ResultMesh.Get());
+		//FEdgeLoop Loop(ResultMesh.Get());
+		//Loop.InitializeFromVertices(PathVertIDs1);
 
-		
-		FSimpleHoleFiller Filler(ResultMesh.Get(), Loop);
-		int GID = ResultMesh->AllocateTriangleGroup();
-		if (Filler.Fill(GID))
-		{
-			if (ResultMesh->HasAttributes())
-			{
-				MeshEditor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)Frame.Z()); // TODO: should we use the best fit plane instead of the projection plane for the normal? ... probably.
-				
-				for (int UVIdx = 0, NumUVLayers = ResultMesh->Attributes()->NumUVLayers(); UVIdx < NumUVLayers; UVIdx++)
-				{
-					MeshEditor.SetTriangleUVsFromProjection(Filler.NewTriangles, Frame, UVScaleFactor, FVector2f::Zero(), true, UVIdx);
-				}
-			}
-		}
-	}
+		//
+		//FSimpleHoleFiller Filler(ResultMesh.Get(), Loop);
+		//int GID = ResultMesh->AllocateTriangleGroup();
+		//if (Filler.Fill(GID))
+		//{
+		//	if (ResultMesh->HasAttributes())
+		//	{
+		//		MeshEditor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)Frame.Z()); // TODO: should we use the best fit plane instead of the projection plane for the normal? ... probably.
+		//		
+		//		for (int UVIdx = 0, NumUVLayers = ResultMesh->Attributes()->NumUVLayers(); UVIdx < NumUVLayers; UVIdx++)
+		//		{
+		//			MeshEditor.SetTriangleUVsFromProjection(Filler.NewTriangles, Frame, UVScaleFactor, FVector2f::Zero(), true, UVIdx);
+		//		}
+		//	}
+		//}
+	//}
 
 	bEmbedSucceeded = true;
 }
 
 void FEmbedPolygonsOp::RecordEmbeddedEdges(TArray<int>& PathVertIDs)
 {
-	for (int Idx = 0; Idx + 1 < PathVertIDs.Num(); Idx++)
+	for (int LastIdx = PathVertIDs.Num() - 1, Idx = 0; Idx < PathVertIDs.Num(); LastIdx = Idx++)
 	{
-		int EID = ResultMesh->FindEdge(PathVertIDs[Idx], PathVertIDs[Idx + 1]);
-		if (ensure(ResultMesh->IsEdge(EID)))
+		int EID = ResultMesh->FindEdge(PathVertIDs[LastIdx], PathVertIDs[Idx]);
+		if (ResultMesh->IsEdge(EID))
 		{
 			EmbeddedEdges.Add(EID);
 		}

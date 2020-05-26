@@ -146,7 +146,14 @@ static void TestRegisterEncryptionKey(const TArray<FString>& Args)
 			{
 				check(KeyBytes.Num() == sizeof(FAES::FAESKey));
 				FMemory::Memcpy(EncryptionKey.Key, &KeyBytes[0], sizeof(EncryptionKey.Key));
+
+				// Deprecated version
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FCoreDelegates::GetRegisterEncryptionKeyDelegate().ExecuteIfBound(EncryptionKeyGuid, EncryptionKey);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+				// New version
+				FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(EncryptionKeyGuid, EncryptionKey);
 			}
 		}
 	}
@@ -4631,7 +4638,7 @@ public:
 
 			if (CompressedBlockSize > UncompressedBlockSize)
 			{
-				UE_LOG(LogPakFile, Display, TEXT("Bigger compressed? Block[%d]: %d -> %d > %d [%d min %d]"), CompressionBlockIndex, Block.CompressedStart, Block.CompressedEnd, UncompressedBlockSize, PakEntry.UncompressedSize - Pos, PakEntry.CompressionBlockSize);
+				UE_LOG(LogPakFile, Verbose, TEXT("Bigger compressed? Block[%d]: %d -> %d > %d [%d min %d]"), CompressionBlockIndex, Block.CompressedStart, Block.CompressedEnd, UncompressedBlockSize, PakEntry.UncompressedSize - Pos, PakEntry.CompressionBlockSize);
 			}
 
 
@@ -4944,6 +4951,7 @@ void FPakFile::Initialize(FArchive* Reader, bool bLoadIndex)
 		if (FileInfoPos >= 0)
 		{
 			Reader->Seek(FileInfoPos);
+			Reader->Precache(FileInfoPos, 0); // Inform the archive that we're going to repeatedly serialize from the current location
 
 			SCOPED_BOOT_TIMING("PakFile_SerilizeTrailer");
 
@@ -6538,13 +6546,12 @@ FPakPlatformFile::FPakPlatformFile()
 	: LowerLevel(NULL)
 	, bSigned(false)
 {
-	FCoreDelegates::GetRegisterEncryptionKeyDelegate().BindRaw(this, &FPakPlatformFile::RegisterEncryptionKey);
+	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().AddRaw(this, &FPakPlatformFile::RegisterEncryptionKey);
 }
 
 FPakPlatformFile::~FPakPlatformFile()
 {
-	FCoreDelegates::GetRegisterEncryptionKeyDelegate().Unbind();
-
+	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().RemoveAll(this);
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 	FCoreDelegates::OnMountAllPakFiles.Unbind();
@@ -6716,10 +6723,23 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 		FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
 		if (IoDispatcherInitStatus.IsOk())
 		{
-			FIoStatus IoDispatcherMountStatus = FIoDispatcher::Get().Mount(IoStoreGlobalEnvironment);
+			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+			FIoStatus IoDispatcherMountStatus = IoDispatcher.Mount(IoStoreGlobalEnvironment);
 			if (IoDispatcherMountStatus.IsOk())
 			{
 				UE_LOG(LogPakFile, Display, TEXT("Initialized I/O dispatcher"));
+
+				FIoSignatureErrorEvent& SignatureErrorEvent = IoDispatcher.GetSignatureErrorEvent();
+				FScopeLock _(&SignatureErrorEvent.CriticalSection);
+				SignatureErrorEvent.SignatureErrorDelegate.AddLambda([](const FIoSignatureError& Error)
+				{
+					FPakChunkSignatureCheckFailedData FailedData(Error.ContainerName, TPakChunkHash(), TPakChunkHash(), Error.BlockIndex);
+#if !PAKHASH_USE_CRC
+					FailedData.ExpectedHash = Error.ExpectedHash;
+					FailedData.ReceivedHash = Error.ActualHash;
+#endif
+					FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(FailedData);
+				});
 			}
 			else
 			{

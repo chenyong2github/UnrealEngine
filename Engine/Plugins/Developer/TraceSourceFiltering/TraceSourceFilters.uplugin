@@ -37,10 +37,6 @@
 		{
 			"Name": "GameplayInsights",
 			"Enabled": true
-		},
-		{
-			"Name": "TcpMessaging",
-			"Enabled": true
 		}
 	]
 }

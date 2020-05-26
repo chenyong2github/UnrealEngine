@@ -142,7 +142,7 @@ public abstract class BaseWinPlatform : Platform
 					if(GroupIcon != null) Update.SetIcons(IconResourceId, GroupIcon);
 
 					const int ExecFileResourceId = 201;
-					Update.SetData(ExecFileResourceId, ResourceType.RawData, Encoding.Unicode.GetBytes(StagedRelativeTargetPath + "\0"));
+					Update.SetData(ExecFileResourceId, ResourceType.RawData, Encoding.Unicode.GetBytes(StagedRelativeTargetPath.ToString().Replace('/', '\\') + "\0"));
 
 					const int ExecArgsResourceId = 202;
 					Update.SetData(ExecArgsResourceId, ResourceType.RawData, Encoding.Unicode.GetBytes(StagedArguments + "\0"));

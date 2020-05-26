@@ -511,7 +511,11 @@ void UToolMenus::AssembleMenuSection(UToolMenu* GeneratedMenu, const UToolMenu* 
 
 		if (ConstructedEntries == nullptr)
 		{
-			ConstructedEntries = NewObject<UToolMenu>(this);
+			ConstructedEntries = NewToolMenuObject(FName(TEXT("TempAssembleMenuSection")), NAME_None);
+			if (!ensure(ConstructedEntries))
+			{
+				break;
+			}
 			ConstructedEntries->Context = DestSection->Context;
 		}
 
@@ -576,7 +580,7 @@ void UToolMenus::AssembleMenuSection(UToolMenu* GeneratedMenu, const UToolMenu* 
 
 	if (ConstructedEntries)
 	{
-		ConstructedEntries->Sections.Empty();
+		ConstructedEntries->Empty();
 		ConstructedEntries = nullptr;
 	}
 
@@ -626,7 +630,11 @@ void UToolMenus::AssembleMenu(UToolMenu* GeneratedMenu, const UToolMenu* Other)
 		
 		if (ConstructedSections == nullptr)
 		{
-			ConstructedSections = NewObject<UToolMenu>(this);
+			ConstructedSections = NewToolMenuObject(FName(TEXT("TempAssembleMenu")), NAME_None);
+			if (!ensure(ConstructedSections))
+			{
+				break;
+			}
 			ConstructedSections->Context = GeneratedMenu->Context;
 		}
 
@@ -676,7 +684,7 @@ void UToolMenus::AssembleMenu(UToolMenu* GeneratedMenu, const UToolMenu* Other)
 
 	if (ConstructedSections)
 	{
-		ConstructedSections->Sections.Empty();
+		ConstructedSections->Empty();
 		ConstructedSections = nullptr;
 	}
 
@@ -799,10 +807,37 @@ FCustomizedToolMenu* UToolMenus::AddMenuCustomization(const FName InName)
 	}
 }
 
+FCustomizedToolMenu* UToolMenus::FindRuntimeMenuCustomization(const FName InName)
+{
+	for (int32 i = 0; i < RuntimeCustomizedMenus.Num(); ++i)
+	{
+		if (RuntimeCustomizedMenus[i].Name == InName)
+		{
+			return &RuntimeCustomizedMenus[i];
+		}
+	}
+
+	return nullptr;
+}
+
+FCustomizedToolMenu* UToolMenus::AddRuntimeMenuCustomization(const FName InName)
+{
+	if (FCustomizedToolMenu* Found = FindRuntimeMenuCustomization(InName))
+	{
+		return Found;
+	}
+	else
+	{
+		FCustomizedToolMenu& NewCustomization = RuntimeCustomizedMenus.AddDefaulted_GetRef();
+		NewCustomization.Name = InName;
+		return &NewCustomization;
+	}
+}
+
 void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 {
 	FCustomizedToolMenuHierarchy CustomizationHierarchy = GeneratedMenu->GetMenuCustomizationHierarchy();
-	if (CustomizationHierarchy.Hierarchy.Num() == 0)
+	if (CustomizationHierarchy.Hierarchy.Num() == 0 && CustomizationHierarchy.RuntimeHierarchy.Num() == 0)
 	{
 		return;
 	}
@@ -1022,11 +1057,12 @@ UToolMenu* UToolMenus::GenerateSubMenu(const UToolMenu* InGeneratedParent, const
 	}
 
 	// Construct menu using delegate and insert as root so it can be overridden
+	TArray<UToolMenu*> MenusToCleanup;
 	if (Block->SubMenuData.ConstructMenu.NewToolMenu.IsBound())
 	{
-		UToolMenu* Menu = NewObject<UToolMenu>(this);
+		UToolMenu* Menu = NewToolMenuObject(FName(TEXT("TempGenerateSubMenu")), SubMenuFullName);
+		MenusToCleanup.Add(Menu);
 		Menu->Context = InGeneratedParent->Context;
-		Menu->MenuName = SubMenuFullName;
 
 		// Submenu specific data
 		Menu->SubMenuParent = InGeneratedParent;
@@ -1040,7 +1076,7 @@ UToolMenu* UToolMenus::GenerateSubMenu(const UToolMenu* InGeneratedParent, const
 	// Populate menu builder with final menu
 	if (Hierarchy.Num() > 0)
 	{
-		UToolMenu* GeneratedMenu = NewObject<UToolMenu>(this);
+		UToolMenu* GeneratedMenu = NewToolMenuObject(FName(TEXT("GeneratedSubMenu")), SubMenuFullName);
 		GeneratedMenu->InitGeneratedCopy(Hierarchy[0], SubMenuFullName, &InGeneratedParent->Context);
 		for (UToolMenu* HiearchyItem : Hierarchy)
 		{
@@ -1053,8 +1089,19 @@ UToolMenu* UToolMenus::GenerateSubMenu(const UToolMenu* InGeneratedParent, const
 		GeneratedMenu->SubMenuParent = InGeneratedParent;
 		GeneratedMenu->SubMenuSourceEntryName = InBlockName;
 		AssembleMenuHierarchy(GeneratedMenu, Hierarchy);
+		for (UToolMenu* MenuToCleanup : MenusToCleanup)
+		{
+			MenuToCleanup->Empty();
+		}
+		MenusToCleanup.Empty();
 		return GeneratedMenu;
 	}
+
+	for (UToolMenu* MenuToCleanup : MenusToCleanup)
+	{
+		MenuToCleanup->Empty();
+	}
+	MenusToCleanup.Empty();
 
 	return nullptr;
 }
@@ -1078,9 +1125,8 @@ void UToolMenus::PopulateSubMenuWithoutName(FMenuBuilder& MenuBuilder, TWeakObje
 
 	if (InNewToolMenuDelegate.IsBound())
 	{
-		UToolMenu* Menu = NewObject<UToolMenu>(this);
+		UToolMenu* Menu = NewToolMenuObject(FName(TEXT("SubMenuWithoutName")), NAME_None); // Menu does not have a name
 		Menu->Context = InGeneratedParent->Context;
-		Menu->MenuName = NAME_None; // Menu does not have a name
 
 		// Submenu specific data
 		Menu->SubMenuParent = InGeneratedParent;
@@ -1162,6 +1208,7 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 		MenuBuilder.EndSection();
 	}
 
+	MenuBuilder.GetMultiBox()->WeakToolMenu = MenuData;
 	AddReferencedContextObjects(MenuBuilder.GetMultiBox(), MenuData);
 }
 
@@ -1333,7 +1380,7 @@ FOnGetContent UToolMenus::ConvertWidgetChoice(const FNewToolMenuChoice& Choice, 
 		{
 			if (ToCall.IsBound())
 			{
-				UToolMenu* MenuData = NewObject<UToolMenu>();
+				UToolMenu* MenuData = UToolMenus::Get()->NewToolMenuObject(FName(TEXT("NewToolMenu")), NAME_None);
 				MenuData->Context = Context;
 				ToCall.Execute(MenuData);
 				return UToolMenus::Get()->GenerateWidget(MenuData);
@@ -1687,7 +1734,7 @@ UToolMenu* UToolMenus::GenerateMenu(const FName Name, const FToolMenuContext& In
 
 UToolMenu* UToolMenus::GenerateMenuFromHierarchy(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext)
 {
-	UToolMenu* GeneratedMenu = NewObject<UToolMenu>(this);
+	UToolMenu* GeneratedMenu = NewToolMenuObject(FName(TEXT("GeneratedMenuFromHierarchy")), NAME_None);
 
 	if (Hierarchy.Num() > 0)
 	{
@@ -1731,7 +1778,7 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 
 	// Store a copy so that we can call 'Refresh' on menus not in the database
 	FGeneratedToolMenuWidget& GeneratedMenuWidget = WidgetsForMenuName.Instances.AddDefaulted_GetRef();
-	GeneratedMenuWidget.GeneratedMenu = DuplicateObject<UToolMenu>(GeneratedMenu, this);
+	GeneratedMenuWidget.GeneratedMenu = DuplicateObject<UToolMenu>(GeneratedMenu, this, MakeUniqueObjectName(this, UToolMenus::StaticClass(), FName("MenuForRefresh")));
 	// Copy native properties that serialize does not
 	GeneratedMenuWidget.GeneratedMenu->Context = GeneratedMenu->Context;
 	GeneratedMenuWidget.GeneratedMenu->StyleSet = GeneratedMenu->StyleSet;
@@ -2049,7 +2096,7 @@ UToolMenu* UToolMenus::RegisterMenu(const FName InName, const FName InParent, EM
 		return Found;
 	}
 
-	UToolMenu* ToolMenu = NewObject<UToolMenu>(this);
+	UToolMenu* ToolMenu = NewToolMenuObject(FName(TEXT("RegisteredMenu")), InName);
 	ToolMenu->InitMenu(CurrentOwner(), InName, InParent, InType);
 	ToolMenu->bRegistered = true;
 	ToolMenu->bIsRegistering = true;
@@ -2073,12 +2120,19 @@ UToolMenu* UToolMenus::ExtendMenu(const FName InName)
 		return Found;
 	}
 
-	UToolMenu* ToolMenu = NewObject<UToolMenu>(this);
-	ToolMenu->MenuName = InName;
+	UToolMenu* ToolMenu = NewToolMenuObject(FName(TEXT("RegisteredMenu")), InName);
 	ToolMenu->bRegistered = false;
 	ToolMenu->bIsRegistering = false;
 	Menus.Add(InName, ToolMenu);
 	return ToolMenu;
+}
+
+UToolMenu* UToolMenus::NewToolMenuObject(const FName NewBaseName, const FName InMenuName)
+{
+	FName UniqueObjectName = MakeUniqueObjectName(this, UToolMenus::StaticClass(), NewBaseName);
+	UToolMenu* Result = NewObject<UToolMenu>(this, UniqueObjectName);
+	Result->MenuName = InMenuName;
+	return Result;
 }
 
 void UToolMenus::RemoveMenu(const FName MenuName)

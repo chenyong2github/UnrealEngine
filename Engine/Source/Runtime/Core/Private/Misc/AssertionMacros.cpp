@@ -469,13 +469,8 @@ void VARARGS FDebug::AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, in
 
 void FDebug::ProcessFatalError()
 {
-	if (GIsCriticalError)
-	{
-		return;
-	}
-
 	// This is not perfect because another thread might crash and be handled before this assert
-	// but this static varible will report the crash as an assert. Given complexity of a thread
+	// but this static variable will report the crash as an assert. Given complexity of a thread
 	// aware solution, this should be good enough. If crash reports are obviously wrong we can
 	// look into fixing this.
 	bHasAsserted = true;

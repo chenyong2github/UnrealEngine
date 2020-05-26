@@ -36,6 +36,7 @@ public:
 	~FConcertClientPackageManager();
 	
 	/**
+	 * Verify if a package dirty event should be ignored, mainly for the purpose of locking
 	 * @return true if dirty even should be ignored for InPackage
 	 */
 	bool ShouldIgnorePackageDirtyEvent(class UPackage* InPackage) const;
@@ -77,6 +78,13 @@ public:
 	void ApplyAllHeadPackageData();
 
 	/**
+	 * Run Package filters
+	 * @param InPackage The package to run the filters on
+	 * @return true if the package passes the filters (Is not filtered out)
+	 */
+	bool PassesPackageFilters(UPackage* InPackage) const;
+
+	/**
 	 * Tell if package changes happened during this session.
 	 * @return True if the session contains package changes.
 	 */
@@ -93,6 +101,13 @@ public:
 	FOnConcertClientPackageTooLargeError& OnConcertClientPackageTooLargeError() { return OnPackageTooLargeErrorDelegate; }
 
 private:
+
+	/**
+	 * Apply the package filters on the package info
+	 * @return true if the package info passes the filter.
+	 */
+	bool ApplyPackageFilters(const FConcertPackageInfo& InPackageInfo) const;
+
 	/**
 	 * Apply the data in the given package to disk and update the in-memory state.
 	 */

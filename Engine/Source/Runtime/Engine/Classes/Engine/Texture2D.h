@@ -9,6 +9,7 @@
 #include "Engine/Texture.h"
 #include "TextureResource.h"
 #include "RenderAssetUpdate.h"
+#include "Serialization/BulkData2.h"
 #include "Texture2D.generated.h"
 
 class FTexture2DResourceMem;
@@ -128,8 +129,7 @@ public:
 	virtual int32 GetNumNonStreamingMips() const final override;
 	virtual int32 CalcNumOptionalMips() const final override;
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override { return CalcTextureMemorySize(NumLODs); }
-
-	virtual bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const final override;
+	virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
 	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
 	
 	/**

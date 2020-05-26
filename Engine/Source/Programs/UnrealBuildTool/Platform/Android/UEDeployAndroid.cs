@@ -2428,7 +2428,10 @@ namespace UnrealBuildTool
 			{
 				Text.AppendLine("\t<uses-feature android:glEsVersion=\"" + AndroidToolChain.GetGLESVersion(bBuildForES31) + "\" android:required=\"true\" />");
 				Text.AppendLine("\t<uses-permission android:name=\"android.permission.INTERNET\"/>");
-				Text.AppendLine("\t<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>");
+				if (Configuration != "Shipping" || !bUseExternalFilesDir)
+				{
+					Text.AppendLine("\t<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>");
+				}
 				Text.AppendLine("\t<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>");
 				Text.AppendLine("\t<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>");
 			//	Text.AppendLine("\t<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>");
@@ -3422,12 +3425,19 @@ namespace UnrealBuildTool
 			string CurrentBuildSettings = GetAllBuildSettings(ToolChain, bForDistribution, bMakeSeparateApks, bPackageDataInsideApk, bDisableVerifyOBBOnStartUp, bUseExternalFilesDir, TemplatesHashCode);
 			string BuildSettingsCacheFile = Path.Combine(IntermediateAndroidPath, "UEBuildSettings.txt");
 
+			// Architecture remapping
+			Dictionary<string, string> ArchRemapping = new Dictionary<string, string>();
+			ArchRemapping.Add("armeabi-v7a", "armv7");
+			ArchRemapping.Add("arm64-v8a", "arm64");
+			ArchRemapping.Add("x86", "x86");
+			ArchRemapping.Add("x86_64", "x64");
+
 			// do we match previous build settings?
 			bool bBuildSettingsMatch = true;
 
 			// get application name and whether it changed, needing to force repackage
 			string ApplicationDisplayName;
-			if (CheckApplicationName(Path.Combine(IntermediateAndroidPath, NDKArches[0].Replace("-", "_")), ProjectName, out ApplicationDisplayName))
+			if (CheckApplicationName(Path.Combine(IntermediateAndroidPath, ArchRemapping[NDKArches[0]]), ProjectName, out ApplicationDisplayName))
 			{
 				bBuildSettingsMatch = false;
 				Log.TraceInformation("Application display name is different than last build, forcing repackage.");
@@ -3465,11 +3475,6 @@ namespace UnrealBuildTool
 			}
 
 			// Initialize UPL contexts for each architecture enabled
-			Dictionary<string, string> ArchRemapping = new Dictionary<string, string>();
-			ArchRemapping.Add("armeabi-v7a", "armv7");
-			ArchRemapping.Add("arm64-v8a", "arm64");
-			ArchRemapping.Add("x86", "x86");
-			ArchRemapping.Add("x86_64", "x64");
 			UPL.Init(NDKArches, bForDistribution, EngineDirectory, IntermediateAndroidPath, ProjectDirectory, Configuration.ToString(), bSkipGradleBuild, bPerArchBuildDir:true, ArchRemapping:ArchRemapping);
 
 			IEnumerable<Tuple<string, string, string>> BuildList = null;
@@ -3486,7 +3491,7 @@ namespace UnrealBuildTool
 			{
 				BuildList = from Arch in Arches
 							from GPUArch in GPUArchitectures
-							let manifestFile = Path.Combine(IntermediateAndroidPath, Arch.Substring(1) + "_" + GPUArch.Substring(1) + "_AndroidManifest.xml")
+							let manifestFile = Path.Combine(IntermediateAndroidPath, Arch + (GPUArch.Length > 0 ? ("_" + GPUArch.Substring(1)) : "") + "_AndroidManifest.xml")
 							let manifest = GenerateManifest(ToolChain, ProjectName, InTargetType, EngineDirectory, bForDistribution, bPackageDataInsideApk, GameBuildFilesPath, bRequiresOBB, bDisableVerifyOBBOnStartUp, Arch, GPUArch, CookFlavor, bUseExternalFilesDir, Configuration.ToString(), SDKLevelInt, bSkipGradleBuild, bEnableBundle)
 							let OldManifest = File.Exists(manifestFile) ? File.ReadAllText(manifestFile) : ""
 							where manifest != OldManifest
@@ -4493,6 +4498,7 @@ namespace UnrealBuildTool
 				{ "//$${gameActivityGetLoginIdAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityGetLoginIdAdditions", "")},
 				{ "//$${gameActivityGetFunnelIdAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityGetFunnelIdAdditions", "")},
 				{ "//$${gameActivityAllowedRemoteNotificationsAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityAllowedRemoteNotificationsAdditions", "")},
+				{ "//$${gameActivityIapSetupServiceAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityIapSetupServiceAdditions", "")},
 				{ "//$${gameActivityOnRestartApplicationAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnRestartApplicationAdditions", "")},
 				{ "//$${gameActivityForceQuitAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityForceQuitAdditions", "")},
 				{ "//$${soLoadLibrary}$$", UPL.ProcessPluginNode(NDKArch, "soLoadLibrary", LoadLibraryDefaults)},

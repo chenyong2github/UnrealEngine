@@ -2017,7 +2017,7 @@ FReply SSequencerSection::OnMouseButtonDoubleClick( const FGeometry& MyGeometry,
 			return Reply;
 		}
 
-		GetSequencer().ZoomToSelectedSections();
+		GetSequencer().ZoomToFit();
 
 		return FReply::Handled();
 	}

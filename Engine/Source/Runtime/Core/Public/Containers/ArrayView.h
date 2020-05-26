@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/IsSigned.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTypeTraits.h"
@@ -64,28 +65,22 @@ namespace ArrayViewPrivate
  *
  * Note:
  *   View classes are not const-propagating! If you want a view where the elements are const, you need "TArrayView<const T>" not "const TArrayView<T>"!
- *   TArrayViews cannot be implicitly constructed from an rvalue initializer lists:
- *
- * , as a compile-time guard against :
- *
- *   SumAll({ 1, 2, 3 }); // error
  *
  * Caution:
  *   Treat a view like a *reference* to the elements in the array. DO NOT free or reallocate the array while the view exists!
- *   For this reason, TArrayViews are not constructible from rvalue initializer lists:
- *
- *   SumAll({ 1, 2, 3 }); // error
- *
- *   This is to avoid this issue:
+ *   For this reason, be mindful of lifetime when constructing TArrayViews from rvalue initializer lists:
  *
  *   TArrayView<int> View = { 1, 2, 3 }; // construction of array view from rvalue initializer list
  *   int n = View[0]; // undefined behavior, as the initializer list was destroyed at the end of the previous line
  */
-template<typename InElementType>
+template<typename InElementType, typename InSizeType>
 class TArrayView
 {
 public:
 	using ElementType = InElementType;
+	using SizeType = InSizeType;
+
+	static_assert(TIsSigned<SizeType>::Value, "TArrayView only supports signed index types");
 
 	/**
 	 * Constructor.
@@ -123,8 +118,8 @@ public:
 		: DataPtr(ArrayViewPrivate::GetDataHelper(Forward<OtherRangeType>(Other)))
 	{
 		const auto InCount = GetNum(Forward<OtherRangeType>(Other));
-		check((InCount >= 0) && ((sizeof(InCount) < sizeof(int32)) || (InCount <= static_cast<decltype(InCount)>(TNumericLimits<int32>::Max()))));
-		ArrayNum = (int32)InCount;
+		check((InCount >= 0) && ((sizeof(InCount) < sizeof(SizeType)) || (InCount <= static_cast<decltype(InCount)>(TNumericLimits<SizeType>::Max()))));
+		ArrayNum = (SizeType)InCount;
 	}
 
 	/**
@@ -135,7 +130,7 @@ public:
 	 */
 	template <typename OtherElementType,
 		typename = typename TEnableIf<TIsCompatibleElementType<OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(OtherElementType* InData, int32 InCount)
+	FORCEINLINE TArrayView(OtherElementType* InData, SizeType InCount)
 		: DataPtr(InData)
 		, ArrayNum(InCount)
 	{
@@ -189,7 +184,7 @@ public:
 	 *
 	 * @param Index Index to check.
 	 */
-	FORCEINLINE void RangeCheck(int32 Index) const
+	FORCEINLINE void RangeCheck(SizeType Index) const
 	{
 		CheckInvariants();
 
@@ -203,7 +198,7 @@ public:
 	 *
 	 * @returns True if index is valid. False otherwise.
 	 */
-	FORCEINLINE bool IsValidIndex(int32 Index) const
+	FORCEINLINE bool IsValidIndex(SizeType Index) const
 	{
 		return (Index >= 0) && (Index < ArrayNum);
 	}
@@ -213,7 +208,7 @@ public:
 	 *
 	 * @returns Number of elements in array.
 	 */
-	FORCEINLINE int32 Num() const
+	FORCEINLINE SizeType Num() const
 	{
 		return ArrayNum;
 	}
@@ -223,7 +218,7 @@ public:
 	 *
 	 * @returns Reference to indexed element.
 	 */
-	FORCEINLINE ElementType& operator[](int32 Index) const
+	FORCEINLINE ElementType& operator[](SizeType Index) const
 	{
 		RangeCheck(Index);
 		return GetData()[Index];
@@ -237,7 +232,7 @@ public:
 	 *
 	 * @returns Reference to n-th last element from the array.
 	 */
-	FORCEINLINE ElementType& Last(int32 IndexFromTheEnd = 0) const
+	FORCEINLINE ElementType& Last(SizeType IndexFromTheEnd = 0) const
 	{
 		RangeCheck(ArrayNum - IndexFromTheEnd - 1);
 		return GetData()[ArrayNum - IndexFromTheEnd - 1];
@@ -250,7 +245,7 @@ public:
 	 * @param InNum number of elements in the new view
 	 * @returns Sliced view
 	 */
-	FORCEINLINE TArrayView Slice(int32 Index, int32 InNum) const
+	FORCEINLINE TArrayView Slice(SizeType Index, SizeType InNum) const
 	{
 		check(InNum > 0);
 		check(IsValidIndex(Index));
@@ -266,10 +261,10 @@ public:
 	 *
 	 * @returns True if found. False otherwise.
 	 */
-	FORCEINLINE bool Find(const ElementType& Item, int32& Index) const
+	FORCEINLINE bool Find(const ElementType& Item, SizeType& Index) const
 	{
 		Index = this->Find(Item);
-		return Index != INDEX_NONE;
+		return Index != static_cast<SizeType>(INDEX_NONE);
 	}
 
 	/**
@@ -279,17 +274,17 @@ public:
 	 *
 	 * @returns Index of the found element. INDEX_NONE otherwise.
 	 */
-	int32 Find(const ElementType& Item) const
+	SizeType Find(const ElementType& Item) const
 	{
 		const ElementType* RESTRICT Start = GetData();
 		for (const ElementType* RESTRICT Data = Start, *RESTRICT DataEnd = Data + ArrayNum; Data != DataEnd; ++Data)
 		{
 			if (*Data == Item)
 			{
-				return static_cast<int32>(Data - Start);
+				return static_cast<SizeType>(Data - Start);
 			}
 		}
-		return INDEX_NONE;
+		return static_cast<SizeType>(INDEX_NONE);
 	}
 
 	/**
@@ -300,10 +295,10 @@ public:
 	 *
 	 * @returns True if found. False otherwise.
 	 */
-	FORCEINLINE bool FindLast(const ElementType& Item, int32& Index) const
+	FORCEINLINE bool FindLast(const ElementType& Item, SizeType& Index) const
 	{
 		Index = this->FindLast(Item);
-		return Index != INDEX_NONE;
+		return Index != static_cast<SizeType>(INDEX_NONE);
 	}
 
 	/**
@@ -315,7 +310,7 @@ public:
 	 * @returns Index of the found element. INDEX_NONE otherwise.
 	 */
 	template <typename Predicate>
-	int32 FindLastByPredicate(Predicate Pred, int32 StartIndex) const
+	SizeType FindLastByPredicate(Predicate Pred, SizeType StartIndex) const
 	{
 		check(StartIndex >= 0 && StartIndex <= this->Num());
 		for (const ElementType* RESTRICT Start = GetData(), *RESTRICT Data = Start + StartIndex; Data != Start; )
@@ -323,10 +318,10 @@ public:
 			--Data;
 			if (Pred(*Data))
 			{
-				return static_cast<int32>(Data - Start);
+				return static_cast<SizeType>(Data - Start);
 			}
 		}
-		return INDEX_NONE;
+		return static_cast<SizeType>(INDEX_NONE);
 	}
 
 	/**
@@ -337,7 +332,7 @@ public:
 	* @returns Index of the found element. INDEX_NONE otherwise.
 	*/
 	template <typename Predicate>
-	FORCEINLINE int32 FindLastByPredicate(Predicate Pred) const
+	FORCEINLINE SizeType FindLastByPredicate(Predicate Pred) const
 	{
 		return FindLastByPredicate(Pred, ArrayNum);
 	}
@@ -352,17 +347,17 @@ public:
 	 *          found.
 	 */
 	template <typename KeyType>
-	int32 IndexOfByKey(const KeyType& Key) const
+	SizeType IndexOfByKey(const KeyType& Key) const
 	{
 		const ElementType* RESTRICT Start = GetData();
 		for (const ElementType* RESTRICT Data = Start, *RESTRICT DataEnd = Start + ArrayNum; Data != DataEnd; ++Data)
 		{
 			if (*Data == Key)
 			{
-				return static_cast<int32>(Data - Start);
+				return static_cast<SizeType>(Data - Start);
 			}
 		}
-		return INDEX_NONE;
+		return static_cast<SizeType>(INDEX_NONE);
 	}
 
 	/**
@@ -374,17 +369,17 @@ public:
 	 *          found.
 	 */
 	template <typename Predicate>
-	int32 IndexOfByPredicate(Predicate Pred) const
+	SizeType IndexOfByPredicate(Predicate Pred) const
 	{
 		const ElementType* RESTRICT Start = GetData();
 		for (const ElementType* RESTRICT Data = Start, *RESTRICT DataEnd = Start + ArrayNum; Data != DataEnd; ++Data)
 		{
 			if (Pred(*Data))
 			{
-				return static_cast<int32>(Data - Start);
+				return static_cast<SizeType>(Data - Start);
 			}
 		}
-		return INDEX_NONE;
+		return static_cast<SizeType>(INDEX_NONE);
 	}
 
 	/**
@@ -537,7 +532,7 @@ public:
 
 private:
 	ElementType* DataPtr;
-	int32 ArrayNum;
+	SizeType ArrayNum;
 };
 
 template <typename InElementType>
@@ -577,6 +572,14 @@ TArrayView<const T> MakeArrayView(std::initializer_list<T> List)
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+// Comparison of array views to each other is not implemented because it
+// is not obvious whether the caller wants an exact match of the data
+// pointer and size, or to compare the objects being pointed to.
+template <typename ElementType, typename SizeType, typename OtherElementType, typename OtherSizeType>
+bool operator==(TArrayView<ElementType, SizeType>, TArrayView<OtherElementType, OtherSizeType>) = delete;
+template <typename ElementType, typename SizeType, typename OtherElementType, typename OtherSizeType>
+bool operator!=(TArrayView<ElementType, SizeType>, TArrayView<OtherElementType, OtherSizeType>) = delete;
 
 /**
  * Equality operator.
@@ -632,15 +635,15 @@ bool operator!=(TArrayView<ElementType> Lhs, RangeType&& Rhs)
 }
 
 template<typename InElementType, typename InAllocatorType>
-template<typename OtherElementType>
-FORCEINLINE TArray<InElementType, InAllocatorType>::TArray(const TArrayView<OtherElementType>& Other)
+template<typename OtherElementType, typename OtherSizeType>
+FORCEINLINE TArray<InElementType, InAllocatorType>::TArray(const TArrayView<OtherElementType, OtherSizeType>& Other)
 {
 	CopyToEmpty(Other.GetData(), Other.Num(), 0, 0);
 }
 
 template<typename InElementType, typename InAllocatorType>
-template<typename OtherElementType>
-FORCEINLINE TArray<InElementType, InAllocatorType>& TArray<InElementType, InAllocatorType>::operator=(const TArrayView<OtherElementType>& Other)
+template<typename OtherElementType, typename OtherSizeType>
+FORCEINLINE TArray<InElementType, InAllocatorType>& TArray<InElementType, InAllocatorType>::operator=(const TArrayView<OtherElementType, OtherSizeType>& Other)
 {
 	DestructItems(GetData(), ArrayNum);
 	CopyToEmpty(Other.GetData(), Other.Num(), ArrayMax, 0);

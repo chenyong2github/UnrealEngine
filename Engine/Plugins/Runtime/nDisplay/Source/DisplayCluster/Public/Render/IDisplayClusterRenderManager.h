@@ -145,8 +145,31 @@ public:
 	*/
 	virtual TMap<FString, FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const = 0;
 
+	/**
+	* Start postprocess settings
+	*
+	* @param ViewportID - viewport to set PP settings
+	* @param StartPostProcessingSettings - PP settings
+	*
+	*/
 	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) = 0;
+
+	/**
+	* Override postprocess settings
+	*
+	* @param ViewportID - viewport to set PP settings
+	* @param OverridePostProcessingSettings - PP settings
+	*
+	*/
 	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) = 0;
+
+	/**
+	* Final postprocess settings
+	*
+	* @param ViewportID - viewport to set PP settings
+	* @param FinalPostProcessingSettings - PP settings
+	*
+	*/
 	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
 
 	/**

@@ -40,8 +40,6 @@
 #include "GameProjectGenerationModule.h"
 #include "DefaultPluginWizardDefinition.h"
 #include "UnrealEdMisc.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -99,6 +97,13 @@ void SNewPluginWizard::Construct(const FArguments& Args, TSharedPtr<SDockTab> In
 	PluginWizardDefinition->ClearTemplateSelection();
 
 	IPluginWizardDefinition* WizardDef = PluginWizardDefinition.Get();
+	
+	// Check if the Plugin Wizard is trying to make mods instead of generic plugins. This will slightly change in 4.26
+	if (PluginWizardDefinition->IsMod())
+	{
+		AbsoluteGamePluginPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*FPaths::ProjectModsDir());
+		FPaths::MakePlatformFilename(AbsoluteGamePluginPath);
+	}
 
 	LastBrowsePath = AbsoluteGamePluginPath;
 	PluginFolderPath = AbsoluteGamePluginPath;
@@ -679,42 +684,32 @@ FReply SNewPluginWizard::OnCreatePluginClicked()
 		return FReply::Unhandled();
 	}
 
-	bool bSucceeded = true;
-	FText FailReason;
-
 	const FString PluginName = PluginNameText.ToString();
 	const bool bHasModules = PluginWizardDefinition->HasModules();
 
-	FPluginUtils::FNewPluginParams NewPluginParams(PluginName, PluginFolderPath);
-	NewPluginParams.TemplateFolders = PluginWizardDefinition->GetFoldersForSelection();
-	NewPluginParams.bCanContainContent = PluginWizardDefinition->CanContainContent();
-	NewPluginParams.bHasModules = bHasModules;
-	NewPluginParams.ModuleDescriptorType = PluginWizardDefinition->GetPluginModuleDescriptor();
-	NewPluginParams.LoadingPhase = PluginWizardDefinition->GetPluginLoadingPhase();
-	PluginWizardDefinition->GetPluginIconPath(NewPluginParams.PluginIconPath);
+	FPluginUtils::FNewPluginParams CreationParams;
+	CreationParams.TemplateFolders = PluginWizardDefinition->GetFoldersForSelection();
+	CreationParams.bCanContainContent = PluginWizardDefinition->CanContainContent();
+	CreationParams.bHasModules = bHasModules;
+	CreationParams.ModuleDescriptorType = PluginWizardDefinition->GetPluginModuleDescriptor();
+	CreationParams.LoadingPhase = PluginWizardDefinition->GetPluginLoadingPhase();
+	PluginWizardDefinition->GetPluginIconPath(CreationParams.PluginIconPath);
 	if (DescriptorData.IsValid())
 	{
-		NewPluginParams.CreatedBy = DescriptorData->CreatedBy;
-		NewPluginParams.CreatedByURL = DescriptorData->CreatedByURL;
-		NewPluginParams.Description = DescriptorData->Description;
-		NewPluginParams.bIsBetaVersion = DescriptorData->bIsBetaVersion;
+		CreationParams.CreatedBy = DescriptorData->CreatedBy;
+		CreationParams.CreatedByURL = DescriptorData->CreatedByURL;
+		CreationParams.Description = DescriptorData->Description;
+		CreationParams.bIsBetaVersion = DescriptorData->bIsBetaVersion;
 	}
+
+	FPluginUtils::FMountPluginParams MountParams;
+	MountParams.bEnablePluginInProject = true;
+	MountParams.bUpdateProjectPluginSearchPath = true;
+	MountParams.bSelectInContentBrowser = ShowPluginContentDirectoryCheckBox->IsChecked();
 	
-	bSucceeded = bSucceeded && FPluginUtils::CreateAndMountNewPlugin(NewPluginParams, FailReason);
-
-	// Set the content browser to show the plugin's content directory
-	if (bSucceeded && PluginWizardDefinition->CanContainContent() && ShowPluginContentDirectoryCheckBox->IsChecked())
-	{
-		TArray<FString> SelectedDirectories;
-		SelectedDirectories.Add(TEXT("/") + PluginName);
-
-		const bool bContentBrowserNeedsRefresh = true;
-
-		IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
-
-		ContentBrowser.ForceShowPluginContent( bIsEnginePlugin );
-		ContentBrowser.SetSelectedPaths(SelectedDirectories, bContentBrowserNeedsRefresh);
-	}
+	FText FailReason;
+	TSharedPtr<IPlugin> NewPlugin = FPluginUtils::CreateAndMountNewPlugin(PluginName, PluginFolderPath, CreationParams, MountParams, FailReason);
+	const bool bSucceeded = NewPlugin.IsValid();
 
 	PluginWizardDefinition->PluginCreated(PluginName, bSucceeded);
 

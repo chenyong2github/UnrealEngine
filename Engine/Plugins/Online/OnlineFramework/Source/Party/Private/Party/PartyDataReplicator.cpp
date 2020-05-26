@@ -17,7 +17,7 @@ void FPartyDataReplicatorHelper::ReplicateDataToMembers(const FOnlinePartyRepDat
 			if (RepDataType.IsChildOf(FPartyRepData::StaticStruct()))
 			{
 				UE_LOG(LogParty, VeryVerbose, TEXT("Sending rep data update for party [%s]."), *OwnerParty->ToDebugString());
-				PartyInterface->UpdatePartyData(*LocalUserId, OwnerParty->GetPartyId(), ReplicationPayload);
+				PartyInterface->UpdatePartyData(*LocalUserId, OwnerParty->GetPartyId(), DefaultPartyDataNamespace, ReplicationPayload);
 			}
 			else if (RepDataType.IsChildOf(FPartyMemberRepData::StaticStruct()))
 			{
@@ -25,12 +25,12 @@ void FPartyDataReplicatorHelper::ReplicateDataToMembers(const FOnlinePartyRepDat
 				{
 					LocalUserId = Owner->GetPrimaryNetId();
 					UE_LOG(LogParty, VeryVerbose, TEXT("Sending rep data update for member within party [%s]."), *OwnerParty->ToDebugString());
-					PartyInterface->UpdatePartyMemberData(*LocalUserId, OwnerParty->GetPartyId(), ReplicationPayload);
+					PartyInterface->UpdatePartyMemberData(*LocalUserId, OwnerParty->GetPartyId(), DefaultPartyDataNamespace, ReplicationPayload);
 				}
 				else
 				{
 					UE_LOG(LogParty, Warning, TEXT("Sending rep data update for member within party [%s] Could not identidy owner."), *OwnerParty->ToDebugString());
-					PartyInterface->UpdatePartyMemberData(*LocalUserId, OwnerParty->GetPartyId(), ReplicationPayload);
+					PartyInterface->UpdatePartyMemberData(*LocalUserId, OwnerParty->GetPartyId(), DefaultPartyDataNamespace, ReplicationPayload);
 				}				
 			}
 		}

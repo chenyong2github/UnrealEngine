@@ -145,10 +145,6 @@ protected:
 	UPROPERTY()
 	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
 
-
-	UPROPERTY()
-	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
-
 protected:
 	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
 

@@ -22,7 +22,6 @@ void FTexture2DStreamIn_IO_AsyncCreate::AllocateAndLoadMips(const FContext& Cont
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FTexture2DStreamIn_IO_AsyncCreate::AllocateAndLoadMips"), STAT_Texture2DStreamInIOAsyncCreate_AllocateAndLoadMips, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Async);
 
-	SetIOFilename(Context);
 	DoAllocateNewMips(Context);
 	SetIORequests(Context);
 
@@ -73,4 +72,5 @@ void FTexture2DStreamIn_IO_AsyncCreate::Cancel(const FContext& Context)
 
 	DoFreeNewMips(Context);
 	DoFinishUpdate(Context);
+	ReportIOError(Context);
 }

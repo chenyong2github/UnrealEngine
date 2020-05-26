@@ -125,6 +125,9 @@ void FUserInterfaceCommand::Run()
 
 	FCoreStyle::ResetToDefault();
 
+	// Crank up a normal Slate application using the platform's standalone renderer.
+	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
+
 	// Load required modules.
 	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 	FModuleManager::Get().LoadModuleChecked("TraceInsights");
@@ -196,9 +199,6 @@ void FUserInterfaceCommand::Run()
 void FUserInterfaceCommand::InitializeSlateApplication()
 {
 	//TODO: FSlateApplication::InitHighDPI(true);
-
-	// Crank up a normal Slate application using the platform's standalone renderer.
-	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 
 	//const FSlateBrush* AppIcon = new FSlateImageBrush(FPaths::EngineContentDir() / "Editor/Slate/Icons/Insights/AppIcon_24x.png", FVector2D(24.0f, 24.0f));
 	//FSlateApplication::Get().SetAppIcon(AppIcon);

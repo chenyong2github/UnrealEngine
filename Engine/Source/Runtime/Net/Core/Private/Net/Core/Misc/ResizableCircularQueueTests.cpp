@@ -41,9 +41,9 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 	{
 		FResizableCircularQueueTestUtil::QueueT Q(0);
 
-		TestEqual(TEXT("Test empty - Size"), Q.Count(), 0);
+		TestEqual(TEXT("Test empty - Size"), Q.Count(), SIZE_T(0));
 		TestTrue(TEXT("Test empty - IsEmpty"), Q.IsEmpty());
-		TestEqual(TEXT("Test empty - Capacity"), Q.AllocatedCapacity(), 0);
+		TestEqual(TEXT("Test empty - Capacity"), Q.AllocatedCapacity(), SIZE_T(0));
 	}
 
 	// Test Push to Capacity
@@ -114,7 +114,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		FResizableCircularQueueTestUtil::QueueT Q(ElementsToPush);
 
 		TestTrue(TEXT ("Test Push and pop all - IsEmpty before"), Q.IsEmpty());
-		TestEqual(TEXT("Test Push and pop all - Size before"), Q.Count(), 0);
+		TestEqual(TEXT("Test Push and pop all - Size before"), Q.Count(), SIZE_T(0));
 
 		for (SIZE_T It=0; It < ElementsToPush; ++It)
 		{
@@ -131,7 +131,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		}
 		
 		TestTrue( TEXT("Test Push and pop all - IsEmpty after"), Q.IsEmpty());
-		TestEqual(TEXT("Test Push and pop all - Size after"), Q.Count(), 0);
+		TestEqual(TEXT("Test Push and pop all - Size after"), Q.Count(), SIZE_T(0));
 		TestEqual(TEXT("Test Push and pop all - Capacity after"), Q.AllocatedCapacity(), ElementsToPush);
 	}
 
@@ -148,7 +148,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		FResizableCircularQueueTestUtil::OverideHeadAndTail(Q, uint32(-2), uint32(-2));
 
 		TestTrue(TEXT ("Test index wrap - IsEmpty before"), Q.IsEmpty());
-		TestEqual(TEXT("Test index wrap - Size before"), Q.Count(), 0);
+		TestEqual(TEXT("Test index wrap - Size before"), Q.Count(), SIZE_T(0));
 
 		for (SIZE_T It=0; It < ElementsToPush; ++It)
 		{
@@ -165,7 +165,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		}
 		
 		TestTrue( TEXT("Test index wrap - IsEmpty after"), Q.IsEmpty());
-		TestEqual(TEXT("Test index wrap - Size after"), Q.Count(), 0);
+		TestEqual(TEXT("Test index wrap - Size after"), Q.Count(), SIZE_T(0));
 		TestEqual(TEXT("Test index wrap - Capacity after"), Q.AllocatedCapacity(), ElementsToPush);
 	}
 
@@ -205,8 +205,8 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 
 		Q.Trim();
 
-		TestEqual(TEXT("Test trim empty - Size"), Q.Count(), 0);
-		TestEqual(TEXT("Test trim empty - Capacity"), Q.AllocatedCapacity(), 0);
+		TestEqual(TEXT("Test trim empty - Size"), Q.Count(), SIZE_T(0));
+		TestEqual(TEXT("Test trim empty - Capacity"), Q.AllocatedCapacity(), SIZE_T(0));
 	}
 
 

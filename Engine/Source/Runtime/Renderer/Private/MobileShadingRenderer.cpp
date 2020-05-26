@@ -452,17 +452,8 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	// Allocate the maximum scene render target space for the current view family.
-	SceneContext.ReleaseSceneColor();
 	SceneContext.SetKeepDepthContent(bKeepDepthContent);
 	SceneContext.Allocate(RHICmdList, this);
-
-	const bool bUseVirtualTexturing = UseVirtualTexturing(ViewFeatureLevel);
-	if (bUseVirtualTexturing)
-	{
-		// AllocateResources needs to be called before RHIBeginScene
-		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, ViewFeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
-	}
 
 	//make sure all the targets we're going to use will be safely writable.
 	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
@@ -496,6 +487,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderSkyAtmosphereLookUpTables(RHICmdList);
 	}
 
+	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
 	if (bUseVirtualTexturing)
 	{
 		FVirtualTextureSystem::Get().Update(RHICmdList, ViewFeatureLevel, Scene);
@@ -769,8 +761,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	
 	if (!bGammaSpace || bRenderToSceneColor)
 	{
-		// transition scene color to Readable for post-processing
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneColor);
+		// Transition scene color to readable for post-processing. If MSAA is enabled, post-processing will use the resolved
+		// texture, so make sure we transition that, not the render target.
+		FRHITexture* PPColorInput = SceneColorResolve != nullptr ? SceneColorResolve : SceneColor;
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, PPColorInput);
 	}
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Post));
@@ -897,7 +891,7 @@ void FMobileSceneRenderer::RenderMobileDebugView(FRHICommandListImmediate& RHICm
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 		FDebugViewModePassPassUniformParameters PassParameters;
-		SetupDebugViewModePassUniformBuffer(SceneContext, View.GetFeatureLevel(), PassParameters);
+		SetupDebugViewModePassUniformBuffer(SceneContext, View, PassParameters);
 		Scene->UniformBuffers.DebugViewModePassUniformBuffer.UpdateUniformBufferImmediate(PassParameters);
 		
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
@@ -1058,14 +1052,16 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate
 void FMobileSceneRenderer::UpdateOpaqueBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FMobileBasePassUniformParameters Parameters;
-	SetupMobileBasePassUniformParameters(RHICmdList, View, false, Parameters);
+	SetupMobileBasePassUniformParameters(RHICmdList, View, false, false, Parameters);
 	Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	SetupMobileBasePassUniformParameters(RHICmdList, View, false, true, Parameters);
+	Scene->UniformBuffers.MobileCSMOpaqueBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);	
 }
 
 void FMobileSceneRenderer::UpdateTranslucentBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FMobileBasePassUniformParameters Parameters;
-	SetupMobileBasePassUniformParameters(RHICmdList, View, true, Parameters);
+	SetupMobileBasePassUniformParameters(RHICmdList, View, true, false, Parameters);
 	Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
 }
 

@@ -17,8 +17,11 @@ class SWidget;
 class FSourceFilterCollection;
 class UTraceSourceFilteringSettings;
 class FWorldObject;
+class FClassFilterObject;
 
 DECLARE_DELEGATE_OneParam(FOnFilterClassPicked, FString /*ClassName*/);
+
+DECLARE_MULTICAST_DELEGATE(FOnSessionStateChanged);
 
 /** Interface for implementing a World filter, setting whether or not a specific UWorld and its contained objects can Trace out data (events) */
 class IWorldTraceFilter : public TSharedFromThis<IWorldTraceFilter>
@@ -27,7 +30,7 @@ public:
 	virtual ~IWorldTraceFilter() {}
 	virtual FText GetDisplayText() = 0;
 	virtual FText GetToolTipText() = 0;
-	virtual void PopulateMenuBuilder(FMenuBuilder& InBuilder) = 0;
+	virtual TSharedRef<SWidget> GenerateWidget() = 0;
 };
 
 /** Interface providing interaction with an running instance's its Trace and World Filtering systems */
@@ -36,8 +39,8 @@ class ISessionSourceFilterService : public TSharedFromThis<ISessionSourceFilterS
 public:
 	virtual ~ISessionSourceFilterService() {}
 
-	/** Returns timestamp representing last point of update */
-	virtual const FDateTime& GetTimestamp() const = 0;
+	/** Delegate which gets broadcast-ed whenever the contained data (state) changes */
+	virtual FOnSessionStateChanged& GetOnSessionStateChanged() = 0;
 
 	/** Returns whether or not a request action is pending complete */
 	virtual bool IsActionPending() const = 0;
@@ -84,6 +87,9 @@ public:
 	/** Returns a slate widget used for picking a Filter class, which will execute the passed in delegate on selection/completion */
 	virtual TSharedRef<SWidget> GetFilterPickerWidget(FOnFilterClassPicked InFilterClassPicked) = 0;
 
+	/** Returns a slate widget used for picking AActor derived UClass, which will execute the passed in delegate on selection/completion */
+	virtual TSharedRef<SWidget> GetClassFilterPickerWidget(FOnFilterClassPicked InFilterClassPicked) = 0;	
+
 	/** Returns an FExtender instance which is incorporated anytime a context menu (MenuBuilder) is created */
 	virtual TSharedPtr<FExtender> GetExtender() = 0;
 
@@ -94,4 +100,16 @@ public:
 
 	/** Returns all currently available World Trace filters */
 	virtual const TArray<TSharedPtr<IWorldTraceFilter>>& GetWorldFilters() = 0;
+
+	/** Add a class filter, used to filter AActors on a high-level */
+	virtual void AddClassFilter(const FString& ActorClassName) = 0;
+	
+	/** Removes a specific Class Filter instance */
+	virtual void RemoveClassFilter(TSharedRef<FClassFilterObject> ClassFilterObject) = 0;
+
+	/** Returns all Class filters */
+	virtual void GetClassFilters(TArray<TSharedPtr<FClassFilterObject>>& OutClasses) const = 0;
+
+	/** Updating whether or not classes derived from the filter class should be included when applying filtering */
+	virtual void SetIncludeDerivedClasses(TSharedRef<FClassFilterObject> ClassFilterObject, bool bIncluded) = 0;	
 };

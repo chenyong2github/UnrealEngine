@@ -81,3 +81,31 @@ TArray<UActorComponent*> ToolBuilderUtil::FindAllComponents(const FToolBuilderSt
 										 });
 	}
 }
+
+
+
+
+
+
+int32 ToolBuilderUtil::CountActors(const FToolBuilderState& InputState, const TFunction<bool(AActor*)>& Predicate)
+{
+	return Algo::CountIf(InputState.SelectedActors, Predicate);
+}
+
+
+AActor* ToolBuilderUtil::FindFirstActor(const FToolBuilderState& InputState, const TFunction<bool(AActor*)>& Predicate)
+{
+	AActor* const* Actor = InputState.SelectedActors.FindByPredicate(Predicate);
+	if (Actor)
+	{
+		return *Actor;
+	}
+	return nullptr;
+
+}
+
+TArray<AActor*> ToolBuilderUtil::FindAllActors(const FToolBuilderState& InputState, const TFunction<bool(AActor*)>& Predicate)
+{
+	return InputState.SelectedActors.FilterByPredicate(Predicate);
+}
+

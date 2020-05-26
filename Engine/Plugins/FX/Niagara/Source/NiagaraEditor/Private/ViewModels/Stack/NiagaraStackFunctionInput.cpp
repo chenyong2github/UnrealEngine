@@ -1442,10 +1442,11 @@ bool UNiagaraStackFunctionInput::CanResetToBase() const
 				UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode.Get());
 				if(MergeManager->IsMergeableScriptUsage(OutputNode->GetUsage()))
 				{
-					const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
-
+					TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModelPtr = GetEmitterViewModel();
+					ensureMsgf(EmitterViewModelPtr.IsValid(), TEXT("ViewMode is nullptr and it never should be"));
+					const UNiagaraEmitter* BaseEmitter = EmitterViewModelPtr.IsValid() ? EmitterViewModelPtr->GetParentEmitter() : nullptr;
 					bCanResetToBaseCache = BaseEmitter != nullptr && MergeManager->IsModuleInputDifferentFromBase(
-						*GetEmitterViewModel()->GetEmitter(),
+						*EmitterViewModelPtr->GetEmitter(),
 						*BaseEmitter,
 						OutputNode->GetUsage(),
 						OutputNode->GetUsageId(),

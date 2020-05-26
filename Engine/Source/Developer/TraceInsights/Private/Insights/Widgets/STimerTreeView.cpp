@@ -136,7 +136,13 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 			PropertyName = HoveredColumnPtr->GetShortName();
 			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
 		}
-		SelectionStr = FText::FromName(SelectedNode->GetName());
+		FString ItemName = SelectedNode->GetName().ToString();
+		const int32 MaxStringLen = 64;
+		if (ItemName.Len() > MaxStringLen)
+		{
+			ItemName = ItemName.Left(MaxStringLen) + TEXT("...");
+		}
+		SelectionStr = FText::FromString(ItemName);
 	}
 	else
 	{
@@ -317,9 +323,11 @@ void STimerTreeView::InitializeAndShowHeaderColumns()
 	// Create columns.
 	TArray<TSharedRef<Insights::FTableColumn>> Columns;
 	FTimersViewColumnFactory::CreateTimerTreeViewColumns(Columns);
-	ensure(Columns.Num() > 0 && Columns[0]->IsHierarchy());
-	Columns[0]->SetShortName(ViewName);
-	Columns[0]->SetTitleName(ViewName);
+	if (ensure(Columns.Num() > 0 && Columns[0]->IsHierarchy()))
+	{
+		Columns[0]->SetShortName(ViewName);
+		Columns[0]->SetTitleName(ViewName);
+	}
 	Table->SetColumns(Columns);
 
 	// Show columns.
@@ -485,14 +493,14 @@ TSharedRef<ITableRow> STimerTreeView::TreeView_OnGenerateRow(FTimerNodePtr Timer
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimerTreeView::TableRow_ShouldBeEnabled(const uint32 TimerId) const
+bool STimerTreeView::TableRow_ShouldBeEnabled(FTimerNodePtr NodePtr) const
 {
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimerTreeView::TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FTimerNodePtr InNodePtr)
+void STimerTreeView::TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, FTimerNodePtr InNodePtr)
 {
 	HoveredColumnId = InColumnPtr ? InColumnPtr->GetId() : FName();
 
@@ -947,15 +955,11 @@ FTimerNodePtr STimerTreeView::CreateTimerNodeRec(const Trace::FTimingProfilerBut
 	if (Node.Timer == nullptr)
 	{
 		return nullptr;
-		//return MakeShared<FTimerNode>(0, FName(TEXT("!!!!!")), FName(TEXT("[Group]")), ETimerNodeType::InvalidOrMax);
+		//return MakeShared<FTimerNode>(0, TEXT("!!!!!"), ETimerNodeType::InvalidOrMax);
 	}
 
-	const uint64 Id = Node.Timer->Id;
-	const FName Name(Node.Timer->Name);
-	const FName Group(Node.Timer->IsGpuTimer ? TEXT("GPU") : TEXT("CPU"));
 	const ETimerNodeType Type = Node.Timer->IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
-
-	FTimerNodePtr TimerNodePtr = MakeShared<FTimerNode>(Id, Name, Group, Type);
+	FTimerNodePtr TimerNodePtr = MakeShared<FTimerNode>(Node.Timer->Id, Node.Timer->Name, Type);
 
 	Trace::FTimingProfilerAggregatedStats AggregatedStats;
 	AggregatedStats.InstanceCount = Node.Count;

@@ -4,6 +4,7 @@
 
 #if USE_USD_SDK
 
+#include "USDAssetImportData.h"
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
@@ -25,10 +26,10 @@
 
 #include "USDIncludesEnd.h"
 
-namespace UsdGeomMeshConversionImpl
+namespace UsdShadeConversionImpl
 {
 	// Finds the strongest layer contributing to an attribute
-	TUsdStore< pxr::SdfLayerHandle > FindLayerHandle( const pxr::UsdAttribute& Attr, const pxr::UsdTimeCode& Time )
+	pxr::SdfLayerHandle FindLayerHandle( const pxr::UsdAttribute& Attr, const pxr::UsdTimeCode& Time )
 	{
 		FScopedUsdAllocs UsdAllocs;
 
@@ -44,22 +45,24 @@ namespace UsdGeomMeshConversionImpl
 	}
 
 	// Given an AssetPath, resolve it to an actual file path
-	FString ResolveAssetPath( const TUsdStore< pxr::SdfLayerHandle >& LayerHandle, const FString& AssetPath )
+	FString ResolveAssetPath( const pxr::SdfLayerHandle& LayerHandle, const FString& AssetPath )
 	{
+		FScopedUsdAllocs UsdAllocs;
+
 		FString AssetPathToResolve = AssetPath;
 		AssetPathToResolve.ReplaceInline( TEXT("<UDIM>"), TEXT("1001") ); // If it's a UDIM path, we replace the UDIM tag with the start tile
 
 		pxr::ArResolverScopedCache ResolverCache;
 		pxr::ArResolver& Resolver = pxr::ArGetResolver();
 
-		const FString RelativePathToResolve = 
-			LayerHandle.Get()
-			? UsdToUnreal::ConvertString( pxr::SdfComputeAssetPathRelativeToLayer( LayerHandle.Get(), UnrealToUsd::ConvertString( *AssetPathToResolve ).Get() ) )
+		const FString RelativePathToResolve =
+			LayerHandle
+			? UsdToUnreal::ConvertString( pxr::SdfComputeAssetPathRelativeToLayer( LayerHandle, UnrealToUsd::ConvertString( *AssetPathToResolve ).Get() ) )
 			: AssetPathToResolve;
 
-		TUsdStore< std::string > ResolvedPathUsd = Resolver.Resolve( UnrealToUsd::ConvertString( *RelativePathToResolve ).Get().c_str() );
+		std::string ResolvedPathUsd = Resolver.Resolve( UnrealToUsd::ConvertString( *RelativePathToResolve ).Get().c_str() );
 
-		FString ResolvedAssetPath = UsdToUnreal::ConvertString( ResolvedPathUsd.Get() );
+		FString ResolvedAssetPath = UsdToUnreal::ConvertString( ResolvedPathUsd );
 
 		return ResolvedAssetPath;
 	}
@@ -70,71 +73,40 @@ namespace UsdGeomMeshConversionImpl
 
 		FScopedUsdAllocs UsdAllocs;
 
+		const bool bIsNormalInput = ( ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Normal3f || ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Normal3fArray );
+
 		pxr::UsdShadeConnectableAPI Source;
 		pxr::TfToken SourceName;
 		pxr::UsdShadeAttributeType AttributeType;
 
 		if ( ShadeInput.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
 		{
-			//if ( SourceName == pxr::TfToken( "UsdUVTexture" ) /*pxr::UsdImagingTokens->UsdUVTexture*/ )
+			pxr::UsdShadeInput FileInput = Source.GetInput( pxr::TfToken("file") );
+
+			if ( FileInput )
 			{
-				pxr::UsdShadeInput FileInput = Source.GetInput( pxr::TfToken("file") );
+				const FString TexturePath = UsdUtils::GetResolvedTexturePath( FileInput.GetAttr() );
+				UTexture* Texture = Cast< UTexture >( TexturesCache.FindRef( TexturePath ) );
 
-				if ( FileInput )
+				if ( !Texture )
 				{
-					pxr::SdfAssetPath TextureAssetPath;
-					FileInput.Get< pxr::SdfAssetPath >( &TextureAssetPath );
+					Texture = UsdUtils::CreateTexture( FileInput.GetAttr() );
 
-					FScopedUnrealAllocs UnrealAllocs;
-
-					FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
-					const bool bIsSupportedUdimTexture = TexturePath.Contains( TEXT("<UDIM>") );
-					FPaths::NormalizeFilename( TexturePath );
-
-					FString ResolvedTexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetResolvedPath() );
-					ResolvedTexturePath.RemoveFromStart( TEXT("\\\\?\\") );
-					FPaths::NormalizeFilename( ResolvedTexturePath );
-
-					UTexture2D* Texture2D = Cast< UTexture2D >( TexturesCache.FindRef( TexturePath ) );
-
-					if ( !Texture2D && !TexturePath.IsEmpty() )
+					if ( bIsNormalInput )
 					{
-						bool bOutCancelled = false;
-						UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
-						TextureFactory->SuppressImportOverwriteDialog();
-						TextureFactory->bUseHashAsGuid = true;
-
-						if ( bIsSupportedUdimTexture )
-						{
-							FString BaseFileName = FPaths::GetBaseFilename( TexturePath );
-
-							FString BaseFileNameBeforeUdim;
-							FString BaseFileNameAfterUdim;
-							BaseFileName.Split( TEXT("<UDIM>"), &BaseFileNameBeforeUdim, &BaseFileNameAfterUdim );
-
-							FString UdimRegexPattern = FString::Printf( TEXT(R"((%s)(\d{4})(%s))"), *BaseFileNameBeforeUdim, *BaseFileNameAfterUdim );
-							TextureFactory->UdimRegexPattern = MoveTemp( UdimRegexPattern );
-						}
-
-						if ( ResolvedTexturePath.IsEmpty() )
-						{
-							TUsdStore< pxr::SdfLayerHandle > LayerHandle = FindLayerHandle( FileInput.GetAttr(), pxr::UsdTimeCode::EarliestTime() );
-							ResolvedTexturePath = ResolveAssetPath( LayerHandle, TexturePath );
-						}
-
-						Texture2D = Cast< UTexture2D >( TextureFactory->ImportObject( UTexture2D::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, ResolvedTexturePath, TEXT(""), bOutCancelled ) );
-
-						TexturesCache.Add( TexturePath, Texture2D );
+						Texture->SRGB = false;
+						Texture->CompressionSettings = TextureCompressionSettings::TC_Normalmap;
 					}
+				}
 
-					if ( Texture2D )
-					{
-						UMaterialExpressionTextureSample* TextureSample = Cast< UMaterialExpressionTextureSample >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionTextureSample::StaticClass() ) );
-						TextureSample->Texture = Texture2D;
-						TextureSample->SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture2D );
+				if ( Texture )
+				{
+					UMaterialExpressionTextureSample* TextureSample = Cast< UMaterialExpressionTextureSample >( UMaterialEditingLibrary::CreateMaterialExpression( &Material, UMaterialExpressionTextureSample::StaticClass() ) );
+					TextureSample->Texture = Texture;
+					TextureSample->SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture );
 
-						Result = TextureSample;
-					}
+					Result = TextureSample;
+					TexturesCache.Add( TexturePath, Texture );
 				}
 			}
 		}
@@ -182,7 +154,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 			}
 			else
 			{
-				InputExpression = UsdGeomMeshConversionImpl::ParseInputTexture( Input, Material, TexturesCache );
+				InputExpression = UsdShadeConversionImpl::ParseInputTexture( Input, Material, TexturesCache );
 			}
 		}
 
@@ -211,7 +183,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 			}
 			else
 			{
-				BaseColorExpression = UsdGeomMeshConversionImpl::ParseInputTexture( DiffuseInput, Material, TexturesCache );
+				BaseColorExpression = UsdShadeConversionImpl::ParseInputTexture( DiffuseInput, Material, TexturesCache );
 			}
 
 			if ( BaseColorExpression )
@@ -256,7 +228,102 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		}
 	}
 
+	// Normal
+	{
+		pxr::UsdShadeInput NormalInput = SurfaceShader.GetInput( pxr::TfToken("normal") );
+
+		if ( NormalInput )
+		{
+			UMaterialExpression* NormalExpression = nullptr;
+
+			if ( NormalInput.HasConnectedSource() )			
+			{
+				NormalExpression = UsdShadeConversionImpl::ParseInputTexture( NormalInput, Material, TexturesCache );
+			}
+
+			if ( NormalExpression )
+			{
+				Material.Normal.Expression = NormalExpression;
+				bHasMaterialInfo = true;
+			}
+		}
+	}
+
 	return bHasMaterialInfo;
+}
+
+FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetPathAttr )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::SdfAssetPath TextureAssetPath;
+	TextureAssetPathAttr.Get< pxr::SdfAssetPath >( &TextureAssetPath );
+
+	FString ResolvedTexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetResolvedPath() );
+	FPaths::NormalizeFilename( ResolvedTexturePath );
+
+	if ( ResolvedTexturePath.IsEmpty() )
+	{
+		FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
+		FPaths::NormalizeFilename( TexturePath );
+
+		pxr::SdfLayerHandle LayerHandle = UsdShadeConversionImpl::FindLayerHandle( TextureAssetPathAttr, pxr::UsdTimeCode::EarliestTime() );
+		ResolvedTexturePath = UsdShadeConversionImpl::ResolveAssetPath( LayerHandle, TexturePath );
+	}
+
+	return ResolvedTexturePath;
+}
+
+UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::SdfAssetPath TextureAssetPath;
+	TextureAssetPathAttr.Get< pxr::SdfAssetPath >( &TextureAssetPath );
+
+	FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
+	const bool bIsSupportedUdimTexture = TexturePath.Contains( TEXT("<UDIM>") );
+	FPaths::NormalizeFilename( TexturePath );
+
+	FScopedUnrealAllocs UnrealAllocs;
+
+	UTexture* Texture = nullptr;
+
+	if ( !TexturePath.IsEmpty() )
+	{
+		bool bOutCancelled = false;
+		UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
+		TextureFactory->SuppressImportOverwriteDialog();
+		TextureFactory->bUseHashAsGuid = true;
+
+		if ( bIsSupportedUdimTexture )
+		{
+			FString BaseFileName = FPaths::GetBaseFilename( TexturePath );
+
+			FString BaseFileNameBeforeUdim;
+			FString BaseFileNameAfterUdim;
+			BaseFileName.Split( TEXT("<UDIM>"), &BaseFileNameBeforeUdim, &BaseFileNameAfterUdim );
+
+			FString UdimRegexPattern = FString::Printf( TEXT(R"((%s)(\d{4})(%s))"), *BaseFileNameBeforeUdim, *BaseFileNameAfterUdim );
+			TextureFactory->UdimRegexPattern = MoveTemp( UdimRegexPattern );
+		}
+
+		const FString ResolvedTexturePath = GetResolvedTexturePath( TextureAssetPathAttr );
+
+		if ( !ResolvedTexturePath.IsEmpty() )
+		{
+			Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, ResolvedTexturePath, TEXT(""), bOutCancelled ) );
+
+			if ( Texture )
+			{
+				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( Texture, TEXT("USDAssetImportData") );
+				ImportData->UpdateFilenameOnly( TexturePath );
+				Texture->AssetImportData = ImportData;
+			}
+		}
+	}
+
+	return Texture;
 }
 
 namespace UsdShadeConversionImpl
@@ -300,7 +367,7 @@ namespace UsdShadeConversionImpl
 	}
 }
 
-FSHAHash UsdToUnreal::HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial )
+FSHAHash UsdUtils::HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial )
 {
 	FScopedUsdAllocs UsdAllocs;
 

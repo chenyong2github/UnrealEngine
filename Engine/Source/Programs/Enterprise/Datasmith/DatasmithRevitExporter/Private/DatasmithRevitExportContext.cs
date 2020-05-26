@@ -809,7 +809,7 @@ namespace DatasmithRevitExporter
 					return null;
 				}
 
-				XYZ Translation = new XYZ();
+				XYZ Translation = null;
 				XYZ BasisX = new XYZ();
 				XYZ BasisY = new XYZ();
 				XYZ BasisZ = new XYZ();
@@ -819,7 +819,10 @@ namespace DatasmithRevitExporter
 				if (InElement.Location.GetType() == typeof(LocationCurve))
 				{
 					LocationCurve CurveLocation = InElement.Location as LocationCurve;
-					Translation = CurveLocation.Curve.GetEndPoint(0);
+					if (CurveLocation.Curve != null && CurveLocation.Curve.IsBound)
+					{
+						Translation = CurveLocation.Curve.GetEndPoint(0);
+					}
 				}
 				else if (InElement.Location.GetType() == typeof(LocationPoint))
 				{
@@ -829,12 +832,13 @@ namespace DatasmithRevitExporter
 				{
 					// Railings don't have valid location, so instead we need to get location from its path.
 					IList<Curve> Paths = (InElement as Railing).GetPath();
-					if (Paths.Count > 0)
+					if (Paths.Count > 0 && Paths[0].IsBound)
 					{
 						Translation = Paths[0].GetEndPoint(0);
 					}
 				}
-				else
+
+				if (Translation == null)
 				{
 					return null; // Cannot get valid translation
 				}
@@ -899,6 +903,10 @@ namespace DatasmithRevitExporter
 						BasisX = Derivatives.BasisX.Normalize();
 						BasisY = Derivatives.BasisY.Normalize();
 						BasisZ = Derivatives.BasisZ.Normalize();
+					}
+					else
+					{
+						return null;
 					}
 				}
 				else

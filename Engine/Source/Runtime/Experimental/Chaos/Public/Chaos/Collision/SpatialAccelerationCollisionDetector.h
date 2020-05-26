@@ -6,6 +6,7 @@
 #include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
+#include "Chaos/EvolutionResimCache.h"
 
 namespace Chaos
 {
@@ -20,7 +21,7 @@ namespace Chaos
 
 		FSpatialAccelerationBroadPhase& GetBroadPhase() { return BroadPhase; }
 
-		virtual void DetectCollisionsWithStats(const FReal Dt, CollisionStats::FStatData& StatData) override
+		virtual void DetectCollisionsWithStats(const FReal Dt, CollisionStats::FStatData& StatData, FEvolutionResimCache* ResimCache) override
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_Detect);
 			CHAOS_SCOPED_TIMER(DetectCollisions);
@@ -34,8 +35,12 @@ namespace Chaos
 			CollisionContainer.UpdateConstraints(Dt);
 
 			// Collision detection pipeline: BroadPhase -[parallel]-> NarrowPhase -[parallel]-> Receiver -[serial]-> Container
-			FAsyncCollisionReceiver Receiver(CollisionContainer);
-			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, Receiver, StatData);
+			FAsyncCollisionReceiver Receiver(CollisionContainer, ResimCache);
+			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, Receiver, StatData, ResimCache);
+			if(ResimCache)
+			{
+				Receiver.ReceiveCollisions(ResimCache->GetAndSanitizeConstraints());
+			}
 			Receiver.ProcessCollisions();
 		}
 

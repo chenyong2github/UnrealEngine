@@ -18,6 +18,8 @@ public:
 
 private:
 
+	double GetSmoothAlpha(int32 VertexID, bool bIsBoundary);
+
 	// uniform iterative smoothing
 	void Smooth_Forward(bool bUniform);
 

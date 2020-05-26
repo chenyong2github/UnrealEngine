@@ -155,7 +155,6 @@ namespace AutomationTool
 		Aggregate,
 		Report,
 		Badge,
-		Label,
 		Notify,
 		Include,
 		Option,
@@ -342,7 +341,6 @@ namespace AutomationTool
 			NewSchema.Items.Add(CreateAggregateType());
 			NewSchema.Items.Add(CreateReportType());
 			NewSchema.Items.Add(CreateBadgeType());
-			NewSchema.Items.Add(CreateLabelType());
 			NewSchema.Items.Add(CreateNotifyType());
 			NewSchema.Items.Add(CreateIncludeType());
 			NewSchema.Items.Add(CreateOptionType());
@@ -498,7 +496,6 @@ namespace AutomationTool
 			GraphChoice.Items.Add(CreateSchemaElement("Aggregate", ScriptSchemaStandardType.Aggregate));
 			GraphChoice.Items.Add(CreateSchemaElement("Report", ScriptSchemaStandardType.Report));
 			GraphChoice.Items.Add(CreateSchemaElement("Badge", ScriptSchemaStandardType.Badge));
-			GraphChoice.Items.Add(CreateSchemaElement("Label", ScriptSchemaStandardType.Label));
 			GraphChoice.Items.Add(CreateSchemaElement("Notify", ScriptSchemaStandardType.Notify));
 			GraphChoice.Items.Add(CreateSchemaElement("Trace", ScriptSchemaStandardType.Trace));
 			GraphChoice.Items.Add(CreateSchemaElement("Warning", ScriptSchemaStandardType.Warning));
@@ -675,7 +672,10 @@ namespace AutomationTool
 			XmlSchemaComplexType AggregateType = new XmlSchemaComplexType();
 			AggregateType.Name = GetTypeName(ScriptSchemaStandardType.Aggregate);
 			AggregateType.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.Name, XmlSchemaUse.Required));
+			AggregateType.Attributes.Add(CreateSchemaAttribute("Label", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			AggregateType.Attributes.Add(CreateSchemaAttribute("Requires", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Required));
+			AggregateType.Attributes.Add(CreateSchemaAttribute("Include", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
+			AggregateType.Attributes.Add(CreateSchemaAttribute("Exclude", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
 			AggregateType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			return AggregateType;
 		}
@@ -709,23 +709,6 @@ namespace AutomationTool
 			BadgeType.Attributes.Add(CreateSchemaAttribute("Change", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			BadgeType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			return BadgeType;
-		}
-
-		/// <summary>
-		/// Creates the schema type representing the label type
-		/// </summary>
-		/// <returns>Type definition for a label</returns>
-		static XmlSchemaType CreateLabelType()
-		{
-			XmlSchemaComplexType LabelType = new XmlSchemaComplexType();
-			LabelType.Name = GetTypeName(ScriptSchemaStandardType.Label);
-			LabelType.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.Name, XmlSchemaUse.Required));
-			LabelType.Attributes.Add(CreateSchemaAttribute("Category", ScriptSchemaStandardType.Name, XmlSchemaUse.Optional));
-			LabelType.Attributes.Add(CreateSchemaAttribute("Requires", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Required));
-			LabelType.Attributes.Add(CreateSchemaAttribute("Include", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
-			LabelType.Attributes.Add(CreateSchemaAttribute("Exclude", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
-			LabelType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
-			return LabelType;
 		}
 
 		/// <summary>

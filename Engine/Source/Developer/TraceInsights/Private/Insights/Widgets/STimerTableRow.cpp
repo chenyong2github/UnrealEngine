@@ -195,7 +195,7 @@ bool STimerTableRow::HandleShouldBeEnabled() const
 	{
 		if (OnShouldBeEnabled.IsBound())
 		{
-			bResult = OnShouldBeEnabled.Execute(TimerNodePtr->GetId());
+			bResult = OnShouldBeEnabled.Execute(TimerNodePtr);
 		}
 	}
 
@@ -218,7 +218,7 @@ EVisibility STimerTableRow::IsColumnVisible(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimerTableRow::OnSetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FTimerNodePtr InTimerNodePtr)
+void STimerTableRow::OnSetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, FTimerNodePtr InTimerNodePtr)
 {
 	SetHoveredCellDelegate.ExecuteIfBound(InTablePtr, InColumnPtr, InTimerNodePtr);
 }

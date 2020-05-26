@@ -67,7 +67,7 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 	if (bJointTransformsComputed)
 	{
 		UsdStageWeakPtr Stage = SkeletonQuery.GetSkeleton().GetPrim().GetStage();
-		const UsdToUnreal::FUsdStageInfo StageInfo(Stage);
+		const FUsdStageInfo StageInfo(Stage);
 
 		for (uint32 Index = 0; Index < UsdBoneTransforms.size(); ++Index)
 		{
@@ -128,7 +128,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 		GeomBindingAttribute.Get(&GeomBindingTransform, UsdTimeCode::Default());
 	}
 
-	const UsdToUnreal::FUsdStageInfo StageInfo( SkinningPrim.GetStage() );
+	const FUsdStageInfo StageInfo( SkinningPrim.GetStage() );
 
 	FTransform GeomTransform = UsdToUnreal::ConvertMatrix(StageInfo, GeomBindingTransform);
 
@@ -557,17 +557,17 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(FSkeletalMeshImportDat
 	FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[0];
 
 	// Process materials from import data
-	ProcessImportMeshMaterials(SkeletalMesh->Materials, SkelMeshImportData);
+	SkeletalMeshHelper::ProcessImportMeshMaterials(SkeletalMesh->Materials, SkelMeshImportData);
 
 	// Process reference skeleton from import data
 	int32 SkeletalDepth = 0;
-	if (!ProcessImportMeshSkeleton(SkeletalMesh->Skeleton, SkeletalMesh->RefSkeleton, SkeletalDepth, SkelMeshImportData))
+	if (!SkeletalMeshHelper::ProcessImportMeshSkeleton(SkeletalMesh->Skeleton, SkeletalMesh->RefSkeleton, SkeletalDepth, SkelMeshImportData))
 	{
 		return nullptr;
 	}
 
 	// Process bones influence (normalization and optimization); this is not strictly needed for SkeletalMesh to work
-	ProcessImportMeshInfluences(SkelMeshImportData);
+	SkeletalMeshHelper::ProcessImportMeshInfluences(SkelMeshImportData);
 
 	// Serialize the import data when needed
 	//LODModel.RawSkeletalMeshBulkData.SaveRawMesh(SkelMeshImportData);

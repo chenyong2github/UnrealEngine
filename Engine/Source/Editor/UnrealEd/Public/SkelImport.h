@@ -20,9 +20,9 @@ class USkeleton;
 class UThumbnailInfo;
 class FSkeletalMeshLODModel;
 
-struct ExistingMeshLodSectionData
+struct FExistingMeshLodSectionData
 {
-	ExistingMeshLodSectionData(FName InImportedMaterialSlotName, bool InbCastShadow, bool InbRecomputeTangents, int32 InGenerateUpTo, bool InbDisabled)
+	FExistingMeshLodSectionData(FName InImportedMaterialSlotName, bool InbCastShadow, bool InbRecomputeTangents, int32 InGenerateUpTo, bool InbDisabled)
 	: ImportedMaterialSlotName(InImportedMaterialSlotName)
 	, bCastShadow(InbCastShadow)
 	, bRecomputeTangents(InbRecomputeTangents)
@@ -36,12 +36,11 @@ struct ExistingMeshLodSectionData
 	bool bDisabled;
 };
 
-struct ExistingSkelMeshData
+struct FExistingSkelMeshData
 {
 	TArray<USkeletalMeshSocket*>			ExistingSockets;
-	TArray<FReductionBaseSkeletalMeshBulkData*> ExistingOriginalReductionSourceMeshData;
+	TArray<TSharedPtr<FReductionBaseSkeletalMeshBulkData>> ExistingOriginalReductionSourceMeshData;
 	TIndirectArray<FSkeletalMeshLODModel>	ExistingLODModels;
-	FSkeletalMeshLODInfo					ExistingBaseLODInfo;
 	TArray<FSkeletalMeshLODInfo>			ExistingLODInfo;
 	FReferenceSkeleton						ExistingRefSkeleton;
 	TArray<FSkeletalMaterial>				ExistingMaterials;
@@ -53,13 +52,6 @@ struct ExistingSkelMeshData
 	TArray<FTransform>						ExistingRetargetBasePose;
 	USkeletalMeshLODSettings*				ExistingLODSettings;
 	TSubclassOf<UAnimInstance>				ExistingPostProcessAnimBlueprint;
-
-	//////////////////////////////////////////////////////////////////////////
-	//Reimport LOD specific data
-
-	//When the specific LOD is reduce, we want to apply the same reduction after the re-import of the LODs
-	bool bIsReimportLODReduced;
-	FSkeletalMeshOptimizationSettings		ExistingReimportLODReductionSettings;
 	
 	//////////////////////////////////////////////////////////////////////////
 
@@ -76,7 +68,7 @@ struct ExistingSkelMeshData
 	bool UseMaterialNameSlotWorkflow;
 	//The existing import material data (the state of sections before the reimport)
 	TArray<FName> ExistingImportMaterialOriginalNameData;
-	TArray<TArray<ExistingMeshLodSectionData>> ExistingImportMeshLodSectionMaterialData;
+	TArray<TArray<FExistingMeshLodSectionData>> ExistingImportMeshLodSectionMaterialData;
 	//The last import material data (fbx original data before user changes)
 	TArray<FName> LastImportMaterialOriginalNameData;
 	TArray<TArray<FName>> LastImportMeshLodSectionMaterialData;

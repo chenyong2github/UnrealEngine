@@ -13,7 +13,7 @@
 
 namespace AJA
 {
-	class AJASyncChannel;
+	class AJATimecodeChannel;
 }
 
 class UEngine;
@@ -44,6 +44,7 @@ public:
 
 	//~ UObject interface
 	virtual void BeginDestroy() override;
+	virtual void Serialize(FArchive& Ar) override;
 
 private:
 	struct FAJACallback;
@@ -52,28 +53,34 @@ private:
 	void ReleaseResources();
 
 public:
+
 	/**
-	 * Shoud we read the timecode from an input source or the reference. The device may be able to read LTC or VITC.
+	 * Should we read the timecode from a dedicated LTC pin or an SDI input.
 	 */
 	UPROPERTY(EditAnywhere, Category="Timecode")
+	bool bUseDedicatedPin;
+
+	/**
+	 * Read LTC timecode from reference pin. Will fail if device doesn't support that feature.
+	 */
+	UPROPERTY(EditAnywhere, Category="Timecode", meta = (EditCondition = "bUseDedicatedPin"))
 	bool bUseReferenceIn;
 
 	/**
-	 * It read the timecode from the reference.
-	 * @note The device has support LTC from the reference pin.
+	 * Where to read LTC timecode from with which FrameRate expected
 	 */
-	UPROPERTY(EditAnywhere, Category="Timecode", meta=(EditCondition="bUseReferenceIn"))
-	FAjaMediaTimecodeReference ReferenceConfiguration;
+	UPROPERTY(EditAnywhere, Category="Timecode", meta=(EditCondition="bUseDedicatedPin"))
+	FAjaMediaTimecodeReference LTCConfiguration;
 
 	/**
      * It read the timecode from an input source.
 	 */
-	UPROPERTY(EditAnywhere, Category="Timecode", meta=(EditCondition="!bUseReferenceIn"))
+	UPROPERTY(EditAnywhere, Category="Timecode", meta=(EditCondition="!bUseDedicatedPin"))
 	FAjaMediaTimecodeConfiguration VideoConfiguration;
 
 private:
-	/** AJA Port to capture the Sync */
-	AJA::AJASyncChannel* SyncChannel;
+	/** AJA channel associated with reading LTC timecode */
+	AJA::AJATimecodeChannel* TimecodeChannel;
 	FAJACallback* SyncCallback;
 
 #if WITH_EDITORONLY_DATA

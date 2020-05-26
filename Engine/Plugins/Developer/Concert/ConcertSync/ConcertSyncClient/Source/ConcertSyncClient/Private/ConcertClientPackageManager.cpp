@@ -10,6 +10,7 @@
 #include "ConcertWorkspaceMessages.h"
 #include "ConcertSandboxPlatformFile.h"
 #include "ConcertSyncClientUtil.h"
+#include "ConcertSyncSettings.h"
 #include "ConcertUtil.h"
 
 #include "Engine/World.h"
@@ -21,6 +22,8 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"
 
+#include "ISourceControlModule.h"
+
 #if WITH_EDITOR
 	#include "Editor.h"
 	#include "Editor/EditorEngine.h"
@@ -28,6 +31,33 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "ConcertClientPackageManager"
+
+namespace ConcertClientPackageManagerUtil
+{
+
+bool RunPackageFilters(const TArray<FPackageClassFilter>& InFilters, const FConcertPackageInfo& InPackageInfo)
+{
+	bool bMatchFilter = false;
+	FString PackageName = InPackageInfo.PackageName.ToString();
+	UClass* AssetClass = LoadClass<UClass>(nullptr, *InPackageInfo.AssetClass);
+	for (const FPackageClassFilter& PackageFilter : InFilters)
+	{
+		UClass* PackageAssetClass = PackageFilter.AssetClass.TryLoadClass<UObject>();
+		if (!PackageAssetClass || (AssetClass && AssetClass->IsChildOf(PackageAssetClass)))
+		{
+			for (const FString& ContentPath : PackageFilter.ContentPaths)
+			{
+				if (PackageName.MatchesWildcard(ContentPath))
+				{
+					bMatchFilter = true;
+					break;
+				}
+			}
+		}
+	}
+	return bMatchFilter;
+}
+} // end namespace ConcertClientPackageManagerUtil
 
 FConcertClientPackageManager::FConcertClientPackageManager(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, TSharedPtr<IConcertFileSharingService> InFileSharingService)
 	: LiveSession(MoveTemp(InLiveSession))
@@ -102,7 +132,8 @@ bool FConcertClientPackageManager::ShouldIgnorePackageDirtyEvent(class UPackage*
 	return InPackage == GetTransientPackage()
 		|| InPackage->HasAnyFlags(RF_Transient)
 		|| InPackage->HasAnyPackageFlags(PKG_PlayInEditor | PKG_CompiledIn) // CompiledIn packages are not considered content for MU. (ex when changing some plugin settings like /Script/DisasterRecoveryClient)
-		|| bIgnorePackageDirtyEvent;
+		|| bIgnorePackageDirtyEvent
+		|| (!PassesPackageFilters(InPackage));
 }
 
 TMap<FString, int64> FConcertClientPackageManager::GetPersistedFiles() const
@@ -240,6 +271,14 @@ void FConcertClientPackageManager::ApplyAllHeadPackageData()
 	});
 }
 
+bool FConcertClientPackageManager::PassesPackageFilters(UPackage* InPackage) const
+{
+	// Create a dummy package info to run filters on
+	FConcertPackageInfo PackageInfo;
+	ConcertSyncClientUtil::FillPackageInfo(InPackage, nullptr, EConcertPackageUpdateType::Saved, PackageInfo);
+	return ApplyPackageFilters(PackageInfo);
+}
+
 bool FConcertClientPackageManager::HasSessionChanges() const
 {
 	bool bHasSessionChanges = false;
@@ -270,6 +309,23 @@ bool FConcertClientPackageManager::PersistSessionChanges(TArrayView<const FName>
 	}
 #endif
 	return false;
+}
+
+bool FConcertClientPackageManager::ApplyPackageFilters(const FConcertPackageInfo& InPackageInfo) const
+{
+	// Only run the package filters if we are using a sandbox 
+	// (We do not want to run package filtering on Disaster Recovery session and we identify it by not having the ShouldUsePackageSandbox flag for now)
+	if (EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldUsePackageSandbox))
+	{
+		const UConcertSyncConfig* SyncConfig = GetDefault<UConcertSyncConfig>();
+		// Ignore packages that passes the ExcludePackageClassFilters
+		if (SyncConfig->ExcludePackageClassFilters.Num() > 0 && ConcertClientPackageManagerUtil::RunPackageFilters(SyncConfig->ExcludePackageClassFilters, InPackageInfo))
+		{
+			return false;
+		}
+
+	}
+	return true;
 }
 
 void FConcertClientPackageManager::ApplyPackageUpdate(const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream)
@@ -360,46 +416,54 @@ void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackage
 		}
 	}
 
-	FConcertPackageUpdateEvent Event;
-
-	// Copy or link the packge data to the Concert event.
-	int64 PackageFileSize = PackagePathname.IsEmpty() ? -1 : IFileManager::Get().FileSize(*PackagePathname); // EConcertPackageUpdateType::Delete is emitted with an empty pathname.
-	if (PackageFileSize > 0)
-	{
-		if (CanExchangePackageDataAsByteArray(static_cast<uint64>(PackageFileSize)))
-		{
-			// Embed the package data directly in the event.
-			if (!FFileHelper::LoadFileToArray(Event.Package.PackageData, *PackagePathname))
-			{
-				UE_LOG(LogConcert, Error, TEXT("Failed to load file data '%s' in memory"), *PackagePathname);
-				return;
-			}
-		}
-		else if (FileSharingService && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableFileSharing))
-		{
-			// Publish a copy of the package data in the sharing service and set the corresponding file ID in the event.
-			if (!FileSharingService->Publish(PackagePathname, Event.Package.FileId))
-			{
-				UE_LOG(LogConcert, Error, TEXT("Failed to share a copy of package file '%s'"), *PackagePathname);
-				return;
-			}
-		}
-		else
-		{
-			// Notify the client about the file being too large to be emitted.
-			UE_LOG(LogConcert, Error, TEXT("Failed to handle local package file '%s'. The file is too big to be sent over the network."), *PackagePathname);
-			OnConcertClientPackageTooLargeError().Broadcast(Event.Package.Info, PackageFileSize, FConcertPackage::GetMaxPackageDataSizeEmbeddableAsByteArray());
-			return;
-		}
-	}
-
-	Event.Package.Info = PackageInfo;
-	LiveSession->GetSessionDatabase().GetTransactionMaxEventId(Event.Package.Info.TransactionEventIdAtSave);
-	LiveSession->GetSession().SendCustomEvent(Event, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
-
 	if (PackageInfo.bPreSave && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldSendPackagePristineState) && !EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableLiveSync))
 	{
 		EmittedPristinePackages.Add(PackageInfo.PackageName); // Prevent sending the original package state at every pre-save.
+	}
+
+	// if the package filter passes, send the event
+	if (ApplyPackageFilters(PackageInfo))
+	{
+		FConcertPackageUpdateEvent Event;
+		Event.Package.Info = PackageInfo;
+
+		// Copy or link the package data to the Concert event.
+		int64 PackageFileSize = PackagePathname.IsEmpty() ? -1 : IFileManager::Get().FileSize(*PackagePathname); // EConcertPackageUpdateType::Delete is emitted with an empty pathname.
+		if (PackageFileSize > 0)
+		{
+			if (CanExchangePackageDataAsByteArray(static_cast<uint64>(PackageFileSize)))
+			{
+				// Embed the package data directly in the event.
+				if (!FFileHelper::LoadFileToArray(Event.Package.PackageData, *PackagePathname))
+				{
+					UE_LOG(LogConcert, Error, TEXT("Failed to load file data '%s' in memory"), *PackagePathname);
+					return;
+				}
+			}
+			else if (FileSharingService && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableFileSharing))
+			{
+				// Publish a copy of the package data in the sharing service and set the corresponding file ID in the event.
+				if (!FileSharingService->Publish(PackagePathname, Event.Package.FileId))
+				{
+					UE_LOG(LogConcert, Error, TEXT("Failed to share a copy of package file '%s'"), *PackagePathname);
+					return;
+				}
+			}
+			else
+			{
+				// Notify the client about the file being too large to be emitted.
+				UE_LOG(LogConcert, Error, TEXT("Failed to handle local package file '%s'. The file is too big to be sent over the network."), *PackagePathname);
+				OnConcertClientPackageTooLargeError().Broadcast(Event.Package.Info, PackageFileSize, FConcertPackage::GetMaxPackageDataSizeEmbeddableAsByteArray());
+			}
+		}
+
+		LiveSession->GetSessionDatabase().GetTransactionMaxEventId(Event.Package.Info.TransactionEventIdAtSave);
+		LiveSession->GetSession().SendCustomEvent(Event, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
+	}
+	// if the package data has been filtered out of the session persist it immediately from the sandbox
+	else
+	{
+		PersistSessionChanges(MakeArrayView(&PackageInfo.PackageName, 1), &ISourceControlModule::Get().GetProvider());
 	}
 }
 

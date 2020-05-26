@@ -236,6 +236,24 @@ void USoundWave::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		return;
 	}
 
+	// First, add any UProperties that are on the USoundwave itself:
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(sizeof(USoundWave));
+
+	// Add all cooked spectral and envelope data:
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FrequenciesToAnalyze.Num() * sizeof(float));
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CookedSpectralTimeData.Num() * sizeof(FSoundWaveSpectralTimeData));
+
+	for (FSoundWaveSpectralTimeData& Entry : CookedSpectralTimeData)
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Entry.Data.Num() * sizeof(FSoundWaveSpectralDataEntry));
+	}
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CookedEnvelopeTimeData.Num() * sizeof(FSoundWaveEnvelopeTimeData));
+
+	// Add zeroth chunk data, if it's used (if this USoundWave isn't streaming, this won't report).
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(ZerothChunkData.GetView().Num());
+
+	// Finally, report the actual audio memory being used, if this asset isn't using the stream cache.
 	if (FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw())
 	{
 		if (LocalAudioDevice->HasCompressedAudioInfoClass(this) && DecompressionType == DTYPE_Native)
@@ -387,7 +405,7 @@ void USoundWave::Serialize( FArchive& Ar )
 				{
 					// for now we only support one format per wav
 					FName Format = CookingTarget->GetWaveFormat(this);
-					const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides();
+					const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*CookingTarget->IniPlatformName());
 
 					GetCompressedData(Format, CompressionOverrides); // Get the data from the DDC or build it
 					if (CompressionOverrides)
@@ -443,7 +461,7 @@ void USoundWave::Serialize( FArchive& Ar )
 		}
 
 #if WITH_EDITORONLY_DATA
-		if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
+		if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker) && FApp::CanEverRenderAudio())
 		{
 			CachePlatformData(false);
 			bBuiltStreamedAudio = true;
@@ -465,12 +483,17 @@ void USoundWave::Serialize( FArchive& Ar )
 
 			//EnsureZerothChunkIsLoaded();
 			const bool bHasFirstChunk = GetNumChunks() > 1;
+			
+			if (!bHasFirstChunk)
+			{
+				return;
+			}
 
-			if (!GIsEditor && CurrentLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad && bHasFirstChunk)
+			if (!GIsEditor && CurrentLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 			{
 				RetainCompressedAudio(true);
 			}
-			else if ((CurrentLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad && bHasFirstChunk)
+			else if ((CurrentLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad)
 				|| (GIsEditor && CurrentLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad))
 			{
 				// Prime first chunk of audio.
@@ -551,7 +574,7 @@ bool USoundWave::HasCompressedData(FName Format, ITargetPlatform* TargetPlatform
 	{
 		if (TargetPlatform)
 		{
-			CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides();
+			CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
 		}
 	}
 	else
@@ -842,8 +865,11 @@ void USoundWave::PostLoad()
 			// if a sound class defined our loading behavior as something other than Retain and our cvar default is to retain, we need to release our handle.
 			ReleaseCompressedAudio();
 
-			if ((ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad && GetNumChunks() > 1)
-				|| (GIsEditor && ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad))
+			const bool bHasMultipleChunks = GetNumChunks() > 1;
+			bool bShouldPrime = (ActualLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad);
+			bShouldPrime |= (GIsEditor && (ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)); // treat this scenario like PrimeOnLoad
+			
+			if (bShouldPrime && bHasMultipleChunks)
 			{
 				IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});
 			}
@@ -855,8 +881,11 @@ void USoundWave::PostLoad()
 			ReleaseCompressedAudio();
 		}
 
-		// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
-		bStreaming = IsStreaming(nullptr);
+		if (!GIsEditor)
+		{
+			// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
+			bStreaming = IsStreaming(nullptr);
+		}
 	}
 
 	// Compress to whatever formats the active target platforms want
@@ -870,7 +899,7 @@ void USoundWave::PostLoad()
 		{
 			if (!Platform->IsServerOnly())
 			{
-				BeginGetCompressedData(Platform->GetWaveFormat(this), FPlatformCompressionUtilities::GetCookOverrides());
+				BeginGetCompressedData(Platform->GetWaveFormat(this), FPlatformCompressionUtilities::GetCookOverrides(*Platform->IniPlatformName()));
 			}
 		}
 	}
@@ -969,7 +998,7 @@ uint32 USoundWave::GetNumChunks() const
 	{
 		return 0;
 	}
-	else if (GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
+	else if (GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker) || !FApp::CanEverRenderAudio())
 	{
 		UE_LOG(LogAudio, Warning, TEXT("USoundWave::GetNumChunks called in the cook commandlet."))
 		return 0;
@@ -1134,7 +1163,7 @@ void USoundWave::InvalidateSoundWaveIfNeccessary()
 
 float USoundWave::GetSampleRateForTargetPlatform(const ITargetPlatform* TargetPlatform)
 {
-	const FPlatformAudioCookOverrides* Overrides = FPlatformCompressionUtilities::GetCookOverrides();
+	const FPlatformAudioCookOverrides* Overrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
 	if (Overrides)
 	{
 		return GetSampleRateForCompressionOverrides(Overrides);
@@ -2036,7 +2065,7 @@ bool USoundWave::IsStreaming(const TCHAR* PlatformName/* = nullptr */) const
 		return false;
 	}
 
-	return IsStreaming(*FPlatformCompressionUtilities::GetCookOverrides());
+	return IsStreaming(*FPlatformCompressionUtilities::GetCookOverrides(PlatformName));
 }
 
 bool USoundWave::IsStreaming(const FPlatformAudioCookOverrides& Overrides) const
@@ -2533,7 +2562,7 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	else if (bForceSync)
 	{
 		FirstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(this, 1, true);
-		ensureAlwaysMsgf(FirstChunk.IsValid(), TEXT("First chunk was invalid after synchronous load in RetainCompressedAudio()!"));
+		UE_CLOG(!FirstChunk.IsValid(), LogAudio, Display, TEXT("First chunk was invalid after synchronous load in RetainCompressedAudio(). This was likely because the cache was blown. Sound: %s"), *GetFullName());
 	}
 	else
 	{
@@ -2588,15 +2617,14 @@ void USoundWave::OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBeha
 	// record the new loading behavior
 	// (if this soundwave isn't loaded yet, 
 	// CachedSoundWaveLoadingBehavior will take precedence when it does load)
-	LoadingBehavior = InLoadingBehavior;
 	CachedSoundWaveLoadingBehavior = InLoadingBehavior;
 	bLoadingBehaviorOverridden = true;
 
-	// If we're reloading for the cook commandlet, we don't have streamed audio chunks to load.
-	const bool bReloadingForCooker = GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker);
+	// If we're loading for the cook commandlet, we don't have streamed audio chunks to load.
+	const bool bHasBuiltStreamedAudio = !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker) && FApp::CanEverRenderAudio();
 
 	// Manually perform prime/retain on already loaded sound waves
-	if (!bReloadingForCooker && bAlreadyLoaded && IsStreaming())
+	if (bHasBuiltStreamedAudio && bAlreadyLoaded && IsStreaming())
 	{
 		if (InLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 		{
@@ -2642,7 +2670,6 @@ void USoundWave::CacheInheritedLoadingBehavior()
  	else if (bLoadingBehaviorOverridden)
  	{
  		ensureMsgf(CachedSoundWaveLoadingBehavior != ESoundWaveLoadingBehavior::Inherited, TEXT("SoundCue set loading behavior to Inherited on SoudWave: %s"), *GetFullName());
- 		LoadingBehavior = CachedSoundWaveLoadingBehavior;
  	}
 	else
 	{

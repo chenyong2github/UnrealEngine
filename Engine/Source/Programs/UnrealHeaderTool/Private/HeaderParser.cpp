@@ -22,6 +22,7 @@
 #include "UnrealTypeDefinitionInfo.h"
 #include "Containers/EnumAsByte.h"
 #include "Algo/AllOf.h"
+#include "Algo/Find.h"
 #include "Algo/FindSortedStringCaseInsensitive.h"
 #include "Misc/ScopeExit.h"
 
@@ -9611,16 +9612,15 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 		out_BaseClassName = BaseClassNameToken.Identifier;
 
 		int32 InputLineLocal = InputLine;
-		auto AddDependencyIfNeeded = [Filename, InputLineLocal, &ParsedClassArray, &out_RequiredIncludes, &out_ClassName, &ClassNameWithoutPrefixStr](const FString& DependencyClassName)
+		auto AddDependencyIfNeeded = [Filename, InputLineLocal, &ParsedClassArray, &out_RequiredIncludes, &ClassNameWithoutPrefixStr](const FString& DependencyClassName)
 		{
-			if (!ParsedClassArray.ContainsByPredicate([&DependencyClassName](const FSimplifiedParsingClassInfo& Info)
-				{
-					return Info.GetClassName() == DependencyClassName;
-				}))
+			if (!Algo::FindBy(ParsedClassArray, DependencyClassName, &FSimplifiedParsingClassInfo::GetClassName))
 			{
-				if (out_ClassName == DependencyClassName)
+				FString DependencyClassNameWithoutPrefixStr = GetClassNameWithPrefixRemoved(DependencyClassName);
+
+				if (ClassNameWithoutPrefixStr == DependencyClassNameWithoutPrefixStr)
 				{
-					FFileLineException::Throwf(Filename, InputLineLocal, TEXT("A class cannot inherit itself"));
+					FFileLineException::Throwf(Filename, InputLineLocal, TEXT("A class cannot inherit itself or a type with the same name but a different prefix"));
 				}
 
 				FString StrippedDependencyName = DependencyClassName.Mid(1);

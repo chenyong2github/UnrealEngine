@@ -108,7 +108,7 @@ void SunMaskPS_ES2(
 	#if ES2_USE_DEPTHTEXTURE
 		half InDepth = CalcSceneDepth(InUVPos.xy);
 	#else
-		half InDepth = SceneColor.a;
+		half InDepth = ConvertFromDeviceZ(SceneColor.a);
 	#endif
 	
 	#if ES2_USE_SUN
@@ -818,7 +818,7 @@ void IntegrateDOFPS_ES2(
 	OutColor.rgb = lerp(SceneColor.rgb, DofFine.rgb, DofAmountFine);
 	// Blend in coarse DOF.
 	OutColor.rgb = lerp(OutColor.rgb, Dof.rgb, DofAmount);
-	OutColor.a = DofCoc;
+	OutColor.a = SceneColor.a;
 }
 
 //

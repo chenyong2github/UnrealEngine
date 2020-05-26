@@ -3,27 +3,25 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
-#include "Widgets/Views/STreeView.h"
 
 #include "SourceFilterService.h"
 #include "ISessionSourceFilterService.h"
-#include "IFilterObject.h"
 
 #if WITH_EDITOR
 #include "TraceSourceFilteringSettings.h"
 #endif // WITH_EDITOR
 
-class IDetailsView;
 class SWorldTraceFilteringWidget;
+class SClassTraceFilteringWidget;
+class SUserTraceFilteringWidget;
 class SComboButton;
 class SHorizontalBox;
 
 class STraceSourceFilteringWidget : public SCompoundWidget
 {
-	friend class SSourceFilteringTreeView;
 public:
 	/** Default constructor. */
-	STraceSourceFilteringWidget();
+	STraceSourceFilteringWidget() : FilteringSettings(nullptr) {}
 
 	/** Virtual destructor. */
 	virtual ~STraceSourceFilteringWidget();
@@ -40,13 +38,8 @@ public:
 	
 protected:
 	void ConstructMenuBox();
-	void ConstructTreeview();
-#if WITH_EDITOR
-	void ConstructInstanceDetailsView();
-#endif // WITH_EDITOR
 
 	TSharedRef<SWidget> OnGetOptionsMenu();
-	TSharedPtr<SWidget> OnContextMenuOpening();
 
 	/** Callback for whenever a different analysis session (store) has been retrieved */
 	void SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession);
@@ -66,41 +59,28 @@ protected:
 	/** Save current UTraceSourceFilteringSettings state to INI files */
 	void SaveFilteringSettings();
 
-	/** Saves and restores the current selection and expansion state of FilterTreeView*/
-	void SaveTreeviewState();
-	void RestoreTreeviewState();
+	/** Adds an expandable area widget to ContentBox */
+	void AddExpandableArea(const FText& AreaName, TSharedRef<SWidget> AreaWidget);
 protected:
-#if WITH_EDITOR	
-	/** Details view, used for displaying selected Filter UProperties */
-	TSharedPtr<IDetailsView> FilterInstanceDetailsView;	
-#endif // WITH_EDITOR
-	
-	/** Slate widget used to add filter instances to the session */
-	TSharedPtr<SComboButton> AddFilterButton;
-
 	/** Slate widget containing the Add Filter and Options widgets, used for disabling/enabling according to the session state */
 	TSharedPtr<SHorizontalBox> MenuBox;
 
+	/** Vertical box contain the individual expandable areas */
+	TSharedPtr<SVerticalBox> ContentBox;
+	
 	/** Filter session instance, used to retrieve data and communicate with connected application */
 	TSharedPtr<ISessionSourceFilterService> SessionFilterService;
 
-	/** Panel used for filtering UWorld's traceability on the connected filter session */
+	/** Widget used for filtering UWorld's traceability on the connected filter session */
 	TSharedPtr<SWorldTraceFilteringWidget> WorldFilterWidget;
 
-	/** Treeview used to display all currently represented Filters */
-	TSharedPtr<STreeView<TSharedPtr<IFilterObject>>> FilterTreeView;
-
-	/** Data used to populate the Filter Treeview */
-	TArray<TSharedPtr<IFilterObject>> FilterObjects;
-	TMap<TSharedPtr<IFilterObject>, TArray<TSharedPtr<IFilterObject>>> ParentToChildren;
-	TArray<TSharedPtr<IFilterObject>> FlatFilterObjects;
+	/** Widget used for filtering AActors when applying user filters for a given UWorld */
+	TSharedPtr<SClassTraceFilteringWidget> ClassFilterWidget;
+	/** Widget used for setting up User Filters applied to actor within a given UWorld */
+	TSharedPtr<SUserTraceFilteringWidget> UserFilterWidget;
 	   
 	/** Timestamp at which the treeview data was last retrieved from SessionFilterService */
 	FDateTime SyncTimestamp;
-
-	/** Used to store hash values of, treeview expanded and selected, filter instances when refreshing the treeview data */
-	TArray<int32> ExpandedFilters;	
-	TArray<int32> SelectedFilters;
 
 	/** Cached pointer to Filtering Settings retrieved from SessionFilterService */
 	UTraceSourceFilteringSettings* FilteringSettings;

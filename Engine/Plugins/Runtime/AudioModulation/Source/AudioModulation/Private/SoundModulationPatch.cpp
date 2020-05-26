@@ -99,7 +99,10 @@ TArray<const FSoundModulationInputBase*> FSoundVolumeModulationPatch::GetInputs(
 	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundVolumeModulationInput& Input : Inputs)
 	{
-		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		if (Input.Bus)
+		{
+			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		}
 	}
 
 	return OutInputs;
@@ -110,7 +113,10 @@ TArray<const FSoundModulationInputBase*> FSoundPitchModulationPatch::GetInputs()
 	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundPitchModulationInput& Input : Inputs)
 	{
-		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		if (Input.Bus)
+		{
+			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		}
 	}
 
 	return OutInputs;
@@ -121,7 +127,10 @@ TArray<const FSoundModulationInputBase*> FSoundLPFModulationPatch::GetInputs() c
 	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundLPFModulationInput& Input : Inputs)
 	{
-		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		if (Input.Bus)
+		{
+			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		}
 	}
 
 	return OutInputs;
@@ -132,7 +141,10 @@ TArray<const FSoundModulationInputBase*> FSoundHPFModulationPatch::GetInputs() c
 	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundHPFModulationInput& Input : Inputs)
 	{
-		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		if (Input.Bus)
+		{
+			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		}
 	}
 
 	return OutInputs;
@@ -143,7 +155,10 @@ TArray<const FSoundModulationInputBase*> FSoundControlModulationPatch::GetInputs
 	TArray<const FSoundModulationInputBase*> OutInputs;
 	for (const FSoundControlModulationInput& Input : Inputs)
 	{
-		OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		if (Input.Bus)
+		{
+			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
+		}
 	}
 
 	return OutInputs;

@@ -11,8 +11,8 @@
 #include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomDX11.h"
 #include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomDX12.h"
 
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 FDisplayClusterRenderDeviceFactoryInternal::FDisplayClusterRenderDeviceFactoryInternal()

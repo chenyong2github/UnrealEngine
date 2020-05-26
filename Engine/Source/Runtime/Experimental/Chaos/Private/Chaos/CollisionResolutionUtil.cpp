@@ -42,6 +42,7 @@ namespace Chaos
 					-V[1] * (-V[1] * M.M[0][0] + V[0] * M.M[1][0]) + V[0] * (-V[1] * M.M[1][0] + V[0] * M.M[1][1]) + Im);
 		}
 
+		// Reference: Energy Stability and Fracture for Frame Rate Rigid Body Simulations (Su et al.) (3.2. Clamping Impulses)
 		FVec3 GetEnergyClampedImpulse(const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0, const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1, const FVec3& Impulse, const FVec3& VectorToPoint1, const FVec3& VectorToPoint2, const FVec3& Velocity1, const FVec3& Velocity2)
 		{
 			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
@@ -49,28 +50,28 @@ namespace Chaos
 
 			FVec3 Jr0, Jr1, IInvJr0, IInvJr1;
 			FReal ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
-			FReal ImpulseSize = Impulse.SizeSquared();
+			FReal ImpulseSizeSQ = Impulse.SizeSquared();
 			FVec3 KinematicVelocity = !bIsRigidDynamic0 ? Velocity1 : !bIsRigidDynamic1 ? Velocity2 : FVec3(0);
 			if (bIsRigidDynamic0)
 			{
 				Jr0 = FVec3::CrossProduct(VectorToPoint1, Impulse);
 				IInvJr0 = PBDRigid0->Q().RotateVector(PBDRigid0->InvI() * PBDRigid0->Q().UnrotateVector(Jr0));
-				ImpulseRatioNumerator0 = FVec3::DotProduct(Impulse, PBDRigid0->V() - KinematicVelocity) + FVec3::DotProduct(IInvJr0, PBDRigid0->W());
-				ImpulseRatioDenom0 = ImpulseSize / PBDRigid0->M() + FVec3::DotProduct(Jr0, IInvJr0);
+				ImpulseRatioNumerator0 = FVec3::DotProduct(Impulse, PBDRigid0->V() - KinematicVelocity) + FVec3::DotProduct(Jr0, PBDRigid0->W());
+				ImpulseRatioDenom0 = ImpulseSizeSQ / PBDRigid0->M() + FVec3::DotProduct(Jr0, IInvJr0);
 			}
 			if (bIsRigidDynamic1)
 			{
 				Jr1 = FVec3::CrossProduct(VectorToPoint2, Impulse);
 				IInvJr1 = PBDRigid1->Q().RotateVector(PBDRigid1->InvI() * PBDRigid1->Q().UnrotateVector(Jr1));
-				ImpulseRatioNumerator1 = FVec3::DotProduct(Impulse, PBDRigid1->V() - KinematicVelocity) + FVec3::DotProduct(IInvJr1, PBDRigid1->W());
-				ImpulseRatioDenom1 = ImpulseSize / PBDRigid1->M() + FVec3::DotProduct(Jr1, IInvJr1);
+				ImpulseRatioNumerator1 = FVec3::DotProduct(Impulse, PBDRigid1->V() - KinematicVelocity) + FVec3::DotProduct(Jr1, PBDRigid1->W());
+				ImpulseRatioDenom1 = ImpulseSizeSQ / PBDRigid1->M() + FVec3::DotProduct(Jr1, IInvJr1);
 			}
 			FReal Numerator = -2 * (ImpulseRatioNumerator0 - ImpulseRatioNumerator1);
-			if (Numerator < 0)
+			if (Numerator <= 0)
 			{
 				return FVec3(0);
 			}
-			check(Numerator >= 0);
+			check(Numerator > 0);
 			FReal Denominator = ImpulseRatioDenom0 + ImpulseRatioDenom1;
 			return Numerator < Denominator ? (Impulse * Numerator / Denominator) : Impulse;
 		}

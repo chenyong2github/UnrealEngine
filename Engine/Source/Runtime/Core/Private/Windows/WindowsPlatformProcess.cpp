@@ -289,12 +289,6 @@ FProcHandle FWindowsPlatformProcess::CreateProc( const TCHAR* URL, const TCHAR* 
 {
 	//UE_LOG(LogWindows, Log,  TEXT("CreateProc %s %s"), URL, Parms );
 
-	// initialize process attributes
-	SECURITY_ATTRIBUTES Attr;
-	Attr.nLength = sizeof(SECURITY_ATTRIBUTES);
-	Attr.lpSecurityDescriptor = NULL;
-	Attr.bInheritHandle = true;
-
 	// initialize process creation flags
 	uint32 CreateFlags = NORMAL_PRIORITY_CLASS;
 	if (PriorityModifier < 0)
@@ -346,11 +340,13 @@ FProcHandle FWindowsPlatformProcess::CreateProc( const TCHAR* URL, const TCHAR* 
 		HANDLE(PipeWriteChild)
 	};
 
+	bool bInheritHandles = (dwFlags & STARTF_USESTDHANDLES) != 0;
+
 	// create the child process
 	FString CommandLine = FString::Printf(TEXT("\"%s\" %s"), URL, Parms);
 	PROCESS_INFORMATION ProcInfo;
 
-	if (!CreateProcess(NULL, CommandLine.GetCharArray().GetData(), &Attr, &Attr, true, (::DWORD)CreateFlags, NULL, OptionalWorkingDirectory, &StartupInfo, &ProcInfo))
+	if (!CreateProcess(NULL, CommandLine.GetCharArray().GetData(), nullptr, nullptr, bInheritHandles, (::DWORD)CreateFlags, NULL, OptionalWorkingDirectory, &StartupInfo, &ProcInfo))
 	{
 		DWORD ErrorCode = GetLastError();
 
@@ -1684,6 +1680,11 @@ static bool ReadLibraryImportsFromMemory(const IMAGE_DOS_HEADER *Header, TArray<
 			for(size_t ImportIdx = 0; ImportIdx * sizeof(IMAGE_IMPORT_DESCRIPTOR) < ImportDirectoryEntry->Size; ImportIdx++)
 			{
 				IMAGE_IMPORT_DESCRIPTOR *ImportDescriptor = ImportDescriptors + ImportIdx;
+				
+				// "The end of the IMAGE_IMPORT_DESCRIPTOR array is indicated by an entry with fields all set to 0." -- https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2
+				if(ImportDescriptor->Characteristics == 0 && ImportDescriptor->TimeDateStamp == 0 && ImportDescriptor->ForwarderChain == 0 && ImportDescriptor->Name == 0 && ImportDescriptor->FirstThunk == 0)
+					break;
+
 				if(ImportDescriptor->Name != 0)
 				{
 					const char *ImportName = (const char*)MapRvaToPointer(Header, NtHeader, ImportDescriptor->Name);

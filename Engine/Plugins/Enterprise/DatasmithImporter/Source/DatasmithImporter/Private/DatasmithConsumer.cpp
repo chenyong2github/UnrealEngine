@@ -318,45 +318,62 @@ bool UDatasmithConsumer::Initialize()
 
 	UpdateScene();
 
-	// Re-create the DatasmithScene if it is invalid
+	// Re-create the DatasmithScene if not in memory yet
 	if ( !DatasmithScene.IsValid() )
 	{
-		FString PackageName = FPaths::Combine( GetTargetPackagePath(), GetOuter()->GetName() + DatasmithSceneSuffix );
-
-		UPackage* Package = UPackageTools::FindOrCreatePackageForAssetType( FName( *PackageName ), UDatasmithScene::StaticClass() );
-		check( Package );
-
-		FString DatasmithSceneName = FPaths::GetBaseFilename( Package->GetFullName(), true );
-		
-		DatasmithScene = NewObject< UDatasmithScene >( Package, *DatasmithSceneName, GetFlags() | RF_Standalone | RF_Public | RF_Transactional );
-		check( DatasmithScene.IsValid() );
-
-		DatasmithScene->MarkPackageDirty();
-
-		FAssetRegistryModule::AssetCreated( DatasmithScene.Get() );
-
-		DatasmithScene->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
-		check( DatasmithScene->AssetImportData );
-
-		// Store a Dataprep asset pointer into the scene asset in order to be able to later re-execute the dataprep pipeline
-		if ( DatasmithScene->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+		// Check if DatasmithScene can be loaded in memory
+		if( !DatasmithScene.IsNull() )
 		{
-			if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( DatasmithScene.Get() ) )
+			DatasmithScene.LoadSynchronous();
+		}
+
+		// Still not in memory, re-create it
+		if(!DatasmithScene.IsValid())
+		{
+			FString PackageName = FPaths::Combine( GetTargetPackagePath(), GetOuter()->GetName() + DatasmithSceneSuffix );
+
+			UPackage* Package = UPackageTools::FindOrCreatePackageForAssetType( FName( *PackageName ), UDatasmithScene::StaticClass() );
+			check( Package );
+
+			FString DatasmithSceneName = FPaths::GetBaseFilename( Package->GetFullName(), true );
+
+			DatasmithScene = NewObject< UDatasmithScene >( Package, *DatasmithSceneName, GetFlags() | RF_Standalone | RF_Public | RF_Transactional );
+			check( DatasmithScene.IsValid() );
+
+			FAssetRegistryModule::AssetCreated( DatasmithScene.Get() );
+
+			DatasmithScene->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
+			check( DatasmithScene->AssetImportData );
+
+			// Store a Dataprep asset pointer into the scene asset in order to be able to later re-execute the dataprep pipeline
+			if ( DatasmithScene->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
 			{
-				UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >();
-
-				if ( !DataprepAssetUserData )
+				if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( DatasmithScene.Get() ) )
 				{
-					EObjectFlags Flags = RF_Public;
-					DataprepAssetUserData = NewObject< UDataprepAssetUserData >( DatasmithScene.Get(), NAME_None, Flags );
-					AssetUserDataInterface->AddAssetUserData( DataprepAssetUserData );
+					UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >();
+
+					if ( !DataprepAssetUserData )
+					{
+						EObjectFlags Flags = RF_Public;
+						DataprepAssetUserData = NewObject< UDataprepAssetUserData >( DatasmithScene.Get(), NAME_None, Flags );
+						AssetUserDataInterface->AddAssetUserData( DataprepAssetUserData );
+					}
+
+					UDataprepAssetInterface* DataprepAssetInterface = Cast< UDataprepAssetInterface >( GetOuter() );
+					check( DataprepAssetInterface );
+
+					DataprepAssetUserData->DataprepAssetPtr = DataprepAssetInterface;
 				}
-
-				UDataprepAssetInterface* DataprepAssetInterface = Cast< UDataprepAssetInterface >( GetOuter() );
-				check( DataprepAssetInterface );
-
-				DataprepAssetUserData->DataprepAssetPtr = DataprepAssetInterface;
 			}
+
+			DatasmithScene->MarkPackageDirty();
+
+			// Make package dirty for new DatasmithScene been archived
+			FProperty* Property = FindFProperty<FProperty>( StaticClass(), TEXT("DatasmithScene") );
+			FPropertyChangedEvent PropertyUpdateStruct( Property );
+			PostEditChangeProperty( PropertyUpdateStruct );
+
+			MarkPackageDirty();
 		}
 	}
 
@@ -864,16 +881,34 @@ bool UDatasmithConsumer::SetTargetContentFolderImplementation(const FString& InT
 
 void UDatasmithConsumer::UpdateScene()
 {
-	// Do nothing if this is the First call to Run, DatasmithScene is null
-	if( !DatasmithScene.IsValid() )
+	// Nothing to check if DatasmithScene is explicitly pointing to no object
+	if( DatasmithScene.IsNull() )
 	{
 		return;
 	}
 
-	// Check if name of owning Dataprep asset has not changed
-	const FString DatasmithSceneName = GetOuter()->GetName() + DatasmithSceneSuffix;
-	if( DatasmithScene->GetName() != DatasmithSceneName )
+	// If name of owning Dataprep asset has changed, remove reference to UDatasmithScene 
+	// #ueent_todo: Listen to asset renaming event to detect when owning Dataprep's name changes
+	if( !DatasmithScene.GetAssetName().StartsWith(GetOuter()->GetName() + DatasmithSceneSuffix) )
 	{
+		if (UDatasmithScene* OldDatasmithScene = DatasmithScene.Get())
+		{
+			// Remove reference to Dataprep asset. The old UDatasmithScene cannot be re-imported anymore
+			if ( OldDatasmithScene->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+			{
+				if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( OldDatasmithScene ) )
+				{
+					UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >();
+
+					if ( DataprepAssetUserData )
+					{
+						DataprepAssetUserData->DataprepAssetPtr.Reset();
+						OldDatasmithScene->MarkPackageDirty();
+					}
+				}
+			}
+		}
+
 		// Force re-creation of Datasmith scene
 		DatasmithScene.Reset();
 	}

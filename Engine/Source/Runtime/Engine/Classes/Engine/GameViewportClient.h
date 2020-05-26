@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
 #include "UObject/ObjectMacros.h"
 #include "InputCoreTypes.h"
 #include "Engine/EngineBaseTypes.h"
@@ -109,6 +110,9 @@ protected:
 	/** Strong handle to the audio device used by this viewport. */
 	FAudioDeviceHandle AudioDevice;
 
+	/** Handle to delegate in case audio device is destroyed. */
+	FDelegateHandle AudioDeviceDestroyedHandle;
+
 public:
 
 	/** see enum EViewModeIndex */
@@ -150,7 +154,6 @@ public:
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 	//~ End UObject Interface
 
 	//~ Begin FViewportClient Interface.

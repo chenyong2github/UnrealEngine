@@ -23,6 +23,7 @@
 #include "Field/FieldSystem.h"
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
+#include "PhysicsProxy/JointConstraintProxy.h"
 #include "SolverEventFilters.h"
 #include "Chaos/EvolutionTraits.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
@@ -74,7 +75,7 @@ namespace Chaos
 	public:
 
 		// #BGTODO ensure no external callers directly deleting, make private and push everything through DestroySolver.
-		~TPBDRigidsSolver();
+		virtual ~TPBDRigidsSolver();
 
 		typedef FPhysicsSolverBase Super;
 
@@ -128,18 +129,28 @@ namespace Chaos
 		void RegisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 
-		// TODO: Set up an interface for registering fields and geometry collections
 		void RegisterObject(TGeometryCollectionPhysicsProxy<Traits>* InProxy);
 		bool UnregisterObject(TGeometryCollectionPhysicsProxy<Traits>* InProxy);
+
 		void RegisterObject(FFieldSystemPhysicsProxy* InProxy);
 		bool UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
 
+		void RegisterObject(Chaos::FJointConstraint* GTConstraint);
+		bool UnregisterObject(Chaos::FJointConstraint* GTConstraint);
+
 		bool IsSimulating() const;
 
-		void EnableRewindCapture(int32 NumFrames);
+		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache);
 		FRewindData* GetRewindData()
 		{
-			return MRewindData.Get();
+			if(Traits::IsRewindable())
+			{
+				return MRewindData.Get();
+			}
+			else
+			{
+				return nullptr;
+			}
 		}
 
 		template<typename Lambda>
@@ -170,6 +181,10 @@ namespace Chaos
 				InCallable(Obj);
 			}
 			for (FFieldSystemPhysicsProxy* Obj : FieldSystemPhysicsProxies)
+			{
+				InCallable(Obj);
+			}
+			for (FJointConstraintPhysicsProxy* Obj : JointConstraintPhysicsProxies)
 			{
 				InCallable(Obj);
 			}
@@ -213,12 +228,18 @@ namespace Chaos
 				FFieldSystemPhysicsProxy* Obj = FieldSystemPhysicsProxies[Index];
 				InCallable(Obj);
 			});
+			Chaos::PhysicsParallelFor(JointConstraintPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			{
+				FJointConstraintPhysicsProxy* Obj = JointConstraintPhysicsProxies[Index];
+				InCallable(Obj);
+			});
 		}
 
 		int32 GetNumPhysicsProxies() const {
 			return GeometryParticlePhysicsProxies.Num() + KinematicGeometryParticlePhysicsProxies.Num() + RigidParticlePhysicsProxies.Num()
 				+ SkeletalMeshPhysicsProxies.Num() + StaticMeshPhysicsProxies.Num()
-				+ GeometryCollectionPhysicsProxies.Num() + FieldSystemPhysicsProxies.Num() ;
+				+ GeometryCollectionPhysicsProxies.Num() + FieldSystemPhysicsProxies.Num()
+				+ JointConstraintPhysicsProxies.Num();
 		}
 
 		//
@@ -335,6 +356,11 @@ namespace Chaos
 			return GeometryCollectionPhysicsProxies;
 		}
 
+		TArray<FJointConstraintPhysicsProxy*>& GetJointConstraintPhysicsProxy()
+		{
+			return JointConstraintPhysicsProxies;
+		}
+
 		/** Events hooked up to the Chaos material manager */
 		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
@@ -353,6 +379,7 @@ namespace Chaos
 		void SyncQueryMaterials();
 
 		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles);
+		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
 
 	private:
 
@@ -425,6 +452,8 @@ namespace Chaos
 		TArray< FStaticMeshPhysicsProxy* > StaticMeshPhysicsProxies; // dep
 		TArray< TGeometryCollectionPhysicsProxy<Traits>* > GeometryCollectionPhysicsProxies;
 		TArray< FFieldSystemPhysicsProxy* > FieldSystemPhysicsProxies;
+		TArray< FJointConstraintPhysicsProxy*> JointConstraintPhysicsProxies;
+		bool bUseCollisionResimCache;
 
 		// Physics material mirrors for the solver. These should generally stay in sync with the global material list from
 		// the game thread. This data is read only in the solver as we should never need to update it here. External threads can

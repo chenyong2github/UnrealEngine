@@ -7,6 +7,26 @@
 #include "Internationalization/Internationalization.h"
 #include "IDataSourceFilterInterface.generated.h"
 
+USTRUCT(BlueprintType)
+struct SOURCEFILTERINGCORE_API FDataSourceFilterConfiguration
+{
+	GENERATED_BODY()
+
+	FDataSourceFilterConfiguration() : bOnlyApplyDuringActorSpawn(false), bCanRunAsynchronously(false), FilterApplyingTickInterval(1) {}
+
+	/** Flag whether or not this filter should only applied once, whenever an actor is spawned */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Filtering)
+	uint8 bOnlyApplyDuringActorSpawn : 1;
+
+	/** Flag whether or not this filter does not rely on gamethread only data, and therefore can work on a differen thread */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Filtering)
+	uint8 bCanRunAsynchronously : 1;
+
+	/** Interval, in frames, between applying the filter. The resulting value is cached for intermediate frames. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Filtering, meta=(EditCondition="!bOnlyApplyDuringActorSpawn", ClampMin="1", ClampMax="255", UIMin="1", UIMax="128"))
+	uint8 FilterApplyingTickInterval;
+};
+
 UINTERFACE(Blueprintable)
 class SOURCEFILTERINGCORE_API UDataSourceFilterInterface : public UInterface
 {
@@ -33,6 +53,7 @@ public:
 		return GetToolTipText_Internal(OutDisplayText);
 	}
 
+	virtual const FDataSourceFilterConfiguration& GetConfiguration() const = 0;
 	virtual void SetEnabled(bool bState) = 0;
 	virtual bool IsEnabled() const = 0;
 protected:

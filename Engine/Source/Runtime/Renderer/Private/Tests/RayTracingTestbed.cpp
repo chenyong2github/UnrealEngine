@@ -94,6 +94,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	}
 
 	FRayTracingGeometryInitializer GeometryInitializer;
+	GeometryInitializer.DebugName = FName("DebugTriangle");
 	GeometryInitializer.IndexBuffer = IndexBuffer;
 	GeometryInitializer.GeometryType = RTGT_Triangles;
 	GeometryInitializer.bFastBuild = false;

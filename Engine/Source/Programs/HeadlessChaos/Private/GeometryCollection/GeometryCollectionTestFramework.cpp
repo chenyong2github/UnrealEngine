@@ -328,7 +328,6 @@ namespace GeometryCollectionTest
 		for (FFieldSystemPhysicsProxy* FieldObject : FieldObjects)
 		{
 			Solver->RegisterObject(FieldObject);
-			Solver->AddDirtyProxy(FieldObject);
 		}
 
 		Solver->PushPhysicsState(Module->GetDispatcher());
@@ -338,7 +337,7 @@ namespace GeometryCollectionTest
 	void TFramework<Traits>::Advance()
 	{
 		Solver->SyncEvents_GameThread();
-
+		Solver->PushPhysicsState(Module->GetDispatcher());
 		Solver->AdvanceSolverBy(Dt);
 
 		Solver->BufferPhysicsResults();

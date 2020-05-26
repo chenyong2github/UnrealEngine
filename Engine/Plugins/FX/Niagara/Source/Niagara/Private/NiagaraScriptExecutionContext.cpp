@@ -269,6 +269,8 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, const FScriptE
 			NumInstances
 #if STATS
 			, Script->GetStatScopeIDs()
+#elif ENABLE_STATNAMEDEVENTS
+			, Script->GetStatNamedEvents()
 #endif
 		);
 	}
@@ -344,6 +346,10 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 		for (auto& Pair : InSystemInstance->DataInterfaceInstanceDataOffsets)
 		{
 			UNiagaraDataInterface* Interface = Pair.Key.Get();
+			if (Interface == nullptr)
+			{
+				continue;
+			}
 
 			FNiagaraDataInterfaceProxy* Proxy = Interface->GetProxy();
 			int32 Offset = Pair.Value;
@@ -416,13 +422,24 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	uint32 InstanceIndex = 0;
 	for (int32 EmitterIdx : InSystemInstance->GetEmitterExecutionOrder())
 	{
-		FNiagaraEmitterInstance* Emitter = &InSystemInstance->GetEmitters()[EmitterIdx].Get();
-
-		if (Emitter && Emitter->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Emitter->GetGPUContext() != nullptr && !Emitter->IsComplete())
+		if (FNiagaraEmitterInstance* EmitterInstance = &InSystemInstance->GetEmitters()[EmitterIdx].Get())
 		{
-			check(Emitter->HasTicked() == true);
-			
-			FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
+			if (EmitterInstance->IsComplete())
+			{
+				continue;
+			}
+
+			const UNiagaraEmitter* Emitter = EmitterInstance->GetCachedEmitter();
+			FNiagaraComputeExecutionContext* GPUContext = EmitterInstance->GetGPUContext();
+
+			check(Emitter);
+
+			if (!Emitter || !GPUContext || Emitter->SimTarget != ENiagaraSimTarget::GPUComputeSim)
+			{
+				continue;
+			}
+
+			check(EmitterInstance->HasTicked() == true);
 
 			FNiagaraComputeInstanceData* InstanceData = new (&Instances[InstanceIndex]) FNiagaraComputeInstanceData;
 			InstanceIndex++;
@@ -449,16 +466,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
 
-			UNiagaraEmitter* EmitterRaw = Emitter->GetCachedEmitter();
-			if (EmitterRaw)
-			{
-				InstanceData->bUsesSimStages = EmitterRaw->bSimulationStagesEnabled/* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/;
-				InstanceData->bUsesOldShaderStages = EmitterRaw->bDeprecatedShaderStagesEnabled;
-			}
-			else
-			{
-				InstanceData->bUsesSimStages = false;
-			}
+			InstanceData->bUsesSimStages = Emitter->bSimulationStagesEnabled/* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/;
+			InstanceData->bUsesOldShaderStages = Emitter->bDeprecatedShaderStagesEnabled;
 
 			if (InstanceData->bUsesSimStages || InstanceData->bUsesOldShaderStages)
 			{

@@ -541,15 +541,7 @@ void UMovieSceneSequencePlayer::SetPlayRate(float PlayRate)
 
 FFrameTime UMovieSceneSequencePlayer::GetLastValidTime() const
 {
-	UMovieScene* MovieScene = Sequence->GetMovieScene();
-	if (MovieScene)
-	{
-		TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
-		const FFrameNumber SrcEndFrame = MovieScene::DiscreteExclusiveUpper(PlaybackRange) - 1;
-		return ConvertFrameTime(SrcEndFrame, MovieScene->GetTickResolution(), MovieScene->GetDisplayRate());
-	}
-
-	return FFrameTime(StartTime);
+	return DurationFrames > 0 ? FFrameTime(StartTime + DurationFrames - 1, 0.99999994f) : FFrameTime(StartTime);
 }
 
 bool UMovieSceneSequencePlayer::ShouldStopOrLoop(FFrameTime NewPosition) const
@@ -559,7 +551,7 @@ bool UMovieSceneSequencePlayer::ShouldStopOrLoop(FFrameTime NewPosition) const
 	{
 		if (!bReversePlayback)
 		{
-			bShouldStopOrLoop = NewPosition >= GetLastValidTime();
+			bShouldStopOrLoop = NewPosition.FrameNumber >= StartTime + GetFrameDuration();
 		}
 		else
 		{
@@ -643,7 +635,7 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		FFrameTime StartingTimeOffset = PlaybackSettings.bRandomStartTime
 			? FFrameTime(FMath::Rand() % GetFrameDuration())
 			: FMath::Clamp<FFrameTime>(SpecifiedStartOffset, 0, GetFrameDuration()-1);
-
+			
 		StartTimeWithOffset = StartTime + StartingTimeOffset;
 
 		ClockToUse = MovieScene->GetClockSource();

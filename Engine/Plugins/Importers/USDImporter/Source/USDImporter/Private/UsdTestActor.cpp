@@ -4,9 +4,9 @@
 
 
 
-AUsdTestActor::AUsdTestActor(const FObjectInitializer& ObjectInitializer)
+ADEPRECATED_AUsdTestActor::ADEPRECATED_AUsdTestActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	RootComponent = TestComponent = CreateDefaultSubobject<UUsdTestComponent>(TEXT("Root"));
+	RootComponent = TestComponent_DEPRECATED = CreateDefaultSubobject<UDEPRECATED_UUsdTestComponent>(TEXT("Root"));
 }
 

@@ -576,7 +576,7 @@ float GetSignalWorldBluringRadius(FSSDSignalFrequency SampleFrequency, FSSDSampl
 	}
 	else if (SampleFrequency.ClosestHitDistance == DENOISER_MISS_HIT_DISTANCE)
 	{
-		return 100000;
+		return WORLD_RADIUS_MISS; // 100000;
 	}
 
 	FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
@@ -616,7 +616,7 @@ float GetSignalWorldBluringRadius(FSSDSignalFrequency SampleFrequency, FSSDSampl
 	}
 	else if (SampleFrequency.ClosestHitDistance == DENOISER_MISS_HIT_DISTANCE)
 	{
-		return 100000;
+		return WORLD_RADIUS_MISS; // 100000;
 	}
 
 	// How much can be blured is about the the length of hit distance assuming some amount of visiiblity.

@@ -14,6 +14,7 @@
 #include "Misc/PackageName.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "HAL/PlatformTime.h"
+#include "Interfaces/IPluginManager.h"
 
 
 /**
@@ -32,6 +33,16 @@ void GetSandboxRootDirectories(FSandboxPlatformFile* Sandbox, FString& SandboxEn
 	SandboxProject = Sandbox->ConvertToSandboxPath(*(LocalProjectDir + TEXT("a.txt"))).Replace(TEXT("a.txt"), TEXT(""));
 	SandboxEnginePlatformExtensions = Sandbox->ConvertToSandboxPath(*(LocalEnginePlatformExtensionsDir + TEXT("a.txt"))).Replace(TEXT("a.txt"), TEXT(""));
 	SandboxProjectPlatformExtensions = Sandbox->ConvertToSandboxPath(*(LocalProjectPlatformExtensionsDir + TEXT("a.txt"))).Replace(TEXT("a.txt"), TEXT(""));
+}
+
+static FString MakeAbsoluteNormalizedDir(const FString& InPath)
+{
+	FString Out = FPaths::ConvertRelativePathToFull(InPath);
+	if (Out.EndsWith(TEXT("/")))
+	{
+		Out.RemoveAt(Out.Len() - 1, 1, false);
+	}
+	return Out;
 }
 
 
@@ -68,7 +79,13 @@ FNetworkFileServerClientConnection::FNetworkFileServerClientConnection( const FN
 	if (FPaths::IsProjectFilePathSet())
 	{
 		LocalProjectDir = FPaths::GetPath(FPaths::GetProjectFilePath()) + TEXT("/");
+		FPaths::MakeStandardFilename(LocalProjectDir);
 	}
+
+	LocalEngineDirAbs = MakeAbsoluteNormalizedDir(LocalEngineDir);
+	LocalProjectDirAbs = MakeAbsoluteNormalizedDir(LocalProjectDir);
+	LocalEnginePlatformExtensionsDirAbs = MakeAbsoluteNormalizedDir(LocalEnginePlatformExtensionsDir);
+	LocalProjectPlatformExtensionsDirAbs = MakeAbsoluteNormalizedDir(LocalEnginePlatformExtensionsDir);
 }
 
 
@@ -84,9 +101,6 @@ FNetworkFileServerClientConnection::~FNetworkFileServerClientConnection( )
 	{
 		delete It.Value();
 	}
-
-	delete Sandbox;
-	Sandbox = NULL;	
 }
 
 /* FStreamingNetworkFileServerConnection implementation
@@ -101,7 +115,7 @@ void FNetworkFileServerClientConnection::ConvertClientFilenameToServerFilename(F
 	{
 		if ( FPaths::IsProjectFilePathSet() )
 		{
-			FilenameToConvert = FilenameToConvert.Replace(*ConnectedProjectDir, *(FPaths::GetPath(FPaths::GetProjectFilePath()) + TEXT("/")));
+			FilenameToConvert = FilenameToConvert.Replace(*ConnectedProjectDir, *LocalProjectDir);
 		}
 		else
 		{
@@ -119,6 +133,48 @@ void FNetworkFileServerClientConnection::ConvertClientFilenameToServerFilename(F
 	else if (FilenameToConvert.StartsWith(ConnectedProjectPlatformExtensionsDir))
 	{
 		FilenameToConvert = FilenameToConvert.Replace(*ConnectedProjectPlatformExtensionsDir, *(FPaths::ProjectPlatformExtensionsDir()));
+	}
+}
+
+static bool TrySubstituteDirectory(FString& FilenameToConvert, const FString& Directory, const FString& DirectoryAbs)
+{
+	if (FilenameToConvert.StartsWith(DirectoryAbs) && (FilenameToConvert.Len() == DirectoryAbs.Len() || FilenameToConvert[DirectoryAbs.Len()] == '/'))
+	{
+		if (FilenameToConvert.Len() > DirectoryAbs.Len())
+		{
+			FilenameToConvert = Directory / FilenameToConvert.RightChop(DirectoryAbs.Len() + 1);
+		}
+		else
+		{
+			FilenameToConvert = Directory;
+		}
+		return true;
+	}
+	return false;
+}
+
+void FNetworkFileServerClientConnection::ConvertLocalFilenameToServerFilename(FString& FilenameToConvert)
+{
+	FString FilenameToConvertAbs = FPaths::ConvertRelativePathToFull(FilenameToConvert);
+	if (TrySubstituteDirectory(FilenameToConvertAbs, LocalEngineDir, LocalEngineDirAbs))
+	{
+		FilenameToConvert = FilenameToConvertAbs;
+		return;
+	}
+	if (TrySubstituteDirectory(FilenameToConvertAbs, LocalProjectDir, LocalProjectDirAbs))
+	{
+		FilenameToConvert = FilenameToConvertAbs;
+		return;
+	}
+	if (TrySubstituteDirectory(FilenameToConvertAbs, LocalEnginePlatformExtensionsDir, LocalEnginePlatformExtensionsDirAbs))
+	{
+		FilenameToConvert = FilenameToConvertAbs;
+		return;
+	}
+	if (TrySubstituteDirectory(FilenameToConvertAbs, LocalProjectPlatformExtensionsDir, LocalProjectPlatformExtensionsDirAbs))
+	{
+		FilenameToConvert = FilenameToConvertAbs;
+		return;
 	}
 }
 
@@ -352,6 +408,7 @@ bool FNetworkFileServerClientConnection::ProcessPayload(FArchive& Ar)
 			for (int32 Index = 0; Index < NumUnsolictedFiles; Index++)
 			{
 				FBufferArchive OutUnsolicitedFile;
+				ConvertLocalFilenameToServerFilename(UnsolictedFiles[Index]);
 				FString TargetFilename = UnsolictedFiles[Index];
 				ConvertServerFilenameToClientFilename(TargetFilename, ConnectedEngineDir, ConnectedProjectDir);
 				PackageFile(UnsolictedFiles[Index], TargetFilename, OutUnsolicitedFile);
@@ -726,6 +783,30 @@ void FNetworkFileServerClientConnection::ProcessToAbsolutePathForWrite( FArchive
 	Out << Filename;
 }
 
+static void AddDirectoriesToIgnore(const FString& RootDir, TArray<FString>& OutDirectoriesToSkip, TArray<FString>& OutDirectoriesToNotRecurse)
+{
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Intermediate")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Documentation")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Extras")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Binaries")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Source")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Saved")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Plugins")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Programs")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Platforms")));
+	OutDirectoriesToSkip.Add(FString(RootDir / TEXT("Build")));
+	OutDirectoriesToNotRecurse.Add(FString(RootDir / TEXT("DerivedDataCache")));
+}
+
+static void ScanExtensionRootDirectory(FSandboxPlatformFile* Sandbox, const FString& RootDir, TMap<FString, FDateTime>& OutFileTimes)
+{
+	TArray<FString> ExtensionDirectoriesToSkip;
+	TArray<FString> ExtensionDirectoriesToNotRecurse;
+	AddDirectoriesToIgnore(RootDir, ExtensionDirectoriesToSkip, ExtensionDirectoriesToNotRecurse);
+	FLocalTimestampDirectoryVisitor ExtensionVisitor(*Sandbox, ExtensionDirectoriesToSkip, ExtensionDirectoriesToNotRecurse, true);
+	Sandbox->IterateDirectory(*RootDir, ExtensionVisitor);
+	OutFileTimes.Append(ExtensionVisitor.FileTimes);
+}
 
 bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArchive& Out )
 {
@@ -736,6 +817,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	FString GameRelativePath;
 	FString EnginePlatformExtensionsRelativePath;
 	FString ProjectPlatformExtensionsRelativePath;
+	FString EnginePluginsRelativePath;
+	FString ProjectPluginsRelativePath;
 	TArray<FString> RootDirectories;
 	TMap<FString,FString> CustomPlatformData;
 
@@ -751,6 +834,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	In << GameRelativePath;
 	In << EnginePlatformExtensionsRelativePath;
 	In << ProjectPlatformExtensionsRelativePath;
+	In << EnginePluginsRelativePath;
+	In << ProjectPluginsRelativePath;
 	In << RootDirectories;
 	In << ConnectionFlags;
 	In << ClientVersionInfo;
@@ -889,11 +974,11 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	SandboxDirectory = FPaths::ConvertRelativePathToFull(SandboxDirectory);
 
 	// delete any existing one first, in case game name somehow changed and client is re-asking for files (highly unlikely)
-	delete Sandbox;
-	Sandbox = new FSandboxPlatformFile(false);
+	Sandbox.Release();
+	Sandbox = FSandboxPlatformFile::Create(false);
 	Sandbox->Initialize(&FPlatformFileManager::Get().GetPlatformFile(), *FString::Printf(TEXT("-sandbox=\"%s\""), *SandboxDirectory));
 
-	GetSandboxRootDirectories(Sandbox, SandboxEngine, SandboxProject, SandboxEnginePlatformExtensions, SandboxProjectPlatformExtensions, LocalEngineDir, LocalProjectDir, LocalEnginePlatformExtensionsDir, LocalProjectPlatformExtensionsDir);
+	GetSandboxRootDirectories(Sandbox.Get(), SandboxEngine, SandboxProject, SandboxEnginePlatformExtensions, SandboxProjectPlatformExtensions, LocalEngineDir, LocalProjectDir, LocalEnginePlatformExtensionsDir, LocalProjectPlatformExtensionsDir);
 
 
 	// make sure the global shaders are up to date before letting the client read any shaders
@@ -928,22 +1013,9 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	TArray<FString> DirectoriesToSkip;
 	TArray<FString> DirectoriesToNotRecurse;
 	// @todo: This should really be FPlatformMisc::GetSavedDirForGame(ClientGameName), etc
-	for (int32 DirIndex = 0; DirIndex < RootDirectories.Num(); DirIndex++)
+	for (const FString& RootDir : RootDirectories)
 	{
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Saved/Backup")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Saved/Config")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Saved/Logs")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Saved/Sandboxes")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Saved/Cooked")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Saved/EditorCooked")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Saved/ShaderDebugInfo")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Saved/StagedBuilds")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Intermediate")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Documentation")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Extras")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Binaries")));
-		DirectoriesToSkip.Add(FString(RootDirectories[DirIndex] / TEXT("Source")));
-		DirectoriesToNotRecurse.Add(FString(RootDirectories[DirIndex] / TEXT("DerivedDataCache")));
+		AddDirectoriesToIgnore(RootDir, DirectoriesToSkip, DirectoriesToNotRecurse);
 	}
 
 	UE_LOG(LogFileServer, Display, TEXT("Scanning server files for timestamps..."));
@@ -954,7 +1026,39 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	FLocalTimestampDirectoryVisitor Visitor(*Sandbox, DirectoriesToSkip, DirectoriesToNotRecurse, true);
 	for (int32 DirIndex = 0; DirIndex < RootDirectories.Num(); DirIndex++)
 	{
+		bool bIsSubDirOfOtherRootDir = false;
+		for (int32 OtherDirIndex = 0; OtherDirIndex < DirIndex; OtherDirIndex++)
+		{
+			if (OtherDirIndex == DirIndex)
+				continue;
+
+			if (FPaths::IsUnderDirectory(RootDirectories[DirIndex], RootDirectories[OtherDirIndex]))
+			{
+				bIsSubDirOfOtherRootDir = true;
+				break;
+			}
+		}
+
+		if (!bIsSubDirOfOtherRootDir)
 		Sandbox->IterateDirectory(*RootDirectories[DirIndex], Visitor);
+	}
+
+	// Traverse plugin directories
+	TArray<TSharedRef<IPlugin>> AllPlugins = IPluginManager::Get().GetDiscoveredPlugins();
+	for (TSharedRef<IPlugin> Plugin : AllPlugins)
+	{
+		ScanExtensionRootDirectory(Sandbox.Get(), Plugin->GetBaseDir(), Visitor.FileTimes);
+	}
+
+	// Traverse platform extension directories
+	FString ServerEnginePlatformExtensionsRelativePath = EnginePlatformExtensionsRelativePath;
+	ConvertClientFilenameToServerFilename(ServerEnginePlatformExtensionsRelativePath);
+	FString ServerProjectPlatformExtensionsRelativePath = ProjectPlatformExtensionsRelativePath;
+	ConvertClientFilenameToServerFilename(ServerProjectPlatformExtensionsRelativePath);
+	for (const FString& TargetPlatform : TargetPlatformNames)
+	{
+		ScanExtensionRootDirectory(Sandbox.Get(), ServerEnginePlatformExtensionsRelativePath / TargetPlatform, Visitor.FileTimes);
+		ScanExtensionRootDirectory(Sandbox.Get(), ServerProjectPlatformExtensionsRelativePath / TargetPlatform, Visitor.FileTimes);
 	}
 
 	UE_LOG(LogFileServer, Display, TEXT("Scanned server files, found %d files in %.2f seconds"), Visitor.FileTimes.Num(), FPlatformTime::Seconds() - FileScanStartTime);
@@ -1028,28 +1132,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 		}
 		Out << ContentFolders;
 
-		// Do it again, preventing access to non-cooked files
-		const int32 NUM_EXCLUSION_WILDCARDS = 2;
-		FString ExclusionWildcard[NUM_EXCLUSION_WILDCARDS];
-		ExclusionWildcard[0] = FString(TEXT("*")) + FPackageName::GetAssetPackageExtension(); 
-		ExclusionWildcard[1] = FString(TEXT("*")) + FPackageName::GetMapPackageExtension();
-
-		for (int32 i=0; i < NUM_EXCLUSION_WILDCARDS; ++i)
-		{
-			Sandbox->AddExclusion(*ExclusionWildcard[i]);
-			UE_LOG(LogFileServer, Display, TEXT("Excluding %s from non-sandboxed directories"), 
-				   *ExclusionWildcard[i]);
-		}
-	
-		FLocalTimestampDirectoryVisitor VisitorForCacheDates(*Sandbox, DirectoriesToSkip, DirectoriesToNotRecurse, true);
-
-		for (int32 DirIndex = 0; DirIndex < RootDirectories.Num(); DirIndex++)
-		{
-			Sandbox->IterateDirectory(*RootDirectories[DirIndex], VisitorForCacheDates);
-		}
-	
 		// return the cached files and their timestamps
-		FixedTimes = FixupSandboxPathsForClient(VisitorForCacheDates.FileTimes);
+		// TODO: This second file list is now identical to the first.  This should be cleaned up in the future to not send two lists.
 		Out << FixedTimes;
 	}
 
@@ -1127,7 +1211,7 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FString
 	TArray<uint8> Contents;
 	// open file
 	IFileHandle* File = Sandbox->OpenRead(*Filename);
-
+	bool bRetVal = true;
 
 	if (!File)
 	{
@@ -1135,6 +1219,7 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FString
 
 		UE_LOG(LogFileServer, Warning, TEXT("Opening file %s failed"), *Filename);
 		ServerTimeStamp = FDateTime::MinValue(); // if this was a directory, this will make sure it is not confused with a zero byte file
+		bRetVal = false;
 	}
 	else
 	{
@@ -1163,7 +1248,7 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FString
 	uint64 FileSize = Contents.Num();
 	Out << FileSize;
 	Out.Serialize(Contents.GetData(), FileSize);
-	return true;
+	return bRetVal;
 }
 
 
@@ -1189,7 +1274,7 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 }
 
 
-void FNetworkFileServerClientConnection::ProcessSyncFile( FArchive& In, FArchive& Out )
+bool FNetworkFileServerClientConnection::ProcessSyncFile( FArchive& In, FArchive& Out )
 {
 
 	double StartTime;
@@ -1223,9 +1308,11 @@ void FNetworkFileServerClientConnection::ProcessSyncFile( FArchive& In, FArchive
 		}
 	}
 
-	PackageFile(Filename, ClientFilename, Out);
+	bool bRetVal = PackageFile(Filename, ClientFilename, Out);
 
 	PackageFileTime += 1000.0f * float(FPlatformTime::Seconds() - StartTime);
+
+	return bRetVal;
 }
 
 FString FNetworkFileServerClientConnection::GetDescription() const 

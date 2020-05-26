@@ -41,6 +41,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "LandscapeDataAccess.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"
 

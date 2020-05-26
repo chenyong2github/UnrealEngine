@@ -9,7 +9,7 @@ namespace Chaos
 	template <typename Traits>
 	class TPBDRigidsEvolutionGBF;
 
-	using FDefaultTraits = struct FNonRewindableEvolutionTraits;
+	using FDefaultTraits = struct FRewindableEvolutionTraits;
 
 	//The default evolution used by unreal
 	using FPBDRigidsEvolution = TPBDRigidsEvolutionGBF<FDefaultTraits>;

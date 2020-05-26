@@ -25,7 +25,7 @@ public:
 
 	// Sets whether this variant set is expanded or not when displayed
 	// in a variant manager
-	bool IsExpanded();
+	bool IsExpanded() const;
 	void SetExpanded(bool bInExpanded);
 
 	UFUNCTION(BlueprintCallable, Category="VariantSet")
@@ -34,15 +34,15 @@ public:
 	UFUNCTION(BlueprintPure, Category="VariantSet")
 	FText GetDisplayText() const;
 
-	FString GetUniqueVariantName(const FString& InPrefix);
+	FString GetUniqueVariantName(const FString& InPrefix) const;
 
 	void AddVariants(const TArray<UVariant*>& NewVariants, int32 Index = INDEX_NONE);
-	int32 GetVariantIndex(UVariant* Var);
+	int32 GetVariantIndex(UVariant* Var) const;
 	const TArray<UVariant*>& GetVariants() const;
 	void RemoveVariants(const TArray<UVariant*>& InVariants);
 
 	UFUNCTION(BlueprintPure, Category="VariantSet")
-	int32 GetNumVariants();
+	int32 GetNumVariants() const;
 
 	UFUNCTION(BlueprintPure, Category="VariantSet")
 	UVariant* GetVariant(int32 VariantIndex);

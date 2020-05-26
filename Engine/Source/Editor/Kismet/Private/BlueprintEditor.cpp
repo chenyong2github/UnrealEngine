@@ -3605,8 +3605,6 @@ void FBlueprintEditor::Compile()
 			CompilerResultsListing->AddMessages(BlueprintObj->UpgradeNotesLog->Messages);
 		}
 
-		AppendExtraCompilerResults(CompilerResultsListing);
-
 		// send record when player clicks compile and send the result
 		// this will make sure how the users activity is
 		AnalyticsTrackCompileEvent(BlueprintObj, LogResults.NumErrors, LogResults.NumWarnings);
@@ -4047,11 +4045,6 @@ void FBlueprintEditor::DumpMessagesToCompilerLog(const TArray<TSharedRef<FTokeni
 	{
 		TabManager->TryInvokeTab(FBlueprintEditorTabs::CompilerResultsID);
 	}
-}
-
-void FBlueprintEditor::AppendExtraCompilerResults(TSharedPtr<IMessageLogListing> ResultsListing)
-{
-	// Allow subclasses to append extra data after the compiler finishes dumping all the messages it has.
 }
 
 void FBlueprintEditor::DoPromoteToVariable( UBlueprint* InBlueprint, UEdGraphPin* InTargetPin, bool bInToMemberVariable )

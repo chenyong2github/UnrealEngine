@@ -1751,6 +1751,12 @@ void FFoliageInfo::AddInstances(AInstancedFoliageActor* InIFA, const UFoliageTyp
 	AddInstancesImpl(InIFA, InSettings, InNewInstances, [](FFoliageImpl* Impl, AInstancedFoliageActor* LocalIFA, const FFoliageInstance& LocalInstance) { Impl->AddInstance(LocalIFA, LocalInstance); });
 }
 
+void FFoliageInfo::ReserveAdditionalInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, uint32 ReserveNum)
+{
+	Instances.Reserve(Instances.Num() + ReserveNum);
+	Implementation->PreAddInstances(InIFA, InSettings, ReserveNum);
+}
+
 void FFoliageInfo::AddInstancesImpl(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances, FFoliageInfo::FAddImplementationFunc ImplementationFunc)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliageAddInstance);
@@ -3359,6 +3365,8 @@ void AInstancedFoliageActor::MapRebuild()
 	// Map rebuild may have modified the BSP's ModelComponents and thrown the previous ones away.
 	// Most BSP-painted foliage is attached to a Brush's UModelComponent which persist across rebuilds,
 	// but any foliage attached directly to the level BSP's ModelComponents will need to try to find a new base.
+
+	CleanupDeletedFoliageType();
 
 	TMap<UFoliageType*, TArray<FFoliageInstance>> NewInstances;
 	TArray<UModelComponent*> RemovedModelComponents;

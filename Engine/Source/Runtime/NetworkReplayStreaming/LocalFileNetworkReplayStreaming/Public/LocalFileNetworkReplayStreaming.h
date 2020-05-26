@@ -376,6 +376,7 @@ public:
 	DelegateResultType DelegateResult;
 	FLocalFileReplayInfo ReplayInfo;
 	TArray<uint8> DataBuffer;
+	bool bAsyncError = false;
 };
 
 template <typename DelegateResultType>

@@ -8,6 +8,79 @@
 
 #define LOCTEXT_NAMESPACE "ChildActorComponentEditorUtils"
 
+struct FLocalChildActorComponentEditorUtils
+{
+	static bool IsChildActorTreeViewVisualizationModeSet(UChildActorComponent* InChildActorComponent, EChildActorComponentTreeViewVisualizationMode InMode)
+	{
+		if (!InChildActorComponent)
+		{
+			return false;
+		}
+
+		const EChildActorComponentTreeViewVisualizationMode CurrentMode = InChildActorComponent->GetEditorTreeViewVisualizationMode();
+		if (CurrentMode == EChildActorComponentTreeViewVisualizationMode::UseDefault)
+		{
+			return InMode == FChildActorComponentEditorUtils::GetProjectDefaultTreeViewVisualizationMode();
+		}
+
+		return InMode == CurrentMode;
+	}
+
+	static void OnSetChildActorTreeViewVisualizationMode(UChildActorComponent* InChildActorComponent, EChildActorComponentTreeViewVisualizationMode InMode, TWeakPtr<SSCSEditor> InWeakSCSEditorPtr)
+	{
+		if (!InChildActorComponent)
+		{
+			return;
+		}
+
+		InChildActorComponent->SetEditorTreeViewVisualizationMode(InMode);
+
+		TSharedPtr<SSCSEditor> SCSEditorPtr = InWeakSCSEditorPtr.Pin();
+		if (SCSEditorPtr.IsValid())
+		{
+			SCSEditorPtr->UpdateTree();
+		}
+	}
+
+	static void CreateChildActorVisualizationModesSubMenu(UToolMenu* InSubMenu, UChildActorComponent* InChildActorComponent, TWeakPtr<SSCSEditor> InWeakSCSEditorPtr)
+	{
+		FToolMenuSection& SubMenuSection = InSubMenu->AddSection("ExpansionModes");
+		SubMenuSection.AddMenuEntry(
+			"ComponentOnly",
+			LOCTEXT("ChildActorVisualizationModeLabel_ComponentOnly", "Component Only"),
+			LOCTEXT("ChildActorVisualizationModeToolTip_ComponentOnly", "Visualize this child actor as a single component node. The child actor template/instance will not be included in the tree view."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FLocalChildActorComponentEditorUtils::OnSetChildActorTreeViewVisualizationMode, InChildActorComponent, EChildActorComponentTreeViewVisualizationMode::ComponentOnly, InWeakSCSEditorPtr),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateStatic(&FLocalChildActorComponentEditorUtils::IsChildActorTreeViewVisualizationModeSet, InChildActorComponent, EChildActorComponentTreeViewVisualizationMode::ComponentOnly)
+			),
+			EUserInterfaceActionType::Check);
+		SubMenuSection.AddMenuEntry(
+			"ChildActorOnly",
+			LOCTEXT("ChildActorVisualizationModeLabel_ChildActorOnly", "Child Actor Only"),
+			LOCTEXT("ChildActorVisualizationModeToolTip_ChildActorOnly", "Visualize this child actor's template/instance as a subtree with a root actor node in place of the component node."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FLocalChildActorComponentEditorUtils::OnSetChildActorTreeViewVisualizationMode, InChildActorComponent, EChildActorComponentTreeViewVisualizationMode::ChildActorOnly, InWeakSCSEditorPtr),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateStatic(&FLocalChildActorComponentEditorUtils::IsChildActorTreeViewVisualizationModeSet, InChildActorComponent, EChildActorComponentTreeViewVisualizationMode::ChildActorOnly)
+			),
+			EUserInterfaceActionType::Check);
+		SubMenuSection.AddMenuEntry(
+			"ComponentWithChildActor",
+			LOCTEXT("ChildActorVisualizationModeLabel_ComponentWithChildActor", "Component with Attached Child Actor"),
+			LOCTEXT("ChildActorVisualizationModeToolTip_ComponentWithChildActor", "Visualize this child actor's template/instance as a subtree with a root actor node that's parented to the component node."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FLocalChildActorComponentEditorUtils::OnSetChildActorTreeViewVisualizationMode, InChildActorComponent, EChildActorComponentTreeViewVisualizationMode::ComponentWithChildActor, InWeakSCSEditorPtr),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateStatic(&FLocalChildActorComponentEditorUtils::IsChildActorTreeViewVisualizationModeSet, InChildActorComponent, EChildActorComponentTreeViewVisualizationMode::ComponentWithChildActor)
+			),
+			EUserInterfaceActionType::Check);
+	}
+};
+
 bool FChildActorComponentEditorUtils::IsChildActorNode(TSharedPtr<const FSCSEditorTreeNode> InNodePtr)
 {
 	return InNodePtr.IsValid() && InNodePtr->GetNodeType() == FSCSEditorTreeNode::ENodeType::ChildActorNode;
@@ -38,7 +111,7 @@ TSharedPtr<FSCSEditorTreeNode> FChildActorComponentEditorUtils::GetOuterChildAct
 		FSCSEditorActorNodePtrType ActorTreeRootNode = InNodePtr->GetActorRootNode();
 		if (IsChildActorNode(ActorTreeRootNode))
 		{
-			return ActorTreeRootNode->GetParent();
+			return ActorTreeRootNode->GetOwnerNode();
 		}
 	}
 
@@ -57,136 +130,72 @@ EChildActorComponentTreeViewVisualizationMode FChildActorComponentEditorUtils::G
 	return EditorProjectSettings->DefaultChildActorTreeViewMode;
 }
 
-void FChildActorComponentEditorUtils::ToggleComponentNodeVisibility(UChildActorComponent* ChildActorComponent, TWeakPtr<SSCSEditor> WeakEditorPtr)
+EChildActorComponentTreeViewVisualizationMode FChildActorComponentEditorUtils::GetChildActorTreeViewVisualizationMode(UChildActorComponent* ChildActorComponent)
 {
 	if (ChildActorComponent)
 	{
-		const bool bIsComponentNodeVisible = ShouldShowComponentNodeInTreeView(ChildActorComponent);
-
-		if (bIsComponentNodeVisible)
-		{
-			ChildActorComponent->SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode::ChildActorOnly);
-		}
-		else
-		{
-			ChildActorComponent->SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode::ComponentWithChildActor);
-		}
-
-		TSharedPtr<SSCSEditor> SCSEditor = WeakEditorPtr.Pin();
-		if (SCSEditor.IsValid())
-		{
-			SCSEditor->UpdateTree();
-		}
-	}
-}
-
-void FChildActorComponentEditorUtils::ToggleChildActorNodeVisibility(UChildActorComponent* ChildActorComponent, TWeakPtr<SSCSEditor> WeakEditorPtr)
-{
-	if (ChildActorComponent)
-	{
-		const bool bIsChildActorNodeVisible = ShouldShowChildActorNodeInTreeView(ChildActorComponent);
-
-		if (bIsChildActorNodeVisible)
-		{
-			ChildActorComponent->SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode::ComponentOnly);
-		}
-		else
-		{
-			ChildActorComponent->SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode::ComponentWithChildActor);
-		}
-
-		TSharedPtr<SSCSEditor> SCSEditor = WeakEditorPtr.Pin();
-		if (SCSEditor.IsValid())
-		{
-			SCSEditor->UpdateTree();
-		}
-	}
-}
-
-bool FChildActorComponentEditorUtils::ShouldShowComponentNodeInTreeView(UChildActorComponent* ChildActorComponent)
-{
-	if (ChildActorComponent)
-	{
-		if (!IsChildActorTreeViewExpansionEnabled())
-		{
-			// Always show the component node when tree view expansion is disabled.
-			return true;
-		}
-
 		EChildActorComponentTreeViewVisualizationMode CurrentMode = ChildActorComponent->GetEditorTreeViewVisualizationMode();
-		if (CurrentMode == EChildActorComponentTreeViewVisualizationMode::UseDefault)
+		if (CurrentMode != EChildActorComponentTreeViewVisualizationMode::UseDefault)
 		{
-			CurrentMode = GetProjectDefaultTreeViewVisualizationMode();
+			return CurrentMode;
 		}
-
-		return CurrentMode != EChildActorComponentTreeViewVisualizationMode::ChildActorOnly;
 	}
 
-	return false;
+	return GetProjectDefaultTreeViewVisualizationMode();
+}
+
+bool FChildActorComponentEditorUtils::ShouldExpandChildActorInTreeView(UChildActorComponent* ChildActorComponent)
+{
+	if (!ChildActorComponent)
+	{
+		return false;
+	}
+
+	if (!IsChildActorTreeViewExpansionEnabled())
+	{
+		return false;
+	}
+
+	EChildActorComponentTreeViewVisualizationMode CurrentMode = GetChildActorTreeViewVisualizationMode(ChildActorComponent);
+	return CurrentMode != EChildActorComponentTreeViewVisualizationMode::ComponentOnly;
 }
 
 bool FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(UChildActorComponent* ChildActorComponent)
 {
-	if (ChildActorComponent)
+	if (!ShouldExpandChildActorInTreeView(ChildActorComponent))
 	{
-		if (!IsChildActorTreeViewExpansionEnabled())
-		{
-			// Never show the child actor node when tree view expansion is disabled.
-			return false;
-		}
-
-		EChildActorComponentTreeViewVisualizationMode CurrentMode = ChildActorComponent->GetEditorTreeViewVisualizationMode();
-		if (CurrentMode == EChildActorComponentTreeViewVisualizationMode::UseDefault)
-		{
-			CurrentMode = GetProjectDefaultTreeViewVisualizationMode();
-		}
-
-		return CurrentMode != EChildActorComponentTreeViewVisualizationMode::ComponentOnly;
+		return false;
 	}
 
-	return false;
+	EChildActorComponentTreeViewVisualizationMode CurrentMode = GetChildActorTreeViewVisualizationMode(ChildActorComponent);
+	return CurrentMode == EChildActorComponentTreeViewVisualizationMode::ComponentWithChildActor;
 }
 
 void FChildActorComponentEditorUtils::FillComponentContextMenuOptions(UToolMenu* Menu, UChildActorComponent* ChildActorComponent)
 {
-	if (!IsChildActorTreeViewExpansionEnabled())
-	{
-		return;
-	}
-
 	if (!ChildActorComponent)
 	{
 		return;
 	}
 
-	TWeakPtr<SSCSEditor> WeakEditorPtr;
-	if (USSCSEditorMenuContext* MenuContext = Menu->FindContext<USSCSEditorMenuContext>())
+	if (!IsChildActorTreeViewExpansionEnabled())
 	{
-		WeakEditorPtr = MenuContext->SCSEditor;
+		return;
 	}
 
 	FToolMenuSection& Section = Menu->AddSection("ChildActorComponent", LOCTEXT("ChildActorComponentHeading", "Child Actor Component"));
 	{
-		FText ShowOrHideItemText;
-		if (ShouldShowChildActorNodeInTreeView(ChildActorComponent))
+		TWeakPtr<SSCSEditor> WeakEditorPtr;
+		if (USSCSEditorMenuContext* MenuContext = Menu->FindContext<USSCSEditorMenuContext>())
 		{
-			ShowOrHideItemText = LOCTEXT("HideChildActorNode_Label", "Hide Child Actor Node");
-		}
-		else
-		{
-			ShowOrHideItemText = LOCTEXT("ShowChildActorNode_Label", "Show Child Actor Node");
+			WeakEditorPtr = MenuContext->SCSEditor;
 		}
 
-		Section.AddMenuEntry(
-			"ToggleChildActorNode",
-			ShowOrHideItemText,
-			LOCTEXT("ToggleChildActorNode_ToolTip", "Toggle visibility of this component's child actor node."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateStatic(&FChildActorComponentEditorUtils::ToggleChildActorNodeVisibility, ChildActorComponent, WeakEditorPtr),
-				FCanExecuteAction()
-			)
-		);
+		Section.AddSubMenu(
+			"ChildActorVisualizationModes",
+			LOCTEXT("ChildActorVisualizationModesSubMenu_Label", "Visualization Mode"),
+			LOCTEXT("ChildActorVisualizationModesSubMenu_ToolTip", "Choose how to visualize this child actor in the tree view."),
+			FNewToolMenuDelegate::CreateStatic(&FLocalChildActorComponentEditorUtils::CreateChildActorVisualizationModesSubMenu, ChildActorComponent, WeakEditorPtr));
 	}
 }
 
@@ -211,31 +220,21 @@ void FChildActorComponentEditorUtils::FillChildActorContextMenuOptions(UToolMenu
 		return;
 	}
 
-	TWeakPtr<SSCSEditor> WeakEditorPtr;
-	if (USSCSEditorMenuContext* MenuContext = Menu->FindContext<USSCSEditorMenuContext>())
-	{
-		WeakEditorPtr = MenuContext->SCSEditor;
-	}
-
 	FToolMenuSection& Section = Menu->AddSection("ChildActor", LOCTEXT("ChildActorHeading", "Child Actor"));
 	{
-		FText ShowOrHideItemText;
-		if (ShouldShowComponentNodeInTreeView(ChildActorComponent))
+		TWeakPtr<SSCSEditor> WeakEditorPtr;
+		if (USSCSEditorMenuContext* MenuContext = Menu->FindContext<USSCSEditorMenuContext>())
 		{
-			ShowOrHideItemText = LOCTEXT("HideChildActorComponentNode_Label", "Hide Child Actor Component Node");
-		}
-		else
-		{
-			ShowOrHideItemText = LOCTEXT("ShowChildActorComponentNode_Label", "Show Child Actor Component Node");
+			WeakEditorPtr = MenuContext->SCSEditor;
 		}
 
 		Section.AddMenuEntry(
-			"ToggleChildActorComponentNode",
-			ShowOrHideItemText,
-			LOCTEXT("ToggleChildActorComponentNode_ToolTip", "Toggle visibility of this child actor's outer component node."),
+			"SetChildActorOnlyMode",
+			LOCTEXT("SetChildActorOnlyMode_Label", "Switch to Child Actor Only Mode"),
+			LOCTEXT("SetChildActorOnlyMode_ToolTip", "Visualize this child actor's template/instance subtree in place of its parent component node."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateStatic(&FChildActorComponentEditorUtils::ToggleComponentNodeVisibility, ChildActorComponent, WeakEditorPtr),
+				FExecuteAction::CreateStatic(&FLocalChildActorComponentEditorUtils::OnSetChildActorTreeViewVisualizationMode, ChildActorComponent, EChildActorComponentTreeViewVisualizationMode::ChildActorOnly, WeakEditorPtr),
 				FCanExecuteAction()
 			)
 		);

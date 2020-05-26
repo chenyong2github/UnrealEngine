@@ -12,6 +12,195 @@
 
 #include "DynamicMeshAABBTree3.h"
 
+
+
+// TODO: Commented out below is a custom thick triangle intersection.
+// It's much better at finding all the near-tolerance collision edges.
+// But it ends up creating harder problems downstream in terms of
+//  tiny edges, almost-exactly-at-tolerance coplanar faces, etc.
+// Consider re-enabling it in combination with more robust downstream processing!
+
+//// helper for ThickTriTriIntersection, using the plane of Tri0 as reference
+//// (factored out so we can try using both planes as reference, and make the result less dependent on triangle ordering)
+//bool ThickTriTriHelper(const FTriangle3d& Tri0, const FTriangle3d& Tri1, const FPlane3d& Plane0,
+//					   const FVector3d& IntersectionDir, const FVector3d& dist1, const FIndex3i& sign1,
+//					   int pos1, int  neg1, int zero1,
+//					   FIntrTriangle3Triangle3d& Intr, double Tolerance)
+//{
+//	int SegmentsFound = 0;
+//	int PtsFound[2]{ 0,0 }; // points found on the positive and negative sides
+//	FVector3d CrossingPts[4]; // space for triangle-plane intersection segments; with negative-side endpoints first
+//	int PtsSide[4]; // -1, 1 or 0
+//
+//	// offset tolerance -- used to accept intersections off the plane, when we'd otherwise miss "near intersections"
+//	double ToleranceOffset = Tolerance * .99; // scale down to be extra sure not to create un-snappable geometry
+//	// only accept 'offset plane' points if not doing so would miss a much-larger-than-tolerance edge
+//	double AcceptOffsetPointsThresholdSq = 1e-2 * 1e-2;
+//
+//	double InPlaneTolerance = FMathd::ZeroTolerance;
+//
+//	// consider all crossings
+//	for (int i = 0, lasti = 2; i < 3; lasti = i++)
+//	{
+//		if (sign1[lasti] == sign1[i])
+//		{
+//			continue;
+//		}
+//		// 
+//		if (sign1[lasti] == 0 || sign1[i] == 0)
+//		{
+//			int nzi = lasti, zi = i;
+//			if (sign1[lasti] == 0)
+//			{
+//				nzi = i;
+//				zi = lasti;
+//			}
+//			int SideIdx = (sign1[nzi] + 1) / 2;
+//			int PtIdx = SideIdx * 2 + PtsFound[SideIdx];
+//			int Side = sign1[nzi];
+//
+//			double ParamOnTolPlane = (dist1[nzi] - sign1[nzi] * ToleranceOffset) / (dist1[nzi] - dist1[zi]);
+//			FVector3d IntrPt;
+//			if (ParamOnTolPlane < 1)
+//			{
+//				IntrPt = Tri1.V[nzi] + (Tri1.V[zi] - Tri1.V[nzi]) * ParamOnTolPlane;
+//				if (IntrPt.DistanceSquared(Tri1.V[zi]) < AcceptOffsetPointsThresholdSq)
+//				{
+//					Side = 0;
+//					IntrPt = Tri1.V[zi];
+//				}
+//			}
+//			else
+//			{
+//				IntrPt = Tri1.V[zi];
+//			}
+//
+//			// record crossing pt
+//			PtsSide[PtIdx] = Side;
+//			CrossingPts[PtIdx] = IntrPt;
+//			PtsFound[SideIdx]++;
+//		}
+//		else
+//		{
+//			double OffsetParamDiff = sign1[i] * ToleranceOffset / (dist1[i] - dist1[lasti]);
+//			FVector3d Edge = Tri1.V[lasti] - Tri1.V[i];
+//			double OffsetDSq = Edge.SquaredLength() * OffsetParamDiff * OffsetParamDiff;
+//			if (OffsetDSq < AcceptOffsetPointsThresholdSq)
+//			{
+//				FVector3d IntrPt = Tri1.V[i] + Edge * dist1[i] / (dist1[i] - dist1[lasti]);
+//				for (int SideIdx = 0; SideIdx < 2; SideIdx++)
+//				{
+//					int PtIdx = SideIdx * 2 + PtsFound[SideIdx];
+//					PtsSide[PtIdx] = 0;
+//					CrossingPts[PtIdx] = IntrPt;
+//					PtsFound[SideIdx]++;
+//				}
+//			}
+//			else
+//			{
+//				for (int Sign = -1; Sign <= 1; Sign += 2)
+//				{
+//					double ParamOnPlane = (dist1[i] - Sign * ToleranceOffset) / (dist1[i] - dist1[lasti]);
+//					FVector3d IntrPt = Tri1.V[i] + (Tri1.V[lasti] - Tri1.V[i]) * ParamOnPlane;
+//					int SideIdx = (Sign + 1) / 2;
+//					int PtIdx = SideIdx * 2 + PtsFound[SideIdx];
+//					PtsSide[PtIdx] = Sign;
+//					CrossingPts[PtIdx] = IntrPt;
+//					PtsFound[SideIdx]++;
+//				}
+//			}
+//		}
+//	}
+//
+//	bool bMadeZeroEdge = false;
+//	int AddedPts = 0;
+//	for (int SideIdx = 0; SideIdx < 2; SideIdx++)
+//	{
+//		if (PtsFound[SideIdx] == 2)
+//		{
+//			int PtIdx0 = SideIdx * 2;
+//			if (PtsSide[PtIdx0] == 0 && PtsSide[PtIdx0 + 1] == 0)
+//			{
+//				if (bMadeZeroEdge)
+//				{
+//					continue;
+//				}
+//				bMadeZeroEdge = true;
+//			}
+//			FVector3d OutA, OutB;
+//			int IntrQ = FIntrTriangle3Triangle3d::IntersectTriangleWithCoplanarSegment(Plane0, Tri0, CrossingPts[PtIdx0], CrossingPts[PtIdx0 + 1], OutA, OutB, InPlaneTolerance);
+//
+//			if (IntrQ == 2)
+//			{
+//				Intr.Points[AddedPts++] = OutA;
+//				Intr.Points[AddedPts++] = OutB;
+//			}
+//		}
+//	}
+//	Intr.Quantity = AddedPts;
+//	if (AddedPts == 4)
+//	{
+//		Intr.Result = EIntersectionResult::Intersects;
+//		Intr.Type = EIntersectionType::MultiSegment;
+//	}
+//	else if (AddedPts == 2)
+//	{
+//		Intr.Result = EIntersectionResult::Intersects;
+//		Intr.Type = EIntersectionType::Segment;
+//	}
+//	else
+//	{
+//		Intr.Result = EIntersectionResult::NoIntersection;
+//		Intr.Type = EIntersectionType::Empty;
+//		return false;
+//	}
+//
+//	return true;
+//}
+//
+//bool ThickTriTriIntersection(FIntrTriangle3Triangle3d& Intr, double Tolerance)
+//{
+//	// intersection tolerance is applied one dimension at a time, so we scale down by 1/sqrt(2)
+//	//  to ensure approximations remain within snapping distance
+//	Intr.SetTolerance(Tolerance);
+//	const FTriangle3d& Triangle0 = Intr.GetTriangle0();
+//	const FTriangle3d& Triangle1 = Intr.GetTriangle1();
+//	FPlane3d Plane0(Triangle0.V[0], Triangle0.V[1], Triangle0.V[2]);
+//
+//	// Compute the signed distances of Triangle1 vertices to Plane0.  Use an epsilon-thick plane test.
+//	int pos1, neg1, zero1;
+//	FVector3d dist1;
+//	FIndex3i sign1;
+//	FIntrTriangle3Triangle3d::TrianglePlaneRelations(Triangle1, Plane0, dist1, sign1, pos1, neg1, zero1, Tolerance);
+//	if (pos1 == 3 || neg1 == 3)
+//	{
+//		// ignore triangles that are more than tolerance-separated
+//		Intr.SetResultNone();
+//		return false;
+//	}
+//
+//	FPlane3d Plane1(Triangle1.V[0], Triangle1.V[1], Triangle1.V[2]);
+//	FVector3d IntersectionDir = Plane0.Normal.Cross(Plane1.Normal);
+//
+//	FVector3d SegA, SegB;
+//	bool bFound = false;
+//	bFound = zero1 < 3 && ThickTriTriHelper(Triangle0, Triangle1, Plane0, IntersectionDir, dist1, sign1, pos1, neg1, zero1, Intr, Tolerance);
+//	if (!bFound || Intr.Quantity == 1)
+//	{
+//		int pos0, neg0, zero0;
+//		FVector3d dist0;
+//		FIndex3i sign0;
+//		FIntrTriangle3Triangle3d::TrianglePlaneRelations(Triangle0, Plane1, dist0, sign0, pos0, neg0, zero0, Tolerance);
+//		bFound = zero1 < 3 && ThickTriTriHelper(Triangle1, Triangle0, Plane1, IntersectionDir, dist0, sign0, pos0, neg0, zero0, Intr, Tolerance);
+//	}
+//	if (!bFound) // make sure the Intr values are set in the coplanar case
+//	{
+//		Intr.SetResultNone();
+//	}
+//
+//	return bFound;
+//}
+
 bool FMeshBoolean::Compute()
 {
 	// copy meshes
@@ -24,13 +213,20 @@ bool FMeshBoolean::Compute()
 	FAxisAlignedBox3d CombinedAABB(CutMesh[0]->GetCachedBounds(), Transforms[0]);
 	FAxisAlignedBox3d MeshB_AABB(CutMesh[1]->GetCachedBounds(), Transforms[1]);
 	CombinedAABB.Contain(MeshB_AABB);
+	double ScaleFactor = 1.0 / FMath::Clamp(CombinedAABB.MaxDim(), 0.01, 1000000.0);
 	for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
 	{
 		FTransform3d CenteredTransform = Transforms[MeshIdx];
-		CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() - CombinedAABB.Center());
+		CenteredTransform.SetTranslation(ScaleFactor*(CenteredTransform.GetTranslation() - CombinedAABB.Center()));
+		CenteredTransform.SetScale(ScaleFactor*CenteredTransform.GetScale());
 		MeshTransforms::ApplyTransform(*CutMesh[MeshIdx], CenteredTransform);
+		if (CenteredTransform.GetDeterminant() < 0)
+		{
+			CutMesh[MeshIdx]->ReverseOrientation(false);
+		}
 	}
 	ResultTransform = FTransform3d(CombinedAABB.Center());
+	ResultTransform.SetScale(FVector3d::One() * (1.0 / ScaleFactor));
 
 	if (Cancelled())
 	{
@@ -39,7 +235,18 @@ bool FMeshBoolean::Compute()
 
 	// build spatial data and use it to find intersections
 	FDynamicMeshAABBTree3 Spatial[2]{ CutMesh[0], CutMesh[1] };
-	MeshIntersection::FIntersectionsQueryResult Intersections = Spatial[0].FindAllIntersections(Spatial[1]);
+	Spatial[0].SetTolerance(SnapTolerance);
+	Spatial[1].SetTolerance(SnapTolerance);
+	MeshIntersection::FIntersectionsQueryResult Intersections
+		= Spatial[0].FindAllIntersections(Spatial[1], nullptr, IMeshSpatial::FQueryOptions(), IMeshSpatial::FQueryOptions(),
+			[this](FIntrTriangle3Triangle3d& Intr)
+			{
+				Intr.SetTolerance(SnapTolerance);
+				return Intr.Find();
+
+				// TODO: if we revisit "thick" tri tri collisions, this is where we'd call:
+				// 	ThickTriTriIntersection(Intr, SnapTolerance);
+			});
 
 	if (Cancelled())
 	{
@@ -50,6 +257,7 @@ bool FMeshBoolean::Compute()
 	FMeshMeshCut Cut(CutMesh[0], CutMesh[1]);
 	Cut.bTrackInsertedVertices = bCollapseDegenerateEdgesOnCut; // to collect candidates to collapse
 	Cut.bMutuallyCut = Operation != EBooleanOp::Trim;
+	Cut.SnapTolerance = SnapTolerance;
 	Cut.Cut(Intersections);
 
 	if (Cancelled())
@@ -62,7 +270,7 @@ bool FMeshBoolean::Compute()
 	// collapse tiny edges along cut boundary
 	if (bCollapseDegenerateEdgesOnCut)
 	{
-		double DegenerateEdgeTolSq = DegenerateEdgeTol * DegenerateEdgeTol;
+		double DegenerateEdgeTolSq = DegenerateEdgeTolFactor * DegenerateEdgeTolFactor * SnapTolerance * SnapTolerance;
 		for (int MeshIdx = 0; MeshIdx < NumMeshesToProcess; MeshIdx++)
 		{
 			// convert vertex chains to edge IDs to simplify logic of finding remaining candidate edges after collapses
@@ -81,9 +289,11 @@ bool FMeshBoolean::Compute()
 				}
 				ChainIdx = ChainEnd;
 			}
-			for (int EID : EIDs)
+			TSet<int> AllEIDs(EIDs);
+			for (int Idx = 0; Idx < EIDs.Num(); Idx++)
 			{
-				if (!ensure(CutMesh[MeshIdx]->IsEdge(EID)))
+				int EID = EIDs[Idx];
+				if (!CutMesh[MeshIdx]->IsEdge(EID))
 				{
 					continue;
 				}
@@ -106,7 +316,23 @@ bool FMeshBoolean::Compute()
 					}
 				}
 				FDynamicMesh3::FEdgeCollapseInfo CollapseInfo;
-				EMeshResult CollapseResult = CutMesh[MeshIdx]->CollapseEdge(EV.A, EV.B, CollapseInfo);
+				EMeshResult CollapseResult = CutMesh[MeshIdx]->CollapseEdge(EV.A, EV.B, .5, CollapseInfo);
+				if (CollapseResult == EMeshResult::Ok)
+				{
+					for (int i = 0; i < 2; i++)
+					{
+						if (AllEIDs.Contains(CollapseInfo.RemovedEdges[i]))
+						{
+							int ToAdd = CollapseInfo.KeptEdges[i];
+							bool bWasPresent;
+							AllEIDs.Add(ToAdd, &bWasPresent);
+							if (!bWasPresent)
+							{
+								EIDs.Add(ToAdd);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -144,20 +370,22 @@ bool FMeshBoolean::Compute()
 					{
 						return;
 					}
+					
 					FVector3d Centroid = ProcessMesh.GetTriCentroid(TID);
-					double WindingNum = Winding.FastWindingNumber(Centroid) > WindingThreshold;
-					if (WindingNum > -.0001 && WindingNum < 1.0001) // TODO tune these / don't hardcode?
+
+					// first check for the coplanar case
 					{
 						double DSq;
-						int OtherTID = OtherSpatial.FindNearestTriangle(Centroid, DSq, SnapTolerance);
+						double OnPlaneTolerance = SnapTolerance;
+						int OtherTID = OtherSpatial.FindNearestTriangle(Centroid, DSq, OnPlaneTolerance);
 						if (OtherTID > -1) // only consider it coplanar if there is a matching tri
 						{
+							
 							FVector3d OtherNormal = OtherSpatial.GetMesh()->GetTriNormal(OtherTID);
 							FVector3d Normal = ProcessMesh.GetTriNormal(TID);
 							double DotNormals = OtherNormal.Dot(Normal);
-							// don't consider it actually coplanar unless the tris are actually somewhat aligned
-							// TODO: tweak this tolerance?  Or maybe even map back to normals pre-mesh-cut?  Degenerate tris can mess this up.
-							if (FMath::Abs(DotNormals) > .9)
+
+							//if (FMath::Abs(DotNormals) > .9) // TODO: do we actually want to check for a normal match? coplanar vertex check below is more robust?
 							{
 								// To be extra sure it's a coplanar match, check the vertices are *also* on the other mesh (w/in SnapTolerance)
 								FTriangle3d Tri;
@@ -165,7 +393,7 @@ bool FMeshBoolean::Compute()
 								bool bAllTrisOnOtherMesh = true;
 								for (int Idx = 0; Idx < 3; Idx++)
 								{
-									if (OtherSpatial.FindNearestTriangle(Tri.V[Idx], DSq, SnapTolerance) == FDynamicMesh3::InvalidID)
+									if (OtherSpatial.FindNearestTriangle(Tri.V[Idx], DSq, OnPlaneTolerance) == FDynamicMesh3::InvalidID)
 									{
 										bAllTrisOnOtherMesh = false;
 										break;
@@ -188,6 +416,8 @@ bool FMeshBoolean::Compute()
 						}
 					}
 
+					// didn't already return a coplanar result; use the winding number
+					double WindingNum = Winding.FastWindingNumber(Centroid);
 					KeepTri[MeshIdx][TID] = (WindingNum > WindingThreshold) != bRemoveInside;
 				});
 			for (int EID : ProcessMesh.EdgeIndicesItr())
@@ -228,6 +458,8 @@ bool FMeshBoolean::Compute()
 	TMap<int, int> AllVIDMatches; // mapping of matched vertex IDs from cutmesh 0 to cutmesh 1
 	if (NumMeshesToProcess == 2)
 	{
+		double SnapToleranceSq = SnapTolerance * SnapTolerance;
+
 		// Hash boundary verts for faster search
 		TArray<TPointHashGrid3d<int>> PointHashes;
 		for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
@@ -294,16 +526,20 @@ bool FMeshBoolean::Compute()
 					{
 						FVector3d EdgePts[2];
 						OtherMesh.GetEdgeV(OtherEID, EdgePts[0], EdgePts[1]);
-						FSegment3d Seg(EdgePts[0], EdgePts[1]);
-						double Along = Seg.ProjectUnitRange(Pos);
-						FDynamicMesh3::FEdgeSplitInfo SplitInfo;
-						if (ensure(EMeshResult::Ok == OtherMesh.SplitEdge(OtherEID, SplitInfo, Along)))
+						// only accept the match if it's not going to create a degenerate edge -- TODO: filter already-matched edges from the FindNearestEdge query!
+						if (EdgePts[0].DistanceSquared(Pos) > SnapToleranceSq&& EdgePts[1].DistanceSquared(Pos) > SnapToleranceSq)
 						{
-							FoundMatches.Add(SplitInfo.NewVertex, BoundaryVID);
-							OtherMesh.SetVertex(SplitInfo.NewVertex, Pos);
-							CutBoundaryEdges[OtherMeshIdx].Add(SplitInfo.NewEdges.A);
-							// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
-							// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
+							FSegment3d Seg(EdgePts[0], EdgePts[1]);
+							double Along = Seg.ProjectUnitRange(Pos);
+							FDynamicMesh3::FEdgeSplitInfo SplitInfo;
+							if (ensure(EMeshResult::Ok == OtherMesh.SplitEdge(OtherEID, SplitInfo, Along)))
+							{
+								FoundMatches.Add(SplitInfo.NewVertex, BoundaryVID);
+								OtherMesh.SetVertex(SplitInfo.NewVertex, Pos);
+								CutBoundaryEdges[OtherMeshIdx].Add(SplitInfo.NewEdges.A);
+								// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
+								// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
+							}
 						}
 					}
 				}
@@ -354,6 +590,12 @@ bool FMeshBoolean::Compute()
 		CreatedBoundaryEdges = CutBoundaryEdges[0];
 	}
 
+	if (bPutResultInInputSpace)
+	{
+		MeshTransforms::ApplyTransform(*Result, ResultTransform);
+		ResultTransform = FTransform3d::Identity();
+	}
+
 	return bSuccess;
 }
 
@@ -374,6 +616,7 @@ bool FMeshBoolean::MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3
 
 	// find "easy" match candidates using the already-made vertex correspondence
 	TArray<FIndex2i> CandidateMatches;
+	TArray<int> UnmatchedEdges;
 	for (int EID : CutBoundaryEdges[0])
 	{
 		if (!ensure(Result->IsBoundaryEdge(EID)))
@@ -383,6 +626,7 @@ bool FMeshBoolean::MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3
 		FIndex2i VIDs = Result->GetEdgeV(EID);
 		const int* OtherA = AllVIDMatches.Find(VIDs.A);
 		const int* OtherB = AllVIDMatches.Find(VIDs.B);
+		bool bAddedCandidate = false;
 		if (OtherA && OtherB)
 		{
 			int MapOtherA = IndexMaps.GetNewVertex(*OtherA);
@@ -391,12 +635,16 @@ bool FMeshBoolean::MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3
 			if (OtherEID != FDynamicMesh3::InvalidID)
 			{
 				CandidateMatches.Add(FIndex2i(EID, OtherEID));
+				bAddedCandidate = true;
 			}
+		}
+		if (!bAddedCandidate)
+		{
+			UnmatchedEdges.Add(EID);
 		}
 	}
 
 	// merge the easy matches
-	TArray<int> UnmatchedEdges;
 	for (FIndex2i Candidate : CandidateMatches)
 	{
 		if (!Result->IsEdge(Candidate.A) || !Result->IsBoundaryEdge(Candidate.A))

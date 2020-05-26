@@ -5,18 +5,22 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
+#include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/MassProperties.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Utilities.h"
 
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsEngine/BodySetup.h"
+
+//PRAGMA_DISABLE_OPTIMIZATION
 
 extern int32 ImmediatePhysicsDisableCollisions;
 
@@ -187,14 +191,73 @@ namespace ImmediatePhysics_Chaos
 		return true;
 	}
 
+#if WITH_CHAOS
+	// Intended for use with Tri Mesh and Hieghtfields
+	TUniquePtr<Chaos::FImplicitObject> CloneGeometry(const Chaos::FImplicitObject* Geom, TArray<TUniquePtr<Chaos::FPerShapeData>>& OutShapes)
+	{
+		using namespace Chaos;
+
+		EImplicitObjectType GeomType = GetInnerType(Geom->GetCollisionType());
+		bool bIsInstanced = IsInstanced(Geom->GetCollisionType());
+		bool bIsScaled = IsScaled(Geom->GetCollisionType());
+
+		// Transformed HeightField
+		if (GeomType == ImplicitObjectType::Transformed)
+		{
+			const TImplicitObjectTransformed<FReal, 3>* SrcTransformed = Geom->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
+			if ((SrcTransformed != nullptr) && (SrcTransformed->GetTransformedObject()->GetType() == ImplicitObjectType::HeightField))
+			{
+				FImplicitObject* InnerGeom = const_cast<FImplicitObject*>(SrcTransformed->GetTransformedObject());
+				TUniquePtr<TImplicitObjectTransformed<FReal, 3, false>> Cloned = MakeUnique<Chaos::TImplicitObjectTransformed<FReal, 3, false>>(InnerGeom, SrcTransformed->GetTransform());
+				return Cloned;
+			}
+		}
+
+		// Instanced Trimesh
+		if (bIsInstanced && (GeomType == ImplicitObjectType::TriangleMesh))
+		{
+			const TImplicitObjectInstanced<FTriangleMeshImplicitObject>* SrcInstanced = Geom->template GetObject<const TImplicitObjectInstanced<FTriangleMeshImplicitObject>>();
+			if (SrcInstanced != nullptr)
+			{
+				const TImplicitObjectInstanced<FTriangleMeshImplicitObject>::ObjectType InnerGeom = SrcInstanced->Object();
+				TUniquePtr<TImplicitObjectInstanced<FTriangleMeshImplicitObject>> Cloned = MakeUnique<TImplicitObjectInstanced<FTriangleMeshImplicitObject>>(InnerGeom);
+				return Cloned;
+			}
+		}
+
+		return nullptr;
+	}
+#endif
+
+	bool CloneGeometry(FBodyInstance* BodyInstance, EActorType ActorType, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::FPerShapeData>>& OutShapes)
+	{
+#if WITH_CHAOS
+		// We should only get non-simulated objects through this path, but you never know...
+		if ((BodyInstance != nullptr) && !BodyInstance->bSimulatePhysics)
+		{
+			OutMass = 0.0f;
+			OutInertia = FVector::ZeroVector;
+			OutCoMTransform = FTransform::Identity;
+			OutGeom = CloneGeometry(BodyInstance->ActorHandle->Geometry().Get(), OutShapes);
+			if (OutGeom != nullptr)
+			{
+				return true;
+			}
+		}
+#endif
+
+		return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
+	}
+
 	bool CreateGeometry(FBodyInstance* BodyInstance, EActorType ActorType, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::FPerShapeData>>& OutShapes)
 	{
 		using namespace Chaos;
 
-		if ((BodyInstance == nullptr) || (BodyInstance->BodySetup == nullptr))
+		// If there's no BodySetup, we may be cloning an in-world object and probably have a TriMesh or HieghtField so try to just copy references
+		// @todo(ccaulfield): clean this up
+		if ((BodyInstance == nullptr) || (BodyInstance->BodySetup == nullptr) || (BodyInstance->BodySetup->CollisionTraceFlag == ECollisionTraceFlag::CTF_UseComplexAsSimple))
 		{
-			// @todo(ccaulfield): fix this path
-			return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
+			return CloneGeometry(BodyInstance, ActorType, Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
 		}
 
 		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();

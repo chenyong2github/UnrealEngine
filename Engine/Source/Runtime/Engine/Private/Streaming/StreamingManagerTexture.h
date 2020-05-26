@@ -226,21 +226,6 @@ private:
 		 */
 		void StreamRenderAssets( bool bProcessEverything );
 
-		/**
-		 * If new files have loaded this function will return true once
-		 * bNewFilesLoaded is set on the game thread and reset on the async thread
-		 * no need for synchronization as if we are a frame behind then that's ok 
-		 */
-		FORCEINLINE bool GetAndResetNewFilesHaveLoaded()
-		{
-			bool bResult = bNewFilesLoaded;
-			if ( bResult )
-			{
-				bNewFilesLoaded = false;
-			}
-			return bResult;
-		}
-
 		int32 GetNumStreamedMipsArray(FStreamingRenderAsset::EAssetType AssetType, const int32*& OutArray)
 		{
 			switch (AssetType)
@@ -400,8 +385,6 @@ private:
 	/** Whether render asset streaming is paused or not. When paused, it won't stream any textures/meshes in or out. */
 	bool bPauseRenderAssetStreaming;
 
-	bool bNewFilesLoaded;
-
 	/** Last time all data were fully updated. Instances are considered visible if they were rendered between that last time and the current time. */
 	float LastWorldUpdateTime;
 
@@ -413,8 +396,15 @@ private:
 
 	TArray<int32> InflightRenderAssets;
 
-	TMap<FString, bool> CachedFileExistsChecks;
-	void OnPakFileMounted(const IPakFile& PakFile);
+	/** A critical section to handle concurrent access on MountedStateDirtyFiles. */
+	FCriticalSection MountedStateDirtyFilesCS;
+	/** Whether all file mounted states needs to be re-evaluated. */
+	bool bRecacheAllFiles = false;
+	/** The file hashes which mounted state needs to be re-evaluated. */
+	typedef TSet<FIoFilenameHash> FIoFilenameHashSet;
+	FIoFilenameHashSet MountedStateDirtyFiles;
+
+	ENGINE_API virtual void MarkMountedStateDirty(FIoFilenameHash FilenameHash) override;
 
 	// A critical section use around code that could be called in parallel with NotifyPrimitiveUpdated() or NotifyPrimitiveUpdated_Concurrent().
 	FCriticalSection CriticalSection;

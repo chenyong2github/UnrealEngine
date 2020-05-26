@@ -14,6 +14,7 @@
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 #include "K2Node_Event.h"
+#include "SearchSerializer.h"
 
 #define LOCTEXT_NAMESPACE "FBlueprintIndexer"
 
@@ -40,8 +41,7 @@ int32 FBlueprintIndexer::GetVersion() const
 
 void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const UBlueprint* BP = Cast<UBlueprint>(InAssetObject);
-	check(BP);
+	const UBlueprint* BP = CastChecked<UBlueprint>(InAssetObject);
 
 	Serializer.BeginIndexingObject(BP, TEXT("$self"));
 	FIndexerUtilities::IterateIndexableProperties(BP, [&Serializer](const FProperty* Property, const FString& Value) {

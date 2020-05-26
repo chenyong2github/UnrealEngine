@@ -908,6 +908,9 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 {
 	RemoveNodeGroupsCollectionChangedDelegate();
 
+	TemplateIDBackwardStack.Push(ActiveTemplateIDs.Top());
+	TemplateIDForwardStack.Reset();
+
 	FMovieSceneRootOverridePath Path;
 	Path.Set(ActiveTemplateIDs.Last(), RootTemplateInstance.GetHierarchy());
 
@@ -917,6 +920,64 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 	// Ensure the hierarchy is up to date for this level
 	int32 MaxDepth = 1;
 	FMovieSceneCompiler::CompileHierarchy(*GetFocusedMovieSceneSequence(), RootTemplateInstance.GetHierarchy(), ActiveTemplateIDs.Last(), MaxDepth);
+
+	// If the sequence isn't found, reset to the root and dive in from there
+	if (!RootTemplateInstance.GetHierarchy().FindSubData(SequenceID))
+	{
+		// Pop until the root and reset breadcrumbs
+		while (MovieSceneSequenceID::Root != ActiveTemplateIDs.Last())
+		{
+			ActiveTemplateIDs.Pop();
+			ActiveTemplateStates.Pop();
+		}
+		SequencerWidget->ResetBreadcrumbs();
+
+		FMovieSceneCompiler::CompileHierarchy(*GetFocusedMovieSceneSequence(), RootTemplateInstance.GetHierarchy(), ActiveTemplateIDs.Last());
+
+		// Find the requested subsequence's sequence ID
+		SequenceID = MovieSceneSequenceID::Invalid;
+		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : RootTemplateInstance.GetHierarchy().AllSubSequenceData())
+		{
+			if (Pair.Value.DeterministicSequenceID == InSubSection.GetSequenceID())
+			{
+				SequenceID = Pair.Key;
+				break;
+			}
+		}
+
+		// Gather the parent chain's sequence IDs
+		TArray<FMovieSceneSequenceID> ParentChain;
+		const FMovieSceneSequenceHierarchyNode* SequenceNode = RootTemplateInstance.GetHierarchy().FindNode(SequenceID);
+		FMovieSceneSequenceID ParentID = SequenceNode ? SequenceNode->ParentID : MovieSceneSequenceID::Invalid;
+		while (ParentID.IsValid() && ParentID != MovieSceneSequenceID::Root)
+		{
+			ParentChain.Add(ParentID);
+
+			const FMovieSceneSequenceHierarchyNode* ParentNode = RootTemplateInstance.GetHierarchy().FindNode(ParentID);
+			ParentID = ParentNode ? ParentNode->ParentID : MovieSceneSequenceID::Invalid;
+		}
+
+		// Push each sequence ID in the parent chain, updating the breadcrumb as we go
+		for (int32 ParentIDIndex = ParentChain.Num() - 1; ParentIDIndex >= 0; --ParentIDIndex)
+		{
+			UMovieSceneSubSection* ParentSubSection = FindSubSection(ParentChain[ParentIDIndex]);
+			if (ParentSubSection)
+			{
+				ActiveTemplateIDs.Push(ParentChain[ParentIDIndex]);
+				ActiveTemplateStates.Push(ParentSubSection->IsActive());
+
+				SequencerWidget->UpdateBreadcrumbs();
+			}
+		}
+
+		Path.Set(ActiveTemplateIDs.Last(), RootTemplateInstance.GetHierarchy());
+
+		// Root out the SequenceID for the sub section
+		SequenceID = Path.Remap(InSubSection.GetSequenceID());
+
+		// Ensure the hierarchy is up to date for this level
+		FMovieSceneCompiler::CompileHierarchy(*GetFocusedMovieSceneSequence(), RootTemplateInstance.GetHierarchy(), ActiveTemplateIDs.Last());
+	}
 
 	if (!ensure(RootTemplateInstance.GetHierarchy().FindSubData(SequenceID)))
 	{
@@ -1095,6 +1156,9 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 {
 	if( ActiveTemplateIDs.Num() > 1 )
 	{
+		TemplateIDBackwardStack.Push(ActiveTemplateIDs.Top());
+		TemplateIDForwardStack.Reset();
+
 		RemoveNodeGroupsCollectionChangedDelegate();
 
 		// Pop until we find the movie scene to focus
@@ -2057,11 +2121,13 @@ void FSequencer::BakeTransform()
 		}
 	}
 
+	bool bDisableSectionsAfterBaking = Settings->GetDisableSectionsAfterBaking();
+
 	for (auto& BakeData : BakeDataMap)
 	{
 		FGuid Guid = BakeData.Key;
 
-		// Delete any attach tracks
+		// Disable or delete any attach tracks
 		// cbb: this only operates on a single attach section.
 		AActor* AttachParentActor = nullptr;
 		UMovieScene3DAttachTrack* AttachTrack = Cast<UMovieScene3DAttachTrack>(FocusedMovieScene->FindTrack(UMovieScene3DAttachTrack::StaticClass(), Guid));
@@ -2077,28 +2143,72 @@ void FSequencer::BakeTransform()
 				}
 			}
 
-			FocusedMovieScene->RemoveTrack(*AttachTrack);
+			if (bDisableSectionsAfterBaking)
+			{
+				for (auto AttachSection : AttachTrack->GetAllSections())
+				{
+					AttachSection->Modify();
+					AttachSection->SetIsActive(false);
+				}
+			}
+			else
+			{
+				FocusedMovieScene->RemoveTrack(*AttachTrack);
+			}
 		}
 
-		// Delete any transform tracks
+		// Disable or delete any transform tracks
 		UMovieScene3DTransformTrack* TransformTrack = Cast<UMovieScene3DTransformTrack>(FocusedMovieScene->FindTrack(UMovieScene3DTransformTrack::StaticClass(), Guid, "Transform"));
 		if (TransformTrack)
 		{
-			FocusedMovieScene->RemoveTrack(*TransformTrack);
+			if (bDisableSectionsAfterBaking)
+			{
+				for (auto TransformSection : TransformTrack->GetAllSections())
+				{
+					TransformSection->Modify();
+					TransformSection->SetIsActive(false);
+				}
+			}
+			else
+			{
+				FocusedMovieScene->RemoveTrack(*TransformTrack);
+			}
 		}
 
-		// Delete any camera anim tracks
+		// Disable or delete any camera anim tracks
 		UMovieSceneCameraAnimTrack* CameraAnimTrack = Cast<UMovieSceneCameraAnimTrack>(FocusedMovieScene->FindTrack(UMovieSceneCameraAnimTrack::StaticClass(), Guid));
 		if (CameraAnimTrack)
 		{
-			FocusedMovieScene->RemoveTrack(*CameraAnimTrack);
+			if (bDisableSectionsAfterBaking)
+			{
+				for (auto CameraAnimSection : CameraAnimTrack->GetAllSections())
+				{
+					CameraAnimSection->Modify();
+					CameraAnimSection->SetIsActive(false);
+				}
+			}
+			else
+			{
+				FocusedMovieScene->RemoveTrack(*CameraAnimTrack);
+			}
 		}
 
-		// Delete any camera shake tracks
+		// Disable or delete any camera shake tracks
 		UMovieSceneCameraShakeTrack* CameraShakeTrack = Cast<UMovieSceneCameraShakeTrack>(FocusedMovieScene->FindTrack(UMovieSceneCameraShakeTrack::StaticClass(), Guid));
 		if (CameraShakeTrack)
 		{
-			FocusedMovieScene->RemoveTrack(*CameraShakeTrack);
+			if (bDisableSectionsAfterBaking)
+			{
+				for (auto CameraShakeSection : CameraShakeTrack->GetAllSections())
+				{
+					CameraShakeSection->Modify();
+					CameraShakeSection->SetIsActive(false);
+				}
+			}
+			else
+			{
+				FocusedMovieScene->RemoveTrack(*CameraShakeTrack);
+			}
 		}
 
 		// Reset position
@@ -2172,25 +2282,40 @@ void FSequencer::BakeTransform()
 			FloatChannels[7]->SetDefault(DefaultScale.Y);
 			FloatChannels[8]->SetDefault(DefaultScale.Z);
 
+			TArray<FVector> LocalTranslations, LocalRotations, LocalScales;
+			LocalTranslations.SetNum(BakeData.Value.KeyTimes.Num());
+			LocalRotations.SetNum(BakeData.Value.KeyTimes.Num());
+			LocalScales.SetNum(BakeData.Value.KeyTimes.Num());
+
+			for (int32 Counter = 0; Counter < BakeData.Value.KeyTimes.Num(); ++Counter)
+			{
+				FTransform Transform(BakeData.Value.Rotations[Counter], BakeData.Value.Locations[Counter], BakeData.Value.Scales[Counter]);
+				FTransform LocalTransform = ParentInverseTransform * Transform;
+				LocalTranslations[Counter] = LocalTransform.GetTranslation();
+				LocalRotations[Counter] = LocalTransform.GetRotation().Euler();
+				LocalScales[Counter] = LocalTransform.GetScale3D();
+			}
+
+			// Euler filter
+			for (int32 Counter = 0; Counter < LocalRotations.Num() - 1; ++Counter)
+			{
+				FMath::WindRelativeAnglesDegrees(LocalRotations[Counter].X, LocalRotations[Counter + 1].X);
+				FMath::WindRelativeAnglesDegrees(LocalRotations[Counter].Y, LocalRotations[Counter + 1].Y);
+				FMath::WindRelativeAnglesDegrees(LocalRotations[Counter].Z, LocalRotations[Counter + 1].Z);							
+			}
+				
 			for (int32 Counter = 0; Counter < BakeData.Value.KeyTimes.Num(); ++Counter)
 			{
 				FFrameNumber KeyTime = BakeData.Value.KeyTimes[Counter];
-
-				FTransform Transform(BakeData.Value.Rotations[Counter], BakeData.Value.Locations[Counter], BakeData.Value.Scales[Counter]);
-				FTransform LocalTransform = ParentInverseTransform * Transform;
-				FVector LocalTranslation = LocalTransform.GetTranslation();
-				FVector LocalRotation = LocalTransform.GetRotation().Euler();
-				FVector LocalScale = LocalTransform.GetScale3D();
-
-				FloatChannels[0]->AddLinearKey(KeyTime, LocalTranslation.X);
-				FloatChannels[1]->AddLinearKey(KeyTime, LocalTranslation.Y);
-				FloatChannels[2]->AddLinearKey(KeyTime, LocalTranslation.Z);
-				FloatChannels[3]->AddLinearKey(KeyTime, LocalRotation.X);
-				FloatChannels[4]->AddLinearKey(KeyTime, LocalRotation.Y);
-				FloatChannels[5]->AddLinearKey(KeyTime, LocalRotation.Z);
-				FloatChannels[6]->AddLinearKey(KeyTime, LocalScale.X);
-				FloatChannels[7]->AddLinearKey(KeyTime, LocalScale.Y);
-				FloatChannels[8]->AddLinearKey(KeyTime, LocalScale.Z);
+				FloatChannels[0]->AddLinearKey(KeyTime, LocalTranslations[Counter].X);
+				FloatChannels[1]->AddLinearKey(KeyTime, LocalTranslations[Counter].Y);
+				FloatChannels[2]->AddLinearKey(KeyTime, LocalTranslations[Counter].Z);
+				FloatChannels[3]->AddLinearKey(KeyTime, LocalRotations[Counter].X);
+				FloatChannels[4]->AddLinearKey(KeyTime, LocalRotations[Counter].Y);
+				FloatChannels[5]->AddLinearKey(KeyTime, LocalRotations[Counter].Z);
+				FloatChannels[6]->AddLinearKey(KeyTime, LocalScales[Counter].X);
+				FloatChannels[7]->AddLinearKey(KeyTime, LocalScales[Counter].Y);
+				FloatChannels[8]->AddLinearKey(KeyTime, LocalScales[Counter].Z);
 			}
 		}
 	}
@@ -4407,7 +4532,7 @@ FReply FSequencer::SetPlaybackEnd()
 		TRange<FFrameNumber> CurrentRange = FocusedSequence->GetMovieScene()->GetPlaybackRange();
 		if (CurrentFrame >= MovieScene::DiscreteInclusiveLower(CurrentRange))
 		{
-			CurrentRange.SetUpperBound(CurrentFrame);
+			CurrentRange.SetUpperBoundValue(CurrentFrame);
 			SetPlaybackRange(CurrentRange);
 		}
 	}
@@ -6516,17 +6641,41 @@ void FSequencer::OnSelectedNodesOnlyChanged()
 	SynchronizeSequencerSelectionWithExternalSelection();
 }
 
-void FSequencer::ZoomToSelectedSections()
+void FSequencer::ZoomToFit()
 {
 	FFrameRate TickResolution = GetFocusedTickResolution();
 
-	TRange<FFrameNumber> BoundsHull = TRange<FFrameNumber>::Empty();
-	for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : Selection.GetSelectedSections())
+	TRange<FFrameNumber> BoundsHull = TRange<FFrameNumber>::All();
+	
+	for ( const FSequencerSelectedKey& Key : Selection.GetSelectedKeys().Array() )
 	{
-		BoundsHull = TRange<FFrameNumber>::Hull(SelectedSection->GetRange(), BoundsHull);
+		if (Key.IsValid())
+		{
+			FFrameNumber KeyTime = Key.KeyArea->GetKeyTime(Key.KeyHandle.GetValue());
+			if (!BoundsHull.HasLowerBound() || BoundsHull.GetLowerBoundValue() > KeyTime)
+			{
+				BoundsHull.SetLowerBound(TRange<FFrameNumber>::BoundsType::Inclusive(KeyTime));
+			}
+			if (!BoundsHull.HasUpperBound() || BoundsHull.GetUpperBoundValue() < KeyTime)
+			{
+				BoundsHull.SetUpperBound(TRange<FFrameNumber>::BoundsType::Inclusive(KeyTime));
+			}
+		}
 	}
 
-	if (BoundsHull.IsEmpty())
+	for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : Selection.GetSelectedSections())
+	{
+		if (BoundsHull == TRange<FFrameNumber>::All())
+		{
+			BoundsHull = SelectedSection->GetRange();
+		}
+		else
+		{
+			BoundsHull = TRange<FFrameNumber>::Hull(SelectedSection->GetRange(), BoundsHull);
+		}
+	}
+	
+	if (BoundsHull.IsEmpty() || BoundsHull == TRange<FFrameNumber>::All())
 	{
 		BoundsHull = GetTimeBounds();
 	}
@@ -6546,11 +6695,19 @@ void FSequencer::ZoomToSelectedSections()
 		{
 			ViewRangeBeforeZoom = GetViewRange();
 
-			SetViewRange(BoundsHull / TickResolution, EViewRangeInterpolation::Animated);
+			TRange<double> BoundsHullSeconds = BoundsHull / TickResolution;
+			const double OutputViewSize = BoundsHullSeconds.Size<double>();
+			const double OutputChange = OutputViewSize * 0.1f;
+
+			if (OutputChange > 0)
+			{
+				BoundsHullSeconds = MovieScene::ExpandRange(BoundsHullSeconds, OutputChange);
+	
+				SetViewRange(BoundsHullSeconds, EViewRangeInterpolation::Animated);
+			}
 		}
 	}
 }
-
 
 bool FSequencer::CanKeyProperty(FCanKeyPropertyParams CanKeyPropertyParams) const
 {
@@ -8011,6 +8168,7 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 	TMap<FGuid, FGuid> OldToNewGuidMap;
 	TArray<FGuid> PossessableGuids;
+	TArray<FGuid> SpawnableGuids;
 
 	TArray<FMovieSceneBinding> BindingsPasted;
 
@@ -8157,6 +8315,8 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 				OldToNewGuidMap.Add(CopyableBinding->Spawnable.GetGuid(), NewGuid);
 
 				BindingsPasted.Add(NewBinding);
+
+				SpawnableGuids.Add(NewGuid);
 			}
 		}
 	}
@@ -8218,8 +8378,29 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 
 	OnMovieSceneBindingsPastedDelegate.Broadcast(BindingsPasted);
 
+	// Temporarily spawn all spawnables so that component bindings can be fixed
+	TArray<TWeakObjectPtr<UMovieSceneSection> > SpawnSectionsToRemove;
+	for (auto SpawnableGuid : SpawnableGuids)
+	{
+		UMovieSceneSpawnTrack* SpawnTrack = MovieScene->FindTrack<UMovieSceneSpawnTrack>(SpawnableGuid);
+
+		if (SpawnTrack)
+		{
+			for (UMovieSceneSection* SpawnSection : SpawnTrack->GetAllSections())
+			{
+				SpawnSection->SetIsActive(false);
+			}
+
+			// Spawnable could have animated spawned state, so temporarily override it to spawn infinitely
+			UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->CreateNewSection());
+			SpawnSection->GetChannel().Reset();
+			SpawnSection->GetChannel().SetDefault(true);
+			SpawnSectionsToRemove.Add(SpawnSection);
+		}
+	}
+	
 	// Refresh all immediately so that spawned actors will be generated immediately
-	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshAllImmediately);
+	ForceEvaluate();
 
 	// Fix possessable component bindings
 	for (auto PossessableGuid : PossessableGuids)
@@ -8249,6 +8430,27 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 			}
 		}
 	}
+	
+	for (TWeakObjectPtr<UMovieSceneSection> SpawnSectionToRemove : SpawnSectionsToRemove)
+	{
+		if (SpawnSectionToRemove.IsValid())
+		{
+			UMovieSceneTrack* SpawnTrack = SpawnSectionToRemove->GetTypedOuter<UMovieSceneTrack>();
+			if (SpawnTrack)
+			{
+				SpawnTrack->Modify();
+				SpawnTrack->RemoveSection(*SpawnSectionToRemove);
+
+				for (UMovieSceneSection* SpawnSection : SpawnTrack->GetAllSections())
+				{
+					SpawnSection->SetIsActive(true);
+				}
+			}
+		}
+	}
+	
+	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
 	return true;
 }
 
@@ -8427,6 +8629,12 @@ void GetSupportedTracks(TSharedRef<FSequencerDisplayNode> DisplayNode, const TAr
 	}
 
 	TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(DisplayNode);
+
+	if (TracksToPasteOnto.Contains(TrackNode))
+	{
+		return;
+	}
+
 	UMovieSceneTrack* Track = TrackNode->GetTrack();
 	if (Track)
 	{
@@ -8437,6 +8645,7 @@ void GetSupportedTracks(TSharedRef<FSequencerDisplayNode> DisplayNode, const TAr
 			if (Track->SupportsType(Section->GetClass()))
 			{
 				TracksToPasteOnto.Add(TrackNode);
+				return;
 			}
 		}
 	}
@@ -9915,6 +10124,112 @@ void FSequencer::StepToPreviousShot()
 	SetLocalTime(SubSequenceRange.GetLowerBoundValue(), ESnapTimeMode::STM_None);
 }
 
+FReply FSequencer::NavigateForward()
+{
+	TArray<FMovieSceneSequenceID> TemplateIDForwardStackCopy = TemplateIDForwardStack;
+	TArray<FMovieSceneSequenceID> TemplateIDBackwardStackCopy = TemplateIDBackwardStack;
+
+	TemplateIDBackwardStackCopy.Push(ActiveTemplateIDs.Top());
+
+	FMovieSceneSequenceID SequenceID = TemplateIDForwardStackCopy.Pop();
+	if (SequenceID == MovieSceneSequenceID::Root)
+	{
+		PopToSequenceInstance(SequenceID);
+	}
+	else if (UMovieSceneSubSection* SubSection = FindSubSection(SequenceID))
+	{
+		FocusSequenceInstance(*SubSection);
+	}
+
+	TemplateIDForwardStack = TemplateIDForwardStackCopy;
+	TemplateIDBackwardStack = TemplateIDBackwardStackCopy;
+
+	SequencerWidget->UpdateBreadcrumbs();
+
+	return FReply::Handled();
+}
+
+FReply FSequencer::NavigateBackward()
+{
+	TArray<FMovieSceneSequenceID> TemplateIDForwardStackCopy = TemplateIDForwardStack;
+	TArray<FMovieSceneSequenceID> TemplateIDBackwardStackCopy = TemplateIDBackwardStack;
+
+	TemplateIDForwardStackCopy.Push(ActiveTemplateIDs.Top());
+
+	FMovieSceneSequenceID SequenceID = TemplateIDBackwardStackCopy.Pop();
+	if (SequenceID == MovieSceneSequenceID::Root)
+	{
+		PopToSequenceInstance(SequenceID);
+	}
+	else if (UMovieSceneSubSection* SubSection = FindSubSection(SequenceID))
+	{
+		FocusSequenceInstance(*SubSection);
+	}
+
+	TemplateIDForwardStack = TemplateIDForwardStackCopy;
+	TemplateIDBackwardStack = TemplateIDBackwardStackCopy;
+
+	SequencerWidget->UpdateBreadcrumbs();
+	return FReply::Handled();
+}
+
+bool FSequencer::CanNavigateForward() const
+{
+	return TemplateIDForwardStack.Num() > 0;
+}
+
+bool FSequencer::CanNavigateBackward() const
+{
+	return TemplateIDBackwardStack.Num() > 0;
+}
+
+FText FSequencer::GetNavigateForwardTooltip() const
+{
+	if (TemplateIDForwardStack.Num() > 0)
+	{
+		FMovieSceneSequenceID SequenceID = TemplateIDForwardStack.Last();
+
+		if (SequenceID == MovieSceneSequenceID::Root)
+		{
+			if (GetRootMovieSceneSequence())
+			{
+				return FText::Format(LOCTEXT("NavigateForwardTooltipFmt", "Forward to {0}"), GetRootMovieSceneSequence()->GetDisplayName());
+			}
+		}
+		else if (UMovieSceneSubSection* SubSection = FindSubSection(SequenceID))
+		{
+			if (SubSection->GetSequence())
+			{
+				return FText::Format(LOCTEXT("NavigateForwardTooltipFmt", "Forward to {0}"), SubSection->GetSequence()->GetDisplayName());
+			}
+		}
+	}
+	return FText::GetEmpty();
+}
+
+FText FSequencer::GetNavigateBackwardTooltip() const
+{
+	if (TemplateIDBackwardStack.Num() > 0)
+	{
+		FMovieSceneSequenceID SequenceID = TemplateIDBackwardStack.Last();
+
+		if (SequenceID == MovieSceneSequenceID::Root)
+		{
+			if (GetRootMovieSceneSequence())
+			{
+				return FText::Format( LOCTEXT("NavigateBackwardTooltipFmt", "Back to {0}"), GetRootMovieSceneSequence()->GetDisplayName());
+			}
+		}
+		else if (UMovieSceneSubSection* SubSection = FindSubSection(SequenceID))
+		{
+			if (SubSection->GetSequence())
+			{
+				return FText::Format(LOCTEXT("NavigateBackwardTooltipFmt", "Back to {0}"), SubSection->GetSequence()->GetDisplayName());
+			}
+		}
+	}
+	return FText::GetEmpty();
+}
 
 void FSequencer::ExpandAllNodesAndDescendants()
 {
@@ -10029,6 +10344,7 @@ void FSequencer::SetKey()
 					ModifiedSections.Add(Section);
 				}
 
+				Section->ExpandToFrame(AddKeyTime);
 
 				KeyArea->AddOrUpdateKey(AddKeyTime, ObjectBinding, *this);
 			}
@@ -11915,6 +12231,16 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP( this, &FSequencer::StepToPreviousShot ) );
 
 	SequencerCommandBindings->MapAction(
+		Commands.NavigateForward,
+		FExecuteAction::CreateLambda([this] { NavigateForward(); }),
+		FCanExecuteAction::CreateLambda([this] { return CanNavigateForward(); }));
+
+	SequencerCommandBindings->MapAction(
+		Commands.NavigateBackward,
+		FExecuteAction::CreateLambda([this] { NavigateBackward(); }),
+		FCanExecuteAction::CreateLambda([this] { return CanNavigateBackward(); }));
+
+	SequencerCommandBindings->MapAction(
 		Commands.SetStartPlaybackRange,
 		FExecuteAction::CreateLambda([this] { SetPlaybackStart(); }),
 		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
@@ -11922,6 +12248,10 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ResetViewRange,
 		FExecuteAction::CreateSP( this, &FSequencer::ResetViewRange ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.ZoomToFit,
+		FExecuteAction::CreateSP( this, &FSequencer::ZoomToFit ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ZoomInViewRange,

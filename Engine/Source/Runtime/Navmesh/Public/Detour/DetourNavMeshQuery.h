@@ -353,12 +353,6 @@ public:
 					  const dtQueryFilter* filter,
 					  dtQueryResult& result, float* totalCost) const;
 	
-	/// Check if there is a path from start polygon to the end polygon using cluster graph
-	/// (cheap, does not care about link costs)
-	///  @param[in]		startRef			The reference id of the start polygon.
-	///  @param[in]		endRef				The reference id of the end polygon.
-	dtStatus testClusterPath(dtPolyRef startRef, dtPolyRef endRef) const; 
-
 	/// Finds the straight path from the start to the end position within the polygon corridor.
 	///  @param[in]		startPos			Path start position. [(x, y, z)]
 	///  @param[in]		endPos				Path end position. [(x, y, z)]
@@ -629,6 +623,14 @@ public:
 										 const dtQueryFilter* filter, float (*frand)(),
 										 dtPolyRef* randomRef, float* randomPt) const;
 
+	//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
+	/// Check if there is a path from start polygon to the end polygon using cluster graph
+	/// (cheap, does not care about link costs)
+	///  @param[in]		startRef			The reference id of the start polygon.
+	///  @param[in]		endRef				The reference id of the end polygon.
+	dtStatus testClusterPath(dtPolyRef startRef, dtPolyRef endRef) const; 
+
 	/// Returns random location on navmesh within specified cluster.
 	///  @param[in]		frand			Function returning a random number [0..1).
 	///  @param[out]	randomRef		The reference id of the random location.
@@ -636,6 +638,14 @@ public:
 	/// @returns The status flags for the query.
 	dtStatus findRandomPointInCluster(dtClusterRef clusterRef, float (*frand)(),
 									  dtPolyRef* randomRef, float* randomPt) const;
+
+	/// Gets the cluster containing given polygon
+	///  @param[in]		polyRef		The reference id of the polygon.
+	///  @param[out]	clusterRef	The reference id of the cluster
+	/// @returns The status flags for the query.
+	dtStatus getPolyCluster(dtPolyRef polyRef, dtClusterRef& clusterRef) const;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+//@UE4 END
 	
 	/// Finds the closest point on the specified polygon.
 	///  @param[in]		ref			The reference id of the polygon.
@@ -672,12 +682,6 @@ public:
 	///  @param[out]	height		The height at the surface of the polygon.
 	/// @returns The status flags for the query.
 	dtStatus getPolyHeight(dtPolyRef ref, const float* pos, float* height) const;
-
-	/// Gets the cluster containing given polygon
-	///  @param[in]		polyRef		The reference id of the polygon.
-	///  @param[out]	clusterRef	The reference id of the cluster
-	/// @returns The status flags for the query.
-	dtStatus getPolyCluster(dtPolyRef polyRef, dtClusterRef& clusterRef) const;
 
 	/// @}
 	/// @name Miscellaneous Functions

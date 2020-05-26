@@ -9,8 +9,9 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "UObject/ObjectMacros.h"
-#include "Misc/OutputDeviceRedirector.h"
 #include "UObject/PrimaryAssetId.h"
+#include "UObject/LinkerInstancingContext.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Containers/ArrayView.h"
 #include "Templates/Function.h"
 #include "Templates/IsArrayOrRefOfType.h"
@@ -180,11 +181,10 @@ COREUOBJECT_API FString ResolveIniObjectsReference(const FString& ObjectReferenc
  * @param	Create					If true, it will try to load or create the required package if it is not in memory
  * @param	Throw					If true, it will potentially raise an error if the object cannot be found
  * @param	LoadFlags				Flags to use if Create is true and it needs to load a package, from the ELoadFlags enum
- * @param	InLoadContext			Additional context when called during serialization
- *
+ * @param	InstancingContext		The linker instancing context used to resolve package name during instacning (i.e. when a package file is loaded into a package with a different name)
  * @return	True if the name was successfully resolved
  */
-COREUOBJECT_API bool ResolveName(UObject*& Outer, FString& ObjectsReferenceString, bool Create, bool Throw, uint32 LoadFlags = LOAD_None, FUObjectSerializeContext* InLoadContext = nullptr);
+COREUOBJECT_API bool ResolveName(UObject*& Outer, FString& ObjectsReferenceString, bool Create, bool Throw, uint32 LoadFlags = LOAD_None, FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Internal function used to possibly output an error message, taking into account the outer and LoadFlags. Returns true if a log message was emitted. */
 COREUOBJECT_API bool SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHAR* ErrorMessage);
@@ -208,6 +208,24 @@ COREUOBJECT_API int32 UpdateSuffixForNextNewObject(UObject* Parent, const UClass
  * @return	Returns a pointer to the found object or null if none could be found
  */
 COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, FName InName, bool ExactClass = false, bool AnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+
+/**
+ * Fast and safe version of StaticFindObject that relies on the passed in FName being the object name without any group/package qualifiers.
+ * It will not assert on GIsSavingPackage or IsGarbageCollecting(). If called from within package saving code or GC, will return nullptr
+ * This will only find top level packages or subobjects nested directly within a passed in outer.
+ *
+ * @param	Class			The to be found object's class
+ * @param	InOuter			Outer object to look inside, if null this will only look for top level packages
+ * @param	InName			Object name to look for relative to InOuter
+ * @param	ExactClass		Whether to require an exact match with the passed in class
+ * @param	AnyPackage		Whether to look in any package
+ * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
+ * @param ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
+ *
+ * @return	Returns a pointer to the found object or null if none could be found
+ */
+COREUOBJECT_API UObject* StaticFindObjectFastSafe(UClass* Class, UObject* InOuter, FName InName, bool ExactClass = false, bool AnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+
 
 /**
  * Tries to find an object in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
@@ -253,11 +271,11 @@ COREUOBJECT_API bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClas
  * @param LoadFlags		Flags controlling how to handle loading from disk, from the ELoadFlags enum
  * @param Sandbox		A list of packages to restrict the search for the object
  * @param bAllowObjectReconciliation	Whether to allow the object to be found via FindObject in the case of seek free loading
- * @param InSerializeContext	Additional context when called during serialization
+ * @param InstancingContext				InstancingContext used to remap imports when loading a packager under a new name
  *
  * @return The object that was loaded or found. nullptr for a failure.
  */
-COREUOBJECT_API UObject* StaticLoadObject( UClass* Class, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, bool bAllowObjectReconciliation = true, FUObjectSerializeContext* InSerializeContext = nullptr );
+COREUOBJECT_API UObject* StaticLoadObject( UClass* Class, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, bool bAllowObjectReconciliation = true, FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Version of StaticLoadObject() that will load classes */
 COREUOBJECT_API UClass* StaticLoadClass(UClass* BaseClass, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr);
@@ -277,10 +295,11 @@ COREUOBJECT_API UClass* StaticLoadClass(UClass* BaseClass, UObject* InOuter, con
  * @param	bInCopyTransientsFromClassDefaults	If true, copy transient from the class defaults instead of the pass in archetype ptr (often these are the same)
  * @param	InstanceGraph	Contains the mappings of instanced objects and components to their templates
  * @param	bAssumeTemplateIsArchetype	If true, Template is guaranteed to be an archetype
+ * @param	ExternalPackage	Assign an external Package to the created object if non-null
  *
  * @return	A pointer to a fully initialized object of the specified class.
  */
-COREUOBJECT_API UObject* StaticConstructObject_Internal(const UClass* Class, UObject* InOuter = (UObject*)GetTransientPackage(), FName Name = NAME_None, EObjectFlags SetFlags = RF_NoFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, UObject* Template = nullptr, bool bCopyTransientsFromClassDefaults = false, struct FObjectInstancingGraph* InstanceGraph = nullptr, bool bAssumeTemplateIsArchetype = false);
+COREUOBJECT_API UObject* StaticConstructObject_Internal(const UClass* Class, UObject* InOuter = (UObject*)GetTransientPackage(), FName Name = NAME_None, EObjectFlags SetFlags = RF_NoFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, UObject* Template = nullptr, bool bCopyTransientsFromClassDefaults = false, struct FObjectInstancingGraph* InstanceGraph = nullptr, bool bAssumeTemplateIsArchetype = false, UPackage* ExternalPackage = nullptr);
 
 /**
  * Creates a copy of SourceObject using the Outer and Name specified, as well as copies of all objects contained by SourceObject.  
@@ -343,7 +362,7 @@ COREUOBJECT_API void StaticTick( float DeltaTime, bool bUseFullTimeLimit = true,
  *
  * @return	Loaded package if successful, nullptr otherwise
  */
-COREUOBJECT_API UPackage* LoadPackage( UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride = nullptr, FUObjectSerializeContext* InLoadContext = nullptr );
+COREUOBJECT_API UPackage* LoadPackage( UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride = nullptr, FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Async package loading result */
 namespace EAsyncLoadingResult
@@ -652,9 +671,10 @@ bool StaticAllocateObjectErrorTests( const UClass* Class, UObject* InOuter, FNam
  * @param InternalSetFlags	the InternalObjectFlags to assign to the new object. some flags can affect the behavior of constructing the object.
  * @param bCanReuseSubobjects	if set to true, SAO will not attempt to destroy a subobject if it already exists in memory.
  * @param bOutReusedSubobject	flag indicating if the object is a subobject that has already been created (in which case further initialization is not necessary).
+ * @param ExternalPackage	External Package assigned to the allocated object, if any	
  * @return	a pointer to a fully initialized object of the specified class.
  */
-COREUOBJECT_API UObject* StaticAllocateObject(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, bool bCanReuseSubobjects = false, bool* bOutReusedSubobject = nullptr);
+COREUOBJECT_API UObject* StaticAllocateObject(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, bool bCanReuseSubobjects = false, bool* bOutReusedSubobject = nullptr, UPackage* ExternalPackage = nullptr);
 
 /** @deprecated Use raw pointers or TWeakObjectPtr instead */
 class COREUOBJECT_API FSubobjectPtr
@@ -2172,7 +2192,12 @@ struct FAssetMsg
 
 	/** If possible, finds a path to the underlying asset for the provided object and formats it for the UE_ASSET_LOG macro */
 	static COREUOBJECT_API FString FormatPathForAssetLog(const UObject* Object);
+
+	static COREUOBJECT_API FString GetAssetLogString(const TCHAR* Path, const FString& Message);
+	static COREUOBJECT_API FString GetAssetLogString(const UObject* Object, const FString& Message);
 };
+
+#define ASSET_LOG_FORMAT_STRING TEXT("[AssetLog] %s: ")
 
 #if NO_LOGGING
 	#define UE_ASSET_LOG(...)
@@ -2193,7 +2218,7 @@ struct FAssetMsg
 			UE_LOG_EXPAND_IS_FATAL(Verbosity, PREPROCESSOR_NOTHING, if (!CategoryName.IsSuppressed(ELogVerbosity::Verbosity))) \
 			{ \
 				FString FormatPath = FAssetMsg::FormatPathForAssetLog(Asset);\
-				FMsg::Logf_Internal(__FILE__, __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, TEXT("%s: ") Format, *FormatPath, ##__VA_ARGS__); \
+				FMsg::Logf_Internal(__FILE__, __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, ASSET_LOG_FORMAT_STRING Format, *FormatPath, ##__VA_ARGS__); \
 				UE_LOG_EXPAND_IS_FATAL(Verbosity, \
 					{ \
 						_DebugBreakAndPromptForRemote(); \

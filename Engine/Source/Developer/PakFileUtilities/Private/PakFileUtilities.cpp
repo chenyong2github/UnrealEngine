@@ -24,6 +24,7 @@
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Misc/ICompressionFormat.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -1075,6 +1076,10 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 				CmdLineParameters.CompressionFormats.Add(FormatName);
 				break;
 			}
+			else
+			{
+				UE_LOG(LogPakFile, Warning, TEXT("Compression format %s is not recognized"), *Format);
+			}
 		}
 	}
 
@@ -1762,7 +1767,13 @@ void ApplyEncryptionKeys(const FKeyChain& KeyChain)
 	{
 		if (Key.Key.IsValid())
 		{
+			// Deprecated version
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::GetRegisterEncryptionKeyDelegate().ExecuteIfBound(Key.Key, Key.Value.Key);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			// New version
+			FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(Key.Key, Key.Value.Key);
 		}
 	}
 }
@@ -2205,12 +2216,14 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 				CmdLineParameters.FileSystemBlockSize > 0 &&
 				OriginalFileSize != INDEX_NONE &&
 				(CmdLineParameters.bAlignFilesLargerThanBlock || RealFileSize <= CmdLineParameters.FileSystemBlockSize) &&
-				(NewEntryOffset / CmdLineParameters.FileSystemBlockSize) != ((NewEntryOffset + RealFileSize) / CmdLineParameters.FileSystemBlockSize)) // File crosses a block boundary
+				(NewEntryOffset / CmdLineParameters.FileSystemBlockSize) != ((NewEntryOffset + RealFileSize - 1) / CmdLineParameters.FileSystemBlockSize)) // File crosses a block boundary
 			{
 					int64 OldOffset = NewEntryOffset;
 					NewEntryOffset = AlignArbitrary(NewEntryOffset, CmdLineParameters.FileSystemBlockSize);
 					int64 PaddingRequired = NewEntryOffset - OldOffset;
 
+					check(PaddingRequired >= 0);
+					check(PaddingRequired < RealFileSize);
 					if (PaddingRequired > 0)
 					{
 						// If we don't already have a padding buffer, create one
@@ -2285,7 +2298,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			{
 				//if the next file is going to cross a patch-block boundary then pad out the current set of files with 0's
 				//and align the next file up.
-				bool bCrossesBoundary = AlignArbitrary(NewEntryOffset, RequiredPatchPadding) != AlignArbitrary(NewEntryOffset + TotalSizeToWrite - 1, RequiredPatchPadding);
+				bool bCrossesBoundary = (NewEntryOffset / RequiredPatchPadding) != ((NewEntryOffset + TotalSizeToWrite - 1) / RequiredPatchPadding);
 				bool bPatchPadded = false;
 				if (!bIsUAssetUExpPairUExp) // never patch-pad the uexp of a uasset/uexp pair
 				{
@@ -2293,7 +2306,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 					if (bIsUAssetUExpPairUAsset)
 					{
 						int64 UExpFileSize = IFileManager::Get().FileSize(*FilesToAdd[FileIndex + 1].Source) / 2; // assume 50% compression
-						bPairProbablyCrossesBoundary = AlignArbitrary(NewEntryOffset, RequiredPatchPadding) != AlignArbitrary(NewEntryOffset + TotalSizeToWrite + UExpFileSize - 1, RequiredPatchPadding);
+						bPairProbablyCrossesBoundary = (NewEntryOffset / RequiredPatchPadding) != ((NewEntryOffset + TotalSizeToWrite + UExpFileSize - 1) / RequiredPatchPadding);
 					}
 					if (TotalSizeToWrite >= RequiredPatchPadding || // if it exactly the padding size and by luck does not cross a boundary, we still consider it "over" because it can't be packed with anything else
 						bCrossesBoundary || bPairProbablyCrossesBoundary)
@@ -4717,6 +4730,29 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		}
 	}
 
+	FString ProjectArg;
+	if (FParse::Value(CmdLine, TEXT("-Project="), ProjectArg))
+	{
+		if (!IFileManager::Get().FileExists(*ProjectArg))
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Project file does not exist: %s"), *ProjectArg);
+		}
+
+		UE_LOG(LogPakFile, Error, TEXT("Project should be specified as a first unnamed argument. E.g. 'UnrealPak %s -arg1 -arg2"), *ProjectArg);
+		return false;
+	}
+
+	if (FParse::Param(CmdLine, TEXT("listformats")))
+	{
+		TArray<ICompressionFormat*> Formats = IModularFeatures::Get().GetModularFeatureImplementations<ICompressionFormat>(COMPRESSION_FORMAT_FEATURE_NAME);
+		UE_LOG(LogPakFile, Display, TEXT("Supported Pak Formats:"));
+		for (auto& Format : Formats)
+		{
+			UE_LOG(LogPakFile, Display, TEXT("\t%s %d"), *Format->GetCompressionFormatName().ToString(), Format->GetVersion());
+		}
+		return true;
+	}
+	
 	FString BatchFileName;
 	if (FParse::Value(CmdLine, TEXT("-Batch="), BatchFileName))
 	{
@@ -5126,6 +5162,10 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 			{
 				LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, PatchKeyChain);
 				ApplyEncryptionKeys(PatchKeyChain);
+			}
+			else
+			{
+				PatchKeyChain = KeyChain;
 			}
 
 			UE_LOG(LogPakFile, Display, TEXT("Generating patch from %s."), *CmdLineParameters.SourcePatchPakFilename, true );

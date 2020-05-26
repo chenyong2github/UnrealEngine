@@ -183,7 +183,7 @@ static FName GetWaveFormatForRunningPlatform(USoundWave& SoundWave)
 
 static const FPlatformAudioCookOverrides* GetCookOverridesForRunningPlatform()
 {
-	return FPlatformCompressionUtilities::GetCookOverrides(ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+	return FPlatformCompressionUtilities::GetCookOverrides(nullptr);
 }
 
 /**
@@ -318,10 +318,10 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				TArray<TArray<uint8>> ChunkBuffers;
 
 				// Set the ideal chunk size to be 256k to optimize for data reads on console.
-				int32 MaxChunkSize = 256 * 1024;
+				int32 MaxChunkSizeForCurrentWave = 256 * 1024;
 				
 				// By default, the first chunk's max size is the same as the other chunks.
-				int32 FirstChunkSize = MaxChunkSize;
+				int32 FirstChunkSize = MaxChunkSizeForCurrentWave;
 
 				const int32 MinimumChunkSize = AudioFormat->GetMinimumSizeForInitialChunk(AudioFormatName, CompressedBuffer);
 				const bool bUseStreamCaching = CompressionOverrides && CompressionOverrides->bUseStreamCaching;
@@ -343,7 +343,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 						int32 LegacyZerothChunkSize = CompressionOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB * 1024;
 						if (LegacyZerothChunkSize == 0)
 						{
-							LegacyZerothChunkSize = MaxChunkSize;
+							LegacyZerothChunkSize = MaxChunkSizeForCurrentWave;
 						}
 
 						FirstChunkSize = LegacyZerothChunkSize;
@@ -355,16 +355,24 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 					}
 				}
 
-				if (bUseStreamCaching)
+				if (bUseStreamCaching && !bForceLegacyStreamChunking)
 				{
 					// Use the chunk size for this duration:
-					MaxChunkSize = FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(CompressionOverrides);
-					UE_LOG(LogAudio, Display, TEXT("Chunk size for %s: %d"), *SoundWave.GetFullName(), MaxChunkSize);
+					MaxChunkSizeForCurrentWave = FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(CompressionOverrides);
+
+					// observe the override chunk size now that we have set the FirstChunkSize
+					const int32 MaxChunkSizeOverrideBytes = CompressionOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB * 1024;
+					if (MaxChunkSizeOverrideBytes > 0)
+					{
+						MaxChunkSizeForCurrentWave = FMath::Min(MaxChunkSizeOverrideBytes, MaxChunkSizeForCurrentWave);
+					}
+
+					UE_LOG(LogAudio, Display, TEXT("Chunk size for %s: %d"), *SoundWave.GetFullName(), MaxChunkSizeForCurrentWave);
 				}
 				
-				check(FirstChunkSize != 0 && MaxChunkSize != 0);
+				check(FirstChunkSize != 0 && MaxChunkSizeForCurrentWave != 0);
 
-				if (AudioFormat->SplitDataForStreaming(CompressedBuffer, ChunkBuffers, FirstChunkSize, MaxChunkSize))
+				if (AudioFormat->SplitDataForStreaming(CompressedBuffer, ChunkBuffers, FirstChunkSize, MaxChunkSizeForCurrentWave))
 				{
 					if (ChunkBuffers.Num() > 32)
 					{
@@ -401,8 +409,15 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 					{
 						// Zero pad the reallocation if the chunk isn't precisely the max chunk size to keep the reads aligned to MaxChunkSize
 						const int32 AudioDataSize = ChunkBuffers[ChunkIndex].Num();
-						check(AudioDataSize != 0 && AudioDataSize <= MaxChunkSize);
-						const int32 ZeroPadBytes = FMath::Max(MaxChunkSize - AudioDataSize, 0);
+						check(AudioDataSize != 0 && AudioDataSize <= MaxChunkSizeForCurrentWave);
+
+						int32 ZeroPadBytes = 0;
+
+						if (!bUseStreamCaching || bForceLegacyStreamChunking)
+						{
+							// padding when stream caching is enabled will significantly bloat the amount of space soundwaves take up on disk.
+							ZeroPadBytes = FMath::Max(MaxChunkSizeForCurrentWave - AudioDataSize, 0);
+						}
 
 						FStreamedAudioChunk* NewChunk = new FStreamedAudioChunk();
 						DerivedData->Chunks.Add(NewChunk);
@@ -422,7 +437,13 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 
 						void* NewChunkData = NewChunk->BulkData.Realloc(NewChunk->DataSize);
 						FMemory::Memcpy(NewChunkData, ChunkBuffers[ChunkIndex].GetData(), AudioDataSize);
-						FMemory::Memzero((uint8*)NewChunkData + AudioDataSize, ZeroPadBytes);
+
+						// if we are padding,
+						if (ZeroPadBytes > 0)
+						{
+							// zero out the end of ChunkData (after the audio data ends).
+							FMemory::Memzero((uint8*)NewChunkData + AudioDataSize, ZeroPadBytes);
+						}
 
 						NewChunk->BulkData.Unlock();
 					}
@@ -1661,7 +1682,7 @@ void USoundWave::FinishCachePlatformData()
 		const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 		GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
-		check(RunningPlatformData->DerivedDataKey == DerivedDataKey);
+		UE_CLOG(RunningPlatformData->DerivedDataKey != DerivedDataKey, LogAudio, Warning, TEXT("Audio was cooked with the DDC key %s but should've had the DDC key %s. the cook overrides/codec used may be incorrect."), *RunningPlatformData->DerivedDataKey, *DerivedDataKey);
 	}
 #endif
 }

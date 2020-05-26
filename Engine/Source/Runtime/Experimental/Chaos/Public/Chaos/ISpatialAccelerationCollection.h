@@ -12,6 +12,7 @@ namespace Chaos
 	class FAsyncCollisionReceiver;
 	class FNarrowPhase;
 	class FSpatialAccelerationBroadPhase;
+	class IResimCacheBase;
 
 template <typename TPayloadType, typename T, int d>
 class CHAOS_API ISpatialAccelerationCollection : public ISpatialAcceleration<TPayloadType, T, d>
@@ -28,7 +29,7 @@ public:
 	virtual ISpatialAcceleration<TPayloadType, T, d>* GetSubstructure(FSpatialAccelerationIdx Idx) = 0;
 
 	/** This is kind of a hack to avoid virtuals. We simply route calls into templated functions */
-	virtual void PBDComputeConstraintsLowLevel(T Dt, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData) const = 0;
+	virtual void PBDComputeConstraintsLowLevel(T Dt, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData, IResimCacheBase* ResimCache) const = 0;
 	virtual void CallMoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle) const = 0;
 	virtual TArray<FSpatialAccelerationIdx> GetAllSpatialIndices() const = 0;
 

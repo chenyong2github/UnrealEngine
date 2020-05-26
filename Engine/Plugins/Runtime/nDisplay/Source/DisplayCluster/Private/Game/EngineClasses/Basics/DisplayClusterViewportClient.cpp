@@ -36,7 +36,7 @@
 #include "Render\Device\IDisplayClusterRenderDevice.h"
 
 #include "DisplayClusterEnums.h"
-#include "DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterGlobals.h"
 
 
 UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper) : Super(Helper)

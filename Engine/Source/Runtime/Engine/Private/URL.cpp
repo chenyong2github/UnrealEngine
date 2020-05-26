@@ -226,6 +226,17 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 		} while( s );
 	}
 
+	// Don't allow double backslashes. Due to escaping, and parsing issues that may allow escaping, no backslashes must be allowed.
+	if (Valid == 1)
+	{
+		TCHAR* BackSlash = FCString::Strchr(URL, '\\');
+
+		if (BackSlash != nullptr)
+		{
+			Valid = 0;
+		}
+	}
+
 	if (Valid == 1)
 	{
 		// Handle pure filenames & Posix paths.
@@ -551,7 +562,7 @@ void FURL::AddOption( const TCHAR* Str )
 
 void FURL::RemoveOption( const TCHAR* Key, const TCHAR* Section, const FString& Filename )
 {
-	if ( !Key )
+	if ( !Key || *Key == '\0')
 		return;
 
 	for ( int32 i = Op.Num() - 1; i >= 0; i-- )

@@ -362,6 +362,11 @@ void FAudioThumbnail::GenerateWaveformPreview(TArray<uint8>& OutData, TRange<flo
 		float NextLookupFractionLooping = FMath::Fmod(NextLookupFraction, 1.f);
 		int32 NextLookupIndex = FMath::TruncToInt(NextLookupFractionLooping * LookupSize);
 		
+		if (!AudioSection->GetLooping() && LookupFraction > 1.f)
+		{
+			break;
+		}
+
 		SampleAudio(SoundWave->NumChannels, LookupData, LookupIndex, NextLookupIndex, LookupSize, MaxAmplitude);
 	}
 
@@ -614,6 +619,7 @@ FAudioSection::FAudioSection( UMovieSceneSection& InSection, TWeakPtr<ISequencer
 	: Section( InSection )
 	, StoredDrawRange(TRange<float>::Empty())
 	, StoredSectionHeight(0.f)
+	, bStoredLooping(true)
 	, Sequencer(InSequencer)
 	, InitialStartOffsetDuringResize(0)
 	, InitialStartTimeDuringResize(0)
@@ -709,6 +715,11 @@ int32 FAudioSection::OnPaintSection( FSequencerSectionPainter& Painter ) const
 			);
 
 			OffsetTime += AudioDuration;
+
+			if (!AudioSection->GetLooping())
+			{
+				break;
+			}
 		}
 	}
 
@@ -752,7 +763,8 @@ void FAudioSection::Tick( const FGeometry& AllottedGeometry, const FGeometry& Pa
 			XOffset != StoredXOffset || XSize != StoredXSize || Track->GetColorTint() != StoredColor ||
 			StoredSoundWave != SoundWave ||
 			StoredSectionHeight != GetSectionHeight() ||
-			StoredStartOffset != AudioSection->GetStartOffset())
+			StoredStartOffset != AudioSection->GetStartOffset() ||
+			bStoredLooping != AudioSection->GetLooping())
 		{
 			float DisplayScale = XSize / DrawRange.Size<float>();
 
@@ -834,6 +846,7 @@ void FAudioSection::RegenerateWaveforms(TRange<float> DrawRange, int32 XOffset, 
 	StoredColor = ColorTint;
 	StoredStartOffset = AudioSection->GetStartOffset();
 	StoredSectionHeight = GetSectionHeight();
+	bStoredLooping = AudioSection->GetLooping();
 
 	if (DrawRange.IsDegenerate() || DrawRange.IsEmpty() || AudioSection->GetSound() == NULL)
 	{

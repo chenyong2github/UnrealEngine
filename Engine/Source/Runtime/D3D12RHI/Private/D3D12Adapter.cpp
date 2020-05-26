@@ -93,10 +93,10 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 
 						UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
 					}
-
-					// when we get here, then it means that BreakOnSeverity was set for this error message, so request the debug break here as well
-					UE_DEBUG_BREAK();
 				}
+
+				// when we get here, then it means that BreakOnSeverity was set for this error message, so request the debug break here as well
+				UE_DEBUG_BREAK();
 
 				if (AllocateSize > 0)
 				{

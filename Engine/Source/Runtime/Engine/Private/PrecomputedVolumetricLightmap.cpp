@@ -147,7 +147,7 @@ private:
 	int32 PaddedBrickSize;
 };
 
-TGlobalResource<FVolumetricLightmapBrickAtlas> GVolumetricLightmapBrickAtlas = TGlobalResource<FVolumetricLightmapBrickAtlas>();
+ENGINE_API TGlobalResource<FVolumetricLightmapBrickAtlas> GVolumetricLightmapBrickAtlas;
 
 inline void ConvertBGRA8ToRGBA8ForLayer(FVolumetricLightmapDataLayer& Layer)
 {
@@ -646,15 +646,6 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 			}
 		}
 	}
-
-	SceneData->BrickDataDimensions = GVolumetricLightmapBrickAtlas.TextureSet.BrickDataDimensions;
-	SceneData->BrickData.AmbientVector = GVolumetricLightmapBrickAtlas.TextureSet.AmbientVector;
-	for (int32 i = 0; i < UE_ARRAY_COUNT(SceneData->BrickData.SHCoefficients); i++)
-	{
-		SceneData->BrickData.SHCoefficients[i] = GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[i];
-	}
-	SceneData->BrickData.SkyBentNormal = GVolumetricLightmapBrickAtlas.TextureSet.SkyBentNormal;
-	SceneData->BrickData.DirectionalLightShadowing = GVolumetricLightmapBrickAtlas.TextureSet.DirectionalLightShadowing;
 }
 
 ENGINE_API void FPrecomputedVolumetricLightmapData::RemoveFromSceneData(FPrecomputedVolumetricLightmapData* SceneData, int32 PersistentLevelBrickDataBaseOffset)
@@ -737,15 +728,6 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::RemoveFromSceneData(FPrecomp
 			}
 		}
 	}
-
-	SceneData->BrickDataDimensions = GVolumetricLightmapBrickAtlas.TextureSet.BrickDataDimensions;
-	SceneData->BrickData.AmbientVector = GVolumetricLightmapBrickAtlas.TextureSet.AmbientVector;
-	for (int32 i = 0; i < UE_ARRAY_COUNT(SceneData->BrickData.SHCoefficients); i++)
-	{
-		SceneData->BrickData.SHCoefficients[i] = GVolumetricLightmapBrickAtlas.TextureSet.SHCoefficients[i];
-	}
-	SceneData->BrickData.SkyBentNormal = GVolumetricLightmapBrickAtlas.TextureSet.SkyBentNormal;
-	SceneData->BrickData.DirectionalLightShadowing = GVolumetricLightmapBrickAtlas.TextureSet.DirectionalLightShadowing;
 }
 
 SIZE_T FPrecomputedVolumetricLightmapData::GetAllocatedBytes() const

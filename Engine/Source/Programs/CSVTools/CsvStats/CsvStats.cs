@@ -10,10 +10,11 @@ using System.Drawing;
 using System.IO;
 using System.Globalization;
 using System.Diagnostics;
+using System.Collections;
 
 namespace CSVStats
 {
-    public class CsvEvent
+	public class CsvEvent
     {
 		public CsvEvent(CsvEvent source)
 		{
@@ -128,7 +129,30 @@ namespace CSVStats
             }
         }
 
-        public void CombineAndValidate(CsvMetadata comparisonMetadata)
+		public void WriteToBinaryFile(BinaryWriter fileWriter)
+		{
+			// Write metadata
+			fileWriter.Write(Values.Count);
+			foreach (string key in Values.Keys)
+			{
+				fileWriter.Write(key);
+				fileWriter.Write(Values[key]);
+			}
+		}
+		public void ReadFromBinaryFile(BinaryReader fileReader)
+		{
+			// Write metadata
+			int numValues=fileReader.ReadInt32();
+			for (int i=0;i<numValues;i++)
+			{
+				string key = fileReader.ReadString();
+				string value = fileReader.ReadString();
+				Values[key] = value;
+			}
+		}
+
+
+		public void CombineAndValidate(CsvMetadata comparisonMetadata)
         {
             List<string> valuesDontMatchKeys = new List<string>();
             foreach (KeyValuePair<string, string> pair in Values)
@@ -305,27 +329,26 @@ namespace CSVStats
             {
                 maxSample = samples.Count;
             }
-            float average = 0.0f;
+			double localTotal = 0.0;
             for (int i = minSample; i < maxSample; i++)
             {
-                average += samples[i];
+				localTotal += (double)samples[i];
             }
-            average /= (float)(maxSample-minSample);
-            return average;
-        }
+			return (float)(total / (double)(maxSample - minSample));
+		}
 
-        public void ComputeAverageAndTotal(int minSample = 0, int maxSample = -1)
+		public void ComputeAverageAndTotal(int minSample = 0, int maxSample = -1)
         {
             if (maxSample == -1)
             {
                 maxSample = samples.Count;
             }
-            total = 0.0f;
+            total = 0.0;
             for (int i = minSample; i < maxSample; i++)
             {
-                total += samples[i];
+                total += (double)samples[i];
             }
-            average = total / (float)(maxSample - minSample);
+            average = (float)(total / (double)(maxSample - minSample));
         }
 
         public float ComputeMaxValue(int minSample = 0, int maxSample = -1)
@@ -360,19 +383,20 @@ namespace CSVStats
         public string LegendName;
         public List<float> samples;
         public float average;
-        public float total;
+        public double total;
         public Colour colour;
     };
 
 
-    public class CsvStats
-    {
-        public CsvStats()
-        {
-            Stats = new Dictionary<string, StatSamples>();
-            Events = new List<CsvEvent>();
-        }
-		public CsvStats(CsvStats sourceCsvStats, string [] statNamesToFilter=null)
+	public class CsvStats
+	{
+		private static int CsvBinVersion = 2;
+		public CsvStats()
+		{
+			Stats = new Dictionary<string, StatSamples>();
+			Events = new List<CsvEvent>();
+		}
+		public CsvStats(CsvStats sourceCsvStats, string[] statNamesToFilter = null)
 		{
 			Stats = new Dictionary<string, StatSamples>();
 			Events = new List<CsvEvent>();
@@ -386,7 +410,7 @@ namespace CSVStats
 						string key = sourceStat.Name.ToLower();
 						if (!Stats.ContainsKey(key))
 						{
-							Stats.Add(key,new StatSamples(sourceStat));
+							Stats.Add(key, new StatSamples(sourceStat));
 						}
 					}
 				}
@@ -408,142 +432,360 @@ namespace CSVStats
 			}
 		}
 		public StatSamples GetStat(string name)
-        {
-            name = name.ToLower();
-            if (Stats.ContainsKey(name))
-            {
-                return Stats[name];
-            }
-            return null;
-        }
+		{
+			name = name.ToLower();
+			if (Stats.ContainsKey(name))
+			{
+				return Stats[name];
+			}
+			return null;
+		}
 		public void AddStat(StatSamples stat)
-        {           
-            Stats.Add(stat.Name.ToLower(), stat);
-        }
+		{
+			Stats.Add(stat.Name.ToLower(), stat);
+		}
 
-        public void CropStats(int minFrame, int maxFrame = Int32.MaxValue)
-        {
-            if (maxFrame <= minFrame)
-            {
-                return;
-            }
-            if (minFrame == 0 && maxFrame >= SampleCount)
-            {
-                return;
-            }
+		public void CropStats(int minFrame, int maxFrame = Int32.MaxValue)
+		{
+			if (maxFrame <= minFrame)
+			{
+				return;
+			}
+			if (minFrame == 0 && maxFrame >= SampleCount)
+			{
+				return;
+			}
 
-            // Remove stats outside the range
-            foreach (StatSamples stat in Stats.Values.ToArray())
-            {
-                int start = Math.Max(minFrame, 0);
-                int end = Math.Max(Math.Min(maxFrame, stat.samples.Count), 0);
-                if (maxFrame == Int32.MaxValue)
-                {
-                    end = stat.samples.Count;
-                }
-                int count = end - start;
-                List<float> NewSamples = new List<float>(count);
-                for (int i = 0; i < count; i++)
-                {
-                    NewSamples.Add(stat.samples[i + start]);
-                }
-                stat.samples = NewSamples;
-            }
+			// Remove stats outside the range
+			foreach (StatSamples stat in Stats.Values.ToArray())
+			{
+				int start = Math.Max(minFrame, 0);
+				int end = Math.Max(Math.Min(maxFrame, stat.samples.Count), 0);
+				if (maxFrame == Int32.MaxValue)
+				{
+					end = stat.samples.Count;
+				}
+				int count = end - start;
+				List<float> NewSamples = new List<float>(count);
+				for (int i = 0; i < count; i++)
+				{
+					NewSamples.Add(stat.samples[i + start]);
+				}
+				stat.samples = NewSamples;
+			}
 
-            // Filter the filtered events
-            List<CsvEvent> newEvents = new List<CsvEvent>();
-            foreach (CsvEvent ev in Events)
-            {
-                if (ev.Frame >= minFrame && ev.Frame <= maxFrame)
-                {
-                    ev.Frame -= minFrame; // Offset the frame based on the new start frame
-                    newEvents.Add(ev);
-                }
-            }
+			// Filter the filtered events
+			List<CsvEvent> newEvents = new List<CsvEvent>();
+			foreach (CsvEvent ev in Events)
+			{
+				if (ev.Frame >= minFrame && ev.Frame <= maxFrame)
+				{
+					ev.Frame -= minFrame; // Offset the frame based on the new start frame
+					newEvents.Add(ev);
+				}
+			}
 
-            ComputeAveragesAndTotal();
+			ComputeAveragesAndTotal();
 
-            Events = newEvents;
-        }
+			Events = newEvents;
+		}
 
-        static string[] ReadLinesFromFile(string filename)
-        {
-            StreamReader reader = new StreamReader(filename, true);
-            List<string> lines = new List<string>();
+		static string[] ReadLinesFromFile(string filename)
+		{
+			StreamReader reader = new StreamReader(filename, true);
+			List<string> lines = new List<string>();
 
-            // Detect unicode
-            string line = reader.ReadLine();
+			// Detect unicode
+			string line = reader.ReadLine();
 
-            bool bIsUnicode = false;
-            for (int i = 0; i < line.Length - 1; i++)
-            {
-                if (line[i] == '\0')
-                {
-                    bIsUnicode = true;
-                    break;
-                }
-            }
-            if (bIsUnicode)
-            {
-                reader = new StreamReader(filename, Encoding.Unicode, true);
-            }
-            else
-            {
-                lines.Add(line);
-            }
+			bool bIsUnicode = false;
+			for (int i = 0; i < line.Length - 1; i++)
+			{
+				if (line[i] == '\0')
+				{
+					bIsUnicode = true;
+					break;
+				}
+			}
+			if (bIsUnicode)
+			{
+				reader = new StreamReader(filename, Encoding.Unicode, true);
+			}
+			else
+			{
+				lines.Add(line);
+			}
 
-            while ((line = reader.ReadLine()) != null)
-            {
-                // Strip off empty lines
-                if (line.Trim().Length > 0)
-                {
-                    lines.Add(line);
-                }
-            }
+			while ((line = reader.ReadLine()) != null)
+			{
+				// Strip off empty lines
+				if (line.Trim().Length > 0)
+				{
+					lines.Add(line);
+				}
+			}
 
-            return lines.ToArray();
-        }
+			return lines.ToArray();
+		}
 
-        public static bool DoesSearchStringMatch(string str, string searchString)
-        {
-            searchString = searchString.Trim().ToLower();
-            if (searchString.EndsWith("*"))
-            {
-                searchString = searchString.Substring(0, searchString.Length - 1);
-                return str.ToLower().StartsWith(searchString);
-            }
-            else
-            {
-                return searchString == str.ToLower();
-            }
-        }
+		public static bool DoesSearchStringMatch(string str, string searchString)
+		{
+			searchString = searchString.Trim().ToLower();
+			if (searchString.EndsWith("*"))
+			{
+				searchString = searchString.Substring(0, searchString.Length - 1);
+				return str.ToLower().StartsWith(searchString);
+			}
+			else
+			{
+				return searchString == str.ToLower();
+			}
+		}
 
 
-        public List<StatSamples> GetStatsMatchingString(string statString)
-        {
-            bool isWild = false;
-            statString = statString.Trim().ToLower();
-            if (statString.EndsWith("*"))
-            {
-                isWild = true;
-                statString = statString.TrimEnd('*');
-            }
-            List<StatSamples> statList = new List<StatSamples>();
-            foreach (StatSamples stat in Stats.Values)
-            {
-                if (isWild && stat.Name.ToLower().StartsWith(statString) )
-                {
-                    statList.Add(stat);
-                }
-                else if ( stat.Name.ToLower() == statString.ToLower() )
-                {
-                    statList.Add(stat);
-                }
-            }
-            return statList;
-        }
+		public Dictionary<string, bool> GetStatNamesMatchingStringList_Dict(string[] statNames)
+		{
+			Dictionary<string, bool> uniqueStatsDict = new Dictionary<string, bool>();
+			foreach (string statStr in statNames)
+			{
+				List<StatSamples> statsMatching = GetStatsMatchingString(statStr);
+				foreach (StatSamples stat in statsMatching)
+				{
+					if (!uniqueStatsDict.ContainsKey(stat.Name))
+					{
+						uniqueStatsDict.Add(stat.Name, true);
+					}
+				}
+			}
+			return uniqueStatsDict;
+		}
 
-        public void WriteToCSV(string filename)
+		public List<string> GetStatNamesMatchingStringList(string[] statNames)
+		{
+			return GetStatNamesMatchingStringList_Dict(statNames).Keys.ToList();
+		}
+
+		public List<StatSamples> GetStatsMatchingString(string statString)
+		{
+			bool isWild = false;
+			statString = statString.Trim().ToLower();
+			if (statString.EndsWith("*"))
+			{
+				isWild = true;
+				statString = statString.TrimEnd('*');
+			}
+			List<StatSamples> statList = new List<StatSamples>();
+			foreach (StatSamples stat in Stats.Values)
+			{
+				if (isWild && stat.Name.ToLower().StartsWith(statString))
+				{
+					statList.Add(stat);
+				}
+				else if (stat.Name.ToLower() == statString.ToLower())
+				{
+					statList.Add(stat);
+				}
+			}
+			return statList;
+		}
+
+		public void WriteBinFile(string filename)
+		{
+			System.IO.FileStream fileStream = new FileStream(filename, FileMode.Create);
+			System.IO.BinaryWriter fileWriter = new System.IO.BinaryWriter(fileStream);
+
+			// Write the header
+			fileWriter.Write("CSVBIN");
+			fileWriter.Write(CsvBinVersion);
+			bool hasMetadata = (metaData != null);
+			fileWriter.Write(hasMetadata);
+			if (hasMetadata)
+			{
+				metaData.WriteToBinaryFile(fileWriter);
+			}
+			fileWriter.Write(Events.Count);
+			fileWriter.Write(SampleCount);
+			fileWriter.Write(Stats.Count);
+			foreach (StatSamples stat in Stats.Values)
+			{
+				fileWriter.Write(stat.Name);
+			}
+
+			// Write the stats
+			foreach (StatSamples stat in Stats.Values)
+			{
+				fileWriter.Write(stat.Name);
+				if (stat.samples.Count != SampleCount)
+				{
+					throw new Exception("Sample count doesn't match!");
+				}
+				fileWriter.Write(stat.average);
+				fileWriter.Write(stat.total);
+				List<float> uniqueValues = new List<float>();
+				FileEfficientBitArray statUniqueMask = new FileEfficientBitArray(SampleCount); 
+				float oldVal = float.NegativeInfinity;
+				for (int i = 0; i < stat.samples.Count; i++)
+				{
+					float val = stat.samples[i];
+					if (val != oldVal || i==0)
+					{
+						uniqueValues.Add(val);
+						statUniqueMask.Set(i);
+					}
+					oldVal = val;
+				}
+				int statDataSizeBytes = statUniqueMask.GetSizeBytes() + uniqueValues.Count * sizeof(float) + sizeof(int);
+				fileWriter.Write(statDataSizeBytes);
+				
+				long statStartOffset = fileWriter.BaseStream.Position;
+				statUniqueMask.WriteToFile(fileWriter);
+				fileWriter.Write(uniqueValues.Count);
+				foreach (float val in uniqueValues)
+				{
+					fileWriter.Write(val);
+				}
+
+				// Check the stat data size matches what we wrote
+				int measuredStatDataSize = (int)(fileWriter.BaseStream.Position-statStartOffset);
+				if (statDataSizeBytes != measuredStatDataSize)
+				{
+					throw new Exception("Stat data size is wrong!");
+				}
+
+			}
+			// Write the events
+			foreach (CsvEvent ev in Events)
+			{
+				fileWriter.Write(ev.Frame);
+				fileWriter.Write(ev.Name);
+			}
+			fileWriter.Close();
+		}
+
+		public static CsvStats ReadBinFile(string filename, string[] statNamesToRead=null, int numRowsToSkip=0, bool justHeader=false)
+		{
+			System.IO.FileStream fileStream = new FileStream(filename, FileMode.Open);
+			System.IO.BinaryReader fileReader = new System.IO.BinaryReader(fileStream);
+
+			// Read the header
+			if ( fileReader.ReadString() != "CSVBIN" )
+			{
+				throw new Exception("Failed to read "+filename+". Bad format");
+			}
+			int version=fileReader.ReadInt32();
+			if (version != CsvBinVersion)
+			{
+				throw new Exception("Failed to read "+filename+". Version mismatch. Version is "+version.ToString()+". Expected: "+CsvBinVersion.ToString());
+			}
+			CsvStats csvStatsOut = new CsvStats();
+			bool hasMetadata = fileReader.ReadBoolean();
+			if (hasMetadata)
+			{
+				csvStatsOut.metaData = new CsvMetadata();
+				csvStatsOut.metaData.ReadFromBinaryFile(fileReader);
+			}
+			int eventCount = fileReader.ReadInt32();
+			int sampleCount = fileReader.ReadInt32();
+			int statCount = fileReader.ReadInt32();
+
+			List<string> statNames = new List<string>();
+			for (int s = 0; s < statCount; s++)
+			{
+				string statName = fileReader.ReadString();
+				StatSamples stat = new StatSamples(statName);
+				csvStatsOut.AddStat(stat);
+				statNames.Add(statName);
+			}
+
+			// Get the list of all stats
+			Dictionary<string, bool> statNamesToReadDict = null;
+			if (statNamesToRead != null)
+			{
+				statNamesToReadDict = csvStatsOut.GetStatNamesMatchingStringList_Dict(statNamesToRead);
+			}
+
+			if (justHeader)
+			{
+				fileReader.Close();
+				return csvStatsOut;
+			}
+
+			// Read the stats
+			foreach (string headerStatName in statNames)
+			{
+				string statName = fileReader.ReadString();
+				if (statName != headerStatName)
+				{
+					throw new Exception("Failed to read " + filename + ". Stat name doesn't match header!");
+				}
+				float statAverage = fileReader.ReadSingle();
+				double statTotal = fileReader.ReadDouble();
+				int statSizeBytes = fileReader.ReadInt32();
+				bool readThisStat = statNamesToReadDict==null || statNamesToReadDict.ContainsKey(statName);
+				if (readThisStat==false)
+				{
+					// If we're skipping this stat then just read the bytes and remove it from the stat list
+					byte[] bytes = fileReader.ReadBytes(statSizeBytes);
+					if (!csvStatsOut.Stats.Remove(statName.ToLowerInvariant()) )
+					{
+						throw new Exception("Unexpected error. Stat " + statName + " wasn't found!");
+					}
+					continue;
+				}
+				StatSamples statOut = csvStatsOut.GetStat(statName);
+
+				statOut.total = statTotal;
+				statOut.average = statAverage;
+
+				// Read the mask
+				FileEfficientBitArray statUniqueMask = new FileEfficientBitArray();
+				statUniqueMask.ReadFromFile(fileReader);
+
+				int uniqueValueCount = fileReader.ReadInt32();
+				float[] uniqueValues = new float[uniqueValueCount];
+				byte[] uniqueValuesBuffer=fileReader.ReadBytes(uniqueValueCount * 4);
+				Buffer.BlockCopy(uniqueValuesBuffer, 0, uniqueValues, 0, uniqueValuesBuffer.Length);
+
+				// Decode the samples from the mask and unique list
+				if (statUniqueMask.Count != sampleCount)
+				{
+					throw new Exception("Failed to read " + filename + ". Stat sample count doesn't match header!");
+				}
+				float currentVal = 0;
+				int uniqueListIndex = 0;
+				statOut.samples.Capacity = statUniqueMask.Count;
+				//statOut.samples.AddRange(Enumerable.Repeat(0.0f, statUniqueMask.Count));
+				for (int i=0; i<statUniqueMask.Count; i++)
+				{
+					if (statUniqueMask.Get(i))
+					{
+						currentVal = uniqueValues[uniqueListIndex];
+						uniqueListIndex++;
+					}
+					statOut.samples.Add(currentVal);
+					//statOut.samples[i]=currentVal;
+				}
+				if (numRowsToSkip > 0)
+				{
+					statOut.samples.RemoveRange(0, numRowsToSkip);
+				}
+			}
+			// Read the events
+			for (int i = 0; i < eventCount; i++)
+			{
+				int frame = fileReader.ReadInt32();
+				string name = fileReader.ReadString();
+				if (frame >= numRowsToSkip)
+				{
+					CsvEvent ev = new CsvEvent(name, frame);
+					csvStatsOut.Events.Add(ev);
+				}
+			}
+			fileReader.Close();
+			return csvStatsOut;
+		}
+
+		public void WriteToCSV(string filename)
         {
             System.IO.StreamWriter csvOutFile;
             csvOutFile = new System.IO.StreamWriter(filename);
@@ -1045,11 +1287,19 @@ namespace CSVStats
 
 		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0)
         {
-            string [] lines = ReadLinesFromFile(csvFilename);
-            return ReadCSVFromLines(lines, statNames, numRowsToSkip);
+			if (csvFilename.EndsWith(".csv.bin"))
+			{
+				return ReadBinFile(csvFilename, statNames, numRowsToSkip);
+			}
+			else
+			{
+				string[] lines = ReadLinesFromFile(csvFilename);
+				return ReadCSVFromLines(lines, statNames, numRowsToSkip);
+			}
         }
 
-        static bool LineIsMetadata(string line)
+
+		static bool LineIsMetadata(string line)
         {
             if (line.Trim().StartsWith("["))
             {
@@ -1383,4 +1633,68 @@ namespace CSVStats
         public byte r, g, b;
         public float alpha;
     };
+
+	// BitArray doesn't allow us to access actual words, which is horribly slow when you need to read/write one bit at a time
+	class FileEfficientBitArray
+	{
+		public FileEfficientBitArray()
+		{
+			bitCount = 0;
+		}
+		public FileEfficientBitArray(int inBitCount)
+		{
+			bitCount = inBitCount;
+			int wordCount = ((bitCount + 31) / 32);
+			words = new uint[wordCount];
+		}
+
+		public bool Get(int bitIndex)
+		{
+			int wordIndex = bitIndex >> 5;
+			int b = bitIndex & 0x0000001F;
+			return (words[wordIndex] & (1 << b)) != 0;
+		}
+		public void Set(int bitIndex)
+		{
+			int wordIndex = bitIndex >> 5;
+			int b = bitIndex & 0x0000001F;
+			words[wordIndex] |= (uint)(1 << b);
+		}
+
+		public void WriteToFile(BinaryWriter fileWriter)
+		{
+			fileWriter.Write(bitCount);
+			foreach(uint word in words)
+			{
+				fileWriter.Write(word);
+			}
+		}
+
+		public void ReadFromFile(BinaryReader fileReader)
+		{
+			bitCount = fileReader.ReadInt32();
+			int wordCount = ((bitCount + 31) / 32);
+			words = new uint[wordCount];
+
+			byte[] wordsBuffer= fileReader.ReadBytes(wordCount * 4);
+			Buffer.BlockCopy(wordsBuffer, 0, words, 0, wordsBuffer.Length);
+
+			//for (int i=0;i<words.Length;i++)
+			//{
+			//	words[i]=fileReader.ReadUInt32();
+			//}
+		}
+		public int GetSizeBytes()
+		{
+			return words.Length * sizeof(uint)+sizeof(int);
+		}
+
+		public int Count 
+		{
+			get { return bitCount; }
+		}
+		uint[] words;
+		int bitCount;
+	}
+
 }

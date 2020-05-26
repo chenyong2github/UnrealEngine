@@ -7,6 +7,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/Class.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Trace/Trace.inl"
 
 #include "DataSourceFilter.h"
 #include "TraceWorldFiltering.h"
@@ -20,7 +21,6 @@
 #define LOCTEXT_NAMESPACE "SourceFilterTrace"
 
 UE_TRACE_CHANNEL_DEFINE(TraceSourceFiltersChannel)
-UE_TRACE_CHANNEL_EXTERN(ImportantChannel)
 
 UE_TRACE_EVENT_BEGIN(SourceFilters, FilterClass)
 	UE_TRACE_EVENT_FIELD(uint64, ClassId)

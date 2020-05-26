@@ -4,11 +4,16 @@
 
 #if USE_USD_SDK
 
+#include "USDAssetImportData.h"
 #include "USDGeomMeshConversion.h"
 #include "USDMemory.h"
 #include "USDSkeletalDataConversion.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdPrim.h"
+
+#include "Animation/Skeleton.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -29,7 +34,7 @@
 
 namespace UsdSkelRootTranslatorImpl
 {
-	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, FSkeletalMeshImportData& SkelMeshImportData, TMap< FString, UObject* >& PrimPathsToAssets, bool bHasPrimDisplayColor, float Time )
+	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, FSkeletalMeshImportData& SkelMeshImportData, TMap< FString, UObject* >& PrimPathsToAssets, TMap< FString, UObject* >& AssetsCache, bool bHasPrimDisplayColor, float Time, EObjectFlags Flags )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdSkelRootTranslatorImpl::ProcessMaterials );
 
@@ -53,12 +58,18 @@ namespace UsdSkelRootTranslatorImpl
 
 				if ( Material == nullptr && bHasPrimDisplayColor )
 				{
-					UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >();
+					UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >(GetTransientPackage(), NAME_None, Flags);
 
 					FSoftObjectPath MaterialPath( TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'") );
 
 					UMaterialInterface* DisplayColorMaterial = Cast< UMaterialInterface >( MaterialPath.TryLoad() );
 					UMaterialEditingLibrary::SetMaterialInstanceParent( MaterialInstance, DisplayColorMaterial );
+
+					UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >(MaterialInstance, TEXT("USDAssetImportData"));
+					ImportData->PrimPath = UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath());
+					MaterialInstance->AssetImportData = ImportData;
+
+					AssetsCache.Add( MaterialInstance->GetPathName() ) = MaterialInstance;
 
 					Material = MaterialInstance;
 				}
@@ -132,11 +143,11 @@ namespace UsdSkelRootTranslatorImpl
 	class FSkelRootCreateAssetsTaskChain : public FUsdSchemaTranslatorTaskChain
 	{
 	public:
-		explicit FSkelRootCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema );
+		explicit FSkelRootCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FUsdTyped& InSchema );
 
 	protected:
 		// Inputs
-		TUsdStore< pxr::UsdTyped > Schema;
+		UE::FUsdTyped Schema;
 		TSharedRef< FUsdSchemaTranslationContext > Context;
 
 		// Outputs
@@ -147,7 +158,7 @@ namespace UsdSkelRootTranslatorImpl
 		void SetupTasks();
 	};
 
-	FSkelRootCreateAssetsTaskChain::FSkelRootCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema )
+	FSkelRootCreateAssetsTaskChain::FSkelRootCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FUsdTyped& InSchema )
 		: Schema( InSchema )
 		, Context( InContext )
 	{
@@ -157,7 +168,7 @@ namespace UsdSkelRootTranslatorImpl
 	void FSkelRootCreateAssetsTaskChain::SetupTasks()
 	{
 		// Ignore prims from disabled purposes
-		if ( !EnumHasAllFlags( Context->PurposesToLoad, IUsdPrim::GetPurpose( Schema.Get().GetPrim() ) ) )
+		if ( !EnumHasAllFlags( Context->PurposesToLoad, IUsdPrim::GetPurpose( Schema.GetPrim() ) ) )
 		{
 			return;
 		}
@@ -169,7 +180,7 @@ namespace UsdSkelRootTranslatorImpl
 			Do( bIsAsyncTask,
 				[ this ]()
 				{
-					const bool bContinueTaskChain = LoadSkelMeshImportData( SkeletalMeshImportData, SkeletonCache.Get(), pxr::UsdSkelRoot( Schema.Get() ), Context->Time, Context->PrimPathsToAssets );
+					const bool bContinueTaskChain = LoadSkelMeshImportData( SkeletalMeshImportData, SkeletonCache.Get(), pxr::UsdSkelRoot( pxr::UsdTyped( Schema ) ), Context->Time, Context->PrimPathsToAssets );
 
 					return bContinueTaskChain;
 				} );
@@ -181,7 +192,7 @@ namespace UsdSkelRootTranslatorImpl
 					FScopedUsdAllocs UsdAllocs;
 
 					std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-					SkeletonCache.Get().ComputeSkelBindings( pxr::UsdSkelRoot( Schema.Get() ), &SkeletonBindings );
+					SkeletonCache.Get().ComputeSkelBindings( pxr::UsdSkelRoot( pxr::UsdTyped( Schema ) ), &SkeletonBindings );
 
 					bool bHasPrimDisplayColor = false;
 
@@ -197,7 +208,7 @@ namespace UsdSkelRootTranslatorImpl
 							}
 						}
 
-						UsdSkelRootTranslatorImpl::ProcessMaterials( Schema.Get().GetPrim(), SkeletalMeshImportData, Context->PrimPathsToAssets, bHasPrimDisplayColor, Context->Time );
+						UsdSkelRootTranslatorImpl::ProcessMaterials( Schema.GetPrim(), SkeletalMeshImportData, Context->PrimPathsToAssets, Context->AssetsCache, bHasPrimDisplayColor, Context->Time, Context->ObjectFlags );
 						break;
 					}
 
@@ -212,13 +223,21 @@ namespace UsdSkelRootTranslatorImpl
 
 					USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetsCache.FindRef( SkeletalMeshHash.ToString() ) );
 
+					FString PrimPath = Schema.GetPath().GetString();
+
 					if ( !SkeletalMesh )
 					{
 						SkeletalMesh = UsdToUnreal::GetSkeletalMeshFromImportData( SkeletalMeshImportData, Context->ObjectFlags );
+
+						UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >(SkeletalMesh, TEXT("USDAssetImportData"));
+						ImportData->PrimPath = PrimPath;
+						SkeletalMesh->AssetImportData = ImportData;
+
 						Context->AssetsCache.Add( SkeletalMeshHash.ToString(), SkeletalMesh );
+						Context->AssetsCache.Add( SkeletalMeshHash.ToString() + TEXT("_Skeleton"), SkeletalMesh->Skeleton );
 					}
 
-					Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ), SkeletalMesh );
+					Context->PrimPathsToAssets.Add( PrimPath, SkeletalMesh );
 
 					return true;
 				} );
@@ -240,7 +259,7 @@ USceneComponent* FUsdSkelRootTranslator::CreateComponents()
 
 	if ( USkinnedMeshComponent* SkinnedMeshComponent = Cast< USkinnedMeshComponent >( RootComponent ) )
 	{
-		SkinnedMeshComponent->SetSkeletalMesh( Cast< USkeletalMesh >( Context->PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ) ) ) );
+		SkinnedMeshComponent->SetSkeletalMesh( Cast< USkeletalMesh >( Context->PrimPathsToAssets.FindRef( Schema.GetPath().GetString() ) ) );
 		UpdateComponents( SkinnedMeshComponent );
 	}
 
@@ -259,7 +278,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	{
 		FScopedUsdAllocs UsdAllocs;
 
-		pxr::UsdPrim Prim = Schema.Get().GetPrim();
+		pxr::UsdPrim Prim = Schema.GetPrim();
 
 		pxr::UsdSkelCache SkeletonCache;
 		pxr::UsdSkelRoot SkeletonRoot( Prim );
@@ -275,7 +294,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 			return;
 		}
 
-		const UsdToUnreal::FUsdStageInfo StageInfo( Prim.GetStage() );
+		const FUsdStageInfo StageInfo( Prim.GetStage() );
 
 		pxr::UsdGeomXformable Xformable( Prim );
 

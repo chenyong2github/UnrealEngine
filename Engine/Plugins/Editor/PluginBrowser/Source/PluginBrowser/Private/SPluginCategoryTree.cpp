@@ -248,21 +248,9 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 		{
 			TreeView->SetSelection(SelectCategory);
 		}
-		else if (RootCategories.Contains(ModCategory))
-		{
-			TreeView->SetSelection(ModCategory);
-		}
-		else if (RootCategories.Contains(InstalledCategory))
-		{
-			TreeView->SetSelection(InstalledCategory);
-		}
-		else if (RootCategories.Contains(AllCategory))
+		else
 		{
 			TreeView->SetSelection(AllCategory);
-		}
-		else if (RootCategories.Num() > 0)
-		{
-			TreeView->SetSelection(RootCategories[0]);
 		}
 	}
 }

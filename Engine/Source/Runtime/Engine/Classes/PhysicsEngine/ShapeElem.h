@@ -32,6 +32,9 @@ struct FKShapeElem
 
 	FKShapeElem()
 	: RestOffset(0.f)
+#if WITH_EDITORONLY_DATA
+	, bIsGenerated(false)
+#endif
 	, ShapeType(EAggCollisionShape::Unknown)
 	, bContributeToMass(true)
 	, CollisionEnabled(ECollisionEnabled::QueryAndPhysics)
@@ -40,6 +43,9 @@ struct FKShapeElem
 
 	FKShapeElem(EAggCollisionShape::Type InShapeType)
 	: RestOffset(0.f)
+#if WITH_EDITORONLY_DATA
+	, bIsGenerated(false)
+#endif
 	, ShapeType(InShapeType)
 	, bContributeToMass(true)
 	, CollisionEnabled(ECollisionEnabled::QueryAndPhysics)
@@ -48,6 +54,9 @@ struct FKShapeElem
 
 	FKShapeElem(const FKShapeElem& Copy)
 	: RestOffset(Copy.RestOffset)
+#if WITH_EDITORONLY_DATA
+	, bIsGenerated(Copy.bIsGenerated)
+#endif
 	, Name(Copy.Name)
 	, ShapeType(Copy.ShapeType)
 	, bContributeToMass(Copy.bContributeToMass)
@@ -100,6 +109,12 @@ struct FKShapeElem
 		on top of irregularities  */
 	UPROPERTY(Category = Shape, EditAnywhere)
 	float RestOffset;
+
+#if WITH_EDITORONLY_DATA
+	/** True when the shape was created by the engine and was not imported. */
+	UPROPERTY()
+	uint8 bIsGenerated : 1;
+#endif
 
 protected:
 	/** Helper function to safely clone instances of this shape element */

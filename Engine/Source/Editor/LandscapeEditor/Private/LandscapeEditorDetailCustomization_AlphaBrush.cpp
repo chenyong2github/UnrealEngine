@@ -22,6 +22,7 @@
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
 #include "CanvasTypes.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.Brushes.Alpha"
 

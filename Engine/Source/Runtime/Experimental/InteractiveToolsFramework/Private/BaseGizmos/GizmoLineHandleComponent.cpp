@@ -32,12 +32,8 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		// find view to use for gizmo sizing/etc
-		const FSceneView* GizmoControlView = GizmoRenderingUtil::FindActiveSceneView(Views, ViewFamily, VisibilityMap);
-		if (GizmoControlView == nullptr)
-		{
-			return;
-		}
+		// try to find focused scene view. May return nullptr.
+		const FSceneView* FocusedView = GizmoRenderingUtil::FindFocusedEditorSceneView(Views, ViewFamily, VisibilityMap);
 
 		FVector LocalOffset = Direction;
 		if (ExternalDistance != nullptr)
@@ -46,35 +42,12 @@ public:
 		}
 
 		const FMatrix& LocalToWorldMatrix = GetLocalToWorld();
+		FVector WorldOrigin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
 
 		float IntervalMarkerSize = HandleSize;
 		FVector WorldIntervalEnd = LocalToWorldMatrix.TransformPosition(LocalOffset + IntervalMarkerSize * Normal);
-
 		FVector WorldDiskOrigin = LocalToWorldMatrix.TransformPosition(LocalOffset);
 		FVector WorldBaseOrigin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
-
-
-		float LengthScale = 1.0f;
-		if (ExternalDynamicPixelToWorldScale != nullptr && bImageScale)
-		{
-			float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(GizmoControlView, WorldDiskOrigin);
-			*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
-			LengthScale = PixelToWorldScale;
-		}
-
-
-		FVector ScaledDiskOrigin = LengthScale * (WorldDiskOrigin - WorldBaseOrigin) + WorldBaseOrigin;
-		FVector ScaledIntevalStart = -LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
-		FVector ScaledIntevalEnd = LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
-
-
-		//double UseRadius = LengthScale * Radius;
-
-		FLinearColor BackColor = FLinearColor(0.5f, 0.5f, 0.5f);
-		float BackThickness = 0.5f;
-
-		float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
-			(HoverThicknessMultiplier*Thickness) : (Thickness);
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -82,18 +55,33 @@ public:
 			{
 				const FSceneView* View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
-
+				bool bIsFocusedView = (FocusedView != nullptr && View == FocusedView);
+				bool bIsOrtho = !View->IsPerspectiveProjection();
 				FVector UpVector = View->GetViewUp();
-
-
 				FVector ViewVector = View->GetViewDirection();
+
+				float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, WorldDiskOrigin);
+				float LengthScale = PixelToWorldScale;
+				if (bIsFocusedView && ExternalDynamicPixelToWorldScale != nullptr)
+				{
+					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
+				}
+
+				FVector ScaledDiskOrigin = LengthScale * (WorldDiskOrigin - WorldBaseOrigin) + WorldBaseOrigin;
+				FVector ScaledIntevalStart = -LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
+				FVector ScaledIntevalEnd = LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
+
+				float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
+					(HoverThicknessMultiplier * Thickness) : (Thickness);
+				if (!bIsOrtho)
+				{
+					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+				}
 
 				// From base origin to disk origin
 				PDI->DrawLine(WorldBaseOrigin, ScaledDiskOrigin, Color, SDPG_Foreground, UseThickness, 0.0f, true);
-
 				// Draw the interval marker
 				PDI->DrawLine(ScaledIntevalStart, ScaledIntevalEnd, Color, SDPG_Foreground, 2. * UseThickness, 0.0f, true);
-
 			}
 		}
 	}
@@ -148,10 +136,13 @@ private:
 	bool bImageScale;
 	float HoverThicknessMultiplier;
 
-	float* ExternalDistance = nullptr;
-	float* ExternalDynamicPixelToWorldScale = nullptr;
+	// set on Component for use in ::GetDynamicMeshElements()
 	bool* bExternalHoverState = nullptr;
 	bool* bExternalWorldLocalState = nullptr;
+	float* ExternalDistance = nullptr;
+
+	// set in ::GetDynamicMeshElements() for use by Component hit testing
+	float* ExternalDynamicPixelToWorldScale = nullptr;
 };
 
 

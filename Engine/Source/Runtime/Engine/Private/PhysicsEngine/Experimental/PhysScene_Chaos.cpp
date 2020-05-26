@@ -45,6 +45,7 @@
 #include "Chaos/Box.h"
 #include "ChaosSolvers/Public/EventsData.h"
 #include "ChaosSolvers/Public/EventManager.h"
+#include "ChaosSolvers/Public/RewindData.h"
 
 
 #if !UE_BUILD_SHIPPING
@@ -1899,15 +1900,23 @@ void FPhysScene_ChaosInterface::ApplyWorldOffset(FVector InOffset)
 	check(InOffset.Size() == 0);
 }
 
-void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/, float InMaxSubstepDeltaTime /*= 0.0f*/, int32 InMaxSubsteps)
+void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/, float InMaxSubstepDeltaTime /*= 0.0f*/, int32 InMaxSubsteps, bool bSubstepping)
 {
 	SetGravity(*NewGrav);
 	MDeltaTime = InMaxPhysicsDeltaTime > 0.f ? FMath::Min(InDeltaSeconds, InMaxPhysicsDeltaTime) : InDeltaSeconds;
 
 	if (Chaos::FPhysicsSolver* Solver = GetSolver())
 	{
-		Solver->SetMaxDeltaTime(InMaxSubstepDeltaTime);
-		Solver->SetMaxSubSteps(InMaxSubsteps);
+		if(bSubstepping)
+		{
+			Solver->SetMaxDeltaTime(InMaxSubstepDeltaTime);
+			Solver->SetMaxSubSteps(InMaxSubsteps);
+		}
+		else
+		{
+			Solver->SetMaxDeltaTime(InMaxPhysicsDeltaTime);
+			Solver->SetMaxSubSteps(1);
+		}
 	}
 }
 
@@ -2351,6 +2360,35 @@ FPhysScene_ChaosInterface::AddSpringConstraint(const TArray< TPair<FPhysicsActor
 void FPhysScene_ChaosInterface::RemoveSpringConstraint(const FPhysicsConstraintReference_Chaos& Constraint)
 {
 	// #todo : Implement
+}
+
+void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(ResimNFrames);
+	using namespace Chaos;
+	auto Solver = GetSolver();
+	if(FRewindData* RewindData = Solver->GetRewindData())
+	{
+		const int32 FramesSaved = RewindData->GetFramesSaved() - 2;	//give 2 frames buffer because right at edge we have a hard time
+		const int32 NumFrames = FMath::Min(NumFramesRequested,FramesSaved);
+		if(NumFrames > 0)
+		{
+			const int32 LatestFrame = RewindData->CurrentFrame();
+			const int32 FirstFrame = LatestFrame - NumFrames;
+			if(ensure(Solver->GetRewindData()->RewindToFrame(FirstFrame)))
+			{
+				for(int Frame = FirstFrame; Frame < LatestFrame; ++Frame)
+				{
+					Solver->PushPhysicsState();
+					FPhysicsSolverAdvanceTask AdvanceTask(Solver,RewindData->GetDeltaTimeForFrame(Frame));
+					AdvanceTask.DoTask(ENamedThreads::GameThread,FGraphEventRef());
+					Solver->BufferPhysicsResults();
+					Solver->FlipBuffers();
+					Solver->UpdateGameThreadStructures();
+				}
+			}
+		}
+	}
 }
 
 void FPhysScene_ChaosInterface::CompleteSceneSimulation(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)

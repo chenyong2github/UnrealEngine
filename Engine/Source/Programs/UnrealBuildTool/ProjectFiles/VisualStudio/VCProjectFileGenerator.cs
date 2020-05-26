@@ -40,7 +40,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version of Visual Studio to generate project files for.
 		/// </summary>
-		[XmlConfigFile(Name = "Version")]
+		[XmlConfigFile(Category = "VCProjectFileGenerator", Name = "Version")]
 		public VCProjectFileFormat ProjectFileFormat = VCProjectFileFormat.Default;
 
 		/// <summary>
@@ -50,6 +50,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "VCProjectFileGenerator")]
 		public int MaxSharedIncludePaths = 24 * 1024;
+
+		/// <summary>
+		/// Semi-colon separated list of paths that should not be added to the projects include paths. Useful for omitting third-party headers
+		/// (e.g ThirdParty/WebRTC) from intellisense suggestions and reducing memory footprints.
+		/// </summary>
+		[XmlConfigFile(Category = "VCProjectFileGenerator")]
+		public string ExcludedIncludePaths = "";
 
 		/// <summary>
 		/// Whether to write a solution option (suo) file for the sln.

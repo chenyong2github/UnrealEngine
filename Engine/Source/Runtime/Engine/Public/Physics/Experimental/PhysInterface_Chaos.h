@@ -34,6 +34,8 @@ namespace Chaos
 {
 	class IDispatcher;
 
+	class FJointConstraint;
+
 	template <typename T, int>
 	class TBVHParticles;
 
@@ -73,7 +75,13 @@ namespace Chaos
 class FPhysicsConstraintReference_Chaos
 {
 public:
+	FPhysicsConstraintReference_Chaos() 
+		: ConstraintData(nullptr)
+	{}
+
 	bool IsValid() const {return false;}
+
+	Chaos::FJointConstraint* ConstraintData;
 };
 
 class FPhysicsAggregateReference_Chaos

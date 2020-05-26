@@ -37,7 +37,8 @@ class CheckCsprojDotNetVersion : BuildCommand
                 (CsProj.ContainsName("UE4TemplateProject", EngineDir) && CsProj.GetFileName().Equals("ProjectTemplate.csproj")) ||
                 CsProj.GetFileNameWithoutExtension().ToLower().Contains("_mono") ||
                 CsProj.GetFileNameWithoutExtension().ToLower().Contains("unrealvs") ||
-				CsProj.ContainsName("DatasmithRevitExporter", EngineDir))
+				CsProj.ContainsName("DatasmithRevitExporter", EngineDir) ||
+				CsProj.ContainsName("DatasmithNavisworksExporter", EngineDir))
 
             {
                 continue;

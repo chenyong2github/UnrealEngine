@@ -29,79 +29,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
 #include "MeshPassProcessor.inl"
-
-/** Pixel shader used to copy scene color into another texture so that materials can read from scene color with a node. */
-class FMobileCopySceneAlphaPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FMobileCopySceneAlphaPS,Global);
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsMobilePlatform(Parameters.Platform); }
-
-	FMobileCopySceneAlphaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FGlobalShader(Initializer)
-	{
-		SceneTextureParameters.Bind(Initializer);
-	}
-	FMobileCopySceneAlphaPS() {}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
-	{
-		SceneTextureParameters.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
-	}
-
-private:
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters)
-};
-
-IMPLEMENT_SHADER_TYPE(,FMobileCopySceneAlphaPS,TEXT("/Engine/Private/TranslucentLightingShaders.usf"),TEXT("CopySceneAlphaMain"),SF_Pixel);
-
-void FMobileSceneRenderer::CopySceneAlpha(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
-{
-	SCOPED_DRAW_EVENTF(RHICmdList, EventCopy, TEXT("CopySceneAlpha"));
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	RHICmdList.CopyToResolveTarget(SceneContext.GetSceneColorSurface(), SceneContext.GetSceneColorTexture(), FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
-
-	SceneContext.BeginRenderingSceneAlphaCopy(RHICmdList);
-
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false,CF_Always>::GetRHI();
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-
-	int X = SceneContext.GetBufferSizeXY().X;
-	int Y = SceneContext.GetBufferSizeXY().Y;
-
-	RHICmdList.SetViewport(0, 0, 0.0f, X, Y, 1.0f);
-
-	TShaderMapRef<FScreenVS> ScreenVertexShader(View.ShaderMap);
-	TShaderMapRef<FMobileCopySceneAlphaPS> PixelShader(View.ShaderMap);
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-	PixelShader->SetParameters(RHICmdList, View);
-
-	DrawRectangle( 
-		RHICmdList,
-		0, 0, 
-		X, Y, 
-		0, 0, 
-		X, Y,
-		FIntPoint(X, Y),
-		SceneContext.GetBufferSizeXY(),
-		ScreenVertexShader,
-		EDRF_UseTriangleOptimization);
-
-	SceneContext.FinishRenderingSceneAlphaCopy(RHICmdList);
-}
+#include "ClearQuad.h"
 
 void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews, bool bRenderToSceneColor)
 {
@@ -141,76 +69,6 @@ void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdLi
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Translucent material inverse opacity render code
-// Used to generate inverse opacity channel for scene captures that require opacity information.
-// See MobileSceneCaptureRendering for more details.
-
-/**
-* Vertex shader for mobile opacity only pass
-*/
-class FOpacityOnlyVS : public FMeshMaterialShader
-{
-	DECLARE_SHADER_TYPE(FOpacityOnlyVS, MeshMaterial);
-protected:
-
-	FOpacityOnlyVS() {}
-	FOpacityOnlyVS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) :
-		FMeshMaterialShader(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileBasePassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-public:
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && IsMobilePlatform(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.UseHWsRGBEncoding"));
-		const bool bMobileUseHWsRGBEncoding = (MobileUseHWsRGBEncodingCVAR && MobileUseHWsRGBEncodingCVAR->GetValueOnAnyThread() == 1);
-
-		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("OUTPUT_GAMMA_SPACE"), IsMobileHDR() == false && !bMobileUseHWsRGBEncoding);
-		OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_HDR"), IsMobileHDR() == true);
-	}
-};
-
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FOpacityOnlyVS, TEXT("/Engine/Private/MobileOpacityShaders.usf"), TEXT("MainVS"), SF_Vertex);
-
-/**
-* Pixel shader for mobile opacity only pass, writes opacity to alpha channel.
-*/
-class FOpacityOnlyPS : public FMeshMaterialShader
-{
-	DECLARE_SHADER_TYPE(FOpacityOnlyPS, MeshMaterial);
-public:
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && IsMobilePlatform(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1u);
-	}
-
-	FOpacityOnlyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FMeshMaterialShader(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileBasePassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FOpacityOnlyPS() {}
-};
-
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FOpacityOnlyPS, TEXT("/Engine/Private/MobileOpacityShaders.usf"), TEXT("MainPS"), SF_Pixel);
-
 bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	// Function MUST be self-contained wrt RenderPasses
@@ -220,6 +78,12 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	SceneContext.AllocSceneColor(RHICmdList);
+
+	if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+	{
+		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+	}
 
 	const bool bMobileMSAA = SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
 	
@@ -234,115 +98,58 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 		nullptr,
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
-		
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderInverseOpacity"));
+	// Opacity could fetch depth as we use exactly the same shaders as in base pass
+	RPInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 
-	if (ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency))
+	// make sure targets are writable
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneColorSurface());
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneDepthSurface());
+	if (SceneColorResolve)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColorResolve);
+	}
+
+	if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
+	{
+		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+	}
+	
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("InverseOpacity"));
+
+	// Mobile multi-view is not side by side stereo
+	const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
+	RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
+		
+	// Default clear value for a SceneColor is (0,0,0,0), after this passs will blend inverse opacity into final render target with an 1-SrcAlpha op
+	// to make this blending work untouched pixels must have alpha = 1
+	DrawClearQuad(RHICmdList, FLinearColor(0,0,0,1));
+
+	RHICmdList.NextSubpass();
+	if (ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency) && View.ShouldRenderView())
 	{		
-		const bool bGammaSpace = !IsMobileHDR();
-		if (bGammaSpace)
-		{
-			// Mobile multi-view is not side by side stereo
-			const FViewInfo& TranslucentViewport = (View.bIsMobileMultiViewEnabled) ? Views[0] : View;
-			RHICmdList.SetViewport(TranslucentViewport.ViewRect.Min.X, TranslucentViewport.ViewRect.Min.Y, 0.0f, TranslucentViewport.ViewRect.Max.X, TranslucentViewport.ViewRect.Max.Y, 1.0f);
-		}
-
-		if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
-		{
-			UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-			UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-		}
-		
 		View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].DispatchDraw(nullptr, RHICmdList);
-				
 		bDirty |= View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].HasAnyDraw();
 	}
 	
 	RHICmdList.EndRenderPass();
-
+	
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneColorTexture());
+	
 	return bDirty;
 }
-
-class FMobileInverseOpacityMeshProcessor : public FMeshPassProcessor
-{
-public:
-	const FMeshPassProcessorRenderState PassDrawRenderState;
-
-public:
-	FMobileInverseOpacityMeshProcessor(const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
-		: FMeshPassProcessor(InScene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
-		, PassDrawRenderState(InDrawRenderState)
-	{
-		// expect dynamic path
-		check(InViewIfDynamicMeshCommand);
-	}
-
-	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final
-	{
-		if (MeshBatch.bUseForMaterial)
-		{
-			// Determine the mesh's material and blend mode.
-			const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
-			const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-			const EBlendMode BlendMode = Material.GetBlendMode();
-			const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-
-			if (bIsTranslucent)
-			{
-				Process(MeshBatch, BatchElementMask, Material, MaterialRenderProxy, PrimitiveSceneProxy, StaticMeshId);
-			}
-		}
-	}
-
-private:
-	void Process(const FMeshBatch& MeshBatch, uint64 BatchElementMask, const FMaterial& Material, const FMaterialRenderProxy& MaterialRenderProxy, const FPrimitiveSceneProxy* PrimitiveSceneProxy, int32 StaticMeshId)
-	{
-		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-
-		TMeshProcessorShaders<
-			FOpacityOnlyVS,
-			FBaseHS,
-			FBaseDS,
-			FOpacityOnlyPS> InverseOpacityShaders;
-		
-		InverseOpacityShaders.VertexShader = Material.GetShader<FOpacityOnlyVS>(VertexFactory->GetType());
-		InverseOpacityShaders.PixelShader = Material.GetShader<FOpacityOnlyPS>(VertexFactory->GetType());
-
-		FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
-		MobileBasePass::SetTranslucentRenderState(DrawRenderState, Material);
-
-		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-		ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
-	
-		FMeshMaterialShaderElementData ShaderElementData;
-		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
-
-		FMeshDrawCommandSortKey SortKey = CalculateTranslucentMeshStaticSortKey(PrimitiveSceneProxy, MeshBatch.MeshIdInPrimitive);
-		
-		BuildMeshDrawCommands(
-			MeshBatch,
-			BatchElementMask,
-			PrimitiveSceneProxy,
-			MaterialRenderProxy,
-			Material,
-			PassDrawRenderState,
-			InverseOpacityShaders,
-			MeshFillMode,
-			MeshCullMode,
-			SortKey,
-			EMeshPassFeatures::Default,
-			ShaderElementData);
-	}
-};
 
 // This pass is registered only when we render to scene capture, see UpdateSceneCaptureContentMobile_RenderThread()
 FMeshPassProcessor* CreateMobileInverseOpacityPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer, Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer);
-	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-	PassDrawRenderState.SetBlendState(TStaticBlendState<CW_ALPHA, BO_Add, BF_DestColor, BF_Zero, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI());
+	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+	PassDrawRenderState.SetBlendState(TStaticBlendState<CW_ALPHA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI());
+	PassDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead);
 
-	return new(FMemStack::Get()) FMobileInverseOpacityMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext);
+	const FMobileBasePassMeshProcessor::EFlags Flags = 
+		FMobileBasePassMeshProcessor::EFlags::CanUseDepthStencil | 
+		FMobileBasePassMeshProcessor::EFlags::ForcePassDrawRenderState;
+
+	return new(FMemStack::Get()) FMobileBasePassMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext, Flags, ETranslucencyPass::TPT_AllTranslucency);
 }

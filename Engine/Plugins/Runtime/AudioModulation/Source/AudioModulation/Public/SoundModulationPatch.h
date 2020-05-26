@@ -76,6 +76,13 @@ struct AUDIOMODULATION_API FSoundModulationInputBase
 	FSoundModulationInputTransform Transform;
 
 	virtual const USoundControlBusBase* GetBus() const PURE_VIRTUAL(FSoundModulationInputBase::GetBus, return nullptr; );
+
+	const USoundControlBusBase& GetBusChecked() const
+	{
+		const USoundControlBusBase* Bus = GetBus();
+		check(Bus);
+		return *GetBus();
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -168,6 +175,22 @@ struct AUDIOMODULATION_API FSoundModulationPatchBase
 	virtual TArray<const FSoundModulationInputBase*> GetInputs() const PURE_VIRTUAL(FSoundModulationPatchBase::GetInputs(), return TArray<const FSoundModulationInputBase*>(););
 	virtual FSoundModulationOutputBase* GetOutput() PURE_VIRTUAL(FSoundModulationPatchBase::GetOutput(), return nullptr;);
 	virtual const FSoundModulationOutputBase* GetOutput() const PURE_VIRTUAL(FSoundModulationPatchBase::GetOutput(), return nullptr;);
+
+	FSoundModulationOutputBase& GetOutputChecked()
+	{
+		FSoundModulationOutputBase* Output = GetOutput();
+		check(Output);
+
+		return *Output;
+	}
+
+	const FSoundModulationOutputBase& GetOutputChecked() const
+	{
+		const FSoundModulationOutputBase* Output = GetOutput();
+		check(Output);
+		
+		return *Output;
+	}
 
 #if WITH_EDITOR
 	virtual void Clamp();

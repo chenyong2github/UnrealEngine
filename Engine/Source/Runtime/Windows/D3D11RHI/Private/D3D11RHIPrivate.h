@@ -864,6 +864,8 @@ protected:
 	uint32 UAVBindFirst;
 	uint32 UAVBindCount;
 	uint32 UAVSChanged;
+	uint32 CurrentRTVOverlapMask;
+	uint32 CurrentUAVMask;
 
 	TRefCountPtr<ID3D11DepthStencilView> CurrentDepthStencilTarget;
 	TRefCountPtr<FD3D11TextureBase> CurrentDepthTexture;
@@ -1001,7 +1003,7 @@ protected:
 	virtual void CommitComputeShaderConstants();
 
 	template <class ShaderType> void SetResourcesFromTables(const ShaderType* RESTRICT);
-	template <class ShaderType> int32 SetUAVPSResourcesFromTables(const ShaderType* RESTRICT);
+	template <class ShaderType> int32 SetUAVPSResourcesFromTables(const ShaderType* RESTRICT, bool bForceInvalid);
 	void CommitGraphicsResourceTables();
 	void CommitComputeResourceTables(FD3D11ComputeShader* ComputeShader);
 

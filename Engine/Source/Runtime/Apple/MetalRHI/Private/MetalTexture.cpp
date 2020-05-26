@@ -349,7 +349,7 @@ void FMetalSurface::ReplaceTexture(FMetalContext& Context, FMetalTexture Current
 		}
 		else
 		{
-			SRV->TextureView->Init(*this, NSMakeRange(SRV->MipLevel, SRV->NumMips), (EPixelFormat)SRV->Format);
+			SRV->TextureView->Init(*this, NSMakeRange(SRV->MipLevel, SRV->NumMips), (EPixelFormat)SRV->Format, SRV->bSRGBForceDisable);
 		}
 	}
 }
@@ -417,7 +417,7 @@ void FMetalSurface::MakeUnAliasable(void)
 			}
 			else
 			{
-				SRV->TextureView->Init(*this, NSMakeRange(SRV->MipLevel, SRV->NumMips), (EPixelFormat)SRV->Format);
+				SRV->TextureView->Init(*this, NSMakeRange(SRV->MipLevel, SRV->NumMips), (EPixelFormat)SRV->Format, SRV->bSRGBForceDisable);
 			}
 		}
 	}
@@ -463,7 +463,7 @@ void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange)
 	SizeZ = (Type != RRT_Texture3D) ? SizeZ : FMath::Max(SizeZ >> MipRange.location, 1u);
 }
 
-void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format)
+void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format, bool bSRGBForceDisable)
 {
 	check(!Source.MSAATexture || Format == PF_X24_G8);
 #if PLATFORM_IOS
@@ -476,7 +476,12 @@ void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat F
 	
 	mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[PixelFormat].PlatformFormat;
 	
-	bool const bUseSourceTex = (Source.PixelFormat != PF_DepthStencil) && Source.PixelFormat == Format && MipRange.location == 0 && MipRange.length == Source.Texture.GetMipmapLevelCount();
+	bool bUseSourceTex = (Source.PixelFormat != PF_DepthStencil) && Source.PixelFormat == Format && MipRange.location == 0 && MipRange.length == Source.Texture.GetMipmapLevelCount();
+	
+	if (bSRGBForceDisable && (Flags & TexCreate_SRGB))
+	{
+		bUseSourceTex = false;
+	}
 	
 	// Recreate the texture to enable MTLTextureUsagePixelFormatView which must be off unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
 	mtlpp::TextureUsage Usage = Source.Texture.GetUsage();
@@ -544,7 +549,7 @@ FMetalSurface::FMetalSurface(FMetalSurface& Source, NSRange MipRange)
 	Init(Source, MipRange);
 }
 
-FMetalSurface::FMetalSurface(FMetalSurface& Source, NSRange const MipRange, EPixelFormat Format)
+FMetalSurface::FMetalSurface(FMetalSurface& Source, NSRange const MipRange, EPixelFormat Format, bool bSRGBForceDisable)
 : Type(Source.Type)
 , PixelFormat(Format)
 , Texture(nil)
@@ -563,7 +568,7 @@ FMetalSurface::FMetalSurface(FMetalSurface& Source, NSRange const MipRange, EPix
 {
 	FPlatformAtomics::InterlockedExchange(&Written, Source.Written);
 	
-	Init(Source, MipRange, Format);
+	Init(Source, MipRange, Format, bSRGBForceDisable);
 }
 
 mtlpp::PixelFormat ToSRGBFormat(mtlpp::PixelFormat LinMTLFormat)
@@ -2812,12 +2817,14 @@ void FMetalRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHI
 						// format mismatch (like linear vs. sRGB), then we must
 						// achieve the copy by going through a buffer object.
 						//
+						const bool BlockSizeMatch = (GPixelFormats[MetalSrcTexture->PixelFormat].BlockSizeX == GPixelFormats[MetalDestTexture->PixelFormat].BlockSizeX);
 						const uint32 BytesPerPixel = (MetalSrcTexture->PixelFormat != PF_DepthStencil) ? GPixelFormats[MetalSrcTexture->PixelFormat].BlockBytes : 1;
 						const uint32 Stride = BytesPerPixel * SourceSize.width;
 #if PLATFORM_MAC
 						const uint32 Alignment = 1u;
 #else
-						const uint32 Alignment = 64u;
+						// don't mess with alignment if we copying between formats with a different block size
+						const uint32 Alignment = BlockSizeMatch ? 64u : 1u;
 #endif
 						const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 						const uint32 BytesPerImage = AlignedStride *  SourceSize.height;

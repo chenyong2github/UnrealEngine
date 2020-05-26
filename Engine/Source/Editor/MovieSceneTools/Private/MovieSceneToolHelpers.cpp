@@ -1660,6 +1660,7 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 	OutParams.bConvertSceneUnitBackup = ImportOptions->bConvertSceneUnit;
 	OutParams.bForceFrontXAxisBackup = ImportOptions->bForceFrontXAxis;
 
+	ImportOptions->bIsImportCancelable = false;
 	ImportOptions->bConvertScene = true;
 	ImportOptions->bConvertSceneUnit = true;
 	ImportOptions->bForceFrontXAxis = ImportFBXSettings->bForceFrontXAxis;
@@ -2093,42 +2094,13 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	TOptional<int32> SequencerAlwaysSenedLiveLinkInterpolated;
 	TMap<FGuid, ELiveLinkSourceMode>  SourceAndMode;
 	IConsoleVariable* CVarAlwaysSendInterpolatedLiveLink = IConsoleManager::Get().FindConsoleVariable(TEXT("Sequencer.AlwaysSendInterpolatedLiveLink"));
-	bool bHaveAtLeastOneSource = false;
-	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	if (CVarAlwaysSendInterpolatedLiveLink)
 	{
-
-		LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		if (LiveLinkClient)
-		{
-			//Evaluate the first frame we may be out of range and not have any live link sources created yet.
-			AnimTrackAdapter.UpdateAnimation(StartFrame);
-			TArray<FGuid> Sources = LiveLinkClient->GetSources();
-			for (const FGuid& Guid : Sources)
-			{
-				FText SourceTypeText = LiveLinkClient->GetSourceType(Guid);
-				FString SourceTypeStr = SourceTypeText.ToString();
-				if (SourceTypeStr.Contains(TEXT("Sequencer Live Link")))
-				{
-					bHaveAtLeastOneSource = true;
-					ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Guid);
-					if (Settings)
-					{
-						if (Settings->Mode != ELiveLinkSourceMode::Latest)
-						{
-							SourceAndMode.Add(Guid, Settings->Mode);
-							Settings->Mode = ELiveLinkSourceMode::Latest;
-						}
-						if (CVarAlwaysSendInterpolatedLiveLink)
-						{
-							SequencerAlwaysSenedLiveLinkInterpolated = CVarAlwaysSendInterpolatedLiveLink->GetInt();
-							CVarAlwaysSendInterpolatedLiveLink->Set(1, ECVF_SetByConsole);
-						}
-					}
-				}
-			}
-		}
+		SequencerAlwaysSenedLiveLinkInterpolated = CVarAlwaysSendInterpolatedLiveLink->GetInt();
+		CVarAlwaysSendInterpolatedLiveLink->Set(1, ECVF_SetByConsole);
 	}
 
+	
 	FAnimRecorderInstance AnimationRecorder;
 	FAnimationRecordingSettings RecordingSettings;
 	RecordingSettings.SampleRate = SampleRate.AsDecimal();
@@ -2140,9 +2112,36 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	RecordingSettings.bCheckDeltaTimeAtBeginning = false;
 	AnimationRecorder.Init(SkelMeshComp, AnimSequence, nullptr, RecordingSettings);
 
-	//need to run first time before start record.
-	AnimTrackAdapter.UpdateAnimation(LocalStartFrame);
-	if (LiveLinkClient && bHaveAtLeastOneSource)
+
+	//Begin records a frame so need to set things up first
+	AnimTrackAdapter.UpdateAnimation(LocalStartFrame );
+
+	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	{
+		LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+		if (LiveLinkClient)
+		{
+			TArray<FGuid> Sources = LiveLinkClient->GetSources();
+			for (const FGuid& Guid : Sources)
+			{
+				FText SourceTypeText = LiveLinkClient->GetSourceType(Guid);
+				FString SourceTypeStr = SourceTypeText.ToString();
+				if (SourceTypeStr.Contains(TEXT("Sequencer Live Link")))
+				{
+					ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Guid);
+					if (Settings)
+					{
+						if (Settings->Mode != ELiveLinkSourceMode::Latest)
+						{
+							SourceAndMode.Add(Guid, Settings->Mode);
+							Settings->Mode = ELiveLinkSourceMode::Latest;
+						}
+					}
+				}
+			}
+		}
+	}
+	if (LiveLinkClient)
 	{
 		LiveLinkClient->ForceTick();
 	}
@@ -2155,7 +2154,35 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
 		AnimTrackAdapter.UpdateAnimation(LocalFrame);
 
-		if (LiveLinkClient && bHaveAtLeastOneSource)
+		//Live Link sourcer can show up at any time so we unfortunately need to check for it
+		if (LiveLinkClient)
+		{
+			TArray<FGuid> Sources = LiveLinkClient->GetSources();
+			for (const FGuid& Guid : Sources)
+			{
+				//if we already did it don't do it again,
+				if (!SourceAndMode.Contains(Guid))
+				{
+					FText SourceTypeText = LiveLinkClient->GetSourceType(Guid);
+					FString SourceTypeStr = SourceTypeText.ToString();
+					if (SourceTypeStr.Contains(TEXT("Sequencer Live Link")))
+					{
+						ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Guid);
+						if (Settings)
+						{
+							if (Settings->Mode != ELiveLinkSourceMode::Latest)
+							{
+								SourceAndMode.Add(Guid, Settings->Mode);
+								Settings->Mode = ELiveLinkSourceMode::Latest;
+							}
+						}
+					}
+				}
+			}
+		}
+
+
+		if (LiveLinkClient)
 		{
 			LiveLinkClient->ForceTick();
 		}
@@ -2178,7 +2205,7 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	AnimationRecorder.FinishRecording(bShowAnimationAssetCreatedToast);
 
 	//now do any sequencer live link cleanup
-	if (LiveLinkClient && bHaveAtLeastOneSource)
+	if (LiveLinkClient)
 	{
 		for (TPair<FGuid, ELiveLinkSourceMode>& Item: SourceAndMode)
 		{

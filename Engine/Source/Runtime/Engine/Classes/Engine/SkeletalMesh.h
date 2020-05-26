@@ -970,10 +970,11 @@ public:
 	/** Adds an asset to this mesh with validation and event broadcast */
 	void AddClothingAsset(UClothingAssetBase* InNewAsset);
 
-	const FSkeletalMeshSamplingInfo& GetSamplingInfo() { return SamplingInfo; }
+	const FSkeletalMeshSamplingInfo& GetSamplingInfo() const { return SamplingInfo; }
 
 #if WITH_EDITOR
 	void SetSamplingInfo(const FSkeletalMeshSamplingInfo& InSamplingInfo) { SamplingInfo = InSamplingInfo; }
+	const FOnMeshChanged& GetOnMeshChanged() const { return OnMeshChanged; }
 	FOnMeshChanged& GetOnMeshChanged() { return OnMeshChanged; }
 #endif
 
@@ -1125,7 +1126,7 @@ public:
 	virtual int32 GetNumNonStreamingMips() const final override;
 	virtual int32 CalcNumOptionalMips() const final override;
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
-	virtual bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const final override;
+	virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
 	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
 	virtual bool IsReadyForStreaming() const final override;
 	virtual int32 GetNumResidentMips() const final override;
@@ -1137,6 +1138,10 @@ public:
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
 	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) final override;
 	//~ End UStreamableRenderAsset Interface.
+
+#if USE_BULKDATA_STREAMING_TOKEN
+	bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
+#endif
 
 	void LinkStreaming();
 	void UnlinkStreaming();
@@ -1218,15 +1223,15 @@ public:
 
 	/** Utility for copying and converting a mirroring table from another USkeletalMesh. */
 	void CopyMirrorTableFrom(USkeletalMesh* SrcMesh);
-	void ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo);
-	void ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo);
+	void ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo) const;
+	void ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo);
 
 	/** 
 	 *	Utility for checking that the bone mirroring table of this mesh is good.
 	 *	Return true if mirror table is OK, false if there are problems.
 	 *	@param	ProblemBones	Output string containing information on bones that are currently bad.
 	 */
-	bool MirrorTableIsGood(FString& ProblemBones);
+	bool MirrorTableIsGood(FString& ProblemBones) const;
 
 	/**
 	 * Returns the mesh only socket list - this ignores any sockets in the skeleton
@@ -1434,10 +1439,16 @@ public:
 	 * Reset whole entry
 	 */
 	void ResetLODInfo();
+
 	/*
-	 * Returns whole array of LODInfo
+	 * Returns whole array of LODInfo non-const
 	 */
 	TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() { return LODInfo;  }
+
+	/*
+	 * Returns whole array of LODInfo const
+	 */
+	const TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() const { return LODInfo; }
 	
 	/* 
 	 * Get LODInfo of the given index non-const

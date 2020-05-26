@@ -234,7 +234,7 @@ public:
 	typedef InItemType ItemType;
 	typedef InPageType PageType;
 	typedef TPagedArrayIterator<InItemType, InPageType> TIterator;
-	
+
 	TPagedArray(Trace::ILinearAllocator& InAllocator, uint64 InPageSize)
 		: Allocator(InAllocator)
 		, PageSize(InPageSize)
@@ -355,6 +355,30 @@ public:
 	const ItemType& operator[](uint64 Index) const
 	{
 		return const_cast<TPagedArray&>(*this)[Index];
+	}
+
+	ItemType& First()
+	{
+		ItemType* Item = FirstPage->Items;
+		return *Item;
+	}
+
+	const ItemType& First() const
+	{
+		const ItemType* Item = FirstPage->Items;
+		return *Item;
+	}
+
+	ItemType& Last()
+	{
+		ItemType* Item = LastPage->Items + LastPage->Count - 1;
+		return *Item;
+	}
+
+	const ItemType& Last() const
+	{
+		const ItemType* Item = LastPage->Items + LastPage->Count - 1;
+		return *Item;
 	}
 
 private:

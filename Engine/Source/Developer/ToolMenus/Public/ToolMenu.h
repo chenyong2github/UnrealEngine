@@ -88,9 +88,6 @@ public:
 		return Context.FindContext<TContextType>();
 	}
 
-	//~ Begin UObject Interface
-	virtual bool IsDestructionThreadSafe() const { return false; }
-	//~ End UObject Interface
 
 	friend class UToolMenus;
 
@@ -109,6 +106,8 @@ private:
 	int32 FindInsertIndex(const FToolMenuSection& InSection) const;
 
 	bool IsRegistering() const;
+
+	void Empty();
 
 public:
 

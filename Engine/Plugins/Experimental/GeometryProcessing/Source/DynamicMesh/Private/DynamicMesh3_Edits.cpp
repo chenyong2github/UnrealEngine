@@ -9,33 +9,24 @@
 int FDynamicMesh3::AppendVertex(const FVertexInfo& VtxInfo)
 {
 	int vid = VertexRefCounts.Allocate();
-	int i = 3 * vid;
-	Vertices.InsertAt(VtxInfo.Position[2], i + 2);
-	Vertices.InsertAt(VtxInfo.Position[1], i + 1);
-	Vertices.InsertAt(VtxInfo.Position[0], i);
+	Vertices.InsertAt(VtxInfo.Position, vid);
 
-	if (HasVertexNormals()) 
+	if (HasVertexNormals())
 	{
 		FVector3f n = (VtxInfo.bHaveN) ? VtxInfo.Normal : FVector3f::UnitY();
-		VertexNormals->InsertAt(n[2], i + 2);
-		VertexNormals->InsertAt(n[1], i + 1);
-		VertexNormals->InsertAt(n[0], i);
+		VertexNormals->InsertAt(n, vid);
 	}
 
-	if (HasVertexColors()) 
+	if (HasVertexColors())
 	{
 		FVector3f c = (VtxInfo.bHaveC) ? VtxInfo.Color : FVector3f::One();
-		VertexColors->InsertAt(c[2], i + 2);
-		VertexColors->InsertAt(c[1], i + 1);
-		VertexColors->InsertAt(c[0], i);
+		VertexColors->InsertAt(c, vid);
 	}
 
-	if (HasVertexUVs()) 
+	if (HasVertexUVs())
 	{
 		FVector2f u = (VtxInfo.bHaveUV) ? VtxInfo.UV : FVector2f::Zero();
-		int j = 2 * vid;
-		VertexUVs->InsertAt(u[1], j + 1);
-		VertexUVs->InsertAt(u[0], j);
+		VertexUVs->InsertAt(u, vid);
 	}
 
 	AllocateEdgesList(vid);
@@ -53,61 +44,45 @@ int FDynamicMesh3::AppendVertex(const FVertexInfo& VtxInfo)
 
 int FDynamicMesh3::AppendVertex(const FDynamicMesh3& from, int fromVID)
 {
-	int bi = 3 * fromVID;
+	const int vid = VertexRefCounts.Allocate();
+	Vertices.InsertAt(from.Vertices[fromVID], vid);
 
-	int vid = VertexRefCounts.Allocate();
-	int i = 3 * vid;
-	Vertices.InsertAt(from.Vertices[bi + 2], i + 2);
-	Vertices.InsertAt(from.Vertices[bi + 1], i + 1);
-	Vertices.InsertAt(from.Vertices[bi], i);
-	if (HasVertexNormals()) 
+	if (HasVertexNormals())
 	{
 		if (from.HasVertexNormals())
 		{
-			const TDynamicVector<float>& FromNormals = from.VertexNormals.GetValue();
-			VertexNormals->InsertAt(FromNormals[bi + 2], i + 2);
-			VertexNormals->InsertAt(FromNormals[bi + 1], i + 1);
-			VertexNormals->InsertAt(FromNormals[bi], i);
+			const TDynamicVector<FVector3f>& FromNormals = from.VertexNormals.GetValue();
+			VertexNormals->InsertAt(FromNormals[fromVID], vid);
 		}
-		else 
+		else
 		{
-			VertexNormals->InsertAt(0, i + 2);
-			VertexNormals->InsertAt(1, i + 1);       // y-up
-			VertexNormals->InsertAt(0, i);
+			VertexNormals->InsertAt({0,1,0}, vid);   // y-up
 		}
 	}
 
-	if (HasVertexColors()) 
+	if (HasVertexColors())
 	{
-		if (from.HasVertexColors()) 
+		if (from.HasVertexColors())
 		{
-			const TDynamicVector<float>& FromColors = from.VertexColors.GetValue();
-			VertexColors->InsertAt(FromColors[bi + 2], i + 2);
-			VertexColors->InsertAt(FromColors[bi + 1], i + 1);
-			VertexColors->InsertAt(FromColors[bi], i);
+			const TDynamicVector<FVector3f>& FromColors = from.VertexColors.GetValue();
+			VertexColors->InsertAt(FromColors[fromVID], vid);
 		}
-		else 
+		else
 		{
-			VertexColors->InsertAt(1, i + 2);
-			VertexColors->InsertAt(1, i + 1);       // white
-			VertexColors->InsertAt(1, i);
+			VertexColors->InsertAt({1,1,1}, vid);   // white
 		}
 	}
 
-	if (HasVertexUVs()) 
+	if (HasVertexUVs())
 	{
-		int j = 2 * vid;
-		if (from.HasVertexUVs()) 
+		if (from.HasVertexUVs())
 		{
-			const TDynamicVector<float>& FromUVs = from.VertexUVs.GetValue();
-			int bj = 2 * fromVID;
-			VertexUVs->InsertAt(FromUVs[bj + 1], j + 1);
-			VertexUVs->InsertAt(FromUVs[bj], j);
+			const TDynamicVector<FVector2f>& FromUVs = from.VertexUVs.GetValue();
+			VertexUVs->InsertAt(FromUVs[fromVID], vid);
 		}
-		else 
+		else
 		{
-			VertexUVs->InsertAt(0, j + 1);
-			VertexUVs->InsertAt(0, j);
+			VertexUVs->InsertAt({0,0}, vid);
 		}
 	}
 
@@ -138,33 +113,24 @@ EMeshResult FDynamicMesh3::InsertVertex(int vid, const FVertexInfo& info, bool b
 		return EMeshResult::Failed_CannotAllocateVertex;
 	}
 
-	int i = 3 * vid;
-	Vertices.InsertAt(info.Position[2], i + 2);
-	Vertices.InsertAt(info.Position[1], i + 1);
-	Vertices.InsertAt(info.Position[0], i);
+	Vertices.InsertAt(info.Position, vid);
 
-	if (HasVertexNormals()) 
+	if (HasVertexNormals())
 	{
 		FVector3f n = (info.bHaveN) ? info.Normal : FVector3f::UnitY();
-		VertexNormals->InsertAt(n[2], i + 2);
-		VertexNormals->InsertAt(n[1], i + 1);
-		VertexNormals->InsertAt(n[0], i);
+		VertexNormals->InsertAt(n, vid);
 	}
 
-	if (HasVertexColors()) 
+	if (HasVertexColors())
 	{
 		FVector3f c = (info.bHaveC) ? info.Color : FVector3f::One();
-		VertexColors->InsertAt(c[2], i + 2);
-		VertexColors->InsertAt(c[1], i + 1);
-		VertexColors->InsertAt(c[0], i);
+		VertexColors->InsertAt(c, vid);
 	}
 
-	if (HasVertexUVs()) 
+	if (HasVertexUVs())
 	{
 		FVector2f u = (info.bHaveUV) ? info.UV : FVector2f::Zero();
-		int j = 2 * vid;
-		VertexUVs->InsertAt(u[1], j + 1);
-		VertexUVs->InsertAt(u[0], j);
+		VertexUVs->InsertAt(u, vid);
 	}
 
 	AllocateEdgesList(vid);
@@ -181,9 +147,9 @@ EMeshResult FDynamicMesh3::InsertVertex(int vid, const FVertexInfo& info, bool b
 
 
 
-int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid) 
+int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 {
-	if (IsVertex(tv[0]) == false || IsVertex(tv[1]) == false || IsVertex(tv[2]) == false) 
+	if (IsVertex(tv[0]) == false || IsVertex(tv[1]) == false || IsVertex(tv[2]) == false)
 	{
 		check(false);
 		return InvalidID;
@@ -193,7 +159,7 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 		return InvalidID;
 	}
 
-	// look up edges. if any already have two triangles, this would 
+	// look up edges. if any already have two triangles, this would
 	// create non-manifold geometry and so we do not allow it
 	bool boundary0, boundary1, boundary2;
 	int e0 = FindEdgeInternal(tv[0], tv[1], boundary0);
@@ -210,24 +176,20 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 	if (e0 != InvalidID && e1 != InvalidID && e2 != InvalidID)
 	{
 		// check if the triangle attached to edge e0 (tv[0] - tv[1]) also contains tv[2]
-		int e0i = 4 * e0;
-		int ti = 3 * Edges[e0i + 2];
-		if (Triangles[ti] == tv[2] || Triangles[ti + 1] == tv[2] || Triangles[ti + 2] == tv[2])
+		int ti = Edges[e0].Tri[0];
+		if (Triangles[ti][0] == tv[2] || Triangles[ti][1] == tv[2] || Triangles[ti][2] == tv[2])
 		{
 			return DuplicateTriangleID;
 		}
 		// there's no other triangle on the edge to check -- if there were, we would have already returned NonManifoldID
-		checkSlow(Edges[e0i + 3] == InvalidID);
+		checkSlow(Edges[e0].Tri[1] == InvalidID);
 	}
 
 	bool bHasGroups = HasTriangleGroups();  // have to check before changing .triangles
 
 	// now safe to insert triangle
 	int tid = TriangleRefCounts.Allocate();
-	int i = 3 * tid;
-	Triangles.InsertAt(tv[0], i);
-	Triangles.InsertAt(tv[1], i + 1);
-	Triangles.InsertAt(tv[2], i + 2);
+	Triangles.InsertAt(tv, tid);
 	if (bHasGroups)
 	{
 		TriangleGroups->InsertAt(gid, tid);
@@ -262,25 +224,25 @@ EMeshResult FDynamicMesh3::InsertTriangle(int tid, const FIndex3i& tv, int gid, 
 		return EMeshResult::Failed_TriangleAlreadyExists;
 	}
 
-	if (IsVertex(tv[0]) == false || IsVertex(tv[1]) == false || IsVertex(tv[2]) == false) 
+	if (IsVertex(tv[0]) == false || IsVertex(tv[1]) == false || IsVertex(tv[2]) == false)
 	{
 		check(false);
 		return EMeshResult::Failed_NotAVertex;
 	}
-	if (tv[0] == tv[1] || tv[0] == tv[2] || tv[1] == tv[2]) 
+	if (tv[0] == tv[1] || tv[0] == tv[2] || tv[1] == tv[2])
 	{
 		check(false);
 		return EMeshResult::Failed_InvalidNeighbourhood;
 	}
 
-	// look up edges. if any already have two triangles, this would 
+	// look up edges. if any already have two triangles, this would
 	// create non-manifold geometry and so we do not allow it
 	int e0 = FindEdge(tv[0], tv[1]);
 	int e1 = FindEdge(tv[1], tv[2]);
 	int e2 = FindEdge(tv[2], tv[0]);
 	if ((e0 != InvalidID && IsBoundaryEdge(e0) == false)
 		|| (e1 != InvalidID && IsBoundaryEdge(e1) == false)
-		|| (e2 != InvalidID && IsBoundaryEdge(e2) == false)) 
+		|| (e2 != InvalidID && IsBoundaryEdge(e2) == false))
 	{
 		return EMeshResult::Failed_WouldCreateNonmanifoldEdge;
 	}
@@ -293,11 +255,8 @@ EMeshResult FDynamicMesh3::InsertTriangle(int tid, const FIndex3i& tv, int gid, 
 	}
 
 	// now safe to insert triangle
-	int i = 3 * tid;
-	Triangles.InsertAt(tv[2], i + 2);
-	Triangles.InsertAt(tv[1], i + 1);
-	Triangles.InsertAt(tv[0], i);
-	if (HasTriangleGroups()) 
+	Triangles.InsertAt(tv, tid);
+	if (HasTriangleGroups())
 	{
 		TriangleGroups->InsertAt(gid, tid);
 		GroupIDCounter = FMath::Max(GroupIDCounter, gid + 1);
@@ -332,7 +291,7 @@ EMeshResult FDynamicMesh3::InsertTriangle(int tid, const FIndex3i& tv, int gid, 
 
 void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 {
-	
+
 	// Initialize CompactInfo
 
 	// if have attributes, need CompactInfo -- we'll make it refer to a local one if none was passed in
@@ -352,7 +311,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 			CompactInfo->bKeepTriangleMap = true;
 		}
 	}
-	
+
 	if (CompactInfo)
 	{
 		// starts as identity (except at gaps); sparsely remapped below
@@ -382,28 +341,24 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 	while (iCurV < iLastV)
 	{
-		int kc = iCurV * 3, kl = iLastV * 3;
-		Vertices[kc] = Vertices[kl];  Vertices[kc + 1] = Vertices[kl + 1];  Vertices[kc + 2] = Vertices[kl + 2];
+		Vertices[iCurV] = Vertices[iLastV];
+
+		//const int kc = iCurV * 3;
+		//const int kl = iLastV * 3;
 		if (HasVertexNormals())
 		{
-			TDynamicVector<float>& Normals = VertexNormals.GetValue();
-			Normals[kc]     = Normals[kl];
-			Normals[kc + 1] = Normals[kl + 1];
-			Normals[kc + 2] = Normals[kl + 2];
+			TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
+			Normals[iCurV] = Normals[iLastV];
 		}
 		if (HasVertexColors())
 		{
-			TDynamicVector<float>& Colors = VertexColors.GetValue();
-			Colors[kc] =     Colors[kl];
-			Colors[kc + 1] = Colors[kl + 1];
-			Colors[kc + 2] = Colors[kl + 2];
+			TDynamicVector<FVector3f>& Colors = VertexColors.GetValue();
+			Colors[iCurV] =     Colors[iLastV];
 		}
 		if (HasVertexUVs())
 		{
-			TDynamicVector<float>& UVs = VertexUVs.GetValue();
-			int ukc = iCurV * 2, ukl = iLastV * 2;
-			UVs[ukc] =     UVs[ukl];
-			UVs[ukc + 1] = UVs[ukl + 1];
+			TDynamicVector<FVector2f>& UVs = VertexUVs.GetValue();
+			UVs[iCurV] =     UVs[iLastV];
 		}
 
 		for (int eid : VertexEdgeLists.Values(iLastV))
@@ -412,12 +367,11 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 			ReplaceEdgeVertex(eid, iLastV, iCurV);
 
 			// replace vertex in triangles
-			int t0 = Edges[4 * eid + 2];
-			ReplaceTriangleVertex(t0, iLastV, iCurV);
-			int t1 = Edges[4 * eid + 3];
-			if (t1 != InvalidID)
+			const FIndex2i Tris = Edges[eid].Tri;
+			ReplaceTriangleVertex(Tris[0], iLastV, iCurV);
+			if (Tris[1] != InvalidID)
 			{
-				ReplaceTriangleVertex(t1, iLastV, iCurV);
+				ReplaceTriangleVertex(Tris[1], iLastV, iCurV);
 			}
 		}
 
@@ -447,7 +401,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 	// trim vertices data structures
 	VertexRefCounts.Trim(VertexCount());
-	Vertices.Resize(VertexCount() * 3);
+	Vertices.Resize(VertexCount());
 	if (HasVertexNormals())
 	{
 		VertexNormals->Resize(VertexCount() * 3);
@@ -480,14 +434,10 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 	while (iCurT < iLastT)
 	{
-		int kc = iCurT * 3, kl = iLastT * 3;
-
 		// shift triangle
-		for (int j = 0; j < 3; ++j)
-		{
-			Triangles[kc + j] = Triangles[kl + j];
-			TriangleEdges[kc + j] = TriangleEdges[kl + j];
-		}
+		Triangles[iCurT] = Triangles[iLastT];
+		TriangleEdges[iCurT] = TriangleEdges[iLastT];
+
 		if (HasTriangleGroups())
 		{
 			TriangleGroups.GetValue()[iCurT] = TriangleGroups.GetValue()[iLastT];
@@ -496,7 +446,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		// update edges
 		for (int j = 0; j < 3; ++j)
 		{
-			int eid = TriangleEdges[kc + j];
+			int eid = TriangleEdges[iCurT][j];
 			ReplaceEdgeTriangle(eid, iLastT, iCurT);
 		}
 
@@ -545,26 +495,20 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 	TDynamicVector<short> &eref = EdgeRefCounts.GetRawRefCountsUnsafe();
 
-	while (iCurE < iLastE) 
+	while (iCurE < iLastE)
 	{
-		int kc = iCurE * 4, kl = iLastE * 4;
-
-		// shift edge
-		for (int j = 0; j < 4; ++j) 
-		{
-			Edges[kc + j] = Edges[kl + j];
-		}
+		Edges[iCurE] = Edges[iLastE];
 
 		// replace edge in vertex edges lists
-		int v0 = Edges[kc], v1 = Edges[kc + 1];
+		int v0 = Edges[iCurE].Vert[0], v1 = Edges[iCurE].Vert[1];
 		VertexEdgeLists.Replace(v0, [iLastE](int eid) { return eid == iLastE; }, iCurE);
 		VertexEdgeLists.Replace(v1, [iLastE](int eid) { return eid == iLastE; }, iCurE);
 
 		// replace edge in triangles
-		ReplaceTriangleEdge(Edges[kc + 2], iLastE, iCurE);
-		if (Edges[kc + 3] != InvalidID)
+		ReplaceTriangleEdge(Edges[iCurE].Tri[0], iLastE, iCurE);
+		if (Edges[iCurE].Tri[1] != InvalidID)
 		{
-			ReplaceTriangleEdge(Edges[kc + 3], iLastE, iCurE);
+			ReplaceTriangleEdge(Edges[iCurE].Tri[1], iLastE, iCurE);
 		}
 
 		// shift triangle refcount to position
@@ -585,7 +529,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 	// trim edge data structures
 	EdgeRefCounts.Trim(EdgeCount());
-	Edges.Resize(EdgeCount() * 4);
+	Edges.Resize(EdgeCount());
 
 	if (HasAttributes())
 	{
@@ -605,7 +549,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 
 
-EMeshResult FDynamicMesh3::ReverseTriOrientation(int tID) 
+EMeshResult FDynamicMesh3::ReverseTriOrientation(int tID)
 {
 	if (!IsTriangle(tID))
 	{
@@ -638,11 +582,8 @@ void FDynamicMesh3::ReverseOrientation(bool bFlipNormals)
 	{
 		for (int vid : VertexIndicesItr())
 		{
-			int i = 3 * vid;
-			TDynamicVector<float>& Normals = VertexNormals.GetValue();
-			Normals[i]     = -Normals[i];
-			Normals[i + 1] = -Normals[i + 1];
-			Normals[i + 2] = -Normals[i + 2];
+			TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
+			Normals[vid] = -Normals[vid];
 		}
 	}
 	UpdateTimeStamp(true, true);
@@ -655,13 +596,13 @@ EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool 
 		return EMeshResult::Failed_NotAVertex;
 	}
 
-	if (bRemoveAllTriangles) 
+	if (bRemoveAllTriangles)
 	{
 		// if any one-ring vtx is a boundary vtx and one of its outer-ring edges is an
 		// interior edge then we will create a bowtie if we remove that triangle
-		if (bPreserveManifold) 
+		if (bPreserveManifold)
 		{
-			for (int tid : VtxTrianglesItr(vID)) 
+			for (int tid : VtxTrianglesItr(vID))
 			{
 				FIndex3i tri = GetTriangle(tid);
 				int j = IndexUtil::FindTriIndex(vID, tri);
@@ -680,7 +621,7 @@ EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool 
 
 		TArray<int> tris;
 		GetVtxTriangles(vID, tris, true);
-		for (int tID : tris) 
+		for (int tID : tris)
 		{
 			EMeshResult result = RemoveTriangle(tID, false, bPreserveManifold);
 			if (result != EMeshResult::Ok)
@@ -712,7 +653,7 @@ EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool 
 
 EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices, bool bPreserveManifold)
 {
-	if (!TriangleRefCounts.IsValid(tID)) 
+	if (!TriangleRefCounts.IsValid(tID))
 	{
 		check(false);
 		return EMeshResult::Failed_NotATriangle;
@@ -724,11 +665,11 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 	// if any tri vtx is a boundary vtx connected to two interior edges, then
 	// we cannot remove this triangle because it would create a bowtie vertex!
 	// (that vtx already has 2 boundary edges, and we would add two more)
-	if (bPreserveManifold) 
+	if (bPreserveManifold)
 	{
-		for (int j = 0; j < 3; ++j) 
+		for (int j = 0; j < 3; ++j)
 		{
-			if (IsBoundaryVertex(tv[j])) 
+			if (IsBoundaryVertex(tv[j]))
 			{
 				if (IsBoundaryEdge(te[j]) == false && IsBoundaryEdge(te[(j + 2) % 3]) == false)
 				{
@@ -740,16 +681,17 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 
 	// Remove triangle from its edges. if edge has no triangles left,
 	// then it is removed.
-	for (int j = 0; j < 3; ++j) 
+	for (int j = 0; j < 3; ++j)
 	{
 		int eid = te[j];
 		ReplaceEdgeTriangle(eid, tID, InvalidID);
-		if (Edges[4 * eid + 2] == InvalidID) 
+		const FEdge Edge = Edges[eid];
+		if (Edge.Tri[0] == InvalidID)
 		{
-			int a = Edges[4 * eid];
+			int a = Edge.Vert[0];
 			VertexEdgeLists.Remove(a, eid);
 
-			int b = Edges[4 * eid + 1];
+			int b = Edge.Vert[1];
 			VertexEdgeLists.Remove(b, eid);
 
 			EdgeRefCounts.Decrement(eid);
@@ -762,11 +704,11 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 
 	// Decrement vertex refcounts. If any hit 1 and we got remove-isolated flag,
 	// we need to remove that vertex
-	for (int j = 0; j < 3; ++j) 
+	for (int j = 0; j < 3; ++j)
 	{
 		int vid = tv[j];
 		VertexRefCounts.Decrement(vid);
-		if (bRemoveIsolatedVertices && VertexRefCounts.GetRefCount(vid) == 1) 
+		if (bRemoveIsolatedVertices && VertexRefCounts.GetRefCount(vid) == 1)
 		{
 			VertexRefCounts.Decrement(vid);
 			check(VertexRefCounts.IsValid(vid) == false);
@@ -791,7 +733,7 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 
 EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemoveIsolatedVertices)
 {
-	// @todo support this. 
+	// @todo support this.
 	check(HasAttributes() == false);
 
 	FIndex3i tv = GetTriangle(tID);
@@ -809,29 +751,29 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 		te[2] = -1;
 	}
 
-	if (!TriangleRefCounts.IsValid(tID)) 
+	if (!TriangleRefCounts.IsValid(tID))
 	{
 		check(false);
 		return EMeshResult::Failed_NotATriangle;
 	}
-	if (IsVertex(newv[0]) == false || IsVertex(newv[1]) == false || IsVertex(newv[2]) == false) 
+	if (IsVertex(newv[0]) == false || IsVertex(newv[1]) == false || IsVertex(newv[2]) == false)
 	{
 		check(false);
 		return EMeshResult::Failed_NotAVertex;
 	}
-	if (newv[0] == newv[1] || newv[0] == newv[2] || newv[1] == newv[2]) 
+	if (newv[0] == newv[1] || newv[0] == newv[2] || newv[1] == newv[2])
 	{
 		check(false);
 		return EMeshResult::Failed_BrokenTopology;
 	}
-	// look up edges. if any already have two triangles, this would 
+	// look up edges. if any already have two triangles, this would
 	// create non-manifold geometry and so we do not allow it
 	int e0 = FindEdge(newv[0], newv[1]);
 	int e1 = FindEdge(newv[1], newv[2]);
 	int e2 = FindEdge(newv[2], newv[0]);
 	if ((te[0] != -1 && e0 != InvalidID && IsBoundaryEdge(e0) == false)
 		|| (te[1] != -1 && e1 != InvalidID && IsBoundaryEdge(e1) == false)
-		|| (te[2] != -1 && e2 != InvalidID && IsBoundaryEdge(e2) == false)) 
+		|| (te[2] != -1 && e2 != InvalidID && IsBoundaryEdge(e2) == false))
 	{
 		return EMeshResult::Failed_BrokenTopology;
 	}
@@ -840,7 +782,7 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 	// [TODO] check that we are not going to create invalid stuff...
 
 	// Remove triangle from its edges. if edge has no triangles left, then it is removed.
-	for (int j = 0; j < 3; ++j) 
+	for (int j = 0; j < 3; ++j)
 	{
 		int eid = te[j];
 		if (eid == -1)      // we don't need to modify this edge
@@ -848,12 +790,13 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 			continue;
 		}
 		ReplaceEdgeTriangle(eid, tID, InvalidID);
-		if (Edges[4 * eid + 2] == InvalidID) 
+		const FEdge Edge;
+		if (Edge.Tri[0] == InvalidID)
 		{
-			int a = Edges[4 * eid];
+			int a = Edge.Vert[0];
 			VertexEdgeLists.Remove(a, eid);
 
-			int b = Edges[4 * eid + 1];
+			int b = Edge.Vert[1];
 			VertexEdgeLists.Remove(b, eid);
 
 			EdgeRefCounts.Decrement(eid);
@@ -862,7 +805,7 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 
 	// Decrement vertex refcounts. If any hit 1 and we got remove-isolated flag,
 	// we need to remove that vertex
-	for (int j = 0; j < 3; ++j) 
+	for (int j = 0; j < 3; ++j)
 	{
 		int vid = tv[j];
 		if (vid == newv[j])     // we don't need to modify this vertex
@@ -870,7 +813,7 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 			continue;
 		}
 		VertexRefCounts.Decrement(vid);
-		if (bRemoveIsolatedVertices && VertexRefCounts.GetRefCount(vid) == 1) 
+		if (bRemoveIsolatedVertices && VertexRefCounts.GetRefCount(vid) == 1)
 		{
 			VertexRefCounts.Decrement(vid);
 			check(VertexRefCounts.IsValid(vid) == false);
@@ -880,12 +823,11 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 
 
 	// ok now re-insert with vertices
-	int i = 3 * tID;
-	for (int j = 0; j < 3; ++j) 
+	for (int j = 0; j < 3; ++j)
 	{
-		if (newv[j] != tv[j]) 
+		if (newv[j] != tv[j])
 		{
-			Triangles[i + j] = newv[j];
+			Triangles[tID][j] = newv[j];
 			VertexRefCounts.Increment(newv[j]);
 		}
 	}
@@ -925,9 +867,9 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 	}
 
 	// look up primary edge & triangle
-	int eab_i = 4 * eab;
-	int a = Edges[eab_i], b = Edges[eab_i + 1];
-	int t0 = Edges[eab_i + 2];
+	const FEdge Edge = Edges[eab];
+	int a = Edge.Vert[0], b = Edge.Vert[1];
+	int t0 = Edge.Tri[0];
 	if (t0 == InvalidID)
 	{
 		return EMeshResult::Failed_BrokenTopology;
@@ -938,7 +880,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 	{
 		return EMeshResult::Failed_HitValenceLimit;
 	}
-	if (a != Edges[eab_i])
+	if (a != Edge.Vert[0])
 	{
 		split_t = 1.0 - split_t;    // if we flipped a/b order we need to reverse t
 	}
@@ -950,7 +892,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 
 	// quite a bit of code is duplicated between boundary and non-boundary case, but it
 	//  is too hard to follow later if we factor it out...
-	if (IsBoundaryEdge(eab)) 
+	if (IsBoundaryEdge(eab))
 	{
 		// create vertex
 		FVector3d vNew = FVector3d::Lerp(GetVertex(a), GetVertex(b), split_t);
@@ -990,7 +932,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		VertexEdgeLists.Remove(b, eab);
 		VertexEdgeLists.Insert(f, eaf);
 
-		// create edges fb and fc 
+		// create edges fb and fc
 		int efb = AddEdgeInternal(f, b, t2);
 		int efc = AddEdgeInternal(f, c, t0, t2);
 
@@ -1020,7 +962,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 	else 		// interior triangle branch
 	{
 		// look up other triangle
-		int t1 = Edges[eab_i + 3];
+		int t1 = Edges[eab].Tri[1];
 		SplitInfo.OriginalTriangles.B = t1;
 		FIndex3i T1tv = GetTriangle(t1);
 		int d = IndexUtil::FindTriOtherVtx(a, b, T1tv);
@@ -1059,7 +1001,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		// add two triangles to close holes we just created
 		int t2 = AddTriangleInternal(f, b, c, InvalidID, InvalidID, InvalidID);
 		int t3 = AddTriangleInternal(f, d, b, InvalidID, InvalidID, InvalidID);
-		if (HasTriangleGroups()) 
+		if (HasTriangleGroups())
 		{
 			int group0 = TriangleGroups.GetValue()[t0];
 			TriangleGroups->InsertAt(group0, t2);
@@ -1116,7 +1058,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 EMeshResult FDynamicMesh3::SplitEdge(int vA, int vB, FEdgeSplitInfo& SplitInfo)
 {
 	int eid = FindEdge(vA, vB);
-	if (eid == InvalidID) 
+	if (eid == InvalidID)
 	{
 		SplitInfo = FEdgeSplitInfo();
 		return EMeshResult::Failed_NotAnEdge;
@@ -1145,13 +1087,13 @@ EMeshResult FDynamicMesh3::FlipEdge(int eab, FEdgeFlipInfo& FlipInfo)
 	}
 
 	// find oriented edge [a,b], tris t0,t1, and other verts c in t0, d in t1
-	int eab_i = 4 * eab;
-	int a = Edges[eab_i], b = Edges[eab_i + 1];
-	int t0 = Edges[eab_i + 2], t1 = Edges[eab_i + 3];
+	const FEdge Edge = Edges[eab];
+	int a = Edge.Vert[0], b = Edge.Vert[1];
+	int t0 = Edge.Tri[0], t1 = Edge.Tri[1];
 	FIndex3i T0tv = GetTriangle(t0), T1tv = GetTriangle(t1);
 	int c = IndexUtil::OrientTriEdgeAndFindOtherVtx(a, b, T0tv);
 	int d = IndexUtil::FindTriOtherVtx(a, b, T1tv);
-	if (c == InvalidID || d == InvalidID) 
+	if (c == InvalidID || d == InvalidID)
 	{
 		return EMeshResult::Failed_BrokenTopology;
 	}
@@ -1294,7 +1236,7 @@ EMeshResult FDynamicMesh3::SplitVertex(int VertexID, const TArrayView<const int>
 		ProcessEdge(TriID, Triangle, TriEdges, SubIdx);
 		ProcessEdge(TriID, Triangle, TriEdges, (SubIdx+2)%3);
 
-		Triangles[TriID * 3 + SubIdx] = SplitInfo.NewVertex;
+		Triangles[TriID][SubIdx] = SplitInfo.NewVertex;
 		VertexRefCounts.Decrement(SplitInfo.OriginalVertex); // remove the triangle from the original vertex
 		VertexRefCounts.Increment(SplitInfo.NewVertex);
 	}
@@ -1342,7 +1284,8 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		return EMeshResult::Failed_NotAnEdge;
 	}
 
-	int t0 = Edges[4 * eab + 2];
+	const FEdge EdgeAB = Edges[eab];
+	int t0 = EdgeAB.Tri[0];
 	if (t0 == InvalidID)
 	{
 		return EMeshResult::Failed_BrokenTopology;
@@ -1353,8 +1296,8 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 	// look up opposing triangle/vtx if we are not in boundary case
 	bool bIsBoundaryEdge = false;
 	int d = InvalidID;
-	int t1 = Edges[4 * eab + 3];
-	if (t1 != InvalidID) 
+	int t1 = EdgeAB.Tri[1];
+	if (t1 != InvalidID)
 	{
 		FIndex3i T1tv = GetTriangle(t1);
 		d = IndexUtil::FindTriOtherVtx(a, b, T1tv);
@@ -1363,7 +1306,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 			return EMeshResult::Failed_FoundDuplicateTriangle;
 		}
 	}
-	else 
+	else
 	{
 		bIsBoundaryEdge = true;
 	}
@@ -1376,15 +1319,15 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 	//  [TODO] if we had tri iterator for a, couldn't we check each tri for b  (skipping t0 and t1) ?
 	int edges_a_count = VertexEdgeLists.GetCount(a);
 	int eac = InvalidID, ead = InvalidID, ebc = InvalidID, ebd = InvalidID;
-	for (int eid_a : VertexEdgeLists.Values(a)) 
+	for (int eid_a : VertexEdgeLists.Values(a))
 	{
 		int vax = GetOtherEdgeVertex(eid_a, a);
-		if (vax == c) 
+		if (vax == c)
 		{
 			eac = eid_a;
 			continue;
 		}
-		if (vax == d) 
+		if (vax == d)
 		{
 			ead = eid_a;
 			continue;
@@ -1393,7 +1336,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		{
 			continue;
 		}
-		for (int eid_b : VertexEdgeLists.Values(b)) 
+		for (int eid_b : VertexEdgeLists.Values(b))
 		{
 			if (GetOtherEdgeVertex(eid_b, b) == vax)
 			{
@@ -1408,24 +1351,26 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 	// We cannot collapse if we have a tetrahedron. In this case a has 3 nbr edges,
 	//  and edge cd exists. But that is not conclusive, we also have to check that
 	//  cd is an internal edge, and that each of its tris contain a or b
-	if (edges_a_count == 3 && bIsBoundaryEdge == false) 
+	if (edges_a_count == 3 && bIsBoundaryEdge == false)
 	{
 		int edc = FindEdge(d, c);
-		int edc_i = 4 * edc;
-		if (edc != InvalidID && Edges[edc_i + 3] != InvalidID) 
+		if (edc != InvalidID)
 		{
-			int edc_t0 = Edges[edc_i + 2];
-			int edc_t1 = Edges[edc_i + 3];
-
-			if ((TriangleHasVertex(edc_t0, a) && TriangleHasVertex(edc_t1, b))
-				|| (TriangleHasVertex(edc_t0, b) && TriangleHasVertex(edc_t1, a)))
+			const FEdge EdgeDC = Edges[edc];
+			if (EdgeDC.Tri[1] != InvalidID)
 			{
-				return EMeshResult::Failed_CollapseTetrahedron;
+				int edc_t0 = EdgeDC.Tri[0];
+				int edc_t1 = EdgeDC.Tri[1];
+
+				if ((TriangleHasVertex(edc_t0, a) && TriangleHasVertex(edc_t1, b))
+					|| (TriangleHasVertex(edc_t0, b) && TriangleHasVertex(edc_t1, a)))
+				{
+					return EMeshResult::Failed_CollapseTetrahedron;
+				}
 			}
 		}
-
 	}
-	else if (bIsBoundaryEdge == true && IsBoundaryEdge(eac)) 
+	else if (bIsBoundaryEdge == true && IsBoundaryEdge(eac))
 	{
 		// Cannot collapse edge if we are down to a single triangle
 		ebc = FindEdgeFromTri(b, c, t0);
@@ -1456,10 +1401,10 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 	// 3) for other edges, replace a with b, and add that edge to b
 	// 4) replace a with b in all triangles connected to a
 	int tad = InvalidID, tac = InvalidID;
-	for (int eid : VertexEdgeLists.Values(a)) 
+	for (int eid : VertexEdgeLists.Values(a))
 	{
 		int o = GetOtherEdgeVertex(eid, a);
-		if (o == b) 
+		if (o == b)
 		{
 			if (VertexEdgeLists.Remove(b, eid) != true)
 			{
@@ -1467,7 +1412,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 		}
-		else if (o == c) 
+		else if (o == c)
 		{
 			if (VertexEdgeLists.Remove(c, eid) != true)
 			{
@@ -1476,7 +1421,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 			}
 			tac = GetOtherEdgeTriangle(eid, t0);
 		}
-		else if (o == d) 
+		else if (o == d)
 		{
 			if (VertexEdgeLists.Remove(d, eid) != true)
 			{
@@ -1485,7 +1430,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 			}
 			tad = GetOtherEdgeTriangle(eid, t1);
 		}
-		else 
+		else
 		{
 			if (ReplaceEdgeVertex(eid, a, b) == -1)
 			{
@@ -1496,10 +1441,11 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		}
 
 		// [TODO] perhaps we can already have unique tri list because of the manifold-nbrhood check we need to do...
-		for (int j = 0; j < 2; ++j) 
+		const FEdge Edge = Edges[eid];
+		for (int j = 0; j < 2 ; ++j)
 		{
-			int t_j = Edges[4 * eid + 2 + j];
-			if (t_j != InvalidID && t_j != t0 && t_j != t1) 
+			int t_j = Edge.Tri[j];
+			if (t_j != InvalidID && t_j != t0 && t_j != t1)
 			{
 				if (TriangleHasVertex(t_j, a))
 				{
@@ -1515,7 +1461,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		}
 	}
 
-	if (bIsBoundaryEdge == false) 
+	if (bIsBoundaryEdge == false)
 	{
 		// remove all edges from vtx a, then remove vtx a
 		VertexEdgeLists.Clear(a);
@@ -1560,7 +1506,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		}
 
 		// update tri-edge-nbrs in tad and tac
-		if (tad != InvalidID) 
+		if (tad != InvalidID)
 		{
 			if (ReplaceTriangleEdge(tad, ead, ebd) == -1)
 			{
@@ -1568,7 +1514,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 		}
-		if (tac != InvalidID) 
+		if (tac != InvalidID)
 		{
 			if (ReplaceTriangleEdge(tac, eac, ebc) == -1)
 			{
@@ -1578,7 +1524,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		}
 
 	}
-	else 
+	else
 	{
 		//  boundary-edge path. this is basically same code as above, just not referencing t1/d
 
@@ -1609,7 +1555,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		}
 
 		// update tri-edge-nbrs in tac
-		if (tac != InvalidID) 
+		if (tac != InvalidID)
 		{
 			if (ReplaceTriangleEdge(tac, eac, ebc) == -1)
 			{
@@ -1660,23 +1606,23 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 		return EMeshResult::Failed_NotAnEdge;
 	}
 
-	FIndex4i edgeinfo_keep = GetEdge(eKeep);
-	FIndex4i edgeinfo_discard = GetEdge(eDiscard);
-	if (edgeinfo_keep[3] != InvalidID || edgeinfo_discard[3] != InvalidID)
+	const FEdge edgeinfo_keep = GetEdge(eKeep);
+	const FEdge edgeinfo_discard = GetEdge(eDiscard);
+	if (edgeinfo_keep.Tri[1] != InvalidID || edgeinfo_discard.Tri[1] != InvalidID)
 	{
 		return EMeshResult::Failed_NotABoundaryEdge;
 	}
 
-	int a = edgeinfo_keep[0], b = edgeinfo_keep[1];
-	int tab = edgeinfo_keep[2];
+	int a = edgeinfo_keep.Vert[0], b = edgeinfo_keep.Vert[1];
+	int tab = edgeinfo_keep.Tri[0];
 	int eab = eKeep;
-	int c = edgeinfo_discard[0], d = edgeinfo_discard[1];
-	int tcd = edgeinfo_discard[2];
+	int c = edgeinfo_discard.Vert[0], d = edgeinfo_discard.Vert[1];
+	int tcd = edgeinfo_discard.Tri[0];
 	int ecd = eDiscard;
 
-	// Need to correctly orient a,b and c,d and then check that 
+	// Need to correctly orient a,b and c,d and then check that
 	// we will not join triangles with incompatible winding order
-	// I can't see how to do this purely topologically. 
+	// I can't see how to do this purely topologically.
 	// So relying on closest-pairs testing.
 	IndexUtil::OrientTriEdge(a, b, GetTriangle(tab));
 	//int tcd_otherv = OrientTriEdgeAndFindOtherVtx(ref c, ref d, GetTriangle(tcd));
@@ -1689,7 +1635,7 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 		return EMeshResult::Failed_SameOrientation;
 	}
 
-	// alternative that detects normal flip of triangle tcd. This is a more 
+	// alternative that detects normal flip of triangle tcd. This is a more
 	// robust geometric test, but fails if tri is degenerate...also more expensive
 	//FVector3d otherv = GetVertex(tcd_otherv);
 	//FVector3d Ncd = VectorUtil::NormalDirection(GetVertex(c), GetVertex(d), otherv);
@@ -1710,17 +1656,17 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 		return EMeshResult::Failed_InvalidNeighbourhood;
 	}
 
-	// if vertices at either end already share a common neighbour vertex, and we 
+	// if vertices at either end already share a common neighbour vertex, and we
 	// do the merge, that would create duplicate edges. This is something like the
-	// 'link condition' in edge collapses. 
+	// 'link condition' in edge collapses.
 	// Note that we have to catch cases where both edges to the shared vertex are
 	// boundary edges, in that case we will also merge this edge later on
-	if (a != c) 
+	if (a != c)
 	{
 		int ea = 0, ec = 0, other_v = (b == d) ? b : -1;
-		for (int cnbr : VtxVerticesItr(c)) 
+		for (int cnbr : VtxVerticesItr(c))
 		{
-			if (cnbr != other_v && (ea = FindEdge(a, cnbr)) != InvalidID) 
+			if (cnbr != other_v && (ea = FindEdge(a, cnbr)) != InvalidID)
 			{
 				ec = FindEdge(c, cnbr);
 				if (IsBoundaryEdge(ea) == false || IsBoundaryEdge(ec) == false)
@@ -1730,12 +1676,12 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 			}
 		}
 	}
-	if (b != d) 
+	if (b != d)
 	{
 		int eb = 0, ed = 0, other_v = (a == c) ? a : -1;
-		for (int dnbr : VtxVerticesItr(d)) 
+		for (int dnbr : VtxVerticesItr(d))
 		{
-			if (dnbr != other_v && (eb = FindEdge(b, dnbr)) != InvalidID) 
+			if (dnbr != other_v && (eb = FindEdge(b, dnbr)) != InvalidID)
 			{
 				ed = FindEdge(d, dnbr);
 				if (IsBoundaryEdge(eb) == false || IsBoundaryEdge(ed) == false)
@@ -1747,10 +1693,10 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 	}
 
 	// [TODO] this acts on each interior tri twice. could avoid using vtx-tri iterator?
-	if (a != c) 
+	if (a != c)
 	{
 		// replace c w/ a in edges and tris connected to c, and move edges to a
-		for (int eid : VertexEdgeLists.Values(c)) 
+		for (int eid : VertexEdgeLists.Values(c))
 		{
 			if (eid == eDiscard)
 			{
@@ -1758,19 +1704,20 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 			}
 			ReplaceEdgeVertex(eid, c, a);
 			short rc = 0;
-			if (ReplaceTriangleVertex(Edges[4 * eid + 2], c, a) >= 0)
+			const FEdge Edge = Edges[eid];
+			if (ReplaceTriangleVertex(Edge.Tri[0], c, a) >= 0)
 			{
 				rc++;
 			}
-			if (Edges[4 * eid + 3] != InvalidID) 
+			if (Edge.Tri[1] != InvalidID)
 			{
-				if (ReplaceTriangleVertex(Edges[4 * eid + 3], c, a) >= 0)
+				if (ReplaceTriangleVertex(Edge.Tri[1], c, a) >= 0)
 				{
 					rc++;
 				}
 			}
 			VertexEdgeLists.Insert(a, eid);
-			if (rc > 0) 
+			if (rc > 0)
 			{
 				VertexRefCounts.Increment(a, rc);
 				VertexRefCounts.Decrement(c, rc);
@@ -1780,17 +1727,17 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 		VertexRefCounts.Decrement(c);
 		MergeInfo.RemovedVerts[0] = c;
 	}
-	else 
+	else
 	{
 		VertexEdgeLists.Remove(a, ecd);
 		MergeInfo.RemovedVerts[0] = InvalidID;
 	}
 	MergeInfo.KeptVerts[0] = a;
 
-	if (d != b) 
+	if (d != b)
 	{
 		// replace d w/ b in edges and tris connected to d, and move edges to b
-		for (int eid : VertexEdgeLists.Values(d)) 
+		for (int eid : VertexEdgeLists.Values(d))
 		{
 			if (eid == eDiscard)
 			{
@@ -1798,19 +1745,20 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 			}
 			ReplaceEdgeVertex(eid, d, b);
 			short rc = 0;
-			if (ReplaceTriangleVertex(Edges[4 * eid + 2], d, b) >= 0)
+			const FEdge Edge = Edges[eid];
+			if (ReplaceTriangleVertex(Edge.Tri[0], d, b) >= 0)
 			{
 				rc++;
 			}
-			if (Edges[4 * eid + 3] != InvalidID) 
+			if (Edge.Tri[1] != InvalidID)
 			{
-				if (ReplaceTriangleVertex(Edges[4 * eid + 3], d, b) >= 0)
+				if (ReplaceTriangleVertex(Edge.Tri[1], d, b) >= 0)
 				{
 					rc++;
 				}
 			}
 			VertexEdgeLists.Insert(b, eid);
-			if (rc > 0) 
+			if (rc > 0)
 			{
 				VertexRefCounts.Increment(b, rc);
 				VertexRefCounts.Decrement(d, rc);
@@ -1821,7 +1769,7 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 		VertexRefCounts.Decrement(d);
 		MergeInfo.RemovedVerts[1] = d;
 	}
-	else 
+	else
 	{
 		VertexEdgeLists.Remove(b, ecd);
 		MergeInfo.RemovedVerts[1] = InvalidID;
@@ -1838,15 +1786,15 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 	// Once we merge ab to cd, there may be additional edges (now) connected
 	// to either a or b that are connected to the same vertex on their 'other' side.
 	// So we now have two boundary edges connecting the same two vertices - disaster!
-	// We need to find and merge these edges. 
+	// We need to find and merge these edges.
 	// Q: I don't think it is possible to have multiple such edge-pairs at a or b
 	//    But I am not certain...is a bit tricky to handle because we modify edges_v...
 	MergeInfo.ExtraRemovedEdges = FIndex2i(InvalidID, InvalidID);
 	MergeInfo.ExtraKeptEdges = MergeInfo.ExtraRemovedEdges;
-	for (int vi = 0; vi < 2; ++vi) 
+	for (int vi = 0; vi < 2; ++vi)
 	{
 		int v1 = a, v2 = c;   // vertices of merged edge
-		if (vi == 1) 
+		if (vi == 1)
 		{
 			v1 = b; v2 = d;
 		}
@@ -1862,7 +1810,7 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 		// in this loop, we compare 'other' vert_1 and vert_2 of edges around v1.
 		// problem case is when vert_1 == vert_2  (ie two edges w/ same other vtx).
 		//restart_merge_loop:
-		for (int i = 0; i < Nedges && found == false; ++i) 
+		for (int i = 0; i < Nedges && found == false; ++i)
 		{
 			int edge_1 = edges_v[i];
 			if (IsBoundaryEdge(edge_1) == false)
@@ -1870,15 +1818,15 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 				continue;
 			}
 			int vert_1 = GetOtherEdgeVertex(edge_1, v1);
-			for (int j = i + 1; j < Nedges; ++j) 
+			for (int j = i + 1; j < Nedges; ++j)
 			{
 				int edge_2 = edges_v[j];
 				int vert_2 = GetOtherEdgeVertex(edge_2, v1);
 				if (vert_1 == vert_2 && IsBoundaryEdge(edge_2))  // if ! boundary here, we are in deep trouble...
 				{
 					// replace edge_2 w/ edge_1 in tri, update edge and vtx-edge-nbr lists
-					int tri_1 = Edges[4 * edge_1 + 2];
-					int tri_2 = Edges[4 * edge_2 + 2];
+					int tri_1 = Edges[edge_1].Tri[0];
+					int tri_2 = Edges[edge_2].Tri[0];
 					ReplaceTriangleEdge(tri_2, edge_2, edge_1);
 					SetEdgeTrianglesInternal(edge_1, tri_1, tri_2);
 					VertexEdgeLists.Remove(v1, edge_2);
@@ -1958,7 +1906,7 @@ EMeshResult FDynamicMesh3::PokeTriangle(int TriangleID, const FVector3d& BaryCoo
 	SetEdgeTrianglesInternal(ecC, t1, t2);
 
 	// transfer groups
-	if (HasTriangleGroups()) 
+	if (HasTriangleGroups())
 	{
 		int g = TriangleGroups.GetValue()[TriangleID];
 		TriangleGroups->InsertAt(g, t1);

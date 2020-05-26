@@ -230,6 +230,55 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				EUserInterfaceActionType::ToggleButton
 			);
 
+			auto EvaluateTracksWhenNotSpawnedCheckState = [Sequencer, MovieScene]
+			{
+				ECheckBoxState CheckState = ECheckBoxState::Undetermined;
+				for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
+				{
+					if (Node->GetType() == ESequencerNode::Object)
+					{
+						FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
+						if (SelectedSpawnable)
+						{
+							if (CheckState != ECheckBoxState::Undetermined && SelectedSpawnable->bEvaluateTracksWhenNotSpawned != ( CheckState == ECheckBoxState::Checked ))
+							{
+								return ECheckBoxState::Undetermined;
+							}
+							CheckState = SelectedSpawnable->bEvaluateTracksWhenNotSpawned ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						}
+					}
+				}
+				return CheckState;
+			};
+
+			auto ToggleEvaluateTracksWhenNotSpawned = [Sequencer, MovieScene, EvaluateTracksWhenNotSpawnedCheckState]
+			{
+				FScopedTransaction Transaction(LOCTEXT("EvaluateTracksWhenNotSpawned_Transaction", "Evaluate Tracks When Not Spawned"));
+
+				bool bNewValue = EvaluateTracksWhenNotSpawnedCheckState() == ECheckBoxState::Unchecked;
+				MovieScene->Modify();
+				for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
+				{
+					if (Node->GetType() == ESequencerNode::Object)
+					{
+						FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
+						if (SelectedSpawnable)
+						{
+							SelectedSpawnable->bEvaluateTracksWhenNotSpawned = bNewValue;
+						}
+					}
+				}
+			};
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("EvaluateTracksWhenNotSpawned", "Evaluate Tracks When Not Spawned"),
+				LOCTEXT("EvaluateTracksWhenNotSpawnedTooltip", "When enabled, any tracks on this object binding or its children will still be evaluated even when the object is not spawned."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda(ToggleEvaluateTracksWhenNotSpawned), FCanExecuteAction(), FGetActionCheckState::CreateLambda(EvaluateTracksWhenNotSpawnedCheckState)),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+
 			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().SaveCurrentSpawnableState );
 			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ConvertToPossessable );
 

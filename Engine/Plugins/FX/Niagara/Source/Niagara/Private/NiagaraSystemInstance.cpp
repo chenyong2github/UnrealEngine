@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "NiagaraCrashReporterHandler.h"
 #include "Async/Async.h"
+#include "Algo/RemoveIf.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -754,6 +755,17 @@ void FNiagaraSystemInstance::ComputeEmittersExecutionOrder()
 			{
 				if (EmitterDependencies[DepIdx] == &Emitters[OtherEmitterIdx].Get())
 				{
+					const bool HasSourceEmitter = Emitters[EmitterIdx]->GetCachedEmitter() != nullptr;
+					const bool HasDependentEmitter = Emitters[OtherEmitterIdx]->GetCachedEmitter() != nullptr;
+
+					// check to see if the emitter we're dependent on may have been culled during the cook
+					if (HasSourceEmitter && !HasDependentEmitter)
+					{
+						UE_LOG(LogNiagara, Error, TEXT("Emitter[%s] depends on Emitter[%s] which is not available (has scalability removed it during a cook?)."),
+							*GetSystem()->GetEmitterHandles()[EmitterIdx].GetName().ToString(),
+							*GetSystem()->GetEmitterHandles()[OtherEmitterIdx].GetName().ToString());
+					}
+
 					// Some DIs might read from the same emitter they're applied to. We don't care about dependencies on self.
 					if (EmitterIdx != OtherEmitterIdx)
 					{
@@ -766,27 +778,32 @@ void FNiagaraSystemInstance::ComputeEmittersExecutionOrder()
 		}
 	}
 
-	if (!bHasEmitterDependencies)
+	if (bHasEmitterDependencies)
 	{
-		return;
-	}
-
-	for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
-	{
-		if (EmitterPriorities[EmitterIdx] < 0)
+		for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
 		{
-			if (!ComputeEmitterPriority(EmitterIdx, EmitterPriorities, EmitterDependencyGraph))
+			if (EmitterPriorities[EmitterIdx] < 0)
 			{
-				FName EmitterName = GetSystem()->GetEmitterHandles()[EmitterIdx].GetName();
-				UE_LOG(LogNiagara, Error, TEXT("Found circular dependency involving emitter '%s' in system '%s'. The execution order will be undefined."), *EmitterName.ToString(), *GetSystem()->GetName());
-				break;
+				if (!ComputeEmitterPriority(EmitterIdx, EmitterPriorities, EmitterDependencyGraph))
+				{
+					FName EmitterName = GetSystem()->GetEmitterHandles()[EmitterIdx].GetName();
+					UE_LOG(LogNiagara, Error, TEXT("Found circular dependency involving emitter '%s' in system '%s'. The execution order will be undefined."), *EmitterName.ToString(), *GetSystem()->GetName());
+					break;
+				}
 			}
 		}
+
+		// Sort the emitter indices in the execution order array so that dependencies are satisfied. Also, emitters with the same priority value don't have any
+		// inter-dependencies, so we can use that if we ever want to parallelize emitter execution.
+		Algo::Sort(EmitterExecutionOrder, [&EmitterPriorities](int32 IdxA, int32 IdxB) { return EmitterPriorities[IdxA] < EmitterPriorities[IdxB]; });
 	}
 
-	// Sort the emitter indices in the execution order array so that dependencies are satisfied. Also, emitters with the same priority value don't have any
-	// inter-dependencies, so we can use that if we ever want to parallelize emitter execution.
-	Algo::Sort(EmitterExecutionOrder, [&EmitterPriorities](int32 IdxA, int32 IdxB) { return EmitterPriorities[IdxA] < EmitterPriorities[IdxB]; });
+	// go through and remove any entries in the EmitterExecutionOrder array for emitters where we don't have a CachedEmitter, they have
+	// likely been cooked out because of scalability
+	EmitterExecutionOrder.SetNum(Algo::StableRemoveIf(EmitterExecutionOrder, [this](int32 EmitterIdx)
+	{
+		return Emitters[EmitterIdx]->GetCachedEmitter() == nullptr;
+	}));
 }
 
 void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
@@ -1670,7 +1687,9 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	const bool TransformMatches = GatheredInstanceParameters.ComponentTrans.Equals(ComponentTransform);
 	if (TransformMatches)
 	{
-		GatheredInstanceParameters.TransformMatchCount = FMath::Min(ParameterBufferCount, GatheredInstanceParameters.TransformMatchCount + 1);
+		// we want to update the transforms one more time than the buffer count because even if the transform buffers didn't change,
+		// their derivatives (like velocity) also need to be updated correctly which happens a frame later.
+		GatheredInstanceParameters.TransformMatchCount = FMath::Min(ParameterBufferCount + 1, GatheredInstanceParameters.TransformMatchCount + 1);
 	}
 	else
 	{
@@ -1728,14 +1747,13 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	Component->GetOverrideParameters().Tick();
 }
 
-
 void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 {
 	uint32 ParameterIndex = GetParameterIndex();
 	FNiagaraSystemParameters& CurrentSystemParameters = SystemParameters[ParameterIndex];
 	FNiagaraOwnerParameters& CurrentOwnerParameters = OwnerParameters[ParameterIndex];
 
-	if (GatheredInstanceParameters.TransformMatchCount < ParameterBufferCount)
+	if (GatheredInstanceParameters.TransformMatchCount <= ParameterBufferCount)
 	{
 		const FMatrix LocalToWorld = GatheredInstanceParameters.ComponentTrans.ToMatrixWithScale();
 		const FMatrix LocalToWorldNoScale = GatheredInstanceParameters.ComponentTrans.ToMatrixNoScale();
@@ -1750,7 +1768,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		CurrentOwnerParameters.EngineLocalToWorldNoScale = LocalToWorldNoScale;
 		CurrentOwnerParameters.EngineWorldToLocalNoScale = LocalToWorldNoScale.Inverse();
 		CurrentOwnerParameters.EngineRotation = GatheredInstanceParameters.ComponentTrans.GetRotation();
-		CurrentOwnerParameters.EnginePosition = GatheredInstanceParameters.ComponentTrans.GetLocation();
+		CurrentOwnerParameters.EnginePosition = Location;
 		CurrentOwnerParameters.EngineVelocity = (Location - LastLocation) / GatheredInstanceParameters.DeltaSeconds;
 		CurrentOwnerParameters.EngineXAxis = CurrentOwnerParameters.EngineRotation.GetAxisX();
 		CurrentOwnerParameters.EngineYAxis = CurrentOwnerParameters.EngineRotation.GetAxisY();
@@ -1771,8 +1789,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 	InstanceParameters.MarkParametersDirty();
 }
 
-void
-FNiagaraSystemInstance::ClearEventDataSets()
+void FNiagaraSystemInstance::ClearEventDataSets()
 {
 	for (auto& EventDataSetIt : EmitterEventDataSetMap)
 	{
@@ -2032,7 +2049,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	UNiagaraSystem* System = GetSystem();
 
 	const int32 NumEmitters = Emitters.Num();
-	checkSlow(EmitterExecutionOrder.Num() == NumEmitters);
+	checkSlow(EmitterExecutionOrder.Num() <= NumEmitters);
 
 	//Determine if any of our emitters should be ticking.
 	TBitArray<TInlineAllocator<8>> EmittersShouldTick;

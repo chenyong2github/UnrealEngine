@@ -171,6 +171,11 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 	return nullptr;
 }
 
+bool IsSpatializationCVarEnabled()
+{
+	return AllowAudioSpatializationCVar != 0;
+}
+
 /*-----------------------------------------------------------------------------
 	FSoundBuffer implementation.
 -----------------------------------------------------------------------------*/
@@ -395,7 +400,6 @@ void FSoundSource::SetFilterFrequency()
 			LPFFrequency = FMath::Min(WaveInstance->OcclusionFilterFrequency * OcclusionFilterScale, WaveInstance->LowPassFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AmbientZoneFilterFrequency);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->AttenuationLowpassFilterFrequency);
-			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->SoundModulationControls.Lowpass);
 			LPFFrequency = FMath::Min(LPFFrequency, WaveInstance->SoundClassFilterFrequency);
 		}
 		break;
@@ -419,7 +423,7 @@ void FSoundSource::SetFilterFrequency()
 		default:
 		{
 			// Set the HPFFrequency to highest provided value
-			HPFFrequency = FMath::Max(WaveInstance->AttenuationHighpassFilterFrequency, WaveInstance->SoundModulationControls.Highpass);
+			HPFFrequency = WaveInstance->AttenuationHighpassFilterFrequency;
 		}
 		break;
 	}
@@ -859,23 +863,7 @@ bool FWaveInstance::IsPlaying() const
 		return true;
 	}
 
-	// Modulation volume check must be performed separately from non-modulation volume check if zeroed as this could cause
-	// sources to stop and not be able to be restarted. Because modulation controls are processed on the source level, this
-	// check enables the modulation plugin to determine voice eligibility without having to process all wave instances not
-	// currently sourcing control data.
-	float ModVolume = SoundModulationControls.Volume;
-	if (ModulationPluginSettings)
-	{
-		check(ActiveSound->AudioDevice);
-		FAudioDevice& AudioDevice = *ActiveSound->AudioDevice;
-		if (AudioDevice.IsModulationPluginEnabled())
-		{
-			check(AudioDevice.ModulationInterface);
-			ModVolume = AudioDevice.ModulationInterface->CalculateInitialVolume(*ModulationPluginSettings);
-		}
-	}
-	
-	const float WaveInstanceVolume = ModVolume * Volume * VolumeMultiplier * DistanceAttenuation * GetDynamicVolume();
+	const float WaveInstanceVolume = Volume * VolumeMultiplier * DistanceAttenuation * GetDynamicVolume();
 	if (WaveInstanceVolume > KINDA_SMALL_NUMBER)
 	{
 		return true;
@@ -1029,13 +1017,13 @@ float FWaveInstance::GetVolumeWithDistanceAttenuation() const
 
 float FWaveInstance::GetPitch() const
 {
-	return Pitch * SoundModulationControls.Pitch;
+	return Pitch;
 }
 
 float FWaveInstance::GetVolume() const
 {
 	// Only includes non-attenuation and non-app volumes
-	return Volume * VolumeMultiplier * SoundModulationControls.Volume;
+	return Volume * VolumeMultiplier;
 }
 
 bool FWaveInstance::ShouldStopDueToMaxConcurrency() const

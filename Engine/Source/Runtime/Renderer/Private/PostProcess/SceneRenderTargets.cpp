@@ -256,7 +256,6 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))	
 	, SceneVelocity(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneVelocity))
 	, LightingChannels(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightingChannels))
-	, SceneAlphaCopy(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneAlphaCopy))
 	, SmallDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SmallDepthZ))
 	, GBufferA(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferA))
 	, GBufferB(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferB))
@@ -649,12 +648,13 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 	int GBufferFormat = CVarGBufferFormat.GetValueOnRenderThread();
 
 	// Set default clear values
-	if (CurrentShadingPath == EShadingPath::Mobile &&
-		CVarMobileClearSceneColorWithMaxAlpha.GetValueOnRenderThread())
+	if (CurrentShadingPath == EShadingPath::Mobile)
 	{
 		// On mobile the scene depth is calculated from the alpha component of the scene color
-		// Use BlackMaxAlpha to ensure un-rendered pixels have max depth...
-		SetDefaultColorClear(FClearValueBinding::BlackMaxAlpha);
+		// Use FarPlane for alpha to ensure un-rendered pixels have max depth...
+		float DepthFar = (float)ERHIZBuffer::FarPlane;
+		FClearValueBinding ClearColorMaxDepth = FClearValueBinding(FLinearColor(0.f, 0.f, 0.f, DepthFar));
+		SetDefaultColorClear(ClearColorMaxDepth);
 	}
 	else
 	{
@@ -1524,10 +1524,18 @@ bool FSceneRenderTargets::BeginRenderingCustomDepth(FRHICommandListImmediate& RH
 			NumColorTargets = 2;
 		}
 
-		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Load_Store);
-		if (bWritesCustomStencilValues)
+		// discard depth/stencil if we output values to a color targets
+		if (bRequiresStencilColorTarget)
 		{
-			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Clear_Store);
+			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_DontStore, ERenderTargetActions::Clear_DontStore);
+		}
+		else
+		{
+			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Load_Store);
+			if (bWritesCustomStencilValues)
+			{
+				RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Clear_Store);
+			}
 		}
 
 		RPInfo.DepthStencilRenderTarget.DepthStencilTarget = CustomDepthRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
@@ -1612,27 +1620,6 @@ void FSceneRenderTargets::FinishRenderingPrePass(FRHICommandListImmediate& RHICm
 
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneDepthZ);
 }
-
-void FSceneRenderTargets::BeginRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList)
-{
-	check(!RHICmdList.IsInsideRenderPass());
-
-	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingSceneAlphaCopy);
-	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneAlphaCopy);
-
-	FRHIRenderPassInfo RPInfo(GetSceneAlphaCopySurface(), ERenderTargetActions::Load_Store, SceneAlphaCopy->GetRenderTargetItem().ShaderResourceTexture);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("BeginRenderingSceneAlphaCopy"));
-}
-
-void FSceneRenderTargets::FinishRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList)
-{
-	check(RHICmdList.IsInsideRenderPass());
-
-	SCOPED_DRAW_EVENT(RHICmdList, FinishRenderingSceneAlphaCopy);
-	RHICmdList.EndRenderPass();
-	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneAlphaCopy);
-}
-
 
 void FSceneRenderTargets::BeginRenderingLightAttenuation(FRHICommandList& RHICmdList, bool bClearToWhite)
 {
@@ -1734,7 +1721,7 @@ TRefCountPtr<IPooledRenderTarget>& FSceneRenderTargets::GetDownsampledTranslucen
 	if (!DownsampledTranslucencyDepthRT || DownsampledTranslucencyDepthRT->GetDesc().Extent != Size)
 	{
 		// Create the SeparateTranslucency depth render target 
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Size, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Size, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DownsampledTranslucencyDepthRT, TEXT("SeparateTranslucencyDepth"));
 	}
@@ -1824,8 +1811,7 @@ void FSceneRenderTargets::BeginRenderingSeparateTranslucency(FRHICommandList& RH
 
 	check((*SeparateTranslucency)->GetRenderTargetItem().TargetableTexture->GetClearColor() == FLinearColor::Black);
 	FRHIRenderPassInfo RPInfo((*SeparateTranslucency)->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
-	// #todo-renderpass do we ever want to write to depth in these passes?
-	// when do we write to stencil?
+	RPInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
 	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SeparateTranslucencyDepth;
 	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
@@ -1903,7 +1889,11 @@ void FSceneRenderTargets::ResolveSeparateTranslucency(FRHICommandList& RHICmdLis
 		);
 
 	RHICmdList.CopyToResolveTarget((*SeparateTranslucency)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucency)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
-	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
+
+	FResolveParams DepthResolveParams;
+	DepthResolveParams.DestRect = SeparateResolveRect;
+	DepthResolveParams.Rect = SeparateResolveRect;
+	ResolveDepthTexture(RHICmdList, (*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture->GetTexture2D(), (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), DepthResolveParams);
 
 	bSeparateTranslucencyPass = false;
 }
@@ -2018,7 +2008,11 @@ void FSceneRenderTargets::ResolveSeparateTranslucencyModulate(FRHICommandList& R
 		);
 
 	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyModulate)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyModulate)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
-	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
+
+	FResolveParams DepthResolveParams;
+	DepthResolveParams.DestRect = SeparateResolveRect;
+	DepthResolveParams.Rect = SeparateResolveRect;
+	ResolveDepthTexture(RHICmdList, (*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture->GetTexture2D(), (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), DepthResolveParams);
 
 	bSeparateTranslucencyPass = false;
 }
@@ -2039,6 +2033,15 @@ FResolveRect FSceneRenderTargets::GetDefaultRect(const FResolveRect& Rect, uint3
 void FSceneRenderTargets::ResolveDepthTexture(FRHICommandList& RHICmdList, const FTexture2DRHIRef& SourceTexture, const FTexture2DRHIRef& DestTexture, const FResolveParams& ResolveParams)
 {
 	check(!RHICmdList.IsInsideRenderPass());
+
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[SceneContext.GetCurrentFeatureLevel()];
+	const uint32 CurrentNumSamples = SourceTexture->GetNumSamples();
+	if (CurrentNumSamples <= 1 || !RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform) || !GAllowCustomMSAAResolves)
+	{
+		RHICmdList.CopyToResolveTarget(SourceTexture, DestTexture, ResolveParams);
+		return;
+	}
 
 	FResolveRect ResolveRect = ResolveParams.Rect;
 
@@ -2127,6 +2130,7 @@ void FSceneRenderTargets::ResolveDepthTexture(FRHICommandList& RHICmdList, const
 	// Transition the destination depth texture to readable. Ignore stencil.
 	RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthRead_StencilNop, DestTexture);
 }
+
 void FSceneRenderTargets::ResolveSceneDepthTexture(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect)
 {
 	check(RHICmdList.IsOutsideRenderPass());
@@ -2140,18 +2144,7 @@ void FSceneRenderTargets::ResolveSceneDepthTexture(FRHICommandList& RHICmdList, 
 		ResolveParams.Rect = ResolveRect;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	uint32 CurrentNumSamples = SceneDepthZ->GetDesc().NumSamples;
-
-	const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[SceneContext.GetCurrentFeatureLevel()];
-	if ((CurrentNumSamples <= 1 || !RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform)) || !GAllowCustomMSAAResolves)
-	{
-		RHICmdList.CopyToResolveTarget(GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
-	}
-	else
-	{
-		ResolveDepthTexture(RHICmdList, GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
-	}
+	ResolveDepthTexture(RHICmdList, GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
 }
 
 void FSceneRenderTargets::CleanUpEditorPrimitiveTargets()
@@ -2300,10 +2293,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 
 	AllocateDebugViewModeTargets(RHICmdList);
-
-	EPixelFormat Format = GetSceneColor()->GetDesc().Format;
-
-	SceneAlphaCopy = GSystemTextures.MaxFP16Depth;
 }
 
 // This is a helper class. It generates and provides N names with
@@ -2936,7 +2925,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 
 	ReleaseSceneColor();
 
-	SceneAlphaCopy.SafeRelease();
 	SceneDepthZ.SafeRelease();
 	SceneStencilSRV.SafeRelease();
 	LightingChannels.SafeRelease();
@@ -3108,8 +3096,10 @@ IPooledRenderTarget* FSceneRenderTargets::RequestCustomDepth(FRHICommandListImme
 			if (bMobilePath)
 			{
 				uint32 CustomDepthStencilTargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
-
-				FPooledRenderTargetDesc MobileCustomDepthDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_R16F, FClearValueBinding(FLinearColor(65500.0f, 65500.0f, 65500.0f)), TexCreate_None, CustomDepthStencilTargetableFlags, false));
+				float DepthFar = (float)ERHIZBuffer::FarPlane;
+				FClearValueBinding DepthFarColor = FClearValueBinding(FLinearColor(DepthFar,DepthFar,DepthFar,DepthFar));
+				
+				FPooledRenderTargetDesc MobileCustomDepthDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_R16F, DepthFarColor, TexCreate_None, CustomDepthStencilTargetableFlags, false));
 				GRenderTargetPool.FindFreeElement(RHICmdList, MobileCustomDepthDesc, MobileCustomDepth, TEXT("MobileCustomDepth"));
 
 				if (!bCustomDepthPassWritingStencil)
@@ -3431,20 +3421,21 @@ void SetupMobileSceneTextureUniformParameters(
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
 	FRHITexture* BlackDefault2D = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
-	FRHITexture* MaxFP16Depth2D = GSystemTextures.MaxFP16Depth->GetRenderTargetItem().ShaderResourceTexture;
 	FRHITexture* DepthDefault = GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture;
 
 	SceneTextureParameters.SceneColorTexture = bSceneTexturesValid ? SceneContext.GetSceneColorTexture().GetReference() : BlackDefault2D;
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	const FTexture2DRHIRef& SceneDepthTexture = SceneContext.GetSceneDepthTexture();
-	SceneTextureParameters.SceneDepthTexture = bSceneTexturesValid && SceneDepthTexture ? SceneDepthTexture.GetReference() : DepthDefault;
+	FRHITexture* SceneDepth = DepthDefault;
+	const FTexture2DRHIRef& SceneDepthTextureRef = SceneContext.GetSceneDepthTexture();
+	if (bSceneTexturesValid && SceneDepthTextureRef && (SceneDepthTextureRef->GetFlags() & TexCreate_Memoryless) == 0)
+	{
+		SceneDepth = SceneDepthTextureRef.GetReference();
+	}
+	SceneTextureParameters.SceneDepthTexture = SceneDepth;
 	SceneTextureParameters.SceneDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	SceneTextureParameters.SceneAlphaCopyTexture = bSceneTexturesValid && SceneContext.HasSceneAlphaCopyTexture() ? SceneContext.GetSceneAlphaCopyTexture() : BlackDefault2D;
-	SceneTextureParameters.SceneAlphaCopyTextureSampler = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
-
-	FRHITexture* CustomDepth = MaxFP16Depth2D;
+	FRHITexture* CustomDepth = DepthDefault;
 
 	// if there is no custom depth it's better to have the far distance there
 	// we should update all pass uniform buffers at the start of frame on mobile, SceneContext.bCustomDepthIsValid is invalid at InitView, so pass the parameter from View.bUsesCustomDepthStencil

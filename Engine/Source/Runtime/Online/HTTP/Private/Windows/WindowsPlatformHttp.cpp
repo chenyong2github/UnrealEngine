@@ -4,14 +4,15 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Curl/CurlHttp.h"
-#include "Curl/CurlHttpManager.h"
+#if WITH_LIBCURL
+	#include "Curl/CurlHttp.h"
+	#include "Curl/CurlHttpManager.h"
+#else // ^^^ WITH_LIBCURL ^^^ // vvv !WITH_LIBCURL vvv
+	#include "WinHttp/WinHttpHttpManager.h"
+	#include "WinHttp/WinHttpHttpRequest.h"
+#endif // !WITH_LIBCURL
 #include "Http.h"
-
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include <winhttp.h>
-#include "Windows/HideWindowsPlatformTypes.h"
-
+#include "WinHttp/Support/WinHttpTypes.h" // Always include for OS proxy settings
 
 static bool IsUnsignedInteger(const FString& InString)
 {
@@ -72,7 +73,6 @@ static bool IsValidIPv4Address(const FString& InString)
 
 void FWindowsPlatformHttp::Init()
 {
-	// warn when old http command line argument is used
 	FString HttpMode;
 	if (FParse::Value(FCommandLine::Get(), TEXT("HTTP="), HttpMode) &&
 		(HttpMode.Equals(TEXT("WinInet"), ESearchCase::IgnoreCase)))
@@ -80,23 +80,39 @@ void FWindowsPlatformHttp::Init()
 		UE_LOG(LogHttp, Warning, TEXT("-HTTP=WinInet is no longer valid"));
 	}
 
-		FCurlHttpManager::InitCurl();
-	}
+	FGenericPlatformHttp::Init();
+
+#if WITH_LIBCURL
+	FCurlHttpManager::InitCurl();
+#endif // WITH_WINHTTP
+}
 
 void FWindowsPlatformHttp::Shutdown()
 {
-		FCurlHttpManager::ShutdownCurl();
-	}
+#if WITH_LIBCURL
+	FCurlHttpManager::ShutdownCurl();
+#endif // WITH_LIBCURL
+
+	FGenericPlatformHttp::Shutdown();
+}
 
 FHttpManager * FWindowsPlatformHttp::CreatePlatformHttpManager()
 {
-		return new FCurlHttpManager();
-	}
+#if WITH_LIBCURL
+	return new FCurlHttpManager();
+#else // ^^^ WITH_LIBCURL ^^^ // vvv WITH_LIBCURL vvv
+	return new FWinHttpHttpManager();
+#endif // !WITH_LIBCURL
+}
 
 IHttpRequest* FWindowsPlatformHttp::ConstructRequest()
 {
+#if WITH_LIBCURL
 		return new FCurlHttpRequest();
-	}
+#else // ^^^ WITH_LIBCURL ^^^ // vvv WITH_LIBCURL vvv
+		return new FWinHttpHttpRequest();
+#endif // !WITH_LIBCURL
+}
 
 FString FWindowsPlatformHttp::GetMimeType(const FString& FilePath)
 {

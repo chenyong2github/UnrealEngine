@@ -288,6 +288,13 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectImport& I)
 	Record << SA_VALUE(TEXT("OuterIndex"), I.OuterIndex);
 	Record << SA_VALUE(TEXT("ObjectName"), I.ObjectName);
 
+#if WITH_EDITORONLY_DATA
+	if (Slot.GetUnderlyingArchive().UE4Ver() >= VER_UE4_NON_OUTER_PACKAGE_IMPORT && !Slot.GetUnderlyingArchive().IsFilterEditorOnly())
+	{
+		Record << SA_VALUE(TEXT("PackageName"), I.PackageName);
+	}
+#endif
+
 	if (Slot.GetUnderlyingArchive().IsLoading())
 	{
 		I.SourceLinker = NULL;

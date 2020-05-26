@@ -1,14 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSourceFilteringTreeview.h"
+
+#include "ISessionSourceFilterService.h"
 #include "FilterDragDropOperation.h"
+#include "SUserTraceFilteringWidget.h"
+#include "IFilterObject.h"
 
 #define LOCTEXT_NAMESPACE "SSourceFilteringTreeView"
 
-void SSourceFilteringTreeView::Construct(const FArguments& InArgs, TSharedRef<STraceSourceFilteringWidget> InOwner)
+void SSourceFilteringTreeView::Construct(const FArguments& InArgs, TSharedRef<SUserTraceFilteringWidget> InOwner)
 {
 	Owner = InOwner;
 	STreeView::Construct(InArgs);
+}
+
+int32 SSourceFilteringTreeView::GetNumItemsBeingObserved() const
+{
+	return STreeView::GetNumItemsBeingObserved() + 1;
 }
 
 FReply SSourceFilteringTreeView::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)

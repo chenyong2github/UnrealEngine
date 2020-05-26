@@ -93,6 +93,7 @@ DEFINE_STAT(STAT_Shaders_TotalRTShaderInitForRenderingTime);
 DEFINE_STAT(STAT_Shaders_FrameRTShaderInitForRenderingTime);
 DEFINE_STAT(STAT_Shaders_ShaderMemory);
 DEFINE_STAT(STAT_Shaders_ShaderResourceMemory);
+DEFINE_STAT(STAT_Shaders_ShaderPreloadMemory);
 
 DEFINE_STAT(STAT_Shaders_NumShadersRegistered);
 DEFINE_STAT(STAT_Shaders_NumShadersDuplicated);

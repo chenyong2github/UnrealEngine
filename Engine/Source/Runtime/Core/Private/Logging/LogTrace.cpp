@@ -3,7 +3,7 @@
 
 #if LOGTRACE_ENABLED
 
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "Templates/Function.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
@@ -25,7 +25,6 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(Logging, LogMessage)
 	UE_TRACE_EVENT_FIELD(const void*, LogPoint)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 void FLogTrace::OutputLogCategory(const FLogCategoryBase* Category, const TCHAR* Name, ELogVerbosity::Type DefaultVerbosity)
@@ -58,7 +57,6 @@ void FLogTrace::OutputLogMessageInternal(const void* LogPoint, uint16 EncodedFor
 	UE_TRACE_LOG(Logging, LogMessage, LogChannel, EncodedFormatArgsSize)
 		<< LogMessage.LogPoint(LogPoint)
 		<< LogMessage.Cycle(FPlatformTime::Cycles64())
-		<< LogMessage.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< LogMessage.Attachment(EncodedFormatArgs, EncodedFormatArgsSize);
 }
 

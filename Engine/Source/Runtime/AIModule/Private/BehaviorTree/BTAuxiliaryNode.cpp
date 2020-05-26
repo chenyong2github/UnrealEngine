@@ -36,7 +36,7 @@ void UBTAuxiliaryNode::WrappedOnCeaseRelevant(UBehaviorTreeComponent& OwnerComp,
 	}
 }
 
-void UBTAuxiliaryNode::WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) const
+bool UBTAuxiliaryNode::WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds, float& NextNeededDeltaTime) const
 {
 	if (bNotifyTick || HasInstance())
 	{
@@ -54,18 +54,31 @@ void UBTAuxiliaryNode::WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8*
 				AuxMemory->NextTickRemainingTime -= DeltaSeconds;
 				AuxMemory->AccumulatedDeltaTime += DeltaSeconds;
 
-				if (AuxMemory->NextTickRemainingTime > 0.0f)
+				const bool bTick = AuxMemory->NextTickRemainingTime <= 0.0f;
+				if (bTick)
 				{
-					return;
+				    UseDeltaTime = AuxMemory->AccumulatedDeltaTime;
+				    AuxMemory->AccumulatedDeltaTime = 0.0f;
+    
+				    const_cast<UBTAuxiliaryNode*>(NodeOb)->TickNode(OwnerComp, NodeMemory, UseDeltaTime);
 				}
 
-				UseDeltaTime = AuxMemory->AccumulatedDeltaTime;
-				AuxMemory->AccumulatedDeltaTime = 0.0f;
+				if (AuxMemory->NextTickRemainingTime < NextNeededDeltaTime)
+				{
+					NextNeededDeltaTime = AuxMemory->NextTickRemainingTime;
+				}
+				return bTick;
+			}
+			else
+			{
+				const_cast<UBTAuxiliaryNode*>(NodeOb)->TickNode(OwnerComp, NodeMemory, UseDeltaTime);
+				NextNeededDeltaTime = 0.0f;
+				return true;
 			}
 
-			const_cast<UBTAuxiliaryNode*>(NodeOb)->TickNode(OwnerComp, NodeMemory, UseDeltaTime);
 		}
 	}
+	return false;
 }
 
 void UBTAuxiliaryNode::SetNextTickTime(uint8* NodeMemory, float RemainingTime) const
@@ -127,6 +140,28 @@ void UBTAuxiliaryNode::InitializeParentLink(uint8 MyChildIndex)
 const UBTNode* UBTAuxiliaryNode::GetMyNode() const
 {
 	return (ChildIndex == BTSpecialChild::OwnedByComposite) ? GetParentNode() : (GetParentNode() ? GetParentNode()->GetChildNode(ChildIndex) : nullptr);
+}
+
+float UBTAuxiliaryNode::GetNextNeededDeltaTime(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
+{
+	if (bNotifyTick || HasInstance())
+	{
+		const UBTAuxiliaryNode* NodeOb = HasInstance() ? static_cast<UBTAuxiliaryNode*>(GetNodeInstance(OwnerComp, NodeMemory)) : this;
+
+		if (NodeOb != nullptr && NodeOb->bNotifyTick)
+		{
+			if (bTickIntervals)
+			{
+				FBTAuxiliaryMemory* AuxMemory = GetSpecialNodeMemory<FBTAuxiliaryMemory>(NodeMemory);
+				return AuxMemory->NextTickRemainingTime;
+			}
+			else
+			{
+				return 0.0f;
+			}
+		}
+	}
+	return FLT_MAX;
 }
 
 //----------------------------------------------------------------------//

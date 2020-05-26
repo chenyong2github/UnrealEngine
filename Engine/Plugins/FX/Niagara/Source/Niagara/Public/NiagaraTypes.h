@@ -70,7 +70,7 @@ private:
 	int32 Value = FNiagaraBool::False;
 };
 
-USTRUCT(meta = (DisplayName = "Half"))
+USTRUCT(meta = (DisplayName = "Half", NiagaraInternalType = "true"))
 struct FNiagaraHalf
 {
 	GENERATED_USTRUCT_BODY()
@@ -79,7 +79,7 @@ struct FNiagaraHalf
 	uint16 Value = 0;
 };
 
-USTRUCT(meta = (DisplayName = "Half Vector2"))
+USTRUCT(meta = (DisplayName = "Half Vector2", NiagaraInternalType = "true"))
 struct FNiagaraHalfVector2
 {
 	GENERATED_USTRUCT_BODY()
@@ -91,7 +91,7 @@ struct FNiagaraHalfVector2
 	uint16 y = 0;
 };
 
-USTRUCT(meta = (DisplayName = "Half Vector3"))
+USTRUCT(meta = (DisplayName = "Half Vector3", NiagaraInternalType = "true"))
 struct FNiagaraHalfVector3
 {
 	GENERATED_USTRUCT_BODY()
@@ -106,7 +106,7 @@ struct FNiagaraHalfVector3
 	uint16 z = 0;
 };
 
-USTRUCT(meta = (DisplayName = "Half Vector4"))
+USTRUCT(meta = (DisplayName = "Half Vector4", NiagaraInternalType = "true"))
 struct FNiagaraHalfVector4
 {
 	GENERATED_USTRUCT_BODY()
@@ -968,6 +968,10 @@ public:
 
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
+#if WITH_EDITORONLY_DATA
+	bool IsInternalType() const;
+#endif
+
 	/*
 	Underlying type for this variable, use FUnderlyingType to determine type without casting
 	This can be a UClass, UStruct or UEnum.  Pointing to something like the struct for an FVector, etc.
@@ -1152,7 +1156,6 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 	if (TIsSame<T, FVector2D>::Value) { return FNiagaraTypeDefinition::GetVec2Def(); }
 	if (TIsSame<T, FVector>::Value) { return FNiagaraTypeDefinition::GetVec3Def(); }
 	if (TIsSame<T, FVector4>::Value) { return FNiagaraTypeDefinition::GetVec4Def(); }
-	if (TIsSame<T, float>::Value) { return FNiagaraTypeDefinition::GetFloatDef(); }
 	if (TIsSame<T, int32>::Value) { return FNiagaraTypeDefinition::GetIntDef(); }
 	if (TIsSame<T, FNiagaraBool>::Value) { return FNiagaraTypeDefinition::GetBoolDef(); }
 	if (TIsSame<T, FQuat>::Value) { return FNiagaraTypeDefinition::GetQuatDef(); }

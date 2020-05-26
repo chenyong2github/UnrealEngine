@@ -18,10 +18,14 @@ class DMXEDITOR_API SNameListPicker
 public:
 	DECLARE_DELEGATE_OneParam(FOnValueChanged, FName);
 
+	static const FText NoneLabel;
+
 	SLATE_BEGIN_ARGS(SNameListPicker)
 		: _ComboButtonStyle(&FCoreStyle::Get().GetWidgetStyle< FComboButtonStyle >("ComboButton"))
 		, _ButtonStyle(nullptr)
 		, _UpdateOptionsDelegate(nullptr)
+		, _bDisplayWarningIcon(false)
+		, _bCanBeNone(false)
 		, _ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
 		, _ContentPadding(FMargin(2.f, 0.f))
 		, _HasMultipleValues(false)
@@ -38,6 +42,15 @@ public:
 
 		/** List of possible names */
 		SLATE_ATTRIBUTE(TArray<FName>, OptionsSource)
+
+		/** Checks if the selected value is no longer available */
+		SLATE_ATTRIBUTE(bool, IsValid)
+
+		/** Display warning icon for a selected invalid value? */
+		SLATE_ARGUMENT(bool, bDisplayWarningIcon)
+
+		/** Whether a <None> option can be displayed in the dropdown */
+		SLATE_ARGUMENT(bool, bCanBeNone)
 	
 		/** Foreground color for the picker */
 		SLATE_ATTRIBUTE(FSlateColor, ForegroundColor)
@@ -65,6 +78,8 @@ public:
 	virtual ~SNameListPicker();
 
 private:
+	EVisibility GetWarningVisibility() const;
+
 	FText GetCurrentNameLabel() const;
 
 	void UpdateOptionsSource();
@@ -93,6 +108,9 @@ private:
 	FDelegateHandle UpdateOptionsHandle;
 
 	TAttribute<FName> ValueAttribute;
+	TAttribute<bool> IsValidAttr;
 	FOnValueChanged OnValueChangedDelegate;
 	TAttribute<bool> HasMultipleValuesAttribute;
+	bool bCanBeNone;
+	bool bDisplayWarningIcon;
 };

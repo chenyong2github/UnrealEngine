@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
 #include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 
@@ -30,8 +31,6 @@ class ISequencer;
 class FMenuBuilder;
 class FStructOnScope;
 class ISectionLayoutBuilder;
-
-template<typename> class  TArrayView;
 
 /** Overrides for adding or updating a key for non-standard channels */
 FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* SectionToKey,  const TMovieSceneExternalValue<float>& EditorData, FFrameNumber InTime, ISequencer& Sequencer, const FGuid& InObjectBindingID, FTrackInstancePropertyBindings* PropertyBindings);

@@ -20,6 +20,7 @@ public class ExtractPaks : BuildCommand
 		var TargetDirectory = ParseParamValue("targetdirectory", null);
 		var CryptoKeysFile = ParseParamValue("cryptokeysjson", null);
 		var Compressor = ParseParamValue("customcompressor", null);
+		var Project = ParseParamValue("project", null);
 
 		string ExtraArgs = "";
 
@@ -55,6 +56,17 @@ public class ExtractPaks : BuildCommand
 
 		LogInformation("Extracting paks from {0} to {1}", SourceDirectory, TargetDirectory);
 
-		PackageUtils.ExtractPakFiles(SourceDirectoryInfo, TargetDirectory, CryptoKeysFile, ExtraArgs, bLayered);
+		FileReference ProjectFile = null;
+		if (!string.IsNullOrEmpty(Project))
+		{
+			ProjectFile = ProjectUtils.FindProjectFileFromName(Project);
+
+			if (ProjectFile == null)
+			{
+				throw new AutomationException("Could not find project file based on {0}", Project);
+			}
+		}
+
+		PackageUtils.ExtractPakFiles(SourceDirectoryInfo, TargetDirectory, CryptoKeysFile, ExtraArgs, bLayered, ProjectFile);
 	}
 }

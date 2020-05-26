@@ -430,7 +430,7 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 		if (Dot && AttemptNonQualifiedSearch)
 		{
 			// search with just the object name
-			Result = FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Dot + 1, 0, InSerializeContext);
+			Result = FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Dot + 1, 0);
 		}
 		FString NewText(Text);
 		// if it didn't have a dot, then maybe they just gave a uasset package name
@@ -467,7 +467,7 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 				const uint32 LoadFlags = LOAD_NoWarn | LOAD_FindIfFail;		
 
 				UE_LOG(LogProperty, Verbose, TEXT("FindImportedObject is attempting to import [%s] (class = %s) with StaticLoadObject"), Text, *GetFullNameSafe(ObjectClass));
-				Result = StaticLoadObject(ObjectClass, nullptr, Text, nullptr, LoadFlags, nullptr, true, InSerializeContext);
+				Result = StaticLoadObject(ObjectClass, nullptr, Text, nullptr, LoadFlags, nullptr, true);
 
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 				check(!bDeferAssetImports || !Result || !FBlueprintSupport::IsInBlueprintPackage(Result));
@@ -522,6 +522,8 @@ void FObjectPropertyBase::CheckValidObject(void* Value) const
 		// object type expected by the property...
 
 		UClass* ObjectClass = Object->GetClass();
+		UE_CLOG(!ObjectClass, LogProperty, Fatal, TEXT("Object without class referenced by %s, object: 0x%016llx %s"), *GetPathName(), (int64)(PTRINT)Object, *Object->GetPathName());
+
 		// we could be in the middle of replacing references to the 
 		// PropertyClass itself (in the middle of an FArchiveReplaceObjectRef 
 		// pass)... if this is the case, then we might have already replaced 

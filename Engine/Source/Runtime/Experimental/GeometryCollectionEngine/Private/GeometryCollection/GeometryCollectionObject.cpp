@@ -249,7 +249,12 @@ void UGeometryCollection::InitializeMaterials()
 /** Returns true if there is anything to render */
 bool UGeometryCollection::HasVisibleGeometry() const
 {
-	return GeometryCollection->HasVisibleGeometry();
+	if(ensureMsgf(GeometryCollection.IsValid(), TEXT("Geometry Collection %s has an invalid internal collection")))
+	{
+		return GeometryCollection->HasVisibleGeometry();
+	}
+
+	return false;
 }
 
 /** Serialize */

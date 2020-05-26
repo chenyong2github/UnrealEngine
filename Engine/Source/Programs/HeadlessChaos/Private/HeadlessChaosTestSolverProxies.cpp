@@ -70,9 +70,6 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);		
 	}
 
-	template void SingleParticleProxySingleThreadTest<float>();
-
-	
 	template<typename Traits, class T>
 	void SingleParticleProxyTaskGraphTest()
 	{

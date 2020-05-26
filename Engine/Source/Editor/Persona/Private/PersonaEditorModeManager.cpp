@@ -5,16 +5,17 @@
 
 bool FPersonaEditorModeManager::GetCameraTarget(FSphere& OutTarget) const
 {
-	// Note: assumes all of our modes are IPersonaEditMode!
-	for(int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
+	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		TSharedPtr<IPersonaEditMode> EditMode = StaticCastSharedPtr<IPersonaEditMode>(ActiveModes[ModeIndex]);
-
-		FSphere Target;
-		if (EditMode->GetCameraTarget(Target))
+		FEdMode* LegacyMode = Mode->AsLegacyMode();
+		if (IPersonaEditMode* EditMode = static_cast<IPersonaEditMode*>(LegacyMode))
 		{
-			OutTarget = Target;
-			return true;
+			FSphere Target;
+			if (EditMode->GetCameraTarget(Target))
+			{
+				OutTarget = Target;
+				return true;
+			}
 		}
 	}
 
@@ -23,10 +24,12 @@ bool FPersonaEditorModeManager::GetCameraTarget(FSphere& OutTarget) const
 
 void FPersonaEditorModeManager::GetOnScreenDebugInfo(TArray<FText>& OutDebugText) const
 {
-	// Note: assumes all of our modes are IPersonaEditMode!
-	for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
+	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		TSharedPtr<IPersonaEditMode> EditMode = StaticCastSharedPtr<IPersonaEditMode>(ActiveModes[ModeIndex]);
-		EditMode->GetOnScreenDebugInfo(OutDebugText);
+		FEdMode* LegacyMode = Mode->AsLegacyMode();
+		if (IPersonaEditMode* EditMode = static_cast<IPersonaEditMode*>(LegacyMode))
+		{
+			EditMode->GetOnScreenDebugInfo(OutDebugText);
+		}
 	}
 }

@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IAssetSearchModule.h"
+#include "IAssetIndexer.h"
 
+class UBlueprint;
 struct FMemberReference;
 
 class FBlueprintIndexer : public IAssetIndexer

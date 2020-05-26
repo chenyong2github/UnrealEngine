@@ -5,6 +5,8 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -19,9 +21,6 @@
 DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
 
 IMPLEMENT_TYPE_LAYOUT(FBulkDataBase);
-
-// If set to 0 then the loose file fallback will be used even if the -ZenLoader command line flag is present.
-#define ENABLE_IO_DISPATCHER 1
 
 // If set to 0 then we will pretend that optional data does not exist, useful for testing.
 #define ALLOW_OPTIONAL_DATA 1
@@ -42,13 +41,65 @@ namespace
 {
 	const uint16 InvalidBulkDataIndex = ~uint16(0);
 
+	bool ShouldAllowBulkDataInIoStore()
+	{
+		static struct FAllowBulkDataInIoStore
+		{
+			bool bEnabled = false;
+
+			FAllowBulkDataInIoStore()
+			{
+				FConfigFile PlatformEngineIni;
+				FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+
+				PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("AllowBulkDataInIoStore"), bEnabled);
+		
+				UE_LOG(LogSerialization, Display, TEXT("AllowBulkDataInIoStore: '%s'"), bEnabled ?  TEXT("true") :  TEXT("false"));
+			}
+		} AllowBulkDataInIoStore;
+
+		return AllowBulkDataInIoStore.bEnabled;
+	}
+
 	FORCEINLINE bool IsIoDispatcherEnabled()
 	{
-#if ENABLE_IO_DISPATCHER
-		return FIoDispatcher::IsInitialized();
-#else
-		return false;
-#endif
+		if (ShouldAllowBulkDataInIoStore())
+		{
+			return FIoDispatcher::IsInitialized();
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	const FIoFilenameHash FALLBACK_IO_FILENAME_HASH = INVALID_IO_FILENAME_HASH - 1;
+}
+
+FIoFilenameHash MakeIoFilenameHash(const FString& Filename)
+{
+	if (!Filename.IsEmpty())
+	{
+		FString BaseFileName = FPaths::GetBaseFilename(Filename).ToLower();
+		const FIoFilenameHash Hash = FCrc::StrCrc32<TCHAR>(*BaseFileName);
+		return Hash != INVALID_IO_FILENAME_HASH ? Hash : FALLBACK_IO_FILENAME_HASH;
+	}
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
+}
+
+FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID)
+{
+	if (ChunkID.IsValid())
+	{
+		const FIoFilenameHash Hash = GetTypeHash(ChunkID);
+		return Hash != INVALID_IO_FILENAME_HASH ? Hash : FALLBACK_IO_FILENAME_HASH;
+	}
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
 	}
 }
 
@@ -89,6 +140,7 @@ namespace FileTokenSystem
 				if (StringData* ExistingEntry = Table.Find(PackageName))
 				{
 					ExistingEntry->RefCount++;
+					checkf(ExistingEntry->Filename == Filename, TEXT("Filename mismatch!"));
 				}
 				else
 				{
@@ -402,6 +454,7 @@ public:
 private:
 	FIoChunkId ChunkID;
 };
+static FCriticalSection FBulkDataIoDispatcherRequestEvent;
 
 class FBulkDataIoDispatcherRequest : public IBulkDataIORequest
 {
@@ -448,6 +501,9 @@ public:
 
 		// Should be freed by the callback!
 		checkf(!IoBatch.IsValid(), TEXT("FBulkDataIoDispatcherRequest::IoBatch was not freed"));
+
+		// Make sure no other thread is waiting on this request
+		checkf(DoneEvent == nullptr, TEXT("A thread is still waiting on a FBulkDataIoDispatcherRequest that is being destroyed!"));
 	}
 
 	void StartAsyncWork()
@@ -457,32 +513,43 @@ public:
 
 		auto Callback = [this](TIoStatusOr<FIoBuffer> Result)
 		{
+			// We need to store the this pointer as a local variable as it will become invalidated by our
+			// later call to FreeBatch
+			FBulkDataIoDispatcherRequest* InRequest = this;
+
 			CHECK_IOSTATUS(Result.Status(), TEXT("FIoBatch::IssueWithCallback"));
 			FIoBuffer IoBuffer = Result.ConsumeValueOrDie();
 
-			SizeResult = IoBuffer.DataSize();
+			InRequest->SizeResult = IoBuffer.DataSize();
 
 			if (IoBuffer.IsMemoryOwned())
 			{
-				DataResult = IoBuffer.Release().ConsumeValueOrDie();
+				InRequest->DataResult = IoBuffer.Release().ConsumeValueOrDie();
 			}
 			else
 			{
-				DataResult = IoBuffer.Data();
+				InRequest->DataResult = IoBuffer.Data();
 			}
 
-			checkf(DataResult != nullptr, TEXT("Nothing was loaded!"));
+			bDataIsReady = true;
 
-			FBulkDataBase::GetIoDispatcher()->FreeBatch(IoBatch);
+			// Note that freeing the batch will invalidate the current callback!
+			FBulkDataBase::GetIoDispatcher()->FreeBatch(InRequest->IoBatch);
 
-			bIsCompleted = true;
-
-			FPlatformMisc::MemoryBarrier();
-
-			if (CompleteCallback)
+			if (InRequest->CompleteCallback)
 			{
-				CompleteCallback(bIsCanceled, this);
-			}	
+				InRequest->CompleteCallback(InRequest->bIsCanceled, InRequest);
+			}
+
+			{
+				FScopeLock Lock(&FReadChunkIdRequestEvent);
+				InRequest->bIsCompleted = true;
+
+				if (InRequest->DoneEvent != nullptr)
+				{
+					InRequest->DoneEvent->Trigger();
+				}
+			}
 		};
 
 		IoBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
@@ -504,26 +571,28 @@ public:
 		return bIsCompleted;
 	}
 
-	virtual bool WaitCompletion(float TimeLimitSeconds) const override
+	virtual bool WaitCompletion(float TimeLimitSeconds) override
 	{
-		// Note that currently we do not get events from the FIoDispatcher, so we just
-		// have a basic implementation.
-		// We only have one use case for a time limited wait, every other use case is 
-		// supposed to be fully blocking so ideally we can eliminate the single use case 
-		// and just change this code entirely.
-		if (!bIsCompleted)
+		// Make sure no other thread is waiting on this request
+		checkf(DoneEvent == nullptr, TEXT("Multiple threads attempting to wait on the same FBulkDataIoDispatcherRequest"));
+
 		{
-			if (TimeLimitSeconds > 0.0f)
+			FScopeLock Lock(&FReadChunkIdRequestEvent);
+			if (!bIsCompleted)
 			{
-				FPlatformProcess::Sleep(TimeLimitSeconds);
+				checkf(DoneEvent == nullptr, TEXT("Multiple threads attempting to wait on the same FBulkDataIoDispatcherRequest"));
+				DoneEvent = FPlatformProcess::GetSynchEventFromPool(true);
 			}
-			else
-			{
-				while (!bIsCompleted)
-				{
-					FPlatformProcess::Sleep(0.0f);
-				}
-			}
+		}
+
+		if (DoneEvent != nullptr)
+		{
+			uint32 TimeLimitMilliseconds = TimeLimitSeconds <= 0.0f ? MAX_uint32 : (uint32)(TimeLimitSeconds * 1000.0f);
+			DoneEvent->Wait(TimeLimitMilliseconds);
+
+			FScopeLock Lock(&FReadChunkIdRequestEvent);
+			FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
+			DoneEvent = nullptr;
 		}
 
 		return bIsCompleted;
@@ -531,7 +600,7 @@ public:
 
 	virtual uint8* GetReadResults() override
 	{
-		if (bIsCompleted && !bIsCanceled)
+		if (bDataIsReady && !bIsCanceled)
 		{
 			uint8* Result = DataResult;
 			DataResult = nullptr;
@@ -546,7 +615,7 @@ public:
 
 	virtual int64 GetSize() const override
 	{
-		if (bIsCompleted && !bIsCanceled)
+		if (bDataIsReady && !bIsCanceled)
 		{
 			return SizeResult;
 		}
@@ -582,8 +651,13 @@ private:
 	uint8* DataResult = nullptr;
 	int64 SizeResult = 0;
 
+	bool bDataIsReady = false;
+
 	bool bIsCompleted = false;
 	bool bIsCanceled = false;
+
+	/** Only actually gets created if WaitCompletion is called. */
+	FEvent* DoneEvent = nullptr;
 
 	FIoBatch IoBatch;
 };
@@ -749,6 +823,8 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		const FString* Filename = nullptr;
 		const FLinkerLoad* Linker = nullptr;
 
+		FString FallbackFilename;
+
 		if (bUseIoDispatcher == false)
 		{
 			Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
@@ -756,6 +832,12 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			if (Linker != nullptr)
 			{
 				Filename = &Linker->Filename;
+			}
+			else if(!::ShouldAllowBulkDataInIoStore() && !IsInlined()) 
+			{
+				// Fallback path for when the IoStore is enabled but bulkdata has been forced to the pakfiles anyway.
+				FallbackFilename = FPackageName::LongPackageNameToFilename(Package->FileName.ToString(), Package->ContainsMap() ? TEXT(".umap") : TEXT(".uasset"));
+				Filename = &FallbackFilename;
 			}
 		}
 
@@ -766,7 +848,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		if (IsInlined())
 		{
-			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *Package->FileName.ToString());
+			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *Package->GetFName().ToString());
 			
 			// Inline data is already in the archive so serialize it immediately
 			void* DataBuffer = AllocateData(BulkDataSize);
@@ -778,9 +860,9 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				ProcessDuplicateData(Ar, Package, Filename, BulkDataSizeOnDisk, BulkDataOffsetInFile);
 			}
-			 
+		
 			// Fix up the file offset if we have a linker (if we do not then we will be loading via FIoDispatcher anyway)
-			if (Linker != nullptr)
+			if (::ShouldAllowBulkDataInIoStore() && Linker != nullptr)
 			{
 				BulkDataOffsetInFile += Linker->Summary.BulkDataStartOffset;
 			}
@@ -829,7 +911,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		// If we are not using the FIoDispatcher and we have a filename then we need to make sure we can retrieve it later!
 		if (bUseIoDispatcher == false && Filename != nullptr)
 		{
-			Data.Fallback.Token = FileTokenSystem::RegisterFileToken(Package->FileName, *Filename, BulkDataOffsetInFile);
+			Data.Fallback.Token = FileTokenSystem::RegisterFileToken(Package->GetFName(), *Filename, BulkDataOffsetInFile);
 		}
 
 		if (bShouldForceLoad)
@@ -1306,6 +1388,19 @@ int64 FBulkDataBase::GetBulkDataOffsetInFile() const
 	}
 }
 
+FIoFilenameHash FBulkDataBase::GetIoFilenameHash() const
+{
+	if (!IsUsingIODispatcher())
+	{
+		FString Filename = FileTokenSystem::GetFilename(Data.Fallback.Token);
+		return MakeIoFilenameHash(Filename);
+	}
+	else
+	{
+		return MakeIoFilenameHash(Data.ChunkID);
+	}
+}
+
 FString FBulkDataBase::GetFilename() const
 {
 	if (!IsUsingIODispatcher())
@@ -1467,6 +1562,11 @@ void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback
 	// Set up our options (we only need to set the target)
 	FIoReadOptions Options;
 	Options.SetTargetVa(*DstBuffer);
+
+	auto OnRequestLoaded = [Callback](TIoStatusOr<FIoBuffer> Result)
+	{
+		Callback(Result);
+	};
 
 	GetIoDispatcher()->ReadWithCallback(Data.ChunkID, Options, MoveTemp(Callback));
 }

@@ -52,11 +52,14 @@ public:
 	bool bCaptureScreenShot;
 	TWeakObjectPtr<UObject> ScreenShotOwner;
 
+	FAdvancedPreviewScene* AdvancedPreviewScene = nullptr;
+
 	FOnScreenShotCaptured OnScreenShotCaptured;
 };
 
 FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene& InPreviewScene, const TSharedRef<SNiagaraSystemViewport>& InNiagaraEditorViewport, FOnScreenShotCaptured InOnScreenShotCaptured)
 	: FEditorViewportClient(nullptr, &InPreviewScene, StaticCastSharedRef<SEditorViewport>(InNiagaraEditorViewport))
+	, AdvancedPreviewScene(&InPreviewScene)
 	, OnScreenShotCaptured(InOnScreenShotCaptured)
 {
 	NiagaraViewportPtr = InNiagaraEditorViewport;
@@ -242,6 +245,11 @@ bool FNiagaraSystemViewportClient::ShouldOrbitCamera() const
 
 FLinearColor FNiagaraSystemViewportClient::GetBackgroundColor() const
 {
+	if (AdvancedPreviewScene != nullptr)
+	{
+		return AdvancedPreviewScene->GetBackgroundColor();
+	}
+
 	FLinearColor BackgroundColor = FLinearColor::Black;
 	return BackgroundColor;
 }

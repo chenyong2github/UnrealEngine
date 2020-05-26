@@ -68,7 +68,7 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Cooker, meta = (DisplayName = "Iterative cooking for builds launched from the editor (launch on)"))
 	bool bIterativeCookingForLaunchOn;
 
-	/** Enable -iterate for launch on */
+	/** Enable -iterate when triggering from File dropdown menu */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Cooker, meta = (DisplayName = "Iterative cooking for the File->Cook Content menu item"))
 	bool bIterativeCookingForFileCookContent;
 

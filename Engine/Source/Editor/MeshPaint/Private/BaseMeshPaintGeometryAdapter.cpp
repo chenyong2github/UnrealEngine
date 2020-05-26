@@ -16,7 +16,7 @@ bool FBaseMeshPaintGeometryAdapter::BuildOctree()
 		bValidOctree = true;
 		
 		// First determine bounding box of mesh verts
-		FBox Bounds;
+		FBox Bounds(ForceInit);
 		for (const FVector& Vertex : MeshVertices)
 		{
 			Bounds += Vertex;

@@ -4,7 +4,7 @@
 
 #if ANIM_TRACE_ENABLED
 
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "ObjectTrace.h"

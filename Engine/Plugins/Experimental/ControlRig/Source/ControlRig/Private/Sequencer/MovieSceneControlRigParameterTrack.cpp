@@ -416,7 +416,7 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::GetSectionToKey() const
 void UMovieSceneControlRigParameterTrack::PostLoad()
 {
 	Super::PostLoad();
-	if (ControlRig && !ControlRig->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
+	if (ControlRig && ControlRig->GetObjectBinding() && !ControlRig->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
 	{
 		ControlRig->Initialize();
 		ControlRig->CreateRigControlsForCurveContainer();

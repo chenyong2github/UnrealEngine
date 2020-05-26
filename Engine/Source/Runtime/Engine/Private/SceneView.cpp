@@ -1308,6 +1308,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 
 		LERP_PP(BlueCorrection);
 		LERP_PP(ExpandGamut);
+		LERP_PP(ToneCurveAmount);
 
 		LERP_PP(FilmWhitePoint);
 		LERP_PP(FilmSaturation);
@@ -1540,7 +1541,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.BloomDirtMask = Src.BloomDirtMask;
 		}
 
-		IF_PP(BloomMethod)
+		if (Src.bOverride_BloomMethod)
 		{
 			Dest.BloomMethod = Src.BloomMethod;
 		}
@@ -1872,6 +1873,12 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	if(!Family->EngineShowFlags.LensFlares)
 	{
 		FinalPostProcessSettings.LensFlareIntensity = 0;
+	}
+
+	if (!Family->EngineShowFlags.ToneCurve)
+	{
+		FinalPostProcessSettings.ToneCurveAmount = 0;
+		FinalPostProcessSettings.ExpandGamut = 0;
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2656,7 +2663,7 @@ EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const
 	{
 		return DVSM_RayTracingDebug;
 	}
-	else if (EngineShowFlags.LODColoration)
+	else if (EngineShowFlags.LODColoration || EngineShowFlags.HLODColoration)
 	{
 		return DVSM_LODColoration;
 	}

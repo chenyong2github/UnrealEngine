@@ -35,7 +35,7 @@ void FDMXEntityReference::SetEntity(const UDMXEntity* NewEntity)
 
 void FDMXEntityReference::InvalidateId()
 {
-	EntityId = { 0,0,0,0 };
+	EntityId.Invalidate();
 }
 
 UDMXEntity* FDMXEntityReference::GetEntity() const
@@ -56,6 +56,16 @@ UDMXEntity* FDMXEntityReference::GetEntity() const
 TSubclassOf<UDMXEntity> FDMXEntityReference::GetEntityType() const
 {
 	return EntityType;
+}
+
+bool FDMXEntityReference::operator==(const FDMXEntityReference& Other) const
+{
+	return DMXLibrary == Other.DMXLibrary && EntityId == Other.EntityId;
+}
+
+bool FDMXEntityReference::operator!=(const FDMXEntityReference& Other) const
+{
+	return !(*this == Other);
 }
 
 FDMXEntityControllerRef::FDMXEntityControllerRef()

@@ -685,20 +685,21 @@ void UMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FTransform WorldTransform = ComponentTarget->GetWorldTransform();
 	const FDynamicMesh3* Mesh = PreviewMesh->GetMesh();
 
+	float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
 	if (SelectionType == EMeshSelectionElementType::Vertex)
 	{
 		MeshDebugDraw::DrawVertices(Mesh, Selection->Vertices,
-			12.0f, FColor::Orange, RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
+			12.0f*PDIScale, FColor::Orange, RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
 		MeshDebugDraw::DrawVertices(Mesh, PreviewBrushROI,
-			8.0f, FColor(40, 200, 40), RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
+			8.0f*PDIScale, FColor(40, 200, 40), RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
 	}
 	else
 	{
 		// drawn via material
 		//MeshDebugDraw::DrawTriCentroids(Mesh, Selection->Faces,
-		//	12.0f, FColor::Green, RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
+		//	12.0f*PDIScale, FColor::Green, RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
 		MeshDebugDraw::DrawTriCentroids(Mesh, PreviewBrushROI,
-			4.0f, FColor(40, 200, 40), RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
+			4.0f*PDIScale, FColor(40, 200, 40), RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
 	}
 }
 

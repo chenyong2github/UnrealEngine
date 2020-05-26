@@ -330,6 +330,8 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 		}
 	});
 
+	IslandToData.Reset();
+
 	for (auto& Particle : PBDRigids)
 	{
 		auto* ParticleHandle = Particle.Handle();
@@ -348,24 +350,21 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 		}
 
 		TSet<TGeometryParticleHandle<FReal, 3>*> SingleIslandParticles;
-		TSet<TGeometryParticleHandle<FReal, 3>*> SingleIslandStaticParticles;
-		ComputeIsland(Idx, NextIsland, SingleIslandParticles, SingleIslandStaticParticles);
-
-		for (TGeometryParticleHandle<FReal, 3>* StaticParticle : SingleIslandStaticParticles)
-		{
-			SingleIslandParticles.Add(StaticParticle);
-		}
+		const bool bNeedsResim = ComputeIsland(Idx, NextIsland, SingleIslandParticles);
 
 		if (SingleIslandParticles.Num())
 		{
 			NewIslandParticles.SetNum(NextIsland + 1);
 			NewIslandParticles[NextIsland] = MoveTemp(SingleIslandParticles);
 			NextIsland++;
+			//if this is too slow when not doing resim, pass template in
+			IslandToData.AddDefaulted();
+			IslandToData.Last().bNeedsResim = bNeedsResim;
 		}
 	}
 
+	check(IslandToData.Num() == NextIsland);
 	IslandToConstraints.SetNum(NextIsland);
-	IslandToData.SetNum(NextIsland);
 
 	for (int32 EdgeIndex = 0; EdgeIndex < Edges.Num(); ++EdgeIndex)
 	{
@@ -390,13 +389,21 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 		for (int32 Island = 0; Island < NewIslandParticles.Num(); ++Island)
 		{
 			NewIslandToSleepCount[Island] = 0;
-
+			const bool bNeedsResim = IslandToData[Island].bNeedsResim;
 			for (TGeometryParticleHandle<FReal, 3>* Particle : NewIslandParticles[Island])
 			{
 				TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 				if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 				{
 					PBDRigid->Island() = Island;
+					if(bNeedsResim)
+					{
+						if(PBDRigid->SyncState() == ESyncState::InSync)
+						{
+							//mark as soft desync, we may end up with exact same output
+							PBDRigid->SetSyncState(ESyncState::SoftDesync);
+						}
+					}
 				}
 			}
 		}
@@ -569,11 +576,11 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 }
 
 
-void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, TSet<TGeometryParticleHandle<FReal, 3> *>& DynamicParticlesInIsland,
-	TSet<TGeometryParticleHandle<FReal, 3> *>& StaticParticlesInIsland)
+bool FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, TSet<TGeometryParticleHandle<FReal, 3> *>& ParticlesInIsland)
 {
 	TQueue<int32> NodeQueue;
 	NodeQueue.Enqueue(InNode);
+	bool bIslandNeedsToResim = false;
 	while (!NodeQueue.IsEmpty())
 	{
 		int32 NodeIndex;
@@ -586,15 +593,19 @@ void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 			continue;
 		}
 
+		if(!bIslandNeedsToResim)
+		{
+			//if even one particle is soft/hard desync we must resim the entire island (when resim is used)
+			//seems cheap enough so just always do it, if slow pass resim template in here
+			bIslandNeedsToResim = Node.Particle->SyncState() != ESyncState::InSync;
+		}
+
 		TPBDRigidParticleHandle<FReal, 3>* RigidHandle = Node.Particle->CastToRigidParticle();
 		const bool isRigidDynamic = RigidHandle && RigidHandle->ObjectState() != EObjectStateType::Kinematic;  //??
 
+		ParticlesInIsland.Add(Node.Particle);
 		if (isRigidDynamic == false)
 		{
-			if (!StaticParticlesInIsland.Contains(Node.Particle))
-			{
-				StaticParticlesInIsland.Add(Node.Particle);
-			}
 			continue;
 		}
 
@@ -604,7 +615,6 @@ void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 		//	continue;
 		//}
 
-		DynamicParticlesInIsland.Add(Node.Particle);
 		Node.Island = Island;
 		Visited[NodeIndex] = VisitToken;
 
@@ -626,6 +636,8 @@ void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 			}
 		}
 	}
+
+	return bIslandNeedsToResim;
 }
 
 bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials)
@@ -809,7 +821,9 @@ void FPBDConstraintGraph::EnableParticle(TGeometryParticleHandle<FReal, 3>* Part
 			{
 				const int32 Island = ParentPBDRigid->Island();
 				ChildPBDRigid->Island() = Island;
-				if (ensure(IslandToParticles.IsValidIndex(Island)))
+
+				// If our parent had a valid island, add the child to it.
+				if (IslandToParticles.IsValidIndex(Island))
 				{
 					IslandToParticles[Island].Add(Particle);
 				}

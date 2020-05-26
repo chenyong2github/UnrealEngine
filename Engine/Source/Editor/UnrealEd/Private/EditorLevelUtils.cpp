@@ -713,7 +713,10 @@ bool UEditorLevelUtils::RemoveLevelFromWorld(ULevel* InLevel)
 
 		FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(InLevel);
 
-		GEditor->Trans->Reset(LOCTEXT("RemoveLevelTransReset", "Removing Levels from World"));
+		if (GEditor->Trans != nullptr)
+		{
+			GEditor->Trans->Reset(LOCTEXT("RemoveLevelTransReset", "Removing Levels from World"));
+		}
 
 		EditorDestroyLevel(InLevel);
 

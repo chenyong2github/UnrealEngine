@@ -16,9 +16,11 @@
 #include "JsonObjectConverter.h"
 #include "USDPrimResolver.h"
 
+#include "UsdWrappers/UsdStage.h"
+
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
 
-UUSDSceneImportFactory::UUSDSceneImportFactory(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UUSDSceneImportFactory::UDEPRECATED_UUSDSceneImportFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bCreateNew = false;
@@ -28,41 +30,44 @@ UUSDSceneImportFactory::UUSDSceneImportFactory(const FObjectInitializer& ObjectI
 	bEditorImport = true;
 	bText = false;
 
-	ImportOptions = ObjectInitializer.CreateDefaultSubobject<UUSDSceneImportOptions>(this, TEXT("USDSceneImportOptions"));
+	ImportOptions_DEPRECATED = ObjectInitializer.CreateDefaultSubobject<UDEPRECATED_UUSDSceneImportOptions>(this, TEXT("USDSceneImportOptions"));
+
+	// Factory is deprecated
+	ImportPriority = -1;
 
 	Formats.Add(TEXT("usd;Universal Scene Descriptor files"));
 	Formats.Add(TEXT("usda;Universal Scene Descriptor files"));
 	Formats.Add(TEXT("usdc;Universal Scene Descriptor files"));
 }
 
-UObject* UUSDSceneImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
+UObject* UDEPRECATED_UUSDSceneImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
-	UUSDImporter* USDImporter = IUSDImporterModule::Get().GetImporter();
+	UDEPRECATED_UUSDImporter* USDImporter = IUSDImporterModule::Get().GetImporter();
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 	TArray<UObject*> AllAssets;
 
-	if(IsAutomatedImport() || USDImporter->ShowImportOptions(*ImportOptions))
+	if(IsAutomatedImport() || USDImporter->ShowImportOptions(*ImportOptions_DEPRECATED))
 	{
 #if USE_USD_SDK
 		// @todo: Disabled.  This messes with the ability to replace existing actors since actors with this name could still be in the transaction buffer
 		//FScopedTransaction ImportUSDScene(LOCTEXT("ImportUSDSceneTransaction", "Import USD Scene"));
 
-		TUsdStore< pxr::UsdStageRefPtr > Stage = USDImporter->ReadUsdFile(ImportContext, Filename);
-		if (*Stage)
+		UE::FUsdStage Stage = USDImporter->ReadUsdFile(ImportContext, Filename);
+		if (Stage)
 		{
 			ImportContext.Init(InParent, InName.ToString(), Stage);
-			ImportContext.ImportOptions = ImportOptions;
+			ImportContext.ImportOptions_DEPRECATED = ImportOptions_DEPRECATED;
 			ImportContext.bIsAutomated = IsAutomatedImport();
 
-			if (IsAutomatedImport() && InParent && ImportOptions->PathForAssets.Path == TEXT("/Game"))
+			if (IsAutomatedImport() && InParent && ImportOptions_DEPRECATED->PathForAssets.Path == TEXT("/Game"))
 			{
-				ImportOptions->PathForAssets.Path = ImportContext.ImportPathName;
+				ImportOptions_DEPRECATED->PathForAssets.Path = ImportContext.ImportPathName;
 			}
 
-			ImportContext.ImportPathName = ImportOptions->PathForAssets.Path;
-	
+			ImportContext.ImportPathName = ImportOptions_DEPRECATED->PathForAssets.Path;
+
 			// Actors will have the transform
 			ImportContext.bApplyWorldTransformToGeometry = false;
 
@@ -85,7 +90,7 @@ UObject* UUSDSceneImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 	}
 }
 
-bool UUSDSceneImportFactory::FactoryCanImport(const FString& Filename)
+bool UDEPRECATED_UUSDSceneImportFactory::FactoryCanImport(const FString& Filename)
 {
 	const FString Extension = FPaths::GetExtension(Filename);
 
@@ -97,14 +102,14 @@ bool UUSDSceneImportFactory::FactoryCanImport(const FString& Filename)
 	return false;
 }
 
-void UUSDSceneImportFactory::CleanUp()
+void UDEPRECATED_UUSDSceneImportFactory::CleanUp()
 {
 	ImportContext = FUSDSceneImportContext();
 }
 
-void UUSDSceneImportFactory::ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson)
+void UDEPRECATED_UUSDSceneImportFactory::ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson)
 {
-	FJsonObjectConverter::JsonObjectToUStruct(ImportSettingsJson, ImportOptions->GetClass(), ImportOptions, 0, CPF_InstancedReference);
+	FJsonObjectConverter::JsonObjectToUStruct(ImportSettingsJson, ImportOptions_DEPRECATED->GetClass(), ImportOptions_DEPRECATED, 0, CPF_InstancedReference);
 }
 
 #undef LOCTEXT_NAMESPACE

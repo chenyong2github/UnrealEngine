@@ -16,6 +16,18 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 {
 	auto PackedResourceCounts = InShaderCode.FindOptionalData<FShaderCodePackedResourceCounts>();
 	check(PackedResourceCounts);
+	OutShader.OutputMask = PackedResourceCounts->OutputMask;
+	uint32 UAVMask = 0;
+	for (uint32 UAVBinding : OutShader.ShaderResourceTable.UnorderedAccessViewMap)
+	{
+		if (UAVBinding == 0 || UAVBinding == 0xffffffff)
+		{
+			break;
+		}
+		const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(UAVBinding);
+		UAVMask |= (1 << BindIndex);
+	}
+	OutShader.UAVMask = UAVMask;
 	OutShader.bShaderNeedsGlobalConstantBuffer = PackedResourceCounts->bGlobalUniformBufferUsed;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	OutShader.ShaderName = InShaderCode.FindOptionalData('n');

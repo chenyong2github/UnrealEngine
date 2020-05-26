@@ -151,7 +151,7 @@ class FIoDispatcherImpl
 public:
 	FIoDispatcherImpl(bool bInIsMultithreaded)
 		: bIsMultithreaded(bInIsMultithreaded)
-		, FileIoStore(EventQueue) 
+		, FileIoStore(EventQueue, SignatureErrorEvent) 
 	{
 		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
 		{
@@ -320,6 +320,11 @@ public:
 		return ContainerMountedEvent;
 	}
 
+	FIoSignatureErrorEvent& GetSignatureErrorEvent()
+	{
+		return SignatureErrorEvent;
+	}
+
 	template<typename Func>
 	void IterateBatch(const FIoBatchImpl* Batch, Func&& InCallbackFunction)
 	{
@@ -406,7 +411,7 @@ private:
 
 	void ProcessCompletedBlocks()
 	{
-		FileIoStore.ProcessCompletedBlocks();
+		FileIoStore.ProcessCompletedBlocks(bIsMultithreaded);
 		ProcessCompletedRequests();
 	}
 
@@ -598,6 +603,7 @@ private:
 	bool bIsMultithreaded;
 	FIoDispatcherEventQueue EventQueue;
 
+	FIoSignatureErrorEvent SignatureErrorEvent;
 	FFileIoStore FileIoStore;
 	FRequestAllocator RequestAllocator;
 	FBatchAllocator BatchAllocator;
@@ -676,6 +682,12 @@ FIoDispatcher::FIoContainerMountedEvent&
 FIoDispatcher::OnContainerMounted()
 {
 	return Impl->OnContainerMounted();
+}
+
+FIoSignatureErrorEvent&
+FIoDispatcher::GetSignatureErrorEvent()
+{
+	return Impl->GetSignatureErrorEvent();
 }
 
 bool

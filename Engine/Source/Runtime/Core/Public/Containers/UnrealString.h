@@ -167,7 +167,9 @@ public:
 	 *
 	 * @param Other The string view to create a new copy from
 	 */
-	explicit FString(const FStringView& Other);
+	
+	explicit FString(FAnsiStringView Other);
+	explicit FString(FWideStringView Other);
 
 	/**
 	 * Create an FString from a FStringView with extra space for characters at the end of the string
@@ -2208,7 +2210,8 @@ template<typename T>
 typename TEnableIf<TIsArithmetic<T>::Value, FString>::Type
 LexToString(const T& Value)
 {
-	return FString::Printf( TFormatSpecifier<T>::GetFormatSpecifier(), Value );
+	// TRemoveCV to remove potential volatile decorations. Removing const is pointless, but harmless because it's specified in the param declaration.
+	return FString::Printf( TFormatSpecifier<typename TRemoveCV<T>::Type>::GetFormatSpecifier(), Value );
 }
 
 template<typename CharType>

@@ -256,119 +256,13 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 
 	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i UAVs"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType], InNumUAVs);
-	const bool bTransitionBetweenShaderStages = (TransitionPipeline == EResourceTransitionPipeline::EGfxToCompute) || (TransitionPipeline == EResourceTransitionPipeline::EComputeToGfx);
-	const bool bUAVTransition = (TransitionType == EResourceTransitionAccess::EReadable) || (TransitionType == EResourceTransitionAccess::EWritable || TransitionType == EResourceTransitionAccess::ERWBarrier);
-	
-	// When transitioning between shader stage usage, we can avoid a UAV barrier as an optimization if the resource will be transitioned to a different resource state anyway (E.g RT -> UAV).
-	// That being said, there is a danger when going from UAV usage on one stage (E.g. Pixel Shader UAV) to UAV usage on another stage (E.g. Compute Shader UAV), 
-	// IFF the 2nd UAV usage relies on the output of the 1st. That would require a UAV barrier since the D3D12 RHI state tracking system would optimize that transition out.
-	// The safest option is to always do a UAV barrier when ERWBarrier is passed in. However there is currently no usage like this so we're ok for now. 
-	const bool bUAVBarrier = (TransitionType == EResourceTransitionAccess::ERWBarrier && !bTransitionBetweenShaderStages);
 
+	// Always perform UAV barrier when transition type is ERWBarrier because we don't know if the transition will be UAV -> UAV or any other state when ERWBarrier is set
+	// This is the safest path, but sadly enough not the fastest path. Barrier refactor code and RDG will fix this in the future
+	const bool bUAVBarrier = (TransitionType == EResourceTransitionAccess::ERWBarrier);
 	if (bUAVBarrier)
 	{
-		// UAV barrier between Dispatch() calls to ensure all R/W accesses are complete.
 		StateCache.FlushComputeShaderCache(true);
-	}
-	else if (bUAVTransition)
-	{
-		// We do a special transition now when called with a particular set of parameters (ERWBarrier && EGfxToCompute) as an optimization when the engine wants to use uavs on the async compute queue.
-		// This will transition all specifed UAVs to the UAV state on the 3D queue to avoid stalling the compute queue with pending resource state transitions later.
-		if ((TransitionType == EResourceTransitionAccess::ERWBarrier) && (TransitionPipeline == EResourceTransitionPipeline::EGfxToCompute))
-		{
-			// The 3D queue can safely transition resources to the UAV state, regardless of their current state (RT, SRV, etc.). However the compute queue is limited in what states 
-			// it can transition to/from, so we limit this transition logic to only happen when going from Gfx -> Compute. (E.g. The compute queue cannot transition to/from RT, Pixel Shader SRV, etc.).
-			for (int32 i = 0; i < InNumUAVs; ++i)
-			{
-				if (InUAVs[i])
-				{
-					FD3D12UnorderedAccessView* const UnorderedAccessView = RetrieveObject<FD3D12UnorderedAccessView>(InUAVs[i]);
-					FD3D12DynamicRHI::TransitionResource(CommandListHandle, UnorderedAccessView, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				}
-			}
-		}
-		else
-		{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
-			if (TransitionType == EResourceTransitionAccess::EReadable)
-			{
-				const D3D12_COMMAND_LIST_TYPE CmdListType = CommandListHandle.GetCommandListType();
-
-				// Compute pipeline can't transition to graphics states such as PIXEL_SHADER_RESOURCE. Best bet is to transition to COMMON given that we're going to consume it on a different queue anyway.
-				// Technically we should be able to transition NON_PIXEL_SHADER_RESOURCE on ComputeToCompute cases, but it appears an AMD driver issue is causing that to hang the GPU, so we're using COMMON
-				// in that case also, which is not ideal, but avoids the hang.
-				D3D12_RESOURCE_STATES AfterState = (CmdListType == D3D12_COMMAND_LIST_TYPE_DIRECT && TransitionPipeline == EResourceTransitionPipeline::EComputeToGfx)?
-					D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON;
-
-				for (int32 i = 0; i < InNumUAVs; ++i)
-				{
-					if (InUAVs[i])
-					{
-						FD3D12UnorderedAccessView* const UnorderedAccessView = RetrieveObject<FD3D12UnorderedAccessView>(InUAVs[i]);
-						FD3D12DynamicRHI::TransitionResource(CommandListHandle, UnorderedAccessView, AfterState);
-					}
-				}
-			}
-#else
-			// Determine the direction of the transitions.
-			// Note in this method, the writeable state is always UAV, regardless of the FD3D12Resource's Writeable state.
-			const D3D12_RESOURCE_STATES* pBefore = nullptr;
-			const D3D12_RESOURCE_STATES* pAfter = nullptr;
-			const D3D12_RESOURCE_STATES WritableComputeState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-			D3D12_RESOURCE_STATES WritableGraphicsState;
-			D3D12_RESOURCE_STATES ReadableState;
-			switch (TransitionType)
-			{
-			case EResourceTransitionAccess::EReadable:
-				// Write -> Read
-				pBefore = &WritableComputeState;
-				pAfter = &ReadableState;
-				break;
-
-			case EResourceTransitionAccess::EWritable:
-				// Read -> Write
-				pBefore = &ReadableState;
-				pAfter = &WritableComputeState;
-				break;
-
-			case EResourceTransitionAccess::ERWBarrier:
-				// Write -> Write, but switching from Grfx to Compute.
-				check(TransitionPipeline == EResourceTransitionPipeline::EGfxToCompute);
-				pBefore = &WritableGraphicsState;
-				pAfter = &WritableComputeState;
-				break;
-
-			default:
-				check(false);
-				break;
-			}
-
-			// Create the resource barrier descs for each texture to transition.
-			for (int32 i = 0; i < InNumUAVs; ++i)
-			{
-				if (InUAVs[i])
-				{
-					FD3D12UnorderedAccessView* UnorderedAccessView = RetrieveObject<FD3D12UnorderedAccessView>(InUAVs[i]);
-					FD3D12Resource* Resource = UnorderedAccessView->GetResource();
-					check(Resource->RequiresResourceStateTracking());
-
-					SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResourcesLoop, bShowTransitionEvents, TEXT("To:%i - %s"), i, *Resource->GetName().ToString());
-
-					// The writable compute state is always UAV.
-					WritableGraphicsState = Resource->GetWritableState();
-					ReadableState = Resource->GetReadableState();
-
-					// Some ERWBarriers might have the same before and after states.
-					if (*pBefore != *pAfter)
-					{
-						CommandListHandle.AddTransitionBarrier(Resource, *pBefore, *pAfter, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-						DUMP_TRANSITION(Resource->GetName(), TransitionType);
-					}
-				}
-			}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
-		}
 	}
 
 	if (WriteComputeFenceRHI)
