@@ -3426,7 +3426,7 @@ void UStaticMesh::BeginDestroy()
 	// Remove from the list of tracked assets if necessary
 	TrackRenderAssetEvent(nullptr, this, false, nullptr);
 
-	if (FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject))
+	if (bRenderingResourcesInitialized)
 	{
 		ReleaseResources();
 	}
