@@ -10,6 +10,7 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformOutputDevices.h"
+#include "HAL/PlatformTLS.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
@@ -27,6 +28,7 @@
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "HAL/ThreadManager.h"
 #include "BuildSettings.h"
+#include "CoreGlobals.h"
 #include <strsafe.h>
 #include <dbghelp.h>
 #include <Shlwapi.h>
@@ -50,7 +52,7 @@
 #pragma comment( lib, "version.lib" )
 #pragma comment( lib, "Shlwapi.lib" )
 
-LONG WINAPI UnhandledException(EXCEPTION_POINTERS *ExceptionInfo);
+LONG WINAPI UnhandledException(LPEXCEPTION_POINTERS ExceptionInfo);
 LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo);
 
 /** Platform specific constants. */
@@ -993,6 +995,8 @@ private:
 	HANDLE CrashingThreadHandle;
 	/** Handle used to remove vectored exception handler. */
 	HANDLE VectoredExceptionHandle;
+	/** Handle exceptions from non-engine threads (threads that are likely not guarded by a __try/__except). */
+	HANDLE VectoredExceptionHandleNonEngineThread;
 
 	/** Process handle to crash reporter client */
 	FProcHandle CrashClientHandle;
@@ -1070,6 +1074,7 @@ public:
 		, CrashingThreadId(0)
 		, CrashingThreadHandle(nullptr)
 		, VectoredExceptionHandle(INVALID_HANDLE_VALUE)
+		, VectoredExceptionHandleNonEngineThread(INVALID_HANDLE_VALUE)
 		, CrashMonitorWritePipe(nullptr)
 		, CrashMonitorReadPipe(nullptr)
 		, CrashMonitorPid(0)
@@ -1083,7 +1088,8 @@ public:
 #if _WIN32_WINNT >= 0x0500
 		if (!FPlatformMisc::IsDebuggerPresent())
 		{
-			VectoredExceptionHandle = AddVectoredExceptionHandler(1, UnhandledStaticInitException);
+			constexpr ULONG CallFirst = 1;
+			VectoredExceptionHandle = AddVectoredExceptionHandler(CallFirst, UnhandledStaticInitException);
 		}
 #endif
 
@@ -1106,6 +1112,12 @@ public:
 		{
 			FGenericCrashContext::SetOutOfProcessCrashReporterPid(CrashMonitorPid);
 		}
+
+#if WITH_EDITOR // Just for the Editor in 4.25.1 to avoid changing other apps behavior.
+		// Register a vectored excption handler for exceptions that aren't caught by structured exception handling (__try/__except). There is a small uncovered
+		// gap before this handler is installed, but should mostly be covered by UnhandledStaticInitException.
+		FCoreDelegates::GetPreMainInitDelegate().AddRaw(this, &FCrashReportingThread::AddUnhandledExceptionHandler);
+#endif
 	}
 
 	FORCENOINLINE ~FCrashReportingThread()
@@ -1122,12 +1134,25 @@ public:
 			Thread = nullptr;
 		}
 
+		FCoreDelegates::GetPreMainInitDelegate().RemoveAll(this);
+
 		CloseHandle(CrashEvent);
 		CrashEvent = nullptr;
 
 		CloseHandle(CrashHandledEvent);
 		CrashHandledEvent = nullptr;
+	}
 
+	void AddUnhandledExceptionHandler()
+	{
+		// Capture crashes from non-engine threads (The threads not wrapped in a FRunnableThread like std::thread or native thread).
+		constexpr ULONG CallLast  = 0;
+		VectoredExceptionHandleNonEngineThread = AddVectoredExceptionHandler(CallLast, UnhandledException);
+	}
+
+	DWORD GetReporterThreadId() const
+	{
+		return ThreadId;
 	}
 
 	/** Ensures are passed trough this. */
@@ -1388,25 +1413,45 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
 /**
  * Fallback for catching exceptions which aren't caught elsewhere. This allows catching exceptions on threads created outside the engine.
  * Note that Windows does not call this handler if a debugger is attached, separately to our internal logic around crash handling.
+ * NOTE: This vectored exception handler is called before any structured exception handler (__try/__except). Unless a debugger is attached
+ *       or UnhandledStaticInitException() is registered, it has the first chance of handling the exception. It should ignore exceptions that
+ *       are locally handled with __try/__except.
  */
-LONG WINAPI UnhandledException(EXCEPTION_POINTERS* ExceptionInfo)
+LONG WINAPI UnhandledException(LPEXCEPTION_POINTERS ExceptionInfo)
 {
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__try
-#endif
+#if !NOINITCRASHREPORTER
+	// Top bit in exception code is fatal exceptions. Report those but not other types.
+	if ((ExceptionInfo->ExceptionRecord->ExceptionCode & 0x80000000L) != 0)
 	{
-		ReportCrash(ExceptionInfo);
-		GIsCriticalError = true;
-		FPlatformMisc::RequestExit(true);
-		return EXCEPTION_CONTINUE_SEARCH;
-	}
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__except(EXCEPTION_EXECUTE_HANDLER)
-	{
-		// The crash handler crashed itself, exit with a code that the out-of-process monitor will be able to pick up and report into analytics.
-		::exit(ECrashExitCodes::CrashHandlerCrashed);
+		uint32 CurrThreadId = FPlatformTLS::GetCurrentThreadId();
+
+		// The game thread and the crash reporting thread are not FRunnableThread but has local structured exception handling in-place.
+		if (!GCrashReportingThread.IsSet() || IsInGameThread() || GCrashReportingThread->GetReporterThreadId() == CurrThreadId)
+		{
+			return EXCEPTION_CONTINUE_SEARCH; // Skip, the exception is expected to be handled elsewhere.
+		}
+
+		// Check if the crashing thread is an engine thread.
+		bool bIsEngineThread = false;
+		FThreadManager::Get().ForEachThread([&CurrThreadId, &bIsEngineThread](uint32 ThreadId, FRunnableThread*)
+		{
+			if (ThreadId == CurrThreadId)
+			{
+				bIsEngineThread = true;
+			}
+		});
+
+		// Not a registered engine thread?
+		if (!bIsEngineThread)
+		{
+			ReportCrash(ExceptionInfo);
+			GIsCriticalError = true;
+			FPlatformMisc::RequestExit(true);
+		}
+		// else -> engine threads on Windows are expected to handle exceptions locally with __try and __except.
 	}
 #endif
+	return EXCEPTION_CONTINUE_SEARCH;
 }
 
 // #CrashReport: 2015-05-28 This should be named EngineCrashHandler
