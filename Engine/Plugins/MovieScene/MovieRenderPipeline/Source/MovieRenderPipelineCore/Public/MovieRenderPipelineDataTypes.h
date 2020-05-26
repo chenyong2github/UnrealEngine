@@ -7,6 +7,7 @@
 #include "Engine/Scene.h"
 #include "Engine/EngineTypes.h"
 #include "DSP/BufferVectorOperations.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
 #include "MovieRenderPipelineDataTypes.generated.h"
 
 class UMovieSceneCinematicShotSection;
@@ -336,14 +337,14 @@ struct FMoviePipelineCameraCutInfo
 	GENERATED_BODY()
 public:
 	FMoviePipelineCameraCutInfo()
-		: OriginalRange(TRange<FFrameNumber>::Empty())
-		, TotalOutputRange(TRange<FFrameNumber>::Empty())
+		: OriginalRangeLocal(TRange<FFrameNumber>::Empty())
+		, TotalOutputRangeLocal(TRange<FFrameNumber>::Empty())
+		, WarmUpRangeLocal(TRange<FFrameNumber>::Empty())
 		, bEmulateFirstFrameMotionBlur(true)
 		, NumTemporalSamples(0)
 		, NumSpatialSamples(0)
 		, NumTiles(0, 0)
 		, State(EMovieRenderShotState::Uninitialized)
-		, CurrentMasterSeqTick(FFrameNumber(0))
 		, CurrentLocalSeqTick(FFrameNumber(0))
 		, bHasEvaluatedMotionBlurFrame(false)
 		, NumEngineWarmUpFramesRemaining(0)
@@ -358,11 +359,17 @@ private:
 	FFrameNumber GetOutputFrameCountEstimate() const;
 
 public:
-	/** The original non-modified range for this shot that will be rendered. */
-	TRange<FFrameNumber> OriginalRange;
+	/** The original non-modified range for this shot that will be rendered. This is in local space and should be multiplied by InnerToOuterTransform to convert to top-level space. */
+	TRange<FFrameNumber> OriginalRangeLocal;
 
-	/** The range for this shot including handle frames that will be rendered. */
-	TRange<FFrameNumber> TotalOutputRange;
+	/** The range for this shot including handle frames that will be rendered. This is in local space and should be multiplied by InnerToOuterTransform to convert to top-level space. */
+	TRange<FFrameNumber> TotalOutputRangeLocal;
+
+	/** The range for this shot (overlapping handle frames) that has data to do real warm ups with. Intermediate product to turn into NumEngineWarmUpFramesRemaining later. */
+	TRange<FFrameNumber> WarmUpRangeLocal;
+
+	/** The ranges in this class are in local space and need to be multiplied by the LinearTransform of this to convert them to master space. If they are already in master space the transform is identity. */
+	FMovieSceneSequenceTransform InnerToOuterTransform;
 
 	/** 
 	* Should we evaluate/render an extra frame at the start of this shot to show correct motion blur on the first frame? 
@@ -395,9 +402,6 @@ public:
 	/** The current state of processing this Shot is in. Not all states will be passed through. */
 	EMovieRenderShotState State;
 
-	/** The current tick of this shot that we're on in master sequence space, for evaluating the master sequence at this time. */
-	FFrameNumber CurrentMasterSeqTick;
-
 	/** The current tick of this shot that we're on local space, for knowing which frame of this sub-section is equivalent to the master. */
 	FFrameNumber CurrentLocalSeqTick;
 
@@ -416,13 +420,12 @@ public:
 	bool operator == (const FMoviePipelineCameraCutInfo& InRHS) const
 	{
 		return
-			OriginalRange == InRHS.OriginalRange &&
-			TotalOutputRange == InRHS.TotalOutputRange &&
+			OriginalRangeLocal == InRHS.OriginalRangeLocal &&
+			TotalOutputRangeLocal == InRHS.TotalOutputRangeLocal &&
 			State == InRHS.State &&
 			NumEngineWarmUpFramesRemaining == InRHS.NumEngineWarmUpFramesRemaining &&
 			bEmulateFirstFrameMotionBlur == InRHS.bEmulateFirstFrameMotionBlur &&
 			bHasEvaluatedMotionBlurFrame == InRHS.bHasEvaluatedMotionBlurFrame &&
-			CurrentMasterSeqTick == InRHS.CurrentMasterSeqTick &&
 			CurrentLocalSeqTick == InRHS.CurrentLocalSeqTick &&
 			CameraCutSection == InRHS.CameraCutSection;
 	}
@@ -444,35 +447,13 @@ struct FMoviePipelineShotInfo
 	GENERATED_BODY()
 public:
 	FMoviePipelineShotInfo()
-		: NumHandleFrames(0)
-		, OriginalRange(TRange<FFrameNumber>::Empty())
-		, TotalOutputRange(TRange<FFrameNumber>::Empty())
-		, HandleFrameRangeStart(TRange<FFrameNumber>::Empty())
-		, HandleFrameRangeEnd(TRange<FFrameNumber>::Empty())
-		, ShotOverrideConfig(nullptr)
+		: ShotOverrideConfig(nullptr)
 		, CinematicShotSection(nullptr)
 		, CurrentCameraCutIndex(0)
 	{}
 
 	FString GetDisplayName() const;
 
-public:
-	/** How many handle frames (in Display Rate of the Master Sequence) */
-	int32 NumHandleFrames;
-
-	/** The original non-modified (overall) range for this shot that will be rendered. */
-	TRange<FFrameNumber> OriginalRange;
-
-	/** The range for this shot including handle frames that will be rendered. */
-	TRange<FFrameNumber> TotalOutputRange;
-
-	/** The range of time that represents the handle frames (if any) before the shot. */
-	TRange<FFrameNumber> HandleFrameRangeStart;
-
-	/** The range of time that represents the handle frames (if any) after the shot. */
-	TRange<FFrameNumber> HandleFrameRangeEnd;
-
-	FFrameNumber StartFrameOffsetTick;
 	
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Movie Render Pipeline")
 	UMoviePipelineShotConfig* ShotOverrideConfig;
@@ -513,11 +494,6 @@ public:
 	bool operator == (const FMoviePipelineShotInfo& InRHS) const
 	{ 
 		return
-			NumHandleFrames == InRHS.NumHandleFrames &&
-			OriginalRange == InRHS.OriginalRange &&
-			TotalOutputRange == InRHS.TotalOutputRange &&
-			HandleFrameRangeStart == InRHS.HandleFrameRangeStart &&
-			HandleFrameRangeEnd == InRHS.HandleFrameRangeEnd &&
 			ShotOverrideConfig == InRHS.ShotOverrideConfig &&
 			CinematicShotSection == InRHS.CinematicShotSection &&
 			CameraCuts == InRHS.CameraCuts &&
