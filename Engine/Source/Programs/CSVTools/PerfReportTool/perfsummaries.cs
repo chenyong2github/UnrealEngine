@@ -219,21 +219,7 @@ namespace PerfSummaries
         public virtual void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
         {
 			// Resolve wildcards and remove duplicates
-			List<string> newStats = new List<string>();
-			Dictionary<string, bool> uniqueStats = new Dictionary<string, bool>();
-			foreach (string statStr in stats)
-			{
-				List<StatSamples> statsMatching = csvStats.GetStatsMatchingString(statStr);
-				foreach (StatSamples stat in statsMatching)
-				{
-					if (!uniqueStats.ContainsKey(stat.Name))
-					{
-						uniqueStats.Add(stat.Name, true);
-						newStats.Add(stat.Name);
-					}
-				}
-			}
-			stats = newStats;
+			stats = csvStats.GetStatNamesMatchingStringList(stats.ToArray());
 		}
 
         public void ReadStatsFromXML(XElement element)
