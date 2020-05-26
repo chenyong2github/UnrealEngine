@@ -106,6 +106,7 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 				[
 					SNew(SWidgetSwitcher)
 					.WidgetIndex(this, &SMoviePipelineQueuePanel::GetDetailsViewWidgetIndex)
+					.IsEnabled(this, &SMoviePipelineQueuePanel::IsDetailsViewEnabled)
 					+ SWidgetSwitcher::Slot()
 					[
 						JobDetailsPanelWidget.ToSharedRef()
@@ -214,8 +215,18 @@ bool SMoviePipelineQueuePanel::IsRenderLocalEnabled() const
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
 	const bool bHasExecutor = ProjectSettings->DefaultLocalExecutor != nullptr;
 	const bool bNotRendering = !Subsystem->IsRendering();
-	const bool bHasJobs = Subsystem->GetQueue()->GetJobs().Num() > 0;
-	return bHasExecutor && bNotRendering && bHasJobs;
+
+	bool bAtLeastOneJobAvailable = false;
+	for (UMoviePipelineExecutorJob* Job : Subsystem->GetQueue()->GetJobs())
+	{
+		if (!Job->IsConsumed())
+		{
+			bAtLeastOneJobAvailable = true;
+			break;
+		}
+	}
+
+	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable;
 }
 
 FReply SMoviePipelineQueuePanel::OnRenderRemoteRequested()
@@ -238,8 +249,18 @@ bool SMoviePipelineQueuePanel::IsRenderRemoteEnabled() const
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
 	const bool bHasExecutor = ProjectSettings->DefaultRemoteExecutor != nullptr;
 	const bool bNotRendering = !Subsystem->IsRendering();
-	const bool bHasJobs = Subsystem->GetQueue()->GetJobs().Num() > 0;
-	return bHasExecutor && bNotRendering && bHasJobs;;
+
+	bool bAtLeastOneJobAvailable = false;
+	for (UMoviePipelineExecutorJob* Job : Subsystem->GetQueue()->GetJobs())
+	{
+		if (!Job->IsConsumed())
+		{
+			bAtLeastOneJobAvailable = true;
+			break;
+		}
+	}
+
+	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable;
 }
 
 void SMoviePipelineQueuePanel::OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot)
@@ -343,6 +364,24 @@ void SMoviePipelineQueuePanel::OnSelectionChanged(const TArray<UMoviePipelineExe
 int32 SMoviePipelineQueuePanel::GetDetailsViewWidgetIndex() const
 {
 	return NumSelectedJobs == 0;
+}
+
+bool SMoviePipelineQueuePanel::IsDetailsViewEnabled() const
+{
+	TArray<TWeakObjectPtr<UObject>> OutObjects= JobDetailsPanelWidget->GetSelectedObjects();
+
+	bool bAllEnabled = true;
+	for (TWeakObjectPtr<UObject> Object : OutObjects)
+	{
+		const UMoviePipelineExecutorJob* Job = Cast<UMoviePipelineExecutorJob>(Object);
+		if (Job && Job->IsConsumed())
+		{
+			bAllEnabled = false;
+			break;
+		}
+	}
+
+	return bAllEnabled;
 }
 
 #undef LOCTEXT_NAMESPACE // SMoviePipelineQueuePanel

@@ -18,7 +18,8 @@ public class MovieRenderPipelineCore : ModuleRules
 				"AudioMixer",
 				"NonRealtimeAudioRenderer",
 				"Sockets", 
-				"Networking"
+				"Networking",
+				"Http"
 			}
 		);
 
