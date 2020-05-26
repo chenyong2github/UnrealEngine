@@ -67,8 +67,7 @@ void UMoviePipelinePythonHostExecutor::OnBeginFrame()
 				ReceivedData.Last() = 0; // Ensure null terminator
 
 				// Convert the message to a string
-				const TCHAR* MessageData = UTF8_TO_TCHAR((char*)ReceivedData.GetData());
-				FString Message = FString(MessageData);
+				FString Message = FString(UTF8_TO_TCHAR((char*)ReceivedData.GetData()));
 
 				OnSocketMessageRecieved.Broadcast(Message);
 			}
