@@ -226,14 +226,16 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 		} while( s );
 	}
 
-	// Don't allow double backslashes. Due to escaping, and parsing issues that may allow escaping, no backslashes must be allowed.
-	if (Valid == 1)
+	// Don't allow double slashes/backslashes, in any combination (nor "\?")
+	if (Valid == 1 && URL != nullptr)
 	{
-		TCHAR* BackSlash = FCString::Strchr(URL, '\\');
-
-		if (BackSlash != nullptr)
+		for (const TCHAR* CurChar=URL; *CurChar != '\0'; CurChar++)
 		{
-			Valid = 0;
+			if ((CurChar[0] == '\\' || CurChar[0] == '/') && (CurChar[1] == '\\' || CurChar[1] == '/') || CurChar[1] == '?')
+			{
+				Valid = 0;
+				break;
+			}
 		}
 	}
 
