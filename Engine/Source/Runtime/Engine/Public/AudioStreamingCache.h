@@ -67,6 +67,10 @@ public:
 	// It's important to note that this will block any chunk requests.
 	uint64 TrimMemory(uint64 BytesToFree);
 
+	// Returns an array of the USoundwaves retaining the least recently used retained chunks in the cache.
+	// This can potentially return soundwaves for chunks that are retained by a currently playing sound, if the cache is thrashed enough.
+	TArray<FObjectKey> GetLeastRecentlyUsedRetainedSoundWaves(int32 NumSoundWavesToRetrieve);
+
 	// This function will continue to lock until any async file loads are finished.
 	void BlockForAllPendingLoads() const;
 
@@ -310,7 +314,8 @@ private:
 	bool ShouldAddNewChunk() const;
 
 	// Returns the least recent chunk and fixes up the linked list accordingly.
-	FCacheElement* EvictLeastRecentChunk();
+	FCacheElement* EvictLeastRecentChunk(bool bBlockForPendingLoads = false);
+
 
 	void KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback);
 	EAsyncIOPriorityAndFlags GetAsyncPriorityForChunk(const FChunkKey& InKey, bool bNeededForPlayback);
