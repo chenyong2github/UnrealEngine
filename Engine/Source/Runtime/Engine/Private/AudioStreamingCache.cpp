@@ -76,6 +76,22 @@ FAutoConsoleVariableRef CVarPlaybackRequestPriority(
 	TEXT("0: High, 1: Normal, 2: Below Normal, 3: Low, 4: Min"),
 	ECVF_Default);
 
+static int32 BlockForPendingLoadOnCacheOverflowCVar = 0;
+FAutoConsoleVariableRef CVarBlockForPendingLoadOnCacheOverflow(
+	TEXT("au.streamcaching.BlockForPendingLoadOnCacheOverflow"),
+	BlockForPendingLoadOnCacheOverflowCVar,
+	TEXT("This cvar sets the default request priority for audio chunks that are about to play back but aren't in the cache.\n")
+	TEXT("0: when we blow the cache we clear any soundwave retainers. 1: when we blow the cache we attempt to cancel a load in flight."),
+	ECVF_Default);
+
+static int32 NumSoundWavesToClearOnCacheOverflowCVar = 0;
+FAutoConsoleVariableRef CVarNumSoundWavesToClearOnCacheOverflow(
+	TEXT("au.streamcaching.NumSoundWavesToClearOnCacheOverflow"),
+	NumSoundWavesToClearOnCacheOverflowCVar,
+	TEXT("When set > 0, we will attempt to release retainers for only that many sounds every time we have a cache overflow.\n")
+	TEXT("0: reset all retained sounds on cache overflow, >0: evict this many sounds on any cache overflow."),
+	ECVF_Default);
+
 static float StreamCacheSizeOverrideMBCVar = 0.0f;
 FAutoConsoleVariableRef CVarStreamCacheSizeOverrideMB(
 	TEXT("au.streamcaching.StreamCacheSizeOverrideMB"),
@@ -402,25 +418,63 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 
 					UE_LOG(LogAudio, Warning, TEXT("Cache overflow!!! couldn't load chunk %d for sound %s!"), ChunkIndex, *SoundWave->GetName());
 
-					AsyncTask(ENamedThreads::GameThread, []()
+					// gather SoundWaves to release compressed data on:
+					TArray<FObjectKey> SoundWavesToRelease;
+
+					if (NumSoundWavesToClearOnCacheOverflowCVar > 0)
 					{
+						SoundWavesToRelease = Cache->GetLeastRecentlyUsedRetainedSoundWaves(NumSoundWavesToClearOnCacheOverflowCVar);
+					}
+
+					AsyncTask(ENamedThreads::GameThread, [WavesToRelease = MoveTemp(SoundWavesToRelease)]() mutable
+					{
+						// Here we optionally capture the state of the cache when we overflowed:
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 						if (SaveAudioMemReportOnCacheOverflowCVar && GEngine && GEngine->GetMainAudioDevice())
 						{
 							GEngine->GetMainAudioDevice()->Exec(nullptr, TEXT("audiomemreport"));
 						}
 #endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+
+
 						int32 NumChunksReleased = 0;
+
 						for (TObjectIterator<USoundWave> It; It; ++It)
 						{
 							USoundWave* Wave = *It;
 							if (Wave && Wave->IsRetainingAudio())
 							{
-								Wave->ReleaseCompressedAudio();
-								NumChunksReleased++;
+								// If we have a specific list of sound waves to release, check if this sound wave is in it.
+								if (WavesToRelease.Num())
+								{
+									for (int32 Index = 0; Index < WavesToRelease.Num(); Index++)
+									{
+										if (WavesToRelease[Index] == FObjectKey(Wave))
+										{
+											Wave->ReleaseCompressedAudio();
+											WavesToRelease.RemoveAtSwap(Index);
+											NumChunksReleased++;
+											break;
+										}
+									}
+
+									// If we've found every wave we're going to release, break out of the soundwave iterator.
+									if (WavesToRelease.Num() == 0)
+									{
+										break;
+									}
+								}
+								else
+								{
+									// Otherwise, we release all compressed audio by default.
+									Wave->ReleaseCompressedAudio();
+									NumChunksReleased++;
+								}
 							}
 						}
+
 						UE_LOG(LogAudio, Warning, TEXT("Removed %d retained sounds from the stream cache."), NumChunksReleased);
+
 						bCacheCurrentlyBlown = false;
 					});
 				}
@@ -1045,10 +1099,9 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 	//Otherwise, linearly search the cache.
 	FCacheElement* CurrentElement = MostRecentElement;
 
-#if DEBUG_STREAM_CACHE
+
 	// In debuggable situations, we breadcrumb how far down the cache the cache we were.
 	int32 ElementPosition = 0;
-#endif
 
 	while (CurrentElement != nullptr)
 	{
@@ -1066,9 +1119,14 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 		{
 			CurrentElement = CurrentElement->LessRecentElement;
 
-#if DEBUG_STREAM_CACHE
+
 			ElementPosition++;
-#endif
+
+			if (CurrentElement && ElementPosition >= ChunksInUse)
+			{
+				UE_LOG(LogAudio, Warning, TEXT("Possible cycle in our LRU cache list. Please check to ensure any place FCacheElement::MoreRecentElement or FCacheElement::LessRecentElement is changed is locked by CacheMutationCriticalSection."));
+				return nullptr;
+			}
 		}
 	}
 
@@ -1164,6 +1222,13 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::InsertChunk(const FChunkKey& 
 			// The pools filled, so we're going to need to evict.
 			CacheElement = EvictLeastRecentChunk();
 
+			// If we blew the cache, it might be because we have too many loads in flight. Here we attempt to find a load in flight for an unreferenced chunk:
+			if (BlockForPendingLoadOnCacheOverflowCVar && !CacheElement)
+			{
+				UE_LOG(LogAudio, Warning, TEXT("Failed to find an available chunk slot in the audio streaming manager. Finding a load in flight for an unreferenced chunk and cancelling it."));
+				CacheElement = EvictLeastRecentChunk(true);
+			}
+
 			if (!CacheElement)
 			{
 				UE_LOG(LogAudio, Display, TEXT("Failed to find an available chunk slot in the audio streaming manager, likely because the cache was blown."));
@@ -1201,13 +1266,25 @@ void FAudioChunkCache::SetUpLeastRecentChunk()
 	LeastRecentElement = CacheElement;
 }
 
-FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
+FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk(bool bBlockForPendingLoads /* = false */)
 {
 	FCacheElement* CacheElement = LeastRecentElement;
 
 	// If the least recent chunk is evictable, evict it.
-	if (CacheElement->CanEvictChunk())
+	bool bIsChunkEvictable = CacheElement->CanEvictChunk();
+	bool bIsChunkLoadingButUnreferenced = (CacheElement->IsLoadInProgress() && !CacheElement->IsInUse());
+
+	if (bIsChunkEvictable)
 	{
+		FCacheElement* NewLeastRecentElement = CacheElement->MoreRecentElement;
+		check(NewLeastRecentElement);
+
+		LeastRecentElement = NewLeastRecentElement;
+	}
+	else if (bBlockForPendingLoads && bIsChunkLoadingButUnreferenced)
+	{
+		CacheElement->WaitForAsyncLoadCompletion(true);
+
 		FCacheElement* NewLeastRecentElement = CacheElement->MoreRecentElement;
 		check(NewLeastRecentElement);
 
@@ -1224,8 +1301,27 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 		// Otherwise, we need to crawl up the cache from least recent used to most to find a chunk that is not in use:
 		while (CacheElement && CacheElement != ElementToStopAt)
 		{
-			if (CacheElement->CanEvictChunk())
+			// If the least recent chunk is evictable, evict it.
+			bIsChunkEvictable = CacheElement->CanEvictChunk();
+			bIsChunkLoadingButUnreferenced = (CacheElement->IsLoadInProgress() && !CacheElement->IsInUse());
+
+			if (bIsChunkEvictable)
 			{
+				// Link the two neighboring chunks:
+				if (CacheElement->MoreRecentElement)
+				{
+					CacheElement->MoreRecentElement->LessRecentElement = CacheElement->LessRecentElement;
+				}
+
+				// If we ever hit this while loop it means that CacheElement is not the least recently used element.
+				check(CacheElement->LessRecentElement);
+				CacheElement->LessRecentElement->MoreRecentElement = CacheElement->MoreRecentElement;
+				break;
+			}
+			else if (bBlockForPendingLoads && bIsChunkLoadingButUnreferenced)
+			{
+				CacheElement->WaitForAsyncLoadCompletion(true);
+
 				// Link the two neighboring chunks:
 				if (CacheElement->MoreRecentElement)
 				{
@@ -1257,6 +1353,31 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 #endif
 
 	return CacheElement;
+}
+
+TArray<FObjectKey> FAudioChunkCache::GetLeastRecentlyUsedRetainedSoundWaves(int32 NumSoundWavesToRetrieve)
+{
+	// Start at the least recent element, then crawl our way up the LRU cache, 
+	// adding object keys for elements as we go.
+	FCacheElement* CacheElement = LeastRecentElement;
+
+	TArray<FObjectKey> SoundWavesToRelease;
+
+	// In order to avoid cycles, we always leave at least two chunks in the cache.
+	const FCacheElement* ElementToStopAt = MostRecentElement;
+
+	while (CacheElement && CacheElement != ElementToStopAt && SoundWavesToRelease.Num() < NumSoundWavesToRetrieve)
+	{
+		// If the least recent chunk is evictable, evict it.
+		if (CacheElement->IsInUse())
+		{
+			SoundWavesToRelease.Add(CacheElement->Key.ObjectKey);
+		}
+
+		CacheElement = CacheElement->MoreRecentElement;
+	}
+
+	return SoundWavesToRelease;
 }
 
 static FAutoConsoleTaskPriority CPrio_ClearAudioChunkCacheReadRequest(
