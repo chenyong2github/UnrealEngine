@@ -778,9 +778,19 @@ FVector FPhysInterface_Chaos::GetLocalInertiaTensor_AssumesLocked(const FPhysics
 
 FBox FPhysInterface_Chaos::GetBounds_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	// #todo : Implement
-	//const auto& Box = InActorReference.GetScene()->Scene.GetSolver()->GetRigidParticles().Geometry(InActorReference.GetScene()->GetIndexFromId(InActorReference.GetId()))->BoundingBox();
-    return FBox(FVector(-0.5), FVector(0.5));
+	using namespace Chaos;
+	if(const FImplicitObject* Geometry = InActorReference->Geometry().Get())
+	{
+		if(Geometry->HasBoundingBox())
+		{
+			const TBox<FReal,3> LocalBounds = Geometry->BoundingBox();
+			const FRigidTransform3 WorldTM(InActorReference->X(),InActorReference->R());
+			const TBox<FReal,3> WorldBounds = LocalBounds.TransformedBox(WorldTM);
+			return FBox(WorldBounds.Min(), WorldBounds.Max());
+		}	
+	}
+	
+	return FBox(EForceInit::ForceInitToZero);
 }
 
 void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDrag)
