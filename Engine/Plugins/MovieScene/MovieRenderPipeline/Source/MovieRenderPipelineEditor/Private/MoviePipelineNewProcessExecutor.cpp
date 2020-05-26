@@ -107,7 +107,8 @@ void UMoviePipelineNewProcessExecutor::Execute_Implementation(UMoviePipelineQueu
 	FString MoviePipelineArgs;
 	{
 		// We will pass the path to the saved manifest file on the command line and parse it on the other end from disk.
-		FString PipelineConfig = ManifestFilePath;
+		// This is assumed to be relative to the game's Saved directory on load.
+		FString PipelineConfig = TEXT("MovieRenderPipeline/QueueManifest.utxt");
 		
 		// Because the Queue has multiple jobs in it, we don't need to pass which sequence to render. That's only needed if you're rendering a 
 		// specific sequence with a specific master config.
