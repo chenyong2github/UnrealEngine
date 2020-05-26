@@ -439,6 +439,10 @@ namespace ChaosTest {
 				EXPECT_EQ(Particle->V()[2],VPost[Step][2]);
 			}
 
+			//no desync so should be empty
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),0);
+
 			// Throw out the proxy
 			Solver->UnregisterObject(Particle.Get());
 
@@ -514,6 +518,10 @@ namespace ChaosTest {
 				EXPECT_EQ(Particle->V()[2],VPost[Step][2]);
 			}
 
+			//no desync so should be empty
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),0);
+
 			// Throw out the proxy
 			Solver->UnregisterObject(Particle.Get());
 
@@ -585,6 +593,10 @@ namespace ChaosTest {
 				EXPECT_EQ(Particle->X()[2],X[Step][2]);
 				EXPECT_EQ(Particle->V()[2],V[Step][2]);
 			}
+
+			//no desync so should be empty
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),0);
 
 			//can't rewind earlier than latest rewind
 			EXPECT_FALSE(RewindData->RewindToFrame(5));
@@ -882,6 +894,12 @@ namespace ChaosTest {
 				}
 			}
 
+			//expect both particles to be hard desynced
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),2);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[1].MostDesynced,ESyncState::HardDesync);
+
 			EXPECT_EQ(Kinematic->X()[2],50);	//Rewound kinematic and only did one update, so use that first update
 
 			//Make sure we recorded the new data
@@ -982,6 +1000,12 @@ namespace ChaosTest {
 				}
 			}
 
+			//expected desync
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),1);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[0].Particle,Particle.Get());
+
 			// Throw out the proxy
 			Solver->UnregisterObject(Particle.Get());
 
@@ -1054,6 +1078,12 @@ namespace ChaosTest {
 				TickSolverHelper(Module,Solver);
 			}
 
+			//expected desync
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),1);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[0].Particle,Particle.Get());
+
 			// Throw out the proxy
 			Solver->UnregisterObject(Particle.Get());
 
@@ -1061,7 +1091,7 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, DISABLED_RewindTest_DesyncFromPT)
+	TYPED_TEST(AllTraits, RewindTest_DesyncFromPT)
 	{
 		for(int Optimization = 0; Optimization < 2; ++Optimization)
 		{
@@ -1118,12 +1148,18 @@ namespace ChaosTest {
 
 			for(int Step = RewindStep; Step <= LastStep; ++Step)
 			{
-				//at Step 7 we're at z=10 but velocity will now be -1 instead of 0, so a desync has occured
+				//at the end of Step 7 we're at z=9, but it used to be z=10
 				FGeometryParticleState FutureState(*Dynamic);
-				EXPECT_EQ(RewindData->GetFutureStateAtFrame(FutureState,Step),Step < 7 ? EFutureQueryResult::Ok : EFutureQueryResult::Desync);
+				EXPECT_EQ(RewindData->GetFutureStateAtFrame(FutureState,Step),Step <= 7 ? EFutureQueryResult::Ok : EFutureQueryResult::Desync);
 
 				TickSolverHelper(Module,Solver);
 			}
+
+			//both kinematic and simulated are desynced
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),2);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[1].MostDesynced,ESyncState::HardDesync);
 
 			EXPECT_FLOAT_EQ(Dynamic->X()[2],9);
 
@@ -1242,6 +1278,11 @@ namespace ChaosTest {
 					TickSolverHelper(Module,Solver);
 				}
 				EXPECT_EQ(Particle->V()[0],0);
+
+				//desync
+				const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+				EXPECT_EQ(DesyncedParticles.Num(),1);
+				EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
 			}
 
 			//rewind to exactly step 7 to make sure force is not already applied for us
@@ -1323,6 +1364,12 @@ namespace ChaosTest {
 				EXPECT_VECTOR_FLOAT_EQ(Dynamic->X(),Xs[Step]);
 			}
 
+			//slave so dynamic in sync, kinematic desync
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),1);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[0].Particle,Kinematic.Get());
+
 			EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
 
 			Module->DestroySolver(Solver);
@@ -1393,6 +1440,12 @@ namespace ChaosTest {
 			}
 
 			EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+
+			//both desync
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),2);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[1].MostDesynced,ESyncState::HardDesync);
 
 			Module->DestroySolver(Solver);
 		}
@@ -1465,6 +1518,12 @@ namespace ChaosTest {
 
 			EXPECT_FLOAT_EQ(Dynamic->X()[2],5);
 
+			//dynamic slave so only kinematic desyncs
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),1);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[0].Particle,Kinematic.Get());
+
 			Module->DestroySolver(Solver);
 		}
 	}
@@ -1531,6 +1590,10 @@ namespace ChaosTest {
 
 				EXPECT_VECTOR_FLOAT_EQ(FullSim->X(),Xs[Step]);
 			}
+
+			//slave so no desync
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),0);
 
 			Module->DestroySolver(Solver);
 		}
@@ -1606,6 +1669,10 @@ namespace ChaosTest {
 				EXPECT_VECTOR_FLOAT_EQ(HitObj->X(),Xs[Step]);
 			}
 
+			//slave so no desync
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),0);
+
 			Module->DestroySolver(Solver);
 		}
 	}
@@ -1680,6 +1747,12 @@ namespace ChaosTest {
 				//even though there's now a different collision in the sim, the final result of slave is the same as before
 				EXPECT_VECTOR_FLOAT_EQ(HitObj->X(),Xs[Step]);
 			}
+
+			//only desync non-slave
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),1);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[0].Particle, ImpulsedObj.Get());
 
 			Module->DestroySolver(Solver);
 		}
@@ -1769,6 +1842,12 @@ namespace ChaosTest {
 			
 			}
 
+			//both desync
+			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+			EXPECT_EQ(DesyncedParticles.Num(),2);
+			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
+			EXPECT_EQ(DesyncedParticles[1].MostDesynced,ESyncState::HardDesync);
+
 			EXPECT_FLOAT_EQ(Dynamic->X()[2],0);
 
 			Module->DestroySolver(Solver);
@@ -1857,6 +1936,12 @@ namespace ChaosTest {
 			}
 
 		}
+
+		//kinematic hard desync, dynamic only soft desync
+		const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+		EXPECT_EQ(DesyncedParticles.Num(),2);
+		EXPECT_EQ(DesyncedParticles[0].MostDesynced,DesyncedParticles[0].Particle == Kinematic.Get() ? ESyncState::HardDesync : ESyncState::SoftDesync);
+		EXPECT_EQ(DesyncedParticles[1].MostDesynced,DesyncedParticles[1].Particle == Kinematic.Get() ? ESyncState::HardDesync : ESyncState::SoftDesync);
 
 		EXPECT_TRUE(bEverSoft);
 		EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
@@ -1953,6 +2038,12 @@ namespace ChaosTest {
 			}
 
 		}
+
+		//kinematic hard desync, dynamic only soft desync
+		const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
+		EXPECT_EQ(DesyncedParticles.Num(),2);
+		EXPECT_EQ(DesyncedParticles[0].MostDesynced,DesyncedParticles[0].Particle == Kinematic.Get() ? ESyncState::HardDesync : ESyncState::SoftDesync);
+		EXPECT_EQ(DesyncedParticles[1].MostDesynced,DesyncedParticles[1].Particle == Kinematic.Get() ? ESyncState::HardDesync : ESyncState::SoftDesync);
 
 		//no collision so just kept falling
 		EXPECT_LT(Dynamic->X()[2], 10);
