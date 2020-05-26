@@ -231,7 +231,7 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 	{
 		for (const TCHAR* CurChar=URL; *CurChar != '\0'; CurChar++)
 		{
-			if ((CurChar[0] == '\\' || CurChar[0] == '/') && (CurChar[1] == '\\' || CurChar[1] == '/') || CurChar[1] == '?')
+			if ((CurChar[0] == '\\' || CurChar[0] == '/') && (CurChar[1] == '\\' || CurChar[1] == '/' || CurChar[1] == '?'))
 			{
 				Valid = 0;
 				break;
