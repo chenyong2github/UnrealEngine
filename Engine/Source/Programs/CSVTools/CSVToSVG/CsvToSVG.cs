@@ -2070,7 +2070,7 @@ namespace CSVTools
 
 					if (showAverages || showTotals)
 					{
-						float legendValue = showTotals ? stat.total : stat.average;
+						float legendValue = showTotals ? (float)stat.total : stat.average;
 						string formatString = "0.00";
 						if (showTotals && legendValueIsWholeNumber)
 						{
