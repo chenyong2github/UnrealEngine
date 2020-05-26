@@ -30,6 +30,7 @@ class IDetailKeyframeHandler;
 class IDetailPropertyExtensionHandler;
 class SDetailNameArea;
 class IPropertyGenerationUtilities;
+class SSearchBox;
 struct FDetailsViewObjectRoot;
 
 

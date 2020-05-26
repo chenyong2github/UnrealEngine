@@ -20,6 +20,7 @@
 #include "TargetReceipt.h"
 #include "DesktopPlatformModule.h"
 #include "PlatformInfo.h"
+#include "Framework/Docking/TabManager.h"
 
 #define LOCTEXT_NAMESPACE "PlayLevel"
 

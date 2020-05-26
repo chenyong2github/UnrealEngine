@@ -8,6 +8,7 @@
 
 class FEditorViewportClient;
 class FAssetEditorViewportLayout;
+class FMenuBuilder;
 
 class UNREALED_API SAssetEditorViewport : public SEditorViewport
 {

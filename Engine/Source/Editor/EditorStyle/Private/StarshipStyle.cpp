@@ -14,10 +14,62 @@
 #endif
 #include "Styling/ToolBarStyle.h"
 #include "Styling/StyleColors.h"
+#include "Framework/Application/SlateApplication.h"
 
 
 #define DEFAULT_FONT(...) FStarshipCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 #define ICON_FONT(...) FSlateFontInfo(RootToContentDir("Fonts/FontAwesome", TEXT(".ttf")), __VA_ARGS__)
+
+void FStarshipEditorStyle::Initialize()
+{
+	Settings = NULL;
+
+	// The core style must be initialized before the editor style
+	FSlateApplication::InitializeCoreStyle();
+
+#if WITH_EDITOR
+	Settings = GetMutableDefault<UEditorStyleSettings>();
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+	if (SettingsModule != nullptr)
+	{
+		SettingsModule->RegisterSettings("Editor", "General", "Appearance",
+			NSLOCTEXT("EditorStyle", "Appearance_UserSettingsName", "Appearance"),
+			NSLOCTEXT("EditorStyle", "Appearance_UserSettingsDescription", "Customize the look of the editor."),
+			Settings
+		);
+	}
+
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditorModule.RegisterCustomClassLayout("EditorStyleSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FEditorStyleSettingsCustomization::MakeInstance));
+#endif
+
+	StyleInstance = Create(Settings);
+	SetStyle(StyleInstance.ToSharedRef());
+}
+
+void FStarshipEditorStyle::Shutdown()
+{
+#if WITH_EDITOR
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+	if (SettingsModule != nullptr)
+	{
+		SettingsModule->UnregisterSettings("Editor", "General", "Appearance");
+	}
+
+
+
+	FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+	if (PropertyEditorModule)
+	{
+		PropertyEditorModule->UnregisterCustomClassLayout("EditorStyleSettings");
+	}
+#endif
+	//FEditorStyle::SetStyle()
+	StyleInstance.Reset();
+}
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
