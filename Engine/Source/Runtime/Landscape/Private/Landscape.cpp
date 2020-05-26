@@ -616,10 +616,10 @@ bool ULandscapeComponent::IsLandscapeHoleMaterialValid() const
 	UMaterialInterface* HoleMaterial = GetLandscapeHoleMaterial();
 	if (!HoleMaterial)
 	{
-		return false;
+		HoleMaterial = GetLandscapeMaterial();
 	}
 
-	return HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>();
+	return HoleMaterial ? HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>() : false;
 }
 
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
