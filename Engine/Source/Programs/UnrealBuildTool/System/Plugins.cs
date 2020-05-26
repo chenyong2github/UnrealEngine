@@ -163,6 +163,17 @@ namespace UnrealBuildTool
 		static Dictionary<DirectoryReference, List<FileReference>> PluginFileCache = new Dictionary<DirectoryReference, List<FileReference>>();
 
 		/// <summary>
+		/// Invalidate cached plugin data so that we can pickup new things
+		/// Warning: Will make subsequent plugin lookups and directory scans slow until the caches are repopulated
+		/// </summary>
+		public static void InvalidateCaches_SLOW()
+		{
+			PluginInfoCache = new Dictionary<DirectoryReference, List<PluginInfo>>();
+			PluginFileCache = new Dictionary<DirectoryReference, List<FileReference>>();
+			DirectoryItem.ResetAllCachedInfo_SLOW();
+		}
+
+		/// <summary>
 		/// Filters the list of plugins to ensure that any game plugins override engine plugins with the same name, and otherwise that no two
 		/// plugins with the same name exist. 
 		/// </summary>
