@@ -47,6 +47,8 @@ public:
 	}
 private:
 	bool IsTryingToRenderMovieFromCommandLine(FString& OutSequenceAssetPath, FString& OutConfigAssetPath, FString& OutExecutorType, FString& OutPipelineType) const;
+	void OnMapLoadFinished(class UWorld* InWorld);
+	void QueueInitialize(class UWorld* InWorld);
 	void InitializeCommandLineMovieRender();
 
 	void OnCommandLineMovieRenderCompleted(UMoviePipelineExecutorBase* InExecutor, bool bSuccess);
