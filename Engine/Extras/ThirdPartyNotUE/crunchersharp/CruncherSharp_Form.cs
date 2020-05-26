@@ -3,20 +3,32 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
-using Dia2Lib;
 
 namespace CruncherSharp
 {
     public partial class CruncherSharp_Form : Form
     {
-        public CruncherSharp_Form()
+		public DataTable m_table = null;
+
+		/// <summary>
+		/// Result of attempting to load the PDB from the file dialog. True if success
+		/// </summary>
+		private bool m_LoadResult = false;
+
+		private string preExistingFilterCache;
+
+		private string m_CurrentPDBFilePath = null;
+
+		public CruncherSharp_Form()
         {
             InitializeComponent();
 			BindControlMouseClicks(this);
+			m_table = Utils.CreateDataTable();
+
 			m_CruncherData = new CruncherData();
-            bindingSourceSymbols.DataSource = m_CruncherData.m_table;
+
+            bindingSourceSymbols.DataSource = m_table;
             dataGridSymbols.DataSource = bindingSourceSymbols;
 
             dataGridSymbols.Columns[0].Width = 271;
@@ -31,39 +43,73 @@ namespace CruncherSharp
         {
             if (openPdbDialog.ShowDialog() == DialogResult.OK)
             {
-				// Temporarily clear the filter so, if current filter is invalid, we don't generate a ton of exceptions while populating the table
-				var preExistingFilter = textBoxFilter.Text;
-				textBoxFilter.Text = "";
-				bUpdateStack = false;
-
-				Cursor.Current = Cursors.WaitCursor;
-				string result = m_CruncherData.LoadDataFromPdb(openPdbDialog.FileName);
-				if (result != null)
+				if (loadingBackgroundWorker.IsBusy)
 				{
-					MessageBox.Show(this, result);
+					MessageBox.Show(this, "Already loading a file! Please wait for it to finish.");
+					return;
 				}
 
-				this.Text = "Cruncher # - " + System.IO.Path.GetFileName(openPdbDialog.FileName);
+				ResetLoadingBar();
 
-				// Sort by name by default (ascending)
-				dataGridSymbols.Sort(dataGridSymbols.Columns[0], ListSortDirection.Ascending);
-				bindingSourceSymbols.Filter = null;// "Symbol LIKE '*rde*'";
-				Cursor.Current = Cursors.Default;
-
-				// Restore the filter now that the table is populated
-				bUpdateStack = true;
-				textBoxFilter.Text = preExistingFilter;
-
-				ShowSelectedSymbolInfo();
+				m_CurrentPDBFilePath = openPdbDialog.FileName;
+				
+				loadingBackgroundWorker.RunWorkerAsync();
 			}
 		}
 
-        private ulong GetCacheLineSize()
+		private void ResetLoadingBar()
+		{
+			// Reset the loading bar
+			loadingProgressBar.Maximum = 100;
+			loadingProgressBar.Step = 1;
+			loadingProgressBar.Value = 0;
+		}
+
+		private void loadingBackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
+		{
+			BackgroundWorker backgroundWorker = sender as BackgroundWorker;
+			// Temporarily clear the filter so, if current filter is invalid, we don't generate a ton of exceptions while populating the table
+			preExistingFilterCache = textBoxFilter.Text;
+			textBoxFilter.Text = "";
+			bUpdateStack = false;
+
+			Cursor.Current = Cursors.WaitCursor;
+			m_LoadResult = m_CruncherData.LoadDataFromPdb(m_CurrentPDBFilePath, backgroundWorker);			
+		}
+
+		private void loadingBackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+		{
+			loadingProgressBar.Value = e.ProgressPercentage;
+		}
+
+		private void loadingBackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+		{
+			m_CruncherData.PopulateDataTable(m_table);
+			if (!m_LoadResult)
+			{
+				MessageBox.Show(this, "Something went wrong loading a PDB, see log.");
+			}
+
+			this.Text = "Cruncher # - " + System.IO.Path.GetFileName(openPdbDialog.FileName);
+
+			// Sort by name by default (ascending)
+			dataGridSymbols.Sort(dataGridSymbols.Columns[0], ListSortDirection.Ascending);
+			bindingSourceSymbols.Filter = null;// "Symbol LIKE '*rde*'";
+			Cursor.Current = Cursors.Default;
+
+			// Restore the filter now that the table is populated
+			bUpdateStack = true;
+			textBoxFilter.Text = preExistingFilterCache;
+
+			ShowSelectedSymbolInfo();
+		}
+
+		private ulong GetCacheLineSize()
         {
             return Convert.ToUInt32(textBoxCache.Text);
         }
 
-        SymbolInfo FindSelectedSymbolInfo()
+		CruncherSymbol FindSelectedSymbolInfo()
         {
             if (dataGridSymbols.SelectedRows.Count == 0)
             {
@@ -73,7 +119,7 @@ namespace CruncherSharp
             DataGridViewRow selectedRow = dataGridSymbols.SelectedRows[0];
             string symbolName = selectedRow.Cells[0].Value.ToString();
 
-            SymbolInfo info = m_CruncherData.FindSymbolInfo(symbolName);
+			CruncherSymbol info = m_CruncherData.FindSymbolInfo(symbolName);
             return info;
         }
 
@@ -92,7 +138,7 @@ namespace CruncherSharp
         void ShowSelectedSymbolInfo()
         {
             dataGridViewSymbolInfo.Rows.Clear();
-            SymbolInfo info = FindSelectedSymbolInfo();
+			CruncherSymbol info = FindSelectedSymbolInfo();
             if (info != null)
             {
                 ShowSymbolInfo(info);
@@ -102,7 +148,7 @@ namespace CruncherSharp
         delegate void InsertCachelineBoundaryRowsDelegate(long nextOffset);
 
 		/** Shows the given symbol info on the tables on the right hand side */
-        void ShowSymbolInfo(SymbolInfo info)
+        void ShowSymbolInfo(CruncherSymbol info)
         {
             dataGridViewSymbolInfo.Rows.Clear();
             if (!info.HasChildren)
@@ -138,7 +184,7 @@ namespace CruncherSharp
                 }
             };
 
-            foreach (SymbolInfo child in info.Children)
+            foreach (CruncherSymbol child in info.Children)
             {
                 if (child.Padding > 0)
                 {
@@ -254,7 +300,7 @@ namespace CruncherSharp
 
         private void copyTypeLayoutToClipboardToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            SymbolInfo info = FindSelectedSymbolInfo();
+			CruncherSymbol info = FindSelectedSymbolInfo();
             if (info != null)
             {
                 System.IO.StringWriter tw = new System.IO.StringWriter();
@@ -293,7 +339,7 @@ namespace CruncherSharp
             if (dataGridViewSymbolInfo.SelectedRows.Count != 0)
             {
                 DataGridViewRow selectedRow = dataGridViewSymbolInfo.SelectedRows[0];
-                SymbolInfo info = selectedRow.Tag as SymbolInfo;
+				CruncherSymbol info = selectedRow.Tag as CruncherSymbol;
                 if (info != null && info.TypeName != null)
                 {
                     textBoxFilter.Text = info.TypeName.Replace("*", "[*]");
@@ -358,6 +404,18 @@ namespace CruncherSharp
 		private void TriggerMouseClicked(object sender, MouseEventArgs e)
 		{
 			CruncherSharp_MouseDown(sender, e);
+		}
+
+		private void reloadCurrentToolStripMenuItem_Click(object sender, EventArgs e)
+		{			
+			if(loadingBackgroundWorker.IsBusy)
+			{
+				MessageBox.Show(this, "Already loading a file! Please wait for it to finish.");
+				return;
+			}
+
+			ResetLoadingBar();
+			loadingBackgroundWorker.RunWorkerAsync();			
 		}
 	}
 }

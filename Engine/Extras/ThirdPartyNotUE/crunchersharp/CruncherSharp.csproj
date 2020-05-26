@@ -127,7 +127,7 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SymbolInfo.cs" />
+    <Compile Include="CruncherSymbol.cs" />
     <EmbeddedResource Include="CruncherSharp_Form.resx">
       <DependentUpon>CruncherSharp_Form.cs</DependentUpon>
       <SubType>Designer</SubType>

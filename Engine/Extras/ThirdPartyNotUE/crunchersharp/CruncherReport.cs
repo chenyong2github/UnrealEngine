@@ -9,10 +9,10 @@ namespace CruncherSharp
 		public CruncherReport(string PDBFile, string CSVFile)
 		{
 			m_CruncherData = new CruncherData();
-			string result = m_CruncherData.LoadDataFromPdb(PDBFile);
-			if (result != null)
+			bool result = m_CruncherData.LoadDataFromPdb(PDBFile, null);
+			if (!result)
 			{
-				System.Console.WriteLine(result);
+				System.Console.WriteLine("Something went wrong loading PDB file, see log. Exiting...");
 				return;
 			}
 
@@ -31,7 +31,7 @@ namespace CruncherSharp
 			
 			foreach(Tuple<string, ulong, ulong> SymbolToValidate in SymbolsToValidate)
 			{
-				SymbolInfo Info = m_CruncherData.FindSymbolInfo(SymbolToValidate.Item1);
+				CruncherSymbol Info = m_CruncherData.FindSymbolInfo(SymbolToValidate.Item1);
 				if (Info == null)
 				{
 					System.Console.WriteLine("ERROR: Unable to find symbol '" + SymbolToValidate.Item1 + "' in PDB");
