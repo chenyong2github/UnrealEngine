@@ -23,21 +23,114 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineExecutorJob : public UObject
 public:
 	UMoviePipelineExecutorJob()
 	{
+		StatusProgress = 0.f;
+		bIsConsumed = false;
 		Configuration = CreateDefaultSubobject<UMoviePipelineMasterConfig>("DefaultConfig");
 	}
 
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	bool HasFinished() const
-	{
-		return JobStatus == EMoviePipelineExecutorJobStatus::Finished;
-	}
-
-	float GetProgressPercentage() const
-	{
-		return 0.2f;
-	}
-
 public:	
+	/**
+	* Set the status of this job to the given value. This will be shown on the UI if progress
+	* is set to a value less than zero. If progress is > 0 then the progress bar will be shown
+	* on the UI instead. Progress and Status Message are cosmetic and dependent on the
+	* executor to update. Similar to the UMoviePipelineExecutor::SetStatusMessage function,
+	* but at a per-job level basis instead. 
+	*
+	* For C++ implementations override `virtual void SetStatusMessage_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def set_status_message(self, inStatus):
+	*
+	* @param InStatus	The status message you wish the executor to have.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void SetStatusMessage(const FString& InStatus);
+
+	/**
+	* Get the current status message for this job. May be an empty string.
+	*
+	* For C++ implementations override `virtual FString GetStatusMessage_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def get_status_message(self):
+	*		return ?
+	*/
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	FString GetStatusMessage() const;
+
+	/**
+	* Set the progress of this job to the given value. If a positive value is provided
+	* the UI will show the progress bar, while a negative value will make the UI show the 
+	* status message instead. Progress and Status Message are cosmetic and dependent on the
+	* executor to update. Similar to the UMoviePipelineExecutor::SetStatusProgress function,
+	* but at a per-job level basis instead.
+	*
+	* For C++ implementations override `virtual void SetStatusProgress_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def set_status_progress(self, inStatus):
+	*
+	* @param InProgress	The progress (0-1 range) the executor should have.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void SetStatusProgress(const float InProgress);
+
+	/**
+	* Get the current progress as last set by SetStatusProgress. 0 by default.
+	*
+	* For C++ implementations override `virtual float GetStatusProgress_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def get_status_progress(self):
+	*		return ?
+	*/
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	float GetStatusProgress() const;
+
+	/**
+	* Set the job to be consumed. A consumed job is disabled in the UI and should not be
+	* submitted for rendering again. This allows jobs to be added to a queue, the queue
+	* submitted to a remote farm (consume the jobs) and then more jobs to be added and
+	* the second submission to the farm won't re-submit the already in-progress jobs.
+	*
+	* Jobs can be unconsumed when the render finishes to re-enable editing.
+	*
+	* For C++ implementations override `virtual void SetConsumed_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def set_consumed(self, isConsumed):
+	*
+	* @param bInConsumed	True if the job should be consumed and disabled for editing in the UI.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void SetConsumed(const bool bInConsumed);
+
+	/**
+	* Gets whether or not the job has been marked as being consumed. A consumed job is not editable
+	* in the UI and should not be submitted for rendering as it is either already finished or
+	* already in progress.
+	*
+	* For C++ implementations override `virtual bool IsConsumed_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def is_consumed(self):
+	*		return ?
+	*/
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	bool IsConsumed() const;
+
+	/**
+	* Should be called to clear status and user data after duplication so that jobs stay
+	* unique and don't pick up ids or other unwanted behavior from the pareant job.
+	*
+	* For C++ implementations override `virtual bool OnDuplicated_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def on_duplicated(self):
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void OnDuplicated();
+
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetPresetOrigin(UMoviePipelineMasterConfig* InPreset);
 
@@ -64,6 +157,17 @@ public:
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
 	// ~UObject Interface
 
+protected:
+	// UMoviePipelineExecutorJob Interface
+	virtual void SetStatusMessage_Implementation(const FString& InMessage) { StatusMessage = InMessage; }
+	virtual void SetStatusProgress_Implementation(const float InProgress) { StatusProgress = InProgress; }
+	virtual void SetConsumed_Implementation(const bool bInConsumed) { bIsConsumed = bInConsumed; }
+	virtual FString GetStatusMessage_Implementation() const { return StatusMessage; }
+	virtual float GetStatusProgress_Implementation() const { return StatusProgress; }
+	virtual bool IsConsumed_Implementation() const { return bIsConsumed; }
+	virtual void OnDuplicated_Implementation();
+	// ~UMoviePipelineExecutorJob Interface
+
 public:
 	/** (Optional) Name of the job. Shown on the default burn-in. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
@@ -85,10 +189,20 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TArray<FMoviePipelineJobShotInfo> ShotMaskInfo;
 
-	/** What state is this particular job instance currently in? */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	EMoviePipelineExecutorJobStatus JobStatus;
-
+	/** 
+	* Arbitrary data that can be associated with the job. Not used by default implementations, nor read.
+	* This can be used to attach third party metadata such as job ids from remote farms. 
+	* Not shown in the user interface.
+	*/
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	FString UserData;
+private:
+	UPROPERTY(Transient)
+	FString StatusMessage;
+	UPROPERTY(Transient)
+	float StatusProgress;
+	UPROPERTY(Transient)
+	bool bIsConsumed;
 private:
 	/** 
 	*/

@@ -49,6 +49,8 @@ private:
 
 	void OnSelectionChanged(const TArray<UMoviePipelineExecutorJob*>& InSelectedJobs);
 	int32 GetDetailsViewWidgetIndex() const;
+	bool IsDetailsViewEnabled() const;
+
 private:
 	/** Allocates a transient preset so that the user can use the pipeline without saving it to an asset first. */
 	//UMoviePipelineConfigBase* AllocateTransientPreset();

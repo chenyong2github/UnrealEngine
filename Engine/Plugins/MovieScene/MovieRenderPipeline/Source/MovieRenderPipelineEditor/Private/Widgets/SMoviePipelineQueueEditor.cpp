@@ -11,6 +11,7 @@
 #include "MovieRenderPipelineStyle.h"
 #include "MovieRenderPipelineSettings.h"
 #include "Sections/MovieSceneCameraCutSection.h"
+#include "MoviePipelineCommands.h"
 
 // Slate Includes
 #include "Widgets/Input/SComboButton.h"
@@ -61,6 +62,7 @@ struct IMoviePipelineQueueTreeItem : TSharedFromThis<IMoviePipelineQueueTreeItem
 	virtual TSharedPtr<FMoviePipelineQueueJobTreeItem> AsJob() { return nullptr; }
 	virtual UMoviePipelineExecutorJob* GetOwningJob() { return nullptr; }
 	virtual void Delete(UMoviePipelineQueue* InOwningQueue) {}
+	virtual void ResetStatus() {}
 	virtual UMoviePipelineExecutorJob* Duplicate(UMoviePipelineQueue* InOwningQueue) { return nullptr; }
 
 	virtual TSharedRef<ITableRow> ConstructWidget(TWeakPtr<SMoviePipelineQueueEditor> InQueueWidget, const TSharedRef<STableViewBase>& OwnerTable) = 0;
@@ -129,6 +131,14 @@ struct FMoviePipelineQueueJobTreeItem : IMoviePipelineQueueTreeItem
 	virtual UMoviePipelineExecutorJob* Duplicate(UMoviePipelineQueue* InOwningQueue) override
 	{
 		return InOwningQueue->DuplicateJob(WeakJob.Get());
+	}
+
+	virtual void ResetStatus() override
+	{
+		if (WeakJob.Get())
+		{
+			WeakJob->SetConsumed(false);
+		}
 	}
 
 public:
@@ -234,19 +244,34 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			// JobStatus 0 is Uninitialized, so we take one off.
-			return FMath::Clamp(int32(Job->JobStatus) - 1, 0, 2);
+			// If the progress is zero we want to show the status message instead.
+			return Job->GetStatusProgress() > 0;
 		}
 
 		return 0;
 	}
 
+	bool IsEnabled() const
+	{
+		UMoviePipelineExecutorJob* Job = WeakJob.Get();
+		if (Job)
+		{
+			return !Job->IsConsumed();
+		}
+		return false;
+	}
+
 	TOptional<float> GetProgressPercent() const
 	{
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
-		return Job ? Job->GetProgressPercentage() : TOptional<float>();
+		return Job ? Job->GetStatusProgress() : TOptional<float>();
 	}
 
+	FText GetStatusMessage() const
+	{
+		UMoviePipelineExecutorJob* Job = WeakJob.Get();
+		return Job ? FText::FromString(Job->GetStatusMessage()) : FText();
+	}
 
 	TSharedRef<SWidget> OnGenerateConfigPresetPickerMenu()
 	{
@@ -306,6 +331,7 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 	{
 		return SNew(SBox)
 			.Padding(2.0f)
+			.IsEnabled(Item.Get(), &FMoviePipelineQueueJobTreeItem::IsEnabled)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -326,6 +352,7 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 	else if (ColumnName == NAME_Settings)
 	{
 		return SNew(SHorizontalBox)
+		.IsEnabled(Item.Get(), &FMoviePipelineQueueJobTreeItem::IsEnabled)
 
 		// Preset Label
 		+ SHorizontalBox::Slot()
@@ -379,6 +406,7 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 	else if (ColumnName == NAME_Output)
 	{
 		return SNew(SBox)
+			.IsEnabled(Item.Get(), &FMoviePipelineQueueJobTreeItem::IsEnabled)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
@@ -392,33 +420,26 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 	{
 		return SNew(SWidgetSwitcher)
 			.WidgetIndex(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetStatusIndex)
+			.IsEnabled(Item.Get(), &FMoviePipelineQueueJobTreeItem::IsEnabled)
 
-			// Ready Label
+			// Status Message Label
 			+ SWidgetSwitcher::Slot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("PendingJobStatusReady_Label", "Ready"))
+				.Text(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetStatusMessage)
 			]
 
 			// Progress Bar
-			+ SWidgetSwitcher::Slot()
+		+ SWidgetSwitcher::Slot()
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
+			.HAlign(HAlign_Fill)
 			[
 				SNew(SProgressBar)
 				.Percent(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetProgressPercent)
-			]
-
-			// Completed
-			+ SWidgetSwitcher::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("PendingJobStatusCompleted_Label", "Completed!"))
 			];
+
 	}
 
 	return SNullWidget::NullWidget;
@@ -739,6 +760,11 @@ void SMoviePipelineQueueEditor::Construct(const FArguments& InArgs)
 		FCanExecuteAction::CreateSP(this, &SMoviePipelineQueueEditor::CanDuplicateSelected)
 	);
 
+	CommandList->MapAction(
+		FMoviePipelineCommands::Get().ResetStatus,
+		FExecuteAction::CreateSP(this, &SMoviePipelineQueueEditor::OnResetStatus)
+	);
+
 	ChildSlot
 	[
 		SNew(SDropTarget)
@@ -758,6 +784,7 @@ TSharedPtr<SWidget> SMoviePipelineQueueEditor::GetContextMenuContent()
 	MenuBuilder.BeginSection("Edit");
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
+	MenuBuilder.AddMenuEntry(FMoviePipelineCommands::Get().ResetStatus);
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
@@ -1147,6 +1174,25 @@ void SMoviePipelineQueueEditor::OnDuplicateSelected()
 bool SMoviePipelineQueueEditor::CanDuplicateSelected() const
 {
 	return true;
+}
+
+void SMoviePipelineQueueEditor::OnResetStatus()
+{
+	UMoviePipelineQueue* ActiveQueue = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>()->GetQueue();
+	check(ActiveQueue);
+
+	if (ActiveQueue)
+	{
+		TArray<TSharedPtr<IMoviePipelineQueueTreeItem>> Items = TreeView->GetSelectedItems();
+
+		FScopedTransaction Transaction(FText::Format(LOCTEXT("ResetStatus", "Reset Status on {0}|plural(one=Job, other=Jobs)"), Items.Num()));
+		ActiveQueue->Modify();
+
+		for (TSharedPtr<IMoviePipelineQueueTreeItem> Item : Items)
+		{
+			Item->ResetStatus();
+		}
+	}
 }
 
 void SMoviePipelineQueueEditor::SetSelectedJobs_Impl(const TArray<UMoviePipelineExecutorJob*>& InJobs)

@@ -5,7 +5,6 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelinePythonHostExecutor.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoviePipelineSocketMessageRecieved, const FString&, Message);
 
 /**
 * This is a dummy executor that is designed to host a executor implemented in
@@ -23,11 +22,11 @@ public:
 	UMoviePipelinePythonHostExecutor()
 		: UMoviePipelineExecutorBase()
 	{
-		ExternalSocket  = nullptr;
-		bSocketConnected = false;
 	}
 
+	// UMoviePipelineExecutorBase Interface
 	virtual void Execute_Implementation(UMoviePipelineQueue* InPipelineQueue) override;
+	// ~UMoviePipelineExecutorBase Interface
 
 	// Python/Blueprint API
 	UFUNCTION(BlueprintNativeEvent, Category = "Movie Render Pipeline")
@@ -35,40 +34,23 @@ public:
 	virtual void ExecuteDelayed_Implementation(UMoviePipelineQueue* InPipelineQueue) {}
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Movie Render Pipeline")
-	void OnTick();
-	virtual void OnTick_Implementation() {}
-
-	UFUNCTION(BlueprintNativeEvent, Category = "Movie Render Pipeline")
 	void OnMapLoad(UWorld* InWorld);
 	virtual void OnMapLoad_Implementation(UWorld* InWorld) {}
 	// ~Python/Blueprint API
 
-protected:
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void SendSocketMessage(const FString& InMessage);
-	
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UWorld* GetLastLoadedWorld() const { return LastLoadedWorld; }
-
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);
-	void OnBeginFrame();
-	void SendMessage(const char* InMessage);
 
 public:
+	/** You should override this class type on the CDO of the object with your Python type when Python is initialized. */
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TSubclassOf<UMoviePipelinePythonHostExecutor> ExecutorClass;
 	
 	UPROPERTY(BlueprintReadWrite, Transient, Category = "Movie Render Pipeline")
 	UMoviePipelineQueue* PipelineQueue;
-	
 private:
-	UPROPERTY(BlueprintAssignable)
-	FMoviePipelineSocketMessageRecieved OnSocketMessageRecieved;
-
 	UPROPERTY(Transient)
 	UWorld* LastLoadedWorld;
-	
-	class FSocket* ExternalSocket;
-	bool bSocketConnected;
 };
