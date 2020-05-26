@@ -155,7 +155,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		return;
 	}
 
-	TargetSequence = Cast<ULevelSequence>(GetCurrentJob()->TryLoadSequence());
+	TargetSequence = Cast<ULevelSequence>(GetCurrentJob()->Sequence.TryLoad());
 
 	// Disable some user settings that conflict with our need to mutate the data.
 	{
