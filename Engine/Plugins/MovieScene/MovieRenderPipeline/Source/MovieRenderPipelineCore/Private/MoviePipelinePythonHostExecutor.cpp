@@ -78,6 +78,19 @@ void UMoviePipelinePythonHostExecutor::OnBeginFrame()
 	OnTick();
 }
 	
+void UMoviePipelinePythonHostExecutor::SendMessage(const char* InMessage)
+{
+	check(ExternalSocket);
+
+	// Specify how long the message will be so on the recieving end we can tell stacked messages apart.
+	int32 NumBytes = FCStringAnsi::Strlen(InMessage);
+	int32 BytesSent = 0;
+	ExternalSocket->Send((uint8*)&NumBytes, sizeof(int32), BytesSent);
+
+	// Now send the actual message.
+	ExternalSocket->Send((uint8*)InMessage, FCStringAnsi::Strlen(InMessage), BytesSent);
+}
+
 void UMoviePipelinePythonHostExecutor::SendSocketMessage(const FString& InMessage)
 {
 	if(!bSocketConnected || !ExternalSocket)
@@ -85,9 +98,6 @@ void UMoviePipelinePythonHostExecutor::SendSocketMessage(const FString& InMessag
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Attempted to send message but no socket connected, ignoring..."));
 		return;
 	}
-	
-	const char* UTF8EncodedMessage = TCHAR_TO_UTF8(*InMessage);
 
-	int32 BytesSent = 0;
-	bool bSuccess =	ExternalSocket->Send((uint8*)UTF8EncodedMessage, FCStringAnsi::Strlen(UTF8EncodedMessage), BytesSent);
+	SendMessage(TCHAR_TO_UTF8(*InMessage));
 }

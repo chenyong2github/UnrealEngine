@@ -53,7 +53,8 @@ protected:
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);
 	void OnBeginFrame();
-	
+	void SendMessage(const char* InMessage);
+
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TSubclassOf<UMoviePipelinePythonHostExecutor> ExecutorClass;
