@@ -19,8 +19,6 @@ UEditorStyleSettings::UEditorStyleSettings( const FObjectInitializer& ObjectInit
 	bEnableUserEditorLayoutManagement = true;
 
 	SelectionColor = FLinearColor(0.828f, 0.364f, 0.003f);
-	InactiveSelectionColor = FLinearColor(0.25f, 0.25f, 0.25f);
-	PressedSelectionColor = FLinearColor(0.701f, 0.225f, 0.003f);
 
 	EditorWindowBackgroundColor = FLinearColor::White;
 
@@ -62,18 +60,6 @@ FLinearColor UEditorStyleSettings::GetSubduedSelectionColor() const
 
 void UEditorStyleSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (bResetEditorWindowBackgroundSettings)
-	{
-		// Reset the settings
-		bResetEditorWindowBackgroundSettings = false;
-
-		EditorWindowBackgroundColor = FLinearColor::White;
-
-		FSlateBrush DummyBrush;
-		EditorMainWindowBackgroundOverride = DummyBrush;
-		EditorChildWindowBackgroundOverride = DummyBrush;
-	}
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;

@@ -75,53 +75,6 @@ private:
 
 };
 
-
-struct SLATECORE_API FStyleColors
-{
-	static const FSlateColor Black;
-	static const FSlateColor Title;
-	static const FSlateColor Foldout;
-	static const FSlateColor Input;
-	static const FSlateColor Background;
-	static const FSlateColor Header;
-	static const FSlateColor Dropdown;
-	static const FSlateColor Hover;
-	static const FSlateColor Hover2;
-	static const FSlateColor White;
-	static const FSlateColor White25;
-	static const FSlateColor Highlight;
-
-	static const FSlateColor Primary;
-	static const FSlateColor PrimaryHover;
-	static const FSlateColor PrimaryPress;
-
-
-	static const FSlateColor Foreground;
-	static const FSlateColor ForegroundHover;
-	static const FSlateColor ForegroundInverted;
-	static const FSlateColor ForegroundHeader;
-
-	static const FSlateColor Select;
-	static const FSlateColor SelectInactive;
-	static const FSlateColor SelectParent;
-	static const FSlateColor SelectHover;
-
-	static const FSlateColor AccentBlue;
-	static const FSlateColor AccentPurple;
-	static const FSlateColor AccentPink;
-	static const FSlateColor AccentRed;
-	static const FSlateColor AccentOrange;
-	static const FSlateColor AccentYellow;
-	static const FSlateColor AccentGreen;
-	static const FSlateColor AccentBrown;
-	static const FSlateColor AccentBlack;
-	static const FSlateColor AccentGray;
-	static const FSlateColor AccentWhite;
-	static const FSlateColor AccentFolder;
-
-
-};
-
 struct SLATECORE_API FStyleFonts
 {
 

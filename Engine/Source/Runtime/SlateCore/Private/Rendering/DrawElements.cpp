@@ -97,7 +97,7 @@ static bool ShouldCull(const FSlateWindowElementList& ElementList, const FPaintG
 
 static bool ShouldCull(const FSlateWindowElementList& ElementList, const FPaintGeometry& PaintGeometry, const FSlateBrush* InBrush, const FLinearColor& InTint)
 {
-	if (InTint.A == 0 || ShouldCull(ElementList, PaintGeometry, InBrush))
+	if ((InTint.A == 0 && InBrush->OutlineSettings.Color.GetSpecifiedColor().A == 0) || ShouldCull(ElementList, PaintGeometry, InBrush))
 	{
 		return true;
 	}
@@ -210,17 +210,37 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 	const FLinearColor& InTint
 )
 {
-	EElementType ElementType = (InBrush->DrawAs == ESlateBrushDrawType::Border) ? EElementType::ET_Border : EElementType::ET_Box;
+	EElementType ElementType = (InBrush->DrawAs == ESlateBrushDrawType::Border) ? EElementType::ET_Border : (InBrush->DrawAs == ESlateBrushDrawType::RoundedBox) ? EElementType::ET_RoundedBox : EElementType::ET_Box;
+
+	// Cast to Rounded Rect to get the internal paramerters 
+	// New payload type - inherit from BoxPayload 
 
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
 
 	const FMargin& Margin = InBrush->GetMargin();
-	FSlateBoxPayload& BoxPayload = ElementList.CreatePayload<FSlateBoxPayload>(Element);
+
+	FSlateBoxPayload* BoxPayload;
+	if ( ElementType == EElementType::ET_RoundedBox )
+	{
+		FSlateRoundedBoxPayload* RBoxPayload = &ElementList.CreatePayload<FSlateRoundedBoxPayload>(Element);
+		float Radius = InBrush->OutlineSettings.Radius;
+		if (InBrush->OutlineSettings.RoundingType == ESlateBrushRoundingType::HalfHeightRadius)
+		{
+			Radius = PaintGeometry.GetLocalSize().Y/2.0;
+		}
+		RBoxPayload->SetRadius(Radius);
+		RBoxPayload->SetOutline(InBrush->OutlineSettings.Color.GetSpecifiedColor(), InBrush->OutlineSettings.Width * PaintGeometry.DrawScale);
+		BoxPayload = RBoxPayload;
+	}
+	else 
+	{
+		BoxPayload = &ElementList.CreatePayload<FSlateBoxPayload>(Element);
+	}
 
 	Element.Init(ElementList, ElementType, InLayer, PaintGeometry, InDrawEffects);
 
-	BoxPayload.SetTint(InTint);
-	BoxPayload.SetBrush(InBrush);
+	BoxPayload->SetTint(InTint);
+	BoxPayload->SetBrush(InBrush, PaintGeometry.GetLocalSize(), PaintGeometry.DrawScale);
 
 	return Element;
 }

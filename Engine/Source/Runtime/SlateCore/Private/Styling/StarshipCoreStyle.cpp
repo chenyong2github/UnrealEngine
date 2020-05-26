@@ -13,6 +13,7 @@
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/ToolBarStyle.h"
+#include "Styling/StyleColors.h"
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but Style->RootToContentDir is how the core style is set up
 #define RootToContentDir Style->RootToContentDir
@@ -22,50 +23,6 @@
 
 TSharedPtr< ISlateStyle > FStarshipCoreStyle::Instance = nullptr;
 
-
-// HEX Colors from sRGB Color space
-#define COLOR( HexValue ) FLinearColor::FromSRGBColor(FColor::FromHex(HexValue))
-
-const FSlateColor FStyleColors::Black				= COLOR("#000000FF");
-const FSlateColor FStyleColors::Title				= COLOR("#151515FF");
-const FSlateColor FStyleColors::Foldout				= COLOR("0F0F0FFF");
-const FSlateColor FStyleColors::Input				= COLOR("#1A1A1AFF");
-const FSlateColor FStyleColors::Background			= COLOR("#242424FF");
-const FSlateColor FStyleColors::Header				= COLOR("#2F2F2FFF");
-const FSlateColor FStyleColors::Dropdown			= COLOR("#383838FF");
-const FSlateColor FStyleColors::Hover				= COLOR("#575757FF");
-const FSlateColor FStyleColors::Hover2				= COLOR("#808080FF");
-
-const FSlateColor FStyleColors::White				= COLOR("#FFFFFFFF");
-const FSlateColor FStyleColors::White25				= COLOR("#FFFFFF40");
-const FSlateColor FStyleColors::Highlight			= COLOR("#0078D7FF");
-
-const FSlateColor FStyleColors::Primary				= COLOR("#26BBFFFF");
-const FSlateColor FStyleColors::PrimaryHover		= COLOR("#6FD2FFFF");
-const FSlateColor FStyleColors::PrimaryPress		= COLOR("#1989BCFF");
-
-const FSlateColor FStyleColors::Foreground			= COLOR("#A6A6A6FF");
-const FSlateColor FStyleColors::ForegroundHover		= COLOR("#FFFFFFFF");
-const FSlateColor FStyleColors::ForegroundInverted	= FStyleColors::Input;
-const FSlateColor FStyleColors::ForegroundHeader	= COLOR("#C8C8C8FF");
-
-const FSlateColor FStyleColors::Select				= FStyleColors::Primary;
-const FSlateColor FStyleColors::SelectInactive		= COLOR("#99B3BFFF");
-const FSlateColor FStyleColors::SelectParent		= COLOR("#2C323AFF");
-const FSlateColor FStyleColors::SelectHover			= FStyleColors::Background;
-
-const FSlateColor FStyleColors::AccentBlue			= COLOR("#26BBFFFF");
-const FSlateColor FStyleColors::AccentPurple		= COLOR("#A139BFFF");
-const FSlateColor FStyleColors::AccentPink			= COLOR("#FF729CFF");
-const FSlateColor FStyleColors::AccentRed			= COLOR("#FF4040FF");
-const FSlateColor FStyleColors::AccentOrange		= COLOR("#FE9B07FF");
-const FSlateColor FStyleColors::AccentYellow		= COLOR("#FFDC1AFF");
-const FSlateColor FStyleColors::AccentGreen			= COLOR("#8BC24AFF");
-const FSlateColor FStyleColors::AccentBrown			= COLOR("#804D39FF");
-const FSlateColor FStyleColors::AccentBlack			= COLOR("#242424FF");
-const FSlateColor FStyleColors::AccentGray			= COLOR("#808080FF");
-const FSlateColor FStyleColors::AccentWhite			= COLOR("#FFFFFFFF");
-const FSlateColor FStyleColors::AccentFolder		= COLOR("#B68F55FF");
 
 #define FONT(...) FSlateFontInfo(FLegacySlateFontInfoCache::Get().GetDefaultFont(), __VA_ARGS__)
 

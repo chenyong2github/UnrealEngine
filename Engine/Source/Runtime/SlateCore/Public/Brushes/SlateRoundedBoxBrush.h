@@ -198,7 +198,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 					  ESlateBrushTileType::NoTile, 
 					  ESlateBrushImageType::NoImage, 
 					  InImageSize,
-					  InColor.GetSpecifiedColor(),
+					  InColor,
 					  nullptr,
 					  false
 					 )
@@ -219,7 +219,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 					  ESlateBrushTileType::NoTile, 
 					  ESlateBrushImageType::NoImage, 
 					  InImageSize,
-					  InColor.GetSpecifiedColor(),
+					  InColor,
 					  nullptr,
 					  false
 					 )
@@ -241,12 +241,12 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 					  ESlateBrushTileType::NoTile, 
 					  ESlateBrushImageType::NoImage, 
 					  InImageSize,
-					  InColor.GetSpecifiedColor(),
+					  InColor,
 					  nullptr,
 					  false
 					  )
 	{ 
-		OutlineSettings = FSlateBrushOutlineSettings(InOutlineColor.GetSpecifiedColor(), InOutlineWidth);
+		OutlineSettings = FSlateBrushOutlineSettings(InOutlineColor, InOutlineWidth);
 	}
 
 	/** 
@@ -264,12 +264,12 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 					  ESlateBrushTileType::NoTile, 
 					  ESlateBrushImageType::NoImage, 
 					  InImageSize,
-					  InColor.GetSpecifiedColor(),
+					  InColor,
 					  nullptr,
 					  false
 					  )
 	{ 
-		OutlineSettings = FSlateBrushOutlineSettings(InRadius, InOutlineColor.GetSpecifiedColor(), InOutlineWidth);
+		OutlineSettings = FSlateBrushOutlineSettings(InRadius, InOutlineColor, InOutlineWidth);
 	}
 
 };

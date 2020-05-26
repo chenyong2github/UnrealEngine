@@ -12,6 +12,12 @@
 #include "Classes/EditorStyleSettings.h"
 #include "ISettingsModule.h"
 
+#if WITH_EDITOR
+#include "EditorStyleSettingsCustomization.h"
+#include "PropertyEditorModule.h"
+#endif
+
+
 struct FPropertyChangedEvent;
 
 /**
@@ -38,6 +44,10 @@ public:
 				Settings
 			);
 		}
+
+
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyEditorModule.RegisterCustomClassLayout("EditorStyleSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FEditorStyleSettingsCustomization::MakeInstance));
 #endif
 
 		StyleInstance = Create(Settings);
@@ -46,6 +56,7 @@ public:
 
 	static void Shutdown()
 	{
+#if WITH_EDITOR
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 
 		if (SettingsModule != nullptr)
@@ -53,6 +64,14 @@ public:
 			SettingsModule->UnregisterSettings("Editor", "General", "Appearance");
 		}
 
+
+
+		FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+		if (PropertyEditorModule)
+		{
+			PropertyEditorModule->UnregisterCustomClassLayout("EditorStyleSettings");
+		}
+#endif
 		//FEditorStyle::SetStyle()
 		StyleInstance.Reset();
 	}

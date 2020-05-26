@@ -6,7 +6,6 @@
 #include "Widgets/SWindow.h"
 #include "Modules/ModuleInterface.h"
 #include "UObject/StructOnScope.h"
-#include "Toolkits/IToolkitHost.h"
 #include "IDetailsView.h"
 #include "PropertyEditorDelegates.h"
 #include "IPropertyTypeCustomization.h"
@@ -64,6 +63,13 @@ class SWindow;
 class IPropertyTableCellPresenter;
 class IPropertyTypeCustomization;
 class IDetailsView;
+class IToolkitHost;
+class FAssetEditorToolkit;
+
+namespace EToolkitMode
+{
+	enum Type;
+};
 
 /**
  * Base class for adding an extra data to identify a custom property type

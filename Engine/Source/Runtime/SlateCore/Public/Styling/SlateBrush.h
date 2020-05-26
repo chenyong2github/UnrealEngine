@@ -27,7 +27,10 @@ namespace ESlateBrushDrawType
 		Border,
 
 		/** Draw an image; margin is ignored */
-		Image
+		Image,
+
+		/** Draw a solid rectangle with an outline and corner radius */
+		RoundedBox
 	};
 }
 
@@ -94,8 +97,83 @@ namespace ESlateBrushImageType
 
 		/** The image is a special texture in linear space (usually a rendering resource such as a lookup table). */
 		Linear,
+
+		/** The image is vector graphics and will be rendered and cached in full color using size/scale requested by slate */
+		Vector,
 	};
 }
+
+
+/**
+ * Enumerates rounding options
+ */
+UENUM()
+namespace ESlateBrushRoundingType
+{
+	enum Type
+	{
+		/** Use the specified Radius **/
+		FixedRadius, 
+
+		/** The rounding radius should be half the height such that it always looks perfectly round **/
+		HalfHeightRadius,
+	};
+}
+
+
+/**
+ * Possible options for rounded box brush image
+ */
+USTRUCT(BlueprintType)
+struct SLATECORE_API FSlateBrushOutlineSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FSlateBrushOutlineSettings()
+		: Radius(0.0)
+		, Color(FLinearColor::Transparent)
+		, Width(0.0)
+		, RoundingType(ESlateBrushRoundingType::HalfHeightRadius)
+	{}
+
+	FSlateBrushOutlineSettings(float InRadius)
+		: Radius(InRadius)
+		, Color(FLinearColor::Transparent)
+		, Width(0.0)
+		, RoundingType(ESlateBrushRoundingType::FixedRadius)
+	{}
+
+	FSlateBrushOutlineSettings(const FSlateColor& InColor, float InWidth)
+		: Radius(0.0)
+		, Color(InColor)
+		, Width(InWidth)
+		, RoundingType(ESlateBrushRoundingType::HalfHeightRadius)
+	{}
+
+	FSlateBrushOutlineSettings(float InRadius, const FSlateColor& InColor, float InWidth)
+		: Radius(InRadius)
+		, Color(InColor)
+		, Width(InWidth)
+		, RoundingType(ESlateBrushRoundingType::FixedRadius)
+	{}
+
+	/** Radius in Slate Units applied to the outline. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
+	float Radius;
+
+	/** Tinting applied to the border outline. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush, meta=(DisplayName="Outline", sRGB="true"))
+	FSlateColor Color;
+
+	/** Line width in Slate Units applied to the border outline. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
+	float Width;
+
+	/** The Rounding Type **/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
+	TEnumAsByte<enum ESlateBrushRoundingType::Type > RoundingType;
+
+};
 
 namespace SlateBrushDefs
 {
@@ -110,6 +188,7 @@ struct SLATECORE_API FSlateBrush
 {
 	GENERATED_USTRUCT_BODY()
 
+	friend class FSlateShaderResourceManager;
 public:
 	/** Size of the resource in Slate Units */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
@@ -128,6 +207,10 @@ public:
 	/** Tinting applied to the image. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush, meta=( DisplayName="Tint", sRGB="true" ))
 	FSlateColor TintColor;
+
+	/** How to draw the outline.  Currently only used for RoundedBox type brushes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
+	FSlateBrushOutlineSettings OutlineSettings;
 
 public:
 
@@ -304,12 +387,21 @@ public:
 	 */
 	static const FString UTextureIdentifier( );
 	
+	const FSlateResourceHandle& GetRenderingResource(FVector2D LocalSize, float DrawScale) const
+	{
+		UpdateRenderingResource(LocalSize, DrawScale);
+
+		return ResourceHandle;
+	}
+
 	const FSlateResourceHandle& GetRenderingResource() const
 	{
-		if (!ResourceHandle.IsValid())
+		if (ImageType == ESlateBrushImageType::Vector)
 		{
-			UpdateRenderingResource();
+			UE_LOG(LogSlate, Warning, TEXT("FSlateBrush::GetRenderingResource should be called with a size and scale for vector brushes"));
 		}
+	
+		UpdateRenderingResource(GetImageSize(), 1.0f);
 
 		return ResourceHandle;
 	}
@@ -322,7 +414,7 @@ public:
 #endif
 
 private:
-	void UpdateRenderingResource() const;
+	void UpdateRenderingResource(FVector2D LocalSize, float DrawScale) const;
 	bool CanRenderResourceObject(UObject* InResourceObject) const;
 
 private:
@@ -385,12 +477,14 @@ protected:
 	 * @param InTiling        Tile horizontally/vertically or both? (only in image mode)
 	 * @param InImageType	  The type of image
 	 * @param InTint		  Tint to apply to the element.
+	 * @param InOutlineSettings Optional Outline Border Settings for RoundedBox mode
 	 */
-	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const FLinearColor& InTint = FLinearColor::White, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false );
+	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const FLinearColor& InTint = FLinearColor::White, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
 
-	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const TSharedRef< FLinearColor >& InTint, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false );
+	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const TSharedRef< FLinearColor >& InTint, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
 
-	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const FSlateColor& InTint, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false );
+	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const FSlateColor& InTint, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
+
 };
 
 /** Provides a means to hold onto the source of a slate brush. */

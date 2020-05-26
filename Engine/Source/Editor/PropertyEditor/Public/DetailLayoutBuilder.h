@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
 #include "EditorStyleSet.h"
-#include "AssetThumbnail.h"
 #include "PropertyHandle.h"
 #include "IDetailPropertyRow.h"
 

@@ -23,6 +23,7 @@ public class EditorStyle : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Settings",
+				"PropertyEditor"
 			}
 		);
 

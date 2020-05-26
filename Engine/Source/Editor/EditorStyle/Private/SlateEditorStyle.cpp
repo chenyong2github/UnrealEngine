@@ -33,7 +33,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedPtr< FSlateEditorStyle::FStyle > FSlateEditorStyle::StyleInstance = NULL;
 TWeakObjectPtr< UEditorStyleSettings > FSlateEditorStyle::Settings = NULL;
 
-bool IncludeEditorSpecificStyles()
+static bool IncludeEditorSpecificStyles()
 {
 #if IS_PROGRAM
 	return true;
@@ -112,7 +112,7 @@ FSlateEditorStyle::FStyle::FStyle( const TWeakObjectPtr< UEditorStyleSettings >&
 
 }
 
-void SetColor( const TSharedRef< FLinearColor >& Source, const FLinearColor& Value )
+static void SetColor( const TSharedRef< FLinearColor >& Source, const FLinearColor& Value )
 {
 	Source->R = Value.R;
 	Source->G = Value.G;
@@ -133,10 +133,7 @@ void FSlateEditorStyle::FStyle::SyncSettings()
 	if ( Settings.IsValid() )
 	{
 		// Sync the colors used by FEditorStyle
-		SetColor( SelectorColor_LinearRef, Settings->KeyboardFocusColor );
 		SetColor( SelectionColor_LinearRef, Settings->SelectionColor );
-		SetColor( SelectionColor_Inactive_LinearRef, Settings->InactiveSelectionColor );
-		SetColor( SelectionColor_Pressed_LinearRef, Settings->PressedSelectionColor );
 
 		SetColor( LogColor_Background_LinearRef, Settings->LogBackgroundColor );
 		SetColor( LogColor_SelectionBackground_LinearRef, Settings->LogSelectionBackgroundColor );
@@ -150,10 +147,7 @@ void FSlateEditorStyle::FStyle::SyncSettings()
 		SetColor( SelectionColor_Subdued_LinearRef, SubduedSelectionColor );
 
 		// Also sync the colors used by FCoreStyle, as FEditorStyle isn't yet being used as an override everywhere
-		FCoreStyle::SetSelectorColor( Settings->KeyboardFocusColor );
 		FCoreStyle::SetSelectionColor( Settings->SelectionColor );
-		FCoreStyle::SetInactiveSelectionColor( Settings->InactiveSelectionColor );
-		FCoreStyle::SetPressedSelectionColor( Settings->PressedSelectionColor );
 
 		// Sync the window background settings
 		FSlateColor WindowBackgroundColor(FLinearColor::White);
@@ -225,6 +219,8 @@ void FSlateEditorStyle::FStyle::Initialize()
 	SetupMyBlueprintStyles();
 
 //	LogUnusedBrushResources();
+
+	SetParentStyleName( FCoreStyle::GetCoreStyle().GetStyleSetName() );
 }
 
 void FSlateEditorStyle::FStyle::SetupGeneralStyles()
@@ -425,7 +421,11 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		.SetHovered( BOX_BRUSH( "Common/Button_Hovered", FVector2D(32,32), 8.0f/32.0f ) )
 		.SetPressed( BOX_BRUSH( "Common/Button_Pressed", FVector2D(32,32), 8.0f/32.0f ) )
 		.SetNormalPadding( FMargin( 2,2,2,2 ) )
-		.SetPressedPadding( FMargin( 2,3,2,1 ) );
+		.SetPressedPadding( FMargin( 2,3,2,1 ) )
+		.SetNormalForeground(InvertedForeground)
+		.SetPressedForeground(InvertedForeground)
+		.SetHoveredForeground(InvertedForeground)
+		.SetDisabledForeground(InvertedForeground);
 	Set( "Button", Button );
 	Set( "Button.Disabled", new BOX_BRUSH( "Common/Button_Disabled", 8.0f/32.0f ) );
 	
@@ -1612,28 +1612,6 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 	Set( "Editor.SearchBoxFont", DEFAULT_FONT( "Regular", 12) );
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 
-	// Slider and Volume Control
-	{
-		FSliderStyle SliderStyle = FSliderStyle()
-			.SetNormalBarImage(FSlateColorBrush(FColor::White))
-			.SetHoveredBarImage(FSlateColorBrush(FColor::White))
-			.SetDisabledBarImage(FSlateColorBrush(FLinearColor::Gray))
-			.SetNormalThumbImage( BOX_BRUSH( "Common/Button", 8.0f/32.0f ) )
-			.SetHoveredThumbImage(BOX_BRUSH("Common/Button", 8.0f / 32.0f))
-			.SetDisabledThumbImage( BOX_BRUSH( "Common/Button_Disabled", 8.0f/32.0f ) )
-			.SetBarThickness(2.0f);
-		Set( "Slider", SliderStyle );
-
-		Set( "VolumeControl", FVolumeControlStyle()
-			.SetSliderStyle( SliderStyle )
-			.SetHighVolumeImage( IMAGE_BRUSH( "Common/VolumeControl_High", Icon16x16 ) )
-			.SetMidVolumeImage( IMAGE_BRUSH( "Common/VolumeControl_Mid", Icon16x16 ) )
-			.SetLowVolumeImage( IMAGE_BRUSH( "Common/VolumeControl_Low", Icon16x16 ) )
-			.SetNoVolumeImage( IMAGE_BRUSH( "Common/VolumeControl_Off", Icon16x16 ) )
-			.SetMutedImage( IMAGE_BRUSH( "Common/VolumeControl_Muted", Icon16x16 ) )
-			);
-	}
-
 	// Console
 	{
 		Set( "DebugConsole.Background", new BOX_BRUSH( "Old/Menu_Background", FMargin(8.0f/64.0f) ) );
@@ -2056,102 +2034,6 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
-	// ToolBar
-	{
-		Set( "ToolBar.Background", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ) );
-		Set( "ToolBar.Icon", new IMAGE_BRUSH( "Icons/icon_tab_Toolbars_16x", Icon16x16 ) );
-		Set( "ToolBar.Expand", new IMAGE_BRUSH( "Icons/toolbar_expand_16x", Icon16x16) );
-		Set( "ToolBar.SubMenuIndicator", new IMAGE_BRUSH( "Common/SubmenuArrow", Icon8x8 ) );
-		Set( "ToolBar.SToolBarComboButtonBlock.Padding", FMargin(4.0f));
-		Set( "ToolBar.SToolBarButtonBlock.Padding", FMargin(4.0f));
-		Set( "ToolBar.SToolBarCheckComboButtonBlock.Padding", FMargin(4.0f));
-		Set( "ToolBar.SToolBarButtonBlock.CheckBox.Padding", FMargin(0.0f) );
-		Set( "ToolBar.SToolBarComboButtonBlock.ComboButton.Color", DefaultForeground );
-
-		Set( "ToolBar.Block.IndentedPadding", FMargin( 18.0f, 2.0f, 4.0f, 4.0f ) );
-		Set( "ToolBar.Block.Padding", FMargin( 2.0f, 2.0f, 4.0f, 4.0f ) );
-
-		Set( "ToolBar.Separator", new FSlateColorBrush( FLinearColor(FColor(47, 47, 47)) ) );
-		Set( "ToolBar.Separator.Padding", FMargin( 8.f, 0.f, 8.f, 0.f) );
-
-		Set( "ToolBar.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
-		Set( "ToolBar.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
-		Set( "ToolBar.Keybinding", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 8 ) ) );
-
-		Set( "ToolBar.Heading", FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT( "Regular", 8 ) )
-			.SetColorAndOpacity( FLinearColor( 0.4f, 0.4, 0.4f, 1.0f ) ) );
-
-		/* Create style for "ToolBar.CheckBox" widget ... */
-		const FCheckBoxStyle ToolBarCheckBoxStyle = FCheckBoxStyle()
-			.SetUncheckedImage( IMAGE_BRUSH( "Common/SmallCheckBox", Icon14x14 ) )
-			.SetCheckedImage( IMAGE_BRUSH( "Common/SmallCheckBox_Checked",  Icon14x14 ) )
-			.SetUncheckedHoveredImage( IMAGE_BRUSH( "Common/SmallCheckBox_Hovered", Icon14x14 ) )
-			.SetCheckedImage( IMAGE_BRUSH( "Common/SmallCheckBox_Checked_Hovered", Icon14x14 ) )
-			.SetUncheckedPressedImage(IMAGE_BRUSH( "Common/SmallCheckBox_Hovered", Icon14x14, FLinearColor( 0.5f, 0.5f, 0.5f ) ) )
-			.SetCheckedPressedImage( IMAGE_BRUSH( "Common/SmallCheckBox_Checked_Hovered", Icon14x14, FLinearColor( 0.5f, 0.5f, 0.5f ) ) )
-			.SetUndeterminedImage( IMAGE_BRUSH( "Common/CheckBox_Undetermined", Icon14x14 ) )
-			.SetUndeterminedHoveredImage( IMAGE_BRUSH( "Common/CheckBox_Undetermined_Hovered", Icon14x14 ) )
-			.SetUndeterminedPressedImage( IMAGE_BRUSH( "Common/CheckBox_Undetermined_Hovered", Icon14x14, FLinearColor( 0.5f, 0.5f, 0.5f ) ) );
-		/* ... and add new style */
-		Set( "ToolBar.CheckBox", ToolBarCheckBoxStyle );
-
-		/* Read-only checkbox that appears next to a toolbar item */
-		/* Set images for various SCheckBox states associated with read-only toolbar check box items... */
-		const FCheckBoxStyle ToolBarCheckStyle = FCheckBoxStyle()
-			.SetUncheckedImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUncheckedHoveredImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUncheckedPressedImage(IMAGE_BRUSH("Common/SmallCheckBox_Hovered", Icon14x14))
-			.SetCheckedImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetCheckedHoveredImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetCheckedPressedImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetUndeterminedImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUndeterminedHoveredImage(FSlateNoResource())
-			.SetUndeterminedPressedImage(FSlateNoResource());
-
-		/* ...and add the new style */
-		Set("Toolbar.Check", ToolBarCheckStyle);
-
-		// This radio button is actually just a check box with different images
-		/* Create style for "ToolBar.RadioButton" widget ... */
-		const FCheckBoxStyle ToolbarRadioButtonCheckBoxStyle = FCheckBoxStyle()
-				.SetUncheckedImage( IMAGE_BRUSH( "Common/RadioButton_Unselected_16x", Icon16x16 ) )
-				.SetCheckedImage( IMAGE_BRUSH( "Common/RadioButton_Selected_16x",  Icon16x16 ) )
-				.SetUncheckedHoveredImage( IMAGE_BRUSH( "Common/RadioButton_Unselected_16x", Icon16x16, SelectionColor ) )
-				.SetCheckedHoveredImage( IMAGE_BRUSH( "Common/RadioButton_Selected_16x", Icon16x16, SelectionColor ) )
-				.SetUncheckedPressedImage( IMAGE_BRUSH( "Common/RadioButton_Unselected_16x", Icon16x16, SelectionColor_Pressed ) )
-				.SetCheckedPressedImage( IMAGE_BRUSH( "Common/RadioButton_Selected_16x", Icon16x16, SelectionColor_Pressed ) );
-
-		/* ... and add new style */
-		Set( "ToolBar.RadioButton", ToolbarRadioButtonCheckBoxStyle );
-
-		/* Create style for "ToolBar.ToggleButton" widget ... */
-		const FCheckBoxStyle ToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle()
-				.SetCheckBoxType( ESlateCheckBoxType::ToggleButton )
-				.SetUncheckedImage( FSlateNoResource() )
-				.SetUncheckedPressedImage( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) )
-				.SetUncheckedHoveredImage( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ) )
-				.SetCheckedImage( BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) )
-				.SetCheckedHoveredImage( BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) )
-				.SetCheckedPressedImage( BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor ) );
-		/* ... and add new style */
-		Set( "ToolBar.ToggleButton", ToolBarToggleButtonCheckBoxStyle );
-
-		Set( "ToolBar.Button", FButtonStyle(Button)
-			.SetNormal ( FSlateNoResource() )
-			.SetPressed( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) )
-			.SetHovered( BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ) )
-		);
-
-		Set( "ToolBar.Button.Normal", new FSlateNoResource() );
-		Set( "ToolBar.Button.Pressed", new BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) );
-		Set( "ToolBar.Button.Hovered", new BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ) );
-
-		Set( "ToolBar.Button.Checked", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
-		Set( "ToolBar.Button.Checked_Hovered", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
-		Set( "ToolBar.Button.Checked_Pressed", new BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor ) );
-	}
-
 	// Mode ToolPalette 
 	{
 		Set( "PaletteToolBar.Background", 				new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ));
@@ -2774,10 +2656,10 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 	Set( "Sequencer.ToolBar.SToolBarButtonBlock.Padding", 			 FCoreStyle::Get().GetMargin("ToolBar.SToolBarButtonBlock.Padding"));
 	Set( "Sequencer.ToolBar.SToolBarCheckComboButtonBlock.Padding",  FCoreStyle::Get().GetMargin("ToolBar.SToolBarCheckComboButtonBlock.Padding"));
 	Set( "Sequencer.ToolBar.SToolBarButtonBlock.CheckBox.Padding", 	 FCoreStyle::Get().GetMargin("ToolBar.SToolBarButtonBlock.CheckBox.Padding"));
-	Set( "Sequencer.ToolBar.SToolBarComboButtonBlock.ComboButton.Color", GetColor("ToolBar.SToolBarComboButtonBlock.ComboButton.Color"));
+	Set( "Sequencer.ToolBar.SToolBarComboButtonBlock.ComboButton.Color", GetSlateColor("ToolBar.SToolBarComboButtonBlock.ComboButton.Color"));
 
 	// Used only for WidgetBlocks
-	Set( "Sequencer.ToolBar.Block.IndentedPadding", 	FCoreStyle::Get().GetMargin("Sequencer.ToolBar.Block.IndentedPadding") );
+	Set( "Sequencer.ToolBar.Block.IndentedPadding", 	FCoreStyle::Get().GetMargin("ToolBar.Block.IndentedPadding") );
 	Set( "Sequencer.ToolBar.Block.Padding", 			FMargin(0.0f, 4.0f));
 
 	Set( "Sequencer.ToolBar.Separator", 				new FSlateColorBrush( FLinearColor(FColor(48, 48, 48)) ) );
@@ -3077,115 +2959,6 @@ void FSlateEditorStyle::FStyle::SetupNotificationBarStyles()
 
 void FSlateEditorStyle::FStyle::SetupMenuBarStyles()
 {
-	// MenuBar
-	{
-		Set("Menu.Background", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));
-		Set("Menu.Icon", new IMAGE_BRUSH("Icons/icon_tab_toolbar_16px", Icon16x16));
-		Set("Menu.Expand", new IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16));
-		Set("Menu.SubMenuIndicator", new IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8));
-		Set("Menu.SToolBarComboButtonBlock.Padding", FMargin(4.0f));
-		Set("Menu.SToolBarButtonBlock.Padding", FMargin(4.0f));
-		Set("Menu.SToolBarCheckComboButtonBlock.Padding", FMargin(4.0f));
-		Set("Menu.SToolBarButtonBlock.CheckBox.Padding", FMargin(0.0f));
-		Set("Menu.SToolBarComboButtonBlock.ComboButton.Color", DefaultForeground);
-
-		Set("Menu.Block.IndentedPadding", FMargin(18.0f, 2.0f, 4.0f, 4.0f));
-		Set("Menu.Block.Padding", FMargin(2.0f, 2.0f, 4.0f, 4.0f));
-
-		Set("Menu.Separator", new BOX_BRUSH("Old/Button", 4.0f / 32.0f));
-		Set("Menu.Separator.Padding", FMargin(0.5f));
-
-		Set("Menu.Label", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT("Regular", 9)));
-		Set("Menu.Label.Padding", FMargin(0.0f, 0.0f, 0.0f, 0.0f));
-		Set("Menu.Label.ContentPadding", FMargin(10.0f, 2.0f));
-		Set("Menu.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle).SetFont(DEFAULT_FONT("Regular", 9)));
-		Set("Menu.Keybinding", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT("Regular", 8)));
-
-		Set("Menu.Heading", FTextBlockStyle(NormalText)
-			.SetFont(DEFAULT_FONT("Regular", 8))
-			.SetColorAndOpacity(FLinearColor(0.4f, 0.4, 0.4f, 1.0f)));
-
-		/* Set images for various SCheckBox states associated with menu check box items... */
-		const FCheckBoxStyle BasicMenuCheckBoxStyle = FCheckBoxStyle()
-			.SetUncheckedImage(IMAGE_BRUSH("Common/SmallCheckBox", Icon14x14))
-			.SetUncheckedHoveredImage(IMAGE_BRUSH("Common/SmallCheckBox_Hovered", Icon14x14))
-			.SetUncheckedPressedImage(IMAGE_BRUSH("Common/SmallCheckBox_Hovered", Icon14x14, FLinearColor(0.5f, 0.5f, 0.5f)))
-			.SetCheckedImage(IMAGE_BRUSH("Common/SmallCheckBox_Checked", Icon14x14))
-			.SetCheckedHoveredImage(IMAGE_BRUSH("Common/SmallCheckBox_Checked_Hovered", Icon14x14))
-			.SetCheckedPressedImage(IMAGE_BRUSH("Common/SmallCheckBox_Checked_Hovered", Icon14x14, FLinearColor(0.5f, 0.5f, 0.5f)))
-			.SetUndeterminedImage(IMAGE_BRUSH("Common/CheckBox_Undetermined", Icon14x14))
-			.SetUndeterminedHoveredImage(IMAGE_BRUSH("Common/CheckBox_Undetermined_Hovered", Icon14x14))
-			.SetUndeterminedPressedImage(IMAGE_BRUSH("Common/CheckBox_Undetermined_Hovered", Icon14x14, FLinearColor(0.5f, 0.5f, 0.5f)));
-
-		/* ...and add the new style */
-		Set("Menu.CheckBox", BasicMenuCheckBoxStyle);
-
-		/* Read-only checkbox that appears next to a menu item */
-		/* Set images for various SCheckBox states associated with read-only menu check box items... */
-		const FCheckBoxStyle BasicMenuCheckStyle = FCheckBoxStyle()
-			.SetUncheckedImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUncheckedHoveredImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUncheckedPressedImage(IMAGE_BRUSH("Common/SmallCheckBox_Hovered", Icon14x14))
-			.SetCheckedImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetCheckedHoveredImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetCheckedPressedImage(IMAGE_BRUSH("Common/SmallCheck", Icon14x14))
-			.SetUndeterminedImage(IMAGE_BRUSH("Icons/Empty_14x", Icon14x14))
-			.SetUndeterminedHoveredImage(FSlateNoResource())
-			.SetUndeterminedPressedImage(FSlateNoResource());
-
-		/* ...and add the new style */
-		Set("Menu.Check", BasicMenuCheckStyle);
-
-		/* This radio button is actually just a check box with different images */
-		/* Set images for various Menu radio button (SCheckBox) states... */
-		const FCheckBoxStyle BasicMenuRadioButtonStyle = FCheckBoxStyle()
-			.SetUncheckedImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16))
-			.SetUncheckedHoveredImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16))
-			.SetUncheckedPressedImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16))
-			.SetCheckedImage(IMAGE_BRUSH("Common/RadioButton_Selected_16x", Icon16x16))
-			.SetCheckedHoveredImage(IMAGE_BRUSH("Common/RadioButton_Selected_16x", Icon16x16, SelectionColor))
-			.SetCheckedPressedImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16, SelectionColor_Pressed))
-			.SetUndeterminedImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16))
-			.SetUndeterminedHoveredImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16, SelectionColor))
-			.SetUndeterminedPressedImage(IMAGE_BRUSH("Common/RadioButton_Unselected_16x", Icon16x16, SelectionColor_Pressed));
-
-		/* ...and set new style */
-		Set("Menu.RadioButton", BasicMenuRadioButtonStyle);
-
-		/* Create style for "Menu.ToggleButton" widget ... */
-		const FCheckBoxStyle MenuToggleButtonCheckBoxStyle = FCheckBoxStyle()
-			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-			.SetUncheckedImage(FSlateNoResource())
-			.SetUncheckedPressedImage(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
-			.SetUncheckedHoveredImage(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor))
-			.SetCheckedImage(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
-			.SetCheckedHoveredImage(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
-			.SetCheckedPressedImage(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor));
-		/* ... and add new style */
-		Set("Menu.ToggleButton", MenuToggleButtonCheckBoxStyle);
-
-		const FButtonStyle NoBorder = FButtonStyle()
-			.SetNormal(FSlateNoResource())
-			.SetHovered(FSlateNoResource())
-			.SetPressed(FSlateNoResource())
-			.SetNormalPadding(FMargin(0, 0, 0, 1))
-			.SetPressedPadding(FMargin(0, 1, 0, 0));
-
-		Set("Menu.Button", FButtonStyle(NoBorder)
-			.SetNormal(FSlateNoResource())
-			.SetPressed(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
-			.SetHovered(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor))
-			.SetNormalPadding(FMargin(0, 1))
-			.SetPressedPadding(FMargin(0, 2, 0, 0))
-		);
-
-		Set("Menu.Button.Checked", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed));
-		Set("Menu.Button.Checked_Hovered", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed));
-		Set("Menu.Button.Checked_Pressed", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor));
-
-		/* The style of a menu bar button when it has a sub menu open */
-		Set("Menu.Button.SubMenuOpen", new BORDER_BRUSH("Common/Selection", FMargin(4.f / 16.f), FLinearColor(0.10f, 0.10f, 0.10f)));
-	}
 }
 
 void FSlateEditorStyle::FStyle::SetupGeneralIcons()
@@ -3296,6 +3069,7 @@ void FSlateEditorStyle::FStyle::SetupProjectBadgeStyle()
 	);
 
 	Set("SProjectBadge.BadgeShape", new BOX_BRUSH("ProjectBadge/Badge", Icon16x16, FMargin(6.0f/16)));
+	Set("SProjectBadge.BadgePadding", FMargin(10.0f, 2.5f));
 }
 
 void FSlateEditorStyle::FStyle::SetupDockingStyles()
@@ -5668,6 +5442,11 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		}
 	}
 
+	// Level Editor Toolbar
+	{
+		Set("LevelEditorToolBar.Background", new FSlateNoResource());
+	}
+
 	// Scalability (Performance Warning)
 	{
 		Set( "Scalability.ScalabilitySettings", new IMAGE_BRUSH("Scalability/ScalabilitySettings", FVector2D(473.0f, 266.0f) ) );
@@ -6149,6 +5928,29 @@ void FSlateEditorStyle::FStyle::SetupPersonaStyle()
 
 	// Play in editor / play in world
 	{
+		const FButtonStyle PlayToolbarButton = FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("ToolBar.Button"))
+			.SetPressed(FSlateNoResource())
+			.SetHovered(FSlateNoResource())
+			.SetNormalForeground(FSlateColor::UseForeground())
+			.SetPressedForeground(FSlateColor::UseForeground())
+			.SetHoveredForeground(FSlateColor::UseForeground());
+
+		Set("PlayToolbar.Button", PlayToolbarButton);
+
+
+		FComboButtonStyle PlayToolbarComboButton = FComboButtonStyle(FCoreStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"));
+		PlayToolbarComboButton.ButtonStyle = PlayToolbarButton;
+
+		Set("PlayToolbar.SimpleComboButton", PlayToolbarComboButton);
+
+
+		Set("PlayToolbar.Label", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT("Regular", 10)));
+		Set("PlayToolbar.Label.Padding", FMargin(5, 0, 0, 0));
+		Set("PlayToolbar.Label.DropShadowSize", FVector2D::ZeroVector);
+		Set("PlayToolbar.SToolBarButtonBlock.Padding", FMargin(5.0f, 0.f));
+		Set("PlayToolbar.IconSize", Icon40x40);
+
+
 		Set( "PlayWorld.Simulate", new IMAGE_BRUSH( "Icons/icon_simulate_40x", Icon40x40 ) );
 		Set( "PlayWorld.Simulate.Small", new IMAGE_BRUSH( "Icons/icon_simulate_40x", Icon20x20 ) );
 

@@ -74,20 +74,11 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(DisplayName="Selection Color"))
 	FLinearColor SelectionColor;
 
-	/** The color used to represent a pressed item */
-	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(DisplayName="Pressed Selection Color"))
-	FLinearColor PressedSelectionColor;
-
-	/** The color used to represent selected items that are currently inactive */
-	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(DisplayName="Inactive Selection Color"))
-	FLinearColor InactiveSelectionColor;
-
-	/** The color used to represent keyboard input selection focus */
-	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(DisplayName="Keyboard Focus Color"), AdvancedDisplay)
-	FLinearColor KeyboardFocusColor;
+	UPROPERTY(config)
+	bool bEnableEditorWindowBackgroundColor;
 
 	/** The color used to tint the editor window backgrounds */
-	UPROPERTY(EditAnywhere, config, Category=Colors)
+	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(EditCondition="bEnableEditorWindowBackgroundColor"))
 	FLinearColor EditorWindowBackgroundColor;
 
 	/** The override for the background of the main window (if not modified, the defaults will be used) */
@@ -97,10 +88,6 @@ public:
 	/** The override for the background of the child window (if not modified, the defaults will be used) */
 	UPROPERTY(EditAnywhere, config, Category=Colors)
 	FSlateBrush EditorChildWindowBackgroundOverride;
-
-	/** Check to reset the window background settings to editor defaults */
-	UPROPERTY(EditAnywhere, config, Category=Colors)
-	bool bResetEditorWindowBackgroundSettings;
 
 	/** Whether to use small toolbar icons without labels or not. */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface)

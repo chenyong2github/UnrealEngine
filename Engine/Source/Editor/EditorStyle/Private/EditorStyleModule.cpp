@@ -4,6 +4,9 @@
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IEditorStyleModule.h"
 #include "SlateEditorStyle.h"
+#include "StarshipStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/StyleColors.h"
 
 
 /**
@@ -18,20 +21,42 @@ public:
 
 	virtual void StartupModule( ) override
 	{
-		FSlateEditorStyle::Initialize();
+		if (FCoreStyle::IsStarshipStyle())
+		{
+			// This is necessary because the core style  loads the color table before ProcessNewlyLoadedUObjects is called which means none of the config properties are in the classs property link at that time.
+			UStyleColorTable::Get().ReloadConfig();
+
+			bUsingStarshipStyle = true;
+			FStarshipEditorStyle::Initialize();
+
+			// set the application style to be the editor style
+			FAppStyle::SetAppStyleSetName(FStarshipEditorStyle::GetStyleSetName());
+
+		}
+		else
+		{
+			FSlateEditorStyle::Initialize();
+
+			// set the application style to be the editor style
+			FAppStyle::SetAppStyleSetName(FEditorStyle::GetStyleSetName());
+		}
 	}
 
 	virtual void ShutdownModule( ) override
 	{
-		FSlateEditorStyle::Shutdown();
-	}
-
-	virtual TSharedRef<class FSlateStyleSet> CreateEditorStyleInstance( ) const override
-	{
-		return FSlateEditorStyle::Create(FSlateEditorStyle::Settings);
+		if (bUsingStarshipStyle)
+		{
+			FStarshipEditorStyle::Shutdown();
+		}
+		else
+		{
+			FSlateEditorStyle::Shutdown();
+		}
 	}
 
 	// End IModuleInterface interface
+private:
+	bool bUsingStarshipStyle = false;
 };
 
 

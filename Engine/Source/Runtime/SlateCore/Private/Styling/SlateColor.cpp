@@ -2,6 +2,8 @@
 
 #include "Styling/SlateColor.h"
 #include "UObject/PropertyTag.h"
+#include "Styling/StyleColors.h"
+#include "SlateGlobals.h"
 
 bool FSlateColor::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {
@@ -26,4 +28,9 @@ bool FSlateColor::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructure
 	}
 
 	return false;
+}
+
+const FLinearColor& FSlateColor::GetColorFromTable() const
+{
+	return UStyleColorTable::Get().GetColor(ColorTableId);
 }

@@ -13,6 +13,7 @@
 	#include "PlatformInfo.h"
 #endif
 #include "Styling/ToolBarStyle.h"
+#include "Styling/StyleColors.h"
 
 
 #define DEFAULT_FONT(...) FStarshipCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
@@ -128,10 +129,11 @@ void FStarshipEditorStyle::FStyle::SyncSettings()
 		SetColor(SelectionColor_Subdued_LinearRef, SubduedSelectionColor);
 
 		// Also sync the colors used by FStarshipCoreStyle, as FEditorStyle isn't yet being used as an override everywhere
-		FStarshipCoreStyle::SetSelectorColor(Settings->KeyboardFocusColor);
+	/*	FStarshipCoreStyle::SetSelectorColor(Settings->KeyboardFocusColor);
 		FStarshipCoreStyle::SetSelectionColor(Settings->SelectionColor);
 		FStarshipCoreStyle::SetInactiveSelectionColor(Settings->InactiveSelectionColor);
 		FStarshipCoreStyle::SetPressedSelectionColor(Settings->PressedSelectionColor);
+*/
 
 		// Sync the window background settings
 		FWindowStyle& WindowStyle = const_cast<FWindowStyle&>(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FWindowStyle>("Window"));

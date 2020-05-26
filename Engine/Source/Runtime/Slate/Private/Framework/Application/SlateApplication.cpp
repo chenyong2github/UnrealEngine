@@ -51,6 +51,7 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 #include "Debugging/SlateDebugging.h"
+#include "Styling/StyleColors.h"
 
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
@@ -6561,6 +6562,7 @@ void FSlateApplication::InitializeCoreStyle()
 {
 	if (FCoreStyle::IsStarshipStyle())
 	{
+		UStyleColorTable::Get();
 		FStarshipCoreStyle::ResetToDefault();
 		FAppStyle::SetAppStyleSet(FStarshipCoreStyle::GetCoreStyle());
 	}
