@@ -277,15 +277,11 @@ public:
 	void WriteName(const FHashedName& Name);
 
 	template<typename T>
-	FMaterialPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }
+	inline FMaterialPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }
 
-	template<>
-	FMaterialPreshaderData& Write<FHashedName>(const FHashedName& Value) { WriteName(Value); return *this; }
-
-	template<>
-	FMaterialPreshaderData& Write<FHashedMaterialParameterInfo>(const FHashedMaterialParameterInfo& Value) { return Write(Value.Name).Write(Value.Index).Write(Value.Association); }
-
-	inline FMaterialPreshaderData& WriteOpcode(EMaterialPreshaderOpcode Op) { return Write<uint8>((uint8)Op); }
+	inline FMaterialPreshaderData& Write(const FHashedName& Value) { WriteName(Value); return *this; }
+	inline FMaterialPreshaderData& Write(const FHashedMaterialParameterInfo& Value) { return Write(Value.Name).Write(Value.Index).Write(Value.Association); }
+	inline FMaterialPreshaderData& WriteOpcode(EMaterialPreshaderOpcode Op) { return Write((uint8)Op); }
 
 	LAYOUT_FIELD(TMemoryImageArray<FHashedName>, Names);
 	LAYOUT_FIELD(TMemoryImageArray<uint8>, Data);
