@@ -626,6 +626,10 @@ public:
 
 	UPROPERTY()
 	uint32 SplineHash;
+
+	/** Represents hash for last PhysicalMaterialTask */
+	UPROPERTY()
+	uint32 PhysicalMaterialHash;
 #endif
 
 	/** For ES2 */
@@ -669,6 +673,7 @@ public:
 #if WITH_EDITOR
 	/** Physical material update task */
 	FLandscapePhysicalMaterialRenderTask PhysicalMaterialTask;
+	uint32 CalculatePhysicalMaterialTaskHash() const;
 #endif
 
 	//~ Begin UObject Interface.	

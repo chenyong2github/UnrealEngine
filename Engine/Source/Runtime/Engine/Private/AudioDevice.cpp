@@ -532,7 +532,15 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 
 	bIsInitialized = true;
 
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FAudioDevice::OnPreGarbageCollect);
+	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddRaw(this, &FAudioDevice::OnPreGarbageCollect);
+
 	return true;
+}
+
+void FAudioDevice::OnPreGarbageCollect()
+{
+	FlushAudioRenderingCommands();
 }
 
 float FAudioDevice::GetLowPassFilterResonance() const
@@ -725,6 +733,9 @@ void FAudioDevice::Teardown()
 #if ENABLE_AUDIO_DEBUG
 	Audio::FAudioDebugger::RemoveDevice(*this);
 #endif // ENABLE_AUDIO_DEBUG
+
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.RemoveAll(this);
 }
 
 void FAudioDevice::Suspend(bool bGameTicking)
@@ -5838,7 +5849,7 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 	}
 
 	// Make sure we update any hardware changes that need to happen after flushing
-	if (IsAudioMixerEnabled() && (WorldToFlush == nullptr || WorldToFlush->bIsTearingDown))
+	if (IsAudioMixerEnabled())
 	{
 		UpdateHardware();
 
