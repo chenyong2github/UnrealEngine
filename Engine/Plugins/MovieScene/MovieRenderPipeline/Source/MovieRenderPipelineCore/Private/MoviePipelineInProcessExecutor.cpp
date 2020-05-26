@@ -23,6 +23,41 @@ void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJ
 		FApp::SetUseFixedTimeStep(true);
 		FApp::SetFixedDeltaTime(InJob->GetConfiguration()->GetEffectiveFrameRate(LevelSequence).AsInterval());
 	}
+
+	// We were launched into an empty map so we'll look at our job and figure out which map we should load.
+	// Get the next job in the queue
+	FString MapOptions;
+
+	// Initialize the transient settings so that they will exist in time for the GameOverrides check.
+	InJob->GetConfiguration()->InitializeTransientSettings();
+
+	TArray<UMoviePipelineSetting*> AllSettings = InJob->GetConfiguration()->GetAllSettings();
+	UMoviePipelineSetting** GameOverridesPtr = AllSettings.FindByPredicate([](UMoviePipelineSetting* InSetting) { return InSetting->GetClass() == UMoviePipelineGameOverrideSetting::StaticClass(); });
+	if (GameOverridesPtr)
+	{
+		UMoviePipelineSetting* Setting = *GameOverridesPtr;
+		if (Setting)
+		{
+			UMoviePipelineGameOverrideSetting* GameOverrideSetting = CastChecked<UMoviePipelineGameOverrideSetting>(Setting);
+			if (GameOverrideSetting->GameModeOverride)
+			{
+				FString GameModeOverride = FPackageName::GetShortName(*GameOverrideSetting->GameModeOverride->GetPathName());
+				MapOptions = TEXT("?game=") + GameModeOverride;
+			}
+
+		}
+	}
+
+	UWorld* LastLoadedWorld = nullptr;
+	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+	{
+		if (WorldContext.WorldType == EWorldType::Game)
+		{
+			LastLoadedWorld = WorldContext.World();
+		}
+	}
+
+	UGameplayStatics::OpenLevel(LastLoadedWorld, InJob->Map.GetAssetPathName(), true, MapOptions);
 }
 
 void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
@@ -114,41 +149,5 @@ void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(UMoviePipeline* In
 
 	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
 	OnIndividualPipelineFinished(MoviePipeline);
-}
-
-void UMoviePipelineInProcessExecutor::OnIndividualPipelineFinished(UMoviePipeline* FinishedPipeline)
-{
-	if (CurrentPipelineIndex < Queue->GetJobs().Num() - 1)
-	{
-		// Get the next job in the queue
-		UMoviePipelineExecutorJob* NextJob = Queue->GetJobs()[CurrentPipelineIndex + 1];
-
-		FString MapOptions;
-
-		// Initialize the transient settings so that they will exist in time for the GameOverrides check.
-		NextJob->GetConfiguration()->InitializeTransientSettings();
-
-		TArray<UMoviePipelineSetting*> AllSettings = NextJob->GetConfiguration()->GetAllSettings();
-		UMoviePipelineSetting** GameOverridesPtr = AllSettings.FindByPredicate([](UMoviePipelineSetting* InSetting) { return InSetting->GetClass() == UMoviePipelineGameOverrideSetting::StaticClass(); });
-		if (GameOverridesPtr)
-		{
-			UMoviePipelineSetting* Setting = *GameOverridesPtr;
-			if (Setting)
-			{
-				UMoviePipelineGameOverrideSetting* GameOverrideSetting = CastChecked<UMoviePipelineGameOverrideSetting>(Setting);
-				if (GameOverrideSetting->GameModeOverride)
-				{
-					FString GameModeOverride = FPackageName::GetShortName(*GameOverrideSetting->GameModeOverride->GetPathName());
-					MapOptions = TEXT("?game=") + GameModeOverride;
-				}
-
-			}
-		}
-
-		UGameplayStatics::OpenLevel(FinishedPipeline->GetWorld(), NextJob->Map.GetAssetPathName(), true, MapOptions);
-	}
-
-	Super::OnIndividualPipelineFinished(FinishedPipeline);
-
 }
 #undef LOCTEXT_NAMESPACE // "MoviePipelineInProcessExecutor"

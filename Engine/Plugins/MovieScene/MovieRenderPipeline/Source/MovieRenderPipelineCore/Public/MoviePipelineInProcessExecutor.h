@@ -25,7 +25,6 @@ public:
 
 protected:
 	virtual void Start(const UMoviePipelineExecutorJob* InJob) override;
-	virtual void OnIndividualPipelineFinished(UMoviePipeline* FinishedPipeline) override;
 
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);

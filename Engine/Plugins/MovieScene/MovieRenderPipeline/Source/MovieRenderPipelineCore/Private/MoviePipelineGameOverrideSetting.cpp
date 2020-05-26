@@ -97,12 +97,8 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& 
 	FString CVarCommandLineArgs;
 	FString CVarExecArgs;
 
-	// If they've left the setting enabled but set it to None, we don't do anything.
-	if (GameModeOverride)
-	{
-		InOutUnrealURLParams += FString::Printf(TEXT("?game=%s"), *GameModeOverride->GetPathName());
-	}
-
+	// We don't provide the GameMode on the command line argument as we expect NewProcess to boot into an empty map and then it will
+	// transition into the correct map which will then use the GameModeOverride setting.
 	if (bCinematicQualitySettings)
 	{
 		CVarCommandLineArgs += TEXT("sg.ViewDistanceQuality=4,sg.AntiAliasingQuality=4,sg.ShadowQuality=4,sg.PostProcessQuality=4,sg.TextureQuality=4,sg.EffectsQuality=4,sg.FoliageQuality=4,sg.ShadingQuality=4,");
