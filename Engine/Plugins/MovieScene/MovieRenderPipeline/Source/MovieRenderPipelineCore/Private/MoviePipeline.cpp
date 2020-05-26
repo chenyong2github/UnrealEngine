@@ -172,7 +172,10 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		TargetSequence->GetMovieScene()->SetEvaluationType(EMovieSceneEvaluationType::WithSubFrames);
 	}
 
-
+	if(UPackage* Package = TargetSequence->GetMovieScene()->GetTypedOuter<UPackage>())
+	{
+		SequenceChanges.bSequencePackageDirty = Package->IsDirty();
+	}
 
 	// Override the frame range on the target sequence if needed first before anyone has a chance to modify it.
 	{
@@ -258,6 +261,11 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 	TargetSequence->GetMovieScene()->SetPlaybackRange(SequenceChanges.PlaybackRange);
 	TargetSequence->GetMovieScene()->SetReadOnly(SequenceChanges.bSequenceReadOnly);
 	TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(SequenceChanges.bSequencePlaybackRangeLocked);
+	if(UPackage* Package = TargetSequence->GetMovieScene()->GetTypedOuter<UPackage>())
+	{
+		Package->SetDirtyFlag(SequenceChanges.bSequencePackageDirty);
+	}	
+
 
 	for (FMovieSceneChanges::FSegmentChange& ModifiedSegment : SequenceChanges.Segments)
 	{
@@ -265,6 +273,11 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 		{
 			ModifiedSegment.MovieScene->SetPlaybackRange(ModifiedSegment.MovieScenePlaybackRange);
 			ModifiedSegment.MovieScene->SetReadOnly(ModifiedSegment.bMovieSceneReadOnly);
+			
+			if(UPackage* Package = ModifiedSegment.MovieScene->GetTypedOuter<UPackage>())
+			{
+				Package->SetDirtyFlag(ModifiedSegment.bMovieScenePackageDirty);
+			}	
 		}
 
 		if (ModifiedSegment.ShotSection.IsValid())
@@ -1104,6 +1117,11 @@ void UMoviePipeline::ExpandShot(FMoviePipelineShotInfo& InShot, const int32 InNu
 	{
 		ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
 		ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
+
+		if (UPackage* OwningPackage = InnerMovieScene->GetTypedOuter<UPackage>())
+		{
+			ModifiedSegment.bMovieScenePackageDirty = OwningPackage->IsDirty();
+		}
 
 		// Unlock the playback range and readonly flags so we can modify the scene.
 		InnerMovieScene->SetReadOnly(false);
