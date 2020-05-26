@@ -204,7 +204,7 @@ namespace ImmediatePhysics_Chaos
 		Chaos::TArrayCollectionArray<Chaos::FRotation3>& InParticlePrevRs, 
 		EActorType ActorType, 
 		FBodyInstance* BodyInstance, 
-		const FTransform& Transform)
+		const FTransform& InTransform)
 		: Particles(InParticles)
 		, ParticleHandle(nullptr)
 		, ParticlePrevXs(InParticlePrevXs)
@@ -212,10 +212,13 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
+		const FTransform Transform = FTransform(InTransform.GetRotation(), InTransform.GetTranslation());
+		const FVector Scale = InTransform.GetScale3D();
+
 		float Mass = 0;
 		FVec3 Inertia = FVec3::OneVector;
 		FRigidTransform3 CoMTransform = FRigidTransform3::Identity;
-		if (CreateGeometry(BodyInstance, ActorType, FVector::OneVector, Mass, Inertia, CoMTransform, Geometry, Shapes))
+		if (CreateGeometry(BodyInstance, ActorType, Scale, Mass, Inertia, CoMTransform, Geometry, Shapes))
 		{
 			switch (ActorType)
 			{

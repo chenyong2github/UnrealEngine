@@ -330,8 +330,6 @@ private:
 
 	FVector WorldSpaceGravity;
 
-	FSphere Bounds;
-
 	float TotalMass;
 
 	// Bounds used to gather world objects copied into the simulation
