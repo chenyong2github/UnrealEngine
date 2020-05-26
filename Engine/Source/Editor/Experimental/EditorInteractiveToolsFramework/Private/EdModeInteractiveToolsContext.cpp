@@ -103,6 +103,8 @@ public:
 			default:
 				CachedViewState.Orientation = FQuat::Identity;
 			}
+
+			CachedViewState.OrthoWorldCoordinateWidth = ViewportClient->GetOrthoUnitsPerPixel(ViewportClient->Viewport) * ViewportClient->Viewport->GetSizeXY().X;
 		}
 
 		CachedViewState.bIsVR = false;
