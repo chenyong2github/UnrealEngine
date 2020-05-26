@@ -232,6 +232,9 @@ protected:
 	/** Called to get the visibility of the tree view */
 	EVisibility GetTreeVisibility() const;
 
+	/** Called to get the visibility of the scrollbar based on options, needs to be dynamic to avoid layout changing on expansion */
+	EVisibility GetScrollBarVisibility() const;
+
 	/** Returns the name of the image used for the icon on the filter button */
 	const FSlateBrush* OnGetFilterButtonImageResource() const;
 
