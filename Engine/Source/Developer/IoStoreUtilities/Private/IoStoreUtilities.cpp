@@ -1538,41 +1538,6 @@ static EIoChunkType BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBu
 	}
 }
 
-static bool MapAdditionalBulkDataChunks(FContainerTargetFile& TargetFile, const FPackageStoreBulkDataManifest& BulkDataManifest)
-{
-	const FPackage& Package = *TargetFile.Package;
-	const FPackageStoreBulkDataManifest::FPackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
-	if (PackageDesc != nullptr)
-	{
-		FPackageStoreBulkDataManifest::EBulkdataType BulkDataType = TargetFile.bIsOptionalBulkData
-			? FPackageStoreBulkDataManifest::EBulkdataType::Optional
-			: TargetFile.bIsMemoryMappedBulkData
-				? FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped
-				: FPackageStoreBulkDataManifest::EBulkdataType::Normal;
-
-		const EIoChunkType ChunkIdType = BulkdataTypeToChunkIdType(BulkDataType);
-
-		// Create additional mapping chunks as needed
-		for (const FPackageStoreBulkDataManifest::FPackageDesc::FBulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
-		{
-			if (BulkDataDesc.Type == BulkDataType)
-			{
-				FContainerTargetFilePartialMapping& PartialMapping = TargetFile.PartialMappings.AddDefaulted_GetRef();
-				PartialMapping.PartialChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, ChunkIdType, *Package.FileName);
-				PartialMapping.Offset = BulkDataDesc.Offset;
-				PartialMapping.Length = BulkDataDesc.Size;
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogIoStore, Warning, TEXT("Unable to find an entry in the bulkdata manifest for '%s' the file might be out of date!"), *Package.FileName);
-		return false;
-	}
-
-	return true;
-}
-
 struct FScriptObjectData
 {
 	FName ObjectName;
@@ -3839,20 +3804,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 		}, EParallelForFlags::Unbalanced);
 #endif
-	}
-
-	{
-		IOSTORE_CPU_SCOPE(MapAdditionalBulkDataChunkIds);
-		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
-		{
-			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
-			{
-				if (TargetFile.bIsBulkData)
-				{
-					MapAdditionalBulkDataChunks(TargetFile, BulkDataManifest);
-				}
-			}
-		}
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
