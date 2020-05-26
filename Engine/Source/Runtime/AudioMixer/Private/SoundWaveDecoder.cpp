@@ -28,11 +28,12 @@ namespace Audio
 
 	FDecodingSoundSource::~FDecodingSoundSource()
 	{
-		FScopeLock Lock(&DtorCritSec);
+		FScopeLock Lock(&MixerSourceBufferCritSec);
 
 		if (MixerSourceBuffer.IsValid())
 		{
 			MixerSourceBuffer->OnEndGenerate();
+			MixerSourceBuffer.Reset();
 		}
 	}
 
@@ -53,12 +54,19 @@ namespace Audio
 		const ELoopingMode LoopingMode = SoundWave->bLooping ? ELoopingMode::LOOP_Forever : ELoopingMode::LOOP_Never;
 		const bool bIsSeeking = SeekTime > 0.0f;
 
-		MixerSourceBuffer = FMixerSourceBuffer::Create(InSampleRate, *MixerBuffer, *SoundWave, LoopingMode, bIsSeeking, bForceSyncDecode);
-		return MixerSourceBuffer.IsValid();
+		bool bIsValid = false;
+		{
+			FScopeLock Lock(&MixerSourceBufferCritSec);
+			MixerSourceBuffer = FMixerSourceBuffer::Create(InSampleRate, *MixerBuffer, *SoundWave, LoopingMode, bIsSeeking, bForceSyncDecode);
+			bIsValid = MixerSourceBuffer.IsValid();
+		}
+
+		return bIsValid;
 	}
 
 	bool FDecodingSoundSource::IsReadyToInit()
 	{
+		FScopeLock Lock(&MixerSourceBufferCritSec);
 		if (!MixerSourceBuffer.IsValid())
 		{
 			return false;
@@ -106,6 +114,7 @@ namespace Audio
 	{
 		if (MixerBuffer->GetNumChannels() > 0 && MixerBuffer->GetNumChannels() <= 2)
 		{
+			FScopeLock Lock(&MixerSourceBufferCritSec);
 			if (MixerSourceBuffer.IsValid())
 			{
 
@@ -344,7 +353,7 @@ namespace Audio
 
 	bool FDecodingSoundSource::GetAudioBuffer(const int32 InNumFrames, const int32 InNumChannels, AlignedFloatBuffer& OutAudioBuffer)
 	{
-		FScopeTryLock Lock(&DtorCritSec);
+		FScopeTryLock Lock(&MixerSourceBufferCritSec);
 
 		if (!bInitialized || !Lock.IsLocked())
 		{
@@ -660,15 +669,14 @@ namespace Audio
 	{
 		check(InHandle.Id != INDEX_NONE);
 
-		FDecodingSoundSourcePtr* DecodingSoundWaveDataPtr = DecodingSources.Find(InHandle.Id);
-		if (!DecodingSoundWaveDataPtr)
+		FDecodingSoundSourcePtr DecodingSoundWaveDataPtr = DecodingSources.FindRef(InHandle.Id);
+		if (DecodingSoundWaveDataPtr.IsValid())
 		{
-			return false;
+			DecodingSoundWaveDataPtr->GetAudioBuffer(NumOutFrames, NumOutChannels, OutAudioBuffer);
+			return true;
 		}
 
-		(*DecodingSoundWaveDataPtr)->GetAudioBuffer(NumOutFrames, NumOutChannels, OutAudioBuffer);
-
-		return true;
+		return false;
 	}
 
 }
