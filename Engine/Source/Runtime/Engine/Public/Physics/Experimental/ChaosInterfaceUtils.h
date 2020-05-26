@@ -17,5 +17,10 @@ namespace ChaosInterface
 	/**
 	 * Create the Chaos Geometry based on the geometry parameters.
 	 */
-	void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::FImplicitObject>>& OutGeoms, TArray<TUniquePtr<Chaos::FPerShapeData>, TInlineAllocator<1>>& OutShapes);
+	void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::FImplicitObject>>& OutGeoms, Chaos::FShapesArray& OutShapes);
+
+#if WITH_CHAOS
+	void CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM);
+	void CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const Chaos::FShapesArray& InShapes, float InDensityKGPerCM);
+#endif
 }

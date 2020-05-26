@@ -39,8 +39,6 @@ namespace Chaos
 	template <typename T, int>
 	class TBVHParticles;
 
-	class FImplicitObject;
-
 	template <typename T, int>
 	class TPBDRigidParticles;
 
@@ -54,9 +52,6 @@ namespace Chaos
 
 	template <typename T>
 	class TCapsule;
-	
-	template<class T, int d>
-	struct TMassProperties;
 
 	template <typename T, int>
 	class TAABB;
@@ -66,10 +61,6 @@ namespace Chaos
 
 	template <typename T, int>
 	class TSphere;
-
-	class FPerShapeData;
-
-	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 }
 
 class FPhysicsConstraintReference_Chaos
