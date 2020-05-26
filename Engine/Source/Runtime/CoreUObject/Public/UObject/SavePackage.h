@@ -80,10 +80,10 @@ private:
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(FPackageStoreWriter* InPackageStoreWriter, FPackageStoreBulkDataManifest* InBulkDataManifest, bool InbAllowBulkDataInIoStore)
+	FSavePackageContext(FPackageStoreWriter* InPackageStoreWriter, FPackageStoreBulkDataManifest* InBulkDataManifest, bool InbForceLegacyOffsets)
 	: PackageStoreWriter(InPackageStoreWriter) 
 	, BulkDataManifest(InBulkDataManifest)
-	, bAllowBulkDataInIoStore(InbAllowBulkDataInIoStore)
+	, bForceLegacyOffsets(InbForceLegacyOffsets)
 	{
 	}
 
@@ -91,5 +91,5 @@ public:
 
 	FPackageStoreWriter* PackageStoreWriter;
 	FPackageStoreBulkDataManifest* BulkDataManifest;
-	bool bAllowBulkDataInIoStore;
+	bool bForceLegacyOffsets;
 };
