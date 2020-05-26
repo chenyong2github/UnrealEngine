@@ -874,20 +874,20 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 		const int32 DropY = Cursor.GetCursorPos().Y;
 
 		{
-		uint32 SurfaceIndex;
-		ModelHitProxy->ResolveSurface(View, DropX, DropY, SurfaceIndex);
-		if (SurfaceIndex != INDEX_NONE)
-		{
-			if ((Model->Surfs[SurfaceIndex].PolyFlags & PF_Selected) == 0)
+			uint32 SurfaceIndex;
+			ModelHitProxy->ResolveSurface(View, DropX, DropY, SurfaceIndex);
+			if (SurfaceIndex != INDEX_NONE)
 			{
-				// Surface was not selected so only apply to this surface
-				SelectedSurfaces.Add(SurfaceIndex);
+				if ((Model->Surfs[SurfaceIndex].PolyFlags & PF_Selected) == 0)
+				{
+					// Surface was not selected so only apply to this surface
+					SelectedSurfaces.Add(SurfaceIndex);
+				}
+				else
+				{
+					bDropedOntoSelectedSurface = true;
+				}
 			}
-			else
-			{
-				bDropedOntoSelectedSurface = true;
-			}
-		}
 		}
 
 		if( bDropedOntoSelectedSurface )
@@ -909,8 +909,11 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 			// Apply the material to the specified surface
 			FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DragDrop_Transaction_ApplyMaterialToSurface", "Apply Material to Surface"));
 
-			// Modify the component so that PostEditUndo can reregister the model after undo
-			ModelHitProxy->GetModelComponent()->Modify();
+			if (ModelHitProxy->GetModelComponent())
+			{
+				// Modify the component so that PostEditUndo can reregister the model after undo
+				ModelHitProxy->GetModelComponent()->Modify();
+			}
 
 			for( int32 SurfListIndex = 0; SurfListIndex < SelectedSurfaces.Num(); ++SurfListIndex )
 			{
