@@ -1,0 +1,233 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "VehicleSystemTemplate.h"
+#include "VehicleUtility.h"
+
+#if VEHICLE_DEBUGGING_ENABLED
+PRAGMA_DISABLE_OPTIMIZATION
+#endif
+
+/**
+ * Typical gear ratios: Reverse −4.181, 1st 3.818, 2nd 2.294, 3rd 1.500, 4th 1.133, 5th 0.911 
+ * Source: Georg Rill. Road Vehicle Dynamics: Fundamentals and Modeling (Ground Vehicle Engineering Series) (p. 121). CRC Press.
+ * 
+ *	#todo: Add clutch option
+ *	#todo: Proper defaults
+ */
+
+namespace Chaos
+{
+	enum ETransmissionType : uint8
+	{
+		Manual,
+		Automatic
+	};
+
+	struct FSimpleTransmissionConfig
+	{
+		FSimpleTransmissionConfig()
+			: FinalDriveRatio(1.f)
+			, ChangeUpRPM(5000)
+			, ChangeDownRPM(2500)
+			, GearChangeTime(0.2f)
+		//	, TransmissionLoss(0)
+			, TransmissionType(ETransmissionType::Automatic)
+			, AutoReverse(true)
+		{
+		}
+
+		TArray<float> ForwardRatios;	// Gear ratios for forward gears
+		TArray<float> ReverseRatios;	// Gear ratios for reverse Gear(s)
+		float FinalDriveRatio;			// Final drive ratio [~4.0]
+
+		uint32 ChangeUpRPM;				// [#todo: RPM or % max RPM?]
+		uint32 ChangeDownRPM;			// [#todo: RPM or % max RPM?]
+		float GearChangeTime; 			// [sec]
+
+//		float TransmissionLoss;			// Loss from friction in the system
+
+		ETransmissionType TransmissionType;	// Specify Automatic or Manual transmission
+		bool AutoReverse;					// Arcade handling - holding Brake switches into reverse after vehicle has stopped
+	};
+
+
+	class FSimpleTransmissionSim : public TVehicleSystem<FSimpleTransmissionConfig>
+	{
+	public:
+		FSimpleTransmissionSim(const FSimpleTransmissionConfig* SetupIn)
+			: TVehicleSystem<FSimpleTransmissionConfig>(SetupIn)
+			, CurrentGear(0)
+			, TargetGear(0)
+			, CurrentGearChangeTime(0.f)
+			, EngineRPM(0)
+		{
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// Input functions
+
+		/** set the target gear number to change to, can change gear immediately if specified
+		 *  i.e. rather than waiting for the gear change time to elapse
+		 */
+		void SetGear(int32 InGear, bool Immediate = false)
+		{
+			CorrectGearInputRange(InGear);
+
+			TargetGear = InGear;
+
+			if (Immediate || Setup().GearChangeTime == 0.f)
+			{
+				CurrentGear = TargetGear;
+			}
+			else
+			{
+				CurrentGear = 0;	// go through neutral for GearChangeTime time period
+				CurrentGearChangeTime = Setup().GearChangeTime;
+			}
+		}
+
+		/** set the target gear to one higher than current target, will clamp gear index within rage */
+		void ChangeUp()
+		{
+			SetGear(TargetGear + 1);
+		}
+
+		/** set the target gear to one lower than current target, will clamp gear index within rage */
+		void ChangeDown()
+		{
+			SetGear(TargetGear - 1);
+		}
+
+		/** Tell the transmission system what the current engine RPM is, so we can decide when to change up/down with automatic transmission type */
+		void SetEngineRPM(float InRPM)
+		{
+			EngineRPM = InRPM;
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// Output functions
+
+		/** Get the current gear index, (reverse gears < 0, neutral 0, forward gears > 0) */
+		int32 GetCurrentGear() const
+		{
+			return CurrentGear;
+		}
+
+		/** Get the target gear index, (reverse gears < 0, neutral 0, forward gears > 0) */
+		int32 GetTargetGear() const
+		{
+			return TargetGear;
+		}
+
+		/** Are we currently in the middle of a gear change */
+		bool IsCurrentlyChangingGear() const
+		{
+			return CurrentGear != TargetGear;
+		}
+
+		/** Get the final combined gear ratio for the specified gear (reverse gears < 0, neutral 0, forward gears > 0) */
+		float GetGearRatio(int32 InGear)
+		{
+			CorrectGearInputRange(InGear);
+
+			if (InGear > 0) // a forwards gear
+			{
+				return Setup().ForwardRatios[InGear - 1] * Setup().FinalDriveRatio;
+			}
+			else if (InGear < 0) // a reverse gear
+			{
+				return -Setup().ReverseRatios[FMath::Abs(InGear) - 1] * Setup().FinalDriveRatio;
+			}
+			else
+			{
+				return 0.f; // neutral has no ratio
+			}
+		}
+
+		/** Get the transmission RPM, from the specified engine RPM and gear selection */
+		float GetTransmissionRPM(float InEngineRPM, int InGear)
+		{
+			return InEngineRPM / GetGearRatio(InGear);
+		}
+
+		/** Get the transmission RPM for the current state of the engine RPM and gear selection */
+		float GetTransmissionRPM()
+		{
+			return GetTransmissionRPM(EngineRPM, CurrentGear);
+		}
+
+		/** Given the engine torque return the transmission torque taking into account the gear ratios */
+		float GetTransmissionTorque(float InEngineTorque)
+		{
+			return InEngineTorque * GetGearRatio(GetCurrentGear()); // #todo: what about transmission frictional losses
+		}
+
+		///** Given the transmission torque return the engine torque after taking into account the gear ratios */
+		//float GetEngineTorque(float InTransmissionTorque)
+		//{
+		//	return InTransmissionTorque / GetGearRatio(GetCurrentGear()); // #todo: what about transmission frictional losses
+		//}
+
+		/** Get the expected engine RPM from the wheel RPM taking into account the current gear ratio (assuming no clutch slip) */
+		float GetEngineRPMFromWheelRPM(float InWheelRPM)
+		{
+			return InWheelRPM * GetGearRatio(GetCurrentGear());
+		}
+
+		/*
+		 * Simulate - update internal state 
+		 * - changes gear when using automatic transmission
+		 * - implements gear change time, where gear goes through neutral
+		 */
+		void Simulate(float DeltaTime)
+		{
+			if (Setup().TransmissionType == ETransmissionType::Automatic)
+			{
+				// not currently changing gear
+				if (!IsCurrentlyChangingGear())
+				{
+					if (EngineRPM >= Setup().ChangeUpRPM)
+					{
+						ChangeUp();
+					}
+					else if (EngineRPM <= Setup().ChangeDownRPM && CurrentGear > 1) // don't change down to neutral
+					{
+						ChangeDown();
+					}
+				}
+			}
+
+			if (CurrentGear != TargetGear)
+			{
+				CurrentGearChangeTime -= DeltaTime;
+				if (CurrentGearChangeTime <= 0.f)
+				{
+					CurrentGearChangeTime = 0.f;
+					CurrentGear = TargetGear;
+				}
+			}
+		}
+
+
+	private:
+		void CorrectGearInputRange(int32& GearIndexInOut)
+		{
+			GearIndexInOut = FMath::Clamp(GearIndexInOut, -Setup().ReverseRatios.Num(), Setup().ForwardRatios.Num());
+		}
+
+		int32 CurrentGear; // <0 reverse gear(s), 0 neutral, >0 forward gears
+		int32 TargetGear;  // <0 reverse gear(s), 0 neutral, >0 forward gears
+		float CurrentGearChangeTime; // Time to change gear, no power transmitted to the wheels during change
+
+		float EngineRPM;	// Engine Revs Per Minute
+
+	};
+
+} // namespace Chaos
+
+#if VEHICLE_DEBUGGING_ENABLED
+PRAGMA_ENABLE_OPTIMIZATION
+#endif
+
