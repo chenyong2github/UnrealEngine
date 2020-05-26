@@ -418,6 +418,12 @@ enum class EFutureQueryResult
 	Desync //The particle's state has diverged from the previous recordings
 };
 
+struct FDesyncedParticleInfo
+{
+	TGeometryParticle<FReal,3>* Particle;
+	ESyncState MostDesynced;	//Indicates the most desynced this particle got during resim (could be that it was soft desync and then went back to normal)
+};
+
 class FRewindData
 {
 public:
@@ -446,6 +452,8 @@ public:
 	bool CHAOSSOLVERS_API RewindToFrame(int32 Frame);
 
 	void CHAOSSOLVERS_API RemoveParticle(const FUniqueIdx UniqueIdx);
+
+	TArray<FDesyncedParticleInfo> ComputeDesyncInfo() const;
 
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
 	FGeometryParticleState CHAOSSOLVERS_API GetPastStateAtFrame(const TGeometryParticle<FReal,3>& Particle,int32 Frame) const;
@@ -522,8 +530,11 @@ private:
 
 	struct FSimWritableState
 	{
-		void SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid);
+		template <bool bResim>
+		bool SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid);
 		void SyncToParticle(TPBDRigidParticleHandle<FReal,3>& Rigid) const;
+
+		bool IsSimWritableDesynced(const TPBDRigidParticleHandle<FReal,3>& Rigid) const;
 		
 		const FVec3& X() const { return MX; }
 		const FQuat& R() const { return MR; }
@@ -655,6 +666,7 @@ private:
 		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
 		int32 LastDirtyFrame;	//Track how recently this was made dirty
 		bool bDesync;
+		ESyncState MostDesynced;	//Tracks the most desynced this has become (soft desync can go back to being clean, but we still want to know)
 
 		FDirtyParticleInfo(TGeometryParticle<FReal,3>& UnsafeGTParticle, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
 		: Frames(NumFrames)
@@ -664,6 +676,7 @@ private:
 		, CachedUniqueIdx(UniqueIdx)
 		, LastDirtyFrame(CurFrame)
 		, bDesync(true)
+		, MostDesynced(ESyncState::HardDesync)
 		{
 
 		}
