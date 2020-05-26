@@ -111,6 +111,18 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 	{
 		TArray<FAssetData> AssetsToDelete;
 		AssetRegistryModule.Get().GetAssetsByPath(FName(*ImportAssetPath), AssetsToDelete, true);
+		for (FAssetData AssetData : AssetsToDelete)
+		{
+			UObject* ObjToDelete = AssetData.GetAsset();
+			if (ObjToDelete)
+			{
+				//Avoid temporary package to be saved
+				UPackage* Package = ObjToDelete->GetOutermost();
+				Package->SetDirtyFlag(false);
+				//Avoid temporary asset to be saved by setting the RF_Transient flag
+				ObjToDelete->SetFlags(RF_Transient);
+			}
+		}
 		ObjectTools::DeleteAssets(AssetsToDelete, false);
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	};
