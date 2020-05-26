@@ -803,7 +803,17 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 
 	if (GCrashErrorMessage == nullptr)
 	{
-		Type = ECrashContextType::Crash;
+#if UE_SERVER
+		// External watchers should send SIGQUIT to kill an hanged server
+		if( Signal == SIGQUIT )
+		{
+			Type = ECrashContextType::Hang;
+		}
+		else
+#endif
+		{
+			Type = ECrashContextType::Crash;
+		}
 
 		DefaultErrorMessage.Append(TEXT("Caught signal "));
 		DefaultErrorMessage.AppendAnsi(ItoANSI(Signal, 10));
