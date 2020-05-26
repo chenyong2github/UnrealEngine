@@ -17,7 +17,7 @@
  */
 
 UCLASS(meta = (DisplayName = "Points: Pathing Grid"))
-class UEnvQueryGenerator_PathingGrid : public UEnvQueryGenerator_SimpleGrid
+class AIMODULE_API UEnvQueryGenerator_PathingGrid : public UEnvQueryGenerator_SimpleGrid
 {
 	GENERATED_UCLASS_BODY()
 
