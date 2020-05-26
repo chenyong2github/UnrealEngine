@@ -1101,6 +1101,9 @@ void UCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMo
 	// Update collision settings if needed
 	if (MovementMode == MOVE_NavWalking)
 	{
+		// Reset cached nav location used by NavWalking
+		CachedNavLocation = FNavLocation();
+
 		GroundMovementMode = MovementMode;
 		// Walking uses only XY velocity
 		Velocity.Z = 0.f;
