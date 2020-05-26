@@ -3600,7 +3600,7 @@ void ULandscapeMaterialInstanceConstant::UpdateCachedTextureStreaming()
 			UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression);
 
 			// TODO: This is only works for direct Coordinate Texture Sample cases
-			if (TextureSample && TextureSample->Coordinates.IsConnected())
+			if (TextureSample && TextureSample->Texture && TextureSample->Coordinates.IsConnected())
 			{
 				if (UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(TextureSample->Coordinates.Expression))
 				{
