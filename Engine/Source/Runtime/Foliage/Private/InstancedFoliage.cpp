@@ -3360,6 +3360,8 @@ void AInstancedFoliageActor::MapRebuild()
 	// Most BSP-painted foliage is attached to a Brush's UModelComponent which persist across rebuilds,
 	// but any foliage attached directly to the level BSP's ModelComponents will need to try to find a new base.
 
+	CleanupDeletedFoliageType();
+
 	TMap<UFoliageType*, TArray<FFoliageInstance>> NewInstances;
 	TArray<UModelComponent*> RemovedModelComponents;
 	UWorld* World = GetWorld();
