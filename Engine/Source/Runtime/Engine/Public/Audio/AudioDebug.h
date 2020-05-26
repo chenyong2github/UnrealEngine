@@ -48,7 +48,7 @@ namespace Audio
 		static void DrawDebugInfo(const FActiveSound& ActiveSound, const TArray<FWaveInstance*>& ThisSoundsWaveInstances, const float DeltaTime);
 		static void DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners);
 		static void DrawDebugInfo(const FAudioVirtualLoop& VirtualLoop);
-		static void DrawDebugStats(UWorld& World);
+		static int32 DrawDebugStats(UWorld& World, FViewport* Viewport, FCanvas* Canvas, int32 Y);
 		static bool DrawDebugStatsEnabled();
 		static bool PostStatModulatorHelp(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 		static int32 RenderStatCues(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
@@ -115,7 +115,7 @@ namespace Audio
 		bool GetAudioDebugSound(FString& OutDebugSound);
 
 	private:
-		static void DrawDebugStats(UWorld& World, FViewport& Viewport);
+		static int32 DrawDebugStatsInternal(UWorld& World, FViewport& Viewport, FCanvas* Canvas, int32 InY);
 		void SetNameArray(FName InName, TArray<FName>& InNameArray, bool bOnOff);
 		void ToggleNameArray(FName InName, TArray<FName>& NameArray, bool bExclusive);
 		void ExecuteCmdOnAudioThread(TFunction<void()> Cmd);

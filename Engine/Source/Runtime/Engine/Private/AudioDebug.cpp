@@ -154,12 +154,12 @@ FAutoConsoleVariableRef CVarSoundDebugDisplayCornerX(
 	TEXT("Default: 100"),
 	ECVF_Default);
 
-static int32 SoundDebugDisplayCornerYCVar = 62;
+static int32 SoundDebugDisplayCornerYCVar = -1;
 FAutoConsoleVariableRef CVarSoundDebugDisplayCornerY(
 	TEXT("au.Debug.Display.Y"),
 	SoundDebugDisplayCornerYCVar,
 	TEXT("X position on screen of debug statistics. \n")
-	TEXT("Default: 62"),
+	TEXT("Default: -1 (Disabled, uses default debug position)"),
 	ECVF_Default);
 
 namespace Audio
@@ -999,36 +999,23 @@ namespace Audio
 	#endif // ENABLE_DRAW_DEBUG
 	}
 
-	void FAudioDebugger::DrawDebugStats(UWorld& World, FViewport& Viewport)
-	{
-		FCanvas* Canvas = Viewport.GetDebugCanvas();
-		if (!Canvas || bAllowUsingDeprecatedDebugStats)
-		{
-			return;
-		}
-
-		int32 X = SoundDebugDisplayCornerXCVar;
-		int32 Y = SoundDebugDisplayCornerYCVar;
-
-		Y = RenderStatMixes(&World, &Viewport, Canvas, X, Y);
-		Y = RenderStatModulators(&World, &Viewport, Canvas, X, Y, nullptr, nullptr);
-		Y = RenderStatReverb(&World, &Viewport, Canvas, X, Y);
-		Y = RenderStatSounds(&World, &Viewport, Canvas, X, Y);
-		Y = RenderStatCues(&World, &Viewport, Canvas, X, Y);
-		Y = RenderStatWaves(&World, &Viewport, Canvas, X, Y);
-	}
-
-	void FAudioDebugger::DrawDebugStats(UWorld& World)
+	int32 FAudioDebugger::DrawDebugStats(UWorld& World, FViewport* OutViewport, FCanvas* InCanvas, int32 InY)
 	{
 		check(IsInGameThread());
+
+		if (OutViewport)
+		{
+			return DrawDebugStatsInternal(World, *OutViewport, InCanvas, InY);
+		}
 
 		if (UGameViewportClient* GameViewport = World.GetGameViewport())
 		{
 			if (GameViewport->Viewport)
 			{
-				DrawDebugStats(World, *GameViewport->Viewport);
+				return DrawDebugStatsInternal(World, *GameViewport->Viewport, InCanvas, InY);
 			}
-			return;
+
+			return InY;
 		}
 
 #if WITH_EDITOR
@@ -1051,12 +1038,14 @@ namespace Audio
 						{
 							ViewportClient->RemoveRealtimeOverride();
 						}
-						DrawDebugStats(World, *ViewportClient->Viewport);
+						return DrawDebugStatsInternal(World, *ViewportClient->Viewport, InCanvas, InY);
 					}
 				}
 			}
 		}
 #endif // WITH_EDITOR
+
+		return InY;
 	}
 
 	bool FAudioDebugger::DrawDebugStatsEnabled()
@@ -1067,6 +1056,27 @@ namespace Audio
 			|| bDebugMixesForAllViewsEnabled
 			|| bDebugReverbForAllViewsEnabled
 			|| bDebugModulationForAllViewsEnabled;
+	}
+
+	int32 FAudioDebugger::DrawDebugStatsInternal(UWorld& World, FViewport& Viewport, FCanvas* InCanvas, int32 InY)
+	{
+		FCanvas* Canvas = InCanvas ? InCanvas : Viewport.GetDebugCanvas();
+		if (!Canvas || bAllowUsingDeprecatedDebugStats)
+		{
+			return InY;
+		}
+
+		int32 X = SoundDebugDisplayCornerXCVar;
+		int32 Y = SoundDebugDisplayCornerYCVar < 0 ? InY : SoundDebugDisplayCornerYCVar;
+
+		Y = RenderStatMixes(&World, &Viewport, Canvas, X, Y);
+		Y = RenderStatModulators(&World, &Viewport, Canvas, X, Y, nullptr, nullptr);
+		Y = RenderStatReverb(&World, &Viewport, Canvas, X, Y);
+		Y = RenderStatSounds(&World, &Viewport, Canvas, X, Y);
+		Y = RenderStatCues(&World, &Viewport, Canvas, X, Y);
+		Y = RenderStatWaves(&World, &Viewport, Canvas, X, Y);
+
+		return Y;
 	}
 
 	void FAudioDebugger::DumpActiveSounds() const
