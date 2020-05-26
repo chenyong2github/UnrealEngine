@@ -100,6 +100,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Positioning, meta = (DisplayName = "Target Surface"))
 	EMakeMeshPlacementType PlaceMode = EMakeMeshPlacementType::OnScene;
 
+	/** If true, placement location will be snapped to grid. Only relevant when coordinate system is set to World. */
+	UPROPERTY(EditAnywhere, Category = Positioning)
+	bool bSnapToGrid = true;
+
 	/** Location of Pivot within Primitive */
 	UPROPERTY(EditAnywhere, Category = Positioning, meta = (ProceduralShapeSetting))
 	EMakeMeshPivotLocation PivotLocation = EMakeMeshPivotLocation::Base;
