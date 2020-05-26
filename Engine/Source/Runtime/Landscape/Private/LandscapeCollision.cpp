@@ -1867,6 +1867,11 @@ void ULandscapeHeightfieldCollisionComponent::Serialize(FArchive& Ar)
 			{
 				CollisionHeightData.Serialize(Ar, this);
 				DominantLayerData.Serialize(Ar, this);
+
+				if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::LandscapePhysicalMaterialRenderData)
+				{
+					PhysicalMaterialRenderData.Serialize(Ar, this);
+				}
 			}
 #endif//WITH_EDITORONLY_DATA
 		}
