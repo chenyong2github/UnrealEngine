@@ -368,10 +368,12 @@ private:
 		TRange<FFrameNumber> PlaybackRange;
 		bool bSequenceReadOnly;
 		bool bSequencePlaybackRangeLocked;
+		bool bSequencePackageDirty;
 
 		struct FSegmentChange
 		{
 			TWeakObjectPtr<class UMovieScene> MovieScene;
+			bool bMovieScenePackageDirty;
 			TRange<FFrameNumber> MovieScenePlaybackRange;
 			bool bMovieSceneReadOnly;
 			TWeakObjectPtr<UMovieSceneCinematicShotSection> ShotSection;
