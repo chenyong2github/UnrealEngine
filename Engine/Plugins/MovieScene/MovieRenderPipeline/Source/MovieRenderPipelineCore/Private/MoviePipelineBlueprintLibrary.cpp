@@ -4,11 +4,16 @@
 #include "MoviePipeline.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieSceneSequence.h"
-#include "Tracks/MovieSceneCinematicShotTrack.h"
-#include "Sections/MovieSceneCinematicShotSection.h"
 #include "LevelSequence.h"
 #include "UObject/SoftObjectPath.h"
 #include "MoviePipelineQueue.h"
+#include "MovieRenderPipelineCoreModule.h"
+#include "Tracks/MovieSceneSubTrack.h"
+#include "Tracks/MovieSceneCameraCutTrack.h"
+#include "Tracks/MovieSceneCinematicShotTrack.h"
+#include "Sections/MovieSceneCinematicShotSection.h"
+#include "Sections/MovieSceneCameraCutSection.h"
+#include "MovieSceneTimeHelpers.h"
 
 EMovieRenderPipelineState UMoviePipelineBlueprintLibrary::GetPipelineState(const UMoviePipeline* InPipeline)
 {
@@ -283,4 +288,117 @@ FString UMoviePipelineBlueprintLibrary::GetMapPackageName(UMoviePipelineExecutor
 	}
 
 	return InJob->Map.GetLongPackageName();
+}
+
+static void CreateShotMaskFromMovieScene(UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange, UMovieSceneSubSection* InSubSection, TArray<FMoviePipelineJobShotInfo>& OutShotInfo)
+{
+	const UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(InMovieScene->GetCameraCutTrack());
+	if (CameraCutTrack)
+	{
+		TArray<UMovieSceneSection*> SortedSections = CameraCutTrack->GetAllSections();
+		SortedSections.Sort([](const UMovieSceneSection& A, const UMovieSceneSection& B)
+			{
+				if (A.SectionRange.GetLowerBound().IsClosed() && B.SectionRange.GetLowerBound().IsClosed())
+				{
+					return A.SectionRange.GetLowerBound().GetValue() < B.SectionRange.GetLowerBound().GetValue();
+				}
+				return false;
+			});
+
+		for (UMovieSceneSection* Section : SortedSections)
+		{
+			UMovieSceneCameraCutSection* CameraCutSection = CastChecked<UMovieSceneCameraCutSection>(Section);
+			if (Section->GetRange().IsEmpty())
+			{
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Found zero-length section in CameraCutTrack: %s Skipping..."), *CameraCutSection->GetPathName());
+				continue;
+			}
+
+			TRange<FFrameNumber> SectionRangeInMaster = Section->GetRange();
+
+			// If this camera cut track is inside of a shot subsection, we need to take the parent section into account.
+			if (InSubSection)
+			{
+				TRange<FFrameNumber> LocalSectionRange = Section->GetRange(); // Section in local space
+				LocalSectionRange = MovieScene::TranslateRange(LocalSectionRange, -InMovieScene->GetPlaybackRange().GetLowerBoundValue()); // Section relative to zero
+				SectionRangeInMaster = MovieScene::TranslateRange(LocalSectionRange, InSubSection->GetRange().GetLowerBoundValue()); // Convert to master sequence space.
+			}
+
+			if (!SectionRangeInMaster.Overlaps(InIntersectionRange))
+			{
+				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipping camera cut section due to no overlap with playback range. CameraCutTrack: %s"), *CameraCutSection->GetPathName());
+				continue;
+			}
+
+			FMoviePipelineJobShotInfo& ShotInfo = OutShotInfo.AddDefaulted_GetRef();
+			ShotInfo.bEnabled = CameraCutSection->IsActive();
+			ShotInfo.SectionPath = FSoftObjectPath(CameraCutSection);
+		}
+	}
+}
+
+TArray<FMoviePipelineJobShotInfo> UMoviePipelineBlueprintLibrary::CreateShotMask(const UMoviePipelineExecutorJob* InJob)
+{
+	// This mirrors the logic of UMoviePipeline::BuildShotListFromSequence for now.
+	TArray<FMoviePipelineJobShotInfo> ShotInfos;
+
+	if (!InJob)
+	{
+		return ShotInfos;
+	}
+
+	ULevelSequence* Sequence = Cast<ULevelSequence>(InJob->Sequence.TryLoad());
+	if (!Sequence)
+	{
+		return ShotInfos;
+	}
+
+	// Prioritize shot-tracks over camera cuts for each sequence.
+	UMovieSceneCinematicShotTrack* CinematicShotTrack = Sequence->GetMovieScene()->FindMasterTrack<UMovieSceneCinematicShotTrack>();
+	if (CinematicShotTrack)
+	{
+		TArray<UMovieSceneSection*> SortedSections = CinematicShotTrack->GetAllSections();
+		SortedSections.Sort([](UMovieSceneSection& A, UMovieSceneSection& B)
+			{
+				if (A.SectionRange.GetLowerBound().IsClosed() && B.SectionRange.GetLowerBound().IsClosed())
+				{
+					return A.SectionRange.GetLowerBound().GetValue() < B.SectionRange.GetLowerBound().GetValue();
+				}
+				return false;
+			});
+	
+
+		for (UMovieSceneSection* Section : SortedSections)
+		{
+			UMovieSceneCinematicShotSection* ShotSection = CastChecked<UMovieSceneCinematicShotSection>(Section);
+
+			// If the user has manually marked a section as inactive we don't produce a shot for it.
+			if (!Section->IsActive())
+			{
+				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Shot %s to Shot List due to being inactive."), *ShotSection->GetShotDisplayName());
+				continue;
+			}
+
+			if (!ShotSection->GetSequence())
+			{
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Skipped adding Shot %s to Shot List due to no inner sequence."), *ShotSection->GetShotDisplayName());
+				continue;
+			}
+
+			// Skip this section if it falls entirely outside of our playback bounds.
+			TRange<FFrameNumber> MasterPlaybackBounds = InJob->GetConfiguration()->GetEffectivePlaybackRange(Sequence);
+			if (!ShotSection->GetRange().Overlaps(MasterPlaybackBounds))
+			{
+				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Shot %s to Shot List due to not overlapping playback bounds."), *ShotSection->GetShotDisplayName());
+				continue;
+			}
+
+			// The Shot Section may extend past our Sequence's Playback Bounds. We intersect the two bounds to ensure that
+			// the Playback Start/Playback End of the overall sequence is respected.
+			TRange<FFrameNumber> CinematicShotSectionRange = TRange<FFrameNumber>::Intersection(ShotSection->GetRange(), Sequence->GetMovieScene()->GetPlaybackRange());
+			CreateShotMaskFromMovieScene(ShotSection->GetSequence()->GetMovieScene(), CinematicShotSectionRange, ShotSection, ShotInfos);
+		}
+	}
+
+	return ShotInfos;
 }

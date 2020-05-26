@@ -740,7 +740,7 @@ void UMoviePipeline::InitializeLevelSequenceActor()
 }
 
 
-FMoviePipelineShotInfo CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange, UMovieSceneSubSection* InSubSection)
+static bool CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange, UMovieSceneSubSection* InSubSection, const TArray<FMoviePipelineJobShotInfo>& ShotMask, FMoviePipelineShotInfo& OutShotInfo)
 {
 	check(InMovieScene);
 
@@ -753,6 +753,7 @@ FMoviePipelineShotInfo CreateShotFromMovieScene(const UMovieScene* InMovieScene,
 	};
 
 	TArray<FCameraCutRange> IntersectedRanges;
+	bool bSkippedASection = false;
 
 	// We're going to search for Camera Cut tracks within this shot. If none are found, we'll use the whole range of the shot.
 	const UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(InMovieScene->GetCameraCutTrack());
@@ -766,6 +767,25 @@ FMoviePipelineShotInfo CreateShotFromMovieScene(const UMovieScene* InMovieScene,
 			if (Section->GetRange().IsEmpty())
 			{
 				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Found zero-length section in CameraCutTrack: %s Skipping..."), *CameraCutSection->GetPathName());
+				bSkippedASection = true;
+				continue;
+			}
+
+			bool bDisabledByShotMask = false;
+
+			for (const FMoviePipelineJobShotInfo& ShotInfo : ShotMask)
+			{
+				if (ShotInfo.SectionPath.TryLoad() == CameraCutSection)
+				{
+					bDisabledByShotMask = !ShotInfo.bEnabled;
+					break;
+				}
+			}
+
+			if (bDisabledByShotMask)
+			{
+				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Camera Cut %s to Shot List due to a shot render mask."), *CameraCutSection->GetPathName());
+				bSkippedASection = true;
 				continue;
 			}
 
@@ -782,6 +802,7 @@ FMoviePipelineShotInfo CreateShotFromMovieScene(const UMovieScene* InMovieScene,
 			if (!SectionRangeInMaster.Overlaps(InIntersectionRange))
 			{
 				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipping camera cut section due to no overlap with playback range. CameraCutTrack: %s"), *CameraCutSection->GetPathName());
+				bSkippedASection = true;
 				continue;
 			}
 			
@@ -794,6 +815,13 @@ FMoviePipelineShotInfo CreateShotFromMovieScene(const UMovieScene* InMovieScene,
 		}
 	}
 
+	if (IntersectedRanges.Num() == 0 && bSkippedASection)
+	{
+		// If we skipped a section and there's no ranges left it means we detected
+		// a camera cut but it was disabled, so we'll omit the whole shot.
+		return false;
+	}
+
 	if(IntersectedRanges.Num() == 0)
 	{
 		// No camera cut track (or section) was found inside. We'll treat the whole shot as the desired range.
@@ -802,21 +830,20 @@ FMoviePipelineShotInfo CreateShotFromMovieScene(const UMovieScene* InMovieScene,
 		NewRange.Section = nullptr;
 	}
 
-	FMoviePipelineShotInfo NewShot;
-	NewShot.OriginalRange = InIntersectionRange;
-	NewShot.TotalOutputRange = NewShot.OriginalRange;
+	OutShotInfo.OriginalRange = InIntersectionRange;
+	OutShotInfo.TotalOutputRange = OutShotInfo.OriginalRange;
 
 	for (const FCameraCutRange& Range : IntersectedRanges)
 	{
 		// Generate a CameraCut for each range.
-		FMoviePipelineCameraCutInfo& CameraCut = NewShot.CameraCuts.AddDefaulted_GetRef();
+		FMoviePipelineCameraCutInfo& CameraCut = OutShotInfo.CameraCuts.AddDefaulted_GetRef();
 
 		CameraCut.CameraCutSection = Range.Section; // May be nullptr.
 		CameraCut.OriginalRange = Range.Range;
 		CameraCut.TotalOutputRange = CameraCut.OriginalRange;
 	}
 
-	return NewShot;
+	return true;
 }
 
 void UMoviePipeline::BuildShotListFromSequence()
@@ -852,43 +879,39 @@ void UMoviePipeline::BuildShotListFromSequence()
 				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Shot %s to Shot List due to not overlapping playback bounds."), *ShotSection->GetShotDisplayName());
 				continue;
 			}
-			
-			//if (CurrentJob->ShotRenderMask.Num() > 0)
-			//{
-			//	if (!CurrentJob->ShotRenderMask.Contains(ShotSection->GetShotDisplayName()))
-			//	{
-			//		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Shot %s to Shot List due to a shot render mask being active, and this shot not being on the list."), *ShotSection->GetShotDisplayName());
-			//		continue;
-			//	}
-			//}
+
 
 			// The Shot Section may extend past our Sequence's Playback Bounds. We intersect the two bounds to ensure that
 			// the Playback Start/Playback End of the overall sequence is respected.
 			TRange<FFrameNumber> CinematicShotSectionRange = TRange<FFrameNumber>::Intersection(ShotSection->GetRange(), TargetSequence->GetMovieScene()->GetPlaybackRange());
-			FMoviePipelineShotInfo NewShot = CreateShotFromMovieScene(ShotSection->GetSequence()->GetMovieScene(), CinematicShotSectionRange, ShotSection);
+			FMoviePipelineShotInfo NewShot;
+			if (CreateShotFromMovieScene(ShotSection->GetSequence()->GetMovieScene(), CinematicShotSectionRange, ShotSection, GetCurrentJob()->ShotMaskInfo, /*Out*/ NewShot))
+			{
 
-			// Convert the offset time to ticks
-			FFrameTime OffsetTime = ShotSection->GetOffsetTime().GetValue();
+				// Convert the offset time to ticks
+				FFrameTime OffsetTime = ShotSection->GetOffsetTime().GetValue();
 
-			NewShot.StartFrameOffsetTick = ShotSection->GetSequence()->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue() + OffsetTime.RoundToFrame();
-			// The first thing we do is find the appropriate configuration from the settings. Each shot can have its own config
-			// or they fall back to a default one specified for the whole pipeline.
-			// NewShot.ShotConfig = GetPipelineMasterConfig()->GetConfigForShot(ShotSection->GetShotDisplayName());
-			NewShot.CinematicShotSection = ShotSection;
+				NewShot.StartFrameOffsetTick = ShotSection->GetSequence()->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue() + OffsetTime.RoundToFrame();
+				// The first thing we do is find the appropriate configuration from the settings. Each shot can have its own config
+				// or they fall back to a default one specified for the whole pipeline.
+				// NewShot.ShotConfig = GetPipelineMasterConfig()->GetConfigForShot(ShotSection->GetShotDisplayName());
+				NewShot.CinematicShotSection = ShotSection;
 
-			// There should always be a shot config as the Pipeline default is returned in the event they didn't customize.
-			// check(NewShot.ShotConfig);
+				// There should always be a shot config as the Pipeline default is returned in the event they didn't customize.
+				// check(NewShot.ShotConfig);
 
-			ShotList.Add(MoveTemp(NewShot));
+				ShotList.Add(MoveTemp(NewShot));
+			}
 		}
 	}
 	else
 	{
 		// They don't have a cinematic shot track. We'll slice them up by camera cuts instead.
-		FMoviePipelineShotInfo NewShot = CreateShotFromMovieScene(TargetSequence->GetMovieScene(), TargetSequence->GetMovieScene()->GetPlaybackRange(), nullptr);
-		// NewShot.ShotConfig = GetPipelineMasterConfig()->DefaultShotConfig;
-		
-		ShotList.Add(MoveTemp(NewShot));
+		FMoviePipelineShotInfo NewShot;
+		if (CreateShotFromMovieScene(TargetSequence->GetMovieScene(), TargetSequence->GetMovieScene()->GetPlaybackRange(), nullptr, GetCurrentJob()->ShotMaskInfo, /*Out*/ NewShot))
+		{
+			ShotList.Add(MoveTemp(NewShot));
+		}
 	}
 
 	// If they don't have a cinematic shot track, or a camera cut track then they want to control the camera
