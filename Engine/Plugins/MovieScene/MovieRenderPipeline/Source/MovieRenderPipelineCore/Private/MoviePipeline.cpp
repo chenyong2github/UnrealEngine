@@ -740,7 +740,7 @@ void UMoviePipeline::InitializeLevelSequenceActor()
 }
 
 
-static bool CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange, UMovieSceneSubSection* InSubSection, const TArray<FMoviePipelineJobShotInfo>& ShotMask, FMoviePipelineShotInfo& OutShotInfo)
+static bool CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange, const FMovieSceneSequenceTransform& InOuterToInnerTransform, const TArray<FMoviePipelineJobShotInfo>& ShotMask, FMoviePipelineShotInfo& OutShotInfo)
 {
 	check(InMovieScene);
 
@@ -748,7 +748,8 @@ static bool CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRan
 	// the overall range of the shot to represent the final desired render duration.
 	struct FCameraCutRange
 	{
-		TRange<FFrameNumber> Range;
+		TRange<FFrameNumber> LocalRange;
+		TRange<FFrameNumber> WarmUpRange;
 		UMovieSceneCameraCutSection* Section;
 	};
 
@@ -789,29 +790,34 @@ static bool CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRan
 				continue;
 			}
 
-			TRange<FFrameNumber> SectionRangeInMaster = Section->GetRange();
 			
-			// If this camera cut track is inside of a shot subsection, we need to take the parent section into account.
-			if (InSubSection)
-			{
-				TRange<FFrameNumber> LocalSectionRange = Section->GetRange(); // Section in local space
-				LocalSectionRange = MovieScene::TranslateRange(LocalSectionRange, -InMovieScene->GetPlaybackRange().GetLowerBoundValue()); // Section relative to zero
-				SectionRangeInMaster = MovieScene::TranslateRange(LocalSectionRange, InSubSection->GetRange().GetLowerBoundValue()); // Convert to master sequence space.
-			}
-
-			if (!SectionRangeInMaster.Overlaps(InIntersectionRange))
+			// The inner shot track may extend past the outmost Playback Range. We want to respect the outmost playback range, which is passed in in global space 
+			// as InIntersectionRange. We will convert that to local space and intersect it with our section range.
+			TRange<FFrameNumber> PlaybackBoundsInLocal = InIntersectionRange * InOuterToInnerTransform.LinearTransform;
+			if (!Section->GetRange().Overlaps(PlaybackBoundsInLocal))
 			{
 				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipping camera cut section due to no overlap with playback range. CameraCutTrack: %s"), *CameraCutSection->GetPathName());
 				bSkippedASection = true;
 				continue;
 			}
+
+			// The section range in local space as clipped by the outmost playback bounds.
+			TRange<FFrameNumber> ClippedSectionRange = TRange<FFrameNumber>::Intersection(PlaybackBoundsInLocal, Section->GetRange());
 			
-			// Intersect this cut with the outer range in the likely event that the section goes past the bounds.
-			TRange<FFrameNumber> IntersectingRange = TRange<FFrameNumber>::Intersection(SectionRangeInMaster, InIntersectionRange);
+			// We also want to know how much the camera cut track extended outside of the playback range to calculate
+			// how many warmup frames we can do for real warmups. 
+			TRange<FFrameNumber> CameraCutRange = TRange<FFrameNumber>::Empty();
+
+			// If the camera cut sticks past our playback range (on the left side) then keep track of that.
+			if (CameraCutSection->GetRange().GetLowerBoundValue() < ClippedSectionRange.GetLowerBoundValue())
+			{
+				CameraCutRange = TRange<FFrameNumber>(CameraCutSection->GetRange().GetLowerBoundValue(), ClippedSectionRange.GetLowerBoundValue());
+			}
 
 			FCameraCutRange& NewRange = IntersectedRanges.AddDefaulted_GetRef();
-			NewRange.Range = IntersectingRange;
+			NewRange.LocalRange = ClippedSectionRange;
 			NewRange.Section = CameraCutSection;
+			NewRange.WarmUpRange = CameraCutRange;
 		}
 	}
 
@@ -826,12 +832,10 @@ static bool CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRan
 	{
 		// No camera cut track (or section) was found inside. We'll treat the whole shot as the desired range.
 		FCameraCutRange& NewRange = IntersectedRanges.AddDefaulted_GetRef();
-		NewRange.Range = InIntersectionRange;
+		NewRange.LocalRange = InIntersectionRange * InOuterToInnerTransform.LinearTransform;
+		NewRange.WarmUpRange = TRange<FFrameNumber>::Empty();
 		NewRange.Section = nullptr;
 	}
-
-	OutShotInfo.OriginalRange = InIntersectionRange;
-	OutShotInfo.TotalOutputRange = OutShotInfo.OriginalRange;
 
 	for (const FCameraCutRange& Range : IntersectedRanges)
 	{
@@ -839,8 +843,10 @@ static bool CreateShotFromMovieScene(const UMovieScene* InMovieScene, const TRan
 		FMoviePipelineCameraCutInfo& CameraCut = OutShotInfo.CameraCuts.AddDefaulted_GetRef();
 
 		CameraCut.CameraCutSection = Range.Section; // May be nullptr.
-		CameraCut.OriginalRange = Range.Range;
-		CameraCut.TotalOutputRange = CameraCut.OriginalRange;
+		CameraCut.OriginalRangeLocal = Range.LocalRange;
+		CameraCut.TotalOutputRangeLocal = CameraCut.OriginalRangeLocal;
+		CameraCut.WarmUpRangeLocal = Range.WarmUpRange;
+		CameraCut.InnerToOuterTransform = InOuterToInnerTransform.InverseLinearOnly();
 	}
 
 	return true;
@@ -855,7 +861,11 @@ void UMoviePipeline::BuildShotListFromSequence()
 	{
 		ensureMsgf(CinematicShotTrack->GetAllSections().Num() > 0, TEXT("Cinematic Shot track must have at least one section to be rendered."));
 
-		for (UMovieSceneSection* Section : CinematicShotTrack->GetAllSections())
+		// Sort the sections by their actual location on the timeline.
+		CinematicShotTrack->SortSections();
+		TArray<UMovieSceneSection*> SortedSections = CinematicShotTrack->GetAllSections();
+
+		for (UMovieSceneSection* Section : SortedSections)
 		{
 			UMovieSceneCinematicShotSection* ShotSection = CastChecked<UMovieSceneCinematicShotSection>(Section);
 
@@ -884,22 +894,11 @@ void UMoviePipeline::BuildShotListFromSequence()
 			// The Shot Section may extend past our Sequence's Playback Bounds. We intersect the two bounds to ensure that
 			// the Playback Start/Playback End of the overall sequence is respected.
 			TRange<FFrameNumber> CinematicShotSectionRange = TRange<FFrameNumber>::Intersection(ShotSection->GetRange(), TargetSequence->GetMovieScene()->GetPlaybackRange());
+
 			FMoviePipelineShotInfo NewShot;
-			if (CreateShotFromMovieScene(ShotSection->GetSequence()->GetMovieScene(), CinematicShotSectionRange, ShotSection, GetCurrentJob()->ShotMaskInfo, /*Out*/ NewShot))
+			if (CreateShotFromMovieScene(ShotSection->GetSequence()->GetMovieScene(), CinematicShotSectionRange, ShotSection->OuterToInnerTransform(), GetCurrentJob()->ShotMaskInfo, /*Out*/ NewShot))
 			{
-
-				// Convert the offset time to ticks
-				FFrameTime OffsetTime = ShotSection->GetOffsetTime().GetValue();
-
-				NewShot.StartFrameOffsetTick = ShotSection->GetSequence()->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue() + OffsetTime.RoundToFrame();
-				// The first thing we do is find the appropriate configuration from the settings. Each shot can have its own config
-				// or they fall back to a default one specified for the whole pipeline.
-				// NewShot.ShotConfig = GetPipelineMasterConfig()->GetConfigForShot(ShotSection->GetShotDisplayName());
 				NewShot.CinematicShotSection = ShotSection;
-
-				// There should always be a shot config as the Pipeline default is returned in the event they didn't customize.
-				// check(NewShot.ShotConfig);
-
 				ShotList.Add(MoveTemp(NewShot));
 			}
 		}
@@ -908,7 +907,7 @@ void UMoviePipeline::BuildShotListFromSequence()
 	{
 		// They don't have a cinematic shot track. We'll slice them up by camera cuts instead.
 		FMoviePipelineShotInfo NewShot;
-		if (CreateShotFromMovieScene(TargetSequence->GetMovieScene(), TargetSequence->GetMovieScene()->GetPlaybackRange(), nullptr, GetCurrentJob()->ShotMaskInfo, /*Out*/ NewShot))
+		if (CreateShotFromMovieScene(TargetSequence->GetMovieScene(), TargetSequence->GetMovieScene()->GetPlaybackRange(), FMovieSceneSequenceTransform(), GetCurrentJob()->ShotMaskInfo, /*Out*/ NewShot))
 		{
 			ShotList.Add(MoveTemp(NewShot));
 		}
@@ -920,10 +919,11 @@ void UMoviePipeline::BuildShotListFromSequence()
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("No Cinematic Shot Tracks found, and no Camera Cut Tracks found. Playback Range will be used but camera will render from Pawns perspective."));
 		FMoviePipelineShotInfo NewShot;
-		// NewShot.ShotConfig = GetPipelineMasterConfig()->DefaultShotConfig;
 
 		FMoviePipelineCameraCutInfo& CameraCut = NewShot.CameraCuts.AddDefaulted_GetRef();
-		CameraCut.OriginalRange = TargetSequence->GetMovieScene()->GetPlaybackRange();
+		CameraCut.OriginalRangeLocal = TargetSequence->GetMovieScene()->GetPlaybackRange();
+		CameraCut.TotalOutputRangeLocal = CameraCut.OriginalRangeLocal;
+		CameraCut.InnerToOuterTransform = FMovieSceneSequenceTransform();
 	}
 
 	// Now that we've gathered at least one or more shots with one or more cuts, we can apply settings. It's easier to
@@ -937,10 +937,9 @@ void UMoviePipeline::BuildShotListFromSequence()
 		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSetting<UMoviePipelineOutputSetting>(Shot);
 		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(Shot);
 		UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(Shot);
-		Shot.NumHandleFrames = OutputSettings->HandleFrameCount;
 		
 		// Expand the shot to encompass handle frames. This will modify our Camera Cuts bounds.
-		ExpandShot(Shot);
+		ExpandShot(Shot, OutputSettings->HandleFrameCount);
 
 		FString ShotName;
 		if (Shot.CinematicShotSection.IsValid())
@@ -950,10 +949,15 @@ void UMoviePipeline::BuildShotListFromSequence()
 
 		for (FMoviePipelineCameraCutInfo& CameraCut : Shot.CameraCuts)
 		{
-			// Warm Up Frames. If there are any render samples we require at least one engine warm up frame.
-			CameraCut.NumEngineWarmUpFramesRemaining = FMath::Max(AntiAliasingSettings->EngineWarmUpCount, AntiAliasingSettings->RenderWarmUpCount > 0 ? 1 : 0);
+			// NumEngineWarmUpFramesRemaining will already be set if they want to use real warmup.
+			if (!AntiAliasingSettings->bUseCameraCutForWarmUp)
+			{
+				// Warm Up Frames. If there are any render samples we require at least one engine warm up frame.
+				CameraCut.NumEngineWarmUpFramesRemaining = FMath::Max(AntiAliasingSettings->EngineWarmUpCount, AntiAliasingSettings->RenderWarmUpCount > 0 ? 1 : 0);
+			}
 
-			CameraCut.bEmulateFirstFrameMotionBlur = true;
+			// When using real warmup we don't emulate a first frame motion blur as we actually have real data.
+			CameraCut.bEmulateFirstFrameMotionBlur = !AntiAliasingSettings->bUseCameraCutForWarmUp;
 			CameraCut.NumTemporalSamples = AntiAliasingSettings->TemporalSampleCount;
 			CameraCut.NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
 			CameraCut.CachedFrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
@@ -984,22 +988,15 @@ void UMoviePipeline::BuildShotListFromSequence()
 			
 			// When we expanded the shot above, it pushed the first/last camera cuts ranges to account for Handle Frames.
 			// We want to start rendering from the first handle frame. Shutter Timing is a fixed offset from this number.
-			CameraCut.CurrentMasterSeqTick = CameraCut.TotalOutputRange.GetLowerBoundValue();
-			CameraCut.CurrentLocalSeqTick = Shot.StartFrameOffsetTick;
+			CameraCut.CurrentLocalSeqTick = CameraCut.TotalOutputRangeLocal.GetLowerBoundValue();
 		}
 		
 		// Sort the camera cuts within a shot. The correct render order is required for relative frame counts to work.
 		Shot.CameraCuts.Sort([](const FMoviePipelineCameraCutInfo& A, const FMoviePipelineCameraCutInfo& B)
 		{
-			return A.TotalOutputRange.GetLowerBoundValue() < B.TotalOutputRange.GetLowerBoundValue();
+			return A.TotalOutputRangeLocal.GetLowerBoundValue() < B.TotalOutputRangeLocal.GetLowerBoundValue();
 		});
 	}
-
-	// Sort the shot list overall. The correct order is required for relative frame counts to put the shots on disk in the right order.
-	ShotList.Sort([](const FMoviePipelineShotInfo& A, const FMoviePipelineShotInfo& B)
-	{
-		return A.TotalOutputRange.GetLowerBoundValue() < B.TotalOutputRange.GetLowerBoundValue();
-	});
 }
 
 void UMoviePipeline::InitializeShot(FMoviePipelineShotInfo& InShot)
@@ -1086,93 +1083,100 @@ void UMoviePipeline::SetSoloShot(const FMoviePipelineShotInfo& InShot)
 	}
 }
 
-void UMoviePipeline::ExpandShot(FMoviePipelineShotInfo& InShot)
+void UMoviePipeline::ExpandShot(FMoviePipelineShotInfo& InShot, const int32 InNumHandleFrames)
 {
 	const MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(InShot);
 
-	// Handle Frames will be added onto our original shot size. We track the ranges separately for counting purposes
-	// later - the actual rendering code is unaware of the handle frames. Handle Frames only apply to the shot
-	// and expand the first/last inner cut to cover this area.
-	FFrameNumber HandleFrameTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame().Value * InShot.NumHandleFrames;
-	InShot.TotalOutputRange = MovieScene::DilateRange(InShot.OriginalRange, -HandleFrameTicks, HandleFrameTicks);
+	// Cache the original values before we modify them so that we can restore them at the end.
+	UMovieScene* InnerMovieScene = nullptr;
+	UMovieSceneCinematicShotSection* ShotSection = InShot.CinematicShotSection.Get();
 
-	// We'll expand the overall sequence by at least this much to ensure we don't get clamped. This is +1 frame for shutter timing overlap.
-	TRange<FFrameNumber> TotalPlaybackRange = MovieScene::DilateRange(InShot.TotalOutputRange, -FrameMetrics.TicksPerOutputFrame.CeilToFrame(), FrameMetrics.TicksPerOutputFrame.CeilToFrame());
-
-	// We can now take the difference between the two ranges to isolate just the opening/closing range (so we can use the range for counting later)
-	TArray<TRange<FFrameNumber>> HandleFrameRanges = TRange<FFrameNumber>::Difference(InShot.TotalOutputRange, InShot.OriginalRange);
-	if (HandleFrameRanges.Num() == 2)
+	if (ShotSection && ShotSection->GetSequence())
 	{
-		InShot.HandleFrameRangeStart = HandleFrameRanges[0];
-		InShot.HandleFrameRangeEnd = HandleFrameRanges[1];
+		InnerMovieScene = ShotSection->GetSequence()->GetMovieScene();
 	}
 
-	// Expand the first and last cut inside this shot to cover the handle frame distance.
+	TRange<FFrameNumber> TotalPlaybackRangeMaster = TargetSequence->GetMovieScene()->GetPlaybackRange();
+
+	FMovieSceneChanges::FSegmentChange& ModifiedSegment = SequenceChanges.Segments.AddDefaulted_GetRef();
+	ModifiedSegment.MovieScene = InnerMovieScene;
+	if (InnerMovieScene)
+	{
+		ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
+		ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
+
+		// Unlock the playback range and readonly flags so we can modify the scene.
+		InnerMovieScene->SetReadOnly(false);
+	}
+	ModifiedSegment.ShotSection = ShotSection;
+	if (ShotSection)
+	{
+		ModifiedSegment.bShotSectionIsLocked = ShotSection->IsLocked();
+		ModifiedSegment.ShotSectionRange = ShotSection->GetRange();
+		ShotSection->SetIsLocked(false);
+	}
+
+	// Expand the first and last cut inside this shot to cover the handle frame distance. There should be at least one
+	// camera cut, even if there isn't a camera track - we will have used the entire inner range as the camera track.
 	if (InShot.CameraCuts.Num() > 0)
 	{
+		// Handle Frames will be added onto our original shot size- the actual rendering code is unaware of the handle frames. 
+		// Handle Frames only apply to the shot and expand the first/last inner cut to cover this area.
+		FFrameNumber HandleFrameTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame().Value * InNumHandleFrames;
+
 		// These may be the same or they may be different.
 		FMoviePipelineCameraCutInfo& FirstCut = InShot.CameraCuts[0];
 		FMoviePipelineCameraCutInfo& LastCut = InShot.CameraCuts[InShot.CameraCuts.Num() - 1];
 
-		FirstCut.TotalOutputRange = MovieScene::DilateRange(FirstCut.TotalOutputRange, -HandleFrameTicks, FFrameNumber(0));
-		LastCut.TotalOutputRange = MovieScene::DilateRange(LastCut.TotalOutputRange, FFrameNumber(0), HandleFrameTicks);
-	}
+		// Expand their total output range so the renderer accounts for them.
+		FirstCut.TotalOutputRangeLocal = MovieScene::DilateRange(FirstCut.TotalOutputRangeLocal, -HandleFrameTicks, FFrameNumber(0));
+		LastCut.TotalOutputRangeLocal = MovieScene::DilateRange(LastCut.TotalOutputRangeLocal, FFrameNumber(0), HandleFrameTicks);
 
-	// When we expand a shot section, we also need to expand the inner sequence's range by the same amount.
-	UMovieSceneCinematicShotSection* ShotSection = InShot.CinematicShotSection.Get();
-	if(ShotSection)
-	{
-		UMovieScene* ShotMovieScene = ShotSection->GetSequence() ? ShotSection->GetSequence()->GetMovieScene() : nullptr;
-		if (!ShotMovieScene)
+		// Warm up frames only apply to the first camera cut in a shot, so we'll take the number of ticks for real warm up and
+		// convert that into frames. if they don't want real warm up it will be overriden later. 
+		if (!FirstCut.WarmUpRangeLocal.IsEmpty())
 		{
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("ShotSection (%s) with no inner sequence, skipping expansion!"), *ShotSection->GetShotDisplayName());
-			return;
+			FFrameNumber TicksForWarmUp = FirstCut.WarmUpRangeLocal.Size<FFrameNumber>();
+			FirstCut.NumEngineWarmUpFramesRemaining = FFrameRate::TransformTime(FFrameTime(TicksForWarmUp), FrameMetrics.TickResolution, FrameMetrics.FrameRate).CeilToFrame().Value;
+
+			// Handle frames weren't accounted for when we calculated the warm up range, so just reduce the amount of warmup by that.
+			// When we actually evaluate we will start our math from the first handle frame so we're still starting from the same
+			// absolute position regardless of the handle frame count.
+			FirstCut.NumEngineWarmUpFramesRemaining = FMath::Max(FirstCut.NumEngineWarmUpFramesRemaining - InNumHandleFrames, 0);
 		}
 
-		// Expand the inner shot section range by the handle size, multiplied by the difference between the outer and inner tick resolutions (and factoring in the time scale)
-		const bool bRateMatches = TargetSequence->GetMovieScene()->GetTickResolution() == ShotMovieScene->GetTickResolution();
-		const double OuterToInnerRateDilation = bRateMatches ? 1.0 : (ShotMovieScene->GetTickResolution() / TargetSequence->GetMovieScene()->GetTickResolution()).AsDecimal();
-		const double OuterToInnerScale = OuterToInnerRateDilation * (double)ShotSection->Parameters.TimeScale;
+		if (InnerMovieScene)
+		{
+			// We need to expand the inner playback bounds to cover three features:
+			// 1) Temporal Sampling (+1 frame each end)
+			// 2) Handle frames (+n frames left/right)
+			// 3) Using the camera-cut as real warm-up frames (+n frames left side only)
+			// To keep the inner movie scene and outer sequencer section in sync we can calculate the tick delta
+			// to each side and simply expand both sections like that - ignoring all start frame offsets, etc.
+			FFrameNumber LeftDeltaTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+			FFrameNumber RightDeltaTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame();
 
-		// We push the playback bounds one frame further (in both directions) to handle the case where shutter timings offset them +/- the actual edge.
-		// These bounds don't affect the period of time which is rendered, so it's okay that this pushes beyond the actual evaluated range.
+			// Account for handle frame expansion
+			LeftDeltaTicks += HandleFrameTicks;
+			RightDeltaTicks += HandleFrameTicks;
 
-		const FFrameNumber StartOffset = HandleFrameTicks + FrameMetrics.TicksPerOutputFrame.FloorToFrame();
-		const FFrameNumber EndOffset = HandleFrameTicks + FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+			// Left side only warm up.
+			if (FirstCut.NumEngineWarmUpFramesRemaining > 0 && !FirstCut.WarmUpRangeLocal.IsEmpty())
+			{
+				// Handle frames eat into warm up frames (accounted for above) so we don't double add them for expansion.
+				LeftDeltaTicks += (FirstCut.WarmUpRangeLocal.Size<FFrameNumber>() - HandleFrameTicks);
+			}
 
-		const FFrameNumber DilatedStartOffset = FFrameNumber(FMath::CeilToInt(StartOffset.Value * OuterToInnerScale));
-		const FFrameNumber DilatedEndOffset = FFrameNumber(FMath::CeilToInt(EndOffset.Value * OuterToInnerScale));
+			// Expand our inner playback bounds and outer movie scene section to keep them in sync.
+			ShotSection->SetRange(MovieScene::DilateRange(ShotSection->GetRange(), -LeftDeltaTicks, RightDeltaTicks));
+			InnerMovieScene->SetPlaybackRange(MovieScene::DilateRange(InnerMovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks));
 
-		TRange<FFrameNumber> OldPlaybackRange = ShotMovieScene->GetPlaybackRange();
-		TRange<FFrameNumber> NewPlaybackRange = MovieScene::DilateRange(ShotMovieScene->GetPlaybackRange(), -DilatedStartOffset, DilatedEndOffset);
-
-		FMovieSceneChanges::FSegmentChange& ModifiedSegment = SequenceChanges.Segments.AddDefaulted_GetRef();
-		ModifiedSegment.MovieScene = ShotMovieScene;
-		ModifiedSegment.MovieScenePlaybackRange = OldPlaybackRange;
-		ModifiedSegment.bMovieSceneReadOnly = ShotMovieScene->IsReadOnly();
-		ModifiedSegment.ShotSection = ShotSection;
-		ModifiedSegment.bShotSectionIsLocked = ShotSection->IsLocked();
-		ModifiedSegment.ShotSectionRange = ShotSection->GetRange();
-
-		FFrameNumber TotalExpansionSizeInFrames = FFrameRate::TransformTime(FFrameTime(HandleFrameTicks) + FrameMetrics.TicksPerOutputFrame, FrameMetrics.TickResolution, FrameMetrics.FrameRate).CeilToFrame();
-		// ToDo: ShotList isn't assigned yet so IndexOfByKey fails.
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("ShotSection ([%d] %s) Expanding Shot by [-%d, %d] Ticks (+/-%d Frames). Old Inner Playback Range: %s New Inner Playback Range: %s"),
-			ShotList.IndexOfByKey(InShot), *ShotSection->GetShotDisplayName(), 
-			StartOffset.Value, EndOffset.Value, TotalExpansionSizeInFrames.Value,
-			*LexToString(OldPlaybackRange), *LexToString(NewPlaybackRange));
-
-		// Expand the inner scene
-		ShotMovieScene->SetReadOnly(false);
-		ShotMovieScene->SetPlaybackRange(NewPlaybackRange, false);
-
-		// Expand the outer owning section
-		ShotSection->SetIsLocked(false); // Unlock the section so we can modify the range
-		ShotSection->SetRange(MovieScene::DilateRange(ShotSection->GetRange(), -StartOffset, EndOffset));
+		}
 	}
 
 	// Ensure the overall Movie Scene Playback Range is large enough. This will clamp evaluation if we don't expand it. We hull the existing range
 	// with the new range.
-	TRange<FFrameNumber> EncompassingPlaybackRange = TRange<FFrameNumber>::Hull(TotalPlaybackRange, TargetSequence->MovieScene->GetPlaybackRange());
+	TRange<FFrameNumber> EncompassingPlaybackRange = TRange<FFrameNumber>::Hull(TotalPlaybackRangeMaster, TargetSequence->MovieScene->GetPlaybackRange());
 	TargetSequence->GetMovieScene()->SetPlaybackRange(EncompassingPlaybackRange);
 }
 

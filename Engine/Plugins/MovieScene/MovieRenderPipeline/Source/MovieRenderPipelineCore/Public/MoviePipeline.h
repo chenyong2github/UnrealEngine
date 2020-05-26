@@ -259,7 +259,7 @@ private:
 	void SetSoloShot(const FMoviePipelineShotInfo& InShot);
 
 	/* Expands the specified shot (and contained camera cuts)'s ranges for the given settings. */
-	void ExpandShot(FMoviePipelineShotInfo& InShot);
+	void ExpandShot(FMoviePipelineShotInfo& InShot, const int32 InNumHandleFrames);
 
 	/** Calculates lots of useful numbers used in timing based off of the current shot. These are constant for a given shot. */
 	MoviePipeline::FFrameConstantMetrics CalculateShotFrameMetrics(const FMoviePipelineShotInfo& InShot) const;
