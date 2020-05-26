@@ -10271,6 +10271,10 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			MessageY = DrawMapWarnings(World, Viewport, Canvas, CanvasObject, MessageX, MessageY);
 		}
 
+#if ENABLE_AUDIO_DEBUG
+		MessageY = Audio::FAudioDebugger::DrawDebugStats(*World, Viewport, Canvas, MessageY);
+#endif // ENABLE_AUDIO_DEBUG
+
 #if ENABLE_VISUAL_LOG
 		if (FVisualLogger::Get().IsRecording() || FVisualLogger::Get().IsRecordingOnServer())
 		{
