@@ -4216,23 +4216,6 @@ void FAudioDevice::Update(bool bGameTicking)
 	{
 		// Make sure our referenced sound waves is up-to-date
 		UpdateReferencedSoundWaves();
-
-#if ENABLE_AUDIO_DEBUG
-		if (GEngine)
-		{
-			if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
-			{
-				TArray<UWorld*> Worlds = DeviceManager->GetWorldsUsingAudioDevice(DeviceID);
-				for (UWorld* World : Worlds)
-				{
-					if (World)
-					{
-						Audio::FAudioDebugger::DrawDebugStats(*World);
-					}
-				}
-			}
-		}
-#endif // ENABLE_AUDIO_DEBUG
 	}
 
 	if (!IsInAudioThread())
