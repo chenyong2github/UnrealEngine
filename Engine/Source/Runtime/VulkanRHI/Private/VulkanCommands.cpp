@@ -9,6 +9,7 @@
 #include "VulkanContext.h"
 #include "EngineGlobals.h"
 #include "VulkanLLM.h"
+#include "RenderUtils.h"
 
 static TAutoConsoleVariable<int32> GCVarSubmitOnDispatch(
 	TEXT("r.Vulkan.SubmitOnDispatch"),
@@ -459,6 +460,11 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 			if (TexRef)
 			{
 				const FVulkanTextureBase* BaseTexture = FVulkanTextureBase::Cast(TexRef);
+				if (!ensure(BaseTexture))
+				{
+					BaseTexture = FVulkanTextureBase::Cast(GBlackTexture->TextureRHI.GetReference());
+				}
+
 				VkImageLayout Layout = Context->GetLayoutForDescriptor(BaseTexture->Surface);
 				State->SetTextureForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, BaseTexture, Layout);
 				TexRef->SetLastRenderTime(CurrentTime);

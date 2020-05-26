@@ -15,6 +15,7 @@ D3D12Commands.cpp: D3D RHI commands implementation.
 #include "ScreenRendering.h"
 #include "ResolveShader.h"
 #include "SceneUtils.h"
+#include "RenderUtils.h"
 
 int32 AFRSyncTemporalResources = 1;
 static FAutoConsoleVariableRef CVarSyncTemporalResources(
@@ -1136,6 +1137,11 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D12CommandContext& CmdConte
 
 			FD3D12TextureBase* TextureD3D12 = CmdContext.RetrieveTextureBase(TextureRHI);
 			FD3D12ShaderResourceView* D3D12Resource = TextureD3D12->GetShaderResourceView();
+			if (!ensure(D3D12Resource))
+			{
+				D3D12Resource = CmdContext.RetrieveTextureBase(GBlackTexture->TextureRHI)->GetShaderResourceView();
+			}
+
 			check(D3D12Resource != nullptr);
 
 			SetResource<ShaderFrequency>(CmdContext, BindIndex, D3D12Resource);
