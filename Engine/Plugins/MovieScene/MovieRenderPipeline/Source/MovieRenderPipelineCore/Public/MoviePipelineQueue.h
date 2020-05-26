@@ -13,30 +13,6 @@ class UMoviePipelineMasterConfig;
 class ULevel;
 class ULevelSequence;
 
-UENUM(BlueprintType)
-enum class EMoviePipelineExecutorJobStatus : uint8
-{
-	Uninitialized = 0,
-	ReadyToStart = 1,
-	InProgress = 2,
-	Finished = 3
-};
-
-USTRUCT(BlueprintType)
-struct FMoviePipelineJobShotInfo
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	bool bEnabled;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	float Progress;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	EMoviePipelineExecutorJobStatus Status;
-};
-
 /**
 * A particular job within the Queue
 */
@@ -63,14 +39,7 @@ public:
 
 public:	
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void SetPresetOrigin(UMoviePipelineMasterConfig* InPreset)
-	{
-		if (InPreset)
-		{
-			Configuration->CopyFrom(InPreset);
-			PresetOrigin = TSoftObjectPtr<UMoviePipelineMasterConfig>(InPreset);
-		}
-	}
+	void SetPresetOrigin(UMoviePipelineMasterConfig* InPreset);
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UMoviePipelineMasterConfig* GetPresetOrigin() const
@@ -85,24 +54,25 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void SetConfiguration(UMoviePipelineMasterConfig* InPreset)
-	{
-		if (InPreset)
-		{
-			Configuration->CopyFrom(InPreset);
-			PresetOrigin = nullptr;
-		}
-	}
-	
+	void SetConfiguration(UMoviePipelineMasterConfig* InPreset);
+
+	UFUNCTION(BlueprintSetter, Category = "Movie Render Pipeline")
+	void SetSequence(FSoftObjectPath InSequence);
+
+public:
+	// UObject Interface
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+	// ~UObject Interface
+
 public:
 	/** (Optional) Name of the job. Shown on the default burn-in. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	FText JobName;
 
 	/** Which sequence should this job render? */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline", meta = (AllowedClasses = "LevelSequence"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, BlueprintSetter = "SetSequence", Category = "Movie Render Pipeline", meta = (AllowedClasses = "LevelSequence"))
 	FSoftObjectPath Sequence;
-	
+
 	/** Which map should this job render on */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline", meta = (AllowedClasses = "World"))
 	FSoftObjectPath Map;
@@ -113,7 +83,7 @@ public:
 
 	/** (Optional) Shot specific information. If a shot is missing from this list it will assume to be enabled and will be rendered. */
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
-	TMap<FString, FMoviePipelineJobShotInfo> ShotMaskInfo;
+	TArray<FMoviePipelineJobShotInfo> ShotMaskInfo;
 
 	/** What state is this particular job instance currently in? */
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
