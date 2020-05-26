@@ -388,7 +388,7 @@ struct CORE_API FHoloLensAtomics : public FGenericPlatformAtomics
 	 * Atomically compares the pointer to comparand and replaces with the exchange
 	 * pointer if they are equal and returns the original value
 	 */
-	static FORCEINLINE void* InterlockedCompareExchangePointer(void** Dest,void* Exchange,void* Comparand)
+	static FORCEINLINE void* InterlockedCompareExchangePointer(void*volatile* Dest,void* Exchange,void* Comparand)
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// Dest needs to be aligned otherwise the function will behave unpredictably 
