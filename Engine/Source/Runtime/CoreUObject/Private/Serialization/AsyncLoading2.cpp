@@ -680,7 +680,7 @@ public:
 	{
 #if DO_CHECK
 		FLoadedPackageRef* Ref = Packages.Find(PackageId);
-		check(Ref && Ref->GetRefCount() == 0);
+		check(!Ref || Ref->GetRefCount() == 0);
 #endif
 		return Packages.Remove(PackageId) > 0;
 	}
@@ -1022,8 +1022,8 @@ public:
 			return *Id;
 		}
 
-		int32 NewIndex = NextCustomPackageIndex++ & (1 << 31);
-		FPackageId NewId = FPackageId::FromIndex(NextCustomPackageIndex++);
+		int32 NewIndex = NextCustomPackageIndex++ | (1 << 31);
+		FPackageId NewId = FPackageId::FromIndex(NewIndex);
 		PackageNameToPackageId.Add(Name, NewId);
 		return NewId;
 	}
