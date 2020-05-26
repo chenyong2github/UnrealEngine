@@ -15,7 +15,7 @@ class UMoviePipelineMasterConfig;
 /**
  * Universal Movie Render Pipeline settings that apply to the whole project.
  */
-UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+UCLASS(BlueprintType, config=Editor, defaultconfig, MinimalAPI)
 class UMovieRenderPipelineProjectSettings : public UObject
 {
 public:

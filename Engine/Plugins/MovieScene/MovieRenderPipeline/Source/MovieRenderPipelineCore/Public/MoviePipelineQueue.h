@@ -67,7 +67,7 @@ public:
 public:
 	/** (Optional) Name of the job. Shown on the default burn-in. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	FText JobName;
+	FString JobName;
 
 	/** Which sequence should this job render? */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, BlueprintSetter = "SetSequence", Category = "Movie Render Pipeline", meta = (AllowedClasses = "LevelSequence"))
@@ -79,7 +79,7 @@ public:
 
 	/** (Optional) Name of the person who submitted the job. Can be shown in burn in as a first point of contact about the content. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	FText Author;
+	FString Author;
 
 	/** (Optional) Shot specific information. If a shot is missing from this list it will assume to be enabled and will be rendered. */
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
