@@ -241,7 +241,7 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 			int32 Idx = 0;
 			for (; Idx < AutoCompleteList.Num(); ++Idx)
 			{
-				if (AutoCompleteList[Idx].Command.ToLower() == FuncName)
+				if (AutoCompleteList[Idx].Command == FuncName)
 				{
 					break;
 				}
@@ -353,12 +353,11 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 		{
 			FString Command = FString(TEXT("Stat "));
 			Command += StatGroupName.ToString().RightChop(sizeof("STATGROUP_") - 1);
-			const FString CommandLower = Command.ToLower();
 
 			int32 Idx = 0;
 			for (; Idx < AutoCompleteList.Num(); ++Idx)
 			{
-				if (AutoCompleteList[Idx].Command.ToLower() == CommandLower)
+				if (AutoCompleteList[Idx].Command == Command)
 				{
 					break;
 				}
