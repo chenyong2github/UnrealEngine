@@ -10,6 +10,8 @@
 #include "MoviePipelineQueue.generated.h"
 
 class UMoviePipelineMasterConfig;
+class ULevel;
+class ULevelSequence;
 
 UENUM(BlueprintType)
 enum class EMoviePipelineExecutorJobStatus : uint8
@@ -18,6 +20,21 @@ enum class EMoviePipelineExecutorJobStatus : uint8
 	ReadyToStart = 1,
 	InProgress = 2,
 	Finished = 3
+};
+
+USTRUCT(BlueprintType)
+struct FMoviePipelineJobShotInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	bool bEnabled;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	float Progress;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	EMoviePipelineExecutorJobStatus Status;
 };
 
 /**
@@ -44,18 +61,7 @@ public:
 		return 0.2f;
 	}
 
-public:
-	ULevelSequence* TryLoadSequence()
-	{
-		if(LoadedSequence)
-		{
-			return LoadedSequence;
-		}
-		
-		LoadedSequence = Cast<ULevelSequence>(Sequence.TryLoad());
-		return LoadedSequence;
-	}
-	
+public:	
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetPresetOrigin(UMoviePipelineMasterConfig* InPreset)
 	{
@@ -89,21 +95,29 @@ public:
 	}
 	
 public:
+	/** (Optional) Name of the job. Shown on the default burn-in. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FText JobName;
+
 	/** Which sequence should this job render? */
-	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline", meta = (AllowedClasses = "LevelSequence"))
 	FSoftObjectPath Sequence;
 	
 	/** Which map should this job render on */
-	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline", meta = (AllowedClasses = "World"))
 	FSoftObjectPath Map;
+
+	/** (Optional) Name of the person who submitted the job. Can be shown in burn in as a first point of contact about the content. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FText Author;
+
+	/** (Optional) Shot specific information. If a shot is missing from this list it will assume to be enabled and will be rendered. */
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	TMap<FString, FMoviePipelineJobShotInfo> ShotMaskInfo;
 
 	/** What state is this particular job instance currently in? */
 	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	EMoviePipelineExecutorJobStatus JobStatus;
-
-	/** (Optional) Name of the person who submitted the job. Can be shown in burn in as a first point of contact about the content. */
-	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
-	FText Author;
 
 private:
 	/** 
@@ -115,11 +129,6 @@ private:
 	*/
 	UPROPERTY()
 	TSoftObjectPtr<UMoviePipelineMasterConfig> PresetOrigin;
-	
-private:
-	/** Cache our loaded sequence after the first time someone tries to retrieve information from this job that requires the Sequence. */
-	UPROPERTY(Transient)
-	ULevelSequence* LoadedSequence;
 };
 
 /**

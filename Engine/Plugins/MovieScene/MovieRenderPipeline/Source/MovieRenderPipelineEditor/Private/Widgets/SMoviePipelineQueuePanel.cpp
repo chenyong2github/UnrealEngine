@@ -20,29 +20,34 @@
 #include "Widgets/SWindow.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 
 // Misc
 #include "Editor.h"
+#include "PropertyEditorModule.h"
+#include "IDetailsView.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineQueuePanel"
 
 PRAGMA_DISABLE_OPTIMIZATION
 void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 {
-	// Allocate a transient preset automatically so they can start editing without having to create an asset.
-	// TransientPreset = AllocateTransientPreset();
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	FDetailsViewArgs DetailsViewArgs(false, false, false, FDetailsViewArgs::HideNameArea, true);
+	DetailsViewArgs.ColumnWidth = 0.7f;
 
-	// Copy the base preset into the transient preset if it was provided.
-	if (InArgs._BasePreset)
-	{
-		// TransientPreset->CopyFrom(InArgs._BasePreset);
-	}
+	JobDetailsPanelWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 	// Create the child widgets that need to know about our pipeline
 	PipelineQueueEditorWidget = SNew(SMoviePipelineQueueEditor)
 		.OnEditConfigRequested(this, &SMoviePipelineQueuePanel::OnEditJobConfigRequested)
-		.OnPresetChosen(this, &SMoviePipelineQueuePanel::OnJobPresetChosen);
-	// .MoviePipeline(this, &SMoviePipelineConfigPanel::GetMoviePipeline);
+		.OnPresetChosen(this, &SMoviePipelineQueuePanel::OnJobPresetChosen)
+		.OnJobSelectionChanged(this, &SMoviePipelineQueuePanel::OnSelectionChanged);
+
+	// Reset us to no selection.
+	OnSelectionChanged(TArray<UMoviePipelineExecutorJob*>());
 
 	ChildSlot
 	[
@@ -83,10 +88,40 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
+			SNew(SSplitter)
+			.Orientation(EOrientation::Orient_Horizontal)
+			+ SSplitter::Slot()
+			.Value(3)
 			[
 				PipelineQueueEditorWidget.ToSharedRef()
+
+			]
+			+ SSplitter::Slot()
+			.Value(1)
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.Padding(FMargin(1.f, 1.0f))
+				.Content()
+				[
+					SNew(SWidgetSwitcher)
+					.WidgetIndex(this, &SMoviePipelineQueuePanel::GetDetailsViewWidgetIndex)
+					+ SWidgetSwitcher::Slot()
+					[
+						JobDetailsPanelWidget.ToSharedRef()
+					]
+					+ SWidgetSwitcher::Slot()
+					.Padding(2.0f, 24.0f, 2.0f, 2.0f)
+					[
+						SNew(SBox)
+						.HAlign(EHorizontalAlignment::HAlign_Center)
+						.Content()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("NoJobSelected", "Select a job to view details."))
+						]
+					]
+				]
 			]
 		]
 
@@ -207,35 +242,6 @@ bool SMoviePipelineQueuePanel::IsRenderRemoteEnabled() const
 	return bHasExecutor && bNotRendering && bHasJobs;;
 }
 
-/*UMoviePipelineConfigBase* SMoviePipelineConfigPanel::AllocateTransientPreset()
-{
-	static const TCHAR* PackageName = TEXT("/Temp/MoviePipeline/PendingPipeline");
-
-	// Return a cached transient if it exists
-	UMoviePipelineConfigBase* ExistingPreset = FindObject<UMoviePipelineConfigBase>(nullptr, TEXT("/Temp/MoviePipeline/PendingPipeline.PendingPipeline"));
-	if (ExistingPreset)
-	{
-		return ExistingPreset;
-	}
-
-	static FName DesiredName = "PendingMoviePipeline";
-	
-	UPackage* NewPackage = CreatePackage(nullptr, PackageName);
-	NewPackage->SetFlags(RF_Transient);
-	NewPackage->AddToRoot();
-
-	UMoviePipelineConfigBase* NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
-
-	return NewPreset;
-}*/
-
-void SMoviePipelineQueuePanel::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	// Collector.AddReferencedObject(TransientPreset);
-	// Collector.AddReferencedObject(SuppliedLevelSequence);
-	// Collector.AddReferencedObject(RecordingLevelSequence);
-}
-
 void SMoviePipelineQueuePanel::OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot)
 {
 	// Store the preset so the next job they make will use it.
@@ -320,6 +326,23 @@ void SMoviePipelineQueuePanel::OnConfigUpdatedForJobToPreset(TWeakObjectPtr<UMov
 	OnJobPresetChosen(InJob, nullptr);
 
 	OnConfigWindowClosed();
+}
+
+void SMoviePipelineQueuePanel::OnSelectionChanged(const TArray<UMoviePipelineExecutorJob*>& InSelectedJobs)
+{
+	TArray<UObject*> Jobs;
+	for (UMoviePipelineExecutorJob* Job : InSelectedJobs)
+	{
+		Jobs.Add(Job);
+	}
+	
+	JobDetailsPanelWidget->SetObjects(Jobs);
+	NumSelectedJobs = InSelectedJobs.Num();
+}
+
+int32 SMoviePipelineQueuePanel::GetDetailsViewWidgetIndex() const
+{
+	return NumSelectedJobs == 0;
 }
 
 #undef LOCTEXT_NAMESPACE // SMoviePipelineQueuePanel

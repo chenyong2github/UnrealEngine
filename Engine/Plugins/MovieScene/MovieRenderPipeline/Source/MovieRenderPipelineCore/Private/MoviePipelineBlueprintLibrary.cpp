@@ -38,7 +38,7 @@ FText UMoviePipelineBlueprintLibrary::GetJobName(UMoviePipeline* InMoviePipeline
 {
 	if (InMoviePipeline)
 	{
-		return FText::FromString(InMoviePipeline->GetCurrentJob()->Sequence.GetAssetName());
+		return InMoviePipeline->GetCurrentJob()->JobName;
 	}
 
 	return FText();
