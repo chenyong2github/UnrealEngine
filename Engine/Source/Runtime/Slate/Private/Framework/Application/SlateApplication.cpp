@@ -6560,13 +6560,13 @@ TSharedRef<FSlateApplication> FSlateApplication::InitializeAsStandaloneApplicati
 
 void FSlateApplication::InitializeCoreStyle()
 {
-	if (FCoreStyle::IsStarshipStyle())
+	if (FCoreStyle::IsStarshipStyle() && !FStarshipCoreStyle::IsInitialized())
 	{
 		UStyleColorTable::Get();
 		FStarshipCoreStyle::ResetToDefault();
 		FAppStyle::SetAppStyleSet(FStarshipCoreStyle::GetCoreStyle());
 	}
-	else
+	else if(!FCoreStyle::IsStarshipStyle() && !FCoreStyle::IsInitialized())
 	{
 		FCoreStyle::ResetToDefault();
 		FAppStyle::SetAppStyleSet(FCoreStyle::GetCoreStyle());

@@ -123,10 +123,12 @@ void FUserInterfaceCommand::Run()
 		}
 	}
 
-	FCoreStyle::ResetToDefault();
+
+	InitializeSlateApplication();
+	//FCoreStyle::ResetToDefault();
 
 	// Load required modules.
-	FModuleManager::Get().LoadModuleChecked("EditorStyle");
+
 	FModuleManager::Get().LoadModuleChecked("TraceInsights");
 
 	// Load plug-ins.
@@ -137,7 +139,6 @@ void FUserInterfaceCommand::Run()
 	// Load optional modules.
 	FModuleManager::Get().LoadModule("SettingsEditor");
 
-	InitializeSlateApplication();
 
 	// Initialize source code access.
 	// Load the source code access module.
@@ -199,6 +200,8 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 
 	// Crank up a normal Slate application using the platform's standalone renderer.
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
+
+	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 
 	//const FSlateBrush* AppIcon = new FSlateImageBrush(FPaths::EngineContentDir() / "Editor/Slate/Icons/Insights/AppIcon_24x.png", FVector2D(24.0f, 24.0f));
 	//FSlateApplication::Get().SetAppIcon(AppIcon);

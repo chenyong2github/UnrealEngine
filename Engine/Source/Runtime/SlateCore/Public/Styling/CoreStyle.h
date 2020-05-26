@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Styling/ISlateStyle.h"
+#include "Styling/AppStyle.h"
 
 struct FSlateDynamicImageBrush;
 
@@ -16,8 +17,26 @@ public:
 
 	static TSharedRef<class ISlateStyle> Create( const FName& InStyleSetName = "CoreStyle" );
 
-	/** @return the singleton instance. */
+	/** 
+	* @return the Application Style 
+	*
+	* NOTE: Until the Editor can be fully updated, calling FCoreStyle::Get() will
+	* return the AppStyle instead of the style definied in this class.  
+	*
+	* Using the AppStyle is preferred in most cases as it allows the style to be changed 
+	* and restyled more easily.
+	*
+	* In cases requiring explicit use of the CoreStyle where a Slate Widget should not take on
+	* the appearance of the rest of the application, use FCoreStyle::GetCoreStyle().
+	*
+	*/
 	static const ISlateStyle& Get( )
+	{
+		return FAppStyle::Get();
+	}
+
+	/** @return the singleton instance of the style created in . */
+	static const ISlateStyle& GetCoreStyle()
 	{
 		return *(Instance.Get());
 	}
@@ -44,6 +63,10 @@ public:
 
 	static const int32 RegularTextSize = 9;
 	static const int32 SmallTextSize = 8;
+
+	static bool IsStarshipStyle();
+
+	static bool IsInitialized() { return Instance.IsValid(); }
 
 private:
 

@@ -64,6 +64,7 @@ public:
 	static const int32 RegularTextSize = 10;
 	static const int32 SmallTextSize = 8;
 
+	static bool IsInitialized() { return Instance.IsValid(); }
 private:
 
 	static void SetStyle( const TSharedRef< class ISlateStyle >& NewStyle );

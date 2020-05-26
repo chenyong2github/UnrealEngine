@@ -14,15 +14,15 @@ TMap<FName, const ISlateStyle*> FSlateStyleRegistry::SlateStyleRepository;
 /* Static functions
  *****************************************************************************/
 
-void FSlateStyleRegistry::RegisterSlateStyle( const ISlateStyle& InSlateStyle )
+void FSlateStyleRegistry::RegisterSlateStyle(const ISlateStyle& InSlateStyle)
 {
 	const FName& SlateStyleName = InSlateStyle.GetStyleSetName();
-	check( SlateStyleName.IsValid() );
-	check( !FindSlateStyle( SlateStyleName ) );
+	check(SlateStyleName.IsValid());
+	check(!FindSlateStyle(SlateStyleName));
 
-	SlateStyleRepository.Add( SlateStyleName, &InSlateStyle );
+	SlateStyleRepository.Add(SlateStyleName, &InSlateStyle);
 
-	if ( FSlateApplicationBase::IsInitialized() )
+	if (FSlateApplicationBase::IsInitialized())
 	{
 		if (FSlateRenderer* Renderer = FSlateApplicationBase::Get().GetRenderer())
 		{
@@ -32,12 +32,12 @@ void FSlateStyleRegistry::RegisterSlateStyle( const ISlateStyle& InSlateStyle )
 }
 
 
-void FSlateStyleRegistry::UnRegisterSlateStyle( const ISlateStyle& InSlateStyle )
+void FSlateStyleRegistry::UnRegisterSlateStyle(const ISlateStyle& InSlateStyle)
 {
 	const FName& SlateStyleName = InSlateStyle.GetStyleSetName();
-	check( SlateStyleName.IsValid() );
+	check(SlateStyleName.IsValid());
 
-	SlateStyleRepository.Remove( SlateStyleName );
+	SlateStyleRepository.Remove(SlateStyleName);
 }
 
 
@@ -48,9 +48,9 @@ void FSlateStyleRegistry::UnRegisterSlateStyle(const FName StyleSetName)
 }
 
 
-const ISlateStyle* FSlateStyleRegistry::FindSlateStyle( const FName& InSlateStyleName )
+const ISlateStyle* FSlateStyleRegistry::FindSlateStyle(const FName& InSlateStyleName)
 {
-	const ISlateStyle** SlateStylePtr = SlateStyleRepository.Find( InSlateStyleName );
+	const ISlateStyle** SlateStylePtr = SlateStyleRepository.Find(InSlateStyleName);
 	return (SlateStylePtr) ? *SlateStylePtr : nullptr;
 }
 
@@ -66,12 +66,12 @@ bool FSlateStyleRegistry::IterateAllStyles(const TFunctionRef<bool(const ISlateS
 	return true;
 }
 
-void FSlateStyleRegistry::GetAllResources( TArray< const FSlateBrush* >& OutResources )
+void FSlateStyleRegistry::GetAllResources(TArray< const FSlateBrush* >& OutResources)
 {
 	/* Iterate the style chunks and collect their resources */
-	for( auto It = SlateStyleRepository.CreateConstIterator(); It; ++It )
+	for (auto It = SlateStyleRepository.CreateConstIterator(); It; ++It)
 	{
-		It->Value->GetResources( OutResources );
+		It->Value->GetResources(OutResources);
 	}
 }
 

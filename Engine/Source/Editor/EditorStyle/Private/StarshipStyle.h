@@ -32,6 +32,9 @@ public:
 	{
 		Settings = NULL;
 
+		// The core style must be initialized before the editor style
+		FSlateApplication::InitializeCoreStyle();
+
 #if WITH_EDITOR
 		Settings = GetMutableDefault<UEditorStyleSettings>();
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");

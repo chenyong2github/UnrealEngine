@@ -39,8 +39,6 @@ void FUserInterfaceCommand::Run(  )
 	FConfigCacheIni::InitializeConfigSystem();
 	GetTargetPlatformManager();
 
-	FCoreStyle::ResetToDefault();
-
 	// load required modules
 	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 	FModuleManager::Get().LoadModuleChecked("Messaging");
