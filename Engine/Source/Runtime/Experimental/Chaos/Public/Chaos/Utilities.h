@@ -388,7 +388,7 @@ namespace Chaos
 		}
 
 		/**
-		 * Given the local-space inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
+		 * Given the local-space diagonal inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
 		 * If bScaleMass is true, it also takes into account the fact that the mass would have changed by the increase in volume.
 		 */
 		inline FVec3 ScaleInertia(const FVec3& Inertia, const FVec3& Scale, const bool bScaleMass)
@@ -400,6 +400,29 @@ namespace Chaos
 			FVec3 ScaledInertia = FVec3(XX, YY, ZZ);
 			FReal MassScale = (bScaleMass) ? Scale.X * Scale.Y * Scale.Z : 1.0f;
 			return MassScale * ScaledInertia;
+		}
+
+		/**
+		 * Given the local-space inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
+		 * If bScaleMass is true, it also takes into account the fact that the mass would have changed by the increase in volume.
+		 */
+		inline FMatrix33 ScaleInertia(const FMatrix33& Inertia, const FVec3& Scale, const bool bScaleMass)
+		{
+			// @todo(chaos): do we need to support a rotation of the scale axes?
+			FVec3 D = Inertia.GetDiagonal();
+			FVec3 XYZSq = (FVec3(0.5f * (D.X + D.Y + D.Z)) - D) * Scale * Scale;
+			FReal XX = XYZSq.Y + XYZSq.Z;
+			FReal YY = XYZSq.X + XYZSq.Z;
+			FReal ZZ = XYZSq.X + XYZSq.Y;
+			FReal XY = Inertia.M[0][1] * Scale.X * Scale.Y;
+			FReal XZ = Inertia.M[0][2] * Scale.X * Scale.Z;
+			FReal YZ = Inertia.M[1][2] * Scale.Y * Scale.Z;
+			FReal MassScale = (bScaleMass) ? Scale.X * Scale.Y * Scale.Z : 1.0f;
+			FMatrix33 ScaledInertia = FMatrix33(
+				MassScale * XX, MassScale * XY, MassScale * XZ,
+				MassScale * XY, MassScale * YY, MassScale * YZ,
+				MassScale * XZ, MassScale * YZ, MassScale * ZZ);
+			return ScaledInertia;
 		}
 
 	} // namespace Utilities
