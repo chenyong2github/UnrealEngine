@@ -52,8 +52,10 @@ struct INTERACTIVETOOLSFRAMEWORK_API FViewCameraState
 	FVector Position;
 	/** Current camera/head orientation */
 	FQuat Orientation;
-	/** Current Horizontal Field of View Angle in Degrees */
+	/** Current Horizontal Field of View Angle in Degrees. Only relevant if bIsOrthographic is false. */
 	float HorizontalFOVDegrees;
+	/** Current width of viewport in world space coordinates. Only valid if bIsOrthographic is true. */
+	float OrthoWorldCoordinateWidth;
 	/** Current Aspect Ratio */
 	float AspectRatio;
 	/** Is current view an orthographic view */
