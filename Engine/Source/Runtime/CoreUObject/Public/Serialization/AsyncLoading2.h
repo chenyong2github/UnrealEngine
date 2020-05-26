@@ -216,20 +216,6 @@ public:
 };
 
 /**
- * Event node.
- */
-enum EEventLoadNode2 : uint8
-{
-	Package_ProcessSummary,
-	Package_ExportsSerialized,
-	Package_PostLoad,
-	Package_NumPhases,
-
-	ExportBundle_Process = 0,
-	ExportBundle_NumPhases,
-};
-
-/**
  * Export filter flags.
  */
 enum class EExportFilterFlags : uint8

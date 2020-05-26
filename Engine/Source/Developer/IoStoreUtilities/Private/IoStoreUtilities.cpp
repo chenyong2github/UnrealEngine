@@ -950,7 +950,6 @@ struct FPackage
 	int64 SummarySize = 0;
 	uint64 ExportsSerialSize = 0;
 	bool bIsLocalizedAndConformed = false;
-	bool bHasCircularImportDependencies = false;
 
 	TArray<FPackage*> ImportedPackages;
 	TArray<FPackage*> ImportedByPackages;
@@ -1158,28 +1157,10 @@ static void AddExternalExportArc(FExportGraph& ExportGraph, FPackage& FromPackag
 	ExportGraph.AddExternalDependency(FromNode, ToNode);
 }
 
-static void AddPostLoadArc(FPackage& FromPackage, FPackage& ToPackage)
-{
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad})));
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad})));
-	ExternalArcs.Add({ EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad });
-}
-
-static void AddExportsDoneArc(FPackage& FromPackage, FPackage& ToPackage)
-{
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad})));
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad})));
-	ExternalArcs.Add({ EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad });
-}
-
 static void AddUniqueExternalBundleArc(FPackage& FromPackage, uint32 FromBundleIndex, FPackage& ToPackage, uint32 ToBundleIndex)
 {
-	uint32 FromNodeIndex = EEventLoadNode2::Package_NumPhases + FromBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
-	uint32 ToNodeIndex = EEventLoadNode2::Package_NumPhases + ToBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
 	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	ExternalArcs.AddUnique({ FromNodeIndex, ToNodeIndex });
+	ExternalArcs.AddUnique({ FromBundleIndex, ToBundleIndex });
 }
 
 static void AddReachablePackagesRecursive(FPackage& Package, FPackage& PackageWithImports, TSet<FPackage*>& Visited, bool bFirst)
@@ -1212,128 +1193,6 @@ static void AddReachablePackagesRecursive(FPackage& Package, FPackage& PackageWi
 		}
 	}
 }
-
-static bool FindNewCircularImportChains(
-	FPackage& Package,
-	FPackage& ImportedPackage,
-	TSet<FPackage*>& Visited,
-	TSet<FCircularImportChain>& CircularChains,
-	FCircularImportChain& CurrentChain)
-{
-	if (&ImportedPackage == &Package)
-	{
-		Package.bHasCircularImportDependencies = true;
-		CurrentChain.SortAndGenerateHash();
-		bool bAlreadyFound = true;
-		CircularChains.AddByHash(CurrentChain.Hash, CurrentChain, &bAlreadyFound);
-
-		if (bAlreadyFound)
-		{
-			// UE_LOG(LogIoStore, Display, TEXT("OLD-IsCircular: %s with %s"), *Package.Name.ToString(), *CurrentChain.ToString());
-			return false;
-		}
-		else
-		{
-			// UE_LOG(LogIoStore, Display, TEXT("NEW-IsCircular: %s with %s"), *Package.Name.ToString(), *CurrentChain.ToString());
-			return true;
-		}
-	}
-
-	bool bIsVisited = false;
-	Visited.Add(&ImportedPackage, &bIsVisited);
-	if (bIsVisited)
-	{
-		return false;
-	}
-
-	bool bFoundNew = false;
-	for (FPackage* DependentPackage : ImportedPackage.ImportedPackages)
-	{
-		CurrentChain.Add(DependentPackage);
-		bFoundNew |= FindNewCircularImportChains(Package, *DependentPackage, Visited, CircularChains, CurrentChain);
-		CurrentChain.Pop();
-	}
-
-	return bFoundNew;
-}
-
-static void AddPackagePostLoadDependencies(
-	FPackage& Package,
-	TSet<FPackage*>& Visited,
-	TSet<FCircularImportChain>& CircularChains)
-{
-	TSet<FPackage*> DependentPackages;
-
-	for (FPackage* ImportedPackage : Package.ImportedPackages)
-	{
-		Visited.Reset();
-		FCircularImportChain CurrentChain;
-		CurrentChain.Add(ImportedPackage);
-		if (FindNewCircularImportChains(Package, *ImportedPackage, Visited, CircularChains, CurrentChain))
-		{
-			DependentPackages.Append(MoveTemp(Visited));
-		}
-	}
-
-	// if (Package.bHasCircularImportDependencies /* || Package.bHasExternalReadDependencies*/)
-	{
-		for (FPackage* ImportedPackage : Package.ImportedPackages)
-		{
-			if (!DependentPackages.Contains(ImportedPackage))
-			{
-				AddPostLoadArc(*ImportedPackage, Package);
-			}
-		}
-
-		DependentPackages.Remove(&Package);
-		for (FPackage* DependentPackage : DependentPackages)
-		{
-			AddExportsDoneArc(*DependentPackage, Package);
-		}
-	}
-
-	/*
-	if (Package.bHasCircularImportDependencies)
-	{
-		int32 diff = Package.AllReachablePackages.Num() - 1 - DependentPackages.Num();
-		if (DependentPackages.Num() == 0)
-		{
-			UE_LOG(LogIoStore, Display, TEXT("OPT-ALL: %s: Skipping %d/%d arcs"), *Package.Name.ToString(),
-				diff,
-				Package.AllReachablePackages.Num() - 1);
-		}
-		else if (diff > 0)
-		{
-			UE_LOG(LogIoStore, Display, TEXT("OPT: %s: Skipping %d/%d arcs"), *Package.Name.ToString(),
-				diff,
-				Package.AllReachablePackages.Num() - 1);
-		}
-		else
-		{
-			UE_LOG(LogIoStore, Display, TEXT("NOP: %s: Skipping %d/%d arcs"), *Package.Name.ToString(),
-				0,
-				Package.AllReachablePackages.Num() - 1);
-		}
-	}
-	*/
-}
-
-static int32 AddPostLoadDependencies(TArray<FPackage*>& Packages)
-{
-	IOSTORE_CPU_SCOPE(PostLoadDependencies);
-	UE_LOG(LogIoStore, Display, TEXT("Adding postload dependencies..."));
-
-	TSet<FPackage*> Visited;
-	TSet<FCircularImportChain> CircularChains;
-
-	for (FPackage* Package : Packages)
-	{
-		Visited.Reset();
-		Visited.Add(Package);
-		AddPackagePostLoadDependencies(*Package, Visited, CircularChains);
-	}
-	return CircularChains.Num();
-};
 
 static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Packages)
 {
@@ -3855,8 +3714,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	ProcessLocalizedPackages(Packages, PackageMap, GlobalPackageData, SourceToLocalizedPackageMap);
 
-	const int32 CircularChainCount = AddPostLoadDependencies(Packages);
-	
 	AddPreloadDependencies(
 		PackageAssetData,
 		GlobalPackageData,
@@ -4361,7 +4218,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	uint64 PublicExportsCount = 0;
 	uint64 ExportBundlesMetaCount = 0;
 	uint64 InitialLoadSize = InitialLoadArchive.Tell();
-	uint64 CircularPackagesCount = 0;
 	uint64 TotalExternalArcCount = 0;
 	uint64 NameCount = 0;
 
@@ -4384,8 +4240,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		// ExportMapSize += Package.ExportMapSize;
 		// NameMapSize += Package.NameMapSize;
 		NameMapCount += Package.NameMap.Num();
-		CircularPackagesCount += Package.bHasCircularImportDependencies;
-		ImportedPackagesCount += Package.ImportedPackagesSerializeCount;
 		ExportBundlesMetaCount += Package.ExportBundles.Num();
 		NameCount += Package.NameMap.Num();
 		PackagesWithoutImportDependenciesCount += Package.ImportedPackages.Num() == 0;
@@ -4411,8 +4265,8 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	
 	LogWriterResults(IoStoreWriterResults);
 	
-	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no import dependencies"),
-		PackageMap.Num(), CircularPackagesCount, PackagesWithoutImportDependenciesCount);
+	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d no import dependencies"),
+		PackageMap.Num(), PackagesWithoutImportDependenciesCount);
 	UE_LOG(LogIoStore, Display, TEXT("Bundles:  %8d total, %d entries, %d export objects (%d public)"),
 		BundleCount, BundleEntryCount, GlobalPackageData.ExportObjects.Num(), PublicExportsCount);
 
@@ -4428,8 +4282,8 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageNameMap, %d indices"), (double)NameMapSize / 1024.0 / 1024.0, NameMapCount);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageImportMap"), (double)ImportMapSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageExportMap"), (double)ExportMapSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageArcs, %d external arcs, %d circular packages (%d chains)"),
-		(double)UGraphSize / 1024.0 / 1024.0, TotalExternalArcCount, CircularPackagesCount, CircularChainCount);
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageArcs, %d external arcs"),
+		(double)UGraphSize / 1024.0 / 1024.0, TotalExternalArcCount);
 
 	return 0;
 }
