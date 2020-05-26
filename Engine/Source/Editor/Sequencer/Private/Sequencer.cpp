@@ -770,6 +770,12 @@ void FSequencer::Tick(float InDeltaTime)
 		}
 	}
 
+	// Reset to the root sequence if the focused sequence no longer exists. This can happen if either the subsequence has been deleted or the hierarchy has changed.
+	if (!GetFocusedMovieSceneSequence())
+	{
+		PopToSequenceInstance(MovieSceneSequenceID::Root);
+	}
+
 	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
 	if(SequenceRecorder.IsRecording())
 	{
