@@ -44,6 +44,12 @@ public:
 	 */
 	void Refresh( const TArray< TWeakObjectPtr<AActor> >& SelectedActors, const TArray< TWeakObjectPtr<UObject> >& SelectedObjects, FDetailsViewArgs::ENameAreaSettings NameAreaSettings  );
 
+
+	/**
+	 * Inserts Custom Content (typically tool buttons) before the lock
+	 */
+	virtual void SetCustomContent(TSharedRef<SWidget>& InCustomContent);
+
 private:
 	/** @return the Slate brush to use for the lock image */
 	const FSlateBrush* OnGetLockButtonImageResource() const;
@@ -57,6 +63,12 @@ private:
 	FOnClicked OnLockButtonClicked;
 	TAttribute<bool> IsLocked;
 	TAttribute<bool> SelectionTip;
+
+	TSharedPtr<SWidget> CustomContent;
+
 	bool bShowLockButton;
 	bool bShowActorLabel;
+
+	/** Area where the customs content resides */
+	SHorizontalBox::FSlot* CustomContentSlot;
 };

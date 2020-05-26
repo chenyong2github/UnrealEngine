@@ -323,6 +323,7 @@ protected:
 	virtual void UpdatePropertiesWhitelist(const TSet<FPropertyPath> InWhitelistedProperties) override { CurrentFilter.WhitelistedProperties = InWhitelistedProperties; }
 
 	virtual TSharedPtr<SWidget> GetNameAreaWidget() override;
+	virtual void SetNameAreaCustomContent(TSharedRef<SWidget>& InCustomContent) override;
 	virtual TSharedPtr<SWidget> GetFilterAreaWidget() override;
 	virtual TSharedPtr<class FUICommandList> GetHostCommandList() const override;
 	virtual TSharedPtr<FTabManager> GetHostTabManager() const override;

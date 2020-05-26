@@ -3769,7 +3769,6 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		FUIAction(FExecuteAction::CreateSP(this, &SSCSEditor::PromoteToBlueprint))
 	);
 
-	TSharedPtr<SHorizontalBox> ButtonBox;
 	TSharedPtr<SVerticalBox>   HeaderBox;
 	TSharedPtr<SWidget> SearchBar =
 		SAssignNew(FilterBox, SSearchBox)
@@ -3779,6 +3778,65 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	const bool  bInlineSearchBarWithButtons = (EditorMode == EComponentEditorMode::BlueprintSCS);
 
 	bool bHideComponentClassCombo = InArgs._HideComponentClassCombo.Get();
+
+	ButtonBox = SNew(SHorizontalBox)
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		SNew(SComponentClassCombo)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.AddComponent")))
+		.Visibility(bHideComponentClassCombo ? EVisibility::Hidden : EVisibility::Visible)
+		.OnComponentClassSelected(this, &SSCSEditor::PerformComboAddClass)
+		.ToolTipText(LOCTEXT("AddComponent_Tooltip", "Adds a new component to this actor"))
+		.IsEnabled(AllowEditing)
+	]
+
+	//
+	// horizontal slot (index) #1 => reserved for BP-editor search bar (see 'ButtonBox' usage below)
+
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		SNew( SButton )
+		.ButtonStyle( FEditorStyle::Get(), "SimpleButton" )
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.ConvertToBlueprint")))
+		.Visibility( this, &SSCSEditor::GetPromoteToBlueprintButtonVisibility )
+		.OnClicked( this, &SSCSEditor::OnPromoteToBlueprintClicked )
+		.ContentPadding(FMargin(5.f))
+		.ToolTip(IDocumentation::Get()->CreateToolTip(
+			LOCTEXT("PromoteToBluerprintTooltip","Converts this actor into a reusable Blueprint Class that can have script behavior" ),
+			NULL,
+			TEXT("Shared/LevelEditor"),
+			TEXT("ConvertToBlueprint")))
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
+		]
+	]
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		SNew(SComboButton)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.EditBlueprint")))
+		.Visibility(this, &SSCSEditor::GetEditBlueprintButtonVisibility)
+		.ComboButtonStyle(FEditorStyle::Get(), "SimpleComboButton")
+		.HasDownArrow(false)
+		.ContentPadding(FMargin(5.f))
+		.ToolTipText(LOCTEXT("EditActorBlueprint_Tooltip", "Edit the Blueprint for this Actor"))
+		.ButtonContent()
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
+		]
+		.MenuContent()
+		[
+			EditBlueprintMenuBuilder.MakeWidget()
+		]
+	];
+
+
 
 	Contents = SNew(SVerticalBox)
 	+ SVerticalBox::Slot()
@@ -3797,77 +3855,6 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 			.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
 			[
 				SAssignNew(HeaderBox, SVerticalBox)
-					+ SVerticalBox::Slot()
-						.AutoHeight()
-						.VAlign(VAlign_Top)
-						.HAlign(HAlign_Fill)
-					[
-						SAssignNew(ButtonBox, SHorizontalBox)
-
-						+ SHorizontalBox::Slot()
-						.FillWidth(1)
-						[
-							SNew(SSpacer)
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(SComponentClassCombo)
-							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.AddComponent")))
-							.Visibility(bHideComponentClassCombo ? EVisibility::Hidden : EVisibility::Visible)
-							.OnComponentClassSelected(this, &SSCSEditor::PerformComboAddClass)
-							.ToolTipText(LOCTEXT("AddComponent_Tooltip", "Adds a new component to this actor"))
-							.IsEnabled(AllowEditing)
-						]
-
-						//
-						// horizontal slot (index) #1 => reserved for BP-editor search bar (see 'ButtonBox' usage below)
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew( SButton )
-							.ButtonStyle( FEditorStyle::Get(), "SimpleButton" )
-							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.ConvertToBlueprint")))
-							.Visibility( this, &SSCSEditor::GetPromoteToBlueprintButtonVisibility )
-							.OnClicked( this, &SSCSEditor::OnPromoteToBlueprintClicked )
-							.ContentPadding(FMargin(5.f))
-							.ToolTip(IDocumentation::Get()->CreateToolTip(
-								LOCTEXT("PromoteToBluerprintTooltip","Converts this actor into a reusable Blueprint Class that can have script behavior" ),
-								NULL,
-								TEXT("Shared/LevelEditor"),
-								TEXT("ConvertToBlueprint")))
-							[
-								SNew(SImage)
-								.ColorAndOpacity(FSlateColor::UseForeground())
-								.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
-							]
-						]
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(SComboButton)
-							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.EditBlueprint")))
-							.Visibility(this, &SSCSEditor::GetEditBlueprintButtonVisibility)
-							.ComboButtonStyle(FEditorStyle::Get(), "SimpleComboButton")
-							.HasDownArrow(false)
-							.ContentPadding(FMargin(5.f))
-							.ButtonContent()
-							[
-								SNew(SImage)
-								.ColorAndOpacity(FSlateColor::UseForeground())
-								.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
-							]
-							.MenuContent()
-							[
-								EditBlueprintMenuBuilder.MakeWidget()
-							]
-						]
-					]
-
-				//
-				// vertical slot (index) #1 => reserved for instance-editor search bar (see 'HeaderBox' usage below)
 			]
 		]
 
@@ -3884,11 +3871,10 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		]
 	];
 
-	// insert the search bar, depending on which editor this widget is in (depending on convert/edit button visibility)
-	if (bInlineSearchBarWithButtons)
+	// Only insert the buttons and search bar in the Blueprints version
+	if (bInlineSearchBarWithButtons) // Blueprints
 	{
-		const int32 SearchBarHorizontalSlotIndex = 1;
-
+		const int32 SearchBarHorizontalSlotIndex = 0;
 		ButtonBox->InsertSlot(SearchBarHorizontalSlotIndex)
 			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
@@ -3896,16 +3882,10 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		[
 			SearchBar.ToSharedRef()
 		];
-	}
-	else
-	{
-		const int32 SearchBarVerticalSlotIndex = 1;
 
-		HeaderBox->InsertSlot(SearchBarVerticalSlotIndex)
-			.VAlign(VAlign_Center)
-			.Padding(3.0f, 1.0f)
+		HeaderBox->AddSlot()
 		[
-			SearchBar.ToSharedRef()
+			ButtonBox.ToSharedRef()
 		];
 	}
 
@@ -3925,6 +3905,10 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
+TSharedPtr<SWidget> SSCSEditor::GetToolButtonsBox()
+{
+	return ButtonBox;	
+}
 
 void SSCSEditor::OnLevelComponentRequestRename(const UActorComponent* InComponent)
 {

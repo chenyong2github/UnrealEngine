@@ -340,6 +340,9 @@ public:
 	/** Returns the name area widget used to display object naming functionality so it can be placed in a custom location.  Note FDetailsViewArgs.bCustomNameAreaLocation must be true */
 	virtual TSharedPtr<SWidget> GetNameAreaWidget() = 0;
 
+	/** Optinoally add custom tools into the NameArea */
+	virtual void SetNameAreaCustomContent(TSharedRef<SWidget>& InCustomContent) = 0;
+
 	/** Returns the search area widget used to display search and view options so it can be placed in a custom location.  Note FDetailsViewArgs.bCustomFilterAreaLocation must be true */
 	virtual TSharedPtr<SWidget> GetFilterAreaWidget() = 0;
 

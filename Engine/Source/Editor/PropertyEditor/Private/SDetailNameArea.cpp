@@ -25,6 +25,7 @@ void SDetailNameArea::Construct( const FArguments& InArgs, const TArray< TWeakOb
 	SelectionTip = InArgs._SelectionTip;
 	bShowLockButton = InArgs._ShowLockButton;
 	bShowActorLabel = InArgs._ShowActorLabel;
+	CustomContent = SNullWidget::NullWidget;
 }
 
 void SDetailNameArea::Refresh( const TArray< TWeakObjectPtr<UObject> >& SelectedObjects )
@@ -137,7 +138,7 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 			TSharedRef<IObjectNameEditableTextBox> ObjectNameBox = EdWidgetsModule.CreateObjectNameEditableTextBox(SelectedObjects);
 
 			ObjectNameArea->AddSlot()
-				.AutoWidth()
+				.FillWidth(1.0)
 				.Padding(0, 0, 3, 0)
 				[
 					SNew(SBox)
@@ -152,11 +153,18 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 		const TWeakObjectPtr< UObject > ObjectWeakPtr = SelectedObjects.Num() == 1 ? SelectedObjects[0] : NULL;
 		BuildObjectNameAreaSelectionLabel( ObjectNameArea, ObjectWeakPtr, SelectedObjects.Num() );
 
+		ObjectNameArea->AddSlot()
+		.Expose(CustomContentSlot)
+		.AutoWidth()
+		[
+			CustomContent.ToSharedRef()
+		];
+
 		if( bShowLockButton )
 		{
 			ObjectNameArea->AddSlot()
 				.HAlign(HAlign_Right)
-				.FillWidth(1.0f)
+				.AutoWidth()
 				[
 					SNew( SButton )
 					.ButtonStyle( FEditorStyle::Get(), "SimpleButton" )
@@ -251,6 +259,18 @@ void SDetailNameArea::BuildObjectNameAreaSelectionLabel( TSharedRef< SHorizontal
 	}
 }
 
+
+void SDetailNameArea::SetCustomContent(TSharedRef<SWidget>& InCustomContent)
+{
+	CustomContent = InCustomContent;
+
+	if (CustomContentSlot != nullptr)
+	{
+		SHorizontalBox::FSlot& T = *CustomContentSlot;
+		T[InCustomContent];
+	}
+
+}
 
 #undef LOCTEXT_NAMESPACE
 

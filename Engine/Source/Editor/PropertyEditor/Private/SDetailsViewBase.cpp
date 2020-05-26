@@ -653,6 +653,11 @@ TSharedPtr<SWidget> SDetailsViewBase::GetNameAreaWidget()
 	return DetailsViewArgs.bCustomNameAreaLocation ? NameArea : nullptr;
 }
 
+void SDetailsViewBase::SetNameAreaCustomContent( TSharedRef<SWidget>& InCustomContent )
+{
+	NameArea->SetCustomContent(InCustomContent);	
+}
+
 TSharedPtr<SWidget> SDetailsViewBase::GetFilterAreaWidget()
 {
 	return DetailsViewArgs.bCustomFilterAreaLocation ? FilterRow : nullptr;

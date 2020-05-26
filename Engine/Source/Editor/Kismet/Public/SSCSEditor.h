@@ -1158,6 +1158,9 @@ public:
 	/** Called at the end of each frame. */
 	void OnPostTick(float);
 
+	/** Return the button widgets that can add components or create/edit blueprints */
+	TSharedPtr<SWidget> GetToolButtonsBox();
+
 protected:
 	FSCSEditorTreeNodePtrType FindOrCreateParentForExistingComponent(UActorComponent* InActorComponent, FSCSEditorActorNodePtrType ActorRootNode);
 	FSCSEditorTreeNodePtrType FindParentForNewComponent(UActorComponent* NewComponent) const;
@@ -1378,4 +1381,7 @@ private:
 
 	/** The filter box that handles filtering for the tree. */
 	TSharedPtr< SSearchBox > FilterBox;
+
+	/** The tools buttons box **/
+	TSharedPtr<SHorizontalBox> ButtonBox;
 };

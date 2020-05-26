@@ -128,7 +128,6 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 	DetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(this, &SActorDetails::IsPropertyEditingEnabled));
 	DetailsView->SetOnObjectArrayChanged(FOnObjectArrayChanged::CreateSP(this, &SActorDetails::OnDetailsViewObjectArrayChanged));
 
-
 	// Set up a delegate to call to add generic details to the view
 	DetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FLevelEditorGenericDetails::MakeInstance));
 
@@ -145,6 +144,10 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		.OnItemDoubleClicked(this, &SActorDetails::OnSCSEditorTreeViewItemDoubleClicked);
 		
 	ComponentsBox->SetContent(SCSEditor.ToSharedRef());
+
+	TSharedRef<SWidget> ButtonBox = SCSEditor->GetToolButtonsBox().ToSharedRef();
+	DetailsView->SetNameAreaCustomContent( ButtonBox );
+	
 
 	ChildSlot
 	[
