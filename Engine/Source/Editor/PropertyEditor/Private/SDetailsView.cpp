@@ -350,7 +350,7 @@ bool SDetailsView::CanOpenRawPropertyEditor() const
 FReply SDetailsView::OnOpenRawPropertyEditorClicked()
 {
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
-	PropertyEditorModule.CreatePropertyEditorToolkit( EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), SelectedObjects );
+	PropertyEditorModule.CreatePropertyEditorToolkit(TSharedPtr<IToolkitHost>(), SelectedObjects );
 
 	return FReply::Handled();
 }

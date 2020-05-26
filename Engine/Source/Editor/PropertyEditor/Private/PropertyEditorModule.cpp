@@ -398,18 +398,18 @@ FStructProperty* FPropertyEditorModule::RegisterStructOnScopeProperty(TSharedRef
 	return StructProperty;
 }
 
-TSharedRef< FAssetEditorToolkit > FPropertyEditorModule::CreatePropertyEditorToolkit( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UObject* ObjectToEdit )
+TSharedRef< FAssetEditorToolkit > FPropertyEditorModule::CreatePropertyEditorToolkit(const TSharedPtr< class IToolkitHost >& InitToolkitHost, UObject* ObjectToEdit )
 {
-	return FPropertyEditorToolkit::CreateEditor( Mode, InitToolkitHost, ObjectToEdit );
+	return FPropertyEditorToolkit::CreateEditor(EToolkitMode::Standalone, InitToolkitHost, ObjectToEdit);
 }
 
 
-TSharedRef< FAssetEditorToolkit > FPropertyEditorModule::CreatePropertyEditorToolkit( const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray< UObject* >& ObjectsToEdit )
+TSharedRef< FAssetEditorToolkit > FPropertyEditorModule::CreatePropertyEditorToolkit( const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray< UObject* >& ObjectsToEdit )
 {
-	return FPropertyEditorToolkit::CreateEditor( Mode, InitToolkitHost, ObjectsToEdit );
+	return FPropertyEditorToolkit::CreateEditor(EToolkitMode::Standalone, InitToolkitHost, ObjectsToEdit);
 }
 
-TSharedRef< FAssetEditorToolkit > FPropertyEditorModule::CreatePropertyEditorToolkit( const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray< TWeakObjectPtr< UObject > >& ObjectsToEdit )
+TSharedRef< FAssetEditorToolkit > FPropertyEditorModule::CreatePropertyEditorToolkit(const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray< TWeakObjectPtr< UObject > >& ObjectsToEdit )
 {
 	TArray< UObject* > RawObjectsToEdit;
 	for( auto ObjectIter = ObjectsToEdit.CreateConstIterator(); ObjectIter; ++ObjectIter )
@@ -417,7 +417,7 @@ TSharedRef< FAssetEditorToolkit > FPropertyEditorModule::CreatePropertyEditorToo
 		RawObjectsToEdit.Add( ObjectIter->Get() );
 	}
 
-	return FPropertyEditorToolkit::CreateEditor( Mode, InitToolkitHost, RawObjectsToEdit );
+	return FPropertyEditorToolkit::CreateEditor(EToolkitMode::Standalone, InitToolkitHost, RawObjectsToEdit );
 }
 
 TSharedRef<IPropertyChangeListener> FPropertyEditorModule::CreatePropertyChangeListener()
