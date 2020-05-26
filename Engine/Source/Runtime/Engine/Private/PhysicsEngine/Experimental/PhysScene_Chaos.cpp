@@ -2387,6 +2387,7 @@ void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
 					Solver->UpdateGameThreadStructures();
 				}
 
+#if !UE_BUILD_SHIPPING
 				const TArray<FDesyncedParticleInfo> DesyncedParticles = Solver->GetRewindData()->ComputeDesyncInfo();
 				if(DesyncedParticles.Num())
 				{
@@ -2400,7 +2401,7 @@ void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
 						DrawDebugBox(GetOwningWorld(),Center,Extents,FQuat::Identity, Info.MostDesynced == ESyncState::HardDesync ? FColor::Red : FColor::Yellow, /*bPersistentLines=*/ false, /*LifeTime=*/ 3);
 					}
 				}
-				
+#endif
 			}
 		}
 	}
