@@ -215,7 +215,7 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 		else if (UMoviePipelineMasterConfig* AssetAsConfig = Cast<UMoviePipelineMasterConfig>(AssetPath.TryLoad()))
 		{
 			OutQueue = NewObject<UMoviePipelineQueue>();
-			UMoviePipelineExecutorJob* NewJob = OutQueue->AllocateNewJob();
+			UMoviePipelineExecutorJob* NewJob = OutQueue->AllocateNewJob(UMoviePipelineExecutorJob::StaticClass()); // Only the default job type is supported right now.
 			NewJob->Sequence = FSoftObjectPath(InSequenceAssetPath);
 
 			// Duplicate the configuration in case we modify it and in case multiple jobs will use it.

@@ -55,6 +55,14 @@ public:
 	TSubclassOf<UMoviePipelineExecutorBase> DefaultRemoteExecutor;
 	
 	/**
+	* Which Job class should we create by default when adding a job? This allows you to make custom jobs
+	* that will have editable properties in the UI for special handling with your executor. This can be
+	* made dynamic if you add jobs to the queue programatically instead of through the UI.
+	*/
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="Movie Render Pipeline")
+	TSubclassOf<UMoviePipelineExecutorJob> DefaultExecutorJob;
+	
+	/**
 	* This allows you to implement your own Pipeline to handle timing and rendering of a movie. Changing
 	* this will allow you to re-use the existing UI/Executors while providing your own logic for producing
 	* a single render.

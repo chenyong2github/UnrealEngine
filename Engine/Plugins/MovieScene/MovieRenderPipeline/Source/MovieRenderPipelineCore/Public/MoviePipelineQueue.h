@@ -121,15 +121,37 @@ public:
 		}
 	}
 	
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Queue")
-	UMoviePipelineExecutorJob* AllocateNewJob();
+	/**
+	* Allocates a new Job in this Queue. The Queue owns the jobs for memory management purposes,
+	* and this will handle that for you. 
+	*
+	* @param InJobType	Specify the specific Job type that should be created. Custom Executors can use custom Job types to allow the user to provide more information.
+	* @return	The created Executor job instance.
+	*/
+	UFUNCTION(BlueprintCallable, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline|Queue", meta=(InJobType="/Script/MovieRenderPipelineCore.MoviePipelineExecutorJob"))
+	UMoviePipelineExecutorJob* AllocateNewJob(TSubclassOf<UMoviePipelineExecutorJob> InJobType);
 
+	/**
+	* Deletes the specified job from the Queue. 
+	*
+	* @param InJob	The job to look for and delete. 
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Queue")
 	void DeleteJob(UMoviePipelineExecutorJob* InJob);
 
+	/**
+	* Duplicate the specific job and return the duplicate. Configurations are duplicated and not shared.
+	*
+	* @param InJob	The job to look for to duplicate.
+	* @return The duplicated instance or nullptr if a duplicate could not be made.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Queue")
 	UMoviePipelineExecutorJob* DuplicateJob(UMoviePipelineExecutorJob* InJob);
 	
+	/**
+	* Get all of the Jobs contained in this Queue.
+	* @return The jobs contained by this queue.
+	*/
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline|Queue")
 	TArray<UMoviePipelineExecutorJob*> GetJobs() const
 	{

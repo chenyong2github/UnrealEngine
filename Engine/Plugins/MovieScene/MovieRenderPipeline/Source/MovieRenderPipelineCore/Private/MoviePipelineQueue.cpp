@@ -5,13 +5,18 @@
 #include "MoviePipelineSetting.h"
 #include "MoviePipelineBlueprintLibrary.h"
 
-UMoviePipelineExecutorJob* UMoviePipelineQueue::AllocateNewJob()
+UMoviePipelineExecutorJob* UMoviePipelineQueue::AllocateNewJob(TSubclassOf<UMoviePipelineExecutorJob> InJobType)
 {
+	if (!ensureAlwaysMsgf(InJobType, TEXT("Failed to specify a Job Type. Use the default in project setting or UMoviePipelineExecutorJob.")))
+	{
+		InJobType = UMoviePipelineExecutorJob::StaticClass();
+	}
+
 #if WITH_EDITOR
 	Modify();
 #endif
 
-	UMoviePipelineExecutorJob* NewJob = NewObject<UMoviePipelineExecutorJob>(this);
+	UMoviePipelineExecutorJob* NewJob = NewObject<UMoviePipelineExecutorJob>(this, InJobType);
 	NewJob->SetFlags(RF_Transactional);
 
 	Jobs.Add(NewJob);
@@ -62,6 +67,11 @@ void UMoviePipelineExecutorJob::PostEditChangeProperty(FPropertyChangedEvent& Pr
 		// Call our Set function so that we rebuild the shot mask.
 		SetSequence(Sequence);
 	}
+
+	// We save the config on this object after each property change. This makes the variables flagged as config
+	// save even though we're editing them through a normal details panel. This is a nicer user experience for
+	// fields that don't change often but do need to be per job.
+	SaveConfig();
 }
 
 void UMoviePipelineExecutorJob::SetSequence(FSoftObjectPath InSequence)

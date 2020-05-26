@@ -6,12 +6,14 @@
 #include "MoviePipeline.h"
 #include "MoviePipelineImageSequenceOutput.h"
 #include "MoviePipelineDeferredPasses.h"
+#include "MoviePipelineQueue.h"
 
 UMovieRenderPipelineProjectSettings::UMovieRenderPipelineProjectSettings()
 {
 	PresetSaveDir.Path = TEXT("/Game/Cinematics/MoviePipeline/Presets/");
 	DefaultLocalExecutor = UMoviePipelinePIEExecutor::StaticClass();
 	DefaultRemoteExecutor = UMoviePipelineNewProcessExecutor::StaticClass();
+	DefaultExecutorJob = UMoviePipelineExecutorJob::StaticClass();
 	DefaultPipeline = UMoviePipeline::StaticClass();
 
 	DefaultClasses.Add(UMoviePipelineImageSequenceOutput_JPG::StaticClass());
