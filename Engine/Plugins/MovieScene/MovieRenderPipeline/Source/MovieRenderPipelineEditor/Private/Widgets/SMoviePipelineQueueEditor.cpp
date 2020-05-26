@@ -137,7 +137,7 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			return Job->JobName;
+			return FText::FromString(Job->JobName);
 		}
 
 		return FText();
@@ -900,9 +900,9 @@ void SMoviePipelineQueueEditor::OnCreateJobFromAsset(const FAssetData& InAsset)
 		FSoftObjectPath CurrentWorld = FSoftObjectPath(GEditor->GetEditorWorldContext().World());
 		FSoftObjectPath Sequence = InAsset.ToSoftObjectPath();
 		NewJob->Map = CurrentWorld;
-		NewJob->Author = FText::FromString(FPlatformProcess::UserName(false));
+		NewJob->Author = FPlatformProcess::UserName(false);
 		NewJob->SetSequence(Sequence);
-		NewJob->JobName = FText::FromString(NewJob->Sequence.GetAssetName());
+		NewJob->JobName = NewJob->Sequence.GetAssetName();
 		
 
 		{

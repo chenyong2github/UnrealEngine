@@ -43,7 +43,7 @@ FText UMoviePipelineBlueprintLibrary::GetJobName(UMoviePipeline* InMoviePipeline
 {
 	if (InMoviePipeline)
 	{
-		return InMoviePipeline->GetCurrentJob()->JobName;
+		return FText::FromString(InMoviePipeline->GetCurrentJob()->JobName);
 	}
 
 	return FText();
@@ -53,7 +53,7 @@ FText UMoviePipelineBlueprintLibrary::GetJobAuthor(UMoviePipeline* InMoviePipeli
 {
 	if (InMoviePipeline)
 	{
-		return InMoviePipeline->GetCurrentJob()->Author;
+		return FText::FromString(InMoviePipeline->GetCurrentJob()->Author);
 	}
 
 	return FText();
