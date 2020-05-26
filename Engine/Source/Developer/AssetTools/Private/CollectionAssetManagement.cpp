@@ -48,6 +48,14 @@ void FCollectionAssetManagement::SetCurrentAssets(const TArray<FAssetData>& Curr
 	UpdateAssetManagementState();
 }
 
+void FCollectionAssetManagement::SetCurrentAssetPaths(const TArray<FName>& CurrentAssets)
+{
+	CurrentAssetPaths.Empty();
+	CurrentAssetPaths.Append(CurrentAssets);
+
+	UpdateAssetManagementState();
+}
+
 void FCollectionAssetManagement::AddCurrentAssetsToCollection(FCollectionNameType InCollectionKey)
 {
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
