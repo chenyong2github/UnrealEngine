@@ -20,6 +20,9 @@ public:
 	/** Set the assets that we are currently observing and managing the collection state of */
 	void SetCurrentAssets(const TArray<FAssetData>& CurrentAssets);
 
+	/** Set the asset paths that we are currently observing and managing the collection state of */
+	void SetCurrentAssetPaths(const TArray<FName>& CurrentAssets);
+
 	/** Add the current assets to the given collection */
 	void AddCurrentAssetsToCollection(FCollectionNameType InCollectionKey);
 
