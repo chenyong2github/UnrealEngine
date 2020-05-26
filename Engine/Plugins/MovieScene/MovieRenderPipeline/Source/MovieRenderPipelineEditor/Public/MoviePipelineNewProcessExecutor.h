@@ -17,8 +17,8 @@ class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineNewProcessExecutor : public UM
 	GENERATED_BODY()
 
 	// UMoviePipelineExecutorBase Interface
-	virtual void ExecuteImpl(UMoviePipelineQueue* InPipelineQueue) override;
-	virtual bool IsRenderingImpl() const override { return ProcessHandle.IsValid(); }
+	virtual void Execute_Implementation(UMoviePipelineQueue* InPipelineQueue) override;
+	virtual bool IsRendering_Implementation() const override { return ProcessHandle.IsValid(); }
 	// ~UMoviePipelineExecutorBase Interface
 
 protected:

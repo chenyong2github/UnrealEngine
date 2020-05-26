@@ -273,3 +273,14 @@ FFrameNumber UMoviePipelineBlueprintLibrary::GetCurrentShotFrameNumber(const UMo
 
 	return FFrameNumber(-1);
 }
+
+
+FString UMoviePipelineBlueprintLibrary::GetMapPackageName(UMoviePipelineExecutorJob* InJob)
+{
+	if (!InJob)
+	{
+		return FString();
+	}
+
+	return InJob->Map.GetLongPackageName();
+}

@@ -27,7 +27,9 @@ class UTexture;
 
 
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinished, UMoviePipeline*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinishedNative, UMoviePipeline*);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinished, UMoviePipeline*, MoviePipeline);
+
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineErrored, UMoviePipeline* /*Pipeline*/, bool /*bIsFatal*/, FText /*ErrorText*/);
 
 UCLASS(Blueprintable)
@@ -42,6 +44,7 @@ public:
 	* Initialize the movie pipeline with the specified settings. This kicks off the rendering process. 
 	* @param InJob	- This contains settings and sequence to render this Movie Pipeline with.
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void Initialize(UMoviePipelineExecutorJob* InJob);
 
 
@@ -54,6 +57,7 @@ public:
 	*
 	* This function is thread safe.
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void RequestShutdown();
 	
 	/** 
@@ -63,11 +67,13 @@ public:
 	*
 	* This function should only be called from the game thread.
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void Shutdown();
 
 	/**
 	* Has RequestShutdown() been called?
 	*/
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	bool IsShutdownRequested() const { return bShutdownRequested; }
 
 	/** 
@@ -76,10 +82,13 @@ public:
 	* Shutdown() on itself before calling this delegate to ensure we've unregistered from all delegates
 	* and are no longer trying to do anything (even if we still exist).
 	*/
-	FMoviePipelineFinished& OnMoviePipelineFinished()
+	FMoviePipelineFinishedNative& OnMoviePipelineFinished()
 	{
-		return OnMoviePipelineFinishedDelegate;
+		return OnMoviePipelineFinishedDelegateNative;
 	}
+
+	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
+	FMoviePipelineFinished OnMoviePipelineFinishedDelegate;
 
 	/**
 	* Called when there was an error during the rendering of this movie pipeline (such as missing sequence, i/o failure, etc.)
@@ -135,6 +144,17 @@ public:
 	*/
 	FString ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides) const;
 
+protected:
+	/**
+	* This function should be called by the Executor when execution has finished (this should still be called in the event of an error)
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	virtual void OnMoviePipelineFinishedImpl()
+	{
+		// Broadcast to both Native and Python/BP
+		OnMoviePipelineFinishedDelegateNative.Broadcast(this);
+		OnMoviePipelineFinishedDelegate.Broadcast(this);
+	}
 private:
 
 	/** Instantiate our Debug UI Widget and initialize it to ourself. */
@@ -313,7 +333,7 @@ private:
 	float AccumulatedTickSubFrameDeltas;
 
 	/** Called when we have completely finished. This object will call Shutdown before this and stop ticking. */
-	FMoviePipelineFinished OnMoviePipelineFinishedDelegate;
+	FMoviePipelineFinishedNative OnMoviePipelineFinishedDelegateNative;
 
 	/** Called when there is a warning/error that the user should pay attention to.*/
 	FMoviePipelineErrored OnMoviePipelineErroredDelegate;

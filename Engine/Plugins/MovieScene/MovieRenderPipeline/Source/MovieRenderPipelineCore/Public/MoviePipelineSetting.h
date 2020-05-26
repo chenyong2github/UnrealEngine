@@ -47,7 +47,8 @@ public:
 	* allows a setting to provide these when the user wants to run in a separate process. This won't
 	* be used when running in the current process because it is too late to modify the command line.
 	*/
-	void BuildNewProcessCommandLine(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const { BuildNewProcessCommandLineImpl(InOutUnrealURLParams, InOutCommandLineArgs); }
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void BuildNewProcessCommandLine(UPARAM(ref) FString& InOutUnrealURLParams, UPARAM(ref) FString& InOutCommandLineArgs) const { BuildNewProcessCommandLineImpl(InOutUnrealURLParams, InOutCommandLineArgs); }
 
 	/**
 	* Attempt to validate the configuration the user has chosen for this setting. Caches results for fast lookup in UI later.

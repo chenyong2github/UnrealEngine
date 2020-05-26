@@ -17,6 +17,8 @@ public class MovieRenderPipelineCore : ModuleRules
 				"Landscape", // To flush grass
 				"AudioMixer",
 				"NonRealtimeAudioRenderer",
+				"Sockets", 
+				"Networking"
 			}
 		);
 

@@ -452,7 +452,7 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Movie Pipeline completed. Duration: %s"), *(FDateTime::UtcNow() - InitializationTime).ToString());
 
-			OnMoviePipelineFinished().Broadcast(this);
+			OnMoviePipelineFinishedImpl();
 		}
 		break;
 	}
