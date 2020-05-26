@@ -437,6 +437,10 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		if (IsValidRef(BackBuffers[i]))
 		{
 			// Tell the back buffer to delete immediately so that we can call resize.
+			if (BackBuffers[i]->GetRefCount() != 1)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("Backbuffer %d leaking with %d refs during Resize."), i, BackBuffers[i]->GetRefCount());
+			}
 			check(BackBuffers[i]->GetRefCount() == 1);
 
 			for (FD3D12Texture2D* Tex = BackBuffers[i]; Tex; Tex = (FD3D12Texture2D*)Tex->GetNextObject())
@@ -451,6 +455,10 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
 		if (IsValidRef(SDRBackBuffers[i]))
 		{
+			if (SDRBackBuffers[i]->GetRefCount() != 1)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("SDR Backbuffer %d leaking with %d refs during Resize."), i, SDRBackBuffers[i]->GetRefCount());
+			}
 			check(SDRBackBuffers[i]->GetRefCount() == 1);
 
 			for (FD3D12Texture2D* Tex = SDRBackBuffers[i]; Tex; Tex = (FD3D12Texture2D*)Tex->GetNextObject())
