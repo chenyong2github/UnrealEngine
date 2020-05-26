@@ -988,6 +988,42 @@ public:
 	TMap<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>> ImageOutputData;
 };
 
+UENUM(BlueprintType)
+enum class EMoviePipelineExecutorJobStatus : uint8
+{
+	Uninitialized = 0,
+	ReadyToStart = 1,
+	InProgress = 2,
+	Finished = 3
+};
+
+USTRUCT(BlueprintType)
+struct FMoviePipelineJobShotInfo
+{
+	GENERATED_BODY()
+
+	FMoviePipelineJobShotInfo()
+		: bEnabled(true)
+		, Progress(0.f)
+		, Status(EMoviePipelineExecutorJobStatus::Uninitialized)
+	{
+	}
+
+	/** Should this shot be rendered? */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	bool bEnabled;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	float Progress;
+
+	/** Soft object path to the camera cut section this is for. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline", meta=(AllowedClasses="MovieSceneCameraCutSection"))
+	FSoftObjectPath SectionPath;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	EMoviePipelineExecutorJobStatus Status;
+};
+
 namespace MoviePipeline
 {
 	struct FAudioState
