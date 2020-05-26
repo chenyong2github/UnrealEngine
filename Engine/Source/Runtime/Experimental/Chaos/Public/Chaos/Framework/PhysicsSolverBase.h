@@ -269,6 +269,8 @@ namespace Chaos
 		{}
 
 		/** Only allow construction with valid parameters as well as restricting to module construction */
+
+		virtual ~FPhysicsSolverBase() {}
 		FPhysicsSolverBase() = delete;
 		FPhysicsSolverBase(const FPhysicsSolverBase& InCopy) = delete;
 		FPhysicsSolverBase(FPhysicsSolverBase&& InSteal) = delete;
