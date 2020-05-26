@@ -2210,6 +2210,30 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return containerFrameLayout;
 	}
 
+	protected String FindLineFromStatus(String fieldToReport)
+	{
+		File file = new File("/proc/self/status");
+		if (file.exists())
+		{
+			try (BufferedReader reader = new BufferedReader(new FileReader(file));)
+			{
+				String line;
+				while ((line = reader.readLine()) != null)
+				{
+					if(line.contains(fieldToReport))
+					{
+						return line;
+					}
+				}
+			}
+			 catch (IOException ie)
+			 {
+				Log.debug("failed to read status: " + ie);
+			}
+		}
+		return "";
+	}
+
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
@@ -2353,7 +2377,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 						}
 					}
 				}
-				Log.debug("Used memory: " + ProcessMemory);
+				Log.debug("Used memory: " + ProcessMemory + " ("+FindLineFromStatus("VmRSS:")+")");
 
 				synchronized(_activity)
 				{
