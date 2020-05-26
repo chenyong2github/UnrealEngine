@@ -7,11 +7,11 @@
 class FPathTree
 {
 public:
-	/** Adds the path to the tree relative to this node, creating nodes as needed. Returns true if the specified path was actually added (as opposed to already existed) */
-	bool CachePath(FName Path);
+	/** Adds the specified path to the tree, creating nodes as needed and calling OnPathAdded for any new paths added. Returns true if the specified path was actually added (as opposed to already existed) */
+	bool CachePath(FName Path, TFunctionRef<void(FName)> OnPathAdded);
 
-	/** Removes the specified path in the tree relative to this node. Returns true if the path was found and removed. */
-	bool RemovePath(FName Path);
+	/** Removes the specified path from the tree, calling OnPathRemoved for any existing paths removed. Returns true if the path was found and removed. */
+	bool RemovePath(FName Path, TFunctionRef<void(FName)> OnPathRemoved);
 
 	/** Checks whether the given path is one that we know about */
 	bool PathExists(FName Path) const;
