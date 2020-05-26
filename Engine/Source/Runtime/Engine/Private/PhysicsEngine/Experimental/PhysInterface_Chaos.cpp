@@ -1984,6 +1984,7 @@ bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstanc
 									BestHit.WorldPosition = LocalPosition;
 									BestHit.Shape = Shape;
 									BestHit.Actor = Actor;
+									BestHit.FaceIndex = FaceIndex;
 								}
 							}
 						}
