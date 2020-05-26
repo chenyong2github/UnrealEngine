@@ -25,11 +25,13 @@ public:
 	virtual void RemoveSetting(UMoviePipelineSetting* InSetting);
 
 	/** Copy this configuration from another existing configuration. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual void CopyFrom(UMoviePipelineConfigBase* InConfig);
 
 	int32 GetSettingsSerialNumber() const { return SettingsSerialNumber; }
 
 	/** Returns an array of all settings in this config that the user has added via the UI or via Scripting. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual TArray<UMoviePipelineSetting*> GetUserSettings() const { return Settings; }
 
 public:

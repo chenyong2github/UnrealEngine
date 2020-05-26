@@ -11,7 +11,7 @@
 class UMoviePipeline;
 class UMovieSceneSequence;
 
-UCLASS()
+UCLASS(meta = (ScriptName = "MoviePipelineLibrary"))
 class MOVIERENDERPIPELINECORE_API UMoviePipelineBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
@@ -118,4 +118,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static FFrameNumber GetCurrentShotFrameNumber(const UMoviePipeline* InMoviePipeline);
+
+	/** Get the package name for the map in this job. The level travel command requires the package path and not the asset path. */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FString GetMapPackageName(UMoviePipelineExecutorJob* InJob);
 };

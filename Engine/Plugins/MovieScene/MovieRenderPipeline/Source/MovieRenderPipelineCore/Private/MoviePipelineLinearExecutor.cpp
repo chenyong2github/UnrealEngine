@@ -6,7 +6,7 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipelineLinearExecutorBase"
 
-void UMoviePipelineLinearExecutorBase::ExecuteImpl(UMoviePipelineQueue* InPipelineQueue)
+void UMoviePipelineLinearExecutorBase::Execute_Implementation(UMoviePipelineQueue* InPipelineQueue)
 {
 	check(InPipelineQueue);
 
