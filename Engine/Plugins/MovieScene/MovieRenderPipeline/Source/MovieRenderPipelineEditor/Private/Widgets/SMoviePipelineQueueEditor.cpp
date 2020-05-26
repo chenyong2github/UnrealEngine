@@ -880,12 +880,18 @@ void SMoviePipelineQueueEditor::OnCreateJobFromAsset(const FAssetData& InAsset)
 	if (LevelSequence)
 	{
 		FScopedTransaction Transaction(FText::Format(LOCTEXT("CreateJob_Transaction", "Add {0}|plural(one=Job, other=Jobs)"), 1));
-		
+		const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
+
 		UMoviePipelineQueue* ActiveQueue = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>()->GetQueue();
 		check(ActiveQueue);
 		ActiveQueue->Modify();
 
-		UMoviePipelineExecutorJob* NewJob = ActiveQueue->AllocateNewJob();
+		UMoviePipelineExecutorJob* NewJob = ActiveQueue->AllocateNewJob(ProjectSettings->DefaultExecutorJob);
+		if (!ensureAlwaysMsgf(NewJob, TEXT("Failed to allocate new job! Check the DefaultExecutorJob is not null in Project Settings!")))
+		{
+			return;
+		}
+
 		NewJob->Modify();
 
 		PendingJobsToSelect.Add(NewJob);
@@ -899,7 +905,6 @@ void SMoviePipelineQueueEditor::OnCreateJobFromAsset(const FAssetData& InAsset)
 		NewJob->JobName = FText::FromString(NewJob->Sequence.GetAssetName());
 		
 
-		const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
 		{
 			// The job configuration is already set up with an empty configuration, but we'll try and use their last used preset 
 			// (or a engine supplied default) for better user experience. 
