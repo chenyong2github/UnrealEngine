@@ -75,7 +75,7 @@ namespace Chaos
 	public:
 
 		// #BGTODO ensure no external callers directly deleting, make private and push everything through DestroySolver.
-		~TPBDRigidsSolver();
+		virtual ~TPBDRigidsSolver();
 
 		typedef FPhysicsSolverBase Super;
 
