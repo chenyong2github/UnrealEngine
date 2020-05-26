@@ -27,7 +27,6 @@
 	<!-- List of file types to be stripped and signed for different platforms -->
 	<Property Name="Win64StripFilter" Value="*.pdb"/>
 	<Property Name="Win64StripExceptions" Value="Engine\Binaries\Win64\UE4Editor*.pdb;Engine\Plugins\...\Binaries\Win64\UE4Editor*.pdb"/>
-	<Property Name="Win32StripFilter" Value="*.pdb"/>
 	<Property Name="MacStripFilter" Value="*.a;"/>
 	<Property Name="AndroidStripFilter" Value="*.a;*.so"/>
 	<Property Name="IOSStripFilter" Value="*.a;"/>
@@ -332,11 +331,9 @@
 	<Property Name="CopyEditorExceptionsMac" Value="$(CopyEditorExceptions)">
 		<!-- Exclude Windows binaries on Mac here -->
 		Engine/Plugins/.../Binaries/Win64/...
-		Engine/Plugins/.../Binaries/Win32/...
 
 		<!-- Don't want these folders, even if they're part of Windows tools -->
 		Engine/Binaries/Win64/...
-		Engine/Binaries/Win32/...
 	</Property>
 
 	<!-- Linux editor specific dependencies -->
@@ -394,24 +391,6 @@
 		Engine/Source/ThirdParty/Oculus/OVRPlugin/*.tps
 	</Property>
 	<Property Name="CopyWin64Exceptions">
-	</Property>
-
-	<!-- Win32 -->
-	<Property Name="CopyWin32Filter">
-		<!-- Natvis helpers for live coding -->
-		Engine/Extras/NatvisHelpers/Win32/NatvisHelpers.lib
-		
-		<!-- Oculus Libraries & Build Files -->
-		Engine/Source/ThirdParty/Oculus/LibOVRAudio/LibOVRAudio/lib/win32/*.lib
-		Engine/Source/ThirdParty/Oculus/LibOVRAudio/*.tps
-		Engine/Source/ThirdParty/Oculus/LibOVRAvatar/LibOVRAvatar/lib/win32/*.lib
-		Engine/Source/ThirdParty/Oculus/LibOVRAvatar/*.tps
-		Engine/Source/ThirdParty/Oculus/LibOVRPlatform/LibOVRPlatform/lib/*.lib
-		Engine/Source/ThirdParty/Oculus/LibOVRPlatform/*.tps
-		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/lib/Win32/*.lib
-		Engine/Source/ThirdParty/Oculus/OVRPlugin/*.tps
-	</Property>
-	<Property Name="CopyWin32Exceptions">
 	</Property>
 	
 	<!-- Mac -->

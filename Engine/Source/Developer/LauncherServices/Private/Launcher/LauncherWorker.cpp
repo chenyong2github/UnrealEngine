@@ -337,27 +337,7 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			{
 				Platforms += TEXT("+LinuxAArch64");
 			}
-			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor"))
-			{
-				// find out if the project is targeting 32bit
-				FConfigFile ProjectEngineConfig;
-				FString ProjectDir = FPaths::GetPath(InProfile->GetProjectPath());
-				FConfigCacheIni::LoadExternalIniFile(ProjectEngineConfig, TEXT("Engine"), *FPaths::EngineConfigDir(), *FPaths::Combine(ProjectDir, TEXT("Config/")), true, TEXT("Windows"));
-				bool bTarget32Bit = false;
-				ProjectEngineConfig.GetBool(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("bTarget32Bit"), bTarget32Bit);
-
-				// normally this would get the 64bit one, so if we need the 32-bit one, swap it out
-				if (bTarget32Bit)
-				{
-					PlatformInfo = PlatformInfo::FindPlatformInfo(TEXT("WindowsNoEditorWin32"));
-					check(PlatformInfo != nullptr);
-				}
-			
-				// if target wants 32-bit, use 32-bit
-				Platforms += TEXT("+");
-				Platforms += PlatformInfo->UBTTargetId.ToString();
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("Windows") || PlatformInfo->TargetPlatformName == FName("WindowsClient"))
+			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") || PlatformInfo->TargetPlatformName == FName("Windows") || PlatformInfo->TargetPlatformName == FName("WindowsClient"))
 			{
 				Platforms += TEXT("+Win64");
 			}
