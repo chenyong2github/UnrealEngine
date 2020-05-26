@@ -3,6 +3,8 @@
 #pragma once
 
 #include "AudioPluginUtilities.h"
+#include "AudioDeviceManager.h"
+
 #include "OVR_Audio.h"
 
 class UActorComponent;
