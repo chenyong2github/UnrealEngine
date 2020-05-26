@@ -24,10 +24,27 @@ bool ToolSceneQueriesUtil::PointSnapQuery(const UInteractiveTool* Tool, const FV
 
 bool ToolSceneQueriesUtil::PointSnapQuery(const FViewCameraState& CameraState, const FVector3d& Point1, const FVector3d& Point2, double VisualAngleThreshold)
 {
-	double UseThreshold = (VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : VisualAngleThreshold;
-	UseThreshold *= CameraState.GetFOVAngleNormalizationFactor();
-	double VisualAngle = VectorUtil::OpeningAngleD(Point1, Point2, (FVector3d)CameraState.Position);
-	return FMathd::Abs(VisualAngle) < UseThreshold;
+	if (!CameraState.bIsOrthographic)
+	{
+		double UseThreshold = (VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : VisualAngleThreshold;
+		UseThreshold *= CameraState.GetFOVAngleNormalizationFactor();
+		double VisualAngle = VectorUtil::OpeningAngleD(Point1, Point2, (FVector3d)CameraState.Position);
+		return FMathd::Abs(VisualAngle) < UseThreshold;
+	}
+	else
+	{
+		// Whereas in perspective mode we can compare the angle difference to the camera, we can't do that in ortho mode, since the camera isn't a point
+		// but a plane. Instead we need to project into the camera plane and measure distance here. To be analogous to our tolerance in perspective mode,
+		// where we divide the FOV into 90 visual angle degrees, we divide the plane into 90 segments and use the same tolerance.
+		double AngleThreshold = (VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : VisualAngleThreshold;
+		double OrthoThreshold = AngleThreshold * CameraState.OrthoWorldCoordinateWidth / 90.0;
+		FVector3d ViewPlaneNormal = CameraState.Orientation.GetForwardVector();
+		FVector3d DistanceVector = Point1 - Point2;
+
+		// Project the vector into the plane and check its length
+		DistanceVector = DistanceVector - (DistanceVector).Dot(ViewPlaneNormal) * ViewPlaneNormal;
+		return DistanceVector.SquaredLength() < (OrthoThreshold * OrthoThreshold);
+	}
 }
 
 

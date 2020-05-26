@@ -98,8 +98,50 @@ bool FGeometrySet3::FindNearestPointToRay(const FRay3d& Ray, FNearest& ResultOut
 	return NearestID != -1;
 }
 
+bool FGeometrySet3::CollectPointsNearRay(const FRay3d& Ray, TArray<FNearest>& ResultsOut,
+	TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const
+{
+	// This is used later to see if we added any new results.
+	int OriginalResultsLength = ResultsOut.Num();
 
+	// To avoid locking in the ParallelFor below, we let all curves have space for their
+	// own output even if their point turns out not to be within tolerance.
+	TArray<FNearest> NonCompactResults;
+	NonCompactResults.AddUninitialized(Curves.Num());
+	TArray<bool> WithinTolerance;
+	WithinTolerance.AddZeroed(Curves.Num());
 
+	// Check distances to points in parallel
+	int NumPoints = Points.Num();
+	ParallelFor(NumPoints, [&](int pi)
+	{
+		const FPoint& Point = Points[pi];
+		double RayT = Ray.Project(Point.Position);
+		FVector3d RayPt = Ray.NearestPoint(Point.Position);
+		if (PointWithinToleranceTest(RayPt, Point.Position))
+		{
+			WithinTolerance[pi] = true;
+
+			// Save result
+			NonCompactResults[pi].ID = Points[pi].ID;
+			NonCompactResults[pi].bIsPoint = true;
+			NonCompactResults[pi].NearestRayPoint = Ray.PointAt(RayT);
+			NonCompactResults[pi].NearestGeoPoint = Points[pi].Position;
+			NonCompactResults[pi].RayParam = RayT;
+		}
+	});
+
+	// Output only those results that were within tolerance
+	for (int i = 0; i < NonCompactResults.Num(); ++i)
+	{
+		if (WithinTolerance[i])
+		{
+			ResultsOut.Add(NonCompactResults[i]);
+		}
+	}
+
+	return ResultsOut.Num() != OriginalResultsLength;
+}
 
 
 bool FGeometrySet3::FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut,
@@ -168,4 +210,73 @@ bool FGeometrySet3::FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut
 	}
 
 	return NearestID != -1;
+}
+
+bool FGeometrySet3::CollectCurvesNearRay(const FRay3d& Ray, TArray<FNearest>& ResultsOut,
+	TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const
+{
+	// This is used later to see if we added any new results.
+	int OriginalResultsLength = ResultsOut.Num();
+
+	// To avoid locking in the ParallelFor below, we let all curves have space for their
+	// own output even if their point turns out not to be within tolerance.
+	TArray<FNearest> NonCompactResults;
+	NonCompactResults.AddUninitialized(Curves.Num());
+	TArray<bool> WithinTolerance;
+	WithinTolerance.AddZeroed(Curves.Num());
+
+	// Find distance to each curve in parallel
+	ParallelFor(Curves.Num(), [&](int ci)
+	{
+		const FCurve& Curve = Curves[ci];
+		const FPolyline3d& Polyline = Curve.Geometry;
+		int NumSegments = Polyline.SegmentCount();
+
+		// Look for the closest segment in the curve
+		double CurveMinRayParamT = TNumericLimits<double>::Max();
+		int CurveNearestSegmentIdx = -1;
+		double CurveNearestSegmentParam = 0;
+		for (int si = 0; si < NumSegments; ++si)
+		{
+			double SegRayParam; double SegSegParam;
+			double SegDistSqr = FDistRay3Segment3d::SquaredDistance(Ray, Polyline.GetSegment(si), SegRayParam, SegSegParam);
+			if (SegRayParam < CurveMinRayParamT)
+			{
+				FVector3d RayPosition = Ray.PointAt(SegRayParam);
+				FVector3d CurvePosition = Polyline.GetSegmentPoint(si, SegSegParam);
+				if (PointWithinToleranceTest(RayPosition, CurvePosition))
+				{
+					CurveMinRayParamT = SegRayParam;
+					CurveNearestSegmentIdx = si;
+					CurveNearestSegmentParam = SegSegParam;
+				}
+			}
+		}
+
+		// See if one of the segments was close enough
+		if (CurveMinRayParamT < TNumericLimits<double>::Max())
+		{
+			WithinTolerance[ci] = true;
+
+			// Save result
+			NonCompactResults[ci].ID = Curve.ID;
+			NonCompactResults[ci].bIsPoint = false;
+			NonCompactResults[ci].NearestRayPoint = Ray.PointAt(CurveMinRayParamT);
+			NonCompactResults[ci].NearestGeoPoint = Curves[ci].Geometry.GetSegmentPoint(CurveNearestSegmentIdx, CurveNearestSegmentParam);
+			NonCompactResults[ci].RayParam = CurveMinRayParamT;
+			NonCompactResults[ci].PolySegmentIdx = CurveNearestSegmentIdx;
+			NonCompactResults[ci].PolySegmentParam = CurveNearestSegmentParam;
+		}
+	});   // end ParallelFor
+
+	// Output only those results that were within tolerance
+	for (int i = 0; i < NonCompactResults.Num(); ++i)
+	{
+		if (WithinTolerance[i])
+		{
+			ResultsOut.Add(NonCompactResults[i]);
+		}
+	}
+
+	return ResultsOut.Num() != OriginalResultsLength;
 }

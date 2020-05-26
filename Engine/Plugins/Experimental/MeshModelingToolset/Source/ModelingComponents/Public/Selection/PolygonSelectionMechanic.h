@@ -27,6 +27,22 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = SelectionFilter)
 	bool bSelectVertices = true;
+
+	// The following were originally in their own category, all marked as AdvancedDisplay. However, since there wasn't a non-AdvancedDisplay
+	// property in the category, they started out as expanded and could not be collapsed.
+	// The alternative approach, used below, is to have them in a nested category, which starts out as collapsed. This works nicely.
+
+	/** Prefer to select an edge projected to a point rather than the point, or a face projected to an edge rather than the edge. */
+	UPROPERTY(EditAnywhere, Category = "SelectionFilter|Ortho Viewport Behavior")
+	bool bPreferProjectedElement = true;
+
+	/** If the closest element is valid, select other elements behind it that are aligned with it. */
+	UPROPERTY(EditAnywhere, Category = "SelectionFilter|Ortho Viewport Behavior")
+	bool bSelectDownRay = true;
+
+	/** Do not check whether the closest element is occluded from the current view. */
+	UPROPERTY(EditAnywhere, Category = "SelectionFilter|Ortho Viewport Behavior")
+	bool bIgnoreOcclusion = false;
 };
 
 
@@ -159,7 +175,14 @@ protected:
 	FTransform3d TargetTransform;
 
 	FGroupTopologySelector TopoSelector;
-	void UpdateTopoSelector();
+
+	/** 
+	 * Update the topology selecter given the current selection settings.
+	 *
+	 * @param bUseOrthoSettings If true, the topology selector will be configured to use ortho settings,
+	 *  which are generally different to allow for selection of projected elements, etc.
+	 */
+	void UpdateTopoSelector(bool bUseOrthoSettings = false);
 
 	FGroupTopologySelection HilightSelection;
 	FGroupTopologySelection PersistentSelection;

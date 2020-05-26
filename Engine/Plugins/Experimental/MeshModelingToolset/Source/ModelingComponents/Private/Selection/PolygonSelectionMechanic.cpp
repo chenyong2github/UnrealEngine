@@ -41,8 +41,24 @@ void UPolygonSelectionMechanic::Initialize(const FDynamicMesh3* MeshIn,
 	this->GetSpatialFunc = GetSpatialSourceFuncIn;
 	TopoSelector.SetSpatialSource(GetSpatialFunc);
 	TopoSelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2) {
-		return ToolSceneQueriesUtil::PointSnapQuery(this->CameraState,
-			TargetTransform.TransformPosition(Position1), TargetTransform.TransformPosition(Position2));
+		if (CameraState.bIsOrthographic)
+		{
+			// We could just always use ToolSceneQueriesUtil::PointSnapQuery. But in ortho viewports, we happen to know
+			// that the only points that we will ever give this function will be the closest points between a ray and
+			// some geometry, meaning that the vector between them will be orthogonal to the view ray. With this knowledge,
+			// we can do the tolerance computation more efficiently than PointSnapQuery can, since we don't need to project
+			// down to the view plane.
+			// As in PointSnapQuery, we convert our angle-based tolerance to one we can use in an ortho viewport (instead of
+			// dividing our field of view into 90 visual angle degrees, we divide the plane into 90 units).
+			float OrthoTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * CameraState.OrthoWorldCoordinateWidth / 90.0;
+			return Position1.DistanceSquared(Position2) < OrthoTolerance * OrthoTolerance;
+		}
+		else
+		{
+			return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
+				TargetTransform.TransformPosition(Position1), TargetTransform.TransformPosition(Position2));
+		}
+		
 	};
 
 	GetAddToSelectionModifierStateFunc = GetAddToSelectionModifierStateFuncIn;
@@ -85,11 +101,6 @@ void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 	PolyEdgesRenderer.EndFrame();
 
-	HilightRenderer.BeginFrame(RenderAPI, RenderCameraState);
-	HilightRenderer.SetTransform(Transform);
-	TopoSelector.DrawSelection(HilightSelection, &HilightRenderer, &RenderCameraState);
-	HilightRenderer.EndFrame();
-
 	if (PersistentSelection.IsEmpty() == false)
 	{
 		SelectionRenderer.BeginFrame(RenderAPI, RenderCameraState);
@@ -97,6 +108,11 @@ void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 		TopoSelector.DrawSelection(PersistentSelection, &SelectionRenderer, &RenderCameraState);
 		SelectionRenderer.EndFrame();
 	}
+
+	HilightRenderer.BeginFrame(RenderAPI, RenderCameraState);
+	HilightRenderer.SetTransform(Transform);
+	TopoSelector.DrawSelection(HilightSelection, &HilightRenderer, &RenderCameraState);
+	HilightRenderer.EndFrame();
 }
 
 
@@ -181,7 +197,7 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 
 
 
-void UPolygonSelectionMechanic::UpdateTopoSelector()
+void UPolygonSelectionMechanic::UpdateTopoSelector(bool bUseOrthoSettings)
 {
 	bool bFaces = Properties->bSelectFaces;
 	bool bEdges = Properties->bSelectEdges;
@@ -195,6 +211,14 @@ void UPolygonSelectionMechanic::UpdateTopoSelector()
 	}
 
 	TopoSelector.UpdateEnableFlags(bFaces, bEdges, bVertices);
+	if (bUseOrthoSettings)
+	{
+		TopoSelector.UpdateSelectionModeFlags(Properties->bPreferProjectedElement, Properties->bSelectDownRay, Properties->bIgnoreOcclusion);
+	}
+	else
+	{
+		TopoSelector.UpdateSelectionModeFlags(false, false, false);
+	}
 }
 
 
@@ -207,7 +231,7 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 	LocalRay.Direction.Normalize();
 
 	HilightSelection.Clear();
-	UpdateTopoSelector();
+	UpdateTopoSelector(CameraState.bIsOrthographic);
 	FVector3d LocalPosition, LocalNormal;
 	bool bHit = TopoSelector.FindSelectedElement(LocalRay, HilightSelection, LocalPosition, LocalNormal);
 	return bHit;
@@ -228,7 +252,7 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 		TargetTransform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
 
-	UpdateTopoSelector();
+	UpdateTopoSelector(CameraState.bIsOrthographic);
 
 	bool bSelectionModified = false;
 	FVector3d LocalPosition, LocalNormal;
