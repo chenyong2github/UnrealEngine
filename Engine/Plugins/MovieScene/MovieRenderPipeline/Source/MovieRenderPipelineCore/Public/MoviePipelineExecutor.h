@@ -42,17 +42,36 @@ public:
 	{
 	}
 
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void Execute(UMoviePipelineQueue* InPipelineQueue)
-	{
-		if (!InPipelineQueue)
-		{
-			FFrame::KismetExecutionMessage(TEXT("Cannot execute movie render queue with null queue object."), ELogVerbosity::Error);
-			return;
-		}
-		ExecuteImpl(InPipelineQueue);
-	}
+	/**
+	* Execute the provided Queue. You are responsible for deciding how to handle each job
+	* in the queue and processing them. OnExecutorFinished should be called when all jobs
+	* are completed, which can report both success, warning, cancel, or error. 
+	*
+	* For C++ implementations override `virtual void Execute_Implementation() const override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def execute(self):
+	*
+	* @param InPipelineQueue The queue that this should process all jobs for.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void Execute(UMoviePipelineQueue* InPipelineQueue);
 
+	/**
+	* Report the current state of the executor. This is used to know if we can call Execute again.
+	*
+	* For C++ implementations override `virtual bool IsRendering_Implementation() const override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def is_rendering(self):
+	*		return ?
+	* 
+	* @return True if the executor is currently working on a queue to produce a render.
+	*/
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	bool IsRendering() const;
+
+	/** Native C++ event to listen to for when this Executor has finished. */
 	FOnMoviePipelineExecutorFinishedNative& OnExecutorFinished()
 	{
 		return OnExecutorFinishedDelegateNative;
@@ -63,12 +82,13 @@ public:
 		return OnExecutorErroredDelegateNative;
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetMoviePipelineClass(UClass* InPipelineClass)
 	{
 		TargetPipelineClass = InPipelineClass;
 	}
 
-	bool IsRendering() const { return IsRenderingImpl(); }
+
 protected:
 	/** 
 	* This should be called when the Executor has finished executing all of the things
@@ -79,6 +99,7 @@ protected:
 	*
 	* @param bInSuccess	True if the pipeline successfully executed all jobs. False if there was an error. 
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual void OnExecutorFinishedImpl()
 	{
 		// Broadcast to both Native and Python/BP
@@ -86,6 +107,7 @@ protected:
 		OnExecutorFinishedDelegate.Broadcast(this, !bAnyJobHadFatalError);
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual void OnExecutorErroredImpl(UMoviePipeline* ErroredPipeline, bool bFatal, FText ErrorReason)
 	{
 		if (bFatal)
@@ -99,8 +121,8 @@ protected:
 	}
 
 	// UMoviePipelineExecutorBase Interface
-	virtual void ExecuteImpl(UMoviePipelineQueue* InPipelineQueue) PURE_VIRTUAL(UMoviePipelineExecutorBase::ExecuteImpl, );
-	virtual bool IsRenderingImpl() const PURE_VIRTUAL(UMoviePipelineExecutorBase::IsRenderingImpl, return false; );
+	virtual void Execute_Implementation(UMoviePipelineQueue* InPipelineQueue) PURE_VIRTUAL(UMoviePipelineExecutorBase::ExecuteImpl, );
+	virtual bool IsRendering_Implementation() const PURE_VIRTUAL(UMoviePipelineExecutorBase::IsRenderingImpl, return false; );
 	// ~UMoviePipelineExecutorBase
 private:
 	/** 
@@ -132,6 +154,6 @@ private:
 	bool bAnyJobHadFatalError;
 protected:
 	/** Which Pipeline Class should be created by this Executor. May be null. */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TSubclassOf<UMoviePipeline> TargetPipelineClass;
 };
