@@ -3,6 +3,7 @@
 #include "MoviePipelineGameOverrideSetting.h"
 #include "Scalability.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineUtils.h"
 
@@ -71,7 +72,10 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 	if (bDisableHLODs)
 	{
 		// It's a command and not an integer cvar (despite taking 1/0), so we can't cache it 
-		GetWorld()->Exec(GetWorld(), TEXT("r.HLOD 0"));
+		if(GEngine)
+		{
+			GEngine->Exec(GetWorld(), TEXT("r.HLOD 0"));
+			}
 	}
 
 	if (bUseHighQualityShadows)
@@ -84,6 +88,11 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 	if (bOverrideViewDistanceScale)
 	{
 		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousViewDistanceScale, TEXT("r.ViewDistanceScale"), ViewDistanceScale, bOverrideValues);
+	}
+
+	{
+		// Disable systems that try to preserve performance in runtime games.
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousAnimationUROEnabled, TEXT("a.URO.Enable"), 0, bOverrideValues);
 	}
 }
 
@@ -136,6 +145,11 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& 
 	if (bOverrideViewDistanceScale)
 	{
 		CVarCommandLineArgs += FString::Printf(TEXT("r.ViewDistanceScale=%d,"), ViewDistanceScale);
+	}
+
+	{
+		CVarCommandLineArgs += FString::Printf(TEXT("a.Budget.Enabled=%d,"), 0);
+		CVarCommandLineArgs += FString::Printf(TEXT("a.URO.Enable=%d,"), 0);
 	}
 
 	// Apply the cvar very early on (device profile) time instead of after the map has loaded if possible

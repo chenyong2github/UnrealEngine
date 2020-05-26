@@ -104,4 +104,5 @@ private:
 	int32 PreviousShadowQuality;
 	float PreviousShadowRadiusThreshold;
 	int32 PreviousViewDistanceScale;
+	int32 PreviousAnimationUROEnabled;
 };
