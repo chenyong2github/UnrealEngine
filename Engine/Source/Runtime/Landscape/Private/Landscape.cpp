@@ -153,6 +153,7 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 , LayerUpdateFlagPerMode(0)
 , WeightmapsHash(0)
 , SplineHash(0)
+, PhysicalMaterialHash(0)
 #endif
 , GrassData(MakeShareable(new FLandscapeComponentGrassData()))
 , ChangeTag(0)
