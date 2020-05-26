@@ -2386,6 +2386,21 @@ void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
 					Solver->FlipBuffers();
 					Solver->UpdateGameThreadStructures();
 				}
+
+				const TArray<FDesyncedParticleInfo> DesyncedParticles = Solver->GetRewindData()->ComputeDesyncInfo();
+				if(DesyncedParticles.Num())
+				{
+					UE_LOG(LogChaos,Log,TEXT("Resim had %d desyncs"),DesyncedParticles.Num());
+					for(const FDesyncedParticleInfo& Info : DesyncedParticles)
+					{
+						const FBodyInstance* BI = FPhysicsUserData_Chaos::Get<FBodyInstance>(Info.Particle->UserData());
+						const FBox Bounds = BI->GetBodyBounds();
+						FVector Center,Extents;
+						Bounds.GetCenterAndExtents(Center,Extents);
+						DrawDebugBox(GetOwningWorld(),Center,Extents,FQuat::Identity, Info.MostDesynced == ESyncState::HardDesync ? FColor::Red : FColor::Yellow, /*bPersistentLines=*/ false, /*LifeTime=*/ 3);
+					}
+				}
+				
 			}
 		}
 	}
