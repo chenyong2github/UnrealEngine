@@ -23,10 +23,10 @@ public class HeadlessChaos : ModuleRules
 				"GeometryCollectionCore",
 				"GeometryCollectionSimulationCore",
 				"FieldSystemCore",
-				"FieldSystemSimulationCore"
-
-			}
-		);
+				"FieldSystemSimulationCore",
+				"ChaosVehiclesCore"
+            }
+        );
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
