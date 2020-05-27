@@ -686,7 +686,7 @@ bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
 	if (FunctionScript)
 	{
 		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(FunctionScript->GetSource());
-		if (ensureMsgf(Source != nullptr, TEXT("No source found for FunctionScript %s in RefreshFromExternalChanges for %s")), *GetPathNameSafe(FunctionScript), *GetPathNameSafe(this))
+		if (ensureMsgf(Source != nullptr, TEXT("No source found for FunctionScript %s in RefreshFromExternalChanges for %s"), *GetPathNameSafe(FunctionScript), *GetPathNameSafe(this)))
 		{
 			bReload = CachedChangeId != Source->NodeGraph->GetChangeID();
 		}
