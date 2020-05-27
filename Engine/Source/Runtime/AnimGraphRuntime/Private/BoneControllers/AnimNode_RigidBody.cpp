@@ -1274,7 +1274,7 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 	PurgeExpiredWorldObjects();
 
 #if !WITH_CHAOS
-	CollectWorldObjects(UnsafeWorld, UnsafeOwner);
+	CollectWorldObjects();
 #endif
 
 	// These get set again if our bounds change. Subsequent calls to CollectWorldObjects will early-out until then
