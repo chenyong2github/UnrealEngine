@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.10";
+        private static string VersionString = "4.11";
 
         public static string Get() { return VersionString; }
     };
@@ -258,11 +258,19 @@ namespace PerfReportTool
 				else
 				{
 					textCsvLines = File.ReadAllLines(inFilename);
-					dummyCsvStats = CsvStats.ReadCSVFromLines(textCsvLines, null, 0, true);
+					if (textCsvLines.Length > 0)
+					{
+						dummyCsvStats = CsvStats.ReadCSVFromLines(textCsvLines, null, 0, true);
+					}
+					else
+					{
+						Console.WriteLine("CSV file " + inFilename + " is contains no lines!");
+						dummyCsvStats = new CsvStats();
+					}
 				}
 			} 
             filename = inFilename;
-            if (dummyCsvStats.metaData != null)
+            if (dummyCsvStats != null && dummyCsvStats.metaData != null)
             {
 				metadata = dummyCsvStats.metaData;
 				derivedMetadataMappings.ApplyMapping(metadata);
@@ -2194,7 +2202,7 @@ namespace PerfReportTool
                 lock (fileInfo.cs)
                 {
 					CachedCsvFile file = new CachedCsvFile(fileInfo.filename, useCacheFiles, derivedMetadataMappings);
-					if (file.DoesMetadataMatchFilter(metadataFilterString))
+					if ( file.DoesMetadataMatchFilter(metadataFilterString))
 					{
 						// Only read the full file data if the metadata matches
 						file.PrepareCsvData();
