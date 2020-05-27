@@ -210,7 +210,7 @@ public:
 
 	virtual ~FPendingSearchResultSteam()
 	{
-
+		CancelQuery();
 	}
 
 	/**
