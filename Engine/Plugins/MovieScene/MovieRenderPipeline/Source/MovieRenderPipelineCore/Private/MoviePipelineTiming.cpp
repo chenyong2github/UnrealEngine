@@ -174,9 +174,6 @@ void UMoviePipeline::TickProducingFrames()
 			CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(FinalEvalTime, FrameMetrics.TickResolution));
 		}
 
-		//debug
-		CachedOutputState.bSkipRendering = false;
-		
 		CachedOutputState.TimeData.FrameDeltaTime = FrameDeltaTime;
 		CachedOutputState.TimeData.WorldSeconds = CachedOutputState.TimeData.WorldSeconds + FrameDeltaTime;
 		// We don't want to execute the other possible states until at least the next frame.
