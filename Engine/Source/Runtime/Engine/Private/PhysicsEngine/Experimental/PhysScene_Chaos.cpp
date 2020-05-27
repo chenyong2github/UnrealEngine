@@ -2350,14 +2350,14 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 	}
 }
 
-FPhysicsConstraintReference_Chaos 
+FPhysicsConstraintHandle 
 FPhysScene_ChaosInterface::AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle, FPhysicsActorHandle> >& Constraint)
 {
 	// #todo : Implement
-	return FPhysicsConstraintReference_Chaos();
+	return FPhysicsConstraintHandle();
 }
 
-void FPhysScene_ChaosInterface::RemoveSpringConstraint(const FPhysicsConstraintReference_Chaos& Constraint)
+void FPhysScene_ChaosInterface::RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint)
 {
 	// #todo : Implement
 }
