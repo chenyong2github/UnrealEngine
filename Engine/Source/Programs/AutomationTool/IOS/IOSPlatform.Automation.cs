@@ -325,7 +325,7 @@ public class IOSPlatform : Platform
 
 	private void StageStandardLaunchScreenStoryboard(ProjectParams Params, DeploymentContext SC)
 	{
-		string BuildGraphicsDirectory = Path.GetDirectoryName(Params.RawProjectPath.FullName) + "/Build/IOS/Resources/Interface/";
+		string BuildGraphicsDirectory = Path.GetDirectoryName(Params.RawProjectPath.FullName) + "/Build/IOS/Resources/Graphics/";
 		if (File.Exists(BuildGraphicsDirectory + "LaunchScreenIOS.png"))
 		{
 			InternalUtils.SafeCopyFile(BuildGraphicsDirectory + "LaunchScreenIOS.png", SC.StageDirectory + "/LaunchScreenIOS.png");
