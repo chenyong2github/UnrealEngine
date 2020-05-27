@@ -6,6 +6,7 @@
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Chaos/GeometryParticlesFwd.h"
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
@@ -31,14 +32,23 @@ class TJointConstraintProxy : public TPhysicsProxy<TJointConstraintProxy<CONSTRA
 	typedef TPhysicsProxy<TJointConstraintProxy<CONSTRAINT_TYPE>, void> Base;
 
 public:
+	using FReal = Chaos::FReal;
 	using FConstraintHandle = typename CONSTRAINT_TYPE::FHandle;
 	using FConstraintData = typename CONSTRAINT_TYPE::FData;
+	using FJointConstraints = Chaos::FPBDJointConstraints;
+	using FParticlePair = Chaos::TVector<Chaos::TGeometryParticle<FReal, 3>*, 2>;
+	using FParticleHandlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<FReal, 3>*, 2>;
 
 	TJointConstraintProxy() = delete;
 	TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr, Chaos::FPBDJointSettings InitialState = Chaos::FPBDJointSettings()); // @todo(brice) : make FPBDJointSetting a type defined on the CONSTRAINT_TYPE
 	virtual ~TJointConstraintProxy();
 
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::NoneType; }
+
+	bool IsValid() { return Constraint != nullptr && Constraint->IsValid(); }
+
+	bool IsInitialized() const { return bInitialized; }
+	void SetInitialized() { bInitialized = true; }
 
 	//
 	//  Lifespan Management
@@ -120,6 +130,8 @@ private:
 	Chaos::FPBDJointSettings InitialState;
 	CONSTRAINT_TYPE* Constraint;
 	FConstraintHandle* Handle;
+	bool bInitialized;
+
 
 public:
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
