@@ -53,7 +53,7 @@ namespace
 				FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
 
 				PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("AllowBulkDataInIoStore"), bEnabled);
-		
+
 				UE_LOG(LogSerialization, Display, TEXT("AllowBulkDataInIoStore: '%s'"), bEnabled ?  TEXT("true") :  TEXT("false"));
 			}
 		} AllowBulkDataInIoStore;
@@ -192,7 +192,7 @@ namespace FileTokenSystem
 
 		FWriteScopeLock LockForScope(TokenLock);
 		StringTable.Add(Token, Filename);
-		
+
 		return Token;
 	}
 
@@ -286,14 +286,14 @@ public:
 		{
 			Memory = (uint8*)FMemory::Malloc(InBytesToRead);
 		}
-		
+
 		FIoReadOptions Options(InOffset, InBytesToRead);
 		Options.SetTargetVa(Memory);
 
 		auto OnRequestLoaded = [this](TIoStatusOr<FIoBuffer> Result)
 		{
 			SetDataComplete();
-			
+
 			{
 				FScopeLock Lock(&FReadChunkIdRequestEvent);
 				bRequestOutstanding = false;
@@ -684,7 +684,7 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 FBulkDataBase::~FBulkDataBase()
 {
 	FlushAsyncLoading();
-	
+
 	checkf(LockStatus == LOCKSTATUS_Unlocked, TEXT("Attempting to modify a BulkData object that is locked"));
 
 	FreeData();
@@ -768,7 +768,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		if (bUseIoDispatcher == false)
 		{
 			Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
-			
+
 			if (Linker != nullptr)
 			{
 				Filename = &Linker->Filename;
@@ -789,7 +789,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		if (IsInlined())
 		{
 			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *Package->GetFName().ToString());
-			
+
 			// Inline data is already in the archive so serialize it immediately
 			void* DataBuffer = AllocateData(BulkDataSize);
 			SerializeBulkData(Ar, DataBuffer, BulkDataSize);
@@ -868,7 +868,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 void* FBulkDataBase::Lock(uint32 LockFlags)
 {
 	checkf(LockStatus == LOCKSTATUS_Unlocked, TEXT("Attempting to lock a BulkData object that is already locked"));
-	
+
 	ForceBulkDataResident(); 	// If nothing is currently loaded then load from disk
 
 	if (LockFlags & LOCK_READ_WRITE)
@@ -924,7 +924,7 @@ void* FBulkDataBase::Realloc(int64 SizeInBytes)
 	// We might want to consider this a valid use case if anyone can come up with one?
 	checkf(!IsUsingIODispatcher(), TEXT("Attempting to re-allocate data loaded from the IoDispatcher"));
 
-	AllocateData(SizeInBytes);
+	ReallocateData(SizeInBytes);
 
 	BulkDataSize = SizeInBytes;
 
@@ -1703,6 +1703,15 @@ void* FBulkDataAllocation::AllocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes
 	return Allocation;
 }
 
+void* FBulkDataAllocation::ReallocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes)
+{
+	checkf(!Owner->IsDataMemoryMapped(),  TEXT("Trying to reallocate a memory mapped BulkData object without freeing it first!"));
+
+	Allocation = FMemory::Realloc(Allocation, SizeInBytes, DEFAULT_ALIGNMENT);
+
+	return Allocation;
+}
+
 void FBulkDataAllocation::SetData(FBulkDataBase* Owner, void* Buffer)
 {
 	checkf(Allocation == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
@@ -1765,7 +1774,7 @@ FOwnedBulkDataPtr* FBulkDataAllocation::StealFileMapping(FBulkDataBase* Owner)
 	Allocation = nullptr;
 	return Ptr;
 }
-	
+
 void FBulkDataAllocation::Swap(FBulkDataBase* Owner, void** DstBuffer)
 {
 	if (!Owner->IsDataMemoryMapped())
