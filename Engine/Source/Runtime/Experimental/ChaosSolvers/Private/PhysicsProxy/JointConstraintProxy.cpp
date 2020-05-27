@@ -47,12 +47,12 @@ template < >
 void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FRewindableEvolutionTraits>* InSolver)
 {
 	auto& Handles = InSolver->GetParticles().GetParticleHandles();
-	if(Handles.Size() && IsValid())
+	if (Handles.Size() && IsValid())
 	{
 		auto& JointConstraints = InSolver->GetEvolution()->GetJointConstraints();
-		auto Particles = Constraint->GetJointParticles();
 		if (Constraint != nullptr)
 		{
+			auto Particles = Constraint->GetJointParticles();
 			if (Particles[0] && Particles[0]->Handle())
 			{
 				if (Particles[1] && Particles[1]->Handle())
