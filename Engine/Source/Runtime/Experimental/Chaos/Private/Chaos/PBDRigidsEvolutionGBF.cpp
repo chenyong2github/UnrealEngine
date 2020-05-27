@@ -464,6 +464,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 	, BroadPhase(InParticles, BoundsThickness, BoundsThicknessVelocityMultiplier)
 	, NarrowPhase()
 	, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
+	, JointConstraintRule(JointConstraints)
 	, PostIntegrateCallback(nullptr)
 	, PreApplyCallback(nullptr)
 	, PostApplyCallback(nullptr)
@@ -494,6 +495,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 	});
 
 	AddConstraintRule(&CollisionRule);
+	AddConstraintRule(&JointConstraintRule);
 
 	SetInternalParticleInitilizationFunction([](const TGeometryParticleHandle<float, 3>*, const TGeometryParticleHandle<float, 3>*) {});
 	NarrowPhase.GetContext().bFilteringEnabled = true;

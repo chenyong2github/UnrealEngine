@@ -538,13 +538,6 @@ namespace Chaos
 
 		JointConstraintPhysicsProxies.AddUnique(JointProxy);
 		AddDirtyProxy(JointProxy);
-
-		// Finish registration on the physics thread...
-		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(
-			[JointProxy, this]()
-			{
-				JointProxy->InitializeOnPhysicsThread(this);
-			});
 	}
 
 	template <typename Traits>
@@ -557,10 +550,12 @@ namespace Chaos
 		RemoveDirtyProxy(JointProxy);
 
 		int32 NumRemoved = JointConstraintPhysicsProxies.Remove(JointProxy);
+		GTConstraint->SetProxy(static_cast<FJointConstraintPhysicsProxy*>(nullptr));
 
-		// Enqueue a command to remove the constraint and delete the proxy
-		EnqueueCommandImmediate(
-			[JointProxy, this]()
+		FParticlesType* InParticles = &GetParticles();
+
+		// Finish registration on the physics thread...
+		EnqueueCommandImmediate([InParticles, JointProxy, this]()
 			{
 				JointProxy->DestroyOnPhysicsThread(this);
 				delete JointProxy;
@@ -898,8 +893,13 @@ namespace Chaos
 				}
 				case EPhysicsProxyType::JointConstraintType:
 				{
-					// Currently no push needed for joint constraint and they handle the constraint creation internally
-					// #TODO This skips the rewind data push so joints will not be rewindable until resolved.
+					auto JointProxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
+					const bool bIsNew = !JointProxy->IsInitialized();
+					if (bIsNew)
+					{
+						JointProxy->InitializeOnPhysicsThread(this);
+						JointProxy->SetInitialized();
+					}
 					Dirty.Proxy->ResetDirtyIdx();
 					break;
 				}

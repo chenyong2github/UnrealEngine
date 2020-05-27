@@ -4,6 +4,7 @@
 
 #include "ChaosStats.h"
 #include "Chaos/ErrorReporter.h"
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/Serializable.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/Framework/MultiBufferResource.h"
@@ -15,7 +16,10 @@ TJointConstraintProxy<CONSTRAINT_TYPE>::TJointConstraintProxy(CONSTRAINT_TYPE* I
 	, InitialState(InInitialState)
 	, Constraint(InConstraint)
 	, Handle(InHandle)
-{}
+	, bInitialized(false)
+{
+	Constraint->SetProxy(this);
+}
 
 
 template< class CONSTRAINT_TYPE >
@@ -27,7 +31,7 @@ template < >
 template < >
 void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* InSolver)
 {
-	// @todo(JointConstraint): Add a constraint
+	check(false);
 }
 
 
@@ -42,7 +46,32 @@ template < >
 template < >
 void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FRewindableEvolutionTraits>* InSolver)
 {
-	// @todo(chaos) : Implement
+	auto& Handles = InSolver->GetParticles().GetParticleHandles();
+	if(Handles.Size() && IsValid())
+	{
+		auto& JointConstraints = InSolver->GetEvolution()->GetJointConstraints();
+		auto Particles = Constraint->GetJointParticles();
+		if (Constraint != nullptr)
+		{
+			if (Particles[0] && Particles[0]->Handle())
+			{
+				if (Particles[1] && Particles[1]->Handle())
+				{
+					const auto& ParticleHandle0 = Particles[0]->Handle();
+					const auto& ParticleHandle1 = Particles[1]->Handle();
+					FTransform Particle0TM = FTransform(ParticleHandle0->R(), ParticleHandle0->X());
+					FTransform Particle1TM = FTransform(ParticleHandle1->R(), ParticleHandle1->X());
+
+					FVector JointWorldPosition = (Constraint->GetJointTransforms()[0] * Particle0TM).GetTranslation();
+					FQuat JointRelativeRotation = Particle0TM.GetRelativeTransform(Particle1TM).GetRotation();
+
+					Constraint->SetTransform(FTransform(JointRelativeRotation, JointWorldPosition));
+
+					Handle = JointConstraints.AddConstraint({ Particles[0]->Handle() , Particles[1]->Handle() }, Constraint->GetTransform());
+				}
+			}
+		}
+	}
 }
 
 
