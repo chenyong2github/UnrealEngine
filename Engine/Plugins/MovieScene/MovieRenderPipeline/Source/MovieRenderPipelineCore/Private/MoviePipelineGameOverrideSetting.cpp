@@ -75,7 +75,7 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 		if(GEngine)
 		{
 			GEngine->Exec(GetWorld(), TEXT("r.HLOD 0"));
-			}
+		}
 	}
 
 	if (bUseHighQualityShadows)
@@ -90,6 +90,12 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousViewDistanceScale, TEXT("r.ViewDistanceScale"), ViewDistanceScale, bOverrideValues);
 	}
 
+	if (bDisableGPUTimeout)
+	{
+		// This CVAR only exists if the D3D12RHI module is loaded
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT_IF_EXIST(PreviousGPUTimeout, TEXT("r.D3D12.GPUTimeout"), 0, bOverrideValues);
+	}
+	
 	{
 		// Disable systems that try to preserve performance in runtime games.
 		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousAnimationUROEnabled, TEXT("a.URO.Enable"), 0, bOverrideValues);
@@ -147,8 +153,12 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& 
 		CVarCommandLineArgs += FString::Printf(TEXT("r.ViewDistanceScale=%d,"), ViewDistanceScale);
 	}
 
+	if (bDisableGPUTimeout)
 	{
-		CVarCommandLineArgs += FString::Printf(TEXT("a.Budget.Enabled=%d,"), 0);
+		CVarCommandLineArgs += TEXT("r.D3D12.GPUTimeout=0,");
+	}
+	
+	{
 		CVarCommandLineArgs += FString::Printf(TEXT("a.URO.Enable=%d,"), 0);
 	}
 
