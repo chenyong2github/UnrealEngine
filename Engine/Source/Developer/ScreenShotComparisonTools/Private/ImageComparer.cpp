@@ -32,7 +32,7 @@ public:
 		Image.SetNumUninitialized(Width * Height * 4);
 	}
 
-	FString ComparisonFile;
+	FString OutputComparisonFile;
 
 	FORCEINLINE void SetPixel(int32 X, int32 Y, FColor Color)
 	{
@@ -80,10 +80,16 @@ public:
 		Image[Offset + 3] = ErrorColor.A;
 	}
 
-	void Save(FString OutputDirectory)
+	void Save(FString OutputDeltaFile)
 	{
-		FString TempDir = OutputDirectory.IsEmpty() ? FString(FPlatformProcess::UserTempDir()) : OutputDirectory;
-		FString TempDeltaFile = FPaths::CreateTempFilename(*TempDir, TEXT("ImageCompare-"), TEXT(".png"));
+		// if the user supplies no path we use the temp dir
+		FString TempDeltaFile = OutputDeltaFile.IsEmpty() ? FString(FPlatformProcess::UserTempDir()) : OutputDeltaFile;
+
+		// if this is just a path, create a temp filename
+		if (FPaths::GetExtension(TempDeltaFile).IsEmpty())
+		{
+			TempDeltaFile = FPaths::CreateTempFilename(*TempDeltaFile, TEXT("ImageCompare-"), TEXT(".png"));
+		}
 
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::GetModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 		TSharedPtr<IImageWrapper> ImageWriter = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
@@ -96,7 +102,7 @@ public:
 
 				if ( FFileHelper::SaveArrayToFile(PngData, *TempDeltaFile) )
 				{
-					ComparisonFile = FPaths::GetCleanFilename(TempDeltaFile);
+					OutputComparisonFile = TempDeltaFile;
 				}
 			}
 		}
@@ -202,7 +208,7 @@ FComparisonReport::FComparisonReport(const FString& InReportRootDirectory, const
 {
 	ReportRootDirectory = InReportRootDirectory;
 	ReportFile = InReportFile;
-	ReportFolder = FPaths::GetPath(InReportFile);
+	ReportPath = FPaths::GetPath(InReportFile);
 }
 
 void FComparableImage::Process()
@@ -274,19 +280,13 @@ TSharedPtr<FComparableImage> FImageComparer::Open(const FString& ImagePath, FTex
 	return Image;
 }
 
-FImageComparer::FImageComparer(const FString& Directory)
-	: DeltaDirectory(Directory.IsEmpty() ? FPlatformProcess::UserTempDir() : Directory)
-{
-}
 
-FImageComparisonResult FImageComparer::Compare(const FString& ImagePathA, const FString& ImagePathB, FImageTolerance Tolerance)
+FImageComparisonResult FImageComparer::Compare(const FString& ImagePathA, const FString& ImagePathB, FImageTolerance Tolerance, const FString& OutDeltaPath)
 {
 	FImageComparisonResult Results;
-	Results.ApprovedFile = ImagePathA;
-	FPaths::MakePathRelativeTo(Results.ApprovedFile, *ImageRootA);
-	Results.IncomingFile = ImagePathB;
-	FPaths::MakePathRelativeTo(Results.IncomingFile, *ImageRootB);
-
+	Results.ApprovedFilePath = ImagePathA;
+	Results.IncomingFilePath = ImagePathB;
+	
 	FText ErrorA, ErrorB;
 	TSharedPtr<FComparableImage> ImageA = Open(ImagePathA, ErrorA);
 	TSharedPtr<FComparableImage> ImageB = Open(ImagePathB, ErrorB);
@@ -391,7 +391,10 @@ FImageComparisonResult FImageComparer::Compare(const FString& ImagePathA, const 
 		}
 	});
 
-	ImageDelta.Save(DeltaDirectory);
+	if (!OutDeltaPath.IsEmpty())
+	{
+		ImageDelta.Save(OutDeltaPath);
+	}
 
 	int32 MaximumLocalMismatches = 0;
 	for ( int32 SpacialIndex = 0; SpacialIndex < 100; SpacialIndex++ )
@@ -402,7 +405,8 @@ FImageComparisonResult FImageComparer::Compare(const FString& ImagePathA, const 
 	Results.Tolerance = Tolerance;
 	Results.MaxLocalDifference = MaximumLocalMismatches / (double)( BlockSizeX * BlockSizeY );
 	Results.GlobalDifference = MismatchCount / (double)( CompareHeight * CompareWidth );
-	Results.ComparisonFile = ImageDelta.ComparisonFile;
+	Results.ComparisonFilePath = ImageDelta.OutputComparisonFile;
+	Results.CreationTime = FDateTime::Now();
 
 	// In the case of differently sized images we force a failure
 	if ( ImageA->Width != ImageB->Width || ImageA->Height != ImageB->Height )
@@ -419,13 +423,11 @@ FImageComparisonResult FImageComparer::Compare(const FString& ImagePathA, const 
 	return Results;
 }
 
-double FImageComparer::CompareStructuralSimilarity(const FString& ImagePathA, const FString& ImagePathB, EStructuralSimilarityComponent InCompareComponent)
+double FImageComparer::CompareStructuralSimilarity(const FString& ImagePathA, const FString& ImagePathB, EStructuralSimilarityComponent InCompareComponent, const FString& OutDeltaPath)
 {
 	FImageComparisonResult Results;
-	Results.ApprovedFile = ImagePathA;
-	FPaths::MakePathRelativeTo(Results.ApprovedFile, *ImageRootA);
-	Results.IncomingFile = ImagePathB;
-	FPaths::MakePathRelativeTo(Results.IncomingFile, *ImageRootB);
+	Results.ApprovedFilePath = ImagePathA;
+	Results.IncomingFilePath = ImagePathB;
 
 	FText ErrorA, ErrorB;
 	TSharedPtr<FComparableImage> ImageA = Open(ImagePathA, ErrorA);
@@ -565,7 +567,10 @@ double FImageComparer::CompareStructuralSimilarity(const FString& ImagePathA, co
 		}
 	}
 
-	ImageDelta.Save(DeltaDirectory);
+	if (!OutDeltaPath.IsEmpty())
+	{
+		ImageDelta.Save(OutDeltaPath);
+	}
 
 	double SSIM = TotalSSIM / TotalWindows;
 	

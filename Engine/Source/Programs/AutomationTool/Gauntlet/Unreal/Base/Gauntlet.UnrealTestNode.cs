@@ -1153,7 +1153,8 @@ namespace Gauntlet
 
 			MarkdownBuilder MB = new MarkdownBuilder();
 
-			MB.H3(string.Format("Role: {0} ({1} {2})", InArtifacts.SessionRole.RoleType, InArtifacts.SessionRole.Platform, InArtifacts.SessionRole.Configuration));
+			MB.H3(string.Format("Process Role: {0} ({1} {2})", InArtifacts.SessionRole.RoleType, InArtifacts.SessionRole.Platform, InArtifacts.SessionRole.Configuration));
+			MB.HorizontalLine();
 
 			if (ExitCode != 0)
 			{
@@ -1384,7 +1385,7 @@ namespace Gauntlet
 			var FailureArtifacts = GetArtifactsWithFailures();
 
 			// Create a summary
-			MB.H2(string.Format("{0} {1}{2}", Name, GetTestResult(), WarningStatement));
+			MB.H3(string.Format("{0} {1}{2}", Name, GetTestResult(), WarningStatement));
 
 			if (GetTestResult() != TestResult.Passed)
 			{
@@ -1425,11 +1426,7 @@ namespace Gauntlet
 				return "NoSummary";
 			}
 
-			MarkdownBuilder ReportBuilder = new MarkdownBuilder();
-
-			// add header
-			ReportBuilder.Append(GetTestSummaryHeader());
-			ReportBuilder.Append("--------");
+			MarkdownBuilder ReportBuilder = new MarkdownBuilder();			
 
 			StringBuilder SB = new StringBuilder();
 
@@ -1442,6 +1439,9 @@ namespace Gauntlet
 			// combine artifacts into order as Failures, Warnings, Other
 			var AllArtifacts = FailureArtifacts.Union(WarningArtifacts);
 			AllArtifacts = AllArtifacts.Union(SessionArtifacts);
+
+			ReportBuilder.H1(string.Format("{0} Report", this.Name));
+			ReportBuilder.HorizontalLine();
 
 			// Add a summary of each 
 			foreach ( var Artifact in AllArtifacts)
@@ -1457,6 +1457,11 @@ namespace Gauntlet
 			}
 
 			ReportBuilder.Append(SB.ToString());
+
+			// add Summary
+			ReportBuilder.HorizontalLine();
+			ReportBuilder.H2("Summary");
+			ReportBuilder.Append(GetTestSummaryHeader());
 
 			return ReportBuilder.ToString();
 		}

@@ -64,7 +64,9 @@ class FUNCTIONALTESTING_API UAutomationBlueprintFunctionLibrary : public UBluepr
 public:
 	static void FinishLoadingBeforeScreenshot();
 
-	static bool TakeAutomationScreenshotInternal(UObject* WorldContextObject, const FString& Name, const FString& Notes, FAutomationScreenshotOptions Options);
+	static bool TakeAutomationScreenshotInternal(UObject* WorldContextObject, const FString& ScreenShotName, const FString& Notes, FAutomationScreenshotOptions Options);
+
+	static FAutomationScreenshotData BuildScreenshotData(const FString& MapOrContext, const FString& ScreenShotName, int32 Width, int32 Height);
 
 	static FIntPoint GetAutomationScreenshotSize(const FAutomationScreenshotOptions& Options);
 

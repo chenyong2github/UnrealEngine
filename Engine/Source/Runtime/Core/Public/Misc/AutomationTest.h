@@ -552,8 +552,9 @@ struct FAutomationExpectedError
 
 struct FAutomationScreenshotData
 {
-	FString Name;
+	FString ScreenShotName;
 	FString Context;
+	FString TestName;
 	FString Notes;
 
 	FGuid Id;

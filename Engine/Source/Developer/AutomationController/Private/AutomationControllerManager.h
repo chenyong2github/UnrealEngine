@@ -545,10 +545,13 @@ private:
 	/** The screenshot manager. */
 	IScreenShotManagerPtr ScreenshotManager;
 
+	/**
+	 * Holds the information required to perform a screen comparison asynchronously.
+	 */
 	struct FComparisonEntry
 	{
 		FMessageAddress Sender;
-		FString Name;
+		FString TestName;
 		TFuture<FImageComparisonResult> PendingComparison;
 	};
 
@@ -556,8 +559,8 @@ private:
 	TQueue<TSharedPtr<FComparisonEntry>> ComparisonQueue;
 
 	/** The report folder override path that may have been provided over the commandline, -ReportOutputPath="" */
-	FString ReportOutputPath;
-	FString DisplayReportOutputPath;
+	FString ReportExportPath;
+	FString ReportURLPath;
 
 	FString DeveloperReportUrl;
 

@@ -214,7 +214,7 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 	if (FunctionalTest)
 	{
 		FunctionalTest->SetLogErrorAndWarningHandling(bLogErrorsAreErrors, bLogWarningsAreErrors);
-		FunctionalTest->SetFunctionalTestRunning(true);
+		FunctionalTest->SetFunctionalTestRunning(GetName());
 	}
 
 	FailureMessage = TEXT("");
@@ -370,7 +370,7 @@ void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString
 	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
 	if (FunctionalTest)
 	{
-		FunctionalTest->SetFunctionalTestRunning(false);
+		FunctionalTest->SetFunctionalTestComplete(GetName());
 	}
 
 	bIsRunning = false;
