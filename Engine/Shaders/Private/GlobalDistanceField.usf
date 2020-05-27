@@ -143,14 +143,6 @@ void CullObjectsToGridCS(
 	uint ThreadIndex = GroupThreadId.x;
 	uint CullTileIndex = ComputeCullTileIndex(GroupId);
 
-	if (ThreadIndex == 0 && all(GroupId < CullGridDimension))
-	{
-		// Clear array num to 0 for all cull grid cells
-		RWCullGridObjectNum[CullTileIndex] = 0;
-	}
-
-	GroupMemoryBarrierWithGroupSync();
-
 	if (all(GroupId < CullGridDimension))
 	{
 		uint NumCulledObjects = GetCulledNumObjects();
