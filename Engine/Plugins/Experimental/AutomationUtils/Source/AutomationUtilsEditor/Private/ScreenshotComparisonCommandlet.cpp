@@ -6,6 +6,10 @@
 #include "Interfaces/IScreenShotToolsModule.h"
 #include "Interfaces/IScreenShotManager.h"
 #include "HAL/FileManager.h"
+#include "PlatformInfo.h"
+#include "Misc/FileHelper.h"
+#include "AutomationWorkerMessages.h"
+#include "JsonObjectConverter.h"
 
 
 DEFINE_LOG_CATEGORY(LogScreenshotComparison);
@@ -74,24 +78,45 @@ int32 UScreenshotComparisonCommandlet::Main(const FString& CmdLineParameters)
 	int32 Passes = 0;
 	for (FString ScreenshotName : FilesToCompare)
 	{
-		FPaths::MakePathRelativeTo(ScreenshotName, *IncomingPath);
-		FImageComparisonResult Result = ScreenshotManager->CompareScreenshotAsync(ScreenshotName).Get();
-		if (Result.IsNew())
+
+		FString ApprovedMetadataFile = FPaths::ChangeExtension(ScreenshotName, ".json");
+
+		FString Json;
+		if (FFileHelper::LoadFileToString(Json, *ApprovedMetadataFile))
 		{
-			UE_LOG(LogScreenshotComparison, Warning, TEXT("Incoming file %s is new"), *Result.IncomingFile);
-			New++;
-		}
-		else if (Result.AreSimilar())
-		{
-			UE_LOG(LogScreenshotComparison, Log, TEXT("Incoming file %s is similar!  (Global %f, Local %f)"),
-				*Result.IncomingFile, Result.GlobalDifference, Result.MaxLocalDifference);
-			Passes++;
+			FAutomationScreenshotMetadata Metadata;
+			if (FJsonObjectConverter::JsonObjectStringToUStruct(Json, &Metadata, 0, 0))
+			{
+
+				// #agrant (@todo) do we really want to keep the image? It results in a duplicate in the generated report
+				FImageComparisonResult Result = ScreenshotManager->CompareScreenshotAsync(ScreenshotName, Metadata, EScreenShotCompareOptions::KeepImage).Get();
+				if (Result.IsNew())
+				{
+					UE_LOG(LogScreenshotComparison, Warning, TEXT("Incoming file %s is new"), *Result.IncomingFilePath);
+					New++;
+				}
+				else if (Result.AreSimilar())
+				{
+					UE_LOG(LogScreenshotComparison, Log, TEXT("Incoming file %s is similar!  (Global %f, Local %f)"),
+						*Result.IncomingFilePath, Result.GlobalDifference, Result.MaxLocalDifference);
+					Passes++;
+				}
+				else
+				{
+					UE_LOG(LogScreenshotComparison, Error, TEXT("Incoming file %s is different! (Global %f, Local %f) : %s"),
+						*Result.IncomingFilePath, Result.GlobalDifference, Result.MaxLocalDifference, *Result.ErrorMessage.ToString());
+					Fails++;
+				}
+			}
+			else
+			{
+				UE_LOG(LogScreenshotComparison, Error, TEXT("Failed to parse JSON for %s into screenshot meta data"), *ScreenshotName);
+			}
+
 		}
 		else
 		{
-			UE_LOG(LogScreenshotComparison, Error, TEXT("Incoming file %s is different! (Global %f, Local %f) : %s"),
-				*Result.IncomingFile, Result.GlobalDifference, Result.MaxLocalDifference, *Result.ErrorMessage.ToString());
-			Fails++;
+			UE_LOG(LogScreenshotComparison, Error, TEXT("Failed to load JSON for %s"), *ScreenshotName);
 		}
 	}
 
