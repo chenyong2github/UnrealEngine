@@ -509,7 +509,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceDat
 			int32 RTSizeX = InstanceData->NumCells.X * InstanceData->NumTiles.X;
 			int32 RTSizeY = InstanceData->NumCells.Y * InstanceData->NumTiles.Y;
 
-			if (TargetTexture->SizeX != RTSizeX || TargetTexture->SizeY != RTSizeY)
+			if (TargetTexture->SizeX != RTSizeX || TargetTexture->SizeY != RTSizeY || TargetTexture->RenderTargetFormat != RTF_R32f)
 			{
 				// resize RT to match what we need for the output
 				TargetTexture->RenderTargetFormat = RTF_R32f;
