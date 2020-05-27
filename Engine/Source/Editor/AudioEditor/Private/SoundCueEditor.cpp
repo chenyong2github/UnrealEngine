@@ -105,36 +105,41 @@ void FSoundCueEditor::InitSoundCueEditor(const EToolkitMode::Type Mode, const TS
 
 	CreateInternalWidgets();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_SoundCueEditor_Layout_v3")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_SoundCueEditor_Layout_v4")
 	->AddArea
 	(
-		FTabManager::NewPrimaryArea() ->SetOrientation(Orient_Vertical)
+		FTabManager::NewPrimaryArea()
+		->SetOrientation(Orient_Vertical)
 		->Split
 		(
 			FTabManager::NewStack()
 			->SetSizeCoefficient(0.1f)
-			->AddTab(GetToolbarTabId(), ETabState::OpenedTab) ->SetHideTabWell( true )
+			->SetHideTabWell(true)
+			->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
 		)
-		->Split
-		(
-			FTabManager::NewSplitter() ->SetOrientation(Orient_Horizontal) ->SetSizeCoefficient(0.9f)
+		->Split(FTabManager::NewSplitter()
+			->SetOrientation(Orient_Horizontal)
+			->SetSizeCoefficient(0.9f)
 			->Split
 			(
 				FTabManager::NewStack()
 				->SetSizeCoefficient(0.225f)
+				->SetHideTabWell(true)
 				->AddTab(PropertiesTabId, ETabState::OpenedTab)
 			)
 			->Split
 			(
 				FTabManager::NewStack()
 				->SetSizeCoefficient(0.65f)
-				->AddTab(GraphCanvasTabId, ETabState::OpenedTab) ->SetHideTabWell( true )
+				->SetHideTabWell(true)
+				->AddTab(GraphCanvasTabId, ETabState::OpenedTab)
 			)
 			->Split
 			(
-			FTabManager::NewStack()
-			->SetSizeCoefficient(0.125f)
-			->AddTab(PaletteTabId, ETabState::OpenedTab)
+				FTabManager::NewStack()
+				->SetSizeCoefficient(0.125f)
+				->SetHideTabWell(true)
+				->AddTab(PaletteTabId, ETabState::OpenedTab)
 			)
 		)
 	);
