@@ -1516,8 +1516,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 #if ALLOW_OPTIONAL_DATA
 	if (IsUsingIODispatcher())
 	{
-		const int64 BulkDataID = NewSizeOnDisk > 0 ? NewOffset : TNumericLimits<uint64>::Max();
-		FIoChunkId OptionalChunkId = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, EIoChunkType::OptionalBulkData);
+		const FIoChunkId OptionalChunkId = CreateIoChunkId((uint32)Data.PackageID, 0, EIoChunkType::OptionalBulkData);
 
 		if (IoDispatcher->DoesChunkExist(OptionalChunkId))
 		{
