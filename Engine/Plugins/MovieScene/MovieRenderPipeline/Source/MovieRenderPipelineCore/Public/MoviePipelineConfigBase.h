@@ -19,6 +19,11 @@ public:
 		DisplayName = TEXT("Unsaved Config");
 	}
 
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override
+	{
+		DisplayName = GetFName().ToString();
+	}
+
 public:
 	/** Removes the specific instance from our Setting list. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
