@@ -171,7 +171,7 @@ void FGlobalEditorCommonCommands::OnOpenContentBrowserDrawer()
 		TSharedRef<SWindow> WindowRef = ParentWindow.ToSharedRef();
 		FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked<FOutputLogModule>(TEXT("OutputLog"));
 
-		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->OpenContentBrowser(ParentWindow.ToSharedRef());
+		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->ToggleContentBrowser(ParentWindow.ToSharedRef());
 	}
 }
 

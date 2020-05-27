@@ -54,14 +54,33 @@ bool UStatusBarSubsystem::FocusDebugConsole(TSharedRef<SWindow> ParentWindow)
 	return bFocusedSuccessfully;
 }
 
-bool UStatusBarSubsystem::OpenContentBrowser(TSharedRef<SWindow> ParentWindow)
+bool UStatusBarSubsystem::ToggleContentBrowser(TSharedRef<SWindow> ParentWindow)
 {
-	bool bFocusedSuccessfully = false;
+	bool bWasDismissed = false;
 
-	CreateContentBrowserIfNeeded();
+	for (auto StatusBar : StatusBars)
+	{
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		{
+			if(StatusBarPinned->IsContentBrowserOpened())
+			{
+				TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
+				if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
+				{
+					StatusBarPinned->DismissContentBrowser(nullptr);
+					bWasDismissed = true;
+				}
+			}
+		}
+	}
 
-	TSharedPtr<SWindow> Window = ParentWindow;
-	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UStatusBarSubsystem::HandleDeferredOpenContentBrowser, Window));
+	if(!bWasDismissed)
+	{
+		CreateContentBrowserIfNeeded();
+
+		TSharedPtr<SWindow> Window = ParentWindow;
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UStatusBarSubsystem::HandleDeferredOpenContentBrowser, Window));
+	}
 
 	return true;
 }

@@ -72,9 +72,9 @@ public:
 	bool FocusDebugConsole(TSharedRef<SWindow> ParentWindow);
 
 	/**
-	 * Opens the content browser drawer for a status bar residing in the passed in parent window
+	 * Opens or closes the content browser drawer for a status bar residing in the passed in parent window
 	 */
-	bool OpenContentBrowser(TSharedRef<SWindow> ParentWindow);
+	bool ToggleContentBrowser(TSharedRef<SWindow> ParentWindow);
 
 	/** 
 	 * Creates a new instance of a status bar widget
@@ -103,7 +103,7 @@ public:
 	void PopStatusBarMessage(FName StatusBarName, FStatusBarMessageHandle InHandle);
 
 	/**
-	 * Removes all message from the status bar
+	 * Removes all messages from the status bar
 	 *
 	 * @param StatusBarName	The name of the status bar to remove from
 	 */

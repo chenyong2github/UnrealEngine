@@ -12,6 +12,8 @@ class SStatusBar;
 
 DECLARE_DELEGATE_OneParam(FOnContentBrowserOpened, TSharedRef<SStatusBar>&)
 DECLARE_DELEGATE_OneParam(FOnContentBrowserDismissed, const TSharedPtr<SWidget>&)
+DECLARE_DELEGATE_OneParam(FOnContentBrowserTargetHeightChanged, float);
+
 
 class SWindow;
 class SDockTab;
@@ -34,24 +36,35 @@ class SStatusBar : public SCompoundWidget
 	SLATE_END_ARGS()
 
 public:
+	/** SWidget interface */
 	virtual bool SupportsKeyboardFocus() const { return false; }
-
 	void Construct(const FArguments& InArgs, FName InStatusBarName, const TSharedRef<SDockTab> InParentTab);
 
+	/** 
+	 * Pushes a new status bar message
+	 *
+	 * @param InHandle	A handle to the message for clearing it later
+	 * @param InMessage	The message to display
+	 * @param InHintText	Optional hint text message.  This message will be highlighted to make it stand out
+	 */
 	void PushMessage(FStatusBarMessageHandle& InHandle, const TAttribute<FText>& InMessage, const TAttribute<FText>& InHintText);
+
+	/**
+	 * Removes a message from the status bar.  When messages are removed the previous message on the stack (if any) is displayed
+	 *
+	 * @param InHandle	Handle to the status bar message to remove
+	 */
 	void PopMessage(FStatusBarMessageHandle& InHandle);
+
+	/**
+	 * Removes all messages from the status bar
+	 */
 	void ClearAllMessages();
 
-	EVisibility GetHelpIconVisibility() const;
 
 	TSharedPtr<SDockTab> GetParentTab() const;
 	void FocusDebugConsole();
 	bool IsDebugConsoleFocused() const;
-
-
-	void OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
-
-	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
 
 	bool IsContentBrowserOpened() const;
 
@@ -66,9 +79,15 @@ public:
 	 * Removes a content browser from the layout immediately
 	 */
 	void RemoveContentBrowser();
-
-
 private:
+	/** Called when global focus changes which is used to determine if we should close an opened content browser drawer */
+	void OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
+
+	/** Called when active tab changes which is used to determine if we should close an opened content browser drawer */
+	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
+
+	EVisibility GetHelpIconVisibility() const;
+
 	const FSlateBrush* GetContentBrowserExpandArrowImage() const;
 
 	FText GetStatusBarMessage() const;
@@ -82,6 +101,7 @@ private:
 	FReply OnContentBrowserButtonClicked();
 
 	EActiveTimerReturnType UpdateContentBrowserAnimation(double CurrentTime, float DeltaTime);
+	void OnContentBrowserTargetHeightChanged(float TargetHeight);
 
 	void RegisterStatusBarMenu();
 
@@ -109,8 +129,7 @@ private:
 	FOnContentBrowserOpened OnContentBrowserOpenedDelegate;
 	FOnContentBrowserDismissed OnContentBrowserDismissedDelegate;
 	FCurveSequence ContentBrowserEasingCurve;
-	float MaxContentBrowserHeight;
-	float MinContentBrowserHeight;
+	float TargetContentBrowserHeight;
 	const FSlateBrush* UpArrow;
 	const FSlateBrush* DownArrow;
 	FName StatusBarName;

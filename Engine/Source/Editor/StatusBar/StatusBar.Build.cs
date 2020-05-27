@@ -16,6 +16,7 @@ public class StatusBar : ModuleRules
                 "Engine",           
 				"Slate",
                 "SlateCore",
+				"InputCore",
                 "EditorStyle",
                 "UnrealEd",
 				"ToolMenus",
