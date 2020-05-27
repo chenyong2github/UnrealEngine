@@ -158,7 +158,12 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			UMoviePipelineConfigBase* Config = Job->GetConfiguration();
+			UMoviePipelineConfigBase* Config = Job->GetPresetOrigin();
+			if (!Config)
+			{
+				Config = Job->GetConfiguration();
+			}
+
 			if (Config)
 			{
 				return FText::FromString(Config->DisplayName);
@@ -361,7 +366,7 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 		.Padding(2, 0)
 		[
 			SNew(SHyperlink)
-			.Text(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetMasterConfigLabel)
+			.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetMasterConfigLabel)))
 			.OnNavigate(Item.Get(), &FMoviePipelineQueueJobTreeItem::OnEditMasterConfigForJob)
 		]
 
