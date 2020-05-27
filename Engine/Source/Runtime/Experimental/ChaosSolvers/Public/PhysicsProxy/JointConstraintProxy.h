@@ -6,7 +6,7 @@
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/PBDJointConstraints.h"
-#include "Chaos/GeometryParticlesFwd.h"
+#include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
