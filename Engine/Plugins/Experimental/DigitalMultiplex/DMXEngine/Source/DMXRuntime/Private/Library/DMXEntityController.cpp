@@ -27,14 +27,14 @@ void UDMXEntityController::PostLoad()
 	UpdateUniversesFromRange();
 }
 
+#endif // WITH_EDITOR
+
 void UDMXEntityController::PostInitProperties()
 {
 	Super::PostInitProperties();
 	ValidateRangeValues();
 	UpdateUniversesFromRange();
 }
-
-#endif // WITH_EDITOR
 
 void UDMXEntityController::ValidateRangeValues()
 {
