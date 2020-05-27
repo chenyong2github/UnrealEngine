@@ -196,10 +196,18 @@ bool UNiagaraDataInterfaceLandscape::PerInstanceTick(void* PerInstanceData, FNia
 
 	ALandscape* TheLandscape = static_cast<ALandscape*>(SourceLandscape);
 
+#if WITH_CHAOS
 	if (InstanceData->IsSet || !TheLandscape || !TheLandscape->CollisionComponents[0]->HeightfieldRef.IsValid() || TheLandscape->CollisionComponents[0]->HeightfieldRef->Heightfield == nullptr)
 	{
 		return false;
 	}
+#else
+	if (InstanceData->IsSet || !TheLandscape || !TheLandscape->CollisionComponents[0]->HeightfieldRef.IsValid() || TheLandscape->CollisionComponents[0]->HeightfieldRef->RBHeightfield == nullptr)
+	{
+		return false;
+	}
+#endif
+
 
 	int32 SizeX = 0;
 	int32 SizeY = 0;
