@@ -87,6 +87,11 @@ public:
 	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "AISystem")
 	bool bForgetStaleActors;
 
+	/** If set to true will result in automatically adding the SelfActor key to new Blackboard assets. It will 
+	 *	also result in making sure all the BB assets loaded do have the SelfKey entry, via PostLoad */
+	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Blackboard")
+	bool bAddBlackboardSelfKey = true;
+
 	/** Which collision channel to use for sight checks by default */
 	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "PerceptionSystem")
 	TEnumAsByte<ECollisionChannel> DefaultSightCollisionChannel;
