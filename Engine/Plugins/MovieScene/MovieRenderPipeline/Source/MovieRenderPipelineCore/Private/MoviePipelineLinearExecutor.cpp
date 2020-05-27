@@ -35,6 +35,14 @@ void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineInde
 	
 	CurrentPipelineIndex = InPipelineIndex;
 
+	if (Queue->GetJobs()[CurrentPipelineIndex]->IsConsumed())
+	{
+		// We skip working on consumed jobs. Jobs submitted to remote renders might already be consumed and
+		// we don't want to submit them (or override them) so that status updates continue to work.
+		OnIndividualPipelineFinished(nullptr);
+		return;
+	}
+
 	if (!Queue->GetJobs()[CurrentPipelineIndex]->GetConfiguration())
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Found null config in list of configs to render. Aborting the pipeline processing!"));
