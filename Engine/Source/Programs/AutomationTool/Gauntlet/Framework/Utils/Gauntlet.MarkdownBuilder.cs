@@ -128,6 +128,22 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Insert an H5 header
+		/// </summary>
+		/// <param name="Text"></param>
+		/// <returns></returns>
+		public MarkdownBuilder HorizontalLine(int Count=40)
+		{
+			EnsureEndsWithNewLine();
+			for (int i = 0; i < Count; i++)
+			{
+				SB.Append("-");
+			}
+			SB.AppendLine();
+			return this;
+		}
+
+		/// <summary>
 		/// Insert a paragraph block
 		/// </summary>
 		/// <param name="Text"></param>

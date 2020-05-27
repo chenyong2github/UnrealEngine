@@ -7,7 +7,6 @@
 #include "Misc/FileHelper.h"
 #include "JsonObjectConverter.h"
 #include "AutomationWorkerMessages.h"
-#include "Interfaces/IScreenShotManager.h"
 
 class FScreenComparisonModel
 {
@@ -21,16 +20,17 @@ public:
 
 	bool IsComplete() const;
 
-	void Complete();
+	void Complete(bool WasSuccessful);
 
-	bool AddNew(IScreenShotManagerPtr ScreenshotManager);
-	bool Replace(IScreenShotManagerPtr ScreenshotManager);
-	bool AddAlternative(IScreenShotManagerPtr ScreenshotManager);
+	bool AddNew();
+	bool Replace();
+	bool AddAlternative();
 
 	TOptional<FAutomationScreenshotMetadata> GetMetadata();
 
 private:
-	bool RemoveExistingApproved(IScreenShotManagerPtr ScreenshotManager);
+
+	bool RemoveExistingApproved();
 
 private:
 	bool bComplete;
@@ -39,14 +39,17 @@ private:
 
 	struct FFileMapping
 	{
-		FFileMapping(const FString& InSourceFile, const FString& InDestinationFile)
-			: SourceFile(InSourceFile)
-			, DestinationFile(InDestinationFile)
+		FFileMapping(const FString& InDestFile, const FString& InSourceFile)
+			: DestinationFile(InDestFile)
+			, SourceFile(InSourceFile)
 		{
 		}
 
-		FString SourceFile;
+		// local file we'd write to on disk
 		FString DestinationFile;
+
+		// input file from the report
+		FString SourceFile;		
 	};
 
 	// 
