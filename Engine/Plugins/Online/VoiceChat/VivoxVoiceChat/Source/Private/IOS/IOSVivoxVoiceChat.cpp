@@ -299,8 +299,10 @@ void FIOSVivoxVoiceChat::OnVoiceChatDelayedDisconnectComplete(const FVoiceChatRe
 	OnVoiceChatDisconnectedDelegate.Broadcast(Result);
 }
 
-void FIOSVivoxVoiceChat::SetVivoxSdkConfigHints(vx_sdk_config_t &Hints)
+void FIOSVivoxVoiceChat::SetVivoxSdkConfigHints(vx_sdk_config_t& Hints)
 {
+	FVivoxVoiceChat::SetVivoxSdkConfigHints(Hints);
+		
 	Hints.dynamic_voice_processing_switching = 0;
 }
 
