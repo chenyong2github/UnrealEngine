@@ -480,7 +480,7 @@ bool FD3D12Viewport::CurrentOutputSupportsHDR() const
 		{
 			if (!DxgiFactory2->IsCurrent())
 			{
-				Adapter->CreateDXGIFactory();
+				Adapter->CreateDXGIFactory(Adapter->IsDebugDevice());
 			}
 
 			check(Adapter->GetDXGIFactory2()->IsCurrent());
