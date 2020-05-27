@@ -57,11 +57,14 @@ void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJ
 		}
 	}
 
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("About to load target map %s"), *InJob->Map.GetAssetPathName().ToString());
 	UGameplayStatics::OpenLevel(LastLoadedWorld, InJob->Map.GetAssetPathName(), true, MapOptions);
 }
 
 void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 {
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished map load %s"), *GetNameSafe(NewWorld));
+
 	// NewWorld can be null if a world is being destroyed.
 	if (!NewWorld)
 	{
@@ -92,6 +95,7 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	
 	if (ExecutorSettings->InitialDelayFrameCount == 0)
 	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Zero Initial Delay, initializing..."));
 		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
 		RemainingInitializationFrames = -1;
 	}
@@ -107,6 +111,7 @@ void UMoviePipelineInProcessExecutor::OnTick()
 	{
 		if (RemainingInitializationFrames == 0)
 		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Delay finished, initializing..."));
 			ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
 		}
 
