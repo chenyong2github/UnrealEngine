@@ -109,9 +109,13 @@ FRigUnit_TransformConstraint_Execute()
 					for (int32 ConstraintIndex= 0; ConstraintIndex< ConstraintData.Num(); ++ConstraintIndex)
 					{
 						// for now just try translate
-						const int32 TargetIndex = *ConstraintDataToTargets.Find(ConstraintIndex);
-						ConstraintData[ConstraintIndex].CurrentTransform = Targets[TargetIndex].Transform;
-						ConstraintData[ConstraintIndex].Weight = Targets[TargetIndex].Weight;
+						const int32* TargetIndexPtr = ConstraintDataToTargets.Find(ConstraintIndex);
+						if (TargetIndexPtr)
+						{
+							const int32 TargetIndex = *TargetIndexPtr;
+							ConstraintData[ConstraintIndex].CurrentTransform = Targets[TargetIndex].Transform;
+							ConstraintData[ConstraintIndex].Weight = Targets[TargetIndex].Weight;
+						}
 					}
 
 					FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
