@@ -119,6 +119,8 @@ UMeshPaintMode::UMeshPaintMode()
 	ToolsContextClass = UMeshToolsContext::StaticClass();
 	CurrentPaletteName = MeshPaintMode_Color;
 
+	FModuleManager::Get().LoadModule("EditorStyle");
+
 	Info = FEditorModeInfo(
 		FName(TEXT("MeshPaintMode")),
 		LOCTEXT("ModeName", "Mesh Paint"),
