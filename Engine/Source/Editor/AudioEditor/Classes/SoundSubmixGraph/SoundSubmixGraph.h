@@ -2,6 +2,7 @@
 #pragma once
 
 #include "EdGraph/EdGraph.h"
+
 #include "SoundSubmixGraph.generated.h"
 
 
@@ -30,6 +31,11 @@ public:
 	 * Completely rebuild the graph from the root, removing all old nodes
 	 */
 	AUDIOEDITOR_API void RebuildGraph();
+
+	/**
+	 * Queues graph to request editors to reopen
+	 */
+	AUDIOEDITOR_API void ReopenEditors();
 
 	/**
 	 * Display SoundSubmixes (and all of their children) that have been dragged onto the editor
@@ -70,7 +76,6 @@ public:
 	 * Recursively remove a set of nodes from this graph and re-link SoundSubmixes afterwards
 	 */
 	AUDIOEDITOR_API void RecursivelyRemoveNodes(const TSet<UObject*> NodesToRemove);
-
 
 	/**
 	 * Find an existing node that represents a given SoundSubmix
@@ -126,6 +131,10 @@ private:
 
 private:
 	/** SoundSubmix which forms the root of this graph */
-	USoundSubmixBase*	RootSoundSubmix;
+	UPROPERTY(Transient)
+	USoundSubmixBase* RootSoundSubmix = nullptr;
+
+	UPROPERTY(Transient)
+	TArray<USoundSubmixBase*> StaleRoots;
 };
 
