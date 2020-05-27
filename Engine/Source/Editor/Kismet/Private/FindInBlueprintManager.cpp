@@ -1567,6 +1567,11 @@ public:
 
 	virtual bool IsWorkPending() const override
 	{
+		if (!GIsRunning)
+		{
+			return false;
+		}
+
 		const int32 AsyncTaskBatchSize = CacheParams.AsyncTaskBatchSize;
 		const int32 StartIndex = AsyncTaskBatchIndex * AsyncTaskBatchSize;
 		return StartIndex < UncachedAssets.Num() || !AssetsPendingGatherQueue.IsEmpty() || !AssetsPendingAsyncIndexing.IsEmpty() || bIsGatheringSearchMetadata;
@@ -3291,7 +3296,7 @@ bool FFindInBlueprintSearchManager::IsUnindexedCacheInProgress() const
 
 bool FFindInBlueprintSearchManager::IsAssetDiscoveryInProgress() const
 {
-	return AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets();
+	return GIsRunning && AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets();
 }
 
 TSharedPtr< FJsonObject > FFindInBlueprintSearchManager::ConvertJsonStringToObject(FSearchDataVersionInfo InVersionInfo, FString InJsonString, TMap<int32, FText>& OutFTextLookupTable)
