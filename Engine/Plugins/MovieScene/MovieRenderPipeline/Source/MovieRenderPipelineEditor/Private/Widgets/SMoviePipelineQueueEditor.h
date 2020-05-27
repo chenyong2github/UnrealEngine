@@ -70,6 +70,8 @@ private:
 	void OnDuplicateSelected();
 	bool CanDuplicateSelected() const;
 
+	void OnResetStatus();
+
 	void ReconstructTree();
 	void SetSelectedJobs_Impl(const TArray<UMoviePipelineExecutorJob*>& InJobs);
 	void OnJobSelectionChanged_Impl(TSharedPtr<IMoviePipelineQueueTreeItem> TreeItem, ESelectInfo::Type SelectInfo);

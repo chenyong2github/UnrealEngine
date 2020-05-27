@@ -52,6 +52,7 @@ UMoviePipelineExecutorJob* UMoviePipelineQueue::DuplicateJob(UMoviePipelineExecu
 #endif
 
 	UMoviePipelineExecutorJob* NewJob = CastChecked<UMoviePipelineExecutorJob>(StaticDuplicateObject(InJob, this));
+	NewJob->OnDuplicated();
 	Jobs.Add(NewJob);
 
 	QueueSerialNumber++;
@@ -106,4 +107,12 @@ void UMoviePipelineExecutorJob::SetPresetOrigin(UMoviePipelineMasterConfig* InPr
 		Configuration->CopyFrom(InPreset);
 		PresetOrigin = TSoftObjectPtr<UMoviePipelineMasterConfig>(InPreset);
 	}
+}
+
+void UMoviePipelineExecutorJob::OnDuplicated_Implementation()
+{
+	UserData = FString();
+	StatusMessage = FString();
+	StatusProgress = 0.f;
+	SetConsumed(false);
 }
