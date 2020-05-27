@@ -9,26 +9,27 @@ public class ScreenShotComparisonTools : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
+				"CoreUObject"
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"AutomationMessages",
-                "EditorStyle",
+				"EditorStyle",
 				"ImageWrapper",
 				"Json",
 				"JsonUtilities",
 				"Slate",
-                "UnrealEdMessages",
-            }
-        );
+				"UnrealEdMessages",
+				"DesktopPlatform"
+			}
+		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-                "MessagingCommon",
-            }
+				"MessagingCommon",
+			}
 		);
 
 		PrivateIncludePaths.AddRange(

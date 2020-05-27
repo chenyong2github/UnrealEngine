@@ -288,6 +288,9 @@ public:
 	/** Returns the directory for automation save files that are meant to be deleted every run */
 	static FString AutomationTransientDir();
 
+	/** Returns the directory for results of automation tests. May be deleted every run. */
+	static FString AutomationReportsDir();
+
 	/** Returns the directory for automation log files */
 	static FString AutomationLogDir();
 
