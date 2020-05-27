@@ -507,7 +507,7 @@ void FImageOverlappedAccumulator::AccumulatePixelData(const FImagePixelData& InP
 		WeightY.CalculateArrayWeight(WeightDataY, RawSize.Y);
 
 		FIntPoint SubRectOffset(WeightX.X0, WeightY.X0);
-		FIntPoint SubRectSize(WeightX.X3 - WeightX.X0, WeightY.X3 - WeightX.X0);
+		FIntPoint SubRectSize(WeightX.X3 - WeightX.X0, WeightY.X3 - WeightY.X0);
 
 		// hardcode to 4 channels (RGBA), even if we are only saving fewer channels
 		TArray64<float> RawData[4];
