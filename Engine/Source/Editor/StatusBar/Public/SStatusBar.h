@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/SlateDelegates.h"
 #include "Animation/CurveSequence.h"
+#include "Application/ThrottleManager.h"
 
 class SStatusBar;
 
@@ -100,6 +101,8 @@ private:
 
 	FReply OnContentBrowserButtonClicked();
 
+	void CreateAnimationTimerIfNeeded();
+
 	EActiveTimerReturnType UpdateContentBrowserAnimation(double CurrentTime, float DeltaTime);
 	void OnContentBrowserTargetHeightChanged(float TargetHeight);
 
@@ -129,6 +132,7 @@ private:
 	FOnContentBrowserOpened OnContentBrowserOpenedDelegate;
 	FOnContentBrowserDismissed OnContentBrowserDismissedDelegate;
 	FCurveSequence ContentBrowserEasingCurve;
+	FThrottleRequest AnimationThrottle;
 	float TargetContentBrowserHeight;
 	const FSlateBrush* UpArrow;
 	const FSlateBrush* DownArrow;
