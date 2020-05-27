@@ -2,9 +2,9 @@
 #pragma once
 
 #include "AudioEditorModule.h"
-#include "GraphEditor.h"
 #include "EditorUndoClient.h"
 #include "Framework/Docking/TabManager.h"
+#include "GraphEditor.h"
 #include "ISoundSubmixEditor.h"
 #include "Toolkits/IToolkitHost.h"
 #include "UObject/Object.h"
