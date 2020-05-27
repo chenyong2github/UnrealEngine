@@ -2,9 +2,11 @@
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
 
 #include "GraphEditor.h"
+#include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixGraph/SoundSubmixGraphNode.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "TimerManager.h"
 #include "UObject/Package.h"
 
