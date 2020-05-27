@@ -226,7 +226,8 @@ bool SMoviePipelineQueuePanel::IsRenderLocalEnabled() const
 		}
 	}
 
-	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable;
+	const bool bWorldIsActive = GEditor ? GEditor->IsPlaySessionInProgress() : false;
+	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable && !bWorldIsActive;
 }
 
 FReply SMoviePipelineQueuePanel::OnRenderRemoteRequested()

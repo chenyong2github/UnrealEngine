@@ -57,6 +57,7 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	PlayInEditorSettings->SetPlayNumberOfClients(1);
 	PlayInEditorSettings->bLaunchSeparateServer = false;
 	PlayInEditorSettings->SetRunUnderOneProcess(true);
+	PlayInEditorSettings->LastExecutedPlayModeType = EPlayModeType::PlayMode_InEditorFloating;
 
 	FRequestPlaySessionParams Params;
 	Params.EditorPlaySettings = PlayInEditorSettings;
