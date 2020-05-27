@@ -137,35 +137,6 @@ struct FNiagaraParameterMap
 	GENERATED_USTRUCT_BODY()
 };
 
-USTRUCT()
-struct FNiagaraTestStructInner
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector InnerVector1 = FVector::ZeroVector;
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector InnerVector2 = FVector::ZeroVector;
-};
-
-USTRUCT()
-struct FNiagaraTestStruct
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector Vector1 = FVector::ZeroVector;
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector Vector2 = FVector::ZeroVector;
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FNiagaraTestStructInner InnerStruct1;
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FNiagaraTestStructInner InnerStruct2;
-};
 
 USTRUCT(meta = (DisplayName = "Matrix"))
 struct FNiagaraMatrix
@@ -186,30 +157,30 @@ struct FNiagaraMatrix
 };
 
 /** Data controlling the spawning of particles */
-USTRUCT(meta = (DisplayName = "Spawn Info", NiagaraClearEachFrame = "true"))
+USTRUCT(BlueprintType, meta = (DisplayName = "Spawn Info", NiagaraClearEachFrame = "true"))
 struct FNiagaraSpawnInfo
 {
 	GENERATED_USTRUCT_BODY();
 	
 	/** How many particles to spawn. */
-	UPROPERTY(EditAnywhere, Category = SpawnInfo)
+	UPROPERTY(BlueprintReadWrite, Category = SpawnInfo)
 	int32 Count = 0;
 	/** The sub frame delta time at which to spawn the first particle. */
-	UPROPERTY(EditAnywhere, Category = SpawnInfo)
+	UPROPERTY(BlueprintReadWrite, Category = SpawnInfo)
 	float InterpStartDt = 0.0f;
 	/** The sub frame delta time between each particle. */
-	UPROPERTY(EditAnywhere, Category = SpawnInfo)
+	UPROPERTY(BlueprintReadWrite, Category = SpawnInfo)
 	float IntervalDt = 1.0f;
 	/**
 	 * An integer used to identify this spawn info.
 	 * Typically this is unused.
 	 * An example usage is when using multiple spawn modules to spawn from multiple discreet locations.
 	 */
-	UPROPERTY(EditAnywhere, Category = SpawnInfo)
+	UPROPERTY(BlueprintReadWrite, Category = SpawnInfo)
 	int32 SpawnGroup = 0;
 };
 
-USTRUCT(Blueprintable, meta = (DisplayName = "Niagara ID"))
+USTRUCT(BlueprintType, meta = (DisplayName = "Niagara ID"))
 struct FNiagaraID
 {
 	GENERATED_USTRUCT_BODY()
@@ -218,14 +189,14 @@ struct FNiagaraID
 	Index in the indirection table for this particle. Allows fast access to this particles data.
 	Is always unique among currently living particles but will be reused after the particle dies.
 	*/
-	UPROPERTY(EditAnywhere, Category = ID)
+	UPROPERTY(BlueprintReadWrite, Category = ID)
 	int32 Index = 0;
 
 	/** 
 	A unique tag for when this ID was acquired. 
 	Allows us to differentiate between particles when one dies and another reuses it's Index.
 	*/
-	UPROPERTY(EditAnywhere, Category = ID)
+	UPROPERTY(BlueprintReadWrite, Category = ID)
 	int32 AcquireTag = 0;
 
 	FNiagaraID() : Index(INDEX_NONE), AcquireTag(INDEX_NONE) {}
