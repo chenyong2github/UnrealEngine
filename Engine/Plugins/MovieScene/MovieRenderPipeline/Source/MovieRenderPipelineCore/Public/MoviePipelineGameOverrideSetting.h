@@ -35,6 +35,7 @@ public:
 		, ShadowRadiusThreshold(0.001f)
 		, bOverrideViewDistanceScale(true)
 		, ViewDistanceScale(50)
+		, bDisableGPUTimeout(true) 
 	{
 	}
 
@@ -91,6 +92,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (EditCondition = bOverrideViewDistanceScale))
 	int32 ViewDistanceScale;
 
+	/** Should we disable the GPU Timeout? Currently only applicable when using D3D12 renderer. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
+	bool bDisableGPUTimeout;
+
 private:
 	// To restore previous choices when we modify these at runtime. These will be unset if the user doesn't have the override enabled.
 	Scalability::FQualityLevels PreviousQualityLevels;
@@ -104,5 +109,6 @@ private:
 	int32 PreviousShadowQuality;
 	float PreviousShadowRadiusThreshold;
 	int32 PreviousViewDistanceScale;
+	int32 PreviousGPUTimeout;
 	int32 PreviousAnimationUROEnabled;
 };
