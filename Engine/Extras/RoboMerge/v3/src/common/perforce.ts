@@ -505,15 +505,15 @@ export class PerforceContext {
 
 	// Use same logger as instance owner, to cut down on context length
 	constructor(private readonly logger: ContextualLogger) {
-		setInterval(() => {
-			const now = Date.now()
-			for (const command of runningPerforceCommands) {
-				const durationMinutes = (now - command.start.valueOf()) / (60*1000)
-				if (durationMinutes > 10) {
-					this.logger.info(`Command still running after ${durationMinutes} minutes: ` + command.cmd)
-				}
-			}
-		}, 5*60*1000)
+		// setInterval(() => {
+		// 	const now = Date.now()
+		// 	for (const command of runningPerforceCommands) {
+		// 		const durationMinutes = (now - command.start.valueOf()) / (60*1000)
+		// 		if (durationMinutes > 10) {
+		// 			this.logger.info(`Command still running after ${durationMinutes} minutes: ` + command.cmd)
+		// 		}
+		// 	}
+		// }, 5*60*1000)
 	}
 
 	// get a list of all pending changes for this user
