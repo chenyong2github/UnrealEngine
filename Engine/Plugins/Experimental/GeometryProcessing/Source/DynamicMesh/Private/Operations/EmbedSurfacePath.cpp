@@ -195,8 +195,8 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 		{
 			return false;
 		}
-		const FMeshSurfacePoint& FromPt = ComputedPointsAndSources[CurrentEnd].Key;
-		const FWalkIndices& CurrentWalk = ComputedPointsAndSources[CurrentEnd].Value;
+		FMeshSurfacePoint FromPt = ComputedPointsAndSources[CurrentEnd].Key;
+		FWalkIndices CurrentWalk = ComputedPointsAndSources[CurrentEnd].Value;
 		int TriID = CurrentWalk.WalkingOnTri;
 		check(Mesh->IsTriangle(TriID));
 		FIndex3i TriVertIDs = Mesh->GetTriangle(TriID);
