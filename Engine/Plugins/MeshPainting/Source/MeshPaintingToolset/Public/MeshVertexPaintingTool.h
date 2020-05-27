@@ -200,7 +200,7 @@ public:
 	}
 	virtual double EstimateMaximumTargetDimension() override;
 
-	FSimpleDelegate OnPaintingFinished()
+	FSimpleDelegate& OnPaintingFinished()
 	{
 		return OnPaintingFinishedDelegate;
 	}
