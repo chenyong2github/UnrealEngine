@@ -197,12 +197,13 @@ static FCreateDXGIFactory2 CreateDXGIFactory2FnPtr = nullptr;
  * doesn't have VistaSP2/DX10, calling CreateDXGIFactory1 will throw an exception.
  * We use SEH to detect that case and fail gracefully.
  */
-static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1)
+static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1, bool bWithDebug)
 {
 #if !defined(D3D11_CUSTOM_VIEWPORT_CONSTRUCTOR) || !D3D11_CUSTOM_VIEWPORT_CONSTRUCTOR
 	__try
 	{
-		if (FParse::Param(FCommandLine::Get(), TEXT("quad_buffer_stereo")))
+		bool bQuadBufferStereoRequested = FParse::Param(FCommandLine::Get(), TEXT("quad_buffer_stereo"));
+		if (bQuadBufferStereoRequested || bWithDebug)
 		{
 			// CreateDXGIFactory2 is only available on Win8.1+, find it if it exists
 			HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
@@ -214,20 +215,25 @@ static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1)
 #pragma warning(pop)
 				FPlatformProcess::FreeDllHandle(DxgiDLL);
 			}
-			if (CreateDXGIFactory2FnPtr)
+
+			if (bQuadBufferStereoRequested)
 			{
-				bIsQuadBufferStereoEnabled = true;
-			}
-			else
-			{
-				UE_LOG(LogD3D11RHI, Warning, TEXT("Win8.1 or above ir required for quad_buffer_stereo support."));
+				if (CreateDXGIFactory2FnPtr)
+				{
+					bIsQuadBufferStereoEnabled = true;
+				}
+				else
+				{
+					UE_LOG(LogD3D11RHI, Warning, TEXT("Win8.1 or above ir required for quad_buffer_stereo support."));
+				}
 			}
 		}
 
-		// IDXGIFactory2 required for dx11.1 active stereo (dxgi1.2)
-		if (bIsQuadBufferStereoEnabled && CreateDXGIFactory2FnPtr)
+		// IDXGIFactory2 required for dx11.1 active stereo and DXGI debug (dxgi1.3)
+		if (CreateDXGIFactory2FnPtr)
 		{
-			CreateDXGIFactory2FnPtr(0, __uuidof(IDXGIFactory2), (void**)DXGIFactory1);
+			uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
+			CreateDXGIFactory2FnPtr(Flags, __uuidof(IDXGIFactory2), (void**)DXGIFactory1);
 		}
 		else
 		{
@@ -839,7 +845,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	// Try to create the DXGIFactory1.  This will fail if we're not running Vista SP2 or higher.
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
-	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference());
+	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference(), D3D11RHI_ShouldCreateWithD3DDebug());
 	if(!DXGIFactory1)
 	{
 		return;
@@ -1037,7 +1043,7 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 #endif
 
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
-	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference());
+	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference(), D3D11RHI_ShouldCreateWithD3DDebug());
 	check(DXGIFactory1);
 
 	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);

@@ -180,7 +180,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 {
 	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
 
-	CreateDXGIFactory();
+	CreateDXGIFactory(bWithDebug);
 
 	// QI for the Adapter
 	TRefCountPtr<IDXGIAdapter> TempAdapter;
