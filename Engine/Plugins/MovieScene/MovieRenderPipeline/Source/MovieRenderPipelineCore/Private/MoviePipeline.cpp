@@ -898,7 +898,7 @@ void UMoviePipeline::BuildShotListFromSequence()
 			// If the user has manually marked a section as inactive we don't produce a shot for it.
 			if (!Section->IsActive())
 			{
-				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Shot %s to Shot List due to being inactive."), *ShotSection->GetShotDisplayName());
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Skipped adding Shot %s to Shot List due to being inactive."), *ShotSection->GetShotDisplayName());
 				continue;
 			}
 
@@ -912,10 +912,9 @@ void UMoviePipeline::BuildShotListFromSequence()
 			TRange<FFrameNumber> MasterPlaybackBounds = GetCurrentJob()->GetConfiguration()->GetEffectivePlaybackRange(TargetSequence);
 			if (!ShotSection->GetRange().Overlaps(MasterPlaybackBounds))
 			{
-				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Shot %s to Shot List due to not overlapping playback bounds."), *ShotSection->GetShotDisplayName());
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Skipped adding Shot %s to Shot List due to not overlapping playback bounds."), *ShotSection->GetShotDisplayName());
 				continue;
 			}
-
 
 			// The Shot Section may extend past our Sequence's Playback Bounds. We intersect the two bounds to ensure that
 			// the Playback Start/Playback End of the overall sequence is respected.
@@ -943,13 +942,17 @@ void UMoviePipeline::BuildShotListFromSequence()
 	// through their own logic. We'll just use the duration of the Sequence as the render, plus warn them.
 	if (ShotList.Num() == 0)
 	{
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("No Cinematic Shot Tracks found, and no Camera Cut Tracks found. Playback Range will be used but camera will render from Pawns perspective."));
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("No Cinematic Shot Tracks found in range, and no Camera Cut Tracks found. Playback Range will be used but camera will render from Pawns perspective."));
 		FMoviePipelineShotInfo NewShot;
 
 		FMoviePipelineCameraCutInfo& CameraCut = NewShot.CameraCuts.AddDefaulted_GetRef();
+		CameraCut.CameraCutSection = nullptr;
 		CameraCut.OriginalRangeLocal = TargetSequence->GetMovieScene()->GetPlaybackRange();
 		CameraCut.TotalOutputRangeLocal = CameraCut.OriginalRangeLocal;
 		CameraCut.InnerToOuterTransform = FMovieSceneSequenceTransform();
+		CameraCut.WarmUpRangeLocal = TRange<FFrameNumber>::Empty();
+
+		ShotList.Add(MoveTemp(NewShot));
 	}
 
 	// Now that we've gathered at least one or more shots with one or more cuts, we can apply settings. It's easier to
