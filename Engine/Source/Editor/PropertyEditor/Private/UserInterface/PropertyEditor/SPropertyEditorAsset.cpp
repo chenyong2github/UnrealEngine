@@ -84,8 +84,8 @@ bool SPropertyEditorAsset::ShouldDisplayThumbnail(const FArguments& InArgs, cons
 		return false;
 	}
 
-	bool bShowThumbnail = InObjectClass == nullptr || !InObjectClass->IsChildOf(AActor::StaticClass());
-	
+	bool bShowThumbnail = InObjectClass == nullptr || !(InObjectClass->IsChildOf(AActor::StaticClass()) || InObjectClass->IsChildOf(UInterface::StaticClass()));
+
 	// also check metadata for thumbnail & text display
 	const FProperty* PropertyToCheck = nullptr;
 	if (PropertyEditor.IsValid())
@@ -305,7 +305,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 		ObjectClass = UClass::FindCommonBase(ConstCastClassArray(AllowedClassFilters));
 	}
 
-	bIsActor = ObjectClass->IsChildOf(AActor::StaticClass());
+	bIsActor = ObjectClass->IsChildOf(AActor::StaticClass()) || ObjectClass->IsChildOf(UInterface::StaticClass());
 
 	if (InArgs._NewAssetFactories.IsSet())
 	{
@@ -768,7 +768,8 @@ void SPropertyEditorAsset::OnMenuOpenChanged(bool bOpen)
 
 bool SPropertyEditorAsset::IsFilteredActor( const AActor* const Actor ) const
 {
-	bool IsAllowed = Actor->IsA(ObjectClass) && !Actor->IsChildActor() && IsClassAllowed(Actor->GetClass());
+	bool bActorTypeValid = ObjectClass->IsChildOf(UInterface::StaticClass()) ? Actor->GetClass()->ImplementsInterface(ObjectClass) : Actor->IsA(ObjectClass);
+	bool IsAllowed = bActorTypeValid && !Actor->IsChildActor() && IsClassAllowed(Actor->GetClass());
 	return IsAllowed;
 }
 
