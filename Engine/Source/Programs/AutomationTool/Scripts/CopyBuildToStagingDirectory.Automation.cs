@@ -3789,7 +3789,7 @@ public partial class Project : CommandUtils
 				// if we are attempting to gathering multiple platforms, the files aren't required
 				bool bJustPackaging = Params.SkipStage && Params.Package;
 				bool bIsIterativeSharedCooking = Params.HasIterateSharedCookedBuild;
-				bool bRequireStagedFilesToExist = SubPlatformsToStage.Length == 1 && PlatformsToStage.Count == 1 && !bJustPackaging && !bIsIterativeSharedCooking;
+				bool bRequireStagedFilesToExist = SubPlatformsToStage.Length == 1 && PlatformsToStage.Count == 1 && !bJustPackaging && !bIsIterativeSharedCooking && !Params.HasDLCName;
 
 				foreach (UnrealTargetPlatform ReceiptPlatform in SubPlatformsToStage)
 				{
@@ -3854,7 +3854,8 @@ public partial class Project : CommandUtils
 				Params.IsProgramTarget,
 				Params.Client,
 				Params.Manifests,
-				Params.SeparateDebugInfo
+				Params.SeparateDebugInfo,
+				Params.HasDLCName
 				);
 			LogDeploymentContext(SC);
 
