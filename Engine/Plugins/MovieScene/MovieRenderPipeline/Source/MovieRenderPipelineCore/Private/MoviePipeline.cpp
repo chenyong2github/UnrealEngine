@@ -15,6 +15,7 @@
 #include "AudioDeviceManager.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Engine/World.h"
+#include "Engine/LevelStreamingDynamic.h"
 #include "Modules/ModuleManager.h"
 #include "GameFramework/PlayerController.h"
 #include "MovieRenderDebugWidget.h"
@@ -232,6 +233,18 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
 	{
 		Viewport->bDisableWorldRendering = true;
+	}
+
+	for (ULevelStreaming* Level : GetWorld()->GetStreamingLevels())
+	{
+		UClass* StreamingClass = Level->GetClass();
+
+		if (StreamingClass == ULevelStreamingDynamic::StaticClass())
+		{
+			const FString NonPrefixedLevelName = UWorld::StripPIEPrefixFromPackageName(Level->GetWorldAssetPackageName(), GetWorld()->StreamingLevelsPrefix);
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Sub-level '%s' is set to blueprint streaming and will not be visible during a render unless a Sequencer Visibility Track controls its visibility or you have written other code to handle loading it."),
+				*NonPrefixedLevelName);
+		}
 	}
 
 	SetupAudioRendering();
