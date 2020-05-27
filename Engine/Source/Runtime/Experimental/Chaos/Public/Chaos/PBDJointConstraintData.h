@@ -17,21 +17,25 @@ namespace Chaos
 
 	using FJointConstraintDirtyFlags = TDirtyFlags<EJointConstraintFlags>;
 
-
-	/** Concrete can either be the game thread or physics representation, but API stays the same. Useful for keeping initialization and other logic the same*/
-	template <typename FConcrete>
-	void JointConstraintDefaultConstruct(FConcrete& Concrete, const FPBDJointSettings& Settings)
-	{
-		// @todo(Chaos::JointConstraints): set defaults
-	}
-
 	class FJointConstraint
 	{
 	public:
 		typedef FPBDJointSettings FData;
 		typedef FPBDJointConstraintHandle FHandle;
-
+		typedef TVector<FTransform, 2> FTransformPair;
+		typedef TVector<TGeometryParticle<FReal, 3>*, 2> FParticlePair;
+		typedef TVector<TGeometryParticleHandle<FReal, 3>*, 2> FParticleHandlePair;
 		friend FData;
+
+		FJointConstraint()
+			: Proxy(nullptr)
+			, JointParticles({ nullptr,nullptr })
+			, JointTransforms({ FTransform::Identity, FTransform::Identity})
+		{
+			Transform.SetIdentity();
+			MDirtyFlags.Clear();
+		}
+
 
 		template<typename T = IPhysicsProxyBase>
 		T* GetProxy()
@@ -54,10 +58,24 @@ namespace Chaos
 			}
 		}
 
-		static TUniquePtr<FJointConstraint> CreateConstraint(const FPBDJointSettings& InInitialSettings)
+		bool IsValid() const
 		{
-			return TUniquePtr<FJointConstraint>(new FJointConstraint(InInitialSettings));
+			return Proxy != nullptr;
 		}
+
+		void SetJointParticles(const Chaos::FJointConstraint::FParticlePair& InJointParticles) { JointParticles[0] = InJointParticles[0]; JointParticles[1] = InJointParticles[1]; }
+		const FParticlePair GetJointParticles() const { return JointParticles; }
+		FParticlePair GetJointParticles() { return JointParticles; }
+
+		void SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointParticles) { JointTransforms[0] = InJointParticles[0]; JointTransforms[1] = InJointParticles[1]; }
+		const FTransformPair GetJointTransforms() const { return JointTransforms; }
+		FTransformPair GetJointTransforms() { return JointTransforms; }
+		
+		void SetTransform(const Chaos::FRigidTransform3& InTransform) { Transform = InTransform; }
+		const FRigidTransform3 GetTransform() const { return Transform; }
+		FRigidTransform3 GetTransform() { return Transform; }
+
+		void SetJointSettings(const Chaos::FPBDJointSettings& InSettings) {}
 
 	protected:
 		FJointConstraintDirtyFlags MDirtyFlags;
@@ -65,10 +83,9 @@ namespace Chaos
 		// Pointer to any data that the solver wants to associate with this constraint
 		class IPhysicsProxyBase* Proxy;
 
-		FJointConstraint(const FPBDJointSettings& InInitialSettings = FPBDJointSettings())
-		{
-			JointConstraintDefaultConstruct(*this, InInitialSettings);
-		}
+		FParticlePair JointParticles;
+		FTransformPair JointTransforms;
+		FRigidTransform3 Transform;
 
 	};
 
