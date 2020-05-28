@@ -2,6 +2,8 @@
 
 #include "VehicleContactModification.h"
 
+#include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "Engine/EngineTypes.h"
 #include "Physics/PhysicsFiltering.h"

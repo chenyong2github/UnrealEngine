@@ -3,7 +3,7 @@
 
 #include "ChaosVehiclesPlugin.h"
 
-#include "AssetToolsModule.h"
+//#include "AssetToolsModule.h"
 #include "CoreMinimal.h"
 #include "ChaosVehicles.h"
 #include "HAL/ConsoleManager.h"
