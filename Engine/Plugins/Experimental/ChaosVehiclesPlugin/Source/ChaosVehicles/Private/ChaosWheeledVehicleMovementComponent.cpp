@@ -1288,13 +1288,13 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug3D()
 {
 	FBodyInstance* TargetInstance = UpdatedPrimitive ? UpdatedPrimitive->GetBodyInstance() : nullptr;
 
-	if (GVehicleDebugParams.ShowCOM)
+	if (GVehicleDebugParams.ShowCOM && TargetInstance)
 	{
 		FVector COMWorld = TargetInstance->GetCOMPosition();
 		DrawDebugCoordinateSystem(GetWorld(), COMWorld, FRotator(TargetInstance->GetUnrealWorldTransform().GetRotation()), 200.f, false, -1.f, 0, 2.f);
 	}
 
-	if (GVehicleDebugParams.ShowModelOrigin)
+	if (GVehicleDebugParams.ShowModelOrigin && TargetInstance)
 	{
 		DrawDebugCoordinateSystem(GetWorld(), TargetInstance->GetUnrealWorldTransform().GetLocation(), FRotator(TargetInstance->GetUnrealWorldTransform().GetRotation()), 200.f, false, -1.f, 0, 2.f);
 	}

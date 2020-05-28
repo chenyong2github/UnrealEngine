@@ -71,7 +71,7 @@ struct FSimpleWheelConfig
 		, MaxSteeringAngle(70)
 		, MaxBrakeTorque(2000.f)
 		, HandbrakeTorque(1000.f)
-		, ABS(false)
+		, ABSEnabled(false)
 		, HandbrakeEnabled(true)
 		, SteeringEnabled(true)
 		, EngineEnabled(false)
@@ -97,7 +97,7 @@ struct FSimpleWheelConfig
 	// brakes
 	float MaxBrakeTorque;		// Braking Torque [Nm]
 	float HandbrakeTorque;		// Handbrake Torque [Nm]
-	bool ABS;					// Advanced braking system operational
+	bool ABSEnabled;					// Advanced braking system operational
 
 	// setup
 	bool HandbrakeEnabled;		// Handbrake is operational on this wheel
