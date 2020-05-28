@@ -49,7 +49,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 	auto& Handles = InSolver->GetParticles().GetParticleHandles();
 	if (Handles.Size() && IsValid())
 	{
-		auto& JointConstraints = InSolver->GetEvolution()->GetJointConstraints();
+		auto& JointConstraints = InSolver->GetJointConstraints();
 		if (Constraint != nullptr)
 		{
 			auto Particles = Constraint->GetJointParticles();
@@ -57,17 +57,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 			{
 				if (Particles[1] && Particles[1]->Handle())
 				{
-					const auto& ParticleHandle0 = Particles[0]->Handle();
-					const auto& ParticleHandle1 = Particles[1]->Handle();
-					FTransform Particle0TM = FTransform(ParticleHandle0->R(), ParticleHandle0->X());
-					FTransform Particle1TM = FTransform(ParticleHandle1->R(), ParticleHandle1->X());
-
-					FVector JointWorldPosition = (Constraint->GetJointTransforms()[0] * Particle0TM).GetTranslation();
-					FQuat JointRelativeRotation = Particle0TM.GetRelativeTransform(Particle1TM).GetRotation();
-
-					Constraint->SetTransform(FTransform(JointRelativeRotation, JointWorldPosition));
-
-					Handle = JointConstraints.AddConstraint({ Particles[0]->Handle() , Particles[1]->Handle() }, Constraint->GetTransform());
+					Handle = JointConstraints.AddConstraint({ Particles[0]->Handle() , Particles[1]->Handle() }, Constraint->GetJointTransforms());
 				}
 			}
 		}

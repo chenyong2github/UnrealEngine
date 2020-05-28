@@ -236,9 +236,11 @@ namespace Chaos
 		, MActiveParticlesBuffer(new FActiveParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MCurrentLock(new FCriticalSection())
 		, bUseCollisionResimCache(false)
+		, JointConstraintRule(JointConstraints)
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::PBDRigidsSolver()"));
 		Reset();
+		MEvolution->AddConstraintRule(&JointConstraintRule);
 
 		MEvolution->SetInternalParticleInitilizationFunction(
 			[this](const Chaos::TGeometryParticleHandle<float, 3>* OldParticle, const Chaos::TGeometryParticleHandle<float, 3>* NewParticle) {

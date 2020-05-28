@@ -109,6 +109,9 @@ namespace Chaos
 		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints> FRigidDynamicSpringConstraintsRule;
 		typedef TPBDConstraintIslandRule<FPositionConstraints> FPositionConstraintsRule;
 
+		using FJointConstraints = FPBDJointConstraints;
+		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
+
 		//
 		// Execution API
 		//
@@ -309,6 +312,13 @@ namespace Chaos
 		void SetTrailingFilterSettings(const FSolverTrailingFilterSettings& InTrailingFilterSettings) { GetEventFilters()->GetTrailingFilter()->UpdateFilterSettings(InTrailingFilterSettings); }
 
 		/**/
+		FJointConstraints& GetJointConstraints() { return JointConstraints; }
+		const FJointConstraints& GetJointConstraints() const { return JointConstraints; }
+
+		FJointConstraintRule& GetJointConstraintsRule() { return JointConstraintRule; }
+		const FJointConstraintRule& GetJointConstraintsRule() const { return JointConstraintRule; }
+
+		/**/
 		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
 		FPBDRigidsEvolution* GetEvolution() const { return MEvolution.Get(); }
 
@@ -454,6 +464,13 @@ namespace Chaos
 		TArray< FFieldSystemPhysicsProxy* > FieldSystemPhysicsProxies;
 		TArray< FJointConstraintPhysicsProxy*> JointConstraintPhysicsProxies;
 		bool bUseCollisionResimCache;
+
+		//
+		//  Constraints
+		//
+		FPBDJointConstraints JointConstraints;
+		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule;
+
 
 		// Physics material mirrors for the solver. These should generally stay in sync with the global material list from
 		// the game thread. This data is read only in the solver as we should never need to update it here. External threads can

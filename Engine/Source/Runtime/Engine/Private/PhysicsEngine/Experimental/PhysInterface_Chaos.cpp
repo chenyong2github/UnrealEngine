@@ -1042,12 +1042,11 @@ FPhysicsConstraintHandle FPhysInterface_Chaos::CreateConstraint( const FPhysicsA
 			{
 				LLM_SCOPE(ELLMTag::Chaos);
 
-				ConstraintRef.Constraint = new Chaos::FJointConstraint;
+				ConstraintRef.Constraint = new Chaos::FJointConstraint();
 
 				Chaos::FJointConstraint::FParticlePair JointParticles = { InActorRef1, InActorRef2 };
 				ConstraintRef.Constraint->SetJointParticles({ InActorRef1, InActorRef2 });
 				ConstraintRef.Constraint->SetJointTransforms({ InLocalFrame1, InLocalFrame2 });
-				ConstraintRef.Constraint->SetTransform(FTransform::Identity);
 				ConstraintRef.Constraint->SetJointSettings(Chaos::FPBDJointSettings());
 				
 				Chaos::FPhysicsSolver* Solver = InActorRef1->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
