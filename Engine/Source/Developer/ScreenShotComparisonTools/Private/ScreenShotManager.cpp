@@ -15,7 +15,7 @@
 #include "JsonObjectConverter.h"
 #include "PlatformInfo.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
-#include "ScreenShotComparisonSettings.h"
+#include "ScreenshotComparisonSettings.h"
 
 
 DEFINE_LOG_CATEGORY(LogScreenShotManager);
@@ -393,7 +393,9 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 		First we need the incoming file in the report. If the calling code wants to keep the image then do a copy, 
 		otherwise move it
 	*/
-	if (Options == EScreenShotCompareOptions::KeepImage)
+	// #agrant todo - code in AutomationControllerManager requires these paths and at the moment does not have enough info to use the report versions .
+	bool CanMoveImage = false; // Options != EScreenShotCompareOptions::KeepImage
+	if (CanMoveImage)
 	{
 		// copy the incoming file to the report path 
 		FString IncomingFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.IncomingFilePath);
