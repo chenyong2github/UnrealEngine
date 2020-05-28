@@ -1425,6 +1425,13 @@ LONG WINAPI UnhandledException(LPEXCEPTION_POINTERS ExceptionInfo)
 	// Top bit in exception code is fatal exceptions. Report those but not other types.
 	if ((ExceptionInfo->ExceptionRecord->ExceptionCode & 0x80000000L) != 0)
 	{
+		// This exception was encountered on a machine when disconnecting/reconnecting to RDP while the Editor was opened. Ignoring it didn't
+		// crash the Editor, so it wasn't really fatal in that case. Worst case, the exception propagates and the app crashes without a crash report.
+		if (ExceptionInfo->ExceptionRecord->ExceptionCode == 0xE06D7363)
+		{
+			return EXCEPTION_CONTINUE_SEARCH;
+		}
+
 		uint32 CurrThreadId = FPlatformTLS::GetCurrentThreadId();
 
 		// The game thread and the crash reporting thread are not FRunnableThread but has local structured exception handling in-place.
