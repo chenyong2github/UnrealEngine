@@ -255,6 +255,11 @@ inline void AEFConstantKeyLerp<FORMAT>::GetPoseRotations(
 {
 	const int32 PairCount = DesiredPairs.Num();
 
+	if (PairCount == 0)
+	{
+		return;
+	}
+
 	if (INTEL_ISPC)
 	{
 #if INTEL_ISPC
@@ -301,6 +306,11 @@ inline void AEFConstantKeyLerp<FORMAT>::GetPoseTranslations(
 	FAnimSequenceDecompressionContext& DecompContext)
 {
 	const int32 PairCount = DesiredPairs.Num();
+
+	if (PairCount == 0)
+	{
+		return;
+	}
 
 	if (INTEL_ISPC)
 	{
@@ -364,6 +374,11 @@ inline void AEFConstantKeyLerp<FORMAT>::GetPoseScales(
 	FAnimSequenceDecompressionContext& DecompContext)
 {
 	const int32 PairCount= DesiredPairs.Num();
+
+	if (PairCount == 0)
+	{
+		return;
+	}
 
 	if (INTEL_ISPC)
 	{
