@@ -244,13 +244,13 @@ public:
 	FString ApprovedFilePath;
 
 	/*
-		Path to the file that was generated in the test. Relative to the project directory
+		Path to the file that was generated in the test. Relative to the project directory, only valid when a test is run locally
 	*/
 	UPROPERTY()
 	FString IncomingFilePath;
 
 	/*
-		Path to the delta image between the ground-truth and the incoming file. Relative to the project directory
+		Path to the delta image between the ground-truth and the incoming file. Relative to the project directory, only valid when a test is run locally
 	*/
 	UPROPERTY()
 	FString ComparisonFilePath;
