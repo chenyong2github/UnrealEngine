@@ -395,11 +395,16 @@ namespace ImmediatePhysics_Chaos
 		TUniquePtr<FChaosPhysicsMaterial> Material = MakeUnique<FChaosPhysicsMaterial>();
 		if (BodyInstance != nullptr)
 		{
-			UPhysicalMaterial* SimplePhysMat = BodyInstance->GetSimplePhysicalMaterial();
-			if (SimplePhysMat != nullptr)
+			// @todo(ccaulfield): We cannot ask for the physical material on a task thread, because FMICReentranceGuard in UMaterialInstance will assert (in editor). Fix this...
+			// For now we just use material defaults when actors are created on a task thread. This happens when adding world-objects to a RigidBody AnimNode simulation.
+			if (IsInGameThread())
 			{
-				Material->Friction = SimplePhysMat->Friction;
-				Material->Restitution = SimplePhysMat->Restitution;
+				UPhysicalMaterial* SimplePhysMat = BodyInstance->GetSimplePhysicalMaterial();
+				if (SimplePhysMat != nullptr)
+				{
+					Material->Friction = SimplePhysMat->Friction;
+					Material->Restitution = SimplePhysMat->Restitution;
+				}
 			}
 		}
 
