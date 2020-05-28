@@ -26,7 +26,7 @@ template <class T> class TLockFreePointerListLIFO;
 class ENGINE_API FDistanceFieldVolumeTexture
 {
 public:
-	FDistanceFieldVolumeTexture(const class FDistanceFieldVolumeData& InVolumeData) :
+	FDistanceFieldVolumeTexture(class FDistanceFieldVolumeData& InVolumeData) :
 		VolumeData(InVolumeData),
 		AtlasAllocationMin(FIntVector(-1, -1, -1)),
 		SizeInAtlas(FIntVector::ZeroValue),
@@ -42,6 +42,9 @@ public:
 
 	/** Called before unload on game thread */
 	void Release();
+
+	/** Discard CPU data */
+	void DiscardCPUData();
 
 	FIntVector GetAllocationMin() const
 	{
@@ -73,7 +76,7 @@ public:
 	}
 
 private:
-	const FDistanceFieldVolumeData& VolumeData;
+	FDistanceFieldVolumeData& VolumeData;
 	FIntVector AtlasAllocationMin;
 	FIntVector SizeInAtlas;
 
@@ -150,6 +153,9 @@ private:
 	uint32 MaxUsedAtlasX;
 	uint32 MaxUsedAtlasY;
 	uint32 MaxUsedAtlasZ;
+
+	/** Keep track of allocated raw CPU mesh DF data */
+	uint32 AllocatedCPUDataInBytes;
 };
 
 extern ENGINE_API TGlobalResource<FDistanceFieldVolumeTextureAtlas> GDistanceFieldVolumeTextureAtlas;
