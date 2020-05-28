@@ -2673,21 +2673,19 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					// If the world was inactive subsystems would not have been initialized.  When we transition to the editor world initialize them
 					World->InitializeSubsystems();
 
-					if (World->FeatureLevel == FeatureLevelIndex)
-					{
-						if (World->GetPhysicsScene() == nullptr)
-						{
-							World->CreatePhysicsScene();
-						}
-
-						if (World->FXSystem == nullptr)
-						{
-							World->CreateFXSystem();
-						}
-					}
-					else
+					if (World->FeatureLevel != FeatureLevelIndex)
 					{
 						World->ChangeFeatureLevel((ERHIFeatureLevel::Type)FeatureLevelIndex);
+					}
+
+					if (World->GetPhysicsScene() == nullptr)
+					{
+						World->CreatePhysicsScene();
+					}
+
+					if (World->FXSystem == nullptr)
+					{
+						World->CreateFXSystem();
 					}
 				}
 				else
