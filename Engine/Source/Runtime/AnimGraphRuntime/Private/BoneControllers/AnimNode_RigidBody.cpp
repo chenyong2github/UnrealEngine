@@ -39,9 +39,11 @@ TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold(TEXT("p.RigidBodyLODThresh
 int32 RBAN_MaxSubSteps = 4;
 bool bRBAN_EnableTimeBasedReset = true;
 bool bRBAN_EnableComponentAcceleration = true;
+int32 RBAN_WorldObjectExpiry = 4;
 FAutoConsoleVariableRef CVarRigidBodyNodeMaxSteps(TEXT("p.RigidBodyNode.MaxSubSteps"), RBAN_MaxSubSteps, TEXT("Set the maximum number of simulation steps in the update loop"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeEnableTimeBasedReset(TEXT("p.RigidBodyNode.EnableTimeBasedReset"), bRBAN_EnableTimeBasedReset, TEXT("If true, Rigid Body nodes are reset when they have not been updated for a while (default true)"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeEnableComponentAcceleration(TEXT("p.RigidBodyNode.EnableComponentAcceleration"), bRBAN_EnableComponentAcceleration, TEXT("Enable/Disable the simple acceleration transfer system for component- or bone-space simulation"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeWorldObjectExpiry(TEXT("p.RigidBodyNode.WorldObjectExpiry"), RBAN_WorldObjectExpiry, TEXT("World objects are removed from the simulation if not detected after this many tests"), ECVF_Default);
 
 // FSimSpaceSettings forced overrides for testing
 bool bRBAN_SimSpace_EnableOverride = false;
@@ -1116,13 +1118,7 @@ void FAnimNode_RigidBody::UpdateWorldGeometry(const UWorld& World, const USkelet
 		UnsafeWorld = &World;
 		UnsafeOwner = SKC.GetOwner();
 
-#if WITH_CHAOS
-		// Needs to be on game thread for now.
-		// - GetPhysicsMaterial may access the render material, which will assert if in a task
-		CollectWorldObjects();
-#endif
-
-		// Remove objects we haven't detected in a while
+		// A timer to track objects we haven't detected in a while
 		++ComponentsInSimTick;
 	}
 }
@@ -1273,9 +1269,8 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 	// Remove expired objects from the sim
 	PurgeExpiredWorldObjects();
 
-#if !WITH_CHAOS
+	// Find nearby world objects to add to the sim (gated on UnsafeWorld - see UpdateWorldGeometry)
 	CollectWorldObjects();
-#endif
 
 	// These get set again if our bounds change. Subsequent calls to CollectWorldObjects will early-out until then
 	UnsafeWorld = nullptr;
@@ -1336,8 +1331,6 @@ void FAnimNode_RigidBody::CollectWorldObjects()
 void FAnimNode_RigidBody::ExpireWorldObjects()
 {
 #if WITH_CHAOS
-	const int32 ExpireTickCount = 4;
-
 	// Invalidate deleted and expired world objects
 	TArray<const UPrimitiveComponent*> PrunedEntries;
 	for (auto& WorldEntry : ComponentsInSim)
@@ -1346,7 +1339,8 @@ void FAnimNode_RigidBody::ExpireWorldObjects()
 		FWorldObject& WorldObject = WorldEntry.Value;
 
 		// Do we need to expire this object?
-		bool bIsInvalid = 
+		const int32 ExpireTickCount = RBAN_WorldObjectExpiry;
+		bool bIsInvalid =
 			((ComponentsInSimTick - WorldObject.LastSeenTick) > ExpireTickCount)	// Haven't seen this object for a while
 			|| (WorldComp == nullptr)
 			|| (WorldComp->IsPendingKill())
