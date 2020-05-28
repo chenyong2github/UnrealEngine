@@ -351,6 +351,10 @@ public:
 				{
 					ExtraFunctionFlags |= FUNC_Static;
 				}
+				if ( BPTYPE_Const == Blueprint->BlueprintType )
+				{
+					ExtraFunctionFlags |= FUNC_Const;
+				}
 				// We need to mark the function entry as editable so that we can
 				// set metadata on it if it is an editor utility blueprint/widget:
 				K2Schema->MarkFunctionEntryAsEditable(Graph, true);
