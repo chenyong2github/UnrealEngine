@@ -9,7 +9,6 @@
 class UChaosTireConfig;
 class UChaosVehicleMovementComponent;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogVehicles, Log, All);
 
 // #todo: We probably want this to be associated with a physics solver. So simulation can be isolated if desired.
 // Physics scene based currently

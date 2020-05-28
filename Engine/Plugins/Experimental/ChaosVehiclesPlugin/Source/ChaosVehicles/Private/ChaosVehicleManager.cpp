@@ -9,7 +9,6 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "VehicleContactModification.h"
 
-DEFINE_LOG_CATEGORY(LogVehicles);
 
 DECLARE_STATS_GROUP(TEXT("ChaosVehicleManager"), STATGROUP_ChaosVehicleManager, STATGROUP_Advanced);
 DECLARE_CYCLE_STAT(TEXT("VehicleSuspensionRaycasts"), STAT_ChaosVehicleManager_VehicleSuspensionRaycasts, STATGROUP_ChaosVehicleManager);

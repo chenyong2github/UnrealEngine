@@ -35,6 +35,9 @@
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
+DEFINE_LOG_CATEGORY(LogVehicles);
+
+
 #if WITH_CHAOS
 
 UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInitializer& ObjectInitializer)

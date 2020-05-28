@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PhysicsPublic.h"
+#include "Chaos/CollisionResolutionTypes.h"
 
 #if WITH_CHAOS
 
