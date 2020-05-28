@@ -157,6 +157,8 @@ bool UMoviePipelineWaveOutput::HasFinishedProcessingImpl()
 
 void UMoviePipelineWaveOutput::ValidateStateImpl()
 {
+	Super::ValidateStateImpl();
+
 	if (!IsMoviePipelineAudioOutputSupported())
 	{
 		ValidationState = EMoviePipelineValidationState::Warnings;
