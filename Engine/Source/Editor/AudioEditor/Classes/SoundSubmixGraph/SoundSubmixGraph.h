@@ -33,11 +33,6 @@ public:
 	AUDIOEDITOR_API void RebuildGraph();
 
 	/**
-	 * Queues graph to request editors to reopen
-	 */
-	AUDIOEDITOR_API void ReopenEditors();
-
-	/**
 	 * Display SoundSubmixes (and all of their children) that have been dragged onto the editor
 	 *
 	 * @param	SoundSubmixes	SoundSubmixes not already represented on the graph
