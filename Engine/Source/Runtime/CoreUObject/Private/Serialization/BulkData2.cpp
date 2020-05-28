@@ -751,7 +751,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		if (!IsInlined() && bUseIoDispatcher)
 		{
-			Data.PackageID = Package->GetPackageId().ToIndex();
+			Data.PackageID = Package->GetPackageId().Value();
 			SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a filename
 		}
 		else
@@ -992,7 +992,7 @@ FIoChunkId FBulkDataBase::CreateChunkId() const
 								IsFileMemoryMapped() ? EIoChunkType::MemoryMappedBulkData :
 								EIoChunkType::BulkData;
 
-	return CreateIoChunkId((uint32)Data.PackageID, 0, Type);
+	return CreateIoChunkId(Data.PackageID, 0, Type);
 }
 
 void FBulkDataBase::SetBulkDataFlags(uint32 BulkDataFlagsToSet)
@@ -1516,7 +1516,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 #if ALLOW_OPTIONAL_DATA
 	if (IsUsingIODispatcher())
 	{
-		const FIoChunkId OptionalChunkId = CreateIoChunkId((uint32)Data.PackageID, 0, EIoChunkType::OptionalBulkData);
+		const FIoChunkId OptionalChunkId = CreateIoChunkId(Data.PackageID, 0, EIoChunkType::OptionalBulkData);
 
 		if (IoDispatcher->DoesChunkExist(OptionalChunkId))
 		{

@@ -679,53 +679,18 @@ enum class EIoChunkType : uint8
 /**
  * Creates a chunk identifier,
  */
-static FIoChunkId CreateIoChunkId(uint32 GlobalPackageId, uint16 ChunkIndex, EIoChunkType IoChunkType)
+static FIoChunkId CreateIoChunkId(uint64 ChunkId, uint16 ChunkIndex, EIoChunkType IoChunkType)
 {
 	uint8 Data[12] = {0};
 
-	*reinterpret_cast<uint32*>(&Data[0]) = GlobalPackageId;
-	*reinterpret_cast<uint16*>(&Data[4]) = ChunkIndex;
+	*reinterpret_cast<uint64*>(&Data[0]) = ChunkId;
+	*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
 	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(IoChunkType);
 
-	FIoChunkId ChunkId;
-	ChunkId.Set(Data, 12);
+	FIoChunkId IoChunkId;
+	IoChunkId.Set(Data, 12);
 
-	return ChunkId;
-}
-
-/**
- * Creates a FIoChunkId in the format that Bulkdata expects.
- *
- * @param GlobalPackageId	The identifier for the package that the bulkdata object is owned by
- * @param BulkDataChunkId	A unique id for the bulkdata (commonly the bulkdata offset value is used) 
- * @param ChunkType			The chunk type commonly 'BulkData' or 'OptionalBulkData'
- *
- * @return A valid FIoChunkId
- */
-static FIoChunkId CreateBulkdataChunkId(int32 GlobalPackageId, int64 BulkDataChunkId, EIoChunkType ChunkType)
-{
-	// We need to be able to call this in the data pipeline and at runtime but currently are unable change the 
-	// file format we cannot generate this during cook and pass it to runtime.
-	// The offset in file is the only unique value we can easily obtain at runtime but it can be negative,
-	// which is a problem because we will only store the first 7 bytes and a negative value will have the 
-	// top bit set. 
-	// We adjust the id and cast to unsigned so that the top byte is very unlikely to have data in it (and log 
-	// it as an error if it does)
-
-	const uint64 Offset = ((uint64_t)1 << 56) / 2;
-	const uint64 AdjustedChunkId = BulkDataChunkId + Offset;
-	uint8 Data[12] = { 0 };
-	
-	UE_CLOG((AdjustedChunkId & 0xF000000000000000) != 0, LogIoDispatcher, Error, TEXT("The BulkDataChunkId (%lld) being used to create a BulkdataChunkId is too large and will lose data, this might create unintended duplicate ids!"), BulkDataChunkId);
-
-	*reinterpret_cast<int32*>(&Data[0]) = GlobalPackageId;
-	*reinterpret_cast<uint64*>(&Data[4]) = AdjustedChunkId; // Top byte will get overwritten!
-	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(ChunkType);
-
-	FIoChunkId ChunkId;
-	ChunkId.Set(Data, 12);
-
-	return ChunkId;
+	return IoChunkId;
 }
 
 //////////////////////////////////////////////////////////////////////////
