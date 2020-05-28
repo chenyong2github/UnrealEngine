@@ -5,6 +5,9 @@
 // So vertex factories can interpolate dependencies of VertexFactoryGetTranslatedPrimitiveVolumeBounds
 #define PASS_NEEDS_PRIMITIVE_VOLUME_BOUNDS 1
 
+// Force inclusion of VertexId FVertexFactoryInput even if not otherwise required
+#define PASS_NEEDS_VERTEX_ID 1
+
 #include "Common.ush"
 
 #define SceneTexturesStruct VoxelizeVolumePass.SceneTextures 
