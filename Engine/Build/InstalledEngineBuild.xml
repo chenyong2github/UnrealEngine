@@ -132,10 +132,10 @@
 	<Property Name="ExtensionIncludes" Value=""/>
 	<Property Name="ExtensionPlatforms" Value=""/>
 	<ForEach Name="Platform" Values="$(DataDrivenPlatforms)">
-		<Property Name="PlatformBuildScript" Value="$(RootDir)/Engine/Platforms/$(Platform)/Build/InstalledEngineBuild.xml"/>
-		<Do If="Exists('$(PlatformBuildScript)')">
+		<Property Name="PlatformBuildScript" Value="Platforms/$(Platform)/Build/InstalledEngineBuild.xml"/>
+		<Do If="Exists('Engine/$(PlatformBuildScript)')">
 			<Property Name="ExtensionIncludes" Value="$(ExtensionIncludes);" If="'$(ExtensionIncludes)' != ''"/>
-			<Property Name="ExtensionIncludes" Value="$(ExtensionIncludes)$(PlatformBuildScript)"/>
+			<Property Name="ExtensionIncludes" Value="$(ExtensionIncludes)../$(PlatformBuildScript)"/>
 			<Property Name="ExtensionPlatforms" Value="$(ExtensionPlatforms);" If="'$(ExtensionPlatforms)' != ''"/>
 			<Property Name="ExtensionPlatforms" Value="$(ExtensionPlatforms)$(Platform)"/>
 		</Do>
