@@ -6,7 +6,6 @@
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/Collision/SpatialAccelerationCollisionDetector.h"
 #include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PerParticleAddImpulses.h"
 #include "Chaos/PerParticleEtherDrag.h"
@@ -89,9 +88,6 @@ namespace Chaos
 		using FCollisionDetector = FSpatialAccelerationCollisionDetector;
 		using FExternalForces = TPerParticleExternalForces<FReal, 3>;
 
-		using FJointConstraints = FPBDJointConstraints;
-		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
-
 		static constexpr int32 DefaultNumIterations = 1;
 		static constexpr int32 DefaultNumPairIterations = 1;
 		static constexpr int32 DefaultNumPushOutIterations = 3;
@@ -161,12 +157,6 @@ namespace Chaos
 
 		FGravityForces& GetGravityForces() { return GravityForces; }
 		const FGravityForces& GetGravityForces() const { return GravityForces; }
-
-		FJointConstraints& GetJointConstraints() { return JointConstraints; }
-		const FJointConstraints& GetJointConstraints() const { return JointConstraints; }
-
-		FJointConstraintRule& GetJointConstraintsRule() { return JointConstraintRule; }
-		const FJointConstraintRule& GetJointConstraintsRule() const { return JointConstraintRule; }
 
 		const TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() const { return Clustering; }
 		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() { return Clustering; }
@@ -268,9 +258,6 @@ namespace Chaos
 		FSpatialAccelerationBroadPhase BroadPhase;
 		FNarrowPhase NarrowPhase;
 		FSpatialAccelerationCollisionDetector CollisionDetector;
-
-		FPBDJointConstraints JointConstraints;
-		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule;
 
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;
 		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;
