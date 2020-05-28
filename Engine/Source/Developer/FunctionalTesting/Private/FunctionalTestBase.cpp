@@ -16,16 +16,18 @@ FFunctionalTestBase::FFunctionalTestBase(const FString& InName, const bool bInCo
 	bSuppressLogs = false;
 	bIsFunctionalTestRunning = false;
 	// CDO not available at this point
-	bTreatLogErrorsAsErrors = true;
-	bTreatLogErrorsAsErrors = false;
+	bSuppressLogErrors = false;
+	bSuppressLogWarnings = false;
+	bElevateLogWarningsToErrors = true;
 }
 
 void FFunctionalTestBase::SetLogErrorAndWarningHandlingToDefault()
 {
 	// Set to project defaults
 	UAutomationControllerSettings* Settings = UAutomationControllerSettings::StaticClass()->GetDefaultObject<UAutomationControllerSettings>();
-	bTreatLogErrorsAsErrors = Settings->bTreatLogErrorsAsTestErrors;
-	bTreatLogWarningsAsErrors = Settings->bTreatLogWarningsAsTestErrors;
+	bSuppressLogErrors = Settings->bSuppressLogErrors;
+	bSuppressLogWarnings = Settings->bSuppressLogWarnings;
+	bElevateLogWarningsToErrors = Settings->bTreatLogWarningsAsTestErrors;
 }
 
 /**

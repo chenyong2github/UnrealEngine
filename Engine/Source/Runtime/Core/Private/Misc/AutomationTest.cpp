@@ -28,15 +28,34 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 	}
 
 	// Ensure there's a valid unit test associated with the context
-	if ( CurTest )
+	if (CurTest)
 	{
-		bool CaptureLog = !CurTest->SuppressLogs() 
-					&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display);
+		bool CaptureLog = !CurTest->SuppressLogs()
+			&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display);
 
 		if (CaptureLog)
 		{
-			bool IsError = (Verbosity == ELogVerbosity::Error && CurTest->TreatLogErrorsAsErrors()) || (Verbosity == ELogVerbosity::Warning && CurTest->TreatLogWarningsAsErrors());
-			bool IsWarning = (Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Error) && !IsError;
+			bool IsError = false; 
+			bool IsWarning = false;
+
+			if (Verbosity == ELogVerbosity::Warning)
+			{
+				// If this is a warning, it gets suppressed if the test says so
+				IsWarning = CurTest->SuppressLogWarnings() == false;
+
+				// If it wasn't suppressed, it might get elevated to an error.
+				if (IsWarning && CurTest->ElevateLogWarningsToErrors())
+				{
+					IsError = true;
+					IsWarning = false;
+				}
+			}
+			// now check errors, and yes a test can both elevate warnings to errors and suppress them which doesn't
+			// make sense yet makes sense at the same time...
+			if (Verbosity == ELogVerbosity::Error)
+			{
+				IsError = CurTest->SuppressLogErrors() == false;;
+			}
 			
 			// Errors
 			if (IsError)
