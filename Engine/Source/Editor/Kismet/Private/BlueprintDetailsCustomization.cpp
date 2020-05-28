@@ -4340,10 +4340,19 @@ bool FBaseBlueprintGraphActionDetails::OnVerifyPinRename(UK2Node_EditablePinBase
 		return false;
 	}
 
-	if (InNewName == TEXT("None"))
+	static const TArray<FString> ReservedParamNames =
 	{
-		OutErrorMessage = LOCTEXT("PinNameNone", "'None' is a reserved name");
-		return false;
+		TEXT("None"),
+		TEXT("Self")
+	};
+
+	for(const FString& ReservedName : ReservedParamNames)
+	{
+		if (!FCString::Stricmp(*InNewName, *ReservedName))
+		{			
+			OutErrorMessage = FText::Format(LOCTEXT("PinNameIsReserved", "'{0}' is a reserved name"), FText::FromString(ReservedName));
+			return false;
+		}
 	}
 
 	if (InTargetNode)
