@@ -133,10 +133,16 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 	check(SkelComp);
 
 	USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
-	int32 LODIndex = Usage.GetLODIndex();
-	int32 NumLODInfo = SkelMesh == nullptr ? 1 : SkelMesh->GetLODInfoArray().Num();
-	check(LODIndex < NumLODInfo);
-	check(LODIndex != INDEX_NONE);
+	int32 LODIndex = 0;
+	int32 NumLODInfo = 1;
+	
+	if (SkelMesh != nullptr)
+	{
+		NumLODInfo = SkelMesh->GetLODInfoArray().Num();
+		LODIndex = Usage.GetLODIndex();
+		check(LODIndex != INDEX_NONE);
+		check(LODIndex < NumLODInfo);
+	}
 
 	LODData.SetNum(NumLODInfo);
 
