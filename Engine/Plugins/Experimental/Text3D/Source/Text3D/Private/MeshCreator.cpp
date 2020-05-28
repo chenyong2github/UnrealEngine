@@ -401,11 +401,12 @@ void FMeshCreator::MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroup
 
 	for (int32 TriangleIndex = 0; TriangleIndex < TrianglesInNum; TriangleIndex++)
 	{
-		const FMeshTriangle& Triangle = MeshDescription.Triangles()[FTriangleID(GroupIn.FirstTriangle + TriangleIndex)];
+		const FTriangleID TriangleID = FTriangleID(GroupIn.FirstTriangle + TriangleIndex);
+		TArrayView<const FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetTriangleVertexInstances(TriangleID);
 
-		uint32 Instance0 = static_cast<uint32>(TotalVerticesNum + Triangle.GetVertexInstanceID(0).GetValue() - GroupIn.FirstVertex);
-		uint32 Instance2 = static_cast<uint32>(TotalVerticesNum + Triangle.GetVertexInstanceID(2).GetValue() - GroupIn.FirstVertex);
-		uint32 Instance1 = static_cast<uint32>(TotalVerticesNum + Triangle.GetVertexInstanceID(1).GetValue() - GroupIn.FirstVertex);
+		uint32 Instance0 = static_cast<uint32>(TotalVerticesNum + VertexInstanceIDs[0].GetValue() - GroupIn.FirstVertex);
+		uint32 Instance2 = static_cast<uint32>(TotalVerticesNum + VertexInstanceIDs[2].GetValue() - GroupIn.FirstVertex);
+		uint32 Instance1 = static_cast<uint32>(TotalVerticesNum + VertexInstanceIDs[1].GetValue() - GroupIn.FirstVertex);
 		Data->AddTriangle(Instance0, Instance2, Instance1);
 	}
 }

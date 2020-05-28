@@ -1755,8 +1755,6 @@ float FMeshDescription::GetPolygonCornerAngleForVertex(const FPolygonID PolygonI
 		const FVertexID ThisVertexID = GetVertexInstanceVertex(VertexInstanceIDs[ContourIndex]);
 		const FVertexID NextVertexID = GetVertexInstanceVertex(VertexInstanceIDs[NextIndex]);
 
-		TVertexAttributesConstRef<FVector> VertexPositions = VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-
 		const FVector PrevVertexPosition = VertexPositions[PrevVertexID];
 		const FVector ThisVertexPosition = VertexPositions[ThisVertexID];
 		const FVector NextVertexPosition = VertexPositions[NextVertexID];

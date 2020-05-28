@@ -33,7 +33,6 @@ namespace GLTF
 			const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
 			const TVertexInstanceAttributesRef<FVector4>&  VertexInstanceColors,
 			const TEdgeAttributesRef<bool>&                EdgeHardnesses,
-			const TEdgeAttributesRef<float>&               EdgeCreaseSharpnesses,
 			FMeshDescription* MeshDescription);
 
 		inline TArray<FVector4>& GetVector4dBuffer(int32 Index)
@@ -166,7 +165,6 @@ namespace GLTF
 		FStaticMeshAttributes StaticMeshAttributes(*MeshDescription);
 		TVertexAttributesRef<FVector> VertexPositions = StaticMeshAttributes.GetVertexPositions();
 		TEdgeAttributesRef<bool>  EdgeHardnesses = StaticMeshAttributes.GetEdgeHardnesses();
-		TEdgeAttributesRef<float> EdgeCreaseSharpnesses = StaticMeshAttributes.GetEdgeCreaseSharpnesses();
 		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
 		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = StaticMeshAttributes.GetVertexInstanceNormals();
 		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = StaticMeshAttributes.GetVertexInstanceTangents();
@@ -218,7 +216,7 @@ namespace GLTF
 				ImportPrimitive(Primitive, Index, NumUVs, Mesh.HasTangents(), Mesh.HasColors(),  //
 					VertexInstanceNormals, VertexInstanceTangents, VertexInstanceBinormalSigns, VertexInstanceUVs,
 					VertexInstanceColors,  //
-					EdgeHardnesses, EdgeCreaseSharpnesses, MeshDescription);
+					EdgeHardnesses, MeshDescription);
 
 			bMeshUsesEmptyMaterial |= Primitive.MaterialIndex == INDEX_NONE;
 			for (int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
@@ -253,7 +251,6 @@ namespace GLTF
 		const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
 		const TVertexInstanceAttributesRef<FVector4>&  VertexInstanceColors,
 		const TEdgeAttributesRef<bool>&                EdgeHardnesses,
-		const TEdgeAttributesRef<float>&               EdgeCreaseSharpnesses,
 		FMeshDescription* MeshDescription)
 	{
 
@@ -394,10 +391,6 @@ namespace GLTF
 				// (Is there a way to set auto-gen smoothing threshold? glTF spec says to generate flat normals if they're not specified.
 				//   We want to combine identical verts whether they're smooth neighbors or triangles belonging to the same flat polygon.)
 				EdgeHardnesses[NewEdgeID] = false;
-				if (EdgeCreaseSharpnesses.IsValid())
-				{
-					EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
-				}
 			}
 		}
 		return bHasDegenerateTriangles;
