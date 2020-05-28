@@ -15,7 +15,7 @@
 #include "JsonObjectConverter.h"
 #include "PlatformInfo.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
-#include "ScreenshotComparisonSettings.h"
+#include "ScreenShotComparisonSettings.h"
 
 
 DEFINE_LOG_CATEGORY(LogScreenShotManager);
