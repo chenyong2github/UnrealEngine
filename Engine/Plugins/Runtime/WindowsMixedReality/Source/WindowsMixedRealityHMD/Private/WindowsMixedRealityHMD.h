@@ -367,11 +367,9 @@ namespace WindowsMixedReality
 		void ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, bool isHoloLens1);
 		void DisconnectFromRemoteHoloLens();
 	private:
-#if WITH_EDITOR
 #if WITH_WINDOWS_MIXED_REALITY
 		void UpdateRemotingStatus();
 		HMDRemotingConnectionState prevState = HMDRemotingConnectionState::Undefined;
-#endif
 #endif
 
 	public:
