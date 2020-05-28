@@ -407,6 +407,8 @@ void FAnalyticsProviderET::FlushEvents()
 				{
 					HttpRequest->OnProcessRequestComplete().BindSP(this, &FAnalyticsProviderET::EventRequestComplete);
 				}
+
+				HttpRequest->ProcessRequest();
 			}
 		}
 		else
