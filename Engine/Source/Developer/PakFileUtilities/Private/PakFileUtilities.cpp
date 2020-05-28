@@ -1083,8 +1083,15 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 		}
 	}
 
-	// make sure we can always fallback to zlib, which is guaranteed to exist
-	CmdLineParameters.CompressionFormats.AddUnique(NAME_Zlib);
+	// disable zlib as fallback if requested
+	if (FParse::Param(CmdLine, TEXT("disablezlib")))
+	{
+		UE_LOG(LogPakFile, Display, TEXT("Disabling ZLib as a compression option."));
+	}
+	else
+	{
+		CmdLineParameters.CompressionFormats.AddUnique(NAME_Zlib);
+	}
 
 	if (FParse::Value(CmdLine, TEXT("-create="), ResponseFile))
 	{
