@@ -302,8 +302,8 @@ void FAutomationControllerManager::ProcessComparisonQueue()
 	
 				// Paths in the result are relative to the project directory. Note we want to use the report paths
 				LocalFiles.Add(TEXT("approved"), FPaths::Combine(ProjectDir, Result.ApprovedFilePath));
-				LocalFiles.Add(TEXT("unapproved"), FPaths::Combine(ProjectDir, Result.ReportIncomingFilePath));
-				LocalFiles.Add(TEXT("difference"), FPaths::Combine(ProjectDir, Result.ReportComparisonFilePath));
+				LocalFiles.Add(TEXT("unapproved"), FPaths::Combine(ProjectDir, Result.IncomingFilePath));
+				LocalFiles.Add(TEXT("difference"), FPaths::Combine(ProjectDir, Result.ComparisonFilePath));
 
 				Report->AddArtifact(ClusterIndex, CurrentTestPass, FAutomationArtifact(UniqueId, Entry->TestName, EAutomationArtifactType::Comparison, LocalFiles));
 			}
