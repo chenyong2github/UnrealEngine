@@ -27,35 +27,48 @@ public:
 	 * Specify how log errors & warnings should be handled during tests. If values are not set then the project
 	 * defaults will be used.
 	 */
-	void SetLogErrorAndWarningHandling(TOptional<bool> LogErrorsAreErrors, TOptional<bool> LogWarningsAreErrors)
+	void SetLogErrorAndWarningHandling(TOptional<bool> InSuppressErrors, TOptional<bool> InSuppressWarnings, TOptional<bool> InWarningsAreErrors)
 	{
 		SetLogErrorAndWarningHandlingToDefault();
 
-		if (LogErrorsAreErrors.IsSet())
+		if (InSuppressErrors.IsSet())
 		{
-			bTreatLogErrorsAsErrors = LogErrorsAreErrors.GetValue();
+			bSuppressLogErrors = InSuppressErrors.GetValue();
 		}
 
-		if (LogWarningsAreErrors.IsSet())
+		if (InSuppressWarnings.IsSet())
 		{
-			bTreatLogWarningsAsErrors = LogWarningsAreErrors.GetValue();
+			bSuppressLogWarnings = InSuppressWarnings.GetValue();
+		}
+
+		if (InWarningsAreErrors.IsSet())
+		{
+			bElevateLogWarningsToErrors = InWarningsAreErrors.GetValue();
 		}
 	}	
 
 	/**
-	 * Determines if Error logs should be considered test errors
+	 * Determines if Error logs should be suppressed from test results
 	 */
-	virtual bool TreatLogErrorsAsErrors() override
+	virtual bool SuppressLogErrors() override
 	{
-		return bTreatLogErrorsAsErrors;
+		return bSuppressLogErrors;
 	}
 
 	/**
-	 * Determines if Warning logs should be considered test errors
+	 * Determines if Warning logs should be suppressed from test results
 	 */
-	virtual bool TreatLogWarningsAsErrors() override
+	virtual bool SuppressLogWarnings() override
 	{
-		return bTreatLogWarningsAsErrors;
+		return bSuppressLogWarnings;
+	}
+
+	/**
+	 * Determines if Warning logs should be treated as errors
+	 */
+	virtual bool ElevateLogWarningsToErrors() override
+	{
+		return bElevateLogWarningsToErrors;
 	}
 
 	/**
@@ -82,8 +95,9 @@ protected:
 
 	void SetLogErrorAndWarningHandlingToDefault();
 
-	bool bTreatLogErrorsAsErrors;
-	bool bTreatLogWarningsAsErrors;
+	bool bSuppressLogErrors;
+	bool bSuppressLogWarnings;
+	bool bElevateLogWarningsToErrors;
 	bool bSuppressLogs;
 
 	static bool bIsFunctionalTestRunning;
