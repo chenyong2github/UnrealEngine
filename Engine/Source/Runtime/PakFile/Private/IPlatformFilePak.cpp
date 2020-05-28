@@ -6701,6 +6701,7 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	ExcludedNonPakExtensions.Add(TEXT("umap"));
 	ExcludedNonPakExtensions.Add(TEXT("ubulk"));
 	ExcludedNonPakExtensions.Add(TEXT("uexp"));
+	ExcludedNonPakExtensions.Add(TEXT("uptnl"));
 #endif
 
 #if DISABLE_NONUFS_INI_WHEN_COOKED
