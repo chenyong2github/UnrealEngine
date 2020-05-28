@@ -10,4 +10,5 @@ public:
 	virtual ~FExampleAssetToolkit();
 private:
 	FDelegateHandle WindowOpenedDelegateHandle{};
+	bool bWindowHasOpened{false};
 };
