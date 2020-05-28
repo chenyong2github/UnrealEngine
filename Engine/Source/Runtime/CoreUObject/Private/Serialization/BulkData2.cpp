@@ -128,7 +128,7 @@ namespace FileTokenSystem
 		class FStringTable
 		{
 		public:
-			using KeyType = int32;
+			using KeyType = uint64;
 
 			void Add(const KeyType& Key, const FString& Filename)
 			{
@@ -188,7 +188,7 @@ namespace FileTokenSystem
 
 	FBulkDataOrId::FileToken RegisterFileToken( const FName& PackageName, const FString& Filename)
 	{
-		const uint32 Token = GetTypeHash(PackageName);
+		const uint64 Token = (uint64(PackageName.GetComparisonIndex().ToUnstableInt()) << 32) | uint64(PackageName.GetNumber());
 
 		FWriteScopeLock LockForScope(TokenLock);
 		StringTable.Add(Token, Filename);
