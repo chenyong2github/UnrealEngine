@@ -33,10 +33,10 @@ namespace Chaos
 			, Swaybar(0.5f)
 		{
 			// #todo: setup suspension properly
-			float Gravity = 980.0f;
+			float Gravity = 980.0f*1.2f;
 			float VehicleMass = 1600.0f;
 			float NumWheels = 4;
-			SpringRate = 1.5f * VehicleMass * Gravity / NumWheels;
+			SpringRate = 1.2f * VehicleMass * Gravity / NumWheels;
 			SpringPreload = 0.3f * SpringRate;
 			CompressionDamping = 1000.0f;
 			ReboundDamping = 1000.0f;
