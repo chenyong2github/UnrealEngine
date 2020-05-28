@@ -14,12 +14,11 @@ FExampleAssetToolkit::FExampleAssetToolkit(UAssetEditor* InOwningAssetEditor)
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	WindowOpenedDelegateHandle                  = AssetEditorSubsystem->OnAssetOpenedInEditor().AddLambda(
         [this, AssetEditorSubsystem](UObject* Asset, IAssetEditorInstance* AssetEditorInstance) {
-            if (AssetEditorInstance == static_cast<IAssetEditorInstance*>(this))
+            if (AssetEditorInstance == static_cast<IAssetEditorInstance*>(this) && !bWindowHasOpened)
             {
+				bWindowHasOpened = true;
                 ViewportClient->GetModeTools()->SetToolkitHost(GetToolkitHost());
                 ViewportClient->GetModeTools()->ActivateMode(GetDefault<UGizmoEdMode>()->GetID());
-                AssetEditorSubsystem->OnAssetOpenedInEditor().Remove(WindowOpenedDelegateHandle);
-                WindowOpenedDelegateHandle.Reset();
             }
         });
 }
