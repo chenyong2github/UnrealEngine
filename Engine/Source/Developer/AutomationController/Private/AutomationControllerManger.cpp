@@ -188,6 +188,13 @@ void FAutomationControllerManager::RunTests(const bool bInIsLocalSession)
 			MessageEndpoint->Send(new FAutomationWorkerResetTests(), MessageAddress);
 		}
 	}
+	
+	// remove existing results.
+	// #agrant todo - make this optional via the UI. Maybe rename these too?
+	UE_LOG(LogAutomationController, Display, TEXT("Clearing past reports and temp files from %s"), *FPaths::AutomationDir());
+	IFileManager::Get().DeleteDirectory(*FPaths::AutomationReportsDir(), false, true);
+	IFileManager::Get().DeleteDirectory(*FPaths::AutomationLogDir(), false, true);
+	IFileManager::Get().DeleteDirectory(*FPaths::AutomationTransientDir(), false, true);
 
 	// Inform the UI we are running tests
 	if ( ClusterDistributionMask != 0 )
@@ -293,10 +300,10 @@ void FAutomationControllerManager::ProcessComparisonQueue()
 
 				FString ProjectDir = FPaths::ProjectDir();
 	
-				// Paths in the result are relative to the project directory
+				// Paths in the result are relative to the project directory. Note we want to use the report paths
 				LocalFiles.Add(TEXT("approved"), FPaths::Combine(ProjectDir, Result.ApprovedFilePath));
-				LocalFiles.Add(TEXT("unapproved"), FPaths::Combine(ProjectDir, Result.IncomingFilePath));
-				LocalFiles.Add(TEXT("difference"), FPaths::Combine(ProjectDir, Result.ComparisonFilePath));
+				LocalFiles.Add(TEXT("unapproved"), FPaths::Combine(ProjectDir, Result.ReportIncomingFilePath));
+				LocalFiles.Add(TEXT("difference"), FPaths::Combine(ProjectDir, Result.ReportComparisonFilePath));
 
 				Report->AddArtifact(ClusterIndex, CurrentTestPass, FAutomationArtifact(UniqueId, Entry->TestName, EAutomationArtifactType::Comparison, LocalFiles));
 			}
@@ -480,7 +487,14 @@ FString FAutomationControllerManager::CopyArtifact(const FString& DestFolder, co
 {
 	FString ArtifactFile = FString(TEXT("artifacts")) / FGuid::NewGuid().ToString(EGuidFormats::Digits) + FPaths::GetExtension(SourceFile, true);
 	FString ArtifactDestination = DestFolder / ArtifactFile;
-	IFileManager::Get().Copy(*ArtifactDestination, *SourceFile, true, true);
+	
+	if (IFileManager::Get().Copy(*ArtifactDestination, *SourceFile, true, true) != 0)
+	{
+		uint32 ErrorCode = FPlatformMisc::GetLastError();
+		TCHAR ErrorBuffer[1024];
+		FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+		UE_LOG(LogAutomationController, Error, TEXT("Failed to copy %s to %s. Error: %u (%s)"), *SourceFile, *ArtifactDestination, ErrorCode, ErrorBuffer);
+	}
 
 	return ArtifactFile;
 }
