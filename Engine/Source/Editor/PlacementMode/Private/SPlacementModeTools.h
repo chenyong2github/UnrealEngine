@@ -150,4 +150,6 @@ private:
 
 	/** List view that shows placeable items */
 	TSharedPtr<SListView<TSharedPtr<FPlaceableItem>>> ListView;
+
+	const FSlateBrush* PlacementBrowserActiveTabBarBrush;
 };

@@ -297,6 +297,11 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 	bRecentlyPlacedRefreshRequested = false;
 	bNeedsUpdate = true;
 
+
+	static const FName PlacementBrowserActiveTabBarBrushName("PlacementBrowser.ActiveTabBar");
+	PlacementBrowserActiveTabBarBrush = FEditorStyle::GetBrush(PlacementBrowserActiveTabBarBrushName);
+
+
 	FPlacementMode* PlacementEditMode = (FPlacementMode*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Placement );
 	if (PlacementEditMode)
 	{
@@ -548,8 +553,7 @@ const FSlateBrush* SPlacementModeTools::PlacementGroupBorderImage( FName Categor
 {
 	if ( ActiveTabName == CategoryName )
 	{
-		static FName PlacementBrowserActiveTabBarBrush( "PlacementBrowser.ActiveTabBar" );
-		return FEditorStyle::GetBrush( PlacementBrowserActiveTabBarBrush );
+		return PlacementBrowserActiveTabBarBrush;
 	}
 	else
 	{

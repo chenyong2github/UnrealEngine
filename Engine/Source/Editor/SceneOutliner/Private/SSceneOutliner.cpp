@@ -3795,7 +3795,7 @@ namespace SceneOutliner
 	{
 		if ( !IsFilterActive() )
 		{
-			 return FAppStyle::Get().GetSlateColor("Colors.Foreground");
+			return FSlateColor::UseForeground();
 		}
 		else if( FilteredActorCount == 0 )
 		{

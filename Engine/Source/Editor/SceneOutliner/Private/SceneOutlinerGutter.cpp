@@ -179,6 +179,19 @@ public:
 			.ColorAndOpacity(this, &SVisibilityWidget::GetForegroundColor)
 			.Image(this, &SVisibilityWidget::GetBrush)
 		);
+
+
+		static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
+		static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
+		static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
+		static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
+
+		VisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleHoveredBrush);
+		VisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleNotHoveredBrush);
+
+		NotVisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleHoveredBrush);
+		NotVisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleNotHoveredBrush);
+
 	}
 
 private:
@@ -286,18 +299,11 @@ private:
 	{
 		if (IsVisible())
 		{
-
-			static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
-			static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
-			return IsHovered() ? FAppStyle::Get().GetBrush(NAME_VisibleHoveredBrush) :
-				FAppStyle::Get().GetBrush(NAME_VisibleNotHoveredBrush);
+			return IsHovered() ? VisibleHoveredBrush : VisibleNotHoveredBrush;
 		}
 		else
 		{
-			static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
-			static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
-			return IsHovered() ? FAppStyle::Get().GetBrush(NAME_NotVisibleHoveredBrush) :
-				FAppStyle::Get().GetBrush(NAME_NotVisibleNotHoveredBrush);
+			return IsHovered() ? NotVisibleHoveredBrush : NotVisibleNotHoveredBrush;
 		}
 	}
 
@@ -365,6 +371,12 @@ private:
 
 	/** Scoped undo transaction */
 	TUniquePtr<FScopedTransaction> UndoTransaction;
+
+	/** Visbility brushes for the various states */
+	const FSlateBrush* VisibleHoveredBrush;
+	const FSlateBrush* VisibleNotHoveredBrush;
+	const FSlateBrush* NotVisibleHoveredBrush;
+	const FSlateBrush* NotVisibleNotHoveredBrush;
 };
 
 FSceneOutlinerGutter::FSceneOutlinerGutter(ISceneOutliner& Outliner)
