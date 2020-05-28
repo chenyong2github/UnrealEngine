@@ -422,6 +422,7 @@ namespace IncludeTool
 			"/Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/PBDRigidsEvolutionFwd.h", // invalid forward declaration - 'namespace Chaos'
 			"/Engine/Source/Runtime/Experimental/ChaosSolvers/Public/PhysicsProxy/SingleParticlePhysicsProxyFwd.h", // invalid forward declaration - 'namespace Chaos'
 			"/Engine/Restricted/NotForLicensees/Plugins/ForwardingChannels/Source/ForwardingChannels/Public/ForwardingChannelsFwd.h", // invalid forward declaration - 'namespace ForwardingChannels'
+			"/Engine/Restricted/NotForLicensees/Plugins/LiveStreamAnimation/Source/LiveStreamAnimation/Public/LiveStreamAnimationFwd.h", // invalid forward declaration - 'namespace LiveStreamAnimation'
 		};
 
 		/// <summary>
