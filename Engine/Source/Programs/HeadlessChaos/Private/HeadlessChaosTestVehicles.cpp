@@ -426,7 +426,7 @@ namespace ChaosTest
 		}
 	}
 
-	TYPED_TEST(AllTraits, VehicleTest_WheelBrakingLongitudinalSlip)
+	TYPED_TEST(AllTraits, DISABLED_VehicleTest_WheelBrakingLongitudinalSlip)
 	{
 		FSimpleWheelConfig Setup;
 		FSimpleWheelSim Wheel(&Setup);
@@ -500,7 +500,7 @@ namespace ChaosTest
 		EXPECT_GT(StoppingDistanceLowFriction, StoppingDistanceA);
 	}
 
-	TYPED_TEST(AllTraits, VehicleTest_WheelAcceleratingLongitudinalSlip)
+	TYPED_TEST(AllTraits, DISABLED_VehicleTest_WheelAcceleratingLongitudinalSlip)
 	{
 		FSimpleWheelConfig Setup;
 		FSimpleWheelSim Wheel(&Setup);
@@ -532,7 +532,7 @@ namespace ChaosTest
 		EXPECT_LT(DrivingDistanceWheelspin, DrivingDistanceA);
 	}
 
-	TYPED_TEST(AllTraits, VehicleTest_WheelLateralSlip)
+	TYPED_TEST(AllTraits, DISABLED_VehicleTest_WheelLateralSlip)
 	{
 		FSimpleWheelConfig Setup;
 		FSimpleWheelSim Wheel(&Setup);
