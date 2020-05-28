@@ -74,7 +74,6 @@ FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader)
 	Ar << ContainerHeader.Names;
 	Ar << ContainerHeader.NameHashes;
 	Ar << ContainerHeader.PackageIds;
-	Ar << ContainerHeader.PackageNames;
 	Ar << ContainerHeader.StoreEntries;
 	Ar << ContainerHeader.CulturePackageMap;
 
@@ -152,7 +151,7 @@ FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry)
 #define ALT2_LOG_VERBOSE DO_CHECK
 #endif
 
-static TSet<FName> GAsyncLoading2_VerbosePackageNames;
+static TSet<FPackageId> GAsyncLoading2_VerbosePackageNames;
 
 // The ELogVerbosity::VerbosityMask is used to silence PVS,
 // using constexpr gave the same warning, and the disable comment can can't be used in a macro: //-V501 
@@ -160,23 +159,23 @@ static TSet<FName> GAsyncLoading2_VerbosePackageNames;
 #define UE_ASYNC_PACKAGE_LOG(Verbosity, PackageDesc, LogDesc, Format, ...) \
 if (GAsyncLoading2_VerbosePackageNames.Num() == 0 || \
 	(ELogVerbosity::Type(ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) < ELogVerbosity::Verbose) || \
-	GAsyncLoading2_VerbosePackageNames.Contains((PackageDesc).CustomPackageName) || \
-	GAsyncLoading2_VerbosePackageNames.Contains((PackageDesc).DiskPackageName)) \
+	GAsyncLoading2_VerbosePackageNames.Contains((PackageDesc).CustomPackageId) || \
+	GAsyncLoading2_VerbosePackageNames.Contains((PackageDesc).DiskPackageId)) \
 { \
 	if (!(PackageDesc).CustomPackageName.IsNone()) \
 	{ \
 		UE_LOG(LogStreaming, Verbosity, LogDesc TEXT(": %s (%d) %s (%d) - ") Format, \
 			*(PackageDesc).CustomPackageName.ToString(), \
-			(PackageDesc).CustomPackageId.ToIndexForDebugging(), \
+			(PackageDesc).CustomPackageId.ValueForDebugging(), \
 			*(PackageDesc).DiskPackageName.ToString(), \
-			(PackageDesc).DiskPackageId.ToIndexForDebugging(), \
+			(PackageDesc).DiskPackageId.ValueForDebugging(), \
 			##__VA_ARGS__); \
 	} \
 	else \
 	{ \
 		UE_LOG(LogStreaming, Verbosity, LogDesc TEXT(": %s (%d) - ") Format, \
 			*(PackageDesc).DiskPackageName.ToString(), \
-			(PackageDesc).DiskPackageId.ToIndexForDebugging(), \
+			(PackageDesc).DiskPackageId.ValueForDebugging(), \
 			##__VA_ARGS__); \
 	} \
 }
@@ -695,7 +694,7 @@ public:
 			UE_CLOG(Ref.GetRefCount() > 0, LogStreaming, Warning,
 				TEXT("PackageId '%d' with ref count %d should not have a ref count now")
 				TEXT(", or this check is incorrectly reached during active loading."),
-				PackageId.ToIndex(),
+				PackageId.Value(),
 				Ref.GetRefCount());
 		}
 	}
@@ -725,7 +724,6 @@ public:
 	FString CurrentCulture;
 
 	FCriticalSection PackageNameMapsCritical;
-	TMap<FName, FPackageId> PackageNameToPackageId;
 
 	TMap<FPackageId, FPackageStoreEntry*> StoreEntriesMap;
 	TMap<FPackageId, FPackageId> LocalizedPackageMap; // SourceId->LocalizedId for CurrentCulture
@@ -780,7 +778,7 @@ public:
 
 		FPackageName::DoesPackageExistOverride().BindLambda([this](FName PackageName)
 		{
-			FPackageId PackageId = FindPackageId(PackageName);
+			FPackageId PackageId = FPackageId::FromName(PackageName);
 			FScopeLock Lock(&PackageNameMapsCritical);
 			return StoreEntriesMap.Contains(PackageId);
 		});
@@ -879,10 +877,7 @@ public:
 						StoreEntriesMap.Reserve(StoreEntriesMap.Num() + LoadedContainer.PackageCount);
 						for (FPackageStoreEntry& ContainerEntry : StoreEntries)
 						{
-							FName PackageName = NameMap.GetName(ContainerHeader.PackageNames[Index]);
 							const FPackageId& PackageId = ContainerHeader.PackageIds[Index];
-							FPackageId& Id = PackageNameToPackageId.FindOrAdd(PackageName);
-							Id = PackageId;
 
 							FPackageStoreEntry*& GlobalEntry = StoreEntriesMap.FindOrAdd(PackageId);
 							if (!GlobalEntry)
@@ -1005,27 +1000,6 @@ public:
 				PackageRef->ClearAllPublicExportsLoaded();
 			}
 		}
-	}
-
-	inline FPackageId FindPackageId(FName Name)
-	{
-		FScopeLock Lock(&PackageNameMapsCritical);
-		FPackageId* Id = PackageNameToPackageId.Find(Name);
-		return Id ? *Id : FPackageId();
-	}
-
-	inline FPackageId FindOrAddPackageId(FName Name)
-	{
-		FScopeLock Lock(&PackageNameMapsCritical);
-		if (FPackageId* Id = PackageNameToPackageId.Find(Name))
-		{
-			return *Id;
-		}
-
-		int32 NewIndex = NextCustomPackageIndex++ | (1 << 31);
-		FPackageId NewId = FPackageId::FromIndex(NewIndex);
-		PackageNameToPackageId.Add(Name, NewId);
-		return NewId;
 	}
 
 	inline const FPackageStoreEntry* FindStoreEntry(FPackageId PackageId)
@@ -2241,7 +2215,7 @@ public:
 	FORCEINLINE FAsyncPackage2* FindAsyncPackage(const FName& PackageName)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FindAsyncPackage);
-		FPackageId PackageId = GlobalPackageStore.FindPackageId(PackageName); // TODO: Calculate hash
+		FPackageId PackageId = FPackageId::FromName(PackageName);
 		if (PackageId.IsValid())
 		{
 			FScopeLock LockAsyncPackages(&AsyncPackagesCritical);
@@ -2481,7 +2455,7 @@ void FAsyncLoadingThread2::InitializeLoading()
 			VerbosePackageNames.ParseIntoArray(Args, TEXT(" "));
 			for (FString& PackageName : Args)
 			{
-				GAsyncLoading2_VerbosePackageNames.Add(FName(*PackageName));
+				GAsyncLoading2_VerbosePackageNames.Add(FPackageId::FromName(FName(*PackageName)));
 			}
 		}
 	}
@@ -2659,7 +2633,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 		WaitingIoRequests.HeapPop(BundleIoRequest, false);
 
 		FIoReadOptions ReadOptions;
-		IoDispatcher.ReadWithCallback(CreateIoChunkId(Package->Desc.DiskPackageId.ToIndex(), 0, EIoChunkType::ExportBundleData),
+		IoDispatcher.ReadWithCallback(CreateIoChunkId(Package->Desc.DiskPackageId.Value(), 0, EIoChunkType::ExportBundleData),
 			ReadOptions,
 			[Package](TIoStatusOr<FIoBuffer> Result)
 		{
@@ -3139,7 +3113,7 @@ void FAsyncPackage2::ImportPackagesRecursive()
 		if (!ImportedPackageEntry)
 		{
 			UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("ImportPackages: SkipPackage"),
-				TEXT("Skipping non mounted imported package with id '%d'"), ImportedPackageId.ToIndex());
+				TEXT("Skipping non mounted imported package with id '%d'"), ImportedPackageId.Value());
 			PackageRef.SetIsMissingPackage();
 			continue;
 		}
@@ -5399,7 +5373,7 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 	bool bHasCustomPackageName = Name != DiskPackageName;
 
 	// Verify PackageToLoadName, or fixup to handle any input string that can be converted to a long package name.
-	FPackageId DiskPackageId = GlobalPackageStore.FindPackageId(DiskPackageName);
+	FPackageId DiskPackageId = FPackageId::FromName(DiskPackageName);
 	const FPackageStoreEntry* StoreEntry = GlobalPackageStore.FindStoreEntry(DiskPackageId);
 	if (!StoreEntry)
 	{
@@ -5410,7 +5384,7 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 			if (FPackageName::TryConvertFilenameToLongPackageName(PackageNameStr, NewPackageNameStr))
 			{
 				DiskPackageName = *NewPackageNameStr;
-				DiskPackageId = GlobalPackageStore.FindPackageId(DiskPackageName);
+				DiskPackageId = FPackageId::FromName(DiskPackageName);
 				StoreEntry = GlobalPackageStore.FindStoreEntry(DiskPackageId);
 				bHasCustomPackageName &= Name != DiskPackageName;
 			}
@@ -5424,21 +5398,21 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 	FPackageId CustomPackageId;
 	if (bHasCustomPackageName)
 	{
-		FPackageId PackageId = GlobalPackageStore.FindPackageId(Name);
+		FPackageId PackageId = FPackageId::FromName(Name);
 		if (!GlobalPackageStore.FindStoreEntry(PackageId))
 		{
 			FString PackageNameStr = Name.ToString();
 			if (FPackageName::IsValidLongPackageName(PackageNameStr))
 			{
 				CustomPackageName = Name;
-				CustomPackageId = GlobalPackageStore.FindOrAddPackageId(Name);
+				CustomPackageId = PackageId;
 			}
 			else
 			{
 				FString NewPackageNameStr;
 				if (FPackageName::TryConvertFilenameToLongPackageName(PackageNameStr, NewPackageNameStr))
 				{
-					PackageId = GlobalPackageStore.FindOrAddPackageId(FName(*NewPackageNameStr));
+					PackageId = FPackageId::FromName(FName(*NewPackageNameStr));
 					if (!GlobalPackageStore.FindStoreEntry(PackageId))
 					{
 						CustomPackageName = *NewPackageNameStr;

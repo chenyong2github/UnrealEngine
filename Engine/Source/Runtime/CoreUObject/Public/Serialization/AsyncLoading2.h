@@ -109,7 +109,6 @@ struct FContainerHeader
 	TArray<uint8> Names;
 	TArray<uint8> NameHashes;
 	TArray<FPackageId> PackageIds;
-	TArray<FMappedName> PackageNames;
 	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
 	FCulturePackageMap CulturePackageMap;
 
