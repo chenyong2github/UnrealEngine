@@ -24,6 +24,7 @@
 #include "MeshPaintModeHelpers.h"
 #include "MeshSelect.h"
 #include "MeshTexturePaintingTool.h"
+#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "MeshPaintMode"
