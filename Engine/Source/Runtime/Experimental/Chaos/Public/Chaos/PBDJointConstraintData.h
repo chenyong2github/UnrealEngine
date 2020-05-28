@@ -32,7 +32,6 @@ namespace Chaos
 			, JointParticles({ nullptr,nullptr })
 			, JointTransforms({ FTransform::Identity, FTransform::Identity})
 		{
-			Transform.SetIdentity();
 			MDirtyFlags.Clear();
 		}
 
@@ -70,10 +69,6 @@ namespace Chaos
 		void SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointParticles) { JointTransforms[0] = InJointParticles[0]; JointTransforms[1] = InJointParticles[1]; }
 		const FTransformPair GetJointTransforms() const { return JointTransforms; }
 		FTransformPair GetJointTransforms() { return JointTransforms; }
-		
-		void SetTransform(const Chaos::FRigidTransform3& InTransform) { Transform = InTransform; }
-		const FRigidTransform3 GetTransform() const { return Transform; }
-		FRigidTransform3 GetTransform() { return Transform; }
 
 		void SetJointSettings(const Chaos::FPBDJointSettings& InSettings) {}
 
@@ -85,7 +80,6 @@ namespace Chaos
 
 		FParticlePair JointParticles;
 		FTransformPair JointTransforms;
-		FRigidTransform3 Transform;
 
 	};
 
