@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "ScreenshotComparisonSettings.h"
+#include "ScreenShotComparisonSettings.h"
 
 
 UScreenShotComparisonSettings::UScreenShotComparisonSettings(const FObjectInitializer& ObjectInitializer)
