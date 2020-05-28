@@ -14,6 +14,7 @@ struct FElementIDRemappings
 	TSparseArray<int32> NewVertexInstanceIndexLookup;
 	TSparseArray<int32> NewEdgeIndexLookup;
 	TSparseArray<int32> NewTriangleIndexLookup;
+	TSparseArray<int32> NewUVIndexLookup;
 	TSparseArray<int32> NewPolygonIndexLookup;
 	TSparseArray<int32> NewPolygonGroupIndexLookup;
 
@@ -33,6 +34,12 @@ struct FElementIDRemappings
 	{
 		checkSlow( NewEdgeIndexLookup.IsAllocated( EdgeID.GetValue() ) );
 		return FEdgeID( NewEdgeIndexLookup[ EdgeID.GetValue() ] );
+	}
+
+	FUVID GetRemappedUVID( FUVID UVID ) const
+	{
+		checkSlow( NewUVIndexLookup.IsAllocated( UVID.GetValue() ) );
+		return FUVID( NewUVIndexLookup[ UVID.GetValue() ] );
 	}
 
 	FTriangleID GetRemappedTriangleID( FTriangleID TriangleID ) const

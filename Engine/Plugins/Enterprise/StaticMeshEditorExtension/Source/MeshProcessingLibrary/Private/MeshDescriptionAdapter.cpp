@@ -12,7 +12,7 @@ namespace MeshDescriptionAdapterUtils
 	// NOTE: This is the same as FMeshDescription::GetPolygonEdges(), although the method should be renamed to GetPolygonPerimeterEdges()
 	void GetPolygonPerimeterEdges(const FMeshDescription& MeshDescription, const FPolygonID& PolygonID, TArray<FEdgeID>& OutPolygonPerimeterEdgeIDs)
 	{
-		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(PolygonID);
+		TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(PolygonID);
 		int32 EdgeCount = VertexInstanceIDs.Num();
 
 		OutPolygonPerimeterEdgeIDs.SetNumUninitialized(EdgeCount, false);
@@ -33,13 +33,15 @@ FMeshDescriptionAdapter::FMeshDescriptionAdapter(FMeshDescription& InMeshDescrip
 	: MeshDescription(InMeshDescription)
 {
 	// Polygon normals are a transient attribute, so register the attribute here if it is not already registered.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Normal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
-
 	TPolygonAttributesRef<FVector> PolygonNormals = MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 	for (const FPolygonID TriangleID : MeshDescription.Polygons().GetElementIDs())
 	{
-		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
+		TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
 
 		// @todo: RichTW: This code is assuming polygons with 3 vertices, when a valid mesh description may have polygons with any number of vertices.
 		// Are triangles the expected input here? We should check(VertexInstanceIDs.Num() == 3), or make this code more flexible.
@@ -441,19 +443,19 @@ void FMeshDescriptionAdapter::SetStatusRecursively()
 
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
-			if (PolygonEdges[Corner] != FEdgeID::Invalid)
+			if (PolygonEdges[Corner] != INDEX_NONE)
 			{
 				EdgeMetaData[PolygonEdges[Corner].GetValue()].Markers |= ELEMENT_STATUS_MASK;
 
 				const FVertexID VertexID0 = MeshDescription.GetEdgeVertex(PolygonEdges[Corner], 0);
 				const FVertexID VertexID1 = MeshDescription.GetEdgeVertex(PolygonEdges[Corner], 1);
 
-				if (VertexID0 != FVertexID::Invalid)
+				if (VertexID0 != INDEX_NONE)
 				{
 					VertexMetaData[VertexID0.GetValue()].Markers |= ELEMENT_STATUS_MASK;
 				}
 
-				if (VertexID1 != FVertexID::Invalid)
+				if (VertexID1 != INDEX_NONE)
 				{
 					VertexMetaData[VertexID1.GetValue()].Markers |= ELEMENT_STATUS_MASK;
 				}
@@ -473,19 +475,19 @@ void FMeshDescriptionAdapter::SetStatusRecursively(uint8_t CategoryMask)
 
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
-			if (PolygonEdges[Corner] != FEdgeID::Invalid && IsEdgeOfCategory(PolygonEdges[Corner].GetValue(), CategoryMask))
+			if (PolygonEdges[Corner] != INDEX_NONE && IsEdgeOfCategory(PolygonEdges[Corner].GetValue(), CategoryMask))
 			{
 				EdgeMetaData[PolygonEdges[Corner].GetValue()].Markers |= ELEMENT_STATUS_MASK;
 
 				const FVertexID VertexID0 = MeshDescription.GetEdgeVertex(PolygonEdges[Corner], 0);
 				const FVertexID VertexID1 = MeshDescription.GetEdgeVertex(PolygonEdges[Corner], 1);
 
-				if (VertexID0 != FVertexID::Invalid && IsVertexOfCategory(VertexID0.GetValue(), CategoryMask))
+				if (VertexID0 != INDEX_NONE && IsVertexOfCategory(VertexID0.GetValue(), CategoryMask))
 				{
 					VertexMetaData[VertexID0.GetValue()].Markers |= ELEMENT_STATUS_MASK;
 				}
 
-				if (VertexID1 != FVertexID::Invalid && IsVertexOfCategory(VertexID1.GetValue(), CategoryMask))
+				if (VertexID1 != INDEX_NONE && IsVertexOfCategory(VertexID1.GetValue(), CategoryMask))
 				{
 					VertexMetaData[VertexID1.GetValue()].Markers |= ELEMENT_STATUS_MASK;
 				}
@@ -505,19 +507,19 @@ void FMeshDescriptionAdapter::ResetStatusRecurcively()
 
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
-			if (PolygonEdges[Corner] != FEdgeID::Invalid)
+			if (PolygonEdges[Corner] != INDEX_NONE)
 			{
 				EdgeMetaData[PolygonEdges[Corner].GetValue()].Markers &= ~ELEMENT_STATUS_MASK;
 
 				const FVertexID VertexID0 = MeshDescription.GetEdgeVertex(PolygonEdges[Corner], 0);
 				const FVertexID VertexID1 = MeshDescription.GetEdgeVertex(PolygonEdges[Corner], 1);
 
-				if (VertexID0 != FVertexID::Invalid)
+				if (VertexID0 != INDEX_NONE)
 				{
 					VertexMetaData[VertexID0.GetValue()].Markers &= ~ELEMENT_STATUS_MASK;
 				}
 
-				if (VertexID1 != FVertexID::Invalid)
+				if (VertexID1 != INDEX_NONE)
 				{
 					VertexMetaData[VertexID1.GetValue()].Markers &= ~ELEMENT_STATUS_MASK;
 				}
@@ -539,19 +541,19 @@ void FMeshDescriptionAdapter::ResetMarkersRecursively()
 
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
-			if (PolygonEdges[Corner] != FEdgeID::Invalid)
+			if (PolygonEdges[Corner] != INDEX_NONE)
 			{
 				EdgeMetaData[PolygonEdges[Corner].GetValue()].Markers &= Mask;
 
 				const FVertexID VertexID0 = MeshDescription.GetEdgeVertex(PolygonEdges[Corner], 0);
 				const FVertexID VertexID1 = MeshDescription.GetEdgeVertex(PolygonEdges[Corner], 1);
 
-				if (VertexID0 != FVertexID::Invalid)
+				if (VertexID0 != INDEX_NONE)
 				{
 					VertexMetaData[VertexID0.GetValue()].Markers &= Mask;
 				}
 
-				if (VertexID1 != FVertexID::Invalid)
+				if (VertexID1 != INDEX_NONE)
 				{
 					VertexMetaData[VertexID1.GetValue()].Markers &= Mask;
 				}
@@ -710,7 +712,7 @@ int FMeshDescriptionAdapter::GetTriangleEdges(FMSTriangleID TriangleIndex, FMSEd
 int FMeshDescriptionAdapter::GetEdgesAndVerticesForTriangle(FMSTriangleID TriangleIndex, FMSEdgeID* EdgeSet, FMSVertexID* NodeSet)
 {
 	const FPolygonID TriangleID(TriangleIndex);
-	const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
+	TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
 
 	TArray<FEdgeID> TriangleEdges;
 	MeshDescription.GetPolygonPerimeterEdges(TriangleID, TriangleEdges);
@@ -728,7 +730,7 @@ int FMeshDescriptionAdapter::GetEdgesAndVerticesForTriangle(FMSTriangleID Triang
 bool FMeshDescriptionAdapter::GetEdgeDirectionForTriangle(FMSTriangleID TriangleIndex, FMSEdgeID EdgeIndex)
 {
 	const FPolygonID TriangleID(TriangleIndex);
-	const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
+	TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
 
 	TArray<FEdgeID> TriangleEdges;
 	MeshDescription.GetPolygonPerimeterEdges(TriangleID, TriangleEdges);
@@ -755,7 +757,7 @@ bool FMeshDescriptionAdapter::GetEdgeDirectionForTriangle(FMSTriangleID Triangle
 int FMeshDescriptionAdapter::GetEdgeDirectionsForTriangle(FMSTriangleID TriangleIndex, bool *EdgeDirections)
 {
 	const FPolygonID TriangleID(TriangleIndex);
-	const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
+	TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
 
 	TArray<FEdgeID> TriangleEdges;
 	MeshDescription.GetPolygonPerimeterEdges(TriangleID, TriangleEdges);
@@ -779,7 +781,7 @@ int FMeshDescriptionAdapter::GetEdgeDirectionsForTriangle(FMSTriangleID Triangle
 FMSVertexID FMeshDescriptionAdapter::GetOppositeVertexOnEdgeForTriangle(FMSTriangleID TriangleIndex, FMSEdgeID EdgeIndex)
 {
 	const FPolygonID TriangleID(TriangleIndex);
-	const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
+	TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(TriangleID);
 
 	TArray<FEdgeID> TriangleEdges;
 	MeshDescription.GetPolygonPerimeterEdges(TriangleID, TriangleEdges);
@@ -824,7 +826,9 @@ FMSEdgeID FMeshDescriptionAdapter::GetOppositeEdgeAtVertexForTriangle(FMSTriangl
 int FMeshDescriptionAdapter::GetTriangleNormal(FMSTriangleID TriangleIndex, MeshSimplifier::Vector3D& Normal)
 {
 	const FPolygonID TriangleID(TriangleIndex);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const FVector Vector = MeshDescription.PolygonAttributes().GetAttribute<FVector>(TriangleID, MeshAttribute::Polygon::Normal);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Normal.set(-Vector[0], -Vector[1], -Vector[2]);
 
@@ -834,7 +838,9 @@ int FMeshDescriptionAdapter::GetTriangleNormal(FMSTriangleID TriangleIndex, Mesh
 int FMeshDescriptionAdapter::GetTriangleInvertedNormal(FMSTriangleID TriangleIndex, MeshSimplifier::Vector3D& Normal)
 {
 	const FPolygonID TriangleID(TriangleIndex);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const FVector Vector = MeshDescription.PolygonAttributes().GetAttribute<FVector>(TriangleID, MeshAttribute::Polygon::Normal);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Normal.set(Vector[0], Vector[1], Vector[2]);
 
@@ -844,7 +850,9 @@ int FMeshDescriptionAdapter::GetTriangleInvertedNormal(FMSTriangleID TriangleInd
 int FMeshDescriptionAdapter::GetTriangleNormalizedNormal(FMSTriangleID TriangleIndex, MeshSimplifier::Vector3D& Normal)
 {
 	const FPolygonID TriangleID(TriangleIndex);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const FVector Vector = MeshDescription.PolygonAttributes().GetAttribute<FVector>(TriangleID, MeshAttribute::Polygon::Normal).GetSafeNormal();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Normal.set(Vector[0], Vector[1], Vector[2]);
 
@@ -1122,7 +1130,7 @@ int FMeshDescriptionAdapter::SetEdgePartitionBorder(FMSEdgeID EdgeIndex)
 bool FMeshDescriptionAdapter::IsEdgeAtUVDiscontinuity(FMSEdgeID EdgeIndex)
 {
 	TVertexInstanceAttributesConstRef<FVector2D> MeshTextureCoordinates = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	if (MeshTextureCoordinates.GetNumIndices() == 0)
+	if (MeshTextureCoordinates.GetNumChannels() == 0)
 	{
 		return false;
 	}
@@ -1146,8 +1154,8 @@ bool FMeshDescriptionAdapter::IsEdgeAtUVDiscontinuity(FMSEdgeID EdgeIndex)
 	VertexInstances[1][0] = MeshDescription.GetVertexInstanceForPolygonVertex(EdgeConnectedPolygons[1], EdgeVertexID0);
 	VertexInstances[1][1] = MeshDescription.GetVertexInstanceForPolygonVertex(EdgeConnectedPolygons[1], EdgeVertexID1);
 
-	if (VertexInstances[0][0] != FVertexInstanceID::Invalid && VertexInstances[0][1] != FVertexInstanceID::Invalid &&
-		VertexInstances[1][0] != FVertexInstanceID::Invalid && VertexInstances[1][1] != FVertexInstanceID::Invalid)
+	if (VertexInstances[0][0] != INDEX_NONE && VertexInstances[0][1] != INDEX_NONE &&
+		VertexInstances[1][0] != INDEX_NONE && VertexInstances[1][1] != INDEX_NONE)
 	{
 		FVector2D VertexInstanceTexCoords[2][2];
 
@@ -1276,7 +1284,7 @@ int FMeshDescriptionAdapter::RemoveAsFeatureLine(FMSEdgeID EdgeIndex)
 FMSEdgeID FMeshDescriptionAdapter::FindEdgeFromVertices(FMSVertexID StartVertexIndex, FMSVertexID EndVertexIndex)
 {
 	FEdgeID EdgeID = MeshDescription.GetVertexPairEdge(FVertexID(StartVertexIndex), FVertexID(EndVertexIndex));
-	return EdgeID == FEdgeID::Invalid ? BAD_INDEX : EdgeID.GetValue();
+	return EdgeID == INDEX_NONE ? BAD_INDEX : EdgeID.GetValue();
 }
 
 bool FMeshDescriptionAdapter::GetEdgeDirectionAtFirstTriangle(FMSEdgeID EdgeIndex)
@@ -1350,9 +1358,9 @@ FMSVertexID FMeshDescriptionAdapter::GetSharedVerticesBetweenEdges(FMSEdgeID Edg
 	const FVertexID OtherEdgeVertexID0 = MeshDescription.GetEdgeVertex(OtherEdgeID, 0);
 	const FVertexID OtherEdgeVertexID1 = MeshDescription.GetEdgeVertex(OtherEdgeID, 1);
 
-	FVertexID VertexID = EdgeVertexID0 == OtherEdgeVertexID0 || EdgeVertexID0 == OtherEdgeVertexID1 ? EdgeVertexID0 : ( EdgeVertexID1 == OtherEdgeVertexID0 || EdgeVertexID1 == OtherEdgeVertexID1 ? EdgeVertexID1 : FVertexID::Invalid);
+	FVertexID VertexID = EdgeVertexID0 == OtherEdgeVertexID0 || EdgeVertexID0 == OtherEdgeVertexID1 ? EdgeVertexID0 : ( EdgeVertexID1 == OtherEdgeVertexID0 || EdgeVertexID1 == OtherEdgeVertexID1 ? EdgeVertexID1 : INDEX_NONE);
 
-	return VertexID == FVertexID::Invalid ? BAD_INDEX : VertexID.GetValue();
+	return VertexID == INDEX_NONE ? BAD_INDEX : VertexID.GetValue();
 }
 
 bool FMeshDescriptionAdapter::IsEdgeLimitedByVertex(FMSEdgeID EdgeIndex, FMSVertexID VertexIndex)
@@ -1488,7 +1496,7 @@ MeshSimplifier::Point3D FMeshDescriptionAdapter::GetVertexCoordinates(FMSVertexI
 
 int FMeshDescriptionAdapter::GetConnectingEdgesAtVertex(FMSVertexID VertexIndex, std::vector<FMSEdgeID>& OutEdges)
 {
-	const TArray<FEdgeID>& VertexEdges = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
+	TArrayView<const FEdgeID> VertexEdges = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
 
 	OutEdges.resize(VertexEdges.Num());
 	for (int32 Index = 0; Index < VertexEdges.Num(); ++Index)
@@ -1506,7 +1514,7 @@ int FMeshDescriptionAdapter::GetEdgesAtVertex(FMSVertexID VertexIndex, std::vect
 		return 0;
 	}
 
-	const TArray<FEdgeID>& VertexEdges = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
+	TArrayView<const FEdgeID> VertexEdges = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
 
 	Edges.clear();
 
@@ -1525,7 +1533,7 @@ int FMeshDescriptionAdapter::GetEdgesAtVertex(FMSVertexID VertexIndex, std::vect
 
 int FMeshDescriptionAdapter::GetVertexConnectingTriangles(FMSVertexID VertexIndex, std::unordered_set<FMSTriangleID> &OutTriangles)
 {
-	const TArray<FEdgeID>& EdgeIDs = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
+	TArrayView<const FEdgeID> EdgeIDs = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
 
 	OutTriangles.clear();
 
@@ -1555,7 +1563,7 @@ int FMeshDescriptionAdapter::ValidateVertexTopology(FMSVertexID VertexIndex)
 
 	// Logic took from GPNode::evaluateConnectivity
 	const FVertexID VertexID(VertexIndex);
-	const TArray<FEdgeID>& VertexConnectedEdgeIDs = MeshDescription.GetVertexConnectedEdges(VertexID);
+	TArrayView<const FEdgeID> VertexConnectedEdgeIDs = MeshDescription.GetVertexConnectedEdges(VertexID);
 
 	switch (VertexConnectedEdgeIDs.Num())
 	{
@@ -1592,7 +1600,7 @@ int FMeshDescriptionAdapter::ValidateVertexTopology(FMSVertexID VertexIndex)
 					{
 						// count the number of face between the both border edge
 						FEdgeID EdgeID(VertexConnectedEdgeIDs[EdgeIndex]);
-						FPolygonID TriangleID(FPolygonID::Invalid);
+						FPolygonID TriangleID(INDEX_NONE);
 						int32 TriangleCount = 0;
 
 						do
@@ -1658,7 +1666,7 @@ int FMeshDescriptionAdapter::ValidateVertexTopology(FMSVertexID VertexIndex)
 				const FEdgeID FirstEdgeID(VertexConnectedEdgeIDs[0]);
 				FEdgeID EdgeID(FirstEdgeID);
 
-				FPolygonID TriangleID(FPolygonID::Invalid);
+				FPolygonID TriangleID(INDEX_NONE);
 				int32 TriangleCount = 0;
 
 				do
@@ -1743,7 +1751,10 @@ int FMeshDescriptionAdapter::ValidateMesh()
 	VertexMetaData.SetNumZeroed(MeshDescription.Vertices().GetArraySize());
 
 	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	for (const FPolygonID TriangleID : MeshDescription.Polygons().GetElementIDs())
 	{
 		TriangleMetaData[TriangleID.GetValue()].Category = (uint16)MeshSimplifier::EElementCategory::ElementCategorySurface;
@@ -1841,19 +1852,19 @@ void FMeshDescriptionAdapter::ValidateTriangles(std::vector<FMSTriangleID>& Tria
 		}
 	}
 
-	FPolygonGroupID PolygonGroupID = FPolygonGroupID::Invalid;
+	FPolygonGroupID PolygonGroupID = INDEX_NONE;
 	for (FMSTriangleID TriangleIndex : OtherTriangles)
 	{
 		// TODO : Find the right one
 		const FPolygonGroupID TrianglePolygonGroupID = MeshDescription.GetPolygonPolygonGroup(FPolygonID(TriangleIndex));
-		if (TrianglePolygonGroupID != FPolygonGroupID::Invalid)
+		if (TrianglePolygonGroupID != INDEX_NONE)
 		{
 			PolygonGroupID = TrianglePolygonGroupID;
 			break;
 		}
 	}
 
-	if (PolygonGroupID != FPolygonGroupID::Invalid)
+	if (PolygonGroupID != INDEX_NONE)
 	{
 		for (FMSTriangleID TriangleIndex : Triangles)
 		{
@@ -1894,7 +1905,7 @@ int FMeshDescriptionAdapter::CreateTriangle(FMSVertexID VertexIndexA, FMSVertexI
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	int32 NumTexCoords = VertexInstanceUVs.GetNumIndices();
+	int32 NumTexCoords = VertexInstanceUVs.GetNumChannels();
 
 	// Try to reuse existing Vertex instances to create the new polygon
 	TArray<FVertexInstanceID> TriangleVertexInstanceIDs;
@@ -1902,9 +1913,9 @@ int FMeshDescriptionAdapter::CreateTriangle(FMSVertexID VertexIndexA, FMSVertexI
 	for (int32 Corner = 0; Corner < 3; ++Corner)
 	{
 		// vertex instance's color, uvs are copied from first instance of vertex if such instance exists
-		const TArray<FVertexInstanceID>& VertexInstances = MeshDescription.GetVertexVertexInstances(VertexIDs[Corner]);
+		TArrayView<const FVertexInstanceID> VertexInstances = MeshDescription.GetVertexVertexInstances(VertexIDs[Corner]);
 
-		FVertexInstanceID VertexInstanceID = FVertexInstanceID::Invalid;
+		FVertexInstanceID VertexInstanceID = INDEX_NONE;
 		for (const FVertexInstanceID CandidateVertexInstance : VertexInstances)
 		{
 			if ((VertexInstanceNormals[CandidateVertexInstance] ^ TriangleNormal).SizeSquared() < 0.00001f)
@@ -1915,7 +1926,7 @@ int FMeshDescriptionAdapter::CreateTriangle(FMSVertexID VertexIndexA, FMSVertexI
 		}
 
 		// No match, let's create a new one
-		if (VertexInstanceID == FVertexInstanceID::Invalid)
+		if (VertexInstanceID == INDEX_NONE)
 		{
 			VertexInstanceID = MeshDescription.CreateVertexInstance(VertexIDs[Corner]);
 
@@ -1945,7 +1956,7 @@ int FMeshDescriptionAdapter::CreateTriangle(FMSVertexID VertexIndexA, FMSVertexI
 		EdgeVertexIDs[1] = VertexIDs[CornerIndices[1]];
 
 		FEdgeID MatchEdgeId = MeshDescription.GetVertexPairEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
-		if (MatchEdgeId == FEdgeID::Invalid)
+		if (MatchEdgeId == INDEX_NONE)
 		{
 			MatchEdgeId = MeshDescription.CreateEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
 			int32 Increment = MeshDescription.Edges().GetArraySize() - EdgeMetaData.Num();
@@ -1964,7 +1975,9 @@ int FMeshDescriptionAdapter::CreateTriangle(FMSVertexID VertexIndexA, FMSVertexI
 	}
 	const FPolygonID NewPolygonID = MeshDescription.CreatePolygon(PolygonGroupID, TriangleVertexInstanceIDs);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MeshDescription.PolygonAttributes().SetAttribute(NewPolygonID, MeshAttribute::Polygon::Normal, 0, TriangleNormal);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	{
 		int32 Increment = MeshDescription.Polygons().GetArraySize() - TriangleMetaData.Num();

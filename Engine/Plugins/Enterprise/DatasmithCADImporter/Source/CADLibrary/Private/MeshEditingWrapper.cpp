@@ -36,12 +36,12 @@ void FMeshEditingWrapper::UpdateMeshWrapper()
 
 void FMeshEditingWrapper::DefineEdgeTopology(FEdgeID EdgeID)
 {
-	if (EdgeID == FEdgeID::Invalid)
+	if (EdgeID == INDEX_NONE)
 	{
 		return;
 	}
 
-	const TArray<FTriangleID>& EdgeConnectedPolygons = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
+	TArrayView<const FTriangleID> EdgeConnectedPolygons = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
 
 	switch (EdgeConnectedPolygons.Num())
 	{
@@ -62,12 +62,12 @@ void FMeshEditingWrapper::DefineEdgeTopology(FEdgeID EdgeID)
 
 void FMeshEditingWrapper::DefineVertexTopologyApproximation(FVertexID VertexID)
 {
-	if (VertexID == FVertexID::Invalid)
+	if (VertexID == INDEX_NONE)
 	{
 		return;
 	}
 
-	const TArray<FEdgeID>& VertexConnectedEdgeIDs = MeshDescription.GetVertexConnectedEdges(VertexID);
+	TArrayView<const FEdgeID> VertexConnectedEdgeIDs = MeshDescription.GetVertexConnectedEdges(VertexID);
 
 	switch (VertexConnectedEdgeIDs.Num())
 	{
@@ -113,12 +113,12 @@ void FMeshEditingWrapper::DefineVertexTopologyApproximation(FVertexID VertexID)
 			const FEdgeID FirstEdgeID(VertexConnectedEdgeIDs[0]);
 			FEdgeID EdgeID(FirstEdgeID);
 
-			FTriangleID TriangleID(FPolygonID::Invalid);
+			FTriangleID TriangleID(INDEX_NONE);
 			int32 TriangleCount = 0;
 
 			do
 			{
-				const TArray<FTriangleID>& EdgeConnectedPolygons = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
+				TArrayView<const FTriangleID> EdgeConnectedPolygons = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
 				// Border edge no more triangles to process, exit from the loop
 				if (EdgeConnectedPolygons.Num() < 2)
 				{
@@ -128,8 +128,7 @@ void FMeshEditingWrapper::DefineVertexTopologyApproximation(FVertexID VertexID)
 				TriangleID = (TriangleID == EdgeConnectedPolygons[0]) ? EdgeConnectedPolygons[1] : EdgeConnectedPolygons[0];
 				++TriangleCount;
 
-				TStaticArray<FEdgeID, 3> TriangleEdges;
-				MeshDescription.GetTriangleEdges(TriangleID, TriangleEdges);
+				TArrayView<const FEdgeID> TriangleEdges = MeshDescription.GetTriangleEdges(TriangleID);
 
 				for (int32 Corner = 0; Corner < 3; ++Corner)
 				{
@@ -166,8 +165,7 @@ FMeshEditingWrapper::~FMeshEditingWrapper()
 void FMeshEditingWrapper::ResetTriangleMarkerRecursively(FTriangleID Triangle)
 {
 	MeshEditingWrapperUtils::ResetElementMarker(TriangleMetaData[Triangle.GetValue()], ELEMENT_FIRST_MARKER_MASK);
-	TStaticArray<FEdgeID, 3> EdgeSet;
-	MeshDescription.GetTriangleEdges(Triangle, EdgeSet);
+	TArrayView<const FEdgeID> EdgeSet = MeshDescription.GetTriangleEdges(Triangle);
 	for (int32 IEdge = 0; IEdge < 3; IEdge++)
 	{
 		MeshEditingWrapperUtils::ResetElementMarker(TriangleMetaData[EdgeSet[IEdge].GetValue()], ELEMENT_FIRST_MARKER_MASK);
@@ -250,35 +248,30 @@ void FMeshEditingWrapper::GetVertexBoundingBox(FVertexInstanceID VertexInstanceI
 
 void FMeshEditingWrapper::SwapTriangleOrientation(FTriangleID Triangle)
 {
-	FTriangleArray& TraingleSet = MeshDescription.Triangles();
-	FVertexInstanceID Vertex0ID = TraingleSet[FTriangleID(Triangle)].GetVertexInstanceID(0);
-	FVertexInstanceID Vertex1ID = TraingleSet[FTriangleID(Triangle)].GetVertexInstanceID(1);
-	TraingleSet[Triangle].SetVertexInstanceID(0, Vertex1ID);
-	TraingleSet[Triangle].SetVertexInstanceID(1, Vertex0ID);
-
+	MeshDescription.ReverseTriangleFacing(Triangle);
+	TArrayView<const FVertexInstanceID> TriVertexInstances = MeshDescription.GetTriangleVertexInstances(Triangle);
 	for (int32 IVertex = 0; IVertex < 3; IVertex++)
 	{
-		SwapVertexNormal(TraingleSet[FTriangleID(Triangle)].GetVertexInstanceID(IVertex));
+		SwapVertexNormal(TriVertexInstances[IVertex]);
 	}
 }
 
 // Edge
 const FTriangleID FMeshEditingWrapper::GetOtherTriangleAtEdge(FEdgeID EdgeID, FTriangleID Triangle) const
 {
-	const TArray<FTriangleID>& EdgeConnectedPolygons = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
-	return EdgeConnectedPolygons.Num() < 2 ? FTriangleID::Invalid : (EdgeConnectedPolygons[0] == Triangle ? EdgeConnectedPolygons[1] : EdgeConnectedPolygons[0]);
+	TArrayView<const FTriangleID> EdgeConnectedPolygons = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
+	return EdgeConnectedPolygons.Num() < 2 ? INDEX_NONE : (EdgeConnectedPolygons[0] == Triangle ? EdgeConnectedPolygons[1] : EdgeConnectedPolygons[0]);
 }
 
 bool FMeshEditingWrapper::GetEdgeDirectionInTriangle(FEdgeID EdgeID, int32 TriangleIndex) const
 {
-	const TArray<FTriangleID>& EdgeConnectedTriangles = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
+	TArrayView<const FTriangleID> EdgeConnectedTriangles = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
 
 	if (EdgeConnectedTriangles.Num() > TriangleIndex)
 	{
 		const FTriangleID TriangleID = EdgeConnectedTriangles[TriangleIndex];
-		const TArrayView<const FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetTriangleVertexInstances(TriangleID);
-
-		TStaticArray<FEdgeID, 3> TriangleEdges = MeshDescription.GetTriangleEdges(TriangleID);
+		TArrayView<const FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetTriangleVertexInstances(TriangleID);
+		TArrayView<const FEdgeID> TriangleEdges = MeshDescription.GetTriangleEdges(TriangleID);
 
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{

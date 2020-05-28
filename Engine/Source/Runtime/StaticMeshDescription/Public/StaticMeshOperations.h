@@ -54,7 +54,11 @@ public:
 	};
 
 	/** Set the polygon tangent, normal, binormal and polygonCenter for all polygons in the mesh description. */
+	UE_DEPRECATED(4.26, "Please use ComputeTriangleTangentsAndNormals() instead.")
 	static void ComputePolygonTangentsAndNormals(FMeshDescription& MeshDescription, float ComparisonThreshold = 0.0f);
+
+	/** Set the triangle tangent, normal, binormal and triangleCenter for all triangles in the mesh description. */
+	static void ComputeTriangleTangentsAndNormals(FMeshDescription& MeshDescription, float ComparisonThreshold = 0.0f);
 
 	/** 
 	 * Recompute any invalid normal, tangent or Bi-Normal for every vertex in the mesh description with the given options.

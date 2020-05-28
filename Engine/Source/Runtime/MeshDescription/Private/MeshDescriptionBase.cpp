@@ -85,7 +85,7 @@ FVertexInstanceID UMeshDescriptionBase::CreateVertexInstance(FVertexID VertexID)
 	else
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("CreateVertexInstance: VertexID %d doesn't exist."), VertexID.GetValue());
-		return FVertexInstanceID::Invalid;
+		return INDEX_NONE;
 	}
 }
 
@@ -135,13 +135,13 @@ FEdgeID UMeshDescriptionBase::CreateEdge(FVertexID VertexID0, FVertexID VertexID
 	if (!MeshDescription.IsVertexValid(VertexID0))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("CreateEdge: VertexID %d doesn't exist."), VertexID0.GetValue());
-		return FEdgeID::Invalid;
+		return INDEX_NONE;
 	}
 
 	if (!MeshDescription.IsVertexValid(VertexID1))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("CreateEdge: VertexID %d doesn't exist."), VertexID1.GetValue());
-		return FEdgeID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.CreateEdge(VertexID0, VertexID1);
@@ -197,7 +197,7 @@ FTriangleID UMeshDescriptionBase::CreateTriangle(FPolygonGroupID PolygonGroupID,
 	if (!MeshDescription.IsPolygonGroupValid(PolygonGroupID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("CreateTriangle: PolygonGroupID %d doesn't exist."), PolygonGroupID.GetValue());
-		return FTriangleID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.CreateTriangle(PolygonGroupID, VertexInstanceIDs, &NewEdgeIDs);
@@ -246,7 +246,7 @@ FPolygonID UMeshDescriptionBase::CreatePolygon(FPolygonGroupID PolygonGroupID, T
 	if (!MeshDescription.IsPolygonGroupValid(PolygonGroupID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("CreatePolygon: PolygonGroupID %d doesn't exist."), PolygonGroupID.GetValue());
-		return FPolygonID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.CreatePolygon(PolygonGroupID, VertexInstanceIDs, &NewEdgeIDs);
@@ -342,13 +342,13 @@ FEdgeID UMeshDescriptionBase::GetVertexPairEdge(FVertexID VertexID0, FVertexID V
 	if (!MeshDescription.IsVertexValid(VertexID0))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexPairEdge: VertexID %d doesn't exist."), VertexID0.GetValue());
-		return FEdgeID::Invalid;
+		return INDEX_NONE;
 	}
 
 	if (!MeshDescription.IsVertexValid(VertexID1))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexPairEdge: VertexID %d doesn't exist."), VertexID1.GetValue());
-		return FEdgeID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetVertexPairEdge(VertexID0, VertexID1);
@@ -496,7 +496,7 @@ FVertexID UMeshDescriptionBase::GetVertexInstanceVertex(FVertexInstanceID Vertex
 	if (!MeshDescription.IsVertexInstanceValid(VertexInstanceID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexInstanceVertex: VertexInstanceID %d doesn't exist."), VertexInstanceID.GetValue());
-		return FVertexID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetVertexInstanceVertex(VertexInstanceID);
@@ -507,13 +507,13 @@ FEdgeID UMeshDescriptionBase::GetVertexInstancePairEdge(FVertexInstanceID Vertex
 	if (!MeshDescription.IsVertexInstanceValid(VertexInstanceID0))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexInstancePairEdge: VertexInstanceID %d doesn't exist."), VertexInstanceID0.GetValue());
-		return FEdgeID::Invalid;
+		return INDEX_NONE;
 	}
 
 	if (!MeshDescription.IsVertexInstanceValid(VertexInstanceID1))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexInstancePairEdge: VertexInstanceID %d doesn't exist."), VertexInstanceID1.GetValue());
-		return FEdgeID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetVertexInstancePairEdge(VertexInstanceID0, VertexInstanceID1);
@@ -644,13 +644,13 @@ FVertexID UMeshDescriptionBase::GetEdgeVertex(FEdgeID EdgeID, int32 VertexNumber
 	if (!MeshDescription.IsEdgeValid(EdgeID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetEdgeVertex: EdgeID %d doesn't exist."), EdgeID.GetValue());
-		return FVertexID::Invalid;
+		return INDEX_NONE;
 	}
 
 	if (VertexNumber != 0 && VertexNumber != 1)
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetEdgeVertex: invalid vertex number %d."), VertexNumber);
-		return FVertexID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetEdgeVertex(EdgeID, VertexNumber);
@@ -676,7 +676,7 @@ FPolygonID UMeshDescriptionBase::GetTrianglePolygon(FTriangleID TriangleID) cons
 	if (!MeshDescription.IsTriangleValid(TriangleID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetTrianglePolygon: TriangleID %d doesn't exist."), TriangleID.GetValue());
-		return FPolygonID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetTrianglePolygon(TriangleID);
@@ -687,7 +687,7 @@ FPolygonGroupID UMeshDescriptionBase::GetTrianglePolygonGroup(FTriangleID Triang
 	if (!MeshDescription.IsTriangleValid(TriangleID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetTrianglePolygonGroup: TriangleID %d doesn't exist."), TriangleID.GetValue());
-		return FPolygonGroupID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetTrianglePolygonGroup(TriangleID);
@@ -720,13 +720,13 @@ FVertexInstanceID UMeshDescriptionBase::GetTriangleVertexInstance(FTriangleID Tr
 	if (!MeshDescription.IsTriangleValid(TriangleID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetTriangleVertexInstance: TriangleID %d doesn't exist."), TriangleID.GetValue());
-		return FVertexInstanceID::Invalid;
+		return INDEX_NONE;
 	}
 
 	if (Index < 0 || Index > 2)
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetTriangleVertexInstance: invalid vertex index %d."), Index);
-		return FVertexInstanceID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetTriangleVertexInstance(TriangleID, Index);
@@ -741,7 +741,7 @@ void UMeshDescriptionBase::GetTriangleVertices(FTriangleID TriangleID, TArray<FV
 	}
 
 	OutVertexIDs.SetNumUninitialized(3);
-	MeshDescription.GetTriangleVertices(TriangleID, OutVertexIDs);
+	Algo::Copy(MeshDescription.GetTriangleVertices(TriangleID), OutVertexIDs);
 }
 
 void UMeshDescriptionBase::GetTriangleEdges(FTriangleID TriangleID, TArray<FEdgeID>& OutEdgeIDs) const
@@ -753,7 +753,7 @@ void UMeshDescriptionBase::GetTriangleEdges(FTriangleID TriangleID, TArray<FEdge
 	}
 
 	OutEdgeIDs.SetNumUninitialized(3);
-	MeshDescription.GetTriangleEdges(TriangleID, OutEdgeIDs);
+	Algo::Copy(MeshDescription.GetTriangleEdges(TriangleID), OutEdgeIDs);
 }
 
 void UMeshDescriptionBase::GetTriangleAdjacentTriangles(FTriangleID TriangleID, TArray<FTriangleID>& OutTriangleIDs) const
@@ -772,7 +772,7 @@ FVertexInstanceID UMeshDescriptionBase::GetVertexInstanceForTriangleVertex(FTria
 	if (!MeshDescription.IsTriangleValid(TriangleID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexInstanceForTriangleVertex: TriangleID %d doesn't exist."), TriangleID.GetValue());
-		return FVertexInstanceID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetVertexInstanceForTriangleVertex(TriangleID, VertexID);
@@ -886,7 +886,7 @@ FPolygonGroupID UMeshDescriptionBase::GetPolygonPolygonGroup(FPolygonID PolygonI
 	if (!MeshDescription.IsPolygonValid(PolygonID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetPolygonPolygonGroup: PolygonID %d doesn't exist."), PolygonID.GetValue());
-		return FPolygonGroupID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetPolygonPolygonGroup(PolygonID);
@@ -897,33 +897,30 @@ FVertexInstanceID UMeshDescriptionBase::GetVertexInstanceForPolygonVertex(FPolyg
 	if (!MeshDescription.IsPolygonValid(PolygonID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexInstanceForPolygonVertex: PolygonID %d doesn't exist."), PolygonID.GetValue());
-		return FVertexInstanceID::Invalid;
+		return INDEX_NONE;
 	}
 
 	return MeshDescription.GetVertexInstanceForPolygonVertex(PolygonID, VertexID);
 }
 
-void UMeshDescriptionBase::SetPolygonVertexInstance(FPolygonID PolygonID, int32 PerimeterIndex, FVertexInstanceID VertexInstanceID)
+void UMeshDescriptionBase::SetPolygonVertexInstances(FPolygonID PolygonID, const TArray<FVertexInstanceID>& VertexInstanceIDs)
 {
 	if (!MeshDescription.IsPolygonValid(PolygonID))
 	{
-		UE_LOG(LogMeshDescription, Warning, TEXT("SetPolygonVertexInstance: PolygonID %d doesn't exist."), PolygonID.GetValue());
+		UE_LOG(LogMeshDescription, Warning, TEXT("SetPolygonVertexInstances: PolygonID %d doesn't exist."), PolygonID.GetValue());
 		return;
 	}
 
-	if (PerimeterIndex >= MeshDescription.GetNumPolygonVertices(PolygonID))
+	for (FVertexInstanceID VertexInstanceID : VertexInstanceIDs)
 	{
-		UE_LOG(LogMeshDescription, Warning, TEXT("SetPolygonVertexInstance: Out of range vertex index %d."), PerimeterIndex);
-		return;
+		if (!MeshDescription.IsVertexInstanceValid(VertexInstanceID))
+		{
+			UE_LOG(LogMeshDescription, Warning, TEXT("SetPolygonVertexInstances: VertexInstanceID %d doesn't exist."), VertexInstanceID.GetValue());
+			return;
+		}
 	}
 
-	if (!MeshDescription.IsVertexInstanceValid(VertexInstanceID))
-	{
-		UE_LOG(LogMeshDescription, Warning, TEXT("SetPolygonVertexInstance: VertexInstanceID %d doesn't exist."), VertexInstanceID.GetValue());
-		return;
-	}
-
-	MeshDescription.SetPolygonVertexInstance(PolygonID, PerimeterIndex, VertexInstanceID);
+	MeshDescription.SetPolygonVertexInstances(PolygonID, VertexInstanceIDs);
 }
 
 void UMeshDescriptionBase::SetPolygonPolygonGroup(FPolygonID PolygonID, FPolygonGroupID PolygonGroupID)

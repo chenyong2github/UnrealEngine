@@ -436,7 +436,7 @@ void UDatasmithStaticMeshBlueprintLibrary::SetupStaticLighting(const TArray< UOb
 					FStaticMeshConstAttributes Attributes(*MeshDescription);
 
 					// 3 is the maximum that lightmass accept. Defined in MeshExport.h : MAX_TEXCOORDS .
-					MaxBiggestUVChannel = FMath::Min(MaxBiggestUVChannel, Attributes.GetVertexInstanceUVs().GetNumIndices() - 1);
+					MaxBiggestUVChannel = FMath::Min(MaxBiggestUVChannel, Attributes.GetVertexInstanceUVs().GetNumChannels() - 1);
 				}
 
 				if (bGenerateLightmapUVs)

@@ -43,7 +43,7 @@ struct FVertexData
 		Index = InIndex;
 		Coordinates = V;
 		bIsMerged = false;
-		VertexID = FVertexID::Invalid;
+		VertexID = INDEX_NONE;
 	}
 };
 
@@ -258,7 +258,7 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 	const int32 TriangleCount = 3;
 	const TriangleIndex Clockwise = { 0, 1, 2 };
 	const TriangleIndex CounterClockwise = { 0, 2, 1 };
-    const int32 InvalidID = FVertexID::Invalid.GetValue();
+    const int32 InvalidID = INDEX_NONE;
 
 
 	TArray<FVertexInstanceID> TriangleVertexInstanceIDs;
@@ -286,7 +286,7 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 	for (const FTessellationData& FaceTessellation : FaceTessellations)
 	{
 		// we assume that face has only color
-		MaterialToPolygonGroupMapping.Add(FaceTessellation.ColorName, FPolygonGroupID::Invalid);
+		MaterialToPolygonGroupMapping.Add(FaceTessellation.ColorName, INDEX_NONE);
 	}
 
 	// Add to the mesh, a polygon groups per material
@@ -300,7 +300,7 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 		Material.Value = PolyGroupID;
 	}
 
-	VertexInstanceUVs.SetNumIndices(1);
+	VertexInstanceUVs.SetNumChannels(1);
 
 	int32 NbStep = 1;
 	if (MeshParameters.bIsSymmetric)
@@ -454,7 +454,6 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription)
 {
 	// Ref. CreateMesh(UDatasmithCADImportOptions* CADOptions, CTMesh& Mesh)
-	MeshDescription.EdgeAttributes().RegisterAttribute<bool>(MeshAttribute::Edge::IsUVSeam, 1, false);
 
 	// in a closed big mesh VertexCount ~ TriangleCount / 2, EdgeCount ~ 1.5* TriangleCount
 	MeshDescription.ReserveNewVertexInstances(Body.TriangleCount*3);

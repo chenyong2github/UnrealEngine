@@ -40,7 +40,7 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 	float ComparisonThreshold = BuildSettings->bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 	
 	//This function make sure the Polygon Normals Tangents Binormals are computed and also remove degenerated triangle from the render mesh description.
-	FStaticMeshOperations::ComputePolygonTangentsAndNormals(RenderMeshDescription, ComparisonThreshold);
+	FStaticMeshOperations::ComputeTriangleTangentsAndNormals(RenderMeshDescription, ComparisonThreshold);
 	//OutRenderMeshDescription->ComputePolygonTangentsAndNormals(BuildSettings->bRemoveDegenerates ? SMALL_NUMBER : 0.0f);
 
 	FVertexInstanceArray& VertexInstanceArray = RenderMeshDescription.VertexInstances();
@@ -67,7 +67,7 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 	if (BuildSettings->bGenerateLightmapUVs && VertexInstanceArray.Num() > 0)
 	{
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		int32 NumIndices = VertexInstanceUVs.GetNumIndices();
+		int32 NumIndices = VertexInstanceUVs.GetNumChannels();
 		//Verify the src light map channel
 		if (BuildSettings->SrcLightmapIndex >= NumIndices)
 		{
@@ -83,7 +83,7 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 			}
 
 			//Add some unused UVChannel to the mesh description for the lightmapUVs
-			VertexInstanceUVs.SetNumIndices(BuildSettings->DstLightmapIndex + 1);
+			VertexInstanceUVs.SetNumChannels(BuildSettings->DstLightmapIndex + 1);
 			BuildSettings->DstLightmapIndex = NumIndices;
 		}
 		FStaticMeshOperations::CreateLightMapUVLayout(RenderMeshDescription,

@@ -16,11 +16,11 @@ struct FElementID	// @todo mesheditor script: BP doesn't have name spaces, so we
 	GENERATED_BODY()
 
 	FElementID()
-		: IDValue(Invalid.GetValue())
+		: IDValue(INDEX_NONE)
 	{
 	}
 
-	explicit FElementID( const int32 InitIDValue )
+	FElementID( const int32 InitIDValue )
 		: IDValue( InitIDValue )
 	{
 	}
@@ -30,9 +30,19 @@ struct FElementID	// @todo mesheditor script: BP doesn't have name spaces, so we
 		return IDValue;
 	}
 
+	FORCEINLINE operator int32() const
+	{
+		return IDValue;
+	}
+
 	FORCEINLINE bool operator==( const FElementID& Other ) const
 	{
 		return IDValue == Other.IDValue;
+	}
+
+	FORCEINLINE bool operator==( const int32 Other ) const
+	{
+		return IDValue == Other;
 	}
 
 	FORCEINLINE bool operator!=( const FElementID& Other ) const
@@ -40,9 +50,14 @@ struct FElementID	// @todo mesheditor script: BP doesn't have name spaces, so we
 		return IDValue != Other.IDValue;
 	}
 
+	FORCEINLINE bool operator!=( const int32 Other ) const
+	{
+		return IDValue != Other;
+	}
+
 	FString ToString() const
 	{
-		return ( IDValue == Invalid.GetValue() ) ? TEXT( "Invalid" ) : FString::Printf( TEXT( "%d" ), IDValue );
+		return ( IDValue == INDEX_NONE ) ? TEXT( "Invalid" ) : FString::Printf( TEXT( "%d" ), IDValue );
 	}
 
 	friend FArchive& operator<<( FArchive& Ar, FElementID& Element )
@@ -52,6 +67,7 @@ struct FElementID	// @todo mesheditor script: BP doesn't have name spaces, so we
 	}
 
 	/** Invalid element ID */
+	UE_DEPRECATED(4.26, "Please use INDEX_NONE as an invalid ID.")
 	MESHDESCRIPTION_API static const FElementID Invalid;
 
 protected:
@@ -71,12 +87,12 @@ struct FVertexID : public FElementID
 	{
 	}
 
-	explicit FVertexID( const FElementID InitElementID )
+	FVertexID( const FElementID InitElementID )
 		: FElementID( InitElementID.GetValue() )
 	{
 	}
 
-	explicit FVertexID( const int32 InitIDValue )
+	FVertexID( const int32 InitIDValue )
 		: FElementID( InitIDValue )
 	{
 	}
@@ -87,6 +103,7 @@ struct FVertexID : public FElementID
 	}
 
 	/** Invalid vertex ID */
+	UE_DEPRECATED(4.26, "Please use INDEX_NONE as an invalid ID.")
 	MESHDESCRIPTION_API static const FVertexID Invalid;
 };
 
@@ -100,12 +117,12 @@ struct FVertexInstanceID : public FElementID
 	{
 	}
 
-	explicit FVertexInstanceID( const FElementID InitElementID )
+	FVertexInstanceID( const FElementID InitElementID )
 		: FElementID( InitElementID.GetValue() )
 	{
 	}
 
-	explicit FVertexInstanceID( const uint32 InitIDValue )
+	FVertexInstanceID( const int32 InitIDValue )
 		: FElementID( InitIDValue )
 	{
 	}
@@ -116,6 +133,7 @@ struct FVertexInstanceID : public FElementID
 	}
 
 	/** Invalid rendering vertex ID */
+	UE_DEPRECATED(4.26, "Please use INDEX_NONE as an invalid ID.")
 	MESHDESCRIPTION_API static const FVertexInstanceID Invalid;
 };
 
@@ -129,12 +147,12 @@ struct FEdgeID : public FElementID
 	{
 	}
 
-	explicit FEdgeID( const FElementID InitElementID )
+	FEdgeID( const FElementID InitElementID )
 		: FElementID( InitElementID.GetValue() )
 	{
 	}
 
-	explicit FEdgeID( const int32 InitIDValue )
+	FEdgeID( const int32 InitIDValue )
 		: FElementID( InitIDValue )
 	{
 	}
@@ -145,7 +163,34 @@ struct FEdgeID : public FElementID
 	}
 
 	/** Invalid edge ID */
+	UE_DEPRECATED(4.26, "Please use INDEX_NONE as an invalid ID.")
 	MESHDESCRIPTION_API static const FEdgeID Invalid;
+};
+
+
+USTRUCT( BlueprintType )
+struct FUVID : public FElementID
+{
+	GENERATED_BODY()
+
+	FUVID()
+	{
+	}
+
+	FUVID( const FElementID InitElementID )
+		: FElementID( InitElementID.GetValue() )
+	{
+	}
+
+	FUVID( const int32 InitIDValue )
+		: FElementID( InitIDValue )
+	{
+	}
+
+	FORCEINLINE friend uint32 GetTypeHash( const FUVID& Other )
+	{
+		return GetTypeHash( Other.IDValue );
+	}
 };
 
 
@@ -158,13 +203,13 @@ struct FTriangleID : public FElementID
 	{
 	}
 
-	explicit FTriangleID(const FElementID InitElementID)
+	FTriangleID(const FElementID InitElementID)
 		: FElementID(InitElementID.GetValue())
 	{
 	}
 
-	explicit FTriangleID(const int32 InitIDValue)
-		: FElementID(InitIDValue)
+	FTriangleID( const int32 InitIDValue )
+		: FElementID( InitIDValue )
 	{
 	}
 
@@ -174,6 +219,7 @@ struct FTriangleID : public FElementID
 	}
 
 	/** Invalid edge ID */
+	UE_DEPRECATED(4.26, "Please use INDEX_NONE as an invalid ID.")
 	MESHDESCRIPTION_API static const FTriangleID Invalid;
 };
 
@@ -187,12 +233,12 @@ struct FPolygonGroupID : public FElementID
 	{
 	}
 
-	explicit FPolygonGroupID( const FElementID InitElementID )
+	FPolygonGroupID( const FElementID InitElementID )
 		: FElementID( InitElementID.GetValue() )
 	{
 	}
 
-	explicit FPolygonGroupID( const int32 InitIDValue )
+	FPolygonGroupID( const int32 InitIDValue )
 		: FElementID( InitIDValue )
 	{
 	}
@@ -203,6 +249,7 @@ struct FPolygonGroupID : public FElementID
 	}
 
 	/** Invalid section ID */
+	UE_DEPRECATED(4.26, "Please use INDEX_NONE as an invalid ID.")
 	MESHDESCRIPTION_API static const FPolygonGroupID Invalid;
 };
 
@@ -216,12 +263,12 @@ struct FPolygonID : public FElementID
 	{
 	}
 
-	explicit FPolygonID( const FElementID InitElementID )
+	FPolygonID( const FElementID InitElementID )
 		: FElementID( InitElementID.GetValue() )
 	{
 	}
 
-	explicit FPolygonID( const int32 InitIDValue )
+	FPolygonID( const int32 InitIDValue )
 		: FElementID( InitIDValue )
 	{
 	}
@@ -232,6 +279,7 @@ struct FPolygonID : public FElementID
 	}
 
 	/** Invalid polygon ID */
+	UE_DEPRECATED(4.26, "Please use INDEX_NONE as an invalid ID.")
 	MESHDESCRIPTION_API static const FPolygonID Invalid;	// @todo mesheditor script: Can we expose these to BP nicely?	Do we even need to?
 };
 

@@ -61,7 +61,7 @@ bool FMeshElement::IsElementIDValid(const UEditableMesh* EditableMesh) const
 {
 	bool bIsValid = false;
 
-	if (EditableMesh != nullptr && ElementAddress.ElementID != FElementID::Invalid)
+	if (EditableMesh != nullptr && ElementAddress.ElementID != INDEX_NONE)
 	{
 		switch (ElementAddress.ElementType)
 		{

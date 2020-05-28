@@ -85,7 +85,7 @@ void UEditableGeometryCollectionAdapter::InitEditableGeometryCollection( UEditab
 
 				// Store off the number of texture coordinates in this mesh
 				const int32 NumUVs = 1;
-				VertexInstanceUVs.SetNumIndices(NumUVs);
+				VertexInstanceUVs.SetNumChannels(NumUVs);
 				EditableMesh->TextureCoordinateCount = NumUVs;
 
 				// Vertex Positions
@@ -203,7 +203,7 @@ void UEditableGeometryCollectionAdapter::InitEditableGeometryCollection( UEditab
 
 									FEdgeID NewEdgeID = MeshDescription->GetVertexPairEdge(VertexID0, VertexID1);
 
-									if (NewEdgeID == FEdgeID::Invalid)
+									if (NewEdgeID == INDEX_NONE)
 									{
 										NewEdgeID = MeshDescription->CreateEdge(VertexID0, VertexID1);
 									}
@@ -217,7 +217,7 @@ void UEditableGeometryCollectionAdapter::InitEditableGeometryCollection( UEditab
 							const FAdaptorTriangleID NewTriangleID = FAdaptorTriangleID(TriangleGroupIndex++);
 
 							NewRenderingPolygonGroup.Triangles.Insert(NewTriangleID);
-							FMeshTriangle& NewTriangle = NewRenderingPolygonGroup.Triangles[NewTriangleID];
+							FAdaptorPolygon2Group::FMeshTriangle& NewTriangle = NewRenderingPolygonGroup.Triangles[NewTriangleID];
 							for (int32 TriangleVertexIndex = 0; TriangleVertexIndex < 3; ++TriangleVertexIndex)
 							{
 								NewTriangle.SetVertexInstanceID(TriangleVertexIndex, TriangleVertexInstanceIDs[TriangleVertexIndex]);
@@ -324,10 +324,10 @@ void UEditableGeometryCollectionAdapter::InitializeFromEditableMesh( const UEdit
 		FAdaptorPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 		RenderingPolygon.PolygonGroupID = PolygonGroupID;
 
-		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
+		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
 		for( const FTriangleID TriangleID : TriangleIDs )
 		{
-			FMeshTriangle Triangle;
+			FAdaptorPolygon2Group::FMeshTriangle Triangle;
 			Triangle.SetVertexInstanceID( 0, MeshDescription->GetTriangleVertexInstance( TriangleID, 0 ) );
 			Triangle.SetVertexInstanceID( 1, MeshDescription->GetTriangleVertexInstance( TriangleID, 1 ) );
 			Triangle.SetVertexInstanceID( 2, MeshDescription->GetTriangleVertexInstance( TriangleID, 2 ) );
@@ -406,7 +406,7 @@ void UEditableGeometryCollectionAdapter::OnRebuildRenderMesh(const UEditableMesh
 				const FPolygonGroupID& PolygonGroupID = MeshDescription->GetPolygonPolygonGroup(PolygonID);
 				int32 PolygonGroupIDValue = PolygonGroupID.GetValue();
 				int32 PolygonIDValue = PolygonID.GetValue();
-				const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+				TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
 				for (const FTriangleID TriangleID : TriangleIDs)
 				{
 					uint32 ElementIndex = Collection->AddElements(1, FGeometryCollection::FacesGroup);
@@ -874,7 +874,7 @@ void UEditableGeometryCollectionAdapter::DeletePolygonTriangles( const UEditable
 				// vertex instances will need to be removed from their corresponding vertex
 				for (const FAdaptorTriangleID TriangleIndexToRemove : Polygon.TriangulatedPolygonTriangleIndices)
 				{
-					const FMeshTriangle& TriToRemove = RenderingPolygonGroup.Triangles[TriangleIndexToRemove];
+					const FAdaptorPolygon2Group::FMeshTriangle& TriToRemove = RenderingPolygonGroup.Triangles[TriangleIndexToRemove];
 
 					// sanity check
 					FIntVector TriIndices = GCIndices[TriangleIndexToRemove.GetValue()];
@@ -941,7 +941,7 @@ FPolygonGroupID UEditableGeometryCollectionAdapter::GetSectionForRenderingSectio
 		}
 	}
 
-	return FPolygonGroupID::Invalid;
+	return INDEX_NONE;
 }
 
 

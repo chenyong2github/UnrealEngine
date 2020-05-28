@@ -66,7 +66,7 @@ void URemoveVertexCommand::Execute( IMeshEditorModeEditingContract& MeshEditorMo
 			const FVertexID VertexID( VertexElementToRemove.ElementAddress.ElementID );
 			{
 				bool bWasVertexRemoved = false;
-				FEdgeID NewEdgeID = FEdgeID::Invalid;
+				FEdgeID NewEdgeID = INDEX_NONE;
 
 				EditableMesh->TryToRemoveVertex( VertexID, /* Out */ bWasVertexRemoved, /* Out */ NewEdgeID );
 

@@ -36,8 +36,8 @@ bool USplitPolygonCommand::TryStartingToDrag( IMeshEditorModeEditingContract& Me
 {
 	Component = nullptr;
 	EditableMesh = nullptr;
-	StartingEdgeID = FEdgeID::Invalid;
-	StartingVertexID = FVertexID::Invalid;
+	StartingEdgeID = INDEX_NONE;
+	StartingVertexID = INDEX_NONE;
 	EdgeSplit = 0.0f;
 
 	// Figure out what to split
@@ -57,7 +57,7 @@ bool USplitPolygonCommand::TryStartingToDrag( IMeshEditorModeEditingContract& Me
 			const TArray<FMeshElement>& EdgeElements = MeshAndEdges.Value;
 
 			// Figure out where to split
-			FEdgeID ClosestEdgeID = FEdgeID::Invalid;
+			FEdgeID ClosestEdgeID = INDEX_NONE;
 			float Split = 0.0f;
 			const bool bFoundSplit = MeshEditorMode.FindEdgeSplitUnderInteractor( ViewportInteractor, EdgeEditableMesh, EdgeElements, /* Out */ ClosestEdgeID, /* Out */ Split );
 
@@ -117,17 +117,17 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 		// or vertices.)
 		static TArray<FPolygonID> CandidatePolygonIDs;
 		CandidatePolygonIDs.Reset();
-		if( StartingEdgeID != FEdgeID::Invalid )
+		if( StartingEdgeID != INDEX_NONE )
 		{
 			EditableMesh->GetEdgeConnectedPolygons( StartingEdgeID, /* Out */ CandidatePolygonIDs );
 		}
-		else if( ensure( StartingVertexID != FVertexID::Invalid ) )
+		else if( ensure( StartingVertexID != INDEX_NONE ) )
 		{
 			EditableMesh->GetVertexConnectedPolygons( StartingVertexID, /* Out */ CandidatePolygonIDs );
 		}
 
-		FPolygonID PolygonToSplit = FPolygonID::Invalid;
-		FVertexID ToVertexID = FVertexID::Invalid;
+		FPolygonID PolygonToSplit = INDEX_NONE;
+		FVertexID ToVertexID = INDEX_NONE;
 
 
 		{
@@ -141,11 +141,11 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 					const FTransform ComponentToWorld = Component->GetComponentToWorld();
 
 					FVector SplitStartLocation;
-					if( StartingVertexID != FVertexID::Invalid )
+					if( StartingVertexID != INDEX_NONE )
 					{
 						SplitStartLocation = ComponentToWorld.TransformPosition( VertexPositions[ StartingVertexID ] );
 					}
-					else if( ensure( StartingEdgeID != FEdgeID::Invalid ) )
+					else if( ensure( StartingEdgeID != INDEX_NONE ) )
 					{
 						FVertexID EdgeVertex0, EdgeVertex1;
 						EditableMesh->GetEdgeVertices( StartingEdgeID, /* Out */ EdgeVertex0, /* Out */ EdgeVertex1 );
@@ -164,13 +164,13 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 					// @todo mesheditor urgent: Can crash with "Colinear points in FMath::ComputeBaryCentric2D()"  Needs repro.
 					FVector TriangleVertexWeights;
 					FTriangleID TriangleID = EditableMesh->ComputeBarycentricWeightForPointOnPolygon( CandidatePolygonID, ComponentToWorld.InverseTransformPosition( LaserImpactOnPolygonPlane ), /* Out */ TriangleVertexWeights );
-					if( TriangleID != FTriangleID::Invalid )
+					if( TriangleID != INDEX_NONE )
 					{
 						const FVector SplitDirection = ( LaserImpactOnPolygonPlane - SplitStartLocation ).GetSafeNormal();
 
 						// Trace out within the polygon to figure out where the split should connect to
 						float ClosestEdgeDistance = TNumericLimits<float>::Max();
-						FEdgeID ClosestEdgeID = FEdgeID::Invalid;
+						FEdgeID ClosestEdgeID = INDEX_NONE;
 
 						static TArray<FEdgeID> PolygonPerimeterEdgeIDs;
 						EditableMesh->GetPolygonPerimeterEdges( CandidatePolygonID, /* Out */ PolygonPerimeterEdgeIDs );
@@ -179,7 +179,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 						{
 							bool bIsDisqualified = false;
 
-							if( StartingEdgeID != FEdgeID::Invalid )
+							if( StartingEdgeID != INDEX_NONE )
 							{
 								if( StartingEdgeID == TargetEdgeID )
 								{
@@ -187,7 +187,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 									bIsDisqualified = true;
 								}
 							}
-							else if( ensure( StartingVertexID != FVertexID::Invalid ) )
+							else if( ensure( StartingVertexID != INDEX_NONE ) )
 							{
 								static TArray<FEdgeID> AdjacentEdgeIDs;
 								EditableMesh->GetVertexConnectedEdges( StartingVertexID, /* Out */ AdjacentEdgeIDs );
@@ -246,7 +246,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 							}
 						}
 
-						if( ClosestEdgeID != FEdgeID::Invalid )
+						if( ClosestEdgeID != INDEX_NONE )
 						{
 							FVertexID EdgeVertex0, EdgeVertex1;
 							EditableMesh->GetEdgeVertices( ClosestEdgeID, /* Out */ EdgeVertex0, /* Out */ EdgeVertex1 );
@@ -270,7 +270,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 
 								bool bIsDisqualified = false;
 
-								if( StartingEdgeID != FEdgeID::Invalid )
+								if( StartingEdgeID != INDEX_NONE )
 								{
 									FVertexID StartingEdgeVertex0, StartingEdgeVertex1;
 									EditableMesh->GetEdgeVertices( StartingEdgeID, /* Out */ StartingEdgeVertex0, /* Out */ StartingEdgeVertex1 );
@@ -281,7 +281,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 										bIsDisqualified = true;
 									}
 								}
-								else if( ensure( StartingVertexID != FVertexID::Invalid ) )
+								else if( ensure( StartingVertexID != INDEX_NONE ) )
 								{
 									if( TargetVertexID == StartingVertexID )
 									{
@@ -322,7 +322,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 							}
 
 							// If a vertex wasn't eligible, go ahead and connect to the edge
-							if( ToVertexID == FVertexID::Invalid )
+							if( ToVertexID == INDEX_NONE )
 							{
 								// Split the edge to create a new vertex that we'll connect to
 								PolygonToSplit = CandidatePolygonID;
@@ -348,12 +348,12 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 		}
 
 
-		if( PolygonToSplit != FPolygonID::Invalid )
+		if( PolygonToSplit != INDEX_NONE )
 		{
-			check( ToVertexID != FVertexID::Invalid );
+			check( ToVertexID != INDEX_NONE );
 
-			FVertexID FromVertexID = FVertexID::Invalid;
-			if( StartingEdgeID != FEdgeID::Invalid )
+			FVertexID FromVertexID = INDEX_NONE;
+			if( StartingEdgeID != INDEX_NONE )
 			{
 				// First, split the edge
 				static TArray<FVertexID> NewVertexIDs;
@@ -368,11 +368,11 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 
 				FromVertexID = NewVertexIDs[ 0 ];
 			}
-			else if( ensure( StartingVertexID != FVertexID::Invalid ) )
+			else if( ensure( StartingVertexID != INDEX_NONE ) )
 			{
 				FromVertexID = StartingVertexID;
 			}
-			check( FromVertexID != FVertexID::Invalid );
+			check( FromVertexID != INDEX_NONE );
 
 			static TArray< FPolygonToSplit > PolygonsToSplit;
 			PolygonsToSplit.Reset();

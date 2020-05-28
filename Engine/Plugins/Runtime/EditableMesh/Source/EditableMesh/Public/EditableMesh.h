@@ -350,19 +350,19 @@ public:
 
 	UFUNCTION( BlueprintPure, Category="Editable Mesh" ) static inline FVertexID InvalidVertexID()
 	{
-		return FVertexID::Invalid;
+		return INDEX_NONE;
 	}
 	UFUNCTION( BlueprintPure, Category="Editable Mesh" ) static inline FEdgeID InvalidEdgeID()
 	{
-		return FEdgeID::Invalid;
+		return INDEX_NONE;
 	}
 	UFUNCTION( BlueprintPure, Category="Editable Mesh" ) static inline FPolygonGroupID InvalidPolygonGroupID()
 	{
-		return FPolygonGroupID::Invalid;
+		return INDEX_NONE;
 	}
 	UFUNCTION( BlueprintPure, Category="Editable Mesh" ) static inline FPolygonID InvalidPolygonID()
 	{
-		return FPolygonID::Invalid;
+		return INDEX_NONE;
 	}
 	UFUNCTION( BlueprintPure, Category="Editable Mesh" ) static inline FVertexID MakeVertexID( const int32 VertexIndex )
 	{

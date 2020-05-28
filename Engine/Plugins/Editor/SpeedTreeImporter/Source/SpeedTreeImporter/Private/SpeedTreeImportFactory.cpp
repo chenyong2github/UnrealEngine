@@ -1425,7 +1425,7 @@ FVertexInstanceID ProcessTriangleCorner(
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs)
 {
 	//Speedtree uses 7 or 8 UVs to store is data
-	check(VertexInstanceUVs.GetNumIndices() >= 7);
+	check(VertexInstanceUVs.GetNumChannels() >= 7);
 
 	SpeedTree::st_float32 Data[ 4 ];
 
@@ -1518,7 +1518,7 @@ FVertexInstanceID ProcessTriangleCorner(
 	}
 	else if( RenderState->m_bLeavesPresent || RenderState->m_bFacingLeavesPresent )
 	{
-		check(VertexInstanceUVs.GetNumIndices() == 8);
+		check(VertexInstanceUVs.GetNumChannels() == 8);
 
 		// anchor
 		if( RenderState->m_bFacingLeavesPresent )
@@ -1716,7 +1716,6 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 						
 						TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
 						TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
-						TEdgeAttributesRef<float> EdgeCreaseSharpnesses = Attributes.GetEdgeCreaseSharpnesses();
 						TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 						TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 						TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
@@ -1744,7 +1743,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 							}
 						}
 						//Speedtree use UVs to store is data
-						VertexInstanceUVs.SetNumIndices(NumUVs);
+						VertexInstanceUVs.SetNumChannels(NumUVs);
 
 						for (int32 DrawCallIndex = 0; DrawCallIndex < TreeLOD->m_nNumDrawCalls; ++DrawCallIndex)
 						{
@@ -1891,7 +1890,6 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 
 					TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
 					TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
-					TEdgeAttributesRef<float> EdgeCreaseSharpnesses = Attributes.GetEdgeCreaseSharpnesses();
 					TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 					TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 					TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
@@ -1900,7 +1898,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 					TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 					//Speedtree use UVs to store is data
-					VertexInstanceUVs.SetNumIndices(2);
+					VertexInstanceUVs.SetNumChannels(2);
 
 					for (int32 MatIndex = 0; MatIndex < StaticMesh->StaticMaterials.Num(); ++MatIndex)
 					{
@@ -2223,7 +2221,6 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 
 			TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
 			TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
-			TEdgeAttributesRef<float> EdgeCreaseSharpnesses = Attributes.GetEdgeCreaseSharpnesses();
 			TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
@@ -2232,7 +2229,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 			//Speedtree use 8 UVs to store is data
-			VertexInstanceUVs.SetNumIndices(8);
+			VertexInstanceUVs.SetNumChannels(8);
 
 			for (int32 MatIndex = 0; MatIndex < StaticMesh->StaticMaterials.Num(); ++MatIndex)
 			{

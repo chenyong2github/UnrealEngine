@@ -28,7 +28,7 @@ namespace UnifyNormalsCommandUtils
 		// Iterate through the polygon vertices to find vertex 0 of the MeshEdge
 		const FVertexID EdgeVertex0 = MeshDescription->GetEdgeVertex(EdgeID, 0);
 		const FVertexID EdgeVertex1 = MeshDescription->GetEdgeVertex(EdgeID, 1);
-		const TArray<FVertexInstanceID>& VertexInstances = MeshDescription->GetPolygonVertexInstances(PolygonID);
+		TArray<FVertexInstanceID> VertexInstances = MeshDescription->GetPolygonVertexInstances(PolygonID);
 		int32 NumVertices = VertexInstances.Num();
 		for (int32 Index = 0; Index < NumVertices; ++Index)
 		{

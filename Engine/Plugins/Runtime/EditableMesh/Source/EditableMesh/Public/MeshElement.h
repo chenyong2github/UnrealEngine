@@ -29,8 +29,8 @@ struct FEditableMeshElementAddress
 	FEditableMeshElementAddress()
 		: SubMeshAddress(),
 		  ElementType( EEditableMeshElementType::Invalid ),
-		  ElementID( FElementID::Invalid ),
-		  BoneID(FPolygonGroupID::Invalid )
+		  ElementID( INDEX_NONE ),
+		  BoneID(INDEX_NONE )
 	{
 	}
 
@@ -38,7 +38,7 @@ struct FEditableMeshElementAddress
 		: SubMeshAddress( InSubMeshAddress ),
 		  ElementType( EEditableMeshElementType::Vertex ),
 		  ElementID(InVertexID),
-		  BoneID(FPolygonGroupID::Invalid)
+		  BoneID(INDEX_NONE)
 	{
 	}
 
@@ -46,7 +46,7 @@ struct FEditableMeshElementAddress
 		: SubMeshAddress( InSubMeshAddress ),
 		  ElementType( EEditableMeshElementType::Edge ),
 		  ElementID(InEdgeID),
-		  BoneID(FPolygonGroupID::Invalid)
+		  BoneID(INDEX_NONE)
 	{
 	}
 
@@ -54,7 +54,7 @@ struct FEditableMeshElementAddress
 		: SubMeshAddress( InSubMeshAddress ),
 		  ElementType( EEditableMeshElementType::Polygon ),
 		  ElementID(InPolygonID),
-		  BoneID(FPolygonGroupID::Invalid)
+		  BoneID(INDEX_NONE)
 	{
 	}
 

@@ -70,7 +70,9 @@ void UMeshEditorStaticMeshAdapter::OnRebuildRenderMesh( const UEditableMesh* Edi
 
 	// Add all polygons and edge instances
 	// @todo mesheditor wireframe: holes not yet handled
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Normal );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	for( const FPolygonID PolygonID : EditableMesh->GetMeshDescription()->Polygons().GetElementIDs() )
 	{
 		WireframeMesh->AddPolygon( PolygonID );
@@ -91,7 +93,9 @@ void UMeshEditorStaticMeshAdapter::OnRebuildRenderMeshFinish( const UEditableMes
 	const FMeshDescription* MeshDescription = EditableMesh->GetMeshDescription();
 	check( MeshDescription );
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Normal );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	for( const FPolygonID PolygonID : EditableMesh->PolygonsPendingNewTangentBasis )
 	{
 		WireframeMesh->SetPolygonNormal( PolygonID, PolygonNormals[ PolygonID ] );
@@ -283,7 +287,9 @@ void UMeshEditorStaticMeshAdapter::OnCreatePolygons( const UEditableMesh* Editab
 	const FMeshDescription* MeshDescription = EditableMesh->GetMeshDescription();
 	check( MeshDescription );
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Normal );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	for( const FPolygonID PolygonID : PolygonIDs )
 	{
 		WireframeMesh->AddPolygon( PolygonID );

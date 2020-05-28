@@ -370,8 +370,8 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 		{
 			FStaticMeshAttributes Attributes(*MeshDescription);
 			bool bHasValidLightmapUVs = Attributes.GetVertexInstanceUVs().IsValid() &&
-				Attributes.GetVertexInstanceUVs().GetNumIndices() > BuildSettings.SrcLightmapIndex &&
-				Attributes.GetVertexInstanceUVs().GetNumIndices() > BuildSettings.DstLightmapIndex;
+				Attributes.GetVertexInstanceUVs().GetNumChannels() > BuildSettings.SrcLightmapIndex &&
+				Attributes.GetVertexInstanceUVs().GetNumChannels() > BuildSettings.DstLightmapIndex;
 			if(!bHasValidLightmapUVs)
 			{
 				ProxySettings.bReuseMeshLightmapUVs = false;

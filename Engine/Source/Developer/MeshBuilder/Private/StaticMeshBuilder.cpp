@@ -395,7 +395,7 @@ void BuildVertexBuffer(
 
 	const bool bHasColors = MeshDescription.VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::Color);
 
-	const uint32 NumTextureCoord = VertexInstanceUVs.GetNumIndices();
+	const uint32 NumTextureCoord = VertexInstanceUVs.GetNumChannels();
 	const FMatrix ScaleMatrix = FScaleMatrix(LODBuildSettings.BuildScale3D).Inverse().GetTransposed();
 
 	TMap<FPolygonGroupID, int32> PolygonGroupToSectionIndex;
@@ -433,7 +433,7 @@ void BuildVertexBuffer(
 		const int32 SectionIndex = PolygonGroupToSectionIndex[PolygonGroupID];
 		TArray<uint32>& SectionIndices = OutPerSectionIndices[SectionIndex];
 
-		const TArray<FTriangleID>& TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
 		uint32 MinIndex = TNumericLimits< uint32 >::Max();
 		uint32 MaxIndex = TNumericLimits< uint32 >::Min();
 		for (int32 TriangleIndex = 0; TriangleIndex < TriangleIDs.Num(); ++TriangleIndex)

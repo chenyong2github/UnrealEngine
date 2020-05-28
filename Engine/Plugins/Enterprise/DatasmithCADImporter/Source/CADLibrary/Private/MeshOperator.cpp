@@ -19,7 +19,6 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 
 	TQueue<FTriangleID> Front; 
 	FTriangleID AdjacentTriangle;
-	TStaticArray<FEdgeID, 3> EdgeSet;
 	FEdgeID Edge;
 
 	TArrayView < const FVertexInstanceID> Vertices;
@@ -42,12 +41,12 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 			continue;
 		}
 
-		HighestVertex[0] = FVertexInstanceID::Invalid;
-		HighestVertex[1] = FVertexInstanceID::Invalid;
-		HighestVertex[2] = FVertexInstanceID::Invalid;
-		LowestVertex[0] = FVertexInstanceID::Invalid;
-		LowestVertex[1] = FVertexInstanceID::Invalid;
-		LowestVertex[2] = FVertexInstanceID::Invalid;
+		HighestVertex[0] = INDEX_NONE;
+		HighestVertex[1] = INDEX_NONE;
+		HighestVertex[2] = INDEX_NONE;
+		LowestVertex[0] = INDEX_NONE;
+		LowestVertex[1] = INDEX_NONE;
+		LowestVertex[2] = INDEX_NONE;
 
 		MaxCorner[0] = -MAX_flt;
 		MaxCorner[1] = -MAX_flt;
@@ -70,7 +69,7 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 		{
 			Front.Dequeue(Triangle);
 
-			MeshDescription.GetTriangleEdges(Triangle, EdgeSet);
+			TArrayView<const FEdgeID> EdgeSet = MeshDescription.GetTriangleEdges(Triangle);
 
 			for (int32 IEdge = 0; IEdge < 3; IEdge++)
 			{
@@ -114,20 +113,21 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 			// The normal most parallel to the axis is preferred
 			// To avoid mistake, we check for each highest vertex and trust the majority 
 
-			if (HighestVertex[0] != FVertexInstanceID::Invalid)
+			if (HighestVertex[0] != INDEX_NONE)
 			{
-				FStaticMeshAttributes StaticMeshAttributes( MeshDescription );
+				FStaticMeshConstAttributes StaticMeshAttributes( MeshDescription );
+				TVertexInstanceAttributesConstRef<FVector> Normals = StaticMeshAttributes.GetVertexInstanceNormals();
 
 				for (int32 VertexIndex = 0; VertexIndex < 3; VertexIndex++)
 				{
 					if (MeshWrapper.IsVertexOfCategory(HighestVertex[VertexIndex], EElementCategory::ElementCategorySurface))
 					{
 						FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(HighestVertex[VertexIndex]);
-						const TArray<FVertexInstanceID>& CoincidentVertexInstanceIdSet = MeshDescription.GetVertexVertexInstances(VertexID);
+						TArrayView<const FVertexInstanceID> CoincidentVertexInstanceIdSet = MeshDescription.GetVertexVertexInstances(VertexID);
 						float MaxComponent = 0;
-						for (const FVertexInstanceID& VertexInstanceID : CoincidentVertexInstanceIdSet)
+						for (const FVertexInstanceID VertexInstanceID : CoincidentVertexInstanceIdSet)
 						{
-							FVector Normal = StaticMeshAttributes.GetVertexInstanceNormals()[ VertexInstanceID ];
+							FVector Normal = Normals[ VertexInstanceID ];
 							if (FMath::Abs(MaxComponent) < FMath::Abs(Normal[VertexIndex]))
 							{
 								MaxComponent = Normal[VertexIndex];
@@ -147,11 +147,11 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 					if (MeshWrapper.IsVertexOfCategory(LowestVertex[VertexIndex], EElementCategory::ElementCategorySurface))
 					{
 						FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(LowestVertex[VertexIndex]);
-						const TArray<FVertexInstanceID>& CoincidentVertexInstanceIdSet = MeshDescription.GetVertexVertexInstances(VertexID);
+						TArrayView<const FVertexInstanceID> CoincidentVertexInstanceIdSet = MeshDescription.GetVertexVertexInstances(VertexID);
 						float MaxComponent = 0;
-						for (const FVertexInstanceID& VertexInstanceID : CoincidentVertexInstanceIdSet)
+						for (const FVertexInstanceID VertexInstanceID : CoincidentVertexInstanceIdSet)
 						{
-							FVector Normal = MeshDescription.VertexInstanceAttributes().GetAttribute<FVector>(VertexInstanceID, MeshAttribute::VertexInstance::Normal);
+							FVector Normal = Normals[ VertexInstanceID ];
 							if (FMath::Abs(MaxComponent) < FMath::Abs(Normal[VertexIndex]))
 							{
 								MaxComponent = Normal[VertexIndex];

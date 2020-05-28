@@ -206,14 +206,14 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	// count number of texture coordinates for this mesh
 	const int32 NumTexcoords = [&]()
 	{
-		return FMath::Min(VertexInstanceUVs.GetNumIndices(), VertexPositionStoredUVChannel);
+		return FMath::Min(VertexInstanceUVs.GetNumChannels(), VertexPositionStoredUVChannel);
 	}();		
 
 	// check if we should use NewUVs or original UV set
 	const bool bUseNewUVs = MeshSettings->CustomTextureCoordinates.Num() > 0;
 	if (bUseNewUVs)
 	{
-		check(MeshSettings->CustomTextureCoordinates.Num() == VertexInstanceUVs.GetNumElements() && VertexInstanceUVs.GetNumIndices() > MeshSettings->TextureCoordinateIndex);
+		check(MeshSettings->CustomTextureCoordinates.Num() == VertexInstanceUVs.GetNumElements() && VertexInstanceUVs.GetNumChannels() > MeshSettings->TextureCoordinateIndex);
 	}
 
 	// add vertices
@@ -222,7 +222,7 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	for(const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
 	{
 		const FPolygonGroupID PolygonGroupID = RawMesh->GetPolygonPolygonGroup(PolygonID);
-		const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
 		for (const FTriangleID TriangleID : TriangleIDs)
 		{
 			if (MeshSettings->MaterialIndices.Contains(PolygonGroupID.GetValue()))

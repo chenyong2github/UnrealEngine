@@ -186,7 +186,7 @@ public:
 		float ScaleY = (SizeV != 0) ? Data.Size.Y / SizeV : 1.0;
 
 		// count number of texture coordinates for this mesh
-		int32 NumTexcoords = FMath::Min(VertexInstanceUVs.GetNumIndices(), (int32)MAX_STATIC_TEXCOORDS);
+		int32 NumTexcoords = FMath::Min(VertexInstanceUVs.GetNumChannels(), (int32)MAX_STATIC_TEXCOORDS);
 
 		// check if we should use NewUVs or original UV set
 		bool bUseNewUVs = Data.TexCoords.Num() > 0;
@@ -203,7 +203,7 @@ public:
 		for (const FPolygonID PolygonID : RawMesh.Polygons().GetElementIDs())
 		{
 			const FPolygonGroupID PolygonGroupID = RawMesh.GetPolygonPolygonGroup(PolygonID);
-			const TArray<FTriangleID>& TriangleIDs = RawMesh.GetPolygonTriangleIDs(PolygonID);
+			TArrayView<const FTriangleID> TriangleIDs = RawMesh.GetPolygonTriangleIDs(PolygonID);
 			for (const FTriangleID TriangleID : TriangleIDs)
 			{
 				if (PolygonGroupID.GetValue() == Data.MaterialIndex)

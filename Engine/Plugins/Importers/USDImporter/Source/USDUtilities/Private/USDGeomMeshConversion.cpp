@@ -204,14 +204,14 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 		// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
 		{
-			int32 ExistingUVCount = MeshDescriptionUVs.GetNumIndices();
+			int32 ExistingUVCount = MeshDescriptionUVs.GetNumChannels();
 			int32 NumUVs = FMath::Max(UVSets.Num(), ExistingUVCount);
 			NumUVs = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, NumUVs);
 			// At least one UV set must exist.  
 			NumUVs = FMath::Max<int32>(1, NumUVs);
 
 			//Make sure all Vertex instance have the correct number of UVs
-			MeshDescriptionUVs.SetNumIndices(NumUVs);
+			MeshDescriptionUVs.SetNumChannels(NumUVs);
 		}
 
 		TVertexInstanceAttributesRef< FVector > MeshDescriptionNormals = StaticMeshAttributes.GetVertexInstanceNormals();
@@ -375,11 +375,14 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 			FPolygonGroupID PolygonGroupID = PolygonGroupMapping[ RealMaterialIndex ];
 			// Insert a polygon into the mesh
-			const FPolygonID NewPolygonID = MeshDescription.CreatePolygon( PolygonGroupID, CornerInstanceIDs );
 			if ( bFlipThisGeometry )
 			{
-				MeshDescription.ReversePolygonFacing( NewPolygonID );
+				for (int32 i = 0; i < CornerInstanceIDs.Num() / 2; ++i)
+				{
+					Swap(CornerInstanceIDs[i], CornerInstanceIDs[CornerInstanceIDs.Num() - i - 1]);
+				}
 			}
+			const FPolygonID NewPolygonID = MeshDescription.CreatePolygon( PolygonGroupID, CornerInstanceIDs );
 		}
 	}
 

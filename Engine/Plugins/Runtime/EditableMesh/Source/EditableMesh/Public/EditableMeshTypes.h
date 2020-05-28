@@ -546,7 +546,7 @@ struct FVertexToCreate
 
 	FVertexToCreate()
 		: VertexAttributes(),
-		  OriginalVertexID( FVertexID::Invalid )
+		  OriginalVertexID( INDEX_NONE )
 	{
 	}
 
@@ -578,9 +578,9 @@ struct FVertexInstanceToCreate
 	FVertexInstanceID OriginalVertexInstanceID;
 
 	FVertexInstanceToCreate()
-		: VertexID( FVertexID::Invalid ),
+		: VertexID( INDEX_NONE ),
 		  VertexInstanceAttributes(),
-		  OriginalVertexInstanceID( FVertexInstanceID::Invalid )
+		  OriginalVertexInstanceID( INDEX_NONE )
 	{
 	}
 
@@ -622,11 +622,11 @@ struct FEdgeToCreate
 
 	/** Default constructor */
 	FEdgeToCreate()
-		: VertexID0( FVertexID::Invalid ),
-		  VertexID1( FVertexID::Invalid ),
+		: VertexID0( INDEX_NONE ),
+		  VertexID1( INDEX_NONE ),
 //		  ConnectedPolygons(),
 		  EdgeAttributes(),
-		  OriginalEdgeID( FEdgeID::Invalid )
+		  OriginalEdgeID( INDEX_NONE )
 	{
 	}
 
@@ -649,7 +649,7 @@ struct FVertexAndAttributes
 {
 	GENERATED_BODY()
 
-	/** The vertex instance ID to insert into the polygon, or FVertexInstanceID::Invalid to create a new vertex instance with the given attributes */
+	/** The vertex instance ID to insert into the polygon, or INDEX_NONE to create a new vertex instance with the given attributes */
 	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )
 	FVertexInstanceID VertexInstanceID;
 
@@ -663,8 +663,8 @@ struct FVertexAndAttributes
 
 	/** Default constructor */
 	FVertexAndAttributes()
-		: VertexInstanceID( FVertexInstanceID::Invalid ),
-		  VertexID( FVertexID::Invalid ),
+		: VertexInstanceID( INDEX_NONE ),
+		  VertexID( INDEX_NONE ),
 		  PolygonVertexAttributes()
 	{
 	}
@@ -720,9 +720,9 @@ struct FPolygonToCreate
 
 	/** Default constructor */
 	FPolygonToCreate()
-		: PolygonGroupID( FPolygonGroupID::Invalid ),
+		: PolygonGroupID( INDEX_NONE ),
 		  PerimeterVertices(),
-		  OriginalPolygonID( FPolygonID::Invalid ),
+		  OriginalPolygonID( INDEX_NONE ),
 		  PolygonEdgeHardness( EPolygonEdgeHardness::NewEdgesSoft )
 	{
 	}
@@ -754,8 +754,8 @@ struct FVertexPair
 
 	/** Default constructor */
 	FVertexPair()
-		: VertexID0( FVertexID::Invalid ),
-		  VertexID1( FVertexID::Invalid )
+		: VertexID0( INDEX_NONE ),
+		  VertexID1( INDEX_NONE )
 	{
 	}
 
@@ -785,7 +785,7 @@ struct FPolygonToSplit
 
 	/** Default constructor */
 	FPolygonToSplit()
-		: PolygonID( FPolygonID::Invalid ),
+		: PolygonID( INDEX_NONE ),
 		  VertexPairsToSplitAt()
 	{
 	}
@@ -935,7 +935,7 @@ struct FVertexAttributesForPolygon
 
 	/** Default constructor */
 	FVertexAttributesForPolygon()
-		: PolygonID( FPolygonID::Invalid ),
+		: PolygonID( INDEX_NONE ),
 		  PerimeterVertexAttributeLists(),
 		  VertexAttributeListsForEachHole()
 	{
@@ -1018,7 +1018,7 @@ struct FChangeVertexInstancesForPolygon
 
 	/** Default constructor */
 	FChangeVertexInstancesForPolygon()
-		: PolygonID( FPolygonID::Invalid ),
+		: PolygonID( INDEX_NONE ),
 		  PerimeterVertexIndicesAndInstanceIDs(),
 		  VertexIndicesAndInstanceIDsForEachHole()
 	{
@@ -1056,8 +1056,8 @@ struct FVerticesForEdge
 	/** Default constructor */
 	FVerticesForEdge()
 		: EdgeID( 0 ),
-		  NewVertexID0( FVertexID::Invalid ),	// @todo mesheditor urgent: Typesafety isn't working -- able to assign EdgeID to VertexID!
-		  NewVertexID1( FVertexID::Invalid )
+		  NewVertexID0( INDEX_NONE ),	// @todo mesheditor urgent: Typesafety isn't working -- able to assign EdgeID to VertexID!
+		  NewVertexID1( INDEX_NONE )
 	{
 	}
 
@@ -1088,7 +1088,7 @@ struct FVertexToMove
 
 
 	FVertexToMove()
-		: VertexID( FVertexID::Invalid ),
+		: VertexID( INDEX_NONE ),
 		  NewVertexPosition( FVector::ZeroVector )
 	{
 	}
@@ -1118,7 +1118,7 @@ struct FPolygonGroupToCreate
 
 	/** Default constructor */
 	FPolygonGroupToCreate()
-		: OriginalPolygonGroupID( FPolygonGroupID::Invalid )
+		: OriginalPolygonGroupID( INDEX_NONE )
 	{
 	}
 
@@ -1147,8 +1147,8 @@ struct FPolygonGroupForPolygon
 
 	/** Default constructor */
 	FPolygonGroupForPolygon()
-		: PolygonID( FPolygonID::Invalid )
-		, PolygonGroupID( FPolygonGroupID::Invalid )
+		: PolygonID( INDEX_NONE )
+		, PolygonGroupID( INDEX_NONE )
 	{
 	}
 

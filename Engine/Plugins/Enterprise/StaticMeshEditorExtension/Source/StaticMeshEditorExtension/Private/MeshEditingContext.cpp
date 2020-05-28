@@ -54,28 +54,24 @@ namespace MeshEditingContext
 		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 
 		// Register additional attributes required by features modifying EditableMesh
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		MeshDescription->PolygonAttributes().RegisterAttribute<FVector>( MeshAttribute::Polygon::Normal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient );
 		MeshDescription->PolygonAttributes().RegisterAttribute<FVector>( MeshAttribute::Polygon::Tangent, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient );
 		MeshDescription->PolygonAttributes().RegisterAttribute<FVector>( MeshAttribute::Polygon::Binormal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient );
 		MeshDescription->PolygonAttributes().RegisterAttribute<FVector>( MeshAttribute::Polygon::Center, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient );
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		MeshDescription->PolygonGroupAttributes().RegisterAttribute<FName>( MeshAttribute::PolygonGroup::MaterialAssetName );
-		MeshDescription->PolygonGroupAttributes().RegisterAttribute<bool>( MeshAttribute::PolygonGroup::EnableCollision );
-		MeshDescription->PolygonGroupAttributes().RegisterAttribute<bool>( MeshAttribute::PolygonGroup::CastShadow );
 
 		// Match EditableMesh material asset name with material slot names
 		TPolygonGroupAttributesConstRef<FName> SlotNames = MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>( MeshAttribute::PolygonGroup::ImportedMaterialSlotName );
 		TPolygonGroupAttributesRef<FName> AssetNames = MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>( MeshAttribute::PolygonGroup::MaterialAssetName );
-		TPolygonGroupAttributesRef<bool> EnableCollisions = MeshDescription->PolygonGroupAttributes().GetAttributesRef<bool>( MeshAttribute::PolygonGroup::EnableCollision );
-		TPolygonGroupAttributesRef<bool> CastShadows = MeshDescription->PolygonGroupAttributes().GetAttributesRef<bool>( MeshAttribute::PolygonGroup::CastShadow );
 
 		TPolygonGroupAttributesConstRef<FName> SrcSlotNames = EditableMeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>( MeshAttribute::PolygonGroup::ImportedMaterialSlotName );
 		TPolygonGroupAttributesConstRef<FName> SrcAssetNames = EditableMeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>( MeshAttribute::PolygonGroup::MaterialAssetName );
-		TPolygonGroupAttributesConstRef<bool> SrcEnableCollisions = EditableMeshDescription->PolygonGroupAttributes().GetAttributesRef<bool>( MeshAttribute::PolygonGroup::EnableCollision );
-		TPolygonGroupAttributesConstRef<bool> SrcCastShadows = EditableMeshDescription->PolygonGroupAttributes().GetAttributesRef<bool>( MeshAttribute::PolygonGroup::CastShadow );
 
 		for( const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs() )
 		{
-			FPolygonGroupID MatchingPolygonGroup(FPolygonGroupID::Invalid);
+			FPolygonGroupID MatchingPolygonGroup(INDEX_NONE);
 			for( const FPolygonGroupID SrcPolygonGroupID : EditableMeshDescription->PolygonGroups().GetElementIDs() )
 			{
 				if( SlotNames[ PolygonGroupID ] == SrcSlotNames[ SrcPolygonGroupID ] )
@@ -85,11 +81,9 @@ namespace MeshEditingContext
 				}
 			}
 
-			if( MatchingPolygonGroup != FPolygonGroupID::Invalid )
+			if( MatchingPolygonGroup != INDEX_NONE )
 			{
 				AssetNames[ PolygonGroupID ] = SrcAssetNames[ MatchingPolygonGroup ];
-				EnableCollisions[ PolygonGroupID ] = SrcEnableCollisions[ MatchingPolygonGroup ];
-				CastShadows[ PolygonGroupID ] = SrcCastShadows[ MatchingPolygonGroup ];
 			}
 		}
 
@@ -101,10 +95,12 @@ namespace MeshEditingContext
 
 			TVertexInstanceAttributesConstRef<FVector2D> VertexUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			TPolygonAttributesRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal);
 			TPolygonAttributesRef<FVector> PolygonTangents = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent);
 			TPolygonAttributesRef<FVector> PolygonBinormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Binormal);
 			TPolygonAttributesRef<FVector> PolygonCenters = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Center);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			for (const FPolygonID PolygonID : MeshDescription->Polygons().GetElementIDs())
 			{

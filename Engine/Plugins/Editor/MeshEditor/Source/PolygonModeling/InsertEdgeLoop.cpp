@@ -42,7 +42,7 @@ void UInsertEdgeLoopCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Me
 			const TArray<FMeshElement>& EdgeElements = MeshAndEdges.Value;
 
 			// Figure out where to add the loop along the edge
-			FEdgeID ClosestEdgeID = FEdgeID::Invalid;
+			FEdgeID ClosestEdgeID = INDEX_NONE;
 			float Split = 0.0f;
 			const bool bFoundSplit = MeshEditorMode.FindEdgeSplitUnderInteractor( MeshEditorMode.GetActiveActionInteractor(), EditableMesh, EdgeElements, /* Out */ ClosestEdgeID, /* Out */ Split );
 

@@ -118,7 +118,7 @@ void FMeshDescriptionBuilder::SetInstanceNormal(const FVertexInstanceID& Instanc
 
 void FMeshDescriptionBuilder::SetInstanceUV(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, int32 UVLayerIndex)
 {
-	if (InstanceUVs.IsValid() && ensure(UVLayerIndex < InstanceUVs.GetNumIndices()))
+	if (InstanceUVs.IsValid() && ensure(UVLayerIndex < InstanceUVs.GetNumChannels()))
 	{
 		InstanceUVs.Set(InstanceID, UVLayerIndex, InstanceUV); 
 	}
@@ -129,7 +129,7 @@ void FMeshDescriptionBuilder::SetNumUVLayers(int32 NumUVLayers)
 {
 	if (ensure(InstanceUVs.IsValid()))
 	{
-		InstanceUVs.SetNumIndices(NumUVLayers);
+		InstanceUVs.SetNumChannels(NumUVLayers);
 	}
 }
 

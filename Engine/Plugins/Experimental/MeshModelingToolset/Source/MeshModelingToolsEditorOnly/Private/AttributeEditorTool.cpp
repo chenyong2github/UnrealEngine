@@ -98,7 +98,7 @@ void UAttributeEditorTool::Setup()
 		FMeshDescription* MeshDescription = ComponentTarget->GetMesh();
 		TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
 			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		NumUVLayers = FMath::Max(NumUVLayers, InstanceUVs.GetNumIndices());
+		NumUVLayers = FMath::Max(NumUVLayers, InstanceUVs.GetNumChannels());
 	}
 
 	NormalsActions = NewObject<UAttributeEditorNormalsActions>(this);
@@ -269,22 +269,13 @@ static bool RemoveAttribute(FMeshDescription* Mesh, EAttributeEditorElementType 
 static bool IsReservedName(FName AttributeName)
 {
 	return (AttributeName == MeshAttribute::Vertex::Position)
-		|| (AttributeName == MeshAttribute::Vertex::CornerSharpness)
 		|| (AttributeName == MeshAttribute::VertexInstance::TextureCoordinate)
 		|| (AttributeName == MeshAttribute::VertexInstance::Normal)
 		|| (AttributeName == MeshAttribute::VertexInstance::Tangent)
 		|| (AttributeName == MeshAttribute::VertexInstance::BinormalSign)
 		|| (AttributeName == MeshAttribute::VertexInstance::Color)
 		|| (AttributeName == MeshAttribute::Edge::IsHard)
-		|| (AttributeName == MeshAttribute::Edge::IsUVSeam)
-		|| (AttributeName == MeshAttribute::Edge::CreaseSharpness)
-		|| (AttributeName == MeshAttribute::Polygon::Normal)
-		|| (AttributeName == MeshAttribute::Polygon::Tangent)
-		|| (AttributeName == MeshAttribute::Polygon::Binormal)
-		|| (AttributeName == MeshAttribute::Polygon::Center)
-		|| (AttributeName == MeshAttribute::PolygonGroup::ImportedMaterialSlotName)
-		|| (AttributeName == MeshAttribute::PolygonGroup::EnableCollision)
-		|| (AttributeName == MeshAttribute::PolygonGroup::CastShadow);
+		|| (AttributeName == MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
 }
 
 
@@ -394,7 +385,7 @@ void UAttributeEditorTool::ClearNormals()
 					EdgeHardnesses[ElID] = false;
 				}
 			}
-			FStaticMeshOperations::ComputePolygonTangentsAndNormals(*CommitParams.MeshDescription, FMathf::Epsilon);
+			FStaticMeshOperations::ComputeTriangleTangentsAndNormals(*CommitParams.MeshDescription, FMathf::Epsilon);
 			FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(*CommitParams.MeshDescription, EComputeNTBsFlags::WeightedNTBs | EComputeNTBsFlags::Normals);
 		});
 	}
@@ -429,7 +420,7 @@ void UAttributeEditorTool::ClearUVs(bool bSelectedOnly)
 			for (int LayerIndex = 7; LayerIndex >= 0; LayerIndex--)
 			{
 				bool bRemove = (bSelectedOnly == false) || RemoveLayers[LayerIndex];
-				if (bRemove && LayerIndex < InstanceUVs.GetNumIndices())
+				if (bRemove && LayerIndex < InstanceUVs.GetNumChannels())
 				{
 					if (!FStaticMeshOperations::RemoveUVChannel(*CommitParams.MeshDescription, LayerIndex))
 					{
@@ -513,6 +504,7 @@ void UAttributeEditorTool::DeleteAttribute()
 	FMeshDescription* CurMesh = ComponentTargets[0]->GetMesh();
 	FName SelectedName(ModifyAttributeProps->Attribute);
 
+	// @todo: introduce 'reserved' attribute flag which we can check here
 	if (IsReservedName(SelectedName))
 	{
 		GetToolManager()->DisplayMessage(LOCTEXT("CannotDeleteReservedNameError", "Cannot delete required mesh Attributes"), EToolMessageLevel::UserWarning);

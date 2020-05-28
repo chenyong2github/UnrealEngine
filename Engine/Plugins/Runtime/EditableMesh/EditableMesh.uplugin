@@ -10,15 +10,16 @@
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",
-	"EnabledByDefault" : true,
+	"EnabledByDefault" : false,
 	"CanContainContent" : false,
 	"IsBetaVersion" : false,
-	"Installed" : false,
-  "Modules": [
+	"Installed": false,
+	"Hidden":  true,
+	"Modules": [
     {
-      "Name": "EditableMesh",
-      "Type": "Runtime",
-      "LoadingPhase": "Default"
+		"Name": "EditableMesh",
+		"Type": "Runtime",
+		"LoadingPhase": "Default"
     }
   ]
 }

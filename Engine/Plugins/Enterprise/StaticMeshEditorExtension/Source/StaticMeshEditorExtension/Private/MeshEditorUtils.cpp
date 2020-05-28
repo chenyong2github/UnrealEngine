@@ -202,12 +202,14 @@ TMap<FPolygonID, FTriangleData> MeshEditingUtilsImpl::GetFilteredTriangleData(co
 	FilteredTriangleData.Reset();
 
 	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonCenters = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Center);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FVector TriangleVertexPositions[3];
 	for (const FPolygonID PolygonID : Polygons)
 	{
-		const TArray<FTriangleID>& PolygonTriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> PolygonTriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
 
 		for (const FTriangleID MeshTriangleID : PolygonTriangleIDs)
 		{

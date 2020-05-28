@@ -173,7 +173,7 @@ namespace GLTF
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = StaticMeshAttributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = StaticMeshAttributes.GetVertexInstanceColors();
-		VertexInstanceUVs.SetNumIndices(NumUVs);
+		VertexInstanceUVs.SetNumChannels(NumUVs);
 
 		MaterialIndicesUsed.Empty(10);
 		// Add the vertex position
@@ -394,7 +394,10 @@ namespace GLTF
 				// (Is there a way to set auto-gen smoothing threshold? glTF spec says to generate flat normals if they're not specified.
 				//   We want to combine identical verts whether they're smooth neighbors or triangles belonging to the same flat polygon.)
 				EdgeHardnesses[NewEdgeID] = false;
-				EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
+				if (EdgeCreaseSharpnesses.IsValid())
+				{
+					EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
+				}
 			}
 		}
 		return bHasDegenerateTriangles;

@@ -9,6 +9,8 @@
 
 class UMaterial;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
 * A wrapper for MeshDescription, customized for static meshes
 */
@@ -51,7 +53,9 @@ public:
 
 public:
 
+	UE_DEPRECATED(4.25, "This attribute is no longer supported, please remove code pertaining to it.")
 	TVertexAttributesRef<float> GetVertexCornerSharpnesses() { return GetRequiredAttributes().GetVertexCornerSharpnesses(); }
+	UE_DEPRECATED(4.25, "This attribute is no longer supported, please remove code pertaining to it.")
 	TVertexAttributesConstRef<float> GetVertexCornerSharpnesses() const { return GetRequiredAttributes().GetVertexCornerSharpnesses(); }
 
 	TVertexInstanceAttributesRef<FVector2D> GetVertexInstanceUVs() { return GetRequiredAttributes().GetVertexInstanceUVs(); }
@@ -72,9 +76,13 @@ public:
 	TEdgeAttributesRef<bool> GetEdgeHardnesses() { return GetRequiredAttributes().GetEdgeHardnesses(); }
 	TEdgeAttributesConstRef<bool> GetEdgeHardnesses() const { return GetRequiredAttributes().GetEdgeHardnesses(); }
 
+	UE_DEPRECATED(4.25, "This attribute is no longer supported, please remove code pertaining to it.")
 	TEdgeAttributesRef<float> GetEdgeCreaseSharpnesses() { return GetRequiredAttributes().GetEdgeCreaseSharpnesses(); }
+	UE_DEPRECATED(4.25, "This attribute is no longer supported, please remove code pertaining to it.")
 	TEdgeAttributesConstRef<float> GetEdgeCreaseSharpnesses() const { return GetRequiredAttributes().GetEdgeCreaseSharpnesses(); }
 
 	TPolygonGroupAttributesRef<FName> GetPolygonGroupMaterialSlotNames() { return GetRequiredAttributes().GetPolygonGroupMaterialSlotNames(); }
 	TPolygonGroupAttributesConstRef<FName> GetPolygonGroupMaterialSlotNames() const { return GetRequiredAttributes().GetPolygonGroupMaterialSlotNames(); }
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

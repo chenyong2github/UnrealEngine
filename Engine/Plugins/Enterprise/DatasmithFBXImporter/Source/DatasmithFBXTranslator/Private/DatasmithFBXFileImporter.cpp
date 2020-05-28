@@ -1030,7 +1030,6 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 	TEdgeAttributesRef<bool> EdgeHardnesses = MeshDescription.EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
-	TEdgeAttributesRef<float> EdgeCreaseSharpnesses = MeshDescription.EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness);
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
 
 	// Reserve space for attributes.
@@ -1046,7 +1045,7 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 
 	// At least one UV set must exist.
 	int32 MeshDescUVCount = FMath::Max(1, FbxUVCount);
-	VertexInstanceUVs.SetNumIndices(MeshDescUVCount);
+	VertexInstanceUVs.SetNumChannels(MeshDescUVCount);
 
 	//Fill the vertex array
 	for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
@@ -1073,7 +1072,7 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 	auto GetOrCreatePolygonGroupId = [&](int32 MaterialIndex)
 	{
 		FPolygonGroupID& PolyGroupId = PolygonGroupMapping.FindOrAdd(MaterialIndex);
-		if (PolyGroupId == FPolygonGroupID::Invalid)
+		if (PolyGroupId == INDEX_NONE)
 		{
 			PolyGroupId = MeshDescription.CreatePolygonGroup();
 			FName ImportedSlotName = DatasmithMeshHelper::DefaultSlotName(MaterialIndex);
@@ -1217,13 +1216,12 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 
 			// Get or create edge
 			FEdgeID EdgeId = MeshDescription.GetVertexPairEdge(CornerVertexIDs[CornerIndex], CornerVertexIDs[NextCornerIndex]);
-			if (EdgeId == FEdgeID::Invalid)
+			if (EdgeId == INDEX_NONE)
 			{
 				EdgeId = MeshDescription.CreateEdge(CornerVertexIDs[CornerIndex], CornerVertexIDs[NextCornerIndex]);
 
 				// Crease sharpness
 				int32 FbxEdgeIndex = InMesh->GetMeshEdgeIndexForPolygon(PolygonIndex, CornerIndex);
-				EdgeCreaseSharpnesses[EdgeId] = (float)InMesh->GetEdgeCreaseInfo(FbxEdgeIndex);
 
 				// Smoothing
 				bool Hardness = true;

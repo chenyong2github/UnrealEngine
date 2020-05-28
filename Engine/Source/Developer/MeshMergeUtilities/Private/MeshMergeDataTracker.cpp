@@ -264,7 +264,7 @@ void FMeshMergeDataTracker::ProcessRawMeshes()
 		
 		if (VertexInstanceUVs.GetNumElements() > 0)
 		{
-			for (int32 ChannelIndex = 0; ChannelIndex < FMath::Min(VertexInstanceUVs.GetNumIndices(), (int32)MAX_MESH_TEXTURE_COORDS_MD); ++ChannelIndex)
+			for (int32 ChannelIndex = 0; ChannelIndex < FMath::Min(VertexInstanceUVs.GetNumChannels(), (int32)MAX_MESH_TEXTURE_COORDS_MD); ++ChannelIndex)
 			{
 				bOcuppiedUVChannels[LODIndex][ChannelIndex] = true;
 				bPotentialLODLightmapUVChannels[LODIndex][ChannelIndex] = (ChannelIndex == LightmapChannelIdx);

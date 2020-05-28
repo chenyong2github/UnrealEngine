@@ -647,7 +647,7 @@ struct FInsertPolygonPerimeterVerticesChangeInput
 	
 	/** Default constructor */
 	FInsertPolygonPerimeterVerticesChangeInput()
-		: PolygonID( FPolygonID::Invalid ),
+		: PolygonID( INDEX_NONE ),
 		  InsertBeforeVertexNumber( 0 ),
 		  VerticesToInsert()
 	{
@@ -701,7 +701,7 @@ struct FRemovePolygonPerimeterVerticesChangeInput
 	
 	/** Default constructor */
 	FRemovePolygonPerimeterVerticesChangeInput()
-		: PolygonID( FPolygonID::Invalid ),
+		: PolygonID( INDEX_NONE ),
 		  FirstVertexNumberToRemove( 0 ),
 		  NumVerticesToRemove( 0 ),
 		  bDeleteOrphanedVertexInstances( false )

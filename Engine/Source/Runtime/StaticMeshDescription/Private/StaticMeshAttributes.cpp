@@ -11,10 +11,15 @@ namespace MeshAttribute
 	const FName VertexInstance::Tangent("Tangent");
 	const FName VertexInstance::BinormalSign("BinormalSign");
 	const FName VertexInstance::Color("Color");
+	const FName VertexInstance::UVIndex("UVIndex");
 
 	const FName Edge::IsHard("IsHard");
 	const FName Edge::IsUVSeam("IsUVSeam");
 	const FName Edge::CreaseSharpness("CreaseSharpness");
+
+	const FName Triangle::Normal("Normal");
+	const FName Triangle::Tangent("Tangent");
+	const FName Triangle::Binormal("Binormal");
 
 	const FName Polygon::Normal("Normal");
 	const FName Polygon::Tangent("Tangent");
@@ -31,7 +36,6 @@ namespace MeshAttribute
 void FStaticMeshAttributes::Register()
 {
 	// Add basic vertex attributes
-	MeshDescription.VertexAttributes().RegisterAttribute<float>(MeshAttribute::Vertex::CornerSharpness, 1, 0.0f, EMeshAttributeFlags::Lerpable);
 
 	// Add basic vertex instance attributes
 	MeshDescription.VertexInstanceAttributes().RegisterAttribute<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate, 1, FVector2D::ZeroVector, EMeshAttributeFlags::Lerpable);
@@ -42,7 +46,6 @@ void FStaticMeshAttributes::Register()
 
 	// Add basic edge attributes
 	MeshDescription.EdgeAttributes().RegisterAttribute<bool>(MeshAttribute::Edge::IsHard, 1, false);
-	MeshDescription.EdgeAttributes().RegisterAttribute<float>(MeshAttribute::Edge::CreaseSharpness, 1, 0.0f, EMeshAttributeFlags::Lerpable);
 
 	// Add basic polygon attributes
 
@@ -56,8 +59,18 @@ void FStaticMeshAttributes::Register()
 
 void FStaticMeshAttributes::RegisterPolygonNormalAndTangentAttributes()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Normal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
 	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Tangent, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
 	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Binormal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
 	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Center, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+
+void FStaticMeshAttributes::RegisterTriangleNormalAndTangentAttributes()
+{
+	MeshDescription.TriangleAttributes().RegisterAttribute<FVector>(MeshAttribute::Triangle::Normal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
+	MeshDescription.TriangleAttributes().RegisterAttribute<FVector>(MeshAttribute::Triangle::Tangent, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
+	MeshDescription.TriangleAttributes().RegisterAttribute<FVector>(MeshAttribute::Triangle::Binormal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
 }

@@ -112,26 +112,6 @@ void UEditVertexCornerSharpnessCommand::ApplyDuringDrag( IMeshEditorModeEditingC
 
 			static TArray<float> NewSharpnessValues;
 			NewSharpnessValues.Reset();
-
-			const TVertexAttributesRef<float> VertexSharpnesses = EditableMesh->GetMeshDescription()->VertexAttributes().GetAttributesRef<float>( MeshAttribute::Vertex::CornerSharpness );
-
-			for( const FMeshElement& VertexElement : VertexElements )
-			{
-				const FVertexID VertexID( VertexElement.ElementAddress.ElementID );
-
-				const float CurrentSharpnessValue = VertexSharpnesses[ VertexID ];
-				const float NewSharpnessValue = FMath::Clamp( CurrentSharpnessValue + ScaledDragDelta, 0.0f, 1.0f );
-
-				VertexIDs.Add( VertexID );
-				NewSharpnessValues.Add( NewSharpnessValue );
-			}
-
-
-			verify( !EditableMesh->AnyChangesToUndo() );
-
-			EditableMesh->SetVerticesCornerSharpness( VertexIDs, NewSharpnessValues );
-
-			MeshEditorMode.TrackUndo( EditableMesh, EditableMesh->MakeUndo() );
 		}
 	}
 }
@@ -164,30 +144,12 @@ void UEditEdgeCreaseSharpnessCommand::ApplyDuringDrag( IMeshEditorModeEditingCon
 			UEditableMesh* EditableMesh = MeshAndSelectedEdges.Key;
 			const TArray<FMeshElement>& EdgeElements = MeshAndSelectedEdges.Value;
 
-			const TEdgeAttributesRef<float> EdgeSharpnesses = EditableMesh->GetMeshDescription()->EdgeAttributes().GetAttributesRef<float>( MeshAttribute::Edge::CreaseSharpness );
-
 			static TArray<FEdgeID> EdgeIDs;
 			EdgeIDs.Reset();
 
 			static TArray<float> NewSharpnessValues;
 			NewSharpnessValues.Reset();
 
-			for( const FMeshElement& EdgeElement : EdgeElements )
-			{
-				const FEdgeID EdgeID( EdgeElement.ElementAddress.ElementID );
-
-				const float CurrentSharpnessValue = EdgeSharpnesses[ EdgeID ];
-				const float NewSharpnessValue = FMath::Clamp( CurrentSharpnessValue + ScaledDragDelta, 0.0f, 1.0f );
-
-				EdgeIDs.Add( EdgeID );
-				NewSharpnessValues.Add( NewSharpnessValue );
-			}
-
-			verify( !EditableMesh->AnyChangesToUndo() );
-
-			EditableMesh->SetEdgesCreaseSharpness( EdgeIDs, NewSharpnessValues );
-
-			MeshEditorMode.TrackUndo( EditableMesh, EditableMesh->MakeUndo() );
 		}
 	}
 }

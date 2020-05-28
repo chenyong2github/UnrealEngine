@@ -329,14 +329,14 @@ namespace DataprepOperationsLibraryUtil
 						if(SourceModel.BuildSettings.DstLightmapIndex != -1)
 						{
 							TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
-							SourceModel.BuildSettings.bGenerateLightmapUVs = VertexInstanceUVs.IsValid() && VertexInstanceUVs.GetNumIndices() > SourceModel.BuildSettings.DstLightmapIndex;
+							SourceModel.BuildSettings.bGenerateLightmapUVs = VertexInstanceUVs.IsValid() && VertexInstanceUVs.GetNumChannels() > SourceModel.BuildSettings.DstLightmapIndex;
 						}
 						else
 						{
 							SourceModel.BuildSettings.bGenerateLightmapUVs = false;
 						}
 
-						SourceModel.BuildSettings.bRecomputeNormals = !(Attributes.GetVertexInstanceNormals().IsValid() && Attributes.GetVertexInstanceNormals().GetNumIndices() > 0);
+						SourceModel.BuildSettings.bRecomputeNormals = !(Attributes.GetVertexInstanceNormals().IsValid() && Attributes.GetVertexInstanceNormals().GetNumChannels() > 0);
 						SourceModel.BuildSettings.bRecomputeTangents = false;
 						//SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 						//SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;

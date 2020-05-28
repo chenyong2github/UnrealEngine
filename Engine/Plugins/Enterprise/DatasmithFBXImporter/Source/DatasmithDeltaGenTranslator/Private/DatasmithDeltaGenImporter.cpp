@@ -296,7 +296,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithDeltaGenImporter::ConvertNode(const
 			FMeshDescription& MeshDescription = ThisMesh->MeshDescription;
 			FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
 			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
-			int32 NumUVChannels = VertexInstanceUVs.GetNumIndices();
+			int32 NumUVChannels = VertexInstanceUVs.GetNumChannels();
 
 			// DeltaGen uses UV channel 0 for texture UVs, and UV channel 1 for lightmap UVs
 			// Don't set it to zero or else it will disable Datasmith's GenerateLightmapUV option

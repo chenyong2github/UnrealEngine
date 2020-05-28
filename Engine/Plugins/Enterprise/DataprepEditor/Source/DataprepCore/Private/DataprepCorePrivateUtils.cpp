@@ -119,14 +119,14 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 					{
 						TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 						//If the importer have enabled lightmap generation, disabling it may interfere with the build process, so we only allow enabling it.
-						SourceModel.BuildSettings.bGenerateLightmapUVs |= VertexInstanceUVs.IsValid() && VertexInstanceUVs.GetNumIndices() > SourceModel.BuildSettings.SrcLightmapIndex;
+						SourceModel.BuildSettings.bGenerateLightmapUVs |= VertexInstanceUVs.IsValid() && VertexInstanceUVs.GetNumChannels() > SourceModel.BuildSettings.SrcLightmapIndex;
 					}
 					else
 					{
 						SourceModel.BuildSettings.bGenerateLightmapUVs = false;
 					}
 
-					SourceModel.BuildSettings.bRecomputeNormals = !(Attributes.GetVertexInstanceNormals().IsValid() && Attributes.GetVertexInstanceNormals().GetNumIndices() > 0);
+					SourceModel.BuildSettings.bRecomputeNormals = !(Attributes.GetVertexInstanceNormals().IsValid() && Attributes.GetVertexInstanceNormals().GetNumChannels() > 0);
 					SourceModel.BuildSettings.bRecomputeTangents = false;
 					//SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 					//SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;

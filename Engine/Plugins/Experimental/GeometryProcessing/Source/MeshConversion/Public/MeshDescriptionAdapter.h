@@ -64,7 +64,7 @@ public:
 	}
 	FIndex3i GetTriangle(int32 IDValue) const
 	{
-		const TStaticArray<FVertexID, 3> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
+		TArrayView<const FVertexID> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
 		return FIndex3i(TriVertIDs[0].GetValue(), TriVertIDs[1].GetValue(), TriVertIDs[2].GetValue());
 	}
 	FVector3d GetVertex(int32 IDValue) const
@@ -74,7 +74,7 @@ public:
 
 	inline void GetTriVertices(int32 IDValue, FVector3d& V0, FVector3d& V1, FVector3d& V2) const
 	{
-		const TStaticArray<FVertexID, 3> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
+		TArrayView<const FVertexID> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
 		V0 = FVector3d(VertexPositions[TriVertIDs[0]]);
 		V1 = FVector3d(VertexPositions[TriVertIDs[1]]);
 		V2 = FVector3d(VertexPositions[TriVertIDs[2]]);
@@ -155,7 +155,7 @@ public:
 	}
 	FIndex3i GetTriangle(int32 IDValue) const
 	{
-		const TStaticArray<FVertexID, 3> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
+		TArrayView<const FVertexID> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
 		return FIndex3i(TriVertIDs[0].GetValue(), TriVertIDs[1].GetValue(), TriVertIDs[2].GetValue());
 	}
 	FVector3d GetVertex(int32 IDValue) const
@@ -169,7 +169,7 @@ public:
 
 	inline void GetTriVertices(int32 IDValue, FVector3d& V0, FVector3d& V1, FVector3d& V2) const
 	{
-		const TStaticArray<FVertexID, 3> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
+		TArrayView<const FVertexID> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
 		V0 = FVector3d(VertexPositions[TriVertIDs[0]]);
 		V1 = FVector3d(VertexPositions[TriVertIDs[1]]);
 		V2 = FVector3d(VertexPositions[TriVertIDs[2]]);

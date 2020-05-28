@@ -258,7 +258,7 @@ FReply SGenerateUV::OnApplyUV() const
 		const int32 CurrentLOD = GetSelectedLOD(EditorPtr);
 		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(CurrentLOD);
 		FStaticMeshConstAttributes Attributes(*MeshDescription);
-		const int32 NumberOfUVChannels = Attributes.GetVertexInstanceUVs().GetNumIndices();
+		const int32 NumberOfUVChannels = Attributes.GetVertexInstanceUVs().GetNumChannels();
 		int32 TargetChannel = FMath::Min((int32)GenerateUVSettings->TargetChannel, EditorPtr->GetNumUVChannels());
 		const int32 NumberOfChannelsToAdd = TargetChannel - (NumberOfUVChannels - 1);
 

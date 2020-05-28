@@ -25,6 +25,7 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
 #include "UVTools/UVGenerationFlattenMapping.h"
@@ -147,6 +148,12 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 			FElementIDRemappings Remappings;
 			MeshDescription.Compact(Remappings);
 		}
+
+		// Fix invalid vertex normals and tangents
+		// We need polygon info because ComputeTangentsAndNormals uses it to repair the invalid vertex normals/tangents
+		// Can't calculate just the required polygons as ComputeTangentsAndNormals is parallel and we can't guarantee thread-safe access patterns
+		FStaticMeshOperations::ComputeTriangleTangentsAndNormals(MeshDescription);
+		FStaticMeshOperations::ComputeTangentsAndNormals(MeshDescription, EComputeNTBsFlags::UseMikkTSpace);
 	}
 }
 

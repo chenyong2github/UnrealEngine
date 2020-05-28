@@ -25,7 +25,7 @@ bool FMeshEditorUtilities::AssignMaterialToPolygons( UMaterialInterface* Selecte
 		// @todo mesheditor: This currently imposes the limitation that each polygon group has a unique material.
 		// Eventually we will need to be able to specify PolygonGroup properties in the editor, and ask the user for
 		// further details if there is more than one polygon group which matches the material.
-		FPolygonGroupID PolygonGroupToAssign = FPolygonGroupID::Invalid;
+		FPolygonGroupID PolygonGroupToAssign = INDEX_NONE;
 
 		if ( SelectedMaterial != nullptr )
 		{
@@ -38,7 +38,7 @@ bool FMeshEditorUtilities::AssignMaterialToPolygons( UMaterialInterface* Selecte
 				{
 					// We only expect to find one polygon group containing this material at the moment.
 					// We need to provide a way of distinguishing different polygon groups with the same material.
-					ensure( PolygonGroupToAssign == FPolygonGroupID::Invalid );
+					ensure( PolygonGroupToAssign == INDEX_NONE );
 					PolygonGroupToAssign = PolygonGroupID;
 				}
 			}
@@ -51,7 +51,7 @@ bool FMeshEditorUtilities::AssignMaterialToPolygons( UMaterialInterface* Selecte
 
 
 		// If we didn't find the material being used anywhere, create a new polygon group
-		if( PolygonGroupToAssign == FPolygonGroupID::Invalid )
+		if( PolygonGroupToAssign == INDEX_NONE )
 		{
 			// Helper function which returns a unique FName for the material slot name, based on the material's asset name,
 			// and adding a unique suffix if there are other polygon groups with the same material slot name.

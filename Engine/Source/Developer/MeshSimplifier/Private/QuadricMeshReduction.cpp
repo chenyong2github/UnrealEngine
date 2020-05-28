@@ -227,7 +227,7 @@ public:
 		{
 			const FPolygonGroupID PolygonGroupID = InMesh.GetPolygonPolygonGroup(PolygonID);
 
-			const TArray<FTriangleID>& TriangleIDs = InMesh.GetPolygonTriangleIDs(PolygonID);
+			TArrayView<const FTriangleID> TriangleIDs = InMesh.GetPolygonTriangleIDs(PolygonID);
 			for (int32 TriangleIndex = 0; TriangleIndex < TriangleIDs.Num(); ++TriangleIndex)
 			{
 				const FTriangleID TriangleID = TriangleIDs[TriangleIndex];
@@ -283,7 +283,7 @@ public:
 
 					for (int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
 					{
-						if (UVIndex < InVertexUVs.GetNumIndices())
+						if (UVIndex < InVertexUVs.GetNumChannels())
 						{
 							NewVert.TexCoords[UVIndex] = InVertexUVs.Get(VertexInstanceID, UVIndex);
 							InMeshNumTexCoords = FMath::Max(UVIndex + 1, InMeshNumTexCoords);
@@ -416,7 +416,7 @@ public:
 
 			for (int32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; TexCoordIndex++)
 			{
-				if (TexCoordIndex >= InVertexUVs.GetNumIndices())
+				if (TexCoordIndex >= InVertexUVs.GetNumChannels())
 				{
 					TexCoordWeights[2 * TexCoordIndex + 0] = 0.0f;
 					TexCoordWeights[2 * TexCoordIndex + 1] = 0.0f;
@@ -448,11 +448,7 @@ public:
 
 		{
 			//Empty the destination mesh
-			OutReducedMesh.PolygonGroups().Reset();
-			OutReducedMesh.Polygons().Reset();
-			OutReducedMesh.Edges().Reset();
-			OutReducedMesh.VertexInstances().Reset();
-			OutReducedMesh.Vertices().Reset();
+			OutReducedMesh.Empty();
 
 			//Fill the PolygonGroups from the InMesh
 			for (const FPolygonGroupID& PolygonGroupID : InMesh.PolygonGroups().GetElementIDs())
@@ -480,13 +476,12 @@ public:
 			TVertexInstanceAttributesRef<FVector2D> OutVertexUVs = OutReducedMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
 			//Specify the number of texture coords in this mesh description
-			OutVertexUVs.SetNumIndices(InMeshNumTexCoords);
+			OutVertexUVs.SetNumChannels(InMeshNumTexCoords);
 
 			//Vertex instances and Polygons
 			for (int32 TriangleIndex = 0; TriangleIndex < (int32)NumTris; TriangleIndex++)
 			{
-				TArray<FVertexInstanceID> CornerInstanceIDs;
-				CornerInstanceIDs.SetNum(3);
+				FVertexInstanceID CornerInstanceIDs[3];
 
 				FVertexID CornerVerticesIDs[3];
 				for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
@@ -520,7 +515,7 @@ public:
 				
 				// material index
 				int32 MaterialIndex = Verts[Indexes[3 * TriangleIndex]].MaterialIndex;
-				FPolygonGroupID MaterialPolygonGroupID = FPolygonGroupID::Invalid;
+				FPolygonGroupID MaterialPolygonGroupID = INDEX_NONE;
 				if (!PolygonGroupMapping.Contains(MaterialIndex))
 				{
 					FPolygonGroupID PolygonGroupID(MaterialIndex);
@@ -531,7 +526,7 @@ public:
 					InMesh.PolygonGroupAttributes().ForEach(
 						[&OutReducedMesh, PolygonGroupID, MaterialPolygonGroupID](const FName Name, const auto ArrayRef)
 						{
-							for (int32 Index = 0; Index < ArrayRef.GetNumIndices(); ++Index)
+							for (int32 Index = 0; Index < ArrayRef.GetNumChannels(); ++Index)
 							{
 								// Only copy shared attribute values, since input mesh description can differ from output mesh description
 								const auto& Value = ArrayRef.Get(PolygonGroupID, Index);
@@ -551,7 +546,7 @@ public:
 
 				// Insert a polygon into the mesh
 				TArray<FEdgeID> NewEdgeIDs;
-				const FPolygonID NewPolygonID = OutReducedMesh.CreatePolygon(MaterialPolygonGroupID, CornerInstanceIDs, &NewEdgeIDs);
+				const FTriangleID NewTriangleID = OutReducedMesh.CreateTriangle(MaterialPolygonGroupID, CornerInstanceIDs, &NewEdgeIDs);
 				for (const FEdgeID NewEdgeID : NewEdgeIDs)
 				{
 					// @todo: set NewEdgeID edge hardness?

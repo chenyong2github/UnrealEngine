@@ -656,10 +656,10 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 			RawMesh->Empty();
 
 			//Create the missing normals and tangents on polygons because FStaticMeshOperations::ComputeTangentsAndNormals requires it
-			if(!NewRawMesh.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal).IsValid()
-				|| !NewRawMesh.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent).IsValid())
+			if(!NewRawMesh.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Normal).IsValid()
+				|| !NewRawMesh.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Tangent).IsValid())
 			{
-				FStaticMeshOperations::ComputePolygonTangentsAndNormals(NewRawMesh);
+				FStaticMeshOperations::ComputeTriangleTangentsAndNormals(NewRawMesh);
 			}
 
 			const FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;

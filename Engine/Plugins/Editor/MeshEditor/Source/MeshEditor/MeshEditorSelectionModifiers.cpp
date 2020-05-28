@@ -144,7 +144,7 @@ bool USelectPolygonsByConnectivity::ModifySelection( TMap< UEditableMesh*, TArra
 				FilledPolygons.Add( PolygonID );
 			}
 
-			FPolygonID ConnectedPolygonID = FPolygonID::Invalid;
+			FPolygonID ConnectedPolygonID = INDEX_NONE;
 
 			while ( ConnectedPolygons.Num() > 0 )
 			{

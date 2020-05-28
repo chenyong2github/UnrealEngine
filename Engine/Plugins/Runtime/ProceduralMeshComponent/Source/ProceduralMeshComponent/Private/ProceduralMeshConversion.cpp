@@ -136,7 +136,7 @@ FMeshDescription BuildMeshDescription( UProceduralMeshComponent* ProcMeshComp )
 	MeshDescription.ReserveNewVertexInstances(VertexInstanceCount);
 	MeshDescription.ReserveNewPolygons(PolygonCount);
 	MeshDescription.ReserveNewEdges(PolygonCount * 2);
-	UVs.SetNumIndices(4);
+	UVs.SetNumChannels(4);
 
 	// Create the Polygon Groups
 	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)

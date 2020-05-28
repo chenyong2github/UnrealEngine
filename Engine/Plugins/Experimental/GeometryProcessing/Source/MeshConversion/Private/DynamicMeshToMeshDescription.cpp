@@ -25,7 +25,7 @@ namespace DynamicMeshToMeshDescriptionConversionHelper
 		{
 			FPolygonGroupID PolygonGroupID = MeshOutArg.GetPolygonPolygonGroup(PolygonID);
 
-			const TArray<FTriangleID>& TriangleIDs = MeshOutArg.GetPolygonTriangleIDs(PolygonID);
+			TArrayView<const FTriangleID> TriangleIDs = MeshOutArg.GetPolygonTriangleIDs(PolygonID);
 			int NumTriangles = TriangleIDs.Num();
 			for (int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx, ++MeshInTriIdx)
 			{
@@ -261,7 +261,7 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 	{
 		FVertexInstanceID V[3];
 
-		Tri() : V{ FVertexInstanceID::Invalid,FVertexInstanceID::Invalid,FVertexInstanceID::Invalid }
+		Tri() : V{ INDEX_NONE,INDEX_NONE,INDEX_NONE }
 		{}
 	};
 	TArray<Tri> TriVertInstances;
@@ -278,7 +278,7 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 			FIndex3i Tri = MeshIn->GetTriangle(TriID);
 			int SubIdx = IndexUtil::FindTriIndex(VertID, Tri);
 
-			int32 FoundInstance = FVertexInstanceID::Invalid.GetValue();
+			int32 FoundInstance = INDEX_NONE;
 			for (int KIItemIdx = 0; KIItemIdx < KnownInstanceIDs.Num(); KIItemIdx += KIItemLen)
 			{
 				int KIItemInternalIdx = KIItemIdx;
@@ -307,7 +307,7 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 				check(KIItemInternalIdx == KIItemIdx + KIItemLen);
 				break;
 			}
-			if (FoundInstance == FVertexInstanceID::Invalid.GetValue())
+			if (FoundInstance == INDEX_NONE)
 			{
 				FVertexInstanceID NewInstanceID = Builder.AppendInstance(MapV[VertID]);
 				if (NormalOverlay)

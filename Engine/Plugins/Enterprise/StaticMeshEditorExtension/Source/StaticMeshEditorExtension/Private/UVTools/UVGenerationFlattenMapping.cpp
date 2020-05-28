@@ -1122,7 +1122,7 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 
 	for (const FPolygonID PolygonID : InMesh.Polygons().GetElementIDs())
 	{
-		const TArray<FTriangleID>& TriangleIDs = InMesh.GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> TriangleIDs = InMesh.GetPolygonTriangleIDs(PolygonID);
 		for (const FTriangleID TriangleID : TriangleIDs)
 		{
 			FaceStruct Face;
@@ -1218,9 +1218,9 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 
 	const TArray<int32> OverlappingCorners = GetOverlappingCornersRemapping(InMesh, bRemoveDegenerates);
 	const TVertexInstanceAttributesRef<FVector2D> UVChannels = InMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	if (UVChannels.GetNumIndices() < UVChannel + 1)
+	if (UVChannels.GetNumChannels() < UVChannel + 1)
 	{
-		UVChannels.SetNumIndices(UVChannel + 1);
+		UVChannels.SetNumChannels(UVChannel + 1);
 	}
 
 	// Get the Internal Face Array
@@ -1260,7 +1260,7 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 				VertexInstanceAttributesSet.ForEach(
 					[&](const FName AttributeName, auto AttributeArrayRef)
 					{
-						for(int32 Index = 0; Index < AttributeArrayRef.GetNumIndices(); ++Index)
+						for(int32 Index = 0; Index < AttributeArrayRef.GetNumChannels(); ++Index)
 						{
 							AttributeArrayRef.Set( NewInstanceID, Index, AttributeArrayRef.Get(OriginalID, Index) );
 						}
@@ -1272,8 +1272,11 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 
 				// Update contour of associated polygon with new vertex instance
 				const FPolygonID PolygonID( Face.PolygonID );
-				const int32 FoundIndex = InMesh.GetPolygonVertexInstances( PolygonID ).Find( OriginalID );
-				InMesh.SetPolygonVertexInstance( PolygonID, FoundIndex, NewInstanceID );
+				TArray<FVertexInstanceID, TInlineAllocator<8>> PolygonVerts = InMesh.GetPolygonVertexInstances<TInlineAllocator<8>>( PolygonID );
+				const int32 FoundIndex = PolygonVerts.Find( OriginalID );
+				check(FoundIndex != INDEX_NONE);
+				PolygonVerts[FoundIndex] = NewInstanceID;
+				InMesh.SetPolygonVertexInstances( PolygonID, PolygonVerts );
 
 				// Mark polygon for re-triangulation
 				PolygonsToRetriangulate.Add( Face.PolygonID );

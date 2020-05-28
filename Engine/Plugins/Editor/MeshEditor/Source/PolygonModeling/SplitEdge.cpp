@@ -40,7 +40,7 @@ void USplitEdgeCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& MeshEdi
 			const TArray<FMeshElement>& EdgeElements = MeshAndEdges.Value;
 
 			// Figure out where to split
-			FEdgeID ClosestEdgeID = FEdgeID::Invalid;
+			FEdgeID ClosestEdgeID = INDEX_NONE;
 			float Split = 0.0f;
 			const bool bFoundSplit = MeshEditorMode.FindEdgeSplitUnderInteractor( ViewportInteractor, EditableMesh, EdgeElements, /* Out */ ClosestEdgeID, /* Out */ Split );
 

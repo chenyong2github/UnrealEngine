@@ -1056,7 +1056,6 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 			TVertexInstanceAttributesRef<FVector4> Colors = MeshAttributes.GetVertexInstanceColors();
 			TVertexInstanceAttributesRef<FVector> Normals = MeshAttributes.GetVertexInstanceNormals();
 			TEdgeAttributesRef<bool> EdgeHardnesses = MeshAttributes.GetEdgeHardnesses();
-			TEdgeAttributesRef<float> EdgeCreaseSharpnesses = MeshAttributes.GetEdgeCreaseSharpnesses();
 
 			
 			UMaterialInterface*	Material = Poly.Material;
@@ -1126,7 +1125,6 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 				for (const FEdgeID EdgeID : NewEdgeIDs)
 				{
 					EdgeHardnesses[EdgeID] = false;
-					EdgeCreaseSharpnesses[EdgeID] = 0.0f;
 				}
 
 				//Add to the smoothGroup array so we can compute hard edge later

@@ -45,20 +45,14 @@ namespace DatasmithMeshHelper
 		FStaticMeshAttributes(Mesh).Register();
 	}
 
-	bool IsTriangleDegenerated(const FMeshDescription& Mesh, const FMeshTriangle& MeshTriangle)
+	bool IsTriangleDegenerated(const FMeshDescription& Mesh, const FTriangleID TriangleID)
 	{
-		// extract triangle vertices positions
-		FVector P[3];
 		const TVertexAttributesConstRef<FVector> VertexPositions = Mesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
-		{
-			FVertexID VertexID = Mesh.GetVertexInstanceVertex(MeshTriangle.GetVertexInstanceID(CornerIndex));
-			P[CornerIndex] = VertexPositions[VertexID];
-		}
-
-		float NormalLengthSquare = ((P[1] - P[2]) ^ (P[0] - P[2])).SizeSquared();
+		TArrayView<const FVertexID> TriangleVerts = Mesh.GetTriangleVertices(TriangleID);
+		float NormalLengthSquare = ((VertexPositions[TriangleVerts[1]] - VertexPositions[TriangleVerts[2]]) ^ (VertexPositions[TriangleVerts[0]] - VertexPositions[TriangleVerts[2]])).SizeSquared();
 		return NormalLengthSquare < SMALL_NUMBER;
 	}
+
 
 	void RemoveEmptyPolygonGroups(FMeshDescription& Mesh)
 	{
@@ -232,7 +226,7 @@ namespace DatasmithMeshHelper
 	int32 GetNumUVChannel(const FMeshDescription& Mesh)
 	{
 		const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = Mesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		return UVChannels.GetNumIndices();
+		return UVChannels.GetNumChannels();
 	}
 
 	bool HasUVChannel(const FMeshDescription& Mesh, int32 ChannelIndex)
@@ -267,7 +261,7 @@ namespace DatasmithMeshHelper
 		if (!HasUVChannel(Mesh, ChannelIndex))
 		{
 			TVertexInstanceAttributesRef<FVector2D> UVChannels = Mesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-			UVChannels.SetNumIndices(ChannelIndex + 1);
+			UVChannels.SetNumChannels(ChannelIndex + 1);
 		}
 		return true;
 	}
@@ -327,9 +321,9 @@ namespace DatasmithMeshHelper
 		FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
 
 		TMeshAttributesRef<FVertexInstanceID, FVector2D> UVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		if (UVs.GetNumIndices() == 0)
+		if (UVs.GetNumChannels() == 0)
 		{
-			UVs.SetNumIndices(1);
+			UVs.SetNumChannels(1);
 		}
 
 		for (const FVertexInstanceID& VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())

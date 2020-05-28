@@ -53,7 +53,7 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, Nv::
 
 	for(const FPolygonID PolygonID : MeshDescription->Polygons().GetElementIDs())
 	{
-		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
 		for(const FTriangleID TriangleID : TriangleIDs)
 		{
 			for(int32 TriVertIndex = 0; TriVertIndex < 3; ++TriVertIndex)
@@ -120,7 +120,7 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, int3
 		BlastUVs.Emplace(UV.X, UV.Y);
 	}
 
-	const TArray<FPolygonID>& PolygonGroupIDs = MeshDescription->GetPolygonGroupPolygons(FPolygonGroupID(PolygonGroup));
+	TArrayView<const FPolygonID> PolygonGroupIDs = MeshDescription->GetPolygonGroupPolygons(FPolygonGroupID(PolygonGroup));
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionSPtr = GeometryCollection->GetGeometryCollection();
 	FGeometryCollection* GeometryCollectionPtr = GeometryCollectionSPtr.Get();
@@ -146,7 +146,7 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, int3
 
 	for(const FPolygonID PolygonID : PolygonGroupIDs)
 	{
-		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
 
 		check(TriangleIDs.Num() == 1);
 

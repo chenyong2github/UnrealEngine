@@ -4138,11 +4138,11 @@ void UStaticMesh::FixupMaterialSlotName()
 	}
 }
 
-// If static mesh derived data needs to be rebuilt (new format, serialization
-// differences, etc.) replace the version GUID below with a new one.
+// If static mesh derived data needs to be rebuilt (MeshDescription new format,
+// serialization differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("940C97E946F545F5834146D0D58828BF")
+#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("5D29A2C59A03418CBCE13C88747BA3AD")
 
 
 static const FString& GetMeshDataKeyStaticMeshDerivedDataVersion()
@@ -4395,7 +4395,7 @@ int32 UStaticMesh::GetNumUVChannels(int32 LODIndex)
 	if (MeshDescription)
 	{
 		FStaticMeshConstAttributes Attributes(*MeshDescription);
-		NumUVChannels = Attributes.GetVertexInstanceUVs().GetNumIndices();
+		NumUVChannels = Attributes.GetVertexInstanceUVs().GetNumChannels();
 	}
 #endif
 	return NumUVChannels;
@@ -5155,7 +5155,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 		StaticMeshVertex.TangentY = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
 		StaticMeshVertex.TangentZ = VertexInstanceNormals[VertexInstanceID];
 
-		for (int32 UVIndex = 0; UVIndex < VertexInstanceUVs.GetNumIndices(); ++UVIndex)
+		for (int32 UVIndex = 0; UVIndex < VertexInstanceUVs.GetNumChannels(); ++UVIndex)
 		{
 			StaticMeshVertex.UVs[UVIndex] = VertexInstanceUVs.Get(VertexInstanceID, UVIndex);
 		}
@@ -5179,7 +5179,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	}
 
 	LODResources.VertexBuffers.PositionVertexBuffer.Init(StaticMeshBuildVertices);
-	LODResources.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, VertexInstanceUVs.GetNumIndices());
+	LODResources.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, VertexInstanceUVs.GetNumChannels());
 
 	FColorVertexBuffer& ColorVertexBuffer = LODResources.VertexBuffers.ColorVertexBuffer;
 	if (bHasVertexColors)
@@ -6169,7 +6169,7 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 					// skip empty/stripped LODs
 					if (UVChannels.GetNumElements() > 0)
 					{
-						int NumChannelsInLOD = UVChannels.GetNumIndices();
+						int NumChannelsInLOD = UVChannels.GetNumChannels();
 						const FStaticMeshSourceModel& SourceModel = GetSourceModel(SourceLOD);
 
 						if (SourceModel.BuildSettings.bGenerateLightmapUVs)

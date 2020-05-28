@@ -26,7 +26,7 @@ void FMeshDescriptionAdapter::InitializeCacheData()
 
 	for (const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
 	{
-		const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
 		for (const FTriangleID TriangleID : TriangleIDs)
 		{
 			IndexBuffer.Add(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
@@ -81,7 +81,7 @@ void FMeshDescriptionArrayAdapter::Construct(int32 MeshCount, TFunctionRef<const
 		IndexBuffer.reserve(MeshPolyCount * 3);
 		for (const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
 		{
-			const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+			TArrayView<const FTriangleID> TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
 			for (const FTriangleID TriangleID : TriangleIDs)
 			{
 				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 0));
@@ -284,7 +284,7 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 				// Copy Texture coords
 				for (int Idx = 0; Idx < MAX_MESH_TEXTURE_COORDS_MD; ++Idx)
 				{
-					if (AttributesGetter->VertexInstanceUVs.GetNumIndices() > Idx)
+					if (AttributesGetter->VertexInstanceUVs.GetNumChannels() > Idx)
 					{
 						RawPoly.WedgeTexCoords[Idx][i] = AttributesGetter->VertexInstanceUVs.Get(VertexInstanceIDs[i], Idx);
 					}

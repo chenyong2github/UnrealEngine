@@ -72,7 +72,7 @@ void UMeshEditorSubdividedStaticMeshAdapter::OnRebuildRenderMesh( const UEditabl
 			const FEdgeID EdgeID( EdgeIndex );
 			WireframeMesh->AddEdge( EdgeID );
 			WireframeMesh->SetEdgeVertices( EdgeID, FVertexID( SubdividedWireEdge.EdgeVertex0PositionIndex ), FVertexID( SubdividedWireEdge.EdgeVertex1PositionIndex ) );
-			WireframeMesh->SetEdgeColor( EdgeID, GetSubdividedEdgeColor( SubdividedWireEdge.CounterpartEdgeID != FEdgeID::Invalid ) );
+			WireframeMesh->SetEdgeColor( EdgeID, GetSubdividedEdgeColor( SubdividedWireEdge.CounterpartEdgeID != INDEX_NONE ) );
 			WireframeMesh->AddEdgeInstance( EdgeID, DummyPolygonID );
 			EdgeIndex++;
 		}

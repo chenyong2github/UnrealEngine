@@ -94,7 +94,7 @@ static void CopyAllAttributes(TAttributesSet<ElementIDType>& DestAttributesSet, 
 	SrcAttributesSet.ForEach(
 		[&DestAttributesSet, ElementID](const FName AttributeName, auto AttributeArrayRef)
 		{
-			for(int32 Index = 0; Index < AttributeArrayRef.GetNumIndices(); ++Index)
+			for(int32 Index = 0; Index < AttributeArrayRef.GetNumChannels(); ++Index)
 			{
 				DestAttributesSet.SetAttribute(ElementID, AttributeName, Index, AttributeArrayRef.Get(ElementID, Index));
 			}
@@ -108,7 +108,7 @@ static void CopyAllAttributesToDifferentElement(TAttributesSet<ElementIDType>& D
 	SrcAttributesSet.ForEach(
 		[&DestAttributesSet, DstElementID, SrcElementID](const FName AttributeName, auto AttributeArrayRef)
 		{
-			for(int32 Index = 0; Index < AttributeArrayRef.GetNumIndices(); ++Index)
+			for(int32 Index = 0; Index < AttributeArrayRef.GetNumChannels(); ++Index)
 			{
 				DestAttributesSet.SetAttribute(DstElementID, AttributeName, Index, AttributeArrayRef.Get(SrcElementID, Index));
 			}
@@ -224,11 +224,11 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 		for(const FEdgeID EdgeId : BoundaryIds)
 		{
 			FVertexID Vertex0 = Mesh->GetMeshDescription()->GetEdgeVertex(EdgeId, 0);
-			const TArray<FVertexInstanceID>& VertexInstances0 = Mesh->GetMeshDescription()->GetVertexVertexInstances(Vertex0);
+			TArrayView<const FVertexInstanceID> VertexInstances0 = Mesh->GetMeshDescription()->GetVertexVertexInstances(Vertex0);
 			check(VertexInstances0.Num() > 0);
 
 			FVertexID Vertex1 = Mesh->GetMeshDescription()->GetEdgeVertex(EdgeId, 1);
-			const TArray<FVertexInstanceID>& VertexInstances1 = Mesh->GetMeshDescription()->GetVertexVertexInstances(Vertex1);
+			TArrayView<const FVertexInstanceID> VertexInstances1 = Mesh->GetMeshDescription()->GetVertexVertexInstances(Vertex1);
 			check(VertexInstances1.Num() > 0);
 
 			TArray<FVertexInstanceID> PolygonVertexInstances;
@@ -263,8 +263,8 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 
 		// @todo (mlentine): Need to make sure all numbers are the same
 		{
-			const int32 NumTexCoordIndices = Mesh->GetMeshDescription()->VertexInstanceAttributes().GetAttributeIndexCount<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-			NewMeshDescription->VertexInstanceAttributes().SetAttributeIndexCount<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate, NumTexCoordIndices);
+			const int32 NumTexCoordIndices = Mesh->GetMeshDescription()->VertexInstanceAttributes().GetAttributeChannelCount(MeshAttribute::VertexInstance::TextureCoordinate);
+			NewMeshDescription->VertexInstanceAttributes().SetAttributeChannelCount(MeshAttribute::VertexInstance::TextureCoordinate, NumTexCoordIndices);
 		}
 
 		TSet<FVertexInstanceID> VertexInstanceSet;
@@ -273,7 +273,7 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 		TSet<FPolygonGroupID> PolygonGroupSet;
 		for(const FPolygonID PolygonId : NewPolygonIds)
 		{
-			const TArray<FVertexInstanceID>& VertexInstanceIds = Mesh->GetMeshDescription()->GetPolygonVertexInstances(PolygonId);
+			TArray<FVertexInstanceID> VertexInstanceIds = Mesh->GetMeshDescription()->GetPolygonVertexInstances(PolygonId);
 			// @todo (mlentine): Remove this when we don't need duplicate vertex instance ids.
 			TArray<FVertexInstanceID> NewVertexInstanceIds;
 			for(const FVertexInstanceID& VertexInstanceId : VertexInstanceIds)

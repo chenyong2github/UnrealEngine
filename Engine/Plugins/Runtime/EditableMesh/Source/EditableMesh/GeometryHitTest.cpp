@@ -56,8 +56,6 @@ FEditableMeshElementAddress FGeometryTests::QueryElement(const UEditableMesh& Ed
 	static TSet<FPolygonID> FrontFacingPolygons;
 	FrontFacingPolygons.Reset();
 
-	TPolygonAttributesConstRef<FVector> PolygonCenters = EditableMesh.GetMeshDescription()->PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Center);
-
 	// Look for all the front-facing elements
 	for (const FPolygonID PolygonID : CandidatePolygons)
 	{
@@ -65,7 +63,7 @@ FEditableMeshElementAddress FGeometryTests::QueryElement(const UEditableMesh& Ed
 			continue;
 
 		const FVector PolygonNormal = EditableMesh.ComputePolygonNormal(PolygonID);
-		const FVector PolygonCenter = PolygonCenters[PolygonID];
+		const FVector PolygonCenter = EditableMesh.ComputePolygonCenter(PolygonID);
 		if ((InteractorShape == EInteractorShape::GrabberSphere) ||	// Sphere tests never eliminate back-facing geometry
 			!bIsPerspectiveView ||			// @todo mesheditor: Add support for backface culling in orthographic views
 			FVector::DotProduct(CameraLocation - PolygonCenter, PolygonNormal) > 0.0f)

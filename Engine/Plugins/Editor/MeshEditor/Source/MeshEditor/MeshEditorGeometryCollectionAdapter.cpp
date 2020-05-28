@@ -125,11 +125,13 @@ void UMeshEditorGeometryCollectionAdapter::AddPolygonGroupToWireframe(const FMes
 			check(GeometryCollection);
 			FColor PolygonGroupColour = FColor::Blue;
 
-			const TArray<FPolygonID>& PolygonGroupIDs = MeshDescription->GetPolygonGroupPolygons(FPolygonGroupID(SelectedPolygonGroup));
+			TArrayView<const FPolygonID> PolygonGroupIDs = MeshDescription->GetPolygonGroupPolygons(FPolygonGroupID(SelectedPolygonGroup));
 			if (PolygonGroupIDs.Num() > 0)
 			{
 				// Add all polygons and edge instances
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				for (const FPolygonID PolygonID : PolygonGroupIDs)
 				{
@@ -158,7 +160,9 @@ void UMeshEditorGeometryCollectionAdapter::OnRebuildRenderMeshFinish( const UEdi
 	const FMeshDescription* MeshDescription = EditableMesh->GetMeshDescription();
 	check( MeshDescription );
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Normal );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	for( const FPolygonID PolygonID : EditableMesh->PolygonsPendingNewTangentBasis )
 	{
 		WireframeMesh->SetPolygonNormal( PolygonID, PolygonNormals[ PolygonID ] );
@@ -377,7 +381,9 @@ void UMeshEditorGeometryCollectionAdapter::OnCreatePolygons( const UEditableMesh
 	const FMeshDescription* MeshDescription = EditableMesh->GetMeshDescription();
 	check( MeshDescription );
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Normal );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	for( const FPolygonID PolygonID : PolygonIDs )
 	{
 		WireframeMesh->AddPolygon( PolygonID );

@@ -2756,7 +2756,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 
 	// At least one UV set must exist.
 	int32 UVChannelCount = UVWTagsData.Num();
-	VertexInstanceUVs.SetNumIndices(FMath::Max(1, UVChannelCount));
+	VertexInstanceUVs.SetNumChannels(FMath::Max(1, UVChannelCount));
 
 	// Vertices
 	for (int32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)

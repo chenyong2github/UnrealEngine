@@ -1437,7 +1437,8 @@ void FMeshEditorMode::UpdateDebugNormals()
 			// @todo mesheditor: total debug feature for now. Need a way of making this look nice.
 			const float Length = 10.0f; // @todo mesheditor: determine length of debug line from distance from the mesh origin to the camera?
 
-			for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetPolygonVertexInstances( PolygonID ) )
+			TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances( PolygonID );
+			for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
 			{
 				const FVector Position = VertexPositions[ MeshDescription->GetVertexInstanceVertex( VertexInstanceID ) ];
 				const FVector Normal = VertexNormals[ VertexInstanceID ];
@@ -1549,7 +1550,7 @@ void FMeshEditorMode::UpdateSelectedElementsOverlay()
 			{
 				const FSubdividedWireEdge& SubdividedWireEdge = SubdivisionLimitData.SubdividedWireEdges[ WireEdgeNumber ];
 
-				if( SubdividedWireEdge.CounterpartEdgeID != FEdgeID::Invalid && EdgesToHighlight.Contains( SubdividedWireEdge.CounterpartEdgeID ) )
+				if( SubdividedWireEdge.CounterpartEdgeID != INDEX_NONE && EdgesToHighlight.Contains( SubdividedWireEdge.CounterpartEdgeID ) )
 				{
 					const int32 EdgeVertexIndex0 = SubdividedWireEdge.EdgeVertex0PositionIndex;
 					const int32 EdgeVertexIndex1 = SubdividedWireEdge.EdgeVertex1PositionIndex;
@@ -2110,7 +2111,8 @@ void FMeshEditorMode::FrameSelectedElements( FEditorViewportClient* ViewportClie
 					{
 						const FPolygonID PolygonID( PolygonElement.ElementAddress.ElementID );
 
-						for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetPolygonVertexInstances( PolygonID ) )
+						TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances( PolygonID );
+						for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
 						{
 							const FVector VertexPosition = VertexPositions[ MeshDescription->GetVertexInstanceVertex( VertexInstanceID ) ];
 							BoundingBox += Component->GetComponentTransform().TransformPosition( VertexPosition );
@@ -2229,10 +2231,10 @@ bool FMeshEditorMode::WeldSelectedVertices()
 			VertexIDsToWeld.Add( VertexID );
 		}
 
-		FVertexID WeldedVertexID = FVertexID::Invalid;
+		FVertexID WeldedVertexID = INDEX_NONE;
 		EditableMesh->WeldVertices( VertexIDsToWeld, WeldedVertexID );
 
-		if( WeldedVertexID != FVertexID::Invalid )
+		if( WeldedVertexID != INDEX_NONE )
 		{
 			FMeshElement NewVertexMeshElement;
 			{
@@ -2490,7 +2492,7 @@ void FMeshEditorMode::AddMeshElementToOverlay( UOverlayComponent* OverlayCompone
 					case EEditableMeshElementType::Polygon:
 					{
 						const FPolygonID PolygonID( MeshElement.ElementAddress.ElementID );
-						const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
+						TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
 
 						for( int32 PolygonTriangle = 0; PolygonTriangle < TriangleIDs.Num(); PolygonTriangle++ )
 						{
@@ -3189,7 +3191,7 @@ void FMeshEditorMode::UpdateActiveAction( const bool bIsActionFinishing )
 
 					// Find first valid polygon group to add the polygon to
 					FPolygonGroupID PolygonGroupID = EditableMesh->GetFirstValidPolygonGroup();
-					check( PolygonGroupID != FPolygonGroupID::Invalid );
+					check( PolygonGroupID != INDEX_NONE );
 
 					// Create new polygon
 					PolygonsToCreate.Emplace();
@@ -3512,7 +3514,7 @@ bool FMeshEditorMode::FindEdgeSplitUnderInteractor(	UViewportInteractor* Viewpor
 {
 	check( ViewportInteractor != nullptr );
 
-	OutClosestEdgeID = FEdgeID::Invalid;
+	OutClosestEdgeID = INDEX_NONE;
 	bool bFoundSplit = false;
 
 	const FMeshDescription* MeshDescription = EditableMesh->GetMeshDescription();
@@ -4354,7 +4356,9 @@ void FMeshEditorMode::RefreshTransformables( const bool bNewObjectsSelected )
 						{
 							const FPolygonID PolygonID( MeshElement.ElementAddress.ElementID );
 
+							PRAGMA_DISABLE_DEPRECATION_WARNINGS
 							TPolygonAttributesConstRef<FVector> PolygonCenters = EditableMesh->GetMeshDescription()->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Center );
+							PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 							const FVector ComponentSpacePolygonCenter = PolygonCenters[ PolygonID ];
 							ElementTransform.SetLocation( ComponentToWorldMatrix.TransformPosition( ComponentSpacePolygonCenter ) );

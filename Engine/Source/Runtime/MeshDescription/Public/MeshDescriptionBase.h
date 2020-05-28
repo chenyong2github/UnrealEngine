@@ -221,7 +221,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
 	bool IsVertexOrphaned(FVertexID VertexID) const;
 
-	/** Returns the edge ID defined by the two given vertex IDs, if there is one; otherwise FEdgeID::Invalid */
+	/** Returns the edge ID defined by the two given vertex IDs, if there is one; otherwise INDEX_NONE */
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
 	FEdgeID GetVertexPairEdge(FVertexID VertexID0, FVertexID VertexID1) const;
 
@@ -277,7 +277,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
 	FVertexID GetVertexInstanceVertex(FVertexInstanceID VertexInstanceID) const;
 
-	/** Returns the edge ID defined by the two given vertex instance IDs, if there is one; otherwise FEdgeID::Invalid */
+	/** Returns the edge ID defined by the two given vertex instance IDs, if there is one; otherwise INDEX_NONE */
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
 	FEdgeID GetVertexInstancePairEdge(FVertexInstanceID VertexInstanceID0, FVertexInstanceID VertexInstanceID1) const;
 
@@ -369,7 +369,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
 	void GetTriangleAdjacentTriangles(FTriangleID TriangleID, TArray<FTriangleID>& OutTriangleIDs) const;
 
-	/** Return the vertex instance which corresponds to the given vertex on the given triangle, or FVertexInstanceID::Invalid */
+	/** Return the vertex instance which corresponds to the given vertex on the given triangle, or INDEX_NONE */
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
 	FVertexInstanceID GetVertexInstanceForTriangleVertex(FTriangleID TriangleID, FVertexID VertexID) const;
 
@@ -418,13 +418,13 @@ public:
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
 	FPolygonGroupID GetPolygonPolygonGroup(FPolygonID PolygonID) const;
 
-	/** Return the vertex instance which corresponds to the given vertex on the given polygon, or FVertexInstanceID::Invalid */
+	/** Return the vertex instance which corresponds to the given vertex on the given polygon, or INDEX_NONE */
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
 	FVertexInstanceID GetVertexInstanceForPolygonVertex(FPolygonID PolygonID, FVertexID VertexID) const;
 
 	/** Set the vertex instance at the given index around the polygon to the new value */
 	UFUNCTION(BlueprintCallable, Category="MeshDescription")
-	void SetPolygonVertexInstance(FPolygonID PolygonID, int32 PerimeterIndex, FVertexInstanceID VertexInstanceID);
+	void SetPolygonVertexInstances(FPolygonID PolygonID, const TArray<FVertexInstanceID>& VertexInstanceIDs);
 
 	/** Sets the polygon group associated with a polygon */
 	UFUNCTION(BlueprintCallable, Category="MeshDescription")

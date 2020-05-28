@@ -102,6 +102,9 @@ struct CORE_API FReleaseObjectVersion
 		// FFieldPath will serialize the owner struct reference and only a short path to its property
 		FFieldPathOwnerSerialization,
 
+		// New MeshDescription format
+		MeshDescriptionNewFormat,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

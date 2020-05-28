@@ -1698,9 +1698,9 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 	PolygonGroupImportedMaterialSlotNames[PolyGroupId] = ImportedSlotName;
 
 	// At least one UV set must exist.
-	if( VertexInstanceUVs.GetNumIndices() == 0 )
+	if( VertexInstanceUVs.GetNumChannels() == 0 )
 	{
-		VertexInstanceUVs.SetNumIndices(1);
+		VertexInstanceUVs.SetNumChannels(1);
 	}
 
 	// Get Alias mesh info

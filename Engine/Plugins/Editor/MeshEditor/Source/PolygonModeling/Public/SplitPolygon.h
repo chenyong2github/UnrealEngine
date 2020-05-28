@@ -17,8 +17,8 @@ protected:
 	USplitPolygonCommand()
 	  : Component( nullptr ),
 		EditableMesh( nullptr ),
-		StartingEdgeID( FEdgeID::Invalid ),
-		StartingVertexID( FVertexID::Invalid ),
+		StartingEdgeID( INDEX_NONE ),
+		StartingVertexID( INDEX_NONE ),
 		EdgeSplit( 0.0f )
 	{
 		UndoText = NSLOCTEXT( "MeshEditor", "UndoSplitPolygon", "Split Polygon" );

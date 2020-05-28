@@ -4,7 +4,40 @@
 
 namespace MeshAttribute
 {
-	const FName Vertex::Position("Position ");
+	namespace Vertex
+	{
+		const FName Position("Position ");
+	}
+
+	namespace VertexInstance
+	{
+		const FName VertexIndex("VertexIndex");
+	}
+
+	namespace Edge
+	{
+		const FName VertexIndex("VertexIndex");
+	}
+
+	namespace Triangle
+	{
+		const FName VertexInstanceIndex("VertexInstanceIndex");
+		const FName PolygonIndex("PolygonIndex");
+		const FName EdgeIndex("EdgeIndex");
+		const FName VertexIndex("VertexIndex");
+		const FName UVIndex("UVIndex");
+		const FName PolygonGroupIndex("PolygonGroupIndex");
+	}
+
+	namespace UV
+	{
+		const FName UVCoordinate("UVCoordinate");
+	}
+
+	namespace Polygon
+	{
+		const FName PolygonGroupIndex("PolygonGroupIndex");
+	}
 }
 
 

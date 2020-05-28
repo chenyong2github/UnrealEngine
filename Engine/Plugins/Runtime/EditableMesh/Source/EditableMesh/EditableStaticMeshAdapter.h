@@ -38,6 +38,58 @@ struct FRenderingPolygonGroup
 {
 	GENERATED_BODY()
 
+	struct FMeshTriangle
+	{
+		friend struct FMeshDescription;
+
+		FMeshTriangle()
+		{
+			VertexInstanceIDs[0] = INDEX_NONE;
+			VertexInstanceIDs[1] = INDEX_NONE;
+			VertexInstanceIDs[2] = INDEX_NONE;
+		}
+
+	private:
+
+		/** Vertex instance IDs that make up this triangle.  Indices must be ordered counter-clockwise. */
+		FVertexInstanceID VertexInstanceIDs[3];
+
+		/** Polygon which contains this triangle */
+		FPolygonID PolygonID;
+
+	public:
+
+		/** Gets the specified triangle vertex instance ID.  Pass an index between 0 and 2 inclusive. */
+		inline FVertexInstanceID GetVertexInstanceID(const int32 Index) const
+		{
+			checkSlow(Index >= 0 && Index <= 2);
+			return VertexInstanceIDs[Index];
+		}
+
+		/** Sets the specified triangle vertex instance ID.  Pass an index between 0 and 2 inclusive, and the new vertex instance ID to store. */
+		inline void SetVertexInstanceID(const int32 Index, const FVertexInstanceID NewVertexInstanceID)
+		{
+			// When we deprecate direct member access, this will be a simple array lookup
+			checkSlow(Index >= 0 && Index <= 2);
+			VertexInstanceIDs[Index] = NewVertexInstanceID;
+		}
+
+		/** Serializer */
+		friend FArchive& operator<<(FArchive& Ar, FMeshTriangle& Triangle)
+		{
+			Ar << Triangle.VertexInstanceIDs[0];
+			Ar << Triangle.VertexInstanceIDs[1];
+			Ar << Triangle.VertexInstanceIDs[2];
+
+			if (!Ar.IsLoading() || Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::MeshDescriptionTriangles)
+			{
+				Ar << Triangle.PolygonID;
+			}
+
+			return Ar;
+		}
+	};
+
 	/** The rendering section index for this mesh section */
 	UPROPERTY()
 	uint32 RenderingSectionIndex;

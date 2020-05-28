@@ -47,7 +47,7 @@ namespace IFC
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
 		const int32 NumUVs = 1;
-		VertexInstanceUVs.SetNumIndices(NumUVs);
+		VertexInstanceUVs.SetNumChannels(NumUVs);
 
 		FIndexVertexIdMap PositionIndexToVertexId;
 		PositionIndexToVertexId.Empty(InObject->facesVerticesCount);
