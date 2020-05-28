@@ -4342,6 +4342,7 @@ void InitUObject()
 	FGCCSyncObject::Create();
 
 	// Initialize redirects map
+	FCoreRedirects::Initialize();
 	for (const TPair<FString,FConfigFile>& It : *GConfig)
 	{
 		FCoreRedirects::ReadRedirectsFromIni(It.Key);
