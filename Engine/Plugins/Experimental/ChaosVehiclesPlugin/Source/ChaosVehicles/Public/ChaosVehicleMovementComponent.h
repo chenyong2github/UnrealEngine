@@ -17,6 +17,8 @@
 #define WANT_RVO 0
 using namespace Chaos;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogVehicles, Log, All);
+
 class UCanvas;
 
 struct FSolverSafeContactData

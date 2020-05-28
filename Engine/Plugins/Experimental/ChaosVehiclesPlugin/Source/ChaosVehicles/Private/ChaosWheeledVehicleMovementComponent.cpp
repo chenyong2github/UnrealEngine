@@ -2,11 +2,15 @@
 
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "DrawDebugHelpers.h"
 #include "DisplayDebugHelpers.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
+#include "ChaosVehicleManager.h"
 
 using namespace Chaos;
 
@@ -1210,7 +1214,7 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 				float X = RPMOut / (ESetup.MaxRPM / LongGearRatio);
 				float Y = PEngine.GetTorqueFromRPM(EngineRPM, false) * PTransmission.GetGearRatio(Gear) / (MaxTorque*MaxGearRatio);
 				FVector2D NextPoint(GraphXPos + GraphWidth * X, GraphYPos + GraphHeight - GraphHeight * Y);
-				if (EngineRPM > SMALL_NUMBER)
+				if (EngineRPM > 0)
 				{
 					DrawLine2D(Canvas, LastPoint, NextPoint, FColor::Cyan);
 				}
