@@ -518,7 +518,7 @@ public:
 	virtual void FocusPrimaryContentBrowser(bool bFocusSearch) = 0;
 
 	/** Focuses the search field of a content browser widget */
-	virtual void FocusContentBrowserSearchField(TSharedRef<SWidget> ContentBrowserWidget) = 0;
+	virtual void FocusContentBrowserSearchField(FName InstanceName) = 0;
 
 	/** Sets up an inline-name for the creation of a new asset in the primary content browser using the specified path and the specified class and/or factory */
 	virtual void CreateNewAsset(const FString& DefaultAssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory) = 0;
@@ -591,9 +591,16 @@ public:
 	virtual void SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh = false) = 0;
 
 	/**
-	* Forces the content browser to show plugin content if it's not already showing.
-	*
-	* @param bEnginePlugin	If this is true, it will also force the content browser to show engine content
-	*/
+	 * Forces the content browser to show plugin content if it's not already showing.
+	 *
+	 * @param bEnginePlugin	If this is true, it will also force the content browser to show engine content
+	 */
 	virtual void ForceShowPluginContent(bool bEnginePlugin) = 0;
+
+	/**
+	 * Saves the settings for a particular content browser instance
+	 *
+	 * @param InstanceName The name of the content browser to save
+	 */
+	virtual void SaveContentBrowserSettings(FName InstanceName) = 0;
 };

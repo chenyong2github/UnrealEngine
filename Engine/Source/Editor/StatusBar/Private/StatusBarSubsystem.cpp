@@ -19,6 +19,7 @@
 
 int32 UStatusBarSubsystem::HandleCounter = 0;
 
+static const FName StatusBarContentBrowserName = "StatusBarContentBrowser";
 
 void UStatusBarSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -161,7 +162,7 @@ void UStatusBarSubsystem::CreateContentBrowserIfNeeded()
 		FContentBrowserConfig Config;
 		Config.bCanSetAsPrimaryBrowser = false;
 
-		StatusBarContentBrowser = ContentBrowserSingleton.CreateContentBrowser("StatusBarContentBrowser", nullptr, &Config);
+		StatusBarContentBrowser = ContentBrowserSingleton.CreateContentBrowser(StatusBarContentBrowserName, nullptr, &Config);
 	}
 }
 
@@ -197,8 +198,10 @@ void UStatusBarSubsystem::OnContentBrowserDismissed(const TSharedPtr<SWidget>& N
 	if (PreviousKeyboardFocusedWidget.IsValid() && !NewlyFocusedWidget.IsValid())
 	{
 		FSlateApplication::Get().SetKeyboardFocus(PreviousKeyboardFocusedWidget.Pin());
-		
 	}
+
+	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();;
+	ContentBrowserSingleton.SaveContentBrowserSettings(StatusBarContentBrowserName);
 
 	PreviousKeyboardFocusedWidget.Reset();
 }
@@ -218,7 +221,7 @@ void UStatusBarSubsystem::HandleDeferredOpenContentBrowser(TSharedPtr<SWindow> P
 				// Cache off the previously focused widget so we can restore focus if the user hits the focus key again
 				PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
 
-				ContentBrowserSingleton.FocusContentBrowserSearchField(StatusBarContentBrowser.ToSharedRef());
+				ContentBrowserSingleton.FocusContentBrowserSearchField(StatusBarContentBrowserName);
 				break;
 			}
 		}

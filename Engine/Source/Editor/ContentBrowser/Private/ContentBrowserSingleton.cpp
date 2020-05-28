@@ -226,14 +226,21 @@ void FContentBrowserSingleton::FocusPrimaryContentBrowser(bool bFocusSearch)
 	}
 }
 
-void FContentBrowserSingleton::FocusContentBrowserSearchField(TSharedRef<SWidget> ContentBrowserWidget)
+void FContentBrowserSingleton::FocusContentBrowserSearchField(FName InstanceName)
 {
-	static FName ContentBrowserType(TEXT("SContentBrowser"));
-
-	if (ContentBrowserWidget->GetType() == ContentBrowserType)
+	if (InstanceName.IsValid() && !InstanceName.IsNone())
 	{
-		TSharedRef<SContentBrowser> ContentBrowser = StaticCastSharedRef<SContentBrowser>(ContentBrowserWidget);
-		ContentBrowser->SetKeyboardFocusOnSearch();
+		for (TWeakPtr<SContentBrowser>& Browser : AllContentBrowsers)
+		{
+			if (TSharedPtr<SContentBrowser> BrowserPinned = Browser.Pin())
+			{
+				if (BrowserPinned->GetInstanceName() == InstanceName)
+				{
+					BrowserPinned->SetKeyboardFocusOnSearch();
+					break;
+				}
+			}
+		}
 	}
 }
 
@@ -741,6 +748,24 @@ void FContentBrowserSingleton::ForceShowPluginContent(bool bEnginePlugin)
 	if (PrimaryContentBrowser.IsValid())
 	{
 		PrimaryContentBrowser.Pin()->ForceShowPluginContent(bEnginePlugin);
+	}
+}
+
+void FContentBrowserSingleton::SaveContentBrowserSettings(FName InstanceName)
+{
+	if (InstanceName.IsValid() && !InstanceName.IsNone())
+	{
+		for (TWeakPtr<SContentBrowser>& Browser : AllContentBrowsers)
+		{
+			if (TSharedPtr<SContentBrowser> BrowserPinned = Browser.Pin())
+			{
+				if (BrowserPinned->GetInstanceName() == InstanceName)
+				{
+					BrowserPinned->SaveSettings();
+					break;
+				}
+			}
+		}
 	}
 }
 
