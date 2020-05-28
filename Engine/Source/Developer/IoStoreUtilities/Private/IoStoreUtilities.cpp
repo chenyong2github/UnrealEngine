@@ -2345,7 +2345,7 @@ void FinalizePackageHeaders(
 	}
 }
 
-void FinalizeContainerHeaderPackageStore(FContainerTargetSpec& ContainerTarget)
+void FinalizePackageStoreContainerHeader(FContainerTargetSpec& ContainerTarget)
 {
 	check(ContainerTarget.NameMapBuilder);
 	FNameMapBuilder& NameMapBuilder = *ContainerTarget.NameMapBuilder;
@@ -3487,6 +3487,8 @@ void InitializeContainerTargetsAndPackages(
 
 void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 {
+	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- IoDispatcher --------------------------------------------------------"));
+	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %10s %15s %15s %15s %25s"),
 		TEXT("ID"), TEXT("Container"), TEXT("Flags"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
 	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
@@ -3523,6 +3525,131 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) **"));
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2f MB"), TotalPaddingSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT(""));
+}
+
+void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTargets)
+{
+	uint64 TotalStoreSize = 0;
+	uint64 TotalPackageCount = 0;
+	uint64 TotalLocalizedPackageCount = 0;
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- PackageStore (KB) ---------------------------------------------------"));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %20s %20s %20s"),
+		TEXT("ID"),
+		TEXT("Container"),
+		TEXT("Store Size"),
+		TEXT("Packages"),
+		TEXT("Localized"));
+	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
+
+	for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
+	{
+		uint64 StoreSize = ContainerTarget->Header.StoreEntries.Num();
+		uint64 PackageCount = ContainerTarget->PackageCount;
+		uint64 LocalizedPackageCount = 0;
+
+		for (const auto& KV : ContainerTarget->Header.CulturePackageMap)
+		{
+			LocalizedPackageCount += KV.Value.Num();
+		}
+
+		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %20.0lf %20llu %20llu"),
+			ContainerTarget->Header.ContainerId.ToIndex(),
+			*ContainerTarget->Name.ToString(),
+			(double)StoreSize / 1024.0,
+			PackageCount,
+			LocalizedPackageCount);
+
+		TotalStoreSize += StoreSize;
+		TotalPackageCount += PackageCount;
+		TotalLocalizedPackageCount += LocalizedPackageCount;
+	}
+	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %20.0lf %20llu %20llu"),
+		TEXT("-"),
+		TEXT("TOTAL"),
+		(double)TotalStoreSize / 1024.0,
+		TotalPackageCount,
+		TotalLocalizedPackageCount);
+
+
+	uint64 TotalHeaderSize = 0;
+	uint64 TotalSummarySize = 0;
+	uint64 TotalUGraphSize = 0;
+	uint64 TotalImportMapSize = 0;
+	uint64 TotalExportMapSize = 0;
+	uint64 TotalNameMapSize = 0;
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- PackageHeader (KB) --------------------------------------------------"));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %13s %13s %13s %13s %13s %13s"),
+		TEXT("ID"),
+		TEXT("Container"),
+		TEXT("Header"),
+		TEXT("Summary"),
+		TEXT("Graph"),
+		TEXT("ImportMap"),
+		TEXT("ExportMap"),
+		TEXT("NameMap"));
+	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
+	for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
+	{
+		uint64 HeaderSize = 0;
+		uint64 SummarySize = ContainerTarget->PackageCount * sizeof(FPackageSummary);
+		uint64 UGraphSize = 0;
+		uint64 ImportMapSize = 0;
+		uint64 ExportMapSize = 0;
+		uint64 NameMapSize = 0;
+
+		for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+		{
+			if (TargetFile.bIsBulkData)
+			{
+				continue;
+			}
+
+			UGraphSize += TargetFile.UGraphSize;
+			ImportMapSize += TargetFile.ImportMapSize;
+			ExportMapSize += TargetFile.ExportMapSize;
+			NameMapSize += TargetFile.NameMapSize;
+		}
+
+		HeaderSize = SummarySize + UGraphSize + ImportMapSize + ExportMapSize + NameMapSize;
+
+		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf"),
+			ContainerTarget->Header.ContainerId.ToIndex(),
+			*ContainerTarget->Name.ToString(),
+			(double)HeaderSize / 1024.0,
+			(double)SummarySize / 1024.0,
+			(double)UGraphSize / 1024.0,
+			(double)ImportMapSize / 1024.0,
+			(double)ExportMapSize / 1024.0,
+			(double)NameMapSize / 1024.0);
+
+		TotalHeaderSize += HeaderSize;
+		TotalSummarySize += SummarySize;
+		TotalUGraphSize += UGraphSize;
+		TotalImportMapSize += ImportMapSize;
+		TotalExportMapSize += ExportMapSize;
+		TotalNameMapSize += NameMapSize;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf"),
+		TEXT("-"),
+		TEXT("TOTAL"),
+		(double)TotalHeaderSize / 1024.0,
+		(double)TotalSummarySize / 1024.0,
+		(double)TotalUGraphSize / 1024.0,
+		(double)TotalImportMapSize / 1024.0,
+		(double)TotalExportMapSize / 1024.0,
+		(double)TotalNameMapSize / 1024.0);
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT(""));
 }
 
@@ -3640,7 +3767,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				GlobalPackageData.ExportObjects,
 				GlobalPackageData.ImportsByFullName);
 
-			FinalizeContainerHeaderPackageStore(*ContainerTarget);
+			FinalizePackageStoreContainerHeader(*ContainerTarget);
 
 			const FNameMapBuilder& NameMapBuilder = *ContainerTarget->NameMapBuilder;
 			SaveNameBatch(ContainerTarget->LocalNameMapBuilder.GetNameMap(), ContainerTarget->Header.Names, ContainerTarget->Header.NameHashes);
@@ -4091,39 +4218,25 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	uint64 UExpSize = 0;
 	uint64 UAssetSize = 0;
 	uint64 SummarySize = 0;
-	uint64 UGraphSize = 0;
-	uint64 ImportMapSize = 0;
-	uint64 ExportMapSize = 0;
-	uint64 NameMapSize = 0;
-	uint64 NameMapCount = 0;
 	uint64 PackageSummarySize = Packages.Num() * sizeof(FPackageSummary);
 	uint64 ImportedPackagesCount = 0;
+	uint64 NoImportedPackagesCount = 0;
 	uint64 PublicExportsCount = 0;
-	uint64 ExportBundlesMetaCount = 0;
 	uint64 InitialLoadSize = InitialLoadArchive.Tell();
 	uint64 TotalExternalArcCount = 0;
-	uint64 NameCount = 0;
+	uint64 NameMapCount = 0;
 
-	uint64 PackagesWithoutImportDependenciesCount = 0;
-	uint64 PackagesWithoutPreloadDependenciesCount = 0;
 	uint64 BundleCount = 0;
 	uint64 BundleEntryCount = 0;
-
-	uint64 PackageHeaderSize = 0;
 
 	for (const FPackage* Package : Packages)
 	{
 		UExpSize += Package->UExpSize;
 		UAssetSize += Package->UAssetSize;
 		SummarySize += Package->SummarySize;
-		// UGraphSize += Package.UGraphSize;
-		// ImportMapSize += Package.ImportMapSize;
-		// ExportMapSize += Package.ExportMapSize;
-		// NameMapSize += Package.NameMapSize;
 		NameMapCount += Package->NameMap.Num();
-		ExportBundlesMetaCount += Package->ExportBundles.Num();
-		NameCount += Package->NameMap.Num();
-		PackagesWithoutImportDependenciesCount += Package->ImportedPackages.Num() == 0;
+		ImportedPackagesCount += Package->ImportedPackages.Num();
+		NoImportedPackagesCount += Package->ImportedPackages.Num() == 0;
 
 		for (auto& KV : Package->ExternalArcs)
 		{
@@ -4138,33 +4251,35 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		}
 	}
 
-	PackageHeaderSize = PackageSummarySize + NameMapSize + ImportMapSize + ExportMapSize + UGraphSize;
+	for (FExportObjectData& Export : GlobalPackageData.ExportObjects)
+	{
+		if (Export.IsPublicExport())
+		{
+			++PublicExportsCount;
+		}
+	}
 
-	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- IoStore Summary -----------------------------------------------------"));
-
-	UE_LOG(LogIoStore, Display, TEXT(""));
-	
 	LogWriterResults(IoStoreWriterResults);
+	LogContainerPackageInfo(ContainerTargets);
 	
-	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d no import dependencies"),
-		Packages.Num(), PackagesWithoutImportDependenciesCount);
-	UE_LOG(LogIoStore, Display, TEXT("Bundles:  %8d total, %d entries, %d export objects (%d public)"),
-		BundleCount, BundleEntryCount, GlobalPackageData.ExportObjects.Num(), PublicExportsCount);
-
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNames, %d unique names"), (double)GlobalNamesMB, GlobalNameMapBuilder.GetNameMap().Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameHashes"), (double)GlobalNameHashesMB);
-	// UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageStoreToc"), (double)StoreTocByteCount / 1024.0 / 1024.0);
-	// UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageStoreData, %d imported packages"),
-		// (double)StoreDataByteCount / 1024.0 / 1024.0, ImportedPackagesCount);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB InitialLoadData, %d script objects (%d packages)"),
-		(double)InitialLoadSize / 1024.0 / 1024.0, GlobalPackageData.ScriptObjects.Num(), ScriptPackages.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageHeader, %d packages"), (double)PackageHeaderSize / 1024.0 / 1024.0, Packages.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageSummary"), (double)PackageSummarySize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageNameMap, %d indices"), (double)NameMapSize / 1024.0 / 1024.0, NameMapCount);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageImportMap"), (double)ImportMapSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageExportMap"), (double)ExportMapSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageArcs, %d external arcs"),
-		(double)UGraphSize / 1024.0 / 1024.0, TotalExternalArcCount);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2lf MB UExp"), (double)UExpSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2lf MB UAsset"), (double)UAssetSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2lf MB FPackageFileSummary"), (double)SummarySize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d Packages"), Packages.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Imported package entries"), ImportedPackagesCount);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Packages without imports"), NoImportedPackagesCount);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d Referenced script packages"), ScriptPackages.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Name map entries"), NameMapCount);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d PreloadDependencies entries"), PackageAssetData.PreloadDependencies.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d ImportMap entries"), PackageAssetData.ObjectImports.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d ExportMap entries"), PackageAssetData.ObjectExports.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Public exports"), PublicExportsCount);
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundles"), BundleCount);
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundle entries"), BundleEntryCount);
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundle arcs"), TotalExternalArcCount);
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8d Script objects (in referenced script packages)"), GlobalPackageData.ScriptObjects.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8.2lf MB InitialLoadData"), (double)InitialLoadSize / 1024.0 / 1024.0);
 
 	return 0;
 }
