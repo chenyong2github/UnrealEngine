@@ -507,6 +507,9 @@ void UNiagaraSystem::PostLoad()
 
 		if (bSystemScriptsAreSynchronized == false || bEmitterScriptsAreSynchronized == false)
 		{
+			// Call modify here so that the system will resave the compile ids and script vm when running the resave
+			// commandlet.  In normal post load, it will be ignored.
+			Modify();
 			RequestCompile(false);
 		}
 
