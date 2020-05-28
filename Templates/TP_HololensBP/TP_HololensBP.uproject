@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "",
+	"EngineAssociation": "4.25",
 	"Category": "",
 	"Description": "",
 	"Plugins": [
@@ -71,6 +71,24 @@
 		},
 		{
 			"Name": "WindowsMixedReality",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "AzureSpatialAnchors",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"HoloLens",
+				"Android",
+				"iOS"
+			]
+		},
+		{
+			"Name": "AzureSpatialAnchorsForWMR",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
 				"Win64",
