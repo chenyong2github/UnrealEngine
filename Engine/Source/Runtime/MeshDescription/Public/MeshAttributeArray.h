@@ -219,7 +219,7 @@ void TMeshAttributeArrayBase<AttributeType>::Remap(const TSparseArray<int32>& In
 template <typename T>
 inline typename TEnableIf<!TIsBulkSerializable<T>::Value, FArchive>::Type& operator<<( FArchive& Ar, TMeshAttributeArrayBase<T>& Array )
 {
-	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FReleaseObjectVersion::MeshDescriptionNewFormat)
+	if (Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::MeshDescriptionNewFormat)
 	{
 		Array.Extent = 1;
 	}
@@ -236,7 +236,7 @@ inline typename TEnableIf<!TIsBulkSerializable<T>::Value, FArchive>::Type& opera
 template <typename T>
 inline typename TEnableIf<TIsBulkSerializable<T>::Value, FArchive>::Type& operator<<( FArchive& Ar, TMeshAttributeArrayBase<T>& Array )
 {
-	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FReleaseObjectVersion::MeshDescriptionNewFormat)
+	if (Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::MeshDescriptionNewFormat)
 	{
 		Array.Extent = 1;
 	}

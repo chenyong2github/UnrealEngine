@@ -13,7 +13,7 @@ FArchive& operator<<(FArchive& Ar, FAttributesSetEntry& Entry)
 		Ar << AttributeType;
 
 		uint32 Extent = 1;
-		if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FReleaseObjectVersion::MeshDescriptionNewFormat)
+		if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MeshDescriptionNewFormat)
 		{
 			Ar << Extent;
 		}

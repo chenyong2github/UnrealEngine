@@ -162,7 +162,7 @@ void FMeshDescription::Serialize(FArchive& Ar)
 		UE_LOG(LogLoad, Warning, TEXT("Deprecated serialization format"));
 	}
 
-	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FReleaseObjectVersion::MeshDescriptionNewFormat)
+	if (Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::MeshDescriptionNewFormat)
 	{
 		// Serialize the old format data and transform it into the new format mesh element map
 		SerializeLegacy(Ar);
@@ -1889,6 +1889,7 @@ void FMeshDescription::RemapPolygonGroups(const TMap<FPolygonGroupID, FPolygonGr
 void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 {
 	Ar.UsingCustomVersion( FEditorObjectVersion::GUID );
+	Ar.UsingCustomVersion( FReleaseObjectVersion::GUID );
 	Ar.UsingCustomVersion( FEnterpriseObjectVersion::GUID );
 
 	if( Ar.IsTransacting() )
