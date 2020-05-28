@@ -1279,6 +1279,9 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(ScriptMethod = "RotatorFromAxisAndAngle", Keywords="make construct build rotate rotation"), Category="Math|Vector")
 	static FRotator RotatorFromAxisAndAngle(FVector Axis, float Angle);
 
+	UE_DEPRECATED(4.26, "Conv_VectorToQuaterion was renamed to Conv_VectorToQuaternion")
+	static FQuat Conv_VectorToQuaterion(FVector InVec);
+
 	/**
 	 * Return the Quaternion orientation corresponding to the direction in which the vector points.
 	 * Similar to the FRotator version, returns a result without roll such that it preserves the up vector.
@@ -1288,8 +1291,8 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 *
 	 * @return Quaternion from the Vector's direction, without any roll.
 	 */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaterion (Vector)", ScriptMethod = "Quaternion", Keywords="rotation rotate cast convert", BlueprintAutocast), Category="Math|Conversions")
-	static FQuat Conv_VectorToQuaterion(FVector InVec);
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaternion (Vector)", ScriptMethod = "Quaternion", Keywords="rotation rotate cast convert", BlueprintAutocast), Category="Math|Conversions")
+	static FQuat Conv_VectorToQuaternion(FVector InVec);
 
 	/** Vector addition */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector + vector", CompactNodeTitle = "+", ScriptMethod = "Add", ScriptOperator = "+;+=", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Vector")
@@ -1951,6 +1954,9 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Rotation (Vector4)", ScriptMethod = "Rotator", Keywords = "rotation rotate cast convert", BlueprintAutocast), Category = "Math|Conversions")
 	static FRotator Conv_Vector4ToRotator(const FVector4& InVec);
 
+	UE_DEPRECATED(4.26, "Conv_Vector4ToQuaterion renamed to Conv_Vector4ToQuaternion")
+	static FQuat Conv_Vector4ToQuaterion(const FVector4& InVec);
+	
 	/**
 	 * Return the Quaternion orientation corresponding to the direction in which the vector points.
 	 * Similar to the FRotator version, returns a result without roll such that it preserves the up vector.
@@ -1960,8 +1966,8 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 *
 	 * @return Quaternion from the Vector's direction, without any roll.
 	 */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaterion (Vector4)", ScriptMethod = "Quaternion", Keywords = "rotation rotate cast convert", BlueprintAutocast), Category = "Math|Conversions")
-	static FQuat Conv_Vector4ToQuaterion(const FVector4& InVec);
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaternion (Vector4)", ScriptMethod = "Quaternion", Keywords = "rotation rotate cast convert", BlueprintAutocast), Category = "Math|Conversions")
+	static FQuat Conv_Vector4ToQuaternion(const FVector4& InVec);
 
 	/** Returns addition of Vector A and Vector B (A + B) */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Vector4 + Vector4", CompactNodeTitle = "+", ScriptMethod = "Add", ScriptOperator = "+;+=", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category = "Math|Vector4")
