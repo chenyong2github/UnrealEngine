@@ -223,6 +223,7 @@ bool FNCPool::RemoveComponent(UNiagaraComponent* Component)
 			FreeElements.RemoveAtSwap(i, 1, false);
 			return true;
 		}
+		++i;
 	}
 
 	return false;

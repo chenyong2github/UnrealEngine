@@ -1235,12 +1235,18 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	{
 		if (UWorld* World = GetWorld())
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), PoolingMethod);
-			FNiagaraWorldManager::Get(World)->GetComponentPool()->PooledComponentDestroyed(this);
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+			{
+				if (UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool())
+				{
+					ComponentPool->PooledComponentDestroyed(this);
+				}
+			}
 		}
 		else
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), PoolingMethod);
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
 		}
 
 		// Set pooling method to none as we are destroyed and can not go into the pool after this point
@@ -1286,7 +1292,24 @@ void UNiagaraComponent::BeginDestroy()
 
 	if (PoolingMethod != ENCPoolMethod::None)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) is still pooled (%d)!\n"), this, *GetFullNameSafe(this), PoolingMethod);
+		if (UWorld* World = GetWorld())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+			{
+				if (UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool())
+				{
+					ComponentPool->PooledComponentDestroyed(this);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+		}
+
+		// Set pooling method to none as we are destroyed and can not go into the pool after this point
+		PoolingMethod = ENCPoolMethod::None;
 	}
 
 	//By now we will have already unregisted with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
