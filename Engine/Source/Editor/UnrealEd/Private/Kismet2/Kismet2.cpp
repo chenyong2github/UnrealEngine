@@ -1067,9 +1067,10 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 	USimpleConstructionScript* SCS = Blueprint->SimpleConstructionScript;
 
 	USceneComponent* RootTemplate = nullptr;
+	USCS_Node* RootSCSNode = nullptr;
 	if (OptionalNewRootNode == nullptr)
 	{
-		RootTemplate = SCS->GetSceneRootComponentTemplate();
+		RootTemplate = SCS->GetSceneRootComponentTemplate(false, &RootSCSNode);
 	}
 
 	TArray<UBlueprint*> ParentBPStack;
@@ -1077,17 +1078,39 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 
 	TMap<USceneComponent*, USCS_Node*> InstanceComponentToNodeMap;
 
-	auto AddChildToSCSRootNodeLambda = [SCS, OptionalNewRootNode](USCS_Node* InSCSNode)
+	auto AddChildToSCSRootNodeLambda = [SCS, OptionalNewRootNode, RootTemplate, RootSCSNode](USCS_Node* InSCSNode)
 	{
-		if (OptionalNewRootNode != nullptr)
+		if (OptionalNewRootNode)
 		{
 			OptionalNewRootNode->AddChildNode(InSCSNode);
 		}
+		else if (RootTemplate)
+		{
+			// If we have a known root template and it is from the same blueprint, add the SCSNode as a child
+			// of this node, otherwise set the template as parent and add the SCSNode as a RootNode for this BP
+			if (RootSCSNode && RootSCSNode->GetSCS() == SCS)
+			{
+				RootSCSNode->AddChildNode(InSCSNode);
+			}
+			else
+			{
+				InSCSNode->SetParent(RootTemplate);
+				SCS->AddNode(InSCSNode);
+			}
+		}
 		else
 		{
-			// Continuation of convention from FCreateConstructionScriptFromSelectedActors::Execute, perhaps more elegant
-			// to provide OptionalNewRootNode in both cases.
-			SCS->GetRootNodes()[0]->AddChildNode(InSCSNode);
+			// Otherwise if there are existing root nodes, attach the SCS Node to the first of those, 
+			// and if there are no root nodes, our final fallback is to just be a RootNode
+			const TArray<USCS_Node*>& RootNodes = SCS->GetRootNodes();
+			if (RootNodes.Num() > 0)
+			{
+				RootNodes[0]->AddChildNode(InSCSNode);
+			}
+			else
+			{
+				SCS->AddNode(InSCSNode);
+			}
 		}
 	};
 
