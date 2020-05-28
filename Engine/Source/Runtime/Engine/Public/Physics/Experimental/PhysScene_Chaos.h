@@ -338,6 +338,8 @@ public:
 #endif
 	);
 
+	ENGINE_API ~FPhysScene_ChaosInterface();
+
 	// Scene
 	void OnWorldBeginPlay();
 	void OnWorldEndPlay();

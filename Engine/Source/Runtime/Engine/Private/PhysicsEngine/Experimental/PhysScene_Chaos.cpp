@@ -1199,6 +1199,13 @@ FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSet
 	Scene.GetSolver()->PhysSceneHack = this;
 
 	Scene.GetSolver()->GetEvolution()->SetCollisionModifierCallback(CollisionModifierCallback);
+
+	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);
+}
+
+FPhysScene_ChaosInterface::~FPhysScene_ChaosInterface()
+{
+	FPhysicsDelegates::OnPhysSceneTerm.Broadcast(this);
 }
 
 void FPhysScene_ChaosInterface::OnWorldBeginPlay()

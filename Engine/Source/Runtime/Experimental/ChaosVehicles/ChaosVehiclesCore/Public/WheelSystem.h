@@ -73,7 +73,7 @@ struct FSimpleWheelConfig
 		, HandbrakeTorque(1000.f)
 		, ABS(false)
 		, HandbrakeEnabled(true)
-	//	, SteeringEnabled(true)
+		, SteeringEnabled(true)
 		, EngineEnabled(false)
 		, CheatFrictionForce(1.0f)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
@@ -202,6 +202,11 @@ public:
 		SteeringAngle = InAngle;
 	}
 
+	void SetMaxOmega(float InMaxOmega)
+	{
+		MaxOmega = InMaxOmega;
+	}
+
 // Outputs
 
 	/**
@@ -213,7 +218,7 @@ public:
 
 		// typical slip angle graph; normalized scales
 		// Friction between 0 and 1 for values of slip between 0 and 1
-		float FunctionResult = 1.125f * (1.0f - exp(-20.0f * SlipIn)) - 0.5f * SlipIn;
+		float FunctionResult = 1.125f * (1.0f - exp(-20.0f * SlipIn)) - 0.25f * SlipIn;
 		return FMath::Max(0.0f, FMath::Min(1.0f, FunctionResult));
 	}
 
@@ -323,7 +328,7 @@ public:
 	 */
 	void Simulate(float DeltaTime)
 	{
-		SlipAngle = FMath::Abs(FMath::Atan2(GroundVelocityVector.Y, GroundVelocityVector.X));
+		SlipAngle = FMath::Atan2(GroundVelocityVector.Y, GroundVelocityVector.X);
 
 		ForceFromFriction = FVector::ZeroVector;
 		float NormalizedFrictionFromSlip = 1.0f;// RealWorldConsts::DryRoadFriction();
@@ -354,7 +359,7 @@ public:
 				if (Omega >= 0.f)
 				{
 					// this is only correct for GroundVelocityVector.X >= 0
-					Omega -= (BrakeTorque * DeltaTime) / Setup().WheelInertia;
+					Omega -= (BrakeTorque * DeltaTime) / Setup().WheelMass;
 					if (Omega < 0.f)
 					{
 						Omega = 0.f;	// wheel has locked
@@ -363,7 +368,7 @@ public:
 				else
 				{
 					// this is only correct for GroundVelocityVector.X < 0
-					Omega += (BrakeTorque * DeltaTime) / Setup().WheelInertia;
+					Omega += (BrakeTorque * DeltaTime) / Setup().WheelMass;
 					if (Omega > 0.f)
 					{
 						Omega = 0.f;	// wheel has locked
@@ -381,7 +386,7 @@ public:
 			{
 				if (DriveTorque > SMALL_NUMBER)
 				{
-					Omega += (DriveTorque * DeltaTime) / Setup().WheelInertia;
+					Omega += (DriveTorque * DeltaTime) / Setup().WheelMass;
 
 					Sx = 0.0f;
 					if (GroundVelocityVector.X > SMALL_NUMBER)
@@ -401,7 +406,7 @@ public:
 				{
 					if (DriveTorque < -SMALL_NUMBER)
 					{
-						Omega += (DriveTorque * DeltaTime) / Setup().WheelInertia;
+						Omega += (DriveTorque * DeltaTime) / Setup().WheelMass;
 
 						Sx = 0.0f;
 						if (FMath::Abs(GroundVelocityVector.X) > SMALL_NUMBER)
@@ -420,26 +425,22 @@ public:
 					}
 					else
 					{
-						// wheel rolling
-						float GroundOmega = GroundVelocityVector.X / Re;
-						float DeltaOmega = GroundOmega - Omega;
-
-						float ForceRequested = Setup().WheelInertia * DeltaOmega / DeltaTime;
-
-						float ForceAvailable = (ForceIntoSurface * SurfaceFriction);
-
-						float UseForce = FMath::Min(ForceRequested, ForceAvailable);
-						UseForce = FMath::Max(UseForce, -ForceAvailable);
-
-						Omega += UseForce / Setup().WheelInertia * DeltaTime;
-
+						if (InContact())
+						{
+							// wheel rolling - just match the ground speed exactly
+							float GroundOmega = GroundVelocityVector.X / Re;
+							Omega += GroundOmega - Omega;
+						}
+						else
+						{
+							Omega *= 0.995f; // friction slowing wheel down
+						}
 					}
 				}
 
 			}
 		}
 
-		Omega *= 0.999f; // friction slowing wheel down
 
 		// lateral slip - cheat f = mass * v / dt;
 		// cancel out any lateral wheel movement
@@ -482,6 +483,7 @@ public:
 		}
 		//////////////////////////////////////////////////////////////////////////
 
+	//	Omega = FMath::Clamp(Omega, -MaxOmega, MaxOmega);
 
 		AngularPosition += Omega * DeltaTime;
 
@@ -513,6 +515,7 @@ public:
 	float AngularPosition;			// [radians]
 	float SteeringAngle;			// [radians] - @todo: might be moved out of here into a steering system?
 	float SurfaceFriction;
+	float MaxOmega;
 
 									// Out
 	FVector ForceFromFriction;
