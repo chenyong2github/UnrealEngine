@@ -67,11 +67,15 @@ public:
 	UPROPERTY(Config)
 	TArray<FAutomatedTestGroup> Groups;
 
-	/** Whether to treat log errors as test errors (default=true) */
+	/** Whether to suppress log from test results (default=false) */
 	UPROPERTY(Config)
-	bool bTreatLogErrorsAsTestErrors;
+	bool bSuppressLogErrors;
 
-	/** Whether to treat log warnings as test errors (default=false) */
+	/** Whether to suppress log warnings from test results (default=false) */
+	UPROPERTY(Config)
+	bool bSuppressLogWarnings;
+
+	/** Whether to treat log warnings as test errors (default=true) */
 	UPROPERTY(Config)
 	bool bTreatLogWarningsAsTestErrors;
 	
