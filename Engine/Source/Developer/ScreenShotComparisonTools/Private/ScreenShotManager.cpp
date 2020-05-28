@@ -393,9 +393,10 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 		First we need the incoming file in the report. If the calling code wants to keep the image then do a copy, 
 		otherwise move it
 	*/
-	// #agrant todo - code in AutomationControllerManager requires these paths and at the moment does not have enough info to use the report versions .
+	// #agrant todo - code in AutomationControllerManager requires these paths and at the moment does not have enough info to use the report versions. Need to also change
+	// the delta image below back to a move as well
 	bool CanMoveImage = false; // Options != EScreenShotCompareOptions::KeepImage
-	if (CanMoveImage)
+	if (CanMoveImage == false)
 	{
 		// copy the incoming file to the report path 
 		FString IncomingFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.IncomingFilePath);
@@ -431,12 +432,12 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 		IFileManager::Get().Move(*(FPaths::Combine(ReportPathOnDisk, TEXT("Incoming.rdc"))), *IncomingTraceFile, true, true);
 	}
 
-	// move the comparison image if we generated one
+	// copy the comparison image if we generated one
 	if (ComparisonResult.ComparisonFilePath.Len())
 	{
 		FString ComparisonFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.ComparisonFilePath);
 
-		if (IFileManager::Get().Move(*ComparisonResult.ReportComparisonFilePath, *ComparisonFileFullPath, true, true))
+		if (IFileManager::Get().Copy(*ComparisonResult.ReportComparisonFilePath, *ComparisonFileFullPath, true, true) == COPY_OK)
 		{
 			// nothing else to move for this case
 		}
