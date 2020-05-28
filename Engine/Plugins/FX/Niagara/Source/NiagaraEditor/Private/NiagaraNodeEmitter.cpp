@@ -57,8 +57,6 @@ void UNiagaraNodeEmitter::SetEmitterHandleId(FGuid InEmitterHandleId)
 void UNiagaraNodeEmitter::PostLoad()
 {
 	Super::PostLoad();
-
-	ReallocatePins();
 }
 
 bool UNiagaraNodeEmitter::IsPinNameEditable(const UEdGraphPin* GraphPinObj) const
@@ -132,12 +130,9 @@ void UNiagaraNodeEmitter::AllocateDefaultPins()
 		}
 	}
 
-	if (Emitter != nullptr)
-	{
-		const UEdGraphSchema_Niagara* NiagaraSchema = Cast<UEdGraphSchema_Niagara>(GetSchema());
-		CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
-		CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
-	}
+	const UEdGraphSchema_Niagara* NiagaraSchema = Cast<UEdGraphSchema_Niagara>(GetSchema());
+	CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
+	CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
 }
 
 bool UNiagaraNodeEmitter::CanUserDeleteNode() const
