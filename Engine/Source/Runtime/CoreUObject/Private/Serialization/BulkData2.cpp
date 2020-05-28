@@ -159,7 +159,7 @@ namespace FileTokenSystem
 				return false;
 			}
 
-			void IncRef(const int32& Key)
+			void IncRef(const KeyType& Key)
 			{
 				if (StringData* ExistingEntry = Table.Find(Key))
 				{
