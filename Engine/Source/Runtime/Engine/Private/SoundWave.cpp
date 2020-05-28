@@ -930,7 +930,7 @@ void USoundWave::PostLoad()
 	}
 
 	// Only add this streaming sound if the platform supports streaming
-	if (IsStreaming(nullptr) && FPlatformProperties::SupportsAudioStreaming())
+	if (FApp::CanEverRenderAudio() && IsStreaming(nullptr) && FPlatformProperties::SupportsAudioStreaming())
 	{
 #if WITH_EDITORONLY_DATA
 		FinishCachePlatformData();
@@ -1774,7 +1774,10 @@ void USoundWave::FinishDestroy()
 	}
 #endif
 
-	IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(this);
+	if (FApp::CanEverRenderAudio())
+	{
+		IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(this);
+	}
 }
 
 void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
