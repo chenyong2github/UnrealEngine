@@ -395,8 +395,8 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 	*/
 	// #agrant todo - code in AutomationControllerManager requires these paths and at the moment does not have enough info to use the report versions. Need to also change
 	// the delta image below back to a move as well
-	bool CanMoveImage = false; // Options != EScreenShotCompareOptions::KeepImage
-	if (CanMoveImage == false)
+//	bool CanMoveImage = false; // Options != EScreenShotCompareOptions::KeepImage
+//	if (CanMoveImage == false)
 	{
 		// copy the incoming file to the report path 
 		FString IncomingFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.IncomingFilePath);
@@ -410,7 +410,7 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 			UE_LOG(LogScreenShotManager, Error, TEXT("Failed to copy incoming image to %s"), *ComparisonResult.ReportApprovedFilePath);
 		}
 	}
-	else
+/*	else
 	{
 		// we can discard the incoming image, so just move it...
 		FString IncomingFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.IncomingFilePath);
@@ -423,7 +423,7 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 		{
 			UE_LOG(LogScreenShotManager, Error, TEXT("Failed to copy incoming image to %s"), *ComparisonResult.ReportApprovedFilePath);
 		}
-	}
+	}*/
 
 	// move any incoming renderdoc file if one existed
 	FString IncomingTraceFile = FPaths::ChangeExtension(InUnapprovedIncomingFilePath, TEXT(".rdc"));
