@@ -3324,32 +3324,13 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 
 	SCOPE_CYCLE_COUNTER(STAT_OpenGLCreateBoundShaderStateTime);
 
-	if(!PixelShaderRHI)
+	if (!PixelShaderRHI)
 	{
 		// use special null pixel shader when PixelShader was set to NULL
 		PixelShaderRHI = TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
 	}
 
-	// Check for an existing bound shader state which matches the parameters
-	FCachedBoundShaderStateLink* CachedBoundShaderStateLink = GetCachedBoundShaderState(
-		VertexDeclarationRHI,
-		VertexShaderRHI,
-		PixelShaderRHI,
-		HullShaderRHI,
-		DomainShaderRHI,
-		GeometryShaderRHI
-		);
-
-	if(CachedBoundShaderStateLink)
-	{
-		// If we've already created a bound shader state with these parameters, reuse it.
-		{
-			FOpenGLBoundShaderState* BoundShaderState = ResourceCast(CachedBoundShaderStateLink->BoundShaderState);
-			GetOpenGLProgramsCache().Touch(BoundShaderState->LinkedProgram);
-		}
-		return CachedBoundShaderStateLink->BoundShaderState;
-	}
-	else
+	auto CreateConfig = [VertexShaderRHI, HullShaderRHI, DomainShaderRHI, PixelShaderRHI, GeometryShaderRHI]()
 	{
 		FOpenGLVertexShader* VertexShader = ResourceCast(VertexShaderRHI);
 		FOpenGLPixelShader* PixelShader = ResourceCast(PixelShaderRHI);
@@ -3366,25 +3347,25 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 		Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Bindings = VertexShader->Bindings;
 		Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Resource = VertexShader->Resource;
 		Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX] = VertexShaderRHI->GetHash();
-		
-		if ( FOpenGL::SupportsTessellation())
+
+		if (FOpenGL::SupportsTessellation())
 		{
-			if ( HullShader)
+			if (HullShader)
 			{
 				check(VertexShader);
 				BindShaderStage(Config, CrossCompiler::SHADER_STAGE_HULL, HullShader, HullShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
 			}
-			if ( DomainShader)
+			if (DomainShader)
 			{
 				check(HullShader);
 				BindShaderStage(Config, CrossCompiler::SHADER_STAGE_DOMAIN, DomainShader, DomainShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_HULL, HullShader);
 			}
 		}
-        
+
 		if (GeometryShader)
 		{
 			check(DomainShader || VertexShader);
-			if ( DomainShader )
+			if (DomainShader)
 			{
 				BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader, GeometryShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_DOMAIN, DomainShader);
 			}
@@ -3393,13 +3374,13 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 				BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader, GeometryShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
 			}
 		}
-		
+
 		check(DomainShader || GeometryShader || VertexShader);
-		if ( DomainShader )
+		if (DomainShader)
 		{
 			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShader, PixelShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_DOMAIN, DomainShader);
 		}
-		else if ( GeometryShader )
+		else if (GeometryShader)
 		{
 			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShader, PixelShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader);
 		}
@@ -3407,6 +3388,39 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 		{
 			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShader, PixelShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
 		}
+		return Config;
+	};
+
+	// Check for an existing bound shader state which matches the parameters
+	FCachedBoundShaderStateLink* CachedBoundShaderStateLink = GetCachedBoundShaderState(
+		VertexDeclarationRHI,
+		VertexShaderRHI,
+		PixelShaderRHI,
+		HullShaderRHI,
+		DomainShaderRHI,
+		GeometryShaderRHI
+		);
+
+	if(CachedBoundShaderStateLink)
+	{
+		// If we've already created a bound shader state with these parameters, reuse it.
+		FOpenGLBoundShaderState* BoundShaderState = ResourceCast(CachedBoundShaderStateLink->BoundShaderState);
+		FOpenGLLinkedProgram* LinkedProgram = BoundShaderState->LinkedProgram;
+		GetOpenGLProgramsCache().Touch(LinkedProgram);
+
+		if (!LinkedProgram->bConfigIsInitalized)
+		{
+			// touch has unevicted the program, set it up.
+			FOpenGLLinkedProgramConfiguration Config = CreateConfig();
+			LinkedProgram->SetConfig(Config);
+			// We now have the config for this program, we must configure the program for use.
+			ConfigureGLProgramStageStates(LinkedProgram);
+		}
+		return CachedBoundShaderStateLink->BoundShaderState;
+	}
+	else
+	{
+		FOpenGLLinkedProgramConfiguration Config = CreateConfig();
 
 		// Check if we already have such a program in released programs cache. Use it, if we do.
 		FOpenGLLinkedProgram* LinkedProgram = 0;
@@ -3456,6 +3470,12 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 			}
 			else
 			{
+				FOpenGLVertexShader* VertexShader = ResourceCast(VertexShaderRHI);
+				FOpenGLPixelShader* PixelShader = ResourceCast(PixelShaderRHI);
+				FOpenGLHullShader* HullShader = ResourceCast(HullShaderRHI);
+				FOpenGLDomainShader* DomainShader = ResourceCast(DomainShaderRHI);
+				FOpenGLGeometryShader* GeometryShader = ResourceCast(GeometryShaderRHI);
+
 				// In case ProgramBinaryCache is enabled we defer shader compilation, look LinkProgram
 				if (!FOpenGLProgramBinaryCache::IsEnabled())
 				{
