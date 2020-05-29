@@ -43,13 +43,11 @@ struct FJointSolverGaussSeidel
 	FVector NetAngularImpulse;
 
 	// XPBD Accumulators (net impulse for each soft constraint/drive)
-	float LinearSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float TwistSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float SwingSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float LinearDriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
-	float TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float Swing1DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
-	float Swing2DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
+	float LinearSoftLambda;
+	float TwistSoftLambda;
+	float SwingSoftLambda;
+	float LinearDriveLambda;
+	float RotationDriveLambdas[3];
 	
 	// Tolerances below which we stop solving
 	float PositionTolerance;					// Distance error below which we consider a constraint or drive solved
@@ -250,6 +248,7 @@ export void ApplyPositionConstraintSoft(
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Delta,
+	const uniform float TargetVel,
 	uniform float& Lambda)
 {
 	// Joint-space inverse mass
@@ -264,9 +263,9 @@ export void ApplyPositionConstraintSoft(
 	uniform float VelDt = 0;
 	if (Damping > KINDA_SMALL_NUMBER)
 	{
-		const uniform FVector V0 = CalculateVelocity(M->PrevXs[0], M->Xs[0], 1.0f);
-		const uniform FVector V1 = CalculateVelocity(M->PrevXs[1], M->Xs[1], 1.0f);
-		VelDt = VectorDot(V0 - V1, Axis);
+		const uniform FVector V0Dt = CalculateVelocity(M->PrevXs[0], M->Xs[0], 1.0f);
+		const uniform FVector V1Dt = CalculateVelocity(M->PrevXs[1], M->Xs[1], 1.0f);
+		VelDt = TargetVel * Dt + VectorDot(V0Dt - V1Dt, Axis);
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / (M->InvMs[0] + M->InvMs[1]) : 1.0f;
@@ -298,6 +297,7 @@ export void ApplyRotationConstraintSoftKD(
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Angle,
+	const uniform float AngVelTarget,
 	uniform float& Lambda)
 {
 	// World-space inverse mass
@@ -311,9 +311,9 @@ export void ApplyRotationConstraintSoftKD(
 	uniform float AngVelDt = 0;
 	if (Damping > KINDA_SMALL_NUMBER)
 	{
-		const uniform FVector W0 = CalculateAngularVelocity(M->PrevQs[KIndex], M->Qs[KIndex], 1.0f);
-		const uniform FVector W1 = CalculateAngularVelocity(M->PrevQs[DIndex], M->Qs[DIndex], 1.0f);
-		AngVelDt = VectorDot(Axis, W0) - VectorDot(Axis, W1);
+		const uniform FVector W0Dt = CalculateAngularVelocity(M->PrevQs[KIndex], M->Qs[KIndex], 1.0f);
+		const uniform FVector W1Dt = CalculateAngularVelocity(M->PrevQs[DIndex], M->Qs[DIndex], 1.0f);
+		AngVelDt = AngVelTarget * Dt + VectorDot(Axis, W0Dt - W1Dt);
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
@@ -339,6 +339,7 @@ export void ApplyRotationConstraintSoftDD(
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Angle,
+	const uniform float AngVelTarget,
 	uniform float& Lambda)
 {
 	// World-space inverse mass
@@ -354,9 +355,9 @@ export void ApplyRotationConstraintSoftDD(
 	uniform float AngVelDt = 0;
 	if (Damping > KINDA_SMALL_NUMBER)
 	{
-		const uniform FVector W0 = CalculateAngularVelocity(M->PrevQs[0], M->Qs[0], 1.0f);
-		const uniform FVector W1 = CalculateAngularVelocity(M->PrevQs[1], M->Qs[1], 1.0f);
-		AngVelDt = VectorDot(Axis, W0) - VectorDot(Axis, W1);
+		const uniform FVector W0Dt = CalculateAngularVelocity(M->PrevQs[0], M->Qs[0], 1.0f);
+		const uniform FVector W1Dt = CalculateAngularVelocity(M->PrevQs[1], M->Qs[1], 1.0f);
+		AngVelDt = AngVelTarget * Dt + VectorDot(Axis, W0Dt - W1Dt);
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;

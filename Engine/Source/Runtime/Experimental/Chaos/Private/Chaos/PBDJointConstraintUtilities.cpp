@@ -478,16 +478,26 @@ namespace Chaos
 
 	FReal FPBDJointUtilities::GetLinearDriveStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
+		const FPBDJointSettings& JointSettings,
+		const int32 AxisIndex)
 	{
-		return (SolverSettings.LinearDriveStiffness > 0.0f) ? SolverSettings.LinearDriveStiffness : JointSettings.LinearDriveStiffness;
+		if (JointSettings.bLinearPositionDriveEnabled[AxisIndex])
+		{
+			return (SolverSettings.LinearDriveStiffness > 0.0f) ? SolverSettings.LinearDriveStiffness : JointSettings.LinearDriveStiffness;
+		}
+		return 0.0f;
 	}
 
 	FReal FPBDJointUtilities::GetLinearDriveDamping(
 		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
+		const FPBDJointSettings& JointSettings,
+		const int32 AxisIndex)
 	{
-		return (SolverSettings.LinearDriveDamping > 0.0f) ? SolverSettings.LinearDriveDamping : JointSettings.LinearDriveDamping;
+		if (JointSettings.bLinearVelocityDriveEnabled[AxisIndex])
+		{
+			return (SolverSettings.LinearDriveDamping > 0.0f) ? SolverSettings.LinearDriveDamping : JointSettings.LinearDriveDamping;
+		}
+		return 0.0f;
 	}
 
 	FReal FPBDJointUtilities::GetAngularTwistDriveStiffness(
