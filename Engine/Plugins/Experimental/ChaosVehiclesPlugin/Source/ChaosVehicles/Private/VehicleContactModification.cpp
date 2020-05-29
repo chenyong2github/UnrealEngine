@@ -23,12 +23,20 @@ const bool DrawDebugLinesEnabled = true;
 
 #if WITH_CHAOS
 
+// #todo: issue with Clang compiler linking - just disable for now
+//  Module.ChaosVehicles.cpp.obj : error LNK2019: unresolved external symbol "public: class Chaos::FPerShapeData const * __cdecl Chaos::TGeometryParticlesImp<float,3,0>::GetImplicitShape(int,class Chaos::FImplicitObject const *)"
+#define CONTACT_MOD_ENABLE 0
+
 Chaos::FCollisionModifierCallback FVehicleContactModificationFactory::Create()
 {
+	
 	using EConstraintType = Chaos::FCollisionConstraintBase::FType;
 
 	return [](Chaos::FPBDCollisionConstraintHandle* ConstraintHandle)
 	{
+
+#if CONTACT_MOD_ENABLE
+
 		if (ContactModificationEnabled == 0)
 		{
 			return Chaos::ECollisionModifierResult::Unchanged;
@@ -221,9 +229,11 @@ Chaos::FCollisionModifierCallback FVehicleContactModificationFactory::Create()
 				}
 			}
 		}
-
+#endif
 		return Chaos::ECollisionModifierResult::Unchanged;
 	};
+
+
 }
 
 
