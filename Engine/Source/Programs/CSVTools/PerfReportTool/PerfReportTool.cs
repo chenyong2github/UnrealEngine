@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.11";
+        private static string VersionString = "4.12";
 
         public static string Get() { return VersionString; }
     };
@@ -441,18 +441,18 @@ namespace PerfReportTool
 				string csvDir = GetArg("csvDir");
 				if (csvDir.Length > 0)
 				{
-					DirectoryInfo di = new DirectoryInfo(csvDir);
 					bool recurse = GetBoolArg("recurse");
 					string searchPattern = GetArg("searchPattern", false);
 					if (searchPattern == "")
 					{
-						searchPattern = "*.csv";
+						searchPattern = "*.csv;*.csv.bin";
 					}
 					else if (!searchPattern.Contains('.'))
 					{
-						searchPattern += ".csv";
+						searchPattern += ".csv;*.csv.bin";
 					}
-					var files = di.GetFiles(searchPattern, recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+
+					System.IO.FileInfo[] files = GetFilesWithSearchPattern(csvDir, searchPattern, recurse);
 					csvFilenames = new string[files.Length];
 					int i = 0;
 					foreach (FileInfo csvFile in files)
@@ -1446,6 +1446,20 @@ namespace PerfReportTool
 
             return 0;
         }
+
+		System.IO.FileInfo[] GetFilesWithSearchPattern(string directory, string searchPatternStr, bool recurse)
+		{
+			List<System.IO.FileInfo> fileList = new List<FileInfo>();
+			string[] searchPatterns = searchPatternStr.Split(';');
+			DirectoryInfo di = new DirectoryInfo(directory);
+			foreach (string searchPattern in searchPatterns)
+			{
+				System.IO.FileInfo[] files = di.GetFiles(searchPattern, recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+				fileList.AddRange(files);
+			}
+			return fileList.Distinct().ToArray();
+		}
+
     }
 
     class ReportTypeInfo
@@ -2053,7 +2067,7 @@ namespace PerfReportTool
 
 		public SummaryTableInfo GetSummaryTable(string name)
 		{
-			if (summaryTables.ContainsKey(name))
+			if (summaryTables.ContainsKey(name.ToLower()))
 			{
 				return summaryTables[name.ToLower()];
 			}
