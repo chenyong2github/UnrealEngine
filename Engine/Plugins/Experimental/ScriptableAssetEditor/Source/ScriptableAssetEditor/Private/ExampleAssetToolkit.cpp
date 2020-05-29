@@ -2,6 +2,7 @@
 
 #include "ExampleAssetToolkit.h"
 
+#include "AssetEditorModeManager.h"
 #include "EditorModeManager.h"
 #include "GizmoEdMode.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -17,8 +18,10 @@ FExampleAssetToolkit::FExampleAssetToolkit(UAssetEditor* InOwningAssetEditor)
             if (AssetEditorInstance == static_cast<IAssetEditorInstance*>(this) && !bWindowHasOpened)
             {
 				bWindowHasOpened = true;
-                ViewportClient->GetModeTools()->SetToolkitHost(GetToolkitHost());
-                ViewportClient->GetModeTools()->ActivateMode(GetDefault<UGizmoEdMode>()->GetID());
+				FAssetEditorModeManager* ModeManager = static_cast<FAssetEditorModeManager*>(ViewportClient->GetModeTools());
+				ModeManager->SetPreviewScene(ViewportClient->GetPreviewScene());
+                ModeManager->SetToolkitHost(GetToolkitHost());
+                ModeManager->ActivateMode(GetDefault<UGizmoEdMode>()->GetID());
             }
         });
 }
