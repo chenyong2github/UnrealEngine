@@ -556,7 +556,7 @@ const uint8* FNiagaraGPUSystemTick::GetUniformBufferSource(EUniformBufferType Ty
 		case UBT_External:
 		{
 			check(Instance);
-			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayout.ConstantBufferSize);
+			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayout->UBLayout.ConstantBufferSize);
 		}
 	}
 
@@ -569,10 +569,9 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
-	, ExternalCBufferLayout(TEXT("Niagara GPU External CBuffer"))
 	, DataToRender(nullptr)
-
 {
+	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"));
 }
 
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
@@ -589,6 +588,8 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 #endif
 
 	SetDataToRender(nullptr);
+
+	ExternalCBufferLayout = nullptr;
 }
 
 void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batcher)
