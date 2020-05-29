@@ -209,6 +209,14 @@ struct FNiagaraGpuSpawnInfo
 	FNiagaraGpuSpawnInfoParams SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
 };
 
+class FNiagaraRHIUniformBufferLayout : public FRHIResource
+{
+public:
+	explicit FNiagaraRHIUniformBufferLayout(const TCHAR* LayoutName) : UBLayout(LayoutName) { }
+
+	FRHIUniformBufferLayout UBLayout;
+};
+
 struct FNiagaraComputeExecutionContext
 {
 	FNiagaraComputeExecutionContext();
@@ -258,7 +266,7 @@ public:
 	class FNiagaraShaderScript*  GPUScript_RT;
 
 	// persistent layouts used to create the constant buffers for the compute sim shader
-	FRHIUniformBufferLayout ExternalCBufferLayout;
+	TRefCountPtr<FNiagaraRHIUniformBufferLayout> ExternalCBufferLayout;
 
 	//Dynamic state updated either from GT via RT commands or from the RT side sim code itself.
 	//TArray<uint8, TAlignedHeapAllocator<16>> ParamData_RT;		// RT side copy of the parameter data
