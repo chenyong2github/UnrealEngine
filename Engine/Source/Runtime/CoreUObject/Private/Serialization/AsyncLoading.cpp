@@ -40,6 +40,7 @@
 #include "Blueprint/BlueprintSupport.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
+#include "HAL/IPlatformFileOpenLogWrapper.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/GarbageCollectionInternal.h"
 #include "ProfilingDebugging/MiscTrace.h"
@@ -272,6 +273,11 @@ FORCEINLINE bool FAsyncPackage::IsTimeLimitExceeded()
 	return AsyncLoadingThread.IsAsyncLoadingSuspendedInternal() || ::IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, LastTypeOfWorkPerformed, LastObjectWorkWasPerformedOn);
 }
 
+FORCENOINLINE static bool CheckForFilePackageOpenLogCommandLine()
+{
+	return FParse::Param(FCommandLine::Get(), TEXT("FilePackageOpenLog"));
+}
+
 DEFINE_LOG_CATEGORY_STATIC(LogAsyncArchive, Display, All);
 DECLARE_MEMORY_STAT(TEXT("FAsyncArchive Buffers"), STAT_FAsyncArchiveMem, STATGROUP_Memory);
 
@@ -357,6 +363,16 @@ void FAsyncLoadingThread::QueuePackage(FAsyncPackageDesc& Package)
 	{
 #if THREADSAFE_UOBJECTS
 		FScopeLock QueueLock(&QueueCritical);
+#endif
+#if !UE_BUILD_SHIPPING
+		if(CheckForFilePackageOpenLogCommandLine())
+		{
+			FPlatformFileOpenLog* PlatformFileOpenLog = (FPlatformFileOpenLog*)(FPlatformFileManager::Get().FindPlatformFile(FPlatformFileOpenLog::GetTypeName()));
+			if (PlatformFileOpenLog != nullptr)
+			{
+				PlatformFileOpenLog->AddPackageToOpenLog(*Package.Name.ToString());
+			}
+		}
 #endif
 		QueuedPackagesCounter.Increment();
 		QueuedPackages.Add(new FAsyncPackageDesc(Package, MoveTemp(Package.PackageLoadedDelegate)));
@@ -1302,7 +1318,7 @@ FORCENOINLINE static bool CheckForFileOpenLogCommandLine()
 FORCEINLINE static bool FileOpenLogActive()
 {
 #if 1
-	static bool bDoingLoadOrder = CheckForFileOpenLogCommandLine();
+	static bool bDoingLoadOrder = CheckForFileOpenLogCommandLine() || CheckForFilePackageOpenLogCommandLine();
 	return bDoingLoadOrder;
 #else
 	return true;
@@ -1771,6 +1787,17 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 					UE_LOG(LogStreaming, Display, TEXT("%s is prestreaming %s"), *Desc.NameToLoad.ToString(), *Import->ObjectName.ToString());
 				}
 				TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(this, PendingPackage);
+#if !UE_BUILD_SHIPPING
+				if(CheckForFilePackageOpenLogCommandLine())
+				{
+					FPlatformFileOpenLog* PlatformFileOpenLog = (FPlatformFileOpenLog*)(FPlatformFileManager::Get().FindPlatformFile(FPlatformFileOpenLog::GetTypeName()));
+					if (PlatformFileOpenLog != nullptr)
+					{
+						FString PackageToOpenLogName = FString::Printf(TEXT("%s %i"), *Info.Name.ToString(), GFrameCounter);
+						PlatformFileOpenLog->AddPackageToOpenLog(*PackageToOpenLogName);
+					}
+				}
+#endif
 				AsyncLoadingThread.InsertPackage(PendingPackage);
 				bDidSomething = true;
 			}
