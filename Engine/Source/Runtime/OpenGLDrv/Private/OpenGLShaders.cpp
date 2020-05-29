@@ -1525,6 +1525,8 @@ public:
 		for (int Stage = 0; Stage < CrossCompiler::NUM_SHADER_STAGES; Stage++)
 		{
 			StagePackedUniformInfo[Stage].PackedUniformInfos.Empty();
+			StagePackedUniformInfo[Stage].PackedUniformBufferInfos.Empty();
+			StagePackedUniformInfo[Stage].LastEmulatedUniformBufferSet.Empty();
 		}
 	}
 
@@ -2431,6 +2433,7 @@ void FOpenGLLinkedProgram::ConfigureShaderStage( int Stage, uint32 FirstUniformB
 		Name.Buffer[5] = 0;
 		Name.Buffer[6] = 0;
 
+		check(StagePackedUniformInfo[Stage].PackedUniformBufferInfos.Num() == 0);
 		int32 NumUniformBuffers = Config.Shaders[Stage].Bindings.NumUniformBuffers;
 		StagePackedUniformInfo[Stage].PackedUniformBufferInfos.SetNum(NumUniformBuffers);
 		int32 NumPackedUniformBuffers = Config.Shaders[Stage].Bindings.PackedUniformBuffers.Num();
