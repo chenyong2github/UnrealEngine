@@ -1227,9 +1227,18 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 	}
 
 	// If the root component is blueprint constructed we don't save it to the transaction buffer
-	if( RootComponent && !RootComponent->IsCreatedByConstructionScript())
+	if (RootComponent)
 	{
-		bSavedToTransactionBuffer = RootComponent->Modify( bAlwaysMarkDirty ) || bSavedToTransactionBuffer;
+		if (!RootComponent->IsCreatedByConstructionScript())
+		{
+			bSavedToTransactionBuffer = RootComponent->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
+		}
+
+		USceneComponent* DefaultAttachComp = GetDefaultAttachComponent();
+		if (DefaultAttachComp && DefaultAttachComp != RootComponent && !DefaultAttachComp->IsCreatedByConstructionScript())
+		{
+			bSavedToTransactionBuffer = DefaultAttachComp->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
+		}
 	}
 
 	return bSavedToTransactionBuffer;
