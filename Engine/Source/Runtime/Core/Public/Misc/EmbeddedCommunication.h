@@ -37,6 +37,8 @@ public:
 	// calling out from engine to native wrapper
 	static FEmbeddedCommunicationParamsDelegate& GetEmbeddedToNativeParamsDelegateForSubsystem(FName SubsystemName);
 
+	// returns true if NativeToEmbedded delegate for subsystem exists
+	static bool IsEmbeddedSubsystemAvailable(FName SubsystemName);
 
 	// get/set an object by name, thread safe
 	static void SetNamedObject(const FString& Name, void* Object);
