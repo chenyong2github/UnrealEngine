@@ -639,7 +639,7 @@ public:
 
 		CHAOS_API EParticleType ParticleType() const { return MParticleType; }
 
-		const FPerShapeData* GetImplicitShape(int32 Index, const FImplicitObject* InObject)
+		CHAOS_API const FPerShapeData* GetImplicitShape(int32 Index, const FImplicitObject* InObject)
 		{
 			checkSlow(Index >= 0 && Index < ImplicitShapeMap.Num());
 			TMap<const FImplicitObject*, int32>& Mapping = ImplicitShapeMap[Index];
