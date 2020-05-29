@@ -192,6 +192,7 @@ namespace Chaos
 			const bool bAccelerationMode,
 			const FVec3& Axis,
 			const FReal Delta,
+			const FReal TargetVel,
 			FReal& Lambda);
 
 		void ApplyRotationConstraint(
@@ -218,6 +219,7 @@ namespace Chaos
 			const bool bAccelerationMode,
 			const FVec3& Axis,
 			const FReal Angle,
+			const FReal AngVelTarget,
 			FReal& Lambda);
 
 		void ApplyRotationConstraintSoftKD(
@@ -229,6 +231,7 @@ namespace Chaos
 			const bool bAccelerationMode,
 			const FVec3& Axis,
 			const FReal Angle,
+			const FReal AngVelTarget,
 			FReal& Lambda);
 
 		void ApplyRotationConstraintSoftDD(
@@ -238,6 +241,7 @@ namespace Chaos
 			const bool bAccelerationMode,
 			const FVec3& Axis,
 			const FReal Angle,
+			const FReal AngVelTarget,
 			FReal& Lambda);
 
 		int32 ApplyLockedRotationConstraints(
@@ -313,22 +317,11 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		int32 ApplySphericalPositionDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
 		int32 ApplyCylindricalPositionConstraint(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const EJointMotionType AxialMotion,
 			const EJointMotionType RadialMotion,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		int32 ApplyCircularPositionDrive(
-			const FReal Dt,
-			const int32 AxisIndex,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
@@ -339,11 +332,14 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		int32 ApplyAxialPositionDrive(
+		int32 ApplyPositionDrive(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			const FVec3& Axis,
+			const FReal DeltaPos,
+			const FReal DeltaVel);
 
 
 		int32 ApplyPointProjection(
@@ -467,9 +463,7 @@ namespace Chaos
 		FReal TwistSoftLambda;
 		FReal SwingSoftLambda;
 		FReal LinearDriveLambda;
-		FReal TwistDriveLambda;
-		FReal Swing1DriveLambda;
-		FReal Swing2DriveLambda;
+		FReal RotationDriveLambdas[3];
 
 		// Tolerances below which we stop solving
 		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved

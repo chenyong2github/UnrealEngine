@@ -129,7 +129,8 @@ namespace Chaos
 		FReal SoftSwingStiffness;
 		FReal SoftSwingDamping;
 
-		FVec3 LinearDriveTarget;
+		FVec3 LinearDrivePositionTarget;
+		FVec3 LinearDriveVelocityTarget;
 		TVector<bool, 3> bLinearPositionDriveEnabled;
 		TVector<bool, 3> bLinearVelocityDriveEnabled;
 		EJointForceMode LinearDriveForceMode;
