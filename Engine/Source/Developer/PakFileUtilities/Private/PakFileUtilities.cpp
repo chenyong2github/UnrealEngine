@@ -309,14 +309,18 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 				}
 			}
 			Lines[EntryIndex] = Lines[EntryIndex].TrimQuotes();
-			FString Path = FString::Printf(TEXT("%s"), *Lines[EntryIndex]);
-			FPaths::NormalizeFilename(Path);
-			Path = Path.ToLower();
-			if (bSecondaryOrderFile && OrderMap.Contains(Path))
+			// dont process the entry in the FileOrder if it a package name
+			if (!FPaths::GetExtension(Lines[EntryIndex]).IsEmpty())
 			{
-				continue;
+				FString Path = FString::Printf(TEXT("%s"), *Lines[EntryIndex]);
+				FPaths::NormalizeFilename(Path);
+				Path = Path.ToLower();
+				if (bSecondaryOrderFile && OrderMap.Contains(Path))
+				{
+					continue;
+				}
+				OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 			}
-			OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 		}
 		UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);
 		return true;
