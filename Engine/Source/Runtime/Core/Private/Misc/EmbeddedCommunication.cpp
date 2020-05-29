@@ -32,6 +32,13 @@ FEmbeddedDelegates::FEmbeddedCommunicationParamsDelegate& FEmbeddedDelegates::Ge
 	return EmbeddedToNativeDelegateMap.FindOrAdd(SubsystemName);
 }
 
+bool FEmbeddedDelegates::IsEmbeddedSubsystemAvailable(FName SubsystemName)
+{
+	FEmbeddedCommunicationParamsDelegate* NativeToEmbeddedDelegate = NativeToEmbeddedDelegateMap.Find(SubsystemName);
+
+	return NativeToEmbeddedDelegate && NativeToEmbeddedDelegate->IsBound();
+}
+
 void FEmbeddedDelegates::SetNamedObject(const FString& Name, void* Object)
 {
 	FScopeLock Lock(&NamedObjectRegistryLock);
