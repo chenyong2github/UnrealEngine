@@ -284,7 +284,7 @@ namespace Chaos
 		const FJointSolverConstraintRowData& RowData = RowDatas[RowIndex];
 		FJointSolverConstraintRowState& RowState = RowStates[RowIndex];
 
-		const FVec3 XTarget = X0 + R0 * JointSettings.LinearDriveTarget;
+		const FVec3 XTarget = X0 + R0 * JointSettings.LinearDrivePositionTarget;
 		FVec3 Axis;
 		FReal Delta;
 		FPBDJointUtilities::GetSphericalAxisDelta(XTarget, X1, Axis, Delta);
@@ -307,7 +307,7 @@ namespace Chaos
 		const FJointSolverConstraintRowData& RowData = RowDatas[RowIndex];
 		FJointSolverConstraintRowState& RowState = RowStates[RowIndex];
 
-		const FVec3 XTarget = X0 + R0 * JointSettings.LinearDriveTarget;
+		const FVec3 XTarget = X0 + R0 * JointSettings.LinearDrivePositionTarget;
 		FVec3 Axis, RadialAxis;
 		FReal AxialDelta, RadialDelta;
 		FPBDJointUtilities::GetCylindricalAxesDeltas(R0, XTarget, X1, RowData.ConstraintIndex, Axis, AxialDelta, RadialAxis, RadialDelta);
@@ -330,7 +330,7 @@ namespace Chaos
 		const FJointSolverConstraintRowData& RowData = RowDatas[RowIndex];
 		FJointSolverConstraintRowState& RowState = RowStates[RowIndex];
 
-		const FVec3 XTarget = X0 + R0 * JointSettings.LinearDriveTarget;
+		const FVec3 XTarget = X0 + R0 * JointSettings.LinearDrivePositionTarget;
 		FVec3 Axis;
 		FReal Delta;
 		FPBDJointUtilities::GetPlanarAxisDelta(R0, XTarget, X1, RowData.ConstraintIndex, Axis, Delta);

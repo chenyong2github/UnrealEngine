@@ -117,9 +117,9 @@ namespace Chaos
 		LinearDriveLambda = (FReal)0;
 		TwistSoftLambda = (FReal)0;
 		SwingSoftLambda = (FReal)0;
-		TwistDriveLambda = (FReal)0;
-		Swing1DriveLambda = (FReal)0;
-		Swing2DriveLambda = (FReal)0;
+		RotationDriveLambdas[0] = (FReal)0;
+		RotationDriveLambdas[1] = (FReal)0;
+		RotationDriveLambdas[2] = (FReal)0;
 
 		PositionTolerance = SolverSettings.PositionTolerance;
 		AngleTolerance = SolverSettings.AngleTolerance;
@@ -594,33 +594,23 @@ namespace Chaos
 				(JointSettings.bLinearPositionDriveEnabled[2] || JointSettings.bLinearVelocityDriveEnabled[2]) && (JointSettings.LinearMotionTypes[2] != EJointMotionType::Locked),
 			};
 
-			if (bDriven[0] && bDriven[1] && bDriven[2])
+			// Rectangular position drives
+			if (bDriven[0] || bDriven[1] || bDriven[2])
 			{
-				NumActive += ApplySphericalPositionDrive(Dt, SolverSettings, JointSettings);
-			}
-			else if (bDriven[1] && bDriven[2])
-			{
-				NumActive += ApplyCircularPositionDrive(Dt, 0, SolverSettings, JointSettings);
-			}
-			else if (bDriven[0] && bDriven[2])
-			{
-				NumActive += ApplyCircularPositionDrive(Dt, 1, SolverSettings, JointSettings);
-			}
-			else if (bDriven[0] && bDriven[1])
-			{
-				NumActive += ApplyCircularPositionDrive(Dt, 2, SolverSettings, JointSettings);
-			}
-			else if (bDriven[0])
-			{
-				NumActive += ApplyAxialPositionDrive(Dt, 0, SolverSettings, JointSettings);
-			}
-			else if (bDriven[1])
-			{
-				NumActive += ApplyAxialPositionDrive(Dt, 1, SolverSettings, JointSettings);
-			}
-			else if (bDriven[2])
-			{
-				NumActive += ApplyAxialPositionDrive(Dt, 2, SolverSettings, JointSettings);
+				const FMatrix33 R0M = Rs[0].ToMatrix();
+				const FVec3 CX = Xs[1] - Xs[0];
+
+				for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+				{
+					if (bDriven[AxisIndex])
+					{
+						const FVec3 Axis = R0M.GetAxis(AxisIndex);
+						const FReal DeltaPos = FVec3::DotProduct(CX, Axis);
+						const FReal DeltaVel = JointSettings.LinearDriveVelocityTarget[AxisIndex];
+
+						ApplyPositionDrive(Dt, AxisIndex, SolverSettings, JointSettings, Axis, DeltaPos, DeltaVel);
+					}
+				}
 			}
 		}
 
@@ -791,12 +781,13 @@ namespace Chaos
 		const bool bAccelerationMode,
 		const FVec3& Axis,
 		const FReal Delta,
+		const FReal TargetVel,
 		FReal& Lambda)
 	{
 		if (bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
-			ispc::ApplyPositionConstraintSoft((ispc::FJointSolverGaussSeidel*)this, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&)Axis, Delta, Lambda);
+			ispc::ApplyPositionConstraintSoft((ispc::FJointSolverGaussSeidel*)this, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&)Axis, Delta, TargetVel, Lambda);
 #endif
 		}
 		else
@@ -813,9 +804,9 @@ namespace Chaos
 			FReal VelDt = 0;
 			if (Damping > KINDA_SMALL_NUMBER)
 			{
-				const FVec3 V0 = FVec3::CalculateVelocity(PrevXs[0], Xs[0], 1.0f);
-				const FVec3 V1 = FVec3::CalculateVelocity(PrevXs[1], Xs[1], 1.0f);
-				VelDt = FVec3::DotProduct(V0 - V1, Axis);
+				const FVec3 V0Dt = FVec3::CalculateVelocity(PrevXs[0], Xs[0], 1.0f);
+				const FVec3 V1Dt = FVec3::CalculateVelocity(PrevXs[1], Xs[1], 1.0f);
+				VelDt = TargetVel * Dt + FVec3::DotProduct(V0Dt - V1Dt, Axis);
 			}
 	
 			const FReal SpringMassScale = (bAccelerationMode) ? 1.0f / (InvMs[0] + InvMs[1]) : 1.0f;
@@ -906,6 +897,7 @@ namespace Chaos
 		const bool bAccelerationMode,
 		const FVec3& Axis,
 		const FReal Angle,
+		const FReal AngVelTarget,
 		FReal& Lambda)
 	{
 		check(InvMs[DIndex] > 0);
@@ -913,7 +905,7 @@ namespace Chaos
 		if (bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
-			ispc::ApplyRotationConstraintSoftKD((ispc::FJointSolverGaussSeidel*)this, KIndex, DIndex, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&) Axis, Angle, Lambda);
+			ispc::ApplyRotationConstraintSoftKD((ispc::FJointSolverGaussSeidel*)this, KIndex, DIndex, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&) Axis, Angle, AngVelTarget, Lambda);
 #endif
 		}
 		else
@@ -929,8 +921,9 @@ namespace Chaos
 			FReal AngVelDt = 0;
 			if (Damping > KINDA_SMALL_NUMBER)
 			{
-				const FVec3 W1 = FRotation3::CalculateAngularVelocity(PrevQs[DIndex], Qs[DIndex], 1.0f);
-				AngVelDt = -FVec3::DotProduct(Axis, W1);
+				const FVec3 W0Dt = FRotation3::CalculateAngularVelocity(PrevQs[KIndex], Qs[KIndex], 1.0f);
+				const FVec3 W1Dt = FRotation3::CalculateAngularVelocity(PrevQs[DIndex], Qs[DIndex], 1.0f);
+				AngVelDt = AngVelTarget * Dt + FVec3::DotProduct(Axis, W0Dt - W1Dt);
 			}
 
 			const FReal SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
@@ -957,6 +950,7 @@ namespace Chaos
 		const bool bAccelerationMode,
 		const FVec3& Axis,
 		const FReal Angle,
+		const FReal AngVelTarget,
 		FReal& Lambda)
 	{
 		check(InvMs[0] > 0);
@@ -965,7 +959,7 @@ namespace Chaos
 		if (bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
-			ispc::ApplyRotationConstraintSoftDD((ispc::FJointSolverGaussSeidel*)this, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&) Axis, Angle, Lambda);
+			ispc::ApplyRotationConstraintSoftDD((ispc::FJointSolverGaussSeidel*)this, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&) Axis, Angle, AngVelTarget, Lambda);
 #endif
 		}
 		else
@@ -983,9 +977,9 @@ namespace Chaos
 			FReal AngVelDt = 0;
 			if (Damping > KINDA_SMALL_NUMBER)
 			{
-				const FVec3 W0 = FRotation3::CalculateAngularVelocity(PrevQs[0], Qs[0], 1.0f);
-				const FVec3 W1 = FRotation3::CalculateAngularVelocity(PrevQs[1], Qs[1], 1.0f);
-				AngVelDt = FVec3::DotProduct(Axis, W0) - FVec3::DotProduct(Axis, W1);
+				const FVec3 W0Dt = FRotation3::CalculateAngularVelocity(PrevQs[0], Qs[0], 1.0f);
+				const FVec3 W1Dt = FRotation3::CalculateAngularVelocity(PrevQs[1], Qs[1], 1.0f);
+				AngVelDt = AngVelTarget * Dt + FVec3::DotProduct(Axis, W0Dt - W1Dt);
 			}
 
 			const FReal SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
@@ -1013,19 +1007,20 @@ namespace Chaos
 		const bool bAccelerationMode,
 		const FVec3& Axis,
 		const FReal Angle,
+		const FReal AngVelTarget,
 		FReal& Lambda)
 	{
 		if (InvMs[0] == 0)
 		{
-			ApplyRotationConstraintSoftKD(0, 1, Dt, Stiffness, Damping, bAccelerationMode, Axis, Angle, Lambda);
+			ApplyRotationConstraintSoftKD(0, 1, Dt, Stiffness, Damping, bAccelerationMode, Axis, Angle, AngVelTarget, Lambda);
 		}
 		else if (InvMs[1] == 0)
 		{
-			ApplyRotationConstraintSoftKD(1, 0, Dt, Stiffness, Damping, bAccelerationMode, Axis, -Angle, Lambda);
+			ApplyRotationConstraintSoftKD(1, 0, Dt, Stiffness, Damping, bAccelerationMode, Axis, -Angle, AngVelTarget, Lambda);
 		}
 		else
 		{
-			ApplyRotationConstraintSoftDD(Dt, Stiffness, Damping, bAccelerationMode, Axis, Angle, Lambda);
+			ApplyRotationConstraintSoftDD(Dt, Stiffness, Damping, bAccelerationMode, Axis, Angle, AngVelTarget, Lambda);
 		}
 	}
 
@@ -1098,7 +1093,7 @@ namespace Chaos
 				const FReal TwistStiffness = FPBDJointUtilities::GetSoftTwistStiffness(SolverSettings, JointSettings);
 				const FReal TwistDamping = FPBDJointUtilities::GetSoftTwistDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetAngularSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyRotationConstraintSoft(Dt, TwistStiffness, TwistDamping, bAccelerationMode, TwistAxis, DTwistAngle, TwistSoftLambda);
+				ApplyRotationConstraintSoft(Dt, TwistStiffness, TwistDamping, bAccelerationMode, TwistAxis, DTwistAngle, 0.0f, TwistSoftLambda);
 			}
 			else
 			{
@@ -1158,7 +1153,7 @@ namespace Chaos
 				const FReal SoftSwingStiffness = FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings);
 				const FReal SoftSwingDamping = FPBDJointUtilities::GetSoftSwingDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetAngularSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, SwingSoftLambda);
+				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, 0.0f, SwingSoftLambda);
 			}
 			else
 			{
@@ -1195,7 +1190,7 @@ namespace Chaos
 				const FReal SoftSwingStiffness = FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings);
 				const FReal SoftSwingDamping = FPBDJointUtilities::GetSoftSwingDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetAngularSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, SwingSoftLambda);
+				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, 0.0f, SwingSoftLambda);
 			}
 			else
 			{
@@ -1241,7 +1236,7 @@ namespace Chaos
 				const FReal SoftSwingStiffness = FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings);
 				const FReal SoftSwingDamping = FPBDJointUtilities::GetSoftSwingDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetAngularSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, SwingSoftLambda);
+				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, 0.0f, SwingSoftLambda);
 			}
 			else
 			{
@@ -1287,7 +1282,7 @@ namespace Chaos
 				const FReal SoftSwingStiffness = FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings);
 				const FReal SoftSwingDamping = FPBDJointUtilities::GetSoftSwingDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetAngularSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, SwingSoftLambda);
+				ApplyRotationConstraintSoft(Dt, SoftSwingStiffness, SoftSwingDamping, bAccelerationMode, SwingAxis, DSwingAngle, 0.0f, SwingSoftLambda);
 			}
 			else
 			{
@@ -1325,24 +1320,27 @@ namespace Chaos
 		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
 		int32 NumActive = 0;
 
-		if (bTwistDriveEnabled && (FMath::Abs(DTwistAngle) > AngleTolerance))
+		const bool bUseTwistDrive = bTwistDriveEnabled && (((FMath::Abs(DTwistAngle) > AngleTolerance) && (AngularTwistDriveStiffness > 0.0f)) || (AngularSwingDriveDamping > 0.0f));
+		if (bUseTwistDrive)
 		{
 			const FVec3 TwistAxis = Rs[1] * FJointConstants::TwistAxis();
-			ApplyRotationConstraintSoft(Dt, AngularTwistDriveStiffness, AngularTwistDriveDamping, bAccelerationMode, TwistAxis, DTwistAngle, TwistDriveLambda);
+			ApplyRotationConstraintSoft(Dt, AngularTwistDriveStiffness, AngularTwistDriveDamping, bAccelerationMode, TwistAxis, DTwistAngle, JointSettings.AngularDriveVelocityTarget[(int32)EJointAngularConstraintIndex::Twist], RotationDriveLambdas[(int32)EJointAngularConstraintIndex::Twist]);
 			++NumActive;
 		}
 
-		if (bSwing1DriveEnabled && (FMath::Abs(DSwing1Angle) > AngleTolerance))
+		const bool bUseSwing1Drive = bSwing1DriveEnabled && (((FMath::Abs(DSwing1Angle) > AngleTolerance) && (AngularSwingDriveStiffness > 0.0f)) || (AngularSwingDriveDamping > 0.0f));
+		if (bUseSwing1Drive)
 		{
 			const FVec3 Swing1Axis = Rs[1] * FJointConstants::Swing1Axis();
-			ApplyRotationConstraintSoft(Dt, AngularSwingDriveStiffness, AngularSwingDriveDamping, bAccelerationMode, Swing1Axis, DSwing1Angle, Swing1DriveLambda);
+			ApplyRotationConstraintSoft(Dt, AngularSwingDriveStiffness, AngularSwingDriveDamping, bAccelerationMode, Swing1Axis, DSwing1Angle, JointSettings.AngularDriveVelocityTarget[(int32)EJointAngularConstraintIndex::Swing1], RotationDriveLambdas[(int32)EJointAngularConstraintIndex::Swing1]);
 			++NumActive;
 		}
 
-		if (bSwing2DriveEnabled && (FMath::Abs(DSwing2Angle) > AngleTolerance))
+		const bool bUseSwing2Drive = bSwing2DriveEnabled && (((FMath::Abs(DSwing2Angle) > AngleTolerance) && (AngularSwingDriveStiffness > 0.0f)) || (AngularSwingDriveDamping > 0.0f));
+		if (bUseSwing2Drive)
 		{
 			const FVec3 Swing2Axis = Rs[1] * FJointConstants::Swing2Axis();
-			ApplyRotationConstraintSoft(Dt, AngularSwingDriveStiffness, AngularSwingDriveDamping, bAccelerationMode, Swing2Axis, DSwing2Angle, Swing2DriveLambda);
+			ApplyRotationConstraintSoft(Dt, AngularSwingDriveStiffness, AngularSwingDriveDamping, bAccelerationMode, Swing2Axis, DSwing2Angle, JointSettings.AngularDriveVelocityTarget[(int32)EJointAngularConstraintIndex::Swing2], RotationDriveLambdas[(int32)EJointAngularConstraintIndex::Swing2]);
 			++NumActive;
 		}
 
@@ -1355,27 +1353,57 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		const FRotation3 TargetR1 = Rs[0] * JointSettings.AngularDrivePositionTarget;
-		const FRotation3 DR = TargetR1 * Rs[1].Inverse();
+		const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularSLerpDriveStiffness(SolverSettings, JointSettings);
+		const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularSLerpDriveDamping(SolverSettings, JointSettings);
+		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
 
-		FVec3 SLerpAxis;
-		FReal SLerpAngle;
-		if (DR.ToAxisAndAngleSafe(SLerpAxis, SLerpAngle, FVec3(1, 0, 0)))
+		// If damping is enabled, we need to apply the drive about all 3 axes, but without damping we can just drive along the axis of error
+		if (AngularDriveDamping > 0.0f)
 		{
-			if (SLerpAngle > (FReal)PI)
+			// NOTE: Slerp target velocity only works properly if we have a stiffness of zero.
+			FVec3 Axes[3] = { FVec3(1, 0, 0), FVec3(0, 1, 0), FVec3(0, 0, 1) };
+			if (AngularDriveStiffness > 0.0f)
 			{
-				SLerpAngle = SLerpAngle - (FReal)2 * PI;
+				FPBDJointUtilities::GetLockedRotationAxes(Rs[0], Rs[1], Axes[0], Axes[1], Axes[2]);
 			}
 
-			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("      SLerpDrive Pos: %f Axis: %f %f %f"), -SLerpAngle, SLerpAxis.X, SLerpAxis.Y, SLerpAxis.Z);
+			const FRotation3 R01 = Rs[0].Inverse() * Rs[1];
+			FRotation3 TargetAngPos = JointSettings.AngularDrivePositionTarget;
+			TargetAngPos.EnforceShortestArcWith(R01);
+			FRotation3 R1Error = TargetAngPos.Inverse() * R01;
+			const FReal AxisAngles[3] = { R1Error.X, R1Error.Y, R1Error.Z };
 
-			if (FMath::Abs(SLerpAngle) > AngleTolerance)
+			const FVec3 TargetAngVel = Rs[0] * JointSettings.AngularDriveVelocityTarget;
+
+			for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
 			{
-				const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularSLerpDriveStiffness(SolverSettings, JointSettings);
-				const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularSLerpDriveDamping(SolverSettings, JointSettings);
-				const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
-				ApplyRotationConstraintSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, SLerpAxis, -SLerpAngle, Swing1DriveLambda);
-				return 1;
+				FReal AxisAngVel = FVec3::DotProduct(TargetAngVel, Axes[AxisIndex]);
+				ApplyRotationConstraintSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, Axes[AxisIndex], AxisAngles[AxisIndex], AxisAngVel, RotationDriveLambdas[AxisIndex]);
+			}
+			return 3;
+		}
+		else
+		{
+			const FRotation3 TargetR1 = Rs[0] * JointSettings.AngularDrivePositionTarget;
+			const FRotation3 DR = TargetR1 * Rs[1].Inverse();
+
+			FVec3 SLerpAxis;
+			FReal SLerpAngle;
+			if (DR.ToAxisAndAngleSafe(SLerpAxis, SLerpAngle, FVec3(1, 0, 0)))
+			{
+				if (SLerpAngle > (FReal)PI)
+				{
+					SLerpAngle = SLerpAngle - (FReal)2 * PI;
+				}
+
+				UE_LOG(LogChaosJoint, VeryVerbose, TEXT("      SLerpDrive Pos: %f Axis: %f %f %f"), -SLerpAngle, SLerpAxis.X, SLerpAxis.Y, SLerpAxis.Z);
+
+				if (FMath::Abs(SLerpAngle) > AngleTolerance)
+				{
+					FReal AngVelTarget = (JointSettings.AngularDriveDamping > 0.0f) ? FVec3::DotProduct(SLerpAxis, Rs[0] * JointSettings.AngularDriveVelocityTarget) : 0.0f;
+					ApplyRotationConstraintSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, SLerpAxis, -SLerpAngle, AngVelTarget, RotationDriveLambdas[(int32)EJointAngularConstraintIndex::Swing1]);
+					return 1;
+				}
 			}
 		}
 		return 0;
@@ -1495,29 +1523,8 @@ namespace Chaos
 				const FReal Stiffness = FPBDJointUtilities::GetSoftLinearStiffness(SolverSettings, JointSettings);
 				const FReal Damping = FPBDJointUtilities::GetSoftLinearDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetLinearSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, Error, LinearSoftLambda);
+				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, Error, 0.0f, LinearSoftLambda);
 			}
-			return 1;
-		}
-		return 0;
-	}
-
-
-	int32 FJointSolverGaussSeidel::ApplySphericalPositionDrive(
-		const FReal Dt,
-		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
-	{
-		const FVec3 XTarget = Xs[0] + Rs[0] * JointSettings.LinearDriveTarget;
-		FVec3 Axis;
-		FReal Delta;
-		FPBDJointUtilities::GetSphericalAxisDelta(XTarget, Xs[1], Axis, Delta);
-		if (FMath::Abs(Delta) > PositionTolerance)
-		{
-			const FReal Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings);
-			const FReal Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings);
-			const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
-			ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, Delta, LinearDriveLambda);
 			return 1;
 		}
 		return 0;
@@ -1550,7 +1557,7 @@ namespace Chaos
 				const FReal Stiffness = FPBDJointUtilities::GetSoftLinearStiffness(SolverSettings, JointSettings);
 				const FReal Damping = FPBDJointUtilities::GetSoftLinearDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetLinearSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, AxialError, LinearSoftLambda);
+				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, AxialError, 0.0f, LinearSoftLambda);
 				++NumActive;
 			}
 		}
@@ -1577,7 +1584,7 @@ namespace Chaos
 				const FReal Stiffness = FPBDJointUtilities::GetSoftLinearStiffness(SolverSettings, JointSettings);
 				const FReal Damping = FPBDJointUtilities::GetSoftLinearDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetLinearSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, RadialAxis, RadialError, LinearSoftLambda);
+				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, RadialAxis, RadialError, 0.0f, LinearSoftLambda);
 				++NumActive;
 			}
 		}
@@ -1595,29 +1602,6 @@ namespace Chaos
 		}
 
 		return NumActive;
-	}
-
-
-	int32 FJointSolverGaussSeidel::ApplyCircularPositionDrive(
-		const FReal Dt,
-		const int32 AxisIndex,
-		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
-	{
-		const FVec3 XTarget = Xs[0] + Rs[0] * JointSettings.LinearDriveTarget;
-		FVec3 Axis, RadialAxis;
-		FReal AxialDelta, RadialDelta;
-		FPBDJointUtilities::GetCylindricalAxesDeltas(Rs[0], XTarget, Xs[1], AxisIndex, Axis, AxialDelta, RadialAxis, RadialDelta);
-		if (RadialDelta > PositionTolerance)
-		{
-			const FReal Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings);
-			const FReal Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings);
-			const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
-			ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, RadialAxis, RadialDelta, LinearDriveLambda);
-
-			return 1;
-		}
-		return 0;
 	}
 
 
@@ -1641,7 +1625,7 @@ namespace Chaos
 				const FReal Stiffness = FPBDJointUtilities::GetSoftLinearStiffness(SolverSettings, JointSettings);
 				const FReal Damping = FPBDJointUtilities::GetSoftLinearDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetLinearSoftAccelerationMode(SolverSettings, JointSettings);
-				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, Error, LinearSoftLambda);
+				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, Error, 0.0f, LinearSoftLambda);
 			}
 			else
 			{
@@ -1654,27 +1638,29 @@ namespace Chaos
 	}
 
 
-	int32 FJointSolverGaussSeidel::ApplyAxialPositionDrive(
+	int32 FJointSolverGaussSeidel::ApplyPositionDrive(
 		const FReal Dt,
 		const int32 AxisIndex,
 		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
+		const FPBDJointSettings& JointSettings,
+		const FVec3& Axis,
+		const FReal DeltaPos,
+		const FReal DeltaVel)
 	{
-		const FVec3 XTarget = Xs[0] + Rs[0] * JointSettings.LinearDriveTarget;
-		FVec3 Axis;
-		FReal Delta;
-		FPBDJointUtilities::GetPlanarAxisDelta(Rs[0], XTarget, Xs[1], AxisIndex, Axis, Delta);
-		if (FMath::Abs(Delta) > PositionTolerance)
+		const FReal Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings, AxisIndex);
+		const FReal Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings, AxisIndex);
+		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
+		const FReal TargetVel = (Damping > 0.0f) ? FVec3::DotProduct(Axis, Rs[0] * JointSettings.LinearDriveVelocityTarget) : 0.0f;
+
+		if ((FMath::Abs(DeltaPos) > PositionTolerance) || (Damping > 0.0f))
 		{
-			const FReal Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings);
-			const FReal Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings);
-			const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
-			ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, Delta, LinearDriveLambda);
+			ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, DeltaPos, DeltaVel, LinearDriveLambda);
 
 			return 1;
 		}
 		return 0;
 	}
+
 
 	int32 FJointSolverGaussSeidel::ApplyPointProjection(
 		const FReal Dt,
