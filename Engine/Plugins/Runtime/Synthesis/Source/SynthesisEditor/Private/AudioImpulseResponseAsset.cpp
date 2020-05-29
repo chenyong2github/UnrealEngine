@@ -98,7 +98,7 @@ UObject* UAudioImpulseResponseFactory::FactoryCreateNew(UClass* Class, UObject* 
 
 		NewAsset->ImpulseResponse.Reset();
 
-		int32 NumSamples = ImportedSoundWaveData.Num() * sizeof(int16);
+		int32 NumSamples = ImportedSoundWaveData.Num() / sizeof(int16);
 		if (NumSamples > 0)
 		{
 			NewAsset->ImpulseResponse.AddUninitialized(NumSamples);
