@@ -208,6 +208,7 @@ namespace Audio
 				MixerSourceBufferLocal->OnBufferEnd();
 			}
 
+			auto const NumBuffersQueued = MixerSourceBufferLocal->GetNumBuffersQueued();
 			if (MixerSourceBufferLocal->GetNumBuffersQueued() > 0 && (SourceInfo.NumSourceChannels > 0))
 			{
 				check(MixerSourceBufferLocal.IsValid());
