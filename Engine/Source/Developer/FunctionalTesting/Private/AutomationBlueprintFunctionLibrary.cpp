@@ -984,35 +984,74 @@ bool UAutomationBlueprintFunctionLibrary::AreAutomatedTestsRunning()
 class FWaitForLoadingToFinish : public FPendingLatentAction
 {
 public:
-	FWaitForLoadingToFinish(const FLatentActionInfo& LatentInfo)
+	FWaitForLoadingToFinish(const FLatentActionInfo& LatentInfo, UObject* InWorldContextObject, const FAutomationWaitForLoadingOptions& InOptions)
 		: ExecutionFunction(LatentInfo.ExecutionFunction)
 		, OutputLink(LatentInfo.Linkage)
 		, CallbackTarget(LatentInfo.CallbackTarget)
+		, WorldPtr(InWorldContextObject ? InWorldContextObject->GetWorld() : nullptr)
+		, Options(InOptions)
 	{
-		WaitingFrames = 0;
 		UAutomationBlueprintFunctionLibrary::FinishLoadingBeforeScreenshot();
+		
+		WaitingFrames = 0;
+		LastLoadTime = FPlatformTime::Seconds();
+
+		if (Options.WaitForReplicationToSettle)
+		{
+			if (UWorld* MyWorld = GetWorld())
+			{
+				FOnActorSpawned::FDelegate ActorSpawnedDelegate = FOnActorSpawned::FDelegate::CreateRaw(this, &FWaitForLoadingToFinish::OnActorSpawned);
+				ActorSpawnedDelegateHandle = MyWorld->AddOnActorSpawnedHandler(ActorSpawnedDelegate);
+			}
+		}
 	}
 
 	virtual ~FWaitForLoadingToFinish()
 	{
+		if (UWorld* MyWorld = GetWorld())
+		{
+			MyWorld->RemoveOnActorSpawnedHandler(ActorSpawnedDelegateHandle);
+		}
+	}
+
+	UWorld* GetWorld()
+	{
+		if (UWorld* World = WorldPtr.Get())
+		{
+			return World;
+		}
+		else
+		{
+			if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+			{
+				return GameEngine->GetGameWorld();
+			}
+		}
+
+		return nullptr;
+	}
+
+	void OnActorSpawned(AActor* SpawnedActor)
+	{
+		if (SpawnedActor->GetLocalRole() != ROLE_Authority)
+		{
+			bActorReplicationDetected = true;
+		}
 	}
 
 	bool AnyLevelStreaming()
 	{
 		// Make sure we finish all level streaming
-		if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+		if (UWorld* World = GetWorld())
 		{
-			if (UWorld* GameWorld = GameEngine->GetGameWorld())
+			for (ULevelStreaming* LevelStreaming : World->GetStreamingLevels())
 			{
-				for (ULevelStreaming* LevelStreaming : GameWorld->GetStreamingLevels())
+				// See whether there's a level with a pending request.
+				if (LevelStreaming)
 				{
-					// See whether there's a level with a pending request.
-					if (LevelStreaming)
+					if (LevelStreaming->HasLoadRequestPending())
 					{
-						if (LevelStreaming->HasLoadRequestPending())
-						{
-							return true;
-						}
+						return true;
 					}
 				}
 			}
@@ -1033,17 +1072,26 @@ public:
 		{
 			bResetWaiting = true;
 		}
+		else if (bActorReplicationDetected)
+		{
+			bResetWaiting = true;
+			bActorReplicationDetected = false;
+		}
 
 		if (bResetWaiting)
 		{
 			WaitingFrames = 0;
+			LastLoadTime = FPlatformTime::Seconds();
 		}
 		else
 		{
 			WaitingFrames++;
 		}
 
-		if (WaitingFrames > 60)
+		const double WaitingTime = (FPlatformTime::Seconds() - LastLoadTime);
+
+		// Needs to have been both 60 frames, and at least 5 seconds from the last load event.
+		if (WaitingFrames > 60 && WaitingTime > 5)
 		{
 			Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
 		}
@@ -1062,18 +1110,27 @@ private:
 	int32 OutputLink;
 	FWeakObjectPtr CallbackTarget;
 
-	int32 WaitingFrames;
+	TWeakObjectPtr<UWorld> WorldPtr;
+
+	FDelegateHandle ActorSpawnedDelegateHandle;
+
+	FAutomationWaitForLoadingOptions Options;
+
+	int32 WaitingFrames = 0;
+	double LastLoadTime = 0;
+
+	bool bActorReplicationDetected = false;
 };
 
 
-void UAutomationBlueprintFunctionLibrary::AutomationWaitForLoading(UObject* WorldContextObject, FLatentActionInfo LatentInfo)
+void UAutomationBlueprintFunctionLibrary::AutomationWaitForLoading(UObject* WorldContextObject, FLatentActionInfo LatentInfo, FAutomationWaitForLoadingOptions Options)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		FLatentActionManager& LatentActionManager = World->GetLatentActionManager();
 		if (LatentActionManager.FindExistingAction<FWaitForLoadingToFinish>(LatentInfo.CallbackTarget, LatentInfo.UUID) == nullptr)
 		{
-			LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FWaitForLoadingToFinish(LatentInfo));
+			LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FWaitForLoadingToFinish(LatentInfo, WorldContextObject, Options));
 		}
 	}
 }
