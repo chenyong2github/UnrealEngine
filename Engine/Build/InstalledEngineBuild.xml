@@ -384,7 +384,7 @@
 	<Aggregate Name="TargetPlatforms_HoloLens" Label="Target Platforms/HoloLens" Requires="Compile UE4Game HoloLens"/>
 
 	<Agent Name="Target Lumin" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game Lumin" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game Lumin;#UE4Game Lumin Unstripped;#UE4Game Lumin Stripped"  If="'$(WithLumin)' == true">
+		<Node Name="Compile UE4Game Lumin" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game Lumin;#UE4Game Lumin Unstripped;#UE4Game Lumin Stripped">
 			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
 					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UE4Game Lumin" Arguments="-precompile -allmodules -nolink -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)"/>
