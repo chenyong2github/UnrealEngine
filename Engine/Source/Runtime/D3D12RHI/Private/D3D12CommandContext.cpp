@@ -15,6 +15,9 @@ D3D12CommandContext.cpp: RHI  Command Context implementation.
 // Aggressive batching saves ~0.1ms on the RHI thread, reduces executecommandlist calls by around 25%
 int32 GCommandListBatchingMode = CLB_AggressiveBatching;
 
+extern int32 GEnableGapRecorder;
+extern bool GGapRecorderActiveOnBeginFrame;
+
 static FAutoConsoleVariableRef CVarCommandListBatchingMode(
 	TEXT("D3D12.CommandListBatchingMode"),
 	GCommandListBatchingMode,
@@ -313,7 +316,7 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 	check(IsDefaultContext());
 
 	bool bHasProfileGPUAction = false;
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	// Only graphics command list supports ID3D12GraphicsCommandList::EndQuery currently
 	if (!bIsAsyncComputeContext)
 	{
@@ -384,9 +387,27 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 	bTrackingEvents = bIsDefaultContext && ParentAdapter->GetGPUProfiler().bTrackingEvents;
 
 	RHIPrivateBeginFrame();
+
+#if D3D12_SUBMISSION_GAP_RECORDER
+	typedef typename FD3D12CommandContext::EFlushCommandsExtraAction EFlushCmdsAction;
+	constexpr bool bWaitForCommands = false;
+	constexpr EFlushCmdsAction FlushAction = EFlushCmdsAction::FCEA_StartProfilingGPU;
+
+	int32 CurrentSlotIdx = ParentAdapter->GetDevice(0)->GetCmdListExecTimeQueryHeap()->GetNextFreeIdx();
+	ParentAdapter->SubmissionGapRecorder.SetStartFrameSlotIdx(CurrentSlotIdx);
+#endif
+
 	for (uint32 GPUIndex : GPUMask)
 	{
 		FD3D12Device* Device = ParentAdapter->GetDevice(GPUIndex);
+
+#if D3D12_SUBMISSION_GAP_RECORDER
+		if (GEnableGapRecorder)
+		{
+			Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
+			GGapRecorderActiveOnBeginFrame = true;
+		}
+#endif
 
 		// Resolve the last frame's timestamp queries
 		FD3D12CommandContext* ContextAtIndex = GetContext(GPUIndex);
@@ -470,11 +491,26 @@ void FD3D12CommandContext::ClearAllShaderResources()
 
 void FD3D12CommandContextBase::RHIEndFrame()
 {
+#if D3D12_SUBMISSION_GAP_RECORDER
+	typedef typename FD3D12CommandContext::EFlushCommandsExtraAction EFlushCmdsAction;
+	constexpr bool bWaitForCommands = false;
+	constexpr EFlushCmdsAction FlushAction = EFlushCmdsAction::FCEA_EndProfilingGPU;
+#endif
+
+	FD3D12Device* Device = ParentAdapter->GetDevice(0);
+
+#if D3D12_SUBMISSION_GAP_RECORDER
+	if (GEnableGapRecorder && GGapRecorderActiveOnBeginFrame)
+	{
+		Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
+	}
+#endif
+
 	ParentAdapter->EndFrame();
 
 	for (uint32 GPUIndex : GPUMask)
 	{
-		FD3D12Device* Device = ParentAdapter->GetDevice(GPUIndex);
+		Device = ParentAdapter->GetDevice(GPUIndex);
 
 		FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
 		DefaultContext.CommandListHandle.FlushResourceBarriers();
@@ -510,7 +546,7 @@ void FD3D12CommandContextBase::RHIEndFrame()
 
 	for (uint32 GPUIndex : GPUMask)
 	{
-		FD3D12Device* Device = ParentAdapter->GetDevice(GPUIndex);
+		Device = ParentAdapter->GetDevice(GPUIndex);
 		Device->GetCommandListManager().ReleaseResourceBarrierCommandListAllocator();
 	}
 
