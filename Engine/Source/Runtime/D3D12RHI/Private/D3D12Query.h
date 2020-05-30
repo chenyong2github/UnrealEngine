@@ -20,6 +20,9 @@ public:
 	/** The query's index in its heap. */
 	uint32 HeapIndex;
 
+	/** The Frame the query was submitted on. */
+	uint32 FrameSubmitted;
+
 	/** The query's type. */
 	const ERenderQueryType Type;
 
@@ -45,6 +48,7 @@ public:
 		HeapIndex = INDEX_NONE;
 		bResultIsCached = false;
 		bResolved = false;
+		FrameSubmitted = -1;
 	}
 
 	// Indicate the command list that was used to resolve the query.
@@ -180,7 +184,24 @@ public:
 	int32 EndQuery(FD3D12CommandListHandle CmdListHandle);
 
 	/** Get results of all allocated queries and reset */
-	void FlushAndGetResults(TArray<uint64>& QueryResults, bool bReleaseResources = true);
+	void FlushAndGetResults(TArray<uint64>& QueryResults, bool bReleaseResources = true, bool bBlockOnResults = true);
+
+	struct FStoredQuery
+	{
+		FD3D12CommandListHandle Handle;
+		TRefCountPtr<FD3D12Resource> RBuffer;
+		uint64 StoredCLGeneration;
+		int32 NResults;
+	};
+
+	TArray<FStoredQuery> PendingQueries;
+
+	void StoreQuery(FD3D12CommandListHandle Handle, TRefCountPtr<FD3D12Resource> ResultBuffer, int32 NumResults);
+
+	void ResolveOutstandingQueries(TArray<uint64>& QueryResults, bool bReleaseResources);
+
+	volatile int32 GetNextFreeIdx() const { return NextFreeIdx; }
+	void SetNextFreeIdx(volatile int32 val) { NextFreeIdx = val; }
 
 private:
 	struct FChunk
@@ -210,7 +231,7 @@ private:
 	void ReleaseResources();
 
 	/** This allocator can allocate up to (MaxNumChunks * GrowNumQueries) queries before a manual flush is needed */
-	static constexpr int32 MaxNumChunks = 8;
+	static constexpr int32 MaxNumChunks = 64;
 	/** Size in bytes of a single query result */
 	static constexpr SIZE_T ResultSize = sizeof(uint64);
 

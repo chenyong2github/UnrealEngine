@@ -358,13 +358,6 @@ namespace D3D12RHI
 
 		typedef typename FD3D12CommandListManager::FResolvedCmdListExecTime FResolvedCmdListExecTime;
 
-		/** Timstamps marking the beginning of tracked command lists */
-		TArray<uint64> CmdListStartTimestamps;
-		/** Timstamps marking the end of tracked command lists */
-		TArray<uint64> CmdListEndTimestamps;
-		/** Accumulated idle GPU ticks before each corresponding command list */
-		TArray<uint64> IdleTimeCDF;
-
 		/** Map containing all the currently hashed event strings */
 		FRWLock	CacheEventStringsRWLock;
 		TMap<uint32, FString> CachedEventStrings;

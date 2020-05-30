@@ -928,6 +928,11 @@ void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, 
 	check(ParentAdapter->GetDrawingViewport() == Viewport);
 	ParentAdapter->SetDrawingViewport(nullptr);
 
+#if D3D12_SUBMISSION_GAP_RECORDER
+	int32 CurrentSlotIdx = ParentAdapter->GetDevice(0)->GetCmdListExecTimeQueryHeap()->GetNextFreeIdx();
+	ParentAdapter->SubmissionGapRecorder.SetPresentSlotIdx(CurrentSlotIdx);
+#endif
+
 	const bool bNativelyPresented = Viewport->Present(bLockToVsync);
 
 	// Multi-GPU support : here each GPU wait's for it's own frame completion. Note that even in AFR, each GPU renders an (empty) frame.
@@ -1003,6 +1008,10 @@ void FD3D12DynamicRHI::RHIAdvanceFrameFence()
 		// This must be done in a deferred way even if RHI thread is disabled, just for correct ordering of operations.
 		ALLOC_COMMAND_CL(RHICmdList, FRHICommandSignalFrameFence)(ED3D12CommandQueueType::Default, FrameFence, PreviousFence);
 	}
+#if D3D12_SUBMISSION_GAP_RECORDER
+	FD3D12Adapter* Adapter = &GetAdapter();
+	Adapter->SubmissionGapRecorder.OnRenderThreadAdvanceFrame();
+#endif
 }
 
 void FD3D12DynamicRHI::RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* ViewportRHI)
