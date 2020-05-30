@@ -438,17 +438,22 @@ static int32 FindCmdListTimingPairIndex(const TArray<uint64>& CmdListStartTimest
 
 uint64 D3D12RHI::FD3DGPUProfiler::CalculateIdleTime(uint64 StartTime, uint64 EndTime)
 {
-	const int32 NumTimingPairs = CmdListStartTimestamps.Num();
-	check(NumTimingPairs == CmdListEndTimestamps.Num() && NumTimingPairs == IdleTimeCDF.Num());
+	FD3D12Adapter* Adapter = GetParentAdapter();
+	FD3D12Device* Device = Adapter->GetDevice(0);
+
+	FD3D12CommandListManager &CLManager = Device->GetCommandListManager();
+
+	const int32 NumTimingPairs = CLManager.GetStartTimestamps().Num();
+	check(NumTimingPairs == CLManager.GetEndTimestamps().Num() && NumTimingPairs == CLManager.GetIdleTime().Num());
 	
 	if (!NumTimingPairs)
 	{
 		return 0;
 	}
 
-	const int32 StartIdx = FindCmdListTimingPairIndex(CmdListStartTimestamps, StartTime);
-	const int32 EndIdx = FindCmdListTimingPairIndex(CmdListStartTimestamps, EndTime);
-	return IdleTimeCDF[EndIdx] - IdleTimeCDF[StartIdx];
+	const int32 StartIdx = FindCmdListTimingPairIndex(CLManager.GetStartTimestamps(), StartTime);
+	const int32 EndIdx = FindCmdListTimingPairIndex(CLManager.GetStartTimestamps(), EndTime);
+	return CLManager.GetIdleTime()[EndIdx] - CLManager.GetIdleTime()[StartIdx];
 }
 
 void D3D12RHI::FD3DGPUProfiler::DoPreProfileGPUWork()
@@ -480,31 +485,5 @@ void D3D12RHI::FD3DGPUProfiler::DoPostProfileGPUWork()
 		TArray<FResolvedCmdListExecTime> TimingPairs;
 		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs);
 		CmdListExecTimes.Append(MoveTemp(TimingPairs));
-	}
-
-	const int32 NumTimingPairs = CmdListExecTimes.Num();
-	CmdListStartTimestamps.Empty(NumTimingPairs);
-	CmdListEndTimestamps.Empty(NumTimingPairs);
-	IdleTimeCDF.Empty(NumTimingPairs);
-
-	if (NumTimingPairs > 0)
-	{
-		Algo::Sort(CmdListExecTimes, [](const FResolvedCmdListExecTime& A, const FResolvedCmdListExecTime& B)
-		{
-			return A.StartTimestamp < B.StartTimestamp;
-		});
-		CmdListStartTimestamps.Add(CmdListExecTimes[0].StartTimestamp);
-		CmdListEndTimestamps.Add(CmdListExecTimes[0].EndTimestamp);
-		IdleTimeCDF.Add(0);
-		for (int32 Idx = 1; Idx < NumTimingPairs; ++Idx)
-		{
-			const FResolvedCmdListExecTime& Prev = CmdListExecTimes[Idx - 1];
-			const FResolvedCmdListExecTime& Cur = CmdListExecTimes[Idx];
-			ensure(Cur.StartTimestamp >= Prev.EndTimestamp);
-			CmdListStartTimestamps.Add(Cur.StartTimestamp);
-			CmdListEndTimestamps.Add(Cur.EndTimestamp);
-			const uint64 Bubble = Cur.StartTimestamp >= Prev.EndTimestamp ? Cur.StartTimestamp - Prev.EndTimestamp : 0;
-			IdleTimeCDF.Add(IdleTimeCDF.Last() + Bubble);
-		}
 	}
 }

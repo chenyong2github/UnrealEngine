@@ -23,6 +23,25 @@ static TAutoConsoleVariable<int32> CVarResidencyManagement(
 );
 #endif // ENABLE_RESIDENCY_MANAGEMENT
 
+#if D3D12_SUBMISSION_GAP_RECORDER
+int32 GEnableGapRecorder = 0;
+bool GGapRecorderActiveOnBeginFrame = false;
+static FAutoConsoleVariableRef CVarEnableGapRecorder(
+	TEXT("D3D12.EnableGapRecorder"),
+	GEnableGapRecorder,
+	TEXT("Controls whether D3D12 gap recorder (cpu bubbles) is active (default = on)."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GGapRecorderUseBlockingCall = 0;
+static FAutoConsoleVariableRef CVarGapRecorderUseBlockingCall(
+	TEXT("D3D12.GapRecorderUseBlockingCall"),
+	GGapRecorderUseBlockingCall,
+	TEXT("Controls whether D3D12 gap recorder (cpu bubbles) uses a blocking call or not."),
+	ECVF_RenderThreadSafe
+);
+#endif
+
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 // Enabled in debug and development mode while sorting out D3D12 stability issues
@@ -130,6 +149,10 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	, DefaultContextRedirector(this, true, false)
 	, DefaultAsyncComputeContextRedirector(this, false, true)
 	, GPUProfilingData(this)
+	, FrameCounter(0)
+#if D3D12_SUBMISSION_GAP_RECORDER
+	, CurrentContextIndex(0)
+#endif
 	, DebugFlags(0)
 {
 	FMemory::Memzero(&UploadHeapAllocator, sizeof(UploadHeapAllocator));
@@ -934,7 +957,71 @@ void FD3D12Adapter::Cleanup()
 
 	FenceCorePool.Destroy();
 }
+#if D3D12_SUBMISSION_GAP_RECORDER
+void FD3D12Adapter::SubmitGapRecorderTimestamps()
+{
+	FD3D12Device* Device = GetDevice(0);
 
+	if (GEnableGapRecorder && GGapRecorderActiveOnBeginFrame)
+	{
+		FrameCounter++;
+		int32 PreviousContext = 1 - CurrentContextIndex;
+		uint64 TotalSubmitWaitGPUCycles = 0;
+
+		int32 CurrentSlotIdx = Device->GetCmdListExecTimeQueryHeap()->GetNextFreeIdx();
+		SubmissionGapRecorder.SetEndFrameSlotIdx(CurrentSlotIdx);
+
+		TArray<FD3D12CommandListManager::FResolvedCmdListExecTime> TimingPairs;
+		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs, GGapRecorderUseBlockingCall);
+
+		StartOfSubmissionTimestamp[CurrentContextIndex].Empty();
+		EndOfSubmissionTimestamp[CurrentContextIndex].Empty();
+
+		// Convert Timing Pairs to flat arrays would be good to refactor data structures to make this unnecessary
+		for (int32 i = 0; i < TimingPairs.Num(); i++)
+		{
+			StartOfSubmissionTimestamp[CurrentContextIndex].Add(TimingPairs[i].StartTimestamp);
+			EndOfSubmissionTimestamp[CurrentContextIndex].Add(TimingPairs[i].EndTimestamp);
+		}
+
+		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("EndFrame TimingPairs %d StartOfSubmissionTimestamp %d EndOfSubmissionTimestamp %d"), TimingPairs.Num(), StartOfSubmissionTimestamp[CurrentContextIndex].Num(), EndOfSubmissionTimestamp[CurrentContextIndex].Num());
+
+		// Process the timestamp submission gaps for the previous frame
+		if (StartOfSubmissionTimestamp[PreviousContext].Num() > 0 && EndOfSubmissionTimestamp[PreviousContext].Num() > 0)
+		{
+			TotalSubmitWaitGPUCycles = SubmissionGapRecorder.SubmitSubmissionTimestampsForFrame(FrameCounter, StartOfSubmissionTimestamp[PreviousContext], EndOfSubmissionTimestamp[PreviousContext]);
+		}
+
+		double TotalSubmitWaitTimeSeconds = TotalSubmitWaitGPUCycles / (float)FGPUTiming::GetTimingFrequency();
+		uint32 TotalSubmitWaitCycles = FPlatformMath::TruncToInt(TotalSubmitWaitTimeSeconds / FPlatformTime::GetSecondsPerCycle());
+
+		UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("EndFrame TimingFrequency %lu TotalSubmitWaitTimeSeconds %f TotalSubmitWaitGPUCycles %lu TotalSubmitWaitCycles %u SecondsPerCycle %f"),
+			FGPUTiming::GetTimingFrequency(),
+			TotalSubmitWaitTimeSeconds,
+			TotalSubmitWaitGPUCycles,
+			TotalSubmitWaitCycles,
+			FPlatformTime::GetSecondsPerCycle());
+
+		if (GGPUFrameTime > 0)
+		{
+			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("EndFrame Adjusting GGPUFrameTime by TotalSubmitWaitCycles %u"), TotalSubmitWaitCycles);
+			GGPUFrameTime -= TotalSubmitWaitCycles;
+		}
+
+		StartOfSubmissionTimestamp[PreviousContext].Reset();
+		EndOfSubmissionTimestamp[PreviousContext].Reset();
+
+		CurrentContextIndex = 1 - CurrentContextIndex;
+
+		GGapRecorderActiveOnBeginFrame = false;
+	}
+	else
+	{
+		GGapRecorderActiveOnBeginFrame = false;
+		Device->GetCommandListManager().SetShouldTrackCmdListTime(false);
+	}
+}
+#endif
 void FD3D12Adapter::EndFrame()
 {
 	for (uint32 GPUIndex : FRHIGPUMask::All())
@@ -942,6 +1029,10 @@ void FD3D12Adapter::EndFrame()
 		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations();
 	}
 	GetDeferredDeletionQueue().ReleaseResources(false, false);
+
+#if D3D12_SUBMISSION_GAP_RECORDER
+	SubmitGapRecorderTimestamps();
+#endif
 }
 
 #if WITH_MGPU
