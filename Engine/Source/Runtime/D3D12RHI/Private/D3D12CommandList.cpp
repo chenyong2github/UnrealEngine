@@ -53,9 +53,10 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	, LastCompleteGeneration(0)
 	, IsClosed(false)
 	, bShouldTrackStartEndTime(false)
+	, FrameSubmitted(0)
 	, PendingResourceBarriers()
 	, ResidencySet(nullptr)
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	, StartTimeQueryIdx(INDEX_NONE)
 #endif
 {
@@ -186,7 +187,7 @@ int32 FD3D12CommandListHandle::FD3D12CommandListData::CreateAndInsertTimestampQu
 
 void FD3D12CommandListHandle::FD3D12CommandListData::StartTrackingCommandListTime()
 {
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	check(!IsClosed && !bShouldTrackStartEndTime && StartTimeQueryIdx == INDEX_NONE);
 	bShouldTrackStartEndTime = true;
 	StartTimeQueryIdx = CreateAndInsertTimestampQuery();
@@ -195,7 +196,7 @@ void FD3D12CommandListHandle::FD3D12CommandListData::StartTrackingCommandListTim
 
 void FD3D12CommandListHandle::FD3D12CommandListData::FinishTrackingCommandListTime()
 {
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	check(!IsClosed && bShouldTrackStartEndTime && StartTimeQueryIdx != INDEX_NONE);
 	bShouldTrackStartEndTime = false;
 	const int32 EndTimeQueryIdx = CreateAndInsertTimestampQuery();

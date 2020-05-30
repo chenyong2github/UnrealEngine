@@ -295,6 +295,14 @@ public:
 
 	void GetLocalVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO* LocalVideoMemoryInfo);
 
+	FORCEINLINE uint32 GetFrameCount() const { return FrameCounter; }
+
+#if D3D12_SUBMISSION_GAP_RECORDER
+	FD3D12SubmissionGapRecorder SubmissionGapRecorder;
+
+	void SubmitGapRecorderTimestamps();
+#endif
+
 protected:
 
 	virtual void CreateRootDevice(bool bWithDebug);
@@ -373,6 +381,14 @@ protected:
 	FD3D12CommandContextRedirector DefaultAsyncComputeContextRedirector;
 
 	FD3DGPUProfiler GPUProfilingData;
+	uint32 FrameCounter;
+
+#if D3D12_SUBMISSION_GAP_RECORDER
+	TArray<uint64> StartOfSubmissionTimestamp[2];
+	TArray<uint64> EndOfSubmissionTimestamp[2];
+
+	int32 CurrentContextIndex;
+#endif
 
 #if WITH_MGPU
 	TMap<FName, FD3D12TemporalEffect> TemporalEffectMap;

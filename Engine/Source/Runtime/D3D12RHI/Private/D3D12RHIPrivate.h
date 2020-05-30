@@ -34,6 +34,7 @@
 #include "ShaderCore.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogD3D12GapRecorder, Log, All);
 
 #include "D3D12RHI.h"
 #include "D3D12RHICommon.h"
