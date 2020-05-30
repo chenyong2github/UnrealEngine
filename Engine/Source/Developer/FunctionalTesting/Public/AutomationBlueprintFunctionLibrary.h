@@ -53,6 +53,17 @@ private:
 	TUniquePtr<FAutomationTaskStatusBase> Task;
 };
 
+USTRUCT(BlueprintType)
+struct FAutomationWaitForLoadingOptions
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(BlueprintReadWrite, Category = "Automation")
+	bool WaitForReplicationToSettle = false;
+};
+
 /**
  * 
  */
@@ -118,7 +129,7 @@ public:
 	static bool AreAutomatedTestsRunning();
 
 	UFUNCTION(BlueprintCallable, Category = "Automation", meta = (Latent, HidePin = "WorldContextObject", DefaultToSelf = "WorldContextObject", LatentInfo = "LatentInfo"))
-	static void AutomationWaitForLoading(UObject* WorldContextObject, FLatentActionInfo LatentInfo);
+	static void AutomationWaitForLoading(UObject* WorldContextObject, FLatentActionInfo LatentInfo, FAutomationWaitForLoadingOptions Options);
 
 	/**
 	* take high res screenshot in editor.
