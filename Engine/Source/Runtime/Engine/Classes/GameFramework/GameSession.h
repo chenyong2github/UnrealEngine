@@ -53,7 +53,7 @@ class ENGINE_API AGameSession : public AInfo
 	FName SessionName;
 
 	/** Initialize options based on passed in options string */
-	virtual void InitOptions( const FString& Options );
+	virtual void InitOptions(const FString& Options);
 
 	/** @return A new unique player ID */
 	int32 GetNextPlayerID();
