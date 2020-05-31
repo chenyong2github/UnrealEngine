@@ -2123,8 +2123,10 @@ namespace PerfSummaries
         {
         }
 
-		public SummaryMetadataTable CollateSortedTable(List<string> collateByList)
+		public SummaryMetadataTable CollateSortedTable(List<string> collateByList, bool addMinMaxColumns)
 		{
+			int numSubColumns=addMinMaxColumns ? 3 : 1;
+
 			List<SummaryMetadataColumn> newColumns = new List<SummaryMetadataColumn>();
 			List<string> finalSortByList = new List<string>();
 			foreach (string collateBy in collateByList)
@@ -2154,8 +2156,11 @@ namespace PerfSummaries
 				{
 					srcToDestBaseColumnIndex.Add( newColumns.Count );
 					newColumns.Add(new SummaryMetadataColumn("Avg " + column.name, true));
-					newColumns.Add(new SummaryMetadataColumn("Min " + column.name, true));
-					newColumns.Add(new SummaryMetadataColumn("Max " + column.name, true));
+					if (addMinMaxColumns)
+					{
+						newColumns.Add(new SummaryMetadataColumn("Min " + column.name, true));
+						newColumns.Add(new SummaryMetadataColumn("Max " + column.name, true));
+					}
 				}
 				else
 				{
@@ -2190,8 +2195,11 @@ namespace PerfSummaries
 					RowColourThresholds.Clear();
 					for (int j = 0; j < columns.Count; j++)
 					{
-						RowMaxValues.Add(-float.MaxValue);
-						RowMinValues.Add(float.MaxValue);
+						if (addMinMaxColumns)
+						{
+							RowMaxValues.Add(-float.MaxValue);
+							RowMinValues.Add(float.MaxValue);
+						}
 						RowTotals.Add(0.0f);
 						RowCounts.Add(0);
 						RowColourThresholds.Add(null);
@@ -2209,8 +2217,11 @@ namespace PerfSummaries
 						float value = column.GetValue(i);
 						if (value != float.MaxValue)
 						{
-							RowMaxValues[j] = Math.Max(RowMaxValues[j], value);
-							RowMinValues[j] = Math.Min(RowMinValues[j], value);
+							if (addMinMaxColumns)
+							{
+								RowMaxValues[j] = Math.Max(RowMaxValues[j], value);
+								RowMinValues[j] = Math.Min(RowMinValues[j], value);
+							}
 							RowTotals[j] += value;
 							RowColourThresholds[j] = column.GetColourThresholds(i);
 							RowCounts[j]++;
@@ -2245,12 +2256,15 @@ namespace PerfSummaries
 						if (destColumnBaseIndex != -1 && RowCounts[j]>0)
 						{
 							newColumns[destColumnBaseIndex].SetValue(destRowIndex, RowTotals[j] / (float)RowCounts[j]);
-							newColumns[destColumnBaseIndex+1].SetValue(destRowIndex, RowMinValues[j]);
-							newColumns[destColumnBaseIndex+2].SetValue(destRowIndex, RowMaxValues[j]);
+							if (addMinMaxColumns)
+							{
+								newColumns[destColumnBaseIndex + 1].SetValue(destRowIndex, RowMinValues[j]);
+								newColumns[destColumnBaseIndex + 2].SetValue(destRowIndex, RowMaxValues[j]);
+							}
 
 							// Set colour thresholds based on the source column
 							ColourThresholdList Thresholds = RowColourThresholds[j];
-							for ( int k=0;k<3;k++)
+							for ( int k=0;k<numSubColumns;k++)
 							{
 								newColumns[destColumnBaseIndex+k].SetColourThresholds(destRowIndex, Thresholds);
 							}
@@ -2268,6 +2282,7 @@ namespace PerfSummaries
 			newTable.rowCount = destRowIndex;
 			newTable.firstStatColumnIndex = numericColumnStartIndex;
 			newTable.isCollated = true;
+			newTable.hasMinMaxColumns = hasMinMaxColumns;
 			return newTable;
 		}
 
@@ -2417,9 +2432,10 @@ namespace PerfSummaries
 			csvFile.Close();
 		}
 
-		public void WriteToHTML(string htmlFilename, string VersionString)
+		public void WriteToHTML(string htmlFilename, string VersionString, bool bSpreadsheetFriendlyStrings)
 		{
 			System.IO.StreamWriter htmlFile = new System.IO.StreamWriter(htmlFilename, false);
+			int statColSpan = hasMinMaxColumns ? 3 : 1;
 			htmlFile.WriteLine("<html><head><title>Performance summary</title></head><body><font face='verdana'>");
 			int cellPadding = 2;
 			if (isCollated)
@@ -2443,9 +2459,9 @@ namespace PerfSummaries
 					string prefix = "";
 					string suffix = "";
 					string statName = GetStatNameWithPrefixAndSuffix(columns[i].GetDisplayName(), out prefix, out suffix);
-					if ((i - 1) % 3 == 0)
+					if ((i - 1) % statColSpan == 0)
 					{
-						TopHeaderRow += "<td bgcolor='#ffffff' colspan='3' ><center><b>" + statName + suffix + "</center></b></td>";
+						TopHeaderRow += "<td bgcolor='#ffffff' colspan='"+statColSpan+"' ><center><b>" + statName + suffix + "</center></b></td>";
 					}
 					HeaderRow += "<td bgcolor='#ffffff'><center><b>" + prefix.Trim() + "</b></center></td>";
 				}
@@ -2484,7 +2500,12 @@ namespace PerfSummaries
 						colour = stripeColors[i % 2];
 					}
 					bool bold = false;// column.name.StartsWith("Avg ");
-					string columnString = "<td "+ toolTipString + "bgcolor=" + colour + ">" + (bold ? "<b>" : "") + column.GetStringValue(i, true) + (bold ? "</b>" : "") + "</td>";
+					string stringValue = column.GetStringValue(i, true);
+					if (bSpreadsheetFriendlyStrings && !column.isNumeric)
+					{
+						stringValue = "'" + stringValue;
+					}
+					string columnString = "<td "+ toolTipString + "bgcolor=" + colour + ">" + (bold ? "<b>" : "") + stringValue + (bold ? "</b>" : "") + "</td>";
 					htmlFile.Write(columnString);
 				}
 				htmlFile.WriteLine("</tr>");
@@ -2603,6 +2624,7 @@ namespace PerfSummaries
 		int rowCount = 0;
 		int firstStatColumnIndex = 0;
 		bool isCollated = false;
+		bool hasMinMaxColumns = false;
     };
 
 }
