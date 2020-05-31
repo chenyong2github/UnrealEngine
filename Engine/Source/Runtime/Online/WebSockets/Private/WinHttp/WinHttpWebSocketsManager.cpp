@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_WEBSOCKETS && WITH_WINHTTP
+#if WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS
 
 #include "WinHttp/WinHttpWebSocketsManager.h"
 #include "WinHttp/WinHttpWebSocket.h"
@@ -60,4 +60,4 @@ bool FWinHttpWebSocketsManager::GameThreadTick(float /*DeltaTime*/)
 	return true;
 }
 
-#endif // WITH_WEBSOCKETS && WITH_WINHTTP
+#endif // WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS

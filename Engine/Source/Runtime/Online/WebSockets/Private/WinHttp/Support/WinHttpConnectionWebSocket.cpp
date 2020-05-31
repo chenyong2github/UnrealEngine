@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_WEBSOCKETS && WITH_WINHTTP
+#if WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS
 
 #include "WinHttp/Support/WinHttpConnectionWebSocket.h"
 #include "WinHttp/Support/WinHttpSession.h"
@@ -791,4 +791,4 @@ void FWinHttpConnectionWebSocket::HandleWebSocketStatusCallback(HINTERNET Resour
 
 #include "Windows/HideWindowsPlatformTypes.h"
 
-#endif // WITH_WEBSOCKETS && WITH_WINHTTP
+#endif // WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS
