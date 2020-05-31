@@ -2,7 +2,7 @@
 
 #pragma once
 
-#if WITH_WEBSOCKETS && WITH_WINHTTP
+#if WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS
 
 #include "CoreMinimal.h"
 
@@ -56,4 +56,4 @@ public:
 	FString Reason;
 };
 
-#endif // WITH_WEBSOCKETS && WITH_WINHTTP
+#endif // WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS

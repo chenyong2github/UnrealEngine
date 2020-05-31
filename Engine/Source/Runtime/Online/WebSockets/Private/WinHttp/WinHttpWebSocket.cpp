@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_WEBSOCKETS && WITH_WINHTTP
+#if WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS
 
 #include "WinHttp/WinHttpWebSocket.h"
 #include "WinHttp/Support/WinHttpConnectionWebSocket.h"
@@ -363,5 +363,4 @@ void FWinHttpWebSocket::HandleWebSocketClosed(uint16 Code, const FString& Reason
 	HandleCloseComplete(NewState, Code, Reason);
 }
 
-
-#endif // WITH_WEBSOCKETS && WITH_WINHTTP
+#endif // WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS
