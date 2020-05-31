@@ -145,7 +145,7 @@ namespace RuntimeVirtualTexture
 		URuntimeVirtualTexture* RuntimeVirtualTexture = InComponent->GetVirtualTexture();
 		FSceneInterface* Scene = InComponent->GetScene();
 		const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(InComponent);
-		const FTransform Transform = InComponent->GetVirtualTextureTransform();
+		const FTransform Transform = InComponent->GetComponentTransform();
 		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		FVTProducerDescription VTDesc;
