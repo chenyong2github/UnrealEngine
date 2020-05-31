@@ -23,7 +23,8 @@ public class WebSockets : ModuleRules
 	{
 		get
 		{
-			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows);
+			// Availability requires Windows 8.1 or greater, as this is the min version of WinHttp that supports WebSockets
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.TargetWindowsVersion >= 0x0603;
 		}
 	}
 
@@ -56,6 +57,7 @@ public class WebSockets : ModuleRules
 
 		bool bWithWebSockets = false;
 		bool bWithLibWebSockets = false;
+		bool bWithWinHttpWebSockets = false;
 
 		if (ShouldUseModule)
 		{
@@ -84,6 +86,9 @@ public class WebSockets : ModuleRules
 			}
 			if (bPlatformSupportsWinHttpWebSockets)
 			{
+				// Enable WinHttp Support
+				bWithWinHttpWebSockets = true;
+
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "WinHttp");
 
 				// We need to access the WinHttp folder in HTTP
@@ -93,14 +98,11 @@ public class WebSockets : ModuleRules
 					}
 				);
 			}
-			else
-			{
-				PublicDefinitions.Add("WITH_WINHTTP=0");
-			}
 		}
 
 		PublicDefinitions.Add("WEBSOCKETS_PACKAGE=1");
 		PublicDefinitions.Add("WITH_WEBSOCKETS=" + (bWithWebSockets ? "1" : "0"));
 		PublicDefinitions.Add("WITH_LIBWEBSOCKETS=" + (bWithLibWebSockets ? "1" : "0"));
+		PublicDefinitions.Add("WITH_WINHTTPWEBSOCKETS=" + (bWithWinHttpWebSockets ? "1" : "0"));
 	}
 }
