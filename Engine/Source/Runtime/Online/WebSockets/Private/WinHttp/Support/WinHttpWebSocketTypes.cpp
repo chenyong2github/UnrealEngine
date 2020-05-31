@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_WEBSOCKETS && WITH_WINHTTP
+#if WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS
 
 #include "WinHttp/Support/WinHttpWebSocketTypes.h"
 
@@ -41,4 +41,4 @@ FWebSocketCloseInfo::FWebSocketCloseInfo(uint16 InCode, const FString& InReason)
 {
 }
 
-#endif // WITH_WEBSOCKETS && WITH_WINHTTP
+#endif // WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS

@@ -10,7 +10,7 @@
 	#else
 		#include "Lws/LwsWebSocketsManager.h"
 	#endif //PLATFORM_SWITCH
-#elif WITH_WINHTTP
+#elif WITH_WINHTTPWEBSOCKETS
 	#include "WinHttp/WinHttpWebSocketsManager.h"
 #elif PLATFORM_XBOXONE && WITH_LEGACY_XDK
 	#include "XboxOneWebSocketsManager.h"
@@ -26,7 +26,7 @@
 	#else
 		typedef FLwsWebSocketsManager FPlatformWebSocketsManager;
 	#endif // !PLATFORM_SWITCH
-#elif WITH_WINHTTP
+#elif WITH_WINHTTPWEBSOCKETS
 	typedef FWinHttpWebSocketsManager FPlatformWebSocketsManager;
 #elif PLATFORM_XBOXONE && WITH_LEGACY_XDK
 	typedef FXboxOneWebSocketsManager FPlatformWebSocketsManager;
