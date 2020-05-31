@@ -1002,8 +1002,8 @@ namespace RuntimeVirtualTexture
 
 		const FVector UVCenter = FVector(UVRange.GetCenter(), 0.f);
 		const FVector CameraLookAt = UVToWorld.TransformPosition(UVCenter);
-		const float BoundBoxHalfZ = UVToWorld.GetScale3D().Z;
-		const FVector CameraPos = CameraLookAt + BoundBoxHalfZ * UVToWorld.GetUnitAxis(EAxis::Z);
+		const float BoundBoxZ = UVToWorld.GetScale3D().Z;
+		const FVector CameraPos = CameraLookAt + BoundBoxZ * UVToWorld.GetUnitAxis(EAxis::Z);
 		ViewInitOptions.ViewOrigin = CameraPos;
 
 		const float OrthoWidth = UVToWorld.GetScaledAxis(EAxis::X).Size() * UVRange.GetExtent().X;
@@ -1017,7 +1017,7 @@ namespace RuntimeVirtualTexture
 			FPlane(0, 0, 0, 1));
 
 		const float NearPlane = 0;
-		const float FarPlane = BoundBoxHalfZ * 2.f;
+		const float FarPlane = BoundBoxZ;
 		const float ZScale = 1.0f / (FarPlane - NearPlane);
 		const float ZOffset = -NearPlane;
 		ViewInitOptions.ProjectionMatrix = FReversedZOrthoMatrix(OrthoWidth, OrthoHeight, ZScale, ZOffset);
