@@ -59,7 +59,6 @@ void UBoundsCopyComponent::SetTransformToBounds()
 		BoundBox.GetCenterAndExtents(Origin, Extent);
 
 		Origin = LocalTransform.TransformPosition(Origin);
-		Extent *= BoundsScaleFactor; 
 
 		FVector OwnExtent = bKeepOwnBoundsScale ? GetOwner()->CalculateComponentsBoundingBoxInLocalSpace(bUseCollidingComponentsForOwnBounds).GetExtent() : FVector::OneVector;
 
@@ -78,6 +77,7 @@ void UBoundsCopyComponent::SetTransformToBounds()
 		}
 		FTransform Transform;
 		Transform.SetComponents(TargetRotation, Origin, NewScale);
+		Transform = PostTransform * Transform;
 
 		// Apply final result and notify the parent actor
 		GetOwner()->Modify();

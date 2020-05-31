@@ -24,7 +24,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		ProducerId = ProducerIdGenerator++;
 
 		VirtualTexture = InComponent->GetVirtualTexture();
-		Transform = InComponent->GetVirtualTextureTransform();
+		Transform = InComponent->GetComponentTransform();
 		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		// The producer description is calculated using the transform to determine the aspect ratio
