@@ -29,6 +29,7 @@ private:
 
 protected:
 	//~ Begin UObject Interface.
+	virtual void Serialize(FArchive& Ar);
 	virtual bool NeedsLoadForServer() const override { return false; }
 	//~ End UObject Interface.
 	//~ Begin AActor Interface.
