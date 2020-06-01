@@ -278,6 +278,30 @@ TSharedRef<SWidget> STraceSourceFilteringWidget::OnGetOptionsMenu()
 							NAME_None,
 							EUserInterfaceActionType::ToggleButton
 						);
+
+						InMenuBuilder.AddMenuEntry(
+							LOCTEXT("OutputFilteringStateLabel","Output (optimized) Filtering State"), 
+							LOCTEXT("OutputFilteringStateTooltip", "Whether or not to output the filtering state information, whenever it changes and the optimized data is rebuild."),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateLambda([this]()
+								{
+									FilteringSettings->bOutputOptimizedFilterState = !FilteringSettings->bOutputOptimizedFilterState;
+									SessionFilterService->UpdateFilterSettings(FilteringSettings);
+								}),
+								FCanExecuteAction::CreateLambda([this]()
+								{
+									return FilteringSettings != nullptr;
+								}),
+								FGetActionCheckState::CreateLambda([this]()
+								{
+									return FilteringSettings->bOutputOptimizedFilterState ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+								})
+							),
+							NAME_None,
+							EUserInterfaceActionType::ToggleButton
+						);
+					
 					}
 				),
 				false,

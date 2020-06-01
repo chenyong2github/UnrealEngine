@@ -38,6 +38,11 @@ public:
 	/** Whether or not to draw the failed UDataSourceFilter's description for AActor's that did not pass the filtering */
 	UPROPERTY(Config)
 	bool bDrawFilterDescriptionForRejectedActors;
+
+	/** Whether or not to, whenever it changes, output the optimized filter setup state to the log */
+	UPROPERTY(Config)
+	bool bOutputOptimizedFilterState;
+
 protected:
 	/** Delegate called whenever the contained properties change (see PostEditChangeProperty) */
 	FSimpleMulticastDelegate OnSourceFilteringSettingsChanged;

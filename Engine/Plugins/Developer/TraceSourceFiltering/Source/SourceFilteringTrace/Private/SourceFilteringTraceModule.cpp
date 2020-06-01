@@ -71,13 +71,12 @@ void FSourceFilteringTraceModule::HandleNewFilterBlueprintCreated(UBlueprint* In
 
 void FSourceFilteringTraceModule::StartupModule()
 {
+#if SOURCE_FILTER_TRACE_ENABLED
 	FTraceWorldFiltering::Initialize();
 	FTraceSourceFiltering::Initialize();
 
-#if SOURCE_FILTER_TRACE_ENABLED
 	// Forcefully enable the source trace channel
 	Trace::FChannel::Toggle(&TraceSourceFiltersChannel, true);
-#endif // SOURCE_FILTER_TRACE_ENABLED
 
 #if WITH_EDITOR
 	// Add callback to trace out Filter Classes once the Asset Registry has finished loading 
@@ -89,14 +88,19 @@ void FSourceFilteringTraceModule::StartupModule()
 #endif // WITH_EDITOR	
 
 	TraceFilterClasses();
+
+#endif // SOURCE_FILTER_TRACE_ENABLED
 }
 
 void FSourceFilteringTraceModule::ShutdownModule()
 {
+#if SOURCE_FILTER_TRACE_ENABLED
+
 #if WITH_EDITOR
 	FKismetEditorUtilities::UnregisterAutoBlueprintNodeCreation(this);
 #endif // WITH_EDITOR
 	FTraceWorldFiltering::Destroy();
+#endif // SOURCE_FILTER_TRACE_ENABLED
 }
 
 
