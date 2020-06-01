@@ -218,4 +218,6 @@ private:
 
 	/** Typical resets must be deferred until the tick as the RT could still be using the current buffer. */
 	uint32 bResetPending : 1;
+	/** Allows event spawn to be combined into a single spawn.  This is only safe when not using things like ExecIndex(). */
+	uint32 bCombineEventSpawn : 1;
 };
