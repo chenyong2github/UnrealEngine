@@ -536,6 +536,12 @@ protected:
 	/** Called to redo the last undone action */
 	void RedoGraphAction();
 
+	/** On starting to rename node */
+	void OnRenameNode();
+
+	/** Check if node can be renamed */
+	bool CanRenameNodes() const;
+
 	void OnAlignTop();
 	void OnAlignMiddle();
 	void OnAlignBottom();

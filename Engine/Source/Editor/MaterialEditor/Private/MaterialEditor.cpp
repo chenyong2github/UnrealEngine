@@ -1278,6 +1278,8 @@ void FMaterialEditor::AddInheritanceMenuEntry(FToolMenuSection& Section, const F
 	FSlateIcon OpenIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor");
 	FSlateIcon FindInContentBrowserIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser");
 
+	const float MenuIconSize = FCoreStyle::Get().GetFloat("Menu.MenuIconSize", nullptr, 16.f);
+
 	TSharedRef<SWidget> EntryWidget =
 		SNew(SHorizontalBox)
 		.ToolTipText(LOCTEXT("OpenInEditor", "Open In Editor"))
@@ -1287,14 +1289,14 @@ void FMaterialEditor::AddInheritanceMenuEntry(FToolMenuSection& Section, const F
 		.Padding(FMargin(2, 0, 2, 0))
 		[
 			SNew( SBox )
-			.WidthOverride( MultiBoxConstants::MenuIconSize + 2 )
-			.HeightOverride( MultiBoxConstants::MenuIconSize )
+			.WidthOverride(MenuIconSize + 2 )
+			.HeightOverride(MenuIconSize)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			[
 				SNew( SBox )
-				.WidthOverride( MultiBoxConstants::MenuIconSize )
-				.HeightOverride( MultiBoxConstants::MenuIconSize )
+				.WidthOverride(MenuIconSize)
+				.HeightOverride(MenuIconSize)
 				[
 					SNew(SImage)
 					.Image(OpenIcon.GetIcon())
@@ -1322,14 +1324,14 @@ void FMaterialEditor::AddInheritanceMenuEntry(FToolMenuSection& Section, const F
 			.OnClicked_Lambda([FindInContentBrowserAction]() { FindInContentBrowserAction.ExecuteIfBound(); return FReply::Handled(); })
 			[
 				SNew( SBox )
-				.WidthOverride( MultiBoxConstants::MenuIconSize + 2 )
-				.HeightOverride( MultiBoxConstants::MenuIconSize )
+				.WidthOverride(MenuIconSize + 2 )
+				.HeightOverride(MenuIconSize)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[
 					SNew( SBox )
-					.WidthOverride( MultiBoxConstants::MenuIconSize )
-					.HeightOverride( MultiBoxConstants::MenuIconSize )
+					.WidthOverride(MenuIconSize)
+					.HeightOverride(MenuIconSize)
 					[
 						SNew(SImage)
 						.Image(FindInContentBrowserIcon.GetIcon())
@@ -4946,6 +4948,10 @@ TSharedRef<SGraphEditor> FMaterialEditor::CreateGraphEditorWidget()
 			FExecuteAction::CreateSP( this, &FMaterialEditor::DuplicateNodes ),
 			FCanExecuteAction::CreateSP( this, &FMaterialEditor::CanDuplicateNodes )
 			);
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Rename,
+			FExecuteAction::CreateSP(this, &FMaterialEditor::OnRenameNode),
+			FCanExecuteAction::CreateSP(this, &FMaterialEditor::CanRenameNodes)
+		);
 
 		// Graph Editor Commands
 		GraphEditorCommands->MapAction( FGraphEditorCommands::Get().CreateComment,
@@ -5392,6 +5398,35 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
 		}
 	}
+}
+
+void FMaterialEditor::OnRenameNode()
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		UEdGraphNode* SelectedNode = Cast<UEdGraphNode>(*NodeIt);
+		if (SelectedNode != nullptr && SelectedNode->GetCanRenameNode())
+		{
+			bool ToRename = true;
+			GraphEditor->IsNodeTitleVisible(SelectedNode, ToRename);
+			break;
+		}
+	}
+}
+
+bool FMaterialEditor::CanRenameNodes() const
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
+	{
+		UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
+		if ((Node != nullptr) && Node->GetCanRenameNode())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void FMaterialEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
