@@ -11,7 +11,8 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
 
-#if !IS_PROGRAM && !UE_BUILD_SHIPPING
+
+#if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define TRACE_FILTERING_ENABLED 1
 #else
 #define TRACE_FILTERING_ENABLED 0
@@ -48,7 +49,7 @@ struct ENGINE_API FTraceFilter
 		}
 
 		template<typename T>
-		static typename TEnableIf<(!TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UActorComponent>::Value && !TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, AActor>::Value 
+		static typename TEnableIf<(!TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UActorComponent>::Value && !TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, AActor>::Value
 			&& !TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UWorld>::Value && TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UObject>::Value), bool>::Type FORCEINLINE CanTrace(const T* Object)
 		{
 			/** For an individual UObject, we expect it or the owning world to be marked traceable */
@@ -58,9 +59,11 @@ struct ENGINE_API FTraceFilter
 	};
 
 	/** Set whether or not an Object is Traceable, and eligible for outputting Trace Data */
+	template<bool bForceThreadSafe = true>
 	static void SetObjectIsTraceable(const UObject* InObject, bool bIsTraceable);
 
 	/** Mark an Object as Traceable, and eligible for outputting Trace Data */
+	template<bool bForceThreadSafe = true>
 	static void MarkObjectTraceable(const UObject* InObject);
 
 	/** Initializes any of the Filters which are part of the Engine */
@@ -68,9 +71,13 @@ struct ENGINE_API FTraceFilter
 
 	/** Destroys any of the Filters which are part of the Engine */
 	static void Destroy();
-protected:
+
 	/** Returns whether or not an object is eligible to be outputted (output trace data) */
+	template<bool bForceThreadSafe = true>
 	static bool IsObjectTraceable(const UObject* InObject);
+
+	static void Lock();
+	static void Unlock();
 };
 
 #define CAN_TRACE_OBJECT(Object) \
@@ -84,6 +91,9 @@ protected:
 
 #define SET_OBJECT_TRACEABLE(Object, bIsTraceable) \
 	FTraceFilter::SetObjectIsTraceable(Object, bIsTraceable)
+
+#define GET_TRACE_OBJECT_VALUE(Object) \
+	FTraceFilter::IsObjectTraceable(Object)
 #else
 
 #define CAN_TRACE_OBJECT(Object) \
@@ -94,5 +104,8 @@ protected:
 #define MARK_OBJECT_TRACEABLE(Object)
 
 #define SET_OBJECT_TRACEABLE(Object, bIsTraceable) 
+
+#define GET_TRACE_OBJECT_VALUE(Object) \
+	false
 
 #endif
