@@ -4,8 +4,14 @@
 #include "InteractiveToolManager.h"
 #include "Util/ColorConstants.h"
 #include "ToolSceneQueriesUtil.h"
+#include "ToolSetupUtil.h"
 
 #define LOCTEXT_NAMESPACE "UPolygonSelectionMechanic"
+
+UPolygonSelectionMechanic::~UPolygonSelectionMechanic()
+{
+	checkf(PreviewGeometryActor == nullptr, TEXT("Shutdown() should be called before UPolygonSelectionMechanic is destroyed."));
+}
 
 void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
@@ -24,18 +30,32 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	HilightRenderer.LineThickness = 4.0f;
 	SelectionRenderer.LineColor = LinearColors::Gold3f();
 	SelectionRenderer.LineThickness = 4.0f;
+
+	float HighlightedFaceDepthOffset = 2.0f;
+	HighlightedFaceMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::Green, ParentToolIn->GetToolManager(), HighlightedFaceDepthOffset);
+	// The rest of the highlighting setup has to be done in Initialize(), since we need the world to set up our drawing component.
 }
 
+void UPolygonSelectionMechanic::Shutdown()
+{
+	if (PreviewGeometryActor)
+	{
+		PreviewGeometryActor->Destroy();
+		PreviewGeometryActor = nullptr;
+	}
+}
 
-void UPolygonSelectionMechanic::Initialize(const FDynamicMesh3* MeshIn,
-	FTransform3d TargetTransformIn,
+void UPolygonSelectionMechanic::Initialize(
+	const FDynamicMesh3* MeshIn,
+	FTransform TargetTransformIn,
+	UWorld* WorldIn,
 	const FGroupTopology* TopologyIn,
 	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn,
 	TFunction<bool(void)> GetAddToSelectionModifierStateFuncIn)
 {
 	this->Mesh = MeshIn;
 	this->Topology = TopologyIn;
-	this->TargetTransform = TargetTransformIn;
+	this->TargetTransform = FTransform3d(TargetTransformIn);
 
 	TopoSelector.Initialize(Mesh, Topology);
 	this->GetSpatialFunc = GetSpatialSourceFuncIn;
@@ -62,15 +82,36 @@ void UPolygonSelectionMechanic::Initialize(const FDynamicMesh3* MeshIn,
 	};
 
 	GetAddToSelectionModifierStateFunc = GetAddToSelectionModifierStateFuncIn;
+
+	// Set up the component we use to draw highlighted triangles. Only needs to be done once, not when the mesh
+	// changes (we are assuming that we won't swap worlds without creating a new mechanic).
+	if (PreviewGeometryActor == nullptr)
+	{
+		FRotator Rotation(0.0f, 0.0f, 0.0f);
+		FActorSpawnParameters SpawnInfo;;
+		PreviewGeometryActor = WorldIn->SpawnActor<APreviewGeometryActor>(FVector::ZeroVector, Rotation, SpawnInfo);
+
+		DrawnTriangleSetComponent = NewObject<UTriangleSetComponent>(PreviewGeometryActor);
+		PreviewGeometryActor->SetRootComponent(DrawnTriangleSetComponent);
+		DrawnTriangleSetComponent->RegisterComponent();
+	}
+
+	PreviewGeometryActor->SetActorTransform(TargetTransformIn);
+
+	DrawnTriangleSetComponent->Clear();
+	CurrentlyHighlightedGroups.Empty();
 }
 
-void UPolygonSelectionMechanic::Initialize(const USimpleDynamicMeshComponent* MeshComponentIn,
+void UPolygonSelectionMechanic::Initialize(
+	USimpleDynamicMeshComponent* MeshComponentIn,
 	const FGroupTopology* TopologyIn,
 	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn,
 	TFunction<bool()> GetAddToSelectionModifierStateFuncIn)
 {
+
 	Initialize(MeshComponentIn->GetMesh(),
-		FTransform3d(MeshComponentIn->GetComponentTransform()),
+		MeshComponentIn->GetComponentTransform(),
+		MeshComponentIn->GetWorld(),
 		TopologyIn,
 		GetSpatialSourceFuncIn,
 		GetAddToSelectionModifierStateFuncIn);
@@ -121,7 +162,11 @@ void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UPolygonSelectionMechanic::ClearHighlight()
 {
+	checkf(DrawnTriangleSetComponent != nullptr, TEXT("Initialize() not called on UPolygonSelectionMechanic."));
+
 	HilightSelection.Clear();
+	DrawnTriangleSetComponent->Clear();
+	CurrentlyHighlightedGroups.Empty();
 }
 
 
@@ -226,6 +271,8 @@ void UPolygonSelectionMechanic::UpdateTopoSelector(bool bUseOrthoSettings)
 
 bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 {
+	checkf(DrawnTriangleSetComponent != nullptr, TEXT("Initialize() not called on UPolygonSelectionMechanic."));
+
 	FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
 		TargetTransform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
@@ -234,6 +281,69 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 	UpdateTopoSelector(CameraState.bIsOrthographic);
 	FVector3d LocalPosition, LocalNormal;
 	bool bHit = TopoSelector.FindSelectedElement(LocalRay, HilightSelection, LocalPosition, LocalNormal);
+
+	// Currently we draw highlighted edges/vertices differently from highlighted faces. Edges/vertices
+	// get drawn in the Render() call, so it is sufficient to just update HighlightSelection above.
+	// Faces, meanwhile, get placed into a Component that is rendered through the normal rendering system.
+	// So, we need to update the component when the highlighted selection changes.
+
+	// Put hovered groups in a set to easily compare to current
+	TSet<int> NewlyHighlightedGroups;
+	NewlyHighlightedGroups.Append(HilightSelection.SelectedGroupIDs);
+
+	// See if we're currently highlighting any groups that we're not supposed to
+	if (!NewlyHighlightedGroups.Includes(CurrentlyHighlightedGroups))
+	{
+		DrawnTriangleSetComponent->Clear();
+		CurrentlyHighlightedGroups.Empty();
+	}
+
+	// See if we need to add any groups
+	if (!CurrentlyHighlightedGroups.Includes(NewlyHighlightedGroups))
+	{
+		// We'll need to add new triangles. For their normals, we may need to use the normal overlay.
+		const FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
+		if (Mesh->HasAttributes() && Mesh->Attributes()->NumNormalLayers() > 0)
+		{
+			NormalOverlay = Mesh->Attributes()->GetNormalLayer(0);
+		}
+
+		// Add triangles for each new group
+		for (int Gid : HilightSelection.SelectedGroupIDs)
+		{
+			if (!CurrentlyHighlightedGroups.Contains(Gid))
+			{
+				for (int32 Tid : Topology->GetGroupTriangles(Gid))
+				{
+					FIndex3i VertIndices = Mesh->GetTriangle(Tid);
+
+					FVector3f NormalA;
+					FVector3f NormalB;
+					FVector3f NormalC;
+
+					if (NormalOverlay)
+					{
+						NormalOverlay->GetTriElements(Tid, NormalA, NormalB, NormalC);
+					}
+					else
+					{
+						NormalA = Mesh->GetVertexNormal(VertIndices.A);
+						NormalB = Mesh->GetVertexNormal(VertIndices.B);
+						NormalC = Mesh->GetVertexNormal(VertIndices.C);
+					}
+					// If the mesh had neither a normal overlay or vertex normals, then results are undefined.
+
+					DrawnTriangleSetComponent->AddTriangle(FRenderableTriangle(HighlightedFaceMaterial,
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)NormalA, (FColor)Mesh->GetVertexColor(VertIndices.A)),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)NormalB, (FColor)Mesh->GetVertexColor(VertIndices.B)),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)NormalC, (FColor)Mesh->GetVertexColor(VertIndices.C))));
+				}
+
+				CurrentlyHighlightedGroups.Add(Gid);
+			}
+		}//end iterating through groups
+	}//end if groups need to be added
+
 	return bHit;
 }
 

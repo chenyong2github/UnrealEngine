@@ -229,6 +229,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	SetUVProperties->SaveProperties(this);
 
 	MultiTransformer->Shutdown();
+	SelectionMechanic->Shutdown();
 	if (EditPreview != nullptr)
 	{
 		EditPreview->Disconnect();

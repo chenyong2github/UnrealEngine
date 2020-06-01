@@ -651,6 +651,8 @@ public:
 			default:
 				ViewCameraState.Orientation = FQuat::Identity;
 			}
+
+			ViewCameraState.OrthoWorldCoordinateWidth = ViewportClient->GetOrthoUnitsPerPixel(ViewportClient->Viewport) * ViewportClient->Viewport->GetSizeXY().X;
 		}
 
 		ViewCameraState.bIsVR = false;
