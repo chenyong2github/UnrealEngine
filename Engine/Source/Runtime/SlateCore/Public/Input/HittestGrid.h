@@ -74,7 +74,12 @@ public:
 	 */
 	TSharedPtr<SWidget> FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget, int32 UserIndex);
 
+	/** Append an already existing grid that occupy the same space. */
+	UE_DEPRECATED(4.26, "Deprecated. Use the FHittestGrid::AppendGrid method that takes a non-optional SlateRect and Owner parameter instead")
 	void AppendGrid(FHittestGrid& OtherGrid);
+
+	/** Append an already existing grid that occupy the same space. */
+	void AppendGrid(FHittestGrid& OtherGrid, const TSharedPtr<SWidget>& Owner);
 
 	FVector2D GetGridSize() const { return GridSize; }
 	FVector2D GetGridOrigin() const { return GridOrigin; }
@@ -93,8 +98,9 @@ private:
 	 */
 	struct FWidgetData
 	{
-		FWidgetData(TSharedRef<SWidget> InWidget, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, int32 InSecondarySort, int32 InUserIndex)
+		FWidgetData(TSharedRef<SWidget> InWidget, TSharedPtr<SWidget> InOwner, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, int32 InSecondarySort, int32 InUserIndex)
 			: WeakWidget(InWidget)
+			, Owner(InOwner)
 			, UpperLeftCell(InUpperLeftCell)
 			, LowerRightCell(InLowerRightCell)
 			, PrimarySort(InPrimarySort)
@@ -102,6 +108,7 @@ private:
 			, UserIndex(InUserIndex)
 		{}
 		TWeakPtr<SWidget> WeakWidget;
+		TWeakPtr<SWidget> Owner;
 		TWeakPtr<ICustomHitTestPath> CustomPath;
 		FIntPoint UpperLeftCell;
 		FIntPoint LowerRightCell;
@@ -174,6 +181,9 @@ private:
 		checkfSlow((Y*NumCells.X + X) < Cells.Num(), TEXT("HitTestGrid CellAt() failed: X= %d Y= %d NumCells.X= %d NumCells.Y= %d Cells.Num()= %d"), X, Y, NumCells.X, NumCells.Y, Cells.Num());
 		return Cells[Y*NumCells.X + X];
 	}
+
+	/** Remove all widget appended by owner. */
+	void RemoveAppendedGrid(const TSharedRef<SWidget>& Owner);
 
 	/** Map of all the widgets currently in the hit test grid to their stable index. */
 	TMap<SWidget*, int32> WidgetMap;
