@@ -12,6 +12,7 @@ FPackageId FPackageId::FromName(const FName& Name)
 		NameStr[I] = TChar<TCHAR>::ToLower(NameStr[I]);
 	}
 	uint64 Hash = CityHash64(reinterpret_cast<const char*>(NameStr), NameLen * sizeof(TCHAR));
+	checkf(Hash != InvalidId, TEXT("Package name hash collision \"%s\" and InvalidId"), NameStr);
 	return FPackageId(Hash);
 }
 
