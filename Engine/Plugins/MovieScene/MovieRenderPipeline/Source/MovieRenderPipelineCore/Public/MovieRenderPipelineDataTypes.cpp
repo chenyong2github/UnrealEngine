@@ -5,16 +5,6 @@
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "MoviePipeline.h"
 
-FString FMoviePipelineShotInfo::GetDisplayName() const
-{
-	if (CinematicShotSection.Get())
-	{
-		return CinematicShotSection->GetShotDisplayName();
-	}
-
-	return TEXT("Unnamed");
-}
-
 FFrameNumber FMoviePipelineCameraCutInfo::GetOutputFrameCountEstimate() const
 {
 	// TotalRange is stored in Tick Resolution, so we convert 1 frame of Frame Rate to the number of ticks.

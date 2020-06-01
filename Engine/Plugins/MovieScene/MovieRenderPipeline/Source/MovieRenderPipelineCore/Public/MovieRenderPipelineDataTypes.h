@@ -386,10 +386,6 @@ public:
 	/** How many image tiles are going to be rendered per temporal frame. */
 	FIntPoint NumTiles;
 
-	/** Display name for UI Purposes. */
-	FString CameraName;
-	FString ShotName;
-
 	/** Cached Frame Rate these are being rendered at. Simplifies some APIs. */
 	FFrameRate CachedFrameRate;
 
@@ -431,76 +427,6 @@ public:
 	}
 
 	bool operator != (const FMoviePipelineCameraCutInfo& InRHS) const
-	{
-		return !(*this == InRHS);
-	}
-};
-
-/**
-* Pre-calculated information about a shot we are going to produce. This lets us build
-* the expected output at the start of the process and just read from it later. Having
-* all information in advanced aids in debugging and visualization of progress.
-*/
-USTRUCT(BlueprintType)
-struct FMoviePipelineShotInfo
-{
-	GENERATED_BODY()
-public:
-	FMoviePipelineShotInfo()
-		: ShotOverrideConfig(nullptr)
-		, CinematicShotSection(nullptr)
-		, CurrentCameraCutIndex(0)
-	{}
-
-	FString GetDisplayName() const;
-
-	
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "Movie Render Pipeline")
-	UMoviePipelineShotConfig* ShotOverrideConfig;
-
-	UPROPERTY(BlueprintReadOnly, Transient, Category = "Movie Render Pipeline")
-	TWeakObjectPtr<UMovieSceneCinematicShotSection> CinematicShotSection;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	TArray<FMoviePipelineCameraCutInfo> CameraCuts;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	int32 CurrentCameraCutIndex;
-
-	FMoviePipelineCameraCutInfo& GetCurrentCameraCut()
-	{
-		check(CurrentCameraCutIndex >= 0 && CurrentCameraCutIndex < CameraCuts.Num());
-		return CameraCuts[CurrentCameraCutIndex];
-	}
-
-	const FMoviePipelineCameraCutInfo& GetCurrentCameraCut() const
-	{
-		check(CurrentCameraCutIndex >= 0 && CurrentCameraCutIndex < CameraCuts.Num());
-		return CameraCuts[CurrentCameraCutIndex];
-	}
-
-	bool SetNextShotActive()
-	{
-		if (CurrentCameraCutIndex == CameraCuts.Num() - 1)
-		{
-			// We're on the last camera cut, we can't make another one active.
-			return true;
-		}
-		
-		CurrentCameraCutIndex++;
-		return false;
-	}
-
-	bool operator == (const FMoviePipelineShotInfo& InRHS) const
-	{ 
-		return
-			ShotOverrideConfig == InRHS.ShotOverrideConfig &&
-			CinematicShotSection == InRHS.CinematicShotSection &&
-			CameraCuts == InRHS.CameraCuts &&
-			CurrentCameraCutIndex == InRHS.CurrentCameraCutIndex;
-	}
-
-	bool operator != (const FMoviePipelineShotInfo& InRHS) const
 	{
 		return !(*this == InRHS);
 	}
@@ -964,41 +890,6 @@ public:
 	TMap<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>> ImageOutputData;
 };
 
-UENUM(BlueprintType)
-enum class EMoviePipelineExecutorJobStatus : uint8
-{
-	Uninitialized = 0,
-	ReadyToStart = 1,
-	InProgress = 2,
-	Finished = 3
-};
-
-USTRUCT(BlueprintType)
-struct FMoviePipelineJobShotInfo
-{
-	GENERATED_BODY()
-
-	FMoviePipelineJobShotInfo()
-		: bEnabled(true)
-		, Progress(0.f)
-		, Status(EMoviePipelineExecutorJobStatus::Uninitialized)
-	{
-	}
-
-	/** Should this shot be rendered? */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	bool bEnabled;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	float Progress;
-
-	/** Soft object path to the camera cut section this is for. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline", meta=(AllowedClasses="MovieSceneCameraCutSection"))
-	FSoftObjectPath SectionPath;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	EMoviePipelineExecutorJobStatus Status;
-};
 
 namespace MoviePipeline
 {
