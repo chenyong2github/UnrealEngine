@@ -540,10 +540,12 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 			// Be sure to carefully comment the reason for any additions here!  Someone should be able to look at it later and get an idea of whether it is still necessary.
 			TArray<D3D12_MESSAGE_ID, TInlineAllocator<16>> DenyIds = {
+#if PLATFORM_DESKTOP || PLATFORM_HOLOLENS
 				// OMSETRENDERTARGETS_INVALIDVIEW - d3d will complain if depth and color targets don't have the exact same dimensions, but actually
 				//	if the color target is smaller then things are ok.  So turn off this error.  There is a manual check in FD3D12DynamicRHI::SetRenderTarget
 				//	that tests for depth smaller than color and MSAA settings to match.
 				D3D12_MESSAGE_ID_OMSETRENDERTARGETS_INVALIDVIEW,
+#endif
 
 				// QUERY_BEGIN_ABANDONING_PREVIOUS_RESULTS - The RHI exposes the interface to make and issue queries and a separate interface to use that data.
 				//		Currently there is a situation where queries are issued and the results may be ignored on purpose.  Filtering out this message so it doesn't
