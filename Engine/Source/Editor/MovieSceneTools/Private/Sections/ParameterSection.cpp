@@ -11,6 +11,8 @@
 #include "CommonMovieSceneTools.h"
 #include "MovieSceneSectionHelpers.h"
 #include "IKeyArea.h"
+#include "EditorStyleSet.h"
+#include "Rendering/DrawElements.h"
 
 #define LOCTEXT_NAMESPACE "ParameterSection"
 
