@@ -47,7 +47,7 @@ void FTraceActorFilter::OnActorSpawned(AActor* Actor)
 	/** Mark traceable if UWorld is marked as such */
 	if (CAN_TRACE_OBJECT(Actor->GetWorld()))
 	{
-		FTraceFilter::MarkObjectTraceable(Actor);
+		MARK_OBJECT_TRACEABLE(Actor);
 	}
 }
 
@@ -76,7 +76,7 @@ void FTraceWorldFilter::OnWorldInit(UWorld* World, const UWorld::InitializationV
 			World->WorldType == EWorldType::Game ||
 			World->WorldType == EWorldType::PIE)
 	{
-		FTraceFilter::MarkObjectTraceable(World);
+		MARK_OBJECT_TRACEABLE(World);
 	}
 }
 
