@@ -179,12 +179,8 @@ void FGeometryParticleStateBase::SyncToParticle(TParticle& Particle) const
 
 bool SimWritablePropsMayChange(const TGeometryParticleHandle<FReal,3>& Handle)
 {
-	if(const auto Rigid = Handle.CastToRigidParticle())
-	{
-		return Rigid->ObjectState() == EObjectStateType::Dynamic;
-	}
-
-	return false;
+	const auto ObjectState = Handle.ObjectState();
+	return ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping;
 }
 
 void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty)
