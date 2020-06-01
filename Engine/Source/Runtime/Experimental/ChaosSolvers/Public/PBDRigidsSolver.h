@@ -91,12 +91,12 @@ namespace Chaos
 
 		friend class FPhysInterface_Chaos;
 		friend class FPhysScene_ChaosInterface;
-		friend class FPBDRigidActiveParticlesBuffer;
+		friend class FPBDRigidDirtyParticlesBuffer;
 
 		void* PhysSceneHack;	//This is a total hack for now to get at the owning scene
 
 		typedef TPBDRigidsSOAs<float, 3> FParticlesType;
-		typedef FPBDRigidActiveParticlesBuffer FActiveParticlesBuffer;
+		typedef FPBDRigidDirtyParticlesBuffer FDirtyParticlesBuffer;
 
 		typedef Chaos::TGeometryParticle<float, 3> FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
@@ -253,7 +253,7 @@ namespace Chaos
 		bool Enabled() const { if (bEnabled) return this->IsSimulating(); return false; }
 		void SetEnabled(bool bEnabledIn) { bEnabled = bEnabledIn; }
 		bool HasActiveParticles() const { return !!GetNumPhysicsProxies(); }
-		FActiveParticlesBuffer* GetActiveParticlesBuffer() const { return MActiveParticlesBuffer.Get(); }
+		FDirtyParticlesBuffer* GetDirtyParticlesBuffer() const { return MDirtyParticlesBuffer.Get(); }
 
 		/**/
 		void Reset();
@@ -388,7 +388,7 @@ namespace Chaos
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
 		void SyncQueryMaterials();
 
-		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles);
+		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles);
 		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
 
 	private:
@@ -447,7 +447,7 @@ namespace Chaos
 		TUniquePtr<FPBDRigidsEvolution> MEvolution;
 		TUniquePtr<TEventManager<Traits>> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
-		TUniquePtr<FActiveParticlesBuffer> MActiveParticlesBuffer;
+		TUniquePtr<FDirtyParticlesBuffer> MDirtyParticlesBuffer;
 		TMap<const Chaos::TGeometryParticleHandle<float, 3>*, TSet<IPhysicsProxyBase*> > MParticleToProxy;
 		TUniquePtr<FRewindData> MRewindData;
 
