@@ -42,7 +42,7 @@ void STraceSourceFilteringWidget::Construct(const FArguments& InArgs)
 	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
 
 	ConstructMenuBox();
-
+	
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -75,7 +75,7 @@ void STraceSourceFilteringWidget::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(ContentBox, SVerticalBox)
 				]	
-			]
+			]	
 		]
 	];
 
@@ -83,7 +83,7 @@ void STraceSourceFilteringWidget::Construct(const FArguments& InArgs)
 	AddExpandableArea(LOCTEXT("ClassFilterHeaderText", "Class Filters"), SAssignNew(ClassFilterWidget, SClassTraceFilteringWidget));
 	AddExpandableArea(LOCTEXT("WorldFilterHeaderText", "World Filters"), SAssignNew(WorldFilterWidget, SWorldTraceFilteringWidget));
 
-	TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &STraceSourceFilteringWidget::ShouldWidgetsBeEnabled));	
+	TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &STraceSourceFilteringWidget::ShouldWidgetsBeEnabled));
 	MenuBox->SetEnabled(EnabledAttribute);
 	ContentBox->SetEnabled(EnabledAttribute);
 }
@@ -132,7 +132,7 @@ void STraceSourceFilteringWidget::SetCurrentAnalysisSession(uint32 SessionHandle
 	if (SessionFilterService.IsValid())
 	{
 		SessionFilterService->GetOnSessionStateChanged().RemoveAll(this);
-	}
+}
 
 	SessionFilterService = FSourceFilterService::GetFilterServiceForSession(SessionHandle, AnalysisSession);
 
@@ -278,6 +278,30 @@ TSharedRef<SWidget> STraceSourceFilteringWidget::OnGetOptionsMenu()
 							NAME_None,
 							EUserInterfaceActionType::ToggleButton
 						);
+					
+						InMenuBuilder.AddMenuEntry(
+							LOCTEXT("OutputFilteringStateLabel","Output (optimized) Filtering State"), 
+							LOCTEXT("OutputFilteringStateTooltip", "Whether or not to output the filtering state information, whenever it changes and the optimized data is rebuild."),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateLambda([this]()
+								{
+									FilteringSettings->bOutputOptimizedFilterState = !FilteringSettings->bOutputOptimizedFilterState;
+									SessionFilterService->UpdateFilterSettings(FilteringSettings);
+								}),
+								FCanExecuteAction::CreateLambda([this]()
+								{
+									return FilteringSettings != nullptr;
+								}),
+								FGetActionCheckState::CreateLambda([this]()
+								{
+									return FilteringSettings->bOutputOptimizedFilterState ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+								})
+							),
+							NAME_None,
+							EUserInterfaceActionType::ToggleButton
+						);
+					
 					}
 				),
 				false,
@@ -287,7 +311,7 @@ TSharedRef<SWidget> STraceSourceFilteringWidget::OnGetOptionsMenu()
 		}
 		Builder.EndSection();
 	}
-
+	
 	const FName SectionName = TEXT("FilterOptionsMenu");
 	Builder.BeginSection(SectionName, LOCTEXT("FiltersSectionLabel", "Filters"));
 	{
