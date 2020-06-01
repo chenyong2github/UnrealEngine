@@ -580,17 +580,7 @@ namespace UnrealBuildTool
             bool bIncludeEngineVersionInPackageVersion;
             if (EngineIni.GetBool(IniSection_PlatformTargetSettings, "bIncludeEngineVersionInPackageVersion", out bIncludeEngineVersionInPackageVersion) && bIncludeEngineVersionInPackageVersion)
             {
-                BuildVersion BuildVersionForPackage;
-                if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out BuildVersionForPackage) && BuildVersionForPackage.Changelist != 0)
-                {
-                    // Break apart the version number into individual elements
-                    string[] SplitVersionString = VersionNumber.Split('.');
-                    VersionNumber = string.Format("{0}.{1}.{2}.{3}",
-                        SplitVersionString[0],
-                        SplitVersionString[1],
-                        BuildVersionForPackage.Changelist / 10000,
-                        BuildVersionForPackage.Changelist % 10000);
-                }
+				VersionNumber = IncludeBuildVersionInPackageVersion(VersionNumber);
             }
 
             IdentityName = PackageName;
@@ -601,7 +591,24 @@ namespace UnrealBuildTool
                 new XAttribute("Version", VersionNumber));
         }
 
-        protected abstract string GetSDKDirectory();
+		protected virtual string IncludeBuildVersionInPackageVersion(string VersionNumber)
+		{
+			BuildVersion BuildVersionForPackage;
+			if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out BuildVersionForPackage) && BuildVersionForPackage.Changelist != 0)
+			{
+				// Break apart the version number into individual elements
+				string[] SplitVersionString = VersionNumber.Split('.');
+				VersionNumber = string.Format("{0}.{1}.{2}.{3}",
+					SplitVersionString[0],
+					SplitVersionString[1],
+					BuildVersionForPackage.Changelist / 10000,
+					BuildVersionForPackage.Changelist % 10000);
+			}
+
+			return VersionNumber;
+		}
+
+		protected abstract string GetSDKDirectory();
 
 		protected abstract string GetMakePriBinaryPath();
 
