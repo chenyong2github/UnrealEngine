@@ -10,7 +10,9 @@
 
 #include "TraceSourceFilteringProjectSettings.h"
 #include "TraceSourceFiltering.h"
+#include "SourceFilterTrace.h"
 
+#if SOURCE_FILTER_TRACE_ENABLED
 static FAutoConsoleCommand GListAvailablePresetsCommand(
 	TEXT("Trace.ListPresets"),
 	TEXT("Lists all the available filtering presets"),
@@ -26,6 +28,7 @@ static FAutoConsoleCommand GLoadPresetCommand(
 	TEXT("String: path to UTraceFilterCollection object\n"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(&FSourceFilterPresets::LoadPresetCommand)
 );
+#endif // SOURCE_FILTER_TRACE_ENABLED
 
 DEFINE_LOG_CATEGORY_STATIC(SourceFilterPresets, Display, Display);
 
