@@ -15,7 +15,7 @@
  * higher level classes to implement.
  *
  * All public APIs in this class are threadsafe. Implemented via crappy critical sections for now, but they are safe. */
-class FAnalyticsProviderETEventCache
+class ANALYTICSET_API FAnalyticsProviderETEventCache
 {
 public:
 	FAnalyticsProviderETEventCache();
