@@ -1527,7 +1527,6 @@ struct FScriptObjectData
 	FPackageObjectIndex GlobalIndex;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex CDOClassIndex;
-	bool bInitialized = false;
 
 	friend FArchive& operator<<(FArchive& Ar, FScriptObjectData& Data)
 	{
@@ -1599,16 +1598,17 @@ struct FExportObjectData
 };
 
 using FImportObjectsByFullName = TMap<FString, FPackageObjectIndex>;
+using FImportObjectsById = TMap<FPackageObjectIndex, FPackageObjectIndex>;
 using FExportObjectsByFullName = TMap<FString, int32>;
 
-using FGlobalScriptObjects = TArray<FScriptObjectData>;
+using FGlobalScriptObjects = TMap<FPackageObjectIndex, FScriptObjectData>;
 using FGlobalExportObjects = TArray<FExportObjectData>;
 
 struct FGlobalPackageData
 {
 	FGlobalScriptObjects ScriptObjects;
 	FGlobalExportObjects ExportObjects;
-	TArray<int32> PublicExportIndices;
+	TMap<FPackageObjectIndex, int32> PublicExportIndices;
 	FImportObjectsByFullName ImportsByFullName;
 	FExportObjectsByFullName ExportsByFullName;
 
@@ -1626,44 +1626,39 @@ struct FGlobalPackageData
 	FExportObjectData& GetPublicExport(FPackageObjectIndex Index)
 	{
 		check(Index.IsPackageImport());
-		int32 GlobalExportIndex = PublicExportIndices[Index.GetIndex()];
-		return ExportObjects[GlobalExportIndex];
+		const int32* GlobalExportIndex = PublicExportIndices.Find(Index);
+		check(GlobalExportIndex);
+		return ExportObjects[*GlobalExportIndex];
 	}
 
 	const FExportObjectData& GetPublicExport(FPackageObjectIndex Index) const
 	{
 		check(Index.IsPackageImport());
-		int32 GlobalExportIndex = PublicExportIndices[Index.GetIndex()];
-		return ExportObjects[GlobalExportIndex];
+		const int32* GlobalExportIndex = PublicExportIndices.Find(Index);
+		check(GlobalExportIndex);
+		return ExportObjects[*GlobalExportIndex];
 	}
 
 	FName GetObjectName(FPackageObjectIndex Index, const TArray<int32>* PackageExportIndices) const
 	{
 		if (Index.IsScriptImport())
 		{
-			return ScriptObjects[Index.GetIndex()].ObjectName;
+			const FScriptObjectData* ScriptObjectData = ScriptObjects.Find(Index);
+			check(ScriptObjectData);
+			return ScriptObjectData->ObjectName;
 		}
 		if (Index.IsPackageImport())
 		{
-			int32 GlobalExportIndex = PublicExportIndices[Index.GetIndex()];
-			return ExportObjects[GlobalExportIndex].ObjectName;
+			const int32* GlobalExportIndex = PublicExportIndices.Find(Index);
+			check(GlobalExportIndex);
+			return ExportObjects[*GlobalExportIndex].ObjectName;
 		}
 		if (Index.IsExport() && PackageExportIndices)
 		{
-			int32 GlobalExportIndex = (*PackageExportIndices)[Index.GetIndex()];
+			int32 GlobalExportIndex = (*PackageExportIndices)[Index.ToExport()];
 			return ExportObjects[GlobalExportIndex].ObjectName;
 		}
 		return FName();
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FGlobalPackageData& Data)
-	{
-		Ar << Data.ScriptObjects;
-		Ar << Data.ExportObjects;
-		Ar << Data.PublicExportIndices;
-		Ar << Data.ImportsByFullName;
-		Ar << Data.ExportsByFullName;
-		return Ar;
 	}
 };
 
@@ -1682,6 +1677,7 @@ static void FindImportFullName(
 		if (Import->OuterIndex.IsNull())
 		{
 			Import->ObjectName.AppendString(FullName);
+			FullName.ToLowerInline();
 		}
 		else
 		{
@@ -1693,6 +1689,7 @@ static void FindImportFullName(
 			FullName.Append(OuterName);
 			FullName.AppendChar(TEXT('/'));
 			Import->ObjectName.AppendString(FullName);
+			FullName.ToLowerInline();
 		}
 	}
 }
@@ -1762,6 +1759,7 @@ static int32 FindExport(
 			Package->Name.AppendString(FullName);
 			FullName.AppendChar(TEXT('/'));
 			Export->ObjectName.AppendString(FullName);
+			FullName.ToLowerInline();
 		}
 		else
 		{
@@ -1773,6 +1771,7 @@ static int32 FindExport(
 			FullName.Append(OuterName);
 			FullName.AppendChar(TEXT('/'));
 			Export->ObjectName.AppendString(FullName);
+			FullName.ToLowerInline();
 		}
 
 		int32 GlobalExportIndex = -1;
@@ -1950,13 +1949,11 @@ static bool ConformLocalizedPackage(
 		FString LocString = GlobalPackageData.GetObjectName(LocIndex, &LocalizedPackage.Exports).ToString();
 		FString SrcString = GlobalPackageData.GetObjectName(SrcIndex, &SourcePackage.Exports).ToString();
 
-		FailReason.Appendf(TEXT("Public export '%s' has %s %s (%d) vs. %s (%d)"),
+		FailReason.Appendf(TEXT("Public export '%s' has %s %s vs. %s"),
 			*ExportName.ToString(),
 			Text,
 			*LocString,
-			LocIndex.GetIndex(),
-			*SrcString,
-			SrcIndex.GetIndex());
+			*SrcString);
 	};
 
 	const int32 LocalizedPackageNameLen = LocalizedPackage.Name.GetStringLength();
@@ -2433,11 +2430,13 @@ static void SerializeInitialLoad(
 	int32 NumScriptObjects = GlobalScriptImports.Num();
 	InitialLoadArchive << NumScriptObjects; 
 
-	for (const FScriptObjectData& ImportData : GlobalScriptImports)
+	for (const TPair<FPackageObjectIndex, FScriptObjectData>& Pair : GlobalScriptImports)
 	{
+		const FScriptObjectData& ImportData = Pair.Value;
 		GlobalNameMapBuilder.MarkNameAsReferenced(ImportData.ObjectName);
 		FScriptObjectEntry Entry;
 		Entry.ObjectName = GlobalNameMapBuilder.MapName(ImportData.ObjectName).ToUnresolvedMinimalName();
+		Entry.GlobalIndex = ImportData.GlobalIndex;
 		Entry.OuterIndex = ImportData.OuterIndex;
 		Entry.CDOClassIndex = ImportData.CDOClassIndex;
 
@@ -2755,6 +2754,13 @@ EObjectMark GetExcludedObjectMarksForObject(const UObject* Object, const ITarget
 	return Marks;
 }
 
+static uint64 GenerateImportHash(FString& FullName)
+{
+	uint64 Hash = CityHash64(reinterpret_cast<const char*>(*FullName), FullName.Len() * sizeof(TCHAR));
+	Hash &= ~(3ull << 62ull);
+	return Hash;
+}
+
 static void FindScriptObjectsRecursive(
 	FGlobalPackageData& GlobalPackageData,
 	FPackageObjectIndex OuterIndex,
@@ -2777,59 +2783,57 @@ static void FindScriptObjectsRecursive(
 		return;
 	}
 
+	FGlobalScriptObjects& ScriptObjects = GlobalPackageData.ScriptObjects;
+	const FScriptObjectData* Outer = ScriptObjects.Find(OuterIndex);
+	check(Outer);
+
 	FName ObjectName = Object->GetFName();
 
-	FString TempFullName = GlobalPackageData.ScriptObjects[OuterIndex.GetIndex()].FullName;
+	FString TempFullName = ScriptObjects.FindRef(OuterIndex).FullName;
 	TempFullName.AppendChar(TEXT('/'));
 	ObjectName.AppendString(TempFullName);
 
-	FPackageObjectIndex FindGlobalImportIndex = GlobalPackageData.ImportsByFullName.FindRef(TempFullName);
-	FScriptObjectData* ScriptImport = nullptr;
+	TempFullName.ToLowerInline();
+	const uint64 Hash = GenerateImportHash(TempFullName);
+	FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, Hash);
 
-	if (FindGlobalImportIndex.IsNull())
+	check(!GlobalPackageData.ImportsByFullName.Contains(TempFullName));
+	FScriptObjectData* ScriptImport = ScriptObjects.Find(GlobalImportIndex);
+	if (ScriptImport)
 	{
-		TArray<FScriptObjectData>& ScriptObjects = GlobalPackageData.ScriptObjects;
-		FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, ScriptObjects.Num());
-		GlobalPackageData.ImportsByFullName.Add(TempFullName, GlobalImportIndex);
+		UE_LOG(LogIoStore, Fatal, TEXT("Import name hash collision \"%s\" and \"%s"), *TempFullName, *ScriptImport->FullName);
+	}
 
-		ScriptImport = &GlobalPackageData.ScriptObjects.AddDefaulted_GetRef();
-		ScriptImport->GlobalIndex = GlobalImportIndex;
-		ScriptImport->FullName = MoveTemp(TempFullName);
-	}
-	else
+	FPackageObjectIndex CDOClassIndex = Outer->CDOClassIndex;
+	if (CDOClassIndex.IsNull())
 	{
-		ScriptImport = &GlobalPackageData.ScriptObjects[FindGlobalImportIndex.GetIndex()];
-	}
-	if (!ScriptImport->bInitialized)
-	{
-		FScriptObjectData& Outer = GlobalPackageData.ScriptObjects[OuterIndex.GetIndex()];
-		FPackageObjectIndex CDOClassIndex = Outer.CDOClassIndex;
-		if (CDOClassIndex.IsNull())
+		TCHAR NameBuffer[FName::StringBufferSize];
+		uint32 Len = ObjectName.ToString(NameBuffer);
+		if (FCString::Strncmp(NameBuffer, TEXT("Default__"), 9) == 0)
 		{
-			TCHAR NameBuffer[FName::StringBufferSize];
-			uint32 Len = ObjectName.ToString(NameBuffer);
-			if (FCString::Strncmp(NameBuffer, TEXT("Default__"), 9) == 0)
-			{
-				FString CDOClassFullName = Outer.FullName;
-				CDOClassFullName.AppendChar(TEXT('/'));
-				CDOClassFullName.AppendChars(NameBuffer + 9, Len - 9);
+			FString CDOClassFullName = Outer->FullName;
+			CDOClassFullName.AppendChar(TEXT('/'));
+			CDOClassFullName.AppendChars(NameBuffer + 9, Len - 9);
+			CDOClassFullName.ToLowerInline();
 
-				CDOClassIndex = GlobalPackageData.ImportsByFullName.FindRef(CDOClassFullName);
-				check(CDOClassIndex.IsScriptImport());
-			}
+			CDOClassIndex = GlobalPackageData.ImportsByFullName.FindRef(CDOClassFullName);
+			check(CDOClassIndex.IsScriptImport());
 		}
-		ScriptImport->OuterIndex = Outer.GlobalIndex;
-		ScriptImport->ObjectName = ObjectName;
-		ScriptImport->CDOClassIndex = CDOClassIndex;
-		ScriptImport->bInitialized = true;
 	}
 
-	OuterIndex = ScriptImport->GlobalIndex;
+	GlobalPackageData.ImportsByFullName.Add(TempFullName, GlobalImportIndex);
+	ScriptImport = &ScriptObjects.Add(GlobalImportIndex);
+	ScriptImport->GlobalIndex = GlobalImportIndex;
+	ScriptImport->FullName = MoveTemp(TempFullName);
+	ScriptImport->OuterIndex = Outer->GlobalIndex;
+	ScriptImport->ObjectName = ObjectName;
+	ScriptImport->CDOClassIndex = CDOClassIndex;
+
 	TArray<UObject*> InnerObjects;
 	GetObjectsWithOuter(Object, InnerObjects, /*bIncludeNestedObjects*/false);
 	for (UObject* InnerObject : InnerObjects)
 	{
-		FindScriptObjectsRecursive(GlobalPackageData, OuterIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
+		FindScriptObjectsRecursive(GlobalPackageData, GlobalImportIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
 	}
 };
 
@@ -2865,45 +2869,40 @@ static void CreateGlobalScriptObjects(
 			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_UncookedOnly"), *Package->GetName());
 		}
 
+		FGlobalScriptObjects& ScriptObjects = GlobalPackageData.ScriptObjects;
+
 		FName ObjectName = Package->GetFName();
 		FString FullName = Package->GetName();
 
-		FPackageObjectIndex FindGlobalImportIndex = GlobalPackageData.ImportsByFullName.FindRef(FullName);
-		FScriptObjectData* ScriptImport = nullptr;
+		FullName.ToLowerInline();
+		const uint64 Hash = GenerateImportHash(FullName);
+		FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, Hash);
 
-		if (FindGlobalImportIndex.IsNull())
+		check(!GlobalPackageData.ImportsByFullName.Contains(FullName));
+		FScriptObjectData* ScriptImport = ScriptObjects.Find(GlobalImportIndex);
+		if (ScriptImport)
 		{
-			TArray<FScriptObjectData>& ScriptObjects = GlobalPackageData.ScriptObjects;
-			FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, ScriptObjects.Num());
-			GlobalPackageData.ImportsByFullName.Add(FullName, GlobalImportIndex);
-
-			ScriptImport = &ScriptObjects.AddDefaulted_GetRef();
-			ScriptImport->GlobalIndex = GlobalImportIndex;
-			ScriptImport->FullName = FullName;
-		}
-		else
-		{
-			ScriptImport = &GlobalPackageData.ScriptObjects[FindGlobalImportIndex.GetIndex()];
-		}
-		if (!ScriptImport->bInitialized)
-		{
-			ScriptImport->OuterIndex = FPackageObjectIndex();
-			ScriptImport->ObjectName = ObjectName;
-			ScriptImport->bInitialized = true;
+			UE_LOG(LogIoStore, Fatal, TEXT("Import name hash collision \"%s\" and \"%s"), *FullName, *ScriptImport->FullName);
 		}
 
-		FPackageObjectIndex OuterIndex = ScriptImport->GlobalIndex;
+		GlobalPackageData.ImportsByFullName.Add(FullName, GlobalImportIndex);
+		ScriptImport = &ScriptObjects.Add(GlobalImportIndex);
+		ScriptImport->GlobalIndex = GlobalImportIndex;
+		ScriptImport->FullName = FullName;
+		ScriptImport->OuterIndex = FPackageObjectIndex();
+		ScriptImport->ObjectName = ObjectName;
+
 		InnerObjects.Reset();
 		GetObjectsWithOuter(Package, InnerObjects, /*bIncludeNestedObjects*/false);
 		for (UObject* InnerObject : InnerObjects)
 		{
-			FindScriptObjectsRecursive(GlobalPackageData, OuterIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
+			FindScriptObjectsRecursive(GlobalPackageData, GlobalImportIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
 		}
 	}
 
-	for (FScriptObjectData ScriptObject : GlobalPackageData.ScriptObjects)
+	for (const TPair<FPackageObjectIndex, FScriptObjectData>& Pair : GlobalPackageData.ScriptObjects)
 	{
-		NameMapBuilder.MarkNameAsReferenced(ScriptObject.ObjectName);
+		NameMapBuilder.MarkNameAsReferenced(Pair.Value.ObjectName);
 	}
 }
 
@@ -2954,19 +2953,21 @@ static void CreateGlobalImportsAndExports(
 	{
 		if (Export.IsPublicExport())
 		{
-			TArray<int32>& PublicExports = GlobalPackageData.PublicExportIndices;
-			FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex(FPackageObjectIndex::PackageImport, PublicExports.Num());
-			FPackageObjectIndex FindGlobalImportIndex = GlobalPackageData.ImportsByFullName.FindRef(Export.FullName);
-			if (FindGlobalImportIndex.IsNull())
+			TMap<FPackageObjectIndex, int32>& PublicExports = GlobalPackageData.PublicExportIndices;
+			const uint64 Hash = GenerateImportHash(Export.FullName);
+			FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex(FPackageObjectIndex::PackageImport, Hash);
+
+			check(!GlobalPackageData.ImportsByFullName.Contains(Export.FullName));
+			int32* ExportIndex = PublicExports.Find(GlobalImportIndex);
+			if (ExportIndex)
 			{
-				GlobalPackageData.ImportsByFullName.Add(Export.FullName, GlobalImportIndex);
-				PublicExports.Add(Export.GlobalIndex);
-				Export.GlobalImportIndex = GlobalImportIndex;
+				UE_LOG(LogIoStore, Fatal, TEXT("Import name hash collision \"%s\" and \"%s"),
+					*Export.FullName,
+					*GlobalPackageData.ExportObjects[*ExportIndex].FullName);
 			}
-			else
-			{
-				GlobalImportIndex = FindGlobalImportIndex;
-			}
+			GlobalPackageData.ImportsByFullName.Add(Export.FullName, GlobalImportIndex);
+			PublicExports.Add(GlobalImportIndex, Export.GlobalIndex);
+			Export.GlobalImportIndex = GlobalImportIndex;
 		}
 	}
 
@@ -3021,7 +3022,7 @@ static void MapExportEntryIndices(
 	IOSTORE_CPU_SCOPE(ExportData);
 	UE_LOG(LogIoStore, Display, TEXT("Converting export map import indices..."));
 
-	auto PackageObjectIndexFromPackageIndex =
+	auto PackageObjectIdFromPackageIndex =
 		[](const TArray<FPackageObjectIndex>& Imports, const FPackageIndex& PackageIndex) -> FPackageObjectIndex 
 		{ 
 			if (PackageIndex.IsImport())
@@ -3041,10 +3042,10 @@ static void MapExportEntryIndices(
 		{
 			const FObjectExport& ObjectExport = ObjectExports[Package->ExportIndexOffset + I];
 			FExportObjectData& ExportData = GlobalExports[Package->Exports[I]];
-			ExportData.OuterIndex = PackageObjectIndexFromPackageIndex(Package->Imports, ObjectExport.OuterIndex);
-			ExportData.ClassIndex = PackageObjectIndexFromPackageIndex(Package->Imports, ObjectExport.ClassIndex);
-			ExportData.SuperIndex = PackageObjectIndexFromPackageIndex(Package->Imports, ObjectExport.SuperIndex);
-			ExportData.TemplateIndex = PackageObjectIndexFromPackageIndex(Package->Imports, ObjectExport.TemplateIndex);
+			ExportData.OuterIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.OuterIndex);
+			ExportData.ClassIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.ClassIndex);
+			ExportData.SuperIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.SuperIndex);
+			ExportData.TemplateIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.TemplateIndex);
 		}
 	}
 };
@@ -3181,7 +3182,7 @@ static void ProcessLocalizedPackages(
 	}
 }
 
-static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const FNameMapBuilder& GlobalNameMap, FGlobalPackageData& GlobalPackageData, const TArray<FContainerTargetSpec*>& ContainerTargets)
+static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const FNameMapBuilder& GlobalNameMap, const TArray<FContainerTargetSpec*>& ContainerTargets)
 {
 	UE_LOG(LogIoStore, Display, TEXT("Saving release meta data to '%s'"), ReleaseVersionOutputDir);
 
@@ -3191,12 +3192,6 @@ static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const F
 		FString NameMapOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.unamemap"));
 		TUniquePtr<FArchive> NameMapArchive(IFileManager::Get().CreateFileWriter(*NameMapOutputPath));
 		(*NameMapArchive) << const_cast<FNameMapBuilder&>(GlobalNameMap);
-	}
-
-	{
-		FString ImportExportOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.uimportexport"));
-		TUniquePtr<FArchive> ImportExportArchive(IFileManager::Get().CreateFileWriter(*ImportExportOutputPath));
-		(*ImportExportArchive) << GlobalPackageData;
 	}
 
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
@@ -3224,7 +3219,6 @@ static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const F
 static void LoadReleaseVersionMeta(
 	const TCHAR* ReleaseVersionOutputDir,
 	FNameMapBuilder& GlobalNameMap,
-	FGlobalPackageData& GlobalPackageData,
 	TArray<FContainerTargetSpec*>& ContainerTargets,
 	TMap<FName, FContainerTargetSpec*>& ContainerTargetMap)
 {
@@ -3239,12 +3233,6 @@ static void LoadReleaseVersionMeta(
 		}
 	}
 	
-	{
-		FString ImportExportOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.uimportexport"));
-		TUniquePtr<FArchive> ImportExportArchive(IFileManager::Get().CreateFileReader(*ImportExportOutputPath));
-		(*ImportExportArchive) << GlobalPackageData;
-	}
-
 	FString ContainerMetaWildcard = FPaths::Combine(ReleaseVersionOutputDir, TEXT("*.ucontainermeta"));
 	TArray<FString> ContainerMetaFileNames;
 	IFileManager::Get().FindFiles(ContainerMetaFileNames, *ContainerMetaWildcard, true, false);
@@ -3691,7 +3679,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 		if (!Arguments.BasedOnReleaseVersionDir.IsEmpty())
 		{
-			LoadReleaseVersionMeta(*Arguments.BasedOnReleaseVersionDir, GlobalNameMapBuilder, GlobalPackageData, ContainerTargets, ContainerTargetMap);
+			LoadReleaseVersionMeta(*Arguments.BasedOnReleaseVersionDir, GlobalNameMapBuilder, ContainerTargets, ContainerTargetMap);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.BasedOnReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
 			TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileReader(*PackageHashesOutputPath));
@@ -4131,7 +4119,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	if (!Arguments.OutputReleaseVersionDir.IsEmpty())
 	{
-		SaveReleaseVersionMeta(*Arguments.OutputReleaseVersionDir, GlobalNameMapBuilder, GlobalPackageData, ContainerTargets);
+		SaveReleaseVersionMeta(*Arguments.OutputReleaseVersionDir, GlobalNameMapBuilder, ContainerTargets);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.OutputReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
 		TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileWriter(*PackageHashesOutputPath));
