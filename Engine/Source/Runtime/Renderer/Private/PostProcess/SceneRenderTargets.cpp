@@ -1721,7 +1721,7 @@ TRefCountPtr<IPooledRenderTarget>& FSceneRenderTargets::GetDownsampledTranslucen
 	if (!DownsampledTranslucencyDepthRT || DownsampledTranslucencyDepthRT->GetDesc().Extent != Size)
 	{
 		// Create the SeparateTranslucency depth render target 
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Size, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Size, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DownsampledTranslucencyDepthRT, TEXT("SeparateTranslucencyDepth"));
 	}
@@ -1811,7 +1811,8 @@ void FSceneRenderTargets::BeginRenderingSeparateTranslucency(FRHICommandList& RH
 
 	check((*SeparateTranslucency)->GetRenderTargetItem().TargetableTexture->GetClearColor() == FLinearColor::Black);
 	FRHIRenderPassInfo RPInfo((*SeparateTranslucency)->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
-	RPInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
+	// #todo-renderpass do we ever want to write to depth in these passes?
+	// when do we write to stencil?
 	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
 	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SeparateTranslucencyDepth;
 	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
