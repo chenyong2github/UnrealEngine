@@ -1365,19 +1365,27 @@ namespace Chaos
 			if (AngularDriveStiffness > 0.0f)
 			{
 				FPBDJointUtilities::GetLockedRotationAxes(Rs[0], Rs[1], Axes[0], Axes[1], Axes[2]);
+				Utilities::NormalizeSafe(Axes[0], KINDA_SMALL_NUMBER);
+				Utilities::NormalizeSafe(Axes[1], KINDA_SMALL_NUMBER);
+				Utilities::NormalizeSafe(Axes[2], KINDA_SMALL_NUMBER);
 			}
 
 			const FRotation3 R01 = Rs[0].Inverse() * Rs[1];
 			FRotation3 TargetAngPos = JointSettings.AngularDrivePositionTarget;
 			TargetAngPos.EnforceShortestArcWith(R01);
-			FRotation3 R1Error = TargetAngPos.Inverse() * R01;
-			const FReal AxisAngles[3] = { R1Error.X, R1Error.Y, R1Error.Z };
+			const FRotation3 R1Error = TargetAngPos.Inverse() * R01;
+			FReal AxisAngles[3] = 
+			{ 
+				2.0f * FMath::Asin(R1Error.X), 
+				2.0f * FMath::Asin(R1Error.Y), 
+				2.0f * FMath::Asin(R1Error.Z) 
+			};
 
 			const FVec3 TargetAngVel = Rs[0] * JointSettings.AngularDriveVelocityTarget;
 
 			for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
 			{
-				FReal AxisAngVel = FVec3::DotProduct(TargetAngVel, Axes[AxisIndex]);
+				const FReal AxisAngVel = FVec3::DotProduct(TargetAngVel, Axes[AxisIndex]);
 				ApplyRotationConstraintSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, Axes[AxisIndex], AxisAngles[AxisIndex], AxisAngVel, RotationDriveLambdas[AxisIndex]);
 			}
 			return 3;
