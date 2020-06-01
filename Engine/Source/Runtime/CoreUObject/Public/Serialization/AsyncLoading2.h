@@ -117,36 +117,36 @@ struct FContainerHeader
 
 class FPackageObjectIndex
 {
-	static constexpr uint32 IndexBits = 30;
-	static constexpr uint32 IndexMask = (1 << IndexBits) - 1;
-	static constexpr uint32 TypeMask = ~IndexMask;
-	static constexpr uint32 TypeShift = IndexBits;
+	static constexpr uint64 IndexBits = 62ull;
+	static constexpr uint64 IndexMask = (1ull << IndexBits) - 1ull;
+	static constexpr uint64 TypeMask = ~IndexMask;
+	static constexpr uint64 TypeShift = IndexBits;
+	static constexpr uint64 Invalid = ~0ull;
 
-	uint32 TypeAndIndex = Null << TypeShift;
+	uint64 TypeAndId = Invalid;
 
 public:
 	enum Type
 	{
+		Export,
 		ScriptImport,
 		PackageImport,
-		ImportTypeCount,
-		Export = ImportTypeCount,
 		Null,
 		TypeCount = Null,
 	};
-	static_assert((TypeCount - 1) <= (TypeMask >> TypeShift), "FPackageObjectIndex: Too many index types for TypeMask");
+	static_assert((TypeCount - 1) <= (TypeMask >> TypeShift), "FPackageObjectIndex: Too many types for TypeMask");
 
 	FPackageObjectIndex() = default;
-	inline explicit FPackageObjectIndex(Type InType, int32 InIndex) : TypeAndIndex((InType << TypeShift) | InIndex) {}
+	inline explicit FPackageObjectIndex(Type InType, uint64 InId) : TypeAndId((uint64(InType) << TypeShift) | InId) {}
 
 	inline bool IsNull() const
 	{
-		return (TypeAndIndex & TypeMask) == (Null << TypeShift);
+		return TypeAndId == Invalid;
 	}
 
 	inline bool IsExport() const
 	{
-		return (TypeAndIndex & TypeMask) == (Export << TypeShift);
+		return (TypeAndId >> TypeShift) == Export;
 	}
 
 	inline bool IsImport() const
@@ -156,61 +156,49 @@ public:
 
 	inline bool IsScriptImport() const
 	{
-		return (TypeAndIndex & TypeMask) == (ScriptImport << TypeShift);
+		return (TypeAndId >> TypeShift) == ScriptImport;
 	}
 
 	inline bool IsPackageImport() const
 	{
-		return (TypeAndIndex & TypeMask) == (PackageImport << TypeShift);
+		return (TypeAndId >> TypeShift) == PackageImport;
 	}
 
 	inline uint32 ToExport() const
 	{
 		check(IsExport());
-		return TypeAndIndex & IndexMask;
-	}
-
-	inline uint32 ToScriptImport() const
-	{
-		check(IsScriptImport());
-		return TypeAndIndex & IndexMask;
-	}
-
-	inline uint32 ToPackageImport() const
-	{
-		check(IsPackageImport());
-		return TypeAndIndex & IndexMask;
+		return uint32(TypeAndId);
 	}
 
 	inline Type GetType() const
 	{
-		return Type((TypeAndIndex & TypeMask) >> TypeShift);
+		return Type(TypeAndId >> TypeShift);
 	}
 
-	inline int32 GetIndex() const
+	inline uint64 Value() const
 	{
-		return TypeAndIndex & IndexMask;
+		return TypeAndId & IndexMask;
 	}
 
 	inline bool operator==(FPackageObjectIndex Other) const
 	{
-		return TypeAndIndex == Other.TypeAndIndex;
+		return TypeAndId == Other.TypeAndId;
 	}
 
 	inline bool operator!=(FPackageObjectIndex Other) const
 	{
-		return TypeAndIndex != Other.TypeAndIndex;
+		return TypeAndId != Other.TypeAndId;
 	}
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FPackageObjectIndex& Value)
 	{
-		Ar << Value.TypeAndIndex;
+		Ar << Value.TypeAndId;
 		return Ar;
 	}
 
 	inline friend uint32 GetTypeHash(const FPackageObjectIndex& Value)
 	{
-		return Value.TypeAndIndex;
+		return uint32(Value.TypeAndId);
 	}
 };
 
@@ -305,6 +293,7 @@ struct FExportBundleHeader
 struct FScriptObjectEntry
 {
 	FMinimalName ObjectName;
+	FPackageObjectIndex GlobalIndex;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex CDOClassIndex;
 
@@ -316,17 +305,17 @@ struct FScriptObjectEntry
  */
 struct FExportMapEntry
 {
-	uint64 CookedSerialOffset;
-	uint64 CookedSerialSize;
+	uint64 CookedSerialOffset = 0;
+	uint64 CookedSerialSize = 0;
 	FMappedName ObjectName;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex ClassIndex;
 	FPackageObjectIndex SuperIndex;
 	FPackageObjectIndex TemplateIndex;
 	FPackageObjectIndex GlobalImportIndex;
-	EObjectFlags ObjectFlags;
-	EExportFilterFlags FilterFlags;
-	uint8 Pad[7];
+	EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags;
+	EExportFilterFlags FilterFlags = EExportFilterFlags::None;
+	uint8 Pad[3] = {};
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };

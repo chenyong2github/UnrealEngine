@@ -99,6 +99,7 @@ FArchive& operator<<(FArchive& Ar, FExportBundleHeader& ExportBundleHeader)
 FArchive& operator<<(FArchive& Ar, FScriptObjectEntry& ScriptObjectEntry)
 {
 	Ar << ScriptObjectEntry.ObjectName.Index << ScriptObjectEntry.ObjectName.Number;
+	Ar << ScriptObjectEntry.GlobalIndex;
 	Ar << ScriptObjectEntry.OuterIndex;
 	Ar << ScriptObjectEntry.CDOClassIndex;
 	return Ar;
@@ -131,8 +132,7 @@ FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry)
 		ExportMapEntry.FilterFlags = EExportFilterFlags(FilterFlags);
 	}
 
-	uint64 Pad = 0;
-	Ar.Serialize(&Pad, 7);
+	Ar.Serialize(&ExportMapEntry.Pad, sizeof(ExportMapEntry.Pad));
 
 	return Ar;
 }
@@ -423,22 +423,17 @@ struct FPublicExportRef
 
 struct FGlobalImportStore
 {
-	TArray<UObject*> ScriptObjects;
+	TMap<FPackageObjectIndex, UObject*> ScriptObjects;
 	TMap<FPackageObjectIndex, FPublicExportRef> PublicExportToObjectIndex;
 	TMap<int32, FPackageObjectIndex> ObjectIndexToPublicExport;
+	// Temporary initial load data
 	TArray<FScriptObjectEntry> ScriptObjectEntries;
+	TMap<FPackageObjectIndex, FScriptObjectEntry*> ScriptObjectEntriesMap;
 
 	FGlobalImportStore()
 	{
 		PublicExportToObjectIndex.Reserve(32768);
 		ObjectIndexToPublicExport.Reserve(32768);
-	}
-
-	inline FName GetName(FPackageObjectIndex GlobalIndex)
-	{
-		return GlobalIndex.IsScriptImport() && ScriptObjectEntries.Num() > 0
-			? MinimalNameToName(ScriptObjectEntries[GlobalIndex.GetIndex()].ObjectName)
-			: NAME_None;
 	}
 
 	FPackageId RemovePublicExport(UObject* InObject)
@@ -475,23 +470,24 @@ struct FGlobalImportStore
 	{
 		if (GlobalIndex.IsScriptImport())
 		{
-			return ScriptObjects[GlobalIndex.GetIndex()];
+			return ScriptObjects.FindRef(GlobalIndex);
 		}
 		return GetPublicExportObject(GlobalIndex);
 	}
 
-	UObject* FindScriptImportObjectFromIndex(int32 ScriptImportIndex);
+	UObject* FindScriptImportObjectFromIndex(FPackageObjectIndex ScriptImportIndex);
 
-	FORCENOINLINE UObject* FindOrCreateScriptObject(int32 ScriptImportIndex)
+	FORCENOINLINE UObject* FindOrCreateScriptObject(FPackageObjectIndex ScriptImportIndex)
 	{
 		UObject* Object = FindScriptImportObjectFromIndex(ScriptImportIndex);
 		if (!Object)
 		{
-			const FScriptObjectEntry& Entry = ScriptObjectEntries[ScriptImportIndex];
-			const FPackageObjectIndex& CDOClassIndex = Entry.CDOClassIndex;
+			const FScriptObjectEntry* Entry = ScriptObjectEntriesMap.FindRef(ScriptImportIndex);
+			check(Entry);
+			const FPackageObjectIndex& CDOClassIndex = Entry->CDOClassIndex;
 			if (CDOClassIndex.IsScriptImport())
 			{
-				UObject* CDOClassObject = FindScriptImportObjectFromIndex(CDOClassIndex.GetIndex());
+				UObject* CDOClassObject = FindScriptImportObjectFromIndex(CDOClassIndex);
 				if (CDOClassObject)
 				{
 					// UObjectLoadAllCompiledInDefaultProperties is creating CDOs from a flat list.
@@ -513,29 +509,17 @@ struct FGlobalImportStore
 		UObject* Object = GetImportObject(GlobalIndex);
 		if (!Object && GlobalIndex.IsScriptImport() && GIsInitialLoad)
 		{
-			return FindOrCreateScriptObject(GlobalIndex.GetIndex());
+			return FindOrCreateScriptObject(GlobalIndex);
 		}
 		return Object;
 	}
 
-	bool StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* InObject)
+	void StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* InObject)
 	{
-		if (GlobalIndex.IsScriptImport())
-		{
-			UObject*& Object = ScriptObjects[GlobalIndex.GetIndex()];
-			check(!Object || Object == InObject);
-			Object = InObject;
-			return true;
-		}
-		else if (GlobalIndex.IsPackageImport())
-		{
-			int32 ObjectIndex = GUObjectArray.ObjectToIndex(InObject);
-			PublicExportToObjectIndex.Add(GlobalIndex, {ObjectIndex, PackageId});
-			ObjectIndexToPublicExport.Add(ObjectIndex, GlobalIndex);
-			return true;
-		}
-		check(GlobalIndex.IsNull());
-		return false;
+		check(GlobalIndex.IsPackageImport());
+		int32 ObjectIndex = GUObjectArray.ObjectToIndex(InObject);
+		PublicExportToObjectIndex.Add(GlobalIndex, {ObjectIndex, PackageId});
+		ObjectIndexToPublicExport.Add(ObjectIndex, GlobalIndex);
 	}
 
 	void FindAllScriptObjects();
@@ -766,14 +750,19 @@ public:
 			InitialLoadArchive << NumScriptObjects;
 			ImportStore.ScriptObjectEntries = MakeArrayView(reinterpret_cast<const FScriptObjectEntry*>(InitialLoadIoBuffer.Data() + InitialLoadArchive.Tell()), NumScriptObjects);
 
+			int32 EntryIndex = 0;
+			ImportStore.ScriptObjectEntriesMap.Reserve(ImportStore.ScriptObjectEntries.Num());
+			ImportStore.ScriptObjects.Reserve(ImportStore.ScriptObjectEntries.Num());
 			for (FScriptObjectEntry& ScriptObjectEntry : ImportStore.ScriptObjectEntries)
 			{
 				const FMappedName& MappedName = FMappedName::FromMinimalName(ScriptObjectEntry.ObjectName);
 				check(MappedName.IsGlobal());
 				ScriptObjectEntry.ObjectName = GlobalNameMap.GetMinimalName(MappedName);
-			}
 
-			ImportStore.ScriptObjects.AddDefaulted(ImportStore.ScriptObjectEntries.Num());
+				ImportStore.ScriptObjectEntriesMap.Add(ScriptObjectEntry.GlobalIndex, &ScriptObjectEntry);
+				ImportStore.ScriptObjects.Add(ScriptObjectEntry.GlobalIndex);
+				++EntryIndex;
+			}
 		}
 
 		FPackageName::DoesPackageExistOverride().BindLambda([this](FName PackageName)
@@ -1070,22 +1059,9 @@ struct FPackageImportStore
 		return GlobalImportStore.FindOrGetImportObject(GlobalIndex);
 	}
 
-	inline FName GetNameFromLocalIndex(FPackageIndex LocalIndex)
+	inline void StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* Object)
 	{
-		check(LocalIndex.IsImport());
-		check(ImportMap);
-		const int32 LocalImportIndex = LocalIndex.ToImport();
-		if (LocalImportIndex < ImportMapCount)
-		{
-			const FPackageObjectIndex GlobalIndex = ImportMap[LocalImportIndex];
-			return GlobalImportStore.GetName(GlobalIndex);
-		}
-		return FName();
-	}
-
-	inline bool StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* Object)
-	{
-		return GlobalImportStore.StoreGlobalObject(PackageId, GlobalIndex, Object);
+		GlobalImportStore.StoreGlobalObject(PackageId, GlobalIndex, Object);
 	}
 
 	void ClearReferences()
@@ -1333,8 +1309,7 @@ public:
 				Object = ImportStore->FindOrGetImportObjectFromLocalIndex(Index);
 
 				UE_ASYNC_PACKAGE_CLOG_VERBOSE(!Object, Log, *PackageDesc,
-					TEXT("FExportArchive: Object"), TEXT("Import %s at index %d is null"),
-					*ImportStore->GetNameFromLocalIndex(Index).ToString(),
+					TEXT("FExportArchive: Object"), TEXT("Import index %d is null"),
 					Index.ToImport());
 			}
 			else
@@ -3020,34 +2995,35 @@ void FAsyncPackage2::SetupSerializedArcs(const uint8* GraphData, uint64 GraphDat
 	}
 }
 
-static UObject* GFindExistingScriptImport(int32 GlobalImportIndex,
-	TArray<UObject*>& ScriptObjects,
-	const TArray<FScriptObjectEntry>& ScriptObjectEntries)
+static UObject* GFindExistingScriptImport(FPackageObjectIndex GlobalImportIndex,
+	TMap<FPackageObjectIndex, UObject*>& ScriptObjects,
+	const TMap<FPackageObjectIndex, FScriptObjectEntry*>& ScriptObjectEntriesMap)
 {
-	UObject*& Object = ScriptObjects[GlobalImportIndex];
+	UObject*& Object = ScriptObjects.FindOrAdd(GlobalImportIndex);
 	if (!Object)
 	{
-		const FScriptObjectEntry& Entry = ScriptObjectEntries[GlobalImportIndex];
-		if (Entry.OuterIndex.IsNull())
+		const FScriptObjectEntry* Entry = ScriptObjectEntriesMap.FindRef(GlobalImportIndex);
+		check(Entry);
+		if (Entry->OuterIndex.IsNull())
 		{
-			Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry.ObjectName), true);
+			Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry->ObjectName), true);
 		}
 		else
 		{
-			UObject* Outer = GFindExistingScriptImport(Entry.OuterIndex.GetIndex(), ScriptObjects, ScriptObjectEntries);
+			UObject* Outer = GFindExistingScriptImport(Entry->OuterIndex, ScriptObjects, ScriptObjectEntriesMap);
 			if (Outer)
 			{
-				Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry.ObjectName), false, true);
+				Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false, true);
 			}
 		}
 	}
 	return Object;
 }
 
-UObject* FGlobalImportStore::FindScriptImportObjectFromIndex(int32 GlobalImportIndex)
+UObject* FGlobalImportStore::FindScriptImportObjectFromIndex(FPackageObjectIndex GlobalImportIndex)
 {
 	check(ScriptObjectEntries.Num() > 0);
-	return GFindExistingScriptImport(GlobalImportIndex, ScriptObjects, ScriptObjectEntries);
+	return GFindExistingScriptImport(GlobalImportIndex, ScriptObjects, ScriptObjectEntriesMap);
 }
 
 void FGlobalImportStore::FindAllScriptObjects()
@@ -3057,30 +3033,33 @@ void FGlobalImportStore::FindAllScriptObjects()
 	check(ScriptImportCount > 0);
 	for (int32 GlobalImportIndex = 0; GlobalImportIndex < ScriptImportCount; ++GlobalImportIndex)
 	{
-		UObject* Object = GFindExistingScriptImport(
-			GlobalImportIndex, ScriptObjects, ScriptObjectEntries);
+		FPackageObjectIndex GlobalId = ScriptObjectEntries[GlobalImportIndex].GlobalIndex;
+		UObject* Object = GFindExistingScriptImport(GlobalId, ScriptObjects, ScriptObjectEntriesMap);
 #if DO_CHECK
 		if (!Object)
 		{
 			FScriptObjectEntry& Entry = ScriptObjectEntries[GlobalImportIndex];
-			if (Entry.OuterIndex.IsNull())
+			FScriptObjectEntry* OuterEntry =
+				Entry.OuterIndex.IsNull() ?
+				nullptr :
+				ScriptObjectEntriesMap.FindRef(Entry.OuterIndex);
+			if (!OuterEntry)
 			{
 				UE_LOG(LogStreaming, Warning,
 					TEXT("AsyncLoading2 - Failed to find import script package after initial load: %s"),
-					*MinimalNameToName(ScriptObjectEntries[GlobalImportIndex].ObjectName).ToString());
+					*MinimalNameToName(Entry.ObjectName).ToString());
 			}
 			else
 			{
 				UE_LOG(LogStreaming, Log,
-					TEXT("AsyncLoading2 - Failed to find import script object after initial load: %s (%d) in outer %s (%d)"),
-					*MinimalNameToName(ScriptObjectEntries[GlobalImportIndex].ObjectName).ToString(),
-					GlobalImportIndex,
-					*MinimalNameToName(ScriptObjectEntries[Entry.OuterIndex.GetIndex()].ObjectName).ToString(),
-					*MinimalNameToName(ScriptObjectEntries[GlobalImportIndex].ObjectName).ToString());
+					TEXT("AsyncLoading2 - Failed to find import script object after initial load: %s in outer %s"),
+					*MinimalNameToName(Entry.ObjectName).ToString(),
+					*MinimalNameToName(OuterEntry->ObjectName).ToString());
 			}
 		}
 #endif
 	}
+	ScriptObjectEntriesMap.Empty();
 	ScriptObjectEntries.Empty();
 }
 
@@ -3387,7 +3366,10 @@ UObject* FAsyncPackage2::EventDrivenIndexToObject(FPackageObjectIndex Index, boo
 	else if (Index.IsImport())
 	{
 		Result = ImportStore.FindOrGetImportObject(Index);
-		UE_CLOG(!Result, LogStreaming, Warning, TEXT("Missing import for package %s (ScriptImport: %d, Index: %d)"), *Desc.DiskPackageName.ToString(), Index.IsScriptImport(), Index.IsScriptImport() ? Index.ToScriptImport() : Index.ToPackageImport());
+		UE_CLOG(!Result, LogStreaming, Warning, TEXT("Missing %s import %llx for package %s"),
+			Index.IsScriptImport() ? TEXT("script") : TEXT("package"),
+			Index.Value(),
+			*Desc.DiskPackageName.ToString());
 	}
 #if DO_CHECK
 	if (bCheckSerialized && !IsFullyLoadedObj(Result))
@@ -3597,20 +3579,18 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 
 	check(Object);
 
-	bool bStore = Desc.IsTrackingPublicExports();
-	if (bStore)
+	if (Desc.IsTrackingPublicExports() && !Export.GlobalImportIndex.IsNull())
 	{
-		bStore = ImportStore.StoreGlobalObject(Desc.DiskPackageId, Export.GlobalImportIndex, Object);
-	}
+		check(Object->HasAnyFlags(RF_Public));
+		ImportStore.StoreGlobalObject(Desc.DiskPackageId, Export.GlobalImportIndex, Object);
 
-	if (bStore)
-	{
 		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"),
-			TEXT("Created and stored public export %s (%d)"), *Object->GetPathName(), Export.GlobalImportIndex.GetIndex());
+			TEXT("Created public export %s stored as %llx"), *Object->GetPathName(), Export.GlobalImportIndex.Value());
 	}
 	else
 	{
-		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"), TEXT("Created export %s"), *Object->GetPathName());
+		check(!Object->HasAnyFlags(RF_Public));
+		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"), TEXT("Created private export %s"), *Object->GetPathName());
 	}
 }
 
