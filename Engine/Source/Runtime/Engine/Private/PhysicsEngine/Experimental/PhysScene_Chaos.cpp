@@ -356,20 +356,20 @@ struct FPhysScenePendingComponentTransform_Chaos
 	FVector NewTranslation;
 	FQuat NewRotation;
 	bool bHasValidTransform;
-	bool bHasWakeEvent;
+	Chaos::EWakeEventEntry WakeEvent;
 	
-	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp, const FVector& InNewTranslation, const FQuat& InNewRotation, const bool InHasWakeEvent)
+	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp, const FVector& InNewTranslation, const FQuat& InNewRotation, const Chaos::EWakeEventEntry InWakeEvent)
 		: OwningComp(InOwningComp)
 		, NewTranslation(InNewTranslation)
 		, NewRotation(InNewRotation)
 		, bHasValidTransform(true)
-		, bHasWakeEvent(InHasWakeEvent)
+		, WakeEvent(InWakeEvent)
 	{}
 
-	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp)
+	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp, const Chaos::EWakeEventEntry InWakeEvent)
 		: OwningComp(InOwningComp)
 		, bHasValidTransform(false)
-		, bHasWakeEvent(true)
+		, WakeEvent(InWakeEvent)
 	{}
 
 };
@@ -2291,13 +2291,13 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 										bPendingMove = true;
 										const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
 										const FQuat NewRotation = NewTransform.GetRotation();
-										PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, MoveBy, NewRotation, Proxy->HasAwakeEvent()));
+										PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, MoveBy, NewRotation, Proxy->GetWakeEvent()));
 									}
 								}
 
-								if (Proxy->HasAwakeEvent() && !bPendingMove)
+								if (Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
 								{
-									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent));
+									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, Proxy->GetWakeEvent()));
 								}
 								Proxy->ClearEvents();
 							}
@@ -2349,9 +2349,9 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 
 		if (ComponentTransform.OwningComp != nullptr)
 		{
-			if (ComponentTransform.bHasWakeEvent)
+			if (ComponentTransform.WakeEvent != Chaos::EWakeEventEntry::None)
 			{
-				ComponentTransform.OwningComp->DispatchWakeEvents(ESleepEvent::SET_Wakeup, NAME_None);
+				ComponentTransform.OwningComp->DispatchWakeEvents(ComponentTransform.WakeEvent == Chaos::EWakeEventEntry::Awake ? ESleepEvent::SET_Wakeup : ESleepEvent::SET_Sleep, NAME_None);
 			}
 		}
 	}
