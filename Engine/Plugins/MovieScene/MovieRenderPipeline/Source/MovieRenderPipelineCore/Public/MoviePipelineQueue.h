@@ -5,6 +5,7 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "LevelSequence.h"
 #include "MoviePipelineMasterConfig.h"
+#include "MoviePipelineShotConfig.h"
 #include "MoviePipelineConfigBase.h"
 
 #include "MoviePipelineQueue.generated.h"
@@ -12,6 +13,123 @@
 class UMoviePipelineMasterConfig;
 class ULevel;
 class ULevelSequence;
+
+/**
+* This class represents a segment of work within the Executor Job. This should be owned
+* by the UMoviePipelineExecutorJob and can be created before the movie pipeline starts to
+* configure some aspects about the segment (such as disabling it). When the movie pipeline
+* starts, it will use the already existing ones, or generate new ones as needed.
+*/
+UCLASS(BlueprintType)
+class MOVIERENDERPIPELINECORE_API UMoviePipelineExecutorShot : public UObject
+{
+	GENERATED_BODY()
+public:
+	UMoviePipelineExecutorShot()
+		: bEnabled(true)
+	{
+		Progress = 0.f;
+	}
+
+public:
+	/**
+	* Set the status of this shot to the given value. This will be shown on the UI if progress
+	* is set to a value less than zero. If progress is > 0 then the progress bar will be shown
+	* on the UI instead. Progress and Status Message are cosmetic.
+	*
+	* For C++ implementations override `virtual void SetStatusMessage_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def set_status_message(self, inStatus):
+	*
+	* @param InStatus	The status message you wish the executor to have.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void SetStatusMessage(const FString& InStatus);
+
+	/**
+	* Get the current status message for this shot. May be an empty string.
+	*
+	* For C++ implementations override `virtual FString GetStatusMessage_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def get_status_message(self):
+	*		return ?
+	*/
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	FString GetStatusMessage() const;
+
+	/**
+	* Set the progress of this shot to the given value. If a positive value is provided
+	* the UI will show the progress bar, while a negative value will make the UI show the
+	* status message instead. Progress and Status Message are cosmetic and dependent on the
+	* executor to update. Similar to the UMoviePipelineExecutor::SetStatusProgress function,
+	* but at a per-job level basis instead.
+	*
+	* For C++ implementations override `virtual void SetStatusProgress_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def set_status_progress(self, inStatus):
+	*
+	* @param InProgress	The progress (0-1 range) the executor should have.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void SetStatusProgress(const float InProgress);
+
+	/**
+	* Get the current progress as last set by SetStatusProgress. 0 by default.
+	*
+	* For C++ implementations override `virtual float GetStatusProgress_Implementation() override`
+	* For Python/BP implementations override
+	*	@unreal.ufunction(override=True)
+	*	def get_status_progress(self):
+	*		return ?
+	*/
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	float GetStatusProgress() const;
+
+protected:
+	// UMoviePipipelineExecutorShot Interface
+	virtual void SetStatusMessage_Implementation(const FString& InMessage) { StatusMessage = InMessage; }
+	virtual void SetStatusProgress_Implementation(const float InProgress) { Progress = InProgress; }
+	virtual FString GetStatusMessage_Implementation() const { return StatusMessage; }
+	virtual float GetStatusProgress_Implementation() const { return Progress; }
+	// ~UMoviePipipelineExecutorShot Interface
+
+public:
+
+	/** Should this shot be rendered? */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	bool bEnabled;
+
+	/** Soft object path to uniquley identify this shot. Both Inner and Outer path are compared. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FSoftObjectPath InnerPathKey;
+
+	/** Soft object path to uniquley identify this shot. Both Inner and Outer path are compared. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FSoftObjectPath OuterPathKey;
+
+	/** The name of the shot section that contains this shot. Can be empty. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FString OuterName;
+
+	/** The name of the camera cut section that this shot represents. Can be empty. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FString InnerName;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UMoviePipelineShotConfig* ShotOverrideConfig;
+public:
+	/** Transient information used by the active Movie Pipeline working on this shot. */
+	FMoviePipelineCameraCutInfo ShotInfo;
+
+protected:
+	UPROPERTY(Transient)
+	float Progress;
+	UPROPERTY(Transient)
+	FString StatusMessage;
+};
 
 /**
 * A particular job within the Queue
@@ -187,7 +305,7 @@ public:
 
 	/** (Optional) Shot specific information. If a shot is missing from this list it will assume to be enabled and will be rendered. */
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
-	TArray<FMoviePipelineJobShotInfo> ShotMaskInfo;
+	TArray<UMoviePipelineExecutorShot*> ShotInfo;
 
 	/** 
 	* Arbitrary data that can be associated with the job. Not used by default implementations, nor read.
@@ -279,6 +397,11 @@ public:
 	uint32 GetQueueSerialNumber() const
 	{
 		return QueueSerialNumber;
+	}
+
+	void InvalidateSerialNumber()
+	{
+		QueueSerialNumber++;
 	}
 
 private:

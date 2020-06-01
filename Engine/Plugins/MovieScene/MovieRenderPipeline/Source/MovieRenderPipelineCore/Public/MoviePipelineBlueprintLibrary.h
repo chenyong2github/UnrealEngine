@@ -102,8 +102,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static FString GetMapPackageName(UMoviePipelineExecutorJob* InJob);
 
-	/** Scan the provided sequence in the job to see which camera cut sections we would try to render and build a shot mask out of them. */
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static TArray<FMoviePipelineJobShotInfo> CreateShotMask(const UMoviePipelineExecutorJob* InJob);
+	/** Scan the provided sequence in the job to see which camera cut sections we would try to render and update the job's shotlist. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static void UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob);
 
 };
