@@ -907,6 +907,11 @@ public:
 		return SelectionMode.Get();
 	}
 
+	virtual EOrientation Private_GetOrientation() const override
+	{
+		return Orientation;
+	}
+
 	virtual bool Private_IsPendingRefresh() const override
 	{
 		return IsPendingRefresh();
