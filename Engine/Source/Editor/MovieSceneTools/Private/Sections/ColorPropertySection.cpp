@@ -4,6 +4,7 @@
 #include "Rendering/DrawElements.h"
 #include "Sections/MovieSceneColorSection.h"
 #include "SequencerSectionPainter.h"
+#include "MovieSceneSectionHelpers.h"
 #include "ISectionLayoutBuilder.h"
 #include "EditorStyleSet.h"
 #include "CommonMovieSceneTools.h"
@@ -21,6 +22,25 @@ FColorPropertySection::FColorPropertySection(UMovieSceneSection& InSectionObject
 	{
 		PropertyBindings = FTrackInstancePropertyBindings(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath());
 	}
+}
+
+FReply FColorPropertySection::OnKeyDoubleClicked(const TArray<FKeyHandle>& KeyHandles )
+{
+	UMovieSceneColorSection* ColorSection = Cast<UMovieSceneColorSection>( WeakSection.Get() );
+	if (!ColorSection)
+	{
+		return FReply::Handled();
+	}
+
+	FMovieSceneChannelProxy& Proxy = ColorSection->GetChannelProxy();
+	FMovieSceneFloatChannel* RChannel = Proxy.GetChannel<FMovieSceneFloatChannel>(0);
+	FMovieSceneFloatChannel* GChannel = Proxy.GetChannel<FMovieSceneFloatChannel>(1);
+	FMovieSceneFloatChannel* BChannel = Proxy.GetChannel<FMovieSceneFloatChannel>(2);
+	FMovieSceneFloatChannel* AChannel = Proxy.GetChannel<FMovieSceneFloatChannel>(3);
+
+	FMovieSceneKeyColorPicker KeyColorPicker(ColorSection, RChannel, GChannel, BChannel, AChannel, KeyHandles);
+
+	return FReply::Handled();
 }
 
 int32 FColorPropertySection::OnPaintSection( FSequencerSectionPainter& Painter ) const
@@ -50,8 +70,17 @@ int32 FColorPropertySection::OnPaintSection( FSequencerSectionPainter& Painter )
 			FEditorStyle::GetBrush( "Checker" ),
 			DrawEffects);
 
+		FLinearColor DefaultColor = GetPropertyValueAsLinearColor();
+		TArrayView<FMovieSceneFloatChannel*> FloatChannels = ColorSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+
+		TArray<FMovieSceneFloatChannel*> ColorChannels;
+		ColorChannels.Add(FloatChannels[0]);
+		ColorChannels.Add(FloatChannels[1]);
+		ColorChannels.Add(FloatChannels[2]);
+		ColorChannels.Add(FloatChannels[3]);
+
 		TArray< TTuple<float, FLinearColor> > ColorKeys;
-		ConsolidateColorCurves( ColorKeys, ColorSection, TimeConverter );
+		MovieSceneSectionHelpers::ConsolidateColorCurves( ColorKeys, DefaultColor, ColorChannels, TimeConverter );
 
 		TArray<FSlateGradientStop> GradientStops;
 
@@ -83,79 +112,6 @@ int32 FColorPropertySection::OnPaintSection( FSequencerSectionPainter& Painter )
 	return LayerId + 1;
 }
 
-
-void FColorPropertySection::ConsolidateColorCurves( TArray< TTuple<float, FLinearColor> >& OutColorKeys, const UMovieSceneColorSection* InColorSection, const FTimeToPixel& TimeConverter ) const
-{
-	FLinearColor DefaultColor = GetPropertyValueAsLinearColor();
-
-	UMovieSceneSection* Section = WeakSection.Get();
-	if (Section)
-	{
-		// @todo Sequencer Optimize - This could all get cached, instead of recalculating everything every OnPaint
-
-		TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-
-		// Gather all the channels with keys
-		TArray<TArrayView<const FFrameNumber>, TInlineAllocator<4>> ChannelTimes;
-		for (int32 Index = 0; Index < 4; ++Index)
-		{
-			if (FloatChannels[Index]->GetTimes().Num())
-			{
-				ChannelTimes.Add(FloatChannels[Index]->GetTimes());
-			}
-		}
-
-		// Keep adding color stops for similar times until we have nothing left
-		while ( ChannelTimes.Num() )
-		{
-			// Find the earliest time from the remaining channels
-			FFrameNumber Time = TNumericLimits<int32>::Max();
-			for (const TArrayView<const FFrameNumber>& Channel : ChannelTimes)
-			{
-				Time = FMath::Min(Time, Channel[0]);
-			}
-
-			// Slice the channels until we no longer match the next time
-			for (TArrayView<const FFrameNumber>& Channel : ChannelTimes)
-			{
-				int32 SliceIndex = 0;
-				while (SliceIndex < Channel.Num() && Time == Channel[SliceIndex])
-				{
-					++SliceIndex;
-				}
-
-				if (SliceIndex > 0)
-				{
-					int32 NewNum = Channel.Num() - SliceIndex;
-					Channel = NewNum > 0 ? Channel.Slice(SliceIndex, NewNum) : TArrayView<const FFrameNumber>();
-				}
-			}
-
-			// Remove empty channels with no keys left
-			for (int32 Index = ChannelTimes.Num()-1; Index >= 0; --Index)
-			{
-				if (ChannelTimes[Index].Num() == 0)
-				{
-					ChannelTimes.RemoveAt(Index, 1, false);
-				}
-			}
-
-			FLinearColor ColorAtTime = DefaultColor;
-			FloatChannels[0]->Evaluate(Time, ColorAtTime.R);
-			FloatChannels[1]->Evaluate(Time, ColorAtTime.G);
-			FloatChannels[2]->Evaluate(Time, ColorAtTime.B);
-			FloatChannels[3]->Evaluate(Time, ColorAtTime.A);
-
-			OutColorKeys.Add(MakeTuple(float(Time / TimeConverter.GetTickResolution()), ColorAtTime));
-		}
-	}
-
-	// Enforce at least one key for the default value
-	if (OutColorKeys.Num() == 0)
-	{
-		OutColorKeys.Add(MakeTuple(0.f, DefaultColor));
-	}
-}
 
 FLinearColor FColorPropertySection::GetPropertyValueAsLinearColor() const
 {

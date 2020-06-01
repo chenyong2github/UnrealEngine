@@ -180,7 +180,7 @@ int32 FEventTriggerSection::OnPaintSection(FSequencerSectionPainter& Painter) co
 	return LayerId + 3;
 }
 
-FReply FEventTriggerSection::OnKeyDoubleClicked(FKeyHandle KeyHandle)
+FReply FEventTriggerSection::OnKeyDoubleClicked(const TArray<FKeyHandle>& KeyHandles)
 {
 	UMovieSceneEventTriggerSection* EventTriggerSection = Cast<UMovieSceneEventTriggerSection>( WeakSection.Get() );
 	if (!EventTriggerSection)
@@ -204,24 +204,28 @@ FReply FEventTriggerSection::OnKeyDoubleClicked(FKeyHandle KeyHandle)
 	}
 
 	TMovieSceneChannelData<FMovieSceneEvent> ChannelData = EventTriggerSection->EventChannel.GetData();
-	const int32 EventIndex = ChannelData.GetIndex(KeyHandle);
-	if (EventIndex == INDEX_NONE)
+	for (FKeyHandle KeyHandle : KeyHandles)
 	{
-		return FReply::Handled();
-	}
+		const int32 EventIndex = ChannelData.GetIndex(KeyHandle);
+		if (EventIndex == INDEX_NONE)
+		{
+			continue;
+		}
 
-	FMovieSceneEvent* EventEntryPoint = &ChannelData.GetValues()[EventIndex];
-	UK2Node* Endpoint = FMovieSceneEventUtils::FindEndpoint(EventEntryPoint, EventTriggerSection, SequenceDirectorBP);
+		FMovieSceneEvent* EventEntryPoint = &ChannelData.GetValues()[EventIndex];
+		UK2Node* Endpoint = FMovieSceneEventUtils::FindEndpoint(EventEntryPoint, EventTriggerSection, SequenceDirectorBP);
 
-	if (!Endpoint)
-	{
-		FScopedTransaction Transaction(LOCTEXT("CreateEventEndpoint", "Create Event Endpoint"));
-		Endpoint = FMovieSceneEventUtils::BindNewUserFacingEvent(EventEntryPoint, EventTriggerSection, SequenceDirectorBP);
-	}
+		if (!Endpoint)
+		{
+			FScopedTransaction Transaction(LOCTEXT("CreateEventEndpoint", "Create Event Endpoint"));
+			Endpoint = FMovieSceneEventUtils::BindNewUserFacingEvent(EventEntryPoint, EventTriggerSection, SequenceDirectorBP);
+		}
 
-	if (Endpoint)
-	{
-		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Endpoint, false);
+		if (Endpoint)
+		{
+			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Endpoint, false);
+			return FReply::Handled();
+		}
 	}
 
 	return FReply::Handled();
