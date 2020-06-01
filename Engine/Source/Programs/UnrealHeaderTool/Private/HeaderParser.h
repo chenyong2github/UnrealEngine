@@ -1042,6 +1042,26 @@ private:
 
 	// Checks if a valid range has been found on the provided metadata
 	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);
+
+	// Names that cannot be used enums, UStructs, or UClasses
+	static TArray<FString> ReservedTypeNames;
+
+public:
+	/**
+	* Checks if the given token uses one of the reserved type names.
+	*
+	* @param  TypeName		String of the type to check (For UObject/UClass, use the stripped name)
+	* @return True if the TypeName is a reserved name
+	*/
+	static bool IsReservedTypeName(const FString& TypeName);
+
+	/**
+	* Checks if the given token uses one of the reserved type names.
+	*
+	* @param  Token		The token to check
+	* @return True if the Token is using a reserved name
+	*/
+	static bool IsReservedTypeName(const FToken& Token);
 };
 
 /////////////////////////////////////////////////////

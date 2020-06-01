@@ -111,6 +111,7 @@ FRigVMStructMap FHeaderParser::StructRigVMMap;
 TArray<FString> FHeaderParser::DelegateParameterCountStrings;
 TMap<FString, FString> FHeaderParser::TypeRedirectMap;
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
+TArray<FString> FHeaderParser::ReservedTypeNames = { TEXT("none") };
 TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
 
 /**
@@ -1629,6 +1630,12 @@ UEnum* FHeaderParser::CompileEnum()
 		FError::Throwf(TEXT("enum: '%s' already defined here"), *EnumToken.GetTokenName().ToString());
 	}
 
+	// Check if the enum name is using a reserved keyword
+	if (FHeaderParser::IsReservedTypeName(EnumToken))
+	{
+		FError::Throwf(TEXT("enum: '%s' uses a reserved type name."), *EnumToken.GetTokenName().ToString());
+	}
+
 	ParseFieldMetaData(EnumToken.MetaData, EnumToken.Identifier);
 	// Create enum definition.
 	UEnum* Enum = new(EC_InternalUseOnlyConstructor, CurrentSrcFile->GetPackage(), EnumToken.Identifier, RF_Public) UEnum(FObjectInitializer());
@@ -2372,6 +2379,12 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 	// Effective struct name
 	const FString EffectiveStructName = *StructNameStripped;
 
+	// Verify that this struct name is not set to a reserved name	
+	if (FHeaderParser::IsReservedTypeName(EffectiveStructName))
+	{
+		FError::Throwf(TEXT("Struct '%s' uses a reserved type name ('%s')."), *StructNameInScript, *EffectiveStructName);
+	}
+
 	// Process the list of specifiers
 	for (const FPropertySpecifier& Specifier : SpecifiersFound)
 	{
@@ -2504,20 +2517,20 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 			}
 
 			// If it wasn't found, try to find the literal name given
-			if (Type == NULL)
+			if (Type == nullptr)
 			{
 				Type = StructScope->FindTypeByName(*ParentStructNameInScript);
 			}
 
 			// Resolve structs declared in another class  //@TODO: UCREMOVAL: This seems extreme
-			if (Type == NULL)
+			if (Type == nullptr)
 			{
 				if (bOverrideParentStructName)
 				{
 					Type = FindObject<UScriptStruct>(ANY_PACKAGE, *ParentStructNameStripped);
 				}
 
-				if (Type == NULL)
+				if (Type == nullptr)
 				{
 					Type = FindObject<UScriptStruct>(ANY_PACKAGE, *ParentStructNameInScript);
 				}
@@ -2537,7 +2550,7 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 					const TCHAR* PrefixCPP = StructsWithTPrefix.Contains(ParentStructNameStripped) ? TEXT("T") : BaseStruct->GetPrefixCPP();
 					if( ParentStructNameInScript != FString::Printf(TEXT("%s%s"), PrefixCPP, *ParentStructNameStripped) )
 					{
-						BaseStruct = NULL;
+						BaseStruct = nullptr;
 						FError::Throwf(TEXT("Parent Struct '%s' is missing a valid Unreal prefix, expecting '%s'"), *ParentStructNameInScript, *FString::Printf(TEXT("%s%s"), PrefixCPP, *Type->GetName()));
 					}
 				}
@@ -6887,6 +6900,22 @@ void FHeaderParser::ParseParameterList(FClasses& AllClasses, UFunction* Function
 					}
 				}
 			}
+
+			// Check that the parameter name is valid and does not conflict with pre-defined types
+			{
+				const static TArray<FString> InvalidParamNames =
+				{
+					TEXT("self"),
+				};
+
+				for (const FString& InvalidName : InvalidParamNames)
+				{
+					if (Property.Matches(*InvalidName, ESearchCase::IgnoreCase))
+					{
+						UE_LOG_ERROR_UHT(TEXT("Paramater name '%s' in function is invalid, '%s' is a reserved name."), *InvalidName, *InvalidName);
+					}
+				}
+			}
 		}
 
 		// Default value.
@@ -10587,6 +10616,30 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 			}
 		}
 	}
+}
+
+bool FHeaderParser::IsReservedTypeName(const FString& TypeName)
+{
+	for(const FString& ReservedName : ReservedTypeNames)
+	{
+		if(TypeName == ReservedName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FHeaderParser::IsReservedTypeName(const FToken& Token)
+{
+	for (const FString& ReservedName : ReservedTypeNames)
+	{
+		if (Token.Matches(*ReservedName, ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool FHeaderParser::CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax)
