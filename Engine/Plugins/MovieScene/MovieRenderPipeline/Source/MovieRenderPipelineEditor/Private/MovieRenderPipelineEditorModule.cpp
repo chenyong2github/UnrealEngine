@@ -44,7 +44,7 @@ namespace
 	static TSharedRef<SDockTab> SpawnMoviePipelineQueueTab(const FSpawnTabArgs& InSpawnTabArgs)
 	{
 		TSharedRef<SDockTab> NewTab = SNew(SDockTab)
-			.TabRole(ETabRole::MajorTab)
+			.TabRole(ETabRole::NomadTab)
 			[
 				SNew(SMoviePipelineQueueTabContent)
 			];
