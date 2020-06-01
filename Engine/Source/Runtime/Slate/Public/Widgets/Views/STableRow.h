@@ -301,15 +301,38 @@ public:
 				};
 			}();
 
-			FSlateDrawElement::MakeBox
-			(
-				OutDrawElements,
-				LayerId++,
-				AllottedGeometry.ToPaintGeometry(),
-				DropIndicatorBrush,
-				ESlateDrawEffect::None,
-				DropIndicatorBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-			);
+			if (OwnerTable->Private_GetOrientation() == Orient_Vertical)
+			{
+				FSlateDrawElement::MakeBox
+				(
+					OutDrawElements,
+					LayerId++,
+					AllottedGeometry.ToPaintGeometry(),
+					DropIndicatorBrush,
+					ESlateDrawEffect::None,
+					DropIndicatorBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+				);
+			}
+			else
+			{
+				// Reuse the drop indicator asset for horizontal, by rotating the drawn box 90 degrees.
+				const FVector2D LocalSize(AllottedGeometry.GetLocalSize());
+				const FVector2D Pivot(LocalSize * 0.5f);
+				const FVector2D RotatedLocalSize(LocalSize.Y, LocalSize.X);
+				FSlateLayoutTransform RotatedTransform(Pivot - RotatedLocalSize * 0.5f);	// Make the box centered to the alloted geometry, so that it can be rotated around the center.
+
+				FSlateDrawElement::MakeRotatedBox(
+					OutDrawElements,
+					LayerId++,
+					AllottedGeometry.ToPaintGeometry(RotatedLocalSize, RotatedTransform),
+					DropIndicatorBrush,
+					ESlateDrawEffect::None,
+					-HALF_PI,	// 90 deg CCW
+					RotatedLocalSize * 0.5f,	// Relative center to the flipped
+					FSlateDrawElement::RelativeToElement,
+					DropIndicatorBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+				);
+			}
 		}
 
 		return LayerId;
@@ -637,14 +660,17 @@ public:
 	}
 
 	/** @return the zone (above, onto, below) based on where the user is hovering over within the row */
-	EItemDropZone ZoneFromPointerPosition(FVector2D LocalPointerPos, float RowHeight)
+	EItemDropZone ZoneFromPointerPosition(FVector2D LocalPointerPos, FVector2D LocalSize, EOrientation Orientation)
 	{
-		const float VecticalZoneBoundarySu = FMath::Clamp(RowHeight * 0.25f, 3.0f, 10.0f);
-		if (LocalPointerPos.Y < VecticalZoneBoundarySu)
+		const float PointerPos = Orientation == EOrientation::Orient_Horizontal ? LocalPointerPos.X : LocalPointerPos.Y;
+		const float Size = Orientation == EOrientation::Orient_Horizontal ? LocalSize.X : LocalSize.Y;
+
+		const float ZoneBoundarySu = FMath::Clamp(Size * 0.25f, 3.0f, 10.0f);
+		if (PointerPos < ZoneBoundarySu)
 		{
 			return EItemDropZone::AboveItem;
 		}
-		else if (LocalPointerPos.Y > RowHeight - VecticalZoneBoundarySu)
+		else if (PointerPos > Size - ZoneBoundarySu)
 		{
 			return EItemDropZone::BelowItem;
 		}
@@ -658,8 +684,9 @@ public:
 	{
 		if ( OnCanAcceptDrop.IsBound() )
 		{
+			const TSharedRef< ITypedTableView<ItemType> > OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
 			const FVector2D LocalPointerPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
-			const EItemDropZone ItemHoverZone = ZoneFromPointerPosition(LocalPointerPos, MyGeometry.GetLocalSize().Y);
+			const EItemDropZone ItemHoverZone = ZoneFromPointerPosition(LocalPointerPos, MyGeometry.GetLocalSize(), OwnerTable->Private_GetOrientation());
 
 			ItemDropZone = [ItemHoverZone, DragDropEvent, this]()
 			{
@@ -697,7 +724,7 @@ public:
 				{
 					// Which physical drop zone is the drop about to be performed onto?
 					const FVector2D LocalPointerPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
-					const EItemDropZone HoveredZone = ZoneFromPointerPosition(LocalPointerPos, MyGeometry.GetLocalSize().Y);
+					const EItemDropZone HoveredZone = ZoneFromPointerPosition(LocalPointerPos, MyGeometry.GetLocalSize(), OwnerTable->Private_GetOrientation());
 
 					// The row gets final say over which zone to drop onto regardless of physical location.
 					const TOptional<EItemDropZone> ReportedZone = OnCanAcceptDrop.IsBound()
