@@ -251,8 +251,8 @@ void FPhysInterface_Chaos::CreateActor(const FActorCreationParams& InParams, FPh
 
 	// Set up the new particle's game-thread data. This will be sent to physics-thread when
 	// the particle is added to the scene later.
-	Handle->SetX(InParams.InitialTM.GetLocation());
-	Handle->SetR(InParams.InitialTM.GetRotation());
+	Handle->SetX(InParams.InitialTM.GetLocation(), /*bInvalidate=*/false);	//do not generate wake event since this is part of initialization
+	Handle->SetR(InParams.InitialTM.GetRotation(), /*bInvalidate=*/false);
 #if CHAOS_CHECKED
 	Handle->SetDebugName(InParams.DebugName);
 #endif

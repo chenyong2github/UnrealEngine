@@ -147,7 +147,7 @@ public:
 	void SetInitialized(bool InInitialized) { bInitialized = InInitialized; }
 
 	/**/
-	bool HasAwakeEvent() const;
+	Chaos::EWakeEventEntry GetWakeEvent() const;
 
 	/**/
 	void ClearEvents();
@@ -198,7 +198,7 @@ template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ConcreteType();
 
 template< >
-CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::HasAwakeEvent() const;
+CHAOSSOLVERS_API Chaos::EWakeEventEntry FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::GetWakeEvent() const;
 
 template< >
 CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearEvents();
@@ -225,7 +225,7 @@ template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ConcreteType();
 
 template< >
-CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::HasAwakeEvent() const;
+CHAOSSOLVERS_API Chaos::EWakeEventEntry FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::GetWakeEvent() const;
 
 template< >
 CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearEvents();
@@ -252,7 +252,7 @@ template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ConcreteType();
 
 template< >
-CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::HasAwakeEvent() const;
+CHAOSSOLVERS_API Chaos::EWakeEventEntry FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::GetWakeEvent() const;
 
 template< >
 CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearEvents();
