@@ -78,6 +78,12 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 			PreV(Index) = this->V(Index);
 			PreW(Index) = this->W(Index);
 		}
+		else if(bSleeping)
+		{
+			//being put to sleep, so zero out velocities
+			this->V(Index) = TVector<FReal,3>(0);
+			this->W(Index) = TVector<FReal,3>(0);
+		}
 
 		bool CurrentlySleeping = this->ObjectState(Index) == EObjectStateType::Sleeping;
 		if (CurrentlySleeping != bSleeping)
