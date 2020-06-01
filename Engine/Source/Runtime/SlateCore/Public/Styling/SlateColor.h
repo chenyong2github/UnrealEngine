@@ -151,6 +151,7 @@ public:
 	{
 		if (ColorUseRule == ESlateColorStylingMode::UseColor_ColorTable)
 		{
+			SpecifiedColor = GetColorFromTable();
 			ColorUseRule = ESlateColorStylingMode::UseColor_Specified;
 		}
 	}
