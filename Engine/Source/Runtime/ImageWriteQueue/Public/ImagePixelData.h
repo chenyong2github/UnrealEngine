@@ -134,6 +134,12 @@ struct FImagePixelData
 	template<typename T>
 	T* GetPayload() { return static_cast<T*>(Payload.Get()); }
 
+	/**
+	* Return a const pointer to the Payload stored in this data.
+	*/
+	template<typename T>
+	const T* GetPayload() const { return static_cast<T*>(Payload.Get()); }
+
 protected:
 
 	FImagePixelData(const FIntPoint& InSize, EImagePixelType InPixelType, ERGBFormat InPixelLayout, uint8 InBitDepth, uint8 InNumChannels, FImagePixelPayloadPtr InPayload)
