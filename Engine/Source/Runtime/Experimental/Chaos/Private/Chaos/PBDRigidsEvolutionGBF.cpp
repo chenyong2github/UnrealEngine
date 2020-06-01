@@ -464,6 +464,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 		SerializeToDisk(*this);
 	}
 
+#if CHAOS_DEBUG_DRAW
 	if(FDebugDrawQueue::IsDebugDrawingEnabled())
 	{
 		if(!!DrawAwake)
@@ -490,6 +491,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 			}
 		}
 	}
+#endif
 #endif
 }
 
