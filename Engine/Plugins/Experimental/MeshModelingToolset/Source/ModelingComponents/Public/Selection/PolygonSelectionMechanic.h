@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Drawing/PreviewGeometryActor.h"
+#include "Drawing/TriangleSetComponent.h"
 #include "InteractiveTool.h"
 #include "SimpleDynamicMeshComponent.h"
 #include "Selection/GroupTopologySelector.h"
@@ -57,21 +59,36 @@ class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMech
 	GENERATED_BODY()
 public:
 
+	virtual ~UPolygonSelectionMechanic();
+
 	// configuration variables that must be set before bSetup is called
 	bool bAddSelectionFilterPropertiesToParentTool = true;
 
 	virtual void Setup(UInteractiveTool* ParentTool) override;
+	virtual void Shutdown() override;
+
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-
-	void Initialize(const FDynamicMesh3* Mesh, 
-		FTransform3d TargetTransform,
+	/**
+	 * Initializes the mechanic.
+	 *
+	 * @param Mesh Mesh that we are operating on.
+	 * @param TargetTransform Transform of the mesh.
+	 * @param World World in which we are operating, used to add drawing components that draw highlighted edges.
+	 * @param Topology Group topology of the mesh.
+	 * @param GetSpatialSourceFunc Function that returns an AABB tree for the mesh.
+	 * @param GetAddToSelectionModifierStateFunc Functions that returns whether new selection should be trying to append to an existing 
+	     selection, usually by checking whether a particular modifier key is currently pressed.
+	 */
+	void Initialize(const FDynamicMesh3* Mesh,
+		FTransform TargetTransform,
+		UWorld* World,
 		const FGroupTopology* Topology,
 		TFunction<FDynamicMeshAABBTree3*()> GetSpatialSourceFunc,
 		TFunction<bool(void)> GetAddToSelectionModifierStateFunc = []() {return false; }
 		);
 
-	void Initialize(const USimpleDynamicMeshComponent* MeshComponent, const FGroupTopology* Topology,
+	void Initialize(USimpleDynamicMeshComponent* MeshComponent, const FGroupTopology* Topology,
 		TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFunc,
 		TFunction<bool(void)> GetAddToSelectionModifierStateFunc = []() {return false; }
 	);
@@ -188,6 +205,18 @@ protected:
 	FGroupTopologySelection PersistentSelection;
 	int32 SelectionTimestamp = 0;
 	TUniquePtr<FPolygonSelectionMechanicSelectionChange> ActiveChange;
+
+	/** The temporary actor we create internally to own the preview mesh component */
+	UPROPERTY()
+	APreviewGeometryActor* PreviewGeometryActor;
+
+	UPROPERTY()
+	UTriangleSetComponent* DrawnTriangleSetComponent;
+
+	TSet<int> CurrentlyHighlightedGroups;
+
+	UPROPERTY()
+	UMaterialInterface* HighlightedFaceMaterial;
 
 	FViewCameraState CameraState;
 public:

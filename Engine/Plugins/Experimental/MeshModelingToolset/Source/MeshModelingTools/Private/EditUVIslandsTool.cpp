@@ -125,6 +125,7 @@ void UEditUVIslandsTool::Shutdown(EToolShutdownType ShutdownType)
 	MaterialSettings->SaveProperties(this);
 
 	MultiTransformer->Shutdown();
+	SelectionMechanic->Shutdown();
 
 	if (DynamicMeshComponent != nullptr)
 	{

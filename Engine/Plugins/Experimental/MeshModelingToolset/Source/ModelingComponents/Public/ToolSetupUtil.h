@@ -75,9 +75,9 @@ namespace ToolSetupUtil
 	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(UInteractiveToolManager* ToolManager);
 
 	/**
-	 * @return Selection Material 1 with custom color
+	 * @return Selection Material 1 with custom color and optional depth offset (depth offset moves vertices towards the camera)
 	 */
-	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager);
+	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager, float DepthOffset = 0.0f);
 
 	/**
 	 * @return Simple material with configurable color and opacity.
