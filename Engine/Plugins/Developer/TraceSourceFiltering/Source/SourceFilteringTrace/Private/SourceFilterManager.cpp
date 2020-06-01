@@ -150,7 +150,7 @@ void FSourceFilterManager::ApplyFilters()
 				{
 					const AActor* Actor = *ActorIt;
 					const uint32 ActorHash = GetTypeHash(Actor);
-					const int32 ActorIndex = ActorIt.Index();
+					const uint32 ActorIndex = ActorIt.Index();
 					if (Actor && !PassedActorsHashes.Contains(ActorHash) && !DiscardedActorHashes.Contains(ActorHash))
 					{
 						const FHashSet* PassSets = PassedFilterSets.Find(ActorHash);
