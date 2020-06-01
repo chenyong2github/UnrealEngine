@@ -20,9 +20,7 @@ public class SourceFilteringEditor : ModuleRules
 					"WorkspaceMenuStructure",
                     "SourceFilteringCore",
 					"PropertyPath",
-					"GameplayInsights",
-					"Sockets",
-                    "MessagingCommon"
+					"GameplayInsights"
                 }
             );
 		

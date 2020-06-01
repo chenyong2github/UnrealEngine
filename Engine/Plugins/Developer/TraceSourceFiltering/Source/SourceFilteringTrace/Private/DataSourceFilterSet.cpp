@@ -37,12 +37,7 @@ bool UDataSourceFilterSet::DoesActorPassFilter_Internal(const AActor* InActor) c
 		if (Filter->IsEnabled())
 		{
 			const bool bResult = Filter->DoesActorPassFilter(InActor);
-
-			if (!bResult)
-			{
-				FFilterLedger::Get().RejectedFilters.Add(Filter);
-			}
-
+			
 			// OR, at least one filter has to be passed 
 			if (Mode == EFilterSetMode::OR)
 			{
