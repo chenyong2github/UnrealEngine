@@ -6,6 +6,7 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Interfaces/IProjectManager.h"
 
 #define LOCTEXT_NAMESPACE "ProjectDescriptor"
 
@@ -193,6 +194,12 @@ bool FProjectDescriptor::Read(const FJsonObject& Object, const FString& PathToPr
 
 bool FProjectDescriptor::Save(const FString& FileName, FText& OutFailReason)
 {
+	if (IProjectManager::Get().IsSuppressingProjectFileWrite())
+	{
+		OutFailReason = FText::Format( LOCTEXT("FailedToWriteOutputFileSuppressed", "Failed to write output file '{0}'. Project file saving is suppressed."), FText::FromString(FileName) );
+		return false;
+	}
+
 	// Write the contents of the descriptor to a string. Make sure the writer is destroyed so that the contents are flushed to the string.
 	FString Text;
 	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&Text);
