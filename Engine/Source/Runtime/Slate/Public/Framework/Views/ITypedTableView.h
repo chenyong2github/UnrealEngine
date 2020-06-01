@@ -203,6 +203,9 @@ public:
 	/** @return the selection mode of this TableView */
 	virtual ESelectionMode::Type Private_GetSelectionMode() const = 0;
 
+	/** @return the orientation of this TableView */
+	virtual EOrientation Private_GetOrientation() const = 0;
+
 	/** Is the list pending a refresh? */
 	virtual bool Private_IsPendingRefresh() const = 0;
 
