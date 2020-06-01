@@ -20,6 +20,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "MaterialShared.h"
 
 IMPLEMENT_TYPE_LAYOUT(FOpenColorIOCompilationOutput);
 IMPLEMENT_TYPE_LAYOUT(FOpenColorIOShaderMapId);
