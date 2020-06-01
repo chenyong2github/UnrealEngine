@@ -16,6 +16,12 @@ DECLARE_CYCLE_STAT(TEXT("HitTestGrid Clear"), STAT_SlateHTG_Clear, STATGROUP_Sla
 int32 SlateVerifyHitTestVisibility = 0;
 static FAutoConsoleVariableRef CVarSlateVerifyHitTestVisibility(TEXT("Slate.VerifyHitTestVisibility"), SlateVerifyHitTestVisibility, TEXT("Should we double check the visibility of widgets during hit testing, in case previously resolved hit tests that same frame may have changed state?"), ECVF_Default);
 
+static TAutoConsoleVariable<bool> CVarSlateHittestGridRemoveAppendedGrid(
+	TEXT("Slate.HittestGrid.RemoveAppendedGrid"),
+	true,
+	TEXT("Remove the previous appended grid before adding the new version."));
+
+
 constexpr bool IsCompatibleUserIndex(int32 RequestedUserIndex, int32 TestUserIndex)
 {
 	// INDEX_NONE means the user index is compatible with all
@@ -576,9 +582,20 @@ bool FHittestGrid::IsValidCellCoord(const int32 XCoord, const int32 YCoord) cons
 
 void FHittestGrid::AppendGrid(FHittestGrid& OtherGrid)
 {
+	TSharedPtr<SWidget> NullOwner;
+	AppendGrid(OtherGrid, NullOwner);
+}
+
+void FHittestGrid::AppendGrid(FHittestGrid& OtherGrid, const TSharedPtr<SWidget>& Owner)
+{
 	// The two grids must occupy the same space
 	if (ensure(this != &OtherGrid && GridOrigin == OtherGrid.GridOrigin && GridWindowOrigin == OtherGrid.GridWindowOrigin && GridSize == OtherGrid.GridSize))
 	{
+		if (Owner.IsValid() && CVarSlateHittestGridRemoveAppendedGrid.GetValueOnGameThread())
+		{
+			RemoveAppendedGrid(Owner.ToSharedRef());
+		}
+
 		// Index is not valid in the other grid so remap it 
 		for (auto& Pair : OtherGrid.WidgetMap)
 		{
@@ -604,6 +621,32 @@ void FHittestGrid::AppendGrid(FHittestGrid& OtherGrid)
 		}
 	}
 }
+
+void FHittestGrid::RemoveAppendedGrid(const TSharedRef<SWidget>& Owner)
+{
+	if (WidgetArray.Num() != 0)
+	{
+		TArray<TSharedRef<SWidget>> ToRemove;
+		ToRemove.Reserve(WidgetArray.Num());
+
+		for (const FWidgetData& Data : WidgetArray)
+		{
+			if (Owner == Data.Owner)
+			{
+				if (TSharedPtr<SWidget> Widget = Data.GetWidget())
+				{
+					ToRemove.Add(Widget.ToSharedRef());
+				}
+			}
+		}
+
+		for (const TSharedRef<SWidget>& WidgetToRemove : ToRemove)
+		{
+			RemoveWidget(WidgetToRemove);
+		}
+	}
+}
+
 #if WITH_SLATE_DEBUGGING
 void FHittestGrid::LogGrid() const
 {
@@ -714,7 +757,7 @@ void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchP
 	const FIntPoint LowerRightCell = GetCellCoordinate(BoundingRect.GetBottomRight());
 
 	int32& WidgetIndex = WidgetMap.Add(&*InWidget);
-	FWidgetData Data(InWidget, UpperLeftCell, LowerRightCell, PrimarySort, InSecondarySort, CurrentUserIndex);
+	FWidgetData Data(InWidget, nullptr, UpperLeftCell, LowerRightCell, PrimarySort, InSecondarySort, CurrentUserIndex);
 	WidgetIndex = WidgetArray.Add(Data); // Bleh why doesn't Sparse Array have an emplace.
 
 	for (int32 XIndex = UpperLeftCell.X; XIndex <= LowerRightCell.X; ++XIndex)
