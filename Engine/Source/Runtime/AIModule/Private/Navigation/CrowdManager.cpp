@@ -208,7 +208,7 @@ void UCrowdManager::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-#if WITH_EDITORONLY_DATA && ENABLE_DRAW_DEBUG
+#if WITH_EDITORONLY_DATA
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
 		DebugDrawingWorld = GetWorld();
@@ -971,6 +971,10 @@ void UCrowdManager::DestroyCrowdManager()
 #if ENABLE_DRAW_DEBUG
 void UCrowdManager::DrawDebugCorners(const dtCrowdAgent* CrowdAgent) const
 {
+#if !WITH_EDITORONLY_DATA
+	UWorld* DebugDrawingWorld = GetWorld();
+#endif // !WITH_EDITORONLY_DATA
+
 	{
 		FVector P0 = Recast2UnrealPoint(CrowdAgent->npos);
 		for (int32 Idx = 0; Idx < CrowdAgent->ncorners; Idx++)
@@ -990,6 +994,10 @@ void UCrowdManager::DrawDebugCorners(const dtCrowdAgent* CrowdAgent) const
 
 void UCrowdManager::DrawDebugCollisionSegments(const dtCrowdAgent* CrowdAgent) const
 {
+#if !WITH_EDITORONLY_DATA
+	UWorld* DebugDrawingWorld = GetWorld();
+#endif // !WITH_EDITORONLY_DATA
+
 	FVector Center = Recast2UnrealPoint(CrowdAgent->boundary.getCenter()) + FCrowdDebug::Offset;
 	DrawDebugCylinder(DebugDrawingWorld, Center - FCrowdDebug::Offset, Center, CrowdAgent->params.collisionQueryRange, 32, FCrowdDebug::CollisionRange);
 
@@ -1010,6 +1018,10 @@ void UCrowdManager::DrawDebugCollisionSegments(const dtCrowdAgent* CrowdAgent) c
 
 void UCrowdManager::DrawDebugPath(const dtCrowdAgent* CrowdAgent) const
 {
+#if !WITH_EDITORONLY_DATA
+	UWorld* DebugDrawingWorld = GetWorld();
+#endif // !WITH_EDITORONLY_DATA
+
 	ARecastNavMesh* NavMesh = Cast<ARecastNavMesh>(MyNavData);
 	if (NavMesh == NULL)
 	{
@@ -1047,6 +1059,9 @@ void UCrowdManager::DrawDebugPath(const dtCrowdAgent* CrowdAgent) const
 
 void UCrowdManager::DrawDebugVelocityObstacles(const dtCrowdAgent* CrowdAgent) const
 {
+#if !WITH_EDITORONLY_DATA
+	UWorld* DebugDrawingWorld = GetWorld();
+#endif // !WITH_EDITORONLY_DATA
 	FVector Center = Recast2UnrealPoint(CrowdAgent->npos) + FCrowdDebug::Offset;
 	DrawDebugCylinder(DebugDrawingWorld, Center - FCrowdDebug::Offset, Center, CrowdAgent->params.maxSpeed, 32, FCrowdDebug::AvoidanceRange);
 
@@ -1084,6 +1099,9 @@ void UCrowdManager::DrawDebugVelocityObstacles(const dtCrowdAgent* CrowdAgent) c
 
 void UCrowdManager::DrawDebugPathOptimization(const dtCrowdAgent* CrowdAgent) const
 {
+#if !WITH_EDITORONLY_DATA
+	UWorld* DebugDrawingWorld = GetWorld();
+#endif // !WITH_EDITORONLY_DATA
 	FVector Pt0 = Recast2UnrealPoint(DetourAgentDebug->optStart) + FCrowdDebug::Offset * 1.25f;
 	FVector Pt1 = Recast2UnrealPoint(DetourAgentDebug->optEnd) + FCrowdDebug::Offset * 1.25f;
 
@@ -1092,6 +1110,9 @@ void UCrowdManager::DrawDebugPathOptimization(const dtCrowdAgent* CrowdAgent) co
 
 void UCrowdManager::DrawDebugNeighbors(const dtCrowdAgent* CrowdAgent) const
 {
+#if !WITH_EDITORONLY_DATA
+	UWorld* DebugDrawingWorld = GetWorld();
+#endif // !WITH_EDITORONLY_DATA
 	FVector Center = Recast2UnrealPoint(CrowdAgent->npos) + FCrowdDebug::Offset;
 	DrawDebugCylinder(DebugDrawingWorld, Center - FCrowdDebug::Offset, Center, CrowdAgent->params.collisionQueryRange, 32, FCrowdDebug::CollisionRange);
 
@@ -1108,6 +1129,9 @@ void UCrowdManager::DrawDebugNeighbors(const dtCrowdAgent* CrowdAgent) const
 
 void UCrowdManager::DrawDebugSharedBoundary() const
 {
+#if !WITH_EDITORONLY_DATA
+	UWorld* DebugDrawingWorld = GetWorld();
+#endif // !WITH_EDITORONLY_DATA
 	FColor Colors[] = { FColorList::Red, FColorList::Orange };
 
 	const dtSharedBoundary* sharedBounds = DetourCrowd->getSharedBoundary();
