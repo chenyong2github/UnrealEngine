@@ -339,7 +339,7 @@ void UBlackboardComponent::UnregisterObserver(FBlackboard::FKey KeyID, FDelegate
 			{
 				It.RemoveCurrent();
 			}
-			else
+			else if (!It.Value().bToBeRemoved)
 			{
 				It.Value().bToBeRemoved = true;
 				++ObserversToRemoveCount;
@@ -362,7 +362,7 @@ void UBlackboardComponent::UnregisterObserversFrom(UObject* NotifyOwner)
 				{
 					ObsIt.RemoveCurrent();
 				}
-				else
+				else if (!ObsIt.Value().bToBeRemoved)
 				{
 					ObsIt.Value().bToBeRemoved = true;
 					++ObserversToRemoveCount;
