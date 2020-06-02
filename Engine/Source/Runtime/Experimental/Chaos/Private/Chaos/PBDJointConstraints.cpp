@@ -471,7 +471,10 @@ namespace Chaos
 	void FPBDJointConstraints::BreakConstraint(int32 ConstraintIndex)
 	{
 		SetConstraintEnabled(ConstraintIndex, false);
-		BreakCallback(Handles[ConstraintIndex]);
+		if (BreakCallback)
+		{
+			BreakCallback(Handles[ConstraintIndex]);
+		}
 	}
 
 
