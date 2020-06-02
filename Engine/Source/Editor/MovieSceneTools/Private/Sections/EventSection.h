@@ -56,7 +56,7 @@ public:
 public:
 
 	virtual int32 OnPaintSection(FSequencerSectionPainter& Painter) const override;
-	virtual FReply OnKeyDoubleClicked(FKeyHandle KeyHandle) override;
+	virtual FReply OnKeyDoubleClicked(const TArray<FKeyHandle>& KeyHandles) override;
 };
 
 class FEventRepeaterSection
