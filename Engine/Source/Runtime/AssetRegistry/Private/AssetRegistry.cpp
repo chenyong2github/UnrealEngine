@@ -29,6 +29,7 @@
 #include "DirectoryWatcherModule.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/IConsoleManager.h"
 #endif // WITH_EDITOR
 
 // Caching is permanently enabled in editor because memory is not that constrained, disabled by default otherwise
