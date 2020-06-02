@@ -385,6 +385,14 @@ public:
 		NameMapType = InNameMapType;
 	}
 
+	void AddName(const FName& Name)
+	{
+		const FNameEntryId Id = Name.GetComparisonIndex();
+		NameMap.Add(Id);
+		int32 Index = NameMap.Num();
+		NameIndices.Add(Id, Index);
+	}
+
 	void MarkNamesAsReferenced(const TArray<FName>& Names, TArray<int32>& OutNameIndices)
 	{
 		for (const FName& Name : Names)
@@ -393,8 +401,8 @@ public:
 			int32& Index = NameIndices.FindOrAdd(Id);
 			if (Index == 0)
 			{
-				Index = NameIndices.Num();
 				NameMap.Add(Id);
+				Index = NameMap.Num();
 			}
 
 			OutNameIndices.Add(Index - 1);
@@ -407,8 +415,8 @@ public:
 		int32& Index = NameIndices.FindOrAdd(Id);
 		if (Index == 0)
 		{
-			Index = NameIndices.Num();
 			NameMap.Add(Id);
+			Index = NameMap.Num();
 		}
 #if OUTPUT_NAMEMAP_CSV
 		// debug counts
@@ -518,7 +526,7 @@ private:
 #if OUTPUT_NAMEMAP_CSV
 	TMap<FNameEntryId, TTuple<int32,int32,int32>> DebugNameCounts; // <Number0Count,OtherNumberCount,MaxNumber>
 #endif
-	FMappedName::EType NameMapType = FMappedName::EType::Global;
+	FMappedName::EType NameMapType = FMappedName::EType::Package;
 };
 
 class FNameReaderProxyArchive
@@ -610,6 +618,7 @@ struct FContainerTargetFile
 	FIoChunkHash ChunkHash;
 	TArray<uint8> PackageHeaderData;
 	TArray<int32> NameIndices;
+	FNameMapBuilder* NameMapBuilder = nullptr;
 	TArray<FContainerTargetFilePartialMapping> PartialMappings;
 	bool bIsBulkData = false;
 	bool bIsOptionalBulkData = false;
@@ -647,7 +656,6 @@ struct FContainerMeta
 	FString ContainerName;
 	FIoContainerId ContainerId;
 	FGuid EncryptionKeyGuid;
-	FNameMapBuilder NameMapBuilder;
 	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
 
 	friend FArchive& operator<<(FArchive& Ar, FContainerMeta& ContainerMeta)
@@ -655,7 +663,6 @@ struct FContainerMeta
 		Ar << ContainerMeta.ContainerName;
 		Ar << ContainerMeta.ContainerId;
 		Ar << ContainerMeta.EncryptionKeyGuid;
-		Ar << ContainerMeta.NameMapBuilder;
 		Ar << ContainerMeta.ContainerFlags;
 		return Ar;
 	}
@@ -672,7 +679,7 @@ struct FContainerTargetSpec
 	TUniquePtr<FIoStoreEnvironment> IoStoreEnv;
 	TArray<TUniquePtr<FIoStoreReader>> PatchSourceReaders;
 	FNameMapBuilder LocalNameMapBuilder;
-	FNameMapBuilder* NameMapBuilder = nullptr;
+	FNameMapBuilder* NameMapBuilder = &LocalNameMapBuilder;
 	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
 	uint32 PackageCount = 0;
 	bool bUseLocalNameMap = false;
@@ -937,9 +944,9 @@ struct FPackage
 	TArray<FPackage*> ImportedByPackages;
 	TSet<FPackage*> AllReachablePackages;
 
-	TArray<FName> Names;
-	TArray<FNameEntryId> NameMap;
-
+	TArray<FName> SummaryNames;
+	FNameMapBuilder LocalNameMapBuilder;
+	
 	TArray<FPackageObjectIndex> Imports;
 	TArray<int32> Exports;
 	TMap<FPackage*, TArray<FArc>> ExternalArcs;
@@ -2172,16 +2179,18 @@ static void AddPreloadDependencies(
 	}
 };
 
-void BuildContainerNameMap(FContainerTargetSpec& ContainerTarget)
+void FinalizeNameMaps(FContainerTargetSpec& ContainerTarget)
 {
-	FNameMapBuilder& NameMapBuilder = *ContainerTarget.NameMapBuilder;
-
 	for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
 	{
+		if (TargetFile.bIsBulkData)
+		{
+			continue;
+		}
 		FPackage* Package = TargetFile.Package;
-		NameMapBuilder.MarkNameAsReferenced(Package->Name);
-		NameMapBuilder.MarkNameAsReferenced(Package->SourcePackageName);
-		NameMapBuilder.MarkNamesAsReferenced(Package->Names, TargetFile.NameIndices);
+		TargetFile.NameMapBuilder->MarkNameAsReferenced(Package->Name);
+		TargetFile.NameMapBuilder->MarkNameAsReferenced(Package->SourcePackageName);
+		TargetFile.NameMapBuilder->MarkNamesAsReferenced(Package->SummaryNames, TargetFile.NameIndices);
 	}
 }
 
@@ -2191,10 +2200,6 @@ void FinalizePackageHeaders(
 	const TArray<FExportObjectData>& GlobalExports,
 	const FImportObjectsByFullName& GlobalImportsByFullName)
 {
-	check(ContainerTarget.NameMapBuilder);
-	FNameMapBuilder& NameMapBuilder = *ContainerTarget.NameMapBuilder;
-	const uint16 NameMapIndex = ContainerTarget.bUseLocalNameMap ? ContainerTarget.Header.ContainerId.ToIndex() : 0;
-
 	for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
 	{
 		if (TargetFile.bIsBulkData)
@@ -2239,7 +2244,7 @@ void FinalizePackageHeaders(
 			FExportMapEntry ExportMapEntry;
 			ExportMapEntry.CookedSerialOffset = ObjectExport.SerialOffset;
 			ExportMapEntry.CookedSerialSize = ObjectExport.SerialSize;
-			ExportMapEntry.ObjectName = NameMapBuilder.MapName(ObjectExport.ObjectName);
+			ExportMapEntry.ObjectName = TargetFile.NameMapBuilder->MapName(ObjectExport.ObjectName);
 			ExportMapEntry.OuterIndex = ExportData.OuterIndex;
 			ExportMapEntry.ClassIndex = ExportData.ClassIndex;
 			ExportMapEntry.SuperIndex = ExportData.SuperIndex;
@@ -2280,7 +2285,10 @@ void FinalizePackageHeaders(
 		}
 		TargetFile.ExportBundlesHeaderSize = ExportBundlesArchive.Tell();
 
-		TargetFile.NameMapSize = TargetFile.NameIndices.Num() * TargetFile.NameIndices.GetTypeSize();
+		TArray<uint8> NamesBuffer;
+		TArray<uint8> NameHashesBuffer;
+		SaveNameBatch(Package->LocalNameMapBuilder.GetNameMap(), NamesBuffer, NameHashesBuffer);
+		TargetFile.NameMapSize = Align(NamesBuffer.Num(), 8) + NameHashesBuffer.Num();
 
 		TargetFile.HeaderSerialSize =
 			sizeof(FPackageSummary)
@@ -2294,12 +2302,10 @@ void FinalizePackageHeaders(
 		uint8* PackageHeaderBuffer = TargetFile.PackageHeaderData.GetData();
 		FPackageSummary* PackageSummary = reinterpret_cast<FPackageSummary*>(PackageHeaderBuffer);
 
-		PackageSummary->Name = NameMapBuilder.MapName(Package->Name);
-		PackageSummary->SourceName = NameMapBuilder.MapName(Package->SourcePackageName);
+		PackageSummary->Name = TargetFile.NameMapBuilder->MapName(Package->Name);
+		PackageSummary->SourceName = TargetFile.NameMapBuilder->MapName(Package->SourcePackageName);
 		PackageSummary->PackageFlags = Package->PackageFlags;
 		PackageSummary->CookedHeaderSize = Package->CookedHeaderSize;
-		PackageSummary->NameMapIndex = NameMapIndex;
-		PackageSummary->Pad = 0;
 		PackageSummary->GraphDataSize = TargetFile.UGraphSize;
 
 		FBufferWriter SummaryArchive(PackageHeaderBuffer, TargetFile.HeaderSerialSize);
@@ -2307,9 +2313,20 @@ void FinalizePackageHeaders(
 
 		// NameMap data
 		{
-			PackageSummary->NameMapOffset = SummaryArchive.Tell();
-			SummaryArchive.Serialize(TargetFile.NameIndices.GetData(),
-				TargetFile.NameIndices.Num() * TargetFile.NameIndices.GetTypeSize());
+			PackageSummary->NameMapNamesOffset = SummaryArchive.Tell();
+			check(PackageSummary->NameMapNamesOffset % 8 == 0);
+			PackageSummary->NameMapNamesSize = NamesBuffer.Num();
+			SummaryArchive.Serialize(NamesBuffer.GetData(), NamesBuffer.Num());
+			PackageSummary->NameMapHashesOffset = Align(SummaryArchive.Tell(), 8);
+			int32 PaddingByteCount = PackageSummary->NameMapHashesOffset - SummaryArchive.Tell();
+			if (PaddingByteCount)
+			{
+				check(PaddingByteCount < 8);
+				uint8 PaddingBytes[8]{ 0 };
+				SummaryArchive.Serialize(PaddingBytes, PaddingByteCount);
+			}
+			PackageSummary->NameMapHashesSize = NameHashesBuffer.Num();
+			SummaryArchive.Serialize(NameHashesBuffer.GetData(), NameHashesBuffer.Num());
 		}
 
 		// ImportMap data
@@ -2603,15 +2620,15 @@ static void ParsePackageAssets(
 			{
 				Ar.Seek(Summary.NameOffset);
 
-				Package.Names.Reserve(Summary.NameCount);
-				Package.NameMap.Reserve(Summary.NameCount);
 				FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
 
+				Package.SummaryNames.Reserve(Summary.NameCount);
 				for (int32 I = 0; I < Summary.NameCount; ++I)
 				{
 					Ar << NameEntry;
-					FName& Name = Package.Names.Emplace_GetRef(NameEntry);
-					Package.NameMap.Emplace(Name.GetDisplayIndex());
+					FName Name(NameEntry);
+					Package.SummaryNames.Add(Name);
+					Package.LocalNameMapBuilder.AddName(Name);
 				}
 			}
 		}
@@ -2637,7 +2654,7 @@ static void ParsePackageAssets(
 
 			if (Summary.ImportCount > 0)
 			{
-				FNameReaderProxyArchive ProxyAr(Ar, Package.NameMap);
+				FNameReaderProxyArchive ProxyAr(Ar, Package.LocalNameMapBuilder.GetNameMap());
 				ProxyAr.Seek(Summary.ImportOffset);
 
 				for (int32 I = 0; I < Summary.ImportCount; ++I)
@@ -2655,7 +2672,7 @@ static void ParsePackageAssets(
 
 			if (Summary.ExportCount > 0)
 			{
-				FNameReaderProxyArchive ProxyAr(Ar, Package.NameMap);
+				FNameReaderProxyArchive ProxyAr(Ar, Package.LocalNameMapBuilder.GetNameMap());
 				ProxyAr.Seek(Summary.ExportOffset);
 
 				for (int32 I = 0; I < Summary.ExportCount; ++I)
@@ -3182,17 +3199,11 @@ static void ProcessLocalizedPackages(
 	}
 }
 
-static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const FNameMapBuilder& GlobalNameMap, const TArray<FContainerTargetSpec*>& ContainerTargets)
+static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const TArray<FContainerTargetSpec*>& ContainerTargets)
 {
 	UE_LOG(LogIoStore, Display, TEXT("Saving release meta data to '%s'"), ReleaseVersionOutputDir);
 
 	IPlatformFile::GetPlatformPhysical().CreateDirectoryTree(ReleaseVersionOutputDir);
-
-	{
-		FString NameMapOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.unamemap"));
-		TUniquePtr<FArchive> NameMapArchive(IFileManager::Get().CreateFileWriter(*NameMapOutputPath));
-		(*NameMapArchive) << const_cast<FNameMapBuilder&>(GlobalNameMap);
-	}
 
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
@@ -3200,8 +3211,6 @@ static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const F
 		ContainerMeta.ContainerId = ContainerTarget->Header.ContainerId;
 		ContainerMeta.ContainerName = ContainerTarget->Name.ToString();
 		ContainerMeta.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
-		// Should be safe now as all container(s) has been saved.
-		ContainerMeta.NameMapBuilder = MoveTemp(ContainerTarget->LocalNameMapBuilder);
 		ContainerMeta.ContainerFlags = ContainerTarget->ContainerFlags;
 
 		FString MetaOutputPath = FPaths::Combine(ReleaseVersionOutputDir, ContainerTarget->Name.ToString() + TEXT(".ucontainermeta"));
@@ -3209,30 +3218,19 @@ static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const F
 		*Ar << ContainerMeta;
 
 		UE_LOG(LogIoStore, Display,
-			TEXT("Saved container release meta '%s' with container ID '%d' and '%d' names"),
+			TEXT("Saved container release meta '%s' with container ID '%d'"),
 			*MetaOutputPath,
-			ContainerMeta.ContainerId.ToIndex(),
-			ContainerMeta.NameMapBuilder.GetNameMap().Num());
+			ContainerMeta.ContainerId.ToIndex());
 	}	
 }
 
 static void LoadReleaseVersionMeta(
 	const TCHAR* ReleaseVersionOutputDir,
-	FNameMapBuilder& GlobalNameMap,
 	TArray<FContainerTargetSpec*>& ContainerTargets,
 	TMap<FName, FContainerTargetSpec*>& ContainerTargetMap)
 {
 	UE_LOG(LogIoStore, Display, TEXT("Loading release meta data from '%s'"), ReleaseVersionOutputDir);
 
-	{
-		FString NameMapPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.unamemap"));
-		TUniquePtr<FArchive> NameMapArchive(IFileManager::Get().CreateFileReader(*NameMapPath));
-		if (NameMapArchive)
-		{
-			(*NameMapArchive) << GlobalNameMap;
-		}
-	}
-	
 	FString ContainerMetaWildcard = FPaths::Combine(ReleaseVersionOutputDir, TEXT("*.ucontainermeta"));
 	TArray<FString> ContainerMetaFileNames;
 	IFileManager::Get().FindFiles(ContainerMetaFileNames, *ContainerMetaWildcard, true, false);
@@ -3247,14 +3245,12 @@ static void LoadReleaseVersionMeta(
 
 			FContainerTargetSpec* ContainerTarget = AddContainer(FName(ContainerMeta.ContainerName), ContainerMeta.ContainerId, ContainerTargets, ContainerTargetMap);
 			ContainerTarget->EncryptionKeyGuid = ContainerMeta.EncryptionKeyGuid;
-			ContainerTarget->LocalNameMapBuilder = MoveTemp(ContainerMeta.NameMapBuilder);
 			ContainerTarget->ContainerFlags = ContainerMeta.ContainerFlags;
 
 			UE_LOG(LogIoStore, Display,
-				TEXT("Loaded container release meta '%s' with container ID '%d' and '%d' names"),
+				TEXT("Loaded container release meta '%s' with container ID '%d'"),
 				*ContainerMetaFileName,
-				ContainerTarget->Header.ContainerId.ToIndex(),
-				ContainerTarget->LocalNameMapBuilder.GetNameMap().Num());
+				ContainerTarget->Header.ContainerId.ToIndex());
 		}
 	}
 }
@@ -3450,18 +3446,13 @@ void InitializeContainerTargetsAndPackages(
 						Package->UAssetSize = OriginalCookedFileStatData->FileSize;
 						Package->UExpSize = CookedFileStatData->FileSize;
 						TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::ExportBundleData, *TargetFile.TargetPath);
+						TargetFile.NameMapBuilder = &Package->LocalNameMapBuilder;
 					}
 				}
 			}
 
-			if (ContainerTarget->bUseLocalNameMap)
+			if (!ContainerTarget->bUseLocalNameMap)
 			{
-				ContainerTarget->NameMapBuilder = &ContainerTarget->LocalNameMapBuilder;
-			}
-			else
-			{
-				// Clear the local container map in case this was used in a previous release
-				ContainerTarget->LocalNameMapBuilder.Empty();
 				ContainerTarget->NameMapBuilder = &GlobalNameMapBuilder;
 			}
 		}
@@ -3660,6 +3651,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #endif
 
 	FNameMapBuilder GlobalNameMapBuilder;
+	GlobalNameMapBuilder.SetNameMapType(FMappedName::EType::Global);
 	FPackageAssetData PackageAssetData;
 	FGlobalPackageData GlobalPackageData;
 
@@ -3679,7 +3671,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 		if (!Arguments.BasedOnReleaseVersionDir.IsEmpty())
 		{
-			LoadReleaseVersionMeta(*Arguments.BasedOnReleaseVersionDir, GlobalNameMapBuilder, ContainerTargets, ContainerTargetMap);
+			LoadReleaseVersionMeta(*Arguments.BasedOnReleaseVersionDir, ContainerTargets, ContainerTargetMap);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.BasedOnReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
 			TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileReader(*PackageHashesOutputPath));
@@ -3734,12 +3726,12 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	BuildBundles(ExportGraph, Packages);
 
 	{
-		IOSTORE_CPU_SCOPE(BuildContainerNameMaps);
-		UE_LOG(LogIoStore, Display, TEXT("Creating container local name map(s)..."));
+		IOSTORE_CPU_SCOPE(FinalizeNameMaps);
+		UE_LOG(LogIoStore, Display, TEXT("Finalizing name maps..."));
 
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			BuildContainerNameMap(*ContainerTarget);
+			FinalizeNameMaps(*ContainerTarget);
 		}
 	}
 
@@ -4117,7 +4109,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	if (!Arguments.OutputReleaseVersionDir.IsEmpty())
 	{
-		SaveReleaseVersionMeta(*Arguments.OutputReleaseVersionDir, GlobalNameMapBuilder, ContainerTargets);
+		SaveReleaseVersionMeta(*Arguments.OutputReleaseVersionDir, ContainerTargets);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.OutputReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
 		TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileWriter(*PackageHashesOutputPath));
@@ -4220,7 +4212,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		UExpSize += Package->UExpSize;
 		UAssetSize += Package->UAssetSize;
 		SummarySize += Package->SummarySize;
-		NameMapCount += Package->NameMap.Num();
+		NameMapCount += Package->SummaryNames.Num();
 		ImportedPackagesCount += Package->ImportedPackages.Num();
 		NoImportedPackagesCount += Package->ImportedPackages.Num() == 0;
 
