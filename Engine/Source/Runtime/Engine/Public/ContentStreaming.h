@@ -94,8 +94,10 @@ class ENGINE_API FAudioChunkHandle
 public:
 	FAudioChunkHandle();
 	FAudioChunkHandle(const FAudioChunkHandle& Other);
+	FAudioChunkHandle(FAudioChunkHandle&& Other);
 
 	FAudioChunkHandle& operator=(const FAudioChunkHandle& Other);
+	FAudioChunkHandle& operator=(FAudioChunkHandle&& Other);
 
 	~FAudioChunkHandle();
 

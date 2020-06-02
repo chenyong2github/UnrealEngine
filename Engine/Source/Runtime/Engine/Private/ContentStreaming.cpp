@@ -1446,6 +1446,45 @@ FAudioChunkHandle::FAudioChunkHandle(const FAudioChunkHandle& Other)
 	*this = Other;
 }
 
+FAudioChunkHandle::FAudioChunkHandle(FAudioChunkHandle&& Other)
+	: FAudioChunkHandle()
+{
+	*this = MoveTemp(Other);
+}
+
+FAudioChunkHandle& FAudioChunkHandle::operator=(FAudioChunkHandle&& Other)
+{
+	// If this chunk was previously referencing another chunk, remove that chunk here.
+	if (IsValid())
+	{
+		IStreamingManager::Get().GetAudioStreamingManager().RemoveReferenceToChunk(*this);
+	}
+
+	CachedData = Other.CachedData;
+	CachedDataNumBytes = Other.CachedDataNumBytes;
+	CorrespondingWave = Other.CorrespondingWave;
+	CorrespondingWaveName = Other.CorrespondingWaveName;
+	ChunkIndex = Other.ChunkIndex;
+	CacheLookupID = Other.CacheLookupID;
+#if WITH_EDITOR
+	ChunkGeneration = Other.ChunkGeneration;
+#endif
+
+	// we don't need to call RemoveReferenceToChunk on Other, nor add a new reference to this chunk, since this is a move.
+	// Instead, we can simply null out the other chunk handle without invoking it's destructor.
+	Other.CachedData = nullptr;
+	Other.CachedDataNumBytes = 0;
+	Other.CorrespondingWave = nullptr;
+	Other.CorrespondingWaveName = FName();
+	Other.ChunkIndex = INDEX_NONE;
+	Other.CacheLookupID = InvalidAudioStreamCacheLookupID;
+#if WITH_EDITOR
+	Other.ChunkGeneration = INDEX_NONE;
+#endif
+
+	return *this;
+}
+
 FAudioChunkHandle& FAudioChunkHandle::operator=(const FAudioChunkHandle& Other)
 {
 	// If this chunk was previously referencing another chunk, remove that chunk here.
