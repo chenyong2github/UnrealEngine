@@ -136,6 +136,7 @@ public:
 		, SlipVelocity(0.f)
 		, SlipAngle(0.f)
 		, bInContact(false)
+		, WheelIndex(0)
 	{
 	}
 
@@ -205,6 +206,11 @@ public:
 	void SetMaxOmega(float InMaxOmega)
 	{
 		MaxOmega = InMaxOmega;
+	}
+
+	void SetWheelIndex(uint32 InIndex)
+	{
+		WheelIndex = InIndex;
 	}
 
 // Outputs
@@ -511,13 +517,12 @@ public:
 	float DriveTorque;				// [N.m]
 	float BrakeTorque;				// [N.m]
 	float ForceIntoSurface;			// [N]
-	FVector GroundVelocityVector;	// [m.s-1]  #todo: units
+	FVector GroundVelocityVector;	// [Unreal Units cm.s-1]
 	float AngularPosition;			// [radians]
-	float SteeringAngle;			// [radians] - @todo: might be moved out of here into a steering system?
+	float SteeringAngle;			// [degrees ATM]
 	float SurfaceFriction;
 	float MaxOmega;
 
-									// Out
 	FVector ForceFromFriction;
 
 	// Not sure about these here
@@ -529,9 +534,9 @@ public:
 	// Wheel transform
 
 	float SlipVelocity;			// Relative velocity between tire patch and ground ?? vector ??
-	float SlipAngle;
-	bool bInContact;				// Is tire in contact with the ground or free in the air
-	
+	float SlipAngle;			// Angle between wheel forwards and velocity vector
+	bool bInContact;			// Is tire in contact with the ground or free in the air
+	uint32 WheelIndex;			// purely for debugging purpoese
 };
 
 

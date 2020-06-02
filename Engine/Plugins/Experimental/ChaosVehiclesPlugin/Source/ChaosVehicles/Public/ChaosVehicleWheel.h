@@ -12,6 +12,7 @@
 #include "UObject/ScriptMacros.h"
 #include "EngineDefines.h"
 #include "SimpleVehicle.h"
+#include "Engine/EngineTypes.h"
 
 #include "ChaosVehicleWheel.generated.h"
 
@@ -98,6 +99,10 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		bool bAffectedByEngine;
 
+		/** Advanced Braking System Enabled */
+		UPROPERTY(EditAnywhere, Category = Wheel)
+		bool bABSEnabled;
+
 		/** Tire type for the wheel. Determines friction */
 		UPROPERTY(EditAnywhere, Category = Tire)
 		class UChaosTireConfig* TireConfig;
@@ -130,12 +135,8 @@ class UChaosWheeledVehicleMovementComponent;
 		//UPROPERTY(EditAnywhere, Category = Suspension)
 		//float SuspensionNaturalFrequency;
 
-		///**
-		// *	The rate at which energy is dissipated from the spring. Standard cars have values between 0.8 and 1.2.
-		// *	values < 1 are more sluggish, values > 1 or more twitchy
-		// */
-		//UPROPERTY(EditAnywhere, Category = Suspension)
-		//float SuspensionDampingRatio;
+		UPROPERTY(EditAnywhere, Category = Suspension)
+		float SuspensionDampingRatio;
 
 		/** Spring Force (N/m) */
 		UPROPERTY(EditAnywhere, Category = Suspension)
@@ -145,13 +146,18 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Suspension)
 		float SpringPreload;
 
-		/** Dampen rate of change of spring compression */
-		UPROPERTY(EditAnywhere, Category = Suspension)
-		float CompressionDamping;
+		/** Smooth suspension [0-off, 10-max] - Warning might cause momentary visual inter-penetration of the wheel against objects/terrain */
+		UPROPERTY(EditAnywhere, Category = Suspension, meta = (UIMin = "0", UIMax = "10"))
+		int SuspensionSmoothing;
 
-		/** Dampen rate of change of spring extension */
-		UPROPERTY(EditAnywhere, Category = Suspension)
-		float ReboundDamping;
+		// Now calculating damping from Suspension Damping Ratio - normalized value is slightly more meaningful
+		///** Dampen rate of change of spring compression */
+		//UPROPERTY(EditAnywhere, Category = Suspension)
+		//float CompressionDamping;
+
+		///** Dampen rate of change of spring extension */
+		//UPROPERTY(EditAnywhere, Category = Suspension)
+		//float ReboundDamping;
 
 		/** Whether wheel suspension considers simple, complex, or both */
 		UPROPERTY(EditAnywhere, Category = Suspension)
@@ -257,40 +263,12 @@ class UChaosWheeledVehicleMovementComponent;
 
 #endif //WITH_EDITOR
 
-	//protected:
-		void SetInAir(const bool Airborne)
-		{
-			InAir = Airborne;
-		}
-		bool InAir;
-		void SetSteerAngle(const float InAngle)
-		{
-			MaxSteerAngle = InAngle;
-		}
-
+	protected:
+	
 		/**
 		 * Get the wheel's location in physics land
 		 */
 		FVector GetPhysicsLocation();
-
-		/* Temp ..*/
-
-		void SetSuspensionOffset(const float InPos)
-		{
-			SuspensionOffset = InPos;
-		}
-		float SuspensionOffset;
-
-		void SetRestingPosition(const FVector InPos)
-		{
-			RestingPosition = InPos;
-		}
-		const FVector& GetRestingPosition() const
-		{
-			return RestingPosition;
-		}
-		FVector RestingPosition;
-		/* ..Temp */
 
 	private:
 
@@ -310,16 +288,18 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.SteeringEnabled = this->bAffectedBySteering;
 			PWheelConfig.HandbrakeEnabled = this->bAffectedByHandbrake;
 			PWheelConfig.EngineEnabled = this->bAffectedByEngine;
-			//PWheelConfig.ABS = Wheel->; #todo: ABS not specified per wheel?
+			PWheelConfig.ABSEnabled = this->bABSEnabled;
 			PWheelConfig.CheatFrictionForce = this->CheatFrictionForce;
-
 		}
 
 		void FillSuspensionSetup()
 		{
 			// Perform any unit conversions here; between editable property and simulation system
-			PSuspensionConfig.MinLength = 0.f;
-			PSuspensionConfig.MaxLength = this->SuspensionMaxDrop + this->SuspensionMaxRaise;
+			//PSuspensionConfig.MinLength = 0.f;
+			//PSuspensionConfig.MaxLength = this->SuspensionMaxDrop + this->SuspensionMaxRaise;
+
+			PSuspensionConfig.SuspensionMaxRaise = FMath::Abs(this->SuspensionMaxRaise);
+			PSuspensionConfig.SuspensionMaxDrop = this->SuspensionMaxDrop;
 
 			PSuspensionConfig.SuspensionForceOffset = this->SuspensionForceOffset;
 
@@ -327,10 +307,17 @@ class UChaosWheeledVehicleMovementComponent;
 			PSuspensionConfig.SuspensionMaxRaise = this->SuspensionMaxRaise;
 			PSuspensionConfig.SuspensionMaxDrop = this->SuspensionMaxDrop;
 			PSuspensionConfig.SpringRate = this->SpringRate;
-			PSuspensionConfig.SpringPreload = this->SpringPreload * this->SpringRate;
-			PSuspensionConfig.ReboundDamping = this->ReboundDamping;
-			PSuspensionConfig.CompressionDamping = this->CompressionDamping;
-			//	SuspensionConfig.Swaybar; #todo: best way to configure this
+			PSuspensionConfig.SpringPreload = this->SpringPreload;
+
+			PSuspensionConfig.DampingRatio = this->SuspensionDampingRatio;
+
+			PSuspensionConfig.SuspensionSmoothing = this->SuspensionSmoothing;
+
+			// These are calculated later from the PSuspensionConfig.DampingRatio
+			//		PSuspensionConfig.ReboundDamping
+			//		PSuspensionConfig.CompressionDamping
+
+			//	SuspensionConfig.Swaybar; #todo: best way to configure this? Not yet implemented
 		}
 
 		Chaos::FSimpleWheelConfig PWheelConfig;
@@ -352,6 +339,9 @@ class UChaosWheeledVehicleMovementComponent;
 
 		/** Get contact surface material */
 		UPhysicalMaterial* GetContactSurfaceMaterial();
+
+		/** suspension raycast results */
+		FHitResult HitResult;
 
 	};
 
