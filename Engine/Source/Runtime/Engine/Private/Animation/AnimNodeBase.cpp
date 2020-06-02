@@ -644,9 +644,9 @@ void FExposedValueHandler::Initialize(UObject* AnimInstanceObject, int32 NodeOff
 		if (CopyRecord.CachedSourceProperty == nullptr)
 #endif
 		{
-			CopyRecord.CachedSourceProperty = AnimInstanceObject->GetClass()->FindPropertyByName(CopyRecord.SourcePropertyName);
+			CopyRecord.CachedSourceProperty = FindFProperty<FProperty>(AnimInstanceObject->GetClass(), CopyRecord.SourcePropertyName);
 		}
-		check(CopyRecord.CachedSourceProperty.Get());
+		UE_CLOG(!CopyRecord.CachedSourceProperty.Get(), LogAnimation, Fatal, TEXT("Failed to resolve property DestProperty: %s. For class: %s"), *CopyRecord.CachedSourceProperty.ToString(), *AnimInstanceObject->GetClass()->GetName());
 
 		if (FArrayProperty* SourceArrayProperty = CastField<FArrayProperty>(CopyRecord.CachedSourceProperty.Get()))
 		{
@@ -666,9 +666,9 @@ void FExposedValueHandler::Initialize(UObject* AnimInstanceObject, int32 NodeOff
 				if (CopyRecord.CachedSourceStructSubProperty == nullptr)
 #endif
 				{
-					CopyRecord.CachedSourceStructSubProperty = SourceStructProperty->Struct->FindPropertyByName(CopyRecord.SourceSubPropertyName);
+					CopyRecord.CachedSourceStructSubProperty = FindFProperty<FProperty>(SourceStructProperty->Struct, CopyRecord.SourceSubPropertyName);
 				}
-				check(CopyRecord.CachedSourceStructSubProperty.Get());
+				UE_CLOG(!CopyRecord.CachedSourceStructSubProperty.Get(), LogAnimation, Fatal, TEXT("Failed to resolve property CachedSourceStructSubProperty: %s. For class: %s"), *CopyRecord.CachedSourceStructSubProperty.ToString(), *AnimInstanceObject->GetClass()->GetName());
 				CopyRecord.Size = CopyRecord.CachedSourceStructSubProperty->GetSize();
 			}
 			else
@@ -687,9 +687,9 @@ void FExposedValueHandler::Initialize(UObject* AnimInstanceObject, int32 NodeOff
 				// Re-find our dest property as it (or its class outer) may have changed
 				if (CopyRecord.DestProperty->GetOwner<UObject>() != AnimInstanceObject->GetClass())
 				{
-					CopyRecord.DestProperty = AnimInstanceObject->GetClass()->FindPropertyByName(CopyRecord.DestProperty->GetFName());
+					CopyRecord.DestProperty = FindFProperty<FProperty>(AnimInstanceObject->GetClass(), CopyRecord.DestProperty->GetFName());
 				}
-				check(CopyRecord.DestProperty.Get());
+				UE_CLOG(!CopyRecord.DestProperty.Get(), LogAnimation, Fatal, TEXT("Failed to resolve property DestProperty: %s. For class: %s"), *CopyRecord.DestProperty.ToString(), *AnimInstanceObject->GetClass()->GetName());
 			}
 
 			if (CastField<FNameProperty>(CopyRecord.DestProperty.Get()))
