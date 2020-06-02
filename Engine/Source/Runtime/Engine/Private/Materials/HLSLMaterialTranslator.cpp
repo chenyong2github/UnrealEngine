@@ -6867,7 +6867,7 @@ int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom
 				InputParamDecl += OutputNameStr;
 				break;
 			default:
-				return Errorf(TEXT("Bad type %d for %s output %s"), CustomOutput.OutputType, *Custom->Description, *OutputNameStr);
+				return Errorf(TEXT("Bad type %d for %s output %s"), static_cast<int32>(CustomOutput.OutputType), *Custom->Description, *OutputNameStr);
 				break;
 			}
 		}
