@@ -280,12 +280,13 @@ public:
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties SpawnScriptProps;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties EmitterSpawnScriptProps;
 
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties EmitterUpdateScriptProps;
-
+#endif
 
 	UPROPERTY(EditAnywhere, Category = "Emitter")
 	ENiagaraSimTarget SimTarget;

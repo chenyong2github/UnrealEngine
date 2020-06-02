@@ -143,11 +143,13 @@ void UNiagaraEmitter::PostInitProperties()
 		UpdateScriptProps.Script = NewObject<UNiagaraScript>(this, "UpdateScript", EObjectFlags::RF_Transactional);
 		UpdateScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleUpdateScript);
 
+#if WITH_EDITORONLY_DATA
 		EmitterSpawnScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterSpawnScript", EObjectFlags::RF_Transactional);
 		EmitterSpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::EmitterSpawnScript);
 		
 		EmitterUpdateScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterUpdateScript", EObjectFlags::RF_Transactional);
 		EmitterUpdateScriptProps.Script->SetUsage(ENiagaraScriptUsage::EmitterUpdateScript);
+#endif
 
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
@@ -407,6 +409,7 @@ void UNiagaraEmitter::PostLoad()
 	check(GPUComputeScript == nullptr || SimTarget == ENiagaraSimTarget::GPUComputeSim);
 #endif
 
+#if WITH_EDITORONLY_DATA
 	if (EmitterSpawnScriptProps.Script == nullptr || EmitterUpdateScriptProps.Script == nullptr)
 	{
 		EmitterSpawnScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterSpawnScript", EObjectFlags::RF_Transactional);
@@ -415,14 +418,13 @@ void UNiagaraEmitter::PostLoad()
 		EmitterUpdateScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterUpdateScript", EObjectFlags::RF_Transactional);
 		EmitterUpdateScriptProps.Script->SetUsage(ENiagaraScriptUsage::EmitterUpdateScript);
 
-#if WITH_EDITORONLY_DATA
 		if (SpawnScriptProps.Script)
 		{
 			EmitterSpawnScriptProps.Script->SetSource(SpawnScriptProps.Script->GetSource());
 			EmitterUpdateScriptProps.Script->SetSource(SpawnScriptProps.Script->GetSource());
 		}
-#endif
 	}
+#endif
 
 	//Temporarily disabling interpolated spawn if the script type and flag don't match.
 	if (SpawnScriptProps.Script)
@@ -852,8 +854,10 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 	OutScripts.Add(UpdateScriptProps.Script);
 	if (!bCompilableOnly)
 	{
+#if WITH_EDITORONLY_DATA
 		OutScripts.Add(EmitterSpawnScriptProps.Script);
 		OutScripts.Add(EmitterUpdateScriptProps.Script);
+#endif
 	}
 
 	for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
@@ -1112,10 +1116,16 @@ UNiagaraEmitter* UNiagaraEmitter::MakeRecursiveDeepCopy(UObject* DestOuter, TMap
 
 bool UNiagaraEmitter::UsesScript(const UNiagaraScript* Script)const
 {
-	if (SpawnScriptProps.Script == Script || UpdateScriptProps.Script == Script || EmitterSpawnScriptProps.Script == Script || EmitterUpdateScriptProps.Script == Script)
+	if (SpawnScriptProps.Script == Script || UpdateScriptProps.Script == Script)
 	{
 		return true;
 	}
+#if WITH_EDITORONLY_DATA
+	if (EmitterSpawnScriptProps.Script == Script || EmitterUpdateScriptProps.Script == Script)
+	{
+		return true;
+	}
+#endif
 	for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
 	{
 		if (EventHandlerScriptProps[i].Script == Script)
