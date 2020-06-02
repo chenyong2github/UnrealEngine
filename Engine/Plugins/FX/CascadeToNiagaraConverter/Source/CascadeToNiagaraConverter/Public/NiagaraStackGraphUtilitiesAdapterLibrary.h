@@ -134,6 +134,8 @@ struct FParticleModuleSpawnProps
 	bool bProcessSpawnBurst;
 };
 
+
+
 USTRUCT(BlueprintInternalUseOnly)
 struct FParticleEmitterProps
 {
@@ -143,99 +145,6 @@ struct FParticleEmitterProps
 	UDistributionFloat* Rate;
 };
 
-USTRUCT(BlueprintInternalUseOnly)
-struct FCascadeSpriteRendererProps
-{
-	GENERATED_BODY()
-
-	/** The material to utilize for the emitter at this LOD level.						*/
-	UPROPERTY(EditAnywhere, Category = Emitter)
-	class UMaterialInterface* Material;
-
-	/**
-	 *	The screen alignment to utilize for the emitter at this LOD level.
-	 *	One of the following:
-	 *	PSA_FacingCameraPosition - Faces the camera position, but is not dependent on the camera rotation.
-	 *								This method produces more stable particles under camera rotation.
-	 *	PSA_Square			- Uniform scale (via SizeX) facing the camera
-	 *	PSA_Rectangle		- Non-uniform scale (via SizeX and SizeY) facing the camera
-	 *	PSA_Velocity		- Orient the particle towards both the camera and the direction
-	 *						  the particle is moving. Non-uniform scaling is allowed.
-	 *	PSA_TypeSpecific	- Use the alignment method indicated in the type data module.
-	 *	PSA_FacingCameraDistanceBlend - Blends between PSA_FacingCameraPosition and PSA_Square over specified distance.
-	 */
-	UPROPERTY(EditAnywhere, Category = Emitter)
-	TEnumAsByte<EParticleScreenAlignment> ScreenAlignment;
-
-
-// 	UPROPERTY(BlueprintReadWrite, Category = "Properties")
-// 	FVector2D PivotInUVSpace;
-
-	/** The number of sub-images horizontally in the texture							*/
-	UPROPERTY(EditAnywhere, Category = SubUV)
-	int32 SubImages_Horizontal;
-
-	/** The number of sub-images vertically in the texture								*/
-	UPROPERTY(EditAnywhere, Category = SubUV)
-	int32 SubImages_Vertical;
-
-	/**
-	 *	The sorting mode to use for this emitter.
-	 *	PSORTMODE_None				- No sorting required.
-	 *	PSORTMODE_ViewProjDepth		- Sort by view projected depth of the particle.
-	 *	PSORTMODE_DistanceToView	- Sort by distance of particle to view in world space.
-	 *	PSORTMODE_Age_OldestFirst	- Sort by age, oldest drawn first.
-	 *	PSORTMODE_Age_NewestFirst	- Sort by age, newest drawn first.
-	 *
-	 */
-	UPROPERTY(EditAnywhere, Category = Emitter)
-	TEnumAsByte<EParticleSortMode> SortMode;
-
-	/**
-	 *	The interpolation method to used for the SubUV image selection.
-	 *	One of the following:
-	 *	PSUVIM_None			- Do not apply SubUV modules to this emitter.
-	 *	PSUVIM_Linear		- Smoothly transition between sub-images in the given order,
-	 *						  with no blending between the current and the next
-	 *	PSUVIM_Linear_Blend	- Smoothly transition between sub-images in the given order,
-	 *						  blending between the current and the next
-	 *	PSUVIM_Random		- Pick the next image at random, with no blending between
-	 *						  the current and the next
-	 *	PSUVIM_Random_Blend	- Pick the next image at random, blending between the current
-	 *						  and the next
-	 */
-	UPROPERTY(EditAnywhere, Category = SubUV)
-	TEnumAsByte<EParticleSubUVInterpMethod> InterpolationMethod;
-
-	/** If true, removes the HMD view roll (e.g. in VR) */
-	UPROPERTY(EditAnywhere, Category = Emitter, meta = (DisplayName = "Remove HMD Roll"))
-	uint8 bRemoveHMDRoll : 1;
-
-	/** The distance at which PSA_FacingCameraDistanceBlend	is fully PSA_Square */
-	UPROPERTY(EditAnywhere, Category = Emitter, meta = (UIMin = "0", DisplayAfter = "ScreenAlignment"))
-	float MinFacingCameraBlendDistance;
-
-	/** The distance at which PSA_FacingCameraDistanceBlend	is fully PSA_FacingCameraPosition */
-	UPROPERTY(EditAnywhere, Category = Emitter, meta = (UIMin = "0", DisplayAfter = "MinFacingCameraBlendDistance"))
-	float MaxFacingCameraBlendDistance;
-
-	/**
-	* Texture to generate bounding geometry from.
-	*/
-	UPROPERTY(EditAnywhere, Category = ParticleCutout)
-	UTexture2D* CutoutTexture;
-
-	/**
-	* More bounding vertices results in reduced overdraw, but adds more triangle overhead.
-	* The eight vertex mode is best used when the SubUV texture has a lot of space to cut out that is not captured by the four vertex version,
-	* and when the particles using the texture will be few and large.
-	*/
-	UPROPERTY(EditAnywhere, Category = ParticleCutout)
-	TEnumAsByte<ESubUVBoundingVertexCount> BoundingMode;
-
-	UPROPERTY(EditAnywhere, Category = ParticleCutout)
-	TEnumAsByte<EOpacitySourceMode> OpacitySourceMode;
-};
 
 USTRUCT(BlueprintInternalUseOnly)
 struct FNiagaraScriptContextInput
@@ -268,13 +177,13 @@ public:
 	UNiagaraEmitterConversionContext() {};
 	
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	void AddScript(
-		UNiagaraScriptConversionContext* ScriptConversionContext
-		, EScriptExecutionCategory TargetScriptExecutionCategory
-		, int32 TargetIndex);
+	UNiagaraScriptConversionContext* FindOrAddScript(FString ScriptNameString, FAssetData NiagaraScriptAssetData);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	void AddRenderer(UNiagaraRendererProperties* NewRendererProperties);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void FinalizeAddedScripts();
 
 	void Init(UNiagaraEmitter* InEmitter, FGuid InEmitterHandleViewModelGuid)
 	{
@@ -283,11 +192,14 @@ public:
 	};
 
 private:
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "FXConverterUtilities")
 	UNiagaraEmitter* Emitter;
 
 	UPROPERTY()
 	FGuid EmitterHandleViewModelGuid;
+
+	UPROPERTY()
+	TMap<FString, UNiagaraScriptConversionContext*> ScriptNameToStagedScriptMap;
 };
 
 UCLASS(BlueprintInternalUseOnly)
@@ -306,6 +218,15 @@ public:
 	const TArray<const UNiagaraClipboardFunctionInput*>& GetClipboardFunctionInputs() { return FunctionInputs; };
 
 	UNiagaraScript* GetScript() { return Script; };
+
+public:
+	// Execution category to add this script to when it is finalized to a system or emitter.
+	UPROPERTY(BlueprintReadWrite, Category = "Properties")
+	EScriptExecutionCategory TargetExecutionCategory;
+
+	// Index in the execution category to add this script to when it is finalized to a system or emitter. Increasing index is lower in the stack.
+	UPROPERTY(BlueprintReadWrite, Category = "Properties")
+	int32 TargetIndex;
 
 private:
 	UPROPERTY()
@@ -358,6 +279,12 @@ public:
 	static FNiagaraScriptContextInput CreateScriptInputFloat(float Value);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static FNiagaraScriptContextInput CreateScriptInputVector(FVector Value);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static FNiagaraScriptContextInput CreateScriptInputInt(int32 Value);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static FNiagaraScriptContextInput CreateScriptInputDI(UNiagaraScriptConversionContext* Value, FString InputType);
 
 
@@ -382,11 +309,64 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UClass* GetParticleModuleRequiredClass();
 
-	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static FParticleModuleSpawnProps GetCascadeModuleSpawnProps(UParticleModuleSpawn* ParticleModuleSpawn);
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UClass* GetParticleModuleColorOverLifeClass();
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UClass* GetParticleModuleLifetimeClass();
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UClass* GetParticleModuleSizeClass();
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UClass* GetParticleModuleVelocityClass();
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UClass* GetParticleModuleTypeDataGPUClass();
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static FCascadeSpriteRendererProps GetCascadeSpriteRendererProps(UParticleModuleRequired* ParticleModuleRequired);
+	static void GetParticleModuleSpawnProps(
+		  UParticleModuleSpawn* ParticleModuleSpawn
+		, UDistributionFloat*& OutRate
+		, UDistributionFloat*& OutRateScale
+		, TEnumAsByte<EParticleBurstMethod>& OutBurstMethod
+		, TArray<FParticleBurstBlueprint>& OutBurstList
+		, UDistributionFloat*& OutBurstScale
+		, bool& bOutApplyGlobalSpawnRateScale
+		, bool& bOutProcessSpawnRate
+		, bool& bOutProcessSpawnBurst
+	);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleRequiredProps(
+		  UParticleModuleRequired* ParticleModuleRequired
+		, UMaterialInterface*& OutMaterialInterface
+		, TEnumAsByte<EParticleScreenAlignment>& OutScreenAlignment
+		, bool& bOutUseLocalSpace
+		, int32& OutSubImages_Horizontal
+		, int32& OutSubImages_Vertical
+		, TEnumAsByte<EParticleSortMode>& OutSortMode
+		, TEnumAsByte<EParticleSubUVInterpMethod>& OutInterpolationMethod
+		, uint8& bOutRemoveHMDRoll
+		, float& OutMinFacingCameraBlendDistance
+		, float& OutMaxFacingCameraBlendDistance
+		, UTexture2D*& OutCutoutTexture
+		, TEnumAsByte<ESubUVBoundingVertexCount>& OutBoundingMode
+		, TEnumAsByte<EOpacitySourceMode>& OutOpacitySourceMode
+	);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleColorOverLifeProps(UParticleModuleColorOverLife* ParticleModule, UDistribution*& OutColorOverLife, UDistribution*& OutAlphaOverLife, bool& bOutClampAlpha);
+	
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleLifetimeProps(UParticleModuleLifetime* ParticleModule, UDistribution*& OutLifetime);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleSizeProps(UParticleModuleSize* ParticleModule, UDistribution*& OutStartSize);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleVelocityProps(UParticleModuleVelocity* ParticleModule, UDistribution*& OutStartVelocity, UDistribution*& OutStartVelocityRadial, bool& bOutInWorldSpace, bool& bOutApplyOwnerScale);
+
 
 	// Cascade Distribution Getters
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
@@ -404,7 +384,12 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetFloatDistributionConstValues(UDistribution* Distribution, FText& OutStatus, float& OutConstFloat);
 	//static void CopyCascadeDistributionCurveToNiagaraCurve(UDistribution* Distribution, )
-// 	void UFXConverterUtilitiesLibrary::GetFloatDistributionUniformValues(UDistributionFloatUniform* Distribution);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetFloatDistributionUniformValues(UDistribution* Distribution, FText& OutStatus, float& OutMin, float& OutMax);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetVectorDistributionUniformValues(UDistribution* Distribution, FText& OutStatus, FVector& OutMin, FVector& OutMax);
 // 	void UFXConverterUtilitiesLibrary::GetFloatDistributionUniformCurveValues(UDistributionFloatUniformCurve* Distribution);
 // 	void UFXConverterUtilitiesLibrary::GetFloatDistributionConstCurveValues(UDistributionFloatParticleParameter* Distribution);
 
