@@ -15,12 +15,16 @@
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/CString.h"
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
+#include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/PlatformFileTrace.h"
 #include "String/ParseTokens.h"
 #include "Templates/UnrealTemplate.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -311,48 +315,49 @@ static FAutoConsoleCommand TraceAuxiliaryStopCmd(
 
 
 ////////////////////////////////////////////////////////////////////////////////
+UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, Important)
+	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Platform)
+	UE_TRACE_EVENT_FIELD(Trace::AnsiString, AppName)
+	UE_TRACE_EVENT_FIELD(Trace::WideString, CommandLine)
+	UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
+	UE_TRACE_EVENT_FIELD(uint8, TargetType)
+UE_TRACE_EVENT_END()
+
+////////////////////////////////////////////////////////////////////////////////
 void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 {
 #if UE_TRACE_ENABLED
-	Trace::Initialize();
+	Trace::FInitializeDesc Desc;
+	Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
 
-	GTraceAuxiliary.ParseCommandLine(CommandLine);
+	FString Parameter;
+	if (FParse::Value(CommandLine, TEXT("-tracememmb="), Parameter))
+	{
+		Desc.MaxMemoryHintMb = uint32(FCString::Strtoi(*Parameter, nullptr, 10));
+	}
+	Trace::Initialize(Desc);
+
+	FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
 
 	// Trace out information about this session
-	{
-		uint8 Payload[1024];
-		int32 PayloadSize = 0;
+	UE_TRACE_LOG(Diagnostics, Session2, Trace::TraceLogChannel)
+		<< Session2.Platform(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM))
+		<< Session2.AppName(UE_APP_NAME)
+		<< Session2.CommandLine(CommandLine)
+		<< Session2.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
+		<< Session2.TargetType(uint8(FApp::GetBuildTargetType()));
 
-		auto AddToPayload = [&] (const TCHAR* String) -> uint8
-		{
-			int32 Length = FCString::Strlen(String);
-			Length = FMath::Min<int32>(Length, sizeof(Payload) - PayloadSize - 1);
-			for (int32 i = 0, n = Length; i < n; ++i)
-			{
-				Payload[PayloadSize] = uint8(String[i] & 0x7f);
-				++PayloadSize;
-			}
-			return uint8(PayloadSize - Length);
-		};
+	TRACE_CPUPROFILER_INIT(CommandLine);
+	TRACE_PLATFORMFILE_INIT(CommandLine);
+	TRACE_COUNTERS_INIT(CommandLine);
+#endif
+}
 
-		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
-		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
-		uint8 CommandLineOffset = AddToPayload(CommandLine);
-
-		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
-			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
-			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
-			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
-			UE_TRACE_EVENT_FIELD(uint8, TargetType)
-		UE_TRACE_EVENT_END()
-
-		UE_TRACE_LOG(Diagnostics, Session, TraceLogChannel, uint16(PayloadSize))
-			<< Session.AppNameOffset(AppNameOffset)
-			<< Session.CommandLineOffset(CommandLineOffset)
-			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
-			<< Session.TargetType(uint8(FApp::GetBuildTargetType()))
-			<< Session.Attachment(Payload, PayloadSize);
-	}
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliary::ParseCommandLine(const TCHAR* CommandLine)
+{
+#if UE_TRACE_ENABLED
+	GTraceAuxiliary.ParseCommandLine(CommandLine);
 #endif
 }
 
