@@ -5720,7 +5720,14 @@ bool UEngine::HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			RateScale = AnimSeq->RateScale;
 			NumCurves = AnimSeq->RawCurveData.FloatCurves.Num();
 
-			DebugString = AnimSeq->CompressedData.CompressedDataStructure->GetDebugString();
+			if (AnimSeq->CompressedData.CompressedDataStructure != nullptr)
+			{
+				DebugString = AnimSeq->CompressedData.CompressedDataStructure->GetDebugString();
+			}
+			else
+			{
+				DebugString = TEXT("Missing CompressedDataStructure");
+			}
 		}
 
 		new(SortedAnimAssets) FSortedAnimAsset(
