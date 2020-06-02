@@ -5733,13 +5733,9 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 			}
 
 			// Create raw async linker, requiring to be ticked till finished creating.
-			uint32 LinkerFlags = LOAD_None;
-			if (FApp::IsGame() && !GIsEditor)
-			{
-				LinkerFlags |= (LOAD_Async | LOAD_NoVerify);
-			}
+			uint32 LinkerFlags = (LOAD_Async | LOAD_NoVerify);
 #if WITH_EDITOR
-			else if ((Desc.PackageFlags & PKG_PlayInEditor) != 0)
+			if ((!FApp::IsGame() || GIsEditor) && (Desc.PackageFlags & PKG_PlayInEditor) != 0)
 			{
 				LinkerFlags |= LOAD_PackageForPIE;
 			}

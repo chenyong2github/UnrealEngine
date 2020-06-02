@@ -2915,7 +2915,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			FUObjectSerializeContext* SerializeContext = GetSerializeContext();
 			Import.SourceLinker = GetPackageLinker( TmpPkg, nullptr, InternalLoadFlags, nullptr, nullptr, nullptr, &SerializeContext);
 #if WITH_EDITORONLY_DATA
-			if (Import.SourceLinker && !TmpPkg->HasAnyFlags(RF_WasLoaded))
+			if (Import.SourceLinker && !TmpPkg->HasAnyFlags(RF_LoadCompleted))
 			{
 				// If we didn't fully load, make sure our metadata is loaded before using this
 				// We need this case for user defined structs due to the LOAD_DeferDependencyLoads code above
