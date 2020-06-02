@@ -572,9 +572,6 @@ private:
 	FCustomPrimitiveData CustomPrimitiveDataInternal;
 public:
 
-	/** If non-null, physics state creation has been deferred to ULevel::IncrementalUpdateComponents or this scene's StartFrame.*/
-	FPhysScene* DeferredCreatePhysicsStateScene;
-
 	/**
 	 * Translucent objects with a lower sort priority draw behind objects with a higher priority.
 	 * Translucent objects with the same priority are rendered from back-to-front based on their bounds origin.

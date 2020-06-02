@@ -1026,13 +1026,28 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 	if (FBodyInstance::UseDeferredPhysicsBodyCreation())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DeferredUpdateBodies);
-#if WITH_CHAOS
-		FPhysScene* PhysScene = OwningWorld->GetPhysicsScene();
-		if (PhysScene)
-		{
-			PhysScene->ProcessDeferredCreatePhysicsState();
-		}
-#endif
+		// Init Bodies
+		FGCScopeGuard ScopeLock;
+		int32 NumToInit = Actors.Num() - PreviousIndex;
+		TSubclassOf<UActorComponent> PrimitiveStaticClass = UPrimitiveComponent::StaticClass();
+		ParallelFor(NumToInit, [&](int32 Idx) {
+			int32 ActorIdx = Idx + PreviousIndex;
+			AActor* Actor = Actors[ActorIdx];
+			if (Actor && !Actor->IsPendingKill())
+			{
+				TArray<UActorComponent*> PrimtiveComponents;
+				Actor->GetComponents(PrimitiveStaticClass, PrimtiveComponents);
+				for (UActorComponent* PrimtiveComponent : PrimtiveComponents)
+				{
+					FBodyInstance* BodyInstance = Cast<UPrimitiveComponent>(PrimtiveComponent)->GetBodyInstance();
+					if (BodyInstance)
+					{
+						BodyInstance->InitAllBodies(GetWorld()->GetPhysicsScene());
+					}
+				}
+			}
+			// @TODO DO NOT CHECKIN
+		}, EParallelForFlags::ForceSingleThread);
 	}
 }
 

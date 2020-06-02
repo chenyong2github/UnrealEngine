@@ -424,7 +424,7 @@ public:
 	void SetTickableWhenPaused(bool bTickableWhenPaused);
 
 	/** Create any physics engine information for this component */
-	void CreatePhysicsState(bool bAllowDeferral = false);
+	void CreatePhysicsState();
 
 	/** Shut down any physics engine structure for this component */
 	void DestroyPhysicsState();
