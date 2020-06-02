@@ -446,17 +446,28 @@ class FMemoryReadStreamAsyncRequest : public IMemoryReadStream
 {
 public:
 	FMemoryReadStreamAsyncRequest(IAsyncReadRequest* InRequest, int64 InSize)
-		: Request(InRequest), Size(InSize)
+		: Memory(nullptr), Request(InRequest), Size(InSize)
 	{
+	}
+
+	uint8* GetReadResults()
+	{
+		if (Request)
+		{
+			// Event is triggered from read callback, so small window where event is triggered, but request isn't flagged as complete
+			// Normally this wait won't be needed
+			check(!Memory);
+			Request->WaitCompletion();
+			Memory = Request->GetReadResults(); // We now own the pointer returned from GetReadResults()
+			delete Request; // no longer need to keep request alive
+			Request = nullptr;
+		}
+		return Memory;
 	}
 
 	virtual const void* Read(int64& OutSize, int64 InOffset, int64 InSize) override
 	{
-		// Event is triggered from read callback, so small window where event is triggered, but request isn't flagged as complete
-		// Normally this wait won't be needed
-		Request->WaitCompletion();
-		const uint8* ResultData = Request->GetReadResults();
-
+		const uint8* ResultData = GetReadResults();
 		check(InOffset < Size);
 		OutSize = FMath::Min(InSize, Size - InOffset);
 		return ResultData + InOffset;
@@ -469,10 +480,15 @@ public:
 
 	virtual ~FMemoryReadStreamAsyncRequest()
 	{
-		Request->WaitCompletion();
-		delete Request;
+		uint8* ResultData = GetReadResults();
+		if (ResultData)
+		{
+			FMemory::Free(ResultData);
+		}
+		check(!Request);
 	}
 
+	uint8* Memory;
 	IAsyncReadRequest* Request;
 	int64 Size;
 };
