@@ -3,11 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Traits/IsContiguousContainer.h"
 
 // String Builder
 
 template <typename CharType> class TStringBuilderBase;
 template <typename CharType, int32 BufferSize> class TStringBuilderWithBuffer;
+
+template <typename CharType> struct TIsContiguousContainer<TStringBuilderBase<CharType>> { static constexpr bool Value = true; };
+template <typename CharType, int32 BufferSize> struct TIsContiguousContainer<TStringBuilderWithBuffer<CharType, BufferSize>> { static constexpr bool Value = true; };
 
 /** The base string builder type for TCHAR. */
 using FStringBuilderBase = TStringBuilderBase<TCHAR>;
@@ -31,6 +35,9 @@ template <int32 BufferSize> using TFixedAnsiStringBuilder UE_DEPRECATED(4.25, "'
 // String View
 
 template <typename CharType> class TStringView;
+
+template <typename CharType> struct TIsContiguousContainer<TStringView<CharType>> { static constexpr bool Value = true; };
+
 using FStringView = TStringView<TCHAR>;
 using FAnsiStringView = TStringView<ANSICHAR>;
 using FWideStringView = TStringView<WIDECHAR>;
