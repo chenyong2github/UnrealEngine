@@ -473,6 +473,32 @@ void UBodySetup::CreatePhysicsMeshes()
 #endif
 		}
 	}
+	
+	// fix up invalid transform to use identity
+	// this can be here because BodySetup isn't blueprintable
+	if ( GetLinkerUE4Version() < VER_UE4_FIXUP_BODYSETUP_INVALID_CONVEX_TRANSFORM )
+	{
+		for (int32 i=0; i<AggGeom.ConvexElems.Num(); ++i)
+		{
+			if ( AggGeom.ConvexElems[i].GetTransform().IsValid() == false )
+			{
+				AggGeom.ConvexElems[i].SetTransform(FTransform::Identity);
+			}
+		}
+	}
+
+#if WITH_CHAOS
+	// For drawing of convex elements we require an index buffer, previously we could
+	// get this from a PxConvexMesh but Chaos doesn't maintain that data. Instead now
+	// it is a part of the element rather than the physics geometry, if we load in an
+	// element without that data present, generate a convex hull from the convex vert
+	// data and extract the index data from there.
+	for(FKConvexElem& Convex : AggGeom.ConvexElems)
+	{
+		Convex.ComputeChaosConvexIndices();
+	}
+#endif
+
 
 	if(bClearMeshes)
 	{
@@ -1127,32 +1153,11 @@ void UBodySetup::PostLoad()
 	}
 
 	// make sure that we load the physX data while the linker's loader is still open
+#if PHYSICS_INTERFACE_PHYSX
+	// Chaos does not call this so we can defer work and CreatePhysicsMeshes in parallel.
 	CreatePhysicsMeshes();
-
-	// fix up invalid transform to use identity
-	// this can be here because BodySetup isn't blueprintable
-	if ( GetLinkerUE4Version() < VER_UE4_FIXUP_BODYSETUP_INVALID_CONVEX_TRANSFORM )
-	{
-		for (int32 i=0; i<AggGeom.ConvexElems.Num(); ++i)
-		{
-			if ( AggGeom.ConvexElems[i].GetTransform().IsValid() == false )
-			{
-				AggGeom.ConvexElems[i].SetTransform(FTransform::Identity);
-			}
-		}
-	}
-
-#if WITH_CHAOS
-	// For drawing of convex elements we require an index buffer, previously we could
-	// get this from a PxConvexMesh but Chaos doesn't maintain that data. Instead now
-	// it is a part of the element rather than the physics geometry, if we load in an
-	// element without that data present, generate a convex hull from the convex vert
-	// data and extract the index data from there.
-	for(FKConvexElem& Convex : AggGeom.ConvexElems)
-	{
-		Convex.ComputeChaosConvexIndices();
-	}
 #endif
+
 }
 
 void UBodySetup::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)

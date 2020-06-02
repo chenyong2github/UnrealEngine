@@ -54,7 +54,7 @@ namespace EDOFMode
 
 struct FBodyInstnace;
 
-#define USE_BODYINSTANCE_DEBUG_NAMES ((WITH_EDITORONLY_DATA || UE_BUILD_DEBUG || LOOKING_FOR_PERF_ISSUES || CHAOS_CHECKED) && !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && !NO_LOGGING)
+#define USE_BODYINSTANCE_DEBUG_NAMES ((WITH_EDITORONLY_DATA || UE_BUILD_DEBUG || LOOKING_FOR_PERF_ISSUES) && !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && !NO_LOGGING)
 
 /** Helper struct to specify spawn behavior */
 struct FInitBodySpawnParams
@@ -555,16 +555,7 @@ public:
 	UPROPERTY()
 	float PhysicsBlendWeight;
 
-	/** True if we want to use deferred body instance creation */
-	static bool UseDeferredPhysicsBodyCreation();
-
-private:
-	TArray<FInitBodiesHelperWithData<true>> InitBodiesDeferredListStatic;
-	TArray<FInitBodiesHelperWithData<false>> InitBodiesDeferredListDynamic;
-
 public:
-
-	void InitAllBodies(FPhysScene* PhysScene);
 
 	FPhysicsActorHandle& GetPhysicsActorHandle();
 	const FPhysicsActorHandle& GetPhysicsActorHandle() const;
