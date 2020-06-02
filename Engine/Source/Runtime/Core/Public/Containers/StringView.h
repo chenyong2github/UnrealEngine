@@ -9,29 +9,22 @@
 #include "Misc/Crc.h"
 #include "Misc/CString.h"
 #include "Templates/AndOrNot.h"
+#include "Templates/Decay.h"
 #include "Templates/EnableIf.h"
+#include "Templates/IsArray.h"
 #include "Templates/RemoveCV.h"
 #include "Templates/UnrealTemplate.h"
 #include "Traits/IsContiguousContainer.h"
 
 namespace StringViewPrivate
 {
-	/**
-	 * Trait testing whether a range type is compatible with the view type
-	 */
-	template <typename RangeType, typename ElementType>
-	struct TIsCompatibleRangeType : TIsSame<ElementType, typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<RangeType&>()))>::Type>::Type>
+	/** Wrapper to allow GetData to resolve from within a scope with another overload. */
+	template <typename... ArgTypes>
+	constexpr inline auto WrapGetData(ArgTypes&&... Args) -> decltype(GetData(Forward<ArgTypes>(Args)...))
 	{
-	};
-
-	template <typename CharType> struct TStringViewType;
-	template <> struct TStringViewType<ANSICHAR> { using Type = FAnsiStringView; };
-	template <> struct TStringViewType<TCHAR> { using Type = FStringView; };
+		return GetData(Forward<ArgTypes>(Args)...);
+	}
 }
-
-/** The string view type for a given character type. */
-template <typename CharType>
-using TStringView = typename StringViewPrivate::TStringViewType<CharType>::Type;
 
 /** String View
 
@@ -75,28 +68,31 @@ using TStringView = typename StringViewPrivate::TStringViewType<CharType>::Type;
   */
 
 template <typename CharType>
-class TStringViewImpl
+class TStringView
 {
 public:
 	using ElementType = CharType;
 	using SizeType = int32;
-	using ViewType = TStringView<ElementType>;
+	using ViewType = TStringView<CharType>;
 
-	template <typename RangeType>
-	using TIsCompatibleRangeType = TAnd<TIsContiguousContainer<RangeType>, StringViewPrivate::TIsCompatibleRangeType<RangeType, ElementType>>;
+private:
+	/** Trait testing whether a type is a contiguous range of CharType, and not CharType[]. */
+	template <typename CharRangeType>
+	using TIsCharRange = TAnd<
+		TIsContiguousContainer<CharRangeType>,
+		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
+		TIsSame<ElementType, typename TRemoveCV<typename TRemovePointer<decltype(StringViewPrivate::WrapGetData(DeclVal<CharRangeType&>()))>::Type>::Type>>;
 
-	template <typename RangeType>
-	using TEnableIfCompatibleRangeType = typename TEnableIf<TIsCompatibleRangeType<RangeType>::Value>::Type;
-
+public:
 	/** Construct an empty view. */
-	constexpr TStringViewImpl() = default;
+	constexpr TStringView() = default;
 
 	/**
 	 * Construct a view of the null-terminated string pointed to by InData.
 	 *
 	 * The caller is responsible for ensuring that the provided character range remains valid for the lifetime of the view.
 	 */
-	inline TStringViewImpl(const CharType* InData)
+	constexpr inline TStringView(const CharType* InData)
 		: DataPtr(InData)
 		, Size(InData ? TCString<CharType>::Strlen(InData) : 0)
 	{
@@ -107,9 +103,25 @@ public:
 	 *
 	 * The caller is responsible for ensuring that the provided character range remains valid for the lifetime of the view.
 	 */
-	constexpr inline TStringViewImpl(const CharType* InData, SizeType InSize)
+	constexpr inline TStringView(const CharType* InData, SizeType InSize)
 		: DataPtr(InData)
 		, Size(InSize)
+	{
+	}
+
+	/**
+	 * Construct a view from a contiguous range of characters.
+	 *
+	 * The caller is responsible for ensuring that the provided character range remains valid for the lifetime of the view.
+	 */
+	template <typename CharRangeType,
+		typename TEnableIf<TAnd<
+			TNot<TIsSame<ViewType, typename TDecay<CharRangeType>::Type>>,
+			TIsCharRange<CharRangeType>
+		>::Value>::Type* = nullptr>
+	constexpr inline TStringView(CharRangeType&& InRange)
+		: DataPtr(StringViewPrivate::WrapGetData(InRange))
+		, Size(static_cast<SizeType>(GetNum(InRange)))
 	{
 	}
 
@@ -197,7 +209,7 @@ public:
 	 *
 	 * @param SearchCase Whether the comparison should ignore case.
 	 */
-	inline bool Equals(const ViewType& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	inline bool Equals(ViewType Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/**
 	 * Compare this view lexicographically with another view.
@@ -206,17 +218,17 @@ public:
 	 *
 	 * @return 0 is equal, negative if this view is less, positive if this view is greater.
 	 */
-	CORE_API int32 Compare(const ViewType& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	CORE_API int32 Compare(ViewType Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/** Returns whether this view starts with the prefix character compared case-sensitively. */
 	inline bool StartsWith(CharType Prefix) const { return Size >= 1 && DataPtr[0] == Prefix; }
 	/** Returns whether this view starts with the prefix with optional case sensitivity. */
-	inline bool StartsWith(const ViewType& Prefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	inline bool StartsWith(ViewType Prefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/** Returns whether this view ends with the suffix character compared case-sensitively. */
 	inline bool EndsWith(CharType Suffix) const { return Size >= 1 && DataPtr[Size-1] == Suffix; }
 	/** Returns whether this view ends with the suffix with optional case sensitivity. */
-	inline bool EndsWith(const ViewType& Suffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	inline bool EndsWith(ViewType Suffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	// Searching/Finding
 
@@ -254,55 +266,31 @@ protected:
 };
 
 template <typename CharType>
-struct TIsContiguousContainer<TStringViewImpl<CharType>>
+struct TIsContiguousContainer<TStringView<CharType>>
 {
 	enum { Value = true };
 };
 
 template <typename CharType>
-constexpr inline auto GetNum(const TStringViewImpl<CharType>& String)
+constexpr inline auto GetNum(TStringView<CharType> String)
 {
 	return String.Len();
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-class FStringView : public TStringViewImpl<TCHAR>
-{
-public:
-	using TStringViewImpl<ElementType>::TStringViewImpl;
-};
-
-template <> struct TIsContiguousContainer<FStringView> { enum { Value = true }; };
-
 constexpr inline FStringView operator "" _SV(const TCHAR* String, size_t Size) { return FStringView(String, Size); }
-
-//////////////////////////////////////////////////////////////////////////
-
-class FAnsiStringView : public TStringViewImpl<ANSICHAR>
-{
-public:
-	using TStringViewImpl<ElementType>::TStringViewImpl;
-};
-
-template <> struct TIsContiguousContainer<FAnsiStringView> { enum { Value = true }; };
-
 constexpr inline FAnsiStringView operator "" _ASV(const ANSICHAR* String, size_t Size) { return FAnsiStringView(String, Size); }
-
-//////////////////////////////////////////////////////////////////////////
-
-using FWideStringView = FStringView;
-
 constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t Size) { return FWideStringView(String, Size); }
 
 //////////////////////////////////////////////////////////////////////////
 
 /** Case insensitive string hash function. */
 template <typename CharType>
-FORCEINLINE uint32 GetTypeHash(const TStringViewImpl<CharType>& S)
+FORCEINLINE uint32 GetTypeHash(TStringView<CharType> View)
 {
 	// This must match the GetTypeHash behavior of FString
-	return FCrc::Strihash_DEPRECATED(S.Len(), S.GetData());
+	return FCrc::Strihash_DEPRECATED(View.Len(), View.GetData());
 }
 
 #include "StringView.inl"

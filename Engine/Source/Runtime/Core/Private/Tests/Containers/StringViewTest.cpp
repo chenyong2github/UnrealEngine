@@ -25,9 +25,16 @@ constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestCtor, TEST_NAME_ROOT ".Ctor", TestFlags)
 bool FStringViewTestCtor::RunTest(const FString& Parameters)
 {
+	// Default View
+	{
+		FStringView View;
+		TestEqual(TEXT(""), View.Len(), 0);
+		TestTrue(TEXT("View.IsEmpty"), View.IsEmpty());
+	}
+
 	// Empty View
 	{
-		FStringView View( TEXT("") );
+		FStringView View(TEXT(""));
 		TestEqual(TEXT(""), View.Len(), 0);
 		TestTrue(TEXT("View.IsEmpty"), View.IsEmpty());
 	}
@@ -352,7 +359,7 @@ bool FStringViewTestArrayAccessor::RunTest(const FString& Parameters)
 	const TCHAR* SrcString = TEXT("String To Test");
 	FStringView View(SrcString);
 
-	for( int32 i = 0; i < View.Len(); ++i )
+	for (int32 i = 0; i < View.Len(); ++i)
 	{
 		TestEqual(TEXT("the character accessed"), View[i], SrcString[i]);
 	}
@@ -393,7 +400,7 @@ bool FStringViewTestStartsWith::RunTest(const FString& Parameters)
 {
 	// Test an empty view
 	{
-		FStringView View( TEXT(""));
+		FStringView View;
 		TestTrue(TEXT(" View.StartsWith"), View.StartsWith(TEXT("")));
 		TestFalse(TEXT(" View.StartsWith"), View.StartsWith(TEXT("Text")));
 		TestFalse(TEXT(" View.StartsWith"), View.StartsWith('A'));
@@ -430,7 +437,7 @@ bool FStringViewTestEndsWith::RunTest(const FString& Parameters)
 {
 	// Test an empty view
 	{
-		FStringView View(TEXT(""));
+		FStringView View;
 		TestTrue(TEXT(" View.EndsWith"), View.EndsWith(TEXT("")));
 		TestFalse(TEXT(" View.EndsWith"), View.EndsWith(TEXT("Text")));
 		TestFalse(TEXT(" View.EndsWith"), View.EndsWith('A'));
@@ -466,7 +473,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestSubStr, TEST_NAME_ROOT ".SubStr"
 bool FStringViewTestSubStr::RunTest(const FString& Parameters)
 {
 	{
-		FStringView EmptyView(TEXT(""));
+		FStringView EmptyView;
 		FStringView EmptyResult = EmptyView.SubStr(0, 10);
 		TestTrue(TEXT("FStringView::SubStr(0)"), EmptyResult.IsEmpty());
 
@@ -499,7 +506,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestLeft, TEST_NAME_ROOT ".Left", Te
 bool FStringViewTestLeft::RunTest(const FString& Parameters)
 {
 	{
-		FStringView EmptyView(TEXT(""));
+		FStringView EmptyView;
 		FStringView EmptyResult = EmptyView.Left(0);
 		TestTrue(TEXT("FStringView::Left"), EmptyResult.IsEmpty());
 
@@ -524,7 +531,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestLeftChop, TEST_NAME_ROOT ".LeftC
 bool FStringViewTestLeftChop::RunTest(const FString& Parameters)
 {
 	{
-		FStringView EmptyView(TEXT(""));
+		FStringView EmptyView;
 		FStringView EmptyResult = EmptyView.LeftChop(0);
 		TestTrue(TEXT("FStringView::LeftChop"), EmptyResult.IsEmpty());
 
@@ -549,7 +556,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestRight, TEST_NAME_ROOT ".Right", 
 bool FStringViewTestRight::RunTest(const FString& Parameters)
 {
 	{
-		FStringView EmptyView(TEXT(""));
+		FStringView EmptyView;
 		FStringView EmptyResult = EmptyView.Right(0);
 		TestTrue(TEXT("FStringView::Right"), EmptyResult.IsEmpty());
 
@@ -574,7 +581,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestRightChop, TEST_NAME_ROOT ".Righ
 bool FStringViewTestRightChop::RunTest(const FString& Parameters)
 {
 	{
-		FStringView EmptyView(TEXT(""));
+		FStringView EmptyView;
 		FStringView EmptyResult = EmptyView.RightChop(0);
 		TestTrue(TEXT("FStringView::RightChop"), EmptyResult.IsEmpty());
 
@@ -599,7 +606,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestMid, TEST_NAME_ROOT ".Mid", Test
 bool FStringViewTestMid::RunTest(const FString& Parameters)
 {
 	{
-		FStringView EmptyView(TEXT(""));
+		FStringView EmptyView;
 		FStringView EmptyResult = EmptyView.Mid(0, 10);
 		TestTrue(TEXT("FStringView::Mid(0)"), EmptyResult.IsEmpty());
 
@@ -624,6 +631,7 @@ bool FStringViewTestMid::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FStringView::Mid(5)"), NullTerminatorResult.IsEmpty());
 		TestTrue(TEXT("FStringView::Mid(6)"), View == OutofBoundsResult);
 		TestTrue(TEXT("FStringView::Mid(7)"), View.Mid(512, 1024).IsEmpty());
+		TestTrue(TEXT("FStringView::Mid(8)"), View.Mid(4, 0).IsEmpty());
 	}
 
 	return true;
@@ -677,7 +685,7 @@ bool FStringViewTestTrimEnd::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestFindChar, TEST_NAME_ROOT ".FindChar", TestFlags)
 bool FStringViewTestFindChar::RunTest(const FString& Parameters)
 {
-	FStringView EmptyView = TEXT("");
+	FStringView EmptyView;
 	FStringView View = TEXT("aBce Fga");
 
 	{
@@ -722,7 +730,7 @@ bool FStringViewTestFindChar::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestFindLastChar, TEST_NAME_ROOT ".FindLastChar", TestFlags)
 bool FStringViewTestFindLastChar::RunTest(const FString& Parameters)
 {
-	FStringView EmptyView = TEXT("");
+	FStringView EmptyView;
 	FStringView View = TEXT("aBce Fga");
 
 	{
