@@ -118,6 +118,7 @@ enum class EInstallBundleResult : int
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleResult Result);
 
+// TODO: Should probably be renamed to EInstallBundleRequestUpdateFlags 
 enum class EInstallBundleRequestFlags : uint32
 {
 	None = 0,
@@ -131,6 +132,13 @@ enum class EInstallBundleRequestFlags : uint32
 	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
+
+enum class EInstallBundleRequestReleaseFlags : uint32
+{
+	None = 0,
+	RemoveFilesIfPossible = (1 << 0),  // Bundle sources must support removal, and bundle must not be part of the source's cache
+};
+ENUM_CLASS_FLAGS(EInstallBundleRequestReleaseFlags)
 
 struct FInstallBundleRequestInfo
 {
@@ -215,7 +223,7 @@ struct FInstallBundleSourceBundleInfo
 	bool bIsStartup = false; // Only one startup bundle allowed.  All sources must agree on this.
 	bool bDoPatchCheck = false; // This bundle should do a patch check and fail if it doesn't pass
 	EInstallBundleInstallState BundleContentState = EInstallBundleInstallState::NotInstalled; // Whether this bundle is up to date
-	bool bIsCached = false;
+	bool bIsCached = false; // Whether this bundle should be cached if this source has a bundle cache
 };
 
 struct FInstallBundleSourceBundleInfoQueryResultInfo
