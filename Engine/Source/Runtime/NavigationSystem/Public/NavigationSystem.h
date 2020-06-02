@@ -871,7 +871,7 @@ protected:
 	virtual void AddLevelToOctree(ULevel& Level);
 
 	/** Called as part of UWorld::BeginTearingDown */
-	virtual void OnBeginTearingDown();
+	virtual void OnBeginTearingDown(UWorld* World);
 	
 public:
 	/** Called upon UWorld destruction to release what needs to be released */

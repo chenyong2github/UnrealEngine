@@ -532,6 +532,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &UNavigationSystemV1::OnWorldPostActorTick);
 		FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UNavigationSystemV1::OnLevelAddedToWorld);
 		FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UNavigationSystemV1::OnLevelRemovedFromWorld);
+		FWorldDelegates::OnWorldBeginTearDown.AddUObject(this, &UNavigationSystemV1::OnBeginTearingDown);
 #if !UE_BUILD_SHIPPING
 		FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UNavigationSystemV1::GetOnScreenMessages);
 #endif // !UE_BUILD_SHIPPING
@@ -829,9 +830,13 @@ void UNavigationSystemV1::OnInitializeActors()
 	
 }
 
-void UNavigationSystemV1::OnBeginTearingDown()
+void UNavigationSystemV1::OnBeginTearingDown(UWorld* World)
 {
-	CleanUp(FNavigationSystem::ECleanupMode::CleanupWithWorld);
+	// If the world being torn down is my world context
+	if (World == GetWorld())
+	{
+		CleanUp(FNavigationSystem::ECleanupMode::CleanupWithWorld);
+	}
 }
 
 void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
@@ -841,8 +846,6 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 	
 	UWorld* World = GetWorld();
 	check(World);
-
-	World->OnBeginTearingDown().AddUObject(this, &UNavigationSystemV1::OnBeginTearingDown);
 
 	// process all queued custom link registration requests
 	// (since it's possible navigation system was not ready by the time
@@ -3912,6 +3915,7 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 	UNavigationSystemV1::NavigationDirtyEvent.RemoveAll(this);
 	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
 	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+	FWorldDelegates::OnWorldBeginTearDown.RemoveAll(this);
 
 #if WITH_HOT_RELOAD
 	if (IHotReloadInterface* HotReloadSupport = FModuleManager::GetModulePtr<IHotReloadInterface>("HotReload"))
@@ -3951,7 +3955,6 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 	UWorld* MyWorld = (Mode == FNavigationSystem::ECleanupMode::CleanupWithWorld) ? GetWorld() : NULL;
 	if (MyWorld)
 	{
-		MyWorld->OnBeginTearingDown().RemoveAll(this);
 
 		if (MyWorld->WorldType == EWorldType::Game || MyWorld->WorldType == EWorldType::Editor)
 		{
