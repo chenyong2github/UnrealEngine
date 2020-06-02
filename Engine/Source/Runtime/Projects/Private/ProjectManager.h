@@ -41,6 +41,9 @@ public:
 	virtual bool IsEnterpriseProject() override;
 	virtual void SetIsEnterpriseProject(bool bValue) override;
 	virtual TArray<FModuleContextInfo>& GetCurrentProjectModuleContextInfos() override;
+	virtual bool IsSuppressingProjectFileWrite() const override;
+	virtual void AddSuppressProjectFileWrite(const FName InName) override;
+	virtual void RemoveSuppressProjectFileWrite(const FName InName) override;
 
 private:
 	static void QueryStatusForProjectImpl(const FProjectDescriptor& Project, const FString& FilePath, FProjectStatus& OutProjectStatus);
@@ -59,6 +62,9 @@ private:
 
 	/** Delegate called when the target platforms for the current project are changed */
 	FOnTargetPlatformsForCurrentProjectChangedEvent OnTargetPlatformsForCurrentProjectChangedEvent;
+
+	/** Array of names that have disabled project file writes */
+	TArray<FName> SuppressProjectFileWriteList;
 };
 
 
