@@ -28,8 +28,6 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 ////////////////////////////////////////////////////////////////////////////////
 class FTraceAuxiliaryImpl
 {
