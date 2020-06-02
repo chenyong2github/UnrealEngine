@@ -14,6 +14,7 @@
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/GeometryCollectionEngineUtility.h"
+#include "Internationalization/Regex.h"
 
 #include "Logging/LogMacros.h"
 #include "Editor.h"
@@ -177,6 +178,199 @@ void FGeometryCollectionCommands::DeleteCoincidentVertices(const TArray<FString>
 		}
 	}
 }
+
+
+
+enum SupportedAttributeTypes
+{
+	UNKNOWN_ATTR_TYPE = 0,
+	BOOL_ATTR_TYPE = 1,
+	INT_ATTR_TYPE = 2,
+	FLOAT_ATTR_TYPE = 3
+};
+
+SupportedAttributeTypes ParseSupportedAttributeTypes(FString TypeStr)
+{
+	if (TypeStr.Equals("bool"))
+	{
+		return SupportedAttributeTypes::BOOL_ATTR_TYPE;
+	}
+	else if (TypeStr.Equals("int"))
+	{
+		return SupportedAttributeTypes::INT_ATTR_TYPE;
+	}
+	else if (TypeStr.Equals("float"))
+	{
+		return SupportedAttributeTypes::FLOAT_ATTR_TYPE;
+	}
+	return SupportedAttributeTypes::UNKNOWN_ATTR_TYPE;
+}
+
+void FGeometryCollectionCommands::SetNamedAttributeValues(const TArray<FString>& Args, UWorld* World)
+{
+	if (USelection* SelectedActors = GEditor->GetSelectedActors())
+	{
+		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+		{
+			if (AGeometryCollectionActor* Actor = Cast<AGeometryCollectionActor>(*Iter))
+			{
+				FString InType = "";
+				if (Args.Num() > 0)
+					InType = *Args[0];
+
+				FName InAttributeName = "";
+				if (Args.Num() > 1)
+					InAttributeName = *Args[1];
+
+				FName InGroupName = "";
+				if (Args.Num() > 2)
+					InGroupName = *Args[2];
+
+				if (Args.Num() > 3)
+				{
+
+					FName InPatternName = "";
+					if (Args.Num() > 4)
+						InPatternName = *Args[4];
+
+					FString InPattern = "*";
+					if (Args.Num() > 5)
+						InPattern = *Args[5];
+
+					FGeometryCollectionEdit RestCollectionEdit = Actor->GetGeometryCollectionComponent()->EditRestCollection();
+
+					if (UGeometryCollection* RestCollectionObject = RestCollectionEdit.GetRestCollection())
+					{
+						if (TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>  RestCollection = RestCollectionObject->GetGeometryCollection())
+						{
+							SupportedAttributeTypes ResolvedType = ParseSupportedAttributeTypes(InType);
+							if (ResolvedType == SupportedAttributeTypes::BOOL_ATTR_TYPE)
+							{
+								if (RestCollection->FindAttribute<bool>(InAttributeName, InGroupName))
+								{
+
+									bool InValue = false;
+									InValue = bool(FCString::Atoi(*Args[3]));
+
+
+									const FRegexPattern RegexPattern(InPattern);
+									TManagedArray<bool>& AttributeArray = RestCollection->GetAttribute<bool>(InAttributeName, InGroupName);
+
+									if (InPatternName.GetStringLength())
+									{
+										if (RestCollection->HasAttribute(InPatternName, InGroupName))
+										{
+											if (RestCollection->FindAttribute<FString>(InPatternName, InGroupName))
+											{
+												TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
+
+												for (int i = 0; i < NameArray.Num(); i++)
+												{
+													FRegexMatcher RegexMatcher(RegexPattern, NameArray[i]);
+													if (RegexMatcher.FindNext())
+													{
+														AttributeArray[i] = InValue;
+													}
+												}
+											}
+										}
+									}
+									else
+									{
+										for (int i = 0; i < AttributeArray.Num(); i++)
+											AttributeArray[i] = InValue;
+									}
+								}
+							}
+							else if (ResolvedType == SupportedAttributeTypes::INT_ATTR_TYPE)
+							{
+								if (RestCollection->FindAttribute<int32>(InAttributeName, InGroupName))
+								{
+
+									int32 InValue = 0;
+									InValue = FCString::Atoi(*Args[3]);
+
+
+									const FRegexPattern RegexPattern(InPattern);
+									TManagedArray<int32>& AttributeArray = RestCollection->GetAttribute<int32>(InAttributeName, InGroupName);
+
+									if (InPatternName.GetStringLength())
+									{
+										if (RestCollection->HasAttribute(InPatternName, InGroupName))
+										{
+											if (RestCollection->FindAttribute<FString>(InPatternName, InGroupName))
+											{
+												TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
+
+												for (int i = 0; i < NameArray.Num(); i++)
+												{
+													FRegexMatcher RegexMatcher(RegexPattern, NameArray[i]);
+													if (RegexMatcher.FindNext())
+													{
+														AttributeArray[i] = InValue;
+													}
+												}
+											}
+										}
+									}
+									else
+									{
+										for (int i = 0; i < AttributeArray.Num(); i++)
+											AttributeArray[i] = InValue;
+									}
+								}
+							}
+							else if (ResolvedType == SupportedAttributeTypes::FLOAT_ATTR_TYPE)
+							{
+								if (RestCollection->FindAttribute<float>(InAttributeName, InGroupName))
+								{
+
+									float InValue = 0;
+									InValue = FCString::Atof(*Args[3]);
+
+
+									const FRegexPattern RegexPattern(InPattern);
+									TManagedArray<float>& AttributeArray = RestCollection->GetAttribute<float>(InAttributeName, InGroupName);
+
+									if (InPatternName.GetStringLength())
+									{
+										if (RestCollection->HasAttribute(InPatternName, InGroupName))
+										{
+											if (RestCollection->FindAttribute<FString>(InPatternName, InGroupName))
+											{
+												TManagedArray<FString>& NameArray = RestCollection->GetAttribute<FString>(InPatternName, InGroupName);
+
+												for (int i = 0; i < NameArray.Num(); i++)
+												{
+													FRegexMatcher RegexMatcher(RegexPattern, NameArray[i]);
+													if (RegexMatcher.FindNext())
+													{
+														AttributeArray[i] = InValue;
+													}
+												}
+											}
+										}
+									}
+									else
+									{
+										for (int i = 0; i < AttributeArray.Num(); i++)
+											AttributeArray[i] = InValue;
+									}
+								}
+							}
+							else
+							{
+								UE_LOG(UGeometryCollectionCommandsLogging, Log, TEXT("Error Unknown Array Type %s"), *InType);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
 
 void FGeometryCollectionCommands::DeleteZeroAreaFaces(const TArray<FString>& Args, UWorld * World)
 {
