@@ -931,6 +931,7 @@ ENUM_CLASS_FLAGS(EIoContainerFlags);
 
 struct FIoContainerSettings
 {
+	FIoContainerId ContainerId;
 	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
 	FGuid EncryptionKeyGuid;
 	FAES::FAESKey EncryptionKey;
@@ -989,7 +990,7 @@ private:
 class FIoStoreWriter
 {
 public:
-	CORE_API 			FIoStoreWriter(FIoStoreEnvironment& InEnvironment, FIoContainerId InContainerId);
+	CORE_API 			FIoStoreWriter(FIoStoreEnvironment& InEnvironment);
 	CORE_API virtual	~FIoStoreWriter();
 
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
@@ -999,16 +1000,6 @@ public:
 	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API FIoStatus	AppendPadding(uint64 Count);
-
-	/**
-	 * Creates an addressable range in an already mapped Chunk.
-	 *
-	 * @param OriginalChunkId The FIoChunkId of the original chunk from which you want to create the range
-	 * @param Offset The number of bytes into the original chunk that the range should start
-	 * @param Length The length of the range in bytes
-	 * @param ChunkIdPartialRange The FIoChunkId that will map to the range
-	 */
-	UE_NODISCARD CORE_API FIoStatus MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange);
 	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
 
 private:
@@ -1023,14 +1014,6 @@ struct FIoStoreTocChunkInfo
 	uint64 Size;
 };
 
-struct FIoStoreTocPartialChunkInfo
-{
-	FIoChunkId Id;
-	FIoChunkId OrginalId;
-	uint64 RangeStart;
-	uint64 Size;
-};
-
 class FIoStoreReader
 {
 public:
@@ -1042,7 +1025,6 @@ public:
 	CORE_API EIoContainerFlags GetContainerFlags() const;
 	CORE_API FGuid GetEncryptionKeyGuid() const;
 	CORE_API void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const;
-	CORE_API void EnumeratePartialChunks(TFunction<bool(const FIoStoreTocPartialChunkInfo&)>&& Callback) const;
 	CORE_API TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
 
 private:
