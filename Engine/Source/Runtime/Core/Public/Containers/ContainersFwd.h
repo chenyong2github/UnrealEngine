@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
+#include "CoreTypes.h"
+#include "Traits/IsContiguousContainer.h"
 
 /// @cond DOXYGEN_WARNINGS
 template<int IndexSize> class TSizedDefaultAllocator;
@@ -11,6 +12,8 @@ using FDefaultAllocator64 = TSizedDefaultAllocator<64>;
 class FDefaultSetAllocator;
 
 class FString;
+
+template<> struct TIsContiguousContainer<FString> { static constexpr bool Value = true; };
 
 template<typename T, typename Allocator = FDefaultAllocator> class TArray;
 template<typename T> using TArray64 = TArray<T, FDefaultAllocator64>;

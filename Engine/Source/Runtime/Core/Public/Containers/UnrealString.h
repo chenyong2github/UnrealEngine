@@ -16,6 +16,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Math/NumericLimits.h"
 #include "Containers/Array.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Misc/CString.h"
 #include "Misc/Crc.h"
@@ -32,12 +33,6 @@ template<typename KeyType,typename ValueType,typename SetAllocator ,typename Key
 
 typedef TMap<FString, FStringFormatArg> FStringFormatNamedArguments;
 typedef TArray<FStringFormatArg> FStringFormatOrderedArguments;
-
-template <>
-struct TIsContiguousContainer<FString>
-{
-	enum { Value = true };
-};
 
 /**
  * A dynamically sizeable string.
