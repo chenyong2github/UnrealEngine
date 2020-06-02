@@ -205,8 +205,14 @@ namespace UnrealBuildTool
 			Writer.WriteValue("IsLicenseeVersion", IsLicenseeVersion? 1 : 0);
 			Writer.WriteValue("IsPromotedBuild", IsPromotedBuild? 1 : 0);
 			Writer.WriteValue("BranchName", BranchName);
-			Writer.WriteValue("BuildId", BuildId);
-			Writer.WriteValue("BuildVersion", BuildVersionString);
+			if (!String.IsNullOrEmpty(BuildId))
+			{
+				Writer.WriteValue("BuildId", BuildId);
+			}
+			if (!String.IsNullOrEmpty(BuildVersionString))
+			{
+				Writer.WriteValue("BuildVersion", BuildVersionString);
+			}
 		}
 	}
 
