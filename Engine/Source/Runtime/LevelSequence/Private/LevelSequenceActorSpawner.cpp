@@ -10,6 +10,10 @@
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 static const FName SequencerActorTag(TEXT("SequencerActor"));
 
 TSharedRef<IMovieSceneObjectSpawner> FLevelSequenceActorSpawner::CreateObjectSpawner()
@@ -195,7 +199,8 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 	SpawnedActor->FinishSpawning(SpawnTransform, bIsDefaultTransform);
 
 #if WITH_EDITOR
-	if (GIsEditor)
+	// Don't set the actor label in PIE as this requires flushing async loading.
+	if (GIsEditor && !GEditor->IsPlaySessionInProgress())
 	{
 		SpawnedActor->SetActorLabel(Spawnable.GetName());
 	}
