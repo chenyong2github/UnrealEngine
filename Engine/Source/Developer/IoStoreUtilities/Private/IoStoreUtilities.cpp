@@ -3991,7 +3991,8 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 				if (TargetFile.Padding)
 				{
-					ReadFileTask.IoStoreWriter->AppendPadding(TargetFile.Padding);
+					FIoStatus Status = ReadFileTask.IoStoreWriter->AppendPadding(TargetFile.Padding);
+					UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append padding due to '%s'"), *Status.ToString());
 				}
 				FIoWriteOptions WriteOptions;
 				WriteOptions.DebugName = *TargetFile.TargetPath;
@@ -4311,7 +4312,8 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 				FIoReadOptions ReadOptions;
 				TIoStatusOr<FIoBuffer> ChunkBuffer = TargetReader->Read(ChunkInfo.Id, ReadOptions);
 				FIoWriteOptions WriteOptions;
-				IoStoreWriter.Append(ChunkInfo.Id, ChunkInfo.Hash, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
+				FIoStatus Status = IoStoreWriter.Append(ChunkInfo.Id, ChunkInfo.Hash, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
+				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
 			}
 			return true;
 		});
