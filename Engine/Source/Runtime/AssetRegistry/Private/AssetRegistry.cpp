@@ -2804,6 +2804,39 @@ void UAssetRegistryImpl::GetSubClasses_Recursive(FName InClassName, TSet<FName>&
 	}
 }
 
+#if WITH_EDITOR
+static FString GAssetRegistryManagementPathsPackageDebugName;
+static FAutoConsoleVariableRef CVarAssetRegistryManagementPathsPackageDebugName(
+	TEXT("AssetRegistry.ManagementPathsPackageDebugName"),
+	GAssetRegistryManagementPathsPackageDebugName,
+	TEXT("If set, when manage references are set, the chain of references that caused this package to become managed will be printed to the log"));
+
+void PrintAssetRegistryManagementPathsPackageDebugInfo(FDependsNode* Node, const TMap<FDependsNode*, FDependsNode*>& EditorOnlyManagementPaths)
+{
+	if (Node)
+	{
+		UE_LOG(LogAssetRegistry, Display, TEXT("SetManageReferences is printing out the reference chain that caused '%s' to be managed"), *GAssetRegistryManagementPathsPackageDebugName);
+		TSet<FDependsNode*> AllVisitedNodes;
+		while (FDependsNode* ReferencingNode = EditorOnlyManagementPaths.FindRef(Node))
+		{
+			UE_LOG(LogAssetRegistry, Display, TEXT("  %s"), *ReferencingNode->GetPackageName().ToString());
+			if (AllVisitedNodes.Contains(ReferencingNode))
+			{
+				UE_LOG(LogAssetRegistry, Display, TEXT("  ... (Circular reference back to %s)"), *ReferencingNode->GetPackageName().ToString());
+				break;
+			}
+
+			AllVisitedNodes.Add(ReferencingNode);
+			Node = ReferencingNode;
+		}
+	}
+	else
+	{
+		UE_LOG(LogAssetRegistry, Warning, TEXT("Node with AssetRegistryManagementPathsPackageDebugName '%s' was not found"), *GAssetRegistryManagementPathsPackageDebugName);
+	}
+}
+#endif // WITH_EDITOR
+
 void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap, bool bClearExisting, EAssetRegistryDependencyType::Type RecurseType, ShouldSetManagerPredicate ShouldSetManager)
 {
 	TSet<FDependsNode*> ExistingManagedNodes;
@@ -2860,6 +2893,11 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 	TArray<FDependsNode*> NodesToHardReference;
 	TArray<FDependsNode*> NodesToRecurse;
 
+#if WITH_EDITOR
+	// Map of every depends node to the node whose reference caused it to become managed by an asset. Used to look up why an asset was chosen to be the manager.
+	TMap<FDependsNode*, FDependsNode*> EditorOnlyManagementPaths;
+#endif
+
 	// For each explicitly set asset
 	for (const TPair<FDependsNode*, TArray<FDependsNode *>>& ExplicitPair : ExplicitMap)
 	{
@@ -2874,7 +2912,11 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 			FDependsNode* SourceNode = ManagerNode;
 
-			auto IterateFunction = [&ManagerNode, &SourceNode, &ShouldSetManager, &NodesToManage, &NodesToHardReference, &NodesToRecurse, &Visited, &ExplicitMap, &ExistingManagedNodes](FDependsNode* TargetNode, EAssetRegistryDependencyType::Type DependencyType)
+			auto IterateFunction = [&ManagerNode, &SourceNode, &ShouldSetManager, &NodesToManage, &NodesToHardReference, &NodesToRecurse, &Visited, &ExplicitMap, &ExistingManagedNodes
+#if WITH_EDITOR
+										, &EditorOnlyManagementPaths
+#endif
+										](FDependsNode* ReferencingNode, FDependsNode* TargetNode, EAssetRegistryDependencyType::Type DependencyType)
 			{
 				// Only recurse if we haven't already visited, and this node passes recursion test
 				if (!Visited.Contains(TargetNode))
@@ -2893,6 +2935,13 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 					EAssetRegistryDependencyType::Type ManageType = (Flags & EAssetSetManagerFlags::IsDirectSet) ? EAssetRegistryDependencyType::HardManage : EAssetRegistryDependencyType::SoftManage;
 					NodesToManage.Add(TargetNode, ManageType);
 
+#if WITH_EDITOR
+					if (!GAssetRegistryManagementPathsPackageDebugName.IsEmpty())
+					{
+						EditorOnlyManagementPaths.Add(TargetNode, ReferencingNode);
+					}
+#endif
+
 					if (Result == EAssetSetManagerResult::SetAndRecurse)
 					{
 						NodesToRecurse.Push(TargetNode);
@@ -2901,7 +2950,7 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 			};
 
 			// Check initial node
-			IterateFunction(BaseManagedNode, EAssetRegistryDependencyType::Manage);
+			IterateFunction(nullptr, BaseManagedNode, EAssetRegistryDependencyType::Manage);
 
 			// Do all recursion first, but only if we have a recurse type
 			if (RecurseType)
@@ -2913,7 +2962,10 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 					Visited.Add(SourceNode);
 
-					SourceNode->IterateOverDependencies(IterateFunction, RecurseType);
+					SourceNode->IterateOverDependencies([&IterateFunction, SourceNode](FDependsNode* TargetNode, EAssetRegistryDependencyType::Type DependencyType)
+						{
+							IterateFunction(SourceNode, TargetNode, DependencyType);
+						}, RecurseType);
 				}
 			}
 
@@ -2924,6 +2976,14 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	if (!GAssetRegistryManagementPathsPackageDebugName.IsEmpty())
+	{
+		FDependsNode* PackageDebugInfoNode = State.FindDependsNode(FName(*GAssetRegistryManagementPathsPackageDebugName));
+		PrintAssetRegistryManagementPathsPackageDebugInfo(PackageDebugInfoNode, EditorOnlyManagementPaths);
+	}
+#endif
 }
 
 bool UAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(const FName ObjectPath, FPrimaryAssetId PrimaryAssetId)
