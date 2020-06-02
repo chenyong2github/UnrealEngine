@@ -1937,7 +1937,7 @@ void ALandscapeProxy::PostRegisterAllComponents()
 				FixupWeightmaps();
 
 				const bool bNeedOldDataMigration = !bHasLayersContentBefore && CanHaveLayersContent();
-				if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid())
+				if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor.Get()->HasLayersContent())
 				{
 					LandscapeInfo->LandscapeActor.Get()->CopyOldDataToDefaultLayer(this);
 				}
