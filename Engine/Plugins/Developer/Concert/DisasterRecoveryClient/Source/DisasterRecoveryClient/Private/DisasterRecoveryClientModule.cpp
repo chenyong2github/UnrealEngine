@@ -125,11 +125,6 @@ public:
 
 		// Register the Disaster Recovery Settings panel.
 		RegisterSettings();
-
-#if WITH_EDITOR
-		// Register the tab spawner (used to spawn the recovery hub).
-		RegisterTabSpawner();
-#endif
 	}
 
 	virtual void ShutdownModule() override
@@ -368,6 +363,11 @@ private:
 
 			// Create the session manager.
 			SessionManager = MakeShared<FDisasterRecoverySessionManager>(Role, DisasterRecoveryClient);
+
+#if WITH_EDITOR
+			// Register the tab spawner (used to spawn the recovery hub).
+			RegisterTabSpawner();
+#endif
 
 			// Set all events captured by the disaster recovery service as 'restorable' unless another concert client (assumed Multi-User) has created an incompatible session.
 			SetIgnoreOnRestoreState(!IsCompatibleWithOtherConcertSessions(/*SyncClientStartingSession*/nullptr, /*SyncClientShuttingDownSession*/nullptr));
