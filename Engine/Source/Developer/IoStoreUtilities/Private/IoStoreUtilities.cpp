@@ -596,13 +596,6 @@ using FCookedFileStatMap = TMap<FString, FCookedFileStatData>;
 struct FPackage;
 struct FContainerTargetSpec;
 
-struct FContainerTargetFilePartialMapping
-{
-	FIoChunkId PartialChunkId;
-	uint64 Offset;
-	uint64 Length;
-};
-
 struct FContainerTargetFile
 {
 	FContainerTargetSpec* ContainerTarget = nullptr;
@@ -619,7 +612,6 @@ struct FContainerTargetFile
 	TArray<uint8> PackageHeaderData;
 	TArray<int32> NameIndices;
 	FNameMapBuilder* NameMapBuilder = nullptr;
-	TArray<FContainerTargetFilePartialMapping> PartialMappings;
 	bool bIsBulkData = false;
 	bool bIsOptionalBulkData = false;
 	bool bIsMemoryMappedBulkData = false;
@@ -3854,7 +3846,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	{
 		IOSTORE_CPU_SCOPE(InitializeIoStoreWriters);
 		GlobalIoStoreEnv.InitializeFileEnvironment(*Arguments.GlobalContainerPath);
-		GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv, FIoContainerId::FromIndex(0));
+		GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv);
 		IoStoreWriters.Add(GlobalIoStoreWriter);
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
@@ -3863,7 +3855,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			{
 				ContainerTarget->IoStoreEnv.Reset(new FIoStoreEnvironment());
 				ContainerTarget->IoStoreEnv->InitializeFileEnvironment(ContainerTarget->OutputPath);
-				ContainerTarget->IoStoreWriter = new FIoStoreWriter(*ContainerTarget->IoStoreEnv, ContainerTarget->Header.ContainerId);
+				ContainerTarget->IoStoreWriter = new FIoStoreWriter(*ContainerTarget->IoStoreEnv);
 				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 			}
 		}
@@ -3871,6 +3863,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		check(IoStatus.IsOk());
 
 		FIoContainerSettings GlobalContainerSettings;
+		GlobalContainerSettings.ContainerId = FIoContainerId::FromIndex(0);
 		if (Arguments.bSign)
 		{
 			GlobalContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
@@ -3883,6 +3876,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			if (ContainerTarget->IoStoreWriter && ContainerTarget->IoStoreWriter != GlobalIoStoreWriter)
 			{
 				FIoContainerSettings ContainerSettings;
+				ContainerSettings.ContainerId = ContainerTarget->Header.ContainerId;
 				ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags;
 				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
 				{
@@ -4005,15 +3999,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				WriteOptions.Alignment = TargetFile.Alignment;
 				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions);
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
-
-				for (const FContainerTargetFilePartialMapping& PartialMapping : TargetFile.PartialMappings)
-				{
-					const FIoStatus PartialResult = ReadFileTask.IoStoreWriter->MapPartialRange(TargetFile.ChunkId, PartialMapping.Offset, PartialMapping.Length, PartialMapping.PartialChunkId);
-					if (!PartialResult.IsOk())
-					{
-						UE_LOG(LogIoStore, Warning, TEXT("Failed to map partial range for '%s' due to: %s"), *TargetFile.Package->FileName, *PartialResult.ToString());
-					}
-				}
 
 				ReadFileTask.IoBuffer = FIoBuffer();
 				BufferMemoryAllocated -= BufferSize;
@@ -4280,12 +4265,13 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 		}
 
 		FIoStoreEnvironment IoStoreEnv;
-		FIoStoreWriter IoStoreWriter(IoStoreEnv, TargetReader->GetContainerId());
+		FIoStoreWriter IoStoreWriter(IoStoreEnv);
 		IoStoreEnv.InitializeFileEnvironment(*Container.OutputPath);
 		
 		EIoContainerFlags TargetContainerFlags = TargetReader->GetContainerFlags();
 
 		FIoContainerSettings ContainerSettings;
+		ContainerSettings.ContainerId = TargetReader->GetContainerId();
 		if (Arguments.bSign || EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Signed))
 		{
 			ContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
