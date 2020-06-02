@@ -86,6 +86,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	virtual void PrestreamTextures( float Seconds, bool bPrioritizeCharacterTextures, int32 CinematicTextureGroups = 0 );
 
+	/**
+	 * Register a one-time callback that will be called when criteria met
+	 * @param Callback
+	 * @param LODIdx		The LOD index expected
+	 * @param TimeoutSecs	Timeout in seconds
+	 * @param bOnStreamIn	To get notified when the expected LOD is streamed in or out
+	 */
+	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn);
+
 	/** Get the material info for texture stremaing. Return whether the data is valid or not. */
 	virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const { return false; }
 

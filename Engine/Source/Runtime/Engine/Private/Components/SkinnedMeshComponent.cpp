@@ -3181,8 +3181,21 @@ void USkinnedMeshComponent::ReleaseResources()
 	DetachFence.BeginFence();
 }
 
+void USkinnedMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn)
+{
+	if (SkeletalMesh)
+	{
+		SkeletalMesh->RegisterMipLevelChangeCallback(this, LODIdx, TimeoutSecs, bOnStreamIn, MoveTemp(Callback));
+	}
+}
+
 void USkinnedMeshComponent::BeginDestroy()
 {
+	if (SkeletalMesh)
+	{
+		SkeletalMesh->RemoveMipLevelChangeCallback(this);
+	}
+
 	Super::BeginDestroy();
 	ReleaseResources();
 
