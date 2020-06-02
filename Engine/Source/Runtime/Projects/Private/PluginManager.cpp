@@ -576,6 +576,7 @@ public:
 
 bool FPluginManager::ConfigureEnabledPlugins()
 {
+#if (WITH_ENGINE && !IS_PROGRAM) || WITH_PLUGIN_SUPPORT
 	if(PluginsToConfigure.Num() > 0)
 	{
 		SCOPED_BOOT_TIMING("FPluginManager::ConfigureEnabledPlugins");
@@ -911,6 +912,9 @@ bool FPluginManager::ConfigureEnabledPlugins()
 		PluginsToConfigure.Empty();
 	}
 	return bHaveAllRequiredPlugins;
+#else
+	return true;
+#endif
 }
 
 bool FPluginManager::RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason)
