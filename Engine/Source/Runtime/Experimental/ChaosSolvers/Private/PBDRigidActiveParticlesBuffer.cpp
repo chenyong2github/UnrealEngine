@@ -6,12 +6,12 @@
 namespace Chaos
 {
 
-	FPBDRigidActiveParticlesBuffer::FPBDRigidActiveParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode, bool bInSingleThreaded) : BufferMode(InBufferMode), bUseLock(!bInSingleThreaded)
+	FPBDRigidDirtyParticlesBuffer::FPBDRigidDirtyParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode, bool bInSingleThreaded) : BufferMode(InBufferMode), bUseLock(!bInSingleThreaded)
 	{
-		SolverDataOut = Chaos::FMultiBufferFactory<FPBDRigidActiveParticlesBufferOut>::CreateBuffer(InBufferMode);
+		SolverDataOut = Chaos::FMultiBufferFactory<FPBDRigidDirtyParticlesBufferOut>::CreateBuffer(InBufferMode);
 	}
 
-	void FPBDRigidActiveParticlesBuffer::CaptureSolverData(FPBDRigidsSolver* Solver)
+	void FPBDRigidDirtyParticlesBuffer::CaptureSolverData(FPBDRigidsSolver* Solver)
 	{
 		WriteLock();
 		BufferPhysicsResults(Solver);
@@ -19,22 +19,22 @@ namespace Chaos
 		WriteUnlock();
 	}
 
-	void FPBDRigidActiveParticlesBuffer::RemoveActiveParticleFromConsumerBuffer(TGeometryParticle<FReal, 3>* Particle)
+	void FPBDRigidDirtyParticlesBuffer::RemoveDirtyParticleFromConsumerBuffer(TGeometryParticle<FReal, 3>* Particle)
 	{
 		WriteLock();
-		auto& ActiveGameThreadParticles = SolverDataOut->GetConsumerBufferMutable()->ActiveGameThreadParticles;
+		auto& ActiveGameThreadParticles = SolverDataOut->GetConsumerBufferMutable()->DirtyGameThreadParticles;
 		ActiveGameThreadParticles.RemoveSingleSwap(Particle);
 		WriteUnlock();
 	}
 
-	void FPBDRigidActiveParticlesBuffer::BufferPhysicsResults(FPBDRigidsSolver* Solver)
+	void FPBDRigidDirtyParticlesBuffer::BufferPhysicsResults(FPBDRigidsSolver* Solver)
 	{
-		auto& ActiveGameThreadParticles = SolverDataOut->AccessProducerBuffer()->ActiveGameThreadParticles;
+		auto& ActiveGameThreadParticles = SolverDataOut->AccessProducerBuffer()->DirtyGameThreadParticles;
 		auto& PhysicsParticleProxies = SolverDataOut->AccessProducerBuffer()->PhysicsParticleProxies;
 
 		ActiveGameThreadParticles.Empty();
 		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticlesView = 
-			Solver->GetParticles().GetActiveParticlesView();
+			Solver->GetParticles().GetDirtyParticlesView();
 		for (auto& ActiveParticle : ActiveParticlesView)
 		{
 			if (ActiveParticle.Handle())
@@ -58,7 +58,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDRigidActiveParticlesBuffer::ReadLock()
+	void FPBDRigidDirtyParticlesBuffer::ReadLock()
 	{
 		if (bUseLock)
 		{
@@ -66,7 +66,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDRigidActiveParticlesBuffer::ReadUnlock()
+	void FPBDRigidDirtyParticlesBuffer::ReadUnlock()
 	{
 		if (bUseLock)
 		{
@@ -74,7 +74,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDRigidActiveParticlesBuffer::WriteLock()
+	void FPBDRigidDirtyParticlesBuffer::WriteLock()
 	{
 		if (bUseLock)
 		{
@@ -82,7 +82,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDRigidActiveParticlesBuffer::WriteUnlock()
+	void FPBDRigidDirtyParticlesBuffer::WriteUnlock()
 	{
 		if (bUseLock)
 		{
