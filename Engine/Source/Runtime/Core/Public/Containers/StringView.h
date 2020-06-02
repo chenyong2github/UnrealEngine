@@ -26,47 +26,47 @@ namespace StringViewPrivate
 	}
 }
 
-/** String View
-
-	* A string view is implicitly constructible from const char* style strings and
-	  from character ranges such as FString.
-
-	* A string view does not own any data nor does it attempt to control any lifetimes, it
-	  merely points at a subrange of characters in some other string. It's up to the user
-	  to ensure the underlying string stays valid for the lifetime of the string view.
-
-	* A string view does not represent a NUL terminated string and therefore you should
-	  never pass in the pointer returned by GetData() into a C-string API accepting only a
-	  pointer. You must either use a string builder to make a properly terminated string,
-	  or use an API that accepts a length argument in addition to the C-string.
-
-	String views are a good fit for arguments to functions which don't wish to care
-	which style of string construction is used by the caller. If you accept strings via
-	string views then the caller is free to use FString, FStringBuilder, raw C strings,
-	or any other type which can be converted into a string view.
-
-	i.e., a function such as:
-
-	void DoFoo(const FStringView& InString);
-
-	May be called as:
-
-	void MultiFoo()
-	{
-		FString MyFoo(TEXT("Zoo"));
-		const TCHAR* MyFooStr = *MyFoo;
-
-		TStringBuilder<64> BuiltFoo;
-		BuiltFoo.Append(TEXT("ABC"));
-
-		DoFoo(MyFoo);
-		DoFoo(MyFooStr);
-		DoFoo(TEXT("ABC"));
-		DoFoo(BuiltFoo);
-	}
-
-  */
-
+/**
+ * String View
+ *
+ * A string view is implicitly constructible from const char* style strings and
+ * from compatible character ranges such as FString and TStringBuilderBase.
+ *
+ * A string view does not own any data nor does it attempt to control any lifetimes, it
+ * merely points at a subrange of characters in some other string. It's up to the user
+ * to ensure the underlying string stays valid for the lifetime of the string view.
+ *
+ * A string view is cheap to copy and is intended to be passed by value.
+ *
+ * A string view does not represent a NUL terminated string and therefore you should
+ * never pass in the pointer returned by GetData() into a C-string API accepting only a
+ * pointer. You must either use a string builder to make a properly terminated string,
+ * or use an API that accepts a length argument in addition to the C-string.
+ *
+ * String views are a good fit for arguments to functions which don't wish to care
+ * which style of string construction is used by the caller. If you accept strings via
+ * string views then the caller is free to use FString, FStringBuilder, raw C strings,
+ * or any other type which can be converted into a string view.
+ *
+ * @code
+ *	void DoFoo(FStringView InString);
+ *
+ *	// DoFoo may be called as:
+ *	void MultiFoo()
+ *	{
+ *		FString MyFoo(TEXT("Zoo"));
+ *		const TCHAR* MyFooStr = *MyFoo;
+ *
+ *		TStringBuilder<64> BuiltFoo;
+ *		BuiltFoo.Append(TEXT("ABC"));
+ *
+ *		DoFoo(MyFoo);
+ *		DoFoo(MyFooStr);
+ *		DoFoo(TEXT("ABC"));
+ *		DoFoo(BuiltFoo);
+ *	}
+ * @endcode
+ */
 template <typename CharType>
 class TStringView
 {
