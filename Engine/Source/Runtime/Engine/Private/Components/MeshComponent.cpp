@@ -185,6 +185,12 @@ void UMeshComponent::PrestreamTextures( float Seconds, bool bPrioritizeCharacter
 	}
 }
 
+void UMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn)
+{
+	check(IsInGameThread());
+	Callback(this, nullptr, ELODStreamingCallbackResult::NotImplemented);
+}
+
 void UMeshComponent::SetTextureForceResidentFlag( bool bForceMiplevelsToBeResident )
 {
 	const int32 CinematicTextureGroups = 0;

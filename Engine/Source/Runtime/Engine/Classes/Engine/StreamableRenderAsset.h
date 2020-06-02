@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/App.h"
+#include "Engine/TextureStreamingTypes.h"
 #include "Serialization/BulkData2.h"
 #include "StreamableRenderAsset.generated.h"
 
@@ -169,6 +170,14 @@ public:
 			|| ForceMipLevelsToBeResidentTimestamp >= FApp::GetCurrentTime();
 	}
 
+	ENGINE_API void RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn, FLODStreamingCallback&& Callback);
+
+	ENGINE_API void RemoveMipLevelChangeCallback(UPrimitiveComponent* Component);
+
+	ENGINE_API void RemoveAllMipLevelChangeCallbacks();
+
+	ENGINE_API void TickMipLevelChangeCallbacks();
+
 	/**
 	* Tells the streaming system that it should force all mip-levels to be resident for a number of seconds.
 	* @param Seconds					Duration in seconds
@@ -215,6 +224,25 @@ public:
 	}
 
 protected:
+	struct FLODStreamingCallbackPayload
+	{
+		UPrimitiveComponent* Component;
+		double Deadline;
+		int32 ExpectedResidentMips;
+		bool bOnStreamIn;
+		FLODStreamingCallback Callback;
+
+		FLODStreamingCallbackPayload(UPrimitiveComponent* InComponent, double InDeadline, int32 InExpectedResidentMips, bool bInOnStreamIn, FLODStreamingCallback&& InCallback)
+			: Component(InComponent)
+			, Deadline(InDeadline)
+			, ExpectedResidentMips(InExpectedResidentMips)
+			, bOnStreamIn(bInOnStreamIn)
+			, Callback(MoveTemp(InCallback))
+		{}
+	};
+
+	TArray<FLODStreamingCallbackPayload> MipChangeCallbacks;
+
 	/** WorldSettings timestamp that tells the streamer to force all miplevels to be resident up until that time. */
 	UPROPERTY(transient)
 	double ForceMipLevelsToBeResidentTimestamp;
