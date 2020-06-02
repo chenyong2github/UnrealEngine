@@ -8,11 +8,6 @@
 #include "FileHelpers.h"
 #include "EditorReimportHandler.h"
 
-FPanelExtensionFactory::FPanelExtensionFactory()
-{
-
-}
-
 SExtensionPanel::~SExtensionPanel()
 {
 	if (GEditor && ExtensionPanelID != NAME_None)
@@ -28,6 +23,7 @@ void SExtensionPanel::Construct(const FArguments& InArgs)
 {
 	ExtensionPanelID = InArgs._ExtensionPanelID.Get(NAME_None);
 	DefaultWidget = InArgs._DefaultWidget.Get(nullptr);
+	ExtensionContext = InArgs._ExtensionContext.Get(nullptr);
 
 	if (GEditor && ExtensionPanelID != NAME_None)
 	{
@@ -45,7 +41,7 @@ void SExtensionPanel::RebuildWidget()
 	{
 		if (UPanelExtensionSubsystem* PanelExtensionSubsystem = GEditor->GetEditorSubsystem<UPanelExtensionSubsystem>())
 		{
-			TSharedRef<SWidget> Widget = PanelExtensionSubsystem->GetWidget(ExtensionPanelID);
+			TSharedRef<SWidget> Widget = PanelExtensionSubsystem->CreateWidget(ExtensionPanelID, ExtensionContext);
 			if (Widget == SNullWidget::NullWidget && DefaultWidget.IsValid())
 			{
 				Widget = DefaultWidget.ToSharedRef();
@@ -101,17 +97,23 @@ void UPanelExtensionSubsystem::UnregisterPanelFactory(FName Identifier, FName Ex
 	}
 }
 
-TSharedRef<SWidget> UPanelExtensionSubsystem::GetWidget(FName ExtensionPanelID)
+TSharedRef<SWidget> UPanelExtensionSubsystem::CreateWidget(FName ExtensionPanelID, FWeakObjectPtr ExtensionContext)
 {
 	const TArray<FPanelExtensionFactory>* ExtensionArray = ExtensionPointMap.Find(ExtensionPanelID);
 	if (ExtensionArray && ExtensionArray->Num() > 0)
 	{
 		const FPanelExtensionFactory& Extension = (*ExtensionArray)[0]; // TODO: We need to add support for multiple widgets
-		if (Extension.CreateWidget.IsBound())
+		if (Extension.CreateExtensionWidget.IsBound())
+		{
+			return Extension.CreateExtensionWidget.Execute(ExtensionContext);
+		}
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		else if (Extension.CreateWidget.IsBound())
 		{
 			TArray<UObject*> Temp;
 			return Extension.CreateWidget.Execute(Temp);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return SNullWidget::NullWidget;
 }
