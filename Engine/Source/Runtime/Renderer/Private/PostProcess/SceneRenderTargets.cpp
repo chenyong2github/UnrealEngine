@@ -929,15 +929,17 @@ void FSceneRenderTargets::SetQuadOverdrawUAV(FRHICommandList& RHICmdList, bool b
 }
 FUnorderedAccessViewRHIRef FSceneRenderTargets::GetQuadOverdrawBufferUAV()
 {
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
-	bool bBindQuadOverdrawBuffers = true;
-	if (bBindQuadOverdrawBuffers && AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, CurrentFeatureLevel))
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (QuadOverdrawBuffer.IsValid() && QuadOverdrawBuffer->GetRenderTargetItem().UAV.IsValid())
 	{
-		if (QuadOverdrawBuffer.IsValid() && QuadOverdrawBuffer->GetRenderTargetItem().UAV.IsValid())
+		// ShaderPlatform should only be tested if QuadOverdrawBuffer is allocated, to ensure CurrentFeatureLevel is valid.
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+		if (AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, CurrentFeatureLevel))
 		{
 			return QuadOverdrawBuffer->GetRenderTargetItem().UAV;
 		}
 	}
+#endif
 	return GBlackTextureWithUAV->UnorderedAccessViewRHI;
 }
 
