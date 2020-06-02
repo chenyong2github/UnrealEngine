@@ -30,6 +30,7 @@ template <int32 BufferSize> using TFixedAnsiStringBuilder UE_DEPRECATED(4.25, "'
 
 // String View
 
-class FStringView;
-class FAnsiStringView;
-using FWideStringView = FStringView;
+template <typename CharType> class TStringView;
+using FStringView = TStringView<TCHAR>;
+using FAnsiStringView = TStringView<ANSICHAR>;
+using FWideStringView = TStringView<WIDECHAR>;
