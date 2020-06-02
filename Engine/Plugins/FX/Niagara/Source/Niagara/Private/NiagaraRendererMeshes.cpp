@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarEnableNiagaraMeshRendering(
 
 #if RHI_RAYTRACING
 static TAutoConsoleVariable<int32> CVarRayTracingNiagaraMeshes(
-	TEXT("r.RayTracing.Niagara.Meshes"),
+	TEXT("r.RayTracing.Geometry.NiagaraMeshes"),
 	1,
 	TEXT("Include Niagara meshes in ray tracing effects (default = 1 (Niagara meshes enabled in ray tracing))"));
 #endif
