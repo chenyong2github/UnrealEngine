@@ -478,11 +478,11 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 	TWeakObjectPtr<UMoviePipelineExecutorJob> WeakJob;
 
 	/** The identifier in the job for which shot this is. */
-	FSoftObjectPath SectionPath;
+	TWeakObjectPtr<UMoviePipelineExecutorShot> WeakShot;
 
-	explicit FMoviePipelineShotItem(UMoviePipelineExecutorJob* InJob, const FSoftObjectPath& InSectionPath)
+	explicit FMoviePipelineShotItem(UMoviePipelineExecutorJob* InJob, UMoviePipelineExecutorShot* InShot)
 		: WeakJob(InJob)
-		, SectionPath(InSectionPath)
+		, WeakShot(InShot)
 	{}
 
 	virtual UMoviePipelineExecutorJob* GetOwningJob() override
@@ -496,31 +496,11 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 			.Item(SharedThis(this));
 	}
 
-	FMoviePipelineJobShotInfo* GetShotInfoFromJob() const
-	{
-		UMoviePipelineExecutorJob* Job = WeakJob.Get();
-		if (!Job)
-		{
-			return nullptr;
-		}
-
-		for (int32 Index = 0; Index < Job->ShotMaskInfo.Num(); Index++)
-		{
-			if (Job->ShotMaskInfo[Index].SectionPath == SectionPath)
-			{
-				return &Job->ShotMaskInfo[Index];
-			}
-		}
-
-		return nullptr;
-	}
-
-
 	ECheckBoxState GetCheckState() const
 	{
-		if (FMoviePipelineJobShotInfo* ShotInfo = GetShotInfoFromJob())
+		if (UMoviePipelineExecutorShot* Shot = WeakShot.Get())
 		{
-			return ShotInfo->bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			return Shot->bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 		}
 		
 		return ECheckBoxState::Unchecked;
@@ -528,35 +508,20 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 
 	void SetCheckState(ECheckBoxState InNewState)
 	{
-		if (FMoviePipelineJobShotInfo* ShotInfo = GetShotInfoFromJob())
+		if (UMoviePipelineExecutorShot* Shot = WeakShot.Get())
 		{
-			ShotInfo->bEnabled = InNewState == ECheckBoxState::Checked;
+			Shot->bEnabled = InNewState == ECheckBoxState::Checked;
 		}
 	}
 
 	FText GetShotLabel() const
 	{
-		if (FMoviePipelineJobShotInfo* ShotInfo = GetShotInfoFromJob())
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		if (Shot)
 		{
-			UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(ShotInfo->SectionPath.TryLoad());
-			if (CameraCutSection)
-			{
-				const FMovieSceneObjectBindingID& CameraObjectBindingId = CameraCutSection->GetCameraBindingID();
-				if (CameraObjectBindingId.IsValid())
-				{
-					UMovieScene* OwningMovieScene = CameraCutSection->GetTypedOuter<UMovieScene>();
-					if (OwningMovieScene)
-					{
-						FMovieSceneBinding* Binding = OwningMovieScene->FindBinding(CameraObjectBindingId.GetGuid());
-						if (Binding)
-						{
-							return FText::FromString(Binding->GetName());
-						}
-					}
-				}
-			}
+			FString FormattedTitle = FString::Printf(TEXT("%s %s"), *Shot->OuterName, *Shot->InnerName);
+			return FText::FromString(FormattedTitle);
 		}
-
 		return FText();
 	}
 
@@ -567,17 +532,36 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 
 	int32 GetStatusIndex() const
 	{
-		return 1;
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		if (Shot)
+		{
+			// If the progress is zero we want to show the status message instead.
+			return Shot->GetStatusProgress() > 0;
+		}
+
+		return 0;
+	}
+
+	bool IsEnabled() const
+	{
+		UMoviePipelineExecutorJob* Job = WeakJob.Get();
+		if (Job)
+		{
+			return !Job->IsConsumed();
+		}
+		return false;
 	}
 
 	TOptional<float> GetProgressPercent() const
 	{
-		if (FMoviePipelineJobShotInfo* ShotInfo = GetShotInfoFromJob())
-		{
-			return ShotInfo->Progress;
-		}
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		return Shot ? Shot->GetStatusProgress() : TOptional<float>();
+	}
 
-		return TOptional<float>();
+	FText GetStatusMessage() const
+	{
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		return Shot ? FText::FromString(Shot->GetStatusMessage()) : FText();
 	}
 };
 
@@ -1036,9 +1020,9 @@ void SMoviePipelineQueueEditor::ReconstructTree()
 		TSharedPtr<FMoviePipelineQueueJobTreeItem> JobTreeItem = MakeShared<FMoviePipelineQueueJobTreeItem>(Job, OnEditConfigRequested, OnPresetChosen);
 
 		// Add Shots
-		for (const FMoviePipelineJobShotInfo& ShotInfo : Job->ShotMaskInfo)
+		for (UMoviePipelineExecutorShot* ShotInfo : Job->ShotInfo)
 		{
-			TSharedPtr<FMoviePipelineShotItem> Shot = MakeShared<FMoviePipelineShotItem>(Job, ShotInfo.SectionPath);
+			TSharedPtr<FMoviePipelineShotItem> Shot = MakeShared<FMoviePipelineShotItem>(Job, ShotInfo);
 			JobTreeItem->Children.Add(Shot);
 		}
 

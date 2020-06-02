@@ -8,6 +8,7 @@
 #include "MoviePipelineOutputBase.generated.h"
 
 class UMoviePipeline;
+class UMoviePipelineExecutorShot;
 
 namespace UE
 {
@@ -67,16 +68,11 @@ public:
 	* Called after all output containers have reported that they are done processing.
 	*/
 	void Finalize() { FinalizeImpl(); }
-
-	/**
-	* This is called when a new shot starts, before warm up happens. See OnFrameProductionStart.
-	*/
-	void OnShotInitialized(const TOptional<FMoviePipelineShotInfo> PrevShot, const FMoviePipelineShotInfo& NewShot) { OnShotInitializedImpl(PrevShot, NewShot); }
 	
 	/**
 	* This is called when a shot ends, right after the last frame is rendered.
 	*/
-	void OnShotFinished(const FMoviePipelineShotInfo& Shot) { OnShotFinishedImpl(Shot); }
+	void OnShotFinished(const UMoviePipelineExecutorShot* InShot) { OnShotFinishedImpl(InShot); }
 
 	/**
 	* This is called during the Shutdown process of the Pipeline. This is after finalization.
@@ -95,8 +91,7 @@ protected:
 	virtual void BeginFinalizeImpl() {}
 	virtual bool HasFinishedProcessingImpl() { return true; }
 	virtual void FinalizeImpl() {}
-	virtual void OnShotInitializedImpl(const TOptional<FMoviePipelineShotInfo> PrevShot, const FMoviePipelineShotInfo& NewShot) {}
-	virtual void OnShotFinishedImpl(const FMoviePipelineShotInfo& Shot) {}
+	virtual void OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot) {}
 	virtual void OnPipelineFinishedImpl() {}
 	virtual void OnPostTickImpl() {}
 	// ~UMoviePipelineOutputBase

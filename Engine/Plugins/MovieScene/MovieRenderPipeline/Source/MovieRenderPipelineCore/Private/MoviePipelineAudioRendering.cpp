@@ -15,6 +15,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "MoviePipelineAntiAliasingSetting.h"
 #include "AudioMixerPlatformNonRealtime.h"
+#include "MoviePipelineQueue.h"
 
 
 static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextObject)
@@ -127,12 +128,11 @@ void UMoviePipeline::ProcessAudioTick()
 		return;
 	}
 
-	FMoviePipelineShotInfo& CurrentShot = ShotList[CurrentShotIndex];
-	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
+	UMoviePipelineExecutorShot* CurrentShot = ActiveShotList[CurrentShotIndex];
 
 	// Start capturing any produced samples on the same frame we start submitting samples that will make it to disk.
 	// This comes before we process samples for this frame (below).
-	if (CurrentCameraCut.State == EMovieRenderShotState::Rendering && !AudioState.bIsRecordingAudio)
+	if (CurrentShot->ShotInfo.State == EMovieRenderShotState::Rendering && !AudioState.bIsRecordingAudio)
 	{
 		StartAudioRecording();
 	}
@@ -142,7 +142,7 @@ void UMoviePipeline::ProcessAudioTick()
 	bool bCanRenderAudio = true;
 	double AudioDeltaTime = FApp::GetDeltaTime();
 	
-	if(CurrentCameraCut.State == EMovieRenderShotState::Rendering)
+	if(CurrentShot->ShotInfo.State == EMovieRenderShotState::Rendering)
 	{
 		// The non-real time audio renderer desires even engine time steps. Unfortunately, when using temporal sampling
 		// we don't have an even timestep. However, because it's non-real time, and we're accumulating the results into
