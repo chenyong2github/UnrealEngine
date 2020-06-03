@@ -3,7 +3,7 @@
 #include "Containers/StringView.h"
 
 template <typename CharType>
-int32 TStringViewImpl<CharType>::Compare(const ViewType& Rhs, const ESearchCase::Type SearchCase) const
+int32 TStringView<CharType>::Compare(const ViewType Rhs, const ESearchCase::Type SearchCase) const
 {
 	const SizeType LhsLen = Len();
 	const SizeType RhsLen = Rhs.Len();
@@ -12,11 +12,11 @@ int32 TStringViewImpl<CharType>::Compare(const ViewType& Rhs, const ESearchCase:
 	int Result;
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
-		Result = TCString<typename ViewType::ElementType>::Strncmp(GetData(), Rhs.GetData(), MinLen);
+		Result = TCString<ElementType>::Strncmp(GetData(), Rhs.GetData(), MinLen);
 	}
 	else
 	{
-		Result = TCString<typename ViewType::ElementType>::Strnicmp(GetData(), Rhs.GetData(), MinLen);
+		Result = TCString<ElementType>::Strnicmp(GetData(), Rhs.GetData(), MinLen);
 	}
 
 	if (Result != 0 || LhsLen == RhsLen)
@@ -28,7 +28,7 @@ int32 TStringViewImpl<CharType>::Compare(const ViewType& Rhs, const ESearchCase:
 }
 
 template <typename CharType>
-bool TStringViewImpl<CharType>::FindChar(const ElementType InChar, SizeType& OutIndex) const
+bool TStringView<CharType>::FindChar(const ElementType InChar, SizeType& OutIndex) const
 {
 	for (SizeType i = 0; i < Size; ++i)
 	{
@@ -45,7 +45,7 @@ bool TStringViewImpl<CharType>::FindChar(const ElementType InChar, SizeType& Out
 
 
 template <typename CharType>
-bool TStringViewImpl<CharType>::FindLastChar(const ElementType InChar, SizeType& OutIndex) const
+bool TStringView<CharType>::FindLastChar(const ElementType InChar, SizeType& OutIndex) const
 {
 	if (Size == 0)
 	{
@@ -67,7 +67,7 @@ bool TStringViewImpl<CharType>::FindLastChar(const ElementType InChar, SizeType&
 }
 
 template <typename CharType>
-TStringView<CharType> TStringViewImpl<CharType>::TrimStart() const
+TStringView<CharType> TStringView<CharType>::TrimStart() const
 {
 	SizeType SpaceCount = 0;
 	for (ElementType Char : *this)
@@ -82,7 +82,7 @@ TStringView<CharType> TStringViewImpl<CharType>::TrimStart() const
 }
 
 template <typename CharType>
-TStringView<CharType> TStringViewImpl<CharType>::TrimEnd() const
+TStringView<CharType> TStringView<CharType>::TrimEnd() const
 {
 	SizeType NewSize = Size;
 	while (NewSize && TChar<ElementType>::IsWhitespace(DataPtr[NewSize - 1]))
@@ -92,5 +92,5 @@ TStringView<CharType> TStringViewImpl<CharType>::TrimEnd() const
 	return ViewType(DataPtr, NewSize);
 }
 
-template class TStringViewImpl<ANSICHAR>;
-template class TStringViewImpl<WIDECHAR>;
+template class TStringView<ANSICHAR>;
+template class TStringView<WIDECHAR>;

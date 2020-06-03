@@ -21,7 +21,7 @@ inline uint32 QuickStoreHash(const T* String)
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename CharType>
-inline uint32 QuickStoreHash(TStringViewImpl<CharType> View)
+inline uint32 QuickStoreHash(TStringView<CharType> View)
 {
 	const CharType* String = View.GetData();
 	uint32 Value = 5381;
