@@ -1396,16 +1396,18 @@ void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, E
 			FVector2D ViewportSize = WindowToResize->GetWindowSizeFromClientSize(FVector2D(SizeX, SizeY));
 			FVector2D NewViewportSize = WindowToResize->GetViewportSize();
 
-			if (NewViewportSize != ViewportSize || NewWindowMode != OldWindowMode)
-			{
-				ResizeViewport(NewViewportSize.X, NewViewportSize.Y, NewWindowMode);
-			}
-
 			// Resize backbuffer
 			FVector2D BackBufferSize = WindowToResize->IsMirrorWindow() ? OldWindowSize : ViewportSize;
 			FVector2D NewBackbufferSize = WindowToResize->IsMirrorWindow() ? NewWindowSize : NewViewportSize;
-			
-			if (NewBackbufferSize != BackBufferSize)
+
+			if (NewViewportSize != ViewportSize || NewWindowMode != OldWindowMode)
+			{
+				FSlateApplicationBase::Get().GetRenderer()->UpdateFullscreenState(WindowToResize.ToSharedRef(), NewBackbufferSize.X, NewBackbufferSize.Y);
+				ResizeViewport(NewViewportSize.X, NewViewportSize.Y, NewWindowMode);
+			}
+
+
+			if(NewBackbufferSize != BackBufferSize)
 			{
 				FSlateApplicationBase::Get().GetRenderer()->UpdateFullscreenState(WindowToResize.ToSharedRef(), NewBackbufferSize.X, NewBackbufferSize.Y);
 			}
@@ -1602,11 +1604,14 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 			{
 				// Get the viewport for this window from the renderer so we can render directly to the backbuffer
 				FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer();
-				void* ViewportResource = Renderer->GetViewportResource(*FSlateApplication::Get().FindWidgetWindow( ViewportWidget.Pin().ToSharedRef()));
+
+				TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
+				void* ViewportResource = Renderer->GetViewportResource(*Window);
 				if( ViewportResource )
 				{
 					ViewportRHI = *((FViewportRHIRef*)ViewportResource);
 				}
+				Renderer->UpdateFullscreenState(Window.ToSharedRef(), NewSizeX, NewSizeY);
 			}
 
 			ViewportResizedEvent.Broadcast(this, 0);
