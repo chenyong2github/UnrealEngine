@@ -985,7 +985,7 @@ void FMotoSynthEngine::SpawnGrain(int32& StartingIndex, const FMotoSynthData& Sy
 
 				// Get the RPM value fo the very next grain after this grain duration to be the "ending rpm"
 				// This allows us to pitch-scale the grain more closely to the grain's RPM contour through it's lifetime
-				int32 EndingRPM = SynthData.GrainTable[NextGrainTableIndex].RPM;
+				int32 EndingRPM = SynthData.GrainTable[NextGrainTableIndexClamped].RPM;
 
 				int32 StartIndex = FMath::Max(0, Entry->SampleIndex - NewGrainCrossfadeSamples);
 				int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration + NewGrainCrossfadeSamples, SynthData.AudioSource.Num());
