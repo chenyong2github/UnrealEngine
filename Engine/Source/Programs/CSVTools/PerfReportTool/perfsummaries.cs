@@ -2282,7 +2282,7 @@ namespace PerfSummaries
 			newTable.rowCount = destRowIndex;
 			newTable.firstStatColumnIndex = numericColumnStartIndex;
 			newTable.isCollated = true;
-			newTable.hasMinMaxColumns = hasMinMaxColumns;
+			newTable.hasMinMaxColumns = addMinMaxColumns;
 			return newTable;
 		}
 
