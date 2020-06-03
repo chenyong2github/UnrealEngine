@@ -56,6 +56,16 @@ static FAutoConsoleVariableRef CVarRayTracingShaderRecordCache(
 	TEXT("This mode assumes that contents of uniform buffers does not change during ray tracing resource binding.")
 );
 
+static int32 GD3D12RayTracingViewDescriptorHeapSize = 250'000;
+static int32 GD3D12RayTracingViewDescriptorHeapOverflowReported = 0;
+static FAutoConsoleVariableRef CVarD3D12RayTracingViewDescriptorHeapSize(
+	TEXT("r.D3D12.RayTracingViewDescriptorHeapSize"),
+	GD3D12RayTracingViewDescriptorHeapSize,
+	TEXT("Maximum number of descriptors per ray tracing view descriptor heap. (default = 250k, ~8MB per heap)\n")
+	TEXT("Typical measured descriptor heap usage in large scenes is ~50k. An error is reported when this limit is reached and shader bindings for subsequent objects are skipped.\n"),
+	ECVF_ReadOnly
+);
+
 // Ray tracing stat counters
 
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Ray Tracing"), STATGROUP_D3D12RayTracing, STATCAT_Advanced);
@@ -92,6 +102,9 @@ struct FD3D12ShaderIdentifier
 {
 	uint64 Data[4] = {~0ull, ~0ull, ~0ull, ~0ull};
 
+	// No shader is executed if a shader binding table record with null identifier is encountered.
+	static const FD3D12ShaderIdentifier Null;
+
 	bool operator == (const FD3D12ShaderIdentifier& Other) const
 	{
 		return Data[0] == Other.Data[0]
@@ -110,17 +123,13 @@ struct FD3D12ShaderIdentifier
 		return *this != FD3D12ShaderIdentifier();
 	}
 
-	// No shader is executed if a shader binding table record with null identifier is encountered.
-	void SetNull()
-	{
-		Data[3] = Data[2] = Data[1] = Data[0] = 0ull;
-	}
-
 	void SetData(const void* InData)
 	{
 		FMemory::Memcpy(Data, InData, sizeof(Data));
 	}
 };
+
+const FD3D12ShaderIdentifier FD3D12ShaderIdentifier::Null = { 0, 0, 0, 0 };
 
 static_assert(sizeof(FD3D12ShaderIdentifier) == D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, "Unexpected shader identifier size");
 
@@ -777,6 +786,9 @@ public:
 
 		ID3D12DescriptorHeap* D3D12Heap = nullptr;
 
+		const TCHAR* HeapName = Desc.Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? TEXT("RT View Heap") : TEXT("RT Sampler Heap");
+		UE_LOG(LogD3D12RHI, Log, TEXT("Creating %s with %d entries"), HeapName, NumDescriptors);
+
 		VERIFYD3D12RESULT(GetParentDevice()->GetDevice()->CreateDescriptorHeap(&Desc, IID_PPV_ARGS(&D3D12Heap)));
 		SetName(D3D12Heap, Desc.Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? L"RT View Heap" : L"RT Sampler Heap");
 
@@ -866,10 +878,11 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 		}
 	}
 
-	void Init(uint32 InMaxNumDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE Type)
+	void Init(uint32 InMaxNumDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE InType)
 	{
 		check(D3D12Heap == nullptr);
 
+		Type = InType;
 		HeapCacheEntry = GetParentDevice()->GetRayTracingDescriptorHeapCache()->AllocateHeap(Type, InMaxNumDescriptors);
 
 		MaxNumDescriptors = HeapCacheEntry.NumDescriptors;
@@ -883,16 +896,36 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 		DescriptorSize = GetParentDevice()->GetDevice()->GetDescriptorHandleIncrementSize(Type);
 	}
 
-	// Atomic linear allocation.
-	uint32 Allocate(uint32 InNumDescriptors)
+	// Returns descriptor heap base index or -1 if allocation is not possible.
+	// Thread-safe (uses atomic linear allocation).
+	int32 Allocate(uint32 InNumDescriptors)
 	{
 		int32 Result = FPlatformAtomics::InterlockedAdd(&NumAllocatedDescriptors, InNumDescriptors);
 
-		checkf(Result + InNumDescriptors <= MaxNumDescriptors,
-			TEXT("Ray tracing descriptor heap overflow. Heap created with %d descriptors."),
-			MaxNumDescriptors);
+		if (Result + InNumDescriptors > MaxNumDescriptors)
+		{
+			if (Type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+			{
+				UE_LOG(LogD3D12RHI, Fatal,
+					TEXT("Ray tracing sampler descriptor heap overflow. ")
+					TEXT("It is not possible to recover from this error, as maximum D3D12 sampler heap size is 2048."));
+			}
+			else if (GD3D12RayTracingViewDescriptorHeapSize == MaxNumDescriptors
+				&& FPlatformAtomics::InterlockedOr(&GD3D12RayTracingViewDescriptorHeapOverflowReported, 1) == 0)
+			{
+				// NOTE: GD3D12RayTracingViewDescriptorHeapOverflowReported is set atomically because multiple 
+				// allocations may be happening simultaneously, but we only want to report the error once.
 
-		return uint32(Result);
+				UE_LOG(LogD3D12RHI, Error,
+					TEXT("Ray tracing view descriptor heap overflow. Current frame will not be rendered correctly. ")
+					TEXT("Increase r.D3D12.RayTracingViewDescriptorHeapSize to at least %d to fix this issue."),
+					MaxNumDescriptors * 2);
+			}
+
+			Result = -1;
+		}
+
+		return Result;
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPU(uint32 Index) const
@@ -915,6 +948,7 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 		HeapCacheEntry.FenceValue = FMath::Max(HeapCacheEntry.FenceValue, Fence.GetCurrentFence());
 	}
 
+	D3D12_DESCRIPTOR_HEAP_TYPE Type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 	ID3D12DescriptorHeap* D3D12Heap = nullptr;
 	uint32 MaxNumDescriptors = 0;
 
@@ -968,7 +1002,8 @@ public:
 		CommandContext.CommandListHandle.GraphicsCommandList()->SetDescriptorHeaps(2, Heaps);
 	}
 
-	uint32 AllocateDescriptorTable(const D3D12_CPU_DESCRIPTOR_HANDLE* Descriptors, uint32 NumDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32 WorkerIndex)
+	// Returns descriptor heap base index for this descriptor table allocation or -1 if allocation failed.
+	int32 AllocateDescriptorTable(const D3D12_CPU_DESCRIPTOR_HANDLE* Descriptors, uint32 NumDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32 WorkerIndex)
 	{
 		checkSlow(Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || Type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
@@ -977,8 +1012,8 @@ public:
 
 		const uint64 Key = CityHash64((const char*)Descriptors, sizeof(Descriptors[0]) * NumDescriptors);
 
-		const uint32 InvalidIndex = ~0u;
-		uint32& DescriptorTableBaseIndex = Map.FindOrAdd(Key, InvalidIndex);
+		const int32 InvalidIndex = -1;
+		int32& DescriptorTableBaseIndex = Map.FindOrAdd(Key, InvalidIndex);
 
 		if (DescriptorTableBaseIndex != InvalidIndex)
 		{
@@ -987,6 +1022,11 @@ public:
 		else
 		{
 			DescriptorTableBaseIndex = Heap.Allocate(NumDescriptors);
+
+			if (DescriptorTableBaseIndex == InvalidIndex)
+			{
+				return InvalidIndex;
+			}
 
 			D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor = Heap.GetDescriptorCPU(DescriptorTableBaseIndex);
 			GetParentDevice()->GetDevice()->CopyDescriptors(1, &DestDescriptor, &NumDescriptors, NumDescriptors, Descriptors, nullptr, Type);
@@ -1021,7 +1061,7 @@ public:
 	};
 
 	static constexpr uint32 MaxBindingWorkers = FD3D12RayTracingScene::MaxBindingWorkers;
-	using TDescriptorHashMap = Experimental::TSherwoodMap<uint64, uint32, TIdentityHash<uint64>>;
+	using TDescriptorHashMap = Experimental::TSherwoodMap<uint64, int32, TIdentityHash<uint64>>;
 	TDescriptorHashMap ViewDescriptorTableCache[MaxBindingWorkers];
 	TDescriptorHashMap SamplerDescriptorTableCache[MaxBindingWorkers];
 };
@@ -1093,13 +1133,17 @@ public:
 
 		if (bNeedsDescriptorCache)
 		{
-			// Minimum number of descriptors required to support binding global resources (arbitrarily chosen)
 			// #dxr_todo UE-72158: Remove this when RT descriptors are sub-allocated from the global view descriptor heap.
-			const uint32 MinNumViewDescriptors = 1024;
+
+			if (GD3D12RayTracingViewDescriptorHeapOverflowReported)
+			{
+				GD3D12RayTracingViewDescriptorHeapSize = GD3D12RayTracingViewDescriptorHeapSize * 2;
+				GD3D12RayTracingViewDescriptorHeapOverflowReported = 0;
+			}
 
 			// D3D12 is guaranteed to support 1M (D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1) descriptors in a CBV/SRV/UAV heap, so clamp the size to this.
 			// https://docs.microsoft.com/en-us/windows/desktop/direct3d12/hardware-support
-			const uint32 NumViewDescriptors = FMath::Max(MinNumViewDescriptors, FMath::Min<uint32>(Initializer.NumHitRecords * Initializer.MaxViewDescriptorsPerRecord, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1));
+			const uint32 NumViewDescriptors = FMath::Min(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, GD3D12RayTracingViewDescriptorHeapSize);
 			const uint32 NumSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
 
 			DescriptorCache = new FD3D12RayTracingDescriptorCache(Device);
@@ -3160,7 +3204,7 @@ struct FD3D12RayTracingLocalResourceBinder
 };
 
 template <typename ResourceBinderType>
-static void SetRayTracingShaderResources(
+static bool SetRayTracingShaderResources(
 	const FD3D12RayTracingShader* Shader,
 	uint32 InNumTextures, FRHITexture* const* Textures,
 	uint32 InNumSRVs, FRHIShaderResourceView* const* SRVs,
@@ -3394,7 +3438,11 @@ static void SetRayTracingShaderResources(
 	const uint32 NumSRVs = Shader->ResourceCounts.NumSRVs;
 	if (NumSRVs)
 	{
-		const uint32 DescriptorTableBaseIndex = DescriptorCache.AllocateDescriptorTable(LocalSRVs, NumSRVs, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, WorkerIndex);
+		const int32 DescriptorTableBaseIndex = DescriptorCache.AllocateDescriptorTable(LocalSRVs, NumSRVs, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, WorkerIndex);
+		if (DescriptorTableBaseIndex < 0)
+		{
+			return false;
+		}
 
 		const uint32 BindSlot = RootSignature->SRVRDTBindSlot(SF_Compute);
 		check(BindSlot != 0xFF);
@@ -3406,7 +3454,11 @@ static void SetRayTracingShaderResources(
 	const uint32 NumUAVs = Shader->ResourceCounts.NumUAVs;
 	if (NumUAVs)
 	{
-		const uint32 DescriptorTableBaseIndex = DescriptorCache.AllocateDescriptorTable(LocalUAVs, NumUAVs, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, WorkerIndex);
+		const int32 DescriptorTableBaseIndex = DescriptorCache.AllocateDescriptorTable(LocalUAVs, NumUAVs, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, WorkerIndex);
+		if (DescriptorTableBaseIndex < 0)
+		{
+			return false;
+		}
 
 		const uint32 BindSlot = RootSignature->UAVRDTBindSlot(SF_Compute);
 		check(BindSlot != 0xFF);
@@ -3435,7 +3487,11 @@ static void SetRayTracingShaderResources(
 	const uint32 NumSamplers = Shader->ResourceCounts.NumSamplers;
 	if (NumSamplers)
 	{
-		const uint32 DescriptorTableBaseIndex = DescriptorCache.AllocateDescriptorTable(LocalSamplers, NumSamplers, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, WorkerIndex);
+		const int32 DescriptorTableBaseIndex = DescriptorCache.AllocateDescriptorTable(LocalSamplers, NumSamplers, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, WorkerIndex);
+		if (DescriptorTableBaseIndex < 0)
+		{
+			return false;
+		}
 
 		const uint32 BindSlot = RootSignature->SamplerRDTBindSlot(SF_Compute);
 		check(BindSlot != 0xFF);
@@ -3448,10 +3504,12 @@ static void SetRayTracingShaderResources(
 	{
 		Binder.AddResourceReference(Entry.D3D12Resource, Entry.RHIResource);
 	}
+
+	return true;
 }
 
 template <typename ResourceBinderType>
-static void SetRayTracingShaderResources(
+static bool SetRayTracingShaderResources(
 	const FD3D12RayTracingShader* Shader,
 	const FRayTracingShaderBindings& ResourceBindings,
 	ResourceBinderType& Binder)
@@ -3469,7 +3527,7 @@ static void SetRayTracingShaderResources(
 		sizeof(ResourceBindings.UAVs) / sizeof(*ResourceBindings.UAVs) == MAX_UAVS,
 		"Ray Tracing Shader Bindings UAV array size must match D3D12 RHI Limit");
 
-	SetRayTracingShaderResources(Shader,
+	return SetRayTracingShaderResources(Shader,
 		UE_ARRAY_COUNT(ResourceBindings.Textures), ResourceBindings.Textures,
 		UE_ARRAY_COUNT(ResourceBindings.SRVs), ResourceBindings.SRVs,
 		UE_ARRAY_COUNT(ResourceBindings.UniformBuffers), ResourceBindings.UniformBuffers,
@@ -3504,6 +3562,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 	FD3D12RayTracingShader* RayGenShader = Pipeline->RayGenShaders.Shaders[RayGenShaderIndex];
 
+	bool bResourcesBound = false;
 	if (OptShaderTable && OptShaderTable->DescriptorCache)
 	{
 		FD3D12RayTracingDescriptorCache* DescriptorCache = OptShaderTable->DescriptorCache;
@@ -3511,7 +3570,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 		DescriptorCache->SetDescriptorHeaps(CommandContext);
 		FD3D12RayTracingGlobalResourceBinder ResourceBinder(CommandContext, *DescriptorCache);
-		SetRayTracingShaderResources(RayGenShader, GlobalBindings, ResourceBinder);
+		bResourcesBound = SetRayTracingShaderResources(RayGenShader, GlobalBindings, ResourceBinder);
 
 		OptShaderTable->UpdateResidency(CommandContext);
 	}
@@ -3521,25 +3580,28 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 		TransientDescriptorCache.Init(MAX_SRVS + MAX_UAVS, MAX_SAMPLERS);
 		TransientDescriptorCache.SetDescriptorHeaps(CommandContext);
 		FD3D12RayTracingGlobalResourceBinder ResourceBinder(CommandContext, TransientDescriptorCache);
-		SetRayTracingShaderResources(RayGenShader, GlobalBindings, ResourceBinder);
+		bResourcesBound = SetRayTracingShaderResources(RayGenShader, GlobalBindings, ResourceBinder);
 	}
 
-	if (OptShaderTable)
+	if (bResourcesBound)
 	{
-		OptShaderTable->TransitionResources(CommandContext);
-	}
+		if (OptShaderTable)
+		{
+			OptShaderTable->TransitionResources(CommandContext);
+		}
 
-	CommandContext.CommandListHandle.FlushResourceBarriers();
+		CommandContext.CommandListHandle.FlushResourceBarriers();
 
-	ID3D12StateObject* RayTracingStateObject = Pipeline->StateObject.GetReference();
+		ID3D12StateObject* RayTracingStateObject = Pipeline->StateObject.GetReference();
 
-	ID3D12GraphicsCommandList4* RayTracingCommandList = CommandContext.CommandListHandle.RayTracingCommandList();
-	RayTracingCommandList->SetPipelineState1(RayTracingStateObject);
-	RayTracingCommandList->DispatchRays(&DispatchDesc);
+		ID3D12GraphicsCommandList4* RayTracingCommandList = CommandContext.CommandListHandle.RayTracingCommandList();
+		RayTracingCommandList->SetPipelineState1(RayTracingStateObject);
+		RayTracingCommandList->DispatchRays(&DispatchDesc);
 
-	if (CommandContext.IsDefaultContext())
-	{
-		CommandContext.GetParentDevice()->RegisterGPUWork(1);
+		if (CommandContext.IsDefaultContext())
+		{
+			CommandContext.GetParentDevice()->RegisterGPUWork(1);
+		}
 	}
 
 	// Restore old global descriptor heaps
@@ -3667,7 +3729,6 @@ static void SetRayTracingHitGroup(
 	checkf(ShaderSlot < Scene->ShaderSlotsPerGeometrySegment, TEXT("Shader slot is invalid. Make sure that ShaderSlotsPerGeometrySegment is correct on FRayTracingSceneInitializer."));
 
 	const uint32 RecordIndex = Scene->GetHitRecordBaseIndex(InstanceIndex, SegmentIndex) + ShaderSlot;
-	ShaderTable->SetLocalShaderIdentifier(RecordIndex, Pipeline->HitGroupShaders.Identifiers[HitGroupIndex]);
 
 	const uint32 UserDataOffset = offsetof(FHitGroupSystemParameters, RootConstants) + offsetof(FHitGroupSystemRootConstants, UserData);
 	ShaderTable->SetLocalShaderParameters(RecordIndex, UserDataOffset, UserData);
@@ -3689,14 +3750,16 @@ static void SetRayTracingHitGroup(
 		uint32* ExistingRecordIndex = ShaderTable->ShaderRecordCache[WorkerIndex].Find(CacheKey);
 		if (ExistingRecordIndex)
 		{
+			// Simply copy local shader parameters from existing SBT record and set the shader identifier, skipping resource binding work.
 			const uint32 OffsetFromRootSignatureStart = sizeof(FHitGroupSystemParameters);
+			ShaderTable->SetLocalShaderIdentifier(RecordIndex, Pipeline->HitGroupShaders.Identifiers[HitGroupIndex]);
 			ShaderTable->CopyLocalShaderParameters(RecordIndex, *ExistingRecordIndex, OffsetFromRootSignatureStart);
 			return;
 		}
 	}
 
 	FD3D12RayTracingLocalResourceBinder ResourceBinder(*Device, *ShaderTable, *(Shader->pRootSignature), RecordIndex, WorkerIndex);
-	SetRayTracingShaderResources(Shader,
+	const bool bResourcesBound = SetRayTracingShaderResources(Shader,
 		0, nullptr, // Textures
 		0, nullptr, // SRVs
 		NumUniformBuffers, UniformBuffers,
@@ -3705,10 +3768,15 @@ static void SetRayTracingHitGroup(
 		LooseParameterDataSize, LooseParameterData,
 		ResourceBinder);
 
-	if (bCanUseRecordCache)
+	if (bCanUseRecordCache && bResourcesBound)
 	{
 		ShaderTable->ShaderRecordCache[WorkerIndex].Add(CacheKey, RecordIndex);
 	}
+
+	ShaderTable->SetLocalShaderIdentifier(RecordIndex, 
+		bResourcesBound
+		? Pipeline->HitGroupShaders.Identifiers[HitGroupIndex]
+		: FD3D12ShaderIdentifier::Null);
 }
 
 void FD3D12CommandContext::RHISetRayTracingHitGroups(
@@ -3824,7 +3892,6 @@ void FD3D12CommandContext::RHISetRayTracingCallableShader(
 	FD3D12RayTracingShaderTable* ShaderTable = Scene->FindOrCreateShaderTable(Pipeline, GetParentDevice());
 
 	const uint32 RecordIndex = ShaderTable->CallableShaderRecordIndexOffset + ShaderSlotInScene;
-	ShaderTable->SetLocalShaderIdentifier(RecordIndex, Pipeline->CallableShaders.Identifiers[ShaderIndexInPipeline]);
 
 	const uint32 UserDataOffset = offsetof(FHitGroupSystemParameters, RootConstants) + offsetof(FHitGroupSystemRootConstants, UserData);
 	ShaderTable->SetLocalShaderParameters(RecordIndex, UserDataOffset, UserData);
@@ -3833,7 +3900,7 @@ void FD3D12CommandContext::RHISetRayTracingCallableShader(
 
 	const uint32 WorkerIndex = 0;
 	FD3D12RayTracingLocalResourceBinder ResourceBinder(*GetParentDevice(), *ShaderTable, *(Shader->pRootSignature), RecordIndex, WorkerIndex);
-	SetRayTracingShaderResources(Shader,
+	const bool bResourcesBound = SetRayTracingShaderResources(Shader,
 		0, nullptr, // Textures
 		0, nullptr, // SRVs
 		NumUniformBuffers, UniformBuffers,
@@ -3841,6 +3908,11 @@ void FD3D12CommandContext::RHISetRayTracingCallableShader(
 		0, nullptr, // UAVs
 		0, nullptr, // Loose parameters
 		ResourceBinder);
+
+	ShaderTable->SetLocalShaderIdentifier(RecordIndex, 
+		bResourcesBound 
+		? Pipeline->CallableShaders.Identifiers[ShaderIndexInPipeline]
+		: FD3D12ShaderIdentifier::Null);
 }
 
 void FD3D12CommandContext::RHISetRayTracingMissShader(
@@ -3858,7 +3930,6 @@ void FD3D12CommandContext::RHISetRayTracingMissShader(
 	FD3D12RayTracingShaderTable* ShaderTable = Scene->FindOrCreateShaderTable(Pipeline, GetParentDevice());
 
 	const uint32 RecordIndex = ShaderTable->MissShaderRecordIndexOffset + ShaderSlotInScene;
-	ShaderTable->SetLocalShaderIdentifier(RecordIndex, Pipeline->MissShaders.Identifiers[ShaderIndexInPipeline]);
 
 	const uint32 UserDataOffset = offsetof(FHitGroupSystemParameters, RootConstants) + offsetof(FHitGroupSystemRootConstants, UserData);
 	ShaderTable->SetLocalShaderParameters(RecordIndex, UserDataOffset, UserData);
@@ -3867,7 +3938,7 @@ void FD3D12CommandContext::RHISetRayTracingMissShader(
 
 	uint32 WorkerIndex = 0;
 	FD3D12RayTracingLocalResourceBinder ResourceBinder(*GetParentDevice(), *ShaderTable, *(Shader->pRootSignature), RecordIndex, WorkerIndex);
-	SetRayTracingShaderResources(Shader,
+	const bool bResourcesBound = SetRayTracingShaderResources(Shader,
 		0, nullptr, // Textures
 		0, nullptr, // SRVs
 		NumUniformBuffers, UniformBuffers,
@@ -3875,5 +3946,10 @@ void FD3D12CommandContext::RHISetRayTracingMissShader(
 		0, nullptr, // UAVs
 		0, nullptr, // Loose parameters
 		ResourceBinder);
+
+	ShaderTable->SetLocalShaderIdentifier(RecordIndex,
+		bResourcesBound
+		? Pipeline->MissShaders.Identifiers[ShaderIndexInPipeline]
+		: FD3D12ShaderIdentifier::Null);
 }
 #endif // D3D12_RHI_RAYTRACING
