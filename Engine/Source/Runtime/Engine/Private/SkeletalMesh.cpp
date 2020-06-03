@@ -2175,7 +2175,7 @@ USkeletalMeshEditorData& USkeletalMesh::GetMeshEditorData() const
 		{
 			//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
 			//StandAlone make sure the asset is save when we save the package(i.e. the skeletalmesh)
-			MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(GetOutermost(), MeshEditorDataName, RF_Standalone);
+			MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(GetOutermost(), MeshEditorDataName);
 		}
 	}
 	//Make sure we have a valid pointer
