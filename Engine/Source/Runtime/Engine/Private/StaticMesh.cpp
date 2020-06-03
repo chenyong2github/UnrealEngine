@@ -778,6 +778,28 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 	}
 }
 
+void FStaticMeshLODResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
+{
+	const int32 VBSize = VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
+		VertexBuffers.PositionVertexBuffer.GetStride() * VertexBuffers.PositionVertexBuffer.GetNumVertices() +
+		VertexBuffers.ColorVertexBuffer.GetStride() * VertexBuffers.ColorVertexBuffer.GetNumVertices();
+
+	int32 NumIndicies = IndexBuffer.GetNumIndices();
+
+	if (AdditionalIndexBuffers)
+	{
+		NumIndicies += AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices();
+		NumIndicies += AdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices();
+		NumIndicies += AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices();
+		NumIndicies += (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? AdditionalIndexBuffers->AdjacencyIndexBuffer.GetNumIndices() : 0);
+	}
+
+	int32 IBSize = NumIndicies * (IndexBuffer.Is32Bit() ? 4 : 2);
+
+	CumulativeResourceSize.AddUnknownMemoryBytes(VBSize + IBSize);
+	CumulativeResourceSize.AddUnknownMemoryBytes(Sections.GetAllocatedSize());
+}
+
 int32 FStaticMeshLODResources::GetNumTriangles() const
 {
 	int32 NumTriangles = 0;
@@ -2736,24 +2758,7 @@ void FStaticMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 	{
 		const FStaticMeshLODResources& LODRenderData = LODResources[LODIndex];
 
-		const int32 VBSize = LODRenderData.VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
-			LODRenderData.VertexBuffers.PositionVertexBuffer.GetStride()			* LODRenderData.VertexBuffers.PositionVertexBuffer.GetNumVertices() +
-			LODRenderData.VertexBuffers.ColorVertexBuffer.GetStride()				* LODRenderData.VertexBuffers.ColorVertexBuffer.GetNumVertices();
-		
-		int32 NumIndicies = LODRenderData.IndexBuffer.GetNumIndices();
-
-		if (LODRenderData.AdditionalIndexBuffers)
-		{
-			NumIndicies += LODRenderData.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices();
-			NumIndicies += LODRenderData.AdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices();
-			NumIndicies += LODRenderData.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices();
-			NumIndicies += (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? LODRenderData.AdditionalIndexBuffers->AdjacencyIndexBuffer.GetNumIndices() : 0);
-		}
-
-		int32 IBSize = NumIndicies * (LODRenderData.IndexBuffer.Is32Bit() ? 4 : 2);
-
-		CumulativeResourceSize.AddUnknownMemoryBytes(VBSize + IBSize);
-		CumulativeResourceSize.AddUnknownMemoryBytes(LODRenderData.Sections.GetAllocatedSize());
+		LODResources[LODIndex].GetResourceSizeEx(CumulativeResourceSize);
 
 		if (LODRenderData.DistanceFieldData)
 		{
