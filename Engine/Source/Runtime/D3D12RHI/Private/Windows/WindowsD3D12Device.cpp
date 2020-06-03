@@ -750,7 +750,7 @@ void FD3D12DynamicRHI::Init()
 	GRHIForceNoDeletionLatencyForStreamingTextures = !!PLATFORM_WINDOWS;
 
 #if D3D12_RHI_RAYTRACING
-	GRHISupportsRayTracing = GetAdapter().GetD3DRayTracingDevice() != nullptr;
+	GRHISupportsRayTracing = GetAdapter().GetD3DDevice5() != nullptr;
 	GRHISupportsRayTracingMissShaderBindings = true;
 #endif
 
