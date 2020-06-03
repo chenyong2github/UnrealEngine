@@ -13,7 +13,7 @@
 #include "Particles/Size/ParticleModuleSize.h"
 #include "Particles/Velocity/ParticleModuleVelocity.h"
 #include "Particles/TypeData/ParticleModuleTypeDataBase.h"
-#include "Particles/TypeData/ParticleMOduleTypeDataGpu.h"
+#include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
 
 #include "Particles/ParticleLODLevel.h"
 #include "NiagaraScriptSource.h"
