@@ -699,11 +699,46 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 		}
 		else if(FPipelineCacheFileFormatPSO::DescriptorType::Compute == PSO.Type)
 		{
-			FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(GMaxRHIShaderPlatform, PSO.ComputeDesc.ComputeShader);
+			FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(Platform, PSO.ComputeDesc.ComputeShader);
 			if(ComputeInitializer.IsValid())
 			{
 				FComputePipelineState* ComputeResult = PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeInitializer);
 				bOk = ComputeResult != nullptr;
+			}
+		}
+		else if (FPipelineCacheFileFormatPSO::DescriptorType::RayTracing == PSO.Type)
+		{
+			if (IsRayTracingEnabled())
+			{
+				FRayTracingPipelineStateInitializer Initializer;
+				Initializer.bPartial = true;
+				Initializer.MaxPayloadSizeInBytes = PSO.RayTracingDesc.MaxPayloadSizeInBytes;
+				Initializer.bAllowHitGroupIndexing = PSO.RayTracingDesc.bAllowHitGroupIndexing;
+
+				FRHIRayTracingShader* ShaderTable[] =
+				{
+					FShaderCodeLibrary::CreateRayTracingShader(Platform, PSO.RayTracingDesc.ShaderHash, PSO.RayTracingDesc.Frequency)
+				};
+
+				switch (PSO.RayTracingDesc.Frequency)
+				{
+				case SF_RayGen:
+					Initializer.SetRayGenShaderTable(ShaderTable);
+					break;
+				case SF_RayMiss:
+					Initializer.SetMissShaderTable(ShaderTable);
+					break;
+				case SF_RayHitGroup:
+					Initializer.SetHitGroupTable(ShaderTable);
+					break;
+				case SF_RayCallable:
+					Initializer.SetCallableTable(ShaderTable);
+					break;
+				default:
+					checkNoEntry();
+				}
+				FRayTracingPipelineState* RayTracingPipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
+				bOk = RayTracingPipeline != nullptr;
 			}
 		}
 		else
@@ -754,6 +789,7 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
 			
 			// Assume that the shader is present and the PSO can be compiled by default,
 			bool bOK = true;
+			bool bCompatible = true;
 	
             // Shaders required.
             TSet<FSHAHash> RequiredShaders;
@@ -851,6 +887,27 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
 					UE_LOG(LogRHI, Error, TEXT("Invalid PSO entry in pipeline cache!"));
 				}
 			}
+			else if (PSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
+			{
+				if (IsRayTracingEnabled())
+				{
+					if (PSO.RayTracingDesc.ShaderHash != EmptySHA)
+					{
+						RequiredShaders.Add(PSO.RayTracingDesc.ShaderHash);
+						bOK &= FShaderCodeLibrary::PreloadShader(PSO.RayTracingDesc.ShaderHash, AsyncJob.ReadRequests);
+						UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to find RayTracing shader: %s"), *(PSO.RayTracingDesc.ShaderHash.ToString()));
+					}
+					else
+					{
+						bOK = false;
+						UE_LOG(LogRHI, Error, TEXT("Invalid PSO entry in pipeline cache!"));
+					}
+				}
+				else
+				{
+					bCompatible = false;
+				}
+			}
 			else
 			{
 				bOK = false;
@@ -859,7 +916,7 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
 			
 			// Then if and only if all shaders can be found do we schedule a compile job
 			// Otherwise this job needs to be put in the shutdown list to correctly release shader code
-			if (bOK)
+			if (bOK && bCompatible)
 			{
 				ReadTasks.Add(AsyncJob);
 			}
@@ -874,7 +931,7 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
 					Hdr.Shaders = RequiredShaders;
 					OrderedCompileTasks.Insert(Hdr, 0);
 				}
-				else
+				else if (bCompatible)
 				{
 					UE_LOG(LogRHI, Error, TEXT("Invalid PSO entry in pipeline cache: %u!"), PSORead->Hash);
 				}
@@ -959,6 +1016,11 @@ void FShaderPipelineCache::PrecompilePipelineBatch()
 			case FPipelineCacheFileFormatPSO::DescriptorType::Graphics:
 			{
 				INC_DWORD_STAT(STAT_TotalGraphicsPipelineStateCount);
+				break;
+			}
+			case FPipelineCacheFileFormatPSO::DescriptorType::RayTracing:
+			{
+				INC_DWORD_STAT(STAT_TotalRayTracingPipelineStateCount);
 				break;
 			}
 			default:
