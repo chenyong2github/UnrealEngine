@@ -6,6 +6,7 @@
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
+#include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
@@ -17,7 +18,6 @@
 
 class FPreloadableFile;
 class FReferenceCollector;
-class FStringView;
 class ITargetPlatform;
 class UCookOnTheFlyServer;
 class UObject;
