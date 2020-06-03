@@ -16,6 +16,15 @@ static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingPriority(
 	ECVF_Default
 );
 
+int32 GShaderCodeLibraryAsyncLoadingAllowDontCache = 0;
+static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingAllowDontCache(
+	TEXT("r.ShaderCodeLibrary.AsyncIOAllowDontCache"),
+	GShaderCodeLibraryAsyncLoadingAllowDontCache,
+	TEXT(""),
+	ECVF_Default
+);
+
+
 static const FName ShaderLibraryCompressionFormat = NAME_LZ4;
 
 int32 FSerializedShaderArchive::FindShaderMapWithKey(const FSHAHash& Hash, uint32 Key) const
@@ -274,6 +283,8 @@ struct FPreloadShaderTask
 
 bool FShaderCodeArchive::PreloadShader(int32 ShaderIndex, FGraphEventArray& OutCompletionEvents)
 {
+	LLM_SCOPE(ELLMTag::Shaders);
+
 	FWriteScopeLock Lock(ShaderPreloadLock);
 
 	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
@@ -289,7 +300,9 @@ bool FShaderCodeArchive::PreloadShader(int32 ShaderIndex, FGraphEventArray& OutC
 		const EAsyncIOPriorityAndFlags IOPriority = (EAsyncIOPriorityAndFlags)GShaderCodeLibraryAsyncLoadingPriority;
 
 		FGraphEventArray ReadCompletionEvents;
-		IMemoryReadStreamRef PreloadData = FileCacheHandle->ReadData(ReadCompletionEvents, LibraryCodeOffset + ShaderEntry.Offset, ShaderEntry.Size, IOPriority);
+
+		EAsyncIOPriorityAndFlags DontCache = GShaderCodeLibraryAsyncLoadingAllowDontCache ? AIOP_FLAG_DONTCACHE : AIOP_MIN;
+		IMemoryReadStreamRef PreloadData = FileCacheHandle->ReadData(ReadCompletionEvents, LibraryCodeOffset + ShaderEntry.Offset, ShaderEntry.Size, IOPriority | DontCache);
 		auto Task = TGraphTask<FPreloadShaderTask>::CreateTask(&ReadCompletionEvents).ConstructAndHold(this, ShaderIndex, MoveTemp(PreloadData));
 		ShaderPreloadEntry.PreloadEvent = Task->GetCompletionEvent();
 		Task->Unlock();
@@ -306,6 +319,8 @@ bool FShaderCodeArchive::PreloadShader(int32 ShaderIndex, FGraphEventArray& OutC
 
 bool FShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FGraphEventArray& OutCompletionEvents)
 {
+	LLM_SCOPE(ELLMTag::Shaders);
+
 	const FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
 	const EAsyncIOPriorityAndFlags IOPriority = (EAsyncIOPriorityAndFlags)GShaderCodeLibraryAsyncLoadingPriority;
 	const uint32 FrameNumber = GFrameNumber;
@@ -321,14 +336,14 @@ bool FShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FGraphEventArray
 		if (ShaderNumRefs == 0u)
 		{
 			check(!ShaderPreloadEntry.PreloadEvent);
-
 			const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
 			ShaderPreloadEntry.Code = FMemory::Malloc(ShaderEntry.Size);
 			ShaderPreloadEntry.FramePreloadStarted = FrameNumber;
 			PreloadMemory += ShaderEntry.Size;
 
 			FGraphEventArray ReadCompletionEvents;
-			IMemoryReadStreamRef PreloadData = FileCacheHandle->ReadData(ReadCompletionEvents, LibraryCodeOffset + ShaderEntry.Offset, ShaderEntry.Size, IOPriority);
+			EAsyncIOPriorityAndFlags DontCache = GShaderCodeLibraryAsyncLoadingAllowDontCache ? AIOP_FLAG_DONTCACHE : AIOP_MIN;
+			IMemoryReadStreamRef PreloadData = FileCacheHandle->ReadData(ReadCompletionEvents, LibraryCodeOffset + ShaderEntry.Offset, ShaderEntry.Size, IOPriority | DontCache);
 			auto Task = TGraphTask<FPreloadShaderTask>::CreateTask(&ReadCompletionEvents).ConstructAndHold(this, ShaderIndex, MoveTemp(PreloadData));
 			ShaderPreloadEntry.PreloadEvent = Task->GetCompletionEvent();
 			Task->Unlock();
@@ -392,6 +407,7 @@ void FShaderCodeArchive::ReleasePreloadedShader(int32 ShaderIndex)
 
 TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 {
+	LLM_SCOPE(ELLMTag::Shaders);
 	TRefCountPtr<FRHIShader> Shader;
 
 	FMemStackBase& MemStack = FMemStack::Get();
@@ -426,7 +442,8 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 		UE_LOG(LogShaderLibrary, Warning, TEXT("Blocking shader load, NumRefs: %d, FramePreloadStarted: %d"), ShaderPreloadEntry.NumRefs, ShaderPreloadEntry.FramePreloadStarted);
 
 		FGraphEventArray ReadCompleteEvents;
-		IMemoryReadStreamRef LoadedCode = FileCacheHandle->ReadData(ReadCompleteEvents, LibraryCodeOffset + ShaderEntry.Offset, ShaderEntry.Size, AIOP_CriticalPath);
+		EAsyncIOPriorityAndFlags DontCache = GShaderCodeLibraryAsyncLoadingAllowDontCache ? AIOP_FLAG_DONTCACHE : AIOP_MIN;
+		IMemoryReadStreamRef LoadedCode = FileCacheHandle->ReadData(ReadCompleteEvents, LibraryCodeOffset + ShaderEntry.Offset, ShaderEntry.Size, AIOP_CriticalPath | DontCache);
 		if (ReadCompleteEvents.Num() > 0)
 		{
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(ReadCompleteEvents);
