@@ -203,7 +203,7 @@ static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1, bool bWithDebug)
 	__try
 	{
 		bool bQuadBufferStereoRequested = FParse::Param(FCommandLine::Get(), TEXT("quad_buffer_stereo"));
-		if (bQuadBufferStereoRequested || bWithDebug)
+		if (FPlatformMisc::VerifyWindowsVersion(8, 1) && (bQuadBufferStereoRequested || bWithDebug))
 		{
 			// CreateDXGIFactory2 is only available on Win8.1+, find it if it exists
 			HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
