@@ -178,6 +178,12 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 			FConsoleCommandWithWorldDelegate::CreateStatic(&FGeometryCollectionCommands::HealGeometry),
 			ECVF_Default
 		));
+		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("GeometryCollection.SetNamedAttributeValues"),
+			TEXT("Command to set attributes within a named group."),
+			FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGeometryCollectionCommands::SetNamedAttributeValues),
+			ECVF_Default
+		));
 	}
 
 	// Bind our scene outliner provider to the editor
