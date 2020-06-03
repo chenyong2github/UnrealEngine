@@ -120,6 +120,8 @@ public:
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 	uint64 CreatedFrameFenceValue = 0;
 
+	uint64 LastCommandListID = 0;
+
 	FName DebugName;
 };
 
