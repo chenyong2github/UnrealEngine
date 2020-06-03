@@ -14,6 +14,8 @@
 
 #include "CompGeom/PolygonTriangulation.h"
 
+#include "Util/IndexUtil.h"
+
 
 enum class /*GEOMETRICOBJECTS_API*/ ERootfindingModes
 {
@@ -356,16 +358,16 @@ protected:
 
 	double corner_value_grid(const FVector3i& Idx)
 	{
-		double val = corner_values_grid[Idx];
+		float val = corner_values_grid[Idx];
 		if (val != FMathf::MaxReal)
 		{
-			return val;
+			return (double)val;
 		}
 
 		FVector3<double> V = corner_pos(Idx);
-		val = Implicit(V);
-		corner_values_grid[Idx] = (float)val;
-		return val;
+		val = (float)Implicit(V);
+		corner_values_grid[Idx] = val;
+		return (double)val;
 	}
 	void initialize_cell_values_grid(FGridCell& Cell, bool Shift)
 	{
@@ -672,7 +674,9 @@ protected:
 		for (int i = 0; i < 8; ++i)
 		{
 			if (Cell.f[i] < IsoValue)
+			{
 				cubeindex |= Shift;
+			}
 			Shift <<= 1;
 		}
 
@@ -710,12 +714,11 @@ protected:
 			// if a corner is within tolerance of isovalue, then some triangles
 			// will be degenerate, and we can skip them w/o resulting in cracks (right?)
 			// !! this should never happen anymore...artifact of old hashtable impl
-			if (a == b || a == c || b == c)
+			if (!ensure(a != b && a != c && b != c))
 			{
 				continue;
 			}
 
-			/*int tid = */
 			append_triangle(a, b, c);
 			tri_count++;
 		}

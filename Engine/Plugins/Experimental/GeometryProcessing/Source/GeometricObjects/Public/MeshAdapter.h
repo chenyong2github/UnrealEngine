@@ -137,4 +137,86 @@ struct TIndexMeshArrayAdapter
 
 };
 
+
+/**
+ * Second version of the above faster adapter
+ *  -- for the case where triangle indices are packed into an integer vector type instead of flat
+ */
+template<typename IndexVectorType, typename OutRealType, typename InVectorType = FVector>
+struct TIndexVectorMeshArrayAdapter
+{
+	const TArray<InVectorType>* SourceVertices;
+	const TArray<IndexVectorType>* SourceTriangles;
+
+	void SetSources(const TArray<InVectorType>* SourceVerticesIn, const TArray<IndexVectorType>* SourceTrianglesIn)
+	{
+		SourceVertices = SourceVerticesIn;
+		SourceTriangles = SourceTrianglesIn;
+	}
+
+	TIndexVectorMeshArrayAdapter() : SourceVertices(nullptr), SourceTriangles(nullptr)
+	{
+	}
+
+	TIndexVectorMeshArrayAdapter(const TArray<InVectorType>* SourceVerticesIn, const TArray<IndexVectorType>* SourceTrianglesIn) : SourceVertices(SourceVerticesIn), SourceTriangles(SourceTrianglesIn)
+	{
+	}
+
+	FORCEINLINE bool IsTriangle(int32 Index) const
+	{
+		return SourceTriangles->IsValidIndex(Index);
+	}
+
+	FORCEINLINE bool IsVertex(int32 Index) const
+	{
+		return SourceVertices->IsValidIndex(Index);
+	}
+
+	FORCEINLINE int32 MaxTriangleID() const
+	{
+		return SourceTriangles->Num();
+	}
+
+	FORCEINLINE int32 MaxVertexID() const
+	{
+		return SourceVertices->Num();
+	}
+
+	// Counts are same as MaxIDs, because these are compact meshes
+	FORCEINLINE int32 TriangleCount() const
+	{
+		return SourceTriangles->Num();
+	}
+
+	FORCEINLINE int32 VertexCount() const
+	{
+		return SourceVertices->Num();
+	}
+
+	FORCEINLINE int32 GetShapeTimestamp() const
+	{
+		return 0; // source data doesn't have a timestamp concept
+	}
+
+	FORCEINLINE FIndex3i GetTriangle(int32 Index) const
+	{
+		const IndexVectorType& Tri = (*SourceTriangles)[Index];
+		return FIndex3i((int)Tri[0], (int)Tri[1], (int)Tri[2]);
+	}
+
+	FORCEINLINE FVector3<OutRealType> GetVertex(int32 Index) const
+	{
+		return FVector3<OutRealType>((*SourceVertices)[Index]);
+	}
+
+	FORCEINLINE void GetTriVertices(int32 TriIndex, FVector3<OutRealType>& V0, FVector3<OutRealType>& V1, FVector3<OutRealType>& V2) const
+	{
+		const IndexVectorType& Tri = (*SourceTriangles)[TriIndex];
+		V0 = FVector3<OutRealType>((*SourceVertices)[Tri[0]]);
+		V1 = FVector3<OutRealType>((*SourceVertices)[Tri[1]]);
+		V2 = FVector3<OutRealType>((*SourceVertices)[Tri[2]]);
+	}
+
+};
+
 typedef TIndexMeshArrayAdapter<uint32, double> FIndexMeshArrayAdapterd;
