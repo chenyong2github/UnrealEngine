@@ -25,8 +25,8 @@ public:
 
 	// value to return if query point is outside Grid (in an SDF
 	// outside is usually positive). Need to do math with this value,
-	// so don't use double.MaxValue or square will overflow
-	double Outside = FMathd::Sqrt(FMathd::Sqrt(FMathd::MaxReal));
+	// and cast this value to/from float; use FMathf::MaxReal to avoid overflow
+	double Outside = FMathf::MaxReal;
 
 	TTriLinearGridInterpolant(GridType* Grid, FVector3d GridOrigin, double CellSize, FVector3i Dimensions) : Grid(Grid), GridOrigin(GridOrigin), CellSize(CellSize), Dimensions(Dimensions)
 	{

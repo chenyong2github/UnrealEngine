@@ -141,7 +141,7 @@ public:
 	/**
 	 * Get the overall bounding box of the whole tree
 	 */
-	FAxisAlignedBox3d GetBoundingBox()
+	FAxisAlignedBox3d GetBoundingBox() const
 	{
 		if (!ensure(RootIndex >= 0))
 		{
