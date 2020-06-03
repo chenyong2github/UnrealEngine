@@ -15,12 +15,14 @@
 	"IsExperimentalVersion": false,
 	"EnabledByDefault": true,
 	"Installed": false,
+	"SupportedTargetPlatforms": [ "Win64" ],
 	"Modules": [
 		{
 			"Name": "MovieRenderPipelineEncoders",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"WhitelistPlatforms": [ "Win64" ],
+			"BlacklistTargets": [ "Server" ]
 		}
 	],
 	"Plugins": [
