@@ -280,6 +280,15 @@ public:
 		FPipelineState::AddHit();
 	}
 
+	bool operator < (const FRayTracingPipelineState& Other)
+	{
+		if (LastFrameHit != Other.LastFrameHit)
+		{
+			return LastFrameHit < Other.LastFrameHit;
+		}
+		return HitsAcrossFrames < Other.HitsAcrossFrames;
+	}
+
 	FRayTracingPipelineStateRHIRef RHIPipeline;
 
 	uint64 HitsAcrossFrames = 0;
@@ -624,6 +633,46 @@ public:
 
 	~FRayTracingPipelineCache()
 	{}
+
+	bool FindBase(const FRayTracingPipelineStateInitializer& Initializer, FRayTracingPipelineState*& OutPipeline) const
+	{
+		FScopeLock ScopeLock(&CriticalSection);
+
+		// Find the most recently used pipeline with compatible configuration
+
+		FRayTracingPipelineState* BestPipeline = nullptr;
+
+		for (const auto& It : FullPipelines)
+		{
+			const FRayTracingPipelineStateInitializer& CandidateInitializer = It.Key;
+			FRayTracingPipelineState* CandidatePipeline = It.Value;
+
+			if (!CandidatePipeline->RHIPipeline.IsValid()
+				|| CandidateInitializer.bAllowHitGroupIndexing != Initializer.bAllowHitGroupIndexing
+				|| CandidateInitializer.MaxPayloadSizeInBytes != Initializer.MaxPayloadSizeInBytes
+				|| CandidateInitializer.GetRayGenHash() != Initializer.GetRayGenHash()
+				|| CandidateInitializer.GetRayMissHash() != Initializer.GetRayMissHash()
+				|| CandidateInitializer.GetCallableHash() != Initializer.GetCallableHash())
+			{
+				continue;
+			}
+
+			if (BestPipeline == nullptr || *BestPipeline < *CandidatePipeline)
+			{
+				BestPipeline = CandidatePipeline;
+			}
+		}
+
+		if (BestPipeline)
+		{
+			OutPipeline = BestPipeline;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
 
 	bool Find(const FRayTracingPipelineStateInitializer& Initializer, FRayTracingPipelineState*& OutCachedState) const
 	{
@@ -1098,7 +1147,7 @@ private:
 };
 #endif // RHI_RAYTRACING
 
-FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineState(FRHICommandList& RHICmdList, const FRayTracingPipelineStateInitializer& Initializer)
+FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineState(FRHICommandList& RHICmdList, const FRayTracingPipelineStateInitializer& InInitializer)
 {
 #if RHI_RAYTRACING
 	LLM_SCOPE(ELLMTag::PSO);
@@ -1109,11 +1158,25 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 
 	FRayTracingPipelineState* OutCachedState = nullptr;
 
-	bool bWasFound = GRayTracingPipelineCache.Find(Initializer, OutCachedState);
+	bool bWasFound = GRayTracingPipelineCache.Find(InInitializer, OutCachedState);
 
 	if (bWasFound == false)
 	{
-		FPipelineFileCache::CacheRayTracingPSO(Initializer);
+		FPipelineFileCache::CacheRayTracingPSO(InInitializer);
+
+		// Copy the initializer as we may want to patch it below
+		FRayTracingPipelineStateInitializer Initializer = InInitializer;
+
+		// If explicit base pipeline is not provided then find a compatible one from the cache
+		if (GRHISupportsRayTracingPSOAdditions && InInitializer.BasePipeline == nullptr)
+		{
+			FRayTracingPipelineState* BasePipeline = nullptr;
+			bool bBasePipelineFound = GRayTracingPipelineCache.FindBase(Initializer, BasePipeline);
+			if (bBasePipelineFound)
+			{
+				Initializer.BasePipeline = BasePipeline->RHIPipeline;
+			}
+		}
 
 		// Remove old pipelines once per frame
 		const int32 TargetCacheSize = CVarRTPSOCacheSize.GetValueOnAnyThread();
