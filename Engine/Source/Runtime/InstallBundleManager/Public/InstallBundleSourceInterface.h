@@ -13,9 +13,9 @@ DECLARE_DELEGATE_TwoParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstall
 DECLARE_DELEGATE_TwoParams(FInstallBundleSourceQueryBundleInfoDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceBundleInfoQueryResultInfo /*Result*/);
 DECLARE_DELEGATE_RetVal_TwoParams(EInstallBundleSourceUpdateBundleInfoResult, FInstallBundleSourceUpdateBundleInfoDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceBundleInfoQueryResultInfo /*Result*/);
 
-DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceUpdateContentResultInfo /*Result*/);
-DECLARE_DELEGATE_OneParam(FInstallBundlePausedDelegate, FInstallBundleSourcePauseInfo /*PauseInfo*/);
-DECLARE_DELEGATE_OneParam(FInstallBundleRemovedDelegate, FInstallBundleSourceRemoveContentResultInfo /*Result*/);
+DECLARE_DELEGATE_TwoParams(FInstallBundleCompleteDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceUpdateContentResultInfo /*Result*/);
+DECLARE_DELEGATE_TwoParams(FInstallBundlePausedDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourcePauseInfo /*PauseInfo*/);
+DECLARE_DELEGATE_TwoParams(FInstallBundleRemovedDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceRemoveContentResultInfo /*Result*/);
 
 DECLARE_DELEGATE_TwoParams(FInstallBundleSourceContentPatchResultDelegate, TSharedRef<IInstallBundleSource> /*Source*/, bool /*bContentPatchRequired*/);
 
@@ -91,7 +91,7 @@ public:
 	{
 		FInstallBundleSourceRemoveContentResultInfo ResultInfo;
 		ResultInfo.BundleName = BundleContext.BundleName;
-		BundleContext.CompleteCallback.Execute(MoveTemp(ResultInfo));
+		BundleContext.CompleteCallback.Execute(AsShared(), MoveTemp(ResultInfo));
 	}
 
 	// Returns true if content is scheduled to be removed the next time the source is initialized
