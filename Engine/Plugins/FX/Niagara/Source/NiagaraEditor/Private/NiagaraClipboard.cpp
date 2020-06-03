@@ -262,6 +262,16 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 }
 
 
+UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateVec3LocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, FVector InVec3Value)
+{
+	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition::GetVec3Def();
+	TArray<uint8> Vec3Value;
+	Vec3Value.AddUninitialized(InputType.GetSize());
+	FMemory::Memcpy(Vec3Value.GetData(), &InVec3Value, InputType.GetSize());
+
+	return const_cast<UNiagaraClipboardFunctionInput*>(CreateLocalValue(InOuter, InInputName, InputType, bInHasEditCondition, bInEditConditionValue, Vec3Value));
+}
+
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateIntLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, int32 InIntValue)
 {
 	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition::GetIntDef();
