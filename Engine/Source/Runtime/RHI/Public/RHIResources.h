@@ -2164,6 +2164,11 @@ public:
 
 	bool bAllowHitGroupIndexing = true;
 
+	// Partial ray tracing pipelines can be used for run-time asynchronous shader compilation, but not for rendering.
+	// Any number of shaders for any stage may be provided when creating partial pipelines, but 
+	// at least one shader must be present in total (completely empty pipelines are not allowed).
+	bool bPartial = false;
+
 	const TArrayView<FRHIRayTracingShader*>& GetRayGenTable()   const { return RayGenTable; }
 	const TArrayView<FRHIRayTracingShader*>& GetMissTable()     const { return MissTable; }
 	const TArrayView<FRHIRayTracingShader*>& GetHitGroupTable() const { return HitGroupTable; }
