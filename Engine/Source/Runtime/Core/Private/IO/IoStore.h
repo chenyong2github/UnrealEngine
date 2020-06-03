@@ -97,12 +97,22 @@ private:
 	uint8 OffsetAndLength[5 + 5];
 };
 
+enum class FIoStoreTocEntryMetaFlags : uint8
+{
+	None,
+	Compressed		= (1 << 0),
+	MemoryMapped	= (1 << 1)
+};
+
+ENUM_CLASS_FLAGS(FIoStoreTocEntryMetaFlags);
+
 /**
  * TOC entry meta data
  */
 struct FIoStoreTocEntryMeta
 {
 	FIoChunkHash ChunkHash;
+	FIoStoreTocEntryMetaFlags Flags;
 };
 
 /**
