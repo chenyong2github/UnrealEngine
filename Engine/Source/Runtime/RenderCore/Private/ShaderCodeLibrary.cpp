@@ -2145,6 +2145,16 @@ FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Pla
 	return nullptr;
 }
 
+FRayTracingShaderRHIRef FShaderCodeLibrary::CreateRayTracingShader(EShaderPlatform Platform, const FSHAHash& Hash, EShaderFrequency Frequency)
+{
+	if (FShaderCodeLibraryImpl::Impl)
+	{
+		check(Frequency >= SF_RayGen && Frequency <= SF_RayCallable);
+		return FRayTracingShaderRHIRef(FShaderCodeLibraryImpl::Impl->CreateShader(Frequency, Hash));
+	}
+	return nullptr;
+}
+
 uint32 FShaderCodeLibrary::GetShaderCount(void)
 {
 	uint32 Num = 0;
