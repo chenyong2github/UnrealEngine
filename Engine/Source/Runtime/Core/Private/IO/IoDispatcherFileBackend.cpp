@@ -250,7 +250,7 @@ FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureEr
 		{
 			if (Reader->IsEncrypted() && !Reader->GetEncryptionKey().IsValid() && Reader->GetEncryptionKeyGuid() == Guid)
 			{
-				UE_LOG(LogIoDispatcher, Verbose, TEXT("Updating container '%d' with encryption key guid '%s'"), Reader->GetContainerId().ToIndex(), *Guid.ToString());
+				UE_LOG(LogIoDispatcher, Verbose, TEXT("Updating container '%d' with encryption key guid '%s'"), Reader->GetContainerId().Value(), *Guid.ToString());
 				Reader->SetEncryptionKey(Key);
 			}
 		}
@@ -695,7 +695,7 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 	const FFileIoStoreReader& Reader = *IoStoreReaders[ReaderIndex];
 	UE_CLOG(Reader.IsEncrypted() && !Reader.GetEncryptionKey().IsValid(),
 		LogIoDispatcher, Fatal, TEXT("Reading from encrypted container (ID = '%d') with invalid encryption key (Guid = '%s')"),
-		Reader.GetContainerId().ToIndex(),
+		Reader.GetContainerId().Value(),
 		*Reader.GetEncryptionKeyGuid().ToString());
 	const FFileIoStoreContainerFile& ContainerFile = Reader.GetContainerFile();
 	const uint64 CompressionBlockSize = ContainerFile.CompressionBlockSize;

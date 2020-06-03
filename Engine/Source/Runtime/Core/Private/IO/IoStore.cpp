@@ -468,11 +468,6 @@ public:
 		WriterContext = &InContext;
 		ContainerSettings = InContainerSettings;
 
-		if (!ContainerSettings.ContainerId.IsValid())
-		{
-			return FIoStatusBuilder(EIoErrorCode::InvalidParameter) << TEXT("Invalid container ID'");
-		}
-
 		TocFilePath = Environment.GetPath() + TEXT(".utoc");
 		FString ContainerFilePath = Environment.GetPath() + TEXT(".ucas");
 

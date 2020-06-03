@@ -718,7 +718,7 @@ public:
 
 	FIoDispatcher& IoDispatcher;
 	FNameMap& GlobalNameMap;
-	TArray<FLoadedContainer> LoadedContainers;
+	TMap<FIoContainerId, FLoadedContainer> LoadedContainers;
 
 	FString CurrentCulture;
 
@@ -797,14 +797,11 @@ public:
 
 		int32 ContainersToLoad = 0;
 
-		int32 MaxContainerIndex = LoadedContainers.Num();
 		for (const FIoDispatcherMountedContainer& Container : Containers)
 		{
-			const int32 ContainerIndex = Container.ContainerId.ToIndex();
-			if (ContainerIndex != 0)
+			if (Container.ContainerId.IsValid())
 			{
 				++ContainersToLoad;
-				MaxContainerIndex = FMath::Max(MaxContainerIndex, ContainerIndex);
 			}
 		}
 
@@ -813,28 +810,22 @@ public:
 			return;
 		}
 
-		const int32 NewContainerMapSize = MaxContainerIndex + 1;
-		if (NewContainerMapSize > LoadedContainers.Num())
-		{
-			LoadedContainers.SetNum(NewContainerMapSize, false);
-		}
-
 		TAtomic<int32> Remaining(ContainersToLoad);
 
 		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
 
 		for (const FIoDispatcherMountedContainer& Container : Containers)
 		{
-			FIoContainerId ContainerId = Container.ContainerId;
-			if (ContainerId.ToIndex() == 0)
+			const FIoContainerId& ContainerId = Container.ContainerId;
+			if (!ContainerId.IsValid())
 			{
 				continue;
 			}
 
-			FLoadedContainer& LoadedContainer = LoadedContainers[ContainerId.ToIndex()];
+			FLoadedContainer& LoadedContainer = LoadedContainers.FindOrAdd(ContainerId);
 			if (LoadedContainer.bValid && LoadedContainer.Order >= Container.Environment.GetOrder())
 			{
-				UE_LOG(LogStreaming, Log, TEXT("Skipping loading mounted container ID '%d', already loaded with higher order"), ContainerId.ToIndex());
+				UE_LOG(LogStreaming, Log, TEXT("Skipping loading mounted container ID '%d', already loaded with higher order"), ContainerId.Value());
 				if (--Remaining == 0)
 				{
 					Event->Trigger();
@@ -842,11 +833,11 @@ public:
 				continue;
 			}
 
-			UE_LOG(LogStreaming, Log, TEXT("Loading mounted container ID '%d'"), ContainerId.ToIndex());
+			UE_LOG(LogStreaming, Log, TEXT("Loading mounted container ID '%d'"), ContainerId.Value());
 			LoadedContainer.bValid = true;
 			LoadedContainer.Order = Container.Environment.GetOrder();
 
-			FIoChunkId HeaderChunkId = CreateIoChunkId(0, ContainerId.ToIndex(), EIoChunkType::ContainerHeader);
+			FIoChunkId HeaderChunkId = CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader);
 			IoDispatcher.ReadWithCallback(HeaderChunkId, FIoReadOptions(), [this, &Remaining, Event, &LoadedContainer](TIoStatusOr<FIoBuffer> Result)
 			{
 				// Execution method Thread will run the async block synchronously when multithreading is NOT supported

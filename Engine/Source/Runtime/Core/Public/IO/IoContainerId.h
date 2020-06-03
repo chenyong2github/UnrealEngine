@@ -18,20 +18,16 @@ public:
 	inline FIoContainerId(FIoContainerId&& Other) = default;
 	inline FIoContainerId& operator=(const FIoContainerId& Other) = default;
 
-	static FIoContainerId FromIndex(const uint16 InIndex)
+	CORE_API static FIoContainerId FromName(const FName& Name);
+
+	uint64 Value() const
 	{
-		return FIoContainerId(InIndex);
+		return Id;
 	}
 
 	inline bool IsValid() const
 	{ 
 		return Id != InvalidId;
-	}
-
-	inline uint16 ToIndex() const
-	{
-		check(Id != InvalidId);
-		return Id;
 	}
 
 	inline bool operator<(FIoContainerId Other) const
@@ -51,7 +47,7 @@ public:
 
 	inline friend uint32 GetTypeHash(const FIoContainerId& In)
 	{
-		return In.Id;
+		return uint32(In.Id);
 	}
 
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FIoContainerId& ContainerId);
@@ -59,11 +55,11 @@ public:
 	CORE_API friend void operator<<(FStructuredArchiveSlot Slot, FIoContainerId& Value);
 
 private:
-	inline explicit FIoContainerId(const uint16 InId)
+	inline explicit FIoContainerId(const uint64 InId)
 		: Id(InId) { }
 
-	static constexpr uint16 InvalidId = ~uint16(0u);
+	static constexpr uint64 InvalidId = uint64(-1);
 
-	uint16 Id = InvalidId;
+	uint64 Id = InvalidId;
 };
 
