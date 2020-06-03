@@ -480,6 +480,8 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 	/** The identifier in the job for which shot this is. */
 	TWeakObjectPtr<UMoviePipelineExecutorShot> WeakShot;
 
+	TWeakPtr<SMoviePipelineQueueEditor> WeakQueueEditor;
+
 	explicit FMoviePipelineShotItem(UMoviePipelineExecutorJob* InJob, UMoviePipelineExecutorShot* InShot)
 		: WeakJob(InJob)
 		, WeakShot(InShot)
@@ -492,6 +494,8 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 
 	virtual TSharedRef<ITableRow> ConstructWidget(TWeakPtr<SMoviePipelineQueueEditor> InQueueWidget, const TSharedRef<STableViewBase>& OwnerTable) override
 	{
+		WeakQueueEditor = InQueueWidget;
+
 		return SNew(SQueueShotListRow, OwnerTable)
 			.Item(SharedThis(this));
 	}
@@ -508,7 +512,21 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 
 	void SetCheckState(ECheckBoxState InNewState)
 	{
-		if (UMoviePipelineExecutorShot* Shot = WeakShot.Get())
+		if (WeakQueueEditor.IsValid() && WeakQueueEditor.Pin()->GetSelectedItems().Contains(SharedThis(this)))
+		{
+			for (TSharedPtr<IMoviePipelineQueueTreeItem> Item : WeakQueueEditor.Pin()->GetSelectedItems())
+			{
+				TSharedPtr<FMoviePipelineShotItem> ShotItem = StaticCastSharedPtr<FMoviePipelineShotItem>(Item);
+				if (ShotItem.IsValid())
+				{
+					if (UMoviePipelineExecutorShot* Shot = ShotItem->WeakShot.Get())
+					{
+						Shot->bEnabled = InNewState == ECheckBoxState::Checked;
+					}
+				}
+			}
+		}
+		else if (UMoviePipelineExecutorShot* Shot = WeakShot.Get())
 		{
 			Shot->bEnabled = InNewState == ECheckBoxState::Checked;
 		}
