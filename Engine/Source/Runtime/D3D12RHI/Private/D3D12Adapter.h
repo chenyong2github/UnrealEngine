@@ -159,11 +159,10 @@ public:
 		return Devices[GPUIndex];
 	}
 
-	FORCEINLINE void CreateDXGIFactory(bool bWithDebug)
+	FORCEINLINE void CreateDXGIFactory()
 	{
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-		uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
-		VERIFYD3D12RESULT(::CreateDXGIFactory2(Flags, IID_PPV_ARGS(DxgiFactory.GetInitReference())));
+		VERIFYD3D12RESULT(::CreateDXGIFactory(IID_PPV_ARGS(DxgiFactory.GetInitReference())));
 		VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
 #endif
 	}
