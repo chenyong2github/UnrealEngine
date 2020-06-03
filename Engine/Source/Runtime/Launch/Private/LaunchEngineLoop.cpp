@@ -2212,7 +2212,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			GLargeThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
 
-			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024, TPri_Normal, TEXT("LargeThreadPool")));
+			// The default priority is above normal on Windows, which WILL make the system unresponsive when the thread-pool is heavily used.
+			// Also need to be lower than the game-thread to avoid impacting the frame rate with too much preemption. 
+			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("LargeThreadPool")));
 		}
 #endif
 	}
