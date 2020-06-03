@@ -35,9 +35,7 @@ namespace PipelineStateCache
 
 	extern RHI_API FRHIVertexDeclaration*	GetOrCreateVertexDeclaration(const FVertexDeclarationElementList& Elements);
 
-#if RHI_RAYTRACING
 	extern RHI_API FRayTracingPipelineState* GetAndOrCreateRayTracingPipelineState(FRHICommandList& RHICmdList, const FRayTracingPipelineStateInitializer& Initializer);
-#endif // RHI_RAYTRACING
 
 	/* Evicts unused state entries based on r.pso.evictiontime time. Called in RHICommandList::BeginFrame */
 	extern RHI_API void FlushResources();
