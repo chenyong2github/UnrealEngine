@@ -45,7 +45,8 @@ public:
 #if D3D12_RHI_RAYTRACING
 	void									InitRayTracing();
 	void									CleanupRayTracing();
-	ID3D12Device5*							GetRayTracingDevice();
+	ID3D12Device5*							GetDevice5();
+	ID3D12Device7*							GetDevice7();
 	const FD3D12BasicRayTracingPipeline*	GetBasicRayTracingPipeline() const { return BasicRayTracingPipeline; }
 	FD3D12RayTracingDescriptorHeapCache*	GetRayTracingDescriptorHeapCache() { return RayTracingDescriptorHeapCache; }
 	FD3D12RayTracingPipelineCache*			GetRayTracingPipelineCache() { return RayTracingPipelineCache; }

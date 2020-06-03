@@ -73,9 +73,14 @@ ID3D12Device* FD3D12Device::GetDevice()
 }
 
 #if D3D12_RHI_RAYTRACING
-ID3D12Device5* FD3D12Device::GetRayTracingDevice()
+ID3D12Device5* FD3D12Device::GetDevice5()
 {
-	return GetParentAdapter()->GetD3DRayTracingDevice();
+	return GetParentAdapter()->GetD3DDevice5();
+}
+
+ID3D12Device7* FD3D12Device::GetDevice7()
+{
+	return GetParentAdapter()->GetD3DDevice7();
 }
 #endif // D3D12_RHI_RAYTRACING
 
