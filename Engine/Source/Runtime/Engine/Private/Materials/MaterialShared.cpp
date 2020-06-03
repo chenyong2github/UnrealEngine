@@ -43,6 +43,7 @@
 #include "UObject/CoreRedirects.h"
 #include "RayTracingDefinitions.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
