@@ -1,13 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HeadlessChaos.h"
 #include "HeadlessChaosTestUtility.h"
 
+// for System Unit Tests
 #include "AerodynamicsSystem.h"
 #include "TransmissionSystem.h"
 #include "EngineSystem.h"
 #include "WheelSystem.h"
 #include "TireSystem.h"
 #include "SuspensionSystem.h"
+#include "SuspensionUtility.h"
+
+// for Simulation Tests
+#include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Chaos/Box.h"
+#include "Chaos/Sphere.h"
+#include "Chaos/Utilities.h"
 
 //////////////////////////////////////////////////////////////////////////
 // These tests are mostly working in real word units rather than Unreal 
@@ -150,7 +159,7 @@ namespace ChaosTest
 		}
 
 		FSimpleTransmissionSim Transmission(&Setup);
-		
+
 		EXPECT_EQ(Transmission.GetCurrentGear(), 0);
 
 		// Immediate Gear Change, since Setup.GearChangeTime = 0.0f
@@ -283,7 +292,7 @@ namespace ChaosTest
 		EXPECT_LT(4.f - Ratio, SMALL_NUMBER);
 
 	}
-	
+
 	// Engine
 	TYPED_TEST(AllTraits, VehicleTest_EngineRPM)
 	{
@@ -521,8 +530,8 @@ namespace ChaosTest
 		Wheel.SetDriveTorque(450 * MtoCm);
 		VehicleSpeedMPH = 0.f;
 		SimulateAccelerating(Wheel, Gravity * MtoCm, VehicleSpeedMPH, DrivingDistanceCM, DeltaTime);
-		EXPECT_GT(DrivingDistanceCM, 70.f* MtoCm);
-		EXPECT_LT(DrivingDistanceCM, 90.f* MtoCm);
+		EXPECT_GT(DrivingDistanceCM, 70.f * MtoCm);
+		EXPECT_LT(DrivingDistanceCM, 90.f * MtoCm);
 
 
 		float DrivingDistanceWheelspin = 0.f;
@@ -550,7 +559,7 @@ namespace ChaosTest
 		//------------------------------------------------------------------
 		// Car is moving FORWARDS - with AMPLE friction we would expect an initially 
 		// static rolling wheel to speed up and match the vehicle speed
-		FVector VehicleGroundSpeed (10.0f, 0.f, 0.f); // X is forwards
+		FVector VehicleGroundSpeed(10.0f, 0.f, 0.f); // X is forwards
 		Wheel.SetVehicleGroundSpeed(VehicleGroundSpeed);
 		Wheel.SetSurfaceFriction(1.0f);	// Some wheel/ground friction
 		Wheel.SetWheelLoadForce(250.f); // wheel pressed into the ground, to give it grip
@@ -626,32 +635,365 @@ namespace ChaosTest
 	}
 
 	// Suspension
-	TYPED_TEST(AllTraits, VehicleTest_SuspensionForce)
+
+	float SumSprungMasses(TArray<float>& SprungMasses)
 	{
-		float DeltaTime = 1.f / 30.f;
-
-		FSimpleSuspensionConfig Setup;
+		float Sum = 0.f;
+		for (int I = 0; I < SprungMasses.Num(); I++)
 		{
-			Setup.CompressionDamping = 0.5f;
-			Setup.ReboundDamping = 0.5f;
+			Sum += SprungMasses[I];
 		}
-		FSimpleSuspensionSim Suspension(&Setup);
+		return Sum;
+	}
 
-		Suspension.SetDesiredLength(0.2f);
-		Suspension.Simulate(DeltaTime);
-		Suspension.SetDesiredLength(0.2f);
-		Suspension.Simulate(DeltaTime);
+	TYPED_TEST(AllTraits, VehicleTest_SuspensionSprungMassesTwoWheels)
+	{
+		float TotalMass = 1000.f;
+		float Tolerance = 0.01f;
 
-		float Length = Suspension.GetSpringLength();
-		float Force = Suspension.GetSuspensionForce();
+		{
+			// simple 1 Wheels unstable as offset from COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
 
-		Suspension.SetDesiredLength(0.3f);
-		Suspension.Simulate(DeltaTime);
+			MassSpringPositions.Add(FVector(200, 0, 0));
 
-		Length = Suspension.GetSpringLength();
-		Force = Suspension.GetSuspensionForce();
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - 1000.f), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
+
+		{
+			// simple 2 Wheels equally spaced around COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
+
+			MassSpringPositions.Add(FVector(200, 0, 0));
+			MassSpringPositions.Add(FVector(-200, 0, 0));
+
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - 500.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[1] - 500.f), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
+
+		{
+			// simple 2 Wheels equally spaced around COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
+
+			MassSpringPositions.Add(FVector(200, 0, 50));
+			MassSpringPositions.Add(FVector(-200, 0, -50));
+
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - 500.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[1] - 500.f), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
+
+		{
+			// simple 2 Wheels equally spaced around COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
+
+			MassSpringPositions.Add(FVector(200, 0, 0));
+			MassSpringPositions.Add(FVector(0, 0, 0));
+
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - 1000.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[1] - 0.f), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
+
+		{
+			// simple 2 Wheels equally spaced around COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
+
+			MassSpringPositions.Add(FVector(200, 0, 0));
+			MassSpringPositions.Add(FVector(-100, 0, 0));
+
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - TotalMass * 2.f / 3.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[1] - TotalMass * 1.f / 3.f), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_SuspensionSprungMassesThreeWheels)
+	{
+		float TotalMass = 1000.f;
+		float Tolerance = 0.01f;
+
+		{
+			// simple 3 Wheels equally spaced around COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
+
+			MassSpringPositions.Add(FVector(200, 0, 0));
+			MassSpringPositions.Add(FVector(-200, -100, 0));
+			MassSpringPositions.Add(FVector(-200, 100, 0));
+
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - 500), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[1] - 250), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[2] - 250), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
 
 	}
+
+	TYPED_TEST(AllTraits, VehicleTest_SuspensionSprungMassesFourWheels)
+	{
+		float TotalMass = 1000.f;
+		float Tolerance = 0.1f;
+
+		{
+			// simple 4 Wheels equally spaced around COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
+
+			MassSpringPositions.Add(FVector(200, 0, 0));
+			MassSpringPositions.Add(FVector(-200, 0, 0));
+			MassSpringPositions.Add(FVector(200, -100, 0));
+			MassSpringPositions.Add(FVector(-200, 100, 0));
+
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - 250.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[1] - 250.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[2] - 250.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[3] - 250.f), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
+
+		{
+			// simple 4 Wheels all weight on rear COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
+
+			MassSpringPositions.Add(FVector(0, 0, 0));
+			MassSpringPositions.Add(FVector(-200, 0, 0));
+			MassSpringPositions.Add(FVector(0, -100, 0));
+			MassSpringPositions.Add(FVector(-200, 100, 0));
+
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - 500.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[1] - 0.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[2] - 250.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[3] - 250.f), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
+
+		{
+			// 4 Wheels all weight on rear COM
+			TArray<FVector> MassSpringPositions;
+			TArray<float> OutSprungMasses;
+
+			MassSpringPositions.Add(FVector(100, 0, 0));
+			MassSpringPositions.Add(FVector(-200, 0, 0));
+			MassSpringPositions.Add(FVector(100, -100, 0));
+			MassSpringPositions.Add(FVector(-200, 100, 0));
+
+			FSuspensionUtility::ComputeSprungMasses(MassSpringPositions, TotalMass, OutSprungMasses);
+
+			EXPECT_EQ(MassSpringPositions.Num(), OutSprungMasses.Num());
+
+			//for (int i = 0; i < 4; i++)
+			//{
+			//	UE_LOG(LogChaos, Warning, TEXT("SM = %f"), OutSprungMasses[i]);
+			//}
+			EXPECT_LT(FMath::Abs(OutSprungMasses[0] - TotalMass * 1.f / 3.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[1] - TotalMass * 1.f / 6.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[2] - TotalMass * 1.f / 4.f), Tolerance);
+			EXPECT_LT(FMath::Abs(OutSprungMasses[3] - TotalMass * 1.f / 4.f), Tolerance);
+			EXPECT_LT(FMath::Abs(SumSprungMasses(OutSprungMasses) - TotalMass), Tolerance);
+		}
+	}
+
+	float PlaneZPos = 1.0f;
+	bool RayCastPlane(FVec3& RayStart, FVec3& Direction, float Length, float& OutTime, FVec3& OutPosition, FVec3& OutNormal)
+	{
+		TPlane<float, 3> Plane(TVector<float, 3>(1), TVector<float, 3>(0, 0, PlaneZPos));
+		int32 FaceIndex;
+
+		return Plane.Raycast(RayStart, Direction, Length, 0, OutTime, OutPosition, OutNormal, FaceIndex);
+	}
+
+	void AddForceAtPosition(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FVector& InForce, const FVector& InPosition)
+	{
+		const Chaos::FVec3& CurrentForce = Rigid->F();
+		const Chaos::FVec3& CurrentTorque = Rigid->Torque();
+		const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
+
+		Rigid->SetObjectState(EObjectStateType::Dynamic);
+
+		const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(InPosition - WorldCOM, InForce);
+		Rigid->SetF(CurrentForce + InForce);
+		Rigid->SetTorque(CurrentTorque + WorldTorque);
+
+	}
+
+	FVector WorldVelocityAtPoint(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FVector& InPoint)
+	{
+		const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
+		const Chaos::FVec3 Diff = InPoint - COM;
+		return Rigid->V() - Chaos::FVec3::CrossProduct(Diff, Rigid->W());
+
+	}
+
+	// #todo: break out vehicle simulation setup so it can be used across number of tests
+	TYPED_TEST(AllEvolutions, VehicleTest_SuspensionSpringLoad)
+	{
+		using TEvolution = TypeParam;
+
+		TPBDRigidsSOAs<FReal, 3> Particles;
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		TEvolution Evolution(Particles, PhysicalMaterials);
+
+		float BodyMass = 1000.0f;
+		float Gravity = FMath::Abs(Evolution.GetGravityForces().GetAcceleration().Z);
+
+		FSimpleSuspensionConfig Setup;
+		Setup.MaxLength = 20.0f;
+		Setup.SpringRate = 2.0f * BodyMass * Gravity / 4.0f;
+		Setup.SpringPreload = 0.f;
+		Setup.RaycastSafetyMargin = 0.f;
+		Setup.SuspensionSmoothing = 0;
+		Setup.ReboundDamping = 0.f; // calculated later
+		Setup.CompressionDamping = 0.f; // calculated later
+
+		float RealSpringRate = Setup.SpringRate / Setup.MaxLength;
+
+
+		TArray<FSimpleSuspensionSim> Suspensions;
+		for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
+		{
+			FSimpleSuspensionSim Suspension(&Setup);
+			Suspensions.Add(Suspension);
+		}
+
+		float HalfLength = 100.f;
+		float HalfWidth = 50.f;
+		TArray<FVector> LocalSpringPositions;
+		LocalSpringPositions.Add(FVector( HalfLength, -HalfWidth, 0.f));
+		LocalSpringPositions.Add(FVector( HalfLength,  HalfWidth, 0.f));
+		LocalSpringPositions.Add(FVector(-HalfLength, -HalfWidth, 0.f));
+		LocalSpringPositions.Add(FVector(-HalfLength,  HalfWidth, 0.f));
+
+		for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
+		{
+			Suspensions[SpringIdx].SetLocalRestingPosition(LocalSpringPositions[SpringIdx]);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		TArray<float> OutSprungMasses;
+		FSuspensionUtility::ComputeSprungMasses(LocalSpringPositions, BodyMass, OutSprungMasses);
+
+		for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
+		{
+			float NaturalFrequency = FSuspensionUtility::ComputeNaturalFrequency(RealSpringRate, OutSprungMasses[SpringIdx]);
+			float Damping = FSuspensionUtility::ComputeCriticalDamping(RealSpringRate, OutSprungMasses[SpringIdx]);
+			//UE_LOG(LogChaos, Warning, TEXT("OutNaturalFrequency %.1f Hz  (@1.0) DampingRate %.1f"), NaturalFrequency / (2.0f * PI), Damping);
+
+			Setup.SpringRate = RealSpringRate;// 2.0f * OutSprungMasses[SpringIdx] * Gravity;
+			Setup.SpringPreload = 0.f;
+
+			Setup.ReboundDamping = Damping;
+			Setup.CompressionDamping = Damping;
+		}
+
+		float SprungMass = 250.0f;
+		float WheelRadius = 0.0f;
+		const float SuspendedDisplacement = SprungMass * Gravity / RealSpringRate;
+		//UE_LOG(LogChaos, Warning, TEXT("SuspendedDisplacement %.1f cm"), SuspendedDisplacement);
+
+		//////////////////////////////////////////////////////////////////////////
+
+		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
+
+		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
+		PhysicsMaterial->SleepCounterThreshold = 2;
+
+		TUniquePtr<FImplicitObject> Box(new TSphere<FReal, 3>(FVec3(0, 0, 0), 50));
+		Dynamic->SetGeometry(MakeSerializable(Box));
+
+		Evolution.SetPhysicsMaterial(Dynamic, MakeSerializable(PhysicsMaterial));
+
+		Dynamic->X() = FVec3(10, 10, 20);
+		Dynamic->M() = BodyMass;
+		Dynamic->InvM() = 1.0f / BodyMass;
+		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
+		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+
+		float AccumulatedTime = 0.f;
+		const FReal Dt = 1 / 30.f;
+		for (int i = 0; i < 500; ++i)
+		{
+			// latest body transform
+			const FTransform BodyTM(Dynamic->R(), Dynamic->X());
+
+			for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
+			{
+				FSimpleSuspensionSim& Suspension = Suspensions[SpringIdx];
+				Suspension.UpdateWorldRaycastLocation(BodyTM, WheelRadius);
+
+				// raycast
+				FVec3 Start = Suspension.GetTrace().Start;
+				FVec3 Dir = Suspension.GetTrace().TraceDir();
+				float CurrentLength = Suspension.Setup().MaxLength;
+
+				FVec3 Position(0,0,0);
+				FVec3 Normal(0,0,0);
+				bool bHit = RayCastPlane(Start, Dir, Suspension.GetTrace().Length(), CurrentLength, Position, Normal);
+
+				Suspension.SetSuspensionLength(CurrentLength);
+				Suspension.SetLocalVelocityFromWorld(BodyTM, WorldVelocityAtPoint(Dynamic, Suspension.GetTrace().Start));
+				Suspension.Simulate(Dt); // ComputeSuspensionForces
+
+				if (bHit)
+				{
+					FVector SusForce = Suspension.GetSuspensionForceVector(BodyTM);
+					AddForceAtPosition(Dynamic, SusForce, Start);
+				}
+			}
+
+			Evolution.AdvanceOneTimeStep(Dt);
+			Evolution.EndFrame(Dt);
+			AccumulatedTime += Dt;
+		}
+
+		float Tolerance = 0.5f; // half cm
+		float ExpectedRestingPosition = (10.f + PlaneZPos);
+		EXPECT_LT(Dynamic->X().Z - ExpectedRestingPosition, Tolerance);
+	}
+
+	//TYPED_TEST(AllTraits, VehicleTest_SuspensionNaturalFrequency)
+	//{
+	//	float SprungMass = 250.f;
+	//	float SpringStiffness = 250.0f;
+	//	float SpringDamping = 0.5f;
+
+
+
+	//}
 
 }
 

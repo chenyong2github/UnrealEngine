@@ -358,6 +358,9 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** Set up the chassis and wheel shapes */
 	virtual void SetupVehicleShapes();
 
+	/** Setup calculated suspension parameters */
+	void SetupSuspension();
+
 	/** Are enough vehicle systems specified such that physics vehicle simulation is possible */
 	virtual bool CanSimulate() const override;
 
@@ -369,6 +372,9 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 
 	/** Get the local position of the wheel at rest */
 	virtual FVector GetWheelRestingPosition(const FChaosWheelSetup& WheelSetup);
+
+	/** Perform suspension ray/shape traces */
+	virtual void PerformSuspensionTraces(TArray<FSimpleSuspensionSim>& Suspension);
 
 protected:
 	/** Allocate and setup the Chaos vehicle */
@@ -397,6 +403,7 @@ protected:
 	virtual void DrawDebug(UCanvas* Canvas, float& YL, float& YPos);
 
 	private:
+	uint32 NumDrivenWheels;
 
 	/** Get distances between wheels - primarily a debug display helper */
 	FVector2D GetWheelLayoutDimensions();
