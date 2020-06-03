@@ -44,8 +44,8 @@ void ICascadeToNiagaraConverterModule::AddMenuExtenderConvertEntry(FMenuBuilder&
 		UParticleSystem* CascadeSystem = static_cast<UParticleSystem*>(SelectedAssets[0].GetAsset());
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ConvertToNiagaraEmitter", "Convert To Niagara Emitter"),
-			LOCTEXT("ConvertToNiagaraEmitter_Tooltip", "Duplicate and convert this Cascade System to an equivalent Niagara System."),
+			LOCTEXT("ConvertToNiagaraSystem", "Convert To Niagara System"),
+			LOCTEXT("ConvertToNiagaraSystem_Tooltip", "Duplicate and convert this Cascade System to an equivalent Niagara System."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateStatic(&ExecuteConvertCascadeSystemToNiagaraSystem, CascadeSystem))
