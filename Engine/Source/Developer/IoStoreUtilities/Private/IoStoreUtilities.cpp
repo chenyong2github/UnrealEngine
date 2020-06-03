@@ -631,8 +631,7 @@ struct FIoStoreArguments
 	FString GlobalContainerPath;
 	FString CookedDir;
 	ITargetPlatform* TargetPlatform = nullptr;
-	FString OutputReleaseVersionDir;
-	FString BasedOnReleaseVersionDir;
+	FString MetaDir;
 	TArray<FContainerSourceSpec> Containers;
 	FCookedFileStatMap CookedFileStatMap;
 	TMap<FName, uint64> GameOrderMap;
@@ -641,23 +640,6 @@ struct FIoStoreArguments
 	FKeyChain KeyChain;
 	FKeyChain PatchKeyChain;
 	bool bSign = false;
-};
-
-struct FContainerMeta
-{
-	FString ContainerName;
-	FIoContainerId ContainerId;
-	FGuid EncryptionKeyGuid;
-	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
-
-	friend FArchive& operator<<(FArchive& Ar, FContainerMeta& ContainerMeta)
-	{
-		Ar << ContainerMeta.ContainerName;
-		Ar << ContainerMeta.ContainerId;
-		Ar << ContainerMeta.EncryptionKeyGuid;
-		Ar << ContainerMeta.ContainerFlags;
-		return Ar;
-	}
 };
 
 struct FContainerTargetSpec
@@ -1806,43 +1788,27 @@ static int32 FindExport(
 
 FContainerTargetSpec* AddContainer(
 	FName Name,
-	FIoContainerId Id,
-	TArray<FContainerTargetSpec*>& Containers,
-	TMap<FName, FContainerTargetSpec*>& ContainerMap)
+	TArray<FContainerTargetSpec*>& Containers)
 {
-	for (const FContainerTargetSpec* ExistingContainer : Containers)
+	FIoContainerId ContainerId = FIoContainerId::FromName(Name);
+	for (FContainerTargetSpec* ExistingContainer : Containers)
 	{
-		check(ExistingContainer->Header.ContainerId != Id);
+		if (ExistingContainer->Name == Name)
+		{
+			UE_LOG(LogIoStore, Fatal, TEXT("Duplicate container name: '%s'"), *Name.ToString());
+			return nullptr;
+		}
+		if (ExistingContainer->Header.ContainerId == ContainerId)
+		{
+			UE_LOG(LogIoStore, Fatal, TEXT("Hash collision for container names: '%s' and '%s'"), *Name.ToString(), *ExistingContainer->Name.ToString());
+			return nullptr;
+		}
 	}
-	check(!ContainerMap.Contains(Name));
+	
 	FContainerTargetSpec* ContainerTargetSpec = new FContainerTargetSpec();
 	ContainerTargetSpec->Name = Name;
-	ContainerTargetSpec->Header.ContainerId = Id;
-	ContainerMap.Add(Name, ContainerTargetSpec);
+	ContainerTargetSpec->Header.ContainerId = ContainerId;
 	Containers.Add(ContainerTargetSpec);
-	return ContainerTargetSpec;
-}
-
-FContainerTargetSpec* FindOrAddContainer(
-	FName Name,
-	TArray<FContainerTargetSpec*>& Containers,
-	TMap<FName, FContainerTargetSpec*>& ContainerMap)
-{
-	FContainerTargetSpec* ContainerTargetSpec = ContainerMap.FindRef(Name);
-	if (!ContainerTargetSpec)
-	{
-		uint16 NextContainerTargetId = 1;
-		for (const FContainerTargetSpec* ExistingContainer : Containers)
-		{
-			check(ExistingContainer->Header.ContainerId.IsValid());
-			NextContainerTargetId = FMath::Max<uint16>(ExistingContainer->Header.ContainerId.ToIndex() + 1, NextContainerTargetId);
-		}
-		ContainerTargetSpec = new FContainerTargetSpec();
-		ContainerTargetSpec->Name = Name;
-		ContainerTargetSpec->Header.ContainerId = FIoContainerId::FromIndex(NextContainerTargetId);
-		ContainerMap.Add(Name, ContainerTargetSpec);
-		Containers.Add(ContainerTargetSpec);
-	}
 	return ContainerTargetSpec;
 }
 
@@ -3191,62 +3157,6 @@ static void ProcessLocalizedPackages(
 	}
 }
 
-static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const TArray<FContainerTargetSpec*>& ContainerTargets)
-{
-	UE_LOG(LogIoStore, Display, TEXT("Saving release meta data to '%s'"), ReleaseVersionOutputDir);
-
-	IPlatformFile::GetPlatformPhysical().CreateDirectoryTree(ReleaseVersionOutputDir);
-
-	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
-	{
-		FContainerMeta ContainerMeta;
-		ContainerMeta.ContainerId = ContainerTarget->Header.ContainerId;
-		ContainerMeta.ContainerName = ContainerTarget->Name.ToString();
-		ContainerMeta.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
-		ContainerMeta.ContainerFlags = ContainerTarget->ContainerFlags;
-
-		FString MetaOutputPath = FPaths::Combine(ReleaseVersionOutputDir, ContainerTarget->Name.ToString() + TEXT(".ucontainermeta"));
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*MetaOutputPath));
-		*Ar << ContainerMeta;
-
-		UE_LOG(LogIoStore, Display,
-			TEXT("Saved container release meta '%s' with container ID '%d'"),
-			*MetaOutputPath,
-			ContainerMeta.ContainerId.ToIndex());
-	}	
-}
-
-static void LoadReleaseVersionMeta(
-	const TCHAR* ReleaseVersionOutputDir,
-	TArray<FContainerTargetSpec*>& ContainerTargets,
-	TMap<FName, FContainerTargetSpec*>& ContainerTargetMap)
-{
-	UE_LOG(LogIoStore, Display, TEXT("Loading release meta data from '%s'"), ReleaseVersionOutputDir);
-
-	FString ContainerMetaWildcard = FPaths::Combine(ReleaseVersionOutputDir, TEXT("*.ucontainermeta"));
-	TArray<FString> ContainerMetaFileNames;
-	IFileManager::Get().FindFiles(ContainerMetaFileNames, *ContainerMetaWildcard, true, false);
-	for (FString& ContainerMetaFileName : ContainerMetaFileNames)
-	{
-		ContainerMetaFileName = ReleaseVersionOutputDir / ContainerMetaFileName;
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*ContainerMetaFileName));
-		if (Ar)
-		{
-			FContainerMeta ContainerMeta;
-			*Ar << ContainerMeta;
-
-			FContainerTargetSpec* ContainerTarget = AddContainer(FName(ContainerMeta.ContainerName), ContainerMeta.ContainerId, ContainerTargets, ContainerTargetMap);
-			ContainerTarget->EncryptionKeyGuid = ContainerMeta.EncryptionKeyGuid;
-			ContainerTarget->ContainerFlags = ContainerMeta.ContainerFlags;
-
-			UE_LOG(LogIoStore, Display,
-				TEXT("Loaded container release meta '%s' with container ID '%d'"),
-				*ContainerMetaFileName,
-				ContainerTarget->Header.ContainerId.ToIndex());
-		}
-	}
-}
-
 TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const FKeyChain& KeyChain)
 {
 	FIoStoreEnvironment IoEnvironment;
@@ -3291,7 +3201,6 @@ void InitializeContainerTargetsAndPackages(
 	FPackageNameMap& PackageNameMap,
 	FPackageIdMap& PackageIdMap,
 	TArray<FContainerTargetSpec*>& ContainerTargets,
-	TMap<FName, FContainerTargetSpec*>& ContainerTargetMap,
 	FNameMapBuilder& GlobalNameMapBuilder)
 {
 	FString ProjectName = FApp::GetProjectName();
@@ -3330,7 +3239,7 @@ void InitializeContainerTargetsAndPackages(
 
 	for (const FContainerSourceSpec& ContainerSource : Arguments.Containers)
 	{
-		FContainerTargetSpec* ContainerTarget = FindOrAddContainer(ContainerSource.Name, ContainerTargets, ContainerTargetMap);
+		FContainerTargetSpec* ContainerTarget = AddContainer(ContainerSource.Name, ContainerTargets);
 		ContainerTarget->OutputPath = ContainerSource.OutputPath;
 		ContainerTarget->bGenerateDiffPatch = ContainerSource.bGenerateDiffPatch;
 		if (Arguments.bSign)
@@ -3460,8 +3369,8 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 {
 	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- IoDispatcher --------------------------------------------------------"));
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %10s %15s %15s %15s %25s"),
-		TEXT("ID"), TEXT("Container"), TEXT("Flags"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15s %15s %15s %25s"),
+		TEXT("Container"), TEXT("Flags"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
 	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
 	int64 TotalPaddingSize = 0;
 	for (const FIoStoreWriterResult& Result : Results)
@@ -3482,8 +3391,7 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Encrypted) ? TEXT("E") : TEXT("-"),
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"));
 
-		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %10s %15.2lf %15d %15.2lf %25s"),
-			Result.ContainerId.ToIndex(),
+		UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15.2lf %15d %15.2lf %25s"),
 			*Result.ContainerName,
 			*ContainerSettings,
 			(double)Result.TocSize / 1024.0,
@@ -3528,8 +3436,7 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 			LocalizedPackageCount += KV.Value.Num();
 		}
 
-		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %20.0lf %20llu %20llu"),
-			ContainerTarget->Header.ContainerId.ToIndex(),
+		UE_LOG(LogIoStore, Display, TEXT("%-30s %20.0lf %20llu %20llu"),
 			*ContainerTarget->Name.ToString(),
 			(double)StoreSize / 1024.0,
 			PackageCount,
@@ -3592,8 +3499,7 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 
 		HeaderSize = SummarySize + UGraphSize + ImportMapSize + ExportMapSize + NameMapSize;
 
-		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf"),
-			ContainerTarget->Header.ContainerId.ToIndex(),
+		UE_LOG(LogIoStore, Display, TEXT("%-30s %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf"),
 			*ContainerTarget->Name.ToString(),
 			(double)HeaderSize / 1024.0,
 			(double)SummarySize / 1024.0,
@@ -3656,16 +3562,14 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #endif
 
 	TArray<FContainerTargetSpec*> ContainerTargets;
-	TMap<FName, FContainerTargetSpec*> ContainerTargetMap;
 	UE_LOG(LogIoStore, Display, TEXT("Creating container targets..."));
 	{
 		IOSTORE_CPU_SCOPE(CreateContainerTargets);
 
-		if (!Arguments.BasedOnReleaseVersionDir.IsEmpty())
+		if (!Arguments.MetaDir.IsEmpty())
 		{
-			LoadReleaseVersionMeta(*Arguments.BasedOnReleaseVersionDir, ContainerTargets, ContainerTargetMap);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
-			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.BasedOnReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
+			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.MetaDir, TEXT("iodispatcher.upackagehashes"));
 			TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileReader(*PackageHashesOutputPath));
 			if (PackageHashesArchive)
 			{
@@ -3687,7 +3591,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #endif
 		}
 
-		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageNameMap, PackageIdMap, ContainerTargets, ContainerTargetMap, GlobalNameMapBuilder);
+		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageNameMap, PackageIdMap, ContainerTargets, GlobalNameMapBuilder);
 	}
 
 	ParsePackageAssets(Packages, PackageAssetData);
@@ -3863,7 +3767,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		check(IoStatus.IsOk());
 
 		FIoContainerSettings GlobalContainerSettings;
-		GlobalContainerSettings.ContainerId = FIoContainerId::FromIndex(0);
 		if (Arguments.bSign)
 		{
 			GlobalContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
@@ -3952,7 +3855,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			FIoWriteOptions WriteOptions;
 			WriteOptions.DebugName = TEXT("ContainerHeader");
 			FIoStatus Status = ContainerTarget->IoStoreWriter->Append(
-				CreateIoChunkId(0, ContainerTarget->Header.ContainerId.ToIndex(), EIoChunkType::ContainerHeader), 
+				CreateIoChunkId(ContainerTarget->Header.ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
 				FIoBuffer(FIoBuffer::Wrap, Ar.GetData(), Ar.TotalSize()), WriteOptions);
 
 			UE_CLOG(!Status.IsOk(), LogIoStore, Error, TEXT("Failed to serialize container header"));
@@ -4094,11 +3997,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 	IoStoreWriters.Empty();
 
-	if (!Arguments.OutputReleaseVersionDir.IsEmpty())
+	if (!Arguments.MetaDir.IsEmpty())
 	{
-		SaveReleaseVersionMeta(*Arguments.OutputReleaseVersionDir, ContainerTargets);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
-		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.OutputReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
+		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.MetaDir, TEXT("iodispatcher.upackagehashes"));
 		TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileWriter(*PackageHashesOutputPath));
 
 		int32 PackageCount = Packages.Num();
@@ -4638,8 +4540,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block alignment '%ld'"), GeneralIoWriterSettings.CompressionBlockAlignment);
 
-	FParse::Value(CmdLine, TEXT("-CreateReleaseVersionDirectory="), Arguments.OutputReleaseVersionDir);
-	FParse::Value(CmdLine, TEXT("-BasedOnReleaseVersionDirectory="), Arguments.BasedOnReleaseVersionDir);
+	FParse::Value(CmdLine, TEXT("-MetaDirectory="), Arguments.MetaDir);
 
 	FString CommandListFile;
 	if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
