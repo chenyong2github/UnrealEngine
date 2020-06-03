@@ -924,6 +924,7 @@ struct FIoStoreWriterSettings
 	FName CompressionMethod = NAME_None;
 	uint64 CompressionBlockSize = 0;
 	uint64 CompressionBlockAlignment = 0;
+	uint64 MemoryMappingAlignment = 0;
 	uint64 WriterMemoryLimit = 0;
 	bool bEnableCsvOutput = false;
 };
@@ -977,8 +978,8 @@ struct FIoStoreWriterResult
 struct FIoWriteOptions
 {
 	const TCHAR* DebugName = nullptr;
-	uint64 Alignment = 0;
 	bool bForceUncompressed = false;
+	bool bIsMemoryMapped = false;
 };
 
 class FIoStoreWriterContext
@@ -1007,7 +1008,6 @@ public:
 	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings);
 	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
-	UE_NODISCARD CORE_API FIoStatus	AppendPadding(uint64 Count);
 	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
 
 private:
@@ -1020,6 +1020,8 @@ struct FIoStoreTocChunkInfo
 	FIoChunkHash Hash;
 	uint64 Offset;
 	uint64 Size;
+	bool bForceUncompressed;
+	bool bIsMemoryMapped;
 };
 
 class FIoStoreReader

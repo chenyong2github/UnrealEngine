@@ -578,9 +578,10 @@ private:
 		TArray<uint8> PaddingBuffer;
 		uint64 UncompressedFileOffset = 0;
 
-		auto CrossesBlockBoundry = [](const uint64 Offset, const uint64 Size, const uint64 BlockSize) -> bool
+		auto CrossesBlockBoundry = [](const uint64 FileOffset, const uint64 ChunkSize, const uint64 ChunkAlignment, const uint64 BlockSize) -> bool
 		{
-			return BlockSize > 0 ? Align(Offset, BlockSize) != Align(Offset + Size - 1, BlockSize) : false;
+			const uint64 AlignedOffset = ChunkAlignment > 0 ? Align(FileOffset, ChunkAlignment) : FileOffset;
+			return BlockSize > 0 ? Align(AlignedOffset, BlockSize) != Align(AlignedOffset + ChunkSize - 1, BlockSize) : false;
 		};
 
 		auto WritePadding = [&PaddingBuffer](IFileHandle& FileHandle, const uint64 BlockSize) -> uint64
@@ -610,14 +611,15 @@ private:
 					FTaskGraphInterface::Get().WaitUntilTaskCompletes(Entry->CreateChunkBlocksTask);
 				}
 
-				if (CrossesBlockBoundry(ContainerFileHandle->Tell(), Entry->ChunkBuffer.DataSize() + Entry->Options.Alignment, Settings.CompressionBlockAlignment))
+				const uint64 ChunkAlignment = Entry->Options.bIsMemoryMapped ? Settings.MemoryMappingAlignment : 0;
+				if (CrossesBlockBoundry(ContainerFileHandle->Tell(), Entry->ChunkBuffer.DataSize(), ChunkAlignment, Settings.CompressionBlockAlignment))
 				{
 					TotalPaddedBytes += WritePadding(*ContainerFileHandle, Settings.CompressionBlockAlignment);
 				}
 
-				if (Entry->Options.Alignment > 0)
+				if (ChunkAlignment > 0)
 				{
-					TotalPaddedBytes += WritePadding(*ContainerFileHandle, Entry->Options.Alignment);
+					TotalPaddedBytes += WritePadding(*ContainerFileHandle, ChunkAlignment);
 				}
 
 				const uint64 FileOffset = ContainerFileHandle->Tell();
@@ -626,7 +628,17 @@ private:
 				OffsetLength.SetOffset(UncompressedFileOffset);
 				OffsetLength.SetLength(Entry->ChunkSize);
 
-				const bool bAdded = Toc.AddChunkEntry(Entry->ChunkId, OffsetLength, FIoStoreTocEntryMeta { Entry->ChunkHash });
+				FIoStoreTocEntryMeta ChunkMeta { Entry->ChunkHash, FIoStoreTocEntryMetaFlags::None };
+				if (Entry->CompressionMethod != NAME_None)
+				{
+					ChunkMeta.Flags |= FIoStoreTocEntryMetaFlags::Compressed;
+				}
+				if (Entry->Options.bIsMemoryMapped)
+				{
+					ChunkMeta.Flags |= FIoStoreTocEntryMetaFlags::MemoryMapped;
+				}
+
+				const bool bAdded = Toc.AddChunkEntry(Entry->ChunkId, OffsetLength, ChunkMeta);
 				check(bAdded);
 
 				for (const FChunkBlock& ChunkBlock : Entry->ChunkBlocks)
@@ -684,7 +696,7 @@ private:
 			}
 		};
 
-		if (ContainerSettings.IsCompressed() && !Entry->Options.bForceUncompressed)
+		if (ContainerSettings.IsCompressed() && !Entry->Options.bForceUncompressed && !Entry->Options.bIsMemoryMapped)
 		{
 			check(!WriterSettings.CompressionMethod.IsNone());
 
@@ -819,11 +831,6 @@ FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, const FIoChunkHash& 
 	return Impl->Append(ChunkId, ChunkHash, Chunk, WriteOptions);
 }
 
-FIoStatus FIoStoreWriter::AppendPadding(uint64 Count)
-{
-	return Impl->AppendPadding(Count);
-}
-
 TIoStatusOr<FIoStoreWriterResult> FIoStoreWriter::Flush()
 {
 	return Impl->Flush();
@@ -895,14 +902,20 @@ public:
 	void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
 	{
 		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
+		const bool bIsContainerCompressed = EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Compressed);
 
 		for (int32 ChunkIndex = 0; ChunkIndex < TocResource.ChunkIds.Num(); ++ChunkIndex)
 		{
+			const FIoStoreTocEntryMeta& Meta = TocResource.ChunkMetas[ChunkIndex];
+			const FIoOffsetAndLength& OffsetLength = TocResource.ChunkOffsetLengths[ChunkIndex];
+
 			FIoStoreTocChunkInfo ChunkInfo;
 			ChunkInfo.Id = TocResource.ChunkIds[ChunkIndex];
-			ChunkInfo.Hash = TocResource.ChunkMetas[ChunkIndex].ChunkHash;
-			ChunkInfo.Offset = TocResource.ChunkOffsetLengths[ChunkIndex].GetOffset();
-			ChunkInfo.Size = TocResource.ChunkOffsetLengths[ChunkIndex].GetLength();
+			ChunkInfo.Hash = Meta.ChunkHash;
+			ChunkInfo.bIsMemoryMapped = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::MemoryMapped);
+			ChunkInfo.bForceUncompressed = bIsContainerCompressed && !EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
+			ChunkInfo.Offset = OffsetLength.GetOffset();
+			ChunkInfo.Size = OffsetLength.GetLength();
 			if (!Callback(ChunkInfo))
 			{
 				break;

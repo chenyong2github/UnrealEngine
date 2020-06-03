@@ -605,8 +605,6 @@ struct FContainerTargetFile
 	uint64 SourceSize = 0;
 	uint64 TargetSize = 0;
 	uint64 Offset = 0;
-	uint64 Padding = 0;
-	uint64 Alignment = 0;
 	FIoChunkId ChunkId;
 	FIoChunkHash ChunkHash;
 	TArray<uint8> PackageHeaderData;
@@ -636,7 +634,6 @@ struct FIoStoreArguments
 	FCookedFileStatMap CookedFileStatMap;
 	TMap<FName, uint64> GameOrderMap;
 	TMap<FName, uint64> CookerOrderMap;
-	uint64 MemoryMappingAlignment = 0;
 	FKeyChain KeyChain;
 	FKeyChain PatchKeyChain;
 	bool bSign = false;
@@ -1318,9 +1315,7 @@ static void CreateDiskLayout(
 	const TArray<FContainerTargetSpec*>& ContainerTargets,
 	const TArray<FPackage*>& Packages,
 	const TMap<FName, uint64> PackageOrderMap,
-	const TMap<FName, uint64>& CookerOrderMap,
-	uint64 CompressionBlockSize,
-	uint64 MemoryMappingAlignment)
+	const TMap<FName, uint64>& CookerOrderMap)
 {
 	IOSTORE_CPU_SCOPE(CreateDiskLayout);
 
@@ -3740,7 +3735,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
-	CreateDiskLayout(ContainerTargets, Packages, Arguments.GameOrderMap, Arguments.CookerOrderMap, GeneralIoWriterSettings.CompressionBlockSize, Arguments.MemoryMappingAlignment);
+	CreateDiskLayout(ContainerTargets, Packages, Arguments.GameOrderMap, Arguments.CookerOrderMap);
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
@@ -3892,15 +3887,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					ReadFileTask.IoBuffer = CreateExportBundleBuffer(TargetFile, ObjectExports, ReadFileTask.IoBuffer);
 				}
 
-				if (TargetFile.Padding)
-				{
-					FIoStatus Status = ReadFileTask.IoStoreWriter->AppendPadding(TargetFile.Padding);
-					UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append padding due to '%s'"), *Status.ToString());
-				}
 				FIoWriteOptions WriteOptions;
 				WriteOptions.DebugName = *TargetFile.TargetPath;
 				WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
-				WriteOptions.Alignment = TargetFile.Alignment;
+				WriteOptions.bIsMemoryMapped = TargetFile.bIsMemoryMappedBulkData;
 				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions);
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
 
@@ -4214,6 +4204,8 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 				FIoReadOptions ReadOptions;
 				TIoStatusOr<FIoBuffer> ChunkBuffer = TargetReader->Read(ChunkInfo.Id, ReadOptions);
 				FIoWriteOptions WriteOptions;
+				WriteOptions.bIsMemoryMapped = ChunkInfo.bIsMemoryMapped;
+				WriteOptions.bForceUncompressed = ChunkInfo.bForceUncompressed; 
 				FIoStatus Status = IoStoreWriter.Append(ChunkInfo.Id, ChunkInfo.Hash, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
 			}
@@ -4517,7 +4509,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
-	ParseSizeArgument(CmdLine, TEXT("-alignformemorymapping="), Arguments.MemoryMappingAlignment, DefaultMemoryMappingAlignment);
+	ParseSizeArgument(CmdLine, TEXT("-alignformemorymapping="), GeneralIoWriterSettings.MemoryMappingAlignment, DefaultMemoryMappingAlignment);
 	ParseSizeArgument(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize, DefaultCompressionBlockSize);
 	ParseSizeArgument(CmdLine, TEXT("-blocksize="), GeneralIoWriterSettings.CompressionBlockAlignment);
 
@@ -4534,7 +4526,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), Arguments.MemoryMappingAlignment);
+	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), GeneralIoWriterSettings.MemoryMappingAlignment);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block alignment '%ld'"), GeneralIoWriterSettings.CompressionBlockAlignment);
 
