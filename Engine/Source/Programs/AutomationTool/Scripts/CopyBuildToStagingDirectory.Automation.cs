@@ -2668,14 +2668,6 @@ public partial class Project : CommandUtils
 			CommandletParams += AdditionalArgs;
 		}
 
-		if (Params.HasCreateReleaseVersion)
-		{
-			CommandletParams += String.Format(" -CreateReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetCreateReleaseVersionPath(SC, Params.Client)));
-		}
-		if (Params.HasBasedOnReleaseVersion)
-		{
-			CommandletParams += String.Format(" -BasedOnReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetBasedOnReleaseVersionPath(SC, Params.Client)));
-		}
 		CommandletParams += String.Format(" -TargetPlatform={0}", SC.StageTargetPlatform.GetCookPlatform(Params.DedicatedServer, Params.Client));
 
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
