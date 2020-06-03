@@ -817,10 +817,7 @@ protected:
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
-	virtual bool RequiresGameThreadEndOfFrameRecreate() const override
-	{
-		return false;
-	}
+	virtual bool RequiresGameThreadEndOfFrameRecreate() const override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual UObject const* AdditionalStatObject() const override;
 	//~ End UActorComponent Interface
