@@ -356,20 +356,20 @@ struct FPhysScenePendingComponentTransform_Chaos
 	FVector NewTranslation;
 	FQuat NewRotation;
 	bool bHasValidTransform;
-	Chaos::EWakeEventEntry WakeEvent;
+	bool bHasWakeEvent;
 	
-	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp, const FVector& InNewTranslation, const FQuat& InNewRotation, const Chaos::EWakeEventEntry InWakeEvent)
+	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp, const FVector& InNewTranslation, const FQuat& InNewRotation, const bool InHasWakeEvent)
 		: OwningComp(InOwningComp)
 		, NewTranslation(InNewTranslation)
 		, NewRotation(InNewRotation)
 		, bHasValidTransform(true)
-		, WakeEvent(InWakeEvent)
+		, bHasWakeEvent(InHasWakeEvent)
 	{}
 
-	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp, const Chaos::EWakeEventEntry InWakeEvent)
+	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp)
 		: OwningComp(InOwningComp)
 		, bHasValidTransform(false)
-		, WakeEvent(InWakeEvent)
+		, bHasWakeEvent(true)
 	{}
 
 };
@@ -2052,7 +2052,7 @@ void FPhysScene_ChaosInterface::StartFrame()
 			// Copy out solver data
 			if (Chaos::FPhysicsSolver* Solver = GetSolver())
 			{
-				Solver->GetDirtyParticlesBuffer()->CaptureSolverData(Solver);
+				Solver->GetActiveParticlesBuffer()->CaptureSolverData(Solver);
 				Solver->BufferPhysicsResults();
 				Solver->FlipBuffers();
 			}
@@ -2330,19 +2330,19 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
 	{
-		Chaos::FPBDRigidDirtyParticlesBufferAccessor Accessor(Solver->GetDirtyParticlesBuffer());
+		Chaos::FPBDRigidActiveParticlesBufferAccessor Accessor(Solver->GetActiveParticlesBuffer());
 
-		const Chaos::FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
-		for (Chaos::TGeometryParticle<float, 3>* DirtyParticle : DirtyParticleBuffer->DirtyGameThreadParticles)
+		const Chaos::FPBDRigidActiveParticlesBufferOut* ActiveParticleBuffer = Accessor.GetSolverOutData();
+		for (Chaos::TGeometryParticle<float, 3>* ActiveParticle : ActiveParticleBuffer->ActiveGameThreadParticles)
 		{
-			if (IPhysicsProxyBase* ProxyBase = DirtyParticle->GetProxy())
+			if (IPhysicsProxyBase* ProxyBase = ActiveParticle->GetProxy())
 			{
 				if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
 				{
 					FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> > * Proxy = static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(ProxyBase);
 					Proxy->PullFromPhysicsState();
 
-					if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
+					if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(ActiveParticle->UserData()))
 					{
 						if (BodyInstance->OwnerComponent.IsValid())
 						{
@@ -2352,20 +2352,20 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 								bool bPendingMove = false;
 								if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
 								{
-									Chaos::TRigidTransform<float, 3> NewTransform(DirtyParticle->X(), DirtyParticle->R());
+									Chaos::TRigidTransform<float, 3> NewTransform(ActiveParticle->X(), ActiveParticle->R());
 
 									if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
 									{
 										bPendingMove = true;
 										const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
 										const FQuat NewRotation = NewTransform.GetRotation();
-										PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, MoveBy, NewRotation, Proxy->GetWakeEvent()));
+										PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, MoveBy, NewRotation, Proxy->HasAwakeEvent()));
 									}
 								}
 
-								if (Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
+								if (Proxy->HasAwakeEvent() && !bPendingMove)
 								{
-									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, Proxy->GetWakeEvent()));
+									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent));
 								}
 								Proxy->ClearEvents();
 							}
@@ -2379,7 +2379,7 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 				}
 			}
 		}
-		for (IPhysicsProxyBase* ProxyBase : DirtyParticleBuffer->PhysicsParticleProxies) 
+		for (IPhysicsProxyBase* ProxyBase : ActiveParticleBuffer->PhysicsParticleProxies) 
 		{
 			if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
 			{
@@ -2417,9 +2417,9 @@ void FPhysScene_ChaosInterface::SyncBodies(TSolver* Solver)
 
 		if (ComponentTransform.OwningComp != nullptr)
 		{
-			if (ComponentTransform.WakeEvent != Chaos::EWakeEventEntry::None)
+			if (ComponentTransform.bHasWakeEvent)
 			{
-				ComponentTransform.OwningComp->DispatchWakeEvents(ComponentTransform.WakeEvent == Chaos::EWakeEventEntry::Awake ? ESleepEvent::SET_Wakeup : ESleepEvent::SET_Sleep, NAME_None);
+				ComponentTransform.OwningComp->DispatchWakeEvents(ESleepEvent::SET_Wakeup, NAME_None);
 			}
 		}
 	}
@@ -2529,7 +2529,7 @@ void FPhysScene_ChaosInterface::CompleteSceneSimulation(ENamedThreads::Type Curr
 			//TODO: support any type not just default traits
 			FPhysicsSolverBase* Solver = ActiveSolvers[Index];
 			auto& Concrete = Solver->CastChecked<Chaos::FDefaultTraits>();
-			Concrete.GetDirtyParticlesBuffer()->CaptureSolverData(&Concrete);
+			Concrete.GetActiveParticlesBuffer()->CaptureSolverData(&Concrete);
 			Concrete.BufferPhysicsResults();
 			Concrete.FlipBuffers();
 		});
