@@ -1217,6 +1217,9 @@ FString UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatSt
 	FString BaseFilename = FString::Format(*InFormatString, FilenameFormatArgs.Arguments);
 	FPaths::NormalizeFilename(BaseFilename);
 
+	// If we end with a "." character, remove it. The extension will put it back on. We can end up with this sometimes after resolving file format strings, ie:
+	// {sequence_name}.{frame_number} becomes {sequence_name}. for videos (which can't use frame_numbers).
+	BaseFilename.RemoveFromEnd(TEXT("."));
 
 	FString Extension = FString::Format(TEXT(".{ext}"), FilenameFormatArgs.Arguments);
 
