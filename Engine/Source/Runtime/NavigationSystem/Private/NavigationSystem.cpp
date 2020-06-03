@@ -3762,9 +3762,9 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 	if (OperationMode == FNavigationSystemRunMode::EditorMode)
 	{
 		// see if there are any unregistered yet valid nav data instances
-			// In general we register navdata on its PostLoad, but in some cases
-			// levels get removed from world and readded and in that case we might
-			// miss registering them
+		// In general we register navdata on its PostLoad, but in some cases
+		// levels get removed from world and readded and in that case we might
+		// miss registering them
 		for (AActor* Actor : InLevel->Actors)
 		{
 			ANavigationData* NavData = Cast<ANavigationData>(Actor);
@@ -3776,7 +3776,14 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 	}
 	else
 #endif // WITH_EDITOR
-		if (NavDataRegistrationQueue.Num() > 0)
+	if (OperationMode == FNavigationSystemRunMode::InvalidMode)
+	{
+		// While streaming multiple levels it is possible that NavigationData and NavMeshBoundsVolume from different levels gets
+		// loaded in different order so we need to wait navigation system initialization to make sure everything is registered properly.
+		// Otherwise the register may fail and discard the navigation data since navbounds are not registered.
+		UE_LOG(LogNavigation, Log, TEXT("%s won't process navigation data registration candidates until OperationMode is set. Waiting for OnWorldInitDone."), ANSI_TO_TCHAR(__FUNCTION__));
+	}
+	else if (NavDataRegistrationQueue.Num() > 0)
 	{
 		ProcessRegistrationCandidates();
 	}
