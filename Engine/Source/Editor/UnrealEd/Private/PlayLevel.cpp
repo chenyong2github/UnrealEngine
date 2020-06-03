@@ -1328,7 +1328,8 @@ bool UEditorEngine::SpawnPlayFromHereStart(UWorld* World, AActor*& PlayerStart)
 {
 	if (PlayInEditorSessionInfo.IsSet() && PlayInEditorSessionInfo->OriginalRequestParams.HasPlayWorldPlacement())
 	{
-		return SpawnPlayFromHereStart(World, PlayerStart, PlayInEditorSessionInfo->OriginalRequestParams.StartLocation.GetValue(), PlayInEditorSessionInfo->OriginalRequestParams.StartRotation.GetValue());
+		// Rotation may be optional in original request.
+		return SpawnPlayFromHereStart(World, PlayerStart, PlayInEditorSessionInfo->OriginalRequestParams.StartLocation.GetValue(), PlayInEditorSessionInfo->OriginalRequestParams.StartRotation.Get(FRotator::ZeroRotator));
 	}
 
 	// Not having a location set is still considered a success.
