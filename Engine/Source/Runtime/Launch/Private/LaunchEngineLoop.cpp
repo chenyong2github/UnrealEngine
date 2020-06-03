@@ -29,10 +29,7 @@
 #include "HAL/ExceptionHandling.h"
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.inl"
-#include "ProfilingDebugging/MiscTrace.h"
-#include "ProfilingDebugging/PlatformFileTrace.h"
 #include "ProfilingDebugging/TraceAuxiliary.h"
-#include "ProfilingDebugging/CountersTrace.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -1403,14 +1400,6 @@ static void UpdateGInputTime()
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPreStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats, STATGROUP_LoadTime);
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats, STATGROUP_LoadTime);
 
-UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, Important)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Platform)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, AppName)
-	UE_TRACE_EVENT_FIELD(Trace::WideString, CommandLine)
-	UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
-	UE_TRACE_EVENT_FIELD(uint8, TargetType)
-UE_TRACE_EVENT_END()
-
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
@@ -1478,13 +1467,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 
 	// Initialize trace
-	{
-		FTraceAuxiliary::Initialize(CmdLine);
-
-		TRACE_CPUPROFILER_INIT(CmdLine);
-		TRACE_PLATFORMFILE_INIT(CmdLine);
-		TRACE_COUNTERS_INIT(CmdLine);
-	}
+	FTraceAuxiliary::Initialize(CmdLine);
 
 	// disable/enable LLM based on commandline
 	{
@@ -1496,16 +1479,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		SCOPED_BOOT_TIMING("InitTaggedStorage");
 		FPlatformMisc::InitTaggedStorage(1024);
-	}
-
-	// Trace out information about this session
-	{
-		UE_TRACE_LOG(Diagnostics, Session2, Trace::TraceLogChannel)
-			<< Session2.Platform(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM))
-			<< Session2.AppName(UE_APP_NAME)
-			<< Session2.CommandLine(CmdLine)
-			<< Session2.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
-			<< Session2.TargetType(uint8(FApp::GetBuildTargetType()));
 	}
 
 #if WITH_ENGINE
@@ -4034,6 +4007,8 @@ int32 FEngineLoop::Init()
 		SCOPED_BOOT_TIMING("WaitForMovieToFinish");
 		GetMoviePlayer()->WaitForMovieToFinish();
     }
+
+	FTraceAuxiliary::ParseCommandLine(FCommandLine::Get());
 
 #if !UE_SERVER
 	// initialize media framework
