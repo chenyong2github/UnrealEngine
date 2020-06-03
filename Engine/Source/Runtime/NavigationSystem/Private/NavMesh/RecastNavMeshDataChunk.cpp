@@ -331,6 +331,8 @@ TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMesh
 void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const FIntPoint& Offset, const float RotationDeg, const FVector2D& RotationCenter)
 {
 #if WITH_RECAST	
+	UE_LOG(LogNavigation, Log, TEXT("%s Moving %i tiles on navmesh %s."), ANSI_TO_TCHAR(__FUNCTION__), Tiles.Num(), *NavigationDataName.ToString());
+
 	dtNavMesh* NavMesh = NavMeshImpl.DetourNavMesh;
 	if (NavMesh != nullptr)
 	{
@@ -338,7 +340,7 @@ void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const 
 		{
 			if (TileData.TileCacheDataSize != 0)
 			{
-				UE_LOG(LogNavigation, Error, TEXT("TileCacheRawData is expected to be empty. No support for moving the cache data yet."));
+				UE_LOG(LogNavigation, Error, TEXT("   TileCacheRawData is expected to be empty. No support for moving the cache data yet."));
 				continue;
 			}
 
@@ -365,15 +367,12 @@ void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const 
 				const int OffsetWithRotX = Offset.X + DeltaX;
 				const int OffsetWithRotY = Offset.Y + DeltaY;
 				const bool bSuccess = dtTransformTileData(TileData.TileRawData->RawData, TileData.TileDataSize, OffsetWithRotX, OffsetWithRotY, TileWidth, TileHeight, RotationDeg);
-				TileData.X += OffsetWithRotX;
-				TileData.Y += OffsetWithRotY;
-
-				UE_CLOG(bSuccess, LogNavigation, Log, TEXT("Moved tile from (%i,%i) to (%i,%i) in NavMesh - %s"), TileData.OriginalX, TileData.OriginalY, TileData.X, TileData.Y, *NavigationDataName.ToString());
+				UE_CLOG(bSuccess, LogNavigation, Log, TEXT("   Moved tile from (%i,%i) to (%i,%i)."), TileData.OriginalX, TileData.OriginalY, (TileData.OriginalX + OffsetWithRotX), (TileData.OriginalY + OffsetWithRotY));
 			}
 		}
 	}
 
-	UE_LOG(LogNavigation, Log, TEXT("Move %d tiles in NavMesh - %s"), Tiles.Num(), *NavigationDataName.ToString());
+	UE_LOG(LogNavigation, Log, TEXT("%s Moving done."), ANSI_TO_TCHAR(__FUNCTION__));
 #endif// WITH_RECAST
 }
 
