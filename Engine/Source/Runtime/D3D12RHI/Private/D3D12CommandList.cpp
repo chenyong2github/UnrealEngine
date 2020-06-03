@@ -3,6 +3,12 @@
 #include "D3D12RHIPrivate.h"
 #include "D3D12CommandList.h"
 
+static int64 GCommandListIDCounter = 0;
+static uint64 GenerateCommandListID()
+{
+	return FPlatformAtomics::InterlockedIncrement(&GCommandListIDCounter);
+}
+
 void FD3D12CommandListHandle::AddTransitionBarrier(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
 {
 	check(CommandListData);
@@ -56,6 +62,7 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	, FrameSubmitted(0)
 	, PendingResourceBarriers()
 	, ResidencySet(nullptr)
+	, CommandListID(GenerateCommandListID())
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	, StartTimeQueryIdx(INDEX_NONE)
 #endif
@@ -176,6 +183,8 @@ void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocato
 	{
 		StartTrackingCommandListTime();
 	}
+
+	CommandListID = GenerateCommandListID();
 }
 
 int32 FD3D12CommandListHandle::FD3D12CommandListData::CreateAndInsertTimestampQuery()

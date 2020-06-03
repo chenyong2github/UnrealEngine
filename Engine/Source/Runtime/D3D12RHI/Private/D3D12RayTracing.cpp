@@ -1316,6 +1316,8 @@ public:
 	uint32 CallableShaderRecordIndexOffset = 0;
 	uint32 MissShaderRecordIndexOffset = 0;
 
+	uint64 LastCommandListID = 0;
+
 	// Note: TABLE_BYTE_ALIGNMENT is used instead of RECORD_BYTE_ALIGNMENT to allow arbitrary switching 
 	// between multiple RayGen and Miss shaders within the same underlying table.
 	static constexpr uint32 RayGenRecordStride = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
@@ -1373,7 +1375,6 @@ public:
 	TMap<FShaderRecordCacheKey, uint32> ShaderRecordCache[MaxBindingWorkers];
 
 	// A set of all resources referenced by this shader table for the purpose of updating residency before ray tracing work dispatch.
-	// #dxr_todo UE-72159: remove resources from this set when SBT slot entries are replaced
 	Experimental::TSherwoodSet<void*> ReferencedD3D12ResourceSet[MaxBindingWorkers];
 	TArray<TRefCountPtr<FD3D12Resource>> ReferencedD3D12Resources[MaxBindingWorkers];
 	void AddResourceReference(FD3D12Resource* D3D12Resource, uint32 WorkerIndex)
@@ -1388,6 +1389,12 @@ public:
 
 	void UpdateResidency(FD3D12CommandContext& CommandContext)
 	{
+		// Skip redundant resource residency updates when a shader table is repeatedly used on the same command list
+		if (LastCommandListID == CommandContext.CommandListHandle.GetCommandListID())
+		{
+			return;
+		}
+
 		// Merge all data from worker threads into the main set
 
 		for (uint32 WorkerIndex = 1; WorkerIndex < MaxBindingWorkers; ++WorkerIndex)
@@ -1406,6 +1413,8 @@ public:
 		}
 
 		Buffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
+
+		LastCommandListID = CommandContext.CommandListHandle.GetCommandListID();
 	}
 
 	// Some resources referenced in SBT may be dynamic (written on GPU timeline) and may require transition barriers.
@@ -2824,6 +2833,13 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 void FD3D12RayTracingScene::UpdateResidency(FD3D12CommandContext& CommandContext)
 {
 #if ENABLE_RESIDENCY_MANAGEMENT
+
+	// Skip redundant resource residency updates when a scene is repeatedly used on the same command list
+	if (LastCommandListID == CommandContext.CommandListHandle.GetCommandListID())
+	{
+		return;
+	}
+
 	const uint32 GPUIndex = CommandContext.GetGPUIndex();
 	AccelerationStructureBuffers[GPUIndex]->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 
@@ -2833,6 +2849,9 @@ void FD3D12RayTracingScene::UpdateResidency(FD3D12CommandContext& CommandContext
 	{
 		D3DX12Residency::Insert(ResidencySet, ResidencyHandle);
 	}
+
+	LastCommandListID = CommandContext.CommandListHandle.GetCommandListID();
+
 #endif // ENABLE_RESIDENCY_MANAGEMENT
 }
 
@@ -3494,7 +3513,6 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 		FD3D12RayTracingGlobalResourceBinder ResourceBinder(CommandContext, *DescriptorCache);
 		SetRayTracingShaderResources(RayGenShader, GlobalBindings, ResourceBinder);
 
-		// #dxr_todo UE-72159: avoid updating residency if this scene was already used on the current command list (i.e. multiple ray dispatches are performed back-to-back)
 		OptShaderTable->UpdateResidency(CommandContext);
 	}
 	else
@@ -3620,7 +3638,6 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRa
 		ShaderTable->CopyToGPU(GetParentDevice());
 	}
 
-	// #dxr_todo UE-72159: avoid updating residency if this scene was already used on the current command list (i.e. multiple ray dispatches are performed back-to-back)
 	Scene->UpdateResidency(*this);
 
 	FD3D12RayTracingShader* RayGenShader = FD3D12DynamicRHI::ResourceCast(RayGenShaderRHI);
