@@ -2223,8 +2223,6 @@ void FSequencer::BakeTransform()
 		FVector DefaultLocation = FVector::ZeroVector;
 		FVector DefaultRotation = FVector::ZeroVector;
 		FVector DefaultScale = FVector::OneVector;
-		FTransform ParentInverseTransform;
-		ParentInverseTransform.SetIdentity();
 
 		for (auto RuntimeObject : FindBoundObjects(Guid, ActiveTemplateIDs.Top()))
 		{
@@ -2249,22 +2247,6 @@ void FSequencer::BakeTransform()
 
 			// Always detach from any existing parent
 			Actor->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
-
-			// If there was an attach track that was the parent, detach and attach to that actor's parent if it exists
-			if (AttachParentActor)
-			{
-				AActor* ExistingParentActor = AttachParentActor->GetAttachParentActor();
-				if (ExistingParentActor)
-				{
-					Actor->AttachToActor(ExistingParentActor, FAttachmentTransformRules::KeepRelativeTransform);
-
-					// It's possible the attachment did not succeed, in which case, we need to check the parent actor again
-					if (Actor->GetParentActor())
-					{
-						ParentInverseTransform = Actor->GetParentActor()->GetActorTransform().Inverse();
-					}
-				}
-			}
 		}
 			
 		// Create new transform track and section
@@ -2295,8 +2277,7 @@ void FSequencer::BakeTransform()
 
 			for (int32 Counter = 0; Counter < BakeData.Value.KeyTimes.Num(); ++Counter)
 			{
-				FTransform Transform(BakeData.Value.Rotations[Counter], BakeData.Value.Locations[Counter], BakeData.Value.Scales[Counter]);
-				FTransform LocalTransform = ParentInverseTransform * Transform;
+				FTransform LocalTransform(BakeData.Value.Rotations[Counter], BakeData.Value.Locations[Counter], BakeData.Value.Scales[Counter]);
 				LocalTranslations[Counter] = LocalTransform.GetTranslation();
 				LocalRotations[Counter] = LocalTransform.GetRotation().Euler();
 				LocalScales[Counter] = LocalTransform.GetScale3D();
