@@ -384,6 +384,7 @@ public:
 	/** error when detecting engine content being used in this cook */
 	bool							bErrorOnEngineContentUse = false;
 	bool							bDisableUnsolicitedPackages = false;
+	bool							bSkipSoftReferences = false;
 	bool							bFullLoadAndSave = false;
 	bool							bPackageStore = false;
 	TArray<FName>					StartupPackages;
@@ -3329,30 +3330,33 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 	// Don't resolve, just add to request list as needed
 	TSet<FName> SoftObjectPackages;
 
-	GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
-	
-	for (FName SoftObjectPackage : SoftObjectPackages)
+	if (!CookByTheBookOptions->bSkipSoftReferences)
 	{
-		TMap<FName, FName> RedirectedPaths;
+		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
 
-		// If this is a redirector, extract destination from asset registry
-		if (ContainsRedirector(SoftObjectPackage, RedirectedPaths))
+		for (FName SoftObjectPackage : SoftObjectPackages)
 		{
-			for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
+			TMap<FName, FName> RedirectedPaths;
+
+			// If this is a redirector, extract destination from asset registry
+			if (ContainsRedirector(SoftObjectPackage, RedirectedPaths))
 			{
-				GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
+				for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
+				{
+					GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
+				}
 			}
-		}
 
-		// Verify package actually exists
+			// Verify package actually exists
 
-		if (IsCookByTheBookMode() && !CookByTheBookOptions->bDisableUnsolicitedPackages)
-		{
-			UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
-			if (SoftObjectPackageData)
+			if (IsCookByTheBookMode() && !CookByTheBookOptions->bDisableUnsolicitedPackages)
 			{
-				bool bIsUrgent = false;
-				SoftObjectPackageData->UpdateRequestData(PackageData.GetRequestedPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
+				UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
+				if (SoftObjectPackageData)
+				{
+					bool bIsUrgent = false;
+					SoftObjectPackageData->UpdateRequestData(PackageData.GetRequestedPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
+				}
 			}
 		}
 	}
@@ -6452,6 +6456,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bGenerateDependenciesForMaps = CookByTheBookStartupOptions.bGenerateDependenciesForMaps;
 	CookByTheBookOptions->CreateReleaseVersion = CreateReleaseVersion;
 	CookByTheBookOptions->bDisableUnsolicitedPackages = !!(CookOptions & ECookByTheBookOptions::DisableUnsolicitedPackages);
+	CookByTheBookOptions->bSkipSoftReferences = !!(CookOptions & ECookByTheBookOptions::SkipSoftReferences);
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
 	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
@@ -6756,13 +6761,15 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	TArray<FName> FilesInPath;
 	TSet<FName> StartupSoftObjectPackages;
-
-	// Get the list of soft references, for both empty package and all startup packages
-	GRedirectCollector.ProcessSoftObjectPathPackageList(NAME_None, false, StartupSoftObjectPackages);
-
-	for (const FName& StartupPackage : CookByTheBookOptions->StartupPackages)
+	if (!CookByTheBookOptions->bSkipSoftReferences)
 	{
-		GRedirectCollector.ProcessSoftObjectPathPackageList(StartupPackage, false, StartupSoftObjectPackages);
+		// Get the list of soft references, for both empty package and all startup packages
+		GRedirectCollector.ProcessSoftObjectPathPackageList(NAME_None, false, StartupSoftObjectPackages);
+
+		for (const FName& StartupPackage : CookByTheBookOptions->StartupPackages)
+		{
+			GRedirectCollector.ProcessSoftObjectPathPackageList(StartupPackage, false, StartupSoftObjectPackages);
+		}
 	}
 
 	CollectFilesToCook(FilesInPath, CookMaps, CookDirectories, IniMapSections, CookOptions, TargetPlatforms);
@@ -7487,6 +7494,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					}
 				}
 
+				if (!CookByTheBookOptions->bSkipSoftReferences)
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(ResolveStringReferences);
 					TSet<FName> StringAssetPackages;

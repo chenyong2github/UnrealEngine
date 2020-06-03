@@ -71,6 +71,7 @@ enum class ECookByTheBookOptions
 	DisableUnsolicitedPackages =		0x00001000, // don't cook any packages which aren't in the files to cook list (this is really dangerious as if you request a file it will not cook all it's dependencies automatically)
 	FullLoadAndSave =					0x00002000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
 	PackageStore =						0x00004000, // Cook package header information into a global package store
+	SkipSoftReferences =				0x00008000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
