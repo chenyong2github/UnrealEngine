@@ -554,9 +554,9 @@ bool FBodyInstance::ReplaceResponseToChannels(ECollisionResponse OldResponse, EC
 	return false;
 }
 
-bool FBodyInstance::SetResponseToChannels(const FCollisionResponseContainer& NewReponses)
+bool FBodyInstance::SetResponseToChannels(const FCollisionResponseContainer& NewResponses)
 {
-	if (CollisionResponses.SetCollisionResponseContainer(NewReponses))
+	if (CollisionResponses.SetCollisionResponseContainer(NewResponses))
 	{
 		InvalidateCollisionProfileName();
 		UpdatePhysicsFilterData();
@@ -564,6 +564,63 @@ bool FBodyInstance::SetResponseToChannels(const FCollisionResponseContainer& New
 	}
 
 	return false;
+}
+
+bool FBodyInstance::SetShapeResponseToChannels(const int32 ShapeIndex, const FCollisionResponseContainer& NewResponses)
+{
+	if (!ShapeCollisionResponses.IsSet())
+	{
+		ShapeCollisionResponses = TArray<TPair<int32, FCollisionResponse>>();
+	}
+
+	TArray<TPair<int32, FCollisionResponse>>& ShapeCollisionResponsesValue = ShapeCollisionResponses.GetValue();
+
+	bool bIndexExists = false;
+	int32 ResponseIndex = 0;
+	const int32 ResponseNum = ShapeCollisionResponsesValue.Num();
+	for (; ResponseIndex < ResponseNum; ++ResponseIndex)
+	{
+		if (ShapeCollisionResponsesValue[ResponseIndex].Key == ShapeIndex)
+		{
+			break;
+		}
+	}
+
+	if (ResponseIndex == ResponseNum)
+	{
+		ShapeCollisionResponsesValue.Add(TPair<int32, FCollisionResponse>(ShapeIndex, FCollisionResponse()));
+	}
+
+	if (ShapeCollisionResponsesValue[ResponseIndex].Value.SetCollisionResponseContainer(NewResponses))
+	{
+		UpdatePhysicsFilterData();
+		return true;
+	}
+
+	return false;
+}
+
+const FCollisionResponseContainer& FBodyInstance::GetShapeResponseToChannels(const int32 ShapeIndex) const
+{
+	return GetShapeResponseToChannels(ShapeIndex, GetResponseToChannels());
+}
+
+const FCollisionResponseContainer& FBodyInstance::GetShapeResponseToChannels(const int32 ShapeIndex, const FCollisionResponseContainer& DefaultResponseContainer) const
+{
+	// Return per-shape collision response override if there is one
+	if (ShapeCollisionResponses.IsSet())
+	{
+		for (int32 ResponseIndex = 0; ResponseIndex < ShapeCollisionResponses.GetValue().Num(); ++ResponseIndex)
+		{
+			if (ShapeCollisionResponses.GetValue()[ResponseIndex].Key == ShapeIndex)
+			{
+				return ShapeCollisionResponses.GetValue()[ResponseIndex].Value.GetResponseContainer();
+			}
+		}
+	}
+
+	// Return base collision response
+	return DefaultResponseContainer;
 }
 
 void FBodyInstance::SetObjectType(ECollisionChannel Channel)
@@ -959,6 +1016,9 @@ void FBodyInstance::UpdatePhysicsFilterData()
 			const bool bInstanceComplexAsSimple = BI->BodySetup.IsValid() ? (BI->BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple) : false;
 			if (BI->BodySetup.IsValid() && SetupShapeIndex < BI->BodySetup->AggGeom.GetElementCount())
 			{
+				// Get the shape's CollisionResponses
+				BI->BuildBodyFilterData(PerShapeCollisionData.CollisionFilterData, SetupShapeIndex);
+
 				// Get the shape's CollisionEnabled masked with the body's CollisionEnabled and compute the shape's collisionflags.
 				const ECollisionEnabled::Type FilteredShapeCollision = CollisionEnabledIntersection(BI->GetCollisionEnabled(), BI->GetShapeCollisionEnabled(SetupShapeIndex));
 				BuildBodyCollisionFlags(PerShapeCollisionData.CollisionFlags, FilteredShapeCollision, bInstanceComplexAsSimple);
@@ -4030,7 +4090,7 @@ void FBodyInstance::InitDynamicProperties_AssumesLocked()
 	}
 }
 
-void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData) const
+void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData, const int32 ShapeIndex) const
 {
 	// this can happen in landscape height field collision component
 	if(!BodySetup.IsValid())
@@ -4043,11 +4103,16 @@ void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData)
 	AActor* Owner = OwnerComponentInst ? OwnerComponentInst->GetOwner() : NULL;
 	const bool bPhysicsStatic = !OwnerComponentInst || OwnerComponentInst->IsWorldGeometry();
 
-	// Grab collision setting from body instance
-	ECollisionEnabled::Type UseCollisionEnabled = GetCollisionEnabled(); // this checks actor/component override
-	bool bUseNotifyRBCollision = bNotifyRigidBodyCollision;
+	// Grab collision setting from body instance.
+	// If we're looking at a specific shape, intersect it with the shape's specific collision setting.
+	ECollisionEnabled::Type UseCollisionEnabled // this checks actor/component override. 
+		= ShapeIndex == INDEX_NONE
+		? GetCollisionEnabled()
+		: CollisionEnabledIntersection(GetCollisionEnabled(), GetShapeCollisionEnabled(ShapeIndex));
 	FCollisionResponseContainer UseResponse = CollisionResponses.GetResponseContainer();
+	bool bUseNotifyRBCollision = bNotifyRigidBodyCollision;
 	ECollisionChannel UseChannel = ObjectType;
+
 
 	bool bUseContactModification = bContactModification;
 
@@ -4082,6 +4147,14 @@ void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData)
 		{
 			UseChannel = SkelMeshComp->GetCollisionObjectType();
 			UseResponse = FCollisionResponseContainer::CreateMinContainer(UseResponse, SkelMeshComp->BodyInstance.CollisionResponses.GetResponseContainer());
+		}
+
+		if (ShapeIndex != INDEX_NONE)
+		{
+			// If we're looking at a specific shape, take the intersection of its collision responses
+			// with the base primitive component's collision responses.
+			FCollisionResponseContainer ShapeResponse = GetShapeResponseToChannels(ShapeIndex, UseResponse);
+			UseResponse = FCollisionResponseContainer::CreateMinContainer(UseResponse, ShapeResponse);
 		}
 
 		bUseNotifyRBCollision = bUseNotifyRBCollision && SkelMeshComp->BodyInstance.bNotifyRigidBodyCollision;
