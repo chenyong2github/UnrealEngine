@@ -229,7 +229,7 @@ class FAsyncTask
 	/* Generic start function, not called directly
 		* @param bForceSynchronous if true, this job will be started synchronously, now, on this thread
 	**/
-	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool)
+	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InQueuedWorkPriority)
 	{
 		FScopeCycleCounter Scope( Task.GetStatId(), true );
 		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FAsyncTask::Start" ), STAT_FAsyncTask_Start, STATGROUP_ThreadPoolAsyncTasks );
@@ -250,7 +250,7 @@ class FAsyncTask
 				DoneEvent = FPlatformProcess::GetSynchEventFromPool(true);
 			}
 			DoneEvent->Reset();
-			QueuedPool->AddQueuedWork(this);
+			QueuedPool->AddQueuedWork(this, InQueuedWorkPriority);
 		}
 		else 
 		{
@@ -399,17 +399,17 @@ public:
 	* Run this task on this thread
 	* @param bDoNow if true then do the job now instead of at EnsureCompletion
 	**/
-	void StartSynchronousTask()
+	void StartSynchronousTask(EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal)
 	{
-		Start(true, GThreadPool);
+		Start(true, GThreadPool, InQueuedWorkPriority);
 	}
 
 	/** 
 	* Queue this task for processing by the background thread pool
 	**/
-	void StartBackgroundTask(FQueuedThreadPool* InQueuedPool = GThreadPool)
+	void StartBackgroundTask(FQueuedThreadPool* InQueuedPool = GThreadPool, EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal)
 	{
-		Start(false, InQueuedPool);
+		Start(false, InQueuedPool, InQueuedWorkPriority);
 	}
 
 	/** 

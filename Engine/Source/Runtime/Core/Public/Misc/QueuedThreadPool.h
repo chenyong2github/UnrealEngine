@@ -7,6 +7,16 @@
 
 class IQueuedWork;
 
+/** Higher priority are picked up first by the task thread pool. */
+enum class EQueuedWorkPriority : uint8
+{
+	Highest = 0,
+	High = 1,
+	Normal = 2,
+	Low = 3,
+	Lowest = 4
+};
+
 /**
  * Interface for queued thread pools.
  *
@@ -34,10 +44,11 @@ public:
 	 * Checks to see if there is a thread available to perform the task. If not,
 	 * it queues the work for later. Otherwise it is immediately dispatched.
 	 *
-	 * @param InQueuedWork The work that needs to be done asynchronously
+	 * @param InQueuedWork         The work that needs to be done asynchronously
+	 * @param InQueuedWorkPriority The priority at which to process this task
 	 * @see RetractQueuedWork
 	 */
-	virtual void AddQueuedWork( IQueuedWork* InQueuedWork ) = 0;
+	virtual void AddQueuedWork( IQueuedWork* InQueuedWork, EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal) = 0;
 
 	/**
 	 * Attempts to retract a previously queued task.

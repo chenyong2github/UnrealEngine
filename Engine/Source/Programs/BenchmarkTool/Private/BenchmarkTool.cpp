@@ -204,8 +204,15 @@ public:
 		TArray<BenchmarkReporter::Run> RunResults;
 		RunResults.Reserve(Benchmarks.Num());
 
+		FString BenchName;
+		FParse::Value(FCommandLine::Get(), TEXT("-Benchmark="), BenchName);
 		for (auto& Bench : Benchmarks)
 		{
+			if (BenchName.Len() > 0 && BenchName != Bench->Name)
+			{
+				continue;
+			}
+
 			BenchmarkState State;
 			State.SetIterationCount(Bench->IterationCount);
 
@@ -220,7 +227,7 @@ public:
 
 		for (BenchmarkReporter::Run& Line : RunResults)
 		{
-			UE_LOG(LogBenchmarkTool, Log, 
+			UE_LOG(LogBenchmarkTool, Display, 
 				TEXT("%-30s %10ld iterations took %5ld ms (%f us/iteration)"),
 				*Line.Name,
 				Line.IterationCount,
@@ -602,12 +609,70 @@ void BM_TRefCountAssign(BenchmarkState& State)
 	}
 }
 
+// This test is probably only meaningful when comparing relative speed
+// of threadpool implementations and to profile the current one.
+void BM_ThreadPoolOverhead(BenchmarkState& State)
+{
+	struct FEventTask : public IQueuedWork
+	{
+		FEvent* Event;
+		FEventTask()  { Event = FPlatformProcess::GetSynchEventFromPool(true); }
+		~FEventTask() { FPlatformProcess::ReturnSynchEventToPool(Event); }
+		void Abandon() override { }
+	};
+
+	struct FWaitTask : public FEventTask
+	{
+		void DoThreadedWork() override { Event->Wait(); };
+	};
+
+	struct FTriggerTask : public FEventTask
+	{
+		void DoThreadedWork() override { Event->Trigger(); };
+	};
+	
+	// A single thread is enough to exercise the Queuing and Dequeuing code paths.
+	// More threads will only increase contention as the current implementation of
+	// those functions is under critical sections anyway...
+	TUniquePtr<FQueuedThreadPool> ThreadPool(FQueuedThreadPool::Allocate());
+	check(ThreadPool && ThreadPool->Create(1));
+
+	FWaitTask DefaultTask;
+	// Stall the tasks so we can benchmark the queuing code in AddQueuedWork.
+	// Otherwise, most threads will be able to execute as fast as the queuing
+	// happens and the dispatching will occur directly on each thread, 
+	// exercising a different code path.
+	DefaultTask.Event->Reset();
+
+	for (auto _ : State)
+	{
+		// Always enqueue the same empty task to avoid allocations.
+		ThreadPool->AddQueuedWork(&DefaultTask);
+	}
+
+	// Unstall the task processing so we can properly exercise the code
+	// path where all the threads need to pick another job to process.
+	// (i.e. ReturnToPoolOrGetNextJob)
+	DefaultTask.Event->Trigger();
+
+	// Enqueue a sentinel task so we know when everything has been unqueued
+	FTriggerTask LastTask;
+	ThreadPool->AddQueuedWork(&LastTask);
+	LastTask.Event->Wait();
+
+	// If run with more than 1 thread, there might be up to (number of threads) empty task 
+	// still being processed at this point, but since work is not meaningful we don't really care.
+	// The thread pool destructor will abandon any task left and clear up threads before going
+	// out of scope so we're safe to exit without any additional cleanup.
+}
+
 UE_BENCHMARK(BM_TSharedPtr)->Iterations(100000000);
 UE_BENCHMARK(BM_TRefCountPtr)->Iterations(100000000);
 UE_BENCHMARK(BM_TSharedPtr_NoTS)->Iterations(100000000);
 UE_BENCHMARK(BM_TSharedPtrAssign)->Iterations(100000000);
 UE_BENCHMARK(BM_TRefCountAssign)->Iterations(100000000);
 UE_BENCHMARK(BM_TSharedPtrAssign_NoTS)->Iterations(100000000);
+UE_BENCHMARK(BM_ThreadPoolOverhead)->Iterations(100000);
 
 //////////////////////////////////////////////////////////////////////////
 

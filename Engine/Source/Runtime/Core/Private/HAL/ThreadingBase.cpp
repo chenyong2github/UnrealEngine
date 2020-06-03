@@ -646,7 +646,10 @@ class FQueuedThreadPoolBase : public FQueuedThreadPool
 protected:
 
 	/** The work queue to pull from. */
-	TArray<IQueuedWork*> QueuedWork;
+	TArray<TArray<IQueuedWork*>, TInlineAllocator<static_cast<int32>(EQueuedWorkPriority::Lowest) + 1>> PriorityQueuedWork;
+
+	/** The first queue to extract a work item from to avoid scanning all priorities when unqueuing. */
+	int32 FirstNonEmptyQueueIndex = 0;
 	
 	/** The thread pool to dole work out to. */
 	TArray<FQueuedThread*> QueuedThreads;
@@ -656,6 +659,9 @@ protected:
 
 	/** The synchronization object used to protect access to the queued work. */
 	FCriticalSection* SynchQueue;
+
+	/** Thread-safe counter to keep tab on number of queued work. */
+	TAtomic<int32> NumQueuedWork;
 
 	/** If true, indicates the destruction process has taken place. */
 	bool TimeToDie;
@@ -684,6 +690,8 @@ public:
 		// Presize the array so there is no extra memory allocated
 		check(QueuedThreads.Num() == 0);
 		QueuedThreads.Empty(InNumQueuedThreads);
+		NumQueuedWork = 0;
+		FirstNonEmptyQueueIndex = 0;
 
 		// Check for stack size override.
 		if( OverrideStackSize > StackSize )
@@ -726,12 +734,17 @@ public:
 				TimeToDie = 1;
 				FPlatformMisc::MemoryBarrier();
 				// Clean up all queued objects
-				for (int32 Index = 0; Index < QueuedWork.Num(); Index++)
+				for (TArray<IQueuedWork*>& Queue : PriorityQueuedWork)
 				{
-					QueuedWork[Index]->Abandon();
+					for (IQueuedWork* WorkItem : Queue)
+					{
+						WorkItem->Abandon();
+					}
 				}
+				
 				// Empty out the invalid pointers
-				QueuedWork.Empty();
+				PriorityQueuedWork.Empty();
+				NumQueuedWork = 0;
 			}
 			// wait for all threads to finish up
 			while (1)
@@ -765,14 +778,15 @@ public:
 	int32 GetNumQueuedJobs() const
 	{
 		// this is a estimate of the number of queued jobs. 
-		// no need for thread safe lock as the queuedWork array isn't moved around in memory so unless this class is being destroyed then we don't need to wrory about it
-		return QueuedWork.Num();
+		return NumQueuedWork.Load(EMemoryOrder::Relaxed);
 	}
+
 	virtual int32 GetNumThreads() const 
 	{
 		return AllThreads.Num();
 	}
-	void AddQueuedWork(IQueuedWork* InQueuedWork) override
+
+	void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InQueuedWorkPriority) override
 	{
 		check(InQueuedWork != nullptr);
 
@@ -802,8 +816,18 @@ public:
 			{
 				// No thread available, queue the work to be done
 				// as soon as one does become available
-				QueuedWork.Add(InQueuedWork);
-
+				int32 QueueIndex = static_cast<int32>(InQueuedWorkPriority);
+				if (PriorityQueuedWork.Num() <= QueueIndex)
+				{
+					PriorityQueuedWork.SetNum(QueueIndex + 1);
+				}
+				
+				NumQueuedWork++;
+				if (QueueIndex < FirstNonEmptyQueueIndex)
+				{
+					FirstNonEmptyQueueIndex = QueueIndex;
+				}
+				PriorityQueuedWork[QueueIndex].Add(InQueuedWork);
 				return;
 			}
 
@@ -827,7 +851,16 @@ public:
 		check(InQueuedWork != nullptr);
 		check(SynchQueue);
 		FScopeLock sl(SynchQueue);
-		return !!QueuedWork.RemoveSingle(InQueuedWork);
+		for (int32 QueueIndex = FirstNonEmptyQueueIndex, Num = PriorityQueuedWork.Num(); QueueIndex < Num; ++QueueIndex)
+		{
+			if (PriorityQueuedWork[QueueIndex].RemoveSingle(InQueuedWork))
+			{
+				NumQueuedWork--;
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	IQueuedWork* ReturnToPoolOrGetNextJob(FQueuedThread* InQueuedThread)
@@ -838,17 +871,27 @@ public:
 		FScopeLock sl(SynchQueue);
 		if (TimeToDie)
 		{
-			check(!QueuedWork.Num());  // we better not have anything if we are dying
+			check(!NumQueuedWork);  // we better not have anything if we are dying
 		}
-		if (QueuedWork.Num() > 0)
+		
+		for (int32 QueueIndex = FirstNonEmptyQueueIndex, Num = PriorityQueuedWork.Num(); QueueIndex < Num; ++QueueIndex)
 		{
-			// Grab the oldest work in the queue. This is slower than
-			// getting the most recent but prevents work from being
-			// queued and never done
-			Work = QueuedWork[0];
-			// Remove it from the list so no one else grabs it
-			QueuedWork.RemoveAt(0, 1, /* do not allow shrinking */ false);
+			TArray<IQueuedWork*>& QueuedWork = PriorityQueuedWork[QueueIndex];
+			if (QueuedWork.Num() > 0)
+			{
+				// Grab the oldest work in the queue. This is slower than
+				// getting the most recent but prevents work from being
+				// queued and never done
+				Work = QueuedWork[0];
+				// Remove it from the list so no one else grabs it
+				QueuedWork.RemoveAt(0, 1, /* do not allow shrinking */ false);
+
+				FirstNonEmptyQueueIndex = QueueIndex;
+				NumQueuedWork--;
+				break;
+			}
 		}
+
 		if (!Work)
 		{
 			// There was no work to be done, so add the thread to the pool
