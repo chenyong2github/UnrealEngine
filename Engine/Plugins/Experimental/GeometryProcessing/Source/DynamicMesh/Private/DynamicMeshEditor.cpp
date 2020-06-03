@@ -7,6 +7,8 @@
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicSubmesh3.h"
 #include "MeshNormals.h"
+#include "MeshQueries.h"
+#include "Selections/MeshConnectedComponents.h"
 
 
 void FMeshIndexMappings::Initialize(FDynamicMesh3* Mesh)
@@ -335,6 +337,25 @@ bool FDynamicMeshEditor::RemoveTriangles(const TArray<int>& Triangles, bool bRem
 }
 
 
+
+int FDynamicMeshEditor::RemoveSmallComponents(double MinVolume, double MinArea)
+{
+	FMeshConnectedComponents C(Mesh);
+	C.FindConnectedTriangles();
+	if (C.Num() == 1)
+	{
+		return 0;
+	}
+	int Removed = 0;
+	for (FMeshConnectedComponents::FComponent& Comp : C) {
+		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*Mesh, Comp.Indices);
+		if (VolArea.X < MinVolume || VolArea.Y < MinArea) {
+			RemoveTriangles(Comp.Indices, true);
+			Removed++;
+		}
+	}
+	return Removed;
+}
 
 
 
