@@ -2430,6 +2430,39 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 
 bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 {
+	auto FindWorldInPackageOrFollowRedirector = [](UPackage*& InOutPackage)
+	{
+		UWorld* RetVal = nullptr;
+		TArray<UObject*> PotentialWorlds;
+		GetObjectsWithOuter(InOutPackage, PotentialWorlds, false);
+		for (auto ObjIt = PotentialWorlds.CreateConstIterator(); ObjIt; ++ObjIt)
+		{
+			RetVal = Cast<UWorld>(*ObjIt);
+			if (RetVal)
+			{
+				break;
+			}
+			else if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(*ObjIt))
+			{
+				RetVal = Cast<UWorld>(Redirector->DestinationObject);
+				if (RetVal)
+				{
+					// Patch up the WorldType if found in the PreLoad map
+					EWorldType::Type* PreLoadWorldType = UWorld::WorldTypePreLoadMap.Find(Redirector->GetOuter()->GetFName());
+					if (PreLoadWorldType)
+					{
+						RetVal->WorldType = *PreLoadWorldType;
+					}
+
+					// If we followed a redirector also update the package pointer to the actual returned world package
+					InOutPackage = RetVal->GetOutermost();
+					break;
+				}
+			}
+		}
+		return RetVal;
+	};
+
 #define LOCTEXT_NAMESPACE "EditorEngine"
 	// We are beginning a map load
 	GIsEditorLoadingPackage = true;
@@ -2448,7 +2481,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 			UWorld* ExistingWorld = NULL;
 			if (ExistingPackage)
 			{
-				ExistingWorld = UWorld::FindWorldInPackage(ExistingPackage);
+				ExistingWorld = FindWorldInPackageOrFollowRedirector(ExistingPackage);
 			}
 
 			FString UnusedAlteredPath;
@@ -2550,7 +2583,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					ExistingPackage = FindPackage(NULL, *LongTempFname);
 					if (ExistingPackage)
 					{
-						ExistingWorld = UWorld::FindWorldInPackage(ExistingPackage);
+						ExistingWorld = FindWorldInPackageOrFollowRedirector(ExistingPackage);
 					}
 					else
 					{
@@ -2637,7 +2670,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				// Reset the opened package to nothing.
 				UserOpenedFile				= FString();
 
-				UWorld* World = UWorld::FindWorldInPackage(WorldPackage);
+				UWorld* World = FindWorldInPackageOrFollowRedirector(WorldPackage);
 				
 				if (World == nullptr)
 				{
