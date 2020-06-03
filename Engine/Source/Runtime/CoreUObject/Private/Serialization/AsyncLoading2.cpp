@@ -385,6 +385,11 @@ public:
 		IoDispatcher.FreeBatch(Batch);
 	}
 
+	int32 Num() const
+	{
+		return NameEntries.Num();
+	}
+
 	void Load(TArrayView<const uint8> NameBuffer, TArrayView<const uint8> HashBuffer, FMappedName::EType InNameMapType)
 	{
 		LoadNameBatch(NameEntries, NameBuffer, HashBuffer);
@@ -394,20 +399,30 @@ public:
 	FName GetName(const FMappedName& MappedName) const
 	{
 		check(MappedName.GetType() == NameMapType);
+		check(MappedName.GetIndex() < uint32(NameEntries.Num()));
 		FNameEntryId NameEntry = NameEntries[MappedName.GetIndex()];
 		return FName::CreateFromDisplayId(NameEntry, MappedName.GetNumber());
+	}
+
+	bool TryGetName(const FMappedName& MappedName, FName& OutName) const
+	{
+		check(MappedName.GetType() == NameMapType);
+		uint32 Index = MappedName.GetIndex();
+		if (Index < uint32(NameEntries.Num()))
+		{
+			FNameEntryId NameEntry = NameEntries[MappedName.GetIndex()];
+			OutName = FName::CreateFromDisplayId(NameEntry, MappedName.GetNumber());
+			return true;
+		}
+		return false;
 	}
 
 	FMinimalName GetMinimalName(const FMappedName& MappedName) const
 	{
 		check(MappedName.GetType() == NameMapType);
+		check(MappedName.GetIndex() < uint32(NameEntries.Num()));
 		FNameEntryId NameEntry = NameEntries[MappedName.GetIndex()];
 		return FMinimalName(NameEntry, MappedName.GetNumber());
-	}
-
-	const TArray<FNameEntryId>& GetNameEntries() const
-	{
-		return NameEntries;
 	}
 
 private:
@@ -852,8 +867,6 @@ public:
 						LoadedContainer.ContainerNameMap->Load(ContainerHeader.Names, ContainerHeader.NameHashes, FMappedName::EType::Container);
 					}
 
-					FNameMap& NameMap = bHasContainerLocalNameMap ? *LoadedContainer.ContainerNameMap : GlobalNameMap;
-
 					LoadedContainer.PackageCount = ContainerHeader.PackageCount;
 					LoadedContainer.StoreEntries = MoveTemp(ContainerHeader.StoreEntries);
 					{
@@ -996,11 +1009,6 @@ public:
 		FScopeLock Lock(&PackageNameMapsCritical);
 		FPackageStoreEntry* Entry = StoreEntriesMap.FindRef(PackageId);
 		return Entry;
-	}
-
-	inline const FNameMap& GetPackageNameMap(const uint16 NameMapIndex) const
-	{
-		return NameMapIndex > 0 ? *LoadedContainers[NameMapIndex].ContainerNameMap : GlobalNameMap;
 	}
 };
 
@@ -1289,8 +1297,7 @@ public:
 
 #if ALT2_LOG_VERBOSE
 				const FExportMapEntry& Export = ExportMap[ExportIndex];
-				FNameEntryId NameEntry = (*NameMap)[Export.ObjectName.GetIndex()];
-				FName ObjectName = FName::CreateFromDisplayId(NameEntry, Export.ObjectName.GetNumber());
+				FName ObjectName = NameMap->GetName(Export.ObjectName);
 				UE_ASYNC_PACKAGE_CLOG_VERBOSE(!Object, VeryVerbose, *PackageDesc,
 					TEXT("FExportArchive: Object"), TEXT("Export %s at index %d is null."),
 					*ObjectName.ToString(), 
@@ -1350,22 +1357,13 @@ public:
 	inline virtual FArchive& operator<<(FName& Name) override
 	{
 		FArchive& Ar = *this;
-		int32 NameIndex;
+		uint32 NameIndex;
 		Ar << NameIndex;
-		int32 Number = 0;
+		uint32 Number = 0;
 		Ar << Number;
 
-		NameIndex = PackageNameMap[NameIndex];
-
-		if (NameMap->IsValidIndex(NameIndex))
-		{
-			// if the name wasn't loaded (because it wasn't valid in this context)
-			FNameEntryId MappedName = (*NameMap)[NameIndex];
-
-			// simply create the name from the NameMap's name and the serialized instance number
-			Name = FName::CreateFromDisplayId(MappedName, Number);
-		}
-		else
+		FMappedName MappedName = FMappedName::Create(NameIndex, Number, FMappedName::EType::Package);
+		if (!NameMap->TryGetName(MappedName, Name))
 		{
 			HandleBadNameIndex(NameIndex, Name);
 		}
@@ -1381,8 +1379,7 @@ private:
 	FAsyncPackageDesc2* PackageDesc = nullptr;
 	FPackageImportStore* ImportStore = nullptr;
 	TArray<FExternalReadCallback>* ExternalReadDependencies;
-	const int32* PackageNameMap = nullptr;
-	const TArray<FNameEntryId>* NameMap = nullptr;
+	const FNameMap* NameMap = nullptr;
 	const FExportObjects* Exports = nullptr;
 	const FExportMapEntry* ExportMap = nullptr;
 	int32 ExportCount = 0;
@@ -1814,14 +1811,12 @@ private:
 	uint32 CookedHeaderSize = 0;
 	uint32 LoadOrder = 0;
 
-	// FZenLinkerLoad
 	TArray<FExternalReadCallback> ExternalReadDependencies;
 	int32 ExportCount = 0;
 	const FExportMapEntry* ExportMap = nullptr;
-	const int32* PackageNameMap = nullptr;
 	FExportObjects Exports;
 	FPackageImportStore ImportStore;
-	const FNameMap* NameMap = nullptr;
+	FNameMap NameMap;
 
 	int32 ExportBundleCount = 0;
 	uint64 ExportBundlesMetaSize = 0;
@@ -2455,7 +2450,7 @@ void FAsyncLoadingThread2::InitializeLoading()
 	UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - Initialized: Packages: %d, Script objects %d, FNames: %d"),
 		GlobalPackageStore.StoreEntriesMap.Num(),
 		GlobalPackageStore.ImportStore.ScriptObjects.Num(),
-		GlobalNameMap.GetNameEntries().Num());
+		GlobalNameMap.Num());
 }
 
 void FAsyncLoadingThread2::QueuePackage(FAsyncPackageDesc2& Package)
@@ -3163,13 +3158,23 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPacka
 		const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
 		const uint8* GraphData = PackageSummaryData + PackageSummary->GraphDataOffset;
 		const uint64 PackageSummarySize = GraphData + PackageSummary->GraphDataSize - PackageSummaryData;
-		const FNameMap& NameMap = Package->AsyncLoadingThread.GlobalPackageStore.GetPackageNameMap(PackageSummary->NameMapIndex);
+
+		if (PackageSummary->NameMapNamesSize)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageNameMap);
+			const uint8* NameMapNamesData = PackageSummaryData + PackageSummary->NameMapNamesOffset;
+			const uint8* NameMapHashesData = PackageSummaryData + PackageSummary->NameMapHashesOffset;
+			Package->NameMap.Load(
+				TArrayView<const uint8>(NameMapNamesData, PackageSummary->NameMapNamesSize),
+				TArrayView<const uint8>(NameMapHashesData, PackageSummary->NameMapHashesSize),
+				FMappedName::EType::Package);
+		}
 
 		{
-			FName PackageName = NameMap.GetName(PackageSummary->Name);
+			FName PackageName = Package->NameMap.GetName(PackageSummary->Name);
 			if (PackageSummary->SourceName != PackageSummary->Name)
 			{
-				FName SourcePackageName = NameMap.GetName(PackageSummary->SourceName);
+				FName SourcePackageName = Package->NameMap.GetName(PackageSummary->SourceName);
 				Package->Desc.SetDiskPackageName(PackageName, SourcePackageName);
 			}
 			else
@@ -3179,8 +3184,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPacka
 		}
 
 		Package->CookedHeaderSize = PackageSummary->CookedHeaderSize;
-		Package->NameMap = &NameMap;
-		Package->PackageNameMap = reinterpret_cast<const int32*>(PackageSummaryData + PackageSummary->NameMapOffset);
 		Package->ImportStore.ImportMap = reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset);
 		Package->ImportStore.ImportMapCount = (PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(int32);
 		Package->ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
@@ -3256,8 +3259,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 			// FExportArchive special fields
 			Ar.CookedHeaderSize = Package->CookedHeaderSize;
 			Ar.PackageDesc = &Package->Desc;
-			Ar.PackageNameMap = Package->PackageNameMap;
-			Ar.NameMap = &Package->NameMap->GetNameEntries();
+			Ar.NameMap = &Package->NameMap;
 			Ar.ImportStore = &Package->ImportStore;
 			Ar.Exports = &Package->Exports;
 			Ar.ExportMap = Package->ExportMap;
@@ -3413,7 +3415,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	FName ObjectName;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ObjectNameFixup);
-		ObjectName = NameMap->GetName(Export.ObjectName);
+		ObjectName = NameMap.GetName(Export.ObjectName);
 	}
 
 	if (ExportObject.bFiltered | ExportObject.bExportLoadFailed)
@@ -3611,17 +3613,17 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 		if (ExportObject.bExportLoadFailed)
 		{
 			UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("SerializeExport"),
-				TEXT("Skipped failed export %s"), *NameMap->GetName(Export.ObjectName).ToString());
+				TEXT("Skipped failed export %s"), *NameMap.GetName(Export.ObjectName).ToString());
 		}
 		else if (ExportObject.bFiltered)
 		{
 			UE_ASYNC_PACKAGE_LOG_VERBOSE(Verbose, Desc, TEXT("SerializeExport"),
-				TEXT("Skipped filtered export %s"), *NameMap->GetName(Export.ObjectName).ToString());
+				TEXT("Skipped filtered export %s"), *NameMap.GetName(Export.ObjectName).ToString());
 		}
 		else
 		{
 			UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("SerializeExport"),
-				TEXT("Skipped already serialized export %s"), *NameMap->GetName(Export.ObjectName).ToString());
+				TEXT("Skipped already serialized export %s"), *NameMap.GetName(Export.ObjectName).ToString());
 		}
 		return false;
 	}
@@ -3635,7 +3637,7 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 			if (!SuperStruct)
 			{
 				UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("SerializeExport"),
-					TEXT("Could not find SuperStruct object for %s"), *NameMap->GetName(Export.ObjectName).ToString());
+					TEXT("Could not find SuperStruct object for %s"), *NameMap.GetName(Export.ObjectName).ToString());
 				ExportObject.bExportLoadFailed = true;
 				return false;
 			}

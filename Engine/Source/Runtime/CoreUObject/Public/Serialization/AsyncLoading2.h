@@ -23,13 +23,18 @@ using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
 class FMappedName
 {
 	static constexpr uint32 InvalidIndex = ~uint32(0);
-	static constexpr uint32 IndexBits = 31u;
+	static constexpr uint32 IndexBits = 30u;
 	static constexpr uint32 IndexMask = (1u << IndexBits) - 1u;
 	static constexpr uint32 TypeMask = ~IndexMask;
 	static constexpr uint32 TypeShift = IndexBits;
 
 public:
-	enum class EType { Container, Global };
+	enum class EType
+	{
+		Package,
+		Container,
+		Global
+	};
 
 	inline FMappedName() = default;
 
@@ -221,14 +226,16 @@ struct FPackageSummary
 	FMappedName SourceName;
 	uint32 PackageFlags;
 	uint32 CookedHeaderSize;
-	uint16 NameMapIndex;
-	uint16 Pad;
-	int32 NameMapOffset;
+	int32 NameMapNamesOffset;
+	int32 NameMapNamesSize;
+	int32 NameMapHashesOffset;
+	int32 NameMapHashesSize;
 	int32 ImportMapOffset;
 	int32 ExportMapOffset;
 	int32 ExportBundlesOffset;
 	int32 GraphDataOffset;
 	int32 GraphDataSize;
+	int32 Pad = 0;
 };
 
 /**
