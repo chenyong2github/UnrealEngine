@@ -2,6 +2,7 @@
 
 #include "ProceduralMeshConversion.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/Material.h"
 #include "ProceduralMeshComponent.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
