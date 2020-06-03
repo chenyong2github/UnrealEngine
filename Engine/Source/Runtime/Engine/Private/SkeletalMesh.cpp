@@ -1146,6 +1146,7 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 
 		if (!PendingUpdate->IsCompleted())
 		{
+			TickMipLevelChangeCallbacks();
 			return true;
 		}
 
@@ -1180,6 +1181,8 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 #endif
 	}
 
+	TickMipLevelChangeCallbacks();
+
 	// TODO: LOD fading?
 
 	return false;
@@ -1202,6 +1205,7 @@ void USkeletalMesh::UnlinkStreaming()
 	if (!IsTemplate() && StreamingIndex != INDEX_NONE)
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
+		RemoveAllMipLevelChangeCallbacks();
 	}
 }
 
