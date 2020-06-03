@@ -113,6 +113,7 @@ namespace Chaos
 		, LinearProjection(0)
 		, AngularProjection(0)
 		, ParentInvMassScale(1)
+		, bCollisionEnabled(true)
 		, bProjectionEnabled(false)
 		, bSoftProjectionEnabled(false)
 		, LinearMotionTypes({ EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked })

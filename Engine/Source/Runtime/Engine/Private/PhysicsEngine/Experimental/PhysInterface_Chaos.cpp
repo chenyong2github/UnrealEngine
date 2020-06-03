@@ -1047,7 +1047,6 @@ FPhysicsConstraintHandle FPhysInterface_Chaos::CreateConstraint( const FPhysicsA
 				Chaos::FJointConstraint::FParticlePair JointParticles = { InActorRef1, InActorRef2 };
 				ConstraintRef.Constraint->SetJointParticles({ InActorRef1, InActorRef2 });
 				ConstraintRef.Constraint->SetJointTransforms({ InLocalFrame1, InLocalFrame2 });
-				ConstraintRef.Constraint->SetJointSettings(Chaos::FPBDJointSettings());
 				
 				Chaos::FPhysicsSolver* Solver = InActorRef1->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
 				checkSlow(Solver == InActorRef2->GetProxy()->GetSolver<Chaos::FPhysicsSolver>());
@@ -1147,7 +1146,13 @@ void FPhysInterface_Chaos::SetCanVisualize(const FPhysicsConstraintHandle& InCon
 
 void FPhysInterface_Chaos::SetCollisionEnabled(const FPhysicsConstraintHandle& InConstraintRef, bool bInCollisionEnabled)
 {
-	// #todo : Implement
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetCollisionEnabled(bInCollisionEnabled);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, bool bInProjectionEnabled, float InLinearTolerance, float InAngularToleranceDegrees)

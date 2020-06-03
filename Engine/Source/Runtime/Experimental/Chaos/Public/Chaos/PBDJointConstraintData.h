@@ -12,12 +12,13 @@ namespace Chaos
 	enum class EJointConstraintFlags : uint32
 	{
 		Position = 0,
+		CollisionEnabled=1,
 		DummyFlag
 	};
 
 	using FJointConstraintDirtyFlags = TDirtyFlags<EJointConstraintFlags>;
 
-	class FJointConstraint
+	class CHAOS_API FJointConstraint
 	{
 	public:
 		typedef FPBDJointSettings FData;
@@ -27,57 +28,33 @@ namespace Chaos
 		typedef TVector<TGeometryParticleHandle<FReal, 3>*, 2> FParticleHandlePair;
 		friend FData;
 
-		FJointConstraint()
-			: Proxy(nullptr)
-			, JointParticles({ nullptr,nullptr })
-			, JointTransforms({ FTransform::Identity, FTransform::Identity})
-		{
-			MDirtyFlags.Clear();
-		}
+		FJointConstraint();
 
+		template<typename T = IPhysicsProxyBase> T* GetProxy() { return static_cast<T*>(Proxy); }
 
-		template<typename T = IPhysicsProxyBase>
-		T* GetProxy()
-		{
-			return static_cast<T*>(Proxy);
-		}
+		void SetProxy(IPhysicsProxyBase* InProxy);
 
-		void SetProxy(IPhysicsProxyBase* InProxy)
-		{
-			Proxy = InProxy;
-			if (Proxy)
-			{
-				if (MDirtyFlags.IsDirty())
-				{
-					if (FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
-					{
-						PhysicsSolverBase->AddDirtyProxy(Proxy);
-					}
-				}
-			}
-		}
+		bool IsValid() const;
+		bool IsDirty() const { return MDirtyFlags.IsDirty(); }
+		void ClearDirtyFlags() { MDirtyFlags.Clear(); }
 
-		bool IsValid() const
-		{
-			return Proxy != nullptr;
-		}
+		void SetJointParticles(const Chaos::FJointConstraint::FParticlePair& InJointParticles);
+		const FParticlePair GetJointParticles() const;
+		FParticlePair GetJointParticles();
 
-		void SetJointParticles(const Chaos::FJointConstraint::FParticlePair& InJointParticles) { JointParticles[0] = InJointParticles[0]; JointParticles[1] = InJointParticles[1]; }
-		const FParticlePair GetJointParticles() const { return JointParticles; }
-		FParticlePair GetJointParticles() { return JointParticles; }
+		void SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointParticles);
+		const FTransformPair GetJointTransforms() const;
+		FTransformPair GetJointTransforms();
 
-		void SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointParticles) { JointTransforms[0] = InJointParticles[0]; JointTransforms[1] = InJointParticles[1]; }
-		const FTransformPair GetJointTransforms() const { return JointTransforms; }
-		FTransformPair GetJointTransforms() { return JointTransforms; }
-
-		void SetJointSettings(const Chaos::FPBDJointSettings& InSettings) {}
+		void SetCollisionEnabled(bool InValue);
+		bool GetCollisionEnabled() const;
 
 	protected:
-		FJointConstraintDirtyFlags MDirtyFlags;
-
-		// Pointer to any data that the solver wants to associate with this constraint
 		class IPhysicsProxyBase* Proxy;
 
+		FJointConstraintDirtyFlags MDirtyFlags;
+
+		FData JointSettings;
 		FParticlePair JointParticles;
 		FTransformPair JointTransforms;
 
