@@ -207,7 +207,16 @@ protected:
 
 struct FNiagaraSystemSimulationTickContext
 {
-	FNiagaraSystemSimulationTickContext(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, int EffectsQuality, const FGraphEventRef& MyCompletionGraphEvent);
+private:
+	FNiagaraSystemSimulationTickContext(TArray<FNiagaraSystemInstance*>& InInstances, FNiagaraDataSet& InDataSet)
+		: Instances(InInstances)
+		, DataSet(InDataSet)
+	{
+	}
+
+public:
+	static FNiagaraSystemSimulationTickContext MakeContextForTicking(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, const FGraphEventRef& MyCompletionGraphEvent);
+	static FNiagaraSystemSimulationTickContext MakeContextForSpawning(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, bool bAllowAsync);
 
 	class FNiagaraSystemSimulation*		Owner;
 	UNiagaraSystem*						System;
@@ -253,7 +262,9 @@ public:
 	/** Update TickGroups for pending instances and execute tick group promotions. */
 	void UpdateTickGroups_GameThread();
 	/** Spawn any pending instances, assumes that you have update tick groups ahead of time. */
-	void Spawn_GameThread(float DeltaSeconds);
+	void Spawn_GameThread(float DeltaSeconds, bool bPostActorTick);
+	/** Spawn any pending instances */
+	void Spawn_Concurrent(FNiagaraSystemSimulationTickContext& Context);
 
 	/** Promote instances that have ticked during */
 
@@ -291,6 +302,9 @@ public:
 	int32 AddPendingSystemInstance(FNiagaraSystemInstance* Instance);
 
 	const FString& GetCrashReporterTag()const;
+
+	ETickingGroup GetTickGroup() const { return SystemTickGroup; }
+
 protected:
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);
