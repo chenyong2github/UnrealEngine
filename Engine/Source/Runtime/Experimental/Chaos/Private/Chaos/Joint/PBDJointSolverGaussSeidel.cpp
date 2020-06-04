@@ -1032,6 +1032,39 @@ namespace Chaos
 
 	// Used for non-zero restitution. We pad constraints by an amount such that the velocity
 	// calculated after solving constraint positions will as required for the restitution.
+	void FJointSolverGaussSeidel::CalculateLinearConstraintPadding(
+		const FReal Dt,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings,
+		const FReal Restitution,
+		const int32 AxisIndex,
+		const FVec3 Axis,
+		FReal& InOutPos)
+	{
+		// NOTE: We only calculate the padding after the constraint is first violated, and after
+		// that the padding is fixed for the rest of the iterations in the current step.
+		if ((Restitution > 0.0f) && (InOutPos > 0.0f) && !HasLinearConstraintPadding(AxisIndex))
+		{
+			SetLinearConstraintPadding(AxisIndex, 0.0f);
+
+			// Calculate the velocity we want to match
+			const FVec3 V0Dt = FVec3::CalculateVelocity(PrevPs[0], Ps[0], 1.0f);
+			const FVec3 V1Dt = FVec3::CalculateVelocity(PrevPs[1], Ps[1], 1.0f);
+			const FReal AxisVDt = FVec3::DotProduct(V1Dt - V0Dt, Axis);
+
+			// Calculate the padding to apply to the constraint that will result in the
+			// desired outward velocity (assuming the constraint is fully resolved)
+			const FReal Padding = (1.0f + Restitution) * AxisVDt - InOutPos;
+			if (Padding > 0.0f)
+			{
+				SetLinearConstraintPadding(AxisIndex, Padding);
+				InOutPos += Padding;
+			}
+		}
+	}
+
+	// Used for non-zero restitution. We pad constraints by an amount such that the velocity
+	// calculated after solving constraint positions will as required for the restitution.
 	void FJointSolverGaussSeidel::CalculateAngularConstraintPadding(
 		const FReal Dt,
 		const FPBDJointSolverSettings& SolverSettings,
@@ -1039,11 +1072,11 @@ namespace Chaos
 		const FReal Restitution,
 		const EJointAngularConstraintIndex ConstraintIndex,
 		const FVec3 Axis,
-		FReal& Angle)
+		FReal& InOutAngle)
 	{
 		// NOTE: We only calculate the padding after the constraint is first violated, and after
 		// that the padding is fixed for the rest of the iterations in the current step.
-		if ((Restitution > 0.0f) && (Angle > 0.0f) && !HasAngularConstraintPadding(ConstraintIndex))
+		if ((Restitution > 0.0f) && (InOutAngle > 0.0f) && !HasAngularConstraintPadding(ConstraintIndex))
 		{
 			SetAngularConstraintPadding(ConstraintIndex, 0.0f);
 
@@ -1054,11 +1087,11 @@ namespace Chaos
 
 			// Calculate the padding to apply to the constraint that will result in the
 			// desired outward velocity (assuming the constraint is fully resolved)
-			const FReal Padding = (1.0f + Restitution) * AxisWDt - Angle;
+			const FReal Padding = (1.0f + Restitution) * AxisWDt - InOutAngle;
 			if (Padding > 0.0f)
 			{
 				SetAngularConstraintPadding(ConstraintIndex, Padding);
-				Angle += Padding;
+				InOutAngle += Padding;
 			}
 		}
 	}
@@ -1564,11 +1597,19 @@ namespace Chaos
 		FReal Delta;
 		FPBDJointUtilities::GetSphericalAxisDelta(Xs[0], Xs[1], Axis, Delta);
 
-		const FReal Error = FMath::Max((FReal)0, Delta - JointSettings.LinearLimit);
-		if (FMath::Abs(Error) > PositionTolerance)
+		const FReal LimitPadding = GetLinearConstraintPadding(0);
+		const FReal Limit = FMath::Max(JointSettings.LinearLimit - LimitPadding, 0.0f);
+
+		FReal Error = Delta - Limit;
+		if (Error > PositionTolerance)
 		{
 			if (!FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings))
 			{
+				if (JointSettings.LinearRestitution > 0.0f)
+				{
+					CalculateLinearConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.LinearRestitution, 0, Axis, Error);
+				}
+
 				const FReal Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 				ApplyPositionConstraint(Stiffness, Axis, Error);
 			}
@@ -1598,57 +1639,67 @@ namespace Chaos
 		FVec3 Axis, RadialAxis;
 		FReal AxialDelta, RadialDelta;
 		FPBDJointUtilities::GetCylindricalAxesDeltas(Rs[0], Xs[0], Xs[1], AxisIndex, Axis, AxialDelta, RadialAxis, RadialDelta);
+
+		if (AxialDelta < 0.0f)
+		{
+			AxialDelta = -AxialDelta;
+			Axis = -Axis;
+		}
 		
 		int32 NumActive = 0;
 
-		if ((AxialMotion == EJointMotionType::Limited) && FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings))
+		const FReal AxialLimitPadding = GetLinearConstraintPadding(0);
+		const FReal AxialLimit = (AxialMotion == EJointMotionType::Locked) ? 0.0f : FMath::Max(JointSettings.LinearLimit - AxialLimitPadding, 0.0f);
+		FReal AxialError = AxialDelta - AxialLimit;
+
+		if (AxialError > PositionTolerance)
 		{
-			// Soft Axial constraint
-			const FReal AxialLimit = JointSettings.LinearLimit;
-			if (FMath::Abs(AxialDelta) > AxialLimit + PositionTolerance)
+			if ((AxialMotion == EJointMotionType::Limited) && FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings))
 			{
-				const FReal AxialError = (AxialDelta > 0) ? AxialDelta - AxialLimit : AxialDelta + AxialLimit;
+				// Soft Axial constraint
 				const FReal Stiffness = FPBDJointUtilities::GetSoftLinearStiffness(SolverSettings, JointSettings);
 				const FReal Damping = FPBDJointUtilities::GetSoftLinearDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetLinearSoftAccelerationMode(SolverSettings, JointSettings);
 				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, AxialError, 0.0f, LinearSoftLambda);
 				++NumActive;
 			}
-		}
-		else if (AxialMotion != EJointMotionType::Free)
-		{
-			// Hard Axial constraint
-			const FReal AxialLimit = (AxialMotion == EJointMotionType::Locked) ? 0 : JointSettings.LinearLimit;
-			if (FMath::Abs(AxialDelta) > AxialLimit + PositionTolerance)
+			else if (AxialMotion != EJointMotionType::Free)
 			{
-				const FReal AxialError = (AxialDelta > 0) ? AxialDelta - AxialLimit : AxialDelta + AxialLimit;
+			// Hard Axial constraint
+				if (JointSettings.LinearRestitution > 0.0f)
+				{
+					CalculateLinearConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.LinearRestitution, 0, Axis, AxialError);
+				}
+
 				const FReal Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 				ApplyPositionConstraint(Stiffness, Axis, AxialError);
 				++NumActive;
 			}
 		}
 
-		if ((RadialMotion == EJointMotionType::Limited) && FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings))
+		const FReal RadialLimitPadding = GetLinearConstraintPadding(1);
+		const FReal RadialLimit = (RadialMotion == EJointMotionType::Locked) ? 0.0f : FMath::Max(JointSettings.LinearLimit - AxialLimitPadding, 0.0f);
+		FReal RadialError = RadialDelta - RadialLimit;
+
+		if (RadialError > PositionTolerance)
 		{
-			// Soft Radial constraint
-			const FReal RadialLimit = JointSettings.LinearLimit;
-			if (RadialDelta > RadialLimit + PositionTolerance)
+			if ((RadialMotion == EJointMotionType::Limited) && FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings))
 			{
-				const FReal RadialError = FMath::Max((FReal)0, RadialDelta - RadialLimit);
+				// Soft Radial constraint
 				const FReal Stiffness = FPBDJointUtilities::GetSoftLinearStiffness(SolverSettings, JointSettings);
 				const FReal Damping = FPBDJointUtilities::GetSoftLinearDamping(SolverSettings, JointSettings);
 				const bool bAccelerationMode = FPBDJointUtilities::GetLinearSoftAccelerationMode(SolverSettings, JointSettings);
 				ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, RadialAxis, RadialError, 0.0f, LinearSoftLambda);
 				++NumActive;
 			}
-		}
-		else if (RadialMotion != EJointMotionType::Free)
-		{
-			// Hard Radial constraint
-			const FReal RadialLimit = (RadialMotion == EJointMotionType::Locked) ? 0 : JointSettings.LinearLimit;
-			if (RadialDelta > RadialLimit + PositionTolerance)
+			else if (RadialMotion != EJointMotionType::Free)
 			{
-				const FReal RadialError = FMath::Max((FReal)0, RadialDelta - RadialLimit);
+				// Hard Radial constraint
+				if (JointSettings.LinearRestitution > 0.0f)
+				{
+					CalculateLinearConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.LinearRestitution, 1, RadialAxis, RadialError);
+				}
+
 				const FReal Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 				ApplyPositionConstraint(Stiffness, RadialAxis, RadialError);
 				++NumActive;
@@ -1670,10 +1721,17 @@ namespace Chaos
 		FReal Delta;
 		FPBDJointUtilities::GetPlanarAxisDelta(Rs[0], Xs[0], Xs[1], AxisIndex, Axis, Delta);
 
-		const FReal Limit = (AxialMotion == EJointMotionType::Locked) ? 0 : JointSettings.LinearLimit;
-		if (FMath::Abs(Delta) > Limit + PositionTolerance)
+		if (Delta < 0.0f)
 		{
-			const FReal Error = (Delta > 0) ? Delta - Limit : Delta + Limit;
+			Delta = -Delta;
+			Axis = -Axis;
+		}
+
+		const FReal LimitPadding = GetLinearConstraintPadding(0);
+		const FReal Limit = (AxialMotion == EJointMotionType::Locked) ? 0 : FMath::Max(JointSettings.LinearLimit - LimitPadding, 0.0f);
+		FReal Error = Delta - Limit;
+		if (Error > PositionTolerance)
+		{
 			if ((AxialMotion == EJointMotionType::Limited) && FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings))
 			{
 				const FReal Stiffness = FPBDJointUtilities::GetSoftLinearStiffness(SolverSettings, JointSettings);
@@ -1683,6 +1741,11 @@ namespace Chaos
 			}
 			else
 			{
+				if (JointSettings.LinearRestitution > 0.0f)
+				{
+					CalculateLinearConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.LinearRestitution, 0, Axis, Error);
+				}
+
 				const FReal Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 				ApplyPositionConstraint(Stiffness, Axis, Error);
 			}
