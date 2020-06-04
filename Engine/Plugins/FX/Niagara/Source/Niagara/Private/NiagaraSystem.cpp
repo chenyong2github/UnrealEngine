@@ -27,6 +27,8 @@
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
+static uint32 CompileGuardSlot = 0;
+
 #endif
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - Precompile"), STAT_Niagara_System_Precompile, STATGROUP_Niagara);
@@ -865,9 +867,27 @@ bool UNiagaraSystem::PollForCompilationComplete()
 	return true;
 }
 
+bool InternalCompileGuardCheck(void* TestValue)
+{
+	// We need to make sure that we don't re-enter this function on the same thread as it might update things behind our backs.
+	// Am slightly concerened about PostLoad happening on a worker thread, so am not using a generic static variable here, just
+	// a thread local storage variable. The initialized TLS value should be nullptr. When we are doing a compile request, we 
+	// will set the TLS to our this pointer. If the TLS is already this when requesting a compile, we will just early out.
+	if (!CompileGuardSlot)
+	{
+		CompileGuardSlot = FPlatformTLS::AllocTlsSlot();
+	}
+	check(CompileGuardSlot != 0);
+	bool bCompileGuardInProgress = FPlatformTLS::GetTlsValue(CompileGuardSlot) == TestValue;
+	return bCompileGuardInProgress;
+}
+
 bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply)
 {
-	if (ActiveCompilations.Num() > 0)
+
+	bool bCompileGuardInProgress = InternalCompileGuardCheck(this);
+
+	if (ActiveCompilations.Num() > 0 && !bCompileGuardInProgress)
 	{
 		int32 ActiveCompileIdx = 0;
 
@@ -1161,10 +1181,17 @@ void UNiagaraSystem::InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData&
 
 bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext)
 {
+	bool bCompileGuardInProgress = InternalCompileGuardCheck(this);
+
 	if (bForce)
 	{
 		ForceGraphToRecompileOnNextCheck();
 		bForce = false;
+	}
+
+	if (bCompileGuardInProgress)
+	{
+		return false;
 	}
 
 	if (ActiveCompilations.Num() > 0)
@@ -1172,6 +1199,10 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 		PollForCompilationComplete();
 	}
 	
+
+	// Record that we entered this function already.
+	FPlatformTLS::SetTlsValue(CompileGuardSlot, this);
+
 	int32 ActiveCompileIdx = ActiveCompilations.AddDefaulted();
 	ActiveCompilations[ActiveCompileIdx].StartTime = FPlatformTime::Seconds();
 
@@ -1341,6 +1372,10 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 		}
 
 	}
+
+
+	// Now record that we are done with this function.
+	FPlatformTLS::SetTlsValue(CompileGuardSlot, nullptr);
 
 
 	// We might be able to just complete compilation right now if nothing needed compilation.
