@@ -10,6 +10,11 @@ FBlacklistNames::FBlacklistNames() :
 
 bool FBlacklistNames::PassesFilter(const FName Item) const
 {
+	if (BlacklistAll.Num() > 0)
+	{
+		return false;
+	}
+
 	if (Whitelist.Num() > 0 && !Whitelist.Contains(Item))
 	{
 		return false;
@@ -20,42 +25,49 @@ bool FBlacklistNames::PassesFilter(const FName Item) const
 		return false;
 	}
 
-	if (BlacklistAll.Num() > 0)
-	{
-		return false;
-	}
-
 	return true;
 }
 
-void FBlacklistNames::AddBlacklistItem(const FName OwnerName, const FName Item)
+bool FBlacklistNames::AddBlacklistItem(const FName OwnerName, const FName Item)
 {
+	const int32 OldNum = Blacklist.Num();
 	Blacklist.FindOrAdd(Item).AddUnique(OwnerName);
-	
-	if (!bSuppressOnFilterChanged)
+
+	const bool bFilterChanged = OldNum != Blacklist.Num();
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
 }
 
-void FBlacklistNames::AddWhitelistItem(const FName OwnerName, const FName Item)
+bool FBlacklistNames::AddWhitelistItem(const FName OwnerName, const FName Item)
 {
-	Whitelist.FindOrAdd(Item).AddUnique(OwnerName);	
-	
-	if (!bSuppressOnFilterChanged)
+	const int32 OldNum = Whitelist.Num();
+	Whitelist.FindOrAdd(Item).AddUnique(OwnerName);
+
+	const bool bFilterChanged = OldNum != Whitelist.Num();
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
 }
 
-void FBlacklistNames::AddBlacklistAll(const FName OwnerName)
+bool FBlacklistNames::AddBlacklistAll(const FName OwnerName)
 {
+	const int32 OldNum = BlacklistAll.Num();
 	BlacklistAll.AddUnique(OwnerName);
 
-	if (!bSuppressOnFilterChanged)
+	const bool bFilterChanged = OldNum != BlacklistAll.Num();
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
 }
 
 bool FBlacklistNames::HasFiltering() const
@@ -63,14 +75,17 @@ bool FBlacklistNames::HasFiltering() const
 	return Blacklist.Num() > 0 || Whitelist.Num() > 0 || BlacklistAll.Num() > 0;
 }
 
-void FBlacklistNames::UnregisterOwner(const FName OwnerName)
+bool FBlacklistNames::UnregisterOwner(const FName OwnerName)
 {
+	bool bFilterChanged = false;
+
 	for (auto It = Blacklist.CreateIterator(); It; ++It)
 	{
 		It->Value.Remove(OwnerName);
 		if (It->Value.Num() == 0)
 		{
 			It.RemoveCurrent();
+			bFilterChanged = true;
 		}
 	}
 
@@ -80,19 +95,23 @@ void FBlacklistNames::UnregisterOwner(const FName OwnerName)
 		if (It->Value.Num() == 0)
 		{
 			It.RemoveCurrent();
+			bFilterChanged = true;
 		}
 	}
 
-	BlacklistAll.Remove(OwnerName);
+	bFilterChanged |= (BlacklistAll.Remove(OwnerName) > 0);
 
-	if (!bSuppressOnFilterChanged)
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
 }
 
-void FBlacklistNames::Append(const FBlacklistNames& Other)
+bool FBlacklistNames::Append(const FBlacklistNames& Other)
 {
+	bool bFilterChanged = false;
 	{
 		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
 
@@ -100,7 +119,7 @@ void FBlacklistNames::Append(const FBlacklistNames& Other)
 		{
 			for (const auto& OwnerName : It.Value)
 			{
-				AddBlacklistItem(OwnerName, It.Key);
+				bFilterChanged |= AddBlacklistItem(OwnerName, It.Key);
 			}
 		}
 
@@ -108,20 +127,66 @@ void FBlacklistNames::Append(const FBlacklistNames& Other)
 		{
 			for (const auto& OwnerName : It.Value)
 			{
-				AddWhitelistItem(OwnerName, It.Key);
+				bFilterChanged |= AddWhitelistItem(OwnerName, It.Key);
 			}
 		}
 
 		for (const auto& OwnerName : Other.BlacklistAll)
 		{
-			AddBlacklistAll(OwnerName);
+			bFilterChanged |= AddBlacklistAll(OwnerName);
 		}
 	}
 
-	if (!bSuppressOnFilterChanged)
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
+}
+
+bool FBlacklistNames::Remove(const FBlacklistNames& Other)
+{
+	TSet<FName> OwnerNames;
+	{
+		for (const auto& It : Other.Blacklist)
+		{
+			for (const auto& OwnerName : It.Value)
+			{
+				OwnerNames.Add(OwnerName);
+			}
+		}
+
+		for (const auto& It : Other.Whitelist)
+		{
+			for (const auto& OwnerName : It.Value)
+			{
+				OwnerNames.Add(OwnerName);
+			}
+		}
+
+		for (const auto& OwnerName : Other.BlacklistAll)
+		{
+			OwnerNames.Add(OwnerName);
+		}
+	}
+
+	bool bFilterChanged = false;
+	{
+		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
+
+		for (const FName& OwnerName : OwnerNames)
+		{
+			bFilterChanged |= UnregisterOwner(OwnerName);
+		}
+	}
+
+	if (bFilterChanged && !bSuppressOnFilterChanged)
+	{
+		OnFilterChanged().Broadcast();
+	}
+
+	return bFilterChanged;
 }
 
 /** FBlacklistPaths */
@@ -132,21 +197,24 @@ FBlacklistPaths::FBlacklistPaths() :
 
 bool FBlacklistPaths::PassesFilter(const FStringView Item) const
 {
-	const uint32 ItemHash = GetTypeHash(Item);
-
-	if (Whitelist.Num() > 0 && !Whitelist.ContainsByHash(ItemHash, Item))
-	{
-		return false;
-	}
-
-	if (Blacklist.ContainsByHash(ItemHash, Item))
-	{
-		return false;
-	}
-
 	if (BlacklistAll.Num() > 0)
 	{
 		return false;
+	}
+
+	if (Whitelist.Num() > 0 || Blacklist.Num() > 0)
+	{
+		const uint32 ItemHash = GetTypeHash(Item);
+
+		if (Whitelist.Num() > 0 && !Whitelist.ContainsByHash(ItemHash, Item))
+		{
+			return false;
+		}
+
+		if (Blacklist.ContainsByHash(ItemHash, Item))
+		{
+			return false;
+		}
 	}
 
 	return true;
@@ -215,76 +283,84 @@ bool FBlacklistPaths::PassesStartsWithFilter(const TCHAR* Item) const
 	return PassesStartsWithFilter(FStringView(Item));
 }
 
-void FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const FStringView Item)
+bool FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const FStringView Item)
 {
 	const uint32 ItemHash = GetTypeHash(Item);
 
-	if (FBlacklistOwners* FoundOwners = Blacklist.FindByHash(ItemHash, Item))
+	FBlacklistOwners* Owners = Blacklist.FindByHash(ItemHash, Item);
+	const bool bFilterChanged = (Owners == nullptr);
+	if (!Owners)
 	{
-		FoundOwners->AddUnique(OwnerName);
+		Owners = &Blacklist.AddByHash(ItemHash, FString(Item));
 	}
-	else
-	{
-		Blacklist.AddByHash(ItemHash, FString(Item)).Add(OwnerName);
-	}
+
+	Owners->AddUnique(OwnerName);
 	
-	if (!bSuppressOnFilterChanged)
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
 }
 
-void FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const FName Item)
+bool FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const FName Item)
 {
 	TStringBuilder<FName::StringBufferSize> ItemStr;
 	Item.ToString(ItemStr);
 	return AddBlacklistItem(OwnerName, FStringView(ItemStr));
 }
 
-void FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const TCHAR* Item)
+bool FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const TCHAR* Item)
 {
 	return AddBlacklistItem(OwnerName, FStringView(Item));
 }
 
-void FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const FStringView Item)
+bool FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const FStringView Item)
 {
 	const uint32 ItemHash = GetTypeHash(Item);
 
-	if (FBlacklistOwners* FoundOwners = Whitelist.FindByHash(ItemHash, Item))
+	FBlacklistOwners* Owners = Whitelist.FindByHash(ItemHash, Item);
+	const bool bFilterChanged = (Owners == nullptr);
+	if (!Owners)
 	{
-		FoundOwners->AddUnique(OwnerName);
+		Owners = &Whitelist.AddByHash(ItemHash, FString(Item));
 	}
-	else
-	{
-		Whitelist.AddByHash(ItemHash, FString(Item)).Add(OwnerName);
-	}
-	
-	if (!bSuppressOnFilterChanged)
+
+	Owners->AddUnique(OwnerName);
+
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
 }
 
-void FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const FName Item)
+bool FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const FName Item)
 {
 	TStringBuilder<FName::StringBufferSize> ItemStr;
 	Item.ToString(ItemStr);
 	return AddWhitelistItem(OwnerName, FStringView(ItemStr));
 }
 
-void FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const TCHAR* Item)
+bool FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const TCHAR* Item)
 {
 	return AddWhitelistItem(OwnerName, FStringView(Item));
 }
 
-void FBlacklistPaths::AddBlacklistAll(const FName OwnerName)
+bool FBlacklistPaths::AddBlacklistAll(const FName OwnerName)
 {
+	const int32 OldNum = BlacklistAll.Num();
 	BlacklistAll.AddUnique(OwnerName);
 
-	if (!bSuppressOnFilterChanged)
+	const bool bFilterChanged = OldNum != BlacklistAll.Num();
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
 }
 
 bool FBlacklistPaths::HasFiltering() const
@@ -292,14 +368,17 @@ bool FBlacklistPaths::HasFiltering() const
 	return Blacklist.Num() > 0 || Whitelist.Num() > 0 || BlacklistAll.Num() > 0;
 }
 
-void FBlacklistPaths::UnregisterOwner(const FName OwnerName)
+bool FBlacklistPaths::UnregisterOwner(const FName OwnerName)
 {
+	bool bFilterChanged = false;
+
 	for (auto It = Blacklist.CreateIterator(); It; ++It)
 	{
 		It->Value.Remove(OwnerName);
 		if (It->Value.Num() == 0)
 		{
 			It.RemoveCurrent();
+			bFilterChanged = true;
 		}
 	}
 
@@ -309,19 +388,23 @@ void FBlacklistPaths::UnregisterOwner(const FName OwnerName)
 		if (It->Value.Num() == 0)
 		{
 			It.RemoveCurrent();
+			bFilterChanged = true;
 		}
 	}
 
-	BlacklistAll.Remove(OwnerName);
+	bFilterChanged |= (BlacklistAll.Remove(OwnerName) > 0);
 
-	if (!bSuppressOnFilterChanged)
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
 }
 
-void FBlacklistPaths::Append(const FBlacklistPaths& Other)
+bool FBlacklistPaths::Append(const FBlacklistPaths& Other)
 {
+	bool bFilterChanged = false;
 	{
 		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
 
@@ -329,7 +412,7 @@ void FBlacklistPaths::Append(const FBlacklistPaths& Other)
 		{
 			for (const auto& OwnerName : It.Value)
 			{
-				AddBlacklistItem(OwnerName, It.Key);
+				bFilterChanged |= AddBlacklistItem(OwnerName, It.Key);
 			}
 		}
 
@@ -337,18 +420,64 @@ void FBlacklistPaths::Append(const FBlacklistPaths& Other)
 		{
 			for (const auto& OwnerName : It.Value)
 			{
-				AddWhitelistItem(OwnerName, It.Key);
+				bFilterChanged |= AddWhitelistItem(OwnerName, It.Key);
 			}
 		}
 
 		for (const auto& OwnerName : Other.BlacklistAll)
 		{
-			AddBlacklistAll(OwnerName);
+			bFilterChanged |= AddBlacklistAll(OwnerName);
 		}
 	}
 
-	if (!bSuppressOnFilterChanged)
+	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
 		OnFilterChanged().Broadcast();
 	}
+
+	return bFilterChanged;
+}
+
+bool FBlacklistPaths::Remove(const FBlacklistPaths& Other)
+{
+	TSet<FName> OwnerNames;
+	{
+		for (const auto& It : Other.Blacklist)
+		{
+			for (const auto& OwnerName : It.Value)
+			{
+				OwnerNames.Add(OwnerName);
+			}
+		}
+
+		for (const auto& It : Other.Whitelist)
+		{
+			for (const auto& OwnerName : It.Value)
+			{
+				OwnerNames.Add(OwnerName);
+			}
+		}
+
+		for (const auto& OwnerName : Other.BlacklistAll)
+		{
+			OwnerNames.Add(OwnerName);
+		}
+	}
+
+	bool bFilterChanged = false;
+	{
+		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
+
+		for (const FName& OwnerName : OwnerNames)
+		{
+			bFilterChanged |= UnregisterOwner(OwnerName);
+		}
+	}
+
+	if (bFilterChanged && !bSuppressOnFilterChanged)
+	{
+		OnFilterChanged().Broadcast();
+	}
+
+	return bFilterChanged;
 }
