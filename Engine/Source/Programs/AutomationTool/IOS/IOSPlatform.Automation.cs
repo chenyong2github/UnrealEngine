@@ -169,19 +169,240 @@ public class IOSPlatform : Platform
 		SDKName = (TargetPlatform == UnrealTargetPlatform.TVOS) ? "appletvos" : "iphoneos";
 	}
 
+	public override string GetAllowedSdks()
+	{
+		return "11.5";
+	}
+	public override string GetInstalledSdk()
+	{
+		// @todo turnkey: get installed Xcode version
+		string Output = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", "-c 'xcodebuild -version'");
+		Match Result = Regex.Match(Output, @"Xcode (\S*)");
+		return Result.Success ? Result.Groups[1].Value : "";
+	}
+	public override string GetAllowedSoftwareVersions()
+	{
+		return @"regex:^13\.5.*";
+	}
 
 	public override bool IsCustomVersionNeeded(string CustomVersionId, string CustomVersionParams)
 	{
 		return true;
 	}
-	public override bool CustomVersionUpdate(string CustomVersionId, string UpdateParams)
+	public override bool CustomVersionUpdate(string CustomVersionId, string UpdateParams, FileRetriever Retriever)
 	{
-		Console.WriteLine("UPDATING CERT FROM " + UpdateParams);
+		if (CustomVersionId == "QueryIOSDeviceType")
+		{
+			Console.WriteLine("Getting DeviceType device with " + UpdateParams);
+
+			// cfgtool needs ECID, not UDID, so find it
+			string Configurator = Path.Combine(GetConfiguratorLocation().Replace(" ", "\\ "), "Contents/MacOS/cfgutil");
+
+			string Device = CommandUtils.ParseParamValue(UpdateParams.Split(' '), "-device=");
+			Console.WriteLine("DeviceId: {0}", Device);
+
+			string Params = string.Format(" -c '{0} list | grep {1}'", Configurator, Device);
+			string Output = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", Params);
+
+			Match Result = Regex.Match(Output, @"Type: (\S*).*ECID: (\S*)");
+			if (!Result.Success)
+			{
+				Console.WriteLine("Unable to find the given deviceid: {0}", Device);
+			}
+
+			// set variables for Installers following this
+			Environment.SetEnvironmentVariable("DeviceModel", Result.Groups[1].Value, EnvironmentVariableTarget.Process);
+			Environment.SetEnvironmentVariable("ECID", Result.Groups[2].Value, EnvironmentVariableTarget.Process);
+			Environment.SetEnvironmentVariable("FlashApplication", Configurator, EnvironmentVariableTarget.Process);
+
+			//// get the flash for this guy
+			//Dictionary<string, string> Variables = new Dictionary<string, string>();
+			//Variables["DeviceType"] = Result.Groups[1].Value;
+			//string ECID = Result.Groups[2].Value;
+
+			//string FlashLocation = Retriever.RetrieveByTags(new string[] { "IOS_IPSW_Location" }, null, Variables);
+
+			//Params = string.Format("-c {0} --ecid {1} update -i {2}", Configurator, ECID, FlashLocation);
+
+			//Console.WriteLine("Update cmdline: {0}", Params);
+		}
 
 		return true;
 	}
 
+	private bool InstallCert(FileRetriever Retriever)
+	{
+		// get the cert password from Studio settings
+		string CertPassword = "Epic123!";
 
+		string CertLoc = Retriever.RetrieveByTags(new string[] { "IOS_Cert_Generic_Development" }, null);
+
+		if (CertLoc != null)
+		{
+			Console.WriteLine("Will install cert from: '{0}'", CertLoc);
+
+			string CommandLine = string.Format("-e 'require \"cert\"; " +
+				"FastlaneCore::KeychainImporter.import_file(\"{0}\", FastlaneCore::Helper.keychain_path(\"login\"), certificate_password:\"{1}\")'",
+				CertLoc, CertPassword);
+			UnrealBuildTool.Utils.RunLocalProcessAndLogOutput("ruby", CommandLine);
+
+			// @todo turnkey verify output
+
+			return true;
+		}
+		else
+		{
+			Console.WriteLine("Unable to find a tagged source for IOS_Cert_Generic_Development");
+
+			return false;
+		}
+
+	}
+
+	private class VerifyIOSSettings
+	{
+		public string CodeSigningIdentity = null;
+		public string BundleId = null;
+		public string Account = null;
+		public string Password = null;
+
+		public string RubyScript = Path.Combine(CommandUtils.EngineDirectory.FullName, "Build/Turnkey/VerifyIOS.ru");
+
+		public VerifyIOSSettings(BuildCommand Command)
+		{
+			FileReference ProjectPath = Command.ParseProjectParam();
+			ConfigHierarchy EngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectPath == null ? null : ProjectPath.Directory, UnrealTargetPlatform.IOS);
+
+			// first look for settings on the commandline:
+			CodeSigningIdentity = Command.ParseParamValue("certificate");
+			BundleId = Command.ParseParamValue("bundleid");
+			Account = Command.ParseParamValue("devcenterusername");
+			Password = Command.ParseParamValue("devcenterpassword");
+
+			// fall back to ini for anything else
+			if (string.IsNullOrEmpty(CodeSigningIdentity)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCodeSigningIdentity", out CodeSigningIdentity);
+			if (string.IsNullOrEmpty(BundleId)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleId);
+			if (string.IsNullOrEmpty(Account)) EngineConfig.GetString("TurnkeySettings", "IOS_DevCenterUsername", out Account);
+			if (string.IsNullOrEmpty(Password)) EngineConfig.GetString("TurnkeySettings", "IOS_DevCenterPassword", out Password);
+
+			string Foo;
+			bool Bar = EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCodeSigningIdentity", out Foo);
+
+			// some are required
+			if (string.IsNullOrEmpty(CodeSigningIdentity) || string.IsNullOrEmpty(BundleId))
+			{
+				throw new AutomationException("Turnkey IOS verification requires code signing identity (have ='{0}', ex: iPhone Developer) and a bundle id (have '{1}', ex: com.company.foo)", CodeSigningIdentity, BundleId);
+			}
+		}
+
+		public string MakeRubyCommandline(bool bCertOnly, string DeviceName = null)
+		{
+			if (bCertOnly)
+			{
+				return string.Format("--certonly --identity {0}", CodeSigningIdentity);
+			}
+
+
+			string Params = string.Format("--identity {0} --bundleid {1}", CodeSigningIdentity, BundleId);
+
+			if (!string.IsNullOrEmpty(Account))
+			{
+				Params += string.Format(" --login {0}", Account);
+			}
+			if (!string.IsNullOrEmpty(Password))
+			{
+				Params += string.Format(" --password {0}", Password);
+			}
+
+
+			if (!string.IsNullOrEmpty(DeviceName))
+			{
+				Params += string.Format(" --device {0}", DeviceName);
+			}
+
+			return Params;
+		}
+	}
+
+	string GetConfiguratorLocation()
+	{
+		string FindCommand = "-c 'mdfind \"kMDItemKind == Application\" | grep \"Apple Configurator 2.app\"'";
+		return UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", FindCommand);
+	}
+
+	public override bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever)
+	{
+		// make sure the Configurator is installed
+		string ConfiguratorLocation = GetConfiguratorLocation();
+
+		if (ConfiguratorLocation == "")
+		{
+			Console.WriteLine("Apple Configurator 2 is required for some automation to work. You should install it from the App Store. Launching...");
+			
+			// we need to install Configurator 2, and we will block until it's done
+			UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("open", "macappstore://apps.apple.com/us/app/apple-configurator-2/id1037126344?mt=12");
+
+			while ((ConfiguratorLocation = GetConfiguratorLocation()) == "")
+			{
+				Thread.Sleep(1000);
+			}
+		}
+		
+		return UpdateDevicePrerequisites(null, Command, Retriever);
+	}
+
+	public override bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever)
+	{
+		VerifyIOSSettings Settings = new VerifyIOSSettings(Command);
+
+		// look if we have a cert that matches it
+		int ExitCode;
+		string StdOut = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(Settings.RubyScript, Settings.MakeRubyCommandline(true), out ExitCode, true);
+
+		if (ExitCode != 0)
+		{
+			if (!InstallCert(Retriever))
+			{
+				return false;
+			}
+		}
+
+		// @todo turnkey - better to use the device's udid if it's set properly in DeviceInfo
+		string DeviceName = Device == null ? null : Device.Name;
+
+		// now look for a provision that can be used with a (maybe newly) instally cert
+		StdOut = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(Settings.RubyScript, Settings.MakeRubyCommandline(false, DeviceName), out ExitCode, true);
+
+		Console.WriteLine("VerifyIOS exited with code {0}", ExitCode);
+
+		return ExitCode == 0;
+	}
+
+
+	public override DeviceInfo[] GetDevices()
+	{
+		string DeviceType = Platform == UnrealTargetPlatform.TVOS ? "tvOS" : "iOS";
+
+		// print out each connected device's udid, os version, and name (which might have spaces)
+		string Params = "-e 'require \"fastlane\"; FastlaneCore::DeviceManager.connected_devices(\"" + DeviceType + "\").each { |x| puts \"#{x.udid} #{x.os_type} #{x.os_version} #{x.name}\" }'";
+		string StdOut = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("ruby", Params);
+
+		List<DeviceInfo> Devices = new List<DeviceInfo>();
+		foreach (string Line in StdOut.Split("\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries))
+		{
+			string[] Tokens = Line.Split(" ".ToCharArray());
+
+			DeviceInfo Device = new DeviceInfo();
+			Device.Id = Tokens[0];
+			Device.Type = Tokens[1];
+			Device.SoftwareVersion = Tokens[2];
+			Device.Name = string.Join(" ", Tokens.Skip(3));
+
+			Devices.Add(Device);
+		}
+
+		return Devices.ToArray();
+	}
 
 
 

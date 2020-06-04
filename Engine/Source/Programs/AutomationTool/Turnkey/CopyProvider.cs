@@ -206,4 +206,35 @@ namespace Turnkey
 			return Provider.Enumerate(ProviderParam, Expansions);
 		}
 	}
+
+	class CopyProviderRetriever : AutomationTool.FileRetriever
+	{
+		public string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null)
+		{
+			// @todo turnkey: unset these
+			if (ExtraVariables != null)
+			{
+				foreach (var Pair in ExtraVariables)
+				{
+					TurnkeyUtils.SetVariable(Pair.Key, Pair.Value);
+				}
+			}
+
+			List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks();
+
+			Sdks = Sdks.FindAll(x => x.Type == SdkInfo.SdkType.Misc && x.CustomSdkId == RequiredTags[0]);
+
+			SdkInfo Sdk = Sdks.First();
+
+			foreach (CopyAndRun Copy in Sdk.CustomSdkInputFiles)
+			{
+				if (Copy.ShouldExecute())
+				{
+					return CopyProvider.ExecuteCopy(Copy.Copy);
+				}
+			}
+
+			return null;
+		}
+	}
 }

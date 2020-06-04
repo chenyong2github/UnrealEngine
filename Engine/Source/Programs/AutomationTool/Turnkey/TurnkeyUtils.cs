@@ -43,8 +43,11 @@ namespace Turnkey
 		public static string GetVariableValue(string Key)
 		{
 			string Value;
-			TurnkeyVariables.TryGetValue(Key, out Value);
-			return Value;
+			if (TurnkeyVariables.TryGetValue(Key, out Value) || TurnkeySettings.GetSetUserSettings().TryGetValue(Key, out Value))
+			{
+				return Value;
+			}
+			return null;
 		}
 
 		public static void ClearVariable(string Key)

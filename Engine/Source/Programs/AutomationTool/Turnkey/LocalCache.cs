@@ -162,6 +162,11 @@ namespace Turnkey
 
 		static SavedCache DeserializeObject(string Filename)
 		{
+			if (!File.Exists(Filename))
+			{
+				return null;
+			}
+
 			try
 			{
 				string Str = File.ReadAllText(Filename);

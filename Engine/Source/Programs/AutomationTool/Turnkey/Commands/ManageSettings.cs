@@ -76,7 +76,8 @@ namespace Turnkey.Commands
 				string NewValue = TurnkeyUtils.ReadInput(string.Format("Enter value for {0} [Currently '{1}']", Settings[Choice - 1].VariableName, TurnkeyUtils.GetVariableValue(Settings[Choice - 1].VariableName)));
 				if (NewValue != "")
 				{
-					TurnkeyUtils.SetVariable(Settings[Choice - 1].VariableName, NewValue);
+					TurnkeyUtils.Log("Setting Settings[{0}].{1} = {2}", Choice - 1, Settings[Choice - 1].VariableName, NewValue);
+					TurnkeySettings.SetUserSetting(Settings[Choice - 1].VariableName, NewValue);
 					TurnkeySettings.Save();
 				}
 			}

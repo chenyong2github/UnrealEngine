@@ -172,16 +172,10 @@ namespace Turnkey
 		{
 			foreach (SdkType Type in TypePriority)
 			{
-				List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks().FindAll(x =>
-					x.SupportsPlatform(Platform.IniPlatformType) &&
-					x.Type == Type &&
-					TurnkeyUtils.IsValueValid(x.Version, Type == SdkType.Flash ? Platform.GetAllowedSoftwareVersions() : Platform.GetAllowedSdks())
-					); ;
-
-				Sdks = TurnkeyManifest.GetDiscoveredSdks();
+				List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks();
 				Sdks = Sdks.FindAll(x => x.SupportsPlatform(Platform.IniPlatformType));
 				Sdks = Sdks.FindAll(x => x.Type == Type);
-				Sdks = Sdks.FindAll(x => TurnkeyUtils.IsValueValid(x.Version, Type == SdkType.Flash ? Platform.GetAllowedSoftwareVersions() : Platform.GetAllowedSdks()));
+				Sdks = Sdks.FindAll(x => (x.Version == null && x.CustomSdkId != null) || TurnkeyUtils.IsValueValid(x.Version, Type == SdkType.Flash ? Platform.GetAllowedSoftwareVersions() : Platform.GetAllowedSdks()));
 
 				// if none were found try next type
 				if (Sdks.Count == 0)
@@ -202,7 +196,7 @@ namespace Turnkey
 					SdkInfo Best = null;
 					foreach (SdkInfo Sdk in Sdks)
 					{
-						// @todo turnkey: let platform decide what's best
+						// @todo turnkey: let platform decide what's best, and handle no-version custom sdks
 						if (Best == null || string.Compare(Sdk.Version, Best.Version, true) > 0)
 						{
 							Best = Sdk;
@@ -410,7 +404,7 @@ namespace Turnkey
 
 				// re-set the path to local files
 				TurnkeyUtils.SetVariable("CustomVersionLocalFiles", CustomVersionLocalFiles);
-				AutomationPlatforms[Platform].CustomVersionUpdate(CustomSdkId, TurnkeyUtils.ExpandVariables(CustomSdkParams));
+				AutomationPlatforms[Platform].CustomVersionUpdate(CustomSdkId, TurnkeyUtils.ExpandVariables(CustomSdkParams), new CopyProviderRetriever());
 
 				TurnkeyUtils.EndTrackingExternalEnvVarChanges();
 			}
@@ -629,22 +623,32 @@ namespace Turnkey
 			}
 
 			PlatformString = TurnkeyUtils.ExpandVariables(PlatformString, true);
-			string[] PlatformStrings = PlatformString.Split(",".ToCharArray());
 			Platforms = new List<UnrealTargetPlatform>();
 			AutomationPlatforms = new Dictionary<UnrealTargetPlatform, Platform>();
-			// parse into runtime usable values
-			foreach (string Plat in PlatformStrings)
+
+			if (PlatformString != null)
 			{
-				if (UnrealTargetPlatform.IsValidName(Plat))
+				string[] PlatformStrings = PlatformString.Split(",".ToCharArray());
+				// parse into runtime usable values
+				foreach (string Plat in PlatformStrings)
 				{
-					UnrealTargetPlatform TargetPlat = UnrealTargetPlatform.Parse(Plat);
-					Platforms.Add(TargetPlat);
-					AutomationPlatforms.Add(TargetPlat, AutomationTool.Platform.Platforms[new TargetPlatformDescriptor(TargetPlat)]);
+					if (UnrealTargetPlatform.IsValidName(Plat))
+					{
+						UnrealTargetPlatform TargetPlat = UnrealTargetPlatform.Parse(Plat);
+						Platforms.Add(TargetPlat);
+						AutomationPlatforms.Add(TargetPlat, AutomationTool.Platform.Platforms[new TargetPlatformDescriptor(TargetPlat)]);
+					}
 				}
 			}
 
 			Version = TurnkeyUtils.ExpandVariables(Version, true);
 			DisplayName = TurnkeyUtils.ExpandVariables(DisplayName, true);
+
+			if (string.IsNullOrEmpty(DisplayName))
+			{
+				DisplayName = string.Format("{0} {1}", PlatformString, Version);
+			}
+
 			AllowedFlashDeviceTypes = TurnkeyUtils.ExpandVariables(AllowedFlashDeviceTypes, true);
 			CustomSdkId = TurnkeyUtils.ExpandVariables(CustomSdkId, true);
 			CustomSdkParams = TurnkeyUtils.ExpandVariables(CustomSdkParams, true);
@@ -682,8 +686,8 @@ namespace Turnkey
 		{
 			StringBuilder Builder = new StringBuilder();
 			Builder.AppendLine("{1}Name: {0}", DisplayName, Indent(BaseIndent));
-			Builder.AppendLine("{1}Version: {0}", Version, Indent(BaseIndent + 2));
-			Builder.AppendLine("{1}Platform: {0}", string.Join(",", Platforms), Indent(BaseIndent + 2));
+			Builder.AppendLine("{1}Version: {0}", Version == null ? "<Any>" : Version, Indent(BaseIndent + 2));
+			Builder.AppendLine("{1}Platform: {0}", Platforms == null ? "" : string.Join(",", Platforms), Indent(BaseIndent + 2));
 			Builder.AppendLine("{1}Type: {0}", Type, Indent(BaseIndent + 2));
 			if (Type == SdkType.Flash)
 			{
@@ -694,20 +698,26 @@ namespace Turnkey
 				Builder.AppendLine("{0}CustomSdk:", Indent(BaseIndent + 2));
 				Builder.AppendLine("{1}CusttomSdkId: {0}", CustomSdkId, Indent(BaseIndent + 4));
 				Builder.AppendLine("{1}CustomSdkParams: {0}", CustomSdkParams, Indent(BaseIndent + 4));
-				Builder.AppendLine("{0}Input File Sources:", Indent(BaseIndent + 4));
-				foreach (CopyAndRun CustomInputFiles in CustomSdkInputFiles)
+				if (CustomSdkInputFiles != null)
 				{
-					Builder.AppendLine("{1}HostPlatform: {0}", CustomInputFiles.Platform, Indent(BaseIndent + 6));
-					Builder.AppendLine("{1}FileSource: {0}", CustomInputFiles.Copy, Indent(BaseIndent + 8));
+					Builder.AppendLine("{0}Input File Sources:", Indent(BaseIndent + 4));
+					foreach (CopyAndRun CustomInputFiles in CustomSdkInputFiles)
+					{
+						Builder.AppendLine("{1}HostPlatform: {0}", CustomInputFiles.Platform, Indent(BaseIndent + 6));
+						Builder.AppendLine("{1}FileSource: {0}", CustomInputFiles.Copy, Indent(BaseIndent + 8));
+					}
 				}
 			}
-			Builder.AppendLine("{0}Installers:", Indent(BaseIndent + 2));
-			foreach (CopyAndRun Installer in Installers)
+			if (Installers != null)
 			{
-				Builder.AppendLine("{1}HostPlatform: {0}", Installer.Platform, Indent(BaseIndent + 4));
-				Builder.AppendLine("{1}CopyOperation: {0}", Installer.Copy, Indent(BaseIndent + 6));
-				Builder.AppendLine("{1}InstallerPath: {0}", Installer.CommandPath, Indent(BaseIndent + 6));
-				Builder.AppendLine("{1}InstallerCommandLine: {0}", Installer.CommandLine, Indent(BaseIndent + 6));
+				Builder.AppendLine("{0}Installers:", Indent(BaseIndent + 2));
+				foreach (CopyAndRun Installer in Installers)
+				{
+					Builder.AppendLine("{1}HostPlatform: {0}", Installer.Platform, Indent(BaseIndent + 4));
+					Builder.AppendLine("{1}CopyOperation: {0}", Installer.Copy, Indent(BaseIndent + 6));
+					Builder.AppendLine("{1}InstallerPath: {0}", Installer.CommandPath, Indent(BaseIndent + 6));
+					Builder.AppendLine("{1}InstallerCommandLine: {0}", Installer.CommandLine, Indent(BaseIndent + 6));
+				}
 			}
 			return Builder.ToString().TrimEnd();
 

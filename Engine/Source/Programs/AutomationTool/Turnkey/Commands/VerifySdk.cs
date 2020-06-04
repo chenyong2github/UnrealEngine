@@ -93,6 +93,8 @@ namespace Turnkey.Commands
 			TurnkeyUtils.Log("Installed Sdk validity:");
 			TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
 
+			CopyProviderRetriever Retriever = new CopyProviderRetriever();
+
 			// check all the platforms
 			foreach (var Pair in PlatformsAndDevices)
 			{
@@ -101,11 +103,13 @@ namespace Turnkey.Commands
 				// get the platform object
 				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
 
+				AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, Retriever);
+
 				SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
 
 				if ((LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
 				{
-					TurnkeyUtils.Report("{0}: Invalid: [No AutoSdk or Installed Sdk found matching {1} - {2} - '{3}']", Platform, AutomationPlatform.GetAllowedSdks(), LocalState.ToString(), Environment.GetEnvironmentVariable("UE_SDKS_ROOT"));
+					TurnkeyUtils.Report("{0}: Invalid: [No AutoSdk or Installed Sdk found matching {1} - {2}]", Platform, AutomationPlatform.GetAllowedSdks(), LocalState.ToString());
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 				}
 				else
@@ -154,7 +158,7 @@ namespace Turnkey.Commands
 
 						TurnkeyUtils.Log("Will install {0}", BestSdk.DisplayName);
 
-//						bool bWasSdkInstalled = BestSdk.Install(Platform, null, bUnattended);
+						bool bWasSdkInstalled = BestSdk.Install(Platform, null, bUnattended);
 
 						// update LocalState
 						LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
@@ -192,6 +196,8 @@ namespace Turnkey.Commands
 					// now check software verison of each device
 					foreach (DeviceInfo Device in Devices)
 					{
+						AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, Retriever);
+
 						bool bIsSoftwareValid = TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
 
 

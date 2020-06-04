@@ -11,6 +11,11 @@ using Tools.DotNETCommon;
 
 namespace AutomationTool
 {
+	public interface FileRetriever
+	{
+		string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string,string> ExtraVariables=null);
+	}
+
 	public class DeviceInfo
 	{
 		public string Name;
@@ -177,11 +182,20 @@ namespace AutomationTool
 		{
 			return true;
 		}
-		public virtual bool CustomVersionUpdate(string CustomVersionId, string UpdateParams)
+		public virtual bool CustomVersionUpdate(string CustomVersionId, string UpdateParams, FileRetriever Retriever)
 		{
 			return true;
 		}
 
+		public virtual bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever)
+		{
+			return true;
+		}
+
+		public virtual bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever)
+		{
+			return true;
+		}
 
 		/// <summary>
 		/// Package files for the current platform.
