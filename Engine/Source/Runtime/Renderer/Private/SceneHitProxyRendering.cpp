@@ -674,6 +674,14 @@ void FHitProxyMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 				bAddTranslucentPrimitive = HitProxy->AlwaysAllowsTranslucentPrimitives();
 			}
 		}
+		else
+		{
+			// If the batch hit proxy is invalid, we won't try to add this if it is a translucent primitive (prefer to preserve the current hit proxy contents)
+			if (MeshBatch.BatchHitProxyId == FHitProxyId())
+			{
+				bAddTranslucentPrimitive = false;
+			}
+		}
 
 		if (bAddTranslucentPrimitive || !IsTranslucentBlendMode(BlendMode))
 		{
