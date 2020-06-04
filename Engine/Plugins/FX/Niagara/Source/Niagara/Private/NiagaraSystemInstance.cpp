@@ -1890,11 +1890,14 @@ void FNiagaraSystemInstance::InitEmitters()
 		for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
 		{
 			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
-			Sim->Init(EmitterIdx, ID);
+
 			if (System->bFixedBounds)
 			{
+				// be sure to set the system bounds first so that we can bypass work in the initialization of the emitter
 				Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());
 			}
+
+			Sim->Init(EmitterIdx, ID);
 			Emitters.Add(Sim);
 		}
 
