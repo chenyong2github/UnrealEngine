@@ -260,6 +260,9 @@ public:
 
 	FCollisionConstraintsArray& GetConstraintsArray() { return Constraints; }
 
+	//Sort constraints based on particle indices so that we have a deterministic solve order
+	void SortConstraints();
+
 protected:
 	using Base::GetConstraintIndex;
 	using Base::SetConstraintIndex;

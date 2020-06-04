@@ -234,9 +234,31 @@ namespace Chaos
 	void CHAOS_API UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy);
 
 
-#if CHAOS_DETERMINISTIC
-	using FParticleID = int32;	//Used to break ties when determinism is needed. Should not be used for anything else
-#endif
+	struct FParticleID
+	{
+		int32 GlobalID;	//Set by global ID system
+		int32 LocalID;		//Set by local client. This can only be used in cases where the LocalID will be set in the same way (for example we always spawn N client only particles)
+
+		bool operator<(const FParticleID& Other) const
+		{
+			if(GlobalID == Other.GlobalID)
+			{
+				return LocalID < Other.LocalID;
+			}
+			return GlobalID < Other.GlobalID;
+		}
+
+		bool operator==(const FParticleID& Other) const
+		{
+			return GlobalID == Other.GlobalID && LocalID == Other.LocalID;
+		}
+
+		FParticleID()
+		: GlobalID(INDEX_NONE)
+		, LocalID(INDEX_NONE)
+		{
+		}
+	};
 	//Used for down casting when iterating over multiple SOAs.
 	enum class EParticleType : uint8
 	{

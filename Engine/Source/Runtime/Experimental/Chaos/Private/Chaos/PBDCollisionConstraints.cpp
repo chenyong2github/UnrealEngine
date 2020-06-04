@@ -628,6 +628,11 @@ namespace Chaos
 		return bNeedsAnotherIteration;
 	}
 
+	void FPBDCollisionConstraints::SortConstraints()
+	{
+		Constraints.SortConstraints();
+	}
+
 
 	bool FPBDCollisionConstraints::Apply(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)
 	{
