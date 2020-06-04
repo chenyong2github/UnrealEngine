@@ -1672,6 +1672,11 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 	return NewTickGroup;
 }
 
+void FNiagaraSystemInstance::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
+{
+	TickBehavior = NewTickBehavior;
+}
+
 void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSeconds)
 {
 	static const auto EffectsQualityLevelCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("sg.EffectsQuality"));

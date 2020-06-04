@@ -1569,6 +1569,15 @@ FNiagaraSystemInstance* UNiagaraComponent::GetSystemInstance() const
 	return SystemInstance.Get();
 }
 
+void UNiagaraComponent::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
+{
+	TickBehavior = NewTickBehavior;
+	if (SystemInstance.IsValid())
+	{
+		SystemInstance->SetTickBehavior(TickBehavior);
+	}
+}
+
 void UNiagaraComponent::SetVariableLinearColor(FName InVariableName, const FLinearColor& InValue)
 {
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetColorDef(), InVariableName);

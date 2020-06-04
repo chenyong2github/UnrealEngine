@@ -281,8 +281,12 @@ public:
 	void RaiseNeedsUIResync();
 #endif
 
-private:
+	/** Get the current tick behavior */
+	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
+	/** Set a new tick behavior, this will not move the instance straight away and will wait until the next time it is evaluated */
+	void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
 
+private:
 	void DestroyDataInterfaceInstanceData();
 
 	/** Builds the emitter simulations. */
