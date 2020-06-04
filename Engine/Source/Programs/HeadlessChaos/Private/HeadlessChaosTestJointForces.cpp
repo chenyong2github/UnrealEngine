@@ -68,7 +68,6 @@ namespace ChaosTest {
 		Test.InitChain(NumBodies, FVec3(1, 0, 0));
 
 		// Set all joints to fixed angular
-		Test.JointSettings.SetNum(NumBodies - 1);
 		for (int32 JointIndex = 0; JointIndex < Test.JointSettings.Num(); ++JointIndex)
 		{
 			Test.JointSettings[JointIndex].AngularMotionTypes = { EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked };
@@ -134,7 +133,6 @@ namespace ChaosTest {
 		Test.InitChain(NumBodies, FVec3(1, 0, 0));
 
 		// Set all joints to fixed angular and disable projection
-		Test.JointSettings.SetNum(NumBodies - 1);
 		for (int32 JointIndex = 0; JointIndex < Test.JointSettings.Num(); ++JointIndex)
 		{
 			Test.JointSettings[JointIndex].AngularMotionTypes = { EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked };

@@ -42,14 +42,12 @@ namespace ChaosTest
 		{
 			TGeometryParticleHandle<FReal, 3>& Particle = Mass > SMALL_NUMBER ? *AppendDynamicParticleBox<FReal>(SOAs, Size) : *AppendStaticParticleBox<FReal>(SOAs, Size);
 
-			Particle.X() = Position;
-			Particle.R() = Rotation;
+			ResetParticle(&Particle, Position, Rotation, FVec3(0), FVec3(0));
+
 			auto PBDParticlePtr = Particle.CastToRigidParticle();
 			if(PBDParticlePtr && PBDParticlePtr->ObjectState() == EObjectStateType::Dynamic)
 			{
 				auto& PBDParticle = *PBDParticlePtr;
-				PBDParticle.P() = PBDParticle.X();
-				PBDParticle.Q() = PBDParticle.R();
 				PBDParticle.M() = PBDParticle.M() * Mass;
 				PBDParticle.I() = PBDParticle.I() * Mass;
 				PBDParticle.InvM() = PBDParticle.InvM() * ((FReal)1 / Mass);
@@ -58,6 +56,22 @@ namespace ChaosTest
 			Evolution.SetPhysicsMaterial(&Particle, MakeSerializable(PhysicalMaterial));
 
 			return &Particle;
+		}
+
+		void ResetParticle(TGeometryParticleHandle<FReal, 3>* Particle, const FVec3& Position, const FRotation3& Rotation, const FVec3& Velocity, const FVec3& AngularVelocity)
+		{
+			Particle->X() = Position;
+			Particle->R() = Rotation;
+			if (auto KinParticle = Particle->CastToKinematicParticle())
+			{
+				KinParticle->V() = Velocity;
+				KinParticle->W() = AngularVelocity;
+			}
+			if (auto PBDParticle = Particle->CastToRigidParticle())
+			{
+				PBDParticle->P() = Position;
+				PBDParticle->Q() = Rotation;
+			}
 		}
 
 		// Solver state
