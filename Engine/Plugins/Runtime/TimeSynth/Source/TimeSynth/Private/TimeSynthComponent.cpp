@@ -3,6 +3,9 @@
 #include "TimeSynthComponent.h"
 #include "AudioThread.h"
 #include "TimeSynthModule.h"
+#include "Containers/UnrealString.h"
+
+static const float MinAudibleLog = -55;
 
 static int32 DisableTimeSynthCvar = 0;
 FAutoConsoleVariableRef CVarDisableTimeSynth(
@@ -333,6 +336,10 @@ void UTimeSynthComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 					Audio::FDecodingSoundSourceHandle& DecodingSoundSourceHandle = PlayingClipInfo.DecodingSoundSourceHandle;
 					SoundWaveDecoder.SetSourceVolumeScale(DecodingSoundSourceHandle, LinearVolume);
 				}
+				else
+				{
+					UE_LOG(LogTimeSynth, Warning, TEXT("Could not find clip %s "), *(ClipHandle.ClipName.GetPlainNameString()));
+				}
 			});
 		}
 	}
@@ -382,6 +389,7 @@ bool UTimeSynthComponent::Init(int32& InSampleRate)
 		SetActive(false);
 		OnEndGenerate();
 		bTimeSynthWasDisabled = static_cast<bool>(DisableTimeSynthCvar);
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Request to initialize TimeSynth received, despite TimeSynth being disabled"));
 		return false;
 	}
 
@@ -431,6 +439,7 @@ bool UTimeSynthComponent::Init(int32& InSampleRate)
 		FreePlayingClipIndices_AudioRenderThread[Index] = Index;
 	}
 
+	UE_LOG(LogTimeSynth, Verbose, TEXT("TimeSynth initialized"));
 	return true; 
 }
 
@@ -455,6 +464,7 @@ void UTimeSynthComponent::ShutdownPlayingClips()
 		SoundWaveDecoder.RemoveDecodingSource(PlayingClip.DecodingSoundSourceHandle);
 		ActivePlayingClipIndices_AudioRenderThread.RemoveAtSwap(i, 1, false);
 		FreePlayingClipIndices_AudioRenderThread.Add(ClipIndex);
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Active clip index %i flagged for removal and added to free playing clips"), i);
 	}
 	ActivePlayingClipIndices_AudioRenderThread.Reset();
 	FreePlayingClipIndices_AudioRenderThread.Reset();
@@ -462,6 +472,7 @@ void UTimeSynthComponent::ShutdownPlayingClips()
 	DecodingSounds_GameThread.Reset();
 
 	bHasActiveClips.AtomicSet(false);
+	UE_LOG(LogTimeSynth, Verbose, TEXT("All playing clips have been shutdown"));
 }
 
 void UTimeSynthComponent::OnEndGenerate() 
@@ -474,6 +485,7 @@ int32 UTimeSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	if (DisableTimeSynthCvar || bTimeSynthWasDisabled)
 	{
 		bTimeSynthWasDisabled = static_cast<bool>(DisableTimeSynthCvar);
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Received a 'OnGenerateAudio' command when TimeSynth was disabled"));
 		return 0;
 	}
 
@@ -550,9 +562,19 @@ int32 UTimeSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 			// If the clip finished by artificial clip duration settings or if it naturally finished (file length), remove it from the active list
 			if (bIsClipDurationFinished || SoundWaveDecoder.IsFinished(PlayingClip.DecodingSoundSourceHandle))
 			{
+				if (bIsClipDurationFinished)
+				{
+					UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s reached end of clip duration"), *(PlayingClip.Handle.ClipName.GetPlainNameString()));
+				}
+				else
+				{
+					UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s reached end of wavefile"), *(PlayingClip.Handle.ClipName.GetPlainNameString()));
+				}
+
 				SoundWaveDecoder.RemoveDecodingSource(PlayingClip.DecodingSoundSourceHandle);
 				ActivePlayingClipIndices_AudioRenderThread.RemoveAtSwap(i, 1, false);
 				FreePlayingClipIndices_AudioRenderThread.Add(ClipIndex);
+				UE_LOG(LogTimeSynth, Verbose, TEXT("Active clip index %i flagged for removaland added to free playing clips"), ClipIndex);
 
 				// If this clip was playing in a volume group, we need to remove it from the volume group
 				if (PlayingClip.VolumeGroupId != INDEX_NONE)
@@ -566,6 +588,11 @@ int32 UTimeSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 						if (VolumeGroup)
 						{
 							VolumeGroup->Clips.Remove(Handle);
+							UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s removed from volume group %i"), *(Handle.ClipName.GetPlainNameString()), VolumeGroupId);
+						}
+						else
+						{
+							UE_LOG(LogTimeSynth, Warning, TEXT("Volume group %i (referenced by clip %s) could not be found"), VolumeGroupId, *(Handle.ClipName.GetPlainNameString()));
 						}
 					});
 				}
@@ -703,6 +730,8 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 			OnEndGenerate();
 		}
 		bTimeSynthWasDisabled = true;
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Received a 'Play Clip' command when TimeSynth was disabled"));
+
 		return FTimeSynthClipHandle();
 	}
 
@@ -715,7 +744,7 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 	// Validate the clip
 	if (InClip->Sounds.Num() == 0)
 	{
-		UE_LOG(LogTimeSynth, Warning, TEXT("Failed to play clip: needs to have sounds to choose from."));
+		UE_LOG(LogTimeSynth, Warning, TEXT("Failed to play clip %s: needs to have sounds to choose from."), *(InClip->GetFName().GetPlainNameString()));
 		return FTimeSynthClipHandle();
 	}
 
@@ -724,7 +753,7 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 	const bool bNoFadeOut = !InClip->bApplyFadeOut || InClip->FadeOutTime.IsZeroDuration();
 	if (bNoFadeIn && bNoDuration && bNoFadeOut)
 	{
-		UE_LOG(LogTimeSynth, Warning, TEXT("Failed to play clip: no duration or fade in/out set."));
+		UE_LOG(LogTimeSynth, Warning, TEXT("Failed to play clip %s: no duration or fade in/out set."), *(InClip->GetFName().GetPlainNameString()));
 		return FTimeSynthClipHandle();
 	}
 
@@ -767,11 +796,20 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 				if (DistanceToListener >= MinDist && DistanceToListener < MaxDist)
 				{
 					ValidSounds.Add(ClipSound);
+					UE_LOG(LogTimeSynth, Verbose, TEXT("SoundWave %s added to valid sounds for clip %s"), *(ClipSound.SoundWave->GetFName().GetPlainNameString()),
+						   *(InClip->GetFName().GetPlainNameString()));
+				}
+				else
+				{
+					UE_LOG(LogTimeSynth, Verbose, TEXT("SoundWave %s in clip %s out of range of listener"), *(ClipSound.SoundWave->GetFName().GetPlainNameString()),
+						*(InClip->GetFName().GetPlainNameString()));
 				}
 			}
 			else
 			{
 				ValidSounds.Add(ClipSound);
+				UE_LOG(LogTimeSynth, Verbose, TEXT("SoundWave %s added to valid sounds for clip %s"), *(ClipSound.SoundWave->GetFName().GetPlainNameString()),
+					*(InClip->GetFName().GetPlainNameString()));
 			}
 		}
 	}
@@ -787,7 +825,7 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 	const float VolumeMax = FMath::Clamp(InClip->VolumeScaleDb.Y, -60.0f, 20.0f);
 	const float VolumeDb = RandomStream.FRandRange(VolumeMin, VolumeMax);
 	float VolumeScale = Audio::ConvertToLinear(VolumeDb);
-
+	
 	// Calculate the pitch scale
 	const float PitchMin = FMath::Clamp(InClip->PitchScaleSemitones.X, -24.0f, 24.0f);
 	const float PitchMax = FMath::Clamp(InClip->PitchScaleSemitones.Y, -24.0f, 24.0f);
@@ -821,6 +859,8 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 	}
 
 	const FTimeSynthClipSound& ChosenSound = ValidSounds[ChosenSoundIndex];
+	UE_LOG(LogTimeSynth, Verbose, TEXT("SoundWave %s used as sound for clip %s"), *(ValidSounds[ChosenSoundIndex].SoundWave->GetFName().GetPlainNameString()),
+		*(InClip->GetFName().GetPlainNameString()));
 
 	// Now have a chosen sound, so we can create a new decoder handle on the game thread
 	Audio::FDecodingSoundSourceHandle NewDecoderHandle = SoundWaveDecoder.CreateSourceHandle(ChosenSound.SoundWave);
@@ -832,6 +872,7 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 	FTimeSynthClipHandle NewHandle;
 	NewHandle.ClipName = InClip->GetFName();
 	NewHandle.ClipId = ClipIds++;
+	UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s given Id %d"), *(InClip->GetFName().GetPlainNameString()), NewHandle.ClipId);
 
 	// New struct for a playing clip handle. This is internal.
 	FPlayingClipInfo NewClipInfo;
@@ -848,11 +889,14 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 			FVolumeGroupData NewData(InVolumeGroup->DefaultVolume);
 			NewData.Clips.Add(NewHandle);
 			VolumeGroup = &VolumeGroupData.Add(Id, NewData);
+			UE_LOG(LogTimeSynth, Verbose, TEXT("Volume group %s created with Id number %i"), *(InVolumeGroup->GetName()), Id);
 		}
 		else
 		{
 			VolumeGroup->Clips.Add(NewHandle);
 		}
+
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s added to volume group %s"), *(InClip->GetFName().GetPlainNameString()), *(InVolumeGroup->GetName()));
 
 		// Get the current volume group value and "scale" it into the volume scale
 		VolumeScale *= Audio::ConvertToLinear(VolumeGroup->CurrentVolumeDb);
@@ -865,6 +909,9 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 	DecodeInit.SoundWave = ChosenSound.SoundWave;
 	DecodeInit.SeekTime = 0;
 	DecodeInit.bForceSyncDecode = (TimeSynthForceSyncDecodesCvar == 1);
+
+	
+	UE_CLOG(VolumeScale < MinAudibleLog, LogTimeSynth, Verbose, TEXT("Clip %s playing at inaudibly soft volume"), *(InClip->GetFName().GetPlainNameString()));
 
 	// Update the synth component on the audio thread
 	FAudioThread::RunCommandOnAudioThread([this, DecodeInit]()
@@ -916,7 +963,8 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 		int32 FreeClipIndex = -1;
 		if (FreePlayingClipIndices_AudioRenderThread.Num() > 0)
 		{
-			FreeClipIndex = FreePlayingClipIndices_AudioRenderThread.Pop(false);
+			FreeClipIndex = FreePlayingClipIndices_AudioRenderThread.Pop(false);	
+			UE_LOG(LogTimeSynth, Verbose, TEXT("Clip index %i removed from free clip pool"), FreeClipIndex);
 		}
 		else
 		{
@@ -943,9 +991,10 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 			{
 				FPlayingClipInfo& PlayingClipInfo = PlayingClipsPool_AudioRenderThread[FreeClipIndex];
 
-				// early exit.  Quantized stop event was just proccessed for this same Quantization step
+				// early exit.  Quantized stop event was just processed for this same Quantization step
 				if (PlayingClipInfo.bHasBeenStopped)
 				{
+					UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s did not play, as it was already flagged to stop"), *(PlayingClipInfo.Handle.ClipName.GetPlainNameString()));
 					return;
 				}
 
@@ -957,6 +1006,7 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 
 				// Add this clip to the list of active playing clips so it begins rendering
 				ActivePlayingClipIndices_AudioRenderThread.Add(FreeClipIndex);
+				UE_LOG(LogTimeSynth, Verbose, TEXT("Clip index %i added to active playing clip pool"), FreeClipIndex);
 			});
 	});
 	
@@ -988,8 +1038,11 @@ void UTimeSynthComponent::StopClip(FTimeSynthClipHandle InClipHandle, ETimeSynth
 
 					if (!PlayingClipInfo.bHasStartedPlaying)
 					{
+						UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s stopped before it began playing"), *(PlayingClipInfo.Handle.ClipName.GetPlainNameString()));
+
 						// add index back to free pool
 						FreePlayingClipIndices_AudioRenderThread.Add(PlayingClipIndex);
+						UE_LOG(LogTimeSynth, Verbose, TEXT("Clip index %i added to free clip pool"), PlayingClipIndex);
 
 						// remove map entry
 						ClipIdToClipIndexMap_AudioRenderThread.Remove(InClipHandle.ClipId);
@@ -1003,6 +1056,7 @@ void UTimeSynthComponent::StopClip(FTimeSynthClipHandle InClipHandle, ETimeSynth
 							if (ActivePlayingClipIndices_AudioRenderThread[i] == PlayingClipIndex)
 							{
 								ActivePlayingClipIndices_AudioRenderThread.RemoveAtSwap(i, 1, false);
+								UE_LOG(LogTimeSynth, Verbose, TEXT("Instance of clip %s removed from render thread"), *(PlayingClipInfo.Handle.ClipName.GetPlainNameString()));
 								bFoundClip = true;
 								--NumActivePlayingClipIndices;
 							}
@@ -1017,9 +1071,15 @@ void UTimeSynthComponent::StopClip(FTimeSynthClipHandle InClipHandle, ETimeSynth
 					// Already playing the clip, so force the clip to start fading if its already playing
 					else if (PlayingClipInfo.CurrentFrameCount < PlayingClipInfo.DurationFrames)
 					{
+						UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s forced to start fade out"), *(PlayingClipInfo.Handle.ClipName.GetPlainNameString()));
+
 						// Adjust the duration of the clip to "spoof" it's code which triggers a fade this render callback block.
 						PlayingClipInfo.DurationFrames = PlayingClipInfo.CurrentFrameCount + NumFramesOffset;
 					}
+				}
+				else
+				{
+					UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s was given 'Stop' command, but could not be found"), *(InClipHandle.ClipName.GetPlainNameString()));
 				}
 			});
 	});
@@ -1055,7 +1115,17 @@ void UTimeSynthComponent::StopClipWithFadeOverride(FTimeSynthClipHandle InClipHa
 
 						// Override the clip's fade out duration (but prevent pops so we can do a brief fade out at least)
 						PlayingClipInfo.FadeOutDurationFrames = FMath::Max(EventQuantizer.GetDurationInFrames(FadeTime.NumBars, (float)FadeTime.NumBeats), 100u);
+
+						UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s was stopped with fade override"), *(InClipHandle.ClipName.GetPlainNameString()));
 					}
+					else
+					{
+						UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s was given 'Stop with Fade Override' command, but was already fading out"), *(InClipHandle.ClipName.GetPlainNameString()));
+					}
+				}
+				else
+				{
+					UE_LOG(LogTimeSynth, Verbose, TEXT("Clip %s was given 'Stop with Fade Override' command, but could not be found"), *(InClipHandle.ClipName.GetPlainNameString()));
 				}
 			});
 	});
@@ -1096,11 +1166,17 @@ void UTimeSynthComponent::SetVolumeGroup(UTimeSynthVolumeGroup* InVolumeGroup, f
 		FVolumeGroupData NewData;
 		SetVolumeGroupInternal(NewData, VolumeDb, FadeTimeSec);
 		VolumeGroupData.Add(Id, NewData);
+
+		UE_LOG(LogTimeSynth, Verbose, TEXT("New volume group %s created with Id %i"), (*InVolumeGroup->GetName()), Id);
 	}
 	else
 	{
 		SetVolumeGroupInternal(*VolumeGroup, VolumeDb, FadeTimeSec);
 	}
+
+	UE_LOG(LogTimeSynth, Verbose, TEXT("Volume group %s's volume changed to %f dB"), (*InVolumeGroup->GetName()), VolumeDb);
+
+	UE_CLOG(VolumeDb < MinAudibleLog, LogTimeSynth, Verbose, TEXT("Volume group %s set to inaudibly low volume"), (*InVolumeGroup->GetName()));
 }
 
 void UTimeSynthComponent::StopSoundsOnVolumeGroup(UTimeSynthVolumeGroup* InVolumeGroup, ETimeSynthEventClipQuantization EventQuantization)
@@ -1114,6 +1190,11 @@ void UTimeSynthComponent::StopSoundsOnVolumeGroup(UTimeSynthVolumeGroup* InVolum
 		{
 			StopClip(ClipHandle, EventQuantization);
 		}
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Stopped all clips in volume group %s"), *(InVolumeGroup->GetName()));
+	}
+	else
+	{
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Attempted to stop all clips on volume group %s, but the volume group could not be found"), *(InVolumeGroup->GetName()));
 	}
 }
 
@@ -1128,6 +1209,12 @@ void UTimeSynthComponent::StopSoundsOnVolumeGroupWithFadeOverride(UTimeSynthVolu
 		{
 			StopClipWithFadeOverride(ClipHandle, EventQuantization, FadeTime);
 		}
+
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Stopped all clips, with fade override, in volume group %s"), *(InVolumeGroup->GetName()));
+	}
+	else
+	{
+		UE_LOG(LogTimeSynth, Verbose, TEXT("Attempted to stop all clips, with fade override, on volume group %s, but the volume group could not be found"), *(InVolumeGroup->GetName()));
 	}
 }
 
