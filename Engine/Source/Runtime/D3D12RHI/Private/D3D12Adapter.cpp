@@ -760,7 +760,7 @@ void FD3D12Adapter::InitializeDevices()
 		ResourceBindingTier = D3D12Caps.ResourceBindingTier;
 
 #if D3D12_RHI_RAYTRACING
-		if (RootRayTracingDevice)
+		if (RootDevice5)
 		{
 			// Make sure we have at least tier 2 bindings - required for static samplers used by DXR root signatures
 			// See: UE-93879 for a better fix
