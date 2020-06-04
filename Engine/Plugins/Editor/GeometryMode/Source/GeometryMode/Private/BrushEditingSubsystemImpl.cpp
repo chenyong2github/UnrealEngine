@@ -90,7 +90,7 @@ bool UBrushEditingSubsystemImpl::ProcessClickOnBrushGeometry(FLevelEditorViewpor
 
 		if (GeomHitProxy->GetGeomObject() != nullptr)
 		{
-			if (ProcessClickOnGeomEdge(ViewportClient, GeomHitProxy, Click))
+			if (!ProcessClickOnGeomEdge(ViewportClient, GeomHitProxy, Click))
 			{
 				LevelViewportClickHandlers::ClickActor(ViewportClient, GeomHitProxy->GetGeomObject()->ActualBrush, Click, true);
 			}
