@@ -13,6 +13,7 @@
 
 class UStaticMesh;
 class UHLODProxy;
+class HLODActorDesc;
 
 extern ENGINE_API TAutoConsoleVariable<FString> CVarHLODDistanceOverride;
 
@@ -30,6 +31,7 @@ class ENGINE_API ALODActor : public AActor
 	GENERATED_UCLASS_BODY()
 
 	friend class UHLODProxy;
+	friend class UHLODProxyDesc;
 
 private:
 	// disable display of this component
@@ -87,7 +89,7 @@ public:
 	void SetStaticMesh(UStaticMesh* InStaticMesh);
 
 	/** Add imposters instances to this LODActor. */
-	void SetupImposters(UMaterialInterface* InImposterMaterial, UStaticMesh* InStaticMesh, const TArray<FTransform>& InTransforms);
+	void SetupImposters(const UMaterialInterface* InImposterMaterial, UStaticMesh* InStaticMesh, const TArray<FTransform>& InTransforms);
 
 	/** Sets the LOD draw distance and updates the Static Mesh Component's min drawing distance */
 	void SetDrawDistance(float InDistance);
@@ -146,6 +148,12 @@ public:
 	void AddSubActor(AActor* InActor);
 
 	/**
+	* Append the provided actors to the SubActors array and properly setup their LODParent
+	* @param InActors - Array of actors to add
+	*/
+	void AddSubActors(const TArray<AActor*>& InActors);
+
+	/**
 	* Removes InActor from the SubActors array and sets its LODParent to nullptr
 	* @param InActor - Actor to remove
 	*/
@@ -192,6 +200,11 @@ public:
 
 	/** Get the proxy mesh we use to render */
 	UHLODProxy* GetProxy() const { return Proxy; }
+
+	/** Get the proxy description used to generated this LODActor */
+	const UHLODProxyDesc* GetProxyDesc() const { return ProxyDesc; }
+
+	bool WasBuiltFromHLODDesc() const { return bBuiltFromHLODDesc; }
 #endif // WITH_EDITOR
 
 	//~ Begin UObject Interface.
@@ -323,5 +336,12 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FString LODActorTag;
+
+	UPROPERTY()
+	uint8 bBuiltFromHLODDesc : 1;
+
+	/** The hlod proxy desc used to build this LODActor */
+	UPROPERTY(Transient)
+	const UHLODProxyDesc* ProxyDesc;
 #endif // WITH_EDITORONLY_DATA
 }; 

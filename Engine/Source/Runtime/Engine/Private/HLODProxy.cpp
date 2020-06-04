@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/HLODProxy.h"
+#include "Engine/LODActor.h"
 #include "GameFramework/WorldSettings.h"
 
 #if WITH_EDITOR
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/ArchiveObjectCrc32.h"
+#include "HierarchicalLOD.h"
 #endif
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Materials/MaterialInstance.h"
@@ -32,11 +34,39 @@ TSoftObjectPtr<UWorld> UHLODProxy::GetMap() const
 	return OwningMap;
 }
 
+UHLODProxyDesc* UHLODProxy::AddLODActor(ALODActor* InLODActor)
+{
+	check(InLODActor->ProxyDesc == nullptr);
+
+	// Create a new HLODProxyDesc and populate it from the provided InLODActor.
+	UHLODProxyDesc* HLODProxyDesc = NewObject<UHLODProxyDesc>(this);
+	HLODProxyDesc->UpdateFromLODActor(InLODActor);
+
+	InLODActor->Proxy = this;
+	InLODActor->ProxyDesc = HLODProxyDesc;
+	InLODActor->bBuiltFromHLODDesc = true;
+
+	HLODActors.Emplace(HLODProxyDesc);
+
+	MarkPackageDirty();
+
+	return HLODProxyDesc;
+}
+
 void UHLODProxy::AddMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey)
 {
-	InLODActor->Proxy = this;
-	FHLODProxyMesh NewProxyMesh(InLODActor, InStaticMesh, InKey);
-	ProxyMeshes.AddUnique(NewProxyMesh);
+	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
+	{
+		check(InLODActor->Proxy == this);
+		check(HLODActors.Find(InLODActor->ProxyDesc));
+		HLODActors[InLODActor->ProxyDesc] = FHLODProxyMesh(InStaticMesh, InKey);
+	}
+	else
+	{
+		InLODActor->Proxy = this;
+		FHLODProxyMesh NewProxyMesh(InLODActor, InStaticMesh, InKey);
+		ProxyMeshes.AddUnique(NewProxyMesh);
+	}
 }
 
 void UHLODProxy::Clean()
@@ -67,6 +97,50 @@ void UHLODProxy::Clean()
 
 		return false;
 	});
+
+	// Ensure the HLOD descs are up to date.
+	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
+	{
+		UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject());
+		UpdateHLODDescs(World->PersistentLevel);
+	}
+	else
+	{
+		HLODActors.Reset();
+	}
+}
+
+void UHLODProxy::UpdateHLODDescs(const ULevel* InLevel)
+{
+	// Gather a map of all the HLODProxyDescs used by LODActors in the level
+	TMap<const UHLODProxyDesc*, ALODActor*> LODActors;
+	for (AActor* Actor : InLevel->Actors)
+	{
+		if (ALODActor* LODActor = Cast<ALODActor>(Actor))
+		{
+			if (LODActor->ProxyDesc)
+			{
+				LODActors.Emplace(LODActor->ProxyDesc, LODActor);
+			}
+		}
+	}
+
+	// For each HLODProxyDesc stored in this proxy, ensure that it is up to date with the associated LODActor
+	// Purge the HLODProxyDesc that are unused (not referenced by any LODActor)
+	for (TMap<UHLODProxyDesc*, FHLODProxyMesh>::TIterator ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
+	{
+		UHLODProxyDesc* HLODProxyDesc = ItHLODActor.Key();
+		ALODActor** LODActor = LODActors.Find(HLODProxyDesc);
+		if (LODActor)
+		{
+			ItHLODActor.Key()->UpdateFromLODActor(*LODActor);
+		}
+		else
+		{
+			Modify();
+			ItHLODActor.RemoveCurrent();
+		}
+	}
 }
 
 const AActor* UHLODProxy::FindFirstActor(const ALODActor* LODActor)
@@ -279,9 +353,10 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 
 	// Base us off the unique object ID
 	{
-		FUniqueObjectGuid ObjectID = FUniqueObjectGuid::GetOrCreateIDForObject(LODActor);
+		const UObject* Obj = LODActor->ProxyDesc ? Cast<const UObject>(LODActor->ProxyDesc) : Cast<const UObject>(LODActor);
+		FUniqueObjectGuid ObjectGUID = FUniqueObjectGuid::GetOrCreateIDForObject(Obj);
 		Key += TEXT("_");
-		Key += ObjectID.GetGuid().ToString(EGuidFormats::Digits);
+		Key += ObjectGUID.GetGuid().ToString(EGuidFormats::Digits);
 	}
 
 	// Accumulate a bunch of settings into a CRC
@@ -405,6 +480,16 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 	return FName(*Key);
 }
 
+void UHLODProxy::SpawnLODActors(ULevel* InLevel)
+{
+	for (const auto& Pair : HLODActors)
+	{
+		// Spawn LODActor
+		ALODActor* LODActor = Pair.Key->SpawnLODActor(InLevel);
+		LODActor->Proxy = this;
+	}
+}
+
 #endif // #if WITH_EDITOR
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -430,6 +515,15 @@ bool UHLODProxy::ContainsDataForActor(const ALODActor* InLODActor) const
 	if(Key == NAME_None)
 	{
 		return false;
+	}
+
+	for (const auto& Pair : HLODActors)
+	{
+		const FHLODProxyMesh& ProxyMesh = Pair.Value;
+		if(ProxyMesh.GetKey() == Key)
+		{
+			return true;
+		}
 	}
 
 	for(const FHLODProxyMesh& ProxyMesh : ProxyMeshes)

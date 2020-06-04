@@ -68,7 +68,7 @@
 #include "EngineAnalytics.h"
 #include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
-
+#include "HierarchicalLOD.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 
@@ -4126,6 +4126,20 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 						}
 
 						OutDirtyPackages.Add(BuiltDataPackage);
+					}
+				}
+			}
+
+			// Make sure we also save the dirty HLOD packages associated with this map.
+			if (WorldIt->HierarchicalLODBuilder)
+			{
+				TSet<UPackage*> HLODPackages;
+				WorldIt->HierarchicalLODBuilder->GetMeshesPackagesToSave(WorldIt->PersistentLevel, HLODPackages);
+				for (UPackage* HLODPackage : HLODPackages)
+				{
+					if (HLODPackage->IsDirty())
+					{
+						OutDirtyPackages.Add(HLODPackage);
 					}
 				}
 			}
