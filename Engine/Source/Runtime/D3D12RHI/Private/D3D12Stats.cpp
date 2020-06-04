@@ -371,8 +371,15 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 			{
 				GIsGPUCrashed = true;
 				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Stopped"), TEXT("Reset"), TEXT("Unknown"), TEXT("DmaFault") };
-				check(Status < ARRAYSIZE(AftermathReason));
-				UE_LOG(LogRHI, Error, TEXT("[Aftermath] Status: %s"), AftermathReason[Status]);
+				if (Status < UE_ARRAY_COUNT(AftermathReason))
+				{
+					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Status: %s"), AftermathReason[Status]);
+				}
+				else
+				{
+					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Invalid Status result value: %u"), Status);
+				}
+
 
 				TArray<GFSDK_Aftermath_ContextData> ContextDataOut;
 				ContextDataOut.AddUninitialized(AftermathContexts.Num());
