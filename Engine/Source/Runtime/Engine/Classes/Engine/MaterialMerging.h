@@ -232,4 +232,9 @@ struct FMaterialProxySettings
 			&& OpacityMaskTextureSize == Other.OpacityMaskTextureSize
 			&& AmbientOcclusionTextureSize == Other.AmbientOcclusionTextureSize;
 	}
+
+	bool operator != (const FMaterialProxySettings& Other) const
+	{
+		return !(*this == Other);
+	}
 };
