@@ -1421,7 +1421,7 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 		if (MaterialInterface->GetTextureParameterValue(ParameterInfo, Value, bOveriddenOnly) && Value && Value->AssetImportData)
 		{
 			//This lambda extract the source file path and create the fbx file texture node and connect it to the fbx material
-			auto SetTextureProperty = [&FbxMaterial, &Value](const char* FbxPropertyName, FbxScene* Scene)->bool
+			auto SetTextureProperty = [&FbxMaterial, &Value](const char* FbxPropertyName, FbxScene* InScene)->bool
 			{
 				FbxProperty FbxColorProperty = FbxMaterial->FindProperty(FbxPropertyName);
 				if (FbxColorProperty.IsValid())
@@ -1431,7 +1431,7 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 					if(!TextureSourceFullPath.IsEmpty())
 					{
 						//Create a fbx property
-						FbxFileTexture* lTexture = FbxFileTexture::Create(Scene, TCHAR_TO_UTF8(*TextureName));
+						FbxFileTexture* lTexture = FbxFileTexture::Create(InScene, TCHAR_TO_UTF8(*TextureName));
 						lTexture->SetFileName(TCHAR_TO_UTF8(*TextureSourceFullPath));
 						lTexture->SetTextureUse(FbxTexture::eStandard);
 						lTexture->SetMappingType(FbxTexture::eUV);
