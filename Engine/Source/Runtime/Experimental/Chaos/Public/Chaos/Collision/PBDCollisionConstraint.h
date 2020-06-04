@@ -167,6 +167,8 @@ namespace Chaos
 		void SetConstraintHandle(FPBDCollisionConstraintHandle* InHandle) { ConstraintHandle = InHandle; }
 		FPBDCollisionConstraintHandle* GetConstraintHandle() const { return ConstraintHandle; }
 
+		bool operator<(const FCollisionConstraintBase& Other) const;
+
 	private:
 		FPBDCollisionConstraintHandle* ConstraintHandle;
 		FType Type;
@@ -334,6 +336,8 @@ namespace Chaos
 			SinglePointSweptConstraints.Empty();
 			MultiPointConstraints.Empty();
 		}
+
+		void SortConstraints();
 
 
 		FRigidBodyPointContactConstraint* Add(const FRigidBodyPointContactConstraint& C)

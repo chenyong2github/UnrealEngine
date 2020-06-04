@@ -77,6 +77,9 @@ namespace Chaos
 				}
 			}
 
+			//TODO: worth adding an option to avoid when determinism unimportant?
+			CollisionConstraints.SortConstraints();
+
 			if(ResimCache)
 			{
 				ResimCache->SaveConstraints(CollisionConstraints.GetConstraintsArray());
