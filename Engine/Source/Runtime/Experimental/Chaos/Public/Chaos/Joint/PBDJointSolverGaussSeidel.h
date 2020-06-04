@@ -431,6 +431,44 @@ namespace Chaos
 			const FVec3& DP1,
 			const FVec3& DR1);
 
+		void CalculateAngularConstraintPadding(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const FReal Restitution,
+			const EJointAngularConstraintIndex ConstraintIndex,
+			const FVec3 Axis,
+			FReal& Angle);
+
+		inline bool HasLinearConstraintPadding(const int32 AxisIndex) const
+		{
+			return LinearConstraintPadding[AxisIndex] >= 0.0f;
+		}
+
+		inline FReal GetLinearConstraintPadding(const int32 AxisIndex) const
+		{
+			return HasLinearConstraintPadding(AxisIndex) ? LinearConstraintPadding[AxisIndex] : 0.0f;
+		}
+
+		inline void SetLinearConstraintPadding(const int32 AxisIndex, FReal Padding)
+		{
+			LinearConstraintPadding[AxisIndex] = Padding;
+		}
+
+		inline bool HasAngularConstraintPadding(const EJointAngularConstraintIndex ConstraintIndex) const
+		{
+			return AngularConstraintPadding[(int32)ConstraintIndex] >= 0.0f;
+		}
+
+		inline FReal GetAngularConstraintPadding(const EJointAngularConstraintIndex ConstraintIndex) const
+		{
+			return HasAngularConstraintPadding(ConstraintIndex) ? AngularConstraintPadding[(int32)ConstraintIndex] : 0.0f;
+		}
+
+		inline void SetAngularConstraintPadding(const EJointAngularConstraintIndex ConstraintIndex, FReal Padding)
+		{
+			AngularConstraintPadding[(int32)ConstraintIndex] = Padding;
+		}
 
 
 		// Local-space constraint settings
@@ -464,6 +502,10 @@ namespace Chaos
 		FReal SwingSoftLambda;
 		FReal LinearDriveLambda;
 		FReal RotationDriveLambdas[3];
+
+		// Constraint padding which can act something like a velocity constraint (for restitution)
+		FReal LinearConstraintPadding[3];
+		FReal AngularConstraintPadding[3];
 
 		// Tolerances below which we stop solving
 		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved
