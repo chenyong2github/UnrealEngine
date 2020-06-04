@@ -5,6 +5,7 @@
 #include "DatasmithUtils.h"
 #include "DatasmithSceneFactory.h"
 #include "IDatasmithSceneElements.h"
+#include "Misc/PackageName.h"
 
 bool IDatasmithShaderElement::bUseRealisticFresnel = true;
 bool IDatasmithShaderElement::bDisableReflectionFresnel = false;
@@ -140,6 +141,15 @@ FDatasmithMaterialIDElementImpl::FDatasmithMaterialIDElementImpl(const TCHAR* In
 	: FDatasmithElementImpl( InName, EDatasmithElementType::MaterialId )
 	, Id( 0 )
 {
+	// Allow asset path as name in order to allow reference to existing material
+	if (Name != InName)
+	{
+		FString Unsanitized = InName;
+		if (FPackageName::IsValidObjectPath(Unsanitized))
+		{
+			Name = Unsanitized;
+		}
+	}
 }
 
 FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::FDatasmithHierarchicalInstancedStaticMeshActorElementImpl(const TCHAR* InName)
