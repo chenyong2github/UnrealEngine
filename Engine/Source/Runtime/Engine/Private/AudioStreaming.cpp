@@ -324,7 +324,7 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 			// returns.
 			PendingChunkChangeRequestStatus.Increment();
 
-			EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_High;
+			EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_High | AIOP_FLAG_DONTCACHE;
 
 			// Load and decompress async.
 #if WITH_EDITORONLY_DATA
