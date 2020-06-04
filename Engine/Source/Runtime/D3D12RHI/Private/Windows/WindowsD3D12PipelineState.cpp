@@ -1016,7 +1016,7 @@ void FD3D12PipelineState::Create(const ComputePipelineCreationArgs& InCreationAr
 {
 	check(PipelineState.GetReference() == nullptr);
 	CreateComputePipelineState(PipelineState.GetInitReference(), GetParentAdapter(), &InCreationArgs.Args);
-	bInitialized = true;
+	InitState = (PipelineState.GetReference() != nullptr)? PSOInitState::Initialized : PSOInitState::Uninitialized;
 }
 
 void FD3D12PipelineState::CreateAsync(const ComputePipelineCreationArgs& InCreationArgs)
@@ -1033,7 +1033,7 @@ void FD3D12PipelineState::Create(const GraphicsPipelineCreationArgs& InCreationA
 {
 	check(PipelineState.GetReference() == nullptr);
 	CreateGraphicsPipelineState(PipelineState.GetInitReference(), GetParentAdapter(), &InCreationArgs.Args);
-	bInitialized = true;
+	InitState = (PipelineState.GetReference() != nullptr) ? PSOInitState::Initialized : PSOInitState::Uninitialized;
 }
 
 void FD3D12PipelineState::CreateAsync(const GraphicsPipelineCreationArgs& InCreationArgs)
