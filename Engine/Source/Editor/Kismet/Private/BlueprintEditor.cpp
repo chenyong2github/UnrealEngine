@@ -587,12 +587,12 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope,
 
 FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut)
 {
-	if (VarProperty != NULL)
+	if (Property != NULL)
 	{
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
 		FEdGraphPinType PinType;
-		if (K2Schema->ConvertPropertyToPinType(VarProperty, PinType)) // use schema to get the color
+		if (K2Schema->ConvertPropertyToPinType(Property, PinType)) // use schema to get the color
 		{
 			IconColorOut = K2Schema->GetPinTypeColor(PinType);
 			SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
