@@ -359,6 +359,12 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 		{
 			FFrameNumber MinFrame = Section->HasStartFrame() ? Section->GetInclusiveStartFrame() : TNumericLimits<int32>::Lowest();
 
+			if ( Settings->GetIsSnapEnabled() && Settings->GetSnapSectionTimesToInterval())
+			{
+				int32 IntervalSnapThreshold = FMath::RoundToInt( ( TickResolution / DisplayRate ).AsDecimal() );
+				MinFrame = MinFrame + IntervalSnapThreshold;
+			}
+
 			// Dragging the end of a section
 			// Ensure we aren't shrinking past the start time
 			NewTime = FMath::Max( NewTime, MinFrame );
@@ -374,6 +380,12 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 		else
 		{
 			FFrameNumber MaxFrame = Section->HasEndFrame() ? Section->GetExclusiveEndFrame()-1 : TNumericLimits<int32>::Max();
+
+			if ( Settings->GetIsSnapEnabled() && Settings->GetSnapSectionTimesToInterval())
+			{
+				int32 IntervalSnapThreshold = FMath::RoundToInt( ( TickResolution / DisplayRate ).AsDecimal() );
+				MaxFrame = MaxFrame - IntervalSnapThreshold;
+			}
 
 			// Dragging the start of a section
 			// Ensure we arent expanding past the end time
