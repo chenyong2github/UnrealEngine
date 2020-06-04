@@ -186,7 +186,7 @@ public:
 	* For C++ implementations override `virtual void SetStatusProgress_Implementation() override`
 	* For Python/BP implementations override
 	*	@unreal.ufunction(override=True)
-	*	def set_status_progress(self, inStatus):
+	*	def set_status_progress(self, inProgress):
 	*
 	* @param InProgress	The progress (0-1 range) the executor should have.
 	*/
