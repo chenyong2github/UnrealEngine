@@ -52,7 +52,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 
 #define OUTPUT_CHUNKID_DIRECTORY 0
 #define OUTPUT_NAMEMAP_CSV 0
-#define OUTPUT_IMPORTMAP_CSV 0
 #define OUTPUT_DEBUG_PACKAGE_HASHES 0
 
 static const FName DefaultCompressionMethod = NAME_Zlib;
@@ -3080,7 +3079,7 @@ static void ProcessLocalizedPackages(
 		}
 		else
 		{
-			UE_LOG(LogIoStore, Warning,
+			UE_LOG(LogIoStore, Display,
 				TEXT("For culture '%s': Localized package '%s' (%d) does not conform to source package '%s' (%d) due to mismatching public exports. ")
 				TEXT("When loading the source package, it will never be remapped to this localized package."),
 				*Package->Region,
@@ -3367,7 +3366,10 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 	UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15s %15s %15s %25s"),
 		TEXT("Container"), TEXT("Flags"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
 	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
-	int64 TotalPaddingSize = 0;
+	uint64 TotalTocSize = 0;
+	uint64 TotalTocEntryCount = 0;
+	uint64 TotalUncompressedContainerSize = 0;
+	uint64 TotalPaddingSize = 0;
 	for (const FIoStoreWriterResult& Result : Results)
 	{
 		FString CompressionInfo = TEXT("-");
@@ -3386,19 +3388,33 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Encrypted) ? TEXT("E") : TEXT("-"),
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"));
 
-		UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15.2lf %15d %15.2lf %25s"),
+		UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15.2lf %15llu %15.2lf %25s"),
 			*Result.ContainerName,
 			*ContainerSettings,
 			(double)Result.TocSize / 1024.0,
 			Result.TocEntryCount,
 			(double)Result.UncompressedContainerSize / 1024.0 / 1024.0,
 			*CompressionInfo);
+
+
+		TotalTocSize += Result.TocSize;
+		TotalTocEntryCount += Result.TocEntryCount;
+		TotalUncompressedContainerSize += Result.UncompressedContainerSize;
 		TotalPaddingSize += Result.PaddingSize;
 	}
+
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15.2lf %15llu %15.2lf %25s"),
+		TEXT("TOTAL"),
+		TEXT(""),
+		(double)TotalTocSize / 1024.0,
+		TotalTocEntryCount,
+		(double)TotalUncompressedContainerSize / 1024.0 / 1024.0,
+		TEXT("-"));
+
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) **"));
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2f MB"), TotalPaddingSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2lf MB"), (double)TotalPaddingSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT(""));
 }
 
@@ -3412,8 +3428,7 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- PackageStore (KB) ---------------------------------------------------"));
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %20s %20s %20s"),
-		TEXT("ID"),
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %20s %20s %20s"),
 		TEXT("Container"),
 		TEXT("Store Size"),
 		TEXT("Packages"),
@@ -3441,8 +3456,7 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 		TotalPackageCount += PackageCount;
 		TotalLocalizedPackageCount += LocalizedPackageCount;
 	}
-	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %20.0lf %20llu %20llu"),
-		TEXT("-"),
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %20.0lf %20llu %20llu"),
 		TEXT("TOTAL"),
 		(double)TotalStoreSize / 1024.0,
 		TotalPackageCount,
@@ -3460,8 +3474,7 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- PackageHeader (KB) --------------------------------------------------"));
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %13s %13s %13s %13s %13s %13s"),
-		TEXT("ID"),
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %13s %13s %13s %13s %13s %13s"),
 		TEXT("Container"),
 		TEXT("Header"),
 		TEXT("Summary"),
@@ -3511,8 +3524,7 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 		TotalNameMapSize += NameMapSize;
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf"),
-		TEXT("-"),
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf"),
 		TEXT("TOTAL"),
 		(double)TotalHeaderSize / 1024.0,
 		(double)TotalSummarySize / 1024.0,
