@@ -161,6 +161,10 @@ protected:
 
 	FQuadricErrorType ComputeFaceQuadric(const int tid, FVector3d& nface, FVector3d& c, double& Area) const;
 	
+	// uses pre-computed vertex and face quadrics to construct the edge quadric.
+	FQuadricErrorType AssembleEdgeQuadric(const FDynamicMesh3::FEdge& edge) const;
+
+	
 	// internal class for priority queue
 	struct QEdge 
 	{
