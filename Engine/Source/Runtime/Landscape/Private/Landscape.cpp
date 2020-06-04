@@ -2246,7 +2246,7 @@ int32 ULandscapeInfo::GetLayerInfoIndex(FName LayerName, ALandscapeProxy* Owner 
 }
 
 
-bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bool bInvalidate /*= false*/)
+bool ULandscapeInfo::UpdateLayerInfoMapInternal(ALandscapeProxy* Proxy, bool bInvalidate)
 {
 	bool bHasCollision = false;
 	if (GIsEditor)
@@ -2407,10 +2407,10 @@ bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bo
 				ForAllLandscapeProxies([this](ALandscapeProxy* EachProxy)
 				{
 					if (!EachProxy->IsPendingKillPending())
-				{
+					{
 						checkSlow(EachProxy->GetLandscapeInfo() == this);
-						UpdateLayerInfoMap(EachProxy, false);
-				}
+						UpdateLayerInfoMapInternal(EachProxy, false);
+					}
 				});
 			}
 		}
@@ -2421,6 +2421,20 @@ bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bo
 		//}
 	}
 	return bHasCollision;
+}
+
+bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bool bInvalidate /*= false*/)
+{
+	bool bResult = UpdateLayerInfoMapInternal(Proxy, bInvalidate);
+	if (GIsEditor)
+	{
+		ALandscape* Landscape = LandscapeActor.Get();
+		if (Landscape && Landscape->HasLayersContent())
+		{
+			Landscape->RequestLayersInitialization(/*bInRequestContentUpdate*/false);
+		}
+	}
+	return bResult;
 }
 #endif
 
@@ -3132,12 +3146,6 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 			}
 			StreamingProxy->LandscapeActor = LandscapeActor;
 			StreamingProxy->FixupSharedData(LandscapeActor.Get());
-		}
-
-		if (LandscapeActor && LandscapeActor->HasLayersContent())
-		{
-			const bool bInRequestContentUpdate = false;
-			LandscapeActor->RequestLayersInitialization(bInRequestContentUpdate);
 		}
 
 		UpdateLayerInfoMap(Proxy);
