@@ -801,7 +801,7 @@ namespace Chaos
 			case EPhysicsProxyType::JointConstraintType:
 			{
 				auto Proxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
-				Proxy->PushStateOnGameThread<Traits>();
+				//Proxy->PushStateOnGameThread<Traits>();
 				break;
 			}
 			default:
@@ -903,7 +903,7 @@ namespace Chaos
 						JointProxy->InitializeOnPhysicsThread(this);
 						JointProxy->SetInitialized();
 					}
-					JointProxy->PushStateOnPhysicsThread<Traits>();
+					//JointProxy->PushStateOnPhysicsThread<Traits>();
 					Dirty.Proxy->ResetDirtyIdx();
 					break;
 				}
