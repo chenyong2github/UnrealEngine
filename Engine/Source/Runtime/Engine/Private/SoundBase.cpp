@@ -14,6 +14,7 @@ USoundConcurrency* USoundBase::DefaultSoundConcurrencyObject = nullptr;
 USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, VirtualizationMode(EVirtualizationMode::Restart)
+	, Duration(-1.0f)
 	, Priority(1.0f)
 {
 #if WITH_EDITORONLY_DATA
