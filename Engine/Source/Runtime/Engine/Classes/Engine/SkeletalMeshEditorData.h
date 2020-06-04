@@ -38,6 +38,8 @@ class ENGINE_API USkeletalMeshEditorData : public UObject
  */
 public:
 
+	virtual void PostLoad() override;
+
 	/**
 	 * Return the imported source LOD data, create one if there is nothing.
 	 * Previous reference get by this function can be invalid if we have to add items
