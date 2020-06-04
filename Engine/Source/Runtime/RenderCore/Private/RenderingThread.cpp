@@ -1320,7 +1320,7 @@ FRHICommandListImmediate& GetImmediateCommandList_ForRenderCommand()
 	return FRHICommandListExecutor::GetImmediateCommandList();
 }
 
-static bool bEnablePendingCleanupObjectsCommandBatching = false;
+static bool bEnablePendingCleanupObjectsCommandBatching = true;
 static FAutoConsoleVariableRef CVarEnablePendingCleanupObjectsCommandBatching(
 	TEXT("g.bEnablePendingCleanupObjectsCommandBatching"),
 	bEnablePendingCleanupObjectsCommandBatching,
