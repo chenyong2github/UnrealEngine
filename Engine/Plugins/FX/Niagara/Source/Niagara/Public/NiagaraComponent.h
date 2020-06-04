@@ -272,10 +272,11 @@ public:
 
 	FNiagaraSystemInstance* GetSystemInstance() const;
 
-	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Tick Behavior"))
+	void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
 
-	/** Returns true if this component forces it's instances to run in "Solo" mode. A sub optimal path required in some situations. */
-	bool ForcesSolo()const;
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Tick Behavior"))
+	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
 
 	/** Sets a Niagara FLinearColor parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (LinearColor)"))
