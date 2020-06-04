@@ -65,6 +65,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	void EnableReporting(bool bEnabled = true) { bReportWarningsAndErrors = bEnabled; }
 
+	// Returns true if reporting is enabled
+	UFUNCTION(BlueprintPure, Category = RigVMController)
+	bool IsReportingEnabled() const { return bReportWarningsAndErrors; }
+
 #if WITH_EDITOR
 	// Note: The functions below are scoped with WITH_EDITOR since we are considering
 	// to move this code into the runtime in the future. Right now there's a dependency
