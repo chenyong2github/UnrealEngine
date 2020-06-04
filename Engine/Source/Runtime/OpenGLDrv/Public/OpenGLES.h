@@ -654,7 +654,6 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool SupportsVertexAttribDouble() { return false; }
 	static FORCEINLINE bool SupportsDrawIndexOffset() { return false; }
 	static FORCEINLINE bool SupportsResourceView() { return bSupportsTextureBuffer; }
-	static FORCEINLINE bool SupportsCopyBuffer() { return false; }
 	static FORCEINLINE bool SupportsDiscardFrameBuffer() { return bSupportsDiscardFrameBuffer; }
 	static FORCEINLINE bool SupportsIndexedExtensions() { return false; }
 	static FORCEINLINE bool SupportsVertexHalfFloat() { return bSupportsVertexHalfFloat; }
