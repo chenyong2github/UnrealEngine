@@ -470,59 +470,24 @@ PyTypeObject InitializePyWrapperObjectType()
 				}
 			}
 
+			// Deprecated classes emit a warning
+			{
+				FString DeprecationMessage;
+				if (FPyWrapperObjectMetaData::IsClassDeprecated(InSelf, &DeprecationMessage) &&
+					PyUtil::SetPythonWarning(PyExc_DeprecationWarning, InSelf, *FString::Printf(TEXT("Class '%s' is deprecated: %s"), UTF8_TO_TCHAR(Py_TYPE(InSelf)->tp_name), *DeprecationMessage)) == -1
+					)
+				{
+					// -1 from SetPythonWarning means the warning should be an exception
+					return -1;
+				}
+			}
+
+			// Create the instance
 			UClass* ObjClass = FPyWrapperObjectMetaData::GetClass(InSelf);
-			if (ObjClass)
-			{
-				// Deprecated classes emit a warning
-				{
-					FString DeprecationMessage;
-					if (FPyWrapperObjectMetaData::IsClassDeprecated(InSelf, &DeprecationMessage) &&
-						PyUtil::SetPythonWarning(PyExc_DeprecationWarning, InSelf, *FString::Printf(TEXT("Class '%s' is deprecated: %s"), UTF8_TO_TCHAR(Py_TYPE(InSelf)->tp_name), *DeprecationMessage)) == -1
-						)
-					{
-						// -1 from SetPythonWarning means the warning should be an exception
-						return -1;
-					}
-				}
-
-				if (ObjClass == UPackage::StaticClass())
-				{
-					if (ObjectName.IsNone())
-					{
-						PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Name cannot be 'None' when creating a 'Package'"));
-						return -1;
-					}
-				}
-				else if (!ObjectOuter)
-				{
-					PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Outer cannot be null when creating a '%s'"), *ObjClass->GetName()));
-					return -1;
-				}
-
-				if (ObjectOuter && !ObjectOuter->IsA(ObjClass->ClassWithin))
-				{
-					PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Outer '%s' was of type '%s' but must be of type '%s'"), *ObjectOuter->GetPathName(), *ObjectOuter->GetClass()->GetName(), *ObjClass->ClassWithin->GetName()));
-					return -1;
-				}
-
-				if (ObjClass->HasAnyClassFlags(CLASS_Abstract))
-				{
-					PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Class '%s' is abstract"), UTF8_TO_TCHAR(Py_TYPE(InSelf)->tp_name)));
-					return -1;
-				}
-				
-				InitValue = NewObject<UObject>(ObjectOuter, ObjClass, ObjectName);
-			}
-			else
-			{
-				PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Class is null"));
-				return -1;
-			}
-
-			// Do we have an object instance to wrap?
+			InitValue = PyUtil::NewObject(ObjClass, ObjectOuter, ObjectName, nullptr, *PyUtil::GetErrorContext(InSelf));
 			if (!InitValue)
 			{
-				PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Object instance was null during init"));
+				// PyUtil::NewObject should have set an error state
 				return -1;
 			}
 
@@ -1965,23 +1930,23 @@ DEFINE_FUNCTION(UPythonGeneratedClass::CallPythonFunction)
 		}
 	}
 
+	// Find the Python object to call the function on
+	FPyObjectPtr PySelf;
+	bool bSelfError = false;
+	if (!Func->HasAnyFunctionFlags(FUNC_Static))
+	{
+		FPyScopedGIL GIL;
+		PySelf = FPyObjectPtr::StealReference((PyObject*)FPyWrapperObjectFactory::Get().CreateInstance(P_THIS_OBJECT));
+		if (!PySelf)
+		{
+			UE_LOG(LogPython, Error, TEXT("Failed to create a Python wrapper for '%s'"), *P_THIS_OBJECT->GetName());
+			bSelfError = true;
+		}
+	}
+
 	// Execute Python code within this block
 	{
 		FPyScopedGIL GIL;
-
-		// Find the Python object to call the function on
-		FPyObjectPtr PySelf;
-		bool bSelfError = false;
-		if (!Func->HasAnyFunctionFlags(FUNC_Static))
-		{
-			PySelf = FPyObjectPtr::StealReference((PyObject*)FPyWrapperObjectFactory::Get().CreateInstance(P_THIS_OBJECT));
-			if (!PySelf)
-			{
-				UE_LOG(LogPython, Error, TEXT("Failed to create a Python wrapper for '%s'"), *P_THIS_OBJECT->GetName());
-				bSelfError = true;
-			}
-		}
-	
 		if (!PyGenUtil::InvokePythonCallableFromUnrealFunctionThunk(PySelf, FuncDef ? FuncDef->PyFunction.GetPtr() : nullptr, Func, Context, Stack, RESULT_PARAM) || bSelfError)
 		{
 			PyUtil::ReThrowPythonError();
