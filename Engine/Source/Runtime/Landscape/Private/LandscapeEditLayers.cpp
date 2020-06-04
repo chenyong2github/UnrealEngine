@@ -3706,12 +3706,12 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0)
+	if (WeightmapUpdateModes == 0 && !bForceRender)
 	{
 		return 0;
 	}
 
-	if (InLandscapeComponentsToResolve.Num() == 0)
+	if (InLandscapeComponentsToResolve.Num() == 0 || Info == nullptr || Info->Layers.Num() == 0)
 	{
 		return WeightmapUpdateModes;
 	}
