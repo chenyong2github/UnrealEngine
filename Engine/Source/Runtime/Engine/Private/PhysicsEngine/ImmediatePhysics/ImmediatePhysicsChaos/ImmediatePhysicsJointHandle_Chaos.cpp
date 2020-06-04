@@ -94,6 +94,10 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.LinearSoftForceMode = (ChaosImmediate_SoftLinearForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 		ConstraintSettings.AngularSoftForceMode = (ChaosImmediate_SoftAngularForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 
+		ConstraintSettings.LinearRestitution = Profile.LinearLimit.Restitution;
+		ConstraintSettings.TwistRestitution = Profile.TwistLimit.Restitution;
+		ConstraintSettings.SwingRestitution = Profile.ConeLimit.Restitution;
+
 		ConstraintSettings.LinearDrivePositionTarget = Profile.LinearDrive.PositionTarget;
 		ConstraintSettings.LinearDriveVelocityTarget = Profile.LinearDrive.VelocityTarget;
 		ConstraintSettings.bLinearPositionDriveEnabled[0] = Profile.LinearDrive.XDrive.bEnablePositionDrive;

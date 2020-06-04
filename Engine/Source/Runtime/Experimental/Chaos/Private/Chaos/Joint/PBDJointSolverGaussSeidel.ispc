@@ -49,6 +49,10 @@ struct FJointSolverGaussSeidel
 	float LinearDriveLambda;
 	float RotationDriveLambdas[3];
 	
+	// Constraint padding which can act something like a velocity constraint (for restitution)
+	float LinearConstraintPadding[3];
+	float AngularConstraintPadding[3];
+
 	// Tolerances below which we stop solving
 	float PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 	float AngleTolerance;						// Angle error below which we consider a constraint or drive solved
