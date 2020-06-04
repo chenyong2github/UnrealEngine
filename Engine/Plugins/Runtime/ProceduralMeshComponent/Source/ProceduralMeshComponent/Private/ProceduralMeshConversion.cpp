@@ -20,6 +20,11 @@ TMap<UMaterialInterface*, FPolygonGroupID> BuildMaterialMap(UProceduralMeshCompo
 		FProcMeshSection *ProcSection =
 			ProcMeshComp->GetProcMeshSection(SectionIdx);
 		UMaterialInterface *Material = ProcMeshComp->GetMaterial(SectionIdx);
+		if (Material == nullptr)
+		{
+			Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
 		if (!UniqueMaterials.Contains(Material))
 		{
 			FPolygonGroupID NewPolygonGroup = MeshDescription.CreatePolygonGroup();
@@ -144,6 +149,11 @@ FMeshDescription BuildMeshDescription( UProceduralMeshComponent* ProcMeshComp )
 		FProcMeshSection *ProcSection =
 			ProcMeshComp->GetProcMeshSection(SectionIdx);
 		UMaterialInterface *Material = ProcMeshComp->GetMaterial(SectionIdx);
+		if (Material == nullptr)
+		{
+			Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
 		FPolygonGroupID *PolygonGroupID = UniqueMaterials.Find(Material);
 		check(PolygonGroupID != nullptr);
 		PolygonGroupForSection.Add(*PolygonGroupID);
