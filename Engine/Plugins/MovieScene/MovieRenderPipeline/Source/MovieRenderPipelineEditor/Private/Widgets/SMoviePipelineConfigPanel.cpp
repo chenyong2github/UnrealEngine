@@ -101,9 +101,19 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 					MoviePipelineEditorWidget->MakeAddSettingButton()
 				]
 
+				// Spacer
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				.FillWidth(1.f)
+				[
+					SNullWidget::NullWidget
+				]
+
 				// Presets Management Button
 				+ SHorizontalBox::Slot()
 				.Padding(MoviePipeline::ButtonOffset)
+				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Fill)
 				.AutoWidth()
 				[
@@ -118,6 +128,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 						SNew(SHorizontalBox)
 
 						+ SHorizontalBox::Slot()
+						.Padding(0, 1, 4, 0)
 						.AutoWidth()
 						[
 							SNew(SImage)
@@ -125,6 +136,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 						]
 
 						+ SHorizontalBox::Slot()
+						.Padding(0, 1, 0, 0)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("PresetsToolbarButton", "Presets"))

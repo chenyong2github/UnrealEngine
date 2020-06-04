@@ -4,7 +4,6 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "UObject/GCObject.h"
 
 class UMoviePipelineConfigBase;
 class SMoviePipelineQueueEditor;
@@ -12,6 +11,7 @@ class SWindow;
 class UMoviePipelineExecutorJob;
 class UMovieSceneCinematicShotSection;
 class IDetailsView;
+struct FAssetData;
 
 /**
  * Outermost widget that is used for adding and removing jobs from the Movie Pipeline Queue Subsystem.
@@ -50,6 +50,12 @@ private:
 	void OnSelectionChanged(const TArray<UMoviePipelineExecutorJob*>& InSelectedJobs);
 	int32 GetDetailsViewWidgetIndex() const;
 	bool IsDetailsViewEnabled() const;
+
+	TSharedRef<SWidget> OnGenerateSavedQueuesMenu();
+	bool OpenSaveDialog(const FString& InDefaultPath, const FString& InNewNameSuggestion, FString& OutPackageName);
+	bool GetSavePresetPackageName(const FString& InExistingName, FString& OutName);
+	void OnSaveAsAsset();
+	void OnImportSavedQueueAssest(const FAssetData& InPresetAsset);
 
 private:
 	/** Allocates a transient preset so that the user can use the pipeline without saving it to an asset first. */
