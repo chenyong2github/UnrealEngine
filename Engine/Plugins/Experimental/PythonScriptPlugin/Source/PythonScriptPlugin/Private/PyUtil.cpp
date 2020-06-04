@@ -710,6 +710,58 @@ Py_ssize_t ResolveContainerIndexParam(const Py_ssize_t InIndex, const Py_ssize_t
 	return InIndex < 0 ? InIndex + InLen : InIndex;
 }
 
+UObject* NewObject(UClass* InObjClass, UObject* InObjectOuter, const FName InObjectName, UClass* InBaseClass, const TCHAR* InErrorCtxt)
+{
+	if (InObjClass)
+	{
+		if (InObjClass == UPackage::StaticClass())
+		{
+			if (InObjectName.IsNone())
+			{
+				SetPythonError(PyExc_Exception, InErrorCtxt, TEXT("Name cannot be 'None' when creating a 'Package'"));
+				return nullptr;
+			}
+		}
+		else if (!InObjectOuter)
+		{
+			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Outer cannot be null when creating a '%s'"), *InObjClass->GetName()));
+			return nullptr;
+		}
+
+		if (InObjectOuter && !InObjectOuter->IsA(InObjClass->ClassWithin))
+		{
+			SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Outer '%s' was of type '%s' but must be of type '%s'"), *InObjectOuter->GetPathName(), *InObjectOuter->GetClass()->GetName(), *InObjClass->ClassWithin->GetName()));
+			return nullptr;
+		}
+
+		if (InBaseClass && !InObjClass->IsChildOf(InBaseClass))
+		{
+			SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Class was of type '%s' but must be of type '%s'"), *InObjClass->GetName(), *InBaseClass->GetName()));
+			return nullptr;
+		}
+
+		if (InObjClass->HasAnyClassFlags(CLASS_Abstract))
+		{
+			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Class '%s' is abstract"), *InObjClass->GetName()));
+			return nullptr;
+		}
+
+		UObject* ObjectInstance = ::NewObject<UObject>(InObjectOuter, InObjClass, InObjectName);
+		if (!ObjectInstance)
+		{
+			SetPythonError(PyExc_Exception, InErrorCtxt, TEXT("NewObject returned a null instance"));
+			return nullptr;
+		}
+
+		return ObjectInstance;
+	}
+	else
+	{
+		SetPythonError(PyExc_Exception, InErrorCtxt, TEXT("Class is null"));
+		return nullptr;
+	}
+}
+
 UObject* GetOwnerObject(PyObject* InPyObj)
 {
 	FPyWrapperOwnerContext OwnerContext = FPyWrapperOwnerContext(InPyObj);
