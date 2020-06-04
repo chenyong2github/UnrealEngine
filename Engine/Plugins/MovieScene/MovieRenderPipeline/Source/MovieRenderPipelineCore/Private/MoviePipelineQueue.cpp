@@ -4,6 +4,7 @@
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineSetting.h"
 #include "MoviePipelineBlueprintLibrary.h"
+#include "MovieRenderPipelineCoreModule.h"
 
 UMoviePipelineExecutorJob* UMoviePipelineQueue::AllocateNewJob(TSubclassOf<UMoviePipelineExecutorJob> InJobType)
 {
@@ -57,6 +58,29 @@ UMoviePipelineExecutorJob* UMoviePipelineQueue::DuplicateJob(UMoviePipelineExecu
 
 	QueueSerialNumber++;
 	return NewJob;
+}
+
+void UMoviePipelineQueue::CopyFrom(UMoviePipelineQueue* InQueue)
+{
+	if (!InQueue)
+	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Cannot copy the contents of a null queue."));
+		return;
+	}
+
+#if WITH_EDITOR
+	Modify();
+#endif
+
+	Jobs.Empty();
+	for (UMoviePipelineExecutorJob* Job : InQueue->GetJobs())
+	{
+		DuplicateJob(Job);
+	}
+
+	// Ensure the serial number gets bumped at least once so the UI refreshes in case
+	// the queue we are copying from was empty.
+	QueueSerialNumber++;
 }
 
 void UMoviePipelineExecutorJob::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

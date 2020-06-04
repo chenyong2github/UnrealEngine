@@ -22,12 +22,28 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Styling/SlateIconFinder.h"
+#include "Widgets/Images/SImage.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+// ContentBrowser Includes
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
 
 // Misc
 #include "Editor.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
+
+// UnrealEd Includes
+#include "ScopedTransaction.h"
+#include "AssetData.h"
+#include "AssetRegistryModule.h"
+#include "FileHelpers.h"
+#include "AssetToolsModule.h"
+#include "Misc/FileHelper.h"
+
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineQueuePanel"
 
@@ -81,6 +97,48 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 				[
 					PipelineQueueEditorWidget->RemoveSelectedJobButton()
 				]	
+
+				// Spacer
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				.FillWidth(1.f)
+				[
+					SNullWidget::NullWidget
+				]
+
+				// Presets Management Button
+				+ SHorizontalBox::Slot()
+				.Padding(MoviePipeline::ButtonOffset)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				[
+					SNew(SComboButton)
+					.ToolTipText(LOCTEXT("QueueManagementButton_Tooltip", "Export the current queue to an asset, or load a previously saved queue."))
+					.ContentPadding(MoviePipeline::ButtonPadding)
+					.ComboButtonStyle(FMovieRenderPipelineStyle::Get(), "ComboButton")
+					.OnGetMenuContent(this, &SMoviePipelineQueuePanel::OnGenerateSavedQueuesMenu)
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ButtonContent()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(0, 1, 4, 0)
+						.AutoWidth()
+						[
+							SNew(SImage)
+							.Image(FSlateIconFinder::FindIconBrushForClass(UMoviePipelineQueue::StaticClass()))
+						]
+
+						+ SHorizontalBox::Slot()
+						.Padding(0, 1, 0, 0)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("SavedQueueToolbarButton", "Load/Save Queue"))
+						]
+					]
+				]
 			]
 		]
 	
@@ -383,6 +441,168 @@ bool SMoviePipelineQueuePanel::IsDetailsViewEnabled() const
 	}
 
 	return bAllEnabled;
+}
+
+TSharedRef<SWidget> SMoviePipelineQueuePanel::OnGenerateSavedQueuesMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("SaveAsQueue_Text", "Save As Asset"),
+		LOCTEXT("SaveAsQueue_Tip", "Save the current configuration as a new preset that can be shared between multiple jobs, or imported later as the base of a new configuration."),
+		FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "AssetEditor.SaveAsset.Greyscale"),
+		FUIAction(FExecuteAction::CreateSP(this, &SMoviePipelineQueuePanel::OnSaveAsAsset))
+	);
+
+	FAssetPickerConfig AssetPickerConfig;
+	{
+		AssetPickerConfig.SelectionMode = ESelectionMode::Single;
+		AssetPickerConfig.InitialAssetViewType = EAssetViewType::Column;
+		AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
+		AssetPickerConfig.bAllowNullSelection = false;
+		AssetPickerConfig.bShowBottomToolbar = true;
+		AssetPickerConfig.bAutohideSearchBar = false;
+		AssetPickerConfig.bAllowDragging = false;
+		AssetPickerConfig.bCanShowClasses = false;
+		AssetPickerConfig.bShowPathInColumnView = true;
+		AssetPickerConfig.bShowTypeInColumnView = false;
+		AssetPickerConfig.bSortByPathInColumnView = false;
+
+		AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoQueueAssets_Warning", "No Queues Found");
+		AssetPickerConfig.Filter.ClassNames.Add(UMoviePipelineQueue::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.bRecursiveClasses = true;
+		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SMoviePipelineQueuePanel::OnImportSavedQueueAssest);
+	}
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("LoadQueue_MenuSection", "Load Queue"));
+	{
+		TSharedRef<SWidget> PresetPicker = SNew(SBox)
+			.MinDesiredWidth(400.f)
+			.MinDesiredHeight(400.f)
+			[
+				ContentBrowser.CreateAssetPicker(AssetPickerConfig)
+			];
+
+		MenuBuilder.AddWidget(PresetPicker, FText(), true, false);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+bool SMoviePipelineQueuePanel::OpenSaveDialog(const FString& InDefaultPath, const FString& InNewNameSuggestion, FString& OutPackageName)
+{
+	FSaveAssetDialogConfig SaveAssetDialogConfig;
+	{
+		SaveAssetDialogConfig.DefaultPath = InDefaultPath;
+		SaveAssetDialogConfig.DefaultAssetName = InNewNameSuggestion;
+		SaveAssetDialogConfig.AssetClassNames.Add(UMoviePipelineQueue::StaticClass()->GetFName());
+		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
+		SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SaveQueueAssetDialogTitle", "Save Queue Asset");
+	}
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
+
+	if (!SaveObjectPath.IsEmpty())
+	{
+		OutPackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
+		return true;
+	}
+
+	return false;
+}
+
+bool SMoviePipelineQueuePanel::GetSavePresetPackageName(const FString& InExistingName, FString& OutName)
+{
+	UMovieRenderPipelineProjectSettings* ConfigSettings = GetMutableDefault<UMovieRenderPipelineProjectSettings>();
+
+	// determine default package path
+	const FString DefaultSaveDirectory = ConfigSettings->PresetSaveDir.Path;
+
+	FString DialogStartPath;
+	FPackageName::TryConvertFilenameToLongPackageName(DefaultSaveDirectory, DialogStartPath);
+	if (DialogStartPath.IsEmpty())
+	{
+		DialogStartPath = TEXT("/Game");
+	}
+
+	// determine default asset name
+	FString DefaultName = InExistingName;
+
+	FString UniquePackageName;
+	FString UniqueAssetName;
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(DialogStartPath / DefaultName, TEXT(""), UniquePackageName, UniqueAssetName);
+
+	FString DialogStartName = FPaths::GetCleanFilename(UniqueAssetName);
+
+	FString UserPackageName;
+	FString NewPackageName;
+
+	// get destination for asset
+	bool bFilenameValid = false;
+	while (!bFilenameValid)
+	{
+		if (!OpenSaveDialog(DialogStartPath, DialogStartName, UserPackageName))
+		{
+			return false;
+		}
+
+		NewPackageName = UserPackageName;
+
+		FText OutError;
+		bFilenameValid = FFileHelper::IsFilenameValidForSaving(NewPackageName, OutError);
+	}
+
+	// Update to the last location they saved to so it remembers their settings next time.
+	ConfigSettings->PresetSaveDir.Path = FPackageName::GetLongPackagePath(UserPackageName);
+	ConfigSettings->SaveConfig();
+	OutName = MoveTemp(NewPackageName);
+	return true;
+}
+
+void SMoviePipelineQueuePanel::OnSaveAsAsset()
+{
+	UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+	check(Subsystem);
+	UMoviePipelineQueue* CurrentQueue = Subsystem->GetQueue();
+
+	FString PackageName;
+	if (!GetSavePresetPackageName(CurrentQueue->GetName(), PackageName))
+	{
+		return;
+	}
+	
+	// Saving into a new package
+	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
+	UPackage* NewPackage = CreatePackage(nullptr, *PackageName);
+	UMoviePipelineQueue* DuplicateQueue = NewObject<UMoviePipelineQueue>(NewPackage, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional, CurrentQueue);
+
+	if (DuplicateQueue)
+	{
+		FAssetRegistryModule::AssetCreated(DuplicateQueue);
+
+		FEditorFileUtils::EPromptReturnCode PromptReturnCode = FEditorFileUtils::PromptForCheckoutAndSave({ NewPackage }, false, false);
+	}
+}
+
+void SMoviePipelineQueuePanel::OnImportSavedQueueAssest(const FAssetData& InPresetAsset)
+{
+	FSlateApplication::Get().DismissAllMenus();
+
+	UMoviePipelineQueue* SavedQueue = CastChecked<UMoviePipelineQueue>(InPresetAsset.GetAsset());
+	if (SavedQueue)
+	{
+		// Duplicate the queue so we don't start modifying the one in the asset.
+		UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+		check(Subsystem);
+
+		Subsystem->GetQueue()->CopyFrom(SavedQueue);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE // SMoviePipelineQueuePanel

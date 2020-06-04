@@ -389,6 +389,12 @@ public:
 	{
 		return Jobs;
 	}
+
+	/** 
+	* Replace the contents of this queue with a copy of the contents from another queue. 
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void CopyFrom(UMoviePipelineQueue* InQueue);
 	
 	/**
 	 * Retrieve the serial number that is incremented when a job is added or removed from this list.
