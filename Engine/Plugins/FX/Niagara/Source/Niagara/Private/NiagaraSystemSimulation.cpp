@@ -39,7 +39,6 @@ DECLARE_CYCLE_STAT(TEXT("System Sim Init (BindParams) [GT]"), STAT_NiagaraSystem
 DECLARE_CYCLE_STAT(TEXT("System Sim Init (DatasetAccessors) [GT]"), STAT_NiagaraSystemSim_Init_DatasetAccessors, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Sim Init (DirectBindings) [GT]"), STAT_NiagaraSystemSim_Init_DirectBindings, STATGROUP_Niagara);
 
-
 DECLARE_CYCLE_STAT(TEXT("ForcedWaitForAsync"), STAT_NiagaraSystemSim_ForceWaitForAsync, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("ForcedWait Fake Stall"), STAT_NiagaraSystemSim_ForceWaitFakeStall, STATGROUP_Niagara);
 
@@ -638,6 +637,27 @@ void FNiagaraSystemSimulation::AddTickGroupPromotion(FNiagaraSystemInstance* Ins
 	check(IsInGameThread());
 	check(!PendingTickGroupPromotions.Contains(Instance));
 	PendingTickGroupPromotions.Add(Instance);
+
+	check(bIsSolo == false);
+
+	FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+	check(WorldManager != nullptr);
+	WorldManager->MarkSimulationForPostActorWork(SharedThis(this));
+}
+
+int32 FNiagaraSystemSimulation::AddPendingSystemInstance(FNiagaraSystemInstance* Instance)
+{
+	check(IsInGameThread());
+	check(!PendingSystemInstances.Contains(Instance));
+
+	if (bIsSolo == false)
+	{
+		FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+		check(WorldManager != nullptr);
+		WorldManager->MarkSimulationForPostActorWork(SharedThis(this));
+	}
+
+	return PendingSystemInstances.Add(Instance);
 }
 
 void FNiagaraSystemSimulation::AddSystemToTickBatch(FNiagaraSystemInstance* Instance, FNiagaraSystemSimulationTickContext& Context)
@@ -833,7 +853,7 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 					TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> DestSim = WorldManager->GetSystemSimulation(DesiredTickGroup, System);
 
 					Inst->SystemSimulation = DestSim;
-					Inst->SystemInstanceIndex = DestSim->PendingSystemInstances.Add(Inst);
+					Inst->SystemInstanceIndex = DestSim->AddPendingSystemInstance(Inst);
 					continue;
 				}
 			}
@@ -963,7 +983,7 @@ void FNiagaraSystemSimulation::UpdateTickGroups_GameThread()
 				TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> DestSim = WorldManager->GetSystemSimulation(DesiredTickGroup, System);
 
 				Instance->SystemSimulation = DestSim;
-				Instance->SystemInstanceIndex = DestSim->PendingSystemInstances.Add(Instance);
+				Instance->SystemInstanceIndex = DestSim->AddPendingSystemInstance(Instance);
 				continue;
 			}
 		}
@@ -1631,7 +1651,7 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 	WaitForSystemTickComplete();
 
 	Instance->SetPendingSpawn(true);
-	Instance->SystemInstanceIndex = PendingSystemInstances.Add(Instance);
+	Instance->SystemInstanceIndex = AddPendingSystemInstance(Instance);
 
 	UNiagaraSystem* System = WeakSystem.Get();
 	if (GbDumpSystemData || (System && System->bDumpDebugSystemInfo))
@@ -1758,6 +1778,8 @@ void FNiagaraSystemSimulation::InitParameterDataSetBindings(FNiagaraSystemInstan
 	//Ideally we can store all this layout info in the systm/emitter assets so we can just generate this in Init()
 	if (!bBindingsInitialized && SystemInst != nullptr)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_Niagara_InitParameterDataSetBindings);
+
 		bBindingsInitialized = true;
 
 		SpawnInstanceParameterToDataSetBinding.Init(SpawnInstanceParameterDataSet, SystemInst->GetInstanceParameters());
@@ -1771,37 +1793,34 @@ void FNiagaraSystemSimulation::InitParameterDataSetBindings(FNiagaraSystemInstan
 		DataSetToEmitterEventParameters.SetNum(EmitterCount);
 		DataSetToEmitterGPUParameters.SetNum(EmitterCount);
 
-		const FString EmitterNamespace = TEXT("Emitter");
-
 		for (int32 EmitterIdx = 0; EmitterIdx < EmitterCount; ++EmitterIdx)
 		{
 			FNiagaraEmitterInstance& EmitterInst = Emitters[EmitterIdx].Get();
-			if (!EmitterInst.IsDisabled())
+			if (EmitterInst.IsDisabled())
 			{
-				const FString EmitterName = EmitterInst.GetCachedEmitter()->GetUniqueEmitterName();
+				continue;
+			}
 
-				FNiagaraScriptExecutionContext& SpawnContext = EmitterInst.GetSpawnExecutionContext();
-				DataSetToEmitterSpawnParameters[EmitterIdx].Init(MainDataSet, SpawnContext.Parameters);
+			FNiagaraScriptExecutionContext& SpawnContext = EmitterInst.GetSpawnExecutionContext();
+			DataSetToEmitterSpawnParameters[EmitterIdx].Init(MainDataSet, SpawnContext.Parameters);
 
-				FNiagaraScriptExecutionContext& UpdateContext = EmitterInst.GetUpdateExecutionContext();
-				DataSetToEmitterUpdateParameters[EmitterIdx].Init(MainDataSet, UpdateContext.Parameters);
+			FNiagaraScriptExecutionContext& UpdateContext = EmitterInst.GetUpdateExecutionContext();
+			DataSetToEmitterUpdateParameters[EmitterIdx].Init(MainDataSet, UpdateContext.Parameters);
 
+			FNiagaraComputeExecutionContext* GPUContext = EmitterInst.GetGPUContext();
+			if (GPUContext)
+			{
+				DataSetToEmitterGPUParameters[EmitterIdx].Init(MainDataSet, GPUContext->CombinedParamStore);
+			}
 
-				FNiagaraComputeExecutionContext* GPUContext = EmitterInst.GetGPUContext();
-				if (GPUContext)
-				{
-					DataSetToEmitterGPUParameters[EmitterIdx].Init(MainDataSet, GPUContext->CombinedParamStore);
-				}
+			TArrayView<FNiagaraScriptExecutionContext> EventContexts = EmitterInst.GetEventExecutionContexts();
+			const int32 EventCount = EventContexts.Num();
+			DataSetToEmitterEventParameters[EmitterIdx].SetNum(EventCount);
 
-				TArrayView<FNiagaraScriptExecutionContext> EventContexts = EmitterInst.GetEventExecutionContexts();
-				const int32 EventCount = EventContexts.Num();
-				DataSetToEmitterEventParameters[EmitterIdx].SetNum(EventCount);
-
-				for (int32 EventIdx = 0; EventIdx < EventCount; ++EventIdx)
-				{
-					FNiagaraScriptExecutionContext& EventContext = EventContexts[EventIdx];
-					DataSetToEmitterEventParameters[EmitterIdx][EventIdx].Init(MainDataSet, EventContext.Parameters);
-				}
+			for (int32 EventIdx = 0; EventIdx < EventCount; ++EventIdx)
+			{
+				FNiagaraScriptExecutionContext& EventContext = EventContexts[EventIdx];
+				DataSetToEmitterEventParameters[EmitterIdx][EventIdx].Init(MainDataSet, EventContext.Parameters);
 			}
 		}
 	}
