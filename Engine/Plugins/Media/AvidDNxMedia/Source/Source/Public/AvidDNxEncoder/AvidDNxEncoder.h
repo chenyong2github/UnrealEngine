@@ -44,7 +44,7 @@ struct FAvidDNxEncoderOptions
 	bool bCompress;
 	
 	/** Number of Encoding Threads. Must be at least 1. */
-	int32 NumberOfEncodingThreads;
+	uint32 NumberOfEncodingThreads;
 };
 
 /**

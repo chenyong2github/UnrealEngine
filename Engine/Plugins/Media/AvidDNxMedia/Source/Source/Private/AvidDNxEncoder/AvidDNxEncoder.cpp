@@ -184,7 +184,7 @@ bool FAvidDNxEncoder::InitializeCompressedEncoder()
 	const DNX_EncodeOperationParams_t OperationParams =
 	{
 		sizeof(DNX_EncodeOperationParams_t),
-		FMath::Max(Options.NumberOfEncodingThreads, 1)
+		FMath::Max<unsigned int>(Options.NumberOfEncodingThreads, 1u)
 	};
 
 	const int CreateResult = DNX_CreateEncoder(&CompressedParamsHR, &UncompressedParamsHR, &OperationParams, &DNxHRencoder);
