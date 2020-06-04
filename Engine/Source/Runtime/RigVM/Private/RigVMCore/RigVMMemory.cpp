@@ -516,14 +516,20 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 					uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
 					UScriptStruct* ScriptStruct = GetScriptStruct(Register);
 
+					TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
+					DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
+					ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
+
 					TArray<FString> View;
 					for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
 					{
 						FString Value;
-						ScriptStruct->ExportText(Value, DataPtr, nullptr, nullptr, PPF_None, nullptr);
+						ScriptStruct->ExportText(Value, DataPtr, DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
 						View.Add(Value);
 						DataPtr += Register.ElementSize;
 					}
+
+					ScriptStruct->DestroyStruct(DefaultStructData.GetData(), 1);
 
 					Ar << View;
 					break;
@@ -1142,9 +1148,15 @@ TArray<FString> FRigVMMemoryContainer::GetRegisterValueAsString(const FRigVMOper
 			UScriptStruct* ScriptStruct = GetScriptStruct(Register);
 			if (ScriptStruct == InCPPTypeObject)
 			{
+				TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
+				DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
+				ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
+
 				uint8* DataPtr = (uint8*)GetData(Register);
 				DataPtr += Index * ScriptStruct->GetStructureSize();
-				ScriptStruct->ExportText(DefaultValue, DataPtr, nullptr, nullptr, PPF_None, nullptr);
+				ScriptStruct->ExportText(DefaultValue, DataPtr, DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
+
+				ScriptStruct->DestroyStruct(DefaultStructData.GetData(), 1);
 			}
 		}
 		else if (const UEnum* Enum = Cast<const UEnum>(InCPPTypeObject))
