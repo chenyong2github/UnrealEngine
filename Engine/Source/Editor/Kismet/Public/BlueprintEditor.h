@@ -400,9 +400,22 @@ public:
 	 * @param VarScope			Scope to find the variable in
 	 * @param VarName			Name of variable
 	 * @param IconColorOut		The resulting color for the glyph
+	 * @param SecondaryBrushOut The resulting secondary glyph brush (used for Map types)
+	 * @param SecondaryColorOut The resulting secondary color for the glyph (used for Map types)
 	 * @return					The resulting glyph brush
 	 */
 	static FSlateBrush const* GetVarIconAndColor(const UStruct* VarScope, FName VarName, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut);
+
+	/**
+	 * Util for finding a glyph and color for a variable.
+	 *
+	 * @param Property       The variable's property
+	 * @param IconColorOut      The resulting color for the glyph
+	 * @param SecondaryBrushOut The resulting secondary glyph brush (used for Map types)
+	 * @param SecondaryColorOut The resulting secondary color for the glyph (used for Map types)
+	 * @return					The resulting glyph brush
+	 */
+	static FSlateBrush const* GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut);
 
 	/** Overridable function for determining if the current mode can script */
 	virtual bool IsInAScriptingMode() const;

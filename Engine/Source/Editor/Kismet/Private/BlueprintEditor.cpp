@@ -580,18 +580,24 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope,
 	if (VarScope != NULL)
 	{
 		FProperty* Property = FindFProperty<FProperty>(VarScope, VarName);
-		if (Property != NULL)
-		{
-			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+		return GetVarIconAndColorFromProperty(Property, IconColorOut, SecondaryBrushOut, SecondaryColorOut);
+	}
+	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+}
 
-			FEdGraphPinType PinType;
-			if (K2Schema->ConvertPropertyToPinType(Property, PinType)) // use schema to get the color
-			{
-				IconColorOut = K2Schema->GetPinTypeColor(PinType);
-				SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
-				SecondaryColorOut = K2Schema->GetSecondaryPinTypeColor(PinType);
-				return FBlueprintEditorUtils::GetIconFromPin(PinType);
-			}
+FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut)
+{
+	if (VarProperty != NULL)
+	{
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+
+		FEdGraphPinType PinType;
+		if (K2Schema->ConvertPropertyToPinType(VarProperty, PinType)) // use schema to get the color
+		{
+			IconColorOut = K2Schema->GetPinTypeColor(PinType);
+			SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
+			SecondaryColorOut = K2Schema->GetSecondaryPinTypeColor(PinType);
+			return FBlueprintEditorUtils::GetIconFromPin(PinType);
 		}
 	}
 	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
