@@ -34,6 +34,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = HLODSystem)
 	bool bForceSettingsInAllMaps;
 
+	/** If enabled, will save LOD actors descriptions in the HLOD packages */
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem)
+	bool bSaveLODActorsToHLODPackages;
+
 	/** When set in combination with */
 	UPROPERTY(EditAnywhere, config, Category = HLODSystem, meta=(editcondition="bForceSettingsInAllMaps"))
 	TSoftClassPtr<UHierarchicalLODSetup> DefaultSetup;

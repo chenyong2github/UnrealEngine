@@ -43,6 +43,7 @@
 #include "Algo/Transform.h"
 #include "Engine/HLODProxy.h"
 #include "HierarchicalLOD.h"
+#include "LevelUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHierarchicalLODUtilities, Verbose, All);
 
@@ -82,36 +83,46 @@ float FHierarchicalLODUtilities::CalculateDrawDistanceFromScreenSize(const float
 	return ComputeBoundsDrawDistance(ScreenSize, SphereRadius, ProjectionMatrix);
 }
 
+static FString GetHLODProxyName(const FString& InLevelPackageName, const uint32 InHLODLevelIndex)
+{
+	const FString BaseName = FPackageName::GetShortName(InLevelPackageName);
+	return FString::Printf(TEXT("%s_%i_HLOD"), *BaseName, InHLODLevelIndex);
+}
+
 static FString GetHLODProxyName(const ULevel* InLevel, const uint32 InHLODLevelIndex)
 {
 	UPackage* LevelOuterMost = InLevel->GetOutermost();
-
-	const FString BaseName = FPackageName::GetShortName(LevelOuterMost->GetPathName());	
-	return FString::Printf(TEXT("%s_%i_HLOD"), *BaseName, InHLODLevelIndex);
-}
-
-static FString GetHLODPackageName(const ULevel* InLevel, const uint32 InHLODLevelIndex, FString& InOutHLODProxyName)
-{
-	UPackage* LevelOuterMost = InLevel->GetOutermost();
-
-	const FString PathName = FPackageName::GetLongPackagePath(LevelOuterMost->GetPathName());
-	const FString BaseName = FPackageName::GetShortName(LevelOuterMost->GetPathName());	
-	InOutHLODProxyName = GetHLODProxyName(InLevel, InHLODLevelIndex);
-	return FString::Printf(TEXT("%s/HLOD/%s"), *PathName, *InOutHLODProxyName);
-}
-
-static FString GetHLODProxyName(const FString& InLevelPackageName, const uint32 InHLODLevelIndex)
-{
-	const FString BaseName = FPackageName::GetShortName(InLevelPackageName);	
-	return FString::Printf(TEXT("%s_%i_HLOD"), *BaseName, InHLODLevelIndex);
+	const FString PackageName = LevelOuterMost->GetPathName();
+	return GetHLODProxyName(PackageName, InHLODLevelIndex);
 }
 
 static FString GetHLODPackageName(const FString& InLevelPackageName, const uint32 InHLODLevelIndex, FString& InOutHLODProxyName)
 {
 	const FString PathName = FPackageName::GetLongPackagePath(InLevelPackageName);
-	const FString BaseName = FPackageName::GetShortName(InLevelPackageName);	
 	InOutHLODProxyName = GetHLODProxyName(InLevelPackageName, InHLODLevelIndex);
 	return FString::Printf(TEXT("%s/HLOD/%s"), *PathName, *InOutHLODProxyName);
+}
+
+static FString GetHLODPackageName(const ULevel* InLevel, const uint32 InHLODLevelIndex, FString& InOutHLODProxyName)
+{
+	// Strip out any PIE or level instance prefix from the given level package name
+	FString LevelPackageName;
+	if (ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(InLevel))
+	{
+		LevelPackageName = StreamingLevel->PackageNameToLoad != NAME_None ? StreamingLevel->PackageNameToLoad.ToString() : StreamingLevel->GetWorldAssetPackageName();
+	}
+	else
+	{
+		LevelPackageName = InLevel->GetOutermost()->GetPathName();
+	}
+	
+	if (InLevel->GetWorld()->IsPlayInEditor())
+	{
+		LevelPackageName = UWorld::StripPIEPrefixFromPackageName(LevelPackageName, InLevel->GetWorld()->StreamingLevelsPrefix);
+	}
+
+	// Build the HLOD package name from the cleaned up level package name
+	return GetHLODPackageName(LevelPackageName, InHLODLevelIndex, InOutHLODProxyName);
 }
 
 void FHierarchicalLODUtilities::CleanStandaloneAssetsInPackage(UPackage* InPackage)
@@ -168,6 +179,7 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 	bool bCreatedNewPackage = false;
 	UPackage* HLODPackage = CreatePackage(nullptr, *HLODLevelPackageName);
 	HLODPackage->FullyLoad();
+	HLODPackage->SetPackageFlags(PKG_ContainsMapData);		// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 
 	// Target level filename
 	const FString HLODLevelFileName = FPackageName::LongPackageNameToFilename(HLODLevelPackageName);
@@ -182,10 +194,11 @@ UHLODProxy* FHierarchicalLODUtilities::RetrieveLevelHLODProxy(const ULevel* InLe
 	checkf(InLevel != nullptr, TEXT("Invalid Level supplied"));
 	FString HLODProxyName;
 	const FString HLODLevelPackageName = GetHLODPackageName(InLevel, HLODLevelIndex, HLODProxyName);
-	UPackage* HLODPackage = FindPackage(nullptr, *HLODLevelPackageName);
+	UPackage* HLODPackage = LoadPackage(nullptr, *HLODLevelPackageName, ELoadFlags::LOAD_NoWarn);
 	if(HLODPackage)
 	{
 		HLODPackage->FullyLoad();
+		HLODPackage->SetPackageFlags(PKG_ContainsMapData);	// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 		return FindObject<UHLODProxy>(HLODPackage, *HLODProxyName);
 	}
 
@@ -216,6 +229,7 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 	HLODPackage = CreatePackage(NULL, *HLODLevelPackageName);
 	HLODPackage->FullyLoad();
 	HLODPackage->Modify();
+	HLODPackage->SetPackageFlags(PKG_ContainsMapData);		// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 
 	// Target level filename
 	const FString HLODLevelFileName = FPackageName::LongPackageNameToFilename(HLODLevelPackageName);
@@ -514,7 +528,7 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 			LODActor->DetermineShadowingFlags();
 
 			// Link proxy to actor
-			UHLODProxy* PreviousProxy = LODActor->GetProxy();
+			const UHLODProxy* PreviousProxy = LODActor->GetProxy();
 			Proxy->AddMesh(LODActor, MainMesh, UHLODProxy::GenerateKeyForActor(LODActor));
 			bDirtyPackage |= (LODActor->GetProxy() != PreviousProxy);
 
@@ -674,12 +688,18 @@ void FHierarchicalLODUtilities::DestroyCluster(ALODActor* InActor)
 	UWorld* World = Actor->GetWorld();
 	ALODActor* ParentLOD = GetParentLODActor(InActor);
 
+	// Only dirty the level if LODActors weren't spawned from an HLOD desc
+	bool bShouldDirtyLevel = !InActor->WasBuiltFromHLODDesc();
+
 	const FScopedTransaction Transaction(LOCTEXT("UndoAction_DeleteCluster", "Deleting a (invalid) Cluster"));
-	Actor->Modify();
-	World->Modify();
+	Actor->Modify(bShouldDirtyLevel);
+	World->Modify(bShouldDirtyLevel);
+
+	UHLODProxy* HLODProxy = InActor->GetProxy();
+
 	if (ParentLOD != nullptr)
 	{
-		ParentLOD->Modify();
+		ParentLOD->Modify(bShouldDirtyLevel);
 		ParentLOD->RemoveSubActor(Actor);
 	}
 
@@ -687,7 +707,7 @@ void FHierarchicalLODUtilities::DestroyCluster(ALODActor* InActor)
 	while (InActor->SubActors.Num())
 	{
 		AActor* SubActor = InActor->SubActors[0];
-		SubActor->Modify();
+		SubActor->Modify(bShouldDirtyLevel);
 		InActor->RemoveSubActor(SubActor);
 	}
 
@@ -696,6 +716,12 @@ void FHierarchicalLODUtilities::DestroyCluster(ALODActor* InActor)
 	if (ParentLOD != nullptr && !ParentLOD->HasAnySubActors())
 	{
 		DestroyCluster(ParentLOD);
+	}
+
+	// Update the HLOD proxy so that it's content reflect any change to the level
+	if (HLODProxy)
+	{
+		HLODProxy->Clean();
 	}
 }
 
@@ -946,20 +972,7 @@ void FHierarchicalLODUtilities::ExcludeActorFromClusterGeneration(AActor* InActo
 
 void FHierarchicalLODUtilities::DestroyLODActor(ALODActor* InActor)
 {
-	const FScopedTransaction Transaction(LOCTEXT("UndoAction_DeleteLODActor", "Delete LOD Actor"));
-	UWorld* World = InActor->GetWorld();
-	World->Modify();
-	InActor->Modify();
-	
-	ALODActor* ParentActor = GetParentLODActor(InActor);
-
 	DestroyCluster(InActor);
-
-	if (ParentActor && !ParentActor->HasAnySubActors())
-	{
-		ParentActor->Modify();
-		DestroyLODActor(ParentActor);
-	}
 }
 
 void FHierarchicalLODUtilities::ExtractStaticMeshActorsFromLODActor(ALODActor* LODActor, TArray<AActor*> &InOutActors)

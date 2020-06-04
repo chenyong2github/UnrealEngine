@@ -24,8 +24,9 @@
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
 #include "../Classes/Editor/EditorEngine.h"
+#include "Editor.h"
 #include "UnrealEdGlobals.h"
-
+#include "Subsystems/HLODEditorSubsystem.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
 #endif // WITH_EDITOR
@@ -63,6 +64,10 @@ void UHierarchicalLODSettings::PostEditChangeProperty(struct FPropertyChangedEve
 				BaseMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
 			}
 		}
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UHierarchicalLODSettings, bSaveLODActorsToHLODPackages))
+	{
+		GEditor->GetEditorSubsystem<UHLODEditorSubsystem>()->OnSaveLODActorsToHLODPackagesChanged();
 	}
 }
 
@@ -367,10 +372,11 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 	// If clusters changed, delete old LOD actors and move the new ones in the proper level
 	if (bChanged)
 	{
-		InLevel->MarkPackageDirty();
-
 		// Delete all 
 		DeleteLODActors(InLevel);
+
+		FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
+		IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 
 		for (ALODActor* LODActor : NewLODActors)
 		{
@@ -384,6 +390,16 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 			for (AActor* Actor : SubActors)
 			{
 				LODActor->AddSubActor(Actor);
+			}
+
+			if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
+			{
+				UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(InLevel, LODActor->LODLevel - 1);
+				Proxy->AddLODActor(LODActor);
+			}
+			else
+			{
+				LODActor->MarkPackageDirty();
 			}
 		}
 	}
@@ -910,55 +926,57 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 				ALODActor* LODActor = CastChecked<ALODActor>(Actor);
 
 				LODLevelActors[LODActor->LODLevel - 1].Add(LODActor);
-				NumLODActors++;
 			}
 		}
 
-		if (NumLODActors)
+		const int32 NumLODLevels = LODLevelActors.Num();
+		for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
 		{
-			const int32 NumLODLevels = LODLevelActors.Num();
-			for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
+			UHLODProxy* HLODProxy = Utilities->RetrieveLevelHLODProxy(InLevel, LODIndex);
+			if (HLODProxy)
 			{
-				UPackage* AssetsOuter = Utilities->RetrieveLevelHLODPackage(InLevel, LODIndex);
-				if (AssetsOuter)
+				// Ensure the HLOD descs are up to date.
+				if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
 				{
-					InHLODPackagesToSave.Add(AssetsOuter);
-				}
-				// If we couldn't find the HLOD package, the level may have been renamed, 
-				// so we need to relocate our old HLOD package before saving it.
-				else if (PreviousLevelName.Len() != 0)
-				{
-					FString NewLevelName = InLevel->GetOutermost()->GetName();
-
-					FString OldHLODProxyName = Utilities->GetLevelHLODProxyName(PreviousLevelName, LODIndex);
-					UHLODProxy* OldHLODPProxy = FindObject<UHLODProxy>(nullptr, *OldHLODProxyName);
-					if (OldHLODPProxy)
-					{
-						FString NewHLODProxyName = Utilities->GetLevelHLODProxyName(NewLevelName, LODIndex);
-						FString OldHLODPackageName = FPackageName::ObjectPathToPackageName(OldHLODProxyName);
-						FString NewHLODPackageName = FPackageName::ObjectPathToPackageName(NewHLODProxyName);
-						UPackage* OldHLODPackage = FindObject<UPackage>(nullptr, *OldHLODPackageName);
-						if (OldHLODPackage)
-						{
-							OldHLODPProxy->Rename(*FPackageName::ObjectPathToObjectName(NewHLODProxyName), OldHLODPackage, REN_NonTransactional | REN_DontCreateRedirectors);
-							OldHLODPackage->Rename(*NewHLODPackageName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
-
-							InHLODPackagesToSave.Add(OldHLODPackage);
-
-							// Mark the level package as dirty as we have changed export locations, and without a resave we will not pick up
-							// HLOD packages when reloaded.
-							InLevel->GetOutermost()->MarkPackageDirty();
-						}
-					}
+					HLODProxy->UpdateHLODDescs(InLevel);
 				}
 
-				// We might have created imposters static mesh packages during the HLOD generation, we must save them too.
-				for (ALODActor* LODActor : LODLevelActors[LODIndex])
+				InHLODPackagesToSave.Add(HLODProxy->GetOutermost());
+			}
+			// If we couldn't find the HLOD package, the level may have been renamed, 
+			// so we need to relocate our old HLOD package before saving it.
+			else if (PreviousLevelName.Len() != 0)
+			{
+				FString NewLevelName = InLevel->GetOutermost()->GetName();
+
+				FString OldHLODProxyName = Utilities->GetLevelHLODProxyName(PreviousLevelName, LODIndex);
+				UHLODProxy* OldHLODPProxy = FindObject<UHLODProxy>(nullptr, *OldHLODProxyName);
+				if (OldHLODPProxy)
 				{
-					for (UInstancedStaticMeshComponent* Component : LODActor->GetImpostersStaticMeshComponents())
+					FString NewHLODProxyName = Utilities->GetLevelHLODProxyName(NewLevelName, LODIndex);
+					FString OldHLODPackageName = FPackageName::ObjectPathToPackageName(OldHLODProxyName);
+					FString NewHLODPackageName = FPackageName::ObjectPathToPackageName(NewHLODProxyName);
+					UPackage* OldHLODPackage = FindObject<UPackage>(nullptr, *OldHLODPackageName);
+					if (OldHLODPackage)
 					{
-						InHLODPackagesToSave.Add(Component->GetStaticMesh()->GetOutermost());
+						OldHLODPProxy->Rename(*FPackageName::ObjectPathToObjectName(NewHLODProxyName), OldHLODPackage, REN_NonTransactional | REN_DontCreateRedirectors);
+						OldHLODPackage->Rename(*NewHLODPackageName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+
+						InHLODPackagesToSave.Add(OldHLODPackage);
+
+						// Mark the level package as dirty as we have changed export locations, and without a resave we will not pick up
+						// HLOD packages when reloaded.
+						InLevel->GetOutermost()->MarkPackageDirty();
 					}
+				}
+			}
+
+			// We might have created imposters static mesh packages during the HLOD generation, we must save them too.
+			for (ALODActor* LODActor : LODLevelActors[LODIndex])
+			{
+				for (UInstancedStaticMeshComponent* Component : LODActor->GetImpostersStaticMeshComponents())
+				{
+					InHLODPackagesToSave.Add(Component->GetStaticMesh()->GetOutermost());
 				}
 			}
 		}
