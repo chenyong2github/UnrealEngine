@@ -46,7 +46,7 @@ FAttrBasedQuadricErrord TMeshSimplification<FAttrBasedQuadricErrord>::ComputeFac
 	FVector3d n1d(n1.X, n1.Y, n1.Z);
 	FVector3d n2d(n2.X, n2.Y, n2.Z);
 
-	double attrweight = 1.;
+	double attrweight = 16.;
 	return FQuadricErrorType(p0, p1, p2, n0d, n1d, n2d, nface, c, attrweight);
 }
 
@@ -57,7 +57,7 @@ void TMeshSimplification<QuadricErrorType>::InitializeTriQuadrics()
 	triQuadrics.SetNum(NT);
 	triAreas.SetNum(NT);
 
-	// tested with ParallelFor - no measurable benifit
+	// tested with ParallelFor - no measurable benefit
 	//@todo parallel version
 	//gParallel.BlockStartEnd(0, Mesh->MaxTriangleID - 1, (start_tid, end_tid) = > {
 	FVector3d n, c;
@@ -74,7 +74,7 @@ void TMeshSimplification<QuadricErrorType>::InitializeVertexQuadrics()
 
 	int NV = Mesh->MaxVertexID();
 	vertQuadrics.SetNum(NV);
-	// tested with ParallelFor - no measurable benifit 
+	// tested with ParallelFor - no measurable benefit 
 	//gParallel.BlockStartEnd(0, Mesh->MaxVertexID - 1, (start_vid, end_vid) = > {
 	for (int vid : Mesh->VertexIndicesItr())
 	{
@@ -88,6 +88,31 @@ void TMeshSimplification<QuadricErrorType>::InitializeVertexQuadrics()
 
 }
 
+template <typename QuadricErrorType>
+QuadricErrorType TMeshSimplification<QuadricErrorType>::AssembleEdgeQuadric(const FDynamicMesh3::FEdge& edge) const
+{
+	return QuadricErrorType(vertQuadrics[edge.Vert.A], vertQuadrics[edge.Vert.B]);
+}
+
+template<>
+FAttrBasedQuadricErrord TMeshSimplification<FAttrBasedQuadricErrord>::AssembleEdgeQuadric(const FDynamicMesh3::FEdge& edge) const
+{
+	FAttrBasedQuadricErrord Q(vertQuadrics[edge.Vert.A], vertQuadrics[edge.Vert.B]);
+
+	// the edge.Tri faces are double counted. Remove one.
+	const FIndex2i& Tris = edge.Tri;
+	if (Tris.A != FDynamicMesh3::InvalidID)
+	{
+		Q.Add(-triAreas[Tris.A], triQuadrics[Tris.A]);
+	}
+
+	if (Tris.B != FDynamicMesh3::InvalidID)
+	{
+		Q.Add(-triAreas[Tris.B], triQuadrics[Tris.B]);
+	}
+
+	return Q;
+}
 
 
 template <typename QuadricErrorType>
@@ -106,9 +131,9 @@ void TMeshSimplification<QuadricErrorType>::InitializeQueue()
 	//for (int eid = start_eid; eid <= end_eid; eid++) {
 	for (int eid : Mesh->EdgeIndicesItr())
 	{
-		FIndex2i ev = Mesh->GetEdgeV(eid);
-		FQuadricErrorType Q(vertQuadrics[ev.A], vertQuadrics[ev.B]);
-		FVector3d opt = OptimalPoint(eid, Q, ev.A, ev.B);
+		FDynamicMesh3::FEdge edge = Mesh->GetEdge(eid);
+		FQuadricErrorType Q = AssembleEdgeQuadric(edge);
+		FVector3d opt = OptimalPoint(eid, Q, edge.Vert.A, edge.Vert.B);
 		EdgeErrors[eid] = { (float)Q.Evaluate(opt), eid };
 		EdgeQuadrics[eid] = QEdge(eid, Q, opt);
 	}
@@ -123,8 +148,9 @@ void TMeshSimplification<QuadricErrorType>::InitializeQueue()
 		int eid = EdgeErrors[i].eid;
 		if (Mesh->IsEdge(eid))
 		{
-			QEdge edge = EdgeQuadrics[eid];
-			EdgeQueue.Insert(edge.eid, EdgeErrors[i].error);
+			QEdge& edge = EdgeQuadrics[eid];
+			float error = EdgeErrors[i].error;
+			EdgeQueue.Insert(eid, error);
 		}
 	}
 
@@ -216,18 +242,18 @@ void DYNAMICMESH_API TMeshSimplification<FQuadricErrord>::UpdateNeighbours(int v
 {
 	for (int eid : Mesh->VtxEdgesItr(vid))
 	{
-		FIndex2i nev = Mesh->GetEdgeV(eid);
-		FQuadricErrord Q(vertQuadrics[nev.A], vertQuadrics[nev.B]);
-		FVector3d opt = OptimalPoint(eid, Q, nev.A, nev.B);
-		double err = Q.Evaluate(opt);
+		FDynamicMesh3::FEdge ne = Mesh->GetEdge(eid);
+		FQuadricErrord Q = AssembleEdgeQuadric(ne);
+		FVector3d opt = OptimalPoint(eid, Q, ne.Vert.A, ne.Vert.B);
+		float err = (float)Q.Evaluate(opt);
 		EdgeQuadrics[eid] = QEdge(eid, Q, opt);
 		if (EdgeQueue.Contains(eid))
 		{
-			EdgeQueue.Update(eid, (float)err);
+			EdgeQueue.Update(eid, err);
 		}
 		else
 		{
-			EdgeQueue.Insert(eid, (float)err);
+			EdgeQueue.Insert(eid, err);
 		}
 	}
 }
@@ -237,6 +263,17 @@ template <typename QuadricErrorType>
 void TMeshSimplification<QuadricErrorType>::UpdateNeighbours(int vid, FIndex2i removedTris, FIndex2i opposingVerts)
 {
 
+	TArray<int, TInlineAllocator<15>> AdjTris;
+	for (int tid : Mesh->VtxTrianglesItr(vid))
+	{
+		AdjTris.Add(tid);
+	}
+
+	TArray<int, TInlineAllocator<15>> AdjEdges;
+	for (int eid : Mesh->VtxEdgesItr(vid))
+	{
+		AdjEdges.Add(eid);
+	}
 
 	// This is the faster version that selectively updates the one-ring
 	{
@@ -247,7 +284,7 @@ void TMeshSimplification<QuadricErrorType>::UpdateNeighbours(int vid, FIndex2i r
 		double NewtriArea;
 
 		// Update the triangle areas and quadrics that will have changed
-		for (int tid : Mesh->VtxTrianglesItr(vid))
+		for (int tid : AdjTris)
 		{
 
 			const double OldtriArea = triAreas[tid];
@@ -257,7 +294,7 @@ void TMeshSimplification<QuadricErrorType>::UpdateNeighbours(int vid, FIndex2i r
 			// compute the new quadric for this tri.
 			FQuadricErrorType NewtriQuadric = ComputeFaceQuadric(tid, n, c, NewtriArea);
 
-			// update the arrays that hold the current face area & quadrics
+			// update the arrays that hold the current face area & quadric
 			triAreas[tid] = NewtriArea;
 			triQuadrics[tid] = NewtriQuadric;
 
@@ -283,18 +320,20 @@ void TMeshSimplification<QuadricErrorType>::UpdateNeighbours(int vid, FIndex2i r
 					const double   oldArea = triAreas[removedTris[i]];
 					FQuadricErrorType oldQuadric = triQuadrics[removedTris[i]];
 
-					triAreas[removedTris[i]] = 0.;
-
 					// subtract the quadric from the opposing vert
 					vertQuadrics[opposingVerts[i]].Add(-oldArea, oldQuadric);
+
+					// zero out the quadric & area for the removed tris.
+					triQuadrics[removedTris[i]] = FQuadricErrorType::Zero();
+					triAreas[removedTris[i]] = 0.;
 				}
 			}
 		}
 		// Rebuild the quadric for the vert that was retained during the collapse.
 		// NB: in the version with memory this quadric took the value of the edge quadric that collapsed.
 		{
-			FQuadricErrorType vertQuadric;
-			for (int tid : Mesh->VtxTrianglesItr(vid))
+			FQuadricErrorType vertQuadric = FQuadricErrorType::Zero();
+			for (int tid : AdjTris)
 			{
 				vertQuadric.Add(triAreas[tid], triQuadrics[tid]);
 			}
@@ -305,33 +344,40 @@ void TMeshSimplification<QuadricErrorType>::UpdateNeighbours(int vid, FIndex2i r
 	// Update all the edges
 	{
 		TArray<int, TInlineAllocator<64>> EdgesToUpdate;
-		for (int adjvid : Mesh->VtxVerticesItr(vid))
+		for (int adjeid : AdjEdges)
 		{
-			for (int eid : Mesh->VtxEdgesItr(adjvid))
+			EdgesToUpdate.Add(adjeid);
+
+			const FIndex2i Verts = Mesh->GetEdgeV(adjeid);
+			int adjvid = (Verts[0] == vid) ? Verts[1] : Verts[0];
+			if (adjvid != FDynamicMesh3::InvalidID)
 			{
-				EdgesToUpdate.AddUnique(eid);
+				for (int eid : Mesh->VtxEdgesItr(adjvid))
+				{
+					if (eid != adjeid)
+					{
+						EdgesToUpdate.AddUnique(eid);
+					}
+				}
 			}
 		}
 
 		for (int eid : EdgesToUpdate)
 		{
-			// The volume conservation plane data held in the 
-			// vertex quadrics will have duplicates for 
-			// the two face adjacent to the edge.
-
+		
 			const FDynamicMesh3::FEdge edgeData = Mesh->GetEdge(eid);
-			FQuadricErrorType Q(vertQuadrics[edgeData.Vert[0]], vertQuadrics[edgeData.Vert[1]]);
+			FQuadricErrorType Q = AssembleEdgeQuadric(edgeData);
 
 			FVector3d opt = OptimalPoint(eid, Q, edgeData.Vert[0], edgeData.Vert[1]);
-			double err = Q.Evaluate(opt);
+			float err = (float)Q.Evaluate(opt);
 			EdgeQuadrics[eid] = QEdge(eid, Q, opt);
 			if (EdgeQueue.Contains(eid))
 			{
-				EdgeQueue.Update(eid, (float)err);
+				EdgeQueue.Update(eid, err);
 			}
 			else
 			{
-				EdgeQueue.Insert(eid, (float)err);
+				EdgeQueue.Insert(eid, err);
 			}
 		}
 	}
@@ -423,8 +469,8 @@ void TMeshSimplification<QuadricErrorType>::DoSimplify()
 			}
 		}
 		
-		COUNT_ITERATIONS++;
-		int eid = EdgeQueue.Dequeue();
+		COUNT_ITERATIONS++;	
+		int eid = EdgeQueue.Dequeue(); 
 		if (Mesh->IsEdge(eid) == false)
 		{
 			continue;
