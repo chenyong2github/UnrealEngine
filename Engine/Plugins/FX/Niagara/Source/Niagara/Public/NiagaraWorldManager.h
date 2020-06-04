@@ -118,7 +118,7 @@ public:
 	void DestroySystemSimulation(UNiagaraSystem* System);
 	void DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr);	
 
-	void MarkSimulationForPostActorWork(TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation);
+	void MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation);
 
 	void Tick(ETickingGroup TickGroup, float DeltaSeconds, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 

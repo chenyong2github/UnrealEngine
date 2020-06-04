@@ -50,6 +50,14 @@ static FAutoConsoleVariableRef CVarNiagaraUsePostActorMark(
 	ECVF_Default
 );
 
+static int GNiagaraSpawnPerTickGroup = 1;
+static FAutoConsoleVariableRef CVarNiagaraSpawnPerTickGroup(
+	TEXT("fx.Niagara.WorldManager.SpawnPerTickGroup"),
+	GNiagaraUsePostActorMark,
+	TEXT("Will attempt to spawn new systems earlier (default enabled)."),
+	ECVF_Default
+);
+
 FAutoConsoleCommandWithWorld DumpNiagaraWorldManagerCommand(
 	TEXT("DumpNiagaraWorldManager"),
 	TEXT("Dump Information About the Niagara World Manager Contents"),
@@ -540,6 +548,7 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 				const auto& System = SimulationsWithPostActorWork[i];
 				if (System->GetSystem()->IsValid())
 				{
+					System->WaitForSystemTickComplete();
 					System->UpdateTickGroups_GameThread();
 				}
 			}
@@ -549,7 +558,7 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 				const auto& System = SimulationsWithPostActorWork[i];
 				if (System->GetSystem()->IsValid())
 				{
-					System->Spawn_GameThread(DeltaSeconds);
+					System->Spawn_GameThread(DeltaSeconds, true);
 				}
 			}
 			SimulationsWithPostActorWork.Reset();
@@ -580,7 +589,7 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 				FNiagaraSystemSimulation* Sim = &SystemSim.Value.Get();
 				if (Sim->IsValid())
 				{
-					Sim->Spawn_GameThread(DeltaSeconds);
+					Sim->Spawn_GameThread(DeltaSeconds, true);
 				}
 			}
 		}
@@ -601,9 +610,13 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	}
 }
 
-void FNiagaraWorldManager::MarkSimulationForPostActorWork(TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation)
+void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation)
 {
-	SimulationsWithPostActorWork.AddUnique(SystemSimulation);
+	check(SystemSimulation != nullptr);
+	if ( !SimulationsWithPostActorWork.ContainsByPredicate([&](const TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>& Existing) { return &Existing.Get() == SystemSimulation; }) )
+	{
+		SimulationsWithPostActorWork.Add(SystemSimulation->AsShared());
+	}
 }
 
 void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -686,6 +699,20 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	for (UNiagaraSystem* DeadSystem : DeadSystems)
 	{
 		SystemSimulations[ActualTickGroup].Remove(DeadSystem);
+	}
+
+	// Loop over all simulations that have been marked for post actor (i.e. ones whos TG is changing or have pending spawn systems)
+	if (GNiagaraSpawnPerTickGroup && (SimulationsWithPostActorWork.Num() > 0))
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_NiagaraSpawnPerTickGroup_GT);
+		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
+		{
+			const auto& Simulation = SimulationsWithPostActorWork[i];
+			if (Simulation->GetSystem()->IsValid() && (Simulation->GetTickGroup() < TickGroup))
+			{
+				Simulation->Spawn_GameThread(DeltaSeconds, false);
+			}
+		}
 	}
 }
 
