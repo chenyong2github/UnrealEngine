@@ -94,7 +94,9 @@ public:
 	TOptional<FInstallBundleCombinedInstallState> GetInstallStateSynchronous(FName BundleName, bool bAddDependencies) const;
 	virtual TOptional<FInstallBundleCombinedInstallState> GetInstallStateSynchronous(TArrayView<const FName> BundleNames, bool bAddDependencies) const = 0;
 	virtual void CancelAllGetInstallStateRequestsForTag(FName RequestTag) = 0;    
-    
+
+	// void RequestReleaseContent(FName RemoveName, TArrayView<const FName> KeepNames = TArrayView<const FName>())
+
 	void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<const FName> KeepNames = TArrayView<const FName>());
 	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) = 0;
 
