@@ -266,12 +266,6 @@ protected:
 };
 
 template <typename CharType>
-struct TIsContiguousContainer<TStringView<CharType>>
-{
-	enum { Value = true };
-};
-
-template <typename CharType>
 constexpr inline auto GetNum(TStringView<CharType> String)
 {
 	return String.Len();

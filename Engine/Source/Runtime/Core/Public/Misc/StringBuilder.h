@@ -304,9 +304,6 @@ protected:
 };
 
 template <typename CharType>
-struct TIsContiguousContainer<TStringBuilderBase<CharType>> { enum { Value = true }; };
-
-template <typename CharType>
 constexpr inline SIZE_T GetNum(const TStringBuilderBase<CharType>& Builder)
 {
 	return Builder.Len();
@@ -331,9 +328,6 @@ public:
 private:
 	CharType StringBuffer[BufferSize];
 };
-
-template <typename CharType, int32 BufferSize>
-struct TIsContiguousContainer<TStringBuilderWithBuffer<CharType, BufferSize>> { enum { Value = true }; };
 
 //////////////////////////////////////////////////////////////////////////
 
