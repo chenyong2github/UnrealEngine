@@ -37,7 +37,7 @@ bool FAssetTypeActions_SoundSubmix::AssetsActivatedOverride(const TArray<UObject
 		{
 			if (!Editor)
 			{
-				Editor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Obj, false);
+				Editor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Obj, true);
 			}
 			SubmixesToSelect.Add(SubmixToSelect);
 		}
