@@ -32,6 +32,7 @@ public class LevelSequence : ModuleRules
 				new string[] {
 					"ActorPickerMode",
 					"PropertyEditor",
+					"UnrealEd"
 				}
 			);
 
