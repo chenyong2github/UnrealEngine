@@ -61,6 +61,8 @@
 /** Enable to verify that the cooked data matches the source data as we cook it */
 #define VERIFY_COOKED_PHYS_DATA 0
 
+#define LOCTEXT_NAMESPACE "PhysicsAsset"
+
 const TCHAR* LexToString(ECollisionTraceFlag Enum)
 {
 	switch (Enum)
@@ -1504,6 +1506,43 @@ void UBodySetup::CopyBodySetupProperty(const UBodySetup* Other)
 	BuildScale3D = Other->BuildScale3D;
 }
 
+EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = EDataValidationResult::Valid;
+
+	// Check that the body has at least one shape
+	int32 NumElements = AggGeom.GetElementCount();
+	if (NumElements == 0)
+	{
+		ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetup", "Bone {0} requires at least one collision shape"), FText::FromName(BoneName)));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	// Chekc that simulated bodies have at least one shape that contributes to mass, otherwise
+	// we cannot calculate the inertia, even if the mass is exlicitly set.
+	// @todo(physics): should we check non-simulated bodies? The simulation type can be changed in the runtime...
+	if (PhysicsType == EPhysicsType::PhysType_Simulated)
+	{
+		int32 NumMassContributors = 0;
+		for (int32 ElementIndex = 0; ElementIndex < NumElements; ++ElementIndex)
+		{
+			const FKShapeElem* Shape = AggGeom.GetElement(ElementIndex);
+			if (Shape->GetContributeToMass())
+			{
+				++NumMassContributors;
+			}
+		}
+		
+		if (NumMassContributors == 0)
+		{
+			ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetup", "Bone {0} requires at least one shape with 'Contribute to Mass' set to 'true'"), FText::FromName(BoneName)));
+			Result = EDataValidationResult::Invalid;
+		}
+	}
+
+	return Result;
+}
+
 #endif // WITH_EDITOR
 
 void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
@@ -2223,3 +2262,5 @@ TEnumAsByte<enum ECollisionTraceFlag> UBodySetup::GetCollisionTraceFlag() const
 	TEnumAsByte<enum ECollisionTraceFlag> DefaultFlag = UPhysicsSettings::Get()->DefaultShapeComplexity;
 	return CollisionTraceFlag == ECollisionTraceFlag::CTF_UseDefault ? DefaultFlag : CollisionTraceFlag;
 }
+
+#undef LOCTEXT_NAMESPACE
