@@ -109,6 +109,134 @@ namespace Chaos
 			return true;
 		}
 
+	private:
+		class FMemPool;
+		struct FHalfEdge;
+		struct FConvexFace
+		{
+			FHalfEdge* FirstEdge;
+			FHalfEdge* ConflictList; //Note that these half edges are really just free verts grouped together
+			TPlaneConcrete<FReal,3> Plane;
+			FConvexFace* Prev;
+			FConvexFace* Next; //these have no geometric meaning, just used for book keeping
+			int32 PoolIdx;
+
+		private:
+			FConvexFace(const TPlaneConcrete<FReal,3>& FacePlane)
+			{
+				Reset(FacePlane);
+			}
+
+			void Reset(const TPlaneConcrete<FReal,3>& FacePlane)
+			{
+				ConflictList = nullptr;
+				Plane = FacePlane;
+			}
+
+			~FConvexFace() = default;
+
+			friend FMemPool;
+		};
+
+		struct FHalfEdge
+		{
+			int32 Vertex;
+			FHalfEdge* Prev;
+			FHalfEdge* Next;
+			FHalfEdge* Twin;
+			FConvexFace* Face;
+			int32 PoolIdx;
+
+		private:
+			FHalfEdge(int32 InVertex=-1)
+			{
+				Reset(InVertex);
+			}
+
+			void Reset(int32 InVertex)
+			{
+				Vertex = InVertex;
+			}
+
+			~FHalfEdge() = default;
+
+			friend FMemPool;
+		};
+
+		class FMemPool
+		{
+		public:
+			FHalfEdge* AllocHalfEdge(int32 InVertex =-1)
+			{
+				if(HalfEdgesFreeIndices.Num())
+				{
+					const uint32 Idx = HalfEdgesFreeIndices.Pop(/*bAllowShrinking=*/false);
+					FHalfEdge* FreeHalfEdge = HalfEdges[Idx];
+					FreeHalfEdge->Reset(InVertex);
+					ensure(FreeHalfEdge->PoolIdx == Idx);
+					return FreeHalfEdge;
+				}
+				else
+				{
+					FHalfEdge* NewHalfEdge = new FHalfEdge(InVertex);
+					NewHalfEdge->PoolIdx = HalfEdges.Num();
+					HalfEdges.Add(NewHalfEdge);
+					return NewHalfEdge;
+				}
+			}
+
+			FConvexFace* AllocConvexFace(const TPlaneConcrete<FReal,3>& FacePlane)
+			{
+				if(FacesFreeIndices.Num())
+				{
+					const uint32 Idx = FacesFreeIndices.Pop(/*bAllowShrinking=*/false);
+					FConvexFace* FreeFace = Faces[Idx];
+					FreeFace->Reset(FacePlane);
+					ensure(FreeFace->PoolIdx == Idx);
+					return FreeFace;
+				}
+				else
+				{
+					FConvexFace* NewFace = new FConvexFace(FacePlane);
+					NewFace->PoolIdx = Faces.Num();
+					Faces.Add(NewFace);
+					return NewFace;
+				}
+			}
+
+			void FreeHalfEdge(FHalfEdge* HalfEdge)
+			{
+				HalfEdgesFreeIndices.Add(HalfEdge->PoolIdx);
+			}
+
+			void FreeConvexFace(FConvexFace* Face)
+			{
+				FacesFreeIndices.Add(Face->PoolIdx);
+			}
+
+			~FMemPool()
+			{
+				for(FHalfEdge* HalfEdge : HalfEdges)
+				{
+					delete HalfEdge;
+				}
+
+				for(FConvexFace* Face : Faces)
+				{
+					delete Face;
+				}
+			}
+
+		private:
+			TArray<int32> HalfEdgesFreeIndices;
+			TArray<FHalfEdge*> HalfEdges;
+
+			TArray<int32> FacesFreeIndices;
+			TArray<FConvexFace*> Faces;
+		};
+
+	public:
+
 		static void Build(const TParticles<FReal, 3>& InParticles, TArray <TPlaneConcrete<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TParticles<FReal, 3>& OutSurfaceParticles, TAABB<FReal, 3>& OutLocalBounds)
 		{
 			OutPlanes.Reset();
@@ -214,7 +342,8 @@ namespace Chaos
 		static void BuildConvexHull(const TParticles<FReal, 3>& InParticles, TArray<TVector<int32, 3>>& OutIndices, const Params& InParams = Params())
 		{
 			OutIndices.Reset();
-			FConvexFace* Faces = BuildInitialHull(InParticles);
+			FMemPool Pool;
+			FConvexFace* Faces = BuildInitialHull(Pool, InParticles);
 			if(Faces == nullptr)
 			{
 				return;
@@ -231,28 +360,24 @@ namespace Chaos
 			UE_LOG(LogChaos, VeryVerbose, TEXT("%s"), *InitialFacesString);
 #endif
 
-			FConvexFace DummyFace(Faces->Plane);
-			DummyFace.Prev = nullptr;
-			DummyFace.Next = Faces;
-			Faces->Prev = &DummyFace;
+			FConvexFace* DummyFace = Pool.AllocConvexFace(Faces->Plane);
+			DummyFace->Prev = nullptr;
+			DummyFace->Next = Faces;
+			Faces->Prev = DummyFace;
 
-			FHalfEdge* ConflictV = FindConflictVertex(InParticles, DummyFace.Next);
+			FHalfEdge* ConflictV = FindConflictVertex(InParticles, DummyFace->Next);
 			while(ConflictV)
 			{
-				AddVertex(InParticles, ConflictV, InParams);
-				ConflictV = FindConflictVertex(InParticles, DummyFace.Next);
+				AddVertex(Pool, InParticles, ConflictV, InParams);
+				ConflictV = FindConflictVertex(InParticles, DummyFace->Next);
 			}
 
-			FConvexFace* Cur = DummyFace.Next;
+			FConvexFace* Cur = DummyFace->Next;
 			while(Cur)
 			{
 				//todo(ocohen): this assumes faces are triangles, not true once face merging is added
 				OutIndices.Add(TVector<int32, 3>(Cur->FirstEdge->Vertex, Cur->FirstEdge->Next->Vertex, Cur->FirstEdge->Next->Next->Vertex));
-				delete Cur->FirstEdge->Next;
-				delete Cur->FirstEdge->Prev;
-				delete Cur->FirstEdge;
 				FConvexFace* Next = Cur->Next;
-				delete Cur;
 				Cur = Next;
 			}
 		}
@@ -374,40 +499,12 @@ namespace Chaos
 
 	private:
 
-		struct FHalfEdge;
-		struct FConvexFace
-		{
-			FConvexFace(const TPlaneConcrete<FReal, 3>& FacePlane)
-				: ConflictList(nullptr)
-				, Plane(FacePlane)
-			{
-			}
-
-			FHalfEdge* FirstEdge;
-			FHalfEdge* ConflictList; //Note that these half edges are really just free verts grouped together
-			TPlaneConcrete<FReal, 3> Plane;
-			FConvexFace* Prev;
-			FConvexFace* Next; //these have no geometric meaning, just used for book keeping
-		};
-
-		struct FHalfEdge
-		{
-			FHalfEdge(int32 InVertex=-1)
-				: Vertex(InVertex) 
-			{}
-			int32 Vertex;
-			FHalfEdge* Prev;
-			FHalfEdge* Next;
-			FHalfEdge* Twin;
-			FConvexFace* Face;
-		};
-
 		static FVec3 ComputeFaceNormal(const FVec3& A, const FVec3& B, const FVec3& C)
 		{
 			return FVec3::CrossProduct((B - A), (C - A));
 		}
 
-		static FConvexFace* CreateFace(const TParticles<FReal, 3>& InParticles, FHalfEdge* RS, FHalfEdge* ST, FHalfEdge* TR)
+		static FConvexFace* CreateFace(FMemPool& Pool, const TParticles<FReal, 3>& InParticles, FHalfEdge* RS, FHalfEdge* ST, FHalfEdge* TR)
 		{
 			RS->Prev = TR;
 			RS->Next = ST;
@@ -419,7 +516,7 @@ namespace Chaos
 			const FReal RSTNormalSize = RSTNormal.Size();
 			check(RSTNormalSize > 1e-4);
 			RSTNormal = RSTNormal * (1 / RSTNormalSize);
-			FConvexFace* RST = new FConvexFace(TPlaneConcrete<FReal, 3>(InParticles.X(RS->Vertex), RSTNormal));
+			FConvexFace* RST = Pool.AllocConvexFace(TPlaneConcrete<FReal, 3>(InParticles.X(RS->Vertex), RSTNormal));
 			RST->FirstEdge = RS;
 			RS->Face = RST;
 			ST->Face = RST;
@@ -427,7 +524,7 @@ namespace Chaos
 			return RST;
 		}
 
-		static void StealConflictList(const TParticles<FReal, 3>& InParticles, FHalfEdge* OldList, FConvexFace** Faces, int32 NumFaces)
+		static void StealConflictList(FMemPool& Pool, const TParticles<FReal, 3>& InParticles, FHalfEdge* OldList, FConvexFace** Faces, int32 NumFaces)
 		{
 			FHalfEdge* Cur = OldList;
 			while(Cur)
@@ -480,13 +577,13 @@ namespace Chaos
 				{
 					//point is contained, we can delete it
 					FHalfEdge* Next = Cur->Next;
-					delete Cur; //todo(ocohen): better allocation strategy
+					Pool.FreeHalfEdge(Cur);
 					Cur = Next;
 				}
 			}
 		}
 
-		static FConvexFace* BuildInitialHull(const TParticles<FReal, 3>& InParticles)
+		static FConvexFace* BuildInitialHull(FMemPool& Pool, const TParticles<FReal, 3>& InParticles)
 		{
 			if(InParticles.Size() < 4) //not enough points
 			{
@@ -503,14 +600,14 @@ namespace Chaos
 			FReal MaxX = TNumericLimits<FReal>::Lowest();
 			FHalfEdge* A = nullptr; //min x
 			FHalfEdge* B = nullptr; //max x
-			FHalfEdge DummyHalfEdge(-1);
-			DummyHalfEdge.Prev = nullptr;
-			DummyHalfEdge.Next = nullptr;
-			FHalfEdge* Prev = &DummyHalfEdge;
+			FHalfEdge* DummyHalfEdge = Pool.AllocHalfEdge(-1);
+			DummyHalfEdge->Prev = nullptr;
+			DummyHalfEdge->Next = nullptr;
+			FHalfEdge* Prev = DummyHalfEdge;
 
 			for(int32 i = 0; i < NumParticles; ++i)
 			{
-				FHalfEdge* VHalf = new FHalfEdge(i); //todo(ocohen): preallocate these
+				FHalfEdge* VHalf = Pool.AllocHalfEdge(i); //todo(ocohen): preallocate these
 				Prev->Next = VHalf;
 				VHalf->Prev = Prev;
 				VHalf->Next = nullptr;
@@ -552,7 +649,7 @@ namespace Chaos
 			FReal MaxTriSize = Epsilon;
 			const FVec3 AToB = InParticles.X(B->Vertex) - InParticles.X(A->Vertex);
 			FHalfEdge* C = nullptr;
-			for(FHalfEdge* V = DummyHalfEdge.Next; V; V = V->Next)
+			for(FHalfEdge* V = DummyHalfEdge->Next; V; V = V->Next)
 			{
 				FReal TriSize = FVec3::CrossProduct(AToB, InParticles.X(V->Vertex) - InParticles.X(A->Vertex)).SizeSquared();
 				if(TriSize > MaxTriSize)
@@ -582,7 +679,7 @@ namespace Chaos
 			FReal MaxNegDistance = Epsilon;
 			FHalfEdge* PosD = nullptr;
 			FHalfEdge* NegD = nullptr;
-			for(FHalfEdge* V = DummyHalfEdge.Next; V; V = V->Next)
+			for(FHalfEdge* V = DummyHalfEdge->Next; V; V = V->Next)
 			{
 				FReal Dot = FVec3::DotProduct(InParticles.X(V->Vertex) - InParticles.X(A->Vertex), Normal);
 				if(Dot > MaxPosDistance)
@@ -626,10 +723,10 @@ namespace Chaos
 			}
 
 			FConvexFace* Faces[4];
-			Faces[0] = CreateFace(InParticles, Edges[0], Edges[1], Edges[2]); //base
-			Faces[1] = CreateFace(InParticles, new FHalfEdge(Edges[1]->Vertex), new FHalfEdge(Edges[0]->Vertex), Edges[3]);
-			Faces[2] = CreateFace(InParticles, new FHalfEdge(Edges[0]->Vertex), new FHalfEdge(Edges[2]->Vertex), new FHalfEdge(Edges[3]->Vertex));
-			Faces[3] = CreateFace(InParticles, new FHalfEdge(Edges[2]->Vertex), new FHalfEdge(Edges[1]->Vertex), new FHalfEdge(Edges[3]->Vertex));
+			Faces[0] = CreateFace(Pool, InParticles, Edges[0], Edges[1], Edges[2]); //base
+			Faces[1] = CreateFace(Pool, InParticles, Pool.AllocHalfEdge(Edges[1]->Vertex), Pool.AllocHalfEdge(Edges[0]->Vertex), Edges[3]);
+			Faces[2] = CreateFace(Pool, InParticles, Pool.AllocHalfEdge(Edges[0]->Vertex), Pool.AllocHalfEdge(Edges[2]->Vertex), Pool.AllocHalfEdge(Edges[3]->Vertex));
+			Faces[3] = CreateFace(Pool, InParticles, Pool.AllocHalfEdge(Edges[2]->Vertex), Pool.AllocHalfEdge(Edges[1]->Vertex), Pool.AllocHalfEdge(Edges[3]->Vertex));
 
 			auto MakeTwins = [](FHalfEdge* E1, FHalfEdge* E2) {
 				E1->Twin = E2;
@@ -652,7 +749,7 @@ namespace Chaos
 			Faces[3]->Next = nullptr;
 
 			//split up the conflict list
-			StealConflictList(InParticles, DummyHalfEdge.Next, Faces, 4);
+			StealConflictList(Pool, InParticles, DummyHalfEdge->Next, Faces, 4);
 			return Faces[0];
 		}
 
@@ -741,7 +838,7 @@ namespace Chaos
 			}
 		}
 
-		static void BuildFaces(const TParticles<FReal, 3>& InParticles, const FHalfEdge* ConflictV, const TArray<FHalfEdge*>& HorizonEdges, const TArray<FConvexFace*> OldFaces, TArray<FConvexFace*>& NewFaces)
+		static void BuildFaces(FMemPool& Pool, const TParticles<FReal, 3>& InParticles, const FHalfEdge* ConflictV, const TArray<FHalfEdge*>& HorizonEdges, const TArray<FConvexFace*> OldFaces, TArray<FConvexFace*>& NewFaces)
 		{
 			//The HorizonEdges are in CCW order. We must make new faces and edges to join from ConflictV to these edges
 			check(HorizonEdges.Num() >= 3);
@@ -750,12 +847,12 @@ namespace Chaos
 			for(int32 HorizonIdx = 0; HorizonIdx < HorizonEdges.Num(); ++HorizonIdx)
 			{
 				FHalfEdge* OriginalEdge = HorizonEdges[HorizonIdx];
-				FHalfEdge* NewHorizonEdge = new FHalfEdge(OriginalEdge->Vertex);
+				FHalfEdge* NewHorizonEdge = Pool.AllocHalfEdge(OriginalEdge->Vertex);
 				NewHorizonEdge->Twin = OriginalEdge->Twin; //swap edges
 				NewHorizonEdge->Twin->Twin = NewHorizonEdge;
-				FHalfEdge* HorizonNext = new FHalfEdge(OriginalEdge->Next->Vertex);
+				FHalfEdge* HorizonNext = Pool.AllocHalfEdge(OriginalEdge->Next->Vertex);
 				check(HorizonNext->Vertex == HorizonEdges[(HorizonIdx + 1) % HorizonEdges.Num()]->Vertex); //should be ordered properly
-				FHalfEdge* V = new FHalfEdge(ConflictV->Vertex);
+				FHalfEdge* V = Pool.AllocHalfEdge(ConflictV->Vertex);
 				V->Twin = PrevEdge;
 				if(PrevEdge)
 				{
@@ -764,7 +861,7 @@ namespace Chaos
 				PrevEdge = HorizonNext;
 
 				//link new faces together
-				FConvexFace* NewFace = CreateFace(InParticles, NewHorizonEdge, HorizonNext, V);
+				FConvexFace* NewFace = CreateFace(Pool, InParticles, NewHorizonEdge, HorizonNext, V);
 				if(NewFaces.Num() > 0)
 				{
 					NewFace->Prev = NewFaces[NewFaces.Num() - 1];
@@ -785,7 +882,7 @@ namespace Chaos
 			//redistribute conflict list
 			for(FConvexFace* OldFace : OldFaces)
 			{
-				StealConflictList(InParticles, OldFace->ConflictList, &NewFaces[0], NewFaces.Num());
+				StealConflictList(Pool, InParticles, OldFace->ConflictList, &NewFaces[0], NewFaces.Num());
 			}
 
 			//insert all new faces after conflict vertex face
@@ -801,7 +898,7 @@ namespace Chaos
 			StartFace->Prev = OldFace;
 		}
 
-		static void AddVertex(const TParticles<FReal, 3>& InParticles, FHalfEdge* ConflictV, const Params& InParams)
+		static void AddVertex(FMemPool& Pool, const TParticles<FReal, 3>& InParticles, FHalfEdge* ConflictV, const Params& InParams)
 		{
 			UE_CLOG(DEBUG_HULL_GENERATION, LogChaos, VeryVerbose, TEXT("Adding Vertex %d"), ConflictV->Vertex);
 
@@ -820,7 +917,7 @@ namespace Chaos
 #endif
 
 			TArray<FConvexFace*> NewFaces;
-			BuildFaces(InParticles, ConflictV, HorizonEdges, FacesToDelete, NewFaces);
+			BuildFaces(Pool, InParticles, ConflictV, HorizonEdges, FacesToDelete, NewFaces);
 
 #if DEBUG_HULL_GENERATION
 			FString NewFaceString(TEXT("\tNew Faces: "));
@@ -844,7 +941,7 @@ namespace Chaos
 				do
 				{
 					FHalfEdge* Next = Edge->Next;
-					delete Edge;
+					Pool.FreeHalfEdge(Next);
 					Edge = Next;
 				} while(Edge != Face->FirstEdge);
 				if(Face->Prev)
@@ -855,7 +952,7 @@ namespace Chaos
 				{
 					Face->Next->Prev = Face->Prev;
 				}
-				delete Face;
+				Pool.FreeConvexFace(Face);
 			}
 
 			//todo(ocohen): need to explicitly test for merge failures. Coplaner, nonconvex, etc...
