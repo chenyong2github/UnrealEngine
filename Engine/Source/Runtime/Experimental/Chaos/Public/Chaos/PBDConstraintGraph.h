@@ -87,7 +87,7 @@ namespace Chaos
 		/**
 		 * Put particles in inactive islands to sleep.
 		 */
-		bool SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials);
+		bool SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes, const THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials);
 
 		/**
 		 * Wake all particles in an Island.
@@ -98,7 +98,7 @@ namespace Chaos
 		 * Ensure that the particles in each island have consistent sleep states - if any are awake, wake all.
 		 */
 		 // @todo(ccaulfield): Do we really need this? It implies some behind-the-scenes state manipulation.
-		void ReconcileIslands();
+		//void ReconcileIslands();
 
 		/**
 		 * Get the list of ConstraintsData indices associated with the specified island. NOTE: ConstraintDataIndex is an internal index and not related to 
