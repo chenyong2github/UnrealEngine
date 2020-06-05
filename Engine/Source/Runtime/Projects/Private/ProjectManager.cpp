@@ -499,6 +499,21 @@ TArray<FModuleContextInfo>& FProjectManager::GetCurrentProjectModuleContextInfos
 	return CurrentProjectModuleContextInfos;
 }
 
+bool FProjectManager::IsSuppressingProjectFileWrite() const
+{
+	return SuppressProjectFileWriteList.Num() > 0;
+}
+
+void FProjectManager::AddSuppressProjectFileWrite(const FName InName)
+{
+	SuppressProjectFileWriteList.AddUnique(InName);
+}
+
+void FProjectManager::RemoveSuppressProjectFileWrite(const FName InName)
+{
+	SuppressProjectFileWriteList.Remove(InName);
+}
+
 IProjectManager& IProjectManager::Get()
 {
 	// Single instance of manager, allocated on demand and destroyed on program exit.
