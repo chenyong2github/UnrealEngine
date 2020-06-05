@@ -629,6 +629,8 @@ public:
 	{
 		FScopeLock ScopeLock(&CriticalSection);
 
+		const FPipelineMap& Cache = Initializer.bPartial ? PartialPipelines : FullPipelines;
+
 		FRayTracingPipelineState* const* FoundState = Cache.Find(Initializer);
 		if (FoundState)
 		{
@@ -646,6 +648,9 @@ public:
 	void Add(const FRayTracingPipelineStateInitializer& Initializer, FRayTracingPipelineState* State)
 	{
 		FScopeLock ScopeLock(&CriticalSection);
+
+		FPipelineMap& Cache = Initializer.bPartial ? PartialPipelines : FullPipelines;
+
 		Cache.Add(Initializer, State);
 		State->AddHit();
 	}
@@ -653,7 +658,11 @@ public:
 	void Shutdown()
 	{
 		FScopeLock ScopeLock(&CriticalSection);
-		for (auto& It : Cache)
+		for (auto& It : FullPipelines)
+		{
+			delete It.Value;
+		}
+		for (auto& It : PartialPipelines)
 		{
 			delete It.Value;
 		}
@@ -662,7 +671,10 @@ public:
 	void Trim(int32 TargetNumEntries)
 	{
 		FScopeLock ScopeLock(&CriticalSection);
-		
+
+		// Only full pipeline cache is automatically trimmed.
+		FPipelineMap& Cache = FullPipelines;
+
 		if (Cache.Num() < TargetNumEntries)
 		{
 			return;
@@ -725,7 +737,9 @@ public:
 private:
 
 	mutable FCriticalSection CriticalSection;
-	TMap<FRayTracingPipelineStateInitializer, FRayTracingPipelineState*> Cache;
+	using FPipelineMap = TMap<FRayTracingPipelineStateInitializer, FRayTracingPipelineState*>;
+	FPipelineMap FullPipelines;
+	FPipelineMap PartialPipelines;
 	uint64 LastTrimFrame = 0;
 };
 
@@ -1097,7 +1111,7 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 
 	if (bWasFound == false)
 	{
-		// #dxr_todo UE-68235: RT PSO disk caching
+		FPipelineFileCache::CacheRayTracingPSO(Initializer);
 
 		// Remove old pipelines once per frame
 		const int32 TargetCacheSize = CVarRTPSOCacheSize.GetValueOnAnyThread();
@@ -1114,7 +1128,11 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 				OutCachedState,
 				Initializer);
 
-			RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
+			// Partial pipelines can't be used for rendering, therefore this command list does not need to depend on them.
+			if (!Initializer.bPartial)
+			{
+				RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
+			}
 		}
 		else
 		{
