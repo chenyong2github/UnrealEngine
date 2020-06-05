@@ -123,7 +123,8 @@ void UHoleFillTool::Setup()
 	SelectionMechanic->Properties->bSelectFaces = false;
 	SelectionMechanic->Properties->bSelectVertices = false;
 	SelectionMechanic->Initialize(&OriginalMesh,
-		FTransform3d(ComponentTarget->GetWorldTransform()),
+		ComponentTarget->GetWorldTransform(),
+		ComponentTarget->GetOwnerActor()->GetWorld(),
 		Topology.Get(),
 		[this]() { return &MeshSpatial; },
 		[]() { return true; }	// allow adding to selection without modifier key
@@ -170,6 +171,8 @@ void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)
 	ComponentTarget->SetOwnerVisibility(true);
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
+	SelectionMechanic->Shutdown();
+
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("HoleFillToolTransactionName", "Hole Fill Tool"));
