@@ -986,6 +986,7 @@ void FSoundConcurrencyManager::StopDueToVoiceStealing(FActiveSound& ActiveSound)
 	{
 		ActiveSound.FadeOut = FActiveSound::EFadeOut::Concurrency;
 		ActiveSound.ComponentVolumeFader.StartFade(0.0f, FadeOutDuration, Audio::EFaderCurve::Logarithmic);
+		ActiveSound.ComponentVolumeFader.SetActiveDuration(FadeOutDuration);
 	}
 }
 
