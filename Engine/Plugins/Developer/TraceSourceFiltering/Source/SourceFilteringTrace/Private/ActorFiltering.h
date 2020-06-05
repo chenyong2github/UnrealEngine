@@ -17,7 +17,7 @@ public:
 		return GetActorChecked();
 	}
 
-	FORCEINLINE int32 Index() const
+	FORCEINLINE uint32 Index() const
 	{
 		return CurrentIndex;
 	}
