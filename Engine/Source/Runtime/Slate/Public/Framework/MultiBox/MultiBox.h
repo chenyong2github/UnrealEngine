@@ -8,6 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/Layout/SLinkedBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SMenuOwner.h"
 #include "Framework/Commands/UIAction.h"
@@ -27,10 +28,6 @@ class SUniformToolbarPanel;
 
 namespace MultiBoxConstants
 {	
-	// @todo Slate MultiBox: Hard coded dimensions
-	const float MenuIconSize = 16.0f;
-	const float MenuCheckBoxSize = 16.0f;
-
 	/** The time that a mouse should be hovered over a sub-menu before it automatically opens */
 	const float SubMenuOpenTime = 0.0f;
 
@@ -132,6 +129,18 @@ public:
 		return TutorialHighlightName;
 	}
 
+	/** Sets the style name which will be used for this block instead of the owning multibox's style */
+	void SetStyleNameOverride(FName InStyleNameOverride)
+	{
+		StyleNameOverride = InStyleNameOverride;
+	}
+
+	/** Gets the style name which will be used for this block instead of the owning multibox's style */
+	FName GetStyleNameOverride() const
+	{
+		return StyleNameOverride;
+	}
+
 	/**
 	 * Creates a MultiBlock widget for this MultiBlock
 	 *
@@ -218,6 +227,8 @@ private:
 
 	/** Name to identify a widget for tutorials */
 	FName TutorialHighlightName;
+
+	FName StyleNameOverride;
 
 	/** Whether this block can be searched */
 	bool bSearchable;
@@ -586,6 +597,11 @@ public:
 	bool GetSearchable() const;
 
 	/**
+	 * @return the the LinkedBoxManager
+	 */
+	TSharedRef<FLinkedBoxManager> GetLinkedBoxManager() { return LinkedBoxManager.ToSharedRef(); }
+
+	/**
 	* Sets optional maximum height of widget
 	*/
 	void SetMaxHeight(TAttribute<float> InMaxHeight) { MaxHeight = InMaxHeight; }
@@ -782,4 +798,7 @@ private:
 
 	/** Optional maximum height of widget */
 	TAttribute<float> MaxHeight;
+
+	/** Allows Menu Elementes to size properly */
+	TSharedPtr<FLinkedBoxManager> LinkedBoxManager;
 };

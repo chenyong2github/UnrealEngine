@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SLinkedBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Colors/SColorBlock.h"
@@ -478,7 +479,7 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 			UserInterfaceType == EUserInterfaceActionType::RadioButton ||
 			UserInterfaceType == EUserInterfaceActionType::Check ) ?
 				EVisibility::Visible :
-				EVisibility::Hidden;
+				EVisibility::Collapsed;
 
 	// Collapse (rather than Hide) the checkbox when using a custom menu widget with a button action, otherwise we add additional padding around the user defined widget
 	if ((MenuEntryBlock->EntryWidget.IsValid() && UserInterfaceType == EUserInterfaceActionType::Button) ||
@@ -489,7 +490,7 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 	else if (MultiBox->IsInEditMode())
 	{
 		// Hide but keep spacing to avoid confusing user during editing
-		CheckBoxVisibility = EVisibility::Hidden;
+		CheckBoxVisibility = EVisibility::Collapsed;
 	}
 
 	TAttribute<FSlateColor> CheckBoxForegroundColor = FSlateColor::UseStyle();
@@ -567,19 +568,16 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 		.Padding(FMargin(2, 0, 8, 0))
 		.AutoWidth()
 		[
-			SNew(SBox)
-			.Visibility(CheckBoxVisibility)
-			.WidthOverride(MenuIconSize)
-			.HeightOverride(MenuIconSize)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
+			SNew(SLinkedBox, OwnerMultiBoxWidget.Pin()->GetLinkedBoxManager())
 			[
 				// For check style menus, use an image instead of a CheckBox because it can't really be checked.
 				UserInterfaceType == EUserInterfaceActionType::Check
 					? StaticCastSharedRef<SWidget>(SNew(SImage)
+						.Visibility(CheckBoxVisibility)
 						.ColorAndOpacity(FSlateColor::UseForeground())
 						.Image(this, &SMenuEntryBlock::GetCheckBoxImageBrushFromStyle, &StyleSet->GetWidgetStyle<FCheckBoxStyle>(CheckBoxStyle)))
 					: StaticCastSharedRef<SWidget>(SNew(SCheckBox)
+						.Visibility(CheckBoxVisibility)
 						.ForegroundColor( CheckBoxForegroundColor )
 						.IsChecked( this, &SMenuEntryBlock::IsChecked )
 						.Style( StyleSet, CheckBoxStyle )
@@ -741,7 +739,7 @@ TSharedRef< SWidget> SMenuEntryBlock::BuildSubMenuWidget( const FMenuEntryBuildP
 			UserInterfaceType == EUserInterfaceActionType::RadioButton ||
 			UserInterfaceType == EUserInterfaceActionType::Check ) ?
 				EVisibility::Visible :
-				EVisibility::Hidden;
+				EVisibility::Collapsed;
 
 	TAttribute<FSlateColor> CheckBoxForegroundColor = FSlateColor::UseForeground();
 	FName CheckBoxStyle = ISlateStyle::Join( StyleName, ".CheckBox" );
@@ -801,20 +799,17 @@ TSharedRef< SWidget> SMenuEntryBlock::BuildSubMenuWidget( const FMenuEntryBuildP
 		.Padding(FMargin(2, 0, 8, 0))
 		.AutoWidth()
 		[
-			SNew(SBox)
-			.Visibility(CheckBoxVisibility)
-			.WidthOverride(MenuIconSize)
-			.HeightOverride(MenuIconSize)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
+			SNew(SLinkedBox, OwnerMultiBoxWidget.Pin()->GetLinkedBoxManager())
 			[
 				// For check style menus, use an image instead of a CheckBox because it can't really be checked.
 				UserInterfaceType == EUserInterfaceActionType::Check
 				? StaticCastSharedRef<SWidget>(SNew(SImage)
+					.Visibility(CheckBoxVisibility)
 					.ColorAndOpacity(FSlateColor::UseForeground())
 					.Image(this, &SMenuEntryBlock::GetCheckBoxImageBrushFromStyle, &StyleSet->GetWidgetStyle<FCheckBoxStyle>(CheckBoxStyle)))
 				: StaticCastSharedRef<SWidget>(SNew(SCheckBox)
 					.ForegroundColor(CheckBoxForegroundColor)
+					.Visibility(CheckBoxVisibility)
 					.IsChecked(this, &SMenuEntryBlock::IsChecked)
 					.Style(StyleSet, CheckBoxStyle)
 					.OnCheckStateChanged(this, &SMenuEntryBlock::OnCheckStateChanged))

@@ -508,6 +508,7 @@ bool FMultiBox::IsInEditMode() const
 
 void SMultiBoxWidget::Construct( const FArguments& InArgs )
 {
+	LinkedBoxManager = MakeShared<FLinkedBoxManager>();
 	ContentScale = InArgs._ContentScale;
 }
 
