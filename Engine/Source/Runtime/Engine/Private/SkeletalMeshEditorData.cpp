@@ -24,6 +24,12 @@ USkeletalMeshEditorData::USkeletalMeshEditorData(const FObjectInitializer& Objec
 
 #if WITH_EDITORONLY_DATA
 
+void USkeletalMeshEditorData::PostLoad()
+{
+	ClearFlags(RF_Standalone);
+	Super::PostLoad();
+}
+
 FRawSkeletalMeshBulkData& USkeletalMeshEditorData::GetLODImportedData(int32 LODIndex)
 {
 
