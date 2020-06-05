@@ -1848,8 +1848,6 @@ void FHlslNiagaraTranslator::DefineInterpolatedParametersFunction(FString &HlslO
 					}
 				}
 			}
-			HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".Engine.DeltaTime = 0.0f;\n");
-			HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".Engine.InverseDeltaTime = 0.0f;\n");
 			HlslOutputString += TEXT("\tContext.") + CurMap + TEXT(".Engine.DeltaTime = InterpSpawn_UpdateTime;\n");
 			HlslOutputString += TEXT("\tContext.") + CurMap + TEXT(".Engine.InverseDeltaTime = InterpSpawn_InvUpdateTime;\n");
 		}
@@ -4269,17 +4267,6 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 	Output = INDEX_NONE;
 	if (InVariable.IsValid())
 	{
-		// We don't really want system delta time or inverse system delta time in a spawn script. It leads to trouble.
-		if (TranslationStages.Num() > 0 && UNiagaraScript::IsParticleSpawnScript(TranslationStages[ActiveStageIdx].ScriptUsage))
-		{
-			if (InVariable == SYS_PARAM_ENGINE_DELTA_TIME || InVariable == SYS_PARAM_ENGINE_INV_DELTA_TIME)
-			{
-				Warning(FText::Format(LOCTEXT("GetParameterInvalidParam", "Cannot call system variable {0} in a spawn script! It is invalid."), FText::FromName(InVariable.GetName())), nullptr, nullptr);
-				Output = GetConstantDirect(0.0f);
-				return true;
-			}
-		}
-
 		bool bMissingParameter = false;
 		UNiagaraParameterCollection* Collection = nullptr;
 		if (InParamMapHistoryIdx >= 0)
