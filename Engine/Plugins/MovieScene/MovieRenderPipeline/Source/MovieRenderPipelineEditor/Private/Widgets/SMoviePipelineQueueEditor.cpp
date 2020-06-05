@@ -55,6 +55,10 @@ struct FMoviePipelineMapTreeItem;
 struct FMoviePipelineShotItem;
 class SQueueJobListRow;
 
+// Forward Declare
+static void EnsureJobHasDefaultSettings(UMoviePipelineExecutorJob* NewJob);
+
+
 struct IMoviePipelineQueueTreeItem : TSharedFromThis<IMoviePipelineQueueTreeItem>
 {
 	virtual ~IMoviePipelineQueueTreeItem() {}
@@ -187,6 +191,22 @@ public:
 		OnChosePresetCallback.ExecuteIfBound(WeakJob, nullptr);
 	}
 
+	void OnPickNewPreset()
+	{
+		// Close the dropdown menu that showed them the assets to pick from.
+		FSlateApplication::Get().DismissAllMenus();
+
+		UMoviePipelineExecutorJob* Job = WeakJob.Get();
+		if (Job)
+		{
+			// Copy from the CDO's version of the job to pick up the right name.
+			Job->SetConfiguration(GetMutableDefault<UMoviePipelineExecutorJob>()->GetConfiguration());
+			EnsureJobHasDefaultSettings(Job);
+		}
+
+		OnChosePresetCallback.ExecuteIfBound(WeakJob, nullptr);
+	}
+
 	EVisibility GetMasterConfigModifiedVisibility() const
 	{
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
@@ -305,6 +325,23 @@ public:
 		}
 
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("NewConfig_MenuSection", "New Configuration"));
+		{
+			FExecuteAction ExecuteAction = FExecuteAction::CreateLambda([this]()
+				{
+					this->OnPickNewPreset();
+				});
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("NewConfig_Label", "Clear Config"),
+				LOCTEXT("NewConfig_Tooltip", "Resets the changes to the config and goes back to the defaults."),
+				FSlateIcon(),
+				FUIAction(ExecuteAction),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+
+		MenuBuilder.BeginSection(NAME_None, LOCTEXT("ImportConfig_MenuSection", "Import Configuration"));
 		{
 			TSharedRef<SWidget> PresetPicker = SNew(SBox)
 				.WidthOverride(300.f)
@@ -904,6 +941,29 @@ TSharedRef<SWidget> SMoviePipelineQueueEditor::OnGenerateNewJobFromAssetMenu()
 
 PRAGMA_ENABLE_OPTIMIZATION
 
+void EnsureJobHasDefaultSettings(UMoviePipelineExecutorJob* NewJob)
+{
+	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
+	for (TSubclassOf<UMoviePipelineSetting> SettingClass : ProjectSettings->DefaultClasses)
+	{
+		if (!SettingClass)
+		{
+			continue;
+		}
+
+		if (SettingClass->HasAnyClassFlags(CLASS_Abstract))
+		{
+			continue;
+		}
+
+		UMoviePipelineSetting* ExistingSetting = NewJob->GetConfiguration()->FindSettingByClass(SettingClass);
+		if (!ExistingSetting)
+		{
+			NewJob->GetConfiguration()->FindOrAddSettingByClass(SettingClass);
+		}
+	}
+}
+
 void SMoviePipelineQueueEditor::OnCreateJobFromAsset(const FAssetData& InAsset)
 {
 	// Close the dropdown menu that showed them the assets to pick from.
@@ -950,26 +1010,7 @@ void SMoviePipelineQueueEditor::OnCreateJobFromAsset(const FAssetData& InAsset)
 
 		// Ensure the job has the settings specified by the project settings added. If they're already added
 		// we don't modify the object so that we don't make it confused about whehter or not you've modified the preset.
-		{
-			for (TSubclassOf<UMoviePipelineSetting> SettingClass : ProjectSettings->DefaultClasses)
-			{
-				if (!SettingClass)
-				{
-					continue;
-				}
-
-				if (SettingClass->HasAnyClassFlags(CLASS_Abstract))
-				{
-					continue;
-				}
-
-				UMoviePipelineSetting* ExistingSetting = NewJob->GetConfiguration()->FindSettingByClass(SettingClass);
-				if (!ExistingSetting)
-				{
-					NewJob->GetConfiguration()->FindOrAddSettingByClass(SettingClass);
-				}
-			}
-		}
+		EnsureJobHasDefaultSettings(NewJob);
 	}
 }
 
