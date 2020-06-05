@@ -20,4 +20,11 @@ public:
 		FTransform Transform,
 		FString ObjectBaseName,
 		FGeneratedStaticMeshAssetConfig&& AssetConfig) override;
+
+	/**
+	 * Save generated UTexture2D that is assumed to currently be in the Transient package
+	 */
+	virtual bool SaveGeneratedTexture2D(
+		UTexture2D* GeneratedTexture,
+		FString ObjectBaseName) override;
 };
