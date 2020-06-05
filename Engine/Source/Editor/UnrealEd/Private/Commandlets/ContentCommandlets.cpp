@@ -1438,6 +1438,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 	}
 	ABrush::OnRebuildDone();
 
+	bool bRevertCheckedOutFilesIfNotSaving = true;
+
 	const bool bShouldBuildTextureStreamingForWorld = bShouldBuildTextureStreaming && !bShouldBuildTextureStreamingForAll;
 	const bool bBuildingNonHLODData = (bShouldBuildLighting || bShouldBuildTextureStreamingForWorld || bShouldBuildReflectionCaptures);
 
@@ -1656,13 +1658,18 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					Builder.PreviewBuild();
 				}
 
+				bool bSaveHLODActorsToProxyPackage = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages;
+
 				// Get the list of packages that needs to be saved after cluster rebuilding.
 				TSet<UPackage*> PackagesToSave;
-				for (ULevel* Level : World->GetLevels())
+				if (!bSaveHLODActorsToProxyPackage || bForceClusterGeneration)
 				{
-					if (Level->bIsVisible)
+					for (ULevel* Level : World->GetLevels())
 					{
-						PackagesToSave.Add(Level->GetOutermost());
+						if (Level->bIsVisible)
+						{
+							PackagesToSave.Add(Level->GetOutermost());
+						}
 					}
 				}
 
@@ -1704,6 +1711,14 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					{
 						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
 					}
+				}
+
+				// If the only operation performed by this commandlet is to update HLOD proxy packages,
+				// avoid saving the level files.
+				if (bSaveHLODActorsToProxyPackage && !bBuildingNonHLODData && !bShouldBuildNavigationData)
+				{
+					bRevertCheckedOutFilesIfNotSaving  = false;
+					bShouldProceedWithRebuild = false;
 				}
 			}
 
@@ -1752,24 +1767,24 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 				FEditorDelegates::OnLightingBuildFailed.Remove(BuildFailedDelegateHandle);
 			}
-			auto SaveMapBuildData = [this, &CheckedOutPackagesFilenames](ULevel* InLevel)
-			{
-				if (InLevel && InLevel->MapBuildData && (bShouldBuildLighting || bShouldBuildHLOD || bShouldBuildReflectionCaptures) )
-				{
-					UPackage* MapBuildDataPackage = InLevel->MapBuildData->GetOutermost();
-					if (MapBuildDataPackage != InLevel->GetOutermost() && MapBuildDataPackage->IsDirty())
-					{
-						CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames);
-					}
-				}
-			};
-
-			SaveMapBuildData( World->PersistentLevel );
-
 
 			// If everything is a success, resave the levels.
-			if( bShouldProceedWithRebuild )
+			if (bShouldProceedWithRebuild)
 			{
+				auto SaveMapBuildData = [this, &CheckedOutPackagesFilenames](ULevel* InLevel)
+				{
+					if (InLevel && InLevel->MapBuildData && (bShouldBuildLighting || bShouldBuildHLOD || bShouldBuildReflectionCaptures))
+					{
+						UPackage* MapBuildDataPackage = InLevel->MapBuildData->GetOutermost();
+						if (MapBuildDataPackage != InLevel->GetOutermost() && MapBuildDataPackage->IsDirty())
+						{
+							CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames);
+						}
+					}
+				};
+
+				SaveMapBuildData(World->PersistentLevel);
+
 				for (ULevelStreaming* NextStreamingLevel : World->GetStreamingLevels())
 				{
 					FString StreamingLevelPackageFilename;
@@ -1816,18 +1831,20 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			}
 		}
 
-		if ((bShouldProceedWithRebuild == false)||(bSavePackage == false))
+		if (!bShouldProceedWithRebuild || !bSavePackage)
 		{
 			// don't save our parent package
 			bSavePackage = false;
 			
-			//FString FullPath = FPaths::ConvertRelativePathToFull(StreamingLevelPackageFilename);
-			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-			
-			// revert all our packages
-			for (const auto& CheckedOutPackageFilename : CheckedOutPackagesFilenames)
+			if (bRevertCheckedOutFilesIfNotSaving)
 			{
-				SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), *CheckedOutPackageFilename);
+				ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+			
+				// revert all our packages
+				for (const auto& CheckedOutPackageFilename : CheckedOutPackagesFilenames)
+				{
+					SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), *CheckedOutPackageFilename);
+				}
 			}
 		}
 		else
