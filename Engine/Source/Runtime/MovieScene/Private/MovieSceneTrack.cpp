@@ -59,11 +59,10 @@ void UMovieSceneTrack::PostLoad()
 #endif
 			RemoveSectionAt(SectionIndex);
 		}
-		else if (Section->GetRange().HasLowerBound() && Section->GetRange().HasUpperBound() &&
-				 Section->GetRange().GetLowerBoundValue() >= Section->GetRange().GetUpperBoundValue())
+		else if (Section->GetRange().IsEmpty())
 		{
 #if WITH_EDITOR
-			//UE_LOG(LogMovieScene, Warning, TEXT("Removing section %s:%s with invalid range: %d:%d"), *GetPathName(), *GetDisplayName().ToString(), Section->GetRange().GetLowerBoundValue().Value, Section->GetRange().GetUpperBoundValue().Value);
+			//UE_LOG(LogMovieScene, Warning, TEXT("Removing section %s:%s with empty range"), *GetPathName(), *GetDisplayName().ToString());
 #endif
 			RemoveSectionAt(SectionIndex);
 		}
