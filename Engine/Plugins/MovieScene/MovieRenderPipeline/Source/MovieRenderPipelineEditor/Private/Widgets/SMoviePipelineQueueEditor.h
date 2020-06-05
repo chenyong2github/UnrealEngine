@@ -45,6 +45,8 @@ public:
 	TSharedRef<SWidget> RemoveSelectedJobButton();
 	TSharedRef<SWidget> OnGenerateNewJobFromAssetMenu();
 
+	TArray<TSharedPtr<IMoviePipelineQueueTreeItem>> GetSelectedItems() const { return TreeView->GetSelectedItems(); }
+
 private:
 	// SWidget Interface
 	FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
