@@ -771,7 +771,7 @@ namespace Chaos
 
 
 		//todo: if we allocate remote data ahead of time we could go wide
-		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT](int32 DataIdx, FDirtyProxy& Dirty)
+		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT, this](int32 DataIdx, FDirtyProxy& Dirty)
 		{
 			switch(Dirty.Proxy->GetType())
 			{
@@ -801,7 +801,7 @@ namespace Chaos
 			case EPhysicsProxyType::JointConstraintType:
 			{
 				auto Proxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
-				//Proxy->PushStateOnGameThread<Traits>();
+				Proxy->PushStateOnGameThread(this);
 				break;
 			}
 			default:
@@ -903,7 +903,7 @@ namespace Chaos
 						JointProxy->InitializeOnPhysicsThread(this);
 						JointProxy->SetInitialized();
 					}
-					//JointProxy->PushStateOnPhysicsThread<Traits>();
+					JointProxy->PushStateOnPhysicsThread(this);
 					Dirty.Proxy->ResetDirtyIdx();
 					break;
 				}

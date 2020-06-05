@@ -31,19 +31,19 @@ template < >
 void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* InSolver)
 {
 }
-/*
+
 template < >
 template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread<Chaos::FNonRewindableEvolutionTraits>()
+void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* InSolver)
 {
 }
 
 template < >
 template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread<Chaos::FNonRewindableEvolutionTraits>()
+void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* InSolver)
 {
 }
-*/
+
 template < >
 template < >
 void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* RBDSolver)
@@ -72,10 +72,10 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 	}
 }
 
-/*
+
 template < >
 template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread< Chaos::FRewindableEvolutionTraits>()
+void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::FRewindableEvolutionTraits>* InSolver)
 {
 	if (Constraint != nullptr)
 	{
@@ -85,10 +85,10 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread< Chao
 
 template < >
 template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread< Chaos::FRewindableEvolutionTraits>()
+void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FRewindableEvolutionTraits>* InSolver)
 {
 }
-*/
+
 
 template < >
 template < >
@@ -105,11 +105,6 @@ EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
 
 
 // Template specializations defined against Chaos::Traits. 
-// causes warning 
-//	JointConstraintProxy.cpp(85, 63) : error : explicit instantiation of 'InitializeOnPhysicsThread<Chaos::FNonRewindableEvolutionTraits>' that occurs after an explicit specialization has no effect[-Werror, -Winstantiation - after - specialization]
-//	JointConstraintProxy.cpp(88, 63) : error : explicit instantiation of 'DestroyOnPhysicsThread<Chaos::FNonRewindableEvolutionTraits>' that occurs after an explicit specialization has no effect[-Werror, -Winstantiation - after - specialization]
-//	JointConstraintProxy.cpp(90, 63) : error : explicit instantiation of 'InitializeOnPhysicsThread<Chaos::FRewindableEvolutionTraits>' that occurs after an explicit specialization has no effect[-Werror, -Winstantiation - after - specialization]
-//	JointConstraintProxy.cpp(93, 63) : error : explicit instantiation of 'DestroyOnPhysicsThread<Chaos::FRewindableEvolutionTraits>' that occurs after an explicit specialization has no effect[-Werror, -Winstantiation - after - specialization]
 
 //template void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* InSolver);
 //template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread< Chaos::FNonRewindableEvolutionTraits>();
