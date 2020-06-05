@@ -95,6 +95,11 @@ void MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Se
 
 	TRange<FFrameNumber> SectionRange = Section.GetRange();
 
+	if (SectionRange.HasLowerBound() && SectionRange.HasUpperBound() && SectionRange.GetLowerBoundValue() >= SectionRange.GetUpperBoundValue())
+	{
+		return;
+	}
+
 	if (Sections.Find(&Section, SectionIndex))
 	{
 		int32 PrevSectionIndex = SectionIndex - 1;
@@ -103,11 +108,21 @@ void MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Se
 			// Extend the previous section
 			if (bDelete)
 			{
-				Sections[PrevSectionIndex]->SetEndFrame(SectionRange.GetUpperBound());
+				TRangeBound<FFrameNumber> NewEndFrame = SectionRange.GetUpperBound();
+
+				if (!Sections[PrevSectionIndex]->HasStartFrame() || NewEndFrame.GetValue() > Sections[PrevSectionIndex]->GetInclusiveStartFrame())
+				{
+					Sections[PrevSectionIndex]->SetEndFrame(NewEndFrame);
+				}
 			}
 			else
 			{
-				Sections[PrevSectionIndex]->SetEndFrame(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetLowerBound()));
+				TRangeBound<FFrameNumber> NewEndFrame = TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetLowerBound());
+
+				if (!Sections[PrevSectionIndex]->HasStartFrame() || NewEndFrame.GetValue() > Sections[PrevSectionIndex]->GetInclusiveStartFrame())
+				{
+					Sections[PrevSectionIndex]->SetEndFrame(NewEndFrame);
+				}
 			}
 		}
 
@@ -117,7 +132,12 @@ void MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Se
 			if(Sections.IsValidIndex(NextSectionIndex))
 			{
 				// Shift the next CameraCut's start time so that it starts when the new CameraCut ends
-				Sections[NextSectionIndex]->SetStartFrame(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetUpperBound()));
+				TRangeBound<FFrameNumber> NewStartFrame = TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetUpperBound());
+
+				if (!Sections[NextSectionIndex]->HasEndFrame() || NewStartFrame.GetValue() < Sections[NextSectionIndex]->GetExclusiveEndFrame())
+				{
+					Sections[NextSectionIndex]->SetStartFrame(NewStartFrame);
+				}
 			}
 		}
 	}
@@ -130,6 +150,11 @@ void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSecti
 	int32 SectionIndex = INDEX_NONE;
 
 	TRange<FFrameNumber> SectionRange = Section.GetRange();
+
+	if (SectionRange.HasLowerBound() && SectionRange.HasUpperBound() && SectionRange.GetLowerBoundValue() >= SectionRange.GetUpperBoundValue())
+	{
+		return;
+	}
 
 	if (Sections.Find(&Section, SectionIndex))
 	{
@@ -144,8 +169,13 @@ void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSecti
 
 				if (bDelete)
 				{
-					// The current section was deleted... extend the previous section to fill the gap.
-					PrevSection->SetEndFrame(SectionRange.GetUpperBound());
+					TRangeBound<FFrameNumber> NewEndFrame = SectionRange.GetUpperBound();
+					
+					if (!PrevSection->HasStartFrame() || NewEndFrame.GetValue() > PrevSection->GetInclusiveStartFrame())
+					{
+						// The current section was deleted... extend the previous section to fill the gap.
+						PrevSection->SetEndFrame(NewEndFrame);
+					}
 				}
 				else
 				{
@@ -154,8 +184,13 @@ void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSecti
 					const FFrameNumber GapOrOverlap = SectionRange.GetLowerBoundValue() - PrevSection->GetRange().GetUpperBoundValue();
 					if (GapOrOverlap > 0)
 					{
-						// It's a gap!
-						PrevSection->SetEndFrame(TRangeBound<FFrameNumber>::Exclusive(SectionRange.GetLowerBoundValue() + Section.Easing.GetEaseInDuration()));
+						TRangeBound<FFrameNumber> NewEndFrame = TRangeBound<FFrameNumber>::Exclusive(SectionRange.GetLowerBoundValue() + Section.Easing.GetEaseInDuration());
+
+						if (!PrevSection->HasStartFrame() || NewEndFrame.GetValue() > PrevSection->GetInclusiveStartFrame())
+						{
+							// It's a gap!
+							PrevSection->SetEndFrame(NewEndFrame);
+						}
 					}
 				}
 			}
@@ -185,8 +220,13 @@ void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSecti
 					const FFrameNumber GapOrOverlap = NextSection->GetRange().GetLowerBoundValue() - SectionRange.GetUpperBoundValue();
 					if (GapOrOverlap > 0)
 					{
-						// It's a gap!
-						NextSection->SetStartFrame(TRangeBound<FFrameNumber>::Inclusive(SectionRange.GetUpperBoundValue() - NextSection->Easing.GetEaseInDuration()));
+						TRangeBound<FFrameNumber> NewStartFrame = TRangeBound<FFrameNumber>::Inclusive(SectionRange.GetUpperBoundValue() - NextSection->Easing.GetEaseInDuration());
+
+						if (!NextSection->HasEndFrame() || NewStartFrame.GetValue() < NextSection->GetExclusiveEndFrame())
+						{
+							// It's a gap!
+							NextSection->SetStartFrame(NewStartFrame);
+						}
 					}
 				}
 			}
