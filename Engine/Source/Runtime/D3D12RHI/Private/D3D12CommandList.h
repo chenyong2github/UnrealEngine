@@ -252,6 +252,11 @@ private:
 		// Used to track which resources are used on this CL so that they may be made resident when appropriate
 		FD3D12ResidencySet* ResidencySet;
 
+		// Unique ID of this command list used to avoid costly redundant operations, such as resource residency updates.
+		// This value is updated every time the command list is reset, so it is safe to use even when command list object is recycled.
+		// Value should be only used for identity, not for synchronization. Valid values are guaranteed to be > 0.
+		uint64 CommandListID;
+
 		// Batches resource barriers together until it's explicitly flushed
 		FD3D12ResourceBarrierBatcher ResourceBarrierBatcher;
 
@@ -610,6 +615,12 @@ public:
 	FORCEINLINE uint32 GetGPUIndex() const 
 	{
 		return CommandListData ? CommandListData->GetGPUIndex() : 0;
+	}
+
+	// Returns unique identity that can be used to distinguish between command lists even after they were recycled.
+	FORCEINLINE uint64 GetCommandListID() const
+	{
+		return CommandListData ? CommandListData->CommandListID : 0;
 	}
 
 private:
