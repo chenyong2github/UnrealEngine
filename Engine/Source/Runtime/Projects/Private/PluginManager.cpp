@@ -23,8 +23,6 @@
 #include "HAL/PlatformTime.h"
 #include "Async/ParallelFor.h"
 #if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
-#include "IDesktopPlatform.h"
-#include "DesktopPlatformModule.h"
 #include "TargetReceipt.h"
 #endif
 
@@ -631,55 +629,60 @@ bool FPluginManager::ConfigureEnabledPlugins()
 		{
 #if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
 			// Configure the plugins that were enabled or disabled from the target file using the target receipt file
-			FString EditorTargetFileName;
 			FString DefaultEditorTarget;
 			GConfig->GetString(TEXT("/Script/BuildSettings.BuildSettings"), TEXT("DefaultEditorTarget"), DefaultEditorTarget, GEngineIni);
 
-			for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForCurrentProject())
+			auto ConfigurePluginsFromFirstMatchingTargetFile = [this, &ConfiguredPluginNames, &EnabledPlugins, &DefaultEditorTarget](const TCHAR* BaseDir, bool& bOutError) -> bool
 			{
-				if (Target.Type == FApp::GetBuildTargetType())
+				TArray<FString> AllTargetFilesWithoutPath;
+				const FString ReceiptWildcard = FTargetReceipt::GetDefaultPath(BaseDir, TEXT("*"), FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+				const FString ReceiptPath = FPaths::GetPath(ReceiptWildcard);
+				IFileManager::Get().FindFiles(AllTargetFilesWithoutPath, *ReceiptWildcard, true, false);
+				for (const FString& TargetFileWithoutPath : AllTargetFilesWithoutPath)
 				{
-					bool bIsDefaultTarget = Target.Type != EBuildTargetType::Editor || (DefaultEditorTarget.Len() == 0) || (DefaultEditorTarget == Target.Name);
-
-					if (bIsDefaultTarget)
+					const FString TargetFile = FPaths::Combine(ReceiptPath, TargetFileWithoutPath);
+					FTargetReceipt Receipt;
+					if (Receipt.Read(TargetFile))
 					{
-						if (FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+						if (Receipt.TargetType == FApp::GetBuildTargetType())
 						{
-							EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
-						}
-						else if (FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
-						{
-							EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
-						}
-						else
-						{
-							// Unknown path, possibly built on another machine. Try project first with this target name, then engine
-							EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
-							if (!FPaths::FileExists(EditorTargetFileName))
+							bool bIsDefaultTarget = Receipt.TargetType != EBuildTargetType::Editor || (DefaultEditorTarget.Len() == 0) || (DefaultEditorTarget == Receipt.TargetName);
+
+							if (bIsDefaultTarget)
 							{
-								EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+								for (const TPair<FString, bool>& Pair : Receipt.PluginNameToEnabledState)
+								{
+									const FString& PluginName = Pair.Key;
+									const bool bEnabled = Pair.Value;
+									if (!ConfiguredPluginNames.Contains(PluginName))
+									{
+										if (!ConfigureEnabledPluginForCurrentTarget(FPluginReferenceDescriptor(PluginName, bEnabled), EnabledPlugins))
+										{
+											bOutError = true;
+											break;
+										}
+										ConfiguredPluginNames.Add(PluginName);
+									}
+								}
+
+								return true;
 							}
 						}
-						break;
 					}
 				}
-			}
 
-			FTargetReceipt Receipt;
-			if (Receipt.Read(EditorTargetFileName))
+				return false;
+			};
+
 			{
-				for (const TPair<FString, bool>& Pair : Receipt.PluginNameToEnabledState)
+				bool bErrorConfiguring = false;
+				if (!ConfigurePluginsFromFirstMatchingTargetFile(FPlatformMisc::ProjectDir(), bErrorConfiguring))
 				{
-					const FString& PluginName = Pair.Key;
-					const bool bEnabled = Pair.Value;
-					if (!ConfiguredPluginNames.Contains(PluginName))
-					{
-						if (!ConfigureEnabledPluginForCurrentTarget(FPluginReferenceDescriptor(PluginName, bEnabled), EnabledPlugins))
-						{
-							return false;
-						}
-						ConfiguredPluginNames.Add(PluginName);
-					}
+					ConfigurePluginsFromFirstMatchingTargetFile(FPlatformMisc::EngineDir(), bErrorConfiguring);
+				}
+				if (bErrorConfiguring)
+				{
+					return false;
 				}
 			}
 #else
