@@ -55,11 +55,13 @@ UHLODProxyDesc* UHLODProxy::AddLODActor(ALODActor* InLODActor)
 
 void UHLODProxy::AddMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey)
 {
-	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
+	// If the Save LOD Actors to HLOD packages feature is enabled, ensure that if a LODActor hasn't been rebuilt yet with
+	// the feature on that we can still update its mesh properly.
+	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages && HLODActors.Contains(InLODActor->ProxyDesc))
 	{
 		check(InLODActor->Proxy == this);
-		check(HLODActors.Find(InLODActor->ProxyDesc));
 		HLODActors[InLODActor->ProxyDesc] = FHLODProxyMesh(InStaticMesh, InKey);
+		InLODActor->UpdateProxyDesc();
 	}
 	else
 	{

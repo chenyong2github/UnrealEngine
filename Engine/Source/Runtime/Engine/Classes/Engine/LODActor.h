@@ -13,7 +13,6 @@
 
 class UStaticMesh;
 class UHLODProxy;
-class HLODActorDesc;
 class UHLODProxyDesc;
 
 extern ENGINE_API TAutoConsoleVariable<FString> CVarHLODDistanceOverride;
@@ -205,6 +204,13 @@ public:
 	/** Get the proxy description used to generated this LODActor */
 	const UHLODProxyDesc* GetProxyDesc() const { return ProxyDesc; }
 
+	/**
+	 * Update the proxy description that represent this LODActor
+	 * @return true if the description changed.
+	 */
+	bool UpdateProxyDesc();
+
+	/** Returns true if this LODActor was constructed from an HLODProxyDesc */
 	bool WasBuiltFromHLODDesc() const { return bBuiltFromHLODDesc; }
 #endif // WITH_EDITOR
 
@@ -343,6 +349,6 @@ private:
 
 	/** The hlod proxy desc used to build this LODActor */
 	UPROPERTY(Transient)
-	const UHLODProxyDesc* ProxyDesc;
+	UHLODProxyDesc* ProxyDesc;
 #endif // WITH_EDITORONLY_DATA
 }; 
