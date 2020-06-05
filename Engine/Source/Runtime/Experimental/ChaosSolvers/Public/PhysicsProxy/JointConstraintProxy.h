@@ -58,11 +58,11 @@ public:
 	void CHAOSSOLVERS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
 	// Merge to perform a remote sync
-	//template <typename Traits>
-	//void CHAOSSOLVERS_API PushStateOnGameThread();
+	template <typename Traits>
+	void CHAOSSOLVERS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
-	//template <typename Traits>
-	//void CHAOSSOLVERS_API PushStateOnPhysicsThread();
+	template <typename Traits>
+	void CHAOSSOLVERS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 	// Merge to perform a remote sync - END
 
 	template <typename Traits>
