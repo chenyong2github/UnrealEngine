@@ -252,7 +252,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|ProceduralMesh")
 	void AddCollisionConvexMesh(TArray<FVector> ConvexVerts);
 
-	/** Add simple collision convex to this component */
+	/** Remove collision meshes from this component */
 	UFUNCTION(BlueprintCallable, Category = "Components|ProceduralMesh")
 	void ClearCollisionConvexMeshes();
 
