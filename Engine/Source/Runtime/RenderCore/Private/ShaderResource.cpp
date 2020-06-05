@@ -276,8 +276,11 @@ FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShad
 {
 	RHIShaders.AddZeroed(NumShaders);
 #if RHI_RAYTRACING
-	RayTracingMaterialLibraryIndices.AddUninitialized(NumShaders);
-	FMemory::Memset(RayTracingMaterialLibraryIndices.GetData(), 0xff, NumShaders * RayTracingMaterialLibraryIndices.GetTypeSize());
+	if (GRHISupportsRayTracing)
+	{
+		RayTracingMaterialLibraryIndices.AddUninitialized(NumShaders);
+		FMemory::Memset(RayTracingMaterialLibraryIndices.GetData(), 0xff, NumShaders * RayTracingMaterialLibraryIndices.GetTypeSize());
+	}
 #endif // RHI_RAYTRACING
 }
 
