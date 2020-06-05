@@ -82,6 +82,8 @@ namespace ChaosTest
 				JointPositions.Add(D * Dir);
 				JointParticleIndices.Add(TVector<int32, 2>(ParticleIndex0, ParticleIndex1));
 			}
+
+			JointSettings.SetNum(NumParticles - 1);
 		}
 
 		// Initial particles setup
