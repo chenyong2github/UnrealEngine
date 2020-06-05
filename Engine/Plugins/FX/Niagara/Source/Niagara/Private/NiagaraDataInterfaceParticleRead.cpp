@@ -567,6 +567,24 @@ void UNiagaraDataInterfaceParticleRead::PostInitProperties()
 	}
 }
 
+#if WITH_EDITOR
+void UNiagaraDataInterfaceParticleRead::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	FName PropertyName;
+	if (PropertyChangedEvent.Property)
+	{
+		PropertyName = PropertyChangedEvent.Property->GetFName();
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceParticleRead, EmitterName))
+	{
+		UNiagaraSystem::RecomputeExecutionOrderForDataInterface(this);
+	}
+}
+#endif
+
 bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
 	FNDIParticleRead_InstanceData* PIData = new (PerInstanceData) FNDIParticleRead_InstanceData;
@@ -2069,12 +2087,22 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 }
 #endif
 
-void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, TArray<FNiagaraEmitterInstance*>& Dependencies) const
+void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(UNiagaraSystem* Asset, TArray<UNiagaraEmitter*>& Dependencies) const
 {
-	FNDIParticleRead_InstanceData* PIData = static_cast<FNDIParticleRead_InstanceData*>(PerInstanceData);
-	if (PIData && PIData->EmitterInstance)
+	if (!Asset)
 	{
-		Dependencies.Add(PIData->EmitterInstance);
+		return;
+	}
+
+	UNiagaraEmitter* FoundSourceEmitter = nullptr;
+	for (const FNiagaraEmitterHandle& EmitterHandle : Asset->GetEmitterHandles())
+	{
+		UNiagaraEmitter* EmitterInstance = EmitterHandle.GetInstance();
+		if (EmitterInstance && EmitterInstance->GetUniqueEmitterName() == EmitterName)
+		{
+			Dependencies.Add(EmitterInstance);
+			return;
+		}
 	}
 }
 

@@ -668,6 +668,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	}
 
 	bool bNeedsRecompile = false;
+	bool bRecomputeExecutionOrder = false;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bInterpolatedSpawning))
 	{
 		bool bActualInterpolatedSpawning = SpawnScriptProps.Script->IsInterpolatedParticleSpawnScript();
@@ -683,7 +684,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 			bNeedsRecompile = true;
 		}
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, SimTarget))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, SimTarget))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -691,7 +692,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		}
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bRequiresPersistentIDs))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bRequiresPersistentIDs))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -699,7 +700,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		}
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bLocalSpace))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bLocalSpace))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -708,7 +709,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeterminism))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeterminism))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -717,7 +718,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bSimulationStagesEnabled))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bSimulationStagesEnabled))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -725,7 +726,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		}
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeprecatedShaderStagesEnabled))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeprecatedShaderStagesEnabled))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -733,6 +734,10 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		}
 		bNeedsRecompile = true;
 
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FNiagaraEventScriptProperties, SourceEmitterID))
+	{
+		bRecomputeExecutionOrder = true;
 	}
 
 	ResolveScalabilitySettings();
@@ -745,6 +750,10 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	if (bNeedsRecompile)
 	{
 		UNiagaraSystem::RequestCompileForEmitter(this);
+	}
+	else if (bRecomputeExecutionOrder)
+	{
+		UNiagaraSystem::RecomputeExecutionOrderForEmitter(this);
 	}
 #endif
 }
