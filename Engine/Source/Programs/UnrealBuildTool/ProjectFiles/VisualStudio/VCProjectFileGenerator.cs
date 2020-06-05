@@ -52,6 +52,13 @@ namespace UnrealBuildTool
 		public int MaxSharedIncludePaths = 24 * 1024;
 
 		/// <summary>
+		/// Semi-colon separated list of paths that should not be added to the projects include paths. Useful for omitting third-party headers
+		/// (e.g ThirdParty/WebRTC) from intellisense suggestions and reducing memory footprints.
+		/// </summary>
+		[XmlConfigFile(Category = "VCProjectFileGenerator")]
+		public string ExcludedIncludePaths = "";
+
+		/// <summary>
 		/// Whether to write a solution option (suo) file for the sln.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
