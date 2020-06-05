@@ -191,6 +191,7 @@ protected:
 	}
 	FVector3i cell_index(const FVector3<double>& Pos)
 	{
+		checkSlow(Bounds.Contains(Pos));
 		return FVector3i(
 			(int)((Pos.X - Bounds.Min.X) / CubeSize),
 			(int)((Pos.Y - Bounds.Min.Y) / CubeSize),
