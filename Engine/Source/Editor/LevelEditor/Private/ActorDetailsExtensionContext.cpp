@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ActorDetailsExtensionContext.h"
 
 const TArray<TWeakObjectPtr<UObject>>& UActorDetailsExtensionContext::GetSelectedObjects() const
