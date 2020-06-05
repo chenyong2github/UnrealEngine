@@ -14160,6 +14160,10 @@ private:
 	int32 TaggedDataScope;
 };
 
+#if WITH_EDITOR
+static FName BlueprintCompilerGeneratedDefaultsName(TEXT("BlueprintCompilerGeneratedDefaults"));
+#endif
+
 /* Serializes and stores property data from a specified 'source' object. Only stores data compatible with a target destination object. */
 struct FCPFUOWriter : public FObjectWriter, public FCPFUOArchive
 {
@@ -14206,8 +14210,9 @@ public:
 #if WITH_EDITOR
 	virtual bool ShouldSkipProperty(const class FProperty* InProperty) const override
 	{
-		static FName BlueprintCompilerGeneratedDefaultsName(TEXT("BlueprintCompilerGeneratedDefaults"));
-		return bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName);
+		return
+			(InProperty->HasAnyPropertyFlags(CPF_Transient) && !IsPersistent() && IsSerializingDefaults()) ||
+			(bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName));
 	}
 #endif 
 	//~ End FArchive Interface
