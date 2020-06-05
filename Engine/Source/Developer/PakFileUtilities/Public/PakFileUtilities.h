@@ -63,7 +63,7 @@ public:
 		}
 	}
 
-	bool PAKFILEUTILITIES_API ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile = false);
+	bool PAKFILEUTILITIES_API ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile = false, bool bMoveBulkAndUptnlLast = false);
 
 	uint64 PAKFILEUTILITIES_API GetFileOrder(const FString& Path, bool bAllowUexpUBulkFallback, bool* OutIsPrimary=nullptr) const;
 
