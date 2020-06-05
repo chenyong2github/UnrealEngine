@@ -1211,6 +1211,62 @@ PyObject* FindOrLoadObjectImpl(PyObject* InSelf, PyObject* InArgs, PyObject* InK
 	return PyConversion::Pythonize(PotentialObject);
 }
 
+PyObject* NewObject(PyObject* InSelf, PyObject* InArgs, PyObject* InKwds)
+{
+	UClass* ObjectType = nullptr;
+	UObject* ObjectOuter = GetTransientPackage();
+	FName ObjectName;
+	UClass* ObjectBaseType = nullptr;
+
+	// Parse the args
+	{
+		PyObject* PyTypeObj = nullptr;
+		PyObject* PyOuterObj = nullptr;
+		PyObject* PyNameObj = nullptr;
+		PyObject* PyBaseTypeObj = nullptr;
+
+		static const char* ArgsKwdList[] = { "type", "outer", "name", "base_type", nullptr };
+		if (!PyArg_ParseTupleAndKeywords(InArgs, InKwds, "O|OOO:new_object", (char**)ArgsKwdList, &PyTypeObj, &PyOuterObj, &PyNameObj, &PyBaseTypeObj))
+		{
+			return nullptr;
+		}
+
+		if (!PyConversion::NativizeClass(PyTypeObj, ObjectType, UObject::StaticClass()))
+		{
+			PyUtil::SetPythonError(PyExc_TypeError, TEXT("new_object"), *FString::Printf(TEXT("Failed to convert 'type' (%s) to 'Class'"), *PyUtil::GetFriendlyTypename(PyTypeObj)));
+			return nullptr;
+		}
+
+		if (PyOuterObj && !PyConversion::Nativize(PyOuterObj, ObjectOuter))
+		{
+			PyUtil::SetPythonError(PyExc_TypeError, TEXT("new_object"), *FString::Printf(TEXT("Failed to convert 'outer' (%s) to 'Object'"), *PyUtil::GetFriendlyTypename(PyOuterObj)));
+			return nullptr;
+		}
+
+		if (PyNameObj && !PyConversion::Nativize(PyNameObj, ObjectName))
+		{
+			PyUtil::SetPythonError(PyExc_TypeError, TEXT("new_object"), *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(PyNameObj)));
+			return nullptr;
+		}
+
+		if (PyBaseTypeObj && !PyConversion::NativizeClass(PyBaseTypeObj, ObjectBaseType, UObject::StaticClass()))
+		{
+			PyUtil::SetPythonError(PyExc_TypeError, TEXT("new_object"), *FString::Printf(TEXT("Failed to convert 'base_type' (%s) to 'Class'"), *PyUtil::GetFriendlyTypename(PyBaseTypeObj)));
+			return nullptr;
+		}
+	}
+
+	// Create the instance
+	UObject* ObjectInstance = PyUtil::NewObject(ObjectType, ObjectOuter, ObjectName, ObjectBaseType, TEXT("new_object"));
+	if (!ObjectInstance)
+	{
+		// PyUtil::NewObject should have set an error state
+		return nullptr;
+	}
+
+	return PyConversion::Pythonize(ObjectInstance);
+}
+
 PyObject* FindObject(PyObject* InSelf, PyObject* InArgs, PyObject* InKwds)
 {
 	return FindOrLoadObjectImpl(InSelf, InArgs, InKwds, TEXT("find_object"), [](UClass* ObjectType, UObject* ObjectOuter, const TCHAR* ObjectName)
@@ -1704,6 +1760,7 @@ PyMethodDef PyCoreMethods[] = {
 	{ "log_flush", PyCFunctionCast(&LogFlush), METH_NOARGS, "x.log_flush() -> None -- flush the log to disk" },
 	{ "reload", PyCFunctionCast(&Reload), METH_VARARGS, "x.reload(str) -> None -- reload the given Unreal Python module" },
 	{ "load_module", PyCFunctionCast(&LoadModule), METH_VARARGS, "x.load_module(str) -> None -- load the given Unreal module and generate any Python code for its reflected types" },
+	{ "new_object", PyCFunctionCast(&NewObject), METH_VARARGS | METH_KEYWORDS, "x.new_object(type, outer=Transient, name=Default, base_type=Object) -> Object -- create an Unreal object of the given class (and optional outer and name), optionally validating its type" },
 	{ "find_object", PyCFunctionCast(&FindObject), METH_VARARGS | METH_KEYWORDS, "x.find_object(outer, name, type=Object, follow_redirectors=True) -> Object -- find an already loaded Unreal object with the given outer and name, optionally validating its type" },
 	{ "load_object", PyCFunctionCast(&LoadObject), METH_VARARGS | METH_KEYWORDS, "x.load_object(outer, name, type=Object, follow_redirectors=True) -> Object -- load an Unreal object with the given outer and name, optionally validating its type" },
 	{ "load_class", PyCFunctionCast(&LoadClass), METH_VARARGS | METH_KEYWORDS, "x.load_class(outer, name, type=Object) -> Class -- load an Unreal class with the given outer and name, optionally validating its base type" },
@@ -1729,7 +1786,7 @@ PyMethodDef PyCoreMethods[] = {
 
 void InitializeModule()
 {
-	GetPythonTypeContainerSingleton().Reset(NewObject<UPackage>(nullptr, TEXT("/Engine/PythonTypes"), RF_Public | RF_Transient));
+	GetPythonTypeContainerSingleton().Reset(::NewObject<UPackage>(nullptr, TEXT("/Engine/PythonTypes"), RF_Public | RF_Transient));
 	GetPythonTypeContainerSingleton()->SetPackageFlags(PKG_ContainsScript);
 
 	PyGenUtil::FNativePythonModule NativePythonModule;

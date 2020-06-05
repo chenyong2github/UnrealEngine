@@ -362,6 +362,16 @@ namespace PyUtil
 	Py_ssize_t ResolveContainerIndexParam(const Py_ssize_t InIndex, const Py_ssize_t InLen);
 
 	/**
+	 * A NewObject wrapper for Python which catches some internal check conditions and raises them as Python exceptions instead.
+	 *
+	 * @param InObjClass The class type to create an instance of.
+	 * @param InOuter The outer object that should host the new instance.
+	 * @param InName The name that should be given to the new instance (will generate a unique name if None).
+	 * @param InBaseClass The base class type required for InObjClass (ignored if null).
+	 */
+	UObject* NewObject(UClass* InObjClass, UObject* InOuter, const FName InName, UClass* InBaseClass, const TCHAR* InErrorCtxt);
+
+	/**
 	 * Given a Python object, try and get the owner Unreal object for the instance.
 	 * For wrapped objects this is the wrapped instance, for wrapped structs it will attempt to walk through the owner chain to find a wrapped object.
 	 * @return The owner Unreal object, or null.
