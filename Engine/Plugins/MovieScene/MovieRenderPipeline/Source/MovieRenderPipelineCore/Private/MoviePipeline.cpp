@@ -259,6 +259,8 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	if (ActiveShotList.Num() == 0)
 	{
 		// We have to transition twice as Uninitialized -> n state is a no-op, so the second tick will take us to Finished which shuts down.
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%d] No shots detected to render. Either all outside playback range, or disabled via shot mask, bailing."), GFrameCounter);
+
 		TransitionToState(EMovieRenderPipelineState::Export);
 		TransitionToState(EMovieRenderPipelineState::Finished);
 	}
@@ -759,6 +761,7 @@ void UMoviePipeline::InitializeLevelSequenceActor()
 	LevelSequenceActor->PlaybackSettings.bAutoPlay = false;
 	LevelSequenceActor->PlaybackSettings.bPauseAtEnd = true;
 	LevelSequenceActor->GetSequencePlayer()->SetTimeController(CustomSequenceTimeController);
+	LevelSequenceActor->GetSequencePlayer()->Stop();
 
 	LevelSequenceActor->GetSequencePlayer()->OnSequenceUpdated().AddUObject(this, &UMoviePipeline::OnSequenceEvaluated);
 }
@@ -809,6 +812,7 @@ void UMoviePipeline::BuildShotListFromSequence()
 		{
 			ModifiedSegment.bShotSectionIsLocked = ShotSection->IsLocked();
 			ModifiedSegment.ShotSectionRange = ShotSection->GetRange();
+			ModifiedSegment.bShotSectionIsActive = ShotSection->IsActive();
 			ShotSection->SetIsLocked(false);
 		}
 
@@ -938,13 +942,18 @@ void UMoviePipeline::SetSoloShot(const UMoviePipelineExecutorShot* InShot)
 		CurrentShotSection->SetIsActive(true);
 		CurrentShotSection->MarkAsChanged();
 	}
-	else if (UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(InShot->InnerPathKey.TryLoad()))
-	{
-		CameraCutSection->SetIsActive(false);
-	}
 	else
 	{
 		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all shot tracks and skipped enabling a shot track due to no shot section associated with the provided shot."));
+	}
+	if (UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(InShot->InnerPathKey.TryLoad()))
+	{
+		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all camera cut tracks and re-enabling %s for solo."), *CameraCutSection->GetName());
+		CameraCutSection->SetIsActive(true);
+	}
+	else
+	{
+		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all camera cut tracks and skipped enabling a camera cut track due to no camera cut section associated with the provided shot."));
 	}
 }
 
