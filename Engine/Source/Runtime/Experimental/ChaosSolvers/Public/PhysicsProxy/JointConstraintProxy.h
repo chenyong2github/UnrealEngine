@@ -56,7 +56,7 @@ public:
 
 	template <typename Traits>
 	void CHAOSSOLVERS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
-	/*
+
 	// Merge to perform a remote sync
 	template <typename Traits>
 	void CHAOSSOLVERS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
@@ -64,7 +64,7 @@ public:
 	template <typename Traits>
 	void CHAOSSOLVERS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 	// Merge to perform a remote sync - END
-	*/
+
 	template <typename Traits>
 	void CHAOSSOLVERS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
@@ -151,6 +151,8 @@ public:
 template< > CHAOSSOLVERS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
 #define EVOLUTION_TRAIT(Traits)\
 template< > template < > CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
+template< > template < > CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
+template< > template < > CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 template< > template < > CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver);\
 
 #include "Chaos/EvolutionTraits.inl"
