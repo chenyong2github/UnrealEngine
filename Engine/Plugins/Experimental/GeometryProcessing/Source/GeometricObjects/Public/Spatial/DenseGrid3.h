@@ -49,6 +49,7 @@ public:
 
 	void Resize(int DimX, int DimY, int DimZ, bool bAllowShrinking = true)
 	{
+		check((int64)DimX * (int64)DimY * (int64)DimZ < INT_MAX);
 		Buffer.SetNumUninitialized(DimX * DimY * DimZ, bAllowShrinking);
 		Dimensions = FVector3i(DimX, DimY, DimZ);
 	}

@@ -10,9 +10,11 @@
 #include "Spatial/DenseGrid3.h"
 #include "Async/ParallelFor.h"
 
+#include "Implicit/GridInterpolant.h"
+
 
 /**
- * This is variant of MeshSignedDistanceGrid that does lazy evaluation of actual Distances,
+ * This is variant of TSweepingMeshSDF that does lazy evaluation of actual Distances,
  * using mesh spatial data structure. This is much faster if we are doing continuation-method
  * marching cubes as only values on surface will be computed!
  * 
@@ -30,8 +32,8 @@ public:
 
 	// INPUTS
 
-	TriangleMeshType* Mesh;
-	TMeshAABBTree3<TriangleMeshType>* Spatial;
+	const TriangleMeshType* Mesh;
+	const TMeshAABBTree3<TriangleMeshType>* Spatial;
 	float CellSize;
 
 	// Bounds of Grid will be expanded this much in positive and negative directions.
@@ -82,7 +84,7 @@ public:
 	{
 	}
 
-	TCachingMeshSDF(TriangleMeshType* MeshIn, float CellSizeIn, TMeshAABBTree3<TriangleMeshType>* SpatialIn, bool bAutoBuild) :
+	TCachingMeshSDF(const TriangleMeshType* MeshIn, float CellSizeIn, const TMeshAABBTree3<TriangleMeshType>* SpatialIn, bool bAutoBuild) :
 		Mesh(MeshIn), Spatial(SpatialIn), CellSize(CellSizeIn)
 	{
 		if (bAutoBuild)
@@ -191,7 +193,10 @@ public:
 
 
 
-
+	TTriLinearGridInterpolant<TCachingMeshSDF> MakeInterpolant()
+	{
+		return TTriLinearGridInterpolant<TCachingMeshSDF>(this, (FVector3d)GridOrigin, CellSize, Dimensions());
+	}
 
 
 
