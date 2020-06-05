@@ -492,39 +492,13 @@ struct FGlobalImportStore
 
 	UObject* FindScriptImportObjectFromIndex(FPackageObjectIndex ScriptImportIndex);
 
-	FORCENOINLINE UObject* FindOrCreateScriptObject(FPackageObjectIndex ScriptImportIndex)
-	{
-		UObject* Object = FindScriptImportObjectFromIndex(ScriptImportIndex);
-		if (!Object)
-		{
-			const FScriptObjectEntry* Entry = ScriptObjectEntriesMap.FindRef(ScriptImportIndex);
-			check(Entry);
-			const FPackageObjectIndex& CDOClassIndex = Entry->CDOClassIndex;
-			if (CDOClassIndex.IsScriptImport())
-			{
-				UObject* CDOClassObject = FindScriptImportObjectFromIndex(CDOClassIndex);
-				if (CDOClassObject)
-				{
-					// UObjectLoadAllCompiledInDefaultProperties is creating CDOs from a flat list.
-					// One CDO may call LoadObject which may depend on a CDO later in the list, then just create it here.
-					// Recursive loads may be a problem, PostCDOConstruct exists as a workaround.
-					UClass* Class = CastChecked<UClass>(CDOClassObject);
-					UObject* CDO = Class->GetDefaultObject();
-					(void)CDO;
-					Object = FindScriptImportObjectFromIndex(ScriptImportIndex);
-				}
-			}
-		}
-		return Object;
-	}
-
 	inline UObject* FindOrGetImportObject(FPackageObjectIndex GlobalIndex)
 	{
 		check(GlobalIndex.IsImport());
 		UObject* Object = GetImportObject(GlobalIndex);
 		if (!Object && GlobalIndex.IsScriptImport() && GIsInitialLoad)
 		{
-			return FindOrCreateScriptObject(GlobalIndex);
+			return FindScriptImportObjectFromIndex(GlobalIndex);
 		}
 		return Object;
 	}
@@ -1008,8 +982,7 @@ struct FPackageImportStore
 	FPackageStore& GlobalPackageStore;
 	FGlobalImportStore& GlobalImportStore;
 	const FAsyncPackageDesc2& Desc;
-	const FPackageObjectIndex* ImportMap = nullptr;
-	int32 ImportMapCount = 0;
+	TArrayView<const FPackageObjectIndex> ImportMap;
 
 	FPackageImportStore(FPackageStore& InGlobalPackageStore, const FAsyncPackageDesc2& InDesc)
 		: GlobalPackageStore(InGlobalPackageStore)
@@ -1023,22 +996,22 @@ struct FPackageImportStore
 	~FPackageImportStore()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeletePackageImportStore);
-		check(!ImportMap);
+		check(ImportMap.Num() == 0);
 		ReleasePackageReferences();
 	}
 
 	inline bool IsValidLocalImportIndex(FPackageIndex LocalIndex)
 	{
-		check(ImportMap);
-		return LocalIndex.IsImport() && LocalIndex.ToImport() < ImportMapCount;
+		check(ImportMap.Num() > 0);
+		return LocalIndex.IsImport() && LocalIndex.ToImport() < ImportMap.Num();
 	}
 
 	inline UObject* FindOrGetImportObjectFromLocalIndex(FPackageIndex LocalIndex)
 	{
 		check(LocalIndex.IsImport());
-		check(ImportMap);
+		check(ImportMap.Num() > 0);
 		const int32 LocalImportIndex = LocalIndex.ToImport();
-		check(LocalImportIndex < ImportMapCount);
+		check(LocalImportIndex < ImportMap.Num());
 		const FPackageObjectIndex GlobalIndex = ImportMap[LocalIndex.ToImport()];
 		UObject* Object = nullptr;
 		if (GlobalIndex.IsImport())
@@ -1056,6 +1029,37 @@ struct FPackageImportStore
 	{
 		check(GlobalIndex.IsImport());
 		return GlobalImportStore.FindOrGetImportObject(GlobalIndex);
+	}
+
+	bool GetUnresolvedCDOs(TArray<UClass*, TInlineAllocator<8>>& Classes)
+	{
+		for (const FPackageObjectIndex& Index : ImportMap)
+		{
+			if (!Index.IsScriptImport())
+			{
+				continue;
+			}
+
+			UObject* Object = GlobalImportStore.FindScriptImportObjectFromIndex(Index);
+			if (Object)
+			{
+				continue;
+			}
+
+			const FScriptObjectEntry* Entry = GlobalImportStore.ScriptObjectEntriesMap.FindRef(Index);
+			check(Entry);
+			const FPackageObjectIndex& CDOClassIndex = Entry->CDOClassIndex;
+			if (CDOClassIndex.IsScriptImport())
+			{
+				UObject* CDOClassObject = GlobalImportStore.FindScriptImportObjectFromIndex(CDOClassIndex);
+				if (CDOClassObject)
+				{
+					UClass* CDOClass = static_cast<UClass*>(CDOClassObject);
+					Classes.AddUnique(CDOClass);
+				}
+			}
+		}
+		return Classes.Num() > 0;
 	}
 
 	inline void StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* Object)
@@ -1264,7 +1268,7 @@ public:
 	FORCENOINLINE void HandleBadImportIndex(int32 ImportIndex, UObject*& Object)
 	{
 		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadImportIndex"),
-			TEXT("ImportIndex: %d/%d"), ImportIndex, ImportStore->ImportMapCount);
+			TEXT("ImportIndex: %d/%d"), ImportIndex, ImportStore->ImportMap.Num());
 
 		Object = nullptr;
 	}
@@ -1867,6 +1871,7 @@ public:
 private:
 	void CreateNodes(const FAsyncLoadEventSpec* EventSpecs);
 	void SetupSerializedArcs(const uint8* GraphData, uint64 GraphDataSize);
+	void SetupScriptDependencies();
 
 	/**
 	 * Begin async loading process. Simulates parts of BeginLoad.
@@ -2059,6 +2064,9 @@ private:
 
 	FNameMap GlobalNameMap;
 	FPackageStore GlobalPackageStore;
+
+	/** Initial load pending CDOs */
+	TMap<UClass*, TArray<FEventLoadNode2*>> PendingCDOs;
 
 	struct FBundleIoRequest
 	{
@@ -2319,10 +2327,45 @@ public:
 		}
 	}
 
+	void AddPendingCDOs(FAsyncPackage2* Package, TArray<UClass*, TInlineAllocator<8>>& Classes)
+	{
+		FEventLoadNode2* FirstBundleNode = Package->GetExportBundleNode(ExportBundle_Process, 0);
+		FirstBundleNode->AddBarrier(Classes.Num());
+		for (UClass* Class : Classes)
+		{
+			PendingCDOs.FindOrAdd(Class).Add(FirstBundleNode);
+		}
+	}
+
+	bool ProcessPendingCDOs()
+	{
+		if (PendingCDOs.Num() > 0)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessPendingCDOs);
+
+			auto It = PendingCDOs.CreateIterator();
+			UClass* Class = It.Key();
+			TArray<FEventLoadNode2*> Nodes = MoveTemp(It.Value());
+
+			UObject* CDO = Class->GetDefaultObject();
+			checkf(CDO, TEXT("Failed to create CDO for %s"), *Class->GetFullName());
+			for (FEventLoadNode2* Node : Nodes)
+			{
+				Node->ReleaseBarrier();
+			}
+
+			It.RemoveCurrent();
+			return true;
+		}
+		return false;
+	}
+
 private:
 
 	void SuspendWorkers();
 	void ResumeWorkers();
+
+	void FinalizeInitialLoad();
 
 	/**
 	* [GAME THREAD] Performs game-thread specific operations on loaded packages (not-thread-safe PostLoad, callbacks)
@@ -2981,6 +3024,20 @@ void FAsyncPackage2::SetupSerializedArcs(const uint8* GraphData, uint64 GraphDat
 	}
 }
 
+void FAsyncPackage2::SetupScriptDependencies()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SetupScriptDependencies);
+
+	// UObjectLoadAllCompiledInDefaultProperties is creating CDOs from a flat list.
+	// During initial laod, if a CDO called LoadObject for this package it may depend on other CDOs later in the list.
+	// Then collect them here, and wait for them to be created before allowing this package to proceed.
+	TArray<UClass*, TInlineAllocator<8>> UnresolvedCDOs;
+	if (ImportStore.GetUnresolvedCDOs(UnresolvedCDOs))
+	{
+		AsyncLoadingThread.AddPendingCDOs(this, UnresolvedCDOs);
+	}
+}
+
 static UObject* GFindExistingScriptImport(FPackageObjectIndex GlobalImportIndex,
 	TMap<FPackageObjectIndex, UObject*>& ScriptObjects,
 	const TMap<FPackageObjectIndex, FScriptObjectEntry*>& ScriptObjectEntriesMap)
@@ -3174,8 +3231,9 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPacka
 		}
 
 		Package->CookedHeaderSize = PackageSummary->CookedHeaderSize;
-		Package->ImportStore.ImportMap = reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset);
-		Package->ImportStore.ImportMapCount = (PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(int32);
+		Package->ImportStore.ImportMap = TArrayView<const FPackageObjectIndex>(
+				reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset),
+				(PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(FPackageObjectIndex));
 		Package->ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
 		
 		FMemory::Memcpy(Package->ExportBundlesMetaMemory, PackageSummaryData + PackageSummary->ExportBundlesOffset, Package->ExportBundlesMetaSize);
@@ -3186,9 +3244,14 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPacka
 		Package->AllExportDataPtr = PackageSummaryData + PackageSummarySize;
 		Package->CurrentExportDataPtr = Package->AllExportDataPtr;
 
-		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, PackageSummarySize, Package->ImportStore.ImportMapCount, Package->ExportCount);
+		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, PackageSummarySize, Package->ImportStore.ImportMap.Num(), Package->ExportCount);
 	}
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessNewImportsAndExports;
+
+	if (GIsInitialLoad)
+	{
+		Package->SetupScriptDependencies();
+	}
 	Package->GetExportBundleNode(ExportBundle_Process, 0)->ReleaseBarrier();
 
 	return EAsyncPackageState::Complete;
@@ -3321,8 +3384,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 	else
 	{
 		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessNewImportsAndExports);
-		Package->ImportStore.ImportMap = nullptr;
-		Package->ImportStore.ImportMapCount = 0;
+		Package->ImportStore.ImportMap = TArrayView<const FPackageObjectIndex>();
 		Package->bAllExportsSerialized = true;
 		Package->IoBuffer = FIoBuffer();
 		Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::PostLoad_Etc;
@@ -4362,13 +4424,16 @@ EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(bo
 
 		if (Result != EAsyncPackageState::TimeOut)
 		{
+			// Flush deferred messages
+			if (ExistingAsyncPackagesCounter.GetValue() == 0)
 			{
-				// Flush deferred messages
-				if (ExistingAsyncPackagesCounter.GetValue() == 0)
-				{
-					bDidSomething = true;
-					FDeferredMessageLog::Flush();
-				}
+				bDidSomething = true;
+				FDeferredMessageLog::Flush();
+			}
+
+			if (GIsInitialLoad && !bDidSomething)
+			{
+				bDidSomething = ProcessPendingCDOs();
 			}
 		}
 
@@ -4452,7 +4517,7 @@ void FAsyncLoadingThread2::StartThread()
 
 	if (!FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled)
 	{
-		GlobalPackageStore.FinalizeInitialLoad();
+		FinalizeInitialLoad();
 	}
 	else if (!Thread)
 	{
@@ -4508,6 +4573,13 @@ void FAsyncLoadingThread2::ResumeWorkers()
 	bWorkersSuspended = false;
 }
 
+void FAsyncLoadingThread2::FinalizeInitialLoad()
+{
+	GlobalPackageStore.FinalizeInitialLoad();
+	check(PendingCDOs.Num() == 0);
+	PendingCDOs.Empty();
+}
+
 uint32 FAsyncLoadingThread2::Run()
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
@@ -4523,7 +4595,7 @@ uint32 FAsyncLoadingThread2::Run()
 
 	FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
 	
-	GlobalPackageStore.FinalizeInitialLoad();
+	FinalizeInitialLoad();
 
 	FZenaphoreWaiter Waiter(AltZenaphore, TEXT("WaitForEvents"));
 	bool bIsSuspended = false;
