@@ -2131,8 +2131,6 @@ public:
 	};
 };
 
-#if RHI_RAYTRACING
-
 class FRayTracingPipelineStateInitializer
 {
 public:
@@ -2238,7 +2236,6 @@ private:
 	uint64 HitGroupHash = 0;
 	uint64 CallableHash = 0;
 };
-#endif // RHI_RAYTRACING
 
 // This PSO is used as a fallback for RHIs that dont support PSOs. It is used to set the graphics state using the legacy state setting APIs
 class FRHIGraphicsPipelineStateFallBack : public FRHIGraphicsPipelineState

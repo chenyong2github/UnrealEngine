@@ -1705,7 +1705,6 @@ inline FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const TShaderRef<FMesh
 	return CalculateMeshStaticSortKey(VertexShader.GetShader(), PixelShader.GetShader());
 }
 
-#if RHI_RAYTRACING
 class FRayTracingMeshCommand
 {
 public:
@@ -1819,5 +1818,3 @@ private:
 	uint8 GeometrySegmentIndex;
 	uint32 RayTracingInstanceIndex;
 };
-
-#endif
