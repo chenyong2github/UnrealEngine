@@ -276,6 +276,7 @@ float USoundNode::GetDuration()
 	{
 		if (ChildNode)
 		{
+			ChildNode->ConditionalPostLoad();
 			MaxDuration = FMath::Max(ChildNode->GetDuration(), MaxDuration);
 		}
 	}
