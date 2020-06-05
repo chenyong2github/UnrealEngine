@@ -1078,6 +1078,16 @@ void ALODActor::RecalculateDrawingDistance(const float InTransitionScreenSize)
 	UpdateSubActorLODParents();
 }
 
+bool ALODActor::UpdateProxyDesc()
+{
+	if (ProxyDesc)
+	{
+		return ProxyDesc->UpdateFromLODActor(this);
+	}
+
+	return false;
+}
+
 #endif // WITH_EDITOR
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

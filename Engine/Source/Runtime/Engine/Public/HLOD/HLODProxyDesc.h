@@ -71,8 +71,11 @@ public:
 	/** Test whether this description should be updated. */
 	bool ShouldUpdateDesc(const ALODActor* InLODActor) const;
 	
-	/** Update the HLODDesc using a LODActor */
-	void UpdateFromLODActor(const ALODActor* InLODActor);
+	/** 
+	 * Update the HLODDesc using a LODActor
+	 * @return true if the description changed.
+	 */
+	bool UpdateFromLODActor(const ALODActor* InLODActor);
 	
 	/** Spawn a LODActor from this description. */
 	ALODActor* SpawnLODActor(ULevel* InLevel) const;
