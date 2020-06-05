@@ -123,7 +123,7 @@ FAutomationUtilsGameplayAutomationScreenshotInstance::FAutomationUtilsGameplayAu
 		//Generate Json Metadata relevant to rendering device, quality settings, and comparison tolerances
 		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 		//General Stuff
-		JsonObject->SetStringField(TEXT("name"), FPaths::MakeValidFileName(ScreenshotName, TEXT('_')));
+		JsonObject->SetStringField(TEXT("screenShotName"), FPaths::MakeValidFileName(ScreenshotName, TEXT('_')));
 		JsonObject->SetStringField(TEXT("context"), MapName);
 		JsonObject->SetStringField(TEXT("id"), FGuid::NewGuid().ToString());
 		JsonObject->SetStringField(TEXT("Commit"), FEngineVersion::Current().HasChangelist() ? FString::FromInt(FEngineVersion::Current().GetChangelist()) : FString(TEXT("")));
