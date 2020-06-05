@@ -2329,6 +2329,13 @@ public partial class Project : CommandUtils
 						AdditionalArgs += " -fallbackOrderForNonUassetFiles";
 					}
 
+					bool bPakMoveBulkAndUptnlOrderLast = false;
+					PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakMoveBulkAndUptnlOrderLast", out bPakMoveBulkAndUptnlOrderLast);
+					if (bPakMoveBulkAndUptnlOrderLast)
+					{
+						AdditionalArgs += " -moveBulkAndUptnlOrderLast";
+					}
+
 					ConfigHierarchy PlatformEngineConfig;
 					if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))					
 					{
