@@ -167,9 +167,9 @@ EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>
 }
 
 template< >
-bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::HasAwakeEvent() const
+Chaos::EWakeEventEntry  FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::GetWakeEvent() const
 {
-	return false;
+	return Chaos::EWakeEventEntry::None;
 }
 
 template< >
@@ -219,9 +219,9 @@ EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<
 }
 
 template< >
-bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::HasAwakeEvent() const
+Chaos::EWakeEventEntry  FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::GetWakeEvent() const
 {
-	return false;
+	return Chaos::EWakeEventEntry::None;
 }
 
 template< >
@@ -294,9 +294,9 @@ bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty()
 }
 
 template< >
-bool FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >::HasAwakeEvent() const
+Chaos::EWakeEventEntry FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >::GetWakeEvent() const
 {
-	return Particle->HasAwakeEvent();
+	return Particle->GetWakeEvent();
 }
 
 template< >
