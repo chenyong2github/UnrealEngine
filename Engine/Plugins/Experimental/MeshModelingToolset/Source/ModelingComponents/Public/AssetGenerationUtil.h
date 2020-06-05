@@ -11,6 +11,7 @@ class IToolsContextAssetAPI;
 struct FMeshDescription;
 class FDynamicMesh3;
 class AActor;
+class UTexture2D;
 
 /**
  * Utility functions for generating Assets in InteractiveTool implementations
@@ -56,5 +57,17 @@ namespace AssetGenerationUtil
 		FString ObjectName,
 		const TArrayView<UMaterialInterface*>& Materials
 	);
+
+
+	/**
+	 * Save generated UTexture2D that is currently in the Transient package (ie generated in code) as an Asset with a given name 
+	 * @param AssetAPI pointer to context asset API that will be used to create new asset
+	 * @param TransientTexture texture to save
+	 * @param ObjectName name of the new asset
+	 */
+	MODELINGCOMPONENTS_API bool SaveGeneratedTexture2D(
+		IToolsContextAssetAPI* AssetAPI,
+		UTexture2D* TransientTexture,
+		FString ObjectName);
 
 }
