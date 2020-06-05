@@ -4981,7 +4981,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 		FPakOrderMap OrderMap;
 		FString ResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile), false, bMoveBulkAndUptnlOrderLast)
+		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile, false, bMoveBulkAndUptnlOrderLast))
 		{
 			return false;
 		}
