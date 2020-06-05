@@ -277,16 +277,19 @@ private:
 	int32 Index;
 };
 
-bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile)
+bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile, bool bMoveBulkAndUptnlLast)
 {
 	int32 OrderOffset = 0;
+	int32 OpenOrderNumber = 0;
 	if (bSecondaryOrderFile)
 	{
 		OrderOffset = Num();
 		MaxPrimaryOrderIndex = OrderOffset;
+		bMoveBulkAndUptnlLast = false;
 	}
 	// List of all items to add to pak file
 	FString Text;
+	TArray<FString> BulkUptnlOrder;
 	UE_LOG(LogPakFile, Display, TEXT("Loading pak order file %s..."), ResponseFile);
 	if (FFileHelper::LoadFileToString(Text, ResponseFile))
 	{
@@ -297,7 +300,7 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 		{
 			Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
 			Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
-			int32 OpenOrderNumber = EntryIndex;
+			OpenOrderNumber = EntryIndex;
 			if (Lines[EntryIndex].FindLastChar('"', OpenOrderNumber))
 			{
 				FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
@@ -310,7 +313,8 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 			}
 			Lines[EntryIndex] = Lines[EntryIndex].TrimQuotes();
 			// dont process the entry in the FileOrder if it a package name
-			if (!FPaths::GetExtension(Lines[EntryIndex]).IsEmpty())
+			FString FileExt = FPaths::GetExtension(Lines[EntryIndex]);
+			if (!FileExt.IsEmpty())
 			{
 				FString Path = FString::Printf(TEXT("%s"), *Lines[EntryIndex]);
 				FPaths::NormalizeFilename(Path);
@@ -319,9 +323,25 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 				{
 					continue;
 				}
+				else if (bMoveBulkAndUptnlLast && (FileExt.EndsWith(TEXT("ubulk")) || FileExt.EndsWith(TEXT("uptnl"))))
+				{
+					OrderOffset--;
+					BulkUptnlOrder.Add(Path);
+					continue;
+				}
 				OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 			}
 		}
+
+		if (bMoveBulkAndUptnlLast)
+		{
+			int32 EndSectionOrderNumber = OpenOrderNumber + OrderOffset + 1;
+			for (int32 i = 0; i < BulkUptnlOrder.Num(); i++)
+			{
+				OrderMap.Add(BulkUptnlOrder[i], EndSectionOrderNumber++);
+			}
+		}
+
 		UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);
 		return true;
 	}
@@ -4959,10 +4979,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 		bool bOnlyDeleted = FParse::Param( CmdLine, TEXT("OnlyDeleted") );
 		bool bSortByOrdering = FParse::Param(CmdLine, TEXT("SortByOrdering"));
+		bool bMoveBulkAndUptnlOrderLast = FParse::Param(CmdLine, TEXT("bMoveBulkAndUptnlOrderLast"));
 
 		FPakOrderMap OrderMap;
 		FString ResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile))
+		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile), false, bMoveBulkAndUptnlOrderLast)
 		{
 			return false;
 		}
@@ -5138,9 +5159,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		FPakCommandLineParameters CmdLineParameters;
 		ProcessCommandLine(CmdLine, NonOptionArguments, Entries, CmdLineParameters);
 
+		bool bMoveBulkAndUptnlOrderLast = FParse::Param(CmdLine, TEXT("moveBulkAndUptnlOrderLast"));
+
 		FPakOrderMap OrderMap;
 		FString ResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile))
+		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile, false, bMoveBulkAndUptnlOrderLast))
 		{
 			return false;
 		}
@@ -5270,6 +5293,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 	UE_LOG(LogPakFile, Error, TEXT("    -encryptionkeyoverrideguid (override the encryption key guid used for encrypting data in this pak file)"));
 	UE_LOG(LogPakFile, Error, TEXT("    -sign (generate a signature (.sig) file alongside the pak)"));
 	UE_LOG(LogPakFile, Error, TEXT("    -fallbackOrderForNonUassetFiles (if order is not specified for ubulk/uexp files, figure out implicit order based on the uasset order. Generally applies only to the cooker order)"));
+	UE_LOG(LogPakFile, Error, TEXT("    -moveBulkAndUptnlOrderLast (move all ubulk and uptnl files after all other resources in the first Order list. Ubulk and uptnl files will be at the end, and will preserve their order)"));
 
 	return false;
 }
