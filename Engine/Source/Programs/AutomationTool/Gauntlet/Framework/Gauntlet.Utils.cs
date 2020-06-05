@@ -273,7 +273,10 @@ namespace Gauntlet
 		{
 			if (ECSuspendCount++ == 0)
 			{
-				OutputMessage("<-- Suspend Log Parsing -->");
+				if (CommandUtils.IsBuildMachine)
+				{
+					OutputMessage("<-- Suspend Log Parsing -->");
+				}
 			}
 		}
 
@@ -281,7 +284,10 @@ namespace Gauntlet
 		{
 			if (--ECSuspendCount == 0)
 			{
-				OutputMessage("<-- Resume Log Parsing -->");
+				if (CommandUtils.IsBuildMachine)
+				{
+					OutputMessage("<-- Resume Log Parsing -->");
+				}
 			}
 		}
 

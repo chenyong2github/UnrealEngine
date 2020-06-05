@@ -123,6 +123,7 @@
     <Compile Include="Unreal\Base\Gauntlet.UnrealTestNode.cs" />
     <Compile Include="Unreal\Base\Gauntlet.UnrealPGONode.cs" />
     <Compile Include="Unreal\Game\EpicGame.TestConfig.cs" />
+    <Compile Include="Unreal\Game\Tests\Gauntlet.UnrealTest.BootTest.cs" />
     <Compile Include="Unreal\Game\UE4Game.DefaultNode.cs" />
     <Compile Include="Unreal\RunUnreal.cs" />
     <Compile Include="Unreal\Game\Samples\ElementalDemoTest.cs" />
@@ -208,9 +209,8 @@
     <Content Include="SelfTest\TestData\LogParser\Win64FatalError.txt" />
   </ItemGroup>
   <ItemGroup>
-        <Compile Include="Platform\**\*.cs" />
+    <Compile Include="Platform\**\*.cs" />
   </ItemGroup>
-
   <!-- The following will glob all platform extensions' Gauntlet source
   files and include them in the build. They will also appear in VisualStudio -->
   <ItemGroup>
@@ -221,6 +221,5 @@
       <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(Compile.RecursiveDir), [\\/].+$, ``))/_</Link>
     </Compile>
   </ItemGroup>
-  
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
