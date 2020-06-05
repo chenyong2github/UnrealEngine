@@ -108,6 +108,7 @@ namespace Chaos
 		FReal AngularProjection;
 		FReal ParentInvMassScale;
 
+		bool bCollisionEnabled;
 		bool bProjectionEnabled;
 		bool bSoftProjectionEnabled;
 

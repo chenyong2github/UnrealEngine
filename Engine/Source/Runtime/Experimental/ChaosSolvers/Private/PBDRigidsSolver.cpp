@@ -800,7 +800,8 @@ namespace Chaos
 			}
 			case EPhysicsProxyType::JointConstraintType:
 			{
-				// Not invalid but doesn't currently use the remote data process
+				auto Proxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
+				Proxy->PushStateOnGameThread<Traits>();
 				break;
 			}
 			default:
@@ -902,6 +903,7 @@ namespace Chaos
 						JointProxy->InitializeOnPhysicsThread(this);
 						JointProxy->SetInitialized();
 					}
+					JointProxy->PushStateOnPhysicsThread<Traits>();
 					Dirty.Proxy->ResetDirtyIdx();
 					break;
 				}
