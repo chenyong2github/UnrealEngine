@@ -177,6 +177,9 @@ public:
 	/** Refresh the display names of the cached cultures */
 	CORE_API void RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames);
 
+	/** Refresh any config data that has been cached */
+	CORE_API void RefreshCachedConfigData();
+
 #if ENABLE_LOC_TESTING
 	static CORE_API FString& Leetify(FString& SourceString);
 #endif
