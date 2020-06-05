@@ -2167,6 +2167,11 @@ public:
 	// at least one shader must be present in total (completely empty pipelines are not allowed).
 	bool bPartial = false;
 
+	// Ray tracing pipeline may be created by deriving from the existing base.
+	// Base pipeline will be extended by adding new shaders into it, potentially saving substantial amount of CPU time.
+	// Depends on GRHISupportsRayTracingPSOAdditions support at runtime (base pipeline is simply ignored if it is unsupported).
+	FRayTracingPipelineStateRHIRef BasePipeline;
+
 	const TArrayView<FRHIRayTracingShader*>& GetRayGenTable()   const { return RayGenTable; }
 	const TArrayView<FRHIRayTracingShader*>& GetMissTable()     const { return MissTable; }
 	const TArrayView<FRHIRayTracingShader*>& GetHitGroupTable() const { return HitGroupTable; }
