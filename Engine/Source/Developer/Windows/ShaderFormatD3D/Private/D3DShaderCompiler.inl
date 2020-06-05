@@ -21,7 +21,7 @@ public:
 		const FString& InDumpDebugInfoPath,	// Optional, empty when not dumping shader debug info
 		const FString& InBaseFilename,
 		bool bKeepDebugInfo,
-		uint32 CompileFlags, uint32 AutoBindingSpace = ~0u)
+		uint32 D3DCompileFlags, uint32 AutoBindingSpace = ~0u)
 		: ShaderProfile(InShaderProfile)
 		, EntryPoint(InEntryPoint)
 		, Exports(InExports)
@@ -49,61 +49,61 @@ public:
 			ExtraArguments.Add(Exports);
 		}
 
-		if (CompileFlags & D3D10_SHADER_PREFER_FLOW_CONTROL)
+		if (D3DCompileFlags & D3D10_SHADER_PREFER_FLOW_CONTROL)
 		{
-			CompileFlags &= ~D3D10_SHADER_PREFER_FLOW_CONTROL;
+			D3DCompileFlags &= ~D3D10_SHADER_PREFER_FLOW_CONTROL;
 			ExtraArguments.Add(L"/Gfp");
 		}
 
-		if (CompileFlags & D3D10_SHADER_SKIP_OPTIMIZATION)
+		if (D3DCompileFlags & D3D10_SHADER_SKIP_OPTIMIZATION)
 		{
-			CompileFlags &= ~D3D10_SHADER_SKIP_OPTIMIZATION;
+			D3DCompileFlags &= ~D3D10_SHADER_SKIP_OPTIMIZATION;
 			ExtraArguments.Add(L"/Od");
 		}
 
-		if (CompileFlags & D3D10_SHADER_SKIP_VALIDATION)
+		if (D3DCompileFlags & D3D10_SHADER_SKIP_VALIDATION)
 		{
-			CompileFlags &= ~D3D10_SHADER_SKIP_VALIDATION;
+			D3DCompileFlags &= ~D3D10_SHADER_SKIP_VALIDATION;
 			ExtraArguments.Add(L"/Vd");
 		}
 
-		if (CompileFlags & D3D10_SHADER_AVOID_FLOW_CONTROL)
+		if (D3DCompileFlags & D3D10_SHADER_AVOID_FLOW_CONTROL)
 		{
-			CompileFlags &= ~D3D10_SHADER_AVOID_FLOW_CONTROL;
+			D3DCompileFlags &= ~D3D10_SHADER_AVOID_FLOW_CONTROL;
 			ExtraArguments.Add(L"/Gfa");
 		}
 
-		if (CompileFlags & D3D10_SHADER_PACK_MATRIX_ROW_MAJOR)
+		if (D3DCompileFlags & D3D10_SHADER_PACK_MATRIX_ROW_MAJOR)
 		{
-			CompileFlags &= ~D3D10_SHADER_PACK_MATRIX_ROW_MAJOR;
+			D3DCompileFlags &= ~D3D10_SHADER_PACK_MATRIX_ROW_MAJOR;
 			ExtraArguments.Add(L"/Zpr");
 		}
 
-		if (CompileFlags & D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY)
+		if (D3DCompileFlags & D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY)
 		{
-			CompileFlags &= ~D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY;
+			D3DCompileFlags &= ~D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY;
 			ExtraArguments.Add(L"/Gec");
 		}
 
-		switch (CompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
+		switch (D3DCompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
 		{
 		case D3D10_SHADER_OPTIMIZATION_LEVEL0:
-			CompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL0;
+			D3DCompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL0;
 			ExtraArguments.Add(L"/O0");
 			break;
 
 		case D3D10_SHADER_OPTIMIZATION_LEVEL1:
-			CompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL1;
+			D3DCompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL1;
 			ExtraArguments.Add(L"/O1");
 			break;
 
 		case D3D10_SHADER_OPTIMIZATION_LEVEL2:
-			CompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL2;
+			D3DCompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL2;
 			ExtraArguments.Add(L"/O2");
 			break;
 
 		case D3D10_SHADER_OPTIMIZATION_LEVEL3:
-			CompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL3;
+			D3DCompileFlags &= ~D3D10_SHADER_OPTIMIZATION_LEVEL3;
 			ExtraArguments.Add(L"/O3");
 			break;
 
@@ -111,18 +111,22 @@ public:
 			break;
 		}
 
-		checkf(CompileFlags == 0, TEXT("Unhandled shader compiler flag!"));
-
-		ExtraArguments.Add(L"/Zsb");
-
-		ExtraArguments.Add(L"/Qstrip_reflect");
-		ExtraArguments.Add(L"/Qstrip_reflect_from_dxil");
-
-		if (bKeepDebugInfo)
+		if (D3DCompileFlags & D3D10_SHADER_DEBUG)
 		{
-			//#todo-rco: Is this needed or is the PDB enough?
-			ExtraArguments.Add(L"/Zi");
+			D3DCompileFlags &= ~D3D10_SHADER_DEBUG;
+			bKeepDebugInfo = true;
 		}
+
+		checkf(D3DCompileFlags == 0, TEXT("Unhandled shader compiler flags 0x%x!"), D3DCompileFlags);
+
+		ExtraArguments.Add(L"/Zss");
+		ExtraArguments.Add(L"/Qembed_debug");
+		ExtraArguments.Add(L"/Zi");
+		ExtraArguments.Add(L"/Fd");
+		ExtraArguments.Add(L".\\");
+
+		// Reflection will be removed later, otherwise the disassembly won't contain variables
+		//ExtraArguments.Add(L"/Qstrip_reflect");
 	}
 
 	inline FString GetDumpDebugInfoPath() const
