@@ -1337,7 +1337,7 @@ bool FVulkanCommandListContext::FPendingTransition::GatherBarriers(FTransitionAn
 
 			VkImageLayout& Layout = InTransitionAndLayoutManager.FindOrAddLayoutRW(VulkanTexture->Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
 			SrcAccess = UpdateAccessFromLayout(SrcAccess, Layout);
-			DestAccess = UpdateAccessFromLayout(DestAccess, Layout);
+			DestAccess = UpdateAccessFromLayout(DestAccess, DestLayout);
 
 
 			VulkanRHI::SetupAndZeroImageBarrierOLD(Barrier, VulkanTexture->Surface, SrcAccess, Layout, DestAccess, DestLayout);
