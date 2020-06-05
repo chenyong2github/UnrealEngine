@@ -104,7 +104,7 @@ function showFlowGraph(data, botName) {
 		let nodeInfo = [];
 		for (const info of nodeLabels) {
 			const {id, tooltip, name} = info;
-			let factor = (Math.min(nodeImportance.get(id), 10) - 1) / 9;
+			let factor = (Math.min(nodeImportance.get(id) || 0, 10) - 1) / 9;
 			nodeInfo.push({
 				importance: factor,
 				marginX: (.2 * (1 - factor) + .4 * factor).toPrecision(1),
