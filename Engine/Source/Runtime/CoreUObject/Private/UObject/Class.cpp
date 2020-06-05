@@ -721,7 +721,7 @@ void UStruct::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 
 	for (UField* Field = Children; Field; Field = Field->Next)
 	{
-		//if (!Cast<UFunction>(Field))
+		if (!Cast<UFunction>(Field))
 		{
 			OutDeps.Add(Field);
 		}
