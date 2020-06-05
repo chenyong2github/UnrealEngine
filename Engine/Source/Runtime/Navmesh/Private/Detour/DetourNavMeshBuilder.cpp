@@ -1027,6 +1027,7 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 }
 
 // @UE4 BEGIN
+// Experimental tile transform
 bool dtTransformTileData(unsigned char* data, const int dataSize, const int offsetX, const int offsetY, const float tileWidth, const float tileHeight, const float rotationDeg)
 {
 	// Make sure the data is in right format.
@@ -1137,10 +1138,9 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 			// 3 2 1
 			// 4   0
 			// 5 6 7
-			const unsigned short sideMask = 0xff;
-			const unsigned short side = poly->neis[vi] & sideMask;
+			const unsigned short side = poly->neis[vi] & DT_LINK_FLAG_SIDE_MASK;
 			const unsigned short newSide = (side + (2*rot)) % 8; //rot [0..3], newSide [0,2,4,6]
-			poly->neis[vi] = (poly->neis[vi] & 0xff00) | newSide;
+			poly->neis[vi] = (poly->neis[vi] & ~DT_LINK_FLAG_SIDE_MASK) | newSide;
 		}
 	}
 
@@ -1182,7 +1182,9 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 		dtVadd(&(tile.offMeshCons[j].pos[0]), &(tile.offMeshCons[j].pos[0]), offset);
 		dtVadd(&(tile.offMeshCons[j].pos[3]), &(tile.offMeshCons[j].pos[3]), offset);
 
-		tile.offMeshCons[j].side = (tile.offMeshCons[j].side + (2*rot)) % 8; //rot [0..3], side [0,1,2,3,4,5,6,7]
+		const unsigned short realSide = tile.offMeshCons[j].side & DT_LINK_FLAG_SIDE_MASK;
+		const unsigned short newSide = (realSide + (2*rot)) % 8; //rot [0..3], side [0,1,2,3,4,5,6,7]
+		tile.offMeshCons[j].side = (tile.offMeshCons[j].side & ~DT_LINK_FLAG_SIDE_MASK) | newSide;
 	}
 
 #if WITH_NAVMESH_SEGMENT_LINKS

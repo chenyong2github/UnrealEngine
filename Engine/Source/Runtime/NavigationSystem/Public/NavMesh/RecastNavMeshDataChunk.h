@@ -78,7 +78,7 @@ class NAVIGATIONSYSTEM_API URecastNavMeshDataChunk : public UNavigationDataChunk
 	TArray<uint32> DetachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
 
 	/** 
-	 * Moves tiles data on the xy plane by the offset (in tile coordinates) and rotation (in degree).
+	 * Experimental: Moves tiles data on the xy plane by the offset (in tile coordinates) and rotation (in degree).
 	 * @param NavMeshImpl		Recast navmesh implementation.
 	 * @param Offset			Offset in tile coordinates.
 	 * @param RotationDeg		Rotation in degrees.
