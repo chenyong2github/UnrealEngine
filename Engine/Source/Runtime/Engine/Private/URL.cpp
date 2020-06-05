@@ -226,19 +226,6 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 		} while( s );
 	}
 
-	// Don't allow double slashes/backslashes, in any combination (nor "\?")
-	if (Valid == 1 && URL != nullptr)
-	{
-		for (const TCHAR* CurChar=URL; *CurChar != '\0'; CurChar++)
-		{
-			if ((CurChar[0] == '\\' || CurChar[0] == '/') && (CurChar[1] == '\\' || CurChar[1] == '/' || CurChar[1] == '?'))
-			{
-				Valid = 0;
-				break;
-			}
-		}
-	}
-
 	if (Valid == 1)
 	{
 		// Handle pure filenames & Posix paths.
