@@ -80,7 +80,7 @@ void UMoviePipelineExecutorJob::SetSequence(FSoftObjectPath InSequence)
 	Sequence = InSequence;
 
 	// Rebuild our shot mask.
-	ShotMaskInfo.Reset();
+	ShotInfo.Reset();
 
 	ULevelSequence* LoadedSequence = Cast<ULevelSequence>(Sequence.TryLoad());
 	if (!LoadedSequence)
@@ -88,7 +88,12 @@ void UMoviePipelineExecutorJob::SetSequence(FSoftObjectPath InSequence)
 		return;
 	}
 
-	ShotMaskInfo = UMoviePipelineBlueprintLibrary::CreateShotMask(this);
+	UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(LoadedSequence, this);
+	
+	if (UMoviePipelineQueue* OwningQueue = GetTypedOuter<UMoviePipelineQueue>())
+	{
+		OwningQueue->InvalidateSerialNumber();
+	}
 }
 
 void UMoviePipelineExecutorJob::SetConfiguration(UMoviePipelineMasterConfig* InPreset)
