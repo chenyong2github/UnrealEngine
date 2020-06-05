@@ -49,22 +49,10 @@ void UAnimNotifyState_TimedNiagaraEffect::NotifyEnd(USkeletalMeshComponent * Mes
 
 		for (USceneComponent* Component : Children)
 		{
-			if (Component && Component->IsActive() && Component->ComponentHasTag(AnimNotifyTag))
+			if (Component && Component->ComponentHasTag(AnimNotifyTag))
 			{
-				// we want to special case NiagaraComponent behavior based on it's current execution state.  It could be
-				// no longer marked as active because we triggered a Deactivate, but it still hasn't deactivated yet
-				if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Component))
-				{
-					if (NiagaraComponent->GetExecutionState() != ENiagaraExecutionState::Active)
-					{
-						continue;
-					}
-				}
-
 				if (UFXSystemComponent* FXComponent = CastChecked<UFXSystemComponent>(Component))
 				{
-					const bool ComponentActive = FXComponent->IsActive();
-						
 					// untag the component
 					FXComponent->ComponentTags.Remove(AnimNotifyTag);
 
