@@ -169,7 +169,7 @@ FReply FProceduralMeshComponentDetails::ClickedOnConvertToStaticMesh()
 				// Copy materials to new mesh
 				for (auto* Material : UniqueMaterials)
 				{
-					StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, Material->GetFName(), Material->GetFName()));
+					StaticMesh->StaticMaterials.Add(FStaticMaterial(Material));
 				}
 
 				//Set the Imported version before calling the build
