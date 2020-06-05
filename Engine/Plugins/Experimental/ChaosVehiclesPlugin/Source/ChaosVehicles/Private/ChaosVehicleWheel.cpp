@@ -32,10 +32,6 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	MaxBrakeTorque = 1500.f;
 	MaxHandBrakeTorque = 3000.f;
 
-	//DampingRate = 0.25f;
-	//LatStiffMaxLoad = 2.0f;
-	//LatStiffValue = 17.0f;
-	//LongStiffValue = 1000.0f;
 	SpringRate = 588000;
 
 	SpringRate = 1000.0f;
@@ -43,10 +39,8 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	SuspensionForceOffset = FVector::ZeroVector;
 	SuspensionMaxRaise = 10.0f;
 	SuspensionMaxDrop = 10.0f;
-	CompressionDamping = 0.f;
-	ReboundDamping = 0.f;
-	//SuspensionNaturalFrequency = 7.0f;
-	//SuspensionDampingRatio = 1.0f;
+	SuspensionDampingRatio = 0.3f;
+	SuspensionSmoothing = 8;
 	SweepType = ESweepType::SimpleAndComplexSweep;
 }
 
@@ -60,11 +54,13 @@ FChaosVehicleManager* UChaosVehicleWheel::GetVehicleManager() const
 
 float UChaosVehicleWheel::GetSteerAngle() const
 {
-	return MaxSteerAngle; // #todo: should be current steering angle
+	check(VehicleSim && VehicleSim->PVehicle);
+	return VehicleSim->PVehicle->Wheels[WheelIndex].GetSteeringAngle();
 }
 
 float UChaosVehicleWheel::GetRotationAngle() const
 {
+	check(VehicleSim && VehicleSim->PVehicle);
 	float RotationAngle = -1.0f * FMath::RadiansToDegrees(VehicleSim->PVehicle->Wheels[WheelIndex].GetAngularPosition());
 	ensure(!FMath::IsNaN(RotationAngle));
 
@@ -73,14 +69,14 @@ float UChaosVehicleWheel::GetRotationAngle() const
 
 float UChaosVehicleWheel::GetSuspensionOffset() const
 {
-	//float SuspensionOffset = VehicleSim->PVehicle->Suspension[WheelIndex].GetSpringLength();
-
-	return SuspensionOffset; // TEMP
+	check(VehicleSim && VehicleSim->PVehicle);
+	return VehicleSim->PVehicle->Suspension[WheelIndex].GetSpringLength();
 }
 
 bool UChaosVehicleWheel::IsInAir() const
 {
-	return InAir;
+	check(VehicleSim && VehicleSim->PVehicle);
+	return !VehicleSim->PVehicle->Wheels[WheelIndex].InContact();
 }
 
 
@@ -148,7 +144,11 @@ UPhysicalMaterial* UChaosVehicleWheel::GetContactSurfaceMaterial()
 {
 	UPhysicalMaterial* PhysMaterial = NULL;
 
-	// #todo:implement
+	if (HitResult.bBlockingHit && HitResult.PhysMaterial.IsValid())
+	{
+		PhysMaterial = HitResult.PhysMaterial.Get();
+	}
+
 	return PhysMaterial;
 }
 

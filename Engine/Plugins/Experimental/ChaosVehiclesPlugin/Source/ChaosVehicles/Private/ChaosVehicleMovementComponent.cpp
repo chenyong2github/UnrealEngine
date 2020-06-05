@@ -223,8 +223,6 @@ void UChaosVehicleMovementComponent::OnCreatePhysicsState()
 		SkeletalMesh->BodyInstance.bContactModification = true; // #todo: put this on a param - expose implementation
 		SkeletalMesh->BodyInstance.bUseCCD = true; // #todo: put this on a param
 		SkeletalMesh->BodyInstance.bEnableGravity = false;  // #todo: param to say use own gravity or not
-		//SkeletalMesh->bReceivesDecals = false;
-		//SkeletalMesh->bSimulationUpdatesChildTransforms = false;	//Note this means we cannot animate any attachment points. Saves us a lot of time when 4 pawns and various components are attached
 	}
 
 }
@@ -364,7 +362,7 @@ void UChaosVehicleMovementComponent::UpdateState( float DeltaTime )
 		HandbrakeInput = HandbrakeInputRate.InterpInputValue(DeltaTime, HandbrakeInput, CalcHandbrakeInput());
 
 		// and send to server - (ServerUpdateState_Implementation below)
-		int32 TargetGear = PVehicle->Transmission[0].GetTargetGear();
+		int32 TargetGear = PVehicle->GetTransmission().GetTargetGear();
 		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, TargetGear);
 
 		if (PawnOwner && PawnOwner->IsNetMode(NM_Client))
@@ -535,7 +533,7 @@ void UChaosVehicleMovementComponent::ClearInput()
 	int32 CurrentGear = 0;
 	if (PVehicle)
 	{
-		CurrentGear = PVehicle->Transmission[0].GetCurrentGear();
+		CurrentGear = PVehicle->GetTransmission().GetCurrentGear();
 	}
 
 	ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear/*GetCurrentGear()*/);
@@ -584,11 +582,11 @@ void UChaosVehicleMovementComponent::SetChangeDownInput(bool bNewGearDown)
 
 void UChaosVehicleMovementComponent::SetTargetGear(int32 GearNum, bool bImmediate)
 {
-	if (PVehicle.IsValid() && GearNum != PVehicle->Transmission[0].GetTargetGear())
+	if (PVehicle.IsValid() && GearNum != PVehicle->GetTransmission().GetTargetGear())
 	{
 		// #todo: do we need this translation - what values are comming through in GearNum?
 		//const uint32 TargetGearNum = GearToChaosGear(GearNum);
-		PVehicle->Transmission[0].SetGear(GearNum, bImmediate);
+		PVehicle->GetTransmission().SetGear(GearNum, bImmediate);
 	}
 }
 
@@ -598,7 +596,7 @@ void UChaosVehicleMovementComponent::SetUseAutomaticGears(bool bUseAuto)
 	{
 		check(false); // fix
 		Chaos::ETransmissionType TransmissionType = bUseAuto ? Chaos::ETransmissionType::Automatic : Chaos::ETransmissionType::Manual;
-		//PVehicle->Transmission[0].AccessSetup().TransmissionType = TransmissionType;
+		//PVehicle->GetTransmission().AccessSetup().TransmissionType = TransmissionType;
 	}
 }
 
