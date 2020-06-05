@@ -449,6 +449,7 @@ void SCurveEditorPanel::RemoveCurveFromViews(FCurveModelID InCurveID)
 void SCurveEditorPanel::PostUndo()
 {
 	EditObjects->CurveIDToKeyProxies.Empty();
+	CachedSelectionSerialNumber = 0;
 }
 
 void SCurveEditorPanel::AddView(TSharedRef<SCurveEditorView> ViewToAdd)
