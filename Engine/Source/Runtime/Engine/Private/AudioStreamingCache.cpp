@@ -846,22 +846,26 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 
 void FAudioChunkCache::AddNewReferenceToChunk(const FChunkKey& InKey, uint64 ChunkOffset)
 {
+	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 	FCacheElement* FoundElement = FindElementForKey(InKey, ChunkOffset);
-	check(FoundElement);
-
-	// If this value is ever negative, it means that we're decrementing more than we're incrementing:
-	check(FoundElement->NumConsumers.GetValue() >= 0);
-	FoundElement->NumConsumers.Increment();
+	if (ensure(FoundElement))
+	{
+		// If this value is ever negative, it means that we're decrementing more than we're incrementing:
+		check(FoundElement->NumConsumers.GetValue() >= 0);
+		FoundElement->NumConsumers.Increment();
+	}
 }
 
 void FAudioChunkCache::RemoveReferenceToChunk(const FChunkKey& InKey, uint64 ChunkOffset)
 {
+	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 	FCacheElement* FoundElement = FindElementForKey(InKey, ChunkOffset);
-	check(FoundElement);
-
-	// If this value is ever less than 1 when we hit this code, it means that we're decrementing more than we're incrementing:
-	check(FoundElement->NumConsumers.GetValue() >= 1);
-	FoundElement->NumConsumers.Decrement();
+	if (ensure(FoundElement))
+	{
+		// If this value is ever less than 1 when we hit this code, it means that we're decrementing more than we're incrementing:
+		check(FoundElement->NumConsumers.GetValue() >= 1);
+		FoundElement->NumConsumers.Decrement();
+	}
 }
 
 void FAudioChunkCache::ClearCache()

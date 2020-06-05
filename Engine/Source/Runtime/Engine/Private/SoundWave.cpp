@@ -2505,20 +2505,20 @@ bool USoundWave::GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& 
 	return InOutLastIndex != INDEX_NONE;
 }
 
-void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnLoadCompleted, bool bForceSync /*= false*/, int32 ChunkIndex /*= 1*/, ENamedThreads::Type CallbackThread /*= ENamedThreads::GameThread*/)
+void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> OnLoadCompleted, bool bForceSync /*= false*/, int32 ChunkIndex /*= 1*/, ENamedThreads::Type CallbackThread /*= ENamedThreads::GameThread*/)
 {
 	// if we are requesting a chunk that is out of bounds,
 	// early exit.
 	if (ChunkIndex >= static_cast<int32>(GetNumChunks()))
 	{
 		FAudioChunkHandle EmptyChunkHandle;
-		OnLoadCompleted(EmptyChunkHandle);
+		OnLoadCompleted(MoveTemp(EmptyChunkHandle));
 	}
 	else if (bForceSync)
 	{
 		// For sync cases, we call GetLoadedChunk with bBlockForLoad = true, then execute the callback immediately.
 		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(this, ChunkIndex, true);
-		OnLoadCompleted(ChunkHandle);
+		OnLoadCompleted(MoveTemp(ChunkHandle));
 	}
 	else
 	{
@@ -2527,13 +2527,20 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnL
 		// For async cases, we call RequestChunk and request the loaded chunk in the completion callback.
 		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, ChunkIndex, [WeakThis, OnLoadCompleted, ChunkIndex, CallbackThread](EAudioChunkLoadResult LoadResult)
 		{
-			auto DispatchOnLoadCompletedCallback = [OnLoadCompleted, CallbackThread](FAudioChunkHandle InHandle)
+			auto DispatchOnLoadCompletedCallback = [OnLoadCompleted, CallbackThread](FAudioChunkHandle&& InHandle)
 			{
-				// If the callback was requested on a non-game thread, dispatch the callback to that thread.
-				AsyncTask(CallbackThread, [OnLoadCompleted, InHandle]()
+				if (CallbackThread == ENamedThreads::GameThread)
 				{
-					OnLoadCompleted(InHandle);
-				});
+					OnLoadCompleted(MoveTemp(InHandle));
+				}
+				else
+				{
+					// If the callback was requested on a non-game thread, dispatch the callback to that thread.
+					AsyncTask(CallbackThread, [OnLoadCompleted, InHandle]() mutable
+					{
+						OnLoadCompleted(MoveTemp(InHandle));
+					});
+				}
 			};
 
 			// If the USoundWave has been GC'd by the time this chunk finishes loading, abandon ship.
@@ -2543,13 +2550,13 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnL
 				check(ThisSoundWave);
 
 				FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(ThisSoundWave, ChunkIndex, true);
-				DispatchOnLoadCompletedCallback(ChunkHandle);
+				DispatchOnLoadCompletedCallback(MoveTemp(ChunkHandle));
 			}
 			else
 			{
 				// Load failed. Return an invalid chunk handle.
 				FAudioChunkHandle ChunkHandle;
-				DispatchOnLoadCompletedCallback(ChunkHandle);
+				DispatchOnLoadCompletedCallback(MoveTemp(ChunkHandle));
 			}
 		}, ENamedThreads::GameThread);
 	}
@@ -2577,16 +2584,17 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	}
 	else
 	{
-		GetHandleForChunkOfAudio([WeakThis = MakeWeakObjectPtr(this)](FAudioChunkHandle OutHandle)
+		GetHandleForChunkOfAudio([WeakThis = MakeWeakObjectPtr(this)](FAudioChunkHandle&& OutHandle)
 		{
 			if (OutHandle.IsValid())
 			{
-				AsyncTask(ENamedThreads::GameThread, [WeakThis, OutHandle]() {
+				AsyncTask(ENamedThreads::GameThread, [WeakThis, MovedHandle = MoveTemp(OutHandle)]() mutable
+				{
 					check(IsInGameThread());
 
 					if (WeakThis.IsValid())
 					{
-						WeakThis->FirstChunk = OutHandle;
+						WeakThis->FirstChunk = MoveTemp(MovedHandle);
 					}
 				});
 				

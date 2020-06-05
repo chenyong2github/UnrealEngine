@@ -484,7 +484,7 @@ public:
 	/** If stream caching is enabled, allows the user to retain a strong handle to the first chunk of audio in the cache. 
 	 *  Please note that this USoundWave is NOT guaranteed to be still alive when OnLoadCompleted is called.
 	 */
-	void GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnLoadCompleted, bool bForceSync = false, int32 ChunkIndex = 1, ENamedThreads::Type CallbackThread = ENamedThreads::GameThread);
+	void GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> OnLoadCompleted, bool bForceSync = false, int32 ChunkIndex = 1, ENamedThreads::Type CallbackThread = ENamedThreads::GameThread);
 
 	/** If stream caching is enabled, set this sound wave to retain a strong handle to its first chunk. 
 	 *  If not called on the game thread, bForceSync must be true.
