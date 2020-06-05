@@ -1893,7 +1893,7 @@ void FKismetEditorUtilities::AddActorsToBlueprint(UBlueprint* Blueprint, const T
 
 	if (!Params.bDeferCompilation)
 	{
-		FKismetEditorUtilities::CompileBlueprint(NewBlueprint);
+		FKismetEditorUtilities::CompileBlueprint(Blueprint);
 	}
 
 	if (Params.bReplaceActors)
