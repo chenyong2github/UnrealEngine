@@ -844,6 +844,10 @@ public:
 	virtual int32 GetNumMaterials() const override;
 	//~ End UPrimitiveComponent Interface
 
+	//~ Begin UMeshComponent Interface
+	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn) override;
+	//~ End UMeshComponent Interface
+
 	/** Get the pre-skinning local space bounds for this component. */
 	void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const;
 

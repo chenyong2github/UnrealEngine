@@ -247,6 +247,17 @@ public:
 	ERHIFeatureLevel::Type GetFeatureLevel() { return FeatureLevel; }
 };
 
+enum class ELODStreamingCallbackResult
+{
+	Success,
+	TimedOut,
+	AssetRemoved,
+	ComponentRemoved,
+	StreamingDisabled,
+	NotImplemented
+};
+
+typedef TFunction<void(UPrimitiveComponent*, UStreamableRenderAsset*, ELODStreamingCallbackResult)> FLODStreamingCallback;
 
 /**
  * A Map that gives the (smallest) texture coordinate scale used when sampling each texture register of a shader.
