@@ -47,9 +47,16 @@ private:
 	typedef TArray<TCHAR> DataType;
 	DataType Data;
 
+	/** Trait testing whether a type is a contiguous range of characters, and not CharType[]. */
+	template <typename CharRangeType>
+	using TIsCharRangeNotCArray = TAnd<
+		TIsContiguousContainer<CharRangeType>,
+		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
+		TIsCharType<typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type>>;
+
 	/** Trait testing whether a type is a contiguous range of TCHAR, and not TCHAR[]. */
 	template <typename CharRangeType>
-	using TIsCharRange = TAnd<
+	using TIsTCharRangeNotCArray = TAnd<
 		TIsContiguousContainer<CharRangeType>,
 		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
 		TIsSame<TCHAR, typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type>>;
@@ -165,7 +172,7 @@ public:
 	 *
 	 * @param Other The contiguous character range to copy from
 	 */
-	template <typename CharRangeType, typename TEnableIf<TIsCharRange<CharRangeType>::Value>::Type* = nullptr>
+	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
 	explicit FString(CharRangeType&& Other)
 	{
 		if (const auto OtherNum = GetNum(Other))
@@ -173,7 +180,7 @@ public:
 			const int32 OtherLen = int32(OtherNum);
 			checkf(decltype(OtherNum)(OtherLen) == OtherNum, TEXT("Invalid number of characters to add to this string type: %" UINT64_FMT), uint64(OtherNum));
 			Reserve(OtherLen);
-			Append(GetData(Forward<CharRangeType>(Other)), OtherLen);
+			AppendChars(GetData(Forward<CharRangeType>(Other)), OtherLen);
 		}
 	}
 
@@ -183,7 +190,7 @@ public:
 	 * @param Other The contiguous character range to copy from
 	 * @param ExtraSlack The number of extra characters to reserve space for in the new string
 	 */
-	template <typename CharRangeType, typename TEnableIf<TIsCharRange<CharRangeType>::Value>::Type* = nullptr>
+	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
 	explicit FString(CharRangeType&& Other, int32 ExtraSlack)
 	{
 		const auto OtherNum = GetNum(Other);
@@ -193,7 +200,7 @@ public:
 		Reserve(OtherLen + ExtraSlack);
 		if (OtherLen)
 		{
-			Append(GetData(Forward<CharRangeType>(Other)), OtherLen);
+			AppendChars(GetData(Forward<CharRangeType>(Other)), OtherLen);
 		}
 	}
 
@@ -249,7 +256,7 @@ public:
 	/**
 	 * Copy assignment from a contiguous range of characters
 	 */
-	template <typename CharRangeType, typename TEnableIf<TIsCharRange<CharRangeType>::Value>::Type* = nullptr>
+	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
 	FString& operator=(CharRangeType&& Other)
 	{
 		const auto OtherNum = GetNum(Other);
@@ -262,21 +269,26 @@ public:
 		}
 		else
 		{
-			const TCHAR* const ThisData = Data.GetData();
 			const TCHAR* const OtherData = GetData(Other);
-			if (OtherData < ThisData + Data.Num() && ThisData < OtherData + OtherLen)
+			const int32 ThisLen = Len();
+			if (OtherLen <= ThisLen)
 			{
-				*this = FString(Forward<CharRangeType>(Other));
+				// Unless the input is longer, this might be assigned from a view of itself.
+				TCHAR* DataPtr = Data.GetData();
+				FMemory::Memmove(DataPtr, OtherData, OtherLen * sizeof(TCHAR));
+				DataPtr[OtherLen] = TEXT('\0');
+				Data.RemoveAt(OtherLen + 1, ThisLen - OtherLen);
 			}
 			else
 			{
 				Data.Empty(OtherLen + 1);
 				Data.AddUninitialized(OtherLen + 1);
 				TCHAR* DataPtr = Data.GetData();
-				CopyAssignItems(DataPtr, OtherData, OtherLen);
+				FMemory::Memcpy(DataPtr, OtherData, OtherLen * sizeof(TCHAR));
 				DataPtr[OtherLen] = TEXT('\0');
 			}
 		}
+
 		return *this;
 	}
 
@@ -476,7 +488,7 @@ public:
 	}
 
 	/** Append a string and return a reference to this */
-	template <typename CharRangeType, typename TEnableIf<TIsCharRange<CharRangeType>::Value>::Type* = nullptr>
+	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
 	FORCEINLINE FString& Append(CharRangeType&& Str)
 	{
 		AppendChars(GetData(Str), GetNum(Str));
