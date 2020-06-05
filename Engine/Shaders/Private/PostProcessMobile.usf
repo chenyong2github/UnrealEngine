@@ -106,7 +106,7 @@ void SunMaskPS_ES2(
 	half4 SceneColor = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVPos.xy);
 
 	#if ES2_USE_DEPTHTEXTURE
-		half InDepth = CalcSceneDepth(InUVPos.xy);
+		half InDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, InUVPos.xy, 0).r);
 	#else
 		half InDepth = ConvertFromDeviceZ(SceneColor.a);
 	#endif
