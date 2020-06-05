@@ -45,6 +45,7 @@
 #include "Materials/MaterialExpressionConstant3Vector.h"
 #include "Materials/MaterialExpressionConstant4Vector.h"
 #include "Materials/MaterialExpressionTextureSample.h"
+#include "Materials/MaterialInstance.h"
 
 #include "Matinee/InterpData.h"
 #include "Matinee/InterpTrackMove.h"
@@ -1367,6 +1368,11 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 	FbxSurfaceMaterial* FbxMaterial = nullptr;
 
 	UMaterial *Material = MaterialInterface->GetMaterial();
+	if (!Material)
+	{
+		//Nothing to export
+		return nullptr;
+	}
 	
 	// Set the shading model
 	if (Material->GetShadingModels().HasOnlyShadingModel(MSM_DefaultLit))
@@ -1379,36 +1385,228 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 	{
 		FbxMaterial = FbxSurfaceLambert::Create(Scene, TCHAR_TO_UTF8(*MaterialInterface->GetName()));
 	}
-	
-	((FbxSurfaceLambert*)FbxMaterial)->TransparencyFactor.Set(Material->Opacity.Constant);
+
+
+	//Get the base material connected expression parameter name for all the supported fbx material exported properties
+	//We only support material input where the connected expression is a parameter of type (constant, scalar, vector, texture, TODO virtual texture)
+
+	FName BaseColorParamName = (!Material->BaseColor.UseConstant && Material->BaseColor.Expression) ? Material->BaseColor.Expression->GetParameterName() : NAME_None;
+	bool BaseColorParamSet = false;
+	FName EmissiveParamName = (!Material->EmissiveColor.UseConstant && Material->EmissiveColor.Expression) ? Material->EmissiveColor.Expression->GetParameterName() : NAME_None;
+	bool EmissiveParamSet = false;
+	FName NormalParamName = Material->Normal.Expression ? Material->Normal.Expression->GetParameterName() : NAME_None;
+	bool NormalParamSet = false;
+	FName OpacityParamName = (!Material->Opacity.UseConstant && Material->Opacity.Expression) ? Material->Opacity.Expression->GetParameterName() : NAME_None;
+	bool OpacityParamSet = false;
+	FName OpacityMaskParamName = (!Material->OpacityMask.UseConstant && Material->OpacityMask.Expression) ? Material->OpacityMask.Expression->GetParameterName() : NAME_None;
+	bool OpacityMaskParamSet = false;
+
+	UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);
+	EBlendMode BlendMode = MaterialInstance != nullptr && MaterialInstance->BasePropertyOverrides.bOverride_BlendMode ? MaterialInstance->BasePropertyOverrides.BlendMode : Material->BlendMode;
+
+	// Loop through all types of parameters for this base material and add the supported one to the fbx material.
+	//The order is important we search Texture, Vector, Scalar.
+
+	TArray<FMaterialParameterInfo> ParameterInfos;
+	TArray<FGuid> Guids;
+	const bool bOveriddenOnly = true;
+	//Query all base material texture parameters.
+	Material->GetAllTextureParameterInfo(ParameterInfos, Guids);
+	for (int32 ParameterIdx = 0; ParameterIdx < ParameterInfos.Num(); ParameterIdx++)
+	{
+		const FMaterialParameterInfo& ParameterInfo = ParameterInfos[ParameterIdx];
+		FName ParameterName = ParameterInfo.Name;
+		UTexture* Value;
+		//Query the material instance parameter overridden value
+		if (MaterialInterface->GetTextureParameterValue(ParameterInfo, Value, bOveriddenOnly) && Value && Value->AssetImportData)
+		{
+			//This lambda extract the source file path and create the fbx file texture node and connect it to the fbx material
+			auto SetTextureProperty = [&FbxMaterial, &Value](const char* FbxPropertyName, FbxScene* Scene)->bool
+			{
+				FbxProperty FbxColorProperty = FbxMaterial->FindProperty(FbxPropertyName);
+				if (FbxColorProperty.IsValid())
+				{
+					const FString TextureName = Value->GetName();
+					const FString TextureSourceFullPath = Value->AssetImportData->GetFirstFilename();
+					if(!TextureSourceFullPath.IsEmpty())
+					{
+						//Create a fbx property
+						FbxFileTexture* lTexture = FbxFileTexture::Create(Scene, TCHAR_TO_UTF8(*TextureName));
+						lTexture->SetFileName(TCHAR_TO_UTF8(*TextureSourceFullPath));
+						lTexture->SetTextureUse(FbxTexture::eStandard);
+						lTexture->SetMappingType(FbxTexture::eUV);
+						lTexture->ConnectDstProperty(FbxColorProperty);
+						return true;
+					}
+				}
+				return false;
+			};
+
+			if (BaseColorParamName != NAME_None && ParameterName == BaseColorParamName)
+			{
+				BaseColorParamSet = SetTextureProperty(FbxSurfaceMaterial::sDiffuse, Scene);
+			}
+			if (EmissiveParamName != NAME_None && ParameterName == EmissiveParamName)
+			{
+				EmissiveParamSet = SetTextureProperty(FbxSurfaceMaterial::sEmissive, Scene);
+			}
+			
+			if (BlendMode == BLEND_Translucent)
+			{
+				if (OpacityParamName != NAME_None && ParameterName == OpacityParamName)
+				{
+					OpacityParamSet = SetTextureProperty(FbxSurfaceMaterial::sTransparentColor, Scene);
+				}
+				if (OpacityMaskParamName != NAME_None && ParameterName == OpacityMaskParamName)
+				{
+					OpacityMaskParamSet = SetTextureProperty(FbxSurfaceMaterial::sTransparencyFactor, Scene);
+				}
+			}
+			else
+			{
+				//There is no normal input in Blend translucent mode
+				if (NormalParamName != NAME_None && ParameterName == NormalParamName)
+				{
+					NormalParamSet = SetTextureProperty(FbxSurfaceMaterial::sNormalMap, Scene);
+				}
+			}
+		}
+	}
+
+	Material->GetAllVectorParameterInfo(ParameterInfos, Guids);
+	//Query all base material vector parameters.
+	for (int32 ParameterIdx = 0; ParameterIdx < ParameterInfos.Num(); ParameterIdx++)
+	{
+		const FMaterialParameterInfo& ParameterInfo = ParameterInfos[ParameterIdx];
+		FName ParameterName = ParameterInfo.Name;
+		FLinearColor LinearColor;
+		//Query the material instance parameter overridden value
+		if (MaterialInterface->GetVectorParameterValue(ParameterInfo, LinearColor, bOveriddenOnly))
+		{
+			FbxDouble3 LinearFbxValue(LinearColor.R, LinearColor.G, LinearColor.B);
+			if (!BaseColorParamSet && BaseColorParamName != NAME_None && ParameterName == BaseColorParamName)
+			{
+				((FbxSurfaceLambert*)FbxMaterial)->Diffuse.Set(LinearFbxValue);
+				BaseColorParamSet = true;
+			}
+			if (!EmissiveParamSet && EmissiveParamName != NAME_None && ParameterName == EmissiveParamName)
+			{
+				((FbxSurfaceLambert*)FbxMaterial)->Emissive.Set(LinearFbxValue);
+				EmissiveParamSet = true;
+			}
+		}
+	}
+
+	//Query all base material scalar parameters.
+	Material->GetAllScalarParameterInfo(ParameterInfos, Guids);
+	for (int32 ParameterIdx = 0; ParameterIdx < ParameterInfos.Num(); ParameterIdx++)
+	{
+		const FMaterialParameterInfo& ParameterInfo = ParameterInfos[ParameterIdx];
+		FName ParameterName = ParameterInfo.Name;
+		float Value;
+		//Query the material instance parameter overridden value
+		if (MaterialInterface->GetScalarParameterValue(ParameterInfo, Value, bOveriddenOnly))
+		{
+			FbxDouble FbxValue = (FbxDouble)Value;
+			FbxDouble3 FbxVector(FbxValue, FbxValue, FbxValue);
+			if (!BaseColorParamSet && BaseColorParamName != NAME_None && ParameterName == BaseColorParamName)
+			{
+				((FbxSurfaceLambert*)FbxMaterial)->Diffuse.Set(FbxVector);
+				BaseColorParamSet = true;
+			}
+			if (!EmissiveParamSet && EmissiveParamName != NAME_None && ParameterName == EmissiveParamName)
+			{
+				((FbxSurfaceLambert*)FbxMaterial)->Emissive.Set(FbxVector);
+				EmissiveParamSet = true;
+			}
+			if (BlendMode == BLEND_Translucent)
+			{
+				if (!OpacityParamSet && OpacityParamName != NAME_None && ParameterName == OpacityParamName)
+				{
+					((FbxSurfaceLambert*)FbxMaterial)->TransparentColor.Set(FbxVector);
+					OpacityParamSet = true;
+				}
+
+				if (!OpacityMaskParamSet && OpacityMaskParamName != NAME_None && ParameterName == OpacityMaskParamName)
+				{
+					((FbxSurfaceLambert*)FbxMaterial)->TransparencyFactor.Set(FbxValue);
+					OpacityMaskParamSet = true;
+				}
+			}
+		}
+	}
+
+	//TODO: export virtual texture to fbx
+	//Query all base material runtime virtual texture parameters.
+// 	Material->GetAllRuntimeVirtualTextureParameterInfo(ParameterInfos, Guids);
+// 	for (int32 ParameterIdx = 0; ParameterIdx < ParameterInfos.Num(); ParameterIdx++)
+// 	{
+// 		const FMaterialParameterInfo& ParameterInfo = ParameterInfos[ParameterIdx];
+// 		FName ParameterName = ParameterInfo.Name;
+// 		URuntimeVirtualTexture* Value;
+//		//Query the material instance parameter overridden value
+// 		if (MaterialInterface->GetRuntimeVirtualTextureParameterValue(ParameterInfo, Value, bOveriddenOnly))
+// 		{
+// 		}
+// 	}
+
+	//
+	//In case there is no material instance override, we extract the value from the base material
+	//
+
+	//The OpacityMaskParam set the transparency factor, so set it only if it was not set
+	if(!OpacityMaskParamSet)
+	{
+		((FbxSurfaceLambert*)FbxMaterial)->TransparencyFactor.Set(Material->Opacity.Constant);
+	}
 
 	// Fill in the profile_COMMON effect with the material information.
 	//Fill the texture or constant
-	if (!FillFbxTextureProperty(FbxSurfaceMaterial::sDiffuse, Material->BaseColor, FbxMaterial))
+	if(!BaseColorParamSet)
 	{
-		((FbxSurfaceLambert*)FbxMaterial)->Diffuse.Set(SetMaterialComponent(Material->BaseColor, true));
+		if (!FillFbxTextureProperty(FbxSurfaceMaterial::sDiffuse, Material->BaseColor, FbxMaterial))
+		{
+			((FbxSurfaceLambert*)FbxMaterial)->Diffuse.Set(SetMaterialComponent(Material->BaseColor, true));
+		}
 	}
-	if (!FillFbxTextureProperty(FbxSurfaceMaterial::sEmissive, Material->EmissiveColor, FbxMaterial))
+
+	if (!EmissiveParamSet)
 	{
-		((FbxSurfaceLambert*)FbxMaterial)->Emissive.Set(SetMaterialComponent(Material->EmissiveColor, true));
+		if (!FillFbxTextureProperty(FbxSurfaceMaterial::sEmissive, Material->EmissiveColor, FbxMaterial))
+		{
+			((FbxSurfaceLambert*)FbxMaterial)->Emissive.Set(SetMaterialComponent(Material->EmissiveColor, true));
+		}
 	}
 
 	//Always set the ambient to zero since we dont have ambient in unreal we want to avoid default value in DCCs
 	((FbxSurfaceLambert*)FbxMaterial)->Ambient.Set(FbxDouble3(0.0, 0.0, 0.0));
 
-	//Set the Normal map only if there is a texture sampler
-	FillFbxTextureProperty(FbxSurfaceMaterial::sNormalMap, Material->Normal, FbxMaterial);
-
-	if (Material->BlendMode == BLEND_Translucent)
+	if (BlendMode == BLEND_Translucent)
 	{
-		if (!FillFbxTextureProperty(FbxSurfaceMaterial::sTransparentColor, Material->Opacity, FbxMaterial))
+		if (!OpacityParamSet)
 		{
-			FbxDouble3 OpacityValue((FbxDouble)(Material->Opacity.Constant), (FbxDouble)(Material->Opacity.Constant), (FbxDouble)(Material->Opacity.Constant));
-			((FbxSurfaceLambert*)FbxMaterial)->TransparentColor.Set(OpacityValue);
+			if (!FillFbxTextureProperty(FbxSurfaceMaterial::sTransparentColor, Material->Opacity, FbxMaterial))
+			{
+				FbxDouble3 OpacityValue((FbxDouble)(Material->Opacity.Constant), (FbxDouble)(Material->Opacity.Constant), (FbxDouble)(Material->Opacity.Constant));
+				((FbxSurfaceLambert*)FbxMaterial)->TransparentColor.Set(OpacityValue);
+			}
 		}
-		if (!FillFbxTextureProperty(FbxSurfaceMaterial::sTransparencyFactor, Material->OpacityMask, FbxMaterial))
+
+		if (!OpacityMaskParamSet)
 		{
-			((FbxSurfaceLambert*)FbxMaterial)->TransparencyFactor.Set(Material->OpacityMask.Constant);
+			if (!FillFbxTextureProperty(FbxSurfaceMaterial::sTransparencyFactor, Material->OpacityMask, FbxMaterial))
+			{
+				((FbxSurfaceLambert*)FbxMaterial)->TransparencyFactor.Set(Material->OpacityMask.Constant);
+			}
+		}
+	}
+	else
+	{
+		//There is no normal input in Blend translucent mode
+		if (!NormalParamSet)
+		{
+			//Set the Normal map only if there is a texture sampler
+			FillFbxTextureProperty(FbxSurfaceMaterial::sNormalMap, Material->Normal, FbxMaterial);
 		}
 	}
 
