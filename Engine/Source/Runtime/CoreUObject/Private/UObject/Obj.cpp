@@ -1032,6 +1032,8 @@ bool UObject::ConditionalFinishDestroy()
 
 void UObject::ConditionalPostLoad()
 {
+	LLM_SCOPE(ELLMTag::UObject);
+
 	check(!GEventDrivenLoaderEnabled || !HasAnyFlags(RF_NeedLoad)); //@todoio Added this as "nicks rule"
 									  // PostLoad only if the object needs it and has already been serialized
 	//@todoio note this logic should be unchanged compared to main
