@@ -246,6 +246,7 @@ void FShaderCodeArchive::Teardown()
 		{
 			const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
 			FMemory::Free(ShaderPreloadEntry.Code);
+			ShaderPreloadEntry.Code = nullptr;
 			DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, ShaderEntry.Size);
 		}
 	}
