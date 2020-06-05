@@ -4696,6 +4696,7 @@ void FLevelEditorViewportClient::UpdateAudioListener(const FSceneView& View)
 		if (FAudioDevice* AudioDevice = ViewportWorld->GetAudioDeviceRaw())
 		{
 			FVector ViewLocation = GetViewLocation();
+			FRotator ViewRotation = GetViewRotation();
 
 			const bool bStereoRendering = GEngine->XRSystem.IsValid() && GEngine->IsStereoscopic3D( Viewport );
 			if( bStereoRendering && GEngine->XRSystem->IsHeadTrackingAllowed() )
@@ -4707,9 +4708,9 @@ void FLevelEditorViewportClient::UpdateAudioListener(const FSceneView& View)
 				// NOTE: The RoomSpaceHeadLocation has already been adjusted for WorldToMetersScale
 				const FVector WorldSpaceHeadLocation = GetViewLocation() + GetViewRotation().RotateVector( RoomSpaceHeadLocation );
 				ViewLocation = WorldSpaceHeadLocation;
-			}
 
-			const FRotator& ViewRotation = GetViewRotation();
+				ViewRotation = (ViewRotation.Quaternion() * RoomSpaceHeadOrientation).Rotator();
+			}
 
 			FTransform ListenerTransform(ViewRotation);
 			ListenerTransform.SetLocation(ViewLocation);
