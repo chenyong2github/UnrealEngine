@@ -4911,7 +4911,7 @@ bool UTextureExporterBMP::SupportsObject(UObject* Object) const
 	if (Super::SupportsObject(Object))
 	{
 		UTexture2D* Texture = GetExportTexture(Object);
-		bSupportsObject = Texture != nullptr && (Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_RGBA16 || Texture->Source.GetFormat() == TSF_G8);
+		bSupportsObject = Texture != nullptr && (Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_RGBA16 || Texture->Source.GetFormat() == TSF_G8 || Texture->Source.GetFormat() == TSF_G16);
 	}
 	return bSupportsObject;
 }
@@ -4936,14 +4936,16 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 	}
 
 	const int32 LayerIndex = FileIndex;
-	if( !Texture->Source.IsValid() || ( Texture->Source.GetFormat(LayerIndex) != TSF_BGRA8 && Texture->Source.GetFormat(LayerIndex) != TSF_RGBA16 && Texture->Source.GetFormat() != TSF_G8) )
+	ETextureSourceFormat Format = Texture->Source.IsValid() ? Texture->Source.GetFormat(LayerIndex) : TSF_Invalid;
+	if (Format != TSF_BGRA8 && Format != TSF_RGBA16 && Format != TSF_G16 && Format != TSF_G8)
 	{
 		return false;
 	}
 
-	const bool bIsRGBA16 = Texture->Source.GetFormat(LayerIndex) == TSF_RGBA16;
-	const bool bIsG8 = Texture->Source.GetFormat(LayerIndex) == TSF_G8;
-	const int32 SourceBytesPerPixel = bIsRGBA16 ? 8 : (bIsG8 ? 1 : 4);
+	const bool bIsRGBA16 = Format == TSF_RGBA16;
+	const bool bIsG16 = Format == TSF_G16;
+	const bool bIsG8 = Format == TSF_G8;
+	const int32 SourceBytesPerPixel = bIsRGBA16 ? 8 : (bIsG16 ? 2 : (bIsG8 ? 1 : 4));
 
 	if (bIsRGBA16)
 	{
@@ -4951,6 +4953,15 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("Name"), FText::FromString(Texture->GetName()));
 		ExportWarning.Warning(FText::Format(LOCTEXT("BitDepthBMPWarning", "{Name}: Texture is RGBA16 and cannot be represented at such high bit depth in .bmp. Color will be scaled to RGBA8."), Arguments));
+		ExportWarning.Open(EMessageSeverity::Warning);
+	}
+
+	if (bIsG16)
+	{
+		FMessageLog ExportWarning("EditorErrors");
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("Name"), FText::FromString(Texture->GetName()));
+		ExportWarning.Warning(FText::Format(LOCTEXT("BitDepthBMPWarning", "{Name}: Texture is G16 and cannot be represented at such high bit depth in .bmp. Color will be split across two channels of RGBA8."), Arguments));
 		ExportWarning.Open(EMessageSeverity::Warning);
 	}
 
@@ -4999,6 +5010,14 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 				Ar << ScreenPtr[3];
 				Ar << ScreenPtr[5];
 				ScreenPtr += 8;
+			}
+			if (bIsG16)
+			{
+				uint8 DummyZero = 0;
+				Ar << DummyZero;
+				Ar << ScreenPtr[0];
+				Ar << ScreenPtr[1];
+				ScreenPtr += 2;
 			}
 			else if (bIsG8)
 			{
