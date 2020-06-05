@@ -441,6 +441,8 @@ public:
 	/** Serialize. */
 	void Serialize(FArchive& Ar, UObject* Owner, int32 Idx);
 
+	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
+
 	/** Return the triangle count of this LOD. */
 	ENGINE_API int32 GetNumTriangles() const;
 
