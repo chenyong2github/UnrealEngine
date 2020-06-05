@@ -267,7 +267,6 @@ void FOpenGLDynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuff
 void FOpenGLDynamicRHI::RHICopyBufferRegion(FRHIVertexBuffer* DestBufferRHI, uint64 DstOffset, FRHIVertexBuffer* SourceBufferRHI, uint64 SrcOffset, uint64 NumBytes)
 {
 	VERIFY_GL_SCOPE();
-	check(FOpenGL::SupportsCopyBuffer());
 	FOpenGLVertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 	FOpenGLVertexBuffer* DestBuffer = ResourceCast(DestBufferRHI);
 
