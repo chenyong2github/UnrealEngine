@@ -19,6 +19,9 @@ public:
 
 	//UObject Interface
 	virtual void PostInitProperties()override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+#endif
 	//UObject Interface End
 
 	//UNiagaraDataInterface Interface
@@ -35,7 +38,7 @@ public:
 #if WITH_EDITOR	
 	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
 #endif
-	virtual void GetEmitterDependencies(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, TArray<FNiagaraEmitterInstance*>& Dependencies) const override;
+	virtual void GetEmitterDependencies(UNiagaraSystem* Asset, TArray<UNiagaraEmitter*>& Dependencies) const override;
 	//UNiagaraDataInterface Interface End
 
 	void GetNumSpawnedParticles(FVectorVMContext& Context);
