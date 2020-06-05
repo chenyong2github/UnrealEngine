@@ -555,8 +555,9 @@ const uint8* FNiagaraGPUSystemTick::GetUniformBufferSource(EUniformBufferType Ty
 		}
 		case UBT_External:
 		{
+			// External is special and interpolated parameters are already included inside of the combined parameter store
 			check(Instance);
-			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayout->UBLayout.ConstantBufferSize);
+			return Instance->ExternalParamData;
 		}
 	}
 
