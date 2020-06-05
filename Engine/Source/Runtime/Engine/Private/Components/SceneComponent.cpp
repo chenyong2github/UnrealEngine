@@ -3256,11 +3256,11 @@ void USceneComponent::PostRepNotifies()
 		Exchange(NetOldAttachSocketName, AttachSocketName);
 		
 		// Note: This is a local fix for JIRA UE-43355.
-		if (bShouldSnapLocationWhenAttached)
+		if (bShouldSnapLocationWhenAttached && !bNetUpdateTransform)
 		{
 			SetRelativeLocation_Direct(FVector::ZeroVector);
 		}
-		if (bShouldSnapRotationWhenAttached)
+		if (bShouldSnapRotationWhenAttached && !bNetUpdateTransform)
 		{
 			SetRelativeRotation_Direct(FRotator::ZeroRotator);
 		}
