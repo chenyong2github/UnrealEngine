@@ -18,6 +18,9 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISequencerTrackEditor.h"
 #include "ISequencer.h"
+#include "Sequencer.h"
+#include "SequencerNodeTree.h"
+#include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "ScopedTransaction.h"
 #include "UObject/Package.h"
 
@@ -175,9 +178,55 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, c
 			}
 		}
 			
-		TSharedPtr<ISequencer> Sequencer = InSequencer.Pin();
+		TSharedPtr<FSequencer> Sequencer = StaticCastSharedPtr<FSequencer>(InSequencer.Pin());
 		if (Sequencer.IsValid())
 		{
+			// If the blend type is changed to additive or relative, restore the state of the objects boud to this section before evaluating again. 
+			// This allows the additive or relative to evaluate based on the initial values of the object, rather than the current animated values.
+			if (BlendType == EMovieSceneBlendType::Additive || BlendType == EMovieSceneBlendType::Relative)
+			{
+				TSet<UObject*> ObjectsToRestore;
+				TSharedRef<FSequencerNodeTree> SequencerNodeTree = Sequencer->GetNodeTree();
+				for (TWeakObjectPtr<UMovieSceneSection> WeakSection : InSections)
+				{
+					if (UMovieSceneSection* Section = WeakSection.Get())
+					{
+						TOptional<FSectionHandle> SectionHandle = SequencerNodeTree->GetSectionHandle(Section);
+						if (!SectionHandle)
+						{
+							continue;
+						}
+
+						TSharedPtr<FSequencerObjectBindingNode> ParentObjectBindingNode = SectionHandle->GetTrackNode()->FindParentObjectBindingNode();
+						if (!ParentObjectBindingNode.IsValid())
+						{
+							continue;
+						}
+
+						for (TWeakObjectPtr<> BoundObject : Sequencer->FindObjectsInCurrentSequence(ParentObjectBindingNode->GetObjectBinding()))
+						{
+							if (AActor* BoundActor = Cast<AActor>(BoundObject))
+							{
+								for (UActorComponent* Component : TInlineComponentArray<UActorComponent*>(BoundActor))
+								{
+									if (Component)
+									{
+										ObjectsToRestore.Add(Component);
+									}
+								}
+							}
+
+							ObjectsToRestore.Add(BoundObject.Get());
+						}
+					}
+				}
+
+				for (UObject* ObjectToRestore : ObjectsToRestore)
+				{
+					Sequencer->RestorePreAnimatedState(*ObjectToRestore);
+				}
+			}
+
 			Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 		}
 	};
@@ -213,7 +262,6 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, c
 		);
 	}
 }
-
 
 FName FSequencerUtilities::GetUniqueName( FName CandidateName, const TArray<FName>& ExistingNames )
 {
