@@ -738,9 +738,7 @@ private:
 			const int32 HandleIdx = Count + HandlesStartIdx;
 
 			TUniquePtr<TParticleHandleType> NewParticleHandle = TParticleHandleType::CreateParticleHandle(MakeSerializable(Particles), ParticleIdx, HandleIdx);
-#if CHAOS_DETERMINISTIC
-			NewParticleHandle->ParticleID() = BiggestParticleID++;
-#endif
+			NewParticleHandle->ParticleID().LocalID = BiggestParticleID++;
 			ReturnHandles[Count] = NewParticleHandle.Get();
 			//If unique indices are null it means there is no GT particle that already registered an ID, so create one
 			if(ExistingIndices)

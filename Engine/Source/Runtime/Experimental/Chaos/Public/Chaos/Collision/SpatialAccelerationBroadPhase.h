@@ -264,7 +264,7 @@ namespace Chaos
 					if (bBody1Bounded == bBody2Bounded && bIsParticle2Dynamic)
 					{
 						//no bidirectional constraints.
-						if (Particle2.ParticleID() > Particle1.ParticleID() && bSecondParticleWillHaveAnswer)
+						if (Particle1.ParticleID() < Particle2.ParticleID() && bSecondParticleWillHaveAnswer)
 						{
 							//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
 							continue;
