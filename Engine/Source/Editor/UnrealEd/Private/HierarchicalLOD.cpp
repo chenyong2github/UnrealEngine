@@ -739,6 +739,16 @@ bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 H
 				return false;
 			}
 
+			if (Component->bIsEditorOnly)
+			{
+				return false;
+			}
+
+			if (!Component->GetStaticMesh())
+			{
+				return false;
+			}
+
 			// see if we should generate it
 			if (Component->ShouldGenerateAutoLOD(HLODLevelIndex))
 			{
