@@ -14,6 +14,7 @@
 class UStaticMesh;
 class UHLODProxy;
 class HLODActorDesc;
+class UHLODProxyDesc;
 
 extern ENGINE_API TAutoConsoleVariable<FString> CVarHLODDistanceOverride;
 
