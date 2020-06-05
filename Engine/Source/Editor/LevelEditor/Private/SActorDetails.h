@@ -52,14 +52,15 @@ public:
 	 * @param InFilter	The filter to use or nullptr to remove the active filter
 	 */
 	void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<class IDetailRootObjectCustomization> ActorDetailsRootCustomization);
+
 private:
 	AActor* GetSelectedActorInEditor() const;
 	AActor* GetActorContext() const;
 	bool GetAllowComponentTreeEditing() const;
+	const TArray<TWeakObjectPtr<UObject>>& GetDetailsViewSelectedObjects() const;
 
 	void OnComponentsEditedInWorld();
 	void OnEditorSelectionChanged(UObject* Object);
-	void OnSCSEditorRootSelected(AActor* Actor);
 	void OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);
 	void OnSCSEditorTreeViewItemDoubleClicked(const TSharedPtr<class FSCSEditorTreeNode> ClickedNode);
 	void UpdateComponentTreeFromEditorSelection();
@@ -90,14 +91,14 @@ private:
 
 	// The current component blueprint selection
 	TWeakObjectPtr<UBlueprint> SelectedBPComponentBlueprint;
-	bool bSelectedComponentRecompiled;
+	bool bSelectedComponentRecompiled = false;
 
 	// Used to prevent reentrant changes
-	bool bSelectionGuard;
+	bool bSelectionGuard = false;
 
 	// True if the actor details has any component to show.
 	bool bHasComponentsToShow = false;
 
 	// True if the actor "root" node in the SCS editor is currently shown as selected
-	bool bShowingRootActorNodeSelected;
+	bool bShowingRootActorNodeSelected = false;
 };

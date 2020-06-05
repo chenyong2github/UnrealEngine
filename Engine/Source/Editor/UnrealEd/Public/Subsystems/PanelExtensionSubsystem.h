@@ -16,15 +16,25 @@
 struct UNREALED_API FPanelExtensionFactory
 {
 public:
-	FPanelExtensionFactory();
-
-	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FGenericCreateWidget, const TArray<UObject*>&);
-
 	/** An identifier to allow removal later on. */
 	FName Identifier;
 
+	/**
+	 * Delegate that generates the SExtensionPanel content widget. 
+	 * The FWeakObjectPtr param is an opaque context specific to the panel that is being extended
+	 * which can be used to customize or populate the extension widget.
+	 */
+	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FCreateExtensionWidget, FWeakObjectPtr);
+	FCreateExtensionWidget CreateExtensionWidget;
+
+	UE_DEPRECATED(4.26, "Use FCreateExtensionWidget instead")
+	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FGenericCreateWidget, const TArray<UObject*>&);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(4.26, "Use CreateExtensionWidget instead")
 	/** Delegate that generates a the widget. */
 	FGenericCreateWidget CreateWidget;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 class UNREALED_API SExtensionPanel : public SCompoundWidget
@@ -35,22 +45,29 @@ public:
 	SLATE_BEGIN_ARGS(SExtensionPanel)
 		: _ExtensionPanelID()
 		, _DefaultWidget()
+		, _ExtensionContext()
 	{}
 
 		/** The ID to identify this Extension point */
 		SLATE_ATTRIBUTE(FName, ExtensionPanelID)
+		/** The widget to use as content if FPanelExtensionFactory::CreateExtensionWidget returns nullptr */
 		SLATE_ATTRIBUTE(TSharedPtr<SWidget>, DefaultWidget)
+		/** Context used to customize or populate the extension widget (specific to each panel extension) */
+		SLATE_ATTRIBUTE(FWeakObjectPtr, ExtensionContext)
 
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
+	UObject* GetExtensionContext() const { return ExtensionContext.Get(); }
+
 private:
 	void RebuildWidget();
 
 	FName ExtensionPanelID;
 	TSharedPtr<SWidget> DefaultWidget;
+	FWeakObjectPtr ExtensionContext;
 };
 
 /**
@@ -73,7 +90,7 @@ public:
 
 protected:
 	friend class SExtensionPanel;
-	TSharedRef<SWidget> GetWidget(FName ExtensionPanelID);
+	TSharedRef<SWidget> CreateWidget(FName ExtensionPanelID, FWeakObjectPtr ExtensionContext);
 
 	DECLARE_MULTICAST_DELEGATE(FPanelFactoryRegistryChanged);
 	FPanelFactoryRegistryChanged& OnPanelFactoryRegistryChanged(FName ExtensionPanelID);
