@@ -3177,7 +3177,7 @@ FText UEdGraphSchema_K2::GetPinDisplayName(const UEdGraphPin* Pin) const
 			}
 		}
 
-		if( GEditor && GetDefault<UEditorStyleSettings>()->bShowFriendlyNames )
+		if( GEditor && GetDefault<UEditorStyleSettings>()->bShowFriendlyNames && Pin->bAllowFriendlyName )
 		{
 			DisplayName = FText::FromString(FName::NameToDisplayString(DisplayName.ToString(), Pin->PinType.PinCategory == PC_Boolean));
 		}
