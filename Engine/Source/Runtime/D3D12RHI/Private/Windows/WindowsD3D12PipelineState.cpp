@@ -798,7 +798,6 @@ static HRESULT CreatePipelineStateFromStream(ID3D12PipelineState*& PSO, ID3D12De
 		{
 			UE_LOG(LogD3D12RHI, Error, TEXT("Failed to create PipelineState with hash %s"), Name);
 		}
-		VERIFYD3D12RESULT_EX(hr, Device);
 	}
 
 	return hr;
