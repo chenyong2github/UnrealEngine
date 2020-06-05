@@ -5,8 +5,7 @@
 
 FBlacklistNames::FBlacklistNames() :
 	bSuppressOnFilterChanged(false)
-{
-}
+{}
 
 bool FBlacklistNames::PassesFilter(const FName Item) const
 {
@@ -75,6 +74,34 @@ bool FBlacklistNames::HasFiltering() const
 	return Blacklist.Num() > 0 || Whitelist.Num() > 0 || BlacklistAll.Num() > 0;
 }
 
+TArray<FName> FBlacklistNames::GetOwnerNames() const
+{
+	TArray<FName> OwnerNames;
+	
+	for (const auto& It : Blacklist)
+	{
+		for (const auto& OwnerName : It.Value)
+		{
+			OwnerNames.AddUnique(OwnerName);
+		}
+	}
+
+	for (const auto& It : Whitelist)
+	{
+		for (const auto& OwnerName : It.Value)
+		{
+			OwnerNames.AddUnique(OwnerName);
+		}
+	}
+
+	for (const auto& OwnerName : BlacklistAll)
+	{
+		OwnerNames.AddUnique(OwnerName);
+	}
+
+	return OwnerNames;
+}
+
 bool FBlacklistNames::UnregisterOwner(const FName OwnerName)
 {
 	bool bFilterChanged = false;
@@ -100,6 +127,26 @@ bool FBlacklistNames::UnregisterOwner(const FName OwnerName)
 	}
 
 	bFilterChanged |= (BlacklistAll.Remove(OwnerName) > 0);
+
+	if (bFilterChanged && !bSuppressOnFilterChanged)
+	{
+		OnFilterChanged().Broadcast();
+	}
+
+	return bFilterChanged;
+}
+
+bool FBlacklistNames::UnregisterOwners(const TArray<FName>& OwnerNames)
+{
+	bool bFilterChanged = false;
+	{
+		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
+
+		for (FName OwnerName : OwnerNames)
+		{
+			bFilterChanged |= UnregisterOwner(OwnerName);
+		}
+	}
 
 	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
@@ -145,40 +192,14 @@ bool FBlacklistNames::Append(const FBlacklistNames& Other)
 	return bFilterChanged;
 }
 
-bool FBlacklistNames::Remove(const FBlacklistNames& Other)
+bool FBlacklistNames::UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FBlacklistNames& FiltersToAdd)
 {
-	TSet<FName> OwnerNames;
-	{
-		for (const auto& It : Other.Blacklist)
-		{
-			for (const auto& OwnerName : It.Value)
-			{
-				OwnerNames.Add(OwnerName);
-			}
-		}
-
-		for (const auto& It : Other.Whitelist)
-		{
-			for (const auto& OwnerName : It.Value)
-			{
-				OwnerNames.Add(OwnerName);
-			}
-		}
-
-		for (const auto& OwnerName : Other.BlacklistAll)
-		{
-			OwnerNames.Add(OwnerName);
-		}
-	}
-
 	bool bFilterChanged = false;
 	{
 		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
 
-		for (const FName& OwnerName : OwnerNames)
-		{
-			bFilterChanged |= UnregisterOwner(OwnerName);
-		}
+		bFilterChanged |= UnregisterOwners(OwnerNamesToRemove);
+		bFilterChanged |= Append(FiltersToAdd);
 	}
 
 	if (bFilterChanged && !bSuppressOnFilterChanged)
@@ -368,6 +389,34 @@ bool FBlacklistPaths::HasFiltering() const
 	return Blacklist.Num() > 0 || Whitelist.Num() > 0 || BlacklistAll.Num() > 0;
 }
 
+TArray<FName> FBlacklistPaths::GetOwnerNames() const
+{
+	TArray<FName> OwnerNames;
+
+	for (const auto& It : Blacklist)
+	{
+		for (const auto& OwnerName : It.Value)
+		{
+			OwnerNames.AddUnique(OwnerName);
+		}
+	}
+
+	for (const auto& It : Whitelist)
+	{
+		for (const auto& OwnerName : It.Value)
+		{
+			OwnerNames.AddUnique(OwnerName);
+		}
+	}
+
+	for (const auto& OwnerName : BlacklistAll)
+	{
+		OwnerNames.AddUnique(OwnerName);
+	}
+
+	return OwnerNames;
+}
+
 bool FBlacklistPaths::UnregisterOwner(const FName OwnerName)
 {
 	bool bFilterChanged = false;
@@ -393,6 +442,26 @@ bool FBlacklistPaths::UnregisterOwner(const FName OwnerName)
 	}
 
 	bFilterChanged |= (BlacklistAll.Remove(OwnerName) > 0);
+
+	if (bFilterChanged && !bSuppressOnFilterChanged)
+	{
+		OnFilterChanged().Broadcast();
+	}
+
+	return bFilterChanged;
+}
+
+bool FBlacklistPaths::UnregisterOwners(const TArray<FName>& OwnerNames)
+{
+	bool bFilterChanged = false;
+	{
+		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
+
+		for (FName OwnerName : OwnerNames)
+		{
+			bFilterChanged |= UnregisterOwner(OwnerName);
+		}
+	}
 
 	if (bFilterChanged && !bSuppressOnFilterChanged)
 	{
@@ -438,40 +507,14 @@ bool FBlacklistPaths::Append(const FBlacklistPaths& Other)
 	return bFilterChanged;
 }
 
-bool FBlacklistPaths::Remove(const FBlacklistPaths& Other)
+bool FBlacklistPaths::UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FBlacklistPaths& FiltersToAdd)
 {
-	TSet<FName> OwnerNames;
-	{
-		for (const auto& It : Other.Blacklist)
-		{
-			for (const auto& OwnerName : It.Value)
-			{
-				OwnerNames.Add(OwnerName);
-			}
-		}
-
-		for (const auto& It : Other.Whitelist)
-		{
-			for (const auto& OwnerName : It.Value)
-			{
-				OwnerNames.Add(OwnerName);
-			}
-		}
-
-		for (const auto& OwnerName : Other.BlacklistAll)
-		{
-			OwnerNames.Add(OwnerName);
-		}
-	}
-
 	bool bFilterChanged = false;
 	{
 		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
 
-		for (const FName& OwnerName : OwnerNames)
-		{
-			bFilterChanged |= UnregisterOwner(OwnerName);
-		}
+		bFilterChanged |= UnregisterOwners(OwnerNamesToRemove);
+		bFilterChanged |= Append(FiltersToAdd);
 	}
 
 	if (bFilterChanged && !bSuppressOnFilterChanged)

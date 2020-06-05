@@ -40,11 +40,20 @@ public:
 	/** True if has filters active */
 	bool HasFiltering() const;
 
+	/** Gathers the names of all the owners in this blacklist. */
+	TArray<FName> GetOwnerNames() const;
+
 	/** 
 	* Removes all filtering changes associated with a specific owner name.
 	 * @return whether the filters changed.
 	 */
 	bool UnregisterOwner(const FName OwnerName);
+
+	/**
+	 * Removes all filtering changes associated with the specified list of owner names.
+	 * @return whether the filters changed.
+	 */
+	bool UnregisterOwners(const TArray<FName>& OwnerNames);
 
 	/**
 	 * Add the specified filters to this one.
@@ -53,10 +62,10 @@ public:
 	bool Append(const FBlacklistNames& Other);
 
 	/**
-	 * Removes the specified filters from this one (based of owner name only).
-	 * @return whether the filters changed.
-	 */
-	bool Remove(const FBlacklistNames& Other);
+	* Unregisters specified owners then adds specified filters in one operation (to avoid multiple filters changed events).
+	* @return whether the filters changed.
+	*/
+	bool UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FBlacklistNames& FiltersToAdd);
 
 	/** Get raw blacklist */
 	const TMap<FName, FBlacklistOwners>& GetBlacklist() const { return Blacklist; }
@@ -157,11 +166,20 @@ public:
 	/** True if has filters active */
 	bool HasFiltering() const;
 
+	/** Gathers the names of all the owners in this blacklist. */
+	TArray<FName> GetOwnerNames() const;
+
 	/**
 	 * Removes all filtering changes associated with a specific owner name.
 	 * @return whether the filters changed.
 	 */
 	bool UnregisterOwner(const FName OwnerName);
+
+	/**
+	 * Removes all filtering changes associated with the specified list of owner names.
+	 * @return whether the filters changed.
+	 */
+	bool UnregisterOwners(const TArray<FName>& OwnerNames);
 	
 	/**
 	 * Add the specified filters to this one.
@@ -169,11 +187,11 @@ public:
 	 */
 	bool Append(const FBlacklistPaths& Other);
 
-	/** 
-	 * Removes the specified filters from this one (based of owner name only).
-	 * @return whether the filters changed.
-	 */
-	bool Remove(const FBlacklistPaths& Other);
+	/**
+	* Unregisters specified owners then adds specified filters in one operation (to avoid multiple filters changed events).
+	* @return whether the filters changed.
+	*/
+	bool UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FBlacklistPaths& FiltersToAdd);
 
 	/** Get raw blacklist */
 	const TMap<FString, FBlacklistOwners>& GetBlacklist() const { return Blacklist; }
