@@ -1920,9 +1920,10 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			MeshLocation = RelativeTransform.TransformPosition(MeshLocation);
 		}
 
-		if (MeshComponent->GetRelativeLocation() != MeshLocation ||
-			MeshComponent->GetRelativeRotation() != MeshRotation ||
-			MeshComponent->GetRelativeScale3D() != MeshScale)
+		const float LocationErrorTolerance = 0.01f;
+		if (!MeshComponent->GetRelativeLocation().Equals(MeshLocation, LocationErrorTolerance) ||
+			!MeshComponent->GetRelativeRotation().Equals(MeshRotation) ||
+			!MeshComponent->GetRelativeScale3D().Equals(MeshScale))
 		{
 			MeshComponent->Modify();
 			MeshComponent->SetRelativeTransform(FTransform(MeshRotation, MeshLocation, MeshScale));
