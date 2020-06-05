@@ -4961,7 +4961,7 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 		FMessageLog ExportWarning("EditorErrors");
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("Name"), FText::FromString(Texture->GetName()));
-		ExportWarning.Warning(FText::Format(LOCTEXT("BitDepthBMPWarning", "{Name}: Texture is G16 and cannot be represented at such high bit depth in .bmp. Color will be split across two channels of RGBA8."), Arguments));
+		ExportWarning.Warning(FText::Format(LOCTEXT("BitDepthBMPWarningG16", "{Name}: Texture is G16 and cannot be represented at such high bit depth in .bmp. Color will be split across two channels of RGBA8."), Arguments));
 		ExportWarning.Open(EMessageSeverity::Warning);
 	}
 
