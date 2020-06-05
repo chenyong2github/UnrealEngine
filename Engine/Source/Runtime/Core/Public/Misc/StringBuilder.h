@@ -85,8 +85,6 @@ public:
 	inline const CharType* ToString() const		{ EnsureNulTerminated(); return Base; }
 	inline const CharType* operator*() const	{ EnsureNulTerminated(); return Base; }
 
-	inline operator ViewType() const			{ return ViewType(Base, Len()); }
-
 	inline const CharType	LastChar() const	{ return *(CurPos - 1); }
 
 	/**
