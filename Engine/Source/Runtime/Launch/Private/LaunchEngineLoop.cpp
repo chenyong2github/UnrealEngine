@@ -31,6 +31,7 @@
 #include "Trace/Trace.inl"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
@@ -1410,36 +1411,6 @@ UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, Important)
 	UE_TRACE_EVENT_FIELD(uint8, TargetType)
 UE_TRACE_EVENT_END()
 
-static bool InitializeTraceChannels(const TCHAR* CmdLine)
-{
-	FString Parameter;
-	// Bit mask to track which arguments has been parsed if this method is 
-	// called multiple times. If less than 32 channel arguments this is only
-	// inlined memory.
-	static TBitArray<FDefaultBitArrayAllocator> ProcessedTokens(false, 32);
-
-	if (!FParse::Value(CmdLine, TEXT("-trace="), Parameter, false))
-	{
-		return false;
-	}
-
-	uint32 TokenIndex = 0;
-	UE::String::ParseTokens(Parameter, TEXT(","), [&TokenIndex] (const FStringView& Token)
-	{
-		TCHAR ChannelName[64];
-		const size_t ChannelNameSize = Token.CopyString(ChannelName, 63);
-		ChannelName[ChannelNameSize] = '\0';
-		if (Trace::IsChannel(ChannelName) && !ProcessedTokens[TokenIndex])
-		{
-			Trace::ToggleChannel(ChannelName, true);
-			ProcessedTokens[TokenIndex].AtomicSet(true);
-		}
-		TokenIndex++;
-	});
-
-	return true;
-}
-
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
@@ -1508,36 +1479,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	// Initialize trace
 	{
-		SCOPED_BOOT_TIMING("InitTrace")
-
-		Trace::FInitializeDesc Desc;
-		Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
-
-		FString Parameter;
-		if (FParse::Value(CmdLine, TEXT("-tracememmb="), Parameter))
-		{
-			Desc.MaxMemoryHintMb = uint32(FCString::Strtoi(*Parameter, nullptr, 10));
-		}
-		Trace::Initialize(Desc);
-
-		FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
-
-		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
-		{
-			Trace::SendTo(*Parameter);
-		}
-		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
-		{
-			Trace::WriteTo(*Parameter);
-		}
-
-		if (!InitializeTraceChannels(CmdLine) && FParse::Value(CmdLine, TEXT("-trace"), Parameter, false))
-		{
-			Trace::ToggleChannel(TEXT("bookmark"), true);
-			Trace::ToggleChannel(TEXT("cpu"), true);
-			Trace::ToggleChannel(TEXT("frame"), true);
-			Trace::ToggleChannel(TEXT("log"), true);
-		}
+		FTraceAuxiliary::Initialize(CmdLine);
 
 		TRACE_CPUPROFILER_INIT(CmdLine);
 		TRACE_PLATFORMFILE_INIT(CmdLine);
@@ -1987,18 +1929,12 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 #endif	//UE_EDITOR
 
-#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
+#if !UE_BUILD_SHIPPING && !IS_PROGRAM
 	if (!bHasEditorToken)
 	{
-		// If we can detect a named event then we can try and auto-connect to UnrealInsights.
-		HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
-		if (KnownEvent != nullptr)
-		{
-			Trace::SendTo(TEXT("127.0.0.1"));
-			::CloseHandle(KnownEvent);
-		}
+		FTraceAuxiliary::TryAutoConnect();
 	}
-#endif // PLATFORM_WINDOWS
+#endif
 
 #if !UE_BUILD_SHIPPING
 	// Benchmarking.
@@ -4079,8 +4015,6 @@ int32 FEngineLoop::Init()
 			return 1;
 		}
 	}
-
-	InitializeTraceChannels(FCommandLine::Get());
 
 	{
 		SCOPED_BOOT_TIMING("GEngine->Start()");
