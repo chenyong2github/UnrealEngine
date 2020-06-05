@@ -32,7 +32,6 @@ public:
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(4.26, "Use CreateExtensionWidget instead")
-	/** Delegate that generates a the widget. */
 	FGenericCreateWidget CreateWidget;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
