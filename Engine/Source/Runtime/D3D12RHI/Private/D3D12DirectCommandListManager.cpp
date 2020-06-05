@@ -423,8 +423,9 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 			BreadCrumbResourceAddress = VirtualAlloc(nullptr, MaxEventCount, MEM_COMMIT, PAGE_READWRITE);
 			if (BreadCrumbResourceAddress)
 			{
-				TRefCountPtr<ID3D12Heap> D3D12Heap;
-				hr = D3D12Device3->OpenExistingHeapFromAddress(BreadCrumbResourceAddress, IID_PPV_ARGS(D3D12Heap.GetInitReference()));
+				// Create non refcounted heap because SetHeap function will take ownership without perform AddRef
+				ID3D12Heap* D3D12Heap = nullptr;
+				hr = D3D12Device3->OpenExistingHeapFromAddress(BreadCrumbResourceAddress, IID_PPV_ARGS(&D3D12Heap));
 				if (SUCCEEDED(hr))
 				{
 					BreadCrumbHeap = new FD3D12Heap(Device, GetVisibilityMask());
