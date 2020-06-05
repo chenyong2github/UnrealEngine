@@ -1863,6 +1863,12 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	GPUParamIncludeInterpolation = false;
 	UNiagaraSystem* System = GetSystem();
 
+	if (IsComplete() || System == nullptr || Component == nullptr || CachedDeltaSeconds < SMALL_NUMBER)
+	{
+		bAsyncWorkInProgress = false;
+		return;
+	}
+
 	const int32 NumEmitters = Emitters.Num();
 	const TArray<int32>& EmitterExecutionOrder = System->GetEmitterExecutionOrder();
 	checkSlow(EmitterExecutionOrder.Num() <= NumEmitters);
@@ -1882,7 +1888,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 		}
 	}
 
-	if (IsComplete() || !bHasTickingEmitters || System == nullptr || Component == nullptr || CachedDeltaSeconds < SMALL_NUMBER)
+	if ( !bHasTickingEmitters )
 	{
 		bAsyncWorkInProgress = false;
 		return;
