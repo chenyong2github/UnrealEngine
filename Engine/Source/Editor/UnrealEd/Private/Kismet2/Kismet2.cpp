@@ -1426,7 +1426,7 @@ private:
 UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, const FKismetEditorUtilities::FCreateBlueprintFromActorParams& Params)
 {
 	UBlueprint* NewBlueprint = nullptr;
-	UClass* ParentClassOverride = Params.ParentClassOverridde;
+	UClass* ParentClassOverride = Params.ParentClassOverride;
 
 	if (Actor != nullptr)
 	{

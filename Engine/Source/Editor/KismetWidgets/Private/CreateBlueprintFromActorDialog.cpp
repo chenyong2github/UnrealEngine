@@ -822,7 +822,7 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 
 			FKismetEditorUtilities::FCreateBlueprintFromActorParams Params;
 			Params.bReplaceActor = true;
-			Params.ParentClassOverridde = ParentClass;
+			Params.ParentClassOverride = ParentClass;
 			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActor(InAssetPath, ActorToUse, Params);
 		}
 		break;
