@@ -556,9 +556,6 @@ public:
 	 */
 	int32 GetApproxCompressedSize() const;
 
-	// Initialize curve compression settings, does nothing if scheme already valid
-	void InitCurveCompressionScheme();
-
 	/**
 	 * Removes trivial frames -- frames of tracks when position or orientation is constant
 	 * over the entire animation -- from the raw animation data.  If both position and rotation
