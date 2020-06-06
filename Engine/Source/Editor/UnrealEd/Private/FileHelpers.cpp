@@ -62,6 +62,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/LevelStreaming.h"
+#include "GameFramework/WorldSettings.h"
 #include "AutoSaveUtils.h"
 #include "AssetRegistryModule.h"
 #include "Misc/BlacklistNames.h"
