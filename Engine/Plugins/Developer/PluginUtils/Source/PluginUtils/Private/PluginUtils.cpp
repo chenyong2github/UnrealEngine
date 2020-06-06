@@ -269,7 +269,7 @@ namespace PluginUtils
 	TSharedPtr<IPlugin> MountPluginInternal(const FString& PluginName, const FString& PluginLocation, const FPluginUtils::FMountPluginParams& MountParams, FText& FailReason, const bool bIsNewPlugin)
 	{
 		// Make sure the plugin location is under the search path and refresh plugins.
-		FPluginUtils::AddToPluginSearchPathIfNeeded(PluginLocation, /*bRefreshPlugins*/ false, /*bUpdateProjectFile*/ false);
+		FPluginUtils::AddToPluginSearchPathIfNeeded(PluginLocation, /*bRefreshPlugins*/ false, MountParams.bUpdateProjectPluginSearchPath);
 
 		IPluginManager::Get().RefreshPluginsList();
 
