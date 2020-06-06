@@ -60,6 +60,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginPolygonCutTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelMergeTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelBooleanTool;
+	TSharedPtr<FUICommandInfo> BeginVoxelSolidifyTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelBlendTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelMorphologyTool;
 	TSharedPtr<FUICommandInfo> BeginSelfUnionTool;

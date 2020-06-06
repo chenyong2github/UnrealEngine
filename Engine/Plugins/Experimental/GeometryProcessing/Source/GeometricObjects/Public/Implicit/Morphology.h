@@ -6,6 +6,8 @@
 
 #include "MeshAdapter.h"
 
+#include "Spatial/MeshAABBTree3.h"
+
 #include "Implicit/SweepingMeshSDF.h"
 #include "Implicit/GridInterpolant.h"
 #include "Implicit/ImplicitFunctions.h"

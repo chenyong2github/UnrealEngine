@@ -41,6 +41,8 @@ public:
 	double Distance = 1.0;
 	EMorphologyOperation Operation;
 
+	bool bSolidifyInput = false;
+
 	void SetTransform(const FTransform& Transform);
 
 	//
