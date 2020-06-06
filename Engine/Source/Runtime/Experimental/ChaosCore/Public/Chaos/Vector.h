@@ -544,6 +544,10 @@ namespace Chaos
 			return (P1 - P0) / Dt;
 		}
 
+		static bool IsNearlyEqual(const TVector<float, 3>& A, const TVector<float, 3>& B, const float Epsilon)
+		{
+			return (B - A).IsNearlyZero(Epsilon);
+		}
 	};
 
 	template<>
