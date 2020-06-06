@@ -78,6 +78,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginTransformUVIslandsTool;
 	TSharedPtr<FUICommandInfo> BeginMeshAttributePaintTool;
 	TSharedPtr<FUICommandInfo> BeginAttributeEditorTool;
+	TSharedPtr<FUICommandInfo> BeginBakeMeshAttributeMapsTool;
 
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;
