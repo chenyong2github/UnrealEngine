@@ -96,7 +96,7 @@ struct TMathUtilConstants<int32>
 {
 	GEOMETRICOBJECTS_API static constexpr int32 Epsilon = 0;
 	GEOMETRICOBJECTS_API static constexpr int32 ZeroTolerance = 0;
-	GEOMETRICOBJECTS_API static constexpr int32 MaxReal = 2147483647;
+	GEOMETRICOBJECTS_API static constexpr int32 MaxReal = ((int32)0x7fffffff);
 	GEOMETRICOBJECTS_API static constexpr int32 Pi = 3;
 	GEOMETRICOBJECTS_API static constexpr int32 FourPi = 4 * Pi;
 	GEOMETRICOBJECTS_API static constexpr int32 TwoPi = 2 * Pi;
@@ -109,6 +109,28 @@ struct TMathUtilConstants<int32>
 	GEOMETRICOBJECTS_API static constexpr int32 InvSqrt2 = 1;
 	GEOMETRICOBJECTS_API static constexpr int32 Sqrt3 = 2;
 	GEOMETRICOBJECTS_API static constexpr int32 InvSqrt3 = 1;
+};
+
+
+// we use TMathUtil<int> so we need to define these nonsense constants
+template<>
+struct TMathUtilConstants<int64>
+{
+	GEOMETRICOBJECTS_API static constexpr int64 Epsilon = 0;
+	GEOMETRICOBJECTS_API static constexpr int64 ZeroTolerance = 0;
+	GEOMETRICOBJECTS_API static constexpr int64 MaxReal = ((int64)0x7fffffffffffffff);
+	GEOMETRICOBJECTS_API static constexpr int64 Pi = 3;
+	GEOMETRICOBJECTS_API static constexpr int64 FourPi = 4 * Pi;
+	GEOMETRICOBJECTS_API static constexpr int64 TwoPi = 2 * Pi;
+	GEOMETRICOBJECTS_API static constexpr int64 HalfPi = 1;
+	GEOMETRICOBJECTS_API static constexpr int64 InvPi = 1;
+	GEOMETRICOBJECTS_API static constexpr int64 InvTwoPi = 1;
+	GEOMETRICOBJECTS_API static constexpr int64 DegToRad = 1;
+	GEOMETRICOBJECTS_API static constexpr int64 RadToDeg = 1;
+	GEOMETRICOBJECTS_API static constexpr int64 Sqrt2 = 1;
+	GEOMETRICOBJECTS_API static constexpr int64 InvSqrt2 = 1;
+	GEOMETRICOBJECTS_API static constexpr int64 Sqrt3 = 2;
+	GEOMETRICOBJECTS_API static constexpr int64 InvSqrt3 = 1;
 };
 
 
@@ -136,7 +158,10 @@ public:
 	static inline RealType ACos(const RealType Value);
 	static inline RealType Floor(const RealType Value);
 	static inline RealType Ceil(const RealType Value);
+	static inline RealType Round(const RealType Value);
 	static inline RealType Pow(const RealType Value, const RealType Power);
+	static inline RealType Exp(const RealType Power);
+	static inline RealType Log(const RealType Value);
 	static inline RealType Lerp(const RealType A, const RealType B, RealType Alpha);
 
 
@@ -281,10 +306,30 @@ RealType TMathUtil<RealType>::Ceil(const RealType Value)
 }
 
 template<typename RealType>
+RealType TMathUtil<RealType>::Round(const RealType Value)
+{
+	return round(Value);
+}
+
+template<typename RealType>
 RealType TMathUtil<RealType>::Pow(const RealType Value, const RealType Power)
 {
 	return pow(Value, Power);
 }
+
+template<typename RealType>
+RealType TMathUtil<RealType>::Exp(const RealType Power)
+{
+	return exp(Power);
+}
+
+template<typename RealType>
+RealType TMathUtil<RealType>::Log(const RealType Power)
+{
+	return log(Power);
+}
+
+
 
 template<typename RealType>
 RealType TMathUtil<RealType>::Lerp(const RealType A, const RealType B, RealType Alpha)
