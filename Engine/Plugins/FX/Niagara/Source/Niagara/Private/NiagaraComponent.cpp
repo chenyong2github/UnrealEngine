@@ -964,6 +964,13 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	SystemInstance->Activate(ResetMode);
 
+	if (SystemInstance->IsSolo())
+	{
+		const ETickingGroup SoloTickGroup = SystemInstance->CalculateTickGroup();
+		PrimaryComponentTick.TickGroup = FMath::Max(GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics, SoloTickGroup);
+		PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
+	}
+
 	/** We only need to tick the component if we require solo mode. */
 	SetComponentTickEnabled(SystemInstance->IsSolo());
 }

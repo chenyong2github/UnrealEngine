@@ -284,6 +284,9 @@ public:
 	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
 	/** Set a new tick behavior, this will not move the instance straight away and will wait until the next time it is evaluated */
 	void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
+	
+	/** Calculates which tick group the instance should be in. */
+	ETickingGroup CalculateTickGroup() const;
 
 private:
 	void DestroyDataInterfaceInstanceData();
@@ -304,9 +307,6 @@ private:
 	
 	/** Calculates the distance to use for distance based LODing / culling. */
 	float GetLODDistance();
-
-	/** Calculates which tick group the instance should be in. */
-	ETickingGroup CalculateTickGroup();
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
