@@ -1003,7 +1003,9 @@ UBlueprint *UReimportFbxSceneFactory::UpdateOriginalBluePrint(FString &BluePrint
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 		//Create the new nodes from the hierarchy actor
-		FKismetEditorUtilities::AddComponentsToBlueprint(BluePrint, HierarchyActor->GetInstanceComponents(), FKismetEditorUtilities::EAddComponentToBPHarvestMode::None, nullptr, true);
+		FKismetEditorUtilities::FAddComponentsToBlueprintParams Params;
+		Params.bKeepMobility = true;
+		FKismetEditorUtilities::AddComponentsToBlueprint(BluePrint, HierarchyActor->GetInstanceComponents(), Params);
 		
 		UWorld* World = HierarchyActor->GetWorld();
 		World->DestroyActor(HierarchyActor);
