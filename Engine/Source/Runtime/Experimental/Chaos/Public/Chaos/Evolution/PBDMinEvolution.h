@@ -86,6 +86,11 @@ namespace Chaos
 			SimulationSpace = InSimulationSpace;
 		}
 
+		FSimulationSpaceSettings& GetSimulationSpaceSettings()
+		{
+			return SimulationSpaceSettings;
+		}
+
 		const FSimulationSpaceSettings& GetSimulationSpaceSettings() const
 		{
 			return SimulationSpaceSettings;
