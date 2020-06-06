@@ -168,14 +168,6 @@ public:
 	}
 
 	/**
-	 * Create an FString from an FAnsiStringView
-	 *
-	 * @param Other The string view to create a new copy from
-	 */
-	
-	explicit FString(FAnsiStringView Other);
-
-	/**
 	 * Create an FString from a contiguous range of characters
 	 *
 	 * @param Other The contiguous character range to copy from

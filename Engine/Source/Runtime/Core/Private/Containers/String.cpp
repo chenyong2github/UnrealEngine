@@ -145,11 +145,6 @@ void AppendCharacters(TArray<TCHAR>& Out, const CharType* Str, int32 Count)
 	Dest[Count] = '\0';
 }
 
-FString::FString(FAnsiStringView View)
-{
-	AppendCharacters(Data, View.GetData(), View.Len());
-}
-
 void FString::AppendChars(const ANSICHAR* Str, int32 Count)
 {
 	CheckInvariants();
