@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VoxelBlendMeshesTool.h"
-#include "CompositionOps/VoxelBlendMeshesOp.h"
+#include "VoxelSolidifyMeshesTool.h"
+#include "CompositionOps/VoxelSolidifyMeshesOp.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
@@ -22,10 +22,10 @@
 
 #include "AssetGenerationUtil.h"
 
-#include "CompositionOps/VoxelBlendMeshesOp.h"
+#include "CompositionOps/VoxelSolidifyMeshesOp.h"
 
 
-#define LOCTEXT_NAMESPACE "UVoxelBlendMeshesTool"
+#define LOCTEXT_NAMESPACE "UVoxelSolidifyMeshesTool"
 
 
 /*
@@ -33,14 +33,14 @@
  */
 
 
-bool UVoxelBlendMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+bool UVoxelSolidifyMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 2;
+	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 1;
 }
 
-UInteractiveTool* UVoxelBlendMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UInteractiveTool* UVoxelSolidifyMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
-	UVoxelBlendMeshesTool* NewTool = NewObject<UVoxelBlendMeshesTool>(SceneState.ToolManager);
+	UVoxelSolidifyMeshesTool* NewTool = NewObject<UVoxelSolidifyMeshesTool>(SceneState.ToolManager);
 
 	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
 	check(Components.Num() > 0);
@@ -67,16 +67,16 @@ UInteractiveTool* UVoxelBlendMeshesToolBuilder::BuildTool(const FToolBuilderStat
 /*
  * Tool
  */
-UVoxelBlendMeshesTool::UVoxelBlendMeshesTool()
+UVoxelSolidifyMeshesTool::UVoxelSolidifyMeshesTool()
 {
 }
 
-void UVoxelBlendMeshesTool::SetWorld(UWorld* World)
+void UVoxelSolidifyMeshesTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
 
-void UVoxelBlendMeshesTool::Setup()
+void UVoxelSolidifyMeshesTool::Setup()
 {
 	UInteractiveTool::Setup();
 
@@ -88,9 +88,9 @@ void UVoxelBlendMeshesTool::Setup()
 
 
 	// initialize our properties
-	BlendProperties = NewObject<UVoxelBlendMeshesToolProperties>(this);
-	BlendProperties->RestoreProperties(this);
-	AddToolPropertySource(BlendProperties);
+	SolidifyProperties = NewObject<UVoxelSolidifyMeshesToolProperties>(this);
+	SolidifyProperties->RestoreProperties(this);
+	AddToolPropertySource(SolidifyProperties);
 	VoxProperties = NewObject<UVoxelProperties>(this);
 	VoxProperties->RestoreProperties(this);
 	AddToolPropertySource(VoxProperties);
@@ -108,7 +108,7 @@ void UVoxelBlendMeshesTool::Setup()
 
 
 
-void UVoxelBlendMeshesTool::SetupPreview()
+void UVoxelSolidifyMeshesTool::SetupPreview()
 {
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
@@ -132,7 +132,7 @@ void UVoxelBlendMeshesTool::SetupPreview()
 	Preview->OnOpCompleted.AddLambda(
 		[this](const FDynamicMeshOperator* Op)
 		{
-			const FVoxelBlendMeshesOp* VoxOp = (const FVoxelBlendMeshesOp*)(Op);
+			const FVoxelSolidifyMeshesOp* VoxOp = (const FVoxelSolidifyMeshesOp*)(Op);
 			// TODO: remove this function or do something with it
 		}
 	);
@@ -146,20 +146,20 @@ void UVoxelBlendMeshesTool::SetupPreview()
 	SetTransformGizmos();
 }
 
-void UVoxelBlendMeshesTool::UpdateVisualization()
+void UVoxelSolidifyMeshesTool::UpdateVisualization()
 {
 	// TODO: remove this fn or do something with it
 }
 
-void UVoxelBlendMeshesTool::UpdateGizmoVisibility()
+void UVoxelSolidifyMeshesTool::UpdateGizmoVisibility()
 {
 	for (UTransformGizmo* Gizmo : TransformGizmos)
 	{
-		Gizmo->SetVisibility(BlendProperties->bShowTransformUI);
+		Gizmo->SetVisibility(SolidifyProperties->bShowTransformUI);
 	}
 }
 
-void UVoxelBlendMeshesTool::SetTransformGizmos()
+void UVoxelSolidifyMeshesTool::SetTransformGizmos()
 {
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
 
@@ -171,20 +171,20 @@ void UVoxelBlendMeshesTool::SetTransformGizmos()
 		Gizmo->SetActiveTarget(Proxy);
 		FTransform InitialTransform = Target->GetWorldTransform();
 		Gizmo->SetNewGizmoTransform(InitialTransform);
-		Proxy->OnTransformChanged.AddUObject(this, &UVoxelBlendMeshesTool::TransformChanged);
+		Proxy->OnTransformChanged.AddUObject(this, &UVoxelSolidifyMeshesTool::TransformChanged);
 	}
 	UpdateGizmoVisibility();
 }
 
-void UVoxelBlendMeshesTool::TransformChanged(UTransformProxy* Proxy, FTransform Transform)
+void UVoxelSolidifyMeshesTool::TransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
 	Preview->InvalidateResult();
 }
 
-void UVoxelBlendMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void UVoxelSolidifyMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	VoxProperties->SaveProperties(this);
-	BlendProperties->SaveProperties(this);
+	SolidifyProperties->SaveProperties(this);
 	HandleSourcesProperties->SaveProperties(this);
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
@@ -197,7 +197,7 @@ void UVoxelBlendMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		// Generate the result
 		{
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelBlendMeshes", "Boolean Meshes"));
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelSolidifyMeshes", "Boolean Meshes"));
 
 			GenerateAsset(Result);
 
@@ -216,14 +216,14 @@ void UVoxelBlendMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	GizmoManager->DestroyAllGizmosByOwner(this);
 }
 
-void UVoxelBlendMeshesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UVoxelSolidifyMeshesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }
 
-TUniquePtr<FDynamicMeshOperator> UVoxelBlendMeshesTool::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UVoxelSolidifyMeshesTool::MakeNewOperator()
 {
-	TUniquePtr<FVoxelBlendMeshesOp> Op = MakeUnique<FVoxelBlendMeshesOp>();
+	TUniquePtr<FVoxelSolidifyMeshesOp> Op = MakeUnique<FVoxelSolidifyMeshesOp>();
 
 	Op->Transforms.SetNum(ComponentTargets.Num());
 	Op->Meshes.SetNum(ComponentTargets.Num());
@@ -233,9 +233,12 @@ TUniquePtr<FDynamicMeshOperator> UVoxelBlendMeshesTool::MakeNewOperator()
 		Op->Transforms[Idx] = TransformProxies[Idx]->GetTransform();
 	}
 
-	Op->BlendFalloff = BlendProperties->BlendFalloff;
-	Op->BlendPower = BlendProperties->BlendPower;
-	Op->bSolidifyInput = BlendProperties->bSolidifyInput;
+	Op->bSolidAtBoundaries = SolidifyProperties->bSolidAtBoundaries;
+	Op->WindingThreshold = SolidifyProperties->WindingThreshold;
+	Op->bMakeOffsetSurfaces = SolidifyProperties->bMakeOffsetSurfaces;
+	Op->OffsetThickness = SolidifyProperties->OffsetThickness;
+	Op->SurfaceSearchSteps = SolidifyProperties->SurfaceSearchSteps;
+	Op->ExtendBounds = SolidifyProperties->ExtendBounds;
 
 	Op->InputVoxelCount = VoxProperties->VoxelCount;
 	Op->OutputVoxelCount = VoxProperties->VoxelCount;
@@ -248,15 +251,15 @@ TUniquePtr<FDynamicMeshOperator> UVoxelBlendMeshesTool::MakeNewOperator()
 
 
 
-void UVoxelBlendMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
+void UVoxelSolidifyMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
-void UVoxelBlendMeshesTool::OnTick(float DeltaTime)
+void UVoxelSolidifyMeshesTool::OnTick(float DeltaTime)
 {
 	for (UTransformGizmo* Gizmo : TransformGizmos)
 	{
-		Gizmo->bSnapToWorldGrid = BlendProperties->bSnapToWorldGrid;
+		Gizmo->bSnapToWorldGrid = SolidifyProperties->bSnapToWorldGrid;
 	}
 
 	Preview->Tick(DeltaTime);
@@ -264,22 +267,22 @@ void UVoxelBlendMeshesTool::OnTick(float DeltaTime)
 
 
 #if WITH_EDITOR
-void UVoxelBlendMeshesTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UVoxelSolidifyMeshesTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Preview->InvalidateResult();
 	UpdateGizmoVisibility();
 }
 #endif
 
-void UVoxelBlendMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+void UVoxelSolidifyMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UVoxelBlendMeshesToolProperties, bShowTransformUI)))
+	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UVoxelSolidifyMeshesToolProperties, bShowTransformUI)))
 	{
 		UpdateGizmoVisibility();
 	}
 	else if (Property && 
 		(  PropertySet == HandleSourcesProperties
-		|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(UVoxelBlendMeshesToolProperties, bSnapToWorldGrid)
+		|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(UVoxelSolidifyMeshesToolProperties, bSnapToWorldGrid)
 		))
 	{
 		// nothing
@@ -291,18 +294,18 @@ void UVoxelBlendMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* 
 }
 
 
-bool UVoxelBlendMeshesTool::HasAccept() const
+bool UVoxelSolidifyMeshesTool::HasAccept() const
 {
 	return true;
 }
 
-bool UVoxelBlendMeshesTool::CanAccept() const
+bool UVoxelSolidifyMeshesTool::CanAccept() const
 {
 	return Preview->HaveValidResult();
 }
 
 
-void UVoxelBlendMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+void UVoxelSolidifyMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 {
 	check(Result.Mesh.Get() != nullptr);
 
@@ -317,7 +320,7 @@ void UVoxelBlendMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), CenteredTransform, TEXT("Blend Mesh"), Preview->StandardMaterials);
+		Result.Mesh.Get(), CenteredTransform, TEXT("Solidify Mesh"), Preview->StandardMaterials);
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);

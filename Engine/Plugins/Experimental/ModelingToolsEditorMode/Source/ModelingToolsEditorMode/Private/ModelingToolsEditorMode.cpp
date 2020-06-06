@@ -29,6 +29,7 @@
 #include "ShapeSprayTool.h"
 #include "MergeMeshesTool.h"
 #include "VoxelCSGMeshesTool.h"
+#include "VoxelSolidifyMeshesTool.h"
 #include "VoxelBlendMeshesTool.h"
 #include "VoxelMorphologyMeshesTool.h"
 #include "PlaneCutTool.h"
@@ -602,6 +603,10 @@ void FModelingToolsEditorMode::Enter()
 	auto VoxelCSGMeshesToolBuilder = NewObject<UVoxelCSGMeshesToolBuilder>();
 	VoxelCSGMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginVoxelBooleanTool, TEXT("VoxelCSGMeshesTool"), VoxelCSGMeshesToolBuilder);
+
+	auto VoxelSolidifyMeshesToolBuilder = NewObject<UVoxelSolidifyMeshesToolBuilder>();
+	VoxelSolidifyMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginVoxelSolidifyTool, TEXT("VoxelSolidifyMeshesTool"), VoxelSolidifyMeshesToolBuilder);
 
 	auto VoxelBlendMeshesToolBuilder = NewObject<UVoxelBlendMeshesToolBuilder>();
 	VoxelBlendMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();

@@ -10,19 +10,22 @@
 
 
 
-class MODELINGOPERATORS_API FVoxelBlendMeshesOp : public FVoxelBaseOp
+class MODELINGOPERATORS_API FVoxelSolidifyMeshesOp : public FVoxelBaseOp
 {
 public:
-	virtual ~FVoxelBlendMeshesOp() {}
+	virtual ~FVoxelSolidifyMeshesOp() {}
 
 	// inputs
 	TArray<TSharedPtr<const FDynamicMesh3>> Meshes;
 	TArray<FTransform> Transforms; // 1:1 with Meshes
 
-	double BlendFalloff = 10;
-	double BlendPower = 2;
+	double WindingThreshold = .5;
+	double ExtendBounds = 1;
+	bool bSolidAtBoundaries = true;
+	int SurfaceSearchSteps = 3;
 
-	bool bSolidifyInput = false;
+	bool bMakeOffsetSurfaces = false;
+	double OffsetThickness = 5;
 
 	void SetTransform(const FTransform& Transform);
 

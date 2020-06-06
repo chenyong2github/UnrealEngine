@@ -12,7 +12,7 @@
 
 #include "Generators/MarchingCubes.h"
 #include "Implicit/Morphology.h"
-
+#include "Implicit/Solidify.h"
 
 
 void FVoxelMorphologyMeshesOp::SetTransform(const FTransform& Transform) {
@@ -80,6 +80,16 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	ImplicitMorphology.Source = &CombinedMesh;
 	FDynamicMeshAABBTree3 Spatial(&CombinedMesh, true);
+
+	if (bSolidifyInput)
+	{
+		TFastWindingTree<FDynamicMesh3> Winding(&Spatial);
+		TImplicitSolidify<FDynamicMesh3> Solidify(&CombinedMesh, &Spatial, &Winding);
+		Solidify.SetCellSizeAndExtendBounds(Spatial.GetBoundingBox(), 0, InputVoxelCount);
+		CombinedMesh.Copy(&Solidify.Generate());
+		Spatial.Build(); // rebuild w/ updated mesh
+	}
+
 	ImplicitMorphology.SourceSpatial = &Spatial;
 	ImplicitMorphology.SetCellSizesAndDistance(CombinedMesh.GetCachedBounds(), Distance, InputVoxelCount, OutputVoxelCount);
 	
