@@ -751,6 +751,16 @@ void UPhysicsAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	RefreshPhysicsAssetChange();
 }
 
+EDataValidationResult UPhysicsAsset::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = EDataValidationResult::Valid;
+	for (USkeletalBodySetup* BodySetup : SkeletalBodySetups)
+	{
+		Result = CombineDataValidationResults(Result, BodySetup->IsDataValid(ValidationErrors));
+	}
+	return Result;
+}
+
 #endif
 
 //// THUMBNAIL SUPPORT //////
