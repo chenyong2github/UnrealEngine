@@ -1378,6 +1378,287 @@ void BuildDateSortedListOfFiles(const TArray<FString>& TokenList, FilenameFilter
 	}
 }
 
+const TCHAR* VertexElementToString(EVertexElementType Type)
+{
+	switch (Type)
+	{
+#define VES_STRINGIFY(T)   case T: return TEXT(#T);
+
+		VES_STRINGIFY(VET_None)
+		VES_STRINGIFY(VET_Float1)
+		VES_STRINGIFY(VET_Float2)
+		VES_STRINGIFY(VET_Float3)
+		VES_STRINGIFY(VET_Float4)
+		VES_STRINGIFY(VET_PackedNormal)
+		VES_STRINGIFY(VET_UByte4)
+		VES_STRINGIFY(VET_UByte4N)
+		VES_STRINGIFY(VET_Color)
+		VES_STRINGIFY(VET_Short2)
+		VES_STRINGIFY(VET_Short4)
+		VES_STRINGIFY(VET_Short2N)
+		VES_STRINGIFY(VET_Half2)
+		VES_STRINGIFY(VET_Half4)
+		VES_STRINGIFY(VET_Short4N)
+		VES_STRINGIFY(VET_UShort2)
+		VES_STRINGIFY(VET_UShort4)
+		VES_STRINGIFY(VET_UShort2N)
+		VES_STRINGIFY(VET_UShort4N)
+		VES_STRINGIFY(VET_URGB10A2N)
+		VES_STRINGIFY(VET_UInt)
+		VES_STRINGIFY(VET_MAX)
+
+#undef VES_STRINGIFY
+	}
+
+	return TEXT("Unknown");
+}
+
+
+void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap)
+{
+	// This may be too strict, but we cannot know the VS signature.
+	auto IsInputLayoutCompatible = [](const FVertexDeclarationElementList& A, const FVertexDeclarationElementList& B, TMap<TTuple<EVertexElementType, EVertexElementType>, int32>& MismatchStats, int& TimesMismatchedNumElements) -> bool
+	{
+		auto NumElements = [](EVertexElementType Type) -> int
+		{
+			switch (Type)
+			{
+				case VET_Float4:
+				case VET_Half4:
+				case VET_Short4:
+				case VET_Short4N:
+				case VET_UShort4:
+				case VET_UShort4N:
+					return 4;
+
+				case VET_Float3:
+					return 3;
+
+				case VET_Float2:
+				case VET_Half2:
+				case VET_Short2:
+				case VET_Short2N:
+				case VET_UShort2:
+				case VET_UShort2N:
+					return 2;
+
+				default:
+					break;
+			}
+
+			return 1;
+		};
+
+		auto IsFloatOrTuple = [](EVertexElementType Type)
+		{
+			// halves can also be promoted to float
+			return Type == VET_Float1 || Type == VET_Float2 || Type == VET_Float3 || Type == VET_Float4 || Type == VET_Half2 || Type == VET_Half4;
+		};
+
+		auto IsShortOrTuple = [](EVertexElementType Type)
+		{
+			return Type == VET_Short2 || Type == VET_Short4;
+		};
+
+		auto IsShortNOrTuple = [](EVertexElementType Type)
+		{
+			return Type == VET_Short2N || Type == VET_Short4N;
+		};
+
+		auto IsUShortOrTuple = [](EVertexElementType Type)
+		{
+			return Type == VET_UShort2 || Type == VET_UShort4;
+		};
+
+		auto IsUShortNOrTuple = [](EVertexElementType Type)
+		{
+			return Type == VET_UShort2N || Type == VET_UShort4N;
+		};
+
+		if (A.Num() != B.Num())
+		{
+			++TimesMismatchedNumElements;
+			return false;
+		}
+
+		for (int32 Idx = 0, Num = A.Num(); Idx < Num; ++Idx)
+		{
+			if (A[Idx].Type != B[Idx].Type)
+			{
+				// when we see float2 vs float4 mismatch, we cannot know which one the vertex expects,
+				// and we assume it needs float4 to be on the safe side
+				if (NumElements(A[Idx].Type) == NumElements(B[Idx].Type))
+				{
+					if (IsFloatOrTuple(A[Idx].Type) && IsFloatOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					if (IsShortOrTuple(A[Idx].Type) && IsShortOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					if (IsShortNOrTuple(A[Idx].Type) && IsShortNOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					if (IsUShortOrTuple(A[Idx].Type) && IsUShortOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					if (IsUShortNOrTuple(A[Idx].Type) && IsUShortNOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+				}
+
+				// found a mismatch. Collect the stats about it.
+				TTuple<EVertexElementType, EVertexElementType> Pair;
+				// to avoid A,B vs B,A tuples, make sure that the first is always lower or equal
+				if (A[Idx].Type < B[Idx].Type)
+				{
+					Pair.Key = A[Idx].Type;
+					Pair.Value = B[Idx].Type;
+				}
+				else
+				{
+					Pair.Key = B[Idx].Type;
+					Pair.Value = A[Idx].Type;
+				}
+
+				if (int32* ExistingCount = MismatchStats.Find(Pair))
+				{
+					++(*ExistingCount);
+				}
+				else
+				{
+					MismatchStats.Add(Pair, 1);
+				}
+
+				return false;
+			}
+		}
+
+		return true;
+	};
+
+	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Running sanity check (consistency of vertex format)."));
+
+	// At this point we cannot really know what is the correct vertex format (input layout) for a given vertex shader. Instead, we're looking if we see the same VS used in multiple PSOs with incompatible vertex descriptors.
+	// If we find that some of them are suspect, we'll remove all such PSOs from the cache. That may be aggressive but it's better to have hitches than hangs and crashes.
+	TMap<FSHAHash, FVertexDeclarationElementList> VSToVertexDescriptor;
+	TSet<FSHAHash> SuspiciousVertexShaders;
+	TMap<TTuple<EVertexElementType, EVertexElementType>, int32> MismatchStats;
+	int32 TimesMismatchedNumElements = 0;
+
+	for (const FPipelineCacheFileFormatPSO& CurPSO : InOutPSOs)
+	{
+		if (CurPSO.Type != FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
+		{
+			continue;
+		}
+
+		if (FVertexDeclarationElementList* Existing = VSToVertexDescriptor.Find(CurPSO.GraphicsDesc.VertexShader))
+		{
+			// check if current is the same or compatible
+			if (!IsInputLayoutCompatible(CurPSO.GraphicsDesc.VertexDescriptor, *Existing, MismatchStats, TimesMismatchedNumElements))
+			{
+				SuspiciousVertexShaders.Add(CurPSO.GraphicsDesc.VertexShader);
+			}
+		}
+		else
+		{
+			VSToVertexDescriptor.Add(CurPSO.GraphicsDesc.VertexShader, CurPSO.GraphicsDesc.VertexDescriptor);
+		}
+	}
+
+	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d vertex shaders are used with an inconsistent vertex format"), SuspiciousVertexShaders.Num());
+
+	// remove all PSOs that have of those vertex shaders
+	if (SuspiciousVertexShaders.Num() > 0)
+	{
+		// print what was not compatible
+		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("The following inconsistencies were noticed:"));
+		if (TimesMismatchedNumElements > 0)
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d times PSOs used the same shader with vertex declarations with a different number of arguments"), TimesMismatchedNumElements);
+		}
+		for (const TTuple< TTuple<EVertexElementType, EVertexElementType>, int32>& Stat : MismatchStats)
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d times one PSO used the vertex shader with %s (%d), another %s (%d) (we don't know VS signature so assume it needs the larger type)"), Stat.Value, VertexElementToString(Stat.Key.Key), Stat.Key.Key, VertexElementToString(Stat.Key.Value), Stat.Key.Value);
+		}
+
+		// print the shaders themselves
+		{
+			TMap<FSHAHash, TArray<FStableShaderKeyAndValue>> InverseMap;
+
+			for (const TTuple<FStableShaderKeyAndValue, FSHAHash>& Pair : StableMap)
+			{
+				FStableShaderKeyAndValue Temp(Pair.Key);
+				Temp.OutputHash = Pair.Value;
+				InverseMap.FindOrAdd(Pair.Value).Add(Temp);
+			}
+
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("These vertex shaders are used with an inconsistent vertex format:"), SuspiciousVertexShaders.Num());
+			int32 SuspectVSIdx = 0;
+			for (const FSHAHash& SuspectVS : SuspiciousVertexShaders)
+			{
+				const TArray<FStableShaderKeyAndValue>* Out = InverseMap.Find(SuspectVS);
+				if (Out && Out->Num() > 0)
+				{
+					if (Out->Num() > 1)
+					{
+						UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d: %d shaders matching hash %s"), SuspectVSIdx, Out->Num(), *SuspectVS.ToString());
+
+						if (UE_LOG_ACTIVE(LogShaderPipelineCacheTools, Verbose))
+						{
+							int32 SubIdx = 0;
+							for (const FStableShaderKeyAndValue& Item : *Out)
+							{
+								UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("    %d: %s"), SubIdx, *Item.ToString());
+								++SubIdx;
+							}
+						}
+						else
+						{
+							UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    Example: %s"), *((*Out)[0].ToString()));
+						}
+					}
+					else
+					{
+						UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d: %s"), SuspectVSIdx, *((*Out)[0].ToString()));
+					}
+				}
+				else
+				{
+					UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("Unknown shader with a hash %s"), *SuspectVS.ToString());
+				}
+				++SuspectVSIdx;
+			}
+		}
+
+		// filter the PSOs
+		TSet<FPipelineCacheFileFormatPSO> FilteredPSOs;
+		for (const FPipelineCacheFileFormatPSO& CurPSO : InOutPSOs)
+		{
+			if (CurPSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics && SuspiciousVertexShaders.Contains(CurPSO.GraphicsDesc.VertexShader))
+			{
+				continue;
+			}
+
+			FilteredPSOs.Add(CurPSO);
+		}
+
+		InOutPSOs = FilteredPSOs;
+	}
+
+	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Number of PSOs after sanity checks: %d."), InOutPSOs.Num());
+}
+
+
 int32 BuildPSOSC(const TArray<FString>& Tokens)
 {
 	check(Tokens.Last().EndsWith(TEXT(".upipelinecache")));
@@ -1554,6 +1835,8 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 		UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("No PSOs were created!"));
 		return 0;
 	}
+
+	FilterInvalidPSOs(PSOs, StableMap);
 
 	if (UE_LOG_ACTIVE(LogShaderPipelineCacheTools, Verbose))
 	{
