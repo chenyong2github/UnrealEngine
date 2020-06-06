@@ -170,17 +170,25 @@ public:
 	/** Parameter struct for customizing calls to AddComponentsToBlueprint */
 	struct FAddComponentsToBlueprintParams
 	{
-		/** Which harvest mode to use when harvesting the components in to the blueprint */
-		EAddComponentToBPHarvestMode HarvestMode = EAddComponentToBPHarvestMode::None;
+		FAddComponentsToBlueprintParams()
+			: HarvestMode(EAddComponentToBPHarvestMode::None)
+			, bKeepMobility(false)
+			, OptionalNewRootNode(nullptr)
+			, OutNodes(nullptr)
+		{
+		}
 
-		/** Which SCSNode to attach the new components to, if null attachment will be to Root */
-		USCS_Node* OptionalNewRootNode = nullptr;
+		/** Which harvest mode to use when harvesting the components in to the blueprint */
+		EAddComponentToBPHarvestMode HarvestMode;
 
 		/** Whether the components should keep their mobility or be adjusted to the new parent */
-		bool bKeepMobility = false;
+		bool bKeepMobility;
+
+		/** Which SCSNode to attach the new components to, if null attachment will be to Root */
+		USCS_Node* OptionalNewRootNode;
 
 		/** Optional pointer to an array for the caller to get a list of the created SCSNodes */
-		TArray<USCS_Node*>* OutNodes = nullptr;
+		TArray<USCS_Node*>* OutNodes;
 	};
 
 	/** Take a list of components that belong to a single Actor and add them to a blueprint as SCSNodes */
@@ -209,17 +217,25 @@ public:
 	/** Parameter struct for customizing calls to AddActorsToBlueprint */
 	struct FAddActorsToBlueprintParams
 	{
+		FAddActorsToBlueprintParams()
+			: bReplaceActors(true)
+			, bDeferCompilation(false)
+			, AttachNode(nullptr)
+			, RelativeToInstance(nullptr)
+		{
+		}
+
 		/** Whether the Actors being added to the blueprint should be deleted */
-		bool bReplaceActors = true;
+		bool bReplaceActors;
 
 		/** Puts off compilation of the blueprint as additional manipulation is going to be done before it compiles */
-		bool bDeferCompilation = false;
+		bool bDeferCompilation;
 
 		/** Which SCSNode the ChildActorComponents should be attached to. If null, attachment will be to the Root */
-		USCS_Node* AttachNode = nullptr;
+		USCS_Node* AttachNode;
 
 		/** An Actor in the level to use as the pivot point when setting the component's relative transform */
-		AActor* RelativeToInstance = nullptr;
+		AActor* RelativeToInstance;
 
 		/** 
 		 * If RelativeToInstance is null, RelativeToTransform is the WorldLocation Pivot
@@ -234,20 +250,29 @@ public:
 	/** Parameter struct for customizing calls to CreateBlueprintFromActor */
 	struct FCreateBlueprintFromActorParams
 	{
+		FCreateBlueprintFromActorParams()
+			: bReplaceActor(true)
+			, bKeepMobility(false)
+			, bDeferCompilation(false)
+			, bOpenBlueprint(true)
+			, ParentClassOverride(nullptr)
+		{
+		}
+
 		/** If true, replace the actor in the scene with one based on the created blueprint */
-		bool bReplaceActor = true;
+		bool bReplaceActor;
 
 		/** If true, The mobility of each actor components will be copied */
-		bool bKeepMobility = false;
+		bool bKeepMobility;
 
 		/** Puts off compilation of the blueprint as additional manipulation is going to be done before it compiles */
-		bool bDeferCompilation = false;
+		bool bDeferCompilation;
 
 		/** Whether the newly created blueprint should be opened in the editor */
-		bool bOpenBlueprint = true;
+		bool bOpenBlueprint;
 
 		/** The parent class to use when creating the blueprint.If null, the class of Actor will be used.If specified, must be a subclass of the Actor's class */
-		UClass* ParentClassOverridde = nullptr;
+		UClass* ParentClassOverride;
 	};
 
 	/**
@@ -283,7 +308,7 @@ public:
 		FCreateBlueprintFromActorParams Params;
 		Params.bReplaceActor = bReplaceActor;
 		Params.bKeepMobility = bKeepMobility;
-		Params.ParentClassOverridde = ParentClassOverride;
+		Params.ParentClassOverride = ParentClassOverride;
 		return CreateBlueprintFromActor(Path, Actor, Params);
 	}
 
@@ -303,7 +328,7 @@ public:
 		FCreateBlueprintFromActorParams Params;
 		Params.bReplaceActor = bReplaceInWorld;
 		Params.bKeepMobility = bKeepMobility;
-		Params.ParentClassOverridde = ParentClassOverride;
+		Params.ParentClassOverride = ParentClassOverride;
 		return CreateBlueprintFromActor(BlueprintName, Outer, Actor, Params);
 	}
 
