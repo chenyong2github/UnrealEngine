@@ -57,6 +57,10 @@ public:
 	/** Blend falloff controls the size of the blend region */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = ".1", UIMax = "100", ClampMin = ".001", ClampMax = "1000"))
 	double BlendFalloff = 10;
+
+	/** Solidify the input mesh(es) before processing, fixing results for inputs with holes and/or self-intersections */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bSolidifyInput = false;
 };
 
 

@@ -9,6 +9,8 @@
 #include "MeshTransforms.h"
 #include "MeshSimplification.h"
 
+#include "Implicit/Solidify.h"
+
 #include "Implicit/Blend.h"
 
 
@@ -40,6 +42,15 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 			TransformedMeshes[MeshIdx].ReverseOrientation(false);
 		}
 		MeshTransforms::ApplyTransform(TransformedMeshes[MeshIdx], (FTransform3d)Transforms[MeshIdx]);
+
+		if (bSolidifyInput)
+		{
+			FDynamicMeshAABBTree3 Spatial(&TransformedMeshes[MeshIdx]);
+			TFastWindingTree<FDynamicMesh3> Winding(&Spatial);
+			TImplicitSolidify<FDynamicMesh3> Solidify(&TransformedMeshes[MeshIdx], &Spatial, &Winding);
+			Solidify.SetCellSizeAndExtendBounds(Spatial.GetBoundingBox(), 0, InputVoxelCount);
+			TransformedMeshes[MeshIdx].Copy(&Solidify.Generate());
+		}
 
 		ImplicitBlend.Sources.Add(&TransformedMeshes[MeshIdx]);
 		FAxisAlignedBox3d& SourceBounds = ImplicitBlend.SourceBounds.Add_GetRef(TransformedMeshes[MeshIdx].GetCachedBounds());

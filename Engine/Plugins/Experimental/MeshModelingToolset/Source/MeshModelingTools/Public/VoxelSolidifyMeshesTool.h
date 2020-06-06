@@ -11,9 +11,7 @@
 #include "Properties/OnAcceptProperties.h"
 #include "Properties/VoxelProperties.h"
 
-#include "CompositionOps/VoxelMorphologyMeshesOp.h"
-
-#include "VoxelMorphologyMeshesTool.generated.h"
+#include "VoxelSolidifyMeshesTool.generated.h"
 
 // predeclarations
 class FDynamicMesh3;
@@ -22,7 +20,7 @@ class UTransformProxy;
 
 
 UCLASS()
-class MESHMODELINGTOOLS_API UVoxelMorphologyMeshesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UVoxelSolidifyMeshesToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
@@ -36,46 +34,65 @@ public:
 
 
 /**
- * Properties of the morphology tool
+ * Properties of the solidify operation
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UVoxelMorphologyMeshesToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UVoxelSolidifyMeshesToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
 
 	/** Show UI to allow changing translation, rotation and scale of input meshes */
 	UPROPERTY(EditAnywhere, Category = Options)
-	bool bShowTransformUI = false;
+	bool bShowTransformUI = true;
 
 	/** Snap the cut plane to the world grid */
 	UPROPERTY(EditAnywhere, Category = Snapping, meta = (EditCondition = "bShowTransformUI == true"))
 	bool bSnapToWorldGrid = false;
 
-	UPROPERTY(EditAnywhere, Category = Options)
-	EMorphologyOperation Operation = EMorphologyOperation::Dilate;
+	/** Winding number threshold to determine what is consider inside the mesh */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.1", UIMax = ".9", ClampMin = "-10", ClampMax = "10"))
+	double WindingThreshold = .5;
 
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = ".1", UIMax = "100", ClampMin = ".001", ClampMax = "1000"))
-	double Distance = 5;
+	/** How far we allow bounds of solid surface to go beyond the bounds of the original input surface before clamping / cutting the surface off */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "1000"))
+	double ExtendBounds = 1;
 
-	/** Solidify the input mesh(es) before processing, fixing results for inputs with holes and/or self-intersections */
+	/** How many binary search steps to take when placing vertices on the surface */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "6", ClampMin = "0", ClampMax = "10"))
+	int SurfaceSearchSteps = 4;
+
+	/** Whether to fill at the border of the bounding box, if the surface extends beyond the voxel boundaries */
 	UPROPERTY(EditAnywhere, Category = Options)
-	bool bSolidifyInput = false;
+	bool bSolidAtBoundaries = true;
+
+	/** If true, treats mesh surfaces with open boundaries as having a fixed, user-defined thickness */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bMakeOffsetSurfaces = false;
+
+	/** Thickness of offset surfaces */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = ".1", UIMax = "100", ClampMin = ".001", ClampMax = "1000", EditCondition = "bMakeOffsetSurfaces == true"))
+	double OffsetThickness = 5;
+
+	
+
+	
+	
 };
 
 
 
 /**
- * Morphology tool -- dilate, contract, close, open operations on the input shape
+ * Tool to take one or more meshes, possibly intersecting and possibly with holes, and create a single solid mesh with consistent inside/outside
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UVoxelMorphologyMeshesTool : public UMultiSelectionTool, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UVoxelSolidifyMeshesTool : public UMultiSelectionTool, public IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 
-	UVoxelMorphologyMeshesTool();
+	UVoxelSolidifyMeshesTool();
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -105,7 +122,7 @@ protected:
 	UMeshOpPreviewWithBackgroundCompute* Preview;
 
 	UPROPERTY()
-	UVoxelMorphologyMeshesToolProperties* MorphologyProperties;
+	UVoxelSolidifyMeshesToolProperties* SolidifyProperties;
 
 	UPROPERTY()
 	UVoxelProperties* VoxProperties;
