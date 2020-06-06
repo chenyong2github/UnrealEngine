@@ -561,6 +561,18 @@ void FICUInternationalization::RefreshCultureDisplayNames(const TArray<FString>&
 	}
 }
 
+void FICUInternationalization::RefreshCachedConfigData()
+{
+	bHasInitializedCultureMappings = false;
+	CultureMappings.Reset();
+	ConditionalInitializeCultureMappings();
+
+	bHasInitializedAllowedCultures = false;
+	EnabledCultures.Reset();
+	DisabledCultures.Reset();
+	ConditionalInitializeAllowedCultures();
+}
+
 void FICUInternationalization::HandleLanguageChanged(const FCultureRef InNewLanguage)
 {
 	UErrorCode ICUStatus = U_ZERO_ERROR;

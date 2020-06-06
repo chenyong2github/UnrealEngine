@@ -39,6 +39,7 @@ public:
 	bool IsCultureAllowed(const FString& Name);
 
 	void RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames);
+	void RefreshCachedConfigData();
 
 	void HandleLanguageChanged(const FCultureRef InNewLanguage);
 	void GetCultureNames(TArray<FString>& CultureNames) const;
