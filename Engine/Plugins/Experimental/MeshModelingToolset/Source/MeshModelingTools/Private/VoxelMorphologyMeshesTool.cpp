@@ -35,8 +35,7 @@
 
 bool UVoxelMorphologyMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	// TODO: consider supporting multi-select after adding solidify option?
-	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
+	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 1;
 }
 
 UInteractiveTool* UVoxelMorphologyMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -241,6 +240,8 @@ TUniquePtr<FDynamicMeshOperator> UVoxelMorphologyMeshesTool::MakeNewOperator()
 	Op->SimplifyMaxErrorFactor = VoxProperties->SimplifyMaxErrorFactor;
 	Op->bAutoSimplify = VoxProperties->bAutoSimplify;
 	Op->MinComponentVolume = VoxProperties->CubeRootMinComponentVolume * VoxProperties->CubeRootMinComponentVolume * VoxProperties->CubeRootMinComponentVolume;
+
+	Op->bSolidifyInput = MorphologyProperties->bSolidifyInput;
 	Op->Distance = MorphologyProperties->Distance;
 	Op->Operation = MorphologyProperties->Operation;
 
