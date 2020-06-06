@@ -634,7 +634,7 @@ public:
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
 	virtual bool HasTickGroupPrereqs() const override { return true; }
-	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const override;
+	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	//~ UNiagaraDataInterface interface END
 
