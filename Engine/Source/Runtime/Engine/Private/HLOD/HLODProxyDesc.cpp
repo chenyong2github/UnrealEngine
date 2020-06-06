@@ -22,12 +22,12 @@ FHLODISMComponentDesc::FHLODISMComponentDesc(const UInstancedStaticMeshComponent
 	}
 }
 
-void UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
+bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 {
 	// Check if there's any difference between the LODActor & its description
 	if (!ShouldUpdateDesc(InLODActor))
 	{
-		return;
+		return false;
 	}
 
 	// A difference was detected, copy all parameters from the LODActor
@@ -70,6 +70,8 @@ void UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 	Key = InLODActor->Key;
 	LODLevel = InLODActor->LODLevel;
 	LODActorTag = InLODActor->LODActorTag;
+
+	return true;
 }
 
 bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
@@ -231,7 +233,7 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 
 	LODActor->AddSubActors(SubActorsToAdd);
 
-	LODActor->ProxyDesc = this;
+	LODActor->ProxyDesc = const_cast<UHLODProxyDesc*>(this);
 	LODActor->bBuiltFromHLODDesc = true;
 
 	return LODActor;
