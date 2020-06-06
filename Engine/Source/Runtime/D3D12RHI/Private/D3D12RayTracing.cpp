@@ -2583,7 +2583,8 @@ void FD3D12RayTracingGeometry::ConditionalCompactAccelerationStructure(FD3D12Com
 		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
 		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingBLASMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
 
-		SetName(AccelerationStructureBuffers[GPUIndex]->GetResource(), TEXT("Acceleration structure"));
+		SetName(AccelerationStructureBuffers[GPUIndex]->GetResource(),
+			DebugName.IsValid() ? *DebugName.ToString() : TEXT("BLAS"));
 
 		ID3D12GraphicsCommandList4* RayTracingCommandList = CommandContext.CommandListHandle.RayTracingCommandList();
 		RayTracingCommandList->CopyRaytracingAccelerationStructure(
