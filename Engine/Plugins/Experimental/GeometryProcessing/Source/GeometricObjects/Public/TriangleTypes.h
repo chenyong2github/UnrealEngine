@@ -101,6 +101,23 @@ struct TTriangle2
 		return IsInside(V[0], V[1], V[2], QueryPoint);
 	}
 
+
+	/** @return true if QueryPoint is inside triangle or on edge */
+	static bool IsInsideOrOn(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C, const FVector2<RealType>& QueryPoint)
+	{
+		RealType Sign1 = FVector2<RealType>::Orient(A, B, QueryPoint);
+		RealType Sign2 = FVector2<RealType>::Orient(B, C, QueryPoint);
+		RealType Sign3 = FVector2<RealType>::Orient(C, A, QueryPoint);
+		return (Sign1*Sign2 >= 0) && (Sign2*Sign3 >= 0) && (Sign3*Sign1 >= 0);
+	}
+
+	/** @return true if QueryPoint is inside triangle or on edge */
+	bool IsInsideOrOn(const FVector2<RealType>& QueryPoint, RealType Epsilon = 0) const
+	{
+		return IsInsideOrOn(V[0], V[1], V[2], QueryPoint);
+	}
+
+
 	/**
 	 * More robust (because it doesn't multiply orientation test results) inside-triangle test for oriented triangles only
 	 *  (the code early-outs at the first 'outside' edge, which only works if the triangle is oriented as expected)
