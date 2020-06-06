@@ -26,36 +26,25 @@ TJointConstraintProxy<CONSTRAINT_TYPE>::~TJointConstraintProxy()
 {
 }
 
-template < >
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* InSolver)
+
+
+template< class CONSTRAINT_TYPE>
+EPhysicsProxyType TJointConstraintProxy<CONSTRAINT_TYPE>::ConcreteType()
 {
+	return EPhysicsProxyType::NoneType;
+}
+
+template<>
+EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
+{
+	return EPhysicsProxyType::JointConstraintType;
 }
 
 
-template < >
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* InSolver)
-{
-}
-
 
 template < >
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* InSolver)
-{
-}
-
-
-template < >
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FNonRewindableEvolutionTraits>* RBDSolver)
-{
-}
-
-template < >
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FRewindableEvolutionTraits>* InSolver)
+template < class Trait >
+void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
 {
 	auto& Handles = InSolver->GetParticles().GetParticleHandles();
 	if (Handles.Size() && IsValid())
@@ -77,8 +66,8 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 
 
 template < >
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::FRewindableEvolutionTraits>* InSolver)
+template < class Trait >
+void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
 {
 	if (Constraint != nullptr)
 	{
@@ -88,24 +77,28 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 
 
 template < >
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FRewindableEvolutionTraits>* InSolver)
+template < class Trait >
+void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
 {
 }
 
 
 template < >
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::FRewindableEvolutionTraits>* RBDSolver)
+template < class Trait >
+void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* RBDSolver)
 {
 	// @todo(chaos) : Implement
 }
 
-template<>
-EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
-{ 
-	return EPhysicsProxyType::JointConstraintType;
-}
+
 
 template class TJointConstraintProxy< Chaos::FJointConstraint >;
 
+#define EVOLUTION_TRAIT(Traits)\
+template void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
+template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
+template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
+template void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver);\
+
+#include "Chaos/EvolutionTraits.inl"
+#undef EVOLUTION_TRAIT
