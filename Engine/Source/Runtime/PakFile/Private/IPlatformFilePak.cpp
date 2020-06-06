@@ -6344,10 +6344,58 @@ void FPakFile::ValidateDirectorySearch(const TSet<FString>& FullFoundFiles, cons
 }
 #endif
 
+bool FPakFile::RecreatePakReaders(IPlatformFile* LowerLevel)
+{
+	FScopeLock ScopedLock(&CriticalSection);
+
+	// need to reset the decryptor as it will hold a pointer to the first created pak reader
+	Decryptor.Reset();
+
+	TMap<uint32, TUniquePtr<FArchive>> TempReaderMap;
+
+	// Create a new PakReader *per* thread that was already mapped
+	for (const TPair<uint32, TUniquePtr<FArchive>>& Reader : ReaderMap)
+	{
+		FArchive* PakReader = nullptr;
+		uint32 Thread = Reader.Key;
+
+		if (LowerLevel != nullptr)
+		{
+			IFileHandle* PakHandle = LowerLevel->OpenRead(*GetFilename());
+			if (PakHandle)
+			{
+				PakReader = CreatePakReader(*PakHandle, *GetFilename());
+			}
+		}
+		else
+		{
+			PakReader = CreatePakReader(*GetFilename());
+		}
+
+		if (!PakReader)
+		{
+			UE_LOG(LogPakFile, Warning, TEXT("Unable to re-create pak \"%s\" handle"), *GetFilename());
+			return false;
+		}
+
+#if DO_CHECK
+		FArchive* Proxy = new FThreadCheckingArchiveProxy(PakReader, Thread);
+		TempReaderMap.Emplace(Thread, Proxy);
+#else
+		TempReaderMap.Emplace(Thread, PakReader);
+#endif //DO_CHECK
+	}
+
+	// replace the current ReaderMap with the newly created pak readers leaving them to out of scope
+	ReaderMap = MoveTemp(TempReaderMap);
+
+	return true;
+}
+
 FArchive* FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 {
 	uint32 Thread = FPlatformTLS::GetCurrentThreadId();
-	FArchive* PakReader = NULL;
+	FArchive* PakReader = nullptr;
 	{
 		FScopeLock ScopedLock(&CriticalSection);
 		TUniquePtr<FArchive>* ExistingReader = ReaderMap.Find(Thread);
@@ -6359,7 +6407,7 @@ FArchive* FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 		if (!PakReader)
 		{
 			// Create a new FArchive reader and pass it to the new handle.
-			if (LowerLevel != NULL)
+			if (LowerLevel != nullptr)
 			{
 				IFileHandle* PakHandle = LowerLevel->OpenRead(*GetFilename());
 				if (PakHandle)
@@ -6485,7 +6533,7 @@ public:
 			PlatformFile.HandleMountCommand(Cmd, Ar);
 			return true;
 		}
-		if (FParse::Command(&Cmd, TEXT("Unmount")))
+		else if (FParse::Command(&Cmd, TEXT("Unmount")))
 		{
 			PlatformFile.HandleUnmountCommand(Cmd, Ar);
 			return true;
@@ -6498,6 +6546,11 @@ public:
 		else if (FParse::Command(&Cmd, TEXT("PakCorrupt")))
 		{
 			PlatformFile.HandlePakCorruptCommand(Cmd, Ar);
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("ReloadPakReaders")))
+		{
+			PlatformFile.HandleReloadPakReadersCommand(Cmd, Ar);
 			return true;
 		}
 		return false;
@@ -6539,6 +6592,16 @@ void FPakPlatformFile::HandlePakCorruptCommand(const TCHAR* Cmd, FOutputDevice& 
 #if USE_PAK_PRECACHE
 	FPakPrecacher::Get().SimulatePakFileCorruption();
 #endif
+}
+
+void FPakPlatformFile::HandleReloadPakReadersCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	TArray<FPakListEntry> Paks;
+	GetMountedPaks(Paks);
+	for (FPakListEntry& Pak : Paks)
+	{
+		Pak.PakFile->RecreatePakReaders(LowerLevel);
+	}
 }
 #endif // !UE_BUILD_SHIPPING
 
@@ -7024,6 +7087,21 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 		}
 	}
 	return false;
+}
+
+bool FPakPlatformFile::ReloadPakReaders()
+{
+	TArray<FPakListEntry> Paks;
+	GetMountedPaks(Paks);
+	for (FPakListEntry& Pak : Paks)
+	{
+		if (!Pak.PakFile->RecreatePakReaders(LowerLevel))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 IFileHandle* FPakPlatformFile::CreatePakFileHandle(const TCHAR* Filename, FPakFile* PakFile, const FPakEntry* FileEntry)
