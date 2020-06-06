@@ -679,6 +679,9 @@ public:
 #endif
 	};
 
+	/** Recreates the pak reader for each thread */
+	bool RecreatePakReaders(IPlatformFile* LowerLevel);
+
 private:
 	friend class FPakPlatformFile;
 
@@ -2196,6 +2199,11 @@ public:
 	int32 MountAllPakFiles(const TArray<FString>& PakFolders, const FString& WildCard);
 
 	/**
+	 * Re-creates all the pak readers
+	 */
+	bool ReloadPakReaders();
+
+	/**
 	 * Make unique in memory pak files from a list of named files
 	 */
 	virtual void MakeUniquePakFilesForTheseFiles(const TArray<TArray<FString>>& InFiles);
@@ -2974,6 +2982,7 @@ public:
 	void HandleMountCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	void HandleUnmountCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	void HandlePakCorruptCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	void HandleReloadPakReadersCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 #endif
 	// END Console commands
 	
