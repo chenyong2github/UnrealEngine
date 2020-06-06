@@ -478,7 +478,7 @@ void UNiagaraSystem::PostLoad()
 		for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
 		{
 			EmitterHandle.ConditionalPostLoad(NiagaraVer);
-			if (EmitterHandle.GetIsEnabled() && !EmitterHandle.GetInstance()->AreAllScriptAndSourcesSynchronized())
+			if (EmitterHandle.GetIsEnabled() && EmitterHandle.GetInstance() && !EmitterHandle.GetInstance()->AreAllScriptAndSourcesSynchronized())
 			{
 				bEmitterScriptsAreSynchronized = false;
 			}
@@ -1410,6 +1410,13 @@ void UNiagaraSystem::InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData&
 
 bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext)
 {
+	// We remove emitters and scripts on dedicated servers, so skip further work.
+	const bool bIsDedicatedServer = !GIsClient && GIsServer;
+	if (bIsDedicatedServer)
+	{
+		return false;
+	}
+
 	bool bCompileGuardInProgress = InternalCompileGuardCheck(this);
 
 	if (bForce)
