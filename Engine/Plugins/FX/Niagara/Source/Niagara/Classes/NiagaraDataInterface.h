@@ -324,7 +324,7 @@ public:
 	virtual bool RequiresEarlyViewData() const { return false; }
 
 	virtual bool HasTickGroupPrereqs() const { return false; }
-	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const { return NiagaraFirstTickGroup; }
+	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const { return NiagaraFirstTickGroup; }
 
 	/** Determines if this type definition matches to a known data interface type.*/
 	static bool IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef);

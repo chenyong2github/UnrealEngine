@@ -1423,7 +1423,7 @@ float FNiagaraSystemInstance::GetLODDistance()
 	return LODDistance;
 }
 
-ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
+ETickingGroup FNiagaraSystemInstance::CalculateTickGroup() const
 {
 	ETickingGroup NewTickGroup = (ETickingGroup)0;
 
@@ -1449,7 +1449,7 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 			// Handle data interfaces that have tick dependencies
 			if ( bDataInterfacesHaveTickPrereqs )
 			{
-				for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
+				for (const TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
 				{
 					if (UNiagaraDataInterface* Interface = Pair.Key.Get())
 					{
