@@ -2856,9 +2856,9 @@ void UNiagaraDataInterfaceSkeletalMesh::SetSamplingRegionsFromBlueprints(const T
 	SamplingRegions = InSamplingRegions;
 }
 
-ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(void* PerInstanceData) const
+ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(const void* PerInstanceData) const
 {
-	FNDISkeletalMesh_InstanceData* InstData = static_cast<FNDISkeletalMesh_InstanceData*>(PerInstanceData);
+	const FNDISkeletalMesh_InstanceData* InstData = static_cast<const FNDISkeletalMesh_InstanceData*>(PerInstanceData);
 	USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InstData->Component.Get());
 	if ( Component )
 	{
