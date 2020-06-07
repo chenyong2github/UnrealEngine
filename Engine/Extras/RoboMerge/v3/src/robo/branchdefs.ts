@@ -73,7 +73,7 @@ interface NodeOptionFields extends BranchBase {
 	workspaceNameOverride: string
 	additionalSlackChannelForBlockages: string
 	ignoreBranchspecs: boolean
-	lastGoodCLPath: string
+	lastGoodCLPath: string | number
 
 	initialCL: number
 	forcePause: boolean
@@ -88,9 +88,10 @@ interface NodeOptionFields extends BranchBase {
 
 // will eventually have all properties listed on wiki
 type EdgeOptionFields = {
-	lastGoodCLPath: string
+	lastGoodCLPath: string | number
 	additionalSlackChannel: string
 	initialCL: number
+	forcePause: boolean
 	p4MaxRowsOverride: number // use with care and check with p4 admins
 
 	disallowSkip: boolean
