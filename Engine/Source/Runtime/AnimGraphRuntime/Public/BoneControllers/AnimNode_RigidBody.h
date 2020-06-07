@@ -57,6 +57,10 @@ struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float MaxAngularAcceleration;
 
+	// Can be used to simulate freefall
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
+	float Freefall;
+
 	// Additional linear drag applied to every body (in addition to linear drag in the physics asset).
 	// Useful when combined with ExternalLinearVelocity to add a temporart wind-blown effect without
 	// having to set up the physics asset with linear drag.
