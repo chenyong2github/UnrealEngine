@@ -635,13 +635,13 @@ namespace ImmediatePhysics_Chaos
 		Implementation->NarrowPhase.GetContext().SpaceTransform = Transform;	// @todo(chaos): remove when manifolds are fixed or removed
 	}
 
-	void FSimulation::SetSimulationSpaceSettings(const FReal MasterAlpha)
+	void FSimulation::SetSimulationSpaceSettings(const FReal MasterAlpha, const FReal ExternalLinearEtherDrag)
 	{
 		using namespace Chaos;
 
-		FSimulationSpaceSettings SimSpaceSettings = Implementation->Evolution.GetSimulationSpaceSettings();
+		FSimulationSpaceSettings& SimSpaceSettings = Implementation->Evolution.GetSimulationSpaceSettings();
 		SimSpaceSettings.MasterAlpha = MasterAlpha;
-		Implementation->Evolution.SetSimulationSpaceSettings(SimSpaceSettings);
+		SimSpaceSettings.ExternalLinearEtherDrag = ExternalLinearEtherDrag;
 	}
 
 	void FSimulation::SetSolverIterations(const FReal InFixedDt, const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts)

@@ -56,6 +56,20 @@ struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 	// A clamp on the effective simulation-space angular accleration that is passed to the solver
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float MaxAngularAcceleration;
+
+	// Additional linear drag applied to every body (in addition to linear drag in the physics asset).
+	// Useful when combined with ExternalLinearVelocity to add a temporart wind-blown effect without
+	// having to set up the physics asset with linear drag.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
+	float ExternalLinearDrag;
+
+	// Additional velocity to pass into the solver - for wind etc
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	FVector ExternalLinearVelocity;
+
+	// Additional angular velocity to pass into the solver
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	FVector ExternalAngularVelocity;
 };
 
 /**
@@ -229,6 +243,7 @@ private:
 		const FTransform& ComponentToWorld,
 		const FTransform& BoneToComponent);
 
+	// Calculate simulation space transform, velocity etc to pass into the solver
 	void CalculateSimulationSpace(
 		ESimulationSpace Space,
 		const FTransform& ComponentToWorld,
