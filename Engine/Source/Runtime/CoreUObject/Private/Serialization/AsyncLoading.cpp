@@ -110,6 +110,23 @@ bool IsGarbageCollectionLocked();
 /** Global request ID counter */
 static FThreadSafeCounter GPackageRequestID;
 
+TAtomic<int>	GAsyncLoadingFlushIsActive(0);
+
+class FScopeAsyncLoadingFlushIsActive
+{
+public:
+	FScopeAsyncLoadingFlushIsActive()
+	{
+		GAsyncLoadingFlushIsActive++;
+	}
+
+	~FScopeAsyncLoadingFlushIsActive()
+	{
+		GAsyncLoadingFlushIsActive--;
+	}
+};
+
+
 /**
  * Updates FUObjectThreadContext with the current package when processing it.
  * FUObjectThreadContext::AsyncPackage is used by NotifyConstructedDuringAsyncLoading.
@@ -1245,6 +1262,7 @@ struct FPrecacheCallbackHandler
 
 	void UpdatePlatformFilePrecacheThrottling(bool bEnablePrecacheRequests)
 	{
+		CSV_EVENT(FileIO, TEXT("Precache %s"), bEnablePrecacheRequests ? TEXT("Enabled") : TEXT("Disabled"));
 		// If we're not processing precache requests, set the min priority to GAsyncLoadingPrecachePriority + 1
 		EAsyncIOPriorityAndFlags NewMinPriority = bEnablePrecacheRequests ? AIOP_MIN : (EAsyncIOPriorityAndFlags)FMath::Clamp(GAsyncLoadingPrecachePriority + 1, (int32)AIOP_MIN, (int32)AIOP_MAX);
 		FPlatformFileManager::Get().GetPlatformFile().SetAsyncMinimumPriority(NewMinPriority);
@@ -6922,6 +6940,7 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 		{
 			return;
 		}
+		FScopeAsyncLoadingFlushIsActive FlushIsActive;
 
 		FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
 
