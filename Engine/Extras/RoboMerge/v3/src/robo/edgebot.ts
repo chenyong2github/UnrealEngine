@@ -121,6 +121,11 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			return
 		}
 
+		if (typeof(this.options.lastGoodCLPath) === 'number') {
+			this.lastGoodCL = this.options.lastGoodCLPath
+			return
+		}
+
 		let goodCL = -1
 		let clString = null
 		try {
