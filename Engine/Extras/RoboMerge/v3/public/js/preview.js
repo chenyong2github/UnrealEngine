@@ -1,0 +1,16 @@
+function doit(cl, bot) {
+	$.get(`..?cl=${cl}&bot=${bot}`)
+	.then(data => {
+		$('#graph').append(showFlowGraph(JSON.parse(data).allBranches, bot.toUpperCase()));
+		$('#success-panel').show();
+	})
+	.catch(error => {
+
+		const $errorPanel = $('#error-panel');
+		$('pre', $errorPanel).text(error.responseText.replace(/\t/g, '    '));
+		$errorPanel.show();
+	});
+
+}
+
+window.doPreview = doit;
