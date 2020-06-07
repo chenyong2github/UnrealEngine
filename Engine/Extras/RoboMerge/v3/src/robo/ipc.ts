@@ -9,6 +9,7 @@ import { GraphBot } from './graphbot';
 import { RoboMerge } from './robo';
 import { roboAnalytics } from './roboanalytics';
 import { Status } from './status';
+import { getPreview } from './preview'
 
 // Reminder that RoboMerge variable is null in this file! ${RoboMerge}
 
@@ -61,6 +62,7 @@ export class IPC {
 			case 'crashGraphBot': return this.crashGraphBot(msg.args![0] as string, msg.args![1] as string)
 			case 'crashAPI': throw new Error(`API Crash requested by ${msg.args![0]}`)
 			case 'forceBranchmapUpdate': return this.forceBranchmapUpdate(msg.args![0] as string)
+			case 'preview': return this.preview(msg.args![0] as string, msg.args![1] as string)
 
 			case 'doNodeOp': return this.doOperation(
 				msg.args![0] as string,
@@ -242,6 +244,26 @@ export class IPC {
 
 		graphBot.forceBranchmapUpdate()
 		return OPERATION_SUCCESS
+	}
+
+	private async preview(clStr: string, botname: string): Promise<OperationReturnType> {
+		const cl = parseInt(clStr)
+		if (isNaN(cl)) {
+			throw new Error(`Failed to parse alleged CL '${clStr}'`)
+		}
+
+		try {
+			return {
+				statusCode: 200,
+				message: JSON.stringify(await getPreview(cl, botname))
+			}
+		}
+		catch (err) {
+			return {
+				statusCode: 400,
+				message: err.toString()
+			}
+		}
 	}
 
 	private setVerbose(enabled: boolean): OperationReturnType {
