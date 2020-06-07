@@ -267,8 +267,8 @@ namespace Chaos
 					const FVec3 LinnearDragAcc = SimulationSpaceSettings.ExternalLinearEtherDrag * SpaceV;
 					DV -= SimulationSpaceSettings.MasterAlpha * (LinearAcc + LinnearDragAcc + CoriolisAcc + CentrifugalAcc + EulerAcc) * Dt;
 					DW -= SimulationSpaceSettings.MasterAlpha * AngularAcc * Dt;
-					TargetV = SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.LinearVelocityAlpha * SpaceV;
-					TargetW = SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.AngularVelocityAlpha * SpaceW;
+					TargetV = -SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.LinearVelocityAlpha * SpaceV;
+					TargetW = -SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.AngularVelocityAlpha * SpaceW;
 				}
 
 				// New velocity
