@@ -106,6 +106,9 @@ public:
 protected:
 	/** Deactivates the editor mode at the specified index */
 	void DeactivateScriptableModeAtIndex(int32 InIndex);
+
+	/** Removes the mode ID from the tools manager when a mode is unregistered */
+	void OnModeUnregistered(FEditorModeID ModeID);
 		
 private:
 	void RebuildModeToolBar();

@@ -146,9 +146,6 @@ TSharedPtr<FEdMode> FEditorModeRegistry::CreateMode(FEditorModeID ModeID, FEdito
 		Instance->Info = (*ModeFactory)->GetModeInfo();
 		Instance->Owner = &Owner;
 
-		// This binding ensures the mode is destroyed if the type is unregistered
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().AddSP(Instance, &FEdMode::OnModeUnregistered);
-
 		Instance->Initialize();
 
 		return Instance;
