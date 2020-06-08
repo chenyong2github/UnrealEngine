@@ -3196,9 +3196,9 @@ void USceneComponent::OnRep_AttachChildren()
 	{
 		for (USceneComponent* AttachChild : AttachChildren)
 		{
-			if (AttachChild)
+			// Clear out any initially attached components from the ClientAttachedChildren array that end up becoming replicated, but only if the child now is NetSimulating.
+			if (AttachChild && AttachChild->IsNetSimulating())
 			{
-				// Clear out any initially attached components from the client attached list that end up becoming replicated
 				ClientAttachedChildren.Remove(AttachChild);
 			}
 		}
