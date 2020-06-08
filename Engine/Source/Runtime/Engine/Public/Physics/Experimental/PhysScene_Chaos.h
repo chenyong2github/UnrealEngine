@@ -428,6 +428,10 @@ public:
 
 	ENGINE_API static Chaos::FCollisionModifierCallback CollisionModifierCallback;
 
+	ENGINE_API void DeferPhysicsStateCreation(UPrimitiveComponent* Component);
+	ENGINE_API void RemoveDeferredPhysicsStateCreation(UPrimitiveComponent* Component);
+	ENGINE_API void ProcessDeferredCreatePhysicsState();
+
 #if XGE_FIXED
 	template<typename PayloadType>
 	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda)
@@ -515,6 +519,7 @@ private:
 
 	FPhysScene_Chaos Scene;
 
+	TSet<UPrimitiveComponent*> DeferredCreatePhysicsStateComponents;
 	float MDeltaTime;
 	//Body Instances
 	TUniquePtr<Chaos::TArrayCollectionArray<FBodyInstance*>> BodyInstances;

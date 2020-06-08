@@ -1205,6 +1205,9 @@ FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSet
 
 FPhysScene_ChaosInterface::~FPhysScene_ChaosInterface()
 {
+	// Must ensure deferred components do not hold onto scene pointer.
+	ProcessDeferredCreatePhysicsState();
+	
 	FPhysicsDelegates::OnPhysSceneTerm.Broadcast(this);
 }
 
@@ -1745,6 +1748,66 @@ void ProcessKinematicTargetActors(FPhysScene_Chaos& Scene, const TArrayView<FPhy
 	ProcessTeleportActors(Scene, ActorHandles, Transforms);
 }
 
+void FPhysScene_ChaosInterface::DeferPhysicsStateCreation(UPrimitiveComponent* Component)
+{
+	if (Component)
+	{
+		UBodySetup* Setup = Component->GetBodySetup();
+		if (Setup)
+		{
+			DeferredCreatePhysicsStateComponents.Add(Component);
+			Component->DeferredCreatePhysicsStateScene = this;
+		}
+	}
+}
+
+void FPhysScene_ChaosInterface::RemoveDeferredPhysicsStateCreation(UPrimitiveComponent* Component)
+{
+	DeferredCreatePhysicsStateComponents.Remove(Component);
+	Component->DeferredCreatePhysicsStateScene = nullptr;
+}
+
+void FPhysScene_ChaosInterface::ProcessDeferredCreatePhysicsState()
+{
+	SCOPE_CYCLE_COUNTER(STAT_ProcessDeferredCreatePhysicsState)
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPhysScene_ChaosInterface::ProcessDeferredCreatePhysicsState)
+
+	// Gather body setups, difficult to gather in advance, as we must be able to remove setups if all components referencing are removed,
+	// otherwise risk using a deleted setup. If we can assume a component's bodysetup will not change, can try reference counting setups.
+	TSet<UBodySetup*> UniqueBodySetups;
+	for (UPrimitiveComponent* PrimitiveComponent : DeferredCreatePhysicsStateComponents)
+	{
+		if (PrimitiveComponent->ShouldCreatePhysicsState())
+		{
+			UBodySetup* Setup = PrimitiveComponent->GetBodySetup();
+			if (Setup)
+			{
+				UniqueBodySetups.Add(Setup);
+			}
+		}
+	}
+
+	TArray<UBodySetup*> BodySetups = UniqueBodySetups.Array();
+	ParallelFor(BodySetups.Num(), [this, &BodySetups](int32 Index)
+	{
+		BodySetups[Index]->CreatePhysicsMeshes();
+	});
+
+	// TODO explore parallelization of other physics initialization, not trivial and likely to break stuff.
+	for (UPrimitiveComponent* PrimitiveComponent : DeferredCreatePhysicsStateComponents)
+	{
+		if (PrimitiveComponent->GetOwner() && PrimitiveComponent->GetOwner()->IsPendingKill() == false && PrimitiveComponent->ShouldCreatePhysicsState() && PrimitiveComponent->IsPhysicsStateCreated() == false)
+		{
+			PrimitiveComponent->OnCreatePhysicsState();
+			PrimitiveComponent->GlobalCreatePhysicsDelegate.Broadcast(PrimitiveComponent);
+		}
+
+		PrimitiveComponent->DeferredCreatePhysicsStateScene = nullptr;
+	}
+
+	DeferredCreatePhysicsStateComponents.Reset();
+}
+
 // Collect the actors and transforms of all the bodies we have to move, and process them in bulk
 // to avoid locks in the Spatial Acceleration and the Solver's Dirty Proxy systems.
 void FPhysScene_ChaosInterface::UpdateKinematicsOnDeferredSkelMeshes()
@@ -1955,6 +2018,8 @@ void FPhysScene_ChaosInterface::StartFrame()
 		Dt = 0.0f;
 	}
 #endif
+
+	ProcessDeferredCreatePhysicsState();
 
 	// Update any skeletal meshes that need their bone transforms sent to physics sim
 	UpdateKinematicsOnDeferredSkelMeshes();

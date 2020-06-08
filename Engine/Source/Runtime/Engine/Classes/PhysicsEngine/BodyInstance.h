@@ -560,16 +560,7 @@ public:
 	UPROPERTY()
 	float PhysicsBlendWeight;
 
-	/** True if we want to use deferred body instance creation */
-	static bool UseDeferredPhysicsBodyCreation();
-
-private:
-	TArray<FInitBodiesHelperWithData<true>> InitBodiesDeferredListStatic;
-	TArray<FInitBodiesHelperWithData<false>> InitBodiesDeferredListDynamic;
-
 public:
-
-	void InitAllBodies(FPhysScene* PhysScene);
 
 	FPhysicsActorHandle& GetPhysicsActorHandle();
 	const FPhysicsActorHandle& GetPhysicsActorHandle() const;
