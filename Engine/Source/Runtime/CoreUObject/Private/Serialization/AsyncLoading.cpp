@@ -3129,6 +3129,7 @@ void FAsyncPackage::MarkNewObjectForLoadIfItIsAnExport(UObject *Object)
 
 void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 {
+	LLM_SCOPE(ELLMTag::UObject);
 	SCOPED_LOADTIMER(Package_PreLoadObjects);
 
 	FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
@@ -3211,7 +3212,6 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 		Linker->TemplateForGetArchetypeFromLoader = Template;
 
 		{
-			LLM_SCOPE(ELLMTag::UObject);
 			ACCUM_LOADTIMECOUNT_STAT(StaticGetNativeClassName(Object->GetClass()).ToString());
 			SCOPED_ACCUM_LOADTIME_STAT(StaticGetNativeClassName(Object->GetClass()).ToString());
 			SCOPED_ACCUM_LOADTIME(Serialize, StaticGetNativeClassName(Object->GetClass()));
