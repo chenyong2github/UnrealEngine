@@ -106,6 +106,7 @@
 #include "Engine/LevelStreaming.h"
 #include "Engine/TextureLODSettings.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "ProfilingDebugging/PlatformFileTrace.h"
 
 #include "Misc/NetworkVersion.h"
 
@@ -135,6 +136,13 @@ static FAutoConsoleVariableRef CVarCookDisplayUpdateTime(
 	TEXT("cook.display.updatetime"),
 	GCookProgressUpdateTime,
 	TEXT("Controls the time before the cooker will send a new progress message.\n"),
+	ECVF_Default);
+
+float GCookProgressDiagnosticTime = 30.0f;
+static FAutoConsoleVariableRef CVarCookDisplayDiagnosticTime(
+	TEXT("Cook.display.diagnostictime"),
+	GCookProgressDiagnosticTime,
+	TEXT("Controls the time between cooker diagnostics messages.\n"),
 	ECVF_Default);
 
 float GCookProgressRepeatTime = 5.0f;
@@ -1162,9 +1170,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 		check(IsCookByTheBookMode());
 
 		// if we are out of stuff and we are in cook by the book from the editor mode then we finish up
-		UE_CLOG(!(TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
-			LogCook, Display, TEXT("Cooked packages %d Packages Remain %d Total %d"),
-			PackageDatas->GetNumCooked(), 0, PackageDatas->GetNumCooked());
+		UpdateDisplay(TickFlags, true /* bForceDisplay */);
 		CookByTheBookFinished();
 	}
 
@@ -1175,25 +1181,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
 {
 	UE_SCOPED_COOKTIMER(TickCookStatus);
-	const float CurrentProgressDisplayTime = FPlatformTime::Seconds();
-	const float DeltaProgressDisplayTime = CurrentProgressDisplayTime - LastProgressDisplayTime;
-	const int32 CookedPackagesCount = PackageDatas->GetNumCooked();
-	const int32 CookPendingCount = ExternalRequests->GetNumRequests() + PackageDatas->GetMonitor().GetNumInProgress();
-	if (DeltaProgressDisplayTime >= GCookProgressUpdateTime && CookPendingCount != 0 &&
-		(LastCookedPackagesCount != CookedPackagesCount || LastCookPendingCount != CookPendingCount || DeltaProgressDisplayTime > GCookProgressRepeatTime))
-	{
-		UE_CLOG(!(StackData.TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
-			LogCook,
-			Display,
-			TEXT("Cooked packages %d Packages Remain %d Total %d"),
-			CookedPackagesCount,
-			CookPendingCount,
-			CookedPackagesCount + CookPendingCount);
-
-		LastCookedPackagesCount = CookedPackagesCount;
-		LastCookPendingCount = CookPendingCount;
-		LastProgressDisplayTime = CurrentProgressDisplayTime;
-	}
+	UpdateDisplay(StackData.TickFlags, false /* bForceDisplay */);
 
 	// prevent autosave from happening until we are finished cooking
 	// causes really bad hitches
@@ -1208,6 +1196,42 @@ void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
 	PumpExternalRequests(StackData.Timer);
 }
 
+void UCookOnTheFlyServer::UpdateDisplay(ECookTickFlags TickFlags, bool bForceDisplay)
+{
+	const float CurrentTime = FPlatformTime::Seconds();
+	const float DeltaProgressDisplayTime = CurrentTime - LastProgressDisplayTime;
+	const int32 CookedPackagesCount = PackageDatas->GetNumCooked();
+	const int32 CookPendingCount = ExternalRequests->GetNumRequests() + PackageDatas->GetMonitor().GetNumInProgress();
+	if (bForceDisplay ||
+		(DeltaProgressDisplayTime >= GCookProgressUpdateTime && CookPendingCount != 0 &&
+			(LastCookedPackagesCount != CookedPackagesCount || LastCookPendingCount != CookPendingCount || DeltaProgressDisplayTime > GCookProgressRepeatTime)))
+	{
+		UE_CLOG(!(TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
+			LogCook,
+			Display,
+			TEXT("Cooked packages %d Packages Remain %d Total %d"),
+			CookedPackagesCount,
+			CookPendingCount,
+			CookedPackagesCount + CookPendingCount);
+
+		LastCookedPackagesCount = CookedPackagesCount;
+		LastCookPendingCount = CookPendingCount;
+		LastProgressDisplayTime = CurrentTime;
+	}
+	const float DeltaDiagnosticsDisplayTime = CurrentTime - LastDiagnosticsDisplayTime;
+	if (bForceDisplay || DeltaDiagnosticsDisplayTime > GCookProgressDiagnosticTime)
+	{
+		uint32 OpenFileHandles = 0;
+#if PLATFORMFILETRACE_ENABLED
+		OpenFileHandles = FPlatformFileTrace::GetOpenFileHandleCount();
+#endif
+		UE_CLOG(!(TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
+			LogCook, Display,
+			TEXT("Cook Diagnostics: OpenFileHandles=%d, VirtualMemory=%dMiB"),
+			OpenFileHandles, FPlatformMemory::GetStats().UsedVirtual / 1024 / 1024);
+		LastDiagnosticsDisplayTime = CurrentTime;
+	}
+}
 UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::Cook::FTickStackData& StackData)
 {
 	if (IsCookByTheBookMode() && CookByTheBookOptions->bCancel)
