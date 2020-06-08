@@ -72,7 +72,7 @@ public:
 
 	template<typename MeshType, typename GetTriangleIDFuncType>
 	bool ComputeFromUVSpaceMesh(const MeshType& UVSpaceMesh, 
-		GetTriangleIDFuncType GetTriangleIDFunc = [&](int32 TriangleID) { return TriangleID; } )
+		GetTriangleIDFuncType GetTriangleIDFunc = [](int32 TriangleID) { return TriangleID; } )
 	{
 		// make flat mesh
 		TMeshAABBTree3<MeshType> FlatSpatial(&UVSpaceMesh, true);
