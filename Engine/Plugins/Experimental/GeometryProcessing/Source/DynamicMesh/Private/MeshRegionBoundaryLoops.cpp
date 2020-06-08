@@ -522,3 +522,90 @@ bool FMeshRegionBoundaryLoops::TryExtractSubloops(TArray<int>& loopV, const TArr
 
 	return true;
 }
+
+
+bool FMeshRegionBoundaryLoops::GetTriangleSetBoundaryLoop(const FDynamicMesh3& Mesh, const TArray<int32>& Tris, FEdgeLoop& Loop)
+{
+	// todo: special-case single triangle
+	// collect list of border edges
+	TArray<int32> Edges;
+	for (int32 tid : Tris)
+	{
+		FIndex3i TriEdges = Mesh.GetTriEdges(tid);
+		for (int32 j = 0; j < 3; ++j)
+		{
+			FIndex2i EdgeT = Mesh.GetEdgeT(TriEdges[j]);
+			int32 OtherT = (EdgeT.A == tid) ? EdgeT.B : EdgeT.A;
+			if (OtherT == FDynamicMesh3::InvalidID || Tris.Contains(OtherT) == false)
+			{
+				Edges.AddUnique(TriEdges[j]);
+			}
+		}
+	}
+
+	if (Edges.Num() == 0)
+	{
+		return false;
+	}
+
+	Loop.Mesh = &Mesh;
+
+	// Start at first edge and walk around loop, adding one vertex and edge each time.
+	// Abort if we encounter any nonmanifold configuration 
+	int32 NumEdges = Edges.Num();
+	int32 StartEdge = Edges[0];
+	FIndex2i StartEdgeT = Mesh.GetEdgeT(StartEdge);
+	int32 InTri = Tris.Contains(StartEdgeT.A) ? StartEdgeT.A : StartEdgeT.B;
+	FIndex2i StartEdgeV = Mesh.GetEdgeV(StartEdge);
+	IndexUtil::OrientTriEdge(StartEdgeV.A, StartEdgeV.B, Mesh.GetTriangle(InTri));
+	Loop.Vertices.Reset();
+	Loop.Vertices.Add(StartEdgeV.A);
+	Loop.Vertices.Add(StartEdgeV.B);
+	int32 CurEndVert = Loop.Vertices.Last();
+	int32 PrevEdge = StartEdge;
+	Loop.Edges.Reset();
+	Loop.Edges.Add(StartEdge);
+	int32 NumEdgesUsed = 1;
+	bool bContinue = true;
+	do 
+	{
+		bContinue = false;
+		for (int32 eid : Mesh.VtxEdgesItr(CurEndVert))
+		{
+			if (eid != PrevEdge && Edges.Contains(eid) && Loop.Edges.Contains(eid) == false)
+			{
+				FIndex2i EdgeV = Mesh.GetEdgeV(eid);
+				int32 NextV = (EdgeV.A == CurEndVert) ? EdgeV.B : EdgeV.A;
+				if (NextV == Loop.Vertices[0])		// closed loop
+				{
+					Loop.Edges.Add(eid);
+					NumEdgesUsed++;
+					bContinue = false;
+					break;
+				}
+				else
+				{
+					if (Loop.Vertices.Contains(NextV))
+					{
+						return false;		// hit a middle vertex, we have nonmanifold set of edges, abort
+					}
+					Loop.Edges.Add(eid);
+					PrevEdge = eid;
+					Loop.Vertices.Add(NextV);
+					NumEdgesUsed++;
+					CurEndVert = NextV;
+					bContinue = true;
+					break;
+				}
+			}
+		}
+	} while (bContinue);
+
+	if (NumEdgesUsed != Edges.Num())	// closed loop but we still have edges? must have nonmanifold configuration, abort.
+	{
+		return false;
+	}
+
+	return true;
+}
+

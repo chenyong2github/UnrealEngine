@@ -40,12 +40,6 @@ bool FSimpleHoleFiller::Fill(int GroupID)
 		bOK = Fill_Fan(GroupID);
 	}
 
-	if (bOK && Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals() != nullptr)
-	{
-		FDynamicMeshEditor Editor(Mesh);
-		Editor.SetTriangleNormals(NewTriangles);
-	}
-
 	return bOK;
 }
 

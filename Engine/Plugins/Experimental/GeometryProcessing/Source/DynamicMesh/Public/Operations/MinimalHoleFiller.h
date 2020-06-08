@@ -37,10 +37,6 @@ public:
 	bool bOptimizeTriangles = true;
 	double DevelopabilityTolerance = 0.0001;
 
-	//  Outputs
-	/// Final fill vertices (should be empty?)
-	TArray<int> NewVertices;
-
 private:
 
 	// Inputs
