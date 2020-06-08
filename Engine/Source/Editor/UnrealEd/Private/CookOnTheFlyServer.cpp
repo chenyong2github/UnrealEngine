@@ -1626,7 +1626,7 @@ void UCookOnTheFlyServer::PumpPreloadStarts()
 	while (!EntryQueue.IsEmpty() && Monitor.GetNumPreloadAllocated() < static_cast<int32>(MaxPreloadAllocated))
 	{
 		FPackageData* PackageData = EntryQueue.PopFrontValue();
-		if (bPreloadingEnabled)
+		if (bLocalPreloadingEnabled)
 		{
 			PackageData->TryPreload();
 		}
@@ -3642,11 +3642,13 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB"),
 		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024);
 
+#if PLATFORM_WINDOWS // Preloading moves file handles between threads; this is only supported on windows for now
 	if (IsCookByTheBookMode() && !IsCookingInEditor())
 	{
 		bPreloadingEnabled = true;
 		FLinkerLoad::SetPreloadingEnabled(true);
 	}
+#endif
 
 	{
 		const FConfigSection* CacheSettings = GConfig->GetSectionPrivate(TEXT("CookPlatformDataCacheSettings"), false, true, GEditorIni);
