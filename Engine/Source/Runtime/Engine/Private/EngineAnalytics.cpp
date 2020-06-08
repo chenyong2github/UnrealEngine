@@ -33,119 +33,6 @@ static TSharedPtr<FEditorSessionSummaryWriter> SessionSummaryWriter;
 static TSharedPtr<FEditorSessionSummarySender> SessionSummarySender;
 #endif
 
-class FStudioAnalyticsShimProvider : public IAnalyticsProviderET
-{
-public:
-	FStudioAnalyticsShimProvider(TSharedPtr<IAnalyticsProviderET> InAnalytics)
-		: Analytics(InAnalytics)
-	{
-	}
-
-	virtual void SetAppID(FString&& AppID) override
-	{
-		Analytics.Pin()->SetAppID(MoveTemp(AppID));
-	}
-
-	virtual void SetAppVersion(FString&& AppVersion) override
-	{
-		Analytics.Pin()->SetAppVersion(MoveTemp(AppVersion));
-	}
-
-	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) override
-	{
-		return Analytics.Pin()->StartSession(MoveTemp(InSessionID), MoveTemp(Attributes));
-	}
-	virtual bool ShouldRecordEvent(const FString& EventName) const override
-	{
-		return Analytics.Pin()->ShouldRecordEvent(EventName);
-	}
-
-	virtual void SetDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes) override
-	{
-		Analytics.Pin()->SetDefaultEventAttributes(MoveTemp(Attributes));
-	}
-
-	virtual TArray<FAnalyticsEventAttribute> GetDefaultEventAttributesSafe() const override
-	{
-		return Analytics.Pin()->GetDefaultEventAttributesSafe();
-	}
-	
-	virtual int32 GetDefaultEventAttributeCount() const override
-	{
-		return Analytics.Pin()->GetDefaultEventAttributeCount();
-	}
-
-	virtual FAnalyticsEventAttribute GetDefaultEventAttribute(int AttributeIndex) const override
-	{
-		return Analytics.Pin()->GetDefaultEventAttribute(AttributeIndex);
-	}
-
-	virtual void SetURLEndpoint(const FString& UrlEndpoint, const TArray<FString>& AltDomains) override
-	{
-		Analytics.Pin()->SetURLEndpoint(UrlEndpoint, AltDomains);
-	}
-
-	virtual void SetEventCallback(const OnEventRecorded& Callback) override
-	{
-		Analytics.Pin()->SetEventCallback(Callback);
-	}
-
-	virtual void BlockUntilFlushed(float InTimeoutSec) override
-	{
-		Analytics.Pin()->BlockUntilFlushed(InTimeoutSec);
-	}
-
-	virtual const FAnalyticsET::Config& GetConfig() const override
-	{
-		return Analytics.Pin()->GetConfig();
-	}
-
-	virtual void EndSession() override
-	{
-		Analytics.Pin()->EndSession();
-	}
-	
-	virtual FString GetSessionID() const override
-	{
-		return Analytics.Pin()->GetSessionID();
-	}
-
-	virtual bool SetSessionID(const FString& InSessionID) override
-	{
-		return Analytics.Pin()->SetSessionID(InSessionID);
-	}
-
-	virtual void FlushEvents() override
-	{
-		Analytics.Pin()->FlushEvents();
-	}
-
-	virtual void SetUserID(const FString& InUserID) override
-	{
-		Analytics.Pin()->SetUserID(InUserID);
-	}
-
-	virtual FString GetUserID() const override
-	{
-		return Analytics.Pin()->GetUserID();
-	}
-
-	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes) override
-	{
-		FStudioAnalytics::RecordEvent(EventName, CopyTemp(Attributes));
-
-		Analytics.Pin()->RecordEvent(EventName, MoveTemp(Attributes));
-	}
-
-	virtual void SetShouldRecordEventFunc(const ShouldRecordEventFunction& ShouldRecordEventFunc)
-	{
-		Analytics.Pin()->SetShouldRecordEventFunc(ShouldRecordEventFunc);
-	}
-
-private:
-	TWeakPtr<IAnalyticsProviderET> Analytics;
-};
-
 static TSharedPtr<IAnalyticsProviderET> CreateEpicAnalyticsProvider()
 {
 	FAnalyticsET::Config Config;
@@ -175,8 +62,7 @@ IAnalyticsProviderET& FEngineAnalytics::GetProvider()
 {
 	checkf(bIsInitialized && IsAvailable(), TEXT("FEngineAnalytics::GetProvider called outside of Initialize/Shutdown."));
 
-	static FStudioAnalyticsShimProvider StudioAnalyticsShim(Analytics);
-	return StudioAnalyticsShim;
+	return *Analytics.Get();
 }
 
 void FEngineAnalytics::Initialize()
@@ -237,6 +123,13 @@ void FEngineAnalytics::Initialize()
 			StartSessionAttributes.Emplace(TEXT("OSMinor"), OSMinor);
 			StartSessionAttributes.Emplace(TEXT("OSVersion"), FPlatformMisc::GetOSVersion());
 			StartSessionAttributes.Emplace(TEXT("Is64BitOS"), FPlatformMisc::Is64bitOperatingSystem());
+
+			// allow editor events to be correlated to StudioAnalytics events (if there is a studio analytics provider)
+			if (FStudioAnalytics::IsAvailable())
+			{
+				Analytics->SetDefaultEventAttributes(MakeAnalyticsEventAttributeArray(TEXT("StudioAnalyticsSessionID"), FStudioAnalytics::GetProvider().GetSessionID()));
+			}
+
 			Analytics->StartSession(MoveTemp(StartSessionAttributes));
 
 			bIsInitialized = true;
