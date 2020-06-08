@@ -1035,6 +1035,35 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void FMaterialEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
+	// If this is a comment only change, skip updating the preview material and viewport
+	{
+		bool bIsCommentOnlyChange = true;
+		for (int32 Index = 0; Index < PropertyChangedEvent.GetNumObjectsBeingEdited(); ++Index)
+		{
+			const UObject* EditedObject = PropertyChangedEvent.GetObjectBeingEdited(Index);
+			if (!EditedObject->IsA<UMaterialExpression>())
+			{
+				bIsCommentOnlyChange = false;
+				break;
+			}
+
+			if (EditedObject->IsA<UMaterialExpressionComment>())
+			{
+				continue;
+			}
+
+			if (PropertyChangedEvent.GetPropertyName() != TEXT("Desc"))
+			{
+				bIsCommentOnlyChange = false;
+				break;
+			}
+		}
+		if (bIsCommentOnlyChange)
+		{
+			return;
+		}
+	}
+
 	bool bRefreshNodePreviews = false;
 	if (PropertyChangedEvent.Property != nullptr && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
