@@ -770,8 +770,16 @@ public:
 	/** Create FName from non-null string with known length  */
 	FName(int32 Len, const WIDECHAR* Name, EFindName FindType=FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, EFindName FindType=FNAME_Add);
-	explicit FName(const FStringView& Name, EFindName FindType=FNAME_Add);
-	explicit FName(const FAnsiStringView& Name, EFindName FindType=FNAME_Add);
+
+	template <typename CharRangeType,
+		typename CharType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type,
+		typename = decltype(ImplicitConv<TStringView<CharType>>(DeclVal<CharRangeType>()))>
+	inline explicit FName(CharRangeType&& Name, EFindName FindType = FNAME_Add)
+		: FName(NoInit)
+	{
+		TStringView<CharType> View = Forward<CharRangeType>(Name);
+		*this = FName(View.Len(), View.GetData());
+	}
 
 	/**
 	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 
@@ -786,8 +794,16 @@ public:
 	FName(const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
 	FName(int32 Len, const WIDECHAR* Name, int32 Number, EFindName FindType = FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
-	FName(const FStringView& Name, int32 InNumber, EFindName FindType=FNAME_Add);
-	FName(const FAnsiStringView& Name, int32 InNumber, EFindName FindType=FNAME_Add);
+
+	template <typename CharRangeType,
+		typename CharType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type,
+		typename = decltype(ImplicitConv<TStringView<CharType>>(DeclVal<CharRangeType>()))>
+	inline FName(CharRangeType&& Name, int32 InNumber, EFindName FindType = FNAME_Add)
+		: FName(NoInit)
+	{
+		TStringView<CharType> View = Forward<CharRangeType>(Name);
+		*this = FName(View.Len(), View.GetData(), InNumber);
+	}
 
 	/**
 	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 
