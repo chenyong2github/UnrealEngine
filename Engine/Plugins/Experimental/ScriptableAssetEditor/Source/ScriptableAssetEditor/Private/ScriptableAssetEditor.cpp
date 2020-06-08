@@ -36,10 +36,6 @@ void FScriptableAssetEditorModule::ShutdownModule()
 	FScriptableAssetEditorCommands::Unregister();
 }
 
-void FScriptableAssetEditorModule::OnSpawnPluginTab(const FSpawnTabArgs& SpawnTabArgs)
-{
-}
-
 void FScriptableAssetEditorModule::PluginButtonClicked()
 {
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
