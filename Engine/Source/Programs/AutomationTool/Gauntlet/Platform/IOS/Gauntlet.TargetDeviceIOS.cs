@@ -516,7 +516,7 @@ namespace Gauntlet
 			if (CacheResigned || UseLocalExecutable || !CheckDeployedIPA(Build))
 			{
 				// uninstall will clean all device artifacts
-				ExecuteIOSDeployCommand(String.Format("--uninstall -b \"{0}\"", LocalAppBundle), 10 * 60);
+				ExecuteIOSDeployCommand(String.Format("--uninstall -b \"{0}\"", LocalAppBundle), 20 * 60);
 			}
 			else
 			{
@@ -838,7 +838,7 @@ namespace Gauntlet
 					Log.Verbose("Unzipping IPA {0} to cache at: {1}", Build.SourceIPAPath, GauntletAppCache);
 
 					string Output;
-					if (!IOSBuild.ExecuteIPAZipCommand(String.Format("{0} -d {1}", Build.SourceIPAPath, GauntletAppCache), out Output, PayloadDir))
+					if (!IOSBuild.ExecuteIPADittoCommand(String.Format("-x -k {0} {1}", Build.SourceIPAPath, GauntletAppCache), out Output, PayloadDir))
 					{
 						throw new Exception(String.Format("Unable to extract IPA {0}", Build.SourceIPAPath));
 					}
