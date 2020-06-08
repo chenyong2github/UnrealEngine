@@ -3,11 +3,18 @@
 
 #if PLATFORMFILETRACE_ENABLED
 
-#include "Misc/CString.h"
+#include "Containers/Map.h"
+#include "CoreGlobals.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
+#include "Misc/CString.h"
 #include "Misc/Parse.h"
+#include "Misc/ScopeLock.h"
+#include "Templates/Atomic.h"
 #include "Trace/Trace.inl"
+
+#define PLATFORMFILETRACE_DEBUG_ENABLED 0
 
 UE_TRACE_CHANNEL(FileChannel)
 
@@ -57,6 +64,16 @@ UE_TRACE_EVENT_BEGIN(PlatformFile, EndWrite)
 	UE_TRACE_EVENT_FIELD(uint64, SizeWritten)
 UE_TRACE_EVENT_END()
 
+namespace
+{
+#if PLATFORMFILETRACE_DEBUG_ENABLED
+	FCriticalSection OpenHandlesLock;
+	TMap<uint64, int32> OpenHandles;
+#else
+	TAtomic<int32> OpenFileHandleCount;
+#endif
+}
+
 void FPlatformFileTrace::BeginOpen(const TCHAR* Path)
 {
 	uint16 PathSize = (FCString::Strlen(Path) + 1) * sizeof(TCHAR);
@@ -70,6 +87,22 @@ void FPlatformFileTrace::EndOpen(uint64 FileHandle)
 	UE_TRACE_LOG(PlatformFile, EndOpen, FileChannel)
 		<< EndOpen.Cycle(FPlatformTime::Cycles64())
 		<< EndOpen.FileHandle(FileHandle);
+#if PLATFORMFILETRACE_DEBUG_ENABLED
+	{
+		FScopeLock OpenHandlesScopeLock(&OpenHandlesLock);
+		++OpenHandles.FindOrAdd(FileHandle, 0);
+	}
+#else
+	++OpenFileHandleCount;
+#endif
+}
+
+void FPlatformFileTrace::FailOpen(const TCHAR* Path)
+{
+	// TODO: Separate event for failure in the trace?
+	UE_TRACE_LOG(PlatformFile, EndOpen, FileChannel)
+		<< EndOpen.Cycle(FPlatformTime::Cycles64())
+		<< EndOpen.FileHandle(0);
 }
 
 void FPlatformFileTrace::BeginClose(uint64 FileHandle)
@@ -79,8 +112,39 @@ void FPlatformFileTrace::BeginClose(uint64 FileHandle)
 		<< BeginClose.FileHandle(FileHandle);
 }
 
-void FPlatformFileTrace::EndClose()
+void FPlatformFileTrace::EndClose(uint64 FileHandle)
 {
+	UE_TRACE_LOG(PlatformFile, EndClose, FileChannel)
+		<< EndClose.Cycle(FPlatformTime::Cycles64());
+#if PLATFORMFILETRACE_DEBUG_ENABLED
+	bool bUnderflow = false;
+	{
+		FScopeLock OpenHandlesScopeLock(&OpenHandlesLock);
+		int32& OpenCount = OpenHandles.FindOrAdd(FileHandle, 0);
+		--OpenCount;
+		if (OpenCount <= 0)
+		{
+			bUnderflow = OpenCount < 0;
+			OpenHandles.Remove(FileHandle);
+		}
+	}
+	if (bUnderflow)
+	{
+		UE_LOG(LogCore, Error, TEXT("FPlatformFileTrace Close without an Open: FileHandle %llu."), FileHandle);
+	}
+#else
+	int32 NewValue = --OpenFileHandleCount;
+	if (NewValue == -1)
+	{
+		UE_LOG(LogCore, Error, TEXT("FPlatformFileTrace Close without an Open"));
+		++OpenFileHandleCount; // clamp the value to 0
+	}
+#endif
+}
+
+void FPlatformFileTrace::FailClose(uint64 FileHandle)
+{
+	// TODO: Separate event for failure in the trace?
 	UE_TRACE_LOG(PlatformFile, EndClose, FileChannel)
 		<< EndClose.Cycle(FPlatformTime::Cycles64());
 }
@@ -123,6 +187,15 @@ void FPlatformFileTrace::EndWrite(uint64 WriteHandle, uint64 SizeWritten)
 
 void FPlatformFileTrace::Init(const TCHAR* CmdLine)
 {
+}
+
+uint32 FPlatformFileTrace::GetOpenFileHandleCount()
+{
+#if PLATFORMFILETRACE_DEBUG_ENABLED
+	return OpenHandles.Num();
+#else
+	return OpenFileHandleCount;
+#endif
 }
 
 #endif
