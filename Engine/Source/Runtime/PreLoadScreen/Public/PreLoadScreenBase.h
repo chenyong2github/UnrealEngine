@@ -61,7 +61,7 @@ public:
 protected:
     TWeakPtr<SWindow> OwningWindow;
 
-    bool bIsEngineLoadingFinished;
+    TAtomic<bool> bIsEngineLoadingFinished;
 private:
     
     //The name of the Plugin creating this FPreLoadScreenBase.
