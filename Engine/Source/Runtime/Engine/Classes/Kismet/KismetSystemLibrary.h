@@ -318,6 +318,14 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	static float MakeLiteralFloat(float Value);
 
 	/**
+	 * Creates a literal double
+	 * @param	Value	value to set the double to
+	 * @return	The literal double
+	 */
+	UFUNCTION(BlueprintPure, Category = "Math|Double", meta = (BlueprintThreadSafe))
+	static double MakeLiteralDouble(double Value);
+
+	/**
 	 * Creates a literal bool
 	 * @param	Value	value to set the bool to
 	 * @return	The literal bool
@@ -753,6 +761,10 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	/** Set a float property by name */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "true"))
 	static void SetFloatPropertyByName(UObject* Object, FName PropertyName, float Value);
+
+	/** Set a double property by name */
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
+	static void SetDoublePropertyByName(UObject* Object, FName PropertyName, double Value);
 
 	/** Set a bool property by name */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "true"))
@@ -1957,6 +1969,11 @@ FORCEINLINE int32 UKismetSystemLibrary::MakeLiteralInt(int32 Value)
 }
 
 FORCEINLINE float UKismetSystemLibrary::MakeLiteralFloat(float Value)
+{
+	return Value;
+}
+
+FORCEINLINE double UKismetSystemLibrary::MakeLiteralDouble(double Value)
 {
 	return Value;
 }

@@ -2586,6 +2586,18 @@ int32 UKismetMathLibrary::Conv_Int64ToInt(int64 InInt)
 }
 
 KISMET_MATH_FORCEINLINE
+float UKismetMathLibrary::Conv_DoubleToFloat(double InDouble)
+{
+	return (float)InDouble;
+}
+
+KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::Conv_FloatToDouble(float InFloat)
+{
+	return (double)InFloat;
+}
+
+KISMET_MATH_FORCEINLINE
 uint8 UKismetMathLibrary::Conv_Int64ToByte(int64 InInt)
 {
 	return (uint8)InInt;

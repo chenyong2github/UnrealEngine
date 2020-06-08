@@ -1065,6 +1065,16 @@ FString FEmitHelper::FloatToString(float Value)
 	return FString::Printf(TEXT("%f"), Value);
 }
 
+FString FEmitHelper::DoubleToString(double Value)
+{
+	if (FMath::IsNaN(Value))
+	{
+		UE_LOG(LogK2Compiler, Warning, TEXT("A NotANNumber value cannot be nativized. It is changed into 0.0."));
+		return TEXT("/*The original value was NaN!*/ 0.0");
+	}
+	return FString::Printf(TEXT("%lf"), Value);
+}
+
 FString FEmitHelper::LiteralTerm(FEmitterLocalContext& EmitterContext, const FLiteralTermParams& Params)
 {
 	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
@@ -1257,6 +1267,11 @@ FString FEmitHelper::LiteralTerm(FEmitterLocalContext& EmitterContext, const FLi
 	{
 		float Value = CustomValue.IsEmpty() ? 0.0f : FCString::Atof(*CustomValue);
 		return FString::Printf(TEXT("%s"), *FloatToString(Value));
+	}
+	else if (UEdGraphSchema_K2::PC_Double == Type.PinCategory)
+	{
+		double Value = CustomValue.IsEmpty() ? 0.0f : FCString::Atod(*CustomValue);
+		return FString::Printf(TEXT("%s"), *DoubleToString(Value));
 	}
 	else if (UEdGraphSchema_K2::PC_Int == Type.PinCategory)
 	{
@@ -1510,6 +1525,10 @@ FString FEmitHelper::PinTypeToNativeType(const FEdGraphPinType& Type)
 		else if (UEdGraphSchema_K2::PC_Float == InType.PinCategory)
 		{
 			return TEXT("float");
+		}
+		else if (UEdGraphSchema_K2::PC_Double == InType.PinCategory)
+		{
+			return TEXT("double");
 		}
 		else if (UEdGraphSchema_K2::PC_Name == InType.PinCategory)
 		{

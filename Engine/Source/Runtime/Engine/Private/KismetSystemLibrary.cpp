@@ -897,6 +897,18 @@ void UKismetSystemLibrary::SetFloatPropertyByName(UObject* Object, FName Propert
 	}
 }
 
+void UKismetSystemLibrary::SetDoublePropertyByName(UObject* Object, FName PropertyName, double Value)
+{
+	if (Object != nullptr)
+	{
+		FDoubleProperty* DoubleProp = FindFProperty<FDoubleProperty>(Object->GetClass(), PropertyName);
+		if (DoubleProp != nullptr)
+		{
+			DoubleProp->SetPropertyValue_InContainer(Object, Value);
+		}
+	}
+}
+
 void UKismetSystemLibrary::SetBoolPropertyByName(UObject* Object, FName PropertyName, bool Value)
 {
 	if(Object != NULL)

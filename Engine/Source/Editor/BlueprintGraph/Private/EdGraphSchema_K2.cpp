@@ -263,6 +263,8 @@ private:
 public:
 	static void FillLoadedTypesDatabase(FTypesDatabase& TypesDatabase, bool bIndexTypesOnly)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WILD_FGatherTypesHelper::FillLoadedTypesDatabase);
+
 		// Loaded types
 		TypesDatabase.LoadedTypesMap.Reset();
 
@@ -331,6 +333,7 @@ public:
 
 	static void FillUnLoadedTypesDatabase(FTypesDatabase& TypesDatabase, bool bIndexTypesOnly)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WILD_FGatherTypesHelper::FillUnLoadedTypesDatabase);
 		// Loaded types
 		TypesDatabase.UnLoadedTypesMap.Reset();
 
@@ -424,6 +427,8 @@ public:
 	 */
 	static void Gather(const FText& FriendlyName, const FName CategoryName, FTypesDatabase& TypesDatabase, TArray<FPinTypeTreeInfoPtr>& OutChildren)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WILD_FGatherTypesHelper::Gather);
+
 		FEdGraphPinType LoadedPinSubtype;
 		LoadedPinSubtype.PinCategory = (CategoryName == UEdGraphSchema_K2::PC_Enum ? UEdGraphSchema_K2::PC_Byte : CategoryName);
 		LoadedPinSubtype.PinSubCategory = NAME_None;
@@ -524,6 +529,7 @@ const FEdGraphPinType& UEdGraphSchema_K2::FPinTypeTreeInfo::GetPinType(bool bFor
 
 void UEdGraphSchema_K2::FPinTypeTreeInfo::Init(const FText& InFriendlyName, const FName CategoryName, const UEdGraphSchema_K2* Schema, const FText& InTooltip, bool bInReadOnly, FTypesDatabase* TypesDatabase)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WILD_FPinTypeTreeInfo::Init);
 	check( !CategoryName.IsNone() );
 	check( Schema );
 
@@ -616,6 +622,7 @@ const FName UEdGraphSchema_K2::PC_Class(TEXT("class"));
 const FName UEdGraphSchema_K2::PC_Int(TEXT("int"));
 const FName UEdGraphSchema_K2::PC_Int64(TEXT("int64"));
 const FName UEdGraphSchema_K2::PC_Float(TEXT("float"));
+const FName UEdGraphSchema_K2::PC_Double(TEXT("double"));
 const FName UEdGraphSchema_K2::PC_Name(TEXT("name"));
 const FName UEdGraphSchema_K2::PC_Delegate(TEXT("delegate"));
 const FName UEdGraphSchema_K2::PC_MCDelegate(TEXT("mcdelegate"));
@@ -2514,6 +2521,8 @@ public:
 
 	void Refresh()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WILD_FAutocastFunctionMap::Refresh);
+
 #ifdef SCHEMA_K2_AUTOCASTFUNCTIONMAP_LOG_TIME
 		static_assert(false, "Macro redefinition.");
 #endif
@@ -2616,6 +2625,7 @@ void UEdGraphSchema_K2::Shutdown()
 
 bool UEdGraphSchema_K2::SearchForAutocastFunction(const UEdGraphPin* OutputPin, const UEdGraphPin* InputPin, /*out*/ FName& TargetFunction, /*out*/ UClass*& FunctionOwner) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WILD_UEdGraphSchema_K2::SearchForAutocastFunction);
 	// NOTE: Under no circumstances should anyone *ever* add a questionable cast to this function.
 	// If it could be at all confusing why a function is provided, to even a novice user, err on the side of do not cast!!!
 	// This includes things like string->int (does it do length, atoi, or what?) that would be autocasts in a traditional scripting language
@@ -3039,6 +3049,10 @@ FLinearColor UEdGraphSchema_K2::GetPinTypeColor(const FEdGraphPinType& PinType) 
 	else if (TypeName == PC_Float)
 	{
 		return Settings->FloatPinTypeColor;
+	}
+	else if (TypeName == PC_Double)
+	{
+		return Settings->DoublePinTypeColor;
 	}
 	else if (TypeName == PC_Boolean)
 	{
@@ -3484,6 +3498,10 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const FProperty* TestProperty, F
 	{
 		OutCategory = PC_Float;
 	}
+	else if(TestProperty->IsA<FDoubleProperty>())
+	{
+		OutCategory = PC_Double;
+	}
 	else if (TestProperty->IsA<FInt64Property>())
 	{
 		OutCategory = PC_Int64;
@@ -3771,6 +3789,7 @@ FText UEdGraphSchema_K2::GetCategoryText(const FName Category, const bool bForMe
 		CategoryDescriptions.Add(PC_Int, LOCTEXT("IntCategory", "Integer"));
 		CategoryDescriptions.Add(PC_Int64, LOCTEXT("Int64Category", "Integer64"));
 		CategoryDescriptions.Add(PC_Float, LOCTEXT("FloatCategory","Float"));
+		CategoryDescriptions.Add(PC_Double, LOCTEXT("DoubleCategory", "Double"));
 		CategoryDescriptions.Add(PC_Name, LOCTEXT("NameCategory","Name"));
 		CategoryDescriptions.Add(PC_Delegate, LOCTEXT("DelegateCategory","Delegate"));
 		CategoryDescriptions.Add(PC_MCDelegate, LOCTEXT("MulticastDelegateCategory","Multicast Delegate"));
@@ -3960,6 +3979,7 @@ void UEdGraphSchema_K2::GetVariableTypeTree(TArray< TSharedPtr<FPinTypeTreeInfo>
 	if (!bIndexTypesOnly)
 	{
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Float, true), PC_Float, this, LOCTEXT("FloatType", "Floating point number"))));
+		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Double, true), PC_Double, this, LOCTEXT("DoubleType", "64 bit floating point number"))));
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Name, true), PC_Name, this, LOCTEXT("NameType", "A text name"))));
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_String, true), PC_String, this, LOCTEXT("StringType", "A text string"))));
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Text, true), PC_Text, this, LOCTEXT("TextType", "A localizable text string"))));
@@ -4239,6 +4259,16 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 			if (!FDefaultValueHelper::IsStringValidFloat(NewDefaultValue))
 			{
 				DVSV_RETURN_MSG(TEXT("Expected a valid number for an float property"));
+			}
+		}
+	}
+	else if (PinCategory == PC_Double)
+	{
+		if (!NewDefaultValue.IsEmpty())
+		{
+			if (!FDefaultValueHelper::IsStringValidFloat(NewDefaultValue))
+			{
+				DVSV_RETURN_MSG(TEXT("Expected a valid number for an double property"));
 			}
 		}
 	}
@@ -4872,6 +4902,12 @@ bool UEdGraphSchema_K2::DoesDefaultValueMatchAutogenerated(const UEdGraphPin& In
 			const float DefaultFloat = FCString::Atof(*InPin.DefaultValue);
 			return (AutogeneratedFloat == DefaultFloat);
 		}
+		else if (InPin.PinType.PinCategory == PC_Double)
+		{
+			const double AutogeneratedDouble = FCString::Atod(*InPin.AutogeneratedDefaultValue);
+			const double DefaultDouble = FCString::Atod(*InPin.DefaultValue);
+			return (AutogeneratedDouble == DefaultDouble);
+		}
 		else if (InPin.PinType.PinCategory == PC_Struct)
 		{
 			if (InPin.PinType.PinSubCategoryObject == VectorStruct)
@@ -5074,6 +5110,10 @@ void UEdGraphSchema_K2::SetPinAutogeneratedDefaultValueBasedOnType(UEdGraphPin* 
 		// This is a slightly different format than is produced by PropertyValueToString, but changing it has backward compatibility issues
 		NewValue = TEXT("0.0");
 	}
+	else if (Pin->PinType.PinCategory == PC_Double)
+	{
+		NewValue = TEXT("0.0");
+	}
 	else if (Pin->PinType.PinCategory == PC_Boolean)
 	{
 		NewValue = TEXT("false");
@@ -5229,6 +5269,7 @@ namespace FSetVariableByNameFunctionNames
 	static const FName SetInt64Name(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetInt64PropertyByName));
 	static const FName SetByteName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetBytePropertyByName));
 	static const FName SetFloatName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetFloatPropertyByName));
+	static const FName SetDoubleName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetDoublePropertyByName));
 	static const FName SetBoolName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetBoolPropertyByName));
 	static const FName SetObjectName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetObjectPropertyByName));
 	static const FName SetClassName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetClassPropertyByName));
@@ -5295,6 +5336,10 @@ UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinTyp
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetFloatName;
+	}
+	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Double)
+	{
+		SetFunctionName = FSetVariableByNameFunctionNames::SetDoubleName;
 	}
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{

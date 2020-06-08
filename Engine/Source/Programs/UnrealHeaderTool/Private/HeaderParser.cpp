@@ -1197,7 +1197,7 @@ namespace
 
 	bool IsPropertySupportedByBlueprint(const FProperty* Property, bool bMemberVariable)
 	{
-		if (Property == NULL)
+		if (Property == nullptr)
 		{
 			return false;
 		}
@@ -1225,6 +1225,7 @@ namespace
 			|| Property->IsA<FSoftObjectProperty>()
 			|| Property->IsA<FObjectProperty>()
 			|| Property->IsA<FFloatProperty>()
+			|| Property->IsA<FDoubleProperty>()
 			|| Property->IsA<FIntProperty>()
 			|| Property->IsA<FInt64Property>()
 			|| Property->IsA<FByteProperty>()

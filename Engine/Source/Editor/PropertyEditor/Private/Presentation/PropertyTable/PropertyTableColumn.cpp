@@ -643,6 +643,19 @@ TSharedPtr<FCompareRowByColumnBase> FPropertyTableColumn::GetPropertySorter(FPro
 			return MakeShareable<FCompareRowByColumnBase>(new FCompareRowByColumnDescending<FFloatProperty>(SharedThis(this), FloatProperty));
 		}
 	}
+	else if (Property->IsA(FDoubleProperty::StaticClass()))
+	{
+		FDoubleProperty* DoubleProperty(CastField< FDoubleProperty >(Property));
+
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			return MakeShareable<FCompareRowByColumnBase>(new FCompareRowByColumnAscending<FDoubleProperty>(SharedThis(this), DoubleProperty));
+		}
+		else
+		{
+			return MakeShareable<FCompareRowByColumnBase>(new FCompareRowByColumnDescending<FDoubleProperty>(SharedThis(this), DoubleProperty));
+		}
+	}
 	else if (Property->IsA(FNameProperty::StaticClass()))
 	{
 		FNameProperty* NameProperty = CastField<FNameProperty>(Property);

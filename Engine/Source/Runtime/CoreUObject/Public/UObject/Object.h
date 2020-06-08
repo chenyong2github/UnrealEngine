@@ -1351,6 +1351,7 @@ public:
 	DECLARE_FUNCTION(execUInt64Const);
 	DECLARE_FUNCTION(execSkipOffsetConst);
 	DECLARE_FUNCTION(execFloatConst);
+	DECLARE_FUNCTION(execDoubleConst);
 	DECLARE_FUNCTION(execStringConst);
 	DECLARE_FUNCTION(execUnicodeStringConst);
 	DECLARE_FUNCTION(execTextConst);

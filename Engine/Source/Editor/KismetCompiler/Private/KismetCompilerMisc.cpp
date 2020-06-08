@@ -118,6 +118,11 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 		FFloatProperty* SpecificProperty = CastField<FFloatProperty>(TestProperty);
 		bTypeMismatch = (SpecificProperty == nullptr);
 	}
+	else if (PinCategory == UEdGraphSchema_K2::PC_Double)
+	{
+		FDoubleProperty* SpecificProperty = CastField<FDoubleProperty>(TestProperty);
+		bTypeMismatch = (SpecificProperty == nullptr);
+	}
 	else if (PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
 		FIntProperty* SpecificProperty = CastField<FIntProperty>(TestProperty);
@@ -1028,6 +1033,11 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 	else if (PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		NewProperty = new FFloatProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
+		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
+	}
+	else if (PinCategory == UEdGraphSchema_K2::PC_Double)
+	{
+		NewProperty = new FDoubleProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
 		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
 	}
 	else if (PinCategory == UEdGraphSchema_K2::PC_Boolean)

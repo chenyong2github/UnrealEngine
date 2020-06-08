@@ -485,6 +485,15 @@ public:
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Float);
 		}
 
+		static bool IsDouble(const FEdGraphPinType* Type, const FProperty* Property)
+		{
+			if (Property)
+			{
+				return Property->IsA<FDoubleProperty>();
+			}
+			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Double);
+		}
+
 		static bool IsInt(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
@@ -706,6 +715,12 @@ public:
 			{
 				float Value = FCString::Atof(*(Term->Name));
 				Writer << EX_FloatConst;
+				Writer << Value;
+			}
+			else if (FLiteralTypeHelper::IsDouble(&Term->Type, CoerceProperty))
+			{
+				double Value = FCString::Atod(*(Term->Name));
+				Writer << EX_DoubleConst;
 				Writer << Value;
 			}
 			else if (FLiteralTypeHelper::IsInt(&Term->Type, CoerceProperty))

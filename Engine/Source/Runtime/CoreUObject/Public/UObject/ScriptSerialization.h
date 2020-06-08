@@ -354,6 +354,11 @@
 			XFER(float);
 			break;
 		}
+		case EX_DoubleConst:
+		{
+			XFER(double);
+			break;
+		}
 		case EX_StringConst:
 		{
 			XFERSTRING();

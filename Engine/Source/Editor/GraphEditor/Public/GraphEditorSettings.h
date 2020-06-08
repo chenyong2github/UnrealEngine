@@ -156,6 +156,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor FloatPinTypeColor;
 
+	/** Double pin type color */
+	UPROPERTY(EditAnywhere, config, Category = PinColors)
+	FLinearColor DoublePinTypeColor;
+
 	/** Name pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor NamePinTypeColor;

@@ -253,6 +253,8 @@ struct FEmitHelper
 
 	static FString FloatToString(float Value);
 
+	static FString DoubleToString(double Value);
+
 	static bool PropertyForConstCast(const FProperty* Property);
 
 	static void ArrayToString(const TArray<FString>& Array, FString& OutString, const TCHAR* Separator);

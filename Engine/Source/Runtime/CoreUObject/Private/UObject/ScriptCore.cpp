@@ -3070,6 +3070,12 @@ DEFINE_FUNCTION(UObject::execFloatConst)
 }
 IMPLEMENT_VM_FUNCTION( EX_FloatConst, execFloatConst );
 
+DEFINE_FUNCTION(UObject::execDoubleConst)
+{
+	*(double*)RESULT_PARAM = Stack.ReadInt<double>();
+}
+IMPLEMENT_VM_FUNCTION( EX_DoubleConst, execDoubleConst );
+
 DEFINE_FUNCTION(UObject::execStringConst)
 {
 	*(FString*)RESULT_PARAM = (ANSICHAR*)Stack.Code;

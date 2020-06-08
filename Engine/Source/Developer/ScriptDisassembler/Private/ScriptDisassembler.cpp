@@ -140,6 +140,13 @@ float FKismetBytecodeDisassembler::ReadFLOAT(int32& ScriptIndex)
 	return Result.f;
 }
 
+double FKismetBytecodeDisassembler::ReadDOUBLE(int32& ScriptIndex)
+{
+	union { double d; int64 i; } Result;
+	Result.i = ReadQWORD(ScriptIndex);
+	return Result.d;
+}
+
 CodeSkipSizeType FKismetBytecodeDisassembler::ReadSkipCount(int32& ScriptIndex)
 {
 #if SCRIPT_LIMIT_BYTECODE_TO_64KB
@@ -708,6 +715,12 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 		{
 			float ConstValue = ReadFLOAT(ScriptIndex);
 			Ar.Logf(TEXT("%s $%X: literal float %f"), *Indents, (int32)Opcode, ConstValue);
+			break;
+		}
+	case EX_DoubleConst:
+		{
+			double ConstValue = ReadDOUBLE(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: literal double %lf"), *Indents, (int32)Opcode, ConstValue);
 			break;
 		}
 	case EX_StringConst:

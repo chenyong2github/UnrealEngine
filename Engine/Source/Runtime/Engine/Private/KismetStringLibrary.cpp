@@ -56,6 +56,11 @@ FString UKismetStringLibrary::Conv_FloatToString(float InFloat)
 	return FString::SanitizeFloat(InFloat);
 }
 
+FString UKismetStringLibrary::Conv_DoubleToString(double InDouble)
+{
+	return FString::SanitizeFloat(InDouble);
+}
+
 FString UKismetStringLibrary::Conv_IntToString(int32 InInt)
 {
 	return FString::Printf(TEXT("%d"), InInt);	

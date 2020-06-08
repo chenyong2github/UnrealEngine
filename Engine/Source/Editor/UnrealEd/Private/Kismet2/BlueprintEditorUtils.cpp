@@ -8464,6 +8464,12 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 			bParseSucceeded = FDefaultValueHelper::ParseFloat(StrValue, FloatValue);
 			CastFieldChecked<const FFloatProperty>(Property)->SetPropertyValue(DirectValue, FloatValue);
 		}
+		else if (Property->IsA(FDoubleProperty::StaticClass()))
+		{
+			double DoubleValue = 0.0;
+			bParseSucceeded = FDefaultValueHelper::ParseDouble(StrValue, DoubleValue);
+			CastFieldChecked<const FDoubleProperty>(Property)->SetPropertyValue(DirectValue, DoubleValue);
+		}
 		else if (const FByteProperty* ByteProperty = CastField<const FByteProperty>(Property))
 		{
 			int32 IntValue = 0;
