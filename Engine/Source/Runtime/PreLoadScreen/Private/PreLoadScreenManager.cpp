@@ -3,7 +3,7 @@
 #include "PreLoadScreenManager.h"
 
 #include "Engine/GameEngine.h"
-#include "Framework/Application\SlateApplication.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GlobalShader.h"
 #include "ShaderCompiler.h"
 
