@@ -612,6 +612,9 @@ UObject* UAssetToolsImpl::PerformDuplicateAsset(const FString& AssetName, const 
 	UObject* NewObject = ObjectTools::DuplicateSingleObject(OriginalObject, PGN, ObjectsUserRefusedToFullyLoad, bPromtToOverwrite);
 	if(NewObject != nullptr)
 	{
+		// Assets must have RF_Public and RF_Standalone
+		NewObject->SetFlags(RF_Public | RF_Standalone);
+
 		if ( ISourceControlModule::Get().IsEnabled() )
 		{
 			// Save package here if SCC is enabled because the user can use SCC to revert a change
@@ -625,6 +628,9 @@ UObject* UAssetToolsImpl::PerformDuplicateAsset(const FString& AssetName, const 
 			// now attempt to branch, we can do this now as we should have a file on disk
 			SourceControlHelpers::BranchPackage(NewObject->GetOutermost(), OriginalObject->GetOutermost());
 		}
+
+		// Notify the asset registry
+		FAssetRegistryModule::AssetCreated(NewObject);
 
 		// analytics create record
 		UAssetToolsImpl::OnNewCreateRecord(NewObject->GetClass(), true);
