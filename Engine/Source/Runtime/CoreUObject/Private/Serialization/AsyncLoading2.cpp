@@ -819,6 +819,8 @@ public:
 
 				Async(ExecutionMethod, [this, &Remaining, Event, IoBuffer = Result.ConsumeValueOrDie(), &LoadedContainer]()
 				{
+					LLM_SCOPE(ELLMTag::AsyncLoading);
+
 					FMemoryReaderView Ar(MakeArrayView(IoBuffer.Data(), IoBuffer.DataSize()));
 
 					FContainerHeader ContainerHeader;
@@ -885,6 +887,7 @@ public:
 
 	void OnContainerMounted(const FIoDispatcherMountedContainer& Container)
 	{
+		LLM_SCOPE(ELLMTag::AsyncLoading);
 		LoadContainers(MakeArrayView(&Container, 1));
 	}
 
@@ -2915,6 +2918,7 @@ FScopedAsyncPackageEvent2::~FScopedAsyncPackageEvent2()
 
 void FAsyncLoadingThreadWorker::StartThread()
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	Trace::ThreadGroupBegin(TEXT("AsyncLoading"));
 	Thread = FRunnableThread::Create(this, TEXT("FAsyncLoadingThreadWorker"), 0, TPri_Normal);
 	ThreadId = Thread->GetThreadID();
@@ -2986,8 +2990,6 @@ FUObjectSerializeContext* FAsyncPackage2::GetSerializeContext()
 void FAsyncPackage2::SetupSerializedArcs(const uint8* GraphData, uint64 GraphDataSize)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SetupSerializedArcs);
-
-	LLM_SCOPE(ELLMTag::AsyncLoading);
 
 	FSimpleArchive GraphArchive(GraphData, GraphDataSize);
 	int32 ImportedPackagesCount;
@@ -3484,7 +3486,6 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::AsyncLoading);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
 	// LLM_SCOPED_TAG_WITH_OBJECT_IN_SET((Export.DynamicType == FObjectExport::EDynamicType::DynamicType) ? UDynamicClass::StaticClass() : 
 	// 	CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
@@ -3805,8 +3806,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 	{
 		// Begin async loading, simulates BeginLoad
 		Package->BeginAsyncLoad();
-
-		LLM_SCOPE(ELLMTag::UObject);
 
 		SCOPED_LOADTIMER(PostLoadObjectsTime);
 
@@ -4390,8 +4389,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, int32 FlushRequestID)
 {
-	LLM_SCOPE(ELLMTag::AsyncLoading);
-
 	//TRACE_INT_VALUE(QueuedPackagesCounter, QueuedPackagesCounter);
 	//TRACE_INT_VALUE(GraphNodeCount, GraphAllocator.TotalNodeCount);
 	//TRACE_INT_VALUE(GraphArcCount, GraphAllocator.TotalArcCount);
