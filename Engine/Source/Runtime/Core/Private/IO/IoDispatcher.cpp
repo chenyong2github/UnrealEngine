@@ -174,6 +174,7 @@ public:
 
 	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options)
 	{
+		LLM_SCOPE(ELLMTag::FileSystem);
 		FIoRequestImpl* Request = RequestAllocator.Construct();
 
 		Request->ChunkId = ChunkId;
@@ -212,6 +213,7 @@ public:
 
 	FIoBatchImpl* AllocBatch()
 	{
+		LLM_SCOPE(ELLMTag::FileSystem);
 		FIoBatchImpl* Batch = BatchAllocator.Construct();
 
 		return Batch;
@@ -631,6 +633,7 @@ FIoDispatcher::~FIoDispatcher()
 
 FIoStatus FIoDispatcher::Mount(const FIoStoreEnvironment& Environment)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	return Impl->Mount(Environment);
 }
 
@@ -705,6 +708,7 @@ FIoDispatcher::IsValidEnvironment(const FIoStoreEnvironment& Environment)
 FIoStatus
 FIoDispatcher::Initialize()
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	GIoDispatcher = MakeUnique<FIoDispatcher>();
 
 	return GIoDispatcher->Impl->Initialize();

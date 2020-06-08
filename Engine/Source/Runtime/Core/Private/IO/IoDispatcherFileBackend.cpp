@@ -398,6 +398,7 @@ ENamedThreads::Type FFileIoStore::FDecompressAsyncTask::GetDesiredThread()
 
 void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherScatter);
 	
 	FFileIoStoreCompressionContext* CompressionContext = CompressedBlock->CompressionContext;
@@ -483,6 +484,7 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 
 void FFileIoStore::AllocMemoryForRequest(FIoRequestImpl* Request)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	if (!Request->IoBuffer.Data())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
@@ -518,6 +520,7 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 
 void FFileIoStore::ProcessCompletedBlocks(const bool bIsMultithreaded)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedBlocks);
 	
 	FFileIoStoreRawBlock* CompletedBlock = PlatformImpl.GetCompletedBlocks();
