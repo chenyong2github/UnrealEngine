@@ -312,6 +312,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param Origin - Epicenter of the damage area.
 	 * @param DamageRadius - Radius of the damage area, from Origin
 	 * @param DamageTypeClass - Class that describes the damage that was done.
+	 * @param IgnoreActors - List of Actors to ignore
 	 * @param DamageCauser - Actor that actually caused the damage (e.g. the grenade that exploded).  This actor will not be damaged and it will not block damage.
 	 * @param InstigatedByController - Controller that was responsible for causing this damage (e.g. player who threw the grenade)
 	 * @param bFullDamage - if true, damage not scaled based on distance from Origin
@@ -328,6 +329,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param DamageOuterRadius - Radius of the minimum damage area, from Origin
 	 * @param DamageFalloff - Falloff exponent of damage from DamageInnerRadius to DamageOuterRadius
 	 * @param DamageTypeClass - Class that describes the damage that was done.
+	 * @param IgnoreActors - List of Actors to ignore
 	 * @param DamageCauser - Actor that actually caused the damage (e.g. the grenade that exploded)
 	 * @param InstigatedByController - Controller that was responsible for causing this damage (e.g. player who threw the grenade)
 	 * @param bFullDamage - if true, damage not scaled based on distance from Origin
