@@ -4212,11 +4212,11 @@ void AInstancedFoliageActor::OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InW
 
 void AInstancedFoliageActor::CleanupDeletedFoliageType()
 {
-	for (auto& Pair : FoliageInfos)
+	for (auto It = FoliageInfos.CreateIterator(); It; ++It)
 	{
-		if (Pair.Key == nullptr)
+		if (It->Key == nullptr)
 		{
-			FFoliageInfo& Info = *Pair.Value;
+			FFoliageInfo& Info = *It->Value;
 			TArray<int32> InstancesToRemove;
 			for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
 			{
@@ -4227,12 +4227,10 @@ void AInstancedFoliageActor::CleanupDeletedFoliageType()
 			{
 				Info.RemoveInstances(this, InstancesToRemove, true);
 			}
+
+			It.RemoveCurrent();
 		}
-
 	}
-
-	while (FoliageInfos.Remove(nullptr)) {}	//remove entries from the map
-
 }
 
 
