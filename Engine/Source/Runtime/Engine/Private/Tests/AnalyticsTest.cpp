@@ -103,29 +103,29 @@ bool FAnalyticsEventAttributeUnitTest::RunTest(const FString& Parameters)
 
 		//Setup the 'Event Attributes'
 		FAnalyticsEventAttribute EventAttributesFStringTest(AttributeName, AttributeValue);
-		TestTrue(TEXT("Expected to take in these type of values '(const FString&, const FString&)'"), (EventAttributesFStringTest.AttrName == TEXT("Test of") && EventAttributesFStringTest.AttrValueString == "FAnalyticsEventAttribute '(const FString InName, const FString& InVaue)'"));
+		TestTrue(TEXT("Expected to take in these type of values '(const FString&, const FString&)'"), (EventAttributesFStringTest.GetName() == TEXT("Test of") && EventAttributesFStringTest.GetValue() == "FAnalyticsEventAttribute '(const FString InName, const FString& InVaue)'"));
 
 		FAnalyticsEventAttribute EventAttributesTCHARTest(AttributeName, TEXT("FAnalyticsEventAttribute '(const FString InName, const TCHAR* InValue)'"));
-		TestTrue(TEXT("Expected to take in these type of values '(const FString&, const TCHAR*')"), (EventAttributesTCHARTest.AttrName == TEXT("Test of") && EventAttributesTCHARTest.AttrValueString == TEXT("FAnalyticsEventAttribute '(const FString InName, const TCHAR* InValue)'")));
+		TestTrue(TEXT("Expected to take in these type of values '(const FString&, const TCHAR*')"), (EventAttributesTCHARTest.GetName() == TEXT("Test of") && EventAttributesTCHARTest.GetValue() == TEXT("FAnalyticsEventAttribute '(const FString InName, const TCHAR* InValue)'")));
 
 		bool bIsBoolTest = true;
 		FAnalyticsEventAttribute EventAttributesBoolTest(AttributeName, bIsBoolTest);
-		TestTrue(TEXT("Expected to take in these types of values '(const FString&, bool)'"), (EventAttributesBoolTest.AttrName == TEXT("Test of") && EventAttributesBoolTest.AttrValueBool == bIsBoolTest && EventAttributesBoolTest.AttrValueString.IsEmpty()));
+		TestTrue(TEXT("Expected to take in these types of values '(const FString&, bool)'"), (EventAttributesBoolTest.GetName() == TEXT("Test of") && EventAttributesBoolTest.GetValue() == AnalyticsConversionToString(bIsBoolTest)));
 
 		FGuid GuidTest(FGuid::NewGuid());
 		FAnalyticsEventAttribute EventAttributesGuidTest(AttributeName, GuidTest);
-		TestTrue(TEXT("Expected to take in these type of values '(const FString&, FGuid)'"), (EventAttributesGuidTest.AttrName == TEXT("Test of") && EventAttributesGuidTest.AttrValueString == GuidTest.ToString()));
+		TestTrue(TEXT("Expected to take in these type of values '(const FString&, FGuid)'"), (EventAttributesGuidTest.GetName() == TEXT("Test of") && EventAttributesGuidTest.GetValue() == AnalyticsConversionToString(GuidTest)));
 
 		int32 InNumericType = 42;
 		FAnalyticsEventAttribute EventAttributesTInValueTest(AttributeName, InNumericType);
-		TestTrue(TEXT("Expected to take in a arithmetic type (example int32)"), (EventAttributesTInValueTest.AttrName == TEXT("Test of") && EventAttributesTInValueTest.AttrValueNumber == InNumericType && EventAttributesTInValueTest.AttrValueString.IsEmpty()));
+		TestTrue(TEXT("Expected to take in a arithmetic type (example int32)"), (EventAttributesTInValueTest.GetName() == TEXT("Test of") && EventAttributesTInValueTest.GetValue() == AnalyticsConversionToString(InNumericType)));
 
 		TArray<int32> InNumericArray;
 		InNumericArray.Add(0);
 		InNumericArray.Add(1);
 		InNumericArray.Add(2);
 		FAnalyticsEventAttribute EventAttributesTArray(AttributeName, InNumericArray);
-		TestTrue(TEXT("Expected to take in am arithmetic TArray"), (EventAttributesTArray.AttrName == TEXT("Test of") && EventAttributesTArray.AttrValueString == TEXT("0,1,2")));
+		TestTrue(TEXT("Expected to take in am arithmetic TArray"), (EventAttributesTArray.GetName() == TEXT("Test of") && EventAttributesTArray.GetValue() == TEXT("0,1,2")));
 
 		FString TMapKey1 = "TestKey 1";
 		FString TMapKey2 = "TestKey 2";
@@ -138,7 +138,7 @@ bool FAnalyticsEventAttributeUnitTest::RunTest(const FString& Parameters)
 		InTMap.Add(TMapKey2, NumericValue2);
 		InTMap.Add(TMapKey3, NumericValue3);
 		FAnalyticsEventAttribute EventAttributesTMap(AttributeName, InTMap);
-		TestTrue(TEXT("Expected to take in a TMap "), (EventAttributesTMap.AttrName == TEXT("Test of") && EventAttributesTMap.AttrValueString == TEXT("TestKey 1:0,TestKey 2:1,TestKey 3:99")));
+		TestTrue(TEXT("Expected to take in a TMap "), (EventAttributesTMap.GetName() == TEXT("Test of") && EventAttributesTMap.GetValue() == TEXT("TestKey 1:0,TestKey 2:1,TestKey 3:99")));
 
 		return true;
 	}
