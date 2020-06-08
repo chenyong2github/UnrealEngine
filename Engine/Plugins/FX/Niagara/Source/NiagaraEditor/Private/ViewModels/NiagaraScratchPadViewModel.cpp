@@ -415,7 +415,6 @@ void UNiagaraScratchPadViewModel::CreateAssetFromActiveScript()
 			ScriptToCopy->GetName(), StartingPath, ScriptToCopy, LOCTEXT("CreateScriptAssetTitle", "Create Script As")));
 		if (NewAssetScript != nullptr)
 		{
-			NewAssetScript->SetFlags(RF_Standalone | RF_Public);
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAssetScript);
 		}
 	}
