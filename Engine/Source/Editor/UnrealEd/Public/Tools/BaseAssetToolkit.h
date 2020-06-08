@@ -54,6 +54,7 @@ public:
 protected:
 	virtual void RegisterToolbar();
 	virtual TFunction<TSharedRef<SEditorViewport>(void)> GetViewportDelegate();
+	virtual TSharedPtr<FEditorViewportClient> CreateEditorViewportClient() const;
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Details(const FSpawnTabArgs& Args);
 
