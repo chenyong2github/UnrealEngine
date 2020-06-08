@@ -2155,6 +2155,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Actor)
 	AActor* GetOwner() const;
 
+	/** Templated version of GetOwner(), will return nullptr if cast fails */
+	template< class T >
+	T* GetOwner() const
+	{
+		return Cast<T>(GetOwner());
+	}
+
 	/**
 	 * This will check to see if the Actor is still in the world.  It will check things like
 	 * the KillZ, outside world bounds, etc. and handle the situation.
