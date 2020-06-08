@@ -1,5 +1,5 @@
 function doit(cl, bot) {
-	$.get(`..?cl=${cl}&bot=${bot}`)
+	$.get(`../../preview?cl=${cl}&bot=${bot}`)
 	.then(data => {
 		$('#graph').append(showFlowGraph(JSON.parse(data).allBranches, bot.toUpperCase()));
 		$('#success-panel').show();
