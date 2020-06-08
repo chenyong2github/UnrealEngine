@@ -9,7 +9,7 @@ struct FJsonNull
 {
 };
 
-FORCEINLINE TCHAR* LexToString(FJsonNull)
+FORCEINLINE const TCHAR* LexToString(FJsonNull)
 {
 	return TEXT("null");
 }
