@@ -53,8 +53,8 @@ public:
 	 */
 	void SetCellSizeAndExtendBounds(FAxisAlignedBox3d Bounds, double ExtendBoundsIn, int TargetOutputVoxelCount)
 	{
-		ExtendBoundsIn = ExtendBoundsIn;
-		MeshCellSize = (Bounds.MaxDim() + ExtendBoundsIn * 2.0) / double(TargetOutputVoxelCount);
+		ExtendBounds = ExtendBoundsIn;
+		MeshCellSize = (Bounds.MaxDim() + ExtendBounds * 2.0) / double(TargetOutputVoxelCount);
 	}
 
 	/** if this function returns true, we should abort calculation */
