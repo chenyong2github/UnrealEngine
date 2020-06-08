@@ -23,8 +23,6 @@ private:
 
 	void RegisterMenus();
 
-	void OnSpawnPluginTab(const class FSpawnTabArgs& SpawnTabArgs);
-
 private:
 	TSharedPtr<class FUICommandList> PluginCommands;
 };

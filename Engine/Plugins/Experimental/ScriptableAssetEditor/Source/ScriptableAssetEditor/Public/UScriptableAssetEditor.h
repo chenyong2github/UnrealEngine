@@ -6,12 +6,19 @@
 
 #include "UScriptableAssetEditor.generated.h"
 
+class UInteractiveToolsContext;
+class FBaseAssetToolkit;
+
 UCLASS(Transient)
 class UScriptableAssetEditor : public UAssetEditor
 {
 	GENERATED_BODY()
 
-private:
+public:
 	void GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit) override;
-	TSharedPtr<FBaseAssetToolkit> CreateToolkit() override;
+	virtual TSharedPtr<FBaseAssetToolkit> CreateToolkit() override;
+
+protected:
+	UPROPERTY()
+	UInteractiveToolsContext* InteractiveToolsContext;
 };
