@@ -227,8 +227,8 @@ void FAnalyticsProviderApsalar::RecordEvent(const FString& EventName, const TArr
 			NSDictionary* AttributesDict = [NSMutableDictionary dictionaryWithCapacity:AttrCount];
 			for	(auto Attr : Attributes)
 			{
-				NSString* AttrName = [NSString stringWithFString : Attr.AttrName];
-				NSString* AttrValue = [NSString stringWithFString : Attr.ToString()];
+				NSString* AttrName = [NSString stringWithFString : Attr.GetName()];
+				NSString* AttrValue = [NSString stringWithFString : Attr.GetValue()];
 				[AttributesDict setValue:AttrValue forKey:AttrName];
 			}
 			[Apsalar event:ConvertedEventName withArgs:AttributesDict];
