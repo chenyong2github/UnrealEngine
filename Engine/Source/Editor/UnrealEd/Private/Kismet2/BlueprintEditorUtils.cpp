@@ -8460,6 +8460,12 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 			bParseSucceeded = FDefaultValueHelper::ParseInt(StrValue, IntValue);
 			CastFieldChecked<const FIntProperty>(Property)->SetPropertyValue(DirectValue, IntValue);
 		}
+		else if (Property->IsA(FInt64Property::StaticClass()))
+		{
+			int64 IntValue = 0;
+			bParseSucceeded = FDefaultValueHelper::ParseInt64(StrValue, IntValue);
+			CastFieldChecked<const FInt64Property>(Property)->SetPropertyValue(DirectValue, IntValue);
+		}
 		else if (Property->IsA(FFloatProperty::StaticClass()))
 		{
 			float FloatValue = 0.0f;
