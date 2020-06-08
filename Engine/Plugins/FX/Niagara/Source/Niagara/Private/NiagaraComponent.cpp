@@ -74,6 +74,14 @@ static FAutoConsoleVariableRef CVarNiagaraComponentWarnAsleepCullReaction(
 	ECVF_Default
 );
 
+static int32 GNiagaraUseSupressActivateList = 0;
+static FAutoConsoleVariableRef CVarNiagaraUseSupressActivateList(
+	TEXT("fx.Niagara.UseSupressActivateList"),
+	GNiagaraUseSupressActivateList,
+	TEXT("When a component is activated we will check the surpession list."),
+	ECVF_Default
+);
+
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -841,7 +849,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		SetComponentTickEnabled(false);
 		return;
 	}
-	
+
 	UWorld* World = GetWorld();
 	// If the particle system can't ever render (ie on dedicated server or in a commandlet) than do not activate...
 	if (!FApp::CanEverRender() || !World || World->IsNetMode(NM_DedicatedServer))
@@ -852,6 +860,19 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (!IsRegistered())
 	{
 		return;
+	}
+
+	// Temporary change to allow specific Niagara assets to not activate
+	if ( GNiagaraUseSupressActivateList )
+	{
+		if (const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>())
+		{
+			const FName AssetName = Asset->GetFName();
+			if (ComponentSettings->SupressActivationList.Contains(AssetName))
+			{
+				return;
+			}
+		}
 	}
 
 	// On the off chance that the user changed the asset, we need to clear out the existing data.

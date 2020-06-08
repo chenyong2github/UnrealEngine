@@ -29,6 +29,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNia
 
 #define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING)
 
+UCLASS(config=Game, defaultconfig)
+class NIAGARA_API UNiagaraComponentSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(config)
+	TSet<FName> SupressActivationList;
+};
+
 /**
 * UNiagaraComponent is the primitive component for a Niagara System.
 * @see ANiagaraActor
