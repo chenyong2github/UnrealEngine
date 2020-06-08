@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Analytics",
 					"AssetRegistry",
+					"EditorStyle",
 					"Projects",
 					"Python",
 					"Slate",

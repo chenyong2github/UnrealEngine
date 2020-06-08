@@ -2,6 +2,7 @@
 
 #include "PythonScriptPlugin.h"
 #include "PythonScriptPluginSettings.h"
+#include "PythonScriptPluginStyle.h"
 #include "PythonScriptRemoteExecution.h"
 #include "PyGIL.h"
 #include "PyCore.h"
@@ -350,16 +351,15 @@ private:
 			"OpenPython",
 			LOCTEXT("OpenPython", "Execute Python Script..."),
 			LOCTEXT("OpenPythonTooltip", "Open a Python Script file and Execute it."),
-			FSlateIcon(),
+			FSlateIcon(FPythonScriptPluginEditorStyle::Get().GetStyleSetName(), "Icons.PythonExecute"),
 			FUIAction(FExecuteAction::CreateRaw(this, &FPythonCommandMenuImpl::Menu_ExecutePython))
 		);
 		Section.AddSubMenu(
 			"RecentPythonsSubMenu",
 			LOCTEXT("RecentPythonsSubMenu", "Recent Python Scripts"),
 			LOCTEXT("RecentPythonsSubMenu_ToolTip", "Select a recent Python Script file and Execute it."),
-			FNewToolMenuDelegate::CreateRaw(this, &FPythonCommandMenuImpl::MakeRecentPythonScriptMenu),
-			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentLevels")
+			FNewToolMenuDelegate::CreateRaw(this, &FPythonCommandMenuImpl::MakeRecentPythonScriptMenu), false,
+			FSlateIcon(FPythonScriptPluginEditorStyle::Get().GetStyleSetName(), "Icons.PythonRecent")
 		);
 	}
 
@@ -501,6 +501,7 @@ void FPythonScriptPlugin::StartupModule()
 	RemoteExecution = MakeUnique<FPythonScriptRemoteExecution>(this);
 
 #if WITH_EDITOR
+	FPythonScriptPluginEditorStyle::Get();
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPythonScriptPlugin::OnPostEngineInit);
 #endif // WITH_EDITOR
 
