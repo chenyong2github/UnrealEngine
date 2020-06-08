@@ -2410,7 +2410,7 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 	}
 }
 
-void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni* Config/*=GConfig*/ )
+void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni* Config/*=GConfig*/, bool bAllowCopyToDefaultObject/*=true*/)
 {
 	if( !GetClass()->HasAnyClassFlags(CLASS_Config) )
 	{
@@ -2453,7 +2453,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 	UObject* CDO = GetClass()->GetDefaultObject();
 
 	// only copy the values to the CDO if this is GConfig and we're not saving the CDO
-	const bool bCopyValues = (this != CDO && Config == GConfig);
+	const bool bCopyValues = (bAllowCopyToDefaultObject && this != CDO && Config == GConfig);
 
 	for ( FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext )
 	{
