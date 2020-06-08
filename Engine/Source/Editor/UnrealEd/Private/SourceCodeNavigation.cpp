@@ -1760,6 +1760,26 @@ FText FSourceCodeNavigation::GetSuggestedSourceCodeIDE(bool bShortIDEName)
 #endif
 }
 
+
+FSlateIcon FSourceCodeNavigation::GetOpenSourceCodeIDEIcon()
+{
+#if PLATFORM_WINDOWS
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.OpenVisualStudio");
+#else
+	return FSlateIcon();
+#endif
+}
+
+
+FSlateIcon FSourceCodeNavigation::GetRefreshSourceCodeIDEIcon()
+{
+#if PLATFORM_WINDOWS
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.RefreshVisualStudio");
+#else
+	return FSlateIcon();
+#endif
+}
+
 FString FSourceCodeNavigation::GetSuggestedSourceCodeIDEDownloadURL()
 {
 	FString SourceCodeIDEURL;

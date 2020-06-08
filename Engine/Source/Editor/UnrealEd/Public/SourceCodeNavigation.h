@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Textures/SlateIcon.h"
 #include "UObject/WeakObjectPtr.h"
 
 class AActor;
@@ -316,6 +317,12 @@ public:
 
 	/** Returns the name of the selected IDE */
 	UNREALED_API static FText GetSelectedSourceCodeIDE();
+
+	/** Returns the IDE specific representative icon to open source code*/
+	UNREALED_API static FSlateIcon GetOpenSourceCodeIDEIcon();
+
+	/** Returns the IDE specific representative icon to refresh source code*/
+	UNREALED_API static FSlateIcon GetRefreshSourceCodeIDEIcon();
 
 	/** Returns the url to the location where the suggested IDE can be downloaded */
 	UNREALED_API static FString GetSuggestedSourceCodeIDEDownloadURL();
