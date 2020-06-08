@@ -146,6 +146,8 @@ namespace ChaosTest
 
 			Solver.Update(
 				Dt,
+				SolverSettings,
+				JointSettings,
 				P0,
 				Q0,
 				V0,
@@ -158,7 +160,6 @@ namespace ChaosTest
 			for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 			{
 				Solver.ApplyConstraints(Dt, SolverSettings, JointSettings);
-				Solver.ApplyDrives(Dt, SolverSettings, JointSettings);
 			}
 
 			if (Mass0 > 0)
