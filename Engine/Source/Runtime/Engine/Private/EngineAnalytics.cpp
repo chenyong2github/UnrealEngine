@@ -46,24 +46,9 @@ public:
 		Analytics.Pin()->SetAppID(MoveTemp(AppID));
 	}
 
-	virtual const FString& GetAppID() const override
-	{
-		return Analytics.Pin()->GetAppID();
-	}
-
 	virtual void SetAppVersion(FString&& AppVersion) override
 	{
 		Analytics.Pin()->SetAppVersion(MoveTemp(AppVersion));
-	}
-
-	virtual const FString& GetAppVersion() const override
-	{
-		return Analytics.Pin()->GetAppVersion();
-	}
-
-	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes) override
-	{
-		return Analytics.Pin()->StartSession(MoveTemp(Attributes));
 	}
 
 	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) override
@@ -80,9 +65,19 @@ public:
 		Analytics.Pin()->SetDefaultEventAttributes(MoveTemp(Attributes));
 	}
 
-	virtual const TArray<FAnalyticsEventAttribute>& GetDefaultEventAttributes() const override
+	virtual TArray<FAnalyticsEventAttribute> GetDefaultEventAttributesSafe() const override
 	{
-		return Analytics.Pin()->GetDefaultEventAttributes();
+		return Analytics.Pin()->GetDefaultEventAttributesSafe();
+	}
+	
+	virtual int32 GetDefaultEventAttributeCount() const override
+	{
+		return Analytics.Pin()->GetDefaultEventAttributeCount();
+	}
+
+	virtual FAnalyticsEventAttribute GetDefaultEventAttribute(int AttributeIndex) const override
+	{
+		return Analytics.Pin()->GetDefaultEventAttribute(AttributeIndex);
 	}
 
 	virtual void SetURLEndpoint(const FString& UrlEndpoint, const TArray<FString>& AltDomains) override
@@ -103,11 +98,6 @@ public:
 	virtual const FAnalyticsET::Config& GetConfig() const override
 	{
 		return Analytics.Pin()->GetConfig();
-	}
-
-	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) override
-	{
-		return Analytics.Pin()->StartSession(Attributes);
 	}
 
 	virtual void EndSession() override
@@ -140,26 +130,13 @@ public:
 		return Analytics.Pin()->GetUserID();
 	}
 
-	virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) override
-	{
-		FStudioAnalytics::RecordEvent(EventName, Attributes);
-
-		Analytics.Pin()->RecordEvent(EventName, Attributes);
-	}
-
 	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes) override
 	{
-		FStudioAnalytics::RecordEvent(EventName, MoveTemp(Attributes));
+		FStudioAnalytics::RecordEvent(EventName, CopyTemp(Attributes));
 
 		Analytics.Pin()->RecordEvent(EventName, MoveTemp(Attributes));
 	}
 
-	virtual void RecordEventJson(FString EventName, TArray<FAnalyticsEventAttribute>&& AttributesJson) override
-	{
-		FStudioAnalytics::RecordEventJson(EventName, MoveTemp(AttributesJson));
-
-		Analytics.Pin()->RecordEventJson(EventName, MoveTemp(AttributesJson));
-	}
 	virtual void SetShouldRecordEventFunc(const ShouldRecordEventFunction& ShouldRecordEventFunc)
 	{
 		Analytics.Pin()->SetShouldRecordEventFunc(ShouldRecordEventFunc);
