@@ -28,9 +28,12 @@
 #include "Engine/AssetManager.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 
+#include "PakFileUtilities.h"
+
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogAssetRegistryGenerator, Log, All);
 
@@ -365,6 +368,30 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 		IFileManager::Get().IterateDirectoryStatRecursively(*SandboxPath, PackageSearch);
 	}
 
+	bool bEnableGameOpenOrderSort = false;
+	{
+		FConfigFile PlatformIniFile;
+		FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *TargetPlatform->IniPlatformName());
+		FString ConfigString;
+		PlatformIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bEnableAssetRegistryGameOpenOrderSort"), bEnableGameOpenOrderSort);
+	}
+	
+
+	bool bHaveGameOpenOrder = false;
+	// if a game open order can be found then use that to sort the filenames
+
+	// FPaths::ConvertRelativePathToFull(FString::Printf(TEXT("../../../FortniteGame/Build/%s/FileOpenOrder/GameOpenOrder.log"), *Platform));
+	FString OpenOrderFullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder"), TEXT("GameOpenOrder.log"))); 
+	UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Looking for game openorder in dir %s"), *OpenOrderFullPath);
+	FPakOrderMap OrderMap;
+	if (bEnableGameOpenOrderSort && IFileManager::Get().FileExists(*OpenOrderFullPath) )
+	{
+		OrderMap.ProcessOrderFile(*OpenOrderFullPath, true);
+
+		UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found game open order %s using it to sort input files"), *OpenOrderFullPath);
+		bHaveGameOpenOrder = true;
+	}
+
 	// generate per-chunk pak list files
 	bool bSucceeded = true;
 	for (int32 PakchunkIndex = 0; PakchunkIndex < FinalChunkManifests.Num() && bSucceeded; ++PakchunkIndex)
@@ -456,8 +483,50 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 			if (bUseAssetManager && SubChunkIndex == 0)
 			{
-				// Sort so the order is consistent. If load order is important then it should be specified as a load order file to UnrealPak
-				ChunkFilenames.Sort();
+				if (bHaveGameOpenOrder)
+				{		
+					FString CookedDirectory = FPaths::ConvertRelativePathToFull( FPaths::Combine(FPaths::ProjectDir(), TEXT("Saved"), TEXT("Cooked"), TEXT("[Platform]")) );
+					FString RelativePath = TEXT("../../../");
+
+					struct FFilePaths
+					{
+						FFilePaths(const FString& InFilename, FString&& InRelativeFilename) : Filename(InFilename), RelativeFilename(MoveTemp(InRelativeFilename))
+						{ }
+						FString Filename;
+						FString RelativeFilename;
+					};
+
+					TArray<FFilePaths> SortedFiles;
+					SortedFiles.Empty(ChunkFilenames.Num());
+					for (const FString& ChunkFilename : ChunkFilenames)
+					{
+						FString RelativeFilename = ChunkFilename.Replace(*CookedDirectory, *RelativePath);
+						FPaths::RemoveDuplicateSlashes(RelativeFilename);
+						FPaths::NormalizeFilename(RelativeFilename);
+						if (FPaths::GetExtension(RelativeFilename).IsEmpty())
+						{
+							RelativeFilename = FPaths::SetExtension(RelativeFilename, TEXT("uasset")); // only use the uassets to decide which pak file these guys should live in
+						}
+						RelativeFilename.ToLowerInline();
+						SortedFiles.Add(FFilePaths(ChunkFilename, MoveTemp(RelativeFilename)));
+					}
+
+					SortedFiles.Sort([&OrderMap, &CookedDirectory, &RelativePath](const FFilePaths& A, const FFilePaths& B)
+					{
+						return OrderMap.GetFileOrder(A.RelativeFilename, true) < OrderMap.GetFileOrder(B.RelativeFilename, true);
+					});
+
+					ChunkFilenames.Empty(SortedFiles.Num());
+					for (int I = 0; I < SortedFiles.Num(); ++I)
+					{
+						ChunkFilenames.Add(SortedFiles[I].Filename);
+					}
+				}
+				else
+				{
+					// Sort so the order is consistent. If load order is important then it should be specified as a load order file to UnrealPak
+					ChunkFilenames.Sort();
+				}
 			}
 
 			int64 CurrentPakSize = 0;
