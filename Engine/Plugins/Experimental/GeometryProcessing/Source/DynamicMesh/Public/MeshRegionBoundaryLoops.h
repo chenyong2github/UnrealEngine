@@ -68,7 +68,15 @@ public:
 	/** @return index of loop with maximum number of vertices */
 	int GetMaxVerticesLoopIndex() const;
 	
-
+	/**
+	* Find the edge loop border around a set of triangles of a Mesh.
+	* This is computed via local walk and so does not create any full-mesh data structures.
+	* However current implementation may not be efficient for large triangle sets.
+	* Algorithm terminates if a non-manifold boundary is detected, and returns false if some triangles are unused.
+	* @param Loop output loop will be stored here. This value is garbage if false is returned.
+	* @return true if a single well-formed loop was found, false if non-manifold or failure case encountered
+	*/
+	static bool GetTriangleSetBoundaryLoop(const FDynamicMesh3& Mesh, const TArray<int32>& Tris, FEdgeLoop& Loop);
 
 protected:
 

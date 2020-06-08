@@ -31,7 +31,7 @@ FGroupTopology::FGroupTopology(const FDynamicMesh3* MeshIn, bool bAutoBuild)
 }
 
 
-void FGroupTopology::RebuildTopology()
+bool FGroupTopology::RebuildTopology()
 {
 	Groups.Reset();
 	Edges.Reset();
@@ -96,7 +96,11 @@ void FGroupTopology::RebuildTopology()
 	for (FGroup& Group : Groups)
 	{
 		// finds FGroupEdges and uses to populate Group.Boundaries
-		ExtractGroupEdges(Group);
+		bool bOK = ExtractGroupEdges(Group);
+		if (!bOK)
+		{
+			return false;
+		}
 
 		// collect up .NeighbourGroupIDs and set .bIsOnBoundary
 		for (FGroupBoundary& Boundary : Group.Boundaries)
@@ -128,6 +132,7 @@ void FGroupTopology::RebuildTopology()
 		}
 	}
 
+	return true;
 }
 
 
@@ -498,10 +503,16 @@ void FGroupTopology::ForGroupSetEdges(const TArray<int>& GroupIDs,
 
 
 
-void FGroupTopology::ExtractGroupEdges(FGroup& Group)
+bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 {
 	FMeshRegionBoundaryLoops BdryLoops(Mesh, Group.Triangles, true);
-	ensure(!BdryLoops.bFailed); // TODO: handle failure to find boundary loops?
+
+	if (BdryLoops.bFailed)
+	{
+		// Unrecoverable error when trying to find the group boundary loops 
+		return false;
+	}
+
 	int NumLoops = BdryLoops.Loops.Num();
 
 	Group.Boundaries.SetNum(NumLoops);
@@ -577,6 +588,8 @@ void FGroupTopology::ExtractGroupEdges(FGroup& Group)
 			Boundary.GroupEdges.Add(EdgeIndex);
 		}
 	}
+
+	return true;
 }
 
 
@@ -753,7 +766,7 @@ FTriangleGroupTopology::FTriangleGroupTopology(const FDynamicMesh3* Mesh, bool b
 }
 
 
-void FTriangleGroupTopology::RebuildTopology()
+bool FTriangleGroupTopology::RebuildTopology()
 {
 	Groups.Reset();
 	Edges.Reset();
@@ -840,6 +853,7 @@ void FTriangleGroupTopology::RebuildTopology()
 				Boundary0.bIsOnBoundary = true;
 			}
 		}
-
 	}
+
+	return true;
 }

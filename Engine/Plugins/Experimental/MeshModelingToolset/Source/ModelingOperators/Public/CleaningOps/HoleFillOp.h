@@ -4,6 +4,7 @@
 
 #include "ModelingOperators.h"
 #include "EdgeLoop.h"
+#include "Operations/SmoothHoleFiller.h"
 #include "HoleFillOp.generated.h"
 
 UENUM()
@@ -18,25 +19,41 @@ enum class EHoleFillOpFillType : uint8
 	/** Choose a best-fit plane, project the boundary vertices to the plane, and use 2D Delaunay triangulation. */
 	Planar UMETA(DisplayName = "Planar"),
 
-	/** Fill with a triangulation which attempts to minimize Gaussian curvature and not introcude new interior vertices. */
-	Minimal UMETA(DisplayName = "Minimal")
+	/** Fill with a triangulation which attempts to minimize Gaussian curvature and not introduce new interior vertices. */
+	Minimal UMETA(DisplayName = "Minimal"),
+
+	/** Fill hole with a simple triangulation, then alternate between smoothing and remeshing. Optionally include the
+	    triangles around the hole in the smoothing/remeshing. */
+	Smooth UMETA(DisplayName = "Smooth")
 };
 
+
+struct FFillOptions
+{
+	bool bRemoveIsolatedTriangles = false;
+};
 
 class MODELINGOPERATORS_API FHoleFillOp : public FDynamicMeshOperator
 {
 public:
 
 	// inputs
-	const FDynamicMesh3* OriginalMesh = nullptr;
+	
+	TSharedPtr<FDynamicMesh3> OriginalMesh;		// Ownership shared with Tool
+
 	EHoleFillOpFillType FillType = EHoleFillOpFillType::TriangleFan;
 	double MeshUVScaleFactor = 1.0;
 	TArray<FEdgeLoop> Loops;
 
+	FFillOptions FillOptions;
+	FSmoothFillOptions SmoothFillOptions;
+
 	// output
 	TArray<int32> NewTriangles;
+	int NumFailedLoops = 0;
 
 	// FDynamicMeshOperator implementation
 	void CalculateResult(FProgressCancel* Progress) override;
+
 };
 
