@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UScriptableAssetEditor.h"
+
 #include "ExampleAssetToolkit.h"
 #include "Engine/Level.h"
+#include "InteractiveToolsContext.h"
 
 void UScriptableAssetEditor::GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit)
 {
@@ -11,5 +13,10 @@ void UScriptableAssetEditor::GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit)
 
 TSharedPtr<FBaseAssetToolkit> UScriptableAssetEditor::CreateToolkit()
 {
-	return MakeShareable(new FExampleAssetToolkit(this));
+	if (!InteractiveToolsContext)
+	{
+		InteractiveToolsContext = NewObject<UInteractiveToolsContext>(this);
+	}
+
+	return MakeShared<FExampleAssetToolkit>(this, InteractiveToolsContext);
 }
