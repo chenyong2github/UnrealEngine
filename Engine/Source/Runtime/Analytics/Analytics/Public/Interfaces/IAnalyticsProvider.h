@@ -7,7 +7,51 @@
 
 class Error;
 
-/** Generic interface for an analytics provider. Other modules can define more and register them with this module. */
+/** 
+ * Generic interface for an analytics provider. 
+ * Other modules can define more and register them with this module. See FAnalytics for details.
+ *
+ * Many of these APIs come with move-aware versions that can also be overridden (take attributes array by rvalue-ref (&&).
+ * Move-aware versions avoid expensive, unnecessary string copies when passing in arrays of attributes
+ * when the calling code does not need ot use the attributes afterward. Move-aware APIs are selected by
+ * overload resolution automatically by either passing an unnamed temporary or using MoveTemp() like so:
+ *
+ *   // MakeAnalyticsEventAttributeArray is a convenient way to efficiently make an array of attributes
+ *   // Since it returns an unnamed temporary, the compiler automatically selects the move-aware version.
+ *   AnalyticsProvider->RecordEvent(TEXT("MyEvent"), MakeAnalyticsEventAttributeArray("Attr1", "Value1", ... ));
+ *
+ *   TArray<FAnalyticEventAttribute> Attrs;
+ *   Attrs.Add(...);
+ *   // Use MoveTemp to convert Attrs to an rvalue-ref, so RecordEvent will move the array under the hood.
+ *   AnalyticsProvider->RecordEvent(TEXT("MyEvent"), MoveTemp(Attrs));
+ *   // WARNING: Attrs will be undefined (empty in practive) after this point!
+ * 
+ * The base version is implemented in terms of the non move-aware version for legacy reasons.
+ * Efficient implementations will need to override both versions and instead implement
+ * the non move-aware version in terms of the move-aware versions.
+ *
+ * Several APIs build off the pure virtual ones. The following pure virtuals must be implemented by a derived class.
+ * 
+ * 	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes)
+ * 	virtual void EndSession()
+ * 	virtual FString GetSessionID() const
+ * 	virtual bool SetSessionID(const FString& InSessionID)
+ * 	virtual void FlushEvents()
+ * 	virtual void SetUserID(const FString& InUserID)
+ * 	virtual FString GetUserID() const
+ *  virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
+ *
+ * However, if you want your implementation to take full advantage of the move-aware APIs, the following
+ * methods should be implemented in your implementation, and the pure virtuals should be implemented in terms
+ * of THESE to be efficient. See IAnalyticsProviderET for an example:
+ * 
+ * 	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
+ *  virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
+ * 
+ * There are several other methods to record specific types of events. These APIs are not 
+ * move-friendly, so cannot be implemented 100% efficiently.
+ * The recommendation is to avoid these methods if you are using a move-friendly implementation.
+ */
 class IAnalyticsProvider
 {
 public:
@@ -16,16 +60,11 @@ public:
 	 * The use case is for backends and dedicated servers to send events on behalf of a user
 	 * without technically affecting the session length of the local player.
 	 * Local players log in and start/end the session, but remote players simply
-	 * call SetUserID and start sending events, which is legal and analytics providers should 
+	 * call SetUserID and start sending events, which is legal and analytics providers should
 	 * gracefully handle this.
 	 * Repeated calls to this method will be ignored.
-	 * *param Attributes attributes of the session. Arbitrary set of key/value pairs.
+	 *
 	 * @returns true if the session started successfully.
-	 */
-	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) = 0;
-
-	/**
-	 * Overload for StartSession that takes no attributes
 	 */
 	bool StartSession()
 	{
@@ -33,15 +72,36 @@ public:
 	}
 
 	/**
+	 * Starts a session. See parameterless-version for contract details.
+	 * @param Attributes attributes of the session. Arbitrary set of key/value pairs that will be sent
+	                     with the StartSession event that this should also trigger.
+	 */
+	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated, Use other versions instead")
+	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) = 0;
+
+	/**
+	 * Starts a session. See parameterless-version for contract details.
+	 * Move-aware version (see class description).
+	 */
+	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
+	{
+		// implement this in terms of the non move-aware version for legacy reasons
+		// so we don't impose any new requirements on existing analytics providers.
+		// No efficient implementation will want to keep 
+		//PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return StartSession(Attributes);
+		//PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/**
 	 * Overload for StartSession that takes a single attribute
 	 *
 	 * @param Attribute attribute name and value
 	 */
+	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated, Use other versions instead")
 	bool StartSession(const FAnalyticsEventAttribute& Attribute)
 	{
-		TArray<FAnalyticsEventAttribute> Attributes;
-		Attributes.Add(Attribute);
-		return StartSession(Attributes);
+		return StartSession(TArray<FAnalyticsEventAttribute> { Attribute });
 	}
 
 	/**
@@ -50,15 +110,14 @@ public:
 	 * @param ParamName attribute name
 	 * @param ParamValue attribute value
 	 */
+	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated, Use other versions instead")
 	bool StartSession(const FString& ParamName, const FString& ParamValue)
 	{
-		TArray<FAnalyticsEventAttribute> Attributes;
-		Attributes.Add(FAnalyticsEventAttribute(ParamName, ParamValue));
-		return StartSession(Attributes);
+		return StartSession(TArray<FAnalyticsEventAttribute> { FAnalyticsEventAttribute(ParamName, ParamValue) });
 	}
 
 	/**
-	 * Ends the session. No need to call explicitly, as the provider should do this for you when the instance is destroyed.
+	 * Ends the session. Usually no need to call explicitly, as the provider should do this for you when the instance is destroyed.
 	 */
 	virtual void EndSession() = 0;
 
@@ -102,7 +161,7 @@ public:
 	 */
 	virtual void SetBuildInfo(const FString& InBuildInfo)
 	{
-		RecordEvent(TEXT("BuildInfo"), TEXT("BuildInfo"), InBuildInfo);
+		RecordEvent(TEXT("BuildInfo"), TArray<FAnalyticsEventAttribute> { FAnalyticsEventAttribute(TEXT("BuildInfo"), InBuildInfo) });
 	}
 
 	/**
@@ -110,7 +169,7 @@ public:
 	 */
 	virtual void SetGender(const FString& InGender)
 	{
-		RecordEvent(TEXT("Gender"), TEXT("Gender"), InGender);
+		RecordEvent(TEXT("Gender"), TArray<FAnalyticsEventAttribute> { FAnalyticsEventAttribute(TEXT("Gender"), InGender) });
 	}
 
 	/**
@@ -118,7 +177,7 @@ public:
 	 */
 	virtual void SetLocation(const FString& InLocation)
 	{
-		RecordEvent(TEXT("Location"), TEXT("Location"), InLocation);
+		RecordEvent(TEXT("Location"), TArray<FAnalyticsEventAttribute> { FAnalyticsEventAttribute(TEXT("Location"), InLocation) });
 	}
 
 	/**
@@ -126,16 +185,34 @@ public:
 	 */
 	virtual void SetAge(const int32 InAge)
 	{
-		RecordEvent(TEXT("Age"), TEXT("Age"), *TTypeToString<int32>::ToString(InAge));
+		RecordEvent(TEXT("Age"), TArray<FAnalyticsEventAttribute> { FAnalyticsEventAttribute(TEXT("Age"), InAge) });
 	}
 
 	/**
 	 * Records a named event with an array of attributes
 	 *
 	 * @param EventName name of the event
-	 * @param ParamArray array of attribute name/value pairs
+	 * @param Attributes array of attribute name/value pairs
 	 */
+	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated, Use other versions instead")
 	virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) = 0;
+
+	/**
+	 * Records a named event with an array of attributes
+	 * Move-aware version (see class description).
+	 *
+	 * @param EventName name of the event
+	 * @param Attributes array of attribute name/value pairs
+	 */
+	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
+	{
+		// implement this in terms of the non move-aware version for legacy reasons
+		// so we don't impose any new requirements on existing analytics providers.
+		// No efficient implementation will want to keep 
+		//PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RecordEvent(EventName, Attributes);
+		//PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Overload for RecordEvent that takes no parameters
@@ -153,11 +230,10 @@ public:
 	 * @param EventName name of the event
 	 * @param Attribute attribute name and value
 	 */
+	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated, Use other versions instead")
 	void RecordEvent(const FString& EventName, const FAnalyticsEventAttribute& Attribute)
 	{
-		TArray<FAnalyticsEventAttribute> Attributes;
-		Attributes.Add(Attribute);
-		RecordEvent(EventName, Attributes);
+		RecordEvent(EventName, TArray<FAnalyticsEventAttribute> { Attribute });
 	}
 
 	/**
@@ -167,11 +243,10 @@ public:
 	 * @param ParamName attribute name
 	 * @param ParamValue attribute value
 	 */
+	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated, Use other versions instead")
 	void RecordEvent(const FString& EventName, const FString& ParamName, const FString& ParamValue)
 	{
-		TArray<FAnalyticsEventAttribute> Attributes;
-		Attributes.Add(FAnalyticsEventAttribute(ParamName, ParamValue));
-		RecordEvent(EventName, Attributes);
+		RecordEvent(EventName, TArray<FAnalyticsEventAttribute> { FAnalyticsEventAttribute(ParamName, ParamValue) });
 	}
 
 	/**
@@ -208,7 +283,7 @@ public:
 		TArray<FAnalyticsEventAttribute> Params(EventAttrs);
 		Params.Add(FAnalyticsEventAttribute(TEXT("ItemId"), ItemId));
 		Params.Add(FAnalyticsEventAttribute(TEXT("ItemQuantity"), ItemQuantity));
-		RecordEvent(TEXT("Item Purchase"), Params);
+		RecordEvent(TEXT("Item Purchase"), MoveTemp(Params));
 	}
 
 	/**
@@ -261,7 +336,7 @@ public:
 		TArray<FAnalyticsEventAttribute> Params(EventAttrs);
 		Params.Add(FAnalyticsEventAttribute(TEXT("GameCurrencyType"), GameCurrencyType));
 		Params.Add(FAnalyticsEventAttribute(TEXT("GameCurrencyAmount"), GameCurrencyAmount));
-		RecordEvent(TEXT("Currency Purchase"), Params);
+		RecordEvent(TEXT("Currency Purchase"), MoveTemp(Params));
 	}
 
 	/**
@@ -307,7 +382,7 @@ public:
 		TArray<FAnalyticsEventAttribute> Params(EventAttrs);
 		Params.Add(FAnalyticsEventAttribute(TEXT("GameCurrencyType"), GameCurrencyType));
 		Params.Add(FAnalyticsEventAttribute(TEXT("GameCurrencyAmount"), GameCurrencyAmount));
-		RecordEvent(TEXT("Currency Given"), Params);
+		RecordEvent(TEXT("Currency Given"), MoveTemp(Params));
 	}
 
 	/**
@@ -323,7 +398,7 @@ public:
 	{
 		TArray<FAnalyticsEventAttribute> Params(EventAttrs);
 		Params.Add(FAnalyticsEventAttribute(TEXT("Error"), *Error));
-		RecordEvent(TEXT("Game Error"), Params);
+		RecordEvent(TEXT("Game Error"), MoveTemp(Params));
 	}
 
 	/**
@@ -362,7 +437,7 @@ public:
 			}
 		}
 		Params.Add(FAnalyticsEventAttribute(TEXT("ProgressHierarchy"), *Hierarchy));
-		RecordEvent(TEXT("Progression"), Params);
+		RecordEvent(TEXT("Progression"), MoveTemp(Params));
 	}
 
 	/**
