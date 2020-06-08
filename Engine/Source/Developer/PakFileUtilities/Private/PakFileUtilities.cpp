@@ -3822,7 +3822,7 @@ bool GenerateHashForFile( FString Filename, FFileInfo& FileHash)
 	return true;
 }
 
-bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFilename, TMap<FString, FFileInfo>& FileHashes, bool bUseMountPoint, const FKeyChain& InKeyChain, int32& OutLowestSourcePakVersion)
+bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFilename, TMap<FString, FFileInfo>& FileHashes, bool bUseMountPoint, const FKeyChain& InKeyChain, int32& OutLowestSourcePakVersion, TArray<FGuid>* OutUsedEncryptionKeys = nullptr)
 {
 	OutLowestSourcePakVersion = FPakInfo::PakFile_Version_Invalid;
 
@@ -3846,6 +3846,10 @@ bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFil
 		FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
 		if (PakFile.IsValid())
 		{
+			if (OutUsedEncryptionKeys != nullptr)
+			{
+				OutUsedEncryptionKeys->Add( PakFile.GetInfo().EncryptionKeyGuid);
+			}
 			FArchive& PakReader = *PakFile.GetSharedReader(NULL);
 			const int64 BufferSize = 8 * 1024 * 1024; // 8MB buffer for extracting
 			void* Buffer = FMemory::Malloc(BufferSize);
@@ -5204,9 +5208,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 			UE_LOG(LogPakFile, Display, TEXT("Generating patch from %s."), *CmdLineParameters.SourcePatchPakFilename, true );
 
-			if (!GenerateHashesFromPak(*CmdLineParameters.SourcePatchPakFilename, *PakFilename, SourceFileHashes, true, PatchKeyChain, /*Out*/LowestSourcePakVersion))
+			TArray<FGuid> UsedEncryptionKeys;
+			if (!GenerateHashesFromPak(*CmdLineParameters.SourcePatchPakFilename, *PakFilename, SourceFileHashes, true, PatchKeyChain, /*Out*/LowestSourcePakVersion, &UsedEncryptionKeys))
 			{
-				if (ExtractFilesFromPak(*CmdLineParameters.SourcePatchPakFilename, SourceFileHashes, *OutputPath, true, PatchKeyChain, nullptr) == false)
+				UE_LOG(LogPakFile, Warning, TEXT("Unable to generate hashes from pak file %s"), *CmdLineParameters.SourcePatchPakFilename);
+				if (ExtractFilesFromPak(*CmdLineParameters.SourcePatchPakFilename, SourceFileHashes, *OutputPath, true, PatchKeyChain, nullptr, nullptr, nullptr, nullptr, &UsedEncryptionKeys) == false)
 				{
 					UE_LOG(LogPakFile, Warning, TEXT("Unable to extract files from source pak file for patch"));
 				}
@@ -5217,6 +5223,16 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 			}
 
 			ApplyEncryptionKeys(KeyChain);
+
+
+			if (UsedEncryptionKeys.Num() == 1)
+			{
+				if (UsedEncryptionKeys[0].IsValid())
+				{
+					UE_LOG(LogPakFile, Display, TEXT("Found encryption key %s in pak file %s will use to encrypt patch"), *((UsedEncryptionKeys[0]).ToString()), *CmdLineParameters.SourcePatchPakFilename);
+					KeyChain.MasterEncryptionKey = KeyChain.EncryptionKeys.Find(UsedEncryptionKeys[0]);
+				}
+			}
 		}
 
 
