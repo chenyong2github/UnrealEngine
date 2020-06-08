@@ -487,6 +487,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 			}
 
 			TUniquePtr<FGetVisibleMaterialParametersFunctionState> NewFunctionState = MakeUnique<FGetVisibleMaterialParametersFunctionState>(FunctionCallExpression);
+			NewFunctionState->StackParameterInfo = ParameterInfo; // Don't change back to Global parameter association when stepping into a function called from a blend/layer function
 			FunctionStack.Push(NewFunctionState.Get());
 		
 			GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(FunctionCallExpression->FunctionOutputs[MaterialExpressionKey.OutputIndex].ExpressionOutput, 0), MaterialInstance, VisibleExpressions, FunctionStack);
