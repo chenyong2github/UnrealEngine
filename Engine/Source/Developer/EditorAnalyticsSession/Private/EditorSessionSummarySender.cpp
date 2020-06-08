@@ -264,7 +264,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	// Sending the summary event of the current process analytic session?
 	if (AnalyticsProvider.GetSessionID().Contains(Session.SessionId)) // The string (GUID) returned by GetSessionID() is surrounded with braces like "{3FEA3232-...}" while Session.SessionId is not -> "3FEA3232-..."
 	{
-		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), MoveTemp(AnalyticsAttributes));
 	}
 	else // The summary was created by another process/instance in a different session. (Ex: Editor sending a summary a prevoulsy crashed instance or CrashReportClientEditor sending it on behalf of the Editor)
 	{
@@ -281,7 +281,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 		TempSummaryProvider->SetUserID(CopyTemp(Session.UserId));
 
 		// Send the summary.
-		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), MoveTemp(AnalyticsAttributes));
 
 		// The temporary provider is about to be deleted (going out of scope), ensure it sents its report.
 		TempSummaryProvider->BlockUntilFlushed(2.0f);
