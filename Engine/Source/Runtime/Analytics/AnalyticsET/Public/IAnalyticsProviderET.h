@@ -162,7 +162,7 @@ public:
 
 	bool StartSession(FString InSessionID)
 	{
-		StartSession(MoveTemp(InSessionID), TArray<FAnalyticsEventAttribute>());
+		return StartSession(MoveTemp(InSessionID), TArray<FAnalyticsEventAttribute>());
 	}
 
 	bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
