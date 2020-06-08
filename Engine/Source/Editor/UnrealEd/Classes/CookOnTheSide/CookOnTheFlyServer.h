@@ -206,6 +206,7 @@ private:
 	int32 LastCookPendingCount = 0;
 	int32 LastCookedPackagesCount = 0;
 	double LastProgressDisplayTime = 0;
+	double LastDiagnosticsDisplayTime = 0;
 
 	FName ConvertCookedPathToUncookedPath(
 		const FString& SandboxRootDir, const FString& RelativeRootDir,
@@ -261,6 +262,7 @@ private:
 
 	/** Execute operations that need to be done after each Scheduler task, such as checking for new external requests. */
 	void TickCookStatus(UE::Cook::FTickStackData& StackData);
+	void UpdateDisplay(ECookTickFlags CookFlags, bool bForceDisplay);
 	enum class ECookAction
 	{
 		Done,		// The cook is complete; no requests remain in any non-idle state
