@@ -140,7 +140,7 @@ inline FAnalyticsEventAttribute::FAnalyticsEventAttribute(FString InName, ValueT
 , AttrValueString(AnalyticsConversionToString(Forward<ValueType>(InValue)))
 , AttrValueNumber(0)
 , AttrValueBool(false)
-, AttrType(TIsArithmetic<ValueType>::Value || TIsSame<TDecay<ValueType>::Type, FJsonNull>::Value || TIsSame<TDecay<ValueType>::Type, FJsonFragment>::Value ? AttrTypeEnum::JsonFragment : AttrTypeEnum::String)
+, AttrType(TIsArithmetic<ValueType>::Value || TIsSame<typename TDecay<ValueType>::Type, FJsonNull>::Value || TIsSame<typename TDecay<ValueType>::Type, FJsonFragment>::Value ? AttrTypeEnum::JsonFragment : AttrTypeEnum::String)
 {
 
 }
@@ -200,8 +200,8 @@ inline bool FAnalyticsEventAttribute::IsJsonFragment() const
 template<typename ValueType>
 inline void FAnalyticsEventAttribute::SetValue(ValueType&& InValue)
 {
-	AttrValueString = AnalyticsConversionToString(Forward<ValueType>(InValue));
-	AttrType = TIsArithmetic<ValueType>::Value || TIsSame<TDecay<ValueType>::Type, FJsonNull>::Value || TIsSame<TDecay<ValueType>::Type, FJsonFragment>::Value ? AttrTypeEnum::JsonFragment : AttrTypeEnum::String;
+	const_cast<FString&>(AttrValueString) = AnalyticsConversionToString(Forward<ValueType>(InValue));
+	const_cast<AttrTypeEnum&>(AttrType) = TIsArithmetic<ValueType>::Value || TIsSame<typename TDecay<ValueType>::Type, FJsonNull>::Value || TIsSame<typename TDecay<ValueType>::Type, FJsonFragment>::Value ? AttrTypeEnum::JsonFragment : AttrTypeEnum::String;
 }
 
 inline void FAnalyticsEventAttribute::SwitchToJsonFragment()
