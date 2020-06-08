@@ -110,7 +110,7 @@ public:
 	 */
 	bool Initialize(UTexture2D* ExistingTexture, ETextureType BuildTypeIn, bool bLockForEditing = true)
 	{
-		check(ExistingTexture);
+		check(ExistingTexture != nullptr);
 		check(ExistingTexture->PlatformData != nullptr);
 		check(ExistingTexture->PlatformData->Mips.Num() > 0);
 		if (ExistingTexture == nullptr || ExistingTexture->PlatformData == nullptr || ExistingTexture->PlatformData->Mips.Num() == 0)
