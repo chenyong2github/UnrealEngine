@@ -76,17 +76,26 @@ FEditorModeTools::FEditorModeTools()
 	{
 		// Register our callback for undo/redo
 		GEditor->RegisterForUndo(this);
+
+		// This binding ensures the mode is destroyed if the type is unregistered outside of normal shutdown process
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().AddRaw(this, &FEditorModeTools::OnModeUnregistered);
 	}
 }
 
 FEditorModeTools::~FEditorModeTools()
 {
-	// Should we call Exit on any modes that are still active, or is it too late?
+	if (GEditor)
+	{
+		GEditor->UnregisterForUndo(this);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().RemoveAll(this);
+	}
+
+	DeactivateAllModes();
+	RecycledScriptableModes.Empty();
+
 	USelection::SelectionChangedEvent.RemoveAll(this);
 	USelection::SelectNoneEvent.RemoveAll(this);
 	USelection::SelectObjectEvent.RemoveAll(this);
-
-	GEditor->UnregisterForUndo(this);
 }
 
 void FEditorModeTools::LoadConfig(void)
@@ -577,6 +586,11 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 
 	RecycledScriptableModes.Add(Mode->GetID(), Mode);
 	ActiveScriptableModes.RemoveAt(InIndex);
+}
+
+void FEditorModeTools::OnModeUnregistered(FEditorModeID ModeID)
+{
+	DestroyMode(ModeID);
 }
 
 void FEditorModeTools::RebuildModeToolBar()
