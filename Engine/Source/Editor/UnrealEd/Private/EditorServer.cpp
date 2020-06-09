@@ -5609,10 +5609,6 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	//------------------------------------------------------------------------------------
 	// MISC
 	//
-	else if (FParse::Command(&Str, TEXT("BLUEPRINTIFY")))
-	{
-		HandleBlueprintifyFunction( Str, Ar );
-	}
 	else if( FParse::Command(&Str,TEXT("EDCALLBACK")) )
 	{
 		HandleCallbackCommand( InWorld, Str, Ar );
@@ -5953,27 +5949,6 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	}
 
 	return bProcessed;
-}
-
-bool UEditorEngine::HandleBlueprintifyFunction( const TCHAR* Str , FOutputDevice& Ar )
-{
-	bool bResult = false;
-	TArray<AActor*> SelectedActors;
-	USelection* EditorSelection = GetSelectedActors();
-	for (FSelectionIterator Itor(*EditorSelection); Itor; ++Itor)
-	{
-		if (AActor* Actor = Cast<AActor>(*Itor))
-		{
-			SelectedActors.Add(Actor);
-		}
-	}
-	if(SelectedActors.Num() >0)
-	{
-		FKismetEditorUtilities::HarvestBlueprintFromActors(TEXT("/Game/Unsorted/"), SelectedActors, false);
-		bResult = true;
-	}
-	return bResult;
-	
 }
 
 bool UEditorEngine::HandleCallbackCommand( UWorld* InWorld, const TCHAR* Str , FOutputDevice& Ar )
