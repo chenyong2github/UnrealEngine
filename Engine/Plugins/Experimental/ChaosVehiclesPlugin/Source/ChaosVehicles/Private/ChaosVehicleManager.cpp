@@ -68,7 +68,7 @@ FChaosVehicleManager* FChaosVehicleManager::GetVehicleManagerFromScene(FPhysScen
 void FChaosVehicleManager::AddVehicle( TWeakObjectPtr<UChaosVehicleMovementComponent> Vehicle )
 {
 	check(Vehicle != NULL);
-	check(Vehicle->PVehicle);
+	check(Vehicle->PhysicsVehicle());
 
 	Vehicles.Add( Vehicle );
 }
@@ -76,15 +76,15 @@ void FChaosVehicleManager::AddVehicle( TWeakObjectPtr<UChaosVehicleMovementCompo
 void FChaosVehicleManager::RemoveVehicle( TWeakObjectPtr<UChaosVehicleMovementComponent> Vehicle )
 {
 	check(Vehicle != NULL);
-	check(Vehicle->PVehicle);
+	check(Vehicle->PhysicsVehicle());
 
 	int32 RemovedIndex = Vehicles.Find(Vehicle);
 
 	Vehicles.Remove( Vehicle );
 
-	if (Vehicle->PVehicle.IsValid())
+	if (Vehicle->PhysicsVehicle().IsValid())
 	{
-		Vehicle->PVehicle.Reset(nullptr);
+		Vehicle->PhysicsVehicle().Reset(nullptr);
 	}
 }
 

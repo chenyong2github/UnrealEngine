@@ -46,6 +46,11 @@ public:
 	{
 	}*/
 
+	bool IsValid()
+	{
+		return (Transmission.Num() == 1) && (Engine.Num() == 1) && (Aerodynamics.Num() == 1);
+	}
+
 	FSimpleEngineSim& GetEngine()
 	{
 		check(Engine.Num() == 1);
