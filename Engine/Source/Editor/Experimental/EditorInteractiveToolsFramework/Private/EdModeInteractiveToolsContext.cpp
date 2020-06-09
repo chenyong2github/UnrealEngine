@@ -477,6 +477,8 @@ void UEdModeInteractiveToolsContext::InitializeContextWithEditorModeManager(FEdi
 	IToolsContextAssetAPI* UseAssetAPI)
 {
 	check(InEditorModeManager);
+	EditorModeManager = InEditorModeManager;
+
 	this->TransactionAPI = new FEdModeToolsContextTransactionImpl(this, InEditorModeManager);
 	this->QueriesAPI = new FEdModeToolsContextQueriesImpl(this, InEditorModeManager);
 	this->AssetAPI = (UseAssetAPI != nullptr) ? UseAssetAPI: new FEditorToolAssetAPI();
@@ -537,15 +539,6 @@ void UEdModeInteractiveToolsContext::PostInvalidation()
 	InvalidationTimestamp++;
 }
 
-FEditorViewportClient* UEdModeInteractiveToolsContext::GetActiveViewportClient()
-{
-	// This is our best effort right now. However this is somewhat incorrect as if you Hover
-	// on other Viewports they get mouse events, but this value stays on the Focused viewport.
-	// Not sure what to do about this right now.
-	return GCurrentLevelEditingViewportClient;
-}
-
-
 void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	// invalidate this viewport if it's timestamp is not current
@@ -563,7 +556,7 @@ void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 
 	// This Tick() is called for every ViewportClient, however we only want to Tick the ToolManager and GizmoManager
 	// once, for the 'Active'/Focused Viewport, so early-out here
-	if (ViewportClient != GetActiveViewportClient())
+	if (ViewportClient != EditorModeManager->GetFocusedViewportClient())
 	{
 		return;
 	}
@@ -679,7 +672,7 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	// use to know when they are seeing the SceneView they should use to recalculate their size/visibility/etc.
 	// This could go away if we could move that functionality out of the RenderProxy (tricky given that it needs
 	// to respond to each FSceneView...)
-	if (ViewportClient == GetActiveViewportClient())
+	if (ViewportClient == EditorModeManager->GetHoveredViewportClient())
 	{
 		// This locks internally and so no need to do on Render thread, and possibly better to do immediately (?)
 		//ENQUEUE_RENDER_COMMAND(BlerBlerBler)( [View](FRHICommandListImmediate& RHICmdList) {
