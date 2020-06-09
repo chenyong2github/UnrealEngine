@@ -943,15 +943,19 @@ public:
 				UE_LOG(LogTemp, Warning, TEXT("SetTimeStamp: Failed to SetFileTime on %s"), Filename);
 			}
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
+#if PLATFORMFILETRACE_ENABLED
+			// MSVC static analysis has a rule that reports the argument to CloseHandle as uninitialized memory after the call to CloseHandle, so we have to save it ahead of time
+			uint64 SavedHandle = uint64(Handle);
+#endif
 			BOOL CloseResult = CloseHandle(Handle);
 #if PLATFORMFILETRACE_ENABLED
 			if (CloseResult)
 			{
-				TRACE_PLATFORMFILE_END_CLOSE(Handle);
+				TRACE_PLATFORMFILE_END_CLOSE(SavedHandle);
 			}
 			else
 			{
-				TRACE_PLATFORMFILE_FAIL_CLOSE(Handle);
+				TRACE_PLATFORMFILE_FAIL_CLOSE(SavedHandle);
 			}
 #else
 			(void)CloseResult;
@@ -1002,15 +1006,19 @@ public:
 				}
 			}
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(hFile);
+#if PLATFORMFILETRACE_ENABLED
+			// MSVC static analysis has a rule that reports the argument to CloseHandle as uninitialized memory after the call to CloseHandle, so we have to save it ahead of time
+			uint64 SavedHFile = uint64(hFile);
+#endif
 			BOOL CloseResult = CloseHandle(hFile);
 #if PLATFORMFILETRACE_ENABLED
 			if (CloseResult)
 			{
-				TRACE_PLATFORMFILE_END_CLOSE(hFile);
+				TRACE_PLATFORMFILE_END_CLOSE(SavedHFile);
 			}
 			else
 			{
-				TRACE_PLATFORMFILE_FAIL_CLOSE(hFile);
+				TRACE_PLATFORMFILE_FAIL_CLOSE(SavedHFile);
 			}
 #else
 			(void)CloseResult;
@@ -1165,15 +1173,19 @@ public:
 		if (MappingHandle == INVALID_HANDLE_VALUE)
 		{
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
+#if PLATFORMFILETRACE_ENABLED
+			// MSVC static analysis has a rule that reports the argument to CloseHandle as uninitialized memory after the call to CloseHandle, so we have to save it ahead of time
+			uint64 SavedHandle = uint64(Handle);
+#endif
 			BOOL CloseResult = CloseHandle(Handle);
 #if PLATFORMFILETRACE_ENABLED
 			if (CloseResult)
 			{
-				TRACE_PLATFORMFILE_END_CLOSE(Handle);
+				TRACE_PLATFORMFILE_END_CLOSE(SavedHandle);
 			}
 			else
 			{
-				TRACE_PLATFORMFILE_FAIL_CLOSE(Handle);
+				TRACE_PLATFORMFILE_FAIL_CLOSE(SavedHandle);
 			}
 #else
 			(void)CloseResult;
