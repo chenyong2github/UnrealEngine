@@ -323,17 +323,17 @@ private:
 				}
 			}
 
-			int32 FileHandle = ActiveHandles[ Oldest ]->FileHandle;
-			TRACE_PLATFORMFILE_BEGIN_CLOSE( FileHandle );
-			int CloseResult = close( FileHandle );
+			int32 OldestFileHandle = ActiveHandles[ Oldest ]->FileHandle;
+			TRACE_PLATFORMFILE_BEGIN_CLOSE(OldestFileHandle);
+			int CloseResult = close(OldestFileHandle);
 #if PLATFORMFILETRACE_ENABLED
 			if (CloseResult >= 0)
 			{
-				TRACE_PLATFORMFILE_END_CLOSE( FileHandle );
+				TRACE_PLATFORMFILE_END_CLOSE(OldestFileHandle);
 			}
 			else
 			{
-				TRACE_PLATFORMFILE_FAIL_CLOSE( FileHandle );
+				TRACE_PLATFORMFILE_FAIL_CLOSE(OldestFileHandle);
 			}
 #else
 			(void)CloseResult;
