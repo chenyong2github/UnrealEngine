@@ -78,6 +78,7 @@
 #include "IUATHelperModule.h"
 #include "ISettingsEditorModule.h"
 #include "Async/Async.h"
+#include "Misc/FileHelper.h"
 
 
 #define LOCTEXT_NAMESPACE "DebuggerCommands"
