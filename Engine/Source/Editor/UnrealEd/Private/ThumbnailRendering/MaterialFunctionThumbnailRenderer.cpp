@@ -9,6 +9,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "ThumbnailHelpers.h"
+#include "Settings/ContentBrowserSettings.h"
 
 
 UMaterialFunctionThumbnailRenderer::UMaterialFunctionThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
@@ -66,6 +67,11 @@ void UMaterialFunctionThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y,
 			ThumbnailScene->SetMaterialInterface(nullptr);
 		}
 	}
+}
+
+bool UMaterialFunctionThumbnailRenderer::CanVisualizeAsset(UObject* Object)
+{
+	return GetDefault<UContentBrowserSettings>()->bEnableRealtimeMaterialInstanceThumbnails;
 }
 
 void UMaterialFunctionThumbnailRenderer::BeginDestroy()
