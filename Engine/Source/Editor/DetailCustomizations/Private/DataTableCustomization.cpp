@@ -4,7 +4,6 @@
 #include "DataTableEditorUtils.h"
 #include "Editor.h"
 #include "Widgets/SWidget.h"
-#include "Widgets/STooltip.h"
 #include "Widgets/Text/STextBlock.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Framework/Application/SlateApplication.h"

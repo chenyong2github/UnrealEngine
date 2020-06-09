@@ -8,6 +8,7 @@
 #include "Engine/AssetManager.h"
 #include "PropertyHandle.h"
 #include "PropertyCustomizationHelpers.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "PrimaryAssetTypeCustomization"
 

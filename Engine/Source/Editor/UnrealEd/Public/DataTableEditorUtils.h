@@ -5,6 +5,7 @@
 #include "Engine/DataTable.h"
 #include "Kismet2/ListenerManager.h"
 #include "Widgets/SWidget.h"
+#include "Framework/Commands/UIAction.h"
 #include "AssetData.h"
 
 struct FDataTableEditorColumnHeaderData

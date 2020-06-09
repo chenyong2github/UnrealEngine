@@ -12,6 +12,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "Editor.h"
 #include "AssetThumbnail.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "PrimaryAssetIdCustomization"
 
