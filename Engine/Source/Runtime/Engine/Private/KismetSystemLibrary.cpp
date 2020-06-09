@@ -81,6 +81,21 @@ FString UKismetSystemLibrary::GetPathName(const UObject* Object)
 	return GetPathNameSafe(Object);
 }
 
+FString UKismetSystemLibrary::GetSystemPath(const UObject* Object)
+{
+	if (Object->IsAsset())
+	{
+		FString PackageFileName;
+		FString PackageFile;
+		if (FPackageName::TryConvertLongPackageNameToFilename(Object->GetPackage()->GetName(), PackageFileName) &&
+			FPackageName::FindPackageFileWithoutExtension(PackageFileName, PackageFile))
+		{
+			return FPaths::ConvertRelativePathToFull(MoveTemp(PackageFile));
+		}
+	}
+	return FString();
+}
+
 FString UKismetSystemLibrary::GetDisplayName(const UObject* Object)
 {
 #if WITH_EDITOR
