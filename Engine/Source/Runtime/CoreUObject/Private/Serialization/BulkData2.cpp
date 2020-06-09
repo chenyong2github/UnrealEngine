@@ -1361,13 +1361,15 @@ bool FBulkDataBase::CanDiscardInternalData() const
 	// -	We can reload the Bulkdata from disk
 	// -	If the Bulkdata object has been marked as single use which shows 
 	//		that there is no intent to access the data again)
-	// -	If we are using the IoDispatcher and the data is currently inlined
+	// -	If the IoDispatcher and the data is currently inlined (note that it doesn't
+	//		matter if BulkData is in the IoStore or pakfiles we do not allow the reloading
+	//		of inline data if the IoDispatcher is enabled at all)
 	//		since we will not be able to reload inline data when the IoStore is
 	//		active.
 
 	// TODO: This is currently called from ::GetCopy but not ::Unlock, we should investigate unifying the
 	// rules for discarding data
-	return CanLoadFromDisk() || IsSingleUse() || (IsInlined() && IsIoDispatcherEnabled());
+	return CanLoadFromDisk() || IsSingleUse() || (IsInlined() && FIoDispatcher::IsInitialized());
 }
 
 void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
