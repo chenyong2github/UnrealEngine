@@ -393,6 +393,13 @@ public:
 	/** Returns true if the parent-mesh vertex is connected to any seam edges */
 	bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
 
+	/**
+	 * Determines whether the base-mesh vertex has "bowtie" topology in the Overlay.
+	 * Bowtie topology means that one or more elements at the vertex are shared across disconnected UV-components.
+	 * @return true if the base-mesh vertex has "bowtie" topology in the overlay
+	 */
+	bool IsBowtieInOverlay(int32 VertexID) const;
+
 	/** @return true if the two triangles are connected, ie shared edge exists and is not a seam edge */
 	bool AreTrianglesConnected(int TriangleID0, int TriangleID1) const;
 
