@@ -72,6 +72,7 @@ struct FSimpleWheelConfig
 		, MaxBrakeTorque(2000.f)
 		, HandbrakeTorque(1000.f)
 		, ABSEnabled(false)
+		, BrakeEnabled(true)
 		, HandbrakeEnabled(true)
 		, SteeringEnabled(true)
 		, EngineEnabled(false)
@@ -100,6 +101,7 @@ struct FSimpleWheelConfig
 	bool ABSEnabled;					// Advanced braking system operational
 
 	// setup
+	bool BrakeEnabled;			// Regular brakes are enabled for this wheel
 	bool HandbrakeEnabled;		// Handbrake is operational on this wheel
 	bool SteeringEnabled;		// Steering is operational on this wheel
 	bool EngineEnabled;			// Wheel is driven by an engine
@@ -403,7 +405,7 @@ public:
 					{
 						Sx = Omega * Re;
 					}
-					FVehicleUtility::ClampNormalRange(Sx);
+					// FVehicleUtility::ClampNormalRange(Sx);
 
 					NormalizedFrictionFromSlip = GetNormalisedFrictionFromSlipAngle(Sx) * SurfaceFriction;
 					ForceFromFriction.X = NormalizedFrictionFromSlip * ForceIntoSurface;
@@ -424,7 +426,7 @@ public:
 							Sx = Omega * Re;
 						}
 						Sx = FMath::Abs(Sx);
-						FVehicleUtility::ClampNormalRange(Sx);
+					//	FVehicleUtility::ClampNormalRange(Sx);
 
 						NormalizedFrictionFromSlip = GetNormalisedFrictionFromSlipAngle(Sx) * SurfaceFriction;
 						ForceFromFriction.X = -NormalizedFrictionFromSlip * ForceIntoSurface;

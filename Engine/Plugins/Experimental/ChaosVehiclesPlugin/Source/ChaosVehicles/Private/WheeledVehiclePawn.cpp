@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	Vehicle.cpp: AWheeledVehiclePawn implementation
-	TODO: Put description here
-=============================================================================*/
-
 #include "WheeledVehiclePawn.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -38,7 +33,6 @@ void AWheeledVehiclePawn::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo&
 	static FName NAME_Vehicle = FName(TEXT("Vehicle"));
 
 	Super::DisplayDebug(Canvas, DebugDisplay, YL, YPos);
-
 }
 
 class UChaosVehicleMovementComponent* AWheeledVehiclePawn::GetVehicleMovementComponent() const
