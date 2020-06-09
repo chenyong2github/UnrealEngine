@@ -712,27 +712,30 @@ void FMaterialPropertyHelpers::OnOverrideParameter(bool NewValue, class UDEditor
 
 FText FMaterialPropertyHelpers::GetParameterExpressionDescription(UDEditorParameterValue* Parameter, UObject* MaterialEditorInstance)
 {
-	UMaterial* BaseMaterial = nullptr;
-
-	UMaterialEditorInstanceConstant* MaterialInstanceEditor = Cast<UMaterialEditorInstanceConstant>(MaterialEditorInstance);
-	if (MaterialInstanceEditor)
+	if (Parameter->ExpressionId.IsValid())
 	{
-		BaseMaterial = MaterialInstanceEditor->SourceInstance->GetMaterial();
-	}
-	UMaterialEditorPreviewParameters* MaterialEditor = Cast<UMaterialEditorPreviewParameters>(MaterialEditorInstance);
-	if (MaterialEditor)
-	{
-		BaseMaterial = MaterialEditor->OriginalMaterial;
-	}
+		UMaterial* BaseMaterial = nullptr;
 
-	// TODO: This needs to support functions added by SourceInstance layers
-	if ( BaseMaterial )
-	{
-		UMaterialExpression* MaterialExpression = BaseMaterial->FindExpressionByGUID<UMaterialExpression>(Parameter->ExpressionId);
-
-		if (MaterialExpression)
+		UMaterialEditorInstanceConstant* MaterialInstanceEditor = Cast<UMaterialEditorInstanceConstant>(MaterialEditorInstance);
+		if (MaterialInstanceEditor)
 		{
-			return FText::FromString(MaterialExpression->Desc);
+			BaseMaterial = MaterialInstanceEditor->SourceInstance->GetMaterial();
+		}
+		UMaterialEditorPreviewParameters* MaterialEditor = Cast<UMaterialEditorPreviewParameters>(MaterialEditorInstance);
+		if (MaterialEditor)
+		{
+			BaseMaterial = MaterialEditor->OriginalMaterial;
+		}
+
+		// TODO: This needs to support functions added by SourceInstance layers
+		if (BaseMaterial)
+		{
+			UMaterialExpression* MaterialExpression = BaseMaterial->FindExpressionByGUID<UMaterialExpression>(Parameter->ExpressionId);
+
+			if (MaterialExpression)
+			{
+				return FText::FromString(MaterialExpression->Desc);
+			}
 		}
 	}
 
