@@ -8608,9 +8608,11 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 	if ((NumMasterTracksPasted + NumTracksPasted) > 0)
 	{
 		NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 void GetSupportedTracks(TSharedRef<FSequencerDisplayNode> DisplayNode, const TArray<UMovieSceneSection*>& ImportedSections, TArray<TSharedRef<FSequencerTrackNode>>& TracksToPasteOnto)
@@ -8648,8 +8650,24 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 {
 	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
+	// First import as a track and extract sections to allow for copying track contents to another track
+	TArray<UMovieSceneCopyableTrack*> ImportedTracks;
+	FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
+
 	TArray<UMovieSceneSection*> ImportedSections;
-	FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
+	for (UMovieSceneCopyableTrack* CopyableTrack : ImportedTracks)
+	{
+		for (UMovieSceneSection* CopyableSection : CopyableTrack->Track->GetAllSections())
+		{
+			ImportedSections.Add(CopyableSection);
+		}
+	}
+
+	// Otherwise, import as sections
+	if (ImportedSections.Num() == 0)
+	{
+		FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
+	}
 
 	if (ImportedSections.Num() == 0)
 	{
@@ -8753,7 +8771,22 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 		// Regenerate for pasting onto the next track 
 		ImportedSections.Empty();
-		FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
+		ImportedTracks.Empty();
+
+		FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
+
+		for (UMovieSceneCopyableTrack* CopyableTrack : ImportedTracks)
+		{
+			for (UMovieSceneSection* CopyableSection : CopyableTrack->Track->GetAllSections())
+			{
+				ImportedSections.Add(CopyableSection);
+			}
+		}
+
+		if (ImportedSections.Num() == 0)
+		{
+			FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
+		}
 	}
 
 	for (int32 SectionIndex = 0; SectionIndex < ImportedSections.Num(); ++SectionIndex)
