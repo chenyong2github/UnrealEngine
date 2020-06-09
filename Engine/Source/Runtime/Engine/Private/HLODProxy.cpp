@@ -112,6 +112,36 @@ void UHLODProxy::Clean()
 	}
 }
 
+void UHLODProxy::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+
+	if (!OwningMap.IsValid())
+	{
+		return;
+	}
+
+	// Always rebuild key on save here.
+	// We don't do this while cooking as keys rely on platform derived data which is context-dependent during cook
+	if (!GIsCookerLoadingPackage)
+	{
+		if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
+		{
+			UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject());
+			for (AActor* Actor : World->PersistentLevel->Actors)
+			{
+				if (ALODActor* LODActor = Cast<ALODActor>(Actor))
+				{
+					if (LODActor->ProxyDesc && LODActor->ProxyDesc->GetOutermost() == GetOutermost())
+					{
+						LODActor->ProxyDesc->Key = UHLODProxy::GenerateKeyForActor(LODActor);
+					}
+				}
+			}
+		}
+	}
+}
+
 void UHLODProxy::UpdateHLODDescs(const ULevel* InLevel)
 {
 	// Gather a map of all the HLODProxyDescs used by LODActors in the level
@@ -120,7 +150,7 @@ void UHLODProxy::UpdateHLODDescs(const ULevel* InLevel)
 	{
 		if (ALODActor* LODActor = Cast<ALODActor>(Actor))
 		{
-			if (LODActor->ProxyDesc)
+			if (LODActor->ProxyDesc && LODActor->ProxyDesc->GetOutermost() == GetOutermost())
 			{
 				LODActors.Emplace(LODActor->ProxyDesc, LODActor);
 			}
@@ -135,7 +165,7 @@ void UHLODProxy::UpdateHLODDescs(const ULevel* InLevel)
 		ALODActor** LODActor = LODActors.Find(HLODProxyDesc);
 		if (LODActor)
 		{
-			ItHLODActor.Key()->UpdateFromLODActor(*LODActor);
+			HLODProxyDesc->UpdateFromLODActor(*LODActor);
 		}
 		else
 		{

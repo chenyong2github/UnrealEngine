@@ -48,8 +48,7 @@ public:
 
 	virtual ~FStaticMeshGpuSpawnBuffer();
 
-	void Initialise(const FStaticMeshLODResources* Res, const UNiagaraDataInterfaceStaticMesh& Interface,
-		bool bIsGpuUniformlyDistributedSampling, const TArray<int32>& ValidSection, const FStaticMeshFilteredAreaWeightedSectionSampler& SectionSampler);
+	void Initialise(const FStaticMeshLODResources* Res, const UNiagaraDataInterfaceStaticMesh& Interface, struct FNDIStaticMesh_InstanceData* InstanceData);
 
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -68,6 +67,11 @@ public:
 	FRHIShaderResourceView* GetBufferUniformTriangleSamplingSRV() const { return BufferUniformTriangleSamplingSRV; }
 
 	uint32 GetNumTexCoord() const { return NumTexCoord; }
+
+	FRHIShaderResourceView* GetSocketTransformsSRV() const { return SocketTransformsSRV; }
+	FRHIShaderResourceView* GetFilteredAndUnfilteredSocketsSRV() const { return FilteredAndUnfilteredSocketsSRV; }
+	uint32 GetNumSockets() const { return NumSockets; }
+	uint32 GetNumFilteredSockets() const { return NumFilteredSockets; }
 
 protected:
 
@@ -97,6 +101,17 @@ protected:
 	FShaderResourceViewRHIRef MeshTexCoordBufferSrv;
 	uint32 NumTexCoord;
 	FShaderResourceViewRHIRef MeshColorBufferSRV;
+
+	TResourceArray<FVector4> SocketTransformsResourceArray;
+	FVertexBufferRHIRef SocketTransformsBuffer;
+	FShaderResourceViewRHIRef SocketTransformsSRV;
+
+	TResourceArray<uint16> FilteredAndUnfilteredSocketsResourceArray;
+	FVertexBufferRHIRef FilteredAndUnfilteredSocketsBuffer;
+	FShaderResourceViewRHIRef FilteredAndUnfilteredSocketsSRV;
+
+	uint32 NumSockets = 0;
+	uint32 NumFilteredSockets = 0;
 };
 
 struct FNDIStaticMesh_InstanceData
@@ -150,6 +165,15 @@ struct FNDIStaticMesh_InstanceData
 	int32 MinLOD = 0;
 	/** The cached LODIdx used to initialize the FNDIStaticMesh_InstanceData.*/
 	int32 CachedLODIdx = 0;
+
+	/** Cached socket information, if available */
+	TArray<FTransform> CachedSockets;
+
+	/** Number of filtered sockets. */
+	int32 NumFilteredSockets = 0;
+
+	/** Filter sockets followed by unfiltered sockets */
+	TArray<uint16> FilteredAndUnfilteredSockets;
 
 	FORCEINLINE UStaticMesh* GetActualMesh()const { return Mesh; }
 	FORCEINLINE bool UsesCpuUniformlyDistributedSampling() const { return bIsCpuUniformlyDistributedSampling; }
@@ -217,6 +241,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Mesh")
     bool bUsePhysicsBodyVelocity;
 
+	/** List of filtered sockets to use. */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	TArray<FName> FilteredSockets;
+
     /** Changed within the editor on PostEditChangeProperty. Should be changed whenever a refresh is desired.*/
 	uint32 ChangeId;
 
@@ -262,13 +290,20 @@ public:
 	static const FString InstanceTransformName;
 	static const FString InstanceTransformInverseTransposedName;
 	static const FString InstancePrevTransformName;
+	static const FString InstanceRotationName;
+	static const FString InstancePrevRotationName;
 	static const FString InstanceInvDeltaTimeName;
 	static const FString InstanceWorldVelocityName;
 	static const FString AreaWeightedSamplingName;
 	static const FString NumTexCoordName;
 	static const FString UseColorBufferName;
+	static const FString SocketTransformsName;
+	static const FString FilteredAndUnfilteredSocketsName;
+	static const FString NumSocketsAndFilteredName;
 
 public:
+	TWeakObjectPtr<UStaticMesh> GetStaticMesh(TWeakObjectPtr<USceneComponent>& OutComponent, class FNiagaraSystemInstance* SystemInstance = nullptr);
+
 	void IsValid(FVectorVMContext& Context);
 
 	template<typename TSampleMode>
@@ -304,6 +339,17 @@ public:
 
 	template<typename TransformHandlerType>
 	void GetVertexPosition(FVectorVMContext& Context);
+
+	// Socket Functions
+	void GetSocketCount(FVectorVMContext& Context);
+	void GetFilteredSocketCount(FVectorVMContext& Context);
+	void GetUnfilteredSocketCount(FVectorVMContext& Context);
+	template<bool bWorldSpace>
+	void GetSocketTransform(FVectorVMContext& Context);
+	template<bool bWorldSpace>
+	void GetFilteredSocketTransform(FVectorVMContext& Context);
+	template<bool bWorldSpace>
+	void GetUnfilteredSocketTransform(FVectorVMContext& Context);
 
 	void SetSourceComponentFromBlueprints(UStaticMeshComponent* ComponentToUse);
 	void SetDefaultMeshFromBlueprints(UStaticMesh* MeshToUse);

@@ -327,11 +327,11 @@ public:
 	const TArray<ULocalPlayer*> &			GetLocalPlayers() const;
 	/**
 	 * Get the primary player controller on this machine (others are splitscreen children)
-	 * (must have valid player state and unique id)
-	 *
+	 * (must have valid player state)
+	 * @param bRequiresValidUniqueId - Whether the controller must also have a valid unique id (default true in order to maintain historical behaviour)
 	 * @return the primary controller on this machine
 	 */
-	APlayerController* GetPrimaryPlayerController() const;
+	APlayerController* GetPrimaryPlayerController(bool bRequiresValidUniqueId = true) const;
 
 	/**
 	 * Get the unique id for the primary player on this machine (others are splitscreen children)

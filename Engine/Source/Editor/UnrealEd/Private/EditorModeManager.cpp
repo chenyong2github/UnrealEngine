@@ -169,6 +169,22 @@ UWorld* FEditorModeTools::GetWorld() const
 	}
 }
 
+FEditorViewportClient* FEditorModeTools::GetHoveredViewportClient() const
+{
+	// This is our best effort right now. However this is somewhat incorrect as if you Hover
+	// on other Viewports they get mouse events, but this value stays on the Focused viewport.
+	// Not sure what to do about this right now.
+	return HoveredViewportClient;
+}
+
+FEditorViewportClient* FEditorModeTools::GetFocusedViewportClient() const
+{
+	// This is our best effort right now. However this is somewhat incorrect as if you Hover
+	// on other Viewports they get mouse events, but this value stays on the Focused viewport.
+	// Not sure what to do about this right now.
+	return FocusedViewportClient;
+}
+
 bool FEditorModeTools::SelectionHasSceneComponent() const
 {
 	return bSelectionHasSceneComponent;
@@ -1342,6 +1358,7 @@ bool FEditorModeTools::GetPivotForOrbit( FVector& Pivot ) const
 
 bool FEditorModeTools::MouseEnter( FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 X, int32 Y )
 {
+	HoveredViewportClient = InViewportClient;
 	bool bHandled = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
@@ -1373,6 +1390,7 @@ bool FEditorModeTools::MouseMove( FEditorViewportClient* InViewportClient, FView
 
 bool FEditorModeTools::ReceivedFocus( FEditorViewportClient* InViewportClient, FViewport* Viewport )
 {
+	FocusedViewportClient = InViewportClient;
 	bool bHandled = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{

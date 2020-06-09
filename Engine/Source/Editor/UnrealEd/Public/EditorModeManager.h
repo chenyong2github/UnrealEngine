@@ -515,6 +515,16 @@ public:
 	virtual UWorld* GetWorld() const;
 
 	/**
+	 * Returns the currently hovered viewport client
+	 */
+	FEditorViewportClient* GetHoveredViewportClient() const;
+
+	/**
+	 * Returns the currently focused viewport client
+	 */
+	FEditorViewportClient* GetFocusedViewportClient() const;
+
+	/**
 	 * Whether or not the current selection has a scene component selected
  	 */
 	bool SelectionHasSceneComponent() const;
@@ -626,4 +636,7 @@ private:
 
 	/** Flag set between calls to StartTracking() and EndTracking() */
 	bool bIsTracking;
+
+	FEditorViewportClient* HoveredViewportClient = nullptr;
+	FEditorViewportClient* FocusedViewportClient = nullptr;
 };

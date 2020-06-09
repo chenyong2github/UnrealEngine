@@ -576,6 +576,12 @@ bool FNiagaraTypeDefinition::IsValidNumericInput(const FNiagaraTypeDefinition& T
 bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 #if WITH_EDITORONLY_DATA
+	if (UnderlyingType != UT_None && ClassStructOrEnum == nullptr)
+	{
+		UE_LOG(LogNiagara, Error, TEXT("Invalid data in niagara type definition, might be due to broken serialization or missing DI implementation"));
+		return false;
+	}
+
 	UStruct* TDStruct = GetStruct();
 	UClass* TDClass = GetClass();
 	UEnum* TDEnum = GetEnum();

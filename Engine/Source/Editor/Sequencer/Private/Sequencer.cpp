@@ -8608,9 +8608,11 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 	if ((NumMasterTracksPasted + NumTracksPasted) > 0)
 	{
 		NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 void GetSupportedTracks(TSharedRef<FSequencerDisplayNode> DisplayNode, const TArray<UMovieSceneSection*>& ImportedSections, TArray<TSharedRef<FSequencerTrackNode>>& TracksToPasteOnto)
@@ -8648,8 +8650,24 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 {
 	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
+	// First import as a track and extract sections to allow for copying track contents to another track
+	TArray<UMovieSceneCopyableTrack*> ImportedTracks;
+	FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
+
 	TArray<UMovieSceneSection*> ImportedSections;
-	FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
+	for (UMovieSceneCopyableTrack* CopyableTrack : ImportedTracks)
+	{
+		for (UMovieSceneSection* CopyableSection : CopyableTrack->Track->GetAllSections())
+		{
+			ImportedSections.Add(CopyableSection);
+		}
+	}
+
+	// Otherwise, import as sections
+	if (ImportedSections.Num() == 0)
+	{
+		FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
+	}
 
 	if (ImportedSections.Num() == 0)
 	{
@@ -8753,7 +8771,22 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 		// Regenerate for pasting onto the next track 
 		ImportedSections.Empty();
-		FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
+		ImportedTracks.Empty();
+
+		FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
+
+		for (UMovieSceneCopyableTrack* CopyableTrack : ImportedTracks)
+		{
+			for (UMovieSceneSection* CopyableSection : CopyableTrack->Track->GetAllSections())
+			{
+				ImportedSections.Add(CopyableSection);
+			}
+		}
+
+		if (ImportedSections.Num() == 0)
+		{
+			FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
+		}
 	}
 
 	for (int32 SectionIndex = 0; SectionIndex < ImportedSections.Num(); ++SectionIndex)
@@ -9163,6 +9196,7 @@ void FSequencer::ConvertToSpawnable(TSharedRef<FSequencerObjectBindingNode> Node
 	const FScopedTransaction Transaction( LOCTEXT("ConvertSelectedNodeSpawnable", "Convert Node to Spawnables") );
 
 	// Ensure we're in a non-possessed state
+	TGuardValue<bool> Guard(bUpdatingExternalSelection, true);
 	RestorePreAnimatedState();
 	GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
 	FMovieScenePossessable* Possessable = GetFocusedMovieSceneSequence()->GetMovieScene()->FindPossessable(NodeToBeConverted->GetObjectBinding());
@@ -9187,6 +9221,7 @@ void FSequencer::ConvertSelectedNodesToSpawnables()
 	const FScopedTransaction Transaction( LOCTEXT("ConvertSelectedNodesSpawnable", "Convert Selected Nodes to Spawnables") );
 
 	// Ensure we're in a non-possessed state
+	TGuardValue<bool> Guard(bUpdatingExternalSelection, true);
 	RestorePreAnimatedState();
 	MovieScene->Modify();
 
@@ -9495,6 +9530,7 @@ void FSequencer::ConvertToPossessable(TSharedRef<FSequencerObjectBindingNode> No
 	const FScopedTransaction Transaction( LOCTEXT("ConvertSelectedNodePossessable", "Convert Node to Possessables") );
 
 	// Ensure we're in a non-possessed state
+	TGuardValue<bool> Guard(bUpdatingExternalSelection, true);
 	RestorePreAnimatedState();
 	GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
 	FMovieSceneSpawnable* Spawnable = GetFocusedMovieSceneSequence()->GetMovieScene()->FindSpawnable(NodeToBeConverted->GetObjectBinding());

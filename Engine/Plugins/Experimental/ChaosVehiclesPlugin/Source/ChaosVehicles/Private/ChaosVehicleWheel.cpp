@@ -27,7 +27,8 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	bAutoAdjustCollisionSize = true;
 	WheelMass = 20.0f;
 	CheatFrictionForce = 2.0f;
-	bAffectedByHandbrake = true;
+	bAffectedByBrake = true;
+	bAffectedByHandbrake = false;
 	MaxSteerAngle = 50.0f;
 	MaxBrakeTorque = 1500.f;
 	MaxHandBrakeTorque = 3000.f;
@@ -54,14 +55,14 @@ FChaosVehicleManager* UChaosVehicleWheel::GetVehicleManager() const
 
 float UChaosVehicleWheel::GetSteerAngle() const
 {
-	check(VehicleSim && VehicleSim->PVehicle);
-	return VehicleSim->PVehicle->Wheels[WheelIndex].GetSteeringAngle();
+	check(VehicleSim && VehicleSim->PhysicsVehicle());
+	return VehicleSim->PhysicsVehicle()->Wheels[WheelIndex].GetSteeringAngle();
 }
 
 float UChaosVehicleWheel::GetRotationAngle() const
 {
-	check(VehicleSim && VehicleSim->PVehicle);
-	float RotationAngle = -1.0f * FMath::RadiansToDegrees(VehicleSim->PVehicle->Wheels[WheelIndex].GetAngularPosition());
+	check(VehicleSim && VehicleSim->PhysicsVehicle());
+	float RotationAngle = -1.0f * FMath::RadiansToDegrees(VehicleSim->PhysicsVehicle()->Wheels[WheelIndex].GetAngularPosition());
 	ensure(!FMath::IsNaN(RotationAngle));
 
 	return RotationAngle;
@@ -69,14 +70,14 @@ float UChaosVehicleWheel::GetRotationAngle() const
 
 float UChaosVehicleWheel::GetSuspensionOffset() const
 {
-	check(VehicleSim && VehicleSim->PVehicle);
-	return VehicleSim->PVehicle->Suspension[WheelIndex].GetSpringLength();
+	check(VehicleSim && VehicleSim->PhysicsVehicle());
+	return VehicleSim->PhysicsVehicle()->Suspension[WheelIndex].GetSpringLength();
 }
 
 bool UChaosVehicleWheel::IsInAir() const
 {
-	check(VehicleSim && VehicleSim->PVehicle);
-	return !VehicleSim->PVehicle->Wheels[WheelIndex].InContact();
+	check(VehicleSim && VehicleSim->PhysicsVehicle());
+	return !VehicleSim->PhysicsVehicle()->Wheels[WheelIndex].InContact();
 }
 
 

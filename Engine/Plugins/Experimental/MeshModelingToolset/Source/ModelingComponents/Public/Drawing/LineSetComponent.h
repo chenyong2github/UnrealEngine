@@ -75,11 +75,32 @@ public:
 	/** Sets the thickness of a line */
 	void SetLineThickness(const int32 ID, const float NewThickness);
 
+	/** Sets the thickness of all existing line */
+	void SetAllLinesThickness(const float NewThickness);
+
+	/** Rescales each line assuming that vertex 0 is the origin */
+	void SetAllLinesLength(const float NewLength, bool bUpdateBounds = false);
+
 	/** Remove a line from the set */
 	void RemoveLine(const int32 ID);
 
 	/** Queries whether a line with the given ID exists */
 	bool IsLineValid(const int32 ID) const;
+
+
+	// utility construction functions
+
+	/**
+	 * Add a set of lines for each index in a sequence
+	 * @param NumIndices iterate from 0...NumIndices and call LineGenFunc() for each value
+	 * @param LineGenFunc called to fetch the lines for an index, callee filles LinesOut array (reset before each call)
+	 * @param LinesPerIndexHint if > 0, will reserve space for NumIndices*LinesPerIndexHint new lines
+	 */
+	void AddLines(
+		int32 NumIndices,
+		TFunctionRef<void(int32 Index, TArray<FRenderableLine>& LinesOut)> LineGenFunc,
+		int32 LinesPerIndexHint = -1);
+
 
 private:
 

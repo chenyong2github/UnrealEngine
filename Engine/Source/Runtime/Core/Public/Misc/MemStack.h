@@ -41,19 +41,23 @@ public:
 	typedef TLockFreeFixedSizeAllocator<PageSize, PLATFORM_CACHE_LINE_SIZE, FThreadSafeCounter> TPageAllocator;
 #endif
 
-	static void *Alloc();
-	static void Free(void *Mem);
-	static void *AllocSmall();
-	static void FreeSmall(void *Mem);
-	static uint64 BytesUsed();
-	static uint64 BytesFree();
-	static void LatchProtectedMode();
+	static FPageAllocator& Get();
+
+	void* Alloc();
+	void Free(void* Mem);
+	void* AllocSmall();
+	void FreeSmall(void* Mem);
+	uint64 BytesUsed();
+	uint64 BytesFree();
+	void LatchProtectedMode();
 private:
 
+	FPageAllocator() {}
+
 #if STATS
-	static void UpdateStats();
+	void UpdateStats();
 #endif
-	static TPageAllocator TheAllocator;
+	TPageAllocator TheAllocator;
 };
 
 

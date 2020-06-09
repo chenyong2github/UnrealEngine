@@ -544,6 +544,35 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::IsSeamVertex(int vid, bool bBou
 }
 
 template<typename RealType, int ElementSize>
+bool TDynamicMeshOverlay<RealType, ElementSize>::IsBowtieInOverlay(int32 VertexID) const
+{
+	// This is a bit tricky but seems to be correct. If we think of a mesh boundary edge as "one" border edge,
+	// and a UV-seam as "two" border edges (one on each side), then we have a non-bowtie configuration if:
+	//  1) NumElements == 1 && BorderEdgeCount == 0
+	//  2) BorderEdgeCount == 2*NumElements
+	// otherwise we have bowties
+	// (todo: validate this with brute-force algorithm that finds uv-connected-components of one-ring?)
+
+	int32 NumBoundary = 0;
+	int32 NumSeams = 0;
+	for (int32 EdgeID : ParentMesh->VtxEdgesItr(VertexID))
+	{
+		if (ParentMesh->IsBoundaryEdge(EdgeID))
+		{
+			NumBoundary++;
+		} 
+		else if (IsSeamEdge(EdgeID))
+		{
+			NumSeams++;
+		}
+	}
+	int32 NumElements = CountVertexElements(VertexID);
+	int32 BorderEdgeCount = NumBoundary + 2 * NumSeams;
+	return ! ( (BorderEdgeCount == 0 && NumElements == 1) || (BorderEdgeCount == 2*NumElements) );
+}
+
+
+template<typename RealType, int ElementSize>
 bool TDynamicMeshOverlay<RealType, ElementSize>::AreTrianglesConnected(int TriangleID0, int TriangleID1) const
 {
 	FIndex3i NbrTris = ParentMesh->GetTriNeighbourTris(TriangleID0);
