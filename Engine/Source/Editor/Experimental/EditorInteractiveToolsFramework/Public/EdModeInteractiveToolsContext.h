@@ -116,8 +116,6 @@ protected:
 	IToolsContextTransactionsAPI* TransactionAPI;
 	IToolsContextAssetAPI* AssetAPI;
 
-	FEditorViewportClient* GetActiveViewportClient();
-
 	// Tools need to be able to Invalidate the view, in case it is not Realtime.
 	// Currently we do this very aggressively, and also force Realtime to be on, but in general we should be able to rely on Invalidation.
 	// However there are multiple Views and we do not want to Invalidate immediately, so we store a timestamp for each
@@ -148,4 +146,8 @@ protected:
 	// push the input action onto the NextTickExecuteActions list. Use this to defer execution to a "simpler" time, 
 	// eg so we are not kicking off a complicated static mesh rebuild process inside a slate button handler
 	void ScheduleExecuteAction(TUniqueFunction<void()> Action);
+
+private:
+	FEditorModeTools* EditorModeManager = nullptr;
+
 };
