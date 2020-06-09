@@ -1847,7 +1847,7 @@ template<typename TSampleMode>
 void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection(FVectorVMContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
-	VectorVM::FExternalFuncInputHandler<int32> SectionIdxParam(Context);
+	FNDIInputParam<int32> SectionIdxParam(Context);
 
 	FNDIOutputParam<int32> OutTri(Context);
 	FNDIOutputParam<FVector> OutBary(Context);
@@ -1869,7 +1869,7 @@ template<>
 void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection<TSampleModeInvalid>(FVectorVMContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
-	VectorVM::FExternalFuncInputHandler<int32> SectionIdxParam(Context);
+	FNDIInputParam<int32> SectionIdxParam(Context);
 
 	FNDIOutputParam<int32> OutTri(Context);
 	FNDIOutputParam<FVector> OutBary(Context);
@@ -1886,10 +1886,8 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Cont
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	TransformHandlerType TransformHandler;
-	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
+	FNDIInputParam<int32> TriParam(Context);
+	FNDIInputParam<FVector> BaryParam(Context);
 
 	FNDIOutputParam<FVector> OutPos(Context);
 
@@ -1919,7 +1917,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Cont
 		const int32 Idx1 = Indices[Tri + 1];
 		const int32 Idx2 = Indices[Tri + 2];
 
-		FVector Pos = BarycentricInterpolate(BaryXParam.GetAndAdvance(), BaryYParam.GetAndAdvance(), BaryZParam.GetAndAdvance(), Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2));
+		FVector Pos = BarycentricInterpolate(BaryParam.GetAndAdvance(), Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2));
 		TransformHandler.TransformPosition(Pos, InstData->Transform);
 
 		OutPos.SetAndAdvance(Pos);
@@ -1933,10 +1931,8 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Contex
 
 	TransformHandlerType TransformHandler;
 
-	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
+	FNDIInputParam<int32> TriParam(Context);
+	FNDIInputParam<FVector> BaryParam(Context);
 
 	FNDIOutputParam<FVector> OutNorm(Context);
 
@@ -1963,7 +1959,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Contex
 		const int32 Idx1 = Indices[Tri + 1];
 		const int32 Idx2 = Indices[Tri + 2];
 
-		FVector Norm = BarycentricInterpolate(BaryXParam.GetAndAdvance(), BaryYParam.GetAndAdvance(), BaryZParam.GetAndAdvance(), Verts.VertexTangentZ(Idx0), Verts.VertexTangentZ(Idx1), Verts.VertexTangentZ(Idx2));
+		FVector Norm = BarycentricInterpolate(BaryParam.GetAndAdvance(), Verts.VertexTangentZ(Idx0), Verts.VertexTangentZ(Idx1), Verts.VertexTangentZ(Idx2));
 		TransformHandler.TransformVector(Norm, InstData->TransformInverseTransposed);
 
 		OutNorm.SetAndAdvance(Norm);
@@ -1977,10 +1973,8 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Cont
 
 	TransformHandlerType TransformHandler;
 
-	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
+	FNDIInputParam<int32> TriParam(Context);
+	FNDIInputParam<FVector> BaryParam(Context);
 
 	FNDIOutputParam<FVector> OutTangent(Context);
 	FNDIOutputParam<FVector> OutBinorm(Context);
@@ -2009,7 +2003,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Cont
 		const int32 Idx0 = Indices[Tri];
 		const int32 Idx1 = Indices[Tri + 1];
 		const int32 Idx2 = Indices[Tri + 2];
-		const FVector BaryCoord(BaryXParam.GetAndAdvance(), BaryYParam.GetAndAdvance(), BaryZParam.GetAndAdvance());
+		const FVector BaryCoord(BaryParam.GetAndAdvance());
 		FVector Tangent = BarycentricInterpolate(BaryCoord, Verts.GetTangentX(Idx0), Verts.GetTangentX(Idx1), Verts.GetTangentX(Idx2));
 		FVector Binorm = BarycentricInterpolate(BaryCoord, Verts.GetTangentY(Idx0), Verts.GetTangentY(Idx1), Verts.GetTangentY(Idx2));
 		FVector Norm = BarycentricInterpolate(BaryCoord, Verts.GetTangentZ(Idx0), Verts.GetTangentZ(Idx1), Verts.GetTangentZ(Idx2));
@@ -2023,10 +2017,8 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
-	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
+	FNDIInputParam<int32> TriParam(Context);
+	FNDIInputParam<FVector> BaryParam(Context);
 
 	FNDIOutputParam<FLinearColor> OutColor(Context);
 
@@ -2047,7 +2039,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context
 			const int32 Idx0 = Indices[Tri];
 			const int32 Idx1 = Indices[Tri + 1];
 			const int32 Idx2 = Indices[Tri + 2];
-			const FVector BaryCoord(BaryXParam.GetAndAdvance(), BaryYParam.GetAndAdvance(), BaryZParam.GetAndAdvance());
+			const FVector BaryCoord(BaryParam.GetAndAdvance());
 
 			FLinearColor Color = BarycentricInterpolate(BaryCoord, Colors.VertexColor(Idx0).ReinterpretAsLinear(), Colors.VertexColor(Idx1).ReinterpretAsLinear(), Colors.VertexColor(Idx2).ReinterpretAsLinear());
 
@@ -2070,11 +2062,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
-	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
-	VectorVM::FExternalFuncInputHandler<int32> UVSetParam(Context);
+	FNDIInputParam<int32> TriParam(Context);
+	FNDIInputParam<FVector> BaryParam(Context);
+	FNDIInputParam<int32> UVSetParam(Context);
 
 	FNDIOutputParam<FVector2D> OutUV(Context);
 
@@ -2100,7 +2090,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 		const int32 Idx0 = Indices[Tri];
 		const int32 Idx1 = Indices[Tri + 1];
 		const int32 Idx2 = Indices[Tri + 2];
-		const FVector BaryCoord(BaryXParam.GetAndAdvance(), BaryYParam.GetAndAdvance(), BaryZParam.GetAndAdvance());
+		const FVector BaryCoord(BaryParam.GetAndAdvance());
 		const int32 UVSet = UVSetParam.GetAndAdvance();
 		FVector2D UV = BarycentricInterpolate(BaryCoord,	Verts.GetUV(Idx0, UVSet), Verts.GetUV(Idx1, UVSet),	Verts.GetUV(Idx2, UVSet));
 
@@ -2112,10 +2102,8 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMCo
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
-	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
+	FNDIInputParam<int32> TriParam(Context);
+	FNDIInputParam<FVector> BaryParam(Context);
 
 	FNDIOutputParam<FVector> OutPos(Context);
 	FNDIOutputParam<FVector> OutVel(Context);
@@ -2145,7 +2133,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMCo
 		const int32 Idx0 = Indices[Tri];
 		const int32 Idx1 = Indices[Tri + 1];
 		const int32 Idx2 = Indices[Tri + 2];
-		const FVector BaryCoord(BaryXParam.GetAndAdvance(), BaryYParam.GetAndAdvance(), BaryZParam.GetAndAdvance());
+		const FVector BaryCoord(BaryParam.GetAndAdvance());
 		FVector Pos = BarycentricInterpolate(BaryCoord, Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2));
 		FVector WSPos = InstData->Transform.TransformPosition(Pos);
 		
@@ -2250,7 +2238,7 @@ void UNiagaraDataInterfaceStaticMesh::GetVertexPosition(FVectorVMContext& Contex
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	TransformHandlerType TransformHandler;
-	VectorVM::FExternalFuncInputHandler<int32> VertexIndexParam(Context);
+	FNDIInputParam<int32> VertexIndexParam(Context);
 
 	FNDIOutputParam<FVector> OutPos(Context);
 
@@ -2321,7 +2309,7 @@ template<bool bWorldSpace>
 void UNiagaraDataInterfaceStaticMesh::GetSocketTransform(FVectorVMContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
-	VectorVM::FExternalFuncInputHandler<int32> InSocketIndex(Context);
+	FNDIInputParam<int32> InSocketIndex(Context);
 
 	FNDIOutputParam<FVector> OutTranslate(Context);
 	FNDIOutputParam<FQuat> OutRotate(Context);
@@ -2359,7 +2347,7 @@ template<bool bWorldSpace>
 void UNiagaraDataInterfaceStaticMesh::GetFilteredSocketTransform(FVectorVMContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
-	VectorVM::FExternalFuncInputHandler<int32> InSocketIndex(Context);
+	FNDIInputParam<int32> InSocketIndex(Context);
 
 	FNDIOutputParam<FVector> OutTranslate(Context);
 	FNDIOutputParam<FQuat> OutRotate(Context);
@@ -2397,7 +2385,7 @@ template<bool bWorldSpace>
 void UNiagaraDataInterfaceStaticMesh::GetUnfilteredSocketTransform(FVectorVMContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
-	VectorVM::FExternalFuncInputHandler<int32> InSocketIndex(Context);
+	FNDIInputParam<int32> InSocketIndex(Context);
 
 	FNDIOutputParam<FVector> OutTranslate(Context);
 	FNDIOutputParam<FQuat> OutRotate(Context);
