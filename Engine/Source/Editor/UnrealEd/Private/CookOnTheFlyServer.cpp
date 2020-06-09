@@ -1225,7 +1225,7 @@ void UCookOnTheFlyServer::UpdateDisplay(ECookTickFlags TickFlags, bool bForceDis
 #if PLATFORMFILETRACE_ENABLED
 		OpenFileHandles = FPlatformFileTrace::GetOpenFileHandleCount();
 #endif
-		UE_CLOG(!(TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
+		UE_CLOG(!(TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay != (int32) ECookProgressDisplayMode::Nothing),
 			LogCook, Display,
 			TEXT("Cook Diagnostics: OpenFileHandles=%d, VirtualMemory=%dMiB"),
 			OpenFileHandles, FPlatformMemory::GetStats().UsedVirtual / 1024 / 1024);
