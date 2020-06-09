@@ -548,7 +548,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetUnfilteredBoneAt(FVectorVMContext& Co
 			for (int32 i = 0; i < Context.NumInstances; ++i)
 			{
 				const int32 BoneIndex = FMath::Clamp(BoneParam.GetAndAdvance(), 0, Max);
-				OutBone.SetAndAdvance(BoneIndex);
+				OutBone.SetAndAdvance(InstData->FilteredAndUnfilteredBones[BoneIndex + InstData->NumFilteredBones]);
 			}
 		}
 	}
