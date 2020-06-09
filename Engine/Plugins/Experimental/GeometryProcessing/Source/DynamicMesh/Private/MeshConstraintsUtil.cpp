@@ -117,7 +117,7 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 	}, (bParallel == false) );
 }
 
-void FMeshConstraintsUtil::ConstrainEdgeROISeams(FMeshConstraints& Constraints, const FDynamicMesh3& Mesh, const TArray<int>& EdgeROI, bool bAllowSplits, bool bAllowSmoothing, bool bParallel)
+void FMeshConstraintsUtil::ConstrainSeamsInEdgeROI(FMeshConstraints& Constraints, const FDynamicMesh3& Mesh, const TArray<int>& EdgeROI, bool bAllowSplits, bool bAllowSmoothing, bool bParallel)
 {
 	if (Mesh.HasAttributes() == false)
 	{
@@ -134,17 +134,55 @@ void FMeshConstraintsUtil::ConstrainEdgeROISeams(FMeshConstraints& Constraints, 
 	ParallelFor(NumEdges, [&](int k)
 	{
 		int EdgeID = EdgeROI[k];
+		FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
 
 		if (Attributes->IsSeamEdge(EdgeID))
 		{
-			FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
-
 			ConstraintSetLock.Lock();
 			Constraints.SetOrUpdateEdgeConstraint(EdgeID, EdgeConstraint);
 			Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, VtxConstraint);
 			Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, VtxConstraint);
 			ConstraintSetLock.Unlock();
 		}
+		else
+		{
+			// Constrain edge end points if they belong to seams.
+			// NOTE: It is possible that one (or both) of these vertices belongs to a seam edge that is not in EdgeROI. 
+			// In such a case, we still want to constrain that vertex.
+			for (int VertexID : {EdgeVerts[0], EdgeVerts[1]})
+			{
+				if (Attributes->IsSeamVertex(VertexID, true))
+				{
+					ConstraintSetLock.Lock();
+					Constraints.SetOrUpdateVertexConstraint(VertexID, VtxConstraint);
+					ConstraintSetLock.Unlock();
+				}
+			}
+		}
+
 	}, (bParallel==false) );
 }
 
+void FMeshConstraintsUtil::ConstrainROIBoundariesInEdgeROI(FMeshConstraints& Constraints,
+	const FDynamicMesh3& Mesh,
+	const TSet<int>& EdgeROI,
+	const TSet<int>& TriangleROI,
+	bool bAllowSplits,
+	bool bAllowSmoothing)
+{
+	FEdgeConstraint EdgeConstraint = (bAllowSplits) ? FEdgeConstraint::SplitsOnly() : FEdgeConstraint::FullyConstrained();
+	FVertexConstraint VtxConstraint = (bAllowSmoothing) ? FVertexConstraint::PinnedMovable() : FVertexConstraint::Pinned();
+
+	for (int EdgeID : EdgeROI)
+	{
+		FIndex2i EdgeTris = Mesh.GetEdgeT(EdgeID);
+		bool bIsROIBoundary = (TriangleROI.Contains(EdgeTris.A) != TriangleROI.Contains(EdgeTris.B));
+		if (bIsROIBoundary)
+		{
+			FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
+			Constraints.SetOrUpdateEdgeConstraint(EdgeID, EdgeConstraint);
+			Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, VtxConstraint);
+			Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, VtxConstraint);
+		}
+	}
+}

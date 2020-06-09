@@ -119,6 +119,7 @@ public:
 	{
 	}
 
+	virtual ~FRemesher() {}
 
 	/** Set min/max edge-lengths to sane values for given target edge length */
 	void SetTargetEdgeLength(double fLength);

@@ -603,7 +603,6 @@ bool FMinimalHoleFiller::Fill(int32 GroupID)
 	if (FillLoop.Vertices.Num() <= 3) 
 	{
 		NewTriangles = Simplefill.NewTriangles;
-		NewVertices.Empty();
 		return true;
 	}
 
@@ -733,13 +732,6 @@ bool FMinimalHoleFiller::Fill(int32 GroupID)
 
 	RegionOp->BackPropropagate(true);
 	NewTriangles = RegionOp->CurrentBaseTriangles();
-	NewVertices = RegionOp->CurrentBaseInteriorVertices().Array();
-
-	if (Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals() != nullptr)
-	{
-		FDynamicMeshEditor Editor(Mesh);
-		Editor.SetTriangleNormals(NewTriangles);
-	}
 
 	return true;
 }
