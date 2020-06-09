@@ -313,21 +313,10 @@ const TMap<FName, UNiagaraDataInterface*>& FNiagaraCompileRequestData::GetObject
 
 void FNiagaraCompileRequestData::MergeInEmitterPrecompiledData(FNiagaraCompileRequestDataBase* InEmitterDataBase)
 {
-//	check(EmitterData.Contains(InEmitterDataBase));
-
 	FNiagaraCompileRequestData* InEmitterData = (FNiagaraCompileRequestData*)InEmitterDataBase;
 	if (InEmitterData)
 	{
-		{
-			auto It = InEmitterData->CopiedDataInterfacesByName.CreateIterator();
-			while (It)
-			{
-				FName Name = It.Key();
-				Name = FNiagaraParameterMapHistory::ResolveEmitterAlias(Name, InEmitterData->GetUniqueEmitterName());
-				CopiedDataInterfacesByName.Add(Name, It.Value());
-				++It;
-			}
-		}
+		CopiedDataInterfacesByName.Append(InEmitterData->CopiedDataInterfacesByName);
 	}
 }
 
