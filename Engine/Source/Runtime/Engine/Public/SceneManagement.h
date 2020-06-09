@@ -1029,11 +1029,6 @@ inline bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform)
 	return DoesPlatformSupportDistanceFields(Platform);
 }
 
-inline bool DoesPlatformSupportDistanceFieldGI(EShaderPlatform Platform)
-{
-	return (Platform == SP_PCD3D_SM5) && DoesPlatformSupportDistanceFields(Platform);
-}
-
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(FVector4, Params) // x - inv average brightness, y - sky cubemap max mip, zw - unused
 	SHADER_PARAMETER_TEXTURE(TextureCube, Texture)
@@ -1088,6 +1083,9 @@ public:
 	float MinOcclusion;
 	FLinearColor OcclusionTint;
 	int32 SamplesPerPixel;
+	bool bRealTimeCaptureEnabled;
+	FVector CapturePosition;
+	uint32 CaptureCubeMapResolution;
 #if RHI_RAYTRACING
 	FSkyLightImportanceSamplingData* ImportanceSamplingData;
 #endif
@@ -1114,7 +1112,6 @@ public:
 	FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent* InComponent);
 	~FSkyAtmosphereSceneProxy();
 
-	bool IsMultiScatteringEnabled() const { return AtmosphereSetup.MultiScatteringFactor > 0.0f; }
 	FLinearColor GetSkyLuminanceFactor() const { return SkyLuminanceFactor; }
 	FLinearColor GetTransmittanceAtZenith() const { return TransmittanceAtZenith; };
 	float GetAerialPespectiveViewDistanceScale() const { return AerialPespectiveViewDistanceScale; }
@@ -1123,6 +1120,7 @@ public:
 	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
 
 	void UpdateTransform(const FTransform& ComponentTransform, uint8 TranformMode) { AtmosphereSetup.UpdateTransform(ComponentTransform, TranformMode); }
+	void ApplyWorldOffset(const FVector& InOffset) { AtmosphereSetup.ApplyWorldOffset(InOffset); }
 
 	FVector GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const;
 
@@ -1416,7 +1414,8 @@ public:
 
 	inline bool IsUsedAsAtmosphereSunLight() const { return bUsedAsAtmosphereSunLight; }
 	inline uint8 GetAtmosphereSunLightIndex() const { return AtmosphereSunLightIndex; }
-	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance) {}
+	inline FLinearColor GetAtmosphereSunDiskColorScale() const { return AtmosphereSunDiskColorScale; }
+	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance, bool bApplyAtmosphereTransmittanceToLightShaderParamIn) {}
 	virtual FLinearColor GetOuterSpaceLuminance() const { return FLinearColor::White; }
 	virtual FLinearColor GetTransmittanceFactor() const { return FLinearColor::White; }
 	static float GetSunOnEarthHalfApexAngleRadian() 
@@ -1575,6 +1574,8 @@ protected:
 
 	/** The index of the atmospheric light. Multiple lights can be considered when computing the sky/atmospheric scattering. */
 	const uint8 AtmosphereSunLightIndex;
+
+	const FLinearColor AtmosphereSunDiskColorScale;
 
 	/** The light type (ELightComponentType) */
 	const uint8 LightType;
@@ -2286,7 +2287,6 @@ protected:
 	friend class FSceneRenderer;
 	friend class FDeferredShadingSceneRenderer;
 	friend class FProjectedShadowInfo;
-	friend class FUniformMeshConverter;
 };
 
 #if RHI_RAYTRACING
@@ -2329,6 +2329,8 @@ struct FRayTracingDynamicGeometryUpdateParams
 
 	FRayTracingGeometry* Geometry;
 	FRWBuffer* Buffer;
+
+	bool bApplyWorldPositionOffset = true;
 };
 
 struct FRayTracingMaterialGatheringContext

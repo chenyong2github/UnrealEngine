@@ -481,7 +481,7 @@ namespace RobinHoodHashTable_Private
 			HashData.Reserve(SizePow2Minus1 + 1);  
 			HashData.AddUninitialized(SizePow2Minus1 + 1);
 
-			for (int Idx = 0; Idx <= SizePow2Minus1; Idx++)
+			for (uint32 Idx = 0; Idx <= SizePow2Minus1; Idx++)
 			{
 				IndexData[Idx] = Other.IndexData[Idx];
 				HashData[Idx] = Other.HashData[Idx];

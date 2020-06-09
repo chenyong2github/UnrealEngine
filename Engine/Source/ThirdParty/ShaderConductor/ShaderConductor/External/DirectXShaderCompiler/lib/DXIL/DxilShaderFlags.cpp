@@ -17,6 +17,9 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/Support/Casting.h"
 #include "dxc/DXIL/DxilEntryProps.h"
+#include "dxc/DXIL/DxilInstructions.h"
+#include "dxc/DXIL/DxilResourceProperties.h"
+#include "dxc/DXIL/DxilUtil.h"
 
 using namespace hlsl;
 using namespace llvm;
@@ -47,6 +50,8 @@ ShaderFlags::ShaderFlags():
 , m_bBarycentrics(false)
 , m_bUseNativeLowPrecision(false)
 , m_bShadingRate(false)
+, m_bRaytracingTier1_1(false)
+, m_bSamplerFeedback(false)
 , m_align0(0)
 , m_align1(0)
 {}
@@ -93,6 +98,8 @@ uint64_t ShaderFlags::GetFeatureInfo() const {
   Flags |= m_bViewID ? hlsl::DXIL::ShaderFeatureInfo_ViewID : 0;
   Flags |= m_bBarycentrics ? hlsl::DXIL::ShaderFeatureInfo_Barycentrics : 0;
   Flags |= m_bShadingRate ? hlsl::DXIL::ShaderFeatureInfo_ShadingRate : 0;
+  Flags |= m_bRaytracingTier1_1 ? hlsl::DXIL::ShaderFeatureInfo_Raytracing_Tier_1_1 : 0;
+  Flags |= m_bSamplerFeedback ? hlsl::DXIL::ShaderFeatureInfo_SamplerFeedback : 0;
 
   return Flags;
 }
@@ -145,6 +152,8 @@ uint64_t ShaderFlags::GetShaderFlagsRawForCollection() {
   Flags.SetViewID(true);
   Flags.SetBarycentrics(true);
   Flags.SetShadingRate(true);
+  Flags.SetRaytracingTier1_1(true);
+  Flags.SetSamplerFeedback(true);
   return Flags.GetShaderFlagsRaw();
 }
 
@@ -181,28 +190,6 @@ static ConstantInt *GetArbitraryConstantRangeID(CallInst *handleCall) {
     }
   }
   return ConstantRangeID;
-}
-
-static bool IsResourceSingleComponent(llvm::Type *Ty) {
-  if (llvm::ArrayType *arrType = llvm::dyn_cast<llvm::ArrayType>(Ty)) {
-    if (arrType->getArrayNumElements() > 1) {
-      return false;
-    }
-    return IsResourceSingleComponent(arrType->getArrayElementType());
-  } else if (llvm::StructType *structType =
-                 llvm::dyn_cast<llvm::StructType>(Ty)) {
-    if (structType->getStructNumElements() > 1) {
-      return false;
-    }
-    return IsResourceSingleComponent(structType->getStructElementType(0));
-  } else if (llvm::VectorType *vectorType =
-                 llvm::dyn_cast<llvm::VectorType>(Ty)) {
-    if (vectorType->getNumElements() > 1) {
-      return false;
-    }
-    return IsResourceSingleComponent(vectorType->getVectorElementType());
-  }
-  return true;
 }
 
 // Given a handle type, find an arbitrary call instructions to create handle
@@ -247,6 +234,8 @@ ShaderFlags ShaderFlags::CollectShaderFlags(const Function *F,
   bool hasMulticomponentUAVLoads = false;
   bool hasViewportOrRTArrayIndex = false;
   bool hasShadingRate = false;
+  bool hasSamplerFeedback = false;
+  bool hasRaytracingTier1_1 = false;
 
   // Try to maintain compatibility with a v1.0 validator if that's what we have.
   uint32_t valMajor, valMinor;
@@ -343,7 +332,7 @@ ShaderFlags ShaderFlags::CollectShaderFlags(const Function *F,
                       DxilResource resource = M->GetUAV(rangeID->getLimitedValue());
                       if ((resource.IsTypedBuffer() ||
                         resource.IsAnyTexture()) &&
-                        !IsResourceSingleComponent(resource.GetRetType())) {
+                        !dxilutil::IsResourceSingleComponent(resource.GetRetType())) {
                         hasMulticomponentUAVLoads = true;
                       }
                     }
@@ -363,10 +352,29 @@ ShaderFlags ShaderFlags::CollectShaderFlags(const Function *F,
                 for (auto &&res : M->GetUAVs()) {
                   if (res->GetGlobalSymbol() == resType) {
                     if ((res->IsTypedBuffer() || res->IsAnyTexture()) &&
-                        !IsResourceSingleComponent(res->GetRetType())) {
+                        !dxilutil::IsResourceSingleComponent(res->GetRetType())) {
                       hasMulticomponentUAVLoads = true;
                     }
                   }
+                }
+              }
+            } else if (handleOp == DXIL::OpCode::AnnotateHandle) {
+              DxilInst_AnnotateHandle annotateHandle(handleCall);
+              Type *ResPropTy = M->GetOP()->GetResourcePropertiesType();
+
+              DxilResourceProperties RP =
+                  resource_helper::loadFromAnnotateHandle(
+                      annotateHandle, ResPropTy, *M->GetShaderModel());
+              if (RP.Class == DXIL::ResourceClass::UAV) {
+                // Validator 1.0 assumes that all uav load is multi component
+                // load.
+                if (hasMulticomponentUAVLoadsBackCompat) {
+                  hasMulticomponentUAVLoads = true;
+                  continue;
+                } else {
+                  if (DXIL::IsTyped(RP.Kind) &&
+                      !RP.Typed.SingleComponent)
+                    hasMulticomponentUAVLoads = true;
                 }
               }
             }
@@ -380,6 +388,10 @@ ShaderFlags ShaderFlags::CollectShaderFlags(const Function *F,
           break;
         case DXIL::OpCode::ViewID:
           hasViewID = true;
+          break;
+        case DXIL::OpCode::AllocateRayQuery:
+        case DXIL::OpCode::GeometryIndex:
+          hasRaytracingTier1_1 = true;
           break;
         default:
           // Normal opcodes.
@@ -447,6 +459,28 @@ ShaderFlags ShaderFlags::CollectShaderFlags(const Function *F,
     }
   }
 
+  if (!hasRaytracingTier1_1) {
+    if (const DxilSubobjects *pSubobjects = M->GetSubobjects()) {
+      for (const auto &it : pSubobjects->GetSubobjects()) {
+        switch (it.second->GetKind()) {
+        case DXIL::SubobjectKind::RaytracingPipelineConfig1:
+          hasRaytracingTier1_1 = true;
+          break;
+        case DXIL::SubobjectKind::StateObjectConfig: {
+          uint32_t Flags;
+          if (it.second->GetStateObjectConfig(Flags) &&
+              ((Flags & ~(unsigned)DXIL::StateObjectFlags::ValidMask_1_4) != 0))
+            hasRaytracingTier1_1 = true;
+        } break;
+        default:
+          break;
+        }
+        if (hasRaytracingTier1_1)
+          break;
+      }
+    }
+  }
+
   flag.SetEnableDoublePrecision(hasDouble);
   flag.SetStencilRef(hasStencilRef);
   flag.SetInnerCoverage(hasInnerCoverage);
@@ -460,6 +494,8 @@ ShaderFlags ShaderFlags::CollectShaderFlags(const Function *F,
   flag.SetViewID(hasViewID);
   flag.SetViewportAndRTArrayIndex(hasViewportOrRTArrayIndex);
   flag.SetShadingRate(hasShadingRate);
+  flag.SetSamplerFeedback(hasSamplerFeedback);
+  flag.SetRaytracingTier1_1(hasRaytracingTier1_1);
 
   return flag;
 }

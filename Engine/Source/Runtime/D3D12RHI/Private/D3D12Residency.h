@@ -23,6 +23,7 @@ namespace D3DX12Residency
 #else
 #include "D3D12Util.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/AllowWindowsPlatformAtomics.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "dxgi1_6.h"
@@ -32,6 +33,7 @@ THIRD_PARTY_INCLUDES_START
 #pragma warning(pop)
 THIRD_PARTY_INCLUDES_END
 
+#include "Windows/HideWindowsPlatformAtomics.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 

@@ -450,8 +450,18 @@ static void GetTextureBuildSettings(
 	{
 		const UTexture2D *Texture2D = Cast<UTexture2D>(&Texture);
 		checkf(Texture2D, TEXT("Virtual texturing is only supported on 2D textures"));
-		OutBuildSettings.VirtualAddressingModeX = Texture2D->AddressX;
-		OutBuildSettings.VirtualAddressingModeY = Texture2D->AddressY;
+		if (Texture.Source.GetNumBlocks() > 1)
+		{
+			// Multi-block textures (UDIM) interpret UVs outside [0,1) range as different blocks, so wrapping within a given block doesn't make sense
+			// We want to make sure address mode is set to clamp here, otherwise border pixels along block edges will have artifacts
+			OutBuildSettings.VirtualAddressingModeX = TA_Clamp;
+			OutBuildSettings.VirtualAddressingModeY = TA_Clamp;
+		}
+		else
+		{
+			OutBuildSettings.VirtualAddressingModeX = Texture2D->AddressX;
+			OutBuildSettings.VirtualAddressingModeY = Texture2D->AddressY;
+		}
 
 		FVirtualTextureBuildSettings VirtualTextureBuildSettings;
 		Texture.GetVirtualTextureBuildSettings(VirtualTextureBuildSettings);

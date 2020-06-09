@@ -37,7 +37,7 @@ public:
 	void Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,EPixelFormat Format);
 	
 	TRefCountPtr<FMetalTexture2D> GetBackBuffer(EMetalViewportAccessFlag Accessor) const;
-	mtlpp::Drawable GetDrawable(EMetalViewportAccessFlag Accessor);
+	id<CAMetalDrawable> GetDrawable(EMetalViewportAccessFlag Accessor);
 	FMetalTexture GetDrawableTexture(EMetalViewportAccessFlag Accessor);
 	ns::AutoReleased<FMetalTexture> GetCurrentTexture(EMetalViewportAccessFlag Accessor);
 	void ReleaseDrawable(void);
@@ -64,7 +64,7 @@ private:
 	uint32 GetViewportIndex(EMetalViewportAccessFlag Accessor) const;
 
 private:
-	mtlpp::Drawable Drawable;
+	id<CAMetalDrawable> Drawable;
 	TRefCountPtr<FMetalTexture2D> BackBuffer[2];
 	mutable FCriticalSection Mutex;
 	

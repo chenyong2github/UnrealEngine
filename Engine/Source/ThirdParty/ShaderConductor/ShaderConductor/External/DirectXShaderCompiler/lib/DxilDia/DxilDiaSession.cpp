@@ -13,6 +13,7 @@
 
 #include "dxc/DxilPIXPasses/DxilPIXPasses.h"
 #include "dxc/DxilPIXPasses/DxilPIXVirtualRegisters.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instruction.h"
@@ -32,16 +33,18 @@
 
 void dxil_dia::Session::Init(
     std::shared_ptr<llvm::LLVMContext> context,
-    std::shared_ptr<llvm::Module> module,
+    std::shared_ptr<llvm::Module> mod,
     std::shared_ptr<llvm::DebugInfoFinder> finder) {
   m_pEnumTables = nullptr;
-  m_module = module;
+  m_module = mod;
   m_context = context;
   m_finder = finder;
-  m_dxilModule = std::make_unique<hlsl::DxilModule>(module.get());
+  m_dxilModule = llvm::make_unique<hlsl::DxilModule>(mod.get());
 
   llvm::legacy::PassManager PM;
+  llvm::initializeDxilDbgValueToDbgDeclarePass(*llvm::PassRegistry::getPassRegistry());
   llvm::initializeDxilAnnotateWithVirtualRegisterPass(*llvm::PassRegistry::getPassRegistry());
+  PM.add(llvm::createDxilDbgValueToDbgDeclarePass());
   PM.add(llvm::createDxilAnnotateWithVirtualRegisterPass());
   PM.run(*m_module);
 
@@ -98,7 +101,11 @@ void dxil_dia::Session::Init(
   }
 
   // Initialize symbols
-  m_symsMgr.Init(this);
+  try {
+      m_symsMgr.Init(this);
+  } catch (const hlsl::Exception &) {
+      m_symsMgr = std::move(dxil_dia::SymbolManager());
+  }
 }
 
 HRESULT dxil_dia::Session::getSourceFileIdByName(
@@ -348,7 +355,7 @@ STDMETHODIMP dxil_dia::Session::findInjectedSource(
   /* [in] */ LPCOLESTR srcFile,
   /* [out] */ IDiaEnumInjectedSources **ppResult) {
   if (Contents() != nullptr) {
-    CW2A pUtf8FileName(srcFile);
+    CW2A pUtf8FileName(srcFile, CP_UTF8);
     DxcThreadMalloc TM(m_pMalloc);
     IDiaTable *pTable;
     IFT(Table::Create(this, Table::Kind::InjectedSource, &pTable));

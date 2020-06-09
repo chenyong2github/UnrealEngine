@@ -460,8 +460,10 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 /** Implement platform specific static cleanup function */
 void FGenericCrashContext::CleanupPlatformSpecificFiles()
 {
+#if WER_CUSTOM_REPORTS
 	FString CrashVideoPath = FPaths::ProjectLogDir() / TEXT("CrashVideo.avi");
 	IFileManager::Get().Delete(*CrashVideoPath);
+#endif
 }
 
 #if WER_CUSTOM_REPORTS

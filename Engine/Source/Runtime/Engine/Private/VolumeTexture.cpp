@@ -228,8 +228,10 @@ FString UVolumeTexture::GetDesc()
 
 uint32 UVolumeTexture::CalcTextureMemorySize(int32 MipCount) const
 {
+	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
+
 	uint32 Size = 0;
-	if (PlatformData)
+	if (FormatInfo.Supported && PlatformData)
 	{
 		const EPixelFormat Format = GetPixelFormat();
 		if (Format != PF_Unknown)

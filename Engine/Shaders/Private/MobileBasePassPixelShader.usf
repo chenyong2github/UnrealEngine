@@ -821,8 +821,10 @@ void Main(
 	#endif
 
 	#if MATERIAL_IS_SKY
-		// Sky materials can result in high luminance values, e.g. the sun disk. So we make sure to at least stay within the boundaries of fp10 for some platforms.
-		OutColor.rgb = min(OutColor.rgb, Max10BitsFloat.xxx);
+		// Sky materials can result in high luminance values, e.g. the sun disk. 
+		// This is so we make sure to at least stay within the boundaries of fp10 and not cause NaN on some platforms.
+		// We also half that range to also make sure we have room for other additive elements such as bloom, clouds or particle visual effects.
+		OutColor.rgb = min(Out.MRT[0].xyz, Max10BitsFloat.xxx * 0.5f);
 	#endif
 
 #if USE_EDITOR_COMPOSITING && (MOBILE_EMULATION)

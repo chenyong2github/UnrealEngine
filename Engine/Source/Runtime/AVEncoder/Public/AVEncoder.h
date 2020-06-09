@@ -392,7 +392,7 @@ public:
 	 *
 	 * This is a bit awkward, but it's somewhat required to account for how webrtc works (for PixelStreaming), where 
 	 * encoding a frame is a two step process :
-	 * 1st - CopyTexture initiates a copy of the texture to the internal buffers, and returns an Id the caller can use to reference that internal buffer.
+	 * 1st - CopyTexture initiates a copy if the texture to the internal buffers, and returns an Id the caller can use to reference that internal buffer.
 	 * 2nd - Either a Drop or Encode is required for each CopyTexture call, otherwise the respective internal buffer will stay
 	 * @param Texture Texture to copy
 	 * @param CaptureTs Capture timestamp
@@ -407,9 +407,9 @@ public:
 
 	/**
 	 * Drops an internal buffer that was returned by CopyTexture.
-	 * This should be used if the application decides that it doesn't want to encode a frame that was already
+	 * This should be used with the application decides that it doesn't want to encode a frame that was already
 	 * passed to CopyTexture.
-	 * Once this is called on a valid buffer id, do not use it that buffer id again.
+	 * Once this is called on a valid buffer, do not use it again.
 	 *
 	 * @param BufferId Buffer returned by a CopyTexture call
 	 *
@@ -498,4 +498,3 @@ private:
 void UnregisterDefaultFactories();
 
 }
-

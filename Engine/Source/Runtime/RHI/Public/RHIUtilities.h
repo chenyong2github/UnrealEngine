@@ -14,14 +14,6 @@
 #include "RHIDefinitions.h"
 #include "RHICommandList.h"
 
-class FExclusiveDepthStencil;
-class FRHIDepthRenderTargetView;
-class FRHIRenderTargetView;
-class FRHISetRenderTargetsInfo;
-struct FRHIResourceCreateInfo;
-enum class EResourceTransitionAccess;
-enum class ESimpleRenderTargetMode;
-
 
 static inline bool IsDepthOrStencilFormat(EPixelFormat Format)
 {
@@ -165,6 +157,7 @@ struct FTextureRWBuffer3D
 	{
 		RHIAcquireTransientResource(Buffer);
 	}
+
 	void DiscardTransientResource()
 	{
 		RHIDiscardTransientResource(Buffer);
@@ -625,17 +618,6 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 	}
 
 	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, Transitions, TransitionIndex);
-}
-
-UE_DEPRECATED(4.25, "UnbindRenderTargets API is deprecated; EndRenderPass implies UnbindRenderTargets.")
-inline void UnbindRenderTargets(FRHICommandList& RHICmdList)
-{
-	check(RHICmdList.IsOutsideRenderPass());
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
-	FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
-	RHICmdList.SetRenderTargets(1, &RTV, &DepthRTV);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /**

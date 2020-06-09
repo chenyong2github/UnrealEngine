@@ -671,3 +671,13 @@ IOnlineGameItemStatsPtr FOnlineSubsystemImpl::GetGameItemStatsInterface() const
 {
 	return nullptr;
 }
+
+IOnlineTurnBasedPtr FOnlineSubsystemImpl::GetTurnBasedInterface() const
+{
+	return nullptr;
+}
+
+IOnlineTournamentPtr FOnlineSubsystemImpl::GetTournamentInterface() const
+{
+	return nullptr;
+}

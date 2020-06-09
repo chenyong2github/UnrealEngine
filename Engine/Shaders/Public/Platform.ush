@@ -44,6 +44,10 @@
 #define COMPILER_HLSLCC 0
 #endif
 
+#ifndef COMPILER_DXC
+#define COMPILER_DXC 0
+#endif
+
 #ifndef COMPILER_HLSL
 #define COMPILER_HLSL 0
 #endif

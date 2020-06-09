@@ -35,6 +35,7 @@ typedef FIOSPlatformTypes FPlatformTypes;
 
 // Base defines, defaults are commented out
 #define PLATFORM_LITTLE_ENDIAN							1
+#define PLATFORM_SEH_EXCEPTIONS_DISABLED				1
 #define PLATFORM_SUPPORTS_PRAGMA_PACK					1
 #define PLATFORM_COMPILER_DISTINGUISHES_INT_AND_LONG	1
 #define PLATFORM_WCHAR_IS_4_BYTES						1

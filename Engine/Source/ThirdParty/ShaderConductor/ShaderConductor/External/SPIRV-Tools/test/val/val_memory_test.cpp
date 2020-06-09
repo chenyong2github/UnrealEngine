@@ -57,8 +57,9 @@ OpFunctionEnd
                 "Variables identified with the UniformConstant storage class "
                 "are used only as handles to refer to opaque resources. Such "
                 "variables must be typed as OpTypeImage, OpTypeSampler, "
-                "OpTypeSampledImage, OpTypeAccelerationStructureNV, or an "
-                "array of one of these types."));
+                "OpTypeSampledImage, OpTypeAccelerationStructureNV, "
+                "OpTypeAccelerationStructureKHR, OpTypeRayQueryProvisionalKHR, "
+                "or an array of one of these types."));
 }
 
 TEST_F(ValidateMemory, VulkanUniformConstantOnOpaqueResourceGood) {
@@ -110,8 +111,9 @@ OpFunctionEnd
                 "Variables identified with the UniformConstant storage class "
                 "are used only as handles to refer to opaque resources. Such "
                 "variables must be typed as OpTypeImage, OpTypeSampler, "
-                "OpTypeSampledImage, OpTypeAccelerationStructureNV, or an "
-                "array of one of these types."));
+                "OpTypeSampledImage, OpTypeAccelerationStructureNV, "
+                "OpTypeAccelerationStructureKHR, OpTypeRayQueryProvisionalKHR, "
+                "or an array of one of these types."));
 }
 
 TEST_F(ValidateMemory, VulkanUniformConstantOnOpaqueResourceArrayGood) {
@@ -2996,6 +2998,7 @@ OpExtension "SPV_EXT_descriptor_indexing"
 OpMemoryModel Logical GLSL450
 OpEntryPoint Fragment %func "func"
 OpExecutionMode %func OriginUpperLeft
+OpDecorate %inner_array_t ArrayStride 4
 OpDecorate %array_t ArrayStride 4
 OpMemberDecorate %struct_t 0 Offset 0
 OpDecorate %struct_t Block
@@ -3025,6 +3028,7 @@ OpExtension "SPV_EXT_descriptor_indexing"
 OpMemoryModel Logical GLSL450
 OpEntryPoint Fragment %func "func"
 OpExecutionMode %func OriginUpperLeft
+OpDecorate %inner_array_t ArrayStride 4
 OpDecorate %array_t ArrayStride 4
 OpMemberDecorate %struct_t 0 Offset 0
 OpDecorate %struct_t Block

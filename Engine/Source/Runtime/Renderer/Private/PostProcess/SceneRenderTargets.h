@@ -255,6 +255,7 @@ public:
 	void FinishRenderingTranslucency(FRHICommandList& RHICmdList);
 
 	/** Begin rendering translucency in a separate (offscreen) buffer. This can be any translucency pass. */
+	FIntRect GetSeparateTranslucencyViewRect(const FViewInfo& View) const;
 	void BeginRenderingSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, const FSceneRenderer& Renderer, bool bFirstTimeThisFrame);
 	void ResolveSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View);
 

@@ -431,7 +431,9 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 	TBitArray<>& UsedUniformBufferSlots, TArray<FString>& UniformBufferNames,
 	bool bProcessingSecondTime, const TArray<FString>& ShaderInputs,
 	FShaderCodePackedResourceCounts& PackedResourceCounts, uint32 NumInstructions,
-	FShaderCompilerOutput& Output, TFunction<void(FMemoryWriter&)> PostSRTWriterCallback)
+	FShaderCompilerOutput& Output,
+	TFunction<void(FMemoryWriter&)> PostSRTWriterCallback,
+	TFunction<void(FShaderCode&)> AddOptionalDataCallback)
 {
 	// Build the SRT for this shader.
 	FD3D11ShaderResourceTable SRT;
@@ -494,6 +496,7 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 	{
 		Output.ShaderCode.AddOptionalData(PackedResourceCounts);
 		Output.ShaderCode.AddOptionalData('u', UniformBufferNameBytes.GetData(), UniformBufferNameBytes.Num());
+		AddOptionalDataCallback(Output.ShaderCode);
 	}
 
 	// Append information about optional hardware vendor extensions

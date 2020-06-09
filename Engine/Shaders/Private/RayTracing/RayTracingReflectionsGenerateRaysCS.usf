@@ -48,13 +48,6 @@ float ReflectionMaxNormalBias;
 // Outputs
 RWStructuredBuffer<FSortedReflectionRay> RayBuffer;
 
-// #todo: refactor ApplyCameraRelativeDepthBias() in RayTracingCommon.ush so that it could be used in this compute shader.
-float ComputeBiasForPosition(float3 V)
-{
-	V = abs(V);
-	return max(max(V.x, V.y), V.z) * 0.01;
-}
-
 uint RayDirectionToBin(float3 Direction, uint2 NumBins)
 {
 	float2 OctDirection = UnitVectorToOctahedron(Direction);
@@ -87,11 +80,12 @@ void GenerateReflectionRaysCS(
 
 	// not 'const', may need to be modified below
 	FGBufferData GBuffer         = GetGBufferDataFromSceneTextures(UV);
-	const float SceneDepth       = GBuffer.Depth;
+	float DeviceZ                = SceneDepthBuffer.Load(int3(PixelPos, 0)).r;
 
-	const float3 PositionTranslatedWorld = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
-	const float3 V                       = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
-
+	float3 WorldPosition;
+	float3 CameraDirection;
+	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelPos, DeviceZ, WorldPosition, CameraDirection);
+	float3 V = -CameraDirection;
 
 #if GBUFFER_HAS_TANGENT
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
@@ -122,9 +116,9 @@ void GenerateReflectionRaysCS(
 	}
 
 	FSortedReflectionRay Ray;
-	Ray.Origin = View.WorldCameraOrigin + PositionTranslatedWorld;
-	Ray.Origin += GBuffer.WorldNormal * ComputeBiasForPosition(PositionTranslatedWorld);	
+	Ray.Origin = WorldPosition;
 	Ray.Direction = L;
+	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelPos, DeviceZ, GBuffer.WorldNormal, ReflectionMaxNormalBias);
 
 	uint Bin = RayDirectionToBin(Ray.Direction, uint2(NUM_DIRECTION_BINS_X,NUM_DIRECTION_BINS_Y));
 	if (any(PixelPos >= RayTracingResolution))

@@ -37,6 +37,7 @@
 #include "MeshMergeModule.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
+#include "Rendering/StaticLightingSystemInterface.h"
 #endif 
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
@@ -596,6 +597,13 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	LightmassSettings.FullyOccludedSamplesFraction = FMath::Clamp(LightmassSettings.FullyOccludedSamplesFraction, 0.0f, 1.0f);
 	LightmassSettings.MaxOcclusionDistance = FMath::Max(LightmassSettings.MaxOcclusionDistance, 0.0f);
 	LightmassSettings.EnvironmentIntensity = FMath::Max(LightmassSettings.EnvironmentIntensity, 0.0f);
+
+#if WITH_EDITOR
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FLightmassWorldInfoSettings, VolumetricLightmapDetailCellSize))
+	{
+		FStaticLightingSystemInterface::OnLightmassImportanceVolumeModified.Broadcast();
+	}
+#endif
 
 	// Ensure texture size is power of two between 512 and 4096.
 	PackedLightAndShadowMapTextureSize = FMath::Clamp<uint32>( FMath::RoundUpToPowerOfTwo( PackedLightAndShadowMapTextureSize ), 512, 4096 );

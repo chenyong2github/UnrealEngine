@@ -17,6 +17,7 @@ ActorFactory.cpp:
 #include "ActorFactories/ActorFactoryAmbientSound.h"
 #include "ActorFactories/ActorFactoryAtmosphericFog.h"
 #include "ActorFactories/ActorFactorySkyAtmosphere.h"
+#include "ActorFactories/ActorFactoryVolumetricCloud.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
 #include "ActorFactories/ActorFactoryBoxReflectionCapture.h"
 #include "ActorFactories/ActorFactoryBoxVolume.h"
@@ -94,6 +95,7 @@ ActorFactory.cpp:
 #include "Components/DecalComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
+#include "Components/VolumetricCloudComponent.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Engine/Polys.h"
@@ -1654,6 +1656,16 @@ UActorFactorySkyAtmosphere::UActorFactorySkyAtmosphere(const FObjectInitializer&
 {
 	DisplayName = LOCTEXT("SkyAtmosphereDisplayName", "Sky Atmosphere");
 	NewActorClass = ASkyAtmosphere::StaticClass();
+}
+
+/*-----------------------------------------------------------------------------
+UActorFactoryVolumetricCloud
+-----------------------------------------------------------------------------*/
+UActorFactoryVolumetricCloud::UActorFactoryVolumetricCloud(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DisplayName = LOCTEXT("VolumetricCloudDisplayName", "Volumetric Cloud");
+	NewActorClass = AVolumetricCloud::StaticClass();
 }
 
 /*-----------------------------------------------------------------------------

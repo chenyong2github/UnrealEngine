@@ -7,6 +7,10 @@
 #define USE_EMBREE 0
 #endif 
 
+#if !defined(USE_EMBRE_FOR_RESONANCE)
+#define USE_EMBRE_FOR_RESONANCE 0
+#endif
+
 #if !USE_EMBREE || !USE_EMBRE_FOR_RESONANCE
 
 #include "ResonanceEmbreeHelper.h"

@@ -94,6 +94,11 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 {
 	GENERATED_UCLASS_BODY()
 
+	/** When enabled, the sky will be captured and convolved to achieve dynamic diffuse and specular environment lighting. 
+	 * SkyAtmosphere, VolumetricCloud Components as well as sky domes with Sky materials are taken into account. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light)
+	bool bRealTimeCapture;
+
 	/** Indicates where to get the light contribution from. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light)
 	TEnumAsByte<enum ESkyLightSourceType> SourceType;
@@ -245,6 +250,8 @@ public:
 	/** Whether sky occlusion is supported by current feature level */
 	bool IsOcclusionSupported() const;
 
+	bool IsRealTimeCaptureEnabled() const;
+
 	/** 
 	 * Recaptures the scene for the skylight. 
 	 * This is useful for making sure the sky light is up to date after changing something in the world that it would capture.
@@ -253,15 +260,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
 	void RecaptureSky();
 
-	void SetIrradianceEnvironmentMap(const FSHVectorRGB3& InIrradianceEnvironmentMap)
-	{
-		IrradianceEnvironmentMap = InIrradianceEnvironmentMap;
-	}
-
 	void UpdateImportanceSamplingData();
 
 	virtual void Serialize(FArchive& Ar) override;
 
+	const FTexture* GetProcessedSkyTexture() const { return ProcessedSkyTexture; }
+#if RHI_RAYTRACING
+	const FSkyLightImportanceSamplingData* GetImportanceSamplingData() const { return ImportanceSamplingData; }
+#endif
+	FSHVectorRGB3 GetIrradianceEnvironmentMap() { return IrradianceEnvironmentMap; }
 protected:
 
 #if WITH_EDITOR

@@ -790,13 +790,14 @@ const glsl_type * glsl_type::get_shadow_sampler_type() const
 		char key[128];
 		snprintf(key, sizeof(key), "%sShadow", name);
 		shadow_type = (const glsl_type*)hash_table_find(sampler_types, key);
-		if (shadow_type == NULL)
+		if (shadow_type == nullptr)
 		{
 			glsl_type* new_shadow_type = new glsl_type(*this);
 			new_shadow_type->sampler_shadow = true;
 			new_shadow_type->name = ralloc_asprintf(mem_ctx, "%sShadow", name);
 			new_shadow_type->inner_type = glsl_type::uint_type;
 			shadow_type = new_shadow_type;
+			hash_table_insert(sampler_types, (void*)new_shadow_type, ralloc_strdup(mem_ctx, key));
 		}
 	}
 

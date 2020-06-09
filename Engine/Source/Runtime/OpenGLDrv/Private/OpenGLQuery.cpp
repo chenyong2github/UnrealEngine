@@ -783,7 +783,7 @@ void FOpenGLBufferedGPUTiming::PlatformStaticInitialize(void* UserData)
 	if ( !GAreGlobalsInitialized )
 	{
 		GIsSupported = FOpenGL::SupportsTimestampQueries();
-		GTimingFrequency = 1000 * 1000 * 1000;
+		SetTimingFrequency(1000 * 1000 * 1000);
 		GAreGlobalsInitialized = true;
 	}
 }

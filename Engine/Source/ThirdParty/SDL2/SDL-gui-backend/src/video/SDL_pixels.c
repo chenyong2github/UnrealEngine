@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -94,6 +94,7 @@ SDL_GetPixelFormatName(Uint32 format)
     CASE(SDL_PIXELFORMAT_INDEX8)
     CASE(SDL_PIXELFORMAT_RGB332)
     CASE(SDL_PIXELFORMAT_RGB444)
+    CASE(SDL_PIXELFORMAT_BGR444)
     CASE(SDL_PIXELFORMAT_RGB555)
     CASE(SDL_PIXELFORMAT_BGR555)
     CASE(SDL_PIXELFORMAT_ARGB4444)
@@ -320,6 +321,12 @@ SDL_MasksToPixelFormatEnum(int bpp, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask,
             Bmask == 0x000F &&
             Amask == 0x0000) {
             return SDL_PIXELFORMAT_RGB444;
+        }
+        if (Rmask == 0x000F &&
+            Gmask == 0x00F0 &&
+            Bmask == 0x0F00 &&
+            Amask == 0x0000) {
+            return SDL_PIXELFORMAT_BGR444;
         }
         break;
     case 15:
@@ -794,6 +801,54 @@ SDL_FindColor(SDL_Palette * pal, Uint8 r, Uint8 g, Uint8 b, Uint8 a)
     return (pixel);
 }
 
+/* Tell whether palette is opaque, and if it has an alpha_channel */
+void
+SDL_DetectPalette(SDL_Palette *pal, SDL_bool *is_opaque, SDL_bool *has_alpha_channel)
+{
+    int i;
+
+    {
+        SDL_bool all_opaque = SDL_TRUE;
+        for (i = 0; i < pal->ncolors; i++) {
+            Uint8 alpha_value = pal->colors[i].a;
+            if (alpha_value != SDL_ALPHA_OPAQUE) {
+                all_opaque = SDL_FALSE;
+                break;
+            }
+        }
+
+        if (all_opaque) {
+            /* Palette is opaque, with an alpha channel */
+            *is_opaque = SDL_TRUE;
+            *has_alpha_channel = SDL_TRUE;
+            return;
+        }
+    }
+
+    {
+        SDL_bool all_transparent = SDL_TRUE;
+        for (i = 0; i < pal->ncolors; i++) {
+            Uint8 alpha_value = pal->colors[i].a;
+            if (alpha_value != SDL_ALPHA_TRANSPARENT) {
+                all_transparent = SDL_FALSE;
+                break;
+            }
+        }
+
+        if (all_transparent) {
+            /* Palette is opaque, without an alpha channel */
+            *is_opaque = SDL_TRUE;
+            *has_alpha_channel = SDL_FALSE;
+            return;
+        }
+    }
+
+    /* Palette has alpha values */
+    *is_opaque = SDL_FALSE;
+    *has_alpha_channel = SDL_TRUE;
+}
+
+
 /* Find the opaque pixel value corresponding to an RGB triple */
 Uint32
 SDL_MapRGB(const SDL_PixelFormat * format, Uint8 r, Uint8 g, Uint8 b)
@@ -996,9 +1051,11 @@ SDL_MapSurface(SDL_Surface * src, SDL_Surface * dst)
 
     /* Clear out any previous mapping */
     map = src->map;
+#if SDL_HAVE_RLE
     if ((src->flags & SDL_RLEACCEL) == SDL_RLEACCEL) {
         SDL_UnRLESurface(src, 1);
     }
+#endif
     SDL_InvalidateMap(map);
 
     /* Figure out what kind of mapping we're doing */

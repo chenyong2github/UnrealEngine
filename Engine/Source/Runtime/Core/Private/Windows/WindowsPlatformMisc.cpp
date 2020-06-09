@@ -1604,18 +1604,20 @@ bool FWindowsPlatformMisc::Is64bitOperatingSystem()
 #endif
 }
 
-bool FWindowsPlatformMisc::VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion)
+bool FWindowsPlatformMisc::VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion, uint32 BuildNumber)
 {
 	OSVERSIONINFOEX Version;
 	Version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
 	Version.dwMajorVersion = MajorVersion;
 	Version.dwMinorVersion = MinorVersion;
+	Version.dwBuildNumber  = BuildNumber;
 
 	ULONGLONG ConditionMask = 0;
 	ConditionMask = VerSetConditionMask(ConditionMask, VER_MAJORVERSION, VER_GREATER_EQUAL);
 	ConditionMask = VerSetConditionMask(ConditionMask, VER_MINORVERSION, VER_GREATER_EQUAL);
+	ConditionMask = VerSetConditionMask(ConditionMask, VER_BUILDNUMBER,  VER_GREATER_EQUAL);
 
-	return !!VerifyVersionInfo(&Version, VER_MAJORVERSION | VER_MINORVERSION, ConditionMask);
+	return !!VerifyVersionInfo(&Version, VER_MAJORVERSION | VER_MINORVERSION | VER_BUILDNUMBER, ConditionMask);
 }
 
 bool FWindowsPlatformMisc::IsValidAbsolutePathFormat(const FString& Path)

@@ -362,6 +362,9 @@ public:
 	virtual void PropagateLightingScenarioChange() override;
 
 	void GetInstancesMinMaxScale(FVector& MinScale, FVector& MaxScale) const;
+
+	void FlushInstanceUpdateCommands();
+
 private:
 
 	/** Sets up new instance data to sensible defaults, creates physics counterparts if possible. */

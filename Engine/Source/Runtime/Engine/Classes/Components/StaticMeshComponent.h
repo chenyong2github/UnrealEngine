@@ -126,7 +126,7 @@ struct FStaticMeshComponentLODInfo
 	 * @param LodIndex Index of the LOD this LODInfo represents.
 	 * @return true if a new GUID was created, false otherwise.
 	 */
-	bool CreateMapBuildDataId(int32 LodIndex);
+	ENGINE_API bool CreateMapBuildDataId(int32 LodIndex);
 
 	/**
 	* Enqueues a rendering command to release the vertex colors.

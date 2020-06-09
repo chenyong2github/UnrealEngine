@@ -40,8 +40,8 @@ public:
 	{
 		CubeFace.Bind(Initializer.ParameterMap, TEXT("CubeFace"));
 		SourceMipIndex.Bind(Initializer.ParameterMap, TEXT("SourceMipIndex"));
-		SourceTexture.Bind(Initializer.ParameterMap, TEXT("SourceTexture"));
-		SourceTextureSampler.Bind(Initializer.ParameterMap, TEXT("SourceTextureSampler"));
+		SourceCubemapTexture.Bind(Initializer.ParameterMap, TEXT("SourceCubemapTexture"));
+		SourceCubemapSampler.Bind(Initializer.ParameterMap, TEXT("SourceCubemapSampler"));
 	}
 	FMobileDownsamplePS() {}
 
@@ -53,8 +53,8 @@ public:
 		SetTextureParameter(
 			RHICmdList,
 			RHICmdList.GetBoundPixelShader(),
-			SourceTexture,
-			SourceTextureSampler,
+			SourceCubemapTexture,
+			SourceCubemapSampler,
 			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
 			SourceTextureValue.ShaderResourceTexture);
 	}
@@ -62,8 +62,8 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, CubeFace)
 	LAYOUT_FIELD(FShaderParameter, SourceMipIndex)
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTexture)
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSampler)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapSampler)
 };
 
 IMPLEMENT_SHADER_TYPE(, FMobileDownsamplePS, TEXT("/Engine/Private/ReflectionEnvironmentShaders.usf"), TEXT("DownsamplePS_Mobile"), SF_Pixel);
@@ -408,8 +408,8 @@ namespace MobileReflectionEnvironmentCapture
 							SetTextureParameter(
 								RHICmdList,
 								PixelShaderRHI,
-								HQFilterPixelShader->SourceTexture,
-								HQFilterPixelShader->SourceTextureSampler,
+								HQFilterPixelShader->SourceCubemapTexture,
+								HQFilterPixelShader->SourceCubemapSampler,
 								TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
 								EffectiveSource.ShaderResourceTexture);
 						}

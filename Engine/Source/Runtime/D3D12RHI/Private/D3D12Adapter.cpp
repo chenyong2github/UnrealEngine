@@ -8,6 +8,10 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsPlatformMisc.h"
+#endif
+
 #if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 	#include "amd_ags.h"
 #endif
@@ -62,66 +66,90 @@ static TAutoConsoleVariable<int32> CVarD3D12GPUCrashDebuggingMode(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
+static bool CheckD3DStoredMessages()
+{
+	bool bResult = false;
+
+	TRefCountPtr<ID3D12Debug> d3dDebug;
+	if (SUCCEEDED(D3D12GetDebugInterface(__uuidof(ID3D12Debug), (void**)d3dDebug.GetInitReference())))
+	{
+		FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+		TRefCountPtr<ID3D12InfoQueue> d3dInfoQueue;
+		if (SUCCEEDED(D3D12RHI->GetAdapter().GetD3DDevice()->QueryInterface(__uuidof(ID3D12InfoQueue), (void**)d3dInfoQueue.GetInitReference())))
+		{
+			D3D12_MESSAGE* d3dMessage = nullptr;
+			SIZE_T AllocateSize = 0;
+
+			int StoredMessageCount = d3dInfoQueue->GetNumStoredMessagesAllowedByRetrievalFilter();
+			for (int MessageIndex = 0; MessageIndex < StoredMessageCount; MessageIndex++)
+			{
+				SIZE_T MessageLength = 0;
+				HRESULT hr = d3dInfoQueue->GetMessage(MessageIndex, nullptr, &MessageLength);
+
+				// Ideally the exception handler should not allocate any memory because it could fail
+				// and can cause another exception to be triggered and possible even cause a deadlock.
+				// But for these D3D error message it should be fine right now because they are requested
+				// exceptions when making an error against the API.
+				// Not allocating memory for the messages is easy (cache memory in Adapter), but ANSI_TO_TCHAR
+				// and UE_LOG will also allocate memory and aren't that easy to fix.
+
+				// realloc the message
+				if (MessageLength > AllocateSize)
+				{
+					if (d3dMessage)
+					{
+						FMemory::Free(d3dMessage);
+						d3dMessage = nullptr;
+						AllocateSize = 0;
+					}
+
+					d3dMessage = (D3D12_MESSAGE*)FMemory::Malloc(MessageLength);
+					AllocateSize = MessageLength;
+				}
+
+				if (d3dMessage)
+				{
+					// get the actual message data from the queue
+					hr = d3dInfoQueue->GetMessage(MessageIndex, d3dMessage, &MessageLength);
+
+					if (d3dMessage->Severity == D3D12_MESSAGE_SEVERITY_ERROR)
+					{
+						UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+					}
+					else if (d3dMessage->Severity == D3D12_MESSAGE_SEVERITY_WARNING)
+					{
+						UE_LOG(LogD3D12RHI, Warning, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+					}
+					else 
+					{
+						UE_LOG(LogD3D12RHI, Log, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+					}
+				}
+
+				// we got messages
+				bResult = true;
+			}
+
+			if (AllocateSize > 0)
+			{
+				FMemory::Free(d3dMessage);
+			}
+		}
+	}
+
+	return bResult;
+}
+
 /** Handle d3d messages and write them to the log file **/
 static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 {
 	// Only handle D3D error codes here
 	if (InInfo->ExceptionRecord->ExceptionCode == _FACDXGI)
 	{
-		TRefCountPtr<ID3D12Debug> d3dDebug;
-		if (SUCCEEDED(D3D12GetDebugInterface(__uuidof(ID3D12Debug), (void**)d3dDebug.GetInitReference())))
+		if (CheckD3DStoredMessages())
 		{
-			FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
-			TRefCountPtr<ID3D12InfoQueue> d3dInfoQueue;
-			if (SUCCEEDED(D3D12RHI->GetAdapter().GetD3DDevice()->QueryInterface(__uuidof(ID3D12InfoQueue), (void**)d3dInfoQueue.GetInitReference())))
-			{
-				D3D12_MESSAGE* d3dMessage = nullptr;
-				SIZE_T AllocateSize = 0;
-
-				int StoredMessageCount = d3dInfoQueue->GetNumStoredMessagesAllowedByRetrievalFilter();
-				for (int MessageIndex = 0; MessageIndex < StoredMessageCount; MessageIndex++)
-				{
-					SIZE_T MessageLength = 0;
-					HRESULT hr = d3dInfoQueue->GetMessage(MessageIndex, nullptr, &MessageLength);
-
-					// Ideally the exception handler should not allocate any memory because it could fail
-					// and can cause another exception to be triggered and possible even cause a deadlock.
-					// But for these D3D error message it should be fine right now because they are requested
-					// exceptions when making an error against the API.
-					// Not allocating memory for the messages is easy (cache memory in Adapter), but ANSI_TO_TCHAR
-					// and UE_LOG will also allocate memory and aren't that easy to fix.
-
-					// realloc the message
-					if (MessageLength > AllocateSize)
-					{
-						if (d3dMessage)
-						{
-							FMemory::Free(d3dMessage);
-							d3dMessage = nullptr;
-							AllocateSize = 0;
-						}
-
-						d3dMessage = (D3D12_MESSAGE*) FMemory::Malloc(MessageLength);
-						AllocateSize = MessageLength;
-					}
-
-					if (d3dMessage)
-					{
-						// get the actual message data from the queue
-						hr = d3dInfoQueue->GetMessage(MessageIndex, d3dMessage, &MessageLength);
-
-						UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
-					}
-				}
-
-				// when we get here, then it means that BreakOnSeverity was set for this error message, so request the debug break here as well
-				UE_DEBUG_BREAK();
-
-				if (AllocateSize > 0)
-				{
-					FMemory::Free(d3dMessage);
-				}
-			}
+			// when we get here, then it means that BreakOnSeverity was set for this error message, so request the debug break here as well
+			UE_DEBUG_BREAK();
 		}
 
 		// Handles the exception
@@ -138,6 +166,7 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	: OwningRHI(nullptr)
 	, bDepthBoundsTestSupported(false)
+	, bHeapNotZeroedSupported(false)
 	, bDebugDevice(false)
 	, GPUCrashDebuggingMode(ED3D12GPUCrashDebugginMode::Disabled)
 	, bDeviceRemoved(false)
@@ -147,8 +176,7 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	, FenceCorePool(this)
 	, DeferredDeletionQueue(this)
 	, DefaultContextRedirector(this, true, false)
-	, DefaultAsyncComputeContextRedirector(this, false, true)
-	, GPUProfilingData(this)
+	, DefaultAsyncComputeContextRedirector(this, true, true)
 	, FrameCounter(0)
 #if D3D12_SUBMISSION_GAP_RECORDER
 	, CurrentContextIndex(0)
@@ -314,6 +342,14 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		{
 			UE_LOG(LogD3D12RHI, Warning, TEXT("[DRED] DRED requested but interface was not found, error: %x. DRED only works on Windows 10 1903+."), hr);
 		}
+
+		TRefCountPtr<ID3D12DeviceRemovedExtendedDataSettings1> DredSettings1;
+		hr = D3D12GetDebugInterface(IID_PPV_ARGS(DredSettings1.GetInitReference()));
+		if (SUCCEEDED(hr))
+		{
+			DredSettings1->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			UE_LOG(LogD3D12RHI, Log, TEXT("[DRED] Dred breadcrumb context enabled"));
+		}
 	}
 
 	UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off"));
@@ -453,6 +489,16 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif // D3D12_RHI_RAYTRACING
 
+#if PLATFORM_WINDOWS
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS7 Features = {};
+		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &Features, sizeof(Features))))
+		{
+			bHeapNotZeroedSupported = true;
+		}
+	}
+#endif
+
 #if NV_AFTERMATH
 	// Enable aftermath when GPU crash debugging is enabled
 	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full && GDX12NVAfterMathEnabled)
@@ -516,6 +562,23 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	{
 		// add vectored exception handler to write the debug device warning & error messages to the log
 		ExceptionHandlerHandle = AddVectoredExceptionHandler(1, D3DVectoredExceptionHandler);
+
+		// Manually load dxgi debug if available
+		HMODULE DxgiDebugDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgidebug.dll"));
+		if (DxgiDebugDLL)
+		{
+			typedef HRESULT(WINAPI* FDXGIGetDebugInterface)(REFIID, void**);
+#pragma warning(push)
+#pragma warning(disable: 4191) // disable the "unsafe conversion from 'FARPROC' to 'blah'" warning
+			FDXGIGetDebugInterface DXGIGetDebugInterfaceFnPtr = (FDXGIGetDebugInterface)(GetProcAddress(DxgiDebugDLL, "DXGIGetDebugInterface"));
+#pragma warning(pop)
+			if (DXGIGetDebugInterfaceFnPtr != nullptr)
+			{
+				DXGIGetDebugInterfaceFnPtr(__uuidof(IDXGIDebug), (void**)DXGIDebug.GetInitReference());
+			}
+
+			FPlatformProcess::FreeDllHandle(DxgiDebugDLL);
+		}
 	}
 #endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
@@ -552,6 +615,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 			// Be sure to carefully comment the reason for any additions here!  Someone should be able to look at it later and get an idea of whether it is still necessary.
 			TArray<D3D12_MESSAGE_ID, TInlineAllocator<16>> DenyIds = {
+
 				// The Pixel Shader expects a Render Target View bound to slot 0, but the PSO indicates that none will be bound.
 				// This typically happens when a non-depth-only pixel shader is used for depth-only rendering.
 				D3D12_MESSAGE_ID_CREATEGRAPHICSPIPELINESTATE_RENDERTARGETVIEW_NOT_SET,
@@ -613,10 +677,9 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			};
 
 #if D3D12_RHI_RAYTRACING
-			if (bRayTracingSupported)
+			if (bRayTracingSupported && !FWindowsPlatformMisc::VerifyWindowsVersion(10, 0, 18363))
 			{
-				// When the debug layer is enabled and ray tracing is supported, this error is triggered after a CopyDescriptors
-				// call in the DescriptorCache even when ray tracing device is never used. This workaround is still required as of 2018-12-17.
+				// Ignore a known false positive error due to a bug in validation layer in certain Windows versions on DXR-capable hardware.
 				DenyIds.Add(D3D12_MESSAGE_ID_COPY_DESCRIPTORS_INVALID_RANGES);
 			}
 #endif // D3D12_RHI_RAYTRACING
@@ -646,7 +709,10 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	GNumExplicitGPUsForRendering = 1;
 	if (Desc.NumDeviceNodes > 1)
 	{
-		if (GIsEditor)
+		// Can't access GAllowMultiGPUInEditor directly as its value is cached but hasn't been set by console manager due to module loading order
+		static IConsoleVariable* AllowMultiGPUInEditor = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowMultiGPUInEditor"));
+
+		if (GIsEditor && AllowMultiGPUInEditor->GetInt() == 0)
 		{
 			UE_LOG(LogD3D12RHI, Log, TEXT("Multi-GPU is available, but skipping due to editor mode."));
 		}
@@ -817,9 +883,6 @@ void FD3D12Adapter::InitializeDevices()
 				DefaultAsyncComputeContextRedirector.SetPhysicalContext(&Devices[GPUIndex]->GetDefaultAsyncComputeContext());
 			}
 		}
-
-		GPUProfilingData.Init();
-
 		const FString Name(L"Upload Buffer Allocator");
 
 		for (uint32 GPUIndex : FRHIGPUMask::All())
@@ -921,13 +984,6 @@ void FD3D12Adapter::Cleanup()
 	}
 #endif
 
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
-	if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
-	{
-		RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
-	}
-#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
-
 	// Ask all initialized FRenderResources to release their RHI resources.
 	FRenderResource::ReleaseRHIForAllResources();
 
@@ -947,9 +1003,6 @@ void FD3D12Adapter::Cleanup()
 		delete(Devices[GPUIndex]);
 		Devices[GPUIndex] = nullptr;
 	}
-
-	// Release buffered timestamp queries
-	GPUProfilingData.FrameTiming.ReleaseResource();
 
 	Viewports.Empty();
 	DrawingViewport = nullptr;
@@ -982,6 +1035,22 @@ void FD3D12Adapter::Cleanup()
 	DispatchIndirectCommandSignature.SafeRelease();
 
 	FenceCorePool.Destroy();
+
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+	// trace all leak D3D resource
+	if (DXGIDebug != nullptr)
+	{
+		DXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
+		DXGIDebug.SafeRelease();
+
+		CheckD3DStoredMessages();
+	}
+
+	if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
+	{
+		RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
+	}
+#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 }
 #if D3D12_SUBMISSION_GAP_RECORDER
 void FD3D12Adapter::SubmitGapRecorderTimestamps()

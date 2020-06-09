@@ -72,7 +72,7 @@ bool ShouldSkyLightAffectGlobalIllumination() {
  */
 float3 GetSkySHDiffuse(float3 Normal)
 {
-	float4 NormalVector = float4(Normal, 1);
+	float4 NormalVector = float4(Normal, 1.0f); 
 
 	float3 Intermediate0, Intermediate1, Intermediate2;
 	Intermediate0.x = dot(View.SkyIrradianceEnvironmentMap[0], NormalVector);

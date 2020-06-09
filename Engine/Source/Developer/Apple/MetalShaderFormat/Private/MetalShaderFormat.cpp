@@ -320,10 +320,10 @@ uint32 GetMetalFormatVersion(FName Format)
 }
 
 /**
- * Module for OpenGL shaders
+ * Module for Metal shaders
  */
 
-static IShaderFormat* Singleton = NULL;
+static IShaderFormat* Singleton = nullptr;
 
 class FMetalShaderFormatModule : public IShaderFormatModule
 {
@@ -331,8 +331,9 @@ public:
 	virtual ~FMetalShaderFormatModule()
 	{
 		delete Singleton;
-		Singleton = NULL;
+		Singleton = nullptr;
 	}
+
 	virtual IShaderFormat* GetShaderFormat()
 	{
 		if (!Singleton)

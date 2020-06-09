@@ -1,0 +1,125 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	VolumetricCloudRendering.h
+=============================================================================*/
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "EngineDefines.h"
+#include "RendererInterface.h"
+#include "RenderResource.h"
+#include "VolumeLighting.h"
+
+
+class FScene;
+class FViewInfo;
+class FLightSceneInfo;
+class UVolumetricCloudComponent;
+class FVolumetricCloudSceneProxy;
+
+struct FEngineShowFlags;
+
+
+
+BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricCloudCommonShaderParameters, )
+	SHADER_PARAMETER(FLinearColor, GroundAlbedo)
+	SHADER_PARAMETER(FLinearColor, AtmosphericLightsContributionFactor)
+	SHADER_PARAMETER(FVector, CloudLayerCenterKm)
+	SHADER_PARAMETER(float, PlanetRadiusKm)
+	SHADER_PARAMETER(float, BottomRadiusKm)
+	SHADER_PARAMETER(float, TopRadiusKm)
+	SHADER_PARAMETER(float, TracingStartMaxDistance)
+	SHADER_PARAMETER(float, TracingMaxDistance)
+	SHADER_PARAMETER(int32, SampleCountMax)
+	SHADER_PARAMETER(float, InvDistanceToSampleCountMax)
+	SHADER_PARAMETER(int32, ShadowSampleCountMax)
+	SHADER_PARAMETER(float, ShadowTracingMaxDistance)
+	SHADER_PARAMETER(int32, EnableAerialPerspectiveSampling)
+	SHADER_PARAMETER(int32, EnableDistantSkyLightSampling)
+	SHADER_PARAMETER(int32, EnableAtmosphericLightsSampling)
+	SHADER_PARAMETER(float,		CloudShadowmapFarDepthKm)
+	SHADER_PARAMETER(float,		CloudShadowmapStrength)
+	SHADER_PARAMETER(float,		CloudShadowmapSampleClount)
+	SHADER_PARAMETER(FVector4,	CloudShadowmapSizeInvSize)
+	SHADER_PARAMETER(FMatrix,	CloudShadowmapWorldToLightClipMatrix)
+	SHADER_PARAMETER(FMatrix,	CloudShadowmapWorldToLightClipMatrixInv)
+	SHADER_PARAMETER(FVector,	CloudShadowmapLight0Dir)
+	SHADER_PARAMETER(float,		CloudSkyAOFarDepthKm)
+	SHADER_PARAMETER(float,		CloudSkyAOStrength)
+	SHADER_PARAMETER(float,		CloudSkyAOSampleClount)
+	SHADER_PARAMETER(FVector4,	CloudSkyAOSizeInvSize)
+	SHADER_PARAMETER(FMatrix,	CloudSkyAOWorldToLightClipMatrix)
+	SHADER_PARAMETER(FMatrix,	CloudSkyAOWorldToLightClipMatrixInv)
+	SHADER_PARAMETER(FVector,	CloudSkyAOTrace0Dir)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumetricCloudCommonGlobalShaderParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricCloudCommonShaderParameters, VolumetricCloudCommonParams)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+
+/** Contains render data created render side for a FVolumetricCloudSceneProxy objects. */
+class FVolumetricCloudRenderSceneInfo
+{
+public:
+
+	/** Initialization constructor. */
+	explicit FVolumetricCloudRenderSceneInfo(FVolumetricCloudSceneProxy& VolumetricCloudSceneProxy);
+	~FVolumetricCloudRenderSceneInfo();
+
+	FVolumetricCloudSceneProxy& GetVolumetricCloudSceneProxy() { return VolumetricCloudSceneProxy; }
+
+	FVolumetricCloudCommonShaderParameters& GetVolumetricCloudCommonShaderParameters() { return VolumetricCloudCommonShaderParameters; }
+	const FVolumetricCloudCommonShaderParameters& GetVolumetricCloudCommonShaderParameters() const { return VolumetricCloudCommonShaderParameters; }
+
+	TUniformBufferRef<FVolumetricCloudCommonGlobalShaderParameters>& GetVolumetricCloudCommonShaderParametersUB() { return VolumetricCloudCommonShaderParametersUB; }
+	const TUniformBufferRef<FVolumetricCloudCommonGlobalShaderParameters>& GetVolumetricCloudCommonShaderParametersUB() const { return VolumetricCloudCommonShaderParametersUB; }
+
+private:
+
+	FVolumetricCloudSceneProxy& VolumetricCloudSceneProxy;
+
+	FVolumetricCloudCommonShaderParameters VolumetricCloudCommonShaderParameters;
+	TUniformBufferRef<FVolumetricCloudCommonGlobalShaderParameters> VolumetricCloudCommonShaderParametersUB;
+};
+
+
+bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
+
+
+// Structure with data necessary to specify a cloud render.
+struct CloudRenderContext
+{
+	///////////////////////////////////
+	// Per scene parameters
+
+	FVolumetricCloudRenderSceneInfo* CloudInfo;
+	FMaterialRenderProxy* CloudVolumeMaterialProxy;
+
+	TRefCountPtr<IPooledRenderTarget> SceneDepthZ;
+
+	///////////////////////////////////
+	// Per view parameters
+
+	FViewInfo* MainView;
+	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
+	FRenderTargetBindingSlots RenderTargets;
+
+	bool bShouldViewRenderVolumetricRenderTarget;
+	bool bIsReflectionRendering;
+	bool bSkipAtmosphericLightShadowmap;
+
+	FUintVector4 SubSetCoordToFullResolutionScaleBias;
+	uint32 NoiseFrameIndexModPattern;
+
+	FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0;
+	FRDGTextureRef VolumetricCloudShadowTexture;
+
+	CloudRenderContext();
+
+private:
+};
+
+

@@ -31,6 +31,14 @@
 #include "/Engine/Private/SkyAtmosphereCommon.ush"
 #endif
 
+#if USE_CLOUD_TRANSMITTANCE
+#include "VolumetricCloudCommon.ush"
+Texture2D<float2> CloudShadowmapTexture;
+SamplerState CloudShadowmapSampler;
+float CloudShadowmapFarDepthKm;
+float4x4 CloudShadowmapWorldToLightClipMatrix;
+#endif
+
 struct FInputParams
 {
 	float2 PixelPos;
@@ -202,6 +210,11 @@ void DeferredLightPixelMain(
 
 	#if USE_ATMOSPHERE_TRANSMITTANCE
 		OutColor.rgb *= GetAtmosphericLightTransmittance(SVPos, InputParams.ScreenUV, DeferredLightUniforms.Direction.xyz);
+	#endif
+
+	#if USE_CLOUD_TRANSMITTANCE
+		float OutOpticalDepth = 0.0f;
+		OutColor.rgb *= GetCloudVolumetricShadow(DerivedParams.WorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth);
 	#endif
 	}
 
