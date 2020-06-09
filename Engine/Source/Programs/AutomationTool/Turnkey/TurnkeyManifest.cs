@@ -70,7 +70,8 @@ namespace Turnkey
 
 						if (Expansions.Count != ExpandedInstallerResults.Length)
 						{
-							throw new AutomationException("Bad expansions output from CopyProvider");
+							throw new AutomationException(string.Format("Bad expansions output from CopyProvider ({0} returned {1} count, expected {2}, from {3}",
+								Sdk.Expansion[0].Copy, Expansions.Count, ExpandedInstallerResults.Length, string.Join(", ", ExpandedInstallerResults)));
 						}
 
 						// @todo turnkey: this will be uysed in Builds also, make it a function with a lambda

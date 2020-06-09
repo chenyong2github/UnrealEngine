@@ -9,6 +9,24 @@
 
 #define DDPI_HAS_EXTENDED_PLATFORMINFO_DATA WITH_EDITOR && !IS_MONOLITHIC
 
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+
+
+enum class DDPIPlatformSdkStatus : uint8
+{
+	Unknown,
+	Querying,
+	Valid,
+	OutOfDate,
+	NoSdk,
+	Error,
+	FlashValid,
+	FlashOutOfDate,
+};
+
+#endif
+
+
 struct CORE_API FDataDrivenPlatformInfoRegistry
 {
 	// Information about a platform loaded from disk
@@ -19,6 +37,9 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 
 		// is this platform confidential
 		bool bIsConfidential = false;
+
+		// some platforms are here just for IniParentChain needs and are not concrete platforms
+		bool bIsFakePlatform = false;
 
 		// the name of the ini section to use to load audio compression settings (used at runtime and cooktime)
 		FString AudioCompressionSettingsIniSectionName;
@@ -41,6 +62,20 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 		TArray<FString> AllTargetPlatformNames;
 		// list of UBT platform names (Win32, Win64, etc)
 		TArray<FString> AllUBTPlatformNames;
+
+		// Information about the validity of using a platform, discovered via Turnkey
+		DDPIPlatformSdkStatus SdkStatus;
+		FString SdkErrorInformation;
+
+		// Get the status of a device, or Unknown if not specified
+		CORE_API DDPIPlatformSdkStatus GetStatusForDeviceId(const FString& DeviceId) const;
+		CORE_API void ClearDeviceStatus();
+
+private:
+		friend FDataDrivenPlatformInfoRegistry;
+
+		// Information about the validity of each connected device (by string, discovered by Turnkey)
+		TMap<FString, DDPIPlatformSdkStatus> PerDeviceStatus;
 #endif
 	};
 
@@ -93,6 +128,24 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 		TargetPlatform,
 	};
 	static bool HasCompiledSupportForPlatform(const FString& PlatformName, EPlatformNameType PlatformNameType);
+
+	/**
+	 * Runs UAT to update Sdk status (can be called after user chooses an option that had a bad Sdk status)
+	 */
+	static void UpdateSdkStatus();
+
+	/**
+	 * Run UAT to update per device flash/software information (each Id should be in the standard DeviceId format of Platform@Device)
+	 */
+	static void UpdateDeviceSdkStatus(TArray<FString> PlatformDeviceIds);
+
+private:
+	static FDataDrivenPlatformInfoRegistry::FPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName = nullptr);
+
 #endif
+
+
+private:
+	static TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> DataDrivenPlatforms;
 };
 

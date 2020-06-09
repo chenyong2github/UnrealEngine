@@ -14,10 +14,11 @@ namespace Turnkey.Commands
 	{
 		protected override void Execute(string[] CommandOptions)
 		{
-			bool bUpdateIfNeeded = TurnkeyUtils.ParseParam("UpdateIfNeeded", CommandOptions);
 			bool bUnattended = TurnkeyUtils.ParseParam("Unattended", CommandOptions);
 			bool bPreferFullSdk = TurnkeyUtils.ParseParam("PreferFull", CommandOptions);
-			bool bForceInstall = TurnkeyUtils.ParseParam("ForceInstall", CommandOptions);
+			bool bForceSdkInstall = TurnkeyUtils.ParseParam("ForceSdkInstall", CommandOptions);
+			bool bForceDeviceInstall = TurnkeyUtils.ParseParam("ForceDeviceInstall", CommandOptions);
+			bool bUpdateIfNeeded = bForceSdkInstall || bForceDeviceInstall || TurnkeyUtils.ParseParam("UpdateIfNeeded", CommandOptions);
 
 			// track each platform to check, and 
 			Dictionary<UnrealTargetPlatform, List<string>> PlatformsAndDevices = null;
@@ -122,7 +123,7 @@ namespace Turnkey.Commands
 				bool bAutoSdkSetupSucceeded = false;
 
 				// install if out of date, or if forcing it
-				if (bForceInstall || (bUpdateIfNeeded && TurnkeyUtils.ExitCode != AutomationTool.ExitCode.Success))
+				if (bForceSdkInstall || (bUpdateIfNeeded && TurnkeyUtils.ExitCode != AutomationTool.ExitCode.Success))
 				{
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
 
@@ -198,21 +199,24 @@ namespace Turnkey.Commands
 					{
 						AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, Retriever);
 
-						bool bIsSoftwareValid = TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
+						bool bIsSoftwareValid = TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions(), AutomationPlatform);
 
 
-						if (bIsSoftwareValid)
+						if (!bForceDeviceInstall && bIsSoftwareValid)
 						{
 							TurnkeyUtils.Report("{0}@{1}: Valid: [{2}]", Platform, Device.Name, Device.SoftwareVersion);
 						}
 						else
 						{
-							TurnkeyUtils.Report("{0}@{1}: Invalid: [Has {2}, needs {3}]", Platform, Device.Name, Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
+							if (!bForceDeviceInstall)
+							{
+								TurnkeyUtils.Report("{0}@{1}: Invalid: [Has {2}, needs {3}]", Platform, Device.Name, Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
+							}
 							TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 
 							if (bUpdateIfNeeded)
 							{
-								SdkInfo MatchingInstallableSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Flash }, bSelectBest: bUnattended);
+								SdkInfo MatchingInstallableSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Flash }, bSelectBest: bUnattended, Device.Type);
 
 								if (MatchingInstallableSdk == null)
 								{

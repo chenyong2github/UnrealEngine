@@ -1303,6 +1303,15 @@ public:
 	 */
 	virtual bool IsUsingIoStore() const = 0;
 
+	/**
+	 * Sets whether or not the flash image/software on the device should attempt to be updated before running
+	 */
+	virtual void SetShouldUpdateDeviceFlash(bool bInShouldUpdateFlash) = 0;
+
+	/**
+	 * Whether or not the flash image/software on the device should attempt to be updated before running
+	 */
+	virtual bool ShouldUpdateDeviceFlash() const = 0;
 public:
 
 	/** Virtual destructor. */

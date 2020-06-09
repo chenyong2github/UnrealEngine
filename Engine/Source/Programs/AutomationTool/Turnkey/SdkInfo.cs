@@ -134,7 +134,7 @@ namespace Turnkey
 					foreach (DirectoryInfo Dir in PlatformDir.EnumerateDirectories())
 					{
 						// check for valid version number
-						if (TurnkeyUtils.IsValueValid(Dir.Name, AutomationPlatform.GetAllowedSdks()))
+						if (TurnkeyUtils.IsValueValid(Dir.Name, AutomationPlatform.GetAllowedSdks(), AutomationPlatform))
 						{
 							// make sure it actually has bits in it
 							if (File.Exists(Path.Combine(Dir.FullName, "setup.bat")))
@@ -154,7 +154,7 @@ namespace Turnkey
 			string InstalledVersion = AutomationPlatform.GetInstalledSdk();
 			if (!string.IsNullOrEmpty(InstalledVersion))
 			{
-				if (TurnkeyUtils.IsValueValid(InstalledVersion, AutomationPlatform.GetAllowedSdks()))
+				if (TurnkeyUtils.IsValueValid(InstalledVersion, AutomationPlatform.GetAllowedSdks(), AutomationPlatform))
 				{
 					Result |= LocalAvailability.InstalledSdk_ValidVersionExists;
 				}
@@ -168,14 +168,18 @@ namespace Turnkey
 			return Result;
 		}
 
-		static public SdkInfo FindMatchingSdk(AutomationTool.Platform Platform, SdkType[] TypePriority, bool bSelectBest)
+		static public SdkInfo FindMatchingSdk(AutomationTool.Platform Platform, SdkType[] TypePriority, bool bSelectBest, string DeviceType=null)
 		{
 			foreach (SdkType Type in TypePriority)
 			{
 				List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks();
 				Sdks = Sdks.FindAll(x => x.SupportsPlatform(Platform.IniPlatformType));
 				Sdks = Sdks.FindAll(x => x.Type == Type);
-				Sdks = Sdks.FindAll(x => (x.Version == null && x.CustomSdkId != null) || TurnkeyUtils.IsValueValid(x.Version, Type == SdkType.Flash ? Platform.GetAllowedSoftwareVersions() : Platform.GetAllowedSdks()));
+				Sdks = Sdks.FindAll(x => (x.Version == null && x.CustomSdkId != null) || TurnkeyUtils.IsValueValid(x.Version, Type == SdkType.Flash ? Platform.GetAllowedSoftwareVersions() : Platform.GetAllowedSdks(), Platform));
+				if (DeviceType != null)
+				{
+					Sdks = Sdks.FindAll(x => TurnkeyUtils.IsValueValid(DeviceType, x.AllowedFlashDeviceTypes, Platform));
+				}
 
 				// if none were found try next type
 				if (Sdks.Count == 0)
@@ -274,12 +278,12 @@ namespace Turnkey
 
 			if (Type == SdkType.Flash)
 			{
-				bool bIsValid = TurnkeyUtils.IsValueValid(Version, AutomationPlatforms[Platform].GetAllowedSoftwareVersions());
+				bool bIsValid = TurnkeyUtils.IsValueValid(Version, AutomationPlatforms[Platform].GetAllowedSoftwareVersions(), AutomationPlatforms[Platform]);
 				// if we were passed a device, also check if this Sdk is valid for that device
 				//				if (DeviceName != null)
 				{
 					DeviceInfo Device = GetDevice(Platform, DeviceName);
-					bIsValid = bIsValid && Device != null && TurnkeyUtils.IsValueValid(Device.Type, AllowedFlashDeviceTypes);
+					bIsValid = bIsValid && Device != null && TurnkeyUtils.IsValueValid(Device.Type, AllowedFlashDeviceTypes, AutomationPlatforms[Platform]);
 				}
 				return bIsValid;
 			}
@@ -290,7 +294,7 @@ namespace Turnkey
 			}
 			else
 			{
-				return TurnkeyUtils.IsValueValid(Version, AutomationPlatforms[Platform].GetAllowedSdks());
+				return TurnkeyUtils.IsValueValid(Version, AutomationPlatforms[Platform].GetAllowedSdks(), AutomationPlatforms[Platform]);
 			}
 		}
 
@@ -318,7 +322,7 @@ namespace Turnkey
 					return false;
 				}
 
-				return Device != null && !TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AutomationPlatforms[Platform].GetAllowedSoftwareVersions());
+				return Device != null && !TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AutomationPlatforms[Platform].GetAllowedSoftwareVersions(), AutomationPlatforms[Platform]);
 			}
 			// handle custom types, which can't use simple version checking
 			else if (CustomSdkId != null)
@@ -346,13 +350,13 @@ namespace Turnkey
 			}
 			else
 			{
-				return !TurnkeyUtils.IsValueValid(AutomationPlatforms[Platform].GetInstalledSdk(), AutomationPlatforms[Platform].GetAllowedSdks());
+				return !TurnkeyUtils.IsValueValid(AutomationPlatforms[Platform].GetInstalledSdk(), AutomationPlatforms[Platform].GetAllowedSdks(), AutomationPlatforms[Platform]);
 			}
 		}
 
-		public bool Install(UnrealTargetPlatform Platform, DeviceInfo Device = null, bool bUnattended = false)
+		public bool Install(UnrealTargetPlatform Platform, DeviceInfo Device=null, bool bUnattended=false, bool bSkipAutoSdkSetup=false)
 		{
-			if (Type == SdkType.AutoSdk)
+			if (Type == SdkType.AutoSdk && !bSkipAutoSdkSetup)
 			{
 				// AutoSdk has some extra setup needed
 				if (SdkInfo.ConditionalSetupAutoSdk(Platform, bUnattended))
@@ -481,7 +485,7 @@ namespace Turnkey
 
 					// now download it (AutoSdks don't "install") on download
 					// @todo turnkey: handle errors, handle p4 going to wrong location, handle one Sdk for multiple platforms
-					MatchingAutoSdk.Install(Platform, null, bUnattended);
+					MatchingAutoSdk.Install(Platform, null, bUnattended, bSkipAutoSdkSetup:true);
 
 					if (bSetupEnvVarAfterInstall)
 					{

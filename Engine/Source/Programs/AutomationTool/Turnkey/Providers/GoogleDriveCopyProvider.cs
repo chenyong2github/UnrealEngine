@@ -471,8 +471,11 @@ namespace Turnkey
 					if (ExpansionSet != null)
 					{
 						NewExpansionSet = new List<string>(ExpansionSet);
-						// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
-						NewExpansionSet.Add(Result.Name.Replace(Match, ""));
+						if (Match != "")
+						{
+							// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
+							NewExpansionSet.Add(Result.Name.Replace(Match, ""));
+						}
 					}
 
 					// cache the file (it may have already been cached tho from a previous test)

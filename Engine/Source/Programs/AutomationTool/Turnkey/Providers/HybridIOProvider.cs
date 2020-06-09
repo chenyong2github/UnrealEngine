@@ -33,6 +33,13 @@ namespace Turnkey
 
 		private  string ShowDialog(string Prompt, string Default, bool bIsList)
 		{
+			string Result = Microsoft.VisualBasic.Interaction.InputBox(Prompt, "Turnkey", Default);
+			if (Result == "" && bIsList)
+			{
+				return "0";
+			}
+			return Result;
+/*
 			// Create a new instance of the form.
 			Form Form1 = new Form();
 
@@ -136,6 +143,7 @@ namespace Turnkey
 			Form1.Dispose();
 
 			return Result;
+	*/
 		}
 
 		public override string ReadInput(string Prompt, string Default, bool bAppendNewLine)
@@ -176,6 +184,10 @@ namespace Turnkey
 				int Choice;
 				if (Int32.TryParse(ChoiceString, out Choice) == false || Choice < 0 || Choice >= Options.Count + (bIsCancellable ? 1 : 0))
 				{
+					if (Choice < 0 && bIsCancellable)
+					{
+						return 0;
+					}
 					TurnkeyUtils.Log("Invalid choice");
 				}
 				else

@@ -17,12 +17,13 @@ class FLauncherUATTask
 {
 public:
 
-	FLauncherUATTask( const FString& InCommandLine, const FString& InName, const FString& InDesc, void* InReadPipe, void* InWritePipe, const FString& InEditorExe, FProcHandle& InProcessHandle, ILauncherWorker* InWorker, const FString& InCommandEnd)
+	FLauncherUATTask( const FString& InCommandLine, const FString& InName, const FString& InDesc, void* InReadPipe, void* InWritePipe, const FString& InEditorExe, FProcHandle& InProcessHandle, ILauncherWorker* InWorker, const FString& InCommandEnd, const FString& InBuildCookRunPreCommand)
 		: FLauncherTask(InName, InDesc, InReadPipe, InWritePipe)
 		, CommandLine(InCommandLine)
 		, EditorExe(InEditorExe)
 		, ProcessHandle(InProcessHandle)
 		, CommandText(InCommandEnd)
+		, PreCommand(InBuildCookRunPreCommand)
 	{
 		EndTextFound = false;
 		InWorker->OnOutputReceived().AddRaw(this, &FLauncherUATTask::HandleOutputReceived);
@@ -55,8 +56,9 @@ protected:
 		FString UATCommandLine;
 		FString ProjectPath = *ChainState.Profile->GetProjectPath();
 		ProjectPath = FPaths::ConvertRelativePathToFull(ProjectPath);
-		UATCommandLine = FString::Printf(TEXT("-ScriptsForProject=\"%s\" BuildCookRun -project=\"%s\" -noP4 -clientconfig=%s -serverconfig=%s"),
+		UATCommandLine = FString::Printf(TEXT("-ScriptsForProject=\"%s\" %s BuildCookRun -project=\"%s\" -noP4 -clientconfig=%s -serverconfig=%s"),
 			*ProjectPath,
+			*PreCommand,
 			*ProjectPath,
 			LexToString(ChainState.Profile->GetBuildConfiguration()),
 			LexToString(ChainState.Profile->GetBuildConfiguration()));
@@ -128,6 +130,9 @@ private:
 
 	// The editor executable that UAT should use
 	FString CommandText;
+
+	// a UAT command to run before BuildCookRun (in the same instance as the BuildCookRun)
+	FString PreCommand;
 
 	bool EndTextFound;
 };

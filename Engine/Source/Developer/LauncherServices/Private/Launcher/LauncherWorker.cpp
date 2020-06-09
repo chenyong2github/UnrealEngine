@@ -939,7 +939,15 @@ void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfil
 	TArray<FCommandDesc> Commands;
 	FString StartString;
 	FString UATCommand = CreateUATCommand(InProfile, Platforms, Commands, StartString);
-	TSharedPtr<FLauncherTask> BuildTask = MakeShareable(new FLauncherUATTask(UATCommand, TEXT("Build Task"), TEXT("Launching UAT..."), ReadPipe, WritePipe, InProfile->GetEditorExe(), ProcHandle, this, StartString));
+	
+	// have Turnkey 
+	FString TurnkeyCommand;
+	if (Profile->ShouldUpdateDeviceFlash() && DeviceGroup->GetDeviceIDs().Num() >= 0)
+	{
+		TurnkeyCommand = FString::Printf(TEXT("Turnkey -command=VerifySdk -type=Flash -device=%s -UpdateIfNeeded -EditorIO"), *FString::Join(DeviceGroup->GetDeviceIDs(), TEXT("+")));
+	}
+
+	TSharedPtr<FLauncherTask> BuildTask = MakeShareable(new FLauncherUATTask(UATCommand, TEXT("Build Task"), TEXT("Launching UAT..."), ReadPipe, WritePipe, InProfile->GetEditorExe(), ProcHandle, this, StartString, TurnkeyCommand));
 	BuildTask->OnStarted().AddRaw(this, &FLauncherWorker::OnTaskStarted);
 	BuildTask->OnCompleted().AddRaw(this, &FLauncherWorker::OnTaskCompleted);
 	NextTask->AddContinuation(BuildTask);

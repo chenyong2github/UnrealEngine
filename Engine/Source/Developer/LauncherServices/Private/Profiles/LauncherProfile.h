@@ -2446,6 +2446,19 @@ public:
 		return bUseIoStore;
 	}
 
+	virtual void SetShouldUpdateDeviceFlash(bool bInShouldUpdateFlash) override
+	{
+		bShouldUpdateFlash = bInShouldUpdateFlash;
+	}
+
+	/**
+	 * Whether or not the flash image/software on the device should attempt to be updated before running
+	 */
+	virtual bool ShouldUpdateDeviceFlash() const override
+	{
+		return bShouldUpdateFlash;
+	}
+
 	//~ End ILauncherProfile Interface
 
 protected:
@@ -2899,6 +2912,9 @@ private:
 
 	// Use I/O store.
 	bool bUseIoStore;
+
+	// Update flash on device before running
+	bool bShouldUpdateFlash;
 
 private:
 

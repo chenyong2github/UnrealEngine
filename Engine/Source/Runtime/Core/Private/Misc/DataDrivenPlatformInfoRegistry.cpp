@@ -7,6 +7,11 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 
+#include "Async/Async.h"
+#include "Misc/MonitoredProcess.h"
+
+
+TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> FDataDrivenPlatformInfoRegistry::DataDrivenPlatforms;
 
 
 static const TArray<FString>& GetDataDrivenIniFilenames()
@@ -157,6 +162,7 @@ static void DDPIGetStringArray(const FConfigFile& IniFile, const TCHAR* Key, TAr
 static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformInfoRegistry::FPlatformInfo& Info)
 {
 	DDPIGetBool(IniFile, TEXT("bIsConfidential"), Info.bIsConfidential);
+	DDPIGetBool(IniFile, TEXT("bIsFakePlatform"), Info.bIsFakePlatform);
 	DDPIGetString(IniFile, TEXT("AudioCompressionSettingsIniSectionName"), Info.AudioCompressionSettingsIniSectionName);
 	DDPIGetStringArray(IniFile, TEXT("AdditionalRestrictedFolders"), Info.AdditionalRestrictedFolders);
 	
@@ -201,7 +207,6 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos()
 {
 	static bool bHasSearchedForPlatforms = false;
-	static TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> DataDrivenPlatforms;
 
 	// look on disk for special files
 	if (bHasSearchedForPlatforms == false)
@@ -242,10 +247,268 @@ const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& FDataDriven
 				It.Value.IniParentChain.Insert(CurrentPlatform, 0);
 			}
 		}
+
+
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+		UpdateSdkStatus();
+#endif
 	}
 
 	return DataDrivenPlatforms;
 }
+
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+
+// some shared functionality
+static void PrepForTurnkeyReport(FString& UAT, FString& ReportFilename)
+{
+	static int ReportIndex = 0;
+
+	// get path to AutomationTool - skipping RunUAT for speed
+//		FString AutomationTool = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/DotNET/AutomationTool.exe"));
+	UAT = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineDir(), TEXT("Build/BatchFiles/RunUAT.bat")));
+
+	ReportFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyReport_%d.log"), ReportIndex++)));
+}
+
+static FString ConvertToDDPIPlatform(const FString& Platform)
+{
+	FString  New = Platform.Replace(TEXT("NoEditor"), TEXT("")).Replace(TEXT("Client"), TEXT("")).Replace(TEXT("Server"), TEXT(""));
+	if (New == TEXT("Win64"))
+	{
+		New = TEXT("Windows");
+	}
+	return New;
+}
+
+static FString ConvertToUATPlatform(const FString& Platform)
+{
+	FString New = ConvertToDDPIPlatform(Platform);
+	if (New == TEXT("Windows"))
+	{
+		New = TEXT("Win64");
+	}
+	return New;
+}
+
+static FString ConvertToUATDeviceId(const FString& DeviceId)
+{
+	TArray<FString> PlatformAndDevice;
+	DeviceId.ParseIntoArray(PlatformAndDevice, TEXT("@"), true);
+
+	return FString::Printf(TEXT("%s@%s"), *ConvertToUATPlatform(PlatformAndDevice[0]), *PlatformAndDevice[1]);
+}
+
+static FString ConvertToDDPIDeviceId(const FString& DeviceId)
+{
+	TArray<FString> PlatformAndDevice;
+	DeviceId.ParseIntoArray(PlatformAndDevice, TEXT("@"), true);
+
+	return FString::Printf(TEXT("%s@%s"), *ConvertToDDPIPlatform(PlatformAndDevice[0]), *PlatformAndDevice[1]);
+}
+
+void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
+{
+	FString AutomationTool, ReportFilename;
+	PrepForTurnkeyReport(AutomationTool, ReportFilename);
+
+	// run Turnkey to get all of the platform statuses
+	FString Commandline = FString::Printf(TEXT("/c %s Turnkey -command=VerifySdk -platform=%s -ReportFilename=\"%s\""),
+		*AutomationTool,
+		*FString::JoinBy(DataDrivenPlatforms, TEXT("+"), [](TPair<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> Pair) { return ConvertToUATPlatform(Pair.Key); }),
+		*ReportFilename);
+
+
+	// reset status to unknown
+	for (auto& It : DataDrivenPlatforms)
+	{
+		It.Value.SdkStatus = DDPIPlatformSdkStatus::Querying;
+		
+		// reset the per-device status when querying general Sdk status
+		It.Value.ClearDeviceStatus();
+	}
+
+	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(TEXT("cmd.exe"), Commandline, true, false);
+	TurnkeyProcess->OnCompleted().BindLambda([ReportFilename, TurnkeyProcess](int32 ExitCode)
+	{
+		AsyncTask(ENamedThreads::GameThread, [ReportFilename, TurnkeyProcess, ExitCode]()
+		{
+			if (ExitCode == 0 || ExitCode == 10)
+			{
+				TArray<FString> Contents;
+				if (FFileHelper::LoadFileToStringArray(Contents, *ReportFilename))
+				{
+					for (FString& Line : Contents)
+					{
+						TArray<FString> Tokens;
+						Line.ParseIntoArray(Tokens, TEXT(": "), true);
+						// Tokens [0] is the platform, [1] is the status, [2] is information
+
+						DDPIPlatformSdkStatus Status = DDPIPlatformSdkStatus::Unknown;
+						if (Tokens[1] == TEXT("Valid"))
+						{
+							Status = DDPIPlatformSdkStatus::Valid;
+						}
+						else
+						{
+							if (Tokens[2].Contains(TEXT("AutoSdk_InvalidVersionExists")) || Tokens[2].Contains(TEXT("InstalledSdk_InvalidVersionExists")))
+							{
+								Status = DDPIPlatformSdkStatus::OutOfDate;
+							}
+							else
+							{
+								Status = DDPIPlatformSdkStatus::NoSdk;
+							}
+						}
+
+						// have to convert back to WIndows from Win64
+						FString PlatformName = ConvertToDDPIPlatform(Tokens[0]);
+						DataDrivenPlatforms[PlatformName].SdkStatus = Status;
+
+						UE_LOG(LogTemp, Log, TEXT("Turnkey Platform: %s - %d - %s"), *PlatformName, (int)Status, *Tokens[2]);
+					}
+				}
+			}
+			else
+			{
+				for (auto& It : DataDrivenPlatforms)
+				{
+					It.Value.SdkStatus = DDPIPlatformSdkStatus::Error;
+					// @todo turnkey error description!
+				}
+			}
+
+
+			for (auto& It : DataDrivenPlatforms)
+			{
+				if (It.Value.SdkStatus == DDPIPlatformSdkStatus::Querying)
+				{
+					if (It.Value.bIsFakePlatform)
+					{
+						It.Value.SdkStatus = DDPIPlatformSdkStatus::Unknown;
+					}
+					else
+					{
+						It.Value.SdkStatus = DDPIPlatformSdkStatus::Error;
+						It.Value.SdkErrorInformation = "The platform's Sdk status was not returned from Turnkey";
+						//					It.Value.SdkErrorInformation = NSLOCTEXT("Turnkey", "PlatformNotReturned", "The platform's Sdk status was not returned from Turnkey");
+					}
+				}
+			}
+
+			// cleanup
+			delete TurnkeyProcess;
+			IFileManager::Get().Delete(*ReportFilename);
+		});
+	});
+
+	// run it
+	TurnkeyProcess->Launch();
+}
+
+FDataDrivenPlatformInfoRegistry::FPlatformInfo& FDataDrivenPlatformInfoRegistry::DeviceIdToInfo(FString DeviceId, FString* OutDeviceName)
+{
+	TArray<FString> PlatformAndDevice;
+	DeviceId.ParseIntoArray(PlatformAndDevice, TEXT("@"), true);
+
+	if (OutDeviceName)
+	{
+		*OutDeviceName = PlatformAndDevice[1];
+	}
+
+	// have to convert back to Windows from Win64
+	return FDataDrivenPlatformInfoRegistry::DataDrivenPlatforms[ConvertToDDPIPlatform(PlatformAndDevice[0])];
+
+}
+
+void FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(TArray<FString> PlatformDeviceIds)
+{
+	FString AutomationTool, ReportFilename;
+	PrepForTurnkeyReport(AutomationTool, ReportFilename);
+
+	// run Turnkey to get all of the platform statuses (turn the array into "Platform@Device+Platform@Device+...")
+	FString Commandline = FString::Printf(TEXT("/c %s Turnkey -command=VerifySdk -Device=\"%s\" -ReportFilename=\"%s\""),
+		*AutomationTool,
+		*FString::JoinBy(PlatformDeviceIds, TEXT("+"), [](const FString& DeviceId) { return ConvertToUATDeviceId(DeviceId); }),
+		*ReportFilename);
+
+	// set status to querying
+	for (const FString& Id : PlatformDeviceIds)
+	{
+		DeviceIdToInfo(Id).PerDeviceStatus.Add(ConvertToDDPIDeviceId(Id), DDPIPlatformSdkStatus::Querying);
+	}
+
+	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(TEXT("cmd.exe"), Commandline, true, false);
+	TurnkeyProcess->OnCompleted().BindLambda([ReportFilename, TurnkeyProcess, PlatformDeviceIds](int32 ExitCode)
+	{
+		AsyncTask(ENamedThreads::GameThread, [ReportFilename, TurnkeyProcess, PlatformDeviceIds, ExitCode]()
+		{
+			if (ExitCode == 0 || ExitCode == 10)
+			{
+				TArray<FString> Contents;
+				if (FFileHelper::LoadFileToStringArray(Contents, *ReportFilename))
+				{
+					for (FString& Line : Contents)
+					{
+						TArray<FString> Tokens;
+						Line.ParseIntoArray(Tokens, TEXT(": "), true);
+						// Tokens [0] is platform:device, [1] is the status, [2] is information
+
+						// token[0] without an @ is just platform status, which we don't care about now
+						if (!Tokens[0].Contains(TEXT("@")))
+						{
+							continue;
+						}
+
+						TArray<FString> PlatformAndDevice;
+						Tokens[0].ParseIntoArray(PlatformAndDevice, TEXT("@"), true);
+						
+						DDPIPlatformSdkStatus Status = Tokens[1] == TEXT("Valid") ? DDPIPlatformSdkStatus::FlashValid : DDPIPlatformSdkStatus::FlashOutOfDate;
+
+						DeviceIdToInfo(Tokens[0]).PerDeviceStatus[ConvertToDDPIDeviceId(Tokens[0])] = Status;
+
+						UE_LOG(LogTemp, Log, TEXT("Turnkey Device: %s - %d - %s"), *Tokens[0], (int)Status, *Tokens[2]);
+					}
+				}
+			}
+
+			for (const FString& Id : PlatformDeviceIds)
+			{
+				FDataDrivenPlatformInfoRegistry::FPlatformInfo& Info = DeviceIdToInfo(Id);
+				
+				DDPIPlatformSdkStatus& Status = Info.PerDeviceStatus[ConvertToDDPIDeviceId(Id)];
+				if (Status == DDPIPlatformSdkStatus::Querying)
+				{
+					Status = DDPIPlatformSdkStatus::Error;
+					Info.SdkErrorInformation = "A device's Sdk status was not returned from Turnkey";
+				}
+			}
+
+			// cleanup
+			delete TurnkeyProcess;
+			IFileManager::Get().Delete(*ReportFilename);
+		});
+	});
+
+	// run it
+	TurnkeyProcess->Launch();
+}
+
+
+DDPIPlatformSdkStatus FDataDrivenPlatformInfoRegistry::FPlatformInfo::GetStatusForDeviceId(const FString& DeviceId) const
+{
+	// return the status, or Unknown if not known
+	return PerDeviceStatus.FindRef(ConvertToDDPIDeviceId(DeviceId));
+}
+
+void FDataDrivenPlatformInfoRegistry::FPlatformInfo::ClearDeviceStatus()
+{
+	PerDeviceStatus.Empty();
+}
+
+
+#endif
+
 
 const TArray<FString>& FDataDrivenPlatformInfoRegistry::GetValidPlatformDirectoryNames()
 {

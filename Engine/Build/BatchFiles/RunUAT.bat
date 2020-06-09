@@ -52,8 +52,23 @@ rem ## Run AutomationTool
 :DoRunUAT
 pushd %UATDirectory%
 %UATExecutable% %* %UATCompileArg%
-if not %ERRORLEVEL% == 0 goto Error_UATFailed
 popd
+
+for %%P in (%*) do if /I "%%P" == "-noturnkeyvariables" goto SkipTurnkey
+
+rem ## Turnkey needs to update env vars in the calling process so that if it is run multiple times the Sdk env var changes are in effect
+if EXIST ~dp0..\..\Intermediate\Turnkey\PostTurnkeyVariables.bat (
+	rem ## We need to endlocal so that the vars in the batch file work. NOTE: Working directory from pushd will be UNDONE here, but since we are about to quit, it's okay
+	endlocal 
+	echo Updating environment variables set by a Turnkey sub-process
+	call ~dp0..\..\Engine\Intermediate\Turnkey\PostTurnkeyVariables.bat
+	del ~dp0..\..\Engine\Intermediate\Turnkey\PostTurnkeyVariables.bat
+	rem ## setlocal again so that any popd's etc don't have an effect on calling process
+	setlocal
+)
+:SkipTurnkey
+
+if not %ERRORLEVEL% == 0 goto Error_UATFailed
 
 rem ## Success!
 goto Exit

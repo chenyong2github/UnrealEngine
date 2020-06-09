@@ -175,6 +175,11 @@ public class IOSPlatform : Platform
 	}
 	public override string GetInstalledSdk()
 	{
+		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
+		{
+			return base.GetInstalledSdk();
+		}
+
 		// @todo turnkey: get installed Xcode version
 		string Output = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", "-c 'xcodebuild -version'");
 		Match Result = Regex.Match(Output, @"Xcode (\S*)");
@@ -191,6 +196,11 @@ public class IOSPlatform : Platform
 	}
 	public override bool CustomVersionUpdate(string CustomVersionId, string UpdateParams, FileRetriever Retriever)
 	{
+		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
+		{
+			return base.CustomVersionUpdate(CustomVersionId, UpdateParams, Retriever);
+		}
+
 		if (CustomVersionId == "QueryIOSDeviceType")
 		{
 			Console.WriteLine("Getting DeviceType device with " + UpdateParams);
@@ -332,6 +342,11 @@ public class IOSPlatform : Platform
 
 	public override bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever)
 	{
+		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
+		{
+			return base.UpdateHostPrerequisites(Command, Retriever);
+		}
+
 		// make sure the Configurator is installed
 		string ConfiguratorLocation = GetConfiguratorLocation();
 
@@ -353,6 +368,11 @@ public class IOSPlatform : Platform
 
 	public override bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever)
 	{
+		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
+		{
+			return base.UpdateDevicePrerequisites(Device, Command, Retriever);
+		}
+
 		VerifyIOSSettings Settings = new VerifyIOSSettings(Command);
 
 		// look if we have a cert that matches it
@@ -381,6 +401,11 @@ public class IOSPlatform : Platform
 
 	public override DeviceInfo[] GetDevices()
 	{
+		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
+		{
+			return base.GetDevices();
+		}
+
 		string DeviceType = Platform == UnrealTargetPlatform.TVOS ? "tvOS" : "iOS";
 
 		// print out each connected device's udid, os version, and name (which might have spaces)

@@ -164,6 +164,8 @@ public:
 		FString DeviceId;
 		/** The name of the Device selected in the Launch drop-down to launch on. */
 		FString DeviceName;
+		/** If True, a remote play session will attempt to update the flash/software on the target device if it's out of date */
+		bool bUpdateDeviceFlash = false;
 	};
 
 	/** Where should the session be launched? May be local or remote. */
