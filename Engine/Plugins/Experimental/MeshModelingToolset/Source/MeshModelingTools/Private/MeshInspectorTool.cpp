@@ -15,6 +15,7 @@
 #include "Properties/MeshAnalysisProperties.h"
 
 #include "Drawing/LineSetComponent.h"
+#include "ToolDataVisualizer.h"
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
@@ -66,7 +67,7 @@ void UMeshInspectorTool::Setup()
 	PreviewMesh->SetMaterials(MaterialSet.Materials);
 	DefaultMaterial = PreviewMesh->GetMaterial(0);
 
-	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
+	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 	PreviewMesh->InitializeMesh(ComponentTarget->GetMesh());
 
 	DrawnLineSet = NewObject<ULineSetComponent>(PreviewMesh->GetRootComponent(), "MeshInspectorToolLineSet");
@@ -123,8 +124,11 @@ void UMeshInspectorTool::Shutdown(EToolShutdownType ShutdownType)
 void UMeshInspectorTool::Precompute()
 {
 	BoundaryEdges.Reset();
+	BoundaryBowties.Reset();
 	UVSeamEdges.Reset();
+	UVBowties.Reset();
 	NormalSeamEdges.Reset();
+	GroupBoundaryEdges.Reset();
 
 	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
 	const FDynamicMeshUVOverlay* UVOverlay =
@@ -151,12 +155,54 @@ void UMeshInspectorTool::Precompute()
 			GroupBoundaryEdges.Add(eid);
 		}
 	}
+
+	for (int vid : TargetMesh->VertexIndicesItr())
+	{
+		if (TargetMesh->IsBowtieVertex(vid))
+		{
+			BoundaryBowties.Add(vid);
+		}
+
+		if (UVOverlay != nullptr && UVOverlay->IsBowtieInOverlay(vid))
+		{
+			UVBowties.Add(vid);
+		}
+	}
 }
 
 
 void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	
+	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
+	FTransform Transform = PreviewMesh->GetTransform();
+
+	if (BoundaryBowties.Num() > 0 && Settings->bBowtieVertices)
+	{
+		FToolDataVisualizer BowtieRenderer;
+		BowtieRenderer.PointColor = FColor(240, 15, 15);
+		BowtieRenderer.PointSize = 25.0;
+		BowtieRenderer.BeginFrame(RenderAPI);
+		BowtieRenderer.SetTransform(Transform);
+		for (int32 vid : BoundaryBowties)
+		{
+			BowtieRenderer.DrawPoint(TargetMesh->GetVertex(vid));
+		}
+		BowtieRenderer.EndFrame();
+	}
+
+	if (UVBowties.Num() > 0 && Settings->bUVBowties)
+	{
+		FToolDataVisualizer BowtieRenderer;
+		BowtieRenderer.PointColor = FColor(15, 240, 15);
+		BowtieRenderer.PointSize = 12.0;
+		BowtieRenderer.BeginFrame(RenderAPI);
+		BowtieRenderer.SetTransform(Transform);
+		for (int32 vid : UVBowties)
+		{
+			BowtieRenderer.DrawPoint(TargetMesh->GetVertex(vid));
+		}
+		BowtieRenderer.EndFrame();
+	}
 }
 
 
