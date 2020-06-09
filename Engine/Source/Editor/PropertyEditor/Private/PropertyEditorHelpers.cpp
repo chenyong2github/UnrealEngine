@@ -281,9 +281,12 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 		}
 		else if ( SPropertyEditorCombo::Supports( PropertyEditorRef ) )
 		{
+			FPropertyComboBoxArgs ComboArgs;
+			ComboArgs.Font = FontStyle;
+
 			TSharedRef<SPropertyEditorCombo> ComboWidget = 
 				SAssignNew( PropertyWidget, SPropertyEditorCombo, PropertyEditorRef )
-				.Font( FontStyle );
+				.ComboArgs( ComboArgs );
 
 			ComboWidget->GetDesiredWidth( MinDesiredWidth, MaxDesiredWidth );
 		}

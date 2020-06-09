@@ -155,8 +155,11 @@ TSharedRef<SWidget> FTextPropertyTableCellPresenter::ConstructEditModeCellWidget
 		}
 		else if ( SPropertyEditorCombo::Supports(PropertyEditor) )
 		{
+			FPropertyComboBoxArgs ComboArgs;
+			ComboArgs.Font = Font;
+
 			PropertyWidget = SNew( SPropertyEditorCombo, PropertyEditor )
-				.Font( Font );
+				.ComboArgs( ComboArgs );
 		}
 		else if ( SPropertyEditorEditInline::Supports(PropertyEditor) )
 		{

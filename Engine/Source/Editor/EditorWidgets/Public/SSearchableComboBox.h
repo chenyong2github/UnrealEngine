@@ -36,6 +36,7 @@ public:
 		, _Method()
 		, _MaxListHeight(450.0f)
 		, _HasDownArrow(true)
+		, _SearchVisibility()
 	{}
 
 	/** Slot for this button's content (optional) */
@@ -74,6 +75,9 @@ public:
 		 * to make their own visual hint that this is a drop down.
 		 */
 		SLATE_ARGUMENT(bool, HasDownArrow)
+
+		/** Allow setting the visibility of the search box dynamically */
+		SLATE_ATTRIBUTE(EVisibility, SearchVisibility)
 
 	SLATE_END_ARGS()
 
