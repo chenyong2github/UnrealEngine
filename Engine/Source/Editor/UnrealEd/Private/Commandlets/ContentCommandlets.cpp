@@ -1130,22 +1130,7 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	}
 
 	// Submit the results to source control
-	if( bAutoCheckIn )
-	{
-		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-		SourceControlProvider.Init();
-
-		// Check in all changed files
-		if( FilesToSubmit.Num() > 0 )
-		{
-			TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
-			CheckInOperation->SetDescription( GetChangelistDescription() );
-			SourceControlProvider.Execute(CheckInOperation, SourceControlHelpers::PackageFilenames(FilesToSubmit));
-		}
-
-		// toss the SCC manager
-		SourceControlProvider.Close();
-	}
+	CheckInFiles(FilesToSubmit, GetChangelistDescription());
 
 	if (bForceUATEnvironmentVariableSet)
 	{
@@ -1420,6 +1405,24 @@ void UResavePackagesCommandlet::CheckoutAndSavePackage(UPackage* Package, TArray
 				}
 			}
 		}
+	}
+}
+
+void UResavePackagesCommandlet::CheckInFiles(const TArray<FString>& InFilesToSubmit, const FText& InDescription) const
+{
+	if (!bAutoCheckIn)
+	{
+		return;
+	}
+
+	// Check in all changed files
+	if (InFilesToSubmit.Num() > 0)
+	{
+		TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
+		CheckInOperation->SetDescription(InDescription);
+
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		SourceControlProvider.Execute(CheckInOperation, SourceControlHelpers::PackageFilenames(InFilesToSubmit));
 	}
 }
 
