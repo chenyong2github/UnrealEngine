@@ -6259,6 +6259,11 @@ void FHlslNiagaraTranslator::GenerateFunctionCall(ENiagaraScriptUsage ScriptUsag
 	for (int32 i = 0; i < FunctionSignature.Inputs.Num(); ++i)
 	{
 		FNiagaraTypeDefinition Type = FunctionSignature.Inputs[i].GetType();
+		if (Type.UnderlyingType != 0 && Type.ClassStructOrEnum == nullptr)
+		{
+			Error(FText::Format(LOCTEXT("InvalidTypeDefError", "Invalid data in niagara type definition, might be due to broken serialization or missing DI implementation! Variable: {0}"), FText::FromName(FunctionSignature.Inputs[i].GetName())), nullptr, nullptr);
+			continue;
+		}
 		//We don't write class types as real params in the hlsl
 		if (!Type.GetClass())
 		{
