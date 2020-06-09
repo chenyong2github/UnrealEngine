@@ -230,6 +230,7 @@ void FNiagaraConstants::Init()
 		Attributes.Add(SYS_PARAM_PARTICLES_UV_SCALE);
 		Attributes.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM);
 		Attributes.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS);
+		Attributes.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED);
 		Attributes.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONID);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH);
@@ -262,6 +263,7 @@ void FNiagaraConstants::Init()
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_CAMERA_OFFSET));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_UV_SCALE));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_MATERIAL_RANDOM));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_ENABLED));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_RADIUS));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_EXPONENT, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_EXPONENT));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING));
@@ -374,6 +376,11 @@ void FNiagaraConstants::Init()
 		Var.SetValue<float>(100.0f);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS, Var);
 
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED, TEXT("true"));
+		Var = SYS_PARAM_PARTICLES_LIGHT_ENABLED;
+		Var.SetValue<bool>(true);
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED, Var);
+
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_EXPONENT, TEXT("10.0"));
 		Var = SYS_PARAM_PARTICLES_LIGHT_EXPONENT;
 		Var.SetValue<float>(10.0f);
@@ -438,6 +445,7 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, LOCTEXT("UVScalerParamDesc", "Used to multiply the generated UVs for Sprite renderers."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, LOCTEXT("MaterialRandomParamDesc", "Used to drive the Particle Random node in the Material Editor. Without this set, any Particle Randoms will get 0.0."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS, LOCTEXT("LightRadiusParamDesc", "Used to drive the radius of the light when using a Light renderer."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED, LOCTEXT("LightEnabledParamDesc", "This can be used with the Light renderer control the spawn-rate of lights on a per-particle basis."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_EXPONENT, LOCTEXT("LightExponentParamDesc", "Used to drive the attenuation of the light when using a Light renderer without inverse squared falloff enabled."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, LOCTEXT("LightVolumetricScatteringParamDesc", "Used to drive the volumetric scattering intensity of the light when using a Light renderer."));
 		AttrDescStrMap.Add(SYS_PARAM_INSTANCE_ALIVE, LOCTEXT("AliveParamDesc", "Used to determine whether or not this particle instance is still valid or if it can be deleted."));

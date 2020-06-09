@@ -50,10 +50,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")
 	uint32 bAffectsTranslucency : 1;
 
-	/** By default, a light is spawned for each particle. Enable this to control the spawn-rate on a per-particle basis. */
-	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (InlineEditConditionToggle))
-	uint32 bOverrideRenderingEnabled : 1;
-
 	/** A factor used to scale each particle light radius */
 	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (UIMin = "0"))
 	float RadiusScale;
@@ -62,8 +58,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")
 	FVector ColorAdd;
 
-	/** Which attribute should we use to check if light rendering should be enabled for a particle? */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings", meta = (EditCondition = "bOverrideRenderingEnabled"))
+	/** Which attribute should we use to check if light rendering should be enabled for a particle? This can be used to control the spawn-rate on a per-particle basis. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding LightRenderingEnabledBinding;
 
 	/** Which attribute should we use for the light's exponent when inverse squared falloff is disabled? */

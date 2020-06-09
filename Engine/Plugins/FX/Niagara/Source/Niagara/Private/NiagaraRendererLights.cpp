@@ -102,7 +102,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 
 	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
 	{
-		bool ShouldRenderParticleLight = !Properties->bOverrideRenderingEnabled || EnabledAccessor.GetSafe(ParticleIndex, true);
+		bool ShouldRenderParticleLight = EnabledAccessor.GetSafe(ParticleIndex, true) != 0;
 		float LightRadius = RadiusAccessor.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
 		if (ShouldRenderParticleLight && LightRadius > 0)
 		{
