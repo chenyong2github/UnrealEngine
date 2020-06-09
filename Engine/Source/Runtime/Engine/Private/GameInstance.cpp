@@ -917,7 +917,7 @@ APlayerController* UGameInstance::GetFirstLocalPlayerController(const UWorld* Wo
 	return nullptr;
 }
 
-APlayerController* UGameInstance::GetPrimaryPlayerController() const
+APlayerController* UGameInstance::GetPrimaryPlayerController(bool bRequiresValidUniqueId) const
 {
 	UWorld* World = GetWorld();
 	check(World);
@@ -926,7 +926,7 @@ APlayerController* UGameInstance::GetPrimaryPlayerController() const
 	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		APlayerController* NextPlayer = Iterator->Get();
-		if (NextPlayer && NextPlayer->PlayerState && NextPlayer->PlayerState->GetUniqueId().IsValid() && NextPlayer->IsPrimaryPlayer())
+		if (NextPlayer && NextPlayer->PlayerState && NextPlayer->IsPrimaryPlayer() && (!bRequiresValidUniqueId || NextPlayer->PlayerState->GetUniqueId().IsValid()))
 		{
 			PrimaryController = NextPlayer;
 			break;
