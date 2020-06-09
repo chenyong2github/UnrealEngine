@@ -3770,10 +3770,13 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 				{
 					const FLandscapeInfoLayerSettings& InfoLayerSettings = Info->Layers[LayerInfoSettingsIndex];
 
+					// ensure() to help identify root cause of UE-94083
+					ensure(InfoLayerSettings.LayerInfoObj != nullptr);
+
 					for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 					{
 						FLandscapeLayerBrush& Brush = Layer.Brushes[i];
-						if (Brush.IsAffectingWeightmapLayer(InfoLayerSettings.GetLayerName()) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
+						if (Brush.IsAffectingWeightmapLayer(InfoLayerSettings.GetLayerName()) && InfoLayerSettings.LayerInfoObj && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
 						{
 							LayerInfoObjects.Add(InfoLayerSettings.LayerInfoObj, LayerInfoSettingsIndex + 1); // due to visibility layer that is at 0
 							bHasWeightmapData = true;
