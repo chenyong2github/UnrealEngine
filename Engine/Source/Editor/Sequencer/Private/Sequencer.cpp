@@ -9163,6 +9163,7 @@ void FSequencer::ConvertToSpawnable(TSharedRef<FSequencerObjectBindingNode> Node
 	const FScopedTransaction Transaction( LOCTEXT("ConvertSelectedNodeSpawnable", "Convert Node to Spawnables") );
 
 	// Ensure we're in a non-possessed state
+	TGuardValue<bool> Guard(bUpdatingExternalSelection, true);
 	RestorePreAnimatedState();
 	GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
 	FMovieScenePossessable* Possessable = GetFocusedMovieSceneSequence()->GetMovieScene()->FindPossessable(NodeToBeConverted->GetObjectBinding());
@@ -9187,6 +9188,7 @@ void FSequencer::ConvertSelectedNodesToSpawnables()
 	const FScopedTransaction Transaction( LOCTEXT("ConvertSelectedNodesSpawnable", "Convert Selected Nodes to Spawnables") );
 
 	// Ensure we're in a non-possessed state
+	TGuardValue<bool> Guard(bUpdatingExternalSelection, true);
 	RestorePreAnimatedState();
 	MovieScene->Modify();
 
@@ -9495,6 +9497,7 @@ void FSequencer::ConvertToPossessable(TSharedRef<FSequencerObjectBindingNode> No
 	const FScopedTransaction Transaction( LOCTEXT("ConvertSelectedNodePossessable", "Convert Node to Possessables") );
 
 	// Ensure we're in a non-possessed state
+	TGuardValue<bool> Guard(bUpdatingExternalSelection, true);
 	RestorePreAnimatedState();
 	GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
 	FMovieSceneSpawnable* Spawnable = GetFocusedMovieSceneSequence()->GetMovieScene()->FindSpawnable(NodeToBeConverted->GetObjectBinding());
