@@ -3407,6 +3407,26 @@ int32 FBlueprintEditorUtils::FindNewVariableIndex(const UBlueprint* Blueprint, c
 	return INDEX_NONE;
 }
 
+int32 FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(UBlueprint* InBlueprint, FName InName, UBlueprint*& OutFoundBlueprint)
+{
+	OutFoundBlueprint = InBlueprint;
+
+	while (OutFoundBlueprint)
+	{
+		int32 FoundIndex = FindNewVariableIndex(OutFoundBlueprint, InName);
+		if (FoundIndex != INDEX_NONE)
+		{
+			return FoundIndex;
+		}
+		else
+		{
+			OutFoundBlueprint = UBlueprint::GetBlueprintFromClass(OutFoundBlueprint->ParentClass);
+		}
+	}
+
+	return INDEX_NONE;
+}
+
 int32 FBlueprintEditorUtils::FindLocalVariableIndex(const UBlueprint* Blueprint, UStruct* VariableScope, const FName& InVariableName)
 {
 	UK2Node_FunctionEntry* FunctionEntryNode = nullptr;
@@ -5006,37 +5026,38 @@ void FBlueprintEditorUtils::ChangeMemberVariableType(UBlueprint* Blueprint, cons
 	}
 }
 
-FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const UStruct* InScope, const FName& InVariableToDuplicate)
+FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const UStruct* InScope, FName InVariableToDuplicate)
 {
 	FName DuplicatedVariableName = NAME_None;
 
 	if (InVariableToDuplicate != NAME_None)
 	{
-		const FScopedTransaction Transaction( LOCTEXT( "DuplicateVariable", "Duplicate Variable" ) );
+		const FScopedTransaction Transaction(LOCTEXT("DuplicateVariable", "Duplicate Variable"));
 		InBlueprint->Modify();
 
 		FBPVariableDescription NewVar;
 
-		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(InBlueprint, InVariableToDuplicate);
+		UBlueprint* SourceBlueprint;
+		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(InBlueprint, InVariableToDuplicate, SourceBlueprint);
 		if (VarIndex != INDEX_NONE)
 		{
-			FBPVariableDescription& Variable = InBlueprint->NewVariables[VarIndex];
+			FBPVariableDescription& Variable = SourceBlueprint->NewVariables[VarIndex];
 
-			NewVar = DuplicateVariableDescription(InBlueprint, Variable);
+			NewVar = DuplicateVariableDescription(SourceBlueprint, Variable);
 
 			// We need to manually pull the DefaultValue from the FProperty to set it
 			void* OldPropertyAddr = nullptr;
 
 			//Grab property of blueprint's current CDO
-			UClass* GeneratedClass = InBlueprint->GeneratedClass;
+			UClass* GeneratedClass = SourceBlueprint->GeneratedClass;
 			UObject* GeneratedCDO = GeneratedClass->GetDefaultObject();
 			FProperty* TargetProperty = FindFProperty<FProperty>(GeneratedClass, Variable.VarName);
 
-			if( TargetProperty )
+			if (TargetProperty)
 			{
 				// Grab the address of where the property is actually stored (UObject* base, plus the offset defined in the property)
 				OldPropertyAddr = TargetProperty->ContainerPtrToValuePtr<void>(GeneratedCDO);
-				if(OldPropertyAddr)
+				if (OldPropertyAddr)
 				{
 					// if there is a property for variable, it means the original default value was already copied, so it can be safely overridden
 					Variable.DefaultValue.Empty();
@@ -5065,7 +5086,7 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 			}
 		}
 
-		if(NewVar.VarGuid.IsValid())
+		if (NewVar.VarGuid.IsValid())
 		{
 			DuplicatedVariableName = NewVar.VarName;
 
