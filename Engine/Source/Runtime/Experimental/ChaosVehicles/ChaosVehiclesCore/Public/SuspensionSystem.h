@@ -88,7 +88,6 @@ namespace Chaos
 			, LocalVelocity(FVector::ZeroVector)
 			, SuspensionForce(0.f)
 			, LocalOffset(FVector::ZeroVector)
-			, WheelRadius(0.3f)
 			, SpringDisplacement(0.f)
 			, SpringIndex(0)
 			, LastSpringLength(0.f)
@@ -100,8 +99,8 @@ namespace Chaos
 
 // Inputs
 
-		/** Set suspension length after determined from raycast */
-		void SetSuspensionLength(float InLength)
+		/** #todo: Change This ; Set suspension length after determined from raycast */
+		void SetSuspensionLength(float InLength, float WheelRadius)
 		{
 			DisplacementInput = InLength - Setup().RaycastSafetyMargin - WheelRadius;
 			//if (SpringIndex == 2)
@@ -131,15 +130,14 @@ namespace Chaos
 			SpringIndex = InIndex;
 		}
 
-		void UpdateWorldRaycastLocation(const FTransform& InTransform, float InWheelRadius)
+		void UpdateWorldRaycastLocation(const FTransform& BodyTransform, float WheelRadius, FSuspensionTrace& OutTrace)
 		{
 			FVector LocalDirection(0.f, 0.f, -1.f);
-			FVector WorldLocation = InTransform.TransformPosition(LocalOffset);
-			FVector WorldDirection = InTransform.TransformVector(LocalDirection);
+			FVector WorldLocation = BodyTransform.TransformPosition(GetLocalRestingPosition());
+			FVector WorldDirection = BodyTransform.TransformVector(LocalDirection);
 
-			Trace.Start = WorldLocation - WorldDirection * Setup().RaycastSafetyMargin;
-			Trace.End = WorldLocation + WorldDirection * (Setup().MaxLength + InWheelRadius);
-			WheelRadius = InWheelRadius;
+			OutTrace.Start = WorldLocation - WorldDirection * Setup().RaycastSafetyMargin;
+			OutTrace.End = WorldLocation + WorldDirection * (Setup().MaxLength + WheelRadius);
 		}
 
 // Outputs
@@ -190,16 +188,6 @@ namespace Chaos
 			return InTransform.TransformVector(LocalDirection) * SuspensionForce;
 		}
 
-		const FSuspensionTrace& GetTrace() const
-		{
-			return Trace;
-		}
-
-		FSuspensionTrace& GetTrace() 		
-		{
-			return Trace;
-		}
-
 		const FVector& GetLocalRestingPosition() const
 		{
 			return LocalOffset;
@@ -231,8 +219,6 @@ namespace Chaos
 		float SuspensionForce;
 
 		FVector LocalOffset;
-		FSuspensionTrace Trace;
-		float WheelRadius;
 		float SpringDisplacement;
 		uint32 SpringIndex;
 

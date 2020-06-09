@@ -91,6 +91,10 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = WheelsSetup)
 		bool bAffectedBySteering;
 
+		/** Whether brake should affect this wheel */
+		UPROPERTY(EditAnywhere, Category = Wheel)
+		bool bAffectedByBrake;
+
 		/** Whether handbrake should affect this wheel */
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		bool bAffectedByHandbrake;
@@ -286,6 +290,7 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.HandbrakeTorque = this->MaxHandBrakeTorque;
 
 			PWheelConfig.SteeringEnabled = this->bAffectedBySteering;
+			PWheelConfig.BrakeEnabled = this->bAffectedByBrake;
 			PWheelConfig.HandbrakeEnabled = this->bAffectedByHandbrake;
 			PWheelConfig.EngineEnabled = this->bAffectedByEngine;
 			PWheelConfig.ABSEnabled = this->bABSEnabled;

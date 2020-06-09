@@ -17,10 +17,21 @@
 #define WANT_RVO 0
 using namespace Chaos;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogVehicles, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogVehicle, Log, All);
 
 class UCanvas;
 
+struct FVehicleDebugParams
+{
+	bool ShowCOM = false;
+	bool ShowModelOrigin = false;
+	bool DisableAirControl = false;
+	bool DisableGroundControl = false;
+	bool DisableAerodynamics = false;
+	bool BatchQueries = true;
+};
+
+// #todo: contact modification
 struct FSolverSafeContactData
 {
 	/** This is read from off GT and needs to be completely thread safe. Modifying it in Update is safe because physx has not run yet. Constructor is also fine. Keep all data simple and thread safe like floats and ints */
@@ -32,8 +43,7 @@ struct FSolverSafeContactData
 
 struct FBodyInstance;
 
-
-// #todo: these are wheeled vehicle specific
+// #todo: are these too wheeled vehicle specific?
 USTRUCT()
 struct CHAOSVEHICLES_API FVehicleReplicatedState
 {
@@ -51,6 +61,18 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 	UPROPERTY()
 	float BrakeInput;
 
+	// input replication: body pitch
+	UPROPERTY()
+	float PitchInput;
+
+	// input replication: body roll
+	UPROPERTY()
+	float RollInput;
+
+	// input replication: body yaw
+	UPROPERTY()
+	float YawInput;
+
 	// input replication: handbrake
 	UPROPERTY()
 	float HandbrakeInput;
@@ -58,6 +80,104 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 	// state replication: target gear #todo: or current gear?
 	UPROPERTY()
 	int32 TargetGear;
+};
+
+USTRUCT()
+struct FVehicleAirControlConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Air Control Enabled */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	bool Enabled;
+
+	/** Yaw Torque Scaling */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float YawTorqueScaling;
+
+	/** Pitch Torque Scaling */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float PitchTorqueScaling;
+
+	/** Roll Torque Scaling */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RollTorqueScaling;
+
+	/** Rotation damping */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RotationDamping;
+};
+
+USTRUCT()
+struct FVehicleGroundControlConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Ground Control Enabled */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	bool Enabled;
+
+	/** Yaw Torque Scaling */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float YawTorqueScaling;
+
+	/** Pitch/Wheelie Torque Scaling */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float PitchTorqueScaling;
+
+	/** Roll/Lean Torque Scaling */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RollTorqueScaling;
+
+	/** pitch rotation damping */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float PitchDamping;
+
+	/** roll rotation damping */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RollDamping;
+
+	/** yaw rotation damping */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float YawDamping;
+};
+
+
+/** Commonly used state - evaluated once used wherever required */
+struct FVehicleState
+{
+	FVehicleState()
+		: VehicleWorldTransform(FTransform::Identity)
+		, VehicleWorldVelocity(FVector::ZeroVector)
+		, VehicleWorldAngularVelocity(FVector::ZeroVector)
+		, VehicleUpAxis(FVector(0.f,0.f,1.f))
+		, VehicleForwardAxis(FVector(1.f,0.f,0.f))
+		, VehicleRightAxis(FVector(0.f,1.f,0.f))
+		, ForwardSpeed(0.f)
+		, ForwardsAcceleration(0.f)
+		, PrevForwardSpeed(0.f)
+		, bVehicleInAir(false)
+	{
+
+	}
+
+	/** Cache some useful data */
+	void CaptureState(FBodyInstance* TargetInstance, float DeltaTime);
+
+	FTransform VehicleWorldTransform;
+	FVector VehicleWorldVelocity;
+	FVector VehicleWorldAngularVelocity;
+
+	FVector VehicleUpAxis;
+	FVector VehicleForwardAxis;
+	FVector VehicleRightAxis;
+
+	float ForwardSpeed;
+	float ForwardsAcceleration;
+	float PrevForwardSpeed;
+
+	bool bVehicleInAir;
+
 };
 
 USTRUCT()
@@ -104,45 +224,23 @@ class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementCom
 {
 	GENERATED_UCLASS_BODY()
 
+//#todo: these 2 oddities seem out of place
+
 	/** If true, the brake and reverse controls will behave in a more arcade fashion where holding reverse also functions as brake. For a more realistic approach turn this off*/
 	UPROPERTY(EditAnywhere, Category = VehicleSetup)
 	uint8 bReverseAsBrake : 1;
 
-	/** If set, component will use RVO avoidance */
-	UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadWrite)
-	uint8 bUseRVOAvoidance : 1;
-
-protected:
-	//#todo: this is very car specific input - what if it's an aeroplane
-	// True if the player is holding the handbrake
-	UPROPERTY(Transient)
-	uint8 bRawHandbrakeInput : 1;
-
-	// True if the player is holding gear up
-	UPROPERTY(Transient)
-	uint8 bRawGearUpInput : 1;
-
-	// True if the player is holding gear down
-	UPROPERTY(Transient)
-	uint8 bRawGearDownInput : 1;
-
-	/** Was avoidance updated in this frame? */
-	UPROPERTY(Transient)
-	uint32 bWasAvoidanceUpdated : 1;
+#if WANT_RVO
+	///** If set, component will use RVO avoidance */
+	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadWrite)
+	//uint8 bUseRVOAvoidance : 1;
+#endif
 
 public:
 	/** Mass to set the vehicle chassis to. It's much easier to tweak vehicle settings when
 	 * the mass doesn't change due to tweaks with the physics asset. [kg] */
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (ClampMin = "0.01", UIMin = "0.01"))
 	float Mass;
-
-	/** DragCoefficient of the vehicle chassis - force resisting forward motion at speed */
-	UPROPERTY(EditAnywhere, Category = VehicleSetup)
-	float DragCoefficient;
-
-	/** DownforceCoefficient of the vehicle chassis - force pressing vehicle into ground at speed */
-	UPROPERTY(EditAnywhere, Category = VehicleSetup)
-	float DownforceCoefficient;
 
 	//#todo: entering area directly might be better for general shapes that are not boxes
 	/** Chassis width used for drag force computation (cm)*/
@@ -153,58 +251,69 @@ public:
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (ClampMin = "0.01", UIMin = "0.01"))
 	float ChassisHeight;
 
+	/** DragCoefficient of the vehicle chassis - force resisting forward motion at speed */
+	UPROPERTY(EditAnywhere, Category = VehicleSetup)
+	float DragCoefficient;
+
+	/** DownforceCoefficient of the vehicle chassis - force pressing vehicle into ground at speed */
+	UPROPERTY(EditAnywhere, Category = VehicleSetup)
+	float DownforceCoefficient;
+
 	// Drag area in cm^2
 	UPROPERTY(transient)
 	float DragArea;
-
-	//// Max RPM for engine #todo: why here?
-	//UPROPERTY(transient)
-	//float MaxEngineRPM;
 
 	// Debug drag magnitude last applied
 	UPROPERTY(transient)
 	float DebugDragMagnitude;
 
-	FVector GetGravity() { return FVector(0.f, 0.f, -980.f*1.2f); }
-
-	/** When vehicle is created we want to compute some helper data like drag area, etc.... Derived classes should use this to properly compute things like engine RPM */
-	virtual void ComputeConstants();
-
 	/** Scales the vehicle's inertia in each direction (forward, right, up) */
 	UPROPERTY(EditAnywhere, Category=VehicleSetup, AdvancedDisplay)
 	FVector InertiaTensorScale;
 
+	UPROPERTY(EditAnywhere, Category = ArcadeControl)
+	FVehicleAirControlConfig AirControl;
+
+	UPROPERTY(EditAnywhere, Category = ArcadeControl)
+	FVehicleGroundControlConfig GroundControl;
+
 	// Used to recreate the physics if the blueprint changes.
 	uint32 VehicleSetupTag;
 
-	//float GetMaxSpringForce() const;
+protected:
+	// True if the player is holding the handbrake
+	UPROPERTY(Transient)
+		uint8 bRawHandbrakeInput : 1;
+
+	// True if the player is holding gear up
+	UPROPERTY(Transient)
+		uint8 bRawGearUpInput : 1;
+
+	// True if the player is holding gear down
+	UPROPERTY(Transient)
+		uint8 bRawGearDownInput : 1;
+
+	/** Was avoidance updated in this frame? */
+	UPROPERTY(Transient)
+		uint32 bWasAvoidanceUpdated : 1;
+
+public:
 
 	/** UObject interface */
 	virtual void Serialize(FArchive& Ar) override;
 	/** End UObject interface*/
-
-	// #todo: move this or have a base vehicle class
-	TUniquePtr<Chaos::FSimpleWheeledVehicle> PVehicle; // #todo: this should be a base class
-
-	/** Overridden to allow registration with components NOT owned by a Pawn. */
-	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override;
-
-	/** Tick this vehicle sim right before input is sent to the vehicle system */
-	virtual void TickVehicle( float DeltaTime );
-
-	/** Allow the player controller of a different pawn to control this vehicle */
-	virtual void SetOverrideController(AController* OverrideController);
 
 #if WITH_EDITOR
 	/** Respond to a property change in editor */
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif //WITH_EDITOR
 
-	/** Used to create any physics engine information for this component */
-	virtual void OnCreatePhysicsState() override;
+	/** Overridden to allow registration with components NOT owned by a Pawn. */
+	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override;
 
-	/** Used to shut down and physics engine structure for this component */
-	virtual void OnDestroyPhysicsState() override;
+	/** Allow the player controller of a different pawn to control this vehicle */
+	virtual void SetOverrideController(AController* OverrideController);
+
 
 	/** Return true if it's suitable to create a physics representation of the vehicle at this time */
 	virtual bool ShouldCreatePhysicsState() const override;
@@ -218,17 +327,22 @@ public:
 	/** Are enough vehicle systems specified such that physics vehicle simulation is possible */
 	virtual bool CanSimulate() const { return true; }
 
-	/** Create and setup the Chaos vehicle */
-	virtual void CreateVehicle();
+
+	/** Used to create any physics engine information for this component */
+	virtual void OnCreatePhysicsState() override;
+
+	/** Used to shut down and physics engine structure for this component */
+	virtual void OnDestroyPhysicsState() override;
+
+	/** Updates the vehicle tuning and other state such as user input. */
+	virtual void PreTick(float DeltaTime);
+
+	/** Tick this vehicle sim right before input is sent to the vehicle system */
+	virtual void TickVehicle( float DeltaTime );
 
 	/** Stops movement immediately (zeroes velocity, usually zeros acceleration for components with acceleration). */
 	virtual void StopMovementImmediately() override;
 
-	/** Draw debug text for the wheels and suspension */
-	virtual void DrawDebug(UCanvas* Canvas, float& YL, float& YPos);
-
-	/** Updates the vehicle tuning and other state such as user input. */
-	virtual void PreTick(float DeltaTime);
 
 	/** Set the user input for the vehicle throttle */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
@@ -241,6 +355,18 @@ public:
 	/** Set the user input for the vehicle steering */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetSteeringInput(float Steering);
+
+	/** Set the user input for the vehicle pitch */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void SetPitchInput(float Pitch);
+
+	/** Set the user input for the vehicle roll */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void SetRollInput(float Roll);
+
+	/** Set the user input for the vehicle yaw */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void SetYawInput(float Yaw);
 
 	/** Set the user input for handbrake */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
@@ -343,18 +469,17 @@ public:
 	//void SetAvoidanceEnabled(bool bEnable);
 #endif // WANT_RVO
 
+	TUniquePtr<Chaos::FSimpleWheeledVehicle>& PhysicsVehicle()
+	{
+		check(PVehicle.IsValid());
+		return PVehicle;
+	}
+
 	const FSolverSafeContactData& GetSolverSafeContactData() const
 	{
 		return SolverSafeContactData;
 	}
 protected:
-
-	AController* GetController() const;
-
-	void CopyToSolverSafeContactStaticData();
-
-	// draw 2D debug line to UI canvas
-	void DrawLine2D(UCanvas* Canvas, const FVector2D& StartPos, const FVector2D& EndPos, FColor Color, float Thickness = 1.f);
 
 	// replicated state of vehicle 
 	UPROPERTY(Transient, Replicated)
@@ -375,6 +500,18 @@ protected:
 	UPROPERTY(Transient)
 	float RawBrakeInput;
 
+	// What the player has the pitch set to. Range -1...1
+	UPROPERTY(Transient)
+	float RawPitchInput;
+
+	// What the player has the roll set to. Range -1...1
+	UPROPERTY(Transient)
+	float RawRollInput;
+
+	// What the player has the yaw set to. Range -1...1
+	UPROPERTY(Transient)
+	float RawYawInput;
+
 	// Steering output to physics system. Range -1...1
 	UPROPERTY(Transient)
 	float SteeringInput;
@@ -386,6 +523,18 @@ protected:
 	// Brake output to physics system. Range 0...1
 	UPROPERTY(Transient)
 	float BrakeInput;
+
+	// Body Pitch output to physics system. Range -1...1
+	UPROPERTY(Transient)
+	float PitchInput;
+
+	// Body Roll output to physics system. Range -1...1
+	UPROPERTY(Transient)
+	float RollInput;
+
+	// Body Yaw output to physics system. Range -1...1
+	UPROPERTY(Transient)
+	float YawInput;
 
 	// Handbrake output to physics system. Range 0...1
 	UPROPERTY(Transient)
@@ -411,13 +560,27 @@ protected:
 	UPROPERTY(EditAnywhere, Category=VehicleInput, AdvancedDisplay)
 	FVehicleInputRateConfig BrakeInputRate;
 
+	// Rate at which input steering can rise and fall
+	UPROPERTY(EditAnywhere, Category=VehicleInput, AdvancedDisplay)
+	FVehicleInputRateConfig SteeringInputRate;
+
 	// Rate at which input handbrake can rise and fall
 	UPROPERTY(EditAnywhere, Category=VehicleInput, AdvancedDisplay)
 	FVehicleInputRateConfig HandbrakeInputRate;
 
-	// Rate at which input steering can rise and fall
-	UPROPERTY(EditAnywhere, Category=VehicleInput, AdvancedDisplay)
-	FVehicleInputRateConfig SteeringInputRate;
+	// Rate at which input pitch can rise and fall
+	UPROPERTY(EditAnywhere, Category = VehicleInput, AdvancedDisplay)
+	FVehicleInputRateConfig PitchInputRate;
+
+	// Rate at which input roll can rise and fall
+	UPROPERTY(EditAnywhere, Category = VehicleInput, AdvancedDisplay)
+	FVehicleInputRateConfig RollInputRate;
+
+	// Rate at which input yaw can rise and fall
+	UPROPERTY(EditAnywhere, Category = VehicleInput, AdvancedDisplay)
+	FVehicleInputRateConfig YawInputRate;
+
+	// input related
 
 	/** Compute steering input */
 	float CalcSteeringInput();
@@ -427,6 +590,15 @@ protected:
 
 	/** Compute handbrake input */
 	float CalcHandbrakeInput();
+
+	/** Compute pitch input */
+	float CalcPitchInput();
+
+	/** Compute roll input */
+	float CalcRollInput();
+
+	/** Compute yaw input */
+	float CalcYawInput();
 
 	/** Compute throttle input */
 	virtual float CalcThrottleInput();
@@ -449,14 +621,31 @@ protected:
 		ClearInput();
 	}
 
-	/** Updates the COMOffset on the actual body instance */
+	// Update
 
 	/** Read current state for simulation */
 	virtual void UpdateState(float DeltaTime);
 
+	/** Advance the vehicle simulation */
+	virtual void UpdateSimulation(float DeltaTime);
+
+	/** Apply aerodynamic forces to vehicle body */
+	virtual void ApplyAerodynamics(float DeltaTime);
+
+	/** Apply in air control torque to vehicle body */
+	virtual void ApplyAirControl(float DeltaTime);
+
+	/** Apply on ground control torque to vehicle body */
+	virtual void ApplyGroundControl(float DeltaTime);
+
+	// #todo: use this properly
+	void CopyToSolverSafeContactStaticData();
+
 	/** Pass current state to server */
 	UFUNCTION(reliable, server, WithValidation)
 	void ServerUpdateState(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 TargetGear);
+
+#if WANT_RVO
 
 	/** Update RVO Avoidance for simulation */
 	void UpdateAvoidance(float DeltaTime);
@@ -475,12 +664,61 @@ protected:
 	
 	/** remaining time of avoidance velocity lock */
 	float AvoidanceLockTimer;
+#endif
+	
+	// Setup
+
+	/** Get our controller */
+	AController* GetController() const;
+
+	/** Get the mesh this vehicle is tied to */
+	class USkinnedMeshComponent* GetMesh();
+
+	/** Create and setup the Chaos vehicle */
+	virtual void CreateVehicle();
+
+	/** Allocate and setup the Chaos vehicle */
+	virtual void SetupVehicle();
+
+	/** Do some final setup after the Chaos vehicle gets created */
+	virtual void PostSetupVehicle();
+
+	/** Adjust the Chaos Physics mass */
+	virtual void SetupVehicleMass();
+
+	void UpdateMassProperties(FBodyInstance* BI);
+
+	/** When vehicle is created we want to compute some helper data like drag area, etc.... Derived classes should use this to properly compute things like engine RPM */
+	virtual void ComputeConstants();
+
+	// Debug
+
+	void ShowDebugInfo(class AHUD* HUD, class UCanvas* Canvas, const class FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos);
+
+	/** Draw debug text for the wheels and suspension */
+	virtual void DrawDebug(UCanvas* Canvas, float& YL, float& YPos);
+
+	/** Draw debug text for the wheels and suspension */
+	virtual void DrawDebug3D();
+
+	// draw 2D debug line to UI canvas
+	void DrawLine2D(UCanvas* Canvas, const FVector2D& StartPos, const FVector2D& EndPos, FColor Color, float Thickness = 1.f);
+
+	float GetForwardAcceleration()
+	{
+		return VehicleState.ForwardsAcceleration;
+	}
+
+	FBodyInstance* GetBodyInstance();
+
+	FVehicleState VehicleState;
+
+	// #todo: this isn't very configurable
+	TUniquePtr<Chaos::FSimpleWheeledVehicle> PVehicle;
 
 	/** Handle for delegate registered on mesh component */
-	FDelegateHandle MeshOnPhysicsStateChangeHandle;
+//FDelegateHandle MeshOnPhysicsStateChangeHandle;
 
-	float CurrentMovementOffset[4]; //temp
-	
 #if WANT_RVO
 	/** BEGIN IRVOAvoidanceInterface */
 	virtual void SetRVOAvoidanceUID(int32 UID) override;
@@ -501,60 +739,16 @@ protected:
 	/** END IRVOAvoidanceInterface */
 #endif
 
-	/** Do some final setup after the Chaos vehicle gets created */
-	virtual void PostSetupVehicle();
-
-#ifdef WANT
-	///** Advance the vehicle simulation */
-	//virtual void UpdateSimulation( float DeltaTime );
-
-	///** Set up the chassis and wheel shapes */
-	//virtual void SetupVehicleShapes();
-
-	///** Instantiate and setup our wheel objects */
-	//virtual void CreateWheels();
-
-	///** Release our wheel objects */
-	//virtual void DestroyWheels();
-#endif
-
-	/** Allocate and setup the Chaos vehicle */
-	virtual void SetupVehicle();
-
-	/** Adjust the Chaos Physics mass */
-	virtual void SetupVehicleMass();
-
-	///** Get the local COM */
-	//virtual FVector GetLocalCOM() const;
-
-	void UpdateMassProperties(FBodyInstance* BI);
-
-	void ShowDebugInfo(class AHUD* HUD, class UCanvas* Canvas, const class FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos);
-
-	/** Get the mesh this vehicle is tied to */
-	class USkinnedMeshComponent* GetMesh();
-
-	///** Get skeletal mesh if there is one */
-	//class USkeletalMesh* GetSkeletalMesh();
+private:
+	UPROPERTY(transient, Replicated)
+	AController* OverrideController;
+	FSolverSafeContactData SolverSafeContactData;
 
 	const Chaos::FSimpleAerodynamicsConfig& GetAerodynamicsConfig()
 	{
 		FillAerodynamicsSetup();
 		return PAerodynamicsSetup;
 	}
-
-	float GetForwardAcceleration()
-	{
-		return ForwardsAcceleration;
-	}
-	float ForwardsAcceleration;
-	float ForwardSpeed;
-	float PrevForwardSpeed;
-
-private:
-	UPROPERTY(transient, Replicated)
-	AController* OverrideController;
-	FSolverSafeContactData SolverSafeContactData;
 
 	void FillAerodynamicsSetup()
 	{
@@ -563,7 +757,6 @@ private:
 		PAerodynamicsSetup.DownforceCoefficient = this->DownforceCoefficient;
 		PAerodynamicsSetup.AreaMetresSquared = Cm2ToM2(this->DragArea);
 	}
-
 	Chaos::FSimpleAerodynamicsConfig PAerodynamicsSetup;
 
 
