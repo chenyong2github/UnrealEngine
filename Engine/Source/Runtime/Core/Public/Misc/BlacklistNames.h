@@ -113,13 +113,13 @@ public:
 	bool PassesFilter(const TCHAR* Item) const;
 
 	/** Returns true if passes filter restrictions for path */
-	bool PassesStartsWithFilter(const FStringView Item) const;
+	bool PassesStartsWithFilter(const FStringView Item, const bool bAllowParentPaths = false) const;
 
 	/** Returns true if passes filter restrictions for path */
-	bool PassesStartsWithFilter(const FName Item) const;
+	bool PassesStartsWithFilter(const FName Item, const bool bAllowParentPaths = false) const;
 
 	/** Returns true if passes filter restrictions for path */
-	bool PassesStartsWithFilter(const TCHAR* Item) const;
+	bool PassesStartsWithFilter(const TCHAR* Item, const bool bAllowParentPaths = false) const;
 
 	/** 
 	 * Add item to blacklist, this specific item will be filtered out.
