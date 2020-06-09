@@ -1918,11 +1918,17 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 
 		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && !Inst.IsComplete())
 		{
-			if (const FNiagaraComputeExecutionContext* GPUContext = Inst.GetGPUContext())
+			// Handle edge case where an emitter was set to inactive on the first frame by scalability
+			// Since it will not tick we should not execute a GPU tick for it, this test must be symeterical with FNiagaraGPUSystemTick::Init
+			const bool bIsInactive = (Inst.GetExecutionState() == ENiagaraExecutionState::Inactive) || (Inst.GetExecutionState() == ENiagaraExecutionState::InactiveClear);
+			if (Inst.HasTicked() || !bIsInactive)
 			{
-				TotalCombinedParamStoreSize += GPUContext->CombinedParamStore.GetPaddedParameterSizeInBytes();
-				GPUParamIncludeInterpolation = GPUContext->HasInterpolationParameters || GPUParamIncludeInterpolation;
-				ActiveGPUEmitterCount++;
+				if (const FNiagaraComputeExecutionContext* GPUContext = Inst.GetGPUContext())
+				{
+					TotalCombinedParamStoreSize += GPUContext->CombinedParamStore.GetPaddedParameterSizeInBytes();
+					GPUParamIncludeInterpolation = GPUContext->HasInterpolationParameters || GPUParamIncludeInterpolation;
+					ActiveGPUEmitterCount++;
+				}
 			}
 		}
 	}

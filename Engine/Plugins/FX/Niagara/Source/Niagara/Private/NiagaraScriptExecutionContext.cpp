@@ -424,7 +424,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	{
 		if (FNiagaraEmitterInstance* EmitterInstance = &InSystemInstance->GetEmitters()[EmitterIdx].Get())
 		{
-			if (EmitterInstance->IsComplete())
+			if (EmitterInstance->IsComplete() )
 			{
 				continue;
 			}
@@ -439,7 +439,14 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				continue;
 			}
 
-			check(EmitterInstance->HasTicked() == true);
+			// Handle edge case where an emitter was set to inactive on the first frame by scalability
+			// In which case it will never have ticked so we should not execute a GPU tick for this until it becomes active
+			// See FNiagaraSystemInstance::Tick_Concurrent for details
+			if (EmitterInstance->HasTicked() == false)
+			{
+				ensure((EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Inactive) || (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::InactiveClear));
+				continue;
+			}
 
 			FNiagaraComputeInstanceData* InstanceData = new (&Instances[InstanceIndex]) FNiagaraComputeInstanceData;
 			InstanceIndex++;
