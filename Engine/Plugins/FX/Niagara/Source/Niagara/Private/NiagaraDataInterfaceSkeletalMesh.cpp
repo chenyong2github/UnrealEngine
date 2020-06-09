@@ -133,10 +133,16 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 	check(SkelComp);
 
 	USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
-	int32 LODIndex = Usage.GetLODIndex();
-	int32 NumLODInfo = SkelMesh == nullptr ? 1 : SkelMesh->GetLODInfoArray().Num();
-	check(LODIndex < NumLODInfo);
-	check(LODIndex != INDEX_NONE);
+	int32 LODIndex = 0;
+	int32 NumLODInfo = 1;
+	
+	if (SkelMesh != nullptr)
+	{
+		NumLODInfo = SkelMesh->GetLODInfoArray().Num();
+		LODIndex = Usage.GetLODIndex();
+		check(LODIndex != INDEX_NONE);
+		check(LODIndex < NumLODInfo);
+	}
 
 	LODData.SetNum(NumLODInfo);
 
@@ -1340,6 +1346,7 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 
 USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
 {
+	FoundSkelComp = nullptr;
 	USkeletalMesh* Mesh = nullptr;
 	if (MeshUserParameter.Parameter.IsValid() && InstData)
 	{
@@ -1469,7 +1476,8 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraCompon
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (!Mesh && PreviewMesh)
+	// Don't fall back on the preview mesh if we have a valid skeletal mesh component referenced
+	if (!Mesh && !FoundSkelComp && PreviewMesh)
 	{
 		Mesh = PreviewMesh;
 	}
@@ -2848,9 +2856,9 @@ void UNiagaraDataInterfaceSkeletalMesh::SetSamplingRegionsFromBlueprints(const T
 	SamplingRegions = InSamplingRegions;
 }
 
-ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(void* PerInstanceData) const
+ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(const void* PerInstanceData) const
 {
-	FNDISkeletalMesh_InstanceData* InstData = static_cast<FNDISkeletalMesh_InstanceData*>(PerInstanceData);
+	const FNDISkeletalMesh_InstanceData* InstData = static_cast<const FNDISkeletalMesh_InstanceData*>(PerInstanceData);
 	USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InstData->Component.Get());
 	if ( Component )
 	{

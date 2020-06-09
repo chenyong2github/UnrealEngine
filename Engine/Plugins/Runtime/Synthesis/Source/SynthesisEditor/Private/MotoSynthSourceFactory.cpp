@@ -17,7 +17,7 @@ const TArray<FText>& FAssetTypeActions_MotoSynthPreset::GetSubMenus() const
 {
 	static const TArray<FText> SubMenus
 	{
-		FText(LOCTEXT("AssetMotoSynthPresetSubmenu", "Synthesis"))
+		LOCTEXT("AssetSoundSynthesisSubMenu", "Synthesis")
 	};
 
 	return SubMenus;

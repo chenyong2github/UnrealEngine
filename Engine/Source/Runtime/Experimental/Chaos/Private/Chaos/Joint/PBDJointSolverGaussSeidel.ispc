@@ -34,26 +34,34 @@ struct FJointSolverGaussSeidel
 	FMatrix33 InvIs[MaxConstrainedBodies];		// World-space inverse inertias
 
 	// XPBD Previous iteration world-space body state
-	FVector PrevPs[MaxConstrainedBodies];		// World-space particle CoM positions
-	FVector4 PrevQs[MaxConstrainedBodies];		// World-space particle CoM rotations
-	FVector PrevXs[MaxConstrainedBodies];		// World-space joint connector positions
+	FVector InitPs[MaxConstrainedBodies];		// World-space particle positions
+	FVector4 InitQs[MaxConstrainedBodies];		// World-space particle rotations
+	FVector InitXs[MaxConstrainedBodies];		// World-space joint connector positions
+	FVector4 InitRs[MaxConstrainedBodies];		// World-space joint connector rotations
 
 	// Accumulated Impulse and AngularImpulse (Impulse * Dt since they are mass multiplied position corrections)
 	FVector NetLinearImpulse;
 	FVector NetAngularImpulse;
 
 	// XPBD Accumulators (net impulse for each soft constraint/drive)
-	float LinearSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float TwistSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float SwingSoftLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float LinearDriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
-	float TwistDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
-	float Swing1DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
-	float Swing2DriveLambda;					// XPBD constraint multipliers (net applied constraint-space deltas)
+	float LinearSoftLambda;
+	float TwistSoftLambda;
+	float SwingSoftLambda;
+	float LinearDriveLambda;
+	FVector RotationDriveLambdas;
 	
+	// Constraint padding which can act something like a velocity constraint (for restitution)
+	FVector LinearConstraintPadding;
+	FVector AngularConstraintPadding;
+
 	// Tolerances below which we stop solving
 	float PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 	float AngleTolerance;						// Angle error below which we consider a constraint or drive solved
+
+	FVector LastPs[MaxConstrainedBodies];		// Positions at the beginning of the iteration
+	FVector4 LastQs[MaxConstrainedBodies];		// Rotations at the beginning of the iteration
+	int NumActiveConstraints;					// The number of active constraints and drives in the last iteration (-1 initial value)
+	bool bIsActive;								// Whether any constraints actually moved any bodies in last iteration
 };
 
 export uniform int32 SizeofFJointSolverGaussSeidel()
@@ -250,6 +258,7 @@ export void ApplyPositionConstraintSoft(
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Delta,
+	const uniform float TargetVel,
 	uniform float& Lambda)
 {
 	// Joint-space inverse mass
@@ -264,9 +273,9 @@ export void ApplyPositionConstraintSoft(
 	uniform float VelDt = 0;
 	if (Damping > KINDA_SMALL_NUMBER)
 	{
-		const uniform FVector V0 = CalculateVelocity(M->PrevXs[0], M->Xs[0], 1.0f);
-		const uniform FVector V1 = CalculateVelocity(M->PrevXs[1], M->Xs[1], 1.0f);
-		VelDt = VectorDot(V0 - V1, Axis);
+		const uniform FVector V0Dt = CalculateVelocity(M->InitXs[0], M->Xs[0], 1.0f);
+		const uniform FVector V1Dt = CalculateVelocity(M->InitXs[1], M->Xs[1], 1.0f);
+		VelDt = TargetVel * Dt + VectorDot(V0Dt - V1Dt, Axis);
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / (M->InvMs[0] + M->InvMs[1]) : 1.0f;
@@ -298,6 +307,7 @@ export void ApplyRotationConstraintSoftKD(
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Angle,
+	const uniform float AngVelTarget,
 	uniform float& Lambda)
 {
 	// World-space inverse mass
@@ -311,9 +321,9 @@ export void ApplyRotationConstraintSoftKD(
 	uniform float AngVelDt = 0;
 	if (Damping > KINDA_SMALL_NUMBER)
 	{
-		const uniform FVector W0 = CalculateAngularVelocity(M->PrevQs[KIndex], M->Qs[KIndex], 1.0f);
-		const uniform FVector W1 = CalculateAngularVelocity(M->PrevQs[DIndex], M->Qs[DIndex], 1.0f);
-		AngVelDt = VectorDot(Axis, W0) - VectorDot(Axis, W1);
+		const uniform FVector W0Dt = CalculateAngularVelocity(M->InitRs[KIndex], M->Rs[KIndex], 1.0f);
+		const uniform FVector W1Dt = CalculateAngularVelocity(M->InitRs[DIndex], M->Rs[DIndex], 1.0f);
+		AngVelDt = AngVelTarget * Dt + VectorDot(Axis, W0Dt - W1Dt);
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
@@ -339,6 +349,7 @@ export void ApplyRotationConstraintSoftDD(
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Angle,
+	const uniform float AngVelTarget,
 	uniform float& Lambda)
 {
 	// World-space inverse mass
@@ -354,9 +365,9 @@ export void ApplyRotationConstraintSoftDD(
 	uniform float AngVelDt = 0;
 	if (Damping > KINDA_SMALL_NUMBER)
 	{
-		const uniform FVector W0 = CalculateAngularVelocity(M->PrevQs[0], M->Qs[0], 1.0f);
-		const uniform FVector W1 = CalculateAngularVelocity(M->PrevQs[1], M->Qs[1], 1.0f);
-		AngVelDt = VectorDot(Axis, W0) - VectorDot(Axis, W1);
+		const uniform FVector W0Dt = CalculateAngularVelocity(M->InitRs[0], M->Rs[0], 1.0f);
+		const uniform FVector W1Dt = CalculateAngularVelocity(M->InitRs[1], M->Rs[1], 1.0f);
+		AngVelDt = AngVelTarget * Dt + VectorDot(Axis, W0Dt - W1Dt);
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;

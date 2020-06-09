@@ -50,6 +50,10 @@ void FLegacyInternationalization::RefreshCultureDisplayNames(const TArray<FStrin
 {
 }
 
+void FLegacyInternationalization::RefreshCachedConfigData()
+{
+}
+
 void FLegacyInternationalization::HandleLanguageChanged(const FCultureRef InNewLanguage)
 {
 }

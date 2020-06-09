@@ -652,3 +652,55 @@ int FMeshBoundaryLoops::CountInList(const TArray<int>& Loop, int Item)
 	}
 	return c;
 }
+
+int FMeshBoundaryLoops::FindLoopTrianglesHint(const TArray<int>& HintTris) const
+{
+	TSet<int> HintEdges;
+	for (int TriangleID : HintTris)
+	{
+		if (Mesh->IsTriangle(TriangleID) == false)
+		{
+			continue;
+		}
+
+		FIndex3i TriangleEdges = Mesh->GetTriEdges(TriangleID);
+		for (int j = 0; j < 3; ++j)
+		{
+			if (Mesh->IsBoundaryEdge(TriangleEdges[j]))
+			{
+				HintEdges.Add(TriangleEdges[j]);
+			}
+		}
+	}
+
+	return FindLoopEdgesHint(HintEdges);
+}
+
+
+int FMeshBoundaryLoops::FindLoopEdgesHint(const TSet<int>& HintEdges) const
+{
+	int NumLoops = GetLoopCount();
+	int BestLoop = -1;
+	int MaxVotes = 0;
+	for (int LoopIndex = 0; LoopIndex < NumLoops; ++LoopIndex)
+	{
+		int Votes = 0;
+		const FEdgeLoop& CurrentLoop = Loops[LoopIndex];
+		for (int EdgeID : CurrentLoop.Edges)
+		{
+			if (HintEdges.Contains(EdgeID))
+			{
+				++Votes;
+			}
+		}
+
+		if (Votes > MaxVotes)
+		{
+			BestLoop = LoopIndex;
+			MaxVotes = Votes;
+		}
+	}
+
+	return BestLoop;
+}
+

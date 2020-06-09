@@ -700,6 +700,9 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 
 				if (ModelNode)
 				{
+					bool bWasReportingEnabled = Controller->IsReportingEnabled();
+					Controller->EnableReporting(false);
+
 				for (UEdGraphPin* Pin : RigNode->Pins)
 				{
 						FString PinPath = LocalHelpers::FixUpPinPath(Pin->GetName());
@@ -732,6 +735,8 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 							Controller->SetPinDefaultValue(PinPath, Pin->DefaultValue, false, false, false);
 					}
 				}
+
+					Controller->EnableReporting(bWasReportingEnabled);
 			}
 
 				const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, PropertyName);

@@ -40,6 +40,7 @@
 #include "Blueprint/BlueprintSupport.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
+#include "HAL/IPlatformFileOpenLogWrapper.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/GarbageCollectionInternal.h"
 #include "ProfilingDebugging/MiscTrace.h"
@@ -108,6 +109,23 @@ bool IsGarbageCollectionLocked();
 
 /** Global request ID counter */
 static FThreadSafeCounter GPackageRequestID;
+
+TAtomic<int>	GAsyncLoadingFlushIsActive(0);
+
+class FScopeAsyncLoadingFlushIsActive
+{
+public:
+	FScopeAsyncLoadingFlushIsActive()
+	{
+		GAsyncLoadingFlushIsActive++;
+	}
+
+	~FScopeAsyncLoadingFlushIsActive()
+	{
+		GAsyncLoadingFlushIsActive--;
+	}
+};
+
 
 /**
  * Updates FUObjectThreadContext with the current package when processing it.
@@ -272,6 +290,11 @@ FORCEINLINE bool FAsyncPackage::IsTimeLimitExceeded()
 	return AsyncLoadingThread.IsAsyncLoadingSuspendedInternal() || ::IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, LastTypeOfWorkPerformed, LastObjectWorkWasPerformedOn);
 }
 
+FORCENOINLINE static bool CheckForFilePackageOpenLogCommandLine()
+{
+	return FParse::Param(FCommandLine::Get(), TEXT("FilePackageOpenLog"));
+}
+
 DEFINE_LOG_CATEGORY_STATIC(LogAsyncArchive, Display, All);
 DECLARE_MEMORY_STAT(TEXT("FAsyncArchive Buffers"), STAT_FAsyncArchiveMem, STATGROUP_Memory);
 
@@ -357,6 +380,16 @@ void FAsyncLoadingThread::QueuePackage(FAsyncPackageDesc& Package)
 	{
 #if THREADSAFE_UOBJECTS
 		FScopeLock QueueLock(&QueueCritical);
+#endif
+#if !UE_BUILD_SHIPPING
+		if(CheckForFilePackageOpenLogCommandLine())
+		{
+			FPlatformFileOpenLog* PlatformFileOpenLog = (FPlatformFileOpenLog*)(FPlatformFileManager::Get().FindPlatformFile(FPlatformFileOpenLog::GetTypeName()));
+			if (PlatformFileOpenLog != nullptr)
+			{
+				PlatformFileOpenLog->AddPackageToOpenLog(*Package.Name.ToString());
+			}
+		}
 #endif
 		QueuedPackagesCounter.Increment();
 		QueuedPackages.Add(new FAsyncPackageDesc(Package, MoveTemp(Package.PackageLoadedDelegate)));
@@ -1229,6 +1262,7 @@ struct FPrecacheCallbackHandler
 
 	void UpdatePlatformFilePrecacheThrottling(bool bEnablePrecacheRequests)
 	{
+		CSV_EVENT(FileIO, TEXT("Precache %s"), bEnablePrecacheRequests ? TEXT("Enabled") : TEXT("Disabled"));
 		// If we're not processing precache requests, set the min priority to GAsyncLoadingPrecachePriority + 1
 		EAsyncIOPriorityAndFlags NewMinPriority = bEnablePrecacheRequests ? AIOP_MIN : (EAsyncIOPriorityAndFlags)FMath::Clamp(GAsyncLoadingPrecachePriority + 1, (int32)AIOP_MIN, (int32)AIOP_MAX);
 		FPlatformFileManager::Get().GetPlatformFile().SetAsyncMinimumPriority(NewMinPriority);
@@ -1302,7 +1336,7 @@ FORCENOINLINE static bool CheckForFileOpenLogCommandLine()
 FORCEINLINE static bool FileOpenLogActive()
 {
 #if 1
-	static bool bDoingLoadOrder = CheckForFileOpenLogCommandLine();
+	static bool bDoingLoadOrder = CheckForFileOpenLogCommandLine() || CheckForFilePackageOpenLogCommandLine();
 	return bDoingLoadOrder;
 #else
 	return true;
@@ -1773,6 +1807,17 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 					UE_LOG(LogStreaming, Display, TEXT("%s is prestreaming %s"), *Desc.NameToLoad.ToString(), *Import->ObjectName.ToString());
 				}
 				TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(this, PendingPackage);
+#if !UE_BUILD_SHIPPING
+				if(CheckForFilePackageOpenLogCommandLine())
+				{
+					FPlatformFileOpenLog* PlatformFileOpenLog = (FPlatformFileOpenLog*)(FPlatformFileManager::Get().FindPlatformFile(FPlatformFileOpenLog::GetTypeName()));
+					if (PlatformFileOpenLog != nullptr)
+					{
+						FString PackageToOpenLogName = FString::Printf(TEXT("%s %i"), *Info.Name.ToString(), GFrameCounter);
+						PlatformFileOpenLog->AddPackageToOpenLog(*PackageToOpenLogName);
+					}
+				}
+#endif
 				AsyncLoadingThread.InsertPackage(PendingPackage);
 				bDidSomething = true;
 			}
@@ -3084,11 +3129,11 @@ void FAsyncPackage::MarkNewObjectForLoadIfItIsAnExport(UObject *Object)
 
 void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 {
+	LLM_SCOPE(ELLMTag::UObject);
 	SCOPED_LOADTIMER(Package_PreLoadObjects);
 
 	FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
 
-	LLM_SCOPE(ELLMTag::UObject);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET((Export.DynamicType == FObjectExport::EDynamicType::DynamicType) ? UDynamicClass::StaticClass() :
 		CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
@@ -5752,13 +5797,9 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 			}
 
 			// Create raw async linker, requiring to be ticked till finished creating.
-			uint32 LinkerFlags = LOAD_None;
-			if (FApp::IsGame() && !GIsEditor)
-			{
-				LinkerFlags |= (LOAD_Async | LOAD_NoVerify);
-			}
+			uint32 LinkerFlags = (LOAD_Async | LOAD_NoVerify);
 #if WITH_EDITOR
-			else if ((Desc.PackageFlags & PKG_PlayInEditor) != 0)
+			if ((!FApp::IsGame() || GIsEditor) && (Desc.PackageFlags & PKG_PlayInEditor) != 0)
 			{
 				LinkerFlags |= LOAD_PackageForPIE;
 			}
@@ -6328,8 +6369,6 @@ EAsyncPackageState::Type FAsyncPackage::FinishExternalReadDependencies()
  */
 EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 {
-	LLM_SCOPE(ELLMTag::UObject);
-
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_PostLoadObjects);
 
 	SCOPED_LOADTIMER(PostLoadObjectsTime);
@@ -6960,6 +6999,7 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 		{
 			return;
 		}
+		FScopeAsyncLoadingFlushIsActive FlushIsActive;
 
 		FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
 

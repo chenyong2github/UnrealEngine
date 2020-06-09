@@ -36,7 +36,7 @@ DECLARE_CYCLE_STAT(TEXT("GetResource Time"), STAT_SlateGetResourceTime, STATGROU
 
 static TAutoConsoleVariable<bool> CVarSlateRHIResourceManagerLockWhenGCing(
 	TEXT("Slate.ResourceManager.LockResourceDuringGC"),
-	false,
+	true,
 	TEXT("Lock the Slate RHI Resource Manager when GCing and when the loading screen has ownership to prevent multithreaded access to the resources."));
 
 

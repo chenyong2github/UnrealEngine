@@ -3170,10 +3170,6 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	ENQUEUE_RENDER_COMMAND(FLandscapeLayersReadSurfaceCommand)(
 		[InCPUReadBackTexture, &OutMipsData](FRHICommandListImmediate& RHICmdList) mutable
 	{
- 		// D3D12RHI requires heavyweight BlockUntilGPUIdle() call to ensure commands have finished.
- 		// Note that this needs improving but for now is enshrined in the RHIUnitTest::VerifyBufferContents unit test
-		RHICmdList.BlockUntilGPUIdle();
-
 		OutMipsData.AddDefaulted(InCPUReadBackTexture->TextureRHI->GetNumMips());
 
 		int32 MipSizeU = InCPUReadBackTexture->GetSizeX();
@@ -3710,12 +3706,12 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0)
+	if (WeightmapUpdateModes == 0 && !bForceRender)
 	{
 		return 0;
 	}
 
-	if (InLandscapeComponentsToResolve.Num() == 0)
+	if (InLandscapeComponentsToResolve.Num() == 0 || Info == nullptr || Info->Layers.Num() == 0)
 	{
 		return WeightmapUpdateModes;
 	}

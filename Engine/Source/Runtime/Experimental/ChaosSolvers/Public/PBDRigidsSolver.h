@@ -91,12 +91,12 @@ namespace Chaos
 
 		friend class FPhysInterface_Chaos;
 		friend class FPhysScene_ChaosInterface;
-		friend class FPBDRigidActiveParticlesBuffer;
+		friend class FPBDRigidDirtyParticlesBuffer;
 
 		void* PhysSceneHack;	//This is a total hack for now to get at the owning scene
 
 		typedef TPBDRigidsSOAs<float, 3> FParticlesType;
-		typedef FPBDRigidActiveParticlesBuffer FActiveParticlesBuffer;
+		typedef FPBDRigidDirtyParticlesBuffer FDirtyParticlesBuffer;
 
 		typedef Chaos::TGeometryParticle<float, 3> FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
@@ -108,6 +108,9 @@ namespace Chaos
 		typedef TPBDConstraintIslandRule<FPBDJointConstraints> FJointConstraintsRule;
 		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints> FRigidDynamicSpringConstraintsRule;
 		typedef TPBDConstraintIslandRule<FPositionConstraints> FPositionConstraintsRule;
+
+		using FJointConstraints = FPBDJointConstraints;
+		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
 
 		//
 		// Execution API
@@ -250,7 +253,7 @@ namespace Chaos
 		bool Enabled() const { if (bEnabled) return this->IsSimulating(); return false; }
 		void SetEnabled(bool bEnabledIn) { bEnabled = bEnabledIn; }
 		bool HasActiveParticles() const { return !!GetNumPhysicsProxies(); }
-		FActiveParticlesBuffer* GetActiveParticlesBuffer() const { return MActiveParticlesBuffer.Get(); }
+		FDirtyParticlesBuffer* GetDirtyParticlesBuffer() const { return MDirtyParticlesBuffer.Get(); }
 
 		/**/
 		void Reset();
@@ -307,6 +310,13 @@ namespace Chaos
 		void SetCollisionFilterSettings(const FSolverCollisionFilterSettings& InCollisionFilterSettings) { GetEventFilters()->GetCollisionFilter()->UpdateFilterSettings(InCollisionFilterSettings); }
 		void SetBreakingFilterSettings(const FSolverBreakingFilterSettings& InBreakingFilterSettings) { GetEventFilters()->GetBreakingFilter()->UpdateFilterSettings(InBreakingFilterSettings); }
 		void SetTrailingFilterSettings(const FSolverTrailingFilterSettings& InTrailingFilterSettings) { GetEventFilters()->GetTrailingFilter()->UpdateFilterSettings(InTrailingFilterSettings); }
+
+		/**/
+		FJointConstraints& GetJointConstraints() { return JointConstraints; }
+		const FJointConstraints& GetJointConstraints() const { return JointConstraints; }
+
+		FJointConstraintRule& GetJointConstraintsRule() { return JointConstraintRule; }
+		const FJointConstraintRule& GetJointConstraintsRule() const { return JointConstraintRule; }
 
 		/**/
 		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
@@ -378,7 +388,7 @@ namespace Chaos
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
 		void SyncQueryMaterials();
 
-		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles);
+		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles);
 		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
 
 	private:
@@ -437,7 +447,7 @@ namespace Chaos
 		TUniquePtr<FPBDRigidsEvolution> MEvolution;
 		TUniquePtr<TEventManager<Traits>> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
-		TUniquePtr<FActiveParticlesBuffer> MActiveParticlesBuffer;
+		TUniquePtr<FDirtyParticlesBuffer> MDirtyParticlesBuffer;
 		TMap<const Chaos::TGeometryParticleHandle<float, 3>*, TSet<IPhysicsProxyBase*> > MParticleToProxy;
 		TUniquePtr<FRewindData> MRewindData;
 
@@ -454,6 +464,13 @@ namespace Chaos
 		TArray< FFieldSystemPhysicsProxy* > FieldSystemPhysicsProxies;
 		TArray< FJointConstraintPhysicsProxy*> JointConstraintPhysicsProxies;
 		bool bUseCollisionResimCache;
+
+		//
+		//  Constraints
+		//
+		FPBDJointConstraints JointConstraints;
+		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule;
+
 
 		// Physics material mirrors for the solver. These should generally stay in sync with the global material list from
 		// the game thread. This data is read only in the solver as we should never need to update it here. External threads can

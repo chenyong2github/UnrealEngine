@@ -68,7 +68,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	check(Scene != nullptr);
 
 	const FBox2D DestBox = FBox2D(FVector2D(X, Y), FVector2D(Width, Height));
-	const FTransform Transform = RuntimeVirtualTextureComponent->GetVirtualTextureTransform();
+	const FTransform Transform = RuntimeVirtualTextureComponent->GetComponentTransform();
 	const FBox Bounds = RuntimeVirtualTextureComponent->Bounds.GetBox();
 	const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(RuntimeVirtualTextureComponent);
 	const ERuntimeVirtualTextureMaterialType MaterialType = RuntimeVirtualTexture->GetMaterialType();

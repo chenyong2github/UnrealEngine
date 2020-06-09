@@ -106,6 +106,7 @@
 #include "Engine/LevelStreaming.h"
 #include "Engine/TextureLODSettings.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "ProfilingDebugging/PlatformFileTrace.h"
 
 #include "Misc/NetworkVersion.h"
 
@@ -135,6 +136,13 @@ static FAutoConsoleVariableRef CVarCookDisplayUpdateTime(
 	TEXT("cook.display.updatetime"),
 	GCookProgressUpdateTime,
 	TEXT("Controls the time before the cooker will send a new progress message.\n"),
+	ECVF_Default);
+
+float GCookProgressDiagnosticTime = 30.0f;
+static FAutoConsoleVariableRef CVarCookDisplayDiagnosticTime(
+	TEXT("Cook.display.diagnostictime"),
+	GCookProgressDiagnosticTime,
+	TEXT("Controls the time between cooker diagnostics messages.\n"),
 	ECVF_Default);
 
 float GCookProgressRepeatTime = 5.0f;
@@ -384,6 +392,7 @@ public:
 	/** error when detecting engine content being used in this cook */
 	bool							bErrorOnEngineContentUse = false;
 	bool							bDisableUnsolicitedPackages = false;
+	bool							bSkipSoftReferences = false;
 	bool							bFullLoadAndSave = false;
 	bool							bPackageStore = false;
 	TArray<FName>					StartupPackages;
@@ -1161,9 +1170,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 		check(IsCookByTheBookMode());
 
 		// if we are out of stuff and we are in cook by the book from the editor mode then we finish up
-		UE_CLOG(!(TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
-			LogCook, Display, TEXT("Cooked packages %d Packages Remain %d Total %d"),
-			PackageDatas->GetNumCooked(), 0, PackageDatas->GetNumCooked());
+		UpdateDisplay(TickFlags, true /* bForceDisplay */);
 		CookByTheBookFinished();
 	}
 
@@ -1174,25 +1181,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
 {
 	UE_SCOPED_COOKTIMER(TickCookStatus);
-	const float CurrentProgressDisplayTime = FPlatformTime::Seconds();
-	const float DeltaProgressDisplayTime = CurrentProgressDisplayTime - LastProgressDisplayTime;
-	const int32 CookedPackagesCount = PackageDatas->GetNumCooked();
-	const int32 CookPendingCount = ExternalRequests->GetNumRequests() + PackageDatas->GetMonitor().GetNumInProgress();
-	if (DeltaProgressDisplayTime >= GCookProgressUpdateTime && CookPendingCount != 0 &&
-		(LastCookedPackagesCount != CookedPackagesCount || LastCookPendingCount != CookPendingCount || DeltaProgressDisplayTime > GCookProgressRepeatTime))
-	{
-		UE_CLOG(!(StackData.TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
-			LogCook,
-			Display,
-			TEXT("Cooked packages %d Packages Remain %d Total %d"),
-			CookedPackagesCount,
-			CookPendingCount,
-			CookedPackagesCount + CookPendingCount);
-
-		LastCookedPackagesCount = CookedPackagesCount;
-		LastCookPendingCount = CookPendingCount;
-		LastProgressDisplayTime = CurrentProgressDisplayTime;
-	}
+	UpdateDisplay(StackData.TickFlags, false /* bForceDisplay */);
 
 	// prevent autosave from happening until we are finished cooking
 	// causes really bad hitches
@@ -1207,6 +1196,42 @@ void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
 	PumpExternalRequests(StackData.Timer);
 }
 
+void UCookOnTheFlyServer::UpdateDisplay(ECookTickFlags TickFlags, bool bForceDisplay)
+{
+	const float CurrentTime = FPlatformTime::Seconds();
+	const float DeltaProgressDisplayTime = CurrentTime - LastProgressDisplayTime;
+	const int32 CookedPackagesCount = PackageDatas->GetNumCooked();
+	const int32 CookPendingCount = ExternalRequests->GetNumRequests() + PackageDatas->GetMonitor().GetNumInProgress();
+	if (bForceDisplay ||
+		(DeltaProgressDisplayTime >= GCookProgressUpdateTime && CookPendingCount != 0 &&
+			(LastCookedPackagesCount != CookedPackagesCount || LastCookPendingCount != CookPendingCount || DeltaProgressDisplayTime > GCookProgressRepeatTime)))
+	{
+		UE_CLOG(!(TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
+			LogCook,
+			Display,
+			TEXT("Cooked packages %d Packages Remain %d Total %d"),
+			CookedPackagesCount,
+			CookPendingCount,
+			CookedPackagesCount + CookPendingCount);
+
+		LastCookedPackagesCount = CookedPackagesCount;
+		LastCookPendingCount = CookPendingCount;
+		LastProgressDisplayTime = CurrentTime;
+	}
+	const float DeltaDiagnosticsDisplayTime = CurrentTime - LastDiagnosticsDisplayTime;
+	if (bForceDisplay || DeltaDiagnosticsDisplayTime > GCookProgressDiagnosticTime)
+	{
+		uint32 OpenFileHandles = 0;
+#if PLATFORMFILETRACE_ENABLED
+		OpenFileHandles = FPlatformFileTrace::GetOpenFileHandleCount();
+#endif
+		UE_CLOG(!(TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay & (int32)ECookProgressDisplayMode::RemainingPackages),
+			LogCook, Display,
+			TEXT("Cook Diagnostics: OpenFileHandles=%d, VirtualMemory=%dMiB"),
+			OpenFileHandles, FPlatformMemory::GetStats().UsedVirtual / 1024 / 1024);
+		LastDiagnosticsDisplayTime = CurrentTime;
+	}
+}
 UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::Cook::FTickStackData& StackData)
 {
 	if (IsCookByTheBookMode() && CookByTheBookOptions->bCancel)
@@ -1601,7 +1626,7 @@ void UCookOnTheFlyServer::PumpPreloadStarts()
 	while (!EntryQueue.IsEmpty() && Monitor.GetNumPreloadAllocated() < static_cast<int32>(MaxPreloadAllocated))
 	{
 		FPackageData* PackageData = EntryQueue.PopFrontValue();
-		if (bPreloadingEnabled)
+		if (bLocalPreloadingEnabled)
 		{
 			PackageData->TryPreload();
 		}
@@ -3329,30 +3354,33 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 	// Don't resolve, just add to request list as needed
 	TSet<FName> SoftObjectPackages;
 
-	GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
-	
-	for (FName SoftObjectPackage : SoftObjectPackages)
+	if (!CookByTheBookOptions->bSkipSoftReferences)
 	{
-		TMap<FName, FName> RedirectedPaths;
+		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
 
-		// If this is a redirector, extract destination from asset registry
-		if (ContainsRedirector(SoftObjectPackage, RedirectedPaths))
+		for (FName SoftObjectPackage : SoftObjectPackages)
 		{
-			for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
+			TMap<FName, FName> RedirectedPaths;
+
+			// If this is a redirector, extract destination from asset registry
+			if (ContainsRedirector(SoftObjectPackage, RedirectedPaths))
 			{
-				GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
+				for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
+				{
+					GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
+				}
 			}
-		}
 
-		// Verify package actually exists
+			// Verify package actually exists
 
-		if (IsCookByTheBookMode() && !CookByTheBookOptions->bDisableUnsolicitedPackages)
-		{
-			UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
-			if (SoftObjectPackageData)
+			if (IsCookByTheBookMode() && !CookByTheBookOptions->bDisableUnsolicitedPackages)
 			{
-				bool bIsUrgent = false;
-				SoftObjectPackageData->UpdateRequestData(PackageData.GetRequestedPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
+				UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
+				if (SoftObjectPackageData)
+				{
+					bool bIsUrgent = false;
+					SoftObjectPackageData->UpdateRequestData(PackageData.GetRequestedPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
+				}
 			}
 		}
 	}
@@ -3614,11 +3642,13 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB"),
 		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024);
 
+#if PLATFORM_WINDOWS // Preloading moves file handles between threads; this is only supported on windows for now
 	if (IsCookByTheBookMode() && !IsCookingInEditor())
 	{
 		bPreloadingEnabled = true;
 		FLinkerLoad::SetPreloadingEnabled(true);
 	}
+#endif
 
 	{
 		const FConfigSection* CacheSettings = GConfig->GetSectionPrivate(TEXT("CookPlatformDataCacheSettings"), false, true, GEditorIni);
@@ -6310,15 +6340,13 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedProjectPath);
 		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
-		bool bAllowBulkDataInIoStore = true;
-		{
-			FConfigFile PlatformEngineIni;
-			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
-	
-			PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("AllowBulkDataInIoStore"), bAllowBulkDataInIoStore);
-		}
+		FConfigFile PlatformEngineIni;
+		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
+		
+		bool bLegacyBulkDataOffsets = false;
+		PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("LegacyBulkDataOffsets"), bLegacyBulkDataOffsets);
 
-		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest, bAllowBulkDataInIoStore);
+		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest, bLegacyBulkDataOffsets);
 		SavePackageContexts.Add(SavePackageContext);
 	}
 }
@@ -6454,6 +6482,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bGenerateDependenciesForMaps = CookByTheBookStartupOptions.bGenerateDependenciesForMaps;
 	CookByTheBookOptions->CreateReleaseVersion = CreateReleaseVersion;
 	CookByTheBookOptions->bDisableUnsolicitedPackages = !!(CookOptions & ECookByTheBookOptions::DisableUnsolicitedPackages);
+	CookByTheBookOptions->bSkipSoftReferences = !!(CookOptions & ECookByTheBookOptions::SkipSoftReferences);
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
 	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
@@ -6758,13 +6787,15 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	TArray<FName> FilesInPath;
 	TSet<FName> StartupSoftObjectPackages;
-
-	// Get the list of soft references, for both empty package and all startup packages
-	GRedirectCollector.ProcessSoftObjectPathPackageList(NAME_None, false, StartupSoftObjectPackages);
-
-	for (const FName& StartupPackage : CookByTheBookOptions->StartupPackages)
+	if (!CookByTheBookOptions->bSkipSoftReferences)
 	{
-		GRedirectCollector.ProcessSoftObjectPathPackageList(StartupPackage, false, StartupSoftObjectPackages);
+		// Get the list of soft references, for both empty package and all startup packages
+		GRedirectCollector.ProcessSoftObjectPathPackageList(NAME_None, false, StartupSoftObjectPackages);
+
+		for (const FName& StartupPackage : CookByTheBookOptions->StartupPackages)
+		{
+			GRedirectCollector.ProcessSoftObjectPathPackageList(StartupPackage, false, StartupSoftObjectPackages);
+		}
 	}
 
 	CollectFilesToCook(FilesInPath, CookMaps, CookDirectories, IniMapSections, CookOptions, TargetPlatforms);
@@ -7489,6 +7520,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					}
 				}
 
+				if (!CookByTheBookOptions->bSkipSoftReferences)
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(ResolveStringReferences);
 					TSet<FName> StringAssetPackages;

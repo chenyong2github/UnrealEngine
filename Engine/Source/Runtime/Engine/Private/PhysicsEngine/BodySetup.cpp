@@ -61,6 +61,8 @@
 /** Enable to verify that the cooked data matches the source data as we cook it */
 #define VERIFY_COOKED_PHYS_DATA 0
 
+#define LOCTEXT_NAMESPACE "PhysicsAsset"
+
 const TCHAR* LexToString(ECollisionTraceFlag Enum)
 {
 	switch (Enum)
@@ -473,6 +475,32 @@ void UBodySetup::CreatePhysicsMeshes()
 #endif
 		}
 	}
+	
+	// fix up invalid transform to use identity
+	// this can be here because BodySetup isn't blueprintable
+	if ( GetLinkerUE4Version() < VER_UE4_FIXUP_BODYSETUP_INVALID_CONVEX_TRANSFORM )
+	{
+		for (int32 i=0; i<AggGeom.ConvexElems.Num(); ++i)
+		{
+			if ( AggGeom.ConvexElems[i].GetTransform().IsValid() == false )
+			{
+				AggGeom.ConvexElems[i].SetTransform(FTransform::Identity);
+			}
+		}
+	}
+
+#if WITH_CHAOS
+	// For drawing of convex elements we require an index buffer, previously we could
+	// get this from a PxConvexMesh but Chaos doesn't maintain that data. Instead now
+	// it is a part of the element rather than the physics geometry, if we load in an
+	// element without that data present, generate a convex hull from the convex vert
+	// data and extract the index data from there.
+	for(FKConvexElem& Convex : AggGeom.ConvexElems)
+	{
+		Convex.ComputeChaosConvexIndices();
+	}
+#endif
+
 
 	if(bClearMeshes)
 	{
@@ -1127,32 +1155,11 @@ void UBodySetup::PostLoad()
 	}
 
 	// make sure that we load the physX data while the linker's loader is still open
+#if PHYSICS_INTERFACE_PHYSX
+	// Chaos does not call this so we can defer work and CreatePhysicsMeshes in parallel.
 	CreatePhysicsMeshes();
-
-	// fix up invalid transform to use identity
-	// this can be here because BodySetup isn't blueprintable
-	if ( GetLinkerUE4Version() < VER_UE4_FIXUP_BODYSETUP_INVALID_CONVEX_TRANSFORM )
-	{
-		for (int32 i=0; i<AggGeom.ConvexElems.Num(); ++i)
-		{
-			if ( AggGeom.ConvexElems[i].GetTransform().IsValid() == false )
-			{
-				AggGeom.ConvexElems[i].SetTransform(FTransform::Identity);
-			}
-		}
-	}
-
-#if WITH_CHAOS
-	// For drawing of convex elements we require an index buffer, previously we could
-	// get this from a PxConvexMesh but Chaos doesn't maintain that data. Instead now
-	// it is a part of the element rather than the physics geometry, if we load in an
-	// element without that data present, generate a convex hull from the convex vert
-	// data and extract the index data from there.
-	for(FKConvexElem& Convex : AggGeom.ConvexElems)
-	{
-		Convex.ComputeChaosConvexIndices();
-	}
 #endif
+
 }
 
 void UBodySetup::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
@@ -1502,6 +1509,43 @@ void UBodySetup::CopyBodySetupProperty(const UBodySetup* Other)
 	DefaultInstance = Other->DefaultInstance;
 	WalkableSlopeOverride = Other->WalkableSlopeOverride;
 	BuildScale3D = Other->BuildScale3D;
+}
+
+EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = EDataValidationResult::Valid;
+
+	// Check that the body has at least one shape
+	int32 NumElements = AggGeom.GetElementCount();
+	if (NumElements == 0)
+	{
+		ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetup", "Bone {0} requires at least one collision shape"), FText::FromName(BoneName)));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	// Chekc that simulated bodies have at least one shape that contributes to mass, otherwise
+	// we cannot calculate the inertia, even if the mass is exlicitly set.
+	// @todo(physics): should we check non-simulated bodies? The simulation type can be changed in the runtime...
+	if (PhysicsType == EPhysicsType::PhysType_Simulated)
+	{
+		int32 NumMassContributors = 0;
+		for (int32 ElementIndex = 0; ElementIndex < NumElements; ++ElementIndex)
+		{
+			const FKShapeElem* Shape = AggGeom.GetElement(ElementIndex);
+			if (Shape->GetContributeToMass())
+			{
+				++NumMassContributors;
+			}
+		}
+		
+		if (NumMassContributors == 0)
+		{
+			ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetup", "Bone {0} requires at least one shape with 'Contribute to Mass' set to 'true'"), FText::FromName(BoneName)));
+			Result = EDataValidationResult::Invalid;
+		}
+	}
+
+	return Result;
 }
 
 #endif // WITH_EDITOR
@@ -2223,3 +2267,5 @@ TEnumAsByte<enum ECollisionTraceFlag> UBodySetup::GetCollisionTraceFlag() const
 	TEnumAsByte<enum ECollisionTraceFlag> DefaultFlag = UPhysicsSettings::Get()->DefaultShapeComplexity;
 	return CollisionTraceFlag == ECollisionTraceFlag::CTF_UseDefault ? DefaultFlag : CollisionTraceFlag;
 }
+
+#undef LOCTEXT_NAMESPACE

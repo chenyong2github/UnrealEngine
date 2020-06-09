@@ -798,32 +798,44 @@ void ALODActor::EditorApplyMirror(const FVector& MirrorScale, const FVector& Piv
 
 void ALODActor::AddSubActor(AActor* InActor)
 {
-	SubActors.Add(InActor);
+	AddSubActors({ InActor });
+}
 
-	UStaticMeshComponent* LODComponent = GetOrCreateLODComponentForActor(InActor);
-	InActor->SetLODParent(LODComponent, GetLODDrawDistanceWithOverride());
+void ALODActor::AddSubActors(const TArray<AActor*>& InActors)
+{
+	SubActors.Append(InActors);
 
-	// Adding number of triangles
-	if (!InActor->IsA<ALODActor>())
+	float LODDrawDistanceWithOverride = GetLODDrawDistanceWithOverride();
+	TArray<UStaticMeshComponent*> StaticMeshComponents;
+
+	for(AActor* Actor : InActors)
 	{
-		TArray<UStaticMeshComponent*> StaticMeshComponents;
-		InActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
-		for (UStaticMeshComponent* Component : StaticMeshComponents)
+		UStaticMeshComponent* LODComponent = GetOrCreateLODComponentForActor(Actor);
+		Actor->SetLODParent(LODComponent, LODDrawDistanceWithOverride);
+
+		// Adding number of triangles
+		ALODActor* LODActor = Cast<ALODActor>(Actor);
+		if (!LODActor)
 		{
-			const UStaticMesh* StaticMesh = (Component) ? Component->GetStaticMesh() : nullptr;
-			if (StaticMesh && StaticMesh->RenderData && StaticMesh->RenderData->LODResources.Num() > 0)
+			StaticMeshComponents.Reset();
+			Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+
+			for (UStaticMeshComponent* Component : StaticMeshComponents)
 			{
-				NumTrianglesInSubActors += StaticMesh->RenderData->LODResources[0].GetNumTriangles();
+				const UStaticMesh* StaticMesh = (Component) ? Component->GetStaticMesh() : nullptr;
+				if (StaticMesh && StaticMesh->RenderData && StaticMesh->RenderData->LODResources.Num() > 0)
+				{
+					NumTrianglesInSubActors += StaticMesh->RenderData->LODResources[0].GetNumTriangles();
+				}
+				Component->MarkRenderStateDirty();
 			}
-			Component->MarkRenderStateDirty();
+		}
+		else
+		{
+			NumTrianglesInSubActors += LODActor->GetNumTrianglesInSubActors();
 		}
 	}
-	else
-	{
-		ALODActor* LODActor = Cast<ALODActor>(InActor);
-		NumTrianglesInSubActors += LODActor->GetNumTrianglesInSubActors();
-	}
-	
+
 	// Reset the shadowing flags and determine them according to our current sub actors
 	DetermineShadowingFlags();
 }
@@ -1005,7 +1017,7 @@ void ALODActor::SetStaticMesh(class UStaticMesh* InStaticMesh)
 	}
 }
 
-void ALODActor::SetupImposters(UMaterialInterface* InMaterial, UStaticMesh* InStaticMesh, const TArray<FTransform>& InTransforms)
+void ALODActor::SetupImposters(const UMaterialInterface* InMaterial, UStaticMesh* InStaticMesh, const TArray<FTransform>& InTransforms)
 {
 	check(InMaterial);
 	check(InStaticMesh);
@@ -1064,6 +1076,16 @@ void ALODActor::RecalculateDrawingDistance(const float InTransitionScreenSize)
 	SetDrawDistance(DrawDistance);
 
 	UpdateSubActorLODParents();
+}
+
+bool ALODActor::UpdateProxyDesc()
+{
+	if (ProxyDesc)
+	{
+		return ProxyDesc->UpdateFromLODActor(this);
+	}
+
+	return false;
 }
 
 #endif // WITH_EDITOR

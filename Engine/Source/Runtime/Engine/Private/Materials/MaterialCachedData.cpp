@@ -29,12 +29,15 @@
 #include "Materials/MaterialExpressionRuntimeVirtualTextureOutput.h"
 #include "Materials/MaterialExpressionLandscapeGrassOutput.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
+#include "Materials/MaterialInstance.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "LandscapeGrassType.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "Curves/CurveLinearColor.h"
+#include "Curves/CurveLinearColorAtlas.h"
 
 void FMaterialCachedExpressionData::Reset()
 {
@@ -88,6 +91,7 @@ static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMater
 
 	const FHashedMaterialParameterInfo HashedParameterInfo(ParameterInfo);
 	int32 Index = FindParameterLowerBoundIndex(Entry, HashedParameterInfo);
+
 	if (Index >= Entry.NameHashes.Num() || Entry.ParameterInfos[Index] != ParameterInfo)
 	{
 		Entry.NameHashes.Insert(HashedParameterInfo.Name.GetHash(), Index);
@@ -96,6 +100,13 @@ static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMater
 		Entry.Overrides.Insert(bOverride, Index);
 		return Index;
 	}
+
+	if (Entry.Overrides[Index] && !Entry.ExpressionGuids[Index].IsValid())
+	{
+		// If Parameter was set by a function override, update to a valid expression guid
+		Entry.ExpressionGuids[Index] = ExpressionGuid;
+	}
+	
 	return INDEX_NONE;
 }
 
@@ -105,43 +116,6 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 	{
 		return true;
 	}
-
-	bool bResult = true;
-
-	// Update expressions for all dependent functions first, before processing the remaining expressions in this function
-	// This is important so we add parameters in the proper order (parameter values are latched the first time a given parameter name is encountered)
-	FMaterialCachedExpressionContext LocalContext(Context);
-	LocalContext.bUpdateFunctionExpressions = false; // we update functions explicitly
-	{
-		FMaterialCachedExpressionData* Self = this;
-		auto DependentFunctionLamba = [Self, &LocalContext, Association, ParameterIndex, &bResult](UMaterialFunctionInterface* DepFunction) -> bool
-		{
-			const TArray<UMaterialExpression*>* FunctionExpressions = DepFunction->GetFunctionExpressions();
-			if (FunctionExpressions)
-			{
-				if (!Self->UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
-				{
-					bResult = false;
-				}
-			}
-			return true;
-		};
-		Function->IterateDependentFunctions(MoveTemp(DependentFunctionLamba));
-	}
-
-	const TArray<UMaterialExpression*>* FunctionExpressions = Function->GetFunctionExpressions();
-	if (FunctionExpressions)
-	{
-		if (!UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
-		{
-			bResult = false;
-		}
-	}
-
-	FMaterialFunctionInfo NewFunctionInfo;
-	NewFunctionInfo.Function = Function;
-	NewFunctionInfo.StateId = Function->StateId;
-	FunctionInfos.Add(NewFunctionInfo);
 
 	UMaterialFunctionInstance* FunctionInstance = Cast<UMaterialFunctionInstance>(Function);
 	if (FunctionInstance)
@@ -153,6 +127,17 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 			if (Index != INDEX_NONE)
 			{
 				Parameters.ScalarValues.Insert(Param.ParameterValue, Index);
+				Parameters.ScalarMinMaxValues.Insert(FVector2D(), Index);
+				if (Param.AtlasData.bIsUsedAsAtlasPosition)
+				{
+					Parameters.ScalarCurveValues.Insert(Param.AtlasData.Curve.Get(), Index);
+					Parameters.ScalarCurveAtlasValues.Insert(Param.AtlasData.Atlas.Get(), Index);
+				}
+				else
+				{
+					Parameters.ScalarCurveValues.Insert(nullptr, Index);
+					Parameters.ScalarCurveAtlasValues.Insert(nullptr, Index);
+				}
 			}
 		}
 
@@ -163,6 +148,8 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 			if (Index != INDEX_NONE)
 			{
 				Parameters.VectorValues.Insert(Param.ParameterValue, Index);
+				Parameters.VectorChannelNameValues.Insert(FParameterChannelNames(), Index);
+				Parameters.VectorUsedAsChannelMaskValues.Insert(false, Index);
 			}
 		}
 
@@ -173,6 +160,7 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 			if (Index != INDEX_NONE)
 			{
 				Parameters.TextureValues.Insert(Param.ParameterValue, Index);
+				Parameters.TextureChannelNameValues.Insert(FParameterChannelNames(), Index);
 			}
 		}
 
@@ -218,6 +206,43 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 		}
 	}
 
+	bool bResult = true;
+
+	// Update expressions for all dependent functions first, before processing the remaining expressions in this function
+	// This is important so we add parameters in the proper order (parameter values are latched the first time a given parameter name is encountered)
+	FMaterialCachedExpressionContext LocalContext(Context);
+	LocalContext.bUpdateFunctionExpressions = false; // we update functions explicitly
+	{
+		FMaterialCachedExpressionData* Self = this;
+		auto DependentFunctionLamba = [Self, &LocalContext, Association, ParameterIndex, &bResult](UMaterialFunctionInterface* DepFunction) -> bool
+		{
+			const TArray<UMaterialExpression*>* FunctionExpressions = DepFunction->GetFunctionExpressions();
+			if (FunctionExpressions)
+			{
+				if (!Self->UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
+				{
+					bResult = false;
+				}
+			}
+			return true;
+		};
+		Function->IterateDependentFunctions(MoveTemp(DependentFunctionLamba));
+	}
+
+	const TArray<UMaterialExpression*>* FunctionExpressions = Function->GetFunctionExpressions();
+	if (FunctionExpressions)
+	{
+		if (!UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
+		{
+			bResult = false;
+		}
+	}
+
+	FMaterialFunctionInfo NewFunctionInfo;
+	NewFunctionInfo.Function = Function;
+	NewFunctionInfo.StateId = Function->StateId;
+	FunctionInfos.Add(NewFunctionInfo);
+
 	return bResult;
 }
 
@@ -239,7 +264,136 @@ bool FMaterialCachedExpressionData::UpdateForLayerFunctions(const FMaterialCache
 			bResult = false;
 		}
 	}
+
 	return bResult;
+}
+
+// Remap the 'Index' of ParameterInfo from 'MaterialLayers' to be relative to 'LocalMaterialLayers'
+static bool GetLocalLayerParameterInfo(const FMaterialLayersFunctions& MaterialLayers, const FMaterialParameterInfo& ParameterInfo, const FMaterialLayersFunctions& LocalMaterialLayers, FMaterialParameterInfo& OutLocalParameterInfo)
+{
+	int32 SrcLayerIndex = ParameterInfo.Index;
+	switch (ParameterInfo.Association)
+	{
+	case GlobalParameter: return false;
+	case LayerParameter: break;
+	case BlendParameter: ++SrcLayerIndex; break; // Blends are offset by 1
+	default: checkNoEntry(); break;
+	}
+
+	// Guid of the layer
+	const FGuid& LayerGuid = MaterialLayers.LayerGuids[SrcLayerIndex];
+	// Find local layer index that's parented to that guid
+	int32 LocalLayerIndex = LocalMaterialLayers.ParentLayerGuids.Find(LayerGuid);
+	if (LocalLayerIndex != INDEX_NONE)
+	{
+		if (ParameterInfo.Association == BlendParameter)
+		{
+			check(LocalLayerIndex > 0);
+			--LocalLayerIndex;
+		}
+		OutLocalParameterInfo = ParameterInfo;
+		OutLocalParameterInfo.Index = LocalLayerIndex;
+		return true;
+	}
+
+	return false;
+}
+
+void FMaterialCachedParameters_UpdateForLayerParameters(FMaterialCachedParameters& Parameters, const FMaterialCachedExpressionContext& Context, UMaterialInstance* ParentMaterialInstance, const FStaticMaterialLayersParameter& LayerParameters)
+{
+	const FStaticParameterSet& StaticParameters = ParentMaterialInstance->GetStaticParameters();
+	const FMaterialLayersFunctions* ParentMaterialLayers = nullptr;
+	for (const FStaticMaterialLayersParameter& Param : StaticParameters.MaterialLayersParameters)
+	{
+		if (Param.ParameterInfo == LayerParameters.ParameterInfo)
+		{
+			ParentMaterialLayers = &Param.Value;
+			break;
+		}
+	}
+
+	if (ParentMaterialLayers)
+	{
+		for (const FScalarParameterValue& Param : ParentMaterialInstance->ScalarParameterValues)
+		{
+			FMaterialParameterInfo ParameterInfo;
+			if (GetLocalLayerParameterInfo(*ParentMaterialLayers, Param.ParameterInfo, LayerParameters.Value, ParameterInfo))
+			{
+				const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Scalar, ParameterInfo, FGuid(), true);
+				if (Index != INDEX_NONE)
+				{
+					Parameters.ScalarValues.Insert(Param.ParameterValue, Index);
+					Parameters.ScalarMinMaxValues.Insert(FVector2D(), Index);
+					if (Param.AtlasData.bIsUsedAsAtlasPosition)
+					{
+						Parameters.ScalarCurveValues.Insert(Param.AtlasData.Curve.Get(), Index);
+						Parameters.ScalarCurveAtlasValues.Insert(Param.AtlasData.Atlas.Get(), Index);
+					}
+					else
+					{
+						Parameters.ScalarCurveValues.Insert(nullptr, Index);
+						Parameters.ScalarCurveAtlasValues.Insert(nullptr, Index);
+					}
+				}
+			}
+		}
+
+		for (const FVectorParameterValue& Param : ParentMaterialInstance->VectorParameterValues)
+		{
+			FMaterialParameterInfo ParameterInfo;
+			if (GetLocalLayerParameterInfo(*ParentMaterialLayers, Param.ParameterInfo, LayerParameters.Value, ParameterInfo))
+			{
+				const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Vector, ParameterInfo, FGuid(), true);
+				if (Index != INDEX_NONE)
+				{
+					Parameters.VectorValues.Insert(Param.ParameterValue, Index);
+					Parameters.VectorChannelNameValues.Insert(FParameterChannelNames(), Index);
+					Parameters.VectorUsedAsChannelMaskValues.Insert(false, Index);
+				}
+			}
+		}
+
+		for (const FTextureParameterValue& Param : ParentMaterialInstance->TextureParameterValues)
+		{
+			FMaterialParameterInfo ParameterInfo;
+			if (GetLocalLayerParameterInfo(*ParentMaterialLayers, Param.ParameterInfo, LayerParameters.Value, ParameterInfo))
+			{
+				const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Texture, ParameterInfo, FGuid(), true);
+				if (Index != INDEX_NONE)
+				{
+					Parameters.TextureValues.Insert(Param.ParameterValue, Index);
+					Parameters.TextureChannelNameValues.Insert(FParameterChannelNames(), Index);
+				}
+			}
+		}
+
+		for (const FRuntimeVirtualTextureParameterValue& Param : ParentMaterialInstance->RuntimeVirtualTextureParameterValues)
+		{
+			FMaterialParameterInfo ParameterInfo;
+			if (GetLocalLayerParameterInfo(*ParentMaterialLayers, Param.ParameterInfo, LayerParameters.Value, ParameterInfo))
+			{
+				const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, FGuid(), true);
+				if (Index != INDEX_NONE)
+				{
+					Parameters.RuntimeVirtualTextureValues.Insert(Param.ParameterValue, Index);
+				}
+			}
+		}
+
+		for (const FFontParameterValue& Param : ParentMaterialInstance->FontParameterValues)
+		{
+			FMaterialParameterInfo ParameterInfo;
+			if (GetLocalLayerParameterInfo(*ParentMaterialLayers, Param.ParameterInfo, LayerParameters.Value, ParameterInfo))
+			{
+				const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Font, ParameterInfo, FGuid(), true);
+				if (Index != INDEX_NONE)
+				{
+					Parameters.FontValues.Insert(Param.FontValue, Index);
+					Parameters.FontPageValues.Insert(Param.FontPage, Index);
+				}
+			}
+		}
+	}
 }
 
 bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedExpressionContext& Context, const TArray<UMaterialExpression*>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex)
@@ -561,11 +715,8 @@ void FMaterialCachedParameters::GetAllParameterInfoOfType(EMaterialParameterType
 
 	for (int32 i = 0; i < NumParameters; ++i)
 	{
-		if (!Entry.Overrides[i])
-		{
-			OutParameterInfo.Add(Entry.ParameterInfos[i]);
-			OutParameterIds.Add(Entry.ExpressionGuids[i]);
-		}
+		OutParameterInfo.Add(Entry.ParameterInfos[i]);
+		OutParameterIds.Add(Entry.ExpressionGuids[i]);
 	}
 }
 
@@ -582,10 +733,11 @@ void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParamet
 	for (int32 i = 0; i < NumParameters; ++i)
 	{
 		const FMaterialParameterInfo& ParameterInfo = Entry.ParameterInfos[i];
-		if (!Entry.Overrides[i] && ParameterInfo.Association == GlobalParameter)
+		if (ParameterInfo.Association == GlobalParameter)
 		{
 			OutParameterInfo.Add(ParameterInfo);
 			OutParameterIds.Add(Entry.ExpressionGuids[i]);
 		}
 	}
 }
+

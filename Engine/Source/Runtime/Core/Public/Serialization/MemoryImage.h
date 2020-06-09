@@ -555,6 +555,16 @@ public:
 		return Data.Num() ? Data.Num() - 1 : 0;
 	}
 
+	friend inline const TCHAR* GetData(const FMemoryImageString& String)
+	{
+		return *String;
+	}
+
+	friend inline int32 GetNum(const FMemoryImageString& String)
+	{
+		return String.Len();
+	}
+
 	friend inline FArchive& operator<<(FArchive& Ar, FMemoryImageString& Ref)
 	{
 		Ar << Ref.Data;
@@ -582,6 +592,12 @@ public:
 	}
 
 	inline DataType::ElementAllocatorType& GetAllocatorInstance() { return Data.GetAllocatorInstance(); }
+};
+
+template <>
+struct TIsContiguousContainer<FMemoryImageString>
+{
+	static constexpr bool Value = true;
 };
 
 /** Case insensitive string hash function. */

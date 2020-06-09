@@ -16,6 +16,8 @@
 #include "SequencerHotspots.h"
 #include "Widgets/SOverlay.h"
 #include "SequencerObjectBindingNode.h"
+#include "SequencerSectionCategoryNode.h"
+#include "SequencerSectionKeyAreaNode.h"
 #include "MovieScene.h"
 #include "Fonts/FontCache.h"
 #include "Framework/Application/SlateApplication.h"
@@ -1084,6 +1086,38 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	auto& Selection = ParentSectionArea->GetSequencer().GetSelection();
 	Painter.bIsSelected = Selection.IsSelected(SectionObject);
 
+	for (const FSectionLayoutElement& Element : Layout->GetElements())
+	{
+		TSharedPtr<FSequencerDisplayNode> DisplayNode = Element.GetDisplayNode();
+		if (DisplayNode->GetType() == ESequencerNode::Category)
+		{
+			TArray<TSharedRef<IKeyArea>> ChildKeyAreas;
+			TSharedPtr<FSequencerSectionCategoryNode> CategoryNode = StaticCastSharedPtr<FSequencerSectionCategoryNode>(DisplayNode);
+			for (TSharedRef<FSequencerDisplayNode> ChildNode : CategoryNode->GetChildNodes())
+			{
+				TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode = StaticCastSharedRef<FSequencerSectionKeyAreaNode>(ChildNode);
+				for (TSharedRef<IKeyArea> KeyArea : KeyAreaNode.Get().GetAllKeyAreas())
+				{
+					ChildKeyAreas.Add(KeyArea);
+				}
+			}
+			
+			FKeyAreaElement KeyAreaElement;
+			KeyAreaElement.KeyAreas = ChildKeyAreas;
+			KeyAreaElement.KeyAreaGeometry = GetKeyAreaGeometry(Element, AllottedGeometry);
+			KeyAreaElement.Type = (FKeyAreaElement::EType)Element.GetType();
+			Painter.KeyAreaElements.Add(KeyAreaElement);
+		}
+		else
+		{
+			FKeyAreaElement KeyAreaElement;
+			KeyAreaElement.KeyAreas = Element.GetKeyAreas();
+			KeyAreaElement.KeyAreaGeometry = GetKeyAreaGeometry(Element, AllottedGeometry);
+			KeyAreaElement.Type = (FKeyAreaElement::EType)Element.GetType();
+			Painter.KeyAreaElements.Add(KeyAreaElement);
+		}
+	}
+
 	FSlateClippingZone ClippingZone(Painter.SectionClippingRect);
 	OutDrawElements.PushClip(ClippingZone);
 
@@ -1990,9 +2024,17 @@ FReply SSequencerSection::OnMouseButtonDoubleClick( const FGeometry& MyGeometry,
 	{
 		TArray<FSequencerSelectedKey> Keys;
 		GetKeysUnderMouse(MouseEvent.GetScreenSpacePosition(), MyGeometry, Keys);
-		if (Keys.Num() == 1 && Keys[0].KeyHandle.IsSet())
+		TArray<FKeyHandle> KeyHandles;
+		for (FSequencerSelectedKey Key : Keys)
 		{
-			return SectionInterface->OnKeyDoubleClicked(Keys[0].KeyHandle.GetValue());
+			if (Key.KeyHandle.IsSet())
+			{
+				KeyHandles.Add(Key.KeyHandle.GetValue());
+			}
+		}
+		if (KeyHandles.Num() > 0)
+		{
+			return SectionInterface->OnKeyDoubleClicked(KeyHandles);
 		}
 
 		FReply Reply = SectionInterface->OnSectionDoubleClicked( MyGeometry, MouseEvent );

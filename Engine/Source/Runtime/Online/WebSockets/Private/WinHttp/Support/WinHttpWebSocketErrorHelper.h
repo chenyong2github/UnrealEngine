@@ -2,7 +2,7 @@
 
 #pragma once
 
-#if WITH_WEBSOCKETS && WITH_WINHTTP
+#if WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS
 
 #include "CoreMinimal.h"
 
@@ -57,4 +57,4 @@ private:
 };
 
 
-#endif // WITH_WEBSOCKETS && WITH_WINHTTP
+#endif // WITH_WEBSOCKETS && WITH_WINHTTPWEBSOCKETS

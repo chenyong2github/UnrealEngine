@@ -6,7 +6,8 @@
 
 UAutomationControllerSettings::UAutomationControllerSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bTreatLogErrorsAsTestErrors(true)
-	, bTreatLogWarningsAsTestErrors(false)
+	, bSuppressLogErrors(false)
+	, bSuppressLogWarnings(false)
+	, bTreatLogWarningsAsTestErrors(true)
 {
 }

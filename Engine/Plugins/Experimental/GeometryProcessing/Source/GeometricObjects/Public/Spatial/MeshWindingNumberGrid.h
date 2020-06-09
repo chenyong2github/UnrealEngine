@@ -77,7 +77,7 @@ public:
 		// figure out origin & dimensions
 		FAxisAlignedBox3d bounds = FastWinding->GetTree()->GetBoundingBox();
 
-		float fBufferWidth = 2 * BufferCells * (float)CellSize;
+		float fBufferWidth = BufferCells * (float)CellSize;
 		GridOrigin = (FVector3f)bounds.Min - fBufferWidth * FVector3f::One();
 		FVector3f max = (FVector3f)bounds.Max + fBufferWidth * FVector3f::One();
 		int ni = (int)((max.X - GridOrigin.X) / (float)CellSize) + 1;

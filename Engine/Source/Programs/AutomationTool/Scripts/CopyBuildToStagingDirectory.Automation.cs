@@ -2329,6 +2329,13 @@ public partial class Project : CommandUtils
 						AdditionalArgs += " -fallbackOrderForNonUassetFiles";
 					}
 
+					bool bPakMoveBulkAndUptnlOrderLast = false;
+					PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakMoveBulkAndUptnlOrderLast", out bPakMoveBulkAndUptnlOrderLast);
+					if (bPakMoveBulkAndUptnlOrderLast)
+					{
+						AdditionalArgs += " -moveBulkAndUptnlOrderLast";
+					}
+
 					ConfigHierarchy PlatformEngineConfig;
 					if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))					
 					{
@@ -2349,8 +2356,11 @@ public partial class Project : CommandUtils
 					Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 					if (ShouldCreateIoStoreContainerFiles(Params, SC))
 					{
-						bool bAllowBulkDataInIoStore = false;
-						PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore);
+						bool bAllowBulkDataInIoStore = true;
+						if(!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
+						{
+							bAllowBulkDataInIoStore = true; // Default is to allow it in the IoStore
+						}
 
 						UnrealPakResponseFile = new Dictionary<string, string>();
 						Dictionary<string, string> IoStoreResponseFile = new Dictionary<string, string>();
@@ -2665,14 +2675,6 @@ public partial class Project : CommandUtils
 			CommandletParams += AdditionalArgs;
 		}
 
-		if (Params.HasCreateReleaseVersion)
-		{
-			CommandletParams += String.Format(" -CreateReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetCreateReleaseVersionPath(SC, Params.Client)));
-		}
-		if (Params.HasBasedOnReleaseVersion)
-		{
-			CommandletParams += String.Format(" -BasedOnReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetBasedOnReleaseVersionPath(SC, Params.Client)));
-		}
 		CommandletParams += String.Format(" -TargetPlatform={0}", SC.StageTargetPlatform.GetCookPlatform(Params.DedicatedServer, Params.Client));
 
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
@@ -3786,7 +3788,7 @@ public partial class Project : CommandUtils
 				// if we are attempting to gathering multiple platforms, the files aren't required
 				bool bJustPackaging = Params.SkipStage && Params.Package;
 				bool bIsIterativeSharedCooking = Params.HasIterateSharedCookedBuild;
-				bool bRequireStagedFilesToExist = SubPlatformsToStage.Length == 1 && PlatformsToStage.Count == 1 && !bJustPackaging && !bIsIterativeSharedCooking;
+				bool bRequireStagedFilesToExist = SubPlatformsToStage.Length == 1 && PlatformsToStage.Count == 1 && !bJustPackaging && !bIsIterativeSharedCooking && !Params.HasDLCName;
 
 				foreach (UnrealTargetPlatform ReceiptPlatform in SubPlatformsToStage)
 				{
@@ -3851,7 +3853,8 @@ public partial class Project : CommandUtils
 				Params.IsProgramTarget,
 				Params.Client,
 				Params.Manifests,
-				Params.SeparateDebugInfo
+				Params.SeparateDebugInfo,
+				Params.HasDLCName
 				);
 			LogDeploymentContext(SC);
 

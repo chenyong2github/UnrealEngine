@@ -233,12 +233,14 @@ namespace Chaos
 		, MEvolution(new FPBDRigidsEvolution(Particles, SimMaterials, ChaosSolverCollisionDefaultIterationsCVar, ChaosSolverCollisionDefaultPushoutIterationsCVar, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MEventManager(new TEventManager<Traits>(BufferingModeIn))
 		, MSolverEventFilters(new FSolverEventFilters())
-		, MActiveParticlesBuffer(new FActiveParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
+		, MDirtyParticlesBuffer(new FDirtyParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MCurrentLock(new FCriticalSection())
 		, bUseCollisionResimCache(false)
+		, JointConstraintRule(JointConstraints)
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::PBDRigidsSolver()"));
 		Reset();
+		MEvolution->AddConstraintRule(&JointConstraintRule);
 
 		MEvolution->SetInternalParticleInitilizationFunction(
 			[this](const Chaos::TGeometryParticleHandle<float, 3>* OldParticle, const Chaos::TGeometryParticleHandle<float, 3>* NewParticle) {
@@ -463,7 +465,7 @@ namespace Chaos
 
 				// Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state
 				// if this particle was deleted after buffering results. 
-				GetActiveParticlesBuffer()->RemoveActiveParticleFromConsumerBuffer(Handle->GTGeometryParticle());
+				GetDirtyParticlesBuffer()->RemoveDirtyParticleFromConsumerBuffer(Handle->GTGeometryParticle());
   
 				MParticleToProxy.Remove(Handle);
   
@@ -538,13 +540,6 @@ namespace Chaos
 
 		JointConstraintPhysicsProxies.AddUnique(JointProxy);
 		AddDirtyProxy(JointProxy);
-
-		// Finish registration on the physics thread...
-		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(
-			[JointProxy, this]()
-			{
-				JointProxy->InitializeOnPhysicsThread(this);
-			});
 	}
 
 	template <typename Traits>
@@ -557,10 +552,12 @@ namespace Chaos
 		RemoveDirtyProxy(JointProxy);
 
 		int32 NumRemoved = JointConstraintPhysicsProxies.Remove(JointProxy);
+		GTConstraint->SetProxy(static_cast<FJointConstraintPhysicsProxy*>(nullptr));
 
-		// Enqueue a command to remove the constraint and delete the proxy
-		EnqueueCommandImmediate(
-			[JointProxy, this]()
+		FParticlesType* InParticles = &GetParticles();
+
+		// Finish registration on the physics thread...
+		EnqueueCommandImmediate([InParticles, JointProxy, this]()
 			{
 				JointProxy->DestroyOnPhysicsThread(this);
 				delete JointProxy;
@@ -774,7 +771,7 @@ namespace Chaos
 
 
 		//todo: if we allocate remote data ahead of time we could go wide
-		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT](int32 DataIdx, FDirtyProxy& Dirty)
+		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT, this](int32 DataIdx, FDirtyProxy& Dirty)
 		{
 			switch(Dirty.Proxy->GetType())
 			{
@@ -803,7 +800,8 @@ namespace Chaos
 			}
 			case EPhysicsProxyType::JointConstraintType:
 			{
-				// Not invalid but doesn't currently use the remote data process
+				auto Proxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
+				Proxy->PushStateOnGameThread(this);
 				break;
 			}
 			default:
@@ -898,8 +896,14 @@ namespace Chaos
 				}
 				case EPhysicsProxyType::JointConstraintType:
 				{
-					// Currently no push needed for joint constraint and they handle the constraint creation internally
-					// #TODO This skips the rewind data push so joints will not be rewindable until resolved.
+					auto JointProxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
+					const bool bIsNew = !JointProxy->IsInitialized();
+					if (bIsNew)
+					{
+						JointProxy->InitializeOnPhysicsThread(this);
+						JointProxy->SetInitialized();
+					}
+					JointProxy->PushStateOnPhysicsThread(this);
 					Dirty.Proxy->ResetDirtyIdx();
 					break;
 				}
@@ -924,16 +928,16 @@ namespace Chaos
 		TArray<TGeometryCollectionPhysicsProxy<Traits>*> ActiveGC;
 		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
-		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
-		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
+		TParticleView<TPBDRigidParticles<float, 3>>& DirtyParticles = GetParticles().GetDirtyParticlesView();
+		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& DirtyParticle : DirtyParticles)
 		{
-			if( const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(ActiveObject.Handle()))
+			if( const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(DirtyParticle.Handle()))
 			{
 				for (IPhysicsProxyBase* Proxy : *Proxies)
 				{
 					if (Proxy != nullptr)
 			{
-				switch (ActiveObject.GetParticleType())
+				switch (DirtyParticle.GetParticleType())
 				{
 				case Chaos::EParticleType::Rigid:
 					((FRigidParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults();
@@ -971,16 +975,16 @@ namespace Chaos
 		TArray<TGeometryCollectionPhysicsProxy<Traits>*> ActiveGC;
 		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
-		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
-		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
+		TParticleView<TPBDRigidParticles<float, 3>>& DirtyParticles = GetParticles().GetDirtyParticlesView();
+		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& DirtyParticle : DirtyParticles)
 		{
-			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(ActiveObject.Handle()))
+			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(DirtyParticle.Handle()))
 			{
 				for (IPhysicsProxyBase* Proxy : *Proxies)
 				{
 					if (Proxy != nullptr)
 					{
-						switch (ActiveObject.GetParticleType())
+						switch (DirtyParticle.GetParticleType())
 						{
 						case Chaos::EParticleType::Rigid:
 							((FRigidParticlePhysicsProxy*)(Proxy))->FlipBuffer();
@@ -1023,16 +1027,16 @@ namespace Chaos
 		TArray<TGeometryCollectionPhysicsProxy<Traits>*> ActiveGC;
 		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
-		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
-		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
+		TParticleView<TPBDRigidParticles<float, 3>>& DirtyParticles = GetParticles().GetDirtyParticlesView();
+		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& DirtyParticle : DirtyParticles)
 		{
-			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(ActiveObject.Handle()))
+			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(DirtyParticle.Handle()))
 			{
 				for (IPhysicsProxyBase* Proxy : *Proxies)
 				{
 					if (Proxy != nullptr)
 					{
-						switch (ActiveObject.GetParticleType())
+						switch (DirtyParticle.GetParticleType())
 						{
 						case Chaos::EParticleType::Rigid:
 							((FRigidParticlePhysicsProxy*)(Proxy))->PullFromPhysicsState();
@@ -1126,27 +1130,27 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles)
+	void TPBDRigidsSolver<Traits>::FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles)
 	{
 		using namespace Chaos;
 		//Simulated objects must have their properties captured for rewind
-		if(MRewindData && ActiveParticles.Num())
+		if(MRewindData && DirtyParticles.Num())
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(RecordRewindData);
 
-			MRewindData->PrepareFrameForPTDirty(ActiveParticles.Num());
+			MRewindData->PrepareFrameForPTDirty(DirtyParticles.Num());
 			
 			int32 DataIdx = 0;
-			for(TPBDRigidParticleHandleImp<float,3,false>& ActiveObject : ActiveParticles)
+			for(TPBDRigidParticleHandleImp<float,3,false>& DirtyParticle : DirtyParticles)
 			{
 				//may want to remove branch using templates outside loop
 				if (MRewindData->IsResim())
 				{
-					MRewindData->PushPTDirtyData<true>(*ActiveObject.Handle(), DataIdx++);
+					MRewindData->PushPTDirtyData<true>(*DirtyParticle.Handle(), DataIdx++);
 				}
 				else
 				{
-					MRewindData->PushPTDirtyData<false>(*ActiveObject.Handle(), DataIdx++);
+					MRewindData->PushPTDirtyData<false>(*DirtyParticle.Handle(), DataIdx++);
 				}
 			}
 		}

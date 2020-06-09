@@ -344,6 +344,8 @@ public:
 	void ForceGraphToRecompileOnNextCheck();
 
 	static void RequestCompileForEmitter(UNiagaraEmitter* InEmitter);
+	static void RecomputeExecutionOrderForEmitter(UNiagaraEmitter* InEmitter);
+	static void RecomputeExecutionOrderForDataInterface(class UNiagaraDataInterface* DataInterface);
 
 	/** Experimental feature that allows us to bake out rapid iteration parameters during the normal compile process. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
@@ -355,6 +357,20 @@ public:
 	uint32 bCompressAttributes : 1;
 
 #endif
+
+	/** Computes emitter priorities based on the dependency information. */
+	bool ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph);
+
+	/** Queries all the data interfaces in the array for emitter dependencies. */
+	void FindDataInterfaceDependencies(UNiagaraEmitter* Emitter, UNiagaraScript* Script, TArray<class UNiagaraEmitter*>& Dependencies);
+
+	/** Looks at all the event handlers in the emitter to determine which other emitters it depends on. */
+	void FindEventDependencies(UNiagaraEmitter* Emitter, TArray<UNiagaraEmitter*>& Dependencies);
+
+	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
+	void ComputeEmittersExecutionOrder();
+
+	FORCEINLINE const TArray<int32>& GetEmitterExecutionOrder() const { return EmitterExecutionOrder; }
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)
 	{
@@ -518,6 +534,9 @@ protected:
 
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;
+
+	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
+	TArray<int32> EmitterExecutionOrder;
 
 	void GenerateStatID()const;
 #if STATS

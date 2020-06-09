@@ -2090,4 +2090,388 @@ namespace ChaosTest {
 			}			
 		}
 	}
+
+	//Helps compare multiple runs for determinism
+	//Also helps comparing runs across different compilers and delta times
+	class FSimComparisonHelper
+	{
+	public:
+
+		void SaveFrame(const TParticleView<TPBDRigidParticles<FReal, 3>>& NonDisabledDyanmic)
+		{
+			FEntry Frame;
+			Frame.X.Reserve(NonDisabledDyanmic.Num());
+			Frame.R.Reserve(NonDisabledDyanmic.Num());
+
+			for(const auto& Dynamic : NonDisabledDyanmic)
+			{
+				Frame.X.Add(Dynamic.X());
+				Frame.R.Add(Dynamic.R());
+			}
+			History.Add(MoveTemp(Frame));
+		}
+
+		static void ComputeMaxErrors(const FSimComparisonHelper& A, const FSimComparisonHelper& B, FReal& OutMaxLinearError,
+			FReal& OutMaxAngularError, int32 HistoryMultiple=1)
+		{
+			ensure(B.History.Num() == (A.History.Num() * HistoryMultiple));
+			
+			FReal MaxLinearError2 = 0;
+			FReal MaxAngularError2 = 0;
+
+			for(int32 Idx = 0; Idx < A.History.Num(); ++Idx)
+			{
+				const int32 OtherIdx = Idx * HistoryMultiple  + (HistoryMultiple-1);
+				const FEntry& Entry = A.History[Idx];
+				const FEntry& OtherEntry = B.History[OtherIdx];
+
+				FReal MaxLinearError,MaxAngularError;
+				FEntry::CompareEntry(Entry,OtherEntry, MaxLinearError, MaxAngularError);
+
+				MaxLinearError2 = FMath::Max(MaxLinearError2,MaxLinearError*MaxLinearError);
+				MaxAngularError2 = FMath::Max(MaxAngularError2,MaxAngularError*MaxAngularError);
+			}
+
+			OutMaxLinearError = FMath::Sqrt(MaxLinearError2);
+			OutMaxAngularError = FMath::Sqrt(MaxAngularError2);
+		}
+
+	private:
+		struct FEntry
+		{
+			TArray<FVec3> X;
+			TArray<FRotation3> R;
+
+			static void CompareEntry(const FEntry& A, const FEntry& B, FReal& OutMaxLinearError, FReal& OutMaxAngularError)
+			{
+				FReal MaxLinearError2 = 0;
+				FReal MaxAngularError2 = 0;
+
+				check(A.X.Num() == A.R.Num());
+				check(A.X.Num() == B.X.Num());
+				for(int32 Idx = 0; Idx < A.X.Num(); ++Idx)
+				{
+					const FReal LinearError2 = (A.X[Idx] - B.X[Idx]).SizeSquared();
+					MaxLinearError2 = FMath::Max(LinearError2,MaxLinearError2);
+
+					//if exactly the same we want 0 for testing purposes, inverse does not get that so just skip it
+					if(B.R[Idx] != A.R[Idx])
+					{
+						//For angular error we look at the rotation needed to go from B to A
+						const FRotation3 Delta = B.R[Idx] * A.R[Idx].Inverse();
+
+						FVec3 Axis;
+						FReal Angle;
+						Delta.ToAxisAndAngleSafe(Axis,Angle,FVec3(0,0,1));
+						const FReal Angle2 = Angle*Angle;
+						MaxAngularError2 = FMath::Max(Angle2,MaxAngularError2);
+					}
+				}
+
+				OutMaxLinearError = FMath::Sqrt(MaxLinearError2);
+				OutMaxAngularError = FMath::Sqrt(MaxAngularError2);
+			}
+		};
+
+		TArray<FEntry> History;
+	};
+
+	template <typename TypeParam, typename InitLambda>
+	void RunHelper(FSimComparisonHelper& SimComparison, int32 NumSteps, FReal Dt, const InitLambda& InitFunc)
+	{
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<TypeParam>(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		TArray<TUniquePtr<TGeometryParticle<FReal, 3>>> Storage = InitFunc(Solver);
+
+		for(int32 Step = 0; Step < NumSteps; ++Step)
+		{
+			TickSolverHelper(Module,Solver, Dt);
+			SimComparison.SaveFrame(Solver->GetParticles().GetNonDisabledDynamicView());
+		}
+
+		Module->DestroySolver(Solver);
+	}
+
+	TYPED_TEST(AllTraits,DeterministicSim_SimpleFallingBox)
+	{
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
+
+		const auto InitLambda = [&Box](auto& Solver)
+		{
+			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+
+			Dynamic->SetGeometry(Box);
+			Dynamic->SetGravityEnabled(true);
+			Solver->RegisterObject(Dynamic.Get());
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0,0,-1));
+			Dynamic->SetObjectState(EObjectStateType::Dynamic);
+
+			Storage.Add(MoveTemp(Dynamic));
+			return Storage;
+		};
+
+		FSimComparisonHelper FirstRun;
+		RunHelper<TypeParam>(FirstRun,100,1/30.f,InitLambda);
+
+		FSimComparisonHelper SecondRun;
+		RunHelper<TypeParam>(SecondRun,100,1/30.f,InitLambda);
+
+		FReal MaxLinearError,MaxAngularError;
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun, SecondRun, MaxLinearError, MaxAngularError);
+		EXPECT_EQ(MaxLinearError,0);
+		EXPECT_EQ(MaxAngularError,0);
+	}
+
+	TYPED_TEST(AllTraits,DeterministicSim_ThresholdTest)
+	{
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
+
+		FVec3 StartPos(0);
+		FRotation3 StartRotation = FRotation3::FromIdentity();
+
+		const auto InitLambda = [&Box, &StartPos, &StartRotation](auto& Solver)
+		{
+			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+
+			Dynamic->SetGeometry(Box);
+			Dynamic->SetGravityEnabled(true);
+			Solver->RegisterObject(Dynamic.Get());
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0,0,-1));
+			Dynamic->SetObjectState(EObjectStateType::Dynamic);
+			Dynamic->SetX(StartPos);
+			Dynamic->SetR(StartRotation);
+
+			Storage.Add(MoveTemp(Dynamic));
+			return Storage;
+		};
+
+		FSimComparisonHelper FirstRun;
+		RunHelper<TypeParam>(FirstRun,10,1/30.f,InitLambda);
+
+		//move X within threshold
+		StartPos = FVec3(0,0,1);
+
+		FSimComparisonHelper SecondRun;
+		RunHelper<TypeParam>(SecondRun,10,1/30.f,InitLambda);
+
+		FReal MaxLinearError,MaxAngularError;
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun,SecondRun,MaxLinearError,MaxAngularError);
+		EXPECT_EQ(MaxAngularError,0);
+		EXPECT_LT(MaxLinearError,1.01);
+		EXPECT_GT(MaxLinearError,0.99);
+
+		//move R within threshold
+		StartPos = FVec3(0,0,0);
+		StartRotation = FRotation3::FromAxisAngle(FVec3(1,1,0).GetSafeNormal(),1);
+
+		FSimComparisonHelper ThirdRun;
+		RunHelper<TypeParam>(ThirdRun,10,1/30.f,InitLambda);
+
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun,ThirdRun,MaxLinearError,MaxAngularError);
+		EXPECT_EQ(MaxLinearError,0);
+		EXPECT_LT(MaxAngularError,1.01);
+		EXPECT_GT(MaxAngularError,0.99);
+	}
+
+	TYPED_TEST(AllTraits,DeterministicSim_DoubleTick)
+	{
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
+
+		const auto InitLambda = [&Box](auto& Solver)
+		{
+			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+
+			Dynamic->SetGeometry(Box);
+			Dynamic->SetGravityEnabled(false);
+			Solver->RegisterObject(Dynamic.Get());
+			Dynamic->SetObjectState(EObjectStateType::Dynamic);
+			Dynamic->SetV(FVec3(1,0,0));
+
+			Storage.Add(MoveTemp(Dynamic));
+			return Storage;
+		};
+
+		FSimComparisonHelper FirstRun;
+		RunHelper<TypeParam>(FirstRun,100,1/30.f,InitLambda);
+
+		//tick twice as often
+
+		FSimComparisonHelper SecondRun;
+		RunHelper<TypeParam>(SecondRun,200,1/60.f,InitLambda);
+
+		FReal MaxLinearError,MaxAngularError;
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun,SecondRun,MaxLinearError,MaxAngularError, 2);
+		EXPECT_NEAR(MaxLinearError,0, 1e-4);
+		EXPECT_NEAR(MaxAngularError,0,1e-4);
+	}
+	
+	TYPED_TEST(AllTraits,DeterministicSim_DoubleTickGravity)
+	{
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-10,-10,-10),FVec3(10,10,10)));
+		const FReal Gravity = -980;
+
+		const auto InitLambda = [&Box, Gravity](auto& Solver)
+		{
+			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+
+			Dynamic->SetGeometry(Box);
+			Dynamic->SetGravityEnabled(true);
+			Solver->RegisterObject(Dynamic.Get());
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0,0,Gravity));
+			Dynamic->SetObjectState(EObjectStateType::Dynamic);
+
+			Storage.Add(MoveTemp(Dynamic));
+			return Storage;
+		};
+
+		const int32 NumSteps = 7;
+		FSimComparisonHelper FirstRun;
+		RunHelper<TypeParam>(FirstRun,NumSteps,1/30.f,InitLambda);
+
+		//tick twice as often
+
+		FSimComparisonHelper SecondRun;
+		RunHelper<TypeParam>(SecondRun,NumSteps*2,1/60.f,InitLambda);
+
+		//expected integration gravity error
+		const auto EulerIntegrationHelper =[Gravity](int32 Steps, FReal Dt)
+		{
+			FReal Z = 0;
+			FReal V = 0;
+			for(int32 Step = 0; Step < Steps;++Step)
+			{
+				V += Gravity * Dt;
+				Z += V * Dt;
+			}
+
+			return Z;
+		};
+		
+		const FReal ExpectedZ30 = EulerIntegrationHelper(NumSteps,1/30.f);
+		const FReal ExpectedZ60 = EulerIntegrationHelper(NumSteps*2,1/60.f);
+		EXPECT_LT(ExpectedZ30,ExpectedZ60);	//30 gains speed faster (we use the end velocity to integrate so the bigger dt, the more added energy)
+		const FReal ExpectedError = ExpectedZ60 - ExpectedZ30;
+
+		FReal MaxLinearError,MaxAngularError;
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun,SecondRun,MaxLinearError,MaxAngularError, 2);
+		EXPECT_LT(MaxLinearError,ExpectedError + 1e-4);
+		EXPECT_EQ(MaxAngularError,0);
+	}
+
+	TYPED_TEST(AllTraits,DeterministicSim_DoubleTickCollide)
+	{
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<FReal,3>(FVec3(0), 50));
+
+		const auto InitLambda = [&Sphere](auto& Solver)
+		{
+			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+
+			Dynamic->SetGeometry(Sphere);
+			Solver->RegisterObject(Dynamic.Get());
+			Dynamic->SetObjectState(EObjectStateType::Dynamic);
+			Dynamic->SetGravityEnabled(false);
+			Dynamic->SetV(FVec3(0,0,-25));
+
+
+			auto Dynamic2 = TPBDRigidParticle<float,3>::CreateParticle();
+
+			Dynamic2->SetGeometry(Sphere);
+			Solver->RegisterObject(Dynamic2.Get());
+			Dynamic2->SetX(FVec3(0,0,-100 -25/60.f-0.1));	//make it so it overlaps for 30fps but not 60
+			Dynamic2->SetGravityEnabled(false);
+
+			ChaosTest::SetParticleSimDataToCollide({Dynamic.Get(),Dynamic2.Get()});
+
+			Storage.Add(MoveTemp(Dynamic));
+			Storage.Add(MoveTemp(Dynamic2));
+
+			return Storage;
+		};
+
+		const int32 NumSteps = 7;
+		FSimComparisonHelper FirstRun;
+		RunHelper<TypeParam>(FirstRun,NumSteps,1/30.f,InitLambda);
+
+		//tick twice as often
+
+		FSimComparisonHelper SecondRun;
+		RunHelper<TypeParam>(SecondRun,NumSteps*2,1/60.f,InitLambda);
+
+		FReal MaxLinearError,MaxAngularError;
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun,SecondRun,MaxLinearError,MaxAngularError,2);
+	}
+
+	TYPED_TEST(AllTraits,DeterministicSim_DoubleTickStackCollide)
+	{
+		auto SmallBox = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-50, -50, -50),FVec3(50, 50, 50)));
+		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-1000, -1000, -1000),FVec3(1000, 1000, 0)));
+
+		const auto InitLambda = [&SmallBox, &Box](auto& Solver)
+		{
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0,0,-980));
+			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			for(int Idx = 0; Idx < 5; ++Idx)
+			{
+				auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+
+				Dynamic->SetGeometry(SmallBox);
+				Solver->RegisterObject(Dynamic.Get());
+				Dynamic->SetObjectState(EObjectStateType::Dynamic);
+				Dynamic->SetGravityEnabled(true);
+				Dynamic->SetX(FVec3(0,20*Idx,100*Idx));	//slightly offset
+
+				Storage.Add(MoveTemp(Dynamic));
+			}
+
+			auto Kinematic = TKinematicGeometryParticle<float,3>::CreateParticle();
+
+			Kinematic->SetGeometry(Box);
+			Solver->RegisterObject(Kinematic.Get());
+			Kinematic->SetX(FVec3(0,0,-50));
+
+			Storage.Add(MoveTemp(Kinematic));
+
+			for(int i = 0; i < Storage.Num(); ++i)
+			{
+				for(int j=i+1; j<Storage.Num(); ++j)
+				{
+					ChaosTest::SetParticleSimDataToCollide({Storage[i].Get(),Storage[j].Get()});
+				}
+			}
+
+			return Storage;
+		};
+
+		const int32 NumSteps = 20;
+		FSimComparisonHelper FirstRun;
+		RunHelper<TypeParam>(FirstRun,NumSteps,1/30.f,InitLambda);
+
+		//tick twice as often
+
+		FSimComparisonHelper SecondRun;
+		RunHelper<TypeParam>(SecondRun,NumSteps,1/30.f,InitLambda);
+
+		//make sure deterministic
+		FReal MaxLinearError,MaxAngularError;
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun,SecondRun,MaxLinearError,MaxAngularError,1);
+		EXPECT_EQ(MaxLinearError,0);
+		EXPECT_EQ(MaxAngularError,0);
+
+		//try with 60fps
+		FSimComparisonHelper ThirdRun;
+		RunHelper<TypeParam>(ThirdRun,NumSteps*2,1/60.f,InitLambda);
+
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun,ThirdRun,MaxLinearError,MaxAngularError,2);
+	}
+
 }

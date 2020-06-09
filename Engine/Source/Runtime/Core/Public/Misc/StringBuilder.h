@@ -85,8 +85,6 @@ public:
 	inline const CharType* ToString() const		{ EnsureNulTerminated(); return Base; }
 	inline const CharType* operator*() const	{ EnsureNulTerminated(); return Base; }
 
-	inline operator ViewType() const			{ return ViewType(Base, Len()); }
-
 	inline const CharType	LastChar() const	{ return *(CurPos - 1); }
 
 	/**
@@ -306,9 +304,6 @@ protected:
 };
 
 template <typename CharType>
-struct TIsContiguousContainer<TStringBuilderBase<CharType>> { enum { Value = true }; };
-
-template <typename CharType>
 constexpr inline SIZE_T GetNum(const TStringBuilderBase<CharType>& Builder)
 {
 	return Builder.Len();
@@ -333,9 +328,6 @@ public:
 private:
 	CharType StringBuffer[BufferSize];
 };
-
-template <typename CharType, int32 BufferSize>
-struct TIsContiguousContainer<TStringBuilderWithBuffer<CharType, BufferSize>> { enum { Value = true }; };
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -376,10 +368,10 @@ inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, uint
 inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, int32 Value)							{ return Builder.Appendf(TEXT("%d"), Value); }
 inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, uint32 Value)							{ return Builder.Appendf(TEXT("%u"), Value); }
 
-inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, int64 Value)							{ return Builder.Appendf(INT64_FMT, Value); }
-inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, uint64 Value)							{ return Builder.Appendf(UINT64_FMT, Value); }
-inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, int64 Value)							{ return Builder.Appendf(TEXT(INT64_FMT), Value); }
-inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, uint64 Value)							{ return Builder.Appendf(TEXT(UINT64_FMT), Value); }
+inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, int64 Value)							{ return Builder.Appendf("%" INT64_FMT, Value); }
+inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, uint64 Value)							{ return Builder.Appendf("%" UINT64_FMT, Value); }
+inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, int64 Value)							{ return Builder.Appendf(TEXT("%" INT64_FMT), Value); }
+inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, uint64 Value)							{ return Builder.Appendf(TEXT("%" UINT64_FMT), Value); }
 
 inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, int8 Value)								{ return Builder << int32(Value); }
 inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, uint8 Value)							{ return Builder << uint32(Value); }

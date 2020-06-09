@@ -255,10 +255,12 @@ bool UPhysicsAsset::IsCollisionEnabled(int32 BodyIndexA, int32 BodyIndexB) const
 
 void UPhysicsAsset::SetPrimitiveCollision(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex, ECollisionEnabled::Type CollisionEnabled)
 {
+#if WITH_CHAOS
 	check(SkeletalBodySetups.IsValidIndex(BodyIndex));
 	FKAggregateGeom* AggGeom = &SkeletalBodySetups[BodyIndex]->AggGeom;
 	ensure(PrimitiveIndex < AggGeom->GetElementCount());
 	AggGeom->GetElement(PrimitiveType, PrimitiveIndex)->SetCollisionEnabled(CollisionEnabled);
+#endif
 }
 
 ECollisionEnabled::Type UPhysicsAsset::GetPrimitiveCollision(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex) const
@@ -747,6 +749,16 @@ void UPhysicsAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	RefreshPhysicsAssetChange();
+}
+
+EDataValidationResult UPhysicsAsset::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = EDataValidationResult::Valid;
+	for (USkeletalBodySetup* BodySetup : SkeletalBodySetups)
+	{
+		Result = CombineDataValidationResults(Result, BodySetup->IsDataValid(ValidationErrors));
+	}
+	return Result;
 }
 
 #endif

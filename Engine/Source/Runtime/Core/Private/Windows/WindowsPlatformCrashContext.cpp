@@ -500,7 +500,9 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 		// process group in TaskManager, CRC will not die at the same moment and will be able to capture the Editor exit code and send the session summary.
 		if (Handle.IsValid())
 		{
-			// Wait for the intermediate CRC to respawn itself and exit.
+			// Wait for the intermediate CRC to respawn itself and exit. 
+		    // WARNING: If the Editor sits here waiting forever, ensure to recompile CrashReportClientEditor project in 'Shipping' or 'Development Editor'
+			//          depending which target you previously compiled (if both exist, the system always uses the Shipping executable over the development one)
 			::WaitForSingleObject(Handle.Get(), INFINITE);
 			
 			// The respanwned CRC process writes its own PID to a file named by this process PID (by parsing the -MONITOR={PID} arguments)
@@ -1423,6 +1425,13 @@ LONG WINAPI UnhandledException(LPEXCEPTION_POINTERS ExceptionInfo)
 	// Top bit in exception code is fatal exceptions. Report those but not other types.
 	if ((ExceptionInfo->ExceptionRecord->ExceptionCode & 0x80000000L) != 0)
 	{
+		// This exception was encountered on a machine when disconnecting/reconnecting to RDP while the Editor was opened. Ignoring it didn't
+		// crash the Editor, so it wasn't really fatal in that case. Worst case, the exception propagates and the app crashes without a crash report.
+		if (ExceptionInfo->ExceptionRecord->ExceptionCode == 0xE06D7363)
+		{
+			return EXCEPTION_CONTINUE_SEARCH;
+		}
+
 		uint32 CurrThreadId = FPlatformTLS::GetCurrentThreadId();
 
 		// The game thread and the crash reporting thread are not FRunnableThread but has local structured exception handling in-place.

@@ -163,6 +163,13 @@ FAutoConsoleVariableRef CVarDisableBinauralSpatialization(
 	TEXT("Disables binaural spatialization.\n"),
 	ECVF_Default);
 
+static int32 FlushAudioRenderThreadOnGCCVar = 0;
+FAutoConsoleVariableRef CVarFlushAudioRenderThreadOnGC(
+	TEXT("au.FlushAudioRenderThreadOnGC"),
+	FlushAudioRenderThreadOnGCCVar,
+	TEXT("When set to 1, every time the GC runs, we flush all pending audio render thread commands.\n"),
+	ECVF_Default);
+
 namespace
 {
 	using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
@@ -540,7 +547,10 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 
 void FAudioDevice::OnPreGarbageCollect()
 {
-	FlushAudioRenderingCommands();
+	if (FlushAudioRenderThreadOnGCCVar)
+	{
+		FlushAudioRenderingCommands();
+	}
 }
 
 float FAudioDevice::GetLowPassFilterResonance() const
@@ -4216,23 +4226,6 @@ void FAudioDevice::Update(bool bGameTicking)
 	{
 		// Make sure our referenced sound waves is up-to-date
 		UpdateReferencedSoundWaves();
-
-#if ENABLE_AUDIO_DEBUG
-		if (GEngine)
-		{
-			if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
-			{
-				TArray<UWorld*> Worlds = DeviceManager->GetWorldsUsingAudioDevice(DeviceID);
-				for (UWorld* World : Worlds)
-				{
-					if (World)
-					{
-						Audio::FAudioDebugger::DrawDebugStats(*World);
-					}
-				}
-			}
-		}
-#endif // ENABLE_AUDIO_DEBUG
 	}
 
 	if (!IsInAudioThread())

@@ -200,22 +200,24 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 
 	// Set handling of warnings/errors based on this test. Tests can either specify an explicit option or choose to go with the
 	// project defaults.
-	TOptional<bool> bLogErrorsAreErrors, bLogWarningsAreErrors;
+	TOptional<bool> bSuppressErrors, bSuppressWarnings, bWarningsAreErrors;
 
 	if (LogErrorHandling != EFunctionalTestLogHandling::ProjectDefault)
 	{
-		bLogErrorsAreErrors = LogErrorHandling == EFunctionalTestLogHandling::OutputIsError ? true : false;
+		bSuppressErrors = LogErrorHandling == EFunctionalTestLogHandling::OutputIgnored ? true : false;
 	}
 
 	if (LogWarningHandling != EFunctionalTestLogHandling::ProjectDefault)
 	{
-		bLogWarningsAreErrors = LogWarningHandling == EFunctionalTestLogHandling::OutputIsError ? true : false;
+		// warnings can be set to be suppressed, or elevated to errors
+		bSuppressWarnings = LogWarningHandling == EFunctionalTestLogHandling::OutputIgnored ? true : false;
+		bWarningsAreErrors = LogWarningHandling == EFunctionalTestLogHandling::OutputIsError;
 	}
 
 	if (FunctionalTest)
 	{
-		FunctionalTest->SetLogErrorAndWarningHandling(bLogErrorsAreErrors, bLogWarningsAreErrors);
-		FunctionalTest->SetFunctionalTestRunning(true);
+		FunctionalTest->SetLogErrorAndWarningHandling(bSuppressErrors, bSuppressErrors, bWarningsAreErrors);
+		FunctionalTest->SetFunctionalTestRunning(GetName());
 	}
 
 	FailureMessage = TEXT("");
@@ -371,7 +373,7 @@ void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString
 	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
 	if (FunctionalTest)
 	{
-		FunctionalTest->SetFunctionalTestRunning(false);
+		FunctionalTest->SetFunctionalTestComplete(GetName());
 	}
 
 	bIsRunning = false;

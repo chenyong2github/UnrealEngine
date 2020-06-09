@@ -5,6 +5,15 @@
 
 #if WITH_PARTICLE_PERF_STATS
 
+#include "Misc/ScopeLock.h"
+#include "RenderingThread.h"
+#include "Particles/ParticlePerfStats.h"
+#include "HAL/IConsoleManager.h"
+#include "Particles/ParticleSystem.h"
+#include "UObject/UObjectIterator.h"
+#include "Particles/ParticleSystem.h"
+#include "Misc/CoreDelegates.h"
+
 namespace ParticlePerfStatsLocal
 {
 	static FDelegateHandle BeginFrameHandle;

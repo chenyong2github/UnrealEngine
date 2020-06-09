@@ -280,6 +280,15 @@ public:
 		FPipelineState::AddHit();
 	}
 
+	bool operator < (const FRayTracingPipelineState& Other)
+	{
+		if (LastFrameHit != Other.LastFrameHit)
+		{
+			return LastFrameHit < Other.LastFrameHit;
+		}
+		return HitsAcrossFrames < Other.HitsAcrossFrames;
+	}
+
 	FRayTracingPipelineStateRHIRef RHIPipeline;
 
 	uint64 HitsAcrossFrames = 0;
@@ -625,9 +634,51 @@ public:
 	~FRayTracingPipelineCache()
 	{}
 
+	bool FindBase(const FRayTracingPipelineStateInitializer& Initializer, FRayTracingPipelineState*& OutPipeline) const
+	{
+		FScopeLock ScopeLock(&CriticalSection);
+
+		// Find the most recently used pipeline with compatible configuration
+
+		FRayTracingPipelineState* BestPipeline = nullptr;
+
+		for (const auto& It : FullPipelines)
+		{
+			const FRayTracingPipelineStateInitializer& CandidateInitializer = It.Key;
+			FRayTracingPipelineState* CandidatePipeline = It.Value;
+
+			if (!CandidatePipeline->RHIPipeline.IsValid()
+				|| CandidateInitializer.bAllowHitGroupIndexing != Initializer.bAllowHitGroupIndexing
+				|| CandidateInitializer.MaxPayloadSizeInBytes != Initializer.MaxPayloadSizeInBytes
+				|| CandidateInitializer.GetRayGenHash() != Initializer.GetRayGenHash()
+				|| CandidateInitializer.GetRayMissHash() != Initializer.GetRayMissHash()
+				|| CandidateInitializer.GetCallableHash() != Initializer.GetCallableHash())
+			{
+				continue;
+			}
+
+			if (BestPipeline == nullptr || *BestPipeline < *CandidatePipeline)
+			{
+				BestPipeline = CandidatePipeline;
+			}
+		}
+
+		if (BestPipeline)
+		{
+			OutPipeline = BestPipeline;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	bool Find(const FRayTracingPipelineStateInitializer& Initializer, FRayTracingPipelineState*& OutCachedState) const
 	{
 		FScopeLock ScopeLock(&CriticalSection);
+
+		const FPipelineMap& Cache = Initializer.bPartial ? PartialPipelines : FullPipelines;
 
 		FRayTracingPipelineState* const* FoundState = Cache.Find(Initializer);
 		if (FoundState)
@@ -646,6 +697,9 @@ public:
 	void Add(const FRayTracingPipelineStateInitializer& Initializer, FRayTracingPipelineState* State)
 	{
 		FScopeLock ScopeLock(&CriticalSection);
+
+		FPipelineMap& Cache = Initializer.bPartial ? PartialPipelines : FullPipelines;
+
 		Cache.Add(Initializer, State);
 		State->AddHit();
 	}
@@ -653,7 +707,11 @@ public:
 	void Shutdown()
 	{
 		FScopeLock ScopeLock(&CriticalSection);
-		for (auto& It : Cache)
+		for (auto& It : FullPipelines)
+		{
+			delete It.Value;
+		}
+		for (auto& It : PartialPipelines)
 		{
 			delete It.Value;
 		}
@@ -662,7 +720,10 @@ public:
 	void Trim(int32 TargetNumEntries)
 	{
 		FScopeLock ScopeLock(&CriticalSection);
-		
+
+		// Only full pipeline cache is automatically trimmed.
+		FPipelineMap& Cache = FullPipelines;
+
 		if (Cache.Num() < TargetNumEntries)
 		{
 			return;
@@ -725,7 +786,9 @@ public:
 private:
 
 	mutable FCriticalSection CriticalSection;
-	TMap<FRayTracingPipelineStateInitializer, FRayTracingPipelineState*> Cache;
+	using FPipelineMap = TMap<FRayTracingPipelineStateInitializer, FRayTracingPipelineState*>;
+	FPipelineMap FullPipelines;
+	FPipelineMap PartialPipelines;
 	uint64 LastTrimFrame = 0;
 };
 
@@ -1082,9 +1145,11 @@ private:
 	TArray<FRHIRayTracingShader*> HitGroupTable;
 	TArray<FRHIRayTracingShader*> CallableTable;
 };
+#endif // RHI_RAYTRACING
 
-FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineState(FRHICommandList& RHICmdList, const FRayTracingPipelineStateInitializer& Initializer)
+FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineState(FRHICommandList& RHICmdList, const FRayTracingPipelineStateInitializer& InInitializer)
 {
+#if RHI_RAYTRACING
 	LLM_SCOPE(ELLMTag::PSO);
 
 	check(IsInRenderingThread() || IsInParallelRenderingThread());
@@ -1093,11 +1158,25 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 
 	FRayTracingPipelineState* OutCachedState = nullptr;
 
-	bool bWasFound = GRayTracingPipelineCache.Find(Initializer, OutCachedState);
+	bool bWasFound = GRayTracingPipelineCache.Find(InInitializer, OutCachedState);
 
 	if (bWasFound == false)
 	{
-		// #dxr_todo UE-68235: RT PSO disk caching
+		FPipelineFileCache::CacheRayTracingPSO(InInitializer);
+
+		// Copy the initializer as we may want to patch it below
+		FRayTracingPipelineStateInitializer Initializer = InInitializer;
+
+		// If explicit base pipeline is not provided then find a compatible one from the cache
+		if (GRHISupportsRayTracingPSOAdditions && InInitializer.BasePipeline == nullptr)
+		{
+			FRayTracingPipelineState* BasePipeline = nullptr;
+			bool bBasePipelineFound = GRayTracingPipelineCache.FindBase(Initializer, BasePipeline);
+			if (bBasePipelineFound)
+			{
+				Initializer.BasePipeline = BasePipeline->RHIPipeline;
+			}
+		}
 
 		// Remove old pipelines once per frame
 		const int32 TargetCacheSize = CVarRTPSOCacheSize.GetValueOnAnyThread();
@@ -1114,7 +1193,11 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 				OutCachedState,
 				Initializer);
 
-			RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
+			// Partial pipelines can't be used for rendering, therefore this command list does not need to depend on them.
+			if (!Initializer.bPartial)
+			{
+				RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
+			}
 		}
 		else
 		{
@@ -1125,8 +1208,10 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 	}
 
 	return OutCachedState;
-}
+#else // RHI_RAYTRACING
+	return nullptr;
 #endif // RHI_RAYTRACING
+}
 
 FRHIComputePipelineState* ExecuteSetComputePipelineState(FComputePipelineState* ComputePipelineState)
 {

@@ -86,8 +86,10 @@ struct FVertexFactoryInput
 	float2	TexCoords[1] : ATTRIBUTE4;
 #endif
 
-
 	uint InstanceId	: SV_InstanceID;
+#if PASS_NEEDS_VERTEX_ID
+	uint VertexId : SV_VertexID;
+#endif // #if PASS_NEEDS_VERTEX_ID
 };
 
 struct FVertexFactoryInterpolantsVSToPS
@@ -1022,6 +1024,11 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
     return 0;
+}
+
+float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return float4(0,0,0,0);
 }
 
 #if USING_TESSELLATION

@@ -9,6 +9,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopeRWLock.h"
 #include "Serialization/DeferredMessageLog.h"
@@ -436,10 +437,61 @@ FCoreRedirectObjectName FCoreRedirect::RedirectName(const FCoreRedirectObjectNam
 	return ModifyName;
 }
 
-bool FCoreRedirects::bInitialized;
+bool FCoreRedirects::bInitialized = false;
+#if WITH_COREREDIRECTS_MULTITHREAD_WARNING
+bool FCoreRedirects::bIsInMultithreadedPhase = false;
+#endif
+
 TMap<FName, ECoreRedirectFlags> FCoreRedirects::ConfigKeyMap;
 TMap<ECoreRedirectFlags, FCoreRedirects::FRedirectNameMap> FCoreRedirects::RedirectTypeMap;
 FRWLock FCoreRedirects::KnownMissingLock;
+
+void FCoreRedirects::Initialize()
+{
+	if (bInitialized)
+	{
+		return;
+	}
+	bInitialized = true;
+
+#if WITH_COREREDIRECTS_MULTITHREAD_WARNING
+	// Setting IsInMultithreadedPhase has to occur after LoadModule("AssetRegistry") (which can write to FCoreRedirects) and
+	// before the first package is queued onto the async loading thread (which reads from FCoreRedirects multithreaded). OnPostEngineInit is in that window.
+	FCoreDelegates::OnPostEngineInit.AddStatic(EnterMultithreadedPhase);
+#endif
+
+	// Setup map
+	ConfigKeyMap.Add(TEXT("ObjectRedirects"), ECoreRedirectFlags::Type_Object);
+	ConfigKeyMap.Add(TEXT("ClassRedirects"), ECoreRedirectFlags::Type_Class);
+	ConfigKeyMap.Add(TEXT("StructRedirects"), ECoreRedirectFlags::Type_Struct);
+	ConfigKeyMap.Add(TEXT("EnumRedirects"), ECoreRedirectFlags::Type_Enum);
+	ConfigKeyMap.Add(TEXT("FunctionRedirects"), ECoreRedirectFlags::Type_Function);
+	ConfigKeyMap.Add(TEXT("PropertyRedirects"), ECoreRedirectFlags::Type_Property);
+	ConfigKeyMap.Add(TEXT("PackageRedirects"), ECoreRedirectFlags::Type_Package);
+
+	RegisterNativeRedirects();
+
+	// Prepopulate RedirectTypeMap entries that some threads write to after the engine goes multi-threaded.
+	// Most RedirectTypeMap entries are written to only from InitUObject's call to ReadRedirectsFromIni, and at that point the Engine is single-threaded.
+	// Currently the only entries that can be written to later, and therefore can be written to from multiple threads are:
+	//     KnownMissing Packages.
+	// Taking advantage of this, we treat the list of Key/Value pairs of RedirectTypeMap as immutable and read from it without synchronization.
+	// Note that the values for those written-during-multithreading entries need to be synchronized; it is only the list of Key/Value pairs that is immutable.
+#if WITH_COREREDIRECTS_MULTITHREAD_WARNING
+	check(!bIsInMultithreadedPhase);
+#endif
+	RedirectTypeMap.Add(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Category_Removed | ECoreRedirectFlags::Option_MissingLoad);
+
+	// Enable to run startup tests
+	//RunTests();
+}
+
+#if WITH_COREREDIRECTS_MULTITHREAD_WARNING
+void FCoreRedirects::EnterMultithreadedPhase()
+{
+	bIsInMultithreadedPhase = true;
+}
+#endif
 
 bool FCoreRedirects::RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName, FCoreRedirectObjectName& NewObjectName, const FCoreRedirect** FoundValueRedirect)
 {
@@ -600,22 +652,22 @@ bool FCoreRedirects::IsKnownMissing(ECoreRedirectFlags Type, const FCoreRedirect
 
 bool FCoreRedirects::AddKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel)
 {
+	Initialize();
+
 	check((Channel & ~ECoreRedirectFlags::Option_MissingLoad) == ECoreRedirectFlags::None);
-	TArray<FCoreRedirect> NewRedirects;
-	NewRedirects.Emplace(Type | ECoreRedirectFlags::Category_Removed | Channel, ObjectName, FCoreRedirectObjectName());
+	FCoreRedirect NewRedirect(Type | ECoreRedirectFlags::Category_Removed | Channel, ObjectName, FCoreRedirectObjectName());
 
 	FRWScopeLock ScopeLock(KnownMissingLock, FRWScopeLockType::SLT_Write);
-	return AddRedirectList(NewRedirects, TEXT("AddKnownMissing"));
+	return AddRedirectList(TArrayView<const FCoreRedirect>(&NewRedirect, 1), TEXT("AddKnownMissing"));
 }
 
 bool FCoreRedirects::RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel)
 {
 	check((Channel & ~ECoreRedirectFlags::Option_MissingLoad) == ECoreRedirectFlags::None);
-	TArray<FCoreRedirect> RedirectsToRemove;
-	RedirectsToRemove.Emplace(Type | ECoreRedirectFlags::Category_Removed | Channel, ObjectName, FCoreRedirectObjectName());
+	FCoreRedirect RedirectToRemove(Type | ECoreRedirectFlags::Category_Removed | Channel, ObjectName, FCoreRedirectObjectName());
 
 	FRWScopeLock ScopeLock(KnownMissingLock, FRWScopeLockType::SLT_Write);
-	return RemoveRedirectList(RedirectsToRemove, TEXT("RemoveKnownMissing"));
+	return RemoveRedirectList(TArrayView<const FCoreRedirect>(&RedirectToRemove, 1), TEXT("RemoveKnownMissing"));
 }
 
 void FCoreRedirects::ClearKnownMissing(ECoreRedirectFlags Type, ECoreRedirectFlags Channel)
@@ -624,13 +676,21 @@ void FCoreRedirects::ClearKnownMissing(ECoreRedirectFlags Type, ECoreRedirectFla
 	ECoreRedirectFlags RedirectFlags = Type | ECoreRedirectFlags::Category_Removed | Channel;
 
 	FRWScopeLock ScopeLock(KnownMissingLock, FRWScopeLockType::SLT_Write);
-	RedirectTypeMap.Remove(RedirectFlags);
+	FRedirectNameMap* RedirectNameMap = RedirectTypeMap.Find(RedirectFlags);
+	if (RedirectNameMap)
+	{
+		RedirectNameMap->RedirectMap.Empty();
+	}
 }
 
 bool FCoreRedirects::RunTests()
 {
 	bool bSuccess = true;
 	TMap<ECoreRedirectFlags, FRedirectNameMap > BackupMap = RedirectTypeMap;
+#if WITH_COREREDIRECTS_MULTITHREAD_WARNING
+	bool BackupIsInMultithreadedPhase = bIsInMultithreadedPhase;
+	bIsInMultithreadedPhase = false;
+#endif
 	RedirectTypeMap.Empty();
 
 	TArray<FCoreRedirect> NewRedirects;
@@ -773,6 +833,9 @@ bool FCoreRedirects::RunTests()
 
 	// Restore old state
 	RedirectTypeMap = BackupMap;
+#if WITH_COREREDIRECTS_MULTITHREAD_WARNING
+	bIsInMultithreadedPhase = BackupIsInMultithreadedPhase;
+#endif
 
 	return bSuccess;
 }
@@ -785,25 +848,7 @@ bool FCoreRedirectTest::RunTest(const FString& Parameters)
 
 bool FCoreRedirects::ReadRedirectsFromIni(const FString& IniName)
 {
-	// Mark that this has been done at least once
-	if (!bInitialized)
-	{
-		// Setup map
-		ConfigKeyMap.Add(TEXT("ObjectRedirects"), ECoreRedirectFlags::Type_Object);
-		ConfigKeyMap.Add(TEXT("ClassRedirects"), ECoreRedirectFlags::Type_Class);
-		ConfigKeyMap.Add(TEXT("StructRedirects"), ECoreRedirectFlags::Type_Struct);
-		ConfigKeyMap.Add(TEXT("EnumRedirects"), ECoreRedirectFlags::Type_Enum);
-		ConfigKeyMap.Add(TEXT("FunctionRedirects"), ECoreRedirectFlags::Type_Function);
-		ConfigKeyMap.Add(TEXT("PropertyRedirects"), ECoreRedirectFlags::Type_Property);
-		ConfigKeyMap.Add(TEXT("PackageRedirects"), ECoreRedirectFlags::Type_Package);
-
-		RegisterNativeRedirects();
-
-		// Enable to run startup tests
-		//RunTests();
-
-		bInitialized = true;
-	}
+	Initialize();
 
 	if (GConfig)
 	{
@@ -896,8 +941,10 @@ bool FCoreRedirects::ReadRedirectsFromIni(const FString& IniName)
 	return false;
 }
 
-bool FCoreRedirects::AddRedirectList(const TArray<FCoreRedirect>& Redirects, const FString& SourceString)
+bool FCoreRedirects::AddRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString)
 {
+	Initialize();
+
 	bool bAddedAny = false;
 	for (const FCoreRedirect& NewRedirect : Redirects)
 	{
@@ -944,8 +991,19 @@ bool FCoreRedirects::AddRedirectList(const TArray<FCoreRedirect>& Redirects, con
 
 bool FCoreRedirects::AddSingleRedirect(const FCoreRedirect& NewRedirect, const FString& SourceString)
 {
-	FRedirectNameMap& ExistingNameMap = RedirectTypeMap.FindOrAdd(NewRedirect.RedirectFlags);
-	TArray<FCoreRedirect>& ExistingRedirects = ExistingNameMap.RedirectMap.FindOrAdd(NewRedirect.GetSearchKey());
+	FRedirectNameMap* ExistingNameMap;
+#if WITH_COREREDIRECTS_MULTITHREAD_WARNING
+	if (bIsInMultithreadedPhase)
+	{
+		ExistingNameMap = RedirectTypeMap.Find(NewRedirect.RedirectFlags);
+		checkf(ExistingNameMap, TEXT("Once EnterMultithreadedPhase has been called, it is no longer valid to add redirects of new types."));
+	}
+	else
+#endif
+	{
+		ExistingNameMap = &RedirectTypeMap.FindOrAdd(NewRedirect.RedirectFlags);
+	}
+	TArray<FCoreRedirect>& ExistingRedirects = ExistingNameMap->RedirectMap.FindOrAdd(NewRedirect.GetSearchKey());
 
 	bool bFoundDuplicate = false;
 
@@ -982,7 +1040,7 @@ bool FCoreRedirects::AddSingleRedirect(const FCoreRedirect& NewRedirect, const F
 	return true;
 }
 
-bool FCoreRedirects::RemoveRedirectList(const TArray<FCoreRedirect>& Redirects, const FString& SourceString)
+bool FCoreRedirects::RemoveRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString)
 {
 	bool bRemovedAny = false;
 	for (const FCoreRedirect& RedirectToRemove : Redirects)
@@ -1024,14 +1082,21 @@ bool FCoreRedirects::RemoveRedirectList(const TArray<FCoreRedirect>& Redirects, 
 
 bool FCoreRedirects::RemoveSingleRedirect(const FCoreRedirect& RedirectToRemove, const FString& SourceString)
 {
-	FRedirectNameMap& ExistingNameMap = RedirectTypeMap.FindOrAdd(RedirectToRemove.RedirectFlags);
-	TArray<FCoreRedirect>& ExistingRedirects = ExistingNameMap.RedirectMap.FindOrAdd(RedirectToRemove.GetSearchKey());
+	FRedirectNameMap* ExistingNameMap = RedirectTypeMap.Find(RedirectToRemove.RedirectFlags);
+	if (!ExistingNameMap)
+	{
+		return false;
+	}
+	TArray<FCoreRedirect>* ExistingRedirects = ExistingNameMap->RedirectMap.Find(RedirectToRemove.GetSearchKey());
+	if (!ExistingRedirects)
+	{
+		return false;
+	}
 
 	bool bRemovedRedirect = false;
-
-	for (int32 ExistingRedirectIndex = 0; ExistingRedirectIndex < ExistingRedirects.Num(); ++ExistingRedirectIndex)
+	for (int32 ExistingRedirectIndex = 0; ExistingRedirectIndex < ExistingRedirects->Num(); ++ExistingRedirectIndex)
 	{
-		FCoreRedirect& ExistingRedirect = ExistingRedirects[ExistingRedirectIndex];
+		FCoreRedirect& ExistingRedirect = (*ExistingRedirects)[ExistingRedirectIndex];
 
 		if (ExistingRedirect.IdenticalMatchRules(RedirectToRemove))
 		{
@@ -1042,7 +1107,7 @@ bool FCoreRedirects::RemoveSingleRedirect(const FCoreRedirect& RedirectToRemove,
 			}
 
 			bRemovedRedirect = true;
-			ExistingRedirects.RemoveAt(ExistingRedirectIndex);
+			ExistingRedirects->RemoveAt(ExistingRedirectIndex);
 			break;
 		}
 	}

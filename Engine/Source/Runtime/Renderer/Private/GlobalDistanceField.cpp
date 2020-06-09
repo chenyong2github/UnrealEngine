@@ -1454,6 +1454,9 @@ void UpdateGlobalDistanceFieldVolume(
 
 								// Further cull the objects into a low resolution grid
 								{
+									RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, GObjectGridBuffers.CullGridObjectNum.UAV);
+									RHICmdList.ClearUAVUint(GObjectGridBuffers.CullGridObjectNum.UAV, FUintVector4(0, 0, 0, 0));
+
 									TShaderMapRef<FCullObjectsToGridCS> ComputeShader(View.ShaderMap);
 									RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 									ComputeShader->SetParameters(RHICmdList, Scene, View, MaxOcclusionDistance, GlobalDistanceFieldInfo, ClipmapIndex, UpdateRegion);

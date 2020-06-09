@@ -119,40 +119,6 @@ namespace UE4String_Private
 	}
 }
 
-FString::FString(const FStringView& Other, int32 ExtraSlack)
-{
-	Reserve(Other.Len() + ExtraSlack);
-
-	if (!Other.IsEmpty())
-	{
-		Append(Other.GetData(), Other.Len());
-	}
-}
-
-FString& FString::operator=(const FStringView& Other)
-{
-	const TCHAR* const OtherData = Other.GetData();
-	const FStringView::SizeType OtherLen = Other.Len();
-	if (OtherLen == 0)
-	{
-		Data.Empty();
-	}
-	else if (OtherData < Data.GetData() + Data.Num() && Data.GetData() < OtherData + OtherLen)
-	{
-		*this = FString(Other);
-	}
-	else
-	{
-		Data.Empty(OtherLen + 1);
-		Data.AddUninitialized(OtherLen + 1);
-		TCHAR* DataPtr = Data.GetData();
-		CopyAssignItems(DataPtr, OtherData, OtherLen);
-		DataPtr[OtherLen] = TEXT('\0');
-	}
-	return *this;
-}
-
-
 template<typename CharType>
 void AppendCharacters(TArray<TCHAR>& Out, const CharType* Str, int32 Count)
 {
@@ -179,17 +145,6 @@ void AppendCharacters(TArray<TCHAR>& Out, const CharType* Str, int32 Count)
 	Dest[Count] = '\0';
 }
 
-FString::FString(FAnsiStringView View)
-{
-	AppendCharacters(Data, View.GetData(), View.Len());
-}
-
-FString::FString(FWideStringView View)
-{
-	AppendCharacters(Data, View.GetData(), View.Len());
-}
-
-
 void FString::AppendChars(const ANSICHAR* Str, int32 Count)
 {
 	CheckInvariants();
@@ -206,11 +161,6 @@ void FString::AppendChars(const UCS2CHAR* Str, int32 Count)
 {
 	CheckInvariants();
 	AppendCharacters(Data, Str, Count);
-}
-
-FString::operator FStringView() const
-{
-	return FStringView(Data.GetData(), Len());
 }
 
 void FString::TrimToNullTerminator()

@@ -11,6 +11,8 @@ import { postToRobomergeAlerts } from './notifications';
 import { AuthData, getSentryUser, Session } from './session';
 import { Status } from './status';
 
+import * as Mustache from 'mustache'
+
 const toc = require('markdown-toc')
 
 // Allows instance to skip over sign-in and HTTPS
@@ -44,6 +46,11 @@ let ENVIRONMENT: {[param: string]: any}
 
 if (ENVIRONMENT.devMode) {
 	roboserverStartupLogger.warn('Running in DEV_MODE')
+}
+
+function readUtf8File(path: string) {
+	return new Promise<string>((done, _fail) => 
+		fs.readFile(path, 'utf8', (_err: Error, content: string) => done(content)))
 }
 
 interface SecureRequestOpts extends RequestOpts {
@@ -155,8 +162,27 @@ class RoboWebApp implements AppInterface {
 
 	@SecureHandler('GET', '/', {filetype: 'text/html'}) 
 	indexPage() {
-		return new Promise<string>((done, _fail) => 
-			fs.readFile('public/index.html', 'utf8', (_err: Error, content: string) => done(content)))
+		return readUtf8File('public/index.html')
+	}
+
+	@Handler('GET', '/preview/*/*', {filetype: 'text/html'}) 
+	async preview(clStr: string, bot: string) {
+		const cl = parseInt(clStr)
+		if (isNaN(cl)) {
+			throw new Error(`Failed to parse alleged CL '${clStr}'`)
+		}
+		const template = await readUtf8File('public/preview.html')
+		return Mustache.render(template, {cl, bot})
+	}
+
+	@Handler('GET', '/preview') 
+	previewData() {
+		const queryObj: {[key: string]: string} = {}
+		for (const [key, val] of this.request.url.searchParams) {
+			queryObj[key] = val
+		}
+
+		return this.sendMessage('preview', [queryObj.cl, queryObj.bot])
 	}
 
 	private static getMarkdownRenderer(): marked.Renderer {
@@ -504,20 +530,16 @@ class RoboWebApp implements AppInterface {
 
 		switch (operation) {
 			case "acknowledge":
-				return new Promise<string>((done, _fail) => 
-					fs.readFile('public/acknowledge.html', 'utf8', (_err: Error, content: string) => done(content)))
+				return await readUtf8File('public/acknowledge.html')
 
 			case "skip":
-				return new Promise<string>((done, _fail) => 
-					fs.readFile('public/skip.html', 'utf8', (_err: Error, content: string) => done(content)))
+				return await readUtf8File('public/skip.html')
 			
 			case "createshelf":
-				return new Promise<string>((done, _fail) => 
-					fs.readFile('public/createshelf.html', 'utf8', (_err: Error, content: string) => done(content)))
+				return await readUtf8File('public/createshelf.html')
 
 			case "stomp":
-				return new Promise<string>((done, _fail) => 
-					fs.readFile('public/stomp.html', 'utf8', (_err: Error, content: string) => done(content)))
+				return await readUtf8File('public/stomp.html')
 
 			default:
 				return {statusCode: 404, message: `Unknown node operation requested: "${operation}"`}

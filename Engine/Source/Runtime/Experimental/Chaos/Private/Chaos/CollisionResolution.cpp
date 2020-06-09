@@ -2468,13 +2468,18 @@ namespace Chaos
 			return (uint32)ChannelMask;
 		}
 
+		inline bool HasSimEnabled(const FPerShapeData* Shape)
+		{
+			return (!Shape || (Shape->GetSimEnabled() && IsValid(Shape->GetSimData())));
+		}
+
 		inline bool DoCollide(EImplicitObjectType Implicit0Type, const FPerShapeData* Shape0, EImplicitObjectType Implicit1Type, const FPerShapeData* Shape1)
 		{
 			//
 			// Disabled shapes do not collide
 			//
-			if (Shape0 && (!Shape0->GetSimEnabled() || !IsValid(Shape0->GetSimData()) ) ) return false;
-			if (Shape1 && (!Shape1->GetSimEnabled() || !IsValid(Shape1->GetSimData()) ) ) return false;
+			if (!HasSimEnabled(Shape0)) return false;
+			if (!HasSimEnabled(Shape1)) return false;
 
 			//
 			// Triangle Mesh geometry is only used if the shape specifies UseComplexAsSimple

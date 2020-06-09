@@ -577,8 +577,8 @@ namespace Chaos
 		RowData.JointIndex = JointIndex;
 		RowData.ConstraintIndex = AxisIndex;
 		RowData.Limit = 0.0f;
-		RowData.Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings);
-		RowData.Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings);
+		RowData.Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings, AxisIndex);
+		RowData.Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings, AxisIndex);
 		RowData.bIsAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
 		RowData.bIsSoft = true;
 	}

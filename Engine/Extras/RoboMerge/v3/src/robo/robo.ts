@@ -23,6 +23,7 @@ import { roboAnalytics, setGlobalAnalytics } from './roboanalytics';
 import { RoboServer } from './roboserver';
 import { notificationsInit } from './notifications'
 import { settingsInit } from './settings'
+import * as Preview from './preview'
 
 /*************************
  * RoboMerge main process
@@ -163,6 +164,7 @@ const args = maybeNullArgs!
 
 notificationsInit(args)
 settingsInit(args)
+Preview.init(args.branchSpecsRootPath)
 
 const env = args.epicEnv || (args.nodeEnv === "production" ? "prod" : "dev")
 const sentryEnv = `${env}-${args.epicDeployment}`

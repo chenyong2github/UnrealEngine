@@ -1901,7 +1901,7 @@ public:
 	void AssignContent(FShaderMapContent* InContent);
 	void FinalizeContent();
 	void UnfreezeContent();
-	bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial);
+	bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode=false);
 
 	FString ToString() const;
 

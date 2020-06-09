@@ -8,6 +8,13 @@
 #include "NiagaraEditorUtilities.h"
 #include "Particles/ParticleSystem.h"
 #include "Particles/Spawn/ParticleModuleSpawn.h"
+#include "Particles/Color/ParticleModuleColorOverLife.h"
+#include "Particles/Lifetime/ParticleModuleLifetime.h"
+#include "Particles/Size/ParticleModuleSize.h"
+#include "Particles/Velocity/ParticleModuleVelocity.h"
+#include "Particles/TypeData/ParticleModuleTypeDataBase.h"
+#include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
+
 #include "Particles/ParticleLODLevel.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraClipboard.h"
@@ -57,9 +64,13 @@ TArray<UParticleModule*> UFXConverterUtilitiesLibrary::GetLodLevelModules(UParti
 {
 	TArray<UParticleModule*> OutModules;
 	OutModules.Append(LodLevel->Modules);
-	OutModules.Append(LodLevel->SpawningModules);
 	OutModules.Add(LodLevel->RequiredModule);
 	OutModules.Add(LodLevel->SpawnModule);
+	UParticleModule* TypeDataModule = LodLevel->TypeDataModule;
+	if (TypeDataModule != nullptr)
+	{
+		OutModules.Add(TypeDataModule);
+	}
 	return OutModules;
 }
 
@@ -79,6 +90,20 @@ FNiagaraScriptContextInput UFXConverterUtilitiesLibrary::CreateScriptInputFloat(
 {
 	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateFloatLocalValueInput(GetTransientPackage(), FName(), false, false, Value);
 	const FNiagaraTypeDefinition& TargetTypeDef = FNiagaraTypeDefinition::GetFloatDef();
+	return FNiagaraScriptContextInput(NewInput, TargetTypeDef);
+}
+
+FNiagaraScriptContextInput UFXConverterUtilitiesLibrary::CreateScriptInputVector(FVector Value)
+{
+	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateVec3LocalValueInput(GetTransientPackage(), FName(), false, false, Value);
+	const FNiagaraTypeDefinition& TargetTypeDef = FNiagaraTypeDefinition::GetVec3Def();
+	return FNiagaraScriptContextInput(NewInput, TargetTypeDef);
+}
+
+FNiagaraScriptContextInput UFXConverterUtilitiesLibrary::CreateScriptInputInt(int32 Value)
+{
+	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateIntLocalValueInput(GetTransientPackage(), FName(), false, false, Value);
+	const FNiagaraTypeDefinition& TargetTypeDef = FNiagaraTypeDefinition::GetIntDef();
 	return FNiagaraScriptContextInput(NewInput, TargetTypeDef);
 }
 
@@ -127,7 +152,7 @@ UNiagaraEmitterConversionContext* UFXConverterUtilitiesLibrary::AddEmptyEmitterT
 	FGuid NiagaraEmitterHandleViewModelGuid = FGuid::NewGuid();
 	GuidToNiagaraEmitterHandleViewModelMap.Add(NiagaraEmitterHandleViewModelGuid, NewEmitterHandleViewModel);
 	UNiagaraEmitterConversionContext* EmitterConversionContext = NewObject<UNiagaraEmitterConversionContext>();
-	EmitterConversionContext->Init(NewEmitter, NiagaraEmitterHandleViewModelGuid);
+	EmitterConversionContext->Init(NewEmitterHandleViewModel->GetEmitterHandle()->GetInstance(), NiagaraEmitterHandleViewModelGuid);
 	return EmitterConversionContext;
 }
 
@@ -153,38 +178,106 @@ UClass* UFXConverterUtilitiesLibrary::GetParticleModuleRequiredClass()
 	return UParticleModuleRequired::StaticClass();
 }
 
-FParticleModuleSpawnProps UFXConverterUtilitiesLibrary::GetCascadeModuleSpawnProps(UParticleModuleSpawn* ParticleModuleSpawn)
+UClass* UFXConverterUtilitiesLibrary::GetParticleModuleColorOverLifeClass()
 {
-	FParticleModuleSpawnProps ParticleModuleSpawnProps;
-
-	ParticleModuleSpawnProps.Rate = ParticleModuleSpawn->Rate.Distribution;
-	ParticleModuleSpawnProps.RateScale = ParticleModuleSpawn->RateScale.Distribution;
-	ParticleModuleSpawnProps.ParticleBurstMethod = ParticleModuleSpawn->ParticleBurstMethod;
-	ParticleModuleSpawnProps.BurstList = TArray<FParticleBurstBlueprint>(ParticleModuleSpawn->BurstList);
-	ParticleModuleSpawnProps.BurstScale = ParticleModuleSpawn->BurstScale.Distribution;
-	ParticleModuleSpawnProps.bApplyGlobalSpawnRateScale = ParticleModuleSpawn->bApplyGlobalSpawnRateScale;
-	ParticleModuleSpawnProps.bProcessSpawnRate = ParticleModuleSpawn->bProcessSpawnRate;
-	ParticleModuleSpawnProps.bProcessSpawnBurst = ParticleModuleSpawn->bProcessBurstList;
-	return ParticleModuleSpawnProps;
+	return UParticleModuleColorOverLife::StaticClass();
 }
 
-FCascadeSpriteRendererProps UFXConverterUtilitiesLibrary::GetCascadeSpriteRendererProps(UParticleModuleRequired* ParticleModuleRequired)
+UClass* UFXConverterUtilitiesLibrary::GetParticleModuleLifetimeClass()
 {
-	FCascadeSpriteRendererProps CascadeSpriteRendererProps;
+	return UParticleModuleLifetime::StaticClass();
+}
 
-	CascadeSpriteRendererProps.Material = ParticleModuleRequired->Material;
-	CascadeSpriteRendererProps.ScreenAlignment = ParticleModuleRequired->ScreenAlignment;
-	CascadeSpriteRendererProps.SubImages_Horizontal = ParticleModuleRequired->SubImages_Horizontal;
-	CascadeSpriteRendererProps.SubImages_Vertical = ParticleModuleRequired->SubImages_Vertical;
-	CascadeSpriteRendererProps.SortMode = ParticleModuleRequired->SortMode;
-	CascadeSpriteRendererProps.InterpolationMethod = ParticleModuleRequired->InterpolationMethod;
-	CascadeSpriteRendererProps.bRemoveHMDRoll = ParticleModuleRequired->bRemoveHMDRoll;
-	CascadeSpriteRendererProps.MinFacingCameraBlendDistance = ParticleModuleRequired->MinFacingCameraBlendDistance;
-	CascadeSpriteRendererProps.MaxFacingCameraBlendDistance = ParticleModuleRequired->MaxFacingCameraBlendDistance;
-	CascadeSpriteRendererProps.CutoutTexture = ParticleModuleRequired->CutoutTexture;
-	CascadeSpriteRendererProps.BoundingMode = ParticleModuleRequired->BoundingMode;
-	CascadeSpriteRendererProps.OpacitySourceMode = ParticleModuleRequired->OpacitySourceMode;
-	return CascadeSpriteRendererProps;
+UClass* UFXConverterUtilitiesLibrary::GetParticleModuleSizeClass()
+{
+	return UParticleModuleSize::StaticClass();
+}
+
+UClass* UFXConverterUtilitiesLibrary::GetParticleModuleVelocityClass()
+{
+	return UParticleModuleVelocity::StaticClass();
+}
+
+UClass* UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataGPUClass()
+{
+	return UParticleModuleTypeDataGpu::StaticClass();
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleSpawnProps(
+	  UParticleModuleSpawn* ParticleModuleSpawn
+	, UDistributionFloat*& OutRate
+	, UDistributionFloat*& OutRateScale
+	, TEnumAsByte<EParticleBurstMethod>& OutBurstMethod
+	, TArray<FParticleBurstBlueprint>& OutBurstList
+	, UDistributionFloat*& OutBurstScale
+	, bool& bOutApplyGlobalSpawnRateScale
+	, bool& bOutProcessSpawnRate
+	, bool& bOutProcessSpawnBurst)
+{
+	OutRate = ParticleModuleSpawn->Rate.Distribution;
+	OutRateScale = ParticleModuleSpawn->RateScale.Distribution;
+	OutBurstMethod = ParticleModuleSpawn->ParticleBurstMethod;
+	OutBurstList = TArray<FParticleBurstBlueprint>(ParticleModuleSpawn->BurstList);
+	OutBurstScale = ParticleModuleSpawn->BurstScale.Distribution;
+	bOutApplyGlobalSpawnRateScale = ParticleModuleSpawn->bApplyGlobalSpawnRateScale;
+	bOutProcessSpawnRate = ParticleModuleSpawn->bProcessSpawnRate;
+	bOutProcessSpawnBurst = ParticleModuleSpawn->bProcessBurstList;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleRequiredProps(
+	UParticleModuleRequired* ParticleModuleRequired
+	, UMaterialInterface*& OutMaterialInterface
+	, TEnumAsByte<EParticleScreenAlignment>& OutScreenAlignment
+	, bool& bOutUseLocalSpace
+	, int32& OutSubImages_Horizontal
+	, int32& OutSubImages_Vertical
+	, TEnumAsByte<EParticleSortMode>& OutSortMode
+	, TEnumAsByte<EParticleSubUVInterpMethod>& OutInterpolationMethod
+	, uint8& bOutRemoveHMDRoll
+	, float& OutMinFacingCameraBlendDistance
+	, float& OutMaxFacingCameraBlendDistance
+	, UTexture2D*& OutCutoutTexture
+	, TEnumAsByte<ESubUVBoundingVertexCount>& OutBoundingMode
+	, TEnumAsByte<EOpacitySourceMode>& OutOpacitySourceMode)
+{
+	OutMaterialInterface = ParticleModuleRequired->Material;
+	OutScreenAlignment = ParticleModuleRequired->ScreenAlignment;
+	bOutUseLocalSpace = ParticleModuleRequired->bUseLocalSpace;
+	OutSubImages_Horizontal = ParticleModuleRequired->SubImages_Horizontal;
+	OutSubImages_Vertical = ParticleModuleRequired->SubImages_Vertical;
+	OutSortMode = ParticleModuleRequired->SortMode;
+	OutInterpolationMethod = ParticleModuleRequired->InterpolationMethod;
+	bOutRemoveHMDRoll = ParticleModuleRequired->bRemoveHMDRoll;
+	OutMinFacingCameraBlendDistance = ParticleModuleRequired->MinFacingCameraBlendDistance;
+	OutMaxFacingCameraBlendDistance = ParticleModuleRequired->MaxFacingCameraBlendDistance;
+	OutCutoutTexture = ParticleModuleRequired->CutoutTexture;
+	OutBoundingMode = ParticleModuleRequired->BoundingMode;
+	OutOpacitySourceMode = ParticleModuleRequired->OpacitySourceMode;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleColorOverLifeProps(UParticleModuleColorOverLife* ParticleModule, UDistribution*& OutColorOverLife, UDistribution*& OutAlphaOverLife, bool& bOutClampAlpha)
+{
+	OutColorOverLife = ParticleModule->ColorOverLife.Distribution;
+	OutAlphaOverLife = ParticleModule->AlphaOverLife.Distribution;
+	bOutClampAlpha = ParticleModule->bClampAlpha;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleLifetimeProps(UParticleModuleLifetime* ParticleModule, UDistribution*& OutLifetime)
+{
+	OutLifetime = ParticleModule->Lifetime.Distribution;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleSizeProps(UParticleModuleSize* ParticleModule, UDistribution*& OutStartSize)
+{
+	OutStartSize = ParticleModule->StartSize.Distribution;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleVelocityProps(UParticleModuleVelocity* ParticleModule, UDistribution*& OutStartVelocity, UDistribution*& OutStartVelocityRadial, bool& bOutInWorldSpace, bool& bOutApplyOwnerScale)
+{
+	OutStartVelocity = ParticleModule->StartVelocity.Distribution;
+	OutStartVelocityRadial = ParticleModule->StartVelocityRadial.Distribution;
+	bOutInWorldSpace = ParticleModule->bInWorldSpace;
+	bOutApplyOwnerScale = ParticleModule->bApplyOwnerScale;
 }
 
 void UFXConverterUtilitiesLibrary::GetDistributionType(
@@ -296,67 +389,41 @@ void UFXConverterUtilitiesLibrary::GetFloatDistributionConstValues(UDistribution
 	}
 }
 
+void UFXConverterUtilitiesLibrary::GetFloatDistributionUniformValues(UDistribution* Distribution, FText& OutStatus, float& OutMin, float& OutMax)
+{
+	if (GetIsDistributionOfType(Distribution, EDistributionType::Uniform, EDistributionValueType::Float, OutStatus))
+	{
+		UDistributionFloatUniform* UniformFloatDistribution = CastChecked<UDistributionFloatUniform>(Distribution);
+		OutMin = UniformFloatDistribution->Min;
+		OutMax = UniformFloatDistribution->Max;
+	}
+}
+
+void UFXConverterUtilitiesLibrary::GetVectorDistributionUniformValues(UDistribution* Distribution, FText& OutStatus, FVector& OutMin, FVector& OutMax)
+{
+	if (GetIsDistributionOfType(Distribution, EDistributionType::Uniform, EDistributionValueType::Vector, OutStatus))
+	{
+		UDistributionVectorUniform* UniformVectorDistribution = CastChecked<UDistributionVectorUniform>(Distribution);
+		OutMin = UniformVectorDistribution->Min;
+		OutMax = UniformVectorDistribution->Max;
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UNiagaraEmitterConversionContext																		  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void UNiagaraEmitterConversionContext::AddScript(
-	UNiagaraScriptConversionContext* ScriptConversionContext
-	, EScriptExecutionCategory TargetScriptExecutionCategory
-	, int32 TargetIndex)
+UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindOrAddScript(FString ScriptNameString, FAssetData NiagaraScriptAssetData)
 {
-	FName ExecutionCategoryName;
-	FName ExecutionSubcategoryName;
-	switch (TargetScriptExecutionCategory) {
-	case EScriptExecutionCategory::EmitterSpawn:
-		ExecutionCategoryName = UNiagaraStackEntry::FExecutionCategoryNames::Emitter;
-		ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn;
-		break;
-	case EScriptExecutionCategory::EmitterUpdate:
-		ExecutionCategoryName = UNiagaraStackEntry::FExecutionCategoryNames::Emitter;
-		ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Update;
-		break;
-	case EScriptExecutionCategory::ParticleSpawn:
-		ExecutionCategoryName = UNiagaraStackEntry::FExecutionCategoryNames::Particle;
-		ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn;
-		break;
-	case EScriptExecutionCategory::ParticleUpdate:
-		ExecutionCategoryName = UNiagaraStackEntry::FExecutionCategoryNames::Particle;
-		ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Update;
-		break;
-	default:
-		UE_LOG(LogTemp, Error, TEXT("Encountered unknown EScriptExecutionCategory when choosing script to add module to emitter!"));
-		return;
-	};
-
-	const TSharedPtr<FNiagaraEmitterHandleViewModel>& TargetEmitterHandleViewModel = UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap.FindChecked(EmitterHandleViewModelGuid);
-
-	TArray<UNiagaraStackItemGroup*> StackItemGroups;
-	TargetEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->GetUnfilteredChildrenOfType<UNiagaraStackItemGroup>(StackItemGroups);
-	UNiagaraStackItemGroup* const* StackItemGroup = StackItemGroups.FindByPredicate([ExecutionCategoryName, ExecutionSubcategoryName](const UNiagaraStackItemGroup* EmitterItemGroup) {
-		return EmitterItemGroup->GetExecutionCategoryName() == ExecutionCategoryName && EmitterItemGroup->GetExecutionSubcategoryName() == ExecutionSubcategoryName; });
-
-	if (StackItemGroup == nullptr)
+	UNiagaraScriptConversionContext** StagedScriptContext = ScriptNameToStagedScriptMap.Find(ScriptNameString);
+	if (StagedScriptContext != nullptr)
 	{
-		return;
+		return *StagedScriptContext;
 	}
 
-	TArray<UNiagaraStackEntry*> TargetStackEntryArr;
-	TargetStackEntryArr.Add(*StackItemGroup);
-
-	UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
-	UNiagaraScript* NiagaraScript = ScriptConversionContext->GetScript();
-
-	UNiagaraClipboardFunction* ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, "Function", NiagaraScript); //@todo(ng) proper name here
-	ClipboardFunction->Inputs = ScriptConversionContext->GetClipboardFunctionInputs();
-	ClipboardContent->Functions.Add(ClipboardFunction);
-
-	FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
-	FText PasteWarning = FText();
-	FNiagaraStackClipboardUtilities::PasteSelection(TargetStackEntryArr, PasteWarning);
-	if (PasteWarning.IsEmpty() == false)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *PasteWarning.ToString());
-	}
+	UNiagaraScriptConversionContext* ScriptContext = NewObject<UNiagaraScriptConversionContext>();
+	ScriptContext->Init(NiagaraScriptAssetData);
+	ScriptNameToStagedScriptMap.Add(ScriptNameString, ScriptContext);
+	return ScriptContext;
 }
 
 void UNiagaraEmitterConversionContext::AddRenderer(UNiagaraRendererProperties* NewRendererProperties)
@@ -385,6 +452,67 @@ void UNiagaraEmitterConversionContext::AddRenderer(UNiagaraRendererProperties* N
 	if (PasteWarning.IsEmpty() == false)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("%s"), *PasteWarning.ToString());
+	}
+}
+
+void UNiagaraEmitterConversionContext::FinalizeAddedScripts()
+{
+	for (auto It = ScriptNameToStagedScriptMap.CreateIterator(); It; ++It)
+	{
+		UNiagaraScriptConversionContext* StagedScriptContext = It.Value();
+		FName ExecutionCategoryName;
+		FName ExecutionSubcategoryName;
+		switch (StagedScriptContext->TargetExecutionCategory) {
+		case EScriptExecutionCategory::EmitterSpawn:
+			ExecutionCategoryName = UNiagaraStackEntry::FExecutionCategoryNames::Emitter;
+			ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn;
+			break;
+		case EScriptExecutionCategory::EmitterUpdate:
+			ExecutionCategoryName = UNiagaraStackEntry::FExecutionCategoryNames::Emitter;
+			ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Update;
+			break;
+		case EScriptExecutionCategory::ParticleSpawn:
+			ExecutionCategoryName = UNiagaraStackEntry::FExecutionCategoryNames::Particle;
+			ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn;
+			break;
+		case EScriptExecutionCategory::ParticleUpdate:
+			ExecutionCategoryName = UNiagaraStackEntry::FExecutionCategoryNames::Particle;
+			ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Update;
+			break;
+		default:
+			UE_LOG(LogTemp, Error, TEXT("Encountered unknown EScriptExecutionCategory when choosing script to add module to emitter!"));
+			return;
+		};
+
+		const TSharedPtr<FNiagaraEmitterHandleViewModel>& TargetEmitterHandleViewModel = UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap.FindChecked(EmitterHandleViewModelGuid);
+
+		TArray<UNiagaraStackItemGroup*> StackItemGroups;
+		TargetEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->GetUnfilteredChildrenOfType<UNiagaraStackItemGroup>(StackItemGroups);
+		UNiagaraStackItemGroup* const* StackItemGroup = StackItemGroups.FindByPredicate([ExecutionCategoryName, ExecutionSubcategoryName](const UNiagaraStackItemGroup* EmitterItemGroup) {
+			return EmitterItemGroup->GetExecutionCategoryName() == ExecutionCategoryName && EmitterItemGroup->GetExecutionSubcategoryName() == ExecutionSubcategoryName; });
+
+		if (StackItemGroup == nullptr)
+		{
+			return;
+		}
+
+		TArray<UNiagaraStackEntry*> TargetStackEntryArr;
+		TargetStackEntryArr.Add(*StackItemGroup);
+
+		UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+		UNiagaraScript* NiagaraScript = StagedScriptContext->GetScript();
+
+		UNiagaraClipboardFunction* ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, "Function", NiagaraScript); //@todo(ng) proper name here
+		ClipboardFunction->Inputs = StagedScriptContext->GetClipboardFunctionInputs();
+		ClipboardContent->Functions.Add(ClipboardFunction);
+
+		FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
+		FText PasteWarning = FText();
+		FNiagaraStackClipboardUtilities::PasteSelection(TargetStackEntryArr, PasteWarning);
+		if (PasteWarning.IsEmpty() == false)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s"), *PasteWarning.ToString());
+		}
 	}
 }
 

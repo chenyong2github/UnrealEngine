@@ -74,7 +74,7 @@ public:
 		return LoadedLevelName; 
 	}
 
-	virtual const TSharedRef<FUICommandList>& GetMainFrameCommandBindings( ) override
+	virtual TSharedRef<FUICommandList>& GetMainFrameCommandBindings( ) override
 	{
 		return FMainFrameCommands::ActionList;
 	}

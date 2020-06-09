@@ -33,7 +33,7 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
-static TArray<UMoviePipelineRenderPass*> GetAllRenderPasses(const UMoviePipelineMasterConfig* InMasterConfig, const FMoviePipelineShotInfo& InShot)
+static TArray<UMoviePipelineRenderPass*> GetAllRenderPasses(const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot)
 {
 	TArray<UMoviePipelineRenderPass*> RenderPasses;
 
@@ -41,9 +41,9 @@ static TArray<UMoviePipelineRenderPass*> GetAllRenderPasses(const UMoviePipeline
 	RenderPasses.Append(InMasterConfig->FindSettings<UMoviePipelineRenderPass>());
 
 	// And then any additional passes requested by the shot.
-	if (InShot.ShotOverrideConfig != nullptr)
+	if (InShot->ShotOverrideConfig != nullptr)
 	{
-		RenderPasses.Append(InShot.ShotOverrideConfig->FindSettings<UMoviePipelineRenderPass>());
+		RenderPasses.Append(InShot->ShotOverrideConfig->FindSettings<UMoviePipelineRenderPass>());
 	}
 
 	return RenderPasses;
@@ -65,7 +65,7 @@ bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig)
 	return false;
 }
 
-void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
+void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
 	/*
 	* To support tiled rendering we take the final effective resolution and divide
@@ -80,8 +80,8 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 	* LeftOffset = floor((1925-1920)/2) = 2
 	* RightOffset = (1925-1920-LeftOffset)
 	*/
-	UMoviePipelineAntiAliasingSetting* AccumulationSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(Shot);
-	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(Shot);
+	UMoviePipelineAntiAliasingSetting* AccumulationSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
+	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(InShot);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
@@ -113,7 +113,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 	// to be rendered. This allows us to have multiple passes that re-use one render from the engine for efficiency.
 	TSet<FMoviePipelinePassIdentifier> RequiredEnginePasses;
 
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), Shot))
+	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), InShot))
 	{
 		RenderPass->GetRequiredEnginePasses(RequiredEnginePasses);
 	}
@@ -150,7 +150,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 
 	// We can now initialize the output passes and provide them a reference to the engine passes to get data from.
 	int32 NumOutputPasses = 0;
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), Shot))
+	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), InShot))
 	{
 		RenderPass->Setup(ActiveRenderPasses, RenderPassInitSettings);
 		NumOutputPasses++;
@@ -159,10 +159,10 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Engine Passes and %d Output Passes."), ActiveRenderPasses.Num(), NumOutputPasses);
 }
 
-void UMoviePipeline::TeardownRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
+void UMoviePipeline::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
 	// Master Configuration first.
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), Shot))
+	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), InShot))
 	{
 		RenderPass->Teardown();
 	}
@@ -184,8 +184,7 @@ void UMoviePipeline::RenderFrame()
 	// Send any output frames that have been completed since the last render.
 	ProcessOutstandingFinishedFrames();
 
-	FMoviePipelineShotInfo& CurrentShot = ShotList[CurrentShotIndex];
-	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
+	FMoviePipelineCameraCutInfo& CurrentCameraCut = ActiveShotList[CurrentShotIndex]->ShotInfo;
 	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
 
 
@@ -212,9 +211,9 @@ void UMoviePipeline::RenderFrame()
 	// 
 	// In short, for each output frame, for each accumulation frame, for each tile X/Y, for each jitter, we render a pass. This setup is
 	// designed to maximize the likely hood of deterministic rendering and that different passes line up with each other.
-	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentShot);
-	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(CurrentShot);
-	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(CurrentShot);
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(ActiveShotList[CurrentShotIndex]);
+	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(ActiveShotList[CurrentShotIndex]);
+	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(AntiAliasingSettings);
 	check(CameraSettings);
@@ -266,7 +265,7 @@ void UMoviePipeline::RenderFrame()
 		NumWarmupSamples = AntiAliasingSettings->RenderWarmUpCount;
 	}
 
-	TArray<UMoviePipelineRenderPass*> InputBuffers = GetAllRenderPasses(GetPipelineMasterConfig(), CurrentShot);
+	TArray<UMoviePipelineRenderPass*> InputBuffers = GetAllRenderPasses(GetPipelineMasterConfig(), ActiveShotList[CurrentShotIndex]);
 
 	// If this is the first sample for a new frame, we want to notify the output builder that it should expect data to accumulate for this frame.
 	if (CachedOutputState.IsFirstTemporalSample())

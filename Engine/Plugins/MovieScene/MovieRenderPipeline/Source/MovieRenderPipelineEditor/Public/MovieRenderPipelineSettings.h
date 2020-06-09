@@ -15,7 +15,7 @@ class UMoviePipelineMasterConfig;
 /**
  * Universal Movie Render Pipeline settings that apply to the whole project.
  */
-UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+UCLASS(BlueprintType, config=Editor, defaultconfig, MinimalAPI)
 class UMovieRenderPipelineProjectSettings : public UObject
 {
 public:
@@ -53,6 +53,14 @@ public:
 	*/
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TSubclassOf<UMoviePipelineExecutorBase> DefaultRemoteExecutor;
+	
+	/**
+	* Which Job class should we create by default when adding a job? This allows you to make custom jobs
+	* that will have editable properties in the UI for special handling with your executor. This can be
+	* made dynamic if you add jobs to the queue programatically instead of through the UI.
+	*/
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="Movie Render Pipeline")
+	TSubclassOf<UMoviePipelineExecutorJob> DefaultExecutorJob;
 	
 	/**
 	* This allows you to implement your own Pipeline to handle timing and rendering of a movie. Changing

@@ -439,21 +439,26 @@ void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& R
 				int32 MaxPrimitivesUploads = GetMaxPrimitivesUpdate(NumPrimitiveDataUploads, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s);
 				for (int32 PrimitiveOffset = 0; PrimitiveOffset < NumPrimitiveDataUploads; PrimitiveOffset += MaxPrimitivesUploads)
 				{
-					Scene.GPUScene.PrimitiveUploadBuffer.Init( MaxPrimitivesUploads, sizeof( FPrimitiveSceneShaderData::Data ), true, TEXT("PrimitiveUploadBuffer") );
+					Scene.GPUScene.PrimitiveUploadViewBuffer.Init( MaxPrimitivesUploads, sizeof( FPrimitiveSceneShaderData::Data ), true, TEXT("PrimitiveUploadViewBuffer") );
 
 					for (int32 IndexUpdate = 0; (IndexUpdate < MaxPrimitivesUploads) && ((IndexUpdate + PrimitiveOffset) < NumPrimitiveDataUploads); ++IndexUpdate)
 					{
 						int32 DynamicUploadIndex = IndexUpdate + PrimitiveOffset;
 						FPrimitiveSceneShaderData PrimitiveSceneData(View.DynamicPrimitiveShaderData[DynamicUploadIndex]);
 						// Place dynamic primitive shader data just after scene primitive data
-						Scene.GPUScene.PrimitiveUploadBuffer.Add(Scene.Primitives.Num() + DynamicUploadIndex, &PrimitiveSceneData.Data[0]);
+						Scene.GPUScene.PrimitiveUploadViewBuffer.Add(Scene.Primitives.Num() + DynamicUploadIndex, &PrimitiveSceneData.Data[0]);
 					}
 
 					{
 						RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ViewPrimitiveShaderDataResource.UAV);
-						Scene.GPUScene.PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, ViewPrimitiveShaderDataResource, false);
+						Scene.GPUScene.PrimitiveUploadViewBuffer.ResourceUploadTo(RHICmdList, ViewPrimitiveShaderDataResource, false);
 					}
 				}
+			}
+
+			if (Scene.GPUScene.PrimitiveUploadViewBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+			{
+				Scene.GPUScene.PrimitiveUploadViewBuffer.Release();
 			}
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ViewPrimitiveShaderDataResource.UAV);

@@ -1047,7 +1047,7 @@ public:
 	 * Save configuration out to ini files
 	 * @warning Must be safe to call on class-default object
 	 */
-	void SaveConfig( uint64 Flags=CPF_Config, const TCHAR* Filename=NULL, FConfigCacheIni* Config=GConfig );
+	void SaveConfig( uint64 Flags=CPF_Config, const TCHAR* Filename=NULL, FConfigCacheIni* Config=GConfig, bool bAllowCopyToDefaultObject=true );
 
 	/**
 	 * Saves just the section(s) for this class into the default ini file for the class (with just the changes from base)

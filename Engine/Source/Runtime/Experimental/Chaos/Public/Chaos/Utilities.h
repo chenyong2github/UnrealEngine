@@ -162,6 +162,35 @@ namespace Chaos
 				);
 		}
 
+		inline PMatrix<float, 4, 4> Multiply(const PMatrix<float, 4, 4>& L, const PMatrix<float, 4, 4>& R)
+		{
+			// @todo(ccaulfield): optimize: simd
+
+			// We want L.R (FMatrix operator* actually calculates R.(L)T; i.e., Right is on the left, and the Left is transposed on the right.)
+			// NOTE: PMatrix constructor takes values in column order
+			return PMatrix<float, 4, 4>(
+				L.M[0][0] * R.M[0][0] + L.M[1][0] * R.M[0][1] + L.M[2][0] * R.M[0][2] + L.M[3][0] * R.M[0][3],	// x00
+				L.M[0][0] * R.M[1][0] + L.M[1][0] * R.M[1][1] + L.M[2][0] * R.M[1][2] + L.M[3][0] * R.M[1][3],	// x01
+				L.M[0][0] * R.M[2][0] + L.M[1][0] * R.M[2][1] + L.M[2][0] * R.M[2][2] + L.M[3][0] * R.M[2][3],	// x02
+				L.M[0][0] * R.M[3][0] + L.M[1][0] * R.M[3][1] + L.M[2][0] * R.M[3][2] + L.M[3][0] * R.M[3][3],	// x03
+
+				L.M[0][1] * R.M[0][0] + L.M[1][1] * R.M[0][1] + L.M[2][1] * R.M[0][2] + L.M[3][1] * R.M[0][3],	// x10
+				L.M[0][1] * R.M[1][0] + L.M[1][1] * R.M[1][1] + L.M[2][1] * R.M[1][2] + L.M[3][1] * R.M[1][3],	// x11
+				L.M[0][1] * R.M[2][0] + L.M[1][1] * R.M[2][1] + L.M[2][1] * R.M[2][2] + L.M[3][1] * R.M[2][3],	// x12
+				L.M[0][1] * R.M[3][0] + L.M[1][1] * R.M[3][1] + L.M[2][1] * R.M[3][2] + L.M[3][1] * R.M[3][3],	// x13
+
+				L.M[0][2] * R.M[0][0] + L.M[1][2] * R.M[0][1] + L.M[2][2] * R.M[0][2] + L.M[3][2] * R.M[0][3],	// x20
+				L.M[0][2] * R.M[1][0] + L.M[1][2] * R.M[1][1] + L.M[2][2] * R.M[1][2] + L.M[3][2] * R.M[1][3],	// x21
+				L.M[0][2] * R.M[2][0] + L.M[1][2] * R.M[2][1] + L.M[2][2] * R.M[2][2] + L.M[3][2] * R.M[2][3],	// x22
+				L.M[0][2] * R.M[3][0] + L.M[1][2] * R.M[3][1] + L.M[2][2] * R.M[3][2] + L.M[3][2] * R.M[3][3],	// x23
+
+				L.M[0][3] * R.M[0][0] + L.M[1][3] * R.M[0][1] + L.M[2][3] * R.M[0][2] + L.M[3][3] * R.M[0][3],	// x30
+				L.M[0][3] * R.M[1][0] + L.M[1][3] * R.M[1][1] + L.M[2][3] * R.M[1][2] + L.M[3][3] * R.M[1][3],	// x31
+				L.M[0][3] * R.M[2][0] + L.M[1][3] * R.M[2][1] + L.M[2][3] * R.M[2][2] + L.M[3][3] * R.M[2][3],	// x32
+				L.M[0][3] * R.M[3][0] + L.M[1][3] * R.M[3][1] + L.M[2][3] * R.M[3][2] + L.M[3][3] * R.M[3][3]	// x33
+				);
+		}
+
 		inline PMatrix<float, 3, 3> MultiplyAB(const PMatrix<float, 3, 3>& LIn, const PMatrix<float, 3, 3>& RIn)
 		{
 			return Multiply(LIn, RIn);
@@ -215,6 +244,19 @@ namespace Chaos
 			    L.M[0][0] * R.X + L.M[0][1] * R.Y + L.M[0][2] * R.Z,
 			    L.M[1][0] * R.X + L.M[1][1] * R.Y + L.M[1][2] * R.Z,
 			    L.M[2][0] * R.X + L.M[2][1] * R.Y + L.M[2][2] * R.Z);
+		}
+
+		inline TVector<float, 4> Multiply(const PMatrix<float, 4, 4>& LIn, const TVector<float, 4>& R)
+		{
+			// @todo(ccaulfield): optimize: remove transposes and use simd etc
+			PMatrix<float, 4, 4> L = LIn.GetTransposed();
+
+			return TVector<float, 4>(
+				L.M[0][0] * R.X + L.M[0][1] * R.Y + L.M[0][2] * R.Z + L.M[0][3] * R.W,
+				L.M[1][0] * R.X + L.M[1][1] * R.Y + L.M[1][2] * R.Z + L.M[1][3] * R.W,
+				L.M[2][0] * R.X + L.M[2][1] * R.Y + L.M[2][2] * R.Z + L.M[2][3] * R.W,
+				L.M[3][0] * R.X + L.M[3][1] * R.Y + L.M[3][2] * R.Z + L.M[3][3] * R.W
+				);
 		}
 
 		/**
@@ -388,7 +430,7 @@ namespace Chaos
 		}
 
 		/**
-		 * Given the local-space inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
+		 * Given the local-space diagonal inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
 		 * If bScaleMass is true, it also takes into account the fact that the mass would have changed by the increase in volume.
 		 */
 		inline FVec3 ScaleInertia(const FVec3& Inertia, const FVec3& Scale, const bool bScaleMass)
@@ -400,6 +442,29 @@ namespace Chaos
 			FVec3 ScaledInertia = FVec3(XX, YY, ZZ);
 			FReal MassScale = (bScaleMass) ? Scale.X * Scale.Y * Scale.Z : 1.0f;
 			return MassScale * ScaledInertia;
+		}
+
+		/**
+		 * Given the local-space inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
+		 * If bScaleMass is true, it also takes into account the fact that the mass would have changed by the increase in volume.
+		 */
+		inline FMatrix33 ScaleInertia(const FMatrix33& Inertia, const FVec3& Scale, const bool bScaleMass)
+		{
+			// @todo(chaos): do we need to support a rotation of the scale axes?
+			FVec3 D = Inertia.GetDiagonal();
+			FVec3 XYZSq = (FVec3(0.5f * (D.X + D.Y + D.Z)) - D) * Scale * Scale;
+			FReal XX = XYZSq.Y + XYZSq.Z;
+			FReal YY = XYZSq.X + XYZSq.Z;
+			FReal ZZ = XYZSq.X + XYZSq.Y;
+			FReal XY = Inertia.M[0][1] * Scale.X * Scale.Y;
+			FReal XZ = Inertia.M[0][2] * Scale.X * Scale.Z;
+			FReal YZ = Inertia.M[1][2] * Scale.Y * Scale.Z;
+			FReal MassScale = (bScaleMass) ? Scale.X * Scale.Y * Scale.Z : 1.0f;
+			FMatrix33 ScaledInertia = FMatrix33(
+				MassScale * XX, MassScale * XY, MassScale * XZ,
+				MassScale * XY, MassScale * YY, MassScale * YZ,
+				MassScale * XZ, MassScale * YZ, MassScale * ZZ);
+			return ScaledInertia;
 		}
 
 	} // namespace Utilities

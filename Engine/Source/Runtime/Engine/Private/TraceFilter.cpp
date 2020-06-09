@@ -31,9 +31,152 @@ struct FTraceFilterObjectAnnotation
 	}
 };
 
-FUObjectAnnotationSparse<FTraceFilterObjectAnnotation, true> GObjectFilterAnnotations;
-
 DEFINE_LOG_CATEGORY_STATIC(TraceFiltering, Display, Display);
+
+/** Modified version of FUObjectAnnotationSparse, allowing for direct (non-const) access to the AnnotationMap. And being able to manually (Un)Lock allowing for batch changes */
+class FTraceUObjectAnnotation : public FUObjectArray::FUObjectDeleteListener
+{
+public:
+
+	virtual void NotifyUObjectDeleted(const UObjectBase* Object, int32 Index) override
+	{
+		RemoveAnnotation(Object);
+	}
+
+	virtual void OnUObjectArrayShutdown() override
+	{
+		RemoveAllAnnotations();
+		GUObjectArray.RemoveUObjectDeleteListener(this);
+	}
+
+	FTraceUObjectAnnotation() : AnnotationCacheKey(nullptr)
+	{
+		// default constructor is required to be default annotation
+		check(AnnotationCacheValue.IsDefault());
+	}
+
+	virtual ~FTraceUObjectAnnotation()
+	{
+		RemoveAllAnnotations();
+	}
+
+private:
+	void AddAnnotationInternal(const UObjectBase* Object, const FTraceFilterObjectAnnotation& Annotation)
+	{
+		check(Object);
+		FScopeLock ScopeLock(&AnnotationMapCritical);
+		AnnotationCacheKey = Object;
+		AnnotationCacheValue = Annotation;
+		if (AnnotationCacheValue.IsDefault())
+		{
+			RemoveAnnotation(Object); // adding the default annotation is the same as removing an annotation
+		}
+		else
+		{
+			if (AnnotationMap.Num() == 0)
+			{
+				// we are adding the first one, so if we are auto removing or verifying removal, register now
+				GUObjectArray.AddUObjectDeleteListener(this);
+			}
+			AnnotationMap.Add(AnnotationCacheKey, AnnotationCacheValue);
+		}
+	}
+
+public:
+
+	void AddAnnotation(const UObjectBase* Object, FTraceFilterObjectAnnotation&& Annotation)
+	{
+		AddAnnotationInternal(Object, MoveTemp(Annotation));
+	}
+
+	void AddAnnotation(const UObjectBase* Object, const FTraceFilterObjectAnnotation& Annotation)
+	{
+		AddAnnotationInternal(Object, Annotation);
+	}
+
+	void RemoveAnnotation(const UObjectBase* Object)
+	{
+		FScopeLock ScopeLock(&AnnotationMapCritical);
+		check(Object);
+		
+		AnnotationCacheKey = Object;
+		AnnotationCacheValue = FTraceFilterObjectAnnotation();
+		const bool bHadElements = (AnnotationMap.Num() > 0);
+		AnnotationMap.Remove(AnnotationCacheKey);
+		if (bHadElements && AnnotationMap.Num() == 0)
+		{
+			// we are removing the last one, so if we are auto removing or verifying removal, unregister now
+			GUObjectArray.RemoveUObjectDeleteListener(this);
+		}
+	}
+
+	void RemoveAllAnnotations()
+	{
+		FScopeLock ScopeLock(&AnnotationMapCritical);
+
+		AnnotationCacheKey = NULL;
+		AnnotationCacheValue = FTraceFilterObjectAnnotation();
+		const bool bHadElements = (AnnotationMap.Num() > 0);
+		AnnotationMap.Empty();
+		if (bHadElements)
+		{
+			// we are removing the last one, so if we are auto removing or verifying removal, unregister now
+			GUObjectArray.RemoveUObjectDeleteListener(this);
+		}
+	}
+
+	FORCEINLINE FTraceFilterObjectAnnotation GetAnnotation(const UObjectBase* Object)
+	{
+		FScopeLock ScopeLock(&AnnotationMapCritical);
+
+		check(Object);
+		
+		if (Object != AnnotationCacheKey)
+		{
+			AnnotationCacheKey = Object;
+			FTraceFilterObjectAnnotation* Entry = AnnotationMap.Find(AnnotationCacheKey);
+			if (Entry)
+			{
+				AnnotationCacheValue = *Entry;
+			}
+			else
+			{
+				AnnotationCacheValue = FTraceFilterObjectAnnotation();
+			}
+		}
+		return AnnotationCacheValue;
+	}
+
+	TMap<const UObjectBase*, FTraceFilterObjectAnnotation>& GetAnnotationMap()
+	{
+		return AnnotationMap;
+	}
+
+	void Lock()
+	{
+		UniqueScopeLock = MakeUnique<FScopeLock>(&AnnotationMapCritical);
+	}
+
+	void Unlock()
+	{		
+		UniqueScopeLock.Reset();
+	}
+
+	bool IsLocked()
+	{
+		return UniqueScopeLock.IsValid();
+	}
+private:
+	TMap<const UObjectBase*, FTraceFilterObjectAnnotation> AnnotationMap;
+	FCriticalSection AnnotationMapCritical;
+
+	TUniquePtr<FScopeLock> UniqueScopeLock;
+
+	const UObjectBase* AnnotationCacheKey;
+	FTraceFilterObjectAnnotation AnnotationCacheValue;
+};
+
+FTraceUObjectAnnotation GObjectFilterAnnotations;
 
 /** Console command allowing to debug the current state of GObjectFilterAnnotations, to see which objects are Traceable*/
 FAutoConsoleCommand FlushFilterStateCommand(TEXT("TraceFilter.FlushState"), TEXT("Flushes the current trace filtering state to the output log."),
@@ -131,15 +274,24 @@ FAutoConsoleCommand FlushFilterStateCommand(TEXT("TraceFilter.FlushState"), TEXT
 		})
 	);
 
-bool FTraceFilter::IsObjectTraceable(const UObject* InObject)
+template<>
+bool ENGINE_API FTraceFilter::IsObjectTraceable</*bForceThreadSafe = */ true>(const UObject* InObject)
 {
 	return InObject ? GObjectFilterAnnotations.GetAnnotation(InObject).bIsTraceable : true;
 }
 
-void FTraceFilter::SetObjectIsTraceable(const UObject* InObject, bool bIsTraceable)
+template<>
+bool ENGINE_API FTraceFilter::IsObjectTraceable</*bForceThreadSafe = */ false>(const UObject* InObject)
+{
+	check(GObjectFilterAnnotations.IsLocked());
+	return GObjectFilterAnnotations.GetAnnotationMap().Find(InObject) != nullptr;
+}
+
+template<>
+void ENGINE_API FTraceFilter::SetObjectIsTraceable</*bForceThreadSafe = */ true>(const UObject* InObject, bool bIsTraceable)
 {
 	ensure(InObject);
-
+		
 	if (bIsTraceable)
 	{
 		FTraceFilterObjectAnnotation Annotation;
@@ -154,13 +306,39 @@ void FTraceFilter::SetObjectIsTraceable(const UObject* InObject, bool bIsTraceab
 	}
 }
 
-void FTraceFilter::MarkObjectTraceable(const UObject* InObject)
+template<>
+void ENGINE_API FTraceFilter::SetObjectIsTraceable</*bForceThreadSafe = */ false>(const UObject* InObject, bool bIsTraceable)
 {
 	ensure(InObject);
 
+	check(GObjectFilterAnnotations.IsLocked());
+	TMap<const UObjectBase*, FTraceFilterObjectAnnotation>& AnnotationMap = GObjectFilterAnnotations.GetAnnotationMap();
+	if (bIsTraceable)
+	{
+		AnnotationMap.FindOrAdd(InObject).bIsTraceable = true;
+		TRACE_OBJECT(InObject);
+	}
+	else
+	{
+		AnnotationMap.Remove(InObject);
+	}
+}
+
+template<>
+void ENGINE_API FTraceFilter::MarkObjectTraceable</*bForceThreadSafe = */ true>(const UObject* InObject)
+{
+	ensure(InObject);	
 	FTraceFilterObjectAnnotation Annotation;
 	Annotation.bIsTraceable = true;
 	GObjectFilterAnnotations.AddAnnotation(InObject, Annotation);
+}
+
+template<>
+void ENGINE_API FTraceFilter::MarkObjectTraceable</*bForceThreadSafe = */ false>(const UObject* InObject)
+{
+	ensure(InObject);
+	check(GObjectFilterAnnotations.IsLocked());
+	SetObjectIsTraceable(InObject, true);
 }
 
 void FTraceFilter::Init()
@@ -174,6 +352,16 @@ void FTraceFilter::Destroy()
 	GObjectFilterAnnotations.RemoveAllAnnotations();
 	FTraceActorFilter::Destroy();
 	FTraceWorldFilter::Destroy();
+}
+
+void FTraceFilter::Lock()
+{
+	GObjectFilterAnnotations.Lock();
+}
+
+void FTraceFilter::Unlock()
+{	
+	GObjectFilterAnnotations.Unlock();
 }
 
 #endif // TRACE_FILTERING_ENABLED

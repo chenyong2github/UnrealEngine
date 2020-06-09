@@ -34,5 +34,17 @@ void FLevelIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& 
 	if (const ULevel* Level = World->PersistentLevel)
 	{
 		Serializer.IndexNestedAsset(const_cast<ULevel*>(Level)->GetLevelScriptBlueprint(true));
+
+		for (AActor* Actor : Level->Actors)
+		{
+			if (Actor)
+			{
+				Serializer.BeginIndexingObject(Actor, Actor->GetActorLabel());
+				FIndexerUtilities::IterateIndexableProperties(Actor, [&Serializer](const FProperty* Property, const FString& Value) {
+					Serializer.IndexProperty(Property, Value);
+				});
+				Serializer.EndIndexingObject();
+			}
+		}
 	}
 }

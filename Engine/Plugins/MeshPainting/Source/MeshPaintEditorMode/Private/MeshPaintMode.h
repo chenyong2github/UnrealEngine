@@ -99,7 +99,7 @@ protected:
 	bool CanCycleTextures() const;
 	void CommitAllPaintedTextures();
 	int32 GetNumberOfPendingPaintChanges();
-
+	void OnVertexPaintFinished();
 protected:
 	UPROPERTY(Transient)
 	UMeshPaintModeSettings* ModeSettings;

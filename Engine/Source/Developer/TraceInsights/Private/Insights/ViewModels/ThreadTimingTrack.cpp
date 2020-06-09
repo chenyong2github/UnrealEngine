@@ -49,7 +49,7 @@ static void AppendMetadataToTooltip(FTooltipDrawState& Tooltip, TArrayView<const
 		}
 
 		FString Key(Context.AsLength(), Context.AsCString());
-		Key += ":";
+		Key += TEXT(":");
 
 		if (!CborReader.ReadNext(Context))
 		{
@@ -132,16 +132,16 @@ static void AppendMetadataToString(FString& Str, TArrayView<const uint8>& Metada
 		if (bFirst)
 		{
 			bFirst = false;
-			Str += " - ";
+			Str += TEXT(" - ");
 		}
 		else
 		{
-			Str += ", ";
+			Str += TEXT(", ");
 		}
 
 		//FString Key(Context.AsLength(), Context.AsCString());
 		//Str += Key;
-		//Str += ":";
+		//Str += TEXT(":");
 
 		if (!CborReader.ReadNext(Context))
 		{
@@ -166,8 +166,7 @@ static void AppendMetadataToString(FString& Str, TArrayView<const uint8>& Metada
 
 		case ECborCode::ByteString:
 			{
-				FAnsiStringView Value(Context.AsCString(), Context.AsLength());
-				Str += Value;
+				Str.AppendChars(Context.AsCString(), Context.AsLength());
 				continue;
 			}
 		}

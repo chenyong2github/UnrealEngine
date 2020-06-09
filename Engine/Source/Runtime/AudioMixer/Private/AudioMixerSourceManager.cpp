@@ -2511,7 +2511,7 @@ namespace Audio
 		// If we have no commands enqueued, exit
 		if (NumCommands.GetValue() == 0)
 		{
-			UE_LOG(LogAudioMixer, Display, TEXT("No commands were queued while flushing the source manager."));
+			UE_LOG(LogAudioMixer, Verbose, TEXT("No commands were queued while flushing the source manager."));
 			return;
 		}
 
@@ -2525,7 +2525,7 @@ namespace Audio
 		}
 		else
 		{
-			UE_LOG(LogAudioMixer, Display, TEXT("Flush succeeded in the source manager command queue (1)."));
+			UE_LOG(LogAudioMixer, Verbose, TEXT("Flush succeeded in the source manager command queue (1)."));
 		}
 
 		// Call update to trigger a final pump of commands
@@ -2544,7 +2544,7 @@ namespace Audio
 		}
 		else
 		{
-			UE_LOG(LogAudioMixer, Display, TEXT("Flush succeeded the source manager command queue (2)."));
+			UE_LOG(LogAudioMixer, Verbose, TEXT("Flush succeeded the source manager command queue (2)."));
 		}
 	}
 

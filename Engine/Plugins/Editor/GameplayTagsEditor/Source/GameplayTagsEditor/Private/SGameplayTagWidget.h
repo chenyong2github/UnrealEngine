@@ -109,6 +109,9 @@ private:
 	/* string that sets the section of the ini file to use for this class*/ 
 	static const FString SettingsIniSection;
 
+	/* Filename of ini file to store state of the UI */
+	static const FString& GetGameplayTagsEditorStateIni();
+
 	/* Holds the Name of this TagContainer used for saving out expansion settings */
 	FString TagContainerName;
 
@@ -297,6 +300,9 @@ private:
 
 	/** Load settings for the tags*/
 	void LoadSettings();
+
+	/** Migrate settings */
+	void MigrateSettings();
 
 	/** Helper function to determine the visibility of the expandable UI controls */
 	EVisibility DetermineExpandableUIVisibility() const;

@@ -277,16 +277,19 @@ private:
 	int32 Index;
 };
 
-bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile)
+bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile, bool bMoveBulkAndUptnlLast)
 {
 	int32 OrderOffset = 0;
+	int32 OpenOrderNumber = 0;
 	if (bSecondaryOrderFile)
 	{
 		OrderOffset = Num();
 		MaxPrimaryOrderIndex = OrderOffset;
+		bMoveBulkAndUptnlLast = false;
 	}
 	// List of all items to add to pak file
 	FString Text;
+	TArray<FString> BulkUptnlOrder;
 	UE_LOG(LogPakFile, Display, TEXT("Loading pak order file %s..."), ResponseFile);
 	if (FFileHelper::LoadFileToString(Text, ResponseFile))
 	{
@@ -297,7 +300,7 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 		{
 			Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
 			Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
-			int32 OpenOrderNumber = EntryIndex;
+			OpenOrderNumber = EntryIndex;
 			if (Lines[EntryIndex].FindLastChar('"', OpenOrderNumber))
 			{
 				FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
@@ -309,15 +312,36 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 				}
 			}
 			Lines[EntryIndex] = Lines[EntryIndex].TrimQuotes();
-			FString Path = FString::Printf(TEXT("%s"), *Lines[EntryIndex]);
-			FPaths::NormalizeFilename(Path);
-			Path = Path.ToLower();
-			if (bSecondaryOrderFile && OrderMap.Contains(Path))
+			// dont process the entry in the FileOrder if it a package name
+			FString FileExt = FPaths::GetExtension(Lines[EntryIndex]);
+			if (!FileExt.IsEmpty())
 			{
-				continue;
+				FString Path = FString::Printf(TEXT("%s"), *Lines[EntryIndex]);
+				FPaths::NormalizeFilename(Path);
+				Path = Path.ToLower();
+				if (bSecondaryOrderFile && OrderMap.Contains(Path))
+				{
+					continue;
+				}
+				else if (bMoveBulkAndUptnlLast && (FileExt.EndsWith(TEXT("ubulk")) || FileExt.EndsWith(TEXT("uptnl"))))
+				{
+					OrderOffset--;
+					BulkUptnlOrder.Add(Path);
+					continue;
+				}
+				OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 			}
-			OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 		}
+
+		if (bMoveBulkAndUptnlLast)
+		{
+			int32 EndSectionOrderNumber = OpenOrderNumber + OrderOffset + 1;
+			for (int32 i = 0; i < BulkUptnlOrder.Num(); i++)
+			{
+				OrderMap.Add(BulkUptnlOrder[i], EndSectionOrderNumber++);
+			}
+		}
+
 		UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);
 		return true;
 	}
@@ -1083,8 +1107,15 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 		}
 	}
 
-	// make sure we can always fallback to zlib, which is guaranteed to exist
-	CmdLineParameters.CompressionFormats.AddUnique(NAME_Zlib);
+	// disable zlib as fallback if requested
+	if (FParse::Param(CmdLine, TEXT("disablezlib")))
+	{
+		UE_LOG(LogPakFile, Display, TEXT("Disabling ZLib as a compression option."));
+	}
+	else
+	{
+		CmdLineParameters.CompressionFormats.AddUnique(NAME_Zlib);
+	}
 
 	if (FParse::Value(CmdLine, TEXT("-create="), ResponseFile))
 	{
@@ -2822,7 +2853,7 @@ bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bInclude
 	}
 	else
 	{
-		if (PakFile.GetInfo().EncryptionKeyGuid.IsValid() && !InKeyChain.EncryptionKeys.Contains(PakFile.GetInfo().EncryptionKeyGuid))
+		if (PakFile.GetInfo().Magic != 0 && PakFile.GetInfo().EncryptionKeyGuid.IsValid() && !InKeyChain.EncryptionKeys.Contains(PakFile.GetInfo().EncryptionKeyGuid))
 		{
 			UE_LOG(LogPakFile, Fatal, TEXT("Missing encryption key %s for pak file \"%s\"."), *PakFile.GetInfo().EncryptionKeyGuid.ToString(), InPakFilename);
 		}
@@ -3791,7 +3822,7 @@ bool GenerateHashForFile( FString Filename, FFileInfo& FileHash)
 	return true;
 }
 
-bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFilename, TMap<FString, FFileInfo>& FileHashes, bool bUseMountPoint, const FKeyChain& InKeyChain, int32& OutLowestSourcePakVersion)
+bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFilename, TMap<FString, FFileInfo>& FileHashes, bool bUseMountPoint, const FKeyChain& InKeyChain, int32& OutLowestSourcePakVersion, TArray<FGuid>* OutUsedEncryptionKeys = nullptr)
 {
 	OutLowestSourcePakVersion = FPakInfo::PakFile_Version_Invalid;
 
@@ -3815,6 +3846,10 @@ bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFil
 		FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *PakFilename, false);
 		if (PakFile.IsValid())
 		{
+			if (OutUsedEncryptionKeys != nullptr)
+			{
+				OutUsedEncryptionKeys->Add( PakFile.GetInfo().EncryptionKeyGuid);
+			}
 			FArchive& PakReader = *PakFile.GetSharedReader(NULL);
 			const int64 BufferSize = 8 * 1024 * 1024; // 8MB buffer for extracting
 			void* Buffer = FMemory::Malloc(BufferSize);
@@ -4948,10 +4983,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 		bool bOnlyDeleted = FParse::Param( CmdLine, TEXT("OnlyDeleted") );
 		bool bSortByOrdering = FParse::Param(CmdLine, TEXT("SortByOrdering"));
+		bool bMoveBulkAndUptnlOrderLast = FParse::Param(CmdLine, TEXT("bMoveBulkAndUptnlOrderLast"));
 
 		FPakOrderMap OrderMap;
 		FString ResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile))
+		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile, false, bMoveBulkAndUptnlOrderLast))
 		{
 			return false;
 		}
@@ -5127,9 +5163,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		FPakCommandLineParameters CmdLineParameters;
 		ProcessCommandLine(CmdLine, NonOptionArguments, Entries, CmdLineParameters);
 
+		bool bMoveBulkAndUptnlOrderLast = FParse::Param(CmdLine, TEXT("moveBulkAndUptnlOrderLast"));
+
 		FPakOrderMap OrderMap;
 		FString ResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile))
+		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile, false, bMoveBulkAndUptnlOrderLast))
 		{
 			return false;
 		}
@@ -5170,9 +5208,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 			UE_LOG(LogPakFile, Display, TEXT("Generating patch from %s."), *CmdLineParameters.SourcePatchPakFilename, true );
 
-			if (!GenerateHashesFromPak(*CmdLineParameters.SourcePatchPakFilename, *PakFilename, SourceFileHashes, true, PatchKeyChain, /*Out*/LowestSourcePakVersion))
+			TArray<FGuid> UsedEncryptionKeys;
+			if (!GenerateHashesFromPak(*CmdLineParameters.SourcePatchPakFilename, *PakFilename, SourceFileHashes, true, PatchKeyChain, /*Out*/LowestSourcePakVersion, &UsedEncryptionKeys))
 			{
-				if (ExtractFilesFromPak(*CmdLineParameters.SourcePatchPakFilename, SourceFileHashes, *OutputPath, true, PatchKeyChain, nullptr) == false)
+				UE_LOG(LogPakFile, Warning, TEXT("Unable to generate hashes from pak file %s"), *CmdLineParameters.SourcePatchPakFilename);
+				if (ExtractFilesFromPak(*CmdLineParameters.SourcePatchPakFilename, SourceFileHashes, *OutputPath, true, PatchKeyChain, nullptr, nullptr, nullptr, nullptr, &UsedEncryptionKeys) == false)
 				{
 					UE_LOG(LogPakFile, Warning, TEXT("Unable to extract files from source pak file for patch"));
 				}
@@ -5183,6 +5223,16 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 			}
 
 			ApplyEncryptionKeys(KeyChain);
+
+
+			if (UsedEncryptionKeys.Num() == 1)
+			{
+				if (UsedEncryptionKeys[0].IsValid())
+				{
+					UE_LOG(LogPakFile, Display, TEXT("Found encryption key %s in pak file %s will use to encrypt patch"), *((UsedEncryptionKeys[0]).ToString()), *CmdLineParameters.SourcePatchPakFilename);
+					KeyChain.MasterEncryptionKey = KeyChain.EncryptionKeys.Find(UsedEncryptionKeys[0]);
+				}
+			}
 		}
 
 
@@ -5259,6 +5309,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 	UE_LOG(LogPakFile, Error, TEXT("    -encryptionkeyoverrideguid (override the encryption key guid used for encrypting data in this pak file)"));
 	UE_LOG(LogPakFile, Error, TEXT("    -sign (generate a signature (.sig) file alongside the pak)"));
 	UE_LOG(LogPakFile, Error, TEXT("    -fallbackOrderForNonUassetFiles (if order is not specified for ubulk/uexp files, figure out implicit order based on the uasset order. Generally applies only to the cooker order)"));
+	UE_LOG(LogPakFile, Error, TEXT("    -moveBulkAndUptnlOrderLast (move all ubulk and uptnl files after all other resources in the first Order list. Ubulk and uptnl files will be at the end, and will preserve their order)"));
 
 	return false;
 }

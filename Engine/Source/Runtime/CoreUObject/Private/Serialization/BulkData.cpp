@@ -887,6 +887,11 @@ bool FUntypedBulkData::ShouldStreamBulkData()
 		GMinimumBulkDataSizeForAsyncLoading >= 0);
 }
 
+bool FUntypedBulkData::NeedsOffsetFixup() const
+{
+	return (BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0;
+}
+
 void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::Serialize"), STAT_UBD_Serialize, STATGROUP_Memory);
@@ -1040,7 +1045,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 			// fix up the file offset, but only if not stored inline
 			int64 OffsetInFileFixup = 0;
-			if (Owner != NULL && Linker && !bPayloadInline)
+			if (Owner != NULL && Linker && !bPayloadInline && NeedsOffsetFixup())
 			{
 				OffsetInFileFixup = Linker->Summary.BulkDataStartOffset;
 			}

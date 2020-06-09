@@ -235,6 +235,21 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		}
 	}
 
+	// Snap to grid if applicable
+	if (ShapeSettings->bSnapToGrid
+		&& GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+	{
+		FSceneSnapQueryRequest Request;
+		Request.RequestType = ESceneSnapQueryType::Position;
+		Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
+		Request.Position = (FVector)ShapeFrame.Origin;
+		TArray<FSceneSnapQueryResult> Results;
+		if (GetToolManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
+		{
+			ShapeFrame.Origin = Results[0].Position;
+		}
+	}
+
 	if (ShapeSettings->Rotation != 0)
 	{
 		ShapeFrame.Rotate(FQuaternionf(ShapeFrame.Z(), ShapeSettings->Rotation, true));

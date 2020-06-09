@@ -74,6 +74,14 @@ static FAutoConsoleVariableRef CVarNiagaraComponentWarnAsleepCullReaction(
 	ECVF_Default
 );
 
+static int32 GNiagaraUseSupressActivateList = 0;
+static FAutoConsoleVariableRef CVarNiagaraUseSupressActivateList(
+	TEXT("fx.Niagara.UseSupressActivateList"),
+	GNiagaraUseSupressActivateList,
+	TEXT("When a component is activated we will check the surpession list."),
+	ECVF_Default
+);
+
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -602,7 +610,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 
 		if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
 		{
-			SystemInstance->ComponentTick(DeltaSeconds, ThisTickFunction->GetCompletionHandle());
+			SystemInstance->ComponentTick(DeltaSeconds, ThisTickFunction->IsCompletionHandleValid() ? ThisTickFunction->GetCompletionHandle() : nullptr);
 		}
 		else if(AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAge)
 		{
@@ -841,7 +849,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		SetComponentTickEnabled(false);
 		return;
 	}
-	
+
 	UWorld* World = GetWorld();
 	// If the particle system can't ever render (ie on dedicated server or in a commandlet) than do not activate...
 	if (!FApp::CanEverRender() || !World || World->IsNetMode(NM_DedicatedServer))
@@ -852,6 +860,19 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (!IsRegistered())
 	{
 		return;
+	}
+
+	// Temporary change to allow specific Niagara assets to not activate
+	if ( GNiagaraUseSupressActivateList )
+	{
+		if (const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>())
+		{
+			const FName AssetName = Asset->GetFName();
+			if (ComponentSettings->SupressActivationList.Contains(AssetName))
+			{
+				return;
+			}
+		}
 	}
 
 	// On the off chance that the user changed the asset, we need to clear out the existing data.
@@ -963,6 +984,13 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	RegisterWithScalabilityManager();
 
 	SystemInstance->Activate(ResetMode);
+
+	if (SystemInstance->IsSolo())
+	{
+		const ETickingGroup SoloTickGroup = SystemInstance->CalculateTickGroup();
+		PrimaryComponentTick.TickGroup = FMath::Max(GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics, SoloTickGroup);
+		PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
+	}
 
 	/** We only need to tick the component if we require solo mode. */
 	SetComponentTickEnabled(SystemInstance->IsSolo());
@@ -1235,12 +1263,18 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	{
 		if (UWorld* World = GetWorld())
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), PoolingMethod);
-			FNiagaraWorldManager::Get(World)->GetComponentPool()->PooledComponentDestroyed(this);
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+			{
+				if (UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool())
+				{
+					ComponentPool->PooledComponentDestroyed(this);
+				}
+			}
 		}
 		else
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), PoolingMethod);
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
 		}
 
 		// Set pooling method to none as we are destroyed and can not go into the pool after this point
@@ -1286,7 +1320,24 @@ void UNiagaraComponent::BeginDestroy()
 
 	if (PoolingMethod != ENCPoolMethod::None)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) is still pooled (%d)!\n"), this, *GetFullNameSafe(this), PoolingMethod);
+		if (UWorld* World = GetWorld())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+			{
+				if (UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool())
+				{
+					ComponentPool->PooledComponentDestroyed(this);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+		}
+
+		// Set pooling method to none as we are destroyed and can not go into the pool after this point
+		PoolingMethod = ENCPoolMethod::None;
 	}
 
 	//By now we will have already unregisted with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
@@ -1544,6 +1595,15 @@ void UNiagaraComponent::OnChildDetached(USceneComponent* ChildComponent)
 FNiagaraSystemInstance* UNiagaraComponent::GetSystemInstance() const
 {
 	return SystemInstance.Get();
+}
+
+void UNiagaraComponent::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
+{
+	TickBehavior = NewTickBehavior;
+	if (SystemInstance.IsValid())
+	{
+		SystemInstance->SetTickBehavior(TickBehavior);
+	}
 }
 
 void UNiagaraComponent::SetVariableLinearColor(FName InVariableName, const FLinearColor& InValue)

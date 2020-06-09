@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.10";
+        private static string VersionString = "4.14";
 
         public static string Get() { return VersionString; }
     };
@@ -258,11 +258,19 @@ namespace PerfReportTool
 				else
 				{
 					textCsvLines = File.ReadAllLines(inFilename);
-					dummyCsvStats = CsvStats.ReadCSVFromLines(textCsvLines, null, 0, true);
+					if (textCsvLines.Length > 0)
+					{
+						dummyCsvStats = CsvStats.ReadCSVFromLines(textCsvLines, null, 0, true);
+					}
+					else
+					{
+						Console.WriteLine("CSV file " + inFilename + " is contains no lines!");
+						dummyCsvStats = new CsvStats();
+					}
 				}
 			} 
             filename = inFilename;
-            if (dummyCsvStats.metaData != null)
+            if (dummyCsvStats != null && dummyCsvStats.metaData != null)
             {
 				metadata = dummyCsvStats.metaData;
 				derivedMetadataMappings.ApplyMapping(metadata);
@@ -375,6 +383,8 @@ namespace PerfReportTool
 			"       -readAllStats : reads all stats so that any stat can be output to the summary table. Useful with -customtable in bulk mode (off by default)\n" +
 			"       -externalGraphs : enables external graphs (off by default)\n" +
 			"       -noCacheFiles: disables usage of .csv.cache files. Cache files are much faster if filtering on metadata\n" +
+			"       -spreadsheetfriendly: outputs a single quote before non-numeric entries in summary tables\n" +
+			"       -noSummaryMinMax: don't make min/max columns for each stat in a condensed summary\n" +
 			"";
 			/*
 			"Note on custom tables:\n" +
@@ -433,18 +443,18 @@ namespace PerfReportTool
 				string csvDir = GetArg("csvDir");
 				if (csvDir.Length > 0)
 				{
-					DirectoryInfo di = new DirectoryInfo(csvDir);
 					bool recurse = GetBoolArg("recurse");
 					string searchPattern = GetArg("searchPattern", false);
 					if (searchPattern == "")
 					{
-						searchPattern = "*.csv";
+						searchPattern = "*.csv;*.csv.bin";
 					}
 					else if (!searchPattern.Contains('.'))
 					{
-						searchPattern += ".csv";
+						searchPattern += ".csv;*.csv.bin";
 					}
-					var files = di.GetFiles(searchPattern, recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+
+					System.IO.FileInfo[] files = GetFilesWithSearchPattern(csvDir, searchPattern, recurse);
 					csvFilenames = new string[files.Length];
 					int i = 0;
 					foreach (FileInfo csvFile in files)
@@ -560,6 +570,7 @@ namespace PerfReportTool
 				string customSummaryTableFilter = GetArg("customTable");
 				bool bCsvTable = GetBoolArg("csvTable");
 				bool bCollateTable = GetBoolArg("collateTable");
+				bool bSpreadsheetFriendlyStrings = GetBoolArg("spreadsheetFriendly");
 				if (customSummaryTableFilter.Length > 0)
 				{
 					string customSummaryTableRowSort = GetArg("customTableSort");
@@ -567,11 +578,11 @@ namespace PerfReportTool
 					{
 						customSummaryTableRowSort = "buildversion,deviceprofile";
 					}
-					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable);
+					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable, bSpreadsheetFriendlyStrings);
 
 					if (bCollateTable)
 					{
-						WriteMetadataTableReport(outputDir, summaryTableFilename+"_Collated", metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable);
+						WriteMetadataTableReport(outputDir, summaryTableFilename+"_Collated", metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable, bSpreadsheetFriendlyStrings);
 					}
 				}
 				else
@@ -582,10 +593,10 @@ namespace PerfReportTool
 						summaryTableName = "default";
 					}
 					SummaryTableInfo tableInfo = reportXML.GetSummaryTable(summaryTableName);
-					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, tableInfo, false, bCsvTable);
+					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, tableInfo, false, bCsvTable, bSpreadsheetFriendlyStrings );
 					if (bCollateTable)
 					{
-						WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, tableInfo, true, bCsvTable);
+						WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, tableInfo, true, bCsvTable, bSpreadsheetFriendlyStrings);
 					}
 				}
 
@@ -594,7 +605,7 @@ namespace PerfReportTool
 				if (GetBoolArg("emailSummary") || GetBoolArg("emailTable") || condensedSummaryTable != null)
 				{
 					SummaryTableInfo tableInfo = reportXML.GetSummaryTable(condensedSummaryTable == null ? "condensed" : condensedSummaryTable);
-					WriteMetadataTableReport(outputDir, summaryTableFilename+"_Email", metadataTable, tableInfo, true);
+					WriteMetadataTableReport(outputDir, summaryTableFilename+"_Email", metadataTable, tableInfo, true, false, bSpreadsheetFriendlyStrings);
 				}
                 perfLog.LogTiming("WriteSummaryTable");
             }
@@ -602,22 +613,24 @@ namespace PerfReportTool
             perfLog.LogTotalTiming();
         }
 
-        void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, SummaryTableInfo tableInfo, bool bCollated = false , bool bToCSV = false )
+        void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, SummaryTableInfo tableInfo, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings)
 		{
-			WriteMetadataTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV);
+			WriteMetadataTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings);
 		}
 
-		void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated = false, bool bToCSV = false)
+		void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings)
 		{
-            if (!string.IsNullOrEmpty(outputDir))
+			bool addMinMaxColumns = !GetBoolArg("noSummaryMinMax");
+			if (!string.IsNullOrEmpty(outputDir))
             {
                 filenameWithoutExtension = Path.Combine(outputDir, filenameWithoutExtension);
             }
 
+
             SummaryMetadataTable filteredTable = table.SortAndFilter(columnFilterList, rowSortList);
 			if (bCollated)
 			{
-				filteredTable = filteredTable.CollateSortedTable(rowSortList);
+				filteredTable = filteredTable.CollateSortedTable(rowSortList, addMinMaxColumns);
 			}
 			if (bToCSV)
 			{
@@ -626,7 +639,7 @@ namespace PerfReportTool
 			else
 			{
 				filteredTable.ApplyDisplayNameMapping(statDisplaynameMapping);
-				filteredTable.WriteToHTML(filenameWithoutExtension+".html", Version.Get());
+				filteredTable.WriteToHTML(filenameWithoutExtension+".html", Version.Get(), bSpreadsheetFriendlyStrings);
 			}
 		}
 
@@ -1438,6 +1451,20 @@ namespace PerfReportTool
 
             return 0;
         }
+
+		System.IO.FileInfo[] GetFilesWithSearchPattern(string directory, string searchPatternStr, bool recurse)
+		{
+			List<System.IO.FileInfo> fileList = new List<FileInfo>();
+			string[] searchPatterns = searchPatternStr.Split(';');
+			DirectoryInfo di = new DirectoryInfo(directory);
+			foreach (string searchPattern in searchPatterns)
+			{
+				System.IO.FileInfo[] files = di.GetFiles(searchPattern, recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+				fileList.AddRange(files);
+			}
+			return fileList.Distinct().ToArray();
+		}
+
     }
 
     class ReportTypeInfo
@@ -2045,7 +2072,7 @@ namespace PerfReportTool
 
 		public SummaryTableInfo GetSummaryTable(string name)
 		{
-			if (summaryTables.ContainsKey(name))
+			if (summaryTables.ContainsKey(name.ToLower()))
 			{
 				return summaryTables[name.ToLower()];
 			}
@@ -2194,7 +2221,7 @@ namespace PerfReportTool
                 lock (fileInfo.cs)
                 {
 					CachedCsvFile file = new CachedCsvFile(fileInfo.filename, useCacheFiles, derivedMetadataMappings);
-					if (file.DoesMetadataMatchFilter(metadataFilterString))
+					if ( file.DoesMetadataMatchFilter(metadataFilterString))
 					{
 						// Only read the full file data if the metadata matches
 						file.PrepareCsvData();

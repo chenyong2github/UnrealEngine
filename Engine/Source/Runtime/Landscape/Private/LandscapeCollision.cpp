@@ -1867,6 +1867,11 @@ void ULandscapeHeightfieldCollisionComponent::Serialize(FArchive& Ar)
 			{
 				CollisionHeightData.Serialize(Ar, this);
 				DominantLayerData.Serialize(Ar, this);
+
+				if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::LandscapePhysicalMaterialRenderData)
+				{
+					PhysicalMaterialRenderData.Serialize(Ar, this);
+				}
 			}
 #endif//WITH_EDITORONLY_DATA
 		}
@@ -2674,6 +2679,7 @@ void ALandscapeProxy::GetHeightValues(int32& SizeX, int32& SizeY, TArray<float> 
 	SizeY = 0;
 	ArrayValues.SetNum(0);
 	
+#if WITH_CHAOS
 	// Exit if we have no landscape data
 	if (LandscapeComponents.Num() == 0 || CollisionComponents.Num() == 0)
 	{
@@ -2757,4 +2763,5 @@ void ALandscapeProxy::GetHeightValues(int32& SizeX, int32& SizeY, TArray<float> 
 			}
 		}
 	}
+#endif
 }

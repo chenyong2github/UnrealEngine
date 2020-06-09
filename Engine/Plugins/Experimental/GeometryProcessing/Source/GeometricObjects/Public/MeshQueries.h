@@ -100,6 +100,36 @@ public:
 		return FVector2d(Volume * (1.0/6.0), Area * .5f);
 	}
 
+
+	static FVector2d GetVolumeArea(const TriangleMeshType& Mesh, const TArray<int>& TriIndices)
+	{
+		double Volume = 0.0;
+		double Area = 0;
+		for (int TriIdx : TriIndices)
+		{
+			if (!Mesh.IsTriangle(TriIdx))
+			{
+				continue;
+			}
+
+			FVector3d V0, V1, V2;
+			Mesh.GetTriVertices(TriIdx, V0, V1, V2);
+
+			// Get cross product of edges and (un-normalized) normal vector.
+			FVector3d V1mV0 = V1 - V0;
+			FVector3d V2mV0 = V2 - V0;
+			FVector3d N = V2mV0.Cross(V1mV0);
+
+			Area += N.Length();
+
+			double tmp0 = V0.X + V1.X;
+			double f1x = tmp0 + V2.X;
+			Volume += N.X * f1x;
+		}
+
+		return FVector2d(Volume * (1.0 / 6.0), Area * .5f);
+	}
+
 	static FAxisAlignedBox3d GetTriBounds(const TriangleMeshType& Mesh, int TID)
 	{
 		FIndex3i TriInds = Mesh.GetTriangle(TID);
@@ -273,9 +303,8 @@ public:
 
 		double SumLengths = Algo::TransformAccumulate(Mesh.EdgeIndicesItr(), [&Mesh](int EdgeIndex) -> double
 		{
-			FIndex4i Edge = Mesh.GetEdge(EdgeIndex);
-			FVector3d vA = Mesh.GetVertex(Edge[0]);
-			FVector3d vB = Mesh.GetVertex(Edge[1]);
+			FVector3d vA, vB;
+			Mesh.GetEdgeV(EdgeIndex, vA, vB);
 			return (vA - vB).Length();
 		}, 0.0);
 
@@ -285,17 +314,11 @@ public:
 	/// Compute the longest edge length for the given mesh
 	static double MaxEdgeLength(const TriangleMeshType& Mesh)
 	{
-		if (Mesh.EdgeCount() == 0)
-		{
-			return 0.0;
-		}
-
-		double MaxLength = -BIG_NUMBER;
+		double MaxLength = 0.0;
 		for (auto EdgeID : Mesh.EdgeIndicesItr())
 		{
-			FIndex4i Edge = Mesh.GetEdge(EdgeID);
-			FVector3d vA = Mesh.GetVertex(Edge[0]);
-			FVector3d vB = Mesh.GetVertex(Edge[1]);
+			FVector3d vA, vB;
+			Mesh.GetEdgeV(EdgeID, vA, vB);
 			MaxLength = FMath::Max(MaxLength, (vA - vB).Length());
 		}
 
@@ -310,12 +333,11 @@ public:
 			return 0.0;
 		}
 
-		double MinLength = BIG_NUMBER;
+		double MinLength = FMathd::MaxReal;
 		for (auto EdgeID : Mesh.EdgeIndicesItr())
 		{
-			FIndex4i Edge = Mesh.GetEdge(EdgeID);
-			FVector3d vA = Mesh.GetVertex(Edge[0]);
-			FVector3d vB = Mesh.GetVertex(Edge[1]);
+			FVector3d vA, vB;
+			Mesh.GetEdgeV(EdgeID, vA, vB);
 			MinLength = FMath::Min(MinLength, (vA - vB).Length());
 		}
 

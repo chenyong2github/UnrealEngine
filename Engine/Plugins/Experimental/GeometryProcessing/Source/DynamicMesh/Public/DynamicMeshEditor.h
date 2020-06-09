@@ -289,6 +289,16 @@ public:
 	 */
 	bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts);
 
+
+	/**
+	 * Remove any connected components with volume or  area below the given thresholds
+	 * @param MinVolume Remove components with less volume than this
+	 * @param MinArea Remove components with less area than this
+	 * @return number of components removed
+	 */
+	int RemoveSmallComponents(double MinVolume, double MinArea = 0.0);
+
+
 	/**
 	 * Remove a list of triangles from the mesh, and optionally any vertices that are now orphaned
 	 * @param Triangles the triangles to remove

@@ -166,6 +166,11 @@ struct FStreamingRenderAsset
 		return RenderAssetType != AT_Texture;
 	}
 
+	bool IsLandscapeMesh() const
+	{
+		return RenderAssetType == AT_LandscapeMeshMobile;
+	}
+
 	FORCEINLINE int32 GetPerfectWantedMips() const { return FMath::Max<int32>(VisibleWantedMips,  HiddenWantedMips); }
 
 	// Whether this texture/mesh can be affected by Global Bias and Budget Bias per texture/mesh.
@@ -174,6 +179,7 @@ struct FStreamingRenderAsset
 	{
 		// In editor, forced stream in should never have reduced mips as they can be edited.
 		return (IsMesh() || LODGroup != TEXTUREGROUP_HierarchicalLOD)
+			&& !IsLandscapeMesh()
 			&& !bIsTerrainTexture
 			&& !(bForceFullyLoadHeuristic && bIgnoreStreamingMipBias)
 			&& !(GIsEditor && bForceFullyLoadHeuristic); 

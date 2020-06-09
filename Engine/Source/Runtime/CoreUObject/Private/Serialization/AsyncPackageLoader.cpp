@@ -530,6 +530,7 @@ IAsyncPackageLoader& GetAsyncPackageLoader()
 
 void InitAsyncThread()
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 #if WITH_ASYNCLOADING2
 	if (FIoDispatcher::IsInitialized())
 	{
@@ -551,6 +552,7 @@ void InitAsyncThread()
 
 void ShutdownAsyncThread()
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	if (GPackageLoader)
 	{
 		GPackageLoader->ShutdownLoading();
@@ -576,6 +578,7 @@ void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 	void CheckImageIntegrityAtRuntime();
 	CheckImageIntegrityAtRuntime();
 #endif
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	checkf(IsInGameThread(), TEXT("Unable to FlushAsyncLoading from any thread other than the game thread."));
 	if (GPackageLoader)
 	{
@@ -585,6 +588,7 @@ void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 
 EAsyncPackageState::Type ProcessAsyncLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	return GetAsyncPackageLoader().ProcessLoadingUntilComplete(CompletionPredicate, TimeLimit);
 }
 
@@ -595,6 +599,7 @@ int32 GetNumAsyncPackages()
 
 EAsyncPackageState::Type ProcessAsyncLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	return GetAsyncPackageLoader().ProcessLoading(bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 }
 
@@ -612,12 +617,14 @@ bool IsAsyncLoadingMultithreadedCoreUObjectInternal()
 
 void SuspendAsyncLoadingInternal()
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	check(IsInGameThread() && !IsInSlateThread());
 	GetAsyncPackageLoader().SuspendLoading();
 }
 
 void ResumeAsyncLoadingInternal()
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	check(IsInGameThread() && !IsInSlateThread());
 	GetAsyncPackageLoader().ResumeLoading();
 }
@@ -629,6 +636,7 @@ bool IsAsyncLoadingSuspendedInternal()
 
 int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid /*= nullptr*/, const TCHAR* InPackageToLoadFrom /*= nullptr*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/)
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	return GetAsyncPackageLoader().LoadPackage(InName, InGuid, InPackageToLoadFrom, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority);
 }
 
@@ -641,6 +649,7 @@ int32 LoadPackageAsync(const FString& PackageName, FLoadPackageAsyncDelegate Com
 
 void CancelAsyncLoading()
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	// Cancelling async loading while loading is suspend will result in infinite stall
 	UE_CLOG(GetAsyncPackageLoader().IsAsyncLoadingSuspended(), LogStreaming, Fatal, TEXT("Cannot Cancel Async Loading while async loading is suspended."));
 	GetAsyncPackageLoader().CancelLoading();
@@ -663,16 +672,19 @@ void CancelAsyncLoading()
 
 float GetAsyncLoadPercentage(const FName& PackageName)
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	return GetAsyncPackageLoader().GetAsyncLoadPercentage(PackageName);
 }
 
 void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject *(*InRegister)(), bool InbDynamic)
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	GetGEDLBootNotificationManager().NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic);
 }
 
 void NotifyRegistrationComplete()
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	GetGEDLBootNotificationManager().NotifyRegistrationComplete();
 	GPackageLoader->FlushLoading(INDEX_NONE);
 	GPackageLoader->StartThread();
@@ -680,11 +692,13 @@ void NotifyRegistrationComplete()
 
 void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject)
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	GetAsyncPackageLoader().NotifyConstructedDuringAsyncLoading(Object, bSubObject);
 }
 
 void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects)
 {
+	LLM_SCOPE(ELLMTag::AsyncLoading);
 	GetAsyncPackageLoader().NotifyUnreachableObjects(UnreachableObjects);
 }
 

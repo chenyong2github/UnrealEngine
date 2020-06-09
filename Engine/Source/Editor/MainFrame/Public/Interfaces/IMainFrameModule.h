@@ -142,7 +142,7 @@ public:
 	 */
 	virtual FString GetLoadedLevelName() const = 0;
 
-	virtual const TSharedRef<FUICommandList>& GetMainFrameCommandBindings( ) = 0;
+	virtual TSharedRef<FUICommandList>& GetMainFrameCommandBindings( ) = 0;
 
 	/**
 	 * Gets the MRU/Favorites list

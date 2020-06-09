@@ -92,6 +92,13 @@ void FRenderDocPluginLoader::Initialize()
 
 	if (FApp::IsUnattended())
 	{
+		bool bDisableFrameTraceCapture = FParse::Param(FCommandLine::Get(), TEXT("DisableFrameTraceCapture"));
+		if (bDisableFrameTraceCapture)
+		{
+			UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because -DisableFrameTraceCapture cmd line flag."));
+			return;
+		}
+
 		IConsoleVariable* CVarAutomationAllowFrameTraceCapture = IConsoleManager::Get().FindConsoleVariable(TEXT("AutomationAllowFrameTraceCapture"), false);
 		if (!CVarAutomationAllowFrameTraceCapture || CVarAutomationAllowFrameTraceCapture->GetInt() == 0)
 		{

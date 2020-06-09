@@ -41,7 +41,7 @@ namespace AutomationCommon
 	*/
 	ENGINE_API FString GetLocalPathForScreenshot(const FString& InScreenshotName);
 
-	ENGINE_API FAutomationScreenshotData BuildScreenshotData(const FString& MapOrContext, const FString& TestName, int32 Width, int32 Height);
+	ENGINE_API FAutomationScreenshotData BuildScreenshotData(const FString& MapOrContext, const FString& TestName, const FString& ScreenShotName, int32 Width, int32 Height);
 
 	ENGINE_API extern FOnEditorAutomationMapLoad OnEditorAutomationMapLoad;
 	static FOnEditorAutomationMapLoad& OnEditorAutomationMapLoadDelegate()

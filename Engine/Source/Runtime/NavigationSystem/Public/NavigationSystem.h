@@ -201,7 +201,7 @@ public:
 	UNavigationSystemV1(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	virtual ~UNavigationSystemV1();
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	ANavigationData* MainNavData;
 
 	/** special navigation data for managing direct paths, not part of NavDataSet! */
@@ -302,10 +302,10 @@ protected:
 
 public:
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray<ANavigationData*> NavDataSet;
 
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	TArray<ANavigationData*> NavDataRegistrationQueue;
 
 	// List of pending navigation bounds update requests (add, remove, update size)

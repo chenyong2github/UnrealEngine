@@ -615,197 +615,6 @@ void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 	bPaused = bInPaused;
 }
 
-bool FNiagaraSystemInstance::ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph)
-{
-	// Mark this node as being evaluated.
-	EmitterPriorities[EmitterIdx] = 0;
-
-	int32 MaxPriority = 0;
-
-	// Examine all the nodes we depend on. We must run after all of them, so our priority
-	// will be 1 higher than the maximum priority of all our dependencies.
-	const int32 NumEmitters = Emitters.Num();
-	int32 DepStartIndex = EmitterIdx * NumEmitters;
-	TConstSetBitIterator<TInlineAllocator<32>> DepIt(EmitterDependencyGraph, DepStartIndex);
-	while (DepIt.GetIndex() < DepStartIndex + NumEmitters)
-	{
-		int32 OtherEmitterIdx = DepIt.GetIndex() - DepStartIndex;
-
-		// This can't happen, because we explicitly skip self-dependencies when building the edge table.
-		checkSlow(OtherEmitterIdx != EmitterIdx);
-
-		if (EmitterPriorities[OtherEmitterIdx] == 0)
-		{
-			// This node is currently being evaluated, which means we've found a cycle.
-			return false;
-		}
-
-		if (EmitterPriorities[OtherEmitterIdx] < 0)
-		{
-			// Node not evaluated yet, recurse.
-			if (!ComputeEmitterPriority(OtherEmitterIdx, EmitterPriorities, EmitterDependencyGraph))
-			{
-				return false;
-			}
-		}
-
-		if (MaxPriority < EmitterPriorities[OtherEmitterIdx])
-		{
-			MaxPriority = EmitterPriorities[OtherEmitterIdx];
-		}
-
-		++DepIt;
-	}
-
-	EmitterPriorities[EmitterIdx] = MaxPriority + 1;
-	return true;
-}
-
-void FNiagaraSystemInstance::FindDataInterfaceDependencies(const TArray<UNiagaraDataInterface*>& DataInterfaces, TArray<FNiagaraEmitterInstance*>& Dependencies)
-{
-	for (UNiagaraDataInterface* DI : DataInterfaces)
-	{
-		void* InterfaceInstanceData = FindDataInterfaceInstanceData(DI);
-		int32 NumDepsBefore = Dependencies.Num();
-		DI->GetEmitterDependencies(InterfaceInstanceData, this, Dependencies);
-		// Make sure the DI appended to the array, instead of resetting it.
-		check(Dependencies.Num() >= NumDepsBefore);
-	}
-}
-
-void FNiagaraSystemInstance::FindEventDependencies(FNiagaraEmitterInstance& EmitterInst, TArray<FNiagaraEmitterInstance*>& Dependencies)
-{
-	UNiagaraEmitter* Emitter = EmitterInst.GetCachedEmitter();
-	if (!Emitter)
-	{
-		return;
-	}
-
-	const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
-
-	const TArray<FNiagaraEventScriptProperties>& EventHandlers = Emitter->GetEventHandlers();
-	for (const FNiagaraEventScriptProperties& Handler : EventHandlers)
-	{
-		// An empty ID means the event reads from the same emitter, so we don't need to record a dependency.
-		if (!Handler.SourceEmitterID.IsValid())
-		{
-			continue;
-		}
-
-		// Look for the ID in the list of emitter handles from the system object.
-		FString SourceEmitterIDName = Handler.SourceEmitterID.ToString();
-		for (int EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
-		{
-			FName EmitterIDName = EmitterHandles[EmitterIdx].GetIdName();
-			if (EmitterIDName.ToString() == SourceEmitterIDName)
-			{
-				// The Emitters array is in the same order as the EmitterHandles array.
-				FNiagaraEmitterInstance* Sender = &Emitters[EmitterIdx].Get();
-				Dependencies.Add(Sender);
-				break;
-			}
-		}
-	}
-}
-
-void FNiagaraSystemInstance::ComputeEmittersExecutionOrder()
-{
-	const int32 NumEmitters = Emitters.Num();
-
-	TArray<int32, TInlineAllocator<32>> EmitterPriorities;
-	TBitArray<TInlineAllocator<32>> EmitterDependencyGraph;
-
-	EmitterExecutionOrder.SetNum(NumEmitters);
-	EmitterPriorities.SetNum(NumEmitters);
-	EmitterDependencyGraph.Init(false, NumEmitters * NumEmitters);
-
-	TArray<FNiagaraEmitterInstance*> EmitterDependencies;
-	EmitterDependencies.Reserve(3 * NumEmitters);
-
-	bool bHasEmitterDependencies = false;
-	for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
-	{
-		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
-		EmitterExecutionOrder[EmitterIdx] = EmitterIdx;
-		EmitterPriorities[EmitterIdx] = -1;
-
-		EmitterDependencies.SetNum(0, false);
-
-		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext())
-		{
-			// GPU emitters have a combined execution context for spawn and update.
-			FindDataInterfaceDependencies(Inst.GetGPUContext()->GetDataInterfaces(), EmitterDependencies);
-		}
-		else
-		{
-			// CPU emitters have separate contexts for spawn and update, so we need to gather DIs from both. They also support events,
-			// so we need to look at the event sources for extra dependencies.
-			FindDataInterfaceDependencies(Inst.GetSpawnExecutionContext().GetDataInterfaces(), EmitterDependencies);
-			FindDataInterfaceDependencies(Inst.GetUpdateExecutionContext().GetDataInterfaces(), EmitterDependencies);
-			FindEventDependencies(Inst, EmitterDependencies);
-		}
-
-		// Map the pointers returned by the emitter to indices inside the Emitters array. This is O(N^2), but we expect
-		// to have few dependencies, so in practice it should be faster than a TMap. If it gets out of hand, we can also
-		// ask the DIs to give us indices directly, since they probably got the pointers by scanning the array we gave them
-		// through GetEmitters() anyway.
-		for (int32 DepIdx = 0; DepIdx < EmitterDependencies.Num(); ++DepIdx)
-		{
-			for (int32 OtherEmitterIdx = 0; OtherEmitterIdx < NumEmitters; ++OtherEmitterIdx)
-			{
-				if (EmitterDependencies[DepIdx] == &Emitters[OtherEmitterIdx].Get())
-				{
-					const bool HasSourceEmitter = Emitters[EmitterIdx]->GetCachedEmitter() != nullptr;
-					const bool HasDependentEmitter = Emitters[OtherEmitterIdx]->GetCachedEmitter() != nullptr;
-
-					// check to see if the emitter we're dependent on may have been culled during the cook
-					if (HasSourceEmitter && !HasDependentEmitter)
-					{
-						UE_LOG(LogNiagara, Error, TEXT("Emitter[%s] depends on Emitter[%s] which is not available (has scalability removed it during a cook?)."),
-							*GetSystem()->GetEmitterHandles()[EmitterIdx].GetName().ToString(),
-							*GetSystem()->GetEmitterHandles()[OtherEmitterIdx].GetName().ToString());
-					}
-
-					// Some DIs might read from the same emitter they're applied to. We don't care about dependencies on self.
-					if (EmitterIdx != OtherEmitterIdx)
-					{
-						EmitterDependencyGraph.SetRange(EmitterIdx * NumEmitters + OtherEmitterIdx, 1, true);
-						bHasEmitterDependencies = true;
-					}
-					break;
-				}
-			}
-		}
-	}
-
-	if (bHasEmitterDependencies)
-	{
-		for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
-		{
-			if (EmitterPriorities[EmitterIdx] < 0)
-			{
-				if (!ComputeEmitterPriority(EmitterIdx, EmitterPriorities, EmitterDependencyGraph))
-				{
-					FName EmitterName = GetSystem()->GetEmitterHandles()[EmitterIdx].GetName();
-					UE_LOG(LogNiagara, Error, TEXT("Found circular dependency involving emitter '%s' in system '%s'. The execution order will be undefined."), *EmitterName.ToString(), *GetSystem()->GetName());
-					break;
-				}
-			}
-		}
-
-		// Sort the emitter indices in the execution order array so that dependencies are satisfied. Also, emitters with the same priority value don't have any
-		// inter-dependencies, so we can use that if we ever want to parallelize emitter execution.
-		Algo::Sort(EmitterExecutionOrder, [&EmitterPriorities](int32 IdxA, int32 IdxB) { return EmitterPriorities[IdxA] < EmitterPriorities[IdxB]; });
-	}
-
-	// go through and remove any entries in the EmitterExecutionOrder array for emitters where we don't have a CachedEmitter, they have
-	// likely been cooked out because of scalability
-	EmitterExecutionOrder.SetNum(Algo::StableRemoveIf(EmitterExecutionOrder, [this](int32 EmitterIdx)
-	{
-		return Emitters[EmitterIdx]->GetCachedEmitter() == nullptr;
-	}));
-}
-
 void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemReset);
@@ -897,8 +706,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		//Interface init can disable the system.
 		if (!IsComplete())
 		{
-			ComputeEmittersExecutionOrder();
-
 			bPendingSpawn = true;
 			SystemSimulation->AddInstance(this);
 
@@ -1616,7 +1423,7 @@ float FNiagaraSystemInstance::GetLODDistance()
 	return LODDistance;
 }
 
-ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
+ETickingGroup FNiagaraSystemInstance::CalculateTickGroup() const
 {
 	ETickingGroup NewTickGroup = (ETickingGroup)0;
 
@@ -1642,7 +1449,7 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 			// Handle data interfaces that have tick dependencies
 			if ( bDataInterfacesHaveTickPrereqs )
 			{
-				for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
+				for (const TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
 				{
 					if (UNiagaraDataInterface* Interface = Pair.Key.Get())
 					{
@@ -1670,6 +1477,11 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup()
 	}
 
 	return NewTickGroup;
+}
+
+void FNiagaraSystemInstance::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
+{
+	TickBehavior = NewTickBehavior;
 }
 
 void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSeconds)
@@ -1890,11 +1702,14 @@ void FNiagaraSystemInstance::InitEmitters()
 		for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
 		{
 			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
-			Sim->Init(EmitterIdx, ID);
+
 			if (System->bFixedBounds)
 			{
+				// be sure to set the system bounds first so that we can bypass work in the initialization of the emitter
 				Sim->SetSystemFixedBoundsOverride(System->GetFixedBounds());
 			}
+
+			Sim->Init(EmitterIdx, ID);
 			Emitters.Add(Sim);
 		}
 
@@ -2048,7 +1863,14 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	GPUParamIncludeInterpolation = false;
 	UNiagaraSystem* System = GetSystem();
 
+	if (IsComplete() || System == nullptr || Component == nullptr || CachedDeltaSeconds < SMALL_NUMBER)
+	{
+		bAsyncWorkInProgress = false;
+		return;
+	}
+
 	const int32 NumEmitters = Emitters.Num();
+	const TArray<int32>& EmitterExecutionOrder = System->GetEmitterExecutionOrder();
 	checkSlow(EmitterExecutionOrder.Num() <= NumEmitters);
 
 	//Determine if any of our emitters should be ticking.
@@ -2066,7 +1888,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 		}
 	}
 
-	if (IsComplete() || !bHasTickingEmitters || System == nullptr || Component == nullptr || CachedDeltaSeconds < SMALL_NUMBER)
+	if ( !bHasTickingEmitters )
 	{
 		bAsyncWorkInProgress = false;
 		return;

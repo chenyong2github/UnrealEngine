@@ -36,7 +36,8 @@ public class MovieSceneTools : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
                 "ActorPickerMode",
-                "CinematicCamera",
+				"AppFramework",
+				"CinematicCamera",
                 "CurveEditor",
                 "DesktopPlatform",
                 "Json",

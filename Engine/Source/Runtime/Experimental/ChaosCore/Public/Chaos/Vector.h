@@ -544,6 +544,10 @@ namespace Chaos
 			return (P1 - P0) / Dt;
 		}
 
+		static bool IsNearlyEqual(const TVector<float, 3>& A, const TVector<float, 3>& B, const float Epsilon)
+		{
+			return (B - A).IsNearlyZero(Epsilon);
+		}
 	};
 
 	template<>
@@ -929,12 +933,6 @@ namespace Chaos
 	}
 
 } // namespace Chaos
-
-template<class T, int d>
-struct TIsContiguousContainer<Chaos::TVector<T, d>>
-{
-	static constexpr bool Value = TIsContiguousContainer<TArray<T>>::Value;
-};
 
 //template<>
 //uint32 GetTypeHash(const Chaos::TVector<int32, 2>& V)

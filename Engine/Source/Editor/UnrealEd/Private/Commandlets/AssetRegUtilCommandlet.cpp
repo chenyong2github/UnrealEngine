@@ -192,7 +192,178 @@ struct FSortableDependencySort
 	}
 };
 
+enum class EEntryType
+{
+	Resource,
+	Package
+};
 
+struct FFOOEntry
+{
+	FFOOEntry() :
+		bFoundDep(false)
+	{
+	}
+
+	bool ParseEntry(FString& Line)
+	{
+		bool Succes = true;
+
+		int QuoteIndex;
+		Line.ReplaceInline(TEXT("\r"), TEXT(""), ESearchCase::CaseSensitive);
+		Line.ReplaceInline(TEXT("\n"), TEXT(""), ESearchCase::CaseSensitive);
+		if (Line.FindLastChar('"', QuoteIndex))
+		{
+			FString ReadNum = Line.RightChop(QuoteIndex + 1);
+			ReadNum.TrimStartInline();
+			ReadNum.TrimEndInline();
+			if (ReadNum.IsNumeric())
+			{
+				Order = FCString::Atoi(*ReadNum);
+			}
+			else
+			{
+				Succes = false;
+			}
+
+			Line.LeftInline(QuoteIndex + 1, false);
+			Name = Line.TrimQuotes();
+
+			// If the file have an extension, its consider as a resource
+			FString FileExt = FPaths::GetExtension(Name);
+			if (!FileExt.IsEmpty())
+			{
+				Type = EEntryType::Resource;
+			}
+			else
+			{
+				Type = EEntryType::Package;
+			}
+		}
+
+		return Succes;
+	}
+
+	int Order;
+	bool bFoundDep;
+	EEntryType Type;
+	FString Name;
+	TArray<FString> Dependencies;
+
+
+	void Serialize(FArchive* OutArc, int32& InOutOrderIndex)
+	{
+		switch (Type)
+		{
+		case EEntryType::Package:
+		{
+			FString OutputLine = FString::Printf(TEXT("\"%s\" %llu\n"), *Name, InOutOrderIndex);
+			OutArc->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OutputLine).Get()), OutputLine.Len());
+
+			for (int i = 0; i < Dependencies.Num(); i++)
+			{
+				OutputLine = FString::Printf(TEXT("\"%s\" %llu\n"), *(Dependencies[i]), InOutOrderIndex++);
+				OutArc->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OutputLine).Get()), OutputLine.Len());
+			}
+			
+			break;
+		}
+		case EEntryType::Resource:
+		{
+			if (!bFoundDep)
+			{
+				FString OutputLine = FString::Printf(TEXT("\"%s\" %llu\n"), *Name, InOutOrderIndex++);
+				OutArc->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OutputLine).Get()), OutputLine.Len());
+			}
+			break;
+		}			
+		}
+	}
+};
+
+struct FPackageStack
+{
+	FPackageStack() 
+	{
+		ExtPriority.Add(TEXT("uasset"), 0);
+		ExtPriority.Add(TEXT("uexp"), 1);
+		ExtPriority.Add(TEXT("umap"), 2);
+		ExtPriority.Add(TEXT("uptnl"), 3);
+		ExtPriority.Add(TEXT("ubulk"), 3);
+	}
+	~FPackageStack() {}
+
+	void FindMatch(const TArray<FFOOEntry*>& Entries, FFOOEntry* Resource, bool bSort)
+	{
+		for (int32 i = Frames.Num() - 1; i >= 0; i--)
+		{
+			int32 index = Frames[i];
+			if (index < 0 && index >= Entries.Num())
+			{
+				UE_LOG(LogAssetRegUtil, Error, TEXT("Invalide package index %i"), index);
+			}
+
+			FFOOEntry* Package = Entries[index];
+			if (Package->Order <= Resource->Order)
+			{
+				Package->Dependencies.Add(Resource->Name);
+				if (bSort)
+				{
+					Package->Dependencies.Sort([&](const FString& A, const FString& B) -> bool
+						{
+							int* priorityA = ExtPriority.Find(FPaths::GetExtension(A));
+							int* priorityB = ExtPriority.Find(FPaths::GetExtension(B));
+
+							if (priorityA && priorityB)
+							{
+								return (priorityA < priorityB);
+							}
+							else
+							{
+								return false;
+							}
+						});
+				}
+				Resource->bFoundDep = true;
+				break;
+			}
+		}
+	}
+	TArray<int32> Frames;
+	TMap<FString, int32> ExtPriority;
+};
+
+
+struct FileOpenStats
+{
+	FileOpenStats()
+	{
+		ResourceMoved = 0;
+		PackageCount = 0;
+		OrphanResource = 0;
+	}
+	int32 ResourceMoved;
+	int32 PackageCount;
+	int32 OrphanResource;
+};
+
+struct FFileOpenOrder
+{
+	FFileOpenOrder() {}
+	~FFileOpenOrder()
+	{
+		for (FFOOEntry* Entry : Entries)
+		{
+			delete Entry;
+		}
+		Entries.Empty();
+	}
+
+
+	TArray<FFOOEntry*> Entries;
+	TMap<FString, FPackageStack> Packages;
+	FileOpenStats Stats;
+};
 
 UAssetRegUtilCommandlet::UAssetRegUtilCommandlet( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
@@ -248,6 +419,44 @@ void UAssetRegUtilCommandlet::RecursivelyGrabDependencies(TArray<FSortableDepend
 				RecursivelyGrabDependencies(OutSortableDependencies, DepSet, DepOrder, DepHierarchy + 1, ProcessedFiles, OriginalSet, DepPathFName, DepPackageName, FilterByClasses);
 			}
 		}
+	}
+}
+
+void UAssetRegUtilCommandlet::ReorderOrderFiles(FFileOpenOrder& FileOpenOrder, const FString& CmdLineParams)
+{
+	bool bSortByExtension = FParse::Param(*CmdLineParams, TEXT("SortByExtension"));
+
+	int EntryIndex = 0;
+	for (FFOOEntry* Entry : FileOpenOrder.Entries)
+	{
+		if (Entry->Type == EEntryType::Resource)
+		{
+			FString PackageName;
+			if (FPackageName::TryConvertFilenameToLongPackageName(Entry->Name, PackageName))
+			{
+				FPackageStack* PackageStack = FileOpenOrder.Packages.Find(PackageName);
+				if (PackageStack != nullptr)
+				{
+					PackageStack->FindMatch(FileOpenOrder.Entries, Entry, bSortByExtension);
+					FileOpenOrder.Stats.ResourceMoved++;
+				}
+				else
+				{
+					FileOpenOrder.Stats.OrphanResource++;
+				}
+			}
+		}
+		else if (Entry->Type == EEntryType::Package)
+		{
+			FPackageStack& PackageStack = FileOpenOrder.Packages.FindOrAdd(Entry->Name);
+			PackageStack.Frames.Add(EntryIndex);
+			FileOpenOrder.Stats.PackageCount++;
+		}
+		else
+		{
+			UE_LOG(LogAssetRegUtil, Error, TEXT("Could parse entry in the GameOpenFile, line %i"), EntryIndex);
+		}
+		EntryIndex++;
 	}
 }
 
@@ -382,6 +591,58 @@ void UAssetRegUtilCommandlet::ReorderOrderFile(const FString& OrderFilePath, con
 	}
 }
 
+bool UAssetRegUtilCommandlet::GenerateOrderFile(FFileOpenOrder& NewFileOpenOrder, const FString& ReorderFileOutPath)
+{
+	int NewOrderIndex = 0;
+	UE_LOG(LogAssetRegUtil, Display, TEXT("Writing output: %s"), *ReorderFileOutPath);
+	FArchive* OutArc = IFileManager::Get().CreateFileWriter(*ReorderFileOutPath);
+	if (OutArc)
+	{
+		for (int i = 0; i < NewFileOpenOrder.Entries.Num(); i++)
+		{
+			NewFileOpenOrder.Entries[i]->Serialize(OutArc, NewOrderIndex);
+		}
+
+		OutArc->Close();
+		delete OutArc;
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not open specified output file."));
+		return false;
+	}
+}
+
+bool UAssetRegUtilCommandlet::LoadOrderFiles(const FString& OrderFilePath, FFileOpenOrder& FileOpenOrder)
+{
+	UE_LOG(LogAssetRegUtil, Display, TEXT("Parsing order package: %s"), *OrderFilePath);
+	FString Text;
+	if (!FFileHelper::LoadFileToString(Text, *OrderFilePath))
+	{
+		UE_LOG(LogAssetRegUtil, Error, TEXT("Could not open file %s"), *OrderFilePath);
+		return false;
+	}
+
+	TArray<FString> Lines;
+	Text.ParseIntoArray(Lines, TEXT("\n"), true);
+
+	FileOpenOrder.Entries.Reserve(Lines.Num());
+	for (int32 Index = 0; Index < Lines.Num(); ++Index)
+	{
+		FFOOEntry* Entry = new FFOOEntry();
+		FileOpenOrder.Entries.Add(Entry);
+		if (!Entry->ParseEntry(Lines[Index]))
+		{
+			FileOpenOrder.Entries.Empty();
+			UE_LOG(LogAssetRegUtil, Error, TEXT("Could parse entry in the GameOpenFile %s"), *OrderFilePath);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool UAssetRegUtilCommandlet::LoadOrderFiles(const FString& OrderFilePath, TSet<FName>& OrderFiles)
 {
 	UE_LOG(LogAssetRegUtil, Display, TEXT("Parsing order file: %s"), *OrderFilePath);
@@ -508,40 +769,73 @@ int32 UAssetRegUtilCommandlet::Main(const FString& CmdLineParams)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistry = &AssetRegistryModule.Get();
-
+	
 	UE_LOG(LogAssetRegUtil, Display, TEXT("Populating the Asset Registry."));
 	AssetRegistry->SearchAllAssets(true);
-	
+
+	// New deterministic FOO flavor
+	bool bUsePackageFileOpenOrder = FParse::Param(*CmdLineParams, TEXT("FilePackageOrder"));
+
 	FString ReorderFile;
-	if (FParse::Value(*CmdLineParams, TEXT("ReorderFile="), ReorderFile, false))
+	FString ReorderOutput;
+
+	if (bUsePackageFileOpenOrder)
 	{
-		FString ReorderOutput;
-		if (!FParse::Value(*CmdLineParams, TEXT("ReorderOutput="), ReorderOutput, false))
+		if (!FParse::Value(*CmdLineParams, TEXT("ReorderFile="), ReorderFile, false))
 		{
-			//if nothing specified, base it on the input name
-			ReorderOutput = FPaths::SetExtension(FPaths::SetExtension(ReorderFile, TEXT("")) + TEXT("Reordered"), FPaths::GetExtension(ReorderFile));
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load ReorderFile"));
+			return 0;
 		}
 
-		ReorderOrderFile(ReorderFile, ReorderOutput);
-
-		// Generate partially-updated order file
-		float PatchSizePerfBalanceFactor;	// Set the value close to 0.0 to favor patch size and close to 1.0 to favor streaming performance
-		FParse::Value(*CmdLineParams, TEXT("PatchSizePerfBalanceFactor="), PatchSizePerfBalanceFactor);
-		PatchSizePerfBalanceFactor = FMath::Clamp(PatchSizePerfBalanceFactor, 0.f, 1.f);
-
-		FString OldOrderFilePath;
-		if (FParse::Value(*CmdLineParams, TEXT("OldFileOpenOrderFile="), OldOrderFilePath, false))
+		if (!FParse::Value(*CmdLineParams, TEXT("ReorderOutput="), ReorderOutput, false))
+		if (!FParse::Value(*CmdLineParams, TEXT("ReorderOutput="), ReorderOutput, false))
 		{
-			UE_LOG(LogAssetRegUtil, Display, TEXT("Generating partially-updated order file."));
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load ReorderOutput"));
+			return 0;
+		}
 
-			FString OutPartialOrderFilePath;
-			if (!FParse::Value(*CmdLineParams, TEXT("PartialFileOpenOrderOutput="), OutPartialOrderFilePath, false))
+		FFileOpenOrder NewOpenOrderFile;
+
+		if (!LoadOrderFiles(ReorderFile, NewOpenOrderFile))
+		{
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load specified order file."));
+			return 0;
+		}
+
+		ReorderOrderFiles(NewOpenOrderFile, CmdLineParams);
+		GenerateOrderFile(NewOpenOrderFile, ReorderOutput);
+	}
+	else
+	{
+		if (FParse::Value(*CmdLineParams, TEXT("ReorderFile="), ReorderFile, false))
+		{
+			if (!FParse::Value(*CmdLineParams, TEXT("ReorderOutput="), ReorderOutput, false))
 			{
 				//if nothing specified, base it on the input name
-				OutPartialOrderFilePath = FPaths::SetExtension(FPaths::SetExtension(ReorderFile, TEXT("")) + TEXT("PartialUpdate"), FPaths::GetExtension(ReorderFile));
+				ReorderOutput = FPaths::SetExtension(FPaths::SetExtension(ReorderFile, TEXT("")) + TEXT("Reordered"), FPaths::GetExtension(ReorderFile));
 			}
 
-			GeneratePartiallyUpdatedOrderFile(OldOrderFilePath, ReorderOutput, OutPartialOrderFilePath, PatchSizePerfBalanceFactor);
+			ReorderOrderFile(ReorderFile, ReorderOutput);
+
+			// Generate partially-updated order file
+			float PatchSizePerfBalanceFactor;	// Set the value close to 0.0 to favor patch size and close to 1.0 to favor streaming performance
+			FParse::Value(*CmdLineParams, TEXT("PatchSizePerfBalanceFactor="), PatchSizePerfBalanceFactor);
+			PatchSizePerfBalanceFactor = FMath::Clamp(PatchSizePerfBalanceFactor, 0.f, 1.f);
+
+			FString OldOrderFilePath;
+			if (FParse::Value(*CmdLineParams, TEXT("OldFileOpenOrderFile="), OldOrderFilePath, false))
+			{
+				UE_LOG(LogAssetRegUtil, Display, TEXT("Generating partially-updated order file."));
+
+				FString OutPartialOrderFilePath;
+				if (!FParse::Value(*CmdLineParams, TEXT("PartialFileOpenOrderOutput="), OutPartialOrderFilePath, false))
+				{
+					//if nothing specified, base it on the input name
+					OutPartialOrderFilePath = FPaths::SetExtension(FPaths::SetExtension(ReorderFile, TEXT("")) + TEXT("PartialUpdate"), FPaths::GetExtension(ReorderFile));
+				}
+
+				GeneratePartiallyUpdatedOrderFile(OldOrderFilePath, ReorderOutput, OutPartialOrderFilePath, PatchSizePerfBalanceFactor);
+			}
 		}
 	}
 

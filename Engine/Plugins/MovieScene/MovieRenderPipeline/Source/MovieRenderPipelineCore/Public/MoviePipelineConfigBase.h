@@ -19,17 +19,24 @@ public:
 		DisplayName = TEXT("Unsaved Config");
 	}
 
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override
+	{
+		DisplayName = GetFName().ToString();
+	}
+
 public:
 	/** Removes the specific instance from our Setting list. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual void RemoveSetting(UMoviePipelineSetting* InSetting);
 
 	/** Copy this configuration from another existing configuration. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual void CopyFrom(UMoviePipelineConfigBase* InConfig);
 
 	int32 GetSettingsSerialNumber() const { return SettingsSerialNumber; }
 
 	/** Returns an array of all settings in this config that the user has added via the UI or via Scripting. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual TArray<UMoviePipelineSetting*> GetUserSettings() const { return Settings; }
 
 public:

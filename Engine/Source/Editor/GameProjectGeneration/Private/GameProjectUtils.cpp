@@ -922,7 +922,7 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 
 void GameProjectUtils::CheckForOutOfDateGameProjectFile()
 {
-	if ( FPaths::IsProjectFilePathSet() )
+	if (FPaths::IsProjectFilePathSet() && !IProjectManager::Get().IsSuppressingProjectFileWrite())
 	{
 		if (IProjectManager::Get().IsCurrentProjectDirty())
 		{
@@ -3629,6 +3629,11 @@ void GameProjectUtils::OnUpdateProjectCancel()
 
 void GameProjectUtils::TryMakeProjectFileWriteable(const FString& ProjectFile)
 {
+	if (IProjectManager::Get().IsSuppressingProjectFileWrite())
+	{
+		return;
+	}
+
 	// First attempt to check out the file if SCC is enabled
 	if ( ISourceControlModule::Get().IsEnabled() )
 	{

@@ -73,6 +73,10 @@ struct FVertexFactoryInput
 #if (PARTICLE_MESH_INSTANCED)
 	uint InstanceId	: SV_InstanceID;
 #endif
+
+#if PASS_NEEDS_VERTEX_ID
+	uint VertexId : SV_VertexID;
+#endif // #if PASS_NEEDS_VERTEX_ID
 };
 
 struct FVertexFactoryInterpolantsVSToPS

@@ -11,6 +11,7 @@
 #include "Spatial/DenseGrid3.h"
 #include "Async/ParallelFor.h"
 #include "Misc/ScopeLock.h"
+#include "Implicit/GridInterpolant.h"
 
 
 /**
@@ -69,8 +70,9 @@ public:
 	EComputeModes ComputeMode = EComputeModes::NarrowBandOnly;
 
 	// how wide of narrow band should we compute. This value is 
-	// currently only used if there is a spatial data structure, as
-	// we can efficiently explore the space (in that case ExactBandWidth is not used)
+	// currently only used NarrowBand_SpatialFloodFill, as
+	// we can efficiently explore the space
+	// (in that case ExactBandWidth is only used to initialize the grid extents, and this is used instead during the flood fill)
 	double NarrowBandMaxDistance = 0;
 
 	// should we try to compute signs? if not, Grid remains unsigned
@@ -120,7 +122,7 @@ public:
 	 * @param CellSize Spacing between Grid points
 	 * @param Spatial Optional AABB tree; note it *must* be provided if ComputeMode is set to NarrowBand_SpatialFloodFill
 	 */
-	TSweepingMeshSDF(const TriangleMeshType* Mesh, double CellSize, TMeshAABBTree3<TriangleMeshType>* Spatial = nullptr) : Mesh(Mesh), Spatial(Spatial), CellSize(CellSize)
+	TSweepingMeshSDF(const TriangleMeshType* Mesh = nullptr, double CellSize = 1, TMeshAABBTree3<TriangleMeshType>* Spatial = nullptr) : Mesh(Mesh), Spatial(Spatial), CellSize(CellSize)
 	{
 	}
 
@@ -134,6 +136,26 @@ public:
 		IntersectionsGrid.Resize(0, 0, 0, true);
 	}
 
+	TTriLinearGridInterpolant<TSweepingMeshSDF> MakeInterpolant()
+	{
+		return TTriLinearGridInterpolant<TSweepingMeshSDF>(this, (FVector3d)GridOrigin, CellSize, Dimensions());
+	}
+
+	/**
+	 * Encodes heuristic for deciding whether it will be faster to use
+	 *  - NarrowBand_SpatialFloodFill
+	 *  - Or NarrowBandOnly
+	 * The heuristic is to use the Spatial method unless you have relatively long edges relative to the width
+	 * of the narrow band.  For a 1-cell wide band, or one where few triangles interact w/ each cell in the band
+	 * the spatial overhead will probably not be worthwhile.
+	 * TODO: test and tune this ...
+	 */
+	static bool ShouldUseSpatial(int ExactCells, double CellSize, double AvgEdgeLen)
+	{
+		double EdgesPerCell = CellSize / AvgEdgeLen;
+		double EdgesPerBand = ExactCells * EdgesPerCell;
+		return ExactCells > 1 && EdgesPerBand >= .25;
+	}
 
 	/**
 	 * Compute the SDF
@@ -142,10 +164,10 @@ public:
 	 */
 	bool Compute(FAxisAlignedBox3d Bounds)
 	{
-		float fBufferWidth = 2 * ExactBandWidth * CellSize;
+		float fBufferWidth = ExactBandWidth * CellSize;
 		if (ComputeMode == EComputeModes::NarrowBand_SpatialFloodFill)
 		{
-			fBufferWidth = (float)FMath::Max(fBufferWidth, float(2 * NarrowBandMaxDistance));
+			fBufferWidth = (float)FMath::Max(fBufferWidth, float(NarrowBandMaxDistance));
 		}
 		GridOrigin = (FVector3f)Bounds.Min - fBufferWidth * FVector3f::One() - (FVector3f)ExpandBounds;
 		FVector3f max = (FVector3f)Bounds.Max + fBufferWidth * FVector3f::One() + (FVector3f)ExpandBounds;
@@ -159,13 +181,13 @@ public:
 			{
 				return false;
 			}
-			make_level_set3_parallel_floodfill(GridOrigin, CellSize, NI, NJ, NK, Grid, ExactBandWidth);
+			make_level_set3_parallel_floodfill(GridOrigin, CellSize, NI, NJ, NK, Grid);
 		}
 		else
 		{
 			if (bUseParallel)
 			{
-				if (Spatial != nullptr)
+				if (Spatial != nullptr) // TODO: is this path better than NarrowBand_SpatialFloodFill path sometimes?  when?
 				{
 					make_level_set3_parallel_spatial(GridOrigin, CellSize, NI, NJ, NK, Grid, ExactBandWidth);
 				}
@@ -267,8 +289,12 @@ private:
 		double ddx = (double)DX;
 		double ox = (double)Origin[0], oy = (double)Origin[1], oz = (double)Origin[2];
 		FVector3d xp, xq, xr;
-		for (int TID : Mesh->TriangleIndicesItr())
+		for (int TID = 0; TID < Mesh->MaxTriangleID(); TID++)
 		{
+			if (!Mesh->IsTriangle(TID))
+			{
+				continue;
+			}
 			if (TID % 100 == 0 && CancelF())
 			{
 				break;
@@ -644,7 +670,7 @@ private:
 
 
 
-	void make_level_set3_parallel_floodfill(FVector3f Origin, float DX, int NI, int NJ, int NK, FDenseGrid3f& Distances, int ExactBand)
+	void make_level_set3_parallel_floodfill(FVector3f Origin, float DX, int NI, int NJ, int NK, FDenseGrid3f& Distances)
 	{
 		Distances.Resize(NI, NJ, NK);
 		float upper_bound = this->upper_bound(Distances);
@@ -671,7 +697,7 @@ private:
 		TArray<bool> done; done.SetNumZeroed(Distances.Size());
 
 		bool bAbort = false;
-		ParallelFor(Mesh->MaxVertexID(), [this, DX, NI, NJ, NK, &Distances, &ExactBand, &upper_bound, &closest_tri, &intersection_count, &ox, &oy, &oz, &invdx, &GridSection, &Q, &ActiveQ, &done, &bAbort](int vid)
+		ParallelFor(Mesh->MaxVertexID(), [this, DX, NI, NJ, NK, &Distances, &upper_bound, &closest_tri, &intersection_count, &ox, &oy, &oz, &invdx, &GridSection, &Q, &ActiveQ, &done, &bAbort](int vid)
 		{
 			if (!Mesh->IsVertex(vid))
 			{
@@ -725,7 +751,7 @@ private:
 		while (next_pass_count > 0)
 		{
 			Q[1-ActiveQ].Reset();
-			ParallelFor(Q[ActiveQ].Num(), [this, DX, NI, NJ, NK, &Distances, &ExactBand, &upper_bound, &closest_tri, &intersection_count, &ox, &oy, &oz, &invdx, &GridSection, &Q, &ActiveQ, &done, &Bounds, max_dist, max_query_dist](int QIdx)
+			ParallelFor(Q[ActiveQ].Num(), [this, DX, NI, NJ, NK, &Distances, &upper_bound, &closest_tri, &intersection_count, &ox, &oy, &oz, &invdx, &GridSection, &Q, &ActiveQ, &done, &Bounds, max_dist, max_query_dist](int QIdx)
 			{
 				int cur_linear_index = Q[ActiveQ][QIdx];
 				FVector3i cur_idx = Distances.ToIndex(cur_linear_index);

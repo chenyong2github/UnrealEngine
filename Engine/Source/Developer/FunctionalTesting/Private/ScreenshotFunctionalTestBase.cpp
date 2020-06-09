@@ -127,7 +127,7 @@ void AScreenshotFunctionalTestBase::OnScreenShotCaptured(int32 InSizeX, int32 In
 #if WITH_AUTOMATION_TESTS
 	TArray<uint8> CapturedFrameTrace = AutomationCommon::CaptureFrameTrace(GetWorld()->GetName(), GetName());
 
-	FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(GetWorld()->GetName(), GetName(), InSizeX, InSizeY);
+	FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(GetWorld()->GetName(), GetName(), InSizeX, InSizeY);
 
 	// Copy the relevant data into the metadata for the screenshot.
 	Data.bHasComparisonRules = true;

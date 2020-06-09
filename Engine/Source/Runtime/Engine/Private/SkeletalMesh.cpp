@@ -1146,6 +1146,7 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 
 		if (!PendingUpdate->IsCompleted())
 		{
+			TickMipLevelChangeCallbacks();
 			return true;
 		}
 
@@ -1180,6 +1181,8 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 #endif
 	}
 
+	TickMipLevelChangeCallbacks();
+
 	// TODO: LOD fading?
 
 	return false;
@@ -1202,6 +1205,7 @@ void USkeletalMesh::UnlinkStreaming()
 	if (!IsTemplate() && StreamingIndex != INDEX_NONE)
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
+		RemoveAllMipLevelChangeCallbacks();
 	}
 }
 
@@ -1745,8 +1749,9 @@ void USkeletalMesh::PostDuplicate(bool bDuplicateForPIE)
 		USkeletalMeshEditorData& DestMeshEditorData = GetMeshEditorData();
 		//We should have a brand new created asset
 		check(MeshEditorDataObject);
-		//Lets duplicate the data
-		ParallelFor(ImportedModels.LODModels.Num(), [&ImportedModels, &SourceMeshEditorData, &DestMeshEditorData](int32 LODIndex)
+		//Lets duplicate the imported data
+		const int32 NumLODModels = ImportedModels.LODModels.Num();
+		for (int32 LODIndex = 0; LODIndex < NumLODModels; ++LODIndex)
 		{
 			if (!SourceMeshEditorData->IsLODImportDataValid(LODIndex) || SourceMeshEditorData->GetLODImportedData(LODIndex).IsEmpty())
 			{
@@ -1765,7 +1770,7 @@ void USkeletalMesh::PostDuplicate(bool bDuplicateForPIE)
 			ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
 			ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
 			ThisLODModel.BuildStringID = RawSkeletalMeshBulkData.GetIdString();
-		});
+		}
 	}
 #endif //WITH_EDITORONLY_DATA
 }
@@ -1778,8 +1783,23 @@ void USkeletalMesh::PostRename(UObject* OldOuter, const FName OldName)
 	if (MeshEditorDataObject)
 	{
 		FString MeshEditorDataString = GetName() + TEXT("_USkeletalMeshEditorData");
-		//Do a soft rename avoid: dirty, redirector, transaction and reset of the loaders
-		MeshEditorDataObject->Rename(*MeshEditorDataString, GetOutermost(), (REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders));
+		UPackage* SkeletalMeshPackage = GetOutermost();
+
+		//If the data is already existing, no need to rename it. Tentative to fix a live crash that we cannot reproduce, will log the data to help us
+		UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, SkeletalMeshPackage, *MeshEditorDataString, true);
+		if(!ExistingObject)
+		{
+			//Do a soft rename avoid: dirty, redirector, transaction and reset of the loaders
+			MeshEditorDataObject->Rename(*MeshEditorDataString, GetOutermost(), (REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders));
+		}
+		else
+		{
+			if (ExistingObject != MeshEditorDataObject)
+			{
+				//Log that the MeshEditorDataObject is not renamed properly.
+				UE_LOG(LogSkeletalMesh, Warning, TEXT("Renaming of skeletal mesh %s failed to rename the sub UObject MeshEditorDataObject (The imported data), because there is already an object with this name!/nMeshEditorDataObject name before renaming %s./nName of the existing object preventing the renaming %s"), *GetFullName(), *MeshEditorDataObject->GetFullName(), *ExistingObject->GetFullName());
+			}
+		}
 	}
 #endif //WITH_EDITORONLY_DATA
 }
@@ -2155,7 +2175,7 @@ USkeletalMeshEditorData& USkeletalMesh::GetMeshEditorData() const
 		{
 			//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
 			//StandAlone make sure the asset is save when we save the package(i.e. the skeletalmesh)
-			MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(GetOutermost(), MeshEditorDataName, RF_Standalone);
+			MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(GetOutermost(), MeshEditorDataName);
 		}
 	}
 	//Make sure we have a valid pointer

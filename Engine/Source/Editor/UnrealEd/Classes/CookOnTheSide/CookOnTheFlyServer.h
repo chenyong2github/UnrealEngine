@@ -71,6 +71,7 @@ enum class ECookByTheBookOptions
 	DisableUnsolicitedPackages =		0x00001000, // don't cook any packages which aren't in the files to cook list (this is really dangerious as if you request a file it will not cook all it's dependencies automatically)
 	FullLoadAndSave =					0x00002000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
 	PackageStore =						0x00004000, // Cook package header information into a global package store
+	SkipSoftReferences =				0x00008000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
@@ -205,6 +206,7 @@ private:
 	int32 LastCookPendingCount = 0;
 	int32 LastCookedPackagesCount = 0;
 	double LastProgressDisplayTime = 0;
+	double LastDiagnosticsDisplayTime = 0;
 
 	FName ConvertCookedPathToUncookedPath(
 		const FString& SandboxRootDir, const FString& RelativeRootDir,
@@ -260,6 +262,7 @@ private:
 
 	/** Execute operations that need to be done after each Scheduler task, such as checking for new external requests. */
 	void TickCookStatus(UE::Cook::FTickStackData& StackData);
+	void UpdateDisplay(ECookTickFlags CookFlags, bool bForceDisplay);
 	enum class ECookAction
 	{
 		Done,		// The cook is complete; no requests remain in any non-idle state

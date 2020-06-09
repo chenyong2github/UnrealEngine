@@ -131,11 +131,16 @@ TFunction<TSharedRef<SEditorViewport>(void)> FBaseAssetToolkit::GetViewportDeleg
 	return TempViewportDelegate;
 }
 
+TSharedPtr<FEditorViewportClient> FBaseAssetToolkit::CreateEditorViewportClient() const
+{
+	FPreviewScene* PreviewScene = new FPreviewScene(FPreviewScene::ConstructionValues());
+	return MakeShared<FEditorViewportClient>(nullptr, PreviewScene);
+}
+
 void FBaseAssetToolkit::CreateWidgets()
 {
 	RegisterToolbar();
-	FPreviewScene* PreviewScene = new FPreviewScene(FPreviewScene::ConstructionValues());
-	ViewportClient = MakeShareable(new FEditorViewportClient(nullptr, PreviewScene));
+	ViewportClient = CreateEditorViewportClient();
 	ViewportDelegate = GetViewportDelegate();
 	ViewportTabContent = MakeShareable(new FEditorViewportTabContent());
 	LayoutExtender = MakeShared<FLayoutExtender>();

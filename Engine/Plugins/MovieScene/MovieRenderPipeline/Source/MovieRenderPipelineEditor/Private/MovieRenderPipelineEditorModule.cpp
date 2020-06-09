@@ -19,6 +19,7 @@
 #include "UObject/Package.h"
 #include "Templates/SubclassOf.h"
 #include "MovieRenderPipelineStyle.h"
+#include "MoviePipelineCommands.h"
 
 #define LOCTEXT_NAMESPACE "FMovieRenderPipelineEditorModule"
 
@@ -43,7 +44,7 @@ namespace
 	static TSharedRef<SDockTab> SpawnMoviePipelineQueueTab(const FSpawnTabArgs& InSpawnTabArgs)
 	{
 		TSharedRef<SDockTab> NewTab = SNew(SDockTab)
-			.TabRole(ETabRole::MajorTab)
+			.TabRole(ETabRole::NomadTab)
 			[
 				SNew(SMoviePipelineQueueTabContent)
 			];
@@ -98,6 +99,7 @@ void FMovieRenderPipelineEditorModule::StartupModule()
 {
 	// Initialize our custom style
 	FMovieRenderPipelineStyle::Get();
+	FMoviePipelineCommands::Register();
 
 	RegisterTabImpl();
 	RegisterSettings();
@@ -106,6 +108,7 @@ void FMovieRenderPipelineEditorModule::StartupModule()
 void FMovieRenderPipelineEditorModule::ShutdownModule()
 {
 	UnregisterSettings();
+	FMoviePipelineCommands::Unregister();
 }
 
 #undef LOCTEXT_NAMESPACE

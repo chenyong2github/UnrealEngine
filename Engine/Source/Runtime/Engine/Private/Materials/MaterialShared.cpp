@@ -43,6 +43,7 @@
 #include "UObject/CoreRedirects.h"
 #include "RayTracingDefinitions.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
@@ -920,7 +921,6 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 		{
 #if WITH_EDITOR
 			FinishCompilation();
-#endif
 
 			bool bValid = GameThreadShaderMap != nullptr && GameThreadShaderMap->CompiledSuccessfully();
 			
@@ -928,8 +928,22 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 
 			if (bValid)
 			{
-				GameThreadShaderMap->Serialize(Ar);
+				// do not put shader code of certain materials into the library
+				bool bEnableInliningWorkaround = false;
+
+				checkf(GConfig, TEXT("We expect GConfig to exist at this point"));
+				FString SettingName(TEXT("bEnableInliningWorkaround_"));
+				SettingName += Ar.CookingTarget()->IniPlatformName();
+
+				GConfig->GetBool(TEXT("ShaderCodeLibrary"), *SettingName, bEnableInliningWorkaround, GEngineIni);
+
+				bool bInlineShaderCode = bEnableInliningWorkaround && ShouldInlineShaderCode();
+				GameThreadShaderMap->Serialize(Ar, true, false, bInlineShaderCode);
 			}
+#else
+			UE_LOG(LogMaterial, Fatal, TEXT("Internal error: cooking outside the editor is not possible."));
+			// unreachable
+#endif
 		}
 		else
 		{
@@ -1455,6 +1469,49 @@ FString FMaterialResource::GetAssetPath() const
 
 	FString Result = FPackageName::LongPackageNameToFilename(OutermostName, TEXT(".uasset"));
 	return Result;
+}
+
+bool FMaterialResource::ShouldInlineShaderCode() const
+{
+	if (IsSpecialEngineMaterial() || IsDefaultMaterial())
+	{
+		UE_LOG(LogMaterial, Display, TEXT("%s: shader code is inlined because the workaround is enabled and it's a special or default material"), *GetFriendlyName());
+		return true;
+	}
+
+	// Check the material name against those configured to be enabled.
+	// For the cooker commandlet, this check could be cached, but due to concerns of that cache possibly getting stale for edge cases like COTF and general work-aroundness of this
+	// function, let's check the configs every time.
+
+	FString OutermostName;
+	if (MaterialInstance)
+	{
+		OutermostName = MaterialInstance->GetOutermost()->GetName();
+	}
+	else if (Material)
+	{
+		OutermostName = Material->GetOutermost()->GetName();
+	}
+
+	bool bNeedsToBeInlined = false;
+	const FConfigSection* ShaderLibrarySec = GConfig->GetSectionPrivate(TEXT("ShaderCodeLibrary"), false, true, GEngineIni);
+	if (ShaderLibrarySec)
+	{
+		TArray<FString> ConfiguredMaterials;
+		ShaderLibrarySec->MultiFind(TEXT("MaterialToInline"), ConfiguredMaterials);
+
+		for(const FString& ConfiguredMaterial : ConfiguredMaterials)
+		{
+			if (ConfiguredMaterial == OutermostName)
+			{
+				bNeedsToBeInlined = true;
+				break;
+			}
+		}
+	}
+
+	UE_LOG(LogMaterial, Display, TEXT("%s (package %s): shader code is %s to be inlined as a workaround"), *GetFriendlyName(), *OutermostName, bNeedsToBeInlined ? TEXT("configured") : TEXT("NOT configured"));
+	return bNeedsToBeInlined;
 }
 #endif
 

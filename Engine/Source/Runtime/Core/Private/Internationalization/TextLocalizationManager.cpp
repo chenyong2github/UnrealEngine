@@ -374,6 +374,9 @@ void InitGameTextLocalization()
 
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("InitGameTextLocalization"), STAT_InitGameTextLocalization, STATGROUP_LoadTime);
 
+	// Refresh the cached config data before applying the default culture, as the game may have patched in new config data since the cache was built
+	FInternationalization::Get().RefreshCachedConfigData();
+
 	ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::None;
 	LocLoadFlags |= (FApp::IsGame() ? ELocalizationLoadFlags::Game : ELocalizationLoadFlags::None);
 

@@ -1328,7 +1328,8 @@ bool UEditorEngine::SpawnPlayFromHereStart(UWorld* World, AActor*& PlayerStart)
 {
 	if (PlayInEditorSessionInfo.IsSet() && PlayInEditorSessionInfo->OriginalRequestParams.HasPlayWorldPlacement())
 	{
-		return SpawnPlayFromHereStart(World, PlayerStart, PlayInEditorSessionInfo->OriginalRequestParams.StartLocation.GetValue(), PlayInEditorSessionInfo->OriginalRequestParams.StartRotation.GetValue());
+		// Rotation may be optional in original request.
+		return SpawnPlayFromHereStart(World, PlayerStart, PlayInEditorSessionInfo->OriginalRequestParams.StartLocation.GetValue(), PlayInEditorSessionInfo->OriginalRequestParams.StartRotation.Get(FRotator::ZeroRotator));
 	}
 
 	// Not having a location set is still considered a success.
@@ -2783,9 +2784,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 			else
 			{
 				// Generate a new Window to put this instance in.
-				EPlayNetMode NetMode;
-				InParams.EditorPlaySettings->GetPlayNetMode(NetMode);
-				PIEViewport = GeneratePIEViewportWindow(InParams, PlayInEditorSessionInfo->NumViewportInstancesCreated, *PieWorldContext, NetMode, ViewportClient, SlatePlayInEditorSession);
+				PIEViewport = GeneratePIEViewportWindow(InParams, PlayInEditorSessionInfo->NumViewportInstancesCreated, *PieWorldContext, InPIEParameters.NetMode, ViewportClient, SlatePlayInEditorSession);
 
 				// Increment for each viewport so that the window titles get correct numbers and it uses the right save/load setting. Non-visible
 				// servers won't be bumping this number as it's used for saving/restoring window positions.

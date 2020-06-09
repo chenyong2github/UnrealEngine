@@ -8,7 +8,7 @@
 
 #include "PhysicsEngine/ConstraintInstance.h"
 
-//#pragma optimize("", off)
+//PRAGMA_DISABLE_OPTIMIZATION
 
 static_assert((int32)Chaos::EJointMotionType::Free == (int32)EAngularConstraintMotion::ACM_Free, "Chaos::EJointMotionType and EAngularConstraintMotion mismatch");
 static_assert((int32)Chaos::EJointMotionType::Limited == (int32)EAngularConstraintMotion::ACM_Limited, "Chaos::EJointMotionType and EAngularConstraintMotion mismatch");
@@ -94,7 +94,12 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.LinearSoftForceMode = (ChaosImmediate_SoftLinearForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 		ConstraintSettings.AngularSoftForceMode = (ChaosImmediate_SoftAngularForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 
-		ConstraintSettings.LinearDriveTarget = Profile.LinearDrive.PositionTarget;
+		ConstraintSettings.LinearRestitution = Profile.LinearLimit.Restitution;
+		ConstraintSettings.TwistRestitution = Profile.TwistLimit.Restitution;
+		ConstraintSettings.SwingRestitution = Profile.ConeLimit.Restitution;
+
+		ConstraintSettings.LinearDrivePositionTarget = Profile.LinearDrive.PositionTarget;
+		ConstraintSettings.LinearDriveVelocityTarget = Profile.LinearDrive.VelocityTarget;
 		ConstraintSettings.bLinearPositionDriveEnabled[0] = Profile.LinearDrive.XDrive.bEnablePositionDrive;
 		ConstraintSettings.bLinearPositionDriveEnabled[1] = Profile.LinearDrive.YDrive.bEnablePositionDrive;
 		ConstraintSettings.bLinearPositionDriveEnabled[2] = Profile.LinearDrive.ZDrive.bEnablePositionDrive;
@@ -106,7 +111,7 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.LinearDriveForceMode = EJointForceMode::Acceleration;
 
 		ConstraintSettings.AngularDrivePositionTarget = FQuat(Profile.AngularDrive.OrientationTarget);
-		ConstraintSettings.AngularDriveVelocityTarget = Profile.AngularDrive.AngularVelocityTarget;
+		ConstraintSettings.AngularDriveVelocityTarget = Profile.AngularDrive.AngularVelocityTarget * 2.0f * PI; // Rev/s to Rad/s
 
 		if (Profile.AngularDrive.AngularDriveMode == EAngularDriveMode::SLERP)
 		{

@@ -338,6 +338,8 @@ public:
 #endif
 	);
 
+	ENGINE_API ~FPhysScene_ChaosInterface();
+
 	// Scene
 	void OnWorldBeginPlay();
 	void OnWorldEndPlay();
@@ -426,6 +428,10 @@ public:
 
 	ENGINE_API static Chaos::FCollisionModifierCallback CollisionModifierCallback;
 
+	ENGINE_API void DeferPhysicsStateCreation(UPrimitiveComponent* Component);
+	ENGINE_API void RemoveDeferredPhysicsStateCreation(UPrimitiveComponent* Component);
+	ENGINE_API void ProcessDeferredCreatePhysicsState();
+
 #if XGE_FIXED
 	template<typename PayloadType>
 	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda)
@@ -480,8 +486,8 @@ private:
 		// #todo : Implement
 	}
 
-	FPhysicsConstraintReference_Chaos AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle, FPhysicsActorHandle> >& Constraint);
-	void RemoveSpringConstraint(const FPhysicsConstraintReference_Chaos& Constraint);
+	FPhysicsConstraintHandle AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle, FPhysicsActorHandle> >& Constraint);
+	void RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint);
 
 	void AddForce(const Chaos::TVector<float, 3>& Force, FPhysicsActorHandle& Handle)
 	{
@@ -513,6 +519,7 @@ private:
 
 	FPhysScene_Chaos Scene;
 
+	TSet<UPrimitiveComponent*> DeferredCreatePhysicsStateComponents;
 	float MDeltaTime;
 	//Body Instances
 	TUniquePtr<Chaos::TArrayCollectionArray<FBodyInstance*>> BodyInstances;

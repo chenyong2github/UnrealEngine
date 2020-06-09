@@ -35,13 +35,21 @@ public:
 
 public:
 	TArray<UMoviePipelineOutputBase*> GetOutputContainers() const;
+	
+	// UMoviePipelineConfigBase interface
 	virtual TArray<UMoviePipelineSetting*> GetUserSettings() const override;
 	virtual void CopyFrom(UMoviePipelineConfigBase* InConfig) override;
+	// ~UMoviePipelineConfigBase interface
+
 
 	/** Initializes a single instance of every setting so that even non-user-configured settings have a chance to apply their default values. Does nothing if they're already instanced for this configuration. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void InitializeTransientSettings();
 
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	TArray<UMoviePipelineSetting*> GetTransientSettings() const { return TransientSettings; }
+
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	TArray<UMoviePipelineSetting*> GetAllSettings() const
 	{
 		TArray<UMoviePipelineSetting*> CombinedSettings;

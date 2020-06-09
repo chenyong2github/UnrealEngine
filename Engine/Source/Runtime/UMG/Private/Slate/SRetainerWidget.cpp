@@ -529,7 +529,8 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		}
 
 		// add our widgets to the root hit test grid
-		Context.PaintArgs->RootGrid.AppendGrid(HittestGrid);
+		TSharedPtr<SWidget> Owner = MutableThis->AsShared();
+		Context.PaintArgs->RootGrid.AppendGrid(HittestGrid, Owner);
 
 		return Context.IncomingLayerId;
 	}

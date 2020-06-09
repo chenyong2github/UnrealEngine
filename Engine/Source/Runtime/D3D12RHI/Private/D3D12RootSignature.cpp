@@ -301,10 +301,19 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 		// Providing static sampler bindings in global and local RS simultaneously is invalid due to overlapping register ranges.
 		RootDesc.Init_1_1(RootParameterCount, TableSlots, 0, nullptr, Flags);
 	}
-	else 
+	else
 #endif
 	{
-		RootDesc.Init_1_1(RootParameterCount, TableSlots, UE_ARRAY_COUNT(StaticSamplerDescs), StaticSamplerDescs, Flags);
+		// Only use static samplers for binding tier higher than 1 otherwise root signature only supports 16 samplers
+		// Only use by DXR shaders and validated that DXR has at least Tier 2 support
+		if (ResourceBindingTier > D3D12_RESOURCE_BINDING_TIER_1)
+		{
+			RootDesc.Init_1_1(RootParameterCount, TableSlots, UE_ARRAY_COUNT(StaticSamplerDescs), StaticSamplerDescs, Flags);
+		}
+		else
+		{
+			RootDesc.Init_1_1(RootParameterCount, TableSlots, 0, nullptr, Flags);
+		}
 	}
 
 }

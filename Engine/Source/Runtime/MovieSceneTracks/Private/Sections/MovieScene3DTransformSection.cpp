@@ -727,14 +727,6 @@ void UMovieScene3DTransformSection::SetBlendType(EMovieSceneBlendType InBlendTyp
 				FloatChannels[Index]->SetDefault(1.0f);
 			}
 		}
-		else
-		{
-			//If Additive or Relative, zero out Pos/Rot/ and Scale.
-			for (int32 Index = 0; Index < 9; ++Index)
-			{
-				FloatChannels[Index]->SetDefault(0.0f);
-			}
-		}
 	}
 }
 

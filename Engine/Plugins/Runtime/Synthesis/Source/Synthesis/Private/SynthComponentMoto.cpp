@@ -25,7 +25,7 @@ bool USynthComponentMoto::IsEnabled() const
 
 void USynthComponentMoto::SetRPM(float InRPM, float InTimeSec)
 {
-	if (!FMotoSynthEngine::IsMotoSynthEngineEnabled())
+	if (FMotoSynthEngine::IsMotoSynthEngineEnabled())
 	{
 		if (InRPM > 0.0f && !FMath::IsNaN(InRPM))
 		{
@@ -51,7 +51,7 @@ void USynthComponentMoto::GetRPMRange(float& OutMinRPM, float& OutMaxRPM)
 	OutMinRPM = RPMRange.X;
 	OutMaxRPM = RPMRange.Y;
 
-	if (FMath::IsNearlyZero(OutMinRPM, OutMaxRPM))
+	if (FMath::IsNearlyEqual(OutMinRPM, OutMaxRPM))
 	{
 		UE_LOG(LogSynthesis, Warning, TEXT("Moto synth min and max RPMs are nearly identical. Min RPM: %f, Max RPM: %f"), OutMinRPM, OutMaxRPM);
 	}

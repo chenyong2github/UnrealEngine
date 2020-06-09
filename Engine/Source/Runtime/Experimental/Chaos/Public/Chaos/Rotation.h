@@ -268,6 +268,16 @@ namespace Chaos
 		}
 
 		/**
+		 * Calculate the axis-angle delta (angular velocity * dt) required to take an object with orientation R0 to orientation R1.
+		 *
+		 * This should match the algorithm used in PerParticleUpdateFromDeltaPosition rule.
+		 */
+		static TVector<float, 3> CalculateAngularDelta(const TRotation<float, 3>& InR0, const TRotation<float, 3>& InR1)
+		{
+			return CalculateAngularVelocity(InR0, InR1, 1.0f);
+		}
+
+		/**
 		 * Return a new rotation equal to the input rotation with angular velocity W applied over time Dt.
 		 *
 		 * Uses the relation: DQ/DT = (W * Q)/2
@@ -278,5 +288,17 @@ namespace Chaos
 			return R1.GetNormalized();
 		}
 
+		/**
+		 * Check that two rotations are approximately equal. Assumes the quaternions are normalized and in the same hemisphere.
+		 * For small values of Epsilon, this is approximately equivalent to checking that the rotations are within 2*Epsilon
+		 * radians of each other.
+		 */
+		static bool IsNearlyEqual(const TRotation<float, 3>& A, const TRotation<float, 3>& B, const float Epsilon)
+		{
+			// Only check imaginary part. This is comparing Epsilon to 2*AngleDelta for small angle deltas
+			return FMath::IsNearlyEqual(A.X, B.X, Epsilon) 
+				&& FMath::IsNearlyEqual(A.Y, B.Y, Epsilon) 
+				&& FMath::IsNearlyEqual(A.Z, B.Z, Epsilon);
+		}
 	};
 }

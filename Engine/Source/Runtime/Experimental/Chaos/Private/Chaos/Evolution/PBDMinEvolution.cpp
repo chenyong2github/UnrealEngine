@@ -264,10 +264,11 @@ namespace Chaos
 					const FVec3 EulerAcc = SimulationSpaceSettings.EulerAlpha * FVec3::CrossProduct(SpaceB, XCoM);
 					const FVec3 LinearAcc = SimulationSpaceSettings.LinearAccelerationAlpha * SpaceA;
 					const FVec3 AngularAcc = SimulationSpaceSettings.AngularAccelerationAlpha * SpaceB;
-					DV -= SimulationSpaceSettings.MasterAlpha * (LinearAcc + CoriolisAcc + CentrifugalAcc + EulerAcc) * Dt;
+					const FVec3 LinnearDragAcc = SimulationSpaceSettings.ExternalLinearEtherDrag * SpaceV;
+					DV -= SimulationSpaceSettings.MasterAlpha * (LinearAcc + LinnearDragAcc + CoriolisAcc + CentrifugalAcc + EulerAcc) * Dt;
 					DW -= SimulationSpaceSettings.MasterAlpha * AngularAcc * Dt;
-					TargetV = SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.LinearVelocityAlpha * SpaceV;
-					TargetW = SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.AngularVelocityAlpha * SpaceW;
+					TargetV = -SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.LinearVelocityAlpha * SpaceV;
+					TargetW = -SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.AngularVelocityAlpha * SpaceW;
 				}
 
 				// New velocity

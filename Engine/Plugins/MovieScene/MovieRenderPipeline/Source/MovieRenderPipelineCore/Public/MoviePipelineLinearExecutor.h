@@ -29,8 +29,8 @@ public:
 
 protected:
 	// UMoviePipelineExecutorBase Interface
-	virtual void ExecuteImpl(UMoviePipelineQueue* InPipelineQueue) override;
-	virtual bool IsRenderingImpl() const override { return bIsRendering; }
+	virtual void Execute_Implementation(UMoviePipelineQueue* InPipelineQueue) override;
+	virtual bool IsRendering_Implementation() const override { return bIsRendering; }
 	// ~UMoviePipelineExeuctorBase Interface
 
 	virtual void StartPipelineByIndex(int32 InPipelineIndex);
@@ -40,6 +40,7 @@ public:
 	virtual void OnIndividualPipelineFinished(UMoviePipeline* /* FinishedPipeline */);
 	virtual void OnExecutorFinishedImpl();
 	virtual void OnPipelineErrored(UMoviePipeline* InPipeline, bool bIsFatal, FText ErrorText);
+
 protected:
 	
 	/** List of Pipeline Configs we've been asked to execute. */

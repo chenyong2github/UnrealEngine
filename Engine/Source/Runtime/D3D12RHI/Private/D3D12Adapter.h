@@ -96,7 +96,8 @@ public:
 	FORCEINLINE ID3D12Device2* GetD3DDevice2() const { return RootDevice2.GetReference(); }
 #endif
 #if D3D12_RHI_RAYTRACING
-	FORCEINLINE ID3D12Device5* GetD3DRayTracingDevice() { return RootRayTracingDevice.GetReference(); }
+	FORCEINLINE ID3D12Device5* GetD3DDevice5() { return RootDevice5.GetReference(); }
+	FORCEINLINE ID3D12Device7* GetD3DDevice7() { return RootDevice7.GetReference(); }
 #endif // D3D12_RHI_RAYTRACING
 	FORCEINLINE void SetDeviceRemoved(bool value) { bDeviceRemoved = value; }
 	FORCEINLINE const bool IsDeviceRemoved() const { return bDeviceRemoved; }
@@ -294,6 +295,14 @@ public:
 
 	void GetLocalVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO* LocalVideoMemoryInfo);
 
+	FORCEINLINE uint32 GetFrameCount() const { return FrameCounter; }
+
+#if D3D12_SUBMISSION_GAP_RECORDER
+	FD3D12SubmissionGapRecorder SubmissionGapRecorder;
+
+	void SubmitGapRecorderTimestamps();
+#endif
+
 protected:
 
 	virtual void CreateRootDevice(bool bWithDebug);
@@ -321,7 +330,8 @@ protected:
 	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
 #endif
 #if D3D12_RHI_RAYTRACING
-	TRefCountPtr<ID3D12Device5> RootRayTracingDevice;
+	TRefCountPtr<ID3D12Device5> RootDevice5;
+	TRefCountPtr<ID3D12Device7> RootDevice7;
 #endif // D3D12_RHI_RAYTRACING
 	D3D12_RESOURCE_HEAP_TIER ResourceHeapTier;
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
@@ -372,6 +382,14 @@ protected:
 	FD3D12CommandContextRedirector DefaultAsyncComputeContextRedirector;
 
 	FD3DGPUProfiler GPUProfilingData;
+	uint32 FrameCounter;
+
+#if D3D12_SUBMISSION_GAP_RECORDER
+	TArray<uint64> StartOfSubmissionTimestamp[2];
+	TArray<uint64> EndOfSubmissionTimestamp[2];
+
+	int32 CurrentContextIndex;
+#endif
 
 #if WITH_MGPU
 	TMap<FName, FD3D12TemporalEffect> TemporalEffectMap;

@@ -453,7 +453,7 @@ public:
 
 	void CHAOSSOLVERS_API RemoveParticle(const FUniqueIdx UniqueIdx);
 
-	TArray<FDesyncedParticleInfo> ComputeDesyncInfo() const;
+	TArray<FDesyncedParticleInfo> CHAOSSOLVERS_API ComputeDesyncInfo() const;
 
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
 	FGeometryParticleState CHAOSSOLVERS_API GetPastStateAtFrame(const TGeometryParticle<FReal,3>& Particle,int32 Frame) const;

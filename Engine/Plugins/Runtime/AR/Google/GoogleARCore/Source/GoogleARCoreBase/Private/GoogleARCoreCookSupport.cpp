@@ -218,7 +218,13 @@ void FGoogleARCoreSessionConfigCookSupport::OnSerializeSessionConfig(UARSessionC
 
 		FString ImageListFileContents;
 
-		for (int32 i = 0; i < CandidateImageList.Num(); i++) {
+		for (int32 i = 0; i < CandidateImageList.Num(); i++) 
+		{
+			if (!CandidateImageList[i])
+			{
+				continue;
+			}
+			
 			UTexture2D *Tex = CandidateImageList[i]->GetCandidateTexture();
 
 			if (Tex) {

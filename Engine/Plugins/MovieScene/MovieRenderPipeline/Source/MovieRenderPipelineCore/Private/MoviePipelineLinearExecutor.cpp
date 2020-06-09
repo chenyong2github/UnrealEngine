@@ -6,7 +6,7 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipelineLinearExecutorBase"
 
-void UMoviePipelineLinearExecutorBase::ExecuteImpl(UMoviePipelineQueue* InPipelineQueue)
+void UMoviePipelineLinearExecutorBase::Execute_Implementation(UMoviePipelineQueue* InPipelineQueue)
 {
 	check(InPipelineQueue);
 
@@ -34,6 +34,14 @@ void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineInde
 	check(InPipelineIndex >= 0 && InPipelineIndex < Queue->GetJobs().Num());
 	
 	CurrentPipelineIndex = InPipelineIndex;
+
+	if (Queue->GetJobs()[CurrentPipelineIndex]->IsConsumed())
+	{
+		// We skip working on consumed jobs. Jobs submitted to remote renders might already be consumed and
+		// we don't want to submit them (or override them) so that status updates continue to work.
+		OnIndividualPipelineFinished(nullptr);
+		return;
+	}
 
 	if (!Queue->GetJobs()[CurrentPipelineIndex]->GetConfiguration())
 	{

@@ -120,6 +120,7 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , bUseMinDetailLevel_DEPRECATED(false)
 , bUseMaxDetailLevel_DEPRECATED(false)
 , bRequiresPersistentIDs(false)
+, bCombineEventSpawn(false)
 , MaxDeltaTimePerTick(0.125)
 , DefaultShaderStageIndex(0)
 , MaxUpdateIterations(1)
@@ -142,11 +143,13 @@ void UNiagaraEmitter::PostInitProperties()
 		UpdateScriptProps.Script = NewObject<UNiagaraScript>(this, "UpdateScript", EObjectFlags::RF_Transactional);
 		UpdateScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleUpdateScript);
 
+#if WITH_EDITORONLY_DATA
 		EmitterSpawnScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterSpawnScript", EObjectFlags::RF_Transactional);
 		EmitterSpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::EmitterSpawnScript);
 		
 		EmitterUpdateScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterUpdateScript", EObjectFlags::RF_Transactional);
 		EmitterUpdateScriptProps.Script->SetUsage(ENiagaraScriptUsage::EmitterUpdateScript);
+#endif
 
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
@@ -406,6 +409,7 @@ void UNiagaraEmitter::PostLoad()
 	check(GPUComputeScript == nullptr || SimTarget == ENiagaraSimTarget::GPUComputeSim);
 #endif
 
+#if WITH_EDITORONLY_DATA
 	if (EmitterSpawnScriptProps.Script == nullptr || EmitterUpdateScriptProps.Script == nullptr)
 	{
 		EmitterSpawnScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterSpawnScript", EObjectFlags::RF_Transactional);
@@ -414,14 +418,13 @@ void UNiagaraEmitter::PostLoad()
 		EmitterUpdateScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterUpdateScript", EObjectFlags::RF_Transactional);
 		EmitterUpdateScriptProps.Script->SetUsage(ENiagaraScriptUsage::EmitterUpdateScript);
 
-#if WITH_EDITORONLY_DATA
 		if (SpawnScriptProps.Script)
 		{
 			EmitterSpawnScriptProps.Script->SetSource(SpawnScriptProps.Script->GetSource());
 			EmitterUpdateScriptProps.Script->SetSource(SpawnScriptProps.Script->GetSource());
 		}
-#endif
 	}
+#endif
 
 	//Temporarily disabling interpolated spawn if the script type and flag don't match.
 	if (SpawnScriptProps.Script)
@@ -473,6 +476,8 @@ void UNiagaraEmitter::PostLoad()
 		}
 		if (IsSynchronizedWithParent() == false)
 		{
+			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
+			Modify();
 			MergeChangesFromParent();
 		}
 
@@ -503,24 +508,6 @@ void UNiagaraEmitter::PostLoad()
 			if (GEnableVerboseNiagaraChangeIdLogging)
 			{
 				UE_LOG(LogNiagara, Log, TEXT("Change ID updated for emitter %s because the ID was invalid."), *GetPathName());
-			}
-		}
-		else
-		{
-			TArray<UNiagaraScript*> AllScripts;
-			GetScripts(AllScripts, false);
-
-			for (UNiagaraScript* Script : AllScripts)
-			{
-				if (Script->AreScriptAndSourceSynchronized() == false)
-				{
-					bGenerateNewChangeId = true;
-					GenerateNewChangeIdReason = TEXT("PostLoad - Script out of sync");
-					if (GEnableVerboseNiagaraChangeIdLogging)
-					{
-						UE_LOG(LogNiagara, Log, TEXT("Change ID updated for emitter %s because of a change to its script %s"), *GetPathName(), *Script->GetPathName());
-					}
-				}
 			}
 		}
 
@@ -681,6 +668,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	}
 
 	bool bNeedsRecompile = false;
+	bool bRecomputeExecutionOrder = false;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bInterpolatedSpawning))
 	{
 		bool bActualInterpolatedSpawning = SpawnScriptProps.Script->IsInterpolatedParticleSpawnScript();
@@ -696,7 +684,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 			bNeedsRecompile = true;
 		}
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, SimTarget))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, SimTarget))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -704,7 +692,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		}
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bRequiresPersistentIDs))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bRequiresPersistentIDs))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -712,7 +700,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		}
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bLocalSpace))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bLocalSpace))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -721,7 +709,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeterminism))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeterminism))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -730,7 +718,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bSimulationStagesEnabled))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bSimulationStagesEnabled))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -738,7 +726,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		}
 		bNeedsRecompile = true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeprecatedShaderStagesEnabled))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeprecatedShaderStagesEnabled))
 	{
 		if (GraphSource != nullptr)
 		{
@@ -746,6 +734,10 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		}
 		bNeedsRecompile = true;
 
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FNiagaraEventScriptProperties, SourceEmitterID))
+	{
+		bRecomputeExecutionOrder = true;
 	}
 
 	ResolveScalabilitySettings();
@@ -758,6 +750,10 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	if (bNeedsRecompile)
 	{
 		UNiagaraSystem::RequestCompileForEmitter(this);
+	}
+	else if (bRecomputeExecutionOrder)
+	{
+		UNiagaraSystem::RecomputeExecutionOrderForEmitter(this);
 	}
 #endif
 }
@@ -867,8 +863,10 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 	OutScripts.Add(UpdateScriptProps.Script);
 	if (!bCompilableOnly)
 	{
+#if WITH_EDITORONLY_DATA
 		OutScripts.Add(EmitterSpawnScriptProps.Script);
 		OutScripts.Add(EmitterUpdateScriptProps.Script);
+#endif
 	}
 
 	for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
@@ -985,7 +983,7 @@ bool UNiagaraEmitter::AreAllScriptAndSourcesSynchronized() const
 		}
 	}
 
-	if (GPUComputeScript->IsCompilable() && !GPUComputeScript->AreScriptAndSourceSynchronized())
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUComputeScript->IsCompilable() && !GPUComputeScript->AreScriptAndSourceSynchronized())
 	{
 		return false;
 	}
@@ -1127,10 +1125,16 @@ UNiagaraEmitter* UNiagaraEmitter::MakeRecursiveDeepCopy(UObject* DestOuter, TMap
 
 bool UNiagaraEmitter::UsesScript(const UNiagaraScript* Script)const
 {
-	if (SpawnScriptProps.Script == Script || UpdateScriptProps.Script == Script || EmitterSpawnScriptProps.Script == Script || EmitterUpdateScriptProps.Script == Script)
+	if (SpawnScriptProps.Script == Script || UpdateScriptProps.Script == Script)
 	{
 		return true;
 	}
+#if WITH_EDITORONLY_DATA
+	if (EmitterSpawnScriptProps.Script == Script || EmitterUpdateScriptProps.Script == Script)
+	{
+		return true;
+	}
+#endif
 	for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
 	{
 		if (EventHandlerScriptProps[i].Script == Script)

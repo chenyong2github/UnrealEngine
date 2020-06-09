@@ -44,6 +44,8 @@ enum EBulkDataFlags : uint32
 	BULKDATA_DuplicateNonOptionalPayload = 1 << 14,
 	/** Indicates that an old ID is present in the data, at some point when the DDCs are flushed we can remove this. */
 	BULKDATA_BadDataVersion = 1 << 15,
+	/** BulkData did not have it's offset changed during the cook and does not need the fix up at load time */
+	BULKDATA_NoOffsetFixUp = 1 << 16,
 
 	/* Runtime only flags below this point! Note that they take the high bits in reverse order! */
 

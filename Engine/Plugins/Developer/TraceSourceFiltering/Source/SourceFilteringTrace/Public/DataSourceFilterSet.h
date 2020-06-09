@@ -12,6 +12,8 @@ UCLASS(NotBlueprintable)
 class SOURCEFILTERINGTRACE_API UDataSourceFilterSet : public UDataSourceFilter, public IDataSourceFilterSetInterface
 {
 	friend class USourceFilterCollection;
+	friend class FSourceFilterManager;
+	friend class FSourceFilterSetup;
 
 	GENERATED_BODY()
 public:	

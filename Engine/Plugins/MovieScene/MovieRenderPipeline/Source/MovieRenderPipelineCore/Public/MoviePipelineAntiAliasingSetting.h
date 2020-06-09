@@ -18,6 +18,7 @@ public:
 		, bOverrideAntiAliasing(false)
 		, AntiAliasingMethod(EAntiAliasingMethod::AAM_None)
 		, RenderWarmUpCount(32)
+		, bUseCameraCutForWarmUp(false)
 		, EngineWarmUpCount(0)
 		, AccumulationGamma(1.f)
 	{
@@ -112,13 +113,22 @@ public:
 	int32 RenderWarmUpCount;
 
 	/**
+	* Should we use the excess in the camera cut track to determine engine warmup? When disabled, the sequence is evaluated
+	* once at the first frame and then waits there for EngineWarmUpCount many frames. When this is enabled, the number of 
+	* warmup frames is based on how much excess there is in the camera cut track outside of the playback range AND
+	* the sequence is evaluated for each frame which can allow time for skeletal meshes to animate from a bind pose, etc.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
+	bool bUseCameraCutForWarmUp;
+
+	/**
 	* The number of frames at the start of each shot that the engine will run without rendering. This allows pre-warming
 	* systems (such as particle systems, or level loading) which need time to run before you want to start capturing frames. 
 	* This ticks the game thread but does not submit anything to the GPU to be rendered.
 	*
 	* This is more cheaper than RenderWarmUpCount and is the preferred way to have time pass at the start of a shot.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0), AdvancedDisplay, Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, EditCondition = "!bUseCameraCutForWarmUp"), AdvancedDisplay, Category = "Movie Pipeline")
 	int32 EngineWarmUpCount;
 
 	/**

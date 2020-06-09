@@ -85,20 +85,23 @@ namespace Chaos
 			return ThrottlePosition * GetTorqueFromRPM();
 		}
 
-		float GetTorqueFromRPM()
+		float GetTorqueFromRPM(bool LimitToIdle = true)
 		{
 			return GetTorqueFromRPM(EngineRPM);
 		}
 
 		/* get torque value from torque curve based on input RPM */
-		float GetTorqueFromRPM(float RPM)
+		float GetTorqueFromRPM(float RPM, bool LimitToIdle = true)
 		{
-			if (Setup().MaxRPM == 0)
+			if (RPM >= Setup().MaxRPM || Setup().MaxRPM == 0)
 			{
 				return 0.f;
 			}
 
-			RPM = FMath::Clamp(RPM, (float)Setup().EngineIdleRPM, (float)Setup().MaxRPM);
+			if (LimitToIdle)
+			{
+				RPM = FMath::Clamp(RPM, (float)Setup().EngineIdleRPM, (float)Setup().MaxRPM);
+			}
 
 			float Step = Setup().MaxRPM / (Setup().TorqueCurve.Num()-1);
 			int StartIndex = RPM / Step;

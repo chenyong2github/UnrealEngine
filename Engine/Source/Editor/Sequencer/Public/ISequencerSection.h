@@ -111,10 +111,10 @@ public:
 	/**
 	 * Called when a key on this section is double clicked
 	 *
-	 * @param KeyHandle			The key that was clicked
+	 * @param KeyHandles			The array of keys that were clicked
 	 * @return A reply in response to double clicking the key
 	 */
-	virtual FReply OnKeyDoubleClicked( FKeyHandle KeyHandle ) { return FReply::Unhandled(); }
+	virtual FReply OnKeyDoubleClicked(const TArray<FKeyHandle>& KeyHandles ) { return FReply::Unhandled(); }
 
 	/**
 	 * @return The display name of the section in the section view

@@ -396,7 +396,9 @@ public:
 	TAttrBasedQuadricError(const FVector3<RealType>& P0,    const FVector3<RealType>& P1, const FVector3<RealType>& P2,
 		                   const FVector3<RealType>& N0,    const FVector3<RealType>& N1, const FVector3<RealType>& N2,
 		                   const FVector3<RealType>& NFace, const FVector3<RealType>& CenterPoint, RealType AttrWeight)
-		: BaseClass(NFace, CenterPoint), a(0)
+		: BaseClass(NFace, CenterPoint), 
+		a(0),
+		attrweight(AttrWeight)
 	{
 		/**
 		* Given scalar attribute 'a' defined at the vertices e.g. a0, a1, a2
@@ -463,7 +465,7 @@ public:
 			for (int i = 0; i < 3; ++i)
 			{
 				grad[i] = FVector3<RealType>::Zero();
-				d[i] = (N0[i] + N1[i] + N2[i]) / 3.; // just average the attribute.
+				d[i] = AttrWeight * (N0[i] + N1[i] + N2[i]) / 3.; // just average the attribute.
 			}
 		}
 	}
@@ -473,6 +475,7 @@ public:
 		:BaseClass()
 	{
 		a = 0.;
+		attrweight = 1.;
 		const RealType zero[3] = { RealType(0), RealType(0), RealType(0) };
 		grad[0] = FVector3<RealType>(zero);
 		grad[1] = FVector3<RealType>(zero);
@@ -487,6 +490,7 @@ public:
 		:BaseClass(Aother, Bother)
 	{
 		a = Aother.a + Bother.a;
+		attrweight = 0.5 * (Aother.attrweight + Bother.attrweight);
 
 		grad[0] = Aother.grad[0] + Bother.grad[0];
 		grad[1] = Aother.grad[1] + Bother.grad[1];
@@ -504,6 +508,7 @@ public:
 		BaseClass::Add(w, other);
 		
 		a += w; // accumulate weight
+		attrweight = other.attrweight;
 
 		grad[0] += w * other.grad[0];
 		grad[1] += w * other.grad[1];
@@ -518,6 +523,7 @@ public:
 	{
 		BaseClass::Add(other);
 		a += other.a;
+		attrweight = other.attrweight;
 
 		grad[0] += other.grad[0];
 		grad[1] += other.grad[1];
@@ -533,6 +539,7 @@ public:
 		BaseClass::operator=(other);
 
 		a = other.a;
+		attrweight = other.attrweight;
 
 		grad[0] = other.grad[0];
 		grad[1] = other.grad[1];
@@ -613,7 +620,7 @@ public:
 		
 	}
 
-	RealType Evaluate(const FVector3<RealType>& point, const FVector3<RealType>& attr) const
+	RealType Evaluate(const FVector3<RealType>& point, const FVector3<RealType>& InAttr) const
 	{
 		// 6x6 symmetric matrix   (    A      -grad[0], -grad[1], -grad[2] )
 		//                        ( -grad[0]^T                             ) 
@@ -626,6 +633,7 @@ public:
 		//                            ( attr  )
 		//
 
+		const FVector3<RealType> attr = attrweight * InAttr;
 
 		RealType ptAp = point.Dot(BaseStruct::MultiplyA(point));
 		RealType attrDotattr = attr.Dot(attr);
@@ -666,6 +674,9 @@ public:
 			attr.Y = RealType(0);
 			attr.Z = RealType(0);
 		}
+		
+		// the quadric was constructed around a scaled version of the attribute.  need to un-scale the result
+		attr *= 1. / attrweight;
 	}
 
 	RealType Evaluate(const FVector3<RealType>& point) const
@@ -678,7 +689,13 @@ public:
 
 public:
 	
+	// accumulated area
 	RealType           a;
+
+	// weight used to internally scale the attribute/
+	// used to increase or decrease the importance of the normal in computing the optimal position 
+	RealType           attrweight = 1.;
+
 	// Additional planes for the attributes.
 	FVector3<RealType> grad[3];
 	RealType           d[3];

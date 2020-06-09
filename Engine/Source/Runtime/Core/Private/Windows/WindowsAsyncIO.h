@@ -408,8 +408,19 @@ public:
 		check(!LiveRequests.Num()); // must delete all requests before you delete the handle
 #endif
 		TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle);
-		CloseHandle(FileHandle);
-		TRACE_PLATFORMFILE_END_CLOSE();
+		BOOL CloseResult = CloseHandle(FileHandle);
+#if PLATFORMFILETRACE_ENABLED
+		if (CloseResult)
+		{
+			TRACE_PLATFORMFILE_END_CLOSE(FileHandle);
+		}
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_CLOSE(FileHandle);
+		}
+#else
+		(void)CloseResult;
+#endif
 	}
 	void RemoveRequest(FWindowsReadRequest* Req)
 	{

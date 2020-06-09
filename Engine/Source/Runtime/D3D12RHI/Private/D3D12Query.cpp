@@ -28,6 +28,15 @@ namespace D3D12RHI
 			TEXT("If true, enable a dummy outer occlusion query around occlusion query batches. Can help performance on some GPU architectures"),
 			ECVF_Default
 		);
+#if D3D12_SUBMISSION_GAP_RECORDER
+		int32 GAdjustRenderQueryTimestamps = 1;
+		static FAutoConsoleVariableRef CVarAdjustRenderQueryTimestamps(
+			TEXT("D3D12.AdjustRenderQueryTimestamps"),
+			GAdjustRenderQueryTimestamps,
+			TEXT("If true, this adjusts render query timings to remove gaps between command list submissions\n"),
+			ECVF_Default
+		);
+#endif
 	}
 }
 using namespace D3D12RHI;
@@ -105,8 +114,18 @@ bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 			// GetTimingFrequency is the number of ticks per second
 			uint64 Div = FMath::Max(1llu, FGPUTiming::GetTimingFrequency() / (1000 * 1000));
 
-			// convert from GPU specific timestamp to micro sec (1 / 1 000 000 s) which seems a reasonable resolution
-			OutResult = FMath::Max<uint64>(Query->Result / Div, OutResult);
+#if D3D12_SUBMISSION_GAP_RECORDER
+			if (RHIConsoleVariables::GAdjustRenderQueryTimestamps)
+			{
+				OutResult = FMath::Max<uint64>(Adapter.SubmissionGapRecorder.AdjustTimestampForSubmissionGaps(Query->FrameSubmitted, Query->Result) / Div, OutResult);
+				
+			}
+			else
+#endif
+			{
+				OutResult = FMath::Max<uint64>(Query->Result / Div, OutResult);
+			}
+
 			bSuccess = true;
 		}
 		else
@@ -422,6 +441,15 @@ void FD3D12QueryHeap::EndQuery(FD3D12CommandContext& CmdContext, FD3D12RenderQue
 	else
 	{
 		RenderQuery->Reset();
+		FD3D12Adapter* Adapter = nullptr;
+		if (GetParentDevice())
+		{
+			Adapter = GetParentDevice()->GetParentAdapter();
+			if (Adapter)
+			{
+				RenderQuery->FrameSubmitted = Adapter->GetFrameCount();
+			}
+		}
 		RenderQuery->HeapIndex = AllocQuery(CmdContext);
 	}
 
@@ -558,6 +586,12 @@ int32 FD3D12LinearQueryHeap::EndQuery(FD3D12CommandListHandle CmdListHandle)
 	{
 		++Context->otherWorkCounter;
 	}
+
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+	CmdListHandle.SetFrameSubmitted(Adapter->GetFrameCount());
+
+	UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("CmdList for SlotIdx %d QueryType %d Allocated on Frame %u"), SlotIdx, (int32)QueryType, CmdListHandle.FrameSubmitted());
+
 	return SlotIdx;
 }
 
@@ -567,11 +601,15 @@ void FD3D12LinearQueryHeap::Reset()
 	NextFreeIdx = 0;
 }
 
-void FD3D12LinearQueryHeap::FlushAndGetResults(TArray<uint64>& QueryResults, bool bReleaseResources)
+void FD3D12LinearQueryHeap::FlushAndGetResults(TArray<uint64>& QueryResults, bool bReleaseResources, bool bBlockOnResults)
 {
 	HeapState = HS_Closed;
 	
 	int32 NumActiveQueries = NextFreeIdx;
+
+	if (NumActiveQueries <= 0)
+		return;
+
 	const uint64 ResultBuffSize = ResultSize * NumActiveQueries;
 	TRefCountPtr<FD3D12Resource> ResultBuff;
 	CreateResultBuffer(ResultBuffSize, ResultBuff.GetInitReference());
@@ -595,20 +633,89 @@ void FD3D12LinearQueryHeap::FlushAndGetResults(TArray<uint64>& QueryResults, boo
 		Context.CommandListHandle.UpdateResidency(ResultBuff);
 	}
 
-	Context.FlushCommands(true);
-	const int32 NumResults = NextFreeIdx;
-	QueryResults.Empty(NumResults);
-	QueryResults.AddUninitialized(NumResults);
-	void* MappedResult;
-	VERIFYD3D12RESULT(ResultBuff->GetResource()->Map(0, nullptr, &MappedResult));
-	FMemory::Memcpy(QueryResults.GetData(), MappedResult, ResultBuffSize);
-	ResultBuff->GetResource()->Unmap(0, nullptr);
+	FD3D12CommandListHandle CmdListHandle = Context.FlushCommands(bBlockOnResults);
 
-	if (bReleaseResources)
+	// If we are blocking we can read the results into the return array now
+	if (bBlockOnResults)
+	{
+		const int32 NumResults = NextFreeIdx;
+		QueryResults.Empty(NumResults);
+		QueryResults.AddUninitialized(NumResults);
+		void* MappedResult;
+		VERIFYD3D12RESULT(ResultBuff->GetResource()->Map(0, nullptr, &MappedResult));
+		FMemory::Memcpy(QueryResults.GetData(), MappedResult, ResultBuffSize);
+		ResultBuff->GetResource()->Unmap(0, nullptr);
+
+		if (bReleaseResources)
+		{
+			ReleaseResources();
+		}
+		Reset();
+	}
+	// If we are not blocking store the result buffer that will need resolving later
+	else
+	{
+		ResolveOutstandingQueries(QueryResults, bReleaseResources);
+		UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("Storing Query NextFreeIdx %d"),NextFreeIdx);
+		StoreQuery(CmdListHandle,ResultBuff, NextFreeIdx);
+	}
+}
+
+void FD3D12LinearQueryHeap::StoreQuery(FD3D12CommandListHandle Handle, TRefCountPtr<FD3D12Resource> ResultBuffer, int32 NumResults)
+{
+	FStoredQuery Query;
+	Query.Handle = Handle;
+	Query.RBuffer = ResultBuffer;
+	Query.NResults = NumResults;
+	Query.StoredCLGeneration = Handle.CurrentGeneration();
+
+	UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("Storing Query NumResults %d"), Query.NResults);
+
+	PendingQueries.Add(Query);
+}
+
+void FD3D12LinearQueryHeap::ResolveOutstandingQueries(TArray<uint64>& QueryResults, bool bReleaseResources)
+{
+	if (PendingQueries.Num() > 0)
+	{
+		const int32 NumPendingQueries = PendingQueries.Num();
+		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+		FD3D12Device* Device = Adapter->GetDevice(0);
+
+		if (PendingQueries[0].Handle.IsComplete(PendingQueries[0].StoredCLGeneration))
+		{
+			for (int32 i = 0; i < PendingQueries.Num(); i++)
+			{
+				uint32 FrameCounter = Adapter->GetFrameCount();
+				UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("%d Pending Queries completed on frame %d issued on frame %d"),
+					PendingQueries.Num(),
+					FrameCounter,
+					PendingQueries[i].Handle.FrameSubmitted());
+			}
+
+			uint64 ResultBuffSize = ResultSize * PendingQueries[0].NResults;
+			QueryResults.Empty(PendingQueries[0].NResults);
+			QueryResults.AddUninitialized(PendingQueries[0].NResults);
+
+			UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("Result Buffer NResults %lu Buffer Size %lu"), PendingQueries[0].NResults,ResultBuffSize);
+
+			void* MappedResult = nullptr;
+			VERIFYD3D12RESULT(PendingQueries[0].RBuffer->GetResource()->Map(0, nullptr, &MappedResult));
+			FMemory::Memcpy(QueryResults.GetData(), MappedResult, ResultBuffSize);
+
+			UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("Query Results Length %d"), QueryResults.Num());
+
+			PendingQueries[0].RBuffer->GetResource()->Unmap(0, nullptr);
+			PendingQueries.Empty();
+		}
+	}
+
+	HeapState = HS_Open;
+	if ((NextChunkIdx + 1) == MaxNumChunks)
 	{
 		ReleaseResources();
+		Reset();
 	}
-	Reset();
 }
 
 D3D12_QUERY_TYPE FD3D12LinearQueryHeap::HeapTypeToQueryType(D3D12_QUERY_HEAP_TYPE HeapType)

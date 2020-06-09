@@ -29,9 +29,7 @@
 #include "HAL/ExceptionHandling.h"
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.inl"
-#include "ProfilingDebugging/MiscTrace.h"
-#include "ProfilingDebugging/PlatformFileTrace.h"
-#include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -1402,44 +1400,6 @@ static void UpdateGInputTime()
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPreStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats, STATGROUP_LoadTime);
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats, STATGROUP_LoadTime);
 
-UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, Important)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Platform)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, AppName)
-	UE_TRACE_EVENT_FIELD(Trace::WideString, CommandLine)
-	UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
-	UE_TRACE_EVENT_FIELD(uint8, TargetType)
-UE_TRACE_EVENT_END()
-
-static bool InitializeTraceChannels(const TCHAR* CmdLine)
-{
-	FString Parameter;
-	// Bit mask to track which arguments has been parsed if this method is 
-	// called multiple times. If less than 32 channel arguments this is only
-	// inlined memory.
-	static TBitArray<FDefaultBitArrayAllocator> ProcessedTokens(false, 32);
-
-	if (!FParse::Value(CmdLine, TEXT("-trace="), Parameter, false))
-	{
-		return false;
-	}
-
-	uint32 TokenIndex = 0;
-	UE::String::ParseTokens(Parameter, TEXT(","), [&TokenIndex] (const FStringView& Token)
-	{
-		TCHAR ChannelName[64];
-		const size_t ChannelNameSize = Token.CopyString(ChannelName, 63);
-		ChannelName[ChannelNameSize] = '\0';
-		if (Trace::IsChannel(ChannelName) && !ProcessedTokens[TokenIndex])
-		{
-			Trace::ToggleChannel(ChannelName, true);
-			ProcessedTokens[TokenIndex].AtomicSet(true);
-		}
-		TokenIndex++;
-	});
-
-	return true;
-}
-
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
@@ -1507,42 +1467,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 
 	// Initialize trace
-	{
-		SCOPED_BOOT_TIMING("InitTrace")
-
-		Trace::FInitializeDesc Desc;
-		Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
-
-		FString Parameter;
-		if (FParse::Value(CmdLine, TEXT("-tracememmb="), Parameter))
-		{
-			Desc.MaxMemoryHintMb = uint32(FCString::Strtoi(*Parameter, nullptr, 10));
-		}
-		Trace::Initialize(Desc);
-
-		FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
-
-		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
-		{
-			Trace::SendTo(*Parameter);
-		}
-		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
-		{
-			Trace::WriteTo(*Parameter);
-		}
-
-		if (!InitializeTraceChannels(CmdLine) && FParse::Value(CmdLine, TEXT("-trace"), Parameter, false))
-		{
-			Trace::ToggleChannel(TEXT("bookmark"), true);
-			Trace::ToggleChannel(TEXT("cpu"), true);
-			Trace::ToggleChannel(TEXT("frame"), true);
-			Trace::ToggleChannel(TEXT("log"), true);
-		}
-
-		TRACE_CPUPROFILER_INIT(CmdLine);
-		TRACE_PLATFORMFILE_INIT(CmdLine);
-		TRACE_COUNTERS_INIT(CmdLine);
-	}
+	FTraceAuxiliary::Initialize(CmdLine);
 
 	// disable/enable LLM based on commandline
 	{
@@ -1554,16 +1479,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		SCOPED_BOOT_TIMING("InitTaggedStorage");
 		FPlatformMisc::InitTaggedStorage(1024);
-	}
-
-	// Trace out information about this session
-	{
-		UE_TRACE_LOG(Diagnostics, Session2, Trace::TraceLogChannel)
-			<< Session2.Platform(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM))
-			<< Session2.AppName(UE_APP_NAME)
-			<< Session2.CommandLine(CmdLine)
-			<< Session2.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
-			<< Session2.TargetType(uint8(FApp::GetBuildTargetType()));
 	}
 
 #if WITH_ENGINE
@@ -1987,18 +1902,12 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 #endif	//UE_EDITOR
 
-#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
+#if !UE_BUILD_SHIPPING && !IS_PROGRAM
 	if (!bHasEditorToken)
 	{
-		// If we can detect a named event then we can try and auto-connect to UnrealInsights.
-		HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
-		if (KnownEvent != nullptr)
-		{
-			Trace::SendTo(TEXT("127.0.0.1"));
-			::CloseHandle(KnownEvent);
-		}
+		FTraceAuxiliary::TryAutoConnect();
 	}
-#endif // PLATFORM_WINDOWS
+#endif
 
 #if !UE_BUILD_SHIPPING
 	// Benchmarking.
@@ -2212,7 +2121,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			GLargeThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
 
-			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024, TPri_Normal, TEXT("LargeThreadPool")));
+			// The default priority is above normal on Windows, which WILL make the system unresponsive when the thread-pool is heavily used.
+			// Also need to be lower than the game-thread to avoid impacting the frame rate with too much preemption. 
+			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("LargeThreadPool")));
 		}
 #endif
 	}
@@ -2982,11 +2893,11 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 					if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen))
 					{
 						// disable the splash before playing the early startup screen
-						FPreLoadScreenManager::IsResponsibleForRenderingDelegate.AddLambda(
+						FPreLoadScreenManager::Get()->IsResponsibleForRenderingDelegate.AddLambda(
 							[](bool bIsPreloadScreenManResponsibleForRendering)
-						{
-							FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
-						}
+							{
+								FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
+							}
 						);
 						FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
 					}
@@ -4058,8 +3969,6 @@ int32 FEngineLoop::Init()
 		}
 	}
 
-	InitializeTraceChannels(FCommandLine::Get());
-
 	{
 		SCOPED_BOOT_TIMING("GEngine->Start()");
 		GEngine->Start();
@@ -4078,6 +3987,8 @@ int32 FEngineLoop::Init()
 		SCOPED_BOOT_TIMING("WaitForMovieToFinish");
 		GetMoviePlayer()->WaitForMovieToFinish();
     }
+
+	FTraceAuxiliary::ParseCommandLine(FCommandLine::Get());
 
 #if !UE_SERVER
 	// initialize media framework

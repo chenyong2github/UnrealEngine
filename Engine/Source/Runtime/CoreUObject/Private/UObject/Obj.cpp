@@ -1034,6 +1034,8 @@ bool UObject::ConditionalFinishDestroy()
 
 void UObject::ConditionalPostLoad()
 {
+	LLM_SCOPE(ELLMTag::UObject);
+
 	check(!GEventDrivenLoaderEnabled || !HasAnyFlags(RF_NeedLoad)); //@todoio Added this as "nicks rule"
 									  // PostLoad only if the object needs it and has already been serialized
 	//@todoio note this logic should be unchanged compared to main
@@ -2408,7 +2410,7 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 	}
 }
 
-void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni* Config/*=GConfig*/ )
+void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni* Config/*=GConfig*/, bool bAllowCopyToDefaultObject/*=true*/)
 {
 	if( !GetClass()->HasAnyClassFlags(CLASS_Config) )
 	{
@@ -2451,7 +2453,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 	UObject* CDO = GetClass()->GetDefaultObject();
 
 	// only copy the values to the CDO if this is GConfig and we're not saving the CDO
-	const bool bCopyValues = (this != CDO && Config == GConfig);
+	const bool bCopyValues = (bAllowCopyToDefaultObject && this != CDO && Config == GConfig);
 
 	for ( FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext )
 	{
@@ -4342,6 +4344,7 @@ void InitUObject()
 	FGCCSyncObject::Create();
 
 	// Initialize redirects map
+	FCoreRedirects::Initialize();
 	for (const TPair<FString,FConfigFile>& It : *GConfig)
 	{
 		FCoreRedirects::ReadRedirectsFromIni(It.Key);

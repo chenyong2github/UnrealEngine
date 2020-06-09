@@ -74,7 +74,7 @@ public:
 
 protected:
 	/** Protect constructor as this is a singleton */
-	FSlateNotificationManager();
+	FSlateNotificationManager() = default;
 
 	/** Create a notification list for the specified screen rectangle */
 	TSharedRef<SNotificationList> CreateStackForArea(const FSlateRect& InRectangle);
@@ -110,5 +110,5 @@ private:
 	TLockFreePointerListLIFO<FNotificationInfo> PendingNotifications;
 
 	/** Whether notifications should be displayed or not.  This can be used to globally suppress notification pop-ups */
-	bool bAllowNotifications;
+	bool bAllowNotifications = true;
 };

@@ -395,11 +395,16 @@ namespace ImmediatePhysics_Chaos
 		TUniquePtr<FChaosPhysicsMaterial> Material = MakeUnique<FChaosPhysicsMaterial>();
 		if (BodyInstance != nullptr)
 		{
-			UPhysicalMaterial* SimplePhysMat = BodyInstance->GetSimplePhysicalMaterial();
-			if (SimplePhysMat != nullptr)
+			// @todo(ccaulfield): We cannot ask for the physical material on a task thread, because FMICReentranceGuard in UMaterialInstance will assert (in editor). Fix this...
+			// For now we just use material defaults when actors are created on a task thread. This happens when adding world-objects to a RigidBody AnimNode simulation.
+			if (IsInGameThread())
 			{
-				Material->Friction = SimplePhysMat->Friction;
-				Material->Restitution = SimplePhysMat->Restitution;
+				UPhysicalMaterial* SimplePhysMat = BodyInstance->GetSimplePhysicalMaterial();
+				if (SimplePhysMat != nullptr)
+				{
+					Material->Friction = SimplePhysMat->Friction;
+					Material->Restitution = SimplePhysMat->Restitution;
+				}
 			}
 		}
 
@@ -630,13 +635,13 @@ namespace ImmediatePhysics_Chaos
 		Implementation->NarrowPhase.GetContext().SpaceTransform = Transform;	// @todo(chaos): remove when manifolds are fixed or removed
 	}
 
-	void FSimulation::SetSimulationSpaceSettings(const FReal MasterAlpha)
+	void FSimulation::SetSimulationSpaceSettings(const FReal MasterAlpha, const FReal ExternalLinearEtherDrag)
 	{
 		using namespace Chaos;
 
-		FSimulationSpaceSettings SimSpaceSettings = Implementation->Evolution.GetSimulationSpaceSettings();
+		FSimulationSpaceSettings& SimSpaceSettings = Implementation->Evolution.GetSimulationSpaceSettings();
 		SimSpaceSettings.MasterAlpha = MasterAlpha;
-		Implementation->Evolution.SetSimulationSpaceSettings(SimSpaceSettings);
+		SimSpaceSettings.ExternalLinearEtherDrag = ExternalLinearEtherDrag;
 	}
 
 	void FSimulation::SetSolverIterations(const FReal InFixedDt, const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts)

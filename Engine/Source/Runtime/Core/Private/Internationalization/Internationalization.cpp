@@ -424,6 +424,11 @@ void FInternationalization::RefreshCultureDisplayNames(const TArray<FString>& In
 	Implementation->RefreshCultureDisplayNames(InPrioritizedDisplayCultureNames);
 }
 
+void FInternationalization::RefreshCachedConfigData()
+{
+	Implementation->RefreshCachedConfigData();
+}
+
 void FInternationalization::GetCultureNames(TArray<FString>& CultureNames) const
 {
 	Implementation->GetCultureNames(CultureNames);

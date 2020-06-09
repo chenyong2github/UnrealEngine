@@ -296,26 +296,41 @@ bool CheckPSOStringInveribility(const FPipelineCacheFileFormatPSO& Item)
 	TempItem.Hash = 0;
 
 	FString StringRep;
-	if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute)
+	switch (Item.Type)
 	{
+	case FPipelineCacheFileFormatPSO::DescriptorType::Compute:
 		StringRep = TempItem.ComputeDesc.ToString();
-	}
-	else
-	{
+		break;
+	case FPipelineCacheFileFormatPSO::DescriptorType::Graphics:
 		StringRep = TempItem.GraphicsDesc.ToString();
+		break;
+	case FPipelineCacheFileFormatPSO::DescriptorType::RayTracing:
+		StringRep = TempItem.RayTracingDesc.ToString();
+		break;
+	default:
+		return false;
 	}
+
 	FPipelineCacheFileFormatPSO DupItem;
 	FMemory::Memzero(DupItem.GraphicsDesc);
 	DupItem.Type = Item.Type;
 	DupItem.UsageMask = Item.UsageMask;
-	if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute)
+
+	switch (Item.Type)
 	{
+	case FPipelineCacheFileFormatPSO::DescriptorType::Compute:
 		DupItem.ComputeDesc.FromString(StringRep);
-	}
-	else
-	{
+		break;
+	case FPipelineCacheFileFormatPSO::DescriptorType::Graphics:
 		DupItem.GraphicsDesc.FromString(StringRep);
+		break;
+	case FPipelineCacheFileFormatPSO::DescriptorType::RayTracing:
+		DupItem.RayTracingDesc.FromString(StringRep);
+		break;
+	default:
+		return false;
 	}
+
 	UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("CheckPSOStringInveribility: %s"), *StringRep);
 
 	return (DupItem == TempItem) && (GetTypeHash(DupItem) == GetTypeHash(TempItem));
@@ -340,10 +355,18 @@ int32 DumpPSOSC(FString& Token)
 			check(!(Item.ComputeDesc.ComputeShader == FSHAHash()));
 			StringRep = Item.ComputeDesc.ToString();
 		}
-		else
+		else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 		{
 			check(!(Item.GraphicsDesc.VertexShader == FSHAHash()));
 			StringRep = Item.GraphicsDesc.ToString();
+		}
+		else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
+		{
+			StringRep = Item.RayTracingDesc.ToString();
+		}
+		else
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.Type));
 		}
 		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%s"), *StringRep);
 	}
@@ -679,13 +702,13 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 
 		for (const FPipelineCacheFileFormatPSO& Item : PSOs)
 		{
-			if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute)
+			switch (Item.Type)
 			{
+			case FPipelineCacheFileFormatPSO::DescriptorType::Compute:
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("ComputeShader"));
 				PrintShaders(InverseMap, Item.ComputeDesc.ComputeShader);
-			}
-			else
-			{
+				break;
+			case FPipelineCacheFileFormatPSO::DescriptorType::Graphics:
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("VertexShader"));
 				PrintShaders(InverseMap, Item.GraphicsDesc.VertexShader);
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("FragmentShader"));
@@ -696,6 +719,14 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				PrintShaders(InverseMap, Item.GraphicsDesc.HullShader);
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("DomainShader"));
 				PrintShaders(InverseMap, Item.GraphicsDesc.DomainShader);
+				break;
+			case FPipelineCacheFileFormatPSO::DescriptorType::RayTracing:
+				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("RayTracingShader"));
+				PrintShaders(InverseMap, Item.RayTracingDesc.ShaderHash);
+				break;
+			default:
+				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.Type));
+				break;
 			}
 		}
 	}
@@ -732,6 +763,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 	for (const FPipelineCacheFileFormatPSO& Item : PSOs)
 	{ 
 		NumExamined++;
+		
 		check(SF_Vertex == 0 && SF_Compute == 5);
 		TArray<int32> StableShadersPerSlot[SF_NumFrequencies];
 		bool ActivePerSlot[SF_NumFrequencies] = { false };
@@ -742,7 +774,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		{
 			ActivePerSlot[SF_Compute] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.ComputeDesc.ComputeShader, StableShadersPerSlot[SF_Compute], OutAnyActiveButMissing);
 		}
-		else
+		else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 		{
 			ActivePerSlot[SF_Vertex] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.VertexShader, StableShadersPerSlot[SF_Vertex], OutAnyActiveButMissing);
 			ActivePerSlot[SF_Pixel] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.FragmentShader, StableShadersPerSlot[SF_Pixel], OutAnyActiveButMissing);
@@ -750,7 +782,15 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			ActivePerSlot[SF_Hull] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.HullShader, StableShadersPerSlot[SF_Hull], OutAnyActiveButMissing);
 			ActivePerSlot[SF_Domain] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.DomainShader, StableShadersPerSlot[SF_Domain], OutAnyActiveButMissing);
 		}
-
+		else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
+		{
+			EShaderFrequency Frequency = Item.RayTracingDesc.Frequency;
+			ActivePerSlot[Frequency] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.RayTracingDesc.ShaderHash, StableShadersPerSlot[Frequency], OutAnyActiveButMissing);
+		}
+		else
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.Type));
+		}
 
 		if (OutAnyActiveButMissing)
 		{
@@ -759,7 +799,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			{
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.ComputeDesc.ComputeShader, TEXT("ComputeShader"));
 			}
-			else
+			else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 			{
 				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("   %s"), *Item.GraphicsDesc.StateToString());
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.VertexShader, TEXT("VertexShader"));
@@ -768,9 +808,18 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.HullShader, TEXT("HullShader"));
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.DomainShader, TEXT("DomainShader"));
 			}
+			else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
+			{
+				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.RayTracingDesc.ShaderHash, TEXT("RayTracingShader"));
+			}
+			else
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.Type));
+			}
 			continue;
 		}
-		if (Item.Type != FPipelineCacheFileFormatPSO::DescriptorType::Compute)
+
+		if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 		{
 			check(!ActivePerSlot[SF_Compute]); // this is NOT a compute shader
 			bool bRemovedAll = false;
@@ -851,7 +900,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		}
 
 		TArray<FPermutation>& Permutations(Current.Permutations);
-		FPermutation WorkingPerm;
+		FPermutation WorkingPerm = {};
 		GeneratePermuations(Permutations, WorkingPerm, 0, StableShadersPerSlot, StableShaderKeyIndexTable, ActivePerSlot);
 		if (!Permutations.Num())
 		{
@@ -897,9 +946,17 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			{
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT(" Compute"));
 			}
-			else
+			else if (Item.PSO->Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 			{
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT(" %s"), *Item.PSO->GraphicsDesc.StateToString());
+			}
+			else if (Item.PSO->Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT(" RayTracing"));
+			}
+			else
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.PSO->Type));
 			}
 			int32 PermIndex = 0;
 			for (const FPermutation& Perm : Item.Permutations)
@@ -945,7 +1002,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 					}
 				}
 			}
-			else
+			else if (Item.PSO->Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 			{
 				PSOLine += FString::Printf(TEXT("\"%s\""), *Item.PSO->GraphicsDesc.StateToString());
 				for (int32 SlotIndex = 0; SlotIndex < SF_Compute; SlotIndex++) // SF_Compute here because the stablepc.csv file format does not have a compute slot
@@ -960,7 +1017,48 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 					PSOLine += FString::Printf(TEXT(",\"%s\""), *ShaderKeyAndValue.ToString());
 				}
 			}
+			else if (Item.PSO->Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
+			{
+				// Serialize ray tracing PSO state description in backwards-compatible way, reusing graphics PSO fields.
+				// This is only required due to legacy.
 
+				FPipelineCacheFileFormatPSO::GraphicsDescriptor Desc;
+				FMemory::Memzero(Desc);
+
+				// Re-purpose graphics state fields to store RT PSO properties
+				// See corresponding parsing code in ParseStableCSV().
+				Desc.MSAASamples = Item.PSO->RayTracingDesc.MaxPayloadSizeInBytes;
+				Desc.DepthStencilFlags = uint32(Item.PSO->RayTracingDesc.bAllowHitGroupIndexing);
+
+				PSOLine += FString::Printf(TEXT("\"%s\""), *Desc.StateToString());
+
+				for (int32 SlotIndex = 0; SlotIndex < SF_Compute; SlotIndex++)
+				{
+					static_assert(SF_RayGen > SF_Compute, "Unexpected shader frequency enum order");
+					static_assert(SF_RayMiss > SF_Compute, "Unexpected shader frequency enum order");
+					static_assert(SF_RayHitGroup > SF_Compute, "Unexpected shader frequency enum order");
+					static_assert(SF_RayCallable > SF_Compute, "Unexpected shader frequency enum order");
+
+					EShaderFrequency RayTracingSlotIndex = EShaderFrequency(SF_RayGen + SlotIndex);
+
+					if (RayTracingSlotIndex >= SF_RayGen &&
+						RayTracingSlotIndex <= SF_RayCallable &&
+						Item.ActivePerSlot[RayTracingSlotIndex])
+					{
+						FStableShaderKeyAndValue ShaderKeyAndValue = StableShaderKeyIndexTable[Perm.Slots[RayTracingSlotIndex]];
+						ShaderKeyAndValue.OutputHash = FSHAHash(); // Saved output hash needs to be zeroed so that BuildPSOSC can use this entry even if shaders code changes in future builds
+						PSOLine += FString::Printf(TEXT(",\"%s\""), *ShaderKeyAndValue.ToString());
+					}
+					else
+					{
+						PSOLine += FString::Printf(TEXT(",\"\""));
+					}
+				}
+			}
+			else
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.PSO->Type));
+			}
 
 			if (!DeDup.Contains(PSOLine))
 			{
@@ -1082,6 +1180,10 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 
 		// For backward compatibility, compute shaders are stored as a zeroed graphics desc with the shader in the hull shader slot.
 		static FName NAME_SF_Compute("SF_Compute");
+		static FName NAME_SF_RayGen("SF_RayGen");
+		static FName NAME_SF_RayMiss("SF_RayMiss");
+		static FName NAME_SF_RayHitGroup("SF_RayHitGroup");
+		static FName NAME_SF_RayCallable("SF_RayCallable");
 		for (int32 SlotIndex = 0; SlotIndex < SF_Compute; ++SlotIndex)
 		{
 			if (Parts[SlotIndex + 2].IsEmpty())
@@ -1093,17 +1195,43 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 			Shader.ParseFromString(Parts[SlotIndex + 2]);
 
 			int32 AdjustedSlotIndex = SlotIndex;
-			if (SlotIndex == SF_Hull)
+
+			if (Shader.TargetFrequency == NAME_SF_RayGen)
 			{
-				if (Shader.TargetFrequency == NAME_SF_Compute)
-				{
-					PSO.Type = FPipelineCacheFileFormatPSO::DescriptorType::Compute;
-					AdjustedSlotIndex = SF_Compute;
-				}
+				PSO.Type = FPipelineCacheFileFormatPSO::DescriptorType::RayTracing;
+				AdjustedSlotIndex = SF_RayGen;
+			}
+			else if (Shader.TargetFrequency == NAME_SF_RayMiss)
+			{
+				PSO.Type = FPipelineCacheFileFormatPSO::DescriptorType::RayTracing;
+				AdjustedSlotIndex = SF_RayMiss;
+			}
+			else if (Shader.TargetFrequency == NAME_SF_RayHitGroup)
+			{
+				PSO.Type = FPipelineCacheFileFormatPSO::DescriptorType::RayTracing;
+				AdjustedSlotIndex = SF_RayHitGroup;
+			}
+			else if (Shader.TargetFrequency == NAME_SF_RayCallable)
+			{
+				PSO.Type = FPipelineCacheFileFormatPSO::DescriptorType::RayTracing;
+				AdjustedSlotIndex = SF_RayCallable;
 			}
 			else
 			{
-				check(Shader.TargetFrequency != NAME_SF_Compute);
+				// Graphics and compute
+
+				if (SlotIndex == SF_Hull)
+				{
+					if (Shader.TargetFrequency == NAME_SF_Compute)
+					{
+						PSO.Type = FPipelineCacheFileFormatPSO::DescriptorType::Compute;
+						AdjustedSlotIndex = SF_Compute;
+					}
+				}
+				else
+				{
+					check(Shader.TargetFrequency != NAME_SF_Compute);
+				}
 			}
 
 			FSHAHash Match;
@@ -1154,6 +1282,18 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 			case SF_Compute:
 				PSO.ComputeDesc.ComputeShader = Match;
 				break;
+			case SF_RayGen:
+			case SF_RayMiss:
+			case SF_RayHitGroup:
+			case SF_RayCallable:
+				PSO.RayTracingDesc.ShaderHash = Match;
+				// See corresponding serialization code in ExpandPSOSC()
+				PSO.RayTracingDesc.Frequency = EShaderFrequency(AdjustedSlotIndex);
+				PSO.RayTracingDesc.MaxPayloadSizeInBytes = PSO.GraphicsDesc.MSAASamples;
+				PSO.RayTracingDesc.bAllowHitGroupIndexing = PSO.GraphicsDesc.DepthStencilFlags != 0;
+				break;
+			default:
+				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected shader frequency"));
 			}
 		}
 
@@ -1166,9 +1306,17 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 				PSO.GraphicsDesc.HullShader == FSHAHash() &&
 				PSO.GraphicsDesc.DomainShader == FSHAHash());
 		}
-		else
+		else if (PSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 		{
 			check(PSO.ComputeDesc.ComputeShader == FSHAHash());
+		}
+		else if (PSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
+		{
+			check(PSO.RayTracingDesc.ShaderHash != FSHAHash());
+		}
+		else
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(PSO.Type));
 		}
 
 		if (!PSO.Verify())
@@ -1229,6 +1377,287 @@ void BuildDateSortedListOfFiles(const TArray<FString>& TokenList, FilenameFilter
 		Result.Add(FileRef.FileName);
 	}
 }
+
+const TCHAR* VertexElementToString(EVertexElementType Type)
+{
+	switch (Type)
+	{
+#define VES_STRINGIFY(T)   case T: return TEXT(#T);
+
+		VES_STRINGIFY(VET_None)
+		VES_STRINGIFY(VET_Float1)
+		VES_STRINGIFY(VET_Float2)
+		VES_STRINGIFY(VET_Float3)
+		VES_STRINGIFY(VET_Float4)
+		VES_STRINGIFY(VET_PackedNormal)
+		VES_STRINGIFY(VET_UByte4)
+		VES_STRINGIFY(VET_UByte4N)
+		VES_STRINGIFY(VET_Color)
+		VES_STRINGIFY(VET_Short2)
+		VES_STRINGIFY(VET_Short4)
+		VES_STRINGIFY(VET_Short2N)
+		VES_STRINGIFY(VET_Half2)
+		VES_STRINGIFY(VET_Half4)
+		VES_STRINGIFY(VET_Short4N)
+		VES_STRINGIFY(VET_UShort2)
+		VES_STRINGIFY(VET_UShort4)
+		VES_STRINGIFY(VET_UShort2N)
+		VES_STRINGIFY(VET_UShort4N)
+		VES_STRINGIFY(VET_URGB10A2N)
+		VES_STRINGIFY(VET_UInt)
+		VES_STRINGIFY(VET_MAX)
+
+#undef VES_STRINGIFY
+	}
+
+	return TEXT("Unknown");
+}
+
+
+void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap)
+{
+	// This may be too strict, but we cannot know the VS signature.
+	auto IsInputLayoutCompatible = [](const FVertexDeclarationElementList& A, const FVertexDeclarationElementList& B, TMap<TTuple<EVertexElementType, EVertexElementType>, int32>& MismatchStats, int& TimesMismatchedNumElements) -> bool
+	{
+		auto NumElements = [](EVertexElementType Type) -> int
+		{
+			switch (Type)
+			{
+				case VET_Float4:
+				case VET_Half4:
+				case VET_Short4:
+				case VET_Short4N:
+				case VET_UShort4:
+				case VET_UShort4N:
+					return 4;
+
+				case VET_Float3:
+					return 3;
+
+				case VET_Float2:
+				case VET_Half2:
+				case VET_Short2:
+				case VET_Short2N:
+				case VET_UShort2:
+				case VET_UShort2N:
+					return 2;
+
+				default:
+					break;
+			}
+
+			return 1;
+		};
+
+		auto IsFloatOrTuple = [](EVertexElementType Type)
+		{
+			// halves can also be promoted to float
+			return Type == VET_Float1 || Type == VET_Float2 || Type == VET_Float3 || Type == VET_Float4 || Type == VET_Half2 || Type == VET_Half4;
+		};
+
+		auto IsShortOrTuple = [](EVertexElementType Type)
+		{
+			return Type == VET_Short2 || Type == VET_Short4;
+		};
+
+		auto IsShortNOrTuple = [](EVertexElementType Type)
+		{
+			return Type == VET_Short2N || Type == VET_Short4N;
+		};
+
+		auto IsUShortOrTuple = [](EVertexElementType Type)
+		{
+			return Type == VET_UShort2 || Type == VET_UShort4;
+		};
+
+		auto IsUShortNOrTuple = [](EVertexElementType Type)
+		{
+			return Type == VET_UShort2N || Type == VET_UShort4N;
+		};
+
+		if (A.Num() != B.Num())
+		{
+			++TimesMismatchedNumElements;
+			return false;
+		}
+
+		for (int32 Idx = 0, Num = A.Num(); Idx < Num; ++Idx)
+		{
+			if (A[Idx].Type != B[Idx].Type)
+			{
+				// when we see float2 vs float4 mismatch, we cannot know which one the vertex expects,
+				// and we assume it needs float4 to be on the safe side
+				if (NumElements(A[Idx].Type) == NumElements(B[Idx].Type))
+				{
+					if (IsFloatOrTuple(A[Idx].Type) && IsFloatOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					if (IsShortOrTuple(A[Idx].Type) && IsShortOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					if (IsShortNOrTuple(A[Idx].Type) && IsShortNOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					if (IsUShortOrTuple(A[Idx].Type) && IsUShortOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					if (IsUShortNOrTuple(A[Idx].Type) && IsUShortNOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+				}
+
+				// found a mismatch. Collect the stats about it.
+				TTuple<EVertexElementType, EVertexElementType> Pair;
+				// to avoid A,B vs B,A tuples, make sure that the first is always lower or equal
+				if (A[Idx].Type < B[Idx].Type)
+				{
+					Pair.Key = A[Idx].Type;
+					Pair.Value = B[Idx].Type;
+				}
+				else
+				{
+					Pair.Key = B[Idx].Type;
+					Pair.Value = A[Idx].Type;
+				}
+
+				if (int32* ExistingCount = MismatchStats.Find(Pair))
+				{
+					++(*ExistingCount);
+				}
+				else
+				{
+					MismatchStats.Add(Pair, 1);
+				}
+
+				return false;
+			}
+		}
+
+		return true;
+	};
+
+	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Running sanity check (consistency of vertex format)."));
+
+	// At this point we cannot really know what is the correct vertex format (input layout) for a given vertex shader. Instead, we're looking if we see the same VS used in multiple PSOs with incompatible vertex descriptors.
+	// If we find that some of them are suspect, we'll remove all such PSOs from the cache. That may be aggressive but it's better to have hitches than hangs and crashes.
+	TMap<FSHAHash, FVertexDeclarationElementList> VSToVertexDescriptor;
+	TSet<FSHAHash> SuspiciousVertexShaders;
+	TMap<TTuple<EVertexElementType, EVertexElementType>, int32> MismatchStats;
+	int32 TimesMismatchedNumElements = 0;
+
+	for (const FPipelineCacheFileFormatPSO& CurPSO : InOutPSOs)
+	{
+		if (CurPSO.Type != FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
+		{
+			continue;
+		}
+
+		if (FVertexDeclarationElementList* Existing = VSToVertexDescriptor.Find(CurPSO.GraphicsDesc.VertexShader))
+		{
+			// check if current is the same or compatible
+			if (!IsInputLayoutCompatible(CurPSO.GraphicsDesc.VertexDescriptor, *Existing, MismatchStats, TimesMismatchedNumElements))
+			{
+				SuspiciousVertexShaders.Add(CurPSO.GraphicsDesc.VertexShader);
+			}
+		}
+		else
+		{
+			VSToVertexDescriptor.Add(CurPSO.GraphicsDesc.VertexShader, CurPSO.GraphicsDesc.VertexDescriptor);
+		}
+	}
+
+	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d vertex shaders are used with an inconsistent vertex format"), SuspiciousVertexShaders.Num());
+
+	// remove all PSOs that have of those vertex shaders
+	if (SuspiciousVertexShaders.Num() > 0)
+	{
+		// print what was not compatible
+		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("The following inconsistencies were noticed:"));
+		if (TimesMismatchedNumElements > 0)
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d times PSOs used the same shader with vertex declarations with a different number of arguments"), TimesMismatchedNumElements);
+		}
+		for (const TTuple< TTuple<EVertexElementType, EVertexElementType>, int32>& Stat : MismatchStats)
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d times one PSO used the vertex shader with %s (%d), another %s (%d) (we don't know VS signature so assume it needs the larger type)"), Stat.Value, VertexElementToString(Stat.Key.Key), Stat.Key.Key, VertexElementToString(Stat.Key.Value), Stat.Key.Value);
+		}
+
+		// print the shaders themselves
+		{
+			TMap<FSHAHash, TArray<FStableShaderKeyAndValue>> InverseMap;
+
+			for (const TTuple<FStableShaderKeyAndValue, FSHAHash>& Pair : StableMap)
+			{
+				FStableShaderKeyAndValue Temp(Pair.Key);
+				Temp.OutputHash = Pair.Value;
+				InverseMap.FindOrAdd(Pair.Value).Add(Temp);
+			}
+
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("These vertex shaders are used with an inconsistent vertex format:"), SuspiciousVertexShaders.Num());
+			int32 SuspectVSIdx = 0;
+			for (const FSHAHash& SuspectVS : SuspiciousVertexShaders)
+			{
+				const TArray<FStableShaderKeyAndValue>* Out = InverseMap.Find(SuspectVS);
+				if (Out && Out->Num() > 0)
+				{
+					if (Out->Num() > 1)
+					{
+						UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d: %d shaders matching hash %s"), SuspectVSIdx, Out->Num(), *SuspectVS.ToString());
+
+						if (UE_LOG_ACTIVE(LogShaderPipelineCacheTools, Verbose))
+						{
+							int32 SubIdx = 0;
+							for (const FStableShaderKeyAndValue& Item : *Out)
+							{
+								UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("    %d: %s"), SubIdx, *Item.ToString());
+								++SubIdx;
+							}
+						}
+						else
+						{
+							UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    Example: %s"), *((*Out)[0].ToString()));
+						}
+					}
+					else
+					{
+						UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d: %s"), SuspectVSIdx, *((*Out)[0].ToString()));
+					}
+				}
+				else
+				{
+					UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("Unknown shader with a hash %s"), *SuspectVS.ToString());
+				}
+				++SuspectVSIdx;
+			}
+		}
+
+		// filter the PSOs
+		TSet<FPipelineCacheFileFormatPSO> FilteredPSOs;
+		for (const FPipelineCacheFileFormatPSO& CurPSO : InOutPSOs)
+		{
+			if (CurPSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics && SuspiciousVertexShaders.Contains(CurPSO.GraphicsDesc.VertexShader))
+			{
+				continue;
+			}
+
+			FilteredPSOs.Add(CurPSO);
+		}
+
+		InOutPSOs = FilteredPSOs;
+	}
+
+	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Number of PSOs after sanity checks: %d."), InOutPSOs.Num());
+}
+
 
 int32 BuildPSOSC(const TArray<FString>& Tokens)
 {
@@ -1407,6 +1836,8 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 		return 0;
 	}
 
+	FilterInvalidPSOs(PSOs, StableMap);
+
 	if (UE_LOG_ACTIVE(LogShaderPipelineCacheTools, Verbose))
 	{
 		for (const FPipelineCacheFileFormatPSO& Item : PSOs)
@@ -1417,10 +1848,19 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 				check(!(Item.ComputeDesc.ComputeShader == FSHAHash()));
 				StringRep = Item.ComputeDesc.ToString();
 			}
-			else
+			else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 			{
 				check(!(Item.GraphicsDesc.VertexShader == FSHAHash()));
 				StringRep = Item.GraphicsDesc.ToString();
+			}
+			else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
+			{
+				check(Item.RayTracingDesc.ShaderHash != FSHAHash());
+				StringRep = Item.RayTracingDesc.ToString();
+			}
+			else
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.Type));
 			}
 			UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("%s"), *StringRep);
 		}

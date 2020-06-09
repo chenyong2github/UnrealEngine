@@ -12818,7 +12818,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 	for (int32 LayerIndex = 1; LayerIndex < Layers.Num(); ++LayerIndex)
 	{
 		const FGuid& ParentGuid = ParentLayerGuids[LayerIndex];
-		if (ParentGuid != NoParentGuid)
+		if (ParentGuid != NoParentGuid && ParentGuid != UninitializedParentGuid)
 		{
 			continue;
 		}
@@ -12966,12 +12966,20 @@ void UMaterialExpressionMaterialFunctionCall::PostEditChangeProperty(FPropertyCh
 void UMaterialExpressionMaterialFunctionCall::LinkFunctionIntoCaller(FMaterialCompiler* Compiler)
 {
 	MaterialFunction->LinkIntoCaller(FunctionInputs);
-	Compiler->PushParameterOwner(FunctionParameterInfo);
+	// Update parameter owner when stepping into layer functions
+	if (MaterialFunction->GetMaterialFunctionUsage() != EMaterialFunctionUsage::Default)
+	{
+		Compiler->PushParameterOwner(FunctionParameterInfo);
+	}
 }
 
 void UMaterialExpressionMaterialFunctionCall::UnlinkFunctionFromCaller(FMaterialCompiler* Compiler)
 {
-	verify(Compiler->PopParameterOwner() == FunctionParameterInfo);
+	if (MaterialFunction->GetMaterialFunctionUsage() != EMaterialFunctionUsage::Default)
+	{
+		const FMaterialParameterInfo PoppedParameterInfo = Compiler->PopParameterOwner();
+		check(PoppedParameterInfo == FunctionParameterInfo);
+	}
 	MaterialFunction->UnlinkFromCaller();
 }
 

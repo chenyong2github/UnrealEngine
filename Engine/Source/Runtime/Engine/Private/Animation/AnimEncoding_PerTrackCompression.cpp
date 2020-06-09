@@ -727,6 +727,11 @@ void AEFPerTrackCompressionCodec::GetPoseRotations(
 {
 	const int32 PairCount = DesiredPairs.Num();
 
+	if (PairCount == 0)
+	{
+		return;
+	}
+
 	if (INTEL_ISPC)
 	{
 #if INTEL_ISPC
@@ -819,6 +824,11 @@ void AEFPerTrackCompressionCodec::GetPoseScales(
 	FAnimSequenceDecompressionContext& DecompContext)
 {
 	const int32 PairCount = DesiredPairs.Num();
+
+	if (PairCount == 0)
+	{
+		return;
+	}
 
 	if (INTEL_ISPC)
 	{

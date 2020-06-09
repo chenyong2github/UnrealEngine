@@ -7,6 +7,7 @@
 #include "Util/DynamicVector.h"
 #include "Intersection/IntrRay3AxisAlignedBox3.h"
 #include "Intersection/IntrTriangle3Triangle3.h"
+#include "Intersection/IntersectionUtil.h"
 #include "MeshQueries.h"
 #include "Spatial/SpatialInterfaces.h"
 #include "Distance/DistTriangle3Triangle3.h"
@@ -141,7 +142,7 @@ public:
 	/**
 	 * Get the overall bounding box of the whole tree
 	 */
-	FAxisAlignedBox3d GetBoundingBox()
+	FAxisAlignedBox3d GetBoundingBox() const
 	{
 		if (!ensure(RootIndex >= 0))
 		{
@@ -362,7 +363,7 @@ public:
 		// Note: using TNumericLimits<float>::Max() here because we need to use <= to compare Box hit
 		//   to NearestT, and Box hit returns TNumericLimits<double>::Max() on no-hit. So, if we set
 		//   nearestT to TNumericLimits<double>::Max(), then we will test all boxes (!)
-		NearestT = (Options.MaxDistance < TNumericLimits<double>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
+		NearestT = (Options.MaxDistance < TNumericLimits<float>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
 
 		check(MeshTimestamp == Mesh->GetShapeTimestamp());
 		check(RootIndex >= 0);
@@ -377,6 +378,7 @@ public:
 		return TID != IndexConstants::InvalidID;
 	}
 
+protected:
 	void FindHitTriangle(
 		int IBox, const FRay3d& Ray, double& NearestT, int& TID,
 		const FQueryOptions& Options = FQueryOptions()) const
@@ -453,6 +455,116 @@ public:
 		}
 	}
 
+
+public:
+	/**
+	 * @return true if ray hits the mesh at some point (doesn't necessarily find the nearest hit).
+	 */
+	virtual bool TestAnyHitTriangle(const FRay3d& Ray, const FQueryOptions& Options = FQueryOptions()) const
+	{
+		check(MeshTimestamp == Mesh->GetShapeTimestamp());
+		check(RootIndex >= 0);
+		if (RootIndex < 0)
+		{
+			return false;
+		}
+		double MaxDistance = (Options.MaxDistance < TNumericLimits<float>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
+		int32 HitTID = IndexConstants::InvalidID;
+		bool bFoundHit = TestAnyHitTriangle(RootIndex, Ray, HitTID, MaxDistance, Options);
+		return bFoundHit;
+	}
+
+protected:
+	bool TestAnyHitTriangle(
+		int IBox, const FRay3d& Ray, int32& HitTIDOut, double MaxDistance,
+		const FQueryOptions& Options = FQueryOptions()) const
+	{
+		int idx = BoxToIndex[IBox];
+		if (idx < TrianglesEnd)
+		{ // triangle-list case, array is [N t1 t2 ... tN]
+			FVector3d A, B, C;
+			int num_tris = IndexList[idx];
+			for (int i = 1; i <= num_tris; ++i)
+			{
+				int ti = IndexList[idx + i];
+				if (Options.TriangleFilterF != nullptr && Options.TriangleFilterF(ti) == false)
+				{
+					continue;
+				}
+				Mesh->GetTriVertices(ti, A, B, C);
+				if ( IntersectionUtil::RayTriangleTest(Ray.Origin, Ray.Direction, A,B,C) ) 
+				{
+					HitTIDOut = ti;
+					return true;
+				}
+			}
+		}
+		else
+		{ // internal node, either 1 or 2 child boxes
+			double e = FMathd::ZeroTolerance;
+			int iChild1 = IndexList[idx];
+			if (iChild1 < 0)
+			{ // 1 child, descend if nearer than cur min-dist
+				iChild1 = (-iChild1) - 1;
+				double fChild1T = box_ray_intersect_t(iChild1, Ray);
+				if (fChild1T <= MaxDistance + e)
+				{
+					if (TestAnyHitTriangle(iChild1, Ray, HitTIDOut, MaxDistance, Options))
+					{
+						return true;
+					}
+				}
+			}
+			else
+			{ // 2 children, descend closest first
+				iChild1 = iChild1 - 1;
+				int iChild2 = IndexList[idx + 1] - 1;
+
+				double fChild1T = box_ray_intersect_t(iChild1, Ray);
+				double fChild2T = box_ray_intersect_t(iChild2, Ray);
+				if (fChild1T < fChild2T)
+				{
+					if (fChild1T <= MaxDistance + e)
+					{
+						if (TestAnyHitTriangle(iChild1, Ray, HitTIDOut, MaxDistance, Options))
+						{
+							return true;
+						}
+						if (fChild2T <= MaxDistance + e)
+						{
+							if (TestAnyHitTriangle(iChild2, Ray, HitTIDOut, MaxDistance, Options))
+							{
+								return true;
+							}
+						}
+					}
+				}
+				else
+				{
+					if (fChild2T <= MaxDistance + e)
+					{
+						if (TestAnyHitTriangle(iChild2, Ray, HitTIDOut, MaxDistance, Options))
+						{
+							return true;
+						}
+						if (fChild1T <= MaxDistance + e)
+						{
+							if (TestAnyHitTriangle(iChild1, Ray, HitTIDOut, MaxDistance, Options))
+							{
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+
+
+
+public:
 	/**
 	 * Find nearest pair of triangles on this tree with OtherTree, within Options.MaxDistance.
 	 * TransformF transforms vertices of OtherTree into our coordinates. can be null.
@@ -525,6 +637,7 @@ public:
 		TreeTraversalImpl(RootIndex, 0, Traversal, Options);
 	}
 
+protected:
 	// Traversal implementation. you can override to customize this if necessary.
 	virtual void TreeTraversalImpl(
 		int IBox, int Depth, FTreeTraversal& Traversal, const FQueryOptions& Options
@@ -580,6 +693,7 @@ public:
 	}
 
 
+public:
 	/**
 	 * return true if *any* triangle of TestMesh intersects with our tree.
 	 * If TestMeshBounds is not empty, only test collision if the provided bounding box intersects the root AABB box

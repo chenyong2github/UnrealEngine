@@ -328,7 +328,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 		// If we need dbuffer targets, initialize them
 		if (bNeedsDBufferTargets)
 		{
-			uint32 BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize : TexCreate_None;
+			uint32 BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
 
 			// DBuffer: Decal buffer
 			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(

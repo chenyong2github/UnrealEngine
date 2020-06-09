@@ -420,7 +420,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
 	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
 	uint32 InstanceIndex = 0;
-	for (int32 EmitterIdx : InSystemInstance->GetEmitterExecutionOrder())
+	for (int32 EmitterIdx : InSystemInstance->GetSystem()->GetEmitterExecutionOrder())
 	{
 		if (FNiagaraEmitterInstance* EmitterInstance = &InSystemInstance->GetEmitters()[EmitterIdx].Get())
 		{
@@ -555,8 +555,9 @@ const uint8* FNiagaraGPUSystemTick::GetUniformBufferSource(EUniformBufferType Ty
 		}
 		case UBT_External:
 		{
+			// External is special and interpolated parameters are already included inside of the combined parameter store
 			check(Instance);
-			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayout.ConstantBufferSize);
+			return Instance->ExternalParamData;
 		}
 	}
 
@@ -569,10 +570,9 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
-	, ExternalCBufferLayout(TEXT("Niagara GPU External CBuffer"))
 	, DataToRender(nullptr)
-
 {
+	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"));
 }
 
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
@@ -589,6 +589,8 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 #endif
 
 	SetDataToRender(nullptr);
+
+	ExternalCBufferLayout = nullptr;
 }
 
 void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batcher)

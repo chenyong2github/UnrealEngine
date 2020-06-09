@@ -65,8 +65,7 @@ namespace Gauntlet
 		}
 
 		// There are issues with IPA Zip64 files being created with Ionic.Zip possibly limited to when running on mono (see IOSPlatform.PackageIPA)
-		// This manifests as header overflow errors, etc in 7zip, Ionic.Zip, System.IO.Compression, and OSX system unzip
-		// This is limited to bulk builds which exceed 4 gigs, this method works around this, though we really do need to fix
+		// This manifests as header overflow errors, etc in 7zip, Ionic.Zip, System.IO.Compression, and OSX system unzip		
 		internal static bool ExecuteIPAZipCommand(String Arguments, out String Output, String ShouldExist = "")
 		{
 			using (new ScopedSuspendECErrorParsing())
@@ -91,6 +90,35 @@ namespace Gauntlet
 			
 			return true;
 		}
+
+		// IPA handling using ditto command, which is capable of handling IPA's > 4GB/Zip64
+		internal static bool ExecuteIPADittoCommand(String Arguments, out String Output, String ShouldExist = "")
+		{
+			using (new ScopedSuspendECErrorParsing())
+			{
+				IProcessResult Result = ExecuteCommand("ditto", Arguments);
+				Output = Result.Output;
+
+				if (Result.ExitCode != 0)
+				{
+					if (!String.IsNullOrEmpty(ShouldExist))
+					{
+						if (!File.Exists(ShouldExist) && !Directory.Exists(ShouldExist))
+						{
+							Log.Error(String.Format("ditto encountered an error or warning procesing IPA, {0} missing", ShouldExist));
+							return false;
+						}
+					}
+
+					Log.Error(String.Format("ditto encountered an issue procesing IPA"));
+					return false;
+
+				}
+			}
+			
+			return true;
+		}
+
 
 		private static string GetBundleIdentifier(string SourceIPA)
 		{

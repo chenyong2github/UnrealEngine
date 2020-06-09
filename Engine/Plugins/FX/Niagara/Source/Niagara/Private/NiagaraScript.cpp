@@ -1077,7 +1077,7 @@ void UNiagaraScript::PostLoad()
 			}
 		}
 
-		if (CachedScriptVMId.CompilerVersionID != FNiagaraCustomVersion::LatestScriptCompileVersion)
+		if (CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.CompilerVersionID != FNiagaraCustomVersion::LatestScriptCompileVersion)
 		{
 			bScriptVMNeedsRebuild = true;
 			RebuildReason = TEXT("Niagara compiler version changed since the last time the script was compiled.");
@@ -1086,7 +1086,9 @@ void UNiagaraScript::PostLoad()
 		if (bScriptVMNeedsRebuild)
 		{
 			// Force a rebuild on the source vm ids, and then invalidate the current cache to force the script to be unsynchronized.
+			// We modify here in post load so that it will cause the owning asset to resave when running the resave commandlet.
 			bool bForceRebuild = true;
+			Modify();
 			Source->ComputeVMCompilationId(CachedScriptVMId, Usage, UsageId, bForceRebuild);
 			InvalidateCompileResults(RebuildReason);
 		}
@@ -1099,6 +1101,13 @@ void UNiagaraScript::PostLoad()
 #endif
 	
 	ProcessSerializedShaderMaps();
+
+#if WITH_EDITORONLY_DATA
+	if (CachedScriptVMId.BaseScriptCompileHash.IsValid())
+	{
+		CacheResourceShadersForRendering(false, false /*bNeedsRecompile*/);
+	}
+#endif
 
 	GenerateStatIDs();
 

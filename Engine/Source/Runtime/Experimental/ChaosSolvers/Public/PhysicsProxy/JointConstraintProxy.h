@@ -6,6 +6,7 @@
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
@@ -31,14 +32,23 @@ class TJointConstraintProxy : public TPhysicsProxy<TJointConstraintProxy<CONSTRA
 	typedef TPhysicsProxy<TJointConstraintProxy<CONSTRAINT_TYPE>, void> Base;
 
 public:
+	using FReal = Chaos::FReal;
 	using FConstraintHandle = typename CONSTRAINT_TYPE::FHandle;
 	using FConstraintData = typename CONSTRAINT_TYPE::FData;
+	using FJointConstraints = Chaos::FPBDJointConstraints;
+	using FParticlePair = Chaos::TVector<Chaos::TGeometryParticle<FReal, 3>*, 2>;
+	using FParticleHandlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<FReal, 3>*, 2>;
 
 	TJointConstraintProxy() = delete;
-	TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr, Chaos::FPBDJointSettings InitialState = Chaos::FPBDJointSettings()); // @todo(brice) : make FPBDJointSetting a type defined on the CONSTRAINT_TYPE
+	TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr); // @todo(brice) : make FPBDJointSetting a type defined on the CONSTRAINT_TYPE
 	virtual ~TJointConstraintProxy();
 
-	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::NoneType; }
+	EPhysicsProxyType ConcreteType();
+	
+	bool IsValid() { return Constraint != nullptr && Constraint->IsValid(); }
+
+	bool IsInitialized() const { return bInitialized; }
+	void SetInitialized() { bInitialized = true; }
 
 	//
 	//  Lifespan Management
@@ -47,7 +57,15 @@ public:
 	template <typename Traits>
 	void CHAOSSOLVERS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
-	template <typename Traits> 
+	// Merge to perform a remote sync
+	template <typename Traits>
+	void CHAOSSOLVERS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+
+	template <typename Traits>
+	void CHAOSSOLVERS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	// Merge to perform a remote sync - END
+
+	template <typename Traits>
 	void CHAOSSOLVERS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
 	void SyncBeforeDestroy() {}
@@ -57,11 +75,6 @@ public:
 	//
 	// Member Access
 	//
-
-	const Chaos::FPBDJointSettings& GetInitialState() const
-	{
-		return InitialState;
-	}
 
 	FConstraintHandle* GetHandle()
 	{
@@ -113,13 +126,14 @@ public:
 	void PullFromPhysicsState() {}
 
 	/**/
-	bool IsDirty() { return true; }
+	bool IsDirty() { return Constraint->IsDirty(); }
 	
 private:
 
-	Chaos::FPBDJointSettings InitialState;
 	CONSTRAINT_TYPE* Constraint;
 	FConstraintHandle* Handle;
+	bool bInitialized;
+
 
 public:
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
@@ -134,12 +148,8 @@ public:
 
 };
 
-template< > CHAOSSOLVERS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
-#define EVOLUTION_TRAIT(Traits)\
-template< > template < > CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-template< > template < > CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver);\
 
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
+template<> CHAOSSOLVERS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
+
 extern template class TJointConstraintProxy< Chaos::FJointConstraint >;
 typedef TJointConstraintProxy< Chaos::FJointConstraint > FJointConstraintPhysicsProxy;

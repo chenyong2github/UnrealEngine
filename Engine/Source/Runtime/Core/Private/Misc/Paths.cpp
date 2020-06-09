@@ -459,7 +459,12 @@ FString FPaths::AutomationDir()
 
 FString FPaths::AutomationTransientDir()
 {
-	return FPaths::AutomationDir() + TEXT("Transient/");
+	return FPaths::AutomationDir() + TEXT("Tmp/");
+}
+
+FString FPaths::AutomationReportsDir()
+{
+	return FPaths::AutomationDir() + TEXT("Reports/");
 }
 
 FString FPaths::AutomationLogDir()

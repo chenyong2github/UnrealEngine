@@ -261,11 +261,15 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStep(const FReal Dt,const FRe
 	UnprepareTick();
 }
 
+int32 DrawAwake = 0;
+FAutoConsoleVariableRef CVarDrawAwake(TEXT("p.chaos.DebugDrawAwake"),DrawAwake,TEXT("Draw particles that are awake"));
+
 template <typename Traits>
 void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const FReal StepFraction)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evolution_AdvanceOneTimeStep);
 
+	Particles.ClearPutToSleepThisFrame();
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
 	{
@@ -449,10 +453,46 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 	if(CaptureRewindData)
 	{
-		CaptureRewindData(Particles.GetActiveParticlesView());
+		CaptureRewindData(Particles.GetDirtyParticlesView());
 	}
 
-	ParticleUpdatePosition(Particles.GetActiveParticlesView(), Dt);
+	ParticleUpdatePosition(Particles.GetDirtyParticlesView(), Dt);
+
+#if !UE_BUILD_SHIPPING
+	if(SerializeEvolution)
+	{
+		SerializeToDisk(*this);
+	}
+
+#if CHAOS_DEBUG_DRAW
+	if(FDebugDrawQueue::IsDebugDrawingEnabled())
+	{
+		if(!!DrawAwake)
+		{
+			static const FColor IslandColors[] = {FColor::Green,FColor::Red,FColor::Yellow,
+				FColor::Blue,FColor::Orange,FColor::Black,FColor::Cyan,
+				FColor::Magenta,FColor::Purple,FColor::Turquoise};
+
+			static const int32 NumColors = sizeof(IslandColors) / sizeof(IslandColors[0]);
+			
+			for(const auto& Active : Particles.GetActiveParticlesView())
+			{
+				if(const auto* Geom = Active.Geometry().Get())
+				{
+					if(Geom->HasBoundingBox())
+					{
+						const int32 Island = Active.Island();
+						ensure(Island >= 0);
+						const int32 ColorIdx = Island % NumColors;
+						const TAABB<FReal,3> LocalBounds = Geom->BoundingBox();
+						FDebugDrawQueue::GetInstance().DrawDebugBox(Active.X(),LocalBounds.Extents()*0.5f,Active.R(),IslandColors[ColorIdx],false,-1.f,0,0.f);
+					}
+				}
+			}
+		}
+	}
+#endif
+#endif
 }
 
 template <typename Traits>

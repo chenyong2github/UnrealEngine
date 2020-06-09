@@ -706,7 +706,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 		}
 		for (const FName Name : Pair.Value)
 		{
-			//Pair.Key->SelectControl(Name, true);
+			Pair.Key->SelectControl(Name, true);
 		}
 	}
 }

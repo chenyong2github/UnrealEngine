@@ -45,16 +45,12 @@ public:
 
 	// IAnalyticsProvider
 
-	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) override;
-	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes) override;
 	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) override;
 	virtual void EndSession() override;
 	virtual void FlushEvents() override;
 
 	virtual void SetAppID(FString&& AppID) override;
-	virtual const FString& GetAppID() const override;
 	virtual void SetAppVersion(FString&& AppVersion) override;
-	virtual const FString& GetAppVersion() const override;
 	virtual void SetUserID(const FString& InUserID) override;
 	virtual FString GetUserID() const override;
 
@@ -62,11 +58,11 @@ public:
 	virtual bool SetSessionID(const FString& InSessionID) override;
 
 	virtual bool ShouldRecordEvent(const FString& EventName) const override;
-	virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) override;
 	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes) override;
-	virtual void RecordEventJson(FString EventName, TArray<FAnalyticsEventAttribute>&& AttributesJson) override;
 	virtual void SetDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes) override;
-	virtual const TArray<FAnalyticsEventAttribute>& GetDefaultEventAttributes() const override;
+	virtual TArray<FAnalyticsEventAttribute> GetDefaultEventAttributesSafe() const override;
+	virtual int32 GetDefaultEventAttributeCount() const override;
+	virtual FAnalyticsEventAttribute GetDefaultEventAttribute(int AttributeIndex) const override;
 	virtual void SetEventCallback(const OnEventRecorded& Callback) override;
 
 	virtual void SetURLEndpoint(const FString& UrlEndpoint, const TArray<FString>& AltDomains) override;
@@ -99,36 +95,7 @@ private:
 	/** Track destructing for unbinding callbacks when firing events at shutdown */
 	bool bInDestructor;
 
-	/**
-	* Analytics event entry to be cached
-	*/
-	struct FAnalyticsEventEntry
-	{
-		/** name of event */
-		FString EventName;
-		/** optional list of attributes */
-		TArray<FAnalyticsEventAttribute> Attributes;
-		/** local time when event was triggered */
-		FDateTime TimeStamp;
-		/** Whether this event was added using the Json API. */
-		uint32 bIsJsonEvent : 1;
-		/** Whether this event is setting the default attributes to add to all events. Every cached event list will start with one of these, though it may be empty. */
-		uint32 bIsDefaultAttributes : 1;
-		/**
-		* Constructor. Requires rvalue-refs to ensure we move values efficiently into this struct.
-		*/
-		FAnalyticsEventEntry(FString&& InEventName, TArray<FAnalyticsEventAttribute>&& InAttributes, bool bInIsJsonEvent, bool bInIsDefaultAttributes)
-			: EventName(MoveTemp(InEventName))
-			, Attributes(MoveTemp(InAttributes))
-			, TimeStamp(FDateTime::UtcNow())
-			, bIsJsonEvent(bInIsJsonEvent)
-			, bIsDefaultAttributes(bInIsDefaultAttributes)
-		{}
-	};
-
 	FAnalyticsProviderETEventCache EventCache;
-	/** Needed to support the old, unsafe GetDefaultAttributes() API. */
-	mutable TArray<FAnalyticsEventAttribute> UnsafeDefaultAttributes;
 
 	TArray<OnEventRecorded> EventRecordedCallbacks;
 
@@ -279,27 +246,6 @@ FAnalyticsProviderET::~FAnalyticsProviderET()
 	EndSession();
 }
 
-/**
- * Start capturing stats for upload
- * Uses the unique ApiKey associated with your app
- */
-bool FAnalyticsProviderET::StartSession(const TArray<FAnalyticsEventAttribute>& Attributes)
-{
-	// Have to copy Attributes array because this doesn't come in as an rvalue ref.
-	return StartSession(TArray<FAnalyticsEventAttribute>(Attributes));
-}
-
-/**
- * Start capturing stats for upload with provided SessionID
- * Uses the unique ApiKey associated with your app
- */
-bool FAnalyticsProviderET::StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
-{
-	FGuid SessionGUID;
-	FPlatformMisc::CreateGuid(SessionGUID);
-	return StartSession(SessionGUID.ToString(EGuidFormats::DigitsWithHyphensInBraces), MoveTemp(Attributes));;
-}
-
 bool FAnalyticsProviderET::StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes)
 {
 	UE_LOG(LogAnalytics, Log, TEXT("[%s] AnalyticsET::StartSession"), *Config.APIKeyET);
@@ -311,11 +257,9 @@ bool FAnalyticsProviderET::StartSession(FString InSessionID, TArray<FAnalyticsEv
 	}
 	SessionID = MoveTemp(InSessionID);
 	// always ensure we send a few specific attributes on session start.
-	TArray<FAnalyticsEventAttribute> AppendedAttributes(MoveTemp(Attributes));
-	// we should always know what platform is hosting this session.
-	AppendedAttributes.Emplace(TEXT("Platform"), FString(FPlatformProperties::IniPlatformName()));
+	Attributes.Emplace(TEXT("Platform"), FString(FPlatformProperties::IniPlatformName()));
 
-	RecordEvent(TEXT("SessionStart"), MoveTemp(AppendedAttributes));
+	RecordEvent(TEXT("SessionStart"), MoveTemp(Attributes));
 	bSessionInProgress = true;
 	return bSessionInProgress;
 }
@@ -407,6 +351,8 @@ void FAnalyticsProviderET::FlushEvents()
 				{
 					HttpRequest->OnProcessRequestComplete().BindSP(this, &FAnalyticsProviderET::EventRequestComplete);
 				}
+
+				HttpRequest->ProcessRequest();
 			}
 		}
 		else
@@ -480,16 +426,6 @@ void FAnalyticsProviderET::SetAppVersion(FString&& InAppVersion)
 	}
 }
 
-const FString& FAnalyticsProviderET::GetAppID() const
-{
-	return Config.APIKeyET;
-}
-
-const FString& FAnalyticsProviderET::GetAppVersion() const
-{
-	return Config.AppVersionET;
-}
-
 void FAnalyticsProviderET::SetUserID(const FString& InUserID)
 {
 	// command-line specified user ID overrides all attempts to reset it.
@@ -533,12 +469,6 @@ bool FAnalyticsProviderET::ShouldRecordEvent(const FString& EventName) const
 	return !ShouldRecordEventFunc || ShouldRecordEventFunc(*this, EventName);
 }
 
-void FAnalyticsProviderET::RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
-{
-	// Have to copy Attributes array because this doesn't come in as an rvalue ref.
-	RecordEvent(EventName, TArray<FAnalyticsEventAttribute>(Attributes));
-}
-
 void FAnalyticsProviderET::RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
 {
 	// let higher level code filter the decision of whether to send the event
@@ -547,32 +477,11 @@ void FAnalyticsProviderET::RecordEvent(FString EventName, TArray<FAnalyticsEvent
 		// fire any callbacks
 		for (const auto& Cb : EventRecordedCallbacks)
 		{
+			// we no longer track if the event was Json, each attribute does.
 			Cb(EventName, Attributes, false);
 		}
 
-		EventCache.AddToCache(MoveTemp(EventName), MoveTemp(Attributes), false);
-		// if we aren't caching events, flush immediately. This is really only for debugging as it will significantly affect bandwidth.
-		if (!bShouldCacheEvents)
-		{
-			FlushEvents();
-		}
-	}
-}
-
-void FAnalyticsProviderET::RecordEventJson(FString EventName, TArray<FAnalyticsEventAttribute>&& AttributesJson)
-{
-	checkf(!Config.UseLegacyProtocol, TEXT("Cannot use Json events with legacy protocol"));
-
-	// let higher level code filter the decision of whether to send the event
-	if (ShouldRecordEvent(EventName))
-	{
-		// fire any callbacks
-		for (const auto& Cb : EventRecordedCallbacks)
-		{
-			Cb(EventName, AttributesJson, true);
-		}
-
-		EventCache.AddToCache(MoveTemp(EventName), MoveTemp(AttributesJson), true);
+		EventCache.AddToCache(MoveTemp(EventName), MoveTemp(Attributes));
 		// if we aren't caching events, flush immediately. This is really only for debugging as it will significantly affect bandwidth.
 		if (!bShouldCacheEvents)
 		{
@@ -584,13 +493,22 @@ void FAnalyticsProviderET::RecordEventJson(FString EventName, TArray<FAnalyticsE
 void FAnalyticsProviderET::SetDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes)
 {
 	EventCache.SetDefaultAttributes(MoveTemp(Attributes));
-
 }
 
-const TArray<FAnalyticsEventAttribute>& FAnalyticsProviderET::GetDefaultEventAttributes() const
+TArray<FAnalyticsEventAttribute> FAnalyticsProviderET::GetDefaultEventAttributesSafe() const
 {
-	UnsafeDefaultAttributes	= EventCache.GetDefaultAttributes();
-	return UnsafeDefaultAttributes;
+	return EventCache.GetDefaultAttributes();
+}
+
+int32 FAnalyticsProviderET::GetDefaultEventAttributeCount() const
+{
+	return EventCache.GetDefaultAttributeCount();
+}
+
+
+FAnalyticsEventAttribute FAnalyticsProviderET::GetDefaultEventAttribute(int AttributeIndex) const
+{
+	return EventCache.GetDefaultAttribute(AttributeIndex);
 }
 
 void FAnalyticsProviderET::SetEventCallback(const OnEventRecorded& Callback)

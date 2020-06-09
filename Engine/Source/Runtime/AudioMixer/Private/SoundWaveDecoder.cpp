@@ -173,7 +173,7 @@ namespace Audio
 
 		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe>MixerSourceBufferLocal = MixerSourceBuffer;
 
-		bool bNextFrameOutOfRange = (SourceInfo.CurrentFrameIndex + 1) >= SourceInfo.CurrentAudioChunkNumFrames;
+		bool bNextFrameOutOfRange = (SourceInfo.CurrentFrameIndex + FMath::CeilToInt(SourceInfo.CurrentFrameAlpha)) >= SourceInfo.CurrentAudioChunkNumFrames;
 		bool bCurrentFrameOutOfRange = SourceInfo.CurrentFrameIndex >= SourceInfo.CurrentAudioChunkNumFrames;
 
 		bool bReadCurrentFrame = true;
@@ -208,6 +208,7 @@ namespace Audio
 				MixerSourceBufferLocal->OnBufferEnd();
 			}
 
+			auto const NumBuffersQueued = MixerSourceBufferLocal->GetNumBuffersQueued();
 			if (MixerSourceBufferLocal->GetNumBuffersQueued() > 0 && (SourceInfo.NumSourceChannels > 0))
 			{
 				check(MixerSourceBufferLocal.IsValid());
@@ -311,6 +312,13 @@ namespace Audio
 				break;
 			}
 
+			// assign "CurrentAlpha" before we update it so ReadFrame() can use the "next" value
+			const float CurrentAlpha = SourceInfo.CurrentFrameAlpha;
+			const float CurrentVolumeScale = SourceInfo.VolumeParam.Update();
+
+			const float CurrentPitchScale = SourceInfo.PitchParam.Update();
+			SourceInfo.CurrentFrameAlpha += CurrentPitchScale;
+
 			if (bReadFrame)
 			{
 				ReadFrame();
@@ -321,18 +329,13 @@ namespace Audio
 			}
 
 
-			const float CurrentVolumeScale = SourceInfo.VolumeParam.Update();
-
 			for (int32 Channel = 0; Channel < SourceInfo.NumSourceChannels; ++Channel)
 			{
 				const float CurrFrameValue = CurrentFrameValuesPtr[Channel];
 				const float NextFrameValue = NextFrameValuesPtr[Channel];
-				const float CurrentAlpha = SourceInfo.CurrentFrameAlpha;
 
 				OutAudioBufferPtr[SampleIndex++] = CurrentVolumeScale * FMath::Lerp(CurrFrameValue, NextFrameValue, CurrentAlpha);
 			}
-			const float CurrentPitchScale = SourceInfo.PitchParam.Update();
-			SourceInfo.CurrentFrameAlpha += CurrentPitchScale;
 
 			SourceInfo.NumFramesGenerated++;
 

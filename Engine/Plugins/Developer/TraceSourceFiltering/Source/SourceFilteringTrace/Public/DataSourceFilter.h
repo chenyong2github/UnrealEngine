@@ -9,15 +9,12 @@
 
 #include "DataSourceFilter.generated.h"
 
-struct FFilterLedger : public TThreadSingleton<FFilterLedger>
-{
-public:
-	TArray<const UDataSourceFilter*> RejectedFilters;
-};
-
 UCLASS(Blueprintable)
 class SOURCEFILTERINGTRACE_API UDataSourceFilter : public UObject, public IDataSourceFilterInterface
 {
+	friend class FSourceFilterManager;
+	friend class FSourceFilterSetup;
+
 	GENERATED_BODY()
 public:
 	UDataSourceFilter();

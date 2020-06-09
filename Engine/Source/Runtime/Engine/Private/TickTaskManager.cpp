@@ -28,7 +28,8 @@ DECLARE_CYCLE_STAT(TEXT("Queue Ticks Wait"),STAT_QueueTicksWait,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("Queue Tick Task"),STAT_QueueTickTask,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("Post Queue Tick Task"),STAT_PostTickTask,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("Finalize Parallel Queue"),STAT_FinalizeParallelQueue,STATGROUP_Game);
-DECLARE_CYCLE_STAT(TEXT("Schedule cooldowns"),STAT_ScheduleCooldowns,STATGROUP_Game);
+DECLARE_CYCLE_STAT(TEXT("Do Deferred Removes"),STAT_DoDeferredRemoves,STATGROUP_Game);
+DECLARE_CYCLE_STAT(TEXT("Schedule cooldowns"), STAT_ScheduleCooldowns,STATGROUP_Game);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Ticks Queued"),STAT_TicksQueued,STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("TG_NewlySpawned"), STAT_TG_NewlySpawned, STATGROUP_TickGroups);
 DECLARE_CYCLE_STAT(TEXT("ReleaseTickGroup"), STAT_ReleaseTickGroup, STATGROUP_TickGroups);
@@ -858,6 +859,23 @@ public:
 	{
 		TickFunctionsToReschedule.Reserve(TickFunctionsToReschedule.Num() + NumToReserve);
 	}
+	/* Do deferred removes */
+	void DoDeferredRemoves()
+	{
+		if (TickFunctionsToReschedule.Num() > 0)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_DoDeferredRemoves);
+
+			for (FTickScheduleDetails& TickDetails : TickFunctionsToReschedule)
+			{
+				if (TickDetails.bDeferredRemove && TickDetails.TickFunction->TickState != FTickFunction::ETickState::Disabled)
+				{
+					verify(AllEnabledTickFunctions.Remove(TickDetails.TickFunction) == 1);
+				}
+			}
+		}
+	}
+
 	/* Puts a TickFunction in to the cooldown state*/
 	void ScheduleTickFunctionCooldowns()
 	{
@@ -883,10 +901,6 @@ public:
 					check(TickFunction->InternalData->bWasInterval);
 					if (TickFunction->TickState != FTickFunction::ETickState::Disabled)
 					{
-						if (TickFunctionsToReschedule[RescheduleIndex].bDeferredRemove)
-						{
-							verify(AllEnabledTickFunctions.Remove(TickFunction) == 1);
-						}
 						TickFunction->TickState = FTickFunction::ETickState::CoolingDown;
 						TickFunction->InternalData->RelativeTickCooldown = CooldownTime - CumulativeCooldown;
 
@@ -919,10 +933,6 @@ public:
 				checkSlow(TickFunction);
 				if (TickFunction->TickState != FTickFunction::ETickState::Disabled)
 				{
-					if (TickFunctionsToReschedule[RescheduleIndex].bDeferredRemove)
-					{
-						verify(AllEnabledTickFunctions.Remove(TickFunction) == 1);
-					}
 					const float CooldownTime = TickFunctionsToReschedule[RescheduleIndex].Cooldown;
 
 					TickFunction->TickState = FTickFunction::ETickState::CoolingDown;
@@ -1514,6 +1524,11 @@ public:
 				}
 			);
 			AllTickFunctions.Reset();
+
+			for( int32 LevelIndex = 0; LevelIndex < LevelList.Num(); LevelIndex++ )
+			{
+				LevelList[LevelIndex]->DoDeferredRemoves();
+			}
 		}
 	}
 

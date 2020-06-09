@@ -3034,7 +3034,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		const bool bWasFullyLoaded = Package && Package->IsFullyLoaded() && FPlatformProperties::RequiresCookedData();
 		Import.SourceLinker = !bWasFullyLoaded ? GetPackageLinker(Package, nullptr, InternalLoadFlags, nullptr, nullptr, nullptr, &SerializeContext) : FindExistingLinkerForPackage(Package);
 #if WITH_EDITORONLY_DATA
-		if (Import.SourceLinker && !Package->HasAnyFlags(RF_WasLoaded))
+		if (Import.SourceLinker && !Package->HasAnyFlags(RF_LoadCompleted))
 		{
 			// If we didn't fully load, make sure our metadata is loaded before using this
 			// We need this case for user defined structs due to the LOAD_DeferDependencyLoads code above

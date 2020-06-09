@@ -249,4 +249,13 @@ public:
 	 * Access array used to cache current project's list of module context infos
 	 */
 	virtual TArray<FModuleContextInfo>& GetCurrentProjectModuleContextInfos() = 0;
+
+	/** Returns true if project file write should be suppressed. */
+	virtual bool IsSuppressingProjectFileWrite() const = 0;
+
+	/** Suppress project file writes. */
+	PROJECTS_API virtual void AddSuppressProjectFileWrite(const FName InName) = 0;
+
+	/** Removes suppression of project file writes. */
+	PROJECTS_API virtual void RemoveSuppressProjectFileWrite(const FName InName) = 0;
 };

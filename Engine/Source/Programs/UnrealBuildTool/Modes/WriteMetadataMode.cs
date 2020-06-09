@@ -109,9 +109,9 @@ namespace UnrealBuildTool
 
 			// Check if we need to set a build id
 			TargetReceipt Receipt = TargetInfo.Receipt;
-			if(Receipt.Version.BuildId == null)
+			if(String.IsNullOrEmpty(Receipt.Version.BuildId))
 			{
-				// Check if there's an exist version file. If it exists, try to merge in any manifests that are valid (and reuse the existing build id)
+				// Check if there's an existing version file. If it exists, try to merge in any manifests that are valid (and reuse the existing build id)
 				BuildVersion PreviousVersion;
 				if(TargetInfo.VersionFile != null && BuildVersion.TryRead(TargetInfo.VersionFile, out PreviousVersion))
 				{
@@ -132,7 +132,7 @@ namespace UnrealBuildTool
 				}
 
 				// If the build id is still not set, generate a new one from a GUID
-				if(Receipt.Version.BuildId == null)
+				if(String.IsNullOrEmpty(Receipt.Version.BuildId))
 				{
 					Receipt.Version.BuildId = Guid.NewGuid().ToString();
 				}

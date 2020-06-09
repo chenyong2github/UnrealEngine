@@ -236,7 +236,7 @@ bool FCompareBasepassShaders::RunTest(const FString& Parameters)
             PathName = "../../../" + PathName;
             UE_LOG(ShaderComparisonTests, Log, TEXT("Screenshots are at %s and %s."), *RealScreenshotFileName[i], *RealFP16ScreenshotFileName[i]);
             UE_LOG(ShaderComparisonTests, Log, TEXT("Difference is stored in %s"), *PathName);
-            auto single_similarity = FImageComparer(PathName).CompareStructuralSimilarity(RealScreenshotFileName[i], RealFP16ScreenshotFileName[i], FImageComparer::EStructuralSimilarityComponent::Luminance);
+            auto single_similarity = FImageComparer().CompareStructuralSimilarity(RealScreenshotFileName[i], RealFP16ScreenshotFileName[i], FImageComparer::EStructuralSimilarityComponent::Luminance, "");
             similarity = single_similarity < similarity ? single_similarity : similarity;
             UE_LOG(ShaderComparisonTests, Log, TEXT("Similarity is %f after %d."), similarity, i);
         }

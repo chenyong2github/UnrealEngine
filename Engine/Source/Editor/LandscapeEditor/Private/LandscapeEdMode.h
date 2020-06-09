@@ -545,7 +545,8 @@ public:
 	void OnLandscapeMaterialChangedDelegate();
 	void RefreshDetailPanel();
 
-	// Layers
+	// Edit Layers
+	bool HasValidLandscapeEditLayerSelection() const;
 	bool CanHaveLandscapeLayersContent() const;
 	bool HasLandscapeLayersContent() const;
 	int32 GetLayerCount() const;

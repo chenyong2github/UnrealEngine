@@ -201,6 +201,76 @@ static void SaveDxcBlobToFile(IDxcBlob* Blob, const FString& Filename)
 	FFileHelper::SaveArrayToFile(Contents, *Filename);
 }
 
+static void DisassembleAndSave(TRefCountPtr<IDxcCompiler3>& Compiler, IDxcBlob* Dxil, const FString& DisasmFilename)
+{
+	TRefCountPtr<IDxcResult> DisasmResult;
+	DxcBuffer DisasmBuffer = { 0 };
+	DisasmBuffer.Size = Dxil->GetBufferSize();
+	DisasmBuffer.Ptr = Dxil->GetBufferPointer();
+	if (SUCCEEDED(Compiler->Disassemble(&DisasmBuffer, IID_PPV_ARGS(DisasmResult.GetInitReference()))))
+	{
+		HRESULT DisasmCodeResult;
+		DisasmResult->GetStatus(&DisasmCodeResult);
+		if (SUCCEEDED(DisasmCodeResult))
+		{
+			checkf(DisasmResult->HasOutput(DXC_OUT_DISASSEMBLY), TEXT("Disasm part missing but container said it has one!"));
+			TRefCountPtr<IDxcBlobEncoding> DisasmBlob;
+			TRefCountPtr<IDxcBlobUtf16> Dummy;
+			VERIFYHRESULT(DisasmResult->GetOutput(DXC_OUT_DISASSEMBLY, IID_PPV_ARGS(DisasmBlob.GetInitReference()), Dummy.GetInitReference()));
+			FString String = DxcBlobEncodingToFString(DisasmBlob);
+			FFileHelper::SaveStringToFile(String, *DisasmFilename);
+		}
+	}
+}
+
+static void DumpFourCCParts(dxc::DxcDllSupport& DxcDllHelper, TRefCountPtr<IDxcBlob>& Blob)
+{
+#if UE_BUILD_DEBUG && IS_PROGRAM
+	TRefCountPtr<IDxcContainerReflection> Refl;
+	VERIFYHRESULT(DxcDllHelper.CreateInstance(CLSID_DxcContainerReflection, Refl.GetInitReference()));
+
+	VERIFYHRESULT(Refl->Load(Blob));
+
+	uint32 Count = 0;
+	VERIFYHRESULT(Refl->GetPartCount(&Count));
+
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("*** Blob Size: %d, %d Parts\n"), Blob->GetBufferSize(), Count);
+
+	for (uint32 Index = 0; Index < Count; ++Index)
+	{
+		char FourCC[5] = "\0\0\0\0";
+		VERIFYHRESULT(Refl->GetPartKind(Index, (uint32*)FourCC));
+		TRefCountPtr<IDxcBlob> Part;
+		Refl->GetPartContent(Index, Part.GetInitReference());
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("* %d %s, Size %d\n"), Index, ANSI_TO_TCHAR(FourCC), (uint32)Part->GetBufferSize());
+	}
+#endif
+}
+
+static bool RemoveContainerReflection(dxc::DxcDllSupport& DxcDllHelper, TRefCountPtr<IDxcBlob>& Dxil)
+{
+	TRefCountPtr<IDxcOperationResult> Result;
+	TRefCountPtr<IDxcContainerBuilder> Builder;
+	TRefCountPtr<IDxcBlob> StrippedDxil;
+
+	VERIFYHRESULT(DxcDllHelper.CreateInstance(CLSID_DxcContainerBuilder, Builder.GetInitReference()));
+	VERIFYHRESULT(Builder->Load(Dxil));
+	
+	bool bRemoved = false;
+	if (SUCCEEDED(Builder->RemovePart(DXC_PART_PDB)) || SUCCEEDED(Builder->RemovePart(DXC_PART_REFLECTION_DATA)))
+	{
+		VERIFYHRESULT(Builder->SerializeContainer(Result.GetInitReference()));
+		if (SUCCEEDED(Result->GetResult(StrippedDxil.GetInitReference())))
+		{
+			Dxil.SafeRelease();
+			Dxil = StrippedDxil;
+			return true;
+		}
+	}
+
+	return false;
+};
+
 static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments,
 	TRefCountPtr<IDxcBlob>& OutDxilBlob, TRefCountPtr<IDxcBlob>& OutReflectionBlob, TRefCountPtr<IDxcBlobEncoding>& OutErrorBlob)
 {
@@ -229,35 +299,15 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 		checkf(CompileResult->HasOutput(DXC_OUT_REFLECTION), TEXT("No reflection found!"));
 		VERIFYHRESULT(CompileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(OutReflectionBlob.GetInitReference()), Dummy.GetInitReference()));
 
-		const auto BlobSize = OutDxilBlob->GetBufferSize();
-		const auto ReflectionBlobSize = OutReflectionBlob->GetBufferSize();
-
 		if (Arguments.ShouldDump())
 		{
-			// Dump dissasembly
+			// Dump dissasembly before we strip reflection out
 			const FString& DisasmFilename = Arguments.GetDumpDisassemblyFilename();
 			check(DisasmFilename.Len() > 0);
-
-			TRefCountPtr<IDxcResult> DisasmResult;
-			DxcBuffer DisasmBuffer = { 0 };
-			DisasmBuffer.Size = OutDxilBlob->GetBufferSize();
-			DisasmBuffer.Ptr = OutDxilBlob->GetBufferPointer();
-			if (SUCCEEDED(Compiler->Disassemble(&DisasmBuffer, IID_PPV_ARGS(DisasmResult.GetInitReference()))))
-			{
-				HRESULT DisasmCodeResult;
-				DisasmResult->GetStatus(&DisasmCodeResult);
-				if (SUCCEEDED(DisasmCodeResult))
-				{
-					checkf(DisasmResult->HasOutput(DXC_OUT_DISASSEMBLY), TEXT("Disasm part missing but container said it has one!"));
-					TRefCountPtr<IDxcBlobEncoding> DisasmBlob;
-					VERIFYHRESULT(DisasmResult->GetOutput(DXC_OUT_DISASSEMBLY, IID_PPV_ARGS(DisasmBlob.GetInitReference()), Dummy.GetInitReference()));
-					FString String = DxcBlobEncodingToFString(DisasmBlob);
-					FFileHelper::SaveStringToFile(String, *DisasmFilename);
-				}
-			}
+			DisassembleAndSave(Compiler, OutDxilBlob, DisasmFilename);
 
 			// Dump dxil (.d3dasm -> .dxil)
-			FString DxilFile = DisasmFilename.LeftChop(6) + TEXT("dxil");
+			FString DxilFile = Arguments.GetDumpDisassemblyFilename().LeftChop(7) + TEXT("_refl.dxil");
 			SaveDxcBlobToFile(OutDxilBlob, DxilFile);
 
 			if (CompileResult->HasOutput(DXC_OUT_PDB) && CompileResult->HasOutput(DXC_OUT_SHADER_HASH))
@@ -283,6 +333,19 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 				FString PdbFile = Arguments.GetDumpDebugInfoPath() / (HashName + TEXT(".lld"));
 				SaveDxcBlobToFile(PdbBlob, PdbFile);
 			}
+		}
+
+		DumpFourCCParts(DxcDllHelper, OutDxilBlob);
+		if (RemoveContainerReflection(DxcDllHelper, OutDxilBlob))
+		{
+			DumpFourCCParts(DxcDllHelper, OutDxilBlob);
+		}
+
+		if (Arguments.ShouldDump())
+		{
+			// Dump dxil (.d3dasm -> .dxil)
+			FString DxilFile = Arguments.GetDumpDisassemblyFilename().LeftChop(7) + TEXT("_norefl.dxil");
+			SaveDxcBlobToFile(OutDxilBlob, DxilFile);
 		}
 
 		GBreakpointDXC++;

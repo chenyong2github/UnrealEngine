@@ -1748,6 +1748,18 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, Category="Utilities")
 	static FString GetCommandLine();
 
+	/*
+	* Parses the given string into loose tokens, switches (arguments that begin with - or /) and parameters (-mySwitch=myVar)
+	*
+	* @param	InCmdLine			The the string to parse (ie '-foo -bar=/game/baz testtoken' )
+	* @param	OutTokens[out]		Filled with all loose tokens found in the string (ie: testToken in above example)
+	* @param	OutSwitches[out]	Filled with all switches found in the string (ie -foo)
+	* @param	OutParams[out]		Filled with all switches found in the string with the format key = value (ie: -bar, /game/baz)
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Utilities")
+	static void ParseCommandLine(const FString& InCmdLine, TArray<FString>& OutTokens, TArray<FString>& OutSwitches, TMap<FString, FString>& OutParams);
+
+	
 	/**
 	 * Returns true if running unattended (-unattended is on the command line)
 	 *

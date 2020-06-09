@@ -46,6 +46,36 @@ public:
 	{
 	}*/
 
+	FSimpleEngineSim& GetEngine()
+	{
+		check(Engine.Num() == 1);
+		return Engine[0];
+	}
+
+	FSimpleTransmissionSim& GetTransmission()
+	{
+		check(Transmission.Num() == 1);
+		return Transmission[0];
+	}
+
+	FSimpleWheelSim& GetWheel(int WheelIdx)
+	{
+		check(WheelIdx < Wheels.Num());
+		return Wheels[WheelIdx];
+	}
+
+	FSimpleSuspensionSim& GetSuspension(int WheelIdx)
+	{
+		check(WheelIdx < Suspension.Num());
+		return Suspension[WheelIdx];
+	}
+
+	FSimpleAerodynamicsSim& GetAerodynamics()
+	{
+		check(Aerodynamics.Num() == 1);
+		return Aerodynamics[0];
+	}
+
 	TArray<FSimpleEngineSim> Engine;
 	TArray<FSimpleTransmissionSim> Transmission;
 	TArray<FSimpleWheelSim> Wheels;

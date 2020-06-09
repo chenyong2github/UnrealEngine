@@ -978,12 +978,14 @@ void FMotoSynthEngine::SpawnGrain(int32& StartingIndex, const FMotoSynthData& Sy
 
 				// compute the grain duration based on the NumGrainEntriesPerGrain
 				// we walk the grain table and add grain table durations together to reach a final duration		
-				int32 NextGrainTableIndex = FMath::Min(GrainTableIndex + NumGrainEntries + 1, SynthData.GrainTable.Num() - 1);
-				int32 GrainDuration = SynthData.GrainTable[NextGrainTableIndex].SampleIndex - SynthData.GrainTable[GrainTableIndex].SampleIndex;
+				int32 NextGrainTableIndex = GrainTableIndex + NumGrainEntries + 1;
+				int32 NextGrainTableIndexClamped = FMath::Clamp(NextGrainTableIndex, 0, SynthData.GrainTable.Num() - 1);
+				int32 GrainTableIndexClamped = FMath::Clamp(GrainTableIndex, 0, SynthData.GrainTable.Num() - 1);
+				int32 GrainDuration = SynthData.GrainTable[NextGrainTableIndexClamped].SampleIndex - SynthData.GrainTable[GrainTableIndexClamped].SampleIndex;
 
 				// Get the RPM value fo the very next grain after this grain duration to be the "ending rpm"
 				// This allows us to pitch-scale the grain more closely to the grain's RPM contour through it's lifetime
-				int32 EndingRPM = SynthData.GrainTable[NextGrainTableIndex].RPM;
+				int32 EndingRPM = SynthData.GrainTable[NextGrainTableIndexClamped].RPM;
 
 				int32 StartIndex = FMath::Max(0, Entry->SampleIndex - NewGrainCrossfadeSamples);
 				int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration + NewGrainCrossfadeSamples, SynthData.AudioSource.Num());

@@ -110,28 +110,7 @@ static inline void ReadOnlineSubsystemConfigPairs(const TCHAR* Section, const TC
 	GConfig->GetArray(Section, Key, ConfigPairs, ConfigFile);
 	OutPairs.Reserve(ConfigPairs.Num());
 
-	// Takes on the pattern "(Key=Value)"
-	for (const FString& ConfigEntry : ConfigPairs)
-	{
-		FString TrimmedConfigEntry = ConfigEntry.TrimStartAndEnd();
-		FString KeyString;
-		FString ValueString;
-
-		if (TrimmedConfigEntry.Left(1) == TEXT("("))
-		{
-			TrimmedConfigEntry.RightChopInline(1, false);
-		}
-		if (TrimmedConfigEntry.Right(1) == TEXT(")"))
-		{
-			TrimmedConfigEntry.LeftChopInline(1, false);
-		}
-		if (TrimmedConfigEntry.Split(TEXT("="), &KeyString, &ValueString, ESearchCase::CaseSensitive))
-		{
-			KeyString.TrimStartAndEndInline();
-			ValueString.TrimStartAndEndInline();
-		}
-		OutPairs.Emplace(MoveTemp(KeyString), MoveTemp(ValueString));
-	}
+	ParseOnlineSubsystemConfigPairs(ConfigPairs, OutPairs);
 }
 
 void FOnlineSubsystemModule::ProcessConfigDefinedSubsystems()

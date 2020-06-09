@@ -512,6 +512,14 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			HalfResolutionSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
 		}
 
+		// Store half res scene color in the history
+		extern int32 GSSRHalfResSceneColor;
+		if (ShouldRenderScreenSpaceReflections(View) && !View.bStatePrevViewInfoIsReadOnly && GSSRHalfResSceneColor)
+		{
+			check(View.ViewState);
+			GraphBuilder.QueueTextureExtraction(HalfResolutionSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
+		}
+
 		FSceneDownsampleChain SceneDownsampleChain;
 
 		if (bHistogramEnabled)

@@ -552,8 +552,9 @@ struct FAutomationExpectedError
 
 struct FAutomationScreenshotData
 {
-	FString Name;
+	FString ScreenShotName;
 	FString Context;
+	FString TestName;
 	FString Notes;
 
 	FGuid Id;
@@ -1274,7 +1275,7 @@ public:
 	}
 
 	/**
-	 * If true logs will not be included in test events
+	 * If true no logging will be included in test events
 	 *
 	 * @return true to suppress logs
 	 */
@@ -1284,18 +1285,25 @@ public:
 	}
 
 	/**
-	 * If true (and SuppressLogs=false) then LogErrors will be treated as test errors
+	 * If returns true then logging with a level of Error will not be recorded in test results
 	 *
-	 * @return true to make errors errors
+	 * @return false to make errors errors
 	 */
-	virtual bool TreatLogErrorsAsErrors() { return true; }
+	virtual bool SuppressLogErrors() { return false; }
 
 	/**
-	 * If true (and SuppressLogs=false) then LogWarnings will be treated as test errors
+	 * If returns true then logging with a level of Warning will not be recorded in test results
 	 *
 	 * @return true to make warnings errors
 	 */
-	virtual bool TreatLogWarningsAsErrors() { return false; }
+	virtual bool SuppressLogWarnings() { return false; }
+
+	/**
+	 * If returns true then logging with a level of Warning will be treated as an error
+	 *
+	 * @return true to make warnings errors
+	 */
+	virtual bool ElevateLogWarningsToErrors() { return false; }
 
 	/**
 	 * Enqueues a new latent command.

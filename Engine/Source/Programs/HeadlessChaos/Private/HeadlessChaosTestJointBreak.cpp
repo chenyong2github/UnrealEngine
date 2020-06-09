@@ -77,7 +77,6 @@ namespace ChaosTest {
 
 		// Joint should break only if Threshold < MG
 		// So not in this test
-		Test.JointSettings.SetNum(1);
 		Test.JointSettings[0].LinearBreakForce = 1.1f * Test.ParticleMasses[1] * Gravity;
 
 		Test.Create();
@@ -121,7 +120,6 @@ namespace ChaosTest {
 		// Joint should break only if Threshold < MG
 		// So not in this test
 		// NOTE: internal forces reach almost 50% over MG
-		Test.JointSettings.SetNum(2);
 		Test.JointSettings[0].LinearBreakForce = 1.5f * (Test.ParticleMasses[1] + Test.ParticleMasses[2]) * Gravity;
 		Test.JointSettings[1].LinearBreakForce = 1.5f * Test.ParticleMasses[2] * Gravity;
 
@@ -166,7 +164,6 @@ namespace ChaosTest {
 
 		// Joint should break only if Threshold < MG
 		// So yes in this test
-		Test.JointSettings.SetNum(1);
 		Test.JointSettings[0].LinearBreakForce = 0.9f * Test.ParticleMasses[1] * Gravity;
 
 		Test.Create();
@@ -211,7 +208,6 @@ namespace ChaosTest {
 		// Joint should break only if Threshold < MG
 		// So yes in this test
 		// NOTE: internal forces reach almost 50% over MG
-		Test.JointSettings.SetNum(2);
 		Test.JointSettings[0].LinearBreakForce = 1.2f * (Test.ParticleMasses[1] + Test.ParticleMasses[2]) * Gravity;
 		Test.JointSettings[1].LinearBreakForce = 1.2f * Test.ParticleMasses[2] * Gravity;
 
@@ -257,7 +253,6 @@ namespace ChaosTest {
 
 		// Joint should break only if Threshold < MGL
 		// So not in this test
-		Test.JointSettings.SetNum(1);
 		Test.JointSettings[0].AngularBreakTorque = 1.1f * Torque.X;
 		Test.JointSettings[0].AngularMotionTypes = { EJointMotionType::Locked, EJointMotionType::Locked , EJointMotionType::Locked };
 
@@ -304,7 +299,6 @@ namespace ChaosTest {
 
 		// Joint should break only if Threshold < MGL
 		// So not in this test
-		Test.JointSettings.SetNum(1);
 		Test.JointSettings[0].AngularBreakTorque = 0.9f * Torque.X;
 		Test.JointSettings[0].AngularMotionTypes = { EJointMotionType::Locked, EJointMotionType::Locked , EJointMotionType::Locked };
 

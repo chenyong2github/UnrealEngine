@@ -136,71 +136,46 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 
 	ContainerFile.FilePath = ContainerFilePath;
 
-	FIoStoreTocReader TocReader;
-	FIoStatus Status = TocReader.Initialize(*TocFilePath);
+	FIoStoreTocResource TocResource;
+	FIoStatus Status = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::ExcludeTocMeta, TocResource);
 	if (!Status.IsOk())
 	{
 		return Status;
 	}
 
-	uint32 TocEntryCount;
-	const FIoStoreTocEntry* TocEntry = TocReader.GetEntries(TocEntryCount);
+	uint64 ContainerUncompressedSize = TocResource.Header.TocCompressedBlockEntryCount > 0
+		? uint64(TocResource.Header.TocCompressedBlockEntryCount) * uint64(TocResource.Header.CompressionBlockSize)
+		: ContainerFile.FileSize;
 
-	uint32 TocPartialEntryCount;
-	const FIoStoreTocPartialEntry* TocPartialEntry = TocReader.GetPartialEntries(TocPartialEntryCount);
+	Toc.Reserve(TocResource.Header.TocEntryCount);
 
-	uint32 CompressedBlockEntryCount;
-	const FIoStoreTocCompressedBlockEntry* CompressedBlockEntry = TocReader.GetCompressedBlockEntries(CompressedBlockEntryCount);
-
-	uint64 ContainerUncompressedSize = CompressedBlockEntryCount > 0 ? uint64(CompressedBlockEntryCount) * uint64(TocReader.GetCompressionBlockSize()) : ContainerFile.FileSize;
-	Toc.Reserve(TocEntryCount + TocPartialEntryCount);
-	while (TocEntryCount--)
+	for (uint32 ChunkIndex = 0; ChunkIndex < TocResource.Header.TocEntryCount; ++ChunkIndex)
 	{
-		if (TocEntry->GetOffset() + TocEntry->GetLength() > ContainerUncompressedSize)
+		const FIoOffsetAndLength& ChunkOffsetLength = TocResource.ChunkOffsetLengths[ChunkIndex];
+		if (ChunkOffsetLength.GetOffset() + ChunkOffsetLength.GetLength() > ContainerUncompressedSize)
 		{
 			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocEntry out of container bounds while reading '") << *TocFilePath << TEXT("'");
 		}
 
-		Toc.Add(TocEntry->ChunkId, TocEntry->OffsetAndLength);
-		++TocEntry;
-	}
-	while (TocPartialEntryCount--)
-	{
-		if (TocPartialEntry->GetOffset() + TocPartialEntry->GetLength() > ContainerUncompressedSize)
-		{
-			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocPartialEntry out of container bounds while reading '") << *TocFilePath << TEXT("'");
-		}
-
-		Toc.Add(TocPartialEntry->ChunkId, TocPartialEntry->OffsetAndLength);
-		++TocPartialEntry;
+		Toc.Add(TocResource.ChunkIds[ChunkIndex], ChunkOffsetLength);
 	}
 
-	uint32 CompressionMethodNameCount;
-	const FName* CompressionMethodName = TocReader.GetCompressionMethodNames(CompressionMethodNameCount);
-	while (CompressionMethodNameCount--)
+	for (const FIoStoreTocCompressedBlockEntry& CompressedBlockEntry : TocResource.CompressionBlocks)
 	{
-		ContainerFile.CompressionMethods.Add(*CompressionMethodName);
-		++CompressionMethodName;
-	}
-
-	ContainerFile.CompressionBlockSize = TocReader.GetCompressionBlockSize();
-	ContainerFile.CompressionBlocks.Reserve(CompressedBlockEntryCount);
-	ContainerFile.ContainerFlags = TocReader.GetContainerFlags();
-	ContainerFile.EncryptionKeyGuid = TocReader.GetEncryptionKeyGuid();
-
-	while (CompressedBlockEntryCount--)
-	{
-		if (CompressedBlockEntry->GetOffset() + CompressedBlockEntry->GetSize() > ContainerFile.FileSize)
+		if (CompressedBlockEntry.GetOffset() + CompressedBlockEntry.GetSize() > ContainerFile.FileSize)
 		{
 			return (FIoStatus)(FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocCompressedBlockEntry out of container bounds while reading '") << *TocFilePath << TEXT("'"));
 		}
-
-		ContainerFile.CompressionBlocks.Emplace(*CompressedBlockEntry);
-		++CompressedBlockEntry;
 	}
 
-	ContainerId = TocReader.GetContainerId();
-	ContainerFile.BlockSignatureHashes = TocReader.GetBlockSignatureHashes();
+	ContainerFile.CompressionMethods	= MoveTemp(TocResource.CompressionMethods);
+	ContainerFile.CompressionBlockSize	= TocResource.Header.CompressionBlockSize;
+	ContainerFile.CompressionBlocks		= MoveTemp(TocResource.CompressionBlocks);
+	ContainerFile.ContainerFlags		= TocResource.Header.ContainerFlags;
+	ContainerFile.EncryptionKeyGuid		= TocResource.Header.EncryptionKeyGuid;
+	ContainerFile.BlockSignatureHashes	= MoveTemp(TocResource.ChunkBlockSignatures);
+
+	ContainerId = TocResource.Header.ContainerId;
 	Order = Environment.GetOrder();
 	return FIoStatus::Ok;
 }
@@ -275,7 +250,7 @@ FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureEr
 		{
 			if (Reader->IsEncrypted() && !Reader->GetEncryptionKey().IsValid() && Reader->GetEncryptionKeyGuid() == Guid)
 			{
-				UE_LOG(LogIoDispatcher, Verbose, TEXT("Updating container '%d' with encryption key guid '%s'"), Reader->GetContainerId().ToIndex(), *Guid.ToString());
+				UE_LOG(LogIoDispatcher, Verbose, TEXT("Updating container '%d' with encryption key guid '%s'"), Reader->GetContainerId().Value(), *Guid.ToString());
 				Reader->SetEncryptionKey(Key);
 			}
 		}
@@ -423,6 +398,7 @@ ENamedThreads::Type FFileIoStore::FDecompressAsyncTask::GetDesiredThread()
 
 void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherScatter);
 	
 	FFileIoStoreCompressionContext* CompressionContext = CompressedBlock->CompressionContext;
@@ -508,6 +484,7 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 
 void FFileIoStore::AllocMemoryForRequest(FIoRequestImpl* Request)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	if (!Request->IoBuffer.Data())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
@@ -543,6 +520,7 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 
 void FFileIoStore::ProcessCompletedBlocks(const bool bIsMultithreaded)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedBlocks);
 	
 	FFileIoStoreRawBlock* CompletedBlock = PlatformImpl.GetCompletedBlocks();
@@ -720,7 +698,7 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 	const FFileIoStoreReader& Reader = *IoStoreReaders[ReaderIndex];
 	UE_CLOG(Reader.IsEncrypted() && !Reader.GetEncryptionKey().IsValid(),
 		LogIoDispatcher, Fatal, TEXT("Reading from encrypted container (ID = '%d') with invalid encryption key (Guid = '%s')"),
-		Reader.GetContainerId().ToIndex(),
+		Reader.GetContainerId().Value(),
 		*Reader.GetEncryptionKeyGuid().ToString());
 	const FFileIoStoreContainerFile& ContainerFile = Reader.GetContainerFile();
 	const uint64 CompressionBlockSize = ContainerFile.CompressionBlockSize;
