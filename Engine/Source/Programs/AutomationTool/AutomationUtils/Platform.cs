@@ -155,6 +155,9 @@ namespace AutomationTool
 			return new TargetPlatformDescriptor(TargetPlatformType, "");
 		}
 
+
+		#region Turnkey
+
 		public virtual string GetInstalledSdk()
 		{
 			return "";
@@ -196,6 +199,13 @@ namespace AutomationTool
 		{
 			return true;
 		}
+		public virtual bool TryConvertVersionToInt(string StringValue, out UInt64 IntValue)
+		{
+			IntValue = 0;
+			return false;
+		}
+
+		#endregion
 
 		/// <summary>
 		/// Package files for the current platform.

@@ -21,7 +21,7 @@ namespace Turnkey.Commands
 				string InstalledSdk = Platform.GetInstalledSdk();
 				string AllowedSdks = Platform.GetAllowedSdks();
 				string AllowedSoftware = Platform.GetAllowedSoftwareVersions();
-				bool bIsSdkValid = TurnkeyUtils.IsValueValid(InstalledSdk, AllowedSdks);
+				bool bIsSdkValid = TurnkeyUtils.IsValueValid(InstalledSdk, AllowedSdks, Platform);
 				TurnkeyUtils.Log("  Platform: {0}", TargetPlatform.ToString());
 				TurnkeyUtils.Log("  Installed Sdk: {0}", InstalledSdk);
 				TurnkeyUtils.Log("  Allowed Sdk(s): {0}", AllowedSdks);
@@ -55,7 +55,7 @@ namespace Turnkey.Commands
 				{
 					foreach (DeviceInfo Device in Devices)
 					{
-						bool bIsSoftwareValid = TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AllowedSoftware);
+						bool bIsSoftwareValid = TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AllowedSoftware, Platform);
 
 						TurnkeyUtils.Log("    Name: {0}{1}", Device.Name, Device.bIsDefault ? "*" : "");
 						TurnkeyUtils.Log("      Id: {0}", Device.Id);

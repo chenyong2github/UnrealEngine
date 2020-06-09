@@ -164,7 +164,7 @@ namespace Turnkey
 			{
 				List<string> Options = new List<string>();
 				// @todo turnkey: filter devices that have valid flash versions
-				//				DeviceInfo[] PossibleDevices = Array.FindAll(AutomationPlatform.GetDevices(), x => TurnkeyUtils.IsValueValid(x.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions()));
+				//				DeviceInfo[] PossibleDevices = Array.FindAll(AutomationPlatform.GetDevices(), x => TurnkeyUtils.IsValueValid(x.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions(), AutomationPlatforms[Platform]));
 				DeviceInfo[] PossibleDevices = AutomationPlatform.GetDevices();
 				if (PossibleDevices == null)
 				{
@@ -269,7 +269,7 @@ namespace Turnkey
 			return UInt64.TryParse(InValue, out OutValue);
 		}
 
-		public static bool IsValueValid(string Value, string AllowedValues)
+		public static bool IsValueValid(string Value, string AllowedValues, AutomationTool.Platform Platform)
 		{
 			if (string.IsNullOrEmpty(Value) || string.IsNullOrEmpty(AllowedValues))
 			{
@@ -295,11 +295,11 @@ namespace Turnkey
 					return false;
 				}
 
-				// convert inputs to uints
-				UInt64 ValueInt;
-				if (!TryConvertToUint64(Value, out ValueInt))
+				// convert inputs to uint (unless already converted above by platform)
+				UInt64 ValueInt = 0;
+				if (!TryConvertToUint64(Value, out ValueInt) && !Platform.TryConvertVersionToInt(Value, out ValueInt))
 				{
-					TurnkeyUtils.Log("Warning: range: input value [{0}] was not an unsigned integer", Value);
+					TurnkeyUtils.Log("Warning: range: input value [{0}] was not an unsigned integer, and platform couldn't convert it", Value);
 					return false;
 				}
 

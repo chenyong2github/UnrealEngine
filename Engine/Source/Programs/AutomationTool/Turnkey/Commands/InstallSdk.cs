@@ -250,7 +250,7 @@ namespace Turnkey.Commands
 						if (InstallDeviceName == null)
 						{
 							List<string> Options = new List<string>();
-							DeviceInfo[] PossibleDevices = Array.FindAll(AutomationPlatform.GetDevices(), x => TurnkeyUtils.IsValueValid(x.Type, Sdk.AllowedFlashDeviceTypes));
+							DeviceInfo[] PossibleDevices = Array.FindAll(AutomationPlatform.GetDevices(), x => TurnkeyUtils.IsValueValid(x.Type, Sdk.AllowedFlashDeviceTypes, AutomationPlatform));
 							foreach (DeviceInfo Device in PossibleDevices)
 							{
 								Options.Add(string.Format("[{0} {1}] {2}", Platform, Device.Type, Device.Name));
