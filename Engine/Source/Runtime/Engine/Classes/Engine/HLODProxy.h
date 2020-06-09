@@ -57,6 +57,7 @@ public:
 	static uint32 GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC = 0);
 	static uint32 GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC = 0, const FTransform& TransformComponents = FTransform::Identity);
 
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 #endif
 
 	/**
