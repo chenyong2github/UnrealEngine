@@ -351,8 +351,20 @@ int32 HashLODActorForClusterComparison(ALODActor* LODActor)
 
 void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 {
+	bool bSaveLODActorsToHLODPackages = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages;
+
+	bool bChanged = false;
+	for (ALODActor* LODActor : OldLODActors)
+	{
+		if (LODActor->WasBuiltFromHLODDesc() != bSaveLODActorsToHLODPackages)
+		{
+			bChanged = true;
+			break;
+		}
+	}
+
 	// Compare the LOD actors we spawned against those in the level
-	bool bChanged = OldLODActors.Num() != NewLODActors.Num();
+	bChanged = bChanged || OldLODActors.Num() != NewLODActors.Num();
 	if (!bChanged)
 	{
 		TSet<int32> HashedLODActors;
@@ -392,7 +404,7 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 				LODActor->AddSubActor(Actor);
 			}
 
-			if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
+			if (bSaveLODActorsToHLODPackages)
 			{
 				UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(InLevel, LODActor->LODLevel - 1);
 				Proxy->AddLODActor(LODActor);
