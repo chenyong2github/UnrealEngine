@@ -207,10 +207,9 @@ protected:
 
 	bool CheckoutFile(const FString& Filename, bool bAddFile = false, bool bIgnoreAlreadyCheckedOut = false);
 	bool RevertFile(const FString& Filename);
-
 	bool CanCheckoutFile(const FString& Filename, FString& CheckedOutUser);
-
 	void CheckoutAndSavePackage(UPackage* Package, TArray<FString>& SublevelFilenames, bool bIgnoreAlreadyCheckedOut = false);
+	void CheckInFiles(const TArray<FString>& InFilesToSubmit, const FText& InDescription) const;
 
 	// Print out a message only if running in very verbose mode
 	void VerboseMessage(const FString& Message);

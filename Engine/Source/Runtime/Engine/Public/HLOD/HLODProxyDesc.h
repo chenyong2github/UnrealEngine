@@ -66,6 +66,8 @@ class UHLODProxyDesc : public UObject
 {
 	GENERATED_BODY()
 
+	friend class UHLODProxy;
+
 public:
 #if WITH_EDITOR
 	/** Test whether this description should be updated. */
