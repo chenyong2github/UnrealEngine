@@ -403,8 +403,8 @@ namespace ChaosTest
 
 		float MaxSimTime = 15.0f;
 		float SimulatedTime = 0.f;
-		float VehicleMass = 1300.f;
-		float VehicleMassPerWheel = 1300.f / 4.f;
+		float VehicleMass = 1600.f;
+		float VehicleMassPerWheel = VehicleMass / 4.f;
 
 		Wheel.SetWheelLoadForce(VehicleMassPerWheel * Gravity);
 
@@ -416,12 +416,9 @@ namespace ChaosTest
 
 		while (SimulatedTime < MaxSimTime)
 		{
-			// rolling speed matches road speed
 			Wheel.SetVehicleGroundSpeed(Velocity);
-
 			Wheel.Simulate(DeltaTime);
 
-			// deceleration from brake
 			Velocity += DeltaTime * Wheel.GetForceFromFriction() / VehicleMassPerWheel;
 			DistanceTravelledOut += Velocity.X * DeltaTime;
 
@@ -514,6 +511,19 @@ namespace ChaosTest
 		FSimpleWheelConfig Setup;
 		FSimpleWheelSim Wheel(&Setup);
 
+		/*
+			Available Friction Force	= Mass * Gravity;
+										= 1600Kg * 9.8 m.s-2 / 4 (wheels)
+										= 3920 N
+
+			Applied Wheel Torque		= AppliedEngineTorque * CombinedGearRatios / 2 (wheels)
+										= 150Nm * 12 / 3;
+										= 900
+
+			Applied Wheel Force			= 900 / WheelRadius
+										= 3000 N
+		*/
+
 		// units meters
 		float Gravity = 9.8f;
 		float DeltaTime = 1.f / 30.f;
@@ -535,7 +545,7 @@ namespace ChaosTest
 
 
 		float DrivingDistanceWheelspin = 0.f;
-		Wheel.SetDriveTorque(1450);
+		Wheel.SetDriveTorque(5000); // definitely cause wheel spin
 		VehicleSpeedMPH = 0.f;
 		SimulateAccelerating(Wheel, Gravity, VehicleSpeedMPH, DrivingDistanceWheelspin, DeltaTime);
 		EXPECT_LT(DrivingDistanceWheelspin, DrivingDistanceA);
@@ -873,15 +883,12 @@ namespace ChaosTest
 
 		FSimpleSuspensionConfig Setup;
 		Setup.MaxLength = 20.0f;
-		Setup.SpringRate = 2.0f * BodyMass * Gravity / 4.0f;
+		Setup.SpringRate = (2.0f * BodyMass * Gravity / 4.0f) / Setup.MaxLength;
 		Setup.SpringPreload = 0.f;
 		Setup.RaycastSafetyMargin = 0.f;
 		Setup.SuspensionSmoothing = 0;
-		Setup.ReboundDamping = 0.f; // calculated later
+		Setup.ReboundDamping = 0.f;		// calculated later
 		Setup.CompressionDamping = 0.f; // calculated later
-
-		float RealSpringRate = Setup.SpringRate / Setup.MaxLength;
-
 
 		TArray<FSimpleSuspensionSim> Suspensions;
 		for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
@@ -907,22 +914,19 @@ namespace ChaosTest
 		TArray<float> OutSprungMasses;
 		FSuspensionUtility::ComputeSprungMasses(LocalSpringPositions, BodyMass, OutSprungMasses);
 
+		TArray<FSuspensionTrace> Traces;
+		Traces.SetNum(4);
+
 		for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
 		{
-			float NaturalFrequency = FSuspensionUtility::ComputeNaturalFrequency(RealSpringRate, OutSprungMasses[SpringIdx]);
-			float Damping = FSuspensionUtility::ComputeCriticalDamping(RealSpringRate, OutSprungMasses[SpringIdx]);
-			//UE_LOG(LogChaos, Warning, TEXT("OutNaturalFrequency %.1f Hz  (@1.0) DampingRate %.1f"), NaturalFrequency / (2.0f * PI), Damping);
-
-			Setup.SpringRate = RealSpringRate;// 2.0f * OutSprungMasses[SpringIdx] * Gravity;
-			Setup.SpringPreload = 0.f;
-
+			float NaturalFrequency = FSuspensionUtility::ComputeNaturalFrequency(Setup.SpringRate, OutSprungMasses[SpringIdx]);
+			float Damping = FSuspensionUtility::ComputeCriticalDamping(Setup.SpringRate, OutSprungMasses[SpringIdx]);
 			Setup.ReboundDamping = Damping;
 			Setup.CompressionDamping = Damping;
 		}
 
-		float SprungMass = 250.0f;
-		float WheelRadius = 0.0f;
-		const float SuspendedDisplacement = SprungMass * Gravity / RealSpringRate;
+		float WheelRadius = 2.0f;
+		//const float SuspendedDisplacement = SprungMass * Gravity / Setup.SpringRate;
 		//UE_LOG(LogChaos, Warning, TEXT("SuspendedDisplacement %.1f cm"), SuspendedDisplacement);
 
 		//////////////////////////////////////////////////////////////////////////
@@ -953,19 +957,20 @@ namespace ChaosTest
 			for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
 			{
 				FSimpleSuspensionSim& Suspension = Suspensions[SpringIdx];
-				Suspension.UpdateWorldRaycastLocation(BodyTM, WheelRadius);
+				FSuspensionTrace& Trace = Traces[SpringIdx];
+				Suspension.UpdateWorldRaycastLocation(BodyTM, WheelRadius, Trace);
 
 				// raycast
-				FVec3 Start = Suspension.GetTrace().Start;
-				FVec3 Dir = Suspension.GetTrace().TraceDir();
+				FVec3 Start = Trace.Start;
+				FVec3 Dir = Trace.TraceDir();
 				float CurrentLength = Suspension.Setup().MaxLength;
 
 				FVec3 Position(0,0,0);
 				FVec3 Normal(0,0,0);
-				bool bHit = RayCastPlane(Start, Dir, Suspension.GetTrace().Length(), CurrentLength, Position, Normal);
+				bool bHit = RayCastPlane(Start, Dir, Trace.Length(), CurrentLength, Position, Normal);
 
-				Suspension.SetSuspensionLength(CurrentLength);
-				Suspension.SetLocalVelocityFromWorld(BodyTM, WorldVelocityAtPoint(Dynamic, Suspension.GetTrace().Start));
+				Suspension.SetSuspensionLength(CurrentLength, WheelRadius);
+				Suspension.SetLocalVelocityFromWorld(BodyTM, WorldVelocityAtPoint(Dynamic, Trace.Start));
 				Suspension.Simulate(Dt); // ComputeSuspensionForces
 
 				if (bHit)
@@ -981,7 +986,7 @@ namespace ChaosTest
 		}
 
 		float Tolerance = 0.5f; // half cm
-		float ExpectedRestingPosition = (10.f + PlaneZPos);
+		float ExpectedRestingPosition = (10.f + PlaneZPos + WheelRadius);
 		EXPECT_LT(Dynamic->X().Z - ExpectedRestingPosition, Tolerance);
 	}
 

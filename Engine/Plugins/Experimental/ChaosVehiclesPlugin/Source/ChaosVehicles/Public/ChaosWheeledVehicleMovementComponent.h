@@ -13,6 +13,23 @@
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
+struct FWheeledVehicleDebugParams
+{
+	bool ShowWheelCollisionNormal = false;
+	bool ShowSuspensionRaycasts = false;
+	bool ShowSuspensionLimits = false;
+	bool ShowWheelForces = false;
+	bool ShowSuspensionForces = false;
+
+	bool DisableSuspensionForces = false;
+	bool DisableFrictionForces = false;
+	bool DisableRollbarForces = true;
+	bool ApplyWheelForcetoSurface = true;
+
+	float ThrottleOverride = 0.f;
+	float SteeringOverride = 0.f;
+};
+
 /**
  * There is too much information for one screen full of debug data, so sub-pages of information are available 
  * Advance through pages using p.Vehicles.NextDebugPage | p.Vehicles.PrevDebugPage which can be hooked
@@ -245,6 +262,24 @@ struct CHAOSVEHICLES_API FChaosWheelSetup
 	FChaosWheelSetup();
 };
 
+/** Commonly used Wheel state - evaluated once used wherever required for that frame */
+struct FWheelState
+{
+	void Init(int NumWheels)
+	{
+		WheelWorldLocation.Init(FVector::ZeroVector, NumWheels);
+		WorldWheelVelocity.Init(FVector::ZeroVector, NumWheels);
+		LocalWheelVelocity.Init(FVector::ZeroVector, NumWheels);
+		Trace.SetNum(NumWheels);
+	}
+
+	void CaptureState(int WheelIdx, const FVector& WheelOffset, const FBodyInstance* TargetInstance);
+
+	TArray<FVector> WheelWorldLocation;	/** Current Location Of Wheels In World Coordinates */
+	TArray<FVector> WorldWheelVelocity; /** Current velocity at wheel location In World Coordinates - combined linear and angular */
+	TArray<FVector> LocalWheelVelocity; /** Local velocity of Wheel */
+	TArray<FSuspensionTrace> Trace;
+};
 
 UCLASS(ClassGroup = (Physics), meta = (BlueprintSpawnableComponent), hidecategories = (PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
 class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVehicleMovementComponent
@@ -314,38 +349,39 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 
 	/** Get current engine's rotation speed */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-		float GetEngineRotationSpeed() const;
+	float GetEngineRotationSpeed() const;
 
 	/** Get current engine's max rotation speed */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-		float GetEngineMaxRotationSpeed() const;
+	float GetEngineMaxRotationSpeed() const;
 
 	/** Get current gear */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-		int32 GetCurrentGear() const;
+	int32 GetCurrentGear() const;
 
 	/** Get target gear */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-		int32 GetTargetGear() const;
+	int32 GetTargetGear() const;
 
 	/** Are gears being changed automatically? */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-		bool GetUseAutoGears() const;
+	bool GetUseAutoGears() const;
 
 	float GetMaxSpringForce() const; //??
 
+	//////////////////////////////////////////////////////////////////////////
+	// Public
+
 	virtual void Serialize(FArchive & Ar) override;
-	virtual void ComputeConstants() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+	/** Are the configuration references configured sufficiently that the vehicle can be created */
+	virtual bool CanCreateVehicle() const override;
 
-	/** Tick this vehicle sim right before input is sent to the vehicle system  */
-	virtual void TickVehicle(float DeltaTime);
-
-	/** Advance the vehicle simulation */
-	virtual void UpdateSimulation(float DeltaTime);
+	/** Are the appropriate vehicle systems specified such that physics vehicle simulation is possible */
+	virtual bool CanSimulate() const override;
 
 	/** Used to create any physics engine information for this component */
 	virtual void OnCreatePhysicsState() override;
@@ -353,16 +389,8 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** Used to shut down and pysics engine structure for this component */
 	virtual void OnDestroyPhysicsState() override;
 
-	virtual bool CanCreateVehicle() const override;
-
-	/** Set up the chassis and wheel shapes */
-	virtual void SetupVehicleShapes();
-
-	/** Setup calculated suspension parameters */
-	void SetupSuspension();
-
-	/** Are enough vehicle systems specified such that physics vehicle simulation is possible */
-	virtual bool CanSimulate() const override;
+	/** Tick this vehicle sim right before input is sent to the vehicle system  */
+	virtual void TickVehicle(float DeltaTime) override;
 
 	/** display next debug page */
 	static void NextDebugPage();
@@ -370,28 +398,33 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** display previous debug page */
 	static void PrevDebugPage();
 
-	/** Get the local position of the wheel at rest */
-	virtual FVector GetWheelRestingPosition(const FChaosWheelSetup& WheelSetup);
+	/** Enable or completely bypass the ProcessMechanicalSimulation call */
+	void EnableMechanicalSim(bool InState)
+	{
+		MechanicalSimEnabled = InState;
+	}
 
-	/** Perform suspension ray/shape traces */
-	virtual void PerformSuspensionTraces(TArray<FSimpleSuspensionSim>& Suspension);
+	/** Enable or completely bypass the ApplySuspensionForces call */
+	void EnableSuspension(bool InState)
+	{
+		SuspensionEnabled = InState;
+	}
 
+	/** Enable or completely bypass the ApplyWheelFrictionForces call */
+	void EnableWheelFriction(bool InState)
+	{
+		WheelFrictionEnabled = InState;
+	}
 protected:
+
+	//////////////////////////////////////////////////////////////////////////
+	// Setup
+
+	/** Re-Compute any runtime constants values that rely on setup data */
+	virtual void ComputeConstants() override;
+
 	/** Allocate and setup the Chaos vehicle */
 	virtual void SetupVehicle() override;
-
-	void DrawDebug3D();
-
-
-	///** update simulation data: engine */
-	//void UpdateEngineSetup(const FVehicleEngineConfig& NewEngineSetup);
-
-	///** update simulation data: differential */
-	//void UpdateDifferentialSetup(const FVehicleDifferentialConfig& NewDifferentialSetup);
-
-	///** update simulation data: transmission */
-	//void UpdateTransmissionSetup(const FVehicleTransmissionConfig& NewGearSetup);
-
 
 	/** Instantiate and setup our wheel objects */
 	virtual void CreateWheels();
@@ -399,16 +432,61 @@ protected:
 	/** Release our wheel objects */
 	virtual void DestroyWheels();
 
+	/** Set up the chassis and wheel shapes */
+	virtual void SetupVehicleShapes();
+
+	/** Setup calculated suspension parameters */
+	void SetupSuspension();
+
+	/** Get the local position of the wheel at rest */
+	virtual FVector GetWheelRestingPosition(const FChaosWheelSetup& WheelSetup);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Update
+
+	/** Advance the vehicle simulation */
+	virtual void UpdateSimulation(float DeltaTime) override;
+
+	/** Perform suspension ray/shape traces */
+	virtual void PerformSuspensionTraces(const TArray<FSuspensionTrace>& SuspensionTrace);
+
+	/** Pass control Input to the vehicle systems */
+	virtual void ApplyInput(float DeltaTime);
+
+	/** Update the engine/transmission simulation */
+	virtual void ProcessMechanicalSimulation(float DeltaTime);
+
+	/** Process steering mechanism */
+	virtual void ProcessSteering();
+
+	/** calculate and apply lateral and longitudinal friction forces from wheels */
+	virtual void ApplyWheelFrictionForces(float DeltaTime);
+
+	/** calculate and apply chassis suspension forces */
+	virtual void ApplySuspensionForces(float DeltaTime);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Debug
+
 	/** Draw 2D debug text graphs on UI for the wheels, suspension and other systems */
 	virtual void DrawDebug(UCanvas* Canvas, float& YL, float& YPos);
 
-	private:
-	uint32 NumDrivenWheels;
+	/** Draw 3D debug lines and things along side the 3D model */
+	virtual void DrawDebug3D() override;
+
 
 	/** Get distances between wheels - primarily a debug display helper */
 	FVector2D GetWheelLayoutDimensions();
-	static EDebugPages DebugPage;
 
+	private:
+
+	static EDebugPages DebugPage;
+	uint32 NumDrivenWheels; /** The number of wheels that have engine enabled checked */
+	FWheelState WheelState;	/** Cached state that hold wheel data for this frame */
+
+	bool MechanicalSimEnabled;
+	bool SuspensionEnabled;
+	bool WheelFrictionEnabled;
 };
 
 #if VEHICLE_DEBUGGING_ENABLED

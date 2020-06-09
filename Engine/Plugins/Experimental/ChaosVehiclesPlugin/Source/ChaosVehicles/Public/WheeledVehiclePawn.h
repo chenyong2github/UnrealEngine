@@ -11,12 +11,9 @@ class FDebugDisplayInfo;
 
 /**
  * ChaosWheeledVehicle is the base wheeled vehicle pawn actor.
- * By default it uses UWheeledVehicleComponent4W for its simulation, but this can be overridden by inheriting from the class and modifying its constructor like so:
+ * By default it uses UChaosWheeledVehicleMovementComponent for its simulation, but this can be overridden by inheriting from the class and modifying its constructor like so:
  * Super(ObjectInitializer.SetDefaultSubobjectClass<UMyMovement>(VehicleComponentName))
- * Where UMyMovement is the new movement type that inherits from UVehicleMovementComponent
- * 
- * @see https://docs.unrealengine.com/latest/INT/Engine/Physics/Vehicles/VehicleUserGuide/
- * @see UWheeledVehicleComponent4W
+ * Where UMyMovement is the new movement type that inherits from UChaosVehicleMovementComponent
  */
 
 UCLASS(abstract, config=Game, BlueprintType)
@@ -49,6 +46,7 @@ public:
 
 	/** Returns Mesh subobject **/
 	class USkeletalMeshComponent* GetMesh() const { return Mesh; }
+
 	/** Returns VehicleMovement subobject **/
 	class UChaosVehicleMovementComponent* GetVehicleMovement() const { return VehicleMovementComponent; }
 };
