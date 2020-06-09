@@ -9,6 +9,7 @@
 #include "Framework/Application/SlateUser.h"
 #include "EditorStyleSet.h"
 #include "Engine/UserDefinedStruct.h"
+#include "Misc/StringUtility.h"
 #include "ScopedTransaction.h"
 #include "K2Node_GetDataTableRow.h"
 #include "Input/Reply.h"
@@ -17,6 +18,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboBox.h"
 #include "AssetRegistryModule.h"
+#include "DetailWidgetRow.h"
 
 #define LOCTEXT_NAMESPACE "DataTableEditorUtils"
 
@@ -914,6 +916,61 @@ bool FDataTableEditorUtils::IsValidTableStruct(const UScriptStruct* Struct)
 	const bool bValidStruct = (Struct->GetOutermost() != GetTransientPackage());
 
 	return (bBasedOnTableRowBase || bUDStruct) && bValidStruct;
+}
+
+void FDataTableEditorUtils::AddSearchForReferencesContextMenu(FDetailWidgetRow& RowNameDetailWidget, FExecuteAction SearchForReferencesAction)
+{
+	if (SearchForReferencesAction.IsBound() && FEditorDelegates::OnOpenReferenceViewer.IsBound())
+	{
+		RowNameDetailWidget.AddCustomContextMenuAction(FUIAction(SearchForReferencesAction),
+			NSLOCTEXT("FDataTableRowUtils", "FDataTableRowUtils_SearchForReferences", "Find Row References"),
+			NSLOCTEXT("FDataTableRowUtils", "FDataTableRowUtils_SearchForReferencesTooltip", "Find assets that reference this Row"),
+			FSlateIcon());
+	}
+}
+
+FText FDataTableEditorUtils::GetHandleShortDescription(const UObject* TableAsset, FName RowName)
+{
+	FText TableNameText = LOCTEXT("Description_None", "None");
+	FText RowNameText = TableNameText;
+	const int32 MaxChars = 15;
+	FString More = TEXT("...");
+
+	if (!TableAsset && RowName.IsNone())
+	{
+		// Just display None on it's own
+		return TableNameText;
+	}
+
+	if (TableAsset)
+	{
+		FString TempString = TableAsset->GetName();
+
+		// Chop off end if needed
+		if (TempString.Len() > MaxChars)
+		{
+			TempString.LeftInline(MaxChars - More.Len());
+			TempString.Append(More);
+		}
+
+		TableNameText = FText::AsCultureInvariant(TempString);
+	}
+
+	if (!RowName.IsNone())
+	{
+		FString TempString = RowName.ToString();
+
+		// Show right side if too long, usually more important
+		if (TempString.Len() > MaxChars)
+		{
+			TempString.RightInline(MaxChars - More.Len());
+			TempString.InsertAt(0, More);
+		}
+
+		RowNameText = FText::AsCultureInvariant(TempString);
+	}
+
+	return FText::Format(LOCTEXT("HandlePreviewFormat", "{0}[{1}]"), TableNameText, RowNameText);
 }
 
 FText FDataTableEditorUtils::GetRowTypeInfoTooltipText(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr)

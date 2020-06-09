@@ -38,7 +38,6 @@
 #include "UObject/StructOnScope.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Toolkits/AssetEditorManager.h"
-#include "DataTableRowUtlis.h"
 #include "Engine/DataTable.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
