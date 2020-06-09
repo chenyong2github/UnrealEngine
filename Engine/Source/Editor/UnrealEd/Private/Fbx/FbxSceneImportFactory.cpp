@@ -1206,8 +1206,11 @@ FFeedbackContext*	Warn
 				//This force load everything.
 				GEditor->IsImportingT3D = 0;
 				GIsImportingT3D = false;
-				//Create the blueprint from the actor and replace the actor with a blueprintactor that point on the blueprint
-				UBlueprint* SceneBlueprint = FKismetEditorUtilities::CreateBlueprintFromActor(Pkg->GetName(), HierarchyActor, true, true);
+				//Create the blueprint from the actor and replace the actor with an instance of the created blueprint
+				FKismetEditorUtilities::FCreateBlueprintFromActorParams Params;
+				Params.bReplaceActor = true;
+				Params.bKeepMobility = true;
+				UBlueprint* SceneBlueprint = FKismetEditorUtilities::CreateBlueprintFromActor(Pkg->GetName(), HierarchyActor, Params);
 				//Put back the T3D state
 				GEditor->IsImportingT3D = 1;
 				GIsImportingT3D = GEditor->IsImportingT3D;
