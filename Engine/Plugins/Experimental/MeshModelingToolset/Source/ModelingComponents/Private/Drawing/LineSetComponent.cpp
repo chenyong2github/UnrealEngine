@@ -268,6 +268,34 @@ void ULineSetComponent::SetLineThickness(const int32 ID, const float NewThicknes
 	MarkRenderStateDirty();
 }
 
+void ULineSetComponent::SetAllLinesThickness(const float NewThickness)
+{
+	for (FRenderableLine& Line : Lines)
+	{
+		Line.Thickness = NewThickness;
+	}
+	MarkRenderStateDirty();
+}
+
+
+void ULineSetComponent::SetAllLinesLength(const float NewLength, bool bUpdateBounds)
+{
+	float UseSign = (NewLength < 0) ? -1.0f : 1.0f;
+	float UseLength = UseSign * FMath::Max(FMath::Abs(NewLength), 0.001f);
+	for (FRenderableLine& Line : Lines)
+	{
+		FVector Direction = Line.End - Line.Start;
+		if (Direction.SizeSquared() > 0)
+		{
+			Direction.Normalize();
+			Line.End = Line.Start + UseLength * Direction;
+		}
+	}
+	MarkRenderStateDirty();
+	bBoundsDirty = bUpdateBounds;
+}
+
+
 void ULineSetComponent::RemoveLine(const int32 ID)
 {
 	Lines.RemoveAt(ID);
@@ -308,4 +336,29 @@ FBoxSphereBounds ULineSetComponent::CalcBounds(const FTransform& LocalToWorld) c
 		bBoundsDirty = false;
 	}
 	return Bounds.TransformBy(LocalToWorld);
+}
+
+
+
+void ULineSetComponent::AddLines(
+	int32 NumIndices,
+	TFunctionRef<void(int32 Index, TArray<FRenderableLine>& LinesOut)> LineGenFunc,
+	int32 LinesPerIndexHint)
+{
+	TArray<FRenderableLine> TempLines;
+	if (LinesPerIndexHint > 0)
+	{
+		ReserveLines(Lines.Num() + NumIndices*LinesPerIndexHint);
+		TempLines.Reserve(LinesPerIndexHint);
+	}
+
+	for (int32 k = 0; k < NumIndices; ++k)
+	{
+		TempLines.Reset();
+		LineGenFunc(k, TempLines);
+		for (const FRenderableLine& Line : TempLines)
+		{
+			AddLine(Line);
+		}
+	}
 }
