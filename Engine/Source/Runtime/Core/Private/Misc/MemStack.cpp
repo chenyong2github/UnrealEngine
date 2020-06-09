@@ -6,13 +6,26 @@
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
+#include <atomic>
 
 DECLARE_MEMORY_STAT(TEXT("MemStack Large Block"), STAT_MemStackLargeBLock,STATGROUP_Memory);
 DECLARE_MEMORY_STAT(TEXT("PageAllocator Free"), STAT_PageAllocatorFree, STATGROUP_Memory);
 DECLARE_MEMORY_STAT(TEXT("PageAllocator Used"), STAT_PageAllocatorUsed, STATGROUP_Memory);
 
-FPageAllocator::TPageAllocator FPageAllocator::TheAllocator;
+FPageAllocator& FPageAllocator::Get()
+{
+	static std::atomic<FPageAllocator*> ThePageAllocator;
 
+	FPageAllocator* LocalPageAllocator = ThePageAllocator.load(std::memory_order_acquire);
+	if (!LocalPageAllocator)
+	{
+		static FPageAllocator Instance;
+		LocalPageAllocator = &Instance;
+		ThePageAllocator.store(LocalPageAllocator, std::memory_order_release);
+	}
+
+	return *LocalPageAllocator;
+}
 
 #define USE_MEMSTACK_PUGATORY (0)
 
@@ -243,7 +256,7 @@ void FPageAllocator::LatchProtectedMode()
 {
 	FCoreDelegates::GetMemoryTrimDelegate().AddLambda([]()
 	{
-		TheAllocator.Trim();
+		Get().TheAllocator.Trim();
 	});
 
 #if MEMSTACK_PUGATORY_COMPILED_IN
@@ -299,7 +312,7 @@ void FMemStackBase::AllocateNewChunk(int32 MinSize)
 		AllocSize = AlignArbitrary<int32>(TotalSize, FPageAllocator::PageSize);
 		if (AllocSize == FPageAllocator::PageSize)
 		{
-			Chunk = (FTaggedMemory*)FPageAllocator::Alloc();
+			Chunk = (FTaggedMemory*)FPageAllocator::Get().Alloc();
 		}
 		else
 		{
@@ -311,7 +324,7 @@ void FMemStackBase::AllocateNewChunk(int32 MinSize)
 	else
 	{
 		AllocSize = FPageAllocator::SmallPageSize;
-		Chunk = (FTaggedMemory*)FPageAllocator::AllocSmall();
+		Chunk = (FTaggedMemory*)FPageAllocator::Get().AllocSmall();
 	}
 	Chunk->DataSize = AllocSize - sizeof(FTaggedMemory);
 
@@ -329,11 +342,11 @@ void FMemStackBase::FreeChunks(FTaggedMemory* NewTopChunk)
 		TopChunk                   = TopChunk->Next;
 		if (RemoveChunk->DataSize + sizeof(FTaggedMemory) == FPageAllocator::PageSize)
 		{
-			FPageAllocator::Free(RemoveChunk);
+			FPageAllocator::Get().Free(RemoveChunk);
 		}
 		else if (RemoveChunk->DataSize + sizeof(FTaggedMemory) == FPageAllocator::SmallPageSize)
 		{
-			FPageAllocator::FreeSmall(RemoveChunk);
+			FPageAllocator::Get().FreeSmall(RemoveChunk);
 		}
 		else
 		{
