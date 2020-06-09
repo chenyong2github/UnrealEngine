@@ -167,6 +167,16 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	{
 		return GGPUExecIndex;
 	}
+
+	float4 NiagaraGPU_QuatMul(float4 Q1, float4 Q2)
+	{
+		float4 QOut;
+		QOut.x = Q1.w*Q2.x + Q1.x*Q2.w + Q1.y*Q2.z - Q1.z*Q2.y;
+		QOut.y = Q1.w*Q2.y - Q1.x*Q2.z + Q1.y*Q2.w + Q1.z*Q2.x;
+		QOut.z = Q1.w*Q2.z + Q1.x*Q2.y - Q1.y*Q2.x + Q1.z*Q2.w;
+		QOut.w = Q1.w*Q2.w - Q1.x*Q2.x - Q1.y*Q2.y - Q1.z*Q2.z;
+		return QOut;
+	}
 #endif
 
 /* ----------------------------------------------------------------------------
