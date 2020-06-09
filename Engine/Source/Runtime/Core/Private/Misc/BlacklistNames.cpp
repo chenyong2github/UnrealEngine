@@ -253,7 +253,7 @@ bool FBlacklistPaths::PassesFilter(const TCHAR* Item) const
 	return PassesFilter(FStringView(Item));
 }
 
-bool FBlacklistPaths::PassesStartsWithFilter(const FStringView Item) const
+bool FBlacklistPaths::PassesStartsWithFilter(const FStringView Item, const bool bAllowParentPaths) const
 {
 	if (Whitelist.Num() > 0)
 	{
@@ -264,6 +264,16 @@ bool FBlacklistPaths::PassesStartsWithFilter(const FStringView Item) const
 			{
 				bPassedWhitelist = true;
 				break;
+			}
+
+			if (bAllowParentPaths)
+			{
+				// If allowing parent paths (eg, when filtering folders), then we must also check if the item has a whitelisted child path
+				if (FStringView(Other.Key).StartsWith(Item) && (Other.Key.Len() <= Item.Len() || Other.Key[Item.Len()] == TEXT('/')))
+				{
+					bPassedWhitelist = true;
+					break;
+				}
 			}
 		}
 
@@ -292,16 +302,16 @@ bool FBlacklistPaths::PassesStartsWithFilter(const FStringView Item) const
 	return true;
 }
 
-bool FBlacklistPaths::PassesStartsWithFilter(const FName Item) const
+bool FBlacklistPaths::PassesStartsWithFilter(const FName Item, const bool bAllowParentPaths) const
 {
 	TStringBuilder<FName::StringBufferSize> ItemStr;
 	Item.ToString(ItemStr);
-	return PassesStartsWithFilter(FStringView(ItemStr));
+	return PassesStartsWithFilter(FStringView(ItemStr), bAllowParentPaths);
 }
 
-bool FBlacklistPaths::PassesStartsWithFilter(const TCHAR* Item) const
+bool FBlacklistPaths::PassesStartsWithFilter(const TCHAR* Item, const bool bAllowParentPaths) const
 {
-	return PassesStartsWithFilter(FStringView(Item));
+	return PassesStartsWithFilter(FStringView(Item), bAllowParentPaths);
 }
 
 bool FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const FStringView Item)
