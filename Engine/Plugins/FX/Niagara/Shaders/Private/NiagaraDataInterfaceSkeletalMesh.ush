@@ -434,16 +434,6 @@ float4 DISKelMesh_QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
     return (Scale0 * Quat1) + (Scale1 * Quat2);
 }
 
-float4 DISKelMesh_QuatMul(float4 Q1, float4 Q2)
-{
-	float4 QOut;
-	QOut.x = Q1.w*Q2.x + Q1.x*Q2.w + Q1.y*Q2.z - Q1.z*Q2.y;
-	QOut.y = Q1.w*Q2.y - Q1.x*Q2.z + Q1.y*Q2.w + Q1.z*Q2.x;
-	QOut.z = Q1.w*Q2.z + Q1.x*Q2.y - Q1.y*Q2.x + Q1.z*Q2.w;
-	QOut.w = Q1.w*Q2.w - Q1.x*Q2.x - Q1.y*Q2.y - Q1.z*Q2.z;
-	return QOut;
-}
-
 void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bone, in float Interp, in bool bWorldSpace, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
 {
     float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 2].xyz;
@@ -455,8 +445,8 @@ void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bon
     {
         PrevPosition = mul(float4(PrevPosition, 1), DIContext.InstancePrevTransform).xyz;
         CurrPosition = mul(float4(CurrPosition, 1), DIContext.InstanceTransform).xyz;
-		PrevRotation = DISKelMesh_QuatMul(DIContext.InstancePrevRotation, PrevRotation);
-		CurrRotation = DISKelMesh_QuatMul(DIContext.InstanceRotation, CurrRotation);
+		PrevRotation = NiagaraGPU_QuatMul(DIContext.InstancePrevRotation, PrevRotation);
+		CurrRotation = NiagaraGPU_QuatMul(DIContext.InstanceRotation, CurrRotation);
     }
     CurrPosition = lerp(PrevPosition, CurrPosition, Interp);
 
