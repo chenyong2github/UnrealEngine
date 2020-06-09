@@ -319,24 +319,15 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, boo
 	}
 
 	int32 StreamLen = FCString::Strlen(Stream);
-	if (StreamLen < 4096)
+	if (StreamLen > 0)
 	{
-		TCHAR Temp[4096]=TEXT("");
-		if (FParse::Value(Stream, Match, Temp, UE_ARRAY_COUNT(Temp), bShouldStopOnSeparator))
-		{
-			Value = Temp;
-			return true;
-		}
-	}
-	else
-	{
-		FString TempValue;
-		TArray<TCHAR>& ValueCharArray = TempValue.GetCharArray();
+		TArray<TCHAR, TInlineAllocator<4096>> ValueCharArray;
 		ValueCharArray.AddUninitialized(StreamLen + 1);
-		if( FParse::Value( Stream, Match, ValueCharArray.GetData(), StreamLen + 1, bShouldStopOnSeparator) )
+		ValueCharArray[0] = 0;
+
+		if( FParse::Value(Stream, Match, ValueCharArray.GetData(), ValueCharArray.Num(), bShouldStopOnSeparator) )
 		{
-			TempValue.Shrink();
-			Value = MoveTemp(TempValue);
+			Value = FString(ValueCharArray.GetData());
 			return true;
 		}
 	}
