@@ -5286,7 +5286,7 @@ bool FEngineLoop::AppInit( )
 		IFileManager::Get().ProcessCommandLineOptions();
 	}
 
-	FPageAllocator::LatchProtectedMode();
+	FPageAllocator::Get().LatchProtectedMode();
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("purgatorymallocproxy")))
 	{
