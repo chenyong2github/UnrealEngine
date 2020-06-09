@@ -129,12 +129,6 @@ void FTraceAuxiliaryImpl::ParseCommandLine(const TCHAR* CommandLine)
 		bOk = WriteToFile();
 	}
 
-	if (!bOk)
-	{
-		State = EState::None;
-		return;
-	}
-
 	const TCHAR* ChannelSet = nullptr;
 	if (FParse::Value(CommandLine, TEXT("-trace="), Parameter, false))
 	{
@@ -144,7 +138,7 @@ void FTraceAuxiliaryImpl::ParseCommandLine(const TCHAR* CommandLine)
 	FString Channels = GetChannels(ChannelSet);
 	ToggleChannels(*Channels);
 
-	State = EState::Tracing;
+	State = bOk ? EState::Tracing : EState::None;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
