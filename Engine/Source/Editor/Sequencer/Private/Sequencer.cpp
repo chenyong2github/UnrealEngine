@@ -6778,8 +6778,13 @@ void FSequencer::GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyArea
 
 	for (TSharedRef<FSequencerDisplayNode> Node : NodesToKey)
 	{
-		SequencerHelpers::GetAllKeyAreas(Node, KeyAreas);
+		//if object or track selected we don't want all of the children only if spefically selected.
+		if ((Node->GetType() != ESequencerNode::Track) && (Node->GetType() != ESequencerNode::Object))
+		{
+			SequencerHelpers::GetAllKeyAreas(Node, KeyAreas);
+		}
 	}
+
 	for (FSequencerSelectedKey Key : Selection.GetSelectedKeys())
 	{
 		KeyAreas.Add(Key.KeyArea); 
