@@ -60,11 +60,15 @@ TUniquePtr<FDynamicMeshOperator> UHoleFillOperatorFactory::MakeNewOperator()
 
 	FTransform LocalToWorld = FillTool->ComponentTarget->GetWorldTransform();
 	FillOp->SetResultTransform((FTransform3d)LocalToWorld);
-	FillOp->OriginalMesh = &(FillTool->OriginalMesh);
-	FillOp->FillType = FillTool->Properties->FillType;
+	FillOp->OriginalMesh = FillTool->OriginalMesh;
 	FillOp->MeshUVScaleFactor = FillTool->MeshUVScaleFactor;
-
 	FillTool->GetLoopsToFill(FillOp->Loops);
+	FillOp->FillType = FillTool->Properties->FillType;
+
+	FillOp->FillOptions.bRemoveIsolatedTriangles = FillTool->Properties->bRemoveIsolatedTriangles;
+
+	// Smooth fill properties
+	FillOp->SmoothFillOptions = FillTool->SmoothHoleFillProperties->ToSmoothFillOptions();
 
 	return FillOp;
 }
@@ -78,21 +82,40 @@ void UHoleFillTool::Setup()
 {
 	USingleSelectionTool::Setup();
 
-	// initialize properties
-	Properties = NewObject<UHoleFillToolProperties>(this, TEXT("Hole Fill Settings"));
-	Properties->RestoreProperties(this);
-	AddToolPropertySource(Properties);
-
-	Actions = NewObject<UHoleFillToolActions>(this, TEXT("Hole Fill Actions"));
-	Actions->Initialize(this);
-	AddToolPropertySource(Actions);
-
-	ToolPropertyObjects.Add(this);
-
 	if (!ComponentTarget)
 	{
 		return;
 	}
+
+	// create mesh to operate on
+	OriginalMesh = MakeShared<FDynamicMesh3>();
+	FMeshDescriptionToDynamicMesh Converter;
+	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
+
+	// initialize properties
+	Properties = NewObject<UHoleFillToolProperties>(this, TEXT("Hole Fill Settings"));
+	Properties->RestoreProperties(this);
+	AddToolPropertySource(Properties);
+	SetToolPropertySourceEnabled(Properties, true);
+
+	SmoothHoleFillProperties = NewObject<USmoothHoleFillProperties>(this, TEXT("Smooth Fill Settings"));
+	SmoothHoleFillProperties->RestoreProperties(this);
+	AddToolPropertySource(SmoothHoleFillProperties);
+	SetToolPropertySourceEnabled(SmoothHoleFillProperties, Properties->FillType == EHoleFillOpFillType::Smooth);
+
+	// Set up a callback for when the type of fill changes
+	Properties->WatchProperty(Properties->FillType,
+		[this](EHoleFillOpFillType NewType)
+	{
+		SetToolPropertySourceEnabled(SmoothHoleFillProperties, (NewType == EHoleFillOpFillType::Smooth));
+	});
+
+	Actions = NewObject<UHoleFillToolActions>(this, TEXT("Hole Fill Actions"));
+	Actions->Initialize(this);
+	AddToolPropertySource(Actions);
+	SetToolPropertySourceEnabled(Actions, true);
+
+	ToolPropertyObjects.Add(this);
 
 	// click behavior
 	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
@@ -104,16 +127,12 @@ void UHoleFillTool::Setup()
 	HoverBehavior->Initialize(this);
 	AddInputBehavior(HoverBehavior);
 
-	// create mesh to operate on
-	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), const_cast<FDynamicMesh3&>(OriginalMesh));
-
 	// initialize hit query
-	MeshSpatial.SetMesh(&OriginalMesh);
+	MeshSpatial.SetMesh(OriginalMesh.Get());
 
 	// initialize topology
-	Topology = MakeUnique<FBasicTopology>(&OriginalMesh, false);
-	Topology->RebuildTopology();
+	Topology = MakeUnique<FBasicTopology>(OriginalMesh.Get(), false);
+	bool bTopologyOK = Topology->RebuildTopology();
 
 	// Set up selection mechanic to find and select edges
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
@@ -122,29 +141,55 @@ void UHoleFillTool::Setup()
 	SelectionMechanic->Properties->bSelectEdges = true;
 	SelectionMechanic->Properties->bSelectFaces = false;
 	SelectionMechanic->Properties->bSelectVertices = false;
-	SelectionMechanic->Initialize(&OriginalMesh,
+	SelectionMechanic->Initialize(OriginalMesh.Get(),
 		ComponentTarget->GetWorldTransform(),
-		ComponentTarget->GetOwnerActor()->GetWorld(),
+		TargetWorld,
 		Topology.Get(),
 		[this]() { return &MeshSpatial; },
 		[]() { return true; }	// allow adding to selection without modifier key
 	);
 	
 	// Store a UV scale based on the original mesh bounds
-	MeshUVScaleFactor = (1.0 / OriginalMesh.GetBounds().MaxDim());
+	MeshUVScaleFactor = (1.0 / OriginalMesh->GetBounds().MaxDim());
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	SetupPreview();
-	Preview->InvalidateResult();
+	InvalidatePreviewResult();
 
-	// Hide all meshes except the Preview
-	ComponentTarget->SetOwnerVisibility(false);
+	if (!bTopologyOK)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("LoopFindError", "Error finding hole boundary loops."),
+			EToolMessageLevel::UserWarning);
+
+		SetToolPropertySourceEnabled(Properties, false);
+		SetToolPropertySourceEnabled(SmoothHoleFillProperties, false);
+		SetToolPropertySourceEnabled(Actions, false);
+	}
+	else if (Topology->Edges.Num() == 0)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("NoHoleNotification", "This mesh has no holes to fill."),
+			EToolMessageLevel::UserWarning);
+
+		SetToolPropertySourceEnabled(Properties, false);
+		SetToolPropertySourceEnabled(SmoothHoleFillProperties, false);
+		SetToolPropertySourceEnabled(Actions, false);
+	}
+	else
+	{
+		// Hide all meshes except the Preview
+		ComponentTarget->SetOwnerVisibility(false);
+	}
+
 }
-
 
 void UHoleFillTool::OnTick(float DeltaTime)
 {
-	Preview->Tick(DeltaTime);
+	if (Preview)
+	{
+		Preview->Tick(DeltaTime);
+	}
 
 	if (bHavePendingAction)
 	{
@@ -156,7 +201,7 @@ void UHoleFillTool::OnTick(float DeltaTime)
 
 void UHoleFillTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	Preview->InvalidateResult();
+	InvalidatePreviewResult();
 }
 
 bool UHoleFillTool::CanAccept() const
@@ -167,12 +212,16 @@ bool UHoleFillTool::CanAccept() const
 void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Properties->SaveProperties(this);
+	SmoothHoleFillProperties->SaveProperties(this);
+
+	if (SelectionMechanic)
+	{
+		SelectionMechanic->Shutdown();
+	}
 
 	ComponentTarget->SetOwnerVisibility(true);
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
-	SelectionMechanic->Shutdown();
-
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("HoleFillToolTransactionName", "Hole Fill Tool"));
@@ -213,7 +262,7 @@ void UHoleFillTool::OnClicked(const FInputDeviceRay& ClickPos)
 	if (bSelectionModified)
 	{
 		UpdateActiveBoundaryLoopSelection();
-		Preview->InvalidateResult();
+		InvalidatePreviewResult();
 	}
 
 	SelectionMechanic->EndChangeAndEmitIfModified();
@@ -258,6 +307,14 @@ void UHoleFillTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
+
+void UHoleFillTool::InvalidatePreviewResult()
+{
+	// Clear any warning message
+	GetToolManager()->DisplayMessage({}, EToolMessageLevel::UserWarning);
+	Preview->InvalidateResult();
+}
+
 void UHoleFillTool::SetupPreview()
 {
 	UHoleFillOperatorFactory* OpFactory = NewObject<UHoleFillOperatorFactory>();
@@ -283,8 +340,16 @@ void UHoleFillTool::SetupPreview()
 	Preview->OnOpCompleted.AddLambda(
 		[this](const FDynamicMeshOperator* Op)
 	{
-		const FHoleFillOp* HoleFilleOp = (const FHoleFillOp*)(Op);
-		NewTriangleIDs = TSet<int32>(HoleFilleOp->NewTriangles);
+		const FHoleFillOp* HoleFillOp = (const FHoleFillOp*)(Op);
+		NewTriangleIDs = TSet<int32>(HoleFillOp->NewTriangles);
+
+		// Notify the user if any holes could not be filled
+		if (HoleFillOp->NumFailedLoops > 0)
+		{
+			GetToolManager()->DisplayMessage(
+				FText::Format(LOCTEXT("FillFailNotification", "Failed to fill {0} holes."), HoleFillOp->NumFailedLoops),
+				EToolMessageLevel::UserWarning);
+		}
 	});
 
 	Preview->PreviewMesh->EnableSecondaryTriangleBuffers(
@@ -295,7 +360,7 @@ void UHoleFillTool::SetupPreview()
 
 	// set initial preview to un-processed mesh
 	Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
-	Preview->PreviewMesh->UpdatePreview(&OriginalMesh);
+	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 	Preview->SetVisibility(true);
 }
@@ -324,7 +389,7 @@ void UHoleFillTool::SelectAll()
 
 	SelectionMechanic->SetSelection(NewSelection);
 	UpdateActiveBoundaryLoopSelection();
-	Preview->InvalidateResult();
+	InvalidatePreviewResult();
 }
 
 
@@ -332,7 +397,7 @@ void UHoleFillTool::ClearSelection()
 {
 	SelectionMechanic->ClearSelection();
 	UpdateActiveBoundaryLoopSelection();
-	Preview->InvalidateResult();
+	InvalidatePreviewResult();
 }
 
 void UHoleFillTool::UpdateActiveBoundaryLoopSelection()
@@ -362,19 +427,22 @@ void UHoleFillTool::UpdateActiveBoundaryLoopSelection()
 
 void UHoleFillTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	SelectionMechanic->Render(RenderAPI);
+	if (SelectionMechanic)
+	{
+		SelectionMechanic->Render(RenderAPI);
+	}
 }
 
 
 void UHoleFillTool::GetLoopsToFill(TArray<FEdgeLoop>& OutLoops) const
 {
 	OutLoops.Reset();
+	FMeshBoundaryLoops BoundaryLoops(OriginalMesh.Get());
 
 	for (const FSelectedBoundaryLoop& FillEdge : ActiveBoundaryLoopSelection)
 	{
-		if (OriginalMesh.IsBoundaryEdge(FillEdge.EdgeIDs[0]))		// may no longer be boundary due to previous fill
+		if (OriginalMesh->IsBoundaryEdge(FillEdge.EdgeIDs[0]))		// may no longer be boundary due to previous fill
 		{
-			FMeshBoundaryLoops BoundaryLoops(&OriginalMesh);
 			int32 LoopID = BoundaryLoops.FindLoopContainingEdge(FillEdge.EdgeIDs[0]);
 			if (LoopID >= 0)
 			{

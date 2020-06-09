@@ -36,8 +36,76 @@ public:
 };
 
 /*
- * Properties
+ * Properties. This class reflects the parameters in FSmoothFillOptions, but is decorated to allow use in the UI system.
  */
+
+UCLASS()
+class MESHMODELINGTOOLS_API USmoothHoleFillProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Allow smoothing and remeshing of triangles outside of the fill region */
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions)
+	bool bConstrainToHoleInterior;
+
+	/** Number of vertex rings outside of the fill region to allow remeshing */
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, 
+		meta = (UIMin = "0", ClampMin = "0", EditCondition = "!bConstrainToHoleInterior"))
+	int RemeshingExteriorRegionWidth;
+
+	/** Number of vertex rings outside of the fill region to perform smoothing */
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, meta = (UIMin = "0", ClampMin = "0"))
+	int SmoothingExteriorRegionWidth;
+
+	/** Number of vertex rings away from the fill region boundary to constrain smoothing */
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, meta = (UIMin = "0", ClampMin = "0"))
+	int SmoothingInteriorRegionWidth;
+
+	/** Desired Smoothness. This is not a linear quantity, but larger numbers produce smoother results */
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
+	float InteriorSmoothness;
+
+	/** Relative triangle density of fill region */
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, meta = (UIMin = "0.001", UIMax = "10.0", ClampMin = "0.001", ClampMax = "10.0"))
+	double FillDensityScalar = 1.0;
+
+	/** 
+	 * Whether to project to the original mesh during post-smooth remeshing. This can be expensive on large meshes with 
+	 * many holes. 
+	 */
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions)
+	bool bProjectDuringRemesh = false;
+
+
+	// Set default property values
+	USmoothHoleFillProperties()
+	{
+		// Create a default FSmoothFillOptions and populate this class with its defaults.
+		FSmoothFillOptions DefaultOptionsObject;
+		bConstrainToHoleInterior = DefaultOptionsObject.bConstrainToHoleInterior;
+		RemeshingExteriorRegionWidth = DefaultOptionsObject.RemeshingExteriorRegionWidth;
+		SmoothingExteriorRegionWidth = DefaultOptionsObject.SmoothingExteriorRegionWidth;
+		SmoothingInteriorRegionWidth = DefaultOptionsObject.SmoothingInteriorRegionWidth;
+		FillDensityScalar = DefaultOptionsObject.FillDensityScalar;
+		InteriorSmoothness = DefaultOptionsObject.InteriorSmoothness;
+		bProjectDuringRemesh = DefaultOptionsObject.bProjectDuringRemesh;
+	}
+
+	FSmoothFillOptions ToSmoothFillOptions() const
+	{
+		FSmoothFillOptions Options;
+		Options.bConstrainToHoleInterior = bConstrainToHoleInterior;
+		Options.RemeshingExteriorRegionWidth = RemeshingExteriorRegionWidth;
+		Options.SmoothingExteriorRegionWidth = SmoothingExteriorRegionWidth;
+		Options.SmoothingInteriorRegionWidth = SmoothingInteriorRegionWidth;
+		Options.InteriorSmoothness = InteriorSmoothness;
+		Options.FillDensityScalar = FillDensityScalar;
+		Options.bProjectDuringRemesh = bProjectDuringRemesh;
+		return Options;
+	}
+};
 
 UCLASS()
 class MESHMODELINGTOOLS_API UHoleFillToolProperties : public UInteractiveToolPropertySet
@@ -46,7 +114,12 @@ class MESHMODELINGTOOLS_API UHoleFillToolProperties : public UInteractiveToolPro
 
 public:
 	UPROPERTY(EditAnywhere, Category = Options)
-	EHoleFillOpFillType FillType = EHoleFillOpFillType::PolygonEarClipping;
+	EHoleFillOpFillType FillType = EHoleFillOpFillType::Smooth;
+
+	/** Clean up triangles that have no neighbors */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bRemoveIsolatedTriangles = false;
+
 };
 
 
@@ -143,6 +216,9 @@ protected:
 	friend UHoleFillToolBuilder;
 
 	UPROPERTY()
+	USmoothHoleFillProperties* SmoothHoleFillProperties = nullptr;
+
+	UPROPERTY()
 	UHoleFillToolProperties* Properties = nullptr;
 
 	UPROPERTY()
@@ -154,8 +230,8 @@ protected:
 	UPROPERTY()
 	UPolygonSelectionMechanic* SelectionMechanic = nullptr;
 
-	// Input mesh
-	const FDynamicMesh3 OriginalMesh;
+	// Input mesh. Ownership shared with Op.
+	TSharedPtr<FDynamicMesh3> OriginalMesh;
 
 	// UV Scale factor is cached based on the bounding box of the mesh before any fills are performed
 	float MeshUVScaleFactor = 0.0f;
@@ -172,6 +248,9 @@ protected:
 
 	// Create the Preview object
 	void SetupPreview();
+
+	// Invalidate background compute result (some input changed)
+	void InvalidatePreviewResult();
 
 	bool bHavePendingAction = false;
 	EHoleFillToolActions PendingAction;

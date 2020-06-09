@@ -113,8 +113,15 @@ public:
 	 */
 	int FindLoopContainingEdge(int EdgeID) const;
 
+	/**
+	 * @return index of loop that best matches input triangles, or -1 if not found
+	 */
+	int FindLoopTrianglesHint(const TArray<int>& BorderHintTris) const;
 
-
+	/**
+	 * @return index of loop that best matches input edges, or -1 if not found
+	 */
+	int FindLoopEdgesHint(const TSet<int>& BorderHintEdges) const;
 
 
 protected:
