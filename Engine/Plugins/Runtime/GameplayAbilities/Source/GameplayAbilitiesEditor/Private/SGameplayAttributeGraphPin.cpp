@@ -4,6 +4,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "AttributeSet.h"
 #include "SGameplayAttributeWidget.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
@@ -52,7 +53,6 @@ void SGameplayAttributeGraphPin::OnAttributeChanged(FProperty* SelectedAttribute
 		const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangePinValue", "Change Pin Value"));
 		GraphPinObj->Modify();
 		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, FinalValue);
-		RefreshCachedDescription();
 	}
 
 	LastSelectedProperty = SelectedAttribute;

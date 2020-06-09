@@ -108,7 +108,7 @@ struct UNREALED_API FDataTableEditorUtils
 	static bool IsValidTableStruct(const UScriptStruct* Struct);
 
 	/** Add a UI action for search for references, useful for customizations */
-	static void AddSearchForReferencesContextMenu(FDetailWidgetRow& RowNameDetailWidget, FExecuteAction SearchForReferencesAction);
+	static void AddSearchForReferencesContextMenu(class FDetailWidgetRow& RowNameDetailWidget, FExecuteAction SearchForReferencesAction);
 
 	/** Short description for a data or curve handle */
 	static FText GetHandleShortDescription(const UObject* TableAsset, FName RowName);

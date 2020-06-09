@@ -4,6 +4,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagQueryGraphPin"
 

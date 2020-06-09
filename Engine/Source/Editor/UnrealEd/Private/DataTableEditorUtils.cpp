@@ -19,6 +19,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "AssetRegistryModule.h"
 #include "DetailWidgetRow.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataTableEditorUtils"
 
