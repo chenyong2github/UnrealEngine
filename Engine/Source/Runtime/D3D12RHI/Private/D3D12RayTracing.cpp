@@ -98,6 +98,11 @@ DECLARE_MEMORY_STAT(TEXT("Total Used Video Memory"), STAT_D3D12RayTracingUsedVid
 DECLARE_CYCLE_STAT(TEXT("RTPSO Compile Shader"), STAT_RTPSO_CompileShader, STATGROUP_D3D12RayTracing);
 DECLARE_CYCLE_STAT(TEXT("RTPSO Create Pipeline"), STAT_RTPSO_CreatePipeline, STATGROUP_D3D12RayTracing);
 
+// Whether to compare the full descriptor table on cache lookup or only use CityHash64 digest.
+#ifndef RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+#define RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE 1
+#endif // RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+
 struct FD3D12ShaderIdentifier
 {
 	uint64 Data[4] = {~0ull, ~0ull, ~0ull, ~0ull};
@@ -904,6 +909,10 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 		checkf(CPUBase.ptr, TEXT("Ray tracing descriptor heap of type %d returned from descriptor heap cache is invalid."), Type);
 
 		DescriptorSize = GetParentDevice()->GetDevice()->GetDescriptorHandleIncrementSize(Type);
+
+	#if RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+		Descriptors.SetNum(MaxNumDescriptors);
+	#endif // RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
 	}
 
 	// Returns descriptor heap base index or -1 if allocation is not possible.
@@ -938,6 +947,32 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 		return Result;
 	}
 
+	void CopyDescriptors(int32 BaseIndex, const D3D12_CPU_DESCRIPTOR_HANDLE* InDescriptors, uint32 InNumDescriptors)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor = GetDescriptorCPU(BaseIndex);
+		GetParentDevice()->GetDevice()->CopyDescriptors(1, &DestDescriptor, &InNumDescriptors, InNumDescriptors, InDescriptors, nullptr, Type);
+	#if RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+		for (uint32 i = 0; i < InNumDescriptors; ++i)
+		{
+			Descriptors[BaseIndex + i].ptr = InDescriptors[i].ptr;
+		}
+	#endif // RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+	}
+
+#if RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+	bool CompareDescriptors(int32 BaseIndex, const D3D12_CPU_DESCRIPTOR_HANDLE* InDescriptors, uint32 InNumDescriptors)
+	{
+		for (uint32 i = 0; i < InNumDescriptors; ++i)
+		{
+			if (Descriptors[BaseIndex + i].ptr != InDescriptors[i].ptr)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+#endif // RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPU(uint32 Index) const
 	{
 		checkSlow(Index < MaxNumDescriptors);
@@ -969,6 +1004,10 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 	D3D12_GPU_DESCRIPTOR_HANDLE GPUBase = {};
 
 	FD3D12RayTracingDescriptorHeapCache::Entry HeapCacheEntry;
+
+#if RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+	TArray<D3D12_CPU_DESCRIPTOR_HANDLE> Descriptors;
+#endif // RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
 };
 
 class FD3D12RayTracingDescriptorCache : public FD3D12DeviceChild
@@ -1027,31 +1066,34 @@ public:
 
 		if (DescriptorTableBaseIndex != InvalidIndex)
 		{
-			return DescriptorTableBaseIndex;
+		#if RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+			if (ensureMsgf(Heap.CompareDescriptors(DescriptorTableBaseIndex, Descriptors, NumDescriptors), 
+				TEXT("Ray tracing descriptor cache hash collision detected!")))
+		#endif // RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
+			{
+				return DescriptorTableBaseIndex;
+			}
+		}
+
+		DescriptorTableBaseIndex = Heap.Allocate(NumDescriptors);
+
+		if (DescriptorTableBaseIndex == InvalidIndex)
+		{
+			return InvalidIndex;
+		}
+
+		Heap.CopyDescriptors(DescriptorTableBaseIndex, Descriptors, NumDescriptors);
+
+		if (Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+		{
+			INC_DWORD_STAT_BY(STAT_D3D12RayTracingUsedViewDescriptors, NumDescriptors);
 		}
 		else
 		{
-			DescriptorTableBaseIndex = Heap.Allocate(NumDescriptors);
-
-			if (DescriptorTableBaseIndex == InvalidIndex)
-			{
-				return InvalidIndex;
-			}
-
-			D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor = Heap.GetDescriptorCPU(DescriptorTableBaseIndex);
-			GetParentDevice()->GetDevice()->CopyDescriptors(1, &DestDescriptor, &NumDescriptors, NumDescriptors, Descriptors, nullptr, Type);
-
-			if (Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
-			{
-				INC_DWORD_STAT_BY(STAT_D3D12RayTracingUsedViewDescriptors, NumDescriptors);
-			}
-			else
-			{
-				INC_DWORD_STAT_BY(STAT_D3D12RayTracingUsedSamplerDescriptors, NumDescriptors);
-			}
-
-			return DescriptorTableBaseIndex;
+			INC_DWORD_STAT_BY(STAT_D3D12RayTracingUsedSamplerDescriptors, NumDescriptors);
 		}
+
+		return DescriptorTableBaseIndex;
 	}
 
 	FD3D12RayTracingDescriptorHeap ViewHeap;
