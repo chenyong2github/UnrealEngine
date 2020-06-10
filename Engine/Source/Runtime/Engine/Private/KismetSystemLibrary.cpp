@@ -83,7 +83,7 @@ FString UKismetSystemLibrary::GetPathName(const UObject* Object)
 
 FString UKismetSystemLibrary::GetSystemPath(const UObject* Object)
 {
-	if (Object->IsAsset())
+	if (Object && Object->IsAsset())
 	{
 		FString PackageFileName;
 		FString PackageFile;
