@@ -515,6 +515,16 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Vertex count is invalid %d"), VertexCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
 		}
 
+		if (bUseGpuUniformlyDistributedSampling)
+		{
+			const int32 NumAreaSamples = SkeletalMeshSamplingLODBuiltData->AreaWeightedTriangleSampler.GetNumEntries();
+			if (NumAreaSamples != TriangleCount)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> AreaWeighted Triangle Sampling Count (%d) does not match triangle count (%d), disabling uniform sampling"), NumAreaSamples, TriangleCount);
+				bUseGpuUniformlyDistributedSampling = false;
+			}
+		}
+
 		// Copy filtered Bones / Socket data into arrays that the renderer will use to create read buffers
 		//-TODO: Exclude setting up these arrays if we don't sample from them
 		NumFilteredBones = InstData->NumFilteredBones;
@@ -1153,7 +1163,7 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshWeightStride, InstanceData->MeshWeightStrideByte/4);
 
 			uint32 EnabledFeaturesBits = 0;
-			EnabledFeaturesBits |= InstanceData->bIsGpuUniformlyDistributedSampling ? 1 : 0;
+			EnabledFeaturesBits |= StaticBuffers->IsUseGpuUniformlyDistributedSampling() ? 1 : 0;
 			EnabledFeaturesBits |= StaticBuffers->IsSamplingRegionsAllAreaWeighted() ? 2 : 0;
 			EnabledFeaturesBits |= (InstanceData->bUnlimitedBoneInfluences ? 4 : 0);
 
