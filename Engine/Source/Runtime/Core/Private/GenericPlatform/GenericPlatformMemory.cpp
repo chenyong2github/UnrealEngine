@@ -20,7 +20,6 @@
 #include "Misc/CommandLine.h"
 #include "Misc/MessageDialog.h"
 #include "Templates/UnrealTemplate.h"
-#include "MemPro/MemProProfiler.h"
 #include "HAL/IConsoleManager.h"
 
 DEFINE_STAT(MCR_Physical);
@@ -150,10 +149,6 @@ void FGenericPlatformMemory::Init()
 	// Update for the first time.
 	FGenericStatsUpdater::DoUpdateStats();
 #endif // STATS
-
-#if MEMPRO_ENABLED
-	FMemProProfiler::Init();
-#endif
 }
 
 void FGenericPlatformMemory::OnOutOfMemory(uint64 Size, uint32 Alignment)
