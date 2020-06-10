@@ -216,7 +216,7 @@ namespace Turnkey.Commands
 
 							if (bUpdateIfNeeded)
 							{
-								SdkInfo MatchingInstallableSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Flash }, bSelectBest: bUnattended, Device.Type);
+								SdkInfo MatchingInstallableSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type);
 
 								if (MatchingInstallableSdk == null)
 								{
