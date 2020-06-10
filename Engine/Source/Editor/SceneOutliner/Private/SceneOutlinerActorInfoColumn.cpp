@@ -64,6 +64,23 @@ struct FGetInfo : TTreeItemGetter<FString>
 				}
 				return Result;
 			}
+		case ECustomColumnMode::Mobility:
+			{
+				FString Result;
+				USceneComponent* RootComponent = Actor->GetRootComponent();
+				if (RootComponent)
+				{
+					if (RootComponent->Mobility == EComponentMobility::Stationary)
+					{
+						Result = FString(TEXT("Stationary"));
+					}
+					else if (RootComponent->Mobility == EComponentMobility::Movable)
+					{
+						Result = FString(TEXT("Movable"));
+					}
+				}
+				return Result;
+			}
 
 		default:
 			return FString();
@@ -380,6 +397,10 @@ FText FActorInfoColumn::MakeComboText( const ECustomColumnMode::Type& Mode ) con
 		ModeName = LOCTEXT("CustomColumnMode_UncachedLights", "# Uncached Lights");
 		break;
 
+	case ECustomColumnMode::Mobility:
+		ModeName = LOCTEXT("CustomColumnMode_Mobility", "Mobility");
+		break;
+
 	default:
 		ensure(0);
 		break;
@@ -422,6 +443,11 @@ FText FActorInfoColumn::MakeComboToolTipText( const ECustomColumnMode::Type& Mod
 	case ECustomColumnMode::UncachedLights:
 		ToolTipText = LOCTEXT("CustomColumnModeToolTip_UncachedLights", "Shows the number of uncached static lights (missing in lightmap)");
 		break;
+
+	case ECustomColumnMode::Mobility:
+		ToolTipText = LOCTEXT("CustomColumnModeToolTip_Mobility", "Shows the mobility of each actor");
+		break;
+
 
 	default:
 		ensure(0);

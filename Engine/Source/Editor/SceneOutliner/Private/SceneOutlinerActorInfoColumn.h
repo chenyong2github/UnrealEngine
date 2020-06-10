@@ -28,6 +28,9 @@ namespace ECustomColumnMode
 		/** Class */
 		Class,
 
+		/** Mobility */
+		Mobility,
+
 		/** Level */
 		Level,
 

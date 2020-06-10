@@ -89,10 +89,6 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 
 		HighlightText = SceneOutliner.GetFilterHighlightText();
 
-		MobilityStaticBrush = FEditorStyle::GetBrush( "ClassIcon.ComponentMobilityStaticPip" );
-		MobilityStationaryBrush = FEditorStyle::GetBrush( "ClassIcon.ComponentMobilityStationaryPip" );
-		MobilityMovableBrush = FEditorStyle::GetBrush( "ClassIcon.ComponentMobilityMovablePip" );
-
 		TSharedPtr<SInlineEditableTextBlock> InlineTextBlock;
 
 		auto MainContent = SNew(SHorizontalBox)
@@ -126,35 +122,8 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 				.HighlightText(HighlightText)
 			];
 
-		TSharedRef<SOverlay> IconContent = SNew(SOverlay)
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(this, &SActorTreeLabel::GetIcon)
-				.ToolTipText(this, &SActorTreeLabel::GetIconTooltip)
-			]
-
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(this, &SActorTreeLabel::GetIconOverlay)
-			];
-
-
 		if (ActorItem.GetSharedData().Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
-			// Add the component mobility icon
-			IconContent->AddSlot()
-			.HAlign(HAlign_Left)
-			[
-				SNew(SImage)
-				.Image(this, &SActorTreeLabel::GetBrushForComponentMobilityIcon)
-			];
-
 			ActorItem.RenameRequestEvent.BindSP( InlineTextBlock.Get(), &SInlineEditableTextBlock::EnterEditingMode );
 		}
 		
@@ -171,7 +140,9 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 				.WidthOverride(FDefaultTreeItemMetrics::IconSize())
 				.HeightOverride(FDefaultTreeItemMetrics::IconSize())
 				[
-					IconContent
+					SNew(SImage)
+					.Image(this, &SActorTreeLabel::GetIcon)
+					.ToolTipText(this, &SActorTreeLabel::GetIconTooltip)
 				]
 			]
 
@@ -189,11 +160,6 @@ private:
 	TWeakPtr<FActorTreeItem> TreeItemPtr;
 	TWeakObjectPtr<AActor> ActorPtr;
 	TAttribute<FText> HighlightText;
-
-	/** The component mobility brushes */
-	const FSlateBrush* MobilityStaticBrush;
-	const FSlateBrush* MobilityStationaryBrush;
-	const FSlateBrush* MobilityMovableBrush;
 
 	FText GetDisplayText() const
 	{
@@ -369,29 +335,6 @@ private:
 				Outliner->SetKeyboardFocus();
 			}
 		}
-	}
-
-	const FSlateBrush* GetBrushForComponentMobilityIcon() const
-	{
-		const FSlateBrush* IconBrush = MobilityStaticBrush;
-
-		if (auto* Actor = ActorPtr.Get())
-		{
-			USceneComponent* RootComponent = ActorPtr->GetRootComponent();
-			if (RootComponent)
-			{
-				if (RootComponent->Mobility == EComponentMobility::Stationary)
-				{
-					IconBrush = MobilityStationaryBrush;
-				}
-				else if (RootComponent->Mobility == EComponentMobility::Movable)
-				{
-					IconBrush = MobilityMovableBrush;
-				}
-			}
-		}
-
-		return IconBrush;
 	}
 };
 
@@ -662,8 +605,6 @@ struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 		TreeItemPtr = StaticCastSharedRef<FComponentTreeItem>(ComponentItem.AsShared());
 		WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(SceneOutliner.AsShared());
 
-		MobilityStaticBrush = FEditorStyle::GetBrush("ClassIcon.ComponentMobilityStaticPip");
-
 		ComponentPtr = ComponentItem.Component;
 		
 		HighlightText = SceneOutliner.GetFilterHighlightText();
@@ -689,35 +630,8 @@ struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
 			];
 
-		TSharedRef<SOverlay> IconContent = SNew(SOverlay)
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(this, &SComponentTreeLabel::GetIcon)
-				.ToolTipText(this, &SComponentTreeLabel::GetIconTooltip)
-			]
-
-		+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(this, &SComponentTreeLabel::GetIconOverlay)
-			];
-
-
 		if (ComponentItem.GetSharedData().Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
-			// Add the component mobility icon
-			IconContent->AddSlot()
-				.HAlign(HAlign_Left)
-				[
-					SNew(SImage)
-					.Image(this, &SComponentTreeLabel::GetBrushForComponentMobilityIcon)
-				];
-
 			ComponentItem.RenameRequestEvent.BindSP(InlineTextBlock.Get(), &SInlineEditableTextBlock::EnterEditingMode);
 		}
 
@@ -726,25 +640,27 @@ struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 				SNew(SHorizontalBox)
 
 				+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(FDefaultTreeItemMetrics::IconPadding())
-			[
-				SNew(SBox)
-				.WidthOverride(FDefaultTreeItemMetrics::IconSize())
-			.HeightOverride(FDefaultTreeItemMetrics::IconSize())
-			[
-				IconContent
-			]
-			]
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(FDefaultTreeItemMetrics::IconPadding())
+				[
+					SNew(SBox)
+					.WidthOverride(FDefaultTreeItemMetrics::IconSize())
+					.HeightOverride(FDefaultTreeItemMetrics::IconSize())
+					[
+						SNew(SImage)
+						.Image(this, &SComponentTreeLabel::GetIcon)
+						.ToolTipText(this, &SComponentTreeLabel::GetIconTooltip)
+					]
+				]
 
-		+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.VAlign(VAlign_Center)
-			.Padding(0.0f, 2.0f)
-			[
-				MainContent
-			]
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.Padding(0.0f, 2.0f)
+				[
+					MainContent
+				]
 			];
 
 	}
@@ -753,8 +669,6 @@ private:
 	TWeakPtr<FComponentTreeItem> TreeItemPtr;
 	TWeakObjectPtr<UActorComponent> ComponentPtr;
 	TAttribute<FText> HighlightText;
-	const FSlateBrush* MobilityStaticBrush;
-
 
 	FText GetDisplayText() const
 	{
@@ -819,22 +733,10 @@ private:
 		}
 	}
 
-	const FSlateBrush* GetIconOverlay() const
-	{
-		const FSlateBrush* IconBrush = MobilityStaticBrush;
-		return IconBrush;
-	}
-
 	FText GetIconTooltip() const
 	{
 		FText ToolTipText;
 		return ToolTipText;
-	}
-
-	const FSlateBrush* GetBrushForComponentMobilityIcon() const
-	{
-		const FSlateBrush* IconBrush = MobilityStaticBrush;
-		return IconBrush;
 	}
 
 	FSlateColor GetForegroundColor() const
@@ -858,7 +760,6 @@ struct SSubComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 		TreeItemPtr = StaticCastSharedRef<FSubComponentTreeItem>(SubComponentItem.AsShared());
 		WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(SceneOutliner.AsShared());
 
-		MobilityStaticBrush = FEditorStyle::GetBrush("ClassIcon.ComponentMobilityStaticPip");
 		ComponentPtr = SubComponentItem.ParentComponent;
 
 		TSharedPtr<SInlineEditableTextBlock> InlineTextBlock;
@@ -882,34 +783,8 @@ struct SSubComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 				})
 			];
 
-		TSharedRef<SOverlay> IconContent = SNew(SOverlay)
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(this, &SSubComponentTreeLabel::GetIcon)
-				.ToolTipText(this, &SSubComponentTreeLabel::GetIconTooltip)
-			]
-
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(this, &SSubComponentTreeLabel::GetIconOverlay)
-			];
-
 		if (SubComponentItem.GetSharedData().Mode == ESceneOutlinerMode::ActorBrowsing)
 		{
-			// Add the component mobility icon
-			IconContent->AddSlot()
-				.HAlign(HAlign_Left)
-				[
-					SNew(SImage)
-					.Image(this, &SSubComponentTreeLabel::GetBrushForComponentMobilityIcon)
-				];
-
 			SubComponentItem.RenameRequestEvent.BindSP(InlineTextBlock.Get(), &SInlineEditableTextBlock::EnterEditingMode);
 		}
 
@@ -926,7 +801,9 @@ struct SSubComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 				.WidthOverride(FDefaultTreeItemMetrics::IconSize())
 				.HeightOverride(FDefaultTreeItemMetrics::IconSize())
 				[
-					IconContent
+					SNew(SImage)
+					.Image(this, &SSubComponentTreeLabel::GetIcon)
+					.ToolTipText(this, &SSubComponentTreeLabel::GetIconTooltip)
 				]
 			]
 
@@ -943,7 +820,6 @@ struct SSubComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 private:
 	TWeakPtr<FSubComponentTreeItem> TreeItemPtr;
 	TWeakObjectPtr<UActorComponent> ComponentPtr;
-	const FSlateBrush* MobilityStaticBrush;
 
 	FText GetDisplayText() const
 	{
@@ -1003,22 +879,10 @@ private:
 		}
 	}
 
-	const FSlateBrush* GetIconOverlay() const
-	{
-		const FSlateBrush* IconBrush = MobilityStaticBrush;
-		return IconBrush;
-	}
-
 	FText GetIconTooltip() const
 	{
 		FText ToolTipText;
 		return ToolTipText;
-	}
-
-	const FSlateBrush* GetBrushForComponentMobilityIcon() const
-	{
-		const FSlateBrush* IconBrush = MobilityStaticBrush;
-		return IconBrush;
 	}
 
 	virtual bool OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage)
