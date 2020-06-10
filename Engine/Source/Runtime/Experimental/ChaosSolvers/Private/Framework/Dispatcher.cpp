@@ -26,13 +26,6 @@ namespace Chaos
 	}
 
 	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FGlobalCommand InCommand)
-	{
-		check(Owner);
-		GlobalCommandQueue.Enqueue(InCommand);
-	}
-
-	template<>
 	void FDispatcher<EThreadingMode::DedicatedThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData)
 	{
 		CommandLists.Enqueue(MoveTemp(InCommandData));
@@ -49,11 +42,6 @@ namespace Chaos
 		// Enqueue all pending command lists
 		while(CommandLists.Dequeue(Data))
 		{
-			for(FGlobalCommand& C : Data->GlobalCommands)
-			{
-				EnqueueCommandImmediate(C);
-			}
-
 			for(FTaskCommand& C : Data->TaskCommands)
 			{
 				EnqueueCommandImmediate(C);
@@ -102,24 +90,12 @@ namespace Chaos
 		InCommand(nullptr);
 	}
 
-	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FGlobalCommand InCommand)
-	{
-		check(Owner);
-		InCommand();
-	}
 
 	template<>
 	void FDispatcher<EThreadingMode::SingleThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData)
 	{
 		// Steal the ptr from the external caller still to emulate the same experience under all dispatchers
 		TUniquePtr<FCommandListData> Data = MoveTemp(InCommandData);
-
-		// Just pass to enqueue
-		for(FGlobalCommand& C : Data->GlobalCommands)
-		{
-			EnqueueCommandImmediate(C);
-		}
 
 		for(FTaskCommand& C : Data->TaskCommands)
 		{
@@ -154,12 +130,6 @@ namespace Chaos
 		TaskCommandQueue.Enqueue(InCommand);
 	}
 
-	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FGlobalCommand InCommand)
-	{
-		check(Owner);
-		GlobalCommandQueue.Enqueue(InCommand);
-	}
 
 	template<>
 	void FDispatcher<EThreadingMode::TaskGraph>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData)
@@ -175,10 +145,6 @@ namespace Chaos
 		// Enqueue all pending command lists
 		while(CommandLists.Dequeue(Data))
 		{
-			for(FGlobalCommand& C : Data->GlobalCommands)
-			{
-				EnqueueCommandImmediate(C);
-			}
 
 			for(FTaskCommand& C : Data->TaskCommands)
 			{

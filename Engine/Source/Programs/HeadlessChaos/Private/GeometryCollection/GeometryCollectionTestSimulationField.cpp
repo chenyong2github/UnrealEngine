@@ -49,8 +49,6 @@ namespace GeometryCollectionTest
 		UnitTest.AddSimulationObject(CollectionOther);
 		UnitTest.AddSimulationObject(Collection);
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-
 		FRadialIntMask* RadialMaskTmp = new FRadialIntMask();
 		RadialMaskTmp->Position = FVector(0.0, 0.0, 0.0);
 		RadialMaskTmp->Radius = 100.0;
@@ -78,8 +76,6 @@ namespace GeometryCollectionTest
 
 		TFramework<Traits> UnitTest; UnitTest.Dt = 1/24.0;
 		UnitTest.AddSimulationObject(Collection);
-
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
 
 		UnitTest.Initialize();
 
@@ -129,9 +125,6 @@ namespace GeometryCollectionTest
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(Collection);
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();
 
 		for (int i = 0; i < 100; i++)
@@ -153,7 +146,7 @@ namespace GeometryCollectionTest
 		RadialMask->ExteriorValue = (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 		RadialMask->SetMaskCondition = ESetMaskConditionType::Field_Set_IFF_NOT_Interior;
 		FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState);
-		FieldObject->BufferCommand(UnitTest.Solver, { TargetName, RadialMask });
+		UnitTest.Solver->GetPerSolverField().BufferCommand( { TargetName, RadialMask });
 
 		for (int i = 0; i < 100; i++)
 		{
@@ -187,9 +180,6 @@ namespace GeometryCollectionTest
 		RadialMask->InteriorValue = (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		RadialMask->ExteriorValue = (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		RadialMask->SetMaskCondition = ESetMaskConditionType::Field_Set_Always;
-
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
 
 		UnitTest.Initialize();
 
@@ -249,9 +239,6 @@ namespace GeometryCollectionTest
 		RadialMask->ExteriorValue = (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 		RadialMask->SetMaskCondition = ESetMaskConditionType::Field_Set_IFF_NOT_Interior;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
@@ -261,7 +248,7 @@ namespace GeometryCollectionTest
 			if (Frame == 5)
 			{
 				FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState);
-				FieldObject->BufferCommand(UnitTest.Solver, { TargetName, RadialMask });
+				UnitTest.Solver->GetPerSolverField().BufferCommand( { TargetName, RadialMask });
 			}
 
 			UnitTest.Advance();
@@ -300,9 +287,6 @@ namespace GeometryCollectionTest
 		UniformVector->Direction = FVector(0.0, 1.0, 0.0);
 		UniformVector->Magnitude = 1000.0;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
@@ -312,7 +296,7 @@ namespace GeometryCollectionTest
 			if (Frame >= 5)
 			{
 				FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_LinearForce);
-				FieldObject->BufferCommand(UnitTest.Solver, { TargetName, UniformVector->NewCopy() });
+				UnitTest.Solver->GetPerSolverField().BufferCommand( { TargetName, UniformVector->NewCopy() });
 			}
 
 			UnitTest.Advance();
@@ -352,9 +336,6 @@ namespace GeometryCollectionTest
 		UniformVector->Direction = FVector(0.0, 1.0, 0.0);
 		UniformVector->Magnitude = 100.0;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
@@ -364,7 +345,7 @@ namespace GeometryCollectionTest
 			if (Frame >= 5)
 			{
 				FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_AngularTorque);
-				FieldObject->BufferCommand(UnitTest.Solver, { TargetName, UniformVector->NewCopy() });
+				UnitTest.Solver->GetPerSolverField().BufferCommand( { TargetName, UniformVector->NewCopy() });
 			}
 
 			UnitTest.Advance();
@@ -405,9 +386,6 @@ namespace GeometryCollectionTest
 		FalloffField->Normal = FVector(0.0, 0.0, 1.0);
 		FalloffField->Falloff = EFieldFalloffType::Field_Falloff_Linear;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
@@ -416,7 +394,7 @@ namespace GeometryCollectionTest
 		for(int Frame = 0; Frame < 20; Frame++)
 		{
 			FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_Kill);
-			FieldObject->BufferCommand(UnitTest.Solver, { TargetName, FalloffField->NewCopy() });
+			UnitTest.Solver->GetPerSolverField().BufferCommand( { TargetName, FalloffField->NewCopy() });
 
 			UnitTest.Advance();
 
@@ -450,20 +428,17 @@ namespace GeometryCollectionTest
 		VectorField->Magnitude = 100.0;
 		VectorField->Direction = FVector(1.0, 0.0, 0.0);
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();
 
 		FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity);
-		FieldObject->BufferCommand(UnitTest.Solver, { TargetName, VectorField->NewCopy() });
+		UnitTest.Solver->GetPerSolverField().BufferCommand( { TargetName, VectorField->NewCopy() });
 		UnitTest.Advance();
 
 		float PreviousX = 0.f;
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
 		for (int Frame = 1; Frame < 10; Frame++)
 		{
-			FieldObject->BufferCommand(UnitTest.Solver, { GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity), VectorField->NewCopy() });
+			UnitTest.Solver->GetPerSolverField().BufferCommand( { GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity), VectorField->NewCopy() });
 
 			UnitTest.Advance();
 
@@ -566,9 +541,6 @@ namespace GeometryCollectionTest
 		FalloffField->Position = FVector(0.0, 0.0, 0.0);
 		FalloffField->Falloff = EFieldFalloffType::Field_FallOff_None;
 		
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();		
 
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
@@ -579,7 +551,7 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		{
 			FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain);
-			FieldObject->BufferCommand(UnitTest.Solver, { TargetName, FalloffField->NewCopy() });
+			UnitTest.Solver->GetPerSolverField().BufferCommand( { TargetName, FalloffField->NewCopy() });
 
 			EXPECT_EQ(ClusterMap.Num(), 3);
 			EXPECT_EQ(ClusterMap[ParticleHandles[4]].Num(), 2);
@@ -651,9 +623,6 @@ namespace GeometryCollectionTest
 		FalloffField->Position = FVector(0.0, 0.0, 0.0);
 		FalloffField->Falloff = EFieldFalloffType::Field_FallOff_None;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();	
 		UnitTest.Advance();
 
@@ -666,7 +635,7 @@ namespace GeometryCollectionTest
 			FFieldSystemCommand Command(TargetName, FalloffField->NewCopy());
 			FFieldSystemMetaDataProcessingResolution* ResolutionData = new FFieldSystemMetaDataProcessingResolution(EFieldResolutionType::Field_Resolution_Maximum);
 			Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr< FFieldSystemMetaDataProcessingResolution >(ResolutionData));
-			FieldObject->BufferCommand(UnitTest.Solver, Command);
+			UnitTest.Solver->GetPerSolverField().BufferCommand( Command);
 
 			EXPECT_EQ(ClusterMap.Num(), 3);
 			EXPECT_EQ(ClusterMap[ParticleHandles[6]].Num(), 3);
@@ -692,7 +661,7 @@ namespace GeometryCollectionTest
 			EXPECT_FALSE(ParticleHandles[8]->Disabled());
 
 			UnitTest.Advance();
-			FieldObject->BufferCommand(UnitTest.Solver, Command);
+			UnitTest.Solver->GetPerSolverField().BufferCommand( Command);
 			UnitTest.Advance();
 
 			EXPECT_EQ(ClusterMap.Num(), 1);
@@ -743,9 +712,6 @@ namespace GeometryCollectionTest
 		FalloffField->Position = FVector(350.0, 0.0, 0.0);
 		FalloffField->Falloff = EFieldFalloffType::Field_FallOff_None;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();
 		UnitTest.Advance();
 
@@ -761,7 +727,7 @@ namespace GeometryCollectionTest
 			FFieldSystemCommand Command(TargetName, FalloffField->NewCopy());
 			FFieldSystemMetaDataProcessingResolution* ResolutionData = new FFieldSystemMetaDataProcessingResolution(EFieldResolutionType::Field_Resolution_Maximum);
 			Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr< FFieldSystemMetaDataProcessingResolution >(ResolutionData));
-			FieldObject->BufferCommand(UnitTest.Solver, Command);
+			UnitTest.Solver->GetPerSolverField().BufferCommand( Command);
 		
 			EXPECT_TRUE(ParticleHandles[0]->Disabled());
 			EXPECT_TRUE(ParticleHandles[1]->Disabled());
@@ -829,9 +795,6 @@ namespace GeometryCollectionTest
 		FalloffField->Position = FVector(0.0, 0.0, 0.0);
 		FalloffField->Falloff = EFieldFalloffType::Field_FallOff_None;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-		UnitTest.AddFieldObject(FieldObject);
-
 		UnitTest.Initialize();
 		UnitTest.Advance();
 
@@ -841,7 +804,7 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		{
 			FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain);
-			FieldObject->BufferCommand(UnitTest.Solver, { TargetName, FalloffField->NewCopy() });
+			UnitTest.Solver->GetPerSolverField().BufferCommand( { TargetName, FalloffField->NewCopy() });
 
 			EXPECT_TRUE(ParticleHandles[0]->Disabled());
 			EXPECT_TRUE(ParticleHandles[1]->Disabled());

@@ -593,41 +593,6 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryCollec
 	Solver->RegisterObject(InObject);
 }
 
-void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject)
-{
-	AddToComponentMaps(Component, InObject);
-
-	Chaos::FPhysicsSolver* CurrSceneSolver = GetSolver();
-
-	InObject->SetSolver(CurrSceneSolver);
-	InObject->Initialize();
-
-	if (Chaos::IDispatcher* Dispatcher = GetDispatcher())
-	{
-		TArray<Chaos::FPhysicsSolverBase*> WorldSolverList = ChaosModule->GetAllSolvers();
-
-		for(Chaos::FPhysicsSolverBase* Solver : WorldSolverList)
-		{
-			Solver->CastHelper([Dispatcher, InObject](auto& Concrete)
-			{
-				if(true || Concrete.HasActiveParticles())
-				{
-					Concrete.RegisterObject(InObject);
-
-					if(/*bDedicatedThread && */Dispatcher)
-					{
-						// Pass the proxy off to the physics thread
-						Dispatcher->EnqueueCommandImmediate([InObject,&Concrete](Chaos::FPersistentPhysicsTask* PhysThread)
-						{
-							Concrete.RegisterObject(InObject);
-						});
-					}
-				}
-			});
-			
-		}
-	}
-}
 
 void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
 {
@@ -803,49 +768,6 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 	}
 	RemoveFromComponentMaps(InObject);
 	RemovePhysicsProxy(InObject, Solver, ChaosModule);
-}
-
-void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
-{
-	//Does it make sense to remove field form just one solver since it affects multiple solvers?
-	Chaos::FPhysicsSolver* CurrSceneSolver = InObject->GetSolver<Chaos::FPhysicsSolver>();
-	if(CurrSceneSolver)
-	{
-		if(!CurrSceneSolver->UnregisterObject(InObject))
-		{
-			UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
-		}
-		RemoveFromComponentMaps(InObject);
-
-		if(Chaos::IDispatcher* Dispatcher = GetDispatcher())
-		{
-			TArray<Chaos::FPhysicsSolverBase*> SolverList = ChaosModule->GetAllSolvers();
-
-			for(Chaos::FPhysicsSolverBase* Solver : SolverList)
-			{
-				Solver->CastHelper([Dispatcher, InObject](auto& Concrete)
-				{
-					if(true || Concrete.HasActiveParticles())
-					{
-						Concrete.UnregisterObject(InObject);
-
-						if(/*bDedicatedThread && */Dispatcher)
-						{
-							// Pass the proxy off to the physics thread
-							Dispatcher->EnqueueCommandImmediate([InObject,&Concrete](Chaos::FPersistentPhysicsTask* PhysThread)
-							{
-								Concrete.UnregisterObject(InObject);
-							});
-						}
-					}
-				});
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object but no solver had been set."));
-	}
 }
 
 #if XGE_FIXED

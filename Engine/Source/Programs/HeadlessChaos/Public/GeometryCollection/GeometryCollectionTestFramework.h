@@ -135,14 +135,12 @@ namespace GeometryCollectionTest
 		virtual ~TFramework();
 
 		void AddSimulationObject(WrapperBase* Object);
-		void AddFieldObject(FFieldSystemPhysicsProxy* Object);
 		void Initialize();
 		void Advance();
 		FReal Dt;
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 		Chaos::TPBDRigidsSolver<Traits>* Solver;
 		TArray< WrapperBase* > PhysicsObjects;
-		TArray< FFieldSystemPhysicsProxy* > FieldObjects;
 	};
 
 #define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TFramework<Trait>;

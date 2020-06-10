@@ -67,7 +67,6 @@ namespace Chaos
 		 * after one another on a different thread may get executed in different physics frames.
 		 * If this is not desirable consider either batched commands or submitting a custom command list
 		 */
-		virtual void EnqueueCommandImmediate(FGlobalCommand InCommand) = 0;
 		virtual void EnqueueCommandImmediate(FTaskCommand InCommand) = 0;
 		virtual void EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand) = 0;
 

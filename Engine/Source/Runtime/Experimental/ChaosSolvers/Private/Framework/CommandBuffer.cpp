@@ -4,6 +4,7 @@
 #include "ChaosSolversModule.h"
 #include "Framework/Dispatcher.h"
 
+#if 0
 bool Chaos::FCommandListData::HasCommands() const
 {
 	const int32 NumGlobalCommands = GlobalCommands.Num();
@@ -60,3 +61,5 @@ void Chaos::FCommandList::AllocData()
 
 	Data = MakeUnique<FCommandList_Constructor>();
 }
+
+#endif

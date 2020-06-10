@@ -2,32 +2,16 @@
 
 #pragma once
 
-#include "Chaos/Framework/PhysicsProxy.h"
 #include "Field/FieldSystem.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/Defines.h"
 #include "Chaos/EvolutionTraits.h"
 
-struct FKinematicProxy;
 
-class FStubFieldData : public Chaos::FParticleData {
-	void Reset() {};
-};
-
-class CHAOSSOLVERS_API FFieldSystemPhysicsProxy : public TPhysicsProxy<FFieldSystemPhysicsProxy, FStubFieldData>
+class CHAOSSOLVERS_API FPerSolverFieldSystem
 {
-	typedef TPhysicsProxy<FFieldSystemPhysicsProxy, FStubFieldData> Base;
-
 public:
-	FFieldSystemPhysicsProxy() = delete;
-	FFieldSystemPhysicsProxy(UObject* InOwner);
-	virtual ~FFieldSystemPhysicsProxy();
 
-	// Called by FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy*)
-	void Initialize();
-
-	// Callbacks
-	bool IsSimulating() const;
 	/**
 	 * Services queued \c FFieldSystemCommand commands.
 	 *
@@ -50,7 +34,7 @@ public:
 	template <typename Traits>
 	void FieldParameterUpdateCallback(
 		Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-		FParticlesType& InParticles, 
+		Chaos::TPBDRigidParticles<float, 3>& InParticles, 
 		Chaos::TArrayCollectionArray<float>& Strains, 
 		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
 		TMap<int32, int32>& PositionTargetedParticles, 
@@ -67,39 +51,12 @@ public:
 	template <typename Traits>
 	void FieldForcesUpdateCallback(
 		Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-		FParticlesType& Particles, 
+		Chaos::TPBDRigidParticles<float, 3>& Particles, 
 		Chaos::TArrayCollectionArray<FVector> & Force, 
 		Chaos::TArrayCollectionArray<FVector> & Torque, 
 		const float Time);
 
-	void BufferCommand(Chaos::FPhysicsSolverBase* InSolver, const FFieldSystemCommand& InCommand);
-
-	// Inactive Callbacks
-	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime){}
-	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy){}
-	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper> & PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32> & ParticleIDReverseMap) {}
-	void StartFrameCallback(const float InDt, const float InTime){}
-	void CreateRigidBodyCallback(FParticlesType& InOutParticles){}
-	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs){}
-	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex){}
-	void EndFrameCallback(const float InDt) { check(false); } // never called
-
-	// Called by FPBDRigidsSolver::PushPhysicsState() on game thread.
-	FStubFieldData* NewData() { return nullptr; }
-	// Called by FPBDRigidsSolver::PushPhysicsState() on physics thread.
-	void PushToPhysicsState(const Chaos::FParticleData*) {};
-	// Called by FPBDRigidsSolver::PushPhysicsState() on game thread.
-	void ClearAccumulatedData() {}
-
-	void BufferPhysicsResults(){}	// Not called
-	void FlipBuffer(){}				// Not called
-	void PullFromPhysicsState(){}	// Not called
-
-	bool IsDirty() { return false; }
-	void SyncBeforeDestroy(){}
-	void OnRemoveFromScene();
-
-	EPhysicsProxyType ConcreteType() {return EPhysicsProxyType::FieldType;}
+	void BufferCommand(const FFieldSystemCommand& InCommand);
 
 	/**
 	 * Generates a mapping between the Position array and the results array. 
@@ -119,29 +76,26 @@ public:
 
 private:
 
-	TArray<FFieldSystemCommand>* GetSolverCommandList(const Chaos::FPhysicsSolverBase* InSolver);
-
-	FCriticalSection CommandLock;
-	TMap<Chaos::FPhysicsSolverBase*, TArray<FFieldSystemCommand>*> Commands;
+	TArray<FFieldSystemCommand> Commands;
 };
 
 #define EVOLUTION_TRAIT(Traits)\
-extern template CHAOSSOLVERS_API void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(\
+extern template CHAOSSOLVERS_API void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		FParticlesType& InParticles, \
+		Chaos::TPBDRigidParticles<float, 3>& InParticles, \
 		Chaos::TArrayCollectionArray<float>& Strains, \
 		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, \
 		TMap<int32, int32>& PositionTargetedParticles, \
 		const float InTime);\
 \
-extern template CHAOSSOLVERS_API void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(\
+extern template CHAOSSOLVERS_API void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		FParticlesType& Particles, \
+		Chaos::TPBDRigidParticles<float, 3>& Particles, \
 		Chaos::TArrayCollectionArray<FVector> & Force, \
 		Chaos::TArrayCollectionArray<FVector> & Torque, \
 		const float Time);\
 \
-extern template CHAOSSOLVERS_API void FFieldSystemPhysicsProxy::GetParticleHandles(\
+extern template CHAOSSOLVERS_API void FPerSolverFieldSystem::GetParticleHandles(\
 		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
 		const EFieldResolutionType ResolutionType,\
