@@ -263,12 +263,15 @@ bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector
 	const FTransform& Transform = this->GetComponentToWorld();
 	FVector WorldNormal = (bWorld) ? Normal : Transform.TransformVector(Normal);
 	FVector WorldOrigin = Transform.TransformPosition(FVector::ZeroVector);
-	FPlane CirclePlane(WorldOrigin, WorldNormal);
 
 	FRay Ray(Start, End - Start, false);
-	FVector HitPos = FMath::RayPlaneIntersection(Ray.Origin, Ray.Direction, CirclePlane);
-	float RayParameter = Ray.GetParameter(HitPos);
-	if (RayParameter < 0 || RayParameter > Ray.GetParameter(End))
+
+	// Find the intresection with the circle plane. Note that unlike the FMath version, GizmoMath::RayPlaneIntersectionPoint() 
+	// checks that the ray isn't parallel to the plane.
+	bool bIntersects;
+	FVector HitPos;
+	GizmoMath::RayPlaneIntersectionPoint(WorldOrigin, WorldNormal, Ray.Origin, Ray.Direction, bIntersects, HitPos);
+	if (!bIntersects || Ray.GetParameter(HitPos) > Ray.GetParameter(End))
 	{
 		return false;
 	}
