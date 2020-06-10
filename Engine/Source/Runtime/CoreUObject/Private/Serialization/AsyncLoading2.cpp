@@ -2286,9 +2286,13 @@ public:
 
 	virtual void FlushLoading(int32 PackageId) override;
 
+	virtual int32 GetNumQueuedPackages() override
+	{
+		return QueuedPackagesCounter;
+	}
+
 	virtual int32 GetNumAsyncPackages() override
 	{
-		FPlatformMisc::MemoryBarrier();
 		return ExistingAsyncPackagesCounter.GetValue();
 	}
 
@@ -5543,22 +5547,6 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 		}
 
 		FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
-
-#if NO_LOGGING == 0
-		{
-			// Log the flush, but only display once per frame to avoid log spam.
-			static uint64 LastFrameNumber = -1;
-			if (LastFrameNumber != GFrameNumber)
-			{
-				UE_LOG(LogStreaming, Display, TEXT("Flushing async loaders."));
-				LastFrameNumber = GFrameNumber;
-			}
-			else
-			{
-				UE_LOG(LogStreaming, Log, TEXT("Flushing async loaders."));
-			}
-		}
-#endif
 
 		double StartTime = FPlatformTime::Seconds();
 
