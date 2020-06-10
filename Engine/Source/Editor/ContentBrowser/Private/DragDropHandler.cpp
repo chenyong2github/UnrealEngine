@@ -7,6 +7,7 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "AssetToolsModule.h"
 #include "Misc/BlacklistNames.h"
@@ -14,146 +15,326 @@
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "ContentBrowserUtils.h"
 
+#include "ContentBrowserItem.h"
+#include "ContentBrowserDataSource.h"
+#include "ContentBrowserDataDragDropOp.h"
+#include "ContentBrowserDataMenuContexts.h"
+
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
-bool DragDropHandler::ValidateDragDropOnAssetFolder(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, const FString& TargetPath, bool& OutIsKnownDragOperation)
+namespace DragDropHandler
 {
-	OutIsKnownDragOperation = false;
 
-	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
-	if (!Operation.IsValid())
+TSharedPtr<FDragDropOperation> CreateDragOperation(TArrayView<const FContentBrowserItem> InItems)
+{
+	if (InItems.Num() == 0)
+	{
+		return nullptr;
+	}
+
+	// Batch these by their data sources
+	TMap<UContentBrowserDataSource*, TArray<FContentBrowserItemData>> SourcesAndItems;
+	for (const FContentBrowserItem& Item : InItems)
+	{
+		FContentBrowserItem::FItemDataArrayView ItemDataArray = Item.GetInternalItems();
+		for (const FContentBrowserItemData& ItemData : ItemDataArray)
+		{
+			if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
+			{
+				TArray<FContentBrowserItemData>& ItemsForSource = SourcesAndItems.FindOrAdd(ItemDataSource);
+				ItemsForSource.Add(ItemData);
+			}
+		}
+	}
+
+	// Custom handling via a data source?
+	for (const auto& SourceAndItemsPair : SourcesAndItems)
+	{
+		if (TSharedPtr<FDragDropOperation> CustomDragOp = SourceAndItemsPair.Key->CreateCustomDragOperation(SourceAndItemsPair.Value))
+		{
+			return CustomDragOp;
+		}
+	}
+
+	// Generic handling
+	return FContentBrowserDataDragDropOp::New(InItems);
+}
+
+template <typename FuncType>
+bool HandleDragEventOverride(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent, FuncType Func)
+{
+	FContentBrowserItem::FItemDataArrayView ItemDataArray = InItem.GetInternalItems();
+	for (const FContentBrowserItemData& ItemData : ItemDataArray)
+	{
+		if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
+		{
+			if (Invoke(Func, ItemDataSource, ItemData, InDragDropEvent))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool ValidateGenericDragEvent(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent)
+{
+	if (!InItem.IsFolder())
 	{
 		return false;
 	}
 
-	bool bIsValidDrag = false;
-	TOptional<EMouseCursor::Type> NewDragCursor;
-
-	const bool bIsAssetPath = !ContentBrowserUtils::IsClassPath(TargetPath);
-
-	if (Operation->IsOfType<FAssetDragDropOp>())
+	if (TSharedPtr<FContentBrowserDataDragDropOp> ContentDragDropOp = InDragDropEvent.GetOperationAs<FContentBrowserDataDragDropOp>())
 	{
-		TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
-		const TArray<FAssetData>& DroppedAssets = DragDropOp->GetAssets();
-		const TArray<FString>& DroppedAssetPaths = DragDropOp->GetAssetPaths();
-
-		OutIsKnownDragOperation = true;
-
-		int32 NumAssetItems, NumClassItems;
-		ContentBrowserUtils::CountItemTypes(DroppedAssets, NumAssetItems, NumClassItems);
-
-		int32 NumAssetPaths, NumClassPaths;
-		ContentBrowserUtils::CountPathTypes(DroppedAssetPaths, NumAssetPaths, NumClassPaths);
-
-		if (DroppedAssetPaths.Num() == 1 && DroppedAssetPaths[0] == TargetPath)
+		if (EnumHasAnyFlags(InItem.GetItemCategory(), EContentBrowserItemFlags::Category_Collection))
 		{
-			DragDropOp->SetToolTip(LOCTEXT("OnDragFoldersOverFolder_CannotSelfDrop", "Cannot move or copy a folder onto itself"), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+			ContentDragDropOp->SetToolTip(LOCTEXT("OnDragFoldersOverFolder_CannotDropOnCollectionFolder", "Cannot drop onto a collection folder. Drop onto the collection in the collection view instead."), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
 		}
-		else if (bIsAssetPath)
+		else if (ContentDragDropOp->GetDraggedItems().Num() == 1 && ContentDragDropOp->GetDraggedItems()[0].GetVirtualPath() == InItem.GetVirtualPath())
 		{
-			const int32 TotalAssetDropItems = NumAssetItems + NumAssetPaths;
-			const int32 TotalClassDropItems = NumClassItems + NumClassPaths;
-
-			if (TotalAssetDropItems > 0)
-			{
-				bIsValidDrag = true;
-
-				const FText FirstItemText = DroppedAssets.Num() > 0 ? FText::FromName(DroppedAssets[0].AssetName) : FText::FromString(DroppedAssetPaths[0]);
-				const FText MoveOrCopyText = (TotalAssetDropItems > 1)
-					? FText::Format(LOCTEXT("OnDragAssetsOverFolder_MultipleAssetItems", "Move or copy '{0}' and {1} {1}|plural(one=other,other=others)"), FirstItemText, TotalAssetDropItems - 1)
-					: FText::Format(LOCTEXT("OnDragAssetsOverFolder_SingularAssetItems", "Move or copy '{0}'"), FirstItemText);
-
-				if (TotalClassDropItems > 0)
-				{
-					DragDropOp->SetToolTip(FText::Format(LOCTEXT("OnDragAssetsOverFolder_AssetAndClassItems", "{0}\n\n{1} C++ {1}|plural(one=item,other=items) will be ignored as they cannot be moved or copied"), MoveOrCopyText, NumClassItems), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OKWarn")));
-				}
-				else
-				{
-					DragDropOp->SetToolTip(MoveOrCopyText, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
-				}
-			}
-			else if (TotalClassDropItems > 0)
-			{
-				DragDropOp->SetToolTip(LOCTEXT("OnDragAssetsOverFolder_OnlyClassItems", "C++ items cannot be moved or copied"), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
-			}
+			ContentDragDropOp->SetToolTip(LOCTEXT("OnDragFoldersOverFolder_CannotSelfDrop", "Cannot move or copy a folder onto itself"), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
 		}
 		else
 		{
-			DragDropOp->SetToolTip(FText::Format(LOCTEXT("OnDragAssetsOverFolder_InvalidFolder", "'{0}' is not a valid place to drop assets or folders"), FText::FromString(TargetPath)), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+			int32 NumDraggedItems = ContentDragDropOp->GetDraggedItems().Num();
+			int32 NumCanMoveOrCopy = 0;
+			for (const FContentBrowserItem& DraggedItem : ContentDragDropOp->GetDraggedItems())
+			{
+				const bool bCanMoveOrCopy = DraggedItem.CanMove(InItem.GetVirtualPath()) || DraggedItem.CanCopy(InItem.GetVirtualPath());
+				if (bCanMoveOrCopy)
+				{
+					++NumCanMoveOrCopy;
+				}
+			}
+
+			if (NumCanMoveOrCopy == 0)
+			{
+				ContentDragDropOp->SetToolTip(LOCTEXT("OnDragFoldersOverFolder_CannotDrop", "Cannot move or copy to this folder"), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+			}
+			else
+			{
+				const FText FirstItemText = ContentDragDropOp->GetDraggedItems()[0].GetDisplayName();
+				const FText MoveOrCopyText = (NumCanMoveOrCopy > 1)
+					? FText::Format(LOCTEXT("OnDragAssetsOverFolder_MultipleItems", "Move or copy '{0}' and {1} {1}|plural(one=other,other=others)"), FirstItemText, NumDraggedItems - 1)
+					: FText::Format(LOCTEXT("OnDragAssetsOverFolder_SingularItems", "Move or copy '{0}'"), FirstItemText);
+
+				if (NumCanMoveOrCopy < NumDraggedItems)
+				{
+					ContentDragDropOp->SetToolTip(FText::Format(LOCTEXT("OnDragAssetsOverFolder_SomeInvalidItems", "{0}\n\n{1} {1}|plural(one=item,other=items) will be ignored as they cannot be moved or copied"), MoveOrCopyText, NumDraggedItems - NumCanMoveOrCopy), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OKWarn")));
+				}
+				else
+				{
+					ContentDragDropOp->SetToolTip(MoveOrCopyText, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+				}
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool HandleDragEnterItem(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent)
+{
+	// Custom handling via a data source?
+	if (HandleDragEventOverride(InItem, InDragDropEvent, &UContentBrowserDataSource::HandleDragEnterItem))
+	{
+		return true;
+	}
+
+	// Generic handling
+	return ValidateGenericDragEvent(InItem, InDragDropEvent);
+}
+
+bool HandleDragOverItem(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent)
+{
+	// Custom handling via a data source?
+	if (HandleDragEventOverride(InItem, InDragDropEvent, &UContentBrowserDataSource::HandleDragOverItem))
+	{
+		return true;
+	}
+
+	// Generic handling
+	return ValidateGenericDragEvent(InItem, InDragDropEvent);
+}
+
+bool HandleDragLeaveItem(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent)
+{
+	// Custom handling via a data source?
+	if (HandleDragEventOverride(InItem, InDragDropEvent, &UContentBrowserDataSource::HandleDragLeaveItem))
+	{
+		return true;
+	}
+
+	if (!InItem.IsFolder())
+	{
+		return false;
+	}
+
+	// Generic handling
+	if (TSharedPtr<FContentBrowserDataDragDropOp> ContentDragDropOp = InDragDropEvent.GetOperationAs<FContentBrowserDataDragDropOp>())
+	{
+		ContentDragDropOp->ResetToDefaultToolTip();
+		return true;
+	}
+
+	return false;
+}
+
+template <typename CanMoveOrCopyFuncType, typename BulkMoveOrCopyFuncType>
+void HandleDragDropMoveOrCopy(const FContentBrowserItem& InDropTargetItem, const TArray<FContentBrowserItem>& InDraggedItems, const TSharedPtr<SWidget>& InParentWidget, const FText InMoveOrCopyMsg, CanMoveOrCopyFuncType InCanMoveOrCopyFunc, BulkMoveOrCopyFuncType InBulkMoveOrCopyFunc)
+{
+	const FName InDropTargetPath = InDropTargetItem.GetVirtualPath();
+
+	// Batch these by their data sources
+	TMap<UContentBrowserDataSource*, TArray<FContentBrowserItemData>> SourcesAndItems;
+	for (const FContentBrowserItem& DraggedItem : InDraggedItems)
+	{
+		FContentBrowserItem::FItemDataArrayView ItemDataArray = DraggedItem.GetInternalItems();
+		for (const FContentBrowserItemData& ItemData : ItemDataArray)
+		{
+			if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
+			{
+				FText MoveOrCopyErrorMsg;
+				if (Invoke(InCanMoveOrCopyFunc, *ItemDataSource, ItemData, InDropTargetPath, &MoveOrCopyErrorMsg))
+				{
+					TArray<FContentBrowserItemData>& ItemsForSource = SourcesAndItems.FindOrAdd(ItemDataSource);
+					ItemsForSource.Add(ItemData);
+				}
+				else
+				{
+					AssetViewUtils::ShowErrorNotifcation(MoveOrCopyErrorMsg);
+				}
+			}
 		}
 	}
-	else if (Operation->IsOfType<FExternalDragOperation>())
+
+	// Execute the operation now
+	int32 NumMovedOrCopiedItems = 0;
+	for (const auto& SourceAndItemsPair : SourcesAndItems)
 	{
-		TSharedPtr<FExternalDragOperation> DragDropOp = StaticCastSharedPtr<FExternalDragOperation>(Operation);
-		OutIsKnownDragOperation = true;
-		bIsValidDrag = DragDropOp->HasFiles() && bIsAssetPath;
+		if (Invoke(InBulkMoveOrCopyFunc, *SourceAndItemsPair.Key, SourceAndItemsPair.Value, InDropTargetPath))
+		{
+			// This assumes that everything passed is moved or copied, which may not be true, but we've validated as best we can when building this array
+			NumMovedOrCopiedItems += SourceAndItemsPair.Value.Num();
+		}
 	}
 
-	// Set the default slashed circle if this drag is invalid and a drag operation hasn't set NewDragCursor to something custom
-	if (!bIsValidDrag && !NewDragCursor.IsSet())
+	// Show a message if the move or copy was successful
+	if (NumMovedOrCopiedItems > 0 && InParentWidget)
 	{
-		NewDragCursor = EMouseCursor::SlashedCircle;
+		const FText Message = FText::Format(InMoveOrCopyMsg, NumMovedOrCopiedItems, FText::FromName(InDropTargetPath));
+		const FVector2D& CursorPos = FSlateApplication::Get().GetCursorPos();
+		FSlateRect MessageAnchor(CursorPos.X, CursorPos.Y, CursorPos.X, CursorPos.Y);
+		ContentBrowserUtils::DisplayMessage(Message, MessageAnchor, InParentWidget.ToSharedRef());
 	}
-	Operation->SetCursorOverride(NewDragCursor);
-
-	return bIsValidDrag;
 }
 
-void DragDropHandler::HandleDropOnAssetFolder(const TSharedRef<SWidget>& ParentWidget, const TArray<FAssetData>& AssetList, const TArray<FString>& AssetPaths, const FString& TargetPath, const FText& TargetDisplayName, FExecuteCopyOrMove CopyActionHandler, FExecuteCopyOrMove MoveActionHandler, FExecuteCopyOrMove AdvancedCopyActionHandler)
+void HandleDragDropMove(const FContentBrowserItem& InDropTargetItem, const TArray<FContentBrowserItem>& InDraggedItems, const TSharedPtr<SWidget>& InParentWidget)
 {
-	// Remove any classes from the asset list
-	TArray<FAssetData> FinalAssetList = AssetList;
-	FinalAssetList.RemoveAll([](const FAssetData& AssetData)
-	{
-		return AssetData.AssetClass == NAME_Class;
-	});
-
-	// Remove any class paths from the list
-	TArray<FString> FinalAssetPaths = AssetPaths;
-	FinalAssetPaths.RemoveAll([](const FString& AssetPath)
-	{
-		return ContentBrowserUtils::IsClassPath(AssetPath);
-	});
-
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(TargetPath))
-	{
-		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
-		return;
-	}
-
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
-	const FText MoveCopyHeaderString = FText::Format(LOCTEXT("AssetViewDropMenuHeading", "Move/Copy to {0}"), TargetDisplayName);
-	MenuBuilder.BeginSection("PathAssetMoveCopy", MoveCopyHeaderString);
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DragDropMove", "Move Here"),
-			LOCTEXT("DragDropMoveTooltip", "Move the dragged items to this folder, preserving the structure of any copied folders."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]() { MoveActionHandler.ExecuteIfBound(FinalAssetList, FinalAssetPaths, TargetPath); }))
-		);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DragDropCopy", "Copy Here"),
-			LOCTEXT("DragDropCopyTooltip", "Copy the dragged items to this folder, preserving the structure of any copied folders."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]() { CopyActionHandler.ExecuteIfBound(FinalAssetList, FinalAssetPaths, TargetPath); }))
-			);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DragDropAdvancedCopy", "Advanced Copy Here"),
-			LOCTEXT("DragDropAdvancedCopyTooltip", "Copy the dragged items and any specified dependencies to this folder, afterwards fixing up any dependencies on copied files to the new files."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]() { AdvancedCopyActionHandler.ExecuteIfBound(FinalAssetList, FinalAssetPaths, TargetPath); }))
-		);
-	}
-	MenuBuilder.EndSection();
-
-	FSlateApplication::Get().PushMenu(
-		ParentWidget,
-		FWidgetPath(),
-		MenuBuilder.MakeWidget(),
-		FSlateApplication::Get().GetCursorPos(),
-		FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
-		);
+	return HandleDragDropMoveOrCopy(InDropTargetItem, InDraggedItems, InParentWidget, LOCTEXT("ItemsDroppedMove", "{0} {0}|plural(one=item,other=items) moved to '{1}'"), &UContentBrowserDataSource::CanMoveItem, &UContentBrowserDataSource::BulkMoveItems);
 }
+
+void HandleDragDropCopy(const FContentBrowserItem& InDropTargetItem, const TArray<FContentBrowserItem>& InDraggedItems, const TSharedPtr<SWidget>& InParentWidget)
+{
+	return HandleDragDropMoveOrCopy(InDropTargetItem, InDraggedItems, InParentWidget, LOCTEXT("ItemsDroppedCopy", "{0} {0}|plural(one=item,other=items) copied to '{1}'"), &UContentBrowserDataSource::CanCopyItem, &UContentBrowserDataSource::BulkCopyItems);
+}
+
+bool HandleDragDropOnItem(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent, const TSharedRef<SWidget>& InParentWidget)
+{
+	// Custom handling via a data source?
+	if (HandleDragEventOverride(InItem, InDragDropEvent, &UContentBrowserDataSource::HandleDragDropOnItem))
+	{
+		return true;
+	}
+
+	if (!InItem.IsFolder())
+	{
+		return false;
+	}
+
+	// Generic handling
+	if (TSharedPtr<FContentBrowserDataDragDropOp> ContentDragDropOp = InDragDropEvent.GetOperationAs<FContentBrowserDataDragDropOp>())
+	{
+		static const FName MenuName = "ContentBrowser.DragDropContextMenu";
+
+		UToolMenus* ToolMenus = UToolMenus::Get();
+		if (!ToolMenus->IsMenuRegistered(MenuName))
+		{
+			UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
+			FToolMenuSection& Section = Menu->AddSection("MoveCopy", LOCTEXT("MoveCopyMenuHeading_Generic", "Move/Copy..."));
+
+			Section.AddDynamicEntry("DragDropMoveCopy_Dynamic", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			{
+				const UContentBrowserDataMenuContext_DragDropMenu* ContextObject = InSection.FindContext<UContentBrowserDataMenuContext_DragDropMenu>();
+				checkf(ContextObject, TEXT("Required context UContentBrowserDataMenuContext_DragDropMenu was missing!"));
+
+				if (ContextObject->bCanMove)
+				{
+					InSection.AddMenuEntry(
+						"DragDropMove",
+						LOCTEXT("DragDropMove", "Move Here"),
+						LOCTEXT("DragDropMoveTooltip", "Move the dragged items to this folder, preserving the structure of any copied folders."),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([DropTargetItem = ContextObject->DropTargetItem, DraggedItems = ContextObject->DraggedItems, ParentWidget = ContextObject->ParentWidget]() { HandleDragDropMove(DropTargetItem, DraggedItems, ParentWidget.Pin()); }))
+						);
+				}
+
+				if (ContextObject->bCanCopy)
+				{
+					InSection.AddMenuEntry(
+						"DragDropCopy",
+						LOCTEXT("DragDropCopy", "Copy Here"),
+						LOCTEXT("DragDropCopyTooltip", "Copy the dragged items to this folder, preserving the structure of any copied folders."),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([DropTargetItem = ContextObject->DropTargetItem, DraggedItems = ContextObject->DraggedItems, ParentWidget = ContextObject->ParentWidget]() { HandleDragDropCopy(DropTargetItem, DraggedItems, ParentWidget.Pin()); }))
+						);
+				}
+			}));
+		}
+
+		if (UToolMenu* Menu = ToolMenus->ExtendMenu(MenuName))
+		{
+			// Update the section display name for the current drop target
+			Menu->AddSection("MoveCopy", FText::Format(LOCTEXT("MoveCopyMenuHeading_Fmt", "Move/Copy to {0}"), InItem.GetDisplayName()));
+		}
+
+		UContentBrowserDataMenuContext_DragDropMenu* ContextObject = NewObject<UContentBrowserDataMenuContext_DragDropMenu>();
+		ContextObject->DropTargetItem = InItem;
+		ContextObject->DraggedItems = ContentDragDropOp->GetDraggedItems();
+		ContextObject->bCanMove = false;
+		ContextObject->bCanCopy = false;
+		for (const FContentBrowserItem& DraggedItem : ContextObject->DraggedItems)
+		{
+			ContextObject->bCanMove |= DraggedItem.CanMove(ContextObject->DropTargetItem.GetVirtualPath());
+			ContextObject->bCanCopy |= DraggedItem.CanCopy(ContextObject->DropTargetItem.GetVirtualPath());
+
+			if (ContextObject->bCanMove && ContextObject->bCanCopy)
+			{
+				break;
+			}
+		}
+		ContextObject->ParentWidget = InParentWidget;
+
+		FToolMenuContext MenuContext(ContextObject);
+		TSharedRef<SWidget> MenuWidget = ToolMenus->GenerateWidget(MenuName, MenuContext);
+
+		FSlateApplication::Get().PushMenu(
+			InParentWidget,
+			FWidgetPath(),
+			MenuWidget,
+			FSlateApplication::Get().GetCursorPos(),
+			FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
+			);
+
+		return true;
+	}
+
+	return false;
+}
+
+} // namespace DragDropHandler
 
 #undef LOCTEXT_NAMESPACE

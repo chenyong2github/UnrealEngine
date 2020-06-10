@@ -84,16 +84,5 @@ class CONTENTBROWSER_API UContentBrowserAddNewContextMenuContext : public UObjec
 
 public:
 
-	UContentBrowserAddNewContextMenuContext() :
-		NumAssetPaths(0),
-		bShowGetContent(false),
-		bShowImport(false)
-	{
-	}
-
 	TWeakPtr<SContentBrowser> ContentBrowser;
-	int32 NumAssetPaths;
-	bool bShowGetContent;
-	bool bShowImport;
 };
-

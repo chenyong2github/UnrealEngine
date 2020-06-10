@@ -3,17 +3,40 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "AssetData.h"
+
+class SWidget;
+struct FContentBrowserItem;
 
 /** Common Content Browser drag-drop handler logic */
 namespace DragDropHandler
 {
-	DECLARE_DELEGATE_ThreeParams(FExecuteCopyOrMove, TArray<FAssetData> /*AssetList*/, TArray<FString> /*AssetPaths*/, FString /*TargetPath*/);
+	/**
+	 * Called to provide drag and drop handling when starting a drag event.
+	 * @return A drag operation, or null if no drag can be performed.
+	 */
+	TSharedPtr<FDragDropOperation> CreateDragOperation(TArrayView<const FContentBrowserItem> InItems);
 
-	/** Used by OnDragEnter, OnDragOver, and OnDrop to check and update the validity of a drag-drop operation on an asset folder in the Content Browser */
-	bool ValidateDragDropOnAssetFolder(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, const FString& TargetPath, bool& OutIsKnownDragOperation);
+	/**
+	 * Called to provide drag and drop handling when a drag event enters an item, such as performing validation and reporting error information.
+	 * @return True if the drag event can be handled (even if it won't be because it's invalid), or false to allow something else to deal with it instead.
+	 */
+	bool HandleDragEnterItem(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent);
 
-	/** Handle assets or asset paths being dropped onto an asset folder in the Content Browser - this drop should have been externally validated by ValidateDragDropOnAssetFolder */
-	void HandleDropOnAssetFolder(const TSharedRef<SWidget>& ParentWidget, const TArray<FAssetData>& AssetList, const TArray<FString>& AssetPaths, const FString& TargetPath, const FText& TargetDisplayName, FExecuteCopyOrMove CopyActionHandler, FExecuteCopyOrMove MoveActionHandler, FExecuteCopyOrMove AdvancedCopyActionHandler);
+	/**
+	 * Called to provide drag and drop handling while a drag event is over an item, such as performing validation and reporting error information.
+	 * @return True if the drag event can be handled (even if it won't be because it's invalid), or false to allow something else to deal with it instead.
+	 */
+	bool HandleDragOverItem(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent);
+
+	/**
+	 * Called to provide drag and drop handling when a drag event leaves an item, such as clearing any error information set during earlier validation.
+	 * @return True if the drag event can be handled (even if it won't be because it's invalid), or false to allow something else to deal with it instead.
+	 */
+	bool HandleDragLeaveItem(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent);
+
+	/**
+	 * Called to provide drag and drop handling when a drag event is dropped on an item.
+	 * @return True if the drag event can be handled (even if it wasn't because it was invalid), or false to allow something else to deal with it instead.
+	 */
+	bool HandleDragDropOnItem(const FContentBrowserItem& InItem, const FDragDropEvent& InDragDropEvent, const TSharedRef<SWidget>& InParentWidget);
 }
