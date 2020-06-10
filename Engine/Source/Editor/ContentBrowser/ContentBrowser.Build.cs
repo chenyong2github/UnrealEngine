@@ -31,6 +31,7 @@ public class ContentBrowser : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"AssetTools",
+				"ContentBrowserData",
 				"SourceControl",
 				"SourceControlWindows",
 				"WorkspaceMenuStructure",
@@ -56,8 +57,9 @@ public class ContentBrowser : ModuleRules
 		);
 		
 		PublicIncludePathModuleNames.AddRange(
-            new string[] {                
-                "IntroTutorials"
+            new string[] {
+				"ContentBrowserData",
+				"IntroTutorials"
             }
         );
 	}
