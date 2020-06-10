@@ -19,6 +19,7 @@
 #include "SAssetView.h"
 #include "Modules/ModuleManager.h"
 #include "ContentBrowserModule.h"
+#include "ContentBrowserDataFilter.h"
 #include "MRUFavoritesList.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "HAL/FileManager.h"
@@ -67,64 +68,6 @@ namespace FrontendFilterHelper
 /////////////////////////////////////////
 // FFrontendFilter_Text
 /////////////////////////////////////////
-
-/** Mapping of asset property tag aliases that can be used by text searches */
-class FFrontendFilter_AssetPropertyTagAliases
-{
-public:
-	static FFrontendFilter_AssetPropertyTagAliases& Get()
-	{
-		static FFrontendFilter_AssetPropertyTagAliases Singleton;
-		return Singleton;
-	}
-
-	/** Get the source tag for the given asset data and alias, or none if there is no match */
-	FName GetSourceTagFromAlias(const FAssetData& InAssetData, const FName InAlias)
-	{
-		TSharedPtr<TMap<FName, FName>>& AliasToSourceTagMapping = ClassToAliasTagsMapping.FindOrAdd(InAssetData.AssetClass);
-
-		if (!AliasToSourceTagMapping.IsValid())
-		{
-			static const FName NAME_DisplayName(TEXT("DisplayName"));
-
-			AliasToSourceTagMapping = MakeShared<TMap<FName, FName>>();
-
-			UClass* AssetClass = InAssetData.GetClass();
-			if (AssetClass)
-			{
-				TMap<FName, UObject::FAssetRegistryTagMetadata> AssetTagMetaData;
-				AssetClass->GetDefaultObject()->GetAssetRegistryTagMetadata(AssetTagMetaData);
-
-				for (const auto& AssetTagMetaDataPair : AssetTagMetaData)
-				{
-					if (!AssetTagMetaDataPair.Value.DisplayName.IsEmpty())
-					{
-						const FName DisplayName = MakeObjectNameFromDisplayLabel(AssetTagMetaDataPair.Value.DisplayName.ToString(), NAME_None);
-						AliasToSourceTagMapping->Add(DisplayName, AssetTagMetaDataPair.Key);
-					}
-				}
-
-				for (const auto& KeyValuePair : InAssetData.TagsAndValues)
-				{
-					if (FProperty* Field = FindFProperty<FProperty>(AssetClass, KeyValuePair.Key))
-					{
-						if (Field->HasMetaData(NAME_DisplayName))
-						{
-							const FName DisplayName = MakeObjectNameFromDisplayLabel(Field->GetMetaData(NAME_DisplayName), NAME_None);
-							AliasToSourceTagMapping->Add(DisplayName, KeyValuePair.Key);
-						}
-					}
-				}
-			}
-		}
-
-		return AliasToSourceTagMapping.IsValid() ? AliasToSourceTagMapping->FindRef(InAlias) : NAME_None;
-	}
-
-private:
-	/** Mapping from class name -> (alias -> source) */
-	TMap<FName, TSharedPtr<TMap<FName, FName>>> ClassToAliasTagsMapping;
-};
 
 /** Expression context which gathers up the names of any dynamic collections being referenced by the current query */
 class FFrontendFilter_GatherDynamicCollectionsExpressionContext : public ITextFilterExpressionContext
@@ -293,14 +236,22 @@ public:
 		if (bIncludeAssetPath)
 		{
 			// Get the full asset path, and also split it so we can compare each part in the filter
-			AssetPtr->PackageName.AppendString(AssetFullPath);
+			AssetPtr->GetVirtualPath().AppendString(AssetFullPath);
+			{
+				int32 LastSlashIndex = INDEX_NONE;
+				int32 LastDotIndex = INDEX_NONE;
+				if (AssetFullPath.FindLastChar(TEXT('/'), LastSlashIndex) && AssetFullPath.FindLastChar(TEXT('.'), LastDotIndex) && LastDotIndex > LastSlashIndex)
+				{
+					AssetFullPath.LeftInline(LastDotIndex, /*bAllowShrinking*/false);
+				}
+			}
 			AssetFullPath.ParseIntoArray(AssetSplitPath, TEXT("/"));
 			AssetFullPath.ToUpperInline();
 
 			if (bIncludeClassName)
 			{
 				// Get the full export text path as people sometimes search by copying this (requires class and asset path search to be enabled in order to match)
-				AssetPtr->GetExportTextName(AssetExportTextName);
+				AssetPtr->AppendItemReference(AssetExportTextName);
 				AssetExportTextName.ToUpperInline();
 			}
 		}
@@ -312,17 +263,21 @@ public:
 
 		if (CollectionManager)
 		{
-			CollectionManager->GetCollectionsContainingObject(AssetPtr->ObjectPath, ECollectionShareType::CST_All, AssetCollectionNames, ECollectionRecursionFlags::SelfAndChildren);
-
-			// Test the dynamic collections from the active query against the current asset
-			// We can do this as a flat list since FFrontendFilter_GatherDynamicCollectionsExpressionContext has already taken care of processing the recursion
-			for (const FCollectionNameType& DynamicCollection : ReferencedDynamicCollections)
+			FName ItemCollectionId;
+			if (AssetPtr->TryGetCollectionId(ItemCollectionId))
 			{
-				bool bPassesCollectionFilter = false;
-				CollectionManager->TestDynamicQuery(DynamicCollection.Name, DynamicCollection.Type, *this, bPassesCollectionFilter);
-				if (bPassesCollectionFilter)
+				CollectionManager->GetCollectionsContainingObject(ItemCollectionId, ECollectionShareType::CST_All, AssetCollectionNames, ECollectionRecursionFlags::SelfAndChildren);
+
+				// Test the dynamic collections from the active query against the current asset
+				// We can do this as a flat list since FFrontendFilter_GatherDynamicCollectionsExpressionContext has already taken care of processing the recursion
+				for (const FCollectionNameType& DynamicCollection : ReferencedDynamicCollections)
 				{
-					AssetCollectionNames.AddUnique(DynamicCollection.Name);
+					bool bPassesCollectionFilter = false;
+					CollectionManager->TestDynamicQuery(DynamicCollection.Name, DynamicCollection.Type, *this, bPassesCollectionFilter);
+					if (bPassesCollectionFilter)
+					{
+						AssetCollectionNames.AddUnique(DynamicCollection.Name);
+					}
 				}
 			}
 		}
@@ -369,7 +324,7 @@ public:
 
 	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
 	{
-		if (InValue.CompareName(AssetPtr->AssetName, InTextComparisonMode))
+		if (InValue.CompareName(AssetPtr->GetItemName(), InTextComparisonMode))
 		{
 			return true;
 		}
@@ -392,7 +347,8 @@ public:
 
 		if (bIncludeClassName)
 		{
-			if (InValue.CompareName(AssetPtr->AssetClass, InTextComparisonMode))
+			const FContentBrowserItemDataAttributeValue ClassValue = AssetPtr->GetItemAttribute(NAME_Class);
+			if (ClassValue.IsValid() && InValue.CompareName(ClassValue.GetValue<FName>(), InTextComparisonMode))
 			{
 				return true;
 			}
@@ -432,7 +388,7 @@ public:
 				return false;
 			}
 
-			const bool bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->AssetName, InValue, InTextComparisonMode);
+			const bool bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->GetItemName(), InValue, InTextComparisonMode);
 			return (InComparisonOperation == ETextFilterComparisonOperation::Equal) ? bIsMatch : !bIsMatch;
 		}
 
@@ -449,13 +405,12 @@ public:
 			bool bIsMatch = false;
 			if (InTextComparisonMode == ETextFilterTextComparisonMode::Partial)
 			{
-				bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->ObjectPath, InValue, InTextComparisonMode);
+				bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->GetVirtualPath(), InValue, InTextComparisonMode);
 			}
 			else
 			{
-				bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->ObjectPath, InValue, InTextComparisonMode)
-					|| TextFilterUtils::TestBasicStringExpression(AssetPtr->PackageName, InValue, InTextComparisonMode)
-					|| TextFilterUtils::TestBasicStringExpression(AssetPtr->PackagePath, InValue, InTextComparisonMode);
+				bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->GetVirtualPath(), InValue, InTextComparisonMode)
+					|| (!AssetFullPath.IsEmpty() && TextFilterUtils::TestBasicStringExpression(AssetFullPath, InValue, InTextComparisonMode));
 			}
 			return (InComparisonOperation == ETextFilterComparisonOperation::Equal) ? bIsMatch : !bIsMatch;
 		}
@@ -469,7 +424,8 @@ public:
 				return false;
 			}
 
-			const bool bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->AssetClass, InValue, InTextComparisonMode);
+			const FContentBrowserItemDataAttributeValue ClassValue = AssetPtr->GetItemAttribute(NAME_Class);
+			const bool bIsMatch = ClassValue.IsValid() && TextFilterUtils::TestBasicStringExpression(ClassValue.GetValue<FName>(), InValue, InTextComparisonMode);
 			return (InComparisonOperation == ETextFilterComparisonOperation::Equal) ? bIsMatch : !bIsMatch;
 		}
 
@@ -497,28 +453,10 @@ public:
 
 		// Generic handling for anything in the asset meta-data
 		{
-			auto GetMetaDataValue = [this, &InKey](FString& OutMetaDataValue) -> bool
+			const FContentBrowserItemDataAttributeValue AttributeValue = AssetPtr->GetItemAttribute(InKey);
+			if (AttributeValue.IsValid())
 			{
-				// Check for a literal key
-				if (AssetPtr->GetTagValue(InKey, OutMetaDataValue))
-				{
-					return true;
-				}
-
-				// Check for an alias key
-				const FName LiteralKey = FFrontendFilter_AssetPropertyTagAliases::Get().GetSourceTagFromAlias(*AssetPtr, InKey);
-				if (!LiteralKey.IsNone() && AssetPtr->GetTagValue(LiteralKey, OutMetaDataValue))
-				{
-					return true;
-				}
-
-				return false;
-			};
-
-			FString MetaDataValue;
-			if (GetMetaDataValue(MetaDataValue))
-			{
-				return TextFilterUtils::TestComplexExpression(MetaDataValue, InValue, InComparisonOperation, InTextComparisonMode);
+				return TextFilterUtils::TestComplexExpression(AttributeValue.GetValue<FString>(), InValue, InComparisonOperation, InTextComparisonMode);
 			}
 		}
 
@@ -725,25 +663,28 @@ void FFrontendFilter_CheckedOut::ActiveStateChanged(bool bActive)
 	{
 		RequestStatus();
 	}
-	else
-	{
-		OpenFilenames.Empty();
-	}
 }
 
-void FFrontendFilter_CheckedOut::SetCurrentFilter(const FARFilter& InBaseFilter)
+void FFrontendFilter_CheckedOut::SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter)
 {
 	bSourceControlEnabled = ISourceControlModule::Get().IsEnabled();
 }
 
 bool FFrontendFilter_CheckedOut::PassesFilter(FAssetFilterType InItem) const
 {
-	if (!bSourceControlEnabled || !OpenFilenames.Contains(InItem.AssetName))
+	if (!bSourceControlEnabled)
 	{
 		return false;
 	}
 
-	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(SourceControlHelpers::PackageFilename(InItem.PackageName.ToString()), EStateCacheUsage::Use);
+	FString ItemDiskPath;
+	if (!InItem.GetItemPhysicalPath(ItemDiskPath))
+	{
+		return false;
+	}
+	ItemDiskPath = FPaths::ConvertRelativePathToFull(MoveTemp(ItemDiskPath));
+
+	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ItemDiskPath, EStateCacheUsage::Use);
 	return SourceControlState.IsValid() && (SourceControlState->IsCheckedOut() || SourceControlState->IsAdded());
 }
 
@@ -761,23 +702,6 @@ void FFrontendFilter_CheckedOut::RequestStatus()
 
 void FFrontendFilter_CheckedOut::SourceControlOperationComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult)
 {
-	OpenFilenames.Reset();
-
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-
-	TArray<FSourceControlStateRef> CheckedOutFiles = SourceControlProvider.GetCachedStateByPredicate(
-		[](const FSourceControlStateRef& State) { return State->IsCheckedOut() || State->IsAdded(); }
-	);
-	
-	FString PathPart;
-	FString FilenamePart;
-	FString ExtensionPart;
-	for (int32 i = 0; i < CheckedOutFiles.Num(); ++i)
-	{
-		FPaths::Split(CheckedOutFiles[i]->GetFilename(), PathPart, FilenamePart, ExtensionPart);
-		OpenFilenames.Add(FName(*FilenamePart));
-	}
-
 	BroadcastChangedEvent();
 }
 
@@ -805,7 +729,7 @@ void FFrontendFilter_NotSourceControlled::ActiveStateChanged(bool bActive)
 	}
 }
 
-void FFrontendFilter_NotSourceControlled::SetCurrentFilter(const FARFilter& InBaseFilter)
+void FFrontendFilter_NotSourceControlled::SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter)
 {
 	bSourceControlEnabled = ISourceControlModule::Get().IsEnabled();
 }
@@ -823,7 +747,14 @@ bool FFrontendFilter_NotSourceControlled::PassesFilter(FAssetFilterType InItem) 
 		return false;
 	}
 
-	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(SourceControlHelpers::PackageFilename(InItem.PackageName.ToString()), EStateCacheUsage::Use);
+	FString ItemDiskPath;
+	if (!InItem.GetItemPhysicalPath(ItemDiskPath))
+	{
+		return false;
+	}
+	ItemDiskPath = FPaths::ConvertRelativePathToFull(MoveTemp(ItemDiskPath));
+
+	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ItemDiskPath, EStateCacheUsage::Use);
 	if (!SourceControlState.IsValid())
 	{
 		return false;
@@ -891,7 +822,7 @@ void FFrontendFilter_Modified::ActiveStateChanged(bool bActive)
 
 bool FFrontendFilter_Modified::PassesFilter(FAssetFilterType InItem) const
 {
-	return DirtyPackageNames.Contains(InItem.PackageName);
+	return InItem.IsDirty();
 }
 
 void FFrontendFilter_Modified::OnPackageDirtyStateUpdated(UPackage* Package)
@@ -902,32 +833,19 @@ void FFrontendFilter_Modified::OnPackageDirtyStateUpdated(UPackage* Package)
 	}
 }
 
-void FFrontendFilter_Modified::SetCurrentFilter(const FARFilter& InBaseFilter)
-{
-	DirtyPackageNames.Reset();
-
-	const UPackage* TransientPackage = GetTransientPackage();
-	if (TransientPackage)
-	{
-		for (TObjectIterator<UPackage> PackageIter; PackageIter; ++PackageIter)
-		{
-			UPackage* CurPackage = *PackageIter;
-			if (CurPackage && CurPackage->IsDirty())
-			{
-				DirtyPackageNames.Add(CurPackage->GetFName());
-			}
-		}
-	}
-}
-
 /////////////////////////////////////////
 // FFrontendFilter_ReplicatedBlueprint
 /////////////////////////////////////////
 
 bool FFrontendFilter_ReplicatedBlueprint::PassesFilter(FAssetFilterType InItem) const
 {
-	const int32 NumReplicatedProperties = InItem.GetTagValueRef<int32>(FBlueprintTags::NumReplicatedProperties);
-	return NumReplicatedProperties > 0;
+	const FContentBrowserItemDataAttributeValue AttributeValue = InItem.GetItemAttribute(FBlueprintTags::NumReplicatedProperties);
+	if (AttributeValue.IsValid())
+	{
+		const int32 NumReplicatedProperties = AttributeValue.GetValue<int32>();
+		return NumReplicatedProperties > 0;
+	}
+	return false;
 }
 
 /////////////////////////////////////////
@@ -964,10 +882,10 @@ FText FFrontendFilter_ArbitraryComparisonOperation::GetToolTipText() const
 
 bool FFrontendFilter_ArbitraryComparisonOperation::PassesFilter(FAssetFilterType InItem) const
 {
-	FString TagValue;
-	if (InItem.GetTagValue(TagName, TagValue))
+	const FContentBrowserItemDataAttributeValue AttributeValue = InItem.GetItemAttribute(TagName);
+	if (AttributeValue.IsValid())
 	{
-		return TextFilterUtils::TestComplexExpression(TagValue, TargetTagValue, ComparisonOp, ETextFilterTextComparisonMode::Exact);
+		return TextFilterUtils::TestComplexExpression(AttributeValue.GetValue<FString>(), TargetTagValue, ComparisonOp, ETextFilterTextComparisonMode::Exact);
 	}
 	else
 	{
@@ -1114,11 +1032,11 @@ FFrontendFilter_ShowOtherDevelopers::FFrontendFilter_ShowOtherDevelopers(TShared
 	TextFilterUtils::TryConvertWideToAnsi(BaseDeveloperPath, BaseDeveloperPathAnsi);
 }
 
-void FFrontendFilter_ShowOtherDevelopers::SetCurrentFilter(const FARFilter& InFilter)
+void FFrontendFilter_ShowOtherDevelopers::SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter)
 {
-	if ( InFilter.PackagePaths.Num() == 1 )
+	if ( InSourcePaths.Num() == 1 )
 	{
-		const FString PackagePath = InFilter.PackagePaths[0].ToString() + TEXT("/");
+		const FString PackagePath = InSourcePaths[0].ToString() + TEXT("/");
 		
 		// If the path starts with the base developer path, and is not the path itself then only one developer path is selected
 		bIsOnlyOneDeveloperPathSelected = PackagePath.StartsWith(BaseDeveloperPath) && PackagePath.Len() != BaseDeveloperPath.Len();
@@ -1138,15 +1056,24 @@ bool FFrontendFilter_ShowOtherDevelopers::PassesFilter(FAssetFilterType InItem) 
 		// Never hide developer assets when a single developer folder is selected.
 		if ( !bIsOnlyOneDeveloperPathSelected )
 		{
+			// TODO: Have attribute flags for this so you can tell from the item whether it's a developer folder, and also whether it's yours
 			// If selecting multiple folders, the Developers folder/parent folder, or "All Assets", hide assets which are found in the development folder unless they are in the current user's folder
-			const bool bPackageInDeveloperFolder = !TextFilterUtils::NameStrincmp(InItem.PackagePath, BaseDeveloperPath, BaseDeveloperPathAnsi, BaseDeveloperPath.Len());
+			bool bPackageInDeveloperFolder = !TextFilterUtils::NameStrincmp(InItem.GetVirtualPath(), BaseDeveloperPath, BaseDeveloperPathAnsi, BaseDeveloperPath.Len());
 			if ( bPackageInDeveloperFolder )
 			{
-				const FString PackagePath = InItem.PackagePath.ToString() + TEXT("/");
-				const bool bPackageInUserDeveloperFolder = PackagePath.StartsWith(UserDeveloperPath);
-				if ( !bPackageInUserDeveloperFolder )
+				// Test again using only the path part to avoid filtering files directly in the Developers folder
+				// This happens after the above check to avoid string manipulation when not required
+				FString PackagePath = FPaths::GetPath(InItem.GetVirtualPath().ToString());
+				bPackageInDeveloperFolder = PackagePath.StartsWith(BaseDeveloperPath);
+				if ( bPackageInDeveloperFolder )
 				{
-					return false;
+					PackagePath /= FString();
+
+					const bool bPackageInUserDeveloperFolder = PackagePath.StartsWith(UserDeveloperPath);
+					if ( !bPackageInUserDeveloperFolder )
+					{
+						return false;
+					}
 				}
 			}
 		}
@@ -1180,9 +1107,10 @@ FFrontendFilter_ShowRedirectors::FFrontendFilter_ShowRedirectors(TSharedPtr<FFro
 	RedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
 }
 
-void FFrontendFilter_ShowRedirectors::SetCurrentFilter(const FARFilter& InFilter)
+void FFrontendFilter_ShowRedirectors::SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter)
 {
-	bAreRedirectorsInBaseFilter = InFilter.ClassNames.Contains(RedirectorClassName);
+	const FContentBrowserDataClassFilter* ClassFilter = InBaseFilter.ExtraFilters.FindFilter<FContentBrowserDataClassFilter>();
+	bAreRedirectorsInBaseFilter = ClassFilter && ClassFilter->ClassNamesToInclude.Contains(RedirectorClassName);
 }
 
 bool FFrontendFilter_ShowRedirectors::PassesFilter(FAssetFilterType InItem) const
@@ -1190,7 +1118,8 @@ bool FFrontendFilter_ShowRedirectors::PassesFilter(FAssetFilterType InItem) cons
 	// Never hide redirectors if they are explicitly searched for
 	if ( !bAreRedirectorsInBaseFilter )
 	{
-		return InItem.AssetClass != RedirectorClassName;
+		const FContentBrowserItemDataAttributeValue ClassValue = InItem.GetItemAttribute(NAME_Class);
+		return !ClassValue.IsValid() || ClassValue.GetValue<FName>() != RedirectorClassName;
 	}
 
 	return true;
@@ -1241,21 +1170,25 @@ bool FFrontendFilter_InUseByLoadedLevels::PassesFilter(FAssetFilterType InItem) 
 {
 	bool bObjectInUse = false;
 
-	if (UObject* Asset = InItem.FastGetAsset(false))
+	FAssetData ItemAssetData;
+	if (InItem.Legacy_TryGetAssetData(ItemAssetData))
 	{
-		const bool bUnreferenced = !Asset->HasAnyMarks( OBJECTMARK_TagExp );
-		const bool bIndirectlyReferencedObject = Asset->HasAnyMarks( OBJECTMARK_TagImp );
-		const bool bRejectObject =
-			Asset->GetOuter() == NULL || // Skip objects with null outers
-			Asset->HasAnyFlags( RF_Transient ) || // Skip transient objects (these shouldn't show up in the CB anyway)
-			Asset->IsPendingKill() || // Objects that will be garbage collected 
-			bUnreferenced || // Unreferenced objects 
-			bIndirectlyReferencedObject; // Indirectly referenced objects
-
-		if( !bRejectObject && Asset->HasAnyFlags( RF_Public ) )
+		if (UObject* Asset = ItemAssetData.FastGetAsset(false))
 		{
-			// The object is in use 
-			bObjectInUse = true;
+			const bool bUnreferenced = !Asset->HasAnyMarks(OBJECTMARK_TagExp);
+			const bool bIndirectlyReferencedObject = Asset->HasAnyMarks(OBJECTMARK_TagImp);
+			const bool bRejectObject =
+				Asset->GetOuter() == NULL || // Skip objects with null outers
+				Asset->HasAnyFlags(RF_Transient) || // Skip transient objects (these shouldn't show up in the CB anyway)
+				Asset->IsPendingKill() || // Objects that will be garbage collected 
+				bUnreferenced || // Unreferenced objects 
+				bIndirectlyReferencedObject; // Indirectly referenced objects
+
+			if (!bRejectObject && Asset->HasAnyFlags(RF_Public))
+			{
+				// The object is in use 
+				bObjectInUse = true;
+			}
 		}
 	}
 
@@ -1304,7 +1237,12 @@ void FFrontendFilter_UsedInAnyLevel::ActiveStateChanged(bool bActive)
 
 bool FFrontendFilter_UsedInAnyLevel::PassesFilter(FAssetFilterType InItem) const	
 {
-	return LevelsDependencies.Contains(InItem.PackageName);
+	FAssetData ItemAssetData;
+	if (InItem.Legacy_TryGetAssetData(ItemAssetData))
+	{
+		return LevelsDependencies.Contains(ItemAssetData.PackageName);
+	}
+	return false;
 }
 
 /////////////////////////////////////////
@@ -1341,7 +1279,12 @@ void FFrontendFilter_NotUsedInAnyLevel::ActiveStateChanged(bool bActive)
 
 bool FFrontendFilter_NotUsedInAnyLevel::PassesFilter(FAssetFilterType InItem) const
 {
-	return !LevelsDependencies.Contains(InItem.PackageName);
+	FAssetData ItemAssetData;
+	if (InItem.Legacy_TryGetAssetData(ItemAssetData))
+	{
+		return !LevelsDependencies.Contains(ItemAssetData.PackageName);
+	}
+	return false;
 }
 
 
@@ -1368,10 +1311,15 @@ void FFrontendFilter_Recent::ActiveStateChanged(bool bActive)
 
 bool FFrontendFilter_Recent::PassesFilter(FAssetFilterType InItem) const
 {
-	return RecentPackagePaths.Contains(InItem.PackageName);
+	FAssetData ItemAssetData;
+	if (InItem.Legacy_TryGetAssetData(ItemAssetData))
+	{
+		return RecentPackagePaths.Contains(ItemAssetData.PackageName);
+	}
+	return false;
 }
 
-void FFrontendFilter_Recent::SetCurrentFilter(const FARFilter& InBaseFilter)
+void FFrontendFilter_Recent::SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter)
 {
 	RefreshRecentPackagePaths();
 }

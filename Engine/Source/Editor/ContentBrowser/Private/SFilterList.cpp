@@ -19,7 +19,10 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Styling/SlateTypes.h"
 #include "EditorStyleSet.h"
-#include "AssetRegistryModule.h"
+#include "IContentBrowserDataModule.h"
+#include "ContentBrowserDataSource.h"
+#include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserUtils.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "FrontendFilters.h"
@@ -738,19 +741,49 @@ void SFilterList::RemoveAllButThis(const TSharedRef<SFilter>& FilterToKeep)
 	OnFilterChanged.ExecuteIfBound();
 }
 
-void SFilterList::DisableFiltersThatHideAssets(const TArray<FAssetData>& AssetDataList)
+void SFilterList::DisableFiltersThatHideItems(TArrayView<const FContentBrowserItem> ItemList)
 {
-	if (HasAnyFilters())
+	if (HasAnyFilters() && ItemList.Num() > 0)
 	{
-		// Determine if we should disable backend filters. If any asset fails the combined backend filter, disable them all.
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FARFilter CombinedBackendFilter = GetCombinedBackendFilter();
+		// Determine if we should disable backend filters. If any item fails the combined backend filter, disable them all.
 		bool bDisableAllBackendFilters = false;
-		TArray<FAssetData> LocalAssetDataList = AssetDataList;
-		AssetRegistryModule.Get().RunAssetsThroughFilter(LocalAssetDataList, CombinedBackendFilter);
-		if (LocalAssetDataList.Num() != AssetDataList.Num())
 		{
-			bDisableAllBackendFilters = true;
+			FContentBrowserDataCompiledFilter CompiledDataFilter;
+			{
+				static const FName RootPath = "/";
+
+				UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+
+				FContentBrowserDataFilter DataFilter;
+				DataFilter.bRecursivePaths = true;
+				ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(GetCombinedBackendFilter(), nullptr, nullptr, DataFilter);
+
+				ContentBrowserData->CompileFilter(RootPath, DataFilter, CompiledDataFilter);
+			}
+
+			for (const FContentBrowserItem& Item : ItemList)
+			{
+				if (!Item.IsFile())
+				{
+					continue;
+				}
+
+				FContentBrowserItem::FItemDataArrayView InternalItems = Item.GetInternalItems();
+				for (const FContentBrowserItemData& InternalItem : InternalItems)
+				{
+					UContentBrowserDataSource* ItemDataSource = InternalItem.GetOwnerDataSource();
+					if (!ItemDataSource->DoesItemPassFilter(InternalItem, CompiledDataFilter))
+					{
+						bDisableAllBackendFilters = true;
+						break;
+					}
+				}
+
+				if (bDisableAllBackendFilters)
+				{
+					break;
+				}
+			}
 		}
 
 		// Iterate over all enabled filters and disable any frontend filters that would hide any of the supplied assets
@@ -762,9 +795,9 @@ void SFilterList::DisableFiltersThatHideAssets(const TArray<FAssetData>& AssetDa
 			{
 				if (const TSharedPtr<FFrontendFilter>& FrontendFilter = Filter->GetFrontendFilter())
 				{
-					for (const FAssetData& AssetData : AssetDataList)
+					for (const FContentBrowserItem& Item : ItemList)
 					{
-						if (!FrontendFilter->IsInverseFilter() && !FrontendFilter->PassesFilter(AssetData))
+						if (!FrontendFilter->IsInverseFilter() && !FrontendFilter->PassesFilter(Item))
 						{
 							// This is a frontend filter and at least one asset did not pass.
 							Filter->SetEnabled(false, false);

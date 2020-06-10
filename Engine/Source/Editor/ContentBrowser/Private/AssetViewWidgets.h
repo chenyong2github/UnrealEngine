@@ -28,7 +28,7 @@
 
 class SAssetListItem;
 class SAssetTileItem;
-struct FAssetViewItem;
+class FAssetViewItem;
 
 template <typename ItemType> class SListView;
 
@@ -63,9 +63,6 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown( const FGeometry& InGeometry, const FKeyEvent& InKeyEvent ) override;
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-
-	/** Returns true if a widget is currently generated for a given asset */
-	bool HasWidgetForAsset(const FName& AssetPathName);
 };
 
 /** The list view mode of the asset view */
@@ -75,9 +72,6 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown( const FGeometry& InGeometry, const FKeyEvent& InKeyEvent ) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-
-	/** Returns true if a widget is currently generated for a given asset */
-	bool HasWidgetForAsset(const FName& AssetPathName);
 };
 
 /** The columns view mode of the asset view */
@@ -95,8 +89,6 @@ class SAssetViewItem : public SCompoundWidget
 	friend class SAssetViewItemToolTip;
 
 public:
-	DECLARE_DELEGATE_ThreeParams( FOnAssetsOrPathsDragDropped, const TArray<FAssetData>& /*AssetList*/, const TArray<FString>& /*AssetPaths*/, const FString& /*DestinationPath*/);
-	DECLARE_DELEGATE_TwoParams( FOnFilesDragDropped, const TArray<FString>& /*FileNames*/, const FString& /*DestinationPath*/);
 
 	SLATE_BEGIN_ARGS( SAssetViewItem )
 		: _ShouldAllowToolTip(true)
@@ -126,12 +118,6 @@ public:
 
 		/** The string in the title to highlight (used when searching by string) */
 		SLATE_ATTRIBUTE(FText, HighlightText)
-
-		/** Delegate for when assets or asset paths are dropped on this item, if it is a folder */
-		SLATE_EVENT( FOnAssetsOrPathsDragDropped, OnAssetsOrPathsDragDropped )
-
-		/** Delegate for when a list of files is dropped on this folder (if it is a folder) from an external source */
-		SLATE_EVENT( FOnFilesDragDropped, OnFilesDragDropped )
 
 		/** Delegate to call (if bound) to check if it is valid to get a custom tooltip for this view item */
 		SLATE_EVENT(FOnIsAssetValidForCustomToolTip, OnIsAssetValidForCustomToolTip)
@@ -173,9 +159,6 @@ public:
 	FText GetNameText() const;
 
 protected:
-	/** Used by OnDragEnter, OnDragOver, and OnDrop to check and update the validity of the drag operation */
-	bool ValidateDragDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, bool& OutIsKnownDragOperation ) const;
-
 	/** Check to see if the name should be read-only */
 	bool IsNameReadOnly() const;
 
@@ -228,25 +211,19 @@ protected:
 	void AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& InfoBox, const FText& Key, const FText& Value, bool bImportant) const;
 
 	/** Updates the bPackageDirty flag */
-	void UpdatePackageDirtyState();
+	void UpdateDirtyState();
 
-	/** Returns true if the package that contains the asset that this item represents is dirty. */
+	/** Returns true if the item is dirty. */
 	bool IsDirty() const;
 
 	/** Update the source control state of this item if required */
 	void UpdateSourceControlState(float InDeltaTime);
-
-	/** Cache the package name from the asset we are representing */
-	void CachePackageName();
-
+	
 	/** Cache the display tags for this item */
 	void CacheDisplayTags();
 
 	/** Whether this item is a folder */
 	bool IsFolder() const;
-
-	/** Set mips to be resident while this (loaded) asset is visible */
-	void SetForceMipLevelsToBeResident(bool bForce) const;
 
 	/** Delegate handler for when the source control provider changes */
 	void HandleSourceControlProviderChanged(class ISourceControlProvider& OldProvider, class ISourceControlProvider& NewProvider);
@@ -279,18 +256,6 @@ protected:
 
 	/** The data for this item */
 	TSharedPtr<FAssetViewItem> AssetItem;
-
-	/** The package containing the asset that this item represents */
-	TWeakObjectPtr<UPackage> AssetPackage;
-
-	/** The asset type actions associated with the asset that this item represents */
-	TWeakPtr<IAssetTypeActions> AssetTypeActions;
-
-	/** The cached name of the package containing the asset that this item represents */
-	FString CachedPackageName;
-
-	/** The cached filename of the package containing the asset that this item represents */
-	FString CachedPackageFileName;
 
 	/** The cached display tags for this item */
 	TArray<FTagDisplayItem> CachedDisplayTags;
@@ -334,20 +299,14 @@ protected:
 	/** Cached brushes for the dirty state */
 	const FSlateBrush* AssetDirtyBrush;
 
-	/** Cached flag describing if the package is dirty */
-	bool bPackageDirty;
+	/** Cached flag describing if the item is dirty */
+	bool bItemDirty;
 
 	/** Flag indicating whether we have requested initial source control state */
 	bool bSourceControlStateRequested;
 
 	/** Delay timer before we request a source control state update, to prevent spam */
 	float SourceControlStateDelay;
-
-	/** Delegate for when a list of assets or asset paths are dropped on this item, if it is a folder */
-	FOnAssetsOrPathsDragDropped OnAssetsOrPathsDragDropped;
-
-	/** Delegate for when a list of files is dropped on this item (if it is a folder) from an external source */
-	FOnFilesDragDropped OnFilesDragDropped;
 
 	/** True when a drag is over this item with a drag operation that we know how to handle. The operation itself may not be valid to drop. */
 	bool bDraggedOver;
@@ -420,12 +379,6 @@ public:
 
 		/** Whether the item is selected in the view */
 		SLATE_ARGUMENT( FIsSelected, IsSelected )
-
-		/** Delegate for when assets or asset paths are dropped on this item, if it is a folder */
-		SLATE_EVENT( FOnAssetsOrPathsDragDropped, OnAssetsOrPathsDragDropped )
-
-		/** Delegate for when a list of files is dropped on this folder (if it is a folder) from an external source */
-		SLATE_EVENT( FOnFilesDragDropped, OnFilesDragDropped )
 
 		/** Delegate to call (if bound) to check if it is valid to get a custom tooltip for this view item */
 		SLATE_EVENT(FOnIsAssetValidForCustomToolTip, OnIsAssetValidForCustomToolTip)
@@ -538,12 +491,6 @@ public:
 		/** Whether the item is selected in the view */
 		SLATE_ARGUMENT( FIsSelected, IsSelected )
 
-		/** Delegate for when assets or asset paths are dropped on this item, if it is a folder */
-		SLATE_EVENT( FOnAssetsOrPathsDragDropped, OnAssetsOrPathsDragDropped )
-
-		/** Delegate for when a list of files is dropped on this folder (if it is a folder) from an external source */
-		SLATE_EVENT( FOnFilesDragDropped, OnFilesDragDropped )
-
 		/** Delegate to call (if bound) to check if it is valid to get a custom tooltip for this view item */
 		SLATE_EVENT(FOnIsAssetValidForCustomToolTip, OnIsAssetValidForCustomToolTip)
 
@@ -624,12 +571,6 @@ public:
 		/** The string in the title to highlight (used when searching by string) */
 		SLATE_ATTRIBUTE( FText, HighlightText )
 
-		/** Delegate for when assets or asset paths are dropped on this item, if it is a folder */
-		SLATE_EVENT( FOnAssetsOrPathsDragDropped, OnAssetsOrPathsDragDropped )
-
-		/** Delegate for when a list of files is dropped on this folder (if it is a folder) from an external source */
-		SLATE_EVENT( FOnFilesDragDropped, OnFilesDragDropped )
-
 		/** Delegate to call (if bound) to check if it is valid to get a custom tooltip for this view item */
 		SLATE_EVENT(FOnIsAssetValidForCustomToolTip, OnIsAssetValidForCustomToolTip)
 
@@ -654,9 +595,6 @@ public:
 	virtual void OnAssetDataChanged() override;
 
 private:
-	/** Gets the tool tip text for the name */
-	FString GetAssetNameToolTipText() const;
-
 	/** Gets the path to this asset */
 	FText GetAssetPathText() const;
 

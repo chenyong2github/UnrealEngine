@@ -900,7 +900,7 @@ void FAssetManagerEditorModule::ExtendContentBrowserAssetSelectionMenu()
 	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-		if (Context && Context->bCanBeModified)
+		if (Context && Context->bCanBeModified && Context->SelectedObjects.Num() > 0)
 		{
 			FAssetManagerEditorModule::CreateAssetContextMenu(InSection);
 		}
