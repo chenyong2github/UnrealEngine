@@ -33,6 +33,8 @@
 #include "FoliageEditModule.h"
 #include "InstancedFoliageActor.h"
 #include "FoliageEditUtility.h"
+#include "Engine/WorldComposition.h"
+#include "Misc/ScopeExit.h"
 #include "LevelUtils.h"
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"
@@ -460,6 +462,21 @@ void FLevelCollectionModel::HideLevels(const FLevelModelList& InLevelList)
 		return;
 	}
 	
+	// Disable Origin Tracking
+	UWorldComposition* WorldComposition = GetWorld()->WorldComposition;
+	if (WorldComposition)
+	{
+		WorldComposition->bTemporallyDisableOriginTracking = true;
+	}
+	ON_SCOPE_EXIT
+	{
+		// Reenable Origin Tracking
+		if (WorldComposition)
+		{
+			WorldComposition->bTemporallyDisableOriginTracking = false;
+		}
+	};
+
 	// For efficiency, set visibility of all levels at once
 	TArray<FLevelModel*> LevelModels;
 	TArray<bool> bVisible;
@@ -480,6 +497,21 @@ void FLevelCollectionModel::ShowLevels(const FLevelModelList& InLevelList)
 		return;
 	}
 	
+	// Disable Origin Tracking
+	UWorldComposition* WorldComposition = GetWorld()->WorldComposition;
+	if (WorldComposition)
+	{
+		WorldComposition->bTemporallyDisableOriginTracking = true;
+	}
+	ON_SCOPE_EXIT
+	{
+		// Reenable Origin Tracking
+		if (WorldComposition)
+		{
+			WorldComposition->bTemporallyDisableOriginTracking = false;
+		}
+	};
+
 	OnPreShowLevels(InLevelList);
 
 	// For efficiency, set visibility of all levels at once
