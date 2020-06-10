@@ -3009,6 +3009,10 @@ void FAsyncPackage2::SetupSerializedArcs(const uint8* GraphData, uint64 GraphDat
 			GraphArchive << ToExportBundleIndex;
 			if (ImportedPackage)
 			{
+				FromExportBundleIndex = FromExportBundleIndex == MAX_uint32
+					? ImportedPackage->ExportBundleCount - 1
+					: FromExportBundleIndex;
+
 				check(FromExportBundleIndex < ImportedPackage->ExportBundleCount);
 				check(ToExportBundleIndex < ExportBundleCount);
 				uint32 FromNodeIndexBase = FromExportBundleIndex * EEventLoadNode2::ExportBundle_NumPhases;
