@@ -104,6 +104,7 @@
 #include "ActorGroupingUtils.h"
 #include "EdMode.h"
 #include "Subsystems/BrushEditingSubsystem.h"
+#include "EditorActorUtilities.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdSrv, Log, All);
 
@@ -2430,20 +2431,17 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 			}
 			else if( FParse::Command(&Str, TEXT("CHILDREN")) ) // ACTOR SELECT ALL CHILDREN
 			{
-				const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SelectAllChildren", "Select All Children") );
-				edactSelectAllChildren( false );
+				UEditorActorUtilities::SelectAllChildren(false);
 				return true;
 			}
 			else if( FParse::Command(&Str, TEXT("DESCENDANTS")) ) // ACTOR SELECT ALL DESCENDANTS
 			{
-				const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SelectAllDescendants", "Select All Descendants") );
-				edactSelectAllChildren( true );
+				UEditorActorUtilities::SelectAllChildren(true);
 				return true;
 			}
 			else
 			{
-				const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SelectAll", "Select All") );
-				edactSelectAll( InWorld );
+				UEditorActorUtilities::SelectAll(InWorld);
 				return true;
 			}
 		}
@@ -2453,8 +2451,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		}
 		else if( FParse::Command(&Str,TEXT("INVERT") ) ) // ACTOR SELECT INVERT
 		{
-			const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SelectInvert", "Select Invert") );
-			edactSelectInvert( InWorld );
+			UEditorActorUtilities::InvertSelection(InWorld);
 			return true;
 		}
 		else if( FParse::Command(&Str,TEXT("OFCLASS")) ) // ACTOR SELECT OFCLASS CLASS=<class>
@@ -2554,10 +2551,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		// if not specially handled by the current editing mode,
 		if (!bHandled)
 		{
-			const FScopedTransaction Transaction( bComponentsSelected ? NSLOCTEXT("UnrealEd", "DeleteComponents", "Delete Components") : NSLOCTEXT("UnrealEd", "DeleteActors", "Delete Actors") );
-			FEditorDelegates::OnDeleteActorsBegin.Broadcast();
-			edactDeleteSelected( InWorld );
-			FEditorDelegates::OnDeleteActorsEnd.Broadcast();
+			UEditorActorUtilities::DeleteSelectedActors(InWorld);
 		}
 		return true;
 	}
@@ -2733,27 +2727,13 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		// if not specially handled by the current editing mode,
 		if (!bHandled)
 		{
-			//@todo locked levels - if all actor levels are locked, cancel the transaction
-			const FScopedTransaction Transaction( bComponentsSelected ? NSLOCTEXT("UnrealEd", "DuplicateComponents", "Duplicate Components") : NSLOCTEXT("UnrealEd", "DuplicateActors", "Duplicate Actors") );
-
-			FEditorDelegates::OnDuplicateActorsBegin.Broadcast();
-
-			// duplicate selected
-			ABrush::SetSuppressBSPRegeneration(true);
-			edactDuplicateSelected(InWorld->GetCurrentLevel(), GetDefault<ULevelEditorViewportSettings>()->GridEnabled);
-			ABrush::SetSuppressBSPRegeneration(false);
-
-			// Find out if any of the selected actors will change the BSP.
-			// and only then rebuild BSP as this is expensive.
-			const FSelectedActorInfo& SelectedActors = AssetSelectionUtils::GetSelectedActorInfo();
-			if( SelectedActors.bHaveBrush )
-			{
-				RebuildAlteredBSP(); // Update the Bsp of any levels containing a modified brush
-			}
-
-			FEditorDelegates::OnDuplicateActorsEnd.Broadcast();
+			UEditorActorUtilities::DuplicateSelectedActors( InWorld );
 		}
-		RedrawLevelEditingViewports();
+		// DuplicateSelectedActors also calls RedrawLevelEditingViewports
+		else
+		{
+			RedrawLevelEditingViewports(); 
+		}
 		return true;
 	}
 	else if( FParse::Command(&Str, TEXT("ALIGN")) )
