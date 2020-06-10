@@ -36,7 +36,6 @@ class FPostProcessNoiseBlurPS : public FGlobalShader
 
 public:
 	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 	LAYOUT_FIELD(FShaderParameter, NoiseParams);
 
 	/** Initialization constructor. */
@@ -44,7 +43,6 @@ public:
 		: FGlobalShader(Initializer)
 	{
 		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
 		NoiseParams.Bind(Initializer.ParameterMap, TEXT("NoiseParams"));
 	}
 
@@ -54,7 +52,6 @@ public:
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
 		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border>::GetRHI());
 
 		{

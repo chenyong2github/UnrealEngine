@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -50,7 +50,6 @@ extern "C" {
 #include "SDL_assert.h"
 #include "SDL_events.h"
 #include "SDL_hints.h"
-#include "SDL_log.h"
 #include "SDL_main.h"
 #include "SDL_stdinc.h"
 #include "SDL_render.h"

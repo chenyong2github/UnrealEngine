@@ -23,6 +23,10 @@ namespace hlsl {
 
 class DxilSubobjects;
 
+namespace RDAT {
+  class SubobjectTableReader;
+}
+
 class DxilSubobject {
 public:
   using Kind = DXIL::SubobjectKind;
@@ -50,6 +54,7 @@ public:
   bool GetRaytracingShaderConfig(uint32_t &MaxPayloadSizeInBytes,
                                  uint32_t &MaxAttributeSizeInBytes) const;
   bool GetRaytracingPipelineConfig(uint32_t &MaxTraceRecursionDepth) const;
+  bool GetRaytracingPipelineConfig1(uint32_t &MaxTraceRecursionDepth, uint32_t &Flags) const;
   bool GetHitGroup(DXIL::HitGroupType &hitGroupType,
                    llvm::StringRef &AnyHit,
                    llvm::StringRef &ClosestHit,
@@ -86,6 +91,10 @@ private:
   struct RaytracingPipelineConfig_t {
     uint32_t MaxTraceRecursionDepth;
   };
+  struct RaytracingPipelineConfig1_t {
+    uint32_t MaxTraceRecursionDepth;
+    uint32_t Flags; // DXIL::RaytracingPipelineFlags
+  };
   struct HitGroup_t {
     DXIL::HitGroupType Type;
     const char *AnyHit;
@@ -100,6 +109,7 @@ private:
     RaytracingShaderConfig_t RaytracingShaderConfig;
     RaytracingPipelineConfig_t RaytracingPipelineConfig;
     HitGroup_t HitGroup;
+    RaytracingPipelineConfig1_t RaytracingPipelineConfig1;
   };
 
   friend class DxilSubobjects;
@@ -148,6 +158,10 @@ public:
   DxilSubobject &CreateRaytracingPipelineConfig(
     llvm::StringRef Name,
     uint32_t MaxTraceRecursionDepth);
+  DxilSubobject &CreateRaytracingPipelineConfig1(
+    llvm::StringRef Name,
+    uint32_t MaxTraceRecursionDepth,
+    uint32_t Flags);
   DxilSubobject &CreateHitGroup(llvm::StringRef Name, 
                                 DXIL::HitGroupType hitGroupType,
                                 llvm::StringRef AnyHit,
@@ -160,5 +174,7 @@ private:
   BytesStorage m_BytesStorage;
   SubobjectStorage m_Subobjects;
 };
+
+bool LoadSubobjectsFromRDAT(DxilSubobjects &subobjects, RDAT::SubobjectTableReader *pSubobjectTableReader);
 
 } // namespace hlsl

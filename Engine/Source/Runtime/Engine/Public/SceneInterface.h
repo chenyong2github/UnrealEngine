@@ -12,6 +12,8 @@ class AWorldSettings;
 class FAtmosphericFogSceneInfo;
 class FSkyAtmosphereRenderSceneInfo;
 class FSkyAtmosphereSceneProxy;
+class FVolumetricCloudRenderSceneInfo;
+class FVolumetricCloudSceneProxy;
 class FMaterial;
 class FMaterialShaderMap;
 class FPrimitiveSceneInfo;
@@ -28,6 +30,8 @@ class UReflectionCaptureComponent;
 class USkyLightComponent;
 class UStaticMeshComponent;
 class UTextureCube;
+class FViewInfo;
+class FSceneRenderer;
 
 enum EBasePassDrawListType
 {
@@ -159,6 +163,8 @@ public:
 	 */
 	virtual void UpdateSkyCaptureContents(const USkyLightComponent* CaptureComponent, bool bCaptureEmissiveOnly, UTextureCube* SourceCubemap, FTexture* OutProcessedTexture, float& OutAverageBrightness, FSHVectorRGB3& OutIrradianceEnvironmentMap, TArray<FFloat16Color>* OutRadianceMap) {}
 
+	virtual void AllocateAndCaptureFrameSkyEnvMap(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud) {};
+
 	virtual void AddPlanarReflection(class UPlanarReflectionComponent* Component) {}
 	virtual void RemovePlanarReflection(class UPlanarReflectionComponent* Component) {}
 	virtual void UpdatePlanarReflectionTransform(UPlanarReflectionComponent* Component) {}
@@ -254,13 +260,13 @@ public:
 	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() = 0;
 
 	/**
-	 * Adds the unique sky atmosphere component to the scene
+	 * Adds the unique volumetric cloud component to the scene
 	 *
 	 * @param SkyAtmosphereSceneProxy - the sky atmosphere proxy
 	 */
 	virtual void AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt) = 0;
 	/**
-	 * Removes the unique sky atmosphere component to the scene
+	 * Removes the unique volumetric cloud component to the scene
 	 *
 	 * @param SkyAtmosphereSceneProxy - the sky atmosphere proxy
 	 */
@@ -270,6 +276,24 @@ public:
 	 */
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() = 0;
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const = 0;
+
+	/**
+	 * Adds the unique volumetric cloud component to the scene
+	 *
+	 * @param VolumetricCloudSceneProxy - the sky atmosphere proxy
+	 */
+	virtual void AddVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) = 0;
+	/**
+	 * Removes the unique volumetric cloud component to the scene
+	 *
+	 * @param VolumetricCloudSceneProxy - the sky atmosphere proxy
+	 */
+	virtual void RemoveVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) = 0;
+	/**
+	 * Returns the scene's unique info if it exists
+	 */
+	virtual FVolumetricCloudRenderSceneInfo* GetVolumetricCloudSceneInfo() = 0;
+	virtual const FVolumetricCloudRenderSceneInfo* GetVolumetricCloudSceneInfo() const = 0;
 
 	/**
 	 * Adds a wind source component to the scene.

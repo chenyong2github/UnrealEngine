@@ -286,11 +286,6 @@ void ScreenSpaceReflections(
 		//OutColor /= NumRays;
 		OutColor /= max( NumRays, 0.0001 );
 		OutColor.rgb *= rcp( 1 - Luminance(OutColor.rgb) );
-
-		if (ClosestHitDistanceSqr == INFINITE_FLOAT)
-		{
-			ClosestHitDistanceSqr = DENOISER_MISS_HIT_DISTANCE;
-		}
 	}
 	else
 	{
@@ -345,10 +340,6 @@ void ScreenSpaceReflections(
 
 			OutColor = SampleScreenColor(SceneColor, SceneColorSampler, SampleUV) * Vignette;
 		}
-		else
-		{
-			ClosestHitDistanceSqr = DENOISER_MISS_HIT_DISTANCE;
-		}
 	}
 	
 	OutColor *= RoughnessFade;
@@ -361,7 +352,10 @@ void ScreenSpaceReflections(
 	// Output closest hit distance for denoiser.
 	#if SSR_OUTPUT_FOR_DENOISER
 	{
-		OutClosestHitDistance = ClosestHitDistanceSqr > 0 ? ClampToHalfFloatRange(sqrt(ClosestHitDistanceSqr)) : ClosestHitDistanceSqr;
+		OutClosestHitDistance = ComputeDenoiserConfusionFactor(
+			ClosestHitDistanceSqr > 0,
+			length(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld),
+			sqrt(ClosestHitDistanceSqr));
 	}
 	#endif
 }

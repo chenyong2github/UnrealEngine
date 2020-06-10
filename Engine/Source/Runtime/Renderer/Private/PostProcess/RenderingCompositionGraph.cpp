@@ -265,6 +265,9 @@ void FRenderingCompositePassContext::Process(const TArray<FRenderingCompositePas
 		Graph.RecursivelyGatherDependencies(Root);
 	}
 
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	SceneTexturesUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 	if(bNewOrder)
 	{
 		// process in the order the nodes have been created (for more control), unless the dependencies require it differently
@@ -596,10 +599,22 @@ void FRenderingCompositionGraph::RecursivelyProcess(const FRenderingCompositeOut
 		Context.Pass = Pass;
 		Context.SetViewportInvalid();
 
+		if (Pass->bBindGlobalUniformBuffers)
+		{
+			FUniformBufferStaticBindings GlobalUniformBuffers;
+			GlobalUniformBuffers.AddUniformBuffer(Context.SceneTexturesUniformBuffer);
+			Context.RHICmdList.SetGlobalUniformBuffers(GlobalUniformBuffers);
+		}
+
 		// then process the pass itself
 		check(!Context.RHICmdList.IsInsideRenderPass());
 		Pass->Process(Context);
 		check(!Context.RHICmdList.IsInsideRenderPass());
+
+		if (Pass->bBindGlobalUniformBuffers)
+		{
+			Context.RHICmdList.SetGlobalUniformBuffers({});
+		}
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

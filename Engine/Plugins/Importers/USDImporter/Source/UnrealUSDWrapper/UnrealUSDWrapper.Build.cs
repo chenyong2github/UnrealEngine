@@ -36,7 +36,7 @@ namespace UnrealBuildTool.Rules
 				var PythonBinaryTPSDir = Path.Combine(EngineDir, "Binaries", "ThirdParty", "Python");
 
 				// Always use the official version of IntelTBB
-				string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8/lib/";
+				string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/lib/";
 
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{

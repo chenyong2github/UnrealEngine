@@ -25,6 +25,13 @@ add_dependencies(CopyDxcompiler dxcompiler)
 
 set_target_properties(CopyDxcompiler PROPERTIES FOLDER "Core")
 
+#UE Change Begin: Replace rpath with 'install_name_tool' after deployment
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+if (APPLE)
+  set(CMAKE_INSTALL_NAME_DIR "@rpath")
+  set(CMAKE_INSTALL_RPATH "RPATH_DUMMY")
+endif()
+#UE Change End: Replace rpath with 'install_name_tool' after deployment
 
 set(LIB_NAME ShaderConductor)
 

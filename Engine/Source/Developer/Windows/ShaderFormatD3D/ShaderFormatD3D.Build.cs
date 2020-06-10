@@ -27,8 +27,15 @@ public class ShaderFormatD3D : ModuleRules
             string DxDllsPath = "$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64/";
 
             RuntimeDependencies.Add("$(TargetOutputDir)/dxil.dll", DxDllsPath + "dxil.dll");
-            RuntimeDependencies.Add("$(TargetOutputDir)/dxcompiler.dll", DxDllsPath + "dxcompiler.dll");
-        }
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+
+			string BinaryFolder = Target.UEThirdPartyBinariesDirectory + "ShaderConductor/Win64";
+			RuntimeDependencies.Add(BinaryFolder + "/dxcompiler.dll");
+			RuntimeDependencies.Add(BinaryFolder + "/ShaderConductor.dll");
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"ShaderConductor"
+			);
+		}
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 	}
 }

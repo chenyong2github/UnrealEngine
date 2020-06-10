@@ -26,6 +26,8 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/App.h"
+
+#include "Rendering/StaticLightingSystemInterface.h"
 #endif // #if WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditor"
@@ -435,6 +437,21 @@ void UStaticMesh::PostBuildInternal(const TArray<UStaticMeshComponent*> & InAffe
 			Component->FixupOverrideColorsIfNecessary(true);
 			Component->InvalidateLightingCache();
 		}
+	}
+	else
+	{
+#if WITH_EDITOR
+		// No change in RenderData, still re-register components with preview static lighting system as ray tracing geometry has been recreated
+		// When RenderData is changed, this is handled by InvalidateLightingCache()
+		for (UStaticMeshComponent* Component : InAffectedComponents)
+		{
+			FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(Component);
+			if (Component->HasValidSettingsForStaticLighting(false))
+			{
+				FStaticLightingSystemInterface::OnPrimitiveComponentRegistered.Broadcast(Component);
+			}
+		}
+#endif
 	}
 
 	// Calculate extended bounds

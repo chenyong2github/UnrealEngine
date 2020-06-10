@@ -26,12 +26,15 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "InstancedStaticMesh.h"
+#include "Engine/InstancedStaticMesh.h"
 #include "SceneManagement.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/AnyOf.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 static TAutoConsoleVariable<int32> CVarFoliageSplitFactor(
 	TEXT("foliage.SplitFactor"),
@@ -2930,7 +2933,10 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 			FComponentRecreateRenderStateContext Context(this);
 
 			const FMeshMapBuildData* MeshMapBuildData = nullptr;
-			if (LODData.Num() > 0)
+#if WITH_EDITOR
+			MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this, 0);
+#endif
+			if (MeshMapBuildData == nullptr && LODData.Num() > 0)
 			{
 				MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 			}
@@ -2960,7 +2966,12 @@ void UHierarchicalInstancedStaticMeshComponent::SetPerInstanceLightMapAndEditorD
 	int32 NumInstances = PerInstanceData.GetNumInstances();
 	
 	const FMeshMapBuildData* MeshMapBuildData = nullptr;
-	if (LODData.Num() > 0)
+
+#if WITH_EDITOR
+	MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this, 0);
+#endif
+
+	if (MeshMapBuildData == nullptr && LODData.Num() > 0)
 	{
 		MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 	}

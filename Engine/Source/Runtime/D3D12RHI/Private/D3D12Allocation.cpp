@@ -143,6 +143,12 @@ void FD3D12BuddyAllocator::Initialize()
 		Desc.Properties = HeapProps;
 		Desc.Alignment = 0;
 		Desc.Flags = HeapFlags;
+#if PLATFORM_WINDOWS
+		if (Adapter->IsHeapNotZeroedSupported())
+		{
+			Desc.Flags |= D3D12_HEAP_FLAG_CREATE_NOT_ZEROED;
+		}
+#endif
 
 		ID3D12Heap* Heap = nullptr;
 		{
@@ -1332,7 +1338,13 @@ void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12R
 		}
 
 		FD3D12Resource* Resource = nullptr;
-		VERIFYD3D12RESULT(Adapter->CreateBuffer(PagePool.GetHeapType(), GetGPUMask(), GetVisibilityMask(), Size + Alignment, &Resource, TEXT("Stand Alone Fast Allocation")));
+		FString ResourceName;
+#if NAME_OBJECTS
+		static int64 ID = 0;
+		const int64 UniqueID = FPlatformAtomics::InterlockedIncrement(&ID);
+		ResourceName = FString::Printf(TEXT("Stand Alone Fast Allocation %lld"), UniqueID);
+#endif
+		VERIFYD3D12RESULT(Adapter->CreateBuffer(PagePool.GetHeapType(), GetGPUMask(), GetVisibilityMask(), Size + Alignment, &Resource, *ResourceName));
 
 		void* Data = nullptr;
 		if (PagePool.IsCPUWritable())
@@ -1560,6 +1572,12 @@ FD3D12SegHeap* FD3D12SegList::CreateBackingHeap(
 	Desc.SizeInBytes = HeapSize;
 	Desc.Properties = CD3DX12_HEAP_PROPERTIES(HeapType, Parent->GetGPUMask().GetNative(), VisibleNodeMask.GetNative());
 	Desc.Flags = HeapFlags;
+#if PLATFORM_WINDOWS
+	if (Parent->GetParentAdapter()->IsHeapNotZeroedSupported())
+	{
+		Desc.Flags |= D3D12_HEAP_FLAG_CREATE_NOT_ZEROED;
+	}
+#endif
 
 	VERIFYD3D12RESULT(Parent->GetDevice()->CreateHeap(&Desc, IID_PPV_ARGS(&D3DHeap)));
 

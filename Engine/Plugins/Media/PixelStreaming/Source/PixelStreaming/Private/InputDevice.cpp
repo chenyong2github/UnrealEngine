@@ -61,6 +61,12 @@ public:
 		: GenericApplication(MakeShareable(new FCursor()))
 		, WrappedApplication(InWrappedApplication)
 	{
+		// Whether we want to always consider the mouse as attached. This allow
+		// us to run Pixel Streaming on a machine which has no physical mouse
+		// and just let the browser supply mouse positions.
+		const UPixelStreamingSettings* Settings = GetDefault<UPixelStreamingSettings>();
+		check(Settings);
+		bMouseAlwaysAttached = Settings->bPixelStreamerMouseAlwaysAttached;
 	}
 
 	/**
@@ -81,7 +87,6 @@ public:
 	virtual void SetHighPrecisionMouseMode(const bool Enable, const TSharedPtr< FGenericWindow >& InWindow) { WrappedApplication->SetHighPrecisionMouseMode(Enable, InWindow); };
 	virtual bool IsUsingHighPrecisionMouseMode() const { return WrappedApplication->IsUsingHighPrecisionMouseMode(); }
 	virtual bool IsUsingTrackpad() const { return WrappedApplication->IsUsingTrackpad(); }
-	virtual bool IsMouseAttached() const { return WrappedApplication->IsMouseAttached(); }
 	virtual bool IsGamepadAttached() const { return WrappedApplication->IsGamepadAttached(); }
 	virtual void RegisterConsoleCommandListener(const FOnConsoleCommandListener& InListener) { WrappedApplication->RegisterConsoleCommandListener(InListener); }
 	virtual void AddPendingConsoleCommand(const FString& InCommand) { WrappedApplication->AddPendingConsoleCommand(InCommand); }
@@ -102,8 +107,10 @@ public:
 	 * Functions with overridden behavior.
 	 */
 	virtual bool IsCursorDirectlyOverSlateWindow() const { return true; }
+	virtual bool IsMouseAttached() const { return bMouseAlwaysAttached ? true : WrappedApplication->IsMouseAttached(); }
 
 	TSharedPtr<GenericApplication> WrappedApplication;
+	bool bMouseAlwaysAttached;
 };
 
 const FVector2D FInputDevice::UnfocusedPos(-1.0f, -1.0f);
@@ -124,8 +131,20 @@ FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& 
 		const UPixelStreamingSettings* Settings = GetDefault<UPixelStreamingSettings>();
 		check(Settings);
 		
-		GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerDefaultCursorClassName);
-		GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerTextEditBeamCursorClassName);
+		// Check to see if we want to hide the cursor (by making it invisible).
+		// This is required if we want to make the cursor client-side (displayed
+		// only by the the browser).
+		bool bHideCursor = FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
+		if (bHideCursor)
+		{
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerInvisibleCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerInvisibleCursorClassName);
+		}
+		else
+		{
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerDefaultCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerTextEditBeamCursorClassName);
+		}
 	}
 }
 

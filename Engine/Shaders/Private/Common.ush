@@ -202,7 +202,7 @@ MaterialFloat4 Texture3DSampleLevel(Texture3D Tex, SamplerState Sampler, float3 
 MaterialFloat4 Texture3DSampleBias(Texture3D Tex, SamplerState Sampler, float3 UV, MaterialFloat MipBias)
 {
 #if USE_FORCE_TEXTURE_MIP
-	return Tex.SampleBias(Sampler, UV, 0);
+	return Tex.SampleLevel(Sampler, UV, 0);
 #else
 	return Tex.SampleBias(Sampler, UV, MipBias);
 #endif

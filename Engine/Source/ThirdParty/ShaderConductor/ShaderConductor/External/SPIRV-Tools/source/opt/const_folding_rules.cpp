@@ -265,7 +265,10 @@ ConstantFoldingRule FoldFPUnaryOp(UnaryScalarFoldingRule scalar_rule) {
       return nullptr;
     }
 
-    if (constants[0] == nullptr) {
+    const analysis::Constant* arg =
+        (inst->opcode() == SpvOpExtInst) ? constants[1] : constants[0];
+
+    if (arg == nullptr) {
       return nullptr;
     }
 
@@ -273,7 +276,7 @@ ConstantFoldingRule FoldFPUnaryOp(UnaryScalarFoldingRule scalar_rule) {
       std::vector<const analysis::Constant*> a_components;
       std::vector<const analysis::Constant*> results_components;
 
-      a_components = constants[0]->GetVectorComponents(const_mgr);
+      a_components = arg->GetVectorComponents(const_mgr);
 
       // Fold each component of the vector.
       for (uint32_t i = 0; i < a_components.size(); ++i) {
@@ -291,7 +294,7 @@ ConstantFoldingRule FoldFPUnaryOp(UnaryScalarFoldingRule scalar_rule) {
       }
       return const_mgr->GetConstant(vector_type, ids);
     } else {
-      return scalar_rule(result_type, constants[0], const_mgr);
+      return scalar_rule(result_type, arg, const_mgr);
     }
   };
 }
@@ -308,20 +311,38 @@ const analysis::Constant* FoldFPBinaryOp(
   const analysis::Type* result_type = type_mgr->GetType(result_type_id);
   const analysis::Vector* vector_type = result_type->AsVector();
 
-  if (constants[0] == nullptr || constants[1] == nullptr) {
+  /* UE Begin Change: Workraround a crash caused by DXC using null constants */
+  if (constants[0] == nullptr || constants[1] == nullptr || constants[0]->AsNullConstant() || constants[1]->AsNullConstant()) {
     return nullptr;
   }
+  /* UE End Change: Workraround a crash caused by DXC using null constants */
 
   if (vector_type != nullptr) {
     std::vector<const analysis::Constant*> a_components;
     std::vector<const analysis::Constant*> b_components;
     std::vector<const analysis::Constant*> results_components;
 
-    a_components = constants[0]->GetVectorComponents(const_mgr);
-    b_components = constants[1]->GetVectorComponents(const_mgr);
+    /* UE Begin Change: Workaround a crash caused by vector binOp(scalar, vector) somehow ending up in here */
+    if (constants[0]->AsVectorConstant()) {
+      a_components = constants[0]->GetVectorComponents(const_mgr);
+    }
+    else if ((constants[0]->AsScalarConstant())) {
+      for (uint32_t i = 0; i < vector_type->element_count(); i++) {
+        a_components.push_back(constants[0]);
+      }
+    }
+
+    if (constants[1]->AsVectorConstant()) {
+      b_components = constants[1]->GetVectorComponents(const_mgr);
+    }
+    else if ((constants[1]->AsScalarConstant())) {
+      for (uint32_t i = 0; i < vector_type->element_count(); i++) {
+        b_components.push_back(constants[1]);
+      }
+    }
 
     // Fold each component of the vector.
-    for (uint32_t i = 0; i < a_components.size(); ++i) {
+    for (uint32_t i = 0; i < vector_type->element_count(); ++i) {
       results_components.push_back(scalar_rule(vector_type->element_type(),
                                                a_components[i], b_components[i],
                                                const_mgr));
@@ -329,6 +350,7 @@ const analysis::Constant* FoldFPBinaryOp(
         return nullptr;
       }
     }
+    /* UE End Change: Workaround a crash caused by vector binOp(scalar, vector) somehow ending up in here */
 
     // Build the constant object and return it.
     std::vector<uint32_t> ids;
@@ -1070,6 +1092,60 @@ const analysis::Constant* FoldClamp3(
   return nullptr;
 }
 
+UnaryScalarFoldingRule FoldFTranscendentalUnary(double (*fp)(double)) {
+  return
+      [fp](const analysis::Type* result_type, const analysis::Constant* a,
+           analysis::ConstantManager* const_mgr) -> const analysis::Constant* {
+        assert(result_type != nullptr && a != nullptr);
+        const analysis::Float* float_type = a->type()->AsFloat();
+        assert(float_type != nullptr);
+        assert(float_type == result_type->AsFloat());
+        if (float_type->width() == 32) {
+          float fa = a->GetFloat();
+          float res = static_cast<float>(fp(fa));
+          utils::FloatProxy<float> result(res);
+          std::vector<uint32_t> words = result.GetWords();
+          return const_mgr->GetConstant(result_type, words);
+        } else if (float_type->width() == 64) {
+          double fa = a->GetDouble();
+          double res = fp(fa);
+          utils::FloatProxy<double> result(res);
+          std::vector<uint32_t> words = result.GetWords();
+          return const_mgr->GetConstant(result_type, words);
+        }
+        return nullptr;
+      };
+}
+
+BinaryScalarFoldingRule FoldFTranscendentalBinary(double (*fp)(double,
+                                                               double)) {
+  return
+      [fp](const analysis::Type* result_type, const analysis::Constant* a,
+           const analysis::Constant* b,
+           analysis::ConstantManager* const_mgr) -> const analysis::Constant* {
+        assert(result_type != nullptr && a != nullptr);
+        const analysis::Float* float_type = a->type()->AsFloat();
+        assert(float_type != nullptr);
+        assert(float_type == result_type->AsFloat());
+        assert(float_type == b->type()->AsFloat());
+        if (float_type->width() == 32) {
+          float fa = a->GetFloat();
+          float fb = b->GetFloat();
+          float res = static_cast<float>(fp(fa, fb));
+          utils::FloatProxy<float> result(res);
+          std::vector<uint32_t> words = result.GetWords();
+          return const_mgr->GetConstant(result_type, words);
+        } else if (float_type->width() == 64) {
+          double fa = a->GetDouble();
+          double fb = b->GetDouble();
+          double res = fp(fa, fb);
+          utils::FloatProxy<double> result(res);
+          std::vector<uint32_t> words = result.GetWords();
+          return const_mgr->GetConstant(result_type, words);
+        }
+        return nullptr;
+      };
+}
 }  // namespace
 
 void ConstantFoldingRules::AddFoldingRules() {
@@ -1175,6 +1251,45 @@ void ConstantFoldingRules::AddFoldingRules() {
         FoldClamp2);
     ext_rules_[{ext_inst_glslstd450_id, GLSLstd450FClamp}].push_back(
         FoldClamp3);
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Sin}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::sin)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Cos}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::cos)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Tan}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::tan)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Asin}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::asin)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Acos}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::acos)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Atan}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::atan)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Exp}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::exp)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Log}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::log)));
+
+#ifdef __ANDROID__
+    // Android NDK r15c tageting ABI 15 doesn't have full support for C++11
+    // (no std::exp2/log2). ::exp2 is available from C99 but ::log2 isn't
+    // available up until ABI 18 so we use a shim
+    auto log2_shim = [](double v) -> double { return log(v) / log(2.0); };
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Exp2}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(::exp2)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Log2}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(log2_shim)));
+#else
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Exp2}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::exp2)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Log2}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::log2)));
+#endif
+
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Sqrt}].push_back(
+        FoldFPUnaryOp(FoldFTranscendentalUnary(std::sqrt)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Atan2}].push_back(
+        FoldFPBinaryOp(FoldFTranscendentalBinary(std::atan2)));
+    ext_rules_[{ext_inst_glslstd450_id, GLSLstd450Pow}].push_back(
+        FoldFPBinaryOp(FoldFTranscendentalBinary(std::pow)));
   }
 }
 }  // namespace opt

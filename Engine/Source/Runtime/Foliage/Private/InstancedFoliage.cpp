@@ -978,6 +978,7 @@ void FFoliageStaticMesh::AddInstance(AInstancedFoliageActor* IFA, const FFoliage
 {
 	check(Component);
 	Component->AddInstanceWorldSpace(NewInstance.GetInstanceWorldTransform());
+	bInvalidateLightingCache = true;
 }
 
 void FFoliageStaticMesh::RemoveInstance(int32 InstanceIndex)
@@ -999,6 +1000,7 @@ void FFoliageStaticMesh::SetInstanceWorldTransform(int32 InstanceIndex, const FT
 {
 	check(Component);
 	Component->UpdateInstanceTransform(InstanceIndex, Transform, true, true, bTeleport);
+	bInvalidateLightingCache = true;
 }
 
 FTransform FFoliageStaticMesh::GetInstanceWorldTransform(int32 InstanceIndex) const

@@ -177,7 +177,7 @@ float CalcTransmissionThickness(float3 ViewPos, float3 LightPos, FGBufferData GB
 
 
 /** Computes thickness for a given world position from a cubemap shadowmap used on a point light. */
-float CalcTransmissionThickness(FGBufferData GBufferData, float3 WorldPosition, float3 LightVector, float2 ProjParam, float LightInvRadius, float DepthBias)
+float CalcTransmissionThickness(FGBufferData GBufferData, float3 WorldSampleToLightVec, float2 ProjParam, float LightInvRadius, float DepthBias)
 {
 	float Thickness = 1;
 
@@ -188,22 +188,22 @@ float CalcTransmissionThickness(FGBufferData GBufferData, float3 WorldPosition, 
 
 	//Shrink pos aligh -WorldNormal
 	float3 Normal = GBufferData.WorldNormal;
-	WorldPosition.xyz = WorldPosition.xyz - Normal * NormalScale;
-	float DistanceSqr = dot(LightVector, LightVector);
-	float3 L = LightVector * rsqrt(DistanceSqr);
+	float3 LightRelativeBiasedPosition = -WorldSampleToLightVec - Normal * NormalScale;
+	float DistanceSqr = dot(WorldSampleToLightVec, WorldSampleToLightVec);
+	float3 L = WorldSampleToLightVec * rsqrt(DistanceSqr);
 	float NoL = pow(saturate(1 * dot(-L, Normal)), 1);
-	float Distance = length(LightVector);
+	float Distance = length(WorldSampleToLightVec);
 
 	float ShadowFilterRadius = 1.0f;
 
 	BRANCH // Skip pixels outside of the light's influence
 	if (Distance * LightInvRadius < 1.0f)
 	{
-		float3 NormalizedLightVector = LightVector / Distance, SideVector = 0, UpVector = 0;
+		float3 NormalizedLightVector = WorldSampleToLightVec / Distance, SideVector = 0, UpVector = 0;
 		int CubeFaceIndex = 0;
 		CalcCubemapVectorAndFaceIndex(NormalizedLightVector, ShadowFilterRadius, SideVector, UpVector, CubeFaceIndex);
 		// Transform the position into shadow space
-		float4 ShadowPosition = mul(float4(WorldPosition.xyz, 1), ShadowViewProjectionMatrices[CubeFaceIndex]);
+		float4 ShadowPosition = mul(float4(LightRelativeBiasedPosition, 1), ShadowViewProjectionMatrices[CubeFaceIndex]);
 
 		// Calculate the Z buffer value that would have been stored for this position in the shadow map
 		float CompareDistance = ShadowPosition.z / ShadowPosition.w;

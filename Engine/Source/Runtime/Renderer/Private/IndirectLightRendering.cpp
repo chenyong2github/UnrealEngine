@@ -15,6 +15,7 @@
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingReflections.h"
 #include "DistanceFieldAmbientOcclusion.h"
+#include "VolumetricCloudRendering.h"
 
 
 static TAutoConsoleVariable<int32> CVarDiffuseIndirectDenoiser(
@@ -218,6 +219,12 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
 		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float2>, CloudSkyAOTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, CloudSkyAOSampler)
+		SHADER_PARAMETER(FMatrix, CloudSkyAOWorldToLightClipMatrix)
+		SHADER_PARAMETER(float, CloudSkyAOFarDepthKm)
+		SHADER_PARAMETER(int32, CloudSkyAOEnabled)
+
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 
@@ -239,7 +246,8 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FReflectionUniformParameters, "Reflecti
 
 void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformParameters& OutParameters)
 {
-	FTexture* SkyLightTextureResource = GBlackTextureCube;
+	FTextureRHIRef SkyLightTextureResource = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+	FSamplerStateRHIRef SkyLightCubemapSampler = TStaticSamplerState<SF_Trilinear>::GetRHI();
 	FTexture* SkyLightBlendDestinationTextureResource = GBlackTextureCube;
 	float ApplySkyLightMask = 0;
 	float BlendFraction = 0;
@@ -251,23 +259,34 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 
 	if (Scene
 		&& Scene->SkyLight
-		&& Scene->SkyLight->ProcessedTexture
+		&& (Scene->SkyLight->ProcessedTexture || (Scene->SkyLight->bRealTimeCaptureEnabled && Scene->ConvolvedSkyRenderTarget))
 		&& bApplySkyLight)
 	{
 		const FSkyLightSceneProxy& SkyLight = *Scene->SkyLight;
-		SkyLightTextureResource = SkyLight.ProcessedTexture;
-		BlendFraction = SkyLight.BlendFraction;
 
-		if (SkyLight.BlendFraction > 0.0f && SkyLight.BlendDestinationProcessedTexture)
+		if (Scene->SkyLight->bRealTimeCaptureEnabled && Scene->ConvolvedSkyRenderTarget)
 		{
-			if (SkyLight.BlendFraction < 1.0f)
+			// Cannot blend with this capture mode as of today.
+			SkyLightTextureResource = Scene->ConvolvedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+		}
+		else if (SkyLight.ProcessedTexture)
+		{
+			SkyLightTextureResource = SkyLight.ProcessedTexture->TextureRHI;
+			SkyLightCubemapSampler = SkyLight.ProcessedTexture->SamplerStateRHI;
+			BlendFraction = SkyLight.BlendFraction;
+
+			if (SkyLight.BlendFraction > 0.0f && SkyLight.BlendDestinationProcessedTexture)
 			{
-				SkyLightBlendDestinationTextureResource = SkyLight.BlendDestinationProcessedTexture;
-			}
-			else
-			{
-				SkyLightTextureResource = SkyLight.BlendDestinationProcessedTexture;
-				BlendFraction = 0;
+				if (SkyLight.BlendFraction < 1.0f)
+				{
+					SkyLightBlendDestinationTextureResource = SkyLight.BlendDestinationProcessedTexture;
+				}
+				else
+				{
+					SkyLightTextureResource = SkyLight.BlendDestinationProcessedTexture->TextureRHI;
+					SkyLightCubemapSampler = SkyLight.ProcessedTexture->SamplerStateRHI;
+					BlendFraction = 0;
+				}
 			}
 		}
 
@@ -276,11 +295,11 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 		SkyAverageBrightness = SkyLight.AverageBrightness;
 	}
 
-	const int32 CubemapWidth = SkyLightTextureResource->GetSizeX();
+	const int32 CubemapWidth = SkyLightTextureResource->GetSizeXYZ().X;
 	const float SkyMipCount = FMath::Log2(CubemapWidth) + 1.0f;
 
-	OutParameters.SkyLightCubemap = SkyLightTextureResource->TextureRHI;
-	OutParameters.SkyLightCubemapSampler = SkyLightTextureResource->SamplerStateRHI;
+	OutParameters.SkyLightCubemap = SkyLightTextureResource;
+	OutParameters.SkyLightCubemapSampler = SkyLightCubemapSampler;
 	OutParameters.SkyLightBlendDestinationCubemap = SkyLightBlendDestinationTextureResource->TextureRHI;
 	OutParameters.SkyLightBlendDestinationCubemapSampler = SkyLightBlendDestinationTextureResource->SamplerStateRHI;
 	OutParameters.SkyLightParameters = FVector4(SkyMipCount - 1.0f, ApplySkyLightMask, bSkyLightIsDynamic ? 1.0f : 0.0f, BlendFraction);
@@ -609,7 +628,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 	// The specular sky light contribution is also needed by RT Reflections as a fallback.
 	const bool bSkyLight = Scene->SkyLight
-		&& Scene->SkyLight->ProcessedTexture
+		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
 		&& !Scene->SkyLight->bHasStaticLighting;
 
 	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily);
@@ -838,6 +857,22 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 				PassParameters->ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 				PassParameters->ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+				if (Scene->HasVolumetricCloud())
+				{
+					FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
+
+					PassParameters->CloudSkyAOTexture = GraphBuilder.RegisterExternalTexture(View.VolumetricCloudSkyAO.IsValid() ? View.VolumetricCloudSkyAO : GSystemTextures.BlackDummy);
+					PassParameters->CloudSkyAOWorldToLightClipMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOWorldToLightClipMatrix;
+					PassParameters->CloudSkyAOFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOFarDepthKm;
+					PassParameters->CloudSkyAOEnabled = 1;
+				}
+				else
+				{
+					PassParameters->CloudSkyAOTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+					PassParameters->CloudSkyAOEnabled = 0;
+				}
+				PassParameters->CloudSkyAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
 				PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 				PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

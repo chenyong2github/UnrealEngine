@@ -525,28 +525,6 @@ void FTransitionAndLayoutManager::TransitionResource(FVulkanCmdBuffer* CmdBuffer
 	}
 }
 
-void FVulkanCommandListContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget)
-{
-	FRHIDepthRenderTargetView DepthView;
-	if (NewDepthStencilTarget)
-	{
-		DepthView = *NewDepthStencilTarget;
-	}
-	else
-	{
-		DepthView = FRHIDepthRenderTargetView(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
-	}
-
-	if (NumSimultaneousRenderTargets == 1 && (!NewRenderTargets || !NewRenderTargets->Texture))
-	{
-		--NumSimultaneousRenderTargets;
-	}
-
-	FRHISetRenderTargetsInfo RenderTargetsInfo(NumSimultaneousRenderTargets, NewRenderTargets, DepthView);
-	
-	RHISetRenderTargetsAndClear(RenderTargetsInfo);
-}
-
 // Find out whether we can re-use current renderpass instead of starting new one
 static bool IsCompatibleRenderPass(FVulkanRenderPass* CurrentRenderPass, FVulkanRenderPass* NewRenderPass)
 {
@@ -593,60 +571,6 @@ static bool IsCompatibleRenderPass(FVulkanRenderPass* CurrentRenderPass, FVulkan
 	}
 	
 	return true;
-}
-
-void FVulkanCommandListContext::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
-{
-	FVulkanRenderTargetLayout RTLayout(*Device, RenderTargetsInfo);
-
-	TransitionAndLayoutManager.GenerateMipsInfo.Reset();
-
-	FVulkanRenderPass* RenderPass = nullptr;
-	FVulkanFramebuffer* Framebuffer = nullptr;
-
-	if (RTLayout.GetExtent2D().width != 0 && RTLayout.GetExtent2D().height != 0)
-	{
-		RenderPass = TransitionAndLayoutManager.GetOrCreateRenderPass(*Device, RTLayout);
-		Framebuffer = TransitionAndLayoutManager.GetOrCreateFramebuffer(*Device, RenderTargetsInfo, RTLayout, RenderPass);
-	}
-
-	if (Framebuffer == TransitionAndLayoutManager.CurrentFramebuffer && RenderPass != nullptr && IsCompatibleRenderPass(TransitionAndLayoutManager.CurrentRenderPass, RenderPass))
-	{
-		return;
-	}
-
-	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-	if (CmdBuffer->IsInsideRenderPass())
-	{
-		TransitionAndLayoutManager.EndEmulatedRenderPass(CmdBuffer);
-
-		if (GVulkanSubmitAfterEveryEndRenderPass)
-		{
-			CommandBufferManager->SubmitActiveCmdBuffer();
-			CommandBufferManager->PrepareForNewActiveCommandBuffer();
-			CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-		}
-	}
-
-	if (SafePointSubmit())
-	{
-		CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-	}
-
-	if (RenderPass != nullptr && Framebuffer != nullptr)
-	{
-		if (RenderTargetsInfo.DepthStencilRenderTarget.Texture ||
-			RenderTargetsInfo.NumColorRenderTargets > 1 ||
-			((RenderTargetsInfo.NumColorRenderTargets == 1) && RenderTargetsInfo.ColorRenderTarget[0].Texture))
-		{
-			TransitionAndLayoutManager.BeginEmulatedRenderPass(*this, *Device, CmdBuffer, RenderTargetsInfo, RTLayout, RenderPass, Framebuffer);
-		}
-		else
-		{
-			ensureMsgf(0, TEXT("RenderPass not started! Bad combination of values? Depth %p #Color %d Color0 %p"), (void*)RenderTargetsInfo.DepthStencilRenderTarget.Texture, RenderTargetsInfo.NumColorRenderTargets, (void*)RenderTargetsInfo.ColorRenderTarget[0].Texture);
-		}
-	}
-
 }
 
 template<typename RegionType>

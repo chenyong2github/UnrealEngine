@@ -243,6 +243,8 @@ public:
 	{
 		PrimitiveSceneDataBufferRHI.SafeRelease();
 		PrimitiveSceneDataBufferSRV.SafeRelease();
+		SkyIrradianceEnvironmentMapRHI.SafeRelease();
+		SkyIrradianceEnvironmentMapSRV.SafeRelease();
 		PrimitiveSceneDataTextureRHI.SafeRelease();
 		PrimitiveSceneDataTextureSRV.SafeRelease();
 		LightmapSceneDataBufferRHI.SafeRelease();
@@ -258,6 +260,9 @@ public:
 
 	FStructuredBufferRHIRef PrimitiveSceneDataBufferRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataBufferSRV;
+
+	FStructuredBufferRHIRef SkyIrradianceEnvironmentMapRHI;
+	FShaderResourceViewRHIRef SkyIrradianceEnvironmentMapSRV;
 
 	FTexture2DRHIRef PrimitiveSceneDataTextureRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataTextureSRV;

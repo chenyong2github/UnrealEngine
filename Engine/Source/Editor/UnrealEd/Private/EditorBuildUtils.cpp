@@ -44,6 +44,7 @@
 #include "VirtualTexturingEditorModule.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "LandscapeSubsystem.h"
+#include "ShaderCompilerCore.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorBuildUtils, Log, All);
 

@@ -12,12 +12,13 @@
 #include "Misc/ScopeRWLock.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Serialization/Archive.h"
+#include "Misc/MemStack.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMemoryImage, Log, All);
 
 IMPLEMENT_TYPE_LAYOUT(FMemoryImageString);
-IMPLEMENT_TYPE_LAYOUT(FHashedName);
 IMPLEMENT_TYPE_LAYOUT(FPlatformTypeLayoutParameters);
+IMPLEMENT_TYPE_LAYOUT(FHashedName);
 
 static const uint32 NumTypeLayoutDescHashBuckets = 4357u;
 static const FTypeLayoutDesc* GTypeLayoutHashBuckets[NumTypeLayoutDescHashBuckets] = { nullptr };

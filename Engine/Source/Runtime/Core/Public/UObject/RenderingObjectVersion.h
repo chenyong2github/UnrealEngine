@@ -121,6 +121,9 @@ struct CORE_API FRenderingObjectVersion
 		// Override for a special case for objects that were serialized and deserialized between versions AutoExposureChanges and AutoExposureForceOverrideBiasFlag
 		AutoExposureDefaultFix,
 
+		// Remap Volume Extinction material input to RGB
+		VolumeExtinctionBecomesRGB,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

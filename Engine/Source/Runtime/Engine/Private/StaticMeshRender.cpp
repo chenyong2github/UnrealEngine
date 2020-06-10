@@ -44,6 +44,10 @@
 #include "RayTracingInstance.h"
 #include "PrimitiveSceneInfo.h"
 
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
+
 /** If true, optimized depth-only index buffers are used for shadow rendering. */
 static bool GUseShadowIndexBuffer = true;
 
@@ -1954,19 +1958,41 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 		SetGlobalVolumeLightmap(true);
 	}
 
+	bool bMeshMapBuildDataOverriddenByLightmapPreview = false;
+
+#if WITH_EDITOR
+	// The component may not have corresponding FStaticMeshComponentLODInfo in its LODData, and that's why we're overriding MeshMapBuildData here (instead of inside GetMeshMapBuildData).
+	if (FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(InComponent, LODIndex))
+	{
+		const FMeshMapBuildData* MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(InComponent, LODIndex);
+		if (MeshMapBuildData)
+		{
+			bMeshMapBuildDataOverriddenByLightmapPreview = true;
+
+			SetLightMap(MeshMapBuildData->LightMap);
+			SetShadowMap(MeshMapBuildData->ShadowMap);
+			SetResourceCluster(MeshMapBuildData->ResourceCluster);
+			IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+		}
+	}
+#endif
+
 	if (LODIndex < InComponent->LODData.Num() && LODIndex >= InClampedMinLOD)
 	{
 		const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[LODIndex];
 
-		if (InComponent->LightmapType != ELightmapType::ForceVolumetric)
+		if (!bMeshMapBuildDataOverriddenByLightmapPreview)
 		{
-			const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(ComponentLODInfo);
-			if (MeshMapBuildData)
+			if (InComponent->LightmapType != ELightmapType::ForceVolumetric)
 			{
-				SetLightMap(MeshMapBuildData->LightMap);
-				SetShadowMap(MeshMapBuildData->ShadowMap);
-				SetResourceCluster(MeshMapBuildData->ResourceCluster);
-				IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+				const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(ComponentLODInfo);
+				if (MeshMapBuildData)
+				{
+					SetLightMap(MeshMapBuildData->LightMap);
+					SetShadowMap(MeshMapBuildData->ShadowMap);
+					SetResourceCluster(MeshMapBuildData->ResourceCluster);
+					IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+				}
 			}
 		}
 		
@@ -2012,22 +2038,25 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 			}
 		}
 	}
-
-	if (LODIndex > 0 
-		&& bLODsShareStaticLighting 
-		&& InComponent->LODData.IsValidIndex(0)
-		&& InComponent->LightmapType != ELightmapType::ForceVolumetric
-		&& LODIndex >= InClampedMinLOD)
+	
+	if (!bMeshMapBuildDataOverriddenByLightmapPreview)
 	{
-		const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[0];
-		const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(ComponentLODInfo);
-
-		if (MeshMapBuildData)
+		if (LODIndex > 0
+			&& bLODsShareStaticLighting
+			&& InComponent->LODData.IsValidIndex(0)
+			&& InComponent->LightmapType != ELightmapType::ForceVolumetric
+			&& LODIndex >= InClampedMinLOD)
 		{
-			SetLightMap(MeshMapBuildData->LightMap);
-			SetShadowMap(MeshMapBuildData->ShadowMap);
-			SetResourceCluster(MeshMapBuildData->ResourceCluster);
-			IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+			const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[0];
+			const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(ComponentLODInfo);
+
+			if (MeshMapBuildData)
+			{
+				SetLightMap(MeshMapBuildData->LightMap);
+				SetShadowMap(MeshMapBuildData->ShadowMap);
+				SetResourceCluster(MeshMapBuildData->ResourceCluster);
+				IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+			}
 		}
 	}
 

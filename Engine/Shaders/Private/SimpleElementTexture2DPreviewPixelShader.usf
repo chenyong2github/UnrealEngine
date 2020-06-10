@@ -87,16 +87,8 @@ void Main(
 	if( MipLevel >= 0.0f )
 	{
 #if SAMPLE_VIRTUAL_TEXTURE
-		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, MipLevel, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);
+		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, MipLevel, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_WRAP, VTADDRESSMODE_WRAP);
 		Sample = TextureVirtualSampleLevel( InTexture, InTextureSampler, PageTableResult, LayerIndex, VTUniform_Unpack(VTPackedUniform));
-
-
-		/*(Sample = TextureVirtualSampleLevel(	InTexture, InTextureSampler, InPageTableTexture,
-											VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]),
-											VTUniform_Unpack(VTPackedUniform),
-											InPosition.xy, request, 0,
-											TextureCoordinate, VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP,
-											MipLevel);*/
 #else
 		Sample = Texture2DSampleLevel(InTexture, InTextureSampler,TextureCoordinate,MipLevel);
 #endif
@@ -105,14 +97,8 @@ void Main(
 	{
 #if SAMPLE_VIRTUAL_TEXTURE
 
-		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, 0.0f, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);
+		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, 0.0f, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_WRAP, VTADDRESSMODE_WRAP);
 		Sample = TextureVirtualSample( InTexture, InTextureSampler, PageTableResult, LayerIndex, VTUniform_Unpack(VTPackedUniform));
-
-		/*Sample = TextureVirtualSample(	InTexture, InTextureSampler, InPageTableTexture,
-										VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]),
-										VTUniform_Unpack(VTPackedUniform),
-										InPosition.xy, request, 0,
-										TextureCoordinate, VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);*/
 #else
 		Sample = Texture2DSample(InTexture, InTextureSampler,TextureCoordinate);
 #endif

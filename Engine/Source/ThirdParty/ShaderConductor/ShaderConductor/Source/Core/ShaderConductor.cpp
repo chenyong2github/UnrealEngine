@@ -132,9 +132,9 @@ namespace
             }
 
 #ifdef _WIN32
-            const char* dllName = "dxcompiler_sc.dll";
+            const char* dllName = "dxcompiler.dll";
 #elif __APPLE__
-            const char* dllName = "libdxcompiler.3.7.dylib";
+            const char* dllName = "libdxcompiler.dylib";
 #else
             const char* dllName = "libdxcompiler.so";
 #endif
@@ -384,7 +384,7 @@ namespace
         HRESULT statusRewrite;
         IFT(rewriteResult->GetStatus(&statusRewrite));
 		
-		Compiler::ResultDesc ret;
+		Compiler::ResultDesc ret = {};
 		ret.isText = true;
 		ret.hasError = true;
 
@@ -408,6 +408,12 @@ namespace
 					ret.hasError = false;
 					ret.target = CreateBlob(rewritten->GetBufferPointer(), static_cast<uint32_t>(rewritten->GetBufferSize()));
                 }
+				else
+				{
+					CComPtr<IDxcBlobEncoding> errorMsg;
+					IFT(removeUnusedGlobalsResult->GetErrorBuffer((IDxcBlobEncoding**)&errorMsg));
+					ret.errorWarningMsg = CreateBlob(errorMsg->GetBufferPointer(), static_cast<uint32_t>(errorMsg->GetBufferSize()));
+				}
             }
 			else
 			{
@@ -418,7 +424,9 @@ namespace
         }
 		else
 		{
-			ret.target = CreateBlob(sourceBlob->GetBufferPointer(), static_cast<uint32_t>(sourceBlob->GetBufferSize()));
+			CComPtr<IDxcBlobEncoding> errorMsg;
+			IFT(rewriteResult->GetErrorBuffer((IDxcBlobEncoding**)&errorMsg));
+			ret.errorWarningMsg = CreateBlob(errorMsg->GetBufferPointer(), static_cast<uint32_t>(errorMsg->GetBufferSize()));
 		}
         
         return ret;

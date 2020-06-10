@@ -5557,13 +5557,19 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
     {
         FShaderCodeLibrary::InitForCooking(PackagingSettings->bSharedMaterialNativeLibraries);
         
+		bool bAllPlatformsNeedStableKeys = false;
+		// support setting without Hungarian prefix for the compatibility, but allow newer one to override
+		GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bAllPlatformsNeedStableKeys, GEngineIni);
+		GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bNeedsShaderStableKeys"), bAllPlatformsNeedStableKeys, GEngineIni);
+
         for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
         {
 			// Find out if this platform requires stable shader keys, by reading the platform setting file.
-			bool bNeedShaderStableKeys = false;
+			bool bNeedShaderStableKeys = bAllPlatformsNeedStableKeys;
 			FConfigFile PlatformIniFile;
 			FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
 			PlatformIniFile.GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bNeedShaderStableKeys);
+			PlatformIniFile.GetBool(TEXT("DevOptions.Shaders"), TEXT("bNeedsShaderStableKeys"), bNeedShaderStableKeys);
 
 			bool bNeedsDeterministicOrder = PackagingSettings->bDeterministicShaderCodeOrder;
 			FConfigFile PlatformGameIniFile;

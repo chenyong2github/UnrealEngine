@@ -54,7 +54,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	ESkyAtmosphereTransformMode TransformMode;
 
 	/** The planet radius. (kilometers from the center to the ground level). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 6000.0, UIMax = 7000.0, ClampMin = 100.0, ClampMax = 10000.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 1.0, UIMax = 7000.0, ClampMin = 1.0, ClampMax = 10000.0, SliderExponent = 5.0))
 	float BottomRadius;
 
 	/** The ground albedo that will tint the astmophere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
@@ -64,7 +64,7 @@ class USkyAtmosphereComponent : public USceneComponent
 
 
 	/** The planet radius. (kilometers from the center to the ground level). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere", meta = (UIMin = 10.0, UIMax = 200.0, ClampMin = 10.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere", meta = (UIMin = 1.0, UIMax = 200.0, ClampMin = 0.1, SliderExponent = 2.0))
 	float AtmosphereHeight;
 
 	/** Render multi scattering as if sun light would bounce around in the atmosphere. This is achieved using a dual scattering approach. */

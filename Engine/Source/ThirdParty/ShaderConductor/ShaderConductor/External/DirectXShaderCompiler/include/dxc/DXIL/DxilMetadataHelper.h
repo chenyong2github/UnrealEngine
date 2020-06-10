@@ -12,6 +12,7 @@
 #pragma once
 
 #include "dxc/DXIL/DxilConstants.h"
+#include "llvm/ADT/ArrayRef.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +22,7 @@ class LLVMContext;
 class Module;
 class Function;
 class Instruction;
+class DbgDeclareInst;
 class Value;
 class MDOperand;
 class Metadata;
@@ -46,12 +48,21 @@ class DxilSampler;
 class DxilTypeSystem;
 class DxilStructAnnotation;
 class DxilFieldAnnotation;
+class DxilTemplateArgAnnotation;
 class DxilFunctionAnnotation;
 class DxilParameterAnnotation;
 class RootSignatureHandle;
 struct DxilFunctionProps;
 class DxilSubobjects;
 class DxilSubobject;
+
+// Additional debug information for SROA'ed array variables,
+// where adjacent elements in DXIL might not have been adjacent
+// in the original user variable.
+struct DxilDIArrayDim {
+  unsigned StrideInBits;
+  unsigned NumElements;
+};
 
 /// Use this class to manipulate DXIL-spcific metadata.
 // In our code, only DxilModule and HLModule should use this class.
@@ -127,6 +138,7 @@ public:
   static const unsigned kDxilSignatureElementOutputStreamTag    = 0;
   static const unsigned kHLSignatureElementGlobalSymbolTag      = 1;
   static const unsigned kDxilSignatureElementDynIdxCompMaskTag  = 2;
+  static const unsigned kDxilSignatureElementUsageCompMaskTag   = 3;
 
   // Resources.
   static const char kDxilResourcesMDName[];
@@ -175,6 +187,7 @@ public:
   // Resource extended property tags.
   static const unsigned kDxilTypedBufferElementTypeTag            = 0;
   static const unsigned kDxilStructuredBufferElementStrideTag     = 1;
+  static const unsigned kDxilSamplerFeedbackKindTag               = 2;
 
   // Type system.
   static const char kDxilTypeSystemMDName[];
@@ -190,6 +203,14 @@ public:
   static const unsigned kDxilFieldAnnotationFieldNameTag          = 6;
   static const unsigned kDxilFieldAnnotationCompTypeTag           = 7;
   static const unsigned kDxilFieldAnnotationPreciseTag            = 8;
+  static const unsigned kDxilFieldAnnotationCBUsedTag             = 9;
+
+  // StructAnnotation extended property tags (DXIL 1.5+ only, appended)
+  static const unsigned kDxilTemplateArgumentsTag                 = 0;  // Name for name-value list of extended struct properties
+  // TemplateArgument tags
+  static const unsigned kDxilTemplateArgTypeTag                   = 0;  // Type template argument, followed by undef of type
+  static const unsigned kDxilTemplateArgIntegralTag               = 1;  // Integral template argument, followed by i64 value
+  static const unsigned kDxilTemplateArgValue                     = 1;  // Position of template arg value (type or int)
 
   // Control flow hint.
   static const char kDxilControlFlowHintMDName[];
@@ -206,6 +227,12 @@ public:
   // NonUniform attribute.
   static const char kDxilNonUniformAttributeMDName[];
 
+  // Variable debug layout metadata.
+  static const char kDxilVariableDebugLayoutMDName[];
+
+  // Indication of temporary storage metadata.
+  static const char kDxilTempAllocaMDName[];
+
   // Validator version.
   static const char kDxilValidatorVersionMDName[];
   // Validator version uses the same constants for fields as kDxilVersion*
@@ -220,6 +247,8 @@ public:
   static const unsigned kDxilRayPayloadSizeTag  = 6;
   static const unsigned kDxilRayAttribSizeTag   = 7;
   static const unsigned kDxilShaderKindTag      = 8;
+  static const unsigned kDxilMSStateTag         = 9;
+  static const unsigned kDxilASStateTag         = 10;
 
   // GSState.
   static const unsigned kDxilGSStateNumFields               = 5;
@@ -243,6 +272,19 @@ public:
   static const unsigned kDxilHSStateTessellatorPartitioning   = 4;
   static const unsigned kDxilHSStateTessellatorOutputPrimitive= 5;
   static const unsigned kDxilHSStateMaxTessellationFactor     = 6;
+
+  // MSState.
+  static const unsigned kDxilMSStateNumFields = 5;
+  static const unsigned kDxilMSStateNumThreads = 0;
+  static const unsigned kDxilMSStateMaxVertexCount = 1;
+  static const unsigned kDxilMSStateMaxPrimitiveCount = 2;
+  static const unsigned kDxilMSStateOutputTopology = 3;
+  static const unsigned kDxilMSStatePayloadSizeInBytes = 4;
+
+  // ASState.
+  static const unsigned kDxilASStateNumFields = 2;
+  static const unsigned kDxilASStateNumThreads = 0;
+  static const unsigned kDxilASStatePayloadSizeInBytes = 1;
 
 public:
   /// Use this class to manipulate metadata of DXIL or high-level DX IR specific fields in the record.
@@ -269,6 +311,11 @@ public:
   protected:
     llvm::LLVMContext &m_Ctx;
     llvm::Module *m_pModule;
+
+  public:
+    unsigned m_ValMajor, m_ValMinor;        // Reported validation version in DXIL
+    unsigned m_MinValMajor, m_MinValMinor;  // Minimum validation version dictated by shader model
+    bool m_bExtraMetadata;
   };
 
 public:
@@ -351,6 +398,8 @@ public:
   void LoadDxilParamAnnotation(const llvm::MDOperand &MDO, DxilParameterAnnotation &PA);
   llvm::Metadata *EmitDxilParamAnnotations(const DxilFunctionAnnotation &FA);
   void LoadDxilParamAnnotations(const llvm::MDOperand &MDO, DxilFunctionAnnotation &FA);
+  llvm::Metadata *EmitDxilTemplateArgAnnotation(const DxilTemplateArgAnnotation &annotation);
+  void LoadDxilTemplateArgAnnotation(const llvm::MDOperand &MDO, DxilTemplateArgAnnotation &annotation);
 
   // Function props.
   llvm::MDTuple *EmitDxilFunctionProps(const hlsl::DxilFunctionProps *props,
@@ -370,12 +419,17 @@ public:
   void LoadDxilViewIdState(std::vector<unsigned> &SerializedState);
   // Control flow hints.
   static llvm::MDNode *EmitControlFlowHints(llvm::LLVMContext &Ctx, std::vector<DXIL::ControlFlowHint> &hints);
+  static unsigned GetControlFlowHintMask(const llvm::Instruction *I);
+  static bool HasControlFlowHintToPreventFlatten(const llvm::Instruction *I);
 
   // Subobjects
   void EmitSubobjects(const DxilSubobjects &Subobjects);
   void LoadSubobjects(DxilSubobjects &Subobjects);
   llvm::Metadata *EmitSubobject(const DxilSubobject &obj);
   void LoadSubobject(const llvm::MDNode &MDO, DxilSubobjects &Subobjects);
+
+  // Extra metadata present
+  bool HasExtraMetadata() { return m_bExtraMetadata; }
 
   // Shader specific.
 private:
@@ -404,6 +458,21 @@ private:
                        DXIL::TessellatorPartitioning &TessPartitioning,
                        DXIL::TessellatorOutputPrimitive &TessOutputPrimitive,
                        float &MaxTessFactor);
+
+  llvm::MDTuple *EmitDxilMSState(const unsigned *NumThreads,
+                                 unsigned MaxVertexCount,
+                                 unsigned MaxPrimitiveCount,
+                                 DXIL::MeshOutputTopology OutputTopology,
+                                 unsigned payloadSizeInBytes);
+  void LoadDxilMSState(const llvm::MDOperand &MDO,
+                       unsigned *NumThreads,
+                       unsigned &MaxVertexCount,
+                       unsigned &MaxPrimitiveCount,
+                       DXIL::MeshOutputTopology &OutputTopology,
+                       unsigned &payloadSizeInBytes);
+
+  llvm::MDTuple *EmitDxilASState(const unsigned *NumThreads, unsigned payloadSizeInBytes);
+  void LoadDxilASState(const llvm::MDOperand &MDO, unsigned *NumThreads, unsigned &payloadSizeInBytes);
 public:
   // Utility functions.
   static bool IsKnownNamedMetaData(const llvm::NamedMDNode &Node);
@@ -435,12 +504,23 @@ public:
   static void MarkPrecise(llvm::Instruction *inst);
   static bool IsMarkedNonUniform(const llvm::Instruction *inst);
   static void MarkNonUniform(llvm::Instruction *inst);
+  static bool GetVariableDebugLayout(llvm::DbgDeclareInst *inst,
+    unsigned &StartOffsetInBits, std::vector<DxilDIArrayDim> &ArrayDims);
+  static void SetVariableDebugLayout(llvm::DbgDeclareInst *inst,
+    unsigned StartOffsetInBits, const std::vector<DxilDIArrayDim> &ArrayDims);
+  static void CopyMetadata(llvm::Instruction &I, llvm::Instruction &SrcInst, llvm::ArrayRef<unsigned>WL = llvm::ArrayRef<unsigned>());
 
 private:
   llvm::LLVMContext &m_Ctx;
   llvm::Module *m_pModule;
   const ShaderModel *m_pSM;
   std::unique_ptr<ExtraPropertyHelper> m_ExtraPropertyHelper;
+  unsigned m_ValMajor, m_ValMinor;        // Reported validation version in DXIL
+  unsigned m_MinValMajor, m_MinValMinor;  // Minimum validation version dictated by shader model
+
+  // Non-fatal if extra metadata is found, but will fail validation.
+  // This is how metadata can be exteneded.
+  bool m_bExtraMetadata;
 };
 
 

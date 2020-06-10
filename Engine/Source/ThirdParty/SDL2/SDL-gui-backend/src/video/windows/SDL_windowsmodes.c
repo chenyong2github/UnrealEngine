@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,7 +24,6 @@
 
 #include "SDL_windowsvideo.h"
 #include "../../../include/SDL_assert.h"
-#include "../../../include/SDL_log.h"
 
 /* Windows CE compatibility */
 #ifndef CDS_FULLSCREEN
@@ -54,7 +53,7 @@ WIN_UpdateDisplayMode(_THIS, LPCTSTR deviceName, DWORD index, SDL_DisplayMode * 
         mode->w = logical_width;
         mode->h = logical_height;
         
-        SDL_zero(bmi_data);
+        SDL_zeroa(bmi_data);
         bmi = (LPBITMAPINFO) bmi_data;
         bmi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 

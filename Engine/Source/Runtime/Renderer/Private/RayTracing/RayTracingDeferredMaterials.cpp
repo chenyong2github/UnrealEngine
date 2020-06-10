@@ -8,6 +8,7 @@
 #include "RenderGraphUtils.h"
 #include "DeferredShadingRenderer.h"
 #include "PipelineStateCache.h"
+#include "ShaderCompilerCore.h"
 
 #if RHI_RAYTRACING
 

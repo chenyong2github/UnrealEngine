@@ -37,3 +37,12 @@ void FEmptyDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRec
 {
 
 }
+
+void FEmptyDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
+{
+}
+
+void FEmptyDynamicRHI::RHIEndRenderPass()
+{
+}
+
