@@ -1209,6 +1209,13 @@ void UNiagaraComponent::DestroyInstance()
 
 void UNiagaraComponent::OnRegister()
 {
+	if (IsActive() && SystemInstance.IsValid() == false)
+	{
+		// If we're active but don't have an active system instance clear the active flag so that the component
+		// gets activated.
+		SetActiveFlag(false);
+	}
+
 	if (bAutoManageAttachment && !IsActive())
 	{
 		// Detach from current parent, we are supposed to wait for activation.
