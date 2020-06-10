@@ -183,6 +183,10 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 	ActorSpawnParameters.bHideFromSceneOutliner = true;
 
 	ALODActor* LODActor = InLevel->GetWorld()->SpawnActor<ALODActor>(ALODActor::StaticClass(), ActorSpawnParameters);
+	if (!LODActor)
+	{
+		return nullptr;
+	}
 
 	// Temporarily switch to movable in order to update the static mesh...
 	LODActor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
