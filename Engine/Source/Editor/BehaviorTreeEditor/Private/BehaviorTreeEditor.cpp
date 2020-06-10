@@ -1728,7 +1728,10 @@ TSharedRef<SWidget> FBehaviorTreeEditor::HandleCreateNewServiceMenu() const
 
 void FBehaviorTreeEditor::HandleNewNodeClassPicked(UClass* InClass) const
 {
-	if(BehaviorTree != nullptr)
+	UE_CLOG(InClass == nullptr, LogBehaviorTreeEditor, Error, TEXT("Trying to handle new node of NULL class for Behavior Treee %s ")
+		, *GetNameSafe(BehaviorTree));
+
+	if(BehaviorTree != nullptr && InClass != nullptr && BehaviorTree->GetOutermost())
 	{
 		FString ClassName = FBlueprintEditorUtils::GetClassNameWithoutSuffix(InClass);
 
