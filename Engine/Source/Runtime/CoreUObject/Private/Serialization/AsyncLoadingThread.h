@@ -394,6 +394,12 @@ public:
 		return IsLoadingSuspended.GetValue();
 	}
 
+	/** Returns the number of async packages that are currently queued but not yet processed */
+	FORCEINLINE int32 GetNumQueuedPackages() override
+	{
+		return QueuedPackagesCounter.GetValue();
+	}
+
 	/** Returns the number of async packages that are currently being processed */
 	FORCEINLINE int32 GetNumAsyncPackages() override
 	{

@@ -151,6 +151,11 @@ public:
 	virtual void FlushLoading(int32 PackageId) = 0;
 
 	/**
+	 *	Returns the number of queued packages.
+	 */
+	virtual int32 GetNumQueuedPackages() = 0;
+
+	/**
 	 *	Returns the number of loading packages.
 	 */
 	virtual int32 GetNumAsyncPackages() = 0;
