@@ -10,7 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
-#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "PBDRigidsSolver.h"
 
 DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);

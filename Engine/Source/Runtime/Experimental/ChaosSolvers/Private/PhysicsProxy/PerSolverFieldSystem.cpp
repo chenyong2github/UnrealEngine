@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Field/FieldSystem.h"
 #include "Chaos/PBDRigidClustering.h"
