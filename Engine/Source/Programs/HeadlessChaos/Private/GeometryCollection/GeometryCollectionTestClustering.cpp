@@ -2121,13 +2121,10 @@ namespace GeometryCollectionTest
 		FalloffField->Position = FVector(0.0, 0.0, 0.0);
 		FalloffField->Falloff = EFieldFalloffType::Field_FallOff_None;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = Collection->DynamicCollection;
 		DynamicCollection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 
 		UnitTest.AddSimulationObject(Collection);
-		UnitTest.AddFieldObject(FieldObject);
 		UnitTest.Initialize();
 
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
@@ -2145,7 +2142,7 @@ namespace GeometryCollectionTest
 		FFieldSystemCommand Command(TargetName, FalloffField->NewCopy());
 		FFieldSystemMetaDataProcessingResolution* ResolutionData = new FFieldSystemMetaDataProcessingResolution(EFieldResolutionType::Field_Resolution_Maximum);
 		Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr< FFieldSystemMetaDataProcessingResolution >(ResolutionData));
-		FieldObject->BufferCommand(UnitTest.Solver, Command);
+		UnitTest.Solver->GetPerSolverField().BufferCommand(Command);
 
 		FVector Scale = Transform[1].GetScale3D();
 
@@ -2155,7 +2152,7 @@ namespace GeometryCollectionTest
 		
 		UnitTest.Advance();		
 
-		FieldObject->BufferCommand(UnitTest.Solver, { TargetName, FalloffField->NewCopy() });
+		UnitTest.Solver->GetPerSolverField().BufferCommand({ TargetName, FalloffField->NewCopy() });
 
 		UnitTest.Advance();		
 
@@ -2166,7 +2163,6 @@ namespace GeometryCollectionTest
 		EXPECT_NEAR(Scale2.Z, 0.0f, SMALL_NUMBER);
 		
 		delete FalloffField;
-		delete FieldObject;
 	
 	}
 

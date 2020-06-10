@@ -72,6 +72,7 @@ namespace Chaos
 	 * });
 	 * MyList.Flush();
 	 */
+#if 0
 	class FCommandList
 	{
 	public:
@@ -110,4 +111,5 @@ namespace Chaos
 		// list data allocated to service future commands.
 		TUniquePtr<FCommandListData> Data;
 	};
+#endif
 }

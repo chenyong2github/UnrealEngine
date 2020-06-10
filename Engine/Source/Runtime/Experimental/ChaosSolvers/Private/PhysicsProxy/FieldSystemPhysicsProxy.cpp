@@ -21,36 +21,13 @@ void ResetIndicesArray(TArray<int32> & IndicesArray, int32 Size)
 }
 
 //==============================================================================
-// FFieldSystemPhysicsProxy
+// FPerSolverFieldSystem
 //==============================================================================
 
-FFieldSystemPhysicsProxy::FFieldSystemPhysicsProxy(UObject* InOwner)
-	: Base(InOwner)
-{}
-
-FFieldSystemPhysicsProxy::~FFieldSystemPhysicsProxy()
-{
-	// Need to delete any command lists we have hanging around
-	FScopeLock Lock(&CommandLock);
-	for(TTuple<Chaos::FPhysicsSolverBase*, TArray<FFieldSystemCommand>*>& Pair : Commands)
-	{
-		delete Pair.Get<1>();
-	}
-	Commands.Reset();
-}
-
-void FFieldSystemPhysicsProxy::Initialize()
-{}
-
-bool FFieldSystemPhysicsProxy::IsSimulating() const
-{
-	return true; // #todo Actually start gating this?
-}
-
 template <typename Traits>
-void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
+void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 	Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-	FParticlesType& Particles, 
+	Chaos::TPBDRigidParticles<float, 3>& Particles, 
 	Chaos::TArrayCollectionArray<float>& Strains, 
 	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
 	TMap<int32, int32>& PositionTargetedParticles, 
@@ -62,15 +39,9 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 	
 	Chaos::TPBDRigidsSolver<Traits>* CurrentSolver = InSolver;
 
+	const int32 NumCommands = Commands.Num();
 	if (Commands.Num() && InSolver)
 	{
-		TArray<FFieldSystemCommand>* CommandListPtr = GetSolverCommandList(InSolver);
-		if(!CommandListPtr)
-		{
-			// No command list present for this solver, bail out
-			return;
-		}
-		const int32 NumCommands = CommandListPtr->Num();
 		TArray<int32> CommandsToRemove;
 		CommandsToRemove.Reserve(NumCommands);
 
@@ -83,7 +54,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 		EFieldResolutionType PrevResolutionType = static_cast<EFieldResolutionType>(0); // none
 		for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
 		{
-			const FFieldSystemCommand& Command = (*CommandListPtr)[CommandIndex];
+			const FFieldSystemCommand& Command = Commands[CommandIndex];
 			const EFieldResolutionType ResolutionType = 
 				Command.HasMetaData(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution) ?
 					Command.GetMetaDataAs<FFieldSystemMetaDataProcessingResolution>(
@@ -91,11 +62,11 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					EFieldResolutionType::Field_Resolution_Minimal;
 			if (PrevResolutionType != ResolutionType || Handles.Num() == 0)
 			{
-				FFieldSystemPhysicsProxy::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
+				FPerSolverFieldSystem::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
 				PrevResolutionType = ResolutionType;
 
-				SamplePoints.AddUninitialized(Handles.Num());
-				SampleIndices.AddUninitialized(Handles.Num());
+				SamplePoints.SetNum(Handles.Num());
+				SampleIndices.SetNum(Handles.Num());
 				for (int32 Idx = 0; Idx < Handles.Num(); ++Idx)
 				{
 					SamplePoints[Idx] = Handles[Idx]->X();
@@ -842,7 +813,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					Chaos::TPBDRigidDynamicSpringConstraints<float, 3>& DynamicConstraints = FPhysicsSolver::FAccessor(CurrentSolver).DynamicConstraints();
 					TSet<int32>& DynamicConstraintParticles = FPhysicsSolver::FAccessor(CurrentSolver).DynamicConstraintParticles();
 
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
+					FPerSolverFieldSystem::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
 					if (IndicesArray.Num())
 					{
 						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
@@ -889,35 +860,29 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 		}
 		for (int32 Index = CommandsToRemove.Num() - 1; Index >= 0; --Index)
 		{
-			CommandListPtr->RemoveAt(CommandsToRemove[Index]);
+			Commands.RemoveAt(CommandsToRemove[Index]);
 		}
 	}
 }
 
 template <typename Traits>
-void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
+void FPerSolverFieldSystem::FieldForcesUpdateCallback(
 	Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-	FParticlesType& Particles, 
+	Chaos::TPBDRigidParticles<float, 3>& Particles, 
 	Chaos::TArrayCollectionArray<FVector> & Force, 
 	Chaos::TArrayCollectionArray<FVector> & Torque, 
 	const float Time)
 {
-	if (Commands.Num() && InSolver)
+	const int32 NumCommands = Commands.Num();
+	if (NumCommands && InSolver)
 	{
 		Chaos::TPBDRigidsSolver<Traits>* CurrentSolver = InSolver;
 		TArray<ContextIndex> IndicesArray;
 
-		TArray<FFieldSystemCommand>* CommandListPtr = GetSolverCommandList(InSolver);
-		if(!CommandListPtr)
-		{
-			return;
-		}
-
 		TArray<int32> CommandsToRemove;
-		const int32 NumCommands = CommandListPtr->Num();
 		for(int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
 		{
-			const FFieldSystemCommand & Command = (*CommandListPtr)[CommandIndex];
+			const FFieldSystemCommand & Command = Commands[CommandIndex];
 			const EFieldResolutionType ResolutionType = 
 				Command.HasMetaData(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution) ?
 					Command.GetMetaDataAs<FFieldSystemMetaDataProcessingResolution>(
@@ -930,7 +895,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 					TEXT("Field based evaluation of the simulations 'Force' parameter expects FVector field inputs.")))
 				{
 					TArray<Chaos::TGeometryParticleHandle<float,3>*> Handles;
-					FFieldSystemPhysicsProxy::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
+					FPerSolverFieldSystem::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
 					if (Handles.Num())
 					{
 						TArray<FVector> SamplePoints;
@@ -993,7 +958,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 					TEXT("Field based evaluation of the simulations 'Torque' parameter expects FVector field inputs.")))
 				{
 					TArray<Chaos::TGeometryParticleHandle<float,3>*> Handles;
-					FFieldSystemPhysicsProxy::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
+					FPerSolverFieldSystem::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
 					if (Handles.Num())
 					{
 						TArray<FVector> SamplePoints;
@@ -1052,34 +1017,17 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 		}
 		for (int32 Index = CommandsToRemove.Num() - 1; Index >= 0; --Index)
 		{
-			CommandListPtr->RemoveAt(CommandsToRemove[Index]);
+			Commands.RemoveAt(CommandsToRemove[Index]);
 		}
 	}
 }
 
-void FFieldSystemPhysicsProxy::BufferCommand(Chaos::FPhysicsSolverBase* InSolver, const FFieldSystemCommand& InCommand)
+void FPerSolverFieldSystem::BufferCommand(const FFieldSystemCommand& InCommand)
 {
-	// TODO: Consider inspecting InCommand and bucketing according to which evaluation 
-	// path it requires; FieldParameterUpdateCallback() or FieldForcesUpdateCallback().
-	// TODO: Consider using a lock free triple buffer.
-
-	TArray<FFieldSystemCommand>** ExistingList = nullptr;
-	{
-		FScopeLock Lock(&CommandLock);
-		ExistingList = Commands.Find(InSolver);
-		if(!ExistingList)
-		{
-			ExistingList = &Commands.Add(InSolver);
-			//Commands.Add(InSolver);
-			//ExistingList = Commands.Find(InSolver);
-			check(ExistingList);
-			(*ExistingList) = new TArray<FFieldSystemCommand>();
-		}
-	}
-	(*ExistingList)->Add(InCommand);
+	Commands.Add(InCommand);
 }
 
-//void FFieldSystemPhysicsProxy::GetParticleHandles(
+//void FPerSolverFieldSystem::GetParticleHandles(
 //	TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,
 //	const Chaos::FPhysicsSolver* RigidSolver,
 //	const EFieldResolutionType ResolutionType,
@@ -1126,7 +1074,7 @@ void FFieldSystemPhysicsProxy::BufferCommand(Chaos::FPhysicsSolverBase* InSolver
 //}
 
 template <typename Traits>
-void FFieldSystemPhysicsProxy::GetParticleHandles(
+void FPerSolverFieldSystem::GetParticleHandles(
 	TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
 	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 	const EFieldResolutionType ResolutionType, 
@@ -1194,34 +1142,23 @@ void FFieldSystemPhysicsProxy::GetParticleHandles(
 	}
 }
 
-TArray<FFieldSystemCommand>* FFieldSystemPhysicsProxy::GetSolverCommandList(const Chaos::FPhysicsSolverBase* InSolver)
-{
-	FScopeLock Lock(&CommandLock);
-	TArray<FFieldSystemCommand>** ExistingList = Commands.Find(InSolver);
-	return ExistingList ? *ExistingList : nullptr;
-}
-
-void FFieldSystemPhysicsProxy::OnRemoveFromScene()
-{
-}
-
 #define EVOLUTION_TRAIT(Traits)\
-template void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(\
+template void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		FParticlesType& InParticles, \
+		Chaos::TPBDRigidParticles<float, 3>& InParticles, \
 		Chaos::TArrayCollectionArray<float>& Strains, \
 		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, \
 		TMap<int32, int32>& PositionTargetedParticles, \
 		const float InTime);\
 \
-template void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(\
+template void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		FParticlesType& Particles, \
+		Chaos::TPBDRigidParticles<float, 3>& Particles, \
 		Chaos::TArrayCollectionArray<FVector> & Force, \
 		Chaos::TArrayCollectionArray<FVector> & Torque, \
 		const float Time);\
 \
-template void FFieldSystemPhysicsProxy::GetParticleHandles(\
+template void FPerSolverFieldSystem::GetParticleHandles(\
 		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
 		const EFieldResolutionType ResolutionType,\

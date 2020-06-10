@@ -39,7 +39,6 @@ namespace Chaos
 		{
 		}
 
-		virtual void EnqueueCommandImmediate(FGlobalCommand InCommand) final override;
 		virtual void EnqueueCommandImmediate(FTaskCommand InCommand) final override;
 		virtual void EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand) final override;
 
@@ -68,8 +67,6 @@ namespace Chaos
 	template<>
 	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FTaskCommand InCommand);
 
-	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FGlobalCommand InCommand);
 
 	template<>
 	void FDispatcher<EThreadingMode::DedicatedThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
@@ -85,8 +82,6 @@ namespace Chaos
 	template<>
 	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FTaskCommand InCommand);
 
-	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FGlobalCommand InCommand);
 
 	template<>
 	void FDispatcher<EThreadingMode::SingleThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
@@ -102,8 +97,6 @@ namespace Chaos
 	template<>
 	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FTaskCommand InCommand);
 
-	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FGlobalCommand InCommand);
 
 	template<>
 	void FDispatcher<EThreadingMode::TaskGraph>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
