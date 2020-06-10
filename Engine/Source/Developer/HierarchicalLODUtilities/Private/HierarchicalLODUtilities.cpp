@@ -116,7 +116,7 @@ static FString GetHLODPackageName(const ULevel* InLevel, const uint32 InHLODLeve
 		LevelPackageName = InLevel->GetOutermost()->GetPathName();
 	}
 	
-	if (InLevel->GetWorld()->IsPlayInEditor())
+	if (InLevel->GetWorld() && InLevel->GetWorld()->IsPlayInEditor())
 	{
 		LevelPackageName = UWorld::StripPIEPrefixFromPackageName(LevelPackageName, InLevel->GetWorld()->StreamingLevelsPrefix);
 	}
