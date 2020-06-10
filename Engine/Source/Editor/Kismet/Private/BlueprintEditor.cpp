@@ -2553,7 +2553,17 @@ void FBlueprintEditor::CreateSCSEditors()
 		.PreviewActor(this, &FBlueprintEditor::GetPreviewActor)
 		.AllowEditing(this, &FBlueprintEditor::InEditingMode)
 		.OnSelectionUpdated(this, &FBlueprintEditor::OnSelectionUpdated)
-		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked);
+		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked)
+		.HideComponentClassCombo_Lambda([]()
+		{
+			const UBlueprintEditorProjectSettings* Settings = GetDefault<UBlueprintEditorProjectSettings>();
+			return !!Settings->bDisallowAddingNewComponents;
+		})
+		.ComponentTypeFilter_Lambda([]()
+		{
+			const UBlueprintEditorProjectSettings* Settings = GetDefault<UBlueprintEditorProjectSettings>();
+			return Settings->DefaultComponentsTreeViewTypeFilter;
+		});
 
 	SCSViewport = SAssignNew(SCSViewport, SSCSEditorViewport)
 		.BlueprintEditor(SharedThis(this));
