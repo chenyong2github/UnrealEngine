@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 #include "IDetailChildrenBuilder.h"
-#include "Widgets/STooltip.h"
+#include "Widgets/SToolTip.h"
 #include "Engine/DataTable.h"
 #include "IPropertyUtilities.h"
 
