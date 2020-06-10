@@ -95,7 +95,7 @@ namespace ImmediatePhysics_Chaos
 	{
 #if WITH_CHAOS
 		// We should only get non-simulated objects through this path, but you never know...
-		if ((BodyInstance != nullptr) && !BodyInstance->bSimulatePhysics)
+		if ((BodyInstance != nullptr) && !BodyInstance->bSimulatePhysics && (BodyInstance->ActorHandle != nullptr))
 		{
 			OutMass = 0.0f;
 			OutInertia = FVector::ZeroVector;
