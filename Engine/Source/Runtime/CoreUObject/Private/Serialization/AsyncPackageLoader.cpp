@@ -591,6 +591,7 @@ void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 			{
 				UE_LOG(LogStreaming, Display, TEXT("FlushAsyncLoading: %d QueuedPackages, %d AsyncPackages"), GPackageLoader->GetNumQueuedPackages(), GPackageLoader->GetNumAsyncPackages());
 			}
+			else
 			{
 				UE_LOG(LogStreaming, Log, TEXT("FlushAsyncLoading: %d QueuedPackages, %d AsyncPackages"), GPackageLoader->GetNumQueuedPackages(), GPackageLoader->GetNumAsyncPackages());
 			}
