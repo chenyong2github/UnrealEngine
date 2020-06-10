@@ -1,0 +1,601 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+NiagaraDataInterfaceVelocityGrid.ush 
+=============================================================================*/
+
+#pragma once
+
+/* -----------------------------------------------------------------
+ * Velocity Grid constants and context
+ * -----------------------------------------------------------------
+ */
+
+#define FAST_MODE 1
+
+static const float FLOAT_PRECISION = 1e+4;
+
+static const int FLUID_MASS_OFFSET = 0;
+static const int FLUID_VELOCITY_OFFSET = 3;
+
+struct FDIVelocityGridContext
+{
+	float4x4			WorldTransform;
+	float4x4			WorldInverse;
+	int3				GridSize;
+	Texture3D<int>		GridCurrentBuffer;
+	RWTexture3D<int>	GridDestinationBuffer;
+}; 
+
+#define DIVelocityGrid_DECLARE_CONSTANTS(NAME)\
+float4x4 WorldTransform_##NAME;\
+float4x4 WorldInverse_##NAME;\
+int3 GridSize_##NAME;\
+Texture3D<int> GridCurrentBuffer_##NAME;\
+RWTexture3D<int> GridDestinationBuffer_##NAME;\
+
+#define DIVelocityGrid_MAKE_CONTEXT(NAME)\
+FDIVelocityGridContext DIContext; \
+DIContext.WorldTransform = WorldTransform_##NAME;\
+DIContext.WorldInverse = WorldInverse_##NAME;\
+DIContext.GridSize = GridSize_##NAME;\
+DIContext.GridCurrentBuffer = GridCurrentBuffer_##NAME;\
+DIContext.GridDestinationBuffer = GridDestinationBuffer_##NAME;\
+
+/* -----------------------------------------------------------------
+ * Grid topology conversion
+ * -----------------------------------------------------------------
+ */
+
+// Compute the grid origin and grid length
+void DIVelocityGrid_ComputeGridSize(in FDIVelocityGridContext DIContext, in float3 GridCenter, 
+									  in float3 GridExtent, out float3 OutGridOrigin, out float OutGridLength)
+{
+	const float3 GridLengths = float3(2.0*GridExtent.x/(DIContext.GridSize.x-2),
+									  2.0*GridExtent.y/(DIContext.GridSize.y-2),
+									  2.0*GridExtent.z/(DIContext.GridSize.z-2));
+
+	const float MaxLength = max(GridLengths.x,max(GridLengths.y,GridLengths.z));
+
+	const float3 RegularSize = float3(DIContext.GridSize.x*MaxLength,
+									  DIContext.GridSize.y*MaxLength,
+									  DIContext.GridSize.z*MaxLength);
+
+	OutGridOrigin = GridCenter - 0.5 * RegularSize;
+	OutGridLength = MaxLength;
+}
+
+// Transform the node world position in grid space
+float3 DIVelocityGrid_GetGridPosition(in FDIVelocityGridContext DIContext, in float3 ParticlePosition, in float3 GridOrigin)
+{
+	return ParticlePosition - GridOrigin;
+}
+
+/* -----------------------------------------------------------------
+ * Grid cell/node/face validity
+ * -----------------------------------------------------------------
+ */
+
+// Return true if the grid cell index is in any voxel center (0,N-1)
+bool DIVelocityGrid_IsCellValid(in FDIVelocityGridContext DIContext, in int3 CellIndex)
+{
+	return (CellIndex.x >= 0 && CellIndex.x < DIContext.GridSize.x) && 
+		   (CellIndex.y >= 0 && CellIndex.y < DIContext.GridSize.y) &&
+		   (CellIndex.z >= 0 && CellIndex.z < DIContext.GridSize.z);
+}
+
+// Return true if the grid face index is for the component one (0,N) and in the voxel center for the others (0,N-1)
+bool DIVelocityGrid_IsFaceValid(in FDIVelocityGridContext DIContext, in int3 FaceIndex, in int ComponentIndex)
+{
+	switch(ComponentIndex)
+	{
+		case 0 :
+			return (FaceIndex.x >= 0 && FaceIndex.x <= DIContext.GridSize.x) && 
+			   (FaceIndex.y >= 0 && FaceIndex.y < DIContext.GridSize.y) &&
+			   (FaceIndex.z >= 0 && FaceIndex.z < DIContext.GridSize.z);
+		case 1 : 
+			return (FaceIndex.x >= 0 && FaceIndex.x < DIContext.GridSize.x) && 
+			   (FaceIndex.y >= 0 && FaceIndex.y <= DIContext.GridSize.y) &&
+			   (FaceIndex.z >= 0 && FaceIndex.z < DIContext.GridSize.z);
+		default : 
+			return (FaceIndex.x >= 0 && FaceIndex.x < DIContext.GridSize.x) && 
+			   (FaceIndex.y >= 0 && FaceIndex.y < DIContext.GridSize.y) &&
+			   (FaceIndex.z >= 0 && FaceIndex.z <= DIContext.GridSize.z);
+	}
+}
+
+// Return true if the grid node index is valid (0,N)
+bool DIVelocityGrid_IsNodeValid(in FDIVelocityGridContext DIContext, in int3 NodeIndex)
+{
+	return (NodeIndex.x >= 0 && NodeIndex.x <= DIContext.GridSize.x) && 
+		   (NodeIndex.y >= 0 && NodeIndex.y <= DIContext.GridSize.y) &&
+		   (NodeIndex.z >= 0 && NodeIndex.z <= DIContext.GridSize.z);
+}
+
+// Return true if the grid face index is inside the grid
+bool DIVelocityGrid_IsFaceInside(in FDIVelocityGridContext DIContext, in int3 FaceIndex, in int ComponentIndex)
+{
+	switch(ComponentIndex)
+	{
+		case 0 :
+			return (FaceIndex.x >  0 && FaceIndex.x < DIContext.GridSize.x) && 
+			   (FaceIndex.y >= 0 && FaceIndex.y < DIContext.GridSize.y) &&
+			   (FaceIndex.z >= 0 && FaceIndex.z < DIContext.GridSize.z);
+		case 1 :
+			return (FaceIndex.x >= 0 && FaceIndex.x < DIContext.GridSize.x) && 
+			   (FaceIndex.y >  0 && FaceIndex.y < DIContext.GridSize.y) &&
+			   (FaceIndex.z >= 0 && FaceIndex.z < DIContext.GridSize.z);
+		default : 
+			return (FaceIndex.x >= 0 && FaceIndex.x < DIContext.GridSize.x) && 
+			   (FaceIndex.y >= 0 && FaceIndex.y < DIContext.GridSize.y) &&
+			   (FaceIndex.z >  0 && FaceIndex.z < DIContext.GridSize.z);
+	}
+}
+
+bool DIVelocityGrid_IsCellInside(in FDIVelocityGridContext DIContext, in int3 CellIndex)
+{
+	return (CellIndex.x > 0 && CellIndex.x < (DIContext.GridSize.x-1)) && 
+		   (CellIndex.y > 0 && CellIndex.y < (DIContext.GridSize.y-1)) &&
+		   (CellIndex.z > 0 && CellIndex.z < (DIContext.GridSize.z-1));
+}
+
+bool DIVelocityGrid_IsNodeInside(in FDIVelocityGridContext DIContext, in int3 NodeIndex)
+{
+	return (NodeIndex.x > 0 && NodeIndex.x < DIContext.GridSize.x) && 
+		   (NodeIndex.y > 0 && NodeIndex.y < DIContext.GridSize.y) &&
+		   (NodeIndex.z > 0 && NodeIndex.z < DIContext.GridSize.z);
+}
+
+/* -----------------------------------------------------------------
+ * Grid indexing utilities
+ * -----------------------------------------------------------------
+ */
+
+// Compute the grid index and fraction given a grid position and a grid offset
+int3 DIVelocityGrid_ComputeGridIndex(in FDIVelocityGridContext DIContext, in float3 GridPosition, in float3 GridOffset, 
+								 in float GridLength, out float3 OutGridFraction)
+{
+	const float3 GridCoordinate = GridPosition / GridLength - GridOffset;
+
+	const int3 GridIndex = floor(GridCoordinate);
+	OutGridFraction = GridCoordinate - GridIndex;
+	return GridIndex;
+}
+
+// Compute the grid index given a grid hash
+int3 DIVelocityGrid_GetGridIndex(in FDIVelocityGridContext DIContext, in int GridHash)
+{
+	const int GridSizeYZ = (DIContext.GridSize.y+1) * (DIContext.GridSize.z+1);
+	const int GridHashYZ = GridHash % GridSizeYZ;
+
+	return int3(GridHash / GridSizeYZ, GridHashYZ / (DIContext.GridSize.z+1), GridHashYZ % (DIContext.GridSize.z+1));
+}
+
+/* -----------------------------------------------------------------
+ * Get Cell/Node/Face world positions
+ * -----------------------------------------------------------------
+ */
+ 
+ // Compute the world face position
+void DIVelocityGrid_GetFacePosition(in FDIVelocityGridContext DIContext, in int GridHash, 
+									in float3 GridOrigin, in float GridLength, in int ComponentIndex, out float3 OutFacePosition)
+{
+	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
+
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,ComponentIndex) )
+	{
+		float3 ComponentOffset = float3(0.5,0.5,0.5); ComponentOffset[ComponentIndex] = 0.0;
+		OutFacePosition = (GridIndex+ComponentOffset)*GridLength+GridOrigin;
+	}
+	else
+	{
+		OutFacePosition = float3(0,0,0);
+	}
+}
+
+// Compute the world cell position
+void DIVelocityGrid_GetCellPosition(in FDIVelocityGridContext DIContext, in int GridHash, 
+									in float3 GridOrigin, in float GridLength, out float3 OutCellPosition)
+{
+	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
+
+	if( DIVelocityGrid_IsCellValid(DIContext,GridIndex) )
+	{
+		OutCellPosition = (GridIndex+float3(0.5,0.5,0.5))*GridLength+GridOrigin;
+	}
+	else
+	{
+		OutCellPosition = float3(0,0,0);
+	}
+}
+
+// Compute the world node position
+void DIVelocityGrid_GetNodePosition(in FDIVelocityGridContext DIContext, in int GridHash, 
+									in float3 GridOrigin, in float GridLength, out float3 OutNodePosition)
+{
+	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
+
+	if( DIVelocityGrid_IsNodeValid(DIContext,GridIndex) )
+	{
+		OutNodePosition = GridIndex*GridLength+GridOrigin;
+	}
+	else
+	{
+		OutNodePosition = float3(0,0,0);
+	}
+}
+
+/* -----------------------------------------------------------------
+ * Interlocked Add/Min Float (slow but accurate version) and Int (fast but approximate version)
+ * -----------------------------------------------------------------
+ */
+
+// Compute the data index from agrid index and a data offset
+int3 DIVelocityGrid_GetDataIndex( in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset)
+{
+	return int3( GridIndex.x + DataOffset * (DIContext.GridSize.x+1), GridIndex.yz);
+}
+
+#if FAST_MODE == 1
+
+void DIVelocityGrid_InterlockedAddInt(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in int IntValue)
+{
+	InterlockedAdd(DIContext.GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)], IntValue);
+}
+
+void DIVelocityGrid_InterlockedMinInt(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in int IntValue)
+{
+	InterlockedMin(DIContext.GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)], IntValue);
+}
+
+#else
+
+void DIVelocityGrid_InterlockedAddFloat(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+	int IntValue = asint(FloatValue);
+	int CompareValue = 0;
+	int StoredValue = 0;
+
+	[allow_uav_condition] while(true)
+	{
+		InterlockedCompareExchange(DIContext.GridDestinationBuffer[
+				DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)],CompareValue,IntValue,StoredValue);
+		if(StoredValue == CompareValue)
+		{
+			break;
+		}
+		CompareValue = StoredValue;
+		IntValue = asint(FloatValue+asfloat(StoredValue));
+	}
+}
+
+void DIVelocityGrid_InterlockedMinFloat(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+	int IntValue = asint(FloatValue);
+	int CompareValue = 0;
+	int StoredValue = 0;
+
+	[allow_uav_condition] while(true)
+	{
+		InterlockedCompareExchange(DIContext.GridDestinationBuffer[
+				DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)],CompareValue,IntValue,StoredValue);
+		if(StoredValue == CompareValue)
+		{
+			break;
+		}
+		CompareValue = StoredValue;
+		IntValue = asint(min(FloatValue,asfloat(StoredValue)));
+	}
+}
+
+#endif
+
+/* -----------------------------------------------------------------
+ * Datas accessors
+ * -----------------------------------------------------------------
+ */
+
+ void DIVelocityGrid_InterlockedMinScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+#if FAST_MODE == 1
+	const int IntValue = FloatValue * FLOAT_PRECISION;
+	DIVelocityGrid_InterlockedMinInt(DIContext,GridIndex,DataOffset,IntValue);
+#else
+	DIVelocityGrid_InterlockedMinFloat(DIContext,GridIndex,DataOffset,FloatValue);
+#endif
+}
+
+void DIVelocityGrid_InterlockedAddScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+#if FAST_MODE == 1
+	const int IntValue = FloatValue * FLOAT_PRECISION;
+	DIVelocityGrid_InterlockedAddInt(DIContext,GridIndex,DataOffset,IntValue);
+#else
+	DIVelocityGrid_InterlockedAddFloat(DIContext,GridIndex,DataOffset,FloatValue);
+#endif
+}
+
+float DIVelocityGrid_ConvertGridScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset)
+{
+	const int IntValue = DIContext.GridCurrentBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)];
+
+#if FAST_MODE == 1
+	return float(IntValue) / FLOAT_PRECISION;
+#else
+	return asfloat(IntValue);
+#endif
+}
+
+void DIVelocityGrid_AddGridScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+	const float SumValue = asfloat(DIContext.GridCurrentBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)])+FloatValue;
+	DIContext.GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)] = asint(SumValue);
+}
+
+float DIVelocityGrid_GetGridScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset)
+{
+	return asfloat(DIContext.GridCurrentBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)]);
+}
+
+void DIVelocityGrid_SetGridScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+{
+	DIContext.GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)] = asint(FloatValue);
+}
+
+void DIVelocityGrid_SetGridVector( in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float3 NodeVector)
+{
+	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,DataOffset,NodeVector.x);
+	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,DataOffset+1,NodeVector.y);
+	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,DataOffset+2,NodeVector.z);
+}
+
+void DIVelocityGrid_AddGridVector( in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float3 NodeVector)
+{
+	DIVelocityGrid_AddGridScalar(DIContext,GridIndex,DataOffset,NodeVector.x);
+	DIVelocityGrid_AddGridScalar(DIContext,GridIndex,DataOffset+1,NodeVector.y);
+	DIVelocityGrid_AddGridScalar(DIContext,GridIndex,DataOffset+2,NodeVector.z);
+}
+
+float3 DIVelocityGrid_GetGridVector( in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset)
+{
+	return float3(DIVelocityGrid_GetGridScalar(DIContext,GridIndex,DataOffset),
+				  DIVelocityGrid_GetGridScalar(DIContext,GridIndex,DataOffset+1),
+				  DIVelocityGrid_GetGridScalar(DIContext,GridIndex,DataOffset+2));
+}
+
+/* -----------------------------------------------------------------
+ * Interpolation function and gradient
+ * -----------------------------------------------------------------
+ */
+
+ float DIVelocityGrid_GetShapeFunction( in float3 GridFraction, in int3 ijk)
+ {
+	const float GridWeightX = (ijk.x == 0) ? 1.0 - GridFraction.x : GridFraction.x;
+	const float GridWeightY = (ijk.y == 0) ? 1.0 - GridFraction.y : GridFraction.y;
+	const float GridWeightZ = (ijk.z == 0) ? 1.0 - GridFraction.z : GridFraction.z;
+
+	return GridWeightX*GridWeightY*GridWeightZ;
+ }
+
+ float3 DIVelocityGrid_GetShapeGradient( in float3 GridFraction, in int3 ijk)
+ {
+	const float GridWeightX = (ijk.x == 0) ? 1.0 - GridFraction.x : GridFraction.x;
+	const float GridWeightY = (ijk.y == 0) ? 1.0 - GridFraction.y : GridFraction.y;
+	const float GridWeightZ = (ijk.z == 0) ? 1.0 - GridFraction.z : GridFraction.z;
+
+	const float GridGradientX = (ijk.x == 0) ? -1.0: 1.0;
+	const float GridGradientY = (ijk.y == 0) ? -1.0: 1.0;
+	const float GridGradientZ = (ijk.z == 0) ? -1.0: 1.0;
+
+	return  float3(GridGradientX*GridWeightY*GridWeightZ,
+				   GridWeightX*GridGradientY*GridWeightZ,
+				   GridWeightX*GridWeightY*GridGradientZ);
+ }
+
+/* -----------------------------------------------------------------
+ * Build Velocity Field from nodes
+ * -----------------------------------------------------------------
+ */
+ 
+// Transfer the velocity field component on a face from the particle to the grid
+void DIVelocityGrid_BuildVelocityFace(in FDIVelocityGridContext DIContext, in int3 GridIndex, in float ShapeFunction, in int3 ijk, in float3 GridPosition, in float SampleMass, in float SampleMomentum,
+			in float3 MomentumGradient, in float3 ComponentOffset, in int ComponentIndex, in float GridLength )
+{
+	const int3 GridLocation = int3(GridIndex.x+ijk.x,GridIndex.y+ijk.y,GridIndex.z+ijk.z);
+
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridLocation,ComponentIndex) )
+	{
+		const float3 DeltaPosition = (GridLocation+ComponentOffset)*GridLength - GridPosition;
+		const float GridMomentum = SampleMomentum + dot(MomentumGradient, DeltaPosition);
+
+		DIVelocityGrid_InterlockedAddScalar(DIContext,GridLocation,FLUID_MASS_OFFSET+ComponentIndex,SampleMass*ShapeFunction);
+		DIVelocityGrid_InterlockedAddScalar(DIContext,GridLocation,FLUID_VELOCITY_OFFSET+ComponentIndex,GridMomentum*ShapeFunction);
+	}
+}
+
+// Transfer the velocity field component from the particle to the grid
+void DIVelocityGrid_BuildVelocityComponent(in FDIVelocityGridContext DIContext, in float3 GridPosition, in float SampleMass, in float SampleMomentum,
+			in float3 MomentumGradient, in float3 ComponentOffset, in int ComponentIndex, in float GridLength )
+{
+	float3 GridFraction = float3(0,0,0);
+	const int3 GridIndex = DIVelocityGrid_ComputeGridIndex(DIContext,GridPosition,ComponentOffset,GridLength,GridFraction);
+
+	for(int i = 0; i < 2; ++i)
+	{
+		const float GridWeightX = (i == 0) ? 1.0 - GridFraction.x : GridFraction.x;
+		for(int j = 0; j < 2; ++j)
+		{
+			const float GridWeightY = (j == 0) ? 1.0 - GridFraction.y : GridFraction.y;
+			for(int k = 0; k < 2; ++k)
+			{
+				const float GridWeightZ = (k == 0) ? 1.0 - GridFraction.z : GridFraction.z;
+				const float GridWeightXYZ = GridWeightX*GridWeightY*GridWeightZ;
+
+				DIVelocityGrid_BuildVelocityFace(DIContext,GridIndex,GridWeightXYZ,int3(i,j,k),GridPosition,SampleMass,
+								SampleMomentum,MomentumGradient,ComponentOffset,ComponentIndex,GridLength);
+			}
+		}
+	}
+}
+
+// Transfer the velocity field from the particle to the grid
+void DIVelocityGrid_BuildVelocityField(in FDIVelocityGridContext DIContext, in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, in float ParticleMass, in float3 ParticleVelocity, 
+			in float4x4 VelocityGradient, out bool OutFunctionStatus )
+{
+	const float3 ParticleMomentum = ParticleVelocity * ParticleMass;
+
+	const float3 MomentumGradientX = VelocityGradient[0].xyz * ParticleMass;
+	const float3 MomentumGradientY = VelocityGradient[1].xyz * ParticleMass;
+	const float3 MomentumGradientZ = VelocityGradient[2].xyz * ParticleMass;
+
+	const float3 GridPosition = DIVelocityGrid_GetGridPosition(DIContext,ParticlePosition,GridOrigin);
+
+	DIVelocityGrid_BuildVelocityComponent(DIContext,GridPosition,ParticleMass,ParticleMomentum.x,MomentumGradientX,float3(0.0,0.5,0.5),0,GridLength);
+	DIVelocityGrid_BuildVelocityComponent(DIContext,GridPosition,ParticleMass,ParticleMomentum.y,MomentumGradientY,float3(0.5,0.0,0.5),1,GridLength);
+	DIVelocityGrid_BuildVelocityComponent(DIContext,GridPosition,ParticleMass,ParticleMomentum.z,MomentumGradientZ,float3(0.5,0.5,0.0),2,GridLength);
+	
+	OutFunctionStatus = true;
+}
+
+/* -----------------------------------------------------------------
+ * Sample Velocity field from grid
+ * -----------------------------------------------------------------
+ */
+ 
+// Sample the grid velocity field and gradient component on a face at the particle local position 
+void DIVelocityGrid_SampleVelocityFace(in FDIVelocityGridContext DIContext, in int3 GridIndex, in float ShapeFunction, in float3 ShapeGradient, in int3 ijk, in float3 GridPosition, in float3 ComponentOffset, in int ComponentIndex, in float GridLength,
+						in bool ScaledVelocity, inout float OutGridVelocity, inout float OutGridMass, inout float3 OutGridGradient)
+{
+	const int3 GridLocation = int3(GridIndex.x+ijk.x,GridIndex.y+ijk.y,GridIndex.z+ijk.z);
+
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridLocation,ComponentIndex) )
+	{
+		float GridVelocity = 0.0;
+		float GridMass = 0.0;
+
+		if(!ScaledVelocity)
+		{
+			const float GridMomentum = DIVelocityGrid_ConvertGridScalar(DIContext,GridLocation,FLUID_VELOCITY_OFFSET+ComponentIndex);
+			
+			GridMass = DIVelocityGrid_ConvertGridScalar(DIContext,GridLocation,FLUID_MASS_OFFSET+ComponentIndex);
+			GridVelocity = (GridMass != 0.0) ? GridMomentum / GridMass : 0.0;
+		}
+		else
+		{
+			GridMass = DIVelocityGrid_GetGridScalar(DIContext,GridLocation,FLUID_MASS_OFFSET+ComponentIndex);
+			GridVelocity = DIVelocityGrid_GetGridScalar(DIContext,GridLocation,FLUID_VELOCITY_OFFSET+ComponentIndex);
+		}
+
+		OutGridMass += GridMass * ShapeFunction;
+		OutGridVelocity += GridVelocity * ShapeFunction;
+		OutGridGradient += GridVelocity * ShapeGradient;
+	}
+}
+
+// Sample the grid velocity field and gradient component at the particle local position 
+void DIVelocityGrid_SampleVelocityComponent(in FDIVelocityGridContext DIContext, in float3 GridPosition, in float3 ComponentOffset, in int ComponentIndex, in float GridLength,
+						in bool ScaledVelocity, out float OutGridVelocity, out float OutGridMass, out float3 OutGridGradient)
+{
+	float3 GridFraction = float3(0,0,0); 
+	const int3 GridIndex = DIVelocityGrid_ComputeGridIndex(DIContext,GridPosition,ComponentOffset,GridLength,GridFraction);
+
+	OutGridVelocity = 0.0;
+	OutGridGradient = float3(0,0,0); 
+	OutGridMass = 0.0;
+
+	if(isfinite(GridLength))
+	{
+		for(int i = 0; i < 2; ++i)
+		{
+			const float GridWeightX = (i == 0) ? 1.0 - GridFraction.x : GridFraction.x;
+			const float GridGradientX = (i == 0) ? -1.0: 1.0;
+			for(int j = 0; j < 2; ++j)
+			{
+				const float GridWeightY = (j == 0) ? 1.0 - GridFraction.y : GridFraction.y;
+				const float GridGradientY = (j == 0) ? -1.0: 1.0;
+				for(int k = 0; k < 2; ++k)
+				{
+					const float GridWeightZ = (k == 0) ? 1.0 - GridFraction.z : GridFraction.z;
+					const float GridGradientZ = (k == 0) ? -1.0: 1.0;
+
+					const float GridWeightXYZ = GridWeightX*GridWeightY*GridWeightZ;
+					const float3 GridGradientXYZ = float3(GridGradientX*GridWeightY*GridWeightZ,
+															GridWeightX*GridGradientY*GridWeightZ,
+															GridWeightX*GridWeightY*GridGradientZ) / GridLength;
+
+					DIVelocityGrid_SampleVelocityFace(DIContext,GridIndex,GridWeightXYZ,GridGradientXYZ,int3(i,j,k),GridPosition,
+						ComponentOffset,ComponentIndex,GridLength,ScaledVelocity,OutGridVelocity,OutGridMass,OutGridGradient);
+				}
+			}
+		}
+	}
+}
+
+// Sample the grid velocity field and gradient at the particle world position 
+void DIVelocityGrid_SampleVelocityField(in FDIVelocityGridContext DIContext, in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, in bool ScaledVelocity, out float OutParticleMass, out float3 OutParticleVelocity, 
+			out float4x4 OutParticleGradient)
+{
+	OutParticleVelocity = float3(0,0,0);
+	OutParticleGradient = float4x4(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+
+	float3 ParticleMass = float3(0,0,0);
+
+	const float3 GridPosition = DIVelocityGrid_GetGridPosition(DIContext,ParticlePosition,GridOrigin);
+	DIVelocityGrid_SampleVelocityComponent(DIContext,GridPosition,float3(0.0,0.5,0.5),0,GridLength,ScaledVelocity,OutParticleVelocity.x,ParticleMass.x,OutParticleGradient[0].xyz);
+	DIVelocityGrid_SampleVelocityComponent(DIContext,GridPosition,float3(0.5,0.0,0.5),1,GridLength,ScaledVelocity,OutParticleVelocity.y,ParticleMass.y,OutParticleGradient[1].xyz);
+	DIVelocityGrid_SampleVelocityComponent(DIContext,GridPosition,float3(0.5,0.5,0.0),2,GridLength,ScaledVelocity,OutParticleVelocity.z,ParticleMass.z,OutParticleGradient[2].xyz);
+
+	OutParticleMass = (ParticleMass.x+ParticleMass.y+ParticleMass.z)/3.0;
+}
+
+/* -----------------------------------------------------------------
+ * Velocity Accessors
+ * -----------------------------------------------------------------
+ */
+
+void DIVelocityGrid_AddGridVelocity(in FDIVelocityGridContext DIContext, in int GridHash, in float3 GridVelocity, out bool OutAddStatus)
+{
+	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
+	OutAddStatus = true;
+
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,0) )
+	{
+		OutAddStatus = true;
+		DIVelocityGrid_AddGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET,GridVelocity.x);
+	}
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,1) )
+	{
+		OutAddStatus = true;
+		DIVelocityGrid_AddGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+1,GridVelocity.y);
+	}
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,2) )
+	{
+		OutAddStatus = true;
+		DIVelocityGrid_AddGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+2,GridVelocity.z);
+	}
+}
+
+void DIVelocityGrid_GetGridVelocity(in FDIVelocityGridContext DIContext, in int GridHash, out float3 OutGridVelocity)
+{
+	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
+
+	OutGridVelocity = float3(0,0,0);
+
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,0) )
+	{
+		OutGridVelocity.x = DIVelocityGrid_GetGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET);
+	}
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,1) )
+	{
+		OutGridVelocity.y = DIVelocityGrid_GetGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+1);
+	}
+	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,2) )
+	{
+		OutGridVelocity.z = DIVelocityGrid_GetGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+2);
+	}
+}
+
+
+
+
+
