@@ -630,11 +630,6 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 		GetTracker(ELLMTracker::Default)->SetTotalTags(ELLMTag::UntaggedTotal, ELLMTag::TrackedTotal);
 
 		bFirstTimeUpdating = false;
-
-#if MEMPRO_ENABLED
-		FMemProProfiler::PostInit();
-#endif
-
 	}
 
 	// update the trackers

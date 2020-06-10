@@ -22,8 +22,7 @@
 class CORE_API FMemProProfiler
 {
 public:
-	static void Init();
-	static void PostInit();
+	static void Init(const TCHAR* CmdLine);
 
 	static bool IsUsingPort( uint32 Port );
 
