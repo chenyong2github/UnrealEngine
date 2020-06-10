@@ -203,6 +203,9 @@ private:
 
 public:
 #if WITH_EDITOR
+	UE_DEPRECATED(4.26, "No longer used; use bTemporarilyDisableOriginTracking instead.")
+	bool						bTemporallyDisableOriginTracking;
+
 	// Hack for a World Browser to be able to temporarily show hidden levels 
 	// regardless of current world origin and without offsetting them temporarily 
 	bool						bTemporarilyDisableOriginTracking;
