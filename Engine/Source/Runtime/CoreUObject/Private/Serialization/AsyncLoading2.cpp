@@ -5102,8 +5102,13 @@ void FAsyncPackage2::ClearConstructedObjects()
 
 	for (FExportObject& Export : Exports)
 	{
-		UObject* Object = Export.Object;
+		if (Export.bFiltered | Export.bExportLoadFailed)
+		{
+			continue;
+		}
 
+		UObject* Object = Export.Object;
+		check(Object);
 		checkf(Object->HasAnyFlags(RF_WasLoaded), TEXT("%s"), *Object->GetFullName());
 		checkf(Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
 		if (bShouldClearAsyncFlagForPublicExports || !Object->HasAnyFlags(RF_Public))
