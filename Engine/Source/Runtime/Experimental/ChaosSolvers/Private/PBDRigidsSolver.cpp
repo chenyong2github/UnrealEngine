@@ -219,7 +219,7 @@ namespace Chaos
 
 	template <typename Traits>
 	TPBDRigidsSolver<Traits>::TPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner)
-		: Super(BufferingModeIn, InOwner, TraitToIdx<Traits>())
+		: Super(BufferingModeIn, BufferingModeIn == EMultiBufferMode::Single ? EThreadingModeTemp::SingleThread : EThreadingModeTemp::TaskGraph, InOwner, TraitToIdx<Traits>())
 		, CurrentFrame(0)
 		, MTime(0.0)
 		, MLastDt(0.0)
@@ -253,19 +253,6 @@ namespace Chaos
 					}
 				}
 			});
-	}
-
-	template <typename Traits>
-	TPBDRigidsSolver<Traits>::~TPBDRigidsSolver()
-	{
-		if(ChaosSolverCleanupCommandsOnDestruction != 0)
-		{
-			TFunction<void()> Command;
-			while(CommandQueue.Dequeue(Command))
-			{
-				Command();
-			}
-		}
 	}
 
 	float MaxBoundsForTree = 10000;
@@ -609,10 +596,12 @@ namespace Chaos
 	{
 		// This seems unused inside the solver? #BH
 		BufferMode = InBufferMode;
+
+		SetThreadingMode_External(BufferMode == EMultiBufferMode::Single ? EThreadingModeTemp::SingleThread : EThreadingModeTemp::TaskGraph);
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::AdvanceSolverBy(float DeltaTime)
+	void TPBDRigidsSolver<Traits>::AdvanceSolverBy(const FReal DeltaTime)
 	{
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);

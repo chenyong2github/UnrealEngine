@@ -29,7 +29,6 @@
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "ChaosSolversModule.h"
 
-class FPhysicsSolverAdvanceTask;
 class FPhysInterface_Chaos;
 
 class FSkeletalMeshPhysicsProxy;
@@ -74,13 +73,9 @@ namespace Chaos
 
 	public:
 
-		// #BGTODO ensure no external callers directly deleting, make private and push everything through DestroySolver.
-		virtual ~TPBDRigidsSolver();
-
 		typedef FPhysicsSolverBase Super;
 
 		friend class FPersistentPhysicsTask;
-		friend class ::FPhysicsSolverAdvanceTask;
 		friend class ::FChaosSolversModule;
 
 		template<EThreadingMode Mode>
@@ -111,19 +106,11 @@ namespace Chaos
 
 		using FJointConstraints = FPBDJointConstraints;
 		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
-
 		//
 		// Execution API
 		//
 
 		void ChangeBufferMode(Chaos::EMultiBufferMode InBufferMode);
-
-		template <typename Lambda>
-		void EnqueueCommandImmediate(const Lambda& Func)
-		{
-			FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this, Func);
-		}
-
 
 		//
 		//  Object API
@@ -247,7 +234,7 @@ namespace Chaos
 		void Reset();
 
 		/**/
-		void AdvanceSolverBy(float DeltaTime);
+		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
 
 		/**/
 		void PushPhysicsState(IDispatcher* Dispatcher = nullptr);

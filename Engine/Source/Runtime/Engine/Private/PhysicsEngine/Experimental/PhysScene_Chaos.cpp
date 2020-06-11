@@ -1287,14 +1287,9 @@ void FPhysScene_ChaosInterface::Flush_AssumesLocked()
 	{
 		//Make sure any dirty proxy data is pushed
 		Solver->PushPhysicsState(Dispatcher);
-
-		TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
-		TFunction<void()> Command;
-		while(Queue.Dequeue(Command))
-		{
-			Command();
-		}
-
+		Solver->AdvanceAndDispatch_External(0);	//force commands through
+		Solver->WaitOnPendingTasks_External();
+		
 		// Populate the spacial acceleration
 		Chaos::FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
 
@@ -1993,31 +1988,25 @@ void FPhysScene_ChaosInterface::StartFrame()
 				SolverList.AddUnique(Solver);
 			}
 
+			// Prereqs for the final completion task to run (collection of all the solver tasks)
+			FGraphEventArray CompletionTaskPrerequisites;
+
 			for(FPhysicsSolverBase* Solver : SolverList)
 			{
 				Solver->CastHelper([Dispatcher](auto& InSolver)
 					{
 						InSolver.PushPhysicsState(Dispatcher);
 					});
+
+				CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(Dt));
 			}
 
-			FGraphEventRef SimulationCompleteEvent = FGraphEvent::CreateGraphEvent();
-
-			// Need to fire off a parallel task to handle running physics commands and
-			// ticking the scene while the engine continues on until TG_EndPhysics
-			// (this should happen in TG_StartPhysics)
-			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, SolverList, Dt);
-
 			// Setup post simulate tasks
-			if (PhysicsTickTask.GetReference())
 			{
-				FGraphEventArray PostSimPrerequisites;
-				PostSimPrerequisites.Add(SimulationCompleteEvent);
-
 				DECLARE_CYCLE_STAT(TEXT("FDelegateGraphTask.CompletePhysicsSimulation"), STAT_FDelegateGraphTask_CompletePhysicsSimulation, STATGROUP_TaskGraphTasks);
 
 				// Completion event runs in parallel and will flip out our buffers, gamethread work can be done in EndFrame (Called by world after this completion event finishes)
-				CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this, &FPhysScene_ChaosInterface::CompleteSceneSimulation), GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation), &PostSimPrerequisites, ENamedThreads::GameThread, ENamedThreads::AnyHiPriThreadHiPriTask);
+				CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this, &FPhysScene_ChaosInterface::CompleteSceneSimulation), GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation), &CompletionTaskPrerequisites, ENamedThreads::GameThread, ENamedThreads::AnyHiPriThreadHiPriTask);
 			}
 		}
 		break;
@@ -2095,7 +2084,6 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		check(CompletionEvent->IsComplete());
 		//check(PhysicsTickTask->IsComplete());
 		CompletionEvent = nullptr;
-		PhysicsTickTask = nullptr;
 
 		//flush queue so we can merge the two threads
 		Dispatcher->Execute();
@@ -2109,17 +2097,6 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		{
 			// Make sure our solver is in the list
 			SolverList.AddUnique(Solver);
-		}
-
-		// flush solver queues
-		for (FPhysicsSolverBase* Solver : SolverList)
-		{
-			TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
-			TFunction<void()> Command;
-			while (Queue.Dequeue(Command))
-			{
-				Command();
-			}
 		}
 
 		// Flip the buffers over to the game thread and sync
