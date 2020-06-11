@@ -263,6 +263,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 			// The original BlendShape Name was not saved during import, so we need to come up with a new one.
 			const FString BlendShapeName(SkelMesh->GetName() + TEXT("_blendShapes"));
 			FbxBlendShape* BlendShape = FbxBlendShape::Create(Mesh, TCHAR_TO_UTF8(*BlendShapeName));
+			bool bHasBadMorphTarget = false;
 
 			for (UMorphTarget* MorphTarget : SkelMesh->MorphTargets)
 			{
@@ -298,7 +299,14 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 							RemappedSourceIndex -= VertexIndexOffsetPairArray[UpperBoundIndex - 1].Value;
 						}
 
-						ShapeControlPoints[RemappedSourceIndex] = Converter.ConvertToFbxPos(Vertices[RemappedSourceIndex].Position + CurrentDelta.PositionDelta);
+						if ( RemappedSourceIndex < static_cast<uint32>( VertexCount ) )
+						{
+							ShapeControlPoints[RemappedSourceIndex] = Converter.ConvertToFbxPos(Vertices[RemappedSourceIndex].Position + CurrentDelta.PositionDelta);
+						}
+						else
+						{
+							bHasBadMorphTarget = true;
+						}
 					}
 
 					BlendShapeChannel->AddTargetShape(Shape);
@@ -309,6 +317,11 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 						BlendShapeCurvesMap.Add(MorphTargetName, AnimCurve);
 					}
 				}
+			}
+
+			if ( bHasBadMorphTarget )
+			{
+				UE_LOG( LogFbx, Warning, TEXT( "Encountered corrupted morphtarget(s) during export of SkeletalMesh %s, bad vertices were ignored." ), *SkelMesh->GetName() );
 			}
 		}
 
@@ -345,7 +358,10 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 		}
 		else if(MatInterface)
 		{
-			FbxMaterial = *(FbxMaterials.Find(MatInterface));
+			if ( FbxSurfaceMaterial** FbxMaterialPtr = FbxMaterials.Find( MatInterface ) )
+			{
+				FbxMaterial = *FbxMaterialPtr;
+			}
 		}
 
 		if(!FbxMaterial)
