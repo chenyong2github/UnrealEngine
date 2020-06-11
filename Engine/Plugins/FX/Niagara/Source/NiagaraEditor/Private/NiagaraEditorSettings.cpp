@@ -51,7 +51,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(49, 113, 142)))
 			.SetSortId(10)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::ModuleNamespace)
-			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace),
+			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace)
+			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::EmitterNamespace})
 			.SetDisplayName(LOCTEXT("EmitterDisplayName", "Emitter"))
 			.SetDisplayNameLong(LOCTEXT("EmitterDisplayNameLong", "Emitter Attributes"))
@@ -59,7 +60,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(145, 99, 56)))
 			.SetSortId(20)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::ModuleNamespace)
-			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace),
+			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace)
+			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ParticleAttributeNamespace})
 			.SetDisplayName(LOCTEXT("ParticleDisplayName", "Particles"))
 			.SetDisplayNameLong(LOCTEXT("ParticleDisplayNameLong", "Particle Attributes"))
@@ -67,7 +69,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(72, 130, 71)))
 			.SetSortId(30)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::ModuleNamespace)
-			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace),
+			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace)
+			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleDisplayName", "Input"))
 			.SetDisplayNameLong(LOCTEXT("ModuleDisplayNameLong", "Module Inputs"))
@@ -169,6 +172,11 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetDisplayName(LOCTEXT("InitialModifierDisplayName", "Initial"))
 			.SetDescription(LOCTEXT("InitialModifierDescription", "A namespace modifier for dataset attributes which when used in\na linked input in an update script will get the initial value from the spawn script."))
 			.SetBackgroundColor(FLinearColor(FColor(170, 170, 170)))
+			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark"),
+		FNiagaraNamespaceMetadata({FNiagaraConstants::PreviousNamespace})
+			.SetDisplayName(LOCTEXT("PreviousModifierDisplayName", "Previous"))
+			.SetDescription(LOCTEXT("PreviousModifierDescription", "A namespace modifier for dataset attributes which when used in\na linked input in an update script will get the value from the start of the update script."))
+			.SetBackgroundColor(FLinearColor(FColor(152, 152, 102)))
 			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark"),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleModifierDisplayName", "Module"))
