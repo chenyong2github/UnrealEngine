@@ -265,11 +265,17 @@ void USignificanceManager::UnregisterAll(FName Tag)
 	{
 		for (FManagedObjectInfo* ManagedObj : *ObjectsWithTag)
 		{
+			if (ManagedObj->GetPostSignificanceType() == EPostSignificanceType::Sequential)
+			{
+				--ManagedObjectsWithSequentialPostWork;
+			}
 			ManagedObjects.Remove(ManagedObj->GetObject());
 			if (ManagedObj->PostSignificanceFunction != nullptr)
 			{
 				ManagedObj->PostSignificanceFunction(ManagedObj, ManagedObj->Significance, 1.0f, true);
 			}
+
+			delete ManagedObj;
 		}
 		ManagedObjectsByTag.Remove(Tag);
 	}
