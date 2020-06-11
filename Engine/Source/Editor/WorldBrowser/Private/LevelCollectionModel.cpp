@@ -466,14 +466,14 @@ void FLevelCollectionModel::HideLevels(const FLevelModelList& InLevelList)
 	UWorldComposition* WorldComposition = GetWorld()->WorldComposition;
 	if (WorldComposition)
 	{
-		WorldComposition->bTemporallyDisableOriginTracking = true;
+		WorldComposition->bTemporarilyDisableOriginTracking = true;
 	}
 	ON_SCOPE_EXIT
 	{
 		// Reenable Origin Tracking
 		if (WorldComposition)
 		{
-			WorldComposition->bTemporallyDisableOriginTracking = false;
+			WorldComposition->bTemporarilyDisableOriginTracking = false;
 		}
 	};
 
@@ -501,14 +501,14 @@ void FLevelCollectionModel::ShowLevels(const FLevelModelList& InLevelList)
 	UWorldComposition* WorldComposition = GetWorld()->WorldComposition;
 	if (WorldComposition)
 	{
-		WorldComposition->bTemporallyDisableOriginTracking = true;
+		WorldComposition->bTemporarilyDisableOriginTracking = true;
 	}
 	ON_SCOPE_EXIT
 	{
 		// Reenable Origin Tracking
 		if (WorldComposition)
 		{
-			WorldComposition->bTemporallyDisableOriginTracking = false;
+			WorldComposition->bTemporarilyDisableOriginTracking = false;
 		}
 	};
 
