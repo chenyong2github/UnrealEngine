@@ -263,11 +263,12 @@ namespace GeometryCollectionTest
 
 	template<typename Traits>
 	TFramework<Traits>::TFramework(FrameworkParameters Parameters)
-		: Dt(Parameters.Dt)
-		, Module(FChaosSolversModule::GetModule())
-		, Solver(Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone))
+	: Dt(Parameters.Dt)
+	, Module(FChaosSolversModule::GetModule())
+	, Solver(nullptr)
 	{
 		Module->ChangeThreadingMode(Parameters.ThreadingMode);
+		Solver = Module->CreateSolver<Traits>(nullptr,ESolverFlags::Standalone);	//until refactor is done, solver must be created after thread change
 	}
 
 	template<typename Traits>
