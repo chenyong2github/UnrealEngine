@@ -12,8 +12,9 @@
 
 class FDynamicMesh3;
 struct FMeshDescription;
-class FTangentsf;
 
+// predeclare tangents template
+template<typename RealType> class TMeshTangents;
 
 
 /**
@@ -171,7 +172,14 @@ public:
 	/**
 	 * @return a MeshTangents data structure for the underlying component, if available, otherwise nullptr
 	 */
-	FMeshTangentsf* GetTangents() const;
+	const TMeshTangents<float>* GetTangents() const;
+
+	/**
+	 * Update tangents on internal Mesh Component
+	 */
+	template<typename RealType>
+	void UpdateTangents(const TMeshTangents<RealType>* ExternalTangents, bool bFastUpdateIfPossible);
+
 
 
 	/**
@@ -385,3 +393,14 @@ protected:
 	/** Spatial data structure that is initialized if bBuildSpatialDataStructure = true when UpdatePreview() is called */
 	FDynamicMeshAABBTree3 MeshAABBTree;
 };
+
+
+
+template<typename RealType>
+void UPreviewMesh::UpdateTangents(const TMeshTangents<RealType>* ExternalTangents, bool bFastUpdateIfPossible)
+{
+	if (ensure(DynamicMeshComponent))
+	{
+		DynamicMeshComponent->UpdateTangents(ExternalTangents, bFastUpdateIfPossible);
+	}
+}

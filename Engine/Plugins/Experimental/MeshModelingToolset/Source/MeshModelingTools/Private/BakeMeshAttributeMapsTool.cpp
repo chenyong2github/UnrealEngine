@@ -339,7 +339,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 
 	// calculate tangents
 	FMeshTangentsd Tangents(Mesh);
-	Tangents.ComputePerTriangleTangents(NormalOverlay, UVOverlay);
+	Tangents.ComputeTriVertexTangents(NormalOverlay, UVOverlay, FComputeTangentsOptions());
 
 	const FDynamicMeshNormalOverlay* DetailNormalOverlay = DetailMesh.Attributes()->GetNormalLayer(0);
 	check(DetailNormalOverlay);

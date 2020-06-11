@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "MeshDescriptionToDynamicMesh.h"
-#include "StaticMeshAttributes.h"
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshOverlay.h"
+#include "MeshTangents.h"
 #include "MeshDescriptionBuilder.h"
+#include "StaticMeshAttributes.h"
 #include "Async/Async.h"
 
 
@@ -410,10 +411,10 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 
 
-void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, FMeshTangentsf& TangentsOut)
+void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<float>* TangentsOut)
 {
-	check(bCalculateMaps == true);
-	check(TriToPolyTriMap.Num() == TargetMesh->TriangleCount());
+	if (!ensureMsgf(bCalculateMaps, TEXT("Cannot CopyTangents unless Maps were calculated"))) return;
+	if (!ensureMsgf(TriToPolyTriMap.Num() == TargetMesh->TriangleCount(), TEXT("Tried to CopyTangents to mesh with different triangle count"))) return;
 
 	TVertexInstanceAttributesConstRef<FVector> InstanceNormals =
 		SourceMesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
@@ -421,28 +422,33 @@ void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceM
 		SourceMesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
 	TVertexInstanceAttributesConstRef<float> InstanceSigns =
 		SourceMesh->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	check(InstanceNormals.IsValid());
-	check(InstanceTangents.IsValid());
-	check(InstanceSigns.IsValid());
 
-	TangentsOut.SetMesh(TargetMesh);
-	TangentsOut.InitializePerTriangleTangents(false);
+	if (!ensureMsgf(InstanceNormals.IsValid(), TEXT("Cannot CopyTangents from MeshDescription with invalid Instance Normals"))) return;
+	if (!ensureMsgf(InstanceTangents.IsValid(), TEXT("Cannot CopyTangents from MeshDescription with invalid Instance Tangents"))) return;
+	if (!ensureMsgf(InstanceSigns.IsValid(), TEXT("Cannot CopyTangents from MeshDescription with invalid Instance BinormalSigns"))) return;
+
+	TangentsOut->SetMesh(TargetMesh);
+	TangentsOut->InitializeTriVertexTangents(false);
 	
-	for (int TriID : TargetMesh->TriangleIndicesItr())
+	for (int32 TriID : TargetMesh->TriangleIndicesItr())
 	{
 		FIndex2i PolyTriIdx = TriToPolyTriMap[TriID];
 		const TArray<FTriangleID>& TriangleIDs = SourceMesh->GetPolygonTriangleIDs( FPolygonID(PolyTriIdx.A) );
 		const FTriangleID TriangleID = TriangleIDs[PolyTriIdx.B];
 		TArrayView<const FVertexInstanceID> InstanceTri = SourceMesh->GetTriangleVertexInstances(TriangleID);
-		for (int j = 0; j < 3; ++j)
+		for (int32 j = 0; j < 3; ++j)
 		{
 			FVector Normal = InstanceNormals.Get(InstanceTri[j], 0);
 			FVector Tangent = InstanceTangents.Get(InstanceTri[j], 0);
-			float BinormalSign = InstanceSigns.Get(InstanceTri[j], 0);
-			FVector3f Bitangent = VectorUtil::Binormal((FVector3f)Normal, (FVector3f)Tangent, (float)BinormalSign);
+			float BitangentSign = InstanceSigns.Get(InstanceTri[j], 0);
+			FVector3f Bitangent = VectorUtil::Bitangent((FVector3f)Normal, (FVector3f)Tangent, (float)BitangentSign);
 			Tangent.Normalize(); Bitangent.Normalize();
-			TangentsOut.SetPerTriangleTangent(TriID, j, Tangent, Bitangent);
+			TangentsOut->SetPerTriangleTangent(TriID, j, Tangent, Bitangent);
 		}
 	}
 
 }
+
+
+
+

@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
-#include "MeshTangents.h"
 #include "MeshDescription.h"
+
+// predeclare tangents template
+template<typename RealType> class TMeshTangents;
 
 /**
  * Convert FMeshDescription to FDynamicMesh3
@@ -59,5 +61,5 @@ public:
 	 * Copy tangents from MeshDescription to a FMeshTangents instance.
 	 * @warning Convert() must have been used to create the TargetMesh before calling this function
 	 */
-	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, FMeshTangentsf& TangentsOut);
+	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<float>* TangentsOut);
 };

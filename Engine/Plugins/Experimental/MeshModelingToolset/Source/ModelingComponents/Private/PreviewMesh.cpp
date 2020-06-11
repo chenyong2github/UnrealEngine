@@ -162,7 +162,7 @@ void UPreviewMesh::SetTangentsMode(EDynamicMeshTangentCalcType TangentsType)
 	DynamicMeshComponent->TangentsType = TangentsType;
 }
 
-FMeshTangentsf* UPreviewMesh::GetTangents() const
+const TMeshTangents<float>* UPreviewMesh::GetTangents() const
 {
 	return DynamicMeshComponent->GetTangents();
 }
