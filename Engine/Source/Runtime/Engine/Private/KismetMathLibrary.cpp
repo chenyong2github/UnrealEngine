@@ -83,6 +83,11 @@ void UKismetMathLibrary::ReportError_Divide_IntInt()
 	FFrame::KismetExecutionMessage(TEXT("Divide by zero: Divide_IntInt"), ELogVerbosity::Warning, DivideByZeroWarning);
 }
 
+void UKismetMathLibrary::ReportError_Divide_DoubleDouble()
+{
+	FFrame::KismetExecutionMessage(TEXT("Divide by zero: ReportError_Divide_DoubleDouble"), ELogVerbosity::Warning, DivideByZeroWarning);
+}
+
 void UKismetMathLibrary::ReportError_Divide_Int64Int64()
 {
 	FFrame::KismetExecutionMessage(TEXT("Divide by zero: Divide_Int64Int64"), ELogVerbosity::Warning, DivideByZeroWarning);

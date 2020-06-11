@@ -526,6 +526,22 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static float Fraction(float A);
 
 	/** Addition (A + B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "double + double", CompactNodeTitle = "+", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category = "Math|Double")
+	static double Add_DoubleDouble(double A, double B = 1.0);
+
+	/** Subtraction (A - B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "double - double", CompactNodeTitle = "-", Keywords = "- subtract minus"), Category = "Math|Double")
+	static double Subtract_DoubleDouble(double A, double B = 1.0);
+
+	/** Multiplication (A * B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "double * double", CompactNodeTitle = "*", Keywords = "* multiply", CommutativeAssociativeBinaryOperator = "true"), Category = "Math|Double")
+	static double Multiply_DoubleDouble(double A, double B);
+
+	/** Division (A / B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "double / double", CompactNodeTitle = "/", Keywords = "/ divide division"), Category = "Math|Double")
+	static double Divide_DoubleDouble(double A, double B = 1.0);
+
+	/** Addition (A + B) */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "float + float", CompactNodeTitle = "+", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Float")
 	static float Add_FloatFloat(float A, float B = 1.f);
 
@@ -4040,6 +4056,7 @@ private:
 	static void ReportError_Divide_ByteByte();
 	static void ReportError_Percent_ByteByte();
 	static void ReportError_Divide_IntInt();
+	static void ReportError_Divide_DoubleDouble();
 	static void ReportError_Divide_Int64Int64();
 	static void ReportError_Percent_IntInt();
 	static void ReportError_Sqrt();

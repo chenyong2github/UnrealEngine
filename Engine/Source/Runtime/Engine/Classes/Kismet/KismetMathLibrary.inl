@@ -464,6 +464,34 @@ float UKismetMathLibrary::Fraction(float A)
 }
 
 KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::Add_DoubleDouble(double A, double B)
+{
+	return A + B;
+}
+
+KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::Subtract_DoubleDouble(double A, double B)
+{
+	return A - B;
+}
+
+KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::Multiply_DoubleDouble(double A, double B)
+{
+	return A * B;
+}
+
+KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::Divide_DoubleDouble(double A, double B)
+{
+	if(B == 0.0)
+	{
+		ReportError_Divide_DoubleDouble();
+	}
+	return A / B;
+}
+
+KISMET_MATH_FORCEINLINE
 float UKismetMathLibrary::Add_FloatFloat(float A, float B)
 {
 	return A + B;
