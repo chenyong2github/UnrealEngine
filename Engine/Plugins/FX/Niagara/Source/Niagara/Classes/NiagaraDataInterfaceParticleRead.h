@@ -65,5 +65,7 @@ public:
 	void ReadIDByIndex(FVectorVMContext& Context, FName AttributeToRead);
 
 protected:
+	void GetPersistentIDFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
+	void GetIndexFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 };
