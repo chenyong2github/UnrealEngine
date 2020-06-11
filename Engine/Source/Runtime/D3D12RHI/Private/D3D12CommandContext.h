@@ -75,7 +75,7 @@ public:
 		FCEA_Num
 	};
 
-	FD3D12CommandContext(class FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext = false);
+	FD3D12CommandContext(class FD3D12Device* InParent, bool InIsDefaultContext, bool InIsAsyncComputeContext);
 	virtual ~FD3D12CommandContext();
 
 	FD3D12CommandListManager& GetCommandListManager();

@@ -310,17 +310,22 @@ private: // Members
 	FCriticalSection CritSect;
 };
 
+
+/**
+Manages a D3D heap which is GPU visible - base class which can be used by the FD3D12DescriptorCache
+**/
 class FD3D12OnlineHeap : public FD3D12DeviceChild, public FD3D12SingleNodeGPUObject
 {
 public:
-	FD3D12OnlineHeap(FD3D12Device* Device, FRHIGPUMask Node, bool CanLoopAround, FD3D12DescriptorCache* _Parent = nullptr);
+
+	FD3D12OnlineHeap(FD3D12Device* Device, FRHIGPUMask Node, bool CanLoopAround);
 	virtual ~FD3D12OnlineHeap() { }
 
 	FORCEINLINE D3D12_CPU_DESCRIPTOR_HANDLE GetCPUSlotHandle(uint32 Slot) const { return{ CPUBase.ptr + Slot * DescriptorSize }; }
 	FORCEINLINE D3D12_GPU_DESCRIPTOR_HANDLE GetGPUSlotHandle(uint32 Slot) const { return{ GPUBase.ptr + Slot * DescriptorSize }; }
 
 	inline const uint32 GetDescriptorSize() const { return DescriptorSize; }
-
+	ID3D12DescriptorHeap* GetHeap() { return Heap.GetReference(); }
 	const D3D12_DESCRIPTOR_HEAP_DESC& GetDesc() const { return Desc; }
 
 	// Call this to reserve descriptor heap slots for use by the command list you are currently recording. This will wait if
@@ -328,36 +333,28 @@ public:
 	// fulfilled, the index of the first reserved slot is returned (all reserved slots are consecutive.) If not, it will 
 	// throw an exception.
 	bool CanReserveSlots(uint32 NumSlots);
-
 	uint32 ReserveSlots(uint32 NumSlotsRequested);
 
 	void SetNextSlot(uint32 NextSlot);
+	uint32 GetNextSlotIndex() const { return NextSlotIndex;  }
 
-	ID3D12DescriptorHeap* GetHeap() { return Heap.GetReference(); }
-
-	void SetParent(FD3D12DescriptorCache* InParent) { Parent = InParent; }
-
-	// Roll over behavior depends on the heap type
+	// Function which can/should be implemented by the derived classes
 	virtual bool RollOver() = 0;
-	virtual void NotifyCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle);
-
-	virtual uint32 GetTotalSize()
-	{
-		return Desc.NumDescriptors;
-	}
+	virtual void HeapLoopedAround() { }
+	virtual void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle) { }
+	virtual uint32 GetTotalSize() { return Desc.NumDescriptors; }
 
 	static const uint32 HeapExhaustedValue = uint32(-1);
 
 protected:
-
-	FD3D12DescriptorCache* Parent;
-
-	FD3D12CommandListHandle CurrentCommandList;
-
+		
 	// Handles for manipulation of the heap
 	uint32 DescriptorSize;
 	D3D12_CPU_DESCRIPTOR_HANDLE CPUBase;
 	D3D12_GPU_DESCRIPTOR_HANDLE GPUBase;
+
+	// Does the heap support loop around allocations
+	const bool bCanLoopAround;
 
 	// This index indicate where the next set of descriptors should be placed *if* there's room
 	uint32 NextSlotIndex;
@@ -371,25 +368,30 @@ protected:
 	// Desc contains the number of slots and allows for easy recreation
 	D3D12_DESCRIPTOR_HEAP_DESC Desc;
 
-	const bool bCanLoopAround;
 };
 
-class FD3D12GlobalOnlineHeap : public FD3D12OnlineHeap
+
+/**
+Global sampler heap managed by the device which stored a unique set of sampler sets
+**/
+class FD3D12GlobalOnlineSamplerHeap : public FD3D12OnlineHeap
 {
 public:
-	FD3D12GlobalOnlineHeap(FD3D12Device* Device, FRHIGPUMask Node)
+	FD3D12GlobalOnlineSamplerHeap(FD3D12Device* Device, FRHIGPUMask Node)
 		: FD3D12OnlineHeap(Device, Node, false)
 		, bUniqueDescriptorTablesAreDirty(false)
 	{ }
 
-	void Init(uint32 TotalSize, D3D12_DESCRIPTOR_HEAP_TYPE Type);
+	void Init(uint32 TotalSize);
 
 	void ToggleDescriptorTablesDirtyFlag(bool Value) { bUniqueDescriptorTablesAreDirty = Value; }
 	bool DescriptorTablesDirty() { return bUniqueDescriptorTablesAreDirty; }
 	FD3D12SamplerSet& GetUniqueDescriptorTables() { return UniqueDescriptorTables; }
 	FCriticalSection& GetCriticalSection() { return CriticalSection; }
 
-	bool RollOver();
+	// Override FD3D12OnlineHeap functions
+	virtual bool RollOver() final override;
+
 private:
 
 	FD3D12SamplerSet UniqueDescriptorTables;
@@ -398,70 +400,118 @@ private:
 	FCriticalSection CriticalSection;
 };
 
-struct FD3D12OnlineHeapBlock
+
+/**
+Heap sub block of a global heap
+**/
+struct FD3D12GlobalHeapBlock
 {
 public:
-	FD3D12OnlineHeapBlock(uint32 _BaseSlot, uint32 _Size) :
-		BaseSlot(_BaseSlot), Size(_Size), SizeUsed(0), bFresh(true) {};
-	FD3D12OnlineHeapBlock() : BaseSlot(0), Size(0), SizeUsed(0), bFresh(true) {}
+	FD3D12GlobalHeapBlock(uint32 InBaseSlot, uint32 InSize) :
+		BaseSlot(InBaseSlot), Size(InSize), SizeUsed(0) {};
 
-	FD3D12CLSyncPoint SyncPoint;
 	uint32 BaseSlot;
 	uint32 Size;
 	uint32 SizeUsed;
-	// Indicates that this has never been used in a Command List before
-	bool bFresh;
+	FD3D12CLSyncPoint SyncPoint;
 };
 
-class FD3D12SubAllocatedOnlineHeap : public FD3D12OnlineHeap
+
+/**
+Global per device heap from which sub blocks can be allocated and freed
+**/
+class FD3D12GlobalHeap : public FD3D12DeviceChild, public FD3D12SingleNodeGPUObject
 {
 public:
-	struct SubAllocationDesc
-	{
-		SubAllocationDesc() :ParentHeap(nullptr), BaseSlot(0), Size(0) {};
-		SubAllocationDesc(FD3D12GlobalOnlineHeap* _ParentHeap, uint32 _BaseSlot, uint32 _Size) :
-			ParentHeap(_ParentHeap), BaseSlot(_BaseSlot), Size(_Size) {};
+	FD3D12GlobalHeap(FD3D12Device* Device, FRHIGPUMask Node)
+		: FD3D12DeviceChild(Device), FD3D12SingleNodeGPUObject(Node)
+	{ }
 
-		FD3D12GlobalOnlineHeap* ParentHeap;
-		uint32 BaseSlot;
-		uint32 Size;
-	};
+	// Setup the actual heap
+	void Init(D3D12_DESCRIPTOR_HEAP_TYPE InType, uint32 InTotalSize);
 
-	FD3D12SubAllocatedOnlineHeap(FD3D12Device* Device, FRHIGPUMask Node, FD3D12DescriptorCache* Parent) :
-		FD3D12OnlineHeap(Device, Node, false, Parent) {};
+	// Allocate an available sub heap block from the global heap
+	FD3D12GlobalHeapBlock* AllocateHeapBlock();
+	void FreeHeapBlock(FD3D12GlobalHeapBlock* InHeapBlock);
 
-	void Init(SubAllocationDesc _Desc);
-
-	// Specializations
-	bool RollOver();
-	void NotifyCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle);
-
-	virtual uint32 GetTotalSize() final override
-	{
-		return CurrentSubAllocation.Size;
-	}
-
+	// Get the CPU & GPU descriptor handle for specific slot index
+	uint32 GetDescriptorSize() const { return DescriptorSize; }
+	ID3D12DescriptorHeap* GetHeap() { return Heap.GetReference(); }
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUSlotHandle(FD3D12GlobalHeapBlock* InBlock) const { return{ CPUBase.ptr + InBlock->BaseSlot * DescriptorSize }; }
+	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUSlotHandle(FD3D12GlobalHeapBlock* InBlock) const { return{ GPUBase.ptr + InBlock->BaseSlot * DescriptorSize }; }
 
 private:
 
-	TQueue<FD3D12OnlineHeapBlock> DescriptorBlockPool;
-	SubAllocationDesc SubDesc;
+	// Check all released blocks and check which ones are not used by the GPU anymore
+	void UpdateFreeBlocks();
 
-	FD3D12OnlineHeapBlock CurrentSubAllocation;
+	D3D12_DESCRIPTOR_HEAP_TYPE Type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+	uint32 TotalSize = 0;
+	TRefCountPtr<ID3D12DescriptorHeap> Heap;
+
+	uint32 DescriptorSize = 0;
+	D3D12_CPU_DESCRIPTOR_HANDLE CPUBase;
+	D3D12_GPU_DESCRIPTOR_HANDLE GPUBase;
+
+	TQueue<FD3D12GlobalHeapBlock*> FreeBlocks;
+	TArray<FD3D12GlobalHeapBlock*> ReleasedBlocks;
+
+	FCriticalSection CriticalSection;
 };
 
-class FD3D12ThreadLocalOnlineHeap : public FD3D12OnlineHeap
+
+/**
+Online heap which can be used by a FD3D12DescriptorCache to manage a block allocated from a GLobalHeap
+**/
+class FD3D12SubAllocatedOnlineHeap : public FD3D12OnlineHeap
 {
 public:
-	FD3D12ThreadLocalOnlineHeap(FD3D12Device* Device, FRHIGPUMask Node, FD3D12DescriptorCache* _Parent)
-		: FD3D12OnlineHeap(Device, Node, true, _Parent)
+
+	FD3D12SubAllocatedOnlineHeap(FRHIGPUMask InNode, FD3D12DescriptorCache* InDescriptorCache) :
+		FD3D12OnlineHeap(nullptr, InNode, false), DescriptorCache(InDescriptorCache) {};
+
+	// Setup the online heap data
+	void Init(FD3D12Device* InDevice, D3D12_DESCRIPTOR_HEAP_TYPE InHeapType);
+
+	// Override FD3D12OnlineHeap functions
+	virtual bool RollOver() final override;
+	virtual void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle) final override;
+	virtual uint32 GetTotalSize() final override
+	{
+		return CurrentBlock ? CurrentBlock->Size : 0;
+	}
+
+private:
+
+	// Allocate a new block from the global heap - return true if allocation succeeds
+	bool AllocateBlock();
+
+	D3D12_DESCRIPTOR_HEAP_TYPE HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+	FD3D12GlobalHeapBlock* CurrentBlock = nullptr;
+
+	FD3D12DescriptorCache* DescriptorCache = nullptr;
+	FD3D12CommandListHandle CurrentCommandList;
+};
+
+
+/**
+Online heap which is not shared between multiple FD3D12DescriptorCache - used as overflow heap when the global heaps are full or don't contain the required data
+**/
+class FD3D12LocalOnlineHeap : public FD3D12OnlineHeap
+{
+public:
+	FD3D12LocalOnlineHeap(FD3D12Device* Device, FRHIGPUMask Node, FD3D12DescriptorCache* InDescriptorCache)
+		: FD3D12OnlineHeap(Device, Node, true), DescriptorCache(InDescriptorCache)
 	{ }
 
-	bool RollOver();
-
-	void NotifyCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle);
-
+	// Allocate the actual overflow heap
 	void Init(uint32 NumDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE Type);
+
+	// Override FD3D12OnlineHeap functions
+	virtual bool RollOver() final override;
+	virtual void HeapLoopedAround() final override;
+	virtual void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle) final override;
+	virtual uint32 GetTotalSize() final override { return Desc.NumDescriptors; }	
 
 private:
 	struct SyncPointEntry
@@ -505,11 +555,16 @@ private:
 	};
 	PoolEntry Entry;
 	TQueue<PoolEntry> ReclaimPool;
+
+	FD3D12DescriptorCache* DescriptorCache;
+	FD3D12CommandListHandle CurrentCommandList;
 };
+
 
 //-----------------------------------------------------------------------------
 //	FD3D12DescriptorCache Class Definition
 //-----------------------------------------------------------------------------
+
 class FD3D12DescriptorCache : public FD3D12DeviceChild, public FD3D12SingleNodeGPUObject
 {
 protected:
@@ -545,7 +600,7 @@ public:
 	// Notify the descriptor cache every time you start recording a command list.
 	// This sets descriptor heaps on the command list and indicates the current fence value which allows
 	// us to avoid querying DX12 for that value thousands of times per frame, which can be costly.
-	void NotifyCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle);
+	void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle);
 
 	// ------------------------------------------------------
 	// end Descriptor Slot Reservation stuff
@@ -584,7 +639,7 @@ public:
 
 	bool HeapRolledOver(D3D12_DESCRIPTOR_HEAP_TYPE Type);
 	void HeapLoopedAround(D3D12_DESCRIPTOR_HEAP_TYPE Type);
-	void Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, uint32 InNumLocalViewDescriptors, uint32 InNumSamplerDescriptors, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc);
+	void Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, uint32 InNumLocalViewDescriptors, uint32 InNumSamplerDescriptors);
 	void Clear();
 	void BeginFrame();
 	void EndFrame();
@@ -611,8 +666,8 @@ private:
 	FD3D12OnlineHeap* CurrentViewHeap;
 	FD3D12OnlineHeap* CurrentSamplerHeap;
 
-	FD3D12ThreadLocalOnlineHeap* LocalViewHeap;
-	FD3D12ThreadLocalOnlineHeap LocalSamplerHeap;
+	FD3D12LocalOnlineHeap* LocalViewHeap;
+	FD3D12LocalOnlineHeap LocalSamplerHeap;
 	FD3D12SubAllocatedOnlineHeap SubAllocatedViewHeap;
 
 	FD3D12SamplerMap SamplerMap;

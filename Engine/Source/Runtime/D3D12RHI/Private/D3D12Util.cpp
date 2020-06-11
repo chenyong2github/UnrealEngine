@@ -1200,15 +1200,24 @@ DEFINE_STAT(STAT_D3D12AvailableVideoMemory);
 DEFINE_STAT(STAT_D3D12TotalVideoMemory);
 DEFINE_STAT(STAT_D3D12TextureAllocatorWastage);
 
+DEFINE_STAT(STAT_UniqueSamplers);
+
 DEFINE_STAT(STAT_ViewHeapChanged);
 DEFINE_STAT(STAT_SamplerHeapChanged);
 
 DEFINE_STAT(STAT_NumViewOnlineDescriptorHeaps);
 DEFINE_STAT(STAT_NumSamplerOnlineDescriptorHeaps);
 DEFINE_STAT(STAT_NumReuseableSamplerOnlineDescriptorTables);
+DEFINE_STAT(STAT_NumReuseableSamplerOnlineDescriptors);
 DEFINE_STAT(STAT_NumReservedViewOnlineDescriptors);
 DEFINE_STAT(STAT_NumReservedSamplerOnlineDescriptors);
 DEFINE_STAT(STAT_NumReusedSamplerOnlineDescriptors);
+
+DEFINE_STAT(STAT_GlobalViewHeapFreeDescriptors);
+DEFINE_STAT(STAT_GlobalViewHeapReservedDescriptors);
+DEFINE_STAT(STAT_GlobalViewHeapUsedDescriptors);
+DEFINE_STAT(STAT_GlobalViewHeapWastedDescriptors);
+DEFINE_STAT(STAT_GlobalViewHeapBlockAllocations);
 
 DEFINE_STAT(STAT_ViewOnlineDescriptorHeapMemory);
 DEFINE_STAT(STAT_SamplerOnlineDescriptorHeapMemory);

@@ -75,8 +75,8 @@ public:
 	inline FD3D12CommandListManager& GetAsyncCommandListManager() { return *AsyncCommandListManager; }
 	inline FD3D12CommandAllocatorManager& GetTextureStreamingCommandAllocatorManager() { return TextureStreamingCommandAllocatorManager; }
 	inline FD3D12DefaultBufferAllocator& GetDefaultBufferAllocator() { return DefaultBufferAllocator; }
-	inline FD3D12GlobalOnlineHeap& GetGlobalSamplerHeap() { return GlobalSamplerHeap; }
-	inline FD3D12GlobalOnlineHeap& GetGlobalViewHeap() { return GlobalViewHeap; }
+	inline FD3D12GlobalOnlineSamplerHeap& GetGlobalSamplerHeap() { return GlobalSamplerHeap; }
+	inline FD3D12GlobalHeap& GetGlobalViewHeap() { return GlobalViewHeap; }
 
 	bool IsGPUIdle();
 
@@ -139,8 +139,8 @@ protected:
 #endif
 	FD3D12OfflineDescriptorManager SamplerAllocator;
 
-	FD3D12GlobalOnlineHeap GlobalSamplerHeap;
-	FD3D12GlobalOnlineHeap GlobalViewHeap;
+	FD3D12GlobalOnlineSamplerHeap GlobalSamplerHeap;
+	FD3D12GlobalHeap GlobalViewHeap;
 
 	FD3D12QueryHeap OcclusionQueryHeap;
 	FD3D12QueryHeap TimestampQueryHeap;
