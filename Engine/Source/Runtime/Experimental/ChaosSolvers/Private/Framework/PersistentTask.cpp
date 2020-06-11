@@ -381,15 +381,17 @@ namespace Chaos
 
 	void FPersistentPhysicsTask::HandleSolverCommands(FPhysicsSolverBase* InSolver)
 	{
+#if 0
 		SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
 
 		check(InSolver);
-		TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
+		TQueue<TFunction<void()>, EQueueMode::Spsc>& Queue = InSolver->CommandQueue;
 		TFunction<void()> Command;
 		while(Queue.Dequeue(Command))
 		{
 			Command();
 		}
+#endif
 	}
 
 	template <typename TSolver>

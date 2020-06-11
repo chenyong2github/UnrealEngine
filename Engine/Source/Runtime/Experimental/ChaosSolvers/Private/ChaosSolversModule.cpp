@@ -303,11 +303,7 @@ void FChaosSolversModule::ShutdownThreadingMode()
 
 			for(FPhysicsSolverBase* Solver : AllSolvers)
 			{
-				IDispatcher::FSolverCommand Command;
-				while(Solver->CommandQueue.Dequeue(Command))
-				{
-					Command();
-				}
+				Solver->WaitOnPendingTasks_External();
 			}
 
 			delete Dispatcher;
@@ -577,27 +573,15 @@ void FChaosSolversModule::DestroySolver(Chaos::FPhysicsSolverBase* InSolver)
 		// Also remove from the owner list
 		TArray<Chaos::FPhysicsSolverBase*> OwnerList = GetSolversMutable(InSolver->GetOwner());
 		ensureMsgf(OwnerList.Remove(InSolver), TEXT("Removed a solver from the global list but not an owner list."));
-
-		if(Dispatcher)
-		{
-			Dispatcher->EnqueueCommandImmediate([InSolver](Chaos::FPersistentPhysicsTask* PhysThread)
-			{
-				LLM_SCOPE(ELLMTag::Chaos);
-				if(PhysThread)
-				{
-					PhysThread->RemoveSolver(InSolver);
-				}
-				delete InSolver;
-			});
-		}
-		else
-		{
-			delete InSolver;
-		}
 	}
 	else if(InSolver)
 	{
 		UE_LOG(LogChaosGeneral, Warning, TEXT("Passed valid solver state to DestroySolverState but it wasn't in the solver storage list! Make sure it was created using the Chaos module."));
+	}
+
+	if(InSolver)
+	{
+		Chaos::FPhysicsSolverBase::DestroySolver(*InSolver);
 	}
 }
 
@@ -941,8 +925,7 @@ void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
 	{
 		if (Dispatcher)
 		{
-			Dispatcher->EnqueueCommandImmediate(Solver, [InBufferMode = BufferMode, Solver]
-			()
+			Solver->EnqueueCommandImmediate([InBufferMode = BufferMode, Solver]()
 			{
 				Solver->ChangeBufferMode(InBufferMode);
 			});
@@ -957,7 +940,14 @@ void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
 
 Chaos::EThreadingMode FChaosSolversModule::GetDesiredThreadingMode() const
 {
+	if(Dispatcher && Dispatcher->GetMode() == Chaos::EThreadingMode::SingleThread)
+	{
+		//Already set to single threaded so use that
+		return Chaos::EThreadingMode::SingleThread;
+	}
+
 	const bool bForceSingleThread = !(FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::SupportsMultithreadingPostFork());
+
 
 	// If the platform isn't using threads for perf - force Chaos to
 	// run single threaded no matter the selected mode.
@@ -986,7 +976,7 @@ void FChaosSolversModule::OnUpdateMaterial(Chaos::FMaterialHandle InHandle)
 		for(Chaos::FPhysicsSolverBase* Solver : AllSolvers)
 		{
 			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialCopy = *Material, Solver]()
+			Solver->EnqueueCommandImmediate([InHandle, MaterialCopy = *Material, Solver]()
 			{
 				Solver->CastHelper([InHandle, &MaterialCopy](auto& Concrete)
 				{
@@ -1009,7 +999,7 @@ void FChaosSolversModule::OnCreateMaterial(Chaos::FMaterialHandle InHandle)
 		for(Chaos::FPhysicsSolverBase* Solver : AllSolvers)
 		{
 			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialCopy = *Material, Solver]()
+			Solver->EnqueueCommandImmediate([InHandle, MaterialCopy = *Material, Solver]()
 			{
 				Solver->CastHelper([InHandle, &MaterialCopy](auto& Concrete)
 				{
@@ -1035,7 +1025,7 @@ void FChaosSolversModule::OnDestroyMaterial(Chaos::FMaterialHandle InHandle)
 		for(Chaos::FPhysicsSolverBase* Solver : AllSolvers)
 		{
 			// Notify each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, Solver]()
+			Solver->EnqueueCommandImmediate([InHandle, Solver]()
 			{
 				Solver->CastHelper([InHandle](auto& Concrete)
 				{
@@ -1058,7 +1048,7 @@ void FChaosSolversModule::OnUpdateMaterialMask(Chaos::FMaterialMaskHandle InHand
 		for (Chaos::FPhysicsSolverBase* Solver : AllSolvers)
 		{
 			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialMaskCopy = *MaterialMask, Solver]()
+			Solver->EnqueueCommandImmediate([InHandle, MaterialMaskCopy = *MaterialMask, Solver]()
 			{
 				Solver->CastHelper([InHandle,&MaterialMaskCopy](auto& Concrete)
 				{
@@ -1081,7 +1071,7 @@ void FChaosSolversModule::OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHand
 		for (Chaos::FPhysicsSolverBase* Solver : AllSolvers)
 		{
 			// Send a copy of the material to each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialMaskCopy = *MaterialMask, Solver]()
+			Solver->EnqueueCommandImmediate([InHandle, MaterialMaskCopy = *MaterialMask, Solver]()
 			{
 				Solver->CastHelper([InHandle,&MaterialMaskCopy](auto& Concrete)
 				{
@@ -1107,7 +1097,7 @@ void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHan
 		for (Chaos::FPhysicsSolverBase* Solver : AllSolvers)
 		{
 			// Notify each solver
-			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, Solver]()
+			Solver->EnqueueCommandImmediate([InHandle, Solver]()
 			{
 				Solver->CastHelper([InHandle](auto& Concrete)
 				{

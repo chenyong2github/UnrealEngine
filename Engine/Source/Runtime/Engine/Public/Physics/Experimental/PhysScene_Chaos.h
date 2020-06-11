@@ -527,6 +527,5 @@ private:
 
 	// Taskgraph control
 	FGraphEventRef CompletionEvent;
-	FGraphEventRef PhysicsTickTask;
 };
 #endif

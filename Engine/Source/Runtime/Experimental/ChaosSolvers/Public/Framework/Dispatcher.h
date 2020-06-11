@@ -67,13 +67,10 @@ namespace Chaos
 		 * If this is not desirable consider either batched commands or submitting a custom command list
 		 */
 		virtual void EnqueueCommandImmediate(FTaskCommand InCommand) = 0;
-		virtual void EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand) = 0;
-
 		/**
 		 * Get the current threading mode for this dispatcher
 		 */
 		virtual EThreadingMode GetMode() const = 0;
-
 		/**
 		 * Execute any pending submitted command lists along with global and task commands
 		 * Intended to be called by whatever code is responsible for updating the physics scene
