@@ -1721,7 +1721,13 @@ void UContentBrowserAssetDataSource::OnBeginCreateAsset(const FName InDefaultAss
 		return;
 	}
 
-	FAssetData NewAssetData(*(InPackagePath.ToString() / InDefaultAssetName.ToString()), InPackagePath, InDefaultAssetName, InAssetClass->GetFName());
+	UClass* ClassToUse = InAssetClass ? InAssetClass : (InFactory ? InFactory->GetSupportedClass() : nullptr);
+	if (!ensure(ClassToUse))
+	{
+		return;
+	}
+
+	FAssetData NewAssetData(*(InPackagePath.ToString() / InDefaultAssetName.ToString()), InPackagePath, InDefaultAssetName, ClassToUse->GetFName());
 
 	FName VirtualizedPath;
 	TryConvertInternalPathToVirtual(NewAssetData.ObjectPath, VirtualizedPath);

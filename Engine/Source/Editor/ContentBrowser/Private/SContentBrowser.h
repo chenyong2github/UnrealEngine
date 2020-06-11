@@ -30,6 +30,8 @@ class SPathView;
 class SSplitter;
 class UFactory;
 
+struct FToolMenuContext;
+
 enum class EContentBrowserViewContext : uint8
 {
 	AssetView,

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
 #include "Misc/StringBuilder.h"
 #include "Containers/StringView.h"
 
