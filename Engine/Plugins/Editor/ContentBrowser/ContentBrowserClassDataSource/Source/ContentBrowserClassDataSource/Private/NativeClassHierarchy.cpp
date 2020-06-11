@@ -6,6 +6,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
+#include "Misc/App.h"
 #include "Misc/PackageName.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "GameProjectGenerationModule.h"
@@ -583,16 +584,20 @@ FName FNativeClassHierarchy::GetClassPathRootForModule(const FName& InModuleName
 
 TSet<FName> FNativeClassHierarchy::GetGameModules()
 {
-	FGameProjectGenerationModule& GameProjectModule = FGameProjectGenerationModule::Get();
-
-	// Build up a set of known game modules - used to work out which modules populate Classes_Game
 	TSet<FName> GameModules;
-	if(GameProjectModule.ProjectHasCodeFiles())
+
+	if (FApp::HasProjectName())
 	{
-		TArray<FModuleContextInfo> GameModulesInfo = GameProjectModule.GetCurrentProjectModules();
-		for(const auto& GameModuleInfo : GameModulesInfo)
+		FGameProjectGenerationModule& GameProjectModule = FGameProjectGenerationModule::Get();
+
+		// Build up a set of known game modules - used to work out which modules populate Classes_Game
+		if (GameProjectModule.ProjectHasCodeFiles())
 		{
-			GameModules.Add(FName(*GameModuleInfo.ModuleName));
+			TArray<FModuleContextInfo> GameModulesInfo = GameProjectModule.GetCurrentProjectModules();
+			for (const auto& GameModuleInfo : GameModulesInfo)
+			{
+				GameModules.Add(FName(*GameModuleInfo.ModuleName));
+			}
 		}
 	}
 
