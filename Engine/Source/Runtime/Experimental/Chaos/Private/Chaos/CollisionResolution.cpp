@@ -258,13 +258,13 @@ namespace Chaos
 			FContactPoint Contact;
 			const FRigidTransform3 AToBTM = ATransform.GetRelativeTransform(BTransform);
 
-			FReal Penetration = FLT_MAX;
+			FReal ContactPhi = FLT_MAX;
 			FVec3 Location, Normal;
 			if (const TImplicitObjectScaled<GeometryA>* ScaledConvexImplicit = A.template GetObject<const TImplicitObjectScaled<GeometryA> >())
 			{
-				if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, Penetration))
+				if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
-					Contact.Phi = Penetration;
+					Contact.Phi = ContactPhi;
 					Contact.Location = BTransform.TransformPosition(Location);
 					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 				}
@@ -273,9 +273,9 @@ namespace Chaos
 			{
 				if (const GeometryA * InstancedInnerObject = static_cast<const GeometryA*>(InstancedConvexImplicit->GetInstancedObject()))
 				{
-					if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, Penetration))
+					if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, ContactPhi))
 					{
-						Contact.Phi = Penetration;
+						Contact.Phi = ContactPhi;
 						Contact.Location = BTransform.TransformPosition(Location);
 						Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 					}
@@ -283,9 +283,9 @@ namespace Chaos
 			}
 			else if (const GeometryA* ConvexImplicit = A.template GetObject<const GeometryA>())
 			{
-				if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, Penetration))
+				if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
-					Contact.Phi = Penetration;
+					Contact.Phi = ContactPhi;
 					Contact.Location = BTransform.TransformPosition(Location);
 					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 				}
