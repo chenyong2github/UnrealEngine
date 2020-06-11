@@ -38,7 +38,7 @@ struct FSolverStateStorage;
 
 class FSkeletalMeshPhysicsProxy;
 class FStaticMeshPhysicsProxy;
-class FFieldSystemPhysicsProxy;
+class FPerSolverFieldSystem;
 
 class IPhysicsProxyBase;
 
@@ -125,8 +125,7 @@ public:
 	void AddObject(UPrimitiveComponent* Component, FStaticMeshPhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FGeometryParticlePhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsProxy* InObject);
-	void AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject);
-
+	
 	void AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
 	void RemoveFromComponentMaps(IPhysicsProxyBase* InObject);
 
@@ -138,7 +137,6 @@ public:
 	void RemoveObject(FStaticMeshPhysicsProxy* InObject);
 	void RemoveObject(FGeometryParticlePhysicsProxy* InObject);
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
-	void RemoveObject(FFieldSystemPhysicsProxy* InObject);	
 
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);

@@ -2063,7 +2063,7 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 		Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
 		checkSlow(PhysicsDispatcher); // Should always have one of these
 
-		PhysicsDispatcher->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
+		PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>()->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
 		{
 			// Pass through nullptr here as geom component commands can never affect other solvers
 			PhysicsProxy->BufferCommand(nullptr, NewCommand);

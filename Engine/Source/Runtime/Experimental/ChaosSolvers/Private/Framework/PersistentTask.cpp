@@ -253,8 +253,6 @@ namespace Chaos
 
 		if(bFullSync)
 		{
-			TArray<FFieldSystemPhysicsProxy*> FieldsToDelete;
-
 			for(FPhysicsSolverBase* Solver : Solvers)
 			{
 				Solver->CastHelper([](auto& Concrete)
@@ -277,22 +275,8 @@ namespace Chaos
 					}
 				});
 
-				RemovedObjects.ForEachFieldPhysicsProxy([Solver, &FieldsToDelete](auto* Object)
-				{
-					if(Object->GetSolver() == Solver)
-					{
-						FieldsToDelete.Add(Object);
-					}
-				});
-
 				RemovedObjects.Reset();
 #endif
-			}
-
-			// @todo(question) : Why is there a separate delete here for fields. [brice]
-			for(FFieldSystemPhysicsProxy* FieldObj : FieldsToDelete)
-			{
-				delete FieldObj;
 			}
 
 			for (FPhysicsSolverBase* Solver : Solvers)
