@@ -38,6 +38,7 @@ const FName FNiagaraConstants::ParameterCollectionNamespace(TEXT("NPC"));
 const FString FNiagaraConstants::InitialPrefix(TEXT("Initial"));
 const FName FNiagaraConstants::LocalNamespace(TEXT("Local"));
 const FName FNiagaraConstants::InitialNamespace(TEXT("Initial"));
+const FName FNiagaraConstants::PreviousNamespace(TEXT("Previous"));
 const FName FNiagaraConstants::OwnerNamespace(TEXT("Owner"));
 
 const FName FNiagaraConstants::EngineOwnerScopeName(TEXT("EngineOwner"));
