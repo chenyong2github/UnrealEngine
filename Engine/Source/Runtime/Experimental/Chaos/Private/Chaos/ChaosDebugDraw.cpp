@@ -380,7 +380,9 @@ namespace Chaos
 			// Draw the particle (mass frame) coordinates
 			{
 				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[0], INDEX_NONE, 1.0f);
-				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[1], INDEX_NONE, 1.0f);				
+				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[1], INDEX_NONE, 1.0f);
+				//DebugDraw::DrawParticleShapes(FRigidTransform3(), Contact.Particle[0], FColor::Green);
+				//DebugDraw::DrawParticleShapes(FRigidTransform3(), Contact.Particle[1], FColor::Green);
 			}
 		}
 		
