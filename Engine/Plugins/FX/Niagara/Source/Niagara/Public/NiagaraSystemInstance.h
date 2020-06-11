@@ -162,6 +162,7 @@ public:
 	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters() { return Emitters; }
 	FORCEINLINE const TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> >& GetEmitters() const { return Emitters; }
 	FORCEINLINE const FBox& GetLocalBounds() { return LocalBounds;  }
+	TConstArrayView<const int32> GetEmitterExecutionOrder() const;
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
