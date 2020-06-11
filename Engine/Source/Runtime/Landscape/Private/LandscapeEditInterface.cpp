@@ -546,16 +546,19 @@ void FLandscapeEditDataInterface::RecalculateNormals()
 				{
 					for( int32 SubX=0;SubX<=SubsectionSizeQuads;SubX++ )
 					{
-						int32 X = (SubsectionSizeQuads+1) * SubIndexX + SubX;
-						int32 Y = (SubsectionSizeQuads+1) * SubIndexY + SubY;
-						int32 DataIndex = (X+1) + (Y+1) * Stride;
+						// Read from local VertexNormals cache which doesn't have duplicated values.
+						const int32 ReadX = (SubsectionSizeQuads) * SubIndexX + SubX;
+						const int32 ReadY = (SubsectionSizeQuads) * SubIndexY + SubY;
+						const int32 ReadIndex = (ReadX + 1) + (ReadY + 1) * Stride;
+						const FVector Normal = VertexNormals[ReadIndex].GetSafeNormal();
 
-						int32 TexX = HeightmapOffsetX + X;
-						int32 TexY = HeightmapOffsetY + Y;
-						FColor& TexData = HeightmapTextureData[ TexX + TexY * SizeU ];
+						// Write to (shared) Heightmap texture which has duplicated values on subsection and section borders.
+						const int32 WriteX = HeightmapOffsetX + (SubsectionSizeQuads + 1) * SubIndexX + SubX;
+						const int32 WriteY = HeightmapOffsetY + (SubsectionSizeQuads + 1) * SubIndexY + SubY;
+						const int32 WriteIndex = WriteX + WriteY * SizeU;
+						FColor& TexData = HeightmapTextureData[WriteIndex];
 
-						// Update the texture
-						FVector Normal = VertexNormals[DataIndex].GetSafeNormal();
+						// Update the channels containing the normals
 						TexData.B = FMath::RoundToInt( 127.5f * (Normal.X + 1.0f) );
 						TexData.A = FMath::RoundToInt( 127.5f * (Normal.Y + 1.0f) );
 					}
