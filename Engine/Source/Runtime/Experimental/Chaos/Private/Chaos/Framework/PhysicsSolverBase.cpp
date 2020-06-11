@@ -3,6 +3,7 @@
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ChaosStats.h"
 
 namespace Chaos
 {	
@@ -48,12 +49,12 @@ namespace Chaos
 		using namespace Chaos;
 
 		LLM_SCOPE(ELLMTag::Chaos);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
+		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
 		// Handle our solver commands
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
+			SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
 			for(const auto& Command : Queue)
 			{
 				Command();
