@@ -664,7 +664,7 @@ public:
 		{
 			FPackageId& PackageId = Pair.Key;
 			FLoadedPackageRef& Ref = Pair.Value;
-			UE_CLOG(Ref.GetRefCount() > 0, LogStreaming, Warning,
+			ensureMsgf(Ref.GetRefCount() == 0,
 				TEXT("PackageId '%d' with ref count %d should not have a ref count now")
 				TEXT(", or this check is incorrectly reached during active loading."),
 				PackageId.Value(),
@@ -1088,9 +1088,9 @@ private:
 		}
 		ForEachObjectWithOuter(ImportedPackage, [](UObject* Object)
 		{
-			if (Object->HasAnyFlags(RF_Public))
+			if (Object->HasAllFlags(RF_Public | RF_WasLoaded))
 			{
-				check(!Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
+				checkf(!Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
 				Object->SetInternalFlags(EInternalObjectFlags::Async);
 			}
 		}, /* bIncludeNestedObjects*/ true);
@@ -1108,9 +1108,9 @@ private:
 		}
 		ForEachObjectWithOuter(ImportedPackage, [](UObject* Object)
 		{
-			if (Object->HasAnyFlags(RF_Public))
+			if (Object->HasAllFlags(RF_Public | RF_WasLoaded))
 			{
-				check(Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
+				checkf(Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
 				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
 			}
 		}, /* bIncludeNestedObjects*/ true);
@@ -1697,44 +1697,32 @@ struct FAsyncPackage2
 	*/
 	void Cancel();
 
-	void AddOwnedObjectFromCallback(UObject* Object, bool bSubObject)
+	void AddConstructedObject(UObject* Object, bool bSubObjectThatAlreadyExists)
 	{
-		if (bSubObject)
+		if (bSubObjectThatAlreadyExists)
 		{
-			if (!OwnedObjects.Contains(Object))
-			{
-				OwnedObjects.Add(Object);
-			}
+			ConstructedObjects.AddUnique(Object);
 		}
 		else
 		{
-			check(!OwnedObjects.Contains(Object));
-			OwnedObjects.Add(Object);
+			checkf(!ConstructedObjects.Contains(Object), TEXT("%s"), *Object->GetFullName());
+			ConstructedObjects.Add(Object);
 		}
 	}
 
-	void AddOwnedObject(UObject* Object, bool bForceAdd)
+	void PinObjectForGC(UObject* Object, bool bIsNewObject)
 	{
-		if (bForceAdd || !IsInAsyncLoadingThread())
+		if (bIsNewObject && !IsInGameThread())
 		{
-			check(!OwnedObjects.Contains(Object));
-			OwnedObjects.Add(Object);
+			checkf(Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
 		}
-		check(OwnedObjects.Contains(Object));
-	}
-
-	void AddOwnedObjectWithAsyncFlag(UObject* Object, bool bForceAdd)
-	{
-		AddOwnedObject(Object, bForceAdd);
-		if (bForceAdd || IsInGameThread())
+		else
 		{
-			check(bForceAdd || !Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
 			Object->SetInternalFlags(EInternalObjectFlags::Async);
 		}
-		check(Object->HasAnyInternalFlags(EInternalObjectFlags::Async));
 	}
 
-	void ClearOwnedObjects();
+	void ClearConstructedObjects();
 
 	/** Returns the UPackage wrapped by this, if it is valid */
 	UPackage* GetLoadedPackage();
@@ -1792,8 +1780,8 @@ private:
 	/** Number of times we recursed to load this package. */
 	int32 ReentryCount;
 	TArray<FAsyncPackage2*> ImportedAsyncPackages;
-	/** List of OwnedObjects = Exports + UPackage + ObjectsCreatedFromExports */
-	TArray<UObject*> OwnedObjects;
+	/** List of ConstructedObjects = Exports + UPackage + ObjectsCreatedFromExports */
+	TArray<UObject*> ConstructedObjects;
 	/** Cached async loading thread object this package was created by */
 	FAsyncLoadingThread2& AsyncLoadingThread;
 	FAsyncLoadEventGraphAllocator& GraphAllocator;
@@ -2172,11 +2160,11 @@ public:
 		return bSuspendRequested;
 	}
 
-	virtual void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) override;
+	virtual void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObjectThatAlreadyExists) override;
 
 	virtual void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) override;
 
-	virtual void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) override;
+	virtual void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) override {}
 
 	/**
 	* [ASYNC THREAD] Finds an existing async package in the AsyncPackages by its name.
@@ -3522,6 +3510,8 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 		Object = StaticFindObjectFastInternal(NULL, ThisParent, ObjectName, true);
 	}
 
+	const bool bIsNewObject = !Object;
+
 	// Object is found in memory.
 	if (Object)
 	{
@@ -3543,11 +3533,6 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 			{
 				Object->SetFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects | RF_WasLoaded);
 			}
-			AddOwnedObjectWithAsyncFlag(Object, /*bForceAdd*/ false);
-		}
-		else
-		{
-			AddOwnedObjectWithAsyncFlag(Object, /*bForceAdd*/ true);
 		}
 	}
 	else
@@ -3637,12 +3622,12 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 			Object->AddToRoot();
 		}
 
-		AddOwnedObjectWithAsyncFlag(Object, /*bForceAdd*/ false);
 		check(Object->GetClass() == LoadClass);
 		check(Object->GetFName() == ObjectName);
 	}
 
 	check(Object);
+	PinObjectForGC(Object, bIsNewObject);
 
 	if (Desc.IsTrackingPublicExports() && !Export.GlobalImportIndex.IsNull())
 	{
@@ -3650,11 +3635,12 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 		ImportStore.StoreGlobalObject(Desc.DiskPackageId, Export.GlobalImportIndex, Object);
 
 		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"),
-			TEXT("Created public export %s stored as %llx"), *Object->GetPathName(), Export.GlobalImportIndex.Value());
+			TEXT("Created public export %s. Tracked as %llx"), *Object->GetPathName(), Export.GlobalImportIndex.Value());
 	}
 	else
 	{
-		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"), TEXT("Created private export %s"), *Object->GetPathName());
+		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"), TEXT("Created %s export %s. Not tracked."),
+			Object->HasAnyFlags(RF_Public) ? TEXT("public") : TEXT("private"), *Object->GetPathName());
 	}
 }
 
@@ -4290,7 +4276,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			{
 				FScopeLock LockAsyncPackages(&AsyncPackagesCritical);
 				AsyncPackageLookup.Remove(Package->Desc.GetAsyncPackageId());
-				Package->ClearOwnedObjects();
+				Package->ClearConstructedObjects();
 			}
 
 			// Remove the package from the list before we trigger the callbacks, 
@@ -4823,6 +4809,7 @@ float FAsyncLoadingThread2::GetAsyncLoadPercentage(const FName& PackageName)
 	return LoadPercentage;
 }
 
+#if ALT2_VERIFY_ASYNC_FLAGS
 static void VerifyLoadFlagsWhenFinishedLoading()
 {
 	const EInternalObjectFlags AsyncFlags =
@@ -4844,8 +4831,8 @@ static void VerifyLoadFlagsWhenFinishedLoading()
 			const bool bWasLoaded = !!(Flags & RF_WasLoaded);
 			const bool bLoadCompleted = !!(Flags & RF_LoadCompleted);
 
-			UE_CLOG(bHasAnyLoadIntermediateFlags, LogStreaming, Warning,
-				TEXT("Object '%s' (ObjectFlags=%d, InternalObjectFlags=%d) should not have any load flags now")
+			ensureMsgf(!bHasAnyLoadIntermediateFlags,
+				TEXT("Object '%s' (ObjectFlags=%X, InternalObjectFlags=%x) should not have any load flags now")
 				TEXT(", or this check is incorrectly reached during active loading."),
 				*Obj->GetFullName(),
 				Flags,
@@ -4855,15 +4842,15 @@ static void VerifyLoadFlagsWhenFinishedLoading()
 			{
 				const bool bIsPackage = Obj->IsA(UPackage::StaticClass());
 
-				UE_CLOG(!bIsPackage && !bLoadCompleted, LogStreaming, Warning,
-					TEXT("Object '%s' (ObjectFlags=%d, InternalObjectFlags=%d) is a serialized object and should be completely loaded now")
+				ensureMsgf(bIsPackage || bLoadCompleted,
+					TEXT("Object '%s' (ObjectFlags=%x, InternalObjectFlags=%x) is a serialized object and should be completely loaded now")
 					TEXT(", or this check is incorrectly reached during active loading."),
 					*Obj->GetFullName(),
 					Flags,
 					InternalFlags);
 
-				UE_CLOG(bHasAnyAsyncFlags, LogStreaming, Warning,
-					TEXT("Object '%s' (ObjectFlags=%d, InternalObjectFlags=%d) is a serialized object and should not have any async flags now")
+				ensureMsgf(!bHasAnyAsyncFlags,
+					TEXT("Object '%s' (ObjectFlags=%x, InternalObjectFlags=%x) is a serialized object and should not have any async flags now")
 					TEXT(", or this check is incorrectly reached during active loading."),
 					*Obj->GetFullName(),
 					Flags,
@@ -4873,6 +4860,7 @@ static void VerifyLoadFlagsWhenFinishedLoading()
 	}
 	UE_LOG(LogStreaming, Log, TEXT("Verified load flags when finished active loading."));
 }
+#endif
 
 void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects)
 {
@@ -4929,34 +4917,27 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 /**
  * Call back into the async loading code to inform of the creation of a new object
  * @param Object		Object created
- * @param bSubObject	Object created as a sub-object of a loaded object
+ * @param bSubObjectThatAlreadyExists	Object created as a sub-object of a loaded object
  */
-void FAsyncLoadingThread2::NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject)
+void FAsyncLoadingThread2::NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObjectThatAlreadyExists)
 {
 	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 	if (!ThreadContext.AsyncPackage)
 	{
 		// Something is creating objects on the async loading thread outside of the actual async loading code
 		// e.g. ShaderCodeLibrary::OnExternalReadCallback doing FTaskGraphInterface::Get().WaitUntilTaskCompletes(Event);
-		// TODO: Change the code in this callback to only ever set the AsyncLoading flag on serialized objects in the current package
 		return;
 	}
 
 	// Mark objects created during async loading process (e.g. from within PostLoad or CreateExport) as async loaded so they 
 	// cannot be found. This requires also keeping track of them so we can remove the async loading flag later one when we 
 	// finished routing PostLoad to all objects.
-	if (!bSubObject)
+	if (!bSubObjectThatAlreadyExists)
 	{
 		Object->SetInternalFlags(EInternalObjectFlags::AsyncLoading);
 	}
 	FAsyncPackage2* AsyncPackage2 = (FAsyncPackage2*)ThreadContext.AsyncPackage;
-	AsyncPackage2->AddOwnedObjectFromCallback(Object, /*bForceAdd*/ bSubObject);
-}
-
-void FAsyncLoadingThread2::FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import)
-{
-	int32 ExportNodeIndex = Import.ToImport();
-	static_cast<FAsyncPackage2*>(AsyncPackage)->GetNode(ExportNodeIndex)->ReleaseBarrier();
+	AsyncPackage2->AddConstructedObject(Object, bSubObjectThatAlreadyExists);
 }
 
 /*-----------------------------------------------------------------------------
@@ -4996,7 +4977,7 @@ FAsyncPackage2::FAsyncPackage2(
 	LoadOrder = Desc.StoreEntry->LoadOrder;
 	ExportCount = Desc.StoreEntry->ExportCount;
 	Exports.AddDefaulted(ExportCount);
-	OwnedObjects.Reserve(ExportCount + 1); // +1 for UPackage
+	ConstructedObjects.Reserve(ExportCount + 1); // +1 for UPackage
 
 	CreateNodes(EventSpecs);
 
@@ -5052,7 +5033,7 @@ FAsyncPackage2::~FAsyncPackage2()
 	checkf(RequestIDs.Num() == 0, TEXT("MarkRequestIDsAsComplete() has not been called for package %s"),
 		*Desc.DiskPackageName.ToString());
 	
-	checkf(OwnedObjects.Num() == 0, TEXT("ClearOwnedObjects() has not been called for package %s"),
+	checkf(ConstructedObjects.Num() == 0, TEXT("ClearConstructedObjects() has not been called for package %s"),
 		*Desc.DiskPackageName.ToString());
 
 	GraphAllocator.FreeNodes(PackageNodes, EEventLoadNode2::Package_NumPhases + ExportBundleNodeCount);
@@ -5100,43 +5081,41 @@ void FAsyncPackage2::ClearImportedPackages()
 #endif
 }
 
-void FAsyncPackage2::ClearOwnedObjects()
+void FAsyncPackage2::ClearConstructedObjects()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ClearOwnedObjects);
-	for (UObject* Object : OwnedObjects)
+	TRACE_CPUPROFILER_EVENT_SCOPE(ClearConstructedObjects);
+
+	for (UObject* Object : ConstructedObjects)
 	{
-		const EObjectFlags Flags = Object->GetFlags();
-		const EInternalObjectFlags InternalFlags = Object->GetInternalFlags();
-		const bool bAsyncLoading = !!(InternalFlags & EInternalObjectFlags::AsyncLoading);
-		const bool bAsync = !!(InternalFlags & EInternalObjectFlags::Async);
-		const bool bPrivate = !(Flags & RF_Public);
-		const bool bPackage = !Object->GetOuter();
-		const bool bIsDisregardForGC = GUObjectArray.IsDisregardForGC(Object);
-
-		// the async flag of all garbage collectable public export objects in non-temp packages are handled by FGlobalImportStore
-		bool bShouldClearAsync = bAsync && (!Desc.IsTrackingPublicExports() || bPackage || bPrivate || bIsDisregardForGC);
-
-		EInternalObjectFlags InternalFlagsToClear = EInternalObjectFlags::None;
-
-		check(!(Flags & (RF_NeedPostLoad | RF_NeedPostLoadSubobjects)));
-
-		if (bAsyncLoading)
+		if (Object->HasAnyFlags(RF_WasLoaded))
 		{
-			check(!(Flags & RF_WasLoaded));
-			InternalFlagsToClear |= EInternalObjectFlags::AsyncLoading;
+			// exports and the upackage itself are are handled below
+			continue;
 		}
+		Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
+	}
+	ConstructedObjects.Empty();
 
-		if (bShouldClearAsync)
+	// the async flag of all GC'able public export objects in non-temp packages are handled by FGlobalImportStore::ClearAsyncFlags
+	const bool bShouldClearAsyncFlagForPublicExports = GUObjectArray.IsDisregardForGC(LinkerRoot) || !Desc.IsTrackingPublicExports();
+
+	for (FExportObject& Export : Exports)
+	{
+		UObject* Object = Export.Object;
+
+		checkf(Object->HasAnyFlags(RF_WasLoaded), TEXT("%s"), *Object->GetFullName());
+		checkf(Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
+		if (bShouldClearAsyncFlagForPublicExports || !Object->HasAnyFlags(RF_Public))
 		{
-			InternalFlagsToClear |= EInternalObjectFlags::Async;
+			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
 		}
-
-		if (!!InternalFlagsToClear)
+		else
 		{
-			Object->AtomicallyClearInternalFlags(InternalFlagsToClear);
+			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 		}
 	}
-	OwnedObjects.Empty();
+
+	LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
 }
 
 void FAsyncPackage2::AddRequestID(int32 Id)
@@ -5234,14 +5213,13 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 	if (!LinkerRoot)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPackageCreate);
-		LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.GetUPackageName(), RF_Public);
+		LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.GetUPackageName(), RF_Public | RF_WasLoaded);
 		LinkerRoot->FileName = Desc.DiskPackageName;
 		LinkerRoot->SetPackageId(Desc.DiskPackageId);
 		LinkerRoot->SetPackageFlagsTo(PackageSummary->PackageFlags);
 		LinkerRoot->LinkerPackageVersion = GPackageFileUE4Version;
 		LinkerRoot->LinkerLicenseeVersion = GPackageFileLicenseeUE4Version;
 		// LinkerRoot->LinkerCustomVersion = PackageSummaryVersions; // only if (!bCustomVersionIsLatest)
-		LinkerRoot->SetFlags(RF_WasLoaded);
 		if (PackageRef)
 		{
 			PackageRef->SetPackage(LinkerRoot);
@@ -5257,8 +5235,7 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		check(LinkerRoot->HasAnyFlags(RF_WasLoaded));
 	}
 
-	AddOwnedObjectWithAsyncFlag(LinkerRoot, /*bForceAdd*/ !bCreatedLinkerRoot);
-	check(LinkerRoot->HasAnyInternalFlags(EInternalObjectFlags::Async));
+	PinObjectForGC(LinkerRoot, bCreatedLinkerRoot);
 
 	if (bCreatedLinkerRoot)
 	{
@@ -5341,7 +5318,7 @@ EAsyncPackageState::Type FAsyncPackage2::FinishObjects()
 		LoadingResult = EAsyncLoadingResult::Failed;
 	}
 
-	for (UObject* Object : OwnedObjects)
+	for (UObject* Object : ConstructedObjects)
 	{
 		if (!Object->HasAnyFlags(RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
 		{
