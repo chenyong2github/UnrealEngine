@@ -50,6 +50,7 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				"MeshBuilder",
 				"MeshUtilitiesCommon",  
 				"MeshReductionInterface", // for UE4 standard simplification 
+				"MeshUtilities",			// for tangents calculation
 			}
 			);
 		
@@ -60,5 +61,9 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				// ... add any modules that your module loads dynamically here ...
 			}
 			);
+
+
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "MikkTSpace");
+
 	}
 }

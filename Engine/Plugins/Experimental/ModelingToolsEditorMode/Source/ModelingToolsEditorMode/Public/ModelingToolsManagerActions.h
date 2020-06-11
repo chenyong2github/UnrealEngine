@@ -51,6 +51,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginRemeshMeshTool;
 	TSharedPtr<FUICommandInfo> BeginSimplifyMeshTool;
 	TSharedPtr<FUICommandInfo> BeginEditNormalsTool;
+	TSharedPtr<FUICommandInfo> BeginEditTangentsTool;
 	TSharedPtr<FUICommandInfo> BeginRemoveOccludedTrianglesTool;
 	TSharedPtr<FUICommandInfo> BeginUVProjectionTool;
 	TSharedPtr<FUICommandInfo> BeginUVLayoutTool;
