@@ -171,11 +171,23 @@ public:
 	 * compile when no changes are detected. Report any issues immediately.
 	 */
 	UPROPERTY(EditAnywhere, config, Category=Blueprints, DisplayName = "Force All Dependencies To Recompile (DEPRECATED)")
-	uint32 bForceAllDependenciesToRecompile:1;
+	uint8 bForceAllDependenciesToRecompile:1;
 
 	/** If enabled, the editor will load packages to look for soft references to actors when deleting/renaming them. This can be slow in large projects so disable this to improve performance but increase the chance of breaking blueprints/sequences that use soft actor references */
 	UPROPERTY(EditAnywhere, config, Category=Actors)
-	uint32 bValidateUnloadedSoftActorReferences : 1;
+	uint8 bValidateUnloadedSoftActorReferences : 1;
+
+	/**
+	 * Enable the option to expand child actor components within component tree views (experimental).
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Experimental)
+	uint8 bEnableChildActorExpansionInTreeView : 1;
+
+	/**
+	 * If enabled, the "Add Component" button will not be accessible in the Components panel, and new components cannot be added to the Blueprint.
+	 */
+	UPROPERTY(config)
+	uint8 bDisallowAddingNewComponents : 1;
 
 	/** 
 	 * List of compiler messages that have been suppressed outside of full, interactive editor sessions for 
@@ -198,18 +210,17 @@ public:
 	TArray<FString> NamespacesToAlwaysInclude;
 	
 	/**
-	 * Enable the option to expand child actor components within component tree views (experimental).
-	 */
-	UPROPERTY(EditAnywhere, config, Category=Experimental)
-	bool bEnableChildActorExpansionInTreeView;
-	
-	/**
 	 * Default view mode to use for child actor components in a Blueprint actor's component tree hierarchy (experimental).
 	 */
 	UPROPERTY(EditAnywhere, config, Category=Experimental, meta=(EditCondition="bEnableChildActorExpansionInTreeView"))
 	EChildActorComponentTreeViewVisualizationMode DefaultChildActorTreeViewMode;
 
-public:
+	/**
+	 * If not null, component nodes displayed in the tree view will always be filtered by this type, even if other component types exist in the hierarchy.
+	 */
+	UPROPERTY(config)
+	TSubclassOf<UActorComponent> DefaultComponentsTreeViewTypeFilter;
+
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
