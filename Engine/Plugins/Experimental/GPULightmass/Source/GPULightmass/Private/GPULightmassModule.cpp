@@ -97,3 +97,5 @@ bool FGPULightmassModule::IsStaticLightingSystemRunning()
 {
 	return StaticLightingSystems.Num() > 0;
 }
+
+#undef LOCTEXT_NAMESPACE
