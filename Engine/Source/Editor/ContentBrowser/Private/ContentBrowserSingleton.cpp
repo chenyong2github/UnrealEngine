@@ -25,8 +25,6 @@
 #include "SAssetDialog.h"
 #include "TutorialMetaData.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "NativeClassHierarchy.h"
-#include "EmptyFolderVisibilityManager.h"
 #include "CollectionAssetRegistryBridge.h"
 #include "ContentBrowserCommands.h"
 #include "CoreGlobals.h"
@@ -34,8 +32,7 @@
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
 FContentBrowserSingleton::FContentBrowserSingleton()
-	: EmptyFolderVisibilityManager(MakeShared<FEmptyFolderVisibilityManager>())
-	, CollectionAssetRegistryBridge(MakeShared<FCollectionAssetRegistryBridge>())
+	: CollectionAssetRegistryBridge(MakeShared<FCollectionAssetRegistryBridge>())
 	, SettingsStringID(0)
 {
 	// We're going to call a static function in the editor style module, so we need to make sure the module has actually been loaded
@@ -349,6 +346,21 @@ void FContentBrowserSingleton::SyncBrowserToFolders(const TArray<FString>& Folde
 	}
 }
 
+void FContentBrowserSingleton::SyncBrowserToItems(const TArray<FContentBrowserItem>& ItemsToSync, bool bAllowLockedBrowsers, bool bFocusContentBrowser, const FName& InstanceName, bool bNewSpawnBrowser)
+{
+	TSharedPtr<SContentBrowser> ContentBrowserToSync = FindContentBrowserToSync(bAllowLockedBrowsers, InstanceName, bNewSpawnBrowser);
+
+	if ( ContentBrowserToSync.IsValid() )
+	{
+		// Finally, focus and sync the browser that was found
+		if (bFocusContentBrowser)
+		{
+			FocusContentBrowser(ContentBrowserToSync);
+		}
+		ContentBrowserToSync->SyncToItems(ItemsToSync);
+	}
+}
+
 void FContentBrowserSingleton::SyncBrowserTo(const FContentBrowserSelection& ItemSelection, bool bAllowLockedBrowsers, bool bFocusContentBrowser, const FName& InstanceName, bool bNewSpawnBrowser)
 {
 	TSharedPtr<SContentBrowser> ContentBrowserToSync = FindContentBrowserToSync(bAllowLockedBrowsers, InstanceName, bNewSpawnBrowser);
@@ -452,20 +464,6 @@ void FContentBrowserSingleton::ContentBrowserClosed(const TSharedRef<SContentBro
 	}
 
 	BrowserToLastKnownTabManagerMap.Add(ClosedBrowser->GetInstanceName(), ClosedBrowser->GetTabManager());
-}
-
-TSharedRef<FNativeClassHierarchy> FContentBrowserSingleton::GetNativeClassHierarchy()
-{
-	if(!NativeClassHierarchy.IsValid())
-	{
-		NativeClassHierarchy = MakeShareable(new FNativeClassHierarchy());
-	}
-	return NativeClassHierarchy.ToSharedRef();
-}
-
-TSharedRef<FEmptyFolderVisibilityManager> FContentBrowserSingleton::GetEmptyFolderVisibilityManager()
-{
-	return EmptyFolderVisibilityManager;
 }
 
 const FContentBrowserPluginSettings& FContentBrowserSingleton::GetPluginSettings(FName PluginName) const

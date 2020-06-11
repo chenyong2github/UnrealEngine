@@ -9,8 +9,6 @@
 #include "ContentBrowserSingleton.generated.h"
 
 class FCollectionAssetRegistryBridge;
-class FEmptyFolderVisibilityManager;
-class FNativeClassHierarchy;
 class FSpawnTabArgs;
 class FTabManager;
 class FViewport;
@@ -61,6 +59,7 @@ public:
 	virtual void SyncBrowserToAssets(const TArray<struct FAssetData>& AssetDataList, bool bAllowLockedBrowsers = false, bool bFocusContentBrowser = true, const FName& InstanceName = FName(), bool bNewSpawnBrowser = false) override;
 	virtual void SyncBrowserToAssets(const TArray<UObject*>& AssetList, bool bAllowLockedBrowsers = false, bool bFocusContentBrowser = true, const FName& InstanceName = FName(), bool bNewSpawnBrowser = false) override;
 	virtual void SyncBrowserToFolders(const TArray<FString>& FolderList, bool bAllowLockedBrowsers = false, bool bFocusContentBrowser = true, const FName& InstanceName = FName(), bool bNewSpawnBrowser = false) override;
+	virtual void SyncBrowserToItems(const TArray<FContentBrowserItem>& ItemsToSync, bool bAllowLockedBrowsers = false, bool bFocusContentBrowser = true, const FName& InstanceName = FName(), bool bNewSpawnBrowser = false) override;
 	virtual void SyncBrowserTo(const FContentBrowserSelection& ItemSelection, bool bAllowLockedBrowsers = false, bool bFocusContentBrowser = true, const FName& InstanceName = FName(), bool bNewSpawnBrowser = false) override;
 	virtual void GetSelectedAssets(TArray<FAssetData>& SelectedAssets) override;
 	virtual void GetSelectedFolders(TArray<FString>& SelectedFolders) override;
@@ -79,10 +78,6 @@ public:
 
 	/** Notifies the singleton that a browser was closed */
 	void ContentBrowserClosed(const TSharedRef<SContentBrowser>& ClosedBrowser);
-
-	TSharedRef<FNativeClassHierarchy> GetNativeClassHierarchy();
-
-	TSharedRef<FEmptyFolderVisibilityManager> GetEmptyFolderVisibilityManager();
 
 	/** Gets the settings for the plugin with the specified name */
 	const FContentBrowserPluginSettings& GetPluginSettings(FName PluginName) const;
@@ -137,10 +132,6 @@ private:
 	TMap<FName, TWeakPtr<FTabManager>> BrowserToLastKnownTabManagerMap;
 
 	TWeakPtr<SContentBrowser> PrimaryContentBrowser;
-
-	TSharedPtr<FNativeClassHierarchy> NativeClassHierarchy;
-
-	TSharedRef<FEmptyFolderVisibilityManager> EmptyFolderVisibilityManager;
 
 	TSharedRef<FCollectionAssetRegistryBridge> CollectionAssetRegistryBridge;
 

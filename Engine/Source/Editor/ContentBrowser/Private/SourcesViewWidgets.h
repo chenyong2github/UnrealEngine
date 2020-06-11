@@ -17,36 +17,28 @@
 #include "SAssetTagItem.h"
 
 class SEditableTextBox;
-struct FTreeItem;
+class FTreeItem;
 
 /** A single item in the asset tree. Represents a folder. */
 class SAssetTreeItem : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_FourParams( FOnNameChanged, const TSharedPtr<FTreeItem>& /*TreeItem*/, const FString& /*OldPath*/, const FVector2D& /*MessageLocation*/, const ETextCommit::Type /*CommitType*/);
-	DECLARE_DELEGATE_RetVal_ThreeParams( bool, FOnVerifyNameChanged, const FString& /*InName*/, FText& /*OutErrorMessage*/, const FString& /*FolderPath*/);
-	DECLARE_DELEGATE_ThreeParams( FOnAssetsOrPathsDragDropped, const TArray<FAssetData>& /*AssetList*/, const TArray<FString>& /*AssetPaths*/, const TSharedPtr<FTreeItem>& /*TreeItem*/);
-	DECLARE_DELEGATE_TwoParams( FOnFilesDragDropped, const TArray<FString>& /*FileNames*/, const TSharedPtr<FTreeItem>& /*TreeItem*/);
+	DECLARE_DELEGATE_FourParams( FOnNameChanged, const TSharedPtr<FTreeItem>& /*TreeItem*/, const FString& /*InProposedName*/, const FVector2D& /*MessageLocation*/, const ETextCommit::Type /*CommitType*/);
+	DECLARE_DELEGATE_RetVal_ThreeParams( bool, FOnVerifyNameChanged, const TSharedPtr<FTreeItem>& /*TreeItem*/, const FString& /*InProposedName*/, FText& /*OutErrorMessage*/);
 
 	SLATE_BEGIN_ARGS( SAssetTreeItem )
 		: _TreeItem( TSharedPtr<FTreeItem>() )
 		, _IsItemExpanded( false )
 	{}
 
-	/** Data for the folder this item represents */
-	SLATE_ARGUMENT( TSharedPtr<FTreeItem>, TreeItem )
+		/** Data for the folder this item represents */
+		SLATE_ARGUMENT( TSharedPtr<FTreeItem>, TreeItem )
 
 		/** Delegate for when the user commits a new name to the folder */
 		SLATE_EVENT( FOnNameChanged, OnNameChanged )
 
 		/** Delegate for when the user is typing a new name for the folder */
 		SLATE_EVENT( FOnVerifyNameChanged, OnVerifyNameChanged )
-
-		/** Delegate for when assets or asset paths are dropped on this folder */
-		SLATE_EVENT( FOnAssetsOrPathsDragDropped, OnAssetsOrPathsDragDropped )
-
-		/** Delegate for when a list of files is dropped on this folder from an external source */
-		SLATE_EVENT( FOnFilesDragDropped, OnFilesDragDropped )
 
 		/** True when this item has children and is expanded */
 		SLATE_ATTRIBUTE( bool, IsItemExpanded )
@@ -72,9 +64,6 @@ public:
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
 private:
-	/** Used by OnDragEnter, OnDragOver, and OnDrop to check and update the validity of the drag operation */
-	bool ValidateDragDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, bool& OutIsKnownDragOperation ) const;
-
 	/** Handles verifying name changes */
 	bool VerifyNameChanged(const FText& InName, FText& OutError) const;
 
@@ -83,9 +72,6 @@ private:
 
 	/** Returns false if this folder is in the process of being created */
 	bool IsReadOnly() const;
-
-	/** Returns true if this folder is special and not a real path (like the Classes folder) */
-	bool IsValidAssetPath() const;
 
 	/** Gets the brush used to draw the folder icon */
 	const FSlateBrush* GetFolderIcon() const;
@@ -102,12 +88,6 @@ private:
 	/** Returns the image for the border around this item. Used for drag/drop operations */
 	const FSlateBrush* GetBorderImage() const;
 
-	/** Returns the visibility of the editable folder name */
-	EVisibility GetEditableTextVisibility() const;
-
-	/** Returns the visibility of the non-editable folder name */
-	EVisibility GetStaticTextVisibility() const;
-
 private:
 	enum class EFolderType : uint8
 	{
@@ -121,12 +101,6 @@ private:
 
 	/** The name of the asset as an editable text box */
 	TSharedPtr<SEditableTextBox> EditableName;
-
-	/** Delegate for when a list of assets or asset paths are dropped on this folder */
-	FOnAssetsOrPathsDragDropped OnAssetsOrPathsDragDropped;
-
-	/** Delegate for when a list of files is dropped on this folder from an external source */
-	FOnFilesDragDropped OnFilesDragDropped;
 
 	/** Delegate for when the user commits a new name to the folder */
 	FOnNameChanged OnNameChanged;

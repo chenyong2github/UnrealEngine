@@ -64,8 +64,13 @@ public:
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override
 	{
-		const FString TagValue = InItem.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
-		return !TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"));
+		FAssetData ItemAssetData;
+		if (InItem.Legacy_TryGetAssetData(ItemAssetData))
+		{
+			const FString TagValue = ItemAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+			return !TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"));
+		}
+		return false;
 	}
 };
 
@@ -152,26 +157,30 @@ public:
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override
 	{
-		const FString TagValue = InItem.GetTagValueRef<FString>(USkeleton::AnimNotifyTag);
-		if (!TagValue.IsEmpty())
+		FAssetData ItemAssetData;
+		if (InItem.Legacy_TryGetAssetData(ItemAssetData))
 		{
-			if (!NotifyString.IsEmpty())
+			const FString TagValue = ItemAssetData.GetTagValueRef<FString>(USkeleton::AnimNotifyTag);
+			if (!TagValue.IsEmpty())
 			{
-				// parse notifies
-				TArray<FString> NotifyValues;
-				if (TagValue.ParseIntoArray(NotifyValues, *USkeleton::AnimNotifyTagDelimiter, true) > 0)
+				if (!NotifyString.IsEmpty())
 				{
-					for (const FString& NotifyValue : NotifyValues)
+					// parse notifies
+					TArray<FString> NotifyValues;
+					if (TagValue.ParseIntoArray(NotifyValues, *USkeleton::AnimNotifyTagDelimiter, true) > 0)
 					{
-						if (NotifyValue == NotifyString)
+						for (const FString& NotifyValue : NotifyValues)
 						{
-							return true;
+							if (NotifyValue == NotifyString)
+							{
+								return true;
+							}
 						}
 					}
 				}
-			}
 
-			return NotifyString.IsEmpty();
+				return NotifyString.IsEmpty();
+			}
 		}
 
 		return false;
@@ -274,26 +283,30 @@ public:
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override
 	{
-		const FString TagValue = InItem.GetTagValueRef<FString>(USkeleton::CurveNameTag);
-		if (!TagValue.IsEmpty())
+		FAssetData ItemAssetData;
+		if (InItem.Legacy_TryGetAssetData(ItemAssetData))
 		{
-			if (!CurveString.IsEmpty())
+			const FString TagValue = ItemAssetData.GetTagValueRef<FString>(USkeleton::CurveNameTag);
+			if (!TagValue.IsEmpty())
 			{
-				// parse curves
-				TArray<FString> CurveValues;
-				if (TagValue.ParseIntoArray(CurveValues, *USkeleton::CurveTagDelimiter, true) > 0)
+				if (!CurveString.IsEmpty())
 				{
-					for (const FString& CurveValue : CurveValues)
+					// parse curves
+					TArray<FString> CurveValues;
+					if (TagValue.ParseIntoArray(CurveValues, *USkeleton::CurveTagDelimiter, true) > 0)
 					{
-						if (CurveValue == CurveString)
+						for (const FString& CurveValue : CurveValues)
 						{
-							return true;
+							if (CurveValue == CurveString)
+							{
+								return true;
+							}
 						}
 					}
 				}
-			}
 
-			return CurveString.IsEmpty();
+				return CurveString.IsEmpty();
+			}
 		}
 
 		return false;
@@ -329,7 +342,12 @@ public:
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override
 	{
-		return !InItem.GetClass()->IsChildOf(USoundWave::StaticClass());
+		FAssetData ItemAssetData;
+		if (InItem.Legacy_TryGetAssetData(ItemAssetData))
+		{
+			return !ItemAssetData.GetClass()->IsChildOf(USoundWave::StaticClass());
+		}
+		return false;
 	}
 };
 

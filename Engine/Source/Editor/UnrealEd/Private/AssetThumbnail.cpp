@@ -96,10 +96,11 @@ public:
 			AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Class).Pin();
 		}
 
+		AssetTypeColorOverride = InArgs._AssetTypeColorOverride;
 		AssetColor = FLinearColor::White;
-		if( InArgs._AssetTypeColorOverride.IsSet() )
+		if( AssetTypeColorOverride.IsSet() )
 		{
-			AssetColor = InArgs._AssetTypeColorOverride.GetValue();
+			AssetColor = AssetTypeColorOverride.GetValue();
 		}
 		else if ( AssetTypeActions.IsValid() )
 		{
@@ -354,13 +355,18 @@ private:
 
 		UpdateThumbnailClass();
 
-		AssetColor = FLinearColor(1.f, 1.f, 1.f, 1.f);
-		if ( AssetTypeActions.IsValid() )
+		AssetColor = FLinearColor::White;
+		if( AssetTypeColorOverride.IsSet() )
+		{
+			AssetColor = AssetTypeColorOverride.GetValue();
+		}
+		else if ( AssetTypeActions.IsValid() )
 		{
 			AssetColor = AssetTypeActions.Pin()->GetTypeColor();
-			AssetBackgroundWidget->SetBorderBackgroundColor(AssetColor.CopyWithNewOpacity(0.3f));
-			AssetColorStripWidget->SetBorderBackgroundColor(AssetColor);
 		}
+
+		AssetBackgroundWidget->SetBorderBackgroundColor(AssetColor.CopyWithNewOpacity(0.3f));
+		AssetColorStripWidget->SetBorderBackgroundColor(AssetColor);
 
 		UpdateThumbnailVisibilities();
 	}
@@ -674,6 +680,8 @@ private:
 	FCurveHandle ViewportFadeCurve;
 
 	FLinearColor AssetColor;
+	TOptional<FLinearColor> AssetTypeColorOverride;
+
 	float WidthLastFrame;
 	float GenericThumbnailBorderPadding;
 	bool bHasRenderedThumbnail;

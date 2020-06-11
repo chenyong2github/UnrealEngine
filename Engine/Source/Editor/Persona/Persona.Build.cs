@@ -44,6 +44,7 @@ public class Persona : ModuleRules
 				"ApplicationCore",
                 "Slate", 
                 "SlateCore",
+				"ContentBrowserData",
                 "EditorStyle",
                 "Engine", 
                 "UnrealEd", 

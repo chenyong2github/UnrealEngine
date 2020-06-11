@@ -34,38 +34,20 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "NativeClassHierarchy.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ContentBrowserCommands.h"
 #include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"
+#include "IContentBrowserDataModule.h"
+#include "ContentBrowserDataSource.h"
+#include "ContentBrowserDataSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
-
 FPathContextMenu::FPathContextMenu(const TWeakPtr<SWidget>& InParentContent)
 	: ParentContent(InParentContent)
-	, bCanExecuteSCCCheckOut(false)
-	, bCanExecuteSCCOpenForAdd(false)
-	, bCanExecuteSCCCheckIn(false)
 {
-	
-}
-
-void FPathContextMenu::SetOnNewAssetRequested(const FNewAssetOrClassContextMenu::FOnNewAssetRequested& InOnNewAssetRequested)
-{
-	OnNewAssetRequested = InOnNewAssetRequested;
-}
-
-void FPathContextMenu::SetOnNewClassRequested(const FNewAssetOrClassContextMenu::FOnNewClassRequested& InOnNewClassRequested)
-{
-	OnNewClassRequested = InOnNewClassRequested;
-}
-
-void FPathContextMenu::SetOnImportAssetRequested( const FNewAssetOrClassContextMenu::FOnImportAssetRequested& InOnImportAssetRequested )
-{
-	OnImportAssetRequested = InOnImportAssetRequested;
 }
 
 void FPathContextMenu::SetOnRenameFolderRequested(const FOnRenameFolderRequested& InOnRenameFolderRequested)
@@ -83,22 +65,18 @@ void FPathContextMenu::SetOnFolderFavoriteToggled(const FOnFolderFavoriteToggled
 	OnFolderFavoriteToggled = InOnFolderFavoriteToggled;
 }
 
-const TArray<FString>& FPathContextMenu::GetSelectedPaths() const
+const TArray<FContentBrowserItem>& FPathContextMenu::GetSelectedFolders() const
 {
-	return SelectedPaths;
+	return SelectedFolders;
 }
 
-void FPathContextMenu::SetSelectedPaths(const TArray<FString>& InSelectedPaths)
+void FPathContextMenu::SetSelectedFolders(const TArray<FContentBrowserItem>& InSelectedFolders)
 {
-	SelectedPaths = InSelectedPaths;
+	SelectedFolders = InSelectedFolders;
 }
 
 TSharedRef<FExtender> FPathContextMenu::MakePathViewContextMenuExtender(const TArray<FString>& InSelectedPaths)
 {
-	// Cache any vars that are used in determining if you can execute any actions.
-	// Useful for actions whose "CanExecute" will not change or is expensive to calculate.
-	CacheCanExecuteVars();
-
 	// Get all menu extenders for this context menu from the content browser module
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
 	TArray<FContentBrowserMenuExtender_SelectedPaths> MenuExtenderDelegates = ContentBrowserModule.GetAllPathViewContextMenuExtenders();
@@ -119,39 +97,25 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 {
 	UContentBrowserFolderContext* Context = Menu->FindContext<UContentBrowserFolderContext>();
 
-	// Cache any vars that are used in determining if you can execute any actions.
-	// Useful for actions whose "CanExecute" will not change or is expensive to calculate.
-	CacheCanExecuteVars();
-
-	const int32 NumAssetPaths = Context->NumAssetPaths;
-	const int32 NumClassPaths = Context->NumClassPaths;
-
 	// Only add something if at least one folder is selected
-	if ( SelectedPaths.Num() > 0 )
+	if ( SelectedFolders.Num() > 0 )
 	{
-		const bool bHasAssetPaths = NumAssetPaths > 0;
-		const bool bHasClassPaths = NumClassPaths > 0;
-
 		// Common operations section //
 		{
 			FToolMenuSection& Section = Menu->AddSection("PathViewFolderOptions", LOCTEXT("PathViewOptionsMenuHeading", "Folder Options") );
-			if(bHasAssetPaths)
+
 			{
 				FText NewAssetToolTip;
-				if(SelectedPaths.Num() == 1)
+				if(SelectedFolders.Num() == 1)
 				{
-					if(CanCreateAsset() && Context->bCanBeModified)
+					if(Context->bCanBeModified)
 					{
-						NewAssetToolTip = FText::Format(LOCTEXT("NewAssetTooltip_CreateIn", "Create a new asset in {0}."), FText::FromString(SelectedPaths[0]));
-					}
-					else
-					{
-						NewAssetToolTip = FText::Format(LOCTEXT("NewAssetTooltip_InvalidPath", "Cannot create new assets in {0}."), FText::FromString(SelectedPaths[0]));
+						NewAssetToolTip = FText::Format(LOCTEXT("NewAssetTooltip_CreateIn", "Create a new item in {0}."), FText::FromName(SelectedFolders[0].GetVirtualPath()));
 					}
 				}
 				else
 				{
-					NewAssetToolTip = LOCTEXT("NewAssetTooltip_InvalidNumberOfPaths", "Can only create assets when there is a single path selected.");
+					NewAssetToolTip = LOCTEXT("NewAssetTooltip_InvalidNumberOfPaths", "Can only create items when there is a single path selected.");
 				}
 
 				// New Asset (submenu)
@@ -159,50 +123,15 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 				{
 					Section.AddSubMenu(
 						"NewAsset",
-						LOCTEXT("NewAssetLabel", "New Asset"),
+						LOCTEXT("AddImportLabel", "Add/Import Content"),
 						NewAssetToolTip,
 						FNewToolMenuDelegate::CreateRaw(this, &FPathContextMenu::MakeNewAssetSubMenu),
-						FUIAction(
-							FExecuteAction(),
-							FCanExecuteAction::CreateRaw(this, &FPathContextMenu::CanCreateAsset)
-						),
+						FUIAction(),
 						EUserInterfaceActionType::Button,
 						false,
 						FSlateIcon()
 					);
 				}
-			}
-
-			if(bHasClassPaths && Context->bCanBeModified)
-			{
-				FText NewClassToolTip;
-				if(SelectedPaths.Num() == 1)
-				{
-					if(CanCreateClass())
-					{
-						NewClassToolTip = FText::Format(LOCTEXT("NewClassTooltip_CreateIn", "Create a new class in {0}."), FText::FromString(SelectedPaths[0]));
-					}
-					else
-					{
-						NewClassToolTip = FText::Format(LOCTEXT("NewClassTooltip_InvalidPath", "Cannot create new classes in {0}."), FText::FromString(SelectedPaths[0]));
-					}
-				}
-				else
-				{
-					NewClassToolTip = LOCTEXT("NewClassTooltip_InvalidNumberOfPaths", "Can only create classes when there is a single path selected.");
-				}
-
-				// New Class
-				Section.AddMenuEntry(
-					"NewClass",
-					LOCTEXT("NewClassLabel", "New C++ Class..."),
-					NewClassToolTip,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.AddCodeToProject"),
-					FUIAction(
-						FExecuteAction::CreateRaw( this, &FPathContextMenu::ExecuteCreateClass ),
-						FCanExecuteAction::CreateRaw( this, &FPathContextMenu::CanCreateClass )
-						)
-					);
 			}
 
 			// Explore
@@ -248,7 +177,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 			}			
 
 			// If this folder is already favorited, show the option to remove from favorites
-			if (ContentBrowserUtils::IsFavoriteFolder(SelectedPaths[0]))
+			if (ContentBrowserUtils::IsFavoriteFolder(SelectedFolders[0].GetVirtualPath().ToString()))
 			{
 				// Remove from favorites
 				Section.AddMenuEntry(
@@ -272,7 +201,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 			}
 		}
 
-		if(bHasAssetPaths && Context->bCanBeModified)
+		if(Context->bCanBeModified)
 		{
 			// Bulk operations section //
 			{
@@ -292,133 +221,14 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					LOCTEXT("DeleteFolder", "Delete"),
 					LOCTEXT("DeleteFolderTooltip", "Removes this folder and all assets it contains.")
 					);
-
-				// Fix Up Redirectors in Folder
-				Section.AddMenuEntry(
-					"FixUpRedirectorsInFolder",
-					LOCTEXT("FixUpRedirectorsInFolder", "Fix Up Redirectors in Folder"),
-					LOCTEXT("FixUpRedirectorsInFolderTooltip", "Finds referencers to all redirectors in the selected folders and resaves them if possible, then deletes any redirectors that had all their referencers fixed."),
-					FSlateIcon(),
-					FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteFixUpRedirectorsInFolder ) )
-					);
-
-				if ( NumAssetPaths == 1 && NumClassPaths == 0 )
-				{
-					// Migrate Folder
-					Section.AddMenuEntry(
-						"MigrateFolder",
-						LOCTEXT("MigrateFolder", "Migrate..."),
-						LOCTEXT("MigrateFolderTooltip", "Copies assets found in this folder and their dependencies to another game content folder."),
-						FSlateIcon(),
-						FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteMigrateFolder ) )
-						);
-				}
-			}
-
-			// Source control section //
-			{
-				FToolMenuSection& Section = Menu->AddSection("PathContextSourceControl", LOCTEXT("AssetTreeSCCMenuHeading", "Source Control"));
-
-				ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-				if (SourceControlProvider.IsEnabled())
-				{
-					// Check out
-					Section.AddMenuEntry(
-						"FolderSCCCheckOut",
-						LOCTEXT("FolderSCCCheckOut", "Check Out"),
-						LOCTEXT("FolderSCCCheckOutTooltip", "Checks out all assets from source control which are in this folder."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCCheckOut),
-							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCCheckOut)
-						)
-					);
-
-					// Open for Add
-					Section.AddMenuEntry(
-						"FolderSCCOpenForAdd",
-						LOCTEXT("FolderSCCOpenForAdd", "Mark For Add"),
-						LOCTEXT("FolderSCCOpenForAddTooltip", "Adds all assets to source control that are in this folder and not already added."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCOpenForAdd),
-							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCOpenForAdd)
-						)
-					);
-
-					// Check in
-					Section.AddMenuEntry(
-						"FolderSCCCheckIn",
-						LOCTEXT("FolderSCCCheckIn", "Check In"),
-						LOCTEXT("FolderSCCCheckInTooltip", "Checks in all assets to source control which are in this folder."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCCheckIn),
-							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCCheckIn)
-						)
-					);
-
-					// Sync
-					Section.AddMenuEntry(
-						"FolderSCCSync",
-						LOCTEXT("FolderSCCSync", "Sync"),
-						LOCTEXT("FolderSCCSyncTooltip", "Syncs all the assets in this folder to the latest version."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCSync),
-							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCSync)
-						)
-					);
-				}
-				else
-				{
-					Section.AddMenuEntry(
-						"FolderSCCConnect",
-						LOCTEXT("FolderSCCConnect", "Connect To Source Control"),
-						LOCTEXT("FolderSCCConnectTooltip", "Connect to source control to allow source control operations to be performed on content and levels."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteSCCConnect),
-							FCanExecuteAction::CreateSP(this, &FPathContextMenu::CanExecuteSCCConnect)
-						)
-					);
-				}
 			}
 		}
 	}
 }
 
-bool FPathContextMenu::CanCreateAsset() const
-{
-	// We can only create assets when we have a single asset path selected
-	return SelectedPaths.Num() == 1 && !ContentBrowserUtils::IsClassPath(SelectedPaths[0]);
-}
-
 void FPathContextMenu::MakeNewAssetSubMenu(UToolMenu* Menu)
 {
-	if ( SelectedPaths.Num() )
-	{
-		FNewAssetOrClassContextMenu::MakeContextMenu(
-			Menu,
-			SelectedPaths, 
-			OnNewAssetRequested, 
-			FNewAssetOrClassContextMenu::FOnNewClassRequested(), 
-			FNewAssetOrClassContextMenu::FOnNewFolderRequested(), 
-			OnImportAssetRequested, 
-			FNewAssetOrClassContextMenu::FOnGetContentRequested()
-			);
-	}
-}
-
-void FPathContextMenu::ExecuteCreateClass()
-{
-	OnNewClassRequested.ExecuteIfBound(SelectedPaths[0]);
-}
-
-bool FPathContextMenu::CanCreateClass() const
-{
-	// We can only create assets when we have a single class path selected
-	return SelectedPaths.Num() == 1 && ContentBrowserUtils::IsValidPathToCreateNewClass(SelectedPaths[0]);
+	UToolMenus::Get()->AssembleMenuHierarchy(Menu, UToolMenus::Get()->CollectHierarchy("ContentBrowser.AddNewContextMenu"));
 }
 
 void FPathContextMenu::MakeSetColorSubMenu(UToolMenu* Menu)
@@ -481,77 +291,29 @@ void FPathContextMenu::MakeSetColorSubMenu(UToolMenu* Menu)
 	}
 }
 
-void FPathContextMenu::ExecuteMigrateFolder()
-{
-	const FString& SourcesPath = GetFirstSelectedPath();
-	if ( ensure(SourcesPath.Len()) )
-	{
-		// @todo Make sure the asset registry has completed discovering assets, or else GetAssetsByPath() will not find all the assets in the folder! Add some UI to wait for this with a cancel button
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		if ( AssetRegistryModule.Get().IsLoadingAssets() )
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT( "MigrateFolderAssetsNotDiscovered", "You must wait until asset discovery is complete to migrate a folder" ));
-			return;
-		}
-
-		// Get a list of package names for input into MigratePackages
-		TArray<FAssetData> AssetDataList;
-		TArray<FName> PackageNames;
-		ContentBrowserUtils::GetAssetsInPaths(SelectedPaths, AssetDataList);
-		for ( auto AssetIt = AssetDataList.CreateConstIterator(); AssetIt; ++AssetIt )
-		{
-			PackageNames.Add((*AssetIt).PackageName);
-		}
-
-		// Load all the assets in the selected paths
-		FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-		AssetToolsModule.Get().MigratePackages( PackageNames );
-	}
-}
-
 void FPathContextMenu::ExecuteExplore()
 {
-	for (int32 PathIdx = 0; PathIdx < SelectedPaths.Num(); ++PathIdx)
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		const FString& Path = SelectedPaths[PathIdx];
-		FString FilePath;
-		if (ContentBrowserUtils::IsClassPath(Path))
+		FString ItemFilename;
+		if (SelectedItem.GetItemPhysicalPath(ItemFilename) && FPaths::DirectoryExists(ItemFilename))
 		{
-			TSharedRef<FNativeClassHierarchy> NativeClassHierarchy = FContentBrowserSingleton::Get().GetNativeClassHierarchy();
-			if (NativeClassHierarchy->GetFileSystemPath(Path, FilePath))
-			{
-				FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FilePath);
-			}
-		}
-		else
-		{
-			FilePath = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(Path + TEXT("/")));
-		}
-
-		if (!FilePath.IsEmpty())
-		{
-			// If the folder has not yet been created, make is right before we try to explore to it
-			if (!IFileManager::Get().DirectoryExists(*FilePath))
-			{
-				IFileManager::Get().MakeDirectory(*FilePath, /*Tree=*/true);
-			}
-
-			FPlatformProcess::ExploreFolder(*FilePath);
+			FPlatformProcess::ExploreFolder(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ItemFilename));
 		}
 	}
 }
 
 bool FPathContextMenu::CanExecuteRename() const
 {
-	return ContentBrowserUtils::CanRenameFromPathView(SelectedPaths);
+	return SelectedFolders.Num() == 1 && SelectedFolders[0].CanRename(nullptr);
 }
 
-void FPathContextMenu::ExecuteRename()
+void FPathContextMenu::ExecuteRename(EContentBrowserViewContext ViewContext)
 {
-	check(SelectedPaths.Num() == 1);
+	check(SelectedFolders.Num() == 1);
 	if (OnRenameFolderRequested.IsBound())
 	{
-		OnRenameFolderRequested.Execute(SelectedPaths[0]);
+		OnRenameFolderRequested.Execute(SelectedFolders[0], ViewContext);
 	}
 }
 
@@ -567,28 +329,28 @@ void FPathContextMenu::ExecutePickColor()
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bIsModal = false;
 	PickerArgs.ParentWidget = ParentContent.Pin();
-	if ( SelectedPaths.Num() > 0 )
+	if (SelectedFolders.Num() > 0)
 	{
 		// Make sure an color entry exists for all the paths, otherwise they won't update in realtime with the widget color
-		for (int32 PathIdx = SelectedPaths.Num() - 1; PathIdx >= 0; --PathIdx)
+		for (int32 FolderIndex = SelectedFolders.Num() - 1; FolderIndex >= 0; --FolderIndex)
 		{
-			const FString& Path = SelectedPaths[PathIdx];
-			TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor( Path );
-			if ( !Color.IsValid() )
+			const FString Path = SelectedFolders[FolderIndex].GetVirtualPath().ToString();
+			TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
+			if (!Color.IsValid())
 			{
-				Color = MakeShareable( new FLinearColor( ContentBrowserUtils::GetDefaultColor() ) );
-				ContentBrowserUtils::SaveColor( Path, Color, true );
+				Color = MakeShareable(new FLinearColor(ContentBrowserUtils::GetDefaultColor()));
+				ContentBrowserUtils::SaveColor(Path, Color, true);
 			}
 			else
 			{
 				// Default the color to the first valid entry
 				PickerArgs.InitialColorOverride = *Color.Get();
 			}
-			LinearColorArray.Add( Color.Get() );
-		}	
+			LinearColorArray.Add(Color.Get());
+		}
 		PickerArgs.LinearColorArray = &LinearColorArray;
 	}
-		
+
 	PickerArgs.OnColorPickerWindowClosed = FOnWindowClosed::CreateSP(this, &FPathContextMenu::NewColorComplete);
 
 	OpenColorPicker(PickerArgs);
@@ -596,34 +358,40 @@ void FPathContextMenu::ExecutePickColor()
 
 void FPathContextMenu::ExecuteFavorite()
 {
-	OnFolderFavoriteToggled.ExecuteIfBound(SelectedPaths);
+	TArray<FString> PathsToUpdate;
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
+	{
+		PathsToUpdate.Add(SelectedItem.GetVirtualPath().ToString());
+	}
+
+	OnFolderFavoriteToggled.ExecuteIfBound(PathsToUpdate);
 }
 
 void FPathContextMenu::NewColorComplete(const TSharedRef<SWindow>& Window)
 {
 	// Save the colors back in the config (ptr should have already updated by the widget)
-	for (int32 PathIdx = 0; PathIdx < SelectedPaths.Num(); ++PathIdx)
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		const FString& Path = SelectedPaths[PathIdx];
-		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor( Path );
-		check( Color.IsValid() );
-		ContentBrowserUtils::SaveColor( Path, Color );		
+		const FString Path = SelectedItem.GetVirtualPath().ToString();
+		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
+		check(Color.IsValid());
+		ContentBrowserUtils::SaveColor(Path, Color);
 	}
 }
 
 FReply FPathContextMenu::OnColorClicked( const FLinearColor InColor )
 {
-	// Make sure an color entry exists for all the paths, otherwise it can't save correctly
-	for (int32 PathIdx = 0; PathIdx < SelectedPaths.Num(); ++PathIdx)
+	// Make sure a color entry exists for all the paths, otherwise it can't save correctly
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		const FString& Path = SelectedPaths[PathIdx];
-		TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor( Path );
-		if ( !Color.IsValid() )
+		const FString Path = SelectedItem.GetVirtualPath().ToString();
+		TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
+		if (!Color.IsValid())
 		{
-			Color = MakeShareable( new FLinearColor() );
+			Color = MakeShareable(new FLinearColor());
 		}
 		*Color.Get() = InColor;
-		ContentBrowserUtils::SaveColor( Path, Color );
+		ContentBrowserUtils::SaveColor(Path, Color);
 	}
 
 	// Dismiss the menu here, as we can't make the 'clear' option appear if a folder has just had a color set for the first time
@@ -635,442 +403,143 @@ FReply FPathContextMenu::OnColorClicked( const FLinearColor InColor )
 void FPathContextMenu::ResetColors()
 {
 	// Clear the custom colors for all the selected paths
-	for (int32 PathIdx = 0; PathIdx < SelectedPaths.Num(); ++PathIdx)
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		const FString& Path = SelectedPaths[PathIdx];
-		ContentBrowserUtils::SaveColor( Path, NULL );		
+		ContentBrowserUtils::SaveColor(SelectedItem.GetVirtualPath().ToString(), nullptr);
 	}
 }
 
 void FPathContextMenu::ExecuteSaveFolder()
 {
-	// Get a list of package names in the selected paths
-	TArray<FString> PackageNames;
-	GetPackageNamesInSelectedPaths(PackageNames);
-
-	// Form a list of packages from the assets
-	TArray<UPackage*> Packages;
-	for (int32 PackageIdx = 0; PackageIdx < PackageNames.Num(); ++PackageIdx)
-	{
-		UPackage* Package = FindPackage(NULL, *PackageNames[PackageIdx]);
-
-		// Only save loaded and dirty packages
-		if ( Package != NULL && Package->IsDirty() )
-		{
-			Packages.Add(Package);
-		}
-	}
-
-	// Save all packages that were found
-	if ( Packages.Num() )
-	{
-		ContentBrowserUtils::SavePackages(Packages);
-	}
+	SaveFilesWithinSelectedFolders(EContentBrowserItemSaveFlags::SaveOnlyIfDirty | EContentBrowserItemSaveFlags::SaveOnlyIfLoaded);
 }
 
 void FPathContextMenu::ExecuteResaveFolder()
 {
-	// Get a list of package names in the selected paths
-	TArray<FString> PackageNames;
-	GetPackageNamesInSelectedPaths(PackageNames);
+	SaveFilesWithinSelectedFolders(EContentBrowserItemSaveFlags::None);
+}
 
-	TArray<UPackage*> Packages;
-	for (const FString& PackageName : PackageNames)
+void FPathContextMenu::SaveFilesWithinSelectedFolders(EContentBrowserItemSaveFlags InSaveFlags)
+{
+	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+
+	// Batch these by their data sources
+	TMap<UContentBrowserDataSource*, TArray<FContentBrowserItemData>> SourcesAndItems;
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		UPackage* Package = FindPackage(nullptr, *PackageName);
-		if (!Package)
-		{
-			Package = LoadPackage(nullptr, *PackageName, LOAD_None);
-		}
+		FContentBrowserDataFilter SubFileFilter;
+		SubFileFilter.bRecursivePaths = true;
+		SubFileFilter.ItemTypeFilter = EContentBrowserItemTypeFilter::IncludeFiles;
 
-		if (Package)
+		// Get the file items within this folder
+		ContentBrowserData->EnumerateItemsUnderPath(SelectedItem.GetVirtualPath(), SubFileFilter, [InSaveFlags , &SourcesAndItems](FContentBrowserItemData&& InFileItem)
 		{
-			Packages.Add(Package);
-		}
+			if (UContentBrowserDataSource* ItemDataSource = InFileItem.GetOwnerDataSource())
+			{
+				if (ItemDataSource->CanSaveItem(InFileItem, InSaveFlags, nullptr))
+				{
+					TArray<FContentBrowserItemData>& ItemsForSource = SourcesAndItems.FindOrAdd(ItemDataSource);
+					ItemsForSource.Add(MoveTemp(InFileItem));
+				}
+			}
+
+			return true;
+		});
 	}
 
-	if (Packages.Num())
+	// Execute the operation now
+	for (const auto& SourceAndItemsPair : SourcesAndItems)
 	{
-		ContentBrowserUtils::SavePackages(Packages);
+		SourceAndItemsPair.Key->BulkSaveItems(SourceAndItemsPair.Value, InSaveFlags);
 	}
 }
 
 bool FPathContextMenu::CanExecuteDelete() const
 {
-	return ContentBrowserUtils::CanDeleteFromPathView(SelectedPaths);
+	bool bCanDelete = false;
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
+	{
+		bCanDelete |= SelectedItem.CanDelete();
+	}
+	return bCanDelete;
 }
 
 void FPathContextMenu::ExecuteDelete()
 {
-	// Don't allow asset deletion during PIE
-	if (GIsEditor)
-	{
-		UEditorEngine* Editor = GEditor;
-		FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext();
-		if (PIEWorldContext)
-		{
-			FNotificationInfo Notification(LOCTEXT("CannotDeleteAssetInPIE", "Assets cannot be deleted while in PIE."));
-			Notification.ExpireDuration = 3.0f;
-			FSlateNotificationManager::Get().AddNotification(Notification);
-			return;
-		}
-	}
-
-	check(SelectedPaths.Num() > 0);
-	if (ParentContent.IsValid())
+	// If we had any folders selected, ask the user whether they want to delete them 
+	// as it can be slow to build the deletion dialog on an accidental click
+	TSharedPtr<SWidget> ParentContentPtr = ParentContent.Pin();
+	if (ParentContentPtr && SelectedFolders.Num() > 0)
 	{
 		FText Prompt;
-		if ( SelectedPaths.Num() == 1 )
+		if (SelectedFolders.Num() == 1)
 		{
-			Prompt = FText::Format(LOCTEXT("FolderDeleteConfirm_Single", "Delete folder '{0}'?"), FText::FromString(SelectedPaths[0]));
+			Prompt = FText::Format(LOCTEXT("FolderDeleteConfirm_Single", "Delete folder '{0}'?"), SelectedFolders[0].GetDisplayName());
 		}
 		else
 		{
-			Prompt = FText::Format(LOCTEXT("FolderDeleteConfirm_Multiple", "Delete {0} folders?"), FText::AsNumber(SelectedPaths.Num()));
+			Prompt = FText::Format(LOCTEXT("FolderDeleteConfirm_Multiple", "Delete {0} folders?"), SelectedFolders.Num());
 		}
-		
+
 		// Spawn a confirmation dialog since this is potentially a highly destructive operation
-		FOnClicked OnYesClicked = FOnClicked::CreateSP( this, &FPathContextMenu::ExecuteDeleteFolderConfirmed );
- 		ContentBrowserUtils::DisplayConfirmationPopup(
+		ContentBrowserUtils::DisplayConfirmationPopup(
 			Prompt,
 			LOCTEXT("FolderDeleteConfirm_Yes", "Delete"),
 			LOCTEXT("FolderDeleteConfirm_No", "Cancel"),
-			ParentContent.Pin().ToSharedRef(),
-			OnYesClicked);
+			ParentContentPtr.ToSharedRef(),
+			FOnClicked::CreateSP(this, &FPathContextMenu::ExecuteDeleteFolderConfirmed)
+		);
 	}
 }
-
-void FPathContextMenu::ExecuteFixUpRedirectorsInFolder()
-{
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-	// Form a filter from the paths
-	FARFilter Filter;
-	Filter.bRecursivePaths = true;
-	for (const auto& Path : SelectedPaths)
-	{
-		Filter.PackagePaths.Emplace(*Path);
-		Filter.ClassNames.Emplace(TEXT("ObjectRedirector"));
-	}
-
-	// Query for a list of assets in the selected paths
-	TArray<FAssetData> AssetList;
-	AssetRegistryModule.Get().GetAssets(Filter, AssetList);
-
-	if (AssetList.Num() > 0)
-	{
-		TArray<FString> ObjectPaths;
-		for (const auto& Asset : AssetList)
-		{
-			ObjectPaths.Add(Asset.ObjectPath.ToString());
-		}
-
-		TArray<UObject*> Objects;
-		const bool bAllowedToPromptToLoadAssets = true;
-		const bool bLoadRedirects = true;
-		if (ContentBrowserUtils::LoadAssetsIfNeeded(ObjectPaths, Objects, bAllowedToPromptToLoadAssets, bLoadRedirects))
-		{
-			// Transform Objects array to ObjectRedirectors array
-			TArray<UObjectRedirector*> Redirectors;
-			for (auto Object : Objects)
-			{
-				auto Redirector = CastChecked<UObjectRedirector>(Object);
-				Redirectors.Add(Redirector);
-			}
-
-			// Load the asset tools module
-			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-			AssetToolsModule.Get().FixupReferencers(Redirectors);
-		}
-	}
-}
-
 
 FReply FPathContextMenu::ExecuteDeleteFolderConfirmed()
 {
-	if ( ContentBrowserUtils::DeleteFolders(SelectedPaths) )
+	// Batch these by their data sources
+	TMap<UContentBrowserDataSource*, TArray<FContentBrowserItemData>> SourcesAndItems;
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
+	{
+		FContentBrowserItem::FItemDataArrayView ItemDataArray = SelectedItem.GetInternalItems();
+		for (const FContentBrowserItemData& ItemData : ItemDataArray)
+		{
+			if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
+			{
+				FText DeleteErrorMsg;
+				if (ItemDataSource->CanDeleteItem(ItemData, &DeleteErrorMsg))
+				{
+					TArray<FContentBrowserItemData>& ItemsForSource = SourcesAndItems.FindOrAdd(ItemDataSource);
+					ItemsForSource.Add(ItemData);
+				}
+				else
+				{
+					AssetViewUtils::ShowErrorNotifcation(DeleteErrorMsg);
+				}
+			}
+		}
+	}
+
+	// Execute the operation now
+	bool bDidDelete = false;
+	for (const auto& SourceAndItemsPair : SourcesAndItems)
+	{
+		bDidDelete |= SourceAndItemsPair.Key->BulkDeleteItems(SourceAndItemsPair.Value);
+	}
+
+	if (bDidDelete)
 	{
 		ResetColors();
-		if (OnFolderDeleted.IsBound())
-		{
-			OnFolderDeleted.Execute();
-		}
+		OnFolderDeleted.ExecuteIfBound();
 	}
 
 	return FReply::Handled();
 }
 
-void FPathContextMenu::ExecuteSCCCheckOut()
-{
-	// Get a list of package names in the selected paths
-	TArray<FString> PackageNames;
-	GetPackageNamesInSelectedPaths(PackageNames);
-
-	TArray<UPackage*> PackagesToCheckOut;
-	for ( auto PackageIt = PackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
-	{
-		if ( FPackageName::DoesPackageExist(*PackageIt) )
-		{
-			// Since the file exists, create the package if it isn't loaded or just find the one that is already loaded
-			// No need to load unloaded packages. It isn't needed for the checkout process
-			UPackage* Package = CreatePackage(NULL, **PackageIt);
-			PackagesToCheckOut.Add( CreatePackage(NULL, **PackageIt) );
-		}
-	}
-
-	if ( PackagesToCheckOut.Num() > 0 )
-	{
-		// Update the source control status of all potentially relevant packages
-		ISourceControlModule::Get().GetProvider().Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackagesToCheckOut);
-
-		// Now check them out
-		FEditorFileUtils::CheckoutPackages(PackagesToCheckOut);
-	}
-}
-
-void FPathContextMenu::ExecuteSCCOpenForAdd()
-{
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-
-	// Get a list of package names in the selected paths
-	TArray<FString> PackageNames;
-	GetPackageNamesInSelectedPaths(PackageNames);
-
-	TArray<FString> PackagesToAdd;
-	TArray<UPackage*> PackagesToSave;
-	for ( auto PackageIt = PackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
-	{
-		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceControlHelpers::PackageFilename(*PackageIt), EStateCacheUsage::Use);
-		if ( SourceControlState.IsValid() && !SourceControlState->IsSourceControlled() )
-		{
-			PackagesToAdd.Add(*PackageIt);
-
-			// Make sure the file actually exists on disk before adding it
-			FString Filename;
-			if ( !FPackageName::DoesPackageExist(*PackageIt, NULL, &Filename) )
-			{
-				UPackage* Package = FindPackage(NULL, **PackageIt);
-				if ( Package )
-				{
-					PackagesToSave.Add(Package);
-				}
-			}
-		}
-	}
-
-	if ( PackagesToAdd.Num() > 0 )
-	{
-		// If any of the packages are new, save them now
-		if ( PackagesToSave.Num() > 0 )
-		{
-			const bool bCheckDirty = false;
-			const bool bPromptToSave = false;
-			TArray<UPackage*> FailedPackages;
-			const FEditorFileUtils::EPromptReturnCode Return = FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptToSave, &FailedPackages);
-			if(FailedPackages.Num() > 0)
-			{
-				// don't try and add files that failed to save - remove them from the list
-				for(auto FailedPackageIt = FailedPackages.CreateConstIterator(); FailedPackageIt; FailedPackageIt++)
-				{
-					PackagesToAdd.Remove((*FailedPackageIt)->GetName());
-				}
-			}
-		}
-
-		if ( PackagesToAdd.Num() > 0 )
-		{
-			SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlHelpers::PackageFilenames(PackagesToAdd));
-		}
-	}
-}
-
-void FPathContextMenu::ExecuteSCCCheckIn()
-{
-	// Get a list of package names in the selected paths
-	TArray<FString> PackageNames;
-	GetPackageNamesInSelectedPaths(PackageNames);
-
-	// Form a list of loaded packages to prompt for save
-	TArray<UPackage*> LoadedPackages;
-	for ( auto PackageIt = PackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
-	{
-		UPackage* Package = FindPackage(NULL, **PackageIt);
-		if ( Package )
-		{
-			LoadedPackages.Add(Package);
-		}
-	}
-
-	// Prompt the user to ask if they would like to first save any dirty packages they are trying to check-in
-	const FEditorFileUtils::EPromptReturnCode UserResponse = FEditorFileUtils::PromptForCheckoutAndSave( LoadedPackages, true, true );
-
-	// If the user elected to save dirty packages, but one or more of the packages failed to save properly OR if the user
-	// canceled out of the prompt, don't follow through on the check-in process
-	const bool bShouldProceed = ( UserResponse == FEditorFileUtils::EPromptReturnCode::PR_Success || UserResponse == FEditorFileUtils::EPromptReturnCode::PR_Declined );
-	if ( bShouldProceed )
-	{
-		TArray<FString> PendingDeletePaths;
-		for (const auto& Path : SelectedPaths)
-		{
-			PendingDeletePaths.Add(FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(Path + TEXT("/"))));
-		}
-
-		const bool bUseSourceControlStateCache = false;
-		FSourceControlWindows::PromptForCheckin(bUseSourceControlStateCache, PackageNames, PendingDeletePaths);
-	}
-	else
-	{
-		// If a failure occurred, alert the user that the check-in was aborted. This warning shouldn't be necessary if the user cancelled
-		// from the dialog, because they obviously intended to cancel the whole operation.
-		if ( UserResponse == FEditorFileUtils::EPromptReturnCode::PR_Failure )
-		{
-			FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "SCC_Checkin_Aborted", "Check-in aborted as a result of save failure.") );
-		}
-	}
-}
-
-void FPathContextMenu::ExecuteSCCSync() const
-{
-	ContentBrowserUtils::SyncPathsFromSourceControl(SelectedPaths);
-}
-
-void FPathContextMenu::ExecuteSCCConnect() const
-{
-	ISourceControlModule::Get().ShowLoginDialog(FSourceControlLoginClosed(), ELoginWindowMode::Modeless);
-}
-
-bool FPathContextMenu::CanExecuteSCCCheckOut() const
-{
-	int32 NumAssetPaths, NumClassPaths;
-	ContentBrowserUtils::CountPathTypes(SelectedPaths, NumAssetPaths, NumClassPaths);
-
-	// Can only perform SCC operations on asset paths
-	return bCanExecuteSCCCheckOut && (NumAssetPaths > 0 && NumClassPaths == 0);
-}
-
-bool FPathContextMenu::CanExecuteSCCOpenForAdd() const
-{
-	int32 NumAssetPaths, NumClassPaths;
-	ContentBrowserUtils::CountPathTypes(SelectedPaths, NumAssetPaths, NumClassPaths);
-
-	// Can only perform SCC operations on asset paths
-	return bCanExecuteSCCOpenForAdd && (NumAssetPaths > 0 && NumClassPaths == 0);
-}
-
-bool FPathContextMenu::CanExecuteSCCCheckIn() const
-{
-	int32 NumAssetPaths, NumClassPaths;
-	ContentBrowserUtils::CountPathTypes(SelectedPaths, NumAssetPaths, NumClassPaths);
-
-	// Can only perform SCC operations on asset paths
-	return bCanExecuteSCCCheckIn && (NumAssetPaths > 0 && NumClassPaths == 0);
-}
-
-bool FPathContextMenu::CanExecuteSCCSync() const
-{
-	int32 NumAssetPaths, NumClassPaths;
-	ContentBrowserUtils::CountPathTypes(SelectedPaths, NumAssetPaths, NumClassPaths);
-
-	// Can only perform SCC operations on asset paths
-	return (NumAssetPaths > 0 && NumClassPaths == 0);
-}
-
-bool FPathContextMenu::CanExecuteSCCConnect() const
-{
-	int32 NumAssetPaths, NumClassPaths;
-	ContentBrowserUtils::CountPathTypes(SelectedPaths, NumAssetPaths, NumClassPaths);
-
-	// Can only perform SCC operations on asset paths
-	return (!ISourceControlModule::Get().IsEnabled() || !ISourceControlModule::Get().GetProvider().IsAvailable()) && (NumAssetPaths > 0 && NumClassPaths == 0);
-}
-
-void FPathContextMenu::CacheCanExecuteVars()
-{
-	// Cache whether we can execute any of the source control commands
-	bCanExecuteSCCCheckOut = false;
-	bCanExecuteSCCOpenForAdd = false;
-	bCanExecuteSCCCheckIn = false;
-
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if ( SourceControlProvider.IsEnabled() && SourceControlProvider.IsAvailable() )
-	{
-		TArray<FString> PackageNames;
-		GetPackageNamesInSelectedPaths(PackageNames);
-
-		// Check the SCC state for each package in the selected paths
-		for ( auto PackageIt = PackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
-		{
-			FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceControlHelpers::PackageFilename(*PackageIt), EStateCacheUsage::Use);
-			if(SourceControlState.IsValid())
-			{
-				if ( SourceControlState->CanCheckout() )
-				{
-					bCanExecuteSCCCheckOut = true;
-				}
-				else if ( !SourceControlState->IsSourceControlled() )
-				{
-					bCanExecuteSCCOpenForAdd = true;
-				}
-				else if ( SourceControlState->CanCheckIn() )
-				{
-					bCanExecuteSCCCheckIn = true;
-				}
-			}
-
-			if ( bCanExecuteSCCCheckOut && bCanExecuteSCCOpenForAdd && bCanExecuteSCCCheckIn )
-			{
-				// All SCC options are available, no need to keep iterating
-				break;
-			}
-		}
-	}
-}
-
-void FPathContextMenu::GetPackageNamesInSelectedPaths(TArray<FString>& OutPackageNames) const
-{
-	// Load the asset registry module
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-	// Form a filter from the paths
-	FARFilter Filter;
-	Filter.bRecursivePaths = true;
-	for (int32 PathIdx = 0; PathIdx < SelectedPaths.Num(); ++PathIdx)
-	{
-		const FString& Path = SelectedPaths[PathIdx];
-		new (Filter.PackagePaths) FName(*Path);
-	}
-
-	// Query for a list of assets in the selected paths
-	TArray<FAssetData> AssetList;
-	AssetRegistryModule.Get().GetAssets(Filter, AssetList);
-
-	// Form a list of unique package names from the assets
-	TSet<FName> UniquePackageNames;
-	for (int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx)
-	{
-		UniquePackageNames.Add(AssetList[AssetIdx].PackageName);
-	}
-
-	// Add all unique package names to the output
-	for ( auto PackageIt = UniquePackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
-	{
-		OutPackageNames.Add( (*PackageIt).ToString() );
-	}
-}
-
-FString FPathContextMenu::GetFirstSelectedPath() const
-{
-	return SelectedPaths.Num() > 0 ? SelectedPaths[0] : TEXT("");
-}
-
 bool FPathContextMenu::SelectedHasCustomColors() const
 {
-	for (int32 PathIdx = 0; PathIdx < SelectedPaths.Num(); ++PathIdx)
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
 		// Ignore any that are the default color
-		const FString& Path = SelectedPaths[PathIdx];
-		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor( Path );
-		if ( Color.IsValid() && !Color->Equals( ContentBrowserUtils::GetDefaultColor() ) )
+		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(SelectedItem.GetVirtualPath().ToString());
+		if (Color.IsValid() && !Color->Equals(ContentBrowserUtils::GetDefaultColor()))
 		{
 			return true;
 		}
