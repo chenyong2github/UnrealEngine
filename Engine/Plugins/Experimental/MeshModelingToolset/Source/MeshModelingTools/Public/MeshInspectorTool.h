@@ -134,6 +134,9 @@ protected:
 	UPROPERTY()
 	UMaterialInterface* DefaultMaterial = nullptr;
 
+	// copy of input mesh description with tangents/etc populated
+	TSharedPtr<FMeshDescription> InputMeshDescription;
+
 	TArray<int> BoundaryEdges;
 	TArray<int> BoundaryBowties;
 	TArray<int> UVSeamEdges;

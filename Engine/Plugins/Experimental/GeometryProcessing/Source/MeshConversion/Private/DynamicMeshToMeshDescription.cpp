@@ -5,7 +5,7 @@
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshOverlay.h"
 #include "MeshDescriptionBuilder.h"
-
+#include "MeshTangents.h"
 
 
 
@@ -125,6 +125,42 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 	}
 }
 
+
+void FDynamicMeshToMeshDescription::UpdateTangents(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const FMeshTangentsd* Tangents)
+{
+	if (!ensureMsgf(MeshIn->TriangleCount() == MeshOut.Triangles().Num(), TEXT("Trying to update MeshDescription Tangents from Mesh that does not have same triangle count"))) return;
+	if (!ensureMsgf(MeshIn->IsCompactT(), TEXT("Trying to update MeshDescription Tangents from a non-compact DynamicMesh"))) return;
+	if (!ensureMsgf(MeshIn->HasAttributes(), TEXT("Trying to update MeshDescription Tangents from a DynamicMesh that has no Normals attribute"))) return;
+
+	const FDynamicMeshNormalOverlay* Normals = MeshIn->Attributes()->PrimaryNormals();
+	TVertexInstanceAttributesRef<FVector> TangentAttrib =
+		MeshOut.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+	TVertexInstanceAttributesRef<float> BinormalSignAttrib =
+		MeshOut.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+
+	if (!ensureMsgf(TangentAttrib.IsValid(), TEXT("Trying to update Tangents on a MeshDescription that has no Tangent Vertex Instance attribute"))) return;
+	if (!ensureMsgf(BinormalSignAttrib.IsValid(), TEXT("Trying to update Tangents on a MeshDescription that has no BinormalSign Vertex Instance attribute"))) return;
+
+	if (TangentAttrib.IsValid() && BinormalSignAttrib.IsValid())
+	{
+		int32 NumTriangles = MeshIn->TriangleCount();
+		for (int32 k = 0; k < NumTriangles; ++k)
+		{
+			FVector3f TriNormals[3];
+			Normals->GetTriElements(k, TriNormals[0], TriNormals[1], TriNormals[2]);
+
+			TArrayView<const FVertexInstanceID> TriInstances = MeshOut.GetTriangleVertexInstances(FTriangleID(k));
+			for (int j = 0; j < 3; ++j)
+			{
+				FVector3d Tangent, Bitangent;
+				Tangents->GetPerTriangleTangent(k, j, Tangent, Bitangent);
+				float BitangentSign = (float)VectorUtil::BitangentSign((FVector3d)TriNormals[j], Tangent, Bitangent);
+				TangentAttrib.Set(TriInstances[j], (FVector)Tangent);
+				BinormalSignAttrib.Set(TriInstances[j], BitangentSign);
+			}
+		}
+	}
+}
 
 
 

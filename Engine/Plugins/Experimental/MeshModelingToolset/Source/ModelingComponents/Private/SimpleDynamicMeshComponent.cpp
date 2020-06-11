@@ -55,11 +55,39 @@ void USimpleDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescripti
 	Converter.Convert(MeshDescription, *Mesh);
 	if (TangentsType == EDynamicMeshTangentCalcType::ExternallyCalculated)
 	{
-		Converter.CopyTangents(MeshDescription, Mesh.Get(), Tangents);
+		Converter.CopyTangents(MeshDescription, Mesh.Get(), &Tangents);
 	}
 
 	NotifyMeshUpdated();
 }
+
+
+void USimpleDynamicMeshComponent::UpdateTangents(const FMeshTangentsf* ExternalTangents, bool bFastUpdateIfPossible)
+{
+	Tangents.CopyTriVertexTangents(*ExternalTangents);
+	if (bFastUpdateIfPossible)
+	{
+		FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexNormals);
+	}
+	else
+	{
+		NotifyMeshUpdated();
+	}
+}
+
+void USimpleDynamicMeshComponent::UpdateTangents(const FMeshTangentsd* ExternalTangents, bool bFastUpdateIfPossible)
+{
+	Tangents.CopyTriVertexTangents(*ExternalTangents);
+	if (bFastUpdateIfPossible)
+	{
+		FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexNormals);
+	}
+	else
+	{
+		NotifyMeshUpdated();
+	}
+}
+
 
 
 TUniquePtr<FDynamicMesh3> USimpleDynamicMeshComponent::ExtractMesh(bool bNotifyUpdate)
@@ -126,7 +154,7 @@ void USimpleDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool b
 
 
 
-FMeshTangentsf* USimpleDynamicMeshComponent::GetTangents()
+const FMeshTangentsf* USimpleDynamicMeshComponent::GetTangents()
 {
 	if (TangentsType == EDynamicMeshTangentCalcType::NoTangents)
 	{
@@ -141,7 +169,7 @@ FMeshTangentsf* USimpleDynamicMeshComponent::GetTangents()
 			FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 			if (UVOverlay != nullptr && NormalOverlay != nullptr)
 			{
-				Tangents.ComputePerTriangleTangents(NormalOverlay, UVOverlay);
+				Tangents.ComputeTriVertexTangents(NormalOverlay, UVOverlay, FComputeTangentsOptions());
 				bTangentsValid = true;
 			}
 		}
