@@ -59,6 +59,7 @@
 #include "BakeMeshAttributeMapsTool.h"
 #include "MeshAttributePaintTool.h"
 #include "ParameterizeMeshTool.h"
+#include "MeshTangentsTool.h"
 
 #include "EditorModeManager.h"
 
@@ -580,6 +581,9 @@ void FModelingToolsEditorMode::Enter()
 	auto EditNormalsToolBuilder = NewObject<UEditNormalsToolBuilder>();
 	EditNormalsToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginEditNormalsTool, TEXT("EditNormalsTool"), EditNormalsToolBuilder);
+
+	auto TangentsToolBuilder = NewObject<UMeshTangentsToolBuilder>();
+	RegisterToolFunc(ToolManagerCommands.BeginEditTangentsTool, TEXT("MeshTangentsTool"), TangentsToolBuilder);
 
 	auto RemoveOccludedTrianglesToolBuilder = NewObject<URemoveOccludedTrianglesToolBuilder>();
 	RemoveOccludedTrianglesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
