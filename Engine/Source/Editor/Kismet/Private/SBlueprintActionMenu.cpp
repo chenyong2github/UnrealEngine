@@ -547,14 +547,14 @@ void SBlueprintActionMenu::TryInsertPromoteToVariable(FBlueprintActionContext co
 	const UEdGraphSchema_K2* K2Schema = Cast<const UEdGraphSchema_K2>(GraphObj->GetSchema());
 	if ((K2Schema != nullptr) && (MenuContext.Pins.Num() > 0))
 	{
-		if (K2Schema->CanPromotePinToVariable(*MenuContext.Pins[0], false))
+		if (K2Schema->CanPromotePinToVariable(*MenuContext.Pins[0], true))
 		{
 			TSharedPtr<FBlueprintAction_PromoteVariable> PromoteAction = TSharedPtr<FBlueprintAction_PromoteVariable>(new FBlueprintAction_PromoteVariable(true));
 			PromoteAction->MyBlueprintEditor = EditorPtr;
 			OutAllActions.AddAction(PromoteAction);
 		}
 
-		if (MenuContext.Graphs.Num() == 1 && FBlueprintEditorUtils::DoesSupportLocalVariables(MenuContext.Graphs[0]) && K2Schema->CanPromotePinToVariable(*MenuContext.Pins[0], true))
+		if (MenuContext.Graphs.Num() == 1 && FBlueprintEditorUtils::DoesSupportLocalVariables(MenuContext.Graphs[0]) && K2Schema->CanPromotePinToVariable(*MenuContext.Pins[0], false))
 		{
 			TSharedPtr<FBlueprintAction_PromoteVariable> LocalPromoteAction = TSharedPtr<FBlueprintAction_PromoteVariable>(new FBlueprintAction_PromoteVariable(false));
 			LocalPromoteAction->MyBlueprintEditor = EditorPtr;
