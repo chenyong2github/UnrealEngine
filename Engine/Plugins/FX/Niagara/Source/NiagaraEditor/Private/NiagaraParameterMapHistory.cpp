@@ -484,6 +484,21 @@ bool FNiagaraParameterMapHistory::IsInitialValue(const FNiagaraVariable& InVar)
 	return false;
 }
 
+bool FNiagaraParameterMapHistory::IsPreviousValue(const FNiagaraVariable& InVar)
+{
+	TArray<FString> SplitName;
+	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
+
+	for (int32 i = 1; i < SplitName.Num() - 1; i++)
+	{
+		if (SplitName[i].Equals(PARAM_MAP_PREVIOUS_BASE_STR, ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 FNiagaraVariable FNiagaraParameterMapHistory::GetSourceForInitialValue(const FNiagaraVariable& InVar)
 {
 	TArray<FString> SplitName;
@@ -494,6 +509,33 @@ FNiagaraVariable FNiagaraParameterMapHistory::GetSourceForInitialValue(const FNi
 	for (int32 i = 0; i < SplitName.Num(); i++)
 	{
 		if (!bFound && SplitName[i].Equals(PARAM_MAP_INITIAL_BASE_STR, ESearchCase::IgnoreCase))
+		{
+			bFound = true;
+			continue;
+		}
+		else
+		{
+			JoinString.Add(SplitName[i]);
+		}
+	}
+
+	FString OutVarStrName = FString::Join(JoinString, TEXT("."));
+	FNiagaraVariable Var = InVar;
+	Var.SetName(*OutVarStrName);
+
+	return Var;
+}
+
+FNiagaraVariable FNiagaraParameterMapHistory::GetSourceForPreviousValue(const FNiagaraVariable& InVar)
+{
+	TArray<FString> SplitName;
+	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
+
+	TArray<FString> JoinString;
+	bool bFound = false;
+	for (int32 i = 0; i < SplitName.Num(); i++)
+	{
+		if (!bFound && SplitName[i].Equals(PARAM_MAP_PREVIOUS_BASE_STR, ESearchCase::IgnoreCase))
 		{
 			bFound = true;
 			continue;
