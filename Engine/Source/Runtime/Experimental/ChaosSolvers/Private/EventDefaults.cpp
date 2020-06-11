@@ -11,7 +11,7 @@
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
 
 namespace Chaos
 {
