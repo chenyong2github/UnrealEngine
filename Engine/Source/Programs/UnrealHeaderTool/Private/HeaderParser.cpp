@@ -6240,16 +6240,26 @@ void PostParsingClassSetup(UClass* Class)
 	FHeaderParser::ComputeFunctionParametersSize(Class);
 
 	// Set all optimization ClassFlags based on property types
-	for (TFieldIterator<FProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+	auto HasAllOptimizationClassFlags = [Class]()
 	{
-		if ((It->PropertyFlags & CPF_Config) != 0)
-		{
-			Class->ClassFlags |= CLASS_Config;
-		}
+		return (Class->HasAllClassFlags(CLASS_Config | CLASS_HasInstancedReference));
+	};
 
-		if (It->ContainsInstancedObjectProperty())
+	if (!HasAllOptimizationClassFlags())
+	{
+		for (TFieldIterator<FProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
-			Class->ClassFlags |= CLASS_HasInstancedReference;
+			if ((It->PropertyFlags & CPF_Config) != 0)
+			{
+				Class->ClassFlags |= CLASS_Config;
+				if (HasAllOptimizationClassFlags()) break;
+			}
+
+			if (It->ContainsInstancedObjectProperty())
+			{
+				Class->ClassFlags |= CLASS_HasInstancedReference;
+				if (HasAllOptimizationClassFlags()) break;
+			}
 		}
 	}
 
