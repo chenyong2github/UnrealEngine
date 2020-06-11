@@ -279,7 +279,7 @@ namespace UnrealBuildTool
 
 			WriteTasksFile(ProjectData);
 			WriteLaunchFile(ProjectData);
-			WriteWorkspaceSettingsFile(Projects);
+			WriteWorkspaceIgnoreFile(Projects);
 			WriteCppPropertiesFile(VSCodeDir, false, ProjectData);
 			WriteWorkspaceFile(ProjectData);
 			//WriteProjectDataFile(ProjectData);
@@ -1191,10 +1191,8 @@ namespace UnrealBuildTool
 			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms);
 		}
 
-		private void WriteWorkspaceSettingsFile(List<ProjectFile> Projects)
+		private void WriteWorkspaceIgnoreFile(List<ProjectFile> Projects)
 		{
-			JsonFile OutFile = new JsonFile();
-
 			List<string> PathsToExclude = new List<string>();
 
 			foreach (ProjectFile Project in Projects)
@@ -1208,7 +1206,7 @@ namespace UnrealBuildTool
 						GetExcludePathsCPP(ProjDir, PathsToExclude);
 						
 						DirectoryReference PluginRootDir = DirectoryReference.Combine(ProjDir, "Plugins");
-						WriteWorkspaceSettingsFileForPlugins(PluginRootDir, PathsToExclude);
+						WriteWorkspaceIgnoreFileForPlugins(PluginRootDir, PathsToExclude);
 
 						bFoundTarget = true;
 					}
@@ -1220,27 +1218,19 @@ namespace UnrealBuildTool
 				}
 			}
 
-			OutFile.BeginRootObject();
+			StringBuilder OutFile = new StringBuilder();
+			if (!IncludeAllFiles)
 			{
-				if (!IncludeAllFiles)
+				string WorkspaceRoot = UnrealBuildTool.RootDirectory.ToString().Replace('\\', '/');
+				foreach (string PathToExclude in PathsToExclude)
 				{
-					OutFile.BeginObject("files.exclude");
-					{
-						string WorkspaceRoot = UnrealBuildTool.RootDirectory.ToString().Replace('\\', '/') + "/";
-						foreach (string PathToExclude in PathsToExclude)
-						{
-							OutFile.AddField(PathToExclude.Replace('\\', '/').Replace(WorkspaceRoot, ""), true);
-						}
-					}
-					OutFile.EndObject();
+					OutFile.AppendLine(PathToExclude.Replace('\\', '/').Replace(WorkspaceRoot, ""));
 				}
 			}
-			OutFile.EndRootObject();
-
-			OutFile.Write(FileReference.Combine(VSCodeDir, "settings.json"));
+			FileReference.WriteAllText(FileReference.Combine(MasterProjectPath, ".ignore"), OutFile.ToString());
 		}
 
-		private void WriteWorkspaceSettingsFileForPlugins(DirectoryReference PluginBaseDir, List<string> PathsToExclude)
+		private void WriteWorkspaceIgnoreFileForPlugins(DirectoryReference PluginBaseDir, List<string> PathsToExclude)
 		{
 			if (DirectoryReference.Exists(PluginBaseDir))
 			{
@@ -1254,7 +1244,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						WriteWorkspaceSettingsFileForPlugins(SubDir, PathsToExclude);
+						WriteWorkspaceIgnoreFileForPlugins(SubDir, PathsToExclude);
 					}
 				}
 			}
