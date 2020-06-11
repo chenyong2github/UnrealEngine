@@ -22,6 +22,7 @@
 #include "MediaPlayerFacade.h"
 #include "MediaSource.h"
 #include "MediaTexture.h"
+#include "Misc/CoreDelegates.h"
 #include "Profile/IMediaProfileManager.h"
 #include "Profile/MediaProfile.h"
 
