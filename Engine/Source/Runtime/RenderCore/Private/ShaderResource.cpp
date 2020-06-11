@@ -275,7 +275,7 @@ FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShad
 	, Platform(InPlatform)
 	, NumRefs(0)
 {
-	RHIShaders = new std::atomic<FRHIShader*>[NumRHIShaders] {0};
+	RHIShaders = MakeUnique<std::atomic<FRHIShader*>[]>(NumRHIShaders); // this MakeUnique() zero-initializes the array
 #if RHI_RAYTRACING
 	if (GRHISupportsRayTracing)
 	{
@@ -320,7 +320,6 @@ void FShaderMapResource::ReleaseShaders()
 				Shader->Release();
 			}
 		}
-		delete[] RHIShaders;
 		RHIShaders = nullptr;
 		NumRHIShaders = 0;
 	}
