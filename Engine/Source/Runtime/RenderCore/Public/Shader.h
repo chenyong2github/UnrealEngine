@@ -287,7 +287,7 @@ private:
 	FCriticalSection RHIShadersCreationGuard;
 
 	/** An array of shader pointers (refcount is managed manually). */
-	std::atomic<FRHIShader*>* RHIShaders;
+	TUniquePtr<std::atomic<FRHIShader*>[]> RHIShaders;
 
 	/** Since the shaders are no longer a TArray, this is their count (the size of the RHIShadersArray). */
 	int32 NumRHIShaders;
