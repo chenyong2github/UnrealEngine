@@ -13,7 +13,7 @@
 	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
-	"EnabledByDefault": true,
+	"EnabledByDefault": false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [ "Win64" ],
 	"Modules": [
