@@ -2707,6 +2707,12 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
 			int32 LodSubsectionSizeVerts = SubsectionSizeVerts >> CurrentLOD;
+
+			if (LodSubsectionSizeVerts <= 0)
+			{
+				continue;
+			}
+
 			uint32 NumPrimitives = FMath::Square(LodSubsectionSizeVerts - 1) * 2;
 
 			BatchElement.IndexBuffer = SharedBuffers->ZeroOffsetIndexBuffers[CurrentLOD];
