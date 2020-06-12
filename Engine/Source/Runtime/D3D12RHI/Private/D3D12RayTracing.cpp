@@ -2686,6 +2686,9 @@ void FD3D12RayTracingGeometry::ConditionalCompactAccelerationStructure(FD3D12Com
 		SetName(AccelerationStructureBuffers[GPUIndex]->GetResource(),
 			DebugName.IsValid() ? *DebugName.ToString() : TEXT("BLAS"));
 
+		OldAccelerationStructure->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
+		AccelerationStructureBuffers[GPUIndex]->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
+
 		ID3D12GraphicsCommandList4* RayTracingCommandList = CommandContext.CommandListHandle.RayTracingCommandList();
 		RayTracingCommandList->CopyRaytracingAccelerationStructure(
 			AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress(),
