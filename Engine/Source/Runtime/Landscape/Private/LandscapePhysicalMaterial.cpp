@@ -458,8 +458,7 @@ namespace
 				Task.CompletionState = ECompletionState::Pending;
 			}
 		}
-
-		if (Task.CompletionState == ECompletionState::Pending)
+		else if (Task.CompletionState == ECompletionState::Pending)
 		{
 			if (bFlush || Task.ReadbackFence->Poll())
 			{
