@@ -200,6 +200,12 @@ public:
 	virtual bool LoadModulesForEnabledPlugins( const ELoadingPhase::Type LoadingPhase ) = 0;
 
 	/**
+	 * Callback for when modules for when LoadModulesForEnabledPlugins() completes loading for a specific phase.
+	 */
+	DECLARE_EVENT_TwoParams(IPluginManager, FLoadingModulesForPhaseEvent, ELoadingPhase::Type /*LoadingPhase*/, bool /*bSuccess*/);
+	virtual FLoadingModulesForPhaseEvent& OnLoadingPhaseComplete() = 0;
+
+	/**
 	 * Get the localization paths for all enabled plugins.
 	 *
 	 * @param	OutLocResPaths	Array to populate with the localization paths for all enabled plugins.
