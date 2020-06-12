@@ -53,6 +53,14 @@ extern const size_t ChannelOffsets[4];
 
 ENGINE_API extern bool GDisableAutomaticTextureMaterialUpdateDependencies;
 
+// GPU profiling stats
+DECLARE_GPU_STAT_NAMED(LandscapeLayers_Clear, TEXT("Landscape Layer Clear"));
+DECLARE_GPU_STAT_NAMED(LandscapeLayers_Render, TEXT("Landscape Layer Render"));
+DECLARE_GPU_STAT_NAMED(LandscapeLayers_CopyTexture, TEXT("Landscape Layer Copy Texture"));
+DECLARE_GPU_STAT_NAMED(LandscapeLayers_CopyTexturePS, TEXT("Landscape Layer Copy Texture PS"));
+DECLARE_GPU_STAT_NAMED(LandscapeLayers_ExtractLayers, TEXT("Landscape Extract Layers"));
+DECLARE_GPU_STAT_NAMED(LandscapeLayers_PackLayers, TEXT("Landscape Pack Layers"));
+
 #if WITH_EDITOR
 static TAutoConsoleVariable<int32> CVarOutputLayersDebugDrawCallName(
 	TEXT("landscape.OutputLayersDebugDrawCallName"),
@@ -99,14 +107,6 @@ TAutoConsoleVariable<int32> CVarLandscapeTrackDirty(
 	TEXT("landscape.TrackDirty"),
 	0,
 	TEXT("This will track the accumulation of data changes during the layer blend phase."));
-
-// GPU profiling stats
-DECLARE_GPU_STAT_NAMED(LandscapeLayers_Clear, TEXT("Landscape Layer Render"));
-DECLARE_GPU_STAT_NAMED(LandscapeLayers_Render, TEXT("Landscape Layer Render"));
-DECLARE_GPU_STAT_NAMED(LandscapeLayers_CopyTexture, TEXT("Landscape Layer Copy Texture"));
-DECLARE_GPU_STAT_NAMED(LandscapeLayers_CopyTexturePS, TEXT("Landscape Layer Copy Texture PS"));
-DECLARE_GPU_STAT_NAMED(LandscapeLayers_ExtractLayers, TEXT("Landscape Extract Layers"));
-DECLARE_GPU_STAT_NAMED(LandscapeLayers_PackLayers, TEXT("Landscape Pack Layers"));
 
 struct FLandscapeDirty
 {
