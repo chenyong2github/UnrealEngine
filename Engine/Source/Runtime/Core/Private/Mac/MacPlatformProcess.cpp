@@ -7,6 +7,7 @@
 #include "Mac/MacPlatformProcess.h"
 #include "Mac/MacPlatform.h"
 #include "Apple/ApplePlatformRunnableThread.h"
+#include "Containers/UnrealString.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
@@ -802,7 +803,6 @@ const TCHAR* FMacPlatformProcess::BaseDir()
 		
 			FCString::Strcpy(Result, MAC_MAX_PATH, *FString(BasePath));
 			FCString::Strcat(Result, TEXT("/"));
-			
 		}
 	}
 	return Result;

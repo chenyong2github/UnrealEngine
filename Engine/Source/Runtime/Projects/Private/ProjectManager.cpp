@@ -48,7 +48,6 @@ bool FProjectManager::LoadProjectFile( const FString& InProjectFile )
 	return false;
 }
 
-
 bool FProjectManager::LoadModulesForProject( const ELoadingPhase::Type LoadingPhase )
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Loading Game Modules"), STAT_GameModule, STATGROUP_LoadTime);
@@ -103,8 +102,9 @@ bool FProjectManager::LoadModulesForProject( const ELoadingPhase::Type LoadingPh
 		}
 	}
 
+	OnLoadingPhaseCompleteEvent.Broadcast(LoadingPhase, bSuccess);
 	return bSuccess;
-}
+} 
 
 #if !IS_MONOLITHIC
 bool FProjectManager::CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules)

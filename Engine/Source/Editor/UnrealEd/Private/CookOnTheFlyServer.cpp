@@ -3354,7 +3354,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 	// Don't resolve, just add to request list as needed
 	TSet<FName> SoftObjectPackages;
 
-	if (!CookByTheBookOptions->bSkipSoftReferences)
+	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 	{
 		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
 
@@ -6793,7 +6793,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	TArray<FName> FilesInPath;
 	TSet<FName> StartupSoftObjectPackages;
-	if (!CookByTheBookOptions->bSkipSoftReferences)
+	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 	{
 		// Get the list of soft references, for both empty package and all startup packages
 		GRedirectCollector.ProcessSoftObjectPathPackageList(NAME_None, false, StartupSoftObjectPackages);
@@ -7526,7 +7526,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					}
 				}
 
-				if (!CookByTheBookOptions->bSkipSoftReferences)
+				if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(ResolveStringReferences);
 					TSet<FName> StringAssetPackages;
