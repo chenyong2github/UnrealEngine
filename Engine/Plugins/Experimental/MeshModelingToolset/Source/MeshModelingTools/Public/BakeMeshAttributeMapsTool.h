@@ -18,6 +18,7 @@ struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class UMaterialInstanceDynamic;
 class UTexture2D;
+template<typename RealType> class TMeshTangents;
 
 
 /**
@@ -171,6 +172,8 @@ protected:
 
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
 
+	TSharedPtr<FMeshDescription> BaseMeshDescription;
+	TSharedPtr<TMeshTangents<double>> BaseMeshTangents;
 	FDynamicMesh3 BaseMesh;
 	FDynamicMeshAABBTree3 BaseSpatial;
 
