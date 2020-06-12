@@ -495,6 +495,49 @@ namespace Chaos
 			AngularConstraintPadding[(int32)ConstraintIndex] = Padding;
 		}
 
+
+		using FDenseMatrix66 = TDenseMatrix<6 * 6>;
+		using FDenseMatrix61 = TDenseMatrix<6 * 1>;
+
+		void ApplyConstraintsMatrix(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		int32 AddLinear(
+			const FReal Dt,
+			const FVec3& Axis,
+			const FVec3& ConnectorOffset0,
+			const FVec3& ConnectorOffset1,
+			const FReal Error,
+			const FReal VelTarget,
+			const FReal Stiffness,
+			const FReal Damping,
+			const bool bSoft,
+			const bool bAccelerationMode,
+			FDenseMatrix66& J0,
+			FDenseMatrix66& J1,
+			FDenseMatrix61& C,
+			FDenseMatrix61& V,
+			FDenseMatrix61& S,
+			FDenseMatrix61& D);
+
+		int32 AddAngular(
+			const FReal Dt,
+			const FVec3& Axis,
+			const FReal Error,
+			const FReal VelTarget,
+			const FReal Stiffness,
+			const FReal Damping,
+			const bool bSoft,
+			const bool bAccelerationMode,
+			FDenseMatrix66& J0,
+			FDenseMatrix66& J1,
+			FDenseMatrix61& C,
+			FDenseMatrix61& V,
+			FDenseMatrix61& S,
+			FDenseMatrix61& D);
+
 		// Local-space constraint settings
 		FRigidTransform3 XLs[MaxConstrainedBodies];	// Local-space joint connector transforms
 		FVec3 InvILs[MaxConstrainedBodies];			// Local-space inverse inertias
