@@ -94,9 +94,21 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.LinearSoftForceMode = (ChaosImmediate_SoftLinearForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 		ConstraintSettings.AngularSoftForceMode = (ChaosImmediate_SoftAngularForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 
-		ConstraintSettings.LinearRestitution = Profile.LinearLimit.Restitution;
-		ConstraintSettings.TwistRestitution = Profile.TwistLimit.Restitution;
-		ConstraintSettings.SwingRestitution = Profile.ConeLimit.Restitution;
+		if (!ConstraintSettings.bSoftLinearLimitsEnabled)
+		{
+			ConstraintSettings.LinearRestitution = Profile.LinearLimit.Restitution;
+			ConstraintSettings.LinearContactDistance = Profile.LinearLimit.ContactDistance;
+		}
+		if (!ConstraintSettings.bSoftTwistLimitsEnabled)
+		{
+			ConstraintSettings.TwistRestitution = Profile.TwistLimit.Restitution;
+			ConstraintSettings.TwistContactDistance = FMath::DegreesToRadians(Profile.TwistLimit.ContactDistance);
+		}
+		if (!ConstraintSettings.bSoftSwingLimitsEnabled)
+		{
+			ConstraintSettings.SwingRestitution = Profile.ConeLimit.Restitution;
+			ConstraintSettings.SwingContactDistance = FMath::DegreesToRadians(Profile.ConeLimit.ContactDistance);
+		}
 
 		ConstraintSettings.LinearDrivePositionTarget = Profile.LinearDrive.PositionTarget;
 		ConstraintSettings.LinearDriveVelocityTarget = Profile.LinearDrive.VelocityTarget;
