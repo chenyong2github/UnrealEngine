@@ -4872,10 +4872,11 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 		return;
 	}
 
-	const int32 PublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportToObjectIndex.Num();
-	const int32 LoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
-	int32 RemovedExportCount = 0;
-	int32 RemovedPackageCount = 0;
+	const double StartTime = FPlatformTime::Seconds();
+	const int32 OldLoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
+	const int32 OldPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportToObjectIndex.Num();
+	int32 PublicExportCount = 0;
+	int32 PackageCount = 0;
 
 	for (FUObjectItem* ObjectItem : UnreachableObjects)
 	{
@@ -4887,24 +4888,39 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 			{
 				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePublicExport);
 				GlobalPackageStore.RemovePublicExport(Object);
-				++RemovedExportCount;
+				++PublicExportCount;
 			}
 			else
 			{
 				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePackage);
 				UPackage* Package = static_cast<UPackage*>(Object);
 				GlobalPackageStore.RemovePackage(Package);
-				++RemovedPackageCount;
+				++PackageCount;
 			}
 		}
 	}
 
-	UE_LOG(LogStreaming, Display,
-		TEXT("FAsyncLoadingThread2::NotifyUnreachableObjects - Purged %d serialized public exports and %d serialized packages, ")
-		TEXT("%d -> %d tracked public exports, %d -> %d tracked serialized packages"),
-		RemovedExportCount, RemovedPackageCount,
-		PublicExportCount, GlobalPackageStore.GetGlobalImportStore().PublicExportToObjectIndex.Num(),
-		LoadedPackageCount, GlobalPackageStore.LoadedPackageStore.NumTracked());
+	const int32 NewLoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
+	const int32 NewPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportToObjectIndex.Num();
+	const int32 RemovedLoadedPackageCount = OldLoadedPackageCount - NewLoadedPackageCount;
+	const int32 RemovedPublicExportCount = OldPublicExportCount - NewPublicExportCount;
+
+	if (RemovedLoadedPackageCount > 0 || RemovedPublicExportCount > 0)
+	{
+		UE_LOG(LogStreaming, Log,
+			TEXT("%f ms for processing %d/%d objects in NotifyUnreachableObjects. ")
+			TEXT("Removed %d/%d (%d->%d tracked) packages and %d/%d (%d->%d tracked) public exports."),
+			(FPlatformTime::Seconds() - StartTime) * 1000,
+			PublicExportCount + PackageCount, UnreachableObjects.Num(),
+			RemovedLoadedPackageCount, PackageCount, OldLoadedPackageCount, NewLoadedPackageCount,
+			RemovedPublicExportCount, PublicExportCount, OldPublicExportCount, NewPublicExportCount);
+	}
+	else
+	{
+		UE_LOG(LogStreaming, Log, TEXT("%f ms for skipping %d/%d objects in NotifyUnreachableObjects."),
+			(FPlatformTime::Seconds() - StartTime) * 1000,
+			PublicExportCount + PackageCount, UnreachableObjects.Num());
+	}
 
 #if ALT2_VERIFY_ASYNC_FLAGS
 	if (!IsAsyncLoadingPackages())
