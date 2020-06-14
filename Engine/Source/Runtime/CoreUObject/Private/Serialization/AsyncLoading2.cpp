@@ -5047,8 +5047,9 @@ void FAsyncPackage2::ReleaseRef()
 	check(RefCount > 0);
 	if (--RefCount == 0)
 	{
-		AsyncLoadingThread.DeferredDeletePackages.Enqueue(this);
-		AsyncLoadingThread.AltZenaphore.NotifyOne();
+		FAsyncLoadingThread2& AsyncLoadingThreadLocal = AsyncLoadingThread;
+		AsyncLoadingThreadLocal.DeferredDeletePackages.Enqueue(this);
+		AsyncLoadingThreadLocal.AltZenaphore.NotifyOne();
 	}
 }
 
