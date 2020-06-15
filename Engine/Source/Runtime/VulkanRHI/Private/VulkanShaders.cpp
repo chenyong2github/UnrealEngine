@@ -148,7 +148,7 @@ void FVulkanShader::PurgeShaderModules()
 	for (const auto& Pair : ShaderModules)
 	{
 		VkShaderModule ShaderModule = Pair.Value;
-		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::ShaderModule, ShaderModule);
+		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::ShaderModule, ShaderModule);
 	}
 	ShaderModules.Empty(0);
 }
@@ -263,7 +263,7 @@ FVulkanLayout::~FVulkanLayout()
 {
 	if (PipelineLayout != VK_NULL_HANDLE)
 	{
-		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::PipelineLayout, PipelineLayout);
+		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::PipelineLayout, PipelineLayout);
 		PipelineLayout = VK_NULL_HANDLE;
 	}
 }
