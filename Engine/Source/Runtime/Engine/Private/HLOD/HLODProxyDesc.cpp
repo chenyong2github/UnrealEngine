@@ -6,6 +6,8 @@
 #include "Engine/LODActor.h"
 #include "Algo/Transform.h"
 #include "GameFramework/WorldSettings.h"
+#include "LevelUtils.h"
+#include "Engine/LevelStreaming.h"
 #endif
 
 #if WITH_EDITOR
@@ -16,10 +18,42 @@ FHLODISMComponentDesc::FHLODISMComponentDesc(const UInstancedStaticMeshComponent
 	StaticMesh = InISMComponent->GetStaticMesh();
 
 	Instances.Reset(InISMComponent->GetInstanceCount());
-	for (const FInstancedStaticMeshInstanceData& InstanceData : InISMComponent->PerInstanceSMData)
+
+	for (int32 InstanceIndex = 0; InstanceIndex < InISMComponent->GetInstanceCount(); ++InstanceIndex)
 	{
-		Instances.Emplace(InstanceData.Transform);
+		FTransform InstanceTransform;
+		InISMComponent->GetInstanceTransform(InstanceIndex, InstanceTransform);
+		Instances.Emplace(InstanceTransform);
 	}
+}
+
+bool FHLODISMComponentDesc::operator==(const FHLODISMComponentDesc& Other) const
+{
+	if (StaticMesh != Other.StaticMesh)
+	{
+		return false;
+	}
+
+	if (Material != Other.Material)
+	{
+		return false;
+	}
+
+	if (Instances.Num() != Other.Instances.Num())
+	{
+		return false;
+	}
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Instances.Num(); ++InstanceIdx)
+	{
+		const float Tolerance = 0.1f;
+		if (!Instances[InstanceIdx].Equals(Other.Instances[InstanceIdx], Tolerance))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
@@ -182,7 +216,22 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 	ActorSpawnParameters.OverrideLevel = InLevel;
 	ActorSpawnParameters.bHideFromSceneOutliner = true;
 
-	ALODActor* LODActor = InLevel->GetWorld()->SpawnActor<ALODActor>(ALODActor::StaticClass(), ActorSpawnParameters);
+	FTransform ActorTransform;
+	bool bAppliedTransform = false;
+
+	// If level is a streamed level with a transform and the transform was already applied,
+	// make sure to spawn this new LODActor with a proper transform.
+	if (InLevel->bAlreadyMovedActors)
+	{
+		ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(InLevel);
+		if (StreamingLevel)
+		{
+			ActorTransform = StreamingLevel->LevelTransform;
+			bAppliedTransform = true;
+		}
+	}
+
+	ALODActor* LODActor = InLevel->GetWorld()->SpawnActor<ALODActor>(ALODActor::StaticClass(), ActorTransform, ActorSpawnParameters);
 	if (!LODActor)
 	{
 		return nullptr;
@@ -195,7 +244,21 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 
 	for (const FHLODISMComponentDesc& ISMComponentDesc : ISMComponentsDesc)
 	{
-		LODActor->SetupImposters(ISMComponentDesc.Material, ISMComponentDesc.StaticMesh, ISMComponentDesc.Instances);
+		// Apply transform to HISM instances
+		if (bAppliedTransform)
+		{
+			TArray<FTransform> Transforms = ISMComponentDesc.Instances;
+			for (FTransform& Transform : Transforms)
+			{
+				Transform *= ActorTransform;
+			}
+
+			LODActor->SetupImposters(ISMComponentDesc.Material, ISMComponentDesc.StaticMesh, Transforms);
+		}
+		else
+		{
+			LODActor->SetupImposters(ISMComponentDesc.Material, ISMComponentDesc.StaticMesh, ISMComponentDesc.Instances);
+		}
 	}
 
 	LODActor->SetDrawDistance(LODDrawDistance);
