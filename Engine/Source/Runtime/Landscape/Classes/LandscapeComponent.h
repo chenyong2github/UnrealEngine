@@ -409,7 +409,7 @@ class ULandscapeLODStreamingProxy : public UStreamableRenderAsset
 	virtual bool IsPendingUpdateLocked() const final override;
 	virtual bool StreamOut(int32 NewMipCount) final override;
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) final override;
+	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr) final override;
 	//~ End UStreamableRenderAsset Interface
 
 	LANDSCAPE_API bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
