@@ -128,6 +128,11 @@ bool UEdMode::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewpo
 
 bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
+	if (!Viewport)
+	{
+		return false;
+	}
+
 	if (ToolsContext->InputKey(ViewportClient, Viewport, Key, Event))
 	{
 		return true;
