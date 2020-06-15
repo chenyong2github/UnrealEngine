@@ -81,6 +81,7 @@ ESubsequentsMode::Type FPhysicsTickTask::GetSubsequentsMode()
 
 void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
+#if 0
 	using namespace Chaos;
 
 
@@ -117,6 +118,7 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 
 	// Drop our reference as we don't need it anymore - the completion task handles it
 	CompletionEvent = nullptr;
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
