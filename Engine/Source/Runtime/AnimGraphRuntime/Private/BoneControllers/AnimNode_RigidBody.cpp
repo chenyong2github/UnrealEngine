@@ -1555,10 +1555,8 @@ void FAnimNode_RigidBody::AddImpulseAtLocation(FVector Impulse, FVector Location
 #endif
 }
 
-
 void FAnimNode_RigidBody::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
-	CSV_SCOPED_TIMING_STAT(Animation, RigidBodyInit);
 	InitPhysics(InAnimInstance);
 }
 
