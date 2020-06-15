@@ -283,7 +283,7 @@ private:
 	 * Creates vertices necessary to draw a Quad element 
 	 */
 	template<ESlateVertexRounding Rounding>
-	void AddQuadElement( const FSlateDrawElement& DrawElement, FColor Color = FColor::White);
+	void AddDebugQuadElement( const FSlateDrawElement& DrawElement);
 
 	/** 
 	 * Creates vertices necessary to draw a 3x3 element

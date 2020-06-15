@@ -42,6 +42,7 @@ enum class EElementType : uint8
 	ET_Custom,
 	ET_CustomVerts,
 	ET_PostProcessPass,
+	ET_RoundedBox,
 	/** Total number of draw commands */
 	ET_Count,
 };
@@ -71,7 +72,7 @@ public:
 	 * @param InLayer				The layer to draw the element on
 	 * @param PaintGeometry         DrawSpace position and dimensions; see FPaintGeometry
 	 */
-	SLATECORE_API static void MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry);
+	SLATECORE_API static void MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, FLinearColor Tint = FLinearColor::White);
 
 	/**
 	 * Creates a box element based on the following diagram.  Allows for this element to be resized while maintain the border of the image

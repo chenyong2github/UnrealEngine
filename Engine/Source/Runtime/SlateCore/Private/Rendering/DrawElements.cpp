@@ -186,7 +186,7 @@ void FSlateDrawElement::ApplyPositionOffset(const FVector2D& InOffset)
 	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, Position)));
 }
 
-void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry)
+void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, FLinearColor Tint)
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -196,8 +196,9 @@ void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uin
 	}
 
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
-	ElementList.CreatePayload<FSlateBoxPayload>(Element);
-
+	FSlateBoxPayload& BoxPayload = ElementList.CreatePayload<FSlateBoxPayload>(Element);
+	
+	BoxPayload.SetTint(Tint);
 	Element.Init(ElementList, EElementType::ET_DebugQuad, InLayer, PaintGeometry, ESlateDrawEffect::None);
 }
 
@@ -212,7 +213,7 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 {
 	EElementType ElementType = (InBrush->DrawAs == ESlateBrushDrawType::Border) ? EElementType::ET_Border : (InBrush->DrawAs == ESlateBrushDrawType::RoundedBox) ? EElementType::ET_RoundedBox : EElementType::ET_Box;
 
-	// Cast to Rounded Rect to get the internal paramerters 
+	// Cast to Rounded Rect to get the internal parameters 
 	// New payload type - inherit from BoxPayload 
 
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
