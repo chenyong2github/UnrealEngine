@@ -4,6 +4,8 @@
 
 #include "InteractiveTool.h"
 
+#include "BaseOps/VoxelBaseOp.h"
+
 #include "VoxelProperties.generated.h"
 
 
@@ -21,6 +23,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = VoxelSettings)
 	bool bAutoSimplify = false;
 
+	/** Remove internal, occluded geometry */
+	UPROPERTY(EditAnywhere, Category = VoxelSettings)
+	bool bRemoveInternalSurfaces = false;
+
 	/** The max error (as a multiple of the voxel size) to accept when simplifying the output */
 	UPROPERTY(EditAnywhere, Category = VoxelSettings, meta = (UIMin = ".1", UIMax = "5", ClampMin = ".001", ClampMax = "10", EditCondition = "bAutoSimplify == true"))
 	double SimplifyMaxErrorFactor = 1.0;
@@ -28,4 +34,14 @@ public:
 	/** Automatically remove components smaller than this (to clean up any isolated floating bits) */
 	UPROPERTY(EditAnywhere, Category = VoxelSettings, meta = (UIMin = "0.0", UIMax = "100", ClampMin = "0.0", ClampMax = "1000"))
 	double CubeRootMinComponentVolume = 0.0;
+
+	void SetPropertiesOnOp(FVoxelBaseOp& Op)
+	{
+		Op.InputVoxelCount = VoxelCount;
+		Op.OutputVoxelCount = VoxelCount;
+		Op.bAutoSimplify = bAutoSimplify;
+		Op.bRemoveInternalSurfaces = bRemoveInternalSurfaces;
+		Op.SimplifyMaxErrorFactor = SimplifyMaxErrorFactor;
+		Op.MinComponentVolume = CubeRootMinComponentVolume * CubeRootMinComponentVolume * CubeRootMinComponentVolume;
+	}
 };

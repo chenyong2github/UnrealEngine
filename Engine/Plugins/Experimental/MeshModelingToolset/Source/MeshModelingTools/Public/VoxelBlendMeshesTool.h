@@ -51,16 +51,24 @@ public:
 	bool bSnapToWorldGrid = false;
 
 	/** Blend power controls the shape of the blend between shapes */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "1", UIMax = "4", ClampMin = "1", ClampMax = "10"))
+	UPROPERTY(EditAnywhere, Category = Blend, meta = (UIMin = "1", UIMax = "4", ClampMin = "1", ClampMax = "10"))
 	double BlendPower = 2;
 
 	/** Blend falloff controls the size of the blend region */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = ".1", UIMax = "100", ClampMin = ".001", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, Category = Blend, meta = (UIMin = ".1", UIMax = "100", ClampMin = ".001", ClampMax = "1000"))
 	double BlendFalloff = 10;
 
 	/** Solidify the input mesh(es) before processing, fixing results for inputs with holes and/or self-intersections */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Solidify)
 	bool bSolidifyInput = false;
+
+	/** Remove internal surfaces from the solidified input, before running morphology */
+	UPROPERTY(EditAnywhere, Category = Solidify, meta = (EditCondition = "bSolidifyInput == true"))
+	bool bRemoveInternalsAfterSolidify = false;
+
+	/** Offset surface to create when solidifying any open-boundary inputs; if 0 then no offset surfaces are created */
+	UPROPERTY(EditAnywhere, Category = Solidify, meta = (EditCondition = "bSolidifyInput == true"))
+	double OffsetSolidifySurface = 0.0;
 };
 
 
