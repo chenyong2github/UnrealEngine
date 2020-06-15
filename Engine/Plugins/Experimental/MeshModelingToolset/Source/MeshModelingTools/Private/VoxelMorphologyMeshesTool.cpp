@@ -197,14 +197,10 @@ void UVoxelMorphologyMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelMorphologyMeshes", "Morphology Meshes"));
+
 		// Generate the result
-		{
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelMorphologyMeshes", "Boolean Meshes"));
-
-			GenerateAsset(Result);
-
-			GetToolManager()->EndUndoTransaction();
-		}
+		GenerateAsset(Result);
 
 		TArray<AActor*> Actors;
 		for (auto& ComponentTarget : ComponentTargets)
@@ -212,6 +208,8 @@ void UVoxelMorphologyMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			Actors.Add(ComponentTarget->GetOwnerActor());
 		}
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
+
+		GetToolManager()->EndUndoTransaction();
 	}
 
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
