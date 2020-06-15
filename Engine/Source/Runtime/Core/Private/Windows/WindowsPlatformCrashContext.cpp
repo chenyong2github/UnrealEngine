@@ -46,13 +46,17 @@
 	#define USE_CRASH_REPORTER_MONITOR 0
 #endif
 
+#ifndef NOINITCRASHREPORTER
+#define NOINITCRASHREPORTER 0
+#endif
+
 #define CR_CLIENT_MAX_PATH_LEN 265
 #define CR_CLIENT_MAX_ARGS_LEN 256
 
 #pragma comment( lib, "version.lib" )
 #pragma comment( lib, "Shlwapi.lib" )
 
-LONG WINAPI UnhandledException(LPEXCEPTION_POINTERS ExceptionInfo);
+LONG WINAPI EngineUnhandledExceptionFilter(LPEXCEPTION_POINTERS ExceptionInfo);
 LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo);
 
 /** Platform specific constants. */
@@ -997,8 +1001,6 @@ private:
 	HANDLE CrashingThreadHandle;
 	/** Handle used to remove vectored exception handler. */
 	HANDLE VectoredExceptionHandle;
-	/** Handle exceptions from non-engine threads (threads that are likely not guarded by a __try/__except). */
-	HANDLE VectoredExceptionHandleNonEngineThread;
 
 	/** Process handle to crash reporter client */
 	FProcHandle CrashClientHandle;
@@ -1076,7 +1078,6 @@ public:
 		, CrashingThreadId(0)
 		, CrashingThreadHandle(nullptr)
 		, VectoredExceptionHandle(INVALID_HANDLE_VALUE)
-		, VectoredExceptionHandleNonEngineThread(INVALID_HANDLE_VALUE)
 		, CrashMonitorWritePipe(nullptr)
 		, CrashMonitorReadPipe(nullptr)
 		, CrashMonitorPid(0)
@@ -1115,11 +1116,9 @@ public:
 			FGenericCrashContext::SetOutOfProcessCrashReporterPid(CrashMonitorPid);
 		}
 
-#if WITH_EDITOR // Just for the Editor in 4.25.1 to avoid changing other apps behavior.
-		// Register a vectored excption handler for exceptions that aren't caught by structured exception handling (__try/__except). There is a small uncovered
-		// gap before this handler is installed, but should mostly be covered by UnhandledStaticInitException.
-		FCoreDelegates::GetPreMainInitDelegate().AddRaw(this, &FCrashReportingThread::AddUnhandledExceptionHandler);
-#endif
+		// Register an exception handler for exceptions that aren't caught by vectored exception handler or structured exception handling (__try/__except),
+		// especially to capture crash in non-engine-wrapped threads (like native threads) that are usually not guarded with structured exception handling.
+		FCoreDelegates::GetPreMainInitDelegate().AddRaw(this, &FCrashReportingThread::RegisterUnhandledExceptionHandler);
 	}
 
 	FORCENOINLINE ~FCrashReportingThread()
@@ -1145,11 +1144,11 @@ public:
 		CrashHandledEvent = nullptr;
 	}
 
-	void AddUnhandledExceptionHandler()
+	void RegisterUnhandledExceptionHandler()
 	{
-		// Capture crashes from non-engine threads (The threads not wrapped in a FRunnableThread like std::thread or native thread).
-		constexpr ULONG CallLast  = 0;
-		VectoredExceptionHandleNonEngineThread = AddVectoredExceptionHandler(CallLast, UnhandledException);
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED && !NOINITCRASHREPORTER && WITH_EDITOR // Just registered for the Editor in 4.25.x to avoid changing other apps behavior.
+		::SetUnhandledExceptionFilter(EngineUnhandledExceptionFilter);
+#endif
 	}
 
 	DWORD GetReporterThreadId() const
@@ -1380,14 +1379,9 @@ private:
 
 #include "Windows/HideWindowsPlatformTypes.h"
 
-#ifndef NOINITCRASHREPORTER
-#define NOINITCRASHREPORTER 0
-#endif
-
 #if !NOINITCRASHREPORTER
 TOptional<FCrashReportingThread> GCrashReportingThread(InPlace);
 #endif
-
 
 LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
 {
@@ -1413,54 +1407,57 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
 }
 
 /**
- * Fallback for catching exceptions which aren't caught elsewhere. This allows catching exceptions on threads created outside the engine.
- * Note that Windows does not call this handler if a debugger is attached, separately to our internal logic around crash handling.
- * NOTE: This vectored exception handler is called before any structured exception handler (__try/__except). Unless a debugger is attached
- *       or UnhandledStaticInitException() is registered, it has the first chance of handling the exception. It should ignore exceptions that
- *       are locally handled with __try/__except.
+ * Fallback for handling exceptions that aren't handled elsewhere.
+ *
+ * The SEH mechanism is not very well documented, so to start with, few facts to know:
+ *   - SEH uses 'handlers' and 'filters'. They have different roles and are invoked at different state.
+ *   - Any unhandled exception is going to terminate the program whether it is a benign exception or a fatal one.
+ *   - Vectored exception handlers, Vectored continue handlers and the unhandled exception filter are global to the process.
+ *   - Exceptions occurring in a thread doesn't automatically halt other threads. Exception handling executes in thread where the exception fired. The other threads continue to run.
+ *   - Several threads can crash concurrently­.
+ *   - Not all exceptions are equal. Some exceptions can be handled doing nothing more than catching them and telling the code to continue (like some user defined exception), some
+ *     needs to be handled in a __except() clause to allow the program to continue (like access violation) and others are fatal and can only be reported but not continued (like stack overflow).
+ *   - Not all machines are equal. Different exceptions may be fired on different machines for the same usage of the program. This seems especially true when
+ *     using the OS 'open file' dialog where the user specific extensions to the Windows Explorer get loaded in the process.
+ *   - If an exception handler/filter triggers another exception, the new inner exception is handled recursively. If the code is not robust, it may retrigger that inner exception over and over.
+ *     This eventually stops with a stack overflow, at which point the OS terminates the program and the original exception is lost.
+ *
+ * When an exception occurs, Windows executes following steps:
+ *     1- Invoke the vectored exception handlers registered with AddVectoredExceptionHandler(), if any.
+ *         - In general, this is too soon to handle an exception because local structured exception handlers did not execute yet and many exceptions are handled there.
+ *         - If a registered vectored exception handler returns EXCEPTION_CONTINUE_EXECUTION, the vectored continue handler(s), are invoked next (see number 4 below)
+ *         - If a registered vectored exception handler returns EXCEPTION_CONTINUE_SEARCH, the OS skip this one and continue iterating the list of vectored exception handlers.
+ *         - If a registered vectored exception handler returns EXCEPTION_EXECUTE_HANDLER, in my tests, this was equivalent to returning EXCEPTION_CONTINUE_SEARCH.
+ *         - If no vectored exception handlers are registered or all registered one return EXCEPTION_CONTINUE_SEARCH, the structured exception handlers (__try/__except) are executed next.
+  *        - At this stage, be careful when returning EXCEPTION_CONTINUE_EXECUTION. For example, continuing after an access violation would retrigger the exception immediatedly.
+ *     2- If the exception wasn't handled by a vectored exception handler, invoke the structured exception handlers (the __try/__except clauses)
+ *         - That let the code manage exceptions more locally, for the Engine, we want that to run first.
+ *         - When the filter expression in __except(filterExpression) { block } clause returns EXCEPTION_EXECUTE_HANDLER, the 'block' is executed, the code continue after the block. The exception is considered handled.
+ *         - When the filter expression in __except(filterExpression) { block } clause returns EXCEPTION_CONTINUE_EXECUTION, the 'block' is not executed and vectored continue exceptions handlers (if any) gets called. (see number 4 below)
+ *         - When the filter expression in __except(filterExpression) { block } clause returns EXCEPTION_CONTINUE_SEARCH, the 'block' is not executed and the search continue for the next __try/__except in the callstack.
+ *         - If all unhandled exception filters within the call stack were executed and all of them returned returned EXCEPTION_CONTINUE_SEARCH, the unhandled exception filter is invoked. (see number 3 below)
+ *         - The __except { block } allows the code to continue from most exceptions, even from an access violation because code resume after the except block, not at the point of the exception.
+ *     3- If the exception wasn't handled yet, the system calls the function registered with SetUnhandedExceptionFilter(). There is only one such function, the last to register override the previous one.
+ *         - At that point, both vectored exception handlers and structured exception handlers have had a chance to handle the exception but did not.
+ *         - If this function returns EXCEPTION_CONTINUE_SEARCH or EXCEPTION_EXECUTE_HANDLER, by default, the OS handler is invoked and the program is terminated.
+ *         - If this function returns EXCEPTION_CONTINUE_EXECUTION, the vectored continue handlers are invoked (see number 4 below)
+ *     4- If a handler or a filter returned the EXCEPTION_CONTINUE_EXECUTION, the registered vectored continue handlers are invoked.
+ *         - This is last chance to do something about an exception. The program was allowed to continue by a previous filter/handler, effectively ignoring the exception.
+ *         - The handler can return EXCEPTION_CONTINUE_SEARCH to observe only. The OS will continue and invoke the next handler in the list.
+ *         - The handler can short cut other continue handlers by returning EXCEPTION_CONTINUE_EXECUTION which resume the code immediatedly.
+ *         - In my tests, if a vectored continue handler returns EXCEPTION_EXECUTE_HANDLER, this is equivalent to returning EXCEPTION_CONTINUE_SEARCH.
+ *         - By default, if no handlers are registered or all registered handler(s) returned EXCEPTION_CONTINUE_SEARCH, the program resumes execution at the point of the exception.
+ *
+ * The engine hooks itself in the unhandled exception filter. This is the best place to be as it runs after structured exception handlers and
+ * it can be easily overriden externally (because there can only be one) to do something else.
  */
-LONG WINAPI UnhandledException(LPEXCEPTION_POINTERS ExceptionInfo)
+LONG WINAPI EngineUnhandledExceptionFilter(LPEXCEPTION_POINTERS ExceptionInfo)
 {
-#if !NOINITCRASHREPORTER
-	// Top bit in exception code is fatal exceptions. Report those but not other types.
-	if ((ExceptionInfo->ExceptionRecord->ExceptionCode & 0x80000000L) != 0)
-	{
-		// This exception was encountered on a machine when disconnecting/reconnecting to RDP while the Editor was opened. Ignoring it didn't
-		// crash the Editor, so it wasn't really fatal in that case. Worst case, the exception propagates and the app crashes without a crash report.
-		if (ExceptionInfo->ExceptionRecord->ExceptionCode == 0xE06D7363)
-		{
-			return EXCEPTION_CONTINUE_SEARCH;
-		}
+	ReportCrash(ExceptionInfo);
+	GIsCriticalError = true;
+	FPlatformMisc::RequestExit(true);
 
-		uint32 CurrThreadId = FPlatformTLS::GetCurrentThreadId();
-
-		// The game thread and the crash reporting thread are not FRunnableThread but has local structured exception handling in-place.
-		if (!GCrashReportingThread.IsSet() || IsInGameThread() || GCrashReportingThread->GetReporterThreadId() == CurrThreadId)
-		{
-			return EXCEPTION_CONTINUE_SEARCH; // Skip, the exception is expected to be handled elsewhere.
-		}
-
-		// Check if the crashing thread is an engine thread.
-		bool bIsEngineThread = false;
-		FThreadManager::Get().ForEachThread([&CurrThreadId, &bIsEngineThread](uint32 ThreadId, FRunnableThread*)
-		{
-			if (ThreadId == CurrThreadId)
-			{
-				bIsEngineThread = true;
-			}
-		});
-
-		// Not a registered engine thread?
-		if (!bIsEngineThread)
-		{
-			ReportCrash(ExceptionInfo);
-			GIsCriticalError = true;
-			FPlatformMisc::RequestExit(true);
-		}
-		// else -> engine threads on Windows are expected to handle exceptions locally with __try and __except.
-	}
-#endif
-	return EXCEPTION_CONTINUE_SEARCH;
+	return EXCEPTION_CONTINUE_SEARCH; // Not really important, RequestExit() terminates the process just above.
 }
 
 // #CrashReport: 2015-05-28 This should be named EngineCrashHandler
