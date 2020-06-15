@@ -1150,7 +1150,7 @@ FVulkanBuffer::~FVulkanBuffer()
 	// The buffer should be unmapped
 	check(BufferPtr == nullptr);
 
-	Device.GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue::EType::Buffer, Buf);
+	Device.GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue2::EType::Buffer, Buf);
 	Buf = VK_NULL_HANDLE;
 
 	Device.GetMemoryManager().Free(Allocation);
@@ -1486,7 +1486,7 @@ void FVulkanBufferView::Destroy()
 	if (View != VK_NULL_HANDLE)
 	{
 		DEC_DWORD_STAT(STAT_VulkanNumBufferViews);
-		Device->GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue::EType::BufferView, View);
+		Device->GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue2::EType::BufferView, View);
 		View = VK_NULL_HANDLE;
 		ViewId = 0;
 	}
@@ -1616,7 +1616,7 @@ FVulkanRenderPass::~FVulkanRenderPass()
 {
 	DEC_DWORD_STAT(STAT_VulkanNumRenderPasses);
 
-	Device.GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue::EType::RenderPass, RenderPass);
+	Device.GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue2::EType::RenderPass, RenderPass);
 	RenderPass = VK_NULL_HANDLE;
 }
 
@@ -1695,7 +1695,8 @@ FVulkanRingBuffer::FVulkanRingBuffer(FVulkanDevice* InDevice, uint64 TotalSize, 
 
 FVulkanRingBuffer::~FVulkanRingBuffer()
 {
-	delete BufferSuballocation;
+	Device->GetDeferredDeletionQueue().EnqueueBufferSuballocationDirect(BufferSuballocation);
+	BufferSuballocation = 0;
 }
 
 uint64 FVulkanRingBuffer::WrapAroundAllocateMemory(uint64 Size, uint32 Alignment, FVulkanCmdBuffer* InCmdBuffer)
