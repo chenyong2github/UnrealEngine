@@ -2311,7 +2311,7 @@ EAccessSpecifier FHeaderParser::ParseAccessProtectionSpecifier(const FToken& Tok
 
 	for (EAccessSpecifier Test = EAccessSpecifier(ACCESS_NotAnAccessSpecifier + 1); Test != ACCESS_Num; Test = EAccessSpecifier(Test + 1))
 	{
-		if (Token.Matches(GetAccessSpecifierName(Test), ESearchCase::CaseSensitive) || (Test == ACCESS_Public && Token.Matches(TEXT("private_subobject"), ESearchCase::CaseSensitive)))
+		if (Token.Matches(GetAccessSpecifierName(Test), ESearchCase::CaseSensitive))
 		{
 			auto ErrorMessageGetter = [&Token]() { return FString::Printf(TEXT("after %s"), Token.Identifier);  };
 
@@ -4744,7 +4744,6 @@ void FHeaderParser::GetVarType(
 			const bool bIsWeakPtrTemplate        = VarType.Matches(TEXT("TWeakObjectPtr"), ESearchCase::CaseSensitive);
 			const bool bIsAutoweakPtrTemplate    = VarType.Matches(TEXT("TAutoWeakObjectPtr"), ESearchCase::CaseSensitive);
 			const bool bIsScriptInterfaceWrapper = VarType.Matches(TEXT("TScriptInterface"), ESearchCase::CaseSensitive);
-			const bool bIsSubobjectPtrTemplate   = VarType.Matches(TEXT("TSubobjectPtr"), ESearchCase::CaseSensitive);
 
 			bool bIsWeak     = false;
 			bool bIsLazy     = false;
@@ -4765,7 +4764,7 @@ void FHeaderParser::GetVarType(
 				TempClass = UClass::StaticClass();
 				bIsSoft = true;
 			}
-			else if (bIsLazyPtrTemplate || bIsWeakPtrTemplate || bIsAutoweakPtrTemplate || bIsScriptInterfaceWrapper || bIsSoftObjectPtrTemplate || bIsSubobjectPtrTemplate)
+			else if (bIsLazyPtrTemplate || bIsWeakPtrTemplate || bIsAutoweakPtrTemplate || bIsScriptInterfaceWrapper || bIsSoftObjectPtrTemplate)
 			{
 				RequireSymbol(TEXT('<'), VarType.Identifier);
 
@@ -4803,10 +4802,6 @@ void FHeaderParser::GetVarType(
 					else if (bIsSoftObjectPtrTemplate)
 					{
 						bIsSoft = true;
-					}
-					else if (bIsSubobjectPtrTemplate)
-					{
-						Flags |= CPF_SubobjectReference | CPF_InstancedReference;
 					}
 
 					Flags |= CPF_UObjectWrapper;

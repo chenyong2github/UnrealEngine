@@ -151,11 +151,6 @@ FSimpleMulticastDelegate FCoreUObjectDelegates::PostGarbageCollectConditionalBeg
 
 FCoreUObjectDelegates::FPreLoadMapDelegate FCoreUObjectDelegates::PreLoadMap;
 FCoreUObjectDelegates::FPostLoadMapDelegate FCoreUObjectDelegates::PostLoadMapWithWorld;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FCoreUObjectDelegates::FSoftObjectPathLoaded FCoreUObjectDelegates::StringAssetReferenceLoaded;
-FCoreUObjectDelegates::FSoftObjectPathSaving FCoreUObjectDelegates::StringAssetReferenceSaving;
-FCoreUObjectDelegates::FOnRedirectorFollowed FCoreUObjectDelegates::RedirectorFollowed;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 FSimpleMulticastDelegate FCoreUObjectDelegates::PostDemoPlay;
 FCoreUObjectDelegates::FOnLoadObjectsOnTop FCoreUObjectDelegates::ShouldLoadOnTop;
 FCoreUObjectDelegates::FShouldCookPackageForPlatform FCoreUObjectDelegates::ShouldCookPackageForPlatform;
@@ -2843,43 +2838,6 @@ void FObjectInitializer::PostConstructInit()
 	{
 		UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s failed to route PostInitProperties. Call Super::PostInitProperties() in %s::PostInitProperties()."), *Obj->GetClass()->GetName(), *Obj->GetClass()->GetName());
 	}
-	// Check if all TSubobjectPtr properties have been initialized.
-#if !USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	if (!Obj->HasAnyFlags(RF_NeedLoad))
-#else 
-	// we defer this initialization in special set of cases (when Obj is a CDO 
-	// and its parent hasn't been serialized yet)... in those cases, Obj (the 
-	// CDO) wouldn't have had RF_NeedLoad set (not yet, because it is created 
-	// from Class->GetDefualtObject() without that flag); since we've deferred
-	// all this, it is likely that this flag is now present... we want to run 
-	// all this as if the object was just created, so we check 
-	// bIsDeferredInitializer as well
-	if (!Obj->HasAnyFlags(RF_NeedLoad) || bIsDeferredInitializer)
-#endif // !USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	{
-		for (FProperty* P = Class->RefLink; P; P = P->NextRef)
-		{
-			if (P->HasAnyPropertyFlags(CPF_SubobjectReference))
-			{
-				FObjectProperty* ObjProp = CastFieldChecked<FObjectProperty>(P);
-				UObject* PropertyValue = ObjProp->GetObjectPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(Obj));
-				if (!FSubobjectPtr::IsInitialized(PropertyValue))
-				{
-					UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s must be initialized in the constructor (at least to NULL) by calling ObjectInitializer.CreateDefaultSubobject"), *ObjProp->GetFullName() );
-				}
-				else if (PropertyValue && P->HasAnyPropertyFlags(CPF_Transient))
-				{
-					// Transient subobjects can't be in the list of ComponentInits
-					for (int32 Index = 0; Index < ComponentInits.SubobjectInits.Num(); Index++)
-					{
-						UObject* Subobject = ComponentInits.SubobjectInits[Index].Subobject;
-						UE_CLOG(Subobject->GetFName() == PropertyValue->GetFName(), 
-							LogUObjectGlobals, Fatal, TEXT("Transient property %s contains a reference to non-transient subobject %s."), *ObjProp->GetFullName(), *PropertyValue->GetName() );
-					}
-				}
-			}
-		}
-	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 #if !USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
@@ -2975,18 +2933,6 @@ void FObjectInitializer::InstanceSubobjects(UClass* Class, bool bNeedInstancing,
 UClass* FObjectInitializer::GetClass() const
 {
 	return Obj->GetClass();
-}
-
-void FSubobjectPtr::Set(UObject* InObject)
-{
-	if (Object != InObject && IsInitialized(Object) && !Object->IsPendingKill())
-	{
-		UE_LOG(LogUObjectGlobals, Fatal, TEXT("Unable to overwrite default subobject %s"), *Object->GetPathName());
-	}
-	else
-	{
-		Object = InObject;
-	}
 }
 
 // Binary initialize object properties to zero or defaults.

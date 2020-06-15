@@ -3238,7 +3238,7 @@ COREUOBJECT_API TArray<const TCHAR*> ParsePropertyFlags(EPropertyFlags InFlags)
 		TEXT("CPF_InstancedReference"),
 		TEXT("0x0000000000100000"),
 		TEXT("CPF_DuplicateTransient"),
-		TEXT("CPF_SubobjectReference"),
+		TEXT("0x0000000000400000"),
 		TEXT("0x0000000000800000"),
 		TEXT("CPF_SaveGame"),	
 		TEXT("CPF_NoClear"),
@@ -4368,13 +4368,6 @@ void InitUObject()
 	
 	FCoreDelegates::NewFileAddedDelegate.AddStatic(FLinkerLoad::OnNewFileAdded);
 	FCoreDelegates::OnPakFileMounted2.AddStatic(FLinkerLoad::OnPakFileMounted);
-
-#if WITH_EDITOR
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FCoreUObjectDelegates::StringAssetReferenceLoaded.BindRaw(&GRedirectCollector, &FRedirectCollector::OnStringAssetReferenceLoaded);
-	FCoreUObjectDelegates::StringAssetReferenceSaving.BindRaw(&GRedirectCollector, &FRedirectCollector::OnStringAssetReferenceSaved);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
 
 	// Object initialization.
 	StaticUObjectInit();

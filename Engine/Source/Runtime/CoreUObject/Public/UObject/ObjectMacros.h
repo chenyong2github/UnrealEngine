@@ -384,7 +384,7 @@ enum EPropertyFlags : uint64
 	CPF_InstancedReference				= 0x0000000000080000,	///< Property is a component references.
 	//CPF_								= 0x0000000000100000,	///<
 	CPF_DuplicateTransient				= 0x0000000000200000,	///< Property should always be reset to the default value during any type of duplication (copy/paste, binary duplication, etc.)
-	CPF_SubobjectReference				= 0x0000000000400000,	///< Property contains subobject references (TSubobjectPtr)
+	//CPF_								= 0x0000000000400000,	///< 
 	//CPF_    							= 0x0000000000800000,	///< 
 	CPF_SaveGame						= 0x0000000001000000,	///< Property should be serialized for save games, this is only checked for game-specific archives with ArIsSaveGame
 	CPF_NoClear							= 0x0000000002000000,	///< Hide clear (and browse) button.
