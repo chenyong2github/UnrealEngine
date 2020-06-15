@@ -34,6 +34,16 @@ static TAutoConsoleVariable<int32> CVarUseUpdateTexture3DComputeShader(
 	TEXT(" 1: on"),
 	ECVF_RenderThreadSafe );
 
+static TAutoConsoleVariable<bool> CVarTexturePoolOnlyAccountStreamableTexture(
+	TEXT("D3D12.TexturePoolOnlyAccountStreamableTexture"),
+	0,
+	TEXT("Texture streaming pool size only account streamable texture .\n")
+	TEXT(" - 0: All texture types are counted in the pool (legacy, default).\n")
+	TEXT(" - 1: Only streamable textures are counted in the pool.\n")
+	TEXT("When enabling the new behaviour, r.Streaming.PoolSize will need to be re-adjusted.\n"),
+	ECVF_ReadOnly
+);
+
 // Forward Decls for template types
 template TD3D12Texture2D<FD3D12BaseTexture2D>::TD3D12Texture2D(class FD3D12Device* InParent, uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples,
 	EPixelFormat InFormat, bool bInCubemap, uint32 InFlags, const FClearValueBinding& InClearValue, const FD3D12TextureLayout* InTextureLayout
@@ -297,7 +307,7 @@ TStatId FD3D12TextureStats::GetD3D12StatEnum(uint32 MiscFlags, bool bCubeMap, bo
 // Note: This function can be called from many different threads
 // @param TextureSize >0 to allocate, <0 to deallocate
 // @param b3D true:3D, false:2D or cube map
-void FD3D12TextureStats::UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap)
+void FD3D12TextureStats::UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap, bool bStreamable)
 {
 	if (TextureSize == 0)
 	{
@@ -307,7 +317,12 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc
 	const int64 AlignedSize = (TextureSize > 0) ? Align(TextureSize, 1024) / 1024 : -(Align(-TextureSize, 1024) / 1024);
 	if (ShouldCountAsTextureMemory(Desc.Flags))
 	{
-		FPlatformAtomics::InterlockedAdd(&GCurrentTextureMemorySize, AlignedSize);
+		bool bOnlyStreamableTextureAccounted = CVarTexturePoolOnlyAccountStreamableTexture.GetValueOnAnyThread();
+
+		if (!bOnlyStreamableTextureAccounted || bStreamable)
+		{
+			FPlatformAtomics::InterlockedAdd(&GCurrentTextureMemorySize, AlignedSize);
+		}
 	}
 	else
 	{
@@ -350,7 +365,7 @@ void FD3D12TextureStats::D3D12TextureAllocated(TD3D12Texture2D<BaseResourceType>
 
 			Texture.SetMemorySize(TextureSize);
 
-			UpdateD3D12TextureStats(*Desc, TextureSize, false, Texture.IsCubemap());
+			UpdateD3D12TextureStats(*Desc, TextureSize, false, Texture.IsCubemap(), Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
 			// On Windows there is no way to hook into the low level d3d allocations and frees.
@@ -374,7 +389,7 @@ void FD3D12TextureStats::D3D12TextureDeleted(TD3D12Texture2D<BaseResourceType>& 
 		const int64 TextureSize = Texture.GetMemorySize();
 		ensure(TextureSize > 0 || (Texture.Flags & TexCreate_Virtual) || Texture.GetAliasingSourceTexture() != nullptr);
 
-		UpdateD3D12TextureStats(Desc, -TextureSize, false, Texture.IsCubemap());
+		UpdateD3D12TextureStats(Desc, -TextureSize, false, Texture.IsCubemap(), Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
 		// On Windows there is no way to hook into the low level d3d allocations and frees.
@@ -402,7 +417,7 @@ void FD3D12TextureStats::D3D12TextureAllocated(FD3D12Texture3D& Texture)
 
 		Texture.SetMemorySize(TextureSize);
 
-		UpdateD3D12TextureStats(Desc, TextureSize, true, false);
+		UpdateD3D12TextureStats(Desc, TextureSize, true, false, Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
 		// On Windows there is no way to hook into the low level d3d allocations and frees.
@@ -423,7 +438,7 @@ void FD3D12TextureStats::D3D12TextureDeleted(FD3D12Texture3D& Texture)
 		const int64 TextureSize = Texture.GetMemorySize();
 		if (TextureSize > 0)
 		{
-			UpdateD3D12TextureStats(Desc, -TextureSize, true, false);
+			UpdateD3D12TextureStats(Desc, -TextureSize, true, false, Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
 			// On Windows there is no way to hook into the low level d3d allocations and frees.
