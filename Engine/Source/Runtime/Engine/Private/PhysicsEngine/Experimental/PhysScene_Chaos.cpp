@@ -1273,20 +1273,12 @@ void FPhysScene_ChaosInterface::Flush_AssumesLocked()
 {
 	check(IsInGameThread());
 
-	// Flush all of our pending commands
-	Chaos::IDispatcher* Dispatcher = FChaosSolversModule::GetModule()->GetDispatcher();
-
-	if(Dispatcher->GetMode() != Chaos::EThreadingMode::SingleThread)
-	{
-		Dispatcher->Execute();
-	}
-
 	Chaos::FPBDRigidsSolver* Solver = GetSolver();
 
 	if(Solver)
 	{
 		//Make sure any dirty proxy data is pushed
-		Solver->PushPhysicsState(Dispatcher);
+		Solver->PushPhysicsState(nullptr);
 		Solver->AdvanceAndDispatch_External(0);	//force commands through
 		Solver->WaitOnPendingTasks_External();
 		
@@ -2084,9 +2076,6 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		check(CompletionEvent->IsComplete());
 		//check(PhysicsTickTask->IsComplete());
 		CompletionEvent = nullptr;
-
-		//flush queue so we can merge the two threads
-		Dispatcher->Execute();
 
 		// Make a list of solvers to process. This is a list of all solvers registered to our world
 		// And our internal base scene solver.

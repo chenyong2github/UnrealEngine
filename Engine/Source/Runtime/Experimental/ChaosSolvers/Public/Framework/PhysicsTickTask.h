@@ -56,27 +56,6 @@ private:
 };
 
 /**
- * Task responsible for running the two global command queues prior to distributing the solver tasks.
- * The base tick task will dispatch this task then begin dispatching solvers while this is ongoing.
- */
-class CHAOSSOLVERS_API FPhysicsCommandsTask
-{
-public:
-
-	FPhysicsCommandsTask();
-
-	TStatId GetStatId() const;
-	static ENamedThreads::Type GetDesiredThread();
-	static ESubsequentsMode::Type GetSubsequentsMode();
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-
-private:
-
-	FChaosSolversModule* Module;
-	Chaos::IDispatcher* Dispatcher;
-};
-
-/**
  * Task responsible for processing the command buffer of a single solver and advancing it
  * the specified number of times, by the specified delta time.
  */

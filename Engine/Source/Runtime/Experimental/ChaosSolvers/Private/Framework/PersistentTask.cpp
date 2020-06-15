@@ -51,6 +51,7 @@ namespace Chaos
 
 	void FPersistentPhysicsTask::DoWork()
 	{
+#if 0
 		// Capture solver states from the module by copying the current state. The module
 		// will inject any new solvers with a command.
 		FChaosSolversModule& ChaosModule = FModuleManager::Get().GetModuleChecked<FChaosSolversModule>("ChaosSolvers");
@@ -180,6 +181,7 @@ namespace Chaos
 		DebugSolverTasks.Shutdown();
 
 		ShutdownEvent->Trigger();
+#endif
 	}
 
 	void FPersistentPhysicsTask::StepSolver(FPhysicsSolverBase* InSolver, float Dt)
