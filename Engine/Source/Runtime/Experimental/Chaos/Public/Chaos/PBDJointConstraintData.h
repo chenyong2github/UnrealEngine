@@ -36,6 +36,7 @@ namespace Chaos
 
 		bool IsValid() const;
 		bool IsDirty() const { return MDirtyFlags.IsDirty(); }
+		bool IsDirty(const EJointConstraintFlags CheckBits) const { return MDirtyFlags.IsDirty(CheckBits); }
 		void ClearDirtyFlags() { MDirtyFlags.Clear(); }
 
 		void SetJointParticles(const Chaos::FJointConstraint::FParticlePair& InJointParticles);
@@ -48,6 +49,8 @@ namespace Chaos
 
 		void SetCollisionEnabled(bool InValue);
 		bool GetCollisionEnabled() const;
+
+		const FData& GetJointSettings()const {return JointSettings; }
 
 	protected:
 		class IPhysicsProxyBase* Proxy;

@@ -36,6 +36,7 @@ public:
 	using FConstraintHandle = typename CONSTRAINT_TYPE::FHandle;
 	using FConstraintData = typename CONSTRAINT_TYPE::FData;
 	using FJointConstraints = Chaos::FPBDJointConstraints;
+	using FJointConstraintDirtyFlags = Chaos::FJointConstraintDirtyFlags;
 	using FParticlePair = Chaos::TVector<Chaos::TGeometryParticle<FReal, 3>*, 2>;
 	using FParticleHandlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<FReal, 3>*, 2>;
 
@@ -129,6 +130,9 @@ public:
 	bool IsDirty() { return Constraint->IsDirty(); }
 	
 private:
+
+	FConstraintData JointSettingsBuffer;
+	FJointConstraintDirtyFlags DirtyFlagsBuffer;
 
 	CONSTRAINT_TYPE* Constraint;
 	FConstraintHandle* Handle;
