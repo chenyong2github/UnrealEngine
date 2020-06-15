@@ -577,7 +577,7 @@ TSharedRef<SWidget> SStatusBar::MakeContentBrowserWidget()
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(FAppStyle::Get().GetBrush("StatusBar.ContentBrowserIcon"))
+				.Image(FAppStyle::Get().GetBrush("ContentBrowser.TabIcon"))
 			]
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
