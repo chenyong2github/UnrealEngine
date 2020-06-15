@@ -240,12 +240,8 @@ TUniquePtr<FDynamicMeshOperator> UVoxelSolidifyMeshesTool::MakeNewOperator()
 	Op->SurfaceSearchSteps = SolidifyProperties->SurfaceSearchSteps;
 	Op->ExtendBounds = SolidifyProperties->ExtendBounds;
 
-	Op->InputVoxelCount = VoxProperties->VoxelCount;
-	Op->OutputVoxelCount = VoxProperties->VoxelCount;
-	Op->SimplifyMaxErrorFactor = VoxProperties->SimplifyMaxErrorFactor;
-	Op->bAutoSimplify = VoxProperties->bAutoSimplify;
-	Op->MinComponentVolume = VoxProperties->CubeRootMinComponentVolume * VoxProperties->CubeRootMinComponentVolume * VoxProperties->CubeRootMinComponentVolume;
-
+	VoxProperties->SetPropertiesOnOp(*Op);
+	
 	return Op;
 }
 
@@ -318,9 +314,11 @@ void UVoxelSolidifyMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	CenteredTransform.SetScale(FVector3d::One());
 	CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() + CenteredTransform.TransformVector(Center * Rescale));
 	
+	TArray<UMaterialInterface*> Materials;
+	Materials.Add(LoadObject<UMaterial>(nullptr, TEXT("MATERIAL")));
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), CenteredTransform, TEXT("Solidify Mesh"), Preview->StandardMaterials);
+		Result.Mesh.Get(), CenteredTransform, TEXT("Solidify Mesh"), Materials);
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);

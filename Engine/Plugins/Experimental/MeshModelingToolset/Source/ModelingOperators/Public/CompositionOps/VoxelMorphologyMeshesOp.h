@@ -42,6 +42,8 @@ public:
 	EMorphologyOperation Operation;
 
 	bool bSolidifyInput = false;
+	bool bRemoveInternalsAfterSolidify = false;
+	double OffsetSolidifySurface = 0.0;
 
 	void SetTransform(const FTransform& Transform);
 
