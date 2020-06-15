@@ -66,6 +66,7 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 {
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 	Concrete.SetCollisionGroup(0);
+	Concrete.ClearCollisionConstraintFlag();
 	Concrete.SetDisabled(Params.bDisabled);
 	Concrete.SetPreV(Concrete.V());
 	Concrete.SetPreW(Concrete.W());
@@ -712,6 +713,11 @@ public:
 	int32& CollisionGroup() { return PBDRigidParticles->CollisionGroup(ParticleIdx); }
 	void SetCollisionGroup(const int32 InCollisionGroup) { PBDRigidParticles->CollisionGroup(ParticleIdx) = InCollisionGroup; }
 
+	bool HasCollisionConstraintFlag(const ECollisionConstraintFlags Flag) const { return  PBDRigidParticles->HasCollisionConstraintFlag(Flag, ParticleIdx); }
+	void AddCollisionConstraintFlag(const ECollisionConstraintFlags Flag) { PBDRigidParticles->AddCollisionConstraintFlag(Flag, ParticleIdx); }
+	void RemoveCollisionConstraintFlag(const ECollisionConstraintFlags Flag) { PBDRigidParticles->RemoveCollisionConstraintFlag(Flag, ParticleIdx); }
+	void ClearCollisionConstraintFlag() { PBDRigidParticles->ClearCollisionConstraintFlag(ParticleIdx); }
+
 	bool Disabled() const { return PBDRigidParticles->Disabled(ParticleIdx); }
 	bool& Disabled() { return PBDRigidParticles->DisabledRef(ParticleIdx); }
 
@@ -1123,6 +1129,17 @@ public:
 
 		return 0;
 	}
+
+	bool HasCollisionConstraintFlag(const ECollisionConstraintFlags Flag)  const
+	{
+		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		{
+			return MHandle->CastToRigidParticle()->HasCollisionConstraintFlag(Flag);
+		}
+
+		return false;
+	}
+
 
 	// @todo(ccaulfield): should be available on all types?
 	bool Disabled() const
