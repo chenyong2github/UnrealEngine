@@ -3399,7 +3399,7 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 
 	if (UninitializedScriptStructMemberCount > 0)
 	{
-		UE_LOG(LogClass, Display, TEXT("%i Uninitialized script stuct members found"), UninitializedScriptStructMemberCount);
+		UE_LOG(LogClass, Display, TEXT("%i Uninitialized script struct members found"), UninitializedScriptStructMemberCount);
 	}
 	return UninitializedScriptStructMemberCount;
 }
