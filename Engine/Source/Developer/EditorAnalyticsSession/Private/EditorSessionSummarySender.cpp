@@ -242,12 +242,24 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 			if (!MonitorExceptCode.IsSet() || MonitorExceptCode.GetValue() == ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly)
 			{
 				// Find the first entry in the log that match an exception reported like: "CRC/Crash:-1073741819"
-				FRegexPattern Pattern(TEXT(R"(CRC.Crash:([-0-9]+).*)")); // Need help with regex? Try https://regex101.com/
-				FRegexMatcher Matcher(Pattern, *MonitorLog);
-				if (Matcher.FindNext())
+				FRegexPattern CrashPattern(TEXT(R"(CRC\/Crash:([-0-9]+).*)")); // Need help with regex? Try https://regex101.com/
+				FRegexMatcher CrashMatcher(CrashPattern, *MonitorLog);
+				if (CrashMatcher.FindNext())
 				{
-					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), Matcher.GetCaptureGroup(1)); // Report the first exception code found in the log.
+					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), CrashMatcher.GetCaptureGroup(1)); // Report the first exception code found in the log.
 					MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
+				}
+				else
+				{
+					// Check for 'CRC/Error'. Those are errors reported in log and the interesting one are the failed 'check()'. Normally CRC doesn't output errors.
+					FRegexPattern ErrorPattern(TEXT(R"(CRC\/Error)")); // Need help with regex? Try https://regex101.com/
+					FRegexMatcher ErrorMatcher(ErrorPattern, *MonitorLog);
+					if (ErrorMatcher.FindNext())
+					{
+						constexpr int32 CrcErrorCode = /*CrashReporterError*/777007; // Added in 4.25.2 but to avoid breaking public API in a dot release wasn't added to ECrashExitCodes. Should be added to the enum in 4.26.
+						AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), CrcErrorCode);
+						MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
+					}
 				}
 			}
 		}
