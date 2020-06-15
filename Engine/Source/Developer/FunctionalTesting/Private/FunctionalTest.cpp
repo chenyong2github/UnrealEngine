@@ -648,6 +648,20 @@ bool AFunctionalTest::AssertValue_Float(float Actual, EComparisonMethod ShouldBe
 	}
 }
 
+bool AFunctionalTest::AssertValue_Double(double Actual, EComparisonMethod ShouldBe, double Expected, const FString& What, const UObject* ContextObject)
+{
+	if ( !PerformComparison(Actual, Expected, ShouldBe) )
+	{
+		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("%s: expected {%lf} to be %s {%lf} for context '%s'"), *What, Actual, *GetComparisonAsString(ShouldBe), Expected, ContextObject ? *ContextObject->GetName() : TEXT("")));
+		return false;
+	}
+	else
+	{
+		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("%s: expected {%lf} to be %s {%lf} for context '%s'"), *What, Actual, *GetComparisonAsString(ShouldBe), Expected, ContextObject ? *ContextObject->GetName() : TEXT("")));
+		return true;
+	}
+}
+
 bool AFunctionalTest::AssertValue_DateTime(FDateTime Actual, EComparisonMethod ShouldBe, FDateTime Expected, const FString& What, const UObject* ContextObject)
 {
 	if ( !PerformComparison(Actual, Expected, ShouldBe) )
@@ -672,6 +686,20 @@ bool AFunctionalTest::AssertEqual_Float(const float Actual, const float Expected
 	else
 	{
 		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Float assertion passed (%s)"), *What));
+		return true;
+	}
+}
+
+bool AFunctionalTest::AssertEqual_Double(const double Actual, const double Expected, const FString& What, const double Tolerance, const UObject* ContextObject)
+{
+	if ( !FMath::IsNearlyEqual(Actual, Expected, Tolerance) )
+	{
+		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' to be {%lf}, but it was {%lf} within tolerance {%lf} for context '%s'"), *What, Expected, Actual, Tolerance, ContextObject ? *ContextObject->GetName() : TEXT("")));
+		return false;
+	}
+	else
+	{
+		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Double assertion passed (%s)"), *What));
 		return true;
 	}
 }
