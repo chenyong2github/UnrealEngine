@@ -1249,8 +1249,6 @@ FReply SMultiBoxWidget::FocusNextWidget(EUINavigation NavigationType)
 
 FReply SMultiBoxWidget::OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent )
 {
-	ResetSearch();
-
 	if (InFocusEvent.GetCause() == EFocusCause::Navigation)
 	{
 		// forward focus to children
