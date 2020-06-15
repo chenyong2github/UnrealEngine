@@ -235,13 +235,11 @@ TUniquePtr<FDynamicMeshOperator> UVoxelMorphologyMeshesTool::MakeNewOperator()
 		Op->Transforms[Idx] = TransformProxies[Idx]->GetTransform();
 	}
 
-	Op->InputVoxelCount = VoxProperties->VoxelCount;
-	Op->OutputVoxelCount = VoxProperties->VoxelCount;
-	Op->SimplifyMaxErrorFactor = VoxProperties->SimplifyMaxErrorFactor;
-	Op->bAutoSimplify = VoxProperties->bAutoSimplify;
-	Op->MinComponentVolume = VoxProperties->CubeRootMinComponentVolume * VoxProperties->CubeRootMinComponentVolume * VoxProperties->CubeRootMinComponentVolume;
-
+	VoxProperties->SetPropertiesOnOp(*Op);
+	
 	Op->bSolidifyInput = MorphologyProperties->bSolidifyInput;
+	Op->OffsetSolidifySurface = MorphologyProperties->OffsetSolidifySurface;
+	Op->bRemoveInternalsAfterSolidify = MorphologyProperties->bRemoveInternalsAfterSolidify;
 	Op->Distance = MorphologyProperties->Distance;
 	Op->Operation = MorphologyProperties->Operation;
 
@@ -317,9 +315,11 @@ void UVoxelMorphologyMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Resul
 	CenteredTransform.SetScale(FVector3d::One());
 	CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() + CenteredTransform.TransformVector(Center * Rescale));
 	
+	TArray<UMaterialInterface*> Materials;
+	Materials.Add(LoadObject<UMaterial>(nullptr, TEXT("MATERIAL")));
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), CenteredTransform, TEXT("Morphology Mesh"), Preview->StandardMaterials);
+		Result.Mesh.Get(), CenteredTransform, TEXT("Morphology Mesh"), Materials);
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);

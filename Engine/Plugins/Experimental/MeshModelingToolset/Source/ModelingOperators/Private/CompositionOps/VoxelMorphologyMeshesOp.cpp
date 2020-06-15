@@ -9,6 +9,8 @@
 #include "DynamicMeshAABBTree3.h"
 #include "MeshTransforms.h"
 #include "MeshSimplification.h"
+#include "Operations/RemoveOccludedTriangles.h"
+#include "Operations/ExtrudeMesh.h"
 
 #include "Generators/MarchingCubes.h"
 #include "Implicit/Morphology.h"
@@ -78,6 +80,15 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
+	if (bSolidifyInput && OffsetSolidifySurface > 0)
+	{
+		FMeshNormals::QuickComputeVertexNormals(CombinedMesh);
+		FExtrudeMesh Extrude(&CombinedMesh);
+		Extrude.DefaultExtrudeDistance = -OffsetSolidifySurface;
+		Extrude.IsPositiveOffset = false;
+		Extrude.Apply();
+	}
+
 	ImplicitMorphology.Source = &CombinedMesh;
 	FDynamicMeshAABBTree3 Spatial(&CombinedMesh, true);
 
@@ -87,6 +98,12 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 		TImplicitSolidify<FDynamicMesh3> Solidify(&CombinedMesh, &Spatial, &Winding);
 		Solidify.SetCellSizeAndExtendBounds(Spatial.GetBoundingBox(), 0, InputVoxelCount);
 		CombinedMesh.Copy(&Solidify.Generate());
+
+		if (bRemoveInternalsAfterSolidify)
+		{
+			UE::MeshAutoRepair::RemoveInternalTriangles(CombinedMesh, true, EOcclusionTriangleSampling::Centroids, EOcclusionCalculationMode::FastWindingNumber);
+		}
+
 		Spatial.Build(); // rebuild w/ updated mesh
 	}
 

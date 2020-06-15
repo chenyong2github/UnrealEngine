@@ -18,7 +18,7 @@
 
 #include "Async/ParallelFor.h"
 #include "Misc/ScopeLock.h"
-
+#include "HAL/PlatformAtomics.h"
 
 #include "Util/ProgressCancel.h"
 
@@ -35,11 +35,34 @@ enum class EOcclusionCalculationMode
 	SimpleOcclusionTest
 };
 
+namespace UE
+{
+	namespace MeshAutoRepair
+	{
+		/**
+		 * Remove any triangles that are internal to the input mesh
+		 * @param Mesh Input mesh to analyze and remove triangles from
+		 * @param bTestPerComponent Remove if inside *any* connected component of the input mesh, instead of testing the whole mesh at once.
+		 *							Note in FastWindingNumber mode, this can remove internal pockets that otherwise would be missed
+		 * @param SamplingMethod Whether to sample centroids, vertices or both
+		 * @param RandomSamplesPerTri Number of additional random samples to check before deciding if a triangle is occluded
+		 * @param WindingNumberThreshold Threshold to decide whether a triangle is inside or outside (only used if OcclusionMode is WindingNumber)
+		 */
+		bool DYNAMICMESH_API RemoveInternalTriangles(FDynamicMesh3& Mesh, bool bTestPerComponent = false,
+			EOcclusionTriangleSampling SamplingMethod = EOcclusionTriangleSampling::Centroids, 
+			EOcclusionCalculationMode OcclusionMode = EOcclusionCalculationMode::FastWindingNumber,
+			int RandomSamplesPerTri = 1, double WindingNumberThreshold = .5);
+	}
+}
+
 /**
  * Remove "occluded" triangles, i.e. triangles on the "inside" of the mesh(es).
  * This is a fuzzy definition, current implementation has a couple of options
  * including a winding number-based version and an ambient-occlusion-ish version,
  * where if face is occluded for all test rays, then we classify it as inside and remove it.
+ *
+ * Note this class always removes triangles from an FDynamicMesh3, but can use any mesh type
+ * to define the occluding geometry (as long as the mesh type implements the TTriangleMeshAdapter fns)
  */
 template<typename OccluderTriangleMeshType>
 class TRemoveOccludedTriangles
@@ -54,15 +77,16 @@ public:
 	virtual ~TRemoveOccludedTriangles() {}
 
 	/**
-	 * Remove the occluded triangles, considering the given occluder AABB tree (which may represent more geometry than a single mesh)
+	 * Remove the occluded triangles, considering the given occluder AABB trees (which may represent more geometry than a single mesh)
 	 * See simpler invocations below for the single instance case or the case where you'd like the spatial data structures built for you
 	 *
 	 * @param MeshLocalToOccluderSpaces Transforms to take instances of the local mesh into the space of the occluders
-	 * @param Spatial AABB trees for all occluders to consider
-	 * @param FastWindingTrees Precomputed fast winding trees for occluder
+	 * @param Spatials AABB trees for all occluders
+	 * @param FastWindingTrees Precomputed fast winding trees for occluders
 	 * @return true on success
 	 */
-	virtual bool Apply(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
+	virtual bool Apply(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces, 
+		const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees)
 	{
 		if (Cancelled())
 		{
@@ -100,11 +124,13 @@ public:
 			TriangleBaryCoordSamples.Add(FVector3d(1 / 3.0, 1 / 3.0, 1 / 3.0));
 		}
 
-		auto IsOccludedFWN = [this, &FastWindingTree](const FVector3d& Pt)
+		auto IsOccludedFWN = [this]
+			(TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree, const FVector3d& Pt)
 		{
 			return FastWindingTree->FastWindingNumber(Pt) > WindingIsoValue;
 		};
-		auto IsOccludedSimple = [this, &Spatial, &RayDirs, &NR](const FVector3d& Pt)
+		auto IsOccludedSimple = [this, &RayDirs, &NR]
+			(TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree, const FVector3d& Pt)
 		{
 			FRay3d Ray;
 			Ray.Origin = Pt;
@@ -121,85 +147,104 @@ public:
 			return true;
 		};
 
-		TFunctionRef<bool(const FVector3d& Pt)> IsOccludedF =
+		TFunctionRef<bool(TMeshAABBTree3<OccluderTriangleMeshType> * Spatial, TFastWindingTree<OccluderTriangleMeshType> * FastWindingTree, const FVector3d& Pt)> IsOccludedF =
 			(InsideMode == EOcclusionCalculationMode::FastWindingNumber) ? 
-			(TFunctionRef<bool(const FVector3d& Pt)>)IsOccludedFWN : 
-			(TFunctionRef<bool(const FVector3d& Pt)>)IsOccludedSimple;
+			(TFunctionRef<bool(TMeshAABBTree3<OccluderTriangleMeshType> * Spatial, TFastWindingTree<OccluderTriangleMeshType> * FastWindingTree, const FVector3d& Pt)>)IsOccludedFWN :
+			(TFunctionRef<bool(TMeshAABBTree3<OccluderTriangleMeshType> * Spatial, TFastWindingTree<OccluderTriangleMeshType> * FastWindingTree, const FVector3d& Pt)>)IsOccludedSimple;
 
 		bool bForceSingleThread = false;
 
 		TArray<bool> VertexOccluded;
 		if ( TriangleSamplingMethod == EOcclusionTriangleSampling::Vertices || TriangleSamplingMethod == EOcclusionTriangleSampling::VerticesAndCentroids )
 		{
-			VertexOccluded.SetNum(Mesh->MaxVertexID());
+			VertexOccluded.Init(false, Mesh->MaxVertexID());
 
 			// do not trust source mesh normals; safer to recompute
 			FMeshNormals Normals(Mesh);
 			Normals.ComputeVertexNormals();
 
-			ParallelFor(Mesh->MaxVertexID(), [this, &Normals, &VertexOccluded, &IsOccludedF, &MeshLocalToOccluderSpaces](int32 VID)
+			for (int TreeIdx = 0; TreeIdx < Spatials.Num(); TreeIdx++)
 			{
-				if (!Mesh->IsVertex(VID))
-				{
-					return;
-				}
-				FVector3d SamplePos = Mesh->GetVertex(VID);
-				FVector3d Normal = Normals[VID];
-				SamplePos += Normal * NormalOffset;
-				bool bAllOccluded = true;
-				for (const FTransform3d& XF : MeshLocalToOccluderSpaces)
-				{
-					bAllOccluded = bAllOccluded && IsOccludedF(XF.TransformPosition(SamplePos));
-				}
-				VertexOccluded[VID] = bAllOccluded;
-			}, bForceSingleThread);
+				TMeshAABBTree3<OccluderTriangleMeshType>* Spatial = Spatials[TreeIdx];
+				TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree = FastWindingTrees.Num() > 0 ? FastWindingTrees[TreeIdx] : nullptr;
+				ParallelFor(Mesh->MaxVertexID(), [this, &Normals, &VertexOccluded, &IsOccludedF, &MeshLocalToOccluderSpaces, Spatial, FastWindingTree](int32 VID)
+					{
+						if (!Mesh->IsVertex(VID) || VertexOccluded[VID])
+						{
+							return;
+						}
+						FVector3d SamplePos = Mesh->GetVertex(VID);
+						FVector3d Normal = Normals[VID];
+						SamplePos += Normal * NormalOffset;
+						bool bAllOccluded = true;
+						for (const FTransform3d& XF : MeshLocalToOccluderSpaces)
+						{
+							bAllOccluded = bAllOccluded && IsOccludedF(Spatial, FastWindingTree, XF.TransformPosition(SamplePos));
+						}
+						checkSlow(VertexOccluded[VID] == false); // should have skipped the vertex if we already knew it was occluded (e.g. from another occluder)
+						VertexOccluded[VID] = bAllOccluded;
+					}, bForceSingleThread);
+			}
 		}
+		if (Cancelled())
+		{
+			return false;
+		}
+
+		TArray<int8> TriOccluded;
+		TriOccluded.Init(0, Mesh->MaxTriangleID());
+		for (int TreeIdx = 0; TreeIdx < Spatials.Num(); TreeIdx++)
+		{
+			TMeshAABBTree3<OccluderTriangleMeshType>* Spatial = Spatials[TreeIdx];
+			TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree = FastWindingTrees.Num() > 0 ? FastWindingTrees[TreeIdx] : nullptr;
+			ParallelFor(Mesh->MaxTriangleID(), [this, &VertexOccluded, &IsOccludedF, &MeshLocalToOccluderSpaces, &TriangleBaryCoordSamples, &TriOccluded, Spatial, FastWindingTree](int32 TID)
+				{
+					if (!Mesh->IsTriangle(TID))
+					{
+						return;
+					}
+
+					bool bInside = true;
+					if (TriangleSamplingMethod == EOcclusionTriangleSampling::Vertices || TriangleSamplingMethod == EOcclusionTriangleSampling::VerticesAndCentroids)
+					{
+						FIndex3i Tri = Mesh->GetTriangle(TID);
+						bInside = VertexOccluded[Tri.A] && VertexOccluded[Tri.B] && VertexOccluded[Tri.C];
+					}
+					if (bInside && TriangleBaryCoordSamples.Num() > 0)
+					{
+						FVector3d Normal = Mesh->GetTriNormal(TID);
+						FVector3d V0, V1, V2;
+						Mesh->GetTriVertices(TID, V0, V1, V2);
+						for (int32 SampleIdx = 0, NumSamples = TriangleBaryCoordSamples.Num(); bInside && SampleIdx < NumSamples; SampleIdx++)
+						{
+							FVector3d BaryCoords = TriangleBaryCoordSamples[SampleIdx];
+							FVector3d SamplePos = V0 * BaryCoords.X + V1 * BaryCoords.Y + V2 * BaryCoords.Z + Normal * NormalOffset;
+							for (const FTransform3d& XF : MeshLocalToOccluderSpaces)
+							{
+								bInside = bInside && IsOccludedF(Spatial, FastWindingTree, XF.TransformPosition(SamplePos));
+							}
+						}
+					}
+					if (bInside)
+					{
+						FPlatformAtomics::AtomicStore_Relaxed(&TriOccluded[TID], 1);
+					}
+				}, bForceSingleThread);
+		}
+
+
 		if (Cancelled())
 		{
 			return false;
 		}
 
 		RemovedT.Empty();
-		FCriticalSection RemoveTMutex;
-		ParallelFor(Mesh->MaxTriangleID(), [this, &VertexOccluded, &IsOccludedF, &RemoveTMutex, &MeshLocalToOccluderSpaces, &TriangleBaryCoordSamples](int32 TID)
+		for (int TID = 0; TID < Mesh->MaxTriangleID(); TID++)
 		{
-			if (!Mesh->IsTriangle(TID))
+			if (TriOccluded[TID])
 			{
-				return;
-			}
-
-			bool bInside = true;
-			if (TriangleSamplingMethod == EOcclusionTriangleSampling::Vertices || TriangleSamplingMethod == EOcclusionTriangleSampling::VerticesAndCentroids)
-			{
-				FIndex3i Tri = Mesh->GetTriangle(TID);
-				bInside = VertexOccluded[Tri.A] && VertexOccluded[Tri.B] && VertexOccluded[Tri.C];
-			}
-			if (bInside && TriangleBaryCoordSamples.Num() > 0)
-			{
-				FVector3d Normal = Mesh->GetTriNormal(TID);
-				FVector3d V0, V1, V2;
-				Mesh->GetTriVertices(TID, V0, V1, V2);
-				for (int32 SampleIdx = 0, NumSamples = TriangleBaryCoordSamples.Num(); bInside && SampleIdx < NumSamples; SampleIdx++)
-				{
-					FVector3d BaryCoords = TriangleBaryCoordSamples[SampleIdx];
-					FVector3d SamplePos = V0 * BaryCoords.X + V1 * BaryCoords.Y + V2 * BaryCoords.Z + Normal * NormalOffset;
-					for (const FTransform3d& XF : MeshLocalToOccluderSpaces)
-					{
-						bInside = bInside && IsOccludedF(XF.TransformPosition(SamplePos));
-					}
-				}
-			}
-			if (bInside)
-			{
-				FScopeLock RemoveLock(&RemoveTMutex);
 				RemovedT.Add(TID);
 			}
-		}, bForceSingleThread);
-
-
-		if (Cancelled())
-		{
-			return false;
 		}
 
 		if (RemovedT.Num() > 0)
@@ -215,6 +260,23 @@ public:
 		} 
 
 		return true;
+	}
+
+	/**
+	 * Remove the occluded triangles, considering the given occluder AABB tree (which may represent more geometry than a single mesh)
+	 * See simpler invocations below for the single instance case or the case where you'd like the spatial data structures built for you
+	 *
+	 * @param MeshLocalToOccluderSpaces Transforms to take instances of the local mesh into the space of the occluders
+	 * @param Spatials AABB trees for all occluders
+	 * @param FastWindingTrees Precomputed fast winding trees for occluders
+	 * @return true on success
+	 */
+	virtual bool Apply(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces,
+		TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
+	{
+		TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials(&Spatial, 1);
+		TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees(&FastWindingTree, 1);
+		return Apply(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees);
 	}
 
 
@@ -264,9 +326,8 @@ public:
 	// we nudge points out by this amount to try to counteract numerical issues
 	double NormalOffset = FMathd::ZeroTolerance;
 
-	// use this as winding isovalue for WindingNumber mode
+	/** use this as winding isovalue for WindingNumber mode */
 	double WindingIsoValue = 0.5;
-
 
 	EOcclusionCalculationMode InsideMode = EOcclusionCalculationMode::FastWindingNumber;
 
@@ -286,10 +347,10 @@ public:
 	// Outputs
 	//
 
-	// indices of removed triangles. will be empty if nothing removed
+	/** indices of removed triangles. will be empty if nothing removed */
 	TArray<int> RemovedT;
 
-	// true if it wanted to remove triangles but the actual remove operation failed
+	/** true if it wanted to remove triangles but the actual remove operation failed */
 	bool bRemoveFailed = false;
 
 
