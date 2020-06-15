@@ -137,9 +137,10 @@ public:
 	* true while there are pending requests in flight and updating needs to continue.
 	*
 	* @param bWaitForMipFading	Whether to wait for Mip Fading to complete before finalizing.
+	* @param DeferredTickCBAssets An array of assets that need to have their CBs ticked. Non-null if not on the game thread.
 	* @return					true if there are requests in flight, false otherwise
 	*/
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false)
+	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr)
 	{
 		STREAMABLERENDERASSET_NODEFAULT(UpdateStreamingStatus);
 		return false;
@@ -176,7 +177,7 @@ public:
 
 	ENGINE_API void RemoveAllMipLevelChangeCallbacks();
 
-	ENGINE_API void TickMipLevelChangeCallbacks();
+	ENGINE_API void TickMipLevelChangeCallbacks(TArray<UStreamableRenderAsset*>* DeferredTickCBAssets);
 
 	/**
 	* Tells the streaming system that it should force all mip-levels to be resident for a number of seconds.

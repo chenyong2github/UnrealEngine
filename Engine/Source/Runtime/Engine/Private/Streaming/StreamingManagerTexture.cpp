@@ -1137,7 +1137,7 @@ void FRenderAssetStreamingManager::FastForceFullyResident(UStreamableRenderAsset
  * @param StageIndex		Current stage index
  * @param NumUpdateStages	Number of texture update stages
  */
-void FRenderAssetStreamingManager::UpdateStreamingRenderAssets( int32 StageIndex, int32 NumUpdateStages, bool bWaitForMipFading )
+void FRenderAssetStreamingManager::UpdateStreamingRenderAssets(int32 StageIndex, int32 NumUpdateStages, bool bWaitForMipFading, bool bAsync)
 {
 	if ( StageIndex == 0 )
 	{
@@ -1160,7 +1160,7 @@ void FRenderAssetStreamingManager::UpdateStreamingRenderAssets( int32 StageIndex
 		const int32* NumStreamedMips;
 		const int32 NumLODGroups = GetNumStreamedMipsArray(StreamingRenderAsset.RenderAssetType, NumStreamedMips);
 
-		StreamingRenderAsset.UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, bWaitForMipFading);
+		StreamingRenderAsset.UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, bWaitForMipFading, bAsync ? &DeferredTickCBAssets : nullptr);
 
 		// Make a list of each texture/mesh that can potentially require additional UpdateStreamingStatus
 		if (StreamingRenderAsset.bInFlight)
@@ -1323,6 +1323,24 @@ void FRenderAssetStreamingManager::ProcessPendingMipCopyRequests()
 	}
 }
 
+void FRenderAssetStreamingManager::TickDeferredMipLevelChangeCallbacks()
+{
+	if (DeferredTickCBAssets.Num() > 0)
+	{
+		check(IsInGameThread());
+
+		for (int32 AssetIdx = 0; AssetIdx < DeferredTickCBAssets.Num(); ++AssetIdx)
+		{
+			UStreamableRenderAsset* Asset = DeferredTickCBAssets[AssetIdx];
+			if (Asset)
+			{
+				Asset->TickMipLevelChangeCallbacks(nullptr);
+			}
+		}
+		DeferredTickCBAssets.Empty();
+	}
+}
+
 void FRenderAssetStreamingManager::CheckUserSettings()
 {	
 	if (CVarStreamingUseFixedPoolSize.GetValueOnGameThread() == 0)
@@ -1471,7 +1489,7 @@ public:
 	}
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		Manager->UpdateStreamingRenderAssets(StageIdx, NumUpdateStages, bWaitForMipFading);
+		Manager->UpdateStreamingRenderAssets(StageIdx, NumUpdateStages, bWaitForMipFading, true);
 		CompletionEvent->Trigger();
 	}
 };
@@ -1621,6 +1639,8 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 	{
 		ProcessPendingMipCopyRequests();
 	}
+
+	TickDeferredMipLevelChangeCallbacks();
 
 	if (bUseThreadingForPerf)
 	{
