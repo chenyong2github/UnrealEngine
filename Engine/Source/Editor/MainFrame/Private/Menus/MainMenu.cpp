@@ -229,7 +229,7 @@ void FMainMenu::RegisterWindowMenu()
 						"LocalizationDashboard",
 						LOCTEXT("LocalizationDashboardLabel", "Localization Dashboard"),
 						LOCTEXT("LocalizationDashboardToolTip", "Open the Localization Dashboard for this Project."),
-						FSlateIcon(),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationDashboard.MenuIcon"), 
 						FUIAction(FExecuteAction::CreateStatic(&FMainMenu::OpenLocalizationDashboard))
 						);
 				}
@@ -257,7 +257,9 @@ void FMainMenu::RegisterWindowMenu()
 			"LoadLayout",
 			NSLOCTEXT("LayoutMenu", "LayoutLoadHeader", "Load Layout"),
 			NSLOCTEXT("LayoutMenu", "LoadLayoutsSubMenu_ToolTip", "Load a layout configuration from disk"),
-			FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuLoad::MakeLoadLayoutsMenu)
+			FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuLoad::MakeLoadLayoutsMenu),
+			false,
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.LoadLayout") 
 		));
 		// Save and Remove Layout
 		// Opposite to "Load Layout", Save and Remove are dynamic, i.e., they can be enabled/removed depending on the value of
@@ -271,14 +273,18 @@ void FMainMenu::RegisterWindowMenu()
 					"OverrideLayout",
 					NSLOCTEXT("LayoutMenu", "OverrideLayoutsSubMenu", "Save Layout"),
 					NSLOCTEXT("LayoutMenu", "OverrideLayoutsSubMenu_ToolTip", "Save your current layout configuration on disk"),
-					FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuSave::MakeSaveLayoutsMenu)
+					FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuSave::MakeSaveLayoutsMenu),
+					false,
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.SaveLayout") 
 				));
 				// Remove Layout
 				InSection.AddEntry(FToolMenuEntry::InitSubMenu(
 					"RemoveLayout",
 					NSLOCTEXT("LayoutMenu", "RemoveLayoutsSubMenu", "Remove Layout"),
 					NSLOCTEXT("LayoutMenu", "RemoveLayoutsSubMenu_ToolTip", "Remove a layout configuration from disk"),
-					FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuRemove::MakeRemoveLayoutsMenu)
+					FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuRemove::MakeRemoveLayoutsMenu),
+					false,
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.RemoveLayout")
 				));
 			}
 		}));

@@ -150,7 +150,7 @@ class FFunctionalTestingEditorModule : public IFunctionalTestingEditorModule
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutomationLabel", "Test Automation"),
 			LOCTEXT("Tooltip", "Launch the Testing Automation Frontend."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "AutomationTools.MenuIcon"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AutomationTools.TestAutomation"),
 			FUIAction(FExecuteAction::CreateStatic(&FFunctionalTestingEditorModule::OnShowAutomationFrontend)));
 		MenuBuilder.EndSection();
 
@@ -160,7 +160,10 @@ class FFunctionalTestingEditorModule : public IFunctionalTestingEditorModule
 			MenuBuilder.AddSubMenu(
 				LOCTEXT("AutomationTools", "Automation Tools"),
 				LOCTEXT("AutomationToolsToolTip", "Assorted tools to help generate data for some of the automation tests."),
-				FNewMenuDelegate::CreateRaw(this, &FFunctionalTestingEditorModule::PopulateAutomationTools)
+				FNewMenuDelegate::CreateRaw(this, &FFunctionalTestingEditorModule::PopulateAutomationTools),
+				false,
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "AutomationTools.MenuIcon")
+
 			);
 		}
 	}

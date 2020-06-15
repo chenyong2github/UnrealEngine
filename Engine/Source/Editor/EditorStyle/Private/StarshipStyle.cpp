@@ -1040,12 +1040,13 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Developer Tools Menu
 	{
-		Set("DeveloperTools.MenuIcon", new IMAGE_BRUSH_SVG( "Starship/Menus/Duo/LevelEditor/DeveloperTools", Icon16x16 ) );
+		Set("DeveloperTools.MenuIcon", new IMAGE_BRUSH_SVG( "Starship/Menus/LevelEditor/DeveloperTools", Icon16x16 ) );
 	}
 
 	// Automation Tools Menu
 	{
-		Set("AutomationTools.MenuIcon", new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/AutomationTools", Icon16x16));
+		Set("AutomationTools.MenuIcon", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/AutomationTools", Icon16x16));
+		Set("AutomationTools.TestAutomation", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/TestAutomation", Icon16x16));
 	}
 
 	// Session Browser tab
@@ -1081,7 +1082,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Launcher Window
 	{
-		Set("Launcher.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Menus/Duo/LevelEditor/ProjectLauncher", Icon16x16 ) );
+		Set("Launcher.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Menus/LevelEditor/ProjectLauncher", Icon16x16 ) );
 		Set("Launcher.Tabs.Tools", new IMAGE_BRUSH( "/Icons/icon_tab_Tools_16x", Icon16x16 ) );
 	}
 
@@ -4182,6 +4183,11 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set("LevelEditor.Tutorials", new IMAGE_BRUSH("Icons/Help/icon_Help_tutorials_16x", Icon16x16));
 		Set("LevelEditor.BrowseViewportControls", new IMAGE_BRUSH("Icons/Help/icon_Help_Documentation_16x", Icon16x16));
 
+		Set("MainFrame.ToggleFullscreen", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/EnableFullscreen", Icon16x16));
+		Set("MainFrame.LoadLayout", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/LayoutLoad", Icon16x16));
+		Set("MainFrame.SaveLayout", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/LayoutSave", Icon16x16));
+		Set("MainFrame.RemoveLayout", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/LayoutRemove", Icon16x16));
+
 		Set("MainFrame.VisitAskAQuestionPage", new IMAGE_BRUSH("Icons/Help/icon_Help_ask_16x", Icon16x16));
 		Set("MainFrame.VisitWiki", new IMAGE_BRUSH("Icons/Help/icon_Help_Documentation_16x", Icon16x16));
 		Set("MainFrame.VisitForums", new IMAGE_BRUSH("Icons/Help/icon_Help_Documentation_16x", Icon16x16));
@@ -4253,30 +4259,32 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 		{
-			Set( "LevelEditor.Tabs.Details",                new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/Details", Icon16x16) );///Icons/icon_tab_SelectionDetails_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.Cinematics",             new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/Cinematics", Icon16x16) );///Icons/icon_tab_Cinematics_16x", Icon16x16));
-			Set( "LevelEditor.Tabs.EditorModes",            new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/EditorModes", Icon16x16) );///Icons/icon_Editor_Modes_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.Modes",                  new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/EditorModes", Icon16x16) );///Icons/icon_Editor_Modes_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.PlacementBrowser",       new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/PlaceActors", Icon16x16) );///Icons/icon_Editor_Modes_16x", Icon16x16));
-			Set( "LevelEditor.Tabs.Properties",             new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/Properties", Icon16x16) );///Icons/properties_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.Outliner",               new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/WorldOutliner", Icon16x16) );///Icons/icon_tab_SceneOutliner_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.ContentBrowser",         new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/ContentBrowser", Icon16x16) );///Icons/icon_tab_ContentBrowser_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.Levels",                 new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/Levels", Icon16x16) );///Icons/icon_tab_Levels_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.WorldBrowser",           new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/Levels", Icon16x16) );///Icons/icon_tab_levels_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.WorldBrowserDetails",    new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/WorldSettings", Icon16x16) );///Icons/icon_levels_detailsbutton_16x", Icon16x16 ) );
+			Set( "LevelEditor.Tabs.Details",                new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/Details", Icon16x16) );
+			Set( "LevelEditor.Tabs.Cinematics",             new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/Cinematics", Icon16x16) );
+			Set( "LevelEditor.Tabs.EditorModes",            new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/EditorModes", Icon16x16) );
+			Set( "LevelEditor.Tabs.Modes",                  new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/EditorModes", Icon16x16) );
+			Set( "LevelEditor.Tabs.PlacementBrowser",       new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/PlaceActors", Icon16x16) );
+			Set( "LevelEditor.Tabs.Properties",             new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/Properties", Icon16x16) );
+			Set( "LevelEditor.Tabs.Outliner",               new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/WorldOutliner", Icon16x16) );
+			Set( "LevelEditor.Tabs.ContentBrowser",         new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/ContentBrowser", Icon16x16) );
+			Set( "LevelEditor.Tabs.Levels",                 new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/Levels", Icon16x16) );
+			Set( "LevelEditor.Tabs.WorldBrowser",           new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/Levels", Icon16x16) );
+			Set( "LevelEditor.Tabs.WorldBrowserDetails",    new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/WorldSettings", Icon16x16) );
 
 			Set( "LevelEditor.Tabs.WorldBrowserComposition",new IMAGE_BRUSH("Icons/icon_levels_compositionbutton_16x", Icon16x16 ) );
 
-			Set( "LevelEditor.Tabs.Layers",                 new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/Layers", Icon16x16) );///Icons/icon_tab_Layers_16x", Icon16x16 ) );
+			Set( "LevelEditor.Tabs.Layers",                 new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/Layers", Icon16x16) );
+			Set( "LevelEditor.Tabs.ComposureCompositing",   new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/ComposureCompositing", Icon16x16) );
+			Set( "LevelEditor.Tabs.USDStage",   			new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/USDStage", Icon16x16) );
 
 			Set( "LevelEditor.Tabs.BuildAndSubmit",         new IMAGE_BRUSH("Icons/icon_tab_BuildSubmit_16x", Icon16x16 ) );
 
-			Set( "LevelEditor.Tabs.StatsViewer",            new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/Statistics", Icon16x16) );///Icons/icon_tab_Stats_16x", Icon16x16 ) );
+			Set( "LevelEditor.Tabs.StatsViewer",            new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/Statistics", Icon16x16) );
 
 			Set( "LevelEditor.Tabs.Toolbar",                new IMAGE_BRUSH("Icons/icon_tab_Toolbars_16x", Icon16x16 ) );
 
-			Set( "LevelEditor.Tabs.Viewports",              new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/Viewports", Icon16x16) );///Icons/icon_tab_Viewports_16x", Icon16x16 ) );
-			Set( "LevelEditor.Tabs.HLOD",                   new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/HierarchicalLODOutliner", Icon16x16) );///Icons/icon_tab_layers_16px", Icon16x16));
+			Set( "LevelEditor.Tabs.Viewports",              new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/Viewports", Icon16x16) );
+			Set( "LevelEditor.Tabs.HLOD",                   new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/HierarchicalLODOutliner", Icon16x16) );
 		}
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 
@@ -4375,7 +4383,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "LevelEditor.WorldProperties", new IMAGE_BRUSH( "Icons/icon_worldscript_40x", Icon40x40 ) );
 		Set( "LevelEditor.WorldProperties.Small", new IMAGE_BRUSH( "Icons/icon_worldscript_40x", Icon20x20 ) );
 
-		Set( "LevelEditor.WorldProperties.Tab", new IMAGE_BRUSH_SVG( "Starship/Menus/Duo/LevelEditor/WorldSettings", Icon16x16 ) );
+		Set( "LevelEditor.WorldProperties.Tab", new IMAGE_BRUSH_SVG( "Starship/Menus/LevelEditor/WorldSettings", Icon16x16 ) );
 
 		Set( "LevelEditor.OpenContentBrowser", new IMAGE_BRUSH_SVG( "Starship/MainToolBar/content", Icon20x20 ) );
 		Set( "LevelEditor.OpenMarketplace", new IMAGE_BRUSH_SVG( "Starship/MainToolBar/marketplace", Icon20x20) );
@@ -4537,8 +4545,8 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "LevelViewport.PilotSelectedActor", new IMAGE_BRUSH( "Icons/icon_PilotSelectedActor_16x", Icon16x16 ) );
 		Set( "LevelViewport.PilotSelectedActor.Small", new IMAGE_BRUSH( "Icons/icon_PilotSelectedActor_16x", Icon16x16 ) );
 		
-		Set( "LevelViewport.ToggleActorPilotCameraView",       new IMAGE_BRUSH_SVG( "Starship/Menus/Duo/LevelEditor/CameraShake", Icon16x16 ) );
-		Set( "LevelViewport.ToggleActorPilotCameraView.Small", new IMAGE_BRUSH_SVG( "Starship/Menus/Duo/LevelEditor/CameraShake", Icon16x16 ) );
+		Set( "LevelViewport.ToggleActorPilotCameraView",       new IMAGE_BRUSH_SVG( "Starship/Menus/LevelEditor/CameraShake", Icon16x16 ) );
+		Set( "LevelViewport.ToggleActorPilotCameraView.Small", new IMAGE_BRUSH_SVG( "Starship/Menus/LevelEditor/CameraShake", Icon16x16 ) );
 
 		Set( "LevelViewport.ActorPilotText", FTextBlockStyle()
 			.SetFont( DEFAULT_FONT( "BoldCondensed", 12 ) )
@@ -4955,7 +4963,7 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 		Set( "BlueprintEditor.ActionMenu.ContextDescriptionFont",  DEFAULT_FONT("Regular", 12) );
 
-		Set( "BlueprintEditor.FindInBlueprints.MenuIcon", new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/FindInBlueprint", Icon16x16) );
+		Set( "BlueprintEditor.FindInBlueprints.MenuIcon", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/FindInBlueprints", Icon16x16) );
 
 		Set( "BlueprintEditor.FindInBlueprint", new IMAGE_BRUSH( "Icons/icon_Blueprint_Find_40px", Icon40x40 ) );
 		Set( "BlueprintEditor.FindInBlueprint.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_Find_40px", Icon20x20 ) );
@@ -5850,7 +5858,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 	// Content Browser
 	{
 		// Tab and menu icon
-		Set( "ContentBrowser.TabIcon", new IMAGE_BRUSH_SVG("Starship/Menus/Duo/LevelEditor/ContentBrowser", Icon16x16) );
+		Set( "ContentBrowser.TabIcon", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/ContentBrowser", Icon16x16) );
 
 		// Sources View
 		Set( "ContentBrowser.SourceTitleFont", DEFAULT_FONT( "Regular", 12 ) );
@@ -7644,6 +7652,8 @@ void FStarshipEditorStyle::FStyle::SetupTranslationEditorStyles()
 
 void FStarshipEditorStyle::FStyle::SetupLocalizationDashboardStyles()
 {
+	Set("LocalizationDashboard.MenuIcon", new IMAGE_BRUSH_SVG("Starship/Menus/LevelEditor/LocalizationDashboard", Icon16x16));
+
 	Set("LocalizationDashboard.GatherTextAllTargets", new IMAGE_BRUSH("Icons/Icon_Localisation_Gather_All_40x", Icon40x40));
 	Set("LocalizationDashboard.ImportTextAllTargetsAllCultures", new IMAGE_BRUSH("Icons/Icon_Localisation_Import_All_40x", Icon40x40));
 	Set("LocalizationDashboard.ExportTextAllTargetsAllCultures", new IMAGE_BRUSH("Icons/Icon_Localisation_Export_All_40x", Icon40x40));
