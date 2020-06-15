@@ -470,16 +470,16 @@ FVulkanFramebuffer::~FVulkanFramebuffer()
 
 void FVulkanFramebuffer::Destroy(FVulkanDevice& Device)
 {
-	VulkanRHI::FDeferredDeletionQueue& Queue = Device.GetDeferredDeletionQueue();
+	VulkanRHI::FDeferredDeletionQueue2& Queue = Device.GetDeferredDeletionQueue();
 	
 	// will be deleted in reverse order
-	Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Framebuffer, Framebuffer);
+	Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Framebuffer, Framebuffer);
 	Framebuffer = VK_NULL_HANDLE;
 
 	for (int32 Index = 0; Index < AttachmentViewsToDelete.Num(); ++Index)
 	{
 		DEC_DWORD_STAT(STAT_VulkanNumImageViews);
-		Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::ImageView, AttachmentViewsToDelete[Index]);
+		Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::ImageView, AttachmentViewsToDelete[Index]);
 	}
 
 	for (int32 Index = 0; Index < ResourceAllocationsToDelete.Num(); ++Index)

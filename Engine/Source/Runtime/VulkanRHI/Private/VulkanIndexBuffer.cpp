@@ -152,6 +152,7 @@ FVulkanResourceMultiBuffer::~FVulkanResourceMultiBuffer()
 	for (uint32 Index = 0; Index < NumBuffers; ++Index)
 	{
 		Size += Buffers[Index]->GetSize();
+		Device->GetDeferredDeletionQueue().EnqueueBufferSuballocation(Buffers[Index]);
 	}
 	UpdateVulkanBufferStats(Size, BufferUsageFlags, false);
 }
