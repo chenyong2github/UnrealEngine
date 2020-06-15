@@ -48,6 +48,9 @@ class BuildPlugin : BuildCommand
 		// Option for verifying that all include directive s
 		bool bStrictIncludes = ParseParam("StrictIncludes");
 
+		// Whether to use VS2019 for compiling all targets. By default, we currently use 2017 for compiling static libraries for maximum compatibility.
+		bool bVS2019 = ParseParam("VS2019");
+
 		// Make sure the packaging directory is valid
 		DirectoryReference PackageDir = new DirectoryReference(PackageParam);
 		if (PluginFile.IsUnderDirectory(PackageDir))
@@ -105,7 +108,7 @@ class BuildPlugin : BuildCommand
 		// Compile the plugin for all the target platforms
 		List<UnrealTargetPlatform> HostPlatforms = ParseParam("NoHostPlatform")? new List<UnrealTargetPlatform>() : new List<UnrealTargetPlatform> { BuildHostPlatform.Current.Platform };
 		List<UnrealTargetPlatform> TargetPlatforms = GetTargetPlatforms(this, BuildHostPlatform.Current.Platform);
-		FileReference[] BuildProducts = CompilePlugin(HostProjectFile, HostProjectPluginFile, Plugin, HostPlatforms, TargetPlatforms, AdditionalArgs.ToString());
+		FileReference[] BuildProducts = CompilePlugin(HostProjectFile, HostProjectPluginFile, Plugin, HostPlatforms, TargetPlatforms, AdditionalArgs.ToString(), bVS2019);
 
 		// Package up the final plugin data
 		PackagePlugin(HostProjectPluginFile, BuildProducts, PackageDir, ParseParam("unversioned"));
@@ -134,7 +137,7 @@ class BuildPlugin : BuildCommand
 		return FileReference.Combine(HostProjectPluginDir, PluginFile.GetFileName());
 	}
 
-	FileReference[] CompilePlugin(FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, List<UnrealTargetPlatform> HostPlatforms, List<UnrealTargetPlatform> TargetPlatforms, string AdditionalArgs)
+	FileReference[] CompilePlugin(FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, List<UnrealTargetPlatform> HostPlatforms, List<UnrealTargetPlatform> TargetPlatforms, string AdditionalArgs, bool bVS2019)
 	{
 		List<FileReference> ManifestFileNames = new List<FileReference>();
 
@@ -160,8 +163,9 @@ class BuildPlugin : BuildCommand
 			{
 				if(Plugin.SupportsTargetPlatform(TargetPlatform))
 				{
-					CompilePluginWithUBT(HostProjectFile, HostProjectPluginFile, Plugin, "UE4Game", TargetType.Game, TargetPlatform, UnrealTargetConfiguration.Development, ManifestFileNames, AdditionalArgs);
-					CompilePluginWithUBT(HostProjectFile, HostProjectPluginFile, Plugin, "UE4Game", TargetType.Game, TargetPlatform, UnrealTargetConfiguration.Shipping, ManifestFileNames, AdditionalArgs);
+					string AdditionalTargetArgs = AdditionalArgs + (bVS2019 ? "" : " -2017");
+					CompilePluginWithUBT(HostProjectFile, HostProjectPluginFile, Plugin, "UE4Game", TargetType.Game, TargetPlatform, UnrealTargetConfiguration.Development, ManifestFileNames, AdditionalTargetArgs);
+					CompilePluginWithUBT(HostProjectFile, HostProjectPluginFile, Plugin, "UE4Game", TargetType.Game, TargetPlatform, UnrealTargetConfiguration.Shipping, ManifestFileNames, AdditionalTargetArgs);
 				}
 			}
 		}
