@@ -21,33 +21,7 @@ public:
 	FHLODISMComponentDesc() = default;
 	FHLODISMComponentDesc(const UInstancedStaticMeshComponent* InISMComponent, const UMaterialInterface* InMaterial);
 
-	bool operator == (const FHLODISMComponentDesc& Other) const
-	{
-		if (StaticMesh != Other.StaticMesh)
-		{
-			return false;
-		}
-		
-		if (Material != Other.Material)
-		{
-			return false;
-		}
-
-		if (Instances.Num() != Other.Instances.Num())
-		{
-			return false;
-		}
-
-		for (int32 InstanceIdx = 0; InstanceIdx < Instances.Num(); ++InstanceIdx)
-		{
-			if (!Instances[InstanceIdx].Equals(Other.Instances[InstanceIdx]))
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
+	bool operator == (const FHLODISMComponentDesc& Other) const;
 
 public:
 	UPROPERTY()
