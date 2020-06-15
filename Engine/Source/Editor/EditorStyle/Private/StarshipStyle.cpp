@@ -1088,7 +1088,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Undo History Window
 	{
-		Set("UndoHistory.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_UndoHistory_16px", Icon16x16 ) );
+		Set("UndoHistory.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Menus/Edit/UndoHistory", Icon16x16 ) );
 	}
 
 	// InputBinding editor
@@ -1336,12 +1336,12 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Editor preferences
 	{
-		Set("EditorPreferences.TabIcon", new IMAGE_BRUSH("Icons/Edit/icon_Edit_EditorPreferences_16x", Icon16x16));
+		Set("EditorPreferences.TabIcon", new IMAGE_BRUSH_SVG("Starship/Menus/Edit/Preferences", Icon16x16));
 	}
 
 	// Project settings
 	{
-		Set("ProjectSettings.TabIcon", new IMAGE_BRUSH("Icons/Edit/icon_Edit_ProjectSettings_16x", Icon16x16));
+		Set("ProjectSettings.TabIcon", new IMAGE_BRUSH_SVG("Starship/Menus/Edit/ProjectSettings", Icon16x16));
 	}
 
 	// Main frame
