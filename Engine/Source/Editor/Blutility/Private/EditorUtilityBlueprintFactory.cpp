@@ -15,6 +15,8 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "EditorUtilityWidget.h"
+#include "EditorUtilityActor.h"
+#include "EditorUtilityObject.h"
 
 class FBlutilityBlueprintFactoryFilter : public IClassViewerFilter
 {
@@ -73,6 +75,9 @@ bool UEditorUtilityBlueprintFactory::ConfigureProperties()
 	// This will allow unloaded blueprints to be shown.
 	Options.bShowUnloadedBlueprints = true;
 	Options.bEditorClassesOnly = true;
+
+	Options.ExtraPickerCommonClasses.Add(AEditorUtilityActor::StaticClass());
+	Options.ExtraPickerCommonClasses.Add(UEditorUtilityObject::StaticClass());
 
 	TSharedPtr< FBlutilityBlueprintFactoryFilter > Filter = MakeShareable(new FBlutilityBlueprintFactoryFilter);
 	Filter->DisallowedChildOfClasses.Add(UEditorUtilityWidget::StaticClass());
