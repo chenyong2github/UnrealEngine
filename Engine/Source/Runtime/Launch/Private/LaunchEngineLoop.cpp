@@ -4754,12 +4754,12 @@ void FEngineLoop::Tick()
 #endif //WITH_EDITOR
 
 			if( WorldToScale != nullptr )
-		{
-				if( GNewWorldToMetersScale != WorldToScale->GetWorldSettings()->WorldToMeters )
 			{
+				if( GNewWorldToMetersScale != WorldToScale->GetWorldSettings()->WorldToMeters )
+				{
 					WorldToScale->GetWorldSettings()->WorldToMeters = GNewWorldToMetersScale;
+				}
 			}
-		}
 
 			GNewWorldToMetersScale = 0.0f;
 		}
