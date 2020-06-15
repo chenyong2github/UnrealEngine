@@ -318,7 +318,7 @@ void UMeshTangentsTool::OnTangentsUpdated(const TUniquePtr<FMeshTangentsd>& NewR
 					double MaxAngleDeg = FMathd::Max(TangentMikkt.AngleD(TangentNew), BitangentMikkt.AngleD(BitangentNew));
 					if (MaxAngleDeg > 0.5)
 					{
-						FMikktDeviation Deviation{ MaxAngleDeg, Index, j, Verts[j], TangentMikkt, BitangentMikkt, TangentNew, BitangentNew };
+						FMikktDeviation Deviation{ static_cast<float>(MaxAngleDeg), Index, j, Verts[j], TangentMikkt, BitangentMikkt, TangentNew, BitangentNew };
 						Deviations.Add(Deviation);
 					}
 				}
