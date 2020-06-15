@@ -138,6 +138,7 @@ namespace Chaos
 			bool bInApplyRestitution,
 			bool bInApplyFriction,
 			bool bInApplyAngularFriction,
+			bool bInApplyRelaxation,
 			FVec3& AccumulatedImpulse, // InOut
 			FVec3& DV0, // Out
 			FVec3& DW0, // Out
@@ -176,6 +177,18 @@ namespace Chaos
 			const FVec3 VelocityChange = VelocityTarget - RelativeVelocity;
 			const FMatrix33 FactorInverse = Factor.Inverse();
 			FVec3 Impulse = FactorInverse * VelocityChange;  // Delta Impulse = (J.M^(-1).J^(T))^(-1).(ContactVelocityError)
+
+			if (bInApplyRelaxation)
+			{
+				// The Relaxation factor has an effect of reducing overshoot in solutions, but it will decrease the rate of convergence
+				// Example: Without relaxation a cube falling directly on its face at high velocity will create an overly large impulse on the first few contacts
+				// causing it to roll off in a random direction.
+				// Todo: Relaxation may be removed when tracking individual contact point's accumulated impulses (e.g. manifolds), since the over-reaction will be corrected
+
+				const FReal RelaxationNumerator = FMath::Min((FReal)(IterationParameters.Iteration + 2), (FReal)IterationParameters.NumIterations);
+				FReal RelaxationFactor = RelaxationNumerator / (FReal)IterationParameters.NumIterations;
+				Impulse = RelaxationFactor * Impulse;
+			}
 
 			FReal RelativeScale;// Use this as a scale to avoid absolute distances
 			if (bIsRigidDynamic0 && bIsRigidDynamic1)
@@ -298,7 +311,7 @@ namespace Chaos
 			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 
 			FVec3 DV0, DW0, DV1, DW1;
-			CalculateContactVelocityCorrections(Contact, Particle0, Particle1, IterationParameters, ParticleParameters, P0, Q0, P1, Q1,true, true, true, AccumulatedImpulse, DV0, DW0, DV1, DW1);
+			CalculateContactVelocityCorrections(Contact, Particle0, Particle1, IterationParameters, ParticleParameters, P0, Q0, P1, Q1,true, true, true, true, AccumulatedImpulse, DV0, DW0, DV1, DW1);
 
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
 			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
@@ -781,7 +794,7 @@ namespace Chaos
 			// but also update the contact location if this is done
 			{
 				FVec3 DV0, DW0, DV1, DW1;
-				CalculateContactVelocityCorrections(Contact, Particle0, Particle1, IterationParameters, ParticleParameters, P0, Q0, P1, Q1, false, true, false, AccumulatedImpulse, DV0, DW0, DV1, DW1);
+				CalculateContactVelocityCorrections(Contact, Particle0, Particle1, IterationParameters, ParticleParameters, P0, Q0, P1, Q1, false, true, false, false, AccumulatedImpulse, DV0, DW0, DV1, DW1);
 				if (bIsRigidDynamic0)
 				{
 					PBDRigid0->V() += DV0;
