@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 					"KismetCompiler",
 					"GraphEditor",
 					"ContentBrowser",
+					"ContentBrowserData",
 					"MainFrame",
 					"UnrealEd",
 					"SourceControl",

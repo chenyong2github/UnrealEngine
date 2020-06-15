@@ -104,12 +104,12 @@ void FOpenGLDynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHIT
 	if( RenderTarget )
 	{
 		FRHIRenderTargetView RTV(RenderTarget, ERenderTargetLoadAction::ELoad);
-		RHISetRenderTargets(1, &RTV, nullptr);
+		SetRenderTargets(1, &RTV, nullptr);
 	}
 	else
 	{
 		FRHIRenderTargetView RTV(DrawingViewport->GetBackBuffer(), ERenderTargetLoadAction::ELoad);
-		RHISetRenderTargets(1, &RTV, nullptr);
+		SetRenderTargets(1, &RTV, nullptr);
 	}
 }
 

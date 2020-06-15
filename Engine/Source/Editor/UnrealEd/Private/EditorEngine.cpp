@@ -226,6 +226,8 @@
 #include "ChaosSolversModule.h"
 #endif
 
+#include "Rendering/StaticLightingSystemInterface.h"
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -6280,7 +6282,7 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 				static const FName AssetRegistryName(TEXT("AssetRegistry"));
 				FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(AssetRegistryName);
 				// Don't throttle during amortized export, greatly increases export time
-				if (IsLightingBuildCurrentlyExporting() || GShaderCompilingManager->IsCompiling() || (AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets()))
+				if (IsLightingBuildCurrentlyExporting() || FStaticLightingSystemInterface::IsStaticLightingSystemRunning() || GShaderCompilingManager->IsCompiling() || (AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets()))
 				{
 					bShouldThrottle = false;
 				}

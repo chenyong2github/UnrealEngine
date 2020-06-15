@@ -4,20 +4,12 @@
 #include "DispatcherImpl.h"
 
 #include "PhysicsSolver.h"
-#include "Framework/CommandBuffer.h"
 #include "ChaosSolversModule.h"
 #include "ChaosStats.h"
 #include "PhysicsCoreTypes.h"
 
 namespace Chaos
 {
-	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand)
-	{
-		check(InSolver && InCommand);
-		InSolver->GetCommandQueue().Enqueue(InCommand);
-	}
-
 	template<>
 	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FTaskCommand InCommand)
 	{
@@ -26,21 +18,9 @@ namespace Chaos
 	}
 
 	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FGlobalCommand InCommand)
-	{
-		check(Owner);
-		GlobalCommandQueue.Enqueue(InCommand);
-	}
-
-	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData)
-	{
-		CommandLists.Enqueue(MoveTemp(InCommandData));
-	}
-
-	template<>
 	void FDispatcher<EThreadingMode::DedicatedThread>::Execute()
 	{
+#if 0
 		check(!IsInGameThread());
 
 		TUniquePtr<FCommandListData> Data = nullptr;
@@ -49,11 +29,6 @@ namespace Chaos
 		// Enqueue all pending command lists
 		while(CommandLists.Dequeue(Data))
 		{
-			for(FGlobalCommand& C : Data->GlobalCommands)
-			{
-				EnqueueCommandImmediate(C);
-			}
-
 			for(FTaskCommand& C : Data->TaskCommands)
 			{
 				EnqueueCommandImmediate(C);
@@ -84,17 +59,12 @@ namespace Chaos
 				TaskCommand(Task);
 			}
 		}
+#endif
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 
-	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand)
-	{
-		check(InSolver && InCommand);
-		InCommand();
-	}
-
+	
 	template<>
 	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FTaskCommand InCommand)
 	{
@@ -103,50 +73,13 @@ namespace Chaos
 	}
 
 	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FGlobalCommand InCommand)
-	{
-		check(Owner);
-		InCommand();
-	}
-
-	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData)
-	{
-		// Steal the ptr from the external caller still to emulate the same experience under all dispatchers
-		TUniquePtr<FCommandListData> Data = MoveTemp(InCommandData);
-
-		// Just pass to enqueue
-		for(FGlobalCommand& C : Data->GlobalCommands)
-		{
-			EnqueueCommandImmediate(C);
-		}
-
-		for(FTaskCommand& C : Data->TaskCommands)
-		{
-			EnqueueCommandImmediate(C);
-		}
-
-		for(const TTuple<FPhysicsSolver*, FSolverCommand>& Pair : Data->SolverCommands)
-		{
-			EnqueueCommandImmediate(Pair.Get<0>(), Pair.Get<1>());
-		}
-	}
-
-	template<>
 	void FDispatcher<EThreadingMode::SingleThread>::Execute()
 	{
 		ensureMsgf(false, TEXT("Single threaded dispatcher should never be executed as commands are processed immediately."));
 	}
-
 	//////////////////////////////////////////////////////////////////////////
 
-	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand)
-	{
-		check(InSolver && InCommand);
-		InSolver->GetCommandQueue().Enqueue(InCommand);
-	}
-
+	
 	template<>
 	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FTaskCommand InCommand)
 	{
@@ -154,66 +87,12 @@ namespace Chaos
 		TaskCommandQueue.Enqueue(InCommand);
 	}
 
-	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FGlobalCommand InCommand)
-	{
-		check(Owner);
-		GlobalCommandQueue.Enqueue(InCommand);
-	}
 
-	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData)
-	{
-		CommandLists.Enqueue(MoveTemp(InCommandData));
-	}
 
 	template<>
 	void FDispatcher<EThreadingMode::TaskGraph>::Execute()
 	{
-		TUniquePtr<FCommandListData> Data = nullptr;
-
-		// Enqueue all pending command lists
-		while(CommandLists.Dequeue(Data))
-		{
-			for(FGlobalCommand& C : Data->GlobalCommands)
-			{
-				EnqueueCommandImmediate(C);
-			}
-
-			for(FTaskCommand& C : Data->TaskCommands)
-			{
-				EnqueueCommandImmediate(C);
-			}
-
-			for(TTuple<FPhysicsSolver*, FSolverCommand> Pair : Data->SolverCommands)
-			{
-				EnqueueCommandImmediate(Pair.Get<0>(), Pair.Get<1>());
-			}
-		}
-
-		// Execute global and task commands.
-		{
-			SCOPE_CYCLE_COUNTER(STAT_PhysCommands);
-			TFunction<void()> GlobalCommand;
-			while(GlobalCommandQueue.Dequeue(GlobalCommand))
-			{
-				GlobalCommand();
-			}
-		}
-
-		{
-			ConsumerLock.Lock();
-
-			SCOPE_CYCLE_COUNTER(STAT_TaskCommands);
-			TFunction<void(FPersistentPhysicsTask*)> TaskCommand;
-			while(TaskCommandQueue.Dequeue(TaskCommand))
-			{
-				// No dedicated thread task in this threading mode.
-				TaskCommand(nullptr);
-			}
-
-			ConsumerLock.Unlock();
-		}
+		
 	}
 }
 

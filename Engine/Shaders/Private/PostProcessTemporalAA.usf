@@ -2256,7 +2256,8 @@ void MainCS(
 	uint2 PixelPos = DispatchThreadId + OutputViewportRect.xy;
 	if (all(PixelPos < OutputViewportRect.zw))
 	{
-		OutComputeTex0[PixelPos] = OutColor0;
+		// Clamping by MaxHalfFloat is a workaround for UE-84306.
+		OutComputeTex0[PixelPos] = min(MaxHalfFloat.xxxx, OutColor0);
 
 		#if HISTORY_RENDER_TARGETS == 2
 			OutComputeTex1[PixelPos] = OutColor1;

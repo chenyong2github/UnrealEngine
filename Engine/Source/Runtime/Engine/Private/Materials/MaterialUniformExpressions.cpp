@@ -1071,7 +1071,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			FUintVector4* VTPackedPageTableUniform = (FUintVector4*)BufferCursor;
 			if (AllocatedVT)
 			{
-				AllocatedVT->GetPackedPageTableUniform(VTPackedPageTableUniform, true);
+				AllocatedVT->GetPackedPageTableUniform(VTPackedPageTableUniform);
 			}
 			else
 			{

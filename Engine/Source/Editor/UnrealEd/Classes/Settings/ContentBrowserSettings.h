@@ -54,6 +54,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = ContentBrowser)
 	bool bShowFullCollectionNameInToolTip;
 
+	/** Enables the rendering of Material Instance thumbnail previews */
+	UPROPERTY(EditAnywhere, config, Category = ContentBrowser)
+	bool bEnableRealtimeMaterialInstanceThumbnails = true;
+
 public:
 
 	/** Sets whether we are allowed to display the engine folder or not, optional flag for setting override instead */

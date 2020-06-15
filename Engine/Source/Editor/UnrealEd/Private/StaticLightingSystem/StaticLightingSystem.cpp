@@ -81,6 +81,7 @@ DEFINE_LOG_CATEGORY(LogStaticLightingSystem);
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/UObjectToken.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Rendering/StaticLightingSystemInterface.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
@@ -2514,6 +2515,8 @@ void UEditorEngine::BuildLighting(const FLightingBuildOptions& Options)
 void UEditorEngine::UpdateBuildLighting()
 {
 	FStaticLightingManager::Get()->UpdateBuildLighting();
+
+	FStaticLightingSystemInterface::EditorTick();
 }
 
 bool UEditorEngine::IsLightingBuildCurrentlyRunning() const

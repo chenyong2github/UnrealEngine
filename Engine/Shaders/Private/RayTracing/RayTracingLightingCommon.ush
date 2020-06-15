@@ -325,13 +325,16 @@ float3 SampleAreaLightDirection(
 	return ShadowRayDirection;
 }
 
-uint2 CullDirectLighting(
+uint CullDirectLighting(
+	in uint BaseLightIndex,
 	in float3 WorldPosition,
 	in float3 WorldNormal)
 {
-	uint2 LightCullMask = (uint2)0;
+	uint LightCullMask = 0;
 
-	for (uint LightIndex = 0; LightIndex < RaytracingLightsDataPacked.Count; LightIndex++)
+	uint MaxLightIndex = min(BaseLightIndex + 32, RaytracingLightsDataPacked.Count);
+
+	for (uint LightIndex = BaseLightIndex; LightIndex < MaxLightIndex; LightIndex++)
 	{
 		uint Lit = 1;
 
@@ -367,14 +370,15 @@ uint2 CullDirectLighting(
 			Lit = 0;
 		}
 
-		LightCullMask[LightIndex/32] |= Lit << (LightIndex%32);
+		LightCullMask |= Lit << (LightIndex- BaseLightIndex);
 	}
 
 	return LightCullMask;
 }
 
 float3 ComputeDirectLightingCulled(
-	in uint2 LightCullMask,
+	in uint LightCullMask,
+	in uint BaseLightIndex,
 	in float3 WorldPosition,
 	in float3 ViewDirection,
 	in FRayCone RayCone,
@@ -399,35 +403,19 @@ float3 ComputeDirectLightingCulled(
 	Payload.SetIndirectIrradiance(ViewDirection);
 #endif
 
-	uint LightIndex = 0;
+	uint LightIndex = BaseLightIndex;
 
-	while (WaveActiveAnyTrue(LightCullMask.x || LightCullMask.y))
+	while (WaveActiveAnyTrue(LightCullMask))
 	{
-		const bool Active = LightCullMask.x || LightCullMask.y;
+		const bool Active = LightCullMask;
 
 		if (Active)
 		{
-			if ((LightCullMask.x & 0x1) == 0)
+			if ((LightCullMask & 0x1) == 0)
 			{
-				uint Shift = LightCullMask.x ? firstbitlow(LightCullMask.x) : 32;
+				uint Shift = LightCullMask ? firstbitlow(LightCullMask) : 32;
 				LightIndex += Shift;
-				LightCullMask.x >>= Shift;
-
-				//fill in the top of LightCullMask.x
-				LightCullMask.x |= LightCullMask.y << (32 - Shift);
-				LightCullMask.y >>= Shift;
-
-				//may need to try once more
-				if ((LightCullMask.x & 0x1) == 0)
-				{
-					uint Shift = LightCullMask.x ? firstbitlow(LightCullMask.x) : 32;
-					LightIndex += Shift;
-					LightCullMask.x >>= Shift;
-
-					//fill in the top of LightCullMask.x
-					LightCullMask.x |= LightCullMask.y << (32 - Shift);
-					LightCullMask.y >>= Shift;
-				}
+				LightCullMask >>= Shift;
 			}
 		}
 		else
@@ -483,11 +471,11 @@ float3 ComputeDirectLightingCulled(
 			ShadowRay.Origin = WorldPosition;
 			ShadowRay.Direction = ShadowRayDirection;
 			ShadowRay.TMin = 1e-4f;
-			ShadowRay.TMax = !ForceMiss ? length(ToLight) : -ShadowRay.TMin;
+			ShadowRay.TMax = ForceMiss ? ShadowRay.TMin : length(ToLight);
 			ApplyPositionBias(ShadowRay, Payload.GetWorldNormal(), ShadowMaxNormalBias);
 
 			uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
-			const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
+			const uint InstanceInclusionMask = ForceMiss ? 0 : RAY_TRACING_MASK_SHADOW;
 
 #if !ENABLE_TWO_SIDED_GEOMETRY
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
@@ -527,10 +515,7 @@ float3 ComputeDirectLightingCulled(
 #endif // !DIM_MISS_SHADER_LIGHTING
 
 		LightIndex += 1;
-		LightCullMask.x >>= 1;
-
-		LightCullMask.x |= LightCullMask.y << 31;
-		LightCullMask.y >>= 1;
+		LightCullMask >>= 1;
 	}
 
 #if DIM_MISS_SHADER_LIGHTING
@@ -651,15 +636,17 @@ float3 ComputeDirectLightingMonolithic(
 			ShadowRayDirection = SampleAreaLightDirection(LightData, WorldPosition, Payload.GetWorldNormal(), LightType, RandSequence);
 		}
 
+		const bool ApplyShadow = (Lit && ReflectedShadowsType != 0);
+
 		RayDesc ShadowRay;
 		ShadowRay.Origin = WorldPosition;
 		ShadowRay.Direction = ShadowRayDirection;
 		ShadowRay.TMin = 1e-4f;
-		ShadowRay.TMax = (Lit && ReflectedShadowsType!=0) ? length(ToLight) : -ShadowRay.TMin;
+		ShadowRay.TMax = (ApplyShadow) ? length(ToLight) : ShadowRay.TMin;
 		ApplyPositionBias(ShadowRay, Payload.GetWorldNormal(), ShadowMaxNormalBias);
 
 		uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
-		const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
+		const uint InstanceInclusionMask = (ApplyShadow) ? RAY_TRACING_MASK_SHADOW : 0;
 
 		#if !ENABLE_TWO_SIDED_GEOMETRY
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
@@ -734,9 +721,13 @@ void AccumulateResults(
 		float OldHitT = Payload.HitT;
 
 #if DIM_MISS_SHADER_LIGHTING
-		uint2 LightCullMask = (uint2)0;
-		LightCullMask = CullDirectLighting(WorldPosition, Payload.GetWorldNormal());
-		DirectLighting = ComputeDirectLightingCulled(LightCullMask, WorldPosition, ViewDirection, RayCone, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
+		// cull lights in batches of 32
+		for (uint BaseLightIndex = 0; BaseLightIndex < RaytracingLightsDataPacked.Count; BaseLightIndex += 32)
+		{
+			uint LightCullMask = 0;
+			LightCullMask = CullDirectLighting(BaseLightIndex, WorldPosition, Payload.GetWorldNormal());
+			DirectLighting += ComputeDirectLightingCulled(LightCullMask, BaseLightIndex, WorldPosition, ViewDirection, RayCone, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
+		}
 #else // DIM_MISS_SHADER_LIGHTING
 		DirectLighting = ComputeDirectLightingMonolithic(WorldPosition, ViewDirection, RayCone, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
 #endif // DIM_MISS_SHADER_LIGHTING
@@ -844,6 +835,8 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 		// Disable precomputed sky light contribution from hit shaders when ray tracing sky light contribution
 		bEnableSkyLightContribution = false;
 	}
+	
+	bool bIgnoreTranslucentMaterials = false;
 
 	FMaterialClosestHitPayload BottomLayerPayload = TraceMaterialRay(
 		TLAS,
@@ -851,7 +844,8 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 		InstanceInclusionMask,
 		Ray,
 		RayCone,
-		bEnableSkyLightContribution);
+		bEnableSkyLightContribution,
+		bIgnoreTranslucentMaterials);
 
 	ComputeBottomLayerMaterialProperties(Ray, BottomLayerPayload);
 

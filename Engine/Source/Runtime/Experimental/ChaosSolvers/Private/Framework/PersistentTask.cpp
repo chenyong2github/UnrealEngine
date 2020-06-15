@@ -17,7 +17,7 @@
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -253,8 +253,6 @@ namespace Chaos
 
 		if(bFullSync)
 		{
-			TArray<FFieldSystemPhysicsProxy*> FieldsToDelete;
-
 			for(FPhysicsSolverBase* Solver : Solvers)
 			{
 				Solver->CastHelper([](auto& Concrete)
@@ -277,22 +275,8 @@ namespace Chaos
 					}
 				});
 
-				RemovedObjects.ForEachFieldPhysicsProxy([Solver, &FieldsToDelete](auto* Object)
-				{
-					if(Object->GetSolver() == Solver)
-					{
-						FieldsToDelete.Add(Object);
-					}
-				});
-
 				RemovedObjects.Reset();
 #endif
-			}
-
-			// @todo(question) : Why is there a separate delete here for fields. [brice]
-			for(FFieldSystemPhysicsProxy* FieldObj : FieldsToDelete)
-			{
-				delete FieldObj;
 			}
 
 			for (FPhysicsSolverBase* Solver : Solvers)
@@ -397,15 +381,17 @@ namespace Chaos
 
 	void FPersistentPhysicsTask::HandleSolverCommands(FPhysicsSolverBase* InSolver)
 	{
+#if 0
 		SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
 
 		check(InSolver);
-		TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
+		TQueue<TFunction<void()>, EQueueMode::Spsc>& Queue = InSolver->CommandQueue;
 		TFunction<void()> Command;
 		while(Queue.Dequeue(Command))
 		{
 			Command();
 		}
+#endif
 	}
 
 	template <typename TSolver>

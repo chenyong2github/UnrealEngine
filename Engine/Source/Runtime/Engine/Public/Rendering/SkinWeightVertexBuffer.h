@@ -396,9 +396,9 @@ public:
 #endif // WITH_EDITOR
 
 	/** Assignment operator for assigning array of weights to this buffer */
-	FSkinWeightVertexBuffer& operator=(const TArray<FSkinWeightInfo>& InWeights);
-	void GetSkinWeights(TArray<FSkinWeightInfo>& OutVertices) const;
-	FSkinWeightInfo GetVertexSkinWeights(uint32 VertexIndex) const;
+	ENGINE_API FSkinWeightVertexBuffer& operator=(const TArray<FSkinWeightInfo>& InWeights);
+	ENGINE_API void GetSkinWeights(TArray<FSkinWeightInfo>& OutVertices) const;
+	ENGINE_API FSkinWeightInfo GetVertexSkinWeights(uint32 VertexIndex) const;
 
 	void CopySkinWeightInfoData(const TArrayView<const FSkinWeightInfo>& SkinWeightData);
 

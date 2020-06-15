@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "ShaderCore.h"
+#include "ShaderCompilerCore.h"
 
 namespace CrossCompiler
 {

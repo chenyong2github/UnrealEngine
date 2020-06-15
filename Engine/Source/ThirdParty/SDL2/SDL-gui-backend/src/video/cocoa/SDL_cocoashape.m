@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -88,10 +88,10 @@ Cocoa_SetWindowShape(SDL_WindowShaper *shaper, SDL_Surface *shape, SDL_WindowSha
     [NSGraphicsContext setCurrentContext:data->context];
 
     [[NSColor clearColor] set];
-    NSRectFill([[windata->nswindow contentView] frame]);
+    NSRectFill([windata->sdlContentView frame]);
     data->shape = SDL_CalculateShapeTree(*shape_mode,shape);
 
-    closure.view = [windata->nswindow contentView];
+    closure.view = windata->sdlContentView;
     closure.path = [NSBezierPath bezierPath];
     closure.window = shaper->window;
     SDL_TraverseShapeTree(data->shape,&ConvertRects,&closure);

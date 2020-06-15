@@ -160,7 +160,7 @@ public:
 	 */
 	static uint64 GetTimingFrequency(uint32 GPUIndex = 0)
 	{
-		return GTimingFrequency;
+		return GTimingFrequency[GPUIndex];
 	}
 
 	/**
@@ -170,7 +170,7 @@ public:
 	*/
 	static FGPUTimingCalibrationTimestamp GetCalibrationTimestamp(uint32 GPUIndex = 0)
 	{
-		return GCalibrationTimestamp;
+		return GCalibrationTimestamp[GPUIndex];
 	}
 
 	typedef void (PlatformStaticInitialize)(void*);
@@ -180,7 +180,7 @@ public:
 		{
 			(*PlatformFunction)(UserData);
 
-			if (GTimingFrequency != 0)
+			if (GetTimingFrequency() != 0)
 			{
 				GIsSupported = true;
 			}
@@ -200,15 +200,26 @@ protected:
 	/** Whether GPU timing measurements are supported by the driver. */
 	static bool		GIsSupported;
 
+	static void SetTimingFrequency(uint64 TimingFrequency, uint32 GPUIndex = 0)
+	{
+		GTimingFrequency[GPUIndex] = TimingFrequency;
+	}
+
+	static void SetCalibrationTimestamp(FGPUTimingCalibrationTimestamp CalibrationTimestamp, uint32 GPUIndex = 0)
+	{
+		GCalibrationTimestamp[GPUIndex] = CalibrationTimestamp;
+	}
+
+private:
 	/** Frequency for the timing values, in number of ticks per seconds, or 0 if the feature isn't supported. */
-	static uint64	GTimingFrequency;
+	static TStaticArray<uint64, MAX_NUM_GPUS>	GTimingFrequency;
 
 	/**
 	* Two timestamps performed on GPU and CPU at nearly the same time.
 	* This can be used to visualize GPU and CPU timing events on the same timeline.
 	* Both values may be 0 if timer calibration is not available on current platform.
 	*/
-	static FGPUTimingCalibrationTimestamp GCalibrationTimestamp;
+	static TStaticArray<FGPUTimingCalibrationTimestamp, MAX_NUM_GPUS> GCalibrationTimestamp;
 };
 
 /** 

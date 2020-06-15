@@ -51,8 +51,8 @@ public:
 	{
 		CubeFace.Bind(Initializer.ParameterMap,TEXT("CubeFace"));
 		SourceMipIndex.Bind(Initializer.ParameterMap,TEXT("SourceMipIndex"));
-		SourceTexture.Bind(Initializer.ParameterMap,TEXT("SourceTexture"));
-		SourceTextureSampler.Bind(Initializer.ParameterMap,TEXT("SourceTextureSampler"));
+		SourceCubemapTexture.Bind(Initializer.ParameterMap,TEXT("SourceCubemapTexture"));
+		SourceCubemapSampler.Bind(Initializer.ParameterMap,TEXT("SourceCubemapSampler"));
 		CoefficientMask0.Bind(Initializer.ParameterMap,TEXT("CoefficientMask0"));
 		CoefficientMask1.Bind(Initializer.ParameterMap,TEXT("CoefficientMask1"));
 		CoefficientMask2.Bind(Initializer.ParameterMap,TEXT("CoefficientMask2"));
@@ -68,8 +68,8 @@ public:
 		SetTextureParameter(
 			RHICmdList, 
 			RHICmdList.GetBoundPixelShader(),
-			SourceTexture, 
-			SourceTextureSampler, 
+			SourceCubemapTexture,
+			SourceCubemapSampler,
 			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), 
 			SourceTextureValue);
 
@@ -86,8 +86,8 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, CubeFace)
 	LAYOUT_FIELD(FShaderParameter, SourceMipIndex)
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTexture)
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSampler)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapSampler)
 	LAYOUT_FIELD(FShaderParameter, CoefficientMask0)
 	LAYOUT_FIELD(FShaderParameter, CoefficientMask1)
 	LAYOUT_FIELD(FShaderParameter, CoefficientMask2)
@@ -112,8 +112,8 @@ public:
 	{
 		CubeFace.Bind(Initializer.ParameterMap,TEXT("CubeFace"));
 		SourceMipIndex.Bind(Initializer.ParameterMap,TEXT("SourceMipIndex"));
-		SourceTexture.Bind(Initializer.ParameterMap,TEXT("SourceTexture"));
-		SourceTextureSampler.Bind(Initializer.ParameterMap,TEXT("SourceTextureSampler"));
+		SourceCubemapTexture.Bind(Initializer.ParameterMap,TEXT("SourceCubemapTexture"));
+		SourceCubemapSampler.Bind(Initializer.ParameterMap,TEXT("SourceCubemapSampler"));
 		Sample01.Bind(Initializer.ParameterMap,TEXT("Sample01"));
 		Sample23.Bind(Initializer.ParameterMap,TEXT("Sample23"));
 	}
@@ -127,8 +127,8 @@ public:
 		SetTextureParameter(
 			RHICmdList, 
 			RHICmdList.GetBoundPixelShader(),
-			SourceTexture, 
-			SourceTextureSampler, 
+			SourceCubemapTexture,
+			SourceCubemapSampler,
 			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), 
 			SourceTextureValue);
 
@@ -143,8 +143,8 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, CubeFace)
 	LAYOUT_FIELD(FShaderParameter, SourceMipIndex)
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTexture)
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSampler)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapSampler)
 	LAYOUT_FIELD(FShaderParameter, Sample01)
 	LAYOUT_FIELD(FShaderParameter, Sample23)
 };
@@ -166,8 +166,8 @@ public:
 		FGlobalShader(Initializer)
 	{
 		SourceMipIndex.Bind(Initializer.ParameterMap,TEXT("SourceMipIndex"));
-		SourceTexture.Bind(Initializer.ParameterMap,TEXT("SourceTexture"));
-		SourceTextureSampler.Bind(Initializer.ParameterMap,TEXT("SourceTextureSampler"));
+		SourceCubemapTexture.Bind(Initializer.ParameterMap,TEXT("SourceCubemapTexture"));
+		SourceCubemapSampler.Bind(Initializer.ParameterMap,TEXT("SourceCubemapSampler"));
 	}
 	FAccumulateCubeFacesPS() {}
 
@@ -178,16 +178,16 @@ public:
 		SetTextureParameter(
 			RHICmdList, 
 			RHICmdList.GetBoundPixelShader(),
-			SourceTexture, 
-			SourceTextureSampler, 
+			SourceCubemapTexture,
+			SourceCubemapSampler,
 			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), 
 			SourceTextureValue);
 	}
 
 private:
 	LAYOUT_FIELD(FShaderParameter, SourceMipIndex)
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTexture)
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSampler)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapSampler)
 };
 
 IMPLEMENT_SHADER_TYPE(,FAccumulateCubeFacesPS,TEXT("/Engine/Private/ReflectionEnvironmentShaders.usf"),TEXT("AccumulateCubeFacesPS"),SF_Pixel)

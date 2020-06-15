@@ -18,6 +18,7 @@
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 #include "MaterialCompiler.h"
 #include "RenderUtils.h"
@@ -663,6 +664,9 @@ protected:
 	virtual int32 Logarithm10(int32 X) override;
 	virtual int32 SquareRoot(int32 X) override;
 	virtual int32 Length(int32 X) override;
+	virtual int32 Step(int32 Y, int32 X) override;
+	virtual int32 SmoothStep(int32 X, int32 Y, int32 A) override;
+	virtual int32 InvLerp(int32 X, int32 Y, int32 A) override;
 	virtual int32 Lerp(int32 X, int32 Y, int32 A) override;
 	virtual int32 Min(int32 A, int32 B) override;
 	virtual int32 Max(int32 A, int32 B) override;
@@ -727,6 +731,11 @@ protected:
 
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) override;
+
+	virtual int32 GetCloudSampleAltitude() override;
+	virtual int32 GetCloudSampleAltitudeInLayer() override;
+	virtual int32 GetCloudSampleNormAltitudeInLayer() override;
+	virtual int32 GetVolumeSampleConservativeDensity() override;
 
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override;
 

@@ -22,6 +22,8 @@ public:
 	int OutputVoxelCount = 1024;
 	int InputVoxelCount = 1024;
 
+	bool bRemoveInternalSurfaces = false;
+
 	virtual void PostProcessResult(FProgressCancel* Progress, double MeshCellSize);
 };
 

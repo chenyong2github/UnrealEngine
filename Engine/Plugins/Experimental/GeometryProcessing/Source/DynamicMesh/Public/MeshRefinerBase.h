@@ -233,6 +233,19 @@ protected:
 	}
 
 	/**
+	 * @return true if the given vertex has a constraint specifying that the vertex is not Movable
+	*/
+	bool IsVertexPositionConstrained(int VertexID)
+	{
+		if (Constraints)
+		{
+			FVertexConstraint vc = Constraints->GetVertexConstraint(VertexID);
+			return !(vc.Movable);
+		}
+		return false;
+	}
+
+	/**
 	 * @return constraint for given vertex
 	 */
 	inline FVertexConstraint GetVertexConstraint(int VertexID)

@@ -635,7 +635,18 @@ struct FIoStoreArguments
 	TMap<FName, uint64> CookerOrderMap;
 	FKeyChain KeyChain;
 	FKeyChain PatchKeyChain;
+	FString DLCPluginPath;
 	bool bSign = false;
+
+	bool ShouldCreateContainers() const
+	{
+		return GlobalContainerPath.Len() > 0 || DLCPluginPath.Len() > 0;
+	}
+
+	bool IsDLC() const
+	{
+		return DLCPluginPath.Len() > 0;
+	}
 };
 
 struct FContainerTargetSpec
@@ -822,6 +833,7 @@ struct FExportGraphNode
 	FPackage* Package;
 	FExportBundleEntry BundleEntry;
 	TSet<FExportGraphNode*> ExternalDependencies;
+	TSet<FPackageId> BaseGamePackageDependencies;
 	uint64 NodeIndex;
 };
 
@@ -894,7 +906,6 @@ struct FPackage
 	FPackageId GlobalPackageId;
 	FString Region; // for localized packages
 	FPackageId SourceGlobalPackageId; // for localized packages
-	int32 ImportedPackagesSerializeCount = 0; // < ImportedPackages.Num() for source packages that have localized packages
 	uint32 PackageFlags = 0;
 	uint32 CookedHeaderSize = 0;
 	int32 NameCount = 0;
@@ -911,15 +922,14 @@ struct FPackage
 	bool bIsLocalizedAndConformed = false;
 
 	TArray<FPackage*> ImportedPackages;
-	TArray<FPackage*> ImportedByPackages;
-	TSet<FPackage*> AllReachablePackages;
+	TArray<FPackageId> ImportedPackageIds;
 
 	TArray<FName> SummaryNames;
 	FNameMapBuilder LocalNameMapBuilder;
 	
 	TArray<FPackageObjectIndex> Imports;
 	TArray<int32> Exports;
-	TMap<FPackage*, TArray<FArc>> ExternalArcs;
+	TMap<FPackageId, TArray<FArc>> ExternalArcs;
 	
 	TArray<FExportBundle> ExportBundles;
 	TMap<FExportGraphNode*, uint32> ExportBundleMap;
@@ -1116,41 +1126,16 @@ static void AddExternalExportArc(FExportGraph& ExportGraph, FPackage& FromPackag
 	ExportGraph.AddExternalDependency(FromNode, ToNode);
 }
 
-static void AddUniqueExternalBundleArc(FPackage& FromPackage, uint32 FromBundleIndex, FPackage& ToPackage, uint32 ToBundleIndex)
+static void AddBaseGamePackageArc(FExportGraph& ExportGraph, FPackageId FromPackageId, FPackage& ToPackage, uint32 ToExportIndex, EPreloadDependencyType ToPhase)
 {
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	ExternalArcs.AddUnique({ FromBundleIndex, ToBundleIndex });
+	FExportGraphNode* ToNode = ToPhase == PreloadDependencyType_Create ? ToPackage.CreateExportNodes[ToExportIndex] : ToPackage.SerializeExportNodes[ToExportIndex];
+	ToNode->BaseGamePackageDependencies.Add(FromPackageId);
 }
 
-static void AddReachablePackagesRecursive(FPackage& Package, FPackage& PackageWithImports, TSet<FPackage*>& Visited, bool bFirst)
+static void AddUniqueExternalBundleArc(FPackageId FromPackageId, uint32 FromBundleIndex, FPackage& ToPackage, uint32 ToBundleIndex)
 {
-	if (!bFirst)
-	{
-		bool bIsVisited = false;
-		Visited.Add(&PackageWithImports, &bIsVisited);
-		if (bIsVisited)
-		{
-			return;
-		}
-
-		if (&PackageWithImports == &Package)
-		{
-			return;
-		}
-	}
-
-	if (PackageWithImports.AllReachablePackages.Num() > 0)
-	{
-		Visited.Append(PackageWithImports.AllReachablePackages);
-		
-	}
-	else
-	{
-		for (FPackage* ImportedPackage : PackageWithImports.ImportedPackages)
-		{
-			AddReachablePackagesRecursive(Package, *ImportedPackage, Visited, false);
-		}
-	}
+	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(FromPackageId);
+	ExternalArcs.AddUnique({ FromBundleIndex, ToBundleIndex });
 }
 
 static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Packages)
@@ -1188,7 +1173,11 @@ static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Pac
 		{
 			uint32* FindDependentBundleIndex = ExternalDependency->Package->ExportBundleMap.Find(ExternalDependency);
 			check(FindDependentBundleIndex);
-			AddUniqueExternalBundleArc(*ExternalDependency->Package, *FindDependentBundleIndex, *Package, BundleIndex);
+			AddUniqueExternalBundleArc(ExternalDependency->Package->GlobalPackageId, *FindDependentBundleIndex, *Package, BundleIndex);
+		}
+		for (FPackageId FromPackageId : Node->BaseGamePackageDependencies)
+		{
+			AddUniqueExternalBundleArc(FromPackageId, MAX_uint32, *Package, BundleIndex);
 		}
 		Bundle->Nodes.Add(Node);
 		Package->ExportBundleMap.Add(Node, BundleIndex);
@@ -1598,20 +1587,14 @@ struct FGlobalPackageData
 		ImportsByFullName.Reserve(EstimatedScriptObjectCount + EstimatedPublicExportObjectCount);
 	}
 
-	FExportObjectData& GetPublicExport(FPackageObjectIndex Index)
+	const FExportObjectData* FindPublicExport(FPackageObjectIndex Index) const
 	{
 		check(Index.IsPackageImport());
-		const int32* GlobalExportIndex = PublicExportIndices.Find(Index);
-		check(GlobalExportIndex);
-		return ExportObjects[*GlobalExportIndex];
-	}
-
-	const FExportObjectData& GetPublicExport(FPackageObjectIndex Index) const
-	{
-		check(Index.IsPackageImport());
-		const int32* GlobalExportIndex = PublicExportIndices.Find(Index);
-		check(GlobalExportIndex);
-		return ExportObjects[*GlobalExportIndex];
+		if (const int32* GlobalExportIndex = PublicExportIndices.Find(Index))
+		{
+			return &ExportObjects[*GlobalExportIndex];
+		}
+		return nullptr;
 	}
 
 	FName GetObjectName(FPackageObjectIndex Index, const TArray<int32>* PackageExportIndices) const
@@ -1673,7 +1656,8 @@ static FPackageObjectIndex FindAndVerifyGlobalImport(
 	const FPackage* Package,
 	FGlobalPackageData& GlobalPackageData,
 	FObjectImport& Import,
-	FString& FullName)
+	const FString& FullName,
+	const FString& DLCPrefix)
 {
 	FPackageObjectIndex GlobalImportIndex = GlobalPackageData.ImportsByFullName.FindRef(FullName);
 	if (GlobalImportIndex.IsNull())
@@ -1703,7 +1687,7 @@ static FPackageObjectIndex FindAndVerifyGlobalImport(
 					Package->GlobalPackageId.ValueForDebugging(),
 					*FullName);
 			}
-			else
+			else if (!DLCPrefix.Len() || FullName.StartsWith(DLCPrefix))
 			{
 				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import object '%s' due to missing public export. Editor only?"),
 					*Package->Name.ToString(),
@@ -2074,22 +2058,34 @@ static void AddPreloadDependencies(
 					FPackageObjectIndex ImportIndex = Package->Imports[Dep.ToImport()];
 					if (ImportIndex.IsPackageImport())
 					{
-						const FExportObjectData& Export = GlobalPackageData.GetPublicExport(ImportIndex);
-						check(Export.GlobalImportIndex == ImportIndex);
-
-						AddExternalExportArc(ExportGraph, *Export.Package, Export.SourceIndex, PhaseFrom, *Package, I, PhaseTo);
-
-						LocalizedPackages.Reset();
-						SourceToLocalizedPackageMap.MultiFind(Export.Package, LocalizedPackages);
-						for (FPackage* LocalizedPackage : LocalizedPackages)
+						// When building DLC's exports can be missing
+						if (const FExportObjectData* Export = GlobalPackageData.FindPublicExport(ImportIndex))
 						{
-							UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized preload dependency '%s' in '%s'"),
-								*Package->Name.ToString(),
-								Package->GlobalPackageId.ValueForDebugging(),
-								*Export.ObjectName.ToString(),
-								*LocalizedPackage->Name.ToString());
+							check(Export->GlobalImportIndex == ImportIndex);
 
-							AddExternalExportArc(ExportGraph, *LocalizedPackage, Export.SourceIndex, PhaseFrom, *Package, I, PhaseTo);
+							AddExternalExportArc(ExportGraph, *Export->Package, Export->SourceIndex, PhaseFrom, *Package, I, PhaseTo);
+
+							LocalizedPackages.Reset();
+							SourceToLocalizedPackageMap.MultiFind(Export->Package, LocalizedPackages);
+							for (FPackage* LocalizedPackage : LocalizedPackages)
+							{
+								UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized preload dependency '%s' in '%s'"),
+									*Package->Name.ToString(),
+									Package->GlobalPackageId.ValueForDebugging(),
+									*Export->ObjectName.ToString(),
+									*LocalizedPackage->Name.ToString());
+
+								AddExternalExportArc(ExportGraph, *LocalizedPackage, Export->SourceIndex, PhaseFrom, *Package, I, PhaseTo);
+							}
+						}
+						else
+						{
+							const FObjectImport* Import = PackageAssetData.ObjectImports.GetData() + Package->ImportIndexOffset + Dep.ToImport();
+							const bool bIsPackage = Import->OuterIndex.IsNull();
+							if (bIsPackage)
+							{
+								AddBaseGamePackageArc(ExportGraph, FPackageId::FromName(Import->ObjectName), *Package, I, PhaseTo);
+							}
 						}
 					}
 				}
@@ -2176,11 +2172,11 @@ void FinalizePackageHeaders(
 		GraphArchive << ReferencedPackagesCount;
 		for (auto& KV : Package->ExternalArcs)
 		{
-			FPackage* ImportedPackage = KV.Key;
+			FPackageId ImportedPackageId = KV.Key;
 			TArray<FArc>& Arcs = KV.Value;
 			int32 ExternalArcCount = Arcs.Num();
 
-			GraphArchive << ImportedPackage->GlobalPackageId;
+			GraphArchive << ImportedPackageId;
 			GraphArchive << ExternalArcCount;
 			GraphArchive.Serialize(Arcs.GetData(), ExternalArcCount * sizeof(FArc));
 		}
@@ -2370,11 +2366,11 @@ void FinalizePackageStoreContainerHeader(FContainerTargetSpec& ContainerTarget)
 
 			// ImportedPackages
 			{
-				SerializePackageEntryCArrayHeader(Package->ImportedPackagesSerializeCount);
-				for (int32 I = 0; I < Package->ImportedPackagesSerializeCount; ++I)
+				SerializePackageEntryCArrayHeader(Package->ImportedPackageIds.Num());
+				for (FPackageId PackageId : Package->ImportedPackageIds)
 				{
-					FPackage* ImportedPackage = Package->ImportedPackages[I];
-					StoreDataArchive << ImportedPackage->GlobalPackageId;
+					check(PackageId.IsValid());
+					StoreDataArchive << PackageId;
 				}
 			}
 		}
@@ -2640,43 +2636,6 @@ static void ParsePackageAssets(
 	FMemory::Free(UAssetMemory);
 }
 
-static void FindScriptPackages(TArray<FObjectImport>& ObjectImports, TArray<UPackage*>& ScriptPackages)
-{
-	IOSTORE_CPU_SCOPE(FindScriptPackages);
-	UE_LOG(LogIoStore, Display, TEXT("Finding script packages..."));
-
-	TSet<FName> AllPackages;
-	AllPackages.Reserve(65536);
-	ScriptPackages.Reserve(16384);
-
-	for (const FObjectImport& ObjectImport : ObjectImports)
-	{
-		if (ObjectImport.OuterIndex.IsNull())
-		{
-			AllPackages.Add(ObjectImport.ObjectName);
-		}
-	}
-
-	TCHAR NameBuffer[FName::StringBufferSize];
-	static constexpr int32 ScriptPrefixLength = sizeof(ScriptPrefix)/sizeof(TCHAR) - 1;
-	for (const FName& Name : AllPackages)
-	{
-		Name.ToString(NameBuffer);
-		if (FCString::Strncmp(NameBuffer, ScriptPrefix, ScriptPrefixLength) == 0)
-		{
-			UPackage* Package = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), nullptr, Name, true);
-			if (Package)
-			{
-				ScriptPackages.Add(Package);
-			}
-			else
-			{
-				UE_LOG(LogIoStore, Warning, TEXT("Failed to find imported script package: %s"), NameBuffer);
-			}
-		}
-	}
-}
-
 // modified copy from SavePackage
 EObjectMark GetExcludedObjectMarksForTargetPlatform(const ITargetPlatform* TargetPlatform)
 {
@@ -2723,13 +2682,6 @@ EObjectMark GetExcludedObjectMarksForObject(const UObject* Object, const ITarget
 	return Marks;
 }
 
-static uint64 GenerateImportHash(FString& FullName)
-{
-	uint64 Hash = CityHash64(reinterpret_cast<const char*>(*FullName), FullName.Len() * sizeof(TCHAR));
-	Hash &= ~(3ull << 62ull);
-	return Hash;
-}
-
 static void FindScriptObjectsRecursive(
 	FGlobalPackageData& GlobalPackageData,
 	FPackageObjectIndex OuterIndex,
@@ -2763,8 +2715,7 @@ static void FindScriptObjectsRecursive(
 	ObjectName.AppendString(TempFullName);
 
 	TempFullName.ToLowerInline();
-	const uint64 Hash = GenerateImportHash(TempFullName);
-	FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, Hash);
+	FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromScriptPath(TempFullName);
 
 	check(!GlobalPackageData.ImportsByFullName.Contains(TempFullName));
 	FScriptObjectData* ScriptImport = ScriptObjects.Find(GlobalImportIndex);
@@ -2807,7 +2758,6 @@ static void FindScriptObjectsRecursive(
 };
 
 static void CreateGlobalScriptObjects(
-	TArray<UPackage*> Packages,
 	FNameMapBuilder& NameMapBuilder,
 	FGlobalPackageData& GlobalPackageData,
 	const ITargetPlatform* TargetPlatform)
@@ -2817,35 +2767,19 @@ static void CreateGlobalScriptObjects(
 
 	const EObjectMark ExcludedObjectMarks = GetExcludedObjectMarksForTargetPlatform(TargetPlatform);
 
-	TArray<UObject*> InnerObjects;
-	// GetObjectsOfClass(UPackage::StaticClass(), Packages, /*bIncludeDerivedClasses*/false);
-	for (UPackage* Package : Packages)
-	{
-		if (!Package->HasAnyPackageFlags(PKG_CompiledIn))
-		{
-			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s is missing the flag PKG_CompiledIn"), *Package->GetName());
-		}
-		else if (Package->HasAnyPackageFlags(PKG_EditorOnly))
-		{
-			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_EditorOnly"), *Package->GetName());
-		}
-		else if (Package->HasAnyPackageFlags(PKG_Developer))
-		{
-			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_Developer"), *Package->GetName());
-		}
-		else if (Package->HasAnyPackageFlags(PKG_UncookedOnly))
-		{
-			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_UncookedOnly"), *Package->GetName());
-		}
+	TArray<UPackage*> ScriptPackages;
+	FindAllRuntimeScriptPackages(ScriptPackages);
 
+	TArray<UObject*> InnerObjects;
+	for (UPackage* Package : ScriptPackages)
+	{
 		FGlobalScriptObjects& ScriptObjects = GlobalPackageData.ScriptObjects;
 
 		FName ObjectName = Package->GetFName();
 		FString FullName = Package->GetName();
 
 		FullName.ToLowerInline();
-		const uint64 Hash = GenerateImportHash(FullName);
-		FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, Hash);
+		FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromScriptPath(FullName);
 
 		check(!GlobalPackageData.ImportsByFullName.Contains(FullName));
 		FScriptObjectData* ScriptImport = ScriptObjects.Find(GlobalImportIndex);
@@ -2876,8 +2810,9 @@ static void CreateGlobalScriptObjects(
 }
 
 static void CreateGlobalImportsAndExports(
+	const FIoStoreArguments& Arguments,
 	TArray<FPackage*>& Packages,
-	const FPackageNameMap& PackageMap,
+	const FPackageIdMap& PackageIdMap,
 	FPackageAssetData& PackageAssetData,
 	FGlobalPackageData& GlobalPackageData,
 	FExportGraph& ExportGraph)
@@ -2886,6 +2821,7 @@ static void CreateGlobalImportsAndExports(
 	UE_LOG(LogIoStore, Display, TEXT("Creating global imports and exports..."));
 
 	TArray<FString> TempFullNames;
+	const FString DLCPrefix = Arguments.IsDLC() ? FString::Printf(TEXT("/%s/"), *FPaths::GetBaseFilename(Arguments.DLCPluginPath)) : FString();
 
 	TSet<FPackage*> TempImportedPackages;
 	for (FPackage* Package : Packages)
@@ -2923,8 +2859,7 @@ static void CreateGlobalImportsAndExports(
 		if (Export.IsPublicExport())
 		{
 			TMap<FPackageObjectIndex, int32>& PublicExports = GlobalPackageData.PublicExportIndices;
-			const uint64 Hash = GenerateImportHash(Export.FullName);
-			FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex(FPackageObjectIndex::PackageImport, Hash);
+			FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromPackagePath(Export.FullName);
 
 			check(!GlobalPackageData.ImportsByFullName.Contains(Export.FullName));
 			int32* ExportIndex = PublicExports.Find(GlobalImportIndex);
@@ -2957,26 +2892,33 @@ static void CreateGlobalImportsAndExports(
 		for (int32 ImportIndex = 0; ImportIndex < Package->ImportCount; ++ImportIndex)
 		{
 			FindImportFullName(TempFullNames, ImportMap, ImportIndex);
+			FString& FullName = TempFullNames[ImportIndex];
+			FObjectImport& Import = ImportMap[ImportIndex];
+			const bool bIsPackage = Import.OuterIndex.IsNull();
 
 			FPackageObjectIndex GlobalImportIndex = FindAndVerifyGlobalImport(
 				Package,
 				GlobalPackageData,
-				ImportMap[ImportIndex],
-				TempFullNames[ImportIndex]);
+				Import,
+				FullName,
+				DLCPrefix);
+
+			// When building DLC:s and we don't have all packages available,
+			// then a global package import object can be missing and still be valid
+			if (GlobalImportIndex.IsNull() && !bIsPackage && !FullName.StartsWith(ScriptPrefix))
+			{
+				GlobalImportIndex = FPackageObjectIndex::FromPackagePath(FullName);
+			}
 
 			Package->Imports.Add(GlobalImportIndex);
 
-			if (GlobalImportIndex.IsPackageImport())
+			if (bIsPackage && GlobalImportIndex.IsNull())
 			{
-				const FExportObjectData& Export = GlobalPackageData.GetPublicExport(GlobalImportIndex);
-				check(Export.Package);
-
-				bool bAlreadyInSet;
-				TempImportedPackages.Add(Export.Package, &bAlreadyInSet);
-				if (!bAlreadyInSet)
+				FPackageId PackageId = FPackageId::FromName(Import.ObjectName);
+				Package->ImportedPackageIds.Add(PackageId);
+				if (FPackage* ImportedPackage = PackageIdMap.FindRef(PackageId))
 				{
-					Package->ImportedPackages.Add(Export.Package);
-					Export.Package->ImportedByPackages.Add(Package);
+					Package->ImportedPackages.Add(ImportedPackage);
 				}
 			}
 		}
@@ -3000,7 +2942,7 @@ static void MapExportEntryIndices(
 			}
 			if (PackageIndex.IsExport())
 			{
-				return FPackageObjectIndex(FPackageObjectIndex::Export, PackageIndex.ToExport());
+				return FPackageObjectIndex::FromExportIndex(PackageIndex.ToExport());
 			}
 			return FPackageObjectIndex();
 		};
@@ -3109,7 +3051,6 @@ static void ProcessLocalizedPackages(
 					LocalizedPackage->GlobalPackageId.ValueForDebugging());
 			}
 		}
-		Package->ImportedPackagesSerializeCount = Package->ImportedPackages.Num();
 		Package->ImportedPackages.Append(LocalizedPackages);
 	}
 
@@ -3120,30 +3061,33 @@ static void ProcessLocalizedPackages(
 		{
 			if (GlobalImportIndex.IsPackageImport())
 			{
-				const FExportObjectData& ExportData = GlobalPackageData.GetPublicExport(GlobalImportIndex);
-				if (ExportData.Package->SourcePackageName != ExportData.Package->Name)
+				// When building DLC's the export can be missing
+				if (const FExportObjectData* Export = GlobalPackageData.FindPublicExport(GlobalImportIndex))
 				{
-					const FPackageObjectIndex* SourceGlobalImportIndex = LocalizedToSourceImportIndexMap.Find(GlobalImportIndex);
-					if (SourceGlobalImportIndex)
+					if (Export->Package->SourcePackageName != Export->Package->Name)
 					{
-						GlobalImportIndex = *SourceGlobalImportIndex;
+						const FPackageObjectIndex* SourceGlobalImportIndex = LocalizedToSourceImportIndexMap.Find(GlobalImportIndex);
+						if (SourceGlobalImportIndex)
+						{
+							GlobalImportIndex = *SourceGlobalImportIndex;
 
-						const FExportObjectData& SourceExportData = GlobalPackageData.GetPublicExport(*SourceGlobalImportIndex);
-						UE_LOG(LogIoStore, Verbose,
-							TEXT("For package '%s' (%d): Remap localized import %s to source import %s (in a conformed localized package)"),
-							*Package->Name.ToString(),
-							Package->GlobalPackageId.ValueForDebugging(),
-							*ExportData.FullName,
-							*SourceExportData.FullName);
-					}
-					else
-					{
-						UE_LOG(LogIoStore, Verbose,
-							TEXT("For package '%s' (%d): Skip remap for localized import %s")
-							TEXT(", either there is no source package or the localized package did not conform to it."),
-							*Package->Name.ToString(),
-							Package->GlobalPackageId.ValueForDebugging(),
-							*ExportData.FullName);
+							const FExportObjectData& SourceExportData = *GlobalPackageData.FindPublicExport(*SourceGlobalImportIndex);
+							UE_LOG(LogIoStore, Verbose,
+								TEXT("For package '%s' (%d): Remap localized import %s to source import %s (in a conformed localized package)"),
+								*Package->Name.ToString(),
+								Package->GlobalPackageId.ValueForDebugging(),
+								*Export->FullName,
+								*SourceExportData.FullName);
+						}
+						else
+						{
+							UE_LOG(LogIoStore, Verbose,
+								TEXT("For package '%s' (%d): Skip remap for localized import %s")
+								TEXT(", either there is no source package or the localized package did not conform to it."),
+								*Package->Name.ToString(),
+								Package->GlobalPackageId.ValueForDebugging(),
+								*Export->FullName);
+						}
 					}
 				}
 			}
@@ -3606,10 +3550,8 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	FExportGraph ExportGraph(PackageAssetData.ObjectExports.Num(), PackageAssetData.PreloadDependencies.Num());
 	GlobalPackageData.Reserve(PackageAssetData.ObjectExports.Num());
 
-	TArray<UPackage*> ScriptPackages;
-	FindScriptPackages(PackageAssetData.ObjectImports, ScriptPackages);
-	CreateGlobalScriptObjects(ScriptPackages, GlobalNameMapBuilder, GlobalPackageData, Arguments.TargetPlatform);
-	CreateGlobalImportsAndExports(Packages, PackageNameMap, PackageAssetData, GlobalPackageData, ExportGraph);
+	CreateGlobalScriptObjects(GlobalNameMapBuilder, GlobalPackageData, Arguments.TargetPlatform);
+	CreateGlobalImportsAndExports(Arguments, Packages, PackageIdMap, PackageAssetData, GlobalPackageData, ExportGraph);
 
 	// Mapped import and exports are required before processing localization, and preload/postload arcs
 	MapExportEntryIndices(PackageAssetData.ObjectExports, GlobalPackageData.ExportObjects, Packages);
@@ -3753,12 +3695,15 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
 	TArray<FIoStoreWriter*> IoStoreWriters;
 	FIoStoreEnvironment GlobalIoStoreEnv;
-	FIoStoreWriter* GlobalIoStoreWriter;
+	FIoStoreWriter* GlobalIoStoreWriter = nullptr;
 	{
 		IOSTORE_CPU_SCOPE(InitializeIoStoreWriters);
-		GlobalIoStoreEnv.InitializeFileEnvironment(*Arguments.GlobalContainerPath);
-		GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv);
-		IoStoreWriters.Add(GlobalIoStoreWriter);
+		if (!Arguments.IsDLC())
+		{
+			GlobalIoStoreEnv.InitializeFileEnvironment(*Arguments.GlobalContainerPath);
+			GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv);
+			IoStoreWriters.Add(GlobalIoStoreWriter);
+		}
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
 			check(ContainerTarget->Header.ContainerId.IsValid());
@@ -3779,7 +3724,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			GlobalContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
 			GlobalContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
 		}
-		IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, GlobalContainerSettings);
+		if (GlobalIoStoreWriter)
+		{
+			IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, GlobalContainerSettings);
+		}
 		check(IoStatus.IsOk());
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
@@ -3946,6 +3894,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		FPlatformProcess::ReturnSynchEventToPool(TaskStartedEvent);
 	}
 
+	if (GlobalIoStoreWriter)
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Saving initial load meta data to container file"));
 		FIoWriteOptions WriteOptions;
@@ -3959,6 +3908,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	uint64 GlobalNamesMB = 0;
 	uint64 GlobalNameHashesMB = 0;
+	if (GlobalIoStoreWriter)
 	{
 		IOSTORE_CPU_SCOPE(SerializeGlobalNameMap);
 
@@ -4136,7 +4086,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d Packages"), Packages.Num());
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Imported package entries"), ImportedPackagesCount);
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Packages without imports"), NoImportedPackagesCount);
-	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d Referenced script packages"), ScriptPackages.Num());
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Name map entries"), NameMapCount);
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d PreloadDependencies entries"), PackageAssetData.PreloadDependencies.Num());
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d ImportMap entries"), PackageAssetData.ObjectImports.Num());
@@ -4146,7 +4095,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundles"), BundleCount);
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundle entries"), BundleEntryCount);
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundle arcs"), TotalExternalArcCount);
-	UE_LOG(LogIoStore, Display, TEXT("Output: %8d Script objects (in referenced script packages)"), GlobalPackageData.ScriptObjects.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8d Public runtime script objects"), GlobalPackageData.ScriptObjects.Num());
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8.2lf MB InitialLoadData"), (double)InitialLoadSize / 1024.0 / 1024.0);
 
 	return 0;
@@ -4606,11 +4555,19 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			}
 		}
 	}
-	
+
+	if (FParse::Value(FCommandLine::Get(), TEXT("DLCFile="), Arguments.DLCPluginPath))
+	{
+		UE_LOG(LogIoStore, Display, TEXT("DLC: '%s'"), *Arguments.DLCPluginPath);
+	}
+
 	if (FParse::Value(FCommandLine::Get(), TEXT("CreateGlobalContainer="), Arguments.GlobalContainerPath))
 	{
 		Arguments.GlobalContainerPath = FPaths::ChangeExtension(Arguments.GlobalContainerPath, TEXT(""));
+	}
 
+	if (Arguments.ShouldCreateContainers())
+	{
 		FString TargetPlatform;
 		if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatform))
 		{

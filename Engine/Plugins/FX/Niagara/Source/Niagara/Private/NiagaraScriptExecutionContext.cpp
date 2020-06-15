@@ -420,11 +420,13 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
 	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
 	uint32 InstanceIndex = 0;
-	for (int32 EmitterIdx : InSystemInstance->GetSystem()->GetEmitterExecutionOrder())
+
+	const TConstArrayView<int32> EmitterExecutionOrder = InSystemInstance->GetEmitterExecutionOrder();
+	for (const int32& EmitterIdx : EmitterExecutionOrder)
 	{
 		if (FNiagaraEmitterInstance* EmitterInstance = &InSystemInstance->GetEmitters()[EmitterIdx].Get())
 		{
-			if (EmitterInstance->IsComplete())
+			if (EmitterInstance->IsComplete() )
 			{
 				continue;
 			}
@@ -439,7 +441,14 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				continue;
 			}
 
-			check(EmitterInstance->HasTicked() == true);
+			// Handle edge case where an emitter was set to inactive on the first frame by scalability
+			// In which case it will never have ticked so we should not execute a GPU tick for this until it becomes active
+			// See FNiagaraSystemInstance::Tick_Concurrent for details
+			if (EmitterInstance->HasTicked() == false)
+			{
+				ensure((EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Inactive) || (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::InactiveClear));
+				continue;
+			}
 
 			FNiagaraComputeInstanceData* InstanceData = new (&Instances[InstanceIndex]) FNiagaraComputeInstanceData;
 			InstanceIndex++;

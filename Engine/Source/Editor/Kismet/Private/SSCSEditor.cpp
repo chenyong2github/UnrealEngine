@@ -474,7 +474,43 @@ bool FSCSEditorTreeNode::IsAttachedTo(FSCSEditorTreeNodePtrType InNodePtr) const
 	return false; 
 }
 
-void FSCSEditorTreeNode::UpdateCachedFilterState(bool bMatchesFilter, bool bUpdateParent)
+bool FSCSEditorTreeNode::MatchesFilterType(const UClass* InFilterType) const
+{
+	// All nodes will pass the type filter by default.
+	return true;
+}
+
+void FSCSEditorTreeNode::RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive)
+{
+	if (bRecursive)
+	{
+		for (FSCSEditorTreeNodePtrType Child : GetChildren())
+		{
+			Child->RefreshFilteredState(InFilterType, InFilterTerms, bRecursive);
+		}
+	}
+
+	bool bIsFilteredOut = InFilterType && !MatchesFilterType(InFilterType);
+
+	if (!bIsFilteredOut)
+	{
+		FString DisplayStr = GetDisplayString();
+		for (const FString& FilterTerm : InFilterTerms)
+		{
+			if (!DisplayStr.Contains(FilterTerm))
+			{
+				bIsFilteredOut = true;
+			}
+		}
+	}
+
+	// if we're not recursing, then assume this is for a new node and we need to update the parent
+	// otherwise, assume the parent was hit as part of the recursion
+	const bool bUpdateParent = !bRecursive;
+	SetCachedFilterState(!bIsFilteredOut, bUpdateParent);
+}
+
+void FSCSEditorTreeNode::SetCachedFilterState(bool bMatchesFilter, bool bUpdateParent)
 {
 	bool bFlagsChanged = false;
 	if ((FilterFlags & EFilteredState::Unknown) == EFilteredState::Unknown)
@@ -1050,6 +1086,24 @@ FSCSEditorChildActorNodePtrType FSCSEditorTreeNodeComponentBase::GetChildActorNo
 	return ChildActorNodePtr;
 }
 
+bool FSCSEditorTreeNodeComponentBase::MatchesFilterType(const UClass* InFilterType) const
+{
+	check(InFilterType);
+
+	if (const UActorComponent* ComponentObject = GetObject<UActorComponent>())
+	{
+		const UClass* ComponentClass = ComponentObject->GetClass();
+		check(ComponentClass);
+
+		if (ComponentClass->IsChildOf(InFilterType))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FSCSEditorTreeNodeInstancedInheritedComponent
 
@@ -1539,18 +1593,28 @@ void FSCSEditorTreeNodeRootActor::AddChild(FSCSEditorTreeNodePtrType InChildNode
 {
 	if (InChildNodePtr.IsValid() && InChildNodePtr->IsComponentNode())
 	{
+		TSharedPtr<FSCSEditorTreeNodeSeparator> NewSeparatorNodePtr;
 		const bool bIsSceneComponentNode = InChildNodePtr->IsSceneComponent();
 
 		// Make sure separators are shown
 		if (bIsSceneComponentNode && !SceneComponentSeparatorNodePtr.IsValid())
 		{
-			SceneComponentSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
-			FSCSEditorTreeNodeActorBase::AddChild(SceneComponentSeparatorNodePtr);
+			NewSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
+
+			SceneComponentSeparatorNodePtr = NewSeparatorNodePtr;
 		}
 		else if (!bIsSceneComponentNode && !NonSceneComponentSeparatorNodePtr.IsValid())
 		{
-			NonSceneComponentSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
-			FSCSEditorTreeNodeActorBase::AddChild(NonSceneComponentSeparatorNodePtr);
+			NewSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
+			NewSeparatorNodePtr->AddFilteredComponentType(USceneComponent::StaticClass());
+
+			NonSceneComponentSeparatorNodePtr = NewSeparatorNodePtr;
+		}
+
+		if (NewSeparatorNodePtr.IsValid())
+		{
+			FSCSEditorTreeNodeActorBase::AddChild(NewSeparatorNodePtr);
+			NewSeparatorNodePtr->RefreshFilteredState(CachedFilterType, CachedFilterTerms, false);
 		}
 	}
 
@@ -1583,6 +1647,14 @@ void FSCSEditorTreeNodeRootActor::RemoveChild(FSCSEditorTreeNodePtrType InChildN
 	}
 
 	FSCSEditorTreeNodeActorBase::RemoveChild(InChildNodePtr);
+}
+
+void FSCSEditorTreeNodeRootActor::RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive)
+{
+	CachedFilterType = InFilterType;
+	CachedFilterTerms = InFilterTerms;
+
+	FSCSEditorTreeNodeActorBase::RefreshFilteredState(InFilterType, InFilterTerms, bRecursive);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1618,6 +1690,33 @@ UChildActorComponent* FSCSEditorTreeNodeChildActor::GetChildActorComponent() con
 	}
 
 	return nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FSCSEditorTreeNodeSeparator
+
+bool FSCSEditorTreeNodeSeparator::MatchesFilterType(const UClass* InFilterType) const
+{
+	check(InFilterType);
+
+	for (const UClass* FilteredType : FilteredTypes)
+	{
+		// If types match here, it means we should filter out the separator, so return false.
+		if (InFilterType->IsChildOf(FilteredType))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void FSCSEditorTreeNodeSeparator::AddFilteredComponentType(const TSubclassOf<UActorComponent>& InFilterType)
+{
+	if (const UClass* FilterType = InFilterType.Get())
+	{
+		FilteredTypes.Add(FilterType);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3804,7 +3903,8 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 
 	const bool  bInlineSearchBarWithButtons = (EditorMode == EComponentEditorMode::BlueprintSCS);
 
-	bool bHideComponentClassCombo = InArgs._HideComponentClassCombo.Get();
+	HideComponentClassCombo = InArgs._HideComponentClassCombo;
+	ComponentTypeFilter = InArgs._ComponentTypeFilter;
 
 	Contents = SNew(SVerticalBox)
 	+ SVerticalBox::Slot()
@@ -3836,7 +3936,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 						[
 							SNew(SComponentClassCombo)
 							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.AddComponent")))
-							.Visibility(bHideComponentClassCombo ? EVisibility::Hidden : EVisibility::Visible)
+							.Visibility(this, &SSCSEditor::GetComponentClassComboButtonVisibility)
 							.OnComponentClassSelected(this, &SSCSEditor::PerformComboAddClass)
 							.ToolTipText(LOCTEXT("AddComponent_Tooltip", "Adds a new component to this actor"))
 							.IsEnabled(AllowEditing)
@@ -4496,7 +4596,7 @@ void SSCSEditor::OnGetChildrenForTree( FSCSEditorTreeNodePtrType InNodePtr, TArr
 		const TArray<FSCSEditorTreeNodePtrType>& Children = InNodePtr->GetChildren();
 		OutChildren.Reserve(Children.Num());
 
-		if (!GetFilterText().IsEmpty())
+		if (ComponentTypeFilter.IsSet() || !GetFilterText().IsEmpty())
 		{
 			for (FSCSEditorTreeNodePtrType Child : Children)
 			{
@@ -6765,6 +6865,11 @@ EVisibility SSCSEditor::GetEditBlueprintButtonVisibility() const
 	return ButtonVisibility;
 }
 
+EVisibility SSCSEditor::GetComponentClassComboButtonVisibility() const
+{
+	return HideComponentClassCombo.Get() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
 FText SSCSEditor::OnGetApplyChangesToBlueprintTooltip() const
 {
 	int32 NumChangedProperties = 0;
@@ -7172,41 +7277,13 @@ void SSCSEditor::OnFilterTextChanged(const FText& InFilterText)
 
 bool SSCSEditor::RefreshFilteredState(FSCSEditorTreeNodePtrType TreeNode, bool bRecursive)
 {
+	const UClass* FilterType = ComponentTypeFilter.Get();
+
 	FString FilterText = FText::TrimPrecedingAndTrailing( GetFilterText() ).ToString();
 	TArray<FString> FilterTerms;
 	FilterText.ParseIntoArray(FilterTerms, TEXT(" "), /*CullEmpty =*/true);
 
-	struct RefreshFilteredState_Inner
-	{
-		static void RefreshFilteredState(FSCSEditorTreeNodePtrType TreeNodeIn, const TArray<FString>& FilterTermsIn, bool bRecursiveIn)
-		{
-			if (bRecursiveIn)
-			{
-				for (FSCSEditorTreeNodePtrType Child : TreeNodeIn->GetChildren())
-				{
-					RefreshFilteredState(Child, FilterTermsIn, bRecursiveIn);
-				}
-			}
-			
-			FString DisplayStr = TreeNodeIn->GetDisplayString();
-
-			bool bIsFilteredOut = false;
-			for (const FString& FilterTerm : FilterTermsIn)
-			{
-				if (!DisplayStr.Contains(FilterTerm))
-				{
-					bIsFilteredOut = true;
-				}
-			}
-
-			// if we're not recursing, then assume this is for a new node and we need to update the parent
-			// otherwise, assume the parent was hit as part of the recursion
-			bool bUpdateParent = !bRecursiveIn;
-			TreeNodeIn->UpdateCachedFilterState(!bIsFilteredOut, bUpdateParent);
-		}
-	};
-
-	RefreshFilteredState_Inner::RefreshFilteredState(TreeNode, FilterTerms, bRecursive);
+	TreeNode->RefreshFilteredState(FilterType, FilterTerms, bRecursive);
 	return TreeNode->IsFlaggedForFiltration();
 }
 

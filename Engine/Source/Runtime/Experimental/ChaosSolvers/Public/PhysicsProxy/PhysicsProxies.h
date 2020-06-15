@@ -11,7 +11,7 @@
  */
 
 #include "SingleParticlePhysicsProxy.h"
-#include "FieldSystemPhysicsProxy.h"
+#include "PerSolverFieldSystem.h"
 #include "GeometryCollectionPhysicsProxy.h"
 #include "SkeletalMeshPhysicsProxy.h"
 #include "StaticMeshPhysicsProxy.h"

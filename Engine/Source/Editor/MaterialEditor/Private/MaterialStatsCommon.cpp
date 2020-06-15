@@ -7,6 +7,7 @@
 #include "GPUSkinVertexFactory.h"
 #include "MaterialEditorSettings.h"
 #include "RHIShaderFormatDefinitions.inl"
+#include "ShaderCompilerCore.h"
 
 /***********************************************************************************************************************/
 /*begin FMaterialResourceStats functions*/

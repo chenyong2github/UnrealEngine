@@ -51,7 +51,7 @@ public class MeshModelingToolsEditorOnly : ModuleRules
                 "RHI",
 				"InputCore",
 
-				"MeshUtilities",    // temp for saving mesh asset
+				"MeshUtilities",		// tangents calculation
 				"UnrealEd",
 				"MeshBuilder",
 				"MeshUtilitiesCommon",  

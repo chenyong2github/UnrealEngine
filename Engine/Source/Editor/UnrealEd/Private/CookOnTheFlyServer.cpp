@@ -3354,7 +3354,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 	// Don't resolve, just add to request list as needed
 	TSet<FName> SoftObjectPackages;
 
-	if (!CookByTheBookOptions->bSkipSoftReferences)
+	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 	{
 		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
 
@@ -5557,13 +5557,19 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
     {
         FShaderCodeLibrary::InitForCooking(PackagingSettings->bSharedMaterialNativeLibraries);
         
+		bool bAllPlatformsNeedStableKeys = false;
+		// support setting without Hungarian prefix for the compatibility, but allow newer one to override
+		GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bAllPlatformsNeedStableKeys, GEngineIni);
+		GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bNeedsShaderStableKeys"), bAllPlatformsNeedStableKeys, GEngineIni);
+
         for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
         {
 			// Find out if this platform requires stable shader keys, by reading the platform setting file.
-			bool bNeedShaderStableKeys = false;
+			bool bNeedShaderStableKeys = bAllPlatformsNeedStableKeys;
 			FConfigFile PlatformIniFile;
 			FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
 			PlatformIniFile.GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bNeedShaderStableKeys);
+			PlatformIniFile.GetBool(TEXT("DevOptions.Shaders"), TEXT("bNeedsShaderStableKeys"), bNeedShaderStableKeys);
 
 			bool bNeedsDeterministicOrder = PackagingSettings->bDeterministicShaderCodeOrder;
 			FConfigFile PlatformGameIniFile;
@@ -6787,7 +6793,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	TArray<FName> FilesInPath;
 	TSet<FName> StartupSoftObjectPackages;
-	if (!CookByTheBookOptions->bSkipSoftReferences)
+	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 	{
 		// Get the list of soft references, for both empty package and all startup packages
 		GRedirectCollector.ProcessSoftObjectPathPackageList(NAME_None, false, StartupSoftObjectPackages);
@@ -7520,7 +7526,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					}
 				}
 
-				if (!CookByTheBookOptions->bSkipSoftReferences)
+				if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(ResolveStringReferences);
 					TSet<FName> StringAssetPackages;

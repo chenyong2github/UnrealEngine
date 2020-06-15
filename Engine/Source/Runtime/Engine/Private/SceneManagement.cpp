@@ -748,6 +748,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 
+	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
+
 	//this can be deleted once sm4 support is removed.
 	if (!PrimitiveSceneData)
 	{
@@ -819,7 +821,8 @@ bool FLightCacheInterface::GetVirtualTextureLightmapProducer(ERHIFeatureLevel::T
 	if (LightMapInteraction.GetType() == LMIT_Texture)
 	{
 		const ULightMapVirtualTexture2D* VirtualTexture = LightMapInteraction.GetVirtualTexture();
-		if (VirtualTexture)
+		// Preview lightmaps don't stream from disk, thus no FVirtualTexture2DResource
+		if (VirtualTexture && !VirtualTexture->bPreviewLightmap)
 		{
 			FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)VirtualTexture->Resource;
 			OutProducerHandle = Resource->GetProducerHandle();

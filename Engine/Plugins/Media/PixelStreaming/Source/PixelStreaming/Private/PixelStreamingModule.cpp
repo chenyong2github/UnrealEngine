@@ -7,7 +7,6 @@
 #include "InputDevice.h"
 #include "PixelStreamerInputComponent.h"
 #include "PixelStreamerDelegates.h"
-#include "SessionMonitorConnection.h"
 #include "SignallingServerConnection.h"
 #include "HUDStats.h"
 #include "PixelStreamingPrivate.h"
@@ -128,13 +127,6 @@ void FPixelStreamingModule::InitStreamer()
 	// instead of the video stream.
 	UFreezeFrame::CreateInstance();
 	verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
-
-	uint16 SessionMonitorPort = 0;
-	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingSessionMonitorPort="), SessionMonitorPort);
-	if (SessionMonitorPort)
-	{
-		SessionMonitorConnection = MakeUnique<FSessionMonitorConnection>(SessionMonitorPort);
-	}
 
 	Streamer = MakeUnique<FStreamer>(FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort));
 }
@@ -414,17 +406,6 @@ bool FPixelStreamingModule::IsTickableInEditor() const
 
 void FPixelStreamingModule::Tick(float DeltaTime)
 {
-	if (SessionMonitorConnection)
-	{
-		HeartbeatCountdown -= DeltaTime;
-		if (HeartbeatCountdown <= 0)
-		{
-			SessionMonitorConnection->Heartbeat();
-			//  Hardcoded value for now
-			HeartbeatCountdown = 2.0f;
-		}
-	}
-
 	FHUDStats::Get().Tick();
 }
 

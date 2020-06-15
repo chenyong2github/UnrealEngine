@@ -263,11 +263,12 @@ namespace GeometryCollectionTest
 
 	template<typename Traits>
 	TFramework<Traits>::TFramework(FrameworkParameters Parameters)
-		: Dt(Parameters.Dt)
-		, Module(FChaosSolversModule::GetModule())
-		, Solver(Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone))
+	: Dt(Parameters.Dt)
+	, Module(FChaosSolversModule::GetModule())
+	, Solver(nullptr)
 	{
 		Module->ChangeThreadingMode(Parameters.ThreadingMode);
+		Solver = Module->CreateSolver<Traits>(nullptr,ESolverFlags::Standalone);	//until refactor is done, solver must be created after thread change
 	}
 
 	template<typename Traits>
@@ -285,12 +286,7 @@ namespace GeometryCollectionTest
 			}
 			delete Object;
 		}
-
-		for (FFieldSystemPhysicsProxy* FieldObject : FieldObjects)
-		{
-			delete FieldObject;
-		}
-
+		
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 	}
 
@@ -299,13 +295,7 @@ namespace GeometryCollectionTest
 	{
 		PhysicsObjects.Add(Object);
 	}
-
-	template<typename Traits>
-	void TFramework<Traits>::AddFieldObject(FFieldSystemPhysicsProxy* Object)
-	{
-		FieldObjects.Add(Object);
-	}
-
+	
 	template<typename Traits>
 	void TFramework<Traits>::Initialize()
 	{
@@ -323,11 +313,6 @@ namespace GeometryCollectionTest
 				Solver->RegisterObject(RBW->Particle);
 				Solver->AddDirtyProxy(RBW->Particle->GetProxy());
 			}
-		}
-
-		for (FFieldSystemPhysicsProxy* FieldObject : FieldObjects)
-		{
-			Solver->RegisterObject(FieldObject);
 		}
 
 		Solver->PushPhysicsState(Module->GetDispatcher());

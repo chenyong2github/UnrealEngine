@@ -518,7 +518,10 @@ void UHLODProxy::SpawnLODActors(ULevel* InLevel)
 	{
 		// Spawn LODActor
 		ALODActor* LODActor = Pair.Key->SpawnLODActor(InLevel);
-		LODActor->Proxy = this;
+		if (LODActor)
+		{
+			LODActor->Proxy = this;
+		}
 	}
 }
 

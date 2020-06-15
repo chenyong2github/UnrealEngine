@@ -305,7 +305,7 @@ static inline uint32 BitcastFloatToUInt32(float v)
 	return u.UIntValue;
 }
 
-void FAllocatedVirtualTexture::GetPackedPageTableUniform(FUintVector4* OutUniform, bool bApplyBlockScale) const
+void FAllocatedVirtualTexture::GetPackedPageTableUniform(FUintVector4* OutUniform) const
 {
 	const uint32 vPageX = FMath::ReverseMortonCode2(VirtualAddress);
 	const uint32 vPageY = FMath::ReverseMortonCode2(VirtualAddress >> 1);
@@ -325,16 +325,8 @@ void FAllocatedVirtualTexture::GetPackedPageTableUniform(FUintVector4* OutUnifor
 	checkSlow(MaxLevel < 16u);
 	checkSlow(SpaceID < 16u);
 
-	if (bApplyBlockScale)
-	{
-		OutUniform[0].X = BitcastFloatToUInt32(1.0f / (float)WidthInBlocks);
-		OutUniform[0].Y = BitcastFloatToUInt32(1.0f / (float)HeightInBlocks);
-	}
-	else
-	{
-		OutUniform[0].X = BitcastFloatToUInt32(1.0f);
-		OutUniform[0].Y = BitcastFloatToUInt32(1.0f);
-	}
+	OutUniform[0].X = BitcastFloatToUInt32(1.0f / (float)WidthInBlocks);
+	OutUniform[0].Y = BitcastFloatToUInt32(1.0f / (float)HeightInBlocks);
 
 	OutUniform[0].Z = BitcastFloatToUInt32((float)WidthInPages);
 	OutUniform[0].W = BitcastFloatToUInt32((float)HeightInPages);

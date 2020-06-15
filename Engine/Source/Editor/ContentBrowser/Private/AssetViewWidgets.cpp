@@ -3,6 +3,7 @@
 
 #include "AssetViewWidgets.h"
 #include "UObject/UnrealType.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Engine/GameViewportClient.h"
@@ -17,8 +18,6 @@
 #include "Engine/Texture2D.h"
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
-#include "IAssetTools.h"
-#include "AssetToolsModule.h"
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
@@ -37,6 +36,8 @@
 #include "AssetThumbnail.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "ContentBrowserModule.h"
+#include "ContentBrowserUtils.h"
+#include "ContentBrowserDataSource.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -52,31 +53,19 @@ FReply FAssetViewModeUtils::OnViewModeKeyDown( const TSet< TSharedPtr<FAssetView
 		&& !InKeyEvent.IsShiftDown() && !InKeyEvent.IsAltDown()
 		)
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-		TArray<FAssetData> SelectedAssets;
-		for ( auto ItemIt = SelectedItems.CreateConstIterator(); ItemIt; ++ItemIt)
+		TArray<FContentBrowserItem> SelectedFiles;
+		for (const TSharedPtr<FAssetViewItem>& SelectedItem : SelectedItems)
 		{
-			const TSharedPtr<FAssetViewItem>& Item = *ItemIt;
-			if(Item.IsValid())
+			if (SelectedItem->GetItem().IsFile())
 			{
-				if(Item->GetType() == EAssetItemType::Folder)
-				{
-					// we need to recurse & copy references to all folder contents
-					FARFilter Filter;
-					Filter.PackagePaths.Add(*StaticCastSharedPtr<FAssetViewFolder>(Item)->FolderPath);
-
-					// Add assets found in the asset registry
-					AssetRegistryModule.Get().GetAssets(Filter, SelectedAssets);
-				}
-				else
-				{
-					SelectedAssets.Add(StaticCastSharedPtr<FAssetViewAsset>(Item)->Data);
-				}
+				SelectedFiles.Add(SelectedItem->GetItem());
 			}
 		}
 
-		ContentBrowserUtils::CopyAssetReferencesToClipboard(SelectedAssets);
+		if (SelectedFiles.Num() > 0)
+		{
+			ContentBrowserUtils::CopyItemReferencesToClipboard(SelectedFiles);
+		}
 
 		return FReply::Handled();
 	}
@@ -108,19 +97,22 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 	{
 		OutItemShadowBorder = FName("NoBorder");
 
-		TSharedPtr<FAssetViewFolder> AssetFolderItem = StaticCastSharedPtr<FAssetViewFolder>(InTileOrListItem->AssetItem);
+		// TODO: Allow items to customize their widget
 
+		const bool bDeveloperFolder = ContentBrowserUtils::IsItemDeveloperContent(InTileOrListItem->AssetItem->GetItem());
+
+		const bool bCollectionFolder = EnumHasAnyFlags(InTileOrListItem->AssetItem->GetItem().GetItemCategory(), EContentBrowserItemFlags::Category_Collection);
 		ECollectionShareType::Type CollectionFolderShareType = ECollectionShareType::CST_All;
-		if (AssetFolderItem->bCollectionFolder)
+		if (bCollectionFolder)
 		{
-			ContentBrowserUtils::IsCollectionPath(AssetFolderItem->FolderPath, nullptr, &CollectionFolderShareType);
+			ContentBrowserUtils::IsCollectionPath(InTileOrListItem->AssetItem->GetItem().GetVirtualPath().ToString(), nullptr, &CollectionFolderShareType);
 		}
 
-		const FSlateBrush* FolderBaseImage = AssetFolderItem->bDeveloperFolder 
+		const FSlateBrush* FolderBaseImage = bDeveloperFolder
 			? FEditorStyle::GetBrush("ContentBrowser.ListViewDeveloperFolderIcon.Base") 
 			: FEditorStyle::GetBrush("ContentBrowser.ListViewFolderIcon.Base");
 
-		const FSlateBrush* FolderTintImage = AssetFolderItem->bDeveloperFolder 
+		const FSlateBrush* FolderTintImage = bDeveloperFolder
 			? FEditorStyle::GetBrush("ContentBrowser.ListViewDeveloperFolderIcon.Mask") 
 			: FEditorStyle::GetBrush("ContentBrowser.ListViewFolderIcon.Mask");
 
@@ -132,7 +124,7 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 			.ColorAndOpacity(InTileOrListItem, &T::GetAssetColor)
 		];
 
-		if (AssetFolderItem->bCollectionFolder)
+		if (bCollectionFolder)
 		{
 			FLinearColor IconColor = FLinearColor::White;
 			switch(CollectionFolderShareType)
@@ -328,23 +320,6 @@ void SAssetTileView::Tick(const FGeometry& AllottedGeometry, const double InCurr
 	}
 }
 
-bool SAssetTileView::HasWidgetForAsset(const FName& AssetPathName)
-{
-	for (const TSharedPtr<FAssetViewItem>& Item : WidgetGenerator.ItemsWithGeneratedWidgets)
-	{
-		if (Item.IsValid() && Item->GetType() == EAssetItemType::Normal)
-		{
-			const FName& ObjectPath = StaticCastSharedPtr<FAssetViewAsset>(Item)->Data.ObjectPath;
-			if (ObjectPath == AssetPathName)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 FReply SAssetListView::OnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FAssetViewModeUtils::OnViewModeKeyDown(SelectedItems, InKeyEvent);
@@ -368,23 +343,6 @@ void SAssetListView::Tick(const FGeometry& AllottedGeometry, const double InCurr
 	{
 		SListView<TSharedPtr<FAssetViewItem>>::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 	}
-}
-
-bool SAssetListView::HasWidgetForAsset(const FName& AssetPathName)
-{
-	for (const TSharedPtr<FAssetViewItem>& Item : WidgetGenerator.ItemsWithGeneratedWidgets)
-	{
-		if (Item.IsValid() && Item->GetType() == EAssetItemType::Normal)
-		{
-			const FName& ObjectPath = StaticCastSharedPtr<FAssetViewAsset>(Item)->Data.ObjectPath;
-			if (ObjectPath == AssetPathName)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
 }
 
 FReply SAssetColumnView::OnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -421,20 +379,10 @@ SAssetViewItem::~SAssetViewItem()
 {
 	if (AssetItem.IsValid())
 	{
-		AssetItem->OnAssetDataChanged.RemoveAll(this);
+		AssetItem->OnItemDataChanged().RemoveAll(this);
 	}
 
 	OnItemDestroyed.ExecuteIfBound(AssetItem);
-
-	if (!GExitPurge)
-	{
-		const bool bIsGarbageCollectingOnGameThread = (IsInGameThread() && IsGarbageCollecting());
-		if (!bIsGarbageCollectingOnGameThread)
-		{
-			// This hack is here to make abnormal shutdowns less frequent.  Crashes here are the result UI's being shut down as a result of GC at edtior shutdown.  This code attemps to call FindObject which is not allowed during GC.
-			SetForceMipLevelsToBeResident(false);
-		}
-	}
 }
 
 void SAssetViewItem::Construct( const FArguments& InArgs )
@@ -447,8 +395,6 @@ void SAssetViewItem::Construct( const FArguments& InArgs )
 	ShouldAllowToolTip = InArgs._ShouldAllowToolTip;
 	ThumbnailEditMode = InArgs._ThumbnailEditMode;
 	HighlightText = InArgs._HighlightText;
-	OnAssetsOrPathsDragDropped = InArgs._OnAssetsOrPathsDragDropped;
-	OnFilesDragDropped = InArgs._OnFilesDragDropped;
 	OnIsAssetValidForCustomToolTip = InArgs._OnIsAssetValidForCustomToolTip;
 	OnGetCustomAssetToolTip = InArgs._OnGetCustomAssetToolTip;
 	OnVisualizeAssetToolTip = InArgs._OnVisualizeAssetToolTip;
@@ -456,10 +402,10 @@ void SAssetViewItem::Construct( const FArguments& InArgs )
 
 	bDraggedOver = false;
 
-	bPackageDirty = false;
+	bItemDirty = false;
 	OnAssetDataChanged();
 
-	AssetItem->OnAssetDataChanged.AddSP(this, &SAssetViewItem::OnAssetDataChanged);
+	AssetItem->OnItemDataChanged().AddSP(this, &SAssetViewItem::OnAssetDataChanged);
 
 	AssetDirtyBrush = FEditorStyle::GetBrush("ContentBrowser.ContentDirty");
 	SCCStateBrush = nullptr;
@@ -494,7 +440,7 @@ void SAssetViewItem::Tick( const FGeometry& AllottedGeometry, const double InCur
 		InlineRenameWidget->SetWrapTextAt( GetNameTextWrapWidth() );
 	}
 
-	UpdatePackageDirtyState();
+	UpdateDirtyState();
 
 	UpdateSourceControlState((float)InDeltaTime);
 }
@@ -504,70 +450,32 @@ TSharedPtr<IToolTip> SAssetViewItem::GetToolTip()
 	return ShouldAllowToolTip.Get() ? SCompoundWidget::GetToolTip() : NULL;
 }
 
-bool SAssetViewItem::ValidateDragDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, bool& OutIsKnownDragOperation ) const
-{
-	OutIsKnownDragOperation = false;
-	return IsFolder() && DragDropHandler::ValidateDragDropOnAssetFolder(MyGeometry, DragDropEvent, StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderPath, OutIsKnownDragOperation);
-}
-
 void SAssetViewItem::OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
-	ValidateDragDrop(MyGeometry, DragDropEvent, bDraggedOver); // updates bDraggedOver
+	bDraggedOver = AssetItem && DragDropHandler::HandleDragEnterItem(AssetItem->GetItem(), DragDropEvent);
 }
 	
 void SAssetViewItem::OnDragLeave( const FDragDropEvent& DragDropEvent )
 {
-	if(IsFolder())
+	if (AssetItem)
 	{
-		TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
-		if (Operation.IsValid())
-		{
-			Operation->SetCursorOverride(TOptional<EMouseCursor::Type>());
-
-			if (Operation->IsOfType<FAssetDragDropOp>())
-			{
-				TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
-				DragDropOp->ResetToDefaultToolTip();
-			}
-		}
+		DragDropHandler::HandleDragLeaveItem(AssetItem->GetItem(), DragDropEvent);
 	}
-
 	bDraggedOver = false;
 }
 
 FReply SAssetViewItem::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
-	ValidateDragDrop(MyGeometry, DragDropEvent, bDraggedOver); // updates bDraggedOver
+	bDraggedOver = AssetItem && DragDropHandler::HandleDragOverItem(AssetItem->GetItem(), DragDropEvent);
 	return (bDraggedOver) ? FReply::Handled() : FReply::Unhandled();
 }
 
 FReply SAssetViewItem::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
-	if (ValidateDragDrop(MyGeometry, DragDropEvent, bDraggedOver)) // updates bDraggedOver
+	if (AssetItem && DragDropHandler::HandleDragDropOnItem(AssetItem->GetItem(), DragDropEvent, AsShared()))
 	{
 		bDraggedOver = false;
-
-		check(AssetItem->GetType() == EAssetItemType::Folder);
-
-		TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
-		if (!Operation.IsValid())
-		{
-			return FReply::Unhandled();
-		}
-
-		if (Operation->IsOfType<FExternalDragOperation>())
-		{
-			TSharedPtr<FExternalDragOperation> DragDropOp = StaticCastSharedPtr<FExternalDragOperation>(Operation);
-			OnFilesDragDropped.ExecuteIfBound(DragDropOp->GetFiles(), StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderPath);
-			return FReply::Handled();
-		}
-		
-		if (Operation->IsOfType<FAssetDragDropOp>())
-		{
-			TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
-			OnAssetsOrPathsDragDropped.ExecuteIfBound(DragDropOp->GetAssets(), DragDropOp->GetAssetPaths(), StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderPath);
-			return FReply::Handled();
-		}
+		return FReply::Handled();
 	}
 
 	if (bDraggedOver)
@@ -594,18 +502,14 @@ bool SAssetViewItem::IsNameReadOnly() const
 		return true;
 	}
 
-	if (AssetItem->GetType() != EAssetItemType::Folder)
+	if (AssetItem->GetItem().IsTemporary())
 	{
-		// Read-only if we can't be renamed
-		return !ContentBrowserUtils::CanRenameAsset(StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data);
-	}
-	else
-	{
-		// Read-only if we can't be renamed
-		return !ContentBrowserUtils::CanRenameFolder(StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderPath);
+		// Temporary items can always be renamed (required for creation/duplication, etc)
+		return false;
 	}
 
-	return false;
+	// Read-only if we can't be renamed
+	return !AssetItem->GetItem().CanRename(nullptr);
 }
 
 void SAssetViewItem::HandleBeginNameChange( const FText& OriginalText )
@@ -625,20 +529,7 @@ bool  SAssetViewItem::HandleVerifyNameChanged( const FText& NewText, FText& OutE
 
 void SAssetViewItem::OnAssetDataChanged()
 {
-	CachePackageName();
-	AssetPackage = FindObjectSafe<UPackage>(NULL, *CachedPackageName);
-	UpdatePackageDirtyState();
-
-	AssetTypeActions.Reset();
-	if ( AssetItem->GetType() != EAssetItemType::Folder )
-	{
-		UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.AssetClass.ToString());
-		if (AssetClass)
-		{
-			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-			AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetClass).Pin();
-		}
-	}
+	UpdateDirtyState();
 
 	if ( InlineRenameWidget.IsValid() )
 	{
@@ -654,27 +545,22 @@ void SAssetViewItem::DirtyStateChanged()
 
 FText SAssetViewItem::GetAssetClassText() const
 {
-	if (!AssetItem.IsValid())
+	if (!AssetItem)
 	{
 		return FText();
 	}
 	
-	if (AssetItem->GetType() == EAssetItemType::Folder)
+	if (AssetItem->IsFolder())
 	{
 		return LOCTEXT("FolderName", "Folder");
 	}
 
-	if (AssetTypeActions.IsValid())
+	FContentBrowserItemDataAttributeValue DisplayNameAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemTypeDisplayName);
+	if (!DisplayNameAttributeValue.IsValid())
 	{
-		FText Name = AssetTypeActions.Pin()->GetName();
-
-		if (!Name.IsEmpty())
-		{
-			return Name;
-		}
+		DisplayNameAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemTypeName);
 	}
-
-	return FText::FromName(StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.AssetClass);
+	return DisplayNameAttributeValue.IsValid() ? DisplayNameAttributeValue.GetValue<FText>() : FText();
 }
 
 const FSlateBrush* SAssetViewItem::GetSCCStateImage() const
@@ -697,12 +583,16 @@ void SAssetViewItem::HandleSourceControlProviderChanged(ISourceControlProvider& 
 
 void SAssetViewItem::HandleSourceControlStateChanged()
 {
-	if ( ISourceControlModule::Get().IsEnabled() && AssetItem.IsValid() && (AssetItem->GetType() == EAssetItemType::Normal) && !AssetItem->IsTemporaryItem() && !FPackageName::IsScriptPackage(CachedPackageName) )
+	if (AssetItem && AssetItem->IsFile() && !AssetItem->IsTemporary() && ISourceControlModule::Get().IsEnabled())
 	{
-		FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(CachedPackageFileName, EStateCacheUsage::Use);
-		if(SourceControlState.IsValid())
+		FString AssetFilename;
+		if (AssetItem->GetItem().GetItemPhysicalPath(AssetFilename))
 		{
-			SCCStateBrush = FEditorStyle::GetBrush(SourceControlState->GetIconName());
+			FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(AssetFilename, EStateCacheUsage::Use);
+			if (SourceControlState)
+			{
+				SCCStateBrush = FEditorStyle::GetBrush(SourceControlState->GetIconName());
+			}
 		}
 	}
 }
@@ -715,26 +605,28 @@ const FSlateBrush* SAssetViewItem::GetDirtyImage() const
 TSharedRef<SWidget> SAssetViewItem::GenerateExtraStateIconWidget(TAttribute<float> InMaxExtraStateIconWidth) const
 {
 	const TArray<FAssetViewExtraStateGenerator>& Generators = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser")).GetAllAssetViewExtraStateGenerators();
-
-	if (AssetItem->GetType() != EAssetItemType::Folder && Generators.Num() > 0)
+	if (AssetItem && AssetItem->IsFile() && Generators.Num() > 0)
 	{
-		FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-		// Add extra state icons
-		TSharedPtr<SHorizontalBox> Content = SNew(SHorizontalBox);
-		
-		for (const FAssetViewExtraStateGenerator& Generator : Generators)
+		FAssetData ItemAssetData;
+		if (AssetItem->GetItem().Legacy_TryGetAssetData(ItemAssetData))
 		{
-			if (Generator.IconGenerator.IsBound())
+			// Add extra state icons
+			TSharedPtr<SHorizontalBox> Content = SNew(SHorizontalBox);
+
+			for (const FAssetViewExtraStateGenerator& Generator : Generators)
 			{
-				Content->AddSlot()
-					.HAlign(HAlign_Left)
-					.MaxWidth(InMaxExtraStateIconWidth)
-					[
-						Generator.IconGenerator.Execute(AssetData)
-					];
+				if (Generator.IconGenerator.IsBound())
+				{
+					Content->AddSlot()
+						.HAlign(HAlign_Left)
+						.MaxWidth(InMaxExtraStateIconWidth)
+						[
+							Generator.IconGenerator.Execute(ItemAssetData)
+						];
+				}
 			}
+			return Content.ToSharedRef();
 		}
-		return Content.ToSharedRef();
 	}
 	return SNullWidget::NullWidget;
 }
@@ -742,36 +634,40 @@ TSharedRef<SWidget> SAssetViewItem::GenerateExtraStateIconWidget(TAttribute<floa
 TSharedRef<SWidget> SAssetViewItem::GenerateExtraStateTooltipWidget() const
 {
 	const TArray<FAssetViewExtraStateGenerator>& Generators = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser")).GetAllAssetViewExtraStateGenerators();
-	if (AssetItem->GetType() != EAssetItemType::Folder && Generators.Num() > 0)
+	if (AssetItem && AssetItem->IsFile() && Generators.Num() > 0)
 	{
-		FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-		TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox);
-		for (const auto& Generator : Generators)
+		FAssetData ItemAssetData;
+		if (AssetItem->GetItem().Legacy_TryGetAssetData(ItemAssetData))
 		{
-			if (Generator.ToolTipGenerator.IsBound() && Generator.IconGenerator.IsBound())
+			TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox);
+			for (const auto& Generator : Generators)
 			{
-				Content->AddSlot()
-				.Padding(FMargin(0, 2.0F))
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(0, 0, 2.0f, 0))
-					[ 
-						Generator.IconGenerator.Execute(AssetData)
-					]
+				if (Generator.ToolTipGenerator.IsBound() && Generator.IconGenerator.IsBound())
+				{
+					Content->AddSlot()
+						.Padding(FMargin(0, 2.0F))
+						.AutoHeight()
+						[
+							SNew(SHorizontalBox)
 
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					[
-						Generator.ToolTipGenerator.Execute(AssetData)
-					]
-				];
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(FMargin(0, 0, 2.0f, 0))
+							[
+								Generator.IconGenerator.Execute(ItemAssetData)
+							]
+
+							+SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							[
+								Generator.ToolTipGenerator.Execute(ItemAssetData)
+							]
+						];
+				}
 			}
+			return Content.ToSharedRef();
 		}
-		return Content.ToSharedRef();
 	}
 	return SNullWidget::NullWidget;
 }
@@ -786,43 +682,50 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 {
 	if ( AssetItem.IsValid() )
 	{
-		bool bTryCustomAssetToolTip = true;
-		if (OnIsAssetValidForCustomToolTip.IsBound() && AssetItem->GetType() != EAssetItemType::Folder)
+		// Legacy custom asset tooltips
+		if (OnGetCustomAssetToolTip.IsBound())
 		{
-			FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-			bTryCustomAssetToolTip = OnIsAssetValidForCustomToolTip.Execute(AssetData);
+			FAssetData ItemAssetData;
+			if (AssetItem->GetItem().Legacy_TryGetAssetData(ItemAssetData))
+			{
+				const bool bTryCustomAssetToolTip = !OnIsAssetValidForCustomToolTip.IsBound() || OnIsAssetValidForCustomToolTip.Execute(ItemAssetData);
+				if (bTryCustomAssetToolTip)
+				{
+					return OnGetCustomAssetToolTip.Execute(ItemAssetData);
+				}
+			}
 		}
 
-		if(bTryCustomAssetToolTip && OnGetCustomAssetToolTip.IsBound() && AssetItem->GetType() != EAssetItemType::Folder)
+		// TODO: Remove this special caseness so that folders can also have visible attributes
+		if(AssetItem->IsFile())
 		{
-			FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-			return OnGetCustomAssetToolTip.Execute(AssetData);
-		}
-		else if(AssetItem->GetType() != EAssetItemType::Folder)
-		{
-			const FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-
 			// The tooltip contains the name, class, path, and asset registry tags
-			const FText NameText = FText::FromName( AssetData.AssetName );
-			const FText ClassText = FText::Format( LOCTEXT("ClassName", "({0})"), GetAssetClassText() );
+			const FText NameText = GetNameText();
+			const FText ClassText = FText::Format(LOCTEXT("ClassName", "({0})"), GetAssetClassText());
 
 			// Create a box to hold every line of info in the body of the tooltip
 			TSharedRef<SVerticalBox> InfoBox = SNew(SVerticalBox);
 
-			// Add Path
-			AddToToolTipInfoBox( InfoBox, LOCTEXT("TileViewTooltipPath", "Path"), FText::FromName(AssetData.PackagePath), false);
+			FAssetData ItemAssetData;
+			AssetItem->GetItem().Legacy_TryGetAssetData(ItemAssetData);
 
-			if(AssetData.PackageName != NAME_None)
+			// TODO: Always use the virtual path?
+			if (ItemAssetData.IsValid())
 			{
-				int32 PackageNameLengthForCooking = ContentBrowserUtils::GetPackageLengthForCooking(AssetData.PackageName.ToString(), FEngineBuildSettings::IsInternalBuild());
+				AddToToolTipInfoBox(InfoBox, LOCTEXT("TileViewTooltipPath", "Path"), FText::FromName(ItemAssetData.PackagePath), false);
+			}
+			else
+			{
+				AddToToolTipInfoBox(InfoBox, LOCTEXT("TileViewTooltipPath", "Path"), FText::FromName(AssetItem->GetItem().GetVirtualPath()), false);
+			}
+
+			if (ItemAssetData.IsValid() && ItemAssetData.PackageName != NAME_None)
+			{
+				int32 PackageNameLengthForCooking = ContentBrowserUtils::GetPackageLengthForCooking(ItemAssetData.PackageName.ToString(), FEngineBuildSettings::IsInternalBuild());
 
 				int32 MaxCookPathLen = ContentBrowserUtils::GetMaxCookPathLen();
 				AddToToolTipInfoBox(InfoBox, LOCTEXT("TileViewTooltipPathLengthForCookingKey", "Cooking Filepath Length"), FText::Format(LOCTEXT("TileViewTooltipPathLengthForCookingValue", "{0} / {1}"),
 					FText::AsNumber(PackageNameLengthForCooking), FText::AsNumber(MaxCookPathLen)), PackageNameLengthForCooking > MaxCookPathLen ? true : false);
-			}
-			else
-			{
-				UE_LOG(LogContentBrowser, Error, TEXT("AssetData for '%s' is invalid"), *AssetData.PackagePath.ToString());
 			}
 
 			// Add tags
@@ -832,17 +735,20 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 			}
 
 			// Add asset source files
-			TOptional<FAssetImportInfo> ImportInfo = FAssetSourceFilenameCache::ExtractAssetImportInfo(AssetData);
-			if (ImportInfo.IsSet())
+			if (ItemAssetData.IsValid())
 			{
-				for (const auto& File : ImportInfo->SourceFiles)
+				TOptional<FAssetImportInfo> ImportInfo = FAssetSourceFilenameCache::ExtractAssetImportInfo(ItemAssetData);
+				if (ImportInfo.IsSet())
 				{
-					FText SourceLabel = LOCTEXT("TileViewTooltipSourceFile", "Source File");
-					if (File.DisplayLabelName.Len() > 0)
+					for (const auto& File : ImportInfo->SourceFiles)
 					{
-						SourceLabel = FText::FromString(FText(LOCTEXT("TileViewTooltipSourceFile", "Source File")).ToString() + TEXT(" (") + File.DisplayLabelName + TEXT(")"));
+						FText SourceLabel = LOCTEXT("TileViewTooltipSourceFile", "Source File");
+						if (File.DisplayLabelName.Len() > 0)
+						{
+							SourceLabel = FText::FromString(FText(LOCTEXT("TileViewTooltipSourceFile", "Source File")).ToString() + TEXT(" (") + File.DisplayLabelName + TEXT(")"));
+						}
+						AddToToolTipInfoBox(InfoBox, SourceLabel, FText::FromString(File.RelativeFilename), false);
 					}
-					AddToToolTipInfoBox( InfoBox, SourceLabel, FText::FromString(File.RelativeFilename), false );
 				}
 			}
 
@@ -934,11 +840,12 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 				];
 
 			// Final section (collection pips)
+			if (ItemAssetData.IsValid())
 			{
 				ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 
 				TArray<FCollectionNameType> CollectionsContainingObject;
-				CollectionManager.GetCollectionsContainingObject(AssetData.ObjectPath, CollectionsContainingObject);
+				CollectionManager.GetCollectionsContainingObject(ItemAssetData.ObjectPath, CollectionsContainingObject);
 
 				if (CollectionsContainingObject.Num() > 0)
 				{
@@ -986,13 +893,13 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 		}
 		else
 		{
-			const FText& FolderName = StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderName;
-			const FString& FolderPath = StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderPath;
+			const FText FolderName = GetNameText();
+			const FText FolderPath = FText::FromName(AssetItem->GetItem().GetVirtualPath());
 
 			// Create a box to hold every line of info in the body of the tooltip
 			TSharedRef<SVerticalBox> InfoBox = SNew(SVerticalBox);
 
-			AddToToolTipInfoBox( InfoBox, LOCTEXT("TileViewTooltipPath", "Path"), FText::FromString(FolderPath), false );
+			AddToToolTipInfoBox( InfoBox, LOCTEXT("TileViewTooltipPath", "Path"), FolderPath, false );
 
 			return SNew(SBorder)
 				.Padding(6)
@@ -1064,36 +971,35 @@ EVisibility SAssetViewItem::GetCheckedOutByOtherTextVisibility() const
 
 FText SAssetViewItem::GetCheckedOutByOtherText() const
 {
-	if ( AssetItem.IsValid() && AssetItem->GetType() != EAssetItemType::Folder && !GIsSavingPackage && !IsGarbageCollecting() )
+	if (AssetItem && AssetItem->IsFile() && !AssetItem->IsTemporary() && ISourceControlModule::Get().IsEnabled())
 	{
-		const FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceControlHelpers::PackageFilename(AssetData.PackageName.ToString()), EStateCacheUsage::Use);
-		FString UserWhichHasPackageCheckedOut;		
-		if (SourceControlState.IsValid() && ( SourceControlState->IsCheckedOutOther(&UserWhichHasPackageCheckedOut) || SourceControlState->IsCheckedOutOrModifiedInOtherBranch()))
+		FString AssetFilename;
+		if (AssetItem->GetItem().GetItemPhysicalPath(AssetFilename))
 		{
-			return SourceControlState->GetDisplayTooltip();
+			FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(AssetFilename, EStateCacheUsage::Use);
+			if (SourceControlState && (SourceControlState->IsCheckedOutOther() || SourceControlState->IsCheckedOutOrModifiedInOtherBranch()))
+			{
+				return SourceControlState->GetDisplayTooltip();
+			}
 		}
 	}
 
 	return FText::GetEmpty();
 }
-
 
 FText SAssetViewItem::GetAssetUserDescription() const
 {
-	if (AssetItem.IsValid() && AssetTypeActions.IsValid())
+	if (AssetItem && AssetItem->IsFile())
 	{
-		if (AssetItem->GetType() != EAssetItemType::Folder)
+		FContentBrowserItemDataAttributeValue DescriptionAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemDescription);
+		if (DescriptionAttributeValue.IsValid())
 		{
-			const FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-			return AssetTypeActions.Pin()->GetAssetDescription(AssetData);
+			return DescriptionAttributeValue.GetValue<FText>();
 		}
 	}
 
 	return FText::GetEmpty();
 }
-
 
 void SAssetViewItem::AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& InfoBox, const FText& Key, const FText& Value, bool bImportant) const
 {
@@ -1125,61 +1031,39 @@ void SAssetViewItem::AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& InfoBox
 	];
 }
 
-void SAssetViewItem::UpdatePackageDirtyState()
+void SAssetViewItem::UpdateDirtyState()
 {
 	bool bNewIsDirty = false;
 
-	// Only update the dirty state for non-temporary asset items that aren't a built in script
-	if ( AssetItem.IsValid() && !AssetItem->IsTemporaryItem() && AssetItem->GetType() != EAssetItemType::Folder && !FPackageName::IsScriptPackage(CachedPackageName) )
+	// Only update the dirty state for non-temporary items
+	if (AssetItem && !AssetItem->IsTemporary())
 	{
-		if ( AssetPackage.IsValid() )
-		{
-			bNewIsDirty = AssetPackage->IsDirty();
-		}
+		bNewIsDirty = AssetItem->GetItem().IsDirty();
 	}
 
-	if ( bNewIsDirty != bPackageDirty )
+	if (bNewIsDirty != bItemDirty)
 	{
-		bPackageDirty = bNewIsDirty;
+		bItemDirty = bNewIsDirty;
 		DirtyStateChanged();
 	}
 }
 
 bool SAssetViewItem::IsDirty() const
 {
-	return bPackageDirty;
+	return bItemDirty;
 }
 
 void SAssetViewItem::UpdateSourceControlState(float InDeltaTime)
 {
 	SourceControlStateDelay += InDeltaTime;
 
-	static ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	if ( !bSourceControlStateRequested && SourceControlStateDelay > 1.0f && SourceControlModule.IsEnabled() && AssetItem.IsValid() )
+	if (AssetItem && AssetItem->IsFile() && !AssetItem->IsTemporary() && !bSourceControlStateRequested && SourceControlStateDelay > 1.0f && ISourceControlModule::Get().IsEnabled())
 	{
-		// Only update the SCC state for non-temporary asset items that aren't a built in script
-		if ( !AssetItem->IsTemporaryItem() && AssetItem->GetType() != EAssetItemType::Folder && !FPackageName::IsScriptPackage(CachedPackageName) && !FPackageName::IsMemoryPackage(CachedPackageName) && !FPackageName::IsTempPackage(CachedPackageName))
+		FString AssetFilename;
+		if (AssetItem->GetItem().GetItemPhysicalPath(AssetFilename))
 		{
-			// Request the most recent SCC state for this asset
-			SourceControlModule.QueueStatusUpdate(CachedPackageFileName);
-		}
-
-		bSourceControlStateRequested = true;
-	}
-}
-
-void SAssetViewItem::CachePackageName()
-{
-	if(AssetItem.IsValid())
-	{
-		if(AssetItem->GetType() != EAssetItemType::Folder)
-		{
-			CachedPackageName = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.PackageName.ToString();
-			CachedPackageFileName = SourceControlHelpers::PackageFilename(CachedPackageName);
-		}
-		else
-		{
-			CachedPackageName = StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderName.ToString();
+			ISourceControlModule::Get().QueueStatusUpdate(AssetFilename);
+			bSourceControlStateRequested = true;
 		}
 	}
 }
@@ -1188,99 +1072,33 @@ void SAssetViewItem::CacheDisplayTags()
 {
 	CachedDisplayTags.Reset();
 
-	if (AssetItem->GetType() == EAssetItemType::Folder)
+	const FContentBrowserItemDataAttributeValues AssetItemAttributes = AssetItem->GetItem().GetItemAttributes(/*bIncludeMetaData*/true);
+	
+	FAssetData ItemAssetData;
+	AssetItem->GetItem().Legacy_TryGetAssetData(ItemAssetData);
+
+	// Add all visible attributes
+	for (const auto& AssetItemAttributePair : AssetItemAttributes)
 	{
-		return;
-	}
+		const FName AttributeName = AssetItemAttributePair.Key;
+		const FContentBrowserItemDataAttributeValue& AttributeValue = AssetItemAttributePair.Value;
+		const FContentBrowserItemDataAttributeMetaData& AttributeMetaData = AttributeValue.GetMetaData();
 
-	const FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-
-	// Find the asset CDO so we can get the meta-data for the tags
-	UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
-	const UObject* AssetCDO = AssetClass ? GetDefault<UObject>(AssetClass) : nullptr;
-
-	// If no asset CDO is available then we cannot determine the meta-data for the tags, so just bail
-	if (!AssetCDO)
-	{
-		return;
-	}
-
-	struct FTagDisplayMetaData
-	{
-		FTagDisplayMetaData()
-			: MetaData()
-			, Type(UObject::FAssetRegistryTag::TT_Hidden)
-			, DisplayFlags(UObject::FAssetRegistryTag::TD_None)
-		{
-		}
-
-		UObject::FAssetRegistryTagMetadata MetaData;
-		UObject::FAssetRegistryTag::ETagType Type;
-		uint32 DisplayFlags;
-	};
-
-	// Build up the meta-data needed to correctly process the tags for display
-	TMap<FName, FTagDisplayMetaData> TagMetaDataMap;
-	{
-		// Add the internal meta-data
-		{
-			TMap<FName, UObject::FAssetRegistryTagMetadata> TmpMetaData;
-			AssetCDO->GetAssetRegistryTagMetadata(TmpMetaData);
-
-			for (const auto& TmpMetaDataPair : TmpMetaData)
-			{
-				FTagDisplayMetaData& TagMetaData = TagMetaDataMap.FindOrAdd(TmpMetaDataPair.Key);
-				TagMetaData.MetaData = TmpMetaDataPair.Value;
-			}
-		}
-
-		// Add the type and display flags
-		{
-			TArray<UObject::FAssetRegistryTag> TmpTags;
-			AssetCDO->GetAssetRegistryTags(TmpTags);
-
-			for (const UObject::FAssetRegistryTag& TmpTag : TmpTags)
-			{
-				FTagDisplayMetaData& TagMetaData = TagMetaDataMap.FindOrAdd(TmpTag.Name);
-				TagMetaData.Type = TmpTag.Type;
-				TagMetaData.DisplayFlags = TmpTag.DisplayFlags;
-			}
-		}
-	}
-
-	// Add all asset registry tags and values
-	for (const auto& TagAndValuePair : AssetData.TagsAndValues)
-	{
-		const FTagDisplayMetaData TagMetaData = TagMetaDataMap.FindRef(TagAndValuePair.Key);
-
-		// Skip tags that are set to be hidden
-		if (TagMetaData.Type == UObject::FAssetRegistryTag::TT_Hidden)
+		if (AttributeMetaData.AttributeType == UObject::FAssetRegistryTag::TT_Hidden)
 		{
 			continue;
 		}
-
-		FProperty* TagField = FindFProperty<FProperty>(AssetClass, TagAndValuePair.Key);
-
-		// Build the display name for this tag
-		FText DisplayName;
-		if (!TagMetaData.MetaData.DisplayName.IsEmpty())
+	
+		// Build the display value for this attribute
+		FText DisplayValue;
+		if (AttributeValue.GetValueType() == EContentBrowserItemDataAttributeValueType::Text)
 		{
-			DisplayName = TagMetaData.MetaData.DisplayName;
-		}
-		else if (TagField)
-		{
-			DisplayName = TagField->GetDisplayNameText();
+			DisplayValue = AttributeValue.GetValueText();
 		}
 		else
 		{
-			// We have no type information by this point, so no idea if it's a bool :(
-			const bool bIsBool = false;
-			DisplayName = FText::FromString(FName::NameToDisplayString(TagAndValuePair.Key.ToString(), bIsBool));
-		}
+			const FString AttributeValueStr = AttributeValue.GetValue<FString>();
 
-		// Build the display value for this tag
-		FText DisplayValue;
-		{
 			auto ReformatNumberStringForDisplay = [](const FString& InNumberString) -> FText
 			{
 				// Respect the number of decimal places in the source string when converting for display
@@ -1292,29 +1110,29 @@ void SAssetViewItem::CacheDisplayTags()
 						NumDecimalPlaces = InNumberString.Len() - DotIndex - 1;
 					}
 				}
-
+	
 				if (NumDecimalPlaces > 0)
 				{
 					// Convert the number as a double
 					double Num = 0.0;
 					LexFromString(Num, *InNumberString);
-
+	
 					const FNumberFormattingOptions NumFormatOpts = FNumberFormattingOptions()
 						.SetMinimumFractionalDigits(NumDecimalPlaces)
 						.SetMaximumFractionalDigits(NumDecimalPlaces);
-
+	
 					return FText::AsNumber(Num, &NumFormatOpts);
 				}
 				else
 				{
 					const bool bIsSigned = InNumberString.Len() > 0 && (InNumberString[0] == TEXT('-') || InNumberString[0] == TEXT('+'));
-
+	
 					if (bIsSigned)
 					{
 						// Convert the number as a signed int
 						int64 Num = 0;
 						LexFromString(Num, *InNumberString);
-
+	
 						return FText::AsNumber(Num);
 					}
 					else
@@ -1322,79 +1140,79 @@ void SAssetViewItem::CacheDisplayTags()
 						// Convert the number as an unsigned int
 						uint64 Num = 0;
 						LexFromString(Num, *InNumberString);
-
+	
 						return FText::AsNumber(Num);
 					}
 				}
-
+	
 				return FText::GetEmpty();
 			};
-
+	
 			bool bHasSetDisplayValue = false;
-
+	
 			// Numerical tags need to format the specified number based on the display flags
-			if (!bHasSetDisplayValue && TagMetaData.Type == UObject::FAssetRegistryTag::TT_Numerical && TagAndValuePair.Value.IsNumeric())
+			if (!bHasSetDisplayValue && AttributeMetaData.AttributeType == UObject::FAssetRegistryTag::TT_Numerical && AttributeValueStr.IsNumeric())
 			{
 				bHasSetDisplayValue = true;
-
-				const bool bAsMemory = !!(TagMetaData.DisplayFlags & UObject::FAssetRegistryTag::TD_Memory);
-
+	
+				const bool bAsMemory = !!(AttributeMetaData.DisplayFlags & UObject::FAssetRegistryTag::TD_Memory);
+	
 				if (bAsMemory)
 				{
 					// Memory should be a 64-bit unsigned number of bytes
 					uint64 NumBytes = 0;
-					LexFromString(NumBytes, *TagAndValuePair.Value);
-
+					LexFromString(NumBytes, *AttributeValueStr);
+	
 					DisplayValue = FText::AsMemory(NumBytes);
 				}
 				else
 				{
-					DisplayValue = ReformatNumberStringForDisplay(TagAndValuePair.Value);
+					DisplayValue = ReformatNumberStringForDisplay(AttributeValueStr);
 				}
 			}
-
+	
 			// Dimensional tags need to be split into their component numbers, with each component number re-format
-			if (!bHasSetDisplayValue && TagMetaData.Type == UObject::FAssetRegistryTag::TT_Dimensional)
+			if (!bHasSetDisplayValue && AttributeMetaData.AttributeType == UObject::FAssetRegistryTag::TT_Dimensional)
 			{
 				TArray<FString> NumberStrTokens;
-				TagAndValuePair.Value.ParseIntoArray(NumberStrTokens, TEXT("x"), true);
-
+				AttributeValueStr.ParseIntoArray(NumberStrTokens, TEXT("x"), true);
+	
 				if (NumberStrTokens.Num() > 0 && NumberStrTokens.Num() <= 3)
 				{
 					bHasSetDisplayValue = true;
-
+	
 					switch (NumberStrTokens.Num())
 					{
 					case 1:
 						DisplayValue = ReformatNumberStringForDisplay(NumberStrTokens[0]);
 						break;
-
+	
 					case 2:
 						DisplayValue = FText::Format(LOCTEXT("DisplayTag2xFmt", "{0} \u00D7 {1}"), ReformatNumberStringForDisplay(NumberStrTokens[0]), ReformatNumberStringForDisplay(NumberStrTokens[1]));
 						break;
-
+	
 					case 3:
 						DisplayValue = FText::Format(LOCTEXT("DisplayTag3xFmt", "{0} \u00D7 {1} \u00D7 {2}"), ReformatNumberStringForDisplay(NumberStrTokens[0]), ReformatNumberStringForDisplay(NumberStrTokens[1]), ReformatNumberStringForDisplay(NumberStrTokens[2]));
 						break;
-
+	
 					default:
 						break;
 					}
 				}
 			}
-
+	
 			// Chronological tags need to format the specified timestamp based on the display flags
-			if (!bHasSetDisplayValue && TagMetaData.Type == UObject::FAssetRegistryTag::TT_Chronological)
+			if (!bHasSetDisplayValue && AttributeMetaData.AttributeType == UObject::FAssetRegistryTag::TT_Chronological)
 			{
 				bHasSetDisplayValue = true;
-
+	
 				FDateTime Timestamp;
-				if (FDateTime::Parse(TagAndValuePair.Value, Timestamp))
+				if (FDateTime::Parse(AttributeValueStr, Timestamp))
 				{
-					const bool bDisplayDate = !!(TagMetaData.DisplayFlags & UObject::FAssetRegistryTag::TD_Date);
-					const bool bDisplayTime = !!(TagMetaData.DisplayFlags & UObject::FAssetRegistryTag::TD_Time);
-					const FString TimeZone = (TagMetaData.DisplayFlags & UObject::FAssetRegistryTag::TD_InvariantTz) ? FText::GetInvariantTimeZone() : FString();
-
+					const bool bDisplayDate = !!(AttributeMetaData.DisplayFlags & UObject::FAssetRegistryTag::TD_Date);
+					const bool bDisplayTime = !!(AttributeMetaData.DisplayFlags & UObject::FAssetRegistryTag::TD_Time);
+					const FString TimeZone = (AttributeMetaData.DisplayFlags & UObject::FAssetRegistryTag::TD_InvariantTz) ? FText::GetInvariantTimeZone() : FString();
+	
 					if (bDisplayDate && bDisplayTime)
 					{
 						DisplayValue = FText::AsDateTime(Timestamp, EDateTimeStyle::Short, EDateTimeStyle::Short, TimeZone);
@@ -1409,22 +1227,22 @@ void SAssetViewItem::CacheDisplayTags()
 					}
 				}
 			}
-
+	
 			// The tag value might be localized text, so we need to parse it for display
-			if (!bHasSetDisplayValue && FTextStringHelper::IsComplexText(*TagAndValuePair.Value))
+			if (!bHasSetDisplayValue && FTextStringHelper::IsComplexText(*AttributeValueStr))
 			{
-				bHasSetDisplayValue = FTextStringHelper::ReadFromBuffer(*TagAndValuePair.Value, DisplayValue) != nullptr;
+				bHasSetDisplayValue = FTextStringHelper::ReadFromBuffer(*AttributeValueStr, DisplayValue) != nullptr;
 			}
-
+	
 			// Do our best to build something valid from the string value
 			if (!bHasSetDisplayValue)
 			{
 				bHasSetDisplayValue = true;
-
+	
 				// Since all we have at this point is a string, we can't be very smart here.
 				// We need to strip some noise off class paths in some cases, but can't load the asset to inspect its UPROPERTYs manually due to performance concerns.
-				FString ValueString = FPackageName::ExportTextPathToObjectPath(TagAndValuePair.Value);
-
+				FString ValueString = FPackageName::ExportTextPathToObjectPath(AttributeValueStr);
+	
 				const TCHAR StringToRemove[] = TEXT("/Script/");
 				if (ValueString.StartsWith(StringToRemove))
 				{
@@ -1433,52 +1251,57 @@ void SAssetViewItem::CacheDisplayTags()
 					ValueString.MidInline(SizeOfPrefix, ValueString.Len() - SizeOfPrefix, false);
 					ValueString.ReplaceInline(TEXT("Engine."), TEXT(""));
 				}
-
-				if (TagField)
+	
+				if (ItemAssetData.IsValid())
 				{
-					FProperty* TagProp = nullptr;
-					UEnum* TagEnum = nullptr;
-					if (FByteProperty* ByteProp = CastField<FByteProperty>(TagField))
+					if (const UClass* AssetClass = ItemAssetData.GetClass())
 					{
-						TagProp = ByteProp;
-						TagEnum = ByteProp->Enum;
-					}
-					else if (FEnumProperty* EnumProp = CastField<FEnumProperty>(TagField))
-					{
-						TagProp = EnumProp;
-						TagEnum = EnumProp->GetEnum();
-					}
-
-					// Strip off enum prefixes if they exist
-					if (TagProp)
-					{
-						if (TagEnum)
+						if (const FProperty* TagField = FindFProperty<FProperty>(AssetClass, AttributeName))
 						{
-							const FString EnumPrefix = TagEnum->GenerateEnumPrefix();
-							if (EnumPrefix.Len() && ValueString.StartsWith(EnumPrefix))
+							const FProperty* TagProp = nullptr;
+							const UEnum* TagEnum = nullptr;
+							if (const FByteProperty* ByteProp = CastField<FByteProperty>(TagField))
 							{
-								ValueString.RightChopInline(EnumPrefix.Len() + 1, false);	// +1 to skip over the underscore
+								TagProp = ByteProp;
+								TagEnum = ByteProp->Enum;
+							}
+							else if (const FEnumProperty* EnumProp = CastField<FEnumProperty>(TagField))
+							{
+								TagProp = EnumProp;
+								TagEnum = EnumProp->GetEnum();
+							}
+
+							// Strip off enum prefixes if they exist
+							if (TagProp)
+							{
+								if (TagEnum)
+								{
+									const FString EnumPrefix = TagEnum->GenerateEnumPrefix();
+									if (EnumPrefix.Len() && ValueString.StartsWith(EnumPrefix))
+									{
+										ValueString.RightChopInline(EnumPrefix.Len() + 1, false);	// +1 to skip over the underscore
+									}
+								}
+
+								ValueString = FName::NameToDisplayString(ValueString, false);
 							}
 						}
-
-						ValueString = FName::NameToDisplayString(ValueString, false);
 					}
 				}
-
-				DisplayValue = FText::FromString(MoveTemp(ValueString));
+	
+				DisplayValue = FText::AsCultureInvariant(MoveTemp(ValueString));
 			}
-						
+			
 			// Add suffix to the value, if one is defined for this tag
-			if (!TagMetaData.MetaData.Suffix.IsEmpty())
+			if (!AttributeMetaData.Suffix.IsEmpty())
 			{
-				DisplayValue = FText::Format(LOCTEXT("DisplayTagSuffixFmt", "{0} {1}"), DisplayValue, TagMetaData.MetaData.Suffix);
+				DisplayValue = FText::Format(LOCTEXT("DisplayTagSuffixFmt", "{0} {1}"), DisplayValue, AttributeMetaData.Suffix);
 			}
 		}
-
+	
 		if (!DisplayValue.IsEmpty())
 		{
-			const bool bImportant = !TagMetaData.MetaData.ImportantValue.IsEmpty() && TagMetaData.MetaData.ImportantValue == TagAndValuePair.Value;
-			CachedDisplayTags.Add(FTagDisplayItem(TagAndValuePair.Key, DisplayName, DisplayValue, bImportant));
+			CachedDisplayTags.Add(FTagDisplayItem(AttributeName, AttributeMetaData.DisplayName, DisplayValue, AttributeMetaData.bIsImportant));
 		}
 	}
 }
@@ -1490,40 +1313,40 @@ const FSlateBrush* SAssetViewItem::GetBorderImage() const
 
 bool SAssetViewItem::IsFolder() const
 {
-	return AssetItem.IsValid() && AssetItem->GetType() == EAssetItemType::Folder;
+	return AssetItem && AssetItem->IsFolder();
 }
 
 FText SAssetViewItem::GetNameText() const
 {
-	if(AssetItem.IsValid())
-	{
-		if(AssetItem->GetType() != EAssetItemType::Folder)
-		{
-			return FText::FromName(StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.AssetName);
-		}
-		else
-		{
-			return StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderName;
-		}
-	}
-
-	return FText();
+	return AssetItem
+		? AssetItem->GetItem().GetDisplayName()
+		: FText();
 }
 
 FSlateColor SAssetViewItem::GetAssetColor() const
 {
-	if(AssetItem.IsValid())
+	if (AssetItem)
 	{
-		if(AssetItem->GetType() == EAssetItemType::Folder)
+		FContentBrowserItemDataAttributeValue ColorAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemColor);
+		if (ColorAttributeValue.IsValid())
 		{
-			TSharedPtr<FAssetViewFolder> AssetFolderItem = StaticCastSharedPtr<FAssetViewFolder>(AssetItem);
+			const FString ColorStr = ColorAttributeValue.GetValue<FString>();
 
-			if (AssetFolderItem->bCollectionFolder)
+			FLinearColor Color;
+			if (Color.InitFromString(ColorStr))
+			{
+				return Color;
+			}
+		}
+		else if (AssetItem->GetItem().IsFolder())
+		{
+			const bool bCollectionFolder = EnumHasAnyFlags(AssetItem->GetItem().GetItemCategory(), EContentBrowserItemFlags::Category_Collection);
+			if (bCollectionFolder)
 			{
 				FName CollectionName;
 				ECollectionShareType::Type CollectionFolderShareType = ECollectionShareType::CST_All;
-				ContentBrowserUtils::IsCollectionPath(AssetFolderItem->FolderPath, &CollectionName, &CollectionFolderShareType);
-
+				ContentBrowserUtils::IsCollectionPath(AssetItem->GetItem().GetVirtualPath().ToString(), &CollectionName, &CollectionFolderShareType);
+				
 				if (TOptional<FLinearColor> Color = CollectionViewUtils::GetCustomColor(CollectionName, CollectionFolderShareType))
 				{
 					return Color.GetValue();
@@ -1531,52 +1354,28 @@ FSlateColor SAssetViewItem::GetAssetColor() const
 			}
 			else
 			{
-				if (TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(AssetFolderItem->FolderPath))
+				if (TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(AssetItem->GetItem().GetVirtualPath().ToString()))
 				{
 					return *Color;
 				}
 			}
 		}
-		else if(AssetTypeActions.IsValid())
-		{
-			return AssetTypeActions.Pin()->GetTypeColor().ReinterpretAsLinear();
-		}
 	}
 	return ContentBrowserUtils::GetDefaultColor();
 }
 
-void SAssetViewItem::SetForceMipLevelsToBeResident(bool bForce) const
-{
-	if(AssetItem.IsValid() && AssetItem->GetType() == EAssetItemType::Normal)
-	{
-		const FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-		if(AssetData.IsValid() && AssetData.IsAssetLoaded())
-		{
-			UObject* Asset = AssetData.GetAsset();
-			if(Asset != nullptr)
-			{
-				if(UTexture2D* Texture2D = Cast<UTexture2D>(Asset))
-				{
-					Texture2D->bForceMiplevelsToBeResident = bForce;
-				}
-				else if(UMaterial* Material = Cast<UMaterial>(Asset))
-				{
-					Material->SetForceMipLevelsToBeResident(bForce, bForce, -1.0f);
-				}
-			}
-		}
-	}
-}
-
 bool SAssetViewItem::OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent)
 {
-	if(OnVisualizeAssetToolTip.IsBound() && TooltipContent.IsValid() && AssetItem->GetType() != EAssetItemType::Folder)
+	if(OnVisualizeAssetToolTip.IsBound() && TooltipContent.IsValid() && AssetItem && AssetItem->IsFile())
 	{
-		FAssetData& AssetData = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data;
-		return OnVisualizeAssetToolTip.Execute(TooltipContent, AssetData);
+		FAssetData ItemAssetData;
+		if (AssetItem->GetItem().Legacy_TryGetAssetData(ItemAssetData))
+		{
+			return OnVisualizeAssetToolTip.Execute(TooltipContent, ItemAssetData);
+		}
 	}
 
-	// No custom behaviour, return false to allow slate to visualize the widget
+	// No custom behavior, return false to allow slate to visualize the widget
 	return false;
 }
 
@@ -1606,8 +1405,6 @@ void SAssetListItem::Construct( const FArguments& InArgs )
 		.ShouldAllowToolTip(InArgs._ShouldAllowToolTip)
 		.ThumbnailEditMode(InArgs._ThumbnailEditMode)
 		.HighlightText(InArgs._HighlightText)
-		.OnAssetsOrPathsDragDropped(InArgs._OnAssetsOrPathsDragDropped)
-		.OnFilesDragDropped(InArgs._OnFilesDragDropped)
 		.OnIsAssetValidForCustomToolTip(InArgs._OnIsAssetValidForCustomToolTip)
 		.OnGetCustomAssetToolTip(InArgs._OnGetCustomAssetToolTip)
 		.OnVisualizeAssetToolTip(InArgs._OnVisualizeAssetToolTip)
@@ -1625,11 +1422,26 @@ void SAssetListItem::Construct( const FArguments& InArgs )
 		FAssetThumbnailConfig ThumbnailConfig;
 		ThumbnailConfig.bAllowFadeIn = true;
 		ThumbnailConfig.bAllowHintText = InArgs._AllowThumbnailHintLabel;
-		ThumbnailConfig.bForceGenericThumbnail = (AssetItem->GetType() == EAssetItemType::Creation);
-		ThumbnailConfig.bAllowAssetSpecificThumbnailOverlay = (AssetItem->GetType() != EAssetItemType::Creation);
+		ThumbnailConfig.bForceGenericThumbnail = AssetItem->GetItem().GetItemTemporaryReason() == EContentBrowserItemFlags::Temporary_Creation;
+		ThumbnailConfig.bAllowAssetSpecificThumbnailOverlay = !ThumbnailConfig.bForceGenericThumbnail;
 		ThumbnailConfig.ThumbnailLabel = InArgs._ThumbnailLabel;
 		ThumbnailConfig.HighlightedText = InArgs._HighlightText;
 		ThumbnailConfig.HintColorAndOpacity = InArgs._ThumbnailHintColorAndOpacity;
+
+		{
+			FContentBrowserItemDataAttributeValue ColorAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemColor);
+			if (ColorAttributeValue.IsValid())
+			{
+				const FString ColorStr = ColorAttributeValue.GetValue<FString>();
+
+				FLinearColor Color;
+				if (Color.InitFromString(ColorStr))
+				{
+					ThumbnailConfig.AssetTypeColorOverride = Color;
+				}
+			}
+		}
+
 		Thumbnail = AssetThumbnail->MakeThumbnailWidget(ThumbnailConfig);
 	}
 	else
@@ -1645,7 +1457,7 @@ void SAssetListItem::Construct( const FArguments& InArgs )
 		SNew(SBorder)
 		.BorderImage(this, &SAssetViewItem::GetBorderImage)
 		.Padding(0)
-		.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetType() == EAssetItemType::Normal ? StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.ObjectPath : NAME_None))
+		.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetItem().GetVirtualPath()))
 		[
 			SNew(SHorizontalBox)
 
@@ -1707,11 +1519,9 @@ void SAssetListItem::Construct( const FArguments& InArgs )
 
 	if(AssetItem.IsValid())
 	{
-		AssetItem->RenamedRequestEvent.BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
-		AssetItem->RenameCanceledEvent.BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::ExitEditingMode);
+		AssetItem->OnRenameRequested().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
+		AssetItem->OnRenameCanceled().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::ExitEditingMode);
 	}
-
-	SetForceMipLevelsToBeResident(true);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -1724,9 +1534,17 @@ void SAssetListItem::OnAssetDataChanged()
 		ClassText->SetText(GetAssetClassText());
 	}
 
-	if (AssetItem->GetType() != EAssetItemType::Folder && AssetThumbnail.IsValid())
+	if (AssetThumbnail)
 	{
-		AssetThumbnail->SetAsset(StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data);
+		bool bSetThumbnail = false;
+		if (AssetItem)
+		{
+			bSetThumbnail = AssetItem->GetItem().UpdateThumbnail(*AssetThumbnail);
+		}
+		if (!bSetThumbnail)
+		{
+			AssetThumbnail->SetAsset(FAssetData());
+		}
 	}
 }
 
@@ -1772,8 +1590,6 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		.ShouldAllowToolTip(InArgs._ShouldAllowToolTip)
 		.ThumbnailEditMode(InArgs._ThumbnailEditMode)
 		.HighlightText(InArgs._HighlightText)
-		.OnAssetsOrPathsDragDropped(InArgs._OnAssetsOrPathsDragDropped)
-		.OnFilesDragDropped(InArgs._OnFilesDragDropped)
 		.OnIsAssetValidForCustomToolTip(InArgs._OnIsAssetValidForCustomToolTip)
 		.OnGetCustomAssetToolTip(InArgs._OnGetCustomAssetToolTip)
 		.OnVisualizeAssetToolTip(InArgs._OnVisualizeAssetToolTip)
@@ -1790,11 +1606,26 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		FAssetThumbnailConfig ThumbnailConfig;
 		ThumbnailConfig.bAllowFadeIn = true;
 		ThumbnailConfig.bAllowHintText = InArgs._AllowThumbnailHintLabel;
-		ThumbnailConfig.bForceGenericThumbnail = (AssetItem->GetType() == EAssetItemType::Creation);
-		ThumbnailConfig.bAllowAssetSpecificThumbnailOverlay = (AssetItem->GetType() != EAssetItemType::Creation);
+		ThumbnailConfig.bForceGenericThumbnail = AssetItem->GetItem().GetItemTemporaryReason() == EContentBrowserItemFlags::Temporary_Creation;
+		ThumbnailConfig.bAllowAssetSpecificThumbnailOverlay = !ThumbnailConfig.bForceGenericThumbnail;
 		ThumbnailConfig.ThumbnailLabel = InArgs._ThumbnailLabel;
 		ThumbnailConfig.HighlightedText = InArgs._HighlightText;
 		ThumbnailConfig.HintColorAndOpacity = InArgs._ThumbnailHintColorAndOpacity;
+
+		{
+			FContentBrowserItemDataAttributeValue ColorAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemColor);
+			if (ColorAttributeValue.IsValid())
+			{
+				const FString ColorStr = ColorAttributeValue.GetValue<FString>();
+
+				FLinearColor Color;
+				if (Color.InitFromString(ColorStr))
+				{
+					ThumbnailConfig.AssetTypeColorOverride = Color;
+				}
+			}
+		}
+
 		Thumbnail = AssetThumbnail->MakeThumbnailWidget(ThumbnailConfig);
 	}
 	else
@@ -1810,7 +1641,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		SNew(SBorder)
 		.BorderImage(this, &SAssetViewItem::GetBorderImage)
 		.Padding(0)
-		.AddMetaData<FTagMetaData>(FTagMetaData((AssetItem->GetType() == EAssetItemType::Normal) ? StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.ObjectPath : ((AssetItem->GetType() == EAssetItemType::Folder) ? FName(*StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderPath) : NAME_None)))
+		.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetItem().GetVirtualPath()))
 		[
 			SNew(SVerticalBox)
 
@@ -1859,11 +1690,9 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 
 	if(AssetItem.IsValid())
 	{
-		AssetItem->RenamedRequestEvent.BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
-		AssetItem->RenameCanceledEvent.BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::ExitEditingMode);
+		AssetItem->OnRenameRequested().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
+		AssetItem->OnRenameCanceled().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::ExitEditingMode);
 	}
-
-	SetForceMipLevelsToBeResident(true);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -1871,9 +1700,17 @@ void SAssetTileItem::OnAssetDataChanged()
 {
 	SAssetViewItem::OnAssetDataChanged();
 
-	if (AssetItem->GetType() != EAssetItemType::Folder && AssetThumbnail.IsValid())
+	if (AssetThumbnail)
 	{
-		AssetThumbnail->SetAsset(StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data);
+		bool bSetThumbnail = false;
+		if (AssetItem)
+		{
+			bSetThumbnail = AssetItem->GetItem().UpdateThumbnail(*AssetThumbnail);
+		}
+		if (!bSetThumbnail)
+		{
+			AssetThumbnail->SetAsset(FAssetData());
+		}
 	}
 }
 
@@ -1988,8 +1825,6 @@ void SAssetColumnItem::Construct( const FArguments& InArgs )
 		.OnVerifyRenameCommit(InArgs._OnVerifyRenameCommit)
 		.OnItemDestroyed(InArgs._OnItemDestroyed)
 		.HighlightText(InArgs._HighlightText)
-		.OnAssetsOrPathsDragDropped(InArgs._OnAssetsOrPathsDragDropped)
-		.OnFilesDragDropped(InArgs._OnFilesDragDropped)
 		.OnIsAssetValidForCustomToolTip(InArgs._OnIsAssetValidForCustomToolTip)
 		.OnGetCustomAssetToolTip(InArgs._OnGetCustomAssetToolTip)
 		.OnVisualizeAssetToolTip(InArgs._OnVisualizeAssetToolTip)
@@ -2012,7 +1847,7 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 		const FSlateBrush* IconBrush;
 		if(IsFolder())
 		{
-			if(AssetItem.IsValid() && StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->bDeveloperFolder)
+			if(ContentBrowserUtils::IsItemDeveloperContent(AssetItem->GetItem()))
 			{
 				IconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewDeveloperFolderIcon");
 			}
@@ -2030,7 +1865,7 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 		const float IconOverlaySize = IconBrush->ImageSize.X * 0.6f;
 
 		Content = SNew(SHorizontalBox)
-			.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetType() == EAssetItemType::Normal ? StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.ObjectPath : NAME_None))
+			.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetItem().GetVirtualPath()))
 			// Icon
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -2043,7 +1878,7 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 				[
 					SNew(SImage)
 					.Image( IconBrush )
-					.ColorAndOpacity(this, &SAssetColumnItem::GetAssetColor)					
+					.ColorAndOpacity(this, &SAssetColumnItem::GetAssetColor)
 				]
 
 				// Source control state
@@ -2104,8 +1939,8 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 
 		if(AssetItem.IsValid())
 		{
-			AssetItem->RenamedRequestEvent.BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
-			AssetItem->RenameCanceledEvent.BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::ExitEditingMode);
+			AssetItem->OnRenameRequested().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
+			AssetItem->OnRenameCanceled().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::ExitEditingMode);
 		}
 
 		return SNew(SBorder)
@@ -2167,85 +2002,39 @@ void SAssetColumnItem::OnAssetDataChanged()
 	}
 }
 
-FString SAssetColumnItem::GetAssetNameToolTipText() const
-{
-	if ( AssetItem.IsValid() )
-	{
-		if(AssetItem->GetType() == EAssetItemType::Folder)
-		{
-			FString Result = StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderName.ToString();
-			Result += TEXT("\n");
-			Result += LOCTEXT("FolderName", "Folder").ToString();
-
-			return Result;
-		}
-		else
-		{
-			const FString AssetName = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.AssetName.ToString();
-			const FString AssetType = StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.AssetClass.ToString();
-
-			FString Result = AssetName;
-			Result += TEXT("\n");
-			Result += AssetType;
-
-			return Result;
-		}
-	}
-	else
-	{
-		return FString();
-	}
-}
-
 FText SAssetColumnItem::GetAssetPathText() const
 {
-	if ( AssetItem.IsValid() )
-	{
-		if(AssetItem->GetType() != EAssetItemType::Folder)
-		{
-			return FText::FromName(StaticCastSharedPtr<FAssetViewAsset>(AssetItem)->Data.PackagePath);
-		}
-		else
-		{
-			return FText::FromString(StaticCastSharedPtr<FAssetViewFolder>(AssetItem)->FolderPath);
-		}
-	}
-	else
-	{
-		return FText();
-	}
+	return AssetItem
+		? FText::AsCultureInvariant(AssetItem->GetItem().GetVirtualPath().ToString())
+		: FText();
 }
 
 FText SAssetColumnItem::GetAssetTagText(FName AssetTag) const
 {
-	if ( AssetItem.IsValid() )
+	if (AssetItem)
 	{
-		if(AssetItem->GetType() != EAssetItemType::Folder)
+		// Check custom type
 		{
-			const TSharedPtr<FAssetViewAsset>& ItemAsAsset = StaticCastSharedPtr<FAssetViewAsset>(AssetItem);
-
-			// Check custom type
+			FText TagText;
+			if (AssetItem->GetCustomColumnDisplayValue(AssetTag, TagText))
 			{
-				FText* FoundText = ItemAsAsset->CustomColumnDisplayText.Find(AssetTag);
-				if (FoundText)
-				{
-					return *FoundText;
-				}
-			}
-
-			// Check display tags
-			{
-				const FTagDisplayItem* FoundTagItem = CachedDisplayTags.FindByPredicate([AssetTag](const FTagDisplayItem& TagItem)
-				{
-					return TagItem.TagKey == AssetTag;
-				});
-
-				if (FoundTagItem)
-				{
-					return FoundTagItem->DisplayValue;
-				}
+				return TagText;
 			}
 		}
+
+		// Check display tags
+		{
+			const FTagDisplayItem* FoundTagItem = CachedDisplayTags.FindByPredicate([AssetTag](const FTagDisplayItem& TagItem)
+			{
+				return TagItem.TagKey == AssetTag;
+			});
+			
+			if (FoundTagItem)
+			{
+				return FoundTagItem->DisplayValue;
+			}
+		}
+
 	}
 	
 	return FText();

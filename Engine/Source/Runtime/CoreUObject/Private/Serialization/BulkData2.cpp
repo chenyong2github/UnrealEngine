@@ -292,6 +292,14 @@ public:
 
 		auto OnRequestLoaded = [this](TIoStatusOr<FIoBuffer> Result)
 		{
+			if (!Result.Status().IsOk())
+			{
+				//TODO: Enable logging when we can give some more useful message
+				//UE_LOG(LogSerialization, Error, TEXT("FReadChunkIdRequest failed: %s"), *Result.Status().ToString());
+				// If there was an IO error then we need to count the request as canceled
+				bCanceled = true;
+			}
+
 			SetDataComplete();
 
 			{
@@ -469,18 +477,28 @@ public:
 			// later call to FreeBatch
 			FBulkDataIoDispatcherRequest* InRequest = this;
 
-			CHECK_IOSTATUS(Result.Status(), TEXT("FIoBatch::IssueWithCallback"));
-			FIoBuffer IoBuffer = Result.ConsumeValueOrDie();
-
-			InRequest->SizeResult = IoBuffer.DataSize();
-
-			if (IoBuffer.IsMemoryOwned())
+			if (Result.Status().IsOk())
 			{
-				InRequest->DataResult = IoBuffer.Release().ConsumeValueOrDie();
+				CHECK_IOSTATUS(Result.Status(), TEXT("FIoBatch::IssueWithCallback"));
+				FIoBuffer IoBuffer = Result.ConsumeValueOrDie();
+
+				InRequest->SizeResult = IoBuffer.DataSize();
+
+				if (IoBuffer.IsMemoryOwned())
+				{
+					InRequest->DataResult = IoBuffer.Release().ConsumeValueOrDie();
+				}
+				else
+				{
+					InRequest->DataResult = IoBuffer.Data();
+				}
 			}
 			else
 			{
-				InRequest->DataResult = IoBuffer.Data();
+				//TODO: Enable logging when we can give some more useful message
+				//UE_LOG(LogSerialization, Error, TEXT("FBulkDataIoDispatcherRequest failed: %s"), *Result.Status().ToString());
+				// If there was an IO error then we need to count the request as canceled
+				bIsCanceled = true;
 			}
 
 			bDataIsReady = true;

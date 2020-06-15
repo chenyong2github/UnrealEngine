@@ -30,7 +30,7 @@
 #include "Framework/PersistentTask.h"
 #include "Framework/PhysicsTickTask.h"
 
-#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
@@ -593,41 +593,6 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryCollec
 	Solver->RegisterObject(InObject);
 }
 
-void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject)
-{
-	AddToComponentMaps(Component, InObject);
-
-	Chaos::FPhysicsSolver* CurrSceneSolver = GetSolver();
-
-	InObject->SetSolver(CurrSceneSolver);
-	InObject->Initialize();
-
-	if (Chaos::IDispatcher* Dispatcher = GetDispatcher())
-	{
-		TArray<Chaos::FPhysicsSolverBase*> WorldSolverList = ChaosModule->GetAllSolvers();
-
-		for(Chaos::FPhysicsSolverBase* Solver : WorldSolverList)
-		{
-			Solver->CastHelper([Dispatcher, InObject](auto& Concrete)
-			{
-				if(true || Concrete.HasActiveParticles())
-				{
-					Concrete.RegisterObject(InObject);
-
-					if(/*bDedicatedThread && */Dispatcher)
-					{
-						// Pass the proxy off to the physics thread
-						Dispatcher->EnqueueCommandImmediate([InObject,&Concrete](Chaos::FPersistentPhysicsTask* PhysThread)
-						{
-							Concrete.RegisterObject(InObject);
-						});
-					}
-				}
-			});
-			
-		}
-	}
-}
 
 void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
 {
@@ -803,49 +768,6 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 	}
 	RemoveFromComponentMaps(InObject);
 	RemovePhysicsProxy(InObject, Solver, ChaosModule);
-}
-
-void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
-{
-	//Does it make sense to remove field form just one solver since it affects multiple solvers?
-	Chaos::FPhysicsSolver* CurrSceneSolver = InObject->GetSolver<Chaos::FPhysicsSolver>();
-	if(CurrSceneSolver)
-	{
-		if(!CurrSceneSolver->UnregisterObject(InObject))
-		{
-			UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
-		}
-		RemoveFromComponentMaps(InObject);
-
-		if(Chaos::IDispatcher* Dispatcher = GetDispatcher())
-		{
-			TArray<Chaos::FPhysicsSolverBase*> SolverList = ChaosModule->GetAllSolvers();
-
-			for(Chaos::FPhysicsSolverBase* Solver : SolverList)
-			{
-				Solver->CastHelper([Dispatcher, InObject](auto& Concrete)
-				{
-					if(true || Concrete.HasActiveParticles())
-					{
-						Concrete.UnregisterObject(InObject);
-
-						if(/*bDedicatedThread && */Dispatcher)
-						{
-							// Pass the proxy off to the physics thread
-							Dispatcher->EnqueueCommandImmediate([InObject,&Concrete](Chaos::FPersistentPhysicsTask* PhysThread)
-							{
-								Concrete.UnregisterObject(InObject);
-							});
-						}
-					}
-				});
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object but no solver had been set."));
-	}
 }
 
 #if XGE_FIXED
@@ -1365,14 +1287,9 @@ void FPhysScene_ChaosInterface::Flush_AssumesLocked()
 	{
 		//Make sure any dirty proxy data is pushed
 		Solver->PushPhysicsState(Dispatcher);
-
-		TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
-		TFunction<void()> Command;
-		while(Queue.Dequeue(Command))
-		{
-			Command();
-		}
-
+		Solver->AdvanceAndDispatch_External(0);	//force commands through
+		Solver->WaitOnPendingTasks_External();
+		
 		// Populate the spacial acceleration
 		Chaos::FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
 
@@ -2071,31 +1988,25 @@ void FPhysScene_ChaosInterface::StartFrame()
 				SolverList.AddUnique(Solver);
 			}
 
+			// Prereqs for the final completion task to run (collection of all the solver tasks)
+			FGraphEventArray CompletionTaskPrerequisites;
+
 			for(FPhysicsSolverBase* Solver : SolverList)
 			{
 				Solver->CastHelper([Dispatcher](auto& InSolver)
 					{
 						InSolver.PushPhysicsState(Dispatcher);
 					});
+
+				CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(Dt));
 			}
 
-			FGraphEventRef SimulationCompleteEvent = FGraphEvent::CreateGraphEvent();
-
-			// Need to fire off a parallel task to handle running physics commands and
-			// ticking the scene while the engine continues on until TG_EndPhysics
-			// (this should happen in TG_StartPhysics)
-			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, SolverList, Dt);
-
 			// Setup post simulate tasks
-			if (PhysicsTickTask.GetReference())
 			{
-				FGraphEventArray PostSimPrerequisites;
-				PostSimPrerequisites.Add(SimulationCompleteEvent);
-
 				DECLARE_CYCLE_STAT(TEXT("FDelegateGraphTask.CompletePhysicsSimulation"), STAT_FDelegateGraphTask_CompletePhysicsSimulation, STATGROUP_TaskGraphTasks);
 
 				// Completion event runs in parallel and will flip out our buffers, gamethread work can be done in EndFrame (Called by world after this completion event finishes)
-				CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this, &FPhysScene_ChaosInterface::CompleteSceneSimulation), GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation), &PostSimPrerequisites, ENamedThreads::GameThread, ENamedThreads::AnyHiPriThreadHiPriTask);
+				CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this, &FPhysScene_ChaosInterface::CompleteSceneSimulation), GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation), &CompletionTaskPrerequisites, ENamedThreads::GameThread, ENamedThreads::AnyHiPriThreadHiPriTask);
 			}
 		}
 		break;
@@ -2173,7 +2084,6 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		check(CompletionEvent->IsComplete());
 		//check(PhysicsTickTask->IsComplete());
 		CompletionEvent = nullptr;
-		PhysicsTickTask = nullptr;
 
 		//flush queue so we can merge the two threads
 		Dispatcher->Execute();
@@ -2187,17 +2097,6 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		{
 			// Make sure our solver is in the list
 			SolverList.AddUnique(Solver);
-		}
-
-		// flush solver queues
-		for (FPhysicsSolverBase* Solver : SolverList)
-		{
-			TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
-			TFunction<void()> Command;
-			while (Queue.Dequeue(Command))
-			{
-				Command();
-			}
 		}
 
 		// Flip the buffers over to the game thread and sync

@@ -9,14 +9,14 @@
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "CompilationResult.h"
-#include "HLSLTestData.h"
+#include "dxc/Test/CompilationResult.h"
+#include "dxc/Test/HLSLTestData.h"
 #include <stdint.h>
 
 #ifdef _WIN32
 #include "WexTestClass.h"
 #endif
-#include "HlslTestUtils.h"
+#include "dxc/Test/HlslTestUtils.h"
 #include "dxc/Support/microcom.h"
 
 
@@ -85,6 +85,8 @@ protected:
   }
 
   TEST_METHOD(CursorWhenCBufferRefThenFound)
+  TEST_METHOD(CursorWhenPresumedLocationDifferentFromSpellingLocation)
+  TEST_METHOD(CursorWhenPresumedLocationSameAsSpellingLocation)
   TEST_METHOD(CursorWhenFieldRefThenSimpleNames)
   TEST_METHOD(CursorWhenFindAtBodyCallThenMatch)
   TEST_METHOD(CursorWhenFindAtGlobalThenMatch)
@@ -120,6 +122,8 @@ protected:
   TEST_METHOD(QualifiedNameVariable)
 
   TEST_METHOD(TypeWhenICEThenEval)
+
+  TEST_METHOD(CompletionWhenResultsAvailable)
 };
 
 bool DXIntellisenseTest::DXIntellisenseTestClassSetup() {
@@ -157,6 +161,60 @@ TEST_F(DXIntellisenseTest, CursorWhenCBufferRefThenFound) {
   VERIFY_SUCCEEDED(refs.begin()[0]->GetLocation(&loc));
   VERIFY_SUCCEEDED(loc->GetSpellingLocation(nullptr, &line, nullptr, nullptr));
   VERIFY_ARE_EQUAL(2U, line);
+}
+
+TEST_F(DXIntellisenseTest, CursorWhenPresumedLocationDifferentFromSpellingLocation) {
+  char program[] =
+    "#line 21 \"something.h\"\r\n"
+    "struct MyStruct { };";
+
+  CComPtr<IDxcCursor> varCursor;
+  CComPtr<IDxcSourceLocation> loc;
+  CComPtr<IDxcFile> spellingFile;
+  unsigned spellingLine, spellingCol, spellingOffset;
+  CComHeapPtr<char> presumedFilename;
+  unsigned presumedLine, presumedCol;
+  
+  CompilationResult c(CompilationResult::CreateForProgram(program, strlen(program)));
+  VERIFY_ARE_EQUAL(true, c.ParseSucceeded());
+  ExpectCursorAt(c.TU, 2, 1, DxcCursor_StructDecl, &varCursor);
+  VERIFY_SUCCEEDED(varCursor->GetLocation(&loc));
+
+  VERIFY_SUCCEEDED(loc->GetSpellingLocation(&spellingFile, &spellingLine, &spellingCol, &spellingOffset));
+  VERIFY_ARE_EQUAL(2u, spellingLine);
+  VERIFY_ARE_EQUAL(8u, spellingCol);
+  VERIFY_ARE_EQUAL(31u, spellingOffset);
+
+  VERIFY_SUCCEEDED(loc->GetPresumedLocation(&presumedFilename, &presumedLine, &presumedCol));
+  VERIFY_ARE_EQUAL_STR("something.h", presumedFilename);
+  VERIFY_ARE_EQUAL(21u, presumedLine);
+  VERIFY_ARE_EQUAL(8u, presumedCol);
+}
+
+TEST_F(DXIntellisenseTest, CursorWhenPresumedLocationSameAsSpellingLocation) {
+  char program[] = "struct MyStruct { };";
+
+  CComPtr<IDxcCursor> varCursor;
+  CComPtr<IDxcSourceLocation> loc;
+  CComPtr<IDxcFile> spellingFile;
+  unsigned spellingLine, spellingCol, spellingOffset;
+  CComHeapPtr<char> presumedFilename;
+  unsigned presumedLine, presumedCol;
+  
+  CompilationResult c(CompilationResult::CreateForProgram(program, strlen(program)));
+  VERIFY_ARE_EQUAL(true, c.ParseSucceeded());
+  ExpectCursorAt(c.TU, 1, 1, DxcCursor_StructDecl, &varCursor);
+  VERIFY_SUCCEEDED(varCursor->GetLocation(&loc));
+  
+  VERIFY_SUCCEEDED(loc->GetSpellingLocation(&spellingFile, &spellingLine, &spellingCol, &spellingOffset));
+  VERIFY_ARE_EQUAL(1u, spellingLine);
+  VERIFY_ARE_EQUAL(8u, spellingCol);
+  VERIFY_ARE_EQUAL(7u, spellingOffset);
+  
+  VERIFY_SUCCEEDED(loc->GetPresumedLocation(&presumedFilename, &presumedLine, &presumedCol));
+  VERIFY_ARE_EQUAL_STR(CompilationResult::getDefaultFileName(), presumedFilename);
+  VERIFY_ARE_EQUAL(1u, presumedLine);
+  VERIFY_ARE_EQUAL(8u, presumedCol);
 }
 
 TEST_F(DXIntellisenseTest, InclusionWhenMissingThenError) {
@@ -787,4 +845,37 @@ TEST_F(DXIntellisenseTest, TypeWhenICEThenEval)
   CComHeapPtr<char> name;
   VERIFY_SUCCEEDED(typeCursor->GetSpelling(&name));
   VERIFY_ARE_EQUAL_STR("const float [2]", name); // global variables converted to const by default
+}
+
+TEST_F(DXIntellisenseTest, CompletionWhenResultsAvailable)
+{
+  char program[] =
+	"struct MyStruct {};"
+	"MyStr";
+  CompilationResult result(CompilationResult::CreateForProgram(program, _countof(program)));
+  VERIFY_ARE_EQUAL(false, result.ParseSucceeded());
+  char* fileName = "filename.hlsl";
+  CComPtr<IDxcUnsavedFile> unsavedFile;
+  VERIFY_SUCCEEDED(TrivialDxcUnsavedFile::Create(fileName, program, &unsavedFile));
+  CComPtr<IDxcCodeCompleteResults> codeCompleteResults;
+  VERIFY_SUCCEEDED(result.TU->CodeCompleteAt(fileName, 2, 1, &unsavedFile.p, 1, DxcCodeCompleteFlags_None, &codeCompleteResults));
+  unsigned numResults;
+  VERIFY_SUCCEEDED(codeCompleteResults->GetNumResults(&numResults));
+  VERIFY_IS_GREATER_THAN_OR_EQUAL(numResults, 1u);
+  CComPtr<IDxcCompletionResult> completionResult;
+  VERIFY_SUCCEEDED(codeCompleteResults->GetResultAt(0, &completionResult));
+  DxcCursorKind completionResultCursorKind;
+  VERIFY_SUCCEEDED(completionResult->GetCursorKind(&completionResultCursorKind));
+  VERIFY_ARE_EQUAL(DxcCursor_StructDecl, completionResultCursorKind);
+  CComPtr<IDxcCompletionString> completionString;
+  VERIFY_SUCCEEDED(completionResult->GetCompletionString(&completionString));
+  unsigned numCompletionChunks;
+  VERIFY_SUCCEEDED(completionString->GetNumCompletionChunks(&numCompletionChunks));
+  VERIFY_ARE_EQUAL(1, numCompletionChunks);
+  DxcCompletionChunkKind completionChunkKind;
+  VERIFY_SUCCEEDED(completionString->GetCompletionChunkKind(0, &completionChunkKind));
+  VERIFY_ARE_EQUAL(DxcCompletionChunk_TypedText, completionChunkKind);
+  CComHeapPtr<char> completionChunkText;
+  VERIFY_SUCCEEDED(completionString->GetCompletionChunkText(0, &completionChunkText));
+  VERIFY_ARE_EQUAL_STR("MyStruct", completionChunkText);
 }

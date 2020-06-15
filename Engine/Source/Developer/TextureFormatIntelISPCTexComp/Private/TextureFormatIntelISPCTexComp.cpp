@@ -868,14 +868,14 @@ public:
 			FString DLLPath;
 #if PLATFORM_WINDOWS
 	#if PLATFORM_64BITS
-			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/IntelISPCTexComp/Win64-Release/ispc_texcomp.dll");
+			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win64-Release/ispc_texcomp.dll");
 	#else	//32-bit platform
-			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/IntelISPCTexComp/Win32-Release/ispc_texcomp.dll");
+			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win32-Release/ispc_texcomp.dll");
 	#endif
 #elif PLATFORM_MAC
 			DLLPath = TEXT("libispc_texcomp.dylib");
 #elif PLATFORM_LINUX
-			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/IntelISPCTexComp/Linux64-Release/libispc_texcomp.so");
+			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Linux64-Release/libispc_texcomp.so");
 #endif
 
 			if (DLLPath.Len() > 0)

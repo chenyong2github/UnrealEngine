@@ -2,8 +2,10 @@
 
 #include "Linux/LinuxPlatformProcess.h"
 #include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
 #include "Logging/LogMacros.h"
+#include "Misc/Paths.h"
 
 const TCHAR* FLinuxPlatformProcess::BaseDir()
 {
@@ -25,6 +27,14 @@ const TCHAR* FLinuxPlatformProcess::BaseDir()
 		FCString::Strncpy(CachedResult, UTF8_TO_TCHAR(dirname(SelfPath)), UE_ARRAY_COUNT(CachedResult) - 1);
 		CachedResult[UE_ARRAY_COUNT(CachedResult) - 1] = 0;
 		FCString::Strncat(CachedResult, TEXT("/"), UE_ARRAY_COUNT(CachedResult) - 1);
+
+#ifdef UE_RELATIVE_BASE_DIR
+		FString CollapseResult(CachedResult);
+		CollapseResult /= UE_RELATIVE_BASE_DIR;
+		FPaths::CollapseRelativeDirectories(CollapseResult);
+		FCString::Strcpy(CachedResult, UNIX_MAX_PATH, *CollapseResult);
+#endif
+
 		bHaveResult = true;
 	}
 	return CachedResult;

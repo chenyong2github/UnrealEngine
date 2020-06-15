@@ -44,10 +44,18 @@ bool LowerTypeVisitor::visit(SpirvFunction *fn, Phase phase) {
                   /*SourceLocation*/ {});
     fn->setReturnType(const_cast<SpirvType *>(spirvReturnType));
 
-    // Lower the SPIR-V function type if necessary.
-    fn->setFunctionType(const_cast<SpirvType *>(
-        lowerType(fn->getFunctionType(), SpirvLayoutRule::Void,
-                  fn->getSourceLocation())));
+    // Lower the function parameter types.
+    auto paramQualTypes = fn->getAstParamTypes();
+    llvm::SmallVector<const SpirvType *, 4> spirvParamTypes;
+    for (auto qualtype : paramQualTypes) {
+      const auto *spirvParamType =
+          lowerType(qualtype, SpirvLayoutRule::Void,
+                    /*isRowMajor*/ llvm::None, fn->getSourceLocation());
+      spirvParamTypes.push_back(spvContext.getPointerType(
+          spirvParamType, spv::StorageClass::Function));
+    }
+    fn->setFunctionType(
+        spvContext.getFunctionType(spirvReturnType, spirvParamTypes));
   }
   return true;
 }
@@ -86,8 +94,22 @@ bool LowerTypeVisitor::visitInstruction(SpirvInstruction *instr) {
   // Variables and function parameters must have a pointer type.
   case spv::Op::OpFunctionParameter:
   case spv::Op::OpVariable: {
+    if (auto *var = dyn_cast<SpirvVariable>(instr)) {
+      if (var->hasBinding() && var->getHlslUserType().empty()) {
+        var->setHlslUserType(getHlslResourceTypeName(var->getAstResultType()));
+      }
+    }
     const SpirvType *pointerType =
         spvContext.getPointerType(resultType, instr->getStorageClass());
+    instr->setResultType(pointerType);
+    break;
+  }
+  // Access chains must have a pointer type. The storage class for the pointer
+  // is the same as the storage class of the access base.
+  case spv::Op::OpAccessChain: {
+    const auto *pointerType = spvContext.getPointerType(
+        resultType,
+        cast<SpirvAccessChain>(instr)->getBase()->getStorageClass());
     instr->setResultType(pointerType);
     break;
   }
@@ -140,22 +162,6 @@ const SpirvType *LowerTypeVisitor::lowerType(const SpirvType *type,
         lowerType(imageAstType, rule, /*isRowMajor*/ llvm::None, loc);
     assert(isa<ImageType>(imageSpirvType));
     return spvContext.getSampledImageType(cast<ImageType>(imageSpirvType));
-  } else if (const auto *hybridFn = dyn_cast<HybridFunctionType>(type)) {
-    // Lower the return type.
-    const QualType astReturnType = hybridFn->getReturnType();
-    const SpirvType *spirvReturnType =
-        lowerType(astReturnType, rule, /*isRowMajor*/ llvm::None, loc);
-
-    // Go over all params and lower them.
-    std::vector<const SpirvType *> paramTypes;
-    for (auto paramType : hybridFn->getParamTypes()) {
-      const auto *spirvParamType =
-          lowerType(paramType, rule, /*isRowMajor*/ llvm::None, loc);
-      paramTypes.push_back(spvContext.getPointerType(
-          spirvParamType, spv::StorageClass::Function));
-    }
-
-    return spvContext.getFunctionType(spirvReturnType, paramTypes);
   } else if (const auto *hybridStruct = dyn_cast<HybridStructType>(type)) {
     // lower all fields of the struct.
     auto loweredFields =
@@ -430,6 +436,11 @@ const SpirvType *LowerTypeVisitor::lowerType(QualType type,
     return lowerType(ptrType->getPointeeType(), rule, isRowMajor, srcLoc);
   }
 
+  // Enum types
+  if (isEnumType(type)) {
+    return spvContext.getSIntType(32);
+  }
+
   emitError("lower type %0 unimplemented", srcLoc) << type->getTypeClassName();
   type->dump();
   return 0;
@@ -527,19 +538,24 @@ const SpirvType *LowerTypeVisitor::lowerResourceType(QualType type,
     const auto *structType = lowerType(s, rule, isRowMajor, srcLoc);
 
     // Calculate memory alignment for the resource.
-    uint32_t size = 0, stride = 0;
-    std::tie(std::ignore, size) =
-        alignmentCalc.getAlignmentAndSize(s, rule, isRowMajor, &stride);
+    uint32_t arrayStride = 0;
+    QualType sArray = astContext.getConstantArrayType(
+        s, llvm::APInt(32, 1), clang::ArrayType::Normal, 0);
+    alignmentCalc.getAlignmentAndSize(sArray, rule, isRowMajor, &arrayStride);
 
     // We have a runtime array of structures. So:
     // The stride of the runtime array is the size of the struct.
-    const auto *raType = spvContext.getRuntimeArrayType(structType, size);
+    const auto *raType =
+        spvContext.getRuntimeArrayType(structType, arrayStride);
     const bool isReadOnly = (name == "StructuredBuffer");
 
     // Attach matrix stride decorations if this is a *StructuredBuffer<matrix>.
     llvm::Optional<uint32_t> matrixStride = llvm::None;
-    if (isMxNMatrix(s))
+    if (isMxNMatrix(s)) {
+      uint32_t stride = 0;
+      alignmentCalc.getAlignmentAndSize(s, rule, isRowMajor, &stride);
       matrixStride = stride;
+    }
 
     const std::string typeName = "type." + name.str() + "." + getAstTypeName(s);
     const auto *valType = spvContext.getStructType(

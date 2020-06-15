@@ -5045,7 +5045,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		}
 
 		// Update normals if DrawScale3D is changed
-		if (PropertyName == FName(TEXT("RelativeScale3D")))
+		if (MemberPropertyName == FName(TEXT("RelativeScale3D")))
 		{
 			FLandscapeEditDataInterface LandscapeEdit(Info);
 			LandscapeEdit.RecalculateNormals();

@@ -1921,6 +1921,10 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 			// CachedFilesScopeLock is locked
 			for (uint16 RealPakIndex = StartPakIndex; RealPakIndex < EndPakIndex; RealPakIndex++)
 			{
+				if (!CachedPakData[RealPakIndex].Handle)
+				{
+					continue;
+				}
 				int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
 				int32 NumToKeep = bDiscardAll ? 0 : GPakCache_NumUnreferencedBlocksToCache;
 				int32 NumToRemove = FMath::Max<int32>(0, OffsetAndPakIndexOfSavedBlocked[CacheIndex].Num() - NumToKeep);

@@ -8,9 +8,11 @@
 #include "DynamicMeshEditor.h"
 #include "MeshTransforms.h"
 #include "MeshSimplification.h"
+#include "MeshNormals.h"
+#include "Operations/ExtrudeMesh.h"
+#include "Operations/RemoveOccludedTriangles.h"
 
 #include "Implicit/Solidify.h"
-
 #include "Implicit/Blend.h"
 
 
@@ -45,11 +47,25 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 		if (bSolidifyInput)
 		{
+			if (OffsetSolidifySurface > 0)
+			{
+				FMeshNormals::QuickComputeVertexNormals(TransformedMeshes[MeshIdx]);
+				FExtrudeMesh Extrude(&TransformedMeshes[MeshIdx]);
+				Extrude.DefaultExtrudeDistance = -OffsetSolidifySurface;
+				Extrude.IsPositiveOffset = false;
+				Extrude.Apply();
+			}
+
 			FDynamicMeshAABBTree3 Spatial(&TransformedMeshes[MeshIdx]);
 			TFastWindingTree<FDynamicMesh3> Winding(&Spatial);
 			TImplicitSolidify<FDynamicMesh3> Solidify(&TransformedMeshes[MeshIdx], &Spatial, &Winding);
 			Solidify.SetCellSizeAndExtendBounds(Spatial.GetBoundingBox(), 0, InputVoxelCount);
 			TransformedMeshes[MeshIdx].Copy(&Solidify.Generate());
+
+			if (bRemoveInternalsAfterSolidify)
+			{
+				UE::MeshAutoRepair::RemoveInternalTriangles(TransformedMeshes[MeshIdx], true, EOcclusionTriangleSampling::Centroids, EOcclusionCalculationMode::FastWindingNumber);
+			}
 		}
 
 		ImplicitBlend.Sources.Add(&TransformedMeshes[MeshIdx]);

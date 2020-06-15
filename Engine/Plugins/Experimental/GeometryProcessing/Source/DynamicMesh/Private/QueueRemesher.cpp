@@ -440,7 +440,18 @@ void FQueueRemesher::TrackedFullProjectionPass(bool bParallel)
 	{
 		auto VertexMoveFunction = [this](int VertexID, bool& bModified)
 		{
+			bModified = false;
 			FVector3d CurrentPosition = Mesh->GetVertex(VertexID);
+
+			if (IsVertexPositionConstrained(VertexID))
+			{
+				return CurrentPosition;
+			}
+			if (VertexControlF != nullptr && ((int)VertexControlF(VertexID) & (int)EVertexControl::NoProject) != 0)
+			{
+				return CurrentPosition;
+			}
+
 			FVector3d ProjectedPosition = ProjTarget->Project(CurrentPosition, VertexID);
 			bModified = !VectorUtil::EpsilonEqual(CurrentPosition, ProjectedPosition, FMathd::ZeroTolerance);
 
@@ -459,7 +470,7 @@ void FQueueRemesher::TrackedFullProjectionPass(bool bParallel)
 
 	auto UseProjectionFunc = [this](int VertexID)
 	{
-		if (IsVertexConstrained(VertexID))
+		if (IsVertexPositionConstrained(VertexID))
 		{
 			return;
 		}

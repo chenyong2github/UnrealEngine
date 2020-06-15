@@ -77,30 +77,6 @@ private:
 };
 
 /**
- * Task responsible for processing the command buffer of a single solver and advancing it by
- * a specified delta before completing.
- */
-class CHAOSSOLVERS_API FPhysicsSolverAdvanceTask
-{
-public:
-
-	FPhysicsSolverAdvanceTask(Chaos::FPhysicsSolverBase* InSolver, float InDt);
-
-	TStatId GetStatId() const;
-	static ENamedThreads::Type GetDesiredThread();
-	static ESubsequentsMode::Type GetSubsequentsMode();
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-
-private:
-
-	template <typename TSolver>
-	static void StepSolver(TSolver* InSolver, float InDt);
-
-	Chaos::FPhysicsSolverBase* Solver;
-	float Dt;
-};
-
-/**
  * Task responsible for processing the command buffer of a single solver and advancing it
  * the specified number of times, by the specified delta time.
  */

@@ -21,26 +21,28 @@ namespace spirv {
 
 SpirvBuilder::SpirvBuilder(ASTContext &ac, SpirvContext &ctx,
                            const SpirvCodeGenOptions &opt)
-    : astContext(ac), context(ctx), module(nullptr), function(nullptr),
+    : astContext(ac), context(ctx), mod(nullptr), function(nullptr),
       spirvOptions(opt) {
-  module = new (context) SpirvModule;
+  mod = new (context) SpirvModule;
 }
 
-SpirvFunction *
-SpirvBuilder::beginFunction(QualType returnType, SpirvType *functionType,
-                            SourceLocation loc, llvm::StringRef funcName,
-                            bool isPrecise, SpirvFunction *func) {
+SpirvFunction *SpirvBuilder::beginFunction(QualType returnType,
+                                           llvm::ArrayRef<QualType> paramTypes,
+                                           SourceLocation loc,
+                                           llvm::StringRef funcName,
+                                           bool isPrecise,
+                                           SpirvFunction *func) {
   assert(!function && "found nested function");
   if (func) {
     function = func;
     function->setAstReturnType(returnType);
-    function->setFunctionType(functionType);
+    function->setAstParamTypes(paramTypes);
     function->setSourceLocation(loc);
     function->setFunctionName(funcName);
     function->setPrecise(isPrecise);
   } else {
     function = new (context)
-        SpirvFunction(returnType, functionType, loc, funcName, isPrecise);
+        SpirvFunction(returnType, paramTypes, loc, funcName, isPrecise);
   }
 
   return function;
@@ -80,7 +82,7 @@ void SpirvBuilder::endFunction() {
   }
   basicBlocks.clear();
 
-  module->addFunction(function);
+  mod->addFunction(function);
   function = nullptr;
   insertPoint = nullptr;
 }
@@ -117,20 +119,6 @@ SpirvCompositeConstruct *SpirvBuilder::createCompositeConstruct(
   if (!constituents.empty()) {
     instruction->setLayoutRule(constituents[0]->getLayoutRule());
   }
-  return instruction;
-}
-
-SpirvCompositeConstruct *SpirvBuilder::createCompositeConstruct(
-    const SpirvType *resultType,
-    llvm::ArrayRef<SpirvInstruction *> constituents, SourceLocation loc) {
-  assert(insertPoint && "null insert point");
-  auto *instruction =
-      new (context) SpirvCompositeConstruct(/*QualType*/ {}, loc, constituents);
-  instruction->setResultType(resultType);
-  if (!constituents.empty()) {
-    instruction->setLayoutRule(constituents[0]->getLayoutRule());
-  }
-  insertPoint->addInstruction(instruction);
   return instruction;
 }
 
@@ -198,6 +186,17 @@ SpirvLoad *SpirvBuilder::createLoad(const SpirvType *resultType,
   auto *instruction = new (context) SpirvLoad(/*QualType*/ {}, loc, pointer);
   instruction->setResultType(resultType);
   instruction->setStorageClass(pointer->getStorageClass());
+  // Special case for legalization. We could have point-to-pointer types.
+  // For example:
+  //
+  // %var = OpVariable %_ptr_Private__ptr_Uniform_type_X Private
+  // %1 = OpLoad %_ptr_Uniform_type_X %var
+  //
+  // Loading from %var should result in Uniform storage class, not Private.
+  if (const auto *ptrType = dyn_cast<SpirvPointerType>(resultType)) {
+    instruction->setStorageClass(ptrType->getStorageClass());
+  }
+
   instruction->setLayoutRule(pointer->getLayoutRule());
   instruction->setNonUniform(pointer->isNonUniform());
   instruction->setRValue(true);
@@ -243,31 +242,6 @@ SpirvBuilder::createAccessChain(QualType resultType, SpirvInstruction *base,
   assert(insertPoint && "null insert point");
   auto *instruction =
       new (context) SpirvAccessChain(resultType, loc, base, indexes);
-  instruction->setStorageClass(base->getStorageClass());
-  instruction->setLayoutRule(base->getLayoutRule());
-  bool isNonUniform = base->isNonUniform();
-  for (auto *index : indexes)
-    isNonUniform = isNonUniform || index->isNonUniform();
-  instruction->setNonUniform(isNonUniform);
-  instruction->setContainsAliasComponent(base->containsAliasComponent());
-
-  // If doing an access chain into a structured or byte address buffer, make
-  // sure the layout rule is sBufferLayoutRule.
-  if (base->hasAstResultType() &&
-      isAKindOfStructuredOrByteBuffer(base->getAstResultType()))
-    instruction->setLayoutRule(spirvOptions.sBufferLayoutRule);
-
-  insertPoint->addInstruction(instruction);
-  return instruction;
-}
-
-SpirvAccessChain *SpirvBuilder::createAccessChain(
-    const SpirvType *resultType, SpirvInstruction *base,
-    llvm::ArrayRef<SpirvInstruction *> indexes, SourceLocation loc) {
-  assert(insertPoint && "null insert point");
-  auto *instruction =
-      new (context) SpirvAccessChain(/*QualType*/ {}, loc, base, indexes);
-  instruction->setResultType(resultType);
   instruction->setStorageClass(base->getStorageClass());
   instruction->setLayoutRule(base->getLayoutRule());
   bool isNonUniform = base->isNonUniform();
@@ -795,17 +769,17 @@ SpirvBuilder::createRayTracingOpsNV(spv::Op opcode, QualType resultType,
 }
 
 void SpirvBuilder::addModuleProcessed(llvm::StringRef process) {
-  module->addModuleProcessed(new (context) SpirvModuleProcessed({}, process));
+  mod->addModuleProcessed(new (context) SpirvModuleProcessed({}, process));
 }
 
 SpirvExtInstImport *SpirvBuilder::getGLSLExtInstSet() {
-  SpirvExtInstImport *glslSet = module->getGLSLExtInstSet();
+  SpirvExtInstImport *glslSet = mod->getGLSLExtInstSet();
   if (!glslSet) {
     // The extended instruction set is likely required for several different
     // reasons. We can't pinpoint the source location for one specific function.
     glslSet =
         new (context) SpirvExtInstImport(/*SourceLocation*/ {}, "GLSL.std.450");
-    module->addExtInstSet(glslSet);
+    mod->addExtInstSet(glslSet);
   }
   return glslSet;
 }
@@ -817,7 +791,7 @@ SpirvVariable *SpirvBuilder::addStageIOVar(QualType type,
   // Note: We store the underlying type in the variable, *not* the pointer type.
   auto *var = new (context) SpirvVariable(type, loc, storageClass, isPrecise);
   var->setDebugName(name);
-  module->addVariable(var);
+  mod->addVariable(var);
   return var;
 }
 
@@ -839,12 +813,12 @@ SpirvVariable *SpirvBuilder::addStageBuiltinVar(QualType type,
 
   // Note: We store the underlying type in the variable, *not* the pointer type.
   auto *var = new (context) SpirvVariable(type, loc, storageClass, isPrecise);
-  module->addVariable(var);
+  mod->addVariable(var);
 
   // Decorate with the specified Builtin
   auto *decor = new (context) SpirvDecoration(
       loc, var, spv::Decoration::BuiltIn, {static_cast<uint32_t>(builtin)});
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 
   // Add variable to cache.
   builtinVars.emplace_back(storageClass, builtin, var);
@@ -863,7 +837,7 @@ SpirvBuilder::addModuleVar(QualType type, spv::StorageClass storageClass,
       new (context) SpirvVariable(type, loc, storageClass, isPrecise,
                                   init.hasValue() ? init.getValue() : nullptr);
   var->setDebugName(name);
-  module->addVariable(var);
+  mod->addVariable(var);
   return var;
 }
 
@@ -878,7 +852,7 @@ SpirvVariable *SpirvBuilder::addModuleVar(
                                   init.hasValue() ? init.getValue() : nullptr);
   var->setResultType(type);
   var->setDebugName(name);
-  module->addVariable(var);
+  mod->addVariable(var);
   return var;
 }
 
@@ -887,34 +861,38 @@ void SpirvBuilder::decorateLocation(SpirvInstruction *target,
   auto *decor =
       new (context) SpirvDecoration(target->getSourceLocation(), target,
                                     spv::Decoration::Location, {location});
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
 void SpirvBuilder::decorateIndex(SpirvInstruction *target, uint32_t index,
                                  SourceLocation srcLoc) {
   auto *decor = new (context)
       SpirvDecoration(srcLoc, target, spv::Decoration::Index, {index});
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
-void SpirvBuilder::decorateDSetBinding(SpirvInstruction *target,
+void SpirvBuilder::decorateDSetBinding(SpirvVariable *target,
                                        uint32_t setNumber,
                                        uint32_t bindingNumber) {
   const SourceLocation srcLoc = target->getSourceLocation();
   auto *dset = new (context) SpirvDecoration(
       srcLoc, target, spv::Decoration::DescriptorSet, {setNumber});
-  module->addDecoration(dset);
+  mod->addDecoration(dset);
 
   auto *binding = new (context) SpirvDecoration(
       srcLoc, target, spv::Decoration::Binding, {bindingNumber});
-  module->addDecoration(binding);
+
+  target->setDescriptorSetNo(setNumber);
+  target->setBindingNo(bindingNumber);
+
+  mod->addDecoration(binding);
 }
 
 void SpirvBuilder::decorateSpecId(SpirvInstruction *target, uint32_t specId,
                                   SourceLocation srcLoc) {
   auto *decor = new (context)
       SpirvDecoration(srcLoc, target, spv::Decoration::SpecId, {specId});
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
 void SpirvBuilder::decorateInputAttachmentIndex(SpirvInstruction *target,
@@ -922,7 +900,7 @@ void SpirvBuilder::decorateInputAttachmentIndex(SpirvInstruction *target,
                                                 SourceLocation srcLoc) {
   auto *decor = new (context) SpirvDecoration(
       srcLoc, target, spv::Decoration::InputAttachmentIndex, {indexNumber});
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
 void SpirvBuilder::decorateCounterBuffer(SpirvInstruction *mainBuffer,
@@ -932,7 +910,7 @@ void SpirvBuilder::decorateCounterBuffer(SpirvInstruction *mainBuffer,
     auto *decor = new (context) SpirvDecoration(
         srcLoc, mainBuffer, spv::Decoration::HlslCounterBufferGOOGLE,
         {counterBuffer});
-    module->addDecoration(decor);
+    mod->addDecoration(decor);
   }
 }
 
@@ -943,7 +921,7 @@ void SpirvBuilder::decorateHlslSemantic(SpirvInstruction *target,
     auto *decor = new (context) SpirvDecoration(
         target->getSourceLocation(), target,
         spv::Decoration::HlslSemanticGOOGLE, semantic, memberIdx);
-    module->addDecoration(decor);
+    mod->addDecoration(decor);
   }
 }
 
@@ -951,42 +929,49 @@ void SpirvBuilder::decorateCentroid(SpirvInstruction *target,
                                     SourceLocation srcLoc) {
   auto *decor =
       new (context) SpirvDecoration(srcLoc, target, spv::Decoration::Centroid);
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
 void SpirvBuilder::decorateFlat(SpirvInstruction *target,
                                 SourceLocation srcLoc) {
   auto *decor =
       new (context) SpirvDecoration(srcLoc, target, spv::Decoration::Flat);
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
 void SpirvBuilder::decorateNoPerspective(SpirvInstruction *target,
                                          SourceLocation srcLoc) {
   auto *decor = new (context)
       SpirvDecoration(srcLoc, target, spv::Decoration::NoPerspective);
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
 void SpirvBuilder::decorateSample(SpirvInstruction *target,
                                   SourceLocation srcLoc) {
   auto *decor =
       new (context) SpirvDecoration(srcLoc, target, spv::Decoration::Sample);
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
 void SpirvBuilder::decoratePatch(SpirvInstruction *target,
                                  SourceLocation srcLoc) {
   auto *decor =
       new (context) SpirvDecoration(srcLoc, target, spv::Decoration::Patch);
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 
 void SpirvBuilder::decorateNoContraction(SpirvInstruction *target,
                                          SourceLocation srcLoc) {
   auto *decor = new (context)
       SpirvDecoration(srcLoc, target, spv::Decoration::NoContraction);
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
+}
+
+void SpirvBuilder::decoratePerPrimitiveNV(SpirvInstruction *target,
+                                          SourceLocation srcLoc) {
+  auto *decor = new (context)
+      SpirvDecoration(srcLoc, target, spv::Decoration::PerPrimitiveNV);
+  mod->addDecoration(decor);
 }
 
 // UE Change Begin
@@ -994,15 +979,25 @@ void SpirvBuilder::decorateInvariant(SpirvInstruction *target,
                                      SourceLocation srcLoc) {
   auto *decor = new (context)
       SpirvDecoration(srcLoc, target, spv::Decoration::Invariant);
-  module->addDecoration(decor);
+  mod->addDecoration(decor);
 }
 // UE Change End
+
+void SpirvBuilder::decoratePerTaskNV(SpirvInstruction *target, uint32_t offset,
+                                     SourceLocation srcLoc) {
+  auto *decor =
+      new (context) SpirvDecoration(srcLoc, target, spv::Decoration::PerTaskNV);
+  mod->addDecoration(decor);
+  decor = new (context)
+      SpirvDecoration(srcLoc, target, spv::Decoration::Offset, {offset});
+  mod->addDecoration(decor);
+}
 
 SpirvConstant *SpirvBuilder::getConstantInt(QualType type, llvm::APInt value,
                                             bool specConst) {
   // We do not reuse existing constant integers. Just create a new one.
   auto *intConst = new (context) SpirvConstantInteger(type, value, specConst);
-  module->addConstant(intConst);
+  mod->addConstant(intConst);
   return intConst;
 }
 
@@ -1011,7 +1006,7 @@ SpirvConstant *SpirvBuilder::getConstantFloat(QualType type,
                                               bool specConst) {
   // We do not reuse existing constant floats. Just create a new one.
   auto *floatConst = new (context) SpirvConstantFloat(type, value, specConst);
-  module->addConstant(floatConst);
+  mod->addConstant(floatConst);
   return floatConst;
 }
 
@@ -1019,7 +1014,7 @@ SpirvConstant *SpirvBuilder::getConstantBool(bool value, bool specConst) {
   // We do not care about making unique constants at this point.
   auto *boolConst =
       new (context) SpirvConstantBoolean(astContext.BoolTy, value, specConst);
-  module->addConstant(boolConst);
+  mod->addConstant(boolConst);
   return boolConst;
 }
 
@@ -1030,14 +1025,14 @@ SpirvBuilder::getConstantComposite(QualType compositeType,
   // We do not care about making unique constants at this point.
   auto *compositeConst = new (context)
       SpirvConstantComposite(compositeType, constituents, specConst);
-  module->addConstant(compositeConst);
+  mod->addConstant(compositeConst);
   return compositeConst;
 }
 
 SpirvConstant *SpirvBuilder::getConstantNull(QualType type) {
   // We do not care about making unique constants at this point.
   auto *nullConst = new (context) SpirvConstantNull(type);
-  module->addConstant(nullConst);
+  mod->addConstant(nullConst);
   return nullConst;
 }
 
@@ -1050,22 +1045,22 @@ std::vector<uint32_t> SpirvBuilder::takeModule() {
   PreciseVisitor preciseVisitor(context, spirvOptions);
   EmitVisitor emitVisitor(astContext, context, spirvOptions);
 
-  module->invokeVisitor(&literalTypeVisitor, true);
+  mod->invokeVisitor(&literalTypeVisitor, true);
 
   // Lower types
-  module->invokeVisitor(&lowerTypeVisitor);
+  mod->invokeVisitor(&lowerTypeVisitor);
 
   // Add necessary capabilities and extensions
-  module->invokeVisitor(&capabilityVisitor);
+  mod->invokeVisitor(&capabilityVisitor);
 
   // Propagate RelaxedPrecision decorations
-  module->invokeVisitor(&relaxedPrecisionVisitor);
+  mod->invokeVisitor(&relaxedPrecisionVisitor);
 
   // Propagate NoContraction decorations
-  module->invokeVisitor(&preciseVisitor, true);
+  mod->invokeVisitor(&preciseVisitor, true);
 
   // Emit SPIR-V
-  module->invokeVisitor(&emitVisitor);
+  mod->invokeVisitor(&emitVisitor);
 
   return emitVisitor.takeBinary();
 }

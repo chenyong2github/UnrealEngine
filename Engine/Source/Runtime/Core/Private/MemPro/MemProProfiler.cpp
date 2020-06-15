@@ -93,7 +93,8 @@ void FMemProProfiler::TrackTagsByName( const TCHAR* TagNamesStr )
 		}
 		ResetLLMTagArray(false);
 		TArray<FString> TagNames;
-		if (TagNamesString.ParseIntoArray(TagNames, TEXT(","), true) > 0)
+		const TCHAR* Delimiters[] = { TEXT(","), TEXT(" ") };
+		if (TagNamesString.ParseIntoArray(TagNames, Delimiters, UE_ARRAY_COUNT(Delimiters), true) > 0)
 		{
 			for (const FString& TagName : TagNames)
 			{
@@ -146,43 +147,21 @@ bool FMemProProfiler::IsUsingPort( uint32 Port )
 /*
  * initialisation for MemPro.
  */
-static bool GHasInitializedMemproCommandline = false;
-//check command line for mempro options
-static void InitMemProCommandline()
+void FMemProProfiler::Init(const TCHAR* CmdLine)
 {
-	check(FCommandLine::IsInitialized());
-	check(GHasInitializedMemproCommandline == false);
-	GHasInitializedMemproCommandline = true;
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 	FString LLMTagsStr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("MemProTags="), LLMTagsStr))
+	if (FParse::Value(CmdLine, TEXT("MemProTags="), LLMTagsStr))
 	{
 		FMemProProfiler::TrackTagsByName(*LLMTagsStr);
 	}
 #endif
-	if (FParse::Param(FCommandLine::Get(), TEXT("MemPro")))
+	if (FParse::Param(CmdLine, TEXT("MemPro")))
 	{
 		UE_LOG(LogMemPro, Display, TEXT("MemPro enabled"));
 		GMemProEnabled = 1;
 	}
-}
 
-void FMemProProfiler::Init()
-{
-	if (FCommandLine::IsInitialized())
-	{
-		InitMemProCommandline();
-	}
-}
-
-
-void FMemProProfiler::PostInit()
-{
-	if (!GHasInitializedMemproCommandline)
-	{
-		// Do a late initalization of the cmdline if we're not initialized yet
-		InitMemProCommandline();
-	}
 	//shutdown MemPro when the engine is shutting down so that the send thread terminates cleanly
 	FCoreDelegates::OnPreExit.AddLambda( []()
 	{

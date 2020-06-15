@@ -197,11 +197,17 @@ public:
 	/** Does this parameter contain the "Initial" namespace as one of its intermediate namespaces?*/
 	static bool IsInitialValue(const FNiagaraVariable& InVar);
 
+	/** Does this parameter contain the "Previous" namespace as one of its intermediate namespaces?*/
+	static bool IsPreviousValue(const FNiagaraVariable& InVar);
+
 	/** Get the output node associated with this graph.*/
 	const UNiagaraNodeOutput* GetFinalOutputNode() const;
 
 	/** Does this parameter contain the "Initial" namespace as one of its intermediate namespaces? If so, remove the "Initial" namespace and return the original value.*/
 	static FNiagaraVariable GetSourceForInitialValue(const FNiagaraVariable& InVar);
+
+	/** Does this parameter contain the "Previous" namespace as one of its intermediate namespaces? If so, remove the "Previous" namespace and return the original value.*/
+	static FNiagaraVariable GetSourceForPreviousValue(const FNiagaraVariable& InVar);
 
 	/**
 	* Helper to add a variable to the known list for a parameter map.

@@ -1870,7 +1870,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	}
 
 	const int32 NumEmitters = Emitters.Num();
-	const TArray<int32>& EmitterExecutionOrder = System->GetEmitterExecutionOrder();
+	const TConstArrayView<int32> EmitterExecutionOrder = GetEmitterExecutionOrder();
 	checkSlow(EmitterExecutionOrder.Num() <= NumEmitters);
 
 	//Determine if any of our emitters should be ticking.
@@ -1878,7 +1878,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	EmittersShouldTick.Init(false, NumEmitters);
 
 	bool bHasTickingEmitters = false;
-	for (int32 EmitterIdx : EmitterExecutionOrder)
+	for (const int32& EmitterIdx : EmitterExecutionOrder)
 	{
 		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
 		if (Inst.ShouldTick())
@@ -1896,7 +1896,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 
 	FScopeCycleCounter SystemStat(System->GetStatID(true, true));
 
-	for (int32 EmitterIdx : EmitterExecutionOrder)
+	for (const int32& EmitterIdx : EmitterExecutionOrder)
 	{
 		if (EmittersShouldTick[EmitterIdx])
 		{
@@ -1908,7 +1908,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	int32 TotalCombinedParamStoreSize = 0;
 
 	// now tick all emitters
-	for (int32 EmitterIdx : EmitterExecutionOrder)
+	for (const int32& EmitterIdx : EmitterExecutionOrder)
 	{
 		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
 		if (EmittersShouldTick[EmitterIdx])
@@ -1918,11 +1918,17 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 
 		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && !Inst.IsComplete())
 		{
-			if (const FNiagaraComputeExecutionContext* GPUContext = Inst.GetGPUContext())
+			// Handle edge case where an emitter was set to inactive on the first frame by scalability
+			// Since it will not tick we should not execute a GPU tick for it, this test must be symeterical with FNiagaraGPUSystemTick::Init
+			const bool bIsInactive = (Inst.GetExecutionState() == ENiagaraExecutionState::Inactive) || (Inst.GetExecutionState() == ENiagaraExecutionState::InactiveClear);
+			if (Inst.HasTicked() || !bIsInactive)
 			{
-				TotalCombinedParamStoreSize += GPUContext->CombinedParamStore.GetPaddedParameterSizeInBytes();
-				GPUParamIncludeInterpolation = GPUContext->HasInterpolationParameters || GPUParamIncludeInterpolation;
-				ActiveGPUEmitterCount++;
+				if (const FNiagaraComputeExecutionContext* GPUContext = Inst.GetGPUContext())
+				{
+					TotalCombinedParamStoreSize += GPUContext->CombinedParamStore.GetPaddedParameterSizeInBytes();
+					GPUParamIncludeInterpolation = GPUContext->HasInterpolationParameters || GPUParamIncludeInterpolation;
+					ActiveGPUEmitterCount++;
+				}
 			}
 		}
 	}
@@ -2111,6 +2117,19 @@ UNiagaraSystem* FNiagaraSystemInstance::GetSystem()const
 	{
 		return nullptr;
 	}
+}
+
+TConstArrayView<int32> FNiagaraSystemInstance::GetEmitterExecutionOrder() const
+{
+	if (SystemSimulation != nullptr)
+	{
+		const UNiagaraSystem* NiagaraSystem = SystemSimulation->GetSystem();
+		if (ensure(NiagaraSystem != nullptr))
+		{
+			return NiagaraSystem->GetEmitterExecutionOrder();
+		}
+	}
+	return MakeArrayView<const int32>(nullptr, 0);
 }
 
 FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)

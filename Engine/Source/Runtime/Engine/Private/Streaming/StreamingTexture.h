@@ -50,10 +50,10 @@ struct FStreamingRenderAsset
 	void UpdateStaticData(const FRenderAssetStreamingSettings& Settings);
 
 	/** Update data that the engine could change through gameplay. */
-	void UpdateDynamicData(const int32* NumStreamedMips, int32 NumLODGroups, const FRenderAssetStreamingSettings& Settings, bool bWaitForMipFading);
+	void UpdateDynamicData(const int32* NumStreamedMips, int32 NumLODGroups, const FRenderAssetStreamingSettings& Settings, bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr);
 
 	/** Lightweight version of UpdateDynamicData. */
-	void UpdateStreamingStatus(bool bWaitForMipFading);
+	void UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr);
 
 	/**
 	 * Returns the amount of memory used by the texture/mesh given a specified number of mip-maps, in bytes.

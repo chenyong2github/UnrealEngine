@@ -66,6 +66,9 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeDataAccess.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 /** Landscape stats */
 
@@ -1318,6 +1321,13 @@ const FMeshMapBuildData* ULandscapeComponent::GetMeshMapBuildData() const
 	if (Owner)
 	{
 		ULevel* OwnerLevel = Owner->GetLevel();
+
+#if WITH_EDITOR
+		if (FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this))
+		{
+			return FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this);
+		}
+#endif
 
 		if (OwnerLevel && OwnerLevel->OwningWorld)
 		{
@@ -4022,8 +4032,10 @@ bool ULandscapeLODStreamingProxy::StreamIn(int32 NewMipCount, bool bHighPrio)
 	return false;
 }
 
-bool ULandscapeLODStreamingProxy::UpdateStreamingStatus(bool bWaitForMipFading)
+bool ULandscapeLODStreamingProxy::UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
 {
+	bool bUpdatePending = false;
+
 	if (PendingUpdate)
 	{
 		if (IsEngineExitRequested() || !IsReadyForStreaming())
@@ -4040,13 +4052,17 @@ bool ULandscapeLODStreamingProxy::UpdateStreamingStatus(bool bWaitForMipFading)
 
 		if (!PendingUpdate->IsCompleted())
 		{
-			return true;
+			bUpdatePending = true;
 		}
-
-		PendingUpdate.SafeRelease();
+		else
+		{
+			PendingUpdate.SafeRelease();
+		}
 	}
 
-	return false;
+	TickMipLevelChangeCallbacks(DeferredTickCBAssets);
+
+	return bUpdatePending;
 }
 
 void ULandscapeLODStreamingProxy::LinkStreaming()
@@ -4069,6 +4085,7 @@ void ULandscapeLODStreamingProxy::UnlinkStreaming()
 	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
+		RemoveAllMipLevelChangeCallbacks();
 	}
 }
 

@@ -1567,7 +1567,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 			{
 				if (Level->MapBuildData->IsVTLightingValid() == false)
 				{
-					Level->MapBuildData->InvalidateStaticLighting(this);
+					Level->MapBuildData->InvalidateSurfaceLightmaps(this);
 				}
 			}
 		}

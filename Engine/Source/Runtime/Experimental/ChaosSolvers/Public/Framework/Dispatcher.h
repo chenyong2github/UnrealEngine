@@ -56,7 +56,6 @@ namespace Chaos
 	public:
 		virtual ~IDispatcher() {}
 
-		using FGlobalCommand = TFunction<void()>;
 		using FTaskCommand = TFunction<void(FPersistentPhysicsTask*)>;
 		using FSolverCommand = TFunction<void()>;
 
@@ -67,20 +66,11 @@ namespace Chaos
 		 * after one another on a different thread may get executed in different physics frames.
 		 * If this is not desirable consider either batched commands or submitting a custom command list
 		 */
-		virtual void EnqueueCommandImmediate(FGlobalCommand InCommand) = 0;
 		virtual void EnqueueCommandImmediate(FTaskCommand InCommand) = 0;
-		virtual void EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand) = 0;
-
 		/**
 		 * Get the current threading mode for this dispatcher
 		 */
 		virtual EThreadingMode GetMode() const = 0;
-
-		/**
-		 * Given a command list, submit it as a batch for execution on the next physics frame
-		 */
-		virtual void SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData) = 0;
-
 		/**
 		 * Execute any pending submitted command lists along with global and task commands
 		 * Intended to be called by whatever code is responsible for updating the physics scene

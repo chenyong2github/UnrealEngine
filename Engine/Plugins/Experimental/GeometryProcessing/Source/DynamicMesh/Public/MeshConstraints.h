@@ -115,7 +115,7 @@ public:
 	/** value for FixedSetID that is treated as not-a-fixed-set-ID by various functions (ie don't use this value yourself) */
 	static constexpr int InvalidSetID = -1;
 
-	/** Is this vertex topologically fixed, ie cannot be removed by topology-change operations */
+	/** Is this vertex topologically fixed, ie cannot be removed by topology-change operations, but can be moved. */
 	bool Fixed;
 	/** Can this vertex be moved */
 	bool Movable;

@@ -1,6 +1,6 @@
 /*
  *  Simple DirectMedia Layer
- *  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+ *  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
  * 
  *  This software is provided 'as-is', without any express or implied
  *  warranty.  In no event will the authors be held liable for any damages
@@ -31,7 +31,6 @@
 #endif
 
 #include "SDL_sysvideo.h"
-#include "SDL_log.h"
 #include "SDL_egl_c.h"
 #include "SDL_loadso.h"
 #include "SDL_hints.h"
@@ -82,6 +81,17 @@
 #define DEFAULT_OGL_ES "libGLESv1_CM.so.1"
 #endif /* SDL_VIDEO_DRIVER_RPI */
 
+#if SDL_VIDEO_OPENGL
+#include "SDL_opengl.h"
+#endif
+
+/** If we happen to not have this defined because of an older EGL version, just define it 0x0
+    as eglGetPlatformDisplayEXT will most likely be NULL if this is missing
+*/
+#ifndef EGL_PLATFORM_DEVICE_EXT
+#define EGL_PLATFORM_DEVICE_EXT 0x0
+#endif
+
 #ifdef SDL_VIDEO_STATIC_ANGLE
 #define LOAD_FUNC(NAME) \
 _this->egl_data->NAME = (void *)NAME;
@@ -94,11 +104,10 @@ if (!_this->egl_data->NAME) \
 }
 #endif
 
-/* EG BEGIN */
 /* it is allowed to not have some of the EGL extensions on start - attempts to use them will fail later. */
 #define LOAD_FUNC_EGLEXT(NAME) \
     _this->egl_data->NAME = _this->egl_data->eglGetProcAddress(#NAME);
-/* EG END */
+
 
 static const char * SDL_EGL_GetErrorName(EGLint eglErrorCode)
 {
@@ -216,25 +225,37 @@ static SDL_bool SDL_EGL_HasExtension(_THIS, SDL_EGL_ExtensionType type, const ch
 void *
 SDL_EGL_GetProcAddress(_THIS, const char *proc)
 {
-    static char procname[1024];
-    void *retval;
-    
-    /* eglGetProcAddress is busted on Android http://code.google.com/p/android/issues/detail?id=7681 */
-#if !defined(SDL_VIDEO_DRIVER_ANDROID)
-    if (_this->egl_data->eglGetProcAddress) {
+    const Uint32 eglver = (((Uint32) _this->egl_data->egl_version_major) << 16) | ((Uint32) _this->egl_data->egl_version_minor);
+    const SDL_bool is_egl_15_or_later = eglver >= ((((Uint32) 1) << 16) | 5);
+    void *retval = NULL;
+
+    /* EGL 1.5 can use eglGetProcAddress() for any symbol. 1.4 and earlier can't use it for core entry points. */
+    if (!retval && is_egl_15_or_later && _this->egl_data->eglGetProcAddress) {
+        retval = _this->egl_data->eglGetProcAddress(proc);
+    }
+
+    #ifndef __EMSCRIPTEN__  /* LoadFunction isn't needed on Emscripten and will call dlsym(), causing other problems. */
+    /* Try SDL_LoadFunction() first for EGL <= 1.4, or as a fallback for >= 1.5. */
+    if (!retval) {
+        static char procname[64];
+        retval = SDL_LoadFunction(_this->egl_data->egl_dll_handle, proc);
+        /* just in case you need an underscore prepended... */
+        if (!retval && (SDL_strlen(proc) < (sizeof (procname) - 1))) {
+            procname[0] = '_';
+            SDL_strlcpy(procname + 1, proc, sizeof (procname) - 1);
+            retval = SDL_LoadFunction(_this->egl_data->egl_dll_handle, procname);
+        }
+    }
+    #endif
+
+    /* Try eglGetProcAddress if we're on <= 1.4 and still searching... */
+    if (!retval && !is_egl_15_or_later && _this->egl_data->eglGetProcAddress) {
         retval = _this->egl_data->eglGetProcAddress(proc);
         if (retval) {
             return retval;
         }
     }
-#endif
-    
-    retval = SDL_LoadFunction(_this->egl_data->egl_dll_handle, proc);
-    if (!retval && SDL_strlen(proc) <= 1022) {
-        procname[0] = '_';
-        SDL_strlcpy(procname + 1, proc, 1022);
-        retval = SDL_LoadFunction(_this->egl_data->egl_dll_handle, procname);
-    }
+
     return retval;
 }
 
@@ -261,10 +282,8 @@ SDL_EGL_UnloadLibrary(_THIS)
     }
 }
 
-/* EG BEGIN */
 int
 SDL_EGL_LoadLibraryOnly(_THIS, const char *egl_path)
-/* EG END */
 {
     void *dll_handle = NULL, *egl_dll_handle = NULL; /* The naming is counter intuitive, but hey, I just work here -- Gabriel */
     const char *path = NULL;
@@ -413,20 +432,11 @@ SDL_EGL_LoadLibraryOnly(_THIS, const char *egl_path)
     LOAD_FUNC(eglWaitNative);
     LOAD_FUNC(eglWaitGL);
     LOAD_FUNC(eglBindAPI);
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
     LOAD_FUNC(eglQueryAPI);
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
     LOAD_FUNC(eglQueryString);
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    LOAD_FUNC(eglCreatePbufferSurface);
+    LOAD_FUNC(eglGetError);
     LOAD_FUNC_EGLEXT(eglQueryDevicesEXT);
-    LOAD_FUNC_EGLEXT(eglQueryDeviceAttribEXT);
-    LOAD_FUNC_EGLEXT(eglQueryDeviceStringEXT);
     LOAD_FUNC_EGLEXT(eglGetPlatformDisplayEXT);
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
 
     _this->gl_config.driver_loaded = 1;
 
@@ -437,36 +447,38 @@ SDL_EGL_LoadLibraryOnly(_THIS, const char *egl_path)
     }
 
     return 0;
-/* EG END */
+}
+
+static void
+SDL_EGL_GetVersion(_THIS) {
+    if (_this->egl_data->eglQueryString) {
+        const char *egl_version = _this->egl_data->eglQueryString(_this->egl_data->egl_display, EGL_VERSION);
+        if (egl_version) {
+            int major = 0, minor = 0;
+            if (SDL_sscanf(egl_version, "%d.%d", &major, &minor) == 2) {
+                _this->egl_data->egl_version_major = major;
+                _this->egl_data->egl_version_minor = minor;
+            } else {
+                SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "Could not parse EGL version string: %s", egl_version);
+            }
+        }
+    }
 }
 
 int
 SDL_EGL_LoadLibrary(_THIS, const char *egl_path, NativeDisplayType native_display, EGLenum platform)
 {
-/* EG BEGIN */
-    int egl_version_major = 0, egl_version_minor = 0;
+    int egl_version_major, egl_version_minor;
     int library_load_retcode = SDL_EGL_LoadLibraryOnly(_this, egl_path);
     if (library_load_retcode != 0) {
         return library_load_retcode;
     }
-/* EG END */
 
-    LOAD_FUNC(eglGetError);
+    /* EGL 1.5 allows querying for client version with EGL_NO_DISPLAY */
+    SDL_EGL_GetVersion(_this);
 
-    if (_this->egl_data->eglQueryString) {
-        /* EGL 1.5 allows querying for client version */
-        const char *egl_version = _this->egl_data->eglQueryString(EGL_NO_DISPLAY, EGL_VERSION);
-        if (egl_version != NULL) {
-            if (SDL_sscanf(egl_version, "%d.%d", &egl_version_major, &egl_version_minor) != 2) {
-                egl_version_major = 0;
-                egl_version_minor = 0;
-                SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "Could not parse EGL version string: %s", egl_version);
-            }
-        }
-    }
-
-    _this->egl_data->egl_version_major = egl_version_major;
-    _this->egl_data->egl_version_minor = egl_version_minor;
+    egl_version_major = _this->egl_data->egl_version_major;
+    egl_version_minor = _this->egl_data->egl_version_minor;
 
     if (egl_version_major == 1 && egl_version_minor == 5) {
         LOAD_FUNC(eglGetPlatformDisplay);
@@ -491,60 +503,39 @@ SDL_EGL_LoadLibrary(_THIS, const char *egl_path, NativeDisplayType native_displa
         _this->egl_data->egl_display = _this->egl_data->eglGetDisplay(native_display);
     }
     if (_this->egl_data->egl_display == EGL_NO_DISPLAY) {
-        /* EG BEGIN */
-        /* undoing what the LoadLibrary tentatively set */
         _this->gl_config.driver_loaded = 0;
         *_this->gl_config.driver_path = '\0';
-        /* EG END */
         return SDL_SetError("Could not get EGL display");
     }
     
     if (_this->egl_data->eglInitialize(_this->egl_data->egl_display, NULL, NULL) != EGL_TRUE) {
-        /* EG BEGIN */
-        /* undoing what the LoadLibrary tentatively set */
         _this->gl_config.driver_loaded = 0;
         *_this->gl_config.driver_path = '\0';
-        /* EG END */
         return SDL_SetError("Could not initialize EGL");
     }
 #endif
 
-#ifdef SDL_WITH_EPIC_EXTENSIONS
+    /* Get the EGL version with a valid egl_display, for EGL <= 1.4 */
+    SDL_EGL_GetVersion(_this);
+
     _this->egl_data->is_offscreen = 0;
-#endif // SDL_WITH_EPIC_EXTENSIONS
-    
+
     return 0;
 }
 
-#ifdef SDL_WITH_EPIC_EXTENSIONS
 /**
    On multi GPU machines EGL device 0 is not always the first valid GPU.
    Container environments can restrict access to some GPUs that are still listed in the EGL
    device list. If the requested device is a restricted GPU and cannot be used
    (eglInitialize() will fail) then attempt to automatically and silently select the next
    valid available GPU for EGL to use.
-   With Nvidia GPU's the EGL_CUDA_DEVICE_NV can be used to establish if a GPU is valid.
-   Valid devices have a value for the EGL_CUDA_DEVICE_NV attribute.
-   An alternative mechanism to detect valid EGL devices is to see if eglInitialize
-   succeeds. Enumerating all valid devices requires calling eglInitialize then eglTerminate
-   for all EGL devices, recording which devices sucessfully initialized.
-   TODO: find something for AMD?
 */
 
 int
 SDL_EGL_InitializeOffscreen(_THIS, int device)
 {
-    EGLDeviceEXT egl_devices[SDL_EGL_MAX_DEVICES];
+    void *egl_devices[SDL_EGL_MAX_DEVICES];
     EGLint num_egl_devices = 0;
-    int i;
-    int cuda_devices[SDL_EGL_MAX_DEVICES];
-    int cuda_devices_found = 0;
-    int supports_cuda;
-    int found;
-    int cuda_device;
-    EGLAttrib cuda_device_attrib;
-    char const *device_string;
-    const char *cuda_device_hint;
     const char *egl_device_hint;
 
     if (_this->gl_config.driver_loaded != 1) {
@@ -556,14 +547,6 @@ SDL_EGL_InitializeOffscreen(_THIS, int device)
         return SDL_SetError("eglQueryDevicesEXT is missing (EXT_device_enumeration not supported by the drivers?)");
     }
 
-    if (_this->egl_data->eglQueryDeviceAttribEXT == NULL) {
-        return SDL_SetError("eglQueryDeviceAttribEXT is missing (EXT_device_query not supported by the drivers?)");
-    }
-
-    if (_this->egl_data->eglQueryDeviceStringEXT == NULL) {
-        return SDL_SetError("eglQueryDeviceStringEXT is missing (EXT_device_query not supported by the drivers?)");
-    }
-
     if (_this->egl_data->eglGetPlatformDisplayEXT == NULL) {
         return SDL_SetError("eglGetPlatformDisplayEXT is missing (EXT_platform_base not supported by the drivers?)");
     }
@@ -572,113 +555,61 @@ SDL_EGL_InitializeOffscreen(_THIS, int device)
         return SDL_SetError("eglQueryDevicesEXT() failed");
     }
 
-    /* Enumerate all EGL devices and extract the device string and CUDA device where available. TODO: parse NVIDIA_VISIBLE_DEVICES?*/
-    cuda_devices_found = 0;
-    for (i=0; i<num_egl_devices; i++) {
-        cuda_devices[i] = -1;
-        device_string = _this->egl_data->eglQueryDeviceStringEXT(egl_devices[i],
-                                                                             EGL_EXTENSIONS);
-        supports_cuda = (strstr(device_string, "EGL_NV_device_cuda") != NULL);
-        if(supports_cuda) {
-            cuda_device_attrib = -1;
-            if (_this->egl_data->eglQueryDeviceAttribEXT(egl_devices[i],
-                EGL_CUDA_DEVICE_NV, &cuda_device_attrib) == EGL_TRUE) {
-                cuda_devices[i] = (int)cuda_device_attrib;
-                ++cuda_devices_found;
-            }
-        }
-    }
-
-    /* if we have a hint about the EGL device, ignore the CUDA hint */
     egl_device_hint = SDL_GetHint("SDL_HINT_EGL_DEVICE");
     if (egl_device_hint) {
         device = SDL_atoi(egl_device_hint);
-        cuda_devices_found = 0;
-    }
 
-    /* If no CUDA devices found, proceed with an unchanged device - we might be running on non-NVidia hardware. */
-    if (cuda_devices_found > 0) {
-        /* First check if requested device is valid. If not find the next available valid device
-           using the cuda device id as an indication that it is a valid device. */
-        if (cuda_devices[device] < 0) {
-            found = 0;
-            for (i=0; i<num_egl_devices; i++) {
-                if(cuda_devices[i] >= 0) {
-                    /* Found an EGL device with a valid CUDA device id.
-                       Reassign the requested device to this valid EGL device index. */
-                    device = i;
-                    found = 1;
-                    break;
-                }
-            }
-            if(!found) {
-                /* Fail if we're running on NVidia but cannot support CUDA on this device. */
-                return SDL_SetError("Failed to find a valid EGL device with EGL_CUDA_DEVICE_NV.");
-            }
+        if (device >= num_egl_devices) {
+            return SDL_SetError("Invalid EGL device is requested.");
         }
 
-        /* Adding SDL_HINT: SDL_HINT_CUDA_DEVICE = (int).
-                Select EGL device based on the requested CUDA device id (device id as reported by
-                CUDA).
-           If SDL_HINT_CUDA_DEVICE has been set attempt to find and use the EGL device with
-           matching CUDA device id. */
-        cuda_device_hint = SDL_GetHint("SDL_HINT_CUDA_DEVICE");
-        if (cuda_device_hint) {
-            cuda_device = SDL_atoi(cuda_device_hint);
-            found = 0;
-            for (i=0; i<num_egl_devices; i++) {
-                if (cuda_devices[i] == cuda_device) {
-                    /* if the CUDA device is found override the requested EGL device index to the
-                       one with the matching CUDA device. */
-                    device = i;
-                    found = 1;
-                    break;
-                }
+        _this->egl_data->egl_display = _this->egl_data->eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, egl_devices[device], NULL);
+
+        if (_this->egl_data->egl_display == EGL_NO_DISPLAY) {
+            return SDL_SetError("eglGetPlatformDisplayEXT() failed.");
+        }
+
+        if (_this->egl_data->eglInitialize(_this->egl_data->egl_display, NULL, NULL) != EGL_TRUE) {
+            return SDL_SetError("Could not initialize EGL");
+        }
+    }
+    else {
+        int i;
+        SDL_bool found = SDL_FALSE;
+        EGLDisplay attempted_egl_display;
+
+        /* If no hint is provided lets look for the first device/display that will allow us to eglInit */
+        for (i = 0; i < num_egl_devices; i++) {
+            attempted_egl_display = _this->egl_data->eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, egl_devices[i], NULL);
+
+            if (attempted_egl_display == EGL_NO_DISPLAY) {
+                continue;
             }
-            if(!found) {
-                /* Fail if the requested Cuda device is not found, the user should be made aware. */
-                return SDL_SetError("Failed to find EGL device that matched SDL_HINT_CUDA_DEVICE = %d.",
-                                    cuda_device);
+
+            if (_this->egl_data->eglInitialize(attempted_egl_display, NULL, NULL) != EGL_TRUE) {
+                _this->egl_data->eglTerminate(attempted_egl_display);
+                continue;
             }
+
+            /* We did not fail, we'll pick this one! */
+            _this->egl_data->egl_display = attempted_egl_display;
+            found = SDL_TRUE;
+
+            break;
+        }
+
+        if (!found) {
+            return SDL_SetError("Could not find a valid EGL device to initialize");
         }
     }
 
-    if (device >= num_egl_devices) {
-        return SDL_SetError("Invalid EGL device is requested.");
-    }
-
-    _this->egl_data->egl_display = _this->egl_data->eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, egl_devices[device], NULL);
-
-    if (_this->egl_data->egl_display == EGL_NO_DISPLAY) {
-        return SDL_SetError("eglGetPlatformDisplayEXT() failed.");
-    }
-
-    if (_this->egl_data->eglInitialize(_this->egl_data->egl_display, NULL, NULL) != EGL_TRUE) {
-        return SDL_SetError("Could not initialize EGL");
-    }
+    /* Get the EGL version with a valid egl_display, for EGL <= 1.4 */
+    SDL_EGL_GetVersion(_this);
 
     _this->egl_data->is_offscreen = 1;
 
     return 0;
 }
-
-int
-SDL_EGL_BindAPI(_THIS, EGLenum eglapi)
-{
-    if (!_this->egl_data) {
-        return SDL_SetError("EGL not initialized");
-    }
-
-    if (_this->egl_data->eglQueryAPI() != eglapi) {
-        if (!_this->egl_data->eglBindAPI(eglapi)) {
-            return SDL_SetError("Unable to bind EGL api");
-        }
-    }
-
-    return 0;
-}
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
 
 void
 SDL_EGL_SetRequiredVisualId(_THIS, int visual_id) 
@@ -752,6 +683,7 @@ SDL_EGL_ChooseConfig(_THIS)
     EGLint found_configs = 0, value;
     /* 128 seems even nicer here */
     EGLConfig configs[128];
+    SDL_bool has_matching_format = SDL_FALSE;
     int i, j, best_bitdiff = -1, bitdiff;
    
     if (!_this->egl_data) {
@@ -761,16 +693,6 @@ SDL_EGL_ChooseConfig(_THIS)
   
     /* Get a valid EGL configuration */
     i = 0;
-
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    if (_this->egl_data->is_offscreen) {
-        attribs[i++] = EGL_SURFACE_TYPE;
-        attribs[i++] = EGL_PBUFFER_BIT;
-    }
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
-
     attribs[i++] = EGL_RED_SIZE;
     attribs[i++] = _this->gl_config.red_size;
     attribs[i++] = EGL_GREEN_SIZE;
@@ -806,6 +728,11 @@ SDL_EGL_ChooseConfig(_THIS)
         attribs[i++] = _this->gl_config.multisamplesamples;
     }
 
+    if (_this->egl_data->is_offscreen) {
+        attribs[i++] = EGL_SURFACE_TYPE;
+        attribs[i++] = EGL_PBUFFER_BIT;
+    }
+
     attribs[i++] = EGL_RENDERABLE_TYPE;
     if (_this->gl_config.profile_mask == SDL_GL_CONTEXT_PROFILE_ES) {
 #ifdef EGL_KHR_create_context
@@ -819,22 +746,10 @@ SDL_EGL_ChooseConfig(_THIS)
         } else {
             attribs[i++] = EGL_OPENGL_ES_BIT;
         }
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-        SDL_EGL_BindAPI(_this, EGL_OPENGL_ES_API);
-#else
         _this->egl_data->eglBindAPI(EGL_OPENGL_ES_API);
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
     } else {
         attribs[i++] = EGL_OPENGL_BIT;
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-        SDL_EGL_BindAPI(_this, EGL_OPENGL_API);
-#else
         _this->egl_data->eglBindAPI(EGL_OPENGL_API);
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
     }
 
     if (_this->egl_data->egl_surfacetype) {
@@ -852,11 +767,24 @@ SDL_EGL_ChooseConfig(_THIS)
         return SDL_EGL_SetError("Couldn't find matching EGL config", "eglChooseConfig");
     }
 
+    /* first ensure that a found config has a matching format, or the function will fall through. */
+    for (i = 0; i < found_configs; i++ ) {
+        if (_this->egl_data->egl_required_visual_id)
+        {
+            EGLint format;
+            _this->egl_data->eglGetConfigAttrib(_this->egl_data->egl_display,
+                                            configs[i],
+                                            EGL_NATIVE_VISUAL_ID, &format);
+            if (_this->egl_data->egl_required_visual_id == format)
+                has_matching_format = SDL_TRUE;
+        }
+    }
+
     /* eglChooseConfig returns a number of configurations that match or exceed the requested attribs. */
     /* From those, we select the one that matches our requirements more closely via a makeshift algorithm */
 
     for (i = 0; i < found_configs; i++ ) {
-        if (_this->egl_data->egl_required_visual_id)
+        if (has_matching_format && _this->egl_data->egl_required_visual_id)
         {
             EGLint format;
             _this->egl_data->eglGetConfigAttrib(_this->egl_data->egl_display,
@@ -915,33 +843,14 @@ SDL_EGL_CreateContext(_THIS, EGLSurface egl_surface)
     EGLint minor_version = _this->gl_config.minor_version;
     SDL_bool profile_es = (profile_mask == SDL_GL_CONTEXT_PROFILE_ES);
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    EGLenum context_api = EGL_NONE;
-    SDL_EGLContext sdl_egl_context = NULL;
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
-
     if (!_this->egl_data) {
         /* The EGL library wasn't loaded, SDL_GetError() should have info */
         return NULL;
     }
 
     if (_this->gl_config.share_with_current_context) {
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-        sdl_egl_context = (SDL_EGLContext)SDL_GL_GetCurrentContext();
-
-        if (sdl_egl_context != NULL) {
-            /* TODO: Find a way to determine binding if current context is from a different API */
-            share_context = sdl_egl_context->context;
-        }
-#else
         share_context = (EGLContext)SDL_GL_GetCurrentContext();
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
     }
-
 
 #if SDL_VIDEO_DRIVER_ANDROID
     if ((_this->gl_config.flags & SDL_GL_CONTEXT_DEBUG_FLAG) != 0) {
@@ -1022,23 +931,9 @@ SDL_EGL_CreateContext(_THIS, EGLSurface egl_surface)
 
     /* Bind the API */
     if (profile_es) {
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-        context_api = EGL_OPENGL_ES_API;
-        SDL_EGL_BindAPI(_this, context_api);
-#else
         _this->egl_data->eglBindAPI(EGL_OPENGL_ES_API);
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
     } else {
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-        context_api = EGL_OPENGL_API;
-        SDL_EGL_BindAPI(_this, context_api);
-#else
         _this->egl_data->eglBindAPI(EGL_OPENGL_API);
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
     }
 
     egl_context = _this->egl_data->eglCreateContext(_this->egl_data->egl_display,
@@ -1052,27 +947,6 @@ SDL_EGL_CreateContext(_THIS, EGLSurface egl_surface)
 
     _this->egl_data->egl_swapinterval = 0;
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    /* Encapsulate the api into the egl context */
-    sdl_egl_context = SDL_malloc(sizeof *sdl_egl_context);
-
-    if (sdl_egl_context == NULL) {
-        SDL_OutOfMemory();
-        return NULL;
-    }
-
-    sdl_egl_context->context = egl_context;
-    sdl_egl_context->api = context_api;
-
-    if (SDL_EGL_MakeCurrent(_this, egl_surface, sdl_egl_context) < 0) {
-        SDL_EGL_DeleteContext(_this, sdl_egl_context);
-        SDL_SetError("Could not make EGL context current");
-        return NULL;
-    }
-
-    return (SDL_GLContext) sdl_egl_context;
-#else
     if (SDL_EGL_MakeCurrent(_this, egl_surface, egl_context) < 0) {
         /* Save the SDL error set by SDL_EGL_MakeCurrent */
         char errorText[1024];
@@ -1087,49 +961,42 @@ SDL_EGL_CreateContext(_THIS, EGLSurface egl_surface)
         return NULL;
     }
 
+    /* Check whether making contexts current without a surface is supported.
+     * First condition: EGL must support it. That's the case for EGL 1.5
+     * or later, or if the EGL_KHR_surfaceless_context extension is present. */
+    if ((_this->egl_data->egl_version_major > 1) ||
+        ((_this->egl_data->egl_version_major == 1) && (_this->egl_data->egl_version_minor >= 5)) ||
+        SDL_EGL_HasExtension(_this, SDL_EGL_DISPLAY_EXTENSION, "EGL_KHR_surfaceless_context"))
+    {
+        /* Secondary condition: The client API must support it. */
+        if (profile_es) {
+            /* On OpenGL ES, the GL_OES_surfaceless_context extension must be
+             * present. */
+            if (SDL_GL_ExtensionSupported("GL_OES_surfaceless_context")) {
+                _this->gl_allow_no_surface = SDL_TRUE;
+            }
+#if SDL_VIDEO_OPENGL
+        } else {
+            /* Desktop OpenGL supports it by default from version 3.0 on. */
+            void (APIENTRY * glGetIntegervFunc) (GLenum pname, GLint * params);
+            glGetIntegervFunc = SDL_GL_GetProcAddress("glGetIntegerv");
+            if (glGetIntegervFunc) {
+                GLint v = 0;
+                glGetIntegervFunc(GL_MAJOR_VERSION, &v);
+                if (v >= 3) {
+                    _this->gl_allow_no_surface = SDL_TRUE;
+                }
+            }
+#endif
+        }
+    }
+
     return (SDL_GLContext) egl_context;
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
 }
 
 int
 SDL_EGL_MakeCurrent(_THIS, EGLSurface egl_surface, SDL_GLContext context)
 {
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    SDL_EGLContext egl_context = (SDL_EGLContext) context;
-    EGLBoolean status;
-
-    if (!_this->egl_data) {
-        return SDL_SetError("EGL not initialized");
-    }
-
-    /* The android emulator crashes badly if you try to eglMakeCurrent 
-     * with a valid context and invalid surface, so we have to check for both here.
-     * EGL could still fail here for whatever reason. If so the previous context
-     * will be made current so also check the status.
-     */
-    if (!egl_context || egl_context->context == EGL_NO_CONTEXT || !egl_surface) {
-        status = _this->egl_data->eglMakeCurrent(_this->egl_data->egl_display,
-             EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-    }
-    else {
-        /* EGL API must be bound per thread. If the Context was created on another thread
-            * or with a different API than the current, it needs to be changed.
-            * EGL_BindAPI will check if the API is bound or not.
-            */
-        if (SDL_EGL_BindAPI(_this, egl_context->api) != 0) {
-            return SDL_SetError("Unable to bind EGL api for context");
-        }
-
-        status = _this->egl_data->eglMakeCurrent(_this->egl_data->egl_display,
-            egl_surface, egl_surface, egl_context->context);
-    }
-
-    if (!status) {
-        return SDL_SetError("Unable to make EGL context current");
-    }
-#else
     EGLContext egl_context = (EGLContext) context;
 
     if (!_this->egl_data) {
@@ -1139,7 +1006,7 @@ SDL_EGL_MakeCurrent(_THIS, EGLSurface egl_surface, SDL_GLContext context)
     /* The android emulator crashes badly if you try to eglMakeCurrent 
      * with a valid context and invalid surface, so we have to check for both here.
      */
-    if (!egl_context || !egl_surface) {
+    if (!egl_context || (!egl_surface && !_this->gl_allow_no_surface)) {
          _this->egl_data->eglMakeCurrent(_this->egl_data->egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     } else {
         if (!_this->egl_data->eglMakeCurrent(_this->egl_data->egl_display,
@@ -1147,9 +1014,7 @@ SDL_EGL_MakeCurrent(_THIS, EGLSurface egl_surface, SDL_GLContext context)
             return SDL_EGL_SetError("Unable to make EGL context current", "eglMakeCurrent");
         }
     }
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
-
+      
     return 0;
 }
 
@@ -1194,22 +1059,6 @@ SDL_EGL_SwapBuffers(_THIS, EGLSurface egl_surface)
 void
 SDL_EGL_DeleteContext(_THIS, SDL_GLContext context)
 {
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    SDL_EGLContext egl_context = (SDL_EGLContext) context;
-
-    /* Clean up GLES and EGL */
-    if (!_this->egl_data) {
-        return;
-    }
-
-    if (egl_context != NULL) {
-        if (egl_context->context != EGL_NO_CONTEXT) {
-            _this->egl_data->eglDestroyContext(_this->egl_data->egl_display, egl_context->context);
-        }
-        SDL_free(egl_context);
-    }
-#else
     EGLContext egl_context = (EGLContext) context;
 
     /* Clean up GLES and EGL */
@@ -1220,8 +1069,7 @@ SDL_EGL_DeleteContext(_THIS, SDL_GLContext context)
     if (egl_context != NULL && egl_context != EGL_NO_CONTEXT) {
         _this->egl_data->eglDestroyContext(_this->egl_data->egl_display, egl_context);
     }
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
+        
 }
 
 EGLSurface *
@@ -1279,8 +1127,6 @@ SDL_EGL_CreateSurface(_THIS, NativeWindowType nw)
     return surface;
 }
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
 EGLSurface
 SDL_EGL_CreateOffscreenSurface(_THIS, int width, int height)
 {
@@ -1295,12 +1141,10 @@ SDL_EGL_CreateOffscreenSurface(_THIS, int width, int height)
     }
 
     return _this->egl_data->eglCreatePbufferSurface(
-            _this->egl_data->egl_display,
-            _this->egl_data->egl_config,
-            attributes);
+        _this->egl_data->egl_display,
+        _this->egl_data->egl_config,
+        attributes);
 }
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG BEGIN */
 
 void
 SDL_EGL_DestroySurface(_THIS, EGLSurface egl_surface) 

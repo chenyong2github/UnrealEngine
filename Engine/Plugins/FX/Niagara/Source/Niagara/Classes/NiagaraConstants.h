@@ -18,6 +18,7 @@
 #define PARAM_MAP_ATTRIBUTE_STR TEXT("Particles.")
 #define PARAM_MAP_INITIAL_STR TEXT("Initial.")
 #define PARAM_MAP_INITIAL_BASE_STR TEXT("Initial")
+#define PARAM_MAP_PREVIOUS_BASE_STR TEXT("Previous")
 #define PARAM_MAP_RAPID_ITERATION_STR TEXT("Constants.")
 #define PARAM_MAP_INDICES_STR TEXT("Array.")
 #define PARAM_MAP_RAPID_ITERATION_BASE_STR TEXT("Constants")
@@ -164,6 +165,7 @@ struct NIAGARA_API FNiagaraConstants
 	static const FString InitialPrefix;
 	static const FName LocalNamespace;
 	static const FName InitialNamespace;
+	static const FName PreviousNamespace;
 	static const FName OwnerNamespace;
 
 	static const FName EngineOwnerScopeName;

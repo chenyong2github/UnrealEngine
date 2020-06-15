@@ -165,6 +165,15 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		FCanvasTileItem TileItem( FVector2D( XPos, YPos ), Texture->Resource, FVector2D( Width, Height ), FLinearColor(Exposure, Exposure, Exposure) );
 		TileItem.BlendMode = TextureEditorPtr.Pin()->GetColourChannelBlendMode();
 		TileItem.BatchedElementParameters = BatchedElementParameters;
+
+		if (bIsVirtualTexture && Texture->Source.GetNumBlocks() > 1)
+		{
+			// Adjust UVs to display entire UDIM range, acounting for UE4 inverted V-axis
+			const FIntPoint BlockSize = Texture->Source.GetSizeInBlocks();
+			TileItem.UV0 = FVector2D(0.0f, 1.0f - (float)BlockSize.Y);
+			TileItem.UV1 = FVector2D((float)BlockSize.X, 1.0f);
+		}
+
 		Canvas->DrawItem( TileItem );
 
 		// Draw a white border around the texture to show its extents

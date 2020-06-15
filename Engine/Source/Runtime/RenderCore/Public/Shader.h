@@ -38,6 +38,7 @@ class FShaderType;
 class FVertexFactoryType;
 class FShaderParametersMetadata;
 class FShaderMapPointerTable;
+struct FShaderCompilerOutput;
 
 /** Define a shader permutation uniquely according to its type, and permutation id.*/
 template<typename MetaShaderType>
@@ -317,13 +318,7 @@ public:
 
 	RENDERCORE_API uint32 GetSizeBytes() const;
 
-	inline void AddShaderCompilerOutput(const FShaderCompilerOutput& Output)
-	{
-#if WITH_EDITORONLY_DATA
-		AddPlatformDebugData(Output.PlatformDebugData);
-#endif
-		AddShaderCode(Output.Target.GetFrequency(), Output.OutputHash, Output.ShaderCode.GetReadAccess());
-	}
+	RENDERCORE_API void AddShaderCompilerOutput(const FShaderCompilerOutput& Output);
 
 	int32 FindShaderIndex(const FSHAHash& InHash) const;
 
@@ -600,7 +595,7 @@ struct FShaderPermutationParameters
 	{}
 };
 
-struct FShadereCompiledShaderInitializerType
+struct FShaderCompiledShaderInitializerType
 {
 	FShaderType* Type;
 	FShaderTarget Target;
@@ -615,28 +610,18 @@ struct FShadereCompiledShaderInitializerType
 	uint32 CodeSize;
 	int32 PermutationId;
 
-	FShadereCompiledShaderInitializerType(
+	RENDERCORE_API FShaderCompiledShaderInitializerType(
 		FShaderType* InType,
 		int32 InPermutationId,
 		const FShaderCompilerOutput& CompilerOutput,
 		const FSHAHash& InMaterialShaderMapHash,
 		const FShaderPipelineType* InShaderPipeline,
 		FVertexFactoryType* InVertexFactoryType
-	) :
-		Type(InType),
-		Target(CompilerOutput.Target),
-		Code(CompilerOutput.ShaderCode.GetReadAccess()),
-		ParameterMap(CompilerOutput.ParameterMap),
-		OutputHash(CompilerOutput.OutputHash),
-		MaterialShaderMapHash(InMaterialShaderMapHash),
-		ShaderPipeline(InShaderPipeline),
-		VertexFactoryType(InVertexFactoryType),
-		NumInstructions(CompilerOutput.NumInstructions),
-		NumTextureSamplers(CompilerOutput.NumTextureSamplers),
-		CodeSize(CompilerOutput.ShaderCode.GetShaderCodeSize()),
-		PermutationId(InPermutationId)
-	{}
+	);
 };
+
+UE_DEPRECATED(4.26, "FShadereCompiledShaderInitializerType is deprecated. Use FShaderCompiledShaderInitializerType.")
+typedef FShaderCompiledShaderInitializerType FShadereCompiledShaderInitializerType;
 
 namespace Freeze
 {
@@ -655,7 +640,7 @@ class RENDERCORE_API FShader
 public:
 	using FPermutationDomain = FShaderPermutationNone;
 	using FPermutationParameters = FShaderPermutationParameters;
-	using CompiledShaderInitializerType = FShadereCompiledShaderInitializerType;
+	using CompiledShaderInitializerType = FShaderCompiledShaderInitializerType;
 	using ShaderMetaType = FShaderType;
 
 	/** 

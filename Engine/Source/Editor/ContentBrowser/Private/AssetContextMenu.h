@@ -5,14 +5,16 @@
 #include "CoreMinimal.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "AssetData.h"
-#include "ContentBrowserDelegates.h"
+#include "ContentBrowserItem.h"
+#include "ContentBrowserDataMenuContexts.h"
 #include "SourcesData.h"
 
 class UToolMenu;
 class FUICommandList;
 class SAssetView;
 class SWindow;
+
+enum class EContentBrowserViewContext : uint8;
 
 class FAssetContextMenu : public TSharedFromThis<FAssetContextMenu>
 {
@@ -24,47 +26,41 @@ public:
 	void BindCommands(TSharedPtr< FUICommandList >& Commands);
 
 	/** Makes the context menu widget */
-	TSharedRef<SWidget> MakeContextMenu(const TArray<FAssetData>& SelectedAssets, const FSourcesData& InSourcesData, TSharedPtr< FUICommandList > InCommandList);
+	TSharedRef<SWidget> MakeContextMenu(TArrayView<const FContentBrowserItem> InSelectedItems, const FSourcesData& InSourcesData, TSharedPtr< FUICommandList > InCommandList);
 
-	/** Updates the list of currently selected assets to those passed in */
-	void SetSelectedAssets(const TArray<FAssetData>& InSelectedAssets);
+	/** Updates the list of currently selected items to those passed in */
+	void SetSelectedItems(TArrayView<const FContentBrowserItem> InSelectedItems);
+
+	using FOnShowInPathsViewRequested = UContentBrowserDataMenuContext_FileMenu::FOnShowInPathsView;
+	void SetOnShowInPathsViewRequested(const FOnShowInPathsViewRequested& InOnShowInPathsViewRequested);
 
 	/** Delegate for when the context menu requests a rename */
-	void SetOnFindInAssetTreeRequested(const FOnFindInAssetTreeRequested& InOnFindInAssetTreeRequested);
-
-	/** Delegate for when the context menu requests a rename */
-	DECLARE_DELEGATE_OneParam(FOnRenameRequested, const FAssetData& /*AssetToRename*/);
+	DECLARE_DELEGATE_TwoParams(FOnRenameRequested, const FContentBrowserItem& /*ItemToRename*/, EContentBrowserViewContext /*ViewContext*/);
 	void SetOnRenameRequested(const FOnRenameRequested& InOnRenameRequested);
 
-	/** Delegate for when the context menu requests a rename of a folder */
-	DECLARE_DELEGATE_OneParam(FOnRenameFolderRequested, const FString& /*FolderToRename*/);
-	void SetOnRenameFolderRequested(const FOnRenameFolderRequested& InOnRenameFolderRequested);
-
-	/** Delegate for when the context menu requests a rename */
-	DECLARE_DELEGATE_OneParam(FOnDuplicateRequested, const TWeakObjectPtr<UObject>& /*OriginalObject*/);
+	/** Delegate for when the context menu requests an item duplication */
+	DECLARE_DELEGATE_OneParam(FOnDuplicateRequested, TArrayView<const FContentBrowserItem> /*OriginalItems*/);
 	void SetOnDuplicateRequested(const FOnDuplicateRequested& InOnDuplicateRequested);
 
+	/** Delegate for when the context menu requests to edit an item */
+	DECLARE_DELEGATE_OneParam(FOnEditRequested, TArrayView<const FContentBrowserItem> /*Items*/);
+	void SetOnEditRequested(const FOnEditRequested& InOnEditRequested);
+
 	/** Delegate for when the context menu requests an asset view refresh */
-	DECLARE_DELEGATE(FOnAssetViewRefreshRequested);
+	using FOnAssetViewRefreshRequested = UContentBrowserDataMenuContext_FileMenu::FOnRefreshView;
 	void SetOnAssetViewRefreshRequested(const FOnAssetViewRefreshRequested& InOnAssetViewRefreshRequested);
 
 	/** Handler to check to see if a rename command is allowed */
 	bool CanExecuteRename() const;
 
 	/** Handler for Rename */
-	void ExecuteRename();
+	void ExecuteRename(EContentBrowserViewContext ViewContext);
 
 	/** Handler to check to see if a delete command is allowed */
 	bool CanExecuteDelete() const;
 
 	/** Handler for Delete */
 	void ExecuteDelete();
-
-	/** Handler to check to see if a reload command is allowed */
-	bool CanExecuteReload() const;
-
-	/** Handler for Reload */
-	void ExecuteReload();
 
 	/** Handler to check to see if "Save Asset" can be executed */
 	bool CanExecuteSaveAsset() const;
@@ -73,56 +69,11 @@ public:
 	void ExecuteSaveAsset();
 
 private:
-	struct FSourceAssetsState
-	{
-		TSet<FName> SelectedAssets;
-		TSet<FName> CurrentAssets;
-	};
-
-	struct FLocalizedAssetsState
-	{
-		FCulturePtr Culture;
-		TSet<FName> NewAssets;
-		TSet<FName> CurrentAssets;
-	};
-
-private:
-	/** Helper to load selected assets and sort them by UClass */
-	void GetSelectedAssetsByClass(TMap<UClass*, TArray<UObject*> >& OutSelectedAssetsByClass) const;
-
-	/** Helper to collect resolved filepaths for all selected assets */
-	void GetSelectedAssetSourceFilePaths(TArray<FString>& OutFilePaths, TArray<FString>& OutUniqueSourceFileLabels, int32 &OutValidSelectedAssetCount) const;
-
-	/** Handler to check to see if a imported asset actions should be visible in the menu */
-	bool AreImportedAssetActionsVisible() const;
-
-	/** Handler to check to see if imported asset actions are allowed */
-	bool CanExecuteImportedAssetActions(const TArray<FString> ResolvedFilePaths) const;
-
-	/** Handler to check to see if reimport asset actions are allowed */
-	bool CanExecuteReimportAssetActions(const TArray<FString> ResolvedFilePaths) const;
-
-	/** Handler for Reimport */
-	void ExecuteReimport(int32 SourceFileIndex = INDEX_NONE);
-
-	void ExecuteReimportWithNewFile(int32 SourceFileIndex = INDEX_NONE);
-
-	/** Handler for FindInExplorer */
-	void ExecuteFindSourceInExplorer(const TArray<FString> ResolvedFilePaths);
-
-	/** Handler for OpenInExternalEditor */
-	void ExecuteOpenInExternalEditor(const TArray<FString> ResolvedFilePaths);
-
 	/** Handler to check to see if a duplicate command is allowed */
 	bool CanExecuteDuplicate() const;
 
 	/** Handler for Duplicate */
 	void ExecuteDuplicate();
-
-private:
-
-	/** Is allowed to modify files or folders under this path */
-	bool CanModifyPath(const FString& InPath) const;
 
 	/** Registers all unregistered menus in the hierarchy for a class */
 	static void RegisterMenuHierarchy(UClass* InClass);
@@ -131,10 +82,7 @@ private:
 	void AddMenuOptions(UToolMenu* InMenu);
 
 	/** Adds asset type-specific menu options to a menu builder. Returns true if any options were added. */
-	bool AddAssetTypeMenuOptions(UToolMenu* Menu, bool bHasObjectsSelected);
-
-	/** Adds asset type-specific menu options to a menu builder. Returns true if any options were added. */
-	bool AddImportedAssetMenuOptions(UToolMenu* Menu);
+	bool AddAssetTypeMenuOptions(UToolMenu* Menu);
 	
 	/** Adds common menu options to a menu builder. Returns true if any options were added. */
 	bool AddCommonMenuOptions(UToolMenu* Menu);
@@ -142,53 +90,11 @@ private:
 	/** Adds explore menu options to a menu builder. */
 	void AddExploreMenuOptions(UToolMenu* Menu);
 
-	/** Adds Asset Actions sub-menu to a menu builder. */
-	void MakeAssetActionsSubMenu(UToolMenu* Menu);
-
-	/** Handler to check to see if "Asset Actions" are allowed */
-	bool CanExecuteAssetActions() const;
-
-	/** Adds Asset Localization sub-menu to a menu builder. */
-	void MakeAssetLocalizationSubMenu(UToolMenu* Menu);
-
-	/** Adds the Create Localized Asset sub-menu to a menu builder. */
-	void MakeCreateLocalizedAssetSubMenu(UToolMenu* Menu, TSet<FName> InSelectedSourceAssets, TArray<FLocalizedAssetsState> InLocalizedAssetsState);
-
-	/** Adds the Show Localized Assets sub-menu to a menu builder. */
-	void MakeShowLocalizedAssetSubMenu(UToolMenu* Menu, TArray<FLocalizedAssetsState> InLocalizedAssetsState);
-
-	/** Adds the Edit Localized Assets sub-menu to a menu builder. */
-	void MakeEditLocalizedAssetSubMenu(UToolMenu* Menu, TArray<FLocalizedAssetsState> InLocalizedAssetsState);
-
-	/** Create new localized assets for the given culture */
-	void ExecuteCreateLocalizedAsset(TSet<FName> InSelectedSourceAssets, FLocalizedAssetsState InLocalizedAssetsStateForCulture);
-
-	/** Find the given assets in the Content Browser */
-	void ExecuteFindInAssetTree(TArray<FName> InAssets);
-
-	/** Open the given assets in their respective editors */
-	void ExecuteOpenEditorsForAssets(TArray<FName> InAssets);
-
 	/** Adds asset reference menu options to a menu builder. Returns true if any options were added. */
 	bool AddReferenceMenuOptions(UToolMenu* Menu);
 
-	/** Adds asset documentation menu options to a menu builder. Returns true if any options were added. */
-	bool AddDocumentationMenuOptions(UToolMenu* Menu);
-	
-	/** Adds source control menu options to a menu builder. */
-	bool AddSourceControlMenuOptions(UToolMenu* Menu);
-
-	/** Fills the source control sub-menu */
-	void FillSourceControlSubMenu(UToolMenu* Menu);
-
-	/** Handler to check to see if SCC actions are allowed */
-	bool CanExecuteSourceControlActions() const;
-
 	/** Adds menu options related to working with collections */
 	bool AddCollectionMenuOptions(UToolMenu* Menu);
-
-	/** Creates a sub-menu of Chunk IDs that are are assigned to all selected assets */
-	void MakeChunkIDListMenu(UToolMenu* Menu);
 
 	/** Handler for when sync to asset tree is selected */
 	void ExecuteSyncToAssetTree();
@@ -196,47 +102,14 @@ private:
 	/** Handler for when find in explorer is selected */
 	void ExecuteFindInExplorer();
 
-	/** Handler for when create using asset is selected */
-	void ExecuteCreateBlueprintUsing();
+	/** Handler to check to see if an edit command is allowed */
+	bool CanExecuteEditItems() const;
 
-	/** Handler for when "Find in World" is selected */
-	void ExecuteFindAssetInWorld();
-
-	/** Handler for when "Property Matrix..." is selected */
-	void ExecutePropertyMatrix();
-
-	/** Handler for when "Show MetaData" is selected */
-	void ExecuteShowAssetMetaData();
-
-	/** Handler for when "Edit Asset" is selected */
-	void ExecuteEditAsset();
-
-	/** Handler for when "Diff Selected" is selected */
-	void ExecuteDiffSelected() const;
+	/** Handler for when "Edit" is selected */
+	void ExecuteEditItems();
 
 	/** Handler for confirmation of folder deletion */
 	FReply ExecuteDeleteFolderConfirmed();
-
-	/** Handler for Consolidate */
-	void ExecuteConsolidate();
-
-	/** Handler for Capture Thumbnail */
-	void ExecuteCaptureThumbnail();
-
-	/** Handler for Clear Thumbnail */
-	void ExecuteClearThumbnail();
-
-	/** Handler for when "Migrate Asset" is selected */
-	void ExecuteMigrateAsset();
-
-	/** Handler for GoToAssetCode */
-	void ExecuteGoToCodeForAsset(UClass* SelectedClass);
-
-	/** Handler for GoToAssetDocs */
-	void ExecuteGoToDocsForAsset(UClass* SelectedClass);
-
-	/** Handler for GoToAssetDocs */
-	void ExecuteGoToDocsForAsset(UClass* SelectedClass, const FString ExcerptSection);
 
 	/** Handler for CopyReference */
 	void ExecuteCopyReference();
@@ -244,72 +117,8 @@ private:
 	/** Handler for CopyFilePath */
 	void ExecuteCopyFilePath();
 
-	/** Handler to copy the given text to the clipboard */
-	void ExecuteCopyTextToClipboard(FString InText);
-
-	/** Handler for resetting the localization ID of the current selection */
-	void ExecuteResetLocalizationId();
-
-	/** Handler for showing the cached list of localized texts stored in the package header */
-	void ExecuteShowLocalizationCache(const FString InPackageFilename);
-
-	/** Handler for Export */
-	void ExecuteExport();
-
-	/** Handler for Bulk Export */
-	void ExecuteBulkExport();
-
 	/** Handler for when "Remove from collection" is selected */
 	void ExecuteRemoveFromCollection();
-
-	/** Handler for when "Refresh source control" is selected */
-	void ExecuteSCCRefresh();
-
-	/** Handler for when "Merge" is selected */
-	void ExecuteSCCMerge();
-
-	/** Handler for when "Checkout from source control" is selected */
-	void ExecuteSCCCheckOut();
-
-	/** Handler for when "Open for add to source control" is selected */
-	void ExecuteSCCOpenForAdd();
-
-	/** Handler for when "Checkin to source control" is selected */
-	void ExecuteSCCCheckIn();
-
-	/** Handler for when "Source Control History" is selected */
-	void ExecuteSCCHistory();
-
-	/** Handler for when "Diff Against Depot" is selected */
-	void ExecuteSCCDiffAgainstDepot() const;
-
-	/** Handler for when "Source Control Revert" is selected */
-	void ExecuteSCCRevert();
-
-	/** Handler for when "Source Control Sync" is selected */
-	void ExecuteSCCSync();
-
-	/** Handler for when source control is disabled */
-	void ExecuteEnableSourceControl();
-
-	/** Handler to assign ChunkID to a selection of assets */
-	void ExecuteAssignChunkID();
-
-	/** Handler to remove all ChunkID assignments from a selection of assets */
-	void ExecuteRemoveAllChunkID();
-
-	/** Handler to remove a single ChunkID assignment from a selection of assets */
-	void ExecuteRemoveChunkID(int32 ChunkID);
-
-	/** Handler to export the selected asset(s) to experimental text format */
-	void ExportSelectedAssetsToText();
-
-	/** Handler to export the selected asset(s) to experimental text format */
-	void ViewSelectedAssetAsText();
-	bool CanViewSelectedAssetAsText() const;
-
-	/** Run the rountrip test on this asset */
-	void DoTextFormatRoundtrip();
 
 	/** Handler to check to see if a sync to asset tree command is allowed */
 	bool CanExecuteSyncToAssetTree() const;
@@ -317,124 +126,30 @@ private:
 	/** Handler to check to see if a find in explorer command is allowed */
 	bool CanExecuteFindInExplorer() const;	
 
-	/** Handler to check if we can create blueprint using selected asset */
-	bool CanExecuteCreateBlueprintUsing() const;
-
-	/** Handler to check to see if a find in world command is allowed */
-	bool CanExecuteFindAssetInWorld() const;
-
-	/** Handler to check to see if a properties command is allowed */
-	bool CanExecuteProperties() const;
-
-	/** Handler to check to see if a property matrix command is allowed */
-	bool CanExecutePropertyMatrix(FText& OutErrorMessage) const;
-	bool CanExecutePropertyMatrix() const;
-
-	/** Handler to check to see if a "Show MetaData" command is allowed */
-	bool CanExecuteShowAssetMetaData() const;
-
 	/** Handler to check to see if a "Remove from collection" command is allowed */
 	bool CanExecuteRemoveFromCollection() const;
-
-	/** Handler to check to see if "Refresh source control" can be executed */
-	bool CanExecuteSCCRefresh() const;
-
-	/** Handler to check to see if "Merge" can be executed */
-	bool CanExecuteSCCMerge() const;
-
-	/** Handler to check to see if "Checkout from source control" can be executed */
-	bool CanExecuteSCCCheckOut() const;
-
-	/** Handler to check to see if "Open for add to source control" can be executed */
-	bool CanExecuteSCCOpenForAdd() const;
-
-	/** Handler to check to see if "Checkin to source control" can be executed */
-	bool CanExecuteSCCCheckIn() const;
-
-	/** Handler to check to see if "Source Control History" can be executed */
-	bool CanExecuteSCCHistory() const;
-
-	/** Handler to check to see if "Source Control Revert" can be executed */
-	bool CanExecuteSCCRevert() const;
-
-	/** Handler to check to see if "Source Control Sync" can be executed */
-	bool CanExecuteSCCSync() const;
-
-	/** Handler to check to see if "Diff Against Depot" can be executed */
-	bool CanExecuteSCCDiffAgainstDepot() const;
-
-	/** Handler to check to see if "Enable source control" can be executed */
-	bool CanExecuteSCCEnable() const;
-
-	/** Handler to check to see if "Consolidate" can be executed */
-	bool CanExecuteConsolidate() const;
-
-	/** Handler to check to see if "Diff Selected" can be executed */
-	bool CanExecuteDiffSelected() const;
-
-	/** Handler to check to see if "Capture Thumbnail" can be executed */
-	bool CanExecuteCaptureThumbnail() const;
-
-	/** Handler to check to see if "Clear Thumbnail" can be executed */
-	bool CanExecuteClearThumbnail() const;
-
-	/** Handler to check to see if "Clear Thumbnail" should be visible */
-	bool CanClearCustomThumbnails() const;
 
 	/** Initializes some variable used to in "CanExecute" checks that won't change at runtime or are too expensive to check every frame. */
 	void CacheCanExecuteVars();
 
-	/** Helper function to gather the package names of all selected assets */
-	void GetSelectedPackageNames(TArray<FString>& OutPackageNames) const;
-
-	/** Helper function to gather the packages containing all selected assets */
-	void GetSelectedPackages(TArray<UPackage*>& OutPackages) const;
-
-	/** Update interanl state logic */
-	void OnChunkIDAssignChanged(int32 ChunkID);
-
-	/** Gets the current value of the ChunkID entry box */
-	TOptional<int32> GetChunkIDSelection() const;
-
-	/** Handles when the Assign chunkID dialog OK button is clicked */
-	FReply OnChunkIDAssignCommit(TSharedPtr<SWindow> Window);
-
-	/** Handles when the Assign chunkID dialog Cancel button is clicked */
-	FReply OnChunkIDAssignCancel(TSharedPtr<SWindow> Window);
-
-	/** Generates tooltip for the Property Matrix menu option */
-	FText GetExecutePropertyMatrixTooltip() const;
-
-private:
-
 	/** Registers the base context menu for assets */
 	void RegisterContextMenu(const FName MenuName);
 
-	/** Generates a list of selected assets in the content browser */
-	void GetSelectedAssets(TArray<UObject*>& Assets, bool SkipRedirectors) const;
+	TArray<FContentBrowserItem> SelectedItems;
+	TArray<FContentBrowserItem> SelectedFiles;
+	TArray<FContentBrowserItem> SelectedFolders;
 
-	TArray<FAssetData> SelectedAssets;
 	FSourcesData SourcesData;
 
 	/** The asset view this context menu is a part of */
 	TWeakPtr<SAssetView> AssetView;
 
-	FOnFindInAssetTreeRequested OnFindInAssetTreeRequested;
+	FOnShowInPathsViewRequested OnShowInPathsViewRequested;
 	FOnRenameRequested OnRenameRequested;
-	FOnRenameFolderRequested OnRenameFolderRequested;
 	FOnDuplicateRequested OnDuplicateRequested;
+	FOnEditRequested OnEditRequested;
 	FOnAssetViewRefreshRequested OnAssetViewRefreshRequested;
 
 	/** Cached CanExecute vars */
-	bool bAtLeastOneNonRedirectorSelected;
-	bool bAtLeastOneClassSelected;
-	bool bCanExecuteSCCMerge;
-	bool bCanExecuteSCCCheckOut;
-	bool bCanExecuteSCCOpenForAdd;
-	bool bCanExecuteSCCCheckIn;
-	bool bCanExecuteSCCHistory;
-	bool bCanExecuteSCCRevert;
-	bool bCanExecuteSCCSync;
-	/** */
-	int32 ChunkIDSelected;
+	bool bCanExecuteFindInExplorer = false;
 };

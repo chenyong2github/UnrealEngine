@@ -58,7 +58,7 @@ void FSkyLightComponentDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLa
 		LightIntensityProperty->SetInstanceMetaData("UIMax", TEXT("50000.0f"));
 		LightIntensityProperty->SetInstanceMetaData("SliderExponent", TEXT("10.0f"));
 
-		if (!SkyLightComponent || SkyLightComponent->SourceType != SLS_CapturedScene)
+		if (!SkyLightComponent || (SkyLightComponent->SourceType != SLS_CapturedScene && SkyLightComponent->IsRealTimeCaptureEnabled()))
 		{
 			LightIntensityProperty->SetInstanceMetaData("Units", TEXT("CandelaPerMeter2"));
 		}

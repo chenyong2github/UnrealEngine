@@ -194,6 +194,7 @@ FToolMenuSection& UToolMenu::AddSection(const FName SectionName, const TAttribut
 
 	FToolMenuSection& NewSection = Sections.InsertDefaulted_GetRef(InsertIndex);
 	NewSection.InitSection(SectionName, InLabel, InPosition);
+	NewSection.Owner = UToolMenus::Get()->CurrentOwner();
 	NewSection.bIsRegistering = IsRegistering();
 	NewSection.bAddedDuringRegister = IsRegistering();
 	return NewSection;

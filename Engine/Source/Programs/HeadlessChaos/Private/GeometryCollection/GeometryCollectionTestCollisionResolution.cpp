@@ -84,7 +84,7 @@ namespace GeometryCollectionTest
 			int32 Size = Collection->DynamicCollection->Simplicials[0]->Size();
 
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z) - 10.f, KINDA_SMALL_NUMBER);
-			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - 1.0), 0.04); // ball settles close to 1.0
+			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - 1.0), 0.1); // ball settles close to 1.0
 		}
 	}
 

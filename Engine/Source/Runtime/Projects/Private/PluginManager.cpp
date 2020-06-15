@@ -1323,6 +1323,7 @@ bool FPluginManager::LoadModulesForEnabledPlugins( const ELoadingPhase::Type Loa
 	// Figure out which plugins are enabled
 	if(!ConfigureEnabledPlugins())
 	{
+		LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/false);
 		return false;
 	}
 
@@ -1332,17 +1333,25 @@ bool FPluginManager::LoadModulesForEnabledPlugins( const ELoadingPhase::Type Loa
 	for( const TPair<FString, TSharedRef< FPlugin >> PluginPair : AllPlugins )
 	{
 		const TSharedRef<FPlugin> &Plugin = PluginPair.Value;
+
 		SlowTask.EnterProgressFrame(1);
 
 		if ( Plugin->bEnabled && !Plugin->Descriptor.bExplicitlyLoaded )
 		{
 			if (!TryLoadModulesForPlugin(Plugin.Get(), LoadingPhase))
 			{
+				LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/false);
 				return false;
 			}
 		}
 	}
+	LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/true);
 	return true;
+}
+
+IPluginManager::FLoadingModulesForPhaseEvent& FPluginManager::OnLoadingPhaseComplete()
+{
+	return LoadingPhaseCompleteEvent;
 }
 
 void FPluginManager::GetLocalizationPathsForEnabledPlugins( TArray<FString>& OutLocResPaths )

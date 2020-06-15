@@ -159,6 +159,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	GPixelFormats[PF_BC6H			].PlatformFormat = DXGI_FORMAT_BC6H_UF16;
 	GPixelFormats[PF_BC7			].PlatformFormat = DXGI_FORMAT_BC7_TYPELESS;
 	GPixelFormats[PF_R8_UINT		].PlatformFormat = DXGI_FORMAT_R8_UINT;
+	GPixelFormats[PF_R8				].PlatformFormat = DXGI_FORMAT_R8_UNORM;
 
 	GPixelFormats[PF_R16G16B16A16_UNORM].PlatformFormat = DXGI_FORMAT_R16G16B16A16_UNORM;
 	GPixelFormats[PF_R16G16B16A16_SNORM].PlatformFormat = DXGI_FORMAT_R16G16B16A16_SNORM;
@@ -258,9 +259,9 @@ void FD3D12DynamicRHI::Shutdown()
 	ZeroBufferSize = 0;
 }
 
-FD3D12CommandContext* FD3D12DynamicRHI::CreateCommandContext(FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext)
+FD3D12CommandContext* FD3D12DynamicRHI::CreateCommandContext(FD3D12Device* InParent, bool InIsDefaultContext, bool InIsAsyncComputeContext)
 {
-	FD3D12CommandContext* NewContext = new FD3D12CommandContext(InParent, SubHeapDesc, InIsDefaultContext, InIsAsyncComputeContext);
+	FD3D12CommandContext* NewContext = new FD3D12CommandContext(InParent, InIsDefaultContext, InIsAsyncComputeContext);
 	return NewContext;
 }
 
@@ -471,7 +472,12 @@ uint32 FD3D12DynamicRHI::GetDebugFlags()
 
 bool FD3D12DynamicRHI::CheckGpuHeartbeat() const
 {
-	return ChosenAdapters[0]->GetGPUProfiler().CheckGpuHeartbeat();
+	bool bResult = false;
+	for (uint32 GPUIndex : FRHIGPUMask::All())
+	{
+		bResult |= ChosenAdapters[0]->GetDevice(GPUIndex)->GetGPUProfiler().CheckGpuHeartbeat();
+	}
+	return bResult;
 }
 
 #if D3D12_SUBMISSION_GAP_RECORDER

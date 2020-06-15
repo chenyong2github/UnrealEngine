@@ -13,6 +13,7 @@
 
 // Dependencies
 #include "MetalRHI.h"
+#include "MetalDynamicRHI.h"
 #include "RHI.h"
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
@@ -241,8 +242,6 @@ FORCEINLINE mtlpp::LoadAction GetMetalRTLoadAction(ERenderTargetLoadAction LoadA
 		default: return mtlpp::LoadAction::DontCare;
 	}
 }
-
-uint32 TranslateElementTypeToSize(EVertexElementType Type);
 
 mtlpp::PrimitiveType TranslatePrimitiveType(uint32 PrimitiveType);
 

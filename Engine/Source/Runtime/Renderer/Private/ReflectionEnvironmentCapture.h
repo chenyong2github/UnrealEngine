@@ -13,6 +13,9 @@
 
 extern void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FTextureRHIRef LightingSource, int32 LightingSourceMipIndex, FSHVectorRGB3* OutIrradianceEnvironmentMap);
 
+FMatrix CalcCubeFaceViewRotationMatrix(ECubeFace Face);
+FMatrix GetCubeProjectionMatrix(float HalfFovDeg, float CubeMapSize, float NearPlane);
+
 /** Pixel shader used for filtering a mip. */
 class FCubeFilterPS : public FGlobalShader
 {
@@ -30,16 +33,16 @@ public:
 		CubeFace.Bind(Initializer.ParameterMap, TEXT("CubeFace"));
 		MipIndex.Bind(Initializer.ParameterMap, TEXT("MipIndex"));
 		NumMips.Bind(Initializer.ParameterMap, TEXT("NumMips"));
-		SourceTexture.Bind(Initializer.ParameterMap, TEXT("SourceTexture"));
-		SourceTextureSampler.Bind(Initializer.ParameterMap, TEXT("SourceTextureSampler"));
+		SourceCubemapTexture.Bind(Initializer.ParameterMap, TEXT("SourceCubemapTexture"));
+		SourceCubemapSampler.Bind(Initializer.ParameterMap, TEXT("SourceCubemapSampler"));
 	}
 	FCubeFilterPS() {}
 
 	LAYOUT_FIELD(FShaderParameter, CubeFace);
 	LAYOUT_FIELD(FShaderParameter, MipIndex);
 	LAYOUT_FIELD(FShaderParameter, NumMips);
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, SourceCubemapSampler);
 };
 
 template< uint32 bNormalize >

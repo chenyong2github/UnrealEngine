@@ -1029,6 +1029,9 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		//We must save the original reduction data, special case when we reduce inline we save even if its already simplified
 		if (SkeletalMeshResource->LODModels.IsValidIndex(DesiredLOD) && (!SkeletalMesh->GetLODInfo(DesiredLOD)->bHasBeenSimplified || DesiredLOD == Settings.BaseLOD))
 		{
+			//Caller should not call this in multithread if the LOD was never simplified or if its doing inline reduction
+			check(IsInGameThread());
+
 			FSkeletalMeshLODModel& SrcModel = SkeletalMeshResource->LODModels[DesiredLOD];
 			while (DesiredLOD >= SkeletalMeshResource->OriginalReductionSourceMeshData.Num())
 			{
@@ -2148,14 +2151,31 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 			}
 
 			SkeletalMesh->ReserveLODImportData(MaxDependentLODIndex);
-			//Reduce all dependent LODs in parallel
+			//Reduce all dependent LODs
 			FThreadSafeBool bNeedsPackageDirtied(false);
-			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied](int32 IterationIndex)
+			TBitArray<> CanReduceLODInParallel;
+			CanReduceLODInParallel.Init(true, SkeletalMesh->GetLODNum());
+			//Reduce the LODs which need to save the OriginalReductionSourceMeshData in the main thread, bulkdata are not multithread safe.
+			for (int32 DependentLODIndex : DependentLODs)
+			{
+				const FSkeletalMeshLODInfo* DepLODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
+				if (!DepLODInfo || (!DepLODInfo->bHasBeenSimplified || DependentLODIndex == DepLODInfo->ReductionSettings.BaseLOD))
+				{
+					CanReduceLODInParallel[DependentLODIndex] = false;
+					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
+				}
+			}
+			
+			//Reduce LODs in parallel
+			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied, &CanReduceLODInParallel](int32 IterationIndex)
 			{
 				check(DependentLODs.IsValidIndex(IterationIndex));
 				int32 DependentLODIndex = DependentLODs[IterationIndex];
-				check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
-				FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
+				if (CanReduceLODInParallel[DependentLODIndex])
+				{
+					check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
+					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
+				}
 			});
 
 			if (bNeedsPackageDirtied)

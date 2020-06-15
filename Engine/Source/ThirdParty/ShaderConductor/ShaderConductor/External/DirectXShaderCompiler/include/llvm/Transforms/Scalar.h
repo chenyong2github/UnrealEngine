@@ -73,7 +73,7 @@ FunctionPass *createDeadCodeEliminationPass();
 // DeadStoreElimination - This pass deletes stores that are post-dominated by
 // must-aliased stores and are not loaded used between the stores.
 //
-FunctionPass *createDeadStoreEliminationPass();
+FunctionPass *createDeadStoreEliminationPass(unsigned ScanLimit = 0); // HLSL Change - Add ScanLimit
 
 //===----------------------------------------------------------------------===//
 //
@@ -134,8 +134,30 @@ void initializeSROA_Parameter_HLSLPass(PassRegistry&);
 Pass *createDxilFixConstArrayInitializerPass();
 void initializeDxilFixConstArrayInitializerPass(PassRegistry&);
 
+Pass *createDxilConditionalMem2RegPass(bool NoOpt);
+void initializeDxilConditionalMem2RegPass(PassRegistry&);
+
 Pass *createDxilLoopUnrollPass(unsigned MaxIterationAttempt);
 void initializeDxilLoopUnrollPass(PassRegistry&);
+
+Pass *createDxilEraseDeadRegionPass();
+void initializeDxilEraseDeadRegionPass(PassRegistry&);
+
+Pass *createDxilEliminateVectorPass();
+void initializeDxilEliminateVectorPass(PassRegistry&);
+
+Pass *createDxilInsertPreservesPass();
+void initializeDxilInsertPreservesPass(PassRegistry&);
+
+Pass *createDxilFinalizePreservesPass();
+void initializeDxilFinalizePreservesPass(PassRegistry&);
+
+Pass *createDxilPreserveToSelectPass();
+void initializeDxilPreserveToSelectPass(PassRegistry&);
+
+Pass *createDxilRemoveDeadBlocksPass();
+void initializeDxilRemoveDeadBlocksPass(PassRegistry&);
+
 //===----------------------------------------------------------------------===//
 //
 // LowerStaticGlobalIntoAlloca. Replace static globals with alloca if only used
@@ -487,6 +509,7 @@ FunctionPass *createSampleProfileLoaderPass(StringRef Name);
 // ScalarizerPass - Converts vector operations into scalar operations
 //
 FunctionPass *createScalarizerPass();
+FunctionPass *createScalarizerPass(bool NoOpt);
 
 //===----------------------------------------------------------------------===//
 //

@@ -93,7 +93,7 @@ public:
 	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_CheckedOut", "Checked Out"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_CheckedOutTooltip", "Show only assets that you have checked out or pending for add."); }
 	virtual void ActiveStateChanged(bool bActive) override;
-	virtual void SetCurrentFilter(const FARFilter& InBaseFilter);
+	virtual void SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter) override;
 
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override;
@@ -105,9 +105,6 @@ private:
 
 	/** Callback when source control operation has completed */
 	void SourceControlOperationComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult);
-
-	/** Names of files that are currently checked out (no path or extension) */
-	TSet<FName> OpenFilenames;
 
 	bool bSourceControlEnabled;
 };
@@ -123,7 +120,7 @@ public:
 	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_NotSourceControlled", "Not Source Controlled"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_NotSourceControlledTooltip", "Show only assets that are not tracked by source control."); }
 	virtual void ActiveStateChanged(bool bActive) override;
-	virtual void SetCurrentFilter(const FARFilter& InBaseFilter);
+	virtual void SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter) override;
 
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override;
@@ -153,7 +150,6 @@ public:
 	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_Modified", "Modified"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_ModifiedTooltip", "Show only assets that have been modified and not yet saved."); }
 	virtual void ActiveStateChanged(bool bActive) override;
-	virtual void SetCurrentFilter(const FARFilter& InBaseFilter);
 
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override;
@@ -164,9 +160,6 @@ private:
 	void OnPackageDirtyStateUpdated(UPackage* Package);
 
 	bool bIsCurrentlyActive;
-
-	/** Names of packages in memory that are dirty */
-	TSet<FName> DirtyPackageNames;
 };
 
 /** A filter that displays blueprints that have replicated properties */
@@ -230,7 +223,7 @@ public:
 	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_ShowOtherDevelopers", "Other Developers"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_ShowOtherDevelopersTooltip", "Allow display of assets in developer folders that aren't yours."); }
 	virtual bool IsInverseFilter() const override { return true; }
-	virtual void SetCurrentFilter(const FARFilter& InFilter) override;
+	virtual void SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter) override;
 
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override;
@@ -262,7 +255,7 @@ public:
 	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_ShowRedirectors", "Show Redirectors"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_ShowRedirectorsToolTip", "Allow display of Redirectors."); }
 	virtual bool IsInverseFilter() const override { return true; }
-	virtual void SetCurrentFilter(const FARFilter& InFilter) override;
+	virtual void SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter) override;
 
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override;
@@ -356,7 +349,7 @@ public:
 	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_Recent", "Recently Opened"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_RecentTooltip", "Show only recently opened assets."); }
 	virtual void ActiveStateChanged(bool bActive) override;
-	virtual void SetCurrentFilter(const FARFilter& InBaseFilter);
+	virtual void SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter) override;
 
 	// IFilter implementation
 	virtual bool PassesFilter(FAssetFilterType InItem) const override;

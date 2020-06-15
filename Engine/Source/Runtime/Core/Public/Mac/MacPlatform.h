@@ -29,16 +29,17 @@ struct FMacPlatformTypes : public FGenericPlatformTypes
 typedef FMacPlatformTypes FPlatformTypes;
 
 // Base defines, must define these for the platform, there are no defaults
-#define PLATFORM_DESKTOP				1
-#define PLATFORM_64BITS					1
+#define PLATFORM_DESKTOP								1
+#define PLATFORM_64BITS									1
 // Technically the underlying platform has 128bit atomics, but clang might not issue optimal code
-#define PLATFORM_HAS_128BIT_ATOMICS		0
-#define PLATFORM_CAN_SUPPORT_EDITORONLY_DATA	1
+#define PLATFORM_HAS_128BIT_ATOMICS						0
+#define PLATFORM_CAN_SUPPORT_EDITORONLY_DATA			1
 
 // Base defines, defaults are commented out
 
 #define PLATFORM_LITTLE_ENDIAN						1
 //#define PLATFORM_EXCEPTIONS_DISABLED				!PLATFORM_DESKTOP
+#define PLATFORM_SEH_EXCEPTIONS_DISABLED				1
 #define PLATFORM_SUPPORTS_PRAGMA_PACK				1
 #define PLATFORM_ENABLE_VECTORINTRINSICS			1
 #ifndef PLATFORM_MAYBE_HAS_SSE4_1 // May be set from UnrealBuildTool
@@ -55,34 +56,34 @@ typedef FMacPlatformTypes FPlatformTypes;
 #define PLATFORM_COMPILER_DISTINGUISHES_INT_AND_LONG			1
 #define PLATFORM_WCHAR_IS_4_BYTES					1
 #if PLATFORM_MAC_USE_CHAR16
-	#define PLATFORM_TCHAR_IS_CHAR16				1
+	#define PLATFORM_TCHAR_IS_CHAR16					1
 #else
-	#define PLATFORM_TCHAR_IS_4_BYTES				1
+	#define PLATFORM_TCHAR_IS_4_BYTES					1
 #endif
-#define PLATFORM_HAS_BSD_TIME						1
-#define PLATFORM_HAS_BSD_IPV6_SOCKETS				1
-//#define PLATFORM_USE_PTHREADS						1
-#define PLATFORM_MAX_FILEPATH_LENGTH_DEPRECATED		MAC_MAX_PATH
-#define PLATFORM_SUPPORTS_TBB						1
-#define PLATFORM_SUPPORTS_STACK_SYMBOLS				1
+#define PLATFORM_HAS_BSD_TIME							1
+#define PLATFORM_HAS_BSD_IPV6_SOCKETS					1
+//#define PLATFORM_USE_PTHREADS							1
+#define PLATFORM_MAX_FILEPATH_LENGTH_DEPRECATED			MAC_MAX_PATH
+#define PLATFORM_SUPPORTS_TBB							1
+#define PLATFORM_SUPPORTS_STACK_SYMBOLS					1
 #define PLATFORM_HAS_BSD_SOCKET_FEATURE_MSG_DONTWAIT	1
-#define PLATFORM_IS_ANSI_MALLOC_THREADSAFE			1
+#define PLATFORM_IS_ANSI_MALLOC_THREADSAFE				1
 #define PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING		1
 
-#define PLATFORM_RHITHREAD_DEFAULT_BYPASS			WITH_EDITOR
+#define PLATFORM_RHITHREAD_DEFAULT_BYPASS				WITH_EDITOR
 
-#define PLATFORM_ENABLE_POPCNT_INTRINSIC 1
+#define PLATFORM_ENABLE_POPCNT_INTRINSIC				1
 
-#define PLATFORM_GLOBAL_LOG_CATEGORY				LogMac
+#define PLATFORM_GLOBAL_LOG_CATEGORY					LogMac
 
-#define PLATFORM_BREAK()							__asm__("int $3")
+#define PLATFORM_BREAK()								__asm__("int $3")
 
-#define PLATFORM_CODE_SECTION(Name)					__attribute__((section("__TEXT,__" Name ",regular,pure_instructions")))
+#define PLATFORM_CODE_SECTION(Name)						__attribute__((section("__TEXT,__" Name ",regular,pure_instructions")))
 
 #if __has_feature(cxx_decltype_auto)
-	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO 1
+	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO			1
 #else
-	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO 0
+	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO			0
 #endif
 
 // Function type macros.

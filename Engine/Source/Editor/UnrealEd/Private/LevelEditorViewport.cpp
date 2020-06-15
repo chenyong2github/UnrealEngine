@@ -228,6 +228,17 @@ static UDirectionalLightComponent* GetAtmosphericLight(const uint8 DesiredLightI
 	return SelectedAtmosphericLight;
 }
 
+static void NotifyAtmosphericLightHasMoved(UDirectionalLightComponent& SelectedAtmosphericLight, bool bFinished)
+{
+	AActor* LightOwner = SelectedAtmosphericLight.GetOwner();
+	if (LightOwner)
+	{
+		// Now notify the owner about the transform update, e.g. construction script on instance.
+		LightOwner->PostEditMove(bFinished);
+		// No PostEditChangeProperty because not paired with a PreEditChange
+	}
+}
+
 namespace LevelEditorViewportClientHelper
 {
 	FProperty* GetEditTransformProperty(FWidget::EWidgetMode WidgetMode)
@@ -2821,6 +2832,11 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	}
 	if (bUserIsControllingAtmosphericLight0 || bUserIsControllingAtmosphericLight1)
 	{
+		UDirectionalLightComponent* SelectedSunLight = GetAtmosphericLight(bUserIsControllingAtmosphericLight0 ? 0 : 1, ViewportWorld);
+		if (SelectedSunLight)
+		{
+			NotifyAtmosphericLightHasMoved(*SelectedSunLight, true);
+		}
 		TrackingTransaction.End();					// End undo/redo translation
 		RemoveRealtimeOverride();						// Restore previous real-time state
 	}
@@ -4198,6 +4214,7 @@ void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32
 
 			ComponentTransform.SetRotation(LightRotation);
 			SelectedAtmosphericLight->SetWorldTransform(ComponentTransform);
+			NotifyAtmosphericLightHasMoved(*SelectedAtmosphericLight, false);
 
 			UserControlledAtmosphericLightMatrix = ComponentTransform;
 			UserControlledAtmosphericLightMatrix.NormalizeRotation();

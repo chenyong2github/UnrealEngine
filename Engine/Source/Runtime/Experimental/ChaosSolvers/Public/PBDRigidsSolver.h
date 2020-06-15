@@ -29,12 +29,11 @@
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "ChaosSolversModule.h"
 
-class FPhysicsSolverAdvanceTask;
 class FPhysInterface_Chaos;
 
 class FSkeletalMeshPhysicsProxy;
 class FStaticMeshPhysicsProxy;
-class FFieldSystemPhysicsProxy;
+class FPerSolverFieldSystem;
 
 #define PBDRIGID_PREALLOC_COUNT 1024
 #define KINEMATIC_GEOM_PREALLOC_COUNT 100
@@ -74,13 +73,9 @@ namespace Chaos
 
 	public:
 
-		// #BGTODO ensure no external callers directly deleting, make private and push everything through DestroySolver.
-		virtual ~TPBDRigidsSolver();
-
 		typedef FPhysicsSolverBase Super;
 
 		friend class FPersistentPhysicsTask;
-		friend class ::FPhysicsSolverAdvanceTask;
 		friend class ::FChaosSolversModule;
 
 		template<EThreadingMode Mode>
@@ -111,19 +106,11 @@ namespace Chaos
 
 		using FJointConstraints = FPBDJointConstraints;
 		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
-
 		//
 		// Execution API
 		//
 
 		void ChangeBufferMode(Chaos::EMultiBufferMode InBufferMode);
-
-		template <typename Lambda>
-		void EnqueueCommandImmediate(const Lambda& Func)
-		{
-			FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this, Func);
-		}
-
 
 		//
 		//  Object API
@@ -134,9 +121,6 @@ namespace Chaos
 
 		void RegisterObject(TGeometryCollectionPhysicsProxy<Traits>* InProxy);
 		bool UnregisterObject(TGeometryCollectionPhysicsProxy<Traits>* InProxy);
-
-		void RegisterObject(FFieldSystemPhysicsProxy* InProxy);
-		bool UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
 
 		void RegisterObject(Chaos::FJointConstraint* GTConstraint);
 		bool UnregisterObject(Chaos::FJointConstraint* GTConstraint);
@@ -183,10 +167,6 @@ namespace Chaos
 			{
 				InCallable(Obj);
 			}
-			for (FFieldSystemPhysicsProxy* Obj : FieldSystemPhysicsProxies)
-			{
-				InCallable(Obj);
-			}
 			for (FJointConstraintPhysicsProxy* Obj : JointConstraintPhysicsProxies)
 			{
 				InCallable(Obj);
@@ -226,11 +206,6 @@ namespace Chaos
 				TGeometryCollectionPhysicsProxy<Traits>* Obj = GeometryCollectionPhysicsProxies[Index];
 				InCallable(Obj);
 			});
-			Chaos::PhysicsParallelFor(FieldSystemPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
-			{
-				FFieldSystemPhysicsProxy* Obj = FieldSystemPhysicsProxies[Index];
-				InCallable(Obj);
-			});
 			Chaos::PhysicsParallelFor(JointConstraintPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
 			{
 				FJointConstraintPhysicsProxy* Obj = JointConstraintPhysicsProxies[Index];
@@ -241,7 +216,7 @@ namespace Chaos
 		int32 GetNumPhysicsProxies() const {
 			return GeometryParticlePhysicsProxies.Num() + KinematicGeometryParticlePhysicsProxies.Num() + RigidParticlePhysicsProxies.Num()
 				+ SkeletalMeshPhysicsProxies.Num() + StaticMeshPhysicsProxies.Num()
-				+ GeometryCollectionPhysicsProxies.Num() + FieldSystemPhysicsProxies.Num()
+				+ GeometryCollectionPhysicsProxies.Num()
 				+ JointConstraintPhysicsProxies.Num();
 		}
 
@@ -259,7 +234,7 @@ namespace Chaos
 		void Reset();
 
 		/**/
-		void AdvanceSolverBy(float DeltaTime);
+		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
 
 		/**/
 		void PushPhysicsState(IDispatcher* Dispatcher = nullptr);
@@ -356,11 +331,6 @@ namespace Chaos
 		/**/
 		void PostTickDebugDraw() const;
 
-		TArray<FFieldSystemPhysicsProxy*>& GetFieldSystemPhysicsProxies()
-		{
-			return FieldSystemPhysicsProxies;
-		}
-
 		TArray<TGeometryCollectionPhysicsProxy<Traits>*>& GetGeometryCollectionPhysicsProxies()
 		{
 			return GeometryCollectionPhysicsProxies;
@@ -390,6 +360,9 @@ namespace Chaos
 
 		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles);
 		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
+
+		FPerSolverFieldSystem& GetPerSolverField() { return *PerSolverField; }
+		const FPerSolverFieldSystem& GetPerSolverField() const { return *PerSolverField; }
 
 	private:
 
@@ -461,7 +434,6 @@ namespace Chaos
 		TArray< FSkeletalMeshPhysicsProxy* > SkeletalMeshPhysicsProxies; // dep
 		TArray< FStaticMeshPhysicsProxy* > StaticMeshPhysicsProxies; // dep
 		TArray< TGeometryCollectionPhysicsProxy<Traits>* > GeometryCollectionPhysicsProxies;
-		TArray< FFieldSystemPhysicsProxy* > FieldSystemPhysicsProxies;
 		TArray< FJointConstraintPhysicsProxy*> JointConstraintPhysicsProxies;
 		bool bUseCollisionResimCache;
 
@@ -470,6 +442,8 @@ namespace Chaos
 		//
 		FPBDJointConstraints JointConstraints;
 		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule;
+
+		TUniquePtr<FPerSolverFieldSystem> PerSolverField;
 
 
 		// Physics material mirrors for the solver. These should generally stay in sync with the global material list from

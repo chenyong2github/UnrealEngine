@@ -624,9 +624,6 @@ FAutoConsoleTaskPriority CPrio_FCompilePipelineStateTask(
 // This cache uses a single internal lock and therefore is not designed for highly concurrent operations.
 class FRayTracingPipelineCache
 {
-	// #dxr_todo: UE-72566 Should support eviction of stale pipelines.
-	// #dxr_todo: we will likely also need an explicit ray tracing pipeline sub-object cache to hold closest hit shaders
-
 public:
 	FRayTracingPipelineCache()
 	{}

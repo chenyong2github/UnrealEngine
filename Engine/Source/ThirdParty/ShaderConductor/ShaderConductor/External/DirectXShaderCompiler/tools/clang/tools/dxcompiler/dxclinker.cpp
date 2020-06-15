@@ -114,6 +114,8 @@ HRESULT
 DxcLinker::RegisterLibrary(_In_opt_ LPCWSTR pLibName, // Name of the library.
                            _In_ IDxcBlob *pBlob       // Library to add.
 ) {
+  if (!pLibName || !pBlob)
+    return E_INVALIDARG;
   DXASSERT(m_pLinker.get(), "else Initialize() not called or failed silently");
   DxcThreadMalloc TM(m_pMalloc);
   // Prepare UTF8-encoded versions of API values.
@@ -163,6 +165,8 @@ HRESULT STDMETHODCALLTYPE DxcLinker::Link(
     _COM_Outptr_ IDxcOperationResult *
         *ppResult // Linker output status, buffer, and errors
 ) {
+  if (!pTargetProfile || !pLibNames || libCount == 0 || !ppResult)
+    return E_INVALIDARG;
   DxcThreadMalloc TM(m_pMalloc);
   // Prepare UTF8-encoded versions of API values.
   CW2A pUtf8TargetProfile(pTargetProfile, CP_UTF8);
@@ -209,6 +213,19 @@ HRESULT STDMETHODCALLTYPE DxcLinker::Link(
     m_Ctx.setDiagnosticHandler(PrintDiagnosticContext::PrintDiagnosticHandler,
                                &DiagContext, true);
 
+    if (opts.ValVerMajor != UINT32_MAX) {
+      m_pLinker->SetValidatorVersion(opts.ValVerMajor, opts.ValVerMinor);
+    }
+
+    bool needsValidation = !opts.DisableValidation;
+    // Disable validation if ValVerMajor is 0 (offline target, never validate),
+    // or pre-release library targets lib_6_1/lib_6_2.
+    if (opts.ValVerMajor == 0 ||
+        opts.TargetProfile == "lib_6_1" ||
+        opts.TargetProfile == "lib_6_2") {
+      needsValidation = false;
+    }
+
     // Attach libraries.
     bool bSuccess = true;
     for (unsigned i = 0; i < libCount; i++) {
@@ -251,15 +268,14 @@ HRESULT STDMETHODCALLTYPE DxcLinker::Link(
         }
         // Validation.
         HRESULT valHR = S_OK;
-        // Skip validation on lib for now.
-        if (!opts.TargetProfile.startswith("lib_")) {
-          valHR = dxcutil::ValidateAndAssembleToContainer(
-              std::move(pM), pOutputBlob, pMalloc, SerializeFlags,
-              pOutputStream,
-              /*bDebugInfo*/ false, llvm::StringRef(), Diag);
+        dxcutil::AssembleInputs inputs(
+          std::move(pM), pOutputBlob, pMalloc, SerializeFlags,
+          pOutputStream,
+          opts.DebugInfo, opts.DebugFile, &Diag);
+        if (needsValidation) {
+          valHR = dxcutil::ValidateAndAssembleToContainer(inputs);
         } else {
-          dxcutil::AssembleToContainer(std::move(pM), pOutputBlob, m_pMalloc,
-                                       SerializeFlags, pOutputStream);
+          dxcutil::AssembleToContainer(inputs);
         }
         // Callback after valid DXIL is produced
         if (SUCCEEDED(valHR)) {

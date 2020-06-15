@@ -2017,6 +2017,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 		// Cache streaming level name off
 		FNewReplicatedActorInfo NewActorInfo(Actor);
 		const FName ActorStreamingLevelName = NewActorInfo.StreamingLevelName;
+		EProcessRemoteFunctionFlags RemoteFunctionFlags = EProcessRemoteFunctionFlags::None;
 		
 		for (UNetReplicationGraphConnection* Manager : Connections)
 		{
@@ -2095,7 +2096,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 			
 			if (ConnectionActorInfo.Channel)
 			{
-				NetDriver->ProcessRemoteFunctionForChannel(ConnectionActorInfo.Channel, ClassCache, FieldCache, TargetObj, NetConnection, Function, Parameters, OutParms, Stack, true, SendPolicy);
+				NetDriver->ProcessRemoteFunctionForChannel(ConnectionActorInfo.Channel, ClassCache, FieldCache, TargetObj, NetConnection, Function, Parameters, OutParms, Stack, true, SendPolicy, RemoteFunctionFlags);
 
 				if (SendPolicy == UNetDriver::ForceSend)
 				{
