@@ -288,10 +288,10 @@ typedef bool(*FPSOMaskComparisonFn)(uint64 ReferenceMask, uint64 PSOMask);
 
 struct FPSOUsageData
 {
-	FPSOUsageData(): PSOHash(0), UsageMask(0), EngineFlags(0) {}
-	FPSOUsageData(uint32 InPSOHash, uint64 InUsageMask, uint16 InEngineFlags): PSOHash(InPSOHash), UsageMask(InUsageMask), EngineFlags(InEngineFlags) {}
-	uint32 PSOHash;
+	FPSOUsageData(): UsageMask(0), PSOHash(0), EngineFlags(0) {}
+	FPSOUsageData(uint32 InPSOHash, uint64 InUsageMask, uint16 InEngineFlags): UsageMask(InUsageMask), PSOHash(InPSOHash), EngineFlags(InEngineFlags) {}
 	uint64 UsageMask;
+	uint32 PSOHash;
 	uint16 EngineFlags;
 };
 
