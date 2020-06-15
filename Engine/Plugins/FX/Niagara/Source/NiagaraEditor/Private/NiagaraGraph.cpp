@@ -1030,12 +1030,15 @@ void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiaga
 			for (UEdGraphPin* LinkedPin : Pins[i]->LinkedTo)
 			{
 				UEdGraphPin* TracedPin = bEvaluateStaticSwitches ? UNiagaraNode::TraceOutputPin(LinkedPin) : LinkedPin;
-				UNiagaraNode* Node = Cast<UNiagaraNode>(TracedPin->GetOwningNode());
-				if (OutNodesTraversed.Contains(Node))
+				if (TracedPin != nullptr)
 				{
-					continue;
+					UNiagaraNode* Node = Cast<UNiagaraNode>(TracedPin->GetOwningNode());
+					if (OutNodesTraversed.Contains(Node))
+					{
+						continue;
+					}
+					BuildTraversalHelper(OutNodesTraversed, Node, bEvaluateStaticSwitches);
 				}
-				BuildTraversalHelper(OutNodesTraversed, Node, bEvaluateStaticSwitches);
 			}
 		}
 	}
