@@ -1938,83 +1938,40 @@ void FPhysScene_ChaosInterface::StartFrame()
 		PhysicsReplication->Tick(Dt);
 	}
 
-	if (Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher())
+	OnPhysScenePreTick.Broadcast(this,Dt);
+	OnPhysSceneStep.Broadcast(this,Dt);
+
+	TArray<Chaos::FPhysicsSolverBase*> SolverList;
+	SolverModule->GetSolversMutable(GetOwningWorld(),SolverList);
+
+	if(FPhysicsSolver* Solver = GetSolver())
 	{
-		switch (Dispatcher->GetMode())
-		{
-		case EChaosThreadingMode::SingleThread:
-		{
-			OnPhysScenePreTick.Broadcast(this, Dt);
-			OnPhysSceneStep.Broadcast(this, Dt);
-
-			if (FPhysicsSolver* Solver = GetSolver())
-			{
-				Solver->PushPhysicsState(Dispatcher);
-			}
-			// Here we can directly tick the scene. Single threaded mode doesn't buffer any commands
-			// that would require pumping here - everything is done on demand.
-			Scene.Tick(Dt);
-
-			// Copy out solver data
-			if (Chaos::FPhysicsSolver* Solver = GetSolver())
-			{
-				Solver->GetDirtyParticlesBuffer()->CaptureSolverData(Solver);
-				Solver->BufferPhysicsResults();
-				Solver->FlipBuffers();
-			}
-		}
-		break;
-		case EChaosThreadingMode::TaskGraph:
-		{
-			check(!CompletionEvent.GetReference())
-
-			OnPhysScenePreTick.Broadcast(this, Dt);
-			OnPhysSceneStep.Broadcast(this, Dt);
-
-			TArray<Chaos::FPhysicsSolverBase*> SolverList;
-			SolverModule->GetSolversMutable(GetOwningWorld(), SolverList);
-			
-			if (FPhysicsSolver* Solver = GetSolver())
-			{
-				// Make sure our solver is in the list
-				SolverList.AddUnique(Solver);
-			}
-
-			// Prereqs for the final completion task to run (collection of all the solver tasks)
-			FGraphEventArray CompletionTaskPrerequisites;
-
-			for(FPhysicsSolverBase* Solver : SolverList)
-			{
-				Solver->CastHelper([Dispatcher](auto& InSolver)
-					{
-						InSolver.PushPhysicsState(Dispatcher);
-					});
-
-				CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(Dt));
-			}
-
-			// Setup post simulate tasks
-			{
-				DECLARE_CYCLE_STAT(TEXT("FDelegateGraphTask.CompletePhysicsSimulation"), STAT_FDelegateGraphTask_CompletePhysicsSimulation, STATGROUP_TaskGraphTasks);
-
-				// Completion event runs in parallel and will flip out our buffers, gamethread work can be done in EndFrame (Called by world after this completion event finishes)
-				CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this, &FPhysScene_ChaosInterface::CompleteSceneSimulation), GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation), &CompletionTaskPrerequisites, ENamedThreads::GameThread, ENamedThreads::AnyHiPriThreadHiPriTask);
-			}
-		}
-		break;
-
-		// No action for dedicated thread, the module will sync independently from the scene in
-		// this case. (See FChaosSolversModule::SyncTask and FPhysicsThreadSyncCaller)
-		case EChaosThreadingMode::DedicatedThread:
-		default:
-			if (FPhysicsSolver* Solver = GetSolver())
-			{
-				Solver->PushPhysicsState(Dispatcher);
-			}
-			break;
-			break;
-		}
+		// Make sure our solver is in the list
+		SolverList.AddUnique(Solver);
 	}
+
+	// Prereqs for the final completion task to run (collection of all the solver tasks)
+	FGraphEventArray CompletionTaskPrerequisites;
+
+	for(FPhysicsSolverBase* Solver : SolverList)
+	{
+		Solver->CastHelper([](auto& InSolver)
+		{
+			InSolver.PushPhysicsState(nullptr);
+		});
+
+		CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(Dt));
+	}
+
+	// Setup post simulate tasks
+	{
+		DECLARE_CYCLE_STAT(TEXT("FDelegateGraphTask.CompletePhysicsSimulation"),STAT_FDelegateGraphTask_CompletePhysicsSimulation,STATGROUP_TaskGraphTasks);
+
+		// Completion event runs in parallel and will flip out our buffers, gamethread work can be done in EndFrame (Called by world after this completion event finishes)
+		CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this,&FPhysScene_ChaosInterface::CompleteSceneSimulation),GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation),&CompletionTaskPrerequisites,ENamedThreads::GameThread,ENamedThreads::AnyHiPriThreadHiPriTask);
+	}
+
+
 }
 
 // Find the number of dirty elements in all substructures that has dirty elements that we know of
@@ -2337,15 +2294,19 @@ void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
 			const int32 FirstFrame = LatestFrame - NumFrames;
 			if(ensure(Solver->GetRewindData()->RewindToFrame(FirstFrame)))
 			{
+				//resim as single threaded
+				const auto PreThreading = Solver->GetThreadingMode();
+				Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 				for(int Frame = FirstFrame; Frame < LatestFrame; ++Frame)
 				{
 					Solver->PushPhysicsState();
-					FPhysicsSolverAdvanceTask AdvanceTask(Solver,RewindData->GetDeltaTimeForFrame(Frame));
-					AdvanceTask.DoTask(ENamedThreads::GameThread,FGraphEventRef());
+					Solver->AdvanceAndDispatch_External(RewindData->GetDeltaTimeForFrame(Frame));
 					Solver->BufferPhysicsResults();
 					Solver->FlipBuffers();
 					Solver->UpdateGameThreadStructures();
 				}
+
+				Solver->SetThreadingMode_External(PreThreading);
 
 #if !UE_BUILD_SHIPPING
 				const TArray<FDesyncedParticleInfo> DesyncedParticles = Solver->GetRewindData()->ComputeDesyncInfo();
