@@ -18,7 +18,7 @@
 
 #include "Async/ParallelFor.h"
 #include "Misc/ScopeLock.h"
-#include "HAL/PlatformAtomics.h"
+#include "HAL/ThreadSafeBool.h"
 
 #include "Util/ProgressCancel.h"
 
@@ -191,8 +191,8 @@ public:
 			return false;
 		}
 
-		TArray<int8> TriOccluded;
-		TriOccluded.Init(0, Mesh->MaxTriangleID());
+		TArray<FThreadSafeBool> TriOccluded;
+		TriOccluded.Init(false, Mesh->MaxTriangleID());
 		for (int TreeIdx = 0; TreeIdx < Spatials.Num(); TreeIdx++)
 		{
 			TMeshAABBTree3<OccluderTriangleMeshType>* Spatial = Spatials[TreeIdx];
@@ -227,7 +227,7 @@ public:
 					}
 					if (bInside)
 					{
-						FPlatformAtomics::AtomicStore_Relaxed(&TriOccluded[TID], 1);
+						TriOccluded[TID] = true;
 					}
 				}, bForceSingleThread);
 		}
