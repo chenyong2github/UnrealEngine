@@ -2023,7 +2023,7 @@ bool FDynamicSkelMeshObjectDataGPUSkin::UpdateClothSimulationData(USkinnedMeshCo
 	if (SimMeshComponent)
 	{
 		ClothObjectLocalToWorld = SimMeshComponent->GetComponentToWorld().ToMatrixWithScale();
-		if(SimMeshComponent->bDisableClothSimulation)
+		if(SimMeshComponent->bDisableClothSimulation || SimMeshComponent->IsClothingSimulationSuspended())
 		{
 			ClothBlendWeight = 0.0f;
 			ClothingSimData.Reset();
