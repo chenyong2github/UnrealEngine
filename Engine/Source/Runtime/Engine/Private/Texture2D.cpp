@@ -522,6 +522,7 @@ void UTexture2D::UnlinkStreaming()
 	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
+		RemoveAllMipLevelChangeCallbacks();
 	}
 }
 
@@ -686,8 +687,10 @@ void UTexture2D::WaitForStreaming()
 	}
 }
 
-bool UTexture2D::UpdateStreamingStatus( bool bWaitForMipFading /*= false*/ )
+bool UTexture2D::UpdateStreamingStatus(bool bWaitForMipFading /*= false*/, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets /*= nullptr*/)
 {
+	bool bUpdatePending = false;
+
 	// if resident and requested mip counts match then no pending request is in flight
 	if (PendingUpdate)
 	{
@@ -708,44 +711,47 @@ bool UTexture2D::UpdateStreamingStatus( bool bWaitForMipFading /*= false*/ )
 
 		if (!PendingUpdate->IsCompleted())
 		{
-			return true;
+			bUpdatePending = true;
 		}
-
-#if WITH_EDITOR
-		const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
-#endif
-
-		PendingUpdate.SafeRelease();
-
-
-#if WITH_EDITOR
-		if (GIsEditor)
+		else
 		{
-			// When all the requested mips are streamed in, generate an empty property changed event, to force the
-			// ResourceSize asset registry tag to be recalculated.
-			FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
-			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, EmptyPropertyChangedEvent);
-
-			// We can't load the source art from a bulk data object if the texture itself is pending kill because the linker will have been detached.
-			// In this case we don't rebuild the data and instead let the streaming request be cancelled. This will let the garbage collector finish
-			// destroying the object.
-			if (bRebuildPlatformData)
-			{
-				ForceRebuildPlatformData();
-				// @TODO this can not be called from this callstack since the entry needs to be removed completely from the streamer.
-				// UpdateResource();
-			}
-		}
+#if WITH_EDITOR
+			const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
 #endif
+
+			PendingUpdate.SafeRelease();
+
+#if WITH_EDITOR
+			if (GIsEditor)
+			{
+				// When all the requested mips are streamed in, generate an empty property changed event, to force the
+				// ResourceSize asset registry tag to be recalculated.
+				FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
+				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, EmptyPropertyChangedEvent);
+
+				// We can't load the source art from a bulk data object if the texture itself is pending kill because the linker will have been detached.
+				// In this case we don't rebuild the data and instead let the streaming request be cancelled. This will let the garbage collector finish
+				// destroying the object.
+				if (bRebuildPlatformData)
+				{
+					ForceRebuildPlatformData();
+					// @TODO this can not be called from this callstack since the entry needs to be removed completely from the streamer.
+					// UpdateResource();
+				}
+			}
+#endif
+		}
 	}
 
 	FTexture2DResource* Texture2DResource = (FTexture2DResource*)Resource;
-	if (bWaitForMipFading && Texture2DResource && Texture2DResource->bReadyForStreaming)
+	if (!bUpdatePending && bWaitForMipFading && Texture2DResource && Texture2DResource->bReadyForStreaming)
 	{
-		return Texture2DResource->MipBiasFade.IsFading();
+		bUpdatePending = Texture2DResource->MipBiasFade.IsFading();
 	}
 
-	return false;
+	TickMipLevelChangeCallbacks(DeferredTickCBAssets);
+
+	return bUpdatePending;
 }
 
 bool UTexture2D::CancelPendingMipChangeRequest()
