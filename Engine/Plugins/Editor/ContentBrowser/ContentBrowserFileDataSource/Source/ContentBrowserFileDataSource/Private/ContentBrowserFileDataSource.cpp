@@ -770,6 +770,21 @@ bool UContentBrowserFileDataSource::BulkEditItems(TArrayView<const FContentBrows
 	return ContentBrowserFileData::EditItems(this, InItems);
 }
 
+bool UContentBrowserFileDataSource::CanPreviewItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg)
+{
+	return ContentBrowserFileData::CanPreviewItem(this, InItem, OutErrorMsg);
+}
+
+bool UContentBrowserFileDataSource::PreviewItem(const FContentBrowserItemData& InItem)
+{
+	return ContentBrowserFileData::PreviewItems(this, MakeArrayView(&InItem, 1));
+}
+
+bool UContentBrowserFileDataSource::BulkPreviewItems(TArrayView<const FContentBrowserItemData> InItems)
+{
+	return ContentBrowserFileData::PreviewItems(this, InItems);
+}
+
 bool UContentBrowserFileDataSource::CanDuplicateItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg)
 {
 	return ContentBrowserFileData::CanDuplicateItem(this, InItem, OutErrorMsg);
