@@ -247,14 +247,10 @@ void USelfUnionMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("SelfUnionMeshes", "Merge Meshes"));
+
 		// Generate the result
-		{
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("SelfUnionMeshes", "Boolean Meshes"));
-
-			GenerateAsset(Result);
-
-			GetToolManager()->EndUndoTransaction();
-		}
+		GenerateAsset(Result);
 
 		TArray<AActor*> Actors;
 		for (auto& ComponentTarget : ComponentTargets)
@@ -262,6 +258,8 @@ void USelfUnionMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			Actors.Add(ComponentTarget->GetOwnerActor());
 		}
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
+
+		GetToolManager()->EndUndoTransaction();
 	}
 }
 
