@@ -188,8 +188,6 @@ namespace MovieScene
 
 		virtual void Actuate(UObject* InObject, const FBlendedCameraCut& InFinalValue, const TBlendableTokenStack<FBlendedCameraCut>& OriginalStack, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
 		{
-			OriginalStack.SavePreAnimatedState(Player, GetCameraCutTypeID(), FCameraCutPreAnimatedTokenProducer());
-
 			UObject* CameraActor = FindBoundObject(InFinalValue.CameraBindingID, InFinalValue.OperandSequenceID, Player);
 
 			FCameraCutTrackData& CameraCutCache = PersistentData.GetOrAddTrackData<FCameraCutTrackData>();
@@ -207,6 +205,8 @@ namespace MovieScene
 
 			if (CameraCutCache.LastLockedCamera.Get() != CameraActor)
 			{
+				OriginalStack.SavePreAnimatedState(Player, GetCameraCutTypeID(), FCameraCutPreAnimatedTokenProducer());
+
 				CameraCutParams.UnlockIfCameraObject = CameraCutCache.LastLockedCamera.Get();
 				Player.UpdateCameraCut(CameraActor, CameraCutParams);
 				CameraCutCache.LastLockedCamera = CameraActor;
@@ -214,6 +214,8 @@ namespace MovieScene
 			}
 			else if (CameraActor || CameraCutParams.BlendTime > 0.f)
 			{
+				OriginalStack.SavePreAnimatedState(Player, GetCameraCutTypeID(), FCameraCutPreAnimatedTokenProducer());
+	
 				Player.UpdateCameraCut(CameraActor, CameraCutParams);
 			}
 		}
