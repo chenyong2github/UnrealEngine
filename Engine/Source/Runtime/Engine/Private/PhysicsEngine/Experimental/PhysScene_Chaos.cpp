@@ -350,18 +350,18 @@ static void CopyParticleData(Chaos::TPBDRigidParticles<float, 3>& ToParticles, c
 /** Struct to remember a pending component transform change */
 struct FPhysScenePendingComponentTransform_Chaos
 {
-	/** Component to move */
-	TWeakObjectPtr<UPrimitiveComponent> OwningComp;
 	/** New transform from physics engine */
 	FVector NewTranslation;
 	FQuat NewRotation;
+	/** Component to move */
+	TWeakObjectPtr<UPrimitiveComponent> OwningComp;
 	bool bHasValidTransform;
 	Chaos::EWakeEventEntry WakeEvent;
 	
 	FPhysScenePendingComponentTransform_Chaos(UPrimitiveComponent* InOwningComp, const FVector& InNewTranslation, const FQuat& InNewRotation, const Chaos::EWakeEventEntry InWakeEvent)
-		: OwningComp(InOwningComp)
-		, NewTranslation(InNewTranslation)
+		: NewTranslation(InNewTranslation)
 		, NewRotation(InNewRotation)
+		, OwningComp(InOwningComp)
 		, bHasValidTransform(true)
 		, WakeEvent(InWakeEvent)
 	{}
