@@ -5100,19 +5100,22 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 
 		if(SelectedTreeNodes.Num() > 0)
 		{
+			// If there is only one item selected, imitate user selection to preserve navigation
+			ESelectInfo::Type SelectInfo = SelectedTreeNodes.Num() == 1 ? ESelectInfo::OnMouseClick : ESelectInfo::Direct;
+
 			// Restore the previous selection state on the new tree nodes
 			for (int i = 0; i < SelectedTreeNodes.Num(); ++i)
 			{
 				if (SelectedTreeNodes[i]->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
 				{
-					SCSTreeWidget->SetItemSelection(RootActorNode, true);
+					SCSTreeWidget->SetItemSelection(RootActorNode, true, SelectInfo);
 				}
 				else
 				{
 					FSCSEditorTreeNodePtrType NodeToSelectPtr = FindTreeNode(SelectedTreeNodes[i]->GetComponentTemplate());
 					if (NodeToSelectPtr.IsValid())
 					{
-						SCSTreeWidget->SetItemSelection(NodeToSelectPtr, true);
+						SCSTreeWidget->SetItemSelection(NodeToSelectPtr, true, SelectInfo);
 					}
 				}
 			}
