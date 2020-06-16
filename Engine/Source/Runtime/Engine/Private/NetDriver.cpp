@@ -2640,6 +2640,8 @@ void UNetDriver::LowLevelDestroy()
 	// We are closing down all our sockets and low level communications.
 	// Sever the link with UWorld to ensure we don't tick again
 	SetWorld(NULL);
+
+	AnalyticsProvider = nullptr;
 }
 
 FString UNetDriver::LowLevelGetNetworkNumber()
