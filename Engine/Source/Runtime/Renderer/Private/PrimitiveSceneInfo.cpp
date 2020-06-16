@@ -388,6 +388,8 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 		}
 	}
 
+	FGraphicsMinimalPipelineStateId::InitializePersistentIds();
+					
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
 	{

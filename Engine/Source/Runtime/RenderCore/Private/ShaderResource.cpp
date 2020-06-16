@@ -280,11 +280,10 @@ void FShaderMapResourceCode::NotifyShadersCooked(const ITargetPlatform* TargetPl
 #endif // WITH_EDITORONLY_DATA
 
 FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShaders)
-	: NumRHIShaders(NumShaders)
-	, Platform(InPlatform)
+	: Platform(InPlatform)
 	, NumRefs(0)
 {
-	RHIShaders = MakeUnique<std::atomic<FRHIShader*>[]>(NumRHIShaders); // this MakeUnique() zero-initializes the array
+	RHIShaders.AddZeroed(NumShaders);
 #if RHI_RAYTRACING
 	if (GRHISupportsRayTracing)
 	{
@@ -296,7 +295,6 @@ FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShad
 
 FShaderMapResource::~FShaderMapResource()
 {
-	ReleaseShaders();
 	check(NumRefs == 0);
 }
 
@@ -318,23 +316,6 @@ void FShaderMapResource::Release()
 	}
 }
 
-void FShaderMapResource::ReleaseShaders()
-{
-	if (RHIShaders)
-	{
-		for (int32 Idx = 0; Idx < NumRHIShaders; ++Idx)
-		{
-			if (FRHIShader* Shader = RHIShaders[Idx].load(std::memory_order_acquire))
-			{
-				Shader->Release();
-			}
-		}
-		RHIShaders = nullptr;
-		NumRHIShaders = 0;
-	}
-}
-
-
 void FShaderMapResource::ReleaseRHI()
 {
 #if RHI_RAYTRACING
@@ -345,7 +326,7 @@ void FShaderMapResource::ReleaseRHI()
 	RayTracingMaterialLibraryIndices.Empty();
 #endif // RHI_RAYTRACING
 
-	ReleaseShaders();
+	RHIShaders.Empty();
 }
 
 void FShaderMapResource::BeginCreateAllShaders()
@@ -361,10 +342,10 @@ void FShaderMapResource::BeginCreateAllShaders()
 	});
 }
 
-FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
+void FShaderMapResource::CreateShader(int32 ShaderIndex)
 {
 	check(IsInParallelRenderingThread());
-	check(!RHIShaders[ShaderIndex].load(std::memory_order_acquire));
+	check(!RHIShaders[ShaderIndex]);
 
 	TRefCountPtr<FRHIShader> RHIShader = CreateRHIShader(ShaderIndex);
 #if RHI_RAYTRACING
@@ -373,13 +354,7 @@ FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
 		RayTracingMaterialLibraryIndices[ShaderIndex] = AddToRayTracingLibrary(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
 	}
 #endif // RHI_RAYTRACING
-
-	// keep the reference alive (the caller will release)
-	if (RHIShader.IsValid())
-	{
-		RHIShader->AddRef();
-	}
-	return RHIShader.GetReference();
+	RHIShaders[ShaderIndex] = MoveTemp(RHIShader);
 }
 
 TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 ShaderIndex)
