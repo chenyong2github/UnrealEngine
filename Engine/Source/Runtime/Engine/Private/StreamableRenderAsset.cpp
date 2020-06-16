@@ -59,10 +59,16 @@ void UStreamableRenderAsset::RemoveAllMipLevelChangeCallbacks()
 	MipChangeCallbacks.Empty();
 }
 
-void UStreamableRenderAsset::TickMipLevelChangeCallbacks()
+void UStreamableRenderAsset::TickMipLevelChangeCallbacks(TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
 {
 	if (MipChangeCallbacks.Num() > 0)
 	{
+		if (DeferredTickCBAssets)
+		{
+			DeferredTickCBAssets->Add(this);
+			return;
+		}
+
 		const double Now = FApp::GetCurrentTime();
 		const int32 ResidentMips = GetCachedNumResidentLODs();
 
