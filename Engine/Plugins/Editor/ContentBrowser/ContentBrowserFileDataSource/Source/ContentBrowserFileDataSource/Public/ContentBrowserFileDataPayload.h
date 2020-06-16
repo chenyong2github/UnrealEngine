@@ -69,6 +69,12 @@ namespace ContentBrowserFileData
 		DECLARE_DELEGATE_RetVal_TwoParams(bool, FEdit, const FName /*InFilePath*/, const FString& /*InFilename*/);
 		FEdit Edit;
 
+		DECLARE_DELEGATE_RetVal_ThreeParams(bool, FCanPreview, const FName /*InFilePath*/, const FString& /*InFilename*/, FText* /*OutErrorMsg*/);
+		FCanPreview CanPreview;
+
+		DECLARE_DELEGATE_RetVal_TwoParams(bool, FPreview, const FName /*InFilePath*/, const FString& /*InFilename*/);
+		FPreview Preview;
+
 		DECLARE_DELEGATE_RetVal_ThreeParams(bool, FCanDuplicate, const FName /*InFilePath*/, const FString& /*InFilename*/, FText* /*OutErrorMsg*/);
 		FCanDuplicate CanDuplicate;
 	};
