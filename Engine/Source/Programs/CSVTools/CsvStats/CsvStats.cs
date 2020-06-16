@@ -1336,7 +1336,7 @@ namespace CSVStats
 
 			if ( numRowsToSkip > 0)
             {
-                lines.RemoveRange(0, numRowsToSkip);
+                lines.RemoveRange(1, numRowsToSkip);
             }
 			string[] headings = lines[0].Split(',');
 
