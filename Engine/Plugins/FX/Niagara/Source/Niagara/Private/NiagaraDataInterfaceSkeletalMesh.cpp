@@ -37,6 +37,15 @@ struct FNiagaraSkelMeshDIFunctionVersion
 	};
 };
 
+// Calculate which tick group the skeletal mesh component will be ready by
+ETickingGroup NDISKelMesh_GetComponentTickGroup(USkeletalMeshComponent* Component)
+{
+	const ETickingGroup ComponentTickGroup = FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup);
+	const ETickingGroup PhysicsTickGroup = Component->bBlendPhysics ? FMath::Max(ComponentTickGroup, TG_EndPhysics) : ComponentTickGroup;
+	const ETickingGroup ClampedTickGroup = FMath::Clamp(ETickingGroup(PhysicsTickGroup + 1), NiagaraFirstTickGroup, NiagaraLastTickGroup);
+	return ClampedTickGroup;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 FSkeletalMeshSamplingRegionAreaWeightedSampler::FSkeletalMeshSamplingRegionAreaWeightedSampler()
@@ -428,8 +437,8 @@ void FNDI_SkeletalMesh_GeneratedData::TickGeneratedData(ETickingGroup TickGroup,
 		// Has ticked or can be ticked
 		if (bForceTick == false)
 		{
-			const ETickingGroup PrereqTickGroup = FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup);
-			if ((PrereqTickGroup > TickGroup) || (Component->PrimaryComponentTick.IsCompletionHandleValid() && !Component->PrimaryComponentTick.GetCompletionHandle()->IsComplete()))
+			const ETickingGroup PrereqTickGroup = NDISKelMesh_GetComponentTickGroup(Component);
+			if ( PrereqTickGroup > TickGroup )
 			{
 				continue;
 			}
@@ -2872,7 +2881,7 @@ ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(const void* 
 	USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InstData->Component.Get());
 	if ( Component )
 	{
-		return ETickingGroup(FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup) + 1);
+		return NDISKelMesh_GetComponentTickGroup(Component);
 	}
 	return NiagaraFirstTickGroup;
 }
