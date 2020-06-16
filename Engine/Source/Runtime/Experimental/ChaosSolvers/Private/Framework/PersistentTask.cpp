@@ -25,9 +25,8 @@
 
 namespace Chaos
 {
-	FPersistentPhysicsTask::FPersistentPhysicsTask(float InTargetDt, bool bInAvoidSpiral, IDispatcher* InDispatcher)
+	FPersistentPhysicsTask::FPersistentPhysicsTask(float InTargetDt, bool bInAvoidSpiral)
 		: TickMode(EChaosSolverTickMode::VariableCappedWithTarget)
-		, CommandDispatcher(InDispatcher)
 		, Timestep(nullptr)
 #if WITH_EDITOR
 		, SingleStepCounter(0)

@@ -8,6 +8,8 @@
 #include "ChaosStats.h"
 #include "PhysicsCoreTypes.h"
 
+#if 0
+
 void LexFromString(Chaos::EThreadingMode& OutValue, const TCHAR* InString) 
 {
 	OutValue = Chaos::EThreadingMode::Invalid;
@@ -46,3 +48,5 @@ FString LexToString(const Chaos::EThreadingMode InValue)
 template class Chaos::FDispatcher<EChaosThreadingMode::DedicatedThread>;
 template class Chaos::FDispatcher<EChaosThreadingMode::SingleThread>;
 template class Chaos::FDispatcher<EChaosThreadingMode::TaskGraph>;
+
+#endif

@@ -10,7 +10,6 @@ class FChaosSolversModule;
 
 namespace Chaos
 {
-	class IDispatcher;
 	class FPhysicsSolverBase;
 }
 
