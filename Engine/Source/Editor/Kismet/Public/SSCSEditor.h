@@ -395,10 +395,15 @@ public:
 			(FilterFlags & EFilteredState::FilteredInMask) == 0 : false; 
 	}
 
-	/** Refreshes this item's filtration state. Use bUpdateParent to make sure the parent's EFilteredState::ChildMatches flag is properly updated based off the new state */
-	void UpdateCachedFilterState(bool bMatchesFilter, bool bUpdateParent);
+	/** Returns whether the node will match the given type (for filtering) */
+	virtual bool MatchesFilterType(const UClass* InFilterType) const;
+
+	/** Refreshes this item's filtration state. Set bRecursive to 'true' to refresh any child nodes as well */
+	virtual void RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive);
 
 protected:
+	/** Sets this item's filtration state. Use bUpdateParent to make sure the parent's EFilteredState::ChildMatches flag is properly updated based off the new state */
+	void SetCachedFilterState(bool bMatchesFilter, bool bUpdateParent);
 	/** Updates the EFilteredState::ChildMatches flag, based off of children's current state */
 	void RefreshCachedChildFilterState(bool bUpdateParent);
 	/** Used to update the EFilteredState::ChildMatches flag for parent nodes, when this item's filtration state has changed */
@@ -451,6 +456,9 @@ public:
 
 	UE_DEPRECATED(4.26, "Use SetObject() instead.")
 	void SetComponentTemplate(UActorComponent* Component) { SetObject(Component); }
+
+	UE_DEPRECATED(4.26, "Use RefreshFilteredState() instead. This API has been changed to an internal-only helper method.")
+	void UpdateCachedFilterState(bool bMatchesFilter, bool bUpdateParent) { SetCachedFilterState(bMatchesFilter, bUpdateParent); }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -473,6 +481,7 @@ public:
 	virtual bool CanReparent() const override;
 	virtual UBlueprint* GetBlueprint() const override;
 	virtual FSCSEditorChildActorNodePtrType GetChildActorNode();
+	virtual bool MatchesFilterType(const UClass* InFilterType) const override;
 	// End of FSCSEditorTreeNode interface
 
 private:
@@ -639,6 +648,7 @@ public:
 	FSCSEditorTreeNodeRootActor(AActor* InActor, bool bInAllowRename)
 		: FSCSEditorTreeNodeActorBase(FSCSEditorTreeNode::RootActorNode, InActor)
 		, bAllowRename(bInAllowRename)
+		, CachedFilterType(nullptr)
 	{
 	}
 
@@ -647,12 +657,15 @@ public:
 	virtual void OnCompleteRename(const FText& InNewName) override;
 	virtual void AddChild(FSCSEditorTreeNodePtrType InChildNodePtr) override;
 	virtual void RemoveChild(FSCSEditorTreeNodePtrType InChildNodePtr) override;
+	virtual void RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive) override;
 	// End of FSCSEditorTreeNode public interface
 
 private:
 	bool bAllowRename;
-	FSCSEditorTreeNodePtrType SceneComponentSeparatorNodePtr;
-	FSCSEditorTreeNodePtrType NonSceneComponentSeparatorNodePtr;
+	const UClass* CachedFilterType;
+	TArray<FString> CachedFilterTerms;
+	TSharedPtr<class FSCSEditorTreeNodeSeparator> SceneComponentSeparatorNodePtr;
+	TSharedPtr<class FSCSEditorTreeNodeSeparator> NonSceneComponentSeparatorNodePtr;
 };
 
 class KISMET_API FSCSEditorTreeNodeChildActor : public FSCSEditorTreeNodeActorBase
@@ -680,8 +693,14 @@ public:
 
 	// FSCSEditorTreeNode public interface
 	virtual UBlueprint* GetBlueprint() const override { return nullptr; }
-	virtual bool IsFlaggedForFiltration() const override { return false; }
+	virtual bool MatchesFilterType(const UClass* InFilterType) const override;
 	// End of FSCSEditorTreeNode public interface
+
+	/** If the given type matches the tree view filter, the separator will also be flagged for filtration. */
+	void AddFilteredComponentType(const TSubclassOf<UActorComponent>& InFilteredType);
+
+private:
+	TArray<const UClass*> FilteredTypes;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -952,6 +971,7 @@ public:
 		,_PreviewActor(nullptr)
 		,_AllowEditing(true)
 		,_HideComponentClassCombo(false)
+		,_ComponentTypeFilter()
 		,_OnSelectionUpdated()
 		,_OnHighlightPropertyInDetailsView()
 		{}
@@ -962,6 +982,7 @@ public:
 		SLATE_ATTRIBUTE(class AActor*, PreviewActor)
 		SLATE_ATTRIBUTE(bool, AllowEditing)
 		SLATE_ATTRIBUTE(bool, HideComponentClassCombo)
+		SLATE_ATTRIBUTE(TSubclassOf<UActorComponent>, ComponentTypeFilter)
 		SLATE_EVENT(FOnSelectionUpdated, OnSelectionUpdated)
 		SLATE_EVENT(FOnItemDoubleClicked, OnItemDoubleClicked)
 		SLATE_EVENT(FOnHighlightPropertyInDetailsView, OnHighlightPropertyInDetailsView)
@@ -1168,8 +1189,6 @@ protected:
 	FSCSEditorTreeNodePtrType FindParentForNewComponent(UActorComponent* NewComponent) const;
 	FSCSEditorTreeNodePtrType FindParentForNewNode(USCS_Node* NewNode) const;
 
-	FString GetSelectedClassText() const;
-
 	/** Add a component from the selection in the combo box */
 	UActorComponent* PerformComboAddClass(TSubclassOf<UActorComponent> ComponentClass, EComponentCreateAction::Type ComponentCreateAction, UObject* AssetOverride);
 
@@ -1270,6 +1289,9 @@ protected:
 	/** @return The visibility of the Edit Blueprint button (only visible with an actor instance that is created from a blueprint)*/
 	EVisibility GetEditBlueprintButtonVisibility() const;
 
+	/** @return The visibility of the Add Component combo button */
+	EVisibility GetComponentClassComboButtonVisibility() const;
+
 	/** @return the tooltip describing how many properties will be applied to the blueprint */
 	FText OnGetApplyChangesToBlueprintTooltip() const;
 
@@ -1347,6 +1369,12 @@ public:
 
 	/** Attribute to indicate whether or not editing is allowed. */
 	TAttribute<bool> AllowEditing;
+
+	/** Attribute to indicate whether or not the "Add Component" button is visible. If true, new components cannot be added to the Blueprint. */
+	TAttribute<bool> HideComponentClassCombo;
+
+	/** Attribute to limit visible nodes to a particular component type when filtering the tree view. */
+	TAttribute<TSubclassOf<UActorComponent>> ComponentTypeFilter;
 
 	/** Delegate to invoke on selection update. */
 	FOnSelectionUpdated OnSelectionUpdated;
