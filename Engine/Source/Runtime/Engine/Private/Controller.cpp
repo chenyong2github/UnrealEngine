@@ -316,53 +316,77 @@ void AController::Possess(APawn* InPawn)
 
 	REDIRECT_OBJECT_TO_VLOG(InPawn, this);
 
+	const APawn* CurrentPawn = GetPawn();
+
+	// To preserve backward compatibility we keep notifying derived classed for null pawn in case some
+	// overrides decided to react differently when asked to possess a null pawn.
+	// Default engine implementation is to unpossess the current pawn.
 	OnPossess(InPawn);
 
-	ReceivePossess(InPawn);
+	// Notify only when pawn to possess has been accepted by the native class.
+	APawn* NewPawn = GetPawn();
+	if (NewPawn != CurrentPawn)
+	{
+		ReceivePossess(NewPawn);
+		OnNewPawn.Broadcast(NewPawn);
+	}
 }
 
 void AController::OnPossess(APawn* InPawn)
 {
 	const bool bNewPawn = GetPawn() != InPawn;
 
-	if (InPawn != NULL)
+	// Unpossess current pawn (if any) when current pawn changes
+	if (bNewPawn && GetPawn() != nullptr)
 	{
-		if (bNewPawn && GetPawn())
-		{
-			UnPossess();
-		}
-
-		if (InPawn->Controller != NULL)
-		{
-			InPawn->Controller->UnPossess();
-		}
-
-		InPawn->PossessedBy(this);
-		SetPawn(InPawn);
-
-		// update rotation to match possessed pawn's rotation
-		SetControlRotation( Pawn->GetActorRotation() );
-
-		Pawn->Restart();
+		UnPossess();
 	}
 
-	if (bNewPawn)
+	if (InPawn == nullptr)
 	{
-		OnNewPawn.Broadcast(GetPawn());
+		return;
 	}
+
+	if (InPawn->Controller != nullptr)
+	{
+		UE_CLOG(InPawn->Controller == this, LogController, Warning, TEXT("Asking %s to possess pawn %s more than once; pawn will be restarted! Should call Unpossess first."), *GetNameSafe(this), *GetNameSafe(InPawn));
+		InPawn->Controller->UnPossess();
+	}
+
+	InPawn->PossessedBy(this);
+	SetPawn(InPawn);
+
+	// update rotation to match possessed pawn's rotation
+	SetControlRotation(Pawn->GetActorRotation());
+
+	Pawn->Restart();
 }
 
 void AController::UnPossess()
 {
 	APawn* CurrentPawn = GetPawn();
 
+	// No need to notify if we don't have a pawn
+	if (CurrentPawn == nullptr)
+	{
+		return;
+	}
+
 	OnUnPossess();
 
-	ReceiveUnPossess(CurrentPawn);
+	// Notify only when pawn has been successfully unpossessed by the native class.
+	APawn* NewPawn = GetPawn();
+	if (NewPawn != CurrentPawn)
+	{
+		ReceiveUnPossess(CurrentPawn);
+		OnNewPawn.Broadcast(NewPawn);
+	}
 }
 
 void AController::OnUnPossess()
 {
+	// Should not be called when Pawn is null but since OnUnPossess could be overridden
+	// the derived class could have already cleared the pawn and then call its base class.
 	if ( Pawn != NULL )
 	{
 		Pawn->UnPossessed();

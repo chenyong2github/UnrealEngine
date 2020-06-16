@@ -861,14 +861,6 @@ void APlayerController::OnPossess(APawn* PawnToPossess)
 			AutoManageActiveCameraTarget(GetPawn());
 			ResetCameraMode();
 		}
-		// not calling UpdateNavigationComponents() anymore. The
-		// PathFollowingComponent is now observing newly possessed
-		// pawns (via OnNewPawn)
-		// need to broadcast here since we don't call Super::OnPossess
-		if (bNewPawn)
-		{
-			OnNewPawn.Broadcast(GetPawn());
-		}
 	}
 }
 
