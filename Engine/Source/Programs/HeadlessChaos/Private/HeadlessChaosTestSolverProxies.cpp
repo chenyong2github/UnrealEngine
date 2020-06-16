@@ -44,8 +44,6 @@ namespace ChaosTest {
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get() });
 
-		Solver->PushPhysicsState();
-
 		Solver->AdvanceAndDispatch_External(100.0f);
 
 		Solver->BufferPhysicsResults();
@@ -98,8 +96,6 @@ namespace ChaosTest {
 		int32 Counter = 0;
 		while (Particle->X().Size() == 0.f)
 		{
-			Solver->PushPhysicsState(); 
-
 			// This might not be the correct way to advance when using the TaskGraph.
 			//TODO: use event returned
 			Solver->AdvanceAndDispatch_External(100.0f);
@@ -158,8 +154,6 @@ namespace ChaosTest {
 		Particle2->SetObjectState(Chaos::EObjectStateType::Sleeping);
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get(),Particle2.Get() });
-
-		Solver->PushPhysicsState();
 
 		// let top paticle collide and wake up second particle
 		int32 LoopCount = 0;
