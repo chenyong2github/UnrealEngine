@@ -112,7 +112,7 @@ namespace Chaos
 		friend class FAsyncTask<FPersistentPhysicsTask>;
 
 	public:
-		FPersistentPhysicsTask(float InTargetDt, bool bInAvoidSpiral, IDispatcher* InDispatcher);
+		FPersistentPhysicsTask(float InTargetDt, bool bInAvoidSpiral);
 		virtual ~FPersistentPhysicsTask();
 
 		/**
@@ -220,9 +220,6 @@ namespace Chaos
 
 		// Whether the main physics loop is running in DoWork;
 		FThreadSafeBool bRunning;
-
-		// The dispatcher made by the Chaos module to enable the gamethread to communicate with this one.
-		IDispatcher* CommandDispatcher;
 
 		// Event to fire after we've broken from the running physics loop as the thread shuts down
 		FEvent* ShutdownEvent;

@@ -177,8 +177,5 @@ FChaosPhysicsSettings::FChaosPhysicsSettings()
 
 void FChaosPhysicsSettings::OnSettingsUpdated()
 {
-	if(FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule())
-	{
-		SolverModule->OnSettingsChanged();
-	}
+
 }

@@ -291,7 +291,7 @@ namespace Chaos
 		//Chaos::FParticlePropertiesData& RemoteParticleData = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteParticleProperties();
 		//Chaos::FShapeRemoteDataContainer& RemoteShapeContainer = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteShapeContainer();
 
-		const bool bIsSingleThreaded = FChaosSolversModule::GetModule()->GetDispatcher()->GetMode() == EThreadingMode::SingleThread;
+		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
 
 		// Make a physics proxy, giving it our particle and particle handle
 		const EParticleType InParticleType = GTParticle->ObjectType();
@@ -627,7 +627,7 @@ namespace Chaos
 	 *    Chaos::TGeometryParticle<float,3>
 	 */
 	template<typename ProxyType>
-	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, Chaos::IDispatcher* Dispatcher)
+	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy)
 	{
 		//todo: remove 99% of this
 		LLM_SCOPE(ELLMTag::Chaos);
@@ -670,7 +670,7 @@ namespace Chaos
 	}
 
 	template<typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
-	void FlushExec(FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles, Chaos::IDispatcher* Dispatcher, FPBDRigidsSolver * Solver)
+	void FlushExec(FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles, FPBDRigidsSolver * Solver)
 	{
 #if 0
 		Dispatcher->EnqueueCommandImmediate([Solver, &PoolParticles](Chaos::FPersistentPhysicsTask* PhysThread)
@@ -691,7 +691,7 @@ namespace Chaos
 	}
 
 	template<typename ProxyType, typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
-	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles, Chaos::IDispatcher* Dispatcher)
+	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles)
 	{
 		auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Proxy->GetHandle());
 		if (RigidHandle == nullptr)
@@ -709,12 +709,12 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::PushPhysicsStatePooled(IDispatcher* Dispatcher)
+	void TPBDRigidsSolver<Traits>::PushPhysicsStatePooled()
 	{
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::PushPhysicsState(IDispatcher* Dispatcher)
+	void TPBDRigidsSolver<Traits>::PushPhysicsState()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PushPhysicsState);
 		FDirtySet* DirtyProxiesData = DirtyProxiesDataBuffer.AccessProducerBuffer();
@@ -773,7 +773,7 @@ namespace Chaos
 
 		DirtyPropertiesManager->FlipProducer();
 		DirtyProxiesDataBuffer.FlipProducer();
-		const bool bIsSingleThreaded = FChaosSolversModule::GetModule()->GetDispatcher()->GetMode() == EThreadingMode::SingleThread;
+		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
 
 		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, this]()
 		{

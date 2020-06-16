@@ -397,30 +397,16 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 
 	UWorld* WorldPtr = SolverActor.Get() ? SolverActor->GetWorld() : nullptr;
 
-	SceneSolver = ChaosModule->CreateSolver<Chaos::FDefaultTraits>(WorldPtr
+	const bool bForceSingleThread = !(FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::SupportsMultithreadingPostFork());
+
+	Chaos::EThreadingMode ThreadingMode = bForceSingleThread ? Chaos::EThreadingMode::SingleThread : Chaos::EThreadingMode::TaskGraph;
+
+	SceneSolver = ChaosModule->CreateSolver<Chaos::FDefaultTraits>(WorldPtr, ThreadingMode
 #if CHAOS_CHECKED
 	, DebugName
 #endif
 );
 	check(SceneSolver);
-
-	// If we're running the physics thread, hand over the solver to it - we are no longer
-	// able to access the solver on the game thread and should only use commands
-	if(ChaosModule->GetDispatcher() && ChaosModule->GetDispatcher()->GetMode() == Chaos::EThreadingMode::DedicatedThread)
-	{
-		// Should find a better way to spawn this. Engine module has no apeiron singleton right now.
-		// this caller will tick after all worlds have ticked and tell the apeiron module to sync
-		// all of the active proxies it has from the physics thread
-		if(!SyncCaller)
-		{
-			SyncCaller = new FPhysicsThreadSyncCaller();
-		}
-
-#if CHAOS_WITH_PAUSABLE_SOLVER
-		// Hook up this object to the check pause delegate
-		SyncCaller->OnUpdateWorldPause.AddRaw(this, &FPhysScene_Chaos::OnUpdateWorldPause);
-#endif
-	}
 
 	// #BGallagher Temporary while we're using the global scene singleton. Shouldn't be required
 	// once we have a better lifecycle for the scenes.
@@ -556,13 +542,8 @@ void FPhysScene_Chaos::UnRegisterForCollisionEvents(UPrimitiveComponent* Compone
 	CollisionEventRegistrations.Remove(Component);
 }
 
-Chaos::IDispatcher* FPhysScene_Chaos::GetDispatcher() const
-{
-	return ChaosModule ? ChaosModule->GetDispatcher() : nullptr;
-}
-
 template<typename ObjectType>
-void AddPhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, Chaos::IDispatcher* InDispatcher)
+void AddPhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver)
 {
 	ensure(false);
 }
@@ -681,10 +662,8 @@ void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, F
 {
 	check(IsInGameThread());
 
-	Chaos::IDispatcher* PhysDispatcher = InModule->GetDispatcher();
-	check(PhysDispatcher);
 
-	const bool bDedicatedThread = PhysDispatcher->GetMode() == Chaos::EThreadingMode::DedicatedThread;
+	const bool bDedicatedThread = false;
 
 	// Remove the object from the solver
 	InSolver->EnqueueCommandImmediate([InSolver, InObject, bDedicatedThread]()
@@ -775,7 +754,6 @@ void FPhysScene_Chaos::UnregisterEvent(const Chaos::EEventType& EventID)
 {
 	check(IsInGameThread());
 
-	Chaos::IDispatcher* Dispatcher = GetDispatcher();
 	Chaos::FPBDRigidsSolver* Solver = GetSolver();
 
 	if (Dispatcher)
@@ -791,7 +769,6 @@ void FPhysScene_Chaos::UnregisterEventHandler(const Chaos::EEventType& EventID, 
 {
 	check(IsInGameThread());
 
-	Chaos::IDispatcher* Dispatcher = GetDispatcher();
 	Chaos::FPBDRigidsSolver* Solver = GetSolver();
 
 	if (Dispatcher)
@@ -850,7 +827,7 @@ void FPhysScene_Chaos::AddReferencedObjects(FReferenceCollector& Collector)
 
 const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* FPhysScene_Chaos::GetSpacialAcceleration() const
 {
-	if(GetDispatcher() && GetDispatcher()->GetMode() == Chaos::EThreadingMode::SingleThread)
+	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
 	{
 		return GetSolver()->GetEvolution()->GetSpatialAcceleration();
 	}
@@ -860,9 +837,9 @@ const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>,
 
 Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* FPhysScene_Chaos::GetSpacialAcceleration()
 {
-	if(GetDispatcher() && GetDispatcher()->GetMode() == Chaos::EThreadingMode::SingleThread)
+	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
 	{
-		return GetSolver()->GetEvolution()->GetSpatialAcceleration();
+		return SceneSolver->GetEvolution()->GetSpatialAcceleration();
 	}
 
 	return SolverAccelerationStructure.Get();
@@ -870,7 +847,7 @@ Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float
 
 void FPhysScene_Chaos::CopySolverAccelerationStructure()
 {
-	if (SceneSolver && GetDispatcher()->GetMode() != Chaos::EThreadingMode::SingleThread)
+	if (SceneSolver && SceneSolver->GetThreadingMode() != Chaos::EThreadingModeTemp::SingleThread)
 	{
 		ExternalDataLock.WriteLock();
 		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
@@ -1206,11 +1183,10 @@ void FPhysScene_ChaosInterface::OnWorldEndPlay()
 void FPhysScene_ChaosInterface::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles, const bool bImmediate)
 {
 	Chaos::FPhysicsSolver* Solver = Scene.GetSolver();
-	Chaos::IDispatcher* Dispatcher = Scene.GetDispatcher();
 	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* SpatialAcceleration = Scene.GetSpacialAcceleration();
 	for (FPhysicsActorHandle& Handle : InHandles)
 	{
-		FPhysicsInterface::AddActorToSolver(Handle, Solver, Dispatcher);
+		FPhysicsInterface::AddActorToSolver(Handle, Solver);
 
 		// Optionally add this to the game-thread acceleration structure immediately
 		if (bImmediate && SpatialAcceleration)
@@ -1278,7 +1254,7 @@ void FPhysScene_ChaosInterface::Flush_AssumesLocked()
 	if(Solver)
 	{
 		//Make sure any dirty proxy data is pushed
-		Solver->PushPhysicsState(nullptr);
+		Solver->PushPhysicsState();
 		Solver->AdvanceAndDispatch_External(0);	//force commands through
 		Solver->WaitOnPendingTasks_External();
 		
@@ -1957,7 +1933,7 @@ void FPhysScene_ChaosInterface::StartFrame()
 	{
 		Solver->CastHelper([](auto& InSolver)
 		{
-			InSolver.PushPhysicsState(nullptr);
+			InSolver.PushPhysicsState();
 		});
 
 		CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(Dt));
@@ -2005,7 +1981,7 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 
 	SCOPE_CYCLE_COUNTER(STAT_Scene_EndFrame);
 
-	if (CVar_ChaosSimulationEnable.GetValueOnGameThread() == 0)
+	if (CVar_ChaosSimulationEnable.GetValueOnGameThread() == 0 || GetSolver() == nullptr)
 	{
 		return;
 	}
@@ -2013,12 +1989,10 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 	FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule();
 	checkSlow(SolverModule);
 
-	Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher();
-
 	int32 DirtyElements = DirtyElementCount(Scene.GetSpacialAcceleration()->AsChecked<SpatialAccelerationCollection>());
 	CSV_CUSTOM_STAT(ChaosPhysics, AABBTreeDirtyElementCount, DirtyElements, ECsvCustomStatOp::Set);
 
-	switch(Dispatcher->GetMode())
+	switch(GetSolver()->GetThreadingMode())	//todo: this should be per solver, only syncing one
 	{
 	case EChaosThreadingMode::SingleThread:
 	{
@@ -2039,10 +2013,9 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		TArray<Chaos::FPhysicsSolverBase*> SolverList;
 		SolverModule->GetSolversMutable(GetOwningWorld(), SolverList);
 
-		if(FPhysicsSolver* Solver = GetSolver())
 		{
 			// Make sure our solver is in the list
-			SolverList.AddUnique(Solver);
+			SolverList.AddUnique(GetSolver());
 		}
 
 		// Flip the buffers over to the game thread and sync

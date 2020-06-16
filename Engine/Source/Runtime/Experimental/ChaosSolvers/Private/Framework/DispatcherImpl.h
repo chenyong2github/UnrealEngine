@@ -10,6 +10,8 @@
 class FChaosSolversModule;
 class FPhysicsCommandsTask;
 
+#if 0
+
 namespace Chaos
 {
 	class FPersistentPhysicsTask;
@@ -50,3 +52,5 @@ namespace Chaos
 	extern template class FDispatcher<EThreadingMode::SingleThread>;
 	extern template class FDispatcher<EThreadingMode::TaskGraph>;
 }
+
+#endif
