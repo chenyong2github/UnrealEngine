@@ -1267,8 +1267,8 @@ public:
 	/** Determines if this property is associated with a component that would be displayed in the SCS editor */
 	static bool IsSCSComponentProperty(FObjectProperty* MemberProperty);
 
-	/** Attempts to match up the FComponentKey with a ComponentTemplate from the Blueprint's UCS */
-	static UActorComponent* FindUCSComponentTemplate(const FComponentKey& ComponentKey);
+	/** Attempts to match up the FComponentKey with a ComponentTemplate from the Blueprint's UCS. Will fall back to try matching the given template name if the key cannot be used. */
+	static UActorComponent* FindUCSComponentTemplate(const FComponentKey& ComponentKey, const FName& TemplateName);
 
 	/** Takes the Blueprint's NativizedFlag property and applies it to the authoritative config (does the same for flagged dependencies) */
 	static bool PropagateNativizationSetting(UBlueprint* Blueprint);
