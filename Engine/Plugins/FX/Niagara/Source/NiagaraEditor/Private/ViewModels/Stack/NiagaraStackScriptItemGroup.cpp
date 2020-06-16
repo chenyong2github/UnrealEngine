@@ -393,7 +393,7 @@ bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 			}
 			else if (Function->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset)
 			{
-				UNiagaraScript* ClipboardFunctionScript = Function->Script.Get();
+				UNiagaraScript* ClipboardFunctionScript = Function->Script.LoadSynchronous();
 				if (ClipboardFunctionScript != nullptr)
 				{
 					bValidFunction = true;
@@ -1197,7 +1197,7 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 			}
 			case ENiagaraClipboardFunctionScriptMode::ScriptAsset:
 			{
-				UNiagaraScript* ClipboardFunctionScript = ClipboardFunction->Script.Get();
+				UNiagaraScript* ClipboardFunctionScript = ClipboardFunction->Script.LoadSynchronous();
 				if (ClipboardFunctionScript != nullptr && ClipboardFunctionScript->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
 				{
 					UNiagaraScript* NewFunctionScript;
