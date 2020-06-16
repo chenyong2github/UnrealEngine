@@ -377,18 +377,26 @@ void InitGameTextLocalization()
 	// Refresh the cached config data before applying the default culture, as the game may have patched in new config data since the cache was built
 	FInternationalization::Get().RefreshCachedConfigData();
 
-	ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::None;
-	LocLoadFlags |= (FApp::IsGame() ? ELocalizationLoadFlags::Game : ELocalizationLoadFlags::None);
-
 	// Setting bIsInitialized to false ensures we don't pick up the culture change
 	// notification if ApplyDefaultCultureSettings changes the default culture
+	const FString PreviousLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
 	{
 		TGuardValue<bool> IsInitializedGuard(FTextLocalizationManager::Get().bIsInitialized, false);
-		ApplyDefaultCultureSettings(LocLoadFlags);
+		ApplyDefaultCultureSettings(ELocalizationLoadFlags::Game);
 	}
+	const FString CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
 
 	// Clear the native cultures for the game (it will re-cache later if used)
 	TextLocalizationResourceUtil::ClearNativeProjectCultureName();
+
+	ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::Game;
+	if (PreviousLanguage != CurrentLanguage)
+	{
+		// If the active language changed, then we also need to reload the Engine and Additional localization data 
+		// too, as this wouldn't have happened when the culture changed above due to the bIsInitialized guard
+		LocLoadFlags |= ELocalizationLoadFlags::Engine;
+		LocLoadFlags |= ELocalizationLoadFlags::Additional;
+	}
 
 	FTextLocalizationManager::Get().LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
 	FTextLocalizationManager::Get().bIsInitialized = true;
