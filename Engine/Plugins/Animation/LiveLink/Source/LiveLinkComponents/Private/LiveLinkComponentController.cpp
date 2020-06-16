@@ -202,37 +202,37 @@ void ULiveLinkComponentController::ConvertOldControllerSystem()
 bool ULiveLinkComponentController::IsControllerMapOutdated() const
 {
 	TArray<TSubclassOf<ULiveLinkRole>> SelectedRoleHierarchy = GetSelectedRoleHierarchyClasses(SubjectRepresentation.Role);
-	bool bNeedUpdate = ControllerMap.Num() != SelectedRoleHierarchy.Num();
 	
-	if (!bNeedUpdate)
+	//If the role class hierarchy doesn't have the same number of controllers, early exit, we need to update
+	if (ControllerMap.Num() != SelectedRoleHierarchy.Num())
 	{
-		//Check if all map matches class hierarchy
-		for (const TSubclassOf<ULiveLinkRole>& RoleClass : SelectedRoleHierarchy)
-		{
-			const ULiveLinkControllerBase* const* FoundController = ControllerMap.Find(RoleClass);
-			bNeedUpdate = FoundController == nullptr;
-			if (!bNeedUpdate)
-			{
-				const ULiveLinkControllerBase* FoundControllerPtr = *FoundController;
-				TSubclassOf<ULiveLinkControllerBase> DesiredControllerClass = GetControllerClassForRoleClass(RoleClass);
-				if (FoundControllerPtr == nullptr)
-				{
-					bNeedUpdate = DesiredControllerClass != nullptr;
-				}
-				else
-				{
-					bNeedUpdate = FoundControllerPtr->GetClass() != DesiredControllerClass;
-				}
-			}
+		return true;
+	}
+	
+	//Check if all map matches class hierarchy
+	for (const TSubclassOf<ULiveLinkRole>& RoleClass : SelectedRoleHierarchy)
+	{
+		const ULiveLinkControllerBase* const* FoundController = ControllerMap.Find(RoleClass);
 
-			if (bNeedUpdate)
+		//If ControllerMap doesn't have an entry for one of the role class hierarchy, we need to update
+		if (FoundController == nullptr)
+		{
+			return true;
+		}
+
+		//If a controller isn't selected, and there is a default one for that role, we need to update
+		const ULiveLinkControllerBase* FoundControllerPtr = *FoundController;
+		if (FoundControllerPtr == nullptr)
+		{
+			TSubclassOf<ULiveLinkControllerBase> DesiredControllerClass = GetControllerClassForRoleClass(RoleClass);
+			if (DesiredControllerClass != nullptr)
 			{
-				break;
+				return true;
 			}
 		}
 	}
 
-	return bNeedUpdate;
+	return false;
 }
 
 #endif //WITH_EDITOR
