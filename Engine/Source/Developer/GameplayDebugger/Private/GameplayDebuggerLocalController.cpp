@@ -39,6 +39,7 @@ UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObject
 	bIsSelectingActor = false;
 	bIsLocallyEnabled = false;
 	bPrevLocallyEnabled = false;
+	bEnableTextShadow = false;
 	ActiveRowIdx = 0;
 }
 
@@ -98,6 +99,8 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 	PaddingTop = SettingsCDO->DebugCanvasPaddingTop;
 	PaddingBottom = SettingsCDO->DebugCanvasPaddingBottom;
 
+	bEnableTextShadow = SettingsCDO->bDebugCanvasEnableTextShadow;
+
 	bNeedsCleanup = true;
 }
 
@@ -132,6 +135,8 @@ void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class 
 		FGameplayDebuggerCanvasContext CanvasContext(Canvas, GEngine->GetSmallFont());
 		CanvasContext.CursorX = CanvasContext.DefaultX = PaddingLeft;
 		CanvasContext.CursorY = CanvasContext.DefaultY = PaddingTop;
+
+		CanvasContext.FontRenderInfo.bEnableShadow = bEnableTextShadow;
 
 		DrawHeader(CanvasContext);
 
