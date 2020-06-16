@@ -1991,7 +1991,7 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 
 	switch(GetSolver()->GetThreadingMode())	//todo: this should be per solver, only syncing one
 	{
-	case EChaosThreadingMode::SingleThread:
+	case EThreadingModeTemp::SingleThread:
 	{
 		SyncBodies(Scene.GetSolver());
 		Scene.GetSolver()->SyncEvents_GameThread();
@@ -1999,7 +1999,7 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		OnPhysScenePostTick.Broadcast(this);
 	}
 	break;
-	case EChaosThreadingMode::TaskGraph:
+	case EThreadingModeTemp::TaskGraph:
 	{
 		check(CompletionEvent->IsComplete());
 		//check(PhysicsTickTask->IsComplete());
@@ -2062,7 +2062,7 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 
 	// No action for dedicated thread, the module will sync independently from the scene in
 	// this case. (See FChaosSolversModule::SyncTask and FPhysicsThreadSyncCaller)
-	case EChaosThreadingMode::DedicatedThread:
+	case EThreadingModeTemp::DedicatedThread:
 	default:
 		break;
 	}
