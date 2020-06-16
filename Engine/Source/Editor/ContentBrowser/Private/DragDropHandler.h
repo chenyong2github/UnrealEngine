@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Input/DragAndDrop.h"
+#include "Templates/SharedPointer.h"
 
 class SWidget;
 struct FContentBrowserItem;
