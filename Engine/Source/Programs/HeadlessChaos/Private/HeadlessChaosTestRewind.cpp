@@ -10,7 +10,6 @@
 #include "ChaosSolversModule.h"
 
 #include "Modules/ModuleManager.h"
-#include "Framework/PhysicsTickTask.h"
 #include "RewindData.h"
 #include "GeometryCollection/GeometryCollectionTestFramework.h"
 

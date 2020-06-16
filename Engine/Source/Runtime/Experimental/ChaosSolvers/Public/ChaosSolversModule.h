@@ -9,8 +9,6 @@
 #include "Modules/ModuleManager.h"
 #include "Async/AsyncWork.h"
 #include "UObject/ObjectMacros.h"
-#include "Framework/Dispatcher.h"
-#include "Framework/PersistentTask.h"
 #include "Framework/Threading.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Framework/MultiBufferResource.h"
@@ -38,6 +36,7 @@ namespace Chaos
 {
 	class FPersistentPhysicsTask;
 	class FPhysicsProxy;
+	class FPhysicsSolverBase;
 }
 
 // Default settings implementation
@@ -173,16 +172,6 @@ public:
 	 */
 	void DumpHierarchyStats(int32* OutOptMaxCellElements = nullptr);
 
-	/**
-	 * Acquires a read lock for physics object results
-	 */
-	void LockResultsRead();
-
-	/**
-	 * Unlocks an acquired physics object result lock
-	 */
-	void UnlockResultsRead();
-
 #if WITH_EDITOR
 	/**
 	 * Pause solvers. Thread safe.
@@ -267,9 +256,6 @@ private:
 	// or mess up the solvers array during use.
 	mutable FCriticalSection SolverLock;
 
-	// Called from the sync point to retrieve stats from the physics thread and push them to profilers or the stats system
-	void UpdateStats();
-
 	/** Store the ChaosSolverActor type */
 	UClass* SolverActorClass;
 
@@ -285,8 +271,6 @@ private:
 	float TotalAverageUpdateTime;
 	float Fps;
 	float EffectiveFps;
-
-	Chaos::FPersistentPhysicsTaskStatistics::FPerSolverStatistics PerSolverStats;
 #endif
 
 #if WITH_EDITOR
