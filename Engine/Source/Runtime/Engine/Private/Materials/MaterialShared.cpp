@@ -3560,10 +3560,10 @@ FMaterialAttributeDefintion::FMaterialAttributeDefintion(
 		EMaterialValueType InValueType, const FVector4& InDefaultValue, EShaderFrequency InShaderFrequency,
 		int32 InTexCoordIndex /*= INDEX_NONE*/, bool bInIsHidden /*= false*/, MaterialAttributeBlendFunction InBlendFunction /*= nullptr*/)
 	: AttributeID(InAttributeID)
+	, DefaultValue(InDefaultValue)
 	, AttributeName(InAttributeName)
 	, Property(InProperty)
 	, ValueType(InValueType)
-	, DefaultValue(InDefaultValue)
 	, ShaderFrequency(InShaderFrequency)
 	, TexCoordIndex(InTexCoordIndex)
 	, BlendFunction(InBlendFunction)

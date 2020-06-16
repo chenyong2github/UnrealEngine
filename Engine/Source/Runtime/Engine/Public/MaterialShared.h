@@ -2574,10 +2574,10 @@ public:
 	}
 
 	FGuid				AttributeID;
+	FVector4			DefaultValue;
 	FString				AttributeName;
 	EMaterialProperty	Property;	
 	EMaterialValueType	ValueType;
-	FVector4			DefaultValue;
 	EShaderFrequency	ShaderFrequency;
 	int32				TexCoordIndex;
 
