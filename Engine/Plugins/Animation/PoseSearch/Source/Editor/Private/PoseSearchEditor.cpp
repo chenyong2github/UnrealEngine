@@ -49,7 +49,6 @@ public:
 	virtual void StartupModule() override
 	{
 		FAssetToolsModule::GetModule().Get().RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PoseSearchSchema));
-		//UAssetToolsHelpers::GetAssetTools()->RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PoseSearchSchema));
 	}
 
 	virtual void ShutdownModule() override

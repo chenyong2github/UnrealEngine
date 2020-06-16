@@ -15,6 +15,7 @@
 
 
 class UAnimSequenceBase;
+struct FCompactPose;
 
 /** Sampling parameters for building a pose search index for an asset. */
 UCLASS(BlueprintType, Category = "Animation|PoseSearch")
