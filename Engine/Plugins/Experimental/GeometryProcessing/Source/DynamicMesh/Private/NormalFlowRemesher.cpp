@@ -144,7 +144,7 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass()
 			continue;
 		}
 
-		if (IsVertexConstrained(VertexID))
+		if (IsVertexPositionConstrained(VertexID))
 		{
 			continue;
 		}
@@ -264,8 +264,15 @@ void FNormalFlowRemesher::TrackedEdgeFlipPass()
 
 	for (auto EdgeID : Mesh->EdgeIndicesItr())
 	{
-		FIndex2i EdgeVertices = Mesh->GetEdgeV(EdgeID);
-		FIndex2i OpposingEdgeVertices = Mesh->GetEdgeOpposingV(EdgeID);
+		check(Mesh->IsEdge(EdgeID));
+
+		FEdgeConstraint Constraint =
+			(!Constraints) ? FEdgeConstraint::Unconstrained() : Constraints->GetEdgeConstraint(EdgeID);
+
+		if (!Constraint.CanFlip())
+		{
+			continue;
+		}
 
 		if (EdgeFlipWouldReduceNormalError(EdgeID))
 		{
@@ -274,6 +281,9 @@ void FNormalFlowRemesher::TrackedEdgeFlipPass()
 
 			if (Result == EMeshResult::Ok)
 			{
+				FIndex2i EdgeVertices = Mesh->GetEdgeV(EdgeID);
+				FIndex2i OpposingEdgeVertices = Mesh->GetEdgeOpposingV(EdgeID);
+
 				QueueOneRing(EdgeVertices.A);
 				QueueOneRing(EdgeVertices.B);
 				QueueOneRing(OpposingEdgeVertices.A);
