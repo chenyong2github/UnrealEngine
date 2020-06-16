@@ -858,6 +858,7 @@ void FTextLocalizationManager::RefreshResources()
 
 void FTextLocalizationManager::OnPakFileMounted(const IPakFile& PakFile)
 {
+	SCOPED_BOOT_TIMING("FTextLocalizationManager::OnPakFileMounted");
 	LLM_SCOPE(ELLMTag::Localization);
 
 	int32 ChunkId = PakFile.PakGetPakchunkIndex();
