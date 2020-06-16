@@ -494,8 +494,11 @@ protected:
 				Mesh->GetTriVertices(ti, A, B, C);
 				if ( IntersectionUtil::RayTriangleTest(Ray.Origin, Ray.Direction, A,B,C) ) 
 				{
-					HitTIDOut = ti;
-					return true;
+					FIntrRay3Triangle3d Query = FIntrRay3Triangle3d(Ray, FTriangle3d(A,B,C));
+					if (Query.Find() && Query.RayParameter < Options.MaxDistance)
+					{
+						return true;
+					}
 				}
 			}
 		}
