@@ -2915,7 +2915,7 @@ static void CreateGlobalImportsAndExports(
 	UE_LOG(LogIoStore, Display, TEXT("Creating global imports and exports..."));
 
 	TArray<FString> TempFullNames;
-	const FString DLCPrefix = Arguments.IsDLC() ? FString::Printf("/%s/", FPaths::GetBaseFilename(Arguments.DLCPluginPath)): FString();
+	const FString DLCPrefix = Arguments.IsDLC() ? FString::Printf(TEXT("/%s/"), *FPaths::GetBaseFilename(Arguments.DLCPluginPath)) : FString();
 
 	TSet<FPackage*> TempImportedPackages;
 	for (FPackage* Package : Packages)
