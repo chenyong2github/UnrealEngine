@@ -106,23 +106,17 @@ void FD3D12Device::CreateCommandContexts()
 
 	const uint32 NumContexts = FTaskGraphInterface::Get().GetNumWorkerThreads() + 1;
 	const uint32 NumAsyncComputeContexts = GEnableAsyncCompute ? 1 : 0;
-	const uint32 TotalContexts = NumContexts + NumAsyncComputeContexts;
 	
 	// We never make the default context free for allocation by the context containers
 	CommandContextArray.Reserve(NumContexts);
 	FreeCommandContexts.Reserve(NumContexts - 1);
 	AsyncComputeContextArray.Reserve(NumAsyncComputeContexts);
 
-	const uint32 DescriptorSuballocationPerContext = GlobalViewHeap.GetTotalSize() / TotalContexts;
-	uint32 CurrentGlobalHeapOffset = 0;
-
 	for (uint32 i = 0; i < NumContexts; ++i)
-	{
-		FD3D12SubAllocatedOnlineHeap::SubAllocationDesc SubHeapDesc(&GlobalViewHeap, CurrentGlobalHeapOffset, DescriptorSuballocationPerContext);
-
+	{	
 		const bool bIsDefaultContext = (i == 0);
-		FD3D12CommandContext* NewCmdContext = GetOwningRHI()->CreateCommandContext(this, SubHeapDesc, bIsDefaultContext);
-		CurrentGlobalHeapOffset += DescriptorSuballocationPerContext;
+		const bool bIsAsyncComputeContext = false;
+		FD3D12CommandContext* NewCmdContext = GetOwningRHI()->CreateCommandContext(this, bIsDefaultContext, bIsAsyncComputeContext);
 
 		// without that the first RHIClear would get a scissor rect of (0,0)-(0,0) which means we get a draw call clear 
 		NewCmdContext->RHISetScissorRect(false, 0, 0, 0, 0);
@@ -137,14 +131,11 @@ void FD3D12Device::CreateCommandContexts()
 	}
 
 	for (uint32 i = 0; i < NumAsyncComputeContexts; ++i)
-	{
-		FD3D12SubAllocatedOnlineHeap::SubAllocationDesc SubHeapDesc(&GlobalViewHeap, CurrentGlobalHeapOffset, DescriptorSuballocationPerContext);
-
+	{		
 		const bool bIsDefaultContext = (i == 0); //-V547
 		const bool bIsAsyncComputeContext = true;
-		FD3D12CommandContext* NewCmdContext = GetOwningRHI()->CreateCommandContext(this, SubHeapDesc, bIsDefaultContext, bIsAsyncComputeContext);
-		CurrentGlobalHeapOffset += DescriptorSuballocationPerContext;
-
+		FD3D12CommandContext* NewCmdContext = GetOwningRHI()->CreateCommandContext(this, bIsDefaultContext, bIsAsyncComputeContext);
+	
 		AsyncComputeContextArray.Add(NewCmdContext);
 	}
 
@@ -256,7 +247,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 #endif
 	SamplerAllocator.Init(Direct3DDevice);
 
-	GlobalSamplerHeap.Init(NUM_SAMPLER_DESCRIPTORS, FD3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	GlobalSamplerHeap.Init(NUM_SAMPLER_DESCRIPTORS);
 
 	// This value can be tuned on a per app basis. I.e. most apps will never run into descriptor heap pressure so
 	// can make this global heap smaller
@@ -280,7 +271,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	}
 	check(NumGlobalViewDesc <= MaximumSupportedHeapSize);
 		
-	GlobalViewHeap.Init(NumGlobalViewDesc, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	GlobalViewHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, NumGlobalViewDesc);
 
 	// Init the occlusion and timestamp query heaps
 	OcclusionQueryHeap.Init();

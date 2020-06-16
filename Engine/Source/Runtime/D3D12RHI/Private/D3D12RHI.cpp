@@ -259,9 +259,9 @@ void FD3D12DynamicRHI::Shutdown()
 	ZeroBufferSize = 0;
 }
 
-FD3D12CommandContext* FD3D12DynamicRHI::CreateCommandContext(FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext)
+FD3D12CommandContext* FD3D12DynamicRHI::CreateCommandContext(FD3D12Device* InParent, bool InIsDefaultContext, bool InIsAsyncComputeContext)
 {
-	FD3D12CommandContext* NewContext = new FD3D12CommandContext(InParent, SubHeapDesc, InIsDefaultContext, InIsAsyncComputeContext);
+	FD3D12CommandContext* NewContext = new FD3D12CommandContext(InParent, InIsDefaultContext, InIsAsyncComputeContext);
 	return NewContext;
 }
 
