@@ -7,7 +7,6 @@
 #include "ChaosStats.h"
 #include "ChaosLog.h"
 #include "HAL/PlatformProcess.h"
-#include "Framework/PersistentTask.h"
 #include "Misc/CoreDelegates.h"
 #include "HAL/IConsoleManager.h"
 #include "PhysicsSolver.h"
@@ -16,11 +15,8 @@
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/UniformGrid.h"
 #include "UObject/Class.h"
-#include "Framework/Dispatcher.h"
-#include "Framework/DispatcherImpl.h"
 #include "Misc/App.h"
 #include "Chaos/PhysicalMaterials.h"
-#include "Framework/PhysicsTickTask.h"
 
 TAutoConsoleVariable<int32> CVarChaosThreadEnabled(
 	TEXT("p.Chaos.DedicatedThreadEnabled"),
@@ -480,22 +476,6 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 	}
 }
 
-void FChaosSolversModule::LockResultsRead()
-{
-	if(IsPersistentTaskRunning())
-	{
-		PhysicsInnerTask->CacheLock.ReadLock();
-	}
-}
-
-void FChaosSolversModule::UnlockResultsRead()
-{
-	if(IsPersistentTaskRunning())
-	{
-		PhysicsInnerTask->CacheLock.ReadUnlock();
-	}
-}
-
 DECLARE_CYCLE_STAT(TEXT("PhysicsDedicatedStats"), STAT_PhysicsDedicatedStats, STATGROUP_ChaosDedicated);	//this is a hack, needed to make stat group turn on
 DECLARE_FLOAT_COUNTER_STAT(TEXT("PhysicsThreadTotalTime(ms)"), STAT_PhysicsThreadTotalTime, STATGROUP_ChaosDedicated);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveConstraints"), STAT_NumActiveConstraintsDedicated, STATGROUP_ChaosDedicated);
@@ -503,6 +483,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveParticles"), STAT_NumActiveParticlesDe
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveCollisionPoints"), STAT_NumActiveCollisionPointsDedicated, STATGROUP_ChaosDedicated);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveShapes"), STAT_NumActiveShapesDedicated, STATGROUP_ChaosDedicated);
 
+#if 0
 void FChaosSolversModule::UpdateStats()
 {
 #if STATS
@@ -576,6 +557,7 @@ void FChaosSolversModule::UpdateStats()
 
 #endif
 }
+#endif
 
 #if WITH_EDITOR
 void FChaosSolversModule::PauseSolvers()
