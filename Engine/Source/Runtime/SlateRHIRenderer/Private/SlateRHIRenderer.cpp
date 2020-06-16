@@ -779,6 +779,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				ViewportInfo.ColorSpaceLUTSRV.SafeRelease();
 
 				FRHIResourceCreateInfo CreateInfo;
+				CreateInfo.DebugName = TEXT("ColorSpaceLUT");
 				RHICreateTargetableShaderResource3D(CompositionLUTSize, CompositionLUTSize, CompositionLUTSize, PF_A2B10G10R10, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, ViewportInfo.ColorSpaceLUTRT, ViewportInfo.ColorSpaceLUTSRV);
 				bLUTStale = true;
 			}
@@ -789,6 +790,8 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			if (bCompositeUI)
 			{
 				bClear = true; // Force a clear of the UI buffer to black
+
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ViewportInfo.HDRSourceRT->GetRenderTargetItem().TargetableTexture);
 
 				// Grab HDR backbuffer
 				FResolveParams ResolveParams;
@@ -863,30 +866,34 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				}
 	#endif
 				{
-					if (BatchData.GetRenderBatches().Num() > 0)
+					bool bHasBatches = BatchData.GetRenderBatches().Num() > 0;
+					if (bHasBatches || bClear)
 					{
 						RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateBatches"));
 						SCOPE_CYCLE_COUNTER(STAT_SlateRTDrawBatches);
 
-						FSlateBackBuffer BackBufferTarget(BackBuffer, FIntPoint(ViewportWidth, ViewportHeight));
+						if (bHasBatches)
+						{
+							FSlateBackBuffer BackBufferTarget(BackBuffer, FIntPoint(ViewportWidth, ViewportHeight));
 
-						FSlateRenderingParams RenderParams(ViewMatrix * ViewportInfo.ProjectionMatrix, DrawCommandParams.WorldTimeSeconds, DrawCommandParams.DeltaTimeSeconds, DrawCommandParams.RealTimeSeconds);
-						RenderParams.bWireFrame = !!SlateWireFrame;
-						RenderParams.bIsHDR     = ViewportInfo.bHDREnabled;
+							FSlateRenderingParams RenderParams(ViewMatrix * ViewportInfo.ProjectionMatrix, DrawCommandParams.WorldTimeSeconds, DrawCommandParams.DeltaTimeSeconds, DrawCommandParams.RealTimeSeconds);
+							RenderParams.bWireFrame = !!SlateWireFrame;
+							RenderParams.bIsHDR = ViewportInfo.bHDREnabled;
 
-						FTexture2DRHIRef EmptyTarget;
+							FTexture2DRHIRef EmptyTarget;
 
-						RenderingPolicy->DrawElements
-						(
-							RHICmdList,
-							BackBufferTarget,
-							BackBuffer,
-							PostProcessBuffer,
-							ViewportInfo.bRequiresStencilTest ? ViewportInfo.DepthStencil : EmptyTarget,
-							BatchData.GetFirstRenderBatchIndex(),
-							BatchData.GetRenderBatches(),
-							RenderParams
-						);
+							RenderingPolicy->DrawElements
+							(
+								RHICmdList,
+								BackBufferTarget,
+								BackBuffer,
+								PostProcessBuffer,
+								ViewportInfo.bRequiresStencilTest ? ViewportInfo.DepthStencil : EmptyTarget,
+								BatchData.GetFirstRenderBatchIndex(),
+								BatchData.GetRenderBatches(),
+								RenderParams
+							);
+						}
 					}
 				}
 
@@ -914,6 +921,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				if (bLUTStale)
 				{
 					// #todo-renderpasses will this touch every pixel? use NoAction?
+					RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ViewportInfo.ColorSpaceLUTRT);
 					FRHIRenderPassInfo RPInfo(ViewportInfo.ColorSpaceLUTRT, ERenderTargetActions::Load_Store);
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("GenerateLUT"));
 					{
