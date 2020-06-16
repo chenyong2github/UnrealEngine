@@ -648,6 +648,13 @@ struct FDisconnectedClient
 	}
 };
 
+enum class EProcessRemoteFunctionFlags : uint32
+{
+	None = 0,
+	ReplicatedActor = 1 << 0,	//! The owning actor has been replicated at least once
+								//! while processing the remote function.
+};
+ENUM_CLASS_FLAGS(EProcessRemoteFunctionFlags);
 
 UCLASS(Abstract, customConstructor, transient, MinimalAPI, config=Engine)
 class UNetDriver : public UObject, public FExec
@@ -656,7 +663,28 @@ class UNetDriver : public UObject, public FExec
 
 protected:
 
-	ENGINE_API void InternalProcessRemoteFunction(class AActor* Actor, class UObject* SubObject, class UNetConnection* Connection, class UFunction* Function, void* Parms, FOutParmRec* OutParms, FFrame* Stack, bool IsServer);
+	ENGINE_API void InternalProcessRemoteFunction(
+		class AActor* Actor,
+		class UObject* SubObject,
+		class UNetConnection* Connection,
+		class UFunction* Function,
+		void* Parms,
+		FOutParmRec* OutParms,
+		FFrame* Stack,
+		bool bIsServer);
+
+private:
+
+	void InternalProcessRemoteFunctionPrivate(
+		class AActor* Actor,
+		class UObject* SubObject,
+		class UNetConnection* Connection,
+		class UFunction* Function,
+		void* Parms,
+		FOutParmRec* OutParms,
+		FFrame* Stack,
+		const bool bIsServer,
+		EProcessRemoteFunctionFlags& RemoteFunctionFlags);
 
 public:
 
@@ -1253,7 +1281,50 @@ public:
 	};	
 
 	/** Process a remote function on given actor channel. This is called by ::ProcessRemoteFunction.*/
-	ENGINE_API void ProcessRemoteFunctionForChannel(UActorChannel* Ch, const class FClassNetCache* ClassCache, const FFieldNetCache* FieldCache, UObject* TargetObj, UNetConnection* Connection,  UFunction* Function, void* Parms, FOutParmRec* OutParms, FFrame* Stack, const bool IsServer, const ERemoteFunctionSendPolicy SendPolicy = ERemoteFunctionSendPolicy::Default);
+	ENGINE_API void ProcessRemoteFunctionForChannel(
+		UActorChannel* Ch,
+		const class FClassNetCache* ClassCache,
+		const FFieldNetCache* FieldCache,
+		UObject* TargetObj,
+		UNetConnection* Connection,
+		UFunction* Function,
+		void* Parms,
+		FOutParmRec* OutParms,
+		FFrame* Stack,
+		const bool IsServer,
+		const ERemoteFunctionSendPolicy SendPolicy = ERemoteFunctionSendPolicy::Default);
+
+	ENGINE_API void ProcessRemoteFunctionForChannel(
+		UActorChannel* Ch,
+		const class FClassNetCache* ClassCache,
+		const FFieldNetCache* FieldCache,
+		UObject* TargetObj,
+		UNetConnection* Connection,
+		UFunction* Function,
+		void* Parms,
+		FOutParmRec* OutParms,
+		FFrame* Stack,
+		const bool IsServer,
+		const ERemoteFunctionSendPolicy SendPolicy,
+		EProcessRemoteFunctionFlags& RemoteFunctionFlags);
+
+private:
+
+	void ProcessRemoteFunctionForChannelPrivate(
+		UActorChannel* Ch,
+		const class FClassNetCache* ClassCache,
+		const FFieldNetCache* FieldCache,
+		UObject* TargetObj,
+		UNetConnection* Connection,
+		UFunction* Function,
+		void* Parms,
+		FOutParmRec* OutParms,
+		FFrame* Stack,
+		const bool bIsServer,
+		const ERemoteFunctionSendPolicy SendPolicy,
+		EProcessRemoteFunctionFlags& RemoteFunctionFlags);
+
+public:
 
 	/** handle time update: read and process packets */
 	ENGINE_API virtual void TickDispatch( float DeltaTime );
