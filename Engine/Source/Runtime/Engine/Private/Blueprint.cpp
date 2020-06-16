@@ -437,13 +437,10 @@ void UBlueprint::Serialize(FArchive& Ar)
 	// Preload our parent blueprints
 	if (Ar.IsLoading())
 	{
-		for (UClass* ClassIt = ParentClass; (ClassIt != NULL) && !(ClassIt->HasAnyClassFlags(CLASS_Native)); ClassIt = ClassIt->GetSuperClass())
+		for (UClass* ClassIt = ParentClass; ClassIt && !ClassIt->HasAnyClassFlags(CLASS_Native); ClassIt = ClassIt->GetSuperClass())
 		{
-			if (!ensure(ClassIt->ClassGeneratedBy != nullptr))
-			{
-				UE_LOG(LogBlueprint, Error, TEXT("Cannot preload parent blueprint from null ClassGeneratedBy field (for '%s')"), *ClassIt->GetName());
-			}
-			else if (ClassIt->ClassGeneratedBy->HasAnyFlags(RF_NeedLoad))
+			// In some cases, a non-native parent class may not have an associated Blueprint asset - we consider that to be ok here since we're just preloading.
+			if (ClassIt->ClassGeneratedBy && ClassIt->ClassGeneratedBy->HasAnyFlags(RF_NeedLoad))
 			{
 				ClassIt->ClassGeneratedBy->GetLinker()->Preload(ClassIt->ClassGeneratedBy);
 			}
