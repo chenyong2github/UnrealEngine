@@ -1069,13 +1069,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			FModuleManager::Get().LoadModule(TEXT("PListEditor"));
 		}
 
-		bool bEnvironmentQueryEditor = false;
-		GConfig->GetBool(TEXT("EnvironmentQueryEd"), TEXT("EnableEnvironmentQueryEd"), bEnvironmentQueryEditor, GEngineIni);
-		if (bEnvironmentQueryEditor || GetDefault<UEditorExperimentalSettings>()->bEQSEditor)
-		{
-			FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
-		}
-
 		FModuleManager::Get().LoadModule(TEXT("LogVisualizer"));
 		FModuleManager::Get().LoadModule(TEXT("HotReload"));
 
@@ -1688,9 +1681,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				}
 
 				// Update the level.
-				GameCycles=0;
-				CLOCK_CYCLES(GameCycles);
-
 				{
 					// So that hierarchical stats work in PIE
 					SCOPE_CYCLE_COUNTER(STAT_FrameTime);
@@ -1711,9 +1701,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 					FKismetDebugUtilities::NotifyDebuggerOfEndOfGameFrame(PieContext.World());
 				}
-
-
-				UNCLOCK_CYCLES(GameCycles);
 
 				// Tick the viewports.
 				if ( GameViewport != NULL )

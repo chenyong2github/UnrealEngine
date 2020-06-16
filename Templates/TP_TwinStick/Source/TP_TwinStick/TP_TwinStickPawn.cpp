@@ -112,7 +112,7 @@ void ATP_TwinStickPawn::FireShot(FVector FireDirection)
 			const FVector SpawnLocation = GetActorLocation() + FireRotation.RotateVector(GunOffset);
 
 			UWorld* const World = GetWorld();
-			if (World != NULL)
+			if (World != nullptr)
 			{
 				// spawn the projectile
 				World->SpawnActor<ATP_TwinStickProjectile>(SpawnLocation, FireRotation);

@@ -594,25 +594,7 @@ bool UBlueprint::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Fl
 		return false;
 	}
 
-	bool bSuccess = Super::Rename( InName, NewOuter, Flags );
-
-	// Finally, do a compile, but only if the new name differs from before
-	if(bSuccess && !(Flags & REN_Test) && !(Flags & REN_DoNotDirty) && InName && InName != OldName)
-	{
-		// Gather all blueprints that currently depend on this one.
-		TArray<UBlueprint*> Dependents;
-		FBlueprintEditorUtils::FindDependentBlueprints(this, Dependents);
-
-		FKismetEditorUtilities::CompileBlueprint(this);
-
-		// Recompile dependent blueprints after compiling this one. Otherwise, we can end up with a GLEO during the internal package save, which will include referencers as well.
-		for (UBlueprint* DependentBlueprint : Dependents)
-		{
-			FKismetEditorUtilities::CompileBlueprint(DependentBlueprint);
-		}
-	}
-
-	return bSuccess;
+	return Super::Rename( InName, NewOuter, Flags );
 }
 
 void UBlueprint::PostDuplicate(bool bDuplicateForPIE)
@@ -907,11 +889,11 @@ void UBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 			return;
 		}
 
-		DebuggingWorldRegistrationHelper(OldObject, NULL);
+		DebuggingWorldRegistrationHelper(OldObject, nullptr);
 	}
 
 	// Note that we allow macro Blueprints to bypass this check
-	if ((NewObject != NULL) && !GCompilingBlueprint && BlueprintType != BPTYPE_MacroLibrary)
+	if ((NewObject != nullptr) && !GCompilingBlueprint && BlueprintType != BPTYPE_MacroLibrary)
 	{
 		// You can only debug instances of this!
 		if (!ensureMsgf(
@@ -920,7 +902,7 @@ void UBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 				this->GeneratedClass ? *(this->GeneratedClass->GetName()) : TEXT("NULL"), 
 				NewObject->GetClass() ? *(NewObject->GetClass()->GetName()) : TEXT("NULL")))
 		{
-			NewObject = NULL;
+			NewObject = nullptr;
 		}
 	}
 
@@ -928,10 +910,23 @@ void UBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 	CurrentObjectBeingDebugged = NewObject;
 
 	// Register the new object
-	if (NewObject != NULL)
+	if (NewObject != nullptr)
 	{
+		ObjectPathToDebug = NewObject->GetPathName();
 		DebuggingWorldRegistrationHelper(NewObject, NewObject);
 	}
+	else
+	{
+		ObjectPathToDebug = FString();
+	}
+}
+
+void UBlueprint::UnregisterObjectBeingDebugged()
+{
+	// This is implemented as a set to null and restore of ObjectPathToDebug, so subclasses have their overrides called properly
+	FString LastPath = ObjectPathToDebug;
+	SetObjectBeingDebugged(nullptr);
+	ObjectPathToDebug = LastPath;
 }
 
 void UBlueprint::SetWorldBeingDebugged(UWorld *NewWorld)

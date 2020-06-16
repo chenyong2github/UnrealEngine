@@ -341,21 +341,21 @@ public:
 	 * @param Message	The message to display if the assert fails ("Assertion Failed: 'Message' for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	bool AssertTrue(bool Condition, FString Message, const UObject* ContextObject = nullptr);
+	bool AssertTrue(bool Condition, const FString& Message, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that a boolean value is false.
 	 * @param Message	The message to display if the assert fails ("Assertion Failed: 'Message' for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	bool AssertFalse(bool Condition, FString Message, const UObject* ContextObject = nullptr);
+	bool AssertFalse(bool Condition, const FString& Message, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that a UObject is valid
 	 * @param Message	The message to display if the object is invalid ("Invalid object: 'Message' for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	bool AssertIsValid(UObject* Object, FString Message, const UObject* ContextObject = nullptr);
+	bool AssertIsValid(UObject* Object, const FString& Message, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert on a relationship between two integers.
@@ -414,6 +414,13 @@ public:
 	bool AssertEqual_Name(const FName Actual, const FName Expected, const FString& What, const UObject* ContextObject = nullptr);
 
 	/**
+	* Assert that two Objects are equal
+	* @param What	A name to use in the message if the assert fails (What: expected {Actual} to be Equal To {Expected} for context '')
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Object)", meta = (HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	bool AssertEqual_Object(UObject* Actual, UObject* Expected, const FString& What, const UObject* ContextObject = nullptr);
+
+	/**
 	 * Assert that two transforms are (components memberwise - translation, rotation, scale) not equal within a small tolerance.
 	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
 	 */
@@ -470,10 +477,10 @@ public:
 	bool AssertEqual_TraceQueryResults(const UTraceQueryTestResults* Actual, const UTraceQueryTestResults* Expected, const FString& What, const UObject* ContextObject = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "Reporting")
-	void AddWarning(const FString Message);
+	void AddWarning(const FString& Message);
 
 	UFUNCTION(BlueprintCallable, Category = "Reporting")
-	void AddError(const FString Message);
+	void AddError(const FString& Message);
 
 //protected:
 	/** TODO: break this out into a library */

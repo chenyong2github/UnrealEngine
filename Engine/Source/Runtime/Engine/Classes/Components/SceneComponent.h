@@ -563,8 +563,8 @@ public:
 	void AddWorldRotation(const FQuat& DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/**
-	 * Adds a delta to the transform of the component in world space. Scale is unchanged.
-	 * @param DeltaTransform	Change in transform in world space for the component. Scale is unchanged.
+	 * Adds a delta to the transform of the component in world space. Ignores scale and sets it to (1,1,1).
+	 * @param DeltaTransform	Change in transform in world space for the component. Scale is ignored.
 	 * @param SweepHitResult	Hit result from any impact if sweep is true.
 	 * @param bSweep			Whether we sweep to the destination location, triggering overlaps along the way and stopping short of the target if blocked by something.
 	 *							Only the root component is swept and checked for blocking collision, child components move without sweeping. If collision is off, this has no effect.
@@ -577,8 +577,23 @@ public:
 	void K2_AddWorldTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
 	void AddWorldTransform(const FTransform& DeltaTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
+	/**
+	 * Adds a delta to the transform of the component in world space. Scale is unchanged.
+	 * @param DeltaTransform	Change in transform in world space for the component. Scale is ignored since we preserve the original scale.
+	 * @param SweepHitResult	Hit result from any impact if sweep is true.
+	 * @param bSweep			Whether we sweep to the destination location, triggering overlaps along the way and stopping short of the target if blocked by something.
+	 *							Only the root component is swept and checked for blocking collision, child components move without sweeping. If collision is off, this has no effect.
+	 * @param bTeleport			Whether we teleport the physics state (if physics collision is enabled for this object).
+	 *							If true, physics velocity for this object is unchanged (so ragdoll parts are not affected by change in location).
+	 *							If false, physics velocity is updated based on the change in position (affecting ragdoll parts).
+	 *							If CCD is on and not teleporting, this will affect objects along the entire sweep volume.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Utilities|Transformation", meta=(DisplayName="AddWorldTransformKeepScale", ScriptName="AddWorldTransformKeepScale"))
+	void K2_AddWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	void AddWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+
 	/** Return location of the component, in world space */
-	UFUNCTION(BlueprintCallable, meta=(DisplayName = "GetWorldLocation", ScriptName = "GetWorldLocation"), Category="Utilities|Transformation")
+	UFUNCTION(BlueprintCallable, meta=(DisplayName = "GetWorldLocation", ScriptName = "GetWorldLocation", Keywords = "position"), Category="Utilities|Transformation")
 	FVector K2_GetComponentLocation() const;
 
 	/** Returns rotation of the component, in world space. */
@@ -1411,6 +1426,18 @@ public:
 	 * You should not use this method. The standard SetRelativeScale3D variants should be used.
 	 */
 	void SetRelativeScale3D_Direct(const FVector NewRelativeScale3D);
+
+	/**
+	 * Helper function to set the location, rotation, and scale without causing other side effects to this instance.
+	 *
+	 * You should not use this method. The standard SetRelativeTransform variants should be used.
+	 */
+	void SetRelativeTransform_Direct(const FTransform& NewRelativeTransform)
+	{
+		SetRelativeLocation_Direct(NewRelativeTransform.GetLocation());
+		SetRelativeRotation_Direct(NewRelativeTransform.Rotator());
+		SetRelativeScale3D_Direct(NewRelativeTransform.GetScale3D());
+	}
 
 	/**
 	 * Gets the property name for bAbsoluteLocation.

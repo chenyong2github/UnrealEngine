@@ -487,7 +487,7 @@ static bool bRequireFocusForGamepadInput = false;
 FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
 	TEXT("Slate.RequireFocusForGamepadInput"),
 	bRequireFocusForGamepadInput,
-	TEXT("")
+	TEXT("Whether gamepad input should be ignored by the engine if the application is not currently active")
 );
 
 #if PLATFORM_UI_NEEDS_TOOLTIPS

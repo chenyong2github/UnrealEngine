@@ -1398,6 +1398,12 @@ FQuat UKismetMathLibrary::Conv_VectorToQuaterion(FVector InVec)
 }
 
 KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::Conv_VectorToQuaternion(FVector InVec)
+{
+	return InVec.ToOrientationQuat();
+}
+
+KISMET_MATH_FORCEINLINE
 FLinearColor UKismetMathLibrary::Conv_VectorToLinearColor(FVector InVec)
 {
 	return FLinearColor(InVec);	
@@ -1973,6 +1979,12 @@ FRotator UKismetMathLibrary::Conv_Vector4ToRotator(const FVector4& InVec)
 
 KISMET_MATH_FORCEINLINE
 FQuat UKismetMathLibrary::Conv_Vector4ToQuaterion(const FVector4& InVec)
+{
+	return InVec.ToOrientationQuat();
+}
+
+KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::Conv_Vector4ToQuaternion(const FVector4& InVec)
 {
 	return InVec.ToOrientationQuat();
 }

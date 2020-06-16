@@ -84,8 +84,6 @@ protected:
 
 	void RefreshCachedDataTable(const FName InCachedSelection = NAME_None, const bool bUpdateEvenIfValid = false);
 
-	void ImportDataTableUpdate();
-
 	void UpdateVisibleRows(const FName InCachedSelection = NAME_None, const bool bUpdateEvenIfValid = false);
 
 	void RestoreCachedSelection(const FName InCachedSelection, const bool bUpdateEvenIfValid = false);
@@ -156,8 +154,6 @@ protected:
 
 	/** Helper function for creating and registering the tab containing the row editor */
 	virtual void CreateAndRegisterRowEditorTab(const TSharedRef<class FTabManager>& InTabManager);
-
-	void BrowseDocumentation_Execute() const;
 
 	virtual FString GetDocumentationLink() const override;
 	

@@ -279,8 +279,6 @@ void FCurveStructCustomization::OnExternalCurveChanged(TSharedRef<IPropertyHandl
 		{
 			CurveWidget->SetCurveOwner(this, CurvePropertyHandle->IsEditable());
 		}
-
-		CurvePropertyHandle->NotifyPostChange();
 	}
 }
 

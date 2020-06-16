@@ -363,13 +363,6 @@ EVisibility SDetailsView::GetActorNameAreaVisibility() const
 	return bVisible ? EVisibility::Visible : EVisibility::Collapsed; 
 }
 
-EVisibility SDetailsView::GetScrollBarVisibility() const
-{
-	const bool bHasAnythingToShow = RootTreeNodes.Num() > 0;
-	const bool bShowScrollBar = DetailsViewArgs.bShowScrollBar && bHasAnythingToShow;
-	return bShowScrollBar ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
 void SDetailsView::ForceRefresh()
 {
 	TArray<UObject*> NewObjectList;

@@ -99,16 +99,14 @@ void UNavModifierComponent::CalcAndCacheBounds() const
 			Bounds = FBox::BuildAABB(MyOwner->GetActorLocation(), FailsafeExtent);
 			ComponentBounds.Add(FRotatedBox(Bounds, MyOwner->GetActorQuat()));
 		}
-		else
+
+		for (int32 Idx = 0; Idx < ComponentBounds.Num(); Idx++)
 		{
-			for (int32 Idx = 0; Idx < ComponentBounds.Num(); Idx++)
-			{
-				const FVector BoxOrigin = ComponentBounds[Idx].Box.GetCenter();
-				const FVector BoxExtent = ComponentBounds[Idx].Box.GetExtent();
-				
-				const FVector NavModBoxOrigin = FTransform(ComponentBounds[Idx].Quat).InverseTransformPosition(BoxOrigin);
-				ComponentBounds[Idx].Box = FBox::BuildAABB(NavModBoxOrigin, BoxExtent);
-			}
+			const FVector BoxOrigin = ComponentBounds[Idx].Box.GetCenter();
+			const FVector BoxExtent = ComponentBounds[Idx].Box.GetExtent();
+
+			const FVector NavModBoxOrigin = FTransform(ComponentBounds[Idx].Quat).InverseTransformPosition(BoxOrigin);
+			ComponentBounds[Idx].Box = FBox::BuildAABB(NavModBoxOrigin, BoxExtent);
 		}
 	}
 }

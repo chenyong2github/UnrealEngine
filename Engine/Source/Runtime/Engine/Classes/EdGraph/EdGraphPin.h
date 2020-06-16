@@ -377,6 +377,9 @@ public:
 	/** If true, the pin is displayed as ref. This is transient. */
 	uint8 bDisplayAsMutableRef:1;
 
+	/** If true, the pin's name will be allowed to be made friendly by the editor. */
+	uint8 bAllowFriendlyName:1;
+
 	/** 
 	* If true, this pin existed on an older version of the owning node, but when the node was reconstructed a matching pin was not found.
 	* This pin must be linked to other pins or have a non-default value and will be removed if disconnected, reset to default, or the node is refreshed.
@@ -552,6 +555,7 @@ public:
 		bDefaultValueIsIgnored = false;
 		bOrphanedPin = false;
 		bSavePinIfOrphaned = true;
+		bAllowFriendlyName = true;
 #endif // WITH_EDITORONLY_DATA
 	}
 

@@ -199,6 +199,11 @@ namespace UnrealBuildTool
 		public string ModuleType;
 
 		/// <summary>
+		/// Overridden package module type to add more flags
+		/// </summary>
+		public string OverrideModuleType;
+
+		/// <summary>
 		/// Public UObject headers found in the Classes directory (legacy)
 		/// </summary>
 		public List<FileItem> PublicUObjectClassesHeaders;
@@ -233,12 +238,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bIsReadOnly;
 
-		public UHTModuleInfo(string ModuleName, FileReference ModuleRulesFile, DirectoryReference[] ModuleDirectories, UHTModuleType ModuleType, DirectoryItem GeneratedCodeDirectory, EGeneratedCodeVersion GeneratedCodeVersion, bool bIsReadOnly)
+		public UHTModuleInfo(string ModuleName, FileReference ModuleRulesFile, DirectoryReference[] ModuleDirectories, UHTModuleType ModuleType, DirectoryItem GeneratedCodeDirectory, EGeneratedCodeVersion GeneratedCodeVersion, bool bIsReadOnly, ModuleRules.PackageOverrideType OverrideType)
 		{
 			this.ModuleName = ModuleName;
 			this.ModuleRulesFile = ModuleRulesFile;
 			this.ModuleDirectories = ModuleDirectories;
 			this.ModuleType = ModuleType.ToString();
+			this.OverrideModuleType = OverrideType.ToString();
 			this.PublicUObjectClassesHeaders = new List<FileItem>();
 			this.PublicUObjectHeaders = new List<FileItem>();
 			this.PrivateUObjectHeaders = new List<FileItem>();
@@ -253,6 +259,7 @@ namespace UnrealBuildTool
 			ModuleRulesFile = Reader.ReadFileReference();
 			ModuleDirectories = Reader.ReadArray<DirectoryReference>(Reader.ReadDirectoryReference);
 			ModuleType = Reader.ReadString();
+			OverrideModuleType = Reader.ReadString();
 			PublicUObjectClassesHeaders = Reader.ReadList(() => Reader.ReadFileItem());
 			PublicUObjectHeaders = Reader.ReadList(() => Reader.ReadFileItem());
 			PrivateUObjectHeaders = Reader.ReadList(() => Reader.ReadFileItem());
@@ -268,6 +275,7 @@ namespace UnrealBuildTool
 			Writer.WriteFileReference(ModuleRulesFile);
 			Writer.WriteArray<DirectoryReference>(ModuleDirectories, Writer.WriteDirectoryReference);
 			Writer.WriteString(ModuleType);
+			Writer.WriteString(OverrideModuleType);
 			Writer.WriteList(PublicUObjectClassesHeaders, Item => Writer.WriteFileItem(Item));
 			Writer.WriteList(PublicUObjectHeaders, Item => Writer.WriteFileItem(Item));
 			Writer.WriteList(PrivateUObjectHeaders, Item => Writer.WriteFileItem(Item));
@@ -316,6 +324,7 @@ namespace UnrealBuildTool
 		{
 			public string Name;
 			public string ModuleType;
+			public string OverrideModuleType;
 			public string BaseDirectory;
 			public string IncludeBase;     // The include path which all UHT-generated includes should be relative to
 			public string OutputDirectory;
@@ -330,6 +339,7 @@ namespace UnrealBuildTool
 			{
 				Name = Info.ModuleName;
 				ModuleType = Info.ModuleType;
+				OverrideModuleType = Info.OverrideModuleType;
 				BaseDirectory = Info.ModuleDirectories[0].FullName;
 				IncludeBase = Info.ModuleDirectories[0].ParentDirectory.FullName;
 				OutputDirectory = Path.GetDirectoryName(Info.GeneratedCPPFilenameBase);
@@ -577,7 +587,7 @@ namespace UnrealBuildTool
 				{
 					UEBuildModuleCPP Module = ModulesSortedByType[Idx];
 
-					UHTModuleInfo Info = new UHTModuleInfo(Module.Name, Module.RulesFile, Module.ModuleDirectories, ModuleToType[Module], DirectoryItem.GetItemByDirectoryReference(Module.GeneratedCodeDirectory), GeneratedCodeVersion, Module.Rules.bUsePrecompiled);
+					UHTModuleInfo Info = new UHTModuleInfo(Module.Name, Module.RulesFile, Module.ModuleDirectories, ModuleToType[Module], DirectoryItem.GetItemByDirectoryReference(Module.GeneratedCodeDirectory), GeneratedCodeVersion, Module.Rules.bUsePrecompiled, Module.Rules.OverridePackageType);
 					ModuleInfoArray[Idx] = Info;
 
 					Queue.Enqueue(() => SetupUObjectModule(Info, ExcludedFolders, MetadataCache, Queue));

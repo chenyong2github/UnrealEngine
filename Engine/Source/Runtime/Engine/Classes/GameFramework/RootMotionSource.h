@@ -836,7 +836,7 @@ struct ENGINE_API FRootMotionSourceGroup
 
 	/** Apply a RootMotionSource to this Group 
 	 *  @return LocalID for this RMS */
-	uint16 ApplyRootMotionSource(FRootMotionSource* SourcePtr);
+	uint16 ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr);
 
 	/** Get a RootMotionSource from this Group by name */
 	TSharedPtr<FRootMotionSource> GetRootMotionSource(FName InstanceName);

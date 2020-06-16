@@ -52,6 +52,13 @@ UUserDefinedStruct::UUserDefinedStruct(const FObjectInitializer& ObjectInitializ
 	DefaultStructInstance.SetPackage(GetOutermost());
 }
 
+void UUserDefinedStruct::PrepareCppStructOps()
+{
+	// User structs can never have struct ops, this stops it from incorrectly assigning a native struct of the same raw name to this user struct
+	CppStructOps = nullptr;
+	bPrepareCppStructOpsCompleted = true;
+}
+
 void UUserDefinedStruct::Serialize(FStructuredArchive::FRecord Record)
 {
 	Super::Serialize(Record);

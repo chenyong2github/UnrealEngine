@@ -20,7 +20,7 @@ void FAnalogController::Initialize()
 	static const FName nDisplayClusterInputCategoryName(TEXT("nDisplayAnalogs"));
 	EKeys::AddMenuCategoryDisplayInfo(nDisplayClusterInputCategoryName, LOCTEXT("nDisplayInputSubCateogry", "nDisplay"), TEXT("GraphEditor.KeyEvent_16x"));
 
-	uint8 Flags = FKeyDetails::GamepadKey | FKeyDetails::FloatAxis;
+	uint8 Flags = FKeyDetails::GamepadKey | FKeyDetails::Axis1D;
 
 	for (int32 idx = 0; idx < FAnalogKey::TotalCount; ++idx)
 	{

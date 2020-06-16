@@ -352,7 +352,9 @@ EReimportResult::Type UCSVImportFactory::ReimportCSV(UObject* Obj)
 	}
 	else if (UDataTable* DataTable = Cast<UDataTable>(Obj))
 	{
+		FDataTableEditorUtils::BroadcastPreChange(DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 		Result = Reimport(DataTable, DataTable->AssetImportData->GetFirstFilename());
+		FDataTableEditorUtils::BroadcastPostChange(DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 	}
 	return Result;
 }
@@ -463,9 +465,7 @@ EReimportResult::Type UReimportDataTableFactory::Reimport( UObject* Obj )
 	EReimportResult::Type Result = EReimportResult::Failed;
 	if (UDataTable* DataTable = Cast<UDataTable>(Obj))
 	{
-		FDataTableEditorUtils::BroadcastPreChange(DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 		Result = UCSVImportFactory::ReimportCSV(DataTable) ? EReimportResult::Succeeded : EReimportResult::Failed;
-		FDataTableEditorUtils::BroadcastPostChange(DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 	}
 	return Result;
 }

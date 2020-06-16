@@ -113,6 +113,8 @@ const FName FBlueprintMetadata::MD_IgnoreCategoryKeywordsInSubclasses(TEXT("Igno
 
 const FName FBlueprintMetadata::MD_Protected(TEXT("BlueprintProtected"));
 const FName FBlueprintMetadata::MD_Latent(TEXT("Latent"));
+const FName FBlueprintMetadata::MD_CustomThunkTemplates(TEXT("CustomThunkTemplates"));
+const FName FBlueprintMetadata::MD_CustomThunk(TEXT("CustomThunk"));
 const FName FBlueprintMetadata::MD_Variadic(TEXT("Variadic"));
 const FName FBlueprintMetadata::MD_UnsafeForConstructionScripts(TEXT("UnsafeDuringActorConstruction"));
 const FName FBlueprintMetadata::MD_FunctionCategory(TEXT("Category"));
@@ -128,6 +130,7 @@ const FName FBlueprintMetadata::MD_PropertySetFunction(TEXT("BlueprintSetter"));
 
 const FName FBlueprintMetadata::MD_ExposeOnSpawn(TEXT("ExposeOnSpawn"));
 const FName FBlueprintMetadata::MD_HideSelfPin(TEXT("HideSelfPin"));
+const FName FBlueprintMetadata::MD_HidePin(TEXT("HidePin"));
 const FName FBlueprintMetadata::MD_DefaultToSelf(TEXT("DefaultToSelf"));
 const FName FBlueprintMetadata::MD_WorldContext(TEXT("WorldContext"));
 const FName FBlueprintMetadata::MD_CallableWithoutWorldContext(TEXT("CallableWithoutWorldContext"));
@@ -139,7 +142,7 @@ const FName FBlueprintMetadata::MD_Private(TEXT("BlueprintPrivate"));
 
 const FName FBlueprintMetadata::MD_BlueprintInternalUseOnly(TEXT("BlueprintInternalUseOnly"));
 const FName FBlueprintMetadata::MD_NeedsLatentFixup(TEXT("NeedsLatentFixup"));
-
+const FName FBlueprintMetadata::MD_LatentInfo(TEXT("LatentInfo"));
 const FName FBlueprintMetadata::MD_LatentCallbackTarget(TEXT("LatentCallbackTarget"));
 const FName FBlueprintMetadata::MD_AllowPrivateAccess(TEXT("AllowPrivateAccess"));
 
@@ -164,9 +167,12 @@ const FName FBlueprintMetadata::MD_DataTablePin(TEXT("DataTablePin"));
 
 const FName FBlueprintMetadata::MD_NativeMakeFunction(TEXT("HasNativeMake"));
 const FName FBlueprintMetadata::MD_NativeBreakFunction(TEXT("HasNativeBreak"));
+const FName FBlueprintMetadata::MD_NativeDisableSplitPin(TEXT("DisableSplitPin"));
 
 const FName FBlueprintMetadata::MD_DynamicOutputType(TEXT("DeterminesOutputType"));
 const FName FBlueprintMetadata::MD_DynamicOutputParam(TEXT("DynamicOutputParam"));
+
+const FName FBlueprintMetadata::MD_CustomStructureParam(TEXT("CustomStructureParam"));
 
 const FName FBlueprintMetadata::MD_ArrayParam(TEXT("ArrayParm"));
 const FName FBlueprintMetadata::MD_ArrayDependentParam(TEXT("ArrayTypeDependentParams"));
@@ -1308,7 +1314,12 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 
 	if (bCanSplit)
 	{
-		if (UScriptStruct* StructType = Cast<UScriptStruct>(InGraphPin->PinType.PinSubCategoryObject.Get()))
+		UScriptStruct* StructType = Cast<UScriptStruct>(InGraphPin->PinType.PinSubCategoryObject.Get());
+
+		// Check if the user has explicitly disabled split pins
+		const bool bDisableSplit = StructType ? StructType->HasMetaData(FBlueprintMetadata::MD_NativeDisableSplitPin) : false;
+
+		if (StructType && !bDisableSplit)
 		{
 			if (InGraphPin->Direction == EGPD_Input)
 			{
@@ -1316,8 +1327,8 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				if (!bCanSplit)
 				{
 					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);
-					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
-					bCanSplit = (Function != NULL);
+					UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
+					bCanSplit = (Function != nullptr);
 				}
 			}
 			else
@@ -1326,8 +1337,8 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				if (!bCanSplit)
 				{
 					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeBreakFunction);
-					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
-					bCanSplit = (Function != NULL);
+					UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
+					bCanSplit = (Function != nullptr);
 				}
 			}
 		}
@@ -3166,7 +3177,7 @@ FText UEdGraphSchema_K2::GetPinDisplayName(const UEdGraphPin* Pin) const
 			}
 		}
 
-		if( GEditor && GetDefault<UEditorStyleSettings>()->bShowFriendlyNames )
+		if( GEditor && GetDefault<UEditorStyleSettings>()->bShowFriendlyNames && Pin->bAllowFriendlyName )
 		{
 			DisplayName = FText::FromString(FName::NameToDisplayString(DisplayName.ToString(), Pin->PinType.PinCategory == PC_Boolean));
 		}
@@ -5241,6 +5252,7 @@ namespace FSetVariableByNameFunctionNames
 	static const FName SetVectorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetVectorPropertyByName));
 	static const FName SetRotatorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetRotatorPropertyByName));
 	static const FName SetLinearColorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetLinearColorPropertyByName));
+	static const FName SetColorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetColorPropertyByName));
 	static const FName SetTransformName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetTransformPropertyByName));
 	static const FName SetCollisionProfileName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetCollisionProfileNameProperty));
 	static const FName SetStructureName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetStructurePropertyByName));
@@ -5342,7 +5354,7 @@ UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinTyp
 	}
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinType.PinSubCategoryObject == ColorStruct)
 	{
-		SetFunctionName = FSetVariableByNameFunctionNames::SetLinearColorName;
+		SetFunctionName = FSetVariableByNameFunctionNames::SetColorName;
 	}
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinType.PinSubCategoryObject == TransformStruct)
 	{

@@ -194,8 +194,6 @@ void UEditorExperimentalSettings::PostInitProperties()
 
 void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
 {
-	static const FName NAME_EQS = GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEQSEditor);
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName Name = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
@@ -203,13 +201,6 @@ void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChange
 	if (Name == FName(TEXT("ConsoleForGamepadLabels")))
 	{
 		EKeys::SetConsoleForGamepadLabels(ConsoleForGamepadLabels);
-	}
-	else if (Name == NAME_EQS)
-	{
-		if (bEQSEditor)
-		{
-			FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
-		}
 	}
 	else if (Name == FName(TEXT("bHDREditor")))
 	{
@@ -924,21 +915,6 @@ UProjectPackagingSettings::UProjectPackagingSettings( const FObjectInitializer& 
 
 void UProjectPackagingSettings::PostInitProperties()
 {
-	// Migrate from deprecated Blueprint nativization packaging flags.
-	// Note: This assumes that LoadConfig() has been called before getting here.
-	FString NewValue;
-	const FString ConfigFileName = UProjectPackagingSettings::StaticClass()->GetConfigName();
-	const FString ClassSectionName = UProjectPackagingSettings::StaticClass()->GetPathName();
-	const bool bIgnoreOldFlags = GConfig->GetString(*ClassSectionName, GET_MEMBER_NAME_STRING_CHECKED(UProjectPackagingSettings, BlueprintNativizationMethod), NewValue, ConfigFileName);
-	if (!bIgnoreOldFlags && bNativizeBlueprintAssets_DEPRECATED)
-	{
-		BlueprintNativizationMethod = bNativizeOnlySelectedBlueprints_DEPRECATED ? EProjectPackagingBlueprintNativizationMethod::Exclusive : EProjectPackagingBlueprintNativizationMethod::Inclusive;
-	}
-
-	// Reset deprecated settings to defaults.
-	bNativizeBlueprintAssets_DEPRECATED = false;
-	bNativizeOnlySelectedBlueprints_DEPRECATED = false;
-
 	// Build code projects by default
 	Build = EProjectPackagingBuild::IfProjectHasCode;
 

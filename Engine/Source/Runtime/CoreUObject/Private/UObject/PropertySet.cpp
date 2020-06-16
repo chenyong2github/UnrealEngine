@@ -790,7 +790,6 @@ void FSetProperty::InstanceSubobjects(void* Data, void const* DefaultData, UObje
 	if (DefaultData)
 	{
 		FScriptSetHelper DefaultSetHelper(this, DefaultData);
-		const int32 DefaultNum = DefaultSetHelper.Num();
 
 		for (int32 Index = 0, Num = SetHelper.Num(); Num; ++Index)
 		{

@@ -81,6 +81,21 @@ FString UKismetSystemLibrary::GetPathName(const UObject* Object)
 	return GetPathNameSafe(Object);
 }
 
+FString UKismetSystemLibrary::GetSystemPath(const UObject* Object)
+{
+	if (Object && Object->IsAsset())
+	{
+		FString PackageFileName;
+		FString PackageFile;
+		if (FPackageName::TryConvertLongPackageNameToFilename(Object->GetPackage()->GetName(), PackageFileName) &&
+			FPackageName::FindPackageFileWithoutExtension(PackageFileName, PackageFile))
+		{
+			return FPaths::ConvertRelativePathToFull(MoveTemp(PackageFile));
+		}
+	}
+	return FString();
+}
+
 FString UKismetSystemLibrary::GetDisplayName(const UObject* Object)
 {
 #if WITH_EDITOR
@@ -1156,14 +1171,27 @@ void UKismetSystemLibrary::SetRotatorPropertyByName(UObject* Object, FName Prope
 
 void UKismetSystemLibrary::SetLinearColorPropertyByName(UObject* Object, FName PropertyName, const FLinearColor& Value)
 {
-	if(Object != NULL)
+	if(Object != nullptr)
 	{
-		UScriptStruct* ColorStruct = TBaseStructure<FLinearColor>::Get();
-		FStructProperty* ColorProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
-		if(ColorProp != NULL && ColorProp->Struct == ColorStruct)
+		UScriptStruct* LinearColorStruct = TBaseStructure<FLinearColor>::Get();
+		FStructProperty* LinearColorProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
+		if(LinearColorProp != nullptr && LinearColorProp->Struct == LinearColorStruct)
 		{
-			*ColorProp->ContainerPtrToValuePtr<FLinearColor>(Object) = Value;
+			*LinearColorProp->ContainerPtrToValuePtr<FLinearColor>(Object) = Value;
 		}		
+	}
+}
+
+void UKismetSystemLibrary::SetColorPropertyByName(UObject* Object, FName PropertyName, const FColor& Value)
+{
+	if (Object != nullptr)
+	{
+		UScriptStruct* ColorStruct = TBaseStructure<FColor>::Get();
+		FStructProperty* ColorProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
+		if (ColorProp != nullptr && ColorProp->Struct == ColorStruct)
+		{
+			*ColorProp->ContainerPtrToValuePtr<FColor>(Object) = Value;
+		}
 	}
 }
 

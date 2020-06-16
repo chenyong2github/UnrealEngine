@@ -550,7 +550,7 @@ struct FInputAxisKeyBinding : public FInputBinding
 		, AxisValue(0.f)
 		, AxisKey(InAxisKey)
 	{
-		ensure(AxisKey.IsFloatAxis());
+		ensure(AxisKey.IsAxis1D());
 	}
 };
 
@@ -612,7 +612,7 @@ struct FInputVectorAxisBinding : public FInputBinding
 		: FInputBinding()
 		, AxisKey(InAxisKey)
 	{
-		ensure(AxisKey.IsVectorAxis());
+		ensure(AxisKey.IsAxis2D() || AxisKey.IsAxis3D());
 	}
 };
 
@@ -1061,6 +1061,8 @@ private:
 	/** Retrieves the X and Y displacement of the given analog stick.  For WhickStick, 0 = left, 1 = right. */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.GetInputAnalogStickState instead."))
 	void GetControllerAnalogStickState(EControllerAnalogStick::Type WhichStick, float& StickX, float& StickY) const;
+
+	friend class UEnhancedInputComponent;	// TEMP: Support for ongoing input rework
 };
 
 struct FGetActionsBoundToKey
