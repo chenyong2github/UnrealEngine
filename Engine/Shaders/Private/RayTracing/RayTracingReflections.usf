@@ -333,9 +333,11 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	// * Hair material is not for RT reflection at the moment. Their indirect contributuion is based on diffuse SH evaluation in ReflectionEnvironemenPixelShader.usf
 	// * Unlit materials do not participate in lighting computations, results are unused.
 	bool bIsValidPixel = (RoughnessFade > 0 || ClearCoatRoughnessFade > 0) && GBufferData.ShadingModelID != SHADINGMODELID_HAIR && GBufferData.ShadingModelID != SHADINGMODELID_UNLIT;
+
 	if (ShouldReflectOnlyWater)
 	{
-		bIsValidPixel = bIsValidPixel && (GBufferData.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER);
+		// Cull underwater reflections
+		bIsValidPixel = bIsValidPixel && GBufferData.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER && dot(GBufferData.WorldNormal, CameraDirection) < 0.0;
 	}
 
     const uint LocalMaxBounces = DIM_HYBRID ? 1 : MaxBounces;
