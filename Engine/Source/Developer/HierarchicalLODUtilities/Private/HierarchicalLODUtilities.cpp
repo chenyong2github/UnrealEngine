@@ -194,15 +194,31 @@ UHLODProxy* FHierarchicalLODUtilities::RetrieveLevelHLODProxy(const ULevel* InLe
 	checkf(InLevel != nullptr, TEXT("Invalid Level supplied"));
 	FString HLODProxyName;
 	const FString HLODLevelPackageName = GetHLODPackageName(InLevel, HLODLevelIndex, HLODProxyName);
-	UPackage* HLODPackage = LoadPackage(nullptr, *HLODLevelPackageName, ELoadFlags::LOAD_NoWarn);
+
+	// Find the package in memory. 
+	UPackage* HLODPackage = FindPackage(nullptr, *HLODLevelPackageName);
 	if(HLODPackage)
 	{
 		HLODPackage->FullyLoad();
-		HLODPackage->SetPackageFlags(PKG_ContainsMapData);	// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
-		return FindObject<UHLODProxy>(HLODPackage, *HLODProxyName);
+	}
+	else
+	{
+		// If it is not in memory, try to load it.
+		FString PackageFilename;
+		if (FPackageName::DoesPackageExist(HLODLevelPackageName, nullptr, &PackageFilename))
+		{
+			HLODPackage = LoadPackage(nullptr, *PackageFilename, LOAD_None);
+		}
 	}
 
-	return nullptr;
+	UHLODProxy* HLODProxy = nullptr;
+	if(HLODPackage)
+	{
+		HLODPackage->SetPackageFlags(PKG_ContainsMapData);	// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
+		HLODProxy = FindObject<UHLODProxy>(HLODPackage, *HLODProxyName);
+	}
+
+	return HLODProxy;
 }
 
 UPackage* FHierarchicalLODUtilities::RetrieveLevelHLODPackage(const ULevel* InLevel, const uint32 HLODLevelIndex)
