@@ -48,8 +48,7 @@ namespace ChaosTest {
 
 		Solver->PushPhysicsState(Module->GetDispatcher());
 
-		FPhysicsSolverAdvanceTask AdvanceTask(Solver, 100.0f);
-		AdvanceTask.DoTask(ENamedThreads::GameThread, FGraphEventRef());
+		Solver->AdvanceAndDispatch_External(100.0f);
 
 		Solver->BufferPhysicsResults();
 		Solver->FlipBuffers();
@@ -105,8 +104,9 @@ namespace ChaosTest {
 			Solver->PushPhysicsState(Module->GetDispatcher()); 
 
 			// This might not be the correct way to advance when using the TaskGraph.
-			FPhysicsSolverAdvanceTask AdvanceTask(Solver, 100.0f);
-			AdvanceTask.DoTask(ENamedThreads::GameThread, FGraphEventRef());
+			//TODO: use event returned
+			Solver->AdvanceAndDispatch_External(100.0f);
+
 
 			Solver->BufferPhysicsResults();
 			Solver->FlipBuffers();
@@ -169,8 +169,7 @@ namespace ChaosTest {
 		int32 LoopCount = 0;
 		while (Particle2->GetWakeEvent() == EWakeEventEntry::None && LoopCount++ < 20)
 		{
-			FPhysicsSolverAdvanceTask AdvanceTask(Solver, 100.0f);
-			AdvanceTask.DoTask(ENamedThreads::GameThread, FGraphEventRef());
+			Solver->AdvanceAndDispatch_External(100.0f);
 
 			Solver->BufferPhysicsResults();
 			Solver->FlipBuffers();

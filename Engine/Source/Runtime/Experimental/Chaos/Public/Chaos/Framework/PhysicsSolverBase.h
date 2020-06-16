@@ -26,16 +26,17 @@ namespace Chaos
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase* InSolver, FReal InDt);
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, FReal InDt);
 
 		TStatId GetStatId() const;
 		static ENamedThreads::Type GetDesiredThread();
 		static ESubsequentsMode::Type GetSubsequentsMode();
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+		static void AdvanceSolver(FPhysicsSolverBase& Solver,TArray<TFunction<void()>>&& Queue,const FReal Dt);
 
 	private:
 
-		FPhysicsSolverBase* Solver;
+		FPhysicsSolverBase& Solver;
 		TArray<TFunction<void()>> Queue;
 		FReal Dt;
 	};
@@ -312,16 +313,31 @@ namespace Chaos
 			}
 		}
 
+		EThreadingModeTemp GetThreadingMode() const
+		{
+			return ThreadingMode;
+		}
+
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
 		{
 			//todo: handle dt etc..
-			FGraphEventArray Prereqs;
-			if(PendingTasks && !PendingTasks->IsComplete())
+			if(ThreadingMode == EThreadingModeTemp::SingleThread)
 			{
-				Prereqs.Add(PendingTasks);
+				ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
+				ensure(CommandQueue.Num() == 0);	//commands execute right away. Once we add fixed dt this will change
+				FPhysicsSolverAdvanceTask::AdvanceSolver(*this, MoveTemp(CommandQueue),InDt);
+			}
+			else
+			{
+				FGraphEventArray Prereqs;
+				if(PendingTasks && !PendingTasks->IsComplete())
+				{
+					Prereqs.Add(PendingTasks);
+				}
+
+				PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue),InDt);
 			}
 
-			PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(this,InDt);
 			return PendingTasks;
 		}
 
@@ -406,7 +422,6 @@ namespace Chaos
 		FRWLock QueryMaterialLock;
 
 		friend FChaosSolversModule;
-		friend FPersistentPhysicsTask;
 		friend FPhysicsSolverAdvanceTask;
 
 		template<ELockType>

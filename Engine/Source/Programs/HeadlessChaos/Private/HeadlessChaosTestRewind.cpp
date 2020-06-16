@@ -24,8 +24,7 @@ namespace ChaosTest {
 	void TickSolverHelper(FChaosSolversModule* Module, TSolver* Solver, FReal Dt = 1.0)
 	{
 		Solver->PushPhysicsState(Module->GetDispatcher());
-		FPhysicsSolverAdvanceTask AdvanceTask(Solver,Dt);
-		AdvanceTask.DoTask(ENamedThreads::GameThread,FGraphEventRef());
+		Solver->AdvanceAndDispatch_External(Dt);
 		Solver->BufferPhysicsResults();
 		Solver->FlipBuffers();
 		Solver->UpdateGameThreadStructures();
