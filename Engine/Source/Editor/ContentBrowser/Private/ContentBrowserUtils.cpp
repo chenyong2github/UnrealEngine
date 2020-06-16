@@ -521,7 +521,7 @@ void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilte
 		FContentBrowserDataPackageFilter& PackageFilter = OutDataFilter.ExtraFilters.FindOrAddFilter<FContentBrowserDataPackageFilter>();
 		PackageFilter.PackageNamesToInclude = InAssetFilter.PackageNames;
 		PackageFilter.PackagePathsToInclude = InAssetFilter.PackagePaths;
-		PackageFilter.bRecursivePackagePaths = InAssetFilter.bRecursivePaths;
+		PackageFilter.bRecursivePackagePathsToInclude = InAssetFilter.bRecursivePaths;
 		PackageFilter.PathBlacklist = InFolderBlacklist;
 	}
 
@@ -529,14 +529,11 @@ void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilte
 	{
 		FContentBrowserDataClassFilter& ClassFilter = OutDataFilter.ExtraFilters.FindOrAddFilter<FContentBrowserDataClassFilter>();
 		ClassFilter.ClassNamesToInclude = InAssetFilter.ClassNames;
+		ClassFilter.bRecursiveClassNamesToInclude = InAssetFilter.bRecursiveClasses;
 		if (InAssetFilter.bRecursiveClasses)
 		{
 			ClassFilter.ClassNamesToExclude = InAssetFilter.RecursiveClassesExclusionSet.Array();
-			ClassFilter.bRecursiveClassNames = InAssetFilter.bRecursiveClasses;
-		}
-		else
-		{
-			ClassFilter.bRecursiveClassNames = false;
+			ClassFilter.bRecursiveClassNamesToExclude = false;
 		}
 		ClassFilter.ClassBlacklist = InAssetClassBlacklist;
 	}
